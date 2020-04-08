@@ -148,8 +148,8 @@ if( ${YCSB} )
 endif()
 
 # Keep these lines--we need them in release branches
-set( HSE_VERSION_MAJOR 0 )
-set( HSE_VERSION_MINOR 0 )
+set( HSE_VERSION_MAJOR 1 )
+set( HSE_VERSION_MINOR 7 )
 set( HSE_VERSION_PATCH 0 )
 
 #
