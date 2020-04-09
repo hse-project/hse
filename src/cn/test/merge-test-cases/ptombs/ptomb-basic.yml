@@ -1,0 +1,59 @@
+_meta:
+  group: ptomb
+  horizon: 1
+  name: ptomb-basic
+  pfx_len: 3
+input_kvsets:
+- - - k_1
+    - - - 2
+        - pt
+        - p_kvset_0_key_0
+  - - k_101
+    - - - 1
+        - v
+        - v_kvset_0_key_0
+  - - k_202
+    - - - 3
+        - v
+        - v_kvset_0_key_1
+- - - k_202
+    - - - 3
+        - v
+        - v_kvset_1_key_0_DUP
+  - - k_203
+    - - - 3
+        - v
+        - v_kvset_1_key_1
+- - - k_203
+    - - - 3
+        - v
+        - v_kvset_2_key_0_DUP
+  - - k_204
+    - - - 3
+        - v
+        - v_kvset_2_key_1
+- - - k_204
+    - - - 3
+        - v
+        - v_kvset_3_key_0_DUP
+output_kvset:
+- - k_1
+  - - - 2
+      - pt
+      - p_kvset_0_key_0
+- - k_101
+  - - - 1
+      - v
+      - v_kvset_0_key_0
+- - k_202
+  - - - 3
+      - v
+      - v_kvset_0_key_1
+- - k_203
+  - - - 3
+      - v
+      - v_kvset_1_key_1
+- - k_204
+  - - - 3
+      - v
+      - v_kvset_2_key_1

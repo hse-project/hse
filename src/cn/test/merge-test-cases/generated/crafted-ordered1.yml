@@ -1,0 +1,101 @@
+_meta:
+  group: crafted
+  name: ordered1
+input_kvsets:
+- - - k_00000001
+    - - - 1
+        - v
+        - v_kvset_0_key_0
+  - - k_00000002
+    - - - 1
+        - v
+        - v_kvset_0_key_1
+  - - k_00000003
+    - - - 1
+        - v
+        - v_kvset_0_key_2
+  - - k_00000004
+    - - - 1
+        - v
+        - v_kvset_0_key_3
+- - - k_00000005
+    - - - 1
+        - v
+        - v_kvset_1_key_0
+  - - k_00000006
+    - - - 1
+        - v
+        - v_kvset_1_key_1
+  - - k_00000007
+    - - - 1
+        - v
+        - v_kvset_1_key_2
+  - - k_00000008
+    - - - 1
+        - v
+        - v_kvset_1_key_3
+- - - k_00000009
+    - - - 1
+        - v
+        - v_kvset_2_key_0
+  - - k_0000000a
+    - - - 1
+        - v
+        - v_kvset_2_key_1
+  - - k_0000000b
+    - - - 1
+        - v
+        - v_kvset_2_key_2
+  - - k_0000000c
+    - - - 1
+        - v
+        - v_kvset_2_key_3
+output_kvset:
+- - k_00000001
+  - - - 1
+      - v
+      - v_kvset_0_key_0
+- - k_00000002
+  - - - 1
+      - v
+      - v_kvset_0_key_1
+- - k_00000003
+  - - - 1
+      - v
+      - v_kvset_0_key_2
+- - k_00000004
+  - - - 1
+      - v
+      - v_kvset_0_key_3
+- - k_00000005
+  - - - 1
+      - v
+      - v_kvset_1_key_0
+- - k_00000006
+  - - - 1
+      - v
+      - v_kvset_1_key_1
+- - k_00000007
+  - - - 1
+      - v
+      - v_kvset_1_key_2
+- - k_00000008
+  - - - 1
+      - v
+      - v_kvset_1_key_3
+- - k_00000009
+  - - - 1
+      - v
+      - v_kvset_2_key_0
+- - k_0000000a
+  - - - 1
+      - v
+      - v_kvset_2_key_1
+- - k_0000000b
+  - - - 1
+      - v
+      - v_kvset_2_key_2
+- - k_0000000c
+  - - - 1
+      - v
+      - v_kvset_2_key_3

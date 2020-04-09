@@ -1,0 +1,155 @@
+/* SPDX-License-Identifier: Apache-2.0 */
+/*
+ * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ */
+
+#undef COMPNAME
+#define COMPNAME "test"
+
+#include <hse_ut/framework.h>
+
+#include <hse_util/hash.h>
+#include <hse_util/hse_err.h>
+
+MTF_MODULE_UNDER_TEST(hse_platform);
+
+MTF_BEGIN_UTEST_COLLECTION(hash_test);
+
+MTF_DEFINE_UTEST(hash_test, DoesAnything)
+{
+    const char *buf1 = "The cow jumped over the moon";
+    const char *buf2 = "Now just wait a minute";
+    u32         val1, val2;
+    u64         val3, val4;
+
+    val1 = hse_hash32(buf1, strlen(buf1));
+    val2 = hse_hash32(buf2, strlen(buf2));
+    ASSERT_NE(val1, val2);
+
+    val3 = hse_hash64(buf1, strlen(buf1));
+    val4 = hse_hash64(buf2, strlen(buf2));
+    ASSERT_NE(val3, val4);
+}
+
+MTF_DEFINE_UTEST(hash_test, RepeatableBasic)
+{
+    const char *buf1 = "Wilbur! Wilbur!";
+    const char *buf2 = "Now, that just ain't right.";
+    u32         val1, val2;
+
+    val1 = hse_hash32(buf1, strlen(buf1));
+    val2 = hse_hash32(buf1, strlen(buf1));
+    ASSERT_EQ(val1, val2);
+
+    val1 = hse_hash32(buf2, strlen(buf2));
+    val2 = hse_hash32(buf2, strlen(buf2));
+    ASSERT_EQ(val1, val2);
+}
+
+MTF_DEFINE_UTEST(hash_test, RepeatableEmpty)
+{
+    const char *buf1 = "";
+    u32         val1, val2;
+
+    val1 = hse_hash32(buf1, strlen(buf1));
+    val2 = hse_hash32(buf1, strlen(buf1));
+    ASSERT_EQ(val1, val2);
+}
+
+MTF_DEFINE_UTEST(hash_test, FanoutDistribution)
+{
+    int  d1[8] = { 0 }, d2[8] = { 0 }, d3[8] = { 0 };
+    char buf[3] = { 0, 0, 1 };
+    u64  h;
+    int  i, j, n;
+
+    hse_openlog("hash", 1);
+
+    n = 0;
+    for (i = 0; i < 256; ++i) {
+        buf[1] = i;
+        for (j = 0; j < 256; ++j) {
+            buf[2] = j;
+            h = hse_hash64(buf, 3);
+            ++d1[(h >> 0) & 7];
+            ++d2[(h >> 3) & 7];
+            ++d3[(h >> 6) & 7];
+            ++n;
+        }
+    }
+
+    /* assert distribution is within 5% tolerance */
+    for (j = 0; j < 8; ++j)
+        ASSERT_TRUE(abs(d1[j] - n / 8) < (n / 8 / 20));
+
+    hse_log(HSE_INFO "freq distrib for 64k prefix values / cn tree levels");
+    for (i = 0; i < 8; ++i)
+        hse_log(HSE_INFO "%d: d1 %d  d2 %d  d3 %d", i, d1[i], d2[i], d3[i]);
+}
+
+MTF_DEFINE_UTEST(hash_test, hash_seed)
+{
+    const char str[] = "read me";
+    size_t     sz = sizeof(str);
+    u64        val1, val2;
+    s64        i;
+
+    val1 = hse_hash64(str, sz);
+    val2 = hse_hash64_seed(str, sz, HSE_HASH_SEED64);
+    ASSERT_EQ(val1, val2);
+
+    val1 = hse_hash64(str, sz);
+    val2 = hse_hash64_seed(str, sz, HSE_HASH_SEED64);
+    ASSERT_EQ(val1, val2);
+
+    for (i = 0; i < 1048576; ++i) {
+        val1 = hse_hash64_seed(str, sz, i);
+
+        val2 = hse_hash64_seed(str, sz, i + 1);
+        ASSERT_NE(val1, val2);
+
+        val2 = hse_hash64_seed(str, sz, i + 2);
+        ASSERT_NE(val1, val2);
+
+        val2 = hse_hash64_seed(str, sz, i + 3);
+        ASSERT_NE(val1, val2);
+
+        val2 = hse_hash64_seed(str, sz, i + -1);
+        ASSERT_NE(val1, val2);
+
+        val2 = hse_hash64_seed(str, sz, ~i);
+        ASSERT_NE(val1, val2);
+    }
+}
+
+MTF_DEFINE_UTEST(hash_test, split_key_test)
+{
+    const char *buf1 = "The cow jumped over the moon";
+    const char *buf2 = "Now just wait a darn minute. Is this sentence long enough?";
+    u64         single;
+    int         i;
+
+    /* buf 1 */
+    single = hse_hash64(buf1, strlen(buf1));
+    for (i = 0; i < strlen(buf1); i++) {
+        const char *p = buf1;
+        const char *s = buf1 + i;
+        u64         object = 0;
+
+        object = hse_hash64v(p, i, s, strlen(buf1) - i);
+        ASSERT_EQ(single, object);
+    }
+
+    /* buf 2 - length > 32 bytes */
+    single = hse_hash64(buf2, strlen(buf2));
+    for (i = 0; i < strlen(buf2); i++) {
+        const char *p = buf2;
+        const char *s = buf2 + i;
+        u64         object = 0;
+
+        object = hse_hash64v(p, i, s, strlen(buf2) - i);
+        ASSERT_EQ(single, object);
+    }
+}
+
+MTF_END_UTEST_COLLECTION(hash_test)

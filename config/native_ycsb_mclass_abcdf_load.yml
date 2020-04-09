@@ -1,0 +1,6 @@
+# Copyright (C) 2019 Micron Technology.  All rights reserved.
+# Workload: Native YCSB, with media classes, workloads ABCDF, load phase
+
+apiVersion: 1
+kvs:
+  pfx_len: 7

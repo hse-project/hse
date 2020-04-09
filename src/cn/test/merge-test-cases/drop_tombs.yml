@@ -1,0 +1,34 @@
+_meta:
+  horizon: 10
+  drop_tombs: true
+
+input_kvsets: [
+
+  # kvset_0
+  [ [ k01, [ [ 13, v, v01.13 ]]],
+    [ k03, [ [  9, v, v03.09 ],     # keep due to horizon
+             [  8, v, v03.08 ]]]],  # drop b/c seq 9 is final_val
+  # kvset_1
+  [ [ k01, [ [ 12, v, v01.12 ],     # keep (horizon)
+             [ 11, v, v01.11 ]]],   # keep (horizon)
+    [ k02, [ [ 12, v, v02.12 ]]],   # keep (horizon)
+    [ k04, [ [  9, t, v04.08 ]]]],
+
+  # kvset_2
+  [ [ k01, [ [ 10, t, v01.10 ], # drop (first one after horizon, but is a tombstone)
+             [  9, v, v01.09 ],
+             [  8, v, v01.08 ]]],
+    [ k02, [ [  9, t, v02.09 ], # drop (first one after horizon, but is a tombstone)
+             [  8, v, v02.08 ]]],
+    [ k03, [ [  1, v, v03.01 ]]],
+    [ k04, [ [  8, v, v04.08 ]]]], # drop (NODE_22 -> NODE_31)
+]
+
+output_kvset:
+  [ [ k01, [ [ 13, v, v01.13 ],
+             [ 12, v, v01.12 ],
+             [ 11, v, v01.11 ]]],
+
+    [ k02, [ [ 12, v, v02.12 ]]],
+
+    [ k03, [ [  9, v, v03.09 ]]]]

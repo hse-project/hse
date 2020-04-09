@@ -1,0 +1,10 @@
+# Copyright (C) 2019 Micron Technology.  All rights reserved.
+# Workload: Native YCSB, workload E, load phase
+#
+# The following parameters are experimental:
+#   cn_cursor_vra: cursor vblock madvise-ahead in bytes
+
+apiVersion: 1
+kvs:
+  pfx_len: 7
+  cn_cursor_vra: 0

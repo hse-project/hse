@@ -1,0 +1,81 @@
+#!/bin/sh
+
+: ${dir:=.}
+: ${CMAKE_STAGE_DIR?"not set"}
+: ${PUBLIC_HEADERS?"not set"}
+
+set -u
+set -e
+set -o pipefail
+
+outdir=$CMAKE_STAGE_DIR/include/
+target=$outdir/mapi_idx.h
+cksum_file=$outdir/mapi_idx.cksum
+
+test -d	$outdir	|| mkdir -p $outdir
+
+tmp=$outdir/tmp.mapi_idx_generate
+
+# exec >$tmp.debug 2>&1
+
+tmp_files="
+    $tmp.file_list
+    $tmp.debug
+    $tmp.cksum
+    $tmp.mapi_h
+"
+
+# Get a sorted list of input files
+find "$dir" -type f -name '*.h' -print0 | sort -z > "$tmp.file_list"
+find ${PUBLIC_HEADERS} -type f -name '*.h' -print0 | sort -z >> "$tmp.file_list"
+
+# Get cksum of contents of all input files
+if true; then
+    cat<<EOF
+# This file contains a checksum of all the input used to create
+# the following file:
+#   $target
+# It is used to avoid unnecessarily recreating the file, which takes a
+# noticeable amount of time when building with a source tree that is
+# already mostly built.
+EOF
+    xargs -0 cat < "$tmp.file_list" | cksum
+fi > "$tmp.cksum"
+
+# If the current directory contains a pre-existing output file (mapi_idx.h)
+# and a checksum file (mapi_idx.cksum), and the checksum matches the
+# just-computed checksum file, then no update needed.
+if [ -f "$target" -a  -f "$cksum_file" ]; then
+    if cmp "$cksum_file" "$tmp.cksum"; then
+        echo "mapi_idx checksums match, no update needed."
+        rm -f $tmp_files
+        exit 0
+    fi
+fi
+
+xargs -0 -n1 ./scripts/build/utpp -- -m < "$tmp.file_list" \
+    | sort -u \
+    | awk > "$tmp.mapi_h" '
+    BEGIN {
+        print "/* GENERATED FILE: DO NOT EDIT */"
+        print "#ifndef GEN_MAPI_IDX_H"
+        print "#define GEN_MAPI_IDX_H"
+        print "enum mapi_idx {"
+    }
+    {
+        print "\tmapi_idx_" $1 " = " cnt++ ","
+    }
+    END {
+        # intentionally anti-pattern, so does not hide any names
+        print "\tmax_mapi_idx = " cnt "\n};"
+        print "#endif"
+    }'
+
+if ! cmp "$tmp.mapi_h" "$target"; then
+    mv "$tmp.mapi_h" "$target"
+fi
+
+mv "$tmp.cksum"  "$cksum_file"
+rm -f $tmp_files
+
+exit 0

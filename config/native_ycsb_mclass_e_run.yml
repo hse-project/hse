@@ -1,0 +1,13 @@
+# Copyright (C) 2019 Micron Technology.  All rights reserved.
+# Workload: Native YCSB, with media classes, workload E, run phase
+#
+# The following parameters are experimental:
+#   csched_vb_scatter_pct: percent of vblock scatter in leaf nodes
+#   cn_cursor_vra: cursor vblock madvise-ahead in bytes
+
+apiVersion: 1
+kvdb:
+  csched_vb_scatter_pct: 1
+kvs:
+  pfx_len: 7
+  cn_cursor_vra: 0

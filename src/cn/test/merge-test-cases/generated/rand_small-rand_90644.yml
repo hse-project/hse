@@ -1,0 +1,226 @@
+_meta:
+  dup_percent: 2
+  group: rand_small
+  name: rand_90644
+  num_kvsets: 20
+  num_unique_keys: 18
+  seed: 90644
+input_kvsets:
+- - - k_00000005
+    - - - 1
+        - v
+        - v_kvset_0_key_0
+- []
+- []
+- - - k_0000000f
+    - - - 1
+        - v
+        - v_kvset_3_key_0
+- []
+- []
+- []
+- - - k_0000000a
+    - - - 1
+        - v
+        - v_kvset_7_key_0
+- - - k_0000000d
+    - - - 1
+        - v
+        - v_kvset_8_key_0
+- - - k_0000000d
+    - - - 1
+        - v
+        - v_kvset_9_key_0_DUP
+  - - k_0000000e
+    - - - 1
+        - v
+        - v_kvset_9_key_1
+- - - k_00000009
+    - - - 1
+        - v
+        - v_kvset_10_key_0
+- - - k_00000006
+    - - - 1
+        - v
+        - v_kvset_11_key_0
+  - - k_00000009
+    - - - 1
+        - v
+        - v_kvset_11_key_1_DUP
+  - - k_0000000e
+    - - - 1
+        - v
+        - v_kvset_11_key_2_DUP
+  - - k_0000000f
+    - - - 1
+        - v
+        - v_kvset_11_key_3_DUP
+- - - k_00000005
+    - - - 1
+        - v
+        - v_kvset_12_key_0_DUP
+  - - k_00000011
+    - - - 1
+        - v
+        - v_kvset_12_key_1
+  - - k_00000012
+    - - - 1
+        - v
+        - v_kvset_12_key_2
+- - - k_00000003
+    - - - 1
+        - v
+        - v_kvset_13_key_0
+  - - k_00000007
+    - - - 1
+        - v
+        - v_kvset_13_key_1
+- - - k_00000001
+    - - - 1
+        - v
+        - v_kvset_14_key_0
+  - - k_0000000b
+    - - - 1
+        - v
+        - v_kvset_14_key_1
+- - - k_00000008
+    - - - 1
+        - v
+        - v_kvset_15_key_0
+  - - k_0000000c
+    - - - 1
+        - v
+        - v_kvset_15_key_1
+- - - k_00000006
+    - - - 1
+        - v
+        - v_kvset_16_key_0_DUP
+  - - k_0000000a
+    - - - 1
+        - v
+        - v_kvset_16_key_1_DUP
+  - - k_0000000b
+    - - - 1
+        - v
+        - v_kvset_16_key_2_DUP
+  - - k_00000010
+    - - - 1
+        - v
+        - v_kvset_16_key_3
+- - - k_00000001
+    - - - 1
+        - v
+        - v_kvset_17_key_0_DUP
+  - - k_00000002
+    - - - 1
+        - v
+        - v_kvset_17_key_1
+  - - k_00000012
+    - - - 1
+        - v
+        - v_kvset_17_key_2_DUP
+- - - k_00000003
+    - - - 1
+        - v
+        - v_kvset_18_key_0_DUP
+  - - k_00000007
+    - - - 1
+        - v
+        - v_kvset_18_key_1_DUP
+  - - k_0000000c
+    - - - 1
+        - v
+        - v_kvset_18_key_2_DUP
+  - - k_00000011
+    - - - 1
+        - v
+        - v_kvset_18_key_3_DUP
+- - - k_00000002
+    - - - 1
+        - v
+        - v_kvset_19_key_0_DUP
+  - - k_00000004
+    - - - 1
+        - v
+        - v_kvset_19_key_1
+  - - k_00000008
+    - - - 1
+        - v
+        - v_kvset_19_key_2_DUP
+  - - k_00000010
+    - - - 1
+        - v
+        - v_kvset_19_key_3_DUP
+output_kvset:
+- - k_00000001
+  - - - 1
+      - v
+      - v_kvset_14_key_0
+- - k_00000002
+  - - - 1
+      - v
+      - v_kvset_17_key_1
+- - k_00000003
+  - - - 1
+      - v
+      - v_kvset_13_key_0
+- - k_00000004
+  - - - 1
+      - v
+      - v_kvset_19_key_1
+- - k_00000005
+  - - - 1
+      - v
+      - v_kvset_0_key_0
+- - k_00000006
+  - - - 1
+      - v
+      - v_kvset_11_key_0
+- - k_00000007
+  - - - 1
+      - v
+      - v_kvset_13_key_1
+- - k_00000008
+  - - - 1
+      - v
+      - v_kvset_15_key_0
+- - k_00000009
+  - - - 1
+      - v
+      - v_kvset_10_key_0
+- - k_0000000a
+  - - - 1
+      - v
+      - v_kvset_7_key_0
+- - k_0000000b
+  - - - 1
+      - v
+      - v_kvset_14_key_1
+- - k_0000000c
+  - - - 1
+      - v
+      - v_kvset_15_key_1
+- - k_0000000d
+  - - - 1
+      - v
+      - v_kvset_8_key_0
+- - k_0000000e
+  - - - 1
+      - v
+      - v_kvset_9_key_1
+- - k_0000000f
+  - - - 1
+      - v
+      - v_kvset_3_key_0
+- - k_00000010
+  - - - 1
+      - v
+      - v_kvset_16_key_3
+- - k_00000011
+  - - - 1
+      - v
+      - v_kvset_12_key_1
+- - k_00000012
+  - - - 1
+      - v
+      - v_kvset_12_key_2

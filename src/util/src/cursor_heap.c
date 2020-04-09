@@ -1,0 +1,207 @@
+/* SPDX-License-Identifier: Apache-2.0 */
+/*
+ * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ */
+#include <hse_util/arch.h>
+#include <hse_util/assert.h>
+#include <hse_util/alloc.h>
+#include <hse_util/slab.h>
+#include <hse_util/page.h>
+#include <hse_util/mman.h>
+#include <hse_util/minmax.h>
+#include <hse_util/event_counter.h>
+#include <hse_util/cursor_heap.h>
+
+static void *
+alloc_lazy(size_t size)
+{
+    void *mem;
+
+    /* Use MAP_PRIVATE so that cheap_trim() can release pages.
+     */
+    mem = mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_ANON | MAP_PRIVATE, -1, 0);
+
+    return (mem == MAP_FAILED) ? NULL : mem;
+}
+
+static void
+free_lazy(struct cheap *h)
+{
+    munmap(h->mem, ALIGN(h->size, PAGE_SIZE));
+}
+
+struct cheap *
+cheap_create(size_t alignment, size_t size)
+{
+    struct cheap *h = NULL;
+    void *        mem;
+
+    if (alignment < 2)
+        alignment = 1;
+    else if (alignment > 64)
+        return NULL; /* This is item alignment, not heap alignment */
+    else if (alignment & (alignment - 1))
+        return NULL; /* Alignment must be a power of 2 */
+
+    /* Align the size of all cheaps to an integral multiple
+     * of 2MB in hopes of making life easier on the VMM.
+     */
+    size = ALIGN(size, 2u << 20);
+
+    mem = alloc_lazy(size);
+    if (mem) {
+        size_t halign = ALIGN(sizeof(*h), SMP_CACHE_BYTES);
+        size_t color = (get_cycles() >> 2) % 4;
+        size_t offset = SMP_CACHE_BYTES * color;
+
+        /* Offset the base of the cheap by a pseudo-random number of
+         * cache lines in effort to ameliorate cache conflict misses.
+         */
+        h = mem + offset;
+        h->mem = mem;
+        h->magic = (uintptr_t)h;
+        h->alignment = alignment;
+        h->size = size - offset - halign - CHEAP_POISON_SZ;
+        h->base = (u64)h + halign;
+        h->cursorp = h->base;
+        h->brk = PAGE_ALIGN(h->cursorp);
+        h->lastp = 0;
+        ev(1);
+    }
+
+    return h;
+}
+
+void
+cheap_destroy(struct cheap *h)
+{
+    if (!h)
+        return;
+
+    assert(h->magic == (uintptr_t)h);
+    h->magic = ~h->magic;
+
+    free_lazy(h);
+    ev(1);
+}
+
+void
+cheap_reset(struct cheap *h, size_t size)
+{
+    assert(h->magic == (uintptr_t)h);
+    assert(size < h->size);
+    assert(size <= h->cursorp - h->base);
+
+    if (h->brk < h->cursorp)
+        h->brk = PAGE_ALIGN(h->cursorp);
+
+    h->cursorp = h->base + size;
+    h->lastp = 0;
+
+#if CHEAP_POISON_SZ > 0
+    memset((void *)h->cursorp, 0xa5, CHEAP_POISON_SZ);
+#endif
+}
+
+void
+cheap_trim(struct cheap *h, size_t rss)
+{
+    size_t len;
+    int    rc;
+
+    assert(h->magic == (uintptr_t)h);
+
+    if (h->brk < h->cursorp)
+        h->brk = PAGE_ALIGN(h->cursorp);
+
+    rss = max(PAGE_ALIGN(rss), PAGE_SIZE);
+
+    if (rss < h->cursorp - h->base)
+        rss = PAGE_ALIGN(h->cursorp - h->base);
+
+    if (rss > h->brk - (u64)h->mem)
+        return;
+
+    len = h->brk - (u64)h->mem - rss;
+    if (len < PAGE_SIZE)
+        return;
+
+    h->brk = (u64)h->mem + rss;
+
+    rc = madvise(h->mem + rss, len, MADV_FREE);
+
+    ev(rc);
+}
+
+static inline void *
+cheap_memalign_impl(struct cheap *h, size_t alignment, size_t size)
+{
+    u64 allocp;
+
+    assert(h->magic == (uintptr_t)h);
+
+    allocp = ALIGN(h->cursorp, alignment);
+
+    if (ev(size > h->size))
+        return NULL;
+
+    if ((allocp - h->base + size) > h->size)
+        return NULL;
+
+    h->cursorp = allocp + size;
+    h->lastp = allocp;
+
+    return (void *)allocp;
+}
+
+void *
+cheap_memalign(struct cheap *h, size_t alignment, size_t size)
+{
+    if (ev(alignment & (alignment - 1)))
+        return NULL;
+
+    return cheap_memalign_impl(h, alignment, size);
+}
+
+void *
+cheap_malloc(struct cheap *h, size_t size)
+{
+    return cheap_memalign_impl(h, h->alignment, size);
+}
+
+void
+cheap_free(struct cheap *h, void *addr)
+{
+    /* Freeing within a cheap can only occur if the user of the cheap only
+     * ever frees something that was just allocated. Once another thing has
+     * been allocated, we can't free the previously allocated thing. The
+     * use case for the free is to handle the case where the owner of the
+     * cheap needs to allocate space to ensure that it can make progress
+     * after it does something that may fail. If the failure occurs, we want
+     * to free the just-allocated space.
+     *
+     * [HSE_REVISIT] - this should be replaced by a reservation mechanism
+     */
+    if (h->lastp && (u64)addr == h->lastp) {
+        if (h->brk < h->cursorp)
+            h->brk = PAGE_ALIGN(h->cursorp);
+        h->cursorp = h->lastp;
+        h->lastp = 0;
+    }
+}
+
+size_t
+cheap_used(struct cheap *h)
+{
+    assert(h->magic == (uintptr_t)h);
+
+    return min_t(size_t, h->size, (h->cursorp - h->base));
+}
+
+size_t
+cheap_avail(struct cheap *h)
+{
+    assert(h->magic == (uintptr_t)h);
+
+    return h->size - cheap_used(h);
+}

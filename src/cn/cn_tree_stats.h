@@ -1,0 +1,28 @@
+/* SPDX-License-Identifier: Apache-2.0 */
+/*
+ * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ */
+
+#ifndef HSE_KVDB_CN_CN_TREE_STATS_H
+#define HSE_KVDB_CN_CN_TREE_STATS_H
+
+#include <hse_util/platform.h>
+#include <hse_util/perfc.h>
+
+/* MTF_MOCK_DECL(cn_tree_stats) */
+
+struct cn_tree;
+
+/* MTF_MOCK */
+void
+cn_tree_perfc_shape_report(
+    struct cn_tree *  tree,
+    struct perfc_set *rnode,
+    struct perfc_set *inode,
+    struct perfc_set *lnode);
+
+#if defined(HSE_UNIT_TEST_MODE) && HSE_UNIT_TEST_MODE == 1
+#include "cn_tree_stats.h"
+#endif /* HSE_UNIT_TEST_MODE */
+
+#endif

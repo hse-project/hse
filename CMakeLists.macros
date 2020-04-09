@@ -1,0 +1,798 @@
+#----------------------------------------------------------------
+# Syntax/Formatting Conventions:
+#
+#  CMake keywords and vars    : uppercase
+#  HSE global vars            : uppercase
+#  Local vars                 : lowercase
+#  Function parameter FOO     : param_FOO
+#----------------------------------------------------------------
+
+include(CMakeParseArguments)
+
+function(my_join output sep)
+    set(result "")
+    set(esep "") # effective sep is empty at the beginning
+    foreach(arg ${ARGN})
+        set(result "${result}${esep}${arg}")
+        set(esep "${sep}")
+    endforeach()
+    set(${output} "${result}" PARENT_SCOPE)
+endfunction()
+
+#
+# Functions that add text to the beginning of each element of a list
+#
+# The action of each of these is given in terms of their operation on
+# the variable foo defined as:
+#
+#     SET( foo /tmp/cat /tmp/dog )
+#
+
+#
+# my_add_prefix(output " -I" ${foo})  ==>  ${output}=="-I/tmp/cat; -I/tmp/dog"
+#
+function(my_add_prefix output_var text)
+    set(result "")
+    foreach(arg ${ARGN})
+        list(APPEND result "${text}${arg}")
+    endforeach()
+    set(${output_var} "${result}" PARENT_SCOPE)
+endfunction()
+
+#
+# my_prepend_over(output " -I" ${foo})  ==>  ${output}=="-I/tmp/cat -I/tmp/dog"
+#
+function(my_prepend_over output pfx)
+    set(result "")
+    foreach(arg ${ARGN})
+        set(result "${result}${pfx}${arg}")
+    endforeach()
+    set(${output} "${result}" PARENT_SCOPE)
+endfunction()
+
+function(my_add_suffix output_var text)
+    set(result "")
+    foreach(arg ${ARGN})
+        list(APPEND result "${arg}${text}")
+    endforeach()
+    set(${output_var} "${result}" PARENT_SCOPE)
+endfunction()
+
+function(my_execute_or_die)
+    execute_process(
+        COMMAND ${ARGN}
+        ERROR_VARIABLE  cmd_stderr
+        RESULT_VARIABLE cmd_status)
+    if(NOT("${cmd_status}" STREQUAL "0"))
+        my_join(cmd " " ${ARGN})
+        message(FATAL_ERROR
+            "Error executing command\n"
+            "Command: ${cmd}\n"
+            "Exit Status: ${cmd_status}\n"
+            "Stderr: ${cmd_stderr}\n")
+    endif()
+endfunction()
+
+function(my_ut_preproc_file in_file output_dir result_name)
+
+    get_filename_component( in_file_base ${in_file} NAME_WE )
+    set( output_hdr ${in_file_base}_ut.h )
+    set( output_src ${in_file_base}_ut_impl.i )
+    set( output_set ${output_hdr} ${output_src} )
+
+    my_execute_or_die(mkdir -p ${output_dir})
+
+    add_custom_command(
+        OUTPUT ${output_dir}/${output_hdr}
+        COMMAND ${UTPP} -- -h -o ${output_dir}/${output_hdr} ${in_file}
+        DEPENDS ${in_file}
+        )
+
+    add_custom_command(
+        OUTPUT ${output_dir}/${output_src}
+        COMMAND ${UTPP} -- -c -o ${output_dir}/${output_src} ${in_file}
+        DEPENDS ${in_file}
+        )
+
+    set( ${result_name}
+        "${output_dir}/${output_hdr}"
+        "${output_dir}/${output_src}" PARENT_SCOPE )
+
+endfunction()
+
+#----------------------------------------------------------------
+# Use my_copy_files to copy a set of files from the current src
+# dir to the corresponding build output dir:
+#
+#   my_copy_files(foobar
+#    ${CMAKE_CURRENT_BINARY_DIR}
+#     readme *.txt *.json *.sh doc/*.txt)
+#----------------------------------------------------------------
+
+macro(my_copy_files target_name dst_dir)
+    add_custom_target(${target_name} ALL)
+    foreach(PATTERN ${ARGN})
+        file(GLOB COPY_FILES
+            RELATIVE ${CMAKE_CURRENT_SOURCE_DIR}
+            ${PATTERN})
+        foreach(filename ${COPY_FILES})
+            set(SRC "${CMAKE_CURRENT_SOURCE_DIR}/${filename}")
+            set(DST "${dst_dir}/${filename}")
+            add_custom_command(
+                TARGET ${target_name}
+                COMMAND ${CMAKE_COMMAND} -E copy_if_different ${SRC} ${DST})
+        endforeach()
+    endforeach()
+endmacro()
+
+#----------------------------------------------------------------
+# Usage:
+#    hse_unit_test(
+#        NAME kvblock_test
+#      [ EXECUTABLE kvblock_test ]
+#      [ COMMAND kvblock_test --test ]`
+#        SRCS kvblock_test.cpp ...
+#      [ DEPS      ... ]
+#      [ LINK_DIRS ... ]
+#      [ LINK_LIBS ... ]
+#      [ LABELS    ... ])
+#
+# Notes:
+#  - COMMAND is optional, it defaults to NAME
+#  - DEPS and LINK_LIBS are all optional
+#
+# Examples:
+#    hse_unit_test(
+#        NAME foo_test
+#        SRCS foo_test.cpp foo.c)
+#
+#    hse_unit_test(
+#        NAME bar_test
+#        SRCS bar_test.cpp bar_test_lib.c
+#        LINK_LIBS hse_util)
+#
+#----------------------------------------------------------------
+
+function(hse_unit_test)
+
+    set(one_value_opts
+        NAME            # (required) name for unit test
+        EXECUTABLE      # (optional) name for unit test executable
+        )
+
+    set(multi_value_opts
+        SRCS            # (required) list of source files
+        COMMAND         # (optional) command to run to execute unit test
+        DEPS            # (optional) targets this depends on
+        CFLAGS          # (optional) Additional CFLAGS for this target
+        INCLUDES        # (optional) Directories to search for #include
+        LINK_DIRS       # (optional) list of directories to be searched for libs
+        LINK_LIBS       # (optional) list of libs to link
+        LABELS          # (optional) labels for the unit test
+        )
+
+    cmake_parse_arguments(
+        param
+        "" "${one_value_opts}" "${multi_value_opts}"
+        ${ARGN})
+
+
+    if("${param_EXECUTABLE}" STREQUAL "")
+        set(param_EXECUTABLE ${param_NAME})
+    endif()
+
+    if("${param_COMMAND}" STREQUAL "")
+        set(param_COMMAND ${param_EXECUTABLE})
+    endif()
+
+    add_test(
+        NAME    ${param_NAME}
+        COMMAND ${param_COMMAND})
+
+    set_property(TEST ${param_NAME}
+        PROPERTY LABELS "user_unit;${HSE_TEST_LABELS};${param_LABELS}")
+
+    add_executable(${param_EXECUTABLE} ${param_SRCS})
+
+    set_property(TARGET ${param_EXECUTABLE}
+        APPEND_STRING PROPERTY COMPILE_FLAGS ${param_CFLAGS})
+
+    set_property(TARGET ${param_EXECUTABLE}
+        PROPERTY RUNTIME_OUTPUT_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/utest)
+
+    if(NOT "${param_INCLUDES}" STREQUAL "")
+        target_include_directories(${param_EXECUTABLE} PRIVATE ${param_INCLUDES})
+    endif()
+
+    if(NOT "${param_DEPS}" STREQUAL "")
+        add_dependencies(${param_EXECUTABLE} ${param_DEPS})
+    endif()
+
+    if(NOT "${param_LINK_DIRS}" STREQUAL "")
+        target_link_directories( ${param_EXECUTABLE} PUBLIC ${param_LINK_DIRS} )
+    endif()
+
+    if(NOT "${param_LINK_LIBS}" STREQUAL "")
+        target_link_libraries(${param_EXECUTABLE} ${param_LINK_LIBS})
+    endif()
+
+    target_compile_options(${param_EXECUTABLE} PRIVATE "-DHSE_UNIT_TEST_MODE=1" )
+
+endfunction()
+
+#----------------------------------------------------------------
+# hse_executable : Function to build an executable.
+#
+# Usage:
+#
+#    hse_executable(
+#        NAME      foobar
+#        SRCS      foo.c bar.c
+#        LINK_LIBS hse_platform m
+#        [OUTDIR dir]
+#        [DESTINATION dir]
+#        [COMPONENT component])
+#
+# DESTINATION is optional.  It defaults to "bin".
+# COMPONENT is optional.  It defaults to "runtime".
+#----------------------------------------------------------------
+
+function(hse_executable)
+
+    set(one_value_opts
+        NAME            # (required) name for collection of object files
+        COMPONENT       # (optional) installation component
+        DESTINATION     # (optional) installation directory
+        OUTDIR          # (optional) output directory
+        )
+
+    set(multi_value_opts
+        SRCS            # (required) list of source files
+        DEPS            # (optional) targets this depends on
+        CFLAGS          # (optional) Additional CFLAGS for this target
+        INCLUDES        # (optional) Directories to search for #include
+        LINK_DIRS       # (optional) list of directories to be searched for libs
+        LINK_LIBS       # (optional) list of libs to link
+        )
+
+    cmake_parse_arguments(
+        param
+        "" "${one_value_opts}" "${multi_value_opts}"
+        ${ARGN})
+
+    if("${param_NAME}" STREQUAL "")
+        message(FATAL_ERROR "HSE_EXECUTABLE: Must set NAME")
+    endif()
+
+    if("${param_SRCS}" STREQUAL "")
+        message(FATAL_ERROR "HSE_EXECUTABLE: Must set SRCS")
+    endif()
+
+    # Optional DESTINATION defaults to "bin"
+    if("${param_DESTINATION}" STREQUAL "")
+        set(param_DESTINATION "bin")
+    endif()
+
+    if(NOT "${param_UNPARSED_ARGUMENTS}" STREQUAL "")
+        message(
+            FATAL_ERROR
+            "HSE_EXECUTABLE: Unknown args: ${param_UNPARSED_ARGUMENTS}")
+    endif()
+
+    # All make targets that produce executables are suffixed with "-bin".  The
+    # target property named "OUTPUT_NAME" defines the name of the executable file.
+    add_executable(${param_NAME}-bin ${param_SRCS})
+    set_target_properties(${param_NAME}-bin PROPERTIES OUTPUT_NAME ${param_NAME})
+
+    if(NOT "${param_CFLAGS}" STREQUAL "")
+        target_compile_options(${param_NAME}-bin PRIVATE ${param_CFLAGS})
+    endif()
+
+    if(NOT "${param_OUTDIR}" STREQUAL "")
+        set_property(TARGET ${param_NAME}-bin
+            PROPERTY RUNTIME_OUTPUT_DIRECTORY ${param_OUTDIR})
+    endif()
+
+    if(NOT "${param_DEPS}" STREQUAL "")
+        add_dependencies(${param_NAME}-bin ${param_DEPS})
+    endif()
+
+    if(NOT "${param_INCLUDES}" STREQUAL "")
+        target_include_directories(${param_NAME}-bin PRIVATE ${param_INCLUDES})
+    endif()
+
+    if(NOT "${param_LINK_DIRS}" STREQUAL "")
+        target_link_directories( ${param_NAME}-bin PUBLIC ${param_LINK_DIRS} )
+    endif()
+
+    if(NOT "${param_LINK_LIBS}" STREQUAL "")
+        add_dependencies(${param_NAME}-bin ${param_LINK_LIBS})
+        target_link_libraries( ${param_NAME}-bin ${param_LINK_LIBS} )
+    endif()
+
+    # Do not install artifact unless component has been set
+    if(NOT "${param_COMPONENT}" STREQUAL "")
+        install(
+            TARGETS ${param_NAME}-bin
+            DESTINATION ${param_DESTINATION}
+            COMPONENT ${param_COMPONENT})
+    endif()
+
+endfunction()
+
+#----------------------------------------------------------------
+#
+# hse_library : Function to build a library
+#
+#----------------------------------------------------------------
+function(hse_library)
+
+    set(one_value_opts
+        NAME            # (required) name for collection of object files
+	MODE            # (required) one of "SHARED", "STATIC"
+        COMPONENT       # (optional) installation component
+        OUTPUT_NAME     # (optional) actual name of installed library
+        )
+
+    set(multi_value_opts
+        SRCS            # (required) list of source or obj files
+        DEPS            # CMake targets that must be built first
+        CFLAGS          # Additional CFLAGS
+        INCLUDES        # Directories to search for #include
+        LINK_LIBS       # Libraries that must be linked along with this lib
+        )
+
+    cmake_parse_arguments(
+        param
+        "" "${one_value_opts}" "${multi_value_opts}"
+        ${ARGN})
+
+    if("${param_NAME}" STREQUAL "")
+        message(FATAL_ERROR "HSE_LIBRARY: Must set NAME")
+    endif()
+
+    if("${param_SRCS}" STREQUAL "")
+        message(FATAL_ERROR "HSE_LIBRARY: Must set SRCS")
+    endif()
+
+    if(NOT "${param_UNPARSED_ARGUMENTS}" STREQUAL "")
+        message(
+            FATAL_ERROR
+            "HSE_LIBRARY: Unknown args: ${param_UNPARSED_ARGUMENTS}")
+    endif()
+
+    if("${param_MODE}" STREQUAL "SHARED")
+        add_library(${param_NAME}-lib SHARED ${param_SRCS})
+    elseif("${param_MODE}" STREQUAL "STATIC")
+        add_library(${param_NAME}-lib STATIC ${param_SRCS})
+    else()
+        message(FATAL_ERROR "HSE_LIBRARY: Must set MODE to one of SHARED or STATIC")
+    endif()
+
+    if("${param_OUTPUT_NAME}" STREQUAL "")
+        set_target_properties(${param_NAME}-lib
+            PROPERTIES OUTPUT_NAME ${param_NAME})
+    else()
+        set_target_properties(${param_NAME}-lib
+            PROPERTIES OUTPUT_NAME ${param_OUTPUT_NAME})
+    endif()
+
+    target_include_directories(${param_NAME}-lib PRIVATE ${param_INCLUDES})
+    target_compile_options(${param_NAME}-lib PRIVATE ${param_CFLAGS})
+    target_link_libraries(${param_NAME}-lib ${param_LINK_LIBS})
+    if(NOT "${param_DEPS}" STREQUAL "")
+        add_dependencies(${param_NAME}-lib ${param_DEPS})
+    endif()
+
+    if("${HSE_UNIT_TEST_FLAG}")
+        target_compile_options( ${param_NAME}-lib
+            PRIVATE "-DHSE_UNIT_TEST_MODE=1" )
+    endif()
+
+    # Do not install artifact unless component has been set
+    if(NOT "${param_COMPONENT}" STREQUAL "")
+        install(
+            TARGETS ${param_NAME}-lib
+            DESTINATION lib64
+            COMPONENT ${param_COMPONENT}
+            )
+    endif()
+endfunction()
+
+
+#----------------------------------------------------------------
+#
+# HSE_LIBRARY : Function to build a library
+#
+#----------------------------------------------------------------
+function(hse_ut_mock_generate)
+    if( HSE_UNIT_TEST_FLAG )
+
+        #------------------------------------------------
+        # Parse and check args
+        #------------------------------------------------
+        set(flag_opts
+            PRIVATE            # Generate source in include/private
+            )
+
+        set(one_value_opts
+            GENSRC_PREFIX      # (required) Name governing where the generated
+            #    code will land
+            )
+
+        set(multi_value_opts
+            DEPENDENTS   # Names of the libraries containing ut-mockable entry points
+            #    that will be considered
+            SEARCH_DIRS  # (required) Directories to search for header files
+            #    containing mockable entry points
+            )
+
+        cmake_parse_arguments(
+            param
+            "${flag_opts}" "${one_value_opts}" "${multi_value_opts}"
+            ${ARGN})
+
+        if(("${param_DEPENDENTS}" STREQUAL ""))
+            message(FATAL_ERROR "HSE_UT_MOCK_GENERATE: Must set dependents")
+        endif()
+
+        if("${param_GENSRC_PREFIX}" STREQUAL "")
+            message(FATAL_ERROR "HSE_UT_MOCK_GENERATE: Must set GENSRC_PREFIX")
+        endif()
+
+        if("${param_SEARCH_DIRS}" STREQUAL "")
+            message(FATAL_ERROR "HSE_UT_MOCK_GENERATE: Must set SEARCH_DIRS")
+        endif()
+
+        if(NOT "${param_UNPARSED_ARGUMENTS}" STREQUAL "")
+            message(
+                FATAL_ERROR
+                "HSE_UT_MOCK_GENERATE: Unknown args: ${param_UNPARSED_ARGUMENTS}")
+        endif()
+
+        string(TOLOWER ${param_GENSRC_PREFIX} gensrc_prefix)
+
+        if(${param_PRIVATE})
+            set( output_dir
+                ${HSE_STAGE_DIR}/gensrc/${gensrc_prefix}/include/private )
+        else()
+            set( output_dir
+                ${HSE_STAGE_DIR}/gensrc/${gensrc_prefix}/include )
+        endif()
+
+        execute_process(
+            COMMAND ${HSE_SCRIPT_DIR}/build/ut_mock_decl_files ${param_SEARCH_DIRS}
+            WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
+            RESULT_VARIABLE exec_result
+            ERROR_VARIABLE find_error
+            OUTPUT_VARIABLE ut_mock_file_list
+            )
+
+        if( NOT ("${exec_result}" STREQUAL "0" ))
+            message( FATAL_ERROR
+                "Error searching for mock-aware header files in: ${param_SEARCH_DIRS}" )
+        endif()
+
+        if( NOT ("${ut_mock_file_list}" STREQUAL "" ) )
+            string(REPLACE "\n" ";" chopped_file_list ${ut_mock_file_list})
+
+            foreach(file ${chopped_file_list})
+                my_ut_preproc_file(${file} ${output_dir} result)
+                set( UTGEN_FILES ${UTGEN_FILES} ${result} )
+            endforeach()
+
+            add_custom_target(
+                ${param_GENSRC_PREFIX}_generate_ut
+                DEPENDS ${UTGEN_FILES}
+                )
+
+            foreach(dependent ${param_DEPENDENTS})
+                add_dependencies( ${dependent} ${param_GENSRC_PREFIX}_generate_ut )
+            endforeach()
+
+        endif()
+
+    endif()
+endfunction()
+
+function(hse_ut_publish_include_dirs)
+    if( HSE_UNIT_TEST_FLAG )
+
+        #------------------------------------------------
+        # Parse and check args
+        #------------------------------------------------
+        set(one_value_opts
+            COMPONENT             # (required) Name of the component to publish
+            #    include directories for
+            )
+
+        cmake_parse_arguments(
+            param
+            "" "${one_value_opts}" ""
+            ${ARGN})
+
+        if("${param_COMPONENT}" STREQUAL "")
+            message(FATAL_ERROR "HSE_UT_PUBLISH_INCLUDE_DIRS: Must set COMPONENT")
+        endif()
+
+        if(NOT "${param_UNPARSED_ARGUMENTS}" STREQUAL "")
+            message(
+                FATAL_ERROR
+                "HSE_UT_HOUSEKEEPING: Unknown args: ${param_UNPARSED_ARGUMENTS}")
+        endif()
+
+        string(TOUPPER ${param_COMPONENT} component_upper)
+        string(TOLOWER ${param_COMPONENT} component_lower)
+
+        set( ${component_upper}_UT_GS_INCLUDE_DIRS
+            ${HSE_STAGE_DIR}/gensrc/${component_lower}/include
+            ${HSE_STAGE_DIR}/gensrc/${component_lower}/include/private
+            CACHE
+            STRING
+            "include directory for component ${param_COMPONENT} ut-generated source"
+            )
+
+    endif()
+endfunction()
+
+#----------------------------------------------------------------
+# hse_doc:  Install documentation with no processing
+#
+# Usage:
+#
+#   hse_doc(
+#       NAME        foobar
+#       SRCS        foo.c bar.c
+#       DESTINATION dir
+#       COMPONENT   component)
+#----------------------------------------------------------------
+
+function(hse_doc)
+    set(one_value_opts
+        NAME            # (required) name for collection of object files
+        COMPONENT       # (required) installation component
+        DESTINATION     # (required) installation directory
+        )
+
+    set(multi_value_opts
+        SRCS            # (required) list of source files
+        )
+
+    cmake_parse_arguments(
+        param
+        "" "${one_value_opts}" "${multi_value_opts}"
+        ${ARGN})
+
+    if("${param_NAME}" STREQUAL "")
+        message(FATAL_ERROR "HSE_DOC: Must set NAME")
+    endif()
+
+    if("${param_SRCS}" STREQUAL "")
+        message(FATAL_ERROR "HSE_DOC: Must set SRCS")
+    endif()
+
+    if("${param_COMPONENT}" STREQUAL "")
+        message(FATAL_ERROR "HSE_DOC: Must set COMPONENT")
+    endif()
+
+    if("${param_DESTINATION}" STREQUAL "")
+        message(FATAL_ERROR "HSE_DOC: Must set DESTINATION")
+    endif()
+
+    # Do not install artifact unless component has been set
+    if(NOT "${param_COMPONENT}" STREQUAL "")
+        install(
+            FILES ${param_SRCS}
+            DESTINATION ${param_DESTINATION}
+            COMPONENT ${param_COMPONENT}
+            )
+    endif()
+endfunction()
+
+#----------------------------------------------------------------
+# hse_mkdocs:  Install documentation with mkdocs processing.
+#   Output is an HTML documentation site.
+#
+# Usage:
+#
+#   hse_mkdocs(
+#       NAME        foobar
+#       SRCDIR      foo
+#       OPTIONS     mkdocs_opts
+#       DESTINATION dir
+#       COMPONENT   component)
+#----------------------------------------------------------------
+
+function(hse_mkdocs)
+    set(one_value_opts
+        NAME            # (required) name for document
+        SRCDIR          # (required) directory containing docs and YAML cfg
+        DESTINATION     # (required) installation directory
+        COMPONENT       # (required) installation component
+        )
+
+    set(multi_value_opts
+        OPTIONS         # (optional) mkdoc options
+        )
+
+    cmake_parse_arguments(
+        param
+        "" "${one_value_opts}" "${multi_value_opts}"
+        ${ARGN})
+
+    if("${param_NAME}" STREQUAL "")
+        message(FATAL_ERROR "HSE_MKDOCS: Must set NAME")
+    endif()
+
+    if("${param_SRCDIR}" STREQUAL "")
+        message(FATAL_ERROR "HSE_MKDOCS: Must set SRCDIR")
+    endif()
+
+    if("${param_DESTINATION}" STREQUAL "")
+        message(FATAL_ERROR "HSE_MKDOCS: Must set DESTINATION")
+    endif()
+
+    if("${param_COMPONENT}" STREQUAL "")
+        message(FATAL_ERROR "HSE_MKDOCS: Must set COMPONENT")
+    endif()
+
+    #
+    # Stage out to the build side of the tree.
+    #
+    file(COPY ${param_SRCDIR} DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
+
+    #
+    # Set up a target for the above copy.
+    #
+    get_filename_component(basename_SRCDIR ${param_SRCDIR} NAME)
+    set(BUILD_SRCDIR "${CMAKE_CURRENT_BINARY_DIR}/${basename_SRCDIR}")
+
+    add_custom_target(
+        ${param_NAME}-srcs
+        ALL
+        DEPENDS ${BUILD_SRCDIR}
+        )
+
+    #
+    # Generate the website.  The outputs are not completely
+    # deterministic, so we'll depend upon the top index.html and hope
+    # for the rest as a side-effect.
+    #
+    file(GLOB mdsrcs ${param_SRCDIR}/docs/*.md)
+    list(APPEND mdsrcs ${param_SRCDIR}/mkdocs.yml)
+
+    #
+    # RHEL vs. FC handles locales differently (of course).
+    #
+    if( "${HSE_DISTRO}" STREQUAL "el6" OR "${HSE_DISTRO}" STREQUAL "el7" )
+        set(HSE_LOCALE "en_US.utf-8")
+    else()
+        set(HSE_LOCALE "en_US.UTF-8")
+    endif()
+
+    add_custom_command(
+        OUTPUT "${BUILD_SRCDIR}/site/index.html"
+        COMMAND env LC_ALL=${HSE_LOCALE} LANG=${HSE_LOCALE} mkdocs build ${param_OPTIONS}
+        DEPENDS ${mdsrcs}
+        WORKING_DIRECTORY ${BUILD_SRCDIR}
+        )
+
+    add_custom_target(
+        ${param_NAME}-site
+        ALL
+        DEPENDS "${BUILD_SRCDIR}/site/index.html"
+        )
+
+    # Do not install artifact unless component has been set
+    if(NOT "${param_COMPONENT}" STREQUAL "")
+        install(
+            DIRECTORY "${BUILD_SRCDIR}/site/"
+            DESTINATION ${param_DESTINATION}
+            COMPONENT ${param_COMPONENT})
+    endif()
+
+endfunction()
+
+#----------------------------------------------------------------
+# hse_pandoc:  Install documentation with pandoc processing.
+#   Output is HTML and PDF as standalone documents.
+#
+# Usage:
+#
+#   hse_pandoc(
+#       NAME        foobar
+#       SRCS        foo.md
+#       STYLESHEET  bar.css
+#       OPTIONS     pandoc_opts
+#       DESTINATION dir
+#       COMPONENT   component)
+#----------------------------------------------------------------
+
+function(hse_pandoc)
+    set(one_value_opts
+        NAME            # (required) name for document
+        STYLESHEET      # (optional) stylesheet for HTML output
+        OPTIONS         # (optional) pandoc options to override defaults
+        DESTINATION     # (required) installation directory
+        COMPONENT       # (required) installation component
+        )
+
+    set(multi_value_opts
+        SRCS            # (required) list of source files
+        )
+
+    set(pandoc_common_opts  "--toc" "--smart" "-s")
+    set(pandoc_pdf_opts     "-V" "geometry:margin=1in")
+
+    set(pandoc_pdf_opts     "${pandoc_pdf_opts}" "${pandoc_common_opts}")
+
+    cmake_parse_arguments(
+        param
+        "" "${one_value_opts}" "${multi_value_opts}"
+        ${ARGN})
+
+    if("${param_NAME}" STREQUAL "")
+        message(FATAL_ERROR "HSE_PANDOC: Must set NAME")
+    endif()
+
+    if("${param_SRCS}" STREQUAL "")
+        message(FATAL_ERROR "HSE_PANDOC: Must set SRCS")
+    endif()
+
+    if(NOT "${param_OPTIONS}" STREQUAL "")
+        set(pandoc_html_opts "${param_OPTIONS}")
+        set(pandoc_pdf_opts  "${param_OPTIONS}")
+    endif()
+
+    if(NOT "${param_STYLESHEET}" STREQUAL "")
+        set(
+          pandoc_html_opts "${pandoc_html_opts}" "--css" "${param_STYLESHEET}")
+        set(
+          pandoc_html_opts "${pandoc_html_opts}" "${pandoc_common_opts}")
+    endif()
+
+    if("${param_DESTINATION}" STREQUAL "")
+        message(FATAL_ERROR "HSE_PANDOC: Must set DESTINATION")
+    endif()
+
+    if("${param_COMPONENT}" STREQUAL "")
+        message(FATAL_ERROR "HSE_PANDOC: Must set COMPONENT")
+    endif()
+
+    set(
+      pdf_output_file
+      "${CMAKE_CURRENT_BINARY_DIR}/${param_NAME}.pdf"
+    )
+
+    set(
+      html_output_file
+      "${CMAKE_CURRENT_BINARY_DIR}/${param_NAME}.html"
+    )
+
+    my_copy_files(
+      ${param_SRCS}-src
+      ${CMAKE_CURRENT_BINARY_DIR}
+      ${param_SRCS}
+    )
+
+    add_custom_command(
+        OUTPUT ${pdf_output_file} ${html_output_file}
+        COMMAND pandoc ${pandoc_pdf_opts} -o ${pdf_output_file} ${param_SRCS}
+        COMMAND pandoc ${pandoc_html_opts} -o ${html_output_file} ${param_SRCS}
+        DEPENDS ${param_SRCS} ${param_STYLESHEET} ${param_SRCS}-src
+    )
+
+    add_custom_target(
+        ${param_NAME}-doc
+        ALL
+        DEPENDS ${pdf_output_file} ${html_output_file}
+    )
+
+    # Do not install artifact unless component has been set
+    if(NOT "${param_COMPONENT}" STREQUAL "")
+        install(
+            FILES ${pdf_output_file} ${html_output_file}
+            DESTINATION ${param_DESTINATION}
+            COMPONENT ${param_COMPONENT})
+    endif()
+endfunction()

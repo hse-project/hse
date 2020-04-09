@@ -1,0 +1,3 @@
+leak:libumberlog
+leak:dcNewCallVM_x64
+leak:libumberlog.so.3

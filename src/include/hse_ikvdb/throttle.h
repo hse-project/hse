@@ -1,0 +1,230 @@
+/* SPDX-License-Identifier: Apache-2.0 */
+/*
+ * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ */
+
+#ifndef HSE_KVDB_THROTTLE_H
+#define HSE_KVDB_THROTTLE_H
+
+#include <hse_util/atomic.h>
+#include <hse_util/inttypes.h>
+#include <hse_util/compiler.h>
+#include <hse_util/arch.h>
+#include <hse_util/spinlock.h>
+#include <hse_util/perfc.h>
+#include <hse_util/condvar.h>
+
+enum {
+    THROTTLE_SENSOR_CSCHED,
+    THROTTLE_SENSOR_C0SK,
+    THROTTLE_SENSOR_C0SKM_DTIME,
+    THROTTLE_SENSOR_C0SKM_DSIZE,
+    THROTTLE_SENSOR_CNT
+};
+
+#define THROTTLE_SMAX_CNT 24
+#define THROTTLE_DELAY_START 4194304
+#define THROTTLE_REDUCE_CYCLES 200
+#define THROTTLE_INJECT_MS 200
+#define THROTTLE_SKIP_CYCLES 20
+#define THROTTLE_DELTA_CYCLES 32
+#define THROTTLE_LMAX_CYCLES 400
+#define THROTTLE_SENSOR_SCALE 1000
+#define THROTTLE_DELAY_MIN 8192
+#define THROTTLE_DELAY_MAX 268435456
+#define THROTTLE_MAX_RUN 6
+
+/**
+ * struct throttle_sensor - throttle sensor
+ *
+ * Modules that provide throttler input (e.g., c0, c1, and cn) should
+ * periodically update their respective sensors to indicate their workload.
+ * Sensors should be set to a value between 0 and 2 * THROTTLE_SENSOR_SCALE.
+ *
+ * Guidelines for setting sensor values:
+ *
+ *  - The value should reflect the current workload and should not include
+ *    hysteresis (hysteresis is implemented in the throttler code that reads
+ *    sensors).
+ *
+ *  - A value of 0 indicates a workload below a low water mark.
+ *
+ *  - Values between 0 and THROTTLE_SENSOR_SCALE indicate a workload between
+ *    low and high water marks.
+ *
+ *  - Values between THROTTLE_SENSOR_SCALE and 2*THROTTLE_SENSOR_SCALE
+ *    indicate a workload between a high water mark and ceiling.
+ *
+ *  - The value should be a linear indication of workload, for example, a
+ *    value of THROTTLE_SENSOR_SCALE / 10 should indicate a workload 10% into
+ *    the range between the low and high water marks.
+ *
+ * For example, suppose c0's workload is determined by the amount of memory
+ * (M) consumed by c0 kvms that have not yet been ingested to cN, and that c0
+ * is configured with three thresholds for memory consumption: LOW, HIGH, and
+ * MAX.  Then c0 might set the sensor value as follows:
+ *
+ *    if (M < LOW)
+ *        sensor = 0;
+ *
+ *    if (LOW <= M < HIGH)
+ *        sensor = THROTTLE_SENSOR_SCALE * (M - LOW) / (HIGH - LOW);
+ *
+ *    if (HIGH <= M < MAX)
+ *        sensor = THROTTLE_SENSOR_SCALE * (M - HIGH) / (MAX - HIGH);
+ *
+ * Note, this throttling approach is based on c0sk throttling behavior prior
+ * implementation of 'struct throttle'.
+ */
+struct throttle_sensor {
+    atomic_t ts_sensor;
+} __aligned(SMP_CACHE_BYTES);
+
+static inline void
+throttle_sensor_set(struct throttle_sensor *ts, int value)
+{
+    atomic_set(&ts->ts_sensor, value);
+}
+
+static inline int
+throttle_sensor_get(struct throttle_sensor *ts)
+{
+    return atomic_read(&ts->ts_sensor);
+}
+
+enum throttle_state { THROTTLE_NO_CHANGE, THROTTLE_DECREASE, THROTTLE_INCREASE };
+
+/**
+ * struct throttle_mavg - throttle mavg
+ * @thr_samples   :     array of last THROTTLE_SAMPLE_CNT max sensor values
+ * @thr_idx       :     index into thr_samples vector
+ * @thr_sum       :     current sum
+ * @thr_curr      :     current moving average
+ * @thr_sample_cnt:     number of samples in mavg
+ */
+
+struct throttle_mavg {
+    uint tm_samples[THROTTLE_SMAX_CNT];
+    uint tm_idx;
+    uint tm_sum;
+    uint tm_sample_cnt;
+    uint tm_curr;
+};
+
+/**
+ * struct throttle - throttle state
+ * @thr_mavg:           struct to compute mavg
+ * @thr_reduce_sum:     sum to compute cumulative mavg while reducing sleep
+ * @thr_delay_raw:      raw throttle delay amount
+ * @thr_delay_min:      minimum sleep value to use (updated every lmax_cycles)
+ * @thr_update_ms:      read sensors every thr_update_ms
+ * @thr_reduce_cycles:  min cycles before attempting to reduce sleep value
+ * @thr_inject_cycles:  insert sleep val for inject cycles and monitor response
+ * @thr_delta_cycles:   cycles to wait after changing sleep to see a change
+ * @thr_skip_cycles:    cycles to skip (to compute mavg) after changing sleep
+ * @thr_next:           time at which to recompute %thr_pct (nsecs)
+ * @thr_pct:            percentage of requests not to throttle
+ * @thr_cycles:         counter of throttle_update calls
+ * @thr_lock:           lock for updating %thr_pct
+ * @thr_update:         time at which to make periodic adjustments
+ * @thr_nslpmin:        fixed overhead of nanosleep() (nsecs)
+ * @thr_state:          current throttling state (increase/reduce/no change)
+ * @thr_csched:         current sensor value for csched
+ * @thr_delay_prev:     previous sleep value (prior to attempting reduction)
+ * @thr_delay_idelta:   next delta to try to increase sleep value by
+ * @thr_delay_test:     next sleep value to test (while reducing sleep)
+ * @thr_inject_cnt:     inject a reduced sleep value for inject_cnt cycles
+ * @thr_skip_cnt:       skip next skip_cnt cycles while computing mavg
+ * @thr_monitor_cnt:    reduce sleep value and monitor for monitor_cnt cycles
+ * @thr_longest_run:    longest run of sensor values seen
+ * @thr_num_tries:      number of trials in current reduction cycle
+ * @thr_max_tries:      max number of trials
+ * @thr_try_mreduce:    if set double prev sleep delta to ramp up quickly
+ * @thr_rp:
+ * @thr_perfc:
+ * @thr_data:           raw nanosleep performance metrics
+ * @thr_sensorv:        vector of throttle sensors
+ */
+struct throttle {
+    struct throttle_mavg thr_mavg;
+    ulong                thr_reduce_sum;
+    uint                 thr_delay_raw;
+    uint                 thr_delay_min;
+    uint                 thr_lmin_cycles;
+    uint                 thr_update_ms;
+    uint                 thr_reduce_cycles;
+    uint                 thr_inject_cycles;
+    uint                 thr_delta_cycles;
+    uint                 thr_skip_cycles;
+    atomic64_t           thr_next;
+    atomic_t             thr_pct;
+    uint                 thr_cycles;
+    spinlock_t           thr_lock;
+    ulong                thr_update;
+    int                  thr_nslpmin;
+    enum throttle_state  thr_state;
+    uint                 thr_csched;
+    uint                 thr_delay_prev;
+    uint                 thr_delay_idelta;
+    uint                 thr_delay_test;
+    uint                 thr_inject_cnt;
+    uint                 thr_skip_cnt;
+    uint                 thr_monitor_cnt;
+    uint                 thr_longest_run;
+    uint                 thr_num_tries;
+    uint                 thr_max_tries;
+    bool                 thr_try_mreduce;
+    struct kvdb_rparams *thr_rp;
+    struct perfc_set     thr_sensor_perfc;
+    struct perfc_set     thr_sleep_perfc;
+
+    __aligned(SMP_CACHE_BYTES) atomic64_t thr_data;
+
+    struct throttle_sensor thr_sensorv[THROTTLE_SENSOR_CNT];
+};
+
+void
+throttle_init(struct throttle *self, struct kvdb_rparams *rp);
+
+void
+throttle_init_params(struct throttle *self, struct kvdb_rparams *rp);
+
+void
+throttle_fini(struct throttle *self);
+
+void
+throttle_update(struct throttle *self);
+
+bool
+throttle_active(struct throttle *self);
+
+static inline long
+throttle_delay(struct throttle *self)
+{
+    return self->thr_delay_raw;
+}
+
+static inline struct throttle_sensor *
+throttle_sensor(struct throttle *self, uint index)
+{
+    return (index < THROTTLE_SENSOR_CNT ? self->thr_sensorv + index : 0);
+}
+
+void
+throttle_debug(struct throttle *self);
+
+void
+throttle_reduce_debug(struct throttle *self, uint value, uint mavg);
+
+/**
+ * throttle() - sleep after a successful put
+ * @self:
+ * @start: time in ns at which the put op began
+ * @len:   total key + value length for the put
+ *
+ * Return: Returns the time slept in ns in this call.
+ */
+long
+throttle(struct throttle *self, u64 start, u32 len);
+
+#endif

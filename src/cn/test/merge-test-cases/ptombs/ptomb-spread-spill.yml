@@ -1,0 +1,24 @@
+_meta:
+  group: ptomb
+  horizon: 1
+  name: ptomb-spread-spill
+  fanout: 16
+  pfx_len: 0  # spread ptombs to all children
+
+input_kvsets: [
+  # kvset 0
+  [ [ k_1,   [ [ 14, v,  val_0 ]]]],
+
+  # kvset 1
+  [ [ k_1,   [ [ 12, pt, pt_val_1 ]]],
+    [ k_1,   [ [ 13, v,  val_1    ]]],
+    [ k_2,   [ [ 11, v,  val_2    ]]]  ]
+]
+
+# Within a kvset, for a given key, its ptombs will be seen before the vals/tombs
+output_kvset: [
+    [ k_1,  [ [ 14, v,  val_0   ],
+              [ 12, pt, pt_val_1 ],
+              [ 13, v,  val_1    ]]],
+    [ k_2,  [ [ 11, v,  val_2    ]]]
+]

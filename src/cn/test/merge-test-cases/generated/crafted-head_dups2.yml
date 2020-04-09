@@ -1,0 +1,53 @@
+_meta:
+  group: crafted
+  name: head_dups2
+input_kvsets:
+- - - k_00000001
+    - - - 1
+        - v
+        - v_kvset_0_key_0
+  - - k_00000002
+    - - - 1
+        - v
+        - v_kvset_0_key_1
+  - - k_00000003
+    - - - 1
+        - v
+        - v_kvset_0_key_2
+- - - k_00000001
+    - - - 1
+        - v
+        - v_kvset_1_key_0_DUP
+  - - k_00000002
+    - - - 1
+        - v
+        - v_kvset_1_key_1_DUP
+  - - k_00000003
+    - - - 1
+        - v
+        - v_kvset_1_key_2_DUP
+- - - k_00000001
+    - - - 1
+        - v
+        - v_kvset_2_key_0_DUP
+  - - k_00000002
+    - - - 1
+        - v
+        - v_kvset_2_key_1_DUP
+  - - k_00000003
+    - - - 1
+        - v
+        - v_kvset_2_key_2_DUP
+output_kvset:
+- - k_00000001
+  - - - 1
+      - v
+      - v_kvset_0_key_0
+- - k_00000002
+  - - - 1
+      - v
+      - v_kvset_0_key_1
+- - k_00000003
+  - - - 1
+      - v
+      - v_kvset_0_key_2

@@ -1,0 +1,46 @@
+0000: ver    magic 0x32313132 version 7 captgt 616562688
+0018: info   cnid 2 fanout 3 prefix 0 flags 0x0 metasz 4 name kvs2 meta 0xca 0xfe 0xba 0xbe
+005c: info   cnid 3 fanout 3 prefix 2 flags 0x0 metasz 2 name kvs3 meta 0xfe 0xed
+009e: info   cnid 4 fanout 3 prefix 3 flags 0x0 metasz 4 name kvs4 meta 0x21 0x12 0x12 0x21
+00e2: tx     3 seq 0 ingestid 0 nc 8 nd 0 
+010a: ack-C  3 tag 0 cnid 0
+0132: txc    3 tag 3 cnid 2 keepvbc 0 nk 2 nv 2 nm 0 ids 0x0012610e 0x00000002 / 0x00000003 0x00000004 
+0182: txc    3 tag 4 cnid 2 keepvbc 0 nk 1 nv 0 nm 0 ids 0x00126101 / 
+01ba: txc    3 tag 5 cnid 4 keepvbc 0 nk 1 nv 0 nm 0 ids 0x00127102 / 
+01f2: txc    3 tag 6 cnid 2 keepvbc 0 nk 1 nv 0 nm 0 ids 0x00127103 / 
+022a: txc    3 tag 7 cnid 2 keepvbc 0 nk 1 nv 0 nm 0 ids 0x00125104 / 
+0262: txc    3 tag 8 cnid 2 keepvbc 0 nk 1 nv 0 nm 0 ids 0x00119105 / 
+029a: txc    3 tag 9 cnid 2 keepvbc 0 nk 1 nv 0 nm 0 ids 0x00111106 / 
+02d2: txc    3 tag 10 cnid 2 keepvbc 0 nk 1 nv 0 nm 0 ids 0x0011d107 / 
+030a: txm    3 tag 3 cnid 2 dgen 1 loc 1,0 vused 0 compc 0
+034a: txm    3 tag 4 cnid 2 dgen 1 loc 1,1 vused 0 compc 0
+038a: txm    3 tag 5 cnid 4 dgen 1 loc 1,2 vused 0 compc 0
+03ca: txm    3 tag 6 cnid 2 dgen 1 loc 1,3 vused 0 compc 0
+040a: txm    3 tag 7 cnid 2 dgen 1 loc 1,4 vused 0 compc 0
+044a: txm    3 tag 8 cnid 2 dgen 1 loc 1,5 vused 0 compc 0
+048a: txm    3 tag 9 cnid 2 dgen 1 loc 1,6 vused 0 compc 0
+04ca: txm    3 tag 10 cnid 2 dgen 1 loc 1,7 vused 0 compc 0
+050a: tx     14 seq 0 ingestid 1 nc 2 nd 0 
+0532: ack-C  14 tag 0 cnid 0
+055a: txc    14 tag 16 cnid 3 keepvbc 0 nk 1 nv 0 nm 0 ids 0x0012410a / 
+0592: txc    14 tag 18 cnid 3 keepvbc 0 nk 1 nv 0 nm 0 ids 0x0012610b / 
+05ca: txm    14 tag 16 cnid 3 dgen 1 loc 1,2 vused 0 compc 0
+060a: txm    14 tag 18 cnid 3 dgen 1 loc 1,4 vused 0 compc 0
+064a: tx     21 seq 0 ingestid 2 nc 8 nd 0 
+0672: ack-C  21 tag 0 cnid 0
+069a: txc    21 tag 21 cnid 4 keepvbc 0 nk 1 nv 0 nm 0 ids 0x0012710e / 
+06d2: txc    21 tag 22 cnid 4 keepvbc 0 nk 1 nv 0 nm 0 ids 0x0012610f / 
+070a: txc    21 tag 23 cnid 4 keepvbc 0 nk 1 nv 0 nm 0 ids 0x00126110 / 
+0742: txc    21 tag 24 cnid 4 keepvbc 0 nk 1 nv 0 nm 0 ids 0x00128103 / 
+077a: txc    21 tag 25 cnid 2 keepvbc 0 nk 1 nv 0 nm 0 ids 0x00126104 / 
+07b2: txc    21 tag 26 cnid 4 keepvbc 0 nk 1 nv 0 nm 0 ids 0x0011a105 / 
+07ea: txc    21 tag 27 cnid 4 keepvbc 0 nk 1 nv 0 nm 0 ids 0x00112106 / 
+0822: txc    21 tag 28 cnid 4 keepvbc 0 nk 1 nv 0 nm 0 ids 0x0011e107 / 
+085a: txm    21 tag 21 cnid 4 dgen 1 loc 1,0 vused 0 compc 0
+089a: txm    21 tag 22 cnid 4 dgen 1 loc 1,1 vused 0 compc 0
+08da: txm    21 tag 23 cnid 4 dgen 1 loc 1,2 vused 0 compc 0
+091a: txm    21 tag 24 cnid 4 dgen 1 loc 1,3 vused 0 compc 0
+095a: txm    21 tag 25 cnid 2 dgen 1 loc 1,4 vused 0 compc 0
+099a: txm    21 tag 26 cnid 4 dgen 1 loc 1,5 vused 0 compc 0
+09da: txm    21 tag 27 cnid 4 dgen 1 loc 1,6 vused 0 compc 0
+0a1a: txm    21 tag 28 cnid 4 dgen 1 loc 1,7 vused 0 compc 0

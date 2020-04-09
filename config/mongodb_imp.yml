@@ -1,0 +1,13 @@
+# Copyright (C) 2019 Micron Technology.  All rights reserved.
+# Workload: MongoDB IMP
+#
+# The following parameters are experimental:
+#   pfx_pivot: sets the pivot level
+
+apiVersion: 1
+kvs.MainKvs:
+  pfx_len: 4
+  pfx_pivot: 1
+kvs.UniqIdxKvs:
+  pfx_len: 4
+  pfx_pivot: 1
