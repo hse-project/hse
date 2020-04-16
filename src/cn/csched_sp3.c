@@ -2040,16 +2040,9 @@ sp3_compact(struct sp3 *sp)
 {
     uint   cur_jobs;
     bool   scheduled_new_job = false;
-    merr_t err;
 
     assert(sp->jobs_started >= sp->jobs_finished);
     cur_jobs = sp->jobs_started - sp->jobs_finished;
-
-    err = kvdb_health_check(sp->health, KVDB_HEALTH_FLAG_ALL);
-    if (ev(err)) {
-        hse_log(HSE_ERR "KVDB is in bad health. Need a restart");
-        return false;
-    }
 
     if (cur_jobs < sp->jobs_max)
         scheduled_new_job = sp3_schedule(sp);
@@ -2070,6 +2063,7 @@ sp3_monitor(struct work_struct *work)
 
     const int long_timeout_ms = 100;
     const int short_timeout_ms = 20;
+    bool      bad_health = false;
 
     struct periodic_check chk_qos;
     struct periodic_check chk_refresh;
@@ -2091,6 +2085,7 @@ sp3_monitor(struct work_struct *work)
     sp3_refresh_settings(sp);
 
     while (!atomic_read(&sp->destruct)) {
+        merr_t err;
 
         mutex_lock(&sp->mutex);
         cv_timedwait(&sp->cv, &sp->mutex, busy ? short_timeout_ms : long_timeout_ms);
@@ -2105,7 +2100,16 @@ sp3_monitor(struct work_struct *work)
 
         sp3_update_samp(sp);
 
-        busy = sp3_compact(sp);
+        err = kvdb_health_check(sp->health, KVDB_HEALTH_FLAG_ALL);
+        if (ev(err)) {
+            if (!bad_health)
+                hse_elog(HSE_ERR "%s: KVDB is in bad health, @@e", err, sp->name);
+
+            bad_health = true;
+        }
+
+        if (!bad_health)
+            busy = sp3_compact(sp);
 
         if (now > chk_refresh.next) {
             sp3_refresh_settings(sp);
