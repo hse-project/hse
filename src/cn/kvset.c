@@ -107,8 +107,8 @@ static atomic_t           kvset_init_ref;
  * buffers that would perform expensive address map modifications.
  */
 #define KVSET_RBUF_ALLOCSZ_MAX (roundup(HSE_KVS_VLEN_MAX * 2, 2u << 20))
-#define KVSET_RBUF_CACHESZ_MAX (1024 * 1024 * 768u)
-#define KVSET_RBUF_KEEPSZ_MAX (1024 * 512u)
+#define KVSET_RBUF_CACHESZ_MAX (1024 * 1024 * 768u * 2)
+#define KVSET_RBUF_KEEPSZ_MAX (1024 * 512u * 2)
 
 struct rbufcache {
     struct mutex lock;
@@ -193,7 +193,7 @@ kvset_rbuf_free(void *mem, size_t used)
         used = allocsz;
 
     if (ev(used > keepsz))
-        rc = madvise(mem + keepsz, used - keepsz, MADV_FREE);
+        rc = madvise(mem + keepsz, used - keepsz, MADV_DONTNEED);
     if (!rc) {
         mutex_lock(&rbc.lock);
         if (rbc.cnt * keepsz < KVSET_RBUF_CACHESZ_MAX) {
