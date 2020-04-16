@@ -20,19 +20,10 @@
 #undef COMPNAME
 #define COMPNAME __func__
 
-static inline void
-destroy_data_tree(void)
-{
-    dt_destroy(dt_data_tree);
-    dt_data_tree = NULL;
-}
-
 int
 ev_test_pre(struct mtf_test_info *lcl_ti)
 {
-    if (dt_data_tree != NULL)
-        destroy_data_tree();
-
+    dt_shutdown();
     dt_init();
 
     return 0;
@@ -41,7 +32,6 @@ ev_test_pre(struct mtf_test_info *lcl_ti)
 int
 ev_test_post(struct mtf_test_info *ti)
 {
-    destroy_data_tree();
     return 0;
 }
 
