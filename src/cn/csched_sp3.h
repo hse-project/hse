@@ -19,7 +19,12 @@ struct mpool;
 
 /* MTF_MOCK */
 merr_t
-sp3_create(struct mpool *ds, struct kvdb_rparams *rp, const char *mp, struct csched_ops **handle);
+sp3_create(
+    struct mpool *       ds,
+    struct kvdb_rparams *rp,
+    const char *         mp,
+    struct kvdb_health * health,
+    struct csched_ops ** handle);
 
 struct sp3_rbe {
     s64            rbe_weight;

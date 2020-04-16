@@ -11,11 +11,16 @@
 /* MTF_MOCK_DECL(csched_noop) */
 
 struct kvdb_rparams;
+struct kvdb_health;
 struct csched_ops;
 
 /* MTF_MOCK */
 merr_t
-sp_noop_create(struct kvdb_rparams *rp, const char *mp, struct csched_ops **handle);
+sp_noop_create(
+    struct kvdb_rparams *rp,
+    const char *         mp,
+    struct kvdb_health * health,
+    struct csched_ops ** handle);
 
 struct noop_node {
 };

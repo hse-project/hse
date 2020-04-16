@@ -131,7 +131,7 @@ struct cn_work_est {
  * struct cn_compaction_work - control structure for cn tree compaction
  *
  * @cw_work:         for linking into workqueues
- * @cw_tree:             cn tree
+ * @cw_tree:         cn tree
  * @cw_node:         node within cn tree
  * @cw_mark:         oldest kvset to be compacted
  * @cw_kvset_cnt:    number of kvsets to be compacted

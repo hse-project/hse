@@ -620,7 +620,7 @@ sp3_work_leaf_scatter(
  * @wtype: type of work to consider
  * @debug: debug flag
  * @qnum_out: sts queue
- * @w: work struct (allocated by caller, initialized by sp3_work())
+ * @wp: work struct
  */
 merr_t
 sp3_work(

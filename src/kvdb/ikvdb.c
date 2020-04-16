@@ -1345,6 +1345,7 @@ ikvdb_open(
             self->ikdb_ds,
             &self->ikdb_rp,
             self->ikdb_mpname,
+            &self->ikdb_health,
             &self->ikdb_csched);
         if (err) {
             hse_elog(HSE_ERR "cannot open %s: @@e", err, mp_name);
