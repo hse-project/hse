@@ -6,6 +6,11 @@
 #ifndef HSE_LIMITS_H
 #define HSE_LIMITS_H
 
+/** ...
+ *
+ * \ingroup HSE
+ */
+
 /* Global Limits */
 
 /* Maximum number of KVS's contained within one KVDB */
