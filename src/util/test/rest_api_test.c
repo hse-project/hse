@@ -71,6 +71,7 @@ MTF_DEFINE_UTEST_PREPOST(rest_api, get_handler_test, rest_start, rest_stop)
     merr_t      err;
     const char *path;
 
+    dt_shutdown();
     dt_init();
 
     ERROR_COUNTER();
@@ -91,8 +92,7 @@ MTF_DEFINE_UTEST_PREPOST(rest_api, get_handler_test, rest_start, rest_stop)
     err = curl_get(0, sock, buf, sizeof(buf));
     ASSERT_EQ(merr_errno(err), EINVAL);
 
-    dt_destroy(dt_data_tree);
-    dt_data_tree = 0;
+    dt_shutdown();
 
     /* No tree */
     path = "/test_dt/event_counter";
@@ -100,6 +100,8 @@ MTF_DEFINE_UTEST_PREPOST(rest_api, get_handler_test, rest_start, rest_stop)
     err = curl_get(path, sock, buf, sizeof(buf));
     ASSERT_EQ(0, buf[0]);
     ASSERT_EQ(0, err);
+
+    dt_init();
 }
 
 MTF_DEFINE_UTEST_PREPOST(rest_api, put_handler_test, rest_start, rest_stop)
@@ -112,8 +114,10 @@ MTF_DEFINE_UTEST_PREPOST(rest_api, put_handler_test, rest_start, rest_stop)
     struct event_counter *ec;
     struct dt_element *   dte;
 
-    rest_init();
+    dt_shutdown();
     dt_init();
+    rest_init();
+
     err = rest_url_register(0, 0, rest_dt_get, rest_dt_put, "data");
     ASSERT_EQ(0, err);
 
@@ -171,8 +175,7 @@ MTF_DEFINE_UTEST_PREPOST(rest_api, put_handler_test, rest_start, rest_stop)
     ASSERT_EQ(0, strncmp(invalid_path, buf, strlen(invalid_path)));
     ASSERT_EQ(0, err);
 
-    dt_destroy(dt_data_tree);
-    dt_data_tree = 0;
+    dt_shutdown();
 
     /* No tree */
     const char *no_tree = "No data tree found";
@@ -181,6 +184,8 @@ MTF_DEFINE_UTEST_PREPOST(rest_api, put_handler_test, rest_start, rest_stop)
     err = curl_put(path, sock, 0, 0, buf, sizeof(buf));
     ASSERT_EQ(0, strncmp(no_tree, buf, strlen(no_tree)));
     ASSERT_EQ(0, err);
+
+    dt_init();
 }
 
 MTF_DEFINE_UTEST_PREPOST(rest_api, no_handlers_test, rest_start, rest_stop)
