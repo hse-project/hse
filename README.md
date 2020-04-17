@@ -13,9 +13,10 @@ Internet of Things (IoT), and Artificial Intelligence (AI) solutions.
 ## Key Features
 
 * Standard and advanced key-value operators
-* Full transactions with MVCC and snapshot-isolation semantics
+* Full transactions with snapshot-isolation semantics spanning multiple
+independent key-value collections
 * Cursors for iterating over snapshot views
-* Data model for optimizing mixed use-case workloads in a single store
+* Data model for optimizing mixed use-case workloads in a single data store
 * Flexible durability controls
 * Configurable data orchestration schemes
 * C API library that can be embedded in any application
