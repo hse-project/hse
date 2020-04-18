@@ -48,8 +48,8 @@
  * textual reference about what error occurred and where.
  *
  * @typedef hse_params
- * @brief Opaque structure defining a collection of parameters governing either
- *        run-time or create-time settings
+ * @brief Opaque structure defining a collection of parameters governing KVDB
+ *        and KVS settings
  *
  * @typedef hse_kvdb
  * @brief Opaque structure, a pointer to which is a handle to an HSE key-value
