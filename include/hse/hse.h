@@ -606,7 +606,7 @@ hse_kvdb_txn_get_state(struct hse_kvdb *kvdb, struct hse_kvdb_txn *txn);
  * there is not such a disparity. If you application can accomplish what it needs with
  * single-key operations, with or without transactions, then that is recommended. Using
  * a mix of single-key operations as well as cursors where the latter are required is
- * encouraged.
+ * strongly encouraged.
  *
  * A cursor create, seek, read, destroy sequence will be much slower than a single
  * hse_kvs_get() call.
@@ -614,6 +614,11 @@ hse_kvdb_txn_get_state(struct hse_kvdb *kvdb, struct hse_kvdb_txn *txn);
 
 /**
  * Creates a cursor used to iterate over a KVS
+ *
+ * When cursors are created they are by default forward iterating. If the caller of
+ * hse_kvs_cursor_create() passes a reference to an initialized opspec with bit flag
+ * HSE_KVDB_KOP_FLAG_REVERSE set, then a backwards (reverse sort order) iterating cursor
+ * is created. A cursor's direction is determined when it is created and is immutable.
  *
  * Cursors are of one of three types: (1) free, (2) transaction snapshot, and (3)
  * transaction bound. A cursor of type (1) is based on an ephemeral snapshot view the
@@ -626,19 +631,17 @@ hse_kvdb_txn_get_state(struct hse_kvdb *kvdb, struct hse_kvdb_txn *txn);
  * function is thread safe.
  *
  * The hse_kvdb_opspec referent shapes the type and behavior of the cursor created. The
- * flag fields within kop_flags are independent. In particular, the bit position
- * HSE_KVDB_KOP_FLAG_REVERSE determines whether the cursor is forward or reverse and
- * this will not be discussed further.  Passing a NULL for the opspec is the same as
- * passing an initialized but otherwise unmodified opspec.
+ * flag fields within kop_flags are independent. Passing a NULL for the opspec is the
+ * same as passing an initialized but otherwise unmodified opspec.
  *
  *   - To create a cursor of type (1):
  *       - Pass either a NULL for opspec, or
  *       - Pass an initialized opspec with kop_txn == NULL
  *
- *   - To create a forward/reverse cursor of type (2):
+ *   - To create a cursor of type (2):
  *       - Pass an initialized opspec with kop_txn == <target txn>
  *
- *   - To create a forward/reverse cursor of type (3):
+ *   - To create a cursor of type (3):
  *       - Pass an initialized opspec with kop_txn == <target txn> and
  *         a kop_flags value with position HSE_KVDB_KOP_FLAG_BIND_TXN set
  *
