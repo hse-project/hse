@@ -235,7 +235,7 @@ hse_kvdb_close(struct hse_kvdb *kvdb);
  * Get the names of the KVSs within the given KVDB
  *
  * Key-value stores (KVSs) are opened by name. This function allocates a vector of
- * allocated strings, each containing the name of a KVS. The memory must be free via
+ * allocated strings, each containing the name of a KVS. The memory must be freed via
  * hse_kvdb_free_names(). This function is thread safe.
  *
  * Example Usage:
@@ -349,6 +349,15 @@ hse_kvdb_kvs_close(struct hse_kvs *kvs);
  * in the range [0, HSE_KVS_VLEN_MAX]. See the section on transactions for information
  * on how puts within transactions are handled. This function is thread safe.
  *
+ * The HSE KVDB attempts to maintain reasonable QoS and for high-throughput clients this
+ * results in very short sleep's being inserted into the put path. For some kinds of
+ * data (e.g., control metadata) the client may wish to not experience that delay. For
+ * relatively low data rate uses, the caller can set the HSE_KVDB_KOP_FLAG_PRIORITY flag
+ * for an hse_kvs_put() opspec. Care should be taken when doing so to ensure that the
+ * system does not become overrun. As a rough approximation, doing 1M priority put's per
+ * second marked as PRIORITY is likely an issue. On the other hand, doing 1K small puts
+ * per second marked as PRIORITY is almost certainly fine.
+ *
  * @param kvs:     KVS handle from hse_kvdb_kvs_open()
  * @param opspec:  Specification for put operation
  * @param key:     Key to put into kvs
@@ -372,7 +381,7 @@ hse_kvs_put(
  *
  * If the key exists in the KVS then the referent of "found" is set to true. If the
  * caller's value buffer is large enough then the data will be returned. Regardless, the
- * actual length of the value is plced in "val_len". See the section on transactions for
+ * actual length of the value is placed in "val_len". See the section on transactions for
  * information on how gets within transactions are handled. This function is thread
  * safe.
  *
@@ -662,7 +671,7 @@ hse_kvdb_txn_get_state(struct hse_kvdb *kvdb, struct hse_kvdb_txn *txn);
  * forward in time to be able to see the mutations of the transaction. Note that this
  * may make other mutations visible to the cursor as well.
  *
- * @param kvs:     KVS to iterate over, from  from hse_kvdb_kvs_open()
+ * @param kvs:     KVS to iterate over, handle from hse_kvdb_kvs_open()
  * @param opspec:  Optional flags, optional txn
  * @param pfx:     Optional: scans limited to this prefix
  * @param pfx_len: Optional: length of prefix
@@ -684,7 +693,7 @@ hse_kvs_cursor_create(
  * This operation serves to either move the snapshot view forward for a type (1) cursor,
  * or to transition between being a type (1), type (2), and type (3) cursor.  That
  * includes toggling the state of the HSE_KVDB_KOP_FLAG_STATIC_VIEW flag.  For example,
- * to "un-bind" a cursor to a transaction the caller may either NULL out the kop_txn
+ * to "un-bind" a cursor from a transaction the caller may either NULL out the kop_txn
  * field or clear the HSE_KVDB_KOP_FLAG_BIND_TXN flag. This function is thread safe
  * across disparate cursors.
  *
@@ -766,7 +775,7 @@ hse_kvs_cursor_seek_range(
  * @param opspec:  Ignored; may be zero
  * @param key:     [out] Next key in sequence
  * @param key_len: [out] Length of key
- * @param val:     [out] Next Value in sequence
+ * @param val:     [out] Next value in sequence
  * @param val_len: [out] Length of value
  * @param eof:     [out] If true, no more key/value pairs in sequence
  * @return The function's error status
