@@ -210,7 +210,7 @@ hse_kvdb_make(const char *mp_name, struct hse_params *params);
  * function is not thread safe.
  *
  * @param mp_name: Mpool name in which the KVDB exists
- * @param params:  Configuration-time parameters
+ * @param params:  Configuration parameters
  * @param kvdb:    [out] Handle to access the opened KVDB
  * @return The function's error status
  */
@@ -224,7 +224,7 @@ hse_kvdb_open(const char *mp_name, struct hse_params *params, struct hse_kvdb **
  * No client thread may enter the HSE KVDB API with the referenced KVDB after this
  * function starts. This function is not thread safe.
  *
- * @param kvdb: KVDB handle
+ * @param kvdb: KVDB handle from hse_kvdb_open()
  * @return The function's error status
  */
 /* MTF_MOCK */
@@ -250,7 +250,7 @@ hse_kvdb_close(struct hse_kvdb *kvdb);
  *     }
  *     hse_kvdb_free_names(namev);
  *
- * @param kvdb:     KVDB handle
+ * @param kvdb:     KVDB handle from hse_kvdb_open()
  * @param count:    [out] Number of KVSs in the KVDB.
  * @param kvs_list: [out] Vector of KVSs. Allocated by the function
  * @return The function's error status
@@ -265,7 +265,7 @@ hse_kvdb_get_names(struct hse_kvdb *kvdb, unsigned int *count, char ***kvs_list)
  *
  * This function is thread safe.
  *
- * @param kvdb:     KVDB handle
+ * @param kvdb:     KVDB handle from hse_kvdb_open()
  * @param kvs_list: Vector of KVS names that hse_kvdb_get_names() output
  */
 void
@@ -277,7 +277,7 @@ hse_kvdb_free_names(struct hse_kvdb *kvdb, char **kvs_list);
  * An error will result if there is already a KVS with the given name. This function is
  * not thread safe.
  *
- * @param kvdb:     KVDB handle
+ * @param kvdb:     KVDB handle from hse_kvdb_open()
  * @param kvs_name: KVS name
  * @param params:   Fixed configuration parameters
  * @return The function's error status
@@ -292,7 +292,7 @@ hse_kvdb_kvs_make(struct hse_kvdb *kvdb, const char *kvs_name, struct hse_params
  * It is an error to call this function on a KVS that is open. This function is not
  * thread safe.
  *
- * @param kvdb:     KVDB handle
+ * @param kvdb:     KVDB handle from hse_kvdb_open()
  * @param kvs_name: KVS name
  * @return The function's error status
  */
@@ -304,7 +304,7 @@ hse_kvdb_kvs_drop(struct hse_kvdb *kvdb, const char *kvs_name);
  *
  * This function is not thread safe.
  *
- * @param kvdb:     KVDB handle
+ * @param kvdb:     KVDB handle from hse_kvdb_open()
  * @param kvs_name: KVS name
  * @param params:   Parameters that affect how the KVS will function
  * @param kvs_out:  [out] handle to access the opened KVS
@@ -323,7 +323,7 @@ hse_kvdb_kvs_open(
  * No client thread may enter the HSE KVDB API with the referenced KVS after this
  * function starts. This function is not thread safe.
  *
- * @param kvs: KVS handle
+ * @param kvs: KVS handle from hse_kvdb_kvs_open()
  * @return The function's error status
  */
 hse_err_t
@@ -342,14 +342,14 @@ hse_kvdb_kvs_close(struct hse_kvs *kvs);
  */
 
 /**
- * Put a key/value pair into the KVS identified by handle
+ * Put a key/value pair into KVS
  *
  * If the key already exists in the KVS then the value is effectively overwritten. The
  * key length must be in the range [1, HSE_KVS_KLEN_MAX] while the value length must be
  * in the range [0, HSE_KVS_VLEN_MAX]. See the section on transactions for information
  * on how puts within transactions are handled. This function is thread safe.
  *
- * @param kvs:     KVS handle
+ * @param kvs:     KVS handle from hse_kvdb_kvs_open()
  * @param opspec:  Specification for put operation
  * @param key:     Key to put into kvs
  * @param key_len: Length of key
@@ -368,7 +368,7 @@ hse_kvs_put(
     size_t                  val_len);
 
 /**
- * Retrieve the value for a given key
+ * Retrieve the value for a given key from KVS
  *
  * If the key exists in the KVS then the referent of "found" is set to true. If the
  * caller's value buffer is large enough then the data will be returned. Regardless, the
@@ -376,7 +376,7 @@ hse_kvs_put(
  * information on how gets within transactions are handled. This function is thread
  * safe.
  *
- * @param kvs:     KVS handle
+ * @param kvs:     KVS handle from hse_kvdb_kvs_open()
  * @param opspec:  Specification for get operation
  * @param key:     Key to get from kvs
  * @param key_len: Length of key
@@ -399,13 +399,13 @@ hse_kvs_get(
     size_t *                val_len);
 
 /**
- * Delete the key and its associated value from the KVS
+ * Delete the key and its associated value from KVS
  *
  * It is not an error if the key does not exist within the KVS. See the section on
  * transactions for information on how deletes within transactions are handled. This
  * function is thread safe.
  *
- * @param kvs:     KVS handle
+ * @param kvs:     KVS handle from hse_kvdb_kvs_open()
  * @param opspec:  Specification for delete operation
  * @param key:     Key to be deleted from kvs
  * @param key_len: Length of key
@@ -429,7 +429,7 @@ hse_kvs_delete(
  * See the section on transactions for information on how deletes within transactions
  * are handled. This function is thread safe.
  *
- * @param kvs:         KVS handle
+ * @param kvs:         KVS handle from hse_kvdb_kvs_open()
  * @param opspec:      KVDB op struct
  * @param pfx_key:     Prefix key to delete
  * @param pfx_len:     Prefix key length
@@ -512,12 +512,12 @@ enum hse_kvdb_txn_state {
 };
 
 /**
- * Allocate a transaction object
+ * Allocate transaction object
  *
  * This object can and should be re-used many times to avoid the overhead of
  * allocation. This function is thread safe.
  *
- * @param kvdb: KVDB handle
+ * @param kvdb: KVDB handle from hse_kvdb_open()
  * @return The allocated transaction structure
  */
 /* MTF_MOCK */
@@ -525,12 +525,12 @@ struct hse_kvdb_txn *
 hse_kvdb_txn_alloc(struct hse_kvdb *kvdb);
 
 /**
- * Free a transaction
+ * Free transaction object
  *
  * If the transaction handle refers to an ACTIVE transaction, the transaction is aborted
  * prior to being freed. This function is thread safe with different transactions.
  *
- * @param kvdb: KVDB handle
+ * @param kvdb: KVDB handle from hse_kvdb_open()
  * @param txn:  KVDB transaction handle
  */
 /* MTF_MOCK */
@@ -538,13 +538,13 @@ void
 hse_kvdb_txn_free(struct hse_kvdb *kvdb, struct hse_kvdb_txn *txn);
 
 /**
- * Initiate a transaction.
+ * Initiate transaction
  *
  * The call fails if the transaction handle refers to an ACTIVE transaction. This
  * function is thread safe with different transactions.
  *
- * @param kvdb: KVDB handle
- * @param txn:  KVDB transaction handle
+ * @param kvdb: KVDB handle from hse_kvdb_open()
+ * @param txn:  KVDB transaction handle from hse_kvdb_txn_alloc()
  * @return The function's error status
  */
 /* MTF_MOCK */
@@ -557,8 +557,8 @@ hse_kvdb_txn_begin(struct hse_kvdb *kvdb, struct hse_kvdb_txn *txn);
  * The call fails if the referenced transaction is not in the ACTIVE state. This
  * function is thread safe with different transactions.
  *
- * @param kvdb: KVDB handle
- * @param txn:  KVDB transaction handle
+ * @param kvdb: KVDB handle from hse_kvdb_open()
+ * @param txn:  KVDB transaction handle from hse_kvdb_txn_alloc()
  * @return The function's error status
  */
 /* MTF_MOCK */
@@ -566,13 +566,13 @@ hse_err_t
 hse_kvdb_txn_commit(struct hse_kvdb *kvdb, struct hse_kvdb_txn *txn);
 
 /**
- * Abort/rollback the transaction
+ * Abort/rollback transaction
  *
  * The call fails if the referenced transaction is not in the ACTIVE state. This
  * function is thread safe with different transactions.
  *
- * @param kvdb: KVDB handle
- * @param txn:  KVDB transaction handle
+ * @param kvdb: KVDB handle from hse_kvdb_open()
+ * @param txn:  KVDB transaction handle from hse_kvdb_txn_alloc()
  * @return The function's error status
  */
 /* MTF_MOCK */
@@ -584,8 +584,8 @@ hse_kvdb_txn_abort(struct hse_kvdb *kvdb, struct hse_kvdb_txn *txn);
  *
  * This function is thread safe with different transactions.
  *
- * @param kvdb: KVDB handle
- * @param txn:  KVDB transaction handle
+ * @param kvdb: KVDB handle from hse_kvdb_open()
+ * @param txn:  KVDB transaction handle from hse_kvdb_txn_alloc()
  * @return The transaction's state
  */
 /* MTF_MOCK */
@@ -662,7 +662,7 @@ hse_kvdb_txn_get_state(struct hse_kvdb *kvdb, struct hse_kvdb_txn *txn);
  * forward in time to be able to see the mutations of the transaction. Note that this
  * may make other mutations visible to the cursor as well.
  *
- * @param kvs:     KVS to iterate over
+ * @param kvs:     KVS to iterate over, from  from hse_kvdb_kvs_open()
  * @param opspec:  Optional flags, optional txn
  * @param pfx:     Optional: scans limited to this prefix
  * @param pfx_len: Optional: length of prefix
@@ -688,7 +688,7 @@ hse_kvs_cursor_create(
  * field or clear the HSE_KVDB_KOP_FLAG_BIND_TXN flag. This function is thread safe
  * across disparate cursors.
  *
- * @param cursor: Cursor from hse_kvs_cursor_create
+ * @param cursor: Cursor handle from hse_kvs_cursor_create()
  * @param opspec: Optional flags, optional txn
  * @return The function's error status
  */
@@ -703,7 +703,7 @@ hse_kvs_cursor_update(struct hse_kvs_cursor *cursor, struct hse_kvdb_opspec *ops
  * must be non-NULL for that functionality to work. This function is thread safe across
  * disparate cursors.
  *
- * @param cursor:    Cursor from hse_kvs_cursor_create
+ * @param cursor:    Cursor handle from hse_kvs_cursor_create()
  * @param opspec:    Ignored; must be zero
  * @param key:       Key to find
  * @param key_len:   Length of key
@@ -733,7 +733,7 @@ hse_kvs_cursor_seek(
  *
  * Note that this is supported only for forward cursors.
  *
- * @param cursor:    Cursor from hse_kvs_cursor_create
+ * @param cursor:    Cursor handle from hse_kvs_cursor_create()
  * @param opspec:    Unused
  * @param key:       Key to find
  * @param key_len:   Length of key
@@ -756,13 +756,13 @@ hse_kvs_cursor_seek_range(
     size_t *                found_len);
 
 /**
- * hse_kvs_cursor_read() - iteratively access the elements pointed to by the cursor
+ * Iteratively access the elements pointed to by the cursor
  *
  * Read a key/value pair from the cursor, advancing the cursor past its current
  * location. If the cursor is at EOF, attempts to read from it will not change the state
  * of the cursor. This function is thread safe across disparate cursors.
  *
- * @param cursor:  Cursor from hse_kvs_cursor_create
+ * @param cursor:  Cursor handle from hse_kvs_cursor_create()
  * @param opspec:  Ignored; may be zero
  * @param key:     [out] Next key in sequence
  * @param key_len: [out] Length of key
@@ -783,11 +783,11 @@ hse_kvs_cursor_read(
     bool *                  eof);
 
 /**
- * hse_kvs_cursor_destroy() - destroys the cursor handle
+ * Destroy cursor
  *
  * This function is thread safe.
  *
- * @param cursor: Cursor from hse_kvs_cursor_create
+ * @param cursor: Cursor handle from hse_kvs_cursor_create()
  * @return The function's error status
  */
 /* MTF_MOCK */
@@ -809,7 +809,7 @@ hse_kvs_cursor_destroy(struct hse_kvs_cursor *cursor);
 /**
  * Flush data in all of the referenced KVDB's KVSs to stable media and return
  *
- * @param kvdb: KVDB handle
+ * @param kvdb: KVDB handle from hse_kvdb_open()
  * @return The function's error status
  */
 /* MTF_MOCK */
@@ -819,7 +819,7 @@ hse_kvdb_sync(struct hse_kvdb *kvdb);
 /**
  * Initiate data flush in all of the referenced KVDB's KVSs
  *
- * @param kvdb: KVDB handle
+ * @param kvdb: KVDB handle from hse_kvdb_open()
  * @return The function's error status
  */
 hse_err_t
@@ -846,12 +846,12 @@ hse_kvdb_flush(struct hse_kvdb *kvdb);
  *
  * See the function hse_kvdb_compact_status(). This function is thread safe.
  *
- * @param handle: Initiate/cancel compaction for this KVDB
- * @param flags:  Compaction flags
+ * @param kvdb:  KVDB handle from hse_kvdb_open()
+ * @param flags: Compaction flags
  * @return The function's error status
  */
 hse_err_t
-hse_kvdb_compact(struct hse_kvdb *handle, int flags);
+hse_kvdb_compact(struct hse_kvdb *kvdb, int flags);
 
 /**
  * struct hse_kvdb_compact_status - status of a compaction request
@@ -869,12 +869,12 @@ struct hse_kvdb_compact_status {
  * The caller can examine the fields of the hse_kvdb_compact_status struct to determine
  * the current state of maintenance compaction. This function is thread safe.
  *
- * @param handle: Get compaction status of this KVDB
+ * @param kvdb:   KVDB handle from hse_kvdb_open()
  * @param status: [out] Status of compaction request
  * @return The function's error status
  */
 hse_err_t
-hse_kvdb_compact_status(struct hse_kvdb *handle, struct hse_kvdb_compact_status *status);
+hse_kvdb_compact_status(struct hse_kvdb *kvdb, struct hse_kvdb_compact_status *status);
 
 /**@}*/
 
@@ -884,7 +884,7 @@ hse_kvdb_compact_status(struct hse_kvdb *handle, struct hse_kvdb_compact_status 
  * =====================================================
  */
 
-/** @name Create and Runtime Parameter Functions
+/** @name Configuration Parameter Functions
  * @{
  */
 
@@ -971,9 +971,9 @@ hse_params_set(struct hse_params *params, const char *key, const char *val);
  * Get configuration parameter
  *
  * Obtain the value the parameter denoted by "key" is set to in the params object. If
- * the key is valid, then at most "buf_len"-1 bytes of the parameter setting will copied
- * into "buf". If "param_len" is non-NULL, then on return the referent will contain the
- * length of the parameter value. This function is not thread safe.
+ * the key is valid, then at most "buf_len"-1 bytes of the parameter setting will be
+ * copied into "buf". If "param_len" is non-NULL, then on return the referent will
+ * contain the length of the parameter value. This function is not thread safe.
  *
  * @param params:    Referenced params object
  * @param key:       Target key
