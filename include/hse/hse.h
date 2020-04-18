@@ -2,7 +2,6 @@
 /*
  * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
  */
-/*------------------------------------------------------------------------------------------------*/
 
 /** @file hse.h
  */
@@ -14,9 +13,9 @@
 
 /*! @mainpage Overview
  *
- * The HSE library is generally described in other places. The documentation
- * here is geared towards describing the structure of the HSE API and the
- * specifics of each entry point's operation.
+ * The HSE library is generally described in other places. The documentation here is
+ * geared towards describing the structure of the HSE API and the specifics of each
+ * entry point's operation.
  */
 
 #include <hse/hse_limits.h>
@@ -26,9 +25,9 @@
 #include <stdlib.h>
 
 
-/* =============================================================================================
+/* ====================================================================================
  * Type Declarations / Shared Structures / Macros
- * ============================================================================================= */
+ * ==================================================================================== */
 
 /** @name Type Declarations / Shared Structures / Macros
  * @{
@@ -37,17 +36,16 @@
 /**
  * These types are generally opaque handles that a client obtains by using library
  * functions. A client uses these handles to exercise more fine-grained
- * functionality. For example a "struct hse_kvdb" is the handle for a key-value
- * database that one obtains by calling hse_kvdb_open().
+ * functionality. For example a "struct hse_kvdb" is the handle for a key-value database
+ * that one obtains by calling hse_kvdb_open().
  *
  * @typedef hse_err_t
  * @brief Generic return type for the HSE library
  *
- * If this scalar quantity is 0 then the call succeeded. If it is non-zero
- * then the 64-bit quantity can be used by the client in two ways: (1) call
- * hse_err_to_errno() to get a mapping to a POSIX errno value, and (2) call
- * hse_err_to_string() to get a textual reference about what error occurred
- * and where.
+ * If this scalar quantity is 0 then the call succeeded. If it is non-zero then the
+ * 64-bit quantity can be used by the client in two ways: (1) call hse_err_to_errno() to
+ * get a mapping to a POSIX errno value, and (2) call hse_err_to_string() to get a
+ * textual reference about what error occurred and where.
  *
  * @typedef hse_params
  * @brief Opaque structure defining a collection of parameters governing either
@@ -83,10 +81,10 @@ struct hse_kvdb_txn;
  *        point behavior.
  *
  * This structure may evolve as the HSE API grows. Failure to use the macro
- * HSE_KVDB_OPSPEC_INIT() to initialize an hse_kvdb_opspec will cause calls
- * using it to fail. Once init'd the programmer can freely manipulate the
- * kop_flags and kop_txn fields. Modifying kop_opaque or relying in any way on
- * its structure will result in undefined behavior.
+ * HSE_KVDB_OPSPEC_INIT() to initialize an hse_kvdb_opspec will cause calls using it to
+ * fail. Once init'd the programmer can freely manipulate the kop_flags and kop_txn
+ * fields. Modifying kop_opaque or relying in any way on its structure will result in
+ * undefined behavior.
  */
 
 struct hse_kvdb_opspec {
@@ -105,14 +103,14 @@ struct hse_kvdb_opspec {
 #define HSE_KVDB_KOP_FLAG_REVERSE 0x01     /**< reverse cursor */
 #define HSE_KVDB_KOP_FLAG_BIND_TXN 0x02    /**< cursor bound to transaction */
 #define HSE_KVDB_KOP_FLAG_STATIC_VIEW 0x04 /**< bound cursor's view is static */
-#define HSE_KVDB_KOP_FLAG_PRIORITY 0x08    /**< operation will not be throttled @see hse_kvs_put */
+#define HSE_KVDB_KOP_FLAG_PRIORITY 0x08    /**< op won't be throttled @see, hse_kvs_put */
 
 /**@}*/
 
 
-/* =============================================================================================
+/* ====================================================================================
  * Utility Routines
- * ============================================================================================= */
+ * ==================================================================================== */
 
 /** @name Utility Routines
  * @{
@@ -121,8 +119,8 @@ struct hse_kvdb_opspec {
 /**
  * Initialize the HSE KVDB subsystem
  *
- * This function initializes a range of different internal HSE structures. It must
- * be called before any other HSE functions are used. It is not thread safe and is
+ * This function initializes a range of different internal HSE structures. It must be
+ * called before any other HSE functions are used. It is not thread safe and is
  * idempotent.
  */
 hse_err_t
@@ -133,8 +131,8 @@ hse_kvdb_init(void);
  *
  * This function cleanly finalizes a range of different internal HSE structures. It
  * should be called prior to application exit and is not thread safe. After it is
- * invoked (and even before it returns), calling any other HSE functions will
- * result in undefined behavior. This function is not thread safe.
+ * invoked (and even before it returns), calling any other HSE functions will result in
+ * undefined behavior. This function is not thread safe.
  */
 void
 hse_kvdb_fini(void);
@@ -142,9 +140,9 @@ hse_kvdb_fini(void);
 /**
  * Returns a string representing the HSE KVDB libary version
  *
- * The version string starts with a numeric sequence (e.g., 1.7.0) and then,
- * depending on the type of build may have additional information appended. This
- * function is thread safe.
+ * The version string starts with a numeric sequence (e.g., 1.7.0) and then, depending
+ * on the type of build may have additional information appended. This function is
+ * thread safe.
  */
 const char *
 hse_kvdb_version_string(void);
@@ -152,9 +150,8 @@ hse_kvdb_version_string(void);
 /**
  * Return an hse_err_t value's string representation
  *
- * The hse_err_t scalar value "err" is decoded into a string representation giving
- * more information about the error and where it occurred. This function is thread
- * safe.
+ * The hse_err_t scalar value "err" is decoded into a string representation giving more
+ * information about the error and where it occurred. This function is thread safe.
  *
  * @param err:      Error value returned from an HSE API function
  * @param buf:      Buffer to hold the formatted string
@@ -181,9 +178,9 @@ hse_err_to_errno(hse_err_t err);
 /**@}*/
 
 
-/* =============================================================================================
+/* ====================================================================================
  * Primary Lifecycle Functions
- * ============================================================================================= */
+ * ==================================================================================== */
 
 /** @name Primary Lifecycle Functions
  * @{
@@ -234,9 +231,9 @@ hse_kvdb_close(struct hse_kvdb *kvdb);
 /**
  * Get the names of the KVS's within the given KVDB
  *
- * Key-value stores (KVS's) are opened by name. This function allocates a vector
- * of allocated strings, each containing the name of a KVS. The memory must be
- * free via hse_kvdb_free_names(). This function is thread safe.
+ * Key-value stores (KVS's) are opened by name. This function allocates a vector of
+ * allocated strings, each containing the name of a KVS. The memory must be free via
+ * hse_kvdb_free_names(). This function is thread safe.
  *
  * Example Usage:
  *
@@ -274,8 +271,8 @@ hse_kvdb_free_names(struct hse_kvdb *kvdb, char **kvs_list);
 /**
  * Create a new KVS within the referenced KVDB
  *
- * An error will result of there is already a KVS with the given name. This
- * function is not thread safe.
+ * An error will result of there is already a KVS with the given name. This function is
+ * not thread safe.
  *
  * @param kvdb:     KVDB handle
  * @param kvs_name: KVS name
@@ -332,9 +329,9 @@ hse_kvdb_kvs_close(struct hse_kvs *kvs);
 /**@}*/
 
 
-/* =============================================================================================
+/* ====================================================================================
  * Create / Read / Update / Delete (CRUD) Functions
- * ============================================================================================= */
+ * ==================================================================================== */
 
 /** @name Create / Read / Update / Delete (CRUD) Functions
  * @{
@@ -343,11 +340,10 @@ hse_kvdb_kvs_close(struct hse_kvs *kvs);
 /**
  * Put a key/value pair into the KVS identified by handle
  *
- * If the key already exists in the KVS then the value is effectively overwritten.
- * The key length must be in the range [1, HSE_KVS_KLEN_MAX] while the value length
- * must be in the range [0, HSE_KVS_VLEN_MAX]. See the section on transactions for
- * information on how puts within transactions are handled. This function is thread
- * safe.
+ * If the key already exists in the KVS then the value is effectively overwritten. The
+ * key length must be in the range [1, HSE_KVS_KLEN_MAX] while the value length must be
+ * in the range [0, HSE_KVS_VLEN_MAX]. See the section on transactions for information
+ * on how puts within transactions are handled. This function is thread safe.
  *
  * @param kvs:     KVS handle
  * @param opspec:  Specification for put operation
@@ -370,11 +366,11 @@ hse_kvs_put(
 /**
  * Retrieve the value for a given key
  *
- * If the key exists in the KVS then the referent of "found" is set to true. If
- * the caller's value buffer is large enough then the data will be returned.
- * Regardless, the actual length of the value is plced in "val_len". See the
- * section on transactions for information on how gets within transactions are
- * handled. This function is thread safe.
+ * If the key exists in the KVS then the referent of "found" is set to true. If the
+ * caller's value buffer is large enough then the data will be returned. Regardless, the
+ * actual length of the value is plced in "val_len". See the section on transactions for
+ * information on how gets within transactions are handled. This function is thread
+ * safe.
  *
  * @param kvs:     KVS handle
  * @param opspec:  Specification for get operation
@@ -402,8 +398,8 @@ hse_kvs_get(
  * Delete the key and its associated value from the KVS
  *
  * It is not an error if the key does not exist within the KVS. See the section on
- * transactions for information on how deletes within transactions are
- * handled. This function is thread safe.
+ * transactions for information on how deletes within transactions are handled. This
+ * function is thread safe.
  *
  * @param kvs:     KVS handle
  * @param opspec:  Specification for delete operation
@@ -422,12 +418,12 @@ hse_kvs_delete(
 /**
  * Delete all key/value pairs with the given prefix
  *
- * It is not an error if no keys exist with the given prefix. This function can
- * only be used if the KVS was created using a non-zero prefix length and the
- * prefix given to this function has that same length. If there is a prefix scan in
- * progress, then that scan can fail if hse_kvs_prefix_delete() is called with a
- * prefix matching the scan.  See the section on transactions for information on
- * how deletes within transactions are handled. This function is thread safe.
+ * It is not an error if no keys exist with the given prefix. This function can only be
+ * used if the KVS was created using a non-zero prefix length and the prefix given to
+ * this function has that same length. If there is a prefix scan in progress, then that
+ * scan can fail if hse_kvs_prefix_delete() is called with a prefix matching the scan.
+ * See the section on transactions for information on how deletes within transactions
+ * are handled. This function is thread safe.
  *
  * @param kvs:         KVS handle
  * @param opspec:      KVDB op struct
@@ -448,31 +444,32 @@ hse_kvs_prefix_delete(
 
 /**@}*/
 
-/* =============================================================================================
+
+/* ====================================================================================
  * Transaction Functions
- * ============================================================================================= */
+ * ==================================================================================== */
 
 /** @name Transaction Functions
  * @{
  */
 
 /*
- * The HSE KVDB provides transactions with operations spanning KVS's within a
- * single KVDB.  These transactions have snapshot isolation (a specific form of
- * MVCC) with the normal semantics (see "Concurrency Control and Recovery in
- * Database Systems" by PA Bernstein).
+ * The HSE KVDB provides transactions with operations spanning KVS's within a single
+ * KVDB.  These transactions have snapshot isolation (a specific form of MVCC) with the
+ * normal semantics (see "Concurrency Control and Recovery in Database Systems" by PA
+ * Bernstein).
  *
- * One unusual aspect of the API as it relates to transactions is that the data
- * object that is used to hold client-level transaction state is allocated
- * separately from the transaction being initiated. As a result, the same object
- * handle should be reused again and again.
+ * One unusual aspect of the API as it relates to transactions is that the data object
+ * that is used to hold client-level transaction state is allocated separately from the
+ * transaction being initiated. As a result, the same object handle should be reused
+ * again and again.
  *
- * In addition, there is very limited coupling between threading and transactions.
- * A single thread may have many transactions in flight simultaneously. Also
- * operations within a transaction can be performed by multiple threads. The latter
- * mode of operation must currently restrict calls so that only one thread is
- * actively performing an operatin in the context of a particular transaction at
- * any particular time.
+ * In addition, there is very limited coupling between threading and transactions. A
+ * single thread may have many transactions in flight simultaneously. Also operations
+ * within a transaction can be performed by multiple threads. The latter mode of
+ * operation must currently restrict calls so that only one thread is actively
+ * performing an operatin in the context of a particular transaction at any particular
+ * time.
  *
  * The general lifecycle of a transaction is as follows:
  *
@@ -489,19 +486,17 @@ hse_kvs_prefix_delete(
  *        +-----------+                 +----------+
  *
  * When a transaction is initially allocated, it starts in the INVALID state. When
- * hse_kvdb_txn_begin() is called with transaction in the INVALID, COMMITTED, or
- * ABORTED states, it moves to the ACTIVE state. It is an error to call the
- * hse_kvdb_txn_begin() function on a transaction in the ACTIVE state. For a
- * transaction in the ACTIVE state, only the functions hse_kvdb_txn_commit(),
- * hse_kvdb_txn_abort(), or hse_kvdb_txn_free() may be called (with the last doing
- * an abort prior to the free).
+ * hse_kvdb_txn_begin() is called with transaction in the INVALID, COMMITTED, or ABORTED
+ * states, it moves to the ACTIVE state. It is an error to call the hse_kvdb_txn_begin()
+ * function on a transaction in the ACTIVE state. For a transaction in the ACTIVE state,
+ * only the functions hse_kvdb_txn_commit(), hse_kvdb_txn_abort(), or
+ * hse_kvdb_txn_free() may be called (with the last doing an abort prior to the free).
  *
- * When a transaction becomes ACTIVE, it establishes an ephemeral snapshot view of
- * the state of the KVDB. Any data mutations outside of the transaction's context
- * after that point are not visible to the transaction. Similarly, any mutations
- * performed within the context of the transaction are not visible outside of the
- * transaction unless and until it is committed. All such mutations become visible
- * atomically.
+ * When a transaction becomes ACTIVE, it establishes an ephemeral snapshot view of the
+ * state of the KVDB. Any data mutations outside of the transaction's context after that
+ * point are not visible to the transaction. Similarly, any mutations performed within
+ * the context of the transaction are not visible outside of the transaction unless and
+ * until it is committed. All such mutations become visible atomically.
  */
 
 enum hse_kvdb_txn_state {
@@ -527,9 +522,8 @@ hse_kvdb_txn_alloc(struct hse_kvdb *kvdb);
 /**
  * Free a transaction
  *
- * If the transaction handle refers to an ACTIVE transaction, the transaction is
- * aborted prior to being freed. This function is thread safe with different
- * transactions.
+ * If the transaction handle refers to an ACTIVE transaction, the transaction is aborted
+ * prior to being freed. This function is thread safe with different transactions.
  *
  * @param kvdb: KVDB handle
  * @param txn:  KVDB transaction handle
@@ -596,9 +590,9 @@ hse_kvdb_txn_get_state(struct hse_kvdb *kvdb, struct hse_kvdb_txn *txn);
 /**@}*/
 
 
-/* =============================================================================================
+/* ====================================================================================
  * Cursor Functions
- * ============================================================================================= */
+ * ==================================================================================== */
 
 /** @name Cursor Functions
  * @{
@@ -607,12 +601,12 @@ hse_kvdb_txn_get_state(struct hse_kvdb *kvdb, struct hse_kvdb_txn *txn);
 /*
  * Note regarding the use of cursors:
  *
- * The data structures use to implement HSE are better suited for single-key
- * operations (put/get/delete) than for cursor-based operations. In many other
- * storage engines, there is not such a disparity. If you application can
- * accomplish what it needs with single-key operations, with or without transactions,
- * then that is recommended. Using a mix of single-key operations as well as cursors
- * where the latter are required is encouraged.
+ * The data structures use to implement HSE are better suited for single-key operations
+ * (put/get/delete) than for cursor-based operations. In many other storage engines,
+ * there is not such a disparity. If you application can accomplish what it needs with
+ * single-key operations, with or without transactions, then that is recommended. Using
+ * a mix of single-key operations as well as cursors where the latter are required is
+ * encouraged.
  *
  * A cursor create, seek, read, destroy sequence will be much slower than a single
  * hse_kvs_get() call.
@@ -622,20 +616,20 @@ hse_kvdb_txn_get_state(struct hse_kvdb *kvdb, struct hse_kvdb_txn *txn);
  * Creates a cursor used to iterate over a KVS
  *
  * Cursors are of one of three types: (1) free, (2) transaction snapshot, and (3)
- * transaction bound. A cursor of type (1) is based on an ephemeral snapshot view
- * the KVS at the time it is created. New data is not visible to the cursor until
+ * transaction bound. A cursor of type (1) is based on an ephemeral snapshot view the
+ * KVS at the time it is created. New data is not visible to the cursor until
  * hse_kvs_cursor_update() is called on it. A cursor of type (2) takes on the
  * transaction's ephemeral snapshot but cannot see any of the mutations made by its
- * associated transaction. A cursor of type (3) is like type (2) but it always can
- * see the mutations made by the transaction. Calling hse_kvs_cursor_update() on a
- * cursor of types (2) and (3) without changing the hse_kvdb_opspec fields is a
- * no-op. This function is thread safe.
+ * associated transaction. A cursor of type (3) is like type (2) but it always can see
+ * the mutations made by the transaction. Calling hse_kvs_cursor_update() on a cursor of
+ * types (2) and (3) without changing the hse_kvdb_opspec fields is a no-op. This
+ * function is thread safe.
  *
- * The hse_kvdb_opspec referent shapes the type and behavior of the cursor created.
- * The flag fields within kop_flags are independent. In particular, the bit
- * position HSE_KVDB_KOP_FLAG_REVERSE determines whether the cursor is forward or
- * reverse and this will not be discussed further.  Passing a NULL for the opspec
- * is the same as passing an initialized but otherwise unmodified opspec.
+ * The hse_kvdb_opspec referent shapes the type and behavior of the cursor created. The
+ * flag fields within kop_flags are independent. In particular, the bit position
+ * HSE_KVDB_KOP_FLAG_REVERSE determines whether the cursor is forward or reverse and
+ * this will not be discussed further.  Passing a NULL for the opspec is the same as
+ * passing an initialized but otherwise unmodified opspec.
  *
  *   - To create a cursor of type (1):
  *       - Pass either a NULL for opspec, or
@@ -648,18 +642,16 @@ hse_kvdb_txn_get_state(struct hse_kvdb *kvdb, struct hse_kvdb_txn *txn);
  *       - Pass an initialized opspec with kop_txn == <target txn> and
  *         a kop_flags value with position HSE_KVDB_KOP_FLAG_BIND_TXN set
  *
- * If the caller provides a prefix, which need not match the prefix segment that
- * the KVS was created with, then the cursor will be restricted to keys with the
- * given prefix.
+ * If the caller provides a prefix, which need not match the prefix segment that the KVS
+ * was created with, then the cursor will be restricted to keys with the given prefix.
  *
- * When a transaction associated with a cursor of type (3) aborts, the cursor
- * remains valid and retains the snapshot view of the transaction. When a
- * transaction associated with a cursor of type (3) commits, the behavior depends
- * on the state of the HSE_KVDB_KOP_FLAG_STATIC_VIEW bit position. If it is set,
- * then the cursor retains the snapshot view of the transaction. If it is not set
- * then the cursor view is shifted forward in time to be able to see the mutations
- * of the transaction. Note that this may make other mutations visible to the
- * cursor as well.
+ * When a transaction associated with a cursor of type (3) aborts, the cursor remains
+ * valid and retains the snapshot view of the transaction. When a transaction associated
+ * with a cursor of type (3) commits, the behavior depends on the state of the
+ * HSE_KVDB_KOP_FLAG_STATIC_VIEW bit position. If it is set, then the cursor retains the
+ * snapshot view of the transaction. If it is not set then the cursor view is shifted
+ * forward in time to be able to see the mutations of the transaction. Note that this
+ * may make other mutations visible to the cursor as well.
  *
  * @param kvs:     KVS to iterate over
  * @param opspec:  Optional flags, optional txn
@@ -680,12 +672,12 @@ hse_kvs_cursor_create(
 /**
  * Update a plain cursor or modify any cursor
  *
- * This operation serves to either move the snapshot view forward for a type (1)
- * cursor, or to transition between being a type (1), type (2), and type (3)
- * cursor.  That includes toggling the state of the HSE_KVDB_KOP_FLAG_STATIC_VIEW
- * flag.  For example, to "un-bind" a cursor to a transaction the caller may either
- * NULL out the kop_txn field or clear the HSE_KVDB_KOP_FLAG_BIND_TXN flag. This
- * function is thread safe across disparate cursors.
+ * This operation serves to either move the snapshot view forward for a type (1) cursor,
+ * or to transition between being a type (1), type (2), and type (3) cursor.  That
+ * includes toggling the state of the HSE_KVDB_KOP_FLAG_STATIC_VIEW flag.  For example,
+ * to "un-bind" a cursor to a transaction the caller may either NULL out the kop_txn
+ * field or clear the HSE_KVDB_KOP_FLAG_BIND_TXN flag. This function is thread safe
+ * across disparate cursors.
  *
  * @param cursor: Cursor from hse_kvs_cursor_create
  * @param opspec: Optional flags, optional txn
@@ -698,8 +690,8 @@ hse_kvs_cursor_update(struct hse_kvs_cursor *cursor, struct hse_kvdb_opspec *ops
 /**
  * Move the cursor to point at the key/value pair at or closest to "key"
  *
- * The next hse_kvs_cursor_read() will start at this point. This function is
- * thread safe across disparate cursors.
+ * The next hse_kvs_cursor_read() will start at this point. This function is thread safe
+ * across disparate cursors.
  *
  * @param cursor:    Cursor from hse_kvs_cursor_create
  * @param opspec:    Ignored; must be zero
@@ -722,11 +714,11 @@ hse_kvs_cursor_seek(
 /**
  * Move the cursor to the closest match to key, gated by the given limit
  *
- * Keys read from this cursor will belong to the closed interval: [key, limit].
- * The next hse_kvs_cursor_read() will resume at this point. This call is the same
- * as hse_kvs_cursor_seek() except that the caller is telling the system that this
- * cursor need not return any key-value pairs beyond "limit". This function is
- * thread safe across disparate cursors.
+ * Keys read from this cursor will belong to the closed interval: [key, limit]. The next
+ * hse_kvs_cursor_read() will resume at this point. This call is the same as
+ * hse_kvs_cursor_seek() except that the caller is telling the system that this cursor
+ * need not return any key-value pairs beyond "limit". This function is thread safe
+ * across disparate cursors.
  *
  * Note that this is supported only for forward cursors.
  *
@@ -757,8 +749,8 @@ hse_kvs_cursor_seek_range(
  * hse_kvs_cursor_read() - iteratively access the elements pointed to by the cursor
  *
  * Read a key/value pair from the cursor, advancing the cursor past its current
- * location. If the cursor is at EOF, attemts to read from it will not change the
- * state of the cursor. This function is thread safe across disparate cursors.
+ * location. If the cursor is at EOF, attemts to read from it will not change the state
+ * of the cursor. This function is thread safe across disparate cursors.
  *
  * @param cursor:  the cursor from hse_kvs_cursor_create
  * @param opspec:  ignored; may be zero
@@ -794,9 +786,10 @@ hse_kvs_cursor_destroy(struct hse_kvs_cursor *cursor);
 
 /**@}*/
 
-/* =============================================================================================
+
+/* ====================================================================================
  * Data State Management Functions
- * ============================================================================================= */
+ * ==================================================================================== */
 
 /** @name Data State Management Functions
  * @{
@@ -828,11 +821,11 @@ hse_kvdb_flush(struct hse_kvdb *kvdb);
 /**
  * Request a data compaction operation
  *
- * In managing the data within an HSE KVDB, there are maintenance activities that
- * occur as background processing. The application may be aware that it is
- * advantageous to do enough maintenance now for the database to be as compact as
- * it ever would be in normal operation. To achieve this, the client calls this
- * function in the following fashion:
+ * In managing the data within an HSE KVDB, there are maintenance activities that occur
+ * as background processing. The application may be aware that it is advantageous to do
+ * enough maintenance now for the database to be as compact as it ever would be in
+ * normal operation. To achieve this, the client calls this function in the following
+ * fashion:
  *
  *     hse_kvdb_compact(<kvdb handle>, HSE_KVDB_COMP_FLAG_SAMP_LWM);
  *
@@ -875,9 +868,9 @@ hse_kvdb_compact_status(struct hse_kvdb *handle, struct hse_kvdb_compact_status 
 /**@}*/
 
 
-/* =============================================================================================
+/* ====================================================================================
  * Create and Runtime Parameter Functions
- * ============================================================================================= */
+ * ==================================================================================== */
 
 /** @name Create and Runtime Parameter Functions
  * @{
@@ -910,10 +903,11 @@ hse_params_destroy(struct hse_params *params);
 /**
  * Parse params from a file
  *
- * This function takes a filename and parses it, populating the supplied params object. If
- * the file is not a valid params specification, the parsing will fail. Client applications
- * can use the experimental function hse_params_err_exp() to get more information as to
- * what problem occurred in processing the file. This function is not thread safe.
+ * This function takes a filename and parses it, populating the supplied params
+ * object. If the file is not a valid params specification, the parsing will
+ * fail. Client applications can use the experimental function hse_params_err_exp() to
+ * get more information as to what problem occurred in processing the file. This
+ * function is not thread safe.
  *
  * @param params:  configuration parameters
  * @param path:    absolute path to config file
@@ -964,11 +958,10 @@ hse_params_set(struct hse_params *params, const char *key, const char *val);
 /**
  * Get configuration parameter
  *
- * Obtain the value the parameter denoted by "key" is set to in the params object.
- * If the key is valid, then at most "buf_len"-1 bytes of the parameter setting
- * will copied into "buf". If "param_len" is non-NULL, then on return the referent
- * will contain the length of the parameter value. This function is not thread
- * safe.
+ * Obtain the value the parameter denoted by "key" is set to in the params object. If
+ * the key is valid, then at most "buf_len"-1 bytes of the parameter setting will copied
+ * into "buf". If "param_len" is non-NULL, then on return the referent will contain the
+ * length of the parameter value. This function is not thread safe.
  *
  * @param params:    Referenced params object
  * @param key:       Target key
