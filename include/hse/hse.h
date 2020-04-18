@@ -354,7 +354,7 @@ hse_kvdb_kvs_close(struct hse_kvs *kvs);
  * data (e.g., control metadata) the client may wish to not experience that delay. For
  * relatively low data rate uses, the caller can set the HSE_KVDB_KOP_FLAG_PRIORITY flag
  * for an hse_kvs_put() opspec. Care should be taken when doing so to ensure that the
- * system does not become overrun. As a rough approximation, doing 1M priority put's per
+ * system does not become overrun. As a rough approximation, doing 1M priority puts per
  * second marked as PRIORITY is likely an issue. On the other hand, doing 1K small puts
  * per second marked as PRIORITY is almost certainly fine.
  *
