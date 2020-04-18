@@ -609,12 +609,12 @@ hse_kvdb_txn_get_state(struct hse_kvdb *kvdb, struct hse_kvdb_txn *txn);
  *
  * The data structures used to implement HSE are better suited for single-key operations
  * (put/get/delete) than for cursor-based operations. In many other storage engines,
- * there is not such a disparity. If your application can accomplish what it needs with
+ * there is virtually no difference. If your application can accomplish what it needs with
  * single-key operations, with or without transactions, then that is recommended. Using
  * a mix of single-key operations as well as cursors where the latter are required is
  * strongly encouraged.
  *
- * A cursor create, seek, read, destroy sequence will be much slower than a single
+ * A cursor create->seek->read->destroy sequence will be much slower than a single
  * hse_kvs_get() call.
  */
 
