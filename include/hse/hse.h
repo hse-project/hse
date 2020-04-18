@@ -155,7 +155,7 @@ hse_kvdb_version_string(void);
  *
  * @param err:      Error value returned from an HSE API function
  * @param buf:      Buffer to hold the formatted string
- * @param buf_len:  Length of the buffer
+ * @param buf_len:  Length of buffer
  * @param need_len: [out] If non-NULL, the referent size_t will be the needed
  *                  buffer length
  * @return The error's NULL-terminated string representation, possibly truncated
@@ -229,9 +229,9 @@ hse_err_t
 hse_kvdb_close(struct hse_kvdb *kvdb);
 
 /**
- * Get the names of the KVS's within the given KVDB
+ * Get the names of the KVSs within the given KVDB
  *
- * Key-value stores (KVS's) are opened by name. This function allocates a vector of
+ * Key-value stores (KVSs) are opened by name. This function allocates a vector of
  * allocated strings, each containing the name of a KVS. The memory must be free via
  * hse_kvdb_free_names(). This function is thread safe.
  *
@@ -248,8 +248,8 @@ hse_kvdb_close(struct hse_kvdb *kvdb);
  *     hse_kvdb_free_names(namev);
  *
  * @param kvdb:     KVDB handle
- * @param count:    [out] Number of KVSes in the KVDB.
- * @param kvs_list: [out] Vector of KVSes. Allocated by the function
+ * @param count:    [out] Number of KVSs in the KVDB.
+ * @param kvs_list: [out] Vector of KVSs. Allocated by the function
  * @return The function's error status
  *
  */
@@ -271,7 +271,7 @@ hse_kvdb_free_names(struct hse_kvdb *kvdb, char **kvs_list);
 /**
  * Create a new KVS within the referenced KVDB
  *
- * An error will result of there is already a KVS with the given name. This function is
+ * An error will result if there is already a KVS with the given name. This function is
  * not thread safe.
  *
  * @param kvdb:     KVDB handle
@@ -303,7 +303,7 @@ hse_kvdb_kvs_drop(struct hse_kvdb *kvdb, const char *kvs_name);
  *
  * @param kvdb:     KVDB handle
  * @param kvs_name: KVS name
- * @param params:   parameters that affect how the KVS will function
+ * @param params:   Parameters that affect how the KVS will function
  * @param kvs_out:  [out] handle to access the opened KVS
  * @return The function's error status
  */
@@ -378,7 +378,7 @@ hse_kvs_put(
  * @param key_len: Length of key
  * @param found:   [out] Whether or not key was found
  * @param buf:     Buffer into which the value associated with key will be copied
- * @param buf_len: Length of valbuf
+ * @param buf_len: Length of buffer
  * @param val_len: [out] Actual length of value if key was found
  * @return The function's error status
  */
@@ -429,7 +429,7 @@ hse_kvs_delete(
  * @param opspec:      KVDB op struct
  * @param pfx_key:     Prefix key to delete
  * @param pfx_len:     Prefix key length
- * @param kvs_pfx_len: [out] If specified, this will be set to the kvs's prefix
+ * @param kvs_pfx_len: [out] If specified, this will be set to the KVS's prefix
  *                     length
  * @return The function's error status
  */
@@ -454,7 +454,7 @@ hse_kvs_prefix_delete(
  */
 
 /*
- * The HSE KVDB provides transactions with operations spanning KVS's within a single
+ * The HSE KVDB provides transactions with operations spanning KVSs within a single
  * KVDB.  These transactions have snapshot isolation (a specific form of MVCC) with the
  * normal semantics (see "Concurrency Control and Recovery in Database Systems" by PA
  * Bernstein).
@@ -468,7 +468,7 @@ hse_kvs_prefix_delete(
  * single thread may have many transactions in flight simultaneously. Also operations
  * within a transaction can be performed by multiple threads. The latter mode of
  * operation must currently restrict calls so that only one thread is actively
- * performing an operatin in the context of a particular transaction at any particular
+ * performing an operation in the context of a particular transaction at any particular
  * time.
  *
  * The general lifecycle of a transaction is as follows:
@@ -660,7 +660,7 @@ hse_kvdb_txn_get_state(struct hse_kvdb *kvdb, struct hse_kvdb_txn *txn);
  * @param opspec:  Optional flags, optional txn
  * @param pfx:     Optional: scans limited to this prefix
  * @param pfx_len: Optional: length of prefix
- * @param cursor:  [out] The cursor handle
+ * @param cursor:  [out] Cursor handle
  * @return The function's error status
  */
 /* MTF_MOCK */
@@ -693,15 +693,16 @@ hse_kvs_cursor_update(struct hse_kvs_cursor *cursor, struct hse_kvdb_opspec *ops
 /**
  * Move the cursor to point at the key/value pair at or closest to "key"
  *
- * The next hse_kvs_cursor_read() will start at this point. This function is thread safe
- * across disparate cursors.
+ * The next hse_kvs_cursor_read() will start at this point. Both "found" and "found_len"
+ * must be non-NULL for that functionality to work. This function is thread safe across
+ * disparate cursors.
  *
  * @param cursor:    Cursor from hse_kvs_cursor_create
  * @param opspec:    Ignored; must be zero
  * @param key:       Key to find
- * @param key_len:   Length of this key
- * @param found:     Optional: on return is set to a pointer to the next key in sequence
- * @param found_len: Required if found: the length of this key
+ * @param key_len:   Length of key
+ * @param found:     Optional: If non-NULL, referent point to next key in sequence
+ * @param found_len: Optional: If "found" is non-NULL: referent is length of "found" key
  * @return The function's error status
  */
 /* MTF_MOCK */
@@ -720,20 +721,20 @@ hse_kvs_cursor_seek(
  * Keys read from this cursor will belong to the closed interval: [key, limit]. The next
  * hse_kvs_cursor_read() will resume at this point. This call is the same as
  * hse_kvs_cursor_seek() except that the caller is telling the system that this cursor
- * need not return any key-value pairs beyond "limit". This function is thread safe
- * across disparate cursors.
+ * need not return any key-value pairs beyond "limit". Both "found" and "found_len" must
+ * be non-NULL for that functionality to work. This function is thread safe across
+ * disparate cursors.
  *
  * Note that this is supported only for forward cursors.
  *
- * @param cursor:    The cursor from hse_kvs_cursor_create
+ * @param cursor:    Cursor from hse_kvs_cursor_create
  * @param opspec:    Unused
- * @param key:       The key to find
- * @param key_len:   Length of this key
+ * @param key:       Key to find
+ * @param key_len:   Length of key
  * @param limit:     Limit for access
- * @param limit_len: Length of this key
- * @param found:     Optional: on return is set to a pointer to the next key in
- *                   sequence
- * @param found_len: Required if found: the length of this key
+ * @param limit_len: Length of limit
+ * @param found:     Optional: If non-NULL, referent point to next key in sequence
+ * @param found_len: Optional: If "found" is non-NULL: referent is length of "found" key
  * @return The function's error status
  */
 /* MTF_MOCK */
@@ -755,13 +756,13 @@ hse_kvs_cursor_seek_range(
  * location. If the cursor is at EOF, attemts to read from it will not change the state
  * of the cursor. This function is thread safe across disparate cursors.
  *
- * @param cursor:  the cursor from hse_kvs_cursor_create
- * @param opspec:  ignored; may be zero
- * @param key:     the next key in sequence
- * @param key_len: length of this key
- * @param val:     value for this key
- * @param val_len: length of this value
- * @param eof:     boolean: if true, no more key/value pairs in sequence
+ * @param cursor:  Cursor from hse_kvs_cursor_create
+ * @param opspec:  Ignored; may be zero
+ * @param key:     [out] Next key in sequence
+ * @param key_len: [out] Length of key
+ * @param val:     [out] Next Value in sequence
+ * @param val_len: [out] Length of value
+ * @param eof:     [out] If true, no more key/value pairs in sequence
  * @return The function's error status
  */
 /* MTF_MOCK */
@@ -780,7 +781,7 @@ hse_kvs_cursor_read(
  *
  * This function is thread safe.
  *
- * @param cursor:  the cursor from hse_kvs_cursor_create
+ * @param cursor: Cursor from hse_kvs_cursor_create
  * @return The function's error status
  */
 /* MTF_MOCK */
@@ -799,7 +800,7 @@ hse_kvs_cursor_destroy(struct hse_kvs_cursor *cursor);
  */
 
 /**
- * Flush data in all of the referenced KVDB's KVS's to stable media and return
+ * Flush data in all of the referenced KVDB's KVSs to stable media and return
  *
  * @param kvdb: KVDB handle
  * @return The function's error status
@@ -809,7 +810,7 @@ hse_err_t
 hse_kvdb_sync(struct hse_kvdb *kvdb);
 
 /**
- * Initiate data flush in all of the referenced KVDB's KVS's
+ * Initiate data flush in all of the referenced KVDB's KVSs
  *
  * @param kvdb: KVDB handle
  * @return The function's error status
@@ -862,7 +863,7 @@ struct hse_kvdb_compact_status {
  * the current state of maintenance compaction. This function is thread safe.
  *
  * @param handle: Get compaction status of this KVDB
- * @param status: [out] status of compaction request
+ * @param status: [out] Status of compaction request
  * @return The function's error status
  */
 hse_err_t
@@ -886,7 +887,7 @@ hse_kvdb_compact_status(struct hse_kvdb *handle, struct hse_kvdb_compact_status 
  * through hse_params_from_file(), hse_params_from_string(), or via hse_params_set().
  * Usage of a given params object is not thread safe.
  *
- * @param params: configuration parameters
+ * @param params: [out] Configuration parameters
  * @return The function's error status
  */
 hse_err_t
@@ -912,8 +913,8 @@ hse_params_destroy(struct hse_params *params);
  * get more information as to what problem occurred in processing the file. This
  * function is not thread safe.
  *
- * @param params:  configuration parameters
- * @param path:    absolute path to config file
+ * @param params: Configuration parameters
+ * @param path:   Absolute path to config file
  * @return The function's error status
  */
 hse_err_t
@@ -945,7 +946,7 @@ hse_params_from_string(struct hse_params *params, const char *input);
  * The following syntax is supported for keys:
  *
  *   kvdb.<param>           # param is set for the KVDB
- *   kvs.<param>            # param is set for all KVS's in the KVDB
+ *   kvs.<param>            # param is set for all KVSs in the KVDB
  *   kvs.<kvs_name>.<param> # param is set for the named KVS
  *
  * This function is not thread safe.
@@ -970,7 +971,7 @@ hse_params_set(struct hse_params *params, const char *key, const char *val);
  * @param key:       Target key
  * @param buf:       Output buffer
  * @param buf_len:   Length of buffer
- * @param param_len: If non-NULL this will be set to the actual parameter length + 1
+ * @param param_len: [out] If non-NULL this will be set to the actual parameter length + 1
  * @return The parameter's NULL-terminated string representation, possibly truncated
  */
 char *
