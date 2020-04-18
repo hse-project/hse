@@ -25,9 +25,10 @@
 #include <stdlib.h>
 
 
-/* ====================================================================================
+/*
  * Type Declarations / Shared Structures / Macros
- * ==================================================================================== */
+ * =====================================================
+ */
 
 /** @name Type Declarations / Shared Structures / Macros
  * @{
@@ -108,9 +109,10 @@ struct hse_kvdb_opspec {
 /**@}*/
 
 
-/* ====================================================================================
+/*
  * Utility Routines
- * ==================================================================================== */
+ * =====================================================
+ */
 
 /** @name Utility Routines
  * @{
@@ -178,9 +180,10 @@ hse_err_to_errno(hse_err_t err);
 /**@}*/
 
 
-/* ====================================================================================
+/*
  * Primary Lifecycle Functions
- * ==================================================================================== */
+ * =====================================================
+ */
 
 /** @name Primary Lifecycle Functions
  * @{
@@ -329,9 +332,10 @@ hse_kvdb_kvs_close(struct hse_kvs *kvs);
 /**@}*/
 
 
-/* ====================================================================================
+/*
  * Create / Read / Update / Delete (CRUD) Functions
- * ==================================================================================== */
+ * =====================================================
+ */
 
 /** @name Create / Read / Update / Delete (CRUD) Functions
  * @{
@@ -445,9 +449,10 @@ hse_kvs_prefix_delete(
 /**@}*/
 
 
-/* ====================================================================================
+/*
  * Transaction Functions
- * ==================================================================================== */
+ * =====================================================
+ */
 
 /** @name Transaction Functions
  * @{
@@ -590,9 +595,10 @@ hse_kvdb_txn_get_state(struct hse_kvdb *kvdb, struct hse_kvdb_txn *txn);
 /**@}*/
 
 
-/* ====================================================================================
+/*
  * Cursor Functions
- * ==================================================================================== */
+ * =====================================================
+ */
 
 /** @name Cursor Functions
  * @{
@@ -601,9 +607,9 @@ hse_kvdb_txn_get_state(struct hse_kvdb *kvdb, struct hse_kvdb_txn *txn);
 /*
  * Note regarding the use of cursors:
  *
- * The data structures use to implement HSE are better suited for single-key operations
+ * The data structures used to implement HSE are better suited for single-key operations
  * (put/get/delete) than for cursor-based operations. In many other storage engines,
- * there is not such a disparity. If you application can accomplish what it needs with
+ * there is not such a disparity. If your application can accomplish what it needs with
  * single-key operations, with or without transactions, then that is recommended. Using
  * a mix of single-key operations as well as cursors where the latter are required is
  * strongly encouraged.
@@ -621,7 +627,7 @@ hse_kvdb_txn_get_state(struct hse_kvdb *kvdb, struct hse_kvdb_txn *txn);
  * is created. A cursor's direction is determined when it is created and is immutable.
  *
  * Cursors are of one of three types: (1) free, (2) transaction snapshot, and (3)
- * transaction bound. A cursor of type (1) is based on an ephemeral snapshot view the
+ * transaction bound. A cursor of type (1) is based on an ephemeral snapshot view of the
  * KVS at the time it is created. New data is not visible to the cursor until
  * hse_kvs_cursor_update() is called on it. A cursor of type (2) takes on the
  * transaction's ephemeral snapshot but cannot see any of the mutations made by its
@@ -753,7 +759,7 @@ hse_kvs_cursor_seek_range(
  * hse_kvs_cursor_read() - iteratively access the elements pointed to by the cursor
  *
  * Read a key/value pair from the cursor, advancing the cursor past its current
- * location. If the cursor is at EOF, attemts to read from it will not change the state
+ * location. If the cursor is at EOF, attempts to read from it will not change the state
  * of the cursor. This function is thread safe across disparate cursors.
  *
  * @param cursor:  Cursor from hse_kvs_cursor_create
@@ -791,9 +797,10 @@ hse_kvs_cursor_destroy(struct hse_kvs_cursor *cursor);
 /**@}*/
 
 
-/* ====================================================================================
+/*
  * Data State Management Functions
- * ==================================================================================== */
+ * =====================================================
+ */
 
 /** @name Data State Management Functions
  * @{
@@ -872,9 +879,10 @@ hse_kvdb_compact_status(struct hse_kvdb *handle, struct hse_kvdb_compact_status 
 /**@}*/
 
 
-/* ====================================================================================
- * Create and Runtime Parameter Functions
- * ==================================================================================== */
+/*
+ * Configuration Parameter Functions
+ * =====================================================
+ */
 
 /** @name Create and Runtime Parameter Functions
  * @{
