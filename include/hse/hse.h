@@ -663,13 +663,16 @@ hse_kvdb_txn_get_state(struct hse_kvdb *kvdb, struct hse_kvdb_txn *txn);
  * If the caller provides a prefix, which need not match the prefix segment that the KVS
  * was created with, then the cursor will be restricted to keys with the given prefix.
  *
- * When a transaction associated with a cursor of type (3) aborts, the cursor remains
- * valid and retains the snapshot view of the transaction. When a transaction associated
- * with a cursor of type (3) commits, the behavior depends on the state of the
- * HSE_KVDB_KOP_FLAG_STATIC_VIEW bit position. If it is set, then the cursor retains the
- * snapshot view of the transaction. If it is not set then the cursor view is shifted
- * forward in time to be able to see the mutations of the transaction. Note that this
- * may make other mutations visible to the cursor as well.
+ * When a transaction associated with a cursor of type (3) commits or aborts, the state
+ * of the cursor becomes unbound, i.e., it becomes of type (1). What can be seen through
+ * the cursor depends on whether it was created with the HSE_KVDB_KOP_FLAG_STATIC_VIEW
+ * flag set.
+ *
+ * If it was set, then the cursor retains the snapshot view of the transaction (for both
+ * commit and abort). If it was not set then the view of the cursor is that of the
+ * database at the time of the commit or abort. In the commit case, the cursor can see
+ * the mutations of the transaction, if any. Note that this will make any other
+ * mutations that occurred during the lifespan of the transaction visible as well.
  *
  * @param kvs:     KVS to iterate over, handle from hse_kvdb_kvs_open()
  * @param opspec:  Optional flags, optional txn
