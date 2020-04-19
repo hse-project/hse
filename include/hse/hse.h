@@ -16,6 +16,29 @@
  * The HSE library is generally described in other places. The documentation here is
  * geared towards describing the structure of the HSE API and the specifics of each
  * entry point's operation.
+ *
+ * Terminology:
+ *
+ *     KVS               - Key-value store, containig zero or more key-value (KV)
+ *                         pairs
+ *
+ *     KVDB              - Key-value database, comprised of one or more KVSs and
+ *                         defining a transaction domain
+ *
+ *     key               - A byte string used to uniquely identify values for
+ *                         storage, retrieval, and deletion in a KVS
+ *
+ *     multi-segment key - A key that is logically divided into N segments (N >= 2),
+ *                         arranged to group related KV pairs when keys are sorted
+ *                         lexicographically
+ *
+ *     key prefix        - For multi-segment keys, the first K segments (1 <= K < N)
+ *                         that group related KV pairs when keys are sorted lexi-
+ *                         cographically
+ *
+ *     key prefix length - For multi-segment keys, the length of a key prefix (bytes)
+ *
+ *     unsegmented key   - A key that is not logically divided into segments
  */
 
 #include <hse/hse_limits.h>
@@ -25,12 +48,8 @@
 #include <stdlib.h>
 
 
-/*
- * Type Declarations / Shared Structures / Macros
- * =====================================================
- */
-
 /** @name Type Declarations / Shared Structures / Macros
+ *        =====================================================
  * @{
  */
 
@@ -109,12 +128,8 @@ struct hse_kvdb_opspec {
 /**@}*/
 
 
-/*
- * Utility Routines
- * =====================================================
- */
-
 /** @name Utility Routines
+ *        =====================================================
  * @{
  */
 
@@ -180,12 +195,8 @@ hse_err_to_errno(hse_err_t err);
 /**@}*/
 
 
-/*
- * Primary Lifecycle Functions
- * =====================================================
- */
-
 /** @name Primary Lifecycle Functions
+ *        =====================================================
  * @{
  */
 
@@ -274,8 +285,10 @@ hse_kvdb_free_names(struct hse_kvdb *kvdb, char **kvs_list);
 /**
  * Create a new KVS within the referenced KVDB
  *
- * An error will result if there is already a KVS with the given name. This function is
- * not thread safe.
+ * If the KVS will store multi-segment keys then the parameter "pfx_len" should be set
+ * to the desired key prefix length - see hse_params_set() and related functions
+ * below. Otherwise the param should be set to 0 (the default).  An error will result
+ * if there is already a KVS with the given name.  This function is not thread safe.
  *
  * @param kvdb:     KVDB handle from hse_kvdb_open()
  * @param kvs_name: KVS name
@@ -332,17 +345,13 @@ hse_kvdb_kvs_close(struct hse_kvs *kvs);
 /**@}*/
 
 
-/*
- * Create / Read / Update / Delete (CRUD) Functions
- * =====================================================
- */
-
 /** @name Create / Read / Update / Delete (CRUD) Functions
+ *        =====================================================
  * @{
  */
 
 /**
- * Put a key/value pair into KVS
+ * Put a KV pair into KVS
  *
  * If the key already exists in the KVS then the value is effectively overwritten. The
  * key length must be in the range [1, HSE_KVS_KLEN_MAX] while the value length must be
@@ -429,21 +438,21 @@ hse_kvs_delete(
     size_t                  key_len);
 
 /**
- * Delete all key/value pairs with the given prefix
+ * Delete all KV pairs matching the given prefix filter from a KVS
  *
- * It is not an error if no keys exist with the given prefix. This function can only be
- * used if the KVS was created using a non-zero prefix length and the prefix given to
- * this function has that same length. If there is a prefix scan in progress, then that
- * scan can fail if hse_kvs_prefix_delete() is called with a prefix matching the scan.
- * See the section on transactions for information on how deletes within transactions
- * are handled. This function is thread safe.
- *
+ * The primary utility of this interface is to delete an entire range of multi-segment
+ * keys. To do this the caller passes a filter with a length greater than or equal to
+ * the KVS's key prefix length. It is not an error if no keys exist matching the
+ * filter. If there is a filtered iteration in progress, then that iteration can fail if
+ * hse_kvs_prefix_delete() is called with a filter matching the iteration. See the
+ * section on transactions for information on how deletes within transactions are
+ * handled. This function is thread safe.
+
  * @param kvs:         KVS handle from hse_kvdb_kvs_open()
  * @param opspec:      KVDB op struct
- * @param pfx_key:     Prefix key to delete
- * @param pfx_len:     Prefix key length
- * @param kvs_pfx_len: [out] If specified, this will be set to the KVS's prefix
- *                     length
+ * @param filt:        Filter for keys to delete
+ * @param filt_len:    Filter length
+ * @param kvs_pfx_len: [out] If specified, this will be set to the KVS's prefix length
  * @return The function's error status
  */
 /* MTF_MOCK */
@@ -451,19 +460,15 @@ hse_err_t
 hse_kvs_prefix_delete(
     struct hse_kvs *        kvs,
     struct hse_kvdb_opspec *opspec,
-    const void *            pfx_key,
-    size_t                  pfx_len,
+    const void *            filt,
+    size_t                  filt_len,
     size_t *                kvs_pfx_len);
 
 /**@}*/
 
 
-/*
- * Transaction Functions
- * =====================================================
- */
-
 /** @name Transaction Functions
+ *        =====================================================
  * @{
  */
 
@@ -604,27 +609,14 @@ hse_kvdb_txn_get_state(struct hse_kvdb *kvdb, struct hse_kvdb_txn *txn);
 /**@}*/
 
 
-/*
- * Cursor Functions
- * =====================================================
- */
-
 /** @name Cursor Functions
+ *        =====================================================
  * @{
  */
 
 /*
- * Note regarding the use of cursors:
- *
- * The data structures used to implement HSE are better suited for single-key operations
- * (put/get/delete) than for cursor-based operations. In many other storage engines,
- * there is virtually no difference. If your application can accomplish what it needs with
- * single-key operations, with or without transactions, then that is recommended. Using
- * a mix of single-key operations as well as cursors where the latter are required is
- * strongly encouraged.
- *
- * A cursor create->seek->read->destroy sequence will be much slower than a single
- * hse_kvs_get() call.
+ * See the concept and best practices sections on the HSE Wiki at
+ * https://github.com/hse-project/hse/wiki
  */
 
 /**
@@ -660,8 +652,9 @@ hse_kvdb_txn_get_state(struct hse_kvdb *kvdb, struct hse_kvdb_txn *txn);
  *       - Pass an initialized opspec with kop_txn == <target txn> and
  *         a kop_flags value with position HSE_KVDB_KOP_FLAG_BIND_TXN set
  *
- * If the caller provides a prefix, which need not match the prefix segment that the KVS
- * was created with, then the cursor will be restricted to keys with the given prefix.
+ * If the caller provides a filter, which need not match the key prefix length that the
+ * KVS was created with, then the cursor will be restricted to keys matching the given
+ * prefix filter.
  *
  * When a transaction associated with a cursor of type (3) commits or aborts, the state
  * of the cursor becomes unbound, i.e., it becomes of type (1). What can be seen through
@@ -674,11 +667,11 @@ hse_kvdb_txn_get_state(struct hse_kvdb *kvdb, struct hse_kvdb_txn *txn);
  * the mutations of the transaction, if any. Note that this will make any other
  * mutations that occurred during the lifespan of the transaction visible as well.
  *
- * @param kvs:     KVS to iterate over, handle from hse_kvdb_kvs_open()
- * @param opspec:  Optional flags, optional txn
- * @param pfx:     Optional: scans limited to this prefix
- * @param pfx_len: Optional: length of prefix
- * @param cursor:  [out] Cursor handle
+ * @param kvs:      KVS to iterate over, handle from hse_kvdb_kvs_open()
+ * @param opspec:   Optional flags, optional txn
+ * @param filt:     Optional: iteration limited to keys matching this prefix filter
+ * @param filt_len: Optional: length of filter
+ * @param cursor:   [out] Cursor handle
  * @return The function's error status
  */
 /* MTF_MOCK */
@@ -686,8 +679,8 @@ hse_err_t
 hse_kvs_cursor_create(
     struct hse_kvs *        kvs,
     struct hse_kvdb_opspec *opspec,
-    const void *            pfx,
-    size_t                  pfx_len,
+    const void *            filt,
+    size_t                  filt_len,
     struct hse_kvs_cursor **cursor);
 
 /**
@@ -734,25 +727,24 @@ hse_kvs_cursor_seek(
     size_t *                found_len);
 
 /**
- * Move the cursor to the closest match to key, gated by the given limit
+ * Move the cursor to the closest match to key, gated by the given filter
  *
- * Keys read from this cursor will belong to the closed interval: [key, limit]. The next
- * hse_kvs_cursor_read() will resume at this point. This call is the same as
- * hse_kvs_cursor_seek() except that the caller is telling the system that this cursor
- * need not return any key-value pairs beyond "limit". Both "found" and "found_len" must
- * be non-NULL for that functionality to work. This function is thread safe across
- * disparate cursors.
+ * Keys read from this cursor will belong to the closed interval defined by the given
+ * filter: ["filt_min", "filt_max"]. For KVSs storing multi-segment keys, performance
+ * will be enhanced when "filt_min_len" and "filt_max_len" are greater than or equal to
+ * the KVS key prefix length.  Both "found" and "found_len" must be non-NULL for that
+ * functionality to work. This function is thread safe across disparate cursors.
  *
- * Note that this is supported only for forward cursors.
+ * Note: this is only supported for forward cursors.
  *
- * @param cursor:    Cursor handle from hse_kvs_cursor_create()
- * @param opspec:    Unused
- * @param key:       Key to find
- * @param key_len:   Length of key
- * @param limit:     Limit for access
- * @param limit_len: Length of limit
- * @param found:     Optional: If non-NULL, referent point to next key in sequence
- * @param found_len: Optional: If "found" is non-NULL: referent is length of "found" key
+ * @param cursor:       Cursor handle from hse_kvs_cursor_create()
+ * @param opspec:       Unused
+ * @param filt_min:     Filter minimum
+ * @param filt_min_len: Length of filter minimum
+ * @param filt_max:     Filter maximum
+ * @param filt_max_len: Length of filter maximum
+ * @param found:        [out] Optional, if non-NULL, referent point to next key in sequence
+ * @param found_len:    [out] Optional, if non-NULL: referent is length of "found" key
  * @return The function's error status
  */
 /* MTF_MOCK */
@@ -760,19 +752,19 @@ hse_err_t
 hse_kvs_cursor_seek_range(
     struct hse_kvs_cursor * cursor,
     struct hse_kvdb_opspec *opspec,
-    const void *            key,
-    size_t                  key_len,
-    const void *            limit,
-    size_t                  limit_len,
+    const void *            filt_min,
+    size_t                  filt_min_len,
+    const void *            filt_max,
+    size_t                  filt_max_len,
     const void **           found,
     size_t *                found_len);
 
 /**
  * Iteratively access the elements pointed to by the cursor
  *
- * Read a key/value pair from the cursor, advancing the cursor past its current
- * location. If the cursor is at EOF, attempts to read from it will not change the state
- * of the cursor. This function is thread safe across disparate cursors.
+ * Read a KV pair from the cursor, advancing the cursor past its current location. If
+ * the cursor is at EOF, attempts to read from it will not change the state of the
+ * cursor. This function is thread safe across disparate cursors.
  *
  * @param cursor:  Cursor handle from hse_kvs_cursor_create()
  * @param opspec:  Ignored; may be zero
@@ -809,12 +801,8 @@ hse_kvs_cursor_destroy(struct hse_kvs_cursor *cursor);
 /**@}*/
 
 
-/*
- * Data State Management Functions
- * =====================================================
- */
-
 /** @name Data State Management Functions
+ *        =====================================================
  * @{
  */
 
@@ -891,12 +879,8 @@ hse_kvdb_compact_status(struct hse_kvdb *kvdb, struct hse_kvdb_compact_status *s
 /**@}*/
 
 
-/*
- * Configuration Parameter Functions
- * =====================================================
- */
-
 /** @name Configuration Parameter Functions
+ *        =====================================================
  * @{
  */
 
