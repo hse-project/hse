@@ -443,9 +443,8 @@ hse_kvs_delete(
  * This interface is used to delete an entire range of multi-segment keys. To do this
  * the caller passes a filter with a length equal to the KVS's key prefix length. It is
  * not an error if no keys exist matching the filter. If there is a filtered iteration
- * in progress, then that iteration can fail if hse_kvs_prefix_delete() is called with a
- * filter matching the iteration. See the section on transactions for information on how
- * deletes within transactions are handled. This function is thread safe.
+ * in progress, then that iteration can fail if hse_kvs_prefix_delete() is called with
+ * a filter matching the iteration. This function is thread safe.
  *
  * @param kvs:         KVS handle from hse_kvdb_kvs_open()
  * @param opspec:      KVDB op struct
