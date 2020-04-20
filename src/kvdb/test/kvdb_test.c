@@ -176,7 +176,6 @@ MTF_DEFINE_UTEST_PRE(kvdb_test, kvdb_kvs_make_test, general_pre)
     uint64_t           err;
     struct mpool *     ds = (struct mpool *)-1;
     struct hse_params *params;
-    unsigned int       c;
     int                len = HSE_KVS_NAME_LEN_MAX + 1;
     char               kvs[len];
 
@@ -194,9 +193,6 @@ MTF_DEFINE_UTEST_PRE(kvdb_test, kvdb_kvs_make_test, general_pre)
     err = hse_kvdb_kvs_make(NULL, "kvdb", params);
     ASSERT_EQ(EINVAL, merr_errno(err));
 
-    hse_kvdb_kvs_count(hdl, &c);
-    ASSERT_EQ(0, c);
-
     /* kvs name too long */
 
     memset(kvs, 'a', len);
@@ -204,15 +200,9 @@ MTF_DEFINE_UTEST_PRE(kvdb_test, kvdb_kvs_make_test, general_pre)
     err = hse_kvdb_kvs_make(hdl, kvs, params);
     ASSERT_EQ(ENAMETOOLONG, merr_errno(err));
 
-    hse_kvdb_kvs_count(hdl, &c);
-    ASSERT_EQ(0, c);
-
     kvs[len - 2] = '\0';
     err = hse_kvdb_kvs_make(hdl, kvs, params);
     ASSERT_EQ(0, err);
-
-    hse_kvdb_kvs_count(hdl, &c);
-    ASSERT_EQ(1, c);
 
     err = ikvdb_close((struct ikvdb *)hdl);
     ASSERT_EQ(0, err);
@@ -259,9 +249,6 @@ MTF_DEFINE_UTEST_PRE(kvdb_test, kvdb_cursor_test, general_pre)
 
     rc = hse_kvdb_txn_begin(h, os.kop_txn);
     ASSERT_EQ(0, rc);
-
-    /* add RA flag for coverage */
-    os.kop_flags |= HSE_KVDB_KOP_FLAG_CURSOR_RA;
 
     rc = hse_kvs_cursor_create(kvs, &os, 0, 0, &cur);
     ASSERT_EQ(0, rc);
