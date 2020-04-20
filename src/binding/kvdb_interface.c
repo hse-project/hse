@@ -287,19 +287,6 @@ hse_kvdb_free_names(struct hse_kvdb *handle, char **kvsv)
 }
 
 hse_err_t
-hse_kvdb_kvs_count(struct hse_kvdb *handle, unsigned int *count)
-{
-    if (ev(!handle || !count))
-        return merr(EINVAL);
-
-    perfc_inc(&kvdb_pc, PERFC_RA_KVDBOP_KVDB_KVS_COUNT);
-
-    ikvdb_kvs_count((struct ikvdb *)handle, count);
-
-    return 0UL;
-}
-
-hse_err_t
 hse_kvdb_kvs_make(struct hse_kvdb *handle, const char *kvs_name, struct hse_params *params)
 {
     merr_t err;
