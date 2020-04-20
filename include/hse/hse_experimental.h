@@ -6,6 +6,11 @@
 #ifndef HSE_KVDB_EXPERIMENTAL_API_H
 #define HSE_KVDB_EXPERIMENTAL_API_H
 
+/** ...
+ *
+ * \ingroup HSE
+ */
+
 #include <hse/hse.h>
 
 #include <uuid/uuid.h>

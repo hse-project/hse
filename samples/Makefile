@@ -1,8 +1,6 @@
 CC=gcc -g
 
-_LIBS := \
-libhse_kvdb.a \
-libyaml.so
+_LIBS := libhse_kvdb.so
 
 LIBS := $(_LIBS:lib%=-l:lib%)
 
