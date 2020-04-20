@@ -223,6 +223,7 @@ kv_spill(struct cn_compaction_work *w)
     u64 dbg_prev_seq __maybe_unused;
     uint dbg_prev_src __maybe_unused;
     uint dbg_nvals_this_key __maybe_unused;
+    uint dbg_nkeys = 0;
     bool dbg_dup __maybe_unused;
 
     if (w->cw_prog_interval && w->cw_progress)
@@ -236,6 +237,7 @@ kv_spill(struct cn_compaction_work *w)
     if (!more || ev(err))
         goto done;
 
+    ++dbg_nkeys;
     khashmap = cn_tree_get_khashmap(w->cw_tree);
     cn_sfx_len = w->cw_cp->cp_sfx_len;
 
@@ -514,6 +516,7 @@ get_values:
         goto done;
 
     if (more) {
+        ++dbg_nkeys;
         if (0 == key_obj_cmp(&curr.kobj, &prev_kobj)) {
             dbg_dup = true;
             assert(dbg_prev_src <= curr.src);

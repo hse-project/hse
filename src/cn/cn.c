@@ -55,6 +55,7 @@
 #include "kv_iterator.h"
 #include "vblock_reader.h"
 #include "wbt_reader.h"
+#include "intern_builder.h"
 #include "bloom_reader.h"
 #include "cn_perfc.h"
 #include "pscan.h"
@@ -76,8 +77,15 @@ cn_init(void)
     if (err)
         return err;
 
+    err = ib_init();
+    if (err) {
+        wbti_fini();
+        return err;
+    }
+
     err = cn_tree_init();
     if (err) {
+        ib_fini();
         wbti_fini();
         return err;
     }
@@ -93,6 +101,7 @@ cn_fini(void)
 {
     kvset_fini();
     cn_tree_fini();
+    ib_fini();
     wbti_fini();
 }
 

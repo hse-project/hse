@@ -64,8 +64,6 @@ wbb_add_entry(
     uint *                wbt_pgc,
     bool *                added);
 
-#define WBB_FREEZE_IOV_MAX 33
-
 void
 wbb_hdr_init(struct wbb *wbb, struct wbt_hdr_omf *hdr);
 
@@ -98,6 +96,15 @@ wbb_min_max_keys(struct wbb *wbb, struct key_obj **first_kobj, struct key_obj **
 /* MTF_MOCK */
 uint
 wbb_page_cnt_get(struct wbb *wbb);
+
+uint
+wbb_max_inodec_get(struct wbb *wbb);
+
+uint
+wbb_kmd_pgc_get(struct wbb *wbb);
+
+struct intern_builder *
+wbb_ibldr_get(struct wbb *wbb);
 
 #if defined(HSE_UNIT_TEST_MODE) && HSE_UNIT_TEST_MODE == 1
 #include "wbt_builder_ut.h"

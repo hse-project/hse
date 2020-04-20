@@ -802,10 +802,11 @@ kblock_finish(struct kblock_builder *bld, struct wbb *ptree)
     struct cn_merge_stats *stats = bld->mstats;
     struct mclass_policy * mpolicy = cn_get_mclass_policy(bld->cn);
 
-    struct iovec iov[(2 * WBB_FREEZE_IOV_MAX) + 3];
-    uint         iov_cnt = 0;
-    uint         i, chunk, allocs = 0;
-    size_t       wlen;
+    struct iovec *iov = NULL;
+    uint          iov_cnt = 0;
+    uint          iov_max;
+    uint          i, chunk, allocs = 0;
+    size_t        wlen;
 
     merr_t err;
     u64    blkid = 0;
@@ -825,6 +826,17 @@ kblock_finish(struct kblock_builder *bld, struct wbb *ptree)
         }
     }
 
+    /* Include wbtree pages from main and ptree and add 3 more iov members for
+     * the kblock header, bloom and hlog
+     */
+    iov_max = 3 + 1 + wbb_max_inodec_get(kblk->wbtree) + wbb_kmd_pgc_get(kblk->wbtree);
+    if (ptree && wbb_entries(ptree))
+        iov_max += 1 + wbb_max_inodec_get(ptree) + wbb_kmd_pgc_get(ptree);
+
+    iov = malloc(sizeof(*iov) * iov_max);
+    if (!iov)
+        return merr(ev(ENOMEM));
+
     /* Header is first entry in iovec */
     iov_cnt = 1;
     iov[0].iov_base = kblk->kblk_hdr;
@@ -838,7 +850,7 @@ kblock_finish(struct kblock_builder *bld, struct wbb *ptree)
         kblk->wbt_pgc + free_pgc(kblk),
         &kblk->wbt_pgc,
         iov + iov_cnt,
-        WBB_FREEZE_IOV_MAX,
+        iov_max,
         &i);
     if (ev(err))
         goto errout;
@@ -869,7 +881,7 @@ kblock_finish(struct kblock_builder *bld, struct wbb *ptree)
             bld->pt_pgc + free_pgc(kblk),
             &pt_pgc,
             iov + iov_cnt,
-            WBB_FREEZE_IOV_MAX,
+            iov_max,
             &i);
         if (ev(err))
             goto errout;
@@ -880,6 +892,8 @@ kblock_finish(struct kblock_builder *bld, struct wbb *ptree)
     kblk->num_keys += ptree ? wbb_entries(ptree) : 0;
     _kblock_make_header(
         kblk, &wbt_hdr, &pt_hdr, pt_pgc, &blm_hdr, bld->seqno_min, bld->seqno_max, kblk->kblk_hdr);
+
+    assert(iov_cnt <= iov_max);
 
     wlen = 0;
     for (i = 0; i < iov_cnt; i++)
@@ -936,12 +950,14 @@ kblock_finish(struct kblock_builder *bld, struct wbb *ptree)
 
     /* unconditional reset */
     kblock_reset(kblk);
+    free(iov);
 
     return 0;
 
 errout:
     if (blkid)
         mpool_mblock_abort(bld->ds, blkid);
+    free(iov);
 
     /* unconditional reset */
     kblock_reset(kblk);

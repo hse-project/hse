@@ -103,6 +103,7 @@ set( CN_SOURCE_FILES
      cn/vblock_builder.c
      cn/vblock_reader.c
      cn/wbt_builder.c
+     cn/intern_builder.c
      cn/wbt_reader_v4.c
      cn/wbt_reader_v5.c
      cn/wbt_reader.c
@@ -658,6 +659,15 @@ if( HSE_UNIT_TEST_FLAG )
         COMMAND wbt_reader_test ${CMAKE_CURRENT_SOURCE_DIR}/cn/test/mblock_images
         LABELS cn
         SRCS cn/test/wbt_reader_test.c
+        INCLUDES ${UNIT_TEST_INCLUDE_DIRS}
+        LINK_LIBS ${UNIT_TEST_LINK_LIBS}
+        )
+
+    hse_unit_test(
+        NAME wbt_test
+        COMMAND wbt_test ${CMAKE_CURRENT_SOURCE_DIR}/cn/test/mblock_images
+        LABELS cn
+        SRCS cn/test/wbt_test.c
         INCLUDES ${UNIT_TEST_INCLUDE_DIRS}
         LINK_LIBS ${UNIT_TEST_LINK_LIBS}
         )
