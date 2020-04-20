@@ -447,7 +447,12 @@ hse_kvs_delete(
  * hse_kvs_prefix_delete() is called with a filter matching the iteration. See the
  * section on transactions for information on how deletes within transactions are
  * handled. This function is thread safe.
-
+ *
+ * This function may also be used on a KVS with non-segmented keys, or with a filter
+ * length less than the key prefix length on a KVS with multi-segment keys. It is a
+ * simple and compact way of removing a range of KV pairs with keys matching the prefix
+ * filter.
+ *
  * @param kvs:         KVS handle from hse_kvdb_kvs_open()
  * @param opspec:      KVDB op struct
  * @param filt:        Filter for keys to delete
@@ -652,9 +657,12 @@ hse_kvdb_txn_get_state(struct hse_kvdb *kvdb, struct hse_kvdb_txn *txn);
  *       - Pass an initialized opspec with kop_txn == <target txn> and
  *         a kop_flags value with position HSE_KVDB_KOP_FLAG_BIND_TXN set
  *
- * If the caller provides a filter, which need not match the key prefix length that the
- * KVS was created with, then the cursor will be restricted to keys matching the given
- * prefix filter.
+ * The primary utility of the prefix filter mechanism is to maximize the efficiency of
+ * cursor iteration on a KVS with multi-segment keys. For that use case, the caller
+ * should supply a filter whose length is greater than or equal to the KVS key prefix
+ * length. The caller can also provide a filter that is shorter than the key prefix
+ * length or can perform this operation on a KVS whose key prefix length is zero. In all
+ * cases, the cursor will be restricted to keys matching the given prefix filter.
  *
  * When a transaction associated with a cursor of type (3) commits or aborts, the state
  * of the cursor becomes unbound, i.e., it becomes of type (1). What can be seen through
@@ -743,7 +751,7 @@ hse_kvs_cursor_seek(
  * @param filt_min_len: Length of filter minimum
  * @param filt_max:     Filter maximum
  * @param filt_max_len: Length of filter maximum
- * @param found:        [out] Optional, if non-NULL, referent point to next key in sequence
+ * @param found:        [out] Optional, if non-NULL, referent points to next key in sequence
  * @param found_len:    [out] Optional, if non-NULL: referent is length of "found" key
  * @return The function's error status
  */
