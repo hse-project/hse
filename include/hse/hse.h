@@ -19,7 +19,7 @@
  *
  * Terminology:
  *
- *     KVS               - Key-value store, containig zero or more key-value (KV)
+ *     KVS               - Key-value store, containing zero or more key-value (KV)
  *                         pairs
  *
  *     KVDB              - Key-value database, comprised of one or more KVSs and
