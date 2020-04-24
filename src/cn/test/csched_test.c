@@ -21,6 +21,7 @@
 
 struct kvdb_rparams *rp, rparams;
 const char *         mp;
+struct kvdb_health   mock_health;
 
 int    set_debug_rparam;
 merr_t mocked_sp_create_rc;
@@ -72,7 +73,11 @@ mocked_sp_compact_status(struct csched_ops *handle, struct hse_kvdb_compact_stat
 }
 
 static merr_t
-mocked_sp_create2(struct kvdb_rparams *rp, const char *mp, struct csched_ops **handle)
+mocked_sp_create2(
+    struct kvdb_rparams *rp,
+    const char *         mp,
+    struct kvdb_health * health,
+    struct csched_ops ** handle)
 {
     struct csched_ops *self;
 
@@ -94,11 +99,15 @@ mocked_sp_create2(struct kvdb_rparams *rp, const char *mp, struct csched_ops **h
 }
 
 static merr_t
-mocked_sp_create(struct kvdb_rparams *rp, const char *mp, struct csched_ops **handle)
+mocked_sp_create(
+    struct kvdb_rparams *rp,
+    const char *         mp,
+    struct kvdb_health * health,
+    struct csched_ops ** handle)
 {
     merr_t err;
 
-    err = mocked_sp_create2(rp, mp, handle);
+    err = mocked_sp_create2(rp, mp, health, handle);
 
     if (!err) {
         (*handle)->cs_destroy = mocked_sp_destroy;
@@ -119,11 +128,12 @@ mocked_sp3_create(
     struct mpool *       ds,
     struct kvdb_rparams *rp,
     const char *         mp,
+    struct kvdb_health  *health,
     struct csched_ops ** handle)
 {
     merr_t err;
 
-    err = mocked_sp_create(rp, mp, handle);
+    err = mocked_sp_create(rp, mp, health, handle);
 
     return err;
 }
@@ -184,14 +194,14 @@ MTF_DEFINE_UTEST_PRE(test, t_csched_create, pre_test)
 
     for (i = 0; i < NELEM(policy_list); i++) {
         cs = (void *)0;
-        err = csched_create(policy_list[i], NULL, rp, mp, &cs);
+        err = csched_create(policy_list[i], NULL, rp, mp, &mock_health, &cs);
         ASSERT_EQ(err, 0);
         csched_destroy(cs);
     }
 
     /* invalid policy */
     cs = (void *)0;
-    err = csched_create(12345, NULL, rp, mp, &cs);
+    err = csched_create(12345, NULL, rp, mp, &mock_health, &cs);
     ASSERT_NE(err, 0);
 
     /* error paths */
@@ -199,7 +209,7 @@ MTF_DEFINE_UTEST_PRE(test, t_csched_create, pre_test)
 
     for (i = 0; i < NELEM(policy_list); i++) {
         cs = (void *)0;
-        err = csched_create(policy_list[i], NULL, rp, mp, &cs);
+        err = csched_create(policy_list[i], NULL, rp, mp, &mock_health, &cs);
         /* mocked_sp_create_rc doesn't apply to csched_policy_old */
         if (policy_list[i] == csched_policy_old) {
             ASSERT_EQ(err, 0);
@@ -218,7 +228,7 @@ MTF_DEFINE_UTEST_PRE(test, t_csched_create_nomem, pre_test)
 
     void run(struct mtf_test_info * lcl_ti, uint i, uint j)
     {
-        err = csched_create(0, NULL, rp, mp, &cs);
+        err = csched_create(0, NULL, rp, mp, &mock_health, &cs);
         if (i == j)
             ASSERT_EQ(err, 0);
         else
@@ -252,7 +262,7 @@ MTF_DEFINE_UTEST_PRE(test, t_csched_methods, pre_test)
     MOCK_SET_FN(csched_noop, sp_noop_create, mocked_sp_create);
 
     cs = (void *)0;
-    err = csched_create(pol, NULL, rp, mp, &cs);
+    err = csched_create(pol, NULL, rp, mp, &mock_health, &cs);
     ASSERT_EQ(err, 0);
     ASSERT_TRUE(cs != NULL);
 
@@ -273,7 +283,7 @@ MTF_DEFINE_UTEST_PRE(test, t_csched_methods, pre_test)
     MOCK_SET_FN(csched_noop, sp_noop_create, mocked_sp_create2);
 
     cs = (void *)0;
-    err = csched_create(pol, NULL, rp, mp, &cs);
+    err = csched_create(pol, NULL, rp, mp, &mock_health, &cs);
     ASSERT_EQ(err, 0);
     ASSERT_TRUE(cs != NULL);
 
