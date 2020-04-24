@@ -10,6 +10,7 @@
 #include <hse_util/hse_err.h>
 
 #include <hse_ikvdb/kvdb_rparams.h>
+#include <hse_ikvdb/kvdb_health.h>
 
 #include "../csched_ops.h"
 #include "../csched_noop.h"
@@ -18,6 +19,7 @@
 struct kvdb_rparams *rp, rparams;
 const char *         mp;
 const char *         db;
+struct kvdb_health   health;
 
 int
 pre_collection(struct mtf_test_info *info)
@@ -54,7 +56,7 @@ MTF_DEFINE_UTEST_PRE(test, t_sp_noop, pre_test)
     struct csched_ops *ops;
     merr_t             err;
 
-    err = sp_noop_create(rp, mp, &ops);
+    err = sp_noop_create(rp, mp, &health, &ops);
     ASSERT_EQ(err, 0);
 
     ops->cs_tree_add(ops, tree);

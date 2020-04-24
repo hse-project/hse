@@ -48,7 +48,7 @@ test_collection_setup(struct mtf_test_info *info)
     hse_log_set_verbose(true);
     fail_nth_alloc_test_pre(info);
     kvdb_rp = kvdb_rparams_defaults();
-    csched_create(csched_policy_noop, NULL, &kvdb_rp, "mp_name", &csched);
+    csched_create(csched_policy_noop, NULL, &kvdb_rp, "mp_name", &mock_health, &csched);
     return 0;
 }
 

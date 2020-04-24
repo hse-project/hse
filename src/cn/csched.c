@@ -24,6 +24,7 @@ csched_create(
     struct mpool *       ds,
     struct kvdb_rparams *rp,
     const char *         mp,
+    struct kvdb_health * health,
     struct csched **     handle)
 {
     merr_t             err;
@@ -41,10 +42,10 @@ csched_create(
             cs = 0;
             break;
         case csched_policy_noop:
-            err = sp_noop_create(rp, mp, &cs);
+            err = sp_noop_create(rp, mp, health, &cs);
             break;
         case csched_policy_sp3:
-            err = sp3_create(ds, rp, mp, &cs);
+            err = sp3_create(ds, rp, mp, health, &cs);
             break;
     }
 

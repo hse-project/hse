@@ -20,6 +20,7 @@ struct throttle_sensor;
 struct cn_samp_stats;
 struct mpool;
 struct hse_kvdb_compact_status;
+struct kvdb_health;
 
 /**
  * enum csched_policy - compaction scheduler policy
@@ -44,6 +45,7 @@ csched_create(
     struct mpool *       ds,
     struct kvdb_rparams *rp,
     const char *         mp_name,
+    struct kvdb_health  *health,
     struct csched **     csched);
 
 /* MTF_MOCK */
