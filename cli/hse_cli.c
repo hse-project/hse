@@ -15,13 +15,12 @@
 
 #include <sys/types.h>
 
-#include <bsd/string.h>
-
 #include <hse/hse.h>
 #include <hse/hse_experimental.h>
 
 #include <hse_util/parse_num.h>
 #include <hse_util/yaml.h>
+#include <hse_util/string.h>
 
 #include <mpool/mpool.h>
 

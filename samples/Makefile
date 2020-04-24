@@ -4,7 +4,7 @@ _LIBS := libhse_kvdb.so
 
 LIBS := $(_LIBS:lib%=-l:lib%)
 
-DEPS = $(LIBS) $(CONS_DES) -luuid -lcrypto -lpthread -lmicrohttpd -lmpool-blkid -lm -lbsd -lurcu-bp -lurcu-common -lmpool
+DEPS = $(LIBS) $(CONS_DES) -luuid -lcrypto -lpthread -lmicrohttpd -lmpool-blkid -lm -lurcu-bp -lurcu-common -lmpool
 
 all: ex1_create ex2_simple_ops ex3_cursor ex4_transactions ex5_large_val
 

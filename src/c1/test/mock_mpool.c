@@ -9,7 +9,7 @@
 
 #include "../../kvdb/kvdb_log.h"
 
-#include <bsd/string.h>
+#include <hse_util/string.h>
 
 #define C1_IO_MAX_LOG 8192
 
