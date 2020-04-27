@@ -14,7 +14,6 @@ hse_executable(
     SRCS ex1_create.c
     LINK_DIRS
         ${MPOOL_LIB_DIR}
-        ${BLKID_LIB_DIR}
     LINK_LIBS
         ${NON_TEST_LINK_LIBS}
         ${HSE_TEST_SUPPORT_LIBS}
@@ -27,7 +26,6 @@ hse_executable(
     SRCS ex2_simple_ops.c
     LINK_DIRS
         ${MPOOL_LIB_DIR}
-        ${BLKID_LIB_DIR}
     LINK_LIBS
         ${NON_TEST_LINK_LIBS}
         ${HSE_TEST_SUPPORT_LIBS}
@@ -40,7 +38,6 @@ hse_executable(
     SRCS ex3_cursor.c
     LINK_DIRS
         ${MPOOL_LIB_DIR}
-        ${BLKID_LIB_DIR}
     LINK_LIBS
         ${NON_TEST_LINK_LIBS}
         ${HSE_TEST_SUPPORT_LIBS}
@@ -53,7 +50,6 @@ hse_executable(
     SRCS ex4_transactions.c
     LINK_DIRS
         ${MPOOL_LIB_DIR}
-        ${BLKID_LIB_DIR}
     LINK_LIBS
         ${NON_TEST_LINK_LIBS}
         ${HSE_TEST_SUPPORT_LIBS}
@@ -66,7 +62,6 @@ hse_executable(
     SRCS ex5_large_val.c
     LINK_DIRS
         ${MPOOL_LIB_DIR}
-        ${BLKID_LIB_DIR}
     LINK_LIBS
         ${NON_TEST_LINK_LIBS}
         ${HSE_TEST_SUPPORT_LIBS}
