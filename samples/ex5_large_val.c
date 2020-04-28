@@ -51,11 +51,11 @@ extract_kv_to_files(struct hse_kvs *kvs, int file_cnt, char **files)
 
         snprintf(outfile, sizeof(outfile), "%s.%s", files[i], "out");
         snprintf(pfx, sizeof(pfx), "%s|", files[i]);
-        printf("filename is:%s", outfile);
+        printf("filename is:%s\n", outfile);
 
         fd = open(outfile, O_RDWR | O_CREAT);
         if (fd < 0) {
-            printf("Error opening file");
+            printf("Error opening file\n");
             return errno;
         }
 
@@ -84,7 +84,7 @@ put_files_as_kv(struct hse_kvdb *kvdb, struct hse_kvs *kvs, int kv_cnt, char **k
     hse_err_t rc;
 
     for (i = 0; i < kv_cnt; i++) {
-        printf("Inserting chunks for %s", (char *)keys[i]);
+        printf("Inserting chunks for %s\n", (char *)keys[i]);
         char    val[HSE_KVS_VLEN_MAX];
         char    key_chunk[HSE_KVS_KLEN_MAX];
         ssize_t len;
@@ -156,7 +156,7 @@ main(int argc, char **argv)
 
     rc = hse_kvdb_init();
     if (rc) {
-        printf("Failed to initialize kvdb");
+        printf("Failed to initialize kvdb\n");
         exit(1);
     }
 
@@ -171,7 +171,7 @@ main(int argc, char **argv)
         exit(1);
 
     if (extract)
-        rc = extract_kv_to_files(kvs, argc - optind - 1, &argv[optind]);
+        rc = extract_kv_to_files(kvs, argc - optind, &argv[optind]);
     else
         rc = put_files_as_kv(kvdb, kvs, argc - optind, &argv[optind]);
 
