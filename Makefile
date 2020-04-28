@@ -135,8 +135,7 @@ REL_CANDIDATE_DEFAULT := false
 
 # Experimental: modify at your own risk
 MPOOL_INCLUDE_DIR_DEFAULT := /usr/include
-MPOOL_LIB_DIR_DEFAULT     := /usr/lib
-BLKID_LIB_DIR_DEFAULT     := /usr/lib
+MPOOL_LIB_DIR_DEFAULT     := /usr/lib64
 
 ifeq ($(filter ubsan,$(MAKECMDGOALS)),ubsan)
   UBSAN := 1
@@ -169,7 +168,6 @@ REL_CANDIDATE     ?= $(REL_CANDIDATE_DEFAULT)
 # Experimental: modify at your own risk
 MPOOL_INCLUDE_DIR ?= $(MPOOL_INCLUDE_DIR_DEFAULT)
 MPOOL_LIB_DIR     ?= $(MPOOL_LIB_DIR_DEFAULT)
-BLKID_LIB_DIR     ?= $(BLKID_LIB_DIR_DEFAULT)
 
 ################################################################
 # Git and external repos
@@ -237,7 +235,6 @@ define config-gen =
 	echo ;\
 	echo 'set( MPOOL_INCLUDE_DIR "$(MPOOL_INCLUDE_DIR)" CACHE STRING "" FORCE)' ;\
 	echo 'set( MPOOL_LIB_DIR "$(MPOOL_LIB_DIR)" CACHE STRING "" FORCE)' ;\
-	echo 'set( BLKID_LIB_DIR "$(BLKID_LIB_DIR)" CACHE STRING "" FORCE)' ;\
 	echo 'set( UBSAN "$(UBSAN)" CACHE BOOL "" )' ;\
 	echo 'set( ASAN "$(ASAN)" CACHE BOOL "" )' ;\
 	echo 'set( BUILD_NUMBER "$(BUILD_NUMBER)" CACHE STRING "" )' ;\
