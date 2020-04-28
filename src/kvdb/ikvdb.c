@@ -1324,7 +1324,7 @@ ikvdb_open(
     staging_absent = mpool_mclass_get(ds, MP_MED_STAGING, NULL);
     if (staging_absent) {
         if (self->ikdb_rp.staging_policy == MP_MED_STAGING) {
-            hse_log(HSE_WARNING "Staging media is not configured.");
+            hse_log(HSE_NOTICE "Staging media is not configured.");
             self->ikdb_rp.staging_policy = MP_MED_CAPACITY;
         }
     }
