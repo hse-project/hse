@@ -27,7 +27,7 @@ add_library(hsejni_c SHARED
 
 add_dependencies(hsejni_c hsejni hsejni_API.h)
 
-target_link_directories( hsejni_c PUBLIC ${MPOOL_LIB_DIR} ${BLKID_LIB_DIR} )
+target_link_directories( hsejni_c PUBLIC ${MPOOL_LIB_DIR} )
 
 target_link_libraries(
     hsejni_c
