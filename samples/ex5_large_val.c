@@ -29,6 +29,7 @@
 
 #include <stdio.h>
 #include <string.h>
+#include <stdarg.h>
 #include <unistd.h>
 #include <fcntl.h>
 #include <errno.h>
@@ -36,7 +37,22 @@
 
 #include <hse/hse.h>
 
-int
+char * progname;
+
+static void
+err_print(const char *fmt, ...)
+{
+    char    msg[256];
+    va_list ap;
+
+    va_start(ap, fmt);
+    vsnprintf(msg, sizeof(msg), fmt, ap);
+    va_end(ap);
+
+    fprintf(stderr, "Error: %s: %s\n", progname, msg);
+}
+
+hse_err_t
 extract_kv_to_files(struct hse_kvs *kvs, int file_cnt, char **files)
 {
     int                    fd, i;
@@ -44,19 +60,19 @@ extract_kv_to_files(struct hse_kvs *kvs, int file_cnt, char **files)
 
     for (i = 0; i < file_cnt; i++) {
         char        pfx[HSE_KVS_KLEN_MAX];
-        char        outfile[NAME_MAX];
+        char        outfile[NAME_MAX + 8]; /* Extra bytes for '.out' suffix */
         const void *key, *val;
         size_t      klen, vlen;
         bool        eof;
 
         snprintf(outfile, sizeof(outfile), "%s.%s", files[i], "out");
         snprintf(pfx, sizeof(pfx), "%s|", files[i]);
-        printf("filename is:%s", outfile);
+        printf("filename: %s\n", outfile);
 
         fd = open(outfile, O_RDWR | O_CREAT);
         if (fd < 0) {
-            printf("Error opening file");
-            return errno;
+            err_print("Error opening file %s: %s\n", outfile, strerror(errno));
+            exit(1);
         }
 
         hse_kvs_cursor_create(kvs, NULL, pfx, strlen(pfx), &cur);
@@ -77,22 +93,24 @@ extract_kv_to_files(struct hse_kvs *kvs, int file_cnt, char **files)
     return 0;
 }
 
-int
+hse_err_t
 put_files_as_kv(struct hse_kvdb *kvdb, struct hse_kvs *kvs, int kv_cnt, char **keys)
 {
     int       fd, i;
     hse_err_t rc;
 
     for (i = 0; i < kv_cnt; i++) {
-        printf("Inserting chunks for %s", (char *)keys[i]);
         char    val[HSE_KVS_VLEN_MAX];
         char    key_chunk[HSE_KVS_KLEN_MAX];
         ssize_t len;
         int     chunk_nr;
 
+        printf("Inserting chunks for %s\n", (char *)keys[i]);
         fd = open(keys[i], O_RDONLY);
-        if (fd < 0)
-            return errno;
+        if (fd < 0) {
+            err_print("Error opening file %s: %s\n", keys[i], strerror(errno));
+            exit(1);
+        }
 
         chunk_nr = 0;
         do {
@@ -115,12 +133,12 @@ put_files_as_kv(struct hse_kvdb *kvdb, struct hse_kvs *kvs, int kv_cnt, char **k
 }
 
 int
-usage(char *prog)
+usage()
 {
     printf(
         "usage: %s [options] <kvdb> <kvs> <file1> [<fileN> ...]\n"
         "-x  Extract specified files' contents to 'file.out'\n",
-        prog);
+        progname);
     return 1;
 }
 
@@ -132,8 +150,10 @@ main(int argc, char **argv)
     struct hse_kvs * kvs;
     char             c;
     bool             extract = false;
-    int              rc;
-    char *           prog = argv[0];
+    hse_err_t        rc;
+    char             ebuf[128];
+
+    progname = argv[0];
 
     while ((c = getopt(argc, argv, "xh")) != -1) {
         switch (c) {
@@ -141,7 +161,7 @@ main(int argc, char **argv)
                 extract = true;
                 break;
             case 'h':
-                usage(prog);
+                usage();
                 return 0;
             default:
                 break;
@@ -149,20 +169,20 @@ main(int argc, char **argv)
     }
 
     if (argc < 4)
-        return usage(prog);
+        return usage();
 
     mp_name = argv[optind++];
     kvs_name = argv[optind++];
 
     rc = hse_kvdb_init();
     if (rc) {
-        printf("Failed to initialize kvdb");
+        err_print("Failed to initialize kvdb: %s\n", hse_err_to_string(rc, ebuf, sizeof(ebuf), 0));
         exit(1);
     }
 
     rc = hse_kvdb_open(mp_name, NULL, &kvdb);
     if (rc) {
-        printf("Cannot open kvdb: %s\n", strerror(rc));
+        err_print("Cannot open kvdb: %s\n", hse_err_to_string(rc, ebuf, sizeof(ebuf), 0));
         exit(1);
     }
 
@@ -171,7 +191,7 @@ main(int argc, char **argv)
         exit(1);
 
     if (extract)
-        rc = extract_kv_to_files(kvs, argc - optind - 1, &argv[optind]);
+        rc = extract_kv_to_files(kvs, argc - optind, &argv[optind]);
     else
         rc = put_files_as_kv(kvdb, kvs, argc - optind, &argv[optind]);
 
