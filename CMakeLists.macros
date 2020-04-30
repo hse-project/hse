@@ -208,10 +208,6 @@ function(hse_unit_test)
         add_dependencies(${param_EXECUTABLE} ${param_DEPS})
     endif()
 
-    if(NOT "${param_LINK_DIRS}" STREQUAL "")
-        target_link_directories( ${param_EXECUTABLE} PUBLIC ${param_LINK_DIRS} )
-    endif()
-
     if(NOT "${param_LINK_LIBS}" STREQUAL "")
         target_link_libraries(${param_EXECUTABLE} ${param_LINK_LIBS})
     endif()
@@ -299,10 +295,6 @@ function(hse_executable)
 
     if(NOT "${param_INCLUDES}" STREQUAL "")
         target_include_directories(${param_NAME}-bin PRIVATE ${param_INCLUDES})
-    endif()
-
-    if(NOT "${param_LINK_DIRS}" STREQUAL "")
-        target_link_directories( ${param_NAME}-bin PUBLIC ${param_LINK_DIRS} )
     endif()
 
     if(NOT "${param_LINK_LIBS}" STREQUAL "")
