@@ -150,7 +150,7 @@ endif()
 # Keep these lines--we need them in release branches
 set( HSE_VERSION_MAJOR 1 )
 set( HSE_VERSION_MINOR 7 )
-set( HSE_VERSION_PATCH 0 )
+set( HSE_VERSION_PATCH 1 )
 
 #
 # Set-up what kind of build this is
