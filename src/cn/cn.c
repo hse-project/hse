@@ -1215,7 +1215,7 @@ cn_open(
     staging_absent = mpool_mclass_get(ds, MP_MED_STAGING, NULL);
     if (staging_absent) {
         if (rp->cn_media_class == MP_MED_STAGING) {
-            hse_log(HSE_WARNING "Staging media is not configured.");
+            hse_log(HSE_NOTICE "Staging media is not configured.");
             rp->cn_media_class = MP_MED_CAPACITY;
         }
     }

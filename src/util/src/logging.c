@@ -1420,6 +1420,7 @@ hse_slog_create(int priority, const char *unused, struct slog **sl, const char *
     json_element_start(jc, "content");
 
     (*sl)->sl_priority = priority;
+    (*sl)->sl_entries = 0;
 
     return 0;
 err1:
@@ -1455,6 +1456,8 @@ hse_slog_append_internal(struct slog *sl, ...)
     hse_format_payload(jc, payload);
     va_end(payload);
 
+    sl->sl_entries++;
+
     return 0;
 err:
     free(jc->json_buf);
@@ -1474,7 +1477,9 @@ hse_slog_commit(struct slog *sl)
 
     json_element_end(jc);
     json_element_end(jc);
-    hse_slog_emit(sl->sl_priority, "@cee:%s\n", jc->json_buf);
+
+    if (sl->sl_entries)
+	    hse_slog_emit(sl->sl_priority, "@cee:%s\n", jc->json_buf);
 
     free(jc->json_buf);
     free(sl);
