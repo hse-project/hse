@@ -58,7 +58,11 @@ noop_tree_remove(struct csched_ops *handle, struct cn_tree *tree, bool cancel)
 
 /* Public API */
 merr_t
-sp_noop_create(struct kvdb_rparams *rp, const char *mp, struct csched_ops **handle)
+sp_noop_create(
+    struct kvdb_rparams *rp,
+    const char *         mp,
+    struct kvdb_health * health,
+    struct csched_ops ** handle)
 {
     struct csched_noop *self;
 

@@ -441,13 +441,13 @@ MTF_DEFINE_UTEST_PRE(test, t_sp3_create, pre_test)
     struct csched_ops *ops;
     merr_t             err;
 
-    err = sp3_create(NULL, kvdb_rp, mp, &ops);
+    err = sp3_create(NULL, kvdb_rp, mp, &health, &ops);
     ASSERT_EQ(err, 0);
     ops->cs_destroy(0);
     ops->cs_destroy(ops);
 
     kvdb_rp->csched_qthreads = 1;
-    err = sp3_create(NULL, kvdb_rp, mp, &ops);
+    err = sp3_create(NULL, kvdb_rp, mp, &health, &ops);
     ASSERT_EQ(err, 0);
     ops->cs_destroy(ops);
 }
@@ -464,7 +464,7 @@ MTF_DEFINE_UTEST_PRE(test, t_sp3_create_nomem, pre_test)
 
     void run(struct mtf_test_info * lcl_ti, uint i, uint j)
     {
-        err = sp3_create(NULL, kvdb_rp, mp, &ops);
+        err = sp3_create(NULL, kvdb_rp, mp, &health, &ops);
         if (i == j)
             ASSERT_EQ(err, 0);
         else
@@ -494,7 +494,7 @@ MTF_DEFINE_UTEST_PRE(test, t_sp3_create_fail, pre_test)
     merr_t             err;
 
     mapi_inject(mapi_idx_sts_create, 1234);
-    err = sp3_create(NULL, kvdb_rp, mp, &ops);
+    err = sp3_create(NULL, kvdb_rp, mp, &health, &ops);
     ASSERT_EQ(err, 1234);
     mapi_inject_unset(mapi_idx_sts_create);
 }
@@ -505,7 +505,7 @@ MTF_DEFINE_UTEST_PRE(test, t_sp3_one_empty_tree, pre_test)
     struct test_tree * tt;
     struct csched_ops *ops;
 
-    err = sp3_create(NULL, kvdb_rp, mp, &ops);
+    err = sp3_create(NULL, kvdb_rp, mp, &health, &ops);
     ASSERT_EQ(err, 0);
 
     tt = new_tree(4);
@@ -530,7 +530,7 @@ MTF_DEFINE_UTEST_PRE(test, t_sp3_many_empty_trees, pre_test)
     uint               fanouts[] = { 2, 4, 8, 16 };
     uint               i;
 
-    err = sp3_create(NULL, kvdb_rp, mp, &ops);
+    err = sp3_create(NULL, kvdb_rp, mp, &health, &ops);
     ASSERT_EQ(err, 0);
 
     for (i = 0; i < num_trees; i++) {
@@ -560,7 +560,7 @@ MTF_DEFINE_UTEST_PRE(test, t_sp3_one_small_tree_with_work, pre_test)
     struct csched_ops *ops;
     uint               i;
 
-    err = sp3_create(NULL, kvdb_rp, mp, &ops);
+    err = sp3_create(NULL, kvdb_rp, mp, &health, &ops);
     ASSERT_EQ(err, 0);
 
     tt = new_tree(4);
@@ -589,7 +589,7 @@ MTF_DEFINE_UTEST_PRE(test, t_sp3_one_medium_tree_with_work, pre_test)
     struct csched_ops *ops;
     uint               i;
 
-    err = sp3_create(NULL, kvdb_rp, mp, &ops);
+    err = sp3_create(NULL, kvdb_rp, mp, &health, &ops);
     ASSERT_EQ(err, 0);
 
     tt = new_tree(4);
@@ -621,7 +621,7 @@ MTF_DEFINE_UTEST_PRE(test, t_sp3_one_big_tree_with_work, pre_test)
     struct csched_ops *ops;
     uint               i;
 
-    err = sp3_create(NULL, kvdb_rp, mp, &ops);
+    err = sp3_create(NULL, kvdb_rp, mp, &health, &ops);
     ASSERT_EQ(err, 0);
 
     tt = new_tree(4);

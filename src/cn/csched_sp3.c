@@ -194,6 +194,7 @@ struct sp3 {
     struct list_head         mon_tlist;
     struct sp3_thresholds    thresh;
     struct throttle_sensor * throttle_sensor;
+    struct kvdb_health      *health;
 
     struct rb_root rbt[RBT_MAX];
 
@@ -2036,10 +2037,9 @@ sp3_update_samp(struct sp3 *sp)
 
 static bool
 sp3_compact(struct sp3 *sp)
-
 {
-    uint cur_jobs;
-    bool scheduled_new_job = false;
+    uint   cur_jobs;
+    bool   scheduled_new_job = false;
 
     assert(sp->jobs_started >= sp->jobs_finished);
     cur_jobs = sp->jobs_started - sp->jobs_finished;
@@ -2063,6 +2063,7 @@ sp3_monitor(struct work_struct *work)
 
     const int long_timeout_ms = 100;
     const int short_timeout_ms = 20;
+    bool      bad_health = false;
 
     struct periodic_check chk_qos;
     struct periodic_check chk_refresh;
@@ -2084,6 +2085,7 @@ sp3_monitor(struct work_struct *work)
     sp3_refresh_settings(sp);
 
     while (!atomic_read(&sp->destruct)) {
+        merr_t err;
 
         mutex_lock(&sp->mutex);
         cv_timedwait(&sp->cv, &sp->mutex, busy ? short_timeout_ms : long_timeout_ms);
@@ -2098,7 +2100,16 @@ sp3_monitor(struct work_struct *work)
 
         sp3_update_samp(sp);
 
-        busy = sp3_compact(sp);
+        err = kvdb_health_check(sp->health, KVDB_HEALTH_FLAG_ALL);
+        if (ev(err)) {
+            if (!bad_health)
+                hse_elog(HSE_ERR "%s: KVDB is in bad health, @@e", err, sp->name);
+
+            bad_health = true;
+        }
+
+        if (!bad_health)
+            busy = sp3_compact(sp);
 
         if (now > chk_refresh.next) {
             sp3_refresh_settings(sp);
@@ -2289,7 +2300,12 @@ sp3_op_destroy(struct csched_ops *handle)
  * sp3_create() - External API: constructor
  */
 merr_t
-sp3_create(struct mpool *ds, struct kvdb_rparams *rp, const char *mp, struct csched_ops **handle)
+sp3_create(
+    struct mpool *       ds,
+    struct kvdb_rparams *rp,
+    const char *         mp,
+    struct kvdb_health * health,
+    struct csched_ops ** handle)
 {
     struct sp3 *sp;
     merr_t      err;
@@ -2327,6 +2343,7 @@ sp3_create(struct mpool *ds, struct kvdb_rparams *rp, const char *mp, struct csc
     strlcpy(sp->name, mp, name_sz);
 
     sp->rp = rp;
+    sp->health = health;
 
     mutex_init(&sp->new_tlist_lock);
     mutex_init(&sp->work_list_lock);
