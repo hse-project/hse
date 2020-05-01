@@ -282,12 +282,10 @@ hse_library(
     INCLUDES ${HSE_KVDB_LIB_INCLUDES}
     )
 
-target_link_directories( hse_kvdb-lib PUBLIC )
 if( HSE_UNIT_TEST_FLAG )
     target_link_libraries( hse_kvdb-lib ${HSE_TEST_SUPPORT_LIBS} )
 endif()
 
-target_link_directories( hse_kvdb_static-lib PUBLIC )
 if( HSE_UNIT_TEST_FLAG )
     target_link_libraries( hse_kvdb_static-lib ${HSE_TEST_SUPPORT_LIBS} )
 endif()
