@@ -138,6 +138,7 @@ struct hse_logging_infrastructure {
 
 struct slog {
     int                 sl_priority;
+    int                 sl_entries;
     struct json_context sl_json;
 };
 

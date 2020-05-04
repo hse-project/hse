@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.2)
+cmake_minimum_required(VERSION 3.11)
 if(${CMAKE_MAJOR_VERSION} GREATER 2)
     # CMP0046 -- We need this policy because this project adds
     #            dependencies on mpool, but has no rule to build mpool
