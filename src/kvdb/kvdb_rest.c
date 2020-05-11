@@ -207,7 +207,7 @@ kvdb_rest_deregister(const char *mp_name)
     if (!mp_name)
         return merr(ev(EINVAL));
 
-    return rest_url_deregister("mpool/%s/", mp_name);
+    return rest_url_deregister("mpool/%s", mp_name);
 }
 
 /*---------------------------------------------------------------
