@@ -429,7 +429,7 @@ c1_tree_reserve_space_txn(struct c1_tree *tree, u64 size)
 }
 
 merr_t
-c1_tree_reserve_space(struct c1_tree *tree, u64 size, int *idx, u64 *mutation, bool txn)
+c1_tree_reserve_space(struct c1_tree *tree, u64 size, int *idx, u64 *mutation)
 {
     struct c1_log *log;
     int            i;
@@ -474,12 +474,6 @@ exit_succ:
     *mutation = atomic64_add_return(1, &tree->c1t_mutation);
     atomic_inc(&tree->c1t_nextlog);
 
-    /* txn data has already been accounted in the tree space during
-     * tx begin.
-     */
-    if (!txn)
-        atomic64_add(size, &tree->c1t_rsvdspace);
-
     return 0;
 }
 
@@ -506,8 +500,7 @@ c1_tree_issue_kvb(
 
     log = tree->c1t_log[idx];
 
-    return c1_log_issue_kvb(
-        log, vbldr, ingestid, vsize, kvb, seqno, txnid, gen, mutation, sync, tidx, statsp);
+    return c1_log_issue_kvb(log, vbldr, ingestid, vsize, kvb, seqno, txnid, gen, mutation, sync, tidx, statsp);
 }
 
 merr_t

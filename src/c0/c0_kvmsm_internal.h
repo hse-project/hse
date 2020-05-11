@@ -13,6 +13,7 @@ c0kvmsm_ingest_internal(
     struct c1 *           c1h,
     u64                   gen,
     u64                   txnseq,
+    u8                    itype,
     struct c0kvmsm_info * info_out,
     struct c0kvmsm_info * txinfo_out);
 
@@ -31,8 +32,8 @@ c0kvmsm_ingest_tx(
     struct c1 *           c1h,
     u64                   gen,
     u64                   txnseq,
-    u64                   txnsz,
-    int *                 txnref);
+    int *                 txnref,
+    u64                   txnid);
 
 merr_t
 c0kvmsm_ingest_common(

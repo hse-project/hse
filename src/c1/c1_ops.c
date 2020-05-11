@@ -318,16 +318,12 @@ c1_ingest(struct c1 *c1, struct kvb_builder_iter *iter, u64 size, int ingestflag
     merr_t err;
     u64    txnid;
 
-    err = 0;
-    txnid = 0;
+    txnid = c1_cur_txnid(c1);
 
     if (!iter) {
         err = c1_issue_iter(c1, NULL, txnid, size, ingestflag);
         return ev(err);
     }
-
-    if (kvb_builder_iter_istxn(iter))
-        txnid = c1_cur_txnid(c1);
 
     err = c1_issue_iter(c1, iter, txnid, size, ingestflag);
     if (ev(err))
@@ -538,8 +534,8 @@ c1_txn_abort(struct c1 *c1, u64 txnid)
 }
 BullseyeCoverageRestore
 
-    u64
-    c1_get_txnid(struct c1 *c1)
+u64
+c1_get_txnid(struct c1 *c1)
 {
     return ++c1->c1_txnid;
 }

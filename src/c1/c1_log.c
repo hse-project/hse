@@ -844,7 +844,7 @@ c1_log_issue_txn(
     omf_set_c1ttxn_flag(&omf, txn->c1t_flag);
 
     mutex_lock(&log->c1l_ingest_mtx);
-    err = mpool_mlog_append_data(log->c1l_ds, log->c1l_mlh, &omf, sizeof(omf), false);
+    err = mpool_mlog_append_data(log->c1l_ds, log->c1l_mlh, &omf, sizeof(omf), sync);
     mutex_unlock(&log->c1l_ingest_mtx);
 
     if (ev(err))
