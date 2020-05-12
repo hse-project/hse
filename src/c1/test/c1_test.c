@@ -997,12 +997,6 @@ again:
         ASSERT_EQ(0, err);
     }
 
-    err = c0kvmsm_ingest_nontx(kvms, NULL, NULL, 1, NULL);
-    ASSERT_EQ(0, err);
-
-    err = c0kvmsm_ingest_tx(kvms, NULL, c1, 1, 100, NULL, 0);
-    ASSERT_EQ(0, err);
-
     c0kvms_putref(kvms);
     mapi_inject_unset(mapi_idx_c0kvms_is_ingested);
 

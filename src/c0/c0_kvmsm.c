@@ -84,6 +84,7 @@ c0kvmsm_ingest_internal(
     merr_t      err;
     u64         txnid;
     u64         mutsz;
+    bool        aborted = false;
 
     /* Two kvb iterators are created per-c0kvset, one for tx mutations
      * and the other for non-tx mutations, if there are any. Both the
@@ -114,21 +115,26 @@ c0kvmsm_ingest_internal(
     err = c1_txn_begin(c1h, txnid, mutsz, C1_INGEST_ASYNC);
     if (ev(err)) {
         c0kvmsm_reset_mlist(c0kvms, 0);
-        goto wait;
+        return err;
     }
 
     /* Ingest tx mutations from all c0 kvsets belonging to this kvms. */
     if (tx) {
-        err = c0kvmsm_ingest_tx(c0kvms, c0skm, c1h, gen, txnseq, &ref, txnid);
-        if (ev(err))
+        err = c0kvmsm_ingest_common(c0kvms, c0skm, c1h, gen, &ref, txnseq, tx);
+        if (ev(err)) {
+            c1_txn_abort(c1h, txnid);
+            aborted = true;
             goto wait;
+        }
     }
 
     /* Ingest non-tx mutations. */
     if (nontx) {
-        err = c0kvmsm_ingest_nontx(c0kvms, c0skm, c1h, gen, &ref);
-        if (ev(err))
+        err = c0kvmsm_ingest_common(c0kvms, c0skm, c1h, gen, &ref, 0, false);
+        if (ev(err)) {
             c1_txn_abort(c1h, txnid);
+            aborted = true;
+        }
     }
 
     /* Wait for mutations to ingest into c1. For transaction mutations,
@@ -138,6 +144,8 @@ c0kvmsm_ingest_internal(
 wait:
     c0kvmsm_wait(c0kvms, &ref);
     assert(ref == 0);
+
+    err = (merr_errno(err) == EEXIST) ? 0 : err;
     if (ev(err))
         return err;
 
@@ -151,16 +159,19 @@ wait:
     }
 
     if (ev(err)) {
-        c1_txn_abort(c1h, txnid);
+        if (!aborted)
+            c1_txn_abort(c1h, txnid);
         hse_log(HSE_ERR "%s: c1 %s failed", __func__, action);
         return err;
     }
 
     /* Now that all mutations are persisted, issue a Tx COMMIT. */
-    err = c1_txn_commit(c1h, txnid, txnseq, C1_INGEST_SYNC);
-    if (ev(err)) {
-        c1_txn_abort(c1h, txnid);
-        return err;
+    if (!aborted) {
+        err = c1_txn_commit(c1h, txnid, txnseq, C1_INGEST_SYNC);
+        if (ev(err)) {
+            c1_txn_abort(c1h, txnid);
+            return err;
+        }
     }
 
     if (info_out) {
@@ -172,52 +183,6 @@ wait:
         txinfo_out->c0ms_kvbytes += txinfo.c0ms_kvbytes;
         txinfo_out->c0ms_kvpbytes += txinfo.c0ms_kvpbytes;
         txinfo_out->c0ms_kvscnt += txinfo.c0ms_kvscnt;
-    }
-
-    return 0;
-}
-
-merr_t
-c0kvmsm_ingest_nontx(
-    struct c0_kvmultiset *c0kvms,
-    struct c0sk_mutation *c0skm,
-    struct c1 *           c1h,
-    u64                   gen,
-    int *                 ref)
-{
-    merr_t err;
-
-    err = c0kvmsm_ingest_common(c0kvms, c0skm, c1h, gen, ref, 0, false);
-    if (err) {
-        if (merr_errno(err) == EEXIST)
-            return 0;
-
-        return ev(err);
-    }
-
-    return 0;
-}
-
-merr_t
-c0kvmsm_ingest_tx(
-    struct c0_kvmultiset *c0kvms,
-    struct c0sk_mutation *c0skm,
-    struct c1 *           c1h,
-    u64                   gen,
-    u64                   txnseq,
-    int *                 txnref,
-    u64                   txnid)
-{
-    merr_t err;
-
-    /* Ingest all transaction mutations. */
-    err = c0kvmsm_ingest_common(c0kvms, c0skm, c1h, gen, txnref, txnseq, true);
-    if (ev(err)) {
-        (void)c1_txn_abort(c1h, txnid);
-        if (merr_errno(err) == EEXIST)
-            return 0;
-
-        return err;
     }
 
     return 0;

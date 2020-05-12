@@ -18,24 +18,6 @@ c0kvmsm_ingest_internal(
     struct c0kvmsm_info * txinfo_out);
 
 merr_t
-c0kvmsm_ingest_nontx(
-    struct c0_kvmultiset *c0kvms,
-    struct c0sk_mutation *c0skm,
-    struct c1 *           c1h,
-    u64                   gen,
-    int *                 ref);
-
-merr_t
-c0kvmsm_ingest_tx(
-    struct c0_kvmultiset *c0kvms,
-    struct c0sk_mutation *c0skm,
-    struct c1 *           c1h,
-    u64                   gen,
-    u64                   txnseq,
-    int *                 txnref,
-    u64                   txnid);
-
-merr_t
 c0kvmsm_ingest_common(
     struct c0_kvmultiset *c0kvms,
     struct c0sk_mutation *c0skm,
