@@ -55,22 +55,19 @@
 
 #define EBUG (991)
 
-/* MERR_ALIGN      Alignment of _merr_file in section ".merr"
- * MERR_FILE_SZ    Max length of relative file name (/a/b/c/d/e.c -> d/e.c)
+/* MERR_ALIGN      Alignment of _merr_file in section "hse_merr"
  * MERR_INFO_SZ    Max size of struct merr_info message buffer
- * MERR_BASE_SZ    Size of struct merr_base[] buffer for kernel file names
  */
-#define MERR_ALIGN (1u << 7)
-#define MERR_FILE_SZ (1u << 6)
-#define MERR_INFO_SZ (MERR_FILE_SZ * 2 + 200)
-#define MERR_BASE_SZ (MERR_FILE_SZ * 64 * 2)
+#define MERR_ALIGN      (1 << 6)
+#define MERR_INFO_SZ    (MERR_ALIGN * 2 + 200)
 
-#define _merr_section __attribute__((__section__(".merr")))
+#define _merr_section __attribute__((__section__("hse_merr")))
 #define _merr_attributes _merr_section __aligned(MERR_ALIGN) __maybe_unused
 
 static char _hse_merr_file[] _merr_attributes = __BASE_FILE__;
 
 extern char hse_merr_base[];
+extern char hse_merr_bug0[];
 extern char hse_merr_bug1[];
 extern char hse_merr_bug2[];
 
@@ -78,18 +75,18 @@ extern char hse_merr_bug2[];
  *
  *   Field   #bits  Description
  *   ------  -----  ----------
- *   63..46   18    signed offset of (_he_merr_file - merr_base)
- *   45..32   14    line number
+ *   63..48   16    signed offset of (_he_merr_file - merr_base) / MERR_ALIGN
+ *   47..32   16    line number
  *   31..31    1    reserved bits
  *   30..0    31    positive errno value
  */
-#define MERR_FILE_SHIFT (46)
+#define MERR_FILE_SHIFT (48)
 #define MERR_LINE_SHIFT (32)
 #define MERR_RSVD_SHIFT (31)
 
-#define MERR_FILE_MASK (0xffffc00000000000ul)
-#define MERR_LINE_MASK (0x00003fff00000000ul)
-#define MERR_RSVD_MASK (0x0000000080000000ul)
+#define MERR_FILE_MASK  (0xffff000000000000ul)
+#define MERR_LINE_MASK  (0x0000ffff00000000ul)
+#define MERR_RSVD_MASK  (0x0000000080000000ul)
 #define MERR_ERRNO_MASK (0x000000007ffffffful)
 
 typedef s64 merr_t;

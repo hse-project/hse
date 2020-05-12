@@ -303,7 +303,7 @@ _new_leaf_node(struct wbb *wbb, uint right_edge_klen)
     return 0;
 }
 
-static int
+static merr_t
 _new_int_node(struct wbb *wbb)
 {
     struct wbt_node_hdr_omf *node_hdr;
