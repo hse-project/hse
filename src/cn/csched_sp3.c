@@ -181,7 +181,7 @@ qfull(struct sp3_qinfo *qi)
  * @samp_reduce:      if true, compact while samp > LWM
  * @comp_flags:       compaction flags for an active compaction request
  * @comp_request:     whether a compaction request is active
- * @comp_cancelled:   whether a compaction request was cancelled
+ * @comp_canceled:    whether a compaction request was canceled
  */
 struct sp3 {
     /* Accessed only by monitor thread */
@@ -273,7 +273,7 @@ struct sp3 {
     /* Accessed by forced compactions and monitor */
     __aligned(SMP_CACHE_BYTES) int comp_flags;
     bool comp_request;
-    bool comp_cancelled;
+    bool comp_canceled;
 };
 
 /* external to internal handle */
@@ -2006,10 +2006,10 @@ sp3_update_samp(struct sp3 *sp)
     /* Detect completion of external compaction requests */
     if (sp->comp_request && sp->jobs_started == sp->jobs_finished) {
         if (sp->comp_flags & HSE_KVDB_COMP_FLAG_SAMP_LWM &&
-            samp_est(&sp->samp, 100) < sp->samp_lwm) {
+            samp_est(&sp->samp, SCALE) < sp->samp_lwm) {
             sp->samp_reduce = false;
             sp->comp_request = false;
-            sp->comp_cancelled = false;
+            sp->comp_canceled = false;
             sp->comp_flags = 0;
         }
     }
@@ -2165,7 +2165,7 @@ sp3_op_compact_request(struct csched_ops *handle, int flags)
 
     if (flags & HSE_KVDB_COMP_FLAG_CANCEL) {
         sp->comp_request = false;
-        sp->comp_cancelled = true;
+        sp->comp_canceled = true;
     } else if (flags & HSE_KVDB_COMP_FLAG_SAMP_LWM) {
         sp->comp_request = true;
         sp->samp_reduce = true;
@@ -2180,7 +2180,7 @@ sp3_op_compact_status(struct csched_ops *handle, struct hse_kvdb_compact_status 
     struct sp3 *sp = h2sp(handle);
 
     status->kvcs_active = sp->comp_request;
-    status->kvcs_cancelled = sp->comp_cancelled;
+    status->kvcs_canceled = sp->comp_canceled;
     status->kvcs_samp_curr = samp_est(&sp->samp, 100);
     status->kvcs_samp_lwm = sp->samp_lwm * 100 / SCALE;
     status->kvcs_samp_hwm = sp->samp_hwm * 100 / SCALE;
