@@ -997,19 +997,13 @@ again:
         ASSERT_EQ(0, err);
     }
 
-    err = c0kvmsm_ingest_nontx(kvms, NULL, NULL, 1, NULL);
-    ASSERT_EQ(0, err);
-
-    err = c0kvmsm_ingest_tx(kvms, NULL, c1, 1, 100, 100, NULL);
-    ASSERT_EQ(0, err);
-
     c0kvms_putref(kvms);
     mapi_inject_unset(mapi_idx_c0kvms_is_ingested);
 
     err = c1_issue_iter(c1, NULL, 0, 128, C1_INGEST_SYNC);
     ASSERT_EQ(0, err);
 
-    err = c1_issue_sync(c1, C1_INGEST_SYNC);
+    err = c1_issue_sync(c1, C1_INGEST_SYNC, false);
     ASSERT_EQ(0, err);
 
     mapi_inject(mapi_idx_malloc, 0);

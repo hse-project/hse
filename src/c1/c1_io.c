@@ -498,7 +498,7 @@ c1_io_get_tree_txn(struct c1 *c1, u64 size, struct c1_tree **out, int *idx, u64 
             /* If space was successfully reserved from c1 tree,
              * then reserve it from mlog for the tx records.
              */
-            err = c1_tree_reserve_space(tree, recsz, idx, mutation, true);
+            err = c1_tree_reserve_space(tree, recsz, idx, mutation);
             if (!err)
                 break;
 
@@ -529,7 +529,7 @@ c1_io_get_tree_txn(struct c1 *c1, u64 size, struct c1_tree **out, int *idx, u64 
 }
 
 merr_t
-c1_io_get_tree(struct c1 *c1, u64 size, bool txn, struct c1_tree **out, int *idx, u64 *mutation)
+c1_io_get_tree(struct c1 *c1, u64 size, struct c1_tree **out, int *idx, u64 *mutation)
 {
     struct c1_tree *tree;
     struct c1_io *  io;
@@ -545,7 +545,7 @@ c1_io_get_tree(struct c1 *c1, u64 size, bool txn, struct c1_tree **out, int *idx
         assert(tree != NULL);
 
         /* Reserve space from mlog. */
-        err = c1_tree_reserve_space(tree, size, idx, mutation, txn);
+        err = c1_tree_reserve_space(tree, size, idx, mutation);
         if (!err)
             break;
 
@@ -652,7 +652,7 @@ c1_sync_or_flush_command(struct kvb_builder_iter *iter)
 }
 
 merr_t
-c1_issue_sync(struct c1 *c1, int sync)
+c1_issue_sync(struct c1 *c1, int sync, bool skip_flush)
 {
     struct c1_io_queue *q;
     struct c1_io *      io;
@@ -661,11 +661,15 @@ c1_issue_sync(struct c1 *c1, int sync)
 
     io = c1->c1_io;
 
-    if (sync == C1_INGEST_FLUSH)
+    if (sync != C1_INGEST_SYNC)
         return io->c1io_err;
 
-    if (!c1_io_pending_reqs(io))
-        goto log_flush;
+    if (!c1_io_pending_reqs(io)) {
+        if (!skip_flush)
+            goto log_flush;
+
+        return io->c1io_err;
+    }
 
     q = malloc(sizeof(*q));
     if (!q)
@@ -705,6 +709,9 @@ c1_issue_sync(struct c1 *c1, int sync)
     if (ev(io->c1io_err))
         return io->c1io_err;
 
+    if (skip_flush)
+	    return 0;
+
 log_flush:
     mutex_lock(&io->c1io_space_mtx);
     cycles = perfc_lat_start(&io->c1io_pcset);
@@ -733,7 +740,7 @@ c1_issue_iter(struct c1 *c1, struct kvb_builder_iter *iter, u64 txnid, u64 size,
     u64                           cycles = 0;
 
     if (c1_sync_or_flush_command(iter))
-        return c1_issue_sync(c1, sync);
+        return c1_issue_sync(c1, sync, false);
 
     io = c1->c1_io;
     assert(io);
@@ -764,7 +771,7 @@ c1_issue_iter(struct c1 *c1, struct kvb_builder_iter *iter, u64 txnid, u64 size,
     mutex_lock(&io->c1io_space_mtx);
     perfc_rec_lat(&io->c1io_pcset, PERFC_LT_C1_IOSLK, cycles);
 
-    err = c1_io_get_tree(c1, size, (txnid != 0), &q->c1q_tree, &q->c1q_idx, &q->c1q_mutation);
+    err = c1_io_get_tree(c1, size, &q->c1q_tree, &q->c1q_idx, &q->c1q_mutation);
     if (ev(err)) {
         mutex_unlock(&io->c1io_space_mtx);
         free(q);
@@ -920,7 +927,7 @@ c1_io_txn_commit(struct c1 *c1, u64 txnid, u64 seqno, int sync)
     mutex_lock(&io->c1io_space_mtx);
     perfc_rec_lat(&io->c1io_pcset, PERFC_LT_C1_IOSLK, cycles);
 
-    err = c1_io_get_tree(c1, size, (txnid != 0), &q->c1q_tree, &q->c1q_idx, &q->c1q_mutation);
+    err = c1_io_get_tree(c1, size, &q->c1q_tree, &q->c1q_idx, &q->c1q_mutation);
     if (ev(err)) {
         mutex_unlock(&io->c1io_space_mtx);
         free(txn);
@@ -953,10 +960,7 @@ c1_io_txn_commit(struct c1 *c1, u64 txnid, u64 seqno, int sync)
     mutex_unlock(&io->c1io_queue_mtx);
     c1_io_wakeup(io);
 
-    if (sync != C1_TXN_SYNC)
-        return 0;
-
-    return c1_issue_sync(c1, C1_TXN_SYNC);
+    return c1_issue_sync(c1, sync, true);
 }
 
 void
@@ -1042,7 +1046,7 @@ c1_io_txn_abort(struct c1 *c1, u64 txnid)
     txn->c1t_txnid = txnid;
     txn->c1t_txnid = txnid;
     txn->c1t_cmd = C1_TYPE_TXN_ABORT;
-    txn->c1t_flag = C1_TXN_NONE;
+    txn->c1t_flag = C1_INGEST_ASYNC;
 
     INIT_LIST_HEAD(&q->c1q_list);
     q->c1q_sync = 0;
@@ -1054,7 +1058,7 @@ c1_io_txn_abort(struct c1 *c1, u64 txnid)
     mutex_lock(&io->c1io_space_mtx);
     perfc_rec_lat(&io->c1io_pcset, PERFC_LT_C1_IOSLK, cycles);
 
-    err = c1_io_get_tree(c1, size, (txnid != 0), &q->c1q_tree, &q->c1q_idx, &q->c1q_mutation);
+    err = c1_io_get_tree(c1, size, &q->c1q_tree, &q->c1q_idx, &q->c1q_mutation);
     if (ev(err)) {
         mutex_unlock(&io->c1io_space_mtx);
 

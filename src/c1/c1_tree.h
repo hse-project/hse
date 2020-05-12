@@ -109,7 +109,7 @@ c1_tree_reserve_space_txn(struct c1_tree *tree, u64 size);
 
 /* MTF_MOCK */
 merr_t
-c1_tree_reserve_space(struct c1_tree *tree, u64 size, int *idx, u64 *mutation, bool txn);
+c1_tree_reserve_space(struct c1_tree *tree, u64 size, int *idx, u64 *mutation);
 
 u64
 c1_tree_space_threshold(struct c1_tree *tree);

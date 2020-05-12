@@ -41,27 +41,12 @@ c0kvmsm_ingest(
     go = perfc_lat_start(set);
 
     /* Ingest mutations from this kvms. */
-    err = c0kvmsm_ingest_internal(c0kvms, c0skm, c1h, gen, txnseq, info, txinfo);
-    if (ev(err))
-        goto exit;
-
-    if (PERFC_ISON(set)) {
+    err = c0kvmsm_ingest_internal(c0kvms, c0skm, c1h, gen, txnseq, itype, info, txinfo);
+    if (!ev(err) && PERFC_ISON(set)) {
         perfc_rec_lat(set, PERFC_LT_C0SKM_C1ING, go);
         perfc_inc(set, PERFC_RA_C0SKM_C1ING);
     }
 
-    /* Issue a c1_flush or c1_sync based on the request type. */
-    if (itype == C1_INGEST_FLUSH) {
-        err = c1_flush(c1h);
-        if (ev(err))
-            hse_log(HSE_ERR "%s: c1 flush failed", __func__);
-    } else if (itype == C1_INGEST_SYNC) {
-        err = c1_sync(c1h);
-        if (ev(err))
-            hse_log(HSE_ERR "%s: c1 sync failed", __func__);
-    }
-
-exit:
     /* If a KVMS was in INGESTING state before arriving here, we have
      * processed the final set of mutations. So, unset the mutating
      * flag for this KVMS. In the next interval, we will skip this
@@ -85,16 +70,21 @@ c0kvmsm_ingest_internal(
     struct c1 *           c1h,
     u64                   gen,
     u64                   txnseq,
+    u8                    itype,
     struct c0kvmsm_info * info_out,
     struct c0kvmsm_info * txinfo_out)
 {
     struct c0kvmsm_info info;
     struct c0kvmsm_info txinfo;
 
-    int    ref;
-    bool   tx;
-    bool   nontx;
-    merr_t err = 0;
+    const char *action;
+    int         ref;
+    bool        tx;
+    bool        nontx;
+    merr_t      err;
+    u64         txnid;
+    u64         mutsz;
+    bool        aborted = false;
 
     /* Two kvb iterators are created per-c0kvset, one for tx mutations
      * and the other for non-tx mutations, if there are any. Both the
@@ -117,99 +107,82 @@ c0kvmsm_ingest_internal(
     if (!tx && !nontx)
         return 0;
 
-    /* Ingest tx mutations from all c0 kvsets belonging to this kvms. */
-    if (tx) {
-        err = c0kvmsm_ingest_tx(c0kvms, c0skm, c1h, gen, txnseq, txinfo.c0ms_kvbytes, &ref);
-        if (ev(err))
-            goto err_exit;
-    }
-
-    /* Ingest non-tx mutations. */
-    if (nontx)
-        err = c0kvmsm_ingest_nontx(c0kvms, c0skm, c1h, gen, &ref);
-
-    if (!err) {
-        if (info_out) {
-            info_out->c0ms_kvbytes += info.c0ms_kvbytes;
-            info_out->c0ms_kvpbytes += info.c0ms_kvpbytes;
-            info_out->c0ms_kvscnt += info.c0ms_kvscnt;
-        }
-        if (txinfo_out) {
-            txinfo_out->c0ms_kvbytes += txinfo.c0ms_kvbytes;
-            txinfo_out->c0ms_kvpbytes += txinfo.c0ms_kvpbytes;
-            txinfo_out->c0ms_kvscnt += txinfo.c0ms_kvscnt;
-        }
-    }
-err_exit:
-    /* Wait for mutations to ingest into c1. For transaction mutations,
-     * this ensures that that the pending list is built completely and
-     * is ready to be consumed in the next interval.
-     */
-    c0kvmsm_wait(c0kvms, &ref);
-    assert(ref == 0);
-
-    return err;
-}
-
-merr_t
-c0kvmsm_ingest_nontx(
-    struct c0_kvmultiset *c0kvms,
-    struct c0sk_mutation *c0skm,
-    struct c1 *           c1h,
-    u64                   gen,
-    int *                 ref)
-{
-    merr_t err;
-
-    err = c0kvmsm_ingest_common(c0kvms, c0skm, c1h, gen, ref, 0, false);
-    if (err) {
-        if (merr_errno(err) == EEXIST)
-            return 0;
-
-        return ev(err);
-    }
-
-    return 0;
-}
-
-merr_t
-c0kvmsm_ingest_tx(
-    struct c0_kvmultiset *c0kvms,
-    struct c0sk_mutation *c0skm,
-    struct c1 *           c1h,
-    u64                   gen,
-    u64                   txnseq,
-    u64                   txnsz,
-    int *                 txnref)
-{
-    u64    txnid;
-    merr_t err;
-
     /* Get the c1 transaction ID. */
     txnid = c1_get_txnid(c1h);
 
-    /* Start a c1 async. transaction. */
-    err = c1_txn_begin(c1h, txnid, txnsz, C1_TXN_ASYNC);
+    /* Start an async. c1 transaction. */
+    mutsz = txinfo.c0ms_kvbytes + txinfo.c0ms_kvpbytes + info.c0ms_kvbytes;
+    err = c1_txn_begin(c1h, txnid, mutsz, C1_INGEST_ASYNC);
     if (ev(err)) {
         c0kvmsm_reset_mlist(c0kvms, 0);
         return err;
     }
 
-    /* Ingest all transaction mutations. */
-    err = c0kvmsm_ingest_common(c0kvms, c0skm, c1h, gen, txnref, txnseq, true);
-    if (ev(err)) {
-        (void)c1_txn_abort(c1h, txnid);
-        if (merr_errno(err) == EEXIST)
-            return 0;
+    /* Ingest tx mutations from all c0 kvsets belonging to this kvms. */
+    if (tx) {
+        err = c0kvmsm_ingest_common(c0kvms, c0skm, c1h, gen, &ref, txnseq, tx);
+        if (ev(err)) {
+            c1_txn_abort(c1h, txnid);
+            aborted = true;
+            goto wait;
+        }
+    }
 
+    /* Ingest non-tx mutations. */
+    if (nontx) {
+        err = c0kvmsm_ingest_common(c0kvms, c0skm, c1h, gen, &ref, 0, false);
+        if (ev(err)) {
+            c1_txn_abort(c1h, txnid);
+            aborted = true;
+        }
+    }
+
+    /* Wait for mutations to ingest into c1. For transaction mutations,
+     * this ensures that that the pending list is built completely and
+     * is ready to be consumed in the next interval.
+     */
+wait:
+    c0kvmsm_wait(c0kvms, &ref);
+    assert(ref == 0);
+
+    err = (merr_errno(err) == EEXIST) ? 0 : err;
+    if (ev(err))
+        return err;
+
+    /* Issue a c1_flush or c1_sync based on the request type. */
+    if (itype == C1_INGEST_FLUSH) {
+        err = c1_flush(c1h);
+        action = "flush";
+    } else if (itype == C1_INGEST_SYNC) {
+        err = c1_sync(c1h);
+        action = "sync";
+    }
+
+    if (ev(err)) {
+        if (!aborted)
+            c1_txn_abort(c1h, txnid);
+        hse_log(HSE_ERR "%s: c1 %s failed", __func__, action);
         return err;
     }
 
-    /* Commit this c1 transaction. */
-    err = c1_txn_commit(c1h, txnid, txnseq, C1_TXN_ASYNC);
-    if (ev(err)) {
-        (void)c1_txn_abort(c1h, txnid);
-        return err;
+    /* Now that all mutations are persisted, issue a Tx COMMIT. */
+    if (!aborted) {
+        err = c1_txn_commit(c1h, txnid, txnseq, C1_INGEST_SYNC);
+        if (ev(err)) {
+            c1_txn_abort(c1h, txnid);
+            return err;
+        }
+    }
+
+    if (info_out) {
+        info_out->c0ms_kvbytes += info.c0ms_kvbytes;
+        info_out->c0ms_kvscnt += info.c0ms_kvscnt;
+    }
+
+    if (txinfo_out) {
+        txinfo_out->c0ms_kvbytes += txinfo.c0ms_kvbytes;
+        txinfo_out->c0ms_kvpbytes += txinfo.c0ms_kvpbytes;
+        txinfo_out->c0ms_kvscnt += txinfo.c0ms_kvscnt;
     }
 
     return 0;

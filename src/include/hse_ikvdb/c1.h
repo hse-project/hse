@@ -48,8 +48,6 @@ enum c1_ingest_type {
     C1_INGEST_SYNC,
 };
 
-enum c1_txn_type { C1_TXN_NONE, C1_TXN_SYNC, C1_TXN_ASYNC };
-
 struct c1_bonsai_vbldr {
     struct kvset_builder *cbv_bldr;
     u64                   cbv_gen;
