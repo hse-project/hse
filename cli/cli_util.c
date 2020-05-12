@@ -231,6 +231,7 @@ rest_status_parse(const char *buf, struct hse_kvdb_compact_status *status)
         { "samp_hwm_pct:", &status->kvcs_samp_hwm },
         { "samp_curr_pct:", &status->kvcs_samp_curr },
         { "request_active:", &status->kvcs_active },
+        { "request_cancelled:", &status->kvcs_cancelled },
     };
 
     merr_t err;
@@ -396,7 +397,7 @@ kvdb_compact_request(
             }
         }
 
-        printf("compact kvdb %s successful\n", mpool);
+	printf("compact kvdb %s %s\n", mpool, status.kvcs_cancelled ? "cancelled" : "successful");
 
     } else if (strcmp(request_type, "cancel") == 0) {
 
