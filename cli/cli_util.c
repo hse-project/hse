@@ -27,7 +27,6 @@ rest_kvs_list(struct yaml_context *yc, const char *mpool)
     size_t bufsz = (32 * 1024);
     char * c;
     merr_t err;
-    int    i;
 
     snprintf(url, sizeof(url), "mpool/%s", mpool);
 
@@ -45,12 +44,6 @@ rest_kvs_list(struct yaml_context *yc, const char *mpool)
 
     next = buf;
     next[strlen(next) - 1] = '\0'; /* Get rid of the trailing newline char */
-
-    /*
-     * Skip WAL info entries
-     */
-    for (i = 0; i < 4; i++)
-        c = strsep(&next, "\n");
 
     c = strsep(&next, "\n"); /* Advance next past 'kvs_list:' */
     while (next) {
