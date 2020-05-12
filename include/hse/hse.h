@@ -862,6 +862,7 @@ struct hse_kvdb_compact_status {
     unsigned int kvcs_samp_hwm;  /**< space amp high water mark (%) */
     unsigned int kvcs_samp_curr; /**< current space amp (%) */
     unsigned int kvcs_active;    /**< is an externally requested compaction underway */
+    unsigned int kvcs_canceled;  /**< was an externally requested compaction canceled */
 };
 
 /**

@@ -173,6 +173,7 @@ rest_kvdb_compact_status(
     b += snprintf_append(buf, bufsz, &buf_off, "samp_hwm_pct: %u\n", status.kvcs_samp_hwm);
     b += snprintf_append(buf, bufsz, &buf_off, "samp_curr_pct: %u\n", status.kvcs_samp_curr);
     b += snprintf_append(buf, bufsz, &buf_off, "request_active: %u\n", status.kvcs_active);
+    b += snprintf_append(buf, bufsz, &buf_off, "request_canceled: %u\n", status.kvcs_canceled);
 
     write(info->resp_fd, buf, b);
 
