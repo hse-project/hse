@@ -641,17 +641,15 @@ vbb_add_entry_ext(
     return 0;
 }
 
-merr_t
+void
 vbb_get_vblocks(struct vblock_builder *bld, struct blk_list *vblks)
 {
     assert(!bld->destruct);
 
     *vblks = bld->vblk_list;
-
-    return 0;
 }
 
-merr_t
+void
 vbb_remove_unused_vblocks(struct vblock_builder *bld)
 {
     struct blk_list *blks;
@@ -667,37 +665,7 @@ vbb_remove_unused_vblocks(struct vblock_builder *bld)
     for (i = 0; i < blks->n_blks; i++) {
         if (bld->vblk_list.blks[i].bk_valid)
             continue;
-
         invalid++;
-
-/*
-         * [HSE_REVISIT]
-         *
-         * With c1 building vblocks so early in the ingest process,
-         * there are chances that some of the vblocks have become
-         * stale having no valid values due multiple updates to the
-         * same keys. Though deleting them here helps to reclaim the
-         * space quickly, it creates hiccups while mcache
-         * mapping the vblocks in cn_get().
-         *
-         * Need to verify whether these blocks are deleted when kvset
-         * is deleted while splilling. If not, the original block ids
-         * need to be deleted via mpool_mblock_delete and their vbldr
-         * indices be replaced with a special mblock id which generates
-         * zeros upon mapping and never gets deleted. If these options
-         * are not possible then special handling in the spill code
-         * to delete these block in the next spill/compaction. Lots of
-         * work pending.
-         */
-
-#ifdef C1_HANDLE_INVALID_VBLOCK_IN_FUTURE
-        bld->vblk_list.blks[i].bk_handle = 0;
-        bld->vblk_list.blks[i].bk_blkid = INVALID MBLOCK ID;
-
-        err = mpool_mblock_delete(bld->ds, bld->vblk_list.blks[i].bk_handle);
-        if (ev(err))
-            return err;
-#endif
     }
 
     if (invalid) {
@@ -711,8 +679,6 @@ vbb_remove_unused_vblocks(struct vblock_builder *bld)
             perfc_rec_sample(bld->pc, PERFC_DI_CNCOMP_VBDEAD, pct);
         }
     }
-
-    return 0;
 }
 
 u32
@@ -797,38 +763,31 @@ vbb_flush_entry(struct vblock_builder *bld)
     return 0;
 }
 
-merr_t
-vbb_get_committed_vblock_count(struct vblock_builder *bld, u32 *count)
+u32
+vbb_get_blk_count_committed(struct vblock_builder *bld)
 {
-    struct blk_list *blks;
     int              i;
-
-    blks = &bld->vblk_list;
+    int              count;
 
     assert(!bld->destruct);
 
-    for (i = 0; i < blks->n_blks; i++)
-        if (bld->vblk_list.blks[i].bk_needs_commit)
-            break;
-
-    *count = i;
+    count = 0;
+    for (i = 0; i < bld->vblk_list.n_blks; i++)
+        if (!bld->vblk_list.blks[i].bk_needs_commit)
+            ++count;
 
     if (PERFC_ISON(bld->pc))
-        perfc_rec_sample(bld->pc, PERFC_DI_CNCOMP_VBCNT, i);
+        perfc_rec_sample(bld->pc, PERFC_DI_CNCOMP_VBCNT, count);
 
-    return 0;
+    return count;
 }
 
-void
-vbb_get_blk_count(struct vblock_builder *bld, u32 *count)
+u32
+vbb_get_blk_count(struct vblock_builder *bld)
 {
-    struct blk_list *blks;
-
-    blks = &bld->vblk_list;
-
     assert(!bld->destruct);
 
-    *count = blks->n_blks;
+    return bld->vblk_list.n_blks;
 }
 
 merr_t

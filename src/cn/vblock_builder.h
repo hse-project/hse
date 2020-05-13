@@ -83,7 +83,7 @@ vbb_flush_entry(struct vblock_builder *bld);
 bool
 vbb_verify_entry(struct vblock_builder *bld, u32 vbidx, u64 blkid, u64 blkoff, u32 vlen);
 
-merr_t
+void
 vbb_get_vblocks(struct vblock_builder *bld, struct blk_list *vblks);
 
 merr_t
@@ -100,17 +100,17 @@ vbb_add_entry_ext(
 merr_t
 vbb_finish_entry(struct vblock_builder *bld, u8 index);
 
-merr_t
+void
 vbb_remove_unused_vblocks(struct vblock_builder *bld);
 
-merr_t
-vbb_get_committed_vblock_count(struct vblock_builder *bld, u32 *count);
+u32
+vbb_get_blk_count(struct vblock_builder *bld);
+
+u32
+vbb_get_blk_count_committed(struct vblock_builder *bld);
 
 u32
 vbb_vblock_hdr_len(void);
-
-void
-vbb_get_blk_count(struct vblock_builder *bld, u32 *count);
 
 merr_t
 vbb_blk_list_merge(struct vblock_builder *dst, struct vblock_builder *src, struct blk_list *vblks);
