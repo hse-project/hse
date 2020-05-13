@@ -11,10 +11,16 @@
 #include <mpool/mpool.h>
 
 #include <assert.h>
+#include <ctype.h>
 
-char hse_merr_base[MERR_BASE_SZ] _merr_attributes = "hse_merr_bug0u";
+char hse_merr_bug0[] _merr_attributes = "hse_merr_bug0u";
 char hse_merr_bug1[] _merr_attributes = "hse_merr_bug1u";
 char hse_merr_bug2[] _merr_attributes = "hse_merr_bug2u";
+char hse_merr_bug3[] _merr_attributes = "hse_merr_bug3u";
+char hse_merr_base[] _merr_attributes = "hse_merr_baseu";
+
+extern uint8_t __start_hse_merr;
+extern uint8_t __stop_hse_merr;
 
 merr_t
 merr_pack(int errnum, const char *file, int line)
@@ -28,16 +34,26 @@ merr_pack(int errnum, const char *file, int line)
     if (errnum < 0)
         errnum = -errnum;
 
-    if (!file || !IS_ALIGNED((ulong)file, MERR_ALIGN))
+    if (!file)
+        goto finish;
+
+    if (!IS_ALIGNED((ulong)file, sizeof(file)))
+        file = hse_merr_bug0; /* invalid file */
+
+    if (!(file > (char *)&__start_hse_merr ||
+          file < (char *)&__stop_hse_merr))
+        goto finish; /* file outside libhse */
+
+    if (!IS_ALIGNED((ulong)file, MERR_ALIGN))
         file = hse_merr_bug1;
 
-    off = file - hse_merr_base;
+    off = (file - hse_merr_base) / MERR_ALIGN;
 
-    if (((off << MERR_FILE_SHIFT) >> MERR_FILE_SHIFT) == off)
-        err = off << MERR_FILE_SHIFT;
+    if (((s64)((u64)off << MERR_FILE_SHIFT) >> MERR_FILE_SHIFT) == off)
+        err = (u64)off << MERR_FILE_SHIFT;
 
+  finish:
     err |= (1ul << MERR_RSVD_SHIFT);
-
     err |= ((u64)line << MERR_LINE_SHIFT) & MERR_LINE_MASK;
     err |= errnum & MERR_ERRNO_MASK;
 
@@ -52,20 +68,29 @@ merr_file(merr_t err)
     int         slash;
     s32         off;
 
-    off = err >> MERR_FILE_SHIFT;
+    if (err == 0 || err == -1)
+        return NULL;
+
+    off = (s64)(err & MERR_FILE_MASK) >> MERR_FILE_SHIFT;
     if (off == 0)
         return NULL;
 
-    if (off & (MERR_FILE_SZ - 1))
-        return hse_merr_bug2;
+    file = hse_merr_base + (off * MERR_ALIGN);
 
-    file = hse_merr_base + off;
-    len = strlen(file);
+    if (!(file > (char *)&__start_hse_merr ||
+          file < (char *)&__stop_hse_merr))
+        file = hse_merr_bug3;
+
+    /* [HSE_REVISIT] We can simply 'return file;' here once we teach
+     * cmake how to shorten the .c filenames used by _merr_file.
+     */
+    len = strnlen(file, PATH_MAX);
     file += len;
 
-    len = min_t(size_t, len, MERR_FILE_SZ - 1);
-
     for (slash = 0; len-- > 0; --file) {
+        if (*file && !isprint(*file))
+            return hse_merr_bug2;
+
         if (file[-1] == '/' && ++slash >= 2)
             break;
     }
