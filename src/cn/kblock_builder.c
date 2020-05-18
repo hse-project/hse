@@ -194,7 +194,7 @@ struct kblock_builder {
  * mblk_blow_chunks() - Split a large mpool_mblock_write request into a
  *                      sequence of smaller requests.
  * @self:      kblock builder
- * @mbh:       mblock handle
+ * @mbid:      mblock id
  * @iov:       iovec
  * @iov_cnt:   NELEM(iovec)
  * @chunk_len: length of each write
@@ -221,7 +221,7 @@ struct kblock_builder {
 static merr_t
 mblk_blow_chunks(
     struct kblock_builder * self,
-    u64                     mbh,
+    u64                     mbid,
     struct iovec *          iov,
     uint                    iov_cnt,
     uint                    chunk_len,
@@ -249,7 +249,7 @@ mblk_blow_chunks(
      * For example, if ax == 2 and bx == 4, then write is called on iovec
      * segments 2, 3 and 4 as follows:
      *
-     *    mpool_mblock_write(ds, mbh, iov + ax, bx - ax + 1);
+     *    mpool_mblock_write(ds, mbid, iov + ax, bx - ax + 1);
      *
      * Note however that the first (ax==2) and last segments (bx==4)
      * may need to be trimmed.  Local vars aoff and alen identify
@@ -298,7 +298,7 @@ mblk_blow_chunks(
             if (stats)
                 dt = get_time_ns();
             err = mpool_mblock_write_data(
-                self->ds, self->cn_mblk_sync_writes, mbh, iov + ax, 1, pasyncio);
+                self->ds, self->cn_mblk_sync_writes, mbid, iov + ax, 1, pasyncio);
             if (ev(err))
                 return err;
             if (stats)
@@ -338,7 +338,7 @@ mblk_blow_chunks(
             if (stats)
                 dt = get_time_ns();
             err = mpool_mblock_write_data(
-                self->ds, self->cn_mblk_sync_writes, mbh, iov + ax, bx - ax + 1, pasyncio);
+                self->ds, self->cn_mblk_sync_writes, mbid, iov + ax, bx - ax + 1, pasyncio);
             if (ev(err))
                 return err;
             if (stats)
@@ -808,7 +808,6 @@ kblock_finish(struct kblock_builder *bld, struct wbb *ptree)
     struct mblock_props  mbprop;
 
     struct curr_kblock *   kblk = &bld->curr;
-    struct blk_list *      blklist = &bld->finished_kblks;
     struct cn_merge_stats *stats = bld->mstats;
 
     struct iovec iov[(2 * WBB_FREEZE_IOV_MAX) + 3];
@@ -817,8 +816,7 @@ kblock_finish(struct kblock_builder *bld, struct wbb *ptree)
     size_t       wlen;
 
     merr_t err;
-    u64    handle = 0;
-    bool   appended = false;
+    u64    blkid = 0;
     uint   pt_pgc = 0;
     u64    tstart = 0;
     u64    kblocksz;
@@ -894,12 +892,6 @@ kblock_finish(struct kblock_builder *bld, struct wbb *ptree)
     _kblock_make_header(
         kblk, &wbt_hdr, &pt_hdr, pt_pgc, &blm_hdr, bld->seqno_min, bld->seqno_max, kblk->kblk_hdr);
 
-    /* pre-allocate space for handle and blkid */
-    err = blk_list_append(blklist, 0, 0);
-    if (ev(err))
-        goto errout;
-    appended = true;
-
     wlen = 0;
     for (i = 0; i < iov_cnt; i++)
         wlen += iov[i].iov_len;
@@ -916,7 +908,7 @@ kblock_finish(struct kblock_builder *bld, struct wbb *ptree)
 
     if (stats)
         tstart = get_time_ns();
-    err = mpool_mblock_alloc(bld->ds, bld->mclass, spare, &handle, &mbprop);
+    err = mpool_mblock_alloc(bld->ds, bld->mclass, spare, &blkid, &mbprop);
     if (ev(err))
         goto errout;
 
@@ -938,7 +930,7 @@ kblock_finish(struct kblock_builder *bld, struct wbb *ptree)
      */
     chunk = 1024 * 1024;
     chunk = chunk - (chunk % mbprop.mpr_stripe_len);
-    err = mblk_blow_chunks(bld, handle, iov, iov_cnt, chunk, &asyncio);
+    err = mblk_blow_chunks(bld, blkid, iov, iov_cnt, chunk, &asyncio);
 
     if (asyncio.mp_enabled) {
         if (stats)
@@ -953,10 +945,9 @@ kblock_finish(struct kblock_builder *bld, struct wbb *ptree)
     if (ev(err))
         goto errout;
 
-    /* save handle and blkid */
-    assert(blklist->blks[blklist->n_blks - 1].bk_blkid == 0);
-    blklist->blks[blklist->n_blks - 1].bk_blkid = mbprop.mpr_objid;
-    blklist->blks[blklist->n_blks - 1].bk_handle = handle;
+    err = blk_list_append(&bld->finished_kblks, blkid);
+    if (ev(err))
+        goto errout;
 
     /* unconditional reset */
     kblock_reset(kblk);
@@ -964,10 +955,8 @@ kblock_finish(struct kblock_builder *bld, struct wbb *ptree)
     return 0;
 
 errout:
-    if (handle)
-        mpool_mblock_abort(bld->ds, handle);
-    if (appended)
-        blklist->n_blks -= 1;
+    if (blkid)
+        mpool_mblock_abort(bld->ds, blkid);
 
     /* unconditional reset */
     kblock_reset(kblk);

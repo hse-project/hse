@@ -24,12 +24,7 @@
 #define id2bnum(id) ((id)-100 * MILLION)
 #define bnum2id(bnum) ((bnum) + 100 * MILLION)
 
-#define id2mbh(id) ((id) + 20 * MILLION)
-#define mbh2id(mbh) ((mbh)-20 * MILLION)
-
 #define id2map(id) ((id) + 3 * MILLION)
-
-#define bnum2mbh(bnum) id2mbh(bnum2id(bnum))
 
 #define bnum2map(bnum) id2map(bnum2id(bnum))
 
@@ -46,22 +41,14 @@ struct udata {
  * Mock mpool interfaces used by mbset.
  */
 static uint64_t
-_mpool_mblock_find_get(struct mpool *dsp, uint64_t objid, uint64_t *mbh, struct mblock_props *props)
+_mpool_mblock_getprops(struct mpool *dsp, uint64_t objid, struct mblock_props *props)
 {
     memset(props, 0, sizeof(*props));
-
-    *mbh = id2mbh(objid);
 
     props->mpr_objid = objid;
     props->mpr_alloc_cap = mock_alloc_cap;
     props->mpr_write_len = mock_write_len;
     props->mpr_iscommitted = true;
-    return 0;
-}
-
-static uint64_t
-_mpool_mblock_put(struct mpool *dsp, uint64_t mbh)
-{
     return 0;
 }
 
@@ -122,8 +109,7 @@ _mpool_mcache_mincore(
 static void
 mock_unset(void)
 {
-    MOCK_UNSET(mpool, _mpool_mblock_find_get);
-    MOCK_UNSET(mpool, _mpool_mblock_put);
+    MOCK_UNSET(mpool, _mpool_mblock_getprops);
     MOCK_UNSET(mpool, _mpool_mblock_delete);
 
     MOCK_UNSET(mpool, _mpool_mcache_mmap);
@@ -136,8 +122,7 @@ static void
 mock_set(void)
 {
     mock_unset();
-    MOCK_SET(mpool, _mpool_mblock_find_get);
-    MOCK_SET(mpool, _mpool_mblock_put);
+    MOCK_SET(mpool, _mpool_mblock_getprops);
     MOCK_SET(mpool, _mpool_mblock_delete);
 
     MOCK_SET(mpool, _mpool_mcache_mmap);
@@ -275,7 +260,6 @@ t_mbs_verify(struct mtf_test_info *lcl_ti, uint idc, u64 *idv, struct mbset *mbs
         ASSERT_EQ_RET(mbset_get_wlen(mbs), (u64)idc * mock_write_len, -1);
 
         ASSERT_EQ_RET(mbset_get_mbid(mbs, i), bnum2id(i), -1);
-        ASSERT_EQ_RET(mbset_get_mbh(mbs, i), bnum2mbh(i), -1);
 
         u = mbset_get_udata(mbs, i);
         ASSERT_NE_RET(u, NULL, -1);
@@ -415,7 +399,7 @@ MTF_DEFINE_UTEST_PREPOST(test, t_mbset_create_fail, pre, post)
     } api_table[] = {
         { mapi_idx_malloc, true, 0 },
         { mapi_idx_mpool_mcache_mmap, false, 1 },
-        { mapi_idx_mpool_mblock_find_get, false, 1 },
+        { mapi_idx_mpool_mblock_getprops, false, 1 },
     };
 
     /* For #mblocks in 1, 2, MAX-1, MAX, MAX+1, etc.. */
@@ -483,7 +467,7 @@ MTF_DEFINE_UTEST_PREPOST(test, t_mbset_callback, pre, post)
     u64 *         idv;
     uint          idc = 4;
     uint          x[2];
-    uint          i, exp_put, exp_del, exp_x1;
+    uint          i, exp_del, exp_x1;
 
     idv = idv_alloc(idc);
     ASSERT_NE(idv, NULL);
@@ -500,7 +484,6 @@ MTF_DEFINE_UTEST_PREPOST(test, t_mbset_callback, pre, post)
      */
     for (i = 0; i < 3; i++) {
 
-        mapi_inject_unset(mapi_idx_mpool_mblock_put);
         mapi_inject_unset(mapi_idx_mpool_mblock_delete);
 
         err = mbset_create(ds, idc, idv, usz, ufn, 0, MBLOCKS_MAX, &mbs);
@@ -508,20 +491,17 @@ MTF_DEFINE_UTEST_PREPOST(test, t_mbset_callback, pre, post)
 
         switch (i) {
             case 0:
-                exp_put = idc;
                 exp_del = 0;
                 exp_x1 = 0;
                 break;
             case 1:
                 mbset_set_delete_flag(mbs);
-                exp_put = 0;
                 exp_del = idc;
                 exp_x1 = 0;
                 break;
             case 2:
                 mbset_set_delete_flag(mbs);
                 mapi_inject_once(mapi_idx_mpool_mblock_delete, 2, -1);
-                exp_put = 0;
                 exp_del = 2; /* delete should only be called twice */
                 exp_x1 = 1;
                 break;
@@ -538,7 +518,6 @@ MTF_DEFINE_UTEST_PREPOST(test, t_mbset_callback, pre, post)
 
         ASSERT_EQ(x[0], 1);
         ASSERT_EQ(x[1], exp_x1);
-        ASSERT_EQ(exp_put, mapi_calls(mapi_idx_mpool_mblock_put));
         ASSERT_EQ(exp_del, mapi_calls(mapi_idx_mpool_mblock_delete));
     }
 

@@ -34,7 +34,6 @@ static struct mpool *mock_ds = (void *)-1;
 static struct kvdb_health mock_health;
 
 static u64 mblk_id = 1000000;
-static u64 mblk_hdl = 2000000;
 
 struct injections {
     u64 rc;
@@ -173,11 +172,11 @@ init_mblks(struct kvset_mblocks *p, uint nsets, uint *nk, uint *nv)
 
         blk_list_init(&p[i].kblks);
         for (j = 0; j < *nk; j++)
-            blk_list_append(&p[i].kblks, mblk_hdl++, mblk_id++);
+            blk_list_append(&p[i].kblks, mblk_id++);
 
         blk_list_init(&p[i].vblks);
         for (j = 0; j < *nv; j++)
-            blk_list_append(&p[i].vblks, mblk_hdl++, mblk_id++);
+            blk_list_append(&p[i].vblks, mblk_id++);
     }
 }
 

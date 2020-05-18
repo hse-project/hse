@@ -24,7 +24,6 @@
 struct mpool *ds = (struct mpool *)0xface;
 
 #define BLK_ID 0x1234
-#define BLK_HANDLE 0x4310
 
 int
 setup(struct mtf_test_info *info)
@@ -43,9 +42,7 @@ pre(struct mtf_test_info *info)
 {
     mapi_inject(mapi_idx_mpool_mblock_delete, 0);
     mapi_inject(mapi_idx_mpool_mblock_commit, 0);
-    mapi_inject(mapi_idx_mpool_mblock_put, 0);
     mapi_inject(mapi_idx_mpool_mblock_abort, 0);
-    mapi_inject(mapi_idx_mpool_mblock_find_get, 0);
     return 0;
 }
 
@@ -79,7 +76,7 @@ MTF_DEFINE_UTEST_PREPOST(blk_list_test, t_blk_list_append, pre, post)
     add = BLK_LIST_PRE_ALLOC + 10;
     blkid_start = blkid;
     for (i = 0; i < add; i++) {
-        err = blk_list_append(&b, 0, blkid++);
+        err = blk_list_append(&b, blkid++);
         ASSERT_EQ(err, 0);
     }
     ASSERT_EQ(b.n_blks, add);
@@ -94,7 +91,7 @@ MTF_DEFINE_UTEST_PREPOST(blk_list_test, t_blk_list_append, pre, post)
     add = 2 * BLK_LIST_PRE_ALLOC + 10;
     blkid_start = blkid;
     for (i = 0; i < add; i++) {
-        err = blk_list_append(&b, 0, blkid++);
+        err = blk_list_append(&b, blkid++);
         ASSERT_EQ(err, 0);
     }
     ASSERT_EQ(b.n_blks, add);
@@ -108,7 +105,7 @@ MTF_DEFINE_UTEST_PREPOST(blk_list_test, t_blk_list_append, pre, post)
      */
     mapi_inject(mapi_idx_malloc, 0);
     blk_list_init(&b);
-    err = blk_list_append(&b, 0, BLK_ID);
+    err = blk_list_append(&b, BLK_ID);
     ASSERT_NE(err, 0);
     mapi_inject_unset(mapi_idx_malloc);
 
@@ -119,11 +116,11 @@ MTF_DEFINE_UTEST_PREPOST(blk_list_test, t_blk_list_append, pre, post)
     blk_list_init(&b);
 
     add = BLK_LIST_PRE_ALLOC + 10;
-    err = blk_list_append(&b, 0, blkid++);
+    err = blk_list_append(&b, blkid++);
     ASSERT_EQ(err, 0);
     mapi_inject(mapi_idx_malloc, 0);
     for (i = 0; i < add; i++) {
-        err = blk_list_append(&b, 0, blkid++);
+        err = blk_list_append(&b, blkid++);
         if (err)
             break;
     }
@@ -141,7 +138,7 @@ MTF_DEFINE_UTEST_PREPOST(blk_list_test, t_commit_mblock, pre, post)
 
     /* commit with handle */
     blk_list_init(&b);
-    err = blk_list_append(&b, BLK_HANDLE, BLK_ID);
+    err = blk_list_append(&b, BLK_ID);
     ASSERT_EQ(err, 0);
     err = commit_mblock(ds, &b.blks[0]);
     ASSERT_EQ(err, 0);
@@ -151,7 +148,7 @@ MTF_DEFINE_UTEST_PREPOST(blk_list_test, t_commit_mblock, pre, post)
     api = mapi_idx_mpool_mblock_commit;
     mapi_inject(api, merr(EINVAL));
     blk_list_init(&b);
-    err = blk_list_append(&b, BLK_HANDLE, BLK_ID);
+    err = blk_list_append(&b, BLK_ID);
     ASSERT_EQ(err, 0);
     err = commit_mblock(ds, &b.blks[0]);
     ASSERT_NE(err, 0);
@@ -167,7 +164,7 @@ MTF_DEFINE_UTEST_PREPOST(blk_list_test, t_delete_mblock, pre, post)
 
     /* delete with handle */
     blk_list_init(&b);
-    err = blk_list_append(&b, BLK_HANDLE, BLK_ID);
+    err = blk_list_append(&b, BLK_ID);
     ASSERT_EQ(err, 0);
     err = delete_mblock(ds, &b.blks[0]);
     ASSERT_EQ(err, 0);
@@ -177,7 +174,7 @@ MTF_DEFINE_UTEST_PREPOST(blk_list_test, t_delete_mblock, pre, post)
     api = mapi_idx_mpool_mblock_delete;
     mapi_inject(api, merr(EINVAL));
     blk_list_init(&b);
-    err = blk_list_append(&b, BLK_HANDLE, BLK_ID);
+    err = blk_list_append(&b, BLK_ID);
     ASSERT_EQ(err, 0);
     err = delete_mblock(ds, &b.blks[0]);
     ASSERT_NE(err, 0);
@@ -186,22 +183,11 @@ MTF_DEFINE_UTEST_PREPOST(blk_list_test, t_delete_mblock, pre, post)
 
     /* delete without handle */
     blk_list_init(&b);
-    err = blk_list_append(&b, 0, BLK_ID);
+    err = blk_list_append(&b, BLK_ID);
     ASSERT_EQ(err, 0);
     err = delete_mblock(ds, &b.blks[0]);
     ASSERT_EQ(err, 0);
     blk_list_free(&b);
-
-    /* delete without handle and with mpool_mblock_find_get failure */
-    api = mapi_idx_mpool_mblock_find_get;
-    mapi_inject(api, merr(EINVAL));
-    blk_list_init(&b);
-    err = blk_list_append(&b, 0, BLK_ID);
-    ASSERT_EQ(err, 0);
-    err = delete_mblock(ds, &b.blks[0]);
-    ASSERT_NE(err, 0);
-    blk_list_free(&b);
-    mapi_inject(api, 0);
 }
 
 MTF_DEFINE_UTEST_PREPOST(blk_list_test, t_abort_mblocks, pre, post)
@@ -214,14 +200,14 @@ MTF_DEFINE_UTEST_PREPOST(blk_list_test, t_abort_mblocks, pre, post)
     abort_mblocks(ds, 0);
 
     blk_list_init(&b);
-    err = blk_list_append(&b, BLK_HANDLE, BLK_ID);
+    err = blk_list_append(&b, BLK_ID);
     ASSERT_EQ(err, 0);
     abort_mblocks(ds, &b);
     blk_list_free(&b);
 
     blk_list_init(&b);
     for (i = 0; i < N; i++) {
-        err = blk_list_append(&b, BLK_HANDLE + i, BLK_ID + i);
+        err = blk_list_append(&b, BLK_ID + i);
         ASSERT_EQ(err, 0);
     }
     abort_mblocks(ds, &b);
@@ -230,31 +216,11 @@ MTF_DEFINE_UTEST_PREPOST(blk_list_test, t_abort_mblocks, pre, post)
     api = mapi_idx_mpool_mblock_abort;
     mapi_inject(api, merr(EINVAL));
     blk_list_init(&b);
-    err = blk_list_append(&b, BLK_HANDLE, BLK_ID);
+    err = blk_list_append(&b, BLK_ID);
     ASSERT_EQ(err, 0);
     abort_mblocks(ds, &b);
     blk_list_free(&b);
     mapi_inject(api, 0);
-}
-
-MTF_DEFINE_UTEST_PREPOST(blk_list_test, t_put_mblock, pre, post)
-{
-    merr_t          err;
-    struct blk_list b;
-
-    /* put with handle */
-    blk_list_init(&b);
-    err = blk_list_append(&b, BLK_HANDLE, BLK_ID);
-    ASSERT_EQ(err, 0);
-    put_mblock(ds, &b.blks[0]);
-    blk_list_free(&b);
-
-    /* put without handle */
-    blk_list_init(&b);
-    err = blk_list_append(&b, 0, BLK_ID);
-    ASSERT_EQ(err, 0);
-    put_mblock(ds, &b.blks[0]);
-    blk_list_free(&b);
 }
 
 MTF_END_UTEST_COLLECTION(blk_list_test);

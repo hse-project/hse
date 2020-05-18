@@ -545,7 +545,6 @@ kc_vblock_meta(struct mpool *ds, struct blk_list *list)
 {
     struct vb_meta *vb;
     u32             num_blks = list->n_blks;
-    u64             mbh;
     merr_t          err;
     int             i;
 
@@ -563,7 +562,7 @@ kc_vblock_meta(struct mpool *ds, struct blk_list *list)
 
         struct vblock_hdr_omf *vb_hdr;
 
-        err = mpool_mblock_find_get(ds, vbid, &mbh, &vb->props[i]);
+        err = mpool_mblock_getprops(ds, vbid, &vb->props[i]);
         if (ev(err)) {
             print_merr(err, "vblock 0x%08lx", vbid);
             break;
@@ -574,9 +573,7 @@ kc_vblock_meta(struct mpool *ds, struct blk_list *list)
         iov.iov_base = vb_buf;
         iov.iov_len = PAGE_SIZE;
 
-        err = mpool_mblock_read(ds, mbh, &iov, 1, 0);
-        mpool_mblock_put(ds, mbh);
-
+        err = mpool_mblock_read(ds, vbid, &iov, 1, 0);
         if (ev(err)) {
             print_merr(err, "vblock 0x%08lx: cannot read mblock", vbid);
             free_aligned(vb_buf);
@@ -612,12 +609,11 @@ read_mblock(struct mpool *ds, u64 blkid, void **buf)
     int          meg_bits = 20;
     int          i, nmegs, meg = 1 << meg_bits;
     u32          len;
-    u64          handle;
     size_t       off, remainder;
 
     struct mblock_props props;
 
-    err = mpool_mblock_find_get(ds, blkid, &handle, &props);
+    err = mpool_mblock_getprops(ds, blkid, &props);
     if (ev(err)) {
         print_merr(err, "mblock 0x%08lx: cannot find mblock", blkid);
         return 1;
@@ -627,7 +623,6 @@ read_mblock(struct mpool *ds, u64 blkid, void **buf)
     mem = alloc_page_aligned(len, GFP_KERNEL);
     if (ev(!mem)) {
         print_err("mblock 0x%08lx: cannot allocate memory (%lu bytes)", blkid, len);
-        mpool_mblock_put(ds, handle);
         return 1;
     }
 
@@ -636,7 +631,7 @@ read_mblock(struct mpool *ds, u64 blkid, void **buf)
     iov.iov_len = meg;
     for (i = 0; i < nmegs; ++i) {
         iov.iov_base = mem + off;
-        err = mpool_mblock_read(ds, handle, &iov, 1, off);
+        err = mpool_mblock_read(ds, blkid, &iov, 1, off);
         if (err) {
             rc = 1;
             print_merr(err, "mblock 0x%08lx: cannot read meg %d", blkid, i);
@@ -649,14 +644,12 @@ read_mblock(struct mpool *ds, u64 blkid, void **buf)
     if (remainder) {
         iov.iov_base = mem + off;
         iov.iov_len = remainder;
-        err = mpool_mblock_read(ds, handle, &iov, 1, off);
+        err = mpool_mblock_read(ds, blkid, &iov, 1, off);
         if (ev(err)) {
             rc = 1;
             print_merr(err, "mblock 0x%08lx: cannot read meg %d", blkid, i);
         }
     }
-
-    mpool_mblock_put(ds, handle);
 
     if (ev(rc != 0)) {
         free_aligned(mem);

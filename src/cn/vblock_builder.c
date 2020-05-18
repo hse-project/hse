@@ -53,7 +53,7 @@ _vblock_start(struct vblock_builder *bld)
 {
     merr_t                 err;
     struct mblock_props    mbprop;
-    u64                    handle;
+    u64                    blkid;
     u64                    tstart;
     bool                   spare;
     struct cn_merge_stats *stats = bld->mstats;
@@ -63,7 +63,7 @@ _vblock_start(struct vblock_builder *bld)
 
     if (stats)
         tstart = get_time_ns();
-    err = mpool_mblock_alloc(bld->ds, bld->mclass, spare, &handle, &mbprop);
+    err = mpool_mblock_alloc(bld->ds, bld->mclass, spare, &blkid, &mbprop);
     if (ev(err))
         return err;
     if (stats)
@@ -76,14 +76,14 @@ _vblock_start(struct vblock_builder *bld)
     }
 
     if (mbprop.mpr_alloc_cap != (rp->vblock_size_mb << 20)) {
-        mpool_mblock_abort(bld->ds, handle);
+        mpool_mblock_abort(bld->ds, blkid);
         assert(0);
         return merr(ev(EBUG));
     }
 
-    err = blk_list_append(&bld->vblk_list, handle, mbprop.mpr_objid);
+    err = blk_list_append(&bld->vblk_list, blkid);
     if (ev(err)) {
-        mpool_mblock_abort(bld->ds, handle);
+        mpool_mblock_abort(bld->ds, blkid);
         return err;
     }
 
@@ -92,7 +92,7 @@ _vblock_start(struct vblock_builder *bld)
     /* set offsets to leave space for header */
     bld->vblk_off = VBLOCK_HDR_LEN;
     bld->wbuf_off = VBLOCK_HDR_LEN;
-    bld->mbh = handle;
+    bld->blkid = blkid;
     bld->wbuf_len = WBUF_LEN_MAX - (WBUF_LEN_MAX % mbprop.mpr_stripe_len);
     bld->stripe_len = mbprop.mpr_stripe_len;
 
@@ -165,7 +165,7 @@ _vblock_write(struct vblock_builder *bld)
     struct cn_merge_stats *    stats = bld->mstats;
     u64                        tstart;
 
-    assert(bld->mbh);
+    assert(bld->blkid);
     assert(bld->asyncio_ctxswi);
 
     ingest = IS_INGEST(bld->flags);
@@ -214,7 +214,7 @@ _vblock_write(struct vblock_builder *bld)
      */
     if (stats)
         tstart = get_time_ns();
-    err = mpool_mblock_write_data(bld->ds, !doasync, bld->mbh, &iov, 1, pasyncio);
+    err = mpool_mblock_write_data(bld->ds, !doasync, bld->blkid, &iov, 1, pasyncio);
     if (stats)
         count_ops(
             (doasync ? &stats->ms_vblk_write_async : &stats->ms_vblk_write),
@@ -254,7 +254,7 @@ _vblock_finish(struct vblock_builder *bld)
     uint   buflen;
     uint   zfill_len;
 
-    if (bld->mbh && bld->wbuf_off) {
+    if (bld->blkid && bld->wbuf_off) {
         /*
          * c1 may issue media writes before the 1MB buffer
          * gets full. The final write should not exceed
@@ -273,7 +273,7 @@ _vblock_finish(struct vblock_builder *bld)
         bld->wbuf_len = buflen;
     }
 
-    bld->mbh = 0;
+    bld->blkid = 0;
 
     return err;
 }
@@ -386,13 +386,13 @@ vbb_add_entry(
             return err;
     }
 
-    if (unlikely(!bld->mbh)) {
+    if (unlikely(!bld->blkid)) {
         err = _vblock_start(bld);
         if (ev(err))
             return err;
     }
 
-    assert(bld->mbh);
+    assert(bld->blkid);
     assert(_vblock_has_room(bld, vlen));
 
     voff = 0;

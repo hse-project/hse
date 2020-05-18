@@ -321,20 +321,6 @@ void
 kvset_set_workid(struct kvset *km, u64 id);
 
 /**
- * kvset_get_nth_kblock_handle() - Get mblock handle of the nth kblock in kvset
- */
-/* MTF_MOCK */
-u64
-kvset_get_nth_kblock_handle(struct kvset *kvset, u32 index);
-
-/**
- * kvset_get_nth_vblock_handle() - Get mblock handle of the nth vblock in kvset
- */
-/* MTF_MOCK */
-u64
-kvset_get_nth_vblock_handle(struct kvset *kvset, u32 index);
-
-/**
  * kvset_get_nth_vblock_len() - Get len of useful data in nth vblock
  */
 /* MTF_MOCK */

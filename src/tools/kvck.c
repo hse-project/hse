@@ -257,7 +257,7 @@ check_blklist(struct mpool *ds, int argc, char **argv)
 
         blkid = strtoull(p, 0, 0);
 
-        rc = blk_list_append(list, 0, blkid);
+        rc = blk_list_append(list, blkid);
         if (ev(rc))
             goto out;
 

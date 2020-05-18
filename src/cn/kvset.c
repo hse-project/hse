@@ -253,12 +253,6 @@ lvx2mbid(struct kvset *ks, uint i)
     return mbset_get_mbid(lvx2mbs(ks, i), lvx2mbs_bnum(ks, i));
 }
 
-static __always_inline u64
-lvx2mbh(struct kvset *ks, uint i)
-{
-    return mbset_get_mbh(lvx2mbs(ks, i), lvx2mbs_bnum(ks, i));
-}
-
 static __always_inline struct vblock_desc *
 lvx2vbd(struct kvset *ks, uint i)
 {
@@ -689,15 +683,13 @@ kvset_create2(
         struct mblock_props props;
 
         u64 mbid = km->km_kblk_list.blks[i].bk_blkid;
-        u64 mbh;
         u8 *hlog;
 
-        err = mpool_mblock_find_get(ds, mbid, &mbh, &props);
+        err = mpool_mblock_getprops(ds, mbid, &props);
         if (ev(err))
             goto err_exit;
 
         kblk->kb_kblk.bk_blkid = mbid;
-        kblk->kb_kblk.bk_handle = mbh;
 
         err = kvset_kblk_init(rp, ds, ks->ks_kmapv[i / mblock_max], i % mblock_max, kblk, &hlog);
         if (ev(err))
@@ -1094,17 +1086,12 @@ cleanup_kblocks(struct kvset *ks)
      */
     for (i = 0; i < ks->ks_st.kst_kblks; i++) {
 
-        u64 mbh = ks->ks_kblks[i].kb_kblk.bk_handle;
-
         if (ks->ks_deleted) {
-            err = mpool_mblock_delete(ks->ks_ds, mbh);
+            err = mpool_mblock_delete(ks->ks_ds, ks->ks_kblks[i].kb_kblk.bk_blkid);
             if (ev(err)) {
                 atomic_inc(&ks->ks_delete_error);
                 return;
             }
-        } else {
-            err = mpool_mblock_put(ks->ks_ds, mbh);
-            ev(err); /* log event, but otherwise ignore it */
         }
     }
 }
@@ -1492,10 +1479,10 @@ kvset_lookup_val_direct(
     bool         aligned_vbuf;
     bool         aligned_all;
     size_t       off;
-    u64          mbh;
     merr_t       err;
+    u64          mbid;
 
-    mbh = lvx2mbh(ks, vbidx);
+    mbid = lvx2mbid(ks, vbidx);
 
     off = vbd->vbd_off + (vboff & PAGE_MASK);
 
@@ -1519,7 +1506,7 @@ kvset_lookup_val_direct(
             return merr(ev(ENOMEM));
     }
 
-    err = mpool_mblock_read(ks->ks_ds, mbh, &iov, 1, off);
+    err = mpool_mblock_read(ks->ks_ds, mbid, &iov, 1, off);
 
     if (!aligned_all) {
         void *src = iov.iov_base + (vboff & ~PAGE_MASK);
@@ -1929,12 +1916,6 @@ kvset_get_nth_kblock_id(struct kvset *ks, u32 index)
     return (index < ks->ks_st.kst_kblks ? ks->ks_kblks[index].kb_kblk.bk_blkid : 0);
 }
 
-u64
-kvset_get_nth_kblock_handle(struct kvset *ks, u32 index)
-{
-    return (index < ks->ks_st.kst_kblks ? ks->ks_kblks[index].kb_kblk.bk_handle : 0);
-}
-
 u32
 kvset_get_num_vblocks(struct kvset *ks)
 {
@@ -1945,12 +1926,6 @@ u64
 kvset_get_nth_vblock_id(struct kvset *ks, u32 index)
 {
     return (index < ks->ks_st.kst_vblks ? lvx2mbid(ks, index) : 0);
-}
-
-u64
-kvset_get_nth_vblock_handle(struct kvset *ks, u32 index)
-{
-    return (index < ks->ks_st.kst_vblks ? lvx2mbh(ks, index) : 0);
 }
 
 u64
@@ -2084,7 +2059,7 @@ struct kblk_reader {
         uint  kr_ops;
     } iores;
 
-    u64 kr_mbh;
+    u64 kr_mbid;
     u16 kr_kblk_cnt;
     u16 kr_nodex;
     u16 kr_nodec;
@@ -2114,7 +2089,7 @@ struct vblk_reader {
     uint vr_io_offset;
     uint vr_io_len;
     /* mblock properties */
-    u64  vr_mbh;
+    u64  vr_mbid;
     uint vr_mblk_dstart;
     uint vr_mblk_dlen;
     /* buffer */
@@ -2276,7 +2251,7 @@ kvset_iter_kblock_read(struct work_struct *rock)
     kblk_off = (kr->kr_node_start_pg + kr->kr_nodex) * PAGE_SIZE;
 
     rlen = iov.iov_len;
-    err = mpool_mblock_read(kr->ds, kr->kr_mbh, &iov, 1, kblk_off);
+    err = mpool_mblock_read(kr->ds, kr->kr_mbid, &iov, 1, kblk_off);
     if (ev(err))
         goto done;
 
@@ -2337,7 +2312,7 @@ kvset_iter_kblock_read(struct work_struct *rock)
     }
 
     rlen += iov.iov_len;
-    err = mpool_mblock_read(kr->ds, kr->kr_mbh, &iov, 1, kblk_off);
+    err = mpool_mblock_read(kr->ds, kr->kr_mbid, &iov, 1, kblk_off);
     if (ev(err))
         goto done;
 
@@ -2387,7 +2362,7 @@ kblk_start_read(struct kvset_iterator *iter, struct kblk_reader *kr, enum read_t
 
         kr->kr_nodex = 0;
         kr->kr_nodec = wbt->wbd_leaf_cnt;
-        kr->kr_mbh = kblk->kb_kblk.bk_handle;
+        kr->kr_mbid = kblk->kb_kblk.bk_blkid;
         kr->kr_kmd_pgc = wbt->wbd_kmd_pgc;
         kr->kr_node_start_pg = wbt->wbd_first_page;
         kr->kr_kmd_start_pg = (wbt->wbd_first_page + wbt->wbd_root + 1);
@@ -2425,7 +2400,7 @@ vr_read_work(struct work_struct *rock)
 
     /* adjust offset for start of vblock data region */
     vblk_offset = vr->vr_io_offset + vr->vr_mblk_dstart;
-    err = mpool_mblock_read(vr->ds, vr->vr_mbh, &iov, 1, vblk_offset);
+    err = mpool_mblock_read(vr->ds, vr->vr_mbid, &iov, 1, vblk_offset);
     if (ev(err))
         goto done;
 
@@ -2454,7 +2429,7 @@ vr_start_read(
     assert(lvx2vbd(ks, vbidx));
     vr->vr_mblk_dstart = lvx2vbd(ks, vbidx)->vbd_off;
     vr->vr_mblk_dlen = lvx2vbd(ks, vbidx)->vbd_len;
-    vr->vr_mbh = lvx2mbh(ks, vbidx);
+    vr->vr_mbid = lvx2mbid(ks, vbidx);
 
     /* set io fields for async mblock read */
     vr->vr_io_vbidx = vbidx;

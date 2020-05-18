@@ -348,7 +348,6 @@ test_setup(struct mtf_test_info *lcl_ti)
     MOCK_SET(kvset, _kvset_iter_create);
     MOCK_SET(kvset, _kvset_from_iter);
 
-    mapi_inject(mapi_idx_kvset_get_nth_vblock_handle, 1);
     mapi_inject(mapi_idx_cn_mpool_dev_zone_alloc_unit_default, 32 << 20);
 
     MOCK_SET(kvset, _kvset_get_compc);

@@ -16,7 +16,6 @@ struct c1_mblk {
 
 struct c1_mblk_elem {
     struct list_head         c1me_list;
-    u64                      c1me_mbh;
     u64                      c1me_mbid;
     size_t                   c1me_size;
     bool                     c1me_committed;
@@ -52,7 +51,7 @@ c1_mblk_destroy(struct c1_mblk *mblk)
         mpool_mcache_munmap(elm->c1me_map);
 
         if (!elm->c1me_err)
-            mpool_mblock_delete(mblk->c1m_ds, elm->c1me_mbh);
+            mpool_mblock_delete(mblk->c1m_ds, elm->c1me_mbid);
 
         free(elm);
     }
@@ -80,7 +79,6 @@ c1_mblk_map(struct c1_mblk *mblk, u64 blkid, struct c1_mblk_elem **elmout)
     struct mpool_mcache_map *map;
     struct c1_mblk_elem *    elm;
     struct mblock_props      props;
-    u64                      mbh;
     merr_t                   err;
 
     *elmout = NULL;
@@ -89,14 +87,13 @@ c1_mblk_map(struct c1_mblk *mblk, u64 blkid, struct c1_mblk_elem **elmout)
      * A crash can happen before committing mblocks. In that case
      * there can be many log entries having their values deposited
      * into the same mblock. Saving the lookup error in this cache
-     * helps to avoid successive mpool_mblock_find_get. So an entry
+     * helps to avoid successive mpool_mblock_getprops. So an entry
      * for given a block id is kept in the cache irrespective of
      * whether the mblock is a valid one or not.
      */
-    err = mpool_mblock_find_get(mblk->c1m_ds, blkid, &mbh, &props);
+    err = mpool_mblock_getprops(mblk->c1m_ds, blkid, &props);
     if (!ev(err)) {
         if (ev(!props.mpr_iscommitted)) {
-            mpool_mblock_put(mblk->c1m_ds, mbh);
             err = merr(ENOENT);
         }
     }
@@ -105,22 +102,18 @@ c1_mblk_map(struct c1_mblk *mblk, u64 blkid, struct c1_mblk_elem **elmout)
 
     if (!err) {
         err = mpool_mcache_mmap(mblk->c1m_ds, 1, &blkid, MPC_VMA_COLD, &map);
-        if (ev(err))
-            mpool_mblock_put(mblk->c1m_ds, mbh);
     }
 
     elm = malloc(sizeof(*elm));
     if (ev(!elm)) {
         if (!err) {
             mpool_mcache_munmap(elm->c1me_map);
-            mpool_mblock_put(mblk->c1m_ds, mbh);
         }
 
         return err ? err : merr(ENOMEM);
     }
 
     elm->c1me_mbid = blkid;
-    elm->c1me_mbh = mbh;
     elm->c1me_size = props.mpr_write_len;
     elm->c1me_committed = props.mpr_iscommitted;
     elm->c1me_map = map;
