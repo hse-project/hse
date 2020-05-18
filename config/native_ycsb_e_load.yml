@@ -7,4 +7,3 @@
 apiVersion: 1
 kvs:
   pfx_len: 7
-  cn_cursor_vra: 0
