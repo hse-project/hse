@@ -758,7 +758,6 @@ mock_mpool_unset(void)
     int i;
 
     MOCK_UNSET(mpool, _mpool_mblock_alloc);
-    MOCK_UNSET(mpool, _mpool_mblock_find_get);
     MOCK_UNSET(mpool, _mpool_mblock_abort);
     MOCK_UNSET(mpool, _mpool_mblock_commit);
     MOCK_UNSET(mpool, _mpool_mblock_delete);

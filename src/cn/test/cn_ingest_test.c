@@ -80,9 +80,7 @@ struct injections injections[] = {
     { 0, mapi_idx_ikvdb_get_csched },
 
     /* mblocks */
-    { 0, mapi_idx_mpool_mblock_put },
     { 0, mapi_idx_mpool_mblock_commit },
-    { 0, mapi_idx_mpool_mblock_find_get },
     { 0, mapi_idx_mpool_mblock_delete },
     { 0, mapi_idx_mpool_mblock_abort },
 };
