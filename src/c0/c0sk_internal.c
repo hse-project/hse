@@ -412,23 +412,15 @@ c0sk_builder_add(
     return err;
 }
 
-static merr_t
+void
 c0sk_vset_builder_get_committed_vblocks(struct kvset_builder *bld, bool ext_bldr, u32 *cmt_out)
 {
-    merr_t err;
-
     if (!ext_bldr)
-        return 0;
+        return;
 
-    err = kvset_builder_get_committed_vblock_count(bld, cmt_out);
-    if (ev(err))
-        return err;
+    *cmt_out = kvset_builder_get_committed_vblock_count(bld);
 
-    err = kvset_builder_remove_unused_vblocks(bld);
-    if (ev(err))
-        return err;
-
-    return 0;
+    kvset_builder_remove_unused_vblocks(bld);
 }
 
 static void
@@ -862,9 +854,7 @@ c0sk_ingest_worker(struct work_struct *work)
         if (bldrs[i] == 0)
             continue;
 
-        err = c0sk_vset_builder_get_committed_vblocks(bldrs[i], ext_bldr, &cmtv[i]);
-        if (ev(err))
-            goto health_err;
+        c0sk_vset_builder_get_committed_vblocks(bldrs[i], ext_bldr, &cmtv[i]);
 
         mbc[i] = 1;
         mbv[i] = &mblocks[i];

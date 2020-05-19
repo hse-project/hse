@@ -60,7 +60,6 @@ kvset_keep_vblocks(struct kvset_vblk_map *vbm, struct kv_iterator **iv, int niv)
         vbm->vbm_map[i] = nv;
         for (j = 0; j < cnt; ++j) {
             blks[nv].bk_blkid = kvset_get_nth_vblock_id(kvset, j);
-            blks[nv].bk_handle = kvset_get_nth_vblock_handle(kvset, j);
             vbm->vbm_tot += kvset_get_nth_vblock_len(kvset, j);
             nv++;
         }

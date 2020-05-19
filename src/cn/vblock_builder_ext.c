@@ -33,7 +33,6 @@
 #include "cn_metrics.h"
 
 struct vbb_ext_elem {
-    u64   mbh;
     u64   vbid;
     void *wbuf;
     uint  vbidx;
@@ -86,8 +85,8 @@ _vblock_start_ext(struct vblock_builder *bld, u8 slot)
     merr_t               err;
     struct mblock_props  mbprop;
     struct vbb_ext_elem *vbb;
-    u64                  handle;
     u32                  vbidx;
+    u64                  vbid;
     struct vbb_ext *     ext;
     bool                 spare;
 
@@ -101,21 +100,21 @@ _vblock_start_ext(struct vblock_builder *bld, u8 slot)
 
     spare = !!(bld->flags & KVSET_BUILDER_FLAGS_SPARE);
 
-    err = mpool_mblock_alloc(bld->ds, bld->mclass, spare, &handle, &mbprop);
+    err = mpool_mblock_alloc(bld->ds, bld->mclass, spare, &vbid, &mbprop);
     if (ev(err))
         return err;
 
     if (mbprop.mpr_alloc_cap != ext->vbsize) {
-        mpool_mblock_abort(bld->ds, handle);
         assert(0);
+        mpool_mblock_abort(bld->ds, vbid);
         return merr(ev(EBUG));
     }
 
     mutex_lock(&ext->vbb_lock);
-    err = blk_list_append(&bld->vblk_list, handle, mbprop.mpr_objid);
+    err = blk_list_append(&bld->vblk_list, vbid);
     if (ev(err)) {
         mutex_unlock(&ext->vbb_lock);
-        mpool_mblock_abort(bld->ds, handle);
+        mpool_mblock_abort(bld->ds, vbid);
         return err;
     }
     vbidx = bld->vblk_list.n_blks - 1;
@@ -124,8 +123,7 @@ _vblock_start_ext(struct vblock_builder *bld, u8 slot)
     vbb = &ext->vbbv[slot];
 
     vbb->vbidx = vbidx;
-    vbb->vbid = bld->vblk_list.blks[vbidx].bk_blkid;
-    vbb->mbh = handle;
+    vbb->vbid = vbid;
 
     assert(mbprop.mpr_stripe_len);
     vbb->stripe_len = mbprop.mpr_stripe_len;
@@ -227,41 +225,6 @@ vbb_destroy_ext(struct vblock_builder *bld)
     free(ext);
 }
 
-static merr_t
-_vblock_verify_wlen(struct mpool *ds, struct perfc_set *set, u64 blkid, u64 wlen)
-{
-    struct mblock_props props;
-    merr_t              err;
-    u64                 mbh;
-
-    err = mpool_mblock_find_get(ds, blkid, &mbh, &props);
-    assert(!err);
-    if (ev(err))
-        return err;
-    mpool_mblock_put(ds, mbh);
-
-    assert(props.mpr_write_len >= wlen);
-
-    if (props.mpr_write_len < wlen) {
-        hse_log(
-            HSE_ERR "props wlen %ld actual wlen %ld",
-            (unsigned long)props.mpr_write_len,
-            (unsigned long)wlen);
-        return merr(EINVAL);
-    }
-
-    if (PERFC_ISON(set)) {
-        uint pct;
-
-        pct = (props.mpr_write_len * 100) / roundup(props.mpr_write_len, 4194304 /* min. alloc */);
-
-        perfc_rec_sample(set, PERFC_DI_CNCOMP_VBUTIL, pct);
-        perfc_add(set, PERFC_RA_CNCOMP_WBYTES, wlen);
-    }
-
-    return 0;
-}
-
 bool
 vbb_verify_entry(struct vblock_builder *bld, u32 vbidx, u64 blkid, u64 blkoff, u32 vlen)
 {
@@ -281,19 +244,6 @@ vbb_verify_entry(struct vblock_builder *bld, u32 vbidx, u64 blkid, u64 blkoff, u
 
             return false;
         }
-
-#ifdef HSE_DEBUG_BUILD
-        if (vlen && _vblock_verify_wlen(bld->ds, bld->pc, blkid, blkoff + vlen)) {
-            hse_log(
-                HSE_ERR "vbb_verify_entry failed blkid %ld "
-                        "blkoff %ld vlen %d",
-                (unsigned long)blkid,
-                (unsigned long)blkoff,
-                (int)vlen);
-
-            return false;
-        }
-#endif
 
         bld->vblk_list.blks[vbidx].bk_valid = true;
         return true;
@@ -408,7 +358,7 @@ _vblock_write_ext(struct vblock_builder *bld, u8 slot, bool last_write)
 
     ext = bld->vbb_ext;
     vbb = &ext->vbbv[slot];
-    assert(vbb->mbh);
+    assert(vbb->vbid);
 
     doasync = bld->asyncio_ctx.mp_enabled;
     if (doasync) {
@@ -460,7 +410,7 @@ _vblock_write_ext(struct vblock_builder *bld, u8 slot, bool last_write)
 
     iov.iov_base = buf + vbb->wbuf_woff;
     iov.iov_len = rem;
-    err = mpool_mblock_write_data(bld->ds, !doasync, vbb->mbh, &iov, 1, pasyncio);
+    err = mpool_mblock_write_data(bld->ds, !doasync, vbb->vbid, &iov, 1, pasyncio);
     if (ev(err))
         goto err_exit1;
 
@@ -477,10 +427,6 @@ _vblock_write_ext(struct vblock_builder *bld, u8 slot, bool last_write)
 
     if (!last_write)
         return 0;
-
-    err = _vblock_verify_wlen(bld->ds, bld->pc, vbb->vbid, wlen);
-    if (ev(err))
-        goto err_exit2;
 
     vbb_util_adjust(ext, wlen);
 
@@ -518,7 +464,7 @@ _vblock_finish_ext(struct vblock_builder *bld, u8 slot, bool last_write)
     ext = bld->vbb_ext;
     vbb = &ext->vbbv[slot];
 
-    if (!vbb->mbh || !atomic_read(&vbb->wbuf_off))
+    if (!vbb->vbid || !atomic_read(&vbb->wbuf_off))
         return 0;
 
     err = _vblock_write_ext(bld, slot, last_write);
@@ -529,7 +475,7 @@ _vblock_finish_ext(struct vblock_builder *bld, u8 slot, bool last_write)
     blks = &bld->vblk_list;
     vbidx = vbb->vbidx;
 
-    if (vbb->mbh != blks->blks[vbidx].bk_handle || vbb->vbid != blks->blks[vbidx].bk_blkid) {
+    if (vbb->vbid != blks->blks[vbidx].bk_blkid) {
         hse_log(
             HSE_ERR "vbb blkid %lu mismatch with blk list %lu",
             (ulong)vbb->vbid,
@@ -539,7 +485,6 @@ _vblock_finish_ext(struct vblock_builder *bld, u8 slot, bool last_write)
 
     vbb->vbidx = 0;
     vbb->vbid = 0;
-    vbb->mbh = 0;
 
     return ev(err);
 }
@@ -588,7 +533,7 @@ vbb_add_entry_ext(
      * EAGAIN.
      */
     down_read(&vbb->flush_sem);
-    if (unlikely(!vbb->mbh)) {
+    if (unlikely(!vbb->vbid)) {
         if (!wait) {
             up_read(&vbb->flush_sem);
             return merr_once(EAGAIN);
@@ -641,17 +586,15 @@ vbb_add_entry_ext(
     return 0;
 }
 
-merr_t
+void
 vbb_get_vblocks(struct vblock_builder *bld, struct blk_list *vblks)
 {
     assert(!bld->destruct);
 
     *vblks = bld->vblk_list;
-
-    return 0;
 }
 
-merr_t
+void
 vbb_remove_unused_vblocks(struct vblock_builder *bld)
 {
     struct blk_list *blks;
@@ -667,37 +610,7 @@ vbb_remove_unused_vblocks(struct vblock_builder *bld)
     for (i = 0; i < blks->n_blks; i++) {
         if (bld->vblk_list.blks[i].bk_valid)
             continue;
-
         invalid++;
-
-/*
-         * [HSE_REVISIT]
-         *
-         * With c1 building vblocks so early in the ingest process,
-         * there are chances that some of the vblocks have become
-         * stale having no valid values due multiple updates to the
-         * same keys. Though deleting them here helps to reclaim the
-         * space quickly, it creates hiccups while mcache
-         * mapping the vblocks in cn_get().
-         *
-         * Need to verify whether these blocks are deleted when kvset
-         * is deleted while splilling. If not, the original block ids
-         * need to be deleted via mpool_mblock_delete and their vbldr
-         * indices be replaced with a special mblock id which generates
-         * zeros upon mapping and never gets deleted. If these options
-         * are not possible then special handling in the spill code
-         * to delete these block in the next spill/compaction. Lots of
-         * work pending.
-         */
-
-#ifdef C1_HANDLE_INVALID_VBLOCK_IN_FUTURE
-        bld->vblk_list.blks[i].bk_handle = 0;
-        bld->vblk_list.blks[i].bk_blkid = INVALID MBLOCK ID;
-
-        err = mpool_mblock_delete(bld->ds, bld->vblk_list.blks[i].bk_handle);
-        if (ev(err))
-            return err;
-#endif
     }
 
     if (invalid) {
@@ -711,8 +624,6 @@ vbb_remove_unused_vblocks(struct vblock_builder *bld)
             perfc_rec_sample(bld->pc, PERFC_DI_CNCOMP_VBDEAD, pct);
         }
     }
-
-    return 0;
 }
 
 u32
@@ -775,16 +686,9 @@ vbb_flush_entry(struct vblock_builder *bld)
         if (!blks->blks[i].bk_needs_commit)
             continue;
 
-        assert(blks->blks[i].bk_handle);
-        err = mpool_mblock_commit(bld->ds, blks->blks[i].bk_handle);
+        err = mpool_mblock_commit(bld->ds, blks->blks[i].bk_blkid);
         if (err) {
             hse_log(HSE_ERR "mpool_mblock_commit error %d", merr_errno(err));
-            return err;
-        }
-
-        err = mpool_mblock_put(bld->ds, blks->blks[i].bk_handle);
-        if (err) {
-            hse_log(HSE_ERR "mpool_mblock_put error %d", merr_errno(err));
             return err;
         }
 
@@ -797,38 +701,31 @@ vbb_flush_entry(struct vblock_builder *bld)
     return 0;
 }
 
-merr_t
-vbb_get_committed_vblock_count(struct vblock_builder *bld, u32 *count)
+u32
+vbb_get_blk_count_committed(struct vblock_builder *bld)
 {
-    struct blk_list *blks;
     int              i;
-
-    blks = &bld->vblk_list;
+    int              count;
 
     assert(!bld->destruct);
 
-    for (i = 0; i < blks->n_blks; i++)
-        if (bld->vblk_list.blks[i].bk_needs_commit)
-            break;
-
-    *count = i;
+    count = 0;
+    for (i = 0; i < bld->vblk_list.n_blks; i++)
+        if (!bld->vblk_list.blks[i].bk_needs_commit)
+            ++count;
 
     if (PERFC_ISON(bld->pc))
-        perfc_rec_sample(bld->pc, PERFC_DI_CNCOMP_VBCNT, i);
+        perfc_rec_sample(bld->pc, PERFC_DI_CNCOMP_VBCNT, count);
 
-    return 0;
+    return count;
 }
 
-void
-vbb_get_blk_count(struct vblock_builder *bld, u32 *count)
+u32
+vbb_get_blk_count(struct vblock_builder *bld)
 {
-    struct blk_list *blks;
-
-    blks = &bld->vblk_list;
-
     assert(!bld->destruct);
 
-    *count = blks->n_blks;
+    return bld->vblk_list.n_blks;
 }
 
 merr_t
@@ -843,7 +740,6 @@ vbb_blk_list_merge(struct vblock_builder *dst, struct vblock_builder *src, struc
     for (i = 0; i < nblks; i++) {
         err = blk_list_append_ext(
             &dst->vblk_list,
-            vblks->blks[i].bk_handle,
             vblks->blks[i].bk_blkid,
             vblks->blks[i].bk_valid,
             vblks->blks[i].bk_needs_commit);

@@ -78,16 +78,16 @@ kvset_builder_get_c0c1vstat(struct kvset_builder *self, u64 *c0_vlen, u64 *c1_vl
     *c1_vlen = self->key_stats.c1_vlen;
 }
 
-merr_t
-kvset_builder_get_committed_vblock_count(struct kvset_builder *self, u32 *count)
+u32
+kvset_builder_get_committed_vblock_count(struct kvset_builder *self)
 {
-    return vbb_get_committed_vblock_count(self->vbb, count);
+    return vbb_get_blk_count_committed(self->vbb);
 }
 
-merr_t
+void
 kvset_builder_remove_unused_vblocks(struct kvset_builder *self)
 {
-    return vbb_remove_unused_vblocks(self->vbb);
+    vbb_remove_unused_vblocks(self->vbb);
 }
 
 u32

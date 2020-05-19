@@ -150,13 +150,11 @@ mock_make_kvi(struct kv_iterator **kvi, int src, struct kvs_rparams *rp, struct 
     km.km_dgen = nkv->dgen;
 
     local_kblock.bk_blkid = kid;
-    local_kblock.bk_handle = 0;
     km.km_kblk_list.n_blks = 1;
     km.km_kblk_list.n_alloc = 1;
     km.km_kblk_list.blks = &local_kblock;
 
     local_vblock.bk_blkid = vid;
-    local_vblock.bk_handle = 0;
     km.km_vblk_list.n_blks = 1;
     km.km_vblk_list.n_alloc = 1;
     km.km_vblk_list.blks = &local_vblock;
@@ -198,7 +196,6 @@ mock_make_vblocks(struct kv_iterator **kvi, struct kvs_rparams *rp, int nv)
     km.km_vused = nv * 1000;
 
     local_kblock.bk_blkid = kid;
-    local_kblock.bk_handle = 0;
     km.km_kblk_list.n_blks = 1;
     km.km_kblk_list.n_alloc = 1;
     km.km_kblk_list.blks = &local_kblock;
@@ -647,7 +644,6 @@ mock_kvset_set(void)
     mock_kvset_unset();
 
     mapi_inject(mapi_idx_kvset_kblk_start, 0);
-    mapi_inject(mapi_idx_kvset_get_nth_vblock_handle, 1);
     mapi_inject(mapi_idx_kvset_get_scatter_score, 10);
 
     MOCK_SET(kvset, _kvset_create);

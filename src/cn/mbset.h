@@ -36,9 +36,8 @@ mbset_udata_init_fn(
  * struct mbset - a ref counted set of mblocks
  * @mbs_mapv: vector of mcache map handles
  * @mbs_idv:  vector of mblock object ids
- * @mbs_bhv:  vector of mblock handles
  * @mbs_mapc: length of @mbs_mapv
- * @mbs_idc:  mblock count, length of @mbs_idv and @mbs_bhv
+ * @mbs_idc:  mblock count, length of @mbs_idv
  * @mbs_ref:  reference count
  * @mbs_ds:   mpool dataset handle
  * @mbs_del:  if true, delete mblocks in destructor
@@ -51,7 +50,6 @@ mbset_udata_init_fn(
 struct mbset {
     struct mpool_mcache_map **mbs_mapv;
     u64 *                     mbs_idv;
-    u64 *                     mbs_bhv;
     u64                       mbs_alen;
     u64                       mbs_wlen;
     u64                       mbs_mblock_max;
@@ -152,15 +150,6 @@ mbset_get_mbid(struct mbset *self, uint blk_num)
 
     assert(valid);
     return valid ? self->mbs_idv[blk_num] : 0;
-}
-
-static __always_inline u64
-mbset_get_mbh(struct mbset *self, uint blk_num)
-{
-    bool valid = blk_num < self->mbs_idc;
-
-    assert(valid);
-    return valid ? self->mbs_bhv[blk_num] : 0;
 }
 
 static __always_inline uint

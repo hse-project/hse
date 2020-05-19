@@ -17,7 +17,6 @@
  */
 struct kvs_block {
     u64  bk_blkid;
-    u64  bk_handle;
     bool bk_needs_commit;
     bool bk_valid;
 };

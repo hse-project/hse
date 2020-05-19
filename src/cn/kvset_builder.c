@@ -355,11 +355,12 @@ kvset_builder_get_mblocks(struct kvset_builder *self, struct kvset_mblocks *mblk
 merr_t
 kvset_builder_merge_vblocks(struct kvset_builder *dst, struct kvset_builder *src)
 {
-    u32 nblks       __maybe_unused;
     struct blk_list blk;
     merr_t          err;
     u32             baseidx;
-    u32             count;
+
+    u32 nblks __maybe_unused;
+    u32 count __maybe_unused;
 
     assert(dst);
     assert(src);
@@ -368,7 +369,7 @@ kvset_builder_merge_vblocks(struct kvset_builder *dst, struct kvset_builder *src
     if (err)
         return err;
 
-    vbb_get_blk_count(dst->vbb, &baseidx);
+    baseidx = vbb_get_blk_count(dst->vbb);
 
     /* Update base index post merge so that the function
      * kvset_vbuilder_vblock_exists() which gets called later
@@ -382,7 +383,7 @@ kvset_builder_merge_vblocks(struct kvset_builder *dst, struct kvset_builder *src
     if (ev(err))
         return err;
 
-    vbb_get_blk_count(dst->vbb, &count);
+    count = vbb_get_blk_count(dst->vbb);
 
     assert(count == (baseidx + nblks));
 

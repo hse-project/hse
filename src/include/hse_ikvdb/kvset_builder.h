@@ -147,7 +147,7 @@ merr_t
 kvset_builder_finish_vblock(struct kvset_builder *self, u8 index);
 
 /* MTF_MOCK */
-merr_t
+void
 kvset_builder_remove_unused_vblocks(struct kvset_builder *self);
 
 /* MTF_MOCK */
@@ -155,8 +155,8 @@ u32
 kvset_builder_vblock_hdr_len(void);
 
 /* MTF_MOCK */
-merr_t
-kvset_builder_get_committed_vblock_count(struct kvset_builder *self, u32 *count);
+u32
+kvset_builder_get_committed_vblock_count(struct kvset_builder *self);
 
 /* MTF_MOCK */
 merr_t

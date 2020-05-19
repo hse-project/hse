@@ -50,7 +50,6 @@ fatal(const char *fmt, ...)
 struct c1log_mblk {
     struct mpool *           ds;
     u64                      blkid;
-    u64                      mbh;
     struct mpool_mcache_map *map;
 };
 
@@ -369,7 +368,6 @@ c1_log_put_mblk_value(struct c1 *c1, struct c1log_mblk *mblk)
 {
     if (mblk->blkid) {
         mpool_mcache_munmap(mblk->map);
-        mpool_mblock_put(mblk->ds, mblk->mbh);
         mblk->blkid = 0;
     }
 }
@@ -382,9 +380,7 @@ c1_log_get_mblk_value_impl(
     struct c1log_mblk *mblk,
     char **            valueout)
 {
-    struct mblock_props      props;
     struct mpool *           ds;
-    u64                      mbh;
     merr_t                   err;
     struct mpool_mcache_map *map;
 
@@ -407,16 +403,11 @@ c1_log_get_mblk_value_impl(
         return merr(EINVAL);
     }
 
-    err = mpool_mblock_find_get(ds, blkid, &mbh, &props);
-    if (err)
-        return err;
-
     err = mpool_mcache_mmap(ds, 1, &blkid, MPC_VMA_COLD, &map);
     if (err)
         return err;
 
-    mblk->blkid = mbh;
-    mblk->mbh = mbh;
+    mblk->blkid = blkid;
     mblk->map = map;
     mblk->ds = ds;
     last_mblk = *mblk;

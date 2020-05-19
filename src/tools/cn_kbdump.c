@@ -689,10 +689,9 @@ eread_mblock(struct mpool *ds, struct blk *blk)
     int                 rc, i, nmegs, meg = 1024 * 1024;
     u64                 id;
     u32                 len;
-    u64                 handle;
 
     id = strtoull(blk->id, 0, 0);
-    err = mpool_mblock_find_get(ds, id, &handle, &props);
+    err = mpool_mblock_getprops(ds, id, &props);
     if (err)
         fatal(err, "mblookup 0x%lx", id);
 
@@ -713,7 +712,7 @@ eread_mblock(struct mpool *ds, struct blk *blk)
     for (i = 0; i < nmegs; ++i) {
         iov.iov_base = mem + i * meg;
         iov.iov_len = meg;
-        err = mpool_mblock_read(ds, handle, &iov, 1, i * meg);
+        err = mpool_mblock_read(ds, id, &iov, 1, i * meg);
         if (err)
             fatal(err, "mblkread 0x%lx, meg %d", id, i);
     }
@@ -722,12 +721,10 @@ eread_mblock(struct mpool *ds, struct blk *blk)
     if (nmegs * meg < len) {
         iov.iov_base = mem + i * meg;
         iov.iov_len = len - nmegs * meg;
-        err = mpool_mblock_read(ds, handle, &iov, 1, i * meg);
+        err = mpool_mblock_read(ds, id, &iov, 1, i * meg);
         if (err)
             fatal(err, "mblkread 0x%lx, meg %d", id, i);
     }
-
-    mpool_mblock_put(ds, handle);
 }
 
 void

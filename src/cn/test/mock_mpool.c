@@ -98,22 +98,12 @@ _mpool_mblock_alloc(
     return 0;
 }
 
-static uint64_t
-_mpool_mblock_put(struct mpool *ds, uint64_t id)
-{
-    return 0;
-}
-
-#define HANDLE_INVALID 0xffffffffffffffff
-
 uint64_t
-_mpool_mblock_find_get(struct mpool *ds, uint64_t objid, uint64_t *mbh, struct mblock_props *props)
+_mpool_mblock_getprops(struct mpool *ds, uint64_t objid, struct mblock_props *props)
 {
     merr_t                err;
     struct mocked_mblock *mb = 0;
     int                   i;
-
-    *mbh = HANDLE_INVALID;
 
     /* Find a slot in the array that isn't in use yet */
     for (i = 0; i < MPM_MAX_MBLOCKS; i++) {
@@ -130,7 +120,6 @@ _mpool_mblock_find_get(struct mpool *ds, uint64_t objid, uint64_t *mbh, struct m
         memset(props, 0, sizeof(*props));
         props->mpr_objid = objid;
     }
-    *mbh = (u64)mb;
 
     return 0;
 }
@@ -737,8 +726,7 @@ mock_mpool_set(void)
     mock_mpool_unset();
 
     MOCK_SET(mpool, _mpool_mblock_alloc);
-    MOCK_SET(mpool, _mpool_mblock_put);
-    MOCK_SET(mpool, _mpool_mblock_find_get);
+    MOCK_SET(mpool, _mpool_mblock_getprops);
     MOCK_SET(mpool, _mpool_mblock_abort);
     MOCK_SET(mpool, _mpool_mblock_commit);
     MOCK_SET(mpool, _mpool_mblock_delete);
@@ -770,7 +758,6 @@ mock_mpool_unset(void)
     int i;
 
     MOCK_UNSET(mpool, _mpool_mblock_alloc);
-    MOCK_UNSET(mpool, _mpool_mblock_put);
     MOCK_UNSET(mpool, _mpool_mblock_find_get);
     MOCK_UNSET(mpool, _mpool_mblock_abort);
     MOCK_UNSET(mpool, _mpool_mblock_commit);

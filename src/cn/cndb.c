@@ -1104,7 +1104,7 @@ cndb_blklist_add(struct cndb *cndb, u64 txid, struct blk_list *blks, u32 c, u64 
 
     for (bx = 0; bx < c; bx++, p++) {
         CNDB_LOGTX(0, cndb, txid, HSE_NOTICE, " un-acked mblock %lx", (ulong)*p);
-        err = blk_list_append(blks, 0, *p);
+        err = blk_list_append(blks, *p);
         if (err) {
             CNDB_LOGTX(err, cndb, txid, HSE_ERR, " mblock %lx blklist append failed", (ulong)*p);
             break;
@@ -1160,7 +1160,7 @@ cndb_blkdel(struct cndb *cndb, union cndb_mtu *mtu, u64 txid)
     for (bx = 0; !err && bx < blks.n_blks; ++bx) {
         struct mblock_props props = { 0 };
 
-        err = stat_mblock(cndb->cndb_ds, &blks.blks[bx], &props);
+        err = mpool_mblock_getprops(cndb->cndb_ds, blks.blks[bx].bk_blkid, &props);
         if (err) {
             if (merr_errno(err) != ENOENT) {
                 CNDB_LOGTX(
@@ -2458,13 +2458,13 @@ cndb_cn_instantiate(struct cndb *cndb, u64 cnid, void *ctx, cn_init_callback *cb
         vb = &kb[nk];
 
         for (b = 0; b < nk && !err; b++)
-            err = blk_list_append(&km.km_kblk_list, 0, kb[b]);
+            err = blk_list_append(&km.km_kblk_list, kb[b]);
 
         if (ev(err, HSE_ERR))
             goto done;
 
         for (b = 0; b < nv && !err; b++)
-            err = blk_list_append(&km.km_vblk_list, 0, vb[b]);
+            err = blk_list_append(&km.km_vblk_list, vb[b]);
 
         if (ev(err, HSE_ERR))
             goto done;

@@ -23,7 +23,6 @@ struct cn_merge_stats;
  * @asyncio_max:    Max pending IO for a vblock
  * @asyncio_ctxswi: Max IO the context can hold before allocating new one.
  * @asyncio_ingestpool: Pool from which memory allocation is done.
- * @mbh:       current vblk handle
  * @wbuf:      write buffer
  * @wbuf_off:  offset of next unused byte in write buffer
  * @wbuf_len:  length of next write to media
@@ -85,7 +84,7 @@ struct vblock_builder {
     int                    asyncio_ctxswi;
     bool                   asyncio_ingestpool;
     u64                    vsize;
-    u64                    mbh;
+    u64                    blkid;
     uint                   max_size;
     uint                   vblk_off;
     void *                 wbuf;
