@@ -86,7 +86,7 @@ _mbset_mblk_getprops(struct mbset *self, mbset_udata_init_fn *cb)
 
         struct mblock_props props;
 
-        err = mpool_mblock_getprops(self->mbs_ds, self->mbs_idv[i], &props);
+        err = mpool_mblock_props_get(self->mbs_ds, self->mbs_idv[i], &props);
         if (ev(err))
             break;
 

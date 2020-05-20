@@ -1160,7 +1160,7 @@ cndb_blkdel(struct cndb *cndb, union cndb_mtu *mtu, u64 txid)
     for (bx = 0; !err && bx < blks.n_blks; ++bx) {
         struct mblock_props props = { 0 };
 
-        err = mpool_mblock_getprops(cndb->cndb_ds, blks.blks[bx].bk_blkid, &props);
+        err = mpool_mblock_props_get(cndb->cndb_ds, blks.blks[bx].bk_blkid, &props);
         if (err) {
             if (merr_errno(err) != ENOENT) {
                 CNDB_LOGTX(

@@ -99,7 +99,7 @@ _mpool_mblock_alloc(
 }
 
 uint64_t
-_mpool_mblock_getprops(struct mpool *ds, uint64_t objid, struct mblock_props *props)
+_mpool_mblock_props_get(struct mpool *ds, uint64_t objid, struct mblock_props *props)
 {
     merr_t                err;
     struct mocked_mblock *mb = 0;
@@ -156,7 +156,7 @@ _mpool_mblock_delete(struct mpool *ds, uint64_t id)
 }
 
 uint64_t
-_mpool_params_get(struct mpool *ds, struct mpool_params *params, struct mp_errinfo *ei)
+_mpool_params_get(struct mpool *ds, struct mpool_params *params, struct mpool_devrpt *ei)
 {
     params->mp_vma_size_max = 30;
     params->mp_mblocksz[MP_MED_CAPACITY] = 32 << 20;
@@ -167,7 +167,7 @@ _mpool_params_get(struct mpool *ds, struct mpool_params *params, struct mp_errin
 uint64_t
 _mpool_mclass_get(struct mpool *mp, enum mp_media_classp mclass, struct mpool_mclass_props *props)
 {
-    if (mclass >= MP_MED_ANY)
+    if (mclass >= MP_MED_NUMBER)
         return merr(EINVAL);
 
     if (mclass == MP_MED_STAGING)
@@ -726,7 +726,7 @@ mock_mpool_set(void)
     mock_mpool_unset();
 
     MOCK_SET(mpool, _mpool_mblock_alloc);
-    MOCK_SET(mpool, _mpool_mblock_getprops);
+    MOCK_SET(mpool, _mpool_mblock_props_get);
     MOCK_SET(mpool, _mpool_mblock_abort);
     MOCK_SET(mpool, _mpool_mblock_commit);
     MOCK_SET(mpool, _mpool_mblock_delete);

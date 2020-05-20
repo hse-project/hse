@@ -235,7 +235,6 @@ c1_journal_alloc_mdc(struct c1_journal *jrnl)
     enum mp_media_classp mclassp = MP_MED_STAGING;
 
     err = merr(ENOENT); /* assume this assert will fail */
-    assert(jrnl->c1j_mediaclass < MP_MED_ANY);
 
     mdcap.mdt_captgt = jrnl->c1j_jrnlsize;
     mdcap.mdt_spare = false;

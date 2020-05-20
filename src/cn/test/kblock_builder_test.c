@@ -253,8 +253,8 @@ MTF_DEFINE_UTEST_PRE(test, t_kbb_create1, test_setup)
 
     ASSERT_EQ(kbb_get_mclass(kbb), MP_MED_CAPACITY);
 
-    kbb_set_mclass(kbb, MP_MED_STAGING_OR_BELOW);
-    ASSERT_EQ(kbb_get_mclass(kbb), MP_MED_STAGING_OR_BELOW);
+    kbb_set_mclass(kbb, MP_MED_STAGING);
+    ASSERT_EQ(kbb_get_mclass(kbb), MP_MED_STAGING);
 
     kbb_destroy(kbb);
 }
