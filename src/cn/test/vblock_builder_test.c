@@ -124,8 +124,8 @@ MTF_DEFINE_UTEST_PRE(test, t_vbb_create1, test_setup)
 
     ASSERT_EQ(vbb_get_mclass(vbb), MP_MED_CAPACITY);
 
-    vbb_set_mclass(vbb, MP_MED_STAGING_OR_BELOW);
-    ASSERT_EQ(vbb_get_mclass(vbb), MP_MED_STAGING_OR_BELOW);
+    vbb_set_mclass(vbb, MP_MED_STAGING);
+    ASSERT_EQ(vbb_get_mclass(vbb), MP_MED_STAGING);
 
     vbb_destroy(vbb);
 }

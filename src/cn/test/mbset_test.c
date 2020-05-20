@@ -41,7 +41,7 @@ struct udata {
  * Mock mpool interfaces used by mbset.
  */
 static uint64_t
-_mpool_mblock_getprops(struct mpool *dsp, uint64_t objid, struct mblock_props *props)
+_mpool_mblock_props_get(struct mpool *dsp, uint64_t objid, struct mblock_props *props)
 {
     memset(props, 0, sizeof(*props));
 
@@ -109,7 +109,7 @@ _mpool_mcache_mincore(
 static void
 mock_unset(void)
 {
-    MOCK_UNSET(mpool, _mpool_mblock_getprops);
+    MOCK_UNSET(mpool, _mpool_mblock_props_get);
     MOCK_UNSET(mpool, _mpool_mblock_delete);
 
     MOCK_UNSET(mpool, _mpool_mcache_mmap);
@@ -122,7 +122,7 @@ static void
 mock_set(void)
 {
     mock_unset();
-    MOCK_SET(mpool, _mpool_mblock_getprops);
+    MOCK_SET(mpool, _mpool_mblock_props_get);
     MOCK_SET(mpool, _mpool_mblock_delete);
 
     MOCK_SET(mpool, _mpool_mcache_mmap);
@@ -399,7 +399,7 @@ MTF_DEFINE_UTEST_PREPOST(test, t_mbset_create_fail, pre, post)
     } api_table[] = {
         { mapi_idx_malloc, true, 0 },
         { mapi_idx_mpool_mcache_mmap, false, 1 },
-        { mapi_idx_mpool_mblock_getprops, false, 1 },
+        { mapi_idx_mpool_mblock_props_get, false, 1 },
     };
 
     /* For #mblocks in 1, 2, MAX-1, MAX, MAX+1, etc.. */

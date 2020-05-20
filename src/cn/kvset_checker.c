@@ -562,7 +562,7 @@ kc_vblock_meta(struct mpool *ds, struct blk_list *list)
 
         struct vblock_hdr_omf *vb_hdr;
 
-        err = mpool_mblock_getprops(ds, vbid, &vb->props[i]);
+        err = mpool_mblock_props_get(ds, vbid, &vb->props[i]);
         if (ev(err)) {
             print_merr(err, "vblock 0x%08lx", vbid);
             break;
@@ -613,7 +613,7 @@ read_mblock(struct mpool *ds, u64 blkid, void **buf)
 
     struct mblock_props props;
 
-    err = mpool_mblock_getprops(ds, blkid, &props);
+    err = mpool_mblock_props_get(ds, blkid, &props);
     if (ev(err)) {
         print_merr(err, "mblock 0x%08lx: cannot find mblock", blkid);
         return 1;

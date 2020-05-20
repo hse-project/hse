@@ -87,11 +87,11 @@ c1_mblk_map(struct c1_mblk *mblk, u64 blkid, struct c1_mblk_elem **elmout)
      * A crash can happen before committing mblocks. In that case
      * there can be many log entries having their values deposited
      * into the same mblock. Saving the lookup error in this cache
-     * helps to avoid successive mpool_mblock_getprops. So an entry
+     * helps to avoid successive mpool_mblock_props_get. So an entry
      * for given a block id is kept in the cache irrespective of
      * whether the mblock is a valid one or not.
      */
-    err = mpool_mblock_getprops(mblk->c1m_ds, blkid, &props);
+    err = mpool_mblock_props_get(mblk->c1m_ds, blkid, &props);
     if (!ev(err)) {
         if (ev(!props.mpr_iscommitted)) {
             err = merr(ENOENT);

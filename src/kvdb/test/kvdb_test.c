@@ -284,7 +284,7 @@ MTF_DEFINE_UTEST_PRE(kvdb_test, kvdb_cursor_test, general_pre)
 }
 
 uint64_t
-_mpool_open(const char *mp_name, uint32_t flags, struct mpool **dsp, struct mp_errinfo *ei)
+_mpool_open(const char *mp_name, uint32_t flags, struct mpool **dsp, struct mpool_devrpt *ei)
 {
     *dsp = (struct mpool *)-1;
     return 0;

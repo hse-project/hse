@@ -114,7 +114,7 @@ kvdb_list_print(
     bool                 verbose,
     int *                count)
 {
-    struct mp_props *propv = NULL;
+    struct mpool_params *propv = NULL;
 
     int    propc = 0;
     merr_t err;
@@ -126,8 +126,8 @@ kvdb_list_print(
 
     *count = 0;
     for (i = 0; i < propc; i++) {
-        const struct mp_props *props = propv + i;
-        struct merr_info       info;
+        const struct mpool_params  *props = propv + i;
+        struct merr_info            info;
 
         if (uuid_compare(props->mp_utype, hse_mpool_utype))
             continue;

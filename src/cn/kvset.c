@@ -685,7 +685,7 @@ kvset_create2(
         u64 mbid = km->km_kblk_list.blks[i].bk_blkid;
         u8 *hlog;
 
-        err = mpool_mblock_getprops(ds, mbid, &props);
+        err = mpool_mblock_props_get(ds, mbid, &props);
         if (ev(err))
             goto err_exit;
 

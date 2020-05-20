@@ -691,7 +691,7 @@ eread_mblock(struct mpool *ds, struct blk *blk)
     u32                 len;
 
     id = strtoull(blk->id, 0, 0);
-    err = mpool_mblock_getprops(ds, id, &props);
+    err = mpool_mblock_props_get(ds, id, &props);
     if (err)
         fatal(err, "mblookup 0x%lx", id);
 

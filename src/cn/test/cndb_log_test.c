@@ -115,7 +115,7 @@ MTF_DEFINE_UTEST(cndb_log_test, rollforward)
     err = mpm_mdc_set_getlen(mock_cndb->cndb_mdc, getlen);
     ASSERT_EQ(0, err);
 
-    mapi_inject(mapi_idx_mpool_mblock_getprops, 0);
+    mapi_inject(mapi_idx_mpool_mblock_props_get, 0);
     mapi_inject(mapi_idx_mpool_mblock_abort, 0);
     err = cndb_replay(mock_cndb, &seqno, &ingestid);
     ASSERT_EQ(0, err);
@@ -146,7 +146,7 @@ MTF_DEFINE_UTEST(cndb_log_test, rollforward)
     err = cndb_close(mock_cndb);
     ASSERT_EQ(0, err);
 
-    mapi_inject_unset(mapi_idx_mpool_mblock_getprops);
+    mapi_inject_unset(mapi_idx_mpool_mblock_props_get);
     mapi_inject_unset(mapi_idx_mpool_mblock_abort);
 }
 
@@ -165,7 +165,7 @@ MTF_DEFINE_UTEST(cndb_log_test, rollbackward)
     err = mpm_mdc_set_getlen(mock_cndb->cndb_mdc, getlen);
     ASSERT_EQ(0, err);
 
-    mapi_inject(mapi_idx_mpool_mblock_getprops, 0);
+    mapi_inject(mapi_idx_mpool_mblock_props_get, 0);
     mapi_inject(mapi_idx_mpool_mblock_abort, 0);
     err = cndb_replay(mock_cndb, &seqno, &ingestid);
     ASSERT_EQ(0, err);
@@ -195,7 +195,7 @@ MTF_DEFINE_UTEST(cndb_log_test, rollbackward)
     err = cndb_close(mock_cndb);
     ASSERT_EQ(0, err);
 
-    mapi_inject_unset(mapi_idx_mpool_mblock_getprops);
+    mapi_inject_unset(mapi_idx_mpool_mblock_props_get);
     mapi_inject_unset(mapi_idx_mpool_mblock_abort);
 }
 
@@ -212,7 +212,7 @@ MTF_DEFINE_UTEST(cndb_log_test, wrongingestid)
     err = mpm_mdc_set_getlen(mock_cndb->cndb_mdc, getlen);
     ASSERT_EQ(0, err);
 
-    mapi_inject(mapi_idx_mpool_mblock_getprops, 0);
+    mapi_inject(mapi_idx_mpool_mblock_props_get, 0);
     mapi_inject(mapi_idx_mpool_mblock_abort, 0);
     err = cndb_replay(mock_cndb, &seqno, &ingestid);
     /*
@@ -221,7 +221,7 @@ MTF_DEFINE_UTEST(cndb_log_test, wrongingestid)
      */
     ASSERT_EQ(0, err);
 
-    mapi_inject_unset(mapi_idx_mpool_mblock_getprops);
+    mapi_inject_unset(mapi_idx_mpool_mblock_props_get);
     mapi_inject_unset(mapi_idx_mpool_mblock_abort);
 
     err = cndb_close(mock_cndb);
@@ -251,7 +251,7 @@ MTF_DEFINE_UTEST(cndb_log_test, simpledrop)
     err = mpm_mdc_set_getlen(mock_cndb->cndb_mdc, getlen);
     ASSERT_EQ(0, err);
 
-    mapi_inject(mapi_idx_mpool_mblock_getprops, 0);
+    mapi_inject(mapi_idx_mpool_mblock_props_get, 0);
     mapi_inject(mapi_idx_mpool_mblock_abort, 0);
     mapi_inject(mapi_idx_mpool_mdc_usage, 0);
     err = cndb_replay(mock_cndb, &seqno, &ingestid);
@@ -283,7 +283,7 @@ MTF_DEFINE_UTEST(cndb_log_test, simpledrop)
     ASSERT_EQ(0, err);
 
     mapi_inject_unset(mapi_idx_mpool_mdc_usage);
-    mapi_inject_unset(mapi_idx_mpool_mblock_getprops);
+    mapi_inject_unset(mapi_idx_mpool_mblock_props_get);
     mapi_inject_unset(mapi_idx_mpool_mblock_abort);
 }
 
@@ -306,7 +306,7 @@ MTF_DEFINE_UTEST(cndb_log_test, simpledrop2)
     err = mpm_mdc_set_getlen(mock_cndb->cndb_mdc, getlen);
     ASSERT_EQ(0, err);
 
-    mapi_inject(mapi_idx_mpool_mblock_getprops, 0);
+    mapi_inject(mapi_idx_mpool_mblock_props_get, 0);
     mapi_inject(mapi_idx_mpool_mblock_abort, 0);
     mapi_inject(mapi_idx_mpool_mdc_usage, 0);
     err = cndb_replay(mock_cndb, &seqno, &ingestid);
@@ -331,7 +331,7 @@ MTF_DEFINE_UTEST(cndb_log_test, simpledrop2)
     ASSERT_EQ(0, err);
 
     mapi_inject_unset(mapi_idx_mpool_mdc_usage);
-    mapi_inject_unset(mapi_idx_mpool_mblock_getprops);
+    mapi_inject_unset(mapi_idx_mpool_mblock_props_get);
     mapi_inject_unset(mapi_idx_mpool_mblock_abort);
 }
 
@@ -352,7 +352,7 @@ MTF_DEFINE_UTEST(cndb_log_test, simpledrop_recovery)
     err = mpm_mdc_set_getlen(mock_cndb->cndb_mdc, getlen);
     ASSERT_EQ(0, err);
 
-    mapi_inject(mapi_idx_mpool_mblock_getprops, 0);
+    mapi_inject(mapi_idx_mpool_mblock_props_get, 0);
     mapi_inject(mapi_idx_mpool_mblock_abort, 0);
     mapi_inject(mapi_idx_mpool_mdc_usage, 0);
     err = cndb_replay(mock_cndb, &seqno, &ingestid);
@@ -370,7 +370,7 @@ MTF_DEFINE_UTEST(cndb_log_test, simpledrop_recovery)
     ASSERT_EQ(0, err);
 
     mapi_inject_unset(mapi_idx_mpool_mdc_usage);
-    mapi_inject_unset(mapi_idx_mpool_mblock_getprops);
+    mapi_inject_unset(mapi_idx_mpool_mblock_props_get);
     mapi_inject_unset(mapi_idx_mpool_mblock_abort);
 }
 
@@ -389,7 +389,7 @@ MTF_DEFINE_UTEST(cndb_log_test, info_v9_test)
     err = mpm_mdc_set_getlen(mock_cndb->cndb_mdc, getlen);
     ASSERT_EQ(0, err);
 
-    mapi_inject(mapi_idx_mpool_mblock_getprops, 0);
+    mapi_inject(mapi_idx_mpool_mblock_props_get, 0);
     mapi_inject(mapi_idx_mpool_mblock_abort, 0);
     mapi_inject(mapi_idx_mpool_mdc_usage, 0);
     err = cndb_replay(mock_cndb, &seqno, &ingestid);
@@ -404,7 +404,7 @@ MTF_DEFINE_UTEST(cndb_log_test, info_v9_test)
     ASSERT_EQ(0, err);
 
     mapi_inject_unset(mapi_idx_mpool_mdc_usage);
-    mapi_inject_unset(mapi_idx_mpool_mblock_getprops);
+    mapi_inject_unset(mapi_idx_mpool_mblock_props_get);
     mapi_inject_unset(mapi_idx_mpool_mblock_abort);
 }
 
@@ -423,7 +423,7 @@ MTF_DEFINE_UTEST(cndb_log_test, info_v11_test)
     err = mpm_mdc_set_getlen(mock_cndb->cndb_mdc, getlen);
     ASSERT_EQ(0, err);
 
-    mapi_inject(mapi_idx_mpool_mblock_getprops, 0);
+    mapi_inject(mapi_idx_mpool_mblock_props_get, 0);
     mapi_inject(mapi_idx_mpool_mblock_abort, 0);
     mapi_inject(mapi_idx_mpool_mdc_usage, 0);
     err = cndb_replay(mock_cndb, &seqno, &ingestid);
@@ -438,7 +438,7 @@ MTF_DEFINE_UTEST(cndb_log_test, info_v11_test)
     ASSERT_EQ(0, err);
 
     mapi_inject_unset(mapi_idx_mpool_mdc_usage);
-    mapi_inject_unset(mapi_idx_mpool_mblock_getprops);
+    mapi_inject_unset(mapi_idx_mpool_mblock_props_get);
     mapi_inject_unset(mapi_idx_mpool_mblock_abort);
 }
 
