@@ -179,7 +179,6 @@ struct kblock_builder {
     struct cn_merge_stats *mstats;
     struct blk_list        finished_kblks;
     struct curr_kblock     curr;
-    bool                   cn_mblk_sync_writes;
     bool                   finished;
     enum mp_media_classp   mclass;
     uint                   flags;
@@ -198,7 +197,6 @@ struct kblock_builder {
  * @iov:       iovec
  * @iov_cnt:   NELEM(iovec)
  * @chunk_len: length of each write
- * @pasyncio:  context holding async io
  *
  * Mpool's mpool_mblock_write() function imposes the following restrictions:
  *   - Each write buffer must be page aligned
@@ -224,8 +222,7 @@ mblk_blow_chunks(
     u64                     mbid,
     struct iovec *          iov,
     uint                    iov_cnt,
-    uint                    chunk_len,
-    struct mp_asyncctx_ioc *pasyncio)
+    uint                    chunk_len)
 {
     merr_t err;
 
@@ -297,8 +294,7 @@ mblk_blow_chunks(
 
             if (stats)
                 dt = get_time_ns();
-            err = mpool_mblock_write_data(
-                self->ds, self->cn_mblk_sync_writes, mbid, iov + ax, 1, pasyncio);
+            err = mpool_mblock_write(self->ds, mbid, iov + ax, 1);
             if (ev(err))
                 return err;
             if (stats)
@@ -337,8 +333,7 @@ mblk_blow_chunks(
 
             if (stats)
                 dt = get_time_ns();
-            err = mpool_mblock_write_data(
-                self->ds, self->cn_mblk_sync_writes, mbid, iov + ax, bx - ax + 1, pasyncio);
+            err = mpool_mblock_write(self->ds, mbid, iov + ax, bx - ax + 1);
             if (ev(err))
                 return err;
             if (stats)
@@ -363,11 +358,7 @@ mblk_blow_chunks(
         }
 
         if (stats)
-            count_ops(
-                (self->cn_mblk_sync_writes ? &stats->ms_kblk_write : &stats->ms_kblk_write_async),
-                1,
-                wlen,
-                dt);
+            count_ops(&stats->ms_kblk_write, 1, wlen, dt);
 
         written += wlen;
 
@@ -822,11 +813,6 @@ kblock_finish(struct kblock_builder *bld, struct wbb *ptree)
     u64    kblocksz;
     bool   spare;
 
-    struct mp_asyncctx_ioc asyncio;
-
-    memset(&asyncio, 0x0, sizeof(asyncio));
-    asyncio.mp_enabled = !bld->cn_mblk_sync_writes;
-
     /* Allocate kblock hdr */
     if (!kblk->kblk_hdr) {
         kblk->kblk_hdr = alloc_page_aligned(KBLOCK_HDR_LEN, GFP_KERNEL);
@@ -930,18 +916,7 @@ kblock_finish(struct kblock_builder *bld, struct wbb *ptree)
      */
     chunk = 1024 * 1024;
     chunk = chunk - (chunk % mbprop.mpr_stripe_len);
-    err = mblk_blow_chunks(bld, blkid, iov, iov_cnt, chunk, &asyncio);
-
-    if (asyncio.mp_enabled) {
-        if (stats)
-            tstart = get_time_ns();
-        mpool_mblock_asyncio_flush(bld->ds, &asyncio);
-        if (!err)
-            err = asyncio.mp_err;
-        if (stats)
-            count_ops(&stats->ms_kblk_flush, 1, 0, get_time_ns() - tstart);
-    }
-
+    err = mblk_blow_chunks(bld, blkid, iov, iov_cnt, chunk);
     if (ev(err))
         goto errout;
 
@@ -990,7 +965,6 @@ kbb_create(struct kblock_builder **builder_out, struct cn *cn, struct perfc_set 
     bld->pc = pc;
     bld->flags = flags;
     bld->mclass = MP_MED_CAPACITY;
-    bld->cn_mblk_sync_writes = cn_get_mblk_sync_writes(cn);
 
     err = hlog_create(&bld->hlog, HLOG_PRECISION);
     if (ev(err))

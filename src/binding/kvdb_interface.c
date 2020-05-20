@@ -205,8 +205,6 @@ hse_kvdb_open(
     if (ev(err))
         goto close_ds;
 
-    ikvdb_aio_params_set(ikvdb, &rparams);
-
     *handle = (struct hse_kvdb *)ikvdb;
 
     if (rparams.read_only == 0) {

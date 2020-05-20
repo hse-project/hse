@@ -46,8 +46,6 @@ struct kvdb_rparams {
     unsigned long c0_ingest_delay;
     unsigned long c0_ingest_width;
     unsigned long c0_coalesce_sz;
-    unsigned long c0_throttle_async_ingest;
-    unsigned long c0_throttle_async_default;
 
     unsigned long txn_heap_sz;
     unsigned long txn_ingest_delay;
@@ -89,7 +87,6 @@ struct kvdb_rparams {
     /* The following fields are typically only accessed by kvdb open
      * and hence are extrememly cold.
      */
-    unsigned int  cn_mblk_sync_writes;
     unsigned int  log_lvl;
     unsigned long log_squelch_ns;
     unsigned long txn_wkth_delay;

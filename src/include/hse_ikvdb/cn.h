@@ -31,12 +31,6 @@ struct sts;
 enum cn_action;
 enum mp_media_classp;
 
-enum cn_aio_reqtype {
-    CN_AIO_REQ_INGEST = 0,
-    CN_AIO_REQ_MAINT,
-    CN_AIO_REQ_MAX,
-};
-
 /* MTF_MOCK */
 merr_t
 cn_make(struct mpool *ds, struct kvs_cparams *cp, struct kvdb_health *health);
@@ -67,10 +61,6 @@ cn_cp2cflags(struct kvs_cparams *cp);
 /* MTF_MOCK */
 bool
 cn_is_capped(const struct cn *cn);
-
-/* MTF_MOCK */
-bool
-cn_get_mblk_sync_writes(const struct cn *cn);
 
 /* MTF_MOCK */
 bool
@@ -238,16 +228,6 @@ cn_get_cn_kvdb(const struct cn *handle);
 /* MTF_MOCK */
 u32
 cn_get_flags(const struct cn *handle);
-
-/* MTF_MOCK */
-unsigned
-cn_best_ingest_count(const struct cn *cn, unsigned avg_key_len);
-
-void *
-cn_aio_alloc(struct cn *cn, size_t sz, bool ingest, bool force);
-
-void
-cn_aio_free(struct cn *cn, void *buf, size_t sz, bool ingest);
 
 /* MTF_MOCK */
 u64

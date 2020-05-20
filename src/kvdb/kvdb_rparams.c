@@ -60,9 +60,6 @@ kvdb_rparams_defaults(void)
         .c0_mutex_pool_sz = 7,
         .c0_coalesce_sz = 2048,
 
-        .c0_throttle_async_ingest = 4,
-        .c0_throttle_async_default = 16,
-
         .txn_heap_sz = HSE_C0_CHEAP_SZ_MAX,
         .txn_ingest_delay = HSE_C0_INGEST_DELAY_DFLT,
         .txn_ingest_width = HSE_C0_INGEST_WIDTH_DFLT,
@@ -95,8 +92,6 @@ kvdb_rparams_defaults(void)
         .throttle_relax = 1,
         .throttle_debug = 0,
         .throttle_c0_hi_th = 1024 * 8,
-
-        .cn_mblk_sync_writes = 1,
 
         .log_lvl = HSE_LOG_PRI_DEFAULT,
         .log_squelch_ns = HSE_LOG_SQUELCH_NS_DEFAULT,
@@ -138,9 +133,6 @@ static struct param_inst   kvdb_rp_table[] = {
     KVDB_PARAM_EXP(c0_ingest_width, "number of c0 trees in parallel (min 2)"),
     KVDB_PARAM_EXP(c0_coalesce_sz, "c0 ingest coalesce size in MiB"),
 
-    KVDB_PARAM_EXP(c0_throttle_async_ingest, "c0 throttle mem for ingest async io"),
-    KVDB_PARAM_EXP(c0_throttle_async_default, "c0 throttle mem for async io"),
-
     KVDB_PARAM_EXP(txn_heap_sz, "cheap or malloc size"),
     KVDB_PARAM_EXP(txn_ingest_delay, "max ingest coalesce delay (seconds)"),
     KVDB_PARAM_EXP(txn_ingest_width, "number of txn trees in parallel"),
@@ -176,7 +168,6 @@ static struct param_inst   kvdb_rp_table[] = {
     KVDB_PARAM_EXP(throttle_sleep_min_ns, "nanosleep time overhead (nsecs)"),
     KVDB_PARAM_EXP(throttle_c0_hi_th, "throttle sensor: c0 high water mark (MiB)"),
 
-    KVDB_PARAM_U32_EXP(cn_mblk_sync_writes, "use sync writes for cn mblocks"),
     KVDB_PARAM_U32(log_lvl, "log message verbosity. Range: 0 to 7."),
     KVDB_PARAM_EXP(log_squelch_ns, "drop messages repeated within nsec window"),
     KVDB_PARAM_EXP(txn_wkth_delay, "delay for transaction worker thread"),

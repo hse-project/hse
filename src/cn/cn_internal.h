@@ -39,7 +39,6 @@ struct cn {
     atomic_t cn_refcnt;
     bool     cn_closing;
     bool     cn_replay;
-    bool     cn_mblk_sync_writes;
 
     /* for asynchronous mblock I/O */
     struct workqueue_struct *cn_io_wq;

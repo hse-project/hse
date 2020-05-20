@@ -76,7 +76,6 @@ pre(struct mtf_test_info *info)
     mapi_inject(mapi_idx_cndb_cn_blob_get, 0);
     mapi_inject(mapi_idx_cndb_cn_blob_set, 0);
     mapi_inject(mapi_idx_kvset_pt_start, -1);
-    mapi_inject(mapi_idx_ikvdb_get_cn_mblk_sync_writes, 0);
 
     return 0;
 }

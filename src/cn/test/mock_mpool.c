@@ -355,13 +355,7 @@ _mpool_mblock_read(struct mpool *ds, uint64_t id, struct iovec *iovec, int niov,
 }
 
 static uint64_t
-_mpool_mblock_write_data(
-    struct mpool *          ds,
-    bool                    sync_writes,
-    uint64_t                id,
-    struct iovec *          iovec,
-    int                     niov,
-    struct mp_asyncctx_ioc *pasyncio)
+_mpool_mblock_write(struct mpool *ds, uint64_t id, struct iovec *iovec, int niov)
 {
     return mblock_rw(id, iovec, niov, 0, false);
 }
@@ -731,7 +725,7 @@ mock_mpool_set(void)
     MOCK_SET(mpool, _mpool_mblock_commit);
     MOCK_SET(mpool, _mpool_mblock_delete);
     MOCK_SET(mpool, _mpool_mblock_read);
-    MOCK_SET(mpool, _mpool_mblock_write_data);
+    MOCK_SET(mpool, _mpool_mblock_write);
 
     MOCK_SET(mpool, _mpool_mcache_mmap);
     MOCK_SET(mpool, _mpool_mcache_munmap);
@@ -762,7 +756,7 @@ mock_mpool_unset(void)
     MOCK_UNSET(mpool, _mpool_mblock_commit);
     MOCK_UNSET(mpool, _mpool_mblock_delete);
     MOCK_UNSET(mpool, _mpool_mblock_read);
-    MOCK_UNSET(mpool, _mpool_mblock_write_data);
+    MOCK_UNSET(mpool, _mpool_mblock_write);
     MOCK_UNSET(mpool, _mpool_params_get);
     MOCK_UNSET(mpool, _mpool_mclass_get);
 

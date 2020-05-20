@@ -534,13 +534,6 @@ sp3_log_progress(struct cn_compaction_work *w, struct cn_merge_stats *ms, bool f
         HSE_SLOG_FIELD("kblk_write_sz", "%ld", ms->ms_kblk_write.op_size),
         HSE_SLOG_FIELD("kblk_write_ns", "%ld", ms->ms_kblk_write.op_time),
 
-        HSE_SLOG_FIELD("kblk_write_async_ops", "%ld", ms->ms_kblk_write_async.op_cnt),
-        HSE_SLOG_FIELD("kblk_write_async_sz", "%ld", ms->ms_kblk_write_async.op_size),
-        HSE_SLOG_FIELD("kblk_write_async_ns", "%ld", ms->ms_kblk_write_async.op_time),
-
-        HSE_SLOG_FIELD("kblk_flush_ops", "%ld", ms->ms_kblk_flush.op_cnt),
-        HSE_SLOG_FIELD("kblk_flush_ns", "%ld", ms->ms_kblk_flush.op_time),
-
         HSE_SLOG_FIELD("vblk_alloc_ops", "%ld", ms->ms_vblk_alloc.op_cnt),
         HSE_SLOG_FIELD("vblk_alloc_sz", "%ld", ms->ms_vblk_alloc.op_size),
         HSE_SLOG_FIELD("vblk_alloc_ns", "%ld", ms->ms_vblk_alloc.op_time),
@@ -548,13 +541,6 @@ sp3_log_progress(struct cn_compaction_work *w, struct cn_merge_stats *ms, bool f
         HSE_SLOG_FIELD("vblk_write_ops", "%ld", ms->ms_vblk_write.op_cnt),
         HSE_SLOG_FIELD("vblk_write_sz", "%ld", ms->ms_vblk_write.op_size),
         HSE_SLOG_FIELD("vblk_write_ns", "%ld", ms->ms_vblk_write.op_time),
-
-        HSE_SLOG_FIELD("vblk_write_async_ops", "%ld", ms->ms_vblk_write_async.op_cnt),
-        HSE_SLOG_FIELD("vblk_write_async_sz", "%ld", ms->ms_vblk_write_async.op_size),
-        HSE_SLOG_FIELD("vblk_write_async_ns", "%ld", ms->ms_vblk_write_async.op_time),
-
-        HSE_SLOG_FIELD("vblk_flush_ops", "%ld", ms->ms_vblk_flush.op_cnt),
-        HSE_SLOG_FIELD("vblk_flush_ns", "%ld", ms->ms_vblk_flush.op_time),
 
         HSE_SLOG_FIELD("vblk_read1_ops", "%ld", ms->ms_vblk_read1.op_cnt),
         HSE_SLOG_FIELD("vblk_read1_sz", "%ld", ms->ms_vblk_read1.op_size),

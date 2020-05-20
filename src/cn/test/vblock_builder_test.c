@@ -74,7 +74,6 @@ test_setup(struct mtf_test_info *lcl_ti)
 
     mapi_inject(mapi_idx_tbkt_request, 0);
     mapi_inject(mapi_idx_tbkt_delay, 0);
-    mapi_inject(mapi_idx_cn_get_mblk_sync_writes, true);
 
     mapi_inject(mapi_idx_vbb_create_ext, 0);
     mapi_inject(mapi_idx_vbb_destroy_ext, 0);
@@ -234,17 +233,6 @@ MTF_DEFINE_UTEST_PRE(test, t_vbb_ingest_flag, test_setup)
     ASSERT_GE(blks.n_blks, 1);
     blk_list_free(&blks);
     vbb_destroy(vbb);
-
-    err = vbb_create(VBB_CREATE_ARGS, flags);
-    ASSERT_EQ(err, 0);
-    vbb_disable_async_mode(vbb);
-    err = add_entry(lcl_ti, vbb, 123, 0);
-    ASSERT_EQ(err, 0);
-    err = vbb_finish(vbb, &blks);
-    ASSERT_EQ(err, 0);
-    ASSERT_GE(blks.n_blks, 1);
-    blk_list_free(&blks);
-    vbb_destroy(vbb);
 }
 
 /* Test: KVSET_BUILDER_FLAGS_EXT flag. */
@@ -383,7 +371,7 @@ MTF_DEFINE_UTEST_PRE(test, t_vbb_add_entry_fail_mblock_write, test_setup)
     err = vbb_create(VBB_CREATE_ARGS, KVSET_BUILDER_FLAGS_NONE);
     ASSERT_EQ(err, 0);
 
-    api = mapi_idx_mpool_mblock_write_data;
+    api = mapi_idx_mpool_mblock_write;
     mapi_inject(api, 666);
 
     err = fill_exact(lcl_ti, vbb, 0, 666);
@@ -403,7 +391,7 @@ MTF_DEFINE_UTEST_PRE(test, t_vbb_add_entry_fail_mblock_write, test_setup)
     err = fill_exact(lcl_ti, vbb, 100, 0); /* leave 100 bytes space */
     ASSERT_EQ(err, 0);
 
-    api = mapi_idx_mpool_mblock_write_data;
+    api = mapi_idx_mpool_mblock_write;
     mapi_inject(api, 666);
 
     /* add 200, forcing call to _vblock_finish(), which should fail */
@@ -419,9 +407,8 @@ MTF_DEFINE_UTEST_PRE(test, t_vbb_add_entry_fail_mblock_write, test_setup)
      */
     err = vbb_create(VBB_CREATE_ARGS, KVSET_BUILDER_FLAGS_NONE);
     ASSERT_EQ(err, 0);
-    vbb_disable_async_mode(vbb);
 
-    api = mapi_idx_mpool_mblock_write_data;
+    api = mapi_idx_mpool_mblock_write;
     mapi_inject(api, 666);
 
     err = fill_exact(lcl_ti, vbb, 0, 666);
@@ -437,12 +424,11 @@ MTF_DEFINE_UTEST_PRE(test, t_vbb_add_entry_fail_mblock_write, test_setup)
      */
     err = vbb_create(VBB_CREATE_ARGS, KVSET_BUILDER_FLAGS_NONE);
     ASSERT_EQ(err, 0);
-    vbb_disable_async_mode(vbb);
 
     err = fill_exact(lcl_ti, vbb, 100, 0); /* leave 100 bytes space */
     ASSERT_EQ(err, 0);
 
-    api = mapi_idx_mpool_mblock_write_data;
+    api = mapi_idx_mpool_mblock_write;
     mapi_inject(api, 666);
 
     /* add 200, forcing call to _vblock_finish(), which should fail */
@@ -462,32 +448,13 @@ MTF_DEFINE_UTEST_PRE(test, t_vbb_finish_fail_mblock_write, test_setup)
     struct vblock_builder *vbb = 0;
     struct blk_list        blks;
 
-    /* case 1: async mode */
     err = vbb_create(VBB_CREATE_ARGS, KVSET_BUILDER_FLAGS_NONE);
     ASSERT_EQ(err, 0);
 
     err = add_entry(lcl_ti, vbb, 123, 0);
     ASSERT_EQ(err, 0);
 
-    api = mapi_idx_mpool_mblock_write_data;
-    mapi_inject(api, 666);
-
-    err = vbb_finish(vbb, &blks);
-    ASSERT_EQ(merr_errno(err), 666);
-
-    mapi_inject_unset(api);
-
-    vbb_destroy(vbb);
-
-    /* case 2: sync mode */
-    err = vbb_create(VBB_CREATE_ARGS, KVSET_BUILDER_FLAGS_NONE);
-    ASSERT_EQ(err, 0);
-    vbb_disable_async_mode(vbb);
-
-    err = add_entry(lcl_ti, vbb, 123, 0);
-    ASSERT_EQ(err, 0);
-
-    api = mapi_idx_mpool_mblock_write_data;
+    api = mapi_idx_mpool_mblock_write;
     mapi_inject(api, 666);
 
     err = vbb_finish(vbb, &blks);
@@ -602,7 +569,7 @@ run_test_case(struct mtf_test_info *lcl_ti, enum test_case tc, size_t n_vblocks)
     struct blk_list blks;
 
     mapi_calls_clear(mapi_idx_mpool_mblock_alloc);
-    mapi_calls_clear(mapi_idx_mpool_mblock_write_data);
+    mapi_calls_clear(mapi_idx_mpool_mblock_write);
     mapi_calls_clear(mapi_idx_mpool_mblock_abort);
     mapi_calls_clear(mapi_idx_mpool_mblock_commit);
     mapi_calls_clear(mapi_idx_mpool_mblock_delete);
@@ -638,7 +605,7 @@ run_test_case(struct mtf_test_info *lcl_ti, enum test_case tc, size_t n_vblocks)
             vbb_destroy(vbb);
 
             ASSERT_EQ_RET(mapi_calls(mapi_idx_mpool_mblock_alloc), n_vblocks, 1);
-            ASSERT_GT_RET(mapi_calls(mapi_idx_mpool_mblock_write_data), 0, 1);
+            ASSERT_GT_RET(mapi_calls(mapi_idx_mpool_mblock_write), 0, 1);
             ASSERT_EQ_RET(mapi_calls(mapi_idx_mpool_mblock_abort), 0, 1);
             ASSERT_EQ_RET(mapi_calls(mapi_idx_mpool_mblock_commit), 0, 1);
             ASSERT_EQ_RET(mapi_calls(mapi_idx_mpool_mblock_delete), 0, 1);
@@ -649,7 +616,7 @@ run_test_case(struct mtf_test_info *lcl_ti, enum test_case tc, size_t n_vblocks)
             vbb_destroy(vbb);
 
             ASSERT_EQ_RET(mapi_calls(mapi_idx_mpool_mblock_alloc), n_vblocks, 1);
-            ASSERT_GT_RET(mapi_calls(mapi_idx_mpool_mblock_write_data), 0, 1);
+            ASSERT_GT_RET(mapi_calls(mapi_idx_mpool_mblock_write), 0, 1);
             ASSERT_EQ_RET(mapi_calls(mapi_idx_mpool_mblock_abort), n_vblocks, 1);
             ASSERT_EQ_RET(mapi_calls(mapi_idx_mpool_mblock_commit), 0, 1);
             ASSERT_EQ_RET(mapi_calls(mapi_idx_mpool_mblock_delete), 0, 1);

@@ -203,14 +203,6 @@ u32
 ikvdb_staging_policy(struct ikvdb *kvdb);
 
 /**
- * ikvdb_get_cn_mblk_sync_writes()
- * @kvdb:       kvdb handle
- */
-/* MTF_MOCK */
-bool
-ikvdb_get_cn_mblk_sync_writes(struct ikvdb *kvdb);
-
-/**
  * ikvdb_kvs_close() - close the KVS
  * @kvs:          kvs handle to close
  */
@@ -537,50 +529,6 @@ ikvdb_export(struct ikvdb *handle, struct kvdb_cparams *cparams, const char *pat
  */
 merr_t
 ikvdb_import_kvdb_cparams(const char *path, struct kvdb_cparams *kvdb_cparams);
-
-/**
- * ikvdb_aio_params_set() - kvdb interface for aio parameters
- * @handle:  kvdb handle
- * @rparams: kvdb rparameters
- */
-/* MTF_MOCK */
-void
-ikvdb_aio_params_set(struct ikvdb *handle, struct kvdb_rparams *rp);
-
-/**
- * ikvdb_aio_mem_max_set() -
- * @handle:   kvdb handle
- * @rtype:    enum cn_aio_reqtype
- * @mem_max:
- */
-void
-ikvdb_aio_mem_max_set(struct ikvdb *handle, u8 rtype, size_t sz);
-
-/**
- * ikvdb_aio_mem_add() -
- * @handle: kvdb handle
- * @rtype:  enum cn_aio_reqtype
- * @mem:
- */
-void
-ikvdb_aio_mem_add(struct ikvdb *handle, u8 rtype, size_t sz);
-
-/**
- * ikvdb_aio_mem_sub() -
- * @handle: kvdb handle
- * @rtype:  enum cn_aio_reqtype
- * @sz:
- */
-void
-ikvdb_aio_mem_sub(struct ikvdb *handle, u8 rtype, size_t sz);
-
-/**
- * ikvdb_aio_mem_limit() -
- * @handle: kvdb handle
- * @rtype:  enum cn_aio_reqtype
- */
-bool
-ikvdb_aio_mem_limit(struct ikvdb *handle, u8 rtype);
 
 /*
  * [HSE_REVISIT] - This whole callback setup up needs to be reworked.

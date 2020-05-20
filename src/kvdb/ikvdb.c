@@ -174,11 +174,6 @@ struct ikvdb_impl {
     struct work_struct ikdb_maint_work;
     struct work_struct ikdb_throttle_work;
 
-    struct {
-        u64        mem_max;
-        atomic64_t mem_cur;
-    } ikdb_aio_mem[CN_AIO_REQ_MAX];
-
     u64  ikdb_cndb_oid1;
     u64  ikdb_cndb_oid2;
     u64  ikdb_c1_oid1;
@@ -1271,14 +1266,6 @@ ikvdb_low_mem_adjust(struct ikvdb_impl *self)
     c0kvs_reinit(rp->c0_heap_cache_sz_max);
 }
 
-void
-ikvdb_aio_params_set(struct ikvdb *handle, struct kvdb_rparams *rp)
-{
-    ikvdb_aio_mem_max_set(handle, CN_AIO_REQ_INGEST, rp->c0_throttle_async_ingest << 20);
-
-    ikvdb_aio_mem_max_set(handle, CN_AIO_REQ_MAINT, rp->c0_throttle_async_default << 20);
-}
-
 merr_t
 ikvdb_open(
     const char *       mp_name,
@@ -1550,12 +1537,6 @@ struct csched *
 ikvdb_get_csched(struct ikvdb *handle)
 {
     return handle ? ikvdb_h2r(handle)->ikdb_csched : 0;
-}
-
-bool
-ikvdb_get_cn_mblk_sync_writes(struct ikvdb *handle)
-{
-    return handle ? (bool)ikvdb_h2r(handle)->ikdb_rp.cn_mblk_sync_writes : 0;
 }
 
 static int
@@ -1941,54 +1922,6 @@ ikvdb_mpool_get(struct ikvdb *handle)
     struct ikvdb_impl *self = ikvdb_h2r(handle);
 
     return handle ? self->ikdb_ds : NULL;
-}
-
-void
-ikvdb_aio_mem_max_set(struct ikvdb *handle, u8 rtype, size_t sz)
-{
-    struct ikvdb_impl *self = ikvdb_h2r(handle);
-
-    assert(rtype < CN_AIO_REQ_MAX);
-    if (ev(rtype >= CN_AIO_REQ_MAX))
-        return;
-
-    self->ikdb_aio_mem[rtype].mem_max = sz;
-}
-
-void
-ikvdb_aio_mem_add(struct ikvdb *handle, u8 rtype, size_t sz)
-{
-    struct ikvdb_impl *self = ikvdb_h2r(handle);
-
-    assert(rtype < CN_AIO_REQ_MAX);
-    if (ev(rtype >= CN_AIO_REQ_MAX))
-        return;
-
-    atomic64_add(sz, &self->ikdb_aio_mem[rtype].mem_cur);
-}
-
-void
-ikvdb_aio_mem_sub(struct ikvdb *handle, u8 rtype, size_t sz)
-{
-    struct ikvdb_impl *self = ikvdb_h2r(handle);
-
-    assert(rtype < CN_AIO_REQ_MAX);
-    if (ev(rtype >= CN_AIO_REQ_MAX))
-        return;
-
-    atomic64_sub(sz, &self->ikdb_aio_mem[rtype].mem_cur);
-}
-
-bool
-ikvdb_aio_mem_limit(struct ikvdb *handle, u8 rtype)
-{
-    struct ikvdb_impl *self = ikvdb_h2r(handle);
-
-    assert(rtype < CN_AIO_REQ_MAX);
-    if (ev(rtype >= CN_AIO_REQ_MAX))
-        return true;
-
-    return atomic64_read(&self->ikdb_aio_mem[rtype].mem_cur) > self->ikdb_aio_mem[rtype].mem_max;
 }
 
 merr_t
