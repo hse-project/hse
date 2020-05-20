@@ -431,10 +431,9 @@ set( CPACK_RPM_PACKAGE_GROUP "Unspecified" )
 set( CPACK_RPM_PACKAGE_VENDOR "Unspecified" )
 
 
-#
 # We don't want to claim ownership of these directories, lest there be
-# conflicts.
-#
+# conflicts during RPM install.  If a directory appears in this list,
+# it means it might be shared by multiple packages.
 set( CPACK_RPM_EXCLUDE_FROM_AUTO_FILELIST_ADDITION
   /usr/lib
   /usr/lib/hse
@@ -448,6 +447,7 @@ set( CPACK_RPM_EXCLUDE_FROM_AUTO_FILELIST_ADDITION
   /lib
   /opt
   /opt/hse
+  /opt/hse/bin
   /opt/hse/config
 )
 
