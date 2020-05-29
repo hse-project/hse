@@ -74,7 +74,6 @@ setup_mocks(void)
     mapi_inject(mapi_idx_csched_tree_remove, 0);
     mapi_inject(mapi_idx_ikvdb_rdonly, 0);
     mapi_inject(mapi_idx_ikvdb_rdonly, 0);
-    mapi_inject(mapi_idx_ikvdb_get_cn_mblk_sync_writes, true);
 }
 
 static int

@@ -196,7 +196,6 @@ test_setup(struct mtf_test_info *lcl_ti)
     mapi_inject(mapi_idx_cn_get_dataset, 0);
     mapi_inject(mapi_idx_cn_get_flags, 0);
     mapi_inject(mapi_idx_cn_get_tbkt_maint, 0);
-    mapi_inject(mapi_idx_cn_get_mblk_sync_writes, true);
 
     return 0;
 }
@@ -523,7 +522,7 @@ MTF_DEFINE_UTEST_PRE(test, t_kbb_finish_fail, test_setup)
 {
     uint api[] = { mapi_idx_wbb_freeze,
                    mapi_idx_mpool_mblock_alloc,
-                   mapi_idx_mpool_mblock_write_data };
+                   mapi_idx_mpool_mblock_write };
     uint                   i, num_allocs;
     merr_t                 err = 0;
     struct kblock_builder *kbb = 0;
@@ -586,7 +585,7 @@ fill_test(struct mtf_test_info *lcl_ti, uint kcnt, uint klen, uint kmdlen)
     uint                   ac, wc, cc;
 
     ac = mapi_calls(mapi_idx_mpool_mblock_alloc);
-    wc = mapi_calls(mapi_idx_mpool_mblock_write_data);
+    wc = mapi_calls(mapi_idx_mpool_mblock_write);
     cc = mapi_calls(mapi_idx_mpool_mblock_commit);
 
     err = kbb_create(KBB_CREATE_ARGS);
@@ -598,7 +597,7 @@ fill_test(struct mtf_test_info *lcl_ti, uint kcnt, uint klen, uint kmdlen)
     kbb_destroy(kbb);
 
     ac = mapi_calls(mapi_idx_mpool_mblock_alloc) - ac;
-    wc = mapi_calls(mapi_idx_mpool_mblock_write_data) - wc;
+    wc = mapi_calls(mapi_idx_mpool_mblock_write) - wc;
     cc = mapi_calls(mapi_idx_mpool_mblock_commit) - cc;
 
     hse_log(HSE_INFO "--> mblock stats: allocated %u, writes %u, committed %u", ac, wc, cc);

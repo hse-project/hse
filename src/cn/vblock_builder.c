@@ -34,10 +34,6 @@
 
 #include "vblock_builder_internal.h"
 
-#define IS_INGEST(x) (!!((x)&KVSET_BUILDER_FLAGS_INGEST))
-
-extern struct tbkt sp3_tbkt;
-
 size_t
 vbb_estimate_alen(struct cn *cn, size_t wlen, enum mp_media_classp mclass)
 {
@@ -106,69 +102,17 @@ _vblock_start(struct vblock_builder *bld)
 }
 
 static merr_t
-_vblock_flush_asynciolist(struct vblock_builder *bld, bool all)
-{
-    struct asyncio_list_entry *pelem;
-    struct mp_asyncctx_ioc     asyncio;
-    void *                     pPrevCtx = NULL;
-    bool                       ingest;
-    struct cn_merge_stats *    stats = bld->mstats;
-    u64                        tstart;
-
-    ingest = IS_INGEST(bld->flags);
-    do {
-        pelem = list_first_entry_or_null(&bld->asyncio_head, struct asyncio_list_entry, mp_link);
-        if (!pelem || (!all && pPrevCtx && pPrevCtx != pelem->mp_ctx))
-            break;
-
-        if (NULL == pPrevCtx || pPrevCtx != pelem->mp_ctx) {
-            memset(&asyncio, 0x0, sizeof(asyncio));
-            asyncio.mp_ctx = pelem->mp_ctx;
-            asyncio.mp_enabled = true;
-            pPrevCtx = pelem->mp_ctx;
-
-            if (stats)
-                tstart = get_time_ns();
-            mpool_mblock_asyncio_flush(bld->ds, &asyncio);
-            if (asyncio.mp_err)
-                return asyncio.mp_err;
-            if (stats)
-                count_ops(&stats->ms_vblk_flush, 1, 0, get_time_ns() - tstart);
-
-            if (pelem->mp_ctx == bld->asyncio_ctx.mp_ctx)
-                bld->asyncio_ctx.mp_ctx = NULL;
-        }
-
-        assert(NULL == pelem->mp_ctx || pelem->mp_ctx == pPrevCtx);
-
-        list_del_init(&pelem->mp_link);
-        cn_aio_free(bld->cn, pelem->mp_buf, WBUF_LEN_MAX, ingest);
-        free(pelem);
-        assert(bld->asyncio_lstcnt > 0);
-        bld->asyncio_lstcnt--;
-
-    } while (1);
-
-    return 0;
-}
-
-static merr_t
 _vblock_write(struct vblock_builder *bld)
 {
-    merr_t                     err, err1;
+    merr_t                     err;
     struct iovec               iov;
-    void *                     pbuf = NULL;
-    struct asyncio_list_entry *pelem = NULL;
-    struct mp_asyncctx_ioc *   pasyncio = &bld->asyncio_ctx;
-    bool                       doasync = pasyncio->mp_enabled;
     bool                       ingest;
     struct cn_merge_stats *    stats = bld->mstats;
     u64                        tstart;
 
     assert(bld->blkid);
-    assert(bld->asyncio_ctxswi);
 
-    ingest = IS_INGEST(bld->flags);
+    ingest = bld->flags & KVSET_BUILDER_FLAGS_INGEST;
     iov.iov_base = bld->wbuf;
     iov.iov_len = bld->wbuf_len;
 
@@ -179,60 +123,17 @@ _vblock_write(struct vblock_builder *bld)
             tbkt_delay(tbkt_request(tb, iov.iov_len));
     }
 
-    while (doasync) {
-        if (!pbuf)
-            pbuf = cn_aio_alloc(bld->cn, WBUF_LEN_MAX, ingest, false);
-
-        if (!pelem)
-            pelem = malloc(sizeof(*pelem));
-
-        if (!pbuf || !pelem) {
-            if (bld->asyncio_lstcnt) {
-                _vblock_flush_asynciolist(bld, false);
-                continue;
-            } else {
-                cn_aio_free(bld->cn, pbuf, WBUF_LEN_MAX, ingest);
-                free(pelem);
-                doasync = false;
-                break;
-            }
-        }
-
-        INIT_LIST_HEAD(&pelem->mp_link);
-        pelem->mp_buf = bld->wbuf;
-        bld->asyncio_lstcnt++;
-        list_add_tail(&pelem->mp_link, &bld->asyncio_head);
-        bld->wbuf = pbuf;
-        if (0 == (bld->asyncio_lstcnt % bld->asyncio_ctxswi))
-            pasyncio->mp_ctx = NULL;
-        break;
-    }
-
     /* Function mblk_blow_chunks(), which is used in the kblock builder,
      * is not needed here because our write buffer is already
      * smallish (1MiB) and a multiple of the mblock stripe length.
      */
     if (stats)
         tstart = get_time_ns();
-    err = mpool_mblock_write_data(bld->ds, !doasync, bld->blkid, &iov, 1, pasyncio);
+
+    err = mpool_mblock_write(bld->ds, bld->blkid, &iov, 1);
+
     if (stats)
-        count_ops(
-            (doasync ? &stats->ms_vblk_write_async : &stats->ms_vblk_write),
-            1,
-            iov.iov_len,
-            get_time_ns() - tstart);
-
-    if (doasync) {
-        if (!err)
-            pelem->mp_ctx = pasyncio->mp_ctx;
-
-        if (err || bld->asyncio_lstcnt >= bld->asyncio_max) {
-            err1 = _vblock_flush_asynciolist(bld, false);
-
-            if (!err)
-                err = err1;
-        }
-    }
+        count_ops(&stats->ms_vblk_write, 1, iov.iov_len, get_time_ns() - tstart);
 
     if (ev(err)) {
         bld->destruct = true;
@@ -278,14 +179,6 @@ _vblock_finish(struct vblock_builder *bld)
     return err;
 }
 
-/* Disable asynchronous mode */
-void
-vbb_disable_async_mode(struct vblock_builder *bldr)
-{
-    assert(bldr);
-    bldr->asyncio_ctx.mp_enabled = false;
-}
-
 /* Create a vblock builder */
 merr_t
 vbb_create(
@@ -298,7 +191,6 @@ vbb_create(
     struct vblock_builder *bld;
     struct kvs_rparams *   rp;
     merr_t                 err;
-    bool                   ingest;
 
     assert(builder_out);
 
@@ -306,7 +198,6 @@ vbb_create(
     if (ev(!bld))
         return merr(ENOMEM);
 
-    ingest = IS_INGEST(flags);
     rp = cn_get_rp(cn);
 
     bld->cn = cn;
@@ -315,14 +206,9 @@ vbb_create(
     bld->flags = flags;
     bld->vgroup = vgroup;
     bld->max_size = rp->vblock_size_mb << 20;
-    INIT_LIST_HEAD(&bld->asyncio_head);
-    bld->asyncio_ctx.mp_enabled = !cn_get_mblk_sync_writes(cn);
-    bld->asyncio_max = rp->vblock_asyncio;
-    bld->asyncio_ctxswi = rp->vblock_asyncio_ctxswi;
-    bld->asyncio_ingestpool = ingest;
     bld->mclass = MP_MED_CAPACITY;
 
-    bld->wbuf = cn_aio_alloc(bld->cn, WBUF_LEN_MAX, ingest, true);
+    bld->wbuf = alloc_page_aligned(WBUF_LEN_MAX, 0);
     if (ev(!bld->wbuf)) {
         free(bld);
         return merr(ENOMEM);
@@ -331,7 +217,7 @@ vbb_create(
     if (flags & KVSET_BUILDER_FLAGS_EXT) {
         err = vbb_create_ext(bld, rp);
         if (ev(err)) {
-            cn_aio_free(bld->cn, bld->wbuf, WBUF_LEN_MAX, ingest);
+            free_aligned(bld->wbuf);
             free(bld);
             return err;
         }
@@ -349,15 +235,13 @@ vbb_destroy(struct vblock_builder *bld)
     if (ev(!bld))
         return;
 
-    if (bld->asyncio_ctx.mp_enabled)
-        _vblock_flush_asynciolist(bld, true);
     abort_mblocks(bld->ds, &bld->vblk_list);
     blk_list_free(&bld->vblk_list);
-    cn_aio_free(bld->cn, bld->wbuf, WBUF_LEN_MAX, bld->asyncio_ingestpool);
 
     if (bld->vbb_ext)
         vbb_destroy_ext(bld);
 
+    free_aligned(bld->wbuf);
     free(bld);
 }
 
@@ -444,10 +328,6 @@ vbb_finish(struct vblock_builder *bld, struct blk_list *vblks)
     bld->destruct = true;
 
     err = _vblock_finish(bld);
-    if (ev(err))
-        return err;
-
-    err = _vblock_flush_asynciolist(bld, true);
     if (ev(err))
         return err;
 

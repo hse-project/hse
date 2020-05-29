@@ -124,12 +124,6 @@ cn_is_replay(const struct cn *cn)
     return cn->cn_replay;
 }
 
-bool
-cn_get_mblk_sync_writes(const struct cn *cn)
-{
-    return cn->cn_mblk_sync_writes;
-}
-
 struct mpool *
 cn_get_dataset(const struct cn *cn)
 {
@@ -273,31 +267,6 @@ bool
 cn_is_capped(const struct cn *cn)
 {
     return cn->cn_cflags & CN_CFLAG_CAPPED;
-}
-
-unsigned
-cn_best_ingest_count(const struct cn *handle, unsigned len)
-{
-    /*
-     * 4088 = PAGE_SIZE - sizeof(wbt_node_hdr_omf)
-     * 16 = sizeof(wbt_lfe_omf)
-     *
-     * NB: these are NOT variable, and changing them requires
-     * a change to the values below, which are derived directly
-     * from how these two values interact to create a WBT.
-     *
-     * The values below remain the same with/without bloom filters.
-     *
-     * [HSE_REVISIT] Eventually this function should look at
-     * the underlying media to determine the natural best size
-     * for a kblock.  See SBUSWNF-570.
-     *
-     * If you want more detail on this, see SBUSWNF-939,
-     * and the giant comment for wbtree_has_space().
-     */
-    unsigned kpp = 4088 / (len + 16);
-
-    return kpp * (len < 9 ? 7600 : len < 212 ? 7700 : len < 675 ? 7000 : len < 1015 ? 6500 : 6100);
 }
 
 void
@@ -1235,7 +1204,6 @@ cn_open(
      * and if replay, diag and rdonly are all false.
      */
     cn->csched = ikvdb_get_csched(cn->ikvdb);
-    cn->cn_mblk_sync_writes = ikvdb_get_cn_mblk_sync_writes(cn->ikvdb);
     cn->cn_replay = flags & IKVS_OFLAG_REPLAY;
     maint = cn->csched && !cn->cn_replay && !rp->cn_diag_mode && !rp->rdonly;
 
@@ -1722,38 +1690,6 @@ cn_make(struct mpool *ds, struct kvs_cparams *cp, struct kvdb_health *health)
         cn_tree_destroy(tree);
 
     return err;
-}
-
-void *
-cn_aio_alloc(struct cn *cn, size_t sz, bool ingest, bool force)
-{
-    char *buf;
-    u8    rtype;
-
-    if (!cn)
-        return alloc_aligned(sz, PAGE_SIZE, GFP_KERNEL);
-
-    rtype = ingest ? CN_AIO_REQ_INGEST : CN_AIO_REQ_MAINT;
-
-    ikvdb_aio_mem_add(cn->ikvdb, rtype, sz);
-    if (!force && ikvdb_aio_mem_limit(cn->ikvdb, rtype)) {
-        ikvdb_aio_mem_sub(cn->ikvdb, rtype, sz);
-        return NULL;
-    }
-
-    buf = alloc_aligned(sz, PAGE_SIZE, GFP_KERNEL);
-    if (!buf)
-        ikvdb_aio_mem_sub(cn->ikvdb, rtype, sz);
-
-    return buf;
-}
-
-void
-cn_aio_free(struct cn *cn, void *buf, size_t sz, bool ingest)
-{
-    if (cn && buf)
-        ikvdb_aio_mem_sub(cn->ikvdb, ingest ? CN_AIO_REQ_INGEST : CN_AIO_REQ_MAINT, sz);
-    free_aligned(buf);
 }
 
 u64

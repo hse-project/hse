@@ -17,12 +17,6 @@ struct cn_merge_stats;
  * @ds:        mpool dataset
  * @pc:        performance counters
  * @vblk_list: list of vblocks
- * @asyncio_head:   list holding async io buffers
- * @asyncio_lstcnt: No. of elments in asyncio_head
- * @asyncio_ctx:    Context object for kernel.
- * @asyncio_max:    Max pending IO for a vblock
- * @asyncio_ctxswi: Max IO the context can hold before allocating new one.
- * @asyncio_ingestpool: Pool from which memory allocation is done.
  * @wbuf:      write buffer
  * @wbuf_off:  offset of next unused byte in write buffer
  * @wbuf_len:  length of next write to media
@@ -76,13 +70,7 @@ struct vblock_builder {
     struct perfc_set *     pc;
     struct cn_merge_stats *mstats;
     struct blk_list        vblk_list;
-    struct list_head       asyncio_head;
-    int                    asyncio_lstcnt;
-    struct mp_asyncctx_ioc asyncio_ctx;
     enum mp_media_classp   mclass;
-    int                    asyncio_max;
-    int                    asyncio_ctxswi;
-    bool                   asyncio_ingestpool;
     u64                    vsize;
     u64                    blkid;
     uint                   max_size;
@@ -95,19 +83,6 @@ struct vblock_builder {
     bool                   destruct;
     u32                    stripe_len;
     struct vbb_ext *       vbb_ext;
-};
-
-/* struct asyncio_list_entry
- * @mp_link:
- * @mp_buf:
- * @mp_ctx: Pointer to context.
- *
- * Struct holding the list of async IO buffers.
- */
-struct asyncio_list_entry {
-    struct list_head mp_link;
-    void *           mp_buf;
-    void *           mp_ctx;
 };
 
 static inline bool

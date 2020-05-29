@@ -656,15 +656,6 @@ if( HSE_UNIT_TEST_FLAG )
         )
 
     hse_unit_test(
-        NAME ingest_count_test
-        COMMAND ingest_count_test ${CMAKE_CURRENT_SOURCE_DIR}/cn/test/
-        LABELS cn
-        SRCS cn/test/ingest_count_test.c
-        INCLUDES ${UNIT_TEST_INCLUDE_DIRS}
-        LINK_LIBS ${UNIT_TEST_LINK_LIBS}
-        )
-
-    hse_unit_test(
         NAME kblock_reader_test
         LABELS cn
         SRCS cn/test/kblock_reader_test.c

@@ -53,7 +53,6 @@ general_pre(struct mtf_test_info *ti)
     mock_c1_set();
     mock_cndb_set();
     mapi_inject(mapi_idx_mpool_open, 0);
-    mapi_inject(mapi_idx_ikvdb_aio_params_set, 0);
     mapi_inject(mapi_idx_mpool_close, 0);
 
     mapi_inject(mapi_idx_c0_get_pfx_len, 0);

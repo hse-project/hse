@@ -38,14 +38,14 @@ struct vbb_ext_elem {
     uint  vbidx;
     uint  stripe_len;
 
-    __aligned(SMP_CACHE_BYTES) atomic_t wbuf_off;
+    __aligned(SMP_CACHE_BYTES)
+    atomic_t wbuf_off;
     off_t    wbuf_woff;
     atomic_t wbuf_wlen;
     uint     wbuf_len;
 
-    __aligned(SMP_CACHE_BYTES) struct rw_semaphore flush_sem;
-    struct mp_asyncctx_ioc *aio_ctx;
-    int                     aio_idx;
+    __aligned(SMP_CACHE_BYTES)
+    struct rw_semaphore     flush_sem;
 };
 
 struct vbb_ext {
@@ -149,20 +149,11 @@ vbb_create_ext(struct vblock_builder *bld, struct kvs_rparams *rp)
     int  i;
     u64  vbsz;
     u64  sz;
-    bool doasync;
     uint stripew;
-    uint naio;
 
     sz = 0;
-    naio = 0;
     vbsz = rp->c1_vblock_size_mb << 20;
     stripew = HSE_C1_DEFAULT_STRIPE_WIDTH;
-
-    doasync = bld->asyncio_ctx.mp_enabled;
-    if (doasync) {
-        naio = rp->c1_vblock_size_mb;
-        sz = stripew * naio * sizeof(*vbbv->aio_ctx);
-    }
 
     sz += sizeof(*ext) + stripew * sizeof(*vbbv);
 
@@ -183,14 +174,6 @@ vbb_create_ext(struct vblock_builder *bld, struct kvs_rparams *rp)
         }
 
         init_rwsem(&vbbv[i].flush_sem);
-
-        if (doasync) {
-            if (i == 0)
-                vbbv[i].aio_ctx = (void *)(vbbv + stripew);
-            else
-                vbbv[i].aio_ctx = vbbv[i - 1].aio_ctx + naio;
-        }
-        vbbv[i].aio_idx = -1;
     }
 
     mutex_init(&ext->vbb_lock);
@@ -282,36 +265,6 @@ _vblock_reserve_room(struct vblock_builder *bld, uint vlen, uint *boffout, u8 sl
     return true;
 }
 
-#define VBB_EXT_ASYNC_WRITE_MIN (1 << 20)
-
-static merr_t
-_vblock_flush_asyncio(struct vblock_builder *bld, u8 slot)
-{
-    struct mp_asyncctx_ioc *pasyncio;
-    struct vbb_ext *        ext;
-    struct vbb_ext_elem *   vbb;
-
-    int    i;
-    merr_t err;
-
-    ext = bld->vbb_ext;
-    vbb = &ext->vbbv[slot];
-
-    for (i = 0; i <= vbb->aio_idx; i++) {
-        pasyncio = &vbb->aio_ctx[i];
-
-        err = mpool_mblock_asyncio_flush(bld->ds, pasyncio);
-        if (ev(err || pasyncio->mp_err))
-            return err ? err : pasyncio->mp_err;
-
-        memset(&vbb->aio_ctx[i], 0, sizeof(vbb->aio_ctx[i]));
-    }
-
-    vbb->aio_idx = -1;
-
-    return 0;
-}
-
 static uint
 vbb_padding_get(struct vbb_ext_elem *vbb, uint wlen)
 {
@@ -346,34 +299,16 @@ _vblock_write_ext(struct vblock_builder *bld, u8 slot, bool last_write)
     struct iovec            iov;
     struct vbb_ext *        ext;
     struct vbb_ext_elem *   vbb;
-    struct mp_asyncctx_ioc *pasyncio;
 
     merr_t err;
     void * buf;
     uint   slen;
     uint   wlen;
     uint   rem;
-    uint   naio = 0;
-    bool   doasync;
 
     ext = bld->vbb_ext;
     vbb = &ext->vbbv[slot];
     assert(vbb->vbid);
-
-    doasync = bld->asyncio_ctx.mp_enabled;
-    if (doasync) {
-        naio = ext->vbsize >> 20;
-        /* If this is last write or the async IO context slots are
-         * exhausted, flush any prior async IO issued for this vblock.
-         */
-        if (last_write || (vbb->aio_idx + 1 >= naio)) {
-            err = _vblock_flush_asyncio(bld, slot);
-            if (ev(err))
-                goto err_exit2;
-        }
-        doasync = !last_write;
-    }
-    pasyncio = doasync ? &vbb->aio_ctx[vbb->aio_idx + 1] : NULL;
 
     buf = vbb->wbuf;
     wlen = atomic_read(&vbb->wbuf_wlen);
@@ -397,31 +332,18 @@ _vblock_write_ext(struct vblock_builder *bld, u8 slot, bool last_write)
      * nothing to write or if the dirty data is less than a chunk size and
      * is an intermediate write, then do nothing.
      */
-    /*
-     * Bail out if -
-     * (1) Nothing to write (or)
-     * (2) Sync enabled and is not the last write (or)
-     * (3) Async enabled and the dirty data is less than a chunk size and
-     *     is not the last write
-     */
-    if (rem == 0 || (!doasync && !last_write) ||
-        (doasync && !last_write && rem < VBB_EXT_ASYNC_WRITE_MIN))
+    if (rem == 0 || !last_write)
         return 0;
 
     iov.iov_base = buf + vbb->wbuf_woff;
     iov.iov_len = rem;
-    err = mpool_mblock_write_data(bld->ds, !doasync, vbb->vbid, &iov, 1, pasyncio);
+    err = mpool_mblock_write(bld->ds, vbb->vbid, &iov, 1);
     if (ev(err))
-        goto err_exit1;
+        goto err_exit;
 
     vbb->wbuf_woff += rem;
     assert(wlen >= vbb->wbuf_woff);
     assert(last_write || vbb->wbuf_woff <= atomic_read(&vbb->wbuf_off));
-
-    if (doasync) {
-        ++vbb->aio_idx;
-        assert(vbb->aio_idx < naio);
-    }
 
     perfc_inc(bld->pc, PERFC_RA_CNCOMP_WREQS);
 
@@ -436,16 +358,8 @@ _vblock_write_ext(struct vblock_builder *bld, u8 slot, bool last_write)
 
     return 0;
 
-err_exit1:
-    if (doasync) {
-        merr_t err1;
+  err_exit:
 
-        err1 = _vblock_flush_asyncio(bld, slot);
-        if (!err)
-            err = err1;
-    }
-
-err_exit2:
     bld->destruct = true;
 
     return err;

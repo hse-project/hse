@@ -116,9 +116,6 @@ merr_t
 vbb_blk_list_merge(struct vblock_builder *dst, struct vblock_builder *src, struct blk_list *vblks);
 
 void
-vbb_disable_async_mode(struct vblock_builder *bld);
-
-void
 vbb_set_mclass(struct vblock_builder *bld, enum mp_media_classp mclass);
 
 enum mp_media_classp

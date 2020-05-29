@@ -2099,7 +2099,6 @@ struct vblk_reader {
     bool          vr_requested;
     bool          vr_read_ahead;
     bool          asyncio;
-    atomic_t      vr_async_mcache;
 };
 
 enum last_src {
