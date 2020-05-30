@@ -173,23 +173,15 @@ MPOOL_LIB_DIR     ?= $(MPOOL_LIB_DIR_DEFAULT)
 # Git and external repos
 ################################################################
 
-SUBREPO_PATH=sub
+libyaml_repo := libyaml
+${libyaml_repo}_tag := 0.1.7
+${libyaml_repo}_url := https://github.com/yaml/libyaml
 
-libyaml_repo=libyaml
-libyaml_tag=0.1.7
-libyaml_repo_url=https://github.com/yaml/libyaml
+curl_repo := curl
+${curl_repo}_tag := curl-7_50_3
+${curl_repo}_url := https://github.com/curl/curl
 
-curl_repo=curl
-curl_tag=curl-7_50_3
-curl_repo_url=https://github.com/curl/curl
-
-SUB_LIST =
-SUB_LIST += $(libyaml_repo)
-SUB_LIST += $(curl_repo)
-
-SUBREPO_PATH_LIST  =
-SUBREPO_PATH_LIST += $(SUBREPO_PATH)/$(curl_repo)
-SUBREPO_PATH_LIST += $(SUBREPO_PATH)/$(libyaml_repo)
+SUBREPO_PATH_LIST := sub/$(curl_repo) sub/$(libyaml_repo)
 
 PERL_CMAKE_NOISE_FILTER := \
     perl -e '$$|=1;\
@@ -333,14 +325,12 @@ showtests:
 showutests:
 	$(RUN_CTEST_U) -V -N
 
-$(SUBREPO_PATH):
-	mkdir -p $(SUBREPO_PATH)
-
-$(SUBREPO_PATH)/$(libyaml_repo):
-	git clone -b $(libyaml_tag) --depth 1 $(libyaml_repo_url).git $@
-
-$(SUBREPO_PATH)/$(curl_repo):
-	git clone -b $(curl_tag) --depth 1 $(curl_repo_url).git $@
+ifneq (${SUBREPO_PATH_LIST},)
+${SUBREPO_PATH_LIST}:
+	rm -rf $@.tmp
+	git clone -b $($(@F)_tag) --depth 1 $($(@F)_url).git $@.tmp
+	mv $@.tmp $@
+endif
 
 test:
 	$(RUN_CTEST_U)
