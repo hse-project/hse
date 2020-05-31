@@ -205,21 +205,6 @@ RUN_CTEST = export HSE_BUILD_DIR="$(BUILD_DIR)"; set -e -u; cd "$(BUILD_DIR)"; c
 RUN_CTEST_U = $(RUN_CTEST) $(CTEST_ULABEL)
 
 
-# Config Inputs:
-#   BUILD_DIR
-#   CFILE
-#   BUILD_NUMBER
-#   UBSAN
-#   ASAN
-define config-show
-	(echo 'BUILD_DIR="$(BUILD_DIR)"';\
-	  echo 'CFILE="$(CFILE)"';\
-	  echo 'BUILD_NUMBER="$(BUILD_NUMBER)"';\
-	  echo 'UBSAN="$(UBSAN)"';\
-	  echo 'ASAN="$(ASAN)"';\
-	  echo 'REL_CANDIDATE="$(REL_CANDIDATE)"')
-endef
-
 define config-gen =
 	(echo '# Note: When a variable is set multiple times in' ;\
 	echo '#       this file, it is the *first* setting that' ;\
@@ -244,6 +229,12 @@ define config-gen =
 	echo '# END:   $(S)/cmake/defaults.cmake')
 endef
 
+# Delete the cmake config file if it has changed.
+#
+CONFIG = $(BUILD_DIR)/config.cmake
+
+$(shell $(config-gen) | cmp -s - ${CONFIG} || rm -f ${CONFIG})
+
 
 # If MAKECMDGOALS contains no goals other than any combination of
 # BTYPES then make the given goals depend on the default goal.
@@ -254,8 +245,6 @@ BTYPES := $(filter ${BTYPES},${MAKECMDGOALS})
 ifeq ($(filter-out ${BTYPES},${MAKECMDGOALS}),)
 BTYPESDEP := ${.DEFAULT_GOAL}
 endif
-
-CONFIG = $(BUILD_DIR)/mpool_config.cmake
 
 .PHONY: all allv allq allqv allvq ${BTYPES}
 .PHONY: clean config
@@ -287,12 +276,14 @@ clean:
 	done
 	rm -rf "$(BUILD_DIR)"/*.rpm ;\
 
-$(CONFIG):
-	@mkdir -p "$(BUILD_DIR)"
-	$(config-show) > $(BUILD_DIR)/config.sh
-	$(config-gen) > $@.tmp
-	@cmp -s $@ $@.tmp || (cd "$(BUILD_DIR)" && cmake $(DEPGRAPH) -C $@.tmp $(CMAKE_FLAGS) "$(SRC_DIR)")
-	@cp $@.tmp $@
+${CONFIG}: MAKEFLAGS += --no-print-directory
+${CONFIG}: Makefile CMakeLists.txt ${CFILE} ${S}/cmake/defaults.cmake
+	mkdir -p $(BUILD_DIR)
+	rm -f $(BUILD_DIR)/CMakeCache.txt
+	@$(config-gen) > $@.tmp
+	cmake $(DEPGRAPH) $(CMAKE_FLAGS) -B $(BUILD_DIR) -C $@.tmp -S $(SRC_DIR)
+	$(MAKE) -C $(BUILD_DIR) clean
+	mv $@.tmp $@
 
 config: $(SUBREPO_PATH_LIST) $(CONFIG)
 
@@ -327,7 +318,7 @@ showutests:
 
 ifneq (${SUBREPO_PATH_LIST},)
 ${SUBREPO_PATH_LIST}:
-	rm -rf $@.tmp
+	rm -rf $@ $@.tmp
 	git clone -b $($(@F)_tag) --depth 1 $($(@F)_url).git $@.tmp
 	mv $@.tmp $@
 endif
