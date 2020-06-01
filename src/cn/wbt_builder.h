@@ -106,6 +106,18 @@ wbb_kmd_pgc_get(struct wbb *wbb);
 struct intern_builder *
 wbb_ibldr_get(struct wbb *wbb);
 
+struct intern_builder *
+wbb_ibldr_get(struct wbb *wbb);
+
+void
+wbb_ibldr_set(struct wbb *wbb, struct intern_builder *ibldr);
+
+void *
+wbb_inode_get_page(struct wbb *wbb);
+
+bool
+wbb_inode_has_space(struct wbb *wbb, uint inode_cnt);
+
 #if defined(HSE_UNIT_TEST_MODE) && HSE_UNIT_TEST_MODE == 1
 #include "wbt_builder_ut.h"
 #endif /* HSE_UNIT_TEST_MODE */

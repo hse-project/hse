@@ -20,12 +20,10 @@ struct wbb;
  */
 
 struct intern_node {
-    unsigned char          buf[PAGE_SIZE]; /* Must be the first member */
+    unsigned char *        buf;
     uint                   used;
-    uint                   x;
     struct intern_builder *ib_back;
-    struct intern_node    *next;
-    struct intern_node    *fnext; /* flattened list */
+    struct intern_node *   next;
 };
 
 struct intern_key {
@@ -34,8 +32,13 @@ struct intern_key {
     unsigned char kdata[];
 };
 
+struct intern_builder {
+    struct intern_level *base;
+    struct wbb *         wbb;
+};
+
 /**
- * struct intern_builder - metadata for each level of the wb tree with
+ * struct intern_level - metadata for each level of the wb tree with
  *                         internal nodes
  * @curr_rkeys_sum: Sum of all keys in the active node
  * @curr_rkeys_cnt: Number of keys in the active node. (Doesn't include the
@@ -48,44 +51,35 @@ struct intern_key {
  * @sbuf_sz:        size of @sbuf
  * @sbuf_used:      used bytes in @sbuf
  */
-struct intern_builder {
-    uint                       curr_rkeys_sum;
-    uint                       curr_rkeys_cnt;
-    uint                       curr_child;
-    uint                       full_node_cnt;
-    uint                       level;
-    struct intern_node        *node_head;
-    struct intern_node        *node_curr;
-    size_t                     node_lcp_len;
-    unsigned char             *sbuf;
-    size_t                     sbuf_sz;
-    size_t                     sbuf_used;
-    struct intern_builder     *parent;
+struct intern_level {
+    uint                 curr_rkeys_sum;
+    uint                 curr_rkeys_cnt;
+    uint                 curr_child;
+    uint                 full_node_cnt;
+    uint                 level;
+    struct intern_node * node_head;
+    struct intern_node * node_curr;
+    size_t               node_lcp_len;
+    unsigned char *      sbuf;
+    size_t               sbuf_sz;
+    size_t               sbuf_used;
+    struct intern_level *parent;
 };
 
-int
-ib_lcp_len(struct intern_builder *ib, const struct key_obj *ko);
-
 merr_t
-ib_key_add(struct wbb *wbb, struct key_obj *right_edge, uint *node_cnt, bool count_only);
+ib_key_add(struct intern_builder *ib, struct key_obj *right_edge, uint *node_cnt, bool count_only);
+
+struct intern_builder *
+ib_create(struct wbb *wbb);
 
 void
-ib_free(struct intern_builder *ibldr);
+ib_destroy(struct intern_builder *ibldr);
 
 void
 ib_child_update(struct intern_builder *ibldr, uint num_leaves);
 
-merr_t
-ib_flat_verify(
-    struct intern_builder *ibldr);
-
-struct intern_builder *
-wbb_ibldr_get(struct wbb *wbb);
-
-void
-wbb_ibldr_set(
-    struct wbb *wbb,
-    struct intern_builder *ibldr);
+uint
+ib_iovec_construct(struct intern_builder *ibldr, struct iovec *iov);
 
 merr_t
 ib_init(void);

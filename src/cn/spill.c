@@ -223,7 +223,7 @@ kv_spill(struct cn_compaction_work *w)
     u64 dbg_prev_seq __maybe_unused;
     uint dbg_prev_src __maybe_unused;
     uint dbg_nvals_this_key __maybe_unused;
-    uint dbg_nkeys = 0;
+    uint                    dbg_nkeys = 0;
     bool dbg_dup __maybe_unused;
 
     if (w->cw_prog_interval && w->cw_progress)

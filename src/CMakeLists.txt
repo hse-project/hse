@@ -665,7 +665,6 @@ if( HSE_UNIT_TEST_FLAG )
 
     hse_unit_test(
         NAME wbt_test
-        COMMAND wbt_test ${CMAKE_CURRENT_SOURCE_DIR}/cn/test/mblock_images
         LABELS cn
         SRCS cn/test/wbt_test.c
         INCLUDES ${UNIT_TEST_INCLUDE_DIRS}

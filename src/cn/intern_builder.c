@@ -10,6 +10,7 @@
 
 #include "omf.h"
 #include "intern_builder.h"
+#include "wbt_builder.h"
 
 static struct kmem_cache *ib_node_cache;
 static atomic_t           ib_init_ref;
@@ -46,11 +47,11 @@ ib_fini(void)
 /*
  * Compute the current node's lcp length if the key, ko is added.
  */
-int
-ib_lcp_len(struct intern_builder *ib, const struct key_obj *ko)
+static int
+ib_lcp_len(struct intern_level *ib, const struct key_obj *ko)
 {
-    struct intern_key     *k;
-    uint                   new_pfxlen, old_pfxlen;
+    struct intern_key *k;
+    uint               new_pfxlen, old_pfxlen;
 
     if (ib->curr_rkeys_cnt == 0)
         return key_obj_len(ko);
@@ -78,9 +79,9 @@ ib_lcp_len(struct intern_builder *ib, const struct key_obj *ko)
 #define SCRATCH_BUFSZ (1 << 20)
 
 static merr_t
-ib_sbuf_key_add(struct intern_builder *ib, uint child_idx, struct key_obj *kobj)
+ib_sbuf_key_add(struct intern_level *ib, uint child_idx, struct key_obj *kobj)
 {
-    uint klen = key_obj_len(kobj);
+    uint               klen = key_obj_len(kobj);
     struct intern_key *k;
 
     if (!ib->sbuf) {
@@ -91,7 +92,7 @@ ib_sbuf_key_add(struct intern_builder *ib, uint child_idx, struct key_obj *kobj)
     }
 
     /* Grow scratch space if necessary */
-    if (ib->sbuf_used + klen  + sizeof(*k) > ib->sbuf_sz) {
+    if (ib->sbuf_used + klen + sizeof(*k) > ib->sbuf_sz) {
         ib->sbuf_sz += SCRATCH_BUFSZ;
         ib->sbuf = realloc(ib->sbuf, ib->sbuf_sz * sizeof(*ib->sbuf));
         if (!ib->sbuf)
@@ -107,14 +108,13 @@ ib_sbuf_key_add(struct intern_builder *ib, uint child_idx, struct key_obj *kobj)
     ib->sbuf_used += k->klen + sizeof(*k);
 
     return 0;
-
 }
 
 static void
-ib_node_publish(struct intern_builder *ib, uint last_child)
+ib_node_publish(struct intern_level *ib, uint last_child)
 {
-    void *cnode = ib->node_curr->buf;
-    struct wbt_node_hdr_omf *node_hdr = (void *)ib->node_curr->buf;
+    void *                   cnode;
+    struct wbt_node_hdr_omf *node_hdr;
 
     size_t              lcp_len = ib->node_lcp_len;
     struct wbt_ine_omf *entry; /* (out) current key entry ptr */
@@ -123,6 +123,9 @@ ib_node_publish(struct intern_builder *ib, uint last_child)
     uint                nkey = ib->curr_rkeys_cnt;
 
     struct intern_key *k = (void *)ib->sbuf;
+
+    cnode = ib->node_curr->buf;
+    node_hdr = cnode;
 
     omf_set_wbn_magic(node_hdr, WBT_INE_NODE_MAGIC);
     omf_set_wbn_num_keys(node_hdr, nkey);
@@ -166,13 +169,19 @@ ib_node_publish(struct intern_builder *ib, uint last_child)
 }
 
 static merr_t
-ib_new_node(struct intern_builder *ib)
+ib_new_node(struct wbb *wbb, struct intern_level *ib)
 {
     struct intern_node *n;
 
     n = kmem_cache_alloc(ib_node_cache, GFP_KERNEL);
     if (!n)
         return merr(ENOMEM);
+
+    n->buf = wbb_inode_get_page(wbb);
+    if (!n->buf) {
+        kmem_cache_free(ib_node_cache, n);
+        return merr(ENOMEM);
+    }
 
     n->next = 0;
     ib->sbuf_used = 0;
@@ -187,82 +196,122 @@ ib_new_node(struct intern_builder *ib)
     return 0;
 }
 
-static struct intern_builder *
-ib_create(uint level)
+struct intern_level *
+ib_level_create(struct intern_builder *ibldr, uint level)
 {
-    struct intern_builder *b;
-    merr_t err;
+    struct intern_level *l;
+    merr_t               err;
 
-    b = calloc(1, sizeof(*b));
-    if (ev(!b))
+    l = calloc(1, sizeof(*l));
+    if (ev(!l))
         return 0;
 
-    err = ib_new_node(b);
+    err = ib_new_node(ibldr->wbb, l);
     if (err) {
-        free(b);
+        free(l);
         return 0;
     }
 
-    b->node_curr->next = 0;
-    b->level = level;
+    l->level = level;
 
-    return b;
+    return l;
 }
 
-/**
- * ib_key_add() - Update internal nodes with a new key. If the count_only flag
- *                is set, just get the number of internal nodes if the key
- *                were to be added.
- *
- * @wbb:               wbt builder handle
- * @right_edge:        rightmost key of the finished leaf node.
- * @node_cnt (output): number of internal nodes.
- * @count_only:        only count nodes, do not add key
- */
-merr_t
-ib_key_add(struct wbb *wbb, struct key_obj *right_edge, uint *node_cnt, bool count_only)
+void
+ib_level_destroy(struct intern_level *l)
 {
-    struct intern_builder     *ibldr;
-    int                        cnt = 0;
-    merr_t                     err;
-    uint                       right_edge_klen = right_edge ? key_obj_len(right_edge) : 0;
+    struct intern_node *n = l->node_head;
 
-    if (!wbb_ibldr_get(wbb)) {
-        ibldr = ib_create(0);
-        if (!ibldr)
-            return merr(ENOMEM);
+    while (n) {
+        struct intern_node *curr = n;
 
-        wbb_ibldr_set(wbb, ibldr);
+        n = n->next;
+        kmem_cache_free(ib_node_cache, curr);
     }
+
+    free(l->sbuf);
+    free(l);
+}
+
+struct intern_builder *
+ib_create(struct wbb *wbb)
+{
+    struct intern_builder *ib;
+
+    ib = malloc(sizeof(*ib));
+    if (!ib)
+        return NULL;
+
+    ib->base = NULL;
+    ib->wbb = wbb;
+
+    return ib;
+}
+
+void
+ib_destroy(struct intern_builder *ibldr)
+{
+    struct intern_level *l;
+
+    if (!ibldr)
+        return;
+
+    l = ibldr->base;
+    while (l) {
+        struct intern_level *parent = l->parent;
+
+        ib_level_destroy(l);
+        l = parent;
+    }
+
+    free(ibldr);
+}
+
+static merr_t
+key_add(
+    struct intern_builder *ibldr,
+    struct key_obj *       right_edge,
+    uint *                 node_cnt,
+    bool                   count_only)
+{
+    struct intern_level *l;
+    int                  cnt = 0;
+    merr_t               err;
+    uint                 right_edge_klen = right_edge ? key_obj_len(right_edge) : 0;
 
     /* As long as there's just one leaf node, the tree needs exactly one
      * internal node (root). This happens when creating the first leaf node.
      */
     if (!right_edge_klen) {
-        *node_cnt = 1;
+        *node_cnt = 0;
         return 0;
     }
 
-    ibldr = wbb_ibldr_get(wbb);
+    if (!ibldr->base) {
+        ibldr->base = ib_level_create(ibldr, 0);
+        if (ev(!ibldr->base))
+            return merr(ENOMEM);
+    }
+
+    l = ibldr->base;
 
     /* On adding a new key from the leaf node to its parent, its ancestors
      * further up might need to be updated too. The following loop does
      * this.
      */
-    while (ibldr) {
+    while (l) {
         uint used;
         uint ine_sz = sizeof(struct wbt_ine_omf);
         uint hdr_sz = sizeof(struct wbt_node_hdr_omf);
-        uint lcp_len = ib_lcp_len(ibldr, right_edge); /* new lcp len if key is added */
+        uint lcp_len = ib_lcp_len(l, right_edge); /* new lcp len if key is added */
 
         /* All internal nodes must have a right edge. Adding one to
-         * the level's ibldr->curr_rkeys_cnt accounts for this.
+         * the level's l->curr_rkeys_cnt accounts for this.
          *
          * used = hdr_sz + lcp_len + tot_klen - lcp_savings + ines
          */
-        used = hdr_sz + lcp_len + ibldr->curr_rkeys_sum -
-                (ibldr->curr_rkeys_cnt * lcp_len) +
-                ((1 + ibldr->curr_rkeys_cnt) * ine_sz);
+        used = hdr_sz + lcp_len + l->curr_rkeys_sum - (l->curr_rkeys_cnt * lcp_len) +
+               ((1 + l->curr_rkeys_cnt) * ine_sz);
 
         /* Check if this key will prompt a new node at this level */
         if (used + ine_sz + right_edge_klen - lcp_len > PAGE_SIZE) {
@@ -274,27 +323,27 @@ ib_key_add(struct wbb *wbb, struct key_obj *right_edge, uint *node_cnt, bool cou
              * at this level.
              */
 
-            cnt += ibldr->full_node_cnt + 1;
+            cnt += l->full_node_cnt + 1;
             if (!count_only) {
-                ib_node_publish(ibldr, ibldr->curr_child++);
-                err = ib_new_node(ibldr);
+                ib_node_publish(l, l->curr_child++);
+                err = ib_new_node(ibldr->wbb, l);
                 if (err)
                     goto err_exit;
-                ibldr->curr_rkeys_sum = ibldr->curr_rkeys_cnt = 0;
-                ibldr->full_node_cnt++;
-                ibldr->node_lcp_len = 0;
+                l->curr_rkeys_sum = l->curr_rkeys_cnt = 0;
+                l->full_node_cnt++;
+                l->node_lcp_len = 0;
             }
 
             /* The number of nodes at this level has grown beyond 1.
              * This level needs a parent. If one doesn't exist, create it.
              */
-            if (!ibldr->parent) {
+            if (!l->parent) {
                 cnt += 1;
 
                 if (!count_only) {
-                    assert(ibldr->full_node_cnt == 1);
-                    ibldr->parent = ib_create(ibldr->level + 1);
-                    if (!ibldr->parent) {
+                    assert(l->full_node_cnt == 1);
+                    l->parent = ib_level_create(ibldr, l->level + 1);
+                    if (!l->parent) {
                         err = merr(ENOMEM);
                         goto err_exit;
                     }
@@ -307,12 +356,12 @@ ib_key_add(struct wbb *wbb, struct key_obj *right_edge, uint *node_cnt, bool cou
              * key. Add the key and stop proceeding up the tree.
              */
             if (!count_only) {
-                err = ib_sbuf_key_add(ibldr, ibldr->curr_child++, right_edge);
+                err = ib_sbuf_key_add(l, l->curr_child++, right_edge);
                 if (err)
                     goto err_exit;
 
-                ibldr->curr_rkeys_sum += right_edge_klen;
-                ibldr->curr_rkeys_cnt++;
+                l->curr_rkeys_sum += right_edge_klen;
+                l->curr_rkeys_cnt++;
             }
 
             break;
@@ -320,16 +369,16 @@ ib_key_add(struct wbb *wbb, struct key_obj *right_edge, uint *node_cnt, bool cou
 
         cnt += 1; /* +1 for active node */
 
-        ibldr = ibldr->parent;
+        l = l->parent;
     }
 
     /* Rest of the list doesn't need any updates. Simply count nodes at
      * each level up to the root.
      */
-    while (ibldr) {
-        cnt += ibldr->full_node_cnt + 1; /* +1 for active node */
+    while (l) {
+        cnt += l->full_node_cnt + 1; /* +1 for active node */
 
-        ibldr = ibldr->parent;
+        l = l->parent;
     }
 
     if (node_cnt)
@@ -338,40 +387,52 @@ ib_key_add(struct wbb *wbb, struct key_obj *right_edge, uint *node_cnt, bool cou
     return 0;
 
 err_exit:
-    ibldr = wbb_ibldr_get(wbb);
-
-    ib_free(ibldr);
-    wbb_ibldr_set(wbb, 0);
-
     return err;
 }
 
-void
-ib_free(struct intern_builder *ibldr)
+/**
+ * ib_key_add() - Update internal nodes with a new key. If the count_only flag
+ *                is set, just get the number of internal nodes if the key
+ *                were to be added.
+ *
+ * @ibldr:             intern_builder handle
+ * @right_edge:        rightmost key of the finished leaf node.
+ * @node_cnt (output): number of internal nodes.
+ * @count_only:        only count nodes, do not add key
+ */
+merr_t
+ib_key_add(
+    struct intern_builder *ibldr,
+    struct key_obj *       right_edge,
+    uint *                 node_cnt,
+    bool                   count_only)
 {
-    while (ibldr) {
-        struct intern_builder *parent = ibldr->parent;
-        struct intern_node *n;
+    uint   max_inodec;
+    merr_t err;
 
-        n = ibldr->node_head;
-        while (n) {
-            struct intern_node *curr = n;
+    err = key_add(ibldr, right_edge, &max_inodec, true);
+    if (ev(err))
+        return err;
 
-            n = n->next;
-            kmem_cache_free(ib_node_cache, curr);
-        }
+    if (right_edge) {
+        if (!wbb_inode_has_space(ibldr->wbb, max_inodec))
+            return merr(ENOSPC);
 
-        free(ibldr->sbuf);
-        free(ibldr);
-
-        ibldr = parent;
+        err = key_add(ibldr, right_edge, NULL, false);
+        if (ev(err))
+            return err;
     }
+
+    *node_cnt = max_inodec;
+
+    return 0;
 }
 
 void
 ib_child_update(struct intern_builder *ibldr, uint num_leaves)
 {
-    uint prev[2];
+    struct intern_level *l;
+    uint                 prev[2];
 
     uint dbg_lvl_cnt __maybe_unused;
     uint dbg_tot_cnt __maybe_unused;
@@ -381,23 +442,24 @@ ib_child_update(struct intern_builder *ibldr, uint num_leaves)
 
     dbg_lvl_cnt = dbg_tot_cnt = 0;
 
-    while (ibldr) {
-        struct intern_node *n = ibldr->node_head;
+    l = ibldr->base;
+    while (l) {
+        struct intern_node *n = l->node_head;
 
         /* Close out current node under construction. The last leaf node
          * that was closed did not initiate any internal node creations.
          */
-        ib_node_publish(ibldr, prev[1] - 1);
+        ib_node_publish(l, prev[1] - 1);
 
-        ibldr->curr_rkeys_sum = ibldr->curr_rkeys_cnt = 0;
-        ibldr->full_node_cnt++;
+        l->curr_rkeys_sum = l->curr_rkeys_cnt = 0;
+        l->full_node_cnt++;
 
         while (n) {
             struct wbt_node_hdr_omf *node_hdr = (void *)n->buf;
-            size_t pfxlen;
-            struct wbt_ine_omf  *k;
-            uint   nkey, max;
-            int i;
+            size_t                   pfxlen;
+            struct wbt_ine_omf *     k;
+            uint                     nkey, max;
+            int                      i;
 
             pfxlen = omf_wbn_pfx_len(node_hdr);
             nkey = omf_wbn_num_keys(node_hdr);
@@ -417,66 +479,37 @@ ib_child_update(struct intern_builder *ibldr, uint num_leaves)
 
         dbg_lvl_cnt = 0;
         prev[0] += prev[1];
-        prev[1] = ibldr->full_node_cnt;
-        ibldr = ibldr->parent;
+        prev[1] = l->full_node_cnt;
+        l = l->parent;
     }
 }
 
-static struct intern_node *
-ib_flatten(struct intern_builder *ibldr)
+uint
+ib_iovec_construct(struct intern_builder *ibldr, struct iovec *iov)
 {
-    struct intern_builder *ib = ibldr;
-    struct intern_node *k = 0;
+    int                  i;
+    struct intern_node * n;
+    struct intern_level *l = ibldr->base;
 
-    if (!ib)
+    if (!ibldr->base)
         return 0;
 
-    while (ib) {
-        struct intern_node *n = ib->node_head;
-
-        if (k)
-            k->fnext = n;
-
-        while (n) {
-            k = n;
-            n->fnext = n->next;
-            n = n->next;
-        }
-
-        ib = ib->parent;
-    }
-
-    if (k)
-        k->fnext = 0;
-
-    return ibldr->node_head;
-}
-
-merr_t
-ib_flat_verify(
-    struct intern_builder *ibldr)
-{
-    struct intern_node *n = ib_flatten(ibldr);
-    uint last_child = -1;
-
+    n = l->node_head;
+    i = 0;
     while (n) {
-        struct wbt_node_hdr_omf *hdr = (void *)n->buf;
-        uint nkey = omf_wbn_num_keys(hdr);
-        struct wbt_ine_omf *entry;
-        int i;
-
-        entry = (void *)(n->buf + sizeof(*hdr) + omf_wbn_pfx_len(hdr));
-        for (i = 0; i <= nkey; i++, entry++) {
-            uint child = omf_ine_left_child(entry);
-            assert(child == last_child + 1);
-            last_child = child;
-            if (child != last_child + 1)
-                return merr(EBUG);
+        iov[i].iov_base = n->buf;
+        iov[i].iov_len = PAGE_SIZE;
+        if (n->next) {
+            n = n->next;
+        } else if (l->parent) {
+            l = l->parent;
+            n = l->node_head;
+        } else {
+            n = 0;
         }
 
-        n = n->fnext;
+        i++;
     }
 
-    return 0;
+    return i;
 }
-

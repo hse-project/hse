@@ -191,7 +191,7 @@ wbti_seek_fwd(struct wbti *self, struct kvs_ktuple *kt)
 {
     struct wbt_node_hdr_omf *node;
     int                      j, cmp, node_num;
-    int                      first, last;
+    int                      first, last, lfe_eof;
     size_t                   pg;
     const void *             kdata, *kt_data;
     uint                     klen, kt_len, cmplen;
@@ -223,7 +223,7 @@ wbti_seek_fwd(struct wbti *self, struct kvs_ktuple *kt)
 
     /* binary search over keys in node */
     first = 0;
-    last = omf_wbn_num_keys(node) - 1;
+    last = lfe_eof = omf_wbn_num_keys(node) - 1;
 
     wbt_node_pfx(node, &node_pfx, &node_pfx_len);
 
@@ -233,12 +233,12 @@ wbti_seek_fwd(struct wbti *self, struct kvs_ktuple *kt)
     if (kt_len < node_pfx_len) {
         sfx_search = false;
         if (create)
-            self->lfe_idx = cmp ? NODE_EOF - 1 : first - 1;
+            self->lfe_idx = cmp ? lfe_eof : first - 1;
         else
-            self->lfe_idx = cmp > 0 ? NODE_EOF - 1 : first - 1;
+            self->lfe_idx = cmp > 0 ? lfe_eof : first - 1;
     } else {
         sfx_search = !cmp;
-        self->lfe_idx = NODE_EOF - 1;
+        self->lfe_idx = lfe_eof;
         if (!create && cmp < 0)
             self->lfe_idx = first - 1;
 
@@ -269,15 +269,16 @@ wbti_seek_fwd(struct wbti *self, struct kvs_ktuple *kt)
         }
     }
 
-skip_search:
-
     /* We didn't find an exact match, follow edge indicated by 'first'.
      * If this is a cursor seek then position the cursor to the next key.
      */
-    if (!create) {
+    if (!create)
         self->lfe_idx = first - 1;
+
+skip_search:
+
+    if (!create)
         return true; /* cursor seek */
-    }
 
     /* It wasn't a seek, must be a cursor create.  Compare with
      * the prefix of the best match to determine if found.
@@ -382,7 +383,7 @@ wbti_seek_rev(struct wbti *self, struct kvs_ktuple *kt)
 {
     struct wbt_node_hdr_omf *node;
     int                      cmp, node_num;
-    int                      first, last;
+    int                      first, last, lfe_eof;
     size_t                   pg;
     const void *             kdata, *kt_data;
     uint                     klen, kt_len, cmplen;
@@ -421,7 +422,7 @@ repeat:
     assert(omf_wbn_magic(node) == WBT_LFE_NODE_MAGIC);
 
     /* binary search over keys in node */
-    first = 0;
+    lfe_eof = first = 0;
     last = omf_wbn_num_keys(node) - 1;
 
     wbt_node_pfx(node, &node_pfx, &node_pfx_len);
@@ -431,17 +432,17 @@ repeat:
     if (abs(kt->kt_len) < node_pfx_len) {
         sfx_search = false;
         if (create)
-            self->lfe_idx = cmp ? NODE_EOF + 1 : last + 1;
+            self->lfe_idx = cmp ? lfe_eof : last + 1;
         else
-            self->lfe_idx = cmp < 0 ? NODE_EOF + 1 : last + 1;
+            self->lfe_idx = cmp < 0 ? lfe_eof : last + 1;
     } else {
         sfx_search = !cmp;
-        self->lfe_idx = NODE_EOF + 1;
+        self->lfe_idx = lfe_eof;
 
         if (create)
-            self->lfe_idx = cmp ? NODE_EOF + 1 : last + 1;
+            self->lfe_idx = cmp ? lfe_eof : last + 1;
         else
-            self->lfe_idx = cmp < 0 ? NODE_EOF + 1 : last + 1;
+            self->lfe_idx = cmp < 0 ? lfe_eof : last + 1;
 
         kt_data += node_pfx_len;
         kt_len -= node_pfx_len;

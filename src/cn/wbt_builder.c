@@ -26,7 +26,7 @@
  * struct wbb - a wb tree builder (wb --> "wants to be a b-tree")
  * @nodev: vector of nodes (nodev[0] == first leaf node)
  * @nodev_len: allocated length of nodev vector
- * @nodec: number of nodes in use
+ * @lnodec: number of nodes in use
  * @max_inodec: upper limit on number of internal nodes that will be needed
  * @max_pgc: max allowable size of wbtree in pages (nodes+kmd+bloom)
  * @cnode: current node
@@ -46,7 +46,8 @@ struct wbb {
 
     void *nodev;
     uint  nodev_len;
-    uint  nodec;
+    uint  lnodec;
+    uint  inodec;
     uint  max_inodec;
     uint  max_pgc;
     uint  used_pgc;
@@ -71,27 +72,9 @@ struct wbb {
 
     struct iovec kmd_iov[KMD_CHUNKS];
     uint         kmd_iov_index;
-    struct intern_node *flat;
 
     struct intern_builder *ibldr;
 };
-
-struct intern_builder *
-wbb_ibldr_get(struct wbb *wbb)
-{
-    return wbb ? wbb->ibldr : 0;
-}
-
-void
-wbb_ibldr_set(
-    struct wbb            *wbb,
-    struct intern_builder *ibldr)
-{
-    if (!wbb)
-        return;
-
-    wbb->ibldr = ibldr;
-}
 
 struct key_stage_entry_intern {
     u16 child;
@@ -124,15 +107,13 @@ get_kmd_pgc(struct wbb *wbb)
 }
 
 uint
-wbb_max_inodec_get(
-    struct wbb *wbb)
+wbb_max_inodec_get(struct wbb *wbb)
 {
     return wbb ? wbb->max_inodec : 0;
 }
 
 uint
-wbb_kmd_pgc_get(
-    struct wbb *wbb)
+wbb_kmd_pgc_get(struct wbb *wbb)
 {
     return wbb ? get_kmd_pgc(wbb) : 0;
 }
@@ -140,7 +121,7 @@ wbb_kmd_pgc_get(
 static struct wbt_node_hdr_omf *
 _new_node(struct wbb *wbb)
 {
-    wbb->cnode = wbb->nodev + wbb->nodec * PAGE_SIZE;
+    wbb->cnode = wbb->nodev + wbb->lnodec * PAGE_SIZE;
     wbb->cnode_key_cursor = wbb->cnode_key_stage;
     wbb->cnode_pfx_len = 0;
     wbb->cnode_sumlen = 0;
@@ -149,7 +130,7 @@ _new_node(struct wbb *wbb)
     wbb->cnode_key_extra_cnt = 0;
 
     memset(wbb->cnode, 0, PAGE_SIZE);
-    wbb->nodec += 1;
+    wbb->lnodec += 1;
 
     return wbb->cnode;
 }
@@ -159,48 +140,17 @@ _new_leaf_node(struct wbb *wbb, struct key_obj *right_edge)
 {
     struct wbt_node_hdr_omf *node_hdr;
     uint                     max_inodec = 0;
-    uint                     used_pgc;
     merr_t                   err;
-
-    /* Space calculation must account for:
-     * - current page use + one more leaf node + change in the number of
-     *   internal nodes cannot exceed max_pgc.
-     * - cannot exceed nodev array len (note: at this point
-     *   nodec only accounts for internal nodes).
-     */
 
     /* Get number of pages required if the current key is added to the internal
      * nodes. Do not add the key yet.
      */
-    err = ib_key_add(wbb, right_edge, &max_inodec, true);
+    err = ib_key_add(wbb->ibldr, right_edge, &max_inodec, true);
     if (ev(err))
         return err;
 
-    used_pgc = wbb->used_pgc + 1 + max_inodec - wbb->max_inodec;
-    if (used_pgc > wbb->max_pgc || wbb->nodec + max_inodec >= wbb->nodev_len)
-        return merr(ENOSPC); /* not a hard error */
-
-    /* Add key to internal node */
-    if (right_edge) {
-        err = ib_key_add(wbb, right_edge, 0, false);
-        if (ev(err))
-            return err;
-    }
-
-    wbb->used_pgc = used_pgc;
+    wbb->used_pgc = wbb->used_pgc + 1 + max_inodec - wbb->max_inodec;
     wbb->max_inodec = max_inodec;
-
-    if (wbb->max_inodec) {
-        struct intern_builder *ib = wbb_ibldr_get(wbb);
-        uint n = 0;
-
-        while (ib) {
-            n += ib->full_node_cnt + 1;
-            ib = ib->parent;
-        }
-
-        assert(wbb->max_inodec == n);
-    }
 
     node_hdr = _new_node(wbb);
     omf_set_wbn_magic(node_hdr, WBT_LFE_NODE_MAGIC);
@@ -398,7 +348,7 @@ wbb_add_entry(
      */
     kmd_pgc = (entry_kmd_off + encoded_cnt_len + key_kmd_len + PAGE_SIZE - 1) / PAGE_SIZE;
     wbb->max_pgc = max_pgc;
-    wbb->used_pgc = wbb->nodec + wbb->max_inodec + kmd_pgc;
+    wbb->used_pgc = wbb->lnodec + wbb->max_inodec + kmd_pgc;
     if (wbb->used_pgc > wbb->max_pgc)
         return 0; /* not an error */
 
@@ -505,7 +455,7 @@ wbb_add_entry(
 
     wbb->cnode_nkeys++;
 
-    *wbt_pgc = wbb->nodec + wbb->max_inodec + get_kmd_pgc(wbb);
+    *wbt_pgc = wbb->lnodec + wbb->max_inodec + get_kmd_pgc(wbb);
     *added = true;
     return 0;
 }
@@ -527,20 +477,20 @@ wbb_freeze(
     uint                iov_max,
     uint *              iov_cnt_out) /* out */
 {
-    uint   first_leaf_node, num_leaf_nodes, root_node;
-    uint   i, kmd_pgc;
+    uint first_leaf_node, num_leaf_nodes, root_node;
+    uint i, kmd_pgc;
     uint iov_cnt = 0;
 
     assert(*wbt_pgc <= max_pgc);
     if (!(*wbt_pgc <= max_pgc))
         return merr(ev(EBUG));
 
-    assert(wbb->nodec > 0);
-    if (!(wbb->nodec > 0))
+    assert(wbb->lnodec > 0);
+    if (!(wbb->lnodec > 0))
         return merr(ev(EBUG));
 
     kmd_pgc = get_kmd_pgc(wbb);
-    wbb->used_pgc = wbb->nodec + kmd_pgc;
+    wbb->used_pgc = wbb->lnodec + kmd_pgc;
     wbb->max_pgc = max_pgc;
 
     assert(wbb->used_pgc <= max_pgc);
@@ -551,42 +501,22 @@ wbb_freeze(
     assert(wbb->cnode_nkeys <= U16_MAX);
     wbt_leaf_publish(wbb);
 
-    /* get num_leaf_nodes now, b/c wbb->nodec
+    /* get num_leaf_nodes now, b/c wbb->lnodec
      * will increase as internal nodes are built.
      */
     first_leaf_node = 0;
-    num_leaf_nodes = wbb->nodec;
+    num_leaf_nodes = wbb->lnodec;
 
     /* Close out current internal nodes and update child offsets. */
     ib_child_update(wbb->ibldr, num_leaf_nodes);
 
-#ifndef NDEBUG
-    ib_flat_verify(wbb->ibldr);
-#endif
-
     iov[0].iov_base = wbb->nodev;
-    iov[0].iov_len  = num_leaf_nodes * PAGE_SIZE;
+    iov[0].iov_len = num_leaf_nodes * PAGE_SIZE;
 
-    {
-        struct intern_node *n;
+    root_node = wbb->lnodec + wbb->max_inodec - 1;
+    wbb->used_pgc += wbb->max_inodec;
 
-        wbb->nodec += wbb->max_inodec;
-        root_node = wbb->nodec - 1;
-        wbb->used_pgc += wbb->max_inodec;
-
-        i = 1;
-        n = wbb->ibldr->node_head;
-        while (n) {
-            iov[i].iov_base = n->buf;
-            iov[i].iov_len = PAGE_SIZE;
-            n = n->fnext;
-            i++;
-        }
-
-        assert(i - 1 == wbb->max_inodec);
-    }
-
-    iov_cnt = i; /* Leaf and internal nodes */
+    iov_cnt += 1 + ib_iovec_construct(wbb->ibldr, &iov[1]);
 
     /* Recheck total page count after creating internal nodes.
      * This assert can fail with kblocks larger than 256MB (which is
@@ -624,9 +554,9 @@ wbb_freeze(
 merr_t
 wbb_init(struct wbb *wbb, void *nodev, uint max_pgc, uint *wbt_pgc)
 {
-    void *kst, *iov_base[KMD_CHUNKS];
-    uint  kst_pgc;
-    uint  i;
+    void * kst, *iov_base[KMD_CHUNKS];
+    uint   kst_pgc;
+    uint   i;
     merr_t err = 0;
 
     for (i = 0; i < KMD_CHUNKS; i++)
@@ -642,15 +572,20 @@ wbb_init(struct wbb *wbb, void *nodev, uint max_pgc, uint *wbt_pgc)
     wbb->nodev = nodev;
     wbb->cnode_key_stage = kst;
     wbb->cnode_key_stage_pgc = kst_pgc;
+    wbb->inodec = max_pgc;
 
     err = _new_leaf_node(wbb, 0);
     if (err)
         return err;
 
+    wbb->ibldr = ib_create(wbb);
+    if (ev(!wbb->ibldr))
+        return merr(ENOMEM);
+
     for (i = 0; i < KMD_CHUNKS; i++)
         wbb->kmd_iov[i].iov_base = iov_base[i];
 
-    *wbt_pgc = wbb->nodec;
+    *wbt_pgc = wbb->lnodec;
     return 0;
 }
 
@@ -695,15 +630,42 @@ wbb_create(
     return 0;
 }
 
+void *
+wbb_inode_get_page(struct wbb *wbb)
+{
+    if (ev(!wbb))
+        return NULL;
+
+    assert(wbb->inodec > 0);
+
+    wbb->inodec--;
+    assert(wbb->inodec > wbb->lnodec);
+    if (wbb->inodec <= wbb->lnodec)
+        return NULL;
+
+    return wbb->nodev + PAGE_SIZE * wbb->inodec;
+}
+
+bool
+wbb_inode_has_space(struct wbb *wbb, uint inode_cnt)
+{
+    uint used_pgc;
+
+    if (ev(!wbb))
+        return false;
+
+    used_pgc = wbb->used_pgc + 1 + inode_cnt - wbb->max_inodec;
+    if (used_pgc > wbb->max_pgc || wbb->lnodec + inode_cnt >= wbb->nodev_len)
+        return false;
+
+    return true;
+}
+
 void
 wbb_reset(struct wbb *wbb, uint *wbt_pgc)
 {
-    struct intern_builder *ibldr = wbb->ibldr;
-
-    wbb->ibldr = 0;
+    ib_destroy(wbb->ibldr);
     wbb_init(wbb, wbb->nodev, wbb->nodev_len, wbt_pgc);
-
-    ib_free(ibldr);
 }
 
 void
@@ -712,9 +674,7 @@ wbb_destroy(struct wbb *wbb)
     uint i;
 
     if (wbb) {
-        struct intern_builder *ibldr = wbb->ibldr;
-
-        ib_free(ibldr);
+        ib_destroy(wbb->ibldr);
 
         for (i = 0; i < KMD_CHUNKS; i++)
             free_aligned(wbb->kmd_iov[i].iov_base);

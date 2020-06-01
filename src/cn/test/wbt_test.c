@@ -27,32 +27,29 @@
 /*
  * Reference Tree API
  */
-struct _ref_tree {
-    struct rb_root root;
-    uint   nkeys;
-
-    void  *reft_buf;
-    size_t reft_bufsz;
-    size_t reft_curr;
+struct ref_tree {
+    struct rb_root rt_root;
+    void *         rt_buf;
+    size_t         rt_bufsz;
+    size_t         rt_curr;
 } reft;
-
 
 /* Each node contains one key. */
 struct reft_node {
     struct rb_node node;
-    void          *key;
+    void *         key;
     size_t         klen;
 };
 
 bool
 reft_insert(void *key, size_t klen)
 {
-    struct rb_node **       link;
-    struct rb_node *parent;
-    struct rb_root *        root;
+    struct rb_node ** link;
+    struct rb_node *  parent;
+    struct rb_root *  root;
     struct reft_node *n;
 
-    root = &reft.root;
+    root = &reft.rt_root;
     link = &root->rb_node;
     parent = 0;
 
@@ -71,16 +68,16 @@ reft_insert(void *key, size_t klen)
             return false;
     }
 
-    if (reft.reft_curr + sizeof(*n) + klen > reft.reft_bufsz)
+    if (reft.rt_curr + sizeof(*n) + klen > reft.rt_bufsz)
         return false;
 
-    n = reft.reft_buf + reft.reft_curr;
+    n = reft.rt_buf + reft.rt_curr;
     n->klen = klen;
     n->key = n + 1;
-    reft.reft_curr += sizeof(*n);
+    reft.rt_curr += sizeof(*n);
 
-    memcpy(reft.reft_buf + reft.reft_curr, key, klen);
-    reft.reft_curr += klen;
+    memcpy(reft.rt_buf + reft.rt_curr, key, klen);
+    reft.rt_curr += klen;
 
     rb_link_node(&n->node, parent, link);
     rb_insert_color(&n->node, root);
@@ -95,19 +92,14 @@ enum {
 };
 
 int
-reft_lookup(
-    void   *in_kdata,
-    size_t  in_klen,
-    void  **out_kdata,
-    size_t *out_klen,
-    int     qtype)
+reft_lookup(void *in_kdata, size_t in_klen, void **out_kdata, size_t *out_klen, int qtype)
 {
-    struct rb_node *node;
-    struct rb_node *last_smaller = rb_first(&reft.root);
-    struct rb_node *last_larger = rb_last(&reft.root);
+    struct rb_node *  node;
+    struct rb_node *  last_smaller = rb_first(&reft.rt_root);
+    struct rb_node *  last_larger = rb_last(&reft.rt_root);
     struct reft_node *n;
 
-    node = reft.root.rb_node;
+    node = reft.rt_root.rb_node;
 
     while (node) {
         int rc;
@@ -128,34 +120,34 @@ reft_lookup(
     }
 
     switch (qtype) {
-    case QTYPE_GET:
-        if (!node)
-            goto not_found;
+        case QTYPE_GET:
+            if (!node)
+                goto not_found;
 
-        n = container_of(node, struct reft_node, node);
-        break;
-    case QTYPE_SEEK_FWD:
-        n = container_of(last_larger, struct reft_node, node);
-        if (keycmp(n->key, n->klen, in_kdata, in_klen) < 0)
-            goto not_found;
+            n = container_of(node, struct reft_node, node);
+            break;
+        case QTYPE_SEEK_FWD:
+            n = container_of(last_larger, struct reft_node, node);
+            if (keycmp(n->key, n->klen, in_kdata, in_klen) < 0)
+                goto not_found;
 
-        break;
-    case QTYPE_SEEK_REV:
-        n = container_of(last_smaller, struct reft_node, node);
-        if (keycmp(n->key, n->klen, in_kdata, in_klen) > 0)
-            goto not_found;
+            break;
+        case QTYPE_SEEK_REV:
+            n = container_of(last_smaller, struct reft_node, node);
+            if (keycmp(n->key, n->klen, in_kdata, in_klen) > 0)
+                goto not_found;
 
-        break;
+            break;
     }
 
     *out_kdata = n->key;
-    *out_klen  = n->klen;
+    *out_klen = n->klen;
 
     return 0;
 
 not_found:
     *out_kdata = NULL;
-    *out_klen  = 0;
+    *out_klen = 0;
     return 1;
 }
 
@@ -170,8 +162,8 @@ uint        wbt_pgc;
 uint        max_pgc = 1024;
 
 /* Raw list of keys. Use key_iter to iterate through the buffer. */
-struct _key_list {
-    void  *buf;
+struct key_list {
+    void * buf;
     size_t bufsz;
     uint   buf_used;
     uint   nkeys;
@@ -192,12 +184,12 @@ pre_collection(struct mtf_test_info *lcl_ti)
     /* Set up key list */
     key_list.bufsz = BUF_SIZE;
     key_list.buf = malloc(key_list.bufsz);
-    ASSERT_NE_RET(NULL, key_list.buf, 0);
+    ASSERT_NE_RET(NULL, key_list.buf, 1);
 
     /* Set up rb tree */
-    reft.reft_bufsz = BUF_SIZE;
-    reft.reft_buf = malloc(reft.reft_bufsz);
-    ASSERT_NE_RET(NULL, reft.reft_buf, 0);
+    reft.rt_bufsz = BUF_SIZE;
+    reft.rt_buf = malloc(reft.rt_bufsz);
+    ASSERT_NE_RET(NULL, reft.rt_buf, 1);
 
     return 0;
 }
@@ -206,7 +198,7 @@ int
 post_collection(struct mtf_test_info *lcl_ti)
 {
     free(key_list.buf);
-    free(reft.reft_buf);
+    free(reft.rt_buf);
     mock_mpool_unset();
     return 0;
 }
@@ -222,9 +214,9 @@ pre_test(struct mtf_test_info *lcl_ti)
     key_list.buf_used = 0;
     key_list.nkeys = 0;
 
-    reft.reft_curr = 0;
-    reft.root = RB_ROOT;
-    memset(reft.reft_buf, 0x00, reft.reft_bufsz);
+    reft.rt_curr = 0;
+    reft.rt_root = RB_ROOT;
+    memset(reft.rt_buf, 0x00, reft.rt_bufsz);
 
     return 0;
 }
@@ -237,13 +229,11 @@ post_test(struct mtf_test_info *lcl_ti)
 }
 
 void *
-wbtree_write(
-    struct iovec *iov,
-    uint iov_cnt)
+wbtree_write(struct iovec *iov, uint iov_cnt)
 {
-    int i;
+    int    i;
     size_t wlen;
-    void *tree, *t;
+    void * tree, *t;
 
     for (i = 0, wlen = 0; i < iov_cnt; i++)
         wlen += iov[i].iov_len;
@@ -252,7 +242,7 @@ wbtree_write(
     if (!tree)
         return 0;
 
-    for(i = 0, t = tree; i < iov_cnt; i++) {
+    for (i = 0, t = tree; i < iov_cnt; i++) {
         memcpy(t, iov[i].iov_base, iov[i].iov_len);
         t += iov[i].iov_len;
     }
@@ -261,7 +251,7 @@ wbtree_write(
 }
 
 bool
-_add_key(struct _key_list *kl, void *key, size_t klen)
+add_key(struct key_list *kl, void *key, size_t klen)
 {
     struct key_iter *k;
 
@@ -279,21 +269,18 @@ _add_key(struct _key_list *kl, void *key, size_t klen)
 }
 
 int
-_tree_construct(
-    struct mtf_test_info *lcl_ti,
-    void **tree_out,
-    struct wbt_hdr_omf *hdr)
+tree_construct(struct mtf_test_info *lcl_ti, void **tree_out, struct wbt_hdr_omf *hdr)
 {
-    int i;
-    struct iovec iov[4096];
-    uint iov_cnt;
-    merr_t err;
-    void *tree; /* serialized nodes and kmd region */
+    int              i;
+    struct iovec     iov[4096];
+    uint             iov_cnt;
+    merr_t           err;
+    void *           tree; /* serialized nodes and kmd region */
     struct key_iter *k = key_list.buf;
 
     for (i = 0; i < key_list.nkeys; i++) {
         struct key_obj ko;
-        bool added;
+        bool           added;
 
         key2kobj(&ko, k->kdata, k->klen);
         kmd_add_zval(kmd, &kmd_used, 1);
@@ -315,12 +302,12 @@ _tree_construct(
 }
 
 int
-_cursor_verify(
+cursor_verify(
     struct mtf_test_info *lcl_ti,
-    void *tree,
-    struct wbt_hdr_omf *hdr,
-    struct _key_list *kl,
-    bool reverse)
+    void *                tree,
+    struct wbt_hdr_omf *  hdr,
+    struct key_list *     kl,
+    bool                  reverse)
 {
     struct kvs_mblk_desc kbd = {
         .map_base = tree,
@@ -336,19 +323,19 @@ _cursor_verify(
         .wbd_kmd_pgc = omf_wbt_kmd_pgc(hdr),
     };
 
-    struct wbti *wbti;
+    struct wbti *     wbti;
     struct kvs_ktuple kt;
-    struct key_obj ko;
-    const void *kmd_read;
-    bool found;
-    int i;
-    struct key_iter *k = kl->buf;
+    struct key_obj    ko;
+    const void *      kmd_read;
+    bool              found;
+    int               i;
+    struct key_iter * k = kl->buf;
 
     k = kl->buf;
     for (i = 0; i < kl->nkeys; i++) {
         merr_t err;
-        uint klen;
-        int rc;
+        uint   klen;
+        int    rc;
 
         kvs_ktuple_init_nohash(&kt, k->kdata, k->klen);
 
@@ -364,9 +351,9 @@ _cursor_verify(
             wbti_prefix(wbti, &ko.ko_pfx, &ko.ko_pfx_len);
         wbti_destroy(wbti);
 
-        void *fkey;
-        size_t fklen;
-        int qt = reverse ? QTYPE_SEEK_REV : QTYPE_SEEK_FWD;
+        void *        fkey;
+        size_t        fklen;
+        int           qt = reverse ? QTYPE_SEEK_REV : QTYPE_SEEK_FWD;
         unsigned char kbuf[HSE_KVS_KLEN_MAX];
 
         reft_lookup(k->kdata, k->klen, &fkey, &fklen, qt);
@@ -388,11 +375,7 @@ _cursor_verify(
 }
 
 int
-_get_verify(
-    struct mtf_test_info *lcl_ti,
-    void *tree,
-    struct wbt_hdr_omf *hdr,
-    struct _key_list *kl)
+get_verify(struct mtf_test_info *lcl_ti, void *tree, struct wbt_hdr_omf *hdr, struct key_list *kl)
 {
     struct kvs_mblk_desc kbd = {
         .map_base = tree,
@@ -409,12 +392,12 @@ _get_verify(
     };
 
     struct kvs_ktuple kt;
-    struct key_obj ko_ref;
-    int i;
+    struct key_obj    ko_ref;
+    int               i;
 
-    enum key_lookup_res lookup_res;
+    enum key_lookup_res   lookup_res;
     struct kvs_vtuple_ref vref;
-    struct key_iter *k = kl->buf;
+    struct key_iter *     k = kl->buf;
 
     k = kl->buf;
     for (i = 0; i < kl->nkeys; i++) {
@@ -427,7 +410,7 @@ _get_verify(
         err = wbtr_read_vref(&kbd, &wbd, &kt, 0, 1, &lookup_res, &vref);
         ASSERT_EQ_RET(0, err, 1);
 
-        void  *fkey;
+        void * fkey;
         size_t fklen;
 
         reft_lookup(k->kdata, k->klen, &fkey, &fklen, QTYPE_GET);
@@ -443,23 +426,23 @@ _get_verify(
 }
 
 int
-_run_test(struct mtf_test_info *lcl_ti, struct _key_list *kl)
+load_and_test(struct mtf_test_info *lcl_ti, struct key_list *kl)
 {
     /* Step 1: Insert keys and construct the wb tree.
      */
     struct wbt_hdr_omf hdr;
-    void *tree;
+    void *             tree;
 
-    _tree_construct(lcl_ti, &tree, &hdr);
+    tree_construct(lcl_ti, &tree, &hdr);
 
     /* Step 2: Verify keys by seeking to and reading each key that was inserted.
      */
-    _cursor_verify(lcl_ti, tree, &hdr, kl, false);
-    _cursor_verify(lcl_ti, tree, &hdr, kl, true);
+    cursor_verify(lcl_ti, tree, &hdr, kl, false);
+    cursor_verify(lcl_ti, tree, &hdr, kl, true);
 
     /* Step 3: Verify keys using a point get.
      */
-    _get_verify(lcl_ti, tree, &hdr, kl);
+    get_verify(lcl_ti, tree, &hdr, kl);
 
     free(tree);
 
@@ -468,9 +451,9 @@ _run_test(struct mtf_test_info *lcl_ti, struct _key_list *kl)
 
 MTF_DEFINE_UTEST_PREPOST(wbt_test, basic, pre_test, post_test)
 {
-    int i, rc;
-    char buf[HSE_KVS_KLEN_MAX];
-    struct _key_list *ql = &key_list; /* query list */
+    int              i, rc;
+    char             buf[HSE_KVS_KLEN_MAX];
+    struct key_list *ql = &key_list; /* query list */
 
     memset(buf, 0xfe, sizeof(buf));
 
@@ -478,39 +461,52 @@ MTF_DEFINE_UTEST_PREPOST(wbt_test, basic, pre_test, post_test)
         bool added;
 
         snprintf(buf, sizeof(buf), "key-%020d", i);
-        added = _add_key(&key_list, buf, sizeof(buf));
+        added = add_key(&key_list, buf, sizeof(buf));
         ASSERT_TRUE(added);
         added = reft_insert(buf, sizeof(buf));
         ASSERT_TRUE(added);
     }
 
-    rc = _run_test(lcl_ti, ql);
+    rc = load_and_test(lcl_ti, ql);
     ASSERT_EQ(0, rc);
 }
 
 MTF_DEFINE_UTEST_PREPOST(wbt_test, one_key, pre_test, post_test)
 {
-    int rc;
-    char buf[64];
-    bool added;
-    struct _key_list *ql = &key_list; /* query list */
+    int             i, rc;
+    char            buf[64];
+    bool            added;
+    struct key_list ql = { 0 }; /* query list */
 
-    memset(buf, 0xfe, sizeof(buf));
-    added = _add_key(&key_list, buf, sizeof(buf));
-    ASSERT_TRUE(added);
-    added = reft_insert(buf, sizeof(buf));
-    ASSERT_TRUE(added);
+    ql.bufsz = 2 * BUF_SIZE;
+    ql.buf = malloc(ql.bufsz);
+    ASSERT_NE(NULL, ql.buf);
 
-    rc = _run_test(lcl_ti, ql);
+    for (i = 0; i < 3; i++) {
+        memset(buf, (unsigned char)i, sizeof(buf));
+        added = add_key(&ql, buf, sizeof(buf));
+        ASSERT_TRUE(added);
+
+        if (i == 1) {
+            added = add_key(&key_list, buf, sizeof(buf));
+            ASSERT_TRUE(added);
+            added = reft_insert(buf, sizeof(buf));
+            ASSERT_TRUE(added);
+        }
+    }
+
+    rc = load_and_test(lcl_ti, &ql);
     ASSERT_EQ(0, rc);
+
+    free(ql.buf);
 }
 
 MTF_DEFINE_UTEST_PREPOST(wbt_test, few_keys, pre_test, post_test)
 {
-    int i, rc;
-    char buf[64];
-    size_t nkeys = 100;
-    struct _key_list *ql = &key_list; /* query list */
+    int              i, rc;
+    char             buf[64];
+    size_t           nkeys = 100;
+    struct key_list *ql = &key_list; /* query list */
 
     memset(buf, 0xfe, sizeof(buf));
 
@@ -518,22 +514,22 @@ MTF_DEFINE_UTEST_PREPOST(wbt_test, few_keys, pre_test, post_test)
         bool added;
 
         snprintf(buf, sizeof(buf), "key-%020d", i);
-        added = _add_key(&key_list, buf, sizeof(buf));
+        added = add_key(&key_list, buf, sizeof(buf));
         ASSERT_TRUE(added);
         added = reft_insert(buf, sizeof(buf));
         ASSERT_TRUE(added);
     }
 
-    rc = _run_test(lcl_ti, ql);
+    rc = load_and_test(lcl_ti, ql);
     ASSERT_EQ(0, rc);
 }
 
 MTF_DEFINE_UTEST_PREPOST(wbt_test, increasing_length, pre_test, post_test)
 {
-    int i, rc;
-    char buf[HSE_KVS_KLEN_MAX];
-    size_t nkeys;
-    struct _key_list *ql = &key_list; /* query list */
+    int              i, rc;
+    char             buf[HSE_KVS_KLEN_MAX];
+    size_t           nkeys;
+    struct key_list *ql = &key_list; /* query list */
 
     memset(buf, 0xfe, sizeof(buf));
 
@@ -542,26 +538,26 @@ MTF_DEFINE_UTEST_PREPOST(wbt_test, increasing_length, pre_test, post_test)
         bool added;
 
         snprintf(buf, sizeof(buf), "key-%020d", i);
-        added = _add_key(&key_list, buf, i + 30);
+        added = add_key(&key_list, buf, i + 30);
         ASSERT_TRUE(added);
         added = reft_insert(buf, i + 30);
         ASSERT_TRUE(added);
     }
 
-    rc = _run_test(lcl_ti, ql);
+    rc = load_and_test(lcl_ti, ql);
     ASSERT_EQ(0, rc);
 }
 
 MTF_DEFINE_UTEST_PREPOST(wbt_test, large_last_key, pre_test, post_test)
 {
-    int i, rc;
-    char buf[HSE_KVS_KLEN_MAX];
-    size_t nkeys = 3000;
-    size_t klen = 128;
-    const uint lcp = 23;
-    const uint lfe_sz = sizeof(struct wbt_lfe_omf);
-    const uint hdr_sz = sizeof(struct wbt_node_hdr_omf);
-    struct _key_list *ql = &key_list; /* query list */
+    int              i, rc;
+    char             buf[HSE_KVS_KLEN_MAX];
+    size_t           nkeys = 3000;
+    size_t           klen = 128;
+    const uint       lcp = 23;
+    const uint       lfe_sz = sizeof(struct wbt_lfe_omf);
+    const uint       hdr_sz = sizeof(struct wbt_node_hdr_omf);
+    struct key_list *ql = &key_list; /* query list */
 
     /*
      * small_key_space (small_sz) = (klen - lcp + lfe);
@@ -573,13 +569,12 @@ MTF_DEFINE_UTEST_PREPOST(wbt_test, large_last_key, pre_test, post_test)
      * PAGE_SIZE.
      */
     uint max_small_keys =
-        (PAGE_SIZE - HSE_KVS_KLEN_MAX - lfe_sz - lcp - hdr_sz + lcp) /
-        (klen - lcp + lfe_sz);
+        (PAGE_SIZE - HSE_KVS_KLEN_MAX - lfe_sz - lcp - hdr_sz + lcp) / (klen - lcp + lfe_sz);
 
     memset(buf, 0xfe, sizeof(buf));
 
     for (i = 1; i <= nkeys; i++) {
-        bool added;
+        bool   added;
         size_t kl = klen;
 
         /* Changing this key format will affect lcp too. */
@@ -587,43 +582,43 @@ MTF_DEFINE_UTEST_PREPOST(wbt_test, large_last_key, pre_test, post_test)
         if (i % max_small_keys == 0)
             kl = HSE_KVS_KLEN_MAX;
 
-        added = _add_key(&key_list, buf, kl);
+        added = add_key(&key_list, buf, kl);
         ASSERT_TRUE(added);
         added = reft_insert(buf, kl);
         ASSERT_TRUE(added);
     }
 
-    rc = _run_test(lcl_ti, ql);
+    rc = load_and_test(lcl_ti, ql);
     ASSERT_EQ(0, rc);
 }
 
 MTF_DEFINE_UTEST(wbt_test, varying_large_key)
 {
-    int i, j, rc;
-    char buf[HSE_KVS_KLEN_MAX];
-    size_t nkeys = 3000;
-    size_t klen = 64;
-    struct _key_list *ql = &key_list; /* query list */
+    int              i, j, rc;
+    char             buf[HSE_KVS_KLEN_MAX];
+    size_t           nkeys = 3000;
+    size_t           klen = 64;
+    struct key_list *ql = &key_list; /* query list */
 
     memset(buf, 0xfe, sizeof(buf));
 
     for (i = 3; i < 100; i++) {
         pre_test(lcl_ti);
         for (j = 1; j < nkeys; j++) {
-            bool added;
+            bool   added;
             size_t kl = klen;
 
             snprintf(buf, sizeof(buf), "key-%020d", j);
             if (j % i == 0)
                 kl = HSE_KVS_KLEN_MAX;
 
-            added = _add_key(&key_list, buf, kl);
+            added = add_key(&key_list, buf, kl);
             ASSERT_TRUE(added);
             added = reft_insert(buf, kl);
             ASSERT_TRUE(added);
         }
 
-        rc = _run_test(lcl_ti, ql);
+        rc = load_and_test(lcl_ti, ql);
         ASSERT_EQ(0, rc);
         post_test(lcl_ti);
     }
@@ -631,40 +626,40 @@ MTF_DEFINE_UTEST(wbt_test, varying_large_key)
 
 MTF_DEFINE_UTEST_PREPOST(wbt_test, small_last_key, pre_test, post_test)
 {
-    int i, rc;
-    char buf[HSE_KVS_KLEN_MAX];
-    size_t nkeys = 3000;
-    size_t large_klen = HSE_KVS_KLEN_MAX;
-    const int keys_per_node = 4;
-    struct _key_list *ql = &key_list; /* query list */
+    int              i, rc;
+    char             buf[HSE_KVS_KLEN_MAX];
+    size_t           nkeys = 3000;
+    size_t           large_klen = HSE_KVS_KLEN_MAX;
+    const int        keys_per_node = 4;
+    struct key_list *ql = &key_list; /* query list */
 
     memset(buf, 0xfe, sizeof(buf));
 
     for (i = 1; i <= nkeys; i++) {
-        bool added;
+        bool   added;
         size_t klen = large_klen;
 
         snprintf(buf, sizeof(buf), "key-%08d", i);
         if (i % keys_per_node == 0)
             klen = 64;
 
-        added = _add_key(&key_list, buf, klen);
+        added = add_key(&key_list, buf, klen);
         ASSERT_TRUE(added);
         added = reft_insert(buf, klen);
         ASSERT_TRUE(added);
     }
 
-    rc = _run_test(lcl_ti, ql);
+    rc = load_and_test(lcl_ti, ql);
     ASSERT_EQ(0, rc);
 }
 
 MTF_DEFINE_UTEST_PREPOST(wbt_test, skip_keys, pre_test, post_test)
 {
-    int i, rc;
-    char buf[HSE_KVS_KLEN_MAX];
-    size_t nkeys = 100 * 1000;
-    size_t klen = 64;
-    struct _key_list ql = {0}; /* query list */
+    int             i, rc;
+    char            buf[HSE_KVS_KLEN_MAX];
+    size_t          nkeys = 100 * 1000;
+    size_t          klen = 64;
+    struct key_list ql = { 0 }; /* query list */
 
     memset(buf, 0xfe, sizeof(buf));
     ql.bufsz = 2 * BUF_SIZE;
@@ -678,18 +673,18 @@ MTF_DEFINE_UTEST_PREPOST(wbt_test, skip_keys, pre_test, post_test)
 
         /* Add only even numbered keys to the wbtree */
         if (i % 2 == 0) {
-            added = _add_key(&key_list, buf, klen);
+            added = add_key(&key_list, buf, klen);
             ASSERT_TRUE(added);
             added = reft_insert(buf, klen);
             ASSERT_TRUE(added);
         }
 
         /* Add all keys to query list */
-        added = _add_key(&ql, buf, klen);
+        added = add_key(&ql, buf, klen);
         ASSERT_TRUE(added);
     }
 
-    rc = _run_test(lcl_ti, &ql);
+    rc = load_and_test(lcl_ti, &ql);
     ASSERT_EQ(0, rc);
 
     free(ql.buf);
