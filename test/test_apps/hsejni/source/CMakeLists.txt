@@ -3,13 +3,6 @@ if( ${HSE_BUILD_USER} )
 include_directories( ${HSE_UT_BASE_INCLUDE_DIRS} )
 include_directories( ${HSE_KVDB_UT_GS_INCLUDE_DIRS} )
 
-# TODO: Quick fix to get compiling on ubuntu...
-#
-if( "${BUILD_PKG_TYPE}" STREQUAL "deb" )
-	include_directories( "/usr/lib/jvm/java-8-openjdk-amd64/include" )
-	include_directories( "/usr/lib/jvm/java-8-openjdk-amd64/include/linux" )
-endif()
-
 include_directories(
     ../include
     ../../se_lib/
@@ -32,14 +25,13 @@ add_library(hsejni_c SHARED
   ${COMPONENT_SOURCE_FILES}
 )
 
-add_dependencies(hsejni_c hsejni hsejni_API.h)
-
 target_link_libraries(
     hsejni_c
         ${MY_LINK_LIBS}
         ${HSE_USER_MPOOL_LINK_LIBS}
         microhttpd
         ${LIBYAML_LIBS}
+        hse_jni_headers
 )
 
 #
