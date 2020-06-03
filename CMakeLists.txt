@@ -26,6 +26,8 @@ set( CPACK_PACKAGING_INSTALL_PREFIX  /usr)
 set( CMAKE_INSTALL_PREFIX            /usr)
 set( CMAKE_RUNTIME_OUTPUT_DIRECTORY  ${HSE_STAGE_DIR}/bin)
 
+include(GNUInstallDirs)
+
 # Install destinations
 set( HSE_DIAG_BIN  /opt/hse/bin)
 set( HSE_DOCS_DIR  share/doc/hse/)

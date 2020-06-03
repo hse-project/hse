@@ -385,7 +385,7 @@ function(hse_library)
     if(NOT "${param_COMPONENT}" STREQUAL "")
         install(
             TARGETS ${param_NAME}-lib
-            DESTINATION lib64
+            DESTINATION ${CMAKE_INSTALL_LIBDIR}
             COMPONENT ${param_COMPONENT}
             )
     endif()
