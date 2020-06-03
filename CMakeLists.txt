@@ -362,10 +362,9 @@ set( HSE_VERSION_CMAKE_INCLUDEONLY "OFF" )
 
 # Common package options...
 #
-set( CPACK_PACKAGE_NAME           "${PROJECT_NAME}" )
-set( CPACK_PACKAGE_LICENSE        "MIT" )
-set( CPACK_PACKAGE_HOMEPAGE_URL   "https://github.com/hse-project/hse" )
-set( CPACK_PACKAGE_VENDOR         "Micron Technology, Inc." )
+set( CPACK_PACKAGE_NAME                   "${PROJECT_NAME}" )
+set( CPACK_PACKAGE_LICENSE                "ASL 2.0" )
+set( CPACK_PACKAGE_HOMEPAGE_URL           "https://github.com/hse-project/hse" )
 
 set( CPACK_PACKAGE_DESCRIPTION            "Heterogeneous-memory Storage Engine (HSE)" )
 set( CPACK_PACKAGE_DESCRIPTION_SUMMARY    "hse ${BUILD_PKG_TAG}-${BUILD_STYPE}${BUILD_NUMBER}" )
