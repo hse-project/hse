@@ -7,14 +7,14 @@ if(${CMAKE_MAJOR_VERSION} GREATER 2)
     cmake_policy(SET CMP0046 OLD)
 endif()
 
-project( hse )
+project( hse VERSION ${BUILD_PKG_VERSION} )
 
 message(STATUS "Configuring ${CMAKE_PROJECT_NAME}")
 
 set (CMAKE_C_STANDARD 99)
 
 set( HSE_SUB_REPOS      ${PROJECT_SOURCE_DIR}/sub)
-set( HSE_SCRIPT_DIR     ${PROJECT_SOURCE_DIR}/scripts)
+set( HSE_SCRIPTS_DIR    ${PROJECT_SOURCE_DIR}/scripts)
 set( HSE_STAGE_DIR      ${PROJECT_BINARY_DIR}/stage)
 
 # CPACK_PACKAGING_INSTALL_PREFIX is used by CPack.
@@ -58,6 +58,21 @@ set( CFLAGS_WARN_4 "${CFLAGS_WARN_2} -Wextra -Wconversion    -Wsign-conversion  
 set( CFLAGS_WARN_MAX "${CFLAGS_WARN_4}")
 
 set( CMAKE_C_FLAGS "${CFLAGS_WARN_3} -g3")
+
+
+# TODO: Remove and fix compile errors in various rest functions...
+#
+if( "${BUILD_PKG_TYPE}" STREQUAL "deb" )
+    set( CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-unused-result" )
+endif()
+
+
+# TODO: Remove and fix compile errors in c1_thread_create()...
+#
+if( "${BUILD_PKG_TYPE}" STREQUAL "deb" )
+    set( CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-format-security" )
+endif()
+
 
 if ( ${UBSAN} )
     message(STATUS "Enabling ubsan support")
@@ -121,7 +136,7 @@ if( HSE_UNIT_TEST_FLAG )
   message( STATUS "Compiling with unit test flag" )
 
   # Tool to pre-process files for unit test mocking
-  set( UTPP ${HSE_SCRIPT_DIR}/build/utpp )
+  set( UTPP ${HSE_SCRIPTS_DIR}/build/utpp )
 
   # defines the include directories needed by all tests using mocking
   set( HSE_UT_BASE_INCLUDE_DIRS ${HSE_UT_FMWK_INCLUDE_DIRS}
@@ -147,12 +162,7 @@ if( ${YCSB} )
     add_compile_options( -fPIC )
 endif()
 
-# Keep these lines--we need them in release branches
-set( HSE_VERSION_MAJOR 0 )
-set( HSE_VERSION_MINOR 0 )
-set( HSE_VERSION_PATCH 0 )
 
-#
 # Set-up what kind of build this is
 #
 if( "${CMAKE_BUILD_TYPE}" STREQUAL "Debug" )
@@ -197,30 +207,15 @@ find_package(Git)
 
 # Create our template for the header file
 file(WRITE ${CMAKE_BINARY_DIR}/hse_version.h.in
-"static const char hse_version[] = \"@HSE_VERSION_RELEASE@\";\n"
+"static const char hse_version[] = \"${BUILD_PKG_VERSION}\";\n"
 "static const char hse_branch[] = \"@HSE_BRANCH@\";\n"
-"static const char hse_tag[] = \"@HSE_TAG@\";\n"
+"static const char hse_tag[] = \"${BUILD_PKG_TAG}@\";\n"
 "static const char hse_buildhost[] = \"@HSE_BUILDHOST@\";\n"
 )
 
 # Create cmake code to transform input template into target header file.
 file(WRITE ${CMAKE_BINARY_DIR}/hse_version.cmake
 "
-set(HSE_SHA ${HSE_SHA})
-if( NOT DEFINED HSE_SHA )
-    execute_process(
-        COMMAND ${GIT_EXECUTABLE} rev-parse --short HEAD
-        WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
-        OUTPUT_VARIABLE HSE_SHA
-        OUTPUT_STRIP_TRAILING_WHITESPACE
-    )
-endif()
-execute_process(
-    COMMAND ${GIT_EXECUTABLE} describe --dirty --always --tags
-    WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
-    OUTPUT_VARIABLE HSE_TAG
-    OUTPUT_STRIP_TRAILING_WHITESPACE
-)
 execute_process(
     COMMAND ${GIT_EXECUTABLE} rev-parse --abbrev-ref HEAD
     WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
@@ -237,42 +232,6 @@ execute_process(
     OUTPUT_VARIABLE HSE_BUILDHOST
     OUTPUT_STRIP_TRAILING_WHITESPACE
 )
-
-# cmake DIST doesn't work in 3.6.2.
-execute_process(
-    COMMAND rpm --eval %{dist}
-    OUTPUT_VARIABLE PACKAGE_DIST
-    OUTPUT_STRIP_TRAILING_WHITESPACE
-)
-
-# In 3.6.x, for some reason, CPACK_RPM_PACKAGE_ARCHITECTURE is an
-# empty string when this CMakeLists.txt gets processed.
-execute_process(
-    COMMAND uname -m
-    OUTPUT_VARIABLE PACKAGE_ARCH
-    OUTPUT_STRIP_TRAILING_WHITESPACE
-)
-
-if( \${HSE_TAG} MATCHES \"dirty$\" )
-    set( HSE_DIRTYTAG \".dirty\" )
-endif( )
-
-set( HSE_MAJORMINORPATCH ${HSE_VERSION_MAJOR}.${HSE_VERSION_MINOR}.${HSE_VERSION_PATCH} )
-
-set( HSE_RELEASE
-    ${HSE_BUILD_TYPE_FLAG}${BUILD_NUMBER}.\${HSE_DATESTAMP}.\${HSE_SHA}\${HSE_DIRTYTAG} )
-if( NOT HSE_SHA )
-set( HSE_RELEASE
-    ${HSE_BUILD_TYPE_FLAG}${BUILD_NUMBER}.\${HSE_DATESTAMP}\${HSE_DIRTYTAG} )
-endif()
-
-set( HSE_VERSION \${HSE_MAJORMINORPATCH} )
-set( HSE_VERSION_RELEASE \${HSE_MAJORMINORPATCH}-\${HSE_RELEASE} )
-
-if (REL_CANDIDATE)
- set( HSE_RELEASE
-      ${HSE_BUILD_TYPE_FLAG}${BUILD_NUMBER}.\${HSE_DATESTAMP} )
-endif()
 
 if( NOT HSE_VERSION_CMAKE_INCLUDEONLY )
     if (EXISTS \${DST})
@@ -359,6 +318,7 @@ set(HSE_USER_MPOOL_LINK_LIBS
     mpool
 )
 
+
 #
 # Needed to handle the hard-coded link line for hse_platform_init
 #
@@ -372,6 +332,7 @@ set( CMAKE_EXE_LINKER_FLAGS
 set( HSE_KVDB_BIN_DIR "${PROJECT_BINARY_DIR}/src" )
 set( CMAKE_EXE_LINKER_FLAGS
   "${CMAKE_EXE_LINKER_FLAGS} -L ${HSE_KVDB_BIN_DIR}" )
+
 
 ################################################################
 #
@@ -388,7 +349,7 @@ add_subdirectory( src )
 add_subdirectory( include )
 add_subdirectory( cli )
 add_subdirectory( test )
-add_subdirectory( scripts/package/sos )
+add_subdirectory( scripts/rpm/sos )
 add_subdirectory( samples )
 add_subdirectory( config )
 
@@ -404,128 +365,31 @@ set( HSE_VERSION_CMAKE_INCLUDEONLY "ON" )
 include( ${CMAKE_BINARY_DIR}/hse_version.cmake )
 set( HSE_VERSION_CMAKE_INCLUDEONLY "OFF" )
 
-#
-# Package options
-#
 
-set( CPACK_GENERATOR "RPM" )
-set( CPACK_PACKAGE_NAME "hse" )
-set( CPACK_PACKAGE_VERSION_MAJOR "${HSE_VERSION_MAJOR}" )
-set( CPACK_PACKAGE_VERSION_MINOR "${HSE_VERSION_MINOR}" )
-set( CPACK_PACKAGE_VERSION_PATCH "${HSE_VERSION_PATCH}" )
-
-# Explicitly set CPACK_PACKAGE_VERSION first, otherwise CMake may generate
-# nonsense version strings within generated spec files
-
-set( CPACK_PACKAGE_VERSION "${CPACK_PACKAGE_VERSION_MAJOR}.${CPACK_PACKAGE_VERSION_MINOR}.${CPACK_PACKAGE_VERSION_PATCH}" )
-
-
-set( CPACK_RPM_PACKAGE_VERSION "${CPACK_PACKAGE_VERSION}" )
-set( CPACK_RPM_PACKAGE_RELEASE "${HSE_RELEASE}${PACKAGE_DIST}" )
-set( CPACK_RPM_PACKAGE_RELOCATABLE "ON" )
-set( CPACK_RPM_RELOCATION_PATHS /usr /opt /etc )
-set( CPACK_RPM_COMPONENT_INSTALL "ON" )
-set( CPACK_RPM_PACKAGE_URL "https://github.com/hse-project/hse" )
-set( CPACK_RPM_PACKAGE_LICENSE "ASL 2.0" )
-set( CPACK_RPM_PACKAGE_GROUP "Unspecified" )
-set( CPACK_RPM_PACKAGE_VENDOR "Unspecified" )
-
-
-# We don't want to claim ownership of these directories, lest there be
-# conflicts during RPM install.  If a directory appears in this list,
-# it means it might be shared by multiple packages.
-set( CPACK_RPM_EXCLUDE_FROM_AUTO_FILELIST_ADDITION
-  /usr/lib
-  /usr/lib/hse
-  /usr/lib/hse/modules
-  /usr/lib/sysctl.d
-  ${HSE_PYTHON_BASE_DIR}
-  ${HSE_PYTHON_PKG_DIR}
-  ${HSE_PYTHON_SOS_DIR}
-  ${HSE_PYTHON_SOS_PLUGINS_DIR}
-  /etc
-  /lib
-  /opt
-  /opt/hse
-  /opt/hse/bin
-  /opt/hse/config
-)
-
-# Setting this keeps CMake 3.7+ from generating nonsense filenames
-set( CPACK_RPM_FILE_NAME "RPM-DEFAULT" )
-
+# Common package options...
 #
-# How to generate the RPM spec file template for your version of CMake, so it
-# can be passed to CPACK_RPM_RUNTIME_USER_BINARY_SPECFILE:
-#
-#   cd builds/release.fc25  # (or whatever build/dist you're working on)
-#   cpack -D CPACK_RPM_GENERATE_USER_BINARY_SPECFILE_TEMPLATE=1 -G RPM
-#
-# https://cmake.org/cmake/help/latest/cpack_gen/rpm.html#variable:CPACK_RPM_GENERATE_USER_BINARY_SPECFILE_TEMPLATE
-#
+set( CPACK_PACKAGE_NAME           "${PROJECT_NAME}" )
+set( CPACK_PACKAGE_LICENSE        "MIT" )
+set( CPACK_PACKAGE_HOMEPAGE_URL   "https://github.com/hse-project/hse" )
+set( CPACK_PACKAGE_VENDOR         "Micron Technology, Inc." )
 
-#
-# Runtime
-#
-set( CPACK_RPM_RUNTIME_PACKAGE_NAME "${CPACK_PACKAGE_NAME}" )
-set( CPACK_RPM_RUNTIME_PACKAGE_SUMMARY "Heterogeneous-memory Storage Engine (HSE) runtime" )
-set( CPACK_RPM_RUNTIME_PACKAGE_DESCRIPTION "Heterogeneous-memory Storage Engine (HSE) runtime" )
+set( CPACK_PACKAGE_DESCRIPTION            "Heterogeneous-memory Storage Engine (HSE)" )
+set( CPACK_PACKAGE_DESCRIPTION_SUMMARY    "hse ${BUILD_PKG_TAG}-${BUILD_STYPE}${BUILD_NUMBER}" )
 
-# [HSE_REVISIT] CPack does not support changing the RPM release string per component -
-#              this is the only reason we need to set CPACK_RPM_RUNTIME_USER_BINARY_SPECFILE
-set( CPACK_RPM_RUNTIME_PACKAGE_RELEASE "${CPACK_RPM_PACKAGE_RELEASE}")
-set( CPACK_RPM_RUNTIME_FILE_NAME "${CPACK_RPM_RUNTIME_PACKAGE_NAME}-${CPACK_RPM_PACKAGE_VERSION}-${CPACK_RPM_PACKAGE_RELEASE}.${PACKAGE_ARCH}.rpm" )
+set( CPACK_COMPONENT_RUNTIME_DESCRIPTION  "${CPACK_PACKAGE_DESCRIPTION} runtime" )
+set( CPACK_COMPONENT_DEVEL_DESCRIPTION    "${CPACK_PACKAGE_DESCRIPTION} SDK" )
+set( CPACK_COMPONENT_TEST_DESCRIPTION     "${CPACK_PACKAGE_DESCRIPTION} test tools" )
+set( CPACK_COMPONENT_TEST_DEPENDS         "runtime" )
 
-set( CPACK_RPM_RUNTIME_USER_BINARY_SPECFILE "${HSE_SCRIPT_DIR}/package/hse.spec.in")
-set( CPACK_RPM_RUNTIME_PRE_INSTALL_SCRIPT_FILE "${HSE_SCRIPT_DIR}/package/rpm-pre-install.sh" )
-set( CPACK_RPM_RUNTIME_POST_INSTALL_SCRIPT_FILE "${HSE_SCRIPT_DIR}/package/rpm-post-install.sh" )
-set( CPACK_RPM_RUNTIME_PRE_UNINSTALL_SCRIPT_FILE "${HSE_SCRIPT_DIR}/package/rpm-pre-uninstall.sh" )
-set( CPACK_RPM_RUNTIME_POST_UNINSTALL_SCRIPT_FILE "${HSE_SCRIPT_DIR}/package/rpm-post-uninstall.sh" )
-set( CPACK_RPM_RUNTIME_USER_FILELIST
-)
-set( CPACK_RPM_RUNTIME_PACKAGE_REQUIRES "sos >= 3.2" )
-#set( CPACK_COMPONENT_RUNTIME_DEPENDS "libs" )
+if( "${BUILD_NUMBER}" )
+    set( BUILD_RTYPE "${BUILD_STYPE}${BUILD_NUMBER}" )
+else()
+    set( BUILD_RTYPE "" )
+endif()
 
-#
-# Libs - for when we build shared libs.
-#
-#set( CPACK_RPM_LIBS_PACKAGE_NAME "${CPACK_PACKAGE_NAME}-libs" )
-#set( CPACK_RPM_LIBS_PACKAGE_FILE_NAME "${CPACK_RPM_LIBS_PACKAGE_NAME}-${CPACK_RPM_PACKAGE_VERSION}-${CPACK_RPM_PACKAGE_RELEASE}.${RPM_ARCH}" )
-
-#
-# Devel/SDK - currently contains static libs--see "Libs" above.
-#
-set( CPACK_RPM_DEVEL_PACKAGE_NAME "${CPACK_PACKAGE_NAME}-devel" )
-set( CPACK_RPM_DEVEL_PACKAGE_SUMMARY "Heterogeneous-memory Storage Engine (HSE) software development kit")
-set( CPACK_RPM_DEVEL_PACKAGE_DESCRIPTION "Heterogeneous-memory Storage Engine (HSE) software development kit")
-set( CPACK_RPM_DEVEL_FILE_NAME "${CPACK_RPM_DEVEL_PACKAGE_NAME}-${CPACK_RPM_PACKAGE_VERSION}-${CPACK_RPM_PACKAGE_RELEASE}.${PACKAGE_ARCH}.rpm" )
-set( CPACK_RPM_DEVEL_POST_INSTALL_SCRIPT_FILE "${HSE_SCRIPT_DIR}/package/rpm-devel-post-install.sh" )
-set( CPACK_RPM_DEVEL_USER_BINARY_SPECFILE "${HSE_SCRIPT_DIR}/package/hse-devel.spec.in")
-#set( CPACK_COMPONENT_DEVEL_DEPENDS "libs" )
-
-#
-# Tests - we won't want to ship our test applications in production.
-#
-set( CPACK_RPM_TEST_PACKAGE_NAME "${CPACK_PACKAGE_NAME}-test" )
-set( CPACK_RPM_TEST_PACKAGE_RELEASE "${CPACK_RPM_PACKAGE_RELEASE}")
-set( CPACK_RPM_TEST_PACKAGE_SUMMARY "Heterogeneous-memory Storage Engine (HSE) tests" )
-set( CPACK_RPM_TEST_PACKAGE_DESCRIPTION "Heterogeneous-memory Storage Engine (HSE) tests" )
-set( CPACK_RPM_TEST_FILE_NAME "${CPACK_RPM_TEST_PACKAGE_NAME}-${CPACK_RPM_PACKAGE_VERSION}-${CPACK_RPM_PACKAGE_RELEASE}.${PACKAGE_ARCH}.rpm" )
-# [HSE_REVISIT] CPack does not support changing the RPM release per component -
-#              this is the only reason we need to set CPACK_RPM_RUNTIME_USER_BINARY_SPECFILE
-set( CPACK_RPM_TEST_USER_BINARY_SPECFILE "${HSE_SCRIPT_DIR}/hse-test.spec.in")
-set( CPACK_COMPONENT_TEST_DEPENDS "runtime" )
-#set( CPACK_COMPONENT_TEST_DEPENDS "libs" )
-
-#
-# Tools - stuff we want for development and customer support, but
-# maybe not in the final runtime package.
-#
-#set( CPACK_RPM_TOOLS_PACKAGE_NAME "${CPACK_PACKAGE_NAME}-tools" )
-#set( CPACK_RPM_TOOLS_FILE_NAME "${CPACK_RPM_TOOLS_PACKAGE_NAME}-${CPACK_RPM_PACKAGE_VERSION}-${CPACK_RPM_PACKAGE_RELEASE}.${PACKAGE_ARCH}.rpm" )
-#set( CPACK_COMPONENT_TOOLS_DEPENDS "runtime" )
-#set( CPACK_COMPONENT_TEST_DEPENDS "libs" )
+include( ${HSE_SCRIPTS_DIR}/${BUILD_PKG_TYPE}/CMakeLists.txt )
 include( CPack )
+
 
 get_directory_property( DirIncs INCLUDE_DIRECTORIES )
 get_directory_property( DirDefs COMPILE_DEFINITIONS )

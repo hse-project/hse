@@ -6,7 +6,7 @@
 
 set -u
 set -e
-set -o pipefail
+#set -o pipefail
 
 outdir=$CMAKE_STAGE_DIR/include/
 target=$outdir/mapi_idx.h

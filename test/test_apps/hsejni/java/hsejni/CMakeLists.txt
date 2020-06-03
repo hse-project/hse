@@ -15,10 +15,13 @@ ADD_CUSTOM_TARGET(
   hsejni_API.h ALL
   DEPENDS ${HSE_STAGE_DIR}/include/hsejni_API.h)
 
+#COMMAND ${Java_JAVAH_EXECUTABLE} -cp hsejni.jar  -o ${HSE_STAGE_DIR}/include/hsejni_API.h  org.micron.hse.API
+#OUTPUT  ${HSE_STAGE_DIR}/include/hsejni_API.h
 # Command sequence for: src -> real_kmod_file
 ADD_CUSTOM_COMMAND(
   OUTPUT  ${HSE_STAGE_DIR}/include/hsejni_API.h
-  COMMAND ${Java_JAVAH_EXECUTABLE} -cp hsejni.jar  -o ${HSE_STAGE_DIR}/include/hsejni_API.h  org.micron.hse.API
+  COMMAND ${Java_JAVAC_EXECUTABLE} -cp hsejni.jar -h ${HSE_STAGE_DIR}/include ${PROJECT_SOURCE_DIR}/test/test_apps/hsejni/java/hsejni/src/org/micron/hse/API.java
+  COMMAND cp ${HSE_STAGE_DIR}/include/org_micron_hse_API.h ${HSE_STAGE_DIR}/include/hsejni_API.h
   DEPENDS hsejni
   VERBATIM)
 

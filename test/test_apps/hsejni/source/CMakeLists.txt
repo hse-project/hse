@@ -3,6 +3,13 @@ if( ${HSE_BUILD_USER} )
 include_directories( ${HSE_UT_BASE_INCLUDE_DIRS} )
 include_directories( ${HSE_KVDB_UT_GS_INCLUDE_DIRS} )
 
+# TODO: Quick fix to get compiling on ubuntu...
+#
+if( "${BUILD_PKG_TYPE}" STREQUAL "deb" )
+	include_directories( "/usr/lib/jvm/java-8-openjdk-amd64/include" )
+	include_directories( "/usr/lib/jvm/java-8-openjdk-amd64/include/linux" )
+endif()
+
 include_directories(
     ../include
     ../../se_lib/

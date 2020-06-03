@@ -10,7 +10,7 @@
 void
 yaml_print_and_rewind(struct yaml_context *yc)
 {
-    printf(yc->yaml_buf);
+    printf("%s", yc->yaml_buf);
     yc->yaml_offset = 0;
     yc->yaml_buf[0] = 0;
 }
