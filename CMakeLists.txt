@@ -66,14 +66,6 @@ if( "${BUILD_PKG_TYPE}" STREQUAL "deb" )
     set( CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-unused-result" )
 endif()
 
-
-# TODO: Remove and fix compile errors in c1_thread_create()...
-#
-if( "${BUILD_PKG_TYPE}" STREQUAL "deb" )
-    set( CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-format-security" )
-endif()
-
-
 if ( ${UBSAN} )
     message(STATUS "Enabling ubsan support")
     add_compile_options( -fno-omit-frame-pointer )

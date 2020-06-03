@@ -22,7 +22,7 @@ c1_thread_create(const char *thrname, void (*fp)(void *arg), void *arg, struct c
     if (!thr)
         return merr(ev(ENOMEM));
 
-    thr->c1thr_wq = alloc_workqueue(thrname, 0, 1);
+    thr->c1thr_wq = alloc_workqueue("%s", 0, 1, thrname);
     if (!thr->c1thr_wq) {
         err = merr(ev(ENOMEM));
         goto err_exit;
