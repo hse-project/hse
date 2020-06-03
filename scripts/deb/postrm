@@ -13,15 +13,11 @@ echo "${PROG} [$*]"
 
 case $1 in
     remove|purge)
-        ;;
-
-    abort-upgrade)
+        rm -fr /var/log/hse
+        rm -fr /etc/logrotate.d/hse
         ;;
 
     *)
-        ;;
 esac
 
 exit 0
-
-

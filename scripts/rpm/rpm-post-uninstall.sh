@@ -5,8 +5,8 @@
 if [[ $1 -eq 0 ]]; then
     # this is a real uninstall, NOT an upgrade
 
-    # remove /var/log/hse directory
     rm -fr /var/log/hse
+    rm -fr /etc/logrotate.d/hse
 fi
 
 exit 0

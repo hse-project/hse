@@ -21,5 +21,5 @@ set( CPACK_DEBIAN_RUNTIME_PACKAGE_NAME      "${CPACK_PACKAGE_NAME}" )
 #set( CPACK_DEBIAN_RUNTIME_PACKAGE_REQUIRES  "sos >= 3.2" )
 
 set( CPACK_DEBIAN_RUNTIME_PACKAGE_CONTROL_EXTRA
-    "${HSE_SCRIPTS_DIR}/deb/preinst;${HSE_SCRIPTS_DIR}/deb/postinst;${HSE_SCRIPTS_DIR}/deb/prerm;${HSE_SCRIPTS_DIR}/deb/postrm" )
+    "${HSE_SCRIPTS_DIR}/deb/postinst;${HSE_SCRIPTS_DIR}/deb/postrm" )
 
