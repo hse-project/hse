@@ -69,7 +69,7 @@ extract_kv_to_files(struct hse_kvs *kvs, int file_cnt, char **files)
         snprintf(pfx, sizeof(pfx), "%s|", files[i]);
         printf("filename: %s\n", outfile);
 
-        fd = open(outfile, O_RDWR | O_CREAT);
+        fd = open(outfile, O_RDWR | O_CREAT, 0644);
         if (fd < 0) {
             err_print("Error opening file %s: %s\n", outfile, strerror(errno));
             exit(1);

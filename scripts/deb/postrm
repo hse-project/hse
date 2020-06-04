@@ -1,0 +1,23 @@
+#!/bin/sh
+#
+# SPDX-License-Identifier: Apache-2.0
+#
+# Copyright (C) 2020 Micron Technology, Inc.  All rights reserved.
+#
+# https://www.debian.org/doc/debian-policy/ch-matainerscripts.html
+
+PROG=${0##*/}
+PKG=$(basename ${0%.*})
+
+echo "${PROG} [$*]"
+
+case $1 in
+    remove|purge)
+        rm -fr /var/log/hse
+        rm -fr /etc/logrotate.d/hse
+        ;;
+
+    *)
+esac
+
+exit 0

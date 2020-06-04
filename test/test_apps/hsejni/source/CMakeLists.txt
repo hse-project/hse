@@ -25,21 +25,20 @@ add_library(hsejni_c SHARED
   ${COMPONENT_SOURCE_FILES}
 )
 
-add_dependencies(hsejni_c hsejni hsejni_API.h)
-
 target_link_libraries(
     hsejni_c
         ${MY_LINK_LIBS}
         ${HSE_USER_MPOOL_LINK_LIBS}
         microhttpd
         ${LIBYAML_LIBS}
+        hse_jni_headers
 )
 
 #
 # For if/when we split this off from the main runtime package.
 #
-#install(TARGETS hsejni_c DESTINATION lib64 COMPONENT java)
+#install(TARGETS hsejni_c DESTINATION ${CMAKE_INSTALL_LIBDIR} COMPONENT java)
 
-install(TARGETS hsejni_c DESTINATION lib64 COMPONENT runtime)
+install(TARGETS hsejni_c DESTINATION ${CMAKE_INSTALL_LIBDIR} COMPONENT runtime)
 
 endif() # ${HSE_BUILD_USER}

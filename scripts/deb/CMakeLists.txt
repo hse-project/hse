@@ -1,0 +1,25 @@
+#
+# SPDX-License-Identifier: Apache-2.0
+#
+# Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+
+message( STATUS "Configuring ${PROJECT_NAME} deb..." )
+
+set( CPACK_GENERATOR                   "DEB" )
+set( CPACK_DEB_COMPONENT_INSTALL       "ON" )
+
+set( CPACK_DEBIAN_PACKAGE_LICENSE      "${CPACK_PACKAGE_LICENSE}" )
+set( CPACK_DEBIAN_PACKAGE_RELEASE      "${BUILD_PKG_REL}${BUILD_RTYPE}" )
+set( CPACK_DEBIAN_PACKAGE_SECTION      "database" )
+set( CPACK_DEBIAN_PACKAGE_MAINTAINER   "Micron Technology, Inc." )
+set( CPACK_DEBIAN_PACKAGE_DESCRIPTION  "${CPACK_PACKAGE_DESCRIPTION}" )
+set( CPACK_DEBIAN_PACKAGE_VERSION      "${PROJECT_VERSION}${BUILD_PKG_VQUAL}" )
+set( CPACK_DEBIAN_FILE_NAME            "DEB-DEFAULT" )
+
+
+set( CPACK_DEBIAN_RUNTIME_PACKAGE_NAME      "${CPACK_PACKAGE_NAME}" )
+#set( CPACK_DEBIAN_RUNTIME_PACKAGE_REQUIRES  "sos >= 3.2" )
+
+set( CPACK_DEBIAN_RUNTIME_PACKAGE_CONTROL_EXTRA
+    "${HSE_SCRIPTS_DIR}/deb/postinst;${HSE_SCRIPTS_DIR}/deb/postrm" )
+

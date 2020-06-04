@@ -385,7 +385,7 @@ function(hse_library)
     if(NOT "${param_COMPONENT}" STREQUAL "")
         install(
             TARGETS ${param_NAME}-lib
-            DESTINATION lib64
+            DESTINATION ${CMAKE_INSTALL_LIBDIR}
             COMPONENT ${param_COMPONENT}
             )
     endif()
@@ -453,7 +453,7 @@ function(hse_ut_mock_generate)
         endif()
 
         execute_process(
-            COMMAND ${HSE_SCRIPT_DIR}/build/ut_mock_decl_files ${param_SEARCH_DIRS}
+            COMMAND ${HSE_SCRIPTS_DIR}/build/ut_mock_decl_files ${param_SEARCH_DIRS}
             WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
             RESULT_VARIABLE exec_result
             ERROR_VARIABLE find_error

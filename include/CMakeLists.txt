@@ -13,6 +13,6 @@ INSTALL(
         hse/hse.h
         hse/hse_experimental.h
         hse/hse_limits.h
-    DESTINATION include/hse
+    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/hse
     COMPONENT devel
     )

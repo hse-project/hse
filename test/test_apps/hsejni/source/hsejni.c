@@ -3,7 +3,7 @@
  * Copyright (C) 2015-2017,2019 Micron Technology, Inc.  All rights reserved.
  */
 #include <jni.h>
-#include <hsejni_API.h>
+#include <org_micron_hse_API.h>
 #include <hse_jni_util.h>
 #include <hsejni_internal.h>
 
