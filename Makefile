@@ -9,15 +9,24 @@ HSE Makefile Help
 
 Primary Targets:
 
-    all       -- Build binaries, libraries, unit tests, etc.
-    clean     -- Delete most build outputs (saves external repos).
-    config    -- Create build output directory and run cmake config.
-    distclean -- Delete all build outputs (i.e., start over).
-    help      -- Print this message.
-    package   -- Build "all" and generate deb/rpm packages
-    rebuild   -- Alias for 'distclean all'.
-    smoke     -- Run smoke tests.
-    test      -- Run unit tests.
+  all       -- Build binaries, libraries, unit tests, etc.
+  clean     -- Delete most build outputs (saves external repos).
+  config    -- Create build output directory and run cmake config.
+  distclean -- Delete all build outputs (i.e., start over).
+  help      -- Print this message.
+  package   -- Build "all" and generate deb/rpm packages
+  rebuild   -- Alias for 'distclean all'.
+  smoke     -- Run smoke tests.
+  test      -- Run unit tests.
+
+Target Modiiers:
+
+  asan      -- Enable address sanity checking
+  debug     -- Create a debug build
+  optdebug  -- Create a debug build with -Og
+  release   -- Create a release build
+  relassert -- Create a release build with assert enabled
+  ubsan     -- Enable undefined behavior checking
 
 Configuration Variables:
 
@@ -30,13 +39,16 @@ Configuration Variables:
   new targets that may be useful in a particular development workflow (see
   "Customization" below).
 
-    BUILD_DIR     -- The top-level build output directory
-    BUILD_NUMBER  -- Build job number (as set by Jenkins)
-    CFILE         -- Name of file containing cmake config parameters.
-    DEPGRAPH      -- Set to "--graphviz=<filename_prefix>" to generate
-                     graphviz dependency graph files
+    BUILD_DIR         -- The top-level build output directory
+    BUILD_NUMBER      -- Build job number (as set by Jenkins)
+    BUILD_PKG_TYPE    -- Specify package type (rpm or deb)
+    BUILD_PKG_VENDOR  -- Specify the vendor/maintainer tag in the package
+    CFILE             -- Name of file containing cmake config parameters.
+    DEPGRAPH          -- Set to "--graphviz=<filename_prefix>" to generate
+                         graphviz dependency graph files
 
   Defaults (not all are customizable):
+
     BUILD_DIR          $(BUILD_DIR)
     BUILD_NODE         $(BUILD_NODE)
     BUILD_NUMBER       $(BUILD_NUMBER)
@@ -49,15 +61,9 @@ Configuration Variables:
     BUILD_PKG_TAG      ${BUILD_PKG_TAG}
     BUILD_PKG_TYPE     ${BUILD_PKG_TYPE}
     BUILD_PKG_VERSION  ${BUILD_PKG_VERSION}
+    BUILD_PKG_VENDOR   ${BUILD_PKG_VENDOR}
     BUILD_PKG_VQUAL    ${BUILD_PKG_VQUAL}
     CFILE              $(CFILE)
-
-Debug and Release Convenience Targets:
-
-  Convenience targets are aimed at reducing the incidence of carpal tunnel
-  syndrome among our highly valued development staff.  Including 'release' (or
-  'debug') on the command line changes build type (and sets BDIR) to produce a
-  release (or debug) build.
 
 Examples:
 
@@ -103,6 +109,8 @@ endef
 # Edit the package VERSION and QUALifier when we cut a release branch or tag:
 BUILD_PKG_VERSION := 1.8.0
 BUILD_PKG_VQUAL := '~dev'
+
+BUILD_PKG_VENDOR ?= "Micron Technology, Inc."
 
 BUILD_PKG_TAG := $(shell test -d ".git" && \
 	git describe --always --long --tags --dirty --abbrev=10)
@@ -237,6 +245,7 @@ define config-gen =
 	echo 'Set( BUILD_PKG_TAG       "$(BUILD_PKG_TAG)" CACHE STRING "" )' ;\
 	echo 'Set( BUILD_PKG_TYPE      "$(BUILD_PKG_TYPE)" CACHE STRING "" )' ;\
 	echo 'Set( BUILD_PKG_VERSION   "$(BUILD_PKG_VERSION)" CACHE STRING "" )' ;\
+	echo 'Set( BUILD_PKG_VENDOR    "'$(BUILD_PKG_VENDOR)'" CACHE STRING "" )' ;\
 	echo 'Set( BUILD_PKG_VQUAL     "$(BUILD_PKG_VQUAL)" CACHE STRING "" )' ;\
 	echo 'Set( UBSAN               "$(UBSAN)" CACHE BOOL "" )' ;\
 	echo 'Set( ASAN                "$(ASAN)" CACHE BOOL "" )' ;\
@@ -272,8 +281,8 @@ endif
 
 
 .PHONY: all allv allq allqv allvq ${BTYPES}
-.PHONY: clean config
-.PHONY: distclean help install maintainer-clean package rebuild
+.PHONY: clean config config-preview distclean
+.PHONY: help install maintainer-clean package rebuild
 .PHONY: test testp testv showtests showutests
 
 

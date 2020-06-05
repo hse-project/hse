@@ -7,7 +7,9 @@ if(${CMAKE_MAJOR_VERSION} GREATER 2)
     cmake_policy(SET CMP0046 OLD)
 endif()
 
-project( hse VERSION ${BUILD_PKG_VERSION} )
+project( hse
+    VERSION        ${BUILD_PKG_VERSION}
+    HOMEPAGE_URL  "https://github.com/hse-project/hse" )
 
 message(STATUS "Configuring ${CMAKE_PROJECT_NAME}")
 
@@ -364,7 +366,7 @@ set( HSE_VERSION_CMAKE_INCLUDEONLY "OFF" )
 #
 set( CPACK_PACKAGE_NAME                   "${PROJECT_NAME}" )
 set( CPACK_PACKAGE_LICENSE                "ASL 2.0" )
-set( CPACK_PACKAGE_HOMEPAGE_URL           "https://github.com/hse-project/hse" )
+set( CPACK_PACKAGE_VENDOR                 "${BUILD_PKG_VENDOR}" )
 
 set( CPACK_PACKAGE_DESCRIPTION            "Heterogeneous-memory Storage Engine (HSE)" )
 set( CPACK_PACKAGE_DESCRIPTION_SUMMARY    "hse ${BUILD_PKG_TAG}-${BUILD_STYPE}${BUILD_NUMBER}" )
