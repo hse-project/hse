@@ -24,8 +24,10 @@ hse_executable(
         libyaml-ext
     LINK_DIRS
         ${MPOOL_LIB_DIR}
+        ${BLKID_LIB_DIR}
     LINK_LIBS
         ${LIBCURL_LIBS}
         ${LIBYAML_LIBS}
+        ${HSE_USER_MPOOL_LINK_LIBS}
         hse_kvdb_static-lib
     )

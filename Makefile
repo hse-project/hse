@@ -36,7 +36,7 @@ Configuration Variables:
   be inlined by this makefile. You can also define the environment variable
   HSE_MAKE_POST_INCLUDE to refer to a GNU Make syntax file that will be
   inlined at the bottom of this makefile. That mechanism can be used to add
-  new targets that may be useful in a particular development workflow (see
+  new targets that may be useful in a particular development workflow. (see
   "Customization" below).
 
     BUILD_DIR         -- The top-level build output directory
@@ -179,9 +179,9 @@ UBSAN         ?= 0
 ASAN          ?= 0
 BUILD_NUMBER  ?= 0
 
-# Experimental: modify at your own risk
 MPOOL_INCLUDE_DIR ?= /usr/include
 MPOOL_LIB_DIR     ?= /usr/lib64
+BLKID_LIB_DIR     ?= /usr/lib64
 
 ifeq ($(filter ubsan,$(MAKECMDGOALS)),ubsan)
 UBSAN := 1
@@ -251,6 +251,7 @@ define config-gen =
 	echo 'Set( ASAN                "$(ASAN)" CACHE BOOL "" )' ;\
 	echo 'set( MPOOL_INCLUDE_DIR   "$(MPOOL_INCLUDE_DIR)" CACHE STRING "" FORCE)' ;\
 	echo 'set( MPOOL_LIB_DIR       "$(MPOOL_LIB_DIR)" CACHE STRING "" FORCE)' ;\
+	echo 'set( BLKID_LIB_DIR       "$(BLKID_LIB_DIR)" CACHE STRING "" FORCE)' ;\
 	echo ;\
 	echo '# $(CFILE)' ;\
 	cat  "$(CFILE)" ;\

@@ -8,9 +8,6 @@ set(HSE_TEST_LABELS kvdb)
 
 message(STATUS "Configuring hse_kvdb in ${CMAKE_CURRENT_SOURCE_DIR}")
 
-set( CMAKE_EXE_LINKER_FLAGS
-    "${CMAKE_EXE_LINKER_FLAGS} -L ${MPOOL_LIB_DIR}" )
-
 set( HSE_KVDB_PRIVATE_INCLUDE_DIRS
     ${PROJECT_SOURCE_DIR}/src/include
     )
@@ -240,6 +237,7 @@ set( HSE_KVDB_LIB_LINK_LIBS
     pthread
     microhttpd
     mpool
+    mpool-blkid
     m
     )
 
@@ -267,6 +265,9 @@ hse_library(
     MODE SHARED
     SRCS ${KVDB_LIB_SOURCE_FILES}
     DEPS ${HSE_KVDB_LIB_DEPS}
+    LINK_DIRS
+        ${MPOOL_LIB_DIR}
+        ${BLKID_LIB_DIR}
     LINK_LIBS ${HSE_KVDB_LIB_LINK_LIBS}
     INCLUDES ${HSE_KVDB_LIB_INCLUDES}
     )
@@ -278,6 +279,9 @@ hse_library(
     # COMPONENT runtime <-- uncomment to install
     SRCS ${KVDB_LIB_SOURCE_FILES}
     DEPS ${HSE_KVDB_LIB_DEPS}
+    LINK_DIRS
+        ${MPOOL_LIB_DIR}
+        ${BLKID_LIB_DIR}
     LINK_LIBS ${HSE_KVDB_LIB_LINK_LIBS}
     INCLUDES ${HSE_KVDB_LIB_INCLUDES}
     )
@@ -290,7 +294,6 @@ if( HSE_UNIT_TEST_FLAG )
     target_link_libraries( hse_kvdb_static-lib ${HSE_TEST_SUPPORT_LIBS} )
 endif()
 
-
 set (HSE_USER_MPOOL_LINK_LIBS
      pthread
      mpool
@@ -301,6 +304,9 @@ hse_executable(
     NAME cn_metrics
     SRCS tools/cn_metrics.c
     INCLUDES ${HSE_COMPLETE_INCLUDE_DIRS}
+    LINK_DIRS
+        ${MPOOL_LIB_DIR}
+        ${BLKID_LIB_DIR}
     LINK_LIBS
         hse_kvdb_static-lib
         ${HSE_USER_MPOOL_LINK_LIBS}
@@ -314,6 +320,7 @@ hse_executable(
     INCLUDES ${HSE_COMPLETE_INCLUDE_DIRS}
     LINK_DIRS
         ${MPOOL_LIB_DIR}
+        ${BLKID_LIB_DIR}
     LINK_LIBS
         hse_kvdb_static-lib
         ${HSE_USER_MPOOL_LINK_LIBS}
@@ -327,6 +334,7 @@ hse_executable(
     INCLUDES ${HSE_COMPLETE_INCLUDE_DIRS}
     LINK_DIRS
         ${MPOOL_LIB_DIR}
+        ${BLKID_LIB_DIR}
     LINK_LIBS
         hse_kvdb_static-lib
         ${HSE_USER_MPOOL_LINK_LIBS}
@@ -340,6 +348,7 @@ hse_executable(
     INCLUDES ${HSE_COMPLETE_INCLUDE_DIRS}
     LINK_DIRS
         ${MPOOL_LIB_DIR}
+        ${BLKID_LIB_DIR}
     LINK_LIBS
         hse_kvdb_static-lib
         ${HSE_USER_MPOOL_LINK_LIBS}
@@ -353,6 +362,7 @@ hse_executable(
     INCLUDES ${HSE_COMPLETE_INCLUDE_DIRS}
     LINK_DIRS
         ${MPOOL_LIB_DIR}
+        ${BLKID_LIB_DIR}
     LINK_LIBS
         hse_kvdb_static-lib
         ${HSE_USER_MPOOL_LINK_LIBS}
@@ -366,6 +376,7 @@ hse_executable(
     INCLUDES ${HSE_COMPLETE_INCLUDE_DIRS}
     LINK_DIRS
         ${MPOOL_LIB_DIR}
+        ${BLKID_LIB_DIR}
     LINK_LIBS
         hse_kvdb_static-lib
         ${HSE_USER_MPOOL_LINK_LIBS}
@@ -379,6 +390,7 @@ hse_executable(
     INCLUDES ${HSE_COMPLETE_INCLUDE_DIRS}
     LINK_DIRS
         ${MPOOL_LIB_DIR}
+        ${BLKID_LIB_DIR}
     LINK_LIBS
         hse_kvdb_static-lib
         ${HSE_USER_MPOOL_LINK_LIBS}
@@ -392,6 +404,7 @@ hse_executable(
     INCLUDES ${HSE_COMPLETE_INCLUDE_DIRS}
     LINK_DIRS
         ${MPOOL_LIB_DIR}
+        ${BLKID_LIB_DIR}
     LINK_LIBS
         hse_kvdb_static-lib
         ${HSE_USER_MPOOL_LINK_LIBS}
@@ -405,6 +418,7 @@ hse_executable(
     INCLUDES ${HSE_COMPLETE_INCLUDE_DIRS}
     LINK_DIRS
         ${MPOOL_LIB_DIR}
+        ${BLKID_LIB_DIR}
     LINK_LIBS
         hse_kvdb_static-lib
         ${HSE_USER_MPOOL_LINK_LIBS}
@@ -418,6 +432,7 @@ hse_executable(
     INCLUDES ${HSE_COMPLETE_INCLUDE_DIRS}
     LINK_DIRS
         ${MPOOL_LIB_DIR}
+        ${BLKID_LIB_DIR}
     LINK_LIBS
         hse_kvdb_static-lib
         ${HSE_USER_MPOOL_LINK_LIBS}
@@ -943,6 +958,7 @@ if( HSE_UNIT_TEST_FLAG )
         INCLUDES ${UNIT_TEST_INCLUDE_DIRS}
         LINK_DIRS
             ${MPOOL_LIB_DIR}
+            ${BLKID_LIB_DIR}
         LINK_LIBS ${UNIT_TEST_LINK_LIBS}
         )
 
@@ -953,6 +969,7 @@ if( HSE_UNIT_TEST_FLAG )
         DEPS libcurl-ext
         LINK_DIRS
             ${MPOOL_LIB_DIR}
+            ${BLKID_LIB_DIR}
         LINK_LIBS ${UNIT_TEST_LINK_LIBS} ${LIBCURL_LIBS}
         )
 
