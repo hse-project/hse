@@ -65,6 +65,33 @@ Configuration Variables:
     BUILD_PKG_VQUAL    ${BUILD_PKG_VQUAL}
     CFILE              $(CFILE)
 
+Customization:
+
+  There are two main ways that the behavior of this makefile can be customized,
+  (1) pointing the build to an mpool tree that is not installed, and (2) adding
+  custom targets. The latter is primarily useful when running test tools that
+  are not part of the standard gcc toolchain. The former is useful for developers
+  that may have a checked out and build copy of the mpool and mpool-kmod trees
+  but for whatever reason those are not installed.
+
+  As an example, suppose the user jane doe wishes to build hse against an mpool
+  repo in her home directory, executing the build on a machine named "host".
+  She would then put the following lines in a file that is named by an environment
+  variable HSE_MAKE_PRE_INCLUDE:
+
+      MPOOL_INCLUDE_DIR := /home/jdoe/mpool/include
+      MPOOL_LIB_DIR := /home/jdoe/mpool/builds/host/rpm/release/src/mpool
+      BLKID_LIB_DIR := /home/jdoe/mpool/builds/host/rpm/release/ext_install/lib
+
+  Compilation of the HSE code will then take place against the referenced mpool.
+  In order to run the unit tests, she would also have to set LD_LIBRARY_PATH so
+  that the unit tests could resolve those symbols - even though the real mpool
+  entry points would not be called. For example:
+
+      export COMMON=/home/jdoe/mpool/builds/host/rpm/release
+      export LD_LIBRARY_PATH=${COMMON}/src/mpool:${COMMON}/ext_install/lib
+
+
 Examples:
 
   Rebuild:
