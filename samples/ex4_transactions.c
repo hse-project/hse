@@ -50,6 +50,7 @@ main(int argc, char **argv)
     bool      found;
     char *    kvs_name1, *kvs_name2;
     hse_err_t rc;
+    char      errbuf[200];
 
     if (argc != 4)
         return usage(argv[0]);
@@ -69,16 +70,25 @@ main(int argc, char **argv)
     /* Open the KVDB and the KVS instances in it */
     rc = hse_kvdb_open(mpool_name, NULL, &kvdb);
     if (rc) {
-        printf("Cannot open kvdb: %s\n", strerror(rc));
+        printf("Cannot open kvdb: %s\n", hse_err_to_string(rc, errbuf, sizeof(errbuf), 0));
         exit(1);
     }
 
     rc = hse_kvdb_kvs_open(kvdb, kvs_name1, NULL, &kvs1);
-    if (rc)
+    if (rc) {
+        printf("Cannot open kvs %s: %s\n",
+               kvs_name1,
+               hse_err_to_string(rc, errbuf, sizeof(errbuf), 0));
         exit(1);
+    }
+
     rc = hse_kvdb_kvs_open(kvdb, kvs_name2, NULL, &kvs2);
-    if (rc)
+    if (rc) {
+        printf("Cannot open kvs %s: %s\n",
+               kvs_name2,
+               hse_err_to_string(rc, errbuf, sizeof(errbuf), 0));
         exit(1);
+    }
 
     os.kop_txn = hse_kvdb_txn_alloc(kvdb);
 

@@ -151,7 +151,7 @@ main(int argc, char **argv)
     char             c;
     bool             extract = false;
     hse_err_t        rc;
-    char             ebuf[128];
+    char             ebuf[200];
 
     progname = argv[0];
 
