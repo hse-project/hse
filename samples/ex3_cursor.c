@@ -39,6 +39,7 @@ main(int argc, char **argv)
     int       i, cnt = 15;
     bool      eof = false;
     hse_err_t rc;
+    char      errbuf[200];
 
     const void *cur_key, *cur_val;
     size_t      cur_klen, cur_vlen;
@@ -57,7 +58,7 @@ main(int argc, char **argv)
 
     rc = hse_kvdb_open(mp_name, NULL, &kvdb);
     if (rc) {
-        printf("Cannot open kvdb: %s\n", strerror(rc));
+        printf("Cannot open kvdb: %s\n", hse_err_to_string(rc, errbuf, sizeof(errbuf), 0));
         exit(1);
     }
 

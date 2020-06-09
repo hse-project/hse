@@ -311,7 +311,8 @@ endmacro()
 ################################################################
 
 set(HSE_USER_MPOOL_LINK_LIBS
-    mpool
+  mpool
+  mpool-blkid
 )
 
 

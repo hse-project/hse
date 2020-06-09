@@ -297,6 +297,27 @@ function(hse_executable)
         target_include_directories(${param_NAME}-bin PRIVATE ${param_INCLUDES})
     endif()
 
+    # add "-L <link_dir>" for all that aren't already in the flags
+    if(NOT "${param_LINK_DIRS}" STREQUAL "")
+        get_property(elf VARIABLE PROPERTY CMAKE_EXE_LINKER_FLAGS)
+        foreach(link_dir ${param_LINK_DIRS})
+            if("${elf}" STREQUAL "")
+                set(local_test 1)
+            else()
+                string(FIND ${elf} "-L ${link_dir}" result)
+                if("${result}" STREQUAL "-1")
+                    set(local_test 1)
+                else()
+                    set(local_test 0)
+                endif()
+            endif()
+            if(local_test)
+                set(local_linker_flags "${local_linker_flags} -L ${link_dir}")
+            endif()
+        endforeach(link_dir)
+        set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${local_linker_flags}" PARENT_SCOPE)
+    endif()
+
     if(NOT "${param_LINK_LIBS}" STREQUAL "")
         add_dependencies(${param_NAME}-bin ${param_LINK_LIBS})
         target_link_libraries( ${param_NAME}-bin ${param_LINK_LIBS} )
@@ -331,7 +352,8 @@ function(hse_library)
         DEPS            # CMake targets that must be built first
         CFLAGS          # Additional CFLAGS
         INCLUDES        # Directories to search for #include
-        LINK_LIBS       # Libraries that must be linked along with this lib
+        LINK_DIRS       # (optional) List of directories to be searched for libs
+        LINK_LIBS       # (optional) Libraries that must be linked along with this lib
         )
 
     cmake_parse_arguments(
@@ -367,6 +389,31 @@ function(hse_library)
     else()
         set_target_properties(${param_NAME}-lib
             PROPERTIES OUTPUT_NAME ${param_OUTPUT_NAME})
+    endif()
+
+    # for shared libraries add "-L <link_dir>" for all that aren't already in the flags
+    if(NOT "${param_LINK_DIRS}" STREQUAL "")
+        if("${param_MODE}" STREQUAL "SHARED")
+            get_property(sllf VARIABLE PROPERTY CMAKE_SHARED_LINKER_FLAGS)
+            foreach(link_dir ${param_LINK_DIRS})
+                if("${sllf}" STREQUAL "")
+                    set(local_test 1)
+                else()
+                    string(FIND ${sllf} "-L ${link_dir}" result)
+                    if("${result}" STREQUAL "-1")
+                        set(local_test 1)
+                    else()
+                        set(local_test 0)
+                    endif()
+                endif()
+                if(local_test)
+                    set(local_linker_flags "${local_linker_flags} -L ${link_dir}")
+                endif()
+            endforeach(link_dir)
+            set(CMAKE_SHARED_LINKER_FLAGS
+                "${CMAKE_SHARED_LINKER_FLAGS} ${local_linker_flags}"
+                PARENT_SCOPE)
+        endif()
     endif()
 
     target_include_directories(${param_NAME}-lib PRIVATE ${param_INCLUDES})

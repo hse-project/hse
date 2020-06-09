@@ -12,6 +12,9 @@ include_directories(
 
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DCOMPNAME=\\\"hsejni\\\"" )
 
+set(CMAKE_SHARED_LINKER_FLAGS
+    "${CMAKE_SHARED_LINKER_FLAGS} -L ${MPOOL_LIB_DIR} -L ${BLKID_LIB_DIR}")
+
 set(MY_LINK_LIBS
         hse_kvdb-lib
 )
