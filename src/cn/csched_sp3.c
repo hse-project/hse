@@ -179,9 +179,6 @@ qfull(struct sp3_qinfo *qi)
  * @new_tlist:        list of new trees
  * @new_tlist_lock:   lock for list of new trees
  * @samp_reduce:      if true, compact while samp > LWM
- * @comp_flags:       compaction flags for an active compaction request
- * @comp_request:     whether a compaction request is active
- * @comp_canceled:    whether a compaction request was canceled
  */
 struct sp3 {
     /* Accessed only by monitor thread */
@@ -206,6 +203,9 @@ struct sp3 {
     uint             rr_job_type;
     u64              job_id;
 
+    int              activity;
+    bool             idle;
+
     struct cn_compaction_work *wp;
 
     struct {
@@ -229,9 +229,9 @@ struct sp3 {
     uint samp_lwm;
 
     /* Current and target values for space amp and leaf percent.
-    * Target refers the expected values after all active
-    * compaction jobs finish.
-    */
+     * Target refers the expected values after all active
+     * compaction jobs finish.
+     */
     bool samp_reduce;
     uint samp_curr;
     uint samp_targ;
@@ -255,25 +255,30 @@ struct sp3 {
     struct perfc_set     sched_pc;
 
     /* Accessed by monitor and infrequently by open/close threads */
-    __aligned(SMP_CACHE_BYTES) struct mutex new_tlist_lock;
-    struct list_head new_tlist;
-    atomic_t         destruct;
+    __aligned(SMP_CACHE_BYTES)
+    struct mutex        new_tlist_lock;
+    struct list_head    new_tlist;
+    atomic_t            destruct;
 
     /* Accessed by monitor, open/close, ingest and jobs threads */
-    __aligned(SMP_CACHE_BYTES) struct mutex mutex;
-    struct cv cv;
+    __aligned(SMP_CACHE_BYTES)
+    struct mutex    mutex;
+    struct cv       cv;
 
     /* Accessed monitor and infrequently by job threads */
-    __aligned(SMP_CACHE_BYTES) struct mutex work_list_lock;
-    struct list_head work_list;
+    __aligned(SMP_CACHE_BYTES)
+    struct mutex        work_list_lock;
+    struct list_head    work_list;
 
     /* Accessed by monitor and job threads */
-    __aligned(SMP_CACHE_BYTES) struct tbkt tbkt;
+    __aligned(SMP_CACHE_BYTES)
+    struct tbkt tbkt;
 
-    /* Accessed by forced compactions and monitor */
-    __aligned(SMP_CACHE_BYTES) int comp_flags;
-    bool comp_request;
-    bool comp_canceled;
+    __aligned(SMP_CACHE_BYTES)
+    u64  ucomp_prev_report_ns;
+    bool ucomp_active;
+    bool ucomp_canceled;
+    bool ucomp_data_ingested;
 };
 
 /* external to internal handle */
@@ -909,6 +914,121 @@ sp3_refresh_settings(struct sp3 *sp)
     sp3_refresh_rate_limiters(sp);
 }
 
+/*****************************************************************
+ *
+ * SP3 user-initiated compaction (ucomp)
+ *
+ */
+
+#define UCOMP_MODE_INACTIVE  0 /* ucomp is not active */
+#define UCOMP_MODE_NORMAL    1 /* ucomp in progress */
+#define UCOMP_MODE_EXTRA     2 /* ucomp in progress, do extra work to read goal */
+
+static
+uint
+sp3_ucomp_mode(struct sp3 *sp)
+{
+    if (!sp->ucomp_active)
+        return UCOMP_MODE_INACTIVE;
+
+    if (sp->ucomp_data_ingested)
+        return UCOMP_MODE_NORMAL;
+
+    return UCOMP_MODE_EXTRA;
+}
+
+static void
+sp3_ucomp_cancel(struct sp3 *sp)
+{
+    if (!sp->ucomp_active) {
+        hse_log(HSE_NOTICE "ignoring request to cancel user-initiated"
+            " compaction because there is no active request");
+        return;
+    }
+
+    hse_log(HSE_NOTICE "canceling user-initiated compaction");
+
+    sp->ucomp_active = false;
+    sp->ucomp_canceled = true;
+    sp->ucomp_data_ingested = false;
+}
+
+static void
+sp3_ucomp_start(struct sp3 *sp)
+{
+    if (sp->ucomp_active)
+        hse_log(HSE_NOTICE "restarting user-initiated compaction (was already active)");
+    else
+        hse_log(HSE_NOTICE "starting user-initiated compaction");
+
+    sp->ucomp_active = true;
+    sp->ucomp_canceled = false;
+    sp->ucomp_data_ingested = false;
+}
+
+static void
+sp3_ucomp_report(struct sp3 *sp, uint mode, bool final)
+{
+    uint curr = samp_est(&sp->samp, 100);
+
+    if (final) {
+
+        hse_log(HSE_NOTICE "user-initiated compaction complete: space_amp %u.%02u",
+            curr / 100, curr % 100);
+
+    } else {
+
+        u64 started  = sp->jobs_started;
+        u64 finished = sp->jobs_finished;
+        uint goal    = sp->samp_lwm * 100 / SCALE;
+
+        hse_log(HSE_NOTICE "user-initiated compaction in progress:"
+            " mode: %u;"
+            " jobs: active %lu, started %lu, finished %lu;"
+            " space_amp: current %u.%02u, goal %u.%02u;",
+            mode,
+            started - finished, started, finished,
+            curr / 100, curr % 100,
+            goal / 100, goal % 100);
+    }
+}
+
+static void
+sp3_ucomp_check(struct sp3 *sp)
+{
+    uint mode = sp3_ucomp_mode(sp);
+    bool completed;
+    bool report;
+    u64  now;
+
+    if (mode == UCOMP_MODE_INACTIVE)
+        return;
+
+    now = get_time_ns();
+    completed = sp->idle && samp_est(&sp->samp, SCALE) < sp->samp_lwm;
+    report = now > sp->ucomp_prev_report_ns + 5 * NSEC_PER_SEC;
+
+    if (completed) {
+        sp->ucomp_active = false;
+        sp->ucomp_canceled = false;
+        sp->ucomp_data_ingested = false;
+    }
+
+    if (completed || report) {
+        sp->ucomp_prev_report_ns = now;
+        sp3_ucomp_report(sp, mode, completed);
+    }
+}
+
+
+
+/*****************************************************************
+ *
+ * SP3 red-black trees
+ *
+ */
+
+
 static void
 sp3_rb_erase(struct rb_root *root, struct sp3_rbe *rbe)
 {
@@ -1006,7 +1126,10 @@ sp3_dirty_node(struct sp3 *sp, struct cn_tree_node *tn)
 
     if (cn_node_isleaf(tn)) {
 
-        /* RBT_L_GARB: leaf nodes sorted by garbage */
+        /* RBT_L_GARB: leaf nodes sorted by pct garbage.
+         * Range: 0 <= rbe_weight <= 100.  If rbe_weight == 3, then
+         * node has 3% garbage.
+         */
         sp3_node_insert(sp, spn, RBT_L_GARB, garbage);
 
         /* RBT_L_PCAP: leaf nodes sorted by pct capacity */
@@ -1138,6 +1261,11 @@ sp3_process_ingest(struct sp3 *sp)
         }
     }
 
+    if (ingested) {
+        sp->ucomp_data_ingested = true;
+        sp->activity++;
+    }
+
     if (ingested && debug_samp_ingest(sp)) {
         sp3_log_samp_each_tree(sp);
         sp3_log_samp_overall(sp);
@@ -1149,7 +1277,6 @@ sp3_process_worklist(struct sp3 *sp)
 {
     struct cn_compaction_work *w;
     struct list_head           list;
-    uint                       count = 0;
 
     INIT_LIST_HEAD(&list);
 
@@ -1162,7 +1289,7 @@ sp3_process_worklist(struct sp3 *sp)
     while (NULL != (w = list_first_entry_or_null(&list, typeof(*w), cw_sched_link))) {
         list_del(&w->cw_sched_link);
         sp3_process_workitem(sp, w);
-        count++;
+        sp->activity++;
     }
 }
 
@@ -1208,6 +1335,8 @@ sp3_process_new_trees(struct sp3 *sp)
         /* Move to the monitor's list. */
         list_del(&spt->spt_tlink);
         list_add(&spt->spt_tlink, &sp->mon_tlist);
+
+        sp->activity++;
     }
 }
 
@@ -1247,6 +1376,8 @@ sp3_prune_trees(struct sp3 *sp)
             sp3_log_samp_overall(sp);
 
             cn_ref_put(tree->cn);
+
+            sp->activity++;
         }
     }
 }
@@ -1462,6 +1593,8 @@ sp3_submit(struct sp3 *sp, struct cn_compaction_work *w, uint qnum, uint rbt_idx
             HSE_SLOG_FIELD("l_alen_b", "%ld", (long)w->cw_est.cwe_samp.l_alen),
             HSE_SLOG_END);
     }
+
+    sp->activity++;
 
     sts_job_submit(sp->sts, &w->cw_job);
 }
@@ -1826,9 +1959,8 @@ sp3_qos_check(struct sp3 *sp)
 
 /**
  * sp3_schedule() - try to schedule a single job
- * Returns true if a job was scheduled, false otherwise.
  */
-static bool
+static void
 sp3_schedule(struct sp3 *sp)
 {
     enum job_type {
@@ -1847,12 +1979,15 @@ sp3_schedule(struct sp3 *sp)
     bool              shared_full;
     uint              rp_leaf_pct;
     uint              rr;
+    uint              ucomp_mode;
 
     /* convert rparam to internal scale */
     rp_leaf_pct = sp->inputs.csched_leaf_pct * SCALE / EXT_SCALE;
 
     node_len_max = sp->rp->csched_node_len_max ?: SP3_LLEN_RUNLEN_MIN;
     shared_full = sts_wcnt_get_idle(sp->sts, SP3_NUM_QUEUES) == 0;
+
+    ucomp_mode = sp3_ucomp_mode(sp);
 
     for (rr = 0; !job && rr < jtype_MAX; rr++) {
 
@@ -1865,8 +2000,8 @@ sp3_schedule(struct sp3 *sp)
 
             case jtype_root:
                 /* Implements root node query-shape rule.
-             * Uses "intern" queue.
-             */
+                 * Uses "intern" queue.
+                 */
                 qi = sp->qinfo + SP3_QNUM_INTERN;
                 if (qfull(qi) && shared_full)
                     break;
@@ -1875,25 +2010,25 @@ sp3_schedule(struct sp3 *sp)
 
             case jtype_ispill:
                 /* Service RBT_RI_ALEN red-black tree, which
-             * contains both root and internal nodes.
-             * Keeps leaf_pct above configured value.
-             * Implements:
-             *   - Root node space amp rule
-             *   - Internal node space amp rule
-             */
+                 * contains both root and internal nodes and
+                 * keeps leaf_pct above configured value.
+                 * Implements:
+                 *   - Root node space amp rule
+                 *   - Internal node space amp rule
+                 */
                 qi = sp->qinfo + SP3_QNUM_INTERN;
                 if (qfull(qi) && shared_full)
                     break;
-                if (sp->lpct_targ < rp_leaf_pct)
+                if (ucomp_mode || sp->lpct_targ < rp_leaf_pct)
                     job = sp3_check_rb_tree(sp, RBT_RI_ALEN, 0, wtype_ispill);
                 break;
 
             case jtype_node_len:
                 /* Service RBT_LI_LEN red-black tree.
-             * Implements:
-             *   - Internal node query-shape rule
-             *   - Leaf node query-shape rule
-             */
+                 * Implements:
+                 *   - Internal node query-shape rule
+                 *   - Leaf node query-shape rule
+                 */
                 qi = sp->qinfo + SP3_QNUM_INTERN;
                 if (qfull(qi) && shared_full)
                     break;
@@ -1902,21 +2037,29 @@ sp3_schedule(struct sp3 *sp)
 
             case jtype_leaf_garbage:
                 /* Service RBT_L_GARB red-black tree.
-             * Implements:
-             *   - Leaf node space amp rule
-             * Notes:
-             *   - These are big jobs, so do not use shared
-             *     workers to limit the number of concurrent
-             *     big jobs to the number dedicated workers.
-             */
+                 * Implements:
+                 *   - Leaf node space amp rule
+                 * Notes:
+                 *   - These are big jobs, so do not use shared
+                 *     workers to limit the number of concurrent
+                 *     big jobs to the number dedicated workers.
+                 *   - Don't check for garbage unless ucomp is active
+                 *     or if in samp_reduce mode and leaf percent is
+                 *     somewhat caught up (ie, current leaf pct
+                 *     (lpct_targ) is within 90% of rparam setting
+                 *     (rp_leaf_pct)).
+                 *   - When checking for garbage, if leaf percent is
+                 *     behind, then bump up threshold so we don't waste
+                 *     write amp by compacting nodes with a small
+                 *     amount of garbage (we'd rather wait for
+                 *     leaf_pct to catch up).
+                 */
                 qi = sp->qinfo + SP3_QNUM_LEAF;
                 if (qfull(qi))
                     break;
-                if (sp->samp_reduce && (100 * sp->lpct_targ > 90 * rp_leaf_pct)) {
-                    uint thresh = 0;
+                if (ucomp_mode || (sp->samp_reduce && (100 * sp->lpct_targ > 90 * rp_leaf_pct))) {
 
-                    if (sp->lpct_targ < rp_leaf_pct)
-                        thresh = 100 - sp->lpct_targ;
+                    uint thresh = sp->lpct_targ < rp_leaf_pct ? 10 : 0;
 
                     job = sp3_check_rb_tree(sp, RBT_L_GARB, thresh, wtype_leaf_garbage);
                 }
@@ -1924,12 +2067,12 @@ sp3_schedule(struct sp3 *sp)
 
             case jtype_leaf_size:
                 /* Service RBT_L_PCAP red-black tree.
-             * - Handles big leaf nodes with or with out garbage.
-             * - NOTE: These are big jobs, so do not use shared
-             *   workers.
-             * Implements:
-             *   - Leaf node size rule
-             */
+                 * - Handles big leaf nodes with or with out garbage.
+                 * - NOTE: These are big jobs, so do not use shared
+                 *   workers.
+                 * Implements:
+                 *   - Leaf node size rule
+                 */
                 qi = sp->qinfo + SP3_QNUM_LEAFBIG;
                 if (qfull(qi))
                     break;
@@ -1938,10 +2081,8 @@ sp3_schedule(struct sp3 *sp)
 
             case jtype_leaf_scatter:
                 /* Implements:
-             *   - Leaf node scatter rule
-             * [HSE_REVISIT]: Node length is currently not factored
-             * into this metric.
-             */
+                 *   - Leaf node scatter rule
+                 */
                 if (sp->thresh.lscatter_pct == 100)
                     break;
                 qi = sp->qinfo + SP3_QNUM_LSCAT;
@@ -1951,8 +2092,6 @@ sp3_schedule(struct sp3 *sp)
                 break;
         }
     }
-
-    return job;
 }
 
 /*
@@ -1966,8 +2105,7 @@ sp3_schedule(struct sp3 *sp)
  *  sp->lpct_curr
  *  sp->lpct_throttle
  *  sp->samp_reduce
- *  sp->comp_request
- *  sp->comp_flags
+ *  sp->ucomp_*
  */
 static void
 sp3_update_samp(struct sp3 *sp)
@@ -1989,16 +2127,7 @@ sp3_update_samp(struct sp3 *sp)
     perfc_set(&sp->sched_pc, PERFC_BA_SP3_SAMP, sp->samp_targ);
     perfc_set(&sp->sched_pc, PERFC_BA_SP3_REDUCE, sp->samp_reduce);
 
-    /* Detect completion of external compaction requests */
-    if (sp->comp_request && sp->jobs_started == sp->jobs_finished) {
-        if (sp->comp_flags & HSE_KVDB_COMP_FLAG_SAMP_LWM &&
-            samp_est(&sp->samp, SCALE) < sp->samp_lwm) {
-            sp->samp_reduce = false;
-            sp->comp_request = false;
-            sp->comp_canceled = false;
-            sp->comp_flags = 0;
-        }
-    }
+    sp3_ucomp_check(sp);
 
     /* Use low/high water marks to enable/disable garbage collection. */
     if (sp->samp_reduce) {
@@ -2024,19 +2153,16 @@ sp3_update_samp(struct sp3 *sp)
     }
 }
 
-static bool
+static void
 sp3_compact(struct sp3 *sp)
 {
     uint   cur_jobs;
-    bool   scheduled_new_job = false;
 
     assert(sp->jobs_started >= sp->jobs_finished);
     cur_jobs = sp->jobs_started - sp->jobs_finished;
 
     if (cur_jobs < sp->jobs_max)
-        scheduled_new_job = sp3_schedule(sp);
-
-    return scheduled_new_job;
+        sp3_schedule(sp);
 }
 
 struct periodic_check {
@@ -2060,8 +2186,10 @@ sp3_monitor(struct work_struct *work)
 
     bool busy = false;
     u64  now;
+    u64  last_activity;
 
     now = get_time_ns();
+    last_activity = now;
 
     chk_qos.interval = NSEC_PER_SEC / 5;
     chk_refresh.interval = 10 * NSEC_PER_SEC;
@@ -2082,6 +2210,8 @@ sp3_monitor(struct work_struct *work)
 
         now = get_time_ns();
 
+        sp->activity = 0;
+
         sp3_process_worklist(sp);
         sp3_process_ingest(sp);
         sp3_process_new_trees(sp);
@@ -2098,7 +2228,7 @@ sp3_monitor(struct work_struct *work)
         }
 
         if (!bad_health)
-            busy = sp3_compact(sp);
+            sp3_compact(sp);
 
         if (now > chk_refresh.next) {
             sp3_refresh_settings(sp);
@@ -2118,6 +2248,12 @@ sp3_monitor(struct work_struct *work)
             }
             chk_shape.next = now + chk_shape.interval;
         }
+
+        if (sp->activity)
+            last_activity = get_time_ns();
+
+        sp->idle = now > last_activity + 5 * NSEC_PER_SEC
+            && sp->jobs_started == sp->jobs_finished;
     }
 }
 
@@ -2146,18 +2282,18 @@ sp3_op_compact_request(struct csched_ops *handle, int flags)
 {
     struct sp3 *sp = h2sp(handle);
 
-    if (sp->comp_request && !(flags & HSE_KVDB_COMP_FLAG_CANCEL))
-        return;
-
     if (flags & HSE_KVDB_COMP_FLAG_CANCEL) {
-        sp->comp_request = false;
-        sp->comp_canceled = true;
-    } else if (flags & HSE_KVDB_COMP_FLAG_SAMP_LWM) {
-        sp->comp_request = true;
-        sp->samp_reduce = true;
-    }
 
-    sp->comp_flags = flags;
+        sp3_ucomp_cancel(sp);
+
+    } else if (flags & HSE_KVDB_COMP_FLAG_SAMP_LWM) {
+
+        sp3_ucomp_start(sp);
+
+    } else {
+
+        hse_log(HSE_NOTICE "invalid user-initiated compaction request: flags 0x%x", flags);
+    }
 }
 
 static void
@@ -2165,8 +2301,8 @@ sp3_op_compact_status(struct csched_ops *handle, struct hse_kvdb_compact_status 
 {
     struct sp3 *sp = h2sp(handle);
 
-    status->kvcs_active = sp->comp_request;
-    status->kvcs_canceled = sp->comp_canceled;
+    status->kvcs_active = sp->ucomp_active;
+    status->kvcs_canceled = sp->ucomp_canceled;
     status->kvcs_samp_curr = samp_est(&sp->samp, 100);
     status->kvcs_samp_lwm = sp->samp_lwm * 100 / SCALE;
     status->kvcs_samp_hwm = sp->samp_hwm * 100 / SCALE;

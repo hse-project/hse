@@ -415,7 +415,7 @@ sp3_work_leaf_len(
             }
         }
 
-        /* Ameliorate compounding of vblock scatter to improve
+        /* Mitigate compounding of vblock scatter to improve
          * value locality-of-reference and cursor scanning.
          */
         if (compc == kvcompc && tn->tn_loc.node_level > 1) {
