@@ -8,23 +8,34 @@
  * length could be larger than the allowed maximum HSE_KVS_VLEN_MAX.
  *
  * To put keys, this example uses files passed to it on the commandline. Each
- * file's name forms the key and its contents the value. For instance, if one
- * were to put /tmp/foo and /tmp/bar in the kvs mp1/kvdb1/kvs1, the commandline
- * would read:
+ * file's name forms the prefix of a key and its contents are chunked into the
+ * values. For instance, if one were to put /tmp/foo and /tmp/bar into kvs1 in
+ * mpool mp1, the commandline would read:
  *
- *            large_val mp1 kvdb1 kvs1 /tmp/foo /tmp/bar
+ *            ex5_large_val mp1 kvs1 /tmp/foo /tmp/bar
  *
- * This would put keys { /tmp/foo0, /tmp/foo1, /tmp/foo2, ... , /tmp/fooN } for
- * '/tmp/foo'. Each of these key chunks will hold a chunk of the value.
- * Similarly, /tmp/bar will be split into multiple chunks.
+ * This would put the keys:
+ *
+ *     /tmp/foo00000000
+ *     /tmp/foo00000001
+ *     /tmp/foo00000002
+ *     ...
+ *     /tmp/foo00000NNN
+ *
+ * for chunks of size HSE_KVS_VLEN_MAX read from /tmp/foo. Similarly, the file
+ * /tmp/bar will be split into multiple chunks starting with keys starting at
+ * /tmp/bar00000000
  *
  * To extract the key-value pairs, use the option '-x' on the commandline. For
  * the example above, the commandline will look like this:
  *
- *            large_val mp1 kvdb1 kvs1 -x /tmp/foo /tmp/bar
+ *            ex5_large_val mp1 kvs1 -x /tmp/foo /tmp/bar
  *
- * And the values for each key/file will be output into '/tmp/foo-out' and
- * '/tmp/bar-out' respectively
+ * And the values for each key/file will be output into '/tmp/foo.out' and
+ * '/tmp/bar.out' respectively.
+ *
+ * NOTE - the names of the files given in the extract run must exactly match
+ * the file names inserted or the data will not be found.
  */
 
 #include <stdio.h>
@@ -37,7 +48,7 @@
 
 #include <hse/hse.h>
 
-char * progname;
+char *progname;
 
 static void
 err_print(const char *fmt, ...)
@@ -64,6 +75,7 @@ extract_kv_to_files(struct hse_kvs *kvs, int file_cnt, char **files)
         const void *key, *val;
         size_t      klen, vlen;
         bool        eof;
+        bool        data_found = false;
 
         snprintf(outfile, sizeof(outfile), "%s.%s", files[i], "out");
         snprintf(pfx, sizeof(pfx), "%s|", files[i]);
@@ -79,6 +91,9 @@ extract_kv_to_files(struct hse_kvs *kvs, int file_cnt, char **files)
 
         do {
             hse_kvs_cursor_read(cur, NULL, &key, &klen, &val, &vlen, &eof);
+            if (!eof)
+              data_found = true;
+
             if (eof)
                 break;
 
@@ -88,6 +103,9 @@ extract_kv_to_files(struct hse_kvs *kvs, int file_cnt, char **files)
         hse_kvs_cursor_destroy(cur);
 
         close(fd);
+
+        if (!data_found)
+          err_print("No chunk keys found for file '%s'", files[i]);
     }
 
     return 0;

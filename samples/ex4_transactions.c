@@ -32,7 +32,7 @@
 int
 usage(char *prog)
 {
-    printf("usage: %s <kvdb> <kvs1> <kvs2>\n", prog);
+    printf("usage: %s <mpool> <kvs1> <kvs2>\n", prog);
     return 1;
 }
 
@@ -40,6 +40,7 @@ int
 main(int argc, char **argv)
 {
     char *mpool_name;
+    char *kvs_name1, *kvs_name2;
 
     struct hse_kvdb *      kvdb;
     struct hse_kvs *       kvs1, *kvs2;
@@ -48,7 +49,6 @@ main(int argc, char **argv)
     char      vbuf[64];
     size_t    vlen;
     bool      found;
-    char *    kvs_name1, *kvs_name2;
     hse_err_t rc;
     char      errbuf[200];
 
