@@ -130,10 +130,8 @@ hse_platform_init(void)
 
     /* We only need the name pointer, the error is superfluous */
     hse_program_name(&name, &basename);
-    if (strcmp(basename, "hse"))
-        /* [HSE_REVISIT] don't use the work queue in constructors */
-        hse_log_sync(
-            HSE_NOTICE "%s: version %s, image %s", HSE_UTIL_DESC, hse_version, name ?: "unknown");
+    hse_log_sync(HSE_NOTICE "%s: version %s, image %s",
+        HSE_UTIL_DESC, hse_version, name ?: "unknown");
     free(name);
 
     return 0;
