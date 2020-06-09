@@ -334,13 +334,20 @@ sp3_work_leaf_garbage(
     clen = cn_ns_clen(&tn->tn_ns);
     kvsets = cn_ns_kvsets(&tn->tn_ns);
 
-    /* If expected size after spill is more than a configured
-     * percentage of max size, then spill.  Otherwise kv-compact.
-     */
-    if (clen * 100 > thresh->lcomp_pop_pct * tn->tn_size_max)
+    if (clen * 100 > thresh->lcomp_pop_pct * tn->tn_size_max) {
+        /* Expected size after spill is more than a configured
+         * percentage of max size: spill.
+         */
         *action = CN_ACTION_SPILL;
-    else
-        *action = CN_ACTION_COMPACT_KV;
+    } else {
+        /* Node is not big enough to spill.  If there's more than
+         * one kvset, then kv-compact.  Otherwise do nothing.
+         */
+        if (kvsets > 1)
+            *action = CN_ACTION_COMPACT_KV;
+        else
+            return 0;
+    }
 
     *rule = CN_CR_LGARB;
 
