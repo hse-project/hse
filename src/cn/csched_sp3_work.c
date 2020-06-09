@@ -689,7 +689,7 @@ sp3_work(
 
             case wtype_node_len:
                 n_kvsets = sp3_work_leaf_len(spn, thresh, &mark, &action, &rule, &bonus);
-                *qnum_out = SP3_QNUM_INTERN;
+                *qnum_out = SP3_QNUM_LEAF;
                 break;
 
             case wtype_leaf_scatter:
