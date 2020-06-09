@@ -71,7 +71,7 @@ Customization:
   (1) pointing the build to an mpool tree that is not installed, and (2) adding
   custom targets. The latter is primarily useful when running test tools that
   are not part of the standard gcc toolchain. The former is useful for developers
-  that may have a checked out and build copy of the mpool and mpool-kmod trees
+  that may have a checked out and built copy of the mpool and mpool-kmod trees
   but for whatever reason those are not installed.
 
   As an example, suppose the user jane doe wishes to build hse against an mpool
