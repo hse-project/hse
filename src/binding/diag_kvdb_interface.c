@@ -34,7 +34,6 @@ diag_kvdb_open(
     struct ikvdb *      ikvdb;
     struct mpool *      kvdb_ds;
     struct kvdb_rparams default_params;
-    int                 flags;
 
     if (ev(!mpool_name || !handle))
         return merr(EINVAL);
@@ -59,15 +58,11 @@ diag_kvdb_open(
 
     kvdb_rparams_print(rparams);
 
-    /* [HSE_REVISIT]
-     * If the dataset is opened rdonly, any mlog maintenance that mpool
-     * needs to perform on the dataset's MDCs will be prevented because
-     * the dataset was opened rdonly. Until this is addressed, always open
-     * datasets RDWR.
+    /* Need write access in case c1 has data to replay into cN.
+     * Need exclusive access to prevent multiple applications from
+     * working on the same KVDB, which would cause corruption.
      */
-    flags = O_RDWR;
-
-    err = mpool_open(mpool_name, flags, &kvdb_ds, NULL);
+    err = mpool_open(mpool_name, O_RDWR|O_EXCL, &kvdb_ds, NULL);
     if (ev(err))
         return err;
 

@@ -186,8 +186,11 @@ main(int argc, char **argv)
             fatal(wpath, merr(errno));
     }
 
-    /* open root mdc, read entries for match to argv[2] */
-    err = mpool_open(argv[0], 0, &ds, NULL);
+    /* Exclusive access required because we are reading mlogs which are not
+     * immutable (i.e., they could be modified by another application
+     * if we didn't have exclusive access).
+     */
+    err = mpool_open(argv[0], O_RDONLY|O_EXCL, &ds, NULL);
     if (err)
         fatal("mpool_open", err);
 

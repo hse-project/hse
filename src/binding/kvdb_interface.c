@@ -112,7 +112,7 @@ hse_kvdb_make(const char *mpool_name, struct hse_params *params)
     if (ev(err))
         return err;
 
-    err = mpool_open(mpool_name, O_EXCL | O_RDWR, &ds, NULL);
+    err = mpool_open(mpool_name, O_RDWR|O_EXCL, &ds, NULL);
     if (err)
         return err;
 
@@ -170,7 +170,6 @@ hse_kvdb_open(
     struct mpool *      kvdb_ds;
     struct kvdb_rparams rparams;
     u64                 tstart;
-    int                 flags;
     u64                 rc;
 
     if (ev(!mpool_name || !handle))
@@ -187,17 +186,11 @@ hse_kvdb_open(
 
     handle_rparams(&rparams);
 
-    /* [HSE_REVISIT]
-     * If the dataset is opened rdonly, any mlog maintenance that mpool
-     * needs to perform on the dataset's MDCs will be prevented because
-     * the dataset was opened rdonly. Until this is addressed, always open
-     * datasets RDWR.
+    /* Need write access in case c1 has data to replay into cN.
+     * Need exclusive access to prevent multiple applications from
+     * working on the same KVDB, which would cause corruption.
      */
-    flags = O_RDWR;
-    if (rparams.excl)
-        flags |= O_EXCL;
-
-    err = mpool_open(mpool_name, flags, &kvdb_ds, NULL);
+    err = mpool_open(mpool_name, O_RDWR|O_EXCL, &kvdb_ds, NULL);
     if (ev(err))
         return err;
 

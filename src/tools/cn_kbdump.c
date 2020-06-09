@@ -772,15 +772,11 @@ eread_ds(int argc, char **argv)
         vbids = argv + 1;
     }
 
-    err = mpool_open(mpname, O_RDWR, &ds, NULL);
+    /* O_EXCL not required since mblocks are immutable by definition
+     * and we are reading them directly. */
+    err = mpool_open(mpname, O_RDONLY, &ds, NULL);
     if (err)
         fatal(err, "mpool_open");
-
-    /*
-     * "snapshot" the kblock and its vblocks
-     * to peruse at our leisure -- if we read a block at a time,
-     * the underlying may be destroyed before we get to a later page
-     */
 
     /* kblocks */
     for (i = 0; i < nk; ++i) {
