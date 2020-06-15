@@ -1,0 +1,217 @@
+# OMF descriptions
+
+## KBlocks (Key blocks)
+
+KBlocks are mblocks that hold keys in sorted order. See cn/omf.h for the structures associated with the various omf components. All the on-media elements are stored in little endian ordering.
+
+    +--------+--------+-------+--------+----------+
+    |        |        |       |        |          |
+    | KBlock | WBTree | PTree | Bloom  | Hyperlog |
+    | Header |        |       | Filter |          |
+    |        |        |       |        |          |
+    +--------+--------+-------+--------+----------+
+
+### KBlock header
+
+The kblock header contains information about where the other components of the kblock are located and some other metadata. It also stores the smallest and largest keys in the kblock as well as the smallest and largest sequence numbers.
+
+note: max keylen == 1350 bytes
+
+    +----------------------+ -- 0 bytes
+    | u32 magic            |
+    | u32 version          |
+    | s32 page_size        |
+    | s32 hlog_data_off    |
+    | s32 hlog_data_len    |
+    | s32 n_entries        |
+    | s32 n_tombstones     |
+    | s32 n_key_bytes      |
+    | s32 n_val_bytes      |
+    | s32 min_key_off      |
+    | s32 min_key_len      |
+    | s32 max_key_off      |
+    | s32 max_key_len      |
+    | s32 wbtree_hdr_off   |
+    | s32 wbtree_hdr_len   |
+    | s32 wbtree_data_off  |
+    | s32 wbtree_data_len  |
+    | s32 bloom_hdr_off    |
+    | s32 bloom_hdr_len    |
+    | s32 bloom_data_off   |
+    | s32 bloom_data_len   |
+    | s32 ptree_hdr_off    |
+    | s32 ptree_hdr_len    |
+    | s32 ptree_data_off   |
+    | s32 ptree_data_len   |
+    | u64 min_seqno        |
+    | u64 max_seqno        |
+    | ...                  |
+    |----------------------| -- 1369 bytes (4096 - 1350 - 1350)
+    | max_key              |
+    | (replicated here)    |
+    |----------------------| -- 2746 bytes (4096 - 1350)
+    | min_key              |
+    | (replicated here)    |
+    +----------------------+ -- 4096 bytes
+
+### Wanna B-Tree (WBTree)
+
+The WBTree consists of the header, leaf nodes and internal nodes.  The last internal node is the root node. Each node is one 4K byte page.
+
+    +--------+--------+----------+-------+
+    |        |        |          |       |
+    | WBTree | Leaf   | Internal | Root  |
+    | Header | Nodes  | Nodes    | Node  |
+    |        |        |          |       |
+    +--------+--------+----------+-------+
+
+WBTree Header
+
+    +----------------------+
+    | u32 magic            |
+    | u32 version          |
+    | u16 root_node        |
+    | u16 first_leaf_node  |
+    | u16 num_leaf_nodes   |
+    | u16 num_kmd_page_cnt |
+    | u32 reserved-1       |
+    | u32 reserved-2       |
+    +----------------------+
+
+WBTree Leaf Node (one 4K page):
+
+    +--------------------+ Leaf Node Header:
+    | s16 wbn_magic      |   integrity check
+    | s16 wbn_num_keys   |   #entries in this node
+    | s32 wbn_kmd        |   offset in kmd region to this node's kmd
+    | s16 wbn_pfx_len    |   length of the longest common prefix
+    | s16 wbn_padding    |   unused
+    |--------------------| Longest common prefix
+    | Longest common     |
+    | prefix             |
+    |--------------------| Entry for 1st key:
+    | s16 lfe_key_off    |   #bytes into this node
+    | s16 lfe_kmd        |   kmd offset. If kmd_off == U16_MAX, actual kmd
+    |                    |   offset is a 32bit value at key_off
+    |--------------------|
+    | ...                |
+    |--------------------| Entry for last key
+    | s16 lfe_key_off    |
+    | s16 lfe_kmd        |
+    |--------------------|
+    |--------------------|
+    | Last key           |
+    |--------------------|
+    | ...                |
+    |--------------------|
+    | First key          |
+    +--------------------+
+
+WBTree Interior Node (one 4K page):
+
+    +--------------------+ Internal Node Header:
+    | s16 wbn_magic      |   integrity check
+    | s16 wbn_num_keys   |   #entries in this node
+    | s32 wbn_kmd        |   offset in kmd region to this node's kmd
+    | s16 wbn_pfx_len    |   length of the longest common prefix
+    | s16 wbn_padding    |   unused
+    |--------------------| Longest common prefix
+    | Longest common     |
+    | prefix             |
+    |--------------------| Entry for 1st internal node entry (ine):
+    | s16 ine_key_off    |   #bytes into this node
+    | s16 ine_left_child |   left child pointer of this ine
+    |--------------------|
+    | ...                |
+    |--------------------| Entry for (last-1) key
+    | s16 ine_key_off    |
+    | s16 ine_left_child |
+    |--------------------| Entry for last key
+    | s16 ine_key_off    |
+    | s16 ine_left_child |   right child pointer
+    |--------------------|
+    |--------------------|
+    | Last key           |
+    |--------------------|
+    | ...                |
+    |--------------------|
+    | First key          |
+    +--------------------+
+
+### KMD
+
+    +----------+
+    | count    | hg32_1024m 1-4 bytes, #KMD entries that follow
+    +----------+
+    | kmd[0]   |
+    +----------+
+    | kmd[1]   |
+    +----------+
+    | kmd[2]   |
+    +----------+
+
+  Each kmd entry stores information regarding a value: sequence number and a pointer to the value (or if the value is small, the value itself).
+  Each kmd entry can describe one of the following 5 value types:
+    1. vtype_val:   Normal value. This stores a pointer to the actual value
+                    located in the vblock.
+    2. vtype_ival:  Small value. Value length is no greater than 8 bytes.
+    3. vtype_zval:  Zero-length value
+    4. vtype_tomb:  Tombstone
+    5. vtype_ptomb: Prefix tombstone
+
+    +--------------------+
+    | count              |
+    +--------------------+
+    | vtype              | vtype_val
+    | sequence number    |
+    | vblock index       |
+    | vblock offset      |
+    | value length       |
+    +--------------------+
+    | vtype              | vtype_ival
+    | sequence number    |
+    | value length       |
+    | value bytes        |
+    +--------------------+
+    | vtype              | vtype_zval / vtype_tomb / vtype_ptomb
+    | sequence number    |
+    +--------------------+
+
+### PTree (A WBTree that holds prefix tombstones)
+
+This portion has the same format as the main WBTree.  A PTree can exist only in the last kblock of a kvset.
+
+### Bloom filter
+
+Bloom Header
+
+    +-------------------+
+    | u32 bh_magic      |
+    | u32 bh_version    |
+    | u32 bh_bitmapsz   |
+    | u32 bh_modulus    |
+    | u32 bh_bktshift   |
+    | u16 bh_rsvd1      | Reserved
+    | u8  bh_rotl       |
+    | u8  bh_n_hashes   |
+    | u32 bh_rsvd2      | Reserved
+    | u32 bh_rsvd3      | Reserved
+    +-------------------+
+
+This is followed by the bloom filter.
+
+### HyperLogLog
+
+This region does not have a separate header, just the hyperloglog bytes.  The offset and length in the KBlock header points to this region.
+
+## VBlocks (Value blocks)
+
+VBlocks consist of a header followed by all the values.  The offset of a specifc value and its length are obtained from the kmd entry for this value which is linked to the corresponding key.
+
+### VBlock header
+
+    +-------------------+
+    | u32 vbh1_magic    |
+    | u32 vbh1_version  |
+    | u64 vbh1_vgroup   |
+    +-------------------+
