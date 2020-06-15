@@ -142,6 +142,7 @@ set( KVDB_SOURCE_FILES
     kvdb/kvdb_rest.c
     kvdb/sched_sts.c
     kvdb/sched_sts_perfc.c
+    kvdb/mclass_policy.c
      )
 
 set( KVS_SOURCE_FILES
@@ -1418,6 +1419,16 @@ if( HSE_UNIT_TEST_FLAG )
         NAME fmt_test
         SRCS util/test/fmt_test.c
         INCLUDES ${UNIT_TEST_INCLUDE_DIRS}
+        LINK_LIBS ${UNIT_TEST_LINK_LIBS}
+        )
+
+    hse_unit_test(
+        NAME mclass_policy_test
+        SRCS kvdb/test/mclass_policy_test.c
+        INCLUDES ${UNIT_TEST_INCLUDE_DIRS}
+        LINK_DIRS
+            ${MPOOL_LIB_DIR}
+            ${BLKID_LIB_DIR}
         LINK_LIBS ${UNIT_TEST_LINK_LIBS}
         )
 

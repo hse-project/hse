@@ -56,7 +56,8 @@ struct vbb_ext {
     uint                 vbcap;
     uint                 vbsize;
 
-    __aligned(SMP_CACHE_BYTES) struct mutex vbb_lock;
+    __aligned(SMP_CACHE_BYTES)
+    struct mutex vbb_lock;
     atomic_t vbunderutil;
 };
 
@@ -82,13 +83,17 @@ _vblock_ext_threshold_reached(struct vbb_ext *ext)
 static merr_t
 _vblock_start_ext(struct vblock_builder *bld, u8 slot)
 {
-    merr_t               err;
+    merr_t               err = 0;
     struct mblock_props  mbprop;
     struct vbb_ext_elem *vbb;
     u32                  vbidx;
     u64                  vbid;
     struct vbb_ext *     ext;
     bool                 spare;
+    uint                 allocs = 0;
+
+    struct mclass_policy *mpolicy = cn_get_mclass_policy(bld->cn);
+    enum mp_media_classp  mclass;
 
     ext = bld->vbb_ext;
 
@@ -100,7 +105,18 @@ _vblock_start_ext(struct vblock_builder *bld, u8 slot)
 
     spare = !!(bld->flags & KVSET_BUILDER_FLAGS_SPARE);
 
-    err = mpool_mblock_alloc(bld->ds, bld->mclass, spare, &vbid, &mbprop);
+    do {
+        mclass = mclass_policy_get_type(mpolicy, bld->agegroup, HSE_MPOLICY_DTYPE_VALUE, allocs);
+        if (mclass == MP_MED_INVALID) {
+            if (!err)
+                err = merr(ev(EINVAL));
+
+            return err;
+        }
+
+        err = mpool_mblock_alloc(bld->ds, mclass, spare, &vbid, &mbprop);
+    } while (err && ++allocs < HSE_MPOLICY_MEDIA_CNT);
+
     if (ev(err))
         return err;
 
@@ -296,9 +312,9 @@ vbb_util_adjust(struct vbb_ext *ext, uint wlen)
 static merr_t
 _vblock_write_ext(struct vblock_builder *bld, u8 slot, bool last_write)
 {
-    struct iovec            iov;
-    struct vbb_ext *        ext;
-    struct vbb_ext_elem *   vbb;
+    struct iovec         iov;
+    struct vbb_ext *     ext;
+    struct vbb_ext_elem *vbb;
 
     merr_t err;
     void * buf;
@@ -358,7 +374,7 @@ _vblock_write_ext(struct vblock_builder *bld, u8 slot, bool last_write)
 
     return 0;
 
-  err_exit:
+err_exit:
 
     bld->destruct = true;
 
@@ -618,8 +634,8 @@ vbb_flush_entry(struct vblock_builder *bld)
 u32
 vbb_get_blk_count_committed(struct vblock_builder *bld)
 {
-    int              i;
-    int              count;
+    int i;
+    int count;
 
     assert(!bld->destruct);
 

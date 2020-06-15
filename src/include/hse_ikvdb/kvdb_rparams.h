@@ -99,7 +99,6 @@ struct kvdb_rparams {
     unsigned int keylock_tables;
     unsigned int low_mem;
     unsigned int excl;
-    unsigned int staging_policy;
 
     unsigned int rpmagic;
 };

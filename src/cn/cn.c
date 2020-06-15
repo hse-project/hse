@@ -16,6 +16,7 @@
 #include <hse_util/alloc.h>
 #include <hse_util/slab.h>
 #include <hse_util/log2.h>
+#include <hse_util/string.h>
 
 #include <hse_util/perfc.h>
 
@@ -59,6 +60,7 @@
 #include "pscan.h"
 
 struct tbkt;
+struct mclass_policy;
 
 void
 hse_log_reg_cn(void);
@@ -110,6 +112,12 @@ struct tbkt *
 cn_get_tbkt_maint(const struct cn *cn)
 {
     return csched_tbkt_maint_get(cn->csched);
+}
+
+struct mclass_policy *
+cn_get_mclass_policy(const struct cn *cn)
+{
+    return cn->cn_mpolicy;
 }
 
 bool
@@ -1183,9 +1191,11 @@ cn_open(
 
     staging_absent = mpool_mclass_get(ds, MP_MED_STAGING, NULL);
     if (staging_absent) {
-        if (rp->cn_media_class == MP_MED_STAGING) {
-            hse_log(HSE_NOTICE "Staging media is not configured.");
-            rp->cn_media_class = MP_MED_CAPACITY;
+        if (strcmp(rp->mclass_policy, "capacity_only")) {
+            hse_log(
+                HSE_WARNING
+                "Staging media is not configured. Switching to capacity_only media class policy.");
+            strlcpy(rp->mclass_policy, "capacity_only", HSE_MPOLICY_NAME_LEN_MAX);
         }
     }
 
@@ -1204,6 +1214,15 @@ cn_open(
      * and if replay, diag and rdonly are all false.
      */
     cn->csched = ikvdb_get_csched(cn->ikvdb);
+
+    cn->cn_mpolicy = ikvdb_get_mclass_policy(cn->ikvdb, rp->mclass_policy);
+    hse_log(HSE_NOTICE "%s is using %s media class policy", cn->cn_kvsname, rp->mclass_policy);
+    if (ev(!cn->cn_mpolicy)) {
+        err = merr(EINVAL);
+        hse_log(HSE_ERR "%s Invalid media class policy.", cn->cn_kvsname);
+        goto err_exit;
+    }
+
     cn->cn_replay = flags & IKVS_OFLAG_REPLAY;
     maint = cn->csched && !cn->cn_replay && !rp->cn_diag_mode && !rp->rdonly;
 

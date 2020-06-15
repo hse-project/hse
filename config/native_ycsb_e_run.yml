@@ -5,7 +5,7 @@
 #   csched_vb_scatter_pct: percent of vblock scatter in leaf nodes
 #   cn_cursor_vra: cursor vblock madvise-ahead in bytes
 
-apiVersion: 1
+api_version: 1
 kvdb:
   csched_vb_scatter_pct: 1
 kvs:

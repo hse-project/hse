@@ -356,7 +356,6 @@ merr_t
 cn_kcompact(struct cn_compaction_work *w)
 {
     merr_t               err;
-    enum mp_media_classp mclassp;
     struct cn_tree_node *pnode;
 
     err = kvset_builder_create(
@@ -368,11 +367,15 @@ cn_kcompact(struct cn_compaction_work *w)
     if (ev(err))
         goto done;
 
-    mclassp = w->cw_rp->cn_media_class;
-
     pnode = w->cw_node;
-    if (pnode && !cn_node_isleaf(pnode))
-        kvset_builder_set_mclass(w->cw_child[0], mclassp);
+    if (pnode) {
+        if (cn_node_isroot(pnode))
+            kvset_builder_set_agegroup(w->cw_child[0], HSE_MPOLICY_AGE_ROOT);
+        else if (cn_node_isleaf(pnode))
+            kvset_builder_set_agegroup(w->cw_child[0], HSE_MPOLICY_AGE_LEAF);
+        else
+            kvset_builder_set_agegroup(w->cw_child[0], HSE_MPOLICY_AGE_INTERNAL);
+    }
 
     kvset_builder_set_merge_stats(w->cw_child[0], &w->cw_stats);
 

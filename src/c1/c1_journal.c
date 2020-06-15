@@ -249,13 +249,6 @@ c1_journal_alloc_mdc(struct c1_journal *jrnl)
         return err;
     }
 
-    if (props.mdc_mclassp != mclassp) {
-        hse_log(
-            HSE_WARNING "mpool_mdc_alloc mclass mismatch req:%d ret:%d",
-            mclassp,
-            props.mdc_mclassp);
-    }
-
     jrnl->c1j_mediaclass = props.mdc_mclassp;
     jrnl->c1j_oid1 = oid1;
     jrnl->c1j_oid2 = oid2;

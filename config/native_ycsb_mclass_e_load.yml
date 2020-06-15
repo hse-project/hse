@@ -1,9 +1,8 @@
 # Copyright (C) 2019 Micron Technology.  All rights reserved.
 # Workload: Native YCSB, with media classes, workload E, load phase
 #
-# The following parameters are experimental:
-#   cn_cursor_vra: cursor vblock madvise-ahead in bytes
 
-apiVersion: 1
+api_version: 1
 kvs:
+  mclass_policy: staging_capacity_nofallback
   pfx_len: 7

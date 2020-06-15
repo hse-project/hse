@@ -64,8 +64,8 @@ _kvset_builder_create(
     return 0;
 }
 
-void
-_kvset_builder_set_mclass(struct kvset_builder *bldr, enum mp_media_classp mclass)
+static void
+_kvset_builder_set_agegroup(struct kvset_builder *bldr, enum hse_mclass_policy_age age)
 {
 }
 
@@ -95,7 +95,7 @@ mocks_set(struct mtf_test_info *info)
 
     MOCK_SET(ikvdb, _ikvdb_get_c0sk);
     MOCK_SET(kvset_builder, _kvset_builder_create);
-    MOCK_SET(kvset_builder, _kvset_builder_set_mclass);
+    MOCK_SET(kvset_builder, _kvset_builder_set_agegroup);
 
     mapi_inject(mapi_idx_kvset_builder_get_mblocks, 0);
     mapi_inject(mapi_idx_kvset_builder_add_key, 0);

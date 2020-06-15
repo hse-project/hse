@@ -160,11 +160,7 @@ ikvdb_diag_close(struct ikvdb *handle);
  * @kvdb:           (output) handle to access the opened KVDB
  */
 merr_t
-ikvdb_open(
-    const char *       mp_name,
-    struct mpool *     ds,
-    struct hse_params *params,
-    struct ikvdb **    kvdb);
+ikvdb_open(const char *mp_name, struct mpool *ds, struct hse_params *params, struct ikvdb **kvdb);
 
 #define IKVS_OFLAG_NONE 0
 #define IKVS_OFLAG_REPLAY 1 /* used when c1 opens ikvs/kvs/cn for replay */
@@ -195,14 +191,6 @@ bool
 ikvdb_rdonly(struct ikvdb *kvdb);
 
 /**
- * ikvdb_rdonly() - KVDB staging policy
- * @kvdb:       kvdb handle
- */
-/* MTF_MOCK */
-u32
-ikvdb_staging_policy(struct ikvdb *kvdb);
-
-/**
  * ikvdb_kvs_close() - close the KVS
  * @kvs:          kvs handle to close
  */
@@ -231,6 +219,13 @@ ikvdb_get_c1(struct ikvdb *handle, struct c1 **out);
 /* MTF_MOCK */
 struct csched *
 ikvdb_get_csched(struct ikvdb *handle);
+
+/**
+ * ikvdb_get_mclass_policy() - get a handle to the media class policy
+ */
+/* MTF_MOCK */
+struct mclass_policy *
+ikvdb_get_mclass_policy(struct ikvdb *handle, const char *name);
 
 /**
  * ikvdb_kvs_get_cn() - retrieve a pointer to the cn

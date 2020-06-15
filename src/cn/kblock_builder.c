@@ -170,23 +170,23 @@ free_pgc(struct curr_kblock *kblk)
  * @finished: mark builder as finished (end of life)
  */
 struct kblock_builder {
-    struct mpool *         ds;
-    struct cn *            cn;
-    struct kvs_rparams *   rp;
-    struct kvs_cparams *   cp;
-    struct perfc_set *     pc;
-    struct hlog *          hlog;
-    struct cn_merge_stats *mstats;
-    struct blk_list        finished_kblks;
-    struct curr_kblock     curr;
-    bool                   finished;
-    enum mp_media_classp   mclass;
-    uint                   flags;
-    struct wbb *           ptree;
-    uint                   pt_pgc;
-    uint                   pt_max_pgc;
-    u64                    seqno_min;
-    u64                    seqno_max;
+    struct mpool *             ds;
+    struct cn *                cn;
+    struct kvs_rparams *       rp;
+    struct kvs_cparams *       cp;
+    struct perfc_set *         pc;
+    struct hlog *              hlog;
+    struct cn_merge_stats *    mstats;
+    enum hse_mclass_policy_age agegroup;
+    struct blk_list            finished_kblks;
+    struct curr_kblock         curr;
+    bool                       finished;
+    uint                       flags;
+    struct wbb *               ptree;
+    uint                       pt_pgc;
+    uint                       pt_max_pgc;
+    u64                        seqno_min;
+    u64                        seqno_max;
 };
 
 /**
@@ -218,11 +218,11 @@ struct kblock_builder {
  */
 static merr_t
 mblk_blow_chunks(
-    struct kblock_builder * self,
-    u64                     mbid,
-    struct iovec *          iov,
-    uint                    iov_cnt,
-    uint                    chunk_len)
+    struct kblock_builder *self,
+    u64                    mbid,
+    struct iovec *         iov,
+    uint                   iov_cnt,
+    uint                   chunk_len)
 {
     merr_t err;
 
@@ -800,10 +800,11 @@ kblock_finish(struct kblock_builder *bld, struct wbb *ptree)
 
     struct curr_kblock *   kblk = &bld->curr;
     struct cn_merge_stats *stats = bld->mstats;
+    struct mclass_policy * mpolicy = cn_get_mclass_policy(bld->cn);
 
     struct iovec iov[(2 * WBB_FREEZE_IOV_MAX) + 3];
     uint         iov_cnt = 0;
-    uint         i, chunk;
+    uint         i, chunk, allocs = 0;
     size_t       wlen;
 
     merr_t err;
@@ -812,6 +813,8 @@ kblock_finish(struct kblock_builder *bld, struct wbb *ptree)
     u64    tstart = 0;
     u64    kblocksz;
     bool   spare;
+
+    enum mp_media_classp mclass;
 
     /* Allocate kblock hdr */
     if (!kblk->kblk_hdr) {
@@ -894,13 +897,20 @@ kblock_finish(struct kblock_builder *bld, struct wbb *ptree)
 
     if (stats)
         tstart = get_time_ns();
-    err = mpool_mblock_alloc(bld->ds, bld->mclass, spare, &blkid, &mbprop);
+
+    do {
+        mclass = mclass_policy_get_type(mpolicy, bld->agegroup, HSE_MPOLICY_DTYPE_KEY, allocs);
+        if (mclass == MP_MED_INVALID) {
+            if (!err)
+                err = merr(ev(EINVAL));
+            break;
+        }
+
+        err = mpool_mblock_alloc(bld->ds, mclass, spare, &blkid, &mbprop);
+    } while (err && ++allocs < HSE_MPOLICY_MEDIA_CNT);
+
     if (ev(err))
         goto errout;
-
-    if (mbprop.mpr_mclassp == MP_MED_CAPACITY && bld->mclass != MP_MED_CAPACITY) {
-        hse_log(HSE_WARNING "kblock alloc falling back to capacity.");
-    }
 
     if (ev(mbprop.mpr_alloc_cap != kblocksz)) {
         assert(0);
@@ -964,7 +974,7 @@ kbb_create(struct kblock_builder **builder_out, struct cn *cn, struct perfc_set 
     bld->cp = cn_get_cparams(cn);
     bld->pc = pc;
     bld->flags = flags;
-    bld->mclass = MP_MED_CAPACITY;
+    bld->agegroup = HSE_MPOLICY_AGE_LEAF;
 
     err = hlog_create(&bld->hlog, HLOG_PRECISION);
     if (ev(err))
@@ -1159,15 +1169,15 @@ kbb_finish(struct kblock_builder *bld, struct blk_list *kblks, u64 seqno_min, u6
 }
 
 void
-kbb_set_mclass(struct kblock_builder *bld, enum mp_media_classp mclass)
+kbb_set_agegroup(struct kblock_builder *bld, enum hse_mclass_policy_age age)
 {
-    bld->mclass = mclass;
+    bld->agegroup = age;
 }
 
-enum mp_media_classp
-kbb_get_mclass(struct kblock_builder *bld)
+enum hse_mclass_policy_age
+kbb_get_agegroup(struct kblock_builder *bld)
 {
-    return bld->mclass;
+    return bld->agegroup;
 }
 
 void

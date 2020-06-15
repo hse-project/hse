@@ -19,6 +19,7 @@
 #include <hse_ikvdb/tuple.h>
 #include <hse_ikvdb/limits.h>
 #include <hse_ikvdb/kvset_builder.h>
+#include <hse_ikvdb/mclass_policy.h>
 
 #include "../kblock_builder.h"
 #include "../omf.h"
@@ -43,6 +44,10 @@ const struct kvs_cparams mocked_cp_default = {
     .cp_sfx_len = 0,
 };
 
+struct mclass_policy mocked_mpolicy = {
+    .mc_name = "capacity_only",
+};
+
 struct kvs_rparams mocked_rp;
 struct kvs_cparams mocked_cp;
 
@@ -58,7 +63,7 @@ int   salt;
 
 #define KBB_CREATE_ARGS &kbb, (void *)-1, 0, KVSET_BUILDER_FLAGS_NONE
 
-struct kbb_key_stats key_stats = {.nvals = 3, .ntombs = 1, .tot_vlen = 144 };
+struct kbb_key_stats key_stats = { .nvals = 3, .ntombs = 1, .tot_vlen = 144 };
 
 static int
 check_err(struct mtf_test_info *lcl_ti, merr_t err, int expected_errno)
@@ -95,7 +100,7 @@ add_ptomb(
     const void *kdata;
     const void *kmd;
 
-    struct kbb_key_stats ptomb_stats = {.nptombs = 1, .tot_vlen = 0 };
+    struct kbb_key_stats ptomb_stats = { .nptombs = 1, .tot_vlen = 0 };
 
     ASSERT_LE_RET(klen, WORK_BUF_SIZE, -1);
     ASSERT_LE_RET(kmdlen, WORK_BUF_SIZE, -1);
@@ -191,6 +196,7 @@ test_setup(struct mtf_test_info *lcl_ti)
 
     mapi_inject_ptr(mapi_idx_cn_get_rp, &mocked_rp);
     mapi_inject_ptr(mapi_idx_cn_get_cparams, &mocked_cp);
+    mapi_inject_ptr(mapi_idx_cn_get_mclass_policy, &mocked_mpolicy);
 
     mapi_inject(mapi_idx_cn_get_cnid, 1001);
     mapi_inject(mapi_idx_cn_get_dataset, 0);
@@ -206,7 +212,7 @@ test_setup(struct mtf_test_info *lcl_ti)
 int
 initial_setup(struct mtf_test_info *lcl_ti)
 {
-    int i;
+    int i, j, k;
 
     hse_openlog("kblock_builder_test", 1);
 
@@ -220,6 +226,15 @@ initial_setup(struct mtf_test_info *lcl_ti)
         ((u8 *)key_buf)[i] = i;
         ((u8 *)kmd_buf)[i] = ~i;
     }
+
+    for (i = 0; i < HSE_MPOLICY_AGE_CNT; i++)
+        for (j = 0; j < HSE_MPOLICY_DTYPE_CNT; j++)
+            for (k = 0; k < HSE_MPOLICY_MEDIA_CNT; k++) {
+                if (k == 0)
+                    mocked_mpolicy.mc_table[i][j][k] = HSE_MPOLICY_MEDIA_CAPACITY;
+                else
+                    mocked_mpolicy.mc_table[i][j][k] = HSE_MPOLICY_MEDIA_INVALID;
+            }
 
     return 0;
 }
@@ -246,14 +261,15 @@ MTF_DEFINE_UTEST_PRE(test, t_kbb_create1, test_setup)
 {
     merr_t                 err;
     struct kblock_builder *kbb;
+    int                    i;
 
     err = kbb_create(KBB_CREATE_ARGS);
     ASSERT_EQ(err, 0);
 
-    ASSERT_EQ(kbb_get_mclass(kbb), MP_MED_CAPACITY);
-
-    kbb_set_mclass(kbb, MP_MED_STAGING);
-    ASSERT_EQ(kbb_get_mclass(kbb), MP_MED_STAGING);
+    for (i = 0; i < HSE_MPOLICY_AGE_CNT; i++) {
+        kbb_set_agegroup(kbb, i);
+        ASSERT_EQ(kbb_get_agegroup(kbb), i);
+    }
 
     kbb_destroy(kbb);
 }
@@ -335,7 +351,7 @@ MTF_DEFINE_UTEST_PRE(test, t_kbb_add_entry_nomem, test_setup)
      *  - wbb_kmd_append -> alloc_page_aligned;
      *
      * This path occurs when adding N-th key, N > 1.
-     * Use an extrememly large kmdlen to ge the append to fail.
+     * Use an extremely large kmdlen to get the append to fail.
      */
     err = kbb_create(KBB_CREATE_ARGS);
     ASSERT_EQ(err, 0);
@@ -520,10 +536,8 @@ MTF_DEFINE_UTEST_PRE(test, t_kbb_finish_with_ptombs, test_setup)
 /* Test: kbb_finish handling of various errors */
 MTF_DEFINE_UTEST_PRE(test, t_kbb_finish_fail, test_setup)
 {
-    uint api[] = { mapi_idx_wbb_freeze,
-                   mapi_idx_mpool_mblock_alloc,
-                   mapi_idx_mpool_mblock_write };
-    uint                   i, num_allocs;
+    uint api[] = { mapi_idx_wbb_freeze, mapi_idx_mpool_mblock_alloc, mapi_idx_mpool_mblock_write };
+    uint i, num_allocs;
     merr_t                 err = 0;
     struct kblock_builder *kbb = 0;
     struct blk_list        blks;

@@ -55,6 +55,7 @@ setup_mocks(void)
     /* mocks to get through cn_open and cn_close */
     mapi_inject_ptr(mapi_idx_ikvdb_get_csched, (void *)-1);
     mapi_inject_ptr(mapi_idx_ikvdb_kvdb_handle, (void *)-1);
+    mapi_inject_ptr(mapi_idx_ikvdb_get_mclass_policy, (void *)5);
     mapi_inject_ptr(mapi_idx_kvdb_kvs_cparams, &cp);
     mapi_inject(mapi_idx_mpool_params_get, 0);
     mapi_inject(mapi_idx_mpool_mclass_get, ENOENT);

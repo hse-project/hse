@@ -12,6 +12,7 @@
 #include <hse_ikvdb/tuple.h>
 #include <hse_ikvdb/blk_list.h>
 #include <hse_ikvdb/omf_kmd.h>
+#include <hse_ikvdb/mclass_policy.h>
 
 #include <mpool/mpool.h>
 
@@ -24,8 +25,8 @@ struct cn_merge_stats;
 
 #define KVSET_BUILDER_FLAGS_NONE (0)
 #define KVSET_BUILDER_FLAGS_SPARE (1u << 0)
-#define KVSET_BUILDER_FLAGS_EXT (1u << 1)     /* from c1, to cn root node */
-#define KVSET_BUILDER_FLAGS_INGEST (1u << 2)  /* from c0 or c1, to cn root node */
+#define KVSET_BUILDER_FLAGS_EXT (1u << 1)    /* from c1, to cn root node */
+#define KVSET_BUILDER_FLAGS_INGEST (1u << 2) /* from c0 or c1, to cn root node */
 
 /* MTF_MOCK_DECL(kvset_builder) */
 /* MTF_MOCK */
@@ -164,14 +165,7 @@ kvset_builder_merge_vblocks(struct kvset_builder *dst, struct kvset_builder *src
 
 /* MTF_MOCK */
 void
-kvset_builder_set_mclass_kvblk(
-    struct kvset_builder *self,
-    enum mp_media_classp  kblk_mclass,
-    enum mp_media_classp  vblk_mclass);
-
-/* MTF_MOCK */
-void
-kvset_builder_set_mclass(struct kvset_builder *self, enum mp_media_classp mclass);
+kvset_builder_set_agegroup(struct kvset_builder *self, enum hse_mclass_policy_age age);
 
 /* MTF_MOCK */
 void

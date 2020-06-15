@@ -29,6 +29,8 @@ pre(struct mtf_test_info *info)
 {
     mapi_inject_clear();
 
+    mapi_inject_ptr(mapi_idx_ikvdb_get_mclass_policy, (void *)5);
+
     return 0;
 }
 

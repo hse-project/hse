@@ -17,7 +17,6 @@
 #include <hse_ikvdb/c0_kvset.h>
 
 #include <mpool/mpool.h>
-#include "kvdb_params.h"
 
 #define RPARAMS_MAGIC (('K' << 24) | ('D' << 16) | ('R' << 8) | 'P')
 
@@ -104,7 +103,6 @@ kvdb_rparams_defaults(void)
         .keylock_tables = 293,
 
         .low_mem = 0,
-        .staging_policy = MP_MED_STAGING,
 
         .rpmagic = RPARAMS_MAGIC,
     };
@@ -182,7 +180,6 @@ static struct param_inst   kvdb_rp_table[] = {
     KVDB_PARAM_U32_EXP(keylock_entries, "number of keylock entries in a table"),
     KVDB_PARAM_U32_EXP(keylock_tables, "number of keylock tables"),
     KVDB_PARAM_U32_EXP(low_mem, "configure for a constrained memory environment"),
-    KVDB_PARAM_U32_EXP(staging_policy, "staging policy"),
     KVDB_PARAM_U32_EXP(excl, "open the kvdb in exclusive mode"),
 
     PARAM_INST_END

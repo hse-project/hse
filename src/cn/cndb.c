@@ -142,9 +142,11 @@ cndb_info2omf(int hdr_type, const struct cndb_cn *cn, struct cndb_info_omf *inf)
 merr_t
 cndb_alloc(struct mpool *ds, u64 *captgt, u64 *oid1_out, u64 *oid2_out)
 {
-    merr_t              err;
-    struct mdc_capacity mdcap;
-    struct mdc_props    props = { 0 };
+    merr_t               err;
+    struct mdc_capacity  mdcap;
+    struct mdc_props     props = { 0 };
+    enum mp_media_classp mclassp = MP_MED_STAGING;
+    u64                  staging_absent;
 
     if (captgt && *captgt)
         mdcap.mdt_captgt = *captgt;
@@ -153,8 +155,12 @@ cndb_alloc(struct mpool *ds, u64 *captgt, u64 *oid1_out, u64 *oid2_out)
 
     mdcap.mdt_spare = false;
 
-    err = mpool_mdc_alloc(ds, oid1_out, oid2_out, MPOOL_MCLASS_DEFAULT, &mdcap, &props);
-    if (err) {
+    staging_absent = mpool_mclass_get(ds, MP_MED_STAGING, NULL);
+    if (staging_absent)
+        mclassp = MP_MED_CAPACITY;
+
+    err = mpool_mdc_alloc(ds, oid1_out, oid2_out, mclassp, &mdcap, &props);
+    if (ev(err)) {
         hse_elog(
             HSE_ERR "%s: cannot allocate cNDB MDC (%lld): @@e",
             err,

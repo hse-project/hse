@@ -65,24 +65,24 @@ struct cn_merge_stats;
  *       -- set @vblk_off += @wbuff_off
  */
 struct vblock_builder {
-    struct mpool *         ds;
-    struct cn *            cn;
-    struct perfc_set *     pc;
-    struct cn_merge_stats *mstats;
-    struct blk_list        vblk_list;
-    enum mp_media_classp   mclass;
-    u64                    vsize;
-    u64                    blkid;
-    uint                   max_size;
-    uint                   vblk_off;
-    void *                 wbuf;
-    uint                   wbuf_off;
-    uint                   wbuf_len;
-    uint                   flags;
-    u64                    vgroup;
-    bool                   destruct;
-    u32                    stripe_len;
-    struct vbb_ext *       vbb_ext;
+    struct mpool *             ds;
+    struct cn *                cn;
+    struct perfc_set *         pc;
+    struct cn_merge_stats *    mstats;
+    struct blk_list            vblk_list;
+    enum hse_mclass_policy_age agegroup;
+    u64                        vsize;
+    u64                        blkid;
+    uint                       max_size;
+    uint                       vblk_off;
+    void *                     wbuf;
+    uint                       wbuf_off;
+    uint                       wbuf_len;
+    uint                       flags;
+    u64                        vgroup;
+    bool                       destruct;
+    u32                        stripe_len;
+    struct vbb_ext *           vbb_ext;
 };
 
 static inline bool

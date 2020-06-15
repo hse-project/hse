@@ -47,29 +47,39 @@ vbb_estimate_alen(struct cn *cn, size_t wlen, enum mp_media_classp mclass)
 static merr_t
 _vblock_start(struct vblock_builder *bld)
 {
-    merr_t                 err;
+    merr_t                 err = 0;
     struct mblock_props    mbprop;
     u64                    blkid;
     u64                    tstart;
+    uint                   allocs = 0;
     bool                   spare;
     struct cn_merge_stats *stats = bld->mstats;
     struct kvs_rparams *   rp;
+    enum mp_media_classp   mclass;
+    struct mclass_policy * mpolicy = cn_get_mclass_policy(bld->cn);
 
     spare = !!(bld->flags & KVSET_BUILDER_FLAGS_SPARE);
 
     if (stats)
         tstart = get_time_ns();
-    err = mpool_mblock_alloc(bld->ds, bld->mclass, spare, &blkid, &mbprop);
+
+    do {
+        mclass = mclass_policy_get_type(mpolicy, bld->agegroup, HSE_MPOLICY_DTYPE_VALUE, allocs);
+        if (mclass == MP_MED_INVALID) {
+            if (!err)
+                err = merr(ev(EINVAL));
+            return err;
+        }
+
+        err = mpool_mblock_alloc(bld->ds, mclass, spare, &blkid, &mbprop);
+    } while (err && ++allocs < HSE_MPOLICY_MEDIA_CNT);
+
     if (ev(err))
         return err;
     if (stats)
         count_ops(&stats->ms_vblk_alloc, 1, mbprop.mpr_alloc_cap, get_time_ns() - tstart);
 
     rp = cn_get_rp(bld->cn);
-
-    if (mbprop.mpr_mclassp == MP_MED_CAPACITY && bld->mclass != MP_MED_CAPACITY) {
-        hse_log(HSE_WARNING "vblock alloc falling back to capacity.");
-    }
 
     if (mbprop.mpr_alloc_cap != (rp->vblock_size_mb << 20)) {
         mpool_mblock_abort(bld->ds, blkid);
@@ -104,11 +114,11 @@ _vblock_start(struct vblock_builder *bld)
 static merr_t
 _vblock_write(struct vblock_builder *bld)
 {
-    merr_t                     err;
-    struct iovec               iov;
-    bool                       ingest;
-    struct cn_merge_stats *    stats = bld->mstats;
-    u64                        tstart;
+    merr_t                 err;
+    struct iovec           iov;
+    bool                   ingest;
+    struct cn_merge_stats *stats = bld->mstats;
+    u64                    tstart;
 
     assert(bld->blkid);
 
@@ -206,13 +216,13 @@ vbb_create(
     bld->flags = flags;
     bld->vgroup = vgroup;
     bld->max_size = rp->vblock_size_mb << 20;
-    bld->mclass = MP_MED_CAPACITY;
 
     bld->wbuf = alloc_page_aligned(WBUF_LEN_MAX, 0);
     if (ev(!bld->wbuf)) {
         free(bld);
         return merr(ENOMEM);
     }
+    bld->agegroup = HSE_MPOLICY_AGE_LEAF;
 
     if (flags & KVSET_BUILDER_FLAGS_EXT) {
         err = vbb_create_ext(bld, rp);
@@ -221,6 +231,7 @@ vbb_create(
             free(bld);
             return err;
         }
+        bld->agegroup = HSE_MPOLICY_AGE_SYNC;
     }
 
     *builder_out = bld;
@@ -340,15 +351,15 @@ vbb_finish(struct vblock_builder *bld, struct blk_list *vblks)
 }
 
 void
-vbb_set_mclass(struct vblock_builder *bld, enum mp_media_classp mclass)
+vbb_set_agegroup(struct vblock_builder *bld, enum hse_mclass_policy_age age)
 {
-    bld->mclass = mclass;
+    bld->agegroup = age;
 }
 
-enum mp_media_classp
-vbb_get_mclass(struct vblock_builder *bld)
+enum hse_mclass_policy_age
+vbb_get_agegroup(struct vblock_builder *bld)
 {
-    return bld->mclass;
+    return bld->agegroup;
 }
 
 void

@@ -391,19 +391,11 @@ kvset_builder_merge_vblocks(struct kvset_builder *dst, struct kvset_builder *src
 }
 
 void
-kvset_builder_set_mclass_kvblk(
-    struct kvset_builder *self,
-    enum mp_media_classp  kblk_mclass,
-    enum mp_media_classp  vblk_mclass)
+kvset_builder_set_agegroup(struct kvset_builder *self, enum hse_mclass_policy_age age)
 {
-    kbb_set_mclass(self->kbb, kblk_mclass);
-    vbb_set_mclass(self->vbb, vblk_mclass);
-}
-
-void
-kvset_builder_set_mclass(struct kvset_builder *self, enum mp_media_classp mclass)
-{
-    kvset_builder_set_mclass_kvblk(self, mclass, mclass);
+    assert(age < HSE_MPOLICY_AGE_CNT);
+    kbb_set_agegroup(self->kbb, age);
+    vbb_set_agegroup(self->vbb, age);
 }
 
 void

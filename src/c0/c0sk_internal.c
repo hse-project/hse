@@ -446,7 +446,6 @@ c0sk_ingest_merge_bldrs(
     struct kvset_builder *srcbldr;
     struct kvset_builder *dstbldr;
     struct cn *           cn;
-    enum mp_media_classp  mclassp;
 
     for (i = 0; i < HSE_KVS_COUNT_MAX; i++) {
         srcbldr = src[i];
@@ -463,8 +462,7 @@ c0sk_ingest_merge_bldrs(
             if (ev(err))
                 break;
 
-            mclassp = c0sk->c0sk_kvdb_rp->staging_policy;
-            kvset_builder_set_mclass(dstbldr, mclassp);
+            kvset_builder_set_agegroup(dstbldr, HSE_MPOLICY_AGE_ROOT);
 
             dst[i] = dstbldr;
         }
@@ -646,7 +644,6 @@ c0sk_ingest_worker(struct work_struct *work)
     bool                   do_cn_ingest = false;
     bool                   ext_bldr = false;
     u64                    ingestid;
-    enum mp_media_classp   mclassp;
 
     ingest = container_of(work, struct c0_ingest_work, c0iw_work);
 
@@ -829,8 +826,7 @@ c0sk_ingest_worker(struct work_struct *work)
                 if (ev(err))
                     goto health_err;
 
-                mclassp = c0sk->c0sk_kvdb_rp->staging_policy;
-                kvset_builder_set_mclass(bldr, mclassp);
+                kvset_builder_set_agegroup(bldr, HSE_MPOLICY_AGE_ROOT);
 
                 bldrs[skidx] = bldr;
             }
@@ -1424,7 +1420,7 @@ genchk:
          * or the leader resigns.
          */
         if (conc2width(self, conc) >= self->c0sk_ingest_width_max) {
-            struct timespec req = {.tv_nsec = 100 };
+            struct timespec req = { .tv_nsec = 100 };
 
             if (cycles % 64 < 8)
                 nanosleep(&req, NULL);
@@ -1817,10 +1813,9 @@ c0sk_putdel(
 merr_t
 c0sk_kvset_builder_create(struct c0sk *c0sk, u32 skidx, struct kvset_builder **bldrout)
 {
-    struct c0sk_impl *   self;
-    merr_t               err;
-    struct cn *          cn;
-    enum mp_media_classp mclassp;
+    struct c0sk_impl *self;
+    merr_t            err;
+    struct cn *       cn;
 
     self = c0sk_h2r(c0sk);
 
@@ -1835,8 +1830,7 @@ c0sk_kvset_builder_create(struct c0sk *c0sk, u32 skidx, struct kvset_builder **b
     if (ev(err))
         return err;
 
-    mclassp = self->c0sk_kvdb_rp->staging_policy;
-    kvset_builder_set_mclass(*bldrout, mclassp);
+    kvset_builder_set_agegroup(*bldrout, HSE_MPOLICY_AGE_SYNC);
 
     return 0;
 }
