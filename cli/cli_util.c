@@ -283,14 +283,18 @@ rest_status_yaml(struct hse_kvdb_compact_status *status, char *buf, size_t bufsz
         .yaml_emit = NULL,
     };
 
+    uint lwm = status->kvcs_samp_lwm;
+    uint hwm = status->kvcs_samp_hwm;
+    uint cur = status->kvcs_samp_curr;
+
     yaml_start_element_type(&yc, "compact_status");
-    yaml_field_fmt(
-        &yc, "samp_lwm", "%u.%02u", status->kvcs_samp_lwm / 100, status->kvcs_samp_lwm % 100);
-    yaml_field_fmt(
-        &yc, "samp_hwm", "%u.%02u", status->kvcs_samp_hwm / 100, status->kvcs_samp_hwm % 100);
-    yaml_field_fmt(
-        &yc, "samp_curr", "%u.%02u", status->kvcs_samp_curr / 100, status->kvcs_samp_curr % 100);
+
+    yaml_field_fmt(&yc, "samp_lwm", "%u.%02u",  lwm / 100, lwm % 100);
+    yaml_field_fmt(&yc, "samp_hwm", "%u.%02u",  hwm / 100, hwm % 100);
+    yaml_field_fmt(&yc, "samp_curr", "%u.%02u", cur / 100, cur % 100);
     yaml_field_fmt(&yc, "request_active", "%u", status->kvcs_active);
+    yaml_field_fmt(&yc, "request_canceled", "%u", status->kvcs_canceled);
+
     yaml_end_element(&yc);
     yaml_end_element_type(&yc);
 }

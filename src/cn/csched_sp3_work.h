@@ -44,7 +44,7 @@ struct sp3_thresholds {
 };
 
 /* rspill and ispill require at least 1 kvset,
- * lcomp and llen require at lease 2 kvsets.
+ * lcomp and llen require at least 2 kvsets.
  */
 #define SP3_RSPILL_KVSETS_MIN ((u8)1)
 #define SP3_ISPILL_KVSETS_MIN ((u8)1)
