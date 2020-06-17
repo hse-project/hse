@@ -4,7 +4,7 @@
 # The following parameters are experimental:
 #   pfx_pivot: sets the pivot level
 
-apiVersion: 1
+api_version: 1
 kvs.MainKvs:
   pfx_len: 4
   pfx_pivot: 1

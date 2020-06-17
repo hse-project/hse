@@ -4,6 +4,6 @@
 # The following parameters are experimental:
 #   cn_cursor_vra: cursor vblock madvise-ahead in bytes
 
-apiVersion: 1
+api_version: 1
 kvs:
   pfx_len: 7

@@ -73,8 +73,8 @@ _kvset_builder_create(
     return 0;
 }
 
-static void
-_kvset_builder_set_mclass(struct kvset_builder *bldr, enum mp_media_classp mclass)
+void
+_kvset_builder_set_agegroup(struct kvset_builder *bldr, enum hse_mclass_policy_age age)
 {
 }
 
@@ -106,7 +106,7 @@ mocks_set(struct mtf_test_info *info)
 
     MOCK_SET(ikvdb, _ikvdb_get_c0sk);
     MOCK_SET(kvset_builder, _kvset_builder_create);
-    MOCK_SET(kvset_builder, _kvset_builder_set_mclass);
+    MOCK_SET(kvset_builder, _kvset_builder_set_agegroup);
 
     mapi_inject(mapi_idx_kvset_builder_get_mblocks, 0);
     mapi_inject(mapi_idx_kvset_builder_add_key, 0);
@@ -1781,7 +1781,9 @@ MTF_DEFINE_UTEST_PREPOST(c1_test, upgrade3, no_fail_pre, no_fail_post)
 {
 
     struct c1_unpack_hinfo hinfo[] = {
-        { c1_unpack_v2, 2 }, { c1_unpack_v3, 3 }, { c1_unpack_v5, 5 },
+        { c1_unpack_v2, 2 },
+        { c1_unpack_v3, 3 },
+        { c1_unpack_v5, 5 },
     };
 
     struct c1_unpack_type utype = { hinfo, NELEM(hinfo) };

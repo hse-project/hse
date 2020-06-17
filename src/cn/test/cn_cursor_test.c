@@ -76,6 +76,7 @@ pre(struct mtf_test_info *info)
     mapi_inject(mapi_idx_cndb_cn_blob_get, 0);
     mapi_inject(mapi_idx_cndb_cn_blob_set, 0);
     mapi_inject(mapi_idx_kvset_pt_start, -1);
+    mapi_inject_ptr(mapi_idx_ikvdb_get_mclass_policy, (void *)5);
 
     return 0;
 }
@@ -1006,7 +1007,8 @@ MTF_DEFINE_UTEST_PREPOST(cn_cursor, capped_update, pre, post)
     *p = htobe32(10); /* read up to and including key '10' */
 
     struct kc_filter filter = {
-        .kcf_maxkey = p, .kcf_maxklen = sizeof(u32),
+        .kcf_maxkey = p,
+        .kcf_maxklen = sizeof(u32),
     };
 
     MOCK_SET(kvset, _kvset_maxkey);

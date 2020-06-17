@@ -63,7 +63,7 @@ _kvset_builder_create(
 }
 
 static void
-_kvset_builder_set_mclass(struct kvset_builder *bldr, enum mp_media_classp mclass)
+_kvset_builder_set_agegroup(struct kvset_builder *bldr, enum hse_mclass_policy_age age)
 {
 }
 
@@ -112,7 +112,7 @@ mocks_set(struct mtf_test_info *info)
     mock_c1_unset();
 
     MOCK_SET(kvset_builder, _kvset_builder_create);
-    MOCK_SET(kvset_builder, _kvset_builder_set_mclass);
+    MOCK_SET(kvset_builder, _kvset_builder_set_agegroup);
 
     mapi_inject(mapi_idx_cndb_cn_drop, 0);
 

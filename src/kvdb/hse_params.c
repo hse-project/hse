@@ -10,6 +10,7 @@
 
 #include <hse_ikvdb/wp.h>
 #include <hse_ikvdb/hse_params_internal.h>
+#include <hse_ikvdb/mclass_policy.h>
 
 #define HP_DICT_ENTRIES_MAX 512
 #define HP_DICT_LEN_MAX 256
@@ -73,6 +74,14 @@ key_depth(const char *key)
     return depth;
 }
 
+static bool
+key_is_mclass_policy(const char *key)
+{
+    const char expect[] = "mclass_policies";
+
+    return !strncmp(key, expect, sizeof(expect) - 1);
+}
+
 static int
 key_validate(const char *key)
 {
@@ -80,6 +89,9 @@ key_validate(const char *key)
 
     if (strlen(key) > 4 && !strncmp(key, "kvdb", 4))
         return (depth > 0 && depth < 2);
+
+    if (key_is_mclass_policy(key))
+        return depth >= 1;
 
     return (depth > 0 && depth < 3);
 }
@@ -106,20 +118,44 @@ param_find(char *param, struct param_inst *table)
 }
 
 static merr_t
-param_validate(const char *key, const char *val)
+param_validate(struct hse_params *params, const char *key, const char *val)
 {
     merr_t err;
     int    i, index;
     char   component[HP_DICT_LEN_MAX], param[HP_DICT_LEN_MAX];
 
     struct param_inst *pi, *tables[4] = {
-        kvdb_cparams_table(), kvdb_rparams_table(), kvs_cparams_table(), kvs_rparams_table(),
+        kvdb_cparams_table(),
+        kvdb_rparams_table(),
+        kvs_cparams_table(),
+        kvs_rparams_table(),
     };
 
     if (!key_validate(key))
         return merr(EINVAL);
 
     key_split(key, component, param);
+
+    if (key_is_mclass_policy(component)) {
+        int count = 0;
+
+        if (!(strlen(param) > 0 && strlen(param) < HSE_MPOLICY_NAME_LEN_MAX))
+            return merr(EINVAL);
+
+        for (i = 0; i < params->hp_next; i++) {
+            /* Check whether a media class policy with the same name exists */
+            if (!strcmp(params->hp_keys[i], key))
+                return merr(EINVAL);
+
+            if (key_is_mclass_policy((const char *)params->hp_keys[i])) {
+                count++;
+                if (count >= HSE_MPOLICY_COUNT)
+                    return merr(EINVAL);
+            }
+        }
+
+        return 0;
+    }
 
     for (i = 0; i < 4; i++) {
         pi = tables[i];
@@ -145,6 +181,21 @@ param_validate(const char *key, const char *val)
         }
     }
 
+    /* Check that the media class policy requested for the KVS is defined. */
+    if (strstr(param, "mclass_policy")) {
+        char kname[HP_DICT_LEN_MAX];
+
+        strcpy(kname, "mclass_policies.");
+        strcat(kname, val);
+
+        for (i = 0; i < params->hp_next; i++) {
+            if (!strcmp(params->hp_keys[i], kname))
+                return 0;
+        }
+
+        return merr(EINVAL);
+    }
+
     return 0;
 }
 
@@ -162,6 +213,9 @@ hse_params_create(struct hse_params **params)
     *params = calloc(1, sizeof(struct hse_params));
     if (!*params)
         return merr(ENOMEM);
+
+    /* Load the predefined media class policies */
+    hse_params_from_string(*params, mclass_policy_get_default_policies());
 
     return 0;
 }
@@ -229,9 +283,9 @@ hse_params_set(struct hse_params *params, const char *key, const char *val)
         return merr(EINVAL);
     }
 
-    err = param_validate(key, val);
+    err = param_validate(params, key, val);
     if (err) {
-        strlcpy(params->hp_err, "hse_params: invalid key", sizeof(params->hp_err));
+        strlcpy(params->hp_err, "hse_params: invalid key or value", sizeof(params->hp_err));
         return err;
     }
 
@@ -244,7 +298,7 @@ hse_params_set(struct hse_params *params, const char *key, const char *val)
 
     strlcpy(params->hp_vals[params->hp_next], val, sizeof(params->hp_vals[params->hp_next]));
 
-    strlcpy(params->hp_keys[params->hp_next], key, sizeof(params->hp_vals[params->hp_next]));
+    strlcpy(params->hp_keys[params->hp_next], key, sizeof(params->hp_keys[params->hp_next]));
 
     params->hp_next++;
 
@@ -307,7 +361,7 @@ params_convert(struct hse_params *params, struct param_inst *table, void *base, 
     if (!params || !table)
         return;
 
-    /* [MU-REVIST]
+    /* [HSE_REVISIT]
      * Offset Assumes that the first element in the table is the
      * first field in the struct. Need to remove the concept
      * of a ref struct so offsets can be calculated outside
@@ -354,6 +408,42 @@ hse_params_to_kvdb_rparams(struct hse_params *params, struct kvdb_rparams *ref)
     params_convert(params, table, &rp, "kvdb.");
 
     return rp;
+}
+
+void
+hse_params_to_mclass_policies(
+    struct hse_params *   params,
+    struct mclass_policy *policies,
+    int                   entries)
+{
+    int    i, count = 0;
+    merr_t err = 0;
+    bool   lparam = false;
+
+    if (!policies)
+        return;
+
+    if (!params) {
+        err = hse_params_create(&params);
+        lparam = true;
+        if (ev(err))
+            return;
+    }
+
+    for (i = 0; i < params->hp_next; i++) {
+        if (key_is_mclass_policy((const char *)params->hp_keys[i])) {
+            mclass_policy_init_from_string(
+                &policies[count],
+                (const char *)params->hp_keys[i],
+                (const char *)params->hp_vals[i]);
+
+            if (++count >= entries)
+                break;
+        }
+    }
+
+    if (lparam)
+        hse_params_destroy(params);
 }
 
 struct kvs_cparams

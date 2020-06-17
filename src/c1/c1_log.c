@@ -39,13 +39,6 @@ c1_log_create(struct mpool *ds, u64 capacity, int *mclass, struct c1_log_desc *d
         return err;
     }
 
-    if (props.lpr_mclassp != mclassp) {
-        hse_log(
-            HSE_WARNING "mpool_mlog_alloc mclass mismatch req:%d ret:%d",
-            mclassp,
-            props.lpr_mclassp);
-    }
-
     desc->c1_mlh = mlh;
     desc->c1_oid = props.lpr_objid;
 

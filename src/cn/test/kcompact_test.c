@@ -618,8 +618,7 @@ pre(struct mtf_test_info *info)
 
     /* Neuter the following APIs */
     mapi_inject(mapi_idx_cn_tree_get_cn, 0);
-    mapi_inject(mapi_idx_kvset_builder_set_mclass_kvblk, 0);
-    mapi_inject(mapi_idx_kvset_builder_set_mclass, 0);
+    mapi_inject(mapi_idx_kvset_builder_set_agegroup, 0);
     mapi_inject(mapi_idx_kvset_builder_set_merge_stats, 0);
 
     return 0;

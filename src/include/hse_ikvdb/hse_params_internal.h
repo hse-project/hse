@@ -14,6 +14,7 @@ struct hse_params;
 #include <hse_ikvdb/kvdb_rparams.h>
 #include <hse_ikvdb/kvs_cparams.h>
 #include <hse_ikvdb/kvs_rparams.h>
+#include <hse_ikvdb/mclass_policy.h>
 
 /**
  * hse_params_to_kvdb_cparams() - convert params to kvdb cparams
@@ -48,5 +49,17 @@ hse_params_to_kvs_cparams(struct hse_params *params, const char *kvs_name, struc
  */
 struct kvs_rparams
 hse_params_to_kvs_rparams(struct hse_params *params, const char *kvs_name, struct kvs_rparams *ref);
+
+/**
+ * hse_params_to_mclass_policies() - convert params to media class policies
+ * @params:   fixed configuration parameters
+ * @policies: pointer to table of media class policies
+ * @entries:  number of entries in table
+ */
+void
+hse_params_to_mclass_policies(
+    struct hse_params *   params,
+    struct mclass_policy *policies,
+    int                   entries);
 
 #endif /* HSE_PARAMS_INTERNAL_H */

@@ -596,9 +596,8 @@ is_spill_to_intnode(struct cn_tree_node *pnode, u32 child)
 merr_t
 cn_spill(struct cn_compaction_work *w)
 {
-    merr_t               err;
-    uint                 i;
-    enum mp_media_classp mclassp;
+    merr_t err;
+    uint   i;
 
     assert(w->cw_kvset_cnt);
     assert(w->cw_inputv);
@@ -619,11 +618,22 @@ cn_spill(struct cn_compaction_work *w)
 
         kvset_builder_set_merge_stats(w->cw_child[i], &w->cw_stats);
 
-        mclassp = w->cw_rp->cn_media_class;
         pnode = w->cw_node;
-        if (pnode && ((w->cw_action == CN_ACTION_SPILL && is_spill_to_intnode(pnode, i)) ||
-                      (w->cw_action == CN_ACTION_COMPACT_KV && !cn_node_isleaf(pnode))))
-            kvset_builder_set_mclass(w->cw_child[i], mclassp);
+        if (pnode && w->cw_action == CN_ACTION_SPILL) {
+            if (is_spill_to_intnode(pnode, i))
+                kvset_builder_set_agegroup(w->cw_child[i], HSE_MPOLICY_AGE_INTERNAL);
+            else
+                kvset_builder_set_agegroup(w->cw_child[i], HSE_MPOLICY_AGE_LEAF);
+        }
+
+        if (pnode && w->cw_action == CN_ACTION_COMPACT_KV) {
+            if (cn_node_isleaf(pnode))
+                kvset_builder_set_agegroup(w->cw_child[i], HSE_MPOLICY_AGE_LEAF);
+            else if (cn_node_isroot(pnode))
+                kvset_builder_set_agegroup(w->cw_child[i], HSE_MPOLICY_AGE_ROOT);
+            else
+                kvset_builder_set_agegroup(w->cw_child[i], HSE_MPOLICY_AGE_INTERNAL);
+        }
     }
 
     err = kv_spill(w);

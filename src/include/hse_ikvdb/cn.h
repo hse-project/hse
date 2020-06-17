@@ -28,6 +28,7 @@ struct kvs_rparams;
 struct kvset_mblocks;
 struct kvdb_kvs;
 struct sts;
+struct mclass_policy;
 enum cn_action;
 enum mp_media_classp;
 
@@ -97,6 +98,10 @@ cn_get_dataset(const struct cn *cn);
 /* MTF_MOCK */
 struct tbkt *
 cn_get_tbkt_maint(const struct cn *cn);
+
+/* MTF_MOCK */
+struct mclass_policy *
+cn_get_mclass_policy(const struct cn *cn);
 
 /* MTF_MOCK */
 void

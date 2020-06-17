@@ -7,6 +7,7 @@
 #define HSE_KVS_CN_KVSET_BUILDER_INT_H
 
 #include <hse_util/perfc.h>
+#include <hse_ikvdb/mclass_policy.h>
 
 #include "cn_metrics.h"
 

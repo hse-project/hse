@@ -57,6 +57,10 @@ fill_exact(
     uint                   space,
     int                    expected_errno);
 
+struct mclass_policy mocked_mpolicy = {
+    .mc_name = "capacity_only",
+};
+
 /*----------------------------------------------------------------------------
  * Call at start of each MTF_DEFINE_UTEST
  */
@@ -66,6 +70,7 @@ test_setup(struct mtf_test_info *lcl_ti)
     mock_mpool_set();
 
     mapi_inject_ptr(mapi_idx_cn_get_rp, &kvsrp);
+    mapi_inject_ptr(mapi_idx_cn_get_mclass_policy, &mocked_mpolicy);
 
     mapi_inject(mapi_idx_cn_get_cnid, 1001);
     mapi_inject(mapi_idx_cn_get_dataset, 0);
@@ -87,7 +92,7 @@ test_setup(struct mtf_test_info *lcl_ti)
 int
 initial_setup(struct mtf_test_info *lcl_ti)
 {
-    u32 i;
+    u32 i, j, k;
 
     hse_openlog("vblock_builder_test", 1);
 
@@ -98,6 +103,15 @@ initial_setup(struct mtf_test_info *lcl_ti)
         ((u8 *)workbuf)[i] = i;
 
     kvsrp = kvs_rparams_defaults();
+
+    for (i = 0; i < HSE_MPOLICY_AGE_CNT; i++)
+        for (j = 0; j < HSE_MPOLICY_DTYPE_CNT; j++)
+            for (k = 0; k < HSE_MPOLICY_MEDIA_CNT; k++) {
+                if (k == 0)
+                    mocked_mpolicy.mc_table[i][j][k] = HSE_MPOLICY_MEDIA_CAPACITY;
+                else
+                    mocked_mpolicy.mc_table[i][j][k] = HSE_MPOLICY_MEDIA_INVALID;
+            }
 
     return 0;
 }
@@ -117,14 +131,15 @@ MTF_DEFINE_UTEST_PRE(test, t_vbb_create1, test_setup)
 {
     struct vblock_builder *vbb;
     merr_t                 err;
+    int                    i;
 
     err = vbb_create(VBB_CREATE_ARGS, KVSET_BUILDER_FLAGS_NONE);
     ASSERT_EQ(err, 0);
 
-    ASSERT_EQ(vbb_get_mclass(vbb), MP_MED_CAPACITY);
-
-    vbb_set_mclass(vbb, MP_MED_STAGING);
-    ASSERT_EQ(vbb_get_mclass(vbb), MP_MED_STAGING);
+    for (i = 0; i < HSE_MPOLICY_AGE_CNT; i++) {
+        vbb_set_agegroup(vbb, i);
+        ASSERT_EQ(vbb_get_agegroup(vbb), i);
+    }
 
     vbb_destroy(vbb);
 }

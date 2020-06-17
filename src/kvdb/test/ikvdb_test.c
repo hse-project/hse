@@ -2001,4 +2001,59 @@ MTF_DEFINE_UTEST(ikvdb_test, ikvdb_hash_test)
     ASSERT_EQ(ref, hash);
 }
 
+MTF_DEFINE_UTEST_PREPOST(ikvdb_test, ikvdb_mclass_policies_test, test_pre, test_post)
+{
+    const char *          mpool = "mpool_alpha";
+    struct ikvdb *        store = NULL;
+    merr_t                err;
+    struct mpool *        ds = (struct mpool *)-1;
+    struct hse_params *   params;
+    struct mclass_policy *policy = NULL;
+    const char *          default_policies[] = {
+        "staging_only", "capacity_only", "staging_capacity_nofallback", "staging_capacity_fallback"
+    };
+    const int count = sizeof(default_policies) / sizeof(default_policies[0]);
+    int       i;
+
+    /* Test that the default policies are found if KVDB is opened with
+     * HSE params */
+    hse_params_create(&params);
+
+    err = ikvdb_open(mpool, ds, params, &store);
+    ASSERT_EQ(0, err);
+    ASSERT_NE(0, store);
+
+    for (i = 0; i < count; i++) {
+        policy = ikvdb_get_mclass_policy(store, default_policies[i]);
+        ASSERT_NE(policy, NULL);
+    }
+
+    policy = ikvdb_get_mclass_policy(store, "whoami_policy");
+    ASSERT_EQ(policy, NULL);
+
+    err = ikvdb_close(store);
+    ASSERT_EQ(0, err);
+
+    hse_params_destroy(params);
+
+    store = NULL;
+
+    /* Test that the default policies are found if KVDB is opened without
+     * HSE params (params is NULL) */
+    err = ikvdb_open(mpool, ds, NULL, &store);
+    ASSERT_EQ(0, err);
+    ASSERT_NE(0, store);
+
+    for (i = 0; i < count; i++) {
+        policy = ikvdb_get_mclass_policy(store, default_policies[i]);
+        ASSERT_NE(policy, NULL);
+    }
+
+    policy = ikvdb_get_mclass_policy(store, "whoami_policy");
+    ASSERT_EQ(policy, NULL);
+
+    err = ikvdb_close(store);
+    ASSERT_EQ(0, err);
+}
+
 MTF_END_UTEST_COLLECTION(ikvdb_test);

@@ -19,6 +19,7 @@ struct kvs_rparams;
 struct cn_merge_stats;
 
 enum mp_media_classp;
+enum hse_mclass_policy_age;
 
 struct kbb_key_stats {
     uint nvals;
@@ -135,10 +136,10 @@ size_t
 kbb_estimate_alen(struct cn *cn, size_t wlen, enum mp_media_classp mclass);
 
 void
-kbb_set_mclass(struct kblock_builder *bld, enum mp_media_classp mclass);
+kbb_set_agegroup(struct kblock_builder *bld, enum hse_mclass_policy_age age);
 
-enum mp_media_classp
-kbb_get_mclass(struct kblock_builder *bld);
+enum hse_mclass_policy_age
+kbb_get_agegroup(struct kblock_builder *bld);
 
 void
 kbb_set_merge_stats(struct kblock_builder *bld, struct cn_merge_stats *stats);

@@ -20,6 +20,8 @@
 #define RPARAMS_MAGIC 0x73766B5052ULL /* ascii RPkvs - no null */
 
 #define KVS_PARAM(name, desc) PARAM_INST_U64(kvs_rp_ref.name, #name, desc)
+#define KVS_PARAM_STR(name, desc) \
+    PARAM_INST_STRING(kvs_rp_ref.name, sizeof(kvs_rp_ref.name), #name, desc)
 
 #define KVS_PARAM_EXP(name, desc) PARAM_INST_U64_EXP(kvs_rp_ref.name, #name, desc)
 
@@ -80,7 +82,6 @@ kvs_rparams_defaults(void)
 #endif
 
         .cn_compaction_debug = 0,
-        .cn_media_class = MP_MED_STAGING,
         .cn_io_threads = 13,
         .cn_maint_delay = 100,
         .cn_close_wait = 0,
@@ -101,6 +102,8 @@ kvs_rparams_defaults(void)
 
         .rdonly = 0,
         .kv_print_config = 1,
+
+        .mclass_policy = "capacity_only",
 
         .rpmagic = RPARAMS_MAGIC,
     };
@@ -163,7 +166,6 @@ static struct param_inst  kvs_rp_table[] = {
 
     KVS_PARAM_EXP(cn_compaction_debug, "cn compaction debug flags"),
     KVS_PARAM_EXP(cn_maint_delay, "ms of delay between checks when idle"),
-    KVS_PARAM_EXP(cn_media_class, "preferred media class for all of cn"),
     KVS_PARAM_EXP(cn_io_threads, "number of cn mblock i/o threads"),
     KVS_PARAM_EXP(
         cn_close_wait,
@@ -186,6 +188,8 @@ static struct param_inst  kvs_rp_table[] = {
 
     KVS_PARAM_EXP(kv_print_config, "print kvs runtime params"),
     KVS_PARAM_EXP(rdonly, "open kvs in read-only mode"),
+
+    KVS_PARAM_STR(mclass_policy, "media class policy name"),
 
     PARAM_INST_END
 };
@@ -328,11 +332,6 @@ kvs_rparams_validate(struct kvs_rparams *params)
             (ulong)params->c1_vblock_size_mb,
             (ulong)(VBLOCK_MIN_SIZE >> 20),
             (ulong)(VBLOCK_MAX_SIZE >> 20));
-        return merr_errno(merr(ev(EINVAL)));
-    }
-
-    if (params->cn_media_class >= MP_MED_INVALID) {
-        hse_log(HSE_ERR "cn media class must be less than %d", MP_MED_INVALID);
         return merr_errno(merr(ev(EINVAL)));
     }
 

@@ -33,7 +33,7 @@ _kvset_builder_create(
 }
 
 void
-_kvset_builder_set_mclass(struct kvset_builder *bldr, enum mp_media_classp mclass)
+_kvset_builder_set_agegroup(struct kvset_builder *bldr, enum hse_mclass_policy_age age)
 {
 }
 
@@ -87,7 +87,7 @@ mock_kvset_builder_unset(void)
     MOCK_UNSET(kvset_builder, _kvset_builder_add_nonval);
     MOCK_UNSET(kvset_builder, _kvset_builder_add_vref);
     MOCK_UNSET(kvset_builder, _kvset_builder_get_mblocks);
-    MOCK_UNSET(kvset_builder, _kvset_builder_set_mclass);
+    MOCK_UNSET(kvset_builder, _kvset_builder_set_agegroup);
     MOCK_UNSET(kvset_builder, _kvset_builder_destroy);
 }
 
@@ -103,6 +103,6 @@ mock_kvset_builder_set(void)
     MOCK_SET(kvset_builder, _kvset_builder_add_nonval);
     MOCK_SET(kvset_builder, _kvset_builder_add_vref);
     MOCK_SET(kvset_builder, _kvset_builder_get_mblocks);
-    MOCK_SET(kvset_builder, _kvset_builder_set_mclass);
+    MOCK_SET(kvset_builder, _kvset_builder_set_agegroup);
     MOCK_SET(kvset_builder, _kvset_builder_destroy);
 }

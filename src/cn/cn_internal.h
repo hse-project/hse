@@ -61,11 +61,12 @@ struct cn {
     atomic_t                 cn_maint_cancel;
     bool                     cn_maintenance_stop;
 
-    struct kvs_rparams *rp;
-    struct kvs_cparams *cp;
-    struct ikvdb *      ikvdb;
-    struct csched *     csched;
-    struct kvdb_health *cn_kvdb_health;
+    struct kvs_rparams *  rp;
+    struct kvs_cparams *  cp;
+    struct ikvdb *        ikvdb;
+    struct csched *       csched;
+    struct kvdb_health *  cn_kvdb_health;
+    struct mclass_policy *cn_mpolicy;
 
     u32 cn_cflags;
 

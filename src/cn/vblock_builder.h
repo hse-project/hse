@@ -18,6 +18,7 @@ struct kvs_rparams;
 struct cn_merge_stats;
 
 enum mp_media_classp;
+enum hse_mclass_policy_age;
 
 /* MTF_MOCK_DECL(vblock_builder) */
 
@@ -116,10 +117,10 @@ merr_t
 vbb_blk_list_merge(struct vblock_builder *dst, struct vblock_builder *src, struct blk_list *vblks);
 
 void
-vbb_set_mclass(struct vblock_builder *bld, enum mp_media_classp mclass);
+vbb_set_agegroup(struct vblock_builder *bld, enum hse_mclass_policy_age age);
 
-enum mp_media_classp
-vbb_get_mclass(struct vblock_builder *bld);
+enum hse_mclass_policy_age
+vbb_get_agegroup(struct vblock_builder *bld);
 
 void
 vbb_set_merge_stats(struct vblock_builder *bld, struct cn_merge_stats *stats);

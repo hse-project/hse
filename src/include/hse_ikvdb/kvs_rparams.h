@@ -7,6 +7,7 @@
 #define HSE_KVS_RPARAMS_H
 
 #include <stdlib.h>
+#include <hse_ikvdb/mclass_policy.h>
 
 /**
  * struct kvs_rparams  - kvs runtime parameters
@@ -71,7 +72,6 @@ struct kvs_rparams {
     unsigned long c1_vblock_size_mb;
     unsigned long c1_vblock_cappct;
 
-    unsigned long cn_media_class;
     unsigned long cn_io_threads;
     unsigned long cn_close_wait;
     unsigned long cn_diag_mode;
@@ -81,6 +81,8 @@ struct kvs_rparams {
 
     unsigned long kv_print_config;
     unsigned long rdonly;
+
+    char mclass_policy[HSE_MPOLICY_NAME_LEN_MAX];
 
     unsigned long rpmagic;
 };

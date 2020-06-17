@@ -35,6 +35,7 @@
 #include <hse_ikvdb/throttle_perfc.h>
 #include <hse_ikvdb/rparam_debug_flags.h>
 #include <hse_ikvdb/hse_params_internal.h>
+#include <hse_ikvdb/mclass_policy.h>
 #include "kvdb_omf.h"
 
 #include "kvdb_log.h"
@@ -173,6 +174,8 @@ struct ikvdb_impl {
     struct kvdb_kvs *  ikdb_kvs_vec[HSE_KVS_COUNT_MAX];
     struct work_struct ikdb_maint_work;
     struct work_struct ikdb_throttle_work;
+
+    struct mclass_policy ikdb_mpolicies[HSE_MPOLICY_COUNT];
 
     u64  ikdb_cndb_oid1;
     u64  ikdb_cndb_oid2;
@@ -1267,11 +1270,7 @@ ikvdb_low_mem_adjust(struct ikvdb_impl *self)
 }
 
 merr_t
-ikvdb_open(
-    const char *       mp_name,
-    struct mpool *     ds,
-    struct hse_params *params,
-    struct ikvdb **    handle)
+ikvdb_open(const char *mp_name, struct mpool *ds, struct hse_params *params, struct ikvdb **handle)
 {
     merr_t              err;
     struct ikvdb_impl * self;
@@ -1281,7 +1280,6 @@ ikvdb_open(
     size_t              n;
     int                 i;
     u64                 ingestid;
-    u64                 staging_absent;
 
     self = alloc_aligned(sizeof(*self), __alignof(*self), GFP_KERNEL);
     if (ev(!self)) {
@@ -1304,17 +1302,11 @@ ikvdb_open(
 
     rp = hse_params_to_kvdb_rparams(params, NULL);
 
+    hse_params_to_mclass_policies(params, self->ikdb_mpolicies, NELEM(self->ikdb_mpolicies));
+
     self->ikdb_rp = rp;
     self->ikdb_rdonly = rp.read_only;
     self->ikdb_profile = params;
-
-    staging_absent = mpool_mclass_get(ds, MP_MED_STAGING, NULL);
-    if (staging_absent) {
-        if (self->ikdb_rp.staging_policy == MP_MED_STAGING) {
-            hse_log(HSE_NOTICE "Staging media is not configured.");
-            self->ikdb_rp.staging_policy = MP_MED_CAPACITY;
-        }
-    }
 
     rp = self->ikdb_rp;
 
@@ -1509,14 +1501,6 @@ ikvdb_rdonly(struct ikvdb *handle)
     return self->ikdb_rdonly;
 }
 
-u32
-ikvdb_staging_policy(struct ikvdb *handle)
-{
-    struct ikvdb_impl *self = ikvdb_h2r(handle);
-
-    return self->ikdb_rp.staging_policy;
-}
-
 void
 ikvdb_get_c0sk(struct ikvdb *handle, struct c0sk **out)
 {
@@ -1537,6 +1521,20 @@ struct csched *
 ikvdb_get_csched(struct ikvdb *handle)
 {
     return handle ? ikvdb_h2r(handle)->ikdb_csched : 0;
+}
+
+struct mclass_policy *
+ikvdb_get_mclass_policy(struct ikvdb *handle, const char *name)
+{
+    struct ikvdb_impl *   self = ikvdb_h2r(handle);
+    struct mclass_policy *policy = self->ikdb_mpolicies;
+    int                   i;
+
+    for (i = 0; i < HSE_MPOLICY_COUNT; i++, policy++)
+        if (!strcmp(policy->mc_name, name))
+            return policy;
+
+    return NULL;
 }
 
 static int
@@ -3040,9 +3038,12 @@ log_dt(void)
         char *      path = "/data";
 
         struct yaml_context yc = {
-            .yaml_buf = buf, .yaml_buf_sz = sizeof(buf), .yaml_indent = 0, .yaml_offset = 0,
+            .yaml_buf = buf,
+            .yaml_buf_sz = sizeof(buf),
+            .yaml_indent = 0,
+            .yaml_offset = 0,
         };
-        union dt_iterate_parameters dip = {.yc = &yc };
+        union dt_iterate_parameters dip = { .yc = &yc };
 
         time(&t);
         tm = localtime(&t);
