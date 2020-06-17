@@ -77,7 +77,7 @@ c0kvmsm_ingest_internal(
     struct c0kvmsm_info info;
     struct c0kvmsm_info txinfo;
 
-    const char *action;
+    const char *action = "";
     int         ref;
     bool        tx;
     bool        nontx;
