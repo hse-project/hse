@@ -23,7 +23,6 @@ enum {
 
 struct c1_log_desc {
     u64                c1_oid;
-    struct mpool_mlog *c1_mlh;
 };
 
 struct c1_log {
@@ -46,7 +45,7 @@ struct c1_log {
     atomic64_t         c1l_kcount;
     atomic64_t         c1l_ckcount;
     atomic64_t         c1l_cvcount;
-    struct mpool *     c1l_ds;
+    struct mpool *     c1l_mp;
     struct mpool_mlog *c1l_mlh;
     struct cheap *     c1l_cheap[HSE_C1_DEFAULT_STRIPE_WIDTH];
     struct list_head   c1l_kvb_list;
@@ -127,17 +126,17 @@ c1_log_kvseqno(struct c1_log *log)
 }
 
 merr_t
-c1_log_create(struct mpool *ds, u64 capacity, int *mclass, struct c1_log_desc *desc);
+c1_log_create(struct mpool *mp, u64 capacity, int *mclass, struct c1_log_desc *desc);
 
 merr_t
-c1_log_abort(struct mpool *ds, struct c1_log_desc *desc);
+c1_log_abort(struct mpool *mp, struct c1_log_desc *desc);
 
 merr_t
-c1_log_destroy(struct mpool *ds, struct c1_log_desc *desc);
+c1_log_destroy(struct mpool *mp, struct c1_log_desc *desc);
 
 merr_t
 c1_log_open(
-    struct mpool *      ds,
+    struct mpool *      mp,
     u64                 seqno,
     u32                 gen,
     u64                 mdcoid1,
@@ -187,7 +186,7 @@ c1_log_reserve_space(struct c1_log *log, u64 space);
 
 merr_t
 c1_log_make(
-    struct mpool *      ds,
+    struct mpool *      mp,
     u64                 seqno,
     u32                 gen,
     u64                 mdcoid1,

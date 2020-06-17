@@ -62,7 +62,7 @@ test_pre(struct mtf_test_info *ti)
     fail_flag_alloc_test_pre(ti);
     mapi_inject(mapi_idx_mpool_mdc_alloc, 0);
     mapi_inject(mapi_idx_mpool_mdc_commit, 0);
-    mapi_inject(mapi_idx_mpool_mdc_destroy, 0);
+    mapi_inject(mapi_idx_mpool_mdc_delete, 0);
     mapi_inject(mapi_idx_mpool_mdc_open, 0);
     mapi_inject(mapi_idx_mpool_mdc_close, 0);
     mapi_inject(mapi_idx_mpool_mdc_append, 0);
@@ -78,7 +78,7 @@ test_post(struct mtf_test_info *ti)
     mapi_inject_unset(mapi_idx_mpool_mdc_close);
     mapi_inject_unset(mapi_idx_mpool_mdc_alloc);
     mapi_inject_unset(mapi_idx_mpool_mdc_commit);
-    mapi_inject_unset(mapi_idx_mpool_mdc_destroy);
+    mapi_inject_unset(mapi_idx_mpool_mdc_delete);
     mapi_inject_unset(mapi_idx_mpool_mdc_open);
     mapi_inject_unset(mapi_idx_mpool_mdc_close);
     mapi_inject_unset(mapi_idx_mpool_mdc_append);

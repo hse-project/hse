@@ -46,20 +46,20 @@ c1_diag_replay_trees(struct c1 *c1, c1_journal_replay_cb *cb)
     merr_t             err;
     struct c1_journal *jrnl;
     u64                oid1, oid2;
-    struct mpool *     ds;
+    struct mpool *     mp;
 
     jrnl = c1->c1_jrnl;
     assert(jrnl != NULL);
 
     oid1 = jrnl->c1j_oid1;
     oid2 = jrnl->c1j_oid2;
-    ds = jrnl->c1j_ds;
+    mp = jrnl->c1j_mp;
 
-    err = c1_replay_build_trees(ds, oid1, oid2, c1);
+    err = c1_replay_build_trees(mp, oid1, oid2, c1);
     if (ev(err))
         return err;
 
-    err = c1_replay_remove_reset_trees(ds, c1);
+    err = c1_replay_remove_reset_trees(mp, c1);
     if (ev(err))
         return err;
 

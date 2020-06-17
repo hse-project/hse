@@ -163,14 +163,6 @@ MTF_DEFINE_UTEST_PREPOST(c1_make_test, make_test2, test_pre_c1, test_post_c1)
     err = ikvdb_make(ds, 0, 0, &cp, 0);
     mapi_inject_unset(mapi_idx_mpool_mlog_commit);
 
-    mapi_inject(mapi_idx_mpool_mlog_put, merr(ev(EIO)));
-    err = ikvdb_make(ds, 0, 0, &cp, 0);
-    mapi_inject_unset(mapi_idx_mpool_mlog_put);
-
-    mapi_inject(mapi_idx_mpool_mlog_find_get, merr(ev(EIO)));
-    err = ikvdb_make(ds, 0, 0, &cp, 0);
-    mapi_inject_unset(mapi_idx_mpool_mlog_find_get);
-
     mapi_inject(mapi_idx_mpool_mlog_open, merr(ev(EIO)));
     err = ikvdb_make(ds, 0, 0, &cp, 0);
     mapi_inject_unset(mapi_idx_mpool_mlog_open);
@@ -211,10 +203,6 @@ MTF_DEFINE_UTEST_PREPOST(c1_make_test, open_test2, test_pre_c1, test_post_c1)
     mapi_inject(mapi_idx_mpool_mdc_open, merr(ev(EIO)));
     err = ikvdb_open(mpool, ds, NULL, &hdl);
     mapi_inject_unset(mapi_idx_mpool_mdc_open);
-
-    mapi_inject(mapi_idx_mpool_mlog_find_get, merr(ev(EIO)));
-    err = ikvdb_open(mpool, ds, NULL, &hdl);
-    mapi_inject_unset(mapi_idx_mpool_mlog_find_get);
 
     mapi_inject(mapi_idx_mpool_mlog_open, merr(ev(EIO)));
     err = ikvdb_open(mpool, ds, NULL, &hdl);

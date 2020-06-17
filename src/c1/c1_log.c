@@ -15,13 +15,13 @@ static merr_t
 c1_log_close_impl(struct c1_log *log);
 
 merr_t
-c1_log_create(struct mpool *ds, u64 capacity, int *mclass, struct c1_log_desc *desc)
+c1_log_create(struct mpool *mp, u64 capacity, int *mclass, struct c1_log_desc *desc)
 {
     struct mlog_capacity mlcap;
     merr_t               err;
-    struct mpool_mlog *  mlh;
     struct mlog_props    props;
     u64                  staging_absent;
+    u64                  objid;
 
     enum mp_media_classp mclassp = MP_MED_STAGING;
 
@@ -29,18 +29,17 @@ c1_log_create(struct mpool *ds, u64 capacity, int *mclass, struct c1_log_desc *d
     mlcap.lcp_captgt = capacity;
     mlcap.lcp_spare = false;
 
-    staging_absent = mpool_mclass_get(ds, MP_MED_STAGING, NULL);
+    staging_absent = mpool_mclass_get(mp, MP_MED_STAGING, NULL);
     if (staging_absent)
         mclassp = MP_MED_CAPACITY;
 
-    err = mpool_mlog_alloc(ds, &mlcap, mclassp, &props, &mlh);
+    err = mpool_mlog_alloc(mp, mclassp, &mlcap, &objid, &props);
     if (ev(err)) {
         hse_elog(HSE_ERR "%s: mpool_mlog_alloc mclass:%d failed: @@e", err, __func__, mclassp);
         return err;
     }
 
-    desc->c1_mlh = mlh;
-    desc->c1_oid = props.lpr_objid;
+    desc->c1_oid = objid;
 
     *mclass = props.lpr_mclassp;
 
@@ -48,25 +47,11 @@ c1_log_create(struct mpool *ds, u64 capacity, int *mclass, struct c1_log_desc *d
 }
 
 merr_t
-c1_log_abort(struct mpool *ds, struct c1_log_desc *desc)
+c1_log_abort(struct mpool *mp, struct c1_log_desc *desc)
 {
-    struct mpool_mlog *mlh;
-    merr_t             err;
-    struct mlog_props  props;
-    u64                oid;
+    merr_t err;
 
-    oid = desc->c1_oid;
-    mlh = desc->c1_mlh;
-
-    if (!mlh) {
-        err = mpool_mlog_find_get(ds, oid, &props, &mlh);
-        if (ev(err)) {
-            hse_elog(HSE_ERR "%s: mpool_mlog_find_get failed: @@e", err, __func__);
-            return err;
-        }
-    }
-
-    err = mpool_mlog_abort(ds, mlh);
+    err = mpool_mlog_abort(mp, desc->c1_oid);
     if (ev(err)) {
         hse_elog(HSE_ERR "%s: mpool_mlog_abort failed: @@e", err, __func__);
         return err;
@@ -76,25 +61,11 @@ c1_log_abort(struct mpool *ds, struct c1_log_desc *desc)
 }
 
 merr_t
-c1_log_destroy(struct mpool *ds, struct c1_log_desc *desc)
+c1_log_destroy(struct mpool *mp, struct c1_log_desc *desc)
 {
-    struct mpool_mlog *mlh;
-    merr_t             err;
-    struct mlog_props  props;
-    u64                oid;
+    merr_t err;
 
-    oid = desc->c1_oid;
-    mlh = desc->c1_mlh;
-
-    if (!mlh) {
-        err = mpool_mlog_find_get(ds, oid, &props, &mlh);
-        if (ev(err)) {
-            hse_elog(HSE_ERR "%s: mpool_mlog_find_get failed: @@e", err, __func__);
-            return err;
-        }
-    }
-
-    err = mpool_mlog_delete(ds, mlh);
+    err = mpool_mlog_delete(mp, desc->c1_oid);
     if (ev(err)) {
         hse_elog(HSE_ERR "%s: mpool_mlog_delete failed: @@e", err, __func__);
         return err;
@@ -105,7 +76,7 @@ c1_log_destroy(struct mpool *ds, struct c1_log_desc *desc)
 
 static merr_t
 c1_log_alloc(
-    struct mpool *  ds,
+    struct mpool *  mp,
     u64             seqno,
     u32             gen,
     u64             mdcoid1,
@@ -131,7 +102,7 @@ c1_log_alloc(
     log->c1l_gen = gen;
     log->c1l_empty = false;
     log->c1l_space = capacity;
-    log->c1l_ds = ds;
+    log->c1l_mp = mp;
     log->c1l_mlh = NULL;
     log->c1l_maxkv_seqno = C1_INVALID_SEQNO;
     log->c1l_repbuf = 0;
@@ -181,6 +152,7 @@ c1_log_format(struct c1_log *log)
 {
     struct c1_kvlog_omf kv;
     merr_t              err;
+    struct iovec        iov;
 
     c1_set_hdr(&kv.hdr, C1_TYPE_KVLOG, sizeof(kv));
     omf_set_c1kvlog_mdcoid1(&kv, log->c1l_mdcoid1);
@@ -190,16 +162,19 @@ c1_log_format(struct c1_log *log)
     omf_set_c1kvlog_size(&kv, log->c1l_space);
     omf_set_c1kvlog_seqno(&kv, log->c1l_seqno);
 
-    err = mpool_mlog_append_data(log->c1l_ds, log->c1l_mlh, &kv, sizeof(kv), true);
+    iov.iov_base = &kv;
+    iov.iov_len  = sizeof(kv);
+
+    err = mpool_mlog_append(log->c1l_mlh, &iov, iov.iov_len, true);
     if (ev(err))
-        hse_elog(HSE_ERR "%s: mpool_mlog_append_data failed: @@e", err, __func__);
+        hse_elog(HSE_ERR "%s: mpool_mlog_append failed: @@e", err, __func__);
 
     return err;
 }
 
 merr_t
 c1_log_make(
-    struct mpool *      ds,
+    struct mpool *      mp,
     u64                 seqno,
     u32                 gen,
     u64                 mdcoid1,
@@ -210,25 +185,15 @@ c1_log_make(
     merr_t         err;
     struct c1_log *log = NULL;
 
-    err = mpool_mlog_commit(ds, desc->c1_mlh);
+    err = mpool_mlog_commit(mp, desc->c1_oid);
     if (ev(err)) {
-        (void)mpool_mlog_abort(ds, desc->c1_mlh);
-        desc->c1_mlh = NULL;
+        mpool_mlog_abort(mp, desc->c1_oid);
         hse_elog(HSE_ERR "%s: mpool_mlog_commit failed: @@e", err, __func__);
         return err;
     }
 
-    err = mpool_mlog_put(ds, desc->c1_mlh);
-    if (ev(err)) {
-        desc->c1_mlh = NULL;
-        hse_elog(HSE_ERR "%s: mpool_mlog_put failed: @@e", err, __func__);
-        return err;
-    }
-
-    desc->c1_mlh = NULL;
-
     /* logs are allocated and freed as part of c1_tree_create() and c1_tree_destroy() */
-    err = c1_log_alloc(ds, seqno, gen, mdcoid1, mdcoid2, desc->c1_oid, capacity, &log);
+    err = c1_log_alloc(mp, seqno, gen, mdcoid1, mdcoid2, desc->c1_oid, capacity, &log);
     if (ev(err))
         return err;
 
@@ -247,7 +212,7 @@ c1_log_make(
 
 merr_t
 c1_log_open(
-    struct mpool *      ds,
+    struct mpool *      mp,
     u64                 seqno,
     u32                 gen,
     u64                 mdcoid1,
@@ -259,7 +224,7 @@ c1_log_open(
     merr_t         err;
     struct c1_log *log = NULL;
 
-    err = c1_log_alloc(ds, seqno, gen, mdcoid1, mdcoid2, desc->c1_oid, capacity, &log);
+    err = c1_log_alloc(mp, seqno, gen, mdcoid1, mdcoid2, desc->c1_oid, capacity, &log);
     if (ev(err))
         return err;
     assert(log != NULL);
@@ -280,23 +245,15 @@ c1_log_open_impl(struct c1_log *log)
 {
     struct mpool_mlog *mlh;
     merr_t             err;
-    struct mlog_props  props;
     u64                gen;
 
-    err = mpool_mlog_find_get(log->c1l_ds, log->c1l_oid, &props, &mlh);
+    err = mpool_mlog_open(log->c1l_mp, log->c1l_oid, 0, &gen, &mlh);
     if (ev(err)) {
-        hse_elog(HSE_ERR "%s: mpool_mlog_find_get failed: @@e", err, __func__);
+        hse_elog(HSE_ERR "%s: mpool_mlog_open failed: @@e", err, __func__);
         return err;
     }
 
     log->c1l_mlh = mlh;
-
-    err = mpool_mlog_open(log->c1l_ds, mlh, 0, &gen);
-    if (ev(err)) {
-        mpool_mlog_put(log->c1l_ds, mlh);
-        hse_elog(HSE_ERR "%s: mpool_mlog_open failed: @@e", err, __func__);
-        return err;
-    }
 
     return 0;
 }
@@ -324,17 +281,10 @@ c1_log_close_impl(struct c1_log *log)
     if (log->c1l_mlh == NULL)
         return 0;
 
-    err = mpool_mlog_close(log->c1l_ds, log->c1l_mlh);
-    if (ev(err)) {
-        hse_elog(HSE_ERR "%s: mpool_mlog_close failed: @@e", err, __func__);
-        goto exit;
-    }
-
-    err = mpool_mlog_put(log->c1l_ds, log->c1l_mlh);
+    err = mpool_mlog_close(log->c1l_mlh);
     if (ev(err))
-        hse_elog(HSE_ERR "%s: mpool_mlog_put failed: @@e", err, __func__);
+        hse_elog(HSE_ERR "%s: mpool_mlog_close failed: @@e", err, __func__);
 
-exit:
     free(log);
     return err;
 }
@@ -345,7 +295,7 @@ c1_log_reset(struct c1_log *log, u64 newseqno, u64 newgen)
     merr_t err;
     int    i;
 
-    err = mpool_mlog_erase(log->c1l_ds, log->c1l_mlh, 0);
+    err = mpool_mlog_erase(log->c1l_mlh, 0);
     if (ev(err))
         return err;
 
@@ -369,7 +319,7 @@ BullseyeCoverageRestore
 {
     merr_t err;
 
-    err = mpool_mlog_flush(log->c1l_ds, log->c1l_mlh);
+    err = mpool_mlog_sync(log->c1l_mlh);
     if (ev(err))
         return err;
 
@@ -407,7 +357,7 @@ c1_log_reserve_space(struct c1_log *log, u64 size)
      * mlog append failures, until it has retry logic when the current
      * gets exhausted and mlog appends start failing.
      */
-    err = mpool_mlog_len(log->c1l_ds, log->c1l_mlh, &len);
+    err = mpool_mlog_len(log->c1l_mlh, &len);
     if (ev(err))
         return err;
 
@@ -574,6 +524,7 @@ c1_log_issue_kvb(
     u64                    vtalen;
     int                    logtype;
     u64                    latency = 0;
+    struct iovec           siov;
 
     err = 0;
     kvtomf = NULL;
@@ -705,11 +656,6 @@ c1_log_issue_kvb(
                 }
             }
 
-            /*
-            size           += nextvt->c1vt_vlen;
-            iov[i].iov_base = nextvt->c1vt_data;
-            iov[i].iov_len  = nextvt->c1vt_vlen;
-            */
             omf_set_c1vt_logtype(&vt[j], logtype);
 
             i++;
@@ -757,13 +703,15 @@ c1_log_issue_kvb(
     /*
      * Sending header to mlog first
      */
-    err = mpool_mlog_append_data(log->c1l_ds, log->c1l_mlh, &omf, sizeof(omf), false);
+    siov.iov_base = &omf;
+    siov.iov_len = sizeof(omf);
+    err = mpool_mlog_append(log->c1l_mlh, &siov, siov.iov_len, false);
     if (ev(err)) {
         size_t len;
 
-        mpool_mlog_len(log->c1l_ds, log->c1l_mlh, &len);
+        mpool_mlog_len(log->c1l_mlh, &len);
         hse_elog(
-            HSE_ERR "%s: mpool_mlog_append_data failed "
+            HSE_ERR "%s: mpool_mlog_append failed "
                     "mlog len %ld reserved space %ld : @@e",
             err,
             __func__,
@@ -775,14 +723,14 @@ c1_log_issue_kvb(
     /*
      * Then the actual key-value bundle
      */
-    err = mpool_mlog_append_datav(log->c1l_ds, log->c1l_mlh, iov, size, sync);
+    err = mpool_mlog_append(log->c1l_mlh, iov, size, sync);
     if (ev(err)) {
         size_t len;
 
-        mpool_mlog_len(log->c1l_ds, log->c1l_mlh, &len);
+        mpool_mlog_len(log->c1l_mlh, &len);
 
         hse_elog(
-            HSE_ERR "%s: mpool_mlog_append_datav failed "
+            HSE_ERR "%s: mpool_mlog_append failed "
                     "mlog len %ld reserved space %ld : @@e",
             err,
             __func__,
@@ -823,6 +771,7 @@ c1_log_issue_txn(
     int             sync)
 
 {
+    struct iovec          iov;
     struct c1_treetxn_omf omf;
     merr_t                err;
 
@@ -836,12 +785,15 @@ c1_log_issue_txn(
     omf_set_c1ttxn_cmd(&omf, txn->c1t_cmd);
     omf_set_c1ttxn_flag(&omf, txn->c1t_flag);
 
+    iov.iov_base = &omf;
+    iov.iov_len = sizeof(omf);
+
     mutex_lock(&log->c1l_ingest_mtx);
-    err = mpool_mlog_append_data(log->c1l_ds, log->c1l_mlh, &omf, sizeof(omf), sync);
+    err = mpool_mlog_append(log->c1l_mlh, &iov, iov.iov_len, sync);
     mutex_unlock(&log->c1l_ingest_mtx);
 
     if (ev(err))
-        hse_elog(HSE_ERR "%s: mpool_mlog_append_data failed: @@e", err, __func__);
+        hse_elog(HSE_ERR "%s: mpool_mlog_append failed: @@e", err, __func__);
 
     return err;
 }

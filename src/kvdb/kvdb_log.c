@@ -214,7 +214,7 @@ kvdb_log_rollback_oids(struct kvdb_log *log, union kvdb_mdu *mdp)
 {
     merr_t err;
 
-    err = ev(mpool_mdc_destroy(log->kl_ds, mdp->c.mdc_new_oid1, mdp->c.mdc_new_oid2));
+    err = ev(mpool_mdc_delete(log->kl_ds, mdp->c.mdc_new_oid1, mdp->c.mdc_new_oid2));
 
     /* If the mdc is already destroyed, report success */
     if (merr_errno(err) == ENOENT)

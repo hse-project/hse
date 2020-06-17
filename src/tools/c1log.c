@@ -397,7 +397,7 @@ c1_log_get_mblk_value_impl(
         return merr(EINVAL);
     }
 
-    ds = c1_journal_get_ds(c1->c1_jrnl);
+    ds = c1_journal_get_mp(c1->c1_jrnl);
     if (!ds) {
         printf("c1 log error dataset missing\n");
         return merr(EINVAL);
