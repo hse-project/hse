@@ -723,14 +723,13 @@ get_code_slot(int code)
 bool
 pack_source_info(struct hse_log_fmt_state *state)
 {
-    const char *ver = hse_version;
-    const char *br = hse_branch;
     bool        res;
 
     if (!state->source_info_set) {
         res =
             (push_nv(state, false, "hse_logver", HSE_LOGGING_VER) &&
-             push_nv(state, false, "hse_version", ver) && push_nv(state, false, "hse_branch", br));
+             push_nv(state, false, "hse_version", hse_version) &&
+             push_nv(state, false, "hse_tag", hse_tag));
         if (!res)
             return res;
 
@@ -963,14 +962,13 @@ append_hse_arg(
     struct hse_log_fmt_state *state,
     void *                    obj)
 {
-    const char *ver = hse_version;
-    const char *br = hse_branch;
     bool        res;
 
     if (!state->source_info_set) {
         res =
             (push_nv(state, false, "hse_logver", HSE_LOGGING_VER) &&
-             push_nv(state, false, "hse_version", ver) && push_nv(state, false, "hse_branch", br));
+             push_nv(state, false, "hse_version", hse_version) &&
+             push_nv(state, false, "hse_tag", hse_tag));
         if (!res)
             return res;
         state->source_info_set = true;
@@ -1210,12 +1208,9 @@ hse_logprio_name_to_val(const char *priority)
 static void
 package_source_info(struct json_context *jc)
 {
-    const char *vr = hse_version;
-    const char *br = hse_branch;
-
     json_element_field(jc, "hse_logver", "%s", HSE_LOGGING_VER);
-    json_element_field(jc, "hse_version", "%s", vr);
-    json_element_field(jc, "hse_branch", "%s", br);
+    json_element_field(jc, "hse_version", "%s", hse_version);
+    json_element_field(jc, "hse_tag", "%s", hse_tag);
 }
 
 static void
