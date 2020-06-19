@@ -413,8 +413,8 @@ MTF_DEFINE_UTEST(cndb_test, nfault_probes_test)
                                       { 0, { NFAULT_TRIG_ONESHOT, 3 } },
                                       { 0, { NFAULT_TRIG_PERIOD, 3 } },
                                       { 0, { NFAULT_TRIG_LEVEL, 3 } } };
-    int i;
-    int trig;
+    int                 i;
+    int                 trig;
 
     for (i = 1; i <= 4; i++) {
         trig = nfault_probe(probes, 0);
@@ -453,7 +453,9 @@ MTF_DEFINE_UTEST_PREPOST(cndb_test, cndb_cnv_add_test, test_pre, test_post)
     merr_t      err;
 
     struct kvs_cparams cp = {
-        .cp_fanout = 1 << 1, .cp_pfx_len = 2, .cp_pfx_pivot = 0,
+        .cp_fanout = 1 << 1,
+        .cp_pfx_len = 2,
+        .cp_pfx_pivot = 0,
     };
 
     cndb.cndb_kvdb_health = &mock_health;

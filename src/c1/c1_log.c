@@ -163,7 +163,7 @@ c1_log_format(struct c1_log *log)
     omf_set_c1kvlog_seqno(&kv, log->c1l_seqno);
 
     iov.iov_base = &kv;
-    iov.iov_len  = sizeof(kv);
+    iov.iov_len = sizeof(kv);
 
     err = mpool_mlog_append(log->c1l_mlh, &iov, iov.iov_len, true);
     if (ev(err))

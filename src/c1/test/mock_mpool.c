@@ -186,7 +186,7 @@ _mpool_mlog_alloc(
     struct mpool *        ds,
     enum mp_media_classp  mclassp,
     struct mlog_capacity *capreq,
-    uint64_t             *mlogid,
+    uint64_t *            mlogid,
     struct mlog_props *   props)
 {
     FILE *fp;
@@ -314,7 +314,12 @@ _mpool_mdc_cstart(struct mpool_mdc *mdc)
 }
 
 static uint64_t
-_mpool_mlog_open(struct mpool *ds, uint64_t mlogid, uint8_t flags, uint64_t *gen, struct mpool_mlog **mlogh)
+_mpool_mlog_open(
+    struct mpool *      ds,
+    uint64_t            mlogid,
+    uint8_t             flags,
+    uint64_t *          gen,
+    struct mpool_mlog **mlogh)
 {
     FILE *fp;
 
@@ -372,11 +377,7 @@ _mpool_mdc_append(struct mpool_mdc *mdc, void *data, ssize_t len, bool sync)
 }
 
 static uint64_t
-_mpool_mlog_append(
-    struct mpool_mlog *mlh,
-    struct iovec *     iov,
-    size_t             len,
-    int                sync)
+_mpool_mlog_append(struct mpool_mlog *mlh, struct iovec *iov, size_t len, int sync)
 {
     FILE * fp = (FILE *)mlh;
     size_t bytes = len;
@@ -397,11 +398,7 @@ _mpool_mlog_append(
 }
 
 static uint64_t
-_mpool_mlog_read(
-    struct mpool_mlog *mlh,
-    void *             data,
-    size_t             len,
-    size_t *           rdlen)
+_mpool_mlog_read(struct mpool_mlog *mlh, void *data, size_t len, size_t *rdlen)
 {
     FILE *fp = (FILE *)mlh;
 
@@ -415,12 +412,7 @@ _mpool_mlog_read(
 }
 
 uint64_t
-_mpool_mlog_seek_read(
-    struct mpool_mlog *mlh,
-    size_t             seek,
-    void *             data,
-    size_t             len,
-    size_t *           rdlen)
+_mpool_mlog_seek_read(struct mpool_mlog *mlh, size_t seek, void *data, size_t len, size_t *rdlen)
 {
     FILE *fp = (FILE *)mlh;
     int   sklen;

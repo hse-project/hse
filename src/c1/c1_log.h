@@ -22,7 +22,7 @@ enum {
 };
 
 struct c1_log_desc {
-    u64                c1_oid;
+    u64 c1_oid;
 };
 
 struct c1_log {
