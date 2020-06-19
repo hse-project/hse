@@ -12,7 +12,7 @@
 
 merr_t
 c1_journal_create(
-    struct mpool *      ds,
+    struct mpool *      mp,
     u64                 seqno,
     u32                 gen,
     u64                 oid1,
@@ -43,7 +43,7 @@ c1_journal_create(
 
     jrnl->c1j_oid1 = oid1;
     jrnl->c1j_oid2 = oid2;
-    jrnl->c1j_ds = ds;
+    jrnl->c1j_mp = mp;
     jrnl->c1j_mdc = NULL;
     memset(&jrnl->c1j_pcset, 0, sizeof(jrnl->c1j_pcset));
     *out = jrnl;
@@ -54,13 +54,13 @@ c1_journal_create(
 }
 
 merr_t
-c1_journal_alloc(struct mpool *ds, int mediaclass, u64 capacity, struct c1_journal **out)
+c1_journal_alloc(struct mpool *mp, int mediaclass, u64 capacity, struct c1_journal **out)
 {
     merr_t             err;
     struct c1_journal *jrnl = NULL;
 
     err = c1_journal_create(
-        ds,
+        mp,
         C1_INITIAL_SEQNO,
         0,
         0,
@@ -90,7 +90,7 @@ c1_journal_alloc(struct mpool *ds, int mediaclass, u64 capacity, struct c1_journ
 
 merr_t
 c1_journal_make(
-    struct mpool *      ds,
+    struct mpool *      mp,
     u64                 oid1,
     u64                 oid2,
     int                 mediaclass,
@@ -101,7 +101,7 @@ c1_journal_make(
     struct c1_journal *jrnl = NULL;
 
     err = c1_journal_create(
-        ds,
+        mp,
         C1_INITIAL_SEQNO,
         0,
         oid1,
@@ -143,25 +143,25 @@ err_exit:
 merr_t
 c1_journal_destroy(struct c1_journal *j)
 {
-    struct mpool *ds;
+    struct mpool *mp;
     merr_t        err;
     u64           oid1;
     u64           oid2;
 
-    ds = j->c1j_ds;
+    mp = j->c1j_mp;
     oid1 = j->c1j_oid1;
     oid2 = j->c1j_oid2;
 
     c1_journal_close(j);
 
-    err = c1_journal_destroy_mdc(ds, oid1, oid2);
+    err = c1_journal_destroy_mdc(mp, oid1, oid2);
     return err;
 }
 
 merr_t
 c1_journal_open(
     int                 rdonly,
-    struct mpool *      ds,
+    struct mpool *      mp,
     int                 mclass,
     const char *        mpname,
     u64                 oid1,
@@ -171,7 +171,7 @@ c1_journal_open(
     merr_t             err;
     struct c1_journal *jrnl = NULL;
 
-    err = c1_journal_create(ds, C1_INITIAL_SEQNO, 0, oid1, oid2, mclass, mpname, 0, 0, 0, 0, &jrnl);
+    err = c1_journal_create(mp, C1_INITIAL_SEQNO, 0, oid1, oid2, mclass, mpname, 0, 0, 0, 0, &jrnl);
     if (ev(err))
         return err;
 
@@ -239,11 +239,11 @@ c1_journal_alloc_mdc(struct c1_journal *jrnl)
     mdcap.mdt_captgt = jrnl->c1j_jrnlsize;
     mdcap.mdt_spare = false;
 
-    staging_absent = mpool_mclass_get(jrnl->c1j_ds, MP_MED_STAGING, NULL);
+    staging_absent = mpool_mclass_get(jrnl->c1j_mp, MP_MED_STAGING, NULL);
     if (staging_absent)
         mclassp = MP_MED_CAPACITY;
 
-    err = mpool_mdc_alloc(jrnl->c1j_ds, &oid1, &oid2, mclassp, &mdcap, &props);
+    err = mpool_mdc_alloc(jrnl->c1j_mp, &oid1, &oid2, mclassp, &mdcap, &props);
     if (ev(err)) {
         hse_elog(HSE_ERR "%s: mpool_mdc_alloc mclass:%d failed: @@e", err, __func__, mclassp);
         return err;
@@ -261,7 +261,7 @@ c1_journal_commit_mdc(struct c1_journal *jrnl)
 {
     merr_t err;
 
-    err = mpool_mdc_commit(jrnl->c1j_ds, jrnl->c1j_oid1, jrnl->c1j_oid2);
+    err = mpool_mdc_commit(jrnl->c1j_mp, jrnl->c1j_oid1, jrnl->c1j_oid2);
     if (ev(err)) {
         hse_elog(HSE_ERR "%s: mpool_mdc_commit failed: @@e", err, __func__);
         return err;
@@ -271,11 +271,11 @@ c1_journal_commit_mdc(struct c1_journal *jrnl)
 }
 
 merr_t
-c1_journal_destroy_mdc(struct mpool *ds, u64 oid1, u64 oid2)
+c1_journal_destroy_mdc(struct mpool *mp, u64 oid1, u64 oid2)
 {
     merr_t err;
 
-    err = mpool_mdc_destroy(ds, oid1, oid2);
+    err = mpool_mdc_delete(mp, oid1, oid2);
     if (ev(err))
         hse_elog(
             HSE_ERR "%s: destroy (%lx,%lx) failed: @@e", err, __func__, (ulong)oid1, (ulong)oid2);
@@ -289,7 +289,7 @@ c1_journal_open_mdc(struct c1_journal *jrnl)
     struct mpool_mdc *mdc;
     merr_t            err;
 
-    err = mpool_mdc_open(jrnl->c1j_ds, jrnl->c1j_oid1, jrnl->c1j_oid2, 0, &mdc);
+    err = mpool_mdc_open(jrnl->c1j_mp, jrnl->c1j_oid1, jrnl->c1j_oid2, 0, &mdc);
     if (ev(err))
         return err;
 

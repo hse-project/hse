@@ -713,17 +713,14 @@ MTF_DEFINE_UTEST_PREPOST(c1_misc_test, misc9,
     }
 
     for (i = 0; i < 512; i++) {
-        mapi_inject_once(mapi_idx_mpool_mlog_append_data,
-                 i + 1, merr(ev(EIO)));
-        mapi_inject_once(mapi_idx_mpool_mlog_append_datav,
+        mapi_inject_once(mapi_idx_mpool_mlog_append,
                  i + 1, merr(ev(EIO)));
         kvs_ktuple_init(&kt, "key", 3);
         vt.vt_data = buffer;
         vt.vt_len  = vt_len;
 
         err = ikvdb_kvs_put(kvs_h, NULL, &kt, &vt);
-        mapi_inject_unset(mapi_idx_mpool_mlog_append_data);
-        mapi_inject_unset(mapi_idx_mpool_mlog_append_datav);
+        mapi_inject_unset(mapi_idx_mpool_mlog_append);
         /*
         if (!(i % 10))
             err = ikvdb_flush(kvs_h);

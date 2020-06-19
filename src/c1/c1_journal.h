@@ -24,7 +24,7 @@ struct c1_journal {
     u64               c1j_oid1;
     u64               c1j_oid2;
     u64               c1j_resetseqno;
-    struct mpool *    c1j_ds;
+    struct mpool *    c1j_mp;
     struct mpool_mdc *c1j_mdc;
     struct perfc_set  c1j_pcset;
 };
@@ -50,19 +50,19 @@ c1_journal_inc_seqno(struct c1_journal *jrnl)
 }
 
 static inline struct mpool *
-c1_journal_get_ds(struct c1_journal *jrnl)
+c1_journal_get_mp(struct c1_journal *jrnl)
 {
     assert(jrnl);
 
-    return jrnl->c1j_ds;
+    return jrnl->c1j_mp;
 }
 
 merr_t
-c1_journal_alloc(struct mpool *ds, int mediaclass, u64 capacity, struct c1_journal **out);
+c1_journal_alloc(struct mpool *mp, int mediaclass, u64 capacity, struct c1_journal **out);
 
 merr_t
 c1_journal_make(
-    struct mpool *      ds,
+    struct mpool *      mp,
     u64                 oid1,
     u64                 oid2,
     int                 mediaclass,
@@ -75,7 +75,7 @@ c1_journal_destroy(struct c1_journal *jrnl);
 merr_t
 c1_journal_open(
     int                 rdonly,
-    struct mpool *      ds,
+    struct mpool *      mp,
     int                 mclass,
     const char *        mpname,
     u64                 oid1,

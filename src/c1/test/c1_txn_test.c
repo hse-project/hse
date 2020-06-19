@@ -826,7 +826,7 @@ MTF_DEFINE_UTEST_PREPOST(c1_txn_test, fail,
     vt.vt_data = buffer;
     vt.vt_len  = vt_len;
 
-    mapi_inject(mapi_idx_mpool_mlog_append_data, merr(ev(EIO)));
+    mapi_inject(mapi_idx_mpool_mlog_append, merr(ev(EIO)));
     err = ikvdb_txn_begin(hdl, os.kop_txn);
     ASSERT_EQ(0, err);
 
@@ -854,7 +854,7 @@ MTF_DEFINE_UTEST_PREPOST(c1_txn_test, fail,
     /*
     ASSERT_NE(0, err);
     */
-    mapi_inject_unset(mapi_idx_mpool_mlog_append_data);
+    mapi_inject_unset(mapi_idx_mpool_mlog_append);
 
     err  = ikvdb_close(hdl);
     /*
@@ -911,7 +911,7 @@ MTF_DEFINE_UTEST_PREPOST(c1_txn_test, fail2,
     vt.vt_data = buffer;
     vt.vt_len  = vt_len;
 
-    mapi_inject(mapi_idx_mpool_mlog_append_datav, merr(ev(EIO)));
+    mapi_inject(mapi_idx_mpool_mlog_append, merr(ev(EIO)));
     err = ikvdb_txn_begin(hdl, os.kop_txn);
     ASSERT_EQ(0, err);
 
@@ -939,7 +939,7 @@ MTF_DEFINE_UTEST_PREPOST(c1_txn_test, fail2,
     /*
     ASSERT_NE(0, err);
     */
-    mapi_inject_unset(mapi_idx_mpool_mlog_append_datav);
+    mapi_inject_unset(mapi_idx_mpool_mlog_append);
 
     err  = ikvdb_close(hdl);
     /*

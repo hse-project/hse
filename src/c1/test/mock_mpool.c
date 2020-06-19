@@ -172,7 +172,7 @@ mock_open_mlog(u64 oid)
 }
 
 static uint64_t
-_mpool_mlog_len(struct mpool *ds, struct mpool_mlog *mlh, size_t *len)
+_mpool_mlog_len(struct mpool_mlog *mlh, size_t *len)
 {
     FILE *fp = (FILE *)mlh;
 
@@ -184,10 +184,10 @@ _mpool_mlog_len(struct mpool *ds, struct mpool_mlog *mlh, size_t *len)
 static uint64_t
 _mpool_mlog_alloc(
     struct mpool *        ds,
-    struct mlog_capacity *capreq,
     enum mp_media_classp  mclassp,
-    struct mlog_props *   props,
-    struct mpool_mlog **  mlh)
+    struct mlog_capacity *capreq,
+    uint64_t *            mlogid,
+    struct mlog_props *   props)
 {
     FILE *fp;
     char  filename[MAXPATHLEN + 1];
@@ -206,11 +206,12 @@ _mpool_mlog_alloc(
         return merr(ev(EINVAL));
     }
 
-    hse_log(HSE_DEBUG "MLOG open oid %d filename %s fp %p", c1_next_logoid, filename, fp);
+    fclose(fp);
 
-    c1_mlog_fp[c1_next_logoid] = fp;
+    hse_log(HSE_DEBUG "MLOG open oid %d filename %s", c1_next_logoid, filename);
+
     props->lpr_objid = (u64)c1_next_logoid;
-    *mlh = (struct mpool_mlog *)fp;
+    *mlogid = props->lpr_objid;
 
     ++c1_next_logoid;
 
@@ -313,59 +314,32 @@ _mpool_mdc_cstart(struct mpool_mdc *mdc)
 }
 
 static uint64_t
-_mpool_mlog_find_get(
+_mpool_mlog_open(
     struct mpool *      ds,
-    u64                 oid,
-    struct mlog_props * props,
-    struct mpool_mlog **mlh_out)
+    uint64_t            mlogid,
+    uint8_t             flags,
+    uint64_t *          gen,
+    struct mpool_mlog **mlogh)
 {
     FILE *fp;
 
-    fp = mock_open_mlog(oid);
+    fp = mock_open_mlog(mlogid);
     if (!fp)
         return merr(ev(EINVAL));
 
-    *mlh_out = (struct mpool_mlog *)fp;
+    *mlogh = (struct mpool_mlog *)fp;
 
     return 0;
 }
 
 static uint64_t
-_mpool_mlog_resolve(
-    struct mpool *      ds,
-    uint64_t            objid,
-    struct mlog_props * props,
-    struct mpool_mlog **mlh_out)
-{
-    return _mpool_mlog_find_get(ds, objid, props, mlh_out);
-}
-
-static uint64_t
-_mpool_mlog_open(struct mpool *ds, struct mpool_mlog *mlh, uint8_t flags, uint64_t *gen)
-{
-    FILE *fp = (FILE *)mlh;
-
-    assert(fp);
-    if (!fp)
-        return merr(ev(EIO));
-
-    return 0;
-}
-
-static uint64_t
-_mpool_mlog_put(struct mpool *ds, struct mpool_mlog *mlh)
+_mpool_mlog_delete(struct mpool *ds, uint64_t mlogid)
 {
     return 0;
 }
 
 static uint64_t
-_mpool_mlog_delete(struct mpool *ds, struct mpool_mlog *mlh)
-{
-    return 0;
-}
-
-static uint64_t
-_mpool_mlog_close(struct mpool *ds, struct mpool_mlog *mlh)
+_mpool_mlog_close(struct mpool_mlog *mlh)
 {
     FILE *fp = (FILE *)mlh;
     int   i;
@@ -403,30 +377,7 @@ _mpool_mdc_append(struct mpool_mdc *mdc, void *data, ssize_t len, bool sync)
 }
 
 static uint64_t
-_mpool_mlog_append_data(struct mpool *ds, struct mpool_mlog *mlh, void *data, size_t len, int sync)
-{
-    FILE *fp = (FILE *)mlh;
-
-    /*
-    hse_log(HSE_DEBUG "mlog_append fp %p pos %ld size %ld",
-        fp, ftell(fp), len);
-    */
-
-    if (fwrite(data, 1, len, fp) == len) {
-        fflush(fp);
-        return 0;
-    }
-
-    return merr(ev(EIO));
-}
-
-static uint64_t
-_mpool_mlog_append_datav(
-    struct mpool *     ds,
-    struct mpool_mlog *mlh,
-    struct iovec *     iov,
-    size_t             len,
-    int                sync)
+_mpool_mlog_append(struct mpool_mlog *mlh, struct iovec *iov, size_t len, int sync)
 {
     FILE * fp = (FILE *)mlh;
     size_t bytes = len;
@@ -447,12 +398,7 @@ _mpool_mlog_append_datav(
 }
 
 static uint64_t
-_mpool_mlog_read_data_next(
-    struct mpool *     ds,
-    struct mpool_mlog *mlh,
-    void *             data,
-    size_t             len,
-    size_t *           rdlen)
+_mpool_mlog_read(struct mpool_mlog *mlh, void *data, size_t len, size_t *rdlen)
 {
     FILE *fp = (FILE *)mlh;
 
@@ -466,13 +412,7 @@ _mpool_mlog_read_data_next(
 }
 
 uint64_t
-_mpool_mlog_seek_read_data_next(
-    struct mpool *     ds,
-    struct mpool_mlog *mlh,
-    size_t             seek,
-    void *             data,
-    size_t             len,
-    size_t *           rdlen)
+_mpool_mlog_seek_read(struct mpool_mlog *mlh, size_t seek, void *data, size_t len, size_t *rdlen)
 {
     FILE *fp = (FILE *)mlh;
     int   sklen;
@@ -490,7 +430,7 @@ _mpool_mlog_seek_read_data_next(
             fseek(fp, 0, SEEK_END);
     }
 
-    return _mpool_mlog_read_data_next(ds, mlh, data, len, rdlen);
+    return _mpool_mlog_read(mlh, data, len, rdlen);
 }
 
 static uint64_t
@@ -530,7 +470,7 @@ _mpool_mdc_rewind(struct mpool_mdc *mdc)
 }
 
 static uint64_t
-_mpool_mlog_read_data_init(struct mpool *ds, struct mpool_mlog *mlh)
+_mpool_mlog_rewind(struct mpool_mlog *mlh)
 {
     FILE *fp = (FILE *)mlh;
 
@@ -542,13 +482,13 @@ _mpool_mlog_read_data_init(struct mpool *ds, struct mpool_mlog *mlh)
 }
 
 static uint64_t
-_mpool_mlog_flush(struct mpool *ds, struct mpool_mlog *mlh)
+_mpool_mlog_sync(struct mpool_mlog *mlh)
 {
     return 0;
 }
 
 uint64_t
-_mpool_mlog_erase(struct mpool *ds, struct mpool_mlog *mlh, uint64_t mingen)
+_mpool_mlog_erase(struct mpool_mlog *mlh, uint64_t mingen)
 {
     FILE *fp = (FILE *)mlh;
 
@@ -570,19 +510,15 @@ c1_mpool_unset_mock(void)
     MOCK_UNSET(mpool, _mpool_mdc_read);
     MOCK_UNSET(mpool, _mpool_mdc_open);
     MOCK_UNSET(mpool, _mpool_mdc_close);
-    MOCK_UNSET(mpool, _mpool_mlog_append_data);
-    MOCK_UNSET(mpool, _mpool_mlog_append_datav);
-    MOCK_UNSET(mpool, _mpool_mlog_flush);
-    MOCK_UNSET(mpool, _mpool_mlog_read_data_next);
-    MOCK_UNSET(mpool, _mpool_mlog_seek_read_data_next);
-    MOCK_UNSET(mpool, _mpool_mlog_read_data_init);
+    MOCK_UNSET(mpool, _mpool_mlog_append);
+    MOCK_UNSET(mpool, _mpool_mlog_sync);
+    MOCK_UNSET(mpool, _mpool_mlog_read);
+    MOCK_UNSET(mpool, _mpool_mlog_seek_read);
+    MOCK_UNSET(mpool, _mpool_mlog_rewind);
     MOCK_UNSET(mpool, _mpool_mdc_alloc);
     MOCK_UNSET(mpool, _mpool_mlog_alloc);
-    MOCK_UNSET(mpool, _mpool_mlog_find_get);
-    MOCK_UNSET(mpool, _mpool_mlog_resolve);
     MOCK_UNSET(mpool, _mpool_mlog_close);
     MOCK_UNSET(mpool, _mpool_mlog_delete);
-    MOCK_UNSET(mpool, _mpool_mlog_put);
     MOCK_UNSET(mpool, _mpool_mlog_open);
     MOCK_UNSET(mpool, _mpool_mdc_cstart);
     MOCK_UNSET(mpool, _mpool_mlog_erase);
@@ -593,7 +529,7 @@ c1_mpool_unset_mock(void)
     mapi_inject_unset(mapi_idx_mpool_mlog_commit);
     mapi_inject_unset(mapi_idx_mpool_mdc_get_root);
     mapi_inject_unset(mapi_idx_mpool_mdc_sync);
-    mapi_inject_unset(mapi_idx_mpool_mdc_destroy);
+    mapi_inject_unset(mapi_idx_mpool_mdc_delete);
     mapi_inject_unset(mapi_idx_mpool_mdc_cend);
 }
 
@@ -608,19 +544,15 @@ c1_mpool_set_mock(void)
     MOCK_SET(mpool, _mpool_mdc_read);
     MOCK_SET(mpool, _mpool_mdc_open);
     MOCK_SET(mpool, _mpool_mdc_close);
-    MOCK_SET(mpool, _mpool_mlog_append_data);
-    MOCK_SET(mpool, _mpool_mlog_append_datav);
-    MOCK_SET(mpool, _mpool_mlog_flush);
-    MOCK_SET(mpool, _mpool_mlog_read_data_next);
-    MOCK_SET(mpool, _mpool_mlog_seek_read_data_next);
-    MOCK_SET(mpool, _mpool_mlog_read_data_init);
+    MOCK_SET(mpool, _mpool_mlog_append);
+    MOCK_SET(mpool, _mpool_mlog_sync);
+    MOCK_SET(mpool, _mpool_mlog_read);
+    MOCK_SET(mpool, _mpool_mlog_seek_read);
+    MOCK_SET(mpool, _mpool_mlog_rewind);
     MOCK_SET(mpool, _mpool_mdc_alloc);
     MOCK_SET(mpool, _mpool_mlog_alloc);
-    MOCK_SET(mpool, _mpool_mlog_find_get);
-    MOCK_SET(mpool, _mpool_mlog_resolve);
     MOCK_SET(mpool, _mpool_mlog_close);
     MOCK_SET(mpool, _mpool_mlog_delete);
-    MOCK_SET(mpool, _mpool_mlog_put);
     MOCK_SET(mpool, _mpool_mlog_open);
     MOCK_SET(mpool, _mpool_mdc_cstart);
     MOCK_SET(mpool, _mpool_mlog_erase);
@@ -630,7 +562,7 @@ c1_mpool_set_mock(void)
     mapi_inject(mapi_idx_mpool_mdc_get_root, 0);
     mapi_inject(mapi_idx_mpool_mdc_cend, 0);
     mapi_inject(mapi_idx_mpool_mdc_sync, 0);
-    mapi_inject(mapi_idx_mpool_mdc_destroy, 0);
+    mapi_inject(mapi_idx_mpool_mdc_delete, 0);
 }
 
 void

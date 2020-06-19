@@ -1098,29 +1098,29 @@ again:
 
 #if 0
     for (i = 0; i < 10; i++) {
-        mapi_inject_once(mapi_idx_mpool_mlog_append_datav, i,
+        mapi_inject_once(mapi_idx_mpool_mlog_append, i,
                  merr(ev(EIO)));
         err = c0_put(test_c0, &kt, &vt, seqnoref);
         if (!err)
             c0_sync(test_c0);
-        mapi_inject_unset(mapi_idx_mpool_mlog_append_datav);
+        mapi_inject_unset(mapi_idx_mpool_mlog_append);
     }
 
     for (i = 0; i < 10; i++) {
-        mapi_inject_once(mapi_idx_mpool_mlog_append_data, i,
+        mapi_inject_once(mapi_idx_mpool_mlog_append, i,
                  merr(ev(EIO)));
         err = c0_put(test_c0, &kt, &vt, seqnoref);
         if (!err)
             c0_sync(test_c0);
-        mapi_inject_unset(mapi_idx_mpool_mlog_append_data);
+        mapi_inject_unset(mapi_idx_mpool_mlog_append);
     }
 
     for (i = 0; i < 10; i++) {
-        mapi_inject_once(mapi_idx_mpool_mlog_flush, i, merr(EIO));
+        mapi_inject_once(mapi_idx_mpool_mlog_sync, i, merr(EIO));
         err = c0_put(test_c0, &kt, &vt, seqnoref);
         if (!err)
             c0_sync(test_c0);
-        mapi_inject_unset(mapi_idx_mpool_mlog_flush);
+        mapi_inject_unset(mapi_idx_mpool_mlog_sync);
     }
 #endif
     err = c0_close(test_c0);
@@ -1365,23 +1365,23 @@ MTF_DEFINE_UTEST_PREPOST(c1_test, ingest_replay2, no_fail_pre, no_fail_post)
 
 #if 0
     for (i = 0; i < 5; i++) {
-        mapi_inject_once(mapi_idx_mpool_mlog_seek_read_data_next, i,
+        mapi_inject_once(mapi_idx_mpool_mlog_seek_read, i,
                  merr(ev(EIO)));
         err = c1_open(NULL, false, c1_oid1, c1_oid2, 0,
                  "mock_mp", &kvdb_rp, NULL, NULL, &c1);
         if (!err)
             c1_close(c1);
-        mapi_inject_unset(mapi_idx_mpool_mlog_seek_read_data_next);
+        mapi_inject_unset(mapi_idx_mpool_mlog_seek_read);
     }
 
     for (i = 0; i < 5; i++) {
-        mapi_inject_once(mapi_idx_mpool_mlog_read_data_init, i,
+        mapi_inject_once(mapi_idx_mpool_mlog_rewind, i,
                  merr(ev(EIO)));
         err = c1_open(NULL, false, c1_oid1, c1_oid2, 0,
                  "mock_mp", &kvdb_rp, NULL, NULL, &c1);
         if (!err)
             c1_close(c1);
-        mapi_inject_unset(mapi_idx_mpool_mlog_read_data_init);
+        mapi_inject_unset(mapi_idx_mpool_mlog_rewind);
     }
 #endif
 

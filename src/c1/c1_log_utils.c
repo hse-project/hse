@@ -13,13 +13,13 @@ c1_log_read(struct c1_log *log, u64 seek, void *data, size_t len)
     size_t len_read;
     merr_t err;
 
-    err = mpool_mlog_seek_read_data_next(log->c1l_ds, log->c1l_mlh, seek, data, len, &len_read);
+    err = mpool_mlog_seek_read(log->c1l_mlh, seek, data, len, &len_read);
     if (ev(err)) {
         if ((merr_errno(err) == ERANGE) && !len_read)
             return merr(ev(ENOENT));
 
         hse_elog(
-            HSE_ERR "%s: mpool_mlog_seek_read_data_next failed: "
+            HSE_ERR "%s: mpool_mlog_seek_read failed: "
                     "@@e",
             err,
             __func__);
@@ -50,7 +50,7 @@ c1_log_skip_data(struct c1_log *log, u64 skiplen)
     merr_t err;
     size_t len_read;
 
-    err = mpool_mlog_seek_read_data_next(log->c1l_ds, log->c1l_mlh, skiplen, NULL, 0, &len_read);
+    err = mpool_mlog_seek_read(log->c1l_mlh, skiplen, NULL, 0, &len_read);
     if (ev(err))
         return err;
 
@@ -128,7 +128,7 @@ c1_log_replay_open(struct c1_log *log, int type, u16 ver)
     if (!buffer)
         return merr(ev(ENOMEM));
 
-    err = mpool_mlog_read_data_init(log->c1l_ds, log->c1l_mlh);
+    err = mpool_mlog_rewind(log->c1l_mlh);
     if (ev(err)) {
         free(buffer);
         return err;
@@ -422,7 +422,7 @@ c1_log_diag_replay_open(struct c1_log *log, c1_journal_replay_cb *cb, void *cbar
     if (ev(!buffer))
         return merr(ENOMEM);
 
-    err = mpool_mlog_read_data_init(log->c1l_ds, log->c1l_mlh);
+    err = mpool_mlog_rewind(log->c1l_mlh);
     if (ev(err)) {
         free(buffer);
         return err;

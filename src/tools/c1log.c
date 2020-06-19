@@ -397,7 +397,7 @@ c1_log_get_mblk_value_impl(
         return merr(EINVAL);
     }
 
-    ds = c1_journal_get_ds(c1->c1_jrnl);
+    ds = c1_journal_get_mp(c1->c1_jrnl);
     if (!ds) {
         printf("c1 log error dataset missing\n");
         return merr(EINVAL);
@@ -660,7 +660,7 @@ main(int argc, char **argv)
 
     err = hse_kvdb_init();
     if (err)
-      fatal("failed to initialize kvdb: %s", hse_err_to_string(err, errbuf, sizeof(errbuf), 0));
+        fatal("failed to initialize kvdb: %s", hse_err_to_string(err, errbuf, sizeof(errbuf), 0));
 
     /* [HSE_REVISIT]
      * The rparams are needed only to provide the user an option to use
@@ -686,7 +686,7 @@ main(int argc, char **argv)
 
     rc = diag_kvdb_open(mpool, &rp, &kvdbh);
     if (rc)
-      fatal("cannot open kvdb %s: %s", mpool, hse_err_to_string(rc, errbuf, sizeof(errbuf), 0));
+        fatal("cannot open kvdb %s: %s", mpool, hse_err_to_string(rc, errbuf, sizeof(errbuf), 0));
 
     rc = diag_kvdb_get_cndb(kvdbh, &cndb);
     if (rc || !cndb)
@@ -694,11 +694,11 @@ main(int argc, char **argv)
 
     err = cndb_replay(cndb, &seqno, &ingestid);
     if (err)
-      fatal("cannot replay cndb: %s", merr_strinfo(err, errbuf, sizeof(errbuf), 0));
+        fatal("cannot replay cndb: %s", merr_strinfo(err, errbuf, sizeof(errbuf), 0));
 
     err = diag_kvdb_get_c1(kvdbh, ingestid, &c1);
     if (err)
-      fatal("cannot open c1 : %s", merr_strinfo(err, errbuf, sizeof(errbuf), 0));
+        fatal("cannot open c1 : %s", merr_strinfo(err, errbuf, sizeof(errbuf), 0));
 
     printf(
         "c1 cndb ingestid 0x%lx kvdb_seqno 0x%lx\n",
@@ -707,11 +707,11 @@ main(int argc, char **argv)
 
     err = c1_diag_replay_journal(c1, c1log_journal_replay_cb);
     if (err)
-      fatal("cannot replay c1 journal: %s", merr_strinfo(err, errbuf, sizeof(errbuf), 0));
+        fatal("cannot replay c1 journal: %s", merr_strinfo(err, errbuf, sizeof(errbuf), 0));
 
     err = c1_diag_replay_trees(c1, c1log_log_replay_cb);
     if (err)
-      fatal("cannot replay c1 tree : %s", merr_strinfo(err, errbuf, sizeof(errbuf), 0));
+        fatal("cannot replay c1 tree : %s", merr_strinfo(err, errbuf, sizeof(errbuf), 0));
 
     c1_log_put_mblk_value(c1, &last_mblk);
 

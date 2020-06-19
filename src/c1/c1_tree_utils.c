@@ -696,7 +696,7 @@ c1_tree_replay(struct c1 *c1, struct c1_tree *tree)
         return 0;
     }
 
-    err = c1_mblk_create(c1_journal_get_ds(c1->c1_jrnl), &tree->c1t_mblk);
+    err = c1_mblk_create(c1_journal_get_mp(c1->c1_jrnl), &tree->c1t_mblk);
     if (ev(err)) {
         hse_elog(HSE_ERR "%s: c1_mblk_create failed: @@e", err, __func__);
         return err;

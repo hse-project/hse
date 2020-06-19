@@ -227,7 +227,7 @@ cndb_make(struct mpool *ds, u64 captgt, u64 oid1, u64 oid2)
 errout:
     hse_elog(
         HSE_ERR "%s: MDC append (%lx, %lx) failed: @@e", err, __func__, (ulong)oid1, (ulong)oid2);
-    err2 = mpool_mdc_destroy(ds, oid1, oid2);
+    err2 = mpool_mdc_delete(ds, oid1, oid2);
     if (err2)
         hse_elog(
             HSE_ERR "%s: destroy (%lx,%lx) failed: @@e", err2, __func__, (ulong)oid1, (ulong)oid2);

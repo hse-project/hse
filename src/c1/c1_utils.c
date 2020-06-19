@@ -214,7 +214,7 @@ c1_replay_add_close(struct c1 *c1, char *omf)
 static merr_t
 c1_replay_alloc_tree(
     struct c1 *       c1,
-    struct mpool *    ds,
+    struct mpool *    mp,
     u64               oid1,
     u64               oid2,
     struct c1_info *  info,
@@ -256,7 +256,7 @@ c1_replay_alloc_tree(
     }
 
     err = c1_tree_create(
-        ds, seqno, gen, descp, oid1, oid2, MP_MED_STAGING, 0, count, info->c1i_capacity, &tree);
+        mp, seqno, gen, descp, oid1, oid2, MP_MED_STAGING, 0, count, info->c1i_capacity, &tree);
     if (ev(err))
         return err;
 
@@ -266,7 +266,7 @@ c1_replay_alloc_tree(
 }
 
 merr_t
-c1_replay_build_trees(struct mpool *ds, u64 oid1, u64 oid2, struct c1 *c1)
+c1_replay_build_trees(struct mpool *mp, u64 oid1, u64 oid2, struct c1 *c1)
 {
     struct c1_desc * desc, *desc_tmp, *first;
     struct c1_info * info;
@@ -306,7 +306,7 @@ c1_replay_build_trees(struct mpool *ds, u64 oid1, u64 oid2, struct c1 *c1)
                 count,
                 HSE_C1_DEFAULT_STRIPE_WIDTH);
 
-        err = c1_replay_alloc_tree(c1, ds, oid1, oid2, info, &desclist, count);
+        err = c1_replay_alloc_tree(c1, mp, oid1, oid2, info, &desclist, count);
         if (ev(err))
             break;
     }
@@ -317,7 +317,7 @@ c1_replay_build_trees(struct mpool *ds, u64 oid1, u64 oid2, struct c1 *c1)
 }
 
 merr_t
-c1_replay_remove_reset_trees(struct mpool *ds, struct c1 *c1)
+c1_replay_remove_reset_trees(struct mpool *mp, struct c1 *c1)
 {
     struct c1_tree * tree, *tree_tmp;
     struct c1_reset *reset, *tmp_reset;
@@ -401,16 +401,16 @@ c1_replay_sort_trees(struct c1 *c1)
 }
 
 static merr_t
-c1_replay_trees(struct mpool *ds, u64 oid1, u64 oid2, struct c1 *c1)
+c1_replay_trees(struct mpool *mp, u64 oid1, u64 oid2, struct c1 *c1)
 {
     struct c1_tree *tree, *tree_tmp;
     merr_t          err;
 
-    err = c1_replay_build_trees(ds, oid1, oid2, c1);
+    err = c1_replay_build_trees(mp, oid1, oid2, c1);
     if (ev(err))
         return err;
 
-    err = c1_replay_remove_reset_trees(ds, c1);
+    err = c1_replay_remove_reset_trees(mp, c1);
     if (ev(err))
         return err;
 
@@ -535,7 +535,7 @@ c1_replay_impl(struct c1 *c1)
         ikvdb_flush(ikvdb);
     }
 
-    err = c1_replay_trees(jrnl->c1j_ds, jrnl->c1j_oid1, jrnl->c1j_oid2, c1);
+    err = c1_replay_trees(jrnl->c1j_mp, jrnl->c1j_oid1, jrnl->c1j_oid2, c1);
     if (ev(err))
         hse_elog(HSE_ERR "%s: c1 tree replay failed: @@e", err, __func__);
 
@@ -602,7 +602,7 @@ c1_new_tree(
     merr_t              err2;
 
     err = c1_tree_alloc(
-        jrnl->c1j_ds,
+        jrnl->c1j_mp,
         jrnl->c1j_seqno,
         jrnl->c1j_gen,
         jrnl->c1j_oid1,
@@ -648,7 +648,7 @@ c1_new_tree(
     return c1_journal_flush(jrnl);
 
 err_exit:
-    err2 = c1_tree_destroy(jrnl->c1j_ds, desc, numdesc);
+    err2 = c1_tree_destroy(jrnl->c1j_mp, desc, numdesc);
     if (ev(err2))
         hse_elog(HSE_ERR "%s: c1 tree destroy failed: @@e", err2, __func__);
 err_exit2:
@@ -657,14 +657,14 @@ err_exit2:
 }
 
 merr_t
-c1_destroy_tree(struct mpool *ds, u64 oid1, u64 oid2, struct c1 *c1)
+c1_destroy_tree(struct mpool *mp, u64 oid1, u64 oid2, struct c1 *c1)
 {
     struct c1_tree *    tree, *tree_tmp;
     struct c1_log_desc *desc;
     int                 numdesc;
     merr_t              err, err2;
 
-    err = c1_replay_build_trees(ds, oid1, oid2, c1);
+    err = c1_replay_build_trees(mp, oid1, oid2, c1);
     if (ev(err))
         return err;
 
@@ -672,7 +672,7 @@ c1_destroy_tree(struct mpool *ds, u64 oid1, u64 oid2, struct c1 *c1)
         list_del(&tree->c1t_list);
         err2 = ev(c1_tree_get_desc(tree, &desc, &numdesc));
         assert(err2 == 0);
-        err2 = c1_tree_destroy(ds, desc, numdesc);
+        err2 = c1_tree_destroy(mp, desc, numdesc);
         if (ev(err2 != 0))
             err = err2;
 

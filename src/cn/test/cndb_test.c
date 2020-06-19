@@ -62,7 +62,7 @@ test_pre(struct mtf_test_info *ti)
     fail_flag_alloc_test_pre(ti);
     mapi_inject(mapi_idx_mpool_mdc_alloc, 0);
     mapi_inject(mapi_idx_mpool_mdc_commit, 0);
-    mapi_inject(mapi_idx_mpool_mdc_destroy, 0);
+    mapi_inject(mapi_idx_mpool_mdc_delete, 0);
     mapi_inject(mapi_idx_mpool_mdc_open, 0);
     mapi_inject(mapi_idx_mpool_mdc_close, 0);
     mapi_inject(mapi_idx_mpool_mdc_append, 0);
@@ -78,7 +78,7 @@ test_post(struct mtf_test_info *ti)
     mapi_inject_unset(mapi_idx_mpool_mdc_close);
     mapi_inject_unset(mapi_idx_mpool_mdc_alloc);
     mapi_inject_unset(mapi_idx_mpool_mdc_commit);
-    mapi_inject_unset(mapi_idx_mpool_mdc_destroy);
+    mapi_inject_unset(mapi_idx_mpool_mdc_delete);
     mapi_inject_unset(mapi_idx_mpool_mdc_open);
     mapi_inject_unset(mapi_idx_mpool_mdc_close);
     mapi_inject_unset(mapi_idx_mpool_mdc_append);
@@ -413,8 +413,8 @@ MTF_DEFINE_UTEST(cndb_test, nfault_probes_test)
                                       { 0, { NFAULT_TRIG_ONESHOT, 3 } },
                                       { 0, { NFAULT_TRIG_PERIOD, 3 } },
                                       { 0, { NFAULT_TRIG_LEVEL, 3 } } };
-    int i;
-    int trig;
+    int                 i;
+    int                 trig;
 
     for (i = 1; i <= 4; i++) {
         trig = nfault_probe(probes, 0);
@@ -453,7 +453,9 @@ MTF_DEFINE_UTEST_PREPOST(cndb_test, cndb_cnv_add_test, test_pre, test_post)
     merr_t      err;
 
     struct kvs_cparams cp = {
-        .cp_fanout = 1 << 1, .cp_pfx_len = 2, .cp_pfx_pivot = 0,
+        .cp_fanout = 1 << 1,
+        .cp_pfx_len = 2,
+        .cp_pfx_pivot = 0,
     };
 
     cndb.cndb_kvdb_health = &mock_health;
