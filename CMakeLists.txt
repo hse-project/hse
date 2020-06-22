@@ -1,15 +1,19 @@
-cmake_minimum_required(VERSION 3.11)
-if(${CMAKE_MAJOR_VERSION} GREATER 2)
-    # CMP0046 -- We need this policy because this project adds
-    #            dependencies on mpool, but has no rule to build mpool
-    #            (because it's not part of this project).  We shoud
-    #            fix that and eliminate this policy setting.
-    cmake_policy(SET CMP0046 OLD)
-endif()
 
-project( hse
-    VERSION        ${BUILD_PKG_VERSION}
-    HOMEPAGE_URL  "https://github.com/hse-project/hse" )
+cmake_minimum_required( VERSION 3.11.4 )
+
+# CMP0046 -- We need this policy because this project adds
+#            dependencies on mpool, but has no rule to build mpool
+#            (because it's not part of this project).  We should
+#            fix that and eliminate this policy setting.
+cmake_policy( SET CMP0046 OLD )
+
+project( hse )
+
+set( PROJECT_VERSION            "${BUILD_PKG_VERSION}" )
+set( PROJECT_HOMEPAGE_URL       "https://github.com/hse-project/hse" )
+
+set( CMAKE_PROJECT_VERSION      "${PROJECT_VERSION}" )
+set( CMAKE_PROJECT_HOMEPAGE_URL "${PROJECT_HOMEPAGE_URL}" )
 
 message(STATUS "Configuring ${CMAKE_PROJECT_NAME}")
 
@@ -195,68 +199,6 @@ endif()
 
 ################################################################
 #
-# Create the version header file
-#
-################################################################
-
-find_package(Git)
-
-# Create our template for the header file
-file(WRITE ${CMAKE_BINARY_DIR}/hse_version.h.in
-"static const char hse_version[] = \"${BUILD_PKG_VERSION}\";\n"
-"static const char hse_branch[] = \"@HSE_BRANCH@\";\n"
-"static const char hse_tag[] = \"${BUILD_PKG_TAG}@\";\n"
-"static const char hse_buildhost[] = \"@HSE_BUILDHOST@\";\n"
-)
-
-# Create cmake code to transform input template into target header file.
-file(WRITE ${CMAKE_BINARY_DIR}/hse_version.cmake
-"
-execute_process(
-    COMMAND ${GIT_EXECUTABLE} rev-parse --abbrev-ref HEAD
-    WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
-    OUTPUT_VARIABLE HSE_BRANCH
-    OUTPUT_STRIP_TRAILING_WHITESPACE
-)
-execute_process(
-    COMMAND date +%Y%m%d
-    OUTPUT_VARIABLE HSE_DATESTAMP
-    OUTPUT_STRIP_TRAILING_WHITESPACE
-)
-execute_process(
-    COMMAND hostname -f
-    OUTPUT_VARIABLE HSE_BUILDHOST
-    OUTPUT_STRIP_TRAILING_WHITESPACE
-)
-
-if( NOT HSE_VERSION_CMAKE_INCLUDEONLY )
-    if (EXISTS \${DST})
-        configure_file(\${SRC} \${CMAKE_BINARY_DIR}/hse_version.h.tmp @ONLY)
-        file(SHA256 \${CMAKE_BINARY_DIR}/hse_version.h.tmp NEWSHA)
-        file(SHA256 \${DST} OLDSHA)
-        # Replace hse_version.h file with a newer only if the content changed.
-        if (NOT \${OLDSHA} EQUAL \${NEWSHA})
-                configure_file(\${SRC} \${DST} @ONLY)
-        endif()
-    else()
-        configure_file(\${SRC} \${DST} @ONLY)
-    endif()
-endif( )
-"
-)
-
-# Set up custom target
-add_custom_target(
-    hse_version
-    COMMAND ${CMAKE_COMMAND}
-        -D SRC=${CMAKE_BINARY_DIR}/hse_version.h.in
-        -D DST=${HSE_STAGE_DIR}/include/hse_version.h
-        -P ${CMAKE_BINARY_DIR}/hse_version.cmake
-)
-
-
-################################################################
-#
 # Collate the input files, and recreate the mapi output file
 #
 ################################################################
@@ -331,6 +273,44 @@ set( CMAKE_EXE_LINKER_FLAGS
   "${CMAKE_EXE_LINKER_FLAGS} -L ${HSE_KVDB_BIN_DIR}" )
 
 
+# Common package options...
+#
+set( CPACK_PACKAGE_NAME                   "${PROJECT_NAME}" )
+set( CPACK_PACKAGE_LICENSE                "ASL 2.0" )
+set( CPACK_PACKAGE_VENDOR                 "${BUILD_PKG_VENDOR}" )
+set( CPACK_PACKAGE_VERSION                "${PROJECT_VERSION}${BUILD_PKG_VQUAL}" )
+
+set( CPACK_PACKAGE_DESCRIPTION            "Heterogeneous-memory Storage Engine (HSE)" )
+set( CPACK_PACKAGE_DESCRIPTION_SUMMARY    "hse ${BUILD_PKG_TAG}-${BUILD_STYPE}${BUILD_NUMBER}" )
+
+set( CPACK_COMPONENT_RUNTIME_DESCRIPTION  "${CPACK_PACKAGE_DESCRIPTION} runtime" )
+set( CPACK_COMPONENT_DEVEL_DESCRIPTION    "${CPACK_PACKAGE_DESCRIPTION} SDK" )
+set( CPACK_COMPONENT_TEST_DESCRIPTION     "${CPACK_PACKAGE_DESCRIPTION} test tools" )
+set( CPACK_COMPONENT_TEST_DEPENDS         "runtime" )
+
+if( "${BUILD_NUMBER}" )
+    set( BUILD_RTYPE "${BUILD_STYPE}${BUILD_NUMBER}" )
+else()
+    set( BUILD_RTYPE "" )
+endif()
+
+set( CPACK_PACKAGE_RELEASE  "${BUILD_PKG_REL}${BUILD_RTYPE}${BUILD_PKG_DIST}" )
+
+
+# Create the version header file template:
+#
+file( WRITE ${CMAKE_BINARY_DIR}/hse_version.h.in
+    "static const char hse_version[] = \"@CPACK_PACKAGE_VERSION@-@CPACK_PACKAGE_RELEASE@\";\n"
+    "static const char hse_tag[] = \"@BUILD_PKG_TAG@\";\n"
+    "static const char hse_sha[] = \"@BUILD_PKG_SHA@\";\n"
+)
+
+configure_file(
+    ${CMAKE_BINARY_DIR}/hse_version.h.in
+    ${HSE_STAGE_DIR}/include/hse_version.h
+    @ONLY
+    )
+
 ################################################################
 #
 # Subdirectories
@@ -351,38 +331,8 @@ add_subdirectory( samples )
 add_subdirectory( config )
 
 
-# NOTE: The package name and version values are configured at "make config"
-# time.  If changes are made in the tree (thereby changing the last commit SHA),
-# the configured package name won't change until the next make config.
+# Configure cpack now that we've seen all components...
 #
-# This *should* be OK for a while, since we expect our build server to clone a
-# a fresh tree before every build.
-
-set( HSE_VERSION_CMAKE_INCLUDEONLY "ON" )
-include( ${CMAKE_BINARY_DIR}/hse_version.cmake )
-set( HSE_VERSION_CMAKE_INCLUDEONLY "OFF" )
-
-
-# Common package options...
-#
-set( CPACK_PACKAGE_NAME                   "${PROJECT_NAME}" )
-set( CPACK_PACKAGE_LICENSE                "ASL 2.0" )
-set( CPACK_PACKAGE_VENDOR                 "${BUILD_PKG_VENDOR}" )
-
-set( CPACK_PACKAGE_DESCRIPTION            "Heterogeneous-memory Storage Engine (HSE)" )
-set( CPACK_PACKAGE_DESCRIPTION_SUMMARY    "hse ${BUILD_PKG_TAG}-${BUILD_STYPE}${BUILD_NUMBER}" )
-
-set( CPACK_COMPONENT_RUNTIME_DESCRIPTION  "${CPACK_PACKAGE_DESCRIPTION} runtime" )
-set( CPACK_COMPONENT_DEVEL_DESCRIPTION    "${CPACK_PACKAGE_DESCRIPTION} SDK" )
-set( CPACK_COMPONENT_TEST_DESCRIPTION     "${CPACK_PACKAGE_DESCRIPTION} test tools" )
-set( CPACK_COMPONENT_TEST_DEPENDS         "runtime" )
-
-if( "${BUILD_NUMBER}" )
-    set( BUILD_RTYPE "${BUILD_STYPE}${BUILD_NUMBER}" )
-else()
-    set( BUILD_RTYPE "" )
-endif()
-
 include( ${HSE_SCRIPTS_DIR}/${BUILD_PKG_TYPE}/CMakeLists.txt )
 include( CPack )
 

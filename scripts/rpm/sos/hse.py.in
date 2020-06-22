@@ -8,7 +8,7 @@ class HeterogeneousMemoryStorageEngine(Plugin, IndependentPlugin):
     """Heterogeneous-memory Storage Engine"""
     packages = ('hse',)
     plugin_name = 'hse'
-    version = '@HSE_VERSION@'
+    version = '@CPACK_PACKAGE_VERSION@-@CPACK_PACKAGE_RELEASE@'
 
     def setup(self):
         all_logs = self.get_option("all_logs")
