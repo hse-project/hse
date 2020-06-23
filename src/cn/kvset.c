@@ -1359,6 +1359,7 @@ kvset_ptomb_lookup(
     return 0;
 }
 
+static
 merr_t
 kvset_lookup_vref(
     struct kvset *         ks,
@@ -1521,6 +1522,7 @@ kvset_lookup_val_direct(
     return ev(err);
 }
 
+static
 merr_t
 kvset_lookup_val(struct kvset *ks, struct kvs_vtuple_ref *vref, struct kvs_buf *vbuf)
 {
@@ -3124,7 +3126,7 @@ fetch_pti(struct kvset_iterator *iter, struct key_obj *kobj, struct kvset_iter_v
     iter->last = SRC_PT;
 }
 
-merr_t
+static merr_t
 kvset_iter_next_wbt_key_mcache(struct kvset_iterator *iter, const void **kdata, uint *klen)
 {
     struct kvset *ks = iter->ks;
@@ -3281,6 +3283,7 @@ next_key:
     return 0;
 }
 
+static
 merr_t
 kvset_iter_next_wbt_key(struct kv_iterator *handle, const void **kdata, uint *klen)
 {
@@ -3333,6 +3336,7 @@ kvset_iter_next_pt_key_mcache(struct kvset_iterator *iter, const void **kdata, u
     return 0;
 }
 
+static
 merr_t
 kvset_iter_next_pt_key(struct kv_iterator *handle, const void **kdata, uint *klen)
 {
