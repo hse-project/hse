@@ -2009,11 +2009,12 @@ MTF_DEFINE_UTEST_PREPOST(ikvdb_test, ikvdb_mclass_policies_test, test_pre, test_
     struct mpool *        ds = (struct mpool *)-1;
     struct hse_params *   params;
     struct mclass_policy *policy = NULL;
-    const char *          default_policies[] = {
-        "staging_only", "capacity_only", "staging_capacity_nofallback", "staging_capacity_fallback"
-    };
-    const int count = sizeof(default_policies) / sizeof(default_policies[0]);
-    int       i;
+    const char **         default_policies;
+    int                   count;
+    int                   i;
+
+    count = mclass_policy_get_num_default_policies();
+    default_policies = mclass_policy_get_default_policy_names();
 
     /* Test that the default policies are found if KVDB is opened with
      * HSE params */

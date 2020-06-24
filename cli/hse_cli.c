@@ -35,10 +35,6 @@
         "[-c|--config FILE]", "Use hse config file" \
     }
 
-#define CONFIG_LOG_LVL                                              \
-    {                                                               \
-        "kvdb.log_lvl=<int>", "Set log level, range 0..7 (7=debug)" \
-    }
 #define CONFIG_KVS_PFX_LEN                                                      \
     {                                                                           \
         "kvs.pfx_len=<int>", "Set KVS prefix length, range [0..32], default: 0" \
@@ -146,10 +142,12 @@ struct cli {
 static cli_cmd_func_t cli_hse_kvdb_create;
 static cli_cmd_func_t cli_hse_kvdb_list;
 static cli_cmd_func_t cli_hse_kvdb_compact;
+static cli_cmd_func_t cli_hse_kvdb_params;
 struct cli_cmd        cli_hse_kvdb_commands[] = {
     { "create", "Create a KVDB", cli_hse_kvdb_create, 0 },
     { "list", "List KVDBs", cli_hse_kvdb_list, 0 },
     { "compact", "Compact a KVDB", cli_hse_kvdb_compact, 0 },
+    { "params", "KVDB params", cli_hse_kvdb_params, 0 },
     { 0 },
 };
 
@@ -499,7 +497,6 @@ cli_next_arg(struct cli *cli)
     return NULL;
 }
 
-
 /**
  * print_mpool_err() -- print details about an mpool error
  */
@@ -510,7 +507,6 @@ print_mpool_err(struct cli *cli, const char *api, mp_err_t err)
 
     mpool_strinfo(err, msg, sizeof(msg));
     fprintf(stderr, "%s: mpool error from %s: %s\n", cli->cmd->cmd_path, api, msg);
-
 }
 
 /**
@@ -800,15 +796,18 @@ cli_hse_kvdb(struct cli_cmd *self, struct cli *cli)
     const struct cmd_spec spec = {
         .usagev =
             {
-                "[options] <command> ...", NULL,
+                "[options] <command> ...",
+                NULL,
             },
         .optionv =
             {
-                OPTION_HELP, { NULL },
+                OPTION_HELP,
+                { NULL },
             },
         .longoptv =
             {
-                { "help", no_argument, 0, 'h' }, { NULL },
+                { "help", no_argument, 0, 'h' },
+                { NULL },
             },
         .configv =
             {
@@ -855,19 +854,24 @@ cli_hse_kvdb_create(struct cli_cmd *self, struct cli *cli)
     const struct cmd_spec spec = {
         .usagev =
             {
-                "[options] <mpool> [<config_param>=<value>]...", NULL,
+                "[options] <mpool> [<config_param>=<value>]...",
+                NULL,
             },
         .optionv =
             {
-                OPTION_HELP, OPTION_CFILE, { NULL },
+                OPTION_HELP,
+                OPTION_CFILE,
+                { NULL },
             },
         .longoptv =
             {
-                { "help", no_argument, 0, 'h' }, { "config", required_argument, 0, 'c' }, { NULL },
+                { "help", no_argument, 0, 'h' },
+                { "config", required_argument, 0, 'c' },
+                { NULL },
             },
         .configv =
             {
-                CONFIG_LOG_LVL, { NULL },
+                { NULL },
             },
     };
 
@@ -911,15 +915,20 @@ cli_hse_kvdb_list(struct cli_cmd *self, struct cli *cli)
     const struct cmd_spec spec = {
         .usagev =
             {
-                "[options] [<kvdb>]", NULL,
+                "[options] [<kvdb>]",
+                NULL,
             },
         .optionv =
             {
-                OPTION_HELP, { "[-v|--verbose]", "Print KVDB details" }, { NULL },
+                OPTION_HELP,
+                { "[-v|--verbose]", "Print KVDB details" },
+                { NULL },
             },
         .longoptv =
             {
-                { "help", no_argument, 0, 'h' }, { "verbose", no_argument, 0, 'v' }, { NULL },
+                { "help", no_argument, 0, 'h' },
+                { "verbose", no_argument, 0, 'v' },
+                { NULL },
             },
         .configv =
             {
@@ -972,7 +981,8 @@ cli_hse_kvdb_compact(struct cli_cmd *self, struct cli *cli)
     const struct cmd_spec spec = {
         .usagev =
             {
-                "[options] [<kvdb>] [<config_param>=<value>]...", NULL,
+                "[options] [<kvdb>] [<config_param>=<value>]...",
+                NULL,
             },
         .optionv =
             {
@@ -996,7 +1006,7 @@ cli_hse_kvdb_compact(struct cli_cmd *self, struct cli *cli)
             },
         .configv =
             {
-                CONFIG_LOG_LVL, { NULL },
+                { NULL },
             },
     };
 
@@ -1063,8 +1073,78 @@ cli_hse_kvdb_compact(struct cli_cmd *self, struct cli *cli)
         return EX_USAGE;
     }
 
-
     return cli_hse_kvdb_compact_impl(cli, cfile, kvdb, compact, status, cancel, timeout_secs);
+}
+
+int
+cli_hse_kvdb_params(struct cli_cmd *self, struct cli *cli)
+{
+    const struct cmd_spec spec = {
+        .usagev =
+            {
+                "[options] [<kvdb>]",
+                NULL,
+            },
+        .optionv =
+            {
+                OPTION_HELP,
+                { "[-g|--get]", "Get KVDB params" },
+                { NULL },
+            },
+        .longoptv =
+            {
+                { "help", no_argument, 0, 'h' },
+                { "get", no_argument, 0, 'g' },
+                { NULL },
+            },
+        .configv =
+            {
+                { NULL },
+            },
+    };
+
+    const char *kvdb = 0;
+    bool        get = false;
+    bool        help = false;
+    int         c;
+
+    if (cli_hook(cli, self, &spec))
+        return 0;
+
+    while (-1 != (c = cli_getopt(cli))) {
+
+        switch (c) {
+            case 'h':
+                help = true;
+                break;
+            case 'g':
+                get = true;
+                break;
+            default:
+                return EX_USAGE;
+        }
+    }
+
+    c = cli->argc - cli->optind;
+    assert(c >= 0);
+
+    if (help) {
+        cmd_print_help(self, help_style_usage, stdout);
+        return EX_USAGE;
+    }
+
+    kvdb = cli_next_arg(cli);
+    if (!kvdb) {
+        fprintf(stderr, "%s: missing kvdb name, use -h for help\n", self->cmd_path);
+        return EX_USAGE;
+    }
+
+    if (!get) {
+        fprintf(stderr, "%s: missing option, use -h for help\n", self->cmd_path);
+        return EX_USAGE;
+    }
+
+    return hse_kvdb_params(kvdb, get);
 }
 
 int
@@ -1151,19 +1231,25 @@ cli_hse_kvs_create(struct cli_cmd *self, struct cli *cli)
     const struct cmd_spec spec = {
         .usagev =
             {
-                "[options] <kvdb>/<kvs> [<config_param>=<value>]...", NULL,
+                "[options] <kvdb>/<kvs> [<config_param>=<value>]...",
+                NULL,
             },
         .optionv =
             {
-                OPTION_HELP, OPTION_CFILE, { NULL },
+                OPTION_HELP,
+                OPTION_CFILE,
+                { NULL },
             },
         .longoptv =
             {
-                { "help", no_argument, 0, 'h' }, { "config", required_argument, 0, 'c' }, { NULL },
+                { "help", no_argument, 0, 'h' },
+                { "config", required_argument, 0, 'c' },
+                { NULL },
             },
         .configv =
             {
-                CONFIG_LOG_LVL, CONFIG_KVS_PFX_LEN, { NULL },
+                CONFIG_KVS_PFX_LEN,
+                { NULL },
             },
     };
 
@@ -1224,19 +1310,24 @@ cli_hse_kvs_destroy(struct cli_cmd *self, struct cli *cli)
     const struct cmd_spec spec = {
         .usagev =
             {
-                "[options] <kvdb>/<kvs> [<config_param>=<value>]...", NULL,
+                "[options] <kvdb>/<kvs> [<config_param>=<value>]...",
+                NULL,
             },
         .optionv =
             {
-                OPTION_HELP, OPTION_CFILE, { NULL },
+                OPTION_HELP,
+                OPTION_CFILE,
+                { NULL },
             },
         .longoptv =
             {
-                { "help", no_argument, 0, 'h' }, { "config", required_argument, 0, 'c' }, { NULL },
+                { "help", no_argument, 0, 'h' },
+                { "config", required_argument, 0, 'c' },
+                { NULL },
             },
         .configv =
             {
-                CONFIG_LOG_LVL, { NULL },
+                { NULL },
             },
     };
 
@@ -1297,15 +1388,18 @@ cli_hse_kvs(struct cli_cmd *self, struct cli *cli)
     const struct cmd_spec spec = {
         .usagev =
             {
-                "[options] <command> ...", NULL,
+                "[options] <command> ...",
+                NULL,
             },
         .optionv =
             {
-                OPTION_HELP, { NULL },
+                OPTION_HELP,
+                { NULL },
             },
         .longoptv =
             {
-                { "help", no_argument, 0, 'h' }, { NULL },
+                { "help", no_argument, 0, 'h' },
+                { NULL },
             },
         .configv =
             {
@@ -1352,15 +1446,18 @@ cli_hse_version(struct cli_cmd *self, struct cli *cli)
     const struct cmd_spec spec = {
         .usagev =
             {
-                "[options]", NULL,
+                "[options]",
+                NULL,
             },
         .optionv =
             {
-                OPTION_HELP, { NULL },
+                OPTION_HELP,
+                { NULL },
             },
         .longoptv =
             {
-                { "help", no_argument, 0, 'h' }, { NULL },
+                { "help", no_argument, 0, 'h' },
+                { NULL },
             },
         .configv =
             {
@@ -1400,7 +1497,8 @@ cli_hse(struct cli_cmd *self, struct cli *cli)
     const struct cmd_spec spec = {
         .usagev =
             {
-                "[options] <command> ...", NULL,
+                "[options] <command> ...",
+                NULL,
             },
         .optionv =
             {
@@ -1464,6 +1562,15 @@ cli_hse(struct cli_cmd *self, struct cli *cli)
     }
 
     return sub_cmd->cmd_main(sub_cmd, cli);
+}
+
+int
+cli_hse_kvdb_params_impl(struct cli *cli, char *kvdb, bool get)
+{
+    if (cli_hse_init(cli))
+        return -1;
+
+    return hse_kvdb_params(kvdb, get);
 }
 
 int

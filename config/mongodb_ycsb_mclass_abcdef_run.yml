@@ -6,7 +6,7 @@
 
 api_version: 1
 kvs:
-  mclass_policy: staging_capacity_nofallback
+  mclass_policy: staging_max_capacity
 kvs.MainKvs:
   pfx_len: 4
   pfx_pivot: 1

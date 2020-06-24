@@ -126,8 +126,8 @@ kvdb_list_print(
 
     *count = 0;
     for (i = 0; i < propc; i++) {
-        const struct mpool_params  *props = propv + i;
-        struct merr_info            info;
+        const struct mpool_params *props = propv + i;
+        struct merr_info           info;
 
         if (uuid_compare(props->mp_utype, hse_mpool_utype))
             continue;
@@ -205,6 +205,24 @@ rest_kvdb_status(const char *mpool, const char *kvdb, size_t bufsz, char *buf)
     return 0UL;
 }
 
+static merr_t
+rest_kvdb_params(const char *mpool, size_t bufsz, char *buf)
+{
+    char   sock[PATH_MAX];
+    char   url[PATH_MAX];
+    merr_t err;
+
+    snprintf(url, sizeof(url), "data/config/kvdb/%s", mpool);
+
+    snprintf(sock, sizeof(sock), "%s/%s/%s.sock", REST_SOCK_ROOT, mpool, mpool);
+
+    err = curl_get(url, sock, buf, bufsz);
+    if (err)
+        return err;
+
+    return 0UL;
+}
+
 /**
  * rest_status_parse() - A simple parser for converting status from yaml
  *                       struct hse_kvdb_compact_status.
@@ -272,6 +290,64 @@ rest_status_parse(const char *buf, struct hse_kvdb_compact_status *status)
     return 0;
 }
 
+/**
+ * rest_params_print() - Print the KVDB params
+ * @mpool:  mpool name
+ * @buf:    input buffer containing yaml
+ */
+static void
+rest_params_print(const char *mpool, const char *buf)
+{
+    char        pfx[PATH_MAX], key[PATH_MAX];
+    char        value[32];
+    const char *p, *start;
+    char *      pos;
+
+    start = p = buf;
+
+    snprintf(pfx, sizeof(pfx), "kvdb/%s/", mpool);
+
+    while (*p != '\0') {
+        start = strstr(p, "path:");
+        if (!start)
+            return;
+
+        start += strlen("path:");
+        start += strspn(start, " ");
+        start += strlen(pfx);
+
+        p = start;
+
+        while (*p != '\0' && *p != ' ' && *p != '\n')
+            p++;
+
+        snprintf(key, sizeof(key), "%.*s", (int)(p - start), start);
+        pos = strchr(key, '/');
+        if (pos) {
+            *pos = '.';
+            printf("kvs.%s", key);
+        } else {
+            printf("kvdb.%s", key);
+        }
+
+        if (*p != '\0') {
+            start = strstr(p, "current:");
+            if (!start)
+                return;
+
+            start += strlen("current:");
+            start += strspn(start, " ");
+            p = start;
+
+            while (*p != '\0' && *p != '\n')
+                p++;
+
+            snprintf(value, sizeof(value), "%.*s", (int)(p - start), start);
+            printf(": %s\n", value);
+        }
+    }
+}
+
 static void
 rest_status_yaml(struct hse_kvdb_compact_status *status, char *buf, size_t bufsz)
 {
@@ -289,8 +365,8 @@ rest_status_yaml(struct hse_kvdb_compact_status *status, char *buf, size_t bufsz
 
     yaml_start_element_type(&yc, "compact_status");
 
-    yaml_field_fmt(&yc, "samp_lwm", "%u.%02u",  lwm / 100, lwm % 100);
-    yaml_field_fmt(&yc, "samp_hwm", "%u.%02u",  hwm / 100, hwm % 100);
+    yaml_field_fmt(&yc, "samp_lwm", "%u.%02u", lwm / 100, lwm % 100);
+    yaml_field_fmt(&yc, "samp_hwm", "%u.%02u", hwm / 100, hwm % 100);
     yaml_field_fmt(&yc, "samp_curr", "%u.%02u", cur / 100, cur % 100);
     yaml_field_fmt(&yc, "request_active", "%u", status->kvcs_active);
     yaml_field_fmt(&yc, "request_canceled", "%u", status->kvcs_canceled);
@@ -401,7 +477,7 @@ kvdb_compact_request(
             }
         }
 
-	printf("compact kvdb %s %s\n", mpool, status.kvcs_canceled ? "canceled" : "successful");
+        printf("compact kvdb %s %s\n", mpool, status.kvcs_canceled ? "canceled" : "successful");
 
     } else if (strcmp(request_type, "cancel") == 0) {
 
@@ -435,6 +511,83 @@ err_out:
     }
 
     hse_params_destroy(params);
+
+    return err;
+}
+
+int
+hse_kvdb_params(const char *kvdb, bool get)
+{
+    bool                 match = false;
+    merr_t               err = 0;
+    struct merr_info     info;
+    char *               buf;
+    size_t               bufsz = (32 * 1024);
+    int                  allc, i;
+    struct mpool_params *allv;
+    struct mpool_devrpt  ei;
+
+    err = mpool_list(&allc, &allv, &ei);
+    if (err) {
+        fprintf(stderr, "mpool_list failed: %s\n", merr_info(err, &info));
+        return -EINVAL;
+    }
+
+    for (i = 0; i < allc; ++i) {
+        if (!strcmp(allv[i].mp_name, kvdb)) {
+            match = true;
+            break;
+        }
+    }
+
+    if (!match) {
+        err = mpool_scan(&allc, &allv, &ei);
+        if (err) {
+            fprintf(stderr, "mpool_scan failed: %s\n", merr_info(err, &info));
+            return -EINVAL;
+        }
+
+        for (i = 0; i < allc; ++i) {
+            if (!strcmp(allv[i].mp_name, kvdb)) {
+                match = true;
+                break;
+            }
+        }
+
+        if (!match) {
+            fprintf(stderr, "kvdb:%s not found\n", kvdb);
+        } else {
+            fprintf(
+                stderr,
+                "kvdb:%s is inactive. Ensure kvdb is active and open in a process before querying "
+                "its params.\n",
+                kvdb);
+        }
+
+        return -EINVAL;
+    }
+
+    buf = calloc(1, bufsz);
+    if (!buf)
+        return -ENOMEM;
+
+    if (get) {
+        err = rest_kvdb_params(kvdb, bufsz, buf);
+        if (err) {
+            fprintf(
+                stderr,
+                "rest_kvdb_params failed: %s. Ensure that KVDB:%s is open in a process before "
+                "querying its params.\n",
+                merr_info(err, &info),
+                kvdb);
+            goto err_out;
+        }
+
+        rest_params_print(kvdb, buf);
+    }
+
+err_out:
+    free(buf);
 
     return err;
 }

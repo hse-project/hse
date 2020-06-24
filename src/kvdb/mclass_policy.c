@@ -41,7 +41,7 @@ static const char * default_mclass_policies = \
     "    leaf:\n"
     "      keys: [ staging ]\n"
     "      values: [ staging ]\n"
-    "  staging_capacity_nofallback:\n"
+    "  staging_max_capacity:\n"
     "    sync:\n"
     "      keys: [ staging ]\n"
     "      values: [ staging ]\n"
@@ -54,25 +54,42 @@ static const char * default_mclass_policies = \
     "    leaf:\n"
     "      keys: [ staging ]\n"
     "      values: [ capacity ]\n"
-    "  staging_capacity_fallback:\n"
+    "  staging_min_capacity:\n"
     "    sync:\n"
-    "      keys: [ staging, capacity ]\n"
-    "      values: [ staging, capacity ]\n"
+    "      keys: [ staging ]\n"
+    "      values: [ staging ]\n"
     "    root:\n"
-    "      keys: [ staging, capacity ]\n"
-    "      values: [ staging, capacity ]\n"
+    "      keys: [ staging ]\n"
+    "      values: [ staging ]\n"
     "    internal:\n"
-    "      keys: [ staging, capacity ]\n"
-    "      values: [ staging, capacity ]\n"
+    "      keys: [ capacity ]\n"
+    "      values: [ capacity ]\n"
     "    leaf:\n"
-    "      keys: [ staging, capacity ]\n"
+    "      keys: [ capacity ]\n"
     "      values: [ capacity ]";
 /* clang-format on */
+
+const char *mclass_policy_names[] = { "capacity_only",
+                                      "staging_only",
+                                      "staging_max_capacity",
+                                      "staging_min_capacity" };
 
 const char *
 mclass_policy_get_default_policies()
 {
     return default_mclass_policies;
+}
+
+const char **
+mclass_policy_get_default_policy_names()
+{
+    return mclass_policy_names;
+}
+
+int
+mclass_policy_get_num_default_policies()
+{
+    return NELEM(mclass_policy_names);
 }
 
 static const struct mclass_policy_map agegroups[] = {
@@ -101,31 +118,31 @@ static const unsigned int mclass_policy_nentries[] = { NELEM(agegroups),
                                                        NELEM(dtypes),
                                                        NELEM(mclasses) };
 
-static const struct mclass_policy
-    mclass_policy_default = { .mc_name = "default_policy",
-                              .mc_table = {
-                                  {
-                                      { HSE_MPOLICY_MEDIA_STAGING, HSE_MPOLICY_MEDIA_INVALID },
-                                      { HSE_MPOLICY_MEDIA_STAGING, HSE_MPOLICY_MEDIA_INVALID },
-                                  },
-                                  {
-                                      { HSE_MPOLICY_MEDIA_STAGING, HSE_MPOLICY_MEDIA_INVALID },
-                                      { HSE_MPOLICY_MEDIA_STAGING, HSE_MPOLICY_MEDIA_INVALID },
-                                  },
-                                  {
-                                      { HSE_MPOLICY_MEDIA_STAGING, HSE_MPOLICY_MEDIA_INVALID },
-                                      { HSE_MPOLICY_MEDIA_STAGING, HSE_MPOLICY_MEDIA_INVALID },
-                                  },
-                                  {
-                                      { HSE_MPOLICY_MEDIA_STAGING, HSE_MPOLICY_MEDIA_INVALID },
-                                      { HSE_MPOLICY_MEDIA_CAPACITY, HSE_MPOLICY_MEDIA_INVALID },
-                                  },
-                              } };
+static const struct mclass_policy mclass_policy_default =
+    { .mc_name = "default_policy",
+      .mc_table = {
+          {
+              { HSE_MPOLICY_MEDIA_STAGING, HSE_MPOLICY_MEDIA_INVALID },
+              { HSE_MPOLICY_MEDIA_STAGING, HSE_MPOLICY_MEDIA_INVALID },
+          },
+          {
+              { HSE_MPOLICY_MEDIA_STAGING, HSE_MPOLICY_MEDIA_INVALID },
+              { HSE_MPOLICY_MEDIA_STAGING, HSE_MPOLICY_MEDIA_INVALID },
+          },
+          {
+              { HSE_MPOLICY_MEDIA_STAGING, HSE_MPOLICY_MEDIA_INVALID },
+              { HSE_MPOLICY_MEDIA_STAGING, HSE_MPOLICY_MEDIA_INVALID },
+          },
+          {
+              { HSE_MPOLICY_MEDIA_STAGING, HSE_MPOLICY_MEDIA_INVALID },
+              { HSE_MPOLICY_MEDIA_CAPACITY, HSE_MPOLICY_MEDIA_INVALID },
+          },
+      } };
 
 unsigned int
 mclass_policy_get_num_fields()
 {
-    return sizeof(mclass_policy_fields) / sizeof(mclass_policy_fields[0]);
+    return NELEM(mclass_policy_fields);
 }
 
 const struct mclass_policy_map *
@@ -151,7 +168,7 @@ void
 mclass_policy_init_from_string(struct mclass_policy *policy, const char *key, const char *value)
 {
     int                         i, mclass = HSE_MPOLICY_MEDIA_INVALID, idx[3];
-    const int                   n = sizeof(idx) / sizeof(idx[0]);
+    const int                   n = NELEM(idx);
     const char *                iter = value, *start = value, *split;
     const struct mclass_policy *dflt = &mclass_policy_default;
 

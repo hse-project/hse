@@ -50,10 +50,9 @@ MTF_DEFINE_UTEST_PRE(mclass_policy_test, mclass_policy_default, general_pre)
         }
 
     /*
-     * staging_capacity_nofallback - only leaf values use capacity.
-     * use staging with no fallback to capacity for other combinations.
+     * staging_max_capacity - only leaf values use capacity.
      */
-    strcpy(dpolicies[2].mc_name, "staging_capacity_nofallback");
+    strcpy(dpolicies[2].mc_name, "staging_max_capacity");
     for (i = 0; i < HSE_MPOLICY_AGE_CNT; i++)
         for (j = 0; j < HSE_MPOLICY_DTYPE_CNT; j++) {
             dpolicies[2].mc_table[i][j][0] = HSE_MPOLICY_MEDIA_STAGING;
@@ -63,19 +62,20 @@ MTF_DEFINE_UTEST_PRE(mclass_policy_test, mclass_policy_default, general_pre)
         HSE_MPOLICY_MEDIA_CAPACITY;
 
     /*
-     * staging_capacity_fallback - only leaf values use capacity.
-     * use staging with fallback to capacity for other combinations.
+     * staging_min_capacity - only c1 and root use staging.
      */
-    strcpy(dpolicies[3].mc_name, "staging_capacity_fallback");
-    for (i = 0; i < HSE_MPOLICY_AGE_CNT; i++)
+    strcpy(dpolicies[3].mc_name, "staging_min_capacity");
+    for (i = 0; i < HSE_MPOLICY_AGE_INTERNAL; i++)
         for (j = 0; j < HSE_MPOLICY_DTYPE_CNT; j++) {
             dpolicies[3].mc_table[i][j][0] = HSE_MPOLICY_MEDIA_STAGING;
-            dpolicies[3].mc_table[i][j][1] = HSE_MPOLICY_MEDIA_CAPACITY;
+            dpolicies[3].mc_table[i][j][1] = HSE_MPOLICY_MEDIA_INVALID;
         }
-    dpolicies[3].mc_table[HSE_MPOLICY_AGE_LEAF][HSE_MPOLICY_DTYPE_VALUE][0] =
-        HSE_MPOLICY_MEDIA_CAPACITY;
-    dpolicies[3].mc_table[HSE_MPOLICY_AGE_LEAF][HSE_MPOLICY_DTYPE_VALUE][1] =
-        HSE_MPOLICY_MEDIA_INVALID;
+
+    for (i = HSE_MPOLICY_AGE_INTERNAL; i < HSE_MPOLICY_AGE_CNT; i++)
+        for (j = 0; j < HSE_MPOLICY_DTYPE_CNT; j++) {
+            dpolicies[3].mc_table[i][j][0] = HSE_MPOLICY_MEDIA_CAPACITY;
+            dpolicies[3].mc_table[i][j][1] = HSE_MPOLICY_MEDIA_INVALID;
+        }
 
     hse_params_to_mclass_policies(NULL, NULL, 0);
     hse_params_to_mclass_policies(NULL, policies, sizeof(policies) / sizeof(policies[0]));
