@@ -52,26 +52,21 @@ set( HSE_3RD_PARTY_INCLUDE_DIRS  ${PROJECT_SOURCE_DIR}/3rdparty/include)
 include_directories(${PROJECT_SOURCE_DIR}/3rdparty/include)
 include_directories(${HSE_STAGE_DIR}/include)
 
-# increasing warning levels
-set( CFLAGS_WARN_1 "${CFLAGS_WARN_0} -Wall -Werror -std=gnu99")
+# Translate "-DFOO -DBAR" to "-DFOO;-DBAR" for add_definitions()
+#
+separate_arguments( BUILD_CDEFS_SEPARATED UNIX_COMMAND ${BUILD_CDEFS} )
+add_definitions( ${BUILD_CDEFS_SEPARATED} )
 
-if ( "${HSE_DISTRO}" STREQUAL  "el6" )
-   set( CFLAGS_WARN_2 "${CFLAGS_WARN_1} -Wlogical-op -Wno-missing-field-initializers  -Wuninitialized -Wno-format-zero-length")
-else()
-   set( CFLAGS_WARN_2 "${CFLAGS_WARN_1} -Wlogical-op -Wno-missing-field-initializers  -Wuninitialized -Wmaybe-uninitialized ")
-endif()
-
-set( CFLAGS_WARN_3 "${CFLAGS_WARN_2} -Wextra -Wno-conversion -Wno-sign-conversion -Wno-sign-compare -Wno-unused-parameter")
-set( CFLAGS_WARN_4 "${CFLAGS_WARN_2} -Wextra -Wconversion    -Wsign-conversion    -Wsign-compare    -Wunused-parameter")
-set( CFLAGS_WARN_MAX "${CFLAGS_WARN_4}")
-
-set( CMAKE_C_FLAGS "${CFLAGS_WARN_3} -g3")
-
+add_compile_options(
+    ${BUILD_CFLAGS} -g3 -std=gnu99 -Wall -Werror
+    -Wlogical-op -Wno-missing-field-initializers -Wuninitialized -Wmaybe-uninitialized
+    -Wextra -Wno-conversion -Wno-sign-conversion -Wno-sign-compare -Wno-unused-parameter
+    )
 
 # TODO: Remove and fix compile errors in various rest functions...
 #
 if( "${BUILD_PKG_TYPE}" STREQUAL "deb" )
-    set( CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-unused-result" )
+    add_compile_options( -Wno-unused-result )
 endif()
 
 if ( ${UBSAN} )
@@ -128,8 +123,9 @@ include(CMakeLists.macros)
 set( PROFILING false )
 
 if( ${PROFILING} )
-  set( CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -pg " )
-  set( CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -L /usr/local/lib -lprofiler" )
+    add_compile_options( -pg )
+    link_directories( /usr/local/lib )
+    link_libraries( profiler )
 endif( ${PROFILING} )
 
 if( HSE_UNIT_TEST_FLAG )
@@ -162,40 +158,6 @@ if( ${YCSB} )
     add_compile_options( -fPIC )
 endif()
 
-
-# Set-up what kind of build this is
-#
-if( "${CMAKE_BUILD_TYPE}" STREQUAL "Debug" )
-  add_definitions( -DHSE_BUILD_DEBUG )
-  add_definitions( -DHSE_DEBUG_BUILD ) # deprecated
-  add_definitions( -DHSE_LOG_PRI_DEFAULT=7 )
-  add_definitions( -DDEBUG_RCU )
-  set( CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fstack-protector-all")
-  set( HSE_BUILD_TYPE_FLAG "d" )
-
-elseif( "${CMAKE_BUILD_TYPE}" STREQUAL "OptDebug" )
-  add_definitions( -DHSE_BUILD_DEBUG )
-  add_definitions( -DHSE_LOG_PRI_DEFAULT=7 )
-  set( HSE_BUILD_TYPE_FLAG "od" )
-
-elseif( "${CMAKE_BUILD_TYPE}" STREQUAL "Release" )
-  add_definitions( -DHSE_BUILD_RELEASE )
-  add_definitions( -DHSE_LOG_PRI_DEFAULT=5 )
-  set( HSE_BUILD_TYPE_FLAG "r" )
-
-elseif( "${CMAKE_BUILD_TYPE}" STREQUAL "RelAssert" )
-  add_definitions( -DHSE_BUILD_RELASSERT )
-  add_definitions( -DHSE_LOG_PRI_DEFAULT=5 )
-  set( HSE_BUILD_TYPE_FLAG "ra" )
-
-elseif( "${CMAKE_BUILD_TYPE}" STREQUAL "RelWithDebInfo" )
-  add_definitions( -DHSE_BUILD_RELEASE )
-  add_definitions( -DHSE_LOG_PRI_DEFAULT=5 )
-  set( HSE_BUILD_TYPE_FLAG "rd" )
-
-else()
-  message( FATAL_ERROR "Invalid build type [${CMAKE_BUILD_TYPE}]" )
-endif()
 
 ################################################################
 #
@@ -337,23 +299,17 @@ include( ${HSE_SCRIPTS_DIR}/${BUILD_PKG_TYPE}/CMakeLists.txt )
 include( CPack )
 
 
-get_directory_property( DirIncs INCLUDE_DIRECTORIES )
-get_directory_property( DirDefs COMPILE_DEFINITIONS )
-get_directory_property( DirOpts COMPILE_OPTIONS )
+get_directory_property( DirIncs   INCLUDE_DIRECTORIES )
+get_directory_property( DirCDefs  COMPILE_DEFINITIONS )
+get_directory_property( DirCOpts  COMPILE_OPTIONS )
+get_directory_property( DirLDirs  LINK_DIRECTORIES )
+get_directory_property( DirLLibs  LINK_LIBRARIES )
+get_directory_property( DirLOpts  LINK_OPTIONS )
 
-message(STATUS "Compiler flags:")
-message(STATUS "  INCLUDE_DIRECTORIES    = ${DirIncs}")
-message(STATUS "  COMPILE_DEFINITIONS    = ${DirDefs}")
-message(STATUS "  COMPILE_OPTIONS        = ${DirOpts}")
-message(STATUS "  CMAKE_C_FLAGS          = ${CMAKE_C_FLAGS}")
-message(STATUS "Add the following compiler flags based on build type:")
-message(STATUS "  CMAKE_C_FLAGS_DEBUG          = ${CMAKE_C_FLAGS_DEBUG}")
-message(STATUS "  CMAKE_C_FLAGS_RELEASE        = ${CMAKE_C_FLAGS_RELEASE}")
-message(STATUS "  CMAKE_C_FLAGS_RELASSERT      = ${CMAKE_C_FLAGS_RELASSERT}")
-message(STATUS "  CMAKE_C_FLAGS_RELWITHDEBINFO = ${CMAKE_C_FLAGS_RELWITHDEBINFO}")
-message(STATUS "  CMAKE_C_FLAGS_OPTDEBUG       = ${CMAKE_C_FLAGS_OPTDEBUG}")
-message(STATUS "  CMAKE_KC_FLAGS               = ${CMAKE_KC_FLAGS}")
-message(STATUS "Linker flags:")
-message(STATUS "  CMAKE_EXE_LINKER_FLAGS = ${CMAKE_EXE_LINKER_FLAGS}")
-message(STATUS "Notes:")
-message(STATUS "  * Build with: 'make VERBOSE=1' to verify compiler flags")
+message( STATUS "Compiler flags:" )
+message( STATUS "  INCLUDE_DIRECTORIES     ${DirIncs}" )
+message( STATUS "  COMPILE_DEFINITIONS     ${DirCDefs}" )
+message( STATUS "  COMPILE_OPTIONS         ${DirCOpts}" )
+message( STATUS "  LINK_DIRECTORIES        ${DirLDirs}" )
+message( STATUS "  LINK_LIBRARIES          ${DirLLibs}" )
+message( STATUS "  LINK_OPTIONS            ${DirLOpts}" )

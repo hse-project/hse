@@ -248,7 +248,7 @@ vbb_verify_entry(struct vblock_builder *bld, u32 vbidx, u64 blkid, u64 blkoff, u
         return true;
     }
 
-#ifdef HSE_DEBUG_BUILD
+#ifdef HSE_BUILD_DEBUG
     {
         u32 i;
 

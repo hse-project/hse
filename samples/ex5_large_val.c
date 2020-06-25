@@ -97,7 +97,8 @@ extract_kv_to_files(struct hse_kvs *kvs, int file_cnt, char **files)
             if (eof)
                 break;
 
-            write(fd, (char *)val, vlen);
+            if (write(fd, val, vlen) != vlen)
+                abort();
         } while (!eof);
 
         hse_kvs_cursor_destroy(cur);

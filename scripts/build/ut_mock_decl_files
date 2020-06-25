@@ -1,4 +1,4 @@
-#!/usr/bin/bash
+#!/usr/bin/env bash
 
 #
 # Usage:  ut_mock_decl_files <directory 1> <directory 2> ...

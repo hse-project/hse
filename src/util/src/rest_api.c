@@ -801,8 +801,10 @@ webserver_response(
                 REST_VERSION_MAJOR,
                 REST_VERSION_MINOR,
                 version);
-            write(write_fd, session->buf, bytes);
+
             http_status = MHD_HTTP_OK;
+            if (write(write_fd, session->buf, bytes) != bytes)
+                http_status = MHD_HTTP_INTERNAL_SERVER_ERROR;
             shutdown(write_fd, SHUT_RDWR);
             goto respond;
         }
@@ -811,7 +813,8 @@ webserver_response(
         if (strcmp(method, MHD_HTTP_METHOD_GET) == 0 && strcasecmp(path, "help") == 0) {
             http_status = MHD_HTTP_OK;
             gen_help_msg(&bytes, session->buf, sizeof(session->buf));
-            write(write_fd, session->buf, bytes);
+            if (write(write_fd, session->buf, bytes) != bytes)
+                http_status = MHD_HTTP_INTERNAL_SERVER_ERROR;
             shutdown(write_fd, SHUT_RDWR);
         }
 
@@ -878,7 +881,8 @@ respond:
         size_t bytes;
 
         gen_help_msg(&bytes, session->buf, sizeof(session->buf));
-        write(write_fd, session->buf, bytes);
+        if (write(write_fd, session->buf, bytes) != bytes)
+            http_status = MHD_HTTP_INTERNAL_SERVER_ERROR;
         shutdown(write_fd, SHUT_RDWR);
         if (udesc)
             atomic_dec(&udesc->refcnt);

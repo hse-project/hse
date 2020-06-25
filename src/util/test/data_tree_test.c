@@ -253,7 +253,7 @@ add_test_element(struct dt_tree *tree, char *path, int num)
 
     te = calloc(1, sizeof(*te));
 
-    snprintf(element->dte_path, sizeof(element->dte_path), path);
+    snprintf(element->dte_path, sizeof(element->dte_path), "%s", path);
     element->dte_data = te;
     element->dte_ops = &test_element_ops;
     element->dte_type = DT_TYPE_TEST_ELEMENT;

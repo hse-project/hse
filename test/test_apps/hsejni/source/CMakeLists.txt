@@ -1,5 +1,7 @@
+
+message(STATUS "Configuring hsejni in ${CMAKE_CURRENT_SOURCE_DIR}")
+
 # empty if not HSE_UNIT_TEST_FLAG
-if( ${HSE_BUILD_USER} )
 include_directories( ${HSE_UT_BASE_INCLUDE_DIRS} )
 include_directories( ${HSE_KVDB_UT_GS_INCLUDE_DIRS} )
 
@@ -43,5 +45,3 @@ target_link_libraries(
 #install(TARGETS hsejni_c DESTINATION ${CMAKE_INSTALL_LIBDIR} COMPONENT java)
 
 install(TARGETS hsejni_c DESTINATION ${CMAKE_INSTALL_LIBDIR} COMPONENT runtime)
-
-endif() # ${HSE_BUILD_USER}

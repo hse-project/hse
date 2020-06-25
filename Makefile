@@ -43,7 +43,6 @@ Configuration Variables:
     BUILD_NUMBER      -- Build job number (as set by Jenkins)
     BUILD_PKG_TYPE    -- Specify package type (rpm or deb)
     BUILD_PKG_VENDOR  -- Specify the vendor/maintainer tag in the package
-    CFILE             -- Name of file containing cmake config parameters.
     DEPGRAPH          -- Set to "--graphviz=<filename_prefix>" to generate
                          graphviz dependency graph files
 
@@ -54,6 +53,8 @@ Configuration Variables:
     BUILD_NUMBER       $(BUILD_NUMBER)
     BUILD_TYPE         $(BUILD_TYPE)
     BUILD_STYPE        $(BUILD_STYPE)
+    BUILD_CFLAGS       $(BUILD_CFLAGS)
+    BUILD_CDEFS        $(BUILD_CDEFS)
     BUILD_PKG_ARCH     ${BUILD_PKG_ARCH}
     BUILD_PKG_DIR      ${BUILD_PKG_DIR}
     BUILD_PKG_DIST     ${BUILD_PKG_DIST}
@@ -64,7 +65,7 @@ Configuration Variables:
     BUILD_PKG_VERSION  ${BUILD_PKG_VERSION}
     BUILD_PKG_VENDOR   ${BUILD_PKG_VENDOR}
     BUILD_PKG_VQUAL    ${BUILD_PKG_VQUAL}
-    CFILE              $(CFILE)
+    CMAKE_BUILD_TYPE   ${CMAKE_BUILD_TYPE}
 
 Customization:
 
@@ -174,38 +175,61 @@ endif
 # SRC_DIR is set to the top of the this source tree.
 SRC_DIR := $(shell dirname $(realpath $(lastword $(MAKEFILE_LIST))))
 
-S=$(SRC_DIR)/scripts
-
 ################################################################
 #
 # Config defaults.
 #
 ################################################################
+HSE_UNIT_TEST_FLAG := FALSE
 
 ifeq ($(findstring release,$(MAKECMDGOALS)),release)
 	BUILD_TYPE := release
 	BUILD_STYPE := r
+	BUILD_CFLAGS := -O2
+	BUILD_CDEFS := -DHSE_BUILD_RELEASE
+	BUILD_CDEFS += -DHSE_LOG_PRI_DEFAULT=5
+	CMAKE_BUILD_TYPE := Release
 else ifeq ($(findstring relwithdebug,$(MAKECMDGOALS)),relwithdebug)
 	BUILD_TYPE := relwithdebug
 	BUILD_STYPE := i
+	BUILD_CFLAGS := -O2
+	BUILD_CDEFS := -DHSE_BUILD_RELEASE
+	BUILD_CDEFS += -DHSE_LOG_PRI_DEFAULT=5
+	CMAKE_BUILD_TYPE := RelWithDebInfo
 else ifeq ($(findstring relassert,$(MAKECMDGOALS)),relassert)
 	BUILD_TYPE := relassert
 	BUILD_STYPE := a
+	BUILD_CFLAGS := -O2
+	BUILD_CDEFS := -DHSE_BUILD_RELASSERT -D_FORTIFY_SOURCE=2
+	BUILD_CDEFS += -DHSE_LOG_PRI_DEFAULT=5
+	CMAKE_BUILD_TYPE := Release
 else ifeq ($(findstring optdebug,$(MAKECMDGOALS)),optdebug)
 	BUILD_TYPE := optdebug
 	BUILD_STYPE := o
+	BUILD_CFLAGS := -Og
+	BUILD_CDEFS := -DHSE_BUILD_DEBUG
+	BUILD_CDEFS += -DHSE_LOG_PRI_DEFAULT=7
+	CMAKE_BUILD_TYPE := Debug
 else ifeq ($(findstring debug,$(MAKECMDGOALS)),debug)
 	BUILD_TYPE := debug
 	BUILD_STYPE := d
+	BUILD_CFLAGS := -fstack-protector-all
+	BUILD_CDEFS := -DHSE_BUILD_DEBUG -DDEBUG_RCU
+	BUILD_CDEFS += -DHSE_LOG_PRI_DEFAULT=7
+	CMAKE_BUILD_TYPE := Debug
+	HSE_UNIT_TEST_FLAG := TRUE
 else
 	BUILD_TYPE := release
 	BUILD_STYPE := r
+	BUILD_CFLAGS := -O2
+	BUILD_CDEFS := -DHSE_BUILD_RELEASE
+	BUILD_CDEFS += -DHSE_LOG_PRI_DEFAULT=5
+	CMAKE_BUILD_TYPE := Release
 endif
 
 BUILD_DIR     ?= ${SRC_DIR}/builds
 BUILD_NODE    ?= $(shell uname -n)
 BUILD_PKG_DIR ?= ${BUILD_DIR}/${BUILD_NODE}/${BUILD_PKG_TYPE}/${BUILD_TYPE}
-CFILE         ?= $(S)/cmake/${BUILD_TYPE}.cmake
 UBSAN         ?= 0
 ASAN          ?= 0
 BUILD_NUMBER  ?= 0
@@ -269,6 +293,8 @@ define config-gen =
 	echo ;\
 	echo 'Set( BUILD_NUMBER        "$(BUILD_NUMBER)" CACHE STRING "" )' ;\
 	echo 'Set( BUILD_TYPE          "$(BUILD_TYPE)" CACHE STRING "" )' ;\
+	echo 'Set( BUILD_CFLAGS        "$(BUILD_CFLAGS)" CACHE STRING "" )' ;\
+	echo 'Set( BUILD_CDEFS         "$(BUILD_CDEFS)" CACHE STRING "" )' ;\
 	echo 'Set( BUILD_STYPE         "$(BUILD_STYPE)" CACHE STRING "" )' ;\
 	echo 'Set( BUILD_PKG_ARCH      "$(BUILD_PKG_ARCH)" CACHE STRING "" )' ;\
 	echo 'Set( BUILD_PKG_DIST      "$(BUILD_PKG_DIST)" CACHE STRING "" )' ;\
@@ -279,17 +305,14 @@ define config-gen =
 	echo 'Set( BUILD_PKG_VERSION   "$(BUILD_PKG_VERSION)" CACHE STRING "" )' ;\
 	echo 'Set( BUILD_PKG_VENDOR    "'$(BUILD_PKG_VENDOR)'" CACHE STRING "" )' ;\
 	echo 'Set( BUILD_PKG_VQUAL     "$(BUILD_PKG_VQUAL)" CACHE STRING "" )' ;\
+	echo 'Set( CMAKE_BUILD_TYPE    "$(CMAKE_BUILD_TYPE)" CACHE STRING "" )' ;\
+	echo 'Set( HSE_UNIT_TEST_FLAG  "${HSE_UNIT_TEST_FLAG}" CACHE STRING "" )' ;\
 	echo 'Set( UBSAN               "$(UBSAN)" CACHE BOOL "" )' ;\
 	echo 'Set( ASAN                "$(ASAN)" CACHE BOOL "" )' ;\
 	echo 'set( MPOOL_INCLUDE_DIR   "$(MPOOL_INCLUDE_DIR)" CACHE STRING "" FORCE)' ;\
 	echo 'set( MPOOL_LIB_DIR       "$(MPOOL_LIB_DIR)" CACHE STRING "" FORCE)' ;\
 	echo 'set( BLKID_LIB_DIR       "$(BLKID_LIB_DIR)" CACHE STRING "" FORCE)' ;\
-	echo ;\
-	echo '# $(CFILE)' ;\
-	cat  "$(CFILE)" ;\
-	echo ;\
-	echo '# $(S)/cmake/defaults.cmake' ;\
-	cat  "$(S)/cmake/defaults.cmake")
+	)
 endef
 
 
@@ -353,7 +376,7 @@ endif
 	@true
 
 ${CONFIG}: MAKEFLAGS += --no-print-directory
-${CONFIG}: Makefile CMakeLists.txt ${CFILE} ${S}/cmake/defaults.cmake $(wildcard scripts/${BUILD_PKG_TYPE}/CMakeLists.txt)
+${CONFIG}: Makefile CMakeLists.txt $(wildcard scripts/${BUILD_PKG_TYPE}/CMakeLists.txt)
 	mkdir -p $(@D)
 	rm -f $(@D)/CMakeCache.txt
 	@$(config-gen) > $@.tmp
