@@ -282,7 +282,7 @@ c1_tree_replay_exec(
     return c1_replay_on_ikvdb(c1, ikvdb, cnid, seqno, kt, vt, tomb);
 }
 
-#ifdef HSE_DEBUG_BUILD
+#ifdef HSE_BUILD_DEBUG
 static void
 c1_tree_replay_verify_kvb_list(struct c1_tree *tree)
 {
@@ -657,7 +657,7 @@ c1_tree_replay(struct c1 *c1, struct c1_tree *tree)
         return err;
     }
 
-#ifdef HSE_DEBUG_BUILD
+#ifdef HSE_BUILD_DEBUG
     /* Validate if the transaction list contains out-of-order
      * entries.
      */
@@ -677,7 +677,7 @@ c1_tree_replay(struct c1 *c1, struct c1_tree *tree)
         return err;
     }
 
-#ifdef HSE_DEBUG_BUILD
+#ifdef HSE_BUILD_DEBUG
     /* Validate if the kv bundlelist contains out-of-order
      * entries.
      */
