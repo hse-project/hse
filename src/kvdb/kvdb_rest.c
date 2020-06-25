@@ -175,7 +175,8 @@ rest_kvdb_compact_status(
     b += snprintf_append(buf, bufsz, &buf_off, "request_active: %u\n", status.kvcs_active);
     b += snprintf_append(buf, bufsz, &buf_off, "request_canceled: %u\n", status.kvcs_canceled);
 
-    write(info->resp_fd, buf, b);
+    if (write(info->resp_fd, buf, b) != b)
+        return merr(EIO);
 
     return 0;
 }
