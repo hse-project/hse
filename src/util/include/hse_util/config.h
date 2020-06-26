@@ -194,6 +194,9 @@ string_set(struct dt_element *dte, struct dt_set_parameters *dsp);
 size_t
 string_emit(struct dt_element *dte, struct yaml_context *yc);
 
+#define CFG_STR(path, instance, data, dlen, dfault, validator, rock, writable) \
+    config_string(COMPNAME, instance, path, data, dlen, dfault, validator, rock, writable)
+
 static inline struct hse_config *
 config_string(
     const char *component,

@@ -408,9 +408,10 @@ kvs_rparams_remove_from_dt(const char *mpool, const char *kvs)
 merr_t
 kvs_rparams_add_to_dt(const char *mpool, const char *kvs, struct kvs_rparams *p)
 {
-    int  i;
-    int  num_elems = NELEM(kvs_rp_table);
-    char path[3 * (DT_PATH_ELEMENT_LEN + 1)];
+    int    i;
+    int    num_elems = NELEM(kvs_rp_table);
+    char   path[3 * (DT_PATH_ELEMENT_LEN + 1)];
+    size_t param_sz = 0;
 
     if (!mpool || !kvs || !p)
         return merr_errno(merr(ev(EINVAL)));
@@ -435,14 +436,37 @@ kvs_rparams_add_to_dt(const char *mpool, const char *kvs, struct kvs_rparams *p)
             }
         }
 
-        CFG_U64(
-            path,
-            param_name,
-            (void *)p + offset,
-            (void *)&kvs_rp_dt_defaults + offset,
-            NULL,
-            p,
-            writable);
+        param_sz = kvs_rp_table[i].pi_type.param_size;
+
+        if (param_sz == sizeof(u32)) {
+            CFG_U32(
+                path,
+                param_name,
+                (void *)p + offset,
+                (void *)&kvs_rp_dt_defaults + offset,
+                NULL,
+                p,
+                writable);
+        } else if (param_sz == sizeof(u64)) {
+            CFG_U64(
+                path,
+                param_name,
+                (void *)p + offset,
+                (void *)&kvs_rp_dt_defaults + offset,
+                NULL,
+                p,
+                writable);
+        } else {
+            CFG_STR(
+                path,
+                param_name,
+                (void *)p + offset,
+                kvs_rp_table[i].pi_type.param_size,
+                (void *)&kvs_rp_dt_defaults + offset,
+                NULL,
+                p,
+                writable);
+        }
     }
 
     return 0;

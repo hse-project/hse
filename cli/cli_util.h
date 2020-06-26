@@ -9,6 +9,9 @@
 struct hse_params;
 
 int
+hse_kvdb_params(const char *mpool, bool get);
+
+int
 kvdb_list_print(
     const char *         mpname,
     struct hse_params *  params,

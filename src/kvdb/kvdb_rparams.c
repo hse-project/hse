@@ -340,8 +340,9 @@ struct kvdb_rparams kvdb_rp_dt_defaults;
 merr_t
 kvdb_rparams_add_to_dt(const char *mp_name, struct kvdb_rparams *p)
 {
-    int i;
-    int num_elems = NELEM(kvdb_rp_table);
+    int    i;
+    int    num_elems = NELEM(kvdb_rp_table);
+    size_t param_sz;
 
     if (!mp_name || !p)
         return merr(ev(EINVAL));
@@ -364,14 +365,32 @@ kvdb_rparams_add_to_dt(const char *mp_name, struct kvdb_rparams *p)
             }
         }
 
-        CFG_U64(
-            mp_name,
-            param_name,
-            (void *)p + offset,
-            (void *)&kvdb_rp_dt_defaults + offset,
-            NULL,
-            p,
-            writable);
+        param_sz = kvdb_rp_table[i].pi_type.param_size;
+
+        if (param_sz == sizeof(u32)) {
+            CFG_U32(
+                mp_name,
+                param_name,
+                (void *)p + offset,
+                (void *)&kvdb_rp_dt_defaults + offset,
+                NULL,
+                p,
+                writable);
+        } else if (param_sz == sizeof(u64)) {
+            CFG_U64(
+                mp_name,
+                param_name,
+                (void *)p + offset,
+                (void *)&kvdb_rp_dt_defaults + offset,
+                NULL,
+                p,
+                writable);
+        } else {
+            /* All kvdb rparams are u32/u64 right now.
+             * Change as necessary if you add a new type.
+             */
+            return merr(ev(EINVAL));
+        }
     }
 
     return 0;

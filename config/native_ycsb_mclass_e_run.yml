@@ -10,5 +10,5 @@ kvdb:
   csched_vb_scatter_pct: 1
 kvs:
   cn_cursor_vra: 0
-  mclass_policy: staging_capacity_nofallback
+  mclass_policy: staging_max_capacity
   pfx_len: 7

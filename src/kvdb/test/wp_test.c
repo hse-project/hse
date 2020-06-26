@@ -32,11 +32,6 @@ struct file_list {
     unsigned int files_cnt;
 };
 
-const char *default_policies[] = { "staging_only",
-                                   "capacity_only",
-                                   "staging_capacity_nofallback",
-                                   "staging_capacity_fallback" };
-
 /* return -1 on error, 0 on success */
 static void
 flist_init(struct file_list *fl)
@@ -301,8 +296,11 @@ MTF_DEFINE_UTEST(wp, parser_kvs_section)
     char               policy[BUF_SZ];
     char *             result;
     int                i = 0;
+    const char **      default_policies;
+    int                count;
 
-    const int count = sizeof(default_policies) / sizeof(default_policies[0]);
+    count = mclass_policy_get_num_default_policies();
+    default_policies = mclass_policy_get_default_policy_names();
 
     /* base profile */
     rc = snprintf(base, sizeof(base), "api_version: 1\nkvs.kvs_test:\n  ");
@@ -433,7 +431,11 @@ MTF_DEFINE_UTEST(wp, parser_mclass_policies_section)
     int                             matches[3];
     bool                            corrupt = false;
     int                             index = 0;
-    const int                       count = sizeof(default_policies) / sizeof(default_policies[0]);
+    int                             count;
+    const char **                   default_policies;
+
+    count = mclass_policy_get_num_default_policies();
+    default_policies = mclass_policy_get_default_policy_names();
 
     num_fields = mclass_policy_get_num_fields();
     ASSERT_LT(num_fields, 4);

@@ -48,6 +48,18 @@ const char *
 mclass_policy_get_default_policies();
 
 /**
+ * mclass_policy_get_default_policy_names() - returns default policy names
+ */
+const char **
+mclass_policy_get_default_policy_names();
+
+/**
+ * mclass_policy_get_num_default_policies() - number of default policies
+ */
+int
+mclass_policy_get_num_default_policies();
+
+/**
  * mclass_policy_init_from_string() - initializes a media class policy from an HSE param
  * @policy: (out) media class policy
  * @key:    key portion of the HSE param
