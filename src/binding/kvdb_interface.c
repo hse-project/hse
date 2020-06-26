@@ -52,6 +52,18 @@ hse_kvdb_version_string(void)
     return hse_version;
 }
 
+const char *
+hse_kvdb_version_tag(void)
+{
+    return hse_tag;
+}
+
+const char *
+hse_kvdb_version_sha(void)
+{
+    return hse_sha;
+}
+
 hse_err_t
 hse_kvdb_init(void)
 {

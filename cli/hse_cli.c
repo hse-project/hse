@@ -174,9 +174,9 @@ static cli_cmd_func_t cli_hse_version;
 static cli_cmd_func_t cli_hse_kvdb;
 static cli_cmd_func_t cli_hse_kvs;
 struct cli_cmd        cli_hse_commands[] = {
-    { "version", "Show HSE version", cli_hse_version, 0 },
     { "kvdb", "Manage KVDB", cli_hse_kvdb, cli_hse_kvdb_commands },
     { "kvs", "Manage KVS", cli_hse_kvs, cli_hse_kvs_commands },
+    { "version", "Show HSE version", cli_hse_version, 0 },
     { 0 },
 };
 
@@ -185,6 +185,8 @@ struct cli_cmd        cli_hse_commands[] = {
  */
 static cli_cmd_func_t cli_hse;
 struct cli_cmd        cli_root = { "hse", "HSE command line interface", cli_hse, cli_hse_commands };
+
+int verbosity;
 
 /**
  * cmd_tree_set_paths() - walk comand tree to set paths
@@ -473,7 +475,8 @@ cli_getopt(struct cli *self)
         if (c == ':')
             fprintf(stderr, "%s: option '%s' requires an argument\n", self->cmd->cmd_path, name);
         else
-            fprintf(stderr, "%s: invalid option: '%s'\n", self->cmd->cmd_path, name);
+            fprintf(stderr, "%s: invalid option '%s', use -h for help\n",
+                    self->cmd->cmd_path, name);
     }
 
     return c;
@@ -841,7 +844,7 @@ cli_hse_kvdb(struct cli_cmd *self, struct cli *cli)
     sub_name = cli->argv[cli->optind];
     sub_cmd = cli_cmd_lookup(self->cmd_subcommandv, sub_name);
     if (!sub_cmd) {
-        fprintf(stderr, "%s: invalid command '%s', use -h fo help\n", self->cmd_path, sub_name);
+        fprintf(stderr, "%s: invalid command '%s', use -h for help\n", self->cmd_path, sub_name);
         return EX_USAGE;
     }
 
@@ -854,7 +857,7 @@ cli_hse_kvdb_create(struct cli_cmd *self, struct cli *cli)
     const struct cmd_spec spec = {
         .usagev =
             {
-                "[options] <mpool> [<config_param>=<value>]...",
+                "[options] <mpool> [<config_param>=<value> ...]",
                 NULL,
             },
         .optionv =
@@ -938,7 +941,6 @@ cli_hse_kvdb_list(struct cli_cmd *self, struct cli *cli)
 
     const char *mp_name = 0;
     bool        help = false;
-    bool        verbose = false;
     int         c;
 
     if (cli_hook(cli, self, &spec))
@@ -950,7 +952,7 @@ cli_hse_kvdb_list(struct cli_cmd *self, struct cli *cli)
                 help = true;
                 break;
             case 'v':
-                verbose = true;
+                ++verbosity;
                 break;
             default:
                 return EX_USAGE;
@@ -972,7 +974,7 @@ cli_hse_kvdb_list(struct cli_cmd *self, struct cli *cli)
 
     mp_name = cli->argv[cli->optind];
 
-    return cli_hse_kvdb_list_impl(cli, mp_name, verbose);
+    return cli_hse_kvdb_list_impl(cli, mp_name, verbosity);
 }
 
 int
@@ -981,7 +983,7 @@ cli_hse_kvdb_compact(struct cli_cmd *self, struct cli *cli)
     const struct cmd_spec spec = {
         .usagev =
             {
-                "[options] [<kvdb>] [<config_param>=<value>]...",
+                "[options] <kvdb> [<config_param>=<value> ...]",
                 NULL,
             },
         .optionv =
@@ -1082,7 +1084,7 @@ cli_hse_kvdb_params(struct cli_cmd *self, struct cli *cli)
     const struct cmd_spec spec = {
         .usagev =
             {
-                "[options] [<kvdb>]",
+                "[options] <kvdb>",
                 NULL,
             },
         .optionv =
@@ -1231,7 +1233,7 @@ cli_hse_kvs_create(struct cli_cmd *self, struct cli *cli)
     const struct cmd_spec spec = {
         .usagev =
             {
-                "[options] <kvdb>/<kvs> [<config_param>=<value>]...",
+                "[options] <kvdb>/<kvs> [<config_param>=<value> ...]",
                 NULL,
             },
         .optionv =
@@ -1310,7 +1312,7 @@ cli_hse_kvs_destroy(struct cli_cmd *self, struct cli *cli)
     const struct cmd_spec spec = {
         .usagev =
             {
-                "[options] <kvdb>/<kvs> [<config_param>=<value>]...",
+                "[options] <kvdb>/<kvs> [<config_param>=<value> ...]",
                 NULL,
             },
         .optionv =
@@ -1369,7 +1371,7 @@ cli_hse_kvs_destroy(struct cli_cmd *self, struct cli *cli)
 
     kvs = strchr(kvdb, '/');
     if (!kvs) {
-        fprintf(stderr, "%s: invalid help_usagev for <kvdb>/<kvs>: '%s'\n", self->cmd_path, kvdb);
+        fprintf(stderr, "%s: invalid usage for <kvdb>/<kvs>: '%s'\n", self->cmd_path, kvdb);
         free(kvdb);
         return -1;
     }
@@ -1433,7 +1435,7 @@ cli_hse_kvs(struct cli_cmd *self, struct cli *cli)
     sub_name = cli->argv[cli->optind];
     sub_cmd = cli_cmd_lookup(self->cmd_subcommandv, sub_name);
     if (!sub_cmd) {
-        fprintf(stderr, "%s: invalid command '%s', use -h fo help\n", self->cmd_path, sub_name);
+        fprintf(stderr, "%s: invalid command '%s', use -h for help\n", self->cmd_path, sub_name);
         return EX_USAGE;
     }
 
@@ -1452,11 +1454,13 @@ cli_hse_version(struct cli_cmd *self, struct cli *cli)
         .optionv =
             {
                 OPTION_HELP,
+                { "[-v|--verbose]", "show git tag and sha" },
                 { NULL },
             },
         .longoptv =
             {
                 { "help", no_argument, 0, 'h' },
+                { "verbose", no_argument, 0, 'v' },
                 { NULL },
             },
         .configv =
@@ -1476,6 +1480,9 @@ cli_hse_version(struct cli_cmd *self, struct cli *cli)
             case 'h':
                 help = true;
                 break;
+            case 'v':
+                ++verbosity;
+                break;
             default:
                 return EX_USAGE;
         }
@@ -1486,7 +1493,13 @@ cli_hse_version(struct cli_cmd *self, struct cli *cli)
         return help ? 0 : EX_USAGE;
     }
 
-    printf("version: %s\n", hse_kvdb_version_string());
+    if (verbosity > 0) {
+        printf("version: %s\n", hse_kvdb_version_string());
+        printf("tag:     %s\n", hse_kvdb_version_tag());
+        printf("sha:     %s\n", hse_kvdb_version_sha());
+    } else {
+        printf("%s\n", hse_kvdb_version_string());
+    }
 
     return 0;
 }
@@ -1505,6 +1518,8 @@ cli_hse(struct cli_cmd *self, struct cli *cli)
                 OPTION_HELP,
                 { "[-H|--longhelp]", "Print long help" },
                 { "[-S|--summary]", "Print summary help" },
+                { "[-V|--version]", "Print version" },
+                { "[-v|--verbose]", "Increase verbosity" },
                 { NULL },
             },
         .longoptv =
@@ -1512,6 +1527,8 @@ cli_hse(struct cli_cmd *self, struct cli *cli)
                 { "help", no_argument, 0, 'h' },
                 { "longhelp", no_argument, 0, 'H' },
                 { "summary", no_argument, 0, 'S' },
+                { "verbose", no_argument, 0, 'v' },
+                { "version", no_argument, 0, 'V' },
                 { NULL },
             },
         .configv =
@@ -1524,6 +1541,7 @@ cli_hse(struct cli_cmd *self, struct cli *cli)
     struct cli_cmd *sub_cmd;
     int             c;
     bool            help = false;
+    bool            version = false;
 
     if (cli_hook(cli, self, &spec))
         return 0;
@@ -1532,7 +1550,7 @@ cli_hse(struct cli_cmd *self, struct cli *cli)
         switch (c) {
             case 'h':
                 /* local help -- for this command */
-                help = true;
+                help = !version;
                 break;
             case 'H':
                 /* global help -- all commands */
@@ -1544,20 +1562,32 @@ cli_hse(struct cli_cmd *self, struct cli *cli)
                 cli->help_show_all = true;
                 cli->help_style = help_style_leaf_summary;
                 return 0;
+            case 'V':
+                version = !help;
+                break;
+            case 'v':
+                ++verbosity;
+                break;
             default:
                 return EX_USAGE;
         }
     }
 
-    if (cli->optind == cli->argc || help) {
-        cmd_print_help(self, help_style_usage, help ? stdout : stderr);
+    if (cli->optind == cli->argc || help || version) {
+        if (version) {
+            return cli_hse_version(self, cli);
+        } else {
+            cmd_print_help(self, help_style_usage, help ? stdout : stderr);
+        }
+
         return help ? 0 : EX_USAGE;
     }
+
 
     sub_name = cli->argv[cli->optind];
     sub_cmd = cli_cmd_lookup(self->cmd_subcommandv, sub_name);
     if (!sub_cmd) {
-        fprintf(stderr, "%s: invalid command '%s', use -h fo help\n", self->cmd_path, sub_name);
+        fprintf(stderr, "%s: invalid command '%s', use -h for help\n", self->cmd_path, sub_name);
         return EX_USAGE;
     }
 
