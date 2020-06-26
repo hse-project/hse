@@ -18,33 +18,32 @@ The kblock header contains information about where the other components of the k
 note: max keylen == 1350 bytes
 
     +----------------------+ -- 0 bytes
-    | u32 magic            |
-    | u32 version          |
-    | s32 page_size        |
-    | s32 hlog_data_off    |
-    | s32 hlog_data_len    |
-    | s32 n_entries        |
-    | s32 n_tombstones     |
-    | s32 n_key_bytes      |
-    | s32 n_val_bytes      |
-    | s32 min_key_off      |
-    | s32 min_key_len      |
-    | s32 max_key_off      |
-    | s32 max_key_len      |
-    | s32 wbtree_hdr_off   |
-    | s32 wbtree_hdr_len   |
-    | s32 wbtree_data_off  |
-    | s32 wbtree_data_len  |
-    | s32 bloom_hdr_off    |
-    | s32 bloom_hdr_len    |
-    | s32 bloom_data_off   |
-    | s32 bloom_data_len   |
-    | s32 ptree_hdr_off    |
-    | s32 ptree_hdr_len    |
-    | s32 ptree_data_off   |
-    | s32 ptree_data_len   |
-    | u64 min_seqno        |
-    | u64 max_seqno        |
+    | u32 kbh_magic        |
+    | u32 kbh_version      |
+    | u32 kbh_hlog_doff_pg |
+    | u32 kbh_hlog_dlen_pg |
+    | u32 kbh_entries      |
+    | u32 kbh_tombs        |
+    | u32 kbh_key_bytes    |
+    | u32 kbh_val_bytes    |
+    | u32 kbh_min_koff     |
+    | u32 kbh_min_klen     |
+    | u32 kbh_max_koff     |
+    | u32 kbh_max_klen     |
+    | u32 kbh_wbt_hoff     |
+    | u32 kbh_wbt_hlen     |
+    | u32 kbh_wbt_doff_pg  |
+    | u32 kbh_wbt_dlen_pg  |
+    | u32 kbh_blm_hoff     |
+    | u32 kbh_blm_hlen     |
+    | u32 kbh_blm_doff_pg  |
+    | u32 kbh_blm_dlen_pg  |
+    | u32 kbh_pt_hoff      |
+    | u32 kbh_pt_hlen      |
+    | u32 kbh_pt_doff_pg   |
+    | u32 kbh_pt_dlen_pg   |
+    | u64 kbh_min_seqno    |
+    | u64 kbh_max_seqno    |
     | ...                  |
     |----------------------| -- 1369 bytes (4096 - 1350 - 1350)
     | max_key              |
@@ -68,36 +67,36 @@ The WBTree consists of the header, leaf nodes and internal nodes.  The last inte
 WBTree Header
 
     +----------------------+
-    | u32 magic            |
-    | u32 version          |
-    | u16 root_node        |
-    | u16 first_leaf_node  |
-    | u16 num_leaf_nodes   |
-    | u16 num_kmd_page_cnt |
-    | u32 reserved-1       |
-    | u32 reserved-2       |
+    | u32 wbt_magic        |
+    | u32 wbt_version      |
+    | u16 wbt_root         |
+    | u16 wbt_leaf         |
+    | u16 wbt_leaf_cnt     |
+    | u16 wbt_kmd_pgc      |
+    | u32 wbt_reserved1    |
+    | u32 wbt_reserved2    |
     +----------------------+
 
 WBTree Leaf Node (one 4K page):
 
     +--------------------+ Leaf Node Header:
-    | s16 wbn_magic      |   integrity check
-    | s16 wbn_num_keys   |   #entries in this node
-    | s32 wbn_kmd        |   offset in kmd region to this node's kmd
-    | s16 wbn_pfx_len    |   length of the longest common prefix
-    | s16 wbn_padding    |   unused
+    | u16 wbn_magic      |   integrity check
+    | u16 wbn_num_keys   |   #entries in this node
+    | u32 wbn_kmd        |   offset in kmd region to this node's kmd
+    | u16 wbn_pfx_len    |   length of the longest common prefix
+    | u16 wbn_padding    |   unused
     |--------------------| Longest common prefix
     | Longest common     |
     | prefix             |
     |--------------------| Entry for 1st key:
-    | s16 lfe_key_off    |   #bytes into this node
-    | s16 lfe_kmd        |   kmd offset. If kmd_off == U16_MAX, actual kmd
+    | u16 lfe_koff       |   #bytes into this node
+    | u16 lfe_kmd        |   kmd offset. If kmd_off == U16_MAX, actual kmd
     |                    |   offset is a 32bit value at key_off
     |--------------------|
     | ...                |
     |--------------------| Entry for last key
-    | s16 lfe_key_off    |
-    | s16 lfe_kmd        |
+    | u16 lfe_koff       |
+    | u16 lfe_kmd        |
     |--------------------|
     |--------------------|
     | Last key           |
@@ -110,25 +109,25 @@ WBTree Leaf Node (one 4K page):
 WBTree Interior Node (one 4K page):
 
     +--------------------+ Internal Node Header:
-    | s16 wbn_magic      |   integrity check
-    | s16 wbn_num_keys   |   #entries in this node
-    | s32 wbn_kmd        |   offset in kmd region to this node's kmd
-    | s16 wbn_pfx_len    |   length of the longest common prefix
-    | s16 wbn_padding    |   unused
+    | u16 wbn_magic      |   integrity check
+    | u16 wbn_num_keys   |   #entries in this node
+    | u32 wbn_kmd        |   offset in kmd region to this node's kmd
+    | u16 wbn_pfx_len    |   length of the longest common prefix
+    | u16 wbn_padding    |   unused
     |--------------------| Longest common prefix
     | Longest common     |
     | prefix             |
     |--------------------| Entry for 1st internal node entry (ine):
-    | s16 ine_key_off    |   #bytes into this node
-    | s16 ine_left_child |   left child pointer of this ine
+    | u16 ine_koff       |   #bytes into this node
+    | u16 ine_left_child |   left child pointer of this ine
     |--------------------|
     | ...                |
     |--------------------| Entry for (last-1) key
-    | s16 ine_key_off    |
-    | s16 ine_left_child |
+    | u16 ine_koff       |
+    | u16 ine_left_child |
     |--------------------| Entry for last key
-    | s16 ine_key_off    |
-    | s16 ine_left_child |   right child pointer
+    | u16 ine_koff       |
+    | u16 ine_left_child |   right child pointer
     |--------------------|
     |--------------------|
     | Last key           |
@@ -211,7 +210,7 @@ VBlocks consist of a header followed by all the values.  The offset of a specifc
 ### VBlock header
 
     +-------------------+
-    | u32 vbh1_magic    |
-    | u32 vbh1_version  |
-    | u64 vbh1_vgroup   |
+    | u32 vbh_magic     |
+    | u32 vbh_version   |
+    | u64 vbh_vgroup    |
     +-------------------+

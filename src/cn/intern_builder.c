@@ -12,6 +12,62 @@
 #include "intern_builder.h"
 #include "wbt_builder.h"
 
+/**
+ * struct intern_node - node data
+ *
+ * @buf:  a PAGE_SIZE buffer that stores compressed keys (lcp elimiated keys)
+ * @used: used bytes in @buf
+ * @next: next node;
+ */
+
+struct intern_node {
+    unsigned char *        buf;
+    uint                   used;
+    struct intern_builder *ib_back;
+    struct intern_node *   next;
+};
+
+struct intern_key {
+    uint          child_idx;
+    uint          klen;
+    unsigned char kdata[];
+};
+
+struct intern_builder {
+    struct intern_level *base;
+    struct wbb *         wbb;
+};
+
+/**
+ * struct intern_level - metadata for each level of the wb tree with
+ *                         internal nodes
+ * @curr_rkeys_sum: Sum of all keys in the active node
+ * @curr_rkeys_cnt: Number of keys in the active node. (Doesn't include the
+ *                  entry about the mandatory right edge).
+ * @full_node_cnt:  Number of 'full' nodes in the level. i.e. these nodes were
+ *                  frozen because there wasn't any more space for more keys.
+ * @level:          level in the tree. From bottom to top.
+ * @parent:         pointer to parent. Null if root.
+ * @sbuf:           staging area buffer
+ * @sbuf_sz:        size of @sbuf
+ * @sbuf_used:      used bytes in @sbuf
+ */
+struct intern_level {
+    uint                 curr_rkeys_sum;
+    uint                 curr_rkeys_cnt;
+    uint                 curr_child;
+    uint                 full_node_cnt;
+    uint                 level;
+    struct intern_node * node_head;
+    struct intern_node * node_curr;
+    size_t               node_lcp_len;
+    unsigned char *      sbuf;
+    size_t               sbuf_sz;
+    size_t               sbuf_used;
+    struct intern_level *parent;
+};
+
+
 static struct kmem_cache *ib_node_cache;
 static atomic_t           ib_init_ref;
 
@@ -23,7 +79,7 @@ ib_init(void)
     if (atomic_inc_return(&ib_init_ref) > 1)
         return 0;
 
-    zone = kmem_cache_create("ibldr", sizeof(struct intern_node), PAGE_SIZE, 0, NULL);
+    zone = kmem_cache_create("ibldr", sizeof(struct intern_node), 0, 0, NULL);
     if (ev(!zone)) {
         atomic_dec(&ib_init_ref);
         return merr(ENOMEM);
