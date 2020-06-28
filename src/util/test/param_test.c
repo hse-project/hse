@@ -54,15 +54,6 @@ MTF_DEFINE_UTEST(param, example_match_table)
 
     ret = match_token("total+12M", params, &val);
     ASSERT_EQ(ret, 7);
-
-    ret = match_token("mode=0777", params, &val);
-    ASSERT_EQ(ret, 1);
-
-    ret = match_token("gid=12", params, &val);
-    ASSERT_EQ(ret, 3);
-
-    ret = match_token("gid=Babycakes", params, &val);
-    ASSERT_EQ(ret, 4);
 }
 
 #define PARAM_TYPE_MOE                                       \
@@ -815,195 +806,10 @@ MTF_DEFINE_UTEST(param, bool_test)
     ASSERT_EQ(0, strcmp("false", value));
 }
 
-/* 10. uid Test
- */
-MTF_DEFINE_UTEST(param, uid_test)
-{
-    uid_t  a, b;
-    char   value[24];
-    merr_t err;
-
-    err = get_uid(value, NULL, sizeof(b));
-    ASSERT_NE(0, err);
-
-    err = get_uid(value, &b, sizeof(b) - 1);
-    ASSERT_NE(0, err);
-
-    err = get_uid(value, (char *)&b + 1, sizeof(b));
-    ASSERT_NE(0, err);
-
-    err = show_uid(value, sizeof(value), NULL, 0);
-    ASSERT_NE(0, err);
-
-    err = show_uid(value, sizeof(value), (char *)&b + 1, 0);
-    ASSERT_NE(0, err);
-
-    err = show_uid(value, 0, &b, 0);
-    ASSERT_NE(0, err);
-
-    a = 0;
-    strcpy(value, "root");
-    err = get_uid(value, &b, sizeof(b));
-    ASSERT_EQ(0, err);
-    ASSERT_EQ(a, b);
-
-    a = 12;
-    sprintf(value, "%d", a);
-    err = get_uid(value, &b, sizeof(b));
-    ASSERT_EQ(0, err);
-    ASSERT_EQ(a, b);
-
-    strcpy(value, "");
-    err = get_uid(value, &b, sizeof(b));
-    ASSERT_NE(0, err);
-
-    sprintf(value, "999%lu", UINT64_MAX);
-    err = get_uid(value, &b, sizeof(b));
-    ASSERT_NE(0, err);
-
-    a = 14;
-    err = show_uid(value, sizeof(value), &a, 0);
-    ASSERT_EQ(0, err);
-    ASSERT_EQ(0, strcmp("14", value));
-}
-
-/* 11. gid Test
- */
-MTF_DEFINE_UTEST(param, gid_test)
-{
-    gid_t  a, b;
-    char   value[24];
-    merr_t err;
-
-    err = get_gid(value, NULL, sizeof(b));
-    ASSERT_NE(0, err);
-
-    err = get_gid(value, &b, sizeof(b) - 1);
-    ASSERT_NE(0, err);
-
-    err = get_gid(value, (char *)&b + 1, sizeof(b));
-    ASSERT_NE(0, err);
-
-    err = show_gid(value, sizeof(value), NULL, 0);
-    ASSERT_NE(0, err);
-
-    err = show_gid(value, sizeof(value), (char *)&b + 1, 0);
-    ASSERT_NE(0, err);
-
-    err = show_gid(value, 0, &b, 0);
-    ASSERT_NE(0, err);
-
-    a = 0;
-    strcpy(value, "root");
-    err = get_gid(value, &b, sizeof(b));
-    ASSERT_EQ(0, err);
-    ASSERT_EQ(a, b);
-
-    a = 12;
-    sprintf(value, "%d", a);
-    err = get_gid(value, &b, sizeof(b));
-    ASSERT_EQ(0, err);
-    ASSERT_EQ(a, b);
-
-    strcpy(value, "");
-    err = get_gid(value, &b, sizeof(b));
-    ASSERT_NE(0, err);
-
-    sprintf(value, "999%lu", UINT64_MAX);
-    err = get_gid(value, &b, sizeof(b));
-    ASSERT_NE(0, err);
-
-    a = 14;
-    err = show_gid(value, sizeof(value), &a, 0);
-    ASSERT_EQ(0, err);
-    ASSERT_EQ(0, strcmp("14", value));
-}
-
-/* 12. mode Test
- */
-MTF_DEFINE_UTEST(param, mode_test)
-{
-    mode_t a, b;
-    char   value[24];
-    merr_t err;
-
-    err = get_mode(value, NULL, sizeof(b));
-    ASSERT_NE(0, err);
-
-    err = get_mode(value, &b, sizeof(b) - 1);
-    ASSERT_NE(0, err);
-
-    err = get_mode(value, (char *)&b + 1, sizeof(b));
-    ASSERT_NE(0, err);
-
-    err = show_mode(value, sizeof(value), NULL, 0);
-    ASSERT_NE(0, err);
-
-    err = show_mode(value, sizeof(value), (char *)&b + 1, 0);
-    ASSERT_NE(0, err);
-
-    err = show_mode(value, 0, &b, 0);
-    ASSERT_NE(0, err);
-
-    a = 0666;
-    sprintf(value, "%o", a);
-    err = get_mode(value, &b, sizeof(b));
-    ASSERT_EQ(0, err);
-    ASSERT_EQ(a, b);
-
-    strcpy(value, "");
-    err = get_mode(value, &b, sizeof(b));
-    ASSERT_NE(0, err);
-
-    strcpy(value, "foo");
-    err = get_mode(value, &b, sizeof(b));
-    ASSERT_NE(0, err);
-
-    a = 0644;
-    err = show_mode(value, sizeof(value), &a, 0);
-    ASSERT_EQ(0, err);
-    ASSERT_EQ(0, strcmp("0644", value));
-}
-
-/* 13. mode Test
- */
-MTF_DEFINE_UTEST(param, real_param_test)
-{
-    merr_t err;
-    int    next_arg = 0;
-
-    struct {
-        uid_t  opt_uid;
-        gid_t  opt_gid;
-        mode_t opt_mode;
-    } tpt = {
-        .opt_uid = 0, .opt_gid = 0, .opt_mode = 0644,
-    };
-
-    struct param_inst pi[] = { PARAM_INST(PARAM_TYPE_UID, tpt.opt_uid, "uid"),
-                               PARAM_INST(PARAM_TYPE_GID, tpt.opt_gid, "gid"),
-                               PARAM_INST(PARAM_TYPE_MODE, tpt.opt_mode, "mode"),
-                               PARAM_INST_END };
-
-    {
-        int   argc = 4;
-        char *argv[] = {
-            "non_param1", "uid=1", "non_param2", "gid=2", "non_param3",
-        };
-
-        next_arg = 0;
-        err = process_params(argc, argv, pi, &next_arg, 0);
-        ASSERT_EQ(err, 0);
-        ASSERT_EQ(next_arg, 2);
-        ASSERT_EQ(tpt.opt_uid, 1);
-        ASSERT_EQ(tpt.opt_gid, 2);
-    }
-}
-
 size_t
 log_level_set_handler(struct dt_element *dte, struct dt_set_parameters *dsp);
 
-/* 14. log_level Test
+/* 10. log_level Test
  */
 MTF_DEFINE_UTEST(param, log_level_test)
 {
@@ -1024,9 +830,6 @@ MTF_DEFINE_UTEST(param, log_level_test)
     ASSERT_NE(0, err);
 
     err = show_log_level(value, sizeof(value), (char *)&b + 1, 0);
-    ASSERT_NE(0, err);
-
-    err = show_mode(value, 0, &b, 0);
     ASSERT_NE(0, err);
 
     a = HSE_INFO_VAL;
