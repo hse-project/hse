@@ -93,14 +93,14 @@ _vblock_start(struct vblock_builder *bld)
         return err;
     }
 
-    assert(mbprop.mpr_stripe_len);
+    assert(mbprop.mpr_optimal_wrsz);
 
     /* set offsets to leave space for header */
     bld->vblk_off = VBLOCK_HDR_LEN;
     bld->wbuf_off = VBLOCK_HDR_LEN;
     bld->blkid = blkid;
-    bld->wbuf_len = WBUF_LEN_MAX - (WBUF_LEN_MAX % mbprop.mpr_stripe_len);
-    bld->stripe_len = mbprop.mpr_stripe_len;
+    bld->wbuf_len = WBUF_LEN_MAX - (WBUF_LEN_MAX % mbprop.mpr_optimal_wrsz);
+    bld->opt_wrsz = mbprop.mpr_optimal_wrsz;
 
     /* add header to write buffer */
     memset(bld->wbuf, 0x0, VBLOCK_HDR_LEN);

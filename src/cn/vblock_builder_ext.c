@@ -36,16 +36,14 @@ struct vbb_ext_elem {
     u64   vbid;
     void *wbuf;
     uint  vbidx;
-    uint  stripe_len;
+    uint  opt_wrsz;
 
-    __aligned(SMP_CACHE_BYTES)
-    atomic_t wbuf_off;
+    __aligned(SMP_CACHE_BYTES) atomic_t wbuf_off;
     off_t    wbuf_woff;
     atomic_t wbuf_wlen;
     uint     wbuf_len;
 
-    __aligned(SMP_CACHE_BYTES)
-    struct rw_semaphore     flush_sem;
+    __aligned(SMP_CACHE_BYTES) struct rw_semaphore flush_sem;
 };
 
 struct vbb_ext {
@@ -56,8 +54,7 @@ struct vbb_ext {
     uint                 vbcap;
     uint                 vbsize;
 
-    __aligned(SMP_CACHE_BYTES)
-    struct mutex vbb_lock;
+    __aligned(SMP_CACHE_BYTES) struct mutex vbb_lock;
     atomic_t vbunderutil;
 };
 
@@ -141,8 +138,8 @@ _vblock_start_ext(struct vblock_builder *bld, u8 slot)
     vbb->vbidx = vbidx;
     vbb->vbid = vbid;
 
-    assert(mbprop.mpr_stripe_len);
-    vbb->stripe_len = mbprop.mpr_stripe_len;
+    assert(mbprop.mpr_optimal_wrsz);
+    vbb->opt_wrsz = mbprop.mpr_optimal_wrsz;
 
     memset(vbb->wbuf, 0x0, VBLOCK_HDR_LEN);
     omf_set_vbh_magic(vbb->wbuf, VBLOCK_HDR_MAGIC);
@@ -151,7 +148,7 @@ _vblock_start_ext(struct vblock_builder *bld, u8 slot)
 
     atomic_set(&vbb->wbuf_off, VBLOCK_HDR_LEN);
     atomic_set(&vbb->wbuf_wlen, VBLOCK_HDR_LEN);
-    vbb->wbuf_len = ext->vbsize - (ext->vbsize % mbprop.mpr_stripe_len);
+    vbb->wbuf_len = ext->vbsize - (ext->vbsize % mbprop.mpr_optimal_wrsz);
 
     return 0;
 }
@@ -285,11 +282,11 @@ static uint
 vbb_padding_get(struct vbb_ext_elem *vbb, uint wlen)
 {
     uint plen;
-    uint slen;
+    uint owsz;
 
-    slen = vbb->stripe_len;
+    owsz = vbb->opt_wrsz;
 
-    plen = slen - (wlen % slen);
+    plen = owsz - (wlen % owsz);
     if (wlen + plen > vbb->wbuf_len)
         plen = vbb->wbuf_len - wlen;
 
@@ -318,7 +315,7 @@ _vblock_write_ext(struct vblock_builder *bld, u8 slot, bool last_write)
 
     merr_t err;
     void * buf;
-    uint   slen;
+    uint   owsz;
     uint   wlen;
     uint   rem;
 
@@ -328,7 +325,7 @@ _vblock_write_ext(struct vblock_builder *bld, u8 slot, bool last_write)
 
     buf = vbb->wbuf;
     wlen = atomic_read(&vbb->wbuf_wlen);
-    slen = vbb->stripe_len;
+    owsz = vbb->opt_wrsz;
 
     if (last_write) {
         uint plen;
@@ -337,12 +334,12 @@ _vblock_write_ext(struct vblock_builder *bld, u8 slot, bool last_write)
         plen = vbb_padding_get(vbb, wlen);
         memset(buf + wlen, 0, plen);
         wlen += plen;
-        assert((wlen - vbb->wbuf_woff) % slen == 0);
+        assert((wlen - vbb->wbuf_woff) % owsz == 0);
     }
 
     assert(wlen >= vbb->wbuf_woff);
     rem = wlen - vbb->wbuf_woff;
-    rem = rem - (rem % slen);
+    rem = rem - (rem % owsz);
 
     /* Write out this vblock if the dirty data exceeds 1MiB. If there's
      * nothing to write or if the dirty data is less than a chunk size and

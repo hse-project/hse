@@ -171,7 +171,7 @@ mock_open_mlog(u64 oid)
     return fp;
 }
 
-static uint64_t
+static mpool_err_t
 _mpool_mlog_len(struct mpool_mlog *mlh, size_t *len)
 {
     FILE *fp = (FILE *)mlh;
@@ -181,9 +181,9 @@ _mpool_mlog_len(struct mpool_mlog *mlh, size_t *len)
     return 0;
 }
 
-static uint64_t
+static mpool_err_t
 _mpool_mlog_alloc(
-    struct mpool *        ds,
+    struct mpool *        mp,
     enum mp_media_classp  mclassp,
     struct mlog_capacity *capreq,
     uint64_t *            mlogid,
@@ -218,9 +218,9 @@ _mpool_mlog_alloc(
     return 0;
 }
 
-static uint64_t
+static mpool_err_t
 _mpool_mdc_alloc(
-    struct mpool *             ds,
+    struct mpool *             mp,
     uint64_t *                 logid1,
     uint64_t *                 logid2,
     enum mp_media_classp       mclassp,
@@ -254,7 +254,7 @@ _mpool_mdc_alloc(
     return 0;
 }
 
-static uint64_t
+static mpool_err_t
 _mpool_mdc_open(
     struct mpool *     mp,
     uint64_t           logid1,
@@ -273,7 +273,7 @@ _mpool_mdc_open(
     return 0;
 }
 
-static uint64_t
+static mpool_err_t
 _mpool_mdc_close(struct mpool_mdc *mdc)
 {
     FILE *fp = (FILE *)mdc;
@@ -296,7 +296,7 @@ _mpool_mdc_close(struct mpool_mdc *mdc)
     return merr(ev(EINVAL));
 }
 
-static uint64_t
+static mpool_err_t
 _mpool_mdc_cstart(struct mpool_mdc *mdc)
 {
     FILE *fp = (FILE *)mdc;
@@ -313,9 +313,9 @@ _mpool_mdc_cstart(struct mpool_mdc *mdc)
     return 0;
 }
 
-static uint64_t
+static mpool_err_t
 _mpool_mlog_open(
-    struct mpool *      ds,
+    struct mpool *      mp,
     uint64_t            mlogid,
     uint8_t             flags,
     uint64_t *          gen,
@@ -332,13 +332,13 @@ _mpool_mlog_open(
     return 0;
 }
 
-static uint64_t
-_mpool_mlog_delete(struct mpool *ds, uint64_t mlogid)
+static mpool_err_t
+_mpool_mlog_delete(struct mpool *mp, uint64_t mlogid)
 {
     return 0;
 }
 
-static uint64_t
+static mpool_err_t
 _mpool_mlog_close(struct mpool_mlog *mlh)
 {
     FILE *fp = (FILE *)mlh;
@@ -361,7 +361,7 @@ _mpool_mlog_close(struct mpool_mlog *mlh)
     return merr(ev(EINVAL));
 }
 
-static uint64_t
+static mpool_err_t
 _mpool_mdc_append(struct mpool_mdc *mdc, void *data, ssize_t len, bool sync)
 {
     FILE *fp = (FILE *)mdc;
@@ -376,7 +376,7 @@ _mpool_mdc_append(struct mpool_mdc *mdc, void *data, ssize_t len, bool sync)
     return merr(ev(EIO));
 }
 
-static uint64_t
+static mpool_err_t
 _mpool_mlog_append(struct mpool_mlog *mlh, struct iovec *iov, size_t len, int sync)
 {
     FILE * fp = (FILE *)mlh;
@@ -397,7 +397,7 @@ _mpool_mlog_append(struct mpool_mlog *mlh, struct iovec *iov, size_t len, int sy
     return merr(ev(EIO));
 }
 
-static uint64_t
+static mpool_err_t
 _mpool_mlog_read(struct mpool_mlog *mlh, void *data, size_t len, size_t *rdlen)
 {
     FILE *fp = (FILE *)mlh;
@@ -411,7 +411,7 @@ _mpool_mlog_read(struct mpool_mlog *mlh, void *data, size_t len, size_t *rdlen)
     return merr(ev(ERANGE));
 }
 
-uint64_t
+mpool_err_t
 _mpool_mlog_seek_read(struct mpool_mlog *mlh, size_t seek, void *data, size_t len, size_t *rdlen)
 {
     FILE *fp = (FILE *)mlh;
@@ -433,7 +433,7 @@ _mpool_mlog_seek_read(struct mpool_mlog *mlh, size_t seek, void *data, size_t le
     return _mpool_mlog_read(mlh, data, len, rdlen);
 }
 
-static uint64_t
+static mpool_err_t
 _mpool_mdc_read(struct mpool_mdc *mdc, void *data, size_t len, size_t *rdlen)
 {
     FILE *fp = (FILE *)mdc;
@@ -457,7 +457,7 @@ _mpool_mdc_read(struct mpool_mdc *mdc, void *data, size_t len, size_t *rdlen)
     return merr(ev(errno));
 }
 
-static uint64_t
+static mpool_err_t
 _mpool_mdc_rewind(struct mpool_mdc *mdc)
 {
     FILE *fp = (FILE *)mdc;
@@ -469,7 +469,7 @@ _mpool_mdc_rewind(struct mpool_mdc *mdc)
     return 0;
 }
 
-static uint64_t
+static mpool_err_t
 _mpool_mlog_rewind(struct mpool_mlog *mlh)
 {
     FILE *fp = (FILE *)mlh;
@@ -481,13 +481,13 @@ _mpool_mlog_rewind(struct mpool_mlog *mlh)
     return 0;
 }
 
-static uint64_t
+static mpool_err_t
 _mpool_mlog_sync(struct mpool_mlog *mlh)
 {
     return 0;
 }
 
-uint64_t
+mpool_err_t
 _mpool_mlog_erase(struct mpool_mlog *mlh, uint64_t mingen)
 {
     FILE *fp = (FILE *)mlh;

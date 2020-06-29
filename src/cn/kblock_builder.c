@@ -922,10 +922,10 @@ kblock_finish(struct kblock_builder *bld, struct wbb *ptree)
         count_ops(&stats->ms_kblk_alloc, 1, mbprop.mpr_alloc_cap, get_time_ns() - tstart);
 
     /* Write mblock in chunks.  Chunk size must be a multiple of
-     * mblock stripe length. Use largest chunk size less than 1 MiB.
+     * mblock optimal write size. Use largest chunk size less than 1 MiB.
      */
     chunk = 1024 * 1024;
-    chunk = chunk - (chunk % mbprop.mpr_stripe_len);
+    chunk = chunk - (chunk % mbprop.mpr_optimal_wrsz);
     err = mblk_blow_chunks(bld, blkid, iov, iov_cnt, chunk);
     if (ev(err))
         goto errout;
