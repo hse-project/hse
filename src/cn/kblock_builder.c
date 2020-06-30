@@ -32,6 +32,7 @@
 #include "wbt_builder.h"
 #include "cn_mblocks.h"
 #include "cn_metrics.h"
+#include "cn_perfc.h"
 
 #include <mpool/mpool.h>
 
@@ -805,7 +806,7 @@ kblock_finish(struct kblock_builder *bld, struct wbb *ptree)
     struct iovec *iov = NULL;
     uint          iov_cnt = 0;
     uint          iov_max;
-    uint          i, chunk, allocs = 0;
+    uint          i, chunk, allocs = 0, perfc_idx;
     size_t        wlen;
 
     merr_t err;
@@ -941,6 +942,13 @@ kblock_finish(struct kblock_builder *bld, struct wbb *ptree)
     err = blk_list_append(&bld->finished_kblks, blkid);
     if (ev(err))
         goto errout;
+
+    perfc_idx = PERFC_BA_CNMCLASS_SYNCK_STAGING + bld->agegroup * HSE_MPOLICY_AGE_CNT +
+                HSE_MPOLICY_DTYPE_KEY * HSE_MPOLICY_DTYPE_CNT +
+                ((mclass == MP_MED_CAPACITY) ? 1 : 0);
+
+    if (perfc_idx < PERFC_EN_CNMCLASS)
+        perfc_add(cn_pc_mclass_get(bld->cn), perfc_idx, kblocksz);
 
     /* unconditional reset */
     kblock_reset(kblk);

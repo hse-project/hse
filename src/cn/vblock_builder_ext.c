@@ -87,7 +87,7 @@ _vblock_start_ext(struct vblock_builder *bld, u8 slot)
     u64                  vbid;
     struct vbb_ext *     ext;
     bool                 spare;
-    uint                 allocs = 0;
+    uint                 allocs = 0, perfc_idx;
 
     struct mclass_policy *mpolicy = cn_get_mclass_policy(bld->cn);
     enum mp_media_classp  mclass;
@@ -149,6 +149,13 @@ _vblock_start_ext(struct vblock_builder *bld, u8 slot)
     atomic_set(&vbb->wbuf_off, VBLOCK_HDR_LEN);
     atomic_set(&vbb->wbuf_wlen, VBLOCK_HDR_LEN);
     vbb->wbuf_len = ext->vbsize - (ext->vbsize % mbprop.mpr_optimal_wrsz);
+
+    perfc_idx = PERFC_BA_CNMCLASS_SYNCK_STAGING + bld->agegroup * HSE_MPOLICY_AGE_CNT +
+                HSE_MPOLICY_DTYPE_VALUE * HSE_MPOLICY_DTYPE_CNT +
+                ((mclass == MP_MED_CAPACITY) ? 1 : 0);
+
+    if (perfc_idx < PERFC_EN_CNMCLASS)
+        perfc_add(cn_pc_mclass_get(bld->cn), perfc_idx, ext->vbsize);
 
     return 0;
 }

@@ -21,5 +21,6 @@ extern struct perfc_name cn_perfc_cmn[];
 extern struct perfc_name cn_perfc_compact[];
 extern struct perfc_name cn_perfc_shape[];
 extern struct perfc_name cn_perfc_capped[];
+extern struct perfc_name cn_perfc_mclass[];
 
 #endif

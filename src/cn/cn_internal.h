@@ -54,6 +54,7 @@ struct cn {
     struct perfc_set cn_pc_shape_inode;
     struct perfc_set cn_pc_shape_lnode;
     struct perfc_set cn_pc_capped;
+    struct perfc_set cn_pc_mclass;
 
     /* for maintenance work */
     struct workqueue_struct *cn_maint_wq;

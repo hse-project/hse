@@ -211,6 +211,10 @@ struct perfc_set *
 cn_pc_capped_get(struct cn *cn);
 
 /* MTF_MOCK */
+struct perfc_set *
+cn_pc_mclass_get(struct cn *cn);
+
+/* MTF_MOCK */
 struct kvs_cparams *
 cn_get_cparams(const struct cn *handle);
 
