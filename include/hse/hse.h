@@ -164,6 +164,12 @@ hse_kvdb_fini(void);
 const char *
 hse_kvdb_version_string(void);
 
+const char *
+hse_kvdb_version_tag(void);
+
+const char *
+hse_kvdb_version_sha(void);
+
 /**
  * Return an hse_err_t value's string representation
  *
