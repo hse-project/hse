@@ -170,13 +170,11 @@ struct cli_cmd        cli_hse_kvs_commands[] = {
  *    hse kvdb
  *    hse kvs
  */
-static cli_cmd_func_t cli_hse_version;
 static cli_cmd_func_t cli_hse_kvdb;
 static cli_cmd_func_t cli_hse_kvs;
 struct cli_cmd        cli_hse_commands[] = {
     { "kvdb", "Manage KVDB", cli_hse_kvdb, cli_hse_kvdb_commands },
     { "kvs", "Manage KVS", cli_hse_kvs, cli_hse_kvs_commands },
-    { "version", "Show HSE version", cli_hse_version, 0 },
     { 0 },
 };
 
@@ -1425,69 +1423,7 @@ cli_hse_kvs(struct cli_cmd *self, struct cli *cli)
     return sub_cmd->cmd_main(sub_cmd, cli);
 }
 
-int
-cli_hse_version(struct cli_cmd *self, struct cli *cli)
-{
-    const struct cmd_spec spec = {
-        .usagev =
-            {
-                "[options]",
-                NULL,
-            },
-        .optionv =
-            {
-                OPTION_HELP,
-                { "[-v|--verbose]", "show git tag and sha" },
-                { NULL },
-            },
-        .longoptv =
-            {
-                { "help", no_argument, 0, 'h' },
-                { "verbose", no_argument, 0, 'v' },
-                { NULL },
-            },
-        .configv =
-            {
-                { NULL },
-            },
-    };
-
-    bool help = false;
-    int  c;
-
-    if (cli_hook(cli, self, &spec))
-        return 0;
-
-    while (-1 != (c = cli_getopt(cli))) {
-        switch (c) {
-            case 'h':
-                help = true;
-                break;
-            case 'v':
-                ++verbosity;
-                break;
-            default:
-                return EX_USAGE;
-        }
-    }
-
-    if (cli->optind != cli->argc || help) {
-        cmd_print_help(self, help_style_usage, help ? stdout : stderr);
-        return help ? 0 : EX_USAGE;
-    }
-
-    if (verbosity > 0) {
-        printf("version: %s\n", hse_kvdb_version_string());
-        printf("tag:     %s\n", hse_kvdb_version_tag());
-        printf("sha:     %s\n", hse_kvdb_version_sha());
-    } else {
-        printf("%s\n", hse_kvdb_version_string());
-    }
-
-    return 0;
-}
-
-int
+static int
 cli_hse(struct cli_cmd *self, struct cli *cli)
 {
     const struct cmd_spec spec = {
@@ -1556,14 +1492,19 @@ cli_hse(struct cli_cmd *self, struct cli *cli)
         }
     }
 
-    if (cli->optind == cli->argc || help || version) {
-        if (version) {
-            return cli_hse_version(self, cli);
+    if (help) {
+        cmd_print_help(self, help_style_usage, stdout);
+        return 0;
+    }
+    if (version) {
+        if (verbosity > 0) {
+            printf("version: %s\n", hse_kvdb_version_string());
+            printf("tag:     %s\n", hse_kvdb_version_tag());
+            printf("sha:     %s\n", hse_kvdb_version_sha());
         } else {
-            cmd_print_help(self, help_style_usage, help ? stdout : stderr);
+            printf("%s\n", hse_kvdb_version_string());
         }
-
-        return help ? 0 : EX_USAGE;
+        return 0;
     }
 
     sub_name = cli_next_arg(cli);
