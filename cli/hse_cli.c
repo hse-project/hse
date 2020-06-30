@@ -30,6 +30,7 @@
     {                               \
         "[-h|--help]", "Print help" \
     }
+
 #define OPTION_CFILE                                \
     {                                               \
         "[-c|--config FILE]", "Use hse config file" \
@@ -106,6 +107,7 @@ struct cmd_spec {
     const struct name_desc optionv[8];
     const struct name_desc configv[8];
     const struct option    longoptv[8];
+    const char *           extra_help[8];
 };
 
 typedef int(cli_cmd_func_t)(struct cli_cmd *self, struct cli *cli);
@@ -144,10 +146,10 @@ static cli_cmd_func_t cli_hse_kvdb_list;
 static cli_cmd_func_t cli_hse_kvdb_compact;
 static cli_cmd_func_t cli_hse_kvdb_params;
 struct cli_cmd        cli_hse_kvdb_commands[] = {
-    { "create", "Create a KVDB", cli_hse_kvdb_create, 0 },
-    { "list", "List KVDBs", cli_hse_kvdb_list, 0 },
+    { "create",  "Create a KVDB", cli_hse_kvdb_create, 0 },
+    { "list",    "List KVDBs", cli_hse_kvdb_list, 0 },
     { "compact", "Compact a KVDB", cli_hse_kvdb_compact, 0 },
-    { "params", "KVDB params", cli_hse_kvdb_params, 0 },
+    { "params",  "Show KVDB configuration parameters", cli_hse_kvdb_params, 0 },
     { 0 },
 };
 
@@ -173,8 +175,8 @@ struct cli_cmd        cli_hse_kvs_commands[] = {
 static cli_cmd_func_t cli_hse_kvdb;
 static cli_cmd_func_t cli_hse_kvs;
 struct cli_cmd        cli_hse_commands[] = {
-    { "kvdb", "Manage KVDB", cli_hse_kvdb, cli_hse_kvdb_commands },
-    { "kvs", "Manage KVS", cli_hse_kvs, cli_hse_kvs_commands },
+    { "kvdb", "KVDB commands", cli_hse_kvdb, cli_hse_kvdb_commands },
+    { "kvs", "KVS commands", cli_hse_kvs, cli_hse_kvs_commands },
     { 0 },
 };
 
@@ -348,7 +350,7 @@ cmd_print_help(struct cli_cmd *cmd, enum help_style style, FILE *fp)
                 width += 4;
                 width = max(width, 24);
 
-                fprintf(fp, "%*scommands:\n", ilvl * tabw, "");
+                fprintf(fp, "%*sCommands:\n", ilvl * tabw, "");
                 for (sub = cmd->cmd_subcommandv; sub->cmd_name; sub++) {
                     fprintf(
                         fp,
@@ -361,6 +363,14 @@ cmd_print_help(struct cli_cmd *cmd, enum help_style style, FILE *fp)
                 }
                 fprintf(fp, "%s", vert_space);
             }
+
+            for (i = 0; i < NELEM(cmd->cmd_spec->extra_help); i++) {
+                const char *msg = cmd->cmd_spec->extra_help[i];
+                if (!msg)
+                    break;
+                fprintf(fp, "%*s%s\n", ilvl * tabw, "", msg);
+            }
+
         } break;
     }
 }
@@ -389,11 +399,6 @@ cli_push(struct cli *cli, struct cli_cmd *cmd)
 
     if (cli->optind > cli->argc)
         INTERNAL_ERROR();
-
-    cli->argc -= cli->optind;
-    cli->argv += cli->optind;
-
-    cli->optind = 0;
 
     sz = 3;
     for (i = 0; cli->cmd->cmd_spec->longoptv[i].name; i++)
@@ -595,7 +600,7 @@ parse_cmdline_hse_params_set_one(struct cli *cli, struct hse_params *hp, const c
 }
 
 static struct hse_params *
-parse_cmdline_hse_params(struct cli *cli, const char *cfile, int argc, char **argv, ...)
+parse_cmdline_hse_params(struct cli *cli, const char *cfile, ...)
 {
     hse_err_t          herr = 0;
     struct hse_params *hp = 0;
@@ -616,10 +621,12 @@ parse_cmdline_hse_params(struct cli *cli, const char *cfile, int argc, char **ar
         }
     }
 
-    for (int i = 0; !herr && i < argc; i++)
-        herr = parse_cmdline_hse_params_set_one(cli, hp, argv[i]);
+    while (!herr && cli->optind < cli->argc) {
+        herr = parse_cmdline_hse_params_set_one(cli, hp, cli->argv[cli->optind]);
+        cli->optind++;
+    }
 
-    va_start(ap, argv);
+    va_start(ap, cfile);
 
     while (!herr && NULL != (pv = va_arg(ap, char *)))
         herr = parse_cmdline_hse_params_set_one(cli, hp, pv);
@@ -645,8 +652,7 @@ cli_hse_kvdb_create_impl(struct cli *cli, const char *cfile, const char *kvdb_na
     if (cli_hse_init(cli))
         return -1;
 
-    hp = parse_cmdline_hse_params(
-        cli, cfile, cli->argc - cli->optind, cli->argv + cli->optind, "kvdb.excl=1", 0);
+    hp = parse_cmdline_hse_params(cli, cfile, "kvdb.excl=1", 0);
     if (!hp)
         return EX_USAGE;
 
@@ -657,29 +663,23 @@ cli_hse_kvdb_create_impl(struct cli *cli, const char *cfile, const char *kvdb_na
             case EEXIST:
                 fprintf(
                     stderr,
-                    STR("A KVDB already exists on mpool '%s'.\n"
-                        "You can 1) destroy and recreate that mpool, or 2) create a\n"
-                        "new mpool with different name and create a KVDB on it.\n"),
-                    kvdb_name);
+                    STR("A KVDB already exists on mpool '%s'.  You can destroy and\n"
+                        "recreate mpool '%s', or create a new mpool with different\n"
+                        "name and create a KVDB on it.\n"),
+                    kvdb_name, kvdb_name);
                 break;
             case ENOENT:
                 fprintf(
                     stderr,
                     STR("No such mpool: '%s'\n"
                         "You must create an mpool before creating a KVDB.\n"
-                        "For example:\n"
+                        "The mpool and the KVDB must have the same name.\n"
+                        "Example that creates a KVDB named 'test' on logical volume vg1/lv1:\n"
                         "  pvcreate /dev/nvmeXXX\n"
-                        "  vgcreate 'vg_%s' /dev/nvmeXXX\n"
-                        "  lvcreate -l '100%%FREE -n 'lv_%s' 'vg_%s'\n"
-                        "  mpool create '%s' '/dev/vg_%s/lv_%s'\n"
-                        "  hse kvdb create '%s'\n"),
-                    kvdb_name,
-                    kvdb_name,
-                    kvdb_name,
-                    kvdb_name,
-                    kvdb_name,
-                    kvdb_name,
-                    kvdb_name,
+                        "  vgcreate vg1 /dev/nvmeXXX\n"
+                        "  lvcreate -l 100%%FREE -n lv1 vg1\n"
+                        "  mpool create test /dev/vg1/lv1\n"
+                        "  hse kvdb create test\n"),
                     kvdb_name);
                 break;
             default:
@@ -696,7 +696,7 @@ done:
 }
 
 static int
-cli_hse_kvdb_list_impl(struct cli *cli, const char *kvdb_name, bool verbose)
+cli_hse_kvdb_list_impl(struct cli *cli, const char *kvdb_name)
 {
     struct hse_params  *hp = 0;
     char                buf[YAML_BUF_SIZE];
@@ -722,11 +722,11 @@ cli_hse_kvdb_list_impl(struct cli *cli, const char *kvdb_name, bool verbose)
     if (cli_hse_init(cli))
         return -1;
 
-    hp = parse_cmdline_hse_params(cli, NULL, 0, NULL, "kvdb.excl=1", "kvdb.rdonly=1", 0);
+    hp = parse_cmdline_hse_params(cli, NULL, "kvdb.excl=1", "kvdb.rdonly=1", 0);
     if (!hp)
         return EX_USAGE;
 
-    rc = kvdb_list_print(kvdb_name, hp, &yc, verbose, &count);
+    rc = kvdb_list_print(kvdb_name, hp, &yc, (bool)verbosity, &count);
     if (rc) {
         fprintf(stderr, "%s: unable to list KVDBs\n", cli->cmd->cmd_path);
         return -1;
@@ -770,8 +770,7 @@ cli_hse_kvdb_compact_impl(
     if (cli_hse_init(cli))
         return -1;
 
-    hp = parse_cmdline_hse_params(
-        cli, cfile, cli->argc - cli->optind, cli->argv + cli->optind, "kvdb.excl=1", 0);
+    hp = parse_cmdline_hse_params(cli, cfile, "kvdb.excl=1", 0);
     if (!hp)
         return EX_USAGE;
 
@@ -861,6 +860,12 @@ cli_hse_kvdb_create(struct cli_cmd *self, struct cli *cli)
             {
                 { NULL },
             },
+        .extra_help = {
+            "Notes:",
+            "  - An mpool must already exist with the same name as the KVDB being created.",
+            "  - Use 'mpool destroy <kvdb>' to destroy a KVDB.",
+            NULL,
+        },
     };
 
     bool        help = false;
@@ -949,7 +954,7 @@ cli_hse_kvdb_list(struct cli_cmd *self, struct cli *cli)
         return 0;
     }
 
-    return cli_hse_kvdb_list_impl(cli, kvdb_name, verbosity);
+    return cli_hse_kvdb_list_impl(cli, kvdb_name);
 }
 
 static int
@@ -965,7 +970,7 @@ cli_hse_kvdb_compact(struct cli_cmd *self, struct cli *cli)
             {
                 OPTION_HELP,
                 OPTION_CFILE,
-                { "[-t|--timeout SECS]", "Set compaction timeout in seconds (default: 300)" },
+                { "[-t|--timeout SECS]", "Set compaction timeout in seconds" },
                 { "[-s|--status]", "Get status of compaction request" },
                 { "[-x|--cancel]", "Cancel compaction request" },
                 { NULL },
@@ -983,6 +988,12 @@ cli_hse_kvdb_compact(struct cli_cmd *self, struct cli *cli)
             {
                 { NULL },
             },
+        .extra_help = {
+            "With no options, this will request KVDB compaction and wait until",
+            "it completes or the timeout period has passed.  The default timeout",
+            "is 300 seconds.",
+            NULL,
+        },
     };
 
     const char *kvdb = 0;
@@ -1086,6 +1097,13 @@ cli_hse_kvdb_params(struct cli_cmd *self, struct cli *cli)
             {
                 { NULL },
             },
+        .extra_help = {
+            "Notes:",
+            "  - Only operates on KVDBs that are currently open by another application.",
+            "  - Shows configuration parameter settings for the KVDB and for all KVSes",
+            "    that the application has open.",
+            NULL,
+        },
     };
 
     const char *kvdb = 0;
@@ -1137,8 +1155,7 @@ cli_hse_kvs_create_impl(struct cli *cli, const char *cfile, const char *kvdb, co
     if (cli_hse_init(cli))
         return -1;
 
-    hp = parse_cmdline_hse_params(
-        cli, cfile, cli->argc - cli->optind, cli->argv + cli->optind, "kvdb.excl=1", 0);
+    hp = parse_cmdline_hse_params(cli, cfile, "kvdb.excl=1", 0);
     if (!hp)
         return EX_USAGE;
 
@@ -1173,8 +1190,7 @@ cli_hse_kvs_destroy_impl(struct cli *cli, const char *cfile, const char *kvdb, c
     if (cli_hse_init(cli))
         return -1;
 
-    hp = parse_cmdline_hse_params(
-        cli, cfile, cli->argc - cli->optind, cli->argv + cli->optind, "kvdb.excl=1", 0);
+    hp = parse_cmdline_hse_params(cli, cfile, "kvdb.excl=1", 0);
     if (!hp)
         return EX_USAGE;
 
@@ -1427,9 +1443,8 @@ cli_hse(struct cli_cmd *self, struct cli *cli)
             },
         .optionv =
             {
-                OPTION_HELP,
-                { "[-H|--longhelp]", "Print long help" },
-                { "[-S|--summary]", "Print summary help" },
+                { "[-h|--help]",    "Print help (use -hv for more help)" },
+                { "[-S|--summary]", "Print one-line summary of all commands" },
                 { "[-V|--version]", "Print version" },
                 { "[-v|--verbose]", "Increase verbosity" },
                 { NULL },
@@ -1437,7 +1452,6 @@ cli_hse(struct cli_cmd *self, struct cli *cli)
         .longoptv =
             {
                 { "help", no_argument, 0, 'h' },
-                { "longhelp", no_argument, 0, 'H' },
                 { "summary", no_argument, 0, 'S' },
                 { "verbose", no_argument, 0, 'v' },
                 { "version", no_argument, 0, 'V' },
@@ -1447,6 +1461,13 @@ cli_hse(struct cli_cmd *self, struct cli *cli)
             {
                 { NULL },
             },
+        .extra_help = {
+            "Examples:",
+            "  hse -hv               # get help on all commands",
+            "  hse kvdb -h           # get help on KVDB commands",
+            "  hse kvdb create test  # create a KVDB named 'test'",
+            NULL,
+        },
     };
 
     const char *    sub_name;
@@ -1454,6 +1475,7 @@ cli_hse(struct cli_cmd *self, struct cli *cli)
     int             c;
     bool            help = false;
     bool            version = false;
+    bool            summary = false;
 
     if (cli_hook(cli, self, &spec))
         return 0;
@@ -1461,21 +1483,13 @@ cli_hse(struct cli_cmd *self, struct cli *cli)
     while (-1 != (c = cli_getopt(cli))) {
         switch (c) {
             case 'h':
-                /* local help -- for this command */
-                help = !version;
+                help = true;
                 break;
-            case 'H':
-                /* global help -- all commands */
-                cli->help_show_all = true;
-                cli->help_style = help_style_full;
-                return 0;
             case 'S':
-                /* global help -- all commands */
-                cli->help_show_all = true;
-                cli->help_style = help_style_leaf_summary;
-                return 0;
+                summary = true;
+                break;
             case 'V':
-                version = !help;
+                version = true;
                 break;
             case 'v':
                 ++verbosity;
@@ -1486,9 +1500,31 @@ cli_hse(struct cli_cmd *self, struct cli *cli)
     }
 
     if (help) {
+        if (verbosity) {
+            /* show help for all commands (can't do it here
+             * though-- have to pop out of the "cli" stack do
+             * it from there).
+             */
+            cli->help_show_all = true;
+            cli->help_style = help_style_full;
+            return 0;
+        }
+
+        /* show help for this command */
         cmd_print_help(self, help_style_usage, stdout);
         return 0;
     }
+
+    if (summary) {
+        /* show command summary (can't do it here
+         * though-- have to pop out of the "cli" stack do
+         * it from there).
+         */
+        cli->help_show_all = true;
+        cli->help_style = help_style_leaf_summary;
+        return 0;
+    }
+
     if (version) {
         if (verbosity > 0) {
             printf("version: %s\n", hse_kvdb_version_string());
