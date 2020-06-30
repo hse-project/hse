@@ -25,7 +25,7 @@ struct cn_merge_stats;
  *             is the number of bytes written to the vblock before committing it
  *             minus the size of the vblock byte header.
  * @destruct:  if true, vlbock builder is ready to be destroyed
- * @stripe_len: mblock stripe length
+ * @opt_wrsz:  optimal write size for incremental mblock writes
  *
  * WBUF_LEN_MAX is the allocated size of the write buffer.  Each mblock write
  * will be at most WBUF_LEN_MAX bytes.  Member @wbuf_len is the actual write
@@ -81,7 +81,7 @@ struct vblock_builder {
     uint                       flags;
     u64                        vgroup;
     bool                       destruct;
-    u32                        stripe_len;
+    u32                        opt_wrsz;
     struct vbb_ext *           vbb_ext;
 };
 

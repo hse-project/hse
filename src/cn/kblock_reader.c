@@ -87,7 +87,7 @@ kbr_read_wbt_region_desc(struct kvs_mblk_desc *kblkdesc, struct wbt_desc *desc)
 {
     merr_t err;
     void * pg, *wbt_hdr;
-    size_t pg_idxs[1];
+    off_t  pg_idxs[1];
 
     struct kblock_hdr_omf *kb_hdr;
 
@@ -115,7 +115,7 @@ merr_t
 kbr_read_seqno_range(struct kvs_mblk_desc *kblkdesc, u64 *seqno_min, u64 *seqno_max)
 {
     merr_t                 err;
-    size_t                 pg_idxs[1];
+    off_t                  pg_idxs[1];
     struct kblock_hdr_omf *kb_hdr;
     void *                 pg;
 
@@ -143,7 +143,7 @@ kbr_read_pt_region_desc(struct kvs_mblk_desc *kblkdesc, struct wbt_desc *desc)
 {
     merr_t err;
     void * pg, *pt_hdr;
-    size_t pg_idxs[1];
+    off_t  pg_idxs[1];
 
     struct kblock_hdr_omf *kb_hdr;
 
@@ -179,7 +179,7 @@ kbr_read_blm_region_desc(struct kvs_mblk_desc *kbd, struct bloom_desc *desc)
     struct kblock_hdr_omf *hdr;
     struct bloom_hdr_omf * blm_omf = NULL;
     void *                 pg = NULL;
-    size_t                 pg_idxs[1];
+    off_t                  pg_idxs[1];
     ulong                  mbid;
     u32                    magic;
     u32                    version;
@@ -264,8 +264,8 @@ kbr_read_blm_pages(
      */
 
     if (cn_bloom_lookup == BLOOM_LOOKUP_MCACHE) {
-        size_t pgnumv[] = { desc->bd_first_page };
-        void * addrv[] = { NULL };
+        off_t pgnumv[] = { desc->bd_first_page };
+        void *addrv[] = { NULL };
 
         err = mpool_mcache_getpages(kbd->map, 1, kbd->map_idx, pgnumv, addrv);
         if (ev(err))
@@ -317,7 +317,7 @@ kbr_read_metrics(struct kvs_mblk_desc *kblkdesc, struct kblk_metrics *metrics)
     merr_t                 err;
     struct kblock_hdr_omf *hdr = NULL;
     void *                 pg = NULL;
-    size_t                 pg_idxs[1];
+    off_t                  pg_idxs[1];
 
     pg_idxs[0] = 0;
     err = mpool_mcache_getpages(kblkdesc->map, 1, kblkdesc->map_idx, pg_idxs, &pg);

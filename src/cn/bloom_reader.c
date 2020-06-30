@@ -41,7 +41,7 @@ bloom_reader_mcache_lookup(
     struct kvs_ktuple *         kt,
     bool *                      hit)
 {
-    size_t    offsetv[1];
+    off_t     offsetv[1];
     void *    pagev[1];
     const u8 *bitmap;
     size_t    bkt;
