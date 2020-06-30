@@ -750,31 +750,22 @@ cli_hse_kvdb_compact_impl(
     struct cli *cli,
     const char *cfile,
     const char *kvdb,
-    bool        compact,
     bool        status,
     bool        cancel,
     uint32_t    timeout_secs)
 {
-    int                count;
     const char *       req;
     struct hse_params *hp = 0;
 
-    count = compact + status + cancel;
-    if (count != 1) {
-        fprintf(
-            stderr,
-            "%s: must specify exactly one of:"
-            " -C, -s, -x\n",
-            cli->cmd->cmd_path);
-        return -1;
-    }
-
-    if (compact)
-        req = "request";
+    /* check status first so '-sx' results in status
+     * but not cancel.
+     */
+    if (status)
+        req = "status";
     else if (cancel)
         req = "cancel";
     else
-        req = "status";
+        req = "request";
 
     if (cli_hse_init(cli))
         return -1;
@@ -974,7 +965,6 @@ cli_hse_kvdb_compact(struct cli_cmd *self, struct cli *cli)
             {
                 OPTION_HELP,
                 OPTION_CFILE,
-                { "[-C|--compact]", "Issue compaction request" },
                 { "[-t|--timeout SECS]", "Set compaction timeout in seconds (default: 300)" },
                 { "[-s|--status]", "Get status of compaction request" },
                 { "[-x|--cancel]", "Cancel compaction request" },
@@ -984,7 +974,6 @@ cli_hse_kvdb_compact(struct cli_cmd *self, struct cli *cli)
             {
                 { "help", no_argument, 0, 'h' },
                 { "config", required_argument, 0, 'c' },
-                { "compact", no_argument, 0, 'C' },
                 { "timeout", required_argument, 0, 't' },
                 { "status", no_argument, 0, 's' },
                 { "cancel", no_argument, 0, 'x' },
@@ -999,7 +988,6 @@ cli_hse_kvdb_compact(struct cli_cmd *self, struct cli *cli)
     const char *kvdb = 0;
     const char *cfile = 0;
     uint32_t    timeout_secs = 300;
-    bool        compact = false;
     bool        status = false;
     bool        cancel = false;
     bool        help = false;
@@ -1017,16 +1005,12 @@ cli_hse_kvdb_compact(struct cli_cmd *self, struct cli *cli)
             case 'c':
                 cfile = optarg;
                 break;
-            case 'C':
-                compact = true;
-                break;
             case 's':
                 status = true;
                 break;
             case 'x':
                 cancel = true;
                 break;
-
             case 't':
                 if (parse_u32(optarg, &timeout_secs)) {
                     fprintf(
@@ -1039,7 +1023,6 @@ cli_hse_kvdb_compact(struct cli_cmd *self, struct cli *cli)
                     return EX_USAGE;
                 }
                 break;
-
             default:
                 return EX_USAGE;
         }
@@ -1056,7 +1039,7 @@ cli_hse_kvdb_compact(struct cli_cmd *self, struct cli *cli)
         return EX_USAGE;
     }
 
-    return cli_hse_kvdb_compact_impl(cli, cfile, kvdb, compact, status, cancel, timeout_secs);
+    return cli_hse_kvdb_compact_impl(cli, cfile, kvdb, status, cancel, timeout_secs);
 }
 
 static int
