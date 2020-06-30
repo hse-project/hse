@@ -1060,6 +1060,27 @@ cli_hse_kvdb_compact(struct cli_cmd *self, struct cli *cli)
 }
 
 static int
+cli_hse_kvdb_params_impl(struct cli *cli, const char *kvdb)
+{
+    const char *extra_arg;
+
+    if (cli_hse_init(cli))
+        return -1;
+
+    /* This command hits the REST interface, so we don't need or
+     * support config files or command line hse param settings.
+     */
+    extra_arg = cli_next_arg(cli);
+    if (extra_arg) {
+        fprintf(stderr, "%s: unexpected parameter: '%s', use -h for help.\n",
+            cli->cmd->cmd_path, extra_arg);
+        return EX_USAGE;
+    }
+
+    return hse_kvdb_params(kvdb, true);
+}
+
+static int
 cli_hse_kvdb_params(struct cli_cmd *self, struct cli *cli)
 {
     const struct cmd_spec spec = {
@@ -1071,13 +1092,11 @@ cli_hse_kvdb_params(struct cli_cmd *self, struct cli *cli)
         .optionv =
             {
                 OPTION_HELP,
-                { "[-g|--get]", "Get KVDB params" },
                 { NULL },
             },
         .longoptv =
             {
                 { "help", no_argument, 0, 'h' },
-                { "get", no_argument, 0, 'g' },
                 { NULL },
             },
         .configv =
@@ -1087,7 +1106,6 @@ cli_hse_kvdb_params(struct cli_cmd *self, struct cli *cli)
     };
 
     const char *kvdb = 0;
-    bool        get = false;
     bool        help = false;
     int         c;
 
@@ -1099,9 +1117,6 @@ cli_hse_kvdb_params(struct cli_cmd *self, struct cli *cli)
         switch (c) {
             case 'h':
                 help = true;
-                break;
-            case 'g':
-                get = true;
                 break;
             default:
                 return EX_USAGE;
@@ -1119,12 +1134,7 @@ cli_hse_kvdb_params(struct cli_cmd *self, struct cli *cli)
         return EX_USAGE;
     }
 
-    if (!get) {
-        fprintf(stderr, "%s: missing option, use -h for help\n", self->cmd_path);
-        return EX_USAGE;
-    }
-
-    return hse_kvdb_params(kvdb, get);
+    return cli_hse_kvdb_params_impl(cli, kvdb);
 }
 
 static int
@@ -1520,15 +1530,6 @@ cli_hse(struct cli_cmd *self, struct cli *cli)
     }
 
     return sub_cmd->cmd_main(sub_cmd, cli);
-}
-
-int
-cli_hse_kvdb_params_impl(struct cli *cli, char *kvdb, bool get)
-{
-    if (cli_hse_init(cli))
-        return -1;
-
-    return hse_kvdb_params(kvdb, get);
 }
 
 int
