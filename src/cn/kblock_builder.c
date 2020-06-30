@@ -384,8 +384,8 @@ hash_set_add(struct hash_set *hs, const struct key_obj *kobj)
 {
     if (!hs->curr_part) {
         hs->curr_part = malloc(sizeof(*hs->curr_part));
-        if (!hs->curr_part)
-            return merr(ev(ENOMEM));
+        if (ev(!hs->curr_part))
+            return merr(ENOMEM);
         hs->curr_part->n_hashes = 0;
         list_add_tail(&hs->curr_part->part_link, &hs->part_list);
     }
@@ -610,10 +610,10 @@ _kblock_finish_bloom(struct curr_kblock *kblk, struct bloom_hdr_omf *blm_hdr)
         if (kblk->bloom_alloc_len < kblk->bloom_len) {
             free_aligned(kblk->bloom);
             kblk->bloom = alloc_page_aligned(kblk->bloom_len, GFP_KERNEL);
-            if (!kblk->bloom) {
+            if (ev(!kblk->bloom)) {
                 kblk->bloom_len = 0;
                 kblk->bloom_alloc_len = 0;
-                return merr(ev(ENOMEM));
+                return merr(ENOMEM);
             }
             kblk->bloom_alloc_len = kblk->bloom_len;
         }
@@ -802,10 +802,11 @@ kblock_finish(struct kblock_builder *bld, struct wbb *ptree)
     struct cn_merge_stats *stats = bld->mstats;
     struct mclass_policy * mpolicy = cn_get_mclass_policy(bld->cn);
 
-    struct iovec iov[(2 * WBB_FREEZE_IOV_MAX) + 3];
-    uint         iov_cnt = 0;
-    uint         i, chunk, allocs = 0;
-    size_t       wlen;
+    struct iovec *iov = NULL;
+    uint          iov_cnt = 0;
+    uint          iov_max;
+    uint          i, chunk, allocs = 0;
+    size_t        wlen;
 
     merr_t err;
     u64    blkid = 0;
@@ -819,11 +820,22 @@ kblock_finish(struct kblock_builder *bld, struct wbb *ptree)
     /* Allocate kblock hdr */
     if (!kblk->kblk_hdr) {
         kblk->kblk_hdr = alloc_page_aligned(KBLOCK_HDR_LEN, GFP_KERNEL);
-        if (!kblk->kblk_hdr) {
-            err = merr(ev(ENOMEM));
+        if (ev(!kblk->kblk_hdr)) {
+            err = merr(ENOMEM);
             goto errout;
         }
     }
+
+    /* Include wbtree pages from main and ptree and add 3 more iov members for
+     * the kblock header, bloom and hlog
+     */
+    iov_max = 3 + 1 + wbb_max_inodec_get(kblk->wbtree) + wbb_kmd_pgc_get(kblk->wbtree);
+    if (ptree && wbb_entries(ptree))
+        iov_max += 1 + wbb_max_inodec_get(ptree) + wbb_kmd_pgc_get(ptree);
+
+    iov = malloc(sizeof(*iov) * iov_max);
+    if (ev(!iov))
+        return merr(ENOMEM);
 
     /* Header is first entry in iovec */
     iov_cnt = 1;
@@ -838,7 +850,7 @@ kblock_finish(struct kblock_builder *bld, struct wbb *ptree)
         kblk->wbt_pgc + free_pgc(kblk),
         &kblk->wbt_pgc,
         iov + iov_cnt,
-        WBB_FREEZE_IOV_MAX,
+        iov_max,
         &i);
     if (ev(err))
         goto errout;
@@ -864,13 +876,7 @@ kblock_finish(struct kblock_builder *bld, struct wbb *ptree)
     if (ptree && wbb_entries(ptree)) {
         pt_pgc = bld->pt_pgc;
         err = wbb_freeze(
-            ptree,
-            &pt_hdr,
-            bld->pt_pgc + free_pgc(kblk),
-            &pt_pgc,
-            iov + iov_cnt,
-            WBB_FREEZE_IOV_MAX,
-            &i);
+            ptree, &pt_hdr, bld->pt_pgc + free_pgc(kblk), &pt_pgc, iov + iov_cnt, iov_max, &i);
         if (ev(err))
             goto errout;
         iov_cnt += i;
@@ -880,6 +886,8 @@ kblock_finish(struct kblock_builder *bld, struct wbb *ptree)
     kblk->num_keys += ptree ? wbb_entries(ptree) : 0;
     _kblock_make_header(
         kblk, &wbt_hdr, &pt_hdr, pt_pgc, &blm_hdr, bld->seqno_min, bld->seqno_max, kblk->kblk_hdr);
+
+    assert(iov_cnt <= iov_max);
 
     wlen = 0;
     for (i = 0; i < iov_cnt; i++)
@@ -936,12 +944,14 @@ kblock_finish(struct kblock_builder *bld, struct wbb *ptree)
 
     /* unconditional reset */
     kblock_reset(kblk);
+    free(iov);
 
     return 0;
 
 errout:
     if (blkid)
         mpool_mblock_abort(bld->ds, blkid);
+    free(iov);
 
     /* unconditional reset */
     kblock_reset(kblk);
@@ -964,8 +974,8 @@ kbb_create(struct kblock_builder **builder_out, struct cn *cn, struct perfc_set 
     assert(builder_out);
 
     bld = calloc(1, sizeof(*bld));
-    if (!bld)
-        return merr(ev(ENOMEM));
+    if (ev(!bld))
+        return merr(ENOMEM);
 
     bld->cn = cn;
 
@@ -1044,8 +1054,8 @@ kbb_add_ptomb(
 
     if (ev(err))
         return err;
-    if (!added)
-        return merr(ev(EXFULL));
+    if (ev(!added))
+        return merr(EXFULL);
 
     return 0;
 }
@@ -1116,8 +1126,8 @@ kbb_finish(struct kblock_builder *bld, struct blk_list *kblks, u64 seqno_min, u6
     merr_t err;
     bool   pt_kblock = true;
 
-    if (bld->finished)
-        return merr(ev(EINVAL));
+    if (ev(bld->finished))
+        return merr(EINVAL);
 
     /* The only valid operation after finishing is destroy. Setting
      * this flag prevents other operations.
