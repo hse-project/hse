@@ -211,6 +211,12 @@ cn_pc_capped_get(struct cn *cn)
     return &cn->cn_pc_capped;
 }
 
+struct perfc_set *
+cn_pc_mclass_get(struct cn *cn)
+{
+    return &cn->cn_pc_mclass;
+}
+
 /**
  * cn_get_ref() - increment a cn reference counter
  *
@@ -1071,6 +1077,8 @@ cn_perfc_alloc(struct cn *cn)
         { cn_perfc_shape, PERFC_EN_CNSHAPE, "lnode", &cn->cn_pc_shape_lnode },
 
         { cn_perfc_capped, PERFC_EN_CNCAPPED, "capped", &cn->cn_pc_capped },
+
+        { cn_perfc_mclass, PERFC_EN_CNMCLASS, "mclass", &cn->cn_pc_mclass },
     };
 
     i = snprintf(
@@ -1117,6 +1125,7 @@ cn_perfc_free(struct cn *cn)
     perfc_ctrseti_free(&cn->cn_pc_shape_inode);
     perfc_ctrseti_free(&cn->cn_pc_shape_lnode);
     perfc_ctrseti_free(&cn->cn_pc_capped);
+    perfc_ctrseti_free(&cn->cn_pc_mclass);
 }
 
 /*----------------------------------------------------------------

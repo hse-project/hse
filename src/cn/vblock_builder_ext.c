@@ -31,6 +31,7 @@
 
 #include "vblock_builder_internal.h"
 #include "cn_metrics.h"
+#include "cn_perfc.h"
 
 struct vbb_ext_elem {
     u64   vbid;
@@ -90,6 +91,7 @@ _vblock_start_ext(struct vblock_builder *bld, u8 slot)
     uint                 allocs = 0;
 
     struct mclass_policy *mpolicy = cn_get_mclass_policy(bld->cn);
+    struct perfc_set *    mclass_pc = cn_pc_mclass_get(bld->cn);
     enum mp_media_classp  mclass;
 
     ext = bld->vbb_ext;
@@ -149,6 +151,13 @@ _vblock_start_ext(struct vblock_builder *bld, u8 slot)
     atomic_set(&vbb->wbuf_off, VBLOCK_HDR_LEN);
     atomic_set(&vbb->wbuf_wlen, VBLOCK_HDR_LEN);
     vbb->wbuf_len = ext->vbsize - (ext->vbsize % mbprop.mpr_optimal_wrsz);
+
+    if (mclass_pc && PERFC_ISON(mclass_pc)) {
+        perfc_add(
+            mclass_pc,
+            cn_perfc_mclass_get_idx(bld->agegroup, HSE_MPOLICY_DTYPE_VALUE, mclass),
+            ext->vbsize);
+    }
 
     return 0;
 }

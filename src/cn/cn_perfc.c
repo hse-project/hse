@@ -4,6 +4,9 @@
  */
 
 #include <hse_util/platform.h>
+#include <hse_ikvdb/mclass_policy.h>
+
+#include <mpool/mpool.h>
 
 #include "cn_perfc_internal.h"
 
@@ -65,6 +68,38 @@ struct perfc_name cn_perfc_capped[] = {
 };
 
 NE_CHECK(cn_perfc_capped, PERFC_EN_CNCAPPED, "cn_perfc_capped table/enum mismatch");
+
+struct perfc_name cn_perfc_mclass[] = {
+    NE(PERFC_BA_CNMCLASS_SYNCK_STAGING, 3, "sync_key_staging_alloc", "sync_key_staging(b)"),
+    NE(PERFC_BA_CNMCLASS_SYNCK_CAPACITY, 3, "sync_key_capacity_alloc", "sync_key_capacity(b)"),
+    NE(PERFC_BA_CNMCLASS_SYNCV_STAGING, 3, "sync_value_staging_alloc", "sync_value_staging(b)"),
+    NE(PERFC_BA_CNMCLASS_SYNCV_CAPACITY, 3, "sync_value_capacity_alloc", "sync_value_capacity(b)"),
+    NE(PERFC_BA_CNMCLASS_ROOTK_STAGING, 3, "root_key_staging_alloc", "root_key_staging(b)"),
+    NE(PERFC_BA_CNMCLASS_ROOTK_CAPACITY, 3, "root_key_capacity_alloc", "root_key_capacity(b)"),
+    NE(PERFC_BA_CNMCLASS_ROOTV_STAGING, 3, "root_value_staging_alloc", "root_value_staging(b)"),
+    NE(PERFC_BA_CNMCLASS_ROOTV_CAPACITY, 3, "root_value_capacity_alloc", "root_value_capacity(b)"),
+    NE(PERFC_BA_CNMCLASS_INTK_STAGING, 3, "int_key_staging_alloc", "int_key_staging(b)"),
+    NE(PERFC_BA_CNMCLASS_INTK_CAPACITY, 3, "int_key_capacity_alloc", "int_key_capacity(b)"),
+    NE(PERFC_BA_CNMCLASS_INTV_STAGING, 3, "int_value_staging_alloc", "int_value_staging(b)"),
+    NE(PERFC_BA_CNMCLASS_INTV_CAPACITY, 3, "int_value_capacity_alloc", "int_value_capacity(b)"),
+    NE(PERFC_BA_CNMCLASS_LEAFK_STAGING, 3, "leaf_key_staging_alloc", "leaf_key_staging(b)"),
+    NE(PERFC_BA_CNMCLASS_LEAFK_CAPACITY, 3, "leaf_key_capacity_alloc", "leaf_key_capacity(b)"),
+    NE(PERFC_BA_CNMCLASS_LEAFV_STAGING, 3, "leaf_value_staging_alloc", "leaf_value_staging(b)"),
+    NE(PERFC_BA_CNMCLASS_LEAFV_CAPACITY, 3, "leaf_value_capacity_alloc", "leaf_value_capacity(b)"),
+};
+
+NE_CHECK(cn_perfc_mclass, PERFC_EN_CNMCLASS, "cn_perfc_mclass table/enum mismatch");
+
+_Static_assert(
+    NELEM(cn_perfc_mclass) == HSE_MPOLICY_AGE_CNT * HSE_MPOLICY_DTYPE_CNT * HSE_MPOLICY_MEDIA_CNT,
+    "cn_perfc_mclass entries mismatched");
+
+uint
+cn_perfc_mclass_get_idx(uint agegroup, uint dtype, uint mclass)
+{
+    return PERFC_BA_CNMCLASS_SYNCK_STAGING + agegroup * HSE_MPOLICY_AGE_CNT +
+           dtype * HSE_MPOLICY_DTYPE_CNT + ((mclass == MP_MED_CAPACITY) ? 1 : 0);
+}
 
 NE_CHECK(cn_perfc_get, PERFC_EN_CNGET, "cn_perfc_get table/enum mismatch");
 
