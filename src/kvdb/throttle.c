@@ -233,7 +233,6 @@ static void
 throttle_increase(struct throttle *self, uint value)
 {
     uint  delta = 0;
-    ulong debug = self->thr_rp->throttle_debug;
 
     assert(self->thr_state == THROTTLE_INCREASE);
 
@@ -280,9 +279,6 @@ throttle_increase(struct throttle *self, uint value)
         self->thr_delay_test = 0;
         self->thr_skip_cnt = 0;
     }
-
-    if (debug & THROTTLE_DEBUG_DELAYV)
-        throttle_debug(self);
 }
 
 static void
@@ -562,8 +558,9 @@ throttle_update(struct throttle *self)
 
     perfc_rec_sample(&self->thr_sleep_perfc, PERFC_DI_THR_SVAL, self->thr_delay_raw);
 
+    self->thr_cycles++;
     if (debug & THROTTLE_DEBUG_DELAYV) {
-        if (self->thr_cycles % 24000 == 0)
+        if (self->thr_cycles % 12000 == 0)
             throttle_debug(self);
     }
 }
@@ -626,9 +623,6 @@ throttle(struct throttle *self, u64 start, u32 len)
             debug = self->thr_rp->throttle_debug;
         }
         spin_unlock(&self->thr_lock);
-
-        if (debug & THROTTLE_DEBUG_DELAYV)
-            throttle_debug(self);
 
         if (!(debug & THROTTLE_DEBUG_DELAY))
             return 0;

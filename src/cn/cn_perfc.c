@@ -4,6 +4,9 @@
  */
 
 #include <hse_util/platform.h>
+#include <hse_ikvdb/mclass_policy.h>
+
+#include <mpool/mpool.h>
 
 #include "cn_perfc_internal.h"
 
@@ -86,6 +89,17 @@ struct perfc_name cn_perfc_mclass[] = {
 };
 
 NE_CHECK(cn_perfc_mclass, PERFC_EN_CNMCLASS, "cn_perfc_mclass table/enum mismatch");
+
+_Static_assert(
+    NELEM(cn_perfc_mclass) == HSE_MPOLICY_AGE_CNT * HSE_MPOLICY_DTYPE_CNT * HSE_MPOLICY_MEDIA_CNT,
+    "cn_perfc_mclass entries mismatched");
+
+uint
+cn_perfc_mclass_get_idx(uint agegroup, uint dtype, uint mclass)
+{
+    return PERFC_BA_CNMCLASS_SYNCK_STAGING + agegroup * HSE_MPOLICY_AGE_CNT +
+           dtype * HSE_MPOLICY_DTYPE_CNT + ((mclass == MP_MED_CAPACITY) ? 1 : 0);
+}
 
 NE_CHECK(cn_perfc_get, PERFC_EN_CNGET, "cn_perfc_get table/enum mismatch");
 

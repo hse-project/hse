@@ -29,6 +29,7 @@
 #include "blk_list.h"
 #include "cn_mblocks.h"
 #include "cn_metrics.h"
+#include "cn_perfc.h"
 
 #include <mpool/mpool.h>
 
@@ -57,7 +58,7 @@ _vblock_start(struct vblock_builder *bld)
     struct kvs_rparams *   rp;
     enum mp_media_classp   mclass;
     struct mclass_policy * mpolicy = cn_get_mclass_policy(bld->cn);
-    uint                   perfc_idx;
+    struct perfc_set *     mclass_pc = cn_pc_mclass_get(bld->cn);
 
     spare = !!(bld->flags & KVSET_BUILDER_FLAGS_SPARE);
 
@@ -110,12 +111,12 @@ _vblock_start(struct vblock_builder *bld)
     omf_set_vbh_version(bld->wbuf, VBLOCK_HDR_VERSION2);
     omf_set_vbh_vgroup(bld->wbuf, bld->vgroup);
 
-    perfc_idx = PERFC_BA_CNMCLASS_SYNCK_STAGING + bld->agegroup * HSE_MPOLICY_AGE_CNT +
-                HSE_MPOLICY_DTYPE_VALUE * HSE_MPOLICY_DTYPE_CNT +
-                ((mclass == MP_MED_CAPACITY) ? 1 : 0);
-
-    if (perfc_idx < PERFC_EN_CNMCLASS)
-        perfc_add(cn_pc_mclass_get(bld->cn), perfc_idx, mbprop.mpr_alloc_cap);
+    if (mclass_pc && PERFC_ISON(mclass_pc)) {
+        perfc_add(
+            mclass_pc,
+            cn_perfc_mclass_get_idx(bld->agegroup, HSE_MPOLICY_DTYPE_VALUE, mclass),
+            mbprop.mpr_alloc_cap);
+    }
 
     return 0;
 }

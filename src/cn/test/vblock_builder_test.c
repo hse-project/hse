@@ -76,6 +76,7 @@ test_setup(struct mtf_test_info *lcl_ti)
     mapi_inject(mapi_idx_cn_get_dataset, 0);
     mapi_inject(mapi_idx_cn_get_flags, 0);
     mapi_inject(mapi_idx_cn_get_tbkt_maint, 0);
+    mapi_inject(mapi_idx_cn_pc_mclass_get, 0);
 
     mapi_inject(mapi_idx_tbkt_request, 0);
     mapi_inject(mapi_idx_tbkt_delay, 0);

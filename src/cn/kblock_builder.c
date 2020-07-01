@@ -802,11 +802,12 @@ kblock_finish(struct kblock_builder *bld, struct wbb *ptree)
     struct curr_kblock *   kblk = &bld->curr;
     struct cn_merge_stats *stats = bld->mstats;
     struct mclass_policy * mpolicy = cn_get_mclass_policy(bld->cn);
+    struct perfc_set *     mclass_pc = cn_pc_mclass_get(bld->cn);
 
     struct iovec *iov = NULL;
     uint          iov_cnt = 0;
     uint          iov_max;
-    uint          i, chunk, allocs = 0, perfc_idx;
+    uint          i, chunk, allocs = 0;
     size_t        wlen;
 
     merr_t err;
@@ -943,12 +944,12 @@ kblock_finish(struct kblock_builder *bld, struct wbb *ptree)
     if (ev(err))
         goto errout;
 
-    perfc_idx = PERFC_BA_CNMCLASS_SYNCK_STAGING + bld->agegroup * HSE_MPOLICY_AGE_CNT +
-                HSE_MPOLICY_DTYPE_KEY * HSE_MPOLICY_DTYPE_CNT +
-                ((mclass == MP_MED_CAPACITY) ? 1 : 0);
-
-    if (perfc_idx < PERFC_EN_CNMCLASS)
-        perfc_add(cn_pc_mclass_get(bld->cn), perfc_idx, kblocksz);
+    if (mclass_pc && PERFC_ISON(mclass_pc)) {
+        perfc_add(
+            mclass_pc,
+            cn_perfc_mclass_get_idx(bld->agegroup, HSE_MPOLICY_DTYPE_KEY, mclass),
+            kblocksz);
+    }
 
     /* unconditional reset */
     kblock_reset(kblk);

@@ -157,7 +157,7 @@ MTF_DEFINE_UTEST_PREPOST(cn_open_test, cn_open_enomem, pre, post)
     /* cn_open requires `num_allocs` memory allocations. Expose each one
      * and verify we tested them all.
      */
-    num_allocs = 6 + 18; /* 9 perfc set * 2 allocations per set. */
+    num_allocs = 6 + 20; /* 10 perfc set * 2 allocations per set. */
 
     for (i = 0; i <= num_allocs; i++) {
 
@@ -165,7 +165,7 @@ MTF_DEFINE_UTEST_PREPOST(cn_open_test, cn_open_enomem, pre, post)
 
         err = cn_open(CN_OPEN_ARGS, &cn);
 
-        if (i == num_allocs || (i > 0 && i < 19)) {
+        if (i == num_allocs || (i > 0 && i < 21)) {
             ASSERT_EQ(err, 0);
             cn_close(cn);
         } else {
