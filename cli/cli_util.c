@@ -524,7 +524,7 @@ hse_kvdb_params(const char *kvdb, bool get)
     char *               buf;
     size_t               bufsz = (32 * 1024);
     int                  allc, i;
-    struct mpool_params *allv;
+    struct mpool_params *allv = 0;
     struct mpool_devrpt  ei;
 
     err = mpool_list(&allc, &allv, &ei);
@@ -540,6 +540,10 @@ hse_kvdb_params(const char *kvdb, bool get)
         }
     }
 
+    /* free mem allocated in mpool_list() */
+    free(allv);
+    allv = 0;
+
     if (!match) {
         err = mpool_scan(&allc, &allv, &ei);
         if (err) {
@@ -548,20 +552,24 @@ hse_kvdb_params(const char *kvdb, bool get)
         }
 
         for (i = 0; i < allc; ++i) {
+
             if (!strcmp(allv[i].mp_name, kvdb)) {
                 match = true;
                 break;
             }
         }
 
+        /* free mem allocated n mpool_scan() */
+        free(allv);
+        allv = 0;
+
         if (!match) {
-            fprintf(stderr, "kvdb:%s not found\n", kvdb);
+            fprintf(stderr, "KVDB '%s' not found\n", kvdb);
         } else {
-            fprintf(
-                stderr,
-                "kvdb:%s is inactive. Ensure kvdb is active and open in a process before querying "
-                "its params.\n",
-                kvdb);
+            fprintf(stderr,
+                "Mpool '%s' is inactive. Must activate the mpool prior to accessing the KVDB.\n"
+                "Try: mpool activate '%s'\n",
+                kvdb, kvdb);
         }
 
         return -EINVAL;
@@ -576,8 +584,8 @@ hse_kvdb_params(const char *kvdb, bool get)
         if (err) {
             fprintf(
                 stderr,
-                "rest_kvdb_params failed: %s. Ensure that KVDB:%s is open in a process before "
-                "querying its params.\n",
+                "rest_kvdb_params failed: %s\n"
+                "Ensure that KVDB '%s' is open in a process before querying its params.\n",
                 merr_info(err, &info),
                 kvdb);
             goto err_out;

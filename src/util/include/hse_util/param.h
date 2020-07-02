@@ -293,24 +293,6 @@ typedef u64 u64_size;
 
 #define PARAM_INST_BOOL(val, name, msg) PARAM_INST_type(bool, val, name, msg)
 
-#define PARAM_INST_GID(val, name, msg)                                                   \
-    {                                                                                    \
-        { name "=%s", sizeof(gid_t), 0, 0, get_gid, show_gid, NULL }, (void *)&val, msg, \
-            PARAM_FLAG_ID                                                                \
-    }
-
-#define PARAM_INST_UID(val, name, msg)                                                   \
-    {                                                                                    \
-        { name "=%s", sizeof(uid_t), 0, 0, get_uid, show_uid, NULL }, (void *)&val, msg, \
-            PARAM_FLAG_ID                                                                \
-    }
-
-#define PARAM_INST_MODE(val, name, msg)                                                     \
-    {                                                                                       \
-        { name "=%s", sizeof(mode_t), 0, 0, get_mode, show_mode, NULL }, (void *)&val, msg, \
-            PARAM_FLAG_TUNABLE                                                              \
-    }
-
 #define PARAM_INST_PCT(val, name, msg)                                                    \
     {                                                                                     \
         { name "=%s", sizeof(u8), 0, 101, get_u8, show_u8, check_u8 }, (void *)&val, msg, \

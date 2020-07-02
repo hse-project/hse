@@ -23,9 +23,6 @@
 int
 ev_test_pre(struct mtf_test_info *lcl_ti)
 {
-    dt_shutdown();
-    dt_init();
-
     return 0;
 }
 
@@ -47,7 +44,10 @@ MTF_DEFINE_UTEST(event_counter, ev_create_and_search)
     };
     union dt_iterate_parameters dip = {.yc = &yc };
 
-    size_t cnt, base;
+    char *dbg_lvl = "HSE_DEBUG";
+    char *err_lvl = "HSE_ERR";
+    size_t dbg_before, dbg_after;
+    size_t err_before, err_after;
     char * buf;
 
     buf = calloc(1, 32768);
@@ -57,7 +57,11 @@ MTF_DEFINE_UTEST(event_counter, ev_create_and_search)
     yc.yaml_buf_sz = 32768;
     yc.yaml_emit = NULL;
 
-    base = dt_iterate_cmd(dt_data_tree, DT_OP_COUNT, path, &dip, NULL, "ev_log_level", NULL);
+    dbg_before = dt_iterate_cmd(dt_data_tree, DT_OP_EMIT, path, &dip, NULL, "ev_log_level", dbg_lvl);
+    printf("%s: %s before, %zu items ---->\n%s\n<----\n", __func__, dbg_lvl, dbg_before, buf);
+
+    err_before = dt_iterate_cmd(dt_data_tree, DT_OP_EMIT, path, &dip, NULL, "ev_log_level", err_lvl);
+    printf("%s: %s before, %zu items ---->\n%s\n<----\n", __func__, err_lvl, err_before, buf);
 
     ERROR_COUNTER(HSE_DEBUG);              /* HSE_DEBUG */
     ERROR_COUNTER();                       /* HSE_INFO */
@@ -68,24 +72,14 @@ MTF_DEFINE_UTEST(event_counter, ev_create_and_search)
     ERROR_COUNTER(HSE_ALERT, 0xabcd);      /* HSE_ALERT */
     ERROR_COUNTER(HSE_EMERG);              /* HSE_EMERG */
 
-    cnt = dt_iterate_cmd(dt_data_tree, DT_OP_COUNT, path, &dip, NULL, "ev_log_level", "HSE_DEBUG");
+    dbg_after = dt_iterate_cmd(dt_data_tree, DT_OP_EMIT, path, &dip, NULL, "ev_log_level", dbg_lvl);
+    printf("%s: %s before, %zu items ---->\n%s\n<----\n", __func__, dbg_lvl, dbg_after, buf);
 
-    if (cnt - base != 8) {
-        cnt =
-            dt_iterate_cmd(dt_data_tree, DT_OP_EMIT, path, &dip, NULL, "ev_log_level", "HSE_DEBUG");
-        printf("%s: cnt 8 %zu:\n[%s]\n", __func__, cnt - base, buf);
-    }
+    err_after = dt_iterate_cmd(dt_data_tree, DT_OP_EMIT, path, &dip, NULL, "ev_log_level", err_lvl);
+    printf("%s: %s before, %zu items ---->\n%s\n<----\n", __func__, err_lvl, err_after, buf);
 
-    ASSERT_EQ(cnt - base, 8);
-
-    cnt = dt_iterate_cmd(dt_data_tree, DT_OP_COUNT, path, &dip, NULL, "ev_log_level", "HSE_ERR");
-    if (cnt - base > 5) {
-        cnt =
-            dt_iterate_cmd(dt_data_tree, DT_OP_EMIT, path, &dip, NULL, "ev_log_level", "HSE_DEBUG");
-        printf("%s: cnt 4 %zu:\n[%s]\n", __func__, cnt - base, buf);
-    }
-
-    ASSERT_EQ(cnt - base, 4);
+    ASSERT_EQ(dbg_after - dbg_before, 8);
+    ASSERT_EQ(err_after - err_before, 4);
 
     free(buf);
 }

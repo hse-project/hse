@@ -480,9 +480,9 @@ tree_walk_callback(
         cn_node_stats_get(node, &ns);
 
         printf(
-            "#Node pcap%% %6.1f scatter %u kuniq%% %6.1f "
+            "#Node pcap%% %u scatter %u kuniq%% %6.1f "
             "KbClen%% %6.1f VbClen%% %6.1f samp %6.1f\n",
-            ns.ns_pcap / 1e12,
+            ns.ns_pcap,
             ns.ns_scatter,
             DIVZ(1e2 * ns.ns_keys_uniq, cn_ns_keys(&ns)),
             DIVZ(1e2 * ns.ns_kclen, n->ks.kst_kalen),

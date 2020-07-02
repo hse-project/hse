@@ -313,8 +313,8 @@ BullseyeCoverageRestore
 #define VBLOCK_HDR_VERSION1 ((u32)1)
 #define VBLOCK_HDR_VERSION2 ((u32)2)
 
-    /* Version 2 header */
-    struct vblock_hdr_omf {
+/* Version 2 header */
+struct vblock_hdr_omf {
     __le32 vbh_magic;
     __le32 vbh_version;
     __le64 vbh_vgroup;
