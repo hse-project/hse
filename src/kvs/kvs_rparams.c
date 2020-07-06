@@ -408,10 +408,9 @@ kvs_rparams_remove_from_dt(const char *mpool, const char *kvs)
 merr_t
 kvs_rparams_add_to_dt(const char *mpool, const char *kvs, struct kvs_rparams *p)
 {
-    int    i;
-    int    num_elems = NELEM(kvs_rp_table);
-    char   path[3 * (DT_PATH_ELEMENT_LEN + 1)];
-    size_t param_sz = 0;
+    int  i;
+    int  num_elems = NELEM(kvs_rp_table);
+    char path[3 * (DT_PATH_ELEMENT_LEN + 1)];
 
     if (!mpool || !kvs || !p)
         return merr_errno(merr(ev(EINVAL)));
@@ -421,10 +420,11 @@ kvs_rparams_add_to_dt(const char *mpool, const char *kvs, struct kvs_rparams *p)
     snprintf(path, sizeof(path), "%s/%s", mpool, kvs);
 
     for (i = 0; i < num_elems - 1; i++) {
-        bool   writable = false;
-        size_t offset = kvs_rp_table[i].pi_value - (void *)&kvs_rp_ref;
-        char   param_name[DT_PATH_ELEMENT_LEN];
-        int    wx;
+        bool          writable = false;
+        size_t        offset = kvs_rp_table[i].pi_value - (void *)&kvs_rp_ref;
+        char          param_name[DT_PATH_ELEMENT_LEN];
+        param_show_t *param_showp;
+        int           wx;
 
         get_param_name(i, param_name, sizeof(param_name));
 
@@ -436,9 +436,9 @@ kvs_rparams_add_to_dt(const char *mpool, const char *kvs, struct kvs_rparams *p)
             }
         }
 
-        param_sz = kvs_rp_table[i].pi_type.param_size;
+        param_showp = kvs_rp_table[i].pi_type.param_val_to_str;
 
-        if (param_sz == sizeof(u32)) {
+        if (param_showp == show_u32) {
             CFG_U32(
                 path,
                 param_name,
@@ -447,7 +447,7 @@ kvs_rparams_add_to_dt(const char *mpool, const char *kvs, struct kvs_rparams *p)
                 NULL,
                 p,
                 writable);
-        } else if (param_sz == sizeof(u64)) {
+        } else if (param_showp == show_u64) {
             CFG_U64(
                 path,
                 param_name,
@@ -456,7 +456,7 @@ kvs_rparams_add_to_dt(const char *mpool, const char *kvs, struct kvs_rparams *p)
                 NULL,
                 p,
                 writable);
-        } else {
+        } else if (param_showp == show_string) {
             CFG_STR(
                 path,
                 param_name,
@@ -466,6 +466,8 @@ kvs_rparams_add_to_dt(const char *mpool, const char *kvs, struct kvs_rparams *p)
                 NULL,
                 p,
                 writable);
+        } else {
+            return merr(ev(EINVAL));
         }
     }
 
