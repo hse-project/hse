@@ -6,6 +6,8 @@
 #ifndef HSE_KVDB_RPARAMS_H
 #define HSE_KVDB_RPARAMS_H
 
+#include <hse_ikvdb/throttle.h>
+
 #include <stddef.h>
 
 /**
@@ -81,11 +83,13 @@ struct kvdb_rparams {
 
     unsigned int  throttle_relax;
     unsigned int  throttle_debug;
+    unsigned int  throttle_debug_intvl_s;
     unsigned long throttle_c0_hi_th;
     unsigned long throttle_sleep_min_ns;
+    char          throttle_init_policy[THROTTLE_INIT_POLICY_NAME_LEN_MAX];
 
     /* The following fields are typically only accessed by kvdb open
-     * and hence are extrememly cold.
+     * and hence are extremely cold.
      */
     unsigned int  log_lvl;
     unsigned long log_squelch_ns;
@@ -95,10 +99,10 @@ struct kvdb_rparams {
     unsigned int  c0_ingest_threads;
     unsigned int  c0_mutex_pool_sz;
 
-    unsigned int keylock_entries;
-    unsigned int keylock_tables;
-    unsigned int low_mem;
-    unsigned int excl;
+    unsigned int  keylock_entries;
+    unsigned int  keylock_tables;
+    unsigned int  low_mem;
+    unsigned int  excl;
 
     unsigned int rpmagic;
 };
