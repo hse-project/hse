@@ -54,7 +54,7 @@ fmt_pe(char *dst, size_t dlen, const void *src, size_t slen)
 
         unsigned char v = ((const unsigned char *)src)[soff++];
 
-        if (url_unreserved[v]) {
+        if (v < NELEM(url_unreserved) && url_unreserved[v]) {
             append_byte(dst, dlen, &doff, v);
         } else {
             append_byte(dst, dlen, &doff, '%');
