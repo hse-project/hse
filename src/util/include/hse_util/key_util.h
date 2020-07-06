@@ -187,20 +187,24 @@ struct key_obj {
 static __always_inline void *
 key_obj_copy(void *kbuf, size_t kbuf_sz, uint *klen, const struct key_obj *kobj)
 {
-    uint copylen, keylen;
+    uint  copylen, keylen;
+    void *tmp_kbuf = NULL;
 
     keylen = kobj->ko_pfx_len + kobj->ko_sfx_len;
     if (klen)
         *klen = keylen;
 
     copylen = min_t(uint, kbuf_sz, kobj->ko_pfx_len);
-    memcpy(kbuf, kobj->ko_pfx, copylen);
+    if (likely(kbuf && kobj->ko_pfx))
+        memcpy(kbuf, kobj->ko_pfx, copylen);
 
     if (kbuf_sz <= kobj->ko_pfx_len)
         return kbuf;
 
     copylen = min_t(uint, kbuf_sz - kobj->ko_pfx_len, kobj->ko_sfx_len);
-    memcpy(kbuf + kobj->ko_pfx_len, kobj->ko_sfx, copylen);
+    tmp_kbuf = kbuf + kobj->ko_pfx_len;
+    if (likely(tmp_kbuf && kobj->ko_sfx))
+        memcpy(tmp_kbuf, kobj->ko_sfx, copylen);
 
     return kbuf;
 }
@@ -242,9 +246,11 @@ key_obj_ncmp(const struct key_obj *ko1, const struct key_obj *ko2, uint cmplen)
     /* 1 ...
      */
     len = min_t(uint, limitv[0], limitv[2]);
-    rc = memcmp(k1, k2, len);
-    if (likely(rc))
-        return rc;
+    if (likely(k1 && k2)) {
+        rc = memcmp(k1, k2, len);
+        if (likely(rc))
+            return rc;
+    }
 
     pos = len;
     k1 = pos < ko1->ko_pfx_len ? k1 + len : ko1->ko_sfx;
@@ -253,9 +259,11 @@ key_obj_ncmp(const struct key_obj *ko1, const struct key_obj *ko2, uint cmplen)
     /* 2 ...
      */
     len = min_t(uint, limitv[1], limitv[2]) - len;
-    rc = memcmp(k1, k2, len);
-    if (likely(rc))
-        return rc;
+    if (likely(k1 && k2)) {
+        rc = memcmp(k1, k2, len);
+        if (likely(rc))
+            return rc;
+    }
 
     pos += len;
     k1 = pos == ko1->ko_pfx_len ? ko1->ko_sfx : k1 + len;
@@ -264,9 +272,11 @@ key_obj_ncmp(const struct key_obj *ko1, const struct key_obj *ko2, uint cmplen)
     /* 3 ...
      */
     len = limitv[2] - pos;
-    rc = memcmp(k1, k2, len);
-    if (likely(rc))
-        return rc;
+    if (likely(k1 && k2)) {
+        rc = memcmp(k1, k2, len);
+        if (likely(rc))
+            return rc;
+    }
 
     return (minlen < cmplen) ? klen1 - klen2 : 0;
 }
