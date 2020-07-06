@@ -398,6 +398,7 @@ MTF_DEFINE_UTEST(wp, parser_kvs_section)
     ASSERT_EQ(result, NULL);
     hse_params_destroy(params);
 
+    /* simple mclass_policy is defined at the beginning before it used in kvs section */
     rc = snprintf(
         profile,
         sizeof(profile),
@@ -405,6 +406,26 @@ MTF_DEFINE_UTEST(wp, parser_kvs_section)
         policy,
         "\nkvs.kvs_test:\n"
         "  mclass_policy: simple");
+    ASSERT_LT(rc, sizeof(profile));
+    write_to_file(profile);
+
+    hse_params_create(&params);
+    err = wp_parse(path, params, WP_FILE);
+    ASSERT_EQ(err, NULL);
+
+    result = hse_params_get(params, "kvs.kvs_test.mclass_policy", buf, sizeof(buf), 0);
+    ASSERT_NE(result, NULL);
+    ASSERT_EQ(strcmp(result, "simple"), 0);
+    hse_params_destroy(params);
+
+    /* simple mclass_policy is defined at the end after it is used in kvs section */
+    rc = snprintf(
+        profile,
+        sizeof(profile),
+        "%s%s",
+        "kvs.kvs_test:\n"
+        "  mclass_policy: simple\n",
+        policy);
     ASSERT_LT(rc, sizeof(profile));
     write_to_file(profile);
 

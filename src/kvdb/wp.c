@@ -81,12 +81,11 @@ char last_map[128];
 
 /* Parser Helper Functions */
 
-static yaml_node_t *
+static yaml_node_pair_t *
 wp_parser_find_field(yaml_document_t *doc, yaml_node_t *node, char *field)
 {
     int               match;
     yaml_node_t *     key;
-    yaml_node_t *     value;
     yaml_node_pair_t *start;
     yaml_node_pair_t *top;
 
@@ -98,13 +97,12 @@ wp_parser_find_field(yaml_document_t *doc, yaml_node_t *node, char *field)
 
     for (; start < top; start++) {
         key = yaml_document_get_node(doc, start->key);
-        value = yaml_document_get_node(doc, start->value);
-        if (!key || !value)
+        if (!key)
             continue;
 
         match = !strcmp(field, (const char *)key->data.scalar.value);
         if (match)
-            return value;
+            return start;
     }
 
     return NULL;
@@ -113,7 +111,8 @@ wp_parser_find_field(yaml_document_t *doc, yaml_node_t *node, char *field)
 static int
 wp_parser_get_api_version(struct hse_params *params, yaml_document_t *doc, yaml_node_t *root)
 {
-    yaml_node_t *node;
+    yaml_node_pair_t *node;
+    yaml_node_t *     value;
 
     node = wp_parser_find_field(doc, root, "api_version");
     if (!node) {
@@ -122,7 +121,11 @@ wp_parser_get_api_version(struct hse_params *params, yaml_document_t *doc, yaml_
             return -1;
     }
 
-    return atoi((const char *)node->data.scalar.value);
+    value = yaml_document_get_node(doc, node->value);
+    if (!value)
+        return -1;
+
+    return atoi((const char *)value->data.scalar.value);
 }
 
 static merr_t
@@ -494,17 +497,41 @@ err0:
 }
 
 static merr_t
+wp_parser_parse_mclass(struct hse_params *params, yaml_document_t *doc, yaml_node_t *root)
+{
+    yaml_node_pair_t *node;
+    merr_t            err;
+
+    struct wp_validation valid_fields[] = {
+        WP_VALIDATE_GENERIC("mclass_policies", wp_parser_validate_mclass, true),
+    };
+
+    node = wp_parser_find_field(doc, root, "mclass_policies");
+    if (!node)
+        return 0;
+
+    err = wp_parser_check_pair(params, doc, node, valid_fields, 1);
+    if (ev(err))
+        return err;
+
+    return 0;
+}
+
+static merr_t
 wp_parser_validate_root(struct hse_params *params, yaml_document_t *doc, yaml_node_t *node)
 {
     int    entries;
     merr_t err;
 
+    /*
+     * mclass_policies and api_version sections have already been validated.
+     */
     struct wp_validation valid_fields[] = {
         WP_VALIDATE_NONE("api_version", true),
         WP_VALIDATE_NONE("apiVersion", true),
         WP_VALIDATE_GENERIC("kvdb", wp_parser_validate_params, true),
         WP_VALIDATE_GENERIC("kvs", wp_parser_validate_params, false),
-        WP_VALIDATE_GENERIC("mclass_policies", wp_parser_validate_mclass, true),
+        WP_VALIDATE_NONE("mclass_policies", true),
     };
 
     if (ev(node->type != YAML_MAPPING_NODE))
@@ -573,6 +600,11 @@ wp_parser_exec(const char *profile, size_t size, struct hse_params *params, int 
     apiVersion = wp_parser_get_api_version(params, &doc, root);
     switch (apiVersion) {
         case 1:
+            err = wp_parser_parse_mclass(params, &doc, root);
+            if (ev(err)) {
+                hse_log(HSE_ERR "wp_parser: failed to parse mclass_policies");
+                goto err1;
+            }
             err = wp_parser_validate_root(params, &doc, root);
             if (ev(err)) {
                 hse_log(HSE_ERR "wp_parser: failed to parse");
