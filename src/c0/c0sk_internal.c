@@ -397,7 +397,8 @@ c0sk_builder_add(
         }
 
         err = kvset_builder_add_val(
-            bldr, seqno, val->bv_vlen ? val->bv_value : val->bv_valuep, val->bv_vlen, vbb);
+            bldr, seqno, val->bv_vlen ? val->bv_value : val->bv_valuep,
+            val->bv_vlen, 0, vbb);
         if (err)
             return ev(err);
     }

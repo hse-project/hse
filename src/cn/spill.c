@@ -193,6 +193,8 @@ kv_spill(struct cn_compaction_work *w)
 
     u64   hash;
     uint  vlen;
+    uint  complen;
+    uint  omlen;
     uint  cnum;
     u32   childmask; /* mask: which children get kvpairs */
     void *buf = NULL;
@@ -332,10 +334,18 @@ get_values:
             tstart = get_time_ns();
 
         if (!kvset_iter_next_vref(
-                w->cw_inputv[curr.src], &curr.vctx, &seq, &vtype, &vbidx, &vboff, &vdata, &vlen))
+                w->cw_inputv[curr.src], &curr.vctx, &seq, &vtype, &vbidx, &vboff,
+                &vdata, &vlen, &complen))
             break;
 
-        direct = vtype == vtype_val && vlen > direct_read_len;
+        if (vtype == vtype_val)
+            omlen = vlen;
+        else if (vtype == vtype_cval)
+            omlen = complen;
+        else
+            omlen = 0;
+
+        direct = omlen > direct_read_len;
 
         /* [HSE_REVISIT] direct read path allocates buffer. Performing
          * direct reads into the buffer in kvset builder without this
@@ -344,13 +354,13 @@ get_values:
         if (direct) {
             uint bufsz_min;
 
-            if (ev(vlen > HSE_KVS_VLEN_MAX)) {
-                assert(vlen <= HSE_KVS_VLEN_MAX);
+            if (ev(omlen > HSE_KVS_VLEN_MAX)) {
+                assert(omlen <= HSE_KVS_VLEN_MAX);
                 err = merr(EBUG);
                 goto done;
             }
 
-            bufsz_min = vlen;
+            bufsz_min = omlen;
 
             /* If value offset is not page aligned then allocate
              * one additional page to prevent a potential copy
@@ -362,9 +372,9 @@ get_values:
             if (!buf || bufsz < bufsz_min) {
                 free_aligned(buf);
 
-                if (vlen < HSE_KVS_VLEN_MAX / 4)
+                if (omlen < HSE_KVS_VLEN_MAX / 4)
                     bufsz = HSE_KVS_VLEN_MAX / 4;
-                else if (vlen < HSE_KVS_VLEN_MAX / 2)
+                else if (omlen < HSE_KVS_VLEN_MAX / 2)
                     bufsz = HSE_KVS_VLEN_MAX / 2;
                 else
                     bufsz = HSE_KVS_VLEN_MAX;
@@ -381,11 +391,11 @@ get_values:
             }
 
             err = kvset_iter_next_val_direct(
-                w->cw_inputv[curr.src], vtype, vbidx, vboff, buf, vlen, bufsz);
+                w->cw_inputv[curr.src], vtype, vbidx, vboff, buf, omlen, bufsz);
             vdata = buf;
         } else {
             err = kvset_iter_next_val(
-                w->cw_inputv[curr.src], &curr.vctx, vtype, vbidx, vboff, &vdata, &vlen);
+                w->cw_inputv[curr.src], &curr.vctx, vtype, vbidx, vboff, &vdata, &vlen, &complen);
         }
         if (ev(err))
             goto done;
@@ -448,7 +458,7 @@ get_values:
                     if (w->cw_drop_tombv[i] && bg_val)
                         continue;
 
-                    err = kvset_builder_add_val(w->cw_child[i], seq, vdata, vlen, NULL);
+                    err = kvset_builder_add_val(w->cw_child[i], seq, vdata, vlen, 0, NULL);
                     if (ev(err))
                         goto done;
 
@@ -460,11 +470,11 @@ get_values:
                 if (w->cw_drop_tombv[cnum] && HSE_CORE_IS_TOMB(vdata) && bg_val)
                     continue; /* skip value */
 
-                err = kvset_builder_add_val(child, seq, vdata, vlen, NULL);
+                err = kvset_builder_add_val(child, seq, vdata, vlen, complen, NULL);
                 if (ev(err))
                     goto done;
 
-                w->cw_stats.ms_val_bytes_out += vlen;
+                w->cw_stats.ms_val_bytes_out += complen ? complen : vlen;
                 emitted_val = true;
                 childmask |= (1 << cnum);
                 if (HSE_CORE_IS_PTOMB(vdata))

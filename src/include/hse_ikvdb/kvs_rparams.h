@@ -7,7 +7,11 @@
 #define HSE_KVS_RPARAMS_H
 
 #include <stdlib.h>
+
 #include <hse_ikvdb/mclass_policy.h>
+#include <hse_ikvdb/vcomp_params.h>
+
+#include <hse_util/hse_err.h>
 
 /**
  * struct kvs_rparams  - kvs runtime parameters
@@ -83,6 +87,7 @@ struct kvs_rparams {
     unsigned long rdonly;
 
     char mclass_policy[HSE_MPOLICY_NAME_LEN_MAX];
+    char value_compression[VCOMP_PARAM_STR_SZ];
 
     unsigned long rpmagic;
 };
@@ -128,7 +133,7 @@ kvs_rparams_help(char *buf, size_t buf_len, struct kvs_rparams *rparams);
  *
  * Check if the parameters are valid
  */
-int
+merr_t
 kvs_rparams_validate(struct kvs_rparams *params);
 
 /**

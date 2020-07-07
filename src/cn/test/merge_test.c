@@ -597,17 +597,20 @@ kvset_get_nth_val(
     ydoc_node_as_seq(&tp.doc, vec[nth_value], &valv, &valc);
     *seq_out = ydoc_node_as_u64(&tp.doc, valv[0]);
     *vtype_out = ydoc_node_as_vtype(&tp.doc, valv[1]);
-    if (*vtype_out == vtype_val) {
-        int tmp;
 
-        *vdata_out = ydoc_node_as_str(&tp.doc, valv[2], &tmp);
-        my_assert(tmp > 0);
-        *vlen_out = tmp;
-        if (*vlen_out < CN_SMALL_VALUE_THRESHOLD)
-            *vtype_out = vtype_ival;
-    } else {
-        *vdata_out = 0;
-        *vlen_out = 0;
+    switch (*vtype_out) {
+        case vtype_val: {
+            int tmp;
+            *vdata_out = ydoc_node_as_str(&tp.doc, valv[2], &tmp);
+            my_assert(tmp > 0);
+            *vlen_out = tmp;
+            if (*vlen_out < CN_SMALL_VALUE_THRESHOLD)
+                *vtype_out = vtype_ival;
+            break;
+        }
+        default:
+            *vdata_out = 0;
+            *vlen_out = 0;
     }
 }
 
@@ -727,21 +730,31 @@ _kvset_builder_add_val_internal(
             tp.next_output_key,
             tp.next_output_val,
             ref_eof ? "\n" : " ");
-    if (tp.verbose >= VERBOSE_PER_KEY1)
-        printf(
-            "%lu %s %.*s\n",
-            (unsigned long)ref_seq,
-            (ref_vtype == vtype_val
-                 ? "v"
-                 : (ref_vtype == vtype_zval
-                        ? "z"
-                        : (ref_vtype == vtype_ival
-                               ? "i"
-                               : (ref_vtype == vtype_tomb
-                                      ? "t"
-                                      : (ref_vtype == vtype_ptomb ? "pt" : "??"))))),
-            ref_vlen,
+    if (tp.verbose >= VERBOSE_PER_KEY1) {
+        char *tag = "?";
+        switch (ref_vtype) {
+            case vtype_val:
+                tag = "v";
+                break;
+            case vtype_cval:
+                tag = "c";
+                break;
+            case vtype_zval:
+                tag = "z";
+                break;
+            case vtype_ival:
+                tag = "i";
+                break;
+            case vtype_tomb:
+                tag = "t";
+                break;
+            case vtype_ptomb:
+                tag = "pt";
+                break;
+        }
+        printf( "%lu %s %.*s\n", (ulong)ref_seq, tag, ref_vlen,
             ref_vdata ? (char *)ref_vdata : "");
+    }
 
     if (vtype != vtype_ptomb) {
         /* If the following checks fail, then more values have been
@@ -778,7 +791,8 @@ _kvset_builder_add_vref(
     u64                   seq,
     uint                  vbidx_kvset_node,
     uint                  vboff_nth_key,
-    uint                  vlen_nth_val)
+    uint                  vlen_nth_val,
+    uint                  complen)
 {
     u64            tmp_seq;
     enum kmd_vtype vtype;
@@ -812,6 +826,7 @@ _kvset_builder_add_val(
     u64                     seq,
     const void *            vdata,
     uint                    vlen,
+    uint                    complen,
     struct c1_bonsai_vbldr *vbldr)
 {
     enum kmd_vtype vtype;
@@ -901,7 +916,8 @@ _kvset_iter_next_vref(
     uint *                  vbidx,
     uint *                  vboff,
     const void **           vdata,
-    uint *                  vblen)
+    uint *                  vlen_out,
+    uint *                  clen_out)
 {
     /* Unpack data from kvset_iter_vctx:
      *   vc->kmd   == kvset node
@@ -924,20 +940,29 @@ _kvset_iter_next_vref(
     if (eof)
         return false;
 
-    if (*vtype == vtype_val) {
-        /* Pack data into vref:
-         *   vbidx == kvset node
-         *   vboff == nth_key
-         *   vblen == nth_val
-         *
-         * See also _kvset_builder_add_vref(), which unpacks this data.
-         */
-        *vbidx = kvset_node;
-        *vboff = nth_key;
-        *vblen = nth_val;
-    } else {
-        *vdata = (void *)lvdata;
-        *vblen = vlen;
+    switch (*vtype) {
+        case vtype_val:
+            /* Pack data into vref:
+             *   vbidx == kvset node
+             *   vboff == nth_key
+             *   vlen_out == nth_val
+             * See also _kvset_builder_add_vref(), which unpacks this data.
+             */
+            *vbidx = kvset_node;
+            *vboff = nth_key;
+            *vlen_out = nth_val;
+            break;
+        case vtype_ival:
+        case vtype_zval:
+        case vtype_tomb:
+        case vtype_ptomb:
+            *vdata = (void *)lvdata;
+            *vlen_out = vlen;
+            break;
+        case vtype_cval:
+            /* not used by this test */
+            assert(0);
+            break;
     }
 
     /* bump value index for next call */
@@ -953,14 +978,14 @@ _kvset_iter_next_val(
     uint                    vbidx,
     uint                    vboff,
     const void **           vdata_out,
-    uint *                  vlen_out)
+    uint *                  vlen_out,
+    uint *                  clen_out)
 {
     /*
      * Unpack data from kvset_iter_vctx:
      *   vbidx     == kvset node
      *   vboff     == key in kvset node
      *   *vlen_out == which value
-     *
      * See _kvset_iter_next_val() which supplies the location of value
      * See also _kvset_iter_next_key(), which packs this data.
      */
@@ -988,6 +1013,10 @@ _kvset_iter_next_val(
     }
 
     switch (vtype) {
+        case vtype_cval:
+            /* not used by this test */
+            assert(0);
+            break;
         case vtype_val:
             *vdata_out = (void *)vdata;
             return 0;

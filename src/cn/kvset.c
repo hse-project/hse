@@ -17,6 +17,7 @@
 #include <hse_util/perfc.h>
 #include <hse_util/log2.h>
 #include <hse_util/mman.h>
+#include <hse_util/compression_lz4.h>
 
 #include <hse/hse_limits.h>
 #include <hse/kvdb_perfc.h>
@@ -1452,7 +1453,9 @@ kvset_get_immediate_value(struct kvs_vtuple_ref *vref, struct kvs_buf *vbuf)
 {
     size_t copylen;
 
-    if (unlikely(vref->vi.vr_len == 0)) {
+    /* should not be here for zero len values */
+    if (ev(vref->vi.vr_len == 0)) {
+        assert(0);
         vbuf->b_len = 0;
         return 0;
     }
@@ -1526,13 +1529,15 @@ static
 merr_t
 kvset_lookup_val(struct kvset *ks, struct kvs_vtuple_ref *vref, struct kvs_buf *vbuf)
 {
-    bool                direct;
-    u32                 copylen;
     struct vblock_desc *vbd;
     merr_t              err;
+    void               *src, *dst;
+    uint                omlen, copylen;
 
-    assert(
-        vref->vr_type == vtype_ival || vref->vr_type == vtype_zval || vref->vr_type == vtype_val);
+    assert(vref->vr_type == vtype_ival
+        || vref->vr_type == vtype_zval
+        || vref->vr_type == vtype_val
+        || vref->vr_type == vtype_cval);
 
     if (unlikely(vref->vr_type == vtype_zval)) {
         vbuf->b_len = 0;
@@ -1545,29 +1550,48 @@ kvset_lookup_val(struct kvset *ks, struct kvs_vtuple_ref *vref, struct kvs_buf *
     vbd = lvx2vbd(ks, vref->vb.vr_index);
     assert(vbd);
 
-    copylen = vbuf->b_len = vref->vb.vr_len;
+    /* on-media len, ptr to on-media data */
+    omlen = vref->vb.vr_complen ? vref->vb.vr_complen : vref->vb.vr_len;
+    src = vbr_value(vbd, vref->vb.vr_off, omlen);
 
-    if (copylen > vbuf->b_buf_sz)
-        copylen = vbuf->b_buf_sz;
+    /* output buffer and how much to copy out */
+    dst = vbuf->b_buf;
+    copylen = min(vref->vb.vr_len, vbuf->b_buf_sz);
 
-    /* Try to issue a direct mblock read for large values.
-     *
-     * [HSE_REVISIT] Need to consider additional factors into
-     * this decision...
-     */
-    direct =
-        copylen >= ks->ks_vmax || (copylen >= ks->ks_vmin && ks->ks_node_level >= ks->ks_vminlvl);
-    if (direct) {
-        err = kvset_lookup_val_direct(
-            ks, vbd, vref->vb.vr_index, vref->vb.vr_off, vbuf->b_buf, vbuf->b_buf_sz, copylen);
-        if (merr_errno(err) != ENOMEM)
+    if (vref->vb.vr_complen) {
+
+        extern struct compress_ops compress_lz4_ops;
+        uint outlen;
+
+        err = compress_lz4_ops.cop_decompress(src, omlen, dst, copylen, &outlen);
+        if (ev(err))
             return err;
+        if (ev(copylen == vref->vb.vr_len && outlen != copylen)) {
+            /* oops: full size buffer, but not able to decompress all data */
+            assert(0);
+            return merr(EBUG);
+        }
 
-        /* Proceed with macache access otherwise */
+    } else {
+
+        /* Use direct read for large values */
+        bool direct = copylen >= ks->ks_vmax
+            || (copylen >= ks->ks_vmin && ks->ks_node_level >= ks->ks_vminlvl);
+
+        if (direct) {
+            err = kvset_lookup_val_direct(
+                ks, vbd, vref->vb.vr_index, vref->vb.vr_off, vbuf->b_buf, vbuf->b_buf_sz, copylen);
+            if (ev(err))
+                err = 0; /* fall through to memcpy */
+            else
+                goto done;
+        }
+
+        memcpy(dst, src, copylen);
     }
 
-    memcpy(vbuf->b_buf, vbr_value(vbd, vref->vb.vr_off, vref->vb.vr_len), copylen);
-
+  done:
+    vbuf->b_len = vref->vb.vr_len;
     return 0;
 }
 
@@ -1653,6 +1677,7 @@ next_kblk:
     wbti_reset(wbti, &kblk->kb_kblk_desc, &kblk->kb_wbt_desc, kt, 0, 0);
 
 get_more:
+    /* Get next key and set kmd to the base addr for the next keys' metadata */
     if (!wbti_next(wbti, &kobj.ko_sfx, &kobj.ko_sfx_len, &kmd)) {
         if (kbidx == last)
             goto done;
@@ -1669,7 +1694,10 @@ get_more:
     if (key_obj_cmp_prefix(&kt_obj, &kobj))
         goto done;
 
-    /* get vref */
+    /* Use the kmd (key metadata) to iterate over each value's metadata (vref).
+     * Note we're resuing the vref form above that contained metadata for the
+     * prefix tombstone.
+     */
     {
         size_t off = 0;
         u64    vseq;
@@ -1680,6 +1708,7 @@ get_more:
         while (nvals--) {
             wbt_read_kmd_vref(kmd, &off, &vseq, &vref);
             if (seq >= vseq) {
+                /* can't be  a ptomb, b/c they're in their own WBT */
                 assert(vref.vr_type != vtype_ptomb);
                 vref.vr_seq = vseq;
                 if (vref.vr_type == vtype_tomb)
@@ -3421,11 +3450,14 @@ kvset_iter_next_vref(
     uint *                  vbidx,
     uint *                  vboff,
     const void **           vdata,
-    uint *                  vlen)
+    uint *                  vlen,
+    uint *                  complen)
 {
     assert(vc);
     assert(vc->kmd);
+
     *vlen = 0;
+    *complen = 0;
 
     if (!vc->off) {
         assert(vc->nvals == 0);
@@ -3440,10 +3472,24 @@ kvset_iter_next_vref(
         return false;
 
     kmd_type_seq(vc->kmd, &vc->off, vtype, seq);
-    if (*vtype == vtype_val)
-        kmd_val(vc->kmd, &vc->off, vbidx, vboff, vlen);
-    else if (*vtype == vtype_ival)
-        kmd_ival(vc->kmd, &vc->off, vdata, vlen);
+    switch (*vtype) {
+        case vtype_val:
+            kmd_val(vc->kmd, &vc->off, vbidx, vboff, vlen);
+            break;
+        case vtype_cval:
+            kmd_cval(vc->kmd, &vc->off, vbidx, vboff, vlen, complen);
+            break;
+        case vtype_ival:
+            kmd_ival(vc->kmd, &vc->off, vdata, vlen);
+            break;
+        case vtype_zval:
+        case vtype_tomb:
+        case vtype_ptomb:
+            break;
+        default:
+            assert(0);
+            break;
+    }
 
     vc->next++;
     return true;
@@ -3694,26 +3740,33 @@ kvset_iter_next_val(
     uint                    vbidx,
     uint                    vboff,
     const void **           vdata,
-    uint *                  vlen)
+    uint *                  vlen,
+    uint *                  complen)
 {
     switch (vtype) {
         case vtype_val:
             return kvset_iter_get_valptr(handle, vbidx, vboff, *vlen, vdata);
+        case vtype_cval:
+            return kvset_iter_get_valptr(handle, vbidx, vboff, *complen, vdata);
         case vtype_zval:
             *vdata = 0;
             *vlen = 0;
+            *complen = 0;
             return 0;
         case vtype_tomb:
             *vdata = HSE_CORE_TOMB_REG;
             *vlen = 0;
+            *complen = 0;
             return 0;
         case vtype_ptomb:
             *vdata = HSE_CORE_TOMB_PFX;
             *vlen = 0;
+            *complen = 0;
             return 0;
         case vtype_ival:
             assert(*vdata);
             assert(*vlen);
+            *complen = 0;
             return 0;
     }
 

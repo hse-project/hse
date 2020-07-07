@@ -150,28 +150,31 @@ OMF_SETGET(struct bloom_hdr_omf, bh_n_hashes, 8)
 
 /*****************************************************************
  *
- * WBTree header OMF (part of a kblock)
+ * Wanna B-Tree (WBT) On-Media-Format
  *
- ****************************************************************/
+ * OMF v6: Added support for compressed values. Uses a new value type
+ *         (vtype_cval) which affects KMD format. Unfortunately,
+ *         there is no version field for KMD, so we bump the WBTree
+ *         version even though the actual WBTree header, leaf and
+ *         internal nodes are no different from OMF v5.
+ *
+ * OMF v5: Added longest common prefix elimination for keys in WBTree nodes.
+ *
+ * OMF v4: Added new value, "immediate", for short values.
+ *
+ * OMF v3 and below: Ancient history. Nobody cares. Should remove support.
+ */
 #define WBT_NODE_SIZE 4096 /* must equal system page size */
 
 #define WBT_TREE_MAGIC ((u32)0x4a3a2a1a)
-#define WBT_TREE_VERSION WBT_TREE_VERSION5
+#define WBT_TREE_VERSION  WBT_TREE_VERSION6
+#define WBT_TREE_VERSION6 ((u32)6)
 #define WBT_TREE_VERSION5 ((u32)5)
 #define WBT_TREE_VERSION4 ((u32)4)
 #define WBT_TREE_VERSION3 ((u32)3)
 #define WBT_TREE_VERSION2 ((u32)2)
 
-/******** WB tree Version 4 ********/
-
-/* Version 4 just added a new value type of "immediate" and changed no earlier
- * definitions. As a result, version 3 code that encounters a version 4 WBT
- * will simply fail (EINVAL) in the older version of this very function.
- * Version 4 code knows how to deal with the new value type, so no further
- * special handling is needed.
- */
-
-/* WB tree version 4 header */
+/* WBT header (OMF v4-v6) */
 struct wbt_hdr_omf {
     __le32 wbt_magic;
     __le32 wbt_version;
@@ -199,7 +202,7 @@ wbt_hdr_version(void *omf)
 #define WBT_LFE_NODE_MAGIC ((u16)0xabc0)
 #define WBT_INE_NODE_MAGIC ((u16)0xabc1)
 
-/* WB tree version 5 node header */
+/* WBT node header (OMF v5-v6) */
 struct wbt_node_hdr_omf {
     __le16 wbn_magic;    /* magic number, distinguishes INEs from LFEs */
     __le16 wbn_num_keys; /* number of keys in node */
@@ -213,7 +216,7 @@ OMF_SETGET(struct wbt_node_hdr_omf, wbn_num_keys, 16)
 OMF_SETGET(struct wbt_node_hdr_omf, wbn_kmd, 32)
 OMF_SETGET(struct wbt_node_hdr_omf, wbn_pfx_len, 16)
 
-/* WB tree version 4 node header */
+/* WBT node header (OMF v4) */
 struct wbt4_node_hdr_omf {
     __le16 wbn4_magic;    /* node magic , distinguishes INEs from LFEs */
     __le16 wbn4_num_keys; /* number of keys in node */
@@ -224,7 +227,7 @@ OMF_SETGET(struct wbt4_node_hdr_omf, wbn4_magic, 16)
 OMF_SETGET(struct wbt4_node_hdr_omf, wbn4_num_keys, 16)
 OMF_SETGET(struct wbt4_node_hdr_omf, wbn4_kmd, 32)
 
-/* WB tree version 4 internal node entry (ine) */
+/* WBT internal node entry (OMF v4-v6) */
 struct wbt_ine_omf {
     __le16 ine_koff;       /* byte offset from start of node to key */
     __le16 ine_left_child; /* node number of left child */
@@ -233,7 +236,7 @@ struct wbt_ine_omf {
 OMF_SETGET(struct wbt_ine_omf, ine_koff, 16)
 OMF_SETGET(struct wbt_ine_omf, ine_left_child, 16)
 
-/* WB tree version 4 leaf node entry (lfe).
+/* WBT leaf node entry (OMF v4-v6)
  * Note, if lfe_kmd == U16_MAX, then the actual kmd offset is stored as a LE32
  * value at lfe_koff, and the actual key is stored at lfe_koff + 4.
  */
@@ -249,8 +252,8 @@ OMF_SETGET(struct wbt_lfe_omf, lfe_kmd, 16)
 
 BullseyeCoverageSaveOff
 
-    /* WB tree version 3 header */
-    struct wbt3_hdr_omf {
+/* WB tree version 3 header */
+struct wbt3_hdr_omf {
     __le32 wbt3_magic;
     __le32 wbt3_version;
     __le16 wbt3_root;     /* index of wbtree root node */

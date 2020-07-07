@@ -25,12 +25,10 @@ struct kbb_key_stats {
     uint nvals;
     uint ntombs;
     uint nptombs;
-    uint tot_vlen;
-
-    u64 seqno_prev;
-    u64 seqno_prev_ptomb;
-    u64 c0_vlen;
-    u64 c1_vlen;
+    u64  tot_vlen;
+    u64  seqno_prev;
+    u64  seqno_prev_ptomb;
+    u64  c1_vlen;
 };
 
 /* MTF_MOCK_DECL(kblock_builder) */

@@ -14,6 +14,7 @@
 #include <hse_ikvdb/kvs_rparams.h>
 #include <hse_ikvdb/limits.h>
 #include <hse_ikvdb/c0_kvset.h>
+#include <hse_ikvdb/vcomp_params.h>
 
 #include <mpool/mpool.h>
 
@@ -105,6 +106,8 @@ kvs_rparams_defaults(void)
 
         .mclass_policy = "capacity_only",
 
+        .value_compression = VCOMP_PARAM_NONE,
+
         .rpmagic = RPARAMS_MAGIC,
     };
 
@@ -190,6 +193,8 @@ static struct param_inst  kvs_rp_table[] = {
     KVS_PARAM_EXP(rdonly, "open kvs in read-only mode"),
 
     KVS_PARAM_STR(mclass_policy, "media class policy name"),
+    KVS_PARAM_STR(value_compression, "value compression"),
+
 
     PARAM_INST_END
 };
@@ -269,13 +274,13 @@ kvs_rparams_print(struct kvs_rparams *rparams)
     params_print(kvs_rp_table, n, "kvs_rparams", rparams, (void *)&kvs_rp_ref);
 }
 
-int
+merr_t
 kvs_rparams_validate(struct kvs_rparams *params)
 {
     size_t sz;
 
     if (!params)
-        return merr_errno(merr(ev(EINVAL)));
+        return merr(EINVAL);
 
     if (params->rpmagic != RPARAMS_MAGIC) {
         hse_log(HSE_ERR "runtime parameters struct not properly "
@@ -289,12 +294,12 @@ kvs_rparams_validate(struct kvs_rparams *params)
                     " than or equal to cn_node_size_hi(%lu)",
             (ulong)params->cn_node_size_lo,
             (ulong)params->cn_node_size_hi);
-        return merr_errno(merr(ev(EINVAL)));
+        return merr(EINVAL);
     }
 
     if (params->cn_maint_delay < 20) {
         hse_log(HSE_ERR "cn_maint_delay must be greater than 20ms");
-        return merr_errno(merr(ev(EINVAL)));
+        return merr(EINVAL);
     }
 
     sz = params->kblock_size_mb << 20;
@@ -305,7 +310,7 @@ kvs_rparams_validate(struct kvs_rparams *params)
             (ulong)params->kblock_size_mb,
             (ulong)(KBLOCK_MIN_SIZE >> 20),
             (ulong)(KBLOCK_MAX_SIZE >> 20));
-        return merr_errno(merr(ev(EINVAL)));
+        return merr(EINVAL);
     }
 
     sz = params->vblock_size_mb << 20;
@@ -316,12 +321,12 @@ kvs_rparams_validate(struct kvs_rparams *params)
             (ulong)params->vblock_size_mb,
             (ulong)(VBLOCK_MIN_SIZE >> 20),
             (ulong)(VBLOCK_MAX_SIZE >> 20));
-        return merr_errno(merr(ev(EINVAL)));
+        return merr(EINVAL);
     }
 
     if (params->c1_vblock_cap > 1024) {
         hse_log(HSE_ERR "c1_vblock_cap must be less than 1024");
-        return merr_errno(merr(ev(EINVAL)));
+        return merr(EINVAL);
     }
 
     sz = params->c1_vblock_size_mb << 20;
@@ -332,12 +337,18 @@ kvs_rparams_validate(struct kvs_rparams *params)
             (ulong)params->c1_vblock_size_mb,
             (ulong)(VBLOCK_MIN_SIZE >> 20),
             (ulong)(VBLOCK_MAX_SIZE >> 20));
-        return merr_errno(merr(ev(EINVAL)));
+        return merr(EINVAL);
     }
 
     if (!params->vblock_asyncio_ctxswi) {
         hse_log(HSE_ERR "vblock asyncio context switch cannot be zero");
-        return merr_errno(merr(ev(EINVAL)));
+        return merr(EINVAL);
+    }
+
+    if (!vcomp_param_valid(params)) {
+        hse_log(HSE_ERR"invalid setting for value_compression, valid settings are: %s",
+            VCOMP_PARAM_SUPPORTED);
+        return merr(EINVAL);
     }
 
     return 0;

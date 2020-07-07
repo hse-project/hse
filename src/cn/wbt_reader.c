@@ -38,6 +38,7 @@ wbt_read_kmd_vref(const void *kmd, size_t *off, u64 *seq, struct kvs_vtuple_ref 
     uint           vbidx = 0;
     uint           vboff = 0;
     uint           vlen = 0;
+    uint           complen = 0;
     const void *   vdata = 0;
 
     kmd_type_seq(kmd, off, &vtype, seq);
@@ -52,6 +53,19 @@ wbt_read_kmd_vref(const void *kmd, size_t *off, u64 *seq, struct kvs_vtuple_ref 
             vref->vb.vr_index = vbidx;
             vref->vb.vr_off = vboff;
             vref->vb.vr_len = vlen;
+            vref->vb.vr_complen = 0;
+            break;
+        case vtype_cval:
+            kmd_cval(kmd, off, &vbidx, &vboff, &vlen, &complen);
+            /* assert no truncation */
+            assert(vbidx <= U16_MAX);
+            assert(vboff <= U32_MAX);
+            assert(vlen <= U32_MAX);
+            assert(complen <= U32_MAX);
+            vref->vb.vr_index = vbidx;
+            vref->vb.vr_off = vboff;
+            vref->vb.vr_len = vlen;
+            vref->vb.vr_complen = complen;
             break;
         case vtype_ival:
             kmd_ival(kmd, off, &vdata, &vlen);
@@ -73,7 +87,8 @@ bool
 wbti_seek(struct wbti *self, struct kvs_ktuple *seek)
 {
     switch (self->wbd->wbd_version) {
-        case WBT_TREE_VERSION:
+        case WBT_TREE_VERSION6:
+        case WBT_TREE_VERSION5:
             return wbti5_seek(self, seek);
         case WBT_TREE_VERSION4:
         case WBT_TREE_VERSION3:
@@ -87,7 +102,8 @@ bool
 wbti_next(struct wbti *self, const void **kdata, uint *klen, const void **kmd)
 {
     switch (self->wbd->wbd_version) {
-        case WBT_TREE_VERSION:
+        case WBT_TREE_VERSION6:
+        case WBT_TREE_VERSION5:
             return wbti5_next(self, kdata, klen, kmd);
         case WBT_TREE_VERSION4:
         case WBT_TREE_VERSION3:
@@ -107,7 +123,8 @@ wbti_reset(
     bool                  cache)
 {
     switch (desc->wbd_version) {
-        case WBT_TREE_VERSION:
+        case WBT_TREE_VERSION6:
+        case WBT_TREE_VERSION5:
             wbti5_reset(self, kbd, desc, seek, reverse, cache);
             break;
         case WBT_TREE_VERSION4:
@@ -163,7 +180,8 @@ void
 wbti_prefix(struct wbti *self, const void **pfx, uint *pfx_len)
 {
     switch (self->wbd->wbd_version) {
-        case WBT_TREE_VERSION:
+        case WBT_TREE_VERSION6:
+        case WBT_TREE_VERSION5:
             wbt_node_pfx(self->node, pfx, pfx_len);
             break;
         case WBT_TREE_VERSION4:
@@ -184,7 +202,8 @@ wbtr_read_vref(
     struct kvs_vtuple_ref *     vref)
 {
     switch (wbd->wbd_version) {
-        case WBT_TREE_VERSION:
+        case WBT_TREE_VERSION6:
+        case WBT_TREE_VERSION5:
             return wbtr5_read_vref(kbd, wbd, kt, lcp, seq, lookup_res, vref);
         case WBT_TREE_VERSION4:
         case WBT_TREE_VERSION3:

@@ -464,7 +464,8 @@ kvset_iter_next_val(
     uint                    vbidx,
     uint                    vboff,
     const void **           vdata,
-    uint *                  vlen);
+    uint *                  vlen,
+    uint *                  complen);
 
 /* MTF_MOCK */
 bool
@@ -476,7 +477,8 @@ kvset_iter_next_vref(
     uint *                  vbidx,
     uint *                  vboff,
     const void **           vdata,
-    uint *                  vlen);
+    uint *                  vlen,
+    uint *                  complen);
 
 /**
  * kvset_keep_vblocks - populate a vblock map from many-to-one

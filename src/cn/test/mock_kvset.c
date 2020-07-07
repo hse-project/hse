@@ -513,7 +513,8 @@ _kvset_iter_next_val(
     uint                    vbidx,
     uint                    vboff,
     const void **           vdata,
-    uint *                  vlen)
+    uint *                  vlen,
+    uint *                  complen)
 {
     struct mock_kv_iterator *iter = kvi->kvi_context;
     struct kvdata *          entry = iter->kvset->iter_data;
@@ -524,6 +525,8 @@ _kvset_iter_next_val(
     /* only one value per key */
     if (vc->next != 0)
         return 0;
+
+    *complen = 0;
 
     entry += vc->off;
     if (entry->val == -1) {
@@ -562,11 +565,15 @@ _kvset_iter_next_vref(
     uint *                  vbidx,
     uint *                  vboff,
     const void **           vdata,
-    uint *                  vlen)
+    uint *                  vlen,
+    uint *                  complen)
 {
     struct mock_kv_iterator *iter = kvi->kvi_context;
     struct kvdata *          entry = iter->kvset->iter_data;
     uint                     keyindex;
+
+    *vlen = 0;
+    *complen = 0;
 
     /* only one value per key */
     if (vc->next != 0)
@@ -576,7 +583,7 @@ _kvset_iter_next_vref(
     *seq = 1;
     *vbidx = iter->src;
     *vboff = 0;
-    *vlen = 0;
+
     if (entry->val_len == 0 && entry->val == -1) {
         *vtype = vtype_tomb;
     } else {

@@ -200,15 +200,17 @@ struct kblock_builder {
  * @chunk_len: length of each write
  *
  * Mpool's mpool_mblock_write() function imposes the following restrictions:
- *   - Each write buffer must be page aligned
- *   - The length of all but the last write to a given mblock must be
- *     must be a multiple of that mblocks stripe length.
+ *   - Each iov buffer must be page-aligned.
+ *   - Each iov length must be a multiple of PAGE_SIZE.
+ *   - The sum of iov lengths must be a multiple of the mblock's
+ *     optimal write size, except for the final write to an mblock
+ *     (which must still be multiple of PAGE_SIZE).
  *
- * More on the stripe length:
- *   - Different mblocks in the same dataset often have different stripe
- *     lengths.
- *   - The stripe length is always a multiple of the page size.
- *   - Typical stripe lengths are: 8K * number of devices in mpool.
+ * More on the optimal write size:
+ *   - The optimal write size is determined by mpool (and should
+ *     correspond to an efficient IO size for the underlying device).
+ *   - The optimal write size is a multiple of PAGE_SIZE.
+ *   - All mblocks in a media class instance have the same optimal write size.
  *
  * The function exists because simply using a large power power of 2 such
  * as 1MiB as the write length doesn't always work.

@@ -72,6 +72,7 @@ set( UTIL_SOURCE_FILES
     util/src/version.c
     util/src/workqueue.c
     util/src/yaml.c
+    util/src/compression_lz4.c
     ../3rdparty/src/rbtree.c
     ../3rdparty/src/cJSON.c
     ../3rdparty/src/xxhash.c
@@ -109,6 +110,7 @@ set( CN_SOURCE_FILES
      cn/wbt_reader.c
      cn/vblock_builder_ext.c
      cn/kvset_builder_ext.c
+     cn/vcomp_params.c
      )
 
 set( C0_SOURCE_FILES
@@ -241,6 +243,7 @@ set( HSE_KVDB_LIB_LINK_LIBS
     mpool
     mpool-blkid
     m
+    lz4
     )
 
 set( HSE_KVDB_LIB_INCLUDES
@@ -622,7 +625,7 @@ if( HSE_UNIT_TEST_FLAG )
 
     hse_unit_test(
         NAME cn_cursor_test
-        COMMAND cn_cursor_test ${CMAKE_CURRENT_SOURCE_DIR}/cn/test/mdc_images
+        COMMAND cn_cursor_test
         LABELS cn
         SRCS cn/test/cn_cursor_test.c
         INCLUDES ${UNIT_TEST_INCLUDE_DIRS}
