@@ -113,7 +113,7 @@ throttle_perfc_fini(void)
 void
 throttle_init(struct throttle *self, struct kvdb_rparams *rp)
 {
-    uint   i;
+    int    i;
     merr_t err;
 
     assert(IS_ALIGNED((uintptr_t)self, __alignof(*self)));
@@ -153,9 +153,27 @@ throttle_init(struct throttle *self, struct kvdb_rparams *rp)
 void
 throttle_init_params(struct throttle *self, struct kvdb_rparams *rp)
 {
-    uint time_ms;
+    u32 time_ms;
 
-    self->thr_delay_raw = THROTTLE_DELAY_START;
+    if (strcmp(self->thr_rp->throttle_init_policy, "light") == 0) {
+        self->thr_delay_raw = THROTTLE_DELAY_START_LIGHT;
+    } else if (strcmp(self->thr_rp->throttle_init_policy, "medium") == 0) {
+        self->thr_delay_raw = THROTTLE_DELAY_START_MEDIUM;
+    } else if (strcmp(self->thr_rp->throttle_init_policy, "default") == 0) {
+        self->thr_delay_raw = THROTTLE_DELAY_START_DEFAULT;
+    } else {
+        self->thr_delay_raw = THROTTLE_DELAY_START_DEFAULT;
+
+        hse_log(HSE_NOTICE "Invalid setting for throttle_init_policy: %s, using \"default\"",
+                self->thr_rp->throttle_init_policy);
+    }
+
+    if (self->thr_rp->throttle_debug_intvl_s == 0) {
+        hse_log(HSE_NOTICE "Invalid setting for throttle_debug_intvl_s: %u, using 1",
+                self->thr_rp->throttle_debug_intvl_s);
+        self->thr_rp->throttle_debug_intvl_s = 1U;
+    }
+
     self->thr_state = THROTTLE_NO_CHANGE;
     self->thr_update_ms = rp->throttle_update_ns / 1000000;
 
@@ -193,6 +211,11 @@ throttle_init_params(struct throttle *self, struct kvdb_rparams *rp)
         self->thr_inject_cycles,
         self->thr_skip_cycles,
         self->thr_delta_cycles);
+
+    hse_log(
+        HSE_NOTICE "throttle debug setting: %d, matching: %d",
+        self->thr_rp->throttle_debug,
+        ((self->thr_rp->throttle_debug & THROTTLE_DEBUG_DELAYV) ? 1 : 0));
 }
 
 void
@@ -403,13 +426,13 @@ void
 throttle_update(struct throttle *self)
 {
     struct throttle_mavg *mavg = &self->thr_mavg;
-    uint                  max_val = 0;
+    u32                   max_val = 0;
     int                   i, diff;
-    ulong                 debug = self->thr_rp->throttle_debug;
+    u64                   debug = self->thr_rp->throttle_debug;
 
     for (i = 0; i < THROTTLE_SENSOR_CNT; i++) {
-        uint tmp = atomic_read(&self->thr_sensorv[i].ts_sensor);
-        uint cidx = UINT_MAX;
+        u32  tmp = atomic_read(&self->thr_sensorv[i].ts_sensor);
+        u32  cidx = UINT_MAX;
         bool ignore = false;
 
         tmp = min_t(uint, tmp, 2 * THROTTLE_SENSOR_SCALE);
@@ -560,7 +583,9 @@ throttle_update(struct throttle *self)
 
     self->thr_cycles++;
     if (debug & THROTTLE_DEBUG_DELAYV) {
-        if (self->thr_cycles % 12000 == 0)
+        u32 debug_intvl_cycles = 40U * self->thr_rp->throttle_debug_intvl_s;
+
+        if (self->thr_cycles % debug_intvl_cycles == 0)
             throttle_debug(self);
     }
 }

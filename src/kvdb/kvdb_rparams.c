@@ -28,6 +28,10 @@
 
 #define KVDB_PARAM_U32_EXP(_name, _desc) PARAM_INST_U32_EXP(kvdb_rp_ref._name, #_name, _desc)
 
+#define KVDB_PARAM_STR(_name, _desc) \
+    PARAM_INST_STRING(kvdb_rp_ref._name, sizeof(kvdb_rp_ref._name), #_name, _desc)
+
+
 /*
  * Steps to add a new kvdb run-time parameter(rparam):
  * 1. Add a new struct element to struct kvdb_rparams.
@@ -90,7 +94,9 @@ kvdb_rparams_defaults(void)
 
         .throttle_relax = 1,
         .throttle_debug = 0,
+        .throttle_debug_intvl_s = 300,
         .throttle_c0_hi_th = 1024 * 8,
+        .throttle_init_policy = "default",
 
         .log_lvl = HSE_LOG_PRI_DEFAULT,
         .log_squelch_ns = HSE_LOG_SQUELCH_NS_DEFAULT,
@@ -163,8 +169,10 @@ static struct param_inst   kvdb_rp_table[] = {
     KVDB_PARAM_EXP(dur_throttle_enable, "enable durablity throttling"),
     KVDB_PARAM_U32_EXP(throttle_relax, "throttle relax"),
     KVDB_PARAM_U32_EXP(throttle_debug, "throttle debug"),
+    KVDB_PARAM_U32_EXP(throttle_debug_intvl_s, "throttle debug interval (secs)"),
     KVDB_PARAM_EXP(throttle_sleep_min_ns, "nanosleep time overhead (nsecs)"),
     KVDB_PARAM_EXP(throttle_c0_hi_th, "throttle sensor: c0 high water mark (MiB)"),
+    KVDB_PARAM_STR(throttle_init_policy, "throttle initialization policy"),
 
     KVDB_PARAM_U32(log_lvl, "log message verbosity. Range: 0 to 7."),
     KVDB_PARAM_EXP(log_squelch_ns, "drop messages repeated within nsec window"),
