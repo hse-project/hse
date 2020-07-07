@@ -348,9 +348,8 @@ struct kvdb_rparams kvdb_rp_dt_defaults;
 merr_t
 kvdb_rparams_add_to_dt(const char *mp_name, struct kvdb_rparams *p)
 {
-    int    i;
-    int    num_elems = NELEM(kvdb_rp_table);
-    size_t param_sz;
+    int i;
+    int num_elems = NELEM(kvdb_rp_table);
 
     if (!mp_name || !p)
         return merr(ev(EINVAL));
@@ -358,10 +357,11 @@ kvdb_rparams_add_to_dt(const char *mp_name, struct kvdb_rparams *p)
     kvdb_rp_dt_defaults = kvdb_rparams_defaults();
 
     for (i = 0; i < num_elems - 1; i++) {
-        bool   writable = false;
-        size_t offset = kvdb_rp_table[i].pi_value - (void *)&kvdb_rp_ref;
-        char   param_name[DT_PATH_ELEMENT_LEN];
-        int    wx;
+        bool          writable = false;
+        size_t        offset = kvdb_rp_table[i].pi_value - (void *)&kvdb_rp_ref;
+        char          param_name[DT_PATH_ELEMENT_LEN];
+        param_show_t *param_showp;
+        int           wx;
 
         get_param_name(i, param_name, sizeof(param_name));
 
@@ -373,9 +373,9 @@ kvdb_rparams_add_to_dt(const char *mp_name, struct kvdb_rparams *p)
             }
         }
 
-        param_sz = kvdb_rp_table[i].pi_type.param_size;
+        param_showp = kvdb_rp_table[i].pi_type.param_val_to_str;
 
-        if (param_sz == sizeof(u32)) {
+        if (param_showp == show_u32) {
             CFG_U32(
                 mp_name,
                 param_name,
@@ -384,7 +384,7 @@ kvdb_rparams_add_to_dt(const char *mp_name, struct kvdb_rparams *p)
                 NULL,
                 p,
                 writable);
-        } else if (param_sz == sizeof(u64)) {
+        } else if (param_showp == show_u64) {
             CFG_U64(
                 mp_name,
                 param_name,
@@ -393,7 +393,7 @@ kvdb_rparams_add_to_dt(const char *mp_name, struct kvdb_rparams *p)
                 NULL,
                 p,
                 writable);
-        } else {
+        } else if (param_showp == show_string) {
             CFG_STR(
                 mp_name,
                 param_name,
@@ -403,6 +403,8 @@ kvdb_rparams_add_to_dt(const char *mp_name, struct kvdb_rparams *p)
                 NULL,
                 p,
                 writable);
+        } else {
+            return merr(ev(EINVAL));
         }
     }
 
