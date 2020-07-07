@@ -235,8 +235,14 @@ ASAN          ?= 0
 BUILD_NUMBER  ?= 0
 
 MPOOL_INCLUDE_DIR ?= /usr/include
-MPOOL_LIB_DIR     ?= /usr/lib64
-BLKID_LIB_DIR     ?= /usr/lib64
+
+ifeq (${BUILD_PKG_TYPE},deb)
+	MPOOL_LIB_DIR ?= /usr/lib/x86_64-linux-gnu
+	BLKID_LIB_DIR ?= /usr/lib/x86_64-linux-gnu/mpool
+else
+	MPOOL_LIB_DIR ?= /usr/lib64
+	BLKID_LIB_DIR ?= /usr/lib64/mpool
+endif
 
 ifeq ($(filter ubsan,$(MAKECMDGOALS)),ubsan)
 UBSAN := 1
