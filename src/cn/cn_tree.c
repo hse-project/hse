@@ -112,6 +112,9 @@ kvset_iterv_release(uint iterc, struct kv_iterator **iterv, struct workqueue_str
     size_t sz, itervsz;
     uint   i;
 
+    if (!iterc)
+        return;
+
     if (wq) {
         itervsz = sizeof(w->kir_iterv[0]) * iterc;
         sz = sizeof(*w) + itervsz;

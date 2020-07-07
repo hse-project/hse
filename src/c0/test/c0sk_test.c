@@ -439,7 +439,8 @@ MTF_DEFINE_UTEST_PREPOST(c0sk_test, throttling, no_fail_pre, no_fail_post)
     size_t              c0sk_kvmultisets_sz_saved;
     atomic64_t          seqno;
     int                 i;
-    struct throttle     throttle;
+    /* static because kvdb_fini uses this to log dt */
+    static struct throttle throttle;
 
     kvdb_rp = kvdb_rparams_defaults();
     kvs_rp = kvs_rparams_defaults();
