@@ -276,6 +276,8 @@ kvset_builder_add_val(
             err = vbb_add_entry(self->vbb, vdata, omlen, &vbid, &vbidx, &vboff);
             if (ev(err))
                 return err;
+
+            self->key_stats.c0_vlen += omlen;
         }
 
         if (complen)

@@ -74,8 +74,7 @@ kvset_builder_flush_vblock(struct kvset_builder *self)
 void
 kvset_builder_get_c0c1vstat(struct kvset_builder *self, u64 *c0_vlen, u64 *c1_vlen)
 {
-    assert(self->key_stats.c1_vlen <= self->key_stats.tot_vlen);
-    *c0_vlen = self->key_stats.tot_vlen - self->key_stats.c1_vlen;
+    *c0_vlen = self->key_stats.c0_vlen;
     *c1_vlen = self->key_stats.c1_vlen;
 }
 
