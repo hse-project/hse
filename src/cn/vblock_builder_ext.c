@@ -230,6 +230,7 @@ vbb_destroy_ext(struct vblock_builder *bld)
     free(ext);
 }
 
+/* vbb_verify_entry: vlen must be on-media length.  actually, vlen seems unnecessary here  */
 bool
 vbb_verify_entry(struct vblock_builder *bld, u32 vbidx, u64 blkid, u64 blkoff, u32 vlen)
 {
@@ -429,7 +430,7 @@ merr_t
 vbb_add_entry_ext(
     struct vblock_builder *bld,
     const void *           vdata,
-    uint                   vlen,
+    uint                   vlen, /* on-media length */
     bool                   wait,
     u8                     index,
     u64 *                  vbidout,

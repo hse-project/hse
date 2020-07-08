@@ -60,6 +60,7 @@ struct kvs_vtuple_ref {
             u16 vr_index;
             u32 vr_off;
             u32 vr_len;
+            u32 vr_complen;
         } vb;
         struct {
             u16         vr_len;

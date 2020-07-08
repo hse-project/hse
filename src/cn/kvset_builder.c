@@ -15,6 +15,7 @@
 #include <hse_util/event_counter.h>
 #include <hse_util/slab.h>
 #include <hse_util/bonsai_tree.h>
+#include <hse_util/compression.h>
 
 #include "kcompact.h"
 #include "spill.h"
@@ -56,6 +57,8 @@ kvset_builder_create(
     bld->key_stats.seqno_prev = U64_MAX;
     bld->key_stats.seqno_prev_ptomb = U64_MAX;
 
+    bld->compress = vcomp_compress_ops(cn_get_rp(cn));
+
     *bld_out = bld;
     return 0;
 
@@ -69,8 +72,8 @@ err_exit1:
 static int
 reserve_kmd(struct kmd_info *ki)
 {
-    uint initial = 256;
-    uint need = 64;
+    uint initial = 16*1024;
+    uint need = 256;
     uint min_size = ki->kmd_used + need;
     uint new_size;
     u8 * new_mem;
@@ -142,22 +145,51 @@ kvset_builder_add_key(struct kvset_builder *self, const struct key_obj *kobj)
     return ev(err);
 }
 
+/**
+ * kvset_builder_add_val() - Add a value or a tombstone to a kvset entry.
+ * @builder: Kvset builder object.
+ * @seq: Sequence number of value or tombstone.
+ * @vdata: Pointer to @vlen bytes of uncompressed value data, @complen
+ *         bytes of compressed value data, or a special tombstone pointer.
+ * @vlen: Length of uncompressed value.
+ * @complen: Length of compressed value if value is compressed. Must
+ *           be set to 0 if value is not compressed.
+ * @c1: Handle for c1 builder. Set during ingest from c0/c1 into cn and
+ *      used to determine if value exists in a c1 vblock.
+ *
+ * Notes on compression:
+ * - If @complen > 0, then the value is already compressed and will be
+ *   stored on media as is (even if compression is not enabled for this
+ *   kvset).
+ * - If @complen == 0, and compression is enabled for this kvset, then the
+ *   value will be compressed before writing to media if compression
+ *   results in a worthwhile size reduction.  For example, a 10,000 byte
+ *   value that compressed to 9999 bytes will not be stored in compressed
+ *   from.
+ *
+ * Special cases for tombstones:
+ *  - If @vdata == %HSE_CORE_TOMB_PFX, then a prefix tombstone is added
+ *    and @vlen is ignored.
+ *  - If @vdata == %HSE_CORE_TOMB_REG, then a regular tombstone is added
+ *    and @vlen is ignored.
+ *  - If @vdata == NULL or @vlen == 0, then a zero-length value is added.
+ *  - Otherwise, a non-zero length value is added.
+ */
 merr_t
 kvset_builder_add_val(
-    struct kvset_builder *  self,
+    struct kvset_builder   *self,
     u64                     seq,
-    const void *            vdata,
+    const void             *vdata,
     uint                    vlen,
-    struct c1_bonsai_vbldr *vbldr)
+    uint                    complen,
+    struct c1_bonsai_vbldr *c1)
 {
     merr_t           err;
-    uint             vbidx = 0, vboff = 0;
-    u64              vbid = 0;
     u64              seqno_prev;
     struct kmd_info *ki = vdata == HSE_CORE_TOMB_PFX ? &self->sec : &self->main;
 
-    if (reserve_kmd(ki))
-        return merr(ev(ENOMEM));
+    if (ev(reserve_kmd(ki)))
+        return merr(ENOMEM);
 
     if (vdata == HSE_CORE_TOMB_REG) {
         kmd_add_tomb(self->main.kmd, &self->main.kmd_used, seq);
@@ -166,29 +198,94 @@ kvset_builder_add_val(
         kmd_add_ptomb(self->sec.kmd, &self->sec.kmd_used, seq);
         self->key_stats.nptombs++;
         self->last_ptseq = seq;
-    } else if (vlen == 0) {
+    } else if (!vdata || vlen == 0) {
         kmd_add_zval(self->main.kmd, &self->main.kmd_used, seq);
-    } else if (vlen <= CN_SMALL_VALUE_THRESHOLD) {
-        assert(vdata);
+    } else if (complen == 0 && vlen <= CN_SMALL_VALUE_THRESHOLD) {
+        /* Do not currently support compressed valus in KMD as an "ival", so
+         * complen must be zero.
+         */
         kmd_add_ival(self->main.kmd, &self->main.kmd_used, seq, vdata, vlen);
         self->key_stats.tot_vlen += vlen;
     } else {
+
+        uint vbidx = 0, vboff = 0;
+        u64 vbid = 0;
+        bool c1value;
+        uint omlen; /* on media length */
+
         assert(vdata);
 
-        if (kvset_vbuilder_vblock_exists(self, seq, vdata, vlen, vbldr, &vbidx, &vboff, &vbid))
-            goto skip_add_entry;
+        c1value = c1 && kvset_vbuilder_vblock_exists(self, seq, vdata, vlen,
+            c1, &vbidx, &vboff, &vbid);
 
-        err = vbb_add_entry(self->vbb, vdata, vlen, &vbid, &vbidx, &vboff);
-        if (ev(err))
-            return err;
+        if (c1value) {
 
-        self->key_stats.c0_vlen += vlen;
+            /* value already in a c1 vlbock.
+             * c1 compressed values not currently supported.
+             */
+            if (ev(complen > 0)) {
+                assert(0);
+                return merr(EBUG);
+            }
 
-    skip_add_entry:
-        kmd_add_val(self->main.kmd, &self->main.kmd_used, seq, vbidx, vboff, vlen);
+            omlen = vlen;
 
-        self->vused += vlen;
-        self->key_stats.tot_vlen += vlen;
+            self->key_stats.c1_vlen += vlen;
+
+        } else {
+
+            /* add value to vblock */
+
+            if (self->compress && complen == 0) {
+                /* Try to compress value.  If it can't be compressed
+                 * for whatever reason, just leave complen == 0 and
+                 * the following code will figure it out.
+                 */
+                complen = self->compress->cop_estimate(vdata, vlen);
+
+                if (unlikely(!complen)) {
+                    /* compression library says "no" */
+                    goto add_entry;
+                }
+
+                if (unlikely(self->compress_buf_sz < complen)) {
+                    /* need a bigger buffer */
+                    free(self->compress_buf);
+                    self->compress_buf_sz = ALIGN(complen, PAGE_SIZE);
+                    self->compress_buf = malloc(self->compress_buf_sz);
+                    if (unlikely(!self->compress_buf)) {
+                        self->compress_buf_sz = 0;
+                        complen = 0;
+                        goto add_entry;
+                    }
+                }
+
+                err = self->compress->cop_compress(vdata, vlen,
+                    self->compress_buf, self->compress_buf_sz,
+                    &complen);
+
+                if (ev(err))
+                    complen = 0;
+                else
+                    vdata = self->compress_buf;
+            }
+
+          add_entry:
+            /* vblock builder needs on-media length */
+            omlen = complen ? complen : vlen;
+            err = vbb_add_entry(self->vbb, vdata, omlen, &vbid, &vbidx, &vboff);
+            if (ev(err))
+                return err;
+        }
+
+        if (complen)
+            kmd_add_cval(self->main.kmd, &self->main.kmd_used, seq, vbidx, vboff, vlen, complen);
+        else
+            kmd_add_val(self->main.kmd, &self->main.kmd_used, seq, vbidx, vboff, vlen);
+
+        /* stats (and space amp) use on-media length */
+        self->vused += omlen;
+        self->key_stats.tot_vlen += omlen;
     }
 
     self->seqno_max = max_t(u64, self->seqno_max, seq);
@@ -211,15 +308,33 @@ kvset_builder_add_val(
     return 0;
 }
 
+/**
+ * kvset_builder_add_vref() - add a vtype_val or vtype_cval entry its a kvset
+ *
+ * If @complen > 0, a vtype_cval entry will written to media.
+ * If @complen == 0, a vtype_val entry will written to media.
+ */
 merr_t
-kvset_builder_add_vref(struct kvset_builder *self, u64 seq, uint vbidx, uint vboff, uint vlen)
+kvset_builder_add_vref(
+    struct kvset_builder   *self,
+    u64                     seq,
+    uint                    vbidx,
+    uint                    vboff,
+    uint                    vlen,
+    uint                    complen)
 {
+    uint om_len = complen ? complen : vlen; /* on-media length */
+
     if (reserve_kmd(&self->main))
         return merr(ev(ENOMEM));
 
-    kmd_add_val(self->main.kmd, &self->main.kmd_used, seq, vbidx, vboff, vlen);
-    self->vused += vlen;
-    self->key_stats.tot_vlen += vlen;
+    if (complen > 0)
+        kmd_add_cval(self->main.kmd, &self->main.kmd_used, seq, vbidx, vboff, vlen, complen);
+    else
+        kmd_add_val(self->main.kmd, &self->main.kmd_used, seq, vbidx, vboff, vlen);
+
+    self->vused += om_len;
+    self->key_stats.tot_vlen += om_len;
     self->key_stats.nvals++;
 
     self->seqno_max = max_t(u64, self->seqno_max, seq);
@@ -271,6 +386,7 @@ kvset_builder_destroy(struct kvset_builder *bld)
 
     free(bld->main.kmd);
     free(bld->sec.kmd);
+    free(bld->compress_buf);
     free(bld);
 }
 

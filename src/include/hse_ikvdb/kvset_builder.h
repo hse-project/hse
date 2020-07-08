@@ -74,29 +74,6 @@ kvset_builder_get_mblocks(struct kvset_builder *builder, struct kvset_mblocks *m
 merr_t
 kvset_builder_add_key(struct kvset_builder *builder, const struct key_obj *ko);
 
-/**
- * kvset_builder_add_val() - add a value or a tombstone to a kvset entry
- * @builder: kvset builder object
- * @seq: sequence number of value or tombstone
- * @vdata: pointer to value, or a special tombstone pointer
- * @vlen: length of value
- * @vbldr: vbldr which is already created
- *
- * See kvset_builder_add_key().
- *
- * Special cases for tombstones:
- *
- *   - If @vdata == %HSE_CORE_TOMB_PFX:
- *        Then a prefix tombstone is added and @vlen is ignored.
- *
- *   - If @vdata == %HSE_CORE_TOMB_REG:
- *        Then a regular tombstone is added and @vlen is ignored.
- *
- *   - If @vdata == NULL or @vlen == 0:
- *        Then a zero-length value is added.
- *
- *   - Otherwise, and regular value is added.
- */
 /* MTF_MOCK */
 merr_t
 kvset_builder_add_val(
@@ -104,11 +81,18 @@ kvset_builder_add_val(
     u64                     seq,
     const void *            vdata,
     uint                    vlen,
+    uint                    complen,
     struct c1_bonsai_vbldr *vbldr);
 
 /* MTF_MOCK */
 merr_t
-kvset_builder_add_vref(struct kvset_builder *self, u64 seq, uint vbidx, uint vboff, uint vlen);
+kvset_builder_add_vref(
+    struct kvset_builder   *self,
+    u64                     seq,
+    uint                    vbidx,
+    uint                    vboff,
+    uint                    vlen,
+    uint                    complen);
 
 /* MTF_MOCK */
 merr_t

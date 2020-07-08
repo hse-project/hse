@@ -56,10 +56,12 @@ struct ikvs {
     struct perfc_set ikv_cc_pc;
     struct perfc_set ikv_cd_pc;
 
-    __aligned(SMP_CACHE_BYTES) struct curcache ikv_curcachev[7];
+    __aligned(SMP_CACHE_BYTES)
+    struct curcache ikv_curcachev[7];
     struct cache_bucket *ikv_curcache_bktmem;
 
-    __aligned(SMP_CACHE_BYTES) struct kvs_rparams ikv_rp;
+    __aligned(SMP_CACHE_BYTES)
+    struct kvs_rparams ikv_rp;
 
     const char *ikv_mpool_name;
     const char *ikv_kvs_name;

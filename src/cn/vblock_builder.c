@@ -271,7 +271,7 @@ merr_t
 vbb_add_entry(
     struct vblock_builder *bld,
     const void *           vdata,
-    uint                   vlen,
+    uint                   vlen, /* on-media length */
     u64 *                  vbidout,
     uint *                 vbidxout,
     uint *                 vboffout)
@@ -311,6 +311,7 @@ vbb_add_entry(
         bytes = vlen - voff;
         if (bytes > space)
             bytes = space;
+
         memcpy(bld->wbuf + bld->wbuf_off, vdata + voff, bytes);
 
         bld->wbuf_off += bytes;

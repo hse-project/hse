@@ -461,7 +461,8 @@ tp_next_entry(
     uint *                   vbidx,
     uint *                   vboff,
     const void **            vdata,
-    uint *                   vlen)
+    uint *                   vlen,
+    uint *                   clen)
 {
     static char valbuf[CN_SMALL_VALUE_THRESHOLD] = { 17, 23, 42, 211, 164, 96, 11, 7 };
     u32         rv;
@@ -512,6 +513,7 @@ value:
     *vboff = mwc_rand32(&tp->mwc);
     *vbidx = mwc_rand32(&tp->mwc) & HG16_32K_MAX;
     *vlen = mwc_rand32(&tp->mwc) & HG32_1024M_MAX;
+    *clen = 0;
     if (*vlen <= CN_SMALL_VALUE_THRESHOLD)
         *vlen = CN_SMALL_VALUE_THRESHOLD;
     if (tp->enc == enc_short) {
@@ -520,6 +522,12 @@ value:
     } else if (tp->enc == enc_med) {
         *vbidx &= 0x3f;
         *vlen &= 0xfff;
+    }
+    if (mwc_rand32(&tp->mwc) % 100 < 10) {
+        *vtype = vtype_cval;
+        *clen = *vlen / 2;
+        if (!*clen)
+            *clen = 1;
     }
 }
 
@@ -569,7 +577,7 @@ run_kmd_read_perf(struct kmd_test_stats *s)
     u64            off, seq, rx, rval, exp_seq;
     unsigned       i, count, exp_count;
     enum kmd_vtype vtype;
-    uint           vbidx, vboff, vlen;
+    uint           vbidx, vboff, vlen, clen;
     const void *   vdata;
 
     off = 0;
@@ -594,14 +602,26 @@ run_kmd_read_perf(struct kmd_test_stats *s)
         for (i = 0; i < count; i++) {
             kmd_type_seq(mem, &off, &vtype, &seq);
             assert(exp_seq + i == seq);
-            if (vtype == vtype_val) {
-                s->nvals++;
-                kmd_val(mem, &off, &vbidx, &vboff, &vlen);
-            } else if (vtype == vtype_ival) {
-                s->nvals++;
-                kmd_ival(mem, &off, &vdata, &vlen);
-            } else {
-                s->ntombs++;
+            switch (vtype) {
+                case vtype_ival:
+                    kmd_ival(mem, &off, &vdata, &vlen);
+                    s->nvals++;
+                    break;
+                case vtype_val:
+                    kmd_val(mem, &off, &vbidx, &vboff, &vlen);
+                    s->nvals++;
+                    break;
+                case vtype_cval:
+                    kmd_cval(mem, &off, &vbidx, &vboff, &vlen, &clen);
+                    s->nvals++;
+                    break;
+                case vtype_zval:
+                    s->nvals++;
+                    break;
+                case vtype_ptomb:
+                case vtype_tomb:
+                    s->ntombs++;
+                    break;
             }
         }
     }
@@ -614,7 +634,7 @@ run_kmd_tp(struct kmd_test_profile *tp, struct kmd_test_stats *s, bool writing)
     u64            off, seq;
     unsigned       count, actual_count, may_need;
     enum kmd_vtype vtype;
-    uint           i, vbidx, vboff, vlen;
+    uint           i, vbidx, vboff, vlen, clen;
     const void *   vdata;
 
     off = 0;
@@ -641,7 +661,7 @@ run_kmd_tp(struct kmd_test_profile *tp, struct kmd_test_stats *s, bool writing)
         s->nkeys++;
         s->nseqs += count;
         for (i = 0; i < count; i++) {
-            tp_next_entry(tp, &vtype, &seq, &vbidx, &vboff, &vdata, &vlen);
+            tp_next_entry(tp, &vtype, &seq, &vbidx, &vboff, &vdata, &vlen, &clen);
             switch (vtype) {
                 case vtype_tomb:
                     s->ntombs++;
@@ -655,6 +675,7 @@ run_kmd_tp(struct kmd_test_profile *tp, struct kmd_test_stats *s, bool writing)
                 case vtype_ival:
                     s->nivals++;
                     break;
+                case vtype_cval:
                 case vtype_val:
                     s->nvals++;
                     break;
@@ -673,8 +694,12 @@ run_kmd_tp(struct kmd_test_profile *tp, struct kmd_test_stats *s, bool writing)
                     case vtype_ival:
                         kmd_add_ival(mem, &off, seq, vdata, vlen);
                         break;
+                    case vtype_cval:
+                        kmd_add_cval(mem, &off, seq, vbidx, vboff, vlen, clen);
+                        break;
                     case vtype_val:
                         kmd_add_val(mem, &off, seq, vbidx, vboff, vlen);
+                        break;
                 }
             } else {
                 u64            actual_seq;
@@ -682,19 +707,34 @@ run_kmd_tp(struct kmd_test_profile *tp, struct kmd_test_stats *s, bool writing)
                 uint           actual_vbidx;
                 uint           actual_vboff;
                 uint           actual_vlen;
+                uint           actual_clen;
                 const void *   actual_vdata;
 
                 kmd_type_seq(mem, &off, &actual_vtype, &actual_seq);
                 assert(vtype == actual_vtype);
                 assert(seq == actual_seq);
-                if (vtype == vtype_val) {
-                    kmd_val(mem, &off, &actual_vbidx, &actual_vboff, &actual_vlen);
-                    assert(actual_vbidx == vbidx);
-                    assert(actual_vboff == vboff);
-                    assert(actual_vlen == vlen);
-                } else if (vtype == vtype_ival) {
-                    kmd_ival(mem, &off, &actual_vdata, &actual_vlen);
-                    assert(actual_vlen == vlen);
+                switch (vtype) {
+                    case vtype_val:
+                        kmd_val(mem, &off, &actual_vbidx, &actual_vboff, &actual_vlen);
+                        assert(actual_vbidx == vbidx);
+                        assert(actual_vboff == vboff);
+                        assert(actual_vlen == vlen);
+                        break;
+                    case vtype_cval:
+                        kmd_cval(mem, &off, &actual_vbidx, &actual_vboff, &actual_vlen, &actual_clen);
+                        assert(actual_vbidx == vbidx);
+                        assert(actual_vboff == vboff);
+                        assert(actual_vlen == vlen);
+                        assert(actual_clen == clen);
+                        break;
+                    case vtype_ival:
+                        kmd_ival(mem, &off, &actual_vdata, &actual_vlen);
+                        assert(actual_vlen == vlen);
+                        break;
+                    case vtype_tomb:
+                    case vtype_ptomb:
+                    case vtype_zval:
+                        break;
                 }
             }
         }

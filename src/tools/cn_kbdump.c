@@ -637,7 +637,7 @@ print_wbt_nodes(void *kblk, void *kmd, int root, bool ptomb)
 }
 
 void
-print_wbt34(void *wbt_hdr, void *kblk, bool ptomb)
+print_wbt_impl(void *wbt_hdr, void *kblk, bool ptomb)
 {
     u32 wbt_doff;
     u8 *kmd;
@@ -663,11 +663,11 @@ void
 print_wbt(void *wbt_hdr, void *kblk, bool ptomb)
 {
     switch (wbt_hdr_version(wbt_hdr)) {
-        case WBT_TREE_VERSION:
-            print_wbt34(wbt_hdr, kblk, ptomb);
-            break;
+        case WBT_TREE_VERSION6:
+        case WBT_TREE_VERSION5:
+        case WBT_TREE_VERSION4:
         case WBT_TREE_VERSION3:
-            print_wbt34(wbt_hdr, kblk, ptomb);
+            print_wbt_impl(wbt_hdr, kblk, ptomb);
             break;
         default:
             printf("Invalid wbtree magic and/or version\n");

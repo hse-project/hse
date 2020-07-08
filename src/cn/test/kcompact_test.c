@@ -167,7 +167,8 @@ _kvset_builder_add_key(struct kvset_builder *builder, const struct key_obj *kobj
 }
 
 static merr_t
-_kvset_builder_add_vref(struct kvset_builder *self, u64 seq, uint vbidx, uint vboff, uint vlen)
+_kvset_builder_add_vref(struct kvset_builder *self, u64 seq,
+    uint vbidx, uint vboff, uint vlen, uint complen)
 {
     VERIFY_EQ_RET(st.have.nvals, 0, __LINE__);
 
@@ -200,6 +201,7 @@ _kvset_builder_add_val(
     u64                     seq,
     const void *            vdata,
     uint                    vlen,
+    uint                    complen,
     struct c1_bonsai_vbldr *vbldr)
 {
     VERIFY_EQ_RET(st.have.nvals, 0, __LINE__);

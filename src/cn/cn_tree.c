@@ -32,6 +32,7 @@
 #include <hse_util/bin_heap.h>
 #include <hse_util/log2.h>
 #include <hse_util/workqueue.h>
+#include <hse_util/compression_lz4.h>
 
 #include <mpool/mpool.h>
 
@@ -2634,6 +2635,7 @@ cn_tree_cursor_read(struct pscan *cur, struct kvs_kvtuple *kvt, bool *eof)
     bool                is_tomb;
     const void *        vdata;
     uint                vlen;
+    uint                complen;
     uint                klen;
     int                 rc;
     struct kv_iterator *kv_iter = 0;
@@ -2690,13 +2692,15 @@ cn_tree_cursor_read(struct pscan *cur, struct kvs_kvtuple *kvt, bool *eof)
             u32            vboff;
 
             if (!kvset_iter_next_vref(
-                    kv_iter, &item.vctx, &seq, &vtype, &vbidx, &vboff, &vdata, &vlen)) {
+                    kv_iter, &item.vctx, &seq, &vtype, &vbidx,
+                    &vboff, &vdata, &vlen, &complen)) {
                 end = true;
                 break;
             }
 
             cur->merr =
-                kvset_iter_next_val(kv_iter, &item.vctx, vtype, vbidx, vboff, &vdata, &vlen);
+                kvset_iter_next_val(kv_iter, &item.vctx, vtype, vbidx,
+                    vboff, &vdata, &vlen, &complen);
             if (ev(cur->merr))
                 return cur->merr;
 
@@ -2744,10 +2748,29 @@ cn_tree_cursor_read(struct pscan *cur, struct kvs_kvtuple *kvt, bool *eof)
 
     /* copyout before drop dups! */
     kvt->kvt_key.kt_data = key_obj_copy(cur->buf, cur->bufsz, &klen, &item.kobj);
-
     kvt->kvt_key.kt_len = klen;
-    kvt->kvt_value.vt_len = vlen;
-    kvt->kvt_value.vt_data = memcpy(cur->buf + kvt->kvt_key.kt_len, vdata, vlen);
+
+    kvt->kvt_value.vt_data = cur->buf + kvt->kvt_key.kt_len;
+    kvt->kvt_value.vt_len  = vlen;
+
+    if (complen) {
+
+        extern struct compress_ops compress_lz4_ops;
+        uint len_check;
+
+        cur->merr = compress_lz4_ops.cop_decompress(vdata, complen,
+            kvt->kvt_value.vt_data, vlen, &len_check);
+        if (ev(cur->merr))
+            return cur->merr;
+        if (ev(len_check != vlen)) {
+            assert(0);
+            cur->merr = merr(EBUG);
+            return cur->merr;
+        }
+
+    } else {
+        memcpy(kvt->kvt_value.vt_data, vdata, vlen);
+    }
 
     cur->stats.ms_keys_out++;
     cur->stats.ms_key_bytes_out += kvt->kvt_key.kt_len;

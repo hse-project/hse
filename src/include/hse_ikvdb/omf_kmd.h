@@ -20,12 +20,15 @@
  *   vboff   u32          4   4   4   not present for tombs
  *   vbidx   hg16_32k     1   1   2   not present for tombs
  *   vlen    hg32_1024m   1   1   4   not present for tombs
+ *   clen    hg32_1024m   1   1   4   not present for tombs and
+ *                                    non-compressed values
  *
  * Per-entry overhead:
  *
  *     Min  Typical  Max
  *      3      3      9     A key with 1 tombstone entry
  *      9      9     19     A key with a non-zero length value
+ *     10     10     23     A compressed key
  *
  * KMD List:
  *
@@ -68,7 +71,7 @@
 
 #define KMD_MAX_COUNT HG32_1024M_MAX
 
-#define KMD_MAX_ENCODED_ENTRY_LEN 19
+#define KMD_MAX_ENCODED_ENTRY_LEN 23
 #define KMD_MAX_ENCODED_COUNT_LEN 4
 
 enum kmd_vtype {
@@ -76,7 +79,8 @@ enum kmd_vtype {
     vtype_zval = 1,  /* zero-length value       */
     vtype_tomb = 2,  /* tombstone               */
     vtype_ptomb = 3, /* prefix tombstone        */
-    vtype_ival = 4   /* immediate (short) value */
+    vtype_ival = 4,  /* immediate (short) value */
+    vtype_cval = 5   /* LZ4 compressed value */
 };
 
 static inline uint
@@ -140,6 +144,19 @@ kmd_add_val(void *kmd, size_t *off, u64 seq, uint vbidx, uint vboff, uint vlen)
     encode_hg32_1024m(kmd, off, vlen);
 }
 
+static inline void
+kmd_add_cval(void *kmd, size_t *off, u64 seq, uint vbidx, uint vboff, uint vlen, uint complen)
+{
+    ((u8 *)kmd)[*off] = vtype_cval;
+    *off += 1;
+    encode_hg64(kmd, off, seq);
+    encode_hg16_32k(kmd, off, vbidx);
+    *(u32 *)(kmd + *off) = cpu_to_be32(vboff);
+    *off += 4;
+    encode_hg32_1024m(kmd, off, vlen);
+    encode_hg32_1024m(kmd, off, complen);
+}
+
 static inline uint
 kmd_count(const void *kmd, size_t *off)
 {
@@ -161,6 +178,16 @@ kmd_val(const void *kmd, size_t *off, uint *vbidx, uint *vboff, uint *vlen)
     *vboff = be32_to_cpu(*(const u32 *)(kmd + *off));
     *off += 4;
     *vlen = decode_hg32_1024m(kmd, off);
+}
+
+static inline void
+kmd_cval(const void *kmd, size_t *off, uint *vbidx, uint *vboff, uint *vlen, uint *complen)
+{
+    *vbidx = decode_hg16_32k(kmd, off);
+    *vboff = be32_to_cpu(*(const u32 *)(kmd + *off));
+    *off += 4;
+    *vlen = decode_hg32_1024m(kmd, off);
+    *complen = decode_hg32_1024m(kmd, off);
 }
 
 static inline void

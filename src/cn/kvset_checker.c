@@ -755,6 +755,7 @@ _kblock_check(struct kb_info *kb_info, struct vb_meta *vb_meta)
 
     wbt_ver = omf_wbt_version(wbt_hdr);
     switch (wbt_ver) {
+        case WBT_TREE_VERSION6:
         case WBT_TREE_VERSION5:
             kb_info->wbt_ops.wops_lfe = wbt_lfe;
             kb_info->wbt_ops.wops_node_pfx = wbt_node_pfx;

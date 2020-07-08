@@ -147,7 +147,7 @@ kcompact(struct cn_compaction_work *w)
     merr_t            err;
 
     enum kmd_vtype vtype;
-    uint           vbidx, vboff, vlen;
+    uint           vbidx, vboff, vlen, complen;
     const void *   vdata;
 
     u64  seq, emitted_seq = 0, emitted_seq_pt = 0;
@@ -213,8 +213,9 @@ get_values:
 
     while (horizon &&
            kvset_iter_next_vref(
-               w->cw_inputv[curr.src], &curr.vctx, &seq, &vtype, &vbidx, &vboff, &vdata, &vlen)) {
-
+               w->cw_inputv[curr.src], &curr.vctx, &seq, &vtype, &vbidx, &vboff,
+               &vdata, &vlen, &complen))
+    {
         bool should_emit = false;
 
         /* Assertion logic:
@@ -260,12 +261,14 @@ get_values:
 
             switch (vtype) {
                 case vtype_val:
+                case vtype_cval:
                     err = kvset_builder_add_vref(
-                        w->cw_child[0], seq, vbidx + w->cw_vbmap.vbm_map[curr.src], vboff, vlen);
+                        w->cw_child[0], seq, vbidx + w->cw_vbmap.vbm_map[curr.src],
+                        vboff, vlen, complen);
                     break;
                 case vtype_zval:
                 case vtype_ival:
-                    err = kvset_builder_add_val(w->cw_child[0], seq, vdata, vlen, NULL);
+                    err = kvset_builder_add_val(w->cw_child[0], seq, vdata, vlen, 0, NULL);
                     break;
                 default:
                     err = kvset_builder_add_nonval(w->cw_child[0], seq, vtype);
@@ -280,8 +283,8 @@ get_values:
             else
                 emitted_seq = seq;
 
-            w->cw_stats.ms_val_bytes_out += vlen;
-            w->cw_vbmap.vbm_used += vlen;
+            w->cw_stats.ms_val_bytes_out += complen ? complen : vlen;
+            w->cw_vbmap.vbm_used += complen ? complen : vlen;
         } else {
             /* The only time we ever land here is when the same
              * key appears in two input kvsets with overlapping

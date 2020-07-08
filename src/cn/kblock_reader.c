@@ -60,7 +60,8 @@ kbr_read_wbt_region_desc_mem(void *wbt_hdr, struct wbt_desc *desc)
     desc->wbd_version = wbt_hdr_version(wbt_hdr);
 
     switch (desc->wbd_version) {
-        case WBT_TREE_VERSION:
+        case WBT_TREE_VERSION6:
+        case WBT_TREE_VERSION5:
         case WBT_TREE_VERSION4:
             desc->wbd_root = omf_wbt_root(wbt_hdr);
             desc->wbd_leaf = omf_wbt_leaf(wbt_hdr);

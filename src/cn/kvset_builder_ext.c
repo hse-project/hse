@@ -74,7 +74,8 @@ kvset_builder_flush_vblock(struct kvset_builder *self)
 void
 kvset_builder_get_c0c1vstat(struct kvset_builder *self, u64 *c0_vlen, u64 *c1_vlen)
 {
-    *c0_vlen = self->key_stats.c0_vlen;
+    assert(self->key_stats.c1_vlen <= self->key_stats.tot_vlen);
+    *c0_vlen = self->key_stats.tot_vlen - self->key_stats.c1_vlen;
     *c1_vlen = self->key_stats.c1_vlen;
 }
 
@@ -121,10 +122,8 @@ kvset_vbuilder_vblock_exists(
         *vbidx_out = bldr->vblk_baseidx + vbldr->cbv_blkidx;
         *vboff_out = vbldr->cbv_blkoff;
 
-        if (vbb_verify_entry(self->vbb, *vbidx_out, *vbid_out, vbldr->cbv_blkoff, vlen)) {
-            self->key_stats.c1_vlen += vlen;
+        if (vbb_verify_entry(self->vbb, *vbidx_out, *vbid_out, vbldr->cbv_blkoff, vlen))
             return true;
-        }
 
         hse_log(HSE_ERR "vbb_verify_entry failed");
     }

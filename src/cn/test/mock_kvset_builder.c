@@ -49,6 +49,7 @@ _kvset_builder_add_val(
     u64                     seq,
     const void *            vdata,
     uint                    vlen,
+    uint                    complen,
     struct c1_bonsai_vbldr *vbldr)
 {
     return 0;
@@ -61,7 +62,8 @@ _kvset_builder_add_nonval(struct kvset_builder *self, u64 seq, enum kmd_vtype vt
 }
 
 static merr_t
-_kvset_builder_add_vref(struct kvset_builder *self, u64 seq, uint vbidx, uint vboff, uint vlen)
+_kvset_builder_add_vref(struct kvset_builder *self, u64 seq,
+    uint vbidx, uint vboff, uint vlen, uint complen)
 {
     return 0;
 }
