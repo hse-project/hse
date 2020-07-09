@@ -473,3 +473,4 @@ $(error BUILD_DIR may not be [${CURDIR}/..])
 else ifneq ($(words ${BUILD_DIR}),1)
 $(error BUILD_DIR may not contain whitespace)
 endif
+
