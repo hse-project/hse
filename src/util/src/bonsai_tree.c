@@ -198,7 +198,7 @@ bn_find_impl(struct bonsai_root *tree, const struct bonsai_skey *skey, enum bons
     const void *                key;
 
     uint klen;
-    uint lcp;
+    uint lcp, bounds;
     s32  res;
 
     ki = &skey->bsk_key_imm;
@@ -211,18 +211,24 @@ bn_find_impl(struct bonsai_root *tree, const struct bonsai_skey *skey, enum bons
      * lcp to potentially minimize the amount of work required
      * to search for the key in this tree.
      */
-    if (tree->br_chkbounds) {
+    bounds = atomic_read(&tree->br_bounds);
+    if (bounds) {
         struct bonsai_kv *bkv = tree->br_kv.bkv_prev; /* max key */
 
-        if (tree->br_lcp > KI_DLEN_MAX) {
-            lcp = min_t(uint, klen, tree->br_lcp);
+        /* br_bounds is set to 1 + the lcp to use. */
+        lcp = min_t(uint, klen, bounds - 1);
+
+        if (lcp > KI_DLEN_MAX &&
+            key_immediate_index(ki) == key_immediate_index(&bkv->bkv_key_imm)) {
 
             lcp = memlcpq(key, bkv->bkv_key, lcp);
-            if (lcp > KI_DLEN_MAX)
+            if (lcp > KI_DLEN_MAX) {
+                assert(key_immediate_cmp(ki, &bkv->bkv_key_imm) == S32_MIN);
                 goto search;
-
-            lcp = KI_DLEN_MAX;
+            }
         }
+
+        lcp = KI_DLEN_MAX;
 
         /*
          * If search key > max, then a miss for both GE and EQ get.
@@ -524,8 +530,7 @@ bn_reset(struct bonsai_root *tree)
     tree->br_kv.bkv_tomb = NULL;
     tree->br_kv.bkv_flags = 0;
 
-    tree->br_lcp = 0;
-    tree->br_chkbounds = false;
+    atomic_set(&tree->br_bounds, 0);
 
     client->bc_slab_cur = NULL;
     client->bc_slab_end = NULL;
@@ -585,8 +590,7 @@ void
 bn_finalize(struct bonsai_root *tree)
 {
     const struct bonsai_kv *kmin, *kmax;
-
-    uint lcp;
+    uint                    lcp, set_lcp = 0;
 
     kmin = tree->br_kv.bkv_next;
     kmax = tree->br_kv.bkv_prev;
@@ -599,11 +603,17 @@ bn_finalize(struct bonsai_root *tree)
     if (kmin != kmax) {
         lcp = min_t(uint, kmin->bkv_key_imm.ki_klen, kmax->bkv_key_imm.ki_klen);
 
-        if (lcp > KI_DLEN_MAX) {
+        if (lcp > KI_DLEN_MAX &&
+            key_immediate_index(&kmin->bkv_key_imm) == key_immediate_index(&kmax->bkv_key_imm)) {
+
             lcp = memlcpq(kmin->bkv_key, kmax->bkv_key, lcp);
-            tree->br_lcp = lcp;
+            if (lcp > KI_DLEN_MAX) {
+                assert(key_immediate_cmp(&kmin->bkv_key_imm, &kmax->bkv_key_imm) == S32_MIN);
+                set_lcp = lcp;
+            }
         }
 
-        tree->br_chkbounds = true;
+        /* Indicate that the bounds have been established and the lcp to use. */
+        atomic_set(&tree->br_bounds, set_lcp + 1);
     }
 }
