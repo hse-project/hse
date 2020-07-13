@@ -202,7 +202,7 @@ else ifeq ($(findstring relassert,$(MAKECMDGOALS)),relassert)
 	BUILD_CFLAGS := -O2
 	BUILD_CDEFS := -DHSE_BUILD_RELASSERT -D_FORTIFY_SOURCE=2
 	BUILD_CDEFS += -DHSE_LOG_PRI_DEFAULT=5
-	CMAKE_BUILD_TYPE := Release
+	CMAKE_BUILD_TYPE := Debug
 else ifeq ($(findstring optdebug,$(MAKECMDGOALS)),optdebug)
 	BUILD_TYPE := optdebug
 	BUILD_STYPE := o
