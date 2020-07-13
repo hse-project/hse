@@ -249,7 +249,7 @@ struct bonsai_client {
  * @br_root:      pointer to the root of bonsai_tree
  * @br_kv:        a circular k/v list, next=head, prev=tail
  * @br_lcp:       longest common prefix between min/max keys
- * @br_chkbounds: safe to perfom a bounds check
+ * @br_bounds:    indicates bounds are established and lcp
  * @br_client:    bonsai client instance
  *
  * There is one such structure for every bonsai tree.
@@ -257,8 +257,7 @@ struct bonsai_client {
 struct bonsai_root {
     struct bonsai_node * br_root;
     struct bonsai_kv     br_kv;
-    unsigned int         br_lcp;
-    bool                 br_chkbounds;
+    atomic_t             br_bounds;
     struct bonsai_client br_client;
 };
 

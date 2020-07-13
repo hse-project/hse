@@ -396,6 +396,145 @@ exit:
     pthread_exit((void *)(long)merr_errno(err));
 }
 
+struct lcp_test_arg {
+    pthread_barrier_t *fbarrier;
+    uint               tid;
+};
+
+static void *
+bonsai_client_lcp_test(void *arg)
+{
+    int                i;
+    uint               tid;
+    merr_t             err = 0;
+    char               key[KI_DLEN_MAX + 36];
+    unsigned long      val;
+    pthread_barrier_t *fbarrier;
+
+    struct lcp_test_arg *p = (struct lcp_test_arg *)arg;
+
+    fbarrier = p->fbarrier;
+    tid = p->tid;
+
+    struct bonsai_skey skey = { 0 };
+    struct bonsai_sval sval = { 0 };
+
+#ifdef BONSAI_TREE_CLIENT_VERIFY
+    uint lcp, bounds;
+#endif
+
+    /*
+     * Register is not required for BP. For QSBR, it is required only for
+     * clients.
+     */
+#ifndef LIBURCU_QSBR
+#ifndef LIBURCU_BP
+    BONSAI_RCU_REGISTER();
+#endif
+#endif
+
+    memset(key, 'a', KI_DLEN_MAX + 27);
+
+    /*
+     * Insert keys of the same length (KI_DLEN_MAX + 27).
+     * The last byte is replaced with a..z.
+     * Each key is inserted with a unique value to identify the keynum, skidx.
+     */
+    for (i = 0; i < 26; i++) {
+        val = (u64)i << 32 | tid;
+
+        key[KI_DLEN_MAX + 26] = 'a' + i;
+
+        bn_skey_init(key, KI_DLEN_MAX + 27, tid, &skey);
+        bn_sval_init(&val, sizeof(val), val, &sval);
+
+        pthread_mutex_lock(&mtx);
+        err = bn_insert_or_replace(broot, &skey, &sval, false);
+        pthread_mutex_unlock(&mtx);
+
+        key[KI_DLEN_MAX + 26] = 'a';
+
+        if (err) {
+            hse_elog(HSE_ERR "lcp_test bn_insert %u result @@e", err, i);
+            break;
+        }
+    }
+
+    pthread_barrier_wait(fbarrier);
+
+    while (!stop_producer_threads)
+        usleep(1000);
+
+#ifdef BONSAI_TREE_CLIENT_VERIFY
+    bounds = atomic_read(&broot->br_bounds);
+    if (bounds)
+        lcp = bounds - 1;
+
+    for (i = 0; i < 26; i++) {
+        struct bonsai_skey          skey = { 0 };
+        struct bonsai_kv *          kv = NULL;
+        struct bonsai_val *         v;
+        unsigned long               val;
+        bool                        found;
+        const struct key_immediate *ki;
+
+        key[KI_DLEN_MAX + 26] = 'a' + i;
+
+        bn_skey_init(key, KI_DLEN_MAX + 27, tid, &skey);
+        ki = &skey.bsk_key_imm;
+
+        rcu_read_lock();
+        found = bn_find(broot, &skey, &kv);
+        assert(found);
+
+        v = kv->bkv_values;
+        memcpy((char *)&val, v->bv_value, sizeof(val));
+        assert(val == ((u64)i << 32 | tid));
+
+        rcu_read_unlock();
+
+        key[KI_DLEN_MAX + 26] = 'a';
+
+        if (lcp > 0) {
+            assert(key_immediate_cmp(ki, &kv->bkv_key_imm) == S32_MIN);
+            assert(memcmp(kv->bkv_key, &kv->bkv_key, lcp) == 0);
+        }
+    }
+
+    for (i = 1; i < KI_DLEN_MAX + 27; i++) {
+        struct bonsai_skey skey = { 0 };
+        struct bonsai_kv * kv = NULL;
+        bool               found;
+
+        bn_skey_init(key, i, tid, &skey);
+
+        rcu_read_lock();
+        found = bn_find(broot, &skey, &kv);
+        assert(!found);
+    }
+
+    for (i = KI_DLEN_MAX + 28; i < sizeof(key); i++) {
+        struct bonsai_skey skey = { 0 };
+        struct bonsai_kv * kv = NULL;
+        bool               found;
+
+        bn_skey_init(key, i, tid, &skey);
+
+        rcu_read_lock();
+        found = bn_find(broot, &skey, &kv);
+        assert(!found);
+    }
+#endif
+
+#ifndef LIBURCU_QSBR
+#ifndef LIBURCU_BP
+    BONSAI_RCU_UNREGISTER();
+#endif
+#endif
+
+    pthread_exit((void *)(long)merr_errno(err));
+}
+
 static void *
 bonsai_client_consumer(void *arg)
 {
@@ -609,9 +748,9 @@ bonsai_client_singlethread_test(enum bonsai_alloc_mode allocm)
                                  4,   5,   99,  299, 301, 1,   2,  3,  4,  5,  99,  7,
                                  8,   9,   13,  14,  15,  99,  20, 30, 40, 50, 101, 150,
                                  500, 100, 600, 5,   99,  200, 1,  2,  3,  4,  5,   99 };
-    struct bonsai_skey skey = { 0 };
-    struct bonsai_sval sval = { 0 };
-    struct bonsai_kv * kv = NULL;
+    struct bonsai_skey   skey = { 0 };
+    struct bonsai_sval   sval = { 0 };
+    struct bonsai_kv *   kv = NULL;
 
     if (allocm == HSE_ALLOC_CURSOR) {
         cheap = cheap_create(8, 64 * MB);
@@ -767,6 +906,109 @@ MTF_DEFINE_UTEST_PREPOST(bonsai_tree_test, producer_test, no_fail_pre, no_fail_p
         num_producers,
         key_current);
 #endif
+}
+
+MTF_DEFINE_UTEST_PREPOST(bonsai_tree_test, lcp_test, no_fail_pre, no_fail_post)
+{
+    int        rc;
+    int        i;
+    const int  num_skidx = 64;
+    pthread_t *producer_tids;
+
+    void *              ret;
+    pthread_barrier_t   final_barrier;
+    struct lcp_test_arg args[num_skidx];
+    merr_t              err;
+
+    cheap = cheap_create(8, 64 * MB);
+    ASSERT_NE(cheap, NULL);
+
+    err = bn_create(cheap, 32 * MB, bonsai_client_insert_callback, NULL, &broot);
+    ASSERT_EQ(err, 0);
+
+    rc = pthread_mutex_init(&mtx, NULL);
+    ASSERT_EQ(rc, 0);
+
+    producer_tids = malloc(num_skidx * sizeof(*producer_tids));
+    ASSERT_NE(producer_tids, NULL);
+
+    rc = create_all_cpu_call_rcu_data(0);
+    ASSERT_EQ(rc, 0);
+
+    stop_producer_threads = 0;
+
+    pthread_barrier_init(&final_barrier, NULL, num_skidx + 1);
+
+    for (i = 0; i < num_skidx; i++) {
+        args[i].tid = i;
+        args[i].fbarrier = &final_barrier;
+        rc = pthread_create(&producer_tids[i], NULL, bonsai_client_lcp_test, &args[i]);
+        ASSERT_EQ(rc, 0);
+    }
+
+    /* Wait until all the skidx threads are done inserting their keys */
+    pthread_barrier_wait(&final_barrier);
+
+    bn_finalize(broot);
+
+    /* lcp must be zero since the keys have different skidx values */
+    ASSERT_EQ(atomic_read(&broot->br_bounds), 1);
+
+    stop_producer_threads = 1;
+    for (i = 0; i < num_producers; i++) {
+        rc = pthread_join(producer_tids[i], &ret);
+        ASSERT_EQ(rc, 0);
+    }
+
+    BONSAI_RCU_BARRIER();
+
+    bn_destroy(broot);
+
+    BONSAI_RCU_BARRIER();
+
+    cheap_destroy(cheap);
+    cheap = NULL;
+    cheap = cheap_create(8, 64 * MB);
+    ASSERT_NE(cheap, NULL);
+
+    err = bn_create(cheap, 32 * MB, bonsai_client_insert_callback, NULL, &broot);
+    ASSERT_EQ(err, 0);
+
+    stop_producer_threads = 0;
+
+    /* Repeat the test with a bonsai tree containing keys for just one skidx. */
+    pthread_barrier_init(&final_barrier, NULL, 2);
+
+    args[0].tid = num_skidx + 1;
+    args[0].fbarrier = &final_barrier;
+    rc = pthread_create(&producer_tids[0], NULL, bonsai_client_lcp_test, &args[0]);
+    ASSERT_EQ(rc, 0);
+
+    pthread_barrier_wait(&final_barrier);
+
+    bn_finalize(broot);
+
+    /* lcp must be set this time around */
+    ASSERT_GT(atomic_read(&broot->br_bounds), 1 + KI_DLEN_MAX);
+
+    stop_producer_threads = 1;
+    rc = pthread_join(producer_tids[0], &ret);
+    ASSERT_EQ(rc, 0);
+
+    BONSAI_RCU_BARRIER();
+
+    bn_destroy(broot);
+
+    BONSAI_RCU_BARRIER();
+
+    free_all_cpu_call_rcu_data();
+
+    cheap_destroy(cheap);
+    cheap = NULL;
+
+    pthread_mutex_destroy(&mtx);
+
+    free(producer_tids);
 }
 
 MTF_DEFINE_UTEST_PREPOST(bonsai_tree_test, producer_manyconsumer_test, no_fail_pre, no_fail_post)
