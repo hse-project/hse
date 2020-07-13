@@ -264,7 +264,7 @@ kvset_builder_add_val(
                     self->compress_buf, self->compress_buf_sz,
                     &complen);
 
-                if (ev(err))
+                if (complen > HSE_KVS_VLEN_MAX || ev(err))
                     complen = 0;
                 else
                     vdata = self->compress_buf;
