@@ -18,7 +18,10 @@ set( CPACK_DEBIAN_PACKAGE_SECTION      "database" )
 
 
 set( CPACK_DEBIAN_RUNTIME_PACKAGE_NAME      "${CPACK_PACKAGE_NAME}" )
-set( CPACK_DEBIAN_RUNTIME_PACKAGE_DEPENDS   "sosreport (>= 3.2)" )
+
+set( CPACK_DEBIAN_RUNTIME_PACKAGE_DEPENDS
+  "sosreport (>= 3.2), liburcu6 (>= 0.10.1), libmicrohttpd12 (>= 0.9.59)"
+  )
 
 set( CPACK_DEBIAN_RUNTIME_PACKAGE_CONTROL_EXTRA
     "${HSE_SCRIPTS_DIR}/deb/postinst;${HSE_SCRIPTS_DIR}/deb/postrm" )

@@ -63,12 +63,6 @@ add_compile_options(
     -Wextra -Wno-conversion -Wno-sign-conversion -Wno-sign-compare -Wno-unused-parameter
     )
 
-# TODO: Remove and fix compile errors in various rest functions...
-#
-if( "${BUILD_PKG_TYPE}" STREQUAL "deb" )
-    add_compile_options( -Wno-unused-result )
-endif()
-
 if ( ${UBSAN} )
     message(STATUS "Enabling ubsan support")
     add_compile_options( -fno-omit-frame-pointer )
