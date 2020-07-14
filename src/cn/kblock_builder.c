@@ -663,6 +663,7 @@ _kblock_finish_bloom(struct curr_kblock *kblk, struct bloom_hdr_omf *blm_hdr)
 static void
 _kblock_make_header(
     struct curr_kblock *   kblk,
+    struct wbb         *   ptree,
     struct wbt_hdr_omf *   wbt_hdr,
     struct wbt_hdr_omf *   pt_hdr,
     uint                   pt_pgc,
@@ -672,7 +673,9 @@ _kblock_make_header(
     struct kblock_hdr_omf *hdr)
 {
     void *          base;
-    struct key_obj *min_kobj, *max_kobj;
+    struct key_obj *min_kobj, *max_kobj, tmp_kobj;
+    unsigned char   maxbuf[HSE_KVS_KLEN_MAX];
+    unsigned int    maxbuf_sz = sizeof(maxbuf);
     unsigned        off;
     const unsigned  align = 7;
 
@@ -716,6 +719,45 @@ _kblock_make_header(
 
     /* get min/max keys */
     wbb_min_max_keys(kblk->wbtree, &min_kobj, &max_kobj);
+    if (ptree) {
+        struct key_obj *pt_min, *pt_max;
+        uint minklen, maxklen;
+        uint minptlen, maxptlen;
+        int rc;
+        bool pad_and_copy = false;
+
+        wbb_min_max_keys(ptree, &pt_min, &pt_max);
+
+        minklen  = key_obj_len(min_kobj);
+        maxklen  = key_obj_len(max_kobj);
+        minptlen = key_obj_len(pt_min);
+        maxptlen = key_obj_len(pt_max);
+
+        if (minklen && minptlen) {
+            rc = key_obj_cmp(pt_min, min_kobj);
+            if (rc < 0)
+                min_kobj = pt_min;
+        } else if (minptlen) {
+            min_kobj = pt_min;
+        }
+
+        if (maxklen && maxptlen) {
+            rc = key_obj_cmp(pt_max, max_kobj);
+            if (rc > 0)
+                pad_and_copy = true;
+        } else if (maxptlen) {
+            pad_and_copy = true;
+        }
+
+        if (pad_and_copy) {
+            uint l;
+
+            key_obj_copy(maxbuf, maxbuf_sz, &l, pt_max);
+            memset(maxbuf + l, 0xff, maxbuf_sz - l);
+            key2kobj(&tmp_kobj, maxbuf, maxbuf_sz);
+            max_kobj = &tmp_kobj;
+        }
+    }
 
 #ifndef NDEBUG
     if (omf_wbt_kmd_pgc(wbt_hdr)) {
@@ -889,7 +931,7 @@ kblock_finish(struct kblock_builder *bld, struct wbb *ptree)
     /* Format kblock header. */
     kblk->num_keys += ptree ? wbb_entries(ptree) : 0;
     _kblock_make_header(
-        kblk, &wbt_hdr, &pt_hdr, pt_pgc, &blm_hdr, bld->seqno_min, bld->seqno_max, kblk->kblk_hdr);
+        kblk, ptree, &wbt_hdr, &pt_hdr, pt_pgc, &blm_hdr, bld->seqno_min, bld->seqno_max, kblk->kblk_hdr);
 
     assert(iov_cnt <= iov_max);
 
