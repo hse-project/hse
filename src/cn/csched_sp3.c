@@ -278,7 +278,6 @@ struct sp3 {
     u64  ucomp_prev_report_ns;
     bool ucomp_active;
     bool ucomp_canceled;
-    bool ucomp_data_ingested;
 };
 
 /* external to internal handle */
@@ -920,23 +919,6 @@ sp3_refresh_settings(struct sp3 *sp)
  *
  */
 
-#define UCOMP_MODE_INACTIVE  0 /* ucomp is not active */
-#define UCOMP_MODE_NORMAL    1 /* ucomp in progress */
-#define UCOMP_MODE_EXTRA     2 /* ucomp in progress, do extra work to read goal */
-
-static
-uint
-sp3_ucomp_mode(struct sp3 *sp)
-{
-    if (!sp->ucomp_active)
-        return UCOMP_MODE_INACTIVE;
-
-    if (sp->ucomp_data_ingested)
-        return UCOMP_MODE_NORMAL;
-
-    return UCOMP_MODE_EXTRA;
-}
-
 static void
 sp3_ucomp_cancel(struct sp3 *sp)
 {
@@ -950,7 +932,6 @@ sp3_ucomp_cancel(struct sp3 *sp)
 
     sp->ucomp_active = false;
     sp->ucomp_canceled = true;
-    sp->ucomp_data_ingested = false;
 }
 
 static void
@@ -963,11 +944,11 @@ sp3_ucomp_start(struct sp3 *sp)
 
     sp->ucomp_active = true;
     sp->ucomp_canceled = false;
-    sp->ucomp_data_ingested = false;
+    sp->samp_reduce = true;
 }
 
 static void
-sp3_ucomp_report(struct sp3 *sp, uint mode, bool final)
+sp3_ucomp_report(struct sp3 *sp, bool final)
 {
     uint curr = samp_est(&sp->samp, 100);
 
@@ -983,10 +964,8 @@ sp3_ucomp_report(struct sp3 *sp, uint mode, bool final)
         uint goal    = sp->samp_lwm * 100 / SCALE;
 
         hse_log(HSE_NOTICE "user-initiated compaction in progress:"
-            " mode: %u;"
             " jobs: active %lu, started %lu, finished %lu;"
             " space_amp: current %u.%02u, goal %u.%02u;",
-            mode,
             started - finished, started, finished,
             curr / 100, curr % 100,
             goal / 100, goal % 100);
@@ -996,31 +975,23 @@ sp3_ucomp_report(struct sp3 *sp, uint mode, bool final)
 static void
 sp3_ucomp_check(struct sp3 *sp)
 {
-    uint mode = sp3_ucomp_mode(sp);
-    bool completed;
-    bool report;
-    u64  now;
+    if (sp->ucomp_active) {
 
-    if (mode == UCOMP_MODE_INACTIVE)
-        return;
+        bool completed = sp->idle;
+        u64  now = get_time_ns();
+        bool report = now > sp->ucomp_prev_report_ns + 5 * NSEC_PER_SEC;
 
-    now = get_time_ns();
-    completed = sp->idle && samp_est(&sp->samp, SCALE) < sp->samp_lwm;
-    report = now > sp->ucomp_prev_report_ns + 5 * NSEC_PER_SEC;
+        if (completed) {
+            sp->ucomp_active = false;
+            sp->ucomp_canceled = false;
+        }
 
-    if (completed) {
-        sp->ucomp_active = false;
-        sp->ucomp_canceled = false;
-        sp->ucomp_data_ingested = false;
-    }
-
-    if (completed || report) {
-        sp->ucomp_prev_report_ns = now;
-        sp3_ucomp_report(sp, mode, completed);
+        if (completed || report) {
+            sp->ucomp_prev_report_ns = now;
+            sp3_ucomp_report(sp, completed);
+        }
     }
 }
-
-
 
 /*****************************************************************
  *
@@ -1261,10 +1232,8 @@ sp3_process_ingest(struct sp3 *sp)
         }
     }
 
-    if (ingested) {
-        sp->ucomp_data_ingested = true;
+    if (ingested)
         sp->activity++;
-    }
 
     if (ingested && debug_samp_ingest(sp)) {
         sp3_log_samp_each_tree(sp);
@@ -1979,15 +1948,12 @@ sp3_schedule(struct sp3 *sp)
     bool              shared_full;
     uint              rp_leaf_pct;
     uint              rr;
-    uint              ucomp_mode;
 
     /* convert rparam to internal scale */
     rp_leaf_pct = sp->inputs.csched_leaf_pct * SCALE / EXT_SCALE;
 
     node_len_max = sp->rp->csched_node_len_max ?: SP3_LLEN_RUNLEN_MIN;
     shared_full = sts_wcnt_get_idle(sp->sts, SP3_NUM_QUEUES) == 0;
-
-    ucomp_mode = sp3_ucomp_mode(sp);
 
     for (rr = 0; !job && rr < jtype_MAX; rr++) {
 
@@ -2019,7 +1985,7 @@ sp3_schedule(struct sp3 *sp)
                 qi = sp->qinfo + SP3_QNUM_INTERN;
                 if (qfull(qi) && shared_full)
                     break;
-                if (ucomp_mode || sp->lpct_targ < rp_leaf_pct)
+                if (sp->lpct_targ < rp_leaf_pct)
                     job = sp3_check_rb_tree(sp, RBT_RI_ALEN, 0, wtype_ispill);
                 break;
 
@@ -2057,10 +2023,8 @@ sp3_schedule(struct sp3 *sp)
                 qi = sp->qinfo + SP3_QNUM_LEAF;
                 if (qfull(qi))
                     break;
-                if (ucomp_mode || (sp->samp_reduce && (100 * sp->lpct_targ > 90 * rp_leaf_pct))) {
-
+                if (sp->samp_reduce && (100 * sp->lpct_targ > 90 * rp_leaf_pct)) {
                     uint thresh = sp->lpct_targ < rp_leaf_pct ? 10 : 0;
-
                     job = sp3_check_rb_tree(sp, RBT_L_GARB, thresh, wtype_leaf_garbage);
                 }
                 break;
@@ -2134,9 +2098,7 @@ sp3_update_samp(struct sp3 *sp)
         if (sp->samp_targ < sp->samp_lwm) {
             sp->samp_reduce = false;
             hse_log(
-                HSE_NOTICE "sp3 expected samp"
-                           " %u below lwm %u,"
-                           " disable samp reduction",
+                HSE_NOTICE "sp3 expected samp %u below lwm %u, disable samp reduction",
                 sp->samp_targ * 100 / SCALE,
                 sp->samp_lwm * 100 / SCALE);
         }
@@ -2144,9 +2106,7 @@ sp3_update_samp(struct sp3 *sp)
         if (sp->samp_targ > sp->samp_hwm) {
             sp->samp_reduce = true;
             hse_log(
-                HSE_NOTICE "sp3 expected samp"
-                           " %u above hwm %u,"
-                           " enable samp reduction",
+                HSE_NOTICE"sp3 expected samp %u above hwm %u, enable samp reduction",
                 sp->samp_targ * 100 / SCALE,
                 sp->samp_hwm * 100 / SCALE);
         }
