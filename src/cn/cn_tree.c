@@ -3065,7 +3065,6 @@ cn_comp_update_spill(struct cn_compaction_work *work, struct spill_child *childv
          * - Each input kvset just spilled must still be on pnode's kvset list.
          * - The dgen of the oldest input kvset must match work struct dgen_lo
          *   (i.e., concurrent spills from a node must be committed in order).
-         * - The dgen of the newest input kvset must match work struct dgen_hi.
          */
         for (kx = 0; kx < work->cw_kvset_cnt; kx++) {
             assert(!list_empty(&pnode->tn_kvset_list));
@@ -3299,30 +3298,37 @@ cn_comp_cleanup(struct cn_compaction_work *w)
     bool kcompact = w->cw_action == CN_ACTION_COMPACT_K;
     uint i;
 
-    if (w->cw_err && !w->cw_canceled) {
-        /* Log enough info to identify the operation,
-         * node, and kvsets that failed.
+
+    if (unlikely(w->cw_err)) {
+
+        /* Failed spills cause node to become "wedged"  */
+        if (ev(w->cw_rspill_conc && !w->cw_node->tn_rspills_wedged))
+            w->cw_node->tn_rspills_wedged = 1;
+
+        /* Log errors if debugging or if job was not canceled.
+         * Canceled jobs are expected, so there's no need to log them
+         * unless debugging.
          */
-        hse_elog(
-            HSE_ERR "compaction error @@e:"
-                    " sts/job %u comp %s rule %s cnid %lu lvl %u off %u"
-                    " dgenlo %lu dgenhi %lu",
-            w->cw_err,
-            w->cw_job.sj_id,
-            cn_action2str(w->cw_action),
-            cn_comp_rule2str(w->cw_comp_rule),
-            cn_tree_get_cnid(w->cw_tree),
-            w->cw_node->tn_loc.node_level,
-            w->cw_node->tn_loc.node_offset,
-            w->cw_dgen_lo,
-            w->cw_dgen_hi);
+        if (w->cw_debug || !w->cw_canceled)
+            hse_elog(HSE_ERR "compaction error @@e: sts/job %u comp %s rule %s"
+                " cnid %lu lvl %u off %u dgenlo %lu dgenhi %lu wedge %d",
+                w->cw_err,
+                w->cw_job.sj_id,
+                cn_action2str(w->cw_action),
+                cn_comp_rule2str(w->cw_comp_rule),
+                cn_tree_get_cnid(w->cw_tree),
+                w->cw_node->tn_loc.node_level,
+                w->cw_node->tn_loc.node_offset,
+                w->cw_dgen_lo,
+                w->cw_dgen_hi,
+                w->cw_node->tn_rspills_wedged);
+
+        if (merr_errno(w->cw_err) == ENOSPC)
+            w->cw_tree->ct_nospace = true;
+
+        if (w->cw_outv)
+            cn_mblocks_destroy(w->cw_ds, w->cw_outc, w->cw_outv, kcompact, w->cw_commitc);
     }
-
-    if (merr_errno(w->cw_err) == ENOSPC)
-        w->cw_tree->ct_nospace = true;
-
-    if (w->cw_err && w->cw_outv)
-        cn_mblocks_destroy(w->cw_ds, w->cw_outc, w->cw_outv, kcompact, w->cw_commitc);
 
     free(w->cw_vbmap.vbm_blkv);
     free(w->cw_tagv);
@@ -3333,13 +3339,6 @@ cn_comp_cleanup(struct cn_compaction_work *w)
         }
         free(w->cw_outv);
     }
-
-    if (w->cw_debug && w->cw_err)
-        hse_elog(
-            HSE_NOTICE "sts/job %u err @@e, canceled %d",
-            w->cw_err,
-            w->cw_job.sj_id,
-            w->cw_canceled);
 }
 
 /**
@@ -3354,44 +3353,30 @@ get_completed_spill(struct cn_tree_node *node)
     mutex_lock(&node->tn_rspills_lock);
 
     w = list_first_entry_or_null(&node->tn_rspills, typeof(*w), cw_rspill_link);
-
     if (!w)
         goto done;
 
-    /* punt if head of list is not done or busy */
-    if (!atomic_read(&w->cw_rspill_done) || atomic_read(&w->cw_rspill_busy)) {
+    /* Punt if job on head of list is not done or another thread is already committing it. */
+    if (!atomic_read(&w->cw_rspill_done) || atomic_read(&w->cw_rspill_commit_in_progress)) {
         w = 0;
         goto done;
     }
 
-    /* Head of rspill list is ready to be processed.  Mark it busy
-     * but leave it onlist while the work is finished.  If there was an
-     * error, must mark rspill list as "wedged" and force failures on
-     * future rspills.  Scheduler will decide when it can be unwedged.
+    /* Job on head of spill completion list is ready to be processed.
+     * - Set "commit_in_progress" status, but leave on list until commit is done.
+     * - If the node is wedged, it means an earlier job has failed, in
+     *   which case we force failure on this job to prevent out of
+     *   order completion.
+     * - If the node is not wedged, and this job has failed then it
+     *   will cause the node to be wedged, but this will be handled
+     *   later to catch downstream errors.
      */
 
-    atomic_set(&w->cw_rspill_busy, 1);
+    atomic_set(&w->cw_rspill_commit_in_progress, 1);
 
-    if (ev(w->cw_err)) {
-        if (ev(!node->tn_rspills_wedged)) {
-            /* This is normal during close if close_wait=0,
-             * so do not log as an error.
-             */
-            hse_elog(
-                HSE_DEBUG "enabling rspill wedge: "
-                          "canceled %d, merr @@e",
-                w->cw_err,
-                w->cw_canceled);
-            node->tn_rspills_wedged = 1;
-        }
-        goto done;
-    }
-
-    if (ev(node->tn_rspills_wedged)) {
-        hse_log(HSE_NOTICE "forcing rspill failure due to rspill wedge");
+    if (ev(node->tn_rspills_wedged && !w->cw_err)) {
         w->cw_err = merr(ESHUTDOWN);
         w->cw_canceled = true;
-        goto done;
     }
 
 done:
