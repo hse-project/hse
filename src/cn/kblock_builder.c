@@ -673,11 +673,13 @@ _kblock_make_header(
     struct kblock_hdr_omf *hdr)
 {
     void *          base;
-    struct key_obj *min_kobj, *max_kobj, tmp_kobj;
-    unsigned char   maxbuf[HSE_KVS_KLEN_MAX];
-    unsigned int    maxbuf_sz = sizeof(maxbuf);
+    struct key_obj *min_kobj, *max_kobj;
     unsigned        off;
     const unsigned  align = 7;
+
+    struct key_obj  tmp_kobj;
+    unsigned char   tmp_kobj_buf[HSE_KVS_KLEN_MAX];
+    unsigned int    tmp_kobj_bufsz = sizeof(tmp_kobj_buf);
 
     assert(kblk->num_keys > 0);
 
@@ -733,28 +735,32 @@ _kblock_make_header(
         minptlen = key_obj_len(pt_min);
         maxptlen = key_obj_len(pt_max);
 
-        if (minklen && minptlen) {
-            rc = key_obj_cmp(pt_min, min_kobj);
-            if (rc < 0)
+        if (minptlen) {
+            if (minklen) {
+                rc = key_obj_cmp(pt_min, min_kobj);
+                if (rc < 0)
+                    min_kobj = pt_min;
+            } else {
                 min_kobj = pt_min;
-        } else if (minptlen) {
-            min_kobj = pt_min;
+            }
         }
 
-        if (maxklen && maxptlen) {
-            rc = key_obj_cmp(pt_max, max_kobj);
-            if (rc > 0)
+        if (maxptlen) {
+            if (maxklen) {
+                rc = key_obj_cmp(pt_max, max_kobj);
+                if (rc > 0)
+                    pad_and_copy = true;
+            } else {
                 pad_and_copy = true;
-        } else if (maxptlen) {
-            pad_and_copy = true;
+            }
         }
 
         if (pad_and_copy) {
-            uint l;
+            uint len;
 
-            key_obj_copy(maxbuf, maxbuf_sz, &l, pt_max);
-            memset(maxbuf + l, 0xff, maxbuf_sz - l);
-            key2kobj(&tmp_kobj, maxbuf, maxbuf_sz);
+            key_obj_copy(tmp_kobj_buf, tmp_kobj_bufsz, &len, pt_max);
+            memset(tmp_kobj_buf + len, 0xff, tmp_kobj_bufsz - len);
+            key2kobj(&tmp_kobj, tmp_kobj_buf, tmp_kobj_bufsz);
             max_kobj = &tmp_kobj;
         }
     }
