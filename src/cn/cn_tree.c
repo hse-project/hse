@@ -3060,10 +3060,17 @@ cn_comp_update_spill(struct cn_compaction_work *work, struct spill_child *childv
             }
         }
 
-        /* Move old kvsets from parent node to retired list. */
+        /* Move old kvsets from parent node to retired list.
+         * Asserts:
+         * - Each input kvset just spilled must still be on pnode's kvset list.
+         * - The dgen of the oldest input kvset must match work struct dgen_lo
+         *   (i.e., concurrent spills from a node must be committed in order).
+         * - The dgen of the newest input kvset must match work struct dgen_hi.
+         */
         for (kx = 0; kx < work->cw_kvset_cnt; kx++) {
             assert(!list_empty(&pnode->tn_kvset_list));
             le = list_last_entry(&pnode->tn_kvset_list, struct kvset_list_entry, le_link);
+            assert(kx > 0 || work->cw_dgen_lo == kvset_get_dgen(le->le_kvset));
             list_del(&le->le_link);
             list_add(&le->le_link, &retired_kvsets);
         }
@@ -3343,9 +3350,7 @@ static struct cn_compaction_work *
 get_completed_spill(struct cn_tree_node *node)
 {
     struct cn_compaction_work *w = 0;
-    void *                     lock;
 
-    rmlock_rlock(&node->tn_tree->ct_lock, &lock);
     mutex_lock(&node->tn_rspills_lock);
 
     w = list_first_entry_or_null(&node->tn_rspills, typeof(*w), cw_rspill_link);
@@ -3389,25 +3394,8 @@ get_completed_spill(struct cn_tree_node *node)
         goto done;
     }
 
-#ifndef NDEBUG
-    {
-        /* About to update tree after an rspill:
-         * - the node should have a kvset
-         * - head of rspill and oldest kvset should have same dgen_lo
-         */
-        struct kvset_list_entry *le __maybe_unused;
-
-        le = list_last_entry_or_null(&node->tn_kvset_list, typeof(*le), le_link);
-
-        assert(le);
-        assert(le->le_kvset);
-        assert(w->cw_dgen_lo == kvset_get_dgen(le->le_kvset));
-    }
-#endif
-
 done:
     mutex_unlock(&node->tn_rspills_lock);
-    rmlock_runlock(lock);
 
     return w;
 }
