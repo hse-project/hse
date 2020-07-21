@@ -16,7 +16,6 @@ key_immediate_init(const void *key, size_t klen, u16 index, struct key_immediate
     dst = imm->ki_data;
     dst[0] = (u64)index << 48;
     dst[1] = 0;
-    dst[2] = 0;
 
     imm->ki_dlen = KI_DLEN_MAX;
     imm->ki_klen = klen;
@@ -26,23 +25,6 @@ key_immediate_init(const void *key, size_t klen, u16 index, struct key_immediate
 
     switch (imm->ki_dlen) {
         default:
-        case 22:
-            dst[2] |= (u64)src[21] << 0; /* FALLTHROUGH */
-        case 21:
-            dst[2] |= (u64)src[20] << 8; /* FALLTHROUGH */
-        case 20:
-            dst[2] |= (u64)src[19] << 16; /* FALLTHROUGH */
-        case 19:
-            dst[2] |= (u64)src[18] << 24; /* FALLTHROUGH */
-        case 18:
-            dst[2] |= (u64)src[17] << 32; /* FALLTHROUGH */
-        case 17:
-            dst[2] |= (u64)src[16] << 40; /* FALLTHROUGH */
-        case 16:
-            dst[2] |= (u64)src[15] << 48; /* FALLTHROUGH */
-        case 15:
-            dst[2] |= (u64)src[14] << 56; /* FALLTHROUGH */
-                                          /* Note: dst[] index change here */
         case 14:
             dst[1] |= (u64)src[13] << 0; /* FALLTHROUGH */
         case 13:
@@ -87,10 +69,6 @@ key_immediate_cmp_full(const struct key_immediate *imm0, const struct key_immedi
     if (imm0->ki_data[1] < imm1->ki_data[1])
         return -1;
     if (imm0->ki_data[1] > imm1->ki_data[1])
-        return 1;
-    if (imm0->ki_data[2] < imm1->ki_data[2])
-        return -1;
-    if (imm0->ki_data[2] > imm1->ki_data[2])
         return 1;
 
     /* If there is more to compare, tell the caller by returning S32_MIN.
