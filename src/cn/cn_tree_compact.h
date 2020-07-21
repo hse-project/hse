@@ -198,7 +198,7 @@ struct cn_compaction_work {
     bool                     cw_rspill_conc;
     struct list_head         cw_rspill_link;
     atomic_t                 cw_rspill_done;
-    atomic_t                 cw_rspill_busy;
+    atomic_t                 cw_rspill_commit_in_progress;
     u64                      cw_dgen_hi;
     u64                      cw_dgen_lo;
     atomic_t *               cw_bonus;
