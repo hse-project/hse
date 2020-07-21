@@ -128,6 +128,7 @@ struct bonsai_sval {
  */
 struct bonsai_kv {
     struct key_immediate   bkv_key_imm;
+    u16                    bkv_rsvd;
     u16                    bkv_flags;
     s32                    bkv_refcnt;
     struct bonsai_val *    bkv_values;
@@ -139,8 +140,7 @@ struct bonsai_kv {
     struct s_list_head     bkv_txmnext[BONSAI_MUT_LISTC];
     struct s_list_head     bkv_txpend;
     char                   bkv_key[];
-} __packed
-__aligned(sizeof(void *));
+};
 
 /**
  * There is one such structure for each node in the tree.
@@ -164,17 +164,17 @@ __aligned(sizeof(void *));
  * be caused by tree update operations).
  */
 struct bonsai_node {
-    struct bonsai_node *bn_left;
-    struct bonsai_node *bn_right;
-    struct bonsai_node *bn_free;
+    struct bonsai_node   *bn_left;
+    struct bonsai_node   *bn_right;
+    struct key_immediate  bn_key_imm;
+    u16                   bn_rsvd;
+    u16                   bn_flags;
+    s32                   bn_height;
+    struct bonsai_kv     *bn_kv;
+    struct bonsai_node   *bn_free;
+} __aligned(64);
 
-    struct bonsai_kv *   bn_kv;
-    struct key_immediate bn_key_imm;
-
-    u16 bn_flags;
-    int bn_height;
-} __packed
-__aligned(sizeof(void *));
+_Static_assert(sizeof(struct bonsai_node) == 64, "bonsai node too large");
 
 /**
  * @bonsai_ior_cb: callback for insert or replace
