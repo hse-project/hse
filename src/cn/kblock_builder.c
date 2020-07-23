@@ -425,9 +425,6 @@ hash_set_free(struct hash_set *hs)
     struct hash_set_part *part;
     struct hash_set_part *tmp;
 
-    if (!hs->curr_part)
-        return;
-
     list_for_each_entry_safe (part, tmp, &hs->part_list, part_link)
         free(part);
 }
