@@ -1310,7 +1310,13 @@ ikvdb_open(
 
     self->ikdb_rp = rp;
     self->ikdb_rdonly = rp.read_only;
-    self->ikdb_profile = params;
+    if (params) {
+        self->ikdb_profile = hse_params_clone(params);
+        if (ev(!self->ikdb_profile)) {
+            err = merr(ENOMEM);
+            goto err2;
+        }
+    }
 
     rp = self->ikdb_rp;
 
@@ -1491,6 +1497,7 @@ err1:
 err2:
     ikvdb_txn_fini(self);
     mutex_destroy(&self->ikdb_lock);
+    hse_params_free(self->ikdb_profile);
     free_aligned(self);
     *handle = NULL;
 
@@ -2030,6 +2037,8 @@ ikvdb_close(struct ikvdb *handle)
     throttle_fini(&self->ikdb_throttle);
 
     ikvdb_perfc_free(self);
+
+    hse_params_free(self->ikdb_profile);
 
     free_aligned(self);
 

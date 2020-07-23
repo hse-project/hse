@@ -3,6 +3,9 @@
  * Copyright (C) 2020 Micron Technology, Inc.  All rights reserved.
  */
 
+#include <hse/hse.h>
+#include <hse/hse_experimental.h>
+
 #include <hse_util/platform.h>
 #include <hse_util/param.h>
 #include <hse_util/string.h>
@@ -28,8 +31,6 @@ struct hse_params {
     char hp_vals[HP_DICT_ENTRIES_MAX][HP_DICT_LEN_MAX];
     char hp_err[HP_ERR_BUF_SZ];
 };
-
-/* Helper Functions */
 
 static void
 key_split(const char *key, char *component, char *param)
@@ -199,10 +200,33 @@ param_validate(struct hse_params *params, const char *key, const char *val)
     return 0;
 }
 
+struct hse_params *
+hse_params_clone(const struct hse_params *params)
+{
+    struct hse_params *clone;
+
+    if (!params)
+        return NULL;
+
+    clone = malloc(sizeof(*clone));
+    if (!clone)
+        return NULL;
+
+    *clone = *params;
+
+    return clone;
+}
+
+void
+hse_params_free(struct hse_params *params)
+{
+    free(params);
+}
+
+
+
 /* Public API */
 
-#include <hse/hse.h>
-#include <hse/hse_experimental.h>
 
 hse_err_t
 hse_params_create(struct hse_params **params)
@@ -345,10 +369,7 @@ hse_params_err_exp(const struct hse_params *params, char *buf, size_t buf_sz)
 void
 hse_params_destroy(struct hse_params *params)
 {
-    if (!params)
-        return;
-
-    free(params);
+    hse_params_free(params);
 }
 
 /* Internals */
@@ -422,16 +443,16 @@ hse_params_to_mclass_policies(
 {
     int    i, count = 0;
     merr_t err = 0;
-    bool   lparam = false;
+    struct hse_params *lparams = 0;
 
     if (!policies)
         return;
 
     if (!params) {
-        err = hse_params_create(&params);
-        lparam = true;
+        err = hse_params_create(&lparams);
         if (ev(err))
             return;
+        params = lparams;
     }
 
     for (i = 0; i < params->hp_next; i++) {
@@ -446,8 +467,8 @@ hse_params_to_mclass_policies(
         }
     }
 
-    if (lparam)
-        hse_params_destroy(params);
+    if (lparams)
+        hse_params_destroy(lparams);
 }
 
 struct kvs_cparams
