@@ -218,7 +218,7 @@ hse_err_to_errno(hse_err_t err);
  */
 /* MTF_MOCK */
 hse_err_t
-hse_kvdb_make(const char *mp_name, struct hse_params *params);
+hse_kvdb_make(const char *mp_name, const struct hse_params *params);
 
 /**
  * Open an HSE KVDB for use by the application
@@ -233,7 +233,7 @@ hse_kvdb_make(const char *mp_name, struct hse_params *params);
  */
 /* MTF_MOCK */
 hse_err_t
-hse_kvdb_open(const char *mp_name, struct hse_params *params, struct hse_kvdb **kvdb);
+hse_kvdb_open(const char *mp_name, const struct hse_params *params, struct hse_kvdb **kvdb);
 
 /**
  * Close an open HSE KVDB
@@ -303,7 +303,7 @@ hse_kvdb_free_names(struct hse_kvdb *kvdb, char **kvs_list);
  */
 /* MTF_MOCK */
 hse_err_t
-hse_kvdb_kvs_make(struct hse_kvdb *kvdb, const char *kvs_name, struct hse_params *params);
+hse_kvdb_kvs_make(struct hse_kvdb *kvdb, const char *kvs_name, const struct hse_params *params);
 
 /**
  * Remove a KVS from the referenced KVDB
@@ -331,10 +331,10 @@ hse_kvdb_kvs_drop(struct hse_kvdb *kvdb, const char *kvs_name);
  */
 hse_err_t
 hse_kvdb_kvs_open(
-    struct hse_kvdb *  kvdb,
-    const char *       kvs_name,
-    struct hse_params *params,
-    struct hse_kvs **  kvs_out);
+    struct hse_kvdb            *kvdb,
+    const char                 *kvs_name,
+    const struct hse_params    *params,
+    struct hse_kvs            **kvs_out);
 
 /**
  * Close an open KVS
@@ -988,11 +988,11 @@ hse_params_set(struct hse_params *params, const char *key, const char *val);
  */
 char *
 hse_params_get(
-    struct hse_params *params,
-    const char *       key,
-    char *             buf,
-    size_t             buf_len,
-    size_t *           param_len);
+    const struct hse_params    *params,
+    const char                 *key,
+    char                       *buf,
+    size_t                      buf_len,
+    size_t                     *param_len);
 
 /**@}*/
 

@@ -307,11 +307,11 @@ hse_params_set(struct hse_params *params, const char *key, const char *val)
 
 char *
 hse_params_get(
-    struct hse_params *params,
-    const char *       key,
-    char *             buf,
-    size_t             buf_sz,
-    size_t *           param_sz)
+    const struct hse_params    *params,
+    const char                 *key,
+    char                       *buf,
+    size_t                      buf_sz,
+    size_t                     *param_sz)
 {
     int i, len;
 
@@ -332,7 +332,7 @@ hse_params_get(
 }
 
 char *
-hse_params_err_exp(struct hse_params *params, char *buf, size_t buf_sz)
+hse_params_err_exp(const struct hse_params *params, char *buf, size_t buf_sz)
 {
     if (!params || !buf)
         return NULL;
@@ -354,7 +354,11 @@ hse_params_destroy(struct hse_params *params)
 /* Internals */
 
 static void
-params_convert(struct hse_params *params, struct param_inst *table, void *base, const char *filter)
+params_convert(
+    const struct hse_params    *params,
+    struct param_inst          *table,
+    void                       *base,
+    const char                 *filter)
 {
     int i;
 
@@ -389,7 +393,7 @@ params_convert(struct hse_params *params, struct param_inst *table, void *base, 
 }
 
 struct kvdb_cparams
-hse_params_to_kvdb_cparams(struct hse_params *params, struct kvdb_cparams *ref)
+hse_params_to_kvdb_cparams(const struct hse_params *params, struct kvdb_cparams *ref)
 {
     struct kvdb_cparams cp = ref ? *ref : kvdb_cparams_defaults();
     struct param_inst * table = kvdb_cparams_table();
@@ -400,7 +404,7 @@ hse_params_to_kvdb_cparams(struct hse_params *params, struct kvdb_cparams *ref)
 }
 
 struct kvdb_rparams
-hse_params_to_kvdb_rparams(struct hse_params *params, struct kvdb_rparams *ref)
+hse_params_to_kvdb_rparams(const struct hse_params *params, struct kvdb_rparams *ref)
 {
     struct kvdb_rparams rp = ref ? *ref : kvdb_rparams_defaults();
     struct param_inst * table = kvdb_rparams_table();
@@ -412,9 +416,9 @@ hse_params_to_kvdb_rparams(struct hse_params *params, struct kvdb_rparams *ref)
 
 void
 hse_params_to_mclass_policies(
-    struct hse_params *   params,
-    struct mclass_policy *policies,
-    int                   entries)
+    const struct hse_params    *params,
+    struct mclass_policy       *policies,
+    int                         entries)
 {
     int    i, count = 0;
     merr_t err = 0;
@@ -447,7 +451,10 @@ hse_params_to_mclass_policies(
 }
 
 struct kvs_cparams
-hse_params_to_kvs_cparams(struct hse_params *params, const char *kvs_name, struct kvs_cparams *ref)
+hse_params_to_kvs_cparams(
+    const struct hse_params    *params,
+    const char                 *kvs_name,
+    struct kvs_cparams         *ref)
 {
     struct kvs_cparams cp = ref ? *ref : kvs_cparams_defaults();
     struct param_inst *table = kvs_cparams_table();
@@ -465,7 +472,10 @@ hse_params_to_kvs_cparams(struct hse_params *params, const char *kvs_name, struc
 }
 
 struct kvs_rparams
-hse_params_to_kvs_rparams(struct hse_params *params, const char *kvs_name, struct kvs_rparams *ref)
+hse_params_to_kvs_rparams(
+    const struct hse_params    *params,
+    const char                 *kvs_name,
+    struct kvs_rparams         *ref)
 {
     struct kvs_rparams rp = ref ? *ref : kvs_rparams_defaults();
     struct param_inst *table = kvs_rparams_table();

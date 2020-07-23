@@ -1270,7 +1270,11 @@ ikvdb_low_mem_adjust(struct ikvdb_impl *self)
 }
 
 merr_t
-ikvdb_open(const char *mp_name, struct mpool *ds, struct hse_params *params, struct ikvdb **handle)
+ikvdb_open(
+    const char                 *mp_name,
+    struct mpool               *ds,
+    const struct hse_params    *params,
+    struct ikvdb              **handle)
 {
     merr_t              err;
     struct ikvdb_impl * self;
@@ -1606,7 +1610,7 @@ kvdb_kvs_set_ikvs(struct kvdb_kvs *kk, struct ikvs *ikvs)
 }
 
 merr_t
-ikvdb_kvs_make(struct ikvdb *handle, const char *kvs_name, struct hse_params *params)
+ikvdb_kvs_make(struct ikvdb *handle, const char *kvs_name, const struct hse_params *params)
 {
     merr_t             err = 0;
     struct ikvdb_impl *self = ikvdb_h2r(handle);
@@ -1795,11 +1799,11 @@ ikvdb_kvs_count(struct ikvdb *handle, unsigned int *count)
 
 merr_t
 ikvdb_kvs_open(
-    struct ikvdb *     handle,
-    const char *       kvs_name,
-    struct hse_params *params,
-    uint               flags,
-    struct hse_kvs **  kvs_out)
+    struct ikvdb               *handle,
+    const char                 *kvs_name,
+    const struct hse_params    *params,
+    uint                        flags,
+    struct hse_kvs            **kvs_out)
 {
     struct ikvdb_impl *self = ikvdb_h2r(handle);
     struct kvdb_kvs *  kvs;

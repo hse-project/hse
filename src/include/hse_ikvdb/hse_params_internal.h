@@ -22,7 +22,9 @@ struct hse_params;
  * @ref:    reference struct (optional)
  */
 struct kvdb_cparams
-hse_params_to_kvdb_cparams(struct hse_params *params, struct kvdb_cparams *ref);
+hse_params_to_kvdb_cparams(
+    const struct hse_params    *params,
+    struct kvdb_cparams        *ref);
 
 /**
  * hse_params_to_kvdb_rparams() - convert params to kvdb rparams
@@ -30,7 +32,9 @@ hse_params_to_kvdb_cparams(struct hse_params *params, struct kvdb_cparams *ref);
  * @ref:    reference struct (optional)
  */
 struct kvdb_rparams
-hse_params_to_kvdb_rparams(struct hse_params *params, struct kvdb_rparams *ref);
+hse_params_to_kvdb_rparams(
+    const struct hse_params    *params,
+    struct kvdb_rparams        *ref);
 
 /**
  * hse_params_to_kvs_cparams() - convert params to kvs cparams
@@ -39,7 +43,10 @@ hse_params_to_kvdb_rparams(struct hse_params *params, struct kvdb_rparams *ref);
  * @ref:      reference struct (optional)
  */
 struct kvs_cparams
-hse_params_to_kvs_cparams(struct hse_params *params, const char *kvs_name, struct kvs_cparams *ref);
+hse_params_to_kvs_cparams(
+    const struct hse_params    *params,
+    const char                 *kvs_name,
+    struct kvs_cparams         *ref);
 
 /**
  * hse_params_to_kvs_rparams() - convert params to kvs rparams
@@ -48,7 +55,10 @@ hse_params_to_kvs_cparams(struct hse_params *params, const char *kvs_name, struc
  * @ref:      reference struct (optional)
  */
 struct kvs_rparams
-hse_params_to_kvs_rparams(struct hse_params *params, const char *kvs_name, struct kvs_rparams *ref);
+hse_params_to_kvs_rparams(
+    const struct hse_params    *params,
+    const char                 *kvs_name,
+    struct kvs_rparams         *ref);
 
 /**
  * hse_params_to_mclass_policies() - convert params to media class policies
@@ -58,8 +68,22 @@ hse_params_to_kvs_rparams(struct hse_params *params, const char *kvs_name, struc
  */
 void
 hse_params_to_mclass_policies(
-    struct hse_params *   params,
-    struct mclass_policy *policies,
-    int                   entries);
+    const struct hse_params    *params,
+    struct mclass_policy       *policies,
+    int                         entries);
+
+/**
+ * hse_params_clone() - clone a params sturct
+ * @params: hse params to clone
+ *
+ * Return NULL if input @params is NULL or if memory allocation
+ * fails.  Otherwise return cloned copy of @params.  Returned
+ * pointer should be freed with hse_params_free().
+ */
+struct hse_params *
+hse_params_clone(const struct hse_params *params);
+
+void
+hse_params_free(struct hse_params *params);
 
 #endif /* HSE_PARAMS_INTERNAL_H */
