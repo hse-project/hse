@@ -559,19 +559,25 @@ wbb_init(struct wbb *wbb, void *nodev, uint max_pgc, uint *wbt_pgc)
     uint   i;
     merr_t err = 0;
 
+    /* Save state that persists across "init" */
+    kst = wbb->cnode_key_stage;
+    kst_pgc = wbb->cnode_key_stage_pgc;
     for (i = 0; i < KMD_CHUNKS; i++)
         iov_base[i] = wbb->kmd_iov[i].iov_base;
 
-    kst = wbb->cnode_key_stage;
-    kst_pgc = wbb->cnode_key_stage_pgc;
-
+    /* Reset */
     memset(wbb, 0, sizeof(*wbb));
 
+    /* Restore */
+    wbb->cnode_key_stage = kst;
+    wbb->cnode_key_stage_pgc = kst_pgc;
+    for (i = 0; i < KMD_CHUNKS; i++)
+        wbb->kmd_iov[i].iov_base = iov_base[i];
+
+    /* Init new params */
     wbb->max_pgc = max_pgc;
     wbb->nodev_len = max_pgc;
     wbb->nodev = nodev;
-    wbb->cnode_key_stage = kst;
-    wbb->cnode_key_stage_pgc = kst_pgc;
     wbb->inodec = max_pgc;
 
     err = _new_leaf_node(wbb, 0);
@@ -581,9 +587,6 @@ wbb_init(struct wbb *wbb, void *nodev, uint max_pgc, uint *wbt_pgc)
     wbb->ibldr = ib_create(wbb);
     if (ev(!wbb->ibldr))
         return merr(ENOMEM);
-
-    for (i = 0; i < KMD_CHUNKS; i++)
-        wbb->kmd_iov[i].iov_base = iov_base[i];
 
     *wbt_pgc = wbb->lnodec;
     return 0;
