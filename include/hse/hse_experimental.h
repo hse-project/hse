@@ -96,7 +96,7 @@ hse_kvs_prefix_probe_exp(
  * Returns a pointer to the provided buffer.
  */
 char *
-hse_params_err_exp(struct hse_params *params, char *buf, size_t buf_sz);
+hse_params_err_exp(const struct hse_params *params, char *buf, size_t buf_sz);
 
 #if defined(HSE_UNIT_TEST_MODE) && HSE_UNIT_TEST_MODE == 1
 #include "hse_experimental_ut.h"
