@@ -3,6 +3,9 @@
  * Copyright (C) 2020 Micron Technology, Inc.  All rights reserved.
  */
 
+#include <hse/hse.h>
+#include <hse/hse_experimental.h>
+
 #include <hse_util/platform.h>
 #include <hse_util/param.h>
 #include <hse_util/string.h>
@@ -28,8 +31,6 @@ struct hse_params {
     char hp_vals[HP_DICT_ENTRIES_MAX][HP_DICT_LEN_MAX];
     char hp_err[HP_ERR_BUF_SZ];
 };
-
-/* Helper Functions */
 
 static void
 key_split(const char *key, char *component, char *param)
@@ -199,10 +200,33 @@ param_validate(struct hse_params *params, const char *key, const char *val)
     return 0;
 }
 
+struct hse_params *
+hse_params_clone(const struct hse_params *params)
+{
+    struct hse_params *clone;
+
+    if (!params)
+        return NULL;
+
+    clone = malloc(sizeof(*clone));
+    if (!clone)
+        return NULL;
+
+    *clone = *params;
+
+    return clone;
+}
+
+void
+hse_params_free(struct hse_params *params)
+{
+    free(params);
+}
+
+
+
 /* Public API */
 
-#include <hse/hse.h>
-#include <hse/hse_experimental.h>
 
 hse_err_t
 hse_params_create(struct hse_params **params)
@@ -307,11 +331,11 @@ hse_params_set(struct hse_params *params, const char *key, const char *val)
 
 char *
 hse_params_get(
-    struct hse_params *params,
-    const char *       key,
-    char *             buf,
-    size_t             buf_sz,
-    size_t *           param_sz)
+    const struct hse_params    *params,
+    const char                 *key,
+    char                       *buf,
+    size_t                      buf_sz,
+    size_t                     *param_sz)
 {
     int i, len;
 
@@ -332,7 +356,7 @@ hse_params_get(
 }
 
 char *
-hse_params_err_exp(struct hse_params *params, char *buf, size_t buf_sz)
+hse_params_err_exp(const struct hse_params *params, char *buf, size_t buf_sz)
 {
     if (!params || !buf)
         return NULL;
@@ -345,16 +369,17 @@ hse_params_err_exp(struct hse_params *params, char *buf, size_t buf_sz)
 void
 hse_params_destroy(struct hse_params *params)
 {
-    if (!params)
-        return;
-
-    free(params);
+    hse_params_free(params);
 }
 
 /* Internals */
 
 static void
-params_convert(struct hse_params *params, struct param_inst *table, void *base, const char *filter)
+params_convert(
+    const struct hse_params    *params,
+    struct param_inst          *table,
+    void                       *base,
+    const char                 *filter)
 {
     int i;
 
@@ -389,7 +414,7 @@ params_convert(struct hse_params *params, struct param_inst *table, void *base, 
 }
 
 struct kvdb_cparams
-hse_params_to_kvdb_cparams(struct hse_params *params, struct kvdb_cparams *ref)
+hse_params_to_kvdb_cparams(const struct hse_params *params, struct kvdb_cparams *ref)
 {
     struct kvdb_cparams cp = ref ? *ref : kvdb_cparams_defaults();
     struct param_inst * table = kvdb_cparams_table();
@@ -400,7 +425,7 @@ hse_params_to_kvdb_cparams(struct hse_params *params, struct kvdb_cparams *ref)
 }
 
 struct kvdb_rparams
-hse_params_to_kvdb_rparams(struct hse_params *params, struct kvdb_rparams *ref)
+hse_params_to_kvdb_rparams(const struct hse_params *params, struct kvdb_rparams *ref)
 {
     struct kvdb_rparams rp = ref ? *ref : kvdb_rparams_defaults();
     struct param_inst * table = kvdb_rparams_table();
@@ -412,22 +437,22 @@ hse_params_to_kvdb_rparams(struct hse_params *params, struct kvdb_rparams *ref)
 
 void
 hse_params_to_mclass_policies(
-    struct hse_params *   params,
-    struct mclass_policy *policies,
-    int                   entries)
+    const struct hse_params    *params,
+    struct mclass_policy       *policies,
+    int                         entries)
 {
     int    i, count = 0;
     merr_t err = 0;
-    bool   lparam = false;
+    struct hse_params *lparams = 0;
 
     if (!policies)
         return;
 
     if (!params) {
-        err = hse_params_create(&params);
-        lparam = true;
+        err = hse_params_create(&lparams);
         if (ev(err))
             return;
+        params = lparams;
     }
 
     for (i = 0; i < params->hp_next; i++) {
@@ -442,12 +467,15 @@ hse_params_to_mclass_policies(
         }
     }
 
-    if (lparam)
-        hse_params_destroy(params);
+    if (lparams)
+        hse_params_destroy(lparams);
 }
 
 struct kvs_cparams
-hse_params_to_kvs_cparams(struct hse_params *params, const char *kvs_name, struct kvs_cparams *ref)
+hse_params_to_kvs_cparams(
+    const struct hse_params    *params,
+    const char                 *kvs_name,
+    struct kvs_cparams         *ref)
 {
     struct kvs_cparams cp = ref ? *ref : kvs_cparams_defaults();
     struct param_inst *table = kvs_cparams_table();
@@ -465,7 +493,10 @@ hse_params_to_kvs_cparams(struct hse_params *params, const char *kvs_name, struc
 }
 
 struct kvs_rparams
-hse_params_to_kvs_rparams(struct hse_params *params, const char *kvs_name, struct kvs_rparams *ref)
+hse_params_to_kvs_rparams(
+    const struct hse_params    *params,
+    const char                 *kvs_name,
+    struct kvs_rparams         *ref)
 {
     struct kvs_rparams rp = ref ? *ref : kvs_rparams_defaults();
     struct param_inst *table = kvs_rparams_table();
