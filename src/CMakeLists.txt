@@ -306,6 +306,20 @@ set (HSE_USER_MPOOL_LINK_LIBS
 )
 
 hse_executable(
+    NAME mpool_profile
+    SRCS tools/mpool_profile.c
+    INCLUDES ${HSE_COMPLETE_INCLUDE_DIRS}
+    LINK_DIRS
+        ${MPOOL_LIB_DIR}
+        ${BLKID_LIB_DIR}
+    LINK_LIBS
+        hse_kvdb_static-lib
+        ${HSE_USER_MPOOL_LINK_LIBS}
+    DESTINATION ${HSE_DIAG_BIN}
+    COMPONENT runtime
+)
+
+hse_executable(
     NAME cn_metrics
     SRCS tools/cn_metrics.c
     INCLUDES ${HSE_COMPLETE_INCLUDE_DIRS}
