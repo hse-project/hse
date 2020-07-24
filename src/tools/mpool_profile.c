@@ -13,13 +13,13 @@
 #define MiB (1024UL * KiB)
 #define GiB (1024UL * MiB)
 
-/* we use 128KiB writes in all cases */
+/* We use 128KiB writes in all cases */
 #define MP_PROF_BLOCK_SIZE (128UL * KiB)
 
-/* each thread will allocate, fill, and abort/discard 100 mblocks */
+/* Each thread will allocate, fill, and abort/discard MP_PROF_MBLOCKS_PER_THREAD mblocks */
 #define MP_PROF_MBLOCKS_PER_THREAD 40
 
-/* although we allocate & discard, we need the drive to have spare capacity */
+/* Although we allocate & discard, we need the drive to have spare capacity */
 #define MP_SPARE_MBLOCKS_PER_THREAD 20
 
 #define MIN_EXPECTED_LAT_NS (1L)
@@ -88,7 +88,7 @@ profile_worker(
 
     buf = alloc_aligned(PAGE_SIZE, work->block_sz, 0);
     if (!buf) {
-        fprintf(stderr, "alloc_aligned() failed for %ld bytes, page aligned\n", work->block_sz);
+        fprintf(stderr, "alloc_aligned() failed for %lu bytes, page aligned\n", work->block_sz);
         work->err = merr(ENOMEM);
 
         return;
@@ -193,11 +193,10 @@ perform_profile_run(
 
         work_specs[i].samples = malloc(samples_per_thread * sizeof(double));
         if (!work_specs[i].samples) {
-            i = i - 1;
-            while (i >= 0) {
+            int j;
+
+            for (j = 0; j < i; ++j)
                 free(work_specs[i].samples);
-                --i;
-            }
 
             free(work_specs);
             destroy_workqueue(workqueue);
@@ -379,8 +378,8 @@ usage(const char *program)
 {
     printf("usage: %s [options] <mpool name>\n", program);
 
-    printf("usage: %s -h\n", program);
-    printf("-v verbose mode\n");
+    printf(" -h\tThis help text\n");
+    printf(" -v\tMake the output more explanatory\n");
 }
 
 int
@@ -410,29 +409,27 @@ handle_options(
             break;
 
         switch (c) {
-            case 'h':
-                usage(program);
-                return 0;
-            case 'v':
-                lcl_verbose = 1;
-                break;
+          case 'h':
+              usage(program);
+              exit(0);
+
+          case 'v':
+              lcl_verbose = 1;
+              break;
         }
     }
 
-    if (optind + 1 < argc) {
-        int i;
-
-        fprintf(stderr, "Invalid argument(s)");
-        for (i = 0; i < argc - optind - 1; i++)
-            fprintf(stderr, " %s", argv[optind + i]);
-        fprintf(stderr, "\n");
+    argc -= optind;
+    argv += optind;
+    if (argc > 1) {
+        fprintf(stderr, "Extraneous arguments detected\n");
         usage(program);
 
         return -1;
     }
 
     *verbose  = lcl_verbose;
-    *mpname = argv[argc - 1];
+    *mpname = argv[0];
 
     return 0;
 }

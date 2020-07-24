@@ -315,6 +315,7 @@ hse_executable(
     LINK_LIBS
         hse_kvdb_static-lib
         ${HSE_USER_MPOOL_LINK_LIBS}
+        m
     DESTINATION ${HSE_DIAG_BIN}
     COMPONENT runtime
 )
