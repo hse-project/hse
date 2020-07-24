@@ -103,7 +103,7 @@ hse_kvdb_fini(void)
 }
 
 hse_err_t
-hse_kvdb_make(const char *mpool_name, struct hse_params *params)
+hse_kvdb_make(const char *mpool_name, const struct hse_params *params)
 {
     struct kvdb_cparams dbparams;
     struct mpool_params mparams;
@@ -173,9 +173,9 @@ handle_rparams(struct kvdb_rparams *params)
 
 hse_err_t
 hse_kvdb_open(
-    const char *       mpool_name,
-    struct hse_params *params,
-    struct hse_kvdb ** handle)
+    const char                 *mpool_name,
+    const struct hse_params    *params,
+    struct hse_kvdb           **handle)
 {
     merr_t              err;
     struct ikvdb *      ikvdb;
@@ -290,7 +290,7 @@ hse_kvdb_free_names(struct hse_kvdb *handle, char **kvsv)
 }
 
 hse_err_t
-hse_kvdb_kvs_make(struct hse_kvdb *handle, const char *kvs_name, struct hse_params *params)
+hse_kvdb_kvs_make(struct hse_kvdb *handle, const char *kvs_name, const struct hse_params *params)
 {
     merr_t err;
 
@@ -323,10 +323,10 @@ hse_kvdb_kvs_drop(struct hse_kvdb *handle, const char *kvs_name)
 
 hse_err_t
 hse_kvdb_kvs_open(
-    struct hse_kvdb *  handle,
-    const char *       kvs_name,
-    struct hse_params *params,
-    struct hse_kvs **  kvs_out)
+    struct hse_kvdb            *handle,
+    const char                 *kvs_name,
+    const struct hse_params    *params,
+    struct hse_kvs            **kvs_out)
 {
     merr_t err;
     u64    tstart;

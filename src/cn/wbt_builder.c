@@ -559,19 +559,25 @@ wbb_init(struct wbb *wbb, void *nodev, uint max_pgc, uint *wbt_pgc)
     uint   i;
     merr_t err = 0;
 
+    /* Save state that persists across "init" */
+    kst = wbb->cnode_key_stage;
+    kst_pgc = wbb->cnode_key_stage_pgc;
     for (i = 0; i < KMD_CHUNKS; i++)
         iov_base[i] = wbb->kmd_iov[i].iov_base;
 
-    kst = wbb->cnode_key_stage;
-    kst_pgc = wbb->cnode_key_stage_pgc;
-
+    /* Reset */
     memset(wbb, 0, sizeof(*wbb));
 
+    /* Restore */
+    wbb->cnode_key_stage = kst;
+    wbb->cnode_key_stage_pgc = kst_pgc;
+    for (i = 0; i < KMD_CHUNKS; i++)
+        wbb->kmd_iov[i].iov_base = iov_base[i];
+
+    /* Init new params */
     wbb->max_pgc = max_pgc;
     wbb->nodev_len = max_pgc;
     wbb->nodev = nodev;
-    wbb->cnode_key_stage = kst;
-    wbb->cnode_key_stage_pgc = kst_pgc;
     wbb->inodec = max_pgc;
 
     err = _new_leaf_node(wbb, 0);
@@ -581,9 +587,6 @@ wbb_init(struct wbb *wbb, void *nodev, uint max_pgc, uint *wbt_pgc)
     wbb->ibldr = ib_create(wbb);
     if (ev(!wbb->ibldr))
         return merr(ENOMEM);
-
-    for (i = 0; i < KMD_CHUNKS; i++)
-        wbb->kmd_iov[i].iov_base = iov_base[i];
 
     *wbt_pgc = wbb->lnodec;
     return 0;
@@ -596,38 +599,45 @@ wbb_create(
     uint *       wbt_pgc /* in/out */
     )
 {
-    struct wbb *wbb;
-    void *      nodev;
+    struct wbb *wbb = 0;
+    void *      nodev = 0;
     merr_t      err = 0;
 
     /* insist on something to work with... */
-    if (max_pgc < 8)
-        return merr(ev(EINVAL));
+    if (ev(max_pgc < 8)) {
+        err = merr(EINVAL);
+        goto err_exit;
+    }
 
     wbb = calloc(1, sizeof(*wbb));
-    if (!wbb)
-        return merr(ev(ENOMEM));
+    if (ev(!wbb))
+        goto err_exit;
 
     wbb->cnode_key_stage_pgc = 2;
     wbb->cnode_key_stage = malloc(wbb->cnode_key_stage_pgc * PAGE_SIZE);
-    if (ev(!wbb->cnode_key_stage)) {
-        free(wbb);
-        return merr(ENOMEM);
-    }
+    if (ev(!wbb->cnode_key_stage))
+        goto err_exit;
 
     nodev = alloc_page_aligned(max_pgc * PAGE_SIZE, GFP_KERNEL);
-    if (ev(!nodev)) {
-        free(wbb->cnode_key_stage);
-        free(wbb);
-        return merr(ENOMEM);
-    }
+    if (ev(!nodev))
+        goto err_exit;
 
     err = wbb_init(wbb, nodev, max_pgc, wbt_pgc);
     if (err)
-        return err;
+        goto err_exit;
 
     *wbb_out = wbb;
     return 0;
+
+  err_exit:
+
+    if (wbb) {
+        free_aligned(nodev);
+        free(wbb->cnode_key_stage);
+        free(wbb);
+    }
+
+    return err ? err : merr(ENOMEM);
 }
 
 void *

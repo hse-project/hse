@@ -520,7 +520,7 @@ print_hse_err(struct cli *cli, const char *api, hse_err_t err)
  *                               parameter parsing error
  */
 static void
-print_hse_params_err(struct cli *cli, const char *api, struct hse_params *hp)
+print_hse_params_err(struct cli *cli, const char *api, const struct hse_params *hp)
 {
     char msg[256];
 
