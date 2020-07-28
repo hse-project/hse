@@ -265,28 +265,40 @@ exit:
     return 0;
 }
 
-inline void
+void
 c0skm_set_tseqno(struct c0sk *handle, u64 seqno)
 {
-    struct c0sk_impl *    self;
     struct c0sk_mutation *c0skm;
+    struct c0sk_impl *self;
+    bool swapped;
+    u64 old;
 
-    if (ev(!handle))
+    if (!handle)
         return;
 
     self = c0sk_h2r(handle);
 
     c0skm = self->c0sk_mhandle;
-    if (ev(!c0skm))
+    if (!c0skm)
+        return; /* c1 is disabled */
+
+    /* The new seqno must always be greater than the current
+     * seqno.  See kvdb_ctxn_commit() which ensures it.
+     */
+    old = atomic64_read(&c0skm->c0skm_tseqno);
+
+    if (ev(old >= seqno)) {
+        assert(seqno > old);
         return;
+    }
 
-    while (1) {
-        u64 old = atomic64_read(&c0skm->c0skm_tseqno);
+    /* It's a grievous error if there is more than one thread
+     * executing in this function at any given time.
+     */
+    swapped = atomic64_cas(&c0skm->c0skm_tseqno, old, seqno);
 
-        if (old >= seqno)
-            break;
-
-        atomic64_cmpxchg(&c0skm->c0skm_tseqno, old, seqno);
+    if (ev(!swapped)) {
+        assert(swapped);
     }
 }
 

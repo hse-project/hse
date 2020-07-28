@@ -348,6 +348,16 @@ atomic64_cmpxchg(atomic64_t *v, long oldv, long newv)
     return retv;
 }
 
+static inline _Bool
+atomic64_cas(atomic64_t *v, long oldv, long newv)
+{
+    long retv = oldv;
+
+    return __atomic_compare_exchange_n(
+        &v->counter, &retv, newv, 0, __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST);
+}
+
+
 /*
  * atomic_ptr_cmpxchg()
  *
