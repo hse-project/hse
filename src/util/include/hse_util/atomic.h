@@ -198,6 +198,15 @@ atomic_cmpxchg(atomic_t *v, int oldv, int newv)
     return retv;
 }
 
+static inline _Bool
+atomic_cas(atomic_t *v, int oldv, int newv)
+{
+    int retv = oldv;
+
+    return __atomic_compare_exchange_n(
+        &v->counter, &retv, newv, 0, __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST);
+}
+
 /*----------------------------------------------------------------
  * 64-bit atomics
  */
@@ -395,24 +404,6 @@ atomic_read_acq(const atomic_t *v)
     return __atomic_load_n(&v->counter, __ATOMIC_ACQUIRE);
 }
 
-/* The increment must complete before any subsequent load or store
- * (in program order across all cpus in the system) is performed.
- */
-static inline int
-atomic64_inc_acq(atomic64_t *v)
-{
-    return __atomic_add_fetch(&v->counter, 1, __ATOMIC_ACQUIRE);
-}
-
-/* All prior loads and stores (in program order across all cpus in
- * the system) must have completed before the decrement is performed.
- */
-static inline int
-atomic64_inc_rel(atomic64_t *v)
-{
-    return __atomic_add_fetch(&v->counter, 1, __ATOMIC_RELEASE);
-}
-
 static inline int
 atomic_or_fetch_rel(atomic_t *v, int val)
 {
@@ -462,6 +453,30 @@ static inline long
 atomic64_fetch_add_rel(long i, atomic64_t *v)
 {
     return __atomic_fetch_add(&v->counter, i, __ATOMIC_RELEASE);
+}
+
+/* The increment must complete before any subsequent load or store
+ * (in program order across all cpus in the system) is performed.
+ */
+static inline long
+atomic64_inc_acq(atomic64_t *v)
+{
+    return __atomic_add_fetch(&v->counter, 1, __ATOMIC_ACQUIRE);
+}
+
+/* All prior loads and stores (in program order across all cpus in
+ * the system) must have completed before the decrement is performed.
+ */
+static inline long
+atomic64_inc_rel(atomic64_t *v)
+{
+    return __atomic_add_fetch(&v->counter, 1, __ATOMIC_RELEASE);
+}
+
+static inline long
+atomic64_dec_rel(atomic64_t *v)
+{
+    return __atomic_sub_fetch(&v->counter, 1, __ATOMIC_RELEASE);
 }
 
 #endif /* HSE_PLATFORM_ATOMIC_H */
