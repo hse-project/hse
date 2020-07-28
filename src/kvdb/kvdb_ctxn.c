@@ -491,6 +491,15 @@ kvdb_ctxn_merge(
     return err;
 }
 
+/* The flush lock serializes threads performing a flush-commit
+ * while ensuring they all make forward progress.  Meanwhile,
+ * the flush_busy flag is used to prevent merge-flush threads
+ * from getting into the inner commit critical section which
+ * could deadlock a flush-commit thread on the keylist lock.
+ */
+static DEFINE_MUTEX(flush_lock);
+static atomic_t flush_busy = ATOMIC_INIT(0);
+
 merr_t
 kvdb_ctxn_commit(struct kvdb_ctxn *handle)
 {
@@ -556,6 +565,12 @@ retry:
     if (ev(err)) {
         assert(!dst && !priv);
 
+        /* Serialize all flush operations to ensure we don't
+         * deadlock on keylock list lock.
+         */
+        mutex_lock(&flush_lock);
+        atomic_inc(&flush_busy);
+
         /* To maintain seqno ordering for c1, the following order of
          * operations must be followed:
          *  1. increment head.
@@ -568,18 +583,23 @@ retry:
          */
         head = atomic64_inc_acq(ctxn->ctxn_tseqno_head);
         err = c0sk_flush(ctxn->ctxn_c0sk, ctxn->ctxn_kvms);
+        if (err) {
+            atomic_dec(&flush_busy);
+            mutex_unlock(&flush_lock);
+
+            /* Ensure that threads leave in the same order in which they
+             * incremented ctxn_tseqno_head.
+             */
+            while (atomic64_read(ctxn->ctxn_tseqno_tail) + 1 < head)
+                __builtin_ia32_pause();
+            atomic64_inc(ctxn->ctxn_tseqno_tail);
+        }
     }
 
     /* If there is an error at this point, we can neither publish nor
      * persist any mutations made by this transaction, so we abort it.
      */
     if (ev(err)) {
-        /* Ensure that threads leave in the same order in which they
-         * incremented ctxn_tseqno_head. */
-        while (atomic64_read(ctxn->ctxn_tseqno_tail) + 1 < head)
-            __builtin_ia32_pause();
-        atomic64_inc(ctxn->ctxn_tseqno_tail);
-
         kvdb_ctxn_abort_inner(ctxn);
         c0kvms_putref(ctxn->ctxn_kvms);
         kvdb_ctxn_unlock(ctxn);
@@ -661,7 +681,7 @@ retry:
          * to ensure rsvd_sn is always the lowest seqno in a kvms).
          */
         first = c0sk_get_first_c0kvms(ctxn->ctxn_c0sk);
-        if (ev(first != dst || commit_sn < rsvd_sn)) {
+        if (ev(first != dst || commit_sn < rsvd_sn || atomic_read(&flush_busy))) {
             rcu_read_unlock();
 
             kvdb_keylock_list_unlock(cookie);
@@ -669,7 +689,8 @@ retry:
             c0kvms_putref(dst);
 
             /* Ensure that threads leave in the same order in which they
-             * incremented ctxn_tseqno_head. */
+             * incremented ctxn_tseqno_head.
+             */
             while (atomic64_read(ctxn->ctxn_tseqno_tail) + 1 < head)
                 __builtin_ia32_pause();
             atomic64_inc(ctxn->ctxn_tseqno_tail);
@@ -682,6 +703,12 @@ retry:
         assert(!c0kvms_is_finalized(dst));
     } else {
         /* flush */
+
+        /* Now that we've acquired our keylock list lock we can
+         * allow merge-commit threads into this critsec behind us...
+         */
+        atomic_dec(&flush_busy);
+
         rsvd_sn = c0kvms_rsvd_sn_get(ctxn->ctxn_kvms);
         assert(rsvd_sn > 0 && rsvd_sn != HSE_SQNREF_INVALID);
         assert(atomic64_read(ctxn->ctxn_kvdb_seq_addr) >= rsvd_sn);
@@ -761,8 +788,10 @@ retry:
     c0kvms_priv_release(ctxn->ctxn_kvms);
     c0kvms_putref(ctxn->ctxn_kvms);
 
-    if (!dst)
+    if (!dst) {
+        mutex_unlock(&flush_lock);
         ctxn->ctxn_kvms = 0;
+    }
 
     kvdb_ctxn_unlock(ctxn);
 
