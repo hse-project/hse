@@ -741,8 +741,8 @@ retry:
     if (dst)
         *priv = ref;
 
-    atomic64_inc_rel(ctxn->ctxn_tseqno_tail);
     c0skm_set_tseqno(ctxn->ctxn_c0sk, commit_sn);
+    atomic64_inc_rel(ctxn->ctxn_tseqno_tail);
 
     locks = ctxn->ctxn_locks_handle;
     ctxn->ctxn_locks_handle = NULL;
