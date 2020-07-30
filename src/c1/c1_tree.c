@@ -36,6 +36,7 @@ c1_tree_create(
 
     INIT_LIST_HEAD(&tree->c1t_list);
     atomic_set(&tree->c1t_nextlog, 0);
+    atomic_set(&tree->c1t_txmeta_idx, 0);
     atomic64_set(&tree->c1t_mutation, 0);
     atomic64_set(&tree->c1t_rsvdspace, 0);
     tree->c1t_capacity = capacity;
@@ -428,8 +429,26 @@ c1_tree_reserve_space_txn(struct c1_tree *tree, u64 size)
     return 0;
 }
 
+void
+c1_tree_refresh_space(struct c1_tree *tree)
+{
+    int i;
+    u64 used = 0;
+
+    for (i = 0; i < tree->c1t_stripe_width; i++)
+        used += c1_log_refresh_space(tree->c1t_log[i]);
+
+    atomic64_set(&tree->c1t_rsvdspace, used);
+}
+
 merr_t
-c1_tree_reserve_space(struct c1_tree *tree, u64 size, int *idx, u64 *mutation)
+c1_tree_reserve_space(
+    struct c1_tree *tree,
+    u64             rsvsz,
+    int *           idx,
+    u64 *           mutation,
+    u64             peeksz,
+    bool            txmeta)
 {
     struct c1_log *log;
     int            i;
@@ -437,13 +456,19 @@ c1_tree_reserve_space(struct c1_tree *tree, u64 size, int *idx, u64 *mutation)
     int            numlogs;
     merr_t         err;
 
+    if (peeksz == 0 && txmeta) {
+        *idx = atomic_read(&tree->c1t_txmeta_idx);
+        *mutation = atomic64_add_return(1, &tree->c1t_mutation);
+        return 0;
+    }
+
     numlogs = tree->c1t_stripe_width;
     nextlog = atomic_read(&tree->c1t_nextlog);
     nextlog %= numlogs;
 
     log = tree->c1t_log[nextlog];
 
-    err = c1_log_reserve_space(log, size);
+    err = c1_log_reserve_space(log, rsvsz, peeksz);
     if (!err) {
         *idx = nextlog;
         goto exit_succ;
@@ -458,7 +483,7 @@ c1_tree_reserve_space(struct c1_tree *tree, u64 size, int *idx, u64 *mutation)
 
         log = tree->c1t_log[i];
 
-        err = c1_log_reserve_space(log, size);
+        err = c1_log_reserve_space(log, rsvsz, peeksz);
         if (!err) {
             *idx = i;
             goto exit_succ;
@@ -500,7 +525,8 @@ c1_tree_issue_kvb(
 
     log = tree->c1t_log[idx];
 
-    return c1_log_issue_kvb(log, vbldr, ingestid, vsize, kvb, seqno, txnid, gen, mutation, sync, tidx, statsp);
+    return c1_log_issue_kvb(
+        log, vbldr, ingestid, vsize, kvb, seqno, txnid, gen, mutation, sync, tidx, statsp);
 }
 
 merr_t
@@ -544,7 +570,8 @@ c1_tree_get_complete(struct c1_tree *tree, struct c1_complete *cmp)
     return 0;
 }
 
-BullseyeCoverageSaveOff merr_t
+BullseyeCoverageSaveOff
+merr_t
 c1_tree_reset(struct c1_tree *tree, u64 newseqno, u32 newgen)
 {
     int    i;

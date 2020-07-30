@@ -179,9 +179,10 @@ bool
 c0kvsm_has_kvmut(struct c0_kvset *c0kvs, u8 mindex, bool istxn)
 {
     struct c0_kvsetm *ckm;
-    struct c0_kvsetm *ckmp;
 
     if (istxn) {
+        struct c0_kvsetm *ckmp;
+
         ckmp = c0kvsm_get_txpend(c0kvs);
         ckm = c0kvsm_get_tx(c0kvs, mindex);
 
@@ -197,9 +198,10 @@ u32
 c0kvsm_get_kcnt(struct c0_kvset *c0kvs, u8 mindex, bool istxn)
 {
     struct c0_kvsetm *ckm;
-    struct c0_kvsetm *ckmp;
 
     if (istxn) {
+        struct c0_kvsetm *ckmp;
+
         ckmp = c0kvsm_get_txpend(c0kvs);
         ckm = c0kvsm_get_tx(c0kvs, mindex);
 
@@ -209,6 +211,25 @@ c0kvsm_get_kcnt(struct c0_kvset *c0kvs, u8 mindex, bool istxn)
     ckm = c0kvsm_get(c0kvs, mindex);
 
     return ckm->c0m_kcnt;
+}
+
+u32
+c0kvsm_get_vcnt(struct c0_kvset *c0kvs, u8 mindex, bool istxn)
+{
+    struct c0_kvsetm *ckm;
+
+    if (istxn) {
+        struct c0_kvsetm *ckmp;
+
+        ckmp = c0kvsm_get_txpend(c0kvs);
+        ckm = c0kvsm_get_tx(c0kvs, mindex);
+
+        return ckmp->c0m_vcnt + ckm->c0m_vcnt;
+    }
+
+    ckm = c0kvsm_get(c0kvs, mindex);
+
+    return ckm->c0m_vcnt;
 }
 
 u64
@@ -225,12 +246,10 @@ c0kvsm_get_kvsize(struct c0_kvset *c0kvs, u8 mindex, bool istxn, u64 *txpsz, u64
         }
 
         ckm = c0kvsm_get_tx(c0kvs, mindex);
-
-        goto exit;
+    } else {
+        ckm = c0kvsm_get(c0kvs, mindex);
     }
 
-    ckm = c0kvsm_get(c0kvs, mindex);
-exit:
     if (ksize)
         *ksize = ckm->c0m_ksize;
     if (vsize)
@@ -301,5 +320,6 @@ c0kvsm_add_txpend(
     }
 
     ckmp->c0m_vsize += vlen;
+    ++ckmp->c0m_vcnt;
     perfc_inc(set, PERFC_BA_C0SKM_KVVPN);
 }

@@ -289,7 +289,8 @@ c1_log_close_impl(struct c1_log *log)
     return err;
 }
 
-BullseyeCoverageSaveOff merr_t
+BullseyeCoverageSaveOff
+merr_t
 c1_log_reset(struct c1_log *log, u64 newseqno, u64 newgen)
 {
     merr_t err;
@@ -344,7 +345,7 @@ c1_log_set_capacity(struct c1_log *log, u64 size)
 }
 
 merr_t
-c1_log_reserve_space(struct c1_log *log, u64 size)
+c1_log_reserve_space(struct c1_log *log, u64 rsvsz, u64 peeksz)
 {
     merr_t err;
     u64    available;
@@ -362,19 +363,34 @@ c1_log_reserve_space(struct c1_log *log, u64 size)
         return err;
 
     available = HSE_C1_LOG_USEABLE_CAPACITY(log->c1l_space);
-    if (size >= available) {
+    if (rsvsz >= available) {
         hse_log(
-            HSE_ERR "c1_log ingest size 0x%lx exceeded capacity 0x%lx",
-            (unsigned long)size,
+            HSE_ERR "c1_log ingest rsvsz 0x%lx exceeded capacity 0x%lx",
+            (unsigned long)rsvsz,
             (unsigned long)available);
         return merr(ENOSPC);
     }
-    reserved = atomic64_add_return(size, &log->c1l_rsvdspace);
+    reserved = atomic64_add_return(rsvsz, &log->c1l_rsvdspace);
 
-    if ((len >= available) || (reserved >= available))
+    if ((len >= available) || (reserved + peeksz >= available))
         return merr(ENOMEM);
 
     return 0;
+}
+
+u64
+c1_log_refresh_space(struct c1_log *log)
+{
+    size_t len;
+    merr_t err;
+
+    err = mpool_mlog_len(log->c1l_mlh, &len);
+    if (err)
+        return atomic64_read(&log->c1l_rsvdspace);
+
+    atomic64_set(&log->c1l_rsvdspace, len);
+
+    return len;
 }
 
 static void
