@@ -17,6 +17,7 @@ Internet of Things (IoT), and Artificial Intelligence (AI) solutions.
 key-value collections
 * Cursors for iterating over snapshot views
 * Data model for optimizing mixed use-case workloads in a single data store
+* Key and value compression
 * Flexible durability controls
 * Configurable data orchestration schemes
 * C API library that can be embedded in any application
