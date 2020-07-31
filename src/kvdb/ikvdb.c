@@ -1271,10 +1271,10 @@ ikvdb_low_mem_adjust(struct ikvdb_impl *self)
 
 merr_t
 ikvdb_open(
-    const char                 *mp_name,
-    struct mpool               *ds,
-    const struct hse_params    *params,
-    struct ikvdb              **handle)
+    const char *             mp_name,
+    struct mpool *           ds,
+    const struct hse_params *params,
+    struct ikvdb **          handle)
 {
     merr_t              err;
     struct ikvdb_impl * self;
@@ -1806,11 +1806,11 @@ ikvdb_kvs_count(struct ikvdb *handle, unsigned int *count)
 
 merr_t
 ikvdb_kvs_open(
-    struct ikvdb               *handle,
-    const char                 *kvs_name,
-    const struct hse_params    *params,
-    uint                        flags,
-    struct hse_kvs            **kvs_out)
+    struct ikvdb *           handle,
+    const char *             kvs_name,
+    const struct hse_params *params,
+    uint                     flags,
+    struct hse_kvs **        kvs_out)
 {
     struct ikvdb_impl *self = ikvdb_h2r(handle);
     struct kvdb_kvs *  kvs;
@@ -2124,7 +2124,17 @@ ikvdb_kvs_pfx_probe(
 
     p = kk->kk_parent;
 
-    view_seqno = kvdb_kop_is_txn(os) ? 0 : atomic64_read(&p->ikdb_seqno);
+    if (kvdb_kop_is_txn(os)) {
+        /*
+         * No need to wait for ongoing commits. A transaction waited when its view was
+         * being established i.e. at the time of transaction begin.
+         */
+        view_seqno = 0;
+    } else {
+        /* Establish our view before waiting on ongoing commits. */
+        view_seqno = atomic64_read(&p->ikdb_seqno);
+        kvdb_ctxn_set_wait_commits(p->ikdb_ctxn_set);
+    }
 
     return ikvs_pfx_probe(kk->kk_ikvs, os, kt, view_seqno, res, kbuf, vbuf);
 }
@@ -2146,7 +2156,17 @@ ikvdb_kvs_get(
 
     p = kk->kk_parent;
 
-    view_seqno = kvdb_kop_is_txn(os) ? 0 : atomic64_read(&p->ikdb_seqno);
+    if (kvdb_kop_is_txn(os)) {
+        /*
+         * No need to wait for ongoing commits. A transaction waited when its view was
+         * being established i.e. at the time of transaction begin.
+         */
+        view_seqno = 0;
+    } else {
+        /* Establish our view before waiting on ongoing commits. */
+        view_seqno = atomic64_read(&p->ikdb_seqno);
+        kvdb_ctxn_set_wait_commits(p->ikdb_ctxn_set);
+    }
 
     return ikvs_get(kk->kk_ikvs, os, kt, view_seqno, res, vbuf);
 }
@@ -2372,8 +2392,14 @@ cursor_unbind_txn(struct hse_kvs_cursor *cur)
          * to commit_sn + 1 and an aborted txn unbind sets the view to
          * the current KVDB seqno.
          */
-        if (!(cur->kc_flags & HSE_KVDB_KOP_FLAG_STATIC_VIEW))
+        if (!(cur->kc_flags & HSE_KVDB_KOP_FLAG_STATIC_VIEW)) {
+            /*
+             * Since the cursor view is refreshed to a newer one,  we need to
+             * wait for ongoing commits after the view is established.
+             */
             cur->kc_seq = bind->b_seq;
+            kvdb_ctxn_set_wait_commits(cur->kc_kvs->kk_parent->ikdb_ctxn_set);
+        }
 
         kvdb_ctxn_cursor_unbind(bind);
         ikvs_cursor_bind_txn(cur, 0);
@@ -2482,8 +2508,18 @@ ikvdb_kvs_cursor_create(
     cursor_release_seqno(cur);
 
     /* ... but only bind lifecycle if asked */
-    if (!ev(err) && bind)
-        err = cursor_bind_txn(cur, bind);
+    if (!ev(err)) {
+        if (bind) {
+            /*
+             * No need to wait for ongoing commits. A transaction waited when its view was
+             * being established i.e. at the time of transaction begin.
+             */
+            err = cursor_bind_txn(cur, bind);
+        } else {
+            /* New cursor view is established. Now wait on ongoing commits. */
+            kvdb_ctxn_set_wait_commits(ikvdb->ikdb_ctxn_set);
+        }
+    }
 
     if (ev(err)) {
         ikvdb_kvs_cursor_destroy(cur);
@@ -2549,7 +2585,9 @@ ikvdb_kvs_cursor_update(struct hse_kvs_cursor *cur, struct hse_kvdb_opspec *os)
 
         if (kvdb_kop_is_bind_txn(os)) {
             if (!ctxn || ctxn != bound->b_ctxn) {
-                /* save view seq; do not change in unbind */
+                /* Save view seq; do not change in unbind.
+                 * Since the view remains unchanged, no need to wait on commits.
+                 */
                 seqno = cur->kc_seq;
                 cursor_unbind_txn(cur);
                 cur->kc_seq = seqno;
@@ -2570,8 +2608,19 @@ ikvdb_kvs_cursor_update(struct hse_kvs_cursor *cur, struct hse_kvdb_opspec *os)
     cur->kc_err = ikvs_cursor_update(cur, cur->kc_seq);
     cursor_release_seqno(cur);
 
-    if (!cur->kc_err && bind)
-        cur->kc_err = cursor_bind_txn(cur, bind);
+    /* ... but only bind lifecycle if asked */
+    if (!ev(cur->kc_err)) {
+        if (bind) {
+            /*
+             * No need to wait for ongoing commits. A transaction waited when its view was
+             * being established i.e. at the time of transaction begin.
+             */
+            cur->kc_err = cursor_bind_txn(cur, bind);
+        } else {
+            /* New cursor view is established. Now wait on ongoing commits. */
+            kvdb_ctxn_set_wait_commits(cur->kc_kvs->kk_parent->ikdb_ctxn_set);
+        }
+    }
 
     cur->kc_flags = os ? os->kop_flags : 0;
 
@@ -3057,7 +3106,6 @@ log_dt(void)
             .yaml_offset = 0,
         };
         union dt_iterate_parameters dip = { .yc = &yc };
-
 
         flock(fd, LOCK_EX);
 

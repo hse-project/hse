@@ -150,6 +150,9 @@ merr_t
 kvdb_ctxn_set_create(struct kvdb_ctxn_set **handle_out, u64 txn_timeout, u64 msecs);
 
 void
+kvdb_ctxn_set_wait_commits(struct kvdb_ctxn_set *handle);
+
+void
 kvdb_ctxn_set_destroy(struct kvdb_ctxn_set *handle);
 
 #endif
