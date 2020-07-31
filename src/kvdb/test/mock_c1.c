@@ -66,13 +66,13 @@ struct kvb_builder_iter;
 struct c1;
 
 merr_t
-_c1_ingest(struct c1 *c1, struct kvb_builder_iter *iter, u64 size, int ingestflag)
+_c1_ingest(struct c1 *c1, struct kvb_builder_iter *iter, struct c1_kvinfo *cki, int ingestflag)
 {
     return 0;
 }
 
 merr_t
-_c1_txn_begin(struct c1 *c1, u64 txnid, u64 size, int flag)
+_c1_txn_begin(struct c1 *c1, u64 txnid, struct c1_kvinfo *cki, int flag)
 {
     return 0;
 }

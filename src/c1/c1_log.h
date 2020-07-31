@@ -12,7 +12,7 @@ struct c1_bonsai_vbldr;
 #define HSE_C1_KEY_IOVS (1 + 1) /* 1 each for kvt, key*/
 #define HSE_C1_VAL_IOVS (1 + 1) /* 1 each for vallen & val) */
 
-#define HSE_C1_LOG_USEABLE_CAPACITY(space) ((space * 60) / 100)
+#define HSE_C1_LOG_USEABLE_CAPACITY(space) ((space * 80) / 100)
 #define HSE_C1_LOG_VBLDR_HEAPSZ (1024 * MB)
 #define HSE_C1_SMALL_VALUE_THRESHOLD 16
 
@@ -182,7 +182,10 @@ c1_log_issue_txn(
     int             sync);
 
 merr_t
-c1_log_reserve_space(struct c1_log *log, u64 space);
+c1_log_reserve_space(struct c1_log *log, u64 rsvsz, u64 peeksz);
+
+u64
+c1_log_refresh_space(struct c1_log *log);
 
 merr_t
 c1_log_make(

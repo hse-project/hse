@@ -16,7 +16,7 @@ void
 c1_io_destroy(struct c1 *c1);
 
 merr_t
-c1_io_txn_begin(struct c1 *c1, u64 size, u64 txnid, int flag);
+c1_io_txn_begin(struct c1 *c1, u64 txnid, struct c1_kvinfo *cki, int flag);
 
 merr_t
 c1_io_txn_commit(struct c1 *c1, u64 txnid, u64 seqno, int flag);
@@ -34,6 +34,11 @@ void
 c1_io_kvset_builder_release(struct c1 *c1, struct c1_kvset_builder_elem *elem);
 
 merr_t
-c1_issue_iter(struct c1 *c1, struct kvb_builder_iter *iter, u64 txnid, u64 size, int sync);
+c1_issue_iter(
+    struct c1 *              c1,
+    struct kvb_builder_iter *iter,
+    u64                      txnid,
+    struct c1_kvinfo *       cki,
+    int                      sync);
 
 #endif /* HSE_C1_IO_H */
