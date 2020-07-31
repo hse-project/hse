@@ -241,6 +241,29 @@ kvdb_ctxn_set_remove(struct kvdb_ctxn_set *handle, struct kvdb_ctxn_impl *ctxn)
 }
 
 void
+kvdb_ctxn_set_wait_commits(struct kvdb_ctxn_set *handle)
+{
+    struct kvdb_ctxn_set_impl *kvdb_ctxn_set = kvdb_ctxn_set_h2r(handle);
+
+    /*
+     * This transaction started its commit only after our view was established.
+     * Note that your view must be established prior to calling wait_commits.
+     * Every transaction that starts its commit after our view is established
+     * will have a commit_seqno strictly greater than our view_seqno.
+     */
+    u64 head = atomic64_read_acq(&kvdb_ctxn_set->ktn_tseqno_head);
+
+    /*
+     * Ensure that all preceding commits have published their mutations.
+     * This ensures that we have a consistent read snapshot to work with.
+     * We do not expect any new committing transactions' mutations
+     * to unexpectedly pop up within our view after this wait is over.
+     */
+    while (atomic64_read(&kvdb_ctxn_set->ktn_tseqno_tail) < head)
+        __builtin_ia32_pause();
+}
+
+void
 kvdb_ctxn_free(struct kvdb_ctxn *handle)
 {
     struct kvdb_ctxn_impl *ctxn;
@@ -309,7 +332,6 @@ kvdb_ctxn_begin(struct kvdb_ctxn *handle)
     struct kvdb_ctxn_impl *ctxn = kvdb_ctxn_h2r(handle);
     enum kvdb_ctxn_state   state;
     merr_t                 err;
-    u64                    head, tail;
 
     if (ev(!kvdb_ctxn_trylock(ctxn)))
         return merr(EPROTO);
@@ -325,26 +347,12 @@ kvdb_ctxn_begin(struct kvdb_ctxn *handle)
     ctxn->ctxn_bind = 0;
     ctxn->ctxn_begin_ts = get_time_ns();
 
-    /* Track the last transaction known to have published its mutations. */
-    tail = atomic64_read_acq(ctxn->ctxn_tseqno_tail);
-
     err = active_ctxn_set_insert(
         ctxn->ctxn_active_set, &ctxn->ctxn_view_seqno, &ctxn->ctxn_active_set_cookie);
     if (ev(err))
         goto errout;
 
-    /* Track the last transaction to have started a commit. */
-    head = atomic64_read_acq(ctxn->ctxn_tseqno_head);
-
-    /*
-     * Ensure that all commits that began while this transaction's view
-     * was established have published their mutations. This transaction must
-     * be able to read those mutations to ensure a consistent read snapshot.
-     */
-    if (tail < head) {
-        while (atomic64_read(ctxn->ctxn_tseqno_tail) < head)
-            __builtin_ia32_pause();
-    }
+    kvdb_ctxn_set_wait_commits(ctxn->ctxn_kvdb_ctxn_set);
 
     ctxn->ctxn_can_insert = 0;
     ctxn->ctxn_seqref = HSE_SQNREF_UNDEFINED;
