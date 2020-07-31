@@ -313,7 +313,7 @@ c1_close(struct c1 *c1)
 }
 
 merr_t
-c1_ingest(struct c1 *c1, struct kvb_builder_iter *iter, u64 size, int ingestflag)
+c1_ingest(struct c1 *c1, struct kvb_builder_iter *iter, struct c1_kvinfo *cki, int ingestflag)
 {
     merr_t err;
     u64    txnid;
@@ -321,18 +321,19 @@ c1_ingest(struct c1 *c1, struct kvb_builder_iter *iter, u64 size, int ingestflag
     txnid = c1_cur_txnid(c1);
 
     if (!iter) {
-        err = c1_issue_iter(c1, NULL, txnid, size, ingestflag);
+        err = c1_issue_iter(c1, NULL, txnid, cki, ingestflag);
         return ev(err);
     }
 
-    err = c1_issue_iter(c1, iter, txnid, size, ingestflag);
+    err = c1_issue_iter(c1, iter, txnid, cki, ingestflag);
     if (ev(err))
         return err;
 
     return 0;
 }
 
-BullseyeCoverageSaveOff merr_t
+BullseyeCoverageSaveOff
+merr_t
 c1_cningest_status(struct c1 *c1, u64 seqno, merr_t status, u64 cnid, const struct kvs_ktuple *kt)
 {
     merr_t err;
@@ -381,12 +382,13 @@ c1_ingest_space_threshold(struct c1 *c1)
 merr_t
 c1_sync(struct c1 *c1)
 {
-    merr_t err;
-    u64    start;
+    struct c1_kvinfo cki = {};
+    merr_t           err;
+    u64              start;
 
     start = perfc_lat_start(&c1->c1_pcset_op);
 
-    err = c1_ingest(c1, NULL, 0, C1_INGEST_SYNC);
+    err = c1_ingest(c1, NULL, &cki, C1_INGEST_SYNC);
     if (ev(err))
         return err;
 
@@ -407,12 +409,13 @@ c1_sync(struct c1 *c1)
 merr_t
 c1_flush(struct c1 *c1)
 {
-    merr_t err;
-    u64    start;
+    struct c1_kvinfo cki = {};
+    merr_t           err;
+    u64              start;
 
     start = perfc_lat_start(&c1->c1_pcset_op);
 
-    err = c1_ingest(c1, NULL, 0, C1_INGEST_FLUSH);
+    err = c1_ingest(c1, NULL, &cki, C1_INGEST_FLUSH);
     if (ev(err))
         return err;
 
@@ -516,9 +519,9 @@ c1_replay_on_ikvdb(
 }
 
 merr_t
-c1_txn_begin(struct c1 *c1, u64 txnid, u64 size, int flag)
+c1_txn_begin(struct c1 *c1, u64 txnid, struct c1_kvinfo *cki, int flag)
 {
-    return c1_io_txn_begin(c1, txnid, size, flag);
+    return c1_io_txn_begin(c1, txnid, cki, flag);
 }
 
 merr_t
@@ -527,7 +530,8 @@ c1_txn_commit(struct c1 *c1, u64 txnid, u64 seqno, int flag)
     return c1_io_txn_commit(c1, txnid, seqno, flag);
 }
 
-BullseyeCoverageSaveOff merr_t
+BullseyeCoverageSaveOff
+merr_t
 c1_txn_abort(struct c1 *c1, u64 txnid)
 {
     return c1_io_txn_abort(c1, txnid);

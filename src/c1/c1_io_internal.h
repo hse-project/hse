@@ -16,10 +16,21 @@ void
 c1_io_shutdown_threads(struct c1_io *io);
 
 merr_t
-c1_io_get_tree(struct c1 *c1, u64 size, struct c1_tree **out, int *idx, u64 *mutation);
+c1_io_get_tree(
+    struct c1 *       c1,
+    struct c1_kvinfo *cki,
+    struct c1_tree ** out,
+    int *             idx,
+    u64 *             mutation,
+    int               type);
 
 merr_t
-c1_io_get_tree_txn(struct c1 *c1, u64 size, struct c1_tree **out, int *idx, u64 *mutation);
+c1_io_get_tree_txn(
+    struct c1 *       c1,
+    struct c1_kvinfo *cki,
+    struct c1_tree ** out,
+    int *             idx,
+    u64 *             mutation);
 
 void
 c1_io_iter_kvbtxn(struct c1_io *io, struct c1_io_queue *q, u8 tidx);
@@ -37,15 +48,11 @@ merr_t
 c1_issue_sync(struct c1 *c1, int sync, bool skip_flush);
 
 merr_t
-c1_issue_iter(struct c1 *c1, struct kvb_builder_iter *iter, u64 txnid, u64 size, int sync);
-
-merr_t
-c1_io_txn_begin(struct c1 *c1, u64 txnid, u64 size, int sync);
-
-merr_t
-c1_io_txn_commit(struct c1 *c1, u64 txnid, u64 seqno, int sync);
-
-merr_t
-c1_io_txn_abort(struct c1 *c1, u64 txnid);
+c1_issue_iter(
+    struct c1 *              c1,
+    struct kvb_builder_iter *iter,
+    u64                      txnid,
+    struct c1_kvinfo *       cki,
+    int                      sync);
 
 #endif /* HSE_C1_IO_INTERNAL_H */

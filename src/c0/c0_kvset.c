@@ -323,6 +323,7 @@ c0kvsm_insert_bkv(
         ckm->c0m_ksize += klen;
 
     ckm->c0m_vsize += vlen;
+    ++ckm->c0m_vcnt;
 
     /* If:
      *     1. bonsai_kv is already part of mutation list AND
@@ -335,8 +336,10 @@ c0kvsm_insert_bkv(
      */
     if (IS_IOR_REP(code) && found &&
         (istxn || (seqno >= ckm->c0m_minseqno && seqno <= ckm->c0m_maxseqno)) &&
-        ckm->c0m_vsize >= ovlen)
+        ckm->c0m_vsize >= ovlen) {
         ckm->c0m_vsize -= ovlen;
+        --ckm->c0m_vcnt;
+    }
 
     mutex_unlock(&c0kvs->c0s_mlock);
 }
@@ -627,6 +630,7 @@ c0kvsm_reset(struct c0_kvsetm *ckm)
     ckm->c0m_ksize = 0;
     ckm->c0m_vsize = 0;
     ckm->c0m_kcnt = 0;
+    ckm->c0m_vcnt = 0;
 }
 
 static void
@@ -1044,12 +1048,11 @@ c0kvs_pfx_probe(
         if (keycmp_prefix(key->kt_data, key->kt_len, kv->bkv_key, kv->bkv_key_imm.ki_klen))
             break; /* eof */
 
-        if (qctx->seen &&
-            !keycmp(
-                kv->bkv_key,
-                kv->bkv_key_imm.ki_klen,
-                kbuf->b_buf,
-                min_t(size_t, kbuf->b_len, kbuf->b_buf_sz)))
+        if (qctx->seen && !keycmp(
+                              kv->bkv_key,
+                              kv->bkv_key_imm.ki_klen,
+                              kbuf->b_buf,
+                              min_t(size_t, kbuf->b_len, kbuf->b_buf_sz)))
             continue; /* duplicate */
 
         /* Skip key if there is a matching tomb */

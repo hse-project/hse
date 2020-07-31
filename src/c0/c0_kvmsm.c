@@ -76,6 +76,7 @@ c0kvmsm_ingest_internal(
 {
     struct c0kvmsm_info info;
     struct c0kvmsm_info txinfo;
+    struct c1_kvinfo    cki = {};
 
     const char *action = "";
     int         ref;
@@ -83,7 +84,6 @@ c0kvmsm_ingest_internal(
     bool        nontx;
     merr_t      err;
     u64         txnid;
-    u64         mutsz;
     bool        aborted = false;
 
     /* Two kvb iterators are created per-c0kvset, one for tx mutations
@@ -111,8 +111,10 @@ c0kvmsm_ingest_internal(
     txnid = c1_get_txnid(c1h);
 
     /* Start an async. c1 transaction. */
-    mutsz = txinfo.c0ms_kvbytes + txinfo.c0ms_kvpbytes + info.c0ms_kvbytes;
-    err = c1_txn_begin(c1h, txnid, mutsz, C1_INGEST_ASYNC);
+    cki.ck_kvsz = txinfo.c0ms_kvbytes + txinfo.c0ms_kvpbytes + info.c0ms_kvbytes;
+    cki.ck_kcnt = txinfo.c0ms_kcnt + info.c0ms_kcnt;
+    cki.ck_vcnt = txinfo.c0ms_vcnt + info.c0ms_vcnt;
+    err = c1_txn_begin(c1h, txnid, &cki, C1_INGEST_ASYNC);
     if (ev(err)) {
         c0kvmsm_reset_mlist(c0kvms, 0);
         return err;
@@ -200,6 +202,7 @@ c0kvmsm_ingest_common(
 {
     struct kvb_builder_iter **iterv;
     struct perfc_set *        set;
+    struct c1_kvinfo          kvi = {};
 
     merr_t err = 0;
     u64    go = 0;
@@ -275,9 +278,13 @@ c0kvmsm_ingest_common(
             }
 
             /* Get the total key & value size for this c0kvset.*/
-            (void)c0kvsm_get_kvsize(c0kvs, mindex, istxn, NULL, &ksz, &vsz);
+            c0kvsm_get_kvsize(c0kvs, mindex, istxn, NULL, &ksz, &vsz);
             tksz += ksz;
             tvsz += vsz;
+
+            /* Get the key & value count for this c0kvset.*/
+            kvi.ck_kcnt += c0kvsm_get_kcnt(c0kvs, mindex, istxn);
+            kvi.ck_vcnt += c0kvsm_get_vcnt(c0kvs, mindex, istxn);
 
             go = perfc_lat_startu(set, PERFC_LT_C0SKM_COPY);
             c0kvsm_copy_bkv(c0kvs, info, mindex, istxn, kidx);
@@ -311,8 +318,9 @@ c0kvmsm_ingest_common(
         assert(iterv[slot]->kvbi_bldrelm == NULL);
 
         lslot = slot;
+        kvi.ck_kvsz = tksz + tvsz;
         /* Queue this iterator for c1 ingest. */
-        err = c1_ingest(c1h, iterv[slot], tksz + tvsz, C1_INGEST_ASYNC);
+        err = c1_ingest(c1h, iterv[slot], &kvi, C1_INGEST_ASYNC);
         if (ev(err)) {
             c0kvmsm_reset_mlist(c0kvms, slot * nkiter);
             kvb_builder_iter_put(iterv[slot]);
@@ -327,6 +335,7 @@ c0kvmsm_ingest_common(
         found = false;
         tksz = 0;
         tvsz = 0;
+        memset(&kvi, 0, sizeof(kvi));
     }
 
 exit:
@@ -406,22 +415,35 @@ c0kvmsm_get_info(
         if (!active)
             mindex ^= 1;
 
-        if (info) {
-            info->c0ms_kvbytes += c0kvsm_get_kvsize(c0kvs, mindex, false, NULL, NULL, NULL);
-            if (c0kvsm_get_kcnt(c0kvs, mindex, false) > 0)
+        if (info) { /* non-tx */
+            u64  cnt;
+            bool tx = false;
+
+            info->c0ms_kvbytes += c0kvsm_get_kvsize(c0kvs, mindex, tx, NULL, NULL, NULL);
+
+            cnt = c0kvsm_get_kcnt(c0kvs, mindex, tx);
+            if (cnt > 0)
                 ++info->c0ms_kvscnt;
+            info->c0ms_kcnt += cnt;
+
+            info->c0ms_vcnt += c0kvsm_get_vcnt(c0kvs, mindex, tx);
         }
 
-        if (txinfo) {
-            u64 txpsz;
+        if (txinfo) { /* tx */
+            u64  txpsz, cnt;
+            bool tx = true;
 
             txpsz = 0;
 
-            txinfo->c0ms_kvbytes += c0kvsm_get_kvsize(c0kvs, mindex, true, &txpsz, NULL, NULL);
+            txinfo->c0ms_kvbytes += c0kvsm_get_kvsize(c0kvs, mindex, tx, &txpsz, NULL, NULL);
             txinfo->c0ms_kvpbytes += txpsz;
 
-            if (c0kvsm_get_kcnt(c0kvs, mindex, true) > 0)
+            cnt = c0kvsm_get_kcnt(c0kvs, mindex, tx);
+            if (cnt > 0)
                 ++txinfo->c0ms_kvscnt;
+            txinfo->c0ms_kcnt += cnt;
+
+            txinfo->c0ms_vcnt += c0kvsm_get_vcnt(c0kvs, mindex, tx);
         }
     }
 }

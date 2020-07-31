@@ -58,6 +58,12 @@ struct c1_bonsai_vbldr {
     u64                   cbv_blkval;
 };
 
+struct c1_kvinfo {
+    u64 ck_kcnt;
+    u64 ck_vcnt;
+    u64 ck_kvsz;
+};
+
 /**
  * c1_cningest_status() - Function to store cN ingest status into c1
  * @c1:                   Opaque c1 structure (returned by c1_open)
@@ -141,22 +147,23 @@ c1_close(struct c1 *c1);
  * c1_ingest() - Performs ingests into c1.
  *@c1:           c1 handle
  *@iter:         Iterator to extract evey key/value to persist
+ *@cki:          kv info
  *@ingestflag:   Type of ingest - async or sync.
  */
 /* MTF_MOCK */
 merr_t
-c1_ingest(struct c1 *c1, struct kvb_builder_iter *iter, u64 size, int ingestflag);
+c1_ingest(struct c1 *c1, struct kvb_builder_iter *iter, struct c1_kvinfo *cki, int ingestflag);
 
 /**
  * c1_txn_begin() - Beginning of a c1 transaction
- *@c1:              c1 handle
- *@txnid:           Unique transaction identifier.
- *@size:            Size of transaction to reserve durability storage
- *@flag:            Reserved for combining sync and async txs in future.
+ *@c1:    c1 handle
+ *@txnid: Unique transaction identifier.
+ *@cki:   c1 kv info
+ *@flag:  Reserved for combining sync and async txs in future.
  */
 /* MTF_MOCK */
 merr_t
-c1_txn_begin(struct c1 *c1, u64 txnid, u64 size, int flag);
+c1_txn_begin(struct c1 *c1, u64 txnid, struct c1_kvinfo *cki, int flag);
 
 /**
  * c1_txn_commit() - Commits  a c1 transaction
@@ -388,14 +395,6 @@ c1_builder_put(struct c1 *c1, u64 gen);
 /* MTF_MOCK */
 void
 c1_kvset_builder_release(struct c1 *c1, struct c1_kvset_builder_elem *elem);
-
-/**
- * c1_throttle_sensor - c1 throttle sensor
- * @c1:
- * @sensor:
- */
-void
-c1_throttle_sensor(struct c1 *c1, struct throttle_sensor *sensor);
 
 #if defined(HSE_UNIT_TEST_MODE) && HSE_UNIT_TEST_MODE == 1
 #include "c1_ut.h"

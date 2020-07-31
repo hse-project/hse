@@ -9,7 +9,7 @@
 /* MTF_MOCK_DECL(c1_tree) */
 
 #define HSE_C1_MAX_LOG_SIZE (3 * GB)
-#define HSE_C1_TREE_USEABLE_CAPACITY(space) ((space * 60) / 100)
+#define HSE_C1_TREE_USEABLE_CAPACITY(space) ((space * 80) / 100)
 
 struct c1_log;
 struct c1_complete;
@@ -25,6 +25,7 @@ struct c1_tree {
     u64                 c1t_seqno;
     u32                 c1t_gen;
     atomic_t            c1t_nextlog;
+    atomic_t            c1t_txmeta_idx;
     atomic64_t          c1t_mutation;
     u64                 c1t_mdcoid1;
     u64                 c1t_mdcoid2;
@@ -109,7 +110,16 @@ c1_tree_reserve_space_txn(struct c1_tree *tree, u64 size);
 
 /* MTF_MOCK */
 merr_t
-c1_tree_reserve_space(struct c1_tree *tree, u64 size, int *idx, u64 *mutation);
+c1_tree_reserve_space(
+    struct c1_tree *tree,
+    u64             size,
+    int *           idx,
+    u64 *           mutation,
+    u64             peeksz,
+    bool            txmeta);
+
+void
+c1_tree_refresh_space(struct c1_tree *tree);
 
 u64
 c1_tree_space_threshold(struct c1_tree *tree);
