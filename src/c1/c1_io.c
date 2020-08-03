@@ -691,7 +691,7 @@ c1_sync_or_flush_command(struct kvb_builder_iter *iter)
 merr_t
 c1_issue_sync(struct c1 *c1, int sync, bool skip_flush)
 {
-    struct c1_io_queue *q;
+    struct c1_io_queue  q;
     struct c1_io *      io;
     merr_t              err;
     u64                 cycles = 0;
@@ -708,40 +708,34 @@ c1_issue_sync(struct c1 *c1, int sync, bool skip_flush)
         return io->c1io_err;
     }
 
-    q = malloc(sizeof(*q));
-    if (!q)
-        return merr(ev(ENOMEM));
+    INIT_LIST_HEAD(&q.c1q_list);
+    q.c1q_sync = sync;
+    q.c1q_iter = NULL;
+    q.c1q_txn = NULL;
+    q.c1q_idx = 0;
 
-    INIT_LIST_HEAD(&q->c1q_list);
-    q->c1q_sync = sync;
-    q->c1q_iter = NULL;
-    q->c1q_txn = NULL;
-    q->c1q_idx = 0;
+    mutex_init(&q.c1q_mtx);
+    cv_init(&q.c1q_cv, "c1synccv");
 
-    mutex_init(&q->c1q_mtx);
-    cv_init(&q->c1q_cv, "c1synccv");
-
-    q->c1q_stime = perfc_lat_start(&io->c1io_pcset);
+    q.c1q_stime = perfc_lat_start(&io->c1io_pcset);
 
     mutex_lock(&io->c1io_queue_mtx);
-    perfc_rec_lat(&io->c1io_pcset, PERFC_LT_C1_IOQLK, q->c1q_stime);
+    perfc_rec_lat(&io->c1io_pcset, PERFC_LT_C1_IOQLK, q.c1q_stime);
 
-    list_add_tail(&q->c1q_list, &io->c1io_list);
+    list_add_tail(&q.c1q_list, &io->c1io_list);
     atomic64_inc(&io->c1io_queued_reqs);
     perfc_inc(&io->c1io_pcset, PERFC_RA_C1_IOQUE);
 
-    mutex_lock(&q->c1q_mtx);
+    mutex_lock(&q.c1q_mtx);
 
     mutex_unlock(&io->c1io_queue_mtx);
     c1_io_wakeup(io);
 
-    cv_wait(&q->c1q_cv, &q->c1q_mtx);
-    mutex_unlock(&q->c1q_mtx);
+    cv_wait(&q.c1q_cv, &q.c1q_mtx);
+    mutex_unlock(&q.c1q_mtx);
 
-    cv_destroy(&q->c1q_cv);
-    mutex_destroy(&q->c1q_mtx);
-
-    free(q);
+    cv_destroy(&q.c1q_cv);
+    mutex_destroy(&q.c1q_mtx);
 
     if (ev(io->c1io_err))
         return io->c1io_err;

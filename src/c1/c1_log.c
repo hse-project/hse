@@ -88,10 +88,9 @@ c1_log_alloc(
 {
     struct c1_log *log;
     struct cheap * cheap[HSE_C1_DEFAULT_STRIPE_WIDTH];
-
     int i;
 
-    log = malloc(sizeof(*log));
+    log = calloc(1, sizeof(*log));
     if (!log)
         return merr(ev(ENOMEM));
 
@@ -125,6 +124,7 @@ c1_log_alloc(
         if (!cheap[i]) {
             while (--i >= 0)
                 cheap_destroy(cheap[i]);
+            free(log->c1l_ibuf);
             free(log);
             return merr(ev(ENOMEM));
         }
@@ -144,6 +144,7 @@ c1_log_free(struct c1_log *log)
     for (i = 0; i < HSE_C1_DEFAULT_STRIPE_WIDTH; i++)
         cheap_destroy(log->c1l_cheap[i]);
 
+    free(log->c1l_ibuf);
     free(log);
 }
 
@@ -523,15 +524,15 @@ c1_log_issue_kvb(
     u8                            tidx,
     struct c1_log_stats *         statsp)
 {
+    size_t                 vtsz, iovsz, kvtomfsz;
     struct c1_kvbundle_omf omf;
     merr_t                 err;
     struct c1_ktuple *     skt;
-    struct c1_vtuple_omf * vt = NULL;
-    struct iovec *         iov = NULL;
+    struct c1_vtuple_omf * vt;
+    struct iovec *         iov;
     u64                    numiov;
-    int                    i = 0;
-    int                    j = 0;
-    int                    nextkvt = 0;
+    int                    i, j;
+    int                    nextkvt;
     size_t                 size = 0;
     struct c1_kvtuple *    next;
     struct c1_vtuple *     nextvt;
@@ -542,41 +543,42 @@ c1_log_issue_kvb(
     u64                    latency = 0;
     struct iovec           siov;
 
-    err = 0;
-    kvtomf = NULL;
-
-    vt = malloc_array(kvb->c1kvb_vtcount, sizeof(*vt));
-    if (!vt) {
-        err = merr(ev(ENOMEM));
-        goto err_exit;
-    }
-
     atomic64_add(kvb->c1kvb_ktcount, &log->c1l_ckcount);
     atomic64_add(kvb->c1kvb_vtcount, &log->c1l_cvcount);
 
     numiov = (kvb->c1kvb_ktcount * HSE_C1_KEY_IOVS) + (kvb->c1kvb_vtcount * HSE_C1_VAL_IOVS);
 
-    iov = malloc_array(numiov, sizeof(*iov));
-    if (!iov) {
-        err = merr(ev(ENOMEM));
-        goto err_exit;
+    vtsz = roundup(kvb->c1kvb_vtcount * sizeof(*vt), 16);
+    iovsz = roundup(numiov * sizeof(*iov), 16);
+    kvtomfsz = roundup(kvb->c1kvb_ktcount * sizeof(*kvtomf), 16);
+
+    if (vtsz + iovsz + kvtomfsz > log->c1l_ibufsz) {
+        log->c1l_ibufsz = roundup(vtsz + iovsz + kvtomfsz, 128 * 1024);
+        free(log->c1l_ibuf);
+
+        log->c1l_ibuf = malloc(log->c1l_ibufsz);
+
+        if (ev(!log->c1l_ibuf)) {
+            log->c1l_ibufsz = 0;
+            return merr(ENOMEM);
+        }
     }
 
-    kvtomf = malloc_array(kvb->c1kvb_ktcount, sizeof(*kvtomf));
-    if (!kvtomf) {
-        err = merr(ev(ENOMEM));
-        goto err_exit;
-    }
+    vt = (void *)log->c1l_ibuf;
+    iov = (void *)(log->c1l_ibuf + vtsz);
+    kvtomf = (void *)(log->c1l_ibuf + vtsz + iovsz);
+
+    nextkvt = i = j = 0;
 
     s_list_for_each_entry(next, &kvb->c1kvb_kvth, c1kvt_next)
     {
         skt = &next->c1kvt_kt;
 
         if (ev(i > (numiov - HSE_C1_KEY_IOVS))) {
-            err = merr(EINVAL);
-            hse_log(HSE_ERR "c1 ingest kv overflow %s:%d", __func__, __LINE__);
+            hse_log(HSE_ERR "%s: c1 ingest kv overflow: %d %lu",
+                    __func__, i, (u_long)numiov);
             assert(i <= (numiov - HSE_C1_KEY_IOVS));
-            goto err_exit;
+            return merr(EINVAL);
         }
 
         /*
@@ -610,13 +612,12 @@ c1_log_issue_kvb(
          */
         s_list_for_each_entry(nextvt, &next->c1kvt_vt.c1vt_vth, c1vt_next)
         {
-            assert(j < kvb->c1kvb_vtcount);
-            assert(i < numiov);
-
-            if ((j >= kvb->c1kvb_vtcount) || (i >= numiov)) {
-                err = merr(ev(EINVAL));
-                hse_log(HSE_ERR "c1 ingest kv overflow %s:%d", __func__, __LINE__);
-                goto err_exit;
+            if (ev(j >= kvb->c1kvb_vtcount || i >= numiov)) {
+                hse_log(HSE_ERR "%s: c1 ingest kv overflow: %d %lu, %d %u",
+                        __func__, i, (u_long)numiov, j, kvb->c1kvb_vtcount);
+                assert(j < kvb->c1kvb_vtcount);
+                assert(i < numiov);
+                return merr(EINVAL);
             }
 
             assert(nextvt->c1vt_seqno >= kvb->c1kvb_minseqno);
@@ -654,7 +655,7 @@ c1_log_issue_kvb(
                 kvb->c1kvb_size,
                 vsize);
             if (ev(err))
-                goto err_exit;
+                return err;
 
             if (statsp && (logtype == C1_LOG_MBLOCK)) {
                 statsp->c1log_mbwrites++;
@@ -681,18 +682,14 @@ c1_log_issue_kvb(
             vtalen -= nextvt->c1vt_vlen;
         }
 
-        assert(!vtalen);
-        assert(!vtacount);
-
-        if (vtalen || vtacount) {
-            hse_log(
-                HSE_ERR "c1 ingest failed. vta len %ld count %ld "
-                        "remaining",
-                (unsigned long)vtalen,
-                (unsigned long)vtacount);
-            err = merr(ev(EIO));
-            goto err_exit;
+        if (ev(vtalen || vtacount)) {
+            hse_log(HSE_ERR "%s: c1 ingest failed: vtalen %lu, vtacount %lu",
+                    __func__, (u_long)vtalen, (u_long)vtacount);
+            assert(!vtalen);
+            assert(!vtacount);
+            return merr(EIO);
         }
+
         nextkvt++;
     }
 
@@ -716,63 +713,43 @@ c1_log_issue_kvb(
     mutex_lock(&log->c1l_ingest_mtx);
     if (statsp)
         latency = get_time_ns();
-    /*
-     * Sending header to mlog first
+
+    /* Send header to mlog first, followed by the key-value bundle...
      */
     siov.iov_base = &omf;
     siov.iov_len = sizeof(omf);
+
     err = mpool_mlog_append(log->c1l_mlh, &siov, siov.iov_len, false);
-    if (ev(err)) {
-        size_t len;
+    if (!err)
+        err = mpool_mlog_append(log->c1l_mlh, iov, size, sync);
 
-        mpool_mlog_len(log->c1l_mlh, &len);
-        hse_elog(
-            HSE_ERR "%s: mpool_mlog_append failed "
-                    "mlog len %ld reserved space %ld : @@e",
-            err,
-            __func__,
-            (long)len,
-            (long)atomic64_read(&log->c1l_rsvdspace));
-        goto err_exit2;
-    }
-
-    /*
-     * Then the actual key-value bundle
-     */
-    err = mpool_mlog_append(log->c1l_mlh, iov, size, sync);
     if (ev(err)) {
         size_t len;
 
         mpool_mlog_len(log->c1l_mlh, &len);
 
         hse_elog(
-            HSE_ERR "%s: mpool_mlog_append failed "
-                    "mlog len %ld reserved space %ld : @@e",
-            err,
-            __func__,
-            (long int)len,
-            (long int)atomic64_read(&log->c1l_rsvdspace));
-
-        goto err_exit2;
+            HSE_ERR "%s: mpool_mlog_append failed: mlog len %zu, reserved space %ld: @@e",
+            err, __func__, len, atomic64_read(&log->c1l_rsvdspace));
     }
+    else {
+        log->c1l_maxkv_seqno = max_t(u64, log->c1l_maxkv_seqno, kvb->c1kvb_maxseqno);
 
-    if (statsp) {
-        latency = get_time_ns() - latency;
-        if (latency > 0)
+        if (statsp) {
+            latency = get_time_ns() - latency;
             statsp->c1log_mllatency += latency;
-
-        statsp->c1log_vsize = vsize;
+            statsp->c1log_vsize = vsize;
+        }
     }
-
-    log->c1l_maxkv_seqno = max_t(u64, log->c1l_maxkv_seqno, kvb->c1kvb_maxseqno);
-
-err_exit2:
     mutex_unlock(&log->c1l_ingest_mtx);
 
-err_exit:
-    free(kvtomf);
-    free(iov);
-    free(vt);
+    /* It's unusual for ibuf to be larger than 256K...
+     */
+    if (ev(log->c1l_ibufsz > 256 * 1024)) {
+        free(log->c1l_ibuf);
+        log->c1l_ibuf = NULL;
+        log->c1l_ibufsz = 0;
+    }
 
     return err;
 }
