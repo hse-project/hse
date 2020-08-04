@@ -27,6 +27,7 @@ struct c0_kvmultiset;
  * @c0m_ksize:    total key bytes in the mutation list
  * @c0m_vsize:    total value bytes in the mutation list
  * @c0m_kcnt:     number of keys mutated
+ * @c0m_vcnt:     number of values mutated
  */
 struct c0_kvsetm {
     struct s_list_head  c0m_head;
@@ -36,6 +37,7 @@ struct c0_kvsetm {
     u64                 c0m_ksize;
     u64                 c0m_vsize;
     u32                 c0m_kcnt;
+    u32                 c0m_vcnt;
 };
 
 /**
@@ -171,6 +173,15 @@ c0kvsm_has_kvmut(struct c0_kvset *c0kvs, u8 mindex, bool istxn);
  */
 u32
 c0kvsm_get_kcnt(struct c0_kvset *c0kvs, u8 mindex, bool istxn);
+
+/**
+ * c0kvsm_get_vcnt - Get the number of mutated values
+ * @c0kvs:   c0kvset handle
+ * @mindex:  mutation index
+ * @istxn:
+ */
+u32
+c0kvsm_get_vcnt(struct c0_kvset *c0kvs, u8 mindex, bool istxn);
 
 /**
  * c0kvsm_get_kvsize - Get the mutation size

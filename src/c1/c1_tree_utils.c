@@ -738,9 +738,9 @@ c1_tree_replay(struct c1 *c1, struct c1_tree *tree)
     }
 
     hse_log(
-        HSE_WARNING "c1 replay summary tree %p ver %ld-%ld "
-                    "Logged keys %ld Keys found in replay %ld "
-                    "Keys replayed %ld",
+        HSE_WARNING "c1 replay summary - tree: %p, ver: %lu-%lu, "
+                    "Logged keys: %lu, Found in replay: %lu, "
+                    "Keys replayed: %ld",
         tree,
         (unsigned long)tree->c1t_seqno,
         (unsigned long)tree->c1t_gen,

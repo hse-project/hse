@@ -241,6 +241,29 @@ kvdb_ctxn_set_remove(struct kvdb_ctxn_set *handle, struct kvdb_ctxn_impl *ctxn)
 }
 
 void
+kvdb_ctxn_set_wait_commits(struct kvdb_ctxn_set *handle)
+{
+    struct kvdb_ctxn_set_impl *kvdb_ctxn_set = kvdb_ctxn_set_h2r(handle);
+
+    /*
+     * This transaction started its commit only after our view was established.
+     * Note that your view must be established prior to calling wait_commits.
+     * Every transaction that starts its commit after our view is established
+     * will have a commit_seqno strictly greater than our view_seqno.
+     */
+    u64 head = atomic64_read_acq(&kvdb_ctxn_set->ktn_tseqno_head);
+
+    /*
+     * Ensure that all preceding commits have published their mutations.
+     * This ensures that we have a consistent read snapshot to work with.
+     * We do not expect any new committing transactions' mutations
+     * to unexpectedly pop up within our view after this wait is over.
+     */
+    while (atomic64_read(&kvdb_ctxn_set->ktn_tseqno_tail) < head)
+        __builtin_ia32_pause();
+}
+
+void
 kvdb_ctxn_free(struct kvdb_ctxn *handle)
 {
     struct kvdb_ctxn_impl *ctxn;
@@ -328,6 +351,8 @@ kvdb_ctxn_begin(struct kvdb_ctxn *handle)
         ctxn->ctxn_active_set, &ctxn->ctxn_view_seqno, &ctxn->ctxn_active_set_cookie);
     if (ev(err))
         goto errout;
+
+    kvdb_ctxn_set_wait_commits(ctxn->ctxn_kvdb_ctxn_set);
 
     ctxn->ctxn_can_insert = 0;
     ctxn->ctxn_seqref = HSE_SQNREF_UNDEFINED;
@@ -474,6 +499,15 @@ kvdb_ctxn_merge(
     return err;
 }
 
+/* The flush lock serializes threads performing a flush-commit
+ * while ensuring they all make forward progress.  Meanwhile,
+ * the flush_busy flag is used to prevent merge-flush threads
+ * from getting into the inner commit critical section which
+ * could deadlock a flush-commit thread on the keylist lock.
+ */
+static DEFINE_MUTEX(flush_lock);
+static atomic_t flush_busy = ATOMIC_INIT(0);
+
 merr_t
 kvdb_ctxn_commit(struct kvdb_ctxn *handle)
 {
@@ -489,7 +523,7 @@ kvdb_ctxn_commit(struct kvdb_ctxn *handle)
     uintptr_t               ref;
     u64                     commit_sn;
     u64                     rsvd_sn;
-    u64                     head, tail;
+    u64                     head;
     int                     num_retries;
 
     if (ev(!kvdb_ctxn_trylock(ctxn)))
@@ -531,12 +565,19 @@ kvdb_ctxn_commit(struct kvdb_ctxn *handle)
     num_retries = 5;
 
 retry:
+    head = 0;
     priv = NULL;
     dst = NULL;
 
     err = kvdb_ctxn_merge(ctxn, &num_retries, &priv, &dst);
     if (ev(err)) {
         assert(!dst && !priv);
+
+        /* Serialize all flush operations to ensure we don't
+         * deadlock on keylock list lock.
+         */
+        mutex_lock(&flush_lock);
+        atomic_inc(&flush_busy);
 
         /* To maintain seqno ordering for c1, the following order of
          * operations must be followed:
@@ -548,15 +589,25 @@ retry:
          * Since a flush needs to reserve a seqno before it returns,
          * increment head before calling flush.
          */
-        atomic64_inc_acq(ctxn->ctxn_tseqno_head);
+        head = atomic64_inc_acq(ctxn->ctxn_tseqno_head);
         err = c0sk_flush(ctxn->ctxn_c0sk, ctxn->ctxn_kvms);
+        if (err) {
+            atomic_dec(&flush_busy);
+            mutex_unlock(&flush_lock);
+
+            /* Ensure that threads leave in the same order in which they
+             * incremented ctxn_tseqno_head.
+             */
+            while (atomic64_read(ctxn->ctxn_tseqno_tail) + 1 < head)
+                __builtin_ia32_pause();
+            atomic64_inc(ctxn->ctxn_tseqno_tail);
+        }
     }
 
     /* If there is an error at this point, we can neither publish nor
      * persist any mutations made by this transaction, so we abort it.
      */
     if (ev(err)) {
-        atomic64_inc(ctxn->ctxn_tseqno_tail);
         kvdb_ctxn_abort_inner(ctxn);
         c0kvms_putref(ctxn->ctxn_kvms);
         kvdb_ctxn_unlock(ctxn);
@@ -618,9 +669,18 @@ retry:
      */
     rcu_read_lock();
     if (dst) {
+        static atomic_t lock;
+
         /* merge */
-        atomic64_inc_acq(ctxn->ctxn_tseqno_head);
-        commit_sn = 1 + atomic64_fetch_add_acq(2, ctxn->ctxn_kvdb_seq_addr);
+        /*
+         * Ensure that threads mint commit sequence numbers in increasing order
+         * of ctxn_tseqno_head.
+         */
+        while (!atomic_cas(&lock, 0, 1))
+            __builtin_ia32_pause();
+        head = atomic64_inc_acq(ctxn->ctxn_tseqno_head);
+        commit_sn = 1 + atomic64_fetch_add_rel(2, ctxn->ctxn_kvdb_seq_addr);
+        atomic_cas(&lock, 1, 0);
 
         rsvd_sn = c0kvms_rsvd_sn_get(dst);
 
@@ -629,13 +689,19 @@ retry:
          * to ensure rsvd_sn is always the lowest seqno in a kvms).
          */
         first = c0sk_get_first_c0kvms(ctxn->ctxn_c0sk);
-        if (ev(first != dst || commit_sn < rsvd_sn)) {
+        if (ev(first != dst || commit_sn < rsvd_sn || atomic_read(&flush_busy))) {
             rcu_read_unlock();
 
-            atomic64_inc(ctxn->ctxn_tseqno_tail);
             kvdb_keylock_list_unlock(cookie);
             c0kvms_priv_release(dst);
             c0kvms_putref(dst);
+
+            /* Ensure that threads leave in the same order in which they
+             * incremented ctxn_tseqno_head.
+             */
+            while (atomic64_read(ctxn->ctxn_tseqno_tail) + 1 < head)
+                __builtin_ia32_pause();
+            atomic64_inc(ctxn->ctxn_tseqno_tail);
 
             ev(rsvd_sn == HSE_SQNREF_INVALID);
             ev(commit_sn < rsvd_sn);
@@ -645,6 +711,12 @@ retry:
         assert(!c0kvms_is_finalized(dst));
     } else {
         /* flush */
+
+        /* Now that we've acquired our keylock list lock we can
+         * allow merge-commit threads into this critsec behind us...
+         */
+        atomic_dec(&flush_busy);
+
         rsvd_sn = c0kvms_rsvd_sn_get(ctxn->ctxn_kvms);
         assert(rsvd_sn > 0 && rsvd_sn != HSE_SQNREF_INVALID);
         assert(atomic64_read(ctxn->ctxn_kvdb_seq_addr) >= rsvd_sn);
@@ -658,10 +730,27 @@ retry:
         ev(c0kvms_is_finalized(ctxn->ctxn_kvms));
     }
 
-    ref = HSE_ORDNL_TO_SQNREF(commit_sn);
+    /* We leverage tseqno head and tail to ensure that we never present
+     * a commit_sn to c1 for which there might be a lower commit_sn that
+     * has not yet been applied to the kvms (via *priv = ref).  We could
+     * accomplish the same thing with a mutex, but this approach greatly
+     * improves throughput of the above critical section vs a mutex.
+     */
+    while (atomic64_read(ctxn->ctxn_tseqno_tail) + 1 < head)
+        __builtin_ia32_pause();
 
-    tail = atomic64_inc_rel(ctxn->ctxn_tseqno_tail);
-    head = atomic64_read(ctxn->ctxn_tseqno_head);
+    /* This assignment through the pointer gives all the values
+     * associated with this transaction an ordinal sequence
+     * number. Each of those values has their own pointer to the
+     * ordinal value.
+     */
+    ref = HSE_ORDNL_TO_SQNREF(commit_sn);
+    *(uintptr_t *)ctxn->ctxn_seqref = ref;
+    if (dst)
+        *priv = ref;
+
+    c0skm_set_tseqno(ctxn->ctxn_c0sk, commit_sn);
+    atomic64_inc_rel(ctxn->ctxn_tseqno_tail);
 
     locks = ctxn->ctxn_locks_handle;
     ctxn->ctxn_locks_handle = NULL;
@@ -673,27 +762,17 @@ retry:
 
     kvdb_keylock_list_unlock(cookie);
 
-    if (locks)
-        kvdb_ctxn_locks_destroy(locks);
-
-    /* We leverage tseqno head and tail to ensure that we never present
-     * a commit_sn to c1 for which there might be a lower commit_sn that
-     * has not yet been applied to the kvms (via *priv = ref).  We could
-     * accomplish the same thing with a mutex, but this approach greatly
-     * improves throughput of the above critical section vs a mutex.
+    /* At this point if the merge failed (dst == nil) then the flush
+     * succeeded and consumed dst's birth reference.  Otherwise, the
+     * merge succeeded and so we must release dst's birth reference.
      */
-    if (tail < head) {
-        while (atomic64_read(ctxn->ctxn_tseqno_tail) < head)
-            __builtin_ia32_pause();
+    if (dst) {
+        assert(!c0kvms_is_finalized(dst));
+
+        c0kvms_priv_release(dst);
+        c0kvms_putref(dst);
     }
-    c0skm_set_tseqno(ctxn->ctxn_c0sk, commit_sn);
-
-    /* This assignment through the pointer gives all the values
-     * associated with this transaction an ordinal sequence
-     * number. Each of those values has their own pointer to the
-     * ordinal value.
-     */
-    *(uintptr_t *)ctxn->ctxn_seqref = ref;
+    rcu_read_unlock();
 
     /* Once the indirect assignment has been performed the
      * transaction itself no longer needs to see the shared value
@@ -703,19 +782,8 @@ retry:
      */
     ctxn->ctxn_seqref = ref;
 
-    /* At this point if the merge failed (dst == nil) then the flush
-     * succeeded and consumed dst's birth reference.  Otherwise, the
-     * merge succeeded and so we must release dst's birth reference.
-     */
-    if (dst) {
-        *priv = ref;
-
-        assert(!c0kvms_is_finalized(dst));
-
-        c0kvms_priv_release(dst);
-        c0kvms_putref(dst);
-    }
-    rcu_read_unlock();
+    if (locks)
+        kvdb_ctxn_locks_destroy(locks);
 
     if (bind) {
         bind->b_seq = commit_sn + 1;
@@ -728,8 +796,10 @@ retry:
     c0kvms_priv_release(ctxn->ctxn_kvms);
     c0kvms_putref(ctxn->ctxn_kvms);
 
-    if (!dst)
+    if (!dst) {
+        mutex_unlock(&flush_lock);
         ctxn->ctxn_kvms = 0;
+    }
 
     kvdb_ctxn_unlock(ctxn);
 
