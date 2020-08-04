@@ -1381,7 +1381,8 @@ cn_close(struct cn *cn)
     u64   report_ns = 5 * NSEC_PER_SEC;
     void *maint_wq = cn->cn_maint_wq;
     void *io_wq = cn->cn_io_wq;
-    u64   next_report = 0;
+    u64   next_report;
+    useconds_t dlymax, dly;
     bool  cancel;
 
     cn->cn_maintenance_stop = true;
@@ -1400,10 +1401,17 @@ cn_close(struct cn *cn)
         csched_tree_remove(cn->csched, cn->cn_tree, cancel);
 
     /* Wait for all compaction jobs and async kvset destroys to complete.
+     * This wait holds up ikvdb_close(), so it's important not to dawdle.
      */
     next_report = get_time_ns() + NSEC_PER_SEC;
+    dlymax = 1000;
+    dly = 0;
+
     while (atomic_read(&cn->cn_refcnt) > 0) {
-        msleep(100);
+        if (dly < dlymax)
+            dly += 100;
+        usleep(dly);
+
         if (get_time_ns() < next_report)
             continue;
 
@@ -1412,7 +1420,9 @@ cn_close(struct cn *cn)
             __func__,
             cn->cn_kvsname,
             atomic_read(&cn->cn_refcnt));
+
         next_report = get_time_ns() + report_ns;
+        dlymax = 10000;
     }
 
     /* The maint and I/O workqueues should be idle at this point...
