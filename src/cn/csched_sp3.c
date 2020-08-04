@@ -2143,15 +2143,13 @@ sp3_monitor(struct work_struct *work)
 {
     struct sp3 *sp = container_of(work, struct sp3, wstruct);
 
-    const int long_timeout_ms = 100;
-    const int short_timeout_ms = 20;
+    const int timeout_ms = 100;
     bool      bad_health = false;
 
     struct periodic_check chk_qos;
     struct periodic_check chk_refresh;
     struct periodic_check chk_shape;
 
-    bool busy = false;
     u64  now;
     u64  last_activity;
 
@@ -2171,9 +2169,11 @@ sp3_monitor(struct work_struct *work)
     while (!atomic_read(&sp->destruct)) {
         merr_t err;
 
-        mutex_lock(&sp->mutex);
-        cv_timedwait(&sp->cv, &sp->mutex, busy ? short_timeout_ms : long_timeout_ms);
-        mutex_unlock(&sp->mutex);
+        if (!sp->activity || bad_health) {
+            mutex_lock(&sp->mutex);
+            cv_timedwait(&sp->cv, &sp->mutex, timeout_ms);
+            mutex_unlock(&sp->mutex);
+        }
 
         now = get_time_ns();
 
