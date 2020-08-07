@@ -8,12 +8,6 @@
 #include "c1_private.h"
 #include "../cn/cn_metrics.h"
 
-static merr_t
-c1_log_open_impl(struct c1_log *log);
-
-static merr_t
-c1_log_close_impl(struct c1_log *log);
-
 merr_t
 c1_log_create(struct mpool *mp, u64 capacity, int *mclass, struct c1_log_desc *desc)
 {
@@ -193,20 +187,13 @@ c1_log_make(
         return err;
     }
 
-    /* logs are allocated and freed as part of c1_tree_create() and c1_tree_destroy() */
-    err = c1_log_alloc(mp, seqno, gen, mdcoid1, mdcoid2, desc->c1_oid, capacity, &log);
+    err = c1_log_open(mp, seqno, gen, mdcoid1, mdcoid2, desc, capacity, &log);
     if (ev(err))
         return err;
 
-    err = c1_log_open_impl(log);
-    if (ev(err)) {
-        c1_log_free(log);
-        return err;
-    }
-
     err = c1_log_format(log);
 
-    (void)c1_log_close_impl(log);
+    c1_log_close(log);
 
     return err;
 }
@@ -222,57 +209,32 @@ c1_log_open(
     u64                 capacity,
     struct c1_log **    out)
 {
-    merr_t         err;
-    struct c1_log *log = NULL;
+    merr_t             err;
+    struct c1_log *    log = NULL;
+    struct mpool_mlog *mlh;
+    u64                mlog_gen;
 
     err = c1_log_alloc(mp, seqno, gen, mdcoid1, mdcoid2, desc->c1_oid, capacity, &log);
     if (ev(err))
         return err;
     assert(log != NULL);
 
-    err = c1_log_open_impl(log);
+    err = mpool_mlog_open(log->c1l_mp, log->c1l_oid, 0, &mlog_gen, &mlh);
     if (ev(err)) {
         c1_log_free(log);
-        return err;
-    }
-
-    *out = log;
-
-    return 0;
-}
-
-static merr_t
-c1_log_open_impl(struct c1_log *log)
-{
-    struct mpool_mlog *mlh;
-    merr_t             err;
-    u64                gen;
-
-    err = mpool_mlog_open(log->c1l_mp, log->c1l_oid, 0, &gen, &mlh);
-    if (ev(err)) {
         hse_elog(HSE_ERR "%s: mpool_mlog_open failed: @@e", err, __func__);
         return err;
     }
 
     log->c1l_mlh = mlh;
 
+    *out = log;
+
     return 0;
 }
 
 merr_t
 c1_log_close(struct c1_log *log)
-{
-    merr_t err;
-
-    err = c1_log_close_impl(log);
-    if (ev(err))
-        return err;
-
-    return 0;
-}
-
-static merr_t
-c1_log_close_impl(struct c1_log *log)
 {
     merr_t err;
 
@@ -286,7 +248,8 @@ c1_log_close_impl(struct c1_log *log)
     if (ev(err))
         hse_elog(HSE_ERR "%s: mpool_mlog_close failed: @@e", err, __func__);
 
-    free(log);
+    c1_log_free(log);
+
     return err;
 }
 
