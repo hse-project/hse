@@ -129,7 +129,7 @@ MTF_DEFINE_UTEST_PREPOST(c0_kvset_test, basic_put_get, no_fail_pre, no_fail_post
             iseqnoref = HSE_ORDNL_TO_SQNREF(i + seq);
             view_seqno = i + seq;
             res = (enum key_lookup_res) - 1;
-            err = c0kvs_get(kvs, 0, &kt, view_seqno, 0, &res, &vb, &oseqnoref);
+            err = c0kvs_get_excl(kvs, 0, &kt, view_seqno, 0, &res, &vb, &oseqnoref);
             ASSERT_EQ(err, 0);
             ASSERT_EQ(res, FOUND_VAL);
             ASSERT_EQ(HSE_SQNREF_TO_ORDNL(oseqnoref), view_seqno);
@@ -139,7 +139,7 @@ MTF_DEFINE_UTEST_PREPOST(c0_kvset_test, basic_put_get, no_fail_pre, no_fail_post
 
             ASSERT_EQ(sum, i * seq);
 
-            c0kvs_prefix_get(kvs, 0, &kt, view_seqno, kt.kt_len, &oseqnoref);
+            c0kvs_prefix_get_excl(kvs, 0, &kt, view_seqno, kt.kt_len, &oseqnoref);
             ASSERT_EQ(HSE_SQNREF_TO_ORDNL(oseqnoref), 0);
 
             if (seq == i % 8) {
@@ -163,7 +163,7 @@ MTF_DEFINE_UTEST_PREPOST(c0_kvset_test, basic_put_get, no_fail_pre, no_fail_post
 
             view_seqno = i + seq;
             res = (enum key_lookup_res) - 1;
-            err = c0kvs_get(kvs, 0, &kt, view_seqno, 0, &res, &vb, &oseqnoref);
+            err = c0kvs_get_excl(kvs, 0, &kt, view_seqno, 0, &res, &vb, &oseqnoref);
             ASSERT_EQ(err, 0);
             ASSERT_EQ(HSE_SQNREF_TO_ORDNL(oseqnoref), view_seqno);
 
@@ -179,7 +179,7 @@ MTF_DEFINE_UTEST_PREPOST(c0_kvset_test, basic_put_get, no_fail_pre, no_fail_post
                 ASSERT_EQ(res, FOUND_TMB);
             }
 
-            c0kvs_prefix_get(kvs, 0, &kt, view_seqno, kt.kt_len, &oseqnoref);
+            c0kvs_prefix_get_excl(kvs, 0, &kt, view_seqno, kt.kt_len, &oseqnoref);
             ASSERT_EQ(HSE_SQNREF_TO_ORDNL(oseqnoref), 0);
         }
     }
@@ -317,7 +317,7 @@ MTF_DEFINE_UTEST_PREPOST(c0_kvset_test, basic_repeated_put, no_fail_pre, no_fail
     kbuf[0] = 3;
     res = (enum key_lookup_res) - 1;
     view_seqno = 0;
-    err = c0kvs_get(kvs, 0, &kt, view_seqno, 0, &res, &vb, &oseqnoref);
+    err = c0kvs_get_excl(kvs, 0, &kt, view_seqno, 0, &res, &vb, &oseqnoref);
     ASSERT_EQ(err, 0);
     ASSERT_EQ(res, FOUND_VAL);
     ASSERT_EQ(3, ((u8 *)vb.b_buf)[0]);
@@ -333,7 +333,7 @@ MTF_DEFINE_UTEST_PREPOST(c0_kvset_test, basic_repeated_put, no_fail_pre, no_fail
     ASSERT_EQ(0, err);
     vbuf[0] = 0;
     res = (enum key_lookup_res) - 1;
-    err = c0kvs_get(kvs, 0, &kt, view_seqno, 0, &res, &vb, &oseqnoref);
+    err = c0kvs_get_excl(kvs, 0, &kt, view_seqno, 0, &res, &vb, &oseqnoref);
     ASSERT_EQ(err, 0);
     ASSERT_EQ(res, FOUND_VAL);
     ASSERT_EQ(4, ((u8 *)vb.b_buf)[0]);
@@ -352,7 +352,7 @@ MTF_DEFINE_UTEST_PREPOST(c0_kvset_test, basic_repeated_put, no_fail_pre, no_fail
     vbuf[0] = 0;
     res = (enum key_lookup_res) - 1;
     view_seqno = 3;
-    err = c0kvs_get(kvs, 0, &kt, view_seqno, 0, &res, &vb, &oseqnoref);
+    err = c0kvs_get_excl(kvs, 0, &kt, view_seqno, 0, &res, &vb, &oseqnoref);
     ASSERT_EQ(err, 0);
     ASSERT_EQ(res, FOUND_VAL);
     ASSERT_EQ(1, ((u8 *)vb.b_buf)[0]);
@@ -361,7 +361,7 @@ MTF_DEFINE_UTEST_PREPOST(c0_kvset_test, basic_repeated_put, no_fail_pre, no_fail
     vbuf[0] = 0;
     res = (enum key_lookup_res) - 1;
     view_seqno = 1;
-    err = c0kvs_get(kvs, 0, &kt, view_seqno, 0, &res, &vb, &oseqnoref);
+    err = c0kvs_get_excl(kvs, 0, &kt, view_seqno, 0, &res, &vb, &oseqnoref);
     ASSERT_EQ(err, 0);
     ASSERT_EQ(res, FOUND_VAL);
     ASSERT_EQ(4, ((u8 *)vb.b_buf)[0]);
@@ -373,7 +373,7 @@ MTF_DEFINE_UTEST_PREPOST(c0_kvset_test, basic_repeated_put, no_fail_pre, no_fail
 
     res = (enum key_lookup_res) - 1;
     view_seqno = 3;
-    err = c0kvs_get(kvs, 0, &kt, view_seqno, 0, &res, &vb, &oseqnoref);
+    err = c0kvs_get_excl(kvs, 0, &kt, view_seqno, 0, &res, &vb, &oseqnoref);
     ASSERT_EQ(err, 0);
     ASSERT_EQ(res, FOUND_TMB);
     ASSERT_EQ(HSE_SQNREF_TO_ORDNL(oseqnoref), view_seqno);
@@ -387,7 +387,7 @@ MTF_DEFINE_UTEST_PREPOST(c0_kvset_test, basic_repeated_put, no_fail_pre, no_fail
 
     res = (enum key_lookup_res) - 1;
     view_seqno = 3;
-    err = c0kvs_get(kvs, 0, &kt, view_seqno, 0, &res, &vb, &oseqnoref);
+    err = c0kvs_get_excl(kvs, 0, &kt, view_seqno, 0, &res, &vb, &oseqnoref);
     ASSERT_EQ(err, 0);
     ASSERT_EQ(res, FOUND_VAL);
     ASSERT_EQ(HSE_SQNREF_TO_ORDNL(oseqnoref), view_seqno);
@@ -398,7 +398,7 @@ MTF_DEFINE_UTEST_PREPOST(c0_kvset_test, basic_repeated_put, no_fail_pre, no_fail
 
     res = (enum key_lookup_res) - 1;
     view_seqno = 3;
-    err = c0kvs_get(kvs, 0, &kt, view_seqno, 0, &res, &vb, &oseqnoref);
+    err = c0kvs_get_excl(kvs, 0, &kt, view_seqno, 0, &res, &vb, &oseqnoref);
     ASSERT_EQ(err, 0);
     ASSERT_EQ(res, FOUND_TMB);
     ASSERT_EQ(HSE_SQNREF_TO_ORDNL(oseqnoref), view_seqno);
@@ -499,7 +499,7 @@ MTF_DEFINE_UTEST_PREPOST(c0_kvset_test, advanced_repeated_put, no_fail_pre, no_f
             kvs_buf_init(&vb, vt.vt_data, vt.vt_len);
             res = (enum key_lookup_res) - 1;
             view_seqno = j;
-            err = c0kvs_get(kvs, 0, &kt, view_seqno, 0, &res, &vb, &oseqnoref);
+            err = c0kvs_get_excl(kvs, 0, &kt, view_seqno, 0, &res, &vb, &oseqnoref);
             ASSERT_EQ(err, 0);
             ASSERT_EQ(res, FOUND_VAL);
             ASSERT_EQ(indexes[i] + j, ((u32 *)vb.b_buf)[0]);
@@ -619,7 +619,7 @@ MTF_DEFINE_UTEST_PREPOST(c0_kvset_test, basic_put_get_del, no_fail_pre, no_fail_
         kvs_buf_init(&vb, vt.vt_data, vt.vt_len);
 
         res = (enum key_lookup_res) - 1;
-        err = c0kvs_get(kvs, 0, &kt, view_seqno, 0, &res, &vb, &oseqnoref);
+        err = c0kvs_get_excl(kvs, 0, &kt, view_seqno, 0, &res, &vb, &oseqnoref);
         ASSERT_EQ(err, 0);
         ASSERT_EQ(res, FOUND_VAL);
         ASSERT_GT(view_seqno, HSE_SQNREF_TO_ORDNL(oseqnoref));
@@ -651,9 +651,11 @@ MTF_DEFINE_UTEST_PREPOST(c0_kvset_test, basic_put_get_del, no_fail_pre, no_fail_
         iseqnoref = HSE_ORDNL_TO_SQNREF(i + 1);
         err = c0kvs_prefix_del(kvs, 0, &kt, iseqnoref);
         ASSERT_EQ(0, err);
-        c0kvs_prefix_get(kvs, 0, &kt, iseqnoref, kt.kt_len, &oseqnoref);
+
+        c0kvs_prefix_get_excl(kvs, 0, &kt, iseqnoref, kt.kt_len, &oseqnoref);
         ASSERT_EQ(HSE_SQNREF_TO_ORDNL(oseqnoref), i + 1);
-        c0kvs_prefix_get(kvs, 0, &kt, HSE_ORDNL_TO_SQNREF(i + 2), kt.kt_len, &oseqnoref);
+
+        c0kvs_prefix_get_excl(kvs, 0, &kt, HSE_ORDNL_TO_SQNREF(i + 2), kt.kt_len, &oseqnoref);
         ASSERT_EQ(HSE_SQNREF_TO_ORDNL(oseqnoref), i + 1);
     }
 
@@ -664,7 +666,7 @@ MTF_DEFINE_UTEST_PREPOST(c0_kvset_test, basic_put_get_del, no_fail_pre, no_fail_
         view_seqno = i + 1;
 
         res = (enum key_lookup_res) - 1;
-        err = c0kvs_get(kvs, 0, &kt, view_seqno, 0, &res, &vb, &oseqnoref);
+        err = c0kvs_get_excl(kvs, 0, &kt, view_seqno, 0, &res, &vb, &oseqnoref);
         ASSERT_EQ(err, 0);
         ASSERT_GT(view_seqno, HSE_SQNREF_TO_ORDNL(oseqnoref));
         if (res != FOUND_VAL) {
@@ -673,19 +675,19 @@ MTF_DEFINE_UTEST_PREPOST(c0_kvset_test, basic_put_get_del, no_fail_pre, no_fail_
         }
 
         view_seqno = i;
-        c0kvs_prefix_get(kvs, 0, &kt, view_seqno, kt.kt_len, &oseqnoref);
+        c0kvs_prefix_get_excl(kvs, 0, &kt, view_seqno, kt.kt_len, &oseqnoref);
         ASSERT_EQ(HSE_SQNREF_TO_ORDNL(oseqnoref), 0);
 
         view_seqno = i + 1;
-        c0kvs_prefix_get(kvs, 0, &kt, view_seqno, kt.kt_len, &oseqnoref);
+        c0kvs_prefix_get_excl(kvs, 0, &kt, view_seqno, kt.kt_len, &oseqnoref);
         ASSERT_EQ(HSE_SQNREF_TO_ORDNL(oseqnoref), 0);
 
         view_seqno = i;
-        c0kvs_prefix_get(kvs, 0, &kt, view_seqno, 5, &oseqnoref);
+        c0kvs_prefix_get_excl(kvs, 0, &kt, view_seqno, 5, &oseqnoref);
         ASSERT_EQ(HSE_SQNREF_TO_ORDNL(oseqnoref), 0);
 
         view_seqno = i + 1;
-        c0kvs_prefix_get(kvs, 0, &kt, view_seqno, 5, &oseqnoref);
+        c0kvs_prefix_get_excl(kvs, 0, &kt, view_seqno, 5, &oseqnoref);
         if (i != 4)
             ASSERT_EQ(HSE_SQNREF_TO_ORDNL(oseqnoref), 0);
         else
@@ -694,14 +696,14 @@ MTF_DEFINE_UTEST_PREPOST(c0_kvset_test, basic_put_get_del, no_fail_pre, no_fail_
         res = (enum key_lookup_res) - 1;
         view_seqno = i;
         kt.kt_len = 5;
-        err = c0kvs_get(kvs, 0, &kt, view_seqno, 0, &res, &vb, &oseqnoref);
+        err = c0kvs_get_excl(kvs, 0, &kt, view_seqno, 0, &res, &vb, &oseqnoref);
         ASSERT_EQ(err, 0);
         ASSERT_EQ(HSE_SQNREF_TO_ORDNL(oseqnoref), 0);
         ASSERT_EQ(res, NOT_FOUND);
 
         res = (enum key_lookup_res) - 1;
         view_seqno = i + 1;
-        err = c0kvs_get(kvs, 0, &kt, view_seqno, 0, &res, &vb, &oseqnoref);
+        err = c0kvs_get_excl(kvs, 0, &kt, view_seqno, 0, &res, &vb, &oseqnoref);
         ASSERT_EQ(err, 0);
         if (i != 4) {
             ASSERT_EQ(HSE_SQNREF_TO_ORDNL(oseqnoref), 0);
@@ -872,7 +874,7 @@ MTF_DEFINE_UTEST_PREPOST(c0_kvset_test, finalize, no_fail_pre, no_fail_post)
         kvs_buf_init(&vb, vt.vt_data, vt.vt_len);
 
         res = (enum key_lookup_res) - 1;
-        err = c0kvs_get(kvs, 0, &kt, iseqno, 0, &res, &vb, &oseqno);
+        err = c0kvs_get_excl(kvs, 0, &kt, iseqno, 0, &res, &vb, &oseqno);
         ASSERT_EQ(err, 0);
         ASSERT_EQ(res, FOUND_VAL);
         ASSERT_EQ(oseqno, HSE_ORDNL_TO_SQNREF(0));

@@ -21,7 +21,7 @@ rcu_barrier_bp(void);
 #endif
 
 #ifndef rcu_read_ongoing
-#define rcu_read_ongoing() false
+#define rcu_read_ongoing() true
 #endif
 
 #include <hse_util/cds_list.h>

@@ -187,8 +187,8 @@ c0kvs_prefix_del(
     const uintptr_t          seqno);
 
 /**
- * c0kvs_get() - given a key, retrieve a value from a struct c0_kvset
- * @set:        Struct c0_kvset to search
+ * c0kvs_get_rcu() - given a key, retrieve a value from a struct c0_kvset
+ * @handle:     Struct c0_kvset to search
  * @key:        Key
  * @view_seqno: Get the latest value with seqno not newer than view_seqno
  * @res:        Result of lookup
@@ -199,6 +199,10 @@ c0kvs_prefix_del(
  *
  * Find the value associated with given key and copy the value into caller's
  * buffer.  No ownership is assumed of the key kvs_ktuple.
+ *
+ * Caller must be within an rcu read-side critical section to call this
+ * function.  If the given kvset is private or otherwise exclusively
+ * locked caller should call c0kvs_get_excl().
  *
  * Return:
  *
@@ -217,8 +221,8 @@ c0kvs_prefix_del(
  *     EMSGSIZE:   value was found but does not fit into callers buffer.
  */
 merr_t
-c0kvs_get(
-    struct c0_kvset *        set,
+c0kvs_get_rcu(
+    struct c0_kvset *        handle,
     u16                      skidx,
     const struct kvs_ktuple *key,
     u64                      view_seqno,
@@ -227,27 +231,19 @@ c0kvs_get(
     struct kvs_buf *         vbuf,
     uintptr_t *              oseqnoref);
 
-/**
- * c0kvs_prefix_get() - given a key, retrieve a value from a struct c0_kvset
- * @set:       Struct c0_kvset to search
- * @key:       Key
- * @iseqno:    Get the latest value with seqno not newer than iseqno
- * @pfx_len:   Prefix length
- * @oseqnoref: (out) Sequence # reference of matching prefix tombstone if found
- *
- * Check if there is a prefix tombstone associated with the key.
- */
-void
-c0kvs_prefix_get(
+merr_t
+c0kvs_get_excl(
     struct c0_kvset *        handle,
     u16                      skidx,
     const struct kvs_ktuple *key,
     u64                      view_seqno,
-    u32                      pfx_len,
+    uintptr_t                seqnoref,
+    enum key_lookup_res *    res,
+    struct kvs_buf *         vbuf,
     uintptr_t *              oseqnoref);
 
 merr_t
-c0kvs_pfx_probe(
+c0kvs_pfx_probe_rcu(
     struct c0_kvset *        handle,
     u16                      skidx,
     const struct kvs_ktuple *key,
@@ -258,6 +254,52 @@ c0kvs_pfx_probe(
     struct kvs_buf *         kbuf,
     struct kvs_buf *         vbuf,
     u64                      pt_seq);
+
+merr_t
+c0kvs_pfx_probe_excl(
+    struct c0_kvset *        handle,
+    u16                      skidx,
+    const struct kvs_ktuple *key,
+    u64                      view_seqno,
+    uintptr_t                seqref,
+    enum key_lookup_res *    res,
+    struct query_ctx *       qctx,
+    struct kvs_buf *         kbuf,
+    struct kvs_buf *         vbuf,
+    u64                      pt_seq);
+
+
+/**
+ * c0kvs_prefix_get_rcu() - given a key, retrieve a value from a struct c0_kvset
+ * @handle:    Struct c0_kvset to search
+ * @key:       Key
+ * @iseqno:    Get the latest value with seqno not newer than iseqno
+ * @pfx_len:   Prefix length
+ * @oseqnoref: (out) Sequence # reference of matching prefix tombstone if found
+ *
+ * Check if there is a prefix tombstone associated with the key.
+ *
+ * Caller must be within an rcu read-side critical section to call this
+ * function.  If the given kvset is private or otherwise exclusively
+ * locked call should call c0kvs_prefix_get_excl().
+ */
+void
+c0kvs_prefix_get_rcu(
+    struct c0_kvset *        handle,
+    u16                      skidx,
+    const struct kvs_ktuple *key,
+    u64                      view_seqno,
+    u32                      pfx_len,
+    uintptr_t *              oseqnoref);
+
+void
+c0kvs_prefix_get_excl(
+    struct c0_kvset *        handle,
+    u16                      skidx,
+    const struct kvs_ktuple *key,
+    u64                      view_seqno,
+    u32                      pfx_len,
+    uintptr_t *              oseqnoref);
 
 /**
  * c0kvs_findval() - the One True Way to get the correct value for a key

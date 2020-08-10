@@ -411,10 +411,10 @@ MTF_DEFINE_UTEST(cheap_test, cheap_test_trim)
     h = cheap_create(0, maxpg * PAGE_SIZE);
     ASSERT_NE(NULL, h);
 
-    /* After create only one page should be resident.
+    /* After create at least one page should be resident.
      */
     sz = rss(h, maxpg, vec);
-    ASSERT_EQ(sz, PAGE_SIZE);
+    ASSERT_GE(sz, PAGE_SIZE);
 
     for (i = 0; i < maxpg - 1; ++i) {
         p = cheap_memalign(h, PAGE_SIZE, sizeof(*p));

@@ -509,7 +509,7 @@ c0kvms_cursor_seek(struct c0_kvmultiset_cursor *cur, const void *seek, u32 seekl
 }
 
 merr_t
-c0kvms_pfx_probe(
+c0kvms_pfx_probe_rcu(
     struct c0_kvmultiset *   handle,
     u16                      skidx,
     const struct kvs_ktuple *kt,
@@ -526,7 +526,29 @@ c0kvms_pfx_probe(
 
     c0kvs = c0kvms_get_hashed_c0kvset(handle, kt->kt_hash);
 
-    err = c0kvs_pfx_probe(c0kvs, skidx, kt, view_seqno, seqref, res, qctx, kbuf, vbuf, pt_seqno);
+    err = c0kvs_pfx_probe_rcu(c0kvs, skidx, kt, view_seqno, seqref, res, qctx, kbuf, vbuf, pt_seqno);
+    return ev(err);
+}
+
+merr_t
+c0kvms_pfx_probe_excl(
+    struct c0_kvmultiset *   handle,
+    u16                      skidx,
+    const struct kvs_ktuple *kt,
+    u64                      view_seqno,
+    uintptr_t                seqref,
+    enum key_lookup_res *    res,
+    struct query_ctx *       qctx,
+    struct kvs_buf *         kbuf,
+    struct kvs_buf *         vbuf,
+    u64                      pt_seqno)
+{
+    struct c0_kvset *c0kvs;
+    merr_t           err;
+
+    c0kvs = c0kvms_get_hashed_c0kvset(handle, kt->kt_hash);
+
+    err = c0kvs_pfx_probe_excl(c0kvs, skidx, kt, view_seqno, seqref, res, qctx, kbuf, vbuf, pt_seqno);
     return ev(err);
 }
 
