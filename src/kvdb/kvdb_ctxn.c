@@ -260,7 +260,7 @@ kvdb_ctxn_set_wait_commits(struct kvdb_ctxn_set *handle)
      * to unexpectedly pop up within our view after this wait is over.
      */
     while (atomic64_read(&kvdb_ctxn_set->ktn_tseqno_tail) < head)
-        __builtin_ia32_pause();
+        cpu_relax();
 }
 
 void
@@ -599,7 +599,7 @@ retry:
              * incremented ctxn_tseqno_head.
              */
             while (atomic64_read(ctxn->ctxn_tseqno_tail) + 1 < head)
-                __builtin_ia32_pause();
+                cpu_relax();
             atomic64_inc(ctxn->ctxn_tseqno_tail);
         }
     }
@@ -677,7 +677,7 @@ retry:
          * of ctxn_tseqno_head.
          */
         while (!atomic_cas(&lock, 0, 1))
-            __builtin_ia32_pause();
+            cpu_relax();
         head = atomic64_inc_acq(ctxn->ctxn_tseqno_head);
         commit_sn = 1 + atomic64_fetch_add_rel(2, ctxn->ctxn_kvdb_seq_addr);
         atomic_cas(&lock, 1, 0);
@@ -700,7 +700,7 @@ retry:
              * incremented ctxn_tseqno_head.
              */
             while (atomic64_read(ctxn->ctxn_tseqno_tail) + 1 < head)
-                __builtin_ia32_pause();
+                cpu_relax();
             atomic64_inc(ctxn->ctxn_tseqno_tail);
 
             ev(rsvd_sn == HSE_SQNREF_INVALID);
@@ -737,7 +737,7 @@ retry:
      * improves throughput of the above critical section vs a mutex.
      */
     while (atomic64_read(ctxn->ctxn_tseqno_tail) + 1 < head)
-        __builtin_ia32_pause();
+        cpu_relax();
 
     /* This assignment through the pointer gives all the values
      * associated with this transaction an ordinal sequence

@@ -1909,7 +1909,7 @@ ikvdb_kvs_close(struct hse_kvs *handle)
      * if not, keep spinning
      */
     while (atomic_cmpxchg(&kk->kk_refcnt, 1, 0) > 1)
-        __builtin_ia32_pause();
+        cpu_relax();
 
     err = kvs_close(ikvs_tmp);
 

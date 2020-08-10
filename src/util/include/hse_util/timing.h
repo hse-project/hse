@@ -16,8 +16,8 @@
 
 BullseyeCoverageSaveOff
 
-    static __always_inline u64
-                           get_time_ns(void)
+static __always_inline u64
+get_time_ns(void)
 {
     struct timespec ts = { 0, 0 };
 
@@ -32,10 +32,10 @@ get_realtime(struct timespec *ts)
     return clock_gettime(CLOCK_REALTIME, ts);
 }
 
-#if GCC_VERSION < 40700
 
+#if __amd64__
 static __always_inline u64
-                       get_cycles(void)
+get_cycles(void)
 {
     unsigned int tickl, tickh;
 
@@ -43,16 +43,12 @@ static __always_inline u64
     return ((unsigned long long)tickh << 32) | tickl;
 }
 
-#else /* GCC_VERSION >= 40700 */
+#else
+#error get_cyles() not implemented for this architecture
+#endif
 
-static __always_inline u64
-                       get_cycles(void)
-{
-    return __builtin_ia32_rdtsc();
-}
 
-#endif /* GCC_VERSION */
-
+#if __amd64__
 #define VGETCPU_CPU_MASK 0xfff
 #define GDT_ENTRY_PER_CPU 15
 #define __PER_CPU_SEG (GDT_ENTRY_PER_CPU * 8 + 3)
@@ -78,7 +74,12 @@ raw_smp_processor_id(void)
     return aux & VGETCPU_CPU_MASK;
 }
 
+#else
+#error raw_smp_processor_id() not implemented for this architecture
+#endif
+
 #define smp_processor_id() raw_smp_processor_id()
+
 
 static inline unsigned int
 num_online_cpus(void)

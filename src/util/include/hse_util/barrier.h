@@ -19,8 +19,15 @@
 #define wmb()                    mb()
  */
 
-/* Warning - x86_64 specific */
-#define smp_mb() asm volatile("lock; addl $0,-4(%%rsp)" : : : "memory", "cc")
+/* Faster than mfence:  https://lore.kernel.org/patchwork/patch/850075/
+ */
+#if __amd64__
+#define smp_mb()    asm volatile("lock; addl $0,-4(%%rsp)" : : : "memory", "cc")
+
+#else
+#error smp_mb not implemented for this architecture
+#endif
+
 #define smp_rmb() smp_mb() /* HSE_REVISIT: lfence? */
 #define smp_wmb() barrier()
 #define smp_read_barrier_depends() \

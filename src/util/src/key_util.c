@@ -180,15 +180,16 @@ key_disc_init(const void *key, size_t len, struct key_disc *kdisc)
     }
 }
 
-/* Bullseye doesn't play well with hand-written assembly
- */
 BullseyeCoverageSaveOff
 
-    size_t
-    memlcp(const void *s1, const void *s2, size_t len)
+#if __amd64__
+size_t
+memlcp(const void *s1, const void *s2, size_t len)
 {
     size_t rc;
 
+    /* TODO: Don't directly access rcx...
+     */
     __asm__("movq   %1, %0      \n\t" /* rc = len;              */
             "cld                \n\t"
             "movq   %1, %%rcx   \n\t" /* rcx = len;             */
@@ -211,6 +212,8 @@ memlcpq(const void *s1, const void *s2, size_t len)
 {
     size_t rc;
 
+    /* TODO: Don't directly access rcx...
+     */
     __asm__("movq   %1, %0      \n\t" /* rc = len;              */
             "shrq   $3, %0      \n\t" /* rc /= 8;               */
             "cld                \n\t"
@@ -229,5 +232,9 @@ memlcpq(const void *s1, const void *s2, size_t len)
 
     return rc;
 }
+
+#else
+#error memlcp() not implemented for this architecture
+#endif
 
 BullseyeCoverageRestore

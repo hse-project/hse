@@ -198,7 +198,7 @@ rmlock_rlock(struct rmlock *lock, void **cookiep)
             break;
         }
 
-        __builtin_ia32_pause();
+        cpu_relax();
         val &= ~(1ul << 63);
     }
 
@@ -219,7 +219,7 @@ rmlock_runlock(void *cookie)
     }
 
     while (!rmlock_cmpxchg(&bkt->rm_rwcnt, &val, val - 1))
-        __builtin_ia32_pause();
+        cpu_relax();
 }
 
 static void
@@ -275,7 +275,7 @@ rmlock_wlock(struct rmlock *lock)
          * give up the cpu, likely the system is under duress...
          */
         if (ev(x > 0))
-            __builtin_ia32_pause();
+            cpu_relax();
 
         n = x;
     }
@@ -292,7 +292,7 @@ rmlock_wunlock(struct rmlock *lock)
         val = 1ul << 63;
 
         while (!rmlock_cmpxchg(&bkt->rm_rwcnt, &val, 0)) {
-            __builtin_ia32_pause();
+            cpu_relax();
             val = 1ul << 63;
         }
     }
