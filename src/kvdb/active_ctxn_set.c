@@ -363,7 +363,7 @@ active_ctxn_set_remove(
             break;
         }
 
-        __builtin_ia32_pause();
+        cpu_relax();
     }
 
     *min_view_sn = self->acs_min_view_sn;

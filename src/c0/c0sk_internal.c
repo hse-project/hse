@@ -680,7 +680,7 @@ c0sk_ingest_worker(struct work_struct *work)
         goto exit_err;
 
     while (unlikely((c0sk->c0sk_kvdb_rp->c0_debug & C0_DEBUG_ACCUMULATE) && !c0sk->c0sk_syncing))
-        __builtin_ia32_pause();
+        cpu_relax();
 
     /* ingests do not stop on block deletion failures. */
     err = kvdb_health_check(
@@ -1426,7 +1426,7 @@ genchk:
             if (cycles % 64 < 8)
                 nanosleep(&req, NULL);
             else
-                __builtin_ia32_pause();
+                cpu_relax();
 
             goto genchk;
         }

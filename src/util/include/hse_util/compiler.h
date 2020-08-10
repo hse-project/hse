@@ -22,22 +22,6 @@
 #define __always_inline inline __attribute__((always_inline))
 #endif
 
-/*
- * Prevent the -COMPILER- from merging or refetching accesses.  The
- * compiler is also forbidden from reordering successive instances
- * of ACCESS_ONCE(), but only when the compiler is aware of some
- * particular ordering.  One way to make the compiler aware of
- * ordering is to put the two invocations of ACCESS_ONCE() in
- * different C statements.
- *
- * CPU vs Compiler: This macro does absolutely -NOTHING- to prevent
- * the -CPU- from reordering, merging, or refetching absolutely
- * anything at any time.  Its main intended use is to mediate
- * communication between process-level code and irq/NMI handlers,
- * all running on the same CPU.
- */
-#define READ_ONCE(x) (*(volatile typeof(x) *)&(x))
-
 /* Optimization barrier */
 /* The "volatile" is due to gcc bugs */
 #define barrier() asm volatile("" : : : "memory")
@@ -81,8 +65,15 @@
 #define BullseyeCoverageRestore
 #endif
 
-#if GCC_VERSION < 40500
-#define __builtin_ia32_pause() asm volatile("pause" : : : "memory")
+#if __amd64__
+static __always_inline void
+cpu_relax(void)
+{
+    asm volatile("rep; nop" ::: "memory");
+}
+
+#else
+#error cpu_relax() not implemented for this architecture
 #endif
 
 #endif /* HSE_PLATFORM_COMPILER_H */
