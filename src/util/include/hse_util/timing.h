@@ -44,7 +44,7 @@ get_cycles(void)
 }
 
 #else
-#error get_cyles() not implemented for this architecture
+#error get_cycles() not implemented for this architecture
 #endif
 
 

@@ -6,11 +6,6 @@
 #ifndef HSE_BONSAI_TREE_PVT_H
 #define HSE_BONSAI_TREE_PVT_H
 
-/*
- * This file contains the structures definitions and prototypes private to
- * bonsai tree.
- */
-#include "bonsai_tree_urcu.h"
 #include <hse_util/string.h>
 #include <hse_util/alloc.h>
 #include <hse_util/slab.h>

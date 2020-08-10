@@ -35,7 +35,7 @@ bn_freen_impl(struct bonsai_client *client, void *node)
     bn_free_impl(client, node);
 
 #ifdef BONSAI_TREE_DEBUG_ALLOC
-    BONSAI_RCU_ATOMIC_INC(&client->bc_del);
+    uatomic_inc(&client->bc_del);
 #endif
 }
 
@@ -81,7 +81,7 @@ bn_node_alloc_impl(struct bonsai_root *tree)
 exit:
 #ifdef BONSAI_TREE_DEBUG_ALLOC
     if (ptr)
-        BONSAI_RCU_ATOMIC_INC(&client->bc_add);
+        uatomic_inc(&client->bc_add);
 #endif
 
     return ptr;
@@ -119,7 +119,7 @@ bn_node_free_impl(struct rcu_head *rh)
         next = node->bn_free;
         bn_freen_impl(client, node);
 #ifdef BONSAI_TREE_DEBUG_ALLOC
-        BONSAI_RCU_ATOMIC_INC(&client->bc_dupdel);
+        uatomic_inc(&client->bc_dupdel);
 #endif
         node = next;
     }
@@ -363,7 +363,7 @@ bn_node_dup(struct bonsai_root *tree, struct bonsai_node *node)
     newnode->bn_height = node->bn_height;
 
 #ifdef BONSAI_TREE_DEBUG_ALLOC
-    BONSAI_RCU_ATOMIC_INC(&tree->br_client.bc_dup);
+    uatomic_inc(&tree->br_client.bc_dup);
 #endif
 
     return newnode;
@@ -385,7 +385,7 @@ bn_node_dup_ext(
         return NULL;
 
 #ifdef BONSAI_TREE_DEBUG_ALLOC
-    BONSAI_RCU_ATOMIC_INC(&tree->br_client.bc_dup);
+    uatomic_inc(&tree->br_client.bc_dup);
 #endif
 
     return newnode;

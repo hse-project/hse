@@ -14,8 +14,6 @@
 #include <hse_ut/framework.h>
 #include <hse_util/logging.h>
 
-#include "../src/bonsai_tree_urcu.h"
-
 #include <hse_util/bonsai_tree.h>
 #include <hse_util/platform.h>
 #include <hse_util/keycmp.h>
@@ -24,6 +22,20 @@
 #include "../src/bonsai_tree_pvt.h"
 
 #include <hse_test_support/mwc_rand.h>
+
+#if defined(LIBURCU_QSBR) || defined(LIBURCU_BP)
+#define BONSAI_RCU_REGISTER()
+#define BONSAI_RCU_UNREGISTER()
+#else
+#define BONSAI_RCU_REGISTER()       rcu_register_thread()
+#define BONSAI_RCU_UNREGISTER()     rcu_unregister_thread()
+#endif
+
+#ifdef LIBURCU_QSBR
+#define BONSAI_RCU_QUIESCE()        rcu_quiescent_state()
+#else
+#define BONSAI_RCU_QUIESCE()
+#endif
 
 #define ALLOC_LEN_MAX 1344
 
@@ -58,9 +70,8 @@ xrand_init(uint64_t seed64)
     u32 seed32 = seed64;
 
     if (seed64 == 0) {
-            seed64 = (__builtin_ia32_rdtsc() << 32) |
-                (__builtin_ia32_rdtsc() & 0xffffffffu);
-            seed32 = seed64;
+        seed32 = get_cycles();
+        seed64 = (get_cycles() << 32) | seed32;
     }
 
     seed32 = seed32 ^ (seed64 >> 32);
@@ -246,11 +257,7 @@ test_collection_setup(struct mtf_test_info *info)
 
     xrand_init(0);
 
-#ifndef LIBURCU_QSBR
-#ifndef LIBURCU_BP
     BONSAI_RCU_REGISTER();
-#endif
-#endif
 
     return 0;
 }
@@ -258,12 +265,7 @@ test_collection_setup(struct mtf_test_info *info)
 int
 test_collection_teardown(struct mtf_test_info *info)
 {
-
-#ifndef LIBURCU_QSBR
-#ifndef LIBURCU_BP
     BONSAI_RCU_UNREGISTER();
-#endif
-#endif
 
     return 0;
 }
@@ -327,11 +329,8 @@ bonsai_client_producer(void *arg)
      * Register is not required for BP. For QSBR, it is required only for
      * clients.
      */
-#ifndef LIBURCU_QSBR
-#ifndef LIBURCU_BP
     BONSAI_RCU_REGISTER();
-#endif
-#endif
+
     xrand_init(0);
 
     if (key_size < sizeof(*key))
@@ -385,11 +384,7 @@ bonsai_client_producer(void *arg)
 
 exit:
 
-#ifndef LIBURCU_QSBR
-#ifndef LIBURCU_BP
     BONSAI_RCU_UNREGISTER();
-#endif
-#endif
 
     if (key)
         free(key);
@@ -430,11 +425,7 @@ bonsai_client_lcp_test(void *arg)
      * Register is not required for BP. For QSBR, it is required only for
      * clients.
      */
-#ifndef LIBURCU_QSBR
-#ifndef LIBURCU_BP
     BONSAI_RCU_REGISTER();
-#endif
-#endif
 
     memset(key, 'a', KI_DLEN_MAX + 27);
 
@@ -470,8 +461,8 @@ bonsai_client_lcp_test(void *arg)
 
 #ifdef BONSAI_TREE_CLIENT_VERIFY
     bounds = atomic_read(&broot->br_bounds);
-    if (bounds)
-        lcp = bounds - 1;
+
+    lcp = (bounds > 0) ? (bounds - 1) : 0;
 
     for (i = 0; i < 26; i++) {
         struct bonsai_skey          skey = { 0 };
@@ -530,11 +521,7 @@ bonsai_client_lcp_test(void *arg)
     }
 #endif
 
-#ifndef LIBURCU_QSBR
-#ifndef LIBURCU_BP
     BONSAI_RCU_UNREGISTER();
-#endif
-#endif
 
     pthread_exit((void *)(long)merr_errno(err));
 }
@@ -554,9 +541,7 @@ bonsai_client_consumer(void *arg)
     if (!key)
         goto exit;
 
-#ifndef LIBURCU_BP
     BONSAI_RCU_REGISTER();
-#endif
 
     while (!stop_consumer_threads) {
         __sync_synchronize();
@@ -579,9 +564,7 @@ bonsai_client_consumer(void *arg)
             }
         }
 
-#ifdef LIBURCU_QSBR
         BONSAI_RCU_QUIESCE();
-#endif
 
         sched_yield();
     }
@@ -590,15 +573,10 @@ bonsai_client_consumer(void *arg)
     hse_log(HSE_INFO "Stopped consumer ... last key %ld", i);
 #endif
 
-exit:
-
-#ifndef LIBURCU_BP
     BONSAI_RCU_UNREGISTER();
-#endif
+    free(key);
 
-    if (key)
-        free(key);
-
+exit:
     pthread_exit(found ? (void *)0 : (void *)-1);
 }
 
@@ -697,7 +675,7 @@ bonsai_client_multithread_test(void)
     rcu_read_unlock();
 #endif
 
-    BONSAI_RCU_BARRIER();
+    rcu_barrier();
 
 #ifdef BONSAI_TREE_DEBUG
     hse_log(HSE_INFO "Tree height %d", bn_height_get(broot.br_root));
@@ -705,7 +683,7 @@ bonsai_client_multithread_test(void)
 
     bn_destroy(broot);
 
-    BONSAI_RCU_BARRIER();
+    rcu_barrier();
 
 #ifdef BONSAI_TREE_DEBUG_ALLOC
     hse_log(
@@ -824,10 +802,10 @@ bonsai_client_singlethread_test(enum bonsai_alloc_mode allocm)
     rcu_read_lock();
     bn_traverse(broot);
     rcu_read_unlock();
-    BONSAI_RCU_BARRIER();
+    rcu_barrier();
 
     bn_destroy(broot);
-    BONSAI_RCU_BARRIER();
+    rcu_barrier();
 
 #if 0
     assert(broot->br_client.bc_add == broot->br_client.bc_del);
@@ -962,11 +940,11 @@ MTF_DEFINE_UTEST_PREPOST(bonsai_tree_test, lcp_test, no_fail_pre, no_fail_post)
         ASSERT_EQ(rc, 0);
     }
 
-    BONSAI_RCU_BARRIER();
+    rcu_barrier();
 
     bn_destroy(broot);
 
-    BONSAI_RCU_BARRIER();
+    rcu_barrier();
 
     cheap_destroy(cheap);
     cheap = NULL;
@@ -997,11 +975,11 @@ MTF_DEFINE_UTEST_PREPOST(bonsai_tree_test, lcp_test, no_fail_pre, no_fail_post)
     rc = pthread_join(producer_tids[0], &ret);
     ASSERT_EQ(rc, 0);
 
-    BONSAI_RCU_BARRIER();
+    rcu_barrier();
 
     bn_destroy(broot);
 
-    BONSAI_RCU_BARRIER();
+    rcu_barrier();
 
     free_all_cpu_call_rcu_data();
 
