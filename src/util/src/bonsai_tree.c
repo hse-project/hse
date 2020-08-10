@@ -73,10 +73,8 @@ bn_insert_impl(
             node->bn_kv->bkv_prev = parent->bkv_prev;
         }
 
-        /* [HSE_REVISIT]: Need to add a comment here */
-        smp_mb();
-        node->bn_kv->bkv_next->bkv_prev = node->bn_kv;
-        node->bn_kv->bkv_prev->bkv_next = node->bn_kv;
+        BONSAI_RCU_ASSIGN_POINTER(node->bn_kv->bkv_next->bkv_prev, node->bn_kv);
+        BONSAI_RCU_ASSIGN_POINTER(node->bn_kv->bkv_prev->bkv_next, node->bn_kv);
 
         /* Get the tail end of the tombspans for prev and next nodes. */
         prev_span = node->bn_kv->bkv_prev->bkv_tomb;
@@ -181,9 +179,9 @@ bn_find_next_pfx(struct bonsai_root *tree, const struct bonsai_skey *skey)
 
         if (res < 0) {
             mnode = node;
-            node = node->bn_left;
+            node = BONSAI_RCU_DEREF_POINTER(node->bn_left);
         } else
-            node = node->bn_right;
+            node = BONSAI_RCU_DEREF_POINTER(node->bn_right);
     }
 
     return mnode ? mnode->bn_kv : NULL;
@@ -274,11 +272,11 @@ search:
         if (res < 0) {
             if (unlikely(mtype == B_MATCH_GE))
                 mnode = node;
-            node = node->bn_left;
+            node = BONSAI_RCU_DEREF_POINTER(node->bn_left);
         } else {
             if (unlikely(mtype == B_MATCH_LE))
                 mnode = node;
-            node = node->bn_right;
+            node = BONSAI_RCU_DEREF_POINTER(node->bn_right);
         }
     }
 

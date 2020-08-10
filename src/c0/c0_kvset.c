@@ -561,7 +561,7 @@ c0kvs_findval(struct c0_kvset *handle, struct bonsai_kv *kv, u64 view_seqno, uin
     val_ge = NULL;
     nvals = 0;
 
-    for (val = kv->bkv_values; val; val = val->bv_next) {
+    for (val = kv->bkv_values; val; val = rcu_dereference(val->bv_next)) {
         diff = seqnoref_ext_diff(view_seqno, val->bv_seqnoref);
         if (diff < diff_ge) {
             diff_ge = diff;
@@ -611,7 +611,7 @@ c0kvs_findpfxval(struct bonsai_kv *kv, uintptr_t seqnoref)
             if ((val->bv_seqnoref == seqnoref) || seqnoref_ge(seqnoref, val->bv_seqnoref))
                 break;
         }
-        val = val->bv_next;
+        val = rcu_dereference(val->bv_next);
     }
 
     return val;
@@ -833,7 +833,7 @@ c0kvs_putdel(
         err = (sz > self->c0s_alloc_sz) ? merr(EFBIG) : merr(ENOMEM);
     c0kvs_unlock(self);
 
-    /* Caller's putting keys into the active kvms must hold the
+    /* Callers putting keys into the active kvms must hold the
      * RCU read lock.  As such, a c0kvset undergoing ingest will
      * be finalized (i.e., frozen) the end of the grace period,
      * after which c0 ingest may proceed.  It is a grievous error
@@ -946,7 +946,7 @@ c0kvs_usage(struct c0_kvset *handle, struct c0_usage *usage)
  *         *oseqnoref = HSE_ORDNL_TO_SQNREF(0) (invalid ordinal)
  */
 merr_t
-c0kvs_get(
+c0kvs_get_excl(
     struct c0_kvset *        handle,
     u16                      skidx,
     const struct kvs_ktuple *key,
@@ -969,12 +969,6 @@ c0kvs_get(
     bn_skey_init(key->kt_data, key->kt_len, skidx, &skey);
     kv = NULL;
 
-    /*
-     * Primary caller in c0_get() already issued a rcu_read_lock() but
-     * that was to protect the list of kv multisets it is traversing.
-     * Here we issue an rcu_read_lock() to protect the tree.
-     */
-    rcu_read_lock();
     found = bn_find(self->c0s_broot, &skey, &kv);
     if (found) {
         val = c0kvs_findval(handle, kv, view_seqno, seqnoref);
@@ -996,13 +990,29 @@ c0kvs_get(
             }
         }
     }
-    rcu_read_unlock();
 
     return 0;
 }
 
 merr_t
-c0kvs_pfx_probe(
+c0kvs_get_rcu(
+    struct c0_kvset *        handle,
+    u16                      skidx,
+    const struct kvs_ktuple *key,
+    u64                      view_seqno,
+    uintptr_t                seqnoref,
+    enum key_lookup_res *    res,
+    struct kvs_buf *         vbuf,
+    uintptr_t *              oseqnoref)
+{
+    assert(rcu_read_ongoing());
+
+    return c0kvs_get_excl(handle, skidx, key, view_seqno,
+                          seqnoref, res, vbuf, oseqnoref);
+}
+
+merr_t
+c0kvs_pfx_probe_excl(
     struct c0_kvset *        handle,
     u16                      skidx,
     const struct kvs_ktuple *key,
@@ -1024,10 +1034,9 @@ c0kvs_pfx_probe(
     merr_t                err = 0;
 
     bn_skey_init(key->kt_data, key->kt_len, skidx, &skey);
-    rcu_read_lock();
+
     found = bn_findGE(root, &skey, &kv);
     if (!found) {
-        rcu_read_unlock();
         *res = NOT_FOUND;
         return 0;
     }
@@ -1037,14 +1046,11 @@ c0kvs_pfx_probe(
      *  2. a new node inserted between the old next and current. In this
      *     case, seqno filtering should take care of skipping the newly
      *     added node.
-     *
-     * So it is safe to release the lock at this stage.
      */
-    rcu_read_unlock();
     assert(kv);
 
     /* found a key with the requested pfx */
-    for (; kv != &root->br_kv; kv = kv->bkv_next) {
+    for (; kv != &root->br_kv; kv = rcu_dereference(kv->bkv_next)) {
         if (keycmp_prefix(key->kt_data, key->kt_len, kv->bkv_key, kv->bkv_key_imm.ki_klen))
             break; /* eof */
 
@@ -1100,13 +1106,32 @@ c0kvs_pfx_probe(
     return err;
 }
 
+merr_t
+c0kvs_pfx_probe_rcu(
+    struct c0_kvset *        handle,
+    u16                      skidx,
+    const struct kvs_ktuple *key,
+    u64                      view_seqno,
+    uintptr_t                seqnoref,
+    enum key_lookup_res *    res,
+    struct query_ctx *       qctx,
+    struct kvs_buf *         kbuf,
+    struct kvs_buf *         vbuf,
+    u64                      pt_seq)
+{
+    assert(rcu_read_ongoing());
+
+    return c0kvs_pfx_probe_excl(handle, skidx, key, view_seqno, seqnoref,
+                                res, qctx, kbuf, vbuf, pt_seq);
+}
+
 /*
  * Search whether a prefix tombstone exists for the key.
  * If a prefix tombstone is found: *oseqnoref == seqnoref of match
  * If key is not found: *oseqnoref = HSE_ORDNL_TO_SQNREF(0) (invalid ordinal)
  */
 void
-c0kvs_prefix_get(
+c0kvs_prefix_get_excl(
     struct c0_kvset *        handle,
     u16                      skidx,
     const struct kvs_ktuple *key,
@@ -1126,12 +1151,6 @@ c0kvs_prefix_get(
     bn_skey_init(key->kt_data, pfx_len, skidx, &skey);
     kv = NULL;
 
-    /*
-     * Primary caller in c0_get() already issued a rcu_read_lock() but
-     * that was to protect the list of kv multisets it is traversing.
-     * Here we issue an rcu_read_lock() to protect the tree.
-     */
-    rcu_read_lock();
     found = bn_find(self->c0s_broot, &skey, &kv);
     if (found) {
         uintptr_t view_seqnoref = HSE_ORDNL_TO_SQNREF(view_seqno);
@@ -1142,7 +1161,20 @@ c0kvs_prefix_get(
             *oseqnoref = val->bv_seqnoref;
         }
     }
-    rcu_read_unlock();
+}
+
+void
+c0kvs_prefix_get_rcu(
+    struct c0_kvset *        handle,
+    u16                      skidx,
+    const struct kvs_ktuple *key,
+    u64                      view_seqno,
+    u32                      pfx_len,
+    uintptr_t *              oseqnoref)
+{
+    assert(rcu_read_ongoing());
+
+    return c0kvs_prefix_get_excl(handle, skidx, key, view_seqno, pfx_len, oseqnoref);
 }
 
 void
@@ -1162,10 +1194,8 @@ c0kvs_iterator_init(struct c0_kvset *handle, struct c0_kvset_iterator *iter, uin
     c0_kvset_iterator_init(iter, self->c0s_broot, flags, skidx);
 }
 
-BullseyeCoverageSaveOff
-
-    void
-    c0kvs_debug(struct c0_kvset *handle, void *key, int klen)
+void
+c0kvs_debug(struct c0_kvset *handle, void *key, int klen)
 {
     struct c0_kvset_impl *self = c0_kvset_h2r(handle);
 
@@ -1177,8 +1207,10 @@ BullseyeCoverageSaveOff
 
     printf("%p nkey %d ntomb %d\n", self, self->c0s_num_keys, self->c0s_num_tombstones);
 
+    rcu_read_lock();
     end = &self->c0s_broot->br_kv;
-    for (kv = end->bkv_next; kv != end; kv = kv->bkv_next) {
+
+    for (kv = end->bkv_next; kv != end; kv = rcu_dereference(kv->bkv_next)) {
         char *comma = "";
 
         if (klen && memcmp(key, kv->bkv_key, klen) != 0)
@@ -1186,7 +1218,8 @@ BullseyeCoverageSaveOff
 
         fmt_hex(disp, max, kv->bkv_key, kv->bkv_key_imm.ki_klen);
         printf("\t%s: ", disp);
-        for (v = kv->bkv_values; v; v = v->bv_next) {
+
+        for (v = kv->bkv_values; v; v = rcu_dereference(v->bv_next)) {
             u64   seqno = HSE_SQNREF_TO_ORDNL(v->bv_seqnoref);
             char *label = HSE_CORE_IS_TOMB(v->bv_valuep) ? "tomb" : "len";
 
@@ -1201,12 +1234,12 @@ BullseyeCoverageSaveOff
         }
         printf("\n");
     }
+
+    rcu_read_unlock();
 }
 
-BullseyeCoverageRestore
-
-    void
-    c0kvs_reinit(size_t cb_max)
+void
+c0kvs_reinit(size_t cb_max)
 {
     struct c0_kvset_impl *head, *next;
     struct c0kvs_cbkt *   bkt;

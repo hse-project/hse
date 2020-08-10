@@ -966,7 +966,8 @@ kvdb_ctxn_get(
         /* first look in the kvdb_ctxn's private store */
         c0kvs = c0kvms_get_hashed_c0kvset(ctxn->ctxn_kvms, kt->kt_hash);
 
-        err = c0kvs_get(c0kvs, c0_index(c0), kt, view_seqno, seqnoref, res, vbuf, &rslt_seqnoref);
+        err = c0kvs_get_excl(c0kvs, c0_index(c0), kt, view_seqno,
+                             seqnoref, res, vbuf, &rslt_seqnoref);
 
         if (!err && *res == NOT_FOUND) {
             uintptr_t pt_seqref;
@@ -978,7 +979,7 @@ kvdb_ctxn_get(
             if (pfx_len > 0 && kt->kt_len >= pfx_len) {
                 /* kvs is prefixed. Check for ptombs.
                  */
-                c0kvs_prefix_get(c0kvs, c0_index(c0), kt, view_seqno, pfx_len, &pt_seqref);
+                c0kvs_prefix_get_excl(c0kvs, c0_index(c0), kt, view_seqno, pfx_len, &pt_seqref);
 
                 if (pt_seqref != HSE_ORDNL_TO_SQNREF(0)) {
                     vbuf->b_len = 0;
@@ -1069,17 +1070,9 @@ kvdb_ctxn_pfx_probe(
         goto skip_txkvms;
 
     /* Check txn's local mutations */
-    err = c0kvms_pfx_probe(
-        ctxn->ctxn_kvms,
-        c0_index(c0),
-        kt,
-        ctxn->ctxn_view_seqno,
-        ctxn->ctxn_seqref,
-        res,
-        qctx,
-        kbuf,
-        vbuf,
-        0);
+    err = c0kvms_pfx_probe_excl(ctxn->ctxn_kvms, c0_index(c0), kt,
+                                ctxn->ctxn_view_seqno, ctxn->ctxn_seqref,
+                                res, qctx, kbuf, vbuf, 0);
     if (ev(err)) {
         kvdb_ctxn_unlock(ctxn);
         return err;
@@ -1093,7 +1086,7 @@ kvdb_ctxn_pfx_probe(
     if (likely(c0_get_pfx_len(c0) && kt->kt_len >= c0_get_pfx_len(c0))) {
         /* Check if txn contains ptomb for query pfx */
         pt_c0kvs = c0kvms_ptomb_c0kvset_get(ctxn->ctxn_kvms);
-        c0kvs_prefix_get(
+        c0kvs_prefix_get_excl(
             pt_c0kvs, c0_index(c0), kt, ctxn->ctxn_view_seqno, c0_get_pfx_len(c0), &pt_seqref);
         if (pt_seqref != HSE_ORDNL_TO_SQNREF(0)) {
             kvdb_ctxn_unlock(ctxn);

@@ -337,7 +337,7 @@ c0sk_get(
          */
         if (pfx_len > 0) {
             c0kvs = c0kvms_ptomb_c0kvset_get(c0kvms);
-            c0kvs_prefix_get(c0kvs, skidx, kt, view_seq, pfx_len, &ptomb_seqref);
+            c0kvs_prefix_get_rcu(c0kvs, skidx, kt, view_seq, pfx_len, &ptomb_seqref);
 
             seq = HSE_SQNREF_TO_ORDNL(ptomb_seqref);
             if (seq > pfx_seq)
@@ -346,7 +346,7 @@ c0sk_get(
 
         /* Search for latest value of key w/ seqno <= iseqno. */
         c0kvs = c0kvms_get_hashed_c0kvset(c0kvms, kt->kt_hash);
-        err = c0kvs_get(c0kvs, skidx, kt, view_seq, seqref, res, vbuf, &key_seqref);
+        err = c0kvs_get_rcu(c0kvs, skidx, kt, view_seq, seqref, res, vbuf, &key_seqref);
         if (ev(err))
             break;
 
@@ -408,12 +408,12 @@ c0sk_pfx_probe(
          */
         if (pfx_len > 0) {
             c0kvs = c0kvms_ptomb_c0kvset_get(c0kvms);
-            c0kvs_prefix_get(c0kvs, skidx, kt, view_seq, pfx_len, &ptomb_seqref);
+            c0kvs_prefix_get_rcu(c0kvs, skidx, kt, view_seq, pfx_len, &ptomb_seqref);
 
             pfx_seq = HSE_SQNREF_TO_ORDNL(ptomb_seqref);
         }
 
-        err = c0kvms_pfx_probe(c0kvms, skidx, kt, view_seq, seqref, res, qctx, kbuf, vbuf, pfx_seq);
+        err = c0kvms_pfx_probe_rcu(c0kvms, skidx, kt, view_seq, seqref, res, qctx, kbuf, vbuf, pfx_seq);
         if (ev(err))
             break;
 

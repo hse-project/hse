@@ -179,7 +179,7 @@ MTF_DEFINE_UTEST_PREPOST(c0_kvmultiset_test, create_insert_check, no_fail_pre, n
         kvs_buf_init(&vb, vbuf, sizeof(vbuf));
         iseqno = HSE_ORDNL_TO_SQNREF(1);
 
-        c0kvs_get(p, 0, &kt, iseqno, 0, &res, &vb, &oseqno);
+        c0kvs_get_excl(p, 0, &kt, iseqno, 0, &res, &vb, &oseqno);
         ASSERT_EQ(FOUND_VAL, res);
         ASSERT_EQ(oseqno, HSE_ORDNL_TO_SQNREF(0));
 
@@ -202,7 +202,7 @@ MTF_DEFINE_UTEST_PREPOST(c0_kvmultiset_test, create_insert_check, no_fail_pre, n
         kvs_buf_init(&vb, vbuf, sizeof(vbuf));
         iseqno = HSE_ORDNL_TO_SQNREF(1);
 
-        c0kvs_get(p, 0, &kt, iseqno, 0, &res, &vb, &oseqno);
+        c0kvs_get_excl(p, 0, &kt, iseqno, 0, &res, &vb, &oseqno);
         ASSERT_EQ(FOUND_VAL, res);
         ASSERT_EQ(oseqno, HSE_ORDNL_TO_SQNREF(0));
 

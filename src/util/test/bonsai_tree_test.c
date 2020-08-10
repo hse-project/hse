@@ -57,6 +57,12 @@ xrand_init(uint64_t seed64)
 {
     u32 seed32 = seed64;
 
+    if (seed64 == 0) {
+            seed64 = (__builtin_ia32_rdtsc() << 32) |
+                (__builtin_ia32_rdtsc() & 0xffffffffu);
+            seed32 = seed64;
+    }
+
     seed32 = seed32 ^ (seed64 >> 32);
 
     mwc_rand_init(&mwc, seed32);
@@ -238,7 +244,7 @@ test_collection_setup(struct mtf_test_info *info)
     fail_nth_alloc_test_pre(info);
 #endif
 
-    xrand_init(time(NULL));
+    xrand_init(0);
 
 #ifndef LIBURCU_QSBR
 #ifndef LIBURCU_BP
@@ -270,10 +276,7 @@ no_fail_pre(struct mtf_test_info *info)
     g_fail_nth_alloc_limit = -1;
 #endif
 
-    xrand_init(time(NULL));
-
-    if (rcu_read_ongoing())
-        rcu_read_unlock();
+    xrand_init(0);
 
     return 0;
 }
@@ -320,7 +323,7 @@ bonsai_client_producer(void *arg)
     struct bonsai_skey skey = { 0 };
     struct bonsai_sval sval = { 0 };
 
-/*
+    /*
      * Register is not required for BP. For QSBR, it is required only for
      * clients.
      */
@@ -329,7 +332,7 @@ bonsai_client_producer(void *arg)
     BONSAI_RCU_REGISTER();
 #endif
 #endif
-    xrand_init(time(NULL));
+    xrand_init(0);
 
     if (key_size < sizeof(*key))
         key = calloc(1, sizeof(*key));
@@ -360,8 +363,8 @@ bonsai_client_producer(void *arg)
             pthread_mutex_lock(&mtx);
             err = bn_insert_or_replace(broot, &skey, &sval, false);
             if (merr_errno(err) == 0) {
-                key_current = i;
                 __sync_synchronize();
+                key_current = i;
             }
             pthread_mutex_unlock(&mtx);
 
@@ -487,11 +490,9 @@ bonsai_client_lcp_test(void *arg)
         found = bn_find(broot, &skey, &kv);
         assert(found);
 
-        v = kv->bkv_values;
+        v = rcu_dereference(kv->bkv_values);
         memcpy((char *)&val, v->bv_value, sizeof(val));
         assert(val == ((u64)i << 32 | tid));
-
-        rcu_read_unlock();
 
         key[KI_DLEN_MAX + 26] = 'a';
 
@@ -499,6 +500,7 @@ bonsai_client_lcp_test(void *arg)
             assert(key_immediate_cmp(ki, &kv->bkv_key_imm) == S32_MIN);
             assert(memcmp(kv->bkv_key, &kv->bkv_key, lcp) == 0);
         }
+        rcu_read_unlock();
     }
 
     for (i = 1; i < KI_DLEN_MAX + 27; i++) {
@@ -511,6 +513,7 @@ bonsai_client_lcp_test(void *arg)
         rcu_read_lock();
         found = bn_find(broot, &skey, &kv);
         assert(!found);
+        rcu_read_unlock();
     }
 
     for (i = KI_DLEN_MAX + 28; i < sizeof(key); i++) {
@@ -523,6 +526,7 @@ bonsai_client_lcp_test(void *arg)
         rcu_read_lock();
         found = bn_find(broot, &skey, &kv);
         assert(!found);
+        rcu_read_unlock();
     }
 #endif
 
@@ -565,8 +569,6 @@ bonsai_client_consumer(void *arg)
             rcu_read_lock();
             found = bn_find(broot, &skey, &kv);
             rcu_read_unlock();
-
-            hse_log(HSE_ERR "bn_find %ld result %d", i, found);
 
             if (stop_consumer_threads)
                 break;
@@ -1663,7 +1665,7 @@ MTF_DEFINE_UTEST_PREPOST(bonsai_tree_test, complicated, no_fail_pre, no_fail_pos
     struct bonsai_sval sval = { 0 };
     struct bonsai_kv * kv;
 
-    xrand_init(time(NULL));
+    xrand_init(0);
 
     MAX_VALUES_PER_KEY = 1;
 
