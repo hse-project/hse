@@ -36,11 +36,6 @@ bn_update(
 
     tree->br_client.bc_iorcb(tree->br_client.bc_rock, &code, node->bn_kv, v, &oldv);
 
-    if (IS_IOR_REP(code)) {
-        if (oldv)
-            bn_val_free(tree, oldv);
-    }
-
     return node;
 }
 
@@ -283,46 +278,6 @@ search:
     return mnode ? mnode->bn_kv : NULL;
 }
 
-static void
-_bn_teardown(struct bonsai_root *tree, struct bonsai_node *node)
-{
-    struct bonsai_node *left;
-    struct bonsai_node *right;
-
-    if (!node)
-        return;
-
-    left = node->bn_left;
-    right = node->bn_right;
-
-    if (left)
-        _bn_teardown(tree, left);
-
-    if (right)
-        _bn_teardown(tree, right);
-
-    bn_node_free(tree, node);
-}
-
-static void
-_bn_traverse(struct bonsai_node *node)
-{
-    struct bonsai_node *left;
-    struct bonsai_node *right;
-
-    if (!node)
-        return;
-
-    left = rcu_dereference(node->bn_left);
-    right = rcu_dereference(node->bn_right);
-
-    if (left)
-        _bn_traverse(left);
-
-    if (right)
-        _bn_traverse(right);
-}
-
 static inline void
 bn_update_root_node(
     struct bonsai_root *tree,
@@ -330,12 +285,9 @@ bn_update_root_node(
     struct bonsai_node *newroot)
 {
     assert(oldroot == tree->br_root);
-    if (newroot && (oldroot != newroot)) {
-        rcu_assign_pointer(tree->br_root, newroot);
 
-        if (likely(oldroot))
-            (void)bn_node_free(tree, oldroot);
-    }
+    if (newroot && (oldroot != newroot))
+        rcu_assign_pointer(tree->br_root, newroot);
 }
 
 merr_t
@@ -469,50 +421,6 @@ bn_skiptombs_GE(struct bonsai_root *tree, const struct bonsai_skey *skey, struct
 }
 
 void
-bn_destroy(struct bonsai_root *tree)
-{
-    struct bonsai_node *root;
-
-    if (!tree)
-        return;
-
-    root = rcu_dereference(tree->br_root);
-
-    rcu_assign_pointer(tree->br_root, NULL);
-
-    _bn_teardown(tree, root);
-    rcu_barrier();
-
-    if (tree->br_client.bc_fn_active != (void *)-1) {
-        bn_node_free(tree, NULL);
-        rcu_barrier();
-
-        assert(tree->br_client.bc_fn_active == NULL);
-        assert(!tree->br_client.bc_fn_pending);
-    }
-
-    if (tree->br_client.bc_fv_active != (void *)-1) {
-        bn_val_free(tree, NULL);
-        rcu_barrier();
-
-        assert(tree->br_client.bc_fv_active == NULL);
-        assert(!tree->br_client.bc_fv_pending);
-    }
-
-    bn_free(tree, tree);
-}
-
-void
-bn_traverse(struct bonsai_root *tree)
-{
-    struct bonsai_node *root;
-
-    root = rcu_dereference(tree->br_root);
-
-    _bn_traverse(root);
-}
-
-void
 bn_reset(struct bonsai_root *tree)
 {
     struct bonsai_client *client;
@@ -530,41 +438,22 @@ bn_reset(struct bonsai_root *tree)
 
     client->bc_slab_cur = NULL;
     client->bc_slab_end = NULL;
-
-    client->bc_fv_active = NULL;
-    client->bc_fv_pending = NULL;
-    client->bc_fn_active = NULL;
-    client->bc_fn_pending = NULL;
-
-    /* Disable value freeing when using the cheap allocator.
-     */
-    if (client->bc_allocator) {
-        client->bc_fv_active = (void *)(-1);
-        client->bc_fn_active = (void *)(-1);
-    }
-
-#ifdef BONSAI_TREE_DEBUG_ALLOC
-    client->bc_add = 0;
-    client->bc_dup = 0;
-    client->bc_dupdel = 0;
-    client->bc_del = 0;
-#endif
 }
 
 merr_t
 bn_create(
-    struct cheap *       cheap,
-    unsigned long        slabsz,
+    struct cheap        *cheap,
+    size_t               slabsz,
     bonsai_ior_cb        cb,
     void *               rock,
     struct bonsai_root **tree)
 {
     struct bonsai_root *r;
 
-    if (ev(!cb || !tree))
+    if (ev(!cheap || !cb || !tree))
         return merr(EINVAL);
 
-    r = bn_alloc_impl(cheap, sizeof(*r));
+    r = cheap_malloc(cheap, sizeof(*r));
     if (ev(!r))
         return merr(ENOMEM);
 
@@ -572,7 +461,7 @@ bn_create(
 
     r->br_client.bc_iorcb = cb;
     r->br_client.bc_rock = rock;
-    r->br_client.bc_allocator = cheap;
+    r->br_client.bc_cheap = cheap;
     r->br_client.bc_slab_sz = slabsz;
 
     bn_reset(r);
@@ -580,6 +469,13 @@ bn_create(
     *tree = r;
 
     return 0;
+}
+
+void
+bn_destroy(struct bonsai_root *tree)
+{
+    if (tree)
+        rcu_assign_pointer(tree->br_root, NULL);
 }
 
 void
@@ -612,4 +508,35 @@ bn_finalize(struct bonsai_root *tree)
         /* Indicate that the bounds have been established and the lcp to use. */
         atomic_set(&tree->br_bounds, set_lcp + 1);
     }
+}
+
+__attribute__((__cold__))
+static void
+_bn_traverse(struct bonsai_node *node)
+{
+    struct bonsai_node *left;
+    struct bonsai_node *right;
+
+    if (!node)
+        return;
+
+    left = rcu_dereference(node->bn_left);
+    right = rcu_dereference(node->bn_right);
+
+    if (left)
+        _bn_traverse(left);
+
+    if (right)
+        _bn_traverse(right);
+}
+
+__attribute__((__cold__))
+void
+bn_traverse(struct bonsai_root *tree)
+{
+    struct bonsai_node *root;
+
+    root = rcu_dereference(tree->br_root);
+
+    _bn_traverse(root);
 }

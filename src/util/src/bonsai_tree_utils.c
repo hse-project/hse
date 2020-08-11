@@ -7,214 +7,36 @@
 
 #include "bonsai_tree_pvt.h"
 
-void *
-bn_alloc_impl(struct cheap *allocator, size_t sz)
-{
-    if (allocator)
-        return cheap_malloc(allocator, sz);
-
-    return malloc(sz);
-}
-
-void *
+static inline void *
 bn_alloc(struct bonsai_root *tree, size_t sz)
 {
-    return bn_alloc_impl(tree->br_client.bc_allocator, sz);
-}
-
-static inline void
-bn_free_impl(struct bonsai_client *client, void *ptr)
-{
-    if (!client->bc_allocator)
-        free(ptr);
-}
-
-static inline void
-bn_freen_impl(struct bonsai_client *client, void *node)
-{
-    bn_free_impl(client, node);
-
-#ifdef BONSAI_TREE_DEBUG_ALLOC
-    uatomic_inc(&client->bc_del);
-#endif
-}
-
-void
-bn_free(struct bonsai_root *tree, void *ptr)
-{
-    bn_free_impl(&tree->br_client, ptr);
+    return cheap_malloc(tree->br_client.bc_cheap, sz);
 }
 
 static inline void *
 bn_node_alloc_impl(struct bonsai_root *tree)
 {
     struct bonsai_client *client;
-
-    void *ptr;
-
-    client = &tree->br_client;
-    ptr = NULL;
-
-    if (client->bc_allocator) {
-        void *mem;
-
-        assert(client->bc_allocator);
-
-        if (client->bc_slab_cur >= client->bc_slab_end) {
-            unsigned long slabsz;
-
-            slabsz = client->bc_slab_sz;
-
-            mem = cheap_memalign(client->bc_allocator, 64, slabsz);
-            if (ev(!mem))
-                goto exit;
-
-            client->bc_slab_cur = mem;
-            client->bc_slab_end = client->bc_slab_cur + (slabsz / sizeof(struct bonsai_node));
-        }
-
-        ptr = client->bc_slab_cur++;
-    } else {
-        ptr = malloc(sizeof(struct bonsai_node));
-    }
-
-exit:
-#ifdef BONSAI_TREE_DEBUG_ALLOC
-    if (ptr)
-        uatomic_inc(&client->bc_add);
-#endif
-
-    return ptr;
-}
-
-static void
-bn_node_free_impl(struct rcu_head *rh)
-{
-    struct bonsai_client *client;
-    struct bonsai_node *  node;
-    void *                next;
-
-    client = caa_container_of(rh, struct bonsai_client, bc_fn_rcu);
-
-    node = client->bc_fn_active;
-    while (node) {
-        if (node->bn_flags & BN_KVFREEOK) {
-            struct bonsai_val *val;
-            struct bonsai_kv * kv;
-
-            kv = node->bn_kv;
-            assert(kv);
-            assert(kv->bkv_refcnt == 0);
-
-            val = kv->bkv_values;
-            while (val) {
-                next = val->bv_next;
-                bn_free_impl(client, val);
-                val = next;
-            }
-
-            bn_free_impl(client, kv);
-        }
-
-        next = node->bn_free;
-        bn_freen_impl(client, node);
-#ifdef BONSAI_TREE_DEBUG_ALLOC
-        uatomic_inc(&client->bc_dupdel);
-#endif
-        node = next;
-    }
-
-    /* Barrier to prevent reordering by the compiler.
-     */
-    rcu_assign_pointer(client->bc_fn_active, NULL);
-}
-
-/**
- * bn_node_free - Free a node after the current grace period
- * @tree: root of bonsai tree
- * @node: the node to free
- *
- * This function may only be called by an updater (i.e., not a reader)
- * who either holds an exclusive lock to prevent concurrent update or
- * is single threaded.
- *
- * Multiple nodes can reference the same kv, and so we set the KVFREEOK
- * flag only if the kv reference count goes to zero.  Note that
- * bn_node_free_impl() cannot check the reference count because all nodes
- * that reference the kv could all be freed together, and by the time
- * bn_node_free_impl() runs they would all see the refcnt as zero.  Hence
- * the per-node flag.
- */
-void
-bn_node_free(struct bonsai_root *tree, struct bonsai_node *node)
-{
-    struct bonsai_client *client;
+    void *mem;
 
     client = &tree->br_client;
 
-    if (node) {
-        assert(node->bn_kv->bkv_refcnt > 0);
+    assert(client->bc_cheap);
 
-        if (node->bn_kv && --node->bn_kv->bkv_refcnt == 0)
-            node->bn_flags |= BN_KVFREEOK;
+    if (client->bc_slab_cur >= client->bc_slab_end) {
+        unsigned long slabsz;
 
-        node->bn_free = client->bc_fn_pending;
-        client->bc_fn_pending = node;
+        slabsz = client->bc_slab_sz;
+
+        mem = cheap_memalign(client->bc_cheap, 64, slabsz);
+        if (ev(!mem))
+            return NULL;
+
+        client->bc_slab_cur = mem;
+        client->bc_slab_end = client->bc_slab_cur + (slabsz / sizeof(struct bonsai_node));
     }
 
-    if (!client->bc_fn_active && client->bc_fn_pending) {
-        rcu_assign_pointer(client->bc_fn_active, client->bc_fn_pending);
-        client->bc_fn_pending = NULL;
-        call_rcu(&client->bc_fn_rcu, bn_node_free_impl);
-    }
-}
-
-static void
-bn_val_free_impl(struct rcu_head *rh)
-{
-    struct bonsai_client *client;
-    struct bonsai_val *   val, *next;
-
-    client = caa_container_of(rh, struct bonsai_client, bc_fv_rcu);
-
-    val = client->bc_fv_active;
-    while (val) {
-        next = val->bv_free;
-        bn_free_impl(client, val);
-        val = next;
-    }
-
-    /* Barrier to prevent reordering by the compiler.
-     */
-    rcu_assign_pointer(client->bc_fv_active, NULL);
-}
-
-/**
- * bn_val_free - Free a bonsai_val after the current grace period
- * @tree: root of the tree
- * @val:  the bonsai_val to free
- *
- * This function may only be called by an updater (i.e., not a reader)
- * who either holds an exclusive lock to prevent concurrent update or
- * is single threaded.
- */
-void
-bn_val_free(struct bonsai_root *tree, struct bonsai_val *val)
-{
-    struct bonsai_client *client;
-
-    client = &tree->br_client;
-
-    if (val) {
-        val->bv_free = client->bc_fv_pending;
-        client->bc_fv_pending = val;
-    }
-
-    if (!client->bc_fv_active && client->bc_fv_pending) {
-        rcu_assign_pointer(client->bc_fv_active, client->bc_fv_pending);
-        client->bc_fv_pending = NULL;
-        call_rcu(&client->bc_fv_rcu, bn_val_free_impl);
-    }
+    return client->bc_slab_cur++;
 }
 
 struct bonsai_val *
@@ -276,7 +98,6 @@ bn_kv_init(
     }
     INIT_S_LIST_HEAD(&kv->bkv_txpend);
 
-    kv->bkv_refcnt = 0;
     kv->bkv_flags = 0;
     kv->bkv_key_imm = *key_imm;
     memcpy(kv->bkv_key, key, key_imm->ki_klen);
@@ -298,26 +119,20 @@ bn_node_make(
     struct bonsai_node *        left,
     struct bonsai_node *        right,
     struct bonsai_kv *          kv,
-    const struct key_immediate *ki,
-    u16                         flags)
+    const struct key_immediate *ki)
 {
     struct bonsai_node *node;
 
     node = bn_node_alloc_impl(tree);
-    if (ev(!node))
-        return NULL;
+    if (node) {
+        node->bn_left = left;
+        node->bn_right = right;
+        node->bn_kv = kv;
+        node->bn_height = bn_height_max(bn_height_get(left), bn_height_get(right));
 
-    node->bn_left = left;
-    node->bn_right = right;
-    node->bn_kv = kv;
-    node->bn_flags = flags;
-    node->bn_height = bn_height_max(bn_height_get(left), bn_height_get(right));
-
-    if (ki)
-        node->bn_key_imm = *ki;
-
-    assert(kv->bkv_refcnt >= 0);
-    ++kv->bkv_refcnt;
+        if (ki)
+            node->bn_key_imm = *ki;
+    }
 
     return node;
 }
@@ -336,14 +151,12 @@ bn_node_alloc(
 
     kv = NULL;
     err = bn_kv_init(tree, key_imm, key, sval, &kv);
-    if (ev(err))
+    if (err)
         return NULL;
 
-    node = bn_node_make(tree, NULL, NULL, kv, key_imm, 0);
-    if (ev(!node))
-        return NULL;
-
-    bn_height_update(node);
+    node = bn_node_make(tree, NULL, NULL, kv, key_imm);
+    if (node)
+        bn_height_update(node);
 
     return node;
 }
@@ -353,18 +166,9 @@ bn_node_dup(struct bonsai_root *tree, struct bonsai_node *node)
 {
     struct bonsai_node *newnode;
 
-    assert(node->bn_kv->bkv_refcnt > 0);
-
-    newnode = bn_node_make(
-        tree, node->bn_left, node->bn_right, node->bn_kv, &node->bn_key_imm, node->bn_flags);
-    if (ev(!newnode))
-        return NULL;
-
-    newnode->bn_height = node->bn_height;
-
-#ifdef BONSAI_TREE_DEBUG_ALLOC
-    uatomic_inc(&tree->br_client.bc_dup);
-#endif
+    newnode = bn_node_make(tree, node->bn_left, node->bn_right, node->bn_kv, &node->bn_key_imm);
+    if (newnode)
+        newnode->bn_height = node->bn_height;
 
     return newnode;
 }
@@ -376,17 +180,5 @@ bn_node_dup_ext(
     struct bonsai_node *left,
     struct bonsai_node *right)
 {
-    struct bonsai_node *newnode;
-
-    assert(node->bn_kv->bkv_refcnt > 0);
-
-    newnode = bn_node_make(tree, left, right, node->bn_kv, &node->bn_key_imm, node->bn_flags);
-    if (ev(!newnode))
-        return NULL;
-
-#ifdef BONSAI_TREE_DEBUG_ALLOC
-    uatomic_inc(&tree->br_client.bc_dup);
-#endif
-
-    return newnode;
+    return bn_node_make(tree, left, right, node->bn_kv, &node->bn_key_imm);
 }

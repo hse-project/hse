@@ -39,6 +39,10 @@
 
 #define ALLOC_LEN_MAX 1344
 
+enum bonsai_alloc_mode {
+    HSE_ALLOC_CURSOR = 1,
+};
+
 static struct cheap *cheap;
 
 /* [HSE_REVISIT] Need to replace these constants, macros. */
@@ -685,16 +689,6 @@ bonsai_client_multithread_test(void)
 
     rcu_barrier();
 
-#ifdef BONSAI_TREE_DEBUG_ALLOC
-    hse_log(
-        HSE_INFO "After teardown noded added %ld removed %ld",
-        broot->br_client.bc_add,
-        broot->br_client.bc_del);
-#if 0
-    assert(broot->br_client.bc_add == broot->br_client.bc_del);
-    assert(broot->br_client.bc_dup == broot->br_client.bc_dupdel);
-#endif
-#endif
     free_all_cpu_call_rcu_data();
 
     cheap_destroy(cheap);
@@ -745,11 +739,6 @@ bonsai_client_singlethread_test(enum bonsai_alloc_mode allocm)
     }
 
     bn_reset(broot);
-
-    assert(cheap == bn_get_allocator(broot));
-    assert(bonsai_client_insert_callback == bn_get_iorcb(broot));
-    assert(NULL == bn_get_rock(broot));
-    assert(32 * MB == bn_get_slabsz(broot));
 
     i = 0;
     do {
@@ -807,11 +796,6 @@ bonsai_client_singlethread_test(enum bonsai_alloc_mode allocm)
     bn_destroy(broot);
     rcu_barrier();
 
-#if 0
-    assert(broot->br_client.bc_add == broot->br_client.bc_del);
-    assert(broot->br_client.bc_dup == broot->br_client.bc_dupdel);
-#endif
-
     cheap_destroy(cheap);
     cheap = NULL;
 
@@ -828,7 +812,6 @@ MTF_BEGIN_UTEST_COLLECTION_PREPOST(
 MTF_DEFINE_UTEST_PREPOST(bonsai_tree_test, basic_single_threaded, no_fail_pre, no_fail_post)
 {
     ASSERT_EQ(0, bonsai_client_singlethread_test(HSE_ALLOC_CURSOR));
-    ASSERT_EQ(0, bonsai_client_singlethread_test(HSE_ALLOC_MALLOC));
 }
 
 MTF_DEFINE_UTEST(bonsai_tree_test, misc)
@@ -841,23 +824,11 @@ MTF_DEFINE_UTEST(bonsai_tree_test, misc)
     err = bn_create(NULL, 1 * MB, bonsai_client_insert_callback, NULL, NULL);
     ASSERT_NE(err, 0);
 
-    err = bn_create(NULL, 1 * MB, bonsai_client_insert_callback, NULL, &broot);
-    ASSERT_EQ(err, 0);
-
-    bn_free(broot, NULL);
-    bn_node_free(broot, NULL);
-
-    bn_destroy(broot);
-    broot = NULL;
-
     cheap = cheap_create(8, 4 * MB);
     ASSERT_NE(cheap, NULL);
 
     err = bn_create(cheap, 1 * MB, bonsai_client_insert_callback, NULL, &broot);
     ASSERT_EQ(err, 0);
-
-    bn_free(broot, NULL);
-    bn_node_free(broot, NULL);
 
     bn_destroy(broot);
     bn_destroy(NULL);
@@ -1046,7 +1017,6 @@ MTF_DEFINE_UTEST_PREPOST(bonsai_tree_test, malloc_failure_test, no_fail_pre, no_
     num_producers = 1;
 
     ASSERT_EQ(0, bonsai_client_singlethread_test(HSE_ALLOC_CURSOR));
-    ASSERT_EQ(0, bonsai_client_singlethread_test(HSE_ALLOC_MALLOC));
     ASSERT_EQ(0, bonsai_client_multithread_test());
 }
 
@@ -1598,31 +1568,26 @@ again:
 MTF_DEFINE_UTEST_PREPOST(bonsai_tree_test, weight, no_fail_pre, no_fail_post)
 {
     bonsai_weight_test(HSE_ALLOC_CURSOR, lcl_ti);
-    bonsai_weight_test(HSE_ALLOC_MALLOC, lcl_ti);
 }
 
 MTF_DEFINE_UTEST_PREPOST(bonsai_tree_test, basic, no_fail_pre, no_fail_post)
 {
     bonsai_basic_test(HSE_ALLOC_CURSOR, lcl_ti);
-    bonsai_basic_test(HSE_ALLOC_MALLOC, lcl_ti);
 }
 
 MTF_DEFINE_UTEST_PREPOST(bonsai_tree_test, tombspan, no_fail_pre, no_fail_post)
 {
     bonsai_tombspan_test(HSE_ALLOC_CURSOR, lcl_ti);
-    bonsai_tombspan_test(HSE_ALLOC_MALLOC, lcl_ti);
 }
 
 MTF_DEFINE_UTEST_PREPOST(bonsai_tree_test, update, no_fail_pre, no_fail_post)
 {
     bonsai_update_test(HSE_ALLOC_CURSOR, lcl_ti);
-    bonsai_update_test(HSE_ALLOC_MALLOC, lcl_ti);
 }
 
 MTF_DEFINE_UTEST_PREPOST(bonsai_tree_test, original, no_fail_pre, no_fail_post)
 {
     bonsai_original_test(HSE_ALLOC_CURSOR, lcl_ti);
-    bonsai_original_test(HSE_ALLOC_MALLOC, lcl_ti);
 }
 
 MTF_DEFINE_UTEST_PREPOST(bonsai_tree_test, complicated, no_fail_pre, no_fail_post)

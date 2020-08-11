@@ -81,26 +81,16 @@ bn_double_left_rotate(struct bonsai_root *tree, struct bonsai_node *node)
     oldleft = node->bn_left;
 
     left = bn_node_dup(tree, oldleft);
-    if (!left) {
-        ev(1);
+    if (!left)
         return NULL;
-    }
 
     newleft = bn_single_right_rotate(tree, left, NULL);
-    if (!newleft) {
-        ev(1);
-        bn_node_free(tree, left);
+    if (!newleft)
         return NULL;
-    }
 
     node->bn_left = newleft;
 
     out = bn_single_left_rotate(tree, node, newleft);
-    if (!out) {
-        ev(1);
-        bn_node_free(tree, left);
-        bn_node_free(tree, newleft);
-    }
 
     return out;
 }
@@ -123,20 +113,12 @@ bn_double_right_rotate(struct bonsai_root *tree, struct bonsai_node *node)
     }
 
     newright = bn_single_left_rotate(tree, right, NULL);
-    if (!newright) {
-        ev(1);
-        bn_node_free(tree, right);
+    if (!newright)
         return NULL;
-    }
 
     node->bn_right = newright;
 
     out = bn_single_right_rotate(tree, node, newright);
-    if (!out) {
-        ev(1);
-        bn_node_free(tree, right);
-        bn_node_free(tree, newright);
-    }
 
     return out;
 }
@@ -176,16 +158,8 @@ bn_balance_left(
     else
         out = bn_double_left_rotate(tree, newnode);
 
-    if (!out) {
-        ev(1);
-        bn_node_free(tree, newnode);
+    if (!out)
         return node;
-    }
-
-    if (res > 0)
-        bn_node_free(tree, left->bn_right);
-
-    bn_node_free(tree, left);
 
     return out;
 }
@@ -225,16 +199,8 @@ bn_balance_right(
     else
         out = bn_double_right_rotate(tree, newnode);
 
-    if (!out) {
-        ev(1);
-        bn_node_free(tree, newnode);
+    if (!out)
         return node;
-    }
-
-    if (res < 0)
-        bn_node_free(tree, right->bn_left);
-
-    bn_node_free(tree, right);
 
     return out;
 }
@@ -255,14 +221,12 @@ bn_update_path(
         myleft = node->bn_left;
         if (myleft != left) {
             rcu_assign_pointer(node->bn_left, left);
-            bn_node_free(tree, myleft);
         }
     } else {
         assert(node->bn_left == left);
         myright = node->bn_right;
         if (myright != right) {
             rcu_assign_pointer(node->bn_right, right);
-            bn_node_free(tree, myright);
         }
     }
 
