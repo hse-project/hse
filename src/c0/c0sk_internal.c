@@ -397,8 +397,7 @@ c0sk_builder_add(
         }
 
         err = kvset_builder_add_val(
-            bldr, seqno, val->bv_vlen ? val->bv_value : val->bv_valuep,
-            val->bv_vlen, 0, vbb);
+            bldr, seqno, val->bv_vlen ? val->bv_value : val->bv_valuep, val->bv_vlen, 0, vbb);
         if (err)
             return ev(err);
     }
@@ -1463,7 +1462,6 @@ genchk:
 
     c0kvmsm_get_info(old, &info, &txinfo, true);
     sz = info.c0ms_kvbytes + txinfo.c0ms_kvbytes;
-    sz += info.c0ms_kvpbytes + txinfo.c0ms_kvpbytes;
     c0kvms_mut_sz_set(old, sz);
 
     if (ev(new)) {
@@ -1768,7 +1766,7 @@ c0sk_putdel(
             return merr(EINVAL);
         }
 
-        if (ev(c0kvms_should_ingest(dst, coalescesz))) {
+        if (ev(c0kvms_should_ingest(dst, coalescesz)) && atomic_read(&self->c0sk_replaying) == 0) {
             err = merr(ENOMEM);
             goto unlock;
         }

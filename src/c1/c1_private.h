@@ -104,9 +104,9 @@
 #define HSE_C1_DEFAULT_DTIME 500     /* 500 ms */
 #define HSE_C1_MAX_DTIME (60 * 1000) /* 60 seconds */
 #define HSE_C1_DEFAULT_DSIZE (35 * MB)
-#define HSE_C1_MAX_CAP (64 * GB)
-#define HSE_C1_MIN_CAP (16 * MB)
-#define HSE_C1_DEFAULT_CAP (16 * GB)
+#define HSE_C1_MAX_CAP (16 * GB)
+#define HSE_C1_MIN_CAP (4 * GB)
+#define HSE_C1_DEFAULT_CAP (6 * GB)
 #define HSE_C1_MIN_CACHESIZE 10
 
 #endif /* HSE_C1_PRIVATE_H */

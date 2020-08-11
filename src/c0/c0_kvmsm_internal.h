@@ -6,6 +6,10 @@
 #ifndef HSE_CORE_C0_KVMSM_INTERNAL_H
 #define HSE_CORE_C0_KVMSM_INTERNAL_H
 
+#include "c0_kvsetm.h"
+
+struct c1_iterinfo;
+
 merr_t
 c0kvmsm_ingest_internal(
     struct c0_kvmultiset *c0kvms,
@@ -25,7 +29,7 @@ c0kvmsm_ingest_common(
     u64                   gen,
     int *                 ref,
     u64                   txnseq,
-    bool                  istxn);
+    enum c0kvsm_mut_type  type);
 
 void
 c0kvmsm_wait(struct c0_kvmultiset *c0kvms, int *ref);
@@ -39,5 +43,14 @@ c0kvmsm_iterv_alloc(
     u16                        nkiter,
     struct perfc_set *         pc,
     struct kvb_builder_iter ***iterv);
+
+void
+c0kvmsm_iterv_stats(
+    struct c0_kvmultiset *c0kvms,
+    struct c1_iterinfo *  ci,
+    enum c0kvsm_mut_type  type);
+
+void
+c0kvmsm_iter_params_get(struct c0_kvmultiset *c0kvms, u64 *maxkvsz, u16 *nkiter);
 
 #endif /* HSE_CORE_C0_KVMSM_INTERNAL_H */

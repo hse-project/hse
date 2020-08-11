@@ -50,7 +50,7 @@ struct c1_log {
     struct cheap *     c1l_cheap[HSE_C1_DEFAULT_STRIPE_WIDTH];
     struct list_head   c1l_kvb_list;
     struct list_head   c1l_txn_list;
-    char              *c1l_ibuf;
+    char *             c1l_ibuf;
     size_t             c1l_ibufsz;
 };
 
@@ -184,10 +184,13 @@ c1_log_issue_txn(
     int             sync);
 
 merr_t
-c1_log_reserve_space(struct c1_log *log, u64 rsvsz, u64 peeksz);
+c1_log_reserve_space(struct c1_log *log, u64 rsvsz, bool spare);
 
 u64
 c1_log_refresh_space(struct c1_log *log);
+
+bool
+c1_log_has_space(struct c1_log *log, u64 sz);
 
 merr_t
 c1_log_make(

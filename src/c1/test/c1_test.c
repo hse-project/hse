@@ -884,7 +884,7 @@ MTF_DEFINE_UTEST_PREPOST(c1_test, ingest2, no_fail_pre, no_fail_post)
     struct kvs_ktuple        kt;
     struct kvs_vtuple        vt;
     struct c1_tree *         tree;
-    struct c1_kvinfo         cki = {};
+    struct c1_iterinfo       ci = {};
     merr_t                   err;
     uintptr_t                seqnoref;
     struct mock_kvdb         mkvdb;
@@ -1001,8 +1001,8 @@ again:
     c0kvms_putref(kvms);
     mapi_inject_unset(mapi_idx_c0kvms_is_ingested);
 
-    cki.ck_kvsz = 128;
-    err = c1_issue_iter(c1, NULL, 0, &cki, C1_INGEST_SYNC);
+    ci.ci_total.ck_kvsz = 128;
+    err = c1_issue_iter(c1, NULL, 0, &ci.ci_total, C1_INGEST_SYNC);
     ASSERT_EQ(0, err);
 
     err = c1_issue_sync(c1, C1_INGEST_SYNC, false);
@@ -1016,23 +1016,23 @@ again:
     kvb_builder_iter_destroy(NULL, NULL);
     kvb_builder_iter_put(NULL);
 
-    err = c1_issue_iter(c1, NULL, 0, &cki, C1_INGEST_SYNC);
+    err = c1_issue_iter(c1, NULL, 0, &ci.ci_total, C1_INGEST_SYNC);
     ASSERT_EQ(0, err);
 
-    cki.ck_kvsz = 1024;
+    ci.ci_total.ck_kvsz = 1024;
     mapi_inject(mapi_idx_c1_tree_reserve_space_txn, merr(ENOSPC));
-    err = c1_io_txn_begin(c1, 5, &cki, false);
+    err = c1_io_txn_begin(c1, 5, &ci, false);
     ASSERT_EQ(ENOSPC, merr_errno(err));
     mapi_inject_unset(mapi_idx_c1_tree_reserve_space_txn);
 
     mapi_inject(mapi_idx_c1_tree_reserve_space, merr(ENOSPC));
-    err = c1_io_txn_begin(c1, 5, &cki, false);
+    err = c1_io_txn_begin(c1, 5, &ci, false);
     ASSERT_EQ(ENOSPC, merr_errno(err));
     mapi_inject_unset(mapi_idx_c1_tree_reserve_space);
 
-    cki.ck_kvsz = 128;
+    ci.ci_total.ck_kvsz = 128;
     mapi_inject(mapi_idx_malloc, 0);
-    err = c1_io_txn_begin(c1, 0, &cki, C1_INGEST_SYNC);
+    err = c1_io_txn_begin(c1, 0, &ci, C1_INGEST_SYNC);
     ASSERT_EQ(ENOMEM, merr_errno(err));
 
     err = c1_io_txn_commit(c1, 0, 128, C1_INGEST_SYNC);
@@ -1043,7 +1043,7 @@ again:
     mapi_inject_unset(mapi_idx_malloc);
 
     mapi_inject_once(mapi_idx_malloc, 2, 0);
-    err = c1_io_txn_begin(c1, 0, &cki, C1_INGEST_SYNC);
+    err = c1_io_txn_begin(c1, 0, &ci, C1_INGEST_SYNC);
     ASSERT_EQ(ENOMEM, merr_errno(err));
     mapi_inject_unset(mapi_idx_malloc);
 

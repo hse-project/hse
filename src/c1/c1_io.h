@@ -16,7 +16,7 @@ void
 c1_io_destroy(struct c1 *c1);
 
 merr_t
-c1_io_txn_begin(struct c1 *c1, u64 txnid, struct c1_kvinfo *cki, int flag);
+c1_io_txn_begin(struct c1 *c1, u64 txnid, struct c1_iterinfo *ci, int flag);
 
 merr_t
 c1_io_txn_commit(struct c1 *c1, u64 txnid, u64 seqno, int flag);
