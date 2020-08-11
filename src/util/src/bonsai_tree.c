@@ -73,8 +73,8 @@ bn_insert_impl(
             node->bn_kv->bkv_prev = parent->bkv_prev;
         }
 
-        BONSAI_RCU_ASSIGN_POINTER(node->bn_kv->bkv_next->bkv_prev, node->bn_kv);
-        BONSAI_RCU_ASSIGN_POINTER(node->bn_kv->bkv_prev->bkv_next, node->bn_kv);
+        rcu_assign_pointer(node->bn_kv->bkv_next->bkv_prev, node->bn_kv);
+        rcu_assign_pointer(node->bn_kv->bkv_prev->bkv_next, node->bn_kv);
 
         /* Get the tail end of the tombspans for prev and next nodes. */
         prev_span = node->bn_kv->bkv_prev->bkv_tomb;
@@ -167,7 +167,7 @@ bn_find_next_pfx(struct bonsai_root *tree, const struct bonsai_skey *skey)
     klen = ki->ki_klen;
     skidx = key_immediate_index(ki);
 
-    node = BONSAI_RCU_DEREF_POINTER(tree->br_root);
+    node = rcu_dereference(tree->br_root);
     mnode = NULL;
 
     while (node) {
@@ -179,9 +179,9 @@ bn_find_next_pfx(struct bonsai_root *tree, const struct bonsai_skey *skey)
 
         if (res < 0) {
             mnode = node;
-            node = BONSAI_RCU_DEREF_POINTER(node->bn_left);
+            node = rcu_dereference(node->bn_left);
         } else
-            node = BONSAI_RCU_DEREF_POINTER(node->bn_right);
+            node = rcu_dereference(node->bn_right);
     }
 
     return mnode ? mnode->bn_kv : NULL;
@@ -251,7 +251,7 @@ search:
     key += lcp;
     klen -= lcp;
 
-    node = BONSAI_RCU_DEREF_POINTER(tree->br_root);
+    node = rcu_dereference(tree->br_root);
     mnode = NULL;
 
     while (node) {
@@ -272,11 +272,11 @@ search:
         if (res < 0) {
             if (unlikely(mtype == B_MATCH_GE))
                 mnode = node;
-            node = BONSAI_RCU_DEREF_POINTER(node->bn_left);
+            node = rcu_dereference(node->bn_left);
         } else {
             if (unlikely(mtype == B_MATCH_LE))
                 mnode = node;
-            node = BONSAI_RCU_DEREF_POINTER(node->bn_right);
+            node = rcu_dereference(node->bn_right);
         }
     }
 
@@ -313,8 +313,8 @@ _bn_traverse(struct bonsai_node *node)
     if (!node)
         return;
 
-    left = BONSAI_RCU_DEREF_POINTER(node->bn_left);
-    right = BONSAI_RCU_DEREF_POINTER(node->bn_right);
+    left = rcu_dereference(node->bn_left);
+    right = rcu_dereference(node->bn_right);
 
     if (left)
         _bn_traverse(left);
@@ -331,7 +331,7 @@ bn_update_root_node(
 {
     assert(oldroot == tree->br_root);
     if (newroot && (oldroot != newroot)) {
-        BONSAI_RCU_ASSIGN_POINTER(tree->br_root, newroot);
+        rcu_assign_pointer(tree->br_root, newroot);
 
         if (likely(oldroot))
             (void)bn_node_free(tree, oldroot);
@@ -476,9 +476,9 @@ bn_destroy(struct bonsai_root *tree)
     if (!tree)
         return;
 
-    root = BONSAI_RCU_DEREF_POINTER(tree->br_root);
+    root = rcu_dereference(tree->br_root);
 
-    BONSAI_RCU_ASSIGN_POINTER(tree->br_root, NULL);
+    rcu_assign_pointer(tree->br_root, NULL);
 
     _bn_teardown(tree, root);
     rcu_barrier();
@@ -500,8 +500,6 @@ bn_destroy(struct bonsai_root *tree)
     }
 
     bn_free(tree, tree);
-
-    BONSAI_RCU_EXIT();
 }
 
 void
@@ -509,7 +507,7 @@ bn_traverse(struct bonsai_root *tree)
 {
     struct bonsai_node *root;
 
-    root = BONSAI_RCU_DEREF_POINTER(tree->br_root);
+    root = rcu_dereference(tree->br_root);
 
     _bn_traverse(root);
 }
@@ -521,7 +519,7 @@ bn_reset(struct bonsai_root *tree)
 
     client = &tree->br_client;
 
-    BONSAI_RCU_ASSIGN_POINTER(tree->br_root, NULL);
+    rcu_assign_pointer(tree->br_root, NULL);
 
     tree->br_kv.bkv_prev = &tree->br_kv;
     tree->br_kv.bkv_next = &tree->br_kv;

@@ -254,14 +254,14 @@ bn_update_path(
         assert(node->bn_right == right);
         myleft = node->bn_left;
         if (myleft != left) {
-            BONSAI_RCU_ASSIGN_POINTER(node->bn_left, left);
+            rcu_assign_pointer(node->bn_left, left);
             bn_node_free(tree, myleft);
         }
     } else {
         assert(node->bn_left == left);
         myright = node->bn_right;
         if (myright != right) {
-            BONSAI_RCU_ASSIGN_POINTER(node->bn_right, right);
+            rcu_assign_pointer(node->bn_right, right);
             bn_node_free(tree, myright);
         }
     }

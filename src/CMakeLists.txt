@@ -29,7 +29,6 @@ set( UTIL_SOURCE_FILES
     util/src/bonsai_tree.c
     util/src/bonsai_tree_balance.c
     util/src/bonsai_tree_pvt.h
-    util/src/bonsai_tree_urcu.h
     util/src/bonsai_tree_utils.c
     util/src/condvar.c
     util/src/config.c
