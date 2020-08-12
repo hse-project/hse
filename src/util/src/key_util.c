@@ -12,20 +12,32 @@ key_immediate_init(const void *key, size_t klen, u16 index, struct key_immediate
 {
     const u8 *src = key;
     u64 *dst;
+    size_t dlen;
+
+    dlen = KI_DLEN_MAX;
+    if (dlen > klen)
+        dlen = klen;
 
     dst = imm->ki_data;
     dst[0] = (u64)index << 48;
     dst[1] = 0;
     dst[2] = 0;
+    dst[3] = (dlen << 16) | klen;
 
-    imm->ki_dlen = KI_DLEN_MAX;
-    imm->ki_klen = klen;
-
-    if (imm->ki_dlen > imm->ki_klen)
-        imm->ki_dlen = imm->ki_klen;
-
-    switch (imm->ki_dlen) {
+    switch (dlen) {
     default: /* FALLTHROUGH */
+
+    case 27:
+        dst[3] |= (u64)src[26] << 24; /* FALLTHROUGH */
+    case 26:
+        dst[3] |= (u64)src[25] << 32; /* FALLTHROUGH */
+    case 25:
+        dst[3] |= (u64)src[24] << 40; /* FALLTHROUGH */
+    case 24:
+        dst[3] |= (u64)src[23] << 48; /* FALLTHROUGH */
+    case 23:
+        dst[3] |= (u64)src[22] << 56; /* FALLTHROUGH */
+
     case 22:
         dst[2] |= (u64)src[21] << 0; /* FALLTHROUGH */
     case 21:
@@ -92,16 +104,21 @@ key_immediate_cmp_full(const struct key_immediate *imm0, const struct key_immedi
         return -1;
     if (imm0->ki_data[2] > imm1->ki_data[2])
         return 1;
+    if ((imm0->ki_data[3] >> 16) < (imm1->ki_data[3] >> 16))
+        return -1;
+    if ((imm0->ki_data[3] >> 16) > (imm1->ki_data[3] >> 16))
+        return 1;
 
     /* If there is more to compare, tell the caller by returning S32_MIN.
      * Since keys are limited to 1023 bytes at this layer, this can't
      * be a return value from this function other than in this case.
      */
-    if (imm0->ki_klen > imm0->ki_dlen && imm1->ki_klen > imm1->ki_dlen)
+    if (key_imm_klen(imm0) > key_imm_dlen(imm0) &&
+        key_imm_klen(imm1) > key_imm_dlen(imm1))
         return S32_MIN;
 
     /* Otherwise, the result comes down to the key lengths. */
-    return (imm0->ki_klen - imm1->ki_klen);
+    return (key_imm_klen(imm0) - key_imm_klen(imm1));
 }
 
 void

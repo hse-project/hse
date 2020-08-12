@@ -1523,7 +1523,7 @@ c0sk_cursor_seek(
         kv = valid ? bkv : &zero;
 
         kt->kt_data = kv->bkv_key;
-        kt->kt_len = kv->bkv_key_imm.ki_klen;
+        kt->kt_len = key_imm_klen(&kv->bkv_key_imm);
 
         /* remember this for updates, which need implicit seek */
         memcpy(cur->c0cur_buf, kt->kt_data, kt->kt_len);
@@ -1536,13 +1536,14 @@ static inline void
 copy_kv(void *buf, struct kvs_kvtuple *kvt, struct bonsai_kv *bkv, struct bonsai_val *val)
 {
     struct key_immediate *imm = &bkv->bkv_key_imm;
+    u32 klen = key_imm_klen(imm);
 
-    kvt->kvt_key.kt_len = imm->ki_klen;
-    kvt->kvt_key.kt_data = memcpy(buf, bkv->bkv_key, imm->ki_klen);
+    kvt->kvt_key.kt_len = klen;
+    kvt->kvt_key.kt_data = memcpy(buf, bkv->bkv_key, klen);
     kvt->kvt_value.vt_len = val->bv_vlen;
     kvt->kvt_value.vt_data = HSE_CORE_IS_TOMB(val->bv_valuep)
                                  ? val->bv_valuep
-                                 : memcpy(buf + imm->ki_klen, val->bv_value, val->bv_vlen);
+                                 : memcpy(buf + klen, val->bv_value, val->bv_vlen);
 }
 
 static merr_t
@@ -1605,11 +1606,12 @@ c0sk_cursor_read(struct c0_cursor *cur, struct kvs_kvtuple *kvt, bool *eof)
 
     while (bin_heap2_pop(cur->c0cur_bh, (void **)&bkv)) {
         struct key_immediate *imm = &bkv->bkv_key_imm;
-        struct bonsai_val *   val;
+        struct bonsai_val    *val;
+        u32                   klen = key_imm_klen(imm);
         bool                  is_ptomb = bkv->bkv_flags & BKV_FLAG_PTOMB;
 
         if (cur->c0cur_pfx_len) {
-            int len = min_t(int, imm->ki_klen, cur->c0cur_pfx_len);
+            int len = min_t(int, klen, cur->c0cur_pfx_len);
             int rc = memcmp(bkv->bkv_key, cur->c0cur_prefix, len);
 
             /* Check eof condition */
@@ -1626,8 +1628,7 @@ c0sk_cursor_read(struct c0_cursor *cur, struct kvs_kvtuple *kvt, bool *eof)
 
         if (cur->c0cur_filter &&
             keycmp(
-                bkv->bkv_key,
-                imm->ki_klen,
+                bkv->bkv_key, klen,
                 cur->c0cur_filter->kcf_maxkey,
                 cur->c0cur_filter->kcf_maxklen) > 0) {
             /* eof */
@@ -1645,7 +1646,7 @@ c0sk_cursor_read(struct c0_cursor *cur, struct kvs_kvtuple *kvt, bool *eof)
 
         if (cur->c0cur_ptomb_key) {
             if (keycmp_prefix(
-                    cur->c0cur_ptomb_key, cur->c0cur_ct_pfx_len, bkv->bkv_key, imm->ki_klen) == 0) {
+                    cur->c0cur_ptomb_key, cur->c0cur_ct_pfx_len, bkv->bkv_key, klen) == 0) {
                 /* If this val is from txn kvms, do not compare
                  * seqnos.
                  */
@@ -1674,7 +1675,7 @@ c0sk_cursor_read(struct c0_cursor *cur, struct kvs_kvtuple *kvt, bool *eof)
             } else if (HSE_SQNREF_TO_ORDNL(val->bv_seqnoref) > cur->c0cur_ptomb_seq) {
 
                 cur->c0cur_ptomb_key = bkv->bkv_key;
-                cur->c0cur_ptomb_klen = imm->ki_klen;
+                cur->c0cur_ptomb_klen = klen;
                 cur->c0cur_ptomb_seq = HSE_SQNREF_TO_ORDNL(val->bv_seqnoref);
                 cur->c0cur_ptomb_es = bkv->bkv_es;
             }
@@ -1689,7 +1690,8 @@ c0sk_cursor_read(struct c0_cursor *cur, struct kvs_kvtuple *kvt, bool *eof)
             struct bonsai_val *   dupv;
             struct key_immediate *dupi = &dup->bkv_key_imm;
 
-            if (imm->ki_klen != dupi->ki_klen || memcmp(bkv->bkv_key, dup->bkv_key, imm->ki_klen))
+            if (key_imm_klen(imm) != key_imm_klen(dupi) ||
+                memcmp(bkv->bkv_key, dup->bkv_key, key_imm_klen(imm)))
                 break;
 
             /* if dup is a ptomb, and current key is NOT a ptomb,
@@ -1976,7 +1978,7 @@ c0sk_cursor_debug_val(struct c0_cursor *cur, uintptr_t seqnoref, struct bonsai_k
 {
     char buf[256];
 
-    fmt_hex(buf, sizeof(buf), bkv->bkv_key, bkv->bkv_key_imm.ki_klen);
+    fmt_hex(buf, sizeof(buf), bkv->bkv_key, key_imm_klen(&bkv->bkv_key_imm));
     printf(
         "debug: discard bkv %p view 0x%lx ref 0x%lx rock 0x%lx key %s\n",
         bkv,

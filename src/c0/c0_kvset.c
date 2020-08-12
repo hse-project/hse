@@ -387,7 +387,7 @@ c0kvs_ior_cb(
     txn_merge = false;
     txn_put = false;
     tracked = c0kvs->c0s_mut_tracked;
-    klen = kv->bkv_key_imm.ki_klen;
+    klen = key_imm_klen(&kv->bkv_key_imm);
 
     seqnoref = IS_IOR_INS(*code) ? kv->bkv_values->bv_seqnoref : new_val->bv_seqnoref;
     state = seqnoref_to_seqno(seqnoref, &seqno);
@@ -1051,18 +1051,18 @@ c0kvs_pfx_probe_excl(
 
     /* found a key with the requested pfx */
     for (; kv != &root->br_kv; kv = rcu_dereference(kv->bkv_next)) {
-        if (keycmp_prefix(key->kt_data, key->kt_len, kv->bkv_key, kv->bkv_key_imm.ki_klen))
+        u32 klen = key_imm_klen(&kv->bkv_key_imm);
+
+        if (keycmp_prefix(key->kt_data, key->kt_len, kv->bkv_key, klen))
             break; /* eof */
 
-        if (qctx->seen && !keycmp(
-                              kv->bkv_key,
-                              kv->bkv_key_imm.ki_klen,
-                              kbuf->b_buf,
-                              min_t(size_t, kbuf->b_len, kbuf->b_buf_sz)))
+        if (qctx->seen &&
+            !keycmp(kv->bkv_key, klen,
+                    kbuf->b_buf, min_t(size_t, kbuf->b_len, kbuf->b_buf_sz)))
             continue; /* duplicate */
 
         /* Skip key if there is a matching tomb */
-        if (qctx_tomb_seen(qctx, kv->bkv_key + key->kt_len, kv->bkv_key_imm.ki_klen))
+        if (qctx_tomb_seen(qctx, kv->bkv_key + key->kt_len, klen))
             continue;
 
         val = c0kvs_findval(handle, kv, view_seqno, seqnoref);
@@ -1071,7 +1071,7 @@ c0kvs_pfx_probe_excl(
 
         /* add to tomblist if a tombstone was encountered */
         if (HSE_CORE_IS_TOMB(val->bv_valuep)) {
-            err = qctx_tomb_insert(qctx, kv->bkv_key + key->kt_len, kv->bkv_key_imm.ki_klen);
+            err = qctx_tomb_insert(qctx, kv->bkv_key + key->kt_len, klen);
             if (ev(err))
                 break;
 
@@ -1091,7 +1091,7 @@ c0kvs_pfx_probe_excl(
         if (++qctx->seen == 1) {
             size_t copylen;
 
-            kbuf->b_len = kv->bkv_key_imm.ki_klen;
+            kbuf->b_len = klen;
             vbuf->b_len = val->bv_vlen;
 
             /* copyout key and value */
@@ -1216,7 +1216,7 @@ c0kvs_debug(struct c0_kvset *handle, void *key, int klen)
         if (klen && memcmp(key, kv->bkv_key, klen) != 0)
             continue;
 
-        fmt_hex(disp, max, kv->bkv_key, kv->bkv_key_imm.ki_klen);
+        fmt_hex(disp, max, kv->bkv_key, key_imm_klen(&kv->bkv_key_imm));
         printf("\t%s: ", disp);
 
         for (v = kv->bkv_values; v; v = rcu_dereference(v->bv_next)) {
@@ -1322,7 +1322,7 @@ c0kvs_preserve_tombspan(
     found = bn_skiptombs_GE(self->c0s_broot, &skey_min, &kv);
     if (found) {
         assert(kv);
-        cmp = keycmp(kv->bkv_key, kv->bkv_key_imm.ki_klen, kmax, kmax_len);
+        cmp = keycmp(kv->bkv_key, key_imm_klen(&kv->bkv_key_imm), kmax, kmax_len);
     }
     rcu_read_unlock();
 

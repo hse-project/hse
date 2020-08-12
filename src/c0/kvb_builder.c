@@ -321,7 +321,7 @@ kvb_builder_kvtuple_add(
         return ev(err);
     }
 
-    klen = bkv->bkv_key_imm.ki_klen;
+    klen = key_imm_klen(&bkv->bkv_key_imm);
 
     c1_kvtuple_init(kvt, klen, bkv->bkv_key, cnid, skidx, bkv);
 

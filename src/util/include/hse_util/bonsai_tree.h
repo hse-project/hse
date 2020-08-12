@@ -435,9 +435,9 @@ bn_kv_cmp_rev(const void *lhs, const void *rhs)
     const struct bonsai_kv *r = rhs;
 
     const void *r_key = r->bkv_key;
-    int         r_klen = r->bkv_key_imm.ki_klen;
+    int         r_klen = key_imm_klen(&r->bkv_key_imm);
     const void *l_key = l->bkv_key;
-    int         l_klen = l->bkv_key_imm.ki_klen;
+    int         l_klen = key_imm_klen(&l->bkv_key_imm);
     bool        l_ptomb = !!(l->bkv_flags & BKV_FLAG_PTOMB);
     bool        r_ptomb = !!(r->bkv_flags & BKV_FLAG_PTOMB);
     uint        l_skidx = key_immediate_index(&l->bkv_key_imm);

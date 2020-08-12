@@ -191,7 +191,7 @@ c0_kvset_iterator_seek(
         kv = &iter->c0it_root->br_kv;
 
     if (kt) {
-        kt->kt_len = kv->bkv_key_imm.ki_klen;
+        kt->kt_len = key_imm_klen(&kv->bkv_key_imm);
         kt->kt_data = kv->bkv_key;
     }
 
@@ -232,7 +232,7 @@ c0_kvset_iterator_skip_pfx(
         kv = &iter->c0it_root->br_kv;
 
     if (kt) {
-        kt->kt_len = kv->bkv_key_imm.ki_klen;
+        kt->kt_len = key_imm_klen(&kv->bkv_key_imm);
         kt->kt_data = kv->bkv_key;
     }
 

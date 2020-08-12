@@ -10,7 +10,7 @@
 #include <hse_util/minmax.h>
 #include <hse_util/assert.h>
 
-#define KI_DLEN_MAX (22)
+#define KI_DLEN_MAX (27)
 
 /**
  * struct key_immediate - compact representation of part of a key & its length
@@ -25,15 +25,25 @@
  * @ki_klen:           total length of the real key
  */
 struct key_immediate {
-    u64 ki_data[3];
-    u16 ki_dlen;
-    u16 ki_klen;
+    u64 ki_data[4];
 };
 
 static inline u32
 key_immediate_index(const struct key_immediate *imm)
 {
     return imm->ki_data[0] >> 48;
+}
+
+static inline u32
+key_imm_dlen(const struct key_immediate *imm)
+{
+    return (imm->ki_data[3] >> 16) & 0xfful;
+}
+
+static inline u32
+key_imm_klen(const struct key_immediate *imm)
+{
+    return imm->ki_data[3] & 0xfffful;
 }
 
 /**
@@ -96,8 +106,8 @@ key_full_cmp(
 
     if (rc == S32_MIN)
         rc = key_inner_cmp(
-            key0 + KI_DLEN_MAX, imm0->ki_klen - KI_DLEN_MAX,
-            key1 + KI_DLEN_MAX, imm1->ki_klen - KI_DLEN_MAX);
+            key0 + KI_DLEN_MAX, key_imm_klen(imm0) - KI_DLEN_MAX,
+            key1 + KI_DLEN_MAX, key_imm_klen(imm1) - KI_DLEN_MAX);
 
     return rc;
 }

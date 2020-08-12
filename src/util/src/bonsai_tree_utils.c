@@ -82,7 +82,7 @@ bn_kv_init(
     size_t sz;
     int    i;
 
-    sz = sizeof(*kv) + key_imm->ki_klen;
+    sz = sizeof(*kv) + key_imm_klen(key_imm);
 
     kv = bn_alloc(tree, sz);
     if (ev(!kv))
@@ -91,6 +91,7 @@ bn_kv_init(
     kv->bkv_next = NULL;
     kv->bkv_prev = NULL;
     kv->bkv_tomb = NULL;
+    kv->bkv_es = NULL;
 
     for (i = 0; i < BONSAI_MUT_LISTC; i++) {
         INIT_S_LIST_HEAD(&kv->bkv_mnext[i]);
@@ -100,7 +101,7 @@ bn_kv_init(
 
     kv->bkv_flags = 0;
     kv->bkv_key_imm = *key_imm;
-    memcpy(kv->bkv_key, key, key_imm->ki_klen);
+    memcpy(kv->bkv_key, key, key_imm_klen(key_imm));
 
     v = bn_val_alloc(tree, sval);
     if (ev(!v))

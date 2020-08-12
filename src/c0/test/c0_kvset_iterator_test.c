@@ -152,10 +152,8 @@ MTF_DEFINE_UTEST(c0_kvset_iterator_test, element_source)
 
         /* Validate that the keys are traversed in order */
         int rc = keycmp(
-            last_bkv->bkv_key,
-            last_bkv->bkv_key_imm.ki_klen,
-            bkv->bkv_key,
-            bkv->bkv_key_imm.ki_klen);
+            last_bkv->bkv_key, key_imm_klen(&last_bkv->bkv_key_imm),
+            bkv->bkv_key, key_imm_klen(&bkv->bkv_key_imm));
 
         if (source_count)
             ASSERT_EQ(rc < 0, true);
@@ -192,10 +190,8 @@ MTF_DEFINE_UTEST(c0_kvset_iterator_test, element_source)
 
         /* Validate that the keys are traversed in order */
         int rc = keycmp(
-            bkv->bkv_key,
-            bkv->bkv_key_imm.ki_klen,
-            last_bkv->bkv_key,
-            last_bkv->bkv_key_imm.ki_klen);
+            bkv->bkv_key, key_imm_klen(&bkv->bkv_key_imm),
+            last_bkv->bkv_key, key_imm_klen(&last_bkv->bkv_key_imm));
 
         if (source_count)
             ASSERT_EQ(rc < 0, true);
@@ -288,7 +284,7 @@ MTF_DEFINE_UTEST(c0_kvset_iterator_test, seek)
     ASSERT_EQ(insert_count, source_count);
 
     seek = last_bkv->bkv_key;
-    seeklen = last_bkv->bkv_key_imm.ki_klen;
+    seeklen = key_imm_klen(&last_bkv->bkv_key_imm);
 
     /* This iterator's index doesn't match. */
     es = c0_kvset_iterator_get_es(&bkvs_iter);
@@ -310,12 +306,12 @@ MTF_DEFINE_UTEST(c0_kvset_iterator_test, seek)
 
     /* ... next should return the key sought */
     br = es->es_get_next(es, (void **)&bkv);
-    i = keycmp(seek, seeklen, bkv->bkv_key, bkv->bkv_key_imm.ki_klen);
+    i = keycmp(seek, seeklen, bkv->bkv_key, key_imm_klen(&bkv->bkv_key_imm));
     ASSERT_EQ(i, 0);
 
     /* ... and the keys should be in order */
     br = es->es_get_next(es, (void **)&bkv);
-    i = keycmp(seek, seeklen, bkv->bkv_key, bkv->bkv_key_imm.ki_klen);
+    i = keycmp(seek, seeklen, bkv->bkv_key, key_imm_klen(&bkv->bkv_key_imm));
     ASSERT_LT(i, 0);
 
     /* A reverse iterator that doesn't filter on index */
@@ -333,7 +329,7 @@ MTF_DEFINE_UTEST(c0_kvset_iterator_test, seek)
     ASSERT_EQ(insert_count, source_count);
 
     seek = last_bkv->bkv_key;
-    seeklen = last_bkv->bkv_key_imm.ki_klen;
+    seeklen = key_imm_klen(&last_bkv->bkv_key_imm);
 
     es = c0_kvset_iterator_get_es(&bkvs_riter);
     ASSERT_NE(0, es);
@@ -355,12 +351,12 @@ MTF_DEFINE_UTEST(c0_kvset_iterator_test, seek)
 
     /* ... next should return the key sought */
     br = es->es_get_next(es, (void **)&bkv);
-    i = keycmp(seek, seeklen, bkv->bkv_key, bkv->bkv_key_imm.ki_klen);
+    i = keycmp(seek, seeklen, bkv->bkv_key, key_imm_klen(&bkv->bkv_key_imm));
     ASSERT_EQ(i, 0);
 
     /* ... and the keys should be in order */
     br = es->es_get_next(es, (void **)&bkv);
-    i = keycmp(bkv->bkv_key, bkv->bkv_key_imm.ki_klen, seek, seeklen);
+    i = keycmp(bkv->bkv_key, key_imm_klen(&bkv->bkv_key_imm), seek, seeklen);
     ASSERT_LT(i, 0);
 
     rcu_barrier();

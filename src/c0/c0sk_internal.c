@@ -376,7 +376,7 @@ c0sk_builder_add(
 
         seqnoref_to_seqno(val->bv_seqnoref, &seqno);
 
-        len += val->bv_vlen + bkv->bkv_key_imm.ki_klen;
+        len += val->bv_vlen + key_imm_klen(&bkv->bkv_key_imm);
 
         rc = seq_prev_cmp(val->bv_valuep, seqno, seqno_prev, pt_seqno_prev);
 
@@ -405,7 +405,7 @@ c0sk_builder_add(
     {
         struct key_obj ko;
 
-        key2kobj(&ko, bkv->bkv_key, bkv->bkv_key_imm.ki_klen);
+        key2kobj(&ko, bkv->bkv_key, key_imm_klen(&bkv->bkv_key_imm));
         err = kvset_builder_add_key(bldr, &ko);
     }
 
@@ -754,7 +754,7 @@ c0sk_ingest_worker(struct work_struct *work)
         }
 
         bkv_prev = bkv;
-        last_klen = bkv->bkv_key_imm.ki_klen;
+        last_klen = key_imm_klen(&bkv->bkv_key_imm);
         last_key = bkv->bkv_key;
 
         /* Append values from the current key to the list of values
@@ -1560,7 +1560,7 @@ c0sk_merge_bkv(
     u32                skidx;
     size_t             sfx_len;
 
-    kvs_ktuple_init_nohash(&kt, bkv->bkv_key, bkv->bkv_key_imm.ki_klen);
+    kvs_ktuple_init_nohash(&kt, bkv->bkv_key, key_imm_klen(&bkv->bkv_key_imm));
 
     skidx = key_immediate_index(&bkv->bkv_key_imm);
     sfx_len = cn_get_sfx_len(self->c0sk_cnv[skidx]);
