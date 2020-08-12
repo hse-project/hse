@@ -204,18 +204,17 @@ struct bonsai_client {
 /**
  * struct bonsai_root - bonsai tree parameters
  * @br_root:      pointer to the root of bonsai_tree
- * @br_kv:        a circular k/v list, next=head, prev=tail
- * @br_lcp:       longest common prefix between min/max keys
  * @br_bounds:    indicates bounds are established and lcp
  * @br_client:    bonsai client instance
+ * @br_kv:        a circular k/v list, next=head, prev=tail
  *
  * There is one such structure for every bonsai tree.
  */
 struct bonsai_root {
-    struct bonsai_node * br_root;
-    struct bonsai_kv     br_kv;
+    struct bonsai_node  *br_root;
     atomic_t             br_bounds;
     struct bonsai_client br_client;
+    struct bonsai_kv     br_kv;
 };
 
 /**
@@ -414,14 +413,7 @@ bn_kv_cmp(const void *lhs, const void *rhs)
     const struct bonsai_kv *l = lhs;
     const struct bonsai_kv *r = rhs;
 
-    s32 rc;
-
-    rc = key_immediate_cmp(&l->bkv_key_imm, &r->bkv_key_imm);
-
-    if (likely(rc != S32_MIN))
-        return rc;
-
-    return inner_key_cmp(l->bkv_key, l->bkv_key_imm.ki_klen, r->bkv_key, r->bkv_key_imm.ki_klen);
+    return key_full_cmp(&l->bkv_key_imm, l->bkv_key, &r->bkv_key_imm, r->bkv_key);
 }
 
 /*
@@ -457,20 +449,20 @@ bn_kv_cmp_rev(const void *lhs, const void *rhs)
         return rc;
 
     if (!(l_ptomb ^ r_ptomb))
-        return inner_key_cmp(r_key, r_klen, l_key, l_klen);
+        return key_inner_cmp(r_key, r_klen, l_key, l_klen);
 
     /* exactly one of lhs and rhs is a ptomb */
     if (l_ptomb && l_klen <= r_klen) {
-        rc = inner_key_cmp(r_key, l_klen, l_key, l_klen);
+        rc = key_inner_cmp(r_key, l_klen, l_key, l_klen);
         if (rc == 0)
             return -1; /* l wins */
     } else if (r_ptomb && r_klen <= l_klen) {
-        rc = inner_key_cmp(r_key, r_klen, l_key, r_klen);
+        rc = key_inner_cmp(r_key, r_klen, l_key, r_klen);
         if (rc == 0)
             return 1; /* r wins */
     }
 
-    return inner_key_cmp(r_key, r_klen, l_key, l_klen);
+    return key_inner_cmp(r_key, r_klen, l_key, l_klen);
 }
 
 static inline void

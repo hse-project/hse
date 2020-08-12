@@ -112,14 +112,7 @@ bn_insert_impl(
         return node;
     }
 
-    res = key_immediate_cmp(key_imm, &node->bn_key_imm);
-    if (res == S32_MIN)
-        res = inner_key_cmp(
-            key + key_imm->ki_dlen,
-            key_imm->ki_klen - key_imm->ki_dlen,
-            node->bn_kv->bkv_key + node->bn_key_imm.ki_dlen,
-            node->bn_key_imm.ki_klen - node->bn_key_imm.ki_dlen);
-
+    res = key_full_cmp(key_imm, key, &node->bn_key_imm, node->bn_kv->bkv_key);
     if (res < 0) {
         ins = bn_insert_impl(
             tree, node->bn_left, key_imm, key, sval, node->bn_kv, flags & ~BN_INSERT_FLAG_RIGHT);
@@ -170,7 +163,7 @@ bn_find_next_pfx(struct bonsai_root *tree, const struct bonsai_skey *skey)
 
         res = skidx - node_skidx;
         if (res == 0)
-            res = inner_key_cmp(key, klen, node->bn_kv->bkv_key, klen);
+            res = key_inner_cmp(key, klen, node->bn_kv->bkv_key, klen);
 
         if (res < 0) {
             mnode = node;
@@ -260,7 +253,7 @@ search:
             /* At this point we are assured that both keys'
              * ki_dlen are greater than KI_DLEN_MAX.
              */
-            res = inner_key_cmp(
+            res = key_inner_cmp(
                 key, klen, node->bn_kv->bkv_key + lcp, node->bn_key_imm.ki_klen - lcp);
         }
 

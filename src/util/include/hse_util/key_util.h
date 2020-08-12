@@ -10,7 +10,7 @@
 #include <hse_util/minmax.h>
 #include <hse_util/assert.h>
 
-#define KI_DLEN_MAX (14)
+#define KI_DLEN_MAX (22)
 
 /**
  * struct key_immediate - compact representation of part of a key & its length
@@ -25,7 +25,7 @@
  * @ki_klen:           total length of the real key
  */
 struct key_immediate {
-    u64 ki_data[2];
+    u64 ki_data[3];
     u16 ki_dlen;
     u16 ki_klen;
 };
@@ -60,15 +60,8 @@ key_immediate_cmp(const struct key_immediate *imm0, const struct key_immediate *
     return key_immediate_cmp_full(imm0, imm1);
 }
 
-s32
-key_full_cmp(
-    const struct key_immediate *imm0,
-    const void *                key0,
-    const struct key_immediate *imm1,
-    const void *                key1);
-
 /**
- * inner_key_cmp() - lexicographic key comparator
+ * key_inner_cmp() - lexicographic key comparator
  * key0:        key data ptr
  * key0_len     key0 data length
  * key1:        key data ptr
@@ -83,11 +76,30 @@ key_full_cmp(
  *   len1 >  len2 --> return pos (key1 > key2).
  */
 static inline int
-inner_key_cmp(const void *key0, int key0_len, const void *key1, int key1_len)
+key_inner_cmp(const void *key0, int key0_len, const void *key1, int key1_len)
 {
     int rc = memcmp(key0, key1, min(key0_len, key1_len));
 
     return rc == 0 ? key0_len - key1_len : rc;
+}
+
+static inline s32
+key_full_cmp(
+    const struct key_immediate *imm0,
+    const void *                key0,
+    const struct key_immediate *imm1,
+    const void *                key1)
+{
+    s32 rc;
+
+    rc = key_immediate_cmp(imm0, imm1);
+
+    if (rc == S32_MIN)
+        rc = key_inner_cmp(
+            key0 + KI_DLEN_MAX, imm0->ki_klen - KI_DLEN_MAX,
+            key1 + KI_DLEN_MAX, imm1->ki_klen - KI_DLEN_MAX);
+
+    return rc;
 }
 
 /**

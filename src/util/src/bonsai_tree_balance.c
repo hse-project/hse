@@ -24,10 +24,8 @@ bn_single_left_rotate(
     else
         left = bn_node_dup(tree, oldleft);
 
-    if (!left) {
-        ev(1);
+    if (!left)
         return NULL;
-    }
 
     node->bn_left = left->bn_right;
     left->bn_right = node;
@@ -55,10 +53,8 @@ bn_single_right_rotate(
     else
         right = bn_node_dup(tree, oldright);
 
-    if (!right) {
-        ev(1);
+    if (!right)
         return NULL;
-    }
 
     node->bn_right = right->bn_left;
     right->bn_left = node;
@@ -107,10 +103,8 @@ bn_double_right_rotate(struct bonsai_root *tree, struct bonsai_node *node)
     oldright = node->bn_right;
 
     right = bn_node_dup(tree, oldright);
-    if (!right) {
-        ev(1);
+    if (!right)
         return NULL;
-    }
 
     newright = bn_single_left_rotate(tree, right, NULL);
     if (!newright)
@@ -138,18 +132,10 @@ bn_balance_left(
     s32 res;
 
     newnode = bn_node_dup_ext(tree, node, left, right);
-    if (!newnode) {
-        ev(1);
+    if (!newnode)
         return node;
-    }
 
-    res = key_immediate_cmp(key_imm, &left->bn_key_imm);
-    if (res == S32_MIN)
-        res = inner_key_cmp(
-            key + key_imm->ki_dlen,
-            key_imm->ki_klen - key_imm->ki_dlen,
-            left->bn_kv->bkv_key + left->bn_key_imm.ki_dlen,
-            left->bn_key_imm.ki_klen - left->bn_key_imm.ki_dlen);
+    res = key_full_cmp(key_imm, key, &left->bn_key_imm, left->bn_kv->bkv_key);
 
     assert(res != 0);
 
@@ -179,18 +165,10 @@ bn_balance_right(
     s32 res;
 
     newnode = bn_node_dup_ext(tree, node, left, right);
-    if (!newnode) {
-        ev(1);
+    if (!newnode)
         return node;
-    }
 
-    res = key_immediate_cmp(key_imm, &right->bn_key_imm);
-    if (res == S32_MIN)
-        res = inner_key_cmp(
-            key + key_imm->ki_dlen,
-            key_imm->ki_klen - key_imm->ki_dlen,
-            right->bn_kv->bkv_key + right->bn_key_imm.ki_dlen,
-            right->bn_key_imm.ki_klen - right->bn_key_imm.ki_dlen);
+    res = key_full_cmp(key_imm, key, &right->bn_key_imm, right->bn_kv->bkv_key);
 
     assert(res != 0);
 
