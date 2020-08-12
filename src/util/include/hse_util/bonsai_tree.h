@@ -22,16 +22,6 @@
 #define BONSAI_TREE_BALANCE_THRESHOLD 4
 #define BONSAI_MUT_LISTC 2
 
-/*
- * Bonsai node flags
- */
-#define BN_KVFREEOK (0x01)
-
-enum bonsai_alloc_mode {
-    HSE_ALLOC_MALLOC = 0,
-    HSE_ALLOC_CURSOR = 1,
-};
-
 enum bonsai_ior_code {
     B_IOR_INSERTED = 1,
     B_IOR_REPLACED = 2,
@@ -130,7 +120,6 @@ struct bonsai_kv {
     struct key_immediate   bkv_key_imm;
     u16                    bkv_rsvd;
     u16                    bkv_flags;
-    s32                    bkv_refcnt;
     struct bonsai_val *    bkv_values;
     struct bonsai_kv *     bkv_prev;
     struct bonsai_kv *     bkv_next;
@@ -148,16 +137,13 @@ struct bonsai_kv {
  * struct bonsai_node - structure representing interal nodes of tree
  * @bn_left:    bonsai tree child node linkage
  * @bn_right:   bonsai tree child node linkage
- * @bn_free:    free list linkage
- * @bn_kv:      ptr to a key/value node (contains full key)
- * @bn_key_imm: cache of first 22 bytes of bn_kv->bkv_key[]
- * @bn_flags:   free list state flags
+ * @bn_key_imm: cache of first 14 bytes of bn_kv->bkv_key[]
  * @bn_height:  height of the node.
+ * @bn_kv:      ptr to a key/value node (contains full key)
  *
  * The %bn_kv, and %bn_key_imm fields are set during node initialization and
  * never change thoughout the lifetime of the node.  Hence, they need
- * no special RCU handling.  The %bn_free and %bn_flags fields are manipulated
- * only under protection of the kvset mutex.
+ * no special RCU handling.
  *
  * This structure is arranged and packed so as to consume exactly one full
  * 64-byte cache line, so as to avoid false-sharing that would otherwise
@@ -167,11 +153,8 @@ struct bonsai_node {
     struct bonsai_node   *bn_left;
     struct bonsai_node   *bn_right;
     struct key_immediate  bn_key_imm;
-    u16                   bn_rsvd;
-    u16                   bn_flags;
     s32                   bn_height;
     struct bonsai_kv     *bn_kv;
-    struct bonsai_node   *bn_free;
 } __aligned(64);
 
 _Static_assert(sizeof(struct bonsai_node) == 64, "bonsai node too large");
@@ -198,50 +181,24 @@ typedef void (*bonsai_ior_cb)(
 
 /**
  * struct - bonsai_client - abstracted client instance
+ * @bc_cheap:       ptr to cheap
  * @bc_iorcb:       client's callback for insert or replace
  * @bc_rock:        owner private ptr
- * @bc_allocator:   ptr to cheap (or NULL to use malloc)
  * @bc_slab_sz:     node slab size (bytes)
  * @bc_slab_cur:    ptr to next free node in node slab
  * @bc_slab_end:    ptr to end of node slab
- * @bc_fv_active:  list of values to free after current grace period
- * @bc_fv_pending: list of values to free after next grace period
- * @bc_fv_rcu:     rcu linkage for TreeBBFreeVal()
- * @bc_fn_active:  list of nodes to free after current grace period
- * @bc_fn_pending: list of nodes to free after next grace period
- * @bc_fh_rcu:     rcu linkage for TreeBBFreeVal()
- * @bc_add:        no. of nodes added to the tree (debug only)
- * @bc_dup:        no. of duplicate nodes added during balancing (debug only)
- * @bc_del:        no. of noded removed from the tree (debug only)
- * @bc_dup:        no. of modified/stale nodes deleted post balancing
- *                 (debug only)
  *
  * Stores client specific callback and opaque parameters.
  */
 struct bonsai_client {
-    bonsai_ior_cb bc_iorcb;
-    void *        bc_rock;
+    struct cheap   *bc_cheap;
+    bonsai_ior_cb   bc_iorcb;
+    void           *bc_rock;
+    size_t          bc_slab_sz;
 
-    struct cheap *bc_allocator;
-    unsigned long bc_slab_sz;
-
-    __aligned(SMP_CACHE_BYTES) struct bonsai_node *bc_slab_cur;
+    __aligned(SMP_CACHE_BYTES)
+    struct bonsai_node *bc_slab_cur;
     struct bonsai_node *bc_slab_end;
-
-    __aligned(SMP_CACHE_BYTES) struct bonsai_val *bc_fv_active;
-    struct bonsai_val *bc_fv_pending;
-    struct rcu_head    bc_fv_rcu;
-
-    void *          bc_fn_active;
-    void *          bc_fn_pending;
-    struct rcu_head bc_fn_rcu;
-
-#ifdef BONSAI_TREE_DEBUG_ALLOC
-    unsigned long bc_add;
-    unsigned long bc_dup;
-    unsigned long bc_dupdel;
-    unsigned long bc_del;
-#endif
 };
 
 /**
@@ -263,7 +220,7 @@ struct bonsai_root {
 
 /**
  * bn_create() - Initialize tree and client info.
- * @allocator: root of the tree
+ * @cheap:     memory allocator
  * @slabsz:    slab size to be used for bonsai nodes
  * @cb:        insert or replace callback
  * @rock:      per-tree rock entity for client
@@ -273,8 +230,8 @@ struct bonsai_root {
  */
 merr_t
 bn_create(
-    struct cheap *       allocator,
-    unsigned long        slabsz,
+    struct cheap        *cheap,
+    size_t               slabsz,
     bonsai_ior_cb        cb,
     void *               rock,
     struct bonsai_root **tree);
@@ -420,54 +377,6 @@ bn_finalize(struct bonsai_root *tree);
 /**
  * Accessor functions for bonsai client specific fields
  */
-
-/**
- * bn_get_allocator()
- * @tree: bonsai tree instance
- *
- * Return   :
- */
-static inline struct cheap *
-bn_get_allocator(struct bonsai_root *tree)
-{
-    return tree->br_client.bc_allocator;
-}
-
-/**
- * bn_get_iorcb()
- * @tree: bonsai tree instance
- *
- * Return   :
- */
-static inline bonsai_ior_cb
-bn_get_iorcb(struct bonsai_root *tree)
-{
-    return tree->br_client.bc_iorcb;
-}
-
-/**
- * bn_get_rock()
- * @tree: bonsai tree instance
- *
- * Return   :
- */
-static inline void *
-bn_get_rock(struct bonsai_root *tree)
-{
-    return tree->br_client.bc_rock;
-}
-
-/**
- * bn_get_slabsz()
- * @tree: bonsai tree instance
- *
- * Return   :
- */
-static inline unsigned long
-bn_get_slabsz(struct bonsai_root *tree)
-{
-    return tree->br_client.bc_slab_sz;
-}
 
 /**
  * bn_skey_init() - initialize a bonsai_skey instance

@@ -41,16 +41,6 @@ bn_node_alloc(
     const struct bonsai_sval *  sval);
 
 /**
- * bn_node_free() -
- * @tree:    bonsai tree instance
- * @node:
- *
- * Return:
- */
-void
-bn_node_free(struct bonsai_root *tree, struct bonsai_node *node);
-
-/**
  * bn_val_alloc() -
  * @tree:    bonsai tree instance
  * @sval:
@@ -59,27 +49,6 @@ bn_node_free(struct bonsai_root *tree, struct bonsai_node *node);
  */
 struct bonsai_val *
 bn_val_alloc(struct bonsai_root *tree, const struct bonsai_sval *sval);
-
-/**
- * bn_val_free() -
- * @tree:    bonsai tree instance
- * @val:
- *
- * Return:
- */
-void
-bn_val_free(struct bonsai_root *tree, struct bonsai_val *val);
-
-/**
- * bn_alloc_impl() -
- * @allocator: cheap allocator instance
- * @sz:        allocation size
- */
-void *
-bn_alloc_impl(struct cheap *allocator, size_t sz);
-
-void
-bn_free(struct bonsai_root *tree, void *ptr);
 
 /**
  * bn_node_dup() -
