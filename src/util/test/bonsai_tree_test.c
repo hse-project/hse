@@ -186,12 +186,12 @@ init_tree(struct bonsai_root **tree, enum bonsai_alloc_mode allocm)
     merr_t err;
 
     if (allocm == HSE_ALLOC_CURSOR) {
-        cheap = cheap_create(8, 128 * MB);
+        cheap = cheap_create(16, 128 * MB);
         if (!cheap)
             return;
     }
 
-    err = bn_create(cheap, 64 * MB, bonsai_client_insert_callback, NULL, tree);
+    err = bn_create(cheap, 32 * 1024, bonsai_client_insert_callback, NULL, tree);
     if (err)
         hse_log(HSE_ERR "Bonsai tree create failed");
 }
@@ -454,7 +454,7 @@ bonsai_client_lcp_test(void *arg)
 
         if (err) {
             hse_elog(HSE_ERR "lcp_test bn_insert %u result @@e", err, i);
-            break;
+            assert(!err);
         }
     }
 
@@ -608,11 +608,11 @@ bonsai_client_multithread_test(void)
     }
 #endif
 
-    cheap = cheap_create(8, 64 * MB);
+    cheap = cheap_create(16, 64 * MB);
     if (!cheap)
         return -1;
 
-    err = bn_create(cheap, 32 * MB, bonsai_client_insert_callback, NULL, &broot);
+    err = bn_create(cheap, 32 * 1024, bonsai_client_insert_callback, NULL, &broot);
     if (err) {
         hse_log(HSE_ERR "Bonsai tree create failed");
         return err;
@@ -727,12 +727,12 @@ bonsai_client_singlethread_test(enum bonsai_alloc_mode allocm)
     struct bonsai_kv *   kv = NULL;
 
     if (allocm == HSE_ALLOC_CURSOR) {
-        cheap = cheap_create(8, 64 * MB);
+        cheap = cheap_create(16, 64 * MB);
         if (!cheap)
             return -1;
     }
 
-    err = bn_create(cheap, 32 * MB, bonsai_client_insert_callback, NULL, &broot);
+    err = bn_create(cheap, 32 * 1024, bonsai_client_insert_callback, NULL, &broot);
     if (err) {
         hse_log(HSE_ERR "Bonsai tree create failed");
         return err;
@@ -824,7 +824,7 @@ MTF_DEFINE_UTEST(bonsai_tree_test, misc)
     err = bn_create(NULL, 1 * MB, bonsai_client_insert_callback, NULL, NULL);
     ASSERT_NE(err, 0);
 
-    cheap = cheap_create(8, 4 * MB);
+    cheap = cheap_create(16, 4 * MB);
     ASSERT_NE(cheap, NULL);
 
     err = bn_create(cheap, 1 * MB, bonsai_client_insert_callback, NULL, &broot);
@@ -871,10 +871,10 @@ MTF_DEFINE_UTEST_PREPOST(bonsai_tree_test, lcp_test, no_fail_pre, no_fail_post)
     struct lcp_test_arg args[num_skidx];
     merr_t              err;
 
-    cheap = cheap_create(8, 64 * MB);
+    cheap = cheap_create(16, 64 * MB);
     ASSERT_NE(cheap, NULL);
 
-    err = bn_create(cheap, 32 * MB, bonsai_client_insert_callback, NULL, &broot);
+    err = bn_create(cheap, 32 * 1024, bonsai_client_insert_callback, NULL, &broot);
     ASSERT_EQ(err, 0);
 
     rc = pthread_mutex_init(&mtx, NULL);
@@ -906,7 +906,7 @@ MTF_DEFINE_UTEST_PREPOST(bonsai_tree_test, lcp_test, no_fail_pre, no_fail_post)
     ASSERT_EQ(atomic_read(&broot->br_bounds), 1);
 
     stop_producer_threads = 1;
-    for (i = 0; i < num_producers; i++) {
+    for (i = 0; i < num_skidx; i++) {
         rc = pthread_join(producer_tids[i], &ret);
         ASSERT_EQ(rc, 0);
     }
@@ -918,11 +918,10 @@ MTF_DEFINE_UTEST_PREPOST(bonsai_tree_test, lcp_test, no_fail_pre, no_fail_post)
     rcu_barrier();
 
     cheap_destroy(cheap);
-    cheap = NULL;
-    cheap = cheap_create(8, 64 * MB);
+    cheap = cheap_create(16, 64 * MB);
     ASSERT_NE(cheap, NULL);
 
-    err = bn_create(cheap, 32 * MB, bonsai_client_insert_callback, NULL, &broot);
+    err = bn_create(cheap, 32 * 1024, bonsai_client_insert_callback, NULL, &broot);
     ASSERT_EQ(err, 0);
 
     stop_producer_threads = 0;
@@ -1182,7 +1181,7 @@ bonsai_tombspan_test(enum bonsai_alloc_mode allocm, struct mtf_test_info *lcl_ti
     /* Test that the tombstone span does track tombstone keys, which
      * are inserted in increasing order (mongo load balancing behavior) */
     for (i = 0; i < LEN; ++i) {
-        key = i << 24;
+        key = (u64)i << 24;
 
         bn_skey_init(&key, sizeof(key), index, &skey);
         bn_sval_init(HSE_CORE_TOMB_REG, 0, HSE_ORDNL_TO_SQNREF(xrand() & 0xFFFFFFFFFFFFF), &sval);
@@ -1213,7 +1212,7 @@ bonsai_tombspan_test(enum bonsai_alloc_mode allocm, struct mtf_test_info *lcl_ti
 
     /* Update one of the keys with a value to invalidate the tombspan. */
     j = xrand() % LEN;
-    key = i << 24;
+    key = (u64)i << 24;
     bn_skey_init(&key, sizeof(key), index, &skey);
     bn_sval_init(&skey, sizeof(skey), HSE_ORDNL_TO_SQNREF(xrand() & 0xFFFFFFFFFFFFF), &sval);
 

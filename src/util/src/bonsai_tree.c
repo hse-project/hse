@@ -203,10 +203,13 @@ bn_find_impl(struct bonsai_root *tree, const struct bonsai_skey *skey, enum bons
      * search key to the bounds of the tree and/or leverage the
      * lcp to potentially minimize the amount of work required
      * to search for the key in this tree.
+     *
+     * Use acquire semantics here to prevent speculative reading
+     * within the bounds block...
      */
-    bounds = atomic_read(&tree->br_bounds);
+    bounds = atomic_read_acq(&tree->br_bounds);
     if (bounds) {
-        struct bonsai_kv *bkv = tree->br_kv.bkv_prev; /* max key */
+        struct bonsai_kv *bkv = rcu_dereference(tree->br_kv.bkv_prev); /* max key */
 
         /* br_bounds is set to 1 + the lcp to use. */
         lcp = min_t(uint, klen, bounds - 1);
@@ -484,8 +487,8 @@ bn_finalize(struct bonsai_root *tree)
     const struct bonsai_kv *kmin, *kmax;
     uint                    lcp, set_lcp = 0;
 
-    kmin = tree->br_kv.bkv_next;
-    kmax = tree->br_kv.bkv_prev;
+    kmin = rcu_dereference(tree->br_kv.bkv_next);
+    kmax = rcu_dereference(tree->br_kv.bkv_prev);
 
     /* If all the keys in the tree are sufficiently long then we
      * check to see if they have a common prefix.  If so, we can
@@ -506,7 +509,7 @@ bn_finalize(struct bonsai_root *tree)
         }
 
         /* Indicate that the bounds have been established and the lcp to use. */
-        atomic_set(&tree->br_bounds, set_lcp + 1);
+        atomic_set_rel(&tree->br_bounds, set_lcp + 1);
     }
 }
 
