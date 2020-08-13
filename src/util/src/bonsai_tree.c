@@ -270,7 +270,7 @@ search:
             node = rcu_dereference(node->bn_right);
         }
 
-        __builtin_prefetch(node);
+        __builtin_prefetch(node, 0, 2);
     }
 
     return mnode ? mnode->bn_kv : NULL;

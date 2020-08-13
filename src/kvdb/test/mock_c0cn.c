@@ -132,7 +132,7 @@ _c0_index(struct c0 *handle)
 {
     struct mock_c0 *m0 = (void *)handle;
 
-    return m0 ? m0->index : U16_MAX;
+    return m0 ? m0->index : HSE_KVS_COUNT_MAX  - 1;
 }
 
 static u64

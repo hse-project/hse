@@ -137,7 +137,7 @@ struct bonsai_kv {
  * struct bonsai_node - structure representing interal nodes of tree
  * @bn_left:    bonsai tree child node linkage
  * @bn_right:   bonsai tree child node linkage
- * @bn_key_imm: cache of first 14 bytes of bn_kv->bkv_key[]
+ * @bn_key_imm: cache of first KI_DLEN_MAX bytes of bn_kv->bkv_key[]
  * @bn_height:  height of the node.
  * @bn_kv:      ptr to a key/value node (contains full key)
  *
