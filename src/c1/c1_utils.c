@@ -262,6 +262,8 @@ c1_replay_alloc_tree(
 
     list_add_tail(&tree->c1t_list, &c1->c1_tree_inuse);
 
+    atomic_inc(&c1->c1_jrnl->c1j_treecnt);
+
     return 0;
 }
 
@@ -645,6 +647,8 @@ c1_new_tree(
         perfc_inc(pcset, PERFC_BA_C1_TACTIVE);
     }
 
+    atomic_inc(&jrnl->c1j_treecnt);
+
     return c1_journal_flush(jrnl);
 
 err_exit:
@@ -823,6 +827,11 @@ c1_next_tree_impl(struct c1 *c1)
         err = c1_compact(c1);
         if (ev(err))
             return err;
+    }
+
+    if (atomic_read(&jrnl->c1j_treecnt) >= HSE_C1_TREE_CNT_UB) {
+	    hse_log(HSE_ERR "No. of c1 trees cannot exceed %d", HSE_C1_TREE_CNT_UB);
+	    return merr(ENOSPC);
     }
 
     err = c1_new_tree(
