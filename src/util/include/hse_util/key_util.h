@@ -24,20 +24,20 @@
  * where it will be placed within the Bonsai tree node structure.  The layout
  * of this structure should not be altered w/o careful consideration.
  *
- * ki_data[] is treated as an array of bytes and from a big endian view
+ * ki_data[] is treated as an array of bytes, and from a big endian view
  * is encoded as follows:
  *
- * byte [0]:                skidx
- * byte [1..KI_DLEN_MAX]:   first n bytes of the key
- * byte [KI_DLEN_MAX + 1]:  length of key in bytes [1 - KI_DLEN_MAX]
- * byte [KI_DLEN_MAX + 2]:  full key length MSB
- * byte [KI_DLEN_MAX + 3]:  full key length LSB
+ * byte offset:  [    0] [1.................28] [  29] [      30] [      31]
+ * purpose:      [skidx] [first n bytes of key] [dlen] [klen MSB] [klen LSB]
+ *
+ * where "dlen" is the length of the first n bytes of the key that will fit
+ * in the key immediate, and "klen" is the full length of the key.
  *
  * key_immediate_init() encodes the above into host byte order such
  * that we can quickly compare keys via simple integer comparison of
  * the ki_data[] array elements.
  *
- * @ki_data:           array of bytes
+ * @ki_data:  array of bytes
  */
 struct key_immediate {
     u64 ki_data[4];
@@ -72,11 +72,8 @@ key_immediate_cmp_full(const struct key_immediate *imm0, const struct key_immedi
 static __always_inline s32
 key_immediate_cmp(const struct key_immediate *imm0, const struct key_immediate *imm1)
 {
-    int sgn;
-
-    sgn = (imm0->ki_data[0] > imm1->ki_data[0]) - (imm0->ki_data[0] < imm1->ki_data[0]);
-    if (sgn)
-        return sgn;
+    if (imm0->ki_data[0] != imm1->ki_data[0])
+        return (imm0->ki_data[0] < imm1->ki_data[0]) ? -1 : 1;
 
     return key_immediate_cmp_full(imm0, imm1);
 }
