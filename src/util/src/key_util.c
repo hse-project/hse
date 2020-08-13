@@ -10,104 +10,44 @@
 void
 key_immediate_init(const void *key, size_t klen, u16 index, struct key_immediate *imm)
 {
-    const u8 *src = key;
-    u64 *dst;
-    size_t dlen;
+    size_t dlen = KI_DLEN_MAX;
 
-    dlen = KI_DLEN_MAX;
     if (dlen > klen)
         dlen = klen;
 
-    dst = imm->ki_data;
-    dst[0] = (u64)index << 48;
-    dst[1] = 0;
-    dst[2] = 0;
-    dst[3] = (dlen << 16) | klen;
+    memset(imm->ki_data, 0, sizeof(imm->ki_data));
+    memcpy((char *)imm->ki_data + 2, key, dlen);
 
-    switch (dlen) {
-    default: /* FALLTHROUGH */
+    imm->ki_data[0] = be64toh(imm->ki_data[0]);
+    imm->ki_data[1] = be64toh(imm->ki_data[1]);
+    imm->ki_data[2] = be64toh(imm->ki_data[2]);
+    imm->ki_data[3] = be64toh(imm->ki_data[3]);
 
-    case 27:
-        dst[3] |= (u64)src[26] << 24; /* FALLTHROUGH */
-    case 26:
-        dst[3] |= (u64)src[25] << 32; /* FALLTHROUGH */
-    case 25:
-        dst[3] |= (u64)src[24] << 40; /* FALLTHROUGH */
-    case 24:
-        dst[3] |= (u64)src[23] << 48; /* FALLTHROUGH */
-    case 23:
-        dst[3] |= (u64)src[22] << 56; /* FALLTHROUGH */
-
-    case 22:
-        dst[2] |= (u64)src[21] << 0; /* FALLTHROUGH */
-    case 21:
-        dst[2] |= (u64)src[20] << 8; /* FALLTHROUGH */
-    case 20:
-        dst[2] |= (u64)src[19] << 16; /* FALLTHROUGH */
-    case 19:
-        dst[2] |= (u64)src[18] << 24; /* FALLTHROUGH */
-    case 18:
-        dst[2] |= (u64)src[17] << 32; /* FALLTHROUGH */
-    case 17:
-        dst[2] |= (u64)src[16] << 40; /* FALLTHROUGH */
-    case 16:
-        dst[2] |= (u64)src[15] << 48; /* FALLTHROUGH */
-    case 15:
-        dst[2] |= (u64)src[14] << 56; /* FALLTHROUGH */
-
-    case 14:
-        dst[1] |= (u64)src[13] << 0; /* FALLTHROUGH */
-    case 13:
-        dst[1] |= (u64)src[12] << 8; /* FALLTHROUGH */
-    case 12:
-        dst[1] |= (u64)src[11] << 16; /* FALLTHROUGH */
-    case 11:
-        dst[1] |= (u64)src[10] << 24; /* FALLTHROUGH */
-    case 10:
-        dst[1] |= (u64)src[9] << 32; /* FALLTHROUGH */
-    case 9:
-        dst[1] |= (u64)src[8] << 40; /* FALLTHROUGH */
-    case 8:
-        dst[1] |= (u64)src[7] << 48; /* FALLTHROUGH */
-    case 7:
-        dst[1] |= (u64)src[6] << 56; /* FALLTHROUGH */
-
-    case 6:
-        dst[0] |= (u64)src[5] << 0; /* FALLTHROUGH */
-    case 5:
-        dst[0] |= (u64)src[4] << 8; /* FALLTHROUGH */
-    case 4:
-        dst[0] |= (u64)src[3] << 16; /* FALLTHROUGH */
-    case 3:
-        dst[0] |= (u64)src[2] << 24; /* FALLTHROUGH */
-    case 2:
-        dst[0] |= (u64)src[1] << 32; /* FALLTHROUGH */
-    case 1:
-        dst[0] |= (u64)src[0] << 40; /* FALLTHROUGH */
-    case 0:
-        break;
-    }
+    imm->ki_data[0] |= (u64)index << 48;
+    imm->ki_data[3] |= (dlen << 16) | klen;
 }
 
 s32
 key_immediate_cmp_full(const struct key_immediate *imm0, const struct key_immediate *imm1)
 {
-    if (imm0->ki_data[0] < imm1->ki_data[0])
-        return -1;
-    if (imm0->ki_data[0] > imm1->ki_data[0])
-        return 1;
-    if (imm0->ki_data[1] < imm1->ki_data[1])
-        return -1;
-    if (imm0->ki_data[1] > imm1->ki_data[1])
-        return 1;
-    if (imm0->ki_data[2] < imm1->ki_data[2])
-        return -1;
-    if (imm0->ki_data[2] > imm1->ki_data[2])
-        return 1;
-    if ((imm0->ki_data[3] >> 16) < (imm1->ki_data[3] >> 16))
-        return -1;
-    if ((imm0->ki_data[3] >> 16) > (imm1->ki_data[3] >> 16))
-        return 1;
+    int sgn;
+
+    sgn = (imm0->ki_data[0] > imm1->ki_data[0]) - (imm0->ki_data[0] < imm1->ki_data[0]);
+    if (sgn)
+        return sgn;
+
+    sgn = (imm0->ki_data[1] > imm1->ki_data[1]) - (imm0->ki_data[1] < imm1->ki_data[1]);
+    if (sgn)
+        return sgn;
+
+    sgn = (imm0->ki_data[2] > imm1->ki_data[2]) - (imm0->ki_data[2] < imm1->ki_data[2]);
+    if (sgn)
+        return sgn;
+
+    sgn = ((imm0->ki_data[3] >> 16) > (imm1->ki_data[3] >> 16)) -
+        ((imm0->ki_data[3] >> 16) < (imm1->ki_data[3] >> 16));
+    if (sgn)
+        return sgn;
 
     /* If there is more to compare, tell the caller by returning S32_MIN.
      * Since keys are limited to 1023 bytes at this layer, this can't
@@ -124,66 +64,16 @@ key_immediate_cmp_full(const struct key_immediate *imm0, const struct key_immedi
 void
 key_disc_init(const void *key, size_t len, struct key_disc *kdisc)
 {
-    const u8 *src = key;
-    u64 *dst = kdisc->kdisc;
+    if (len > sizeof(kdisc->kdisc))
+        len = sizeof(kdisc->kdisc);
 
-    dst[0] = 0;
-    dst[1] = 0;
-    dst[2] = 0;
+    memset(kdisc->kdisc, 0, sizeof(kdisc->kdisc));
+    memcpy(kdisc->kdisc, key, len);
 
-    switch (len) {
-        default:
-        case 24:
-            dst[2] |= (u64)src[23] << 0; /* FALLTHROUGH */
-        case 23:
-            dst[2] |= (u64)src[22] << 8; /* FALLTHROUGH */
-        case 22:
-            dst[2] |= (u64)src[21] << 16; /* FALLTHROUGH */
-        case 21:
-            dst[2] |= (u64)src[20] << 24; /* FALLTHROUGH */
-        case 20:
-            dst[2] |= (u64)src[19] << 32; /* FALLTHROUGH */
-        case 19:
-            dst[2] |= (u64)src[18] << 40; /* FALLTHROUGH */
-        case 18:
-            dst[2] |= (u64)src[17] << 48; /* FALLTHROUGH */
-        case 17:
-            dst[2] |= (u64)src[16] << 56; /* FALLTHROUGH */
-        case 16:
-            dst[1] |= (u64)src[15] << 0; /* FALLTHROUGH */
-        case 15:
-            dst[1] |= (u64)src[14] << 8; /* FALLTHROUGH */
-        case 14:
-            dst[1] |= (u64)src[13] << 16; /* FALLTHROUGH */
-        case 13:
-            dst[1] |= (u64)src[12] << 24; /* FALLTHROUGH */
-        case 12:
-            dst[1] |= (u64)src[11] << 32; /* FALLTHROUGH */
-        case 11:
-            dst[1] |= (u64)src[10] << 40; /* FALLTHROUGH */
-        case 10:
-            dst[1] |= (u64)src[9] << 48; /* FALLTHROUGH */
-        case 9:
-            dst[1] |= (u64)src[8] << 56; /* FALLTHROUGH */
-        case 8:
-            dst[0] |= (u64)src[7] << 0; /* FALLTHROUGH */
-        case 7:
-            dst[0] |= (u64)src[6] << 8; /* FALLTHROUGH */
-        case 6:
-            dst[0] |= (u64)src[5] << 16; /* FALLTHROUGH */
-        case 5:
-            dst[0] |= (u64)src[4] << 24; /* FALLTHROUGH */
-        case 4:
-            dst[0] |= (u64)src[3] << 32; /* FALLTHROUGH */
-        case 3:
-            dst[0] |= (u64)src[2] << 40; /* FALLTHROUGH */
-        case 2:
-            dst[0] |= (u64)src[1] << 48; /* FALLTHROUGH */
-        case 1:
-            dst[0] |= (u64)src[0] << 56; /* FALLTHROUGH */
-        case 0:
-            break;
-    }
+    kdisc->kdisc[0] = be64toh(kdisc->kdisc[0]);
+    kdisc->kdisc[1] = be64toh(kdisc->kdisc[1]);
+    kdisc->kdisc[2] = be64toh(kdisc->kdisc[2]);
+    kdisc->kdisc[3] = be64toh(kdisc->kdisc[3]);
 }
 
 BullseyeCoverageSaveOff

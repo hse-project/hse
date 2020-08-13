@@ -62,10 +62,11 @@ key_immediate_cmp_full(const struct key_immediate *imm0, const struct key_immedi
 static __always_inline s32
 key_immediate_cmp(const struct key_immediate *imm0, const struct key_immediate *imm1)
 {
-    if (imm0->ki_data[0] < imm1->ki_data[0])
-        return -1;
-    if (imm0->ki_data[0] > imm1->ki_data[0])
-        return 1;
+    int sgn;
+
+    sgn = (imm0->ki_data[0] > imm1->ki_data[0]) - (imm0->ki_data[0] < imm1->ki_data[0]);
+    if (sgn)
+        return sgn;
 
     return key_immediate_cmp_full(imm0, imm1);
 }
@@ -121,7 +122,7 @@ key_full_cmp(
  * integer comparison and yield a lexicographic comparison.
  */
 struct key_disc {
-    u64 kdisc[3];
+    u64 kdisc[4];
 };
 
 /**
@@ -146,25 +147,21 @@ key_disc_init(const void *key, size_t len, struct key_disc *kdisc);
 static inline int
 key_disc_cmp(const struct key_disc *lhs, const struct key_disc *rhs)
 {
-    if (lhs->kdisc[0] > rhs->kdisc[0])
-        return 1;
+    int sgn;
 
-    if (lhs->kdisc[0] < rhs->kdisc[0])
-        return -1;
+    sgn = (lhs->kdisc[0] > rhs->kdisc[0]) - (lhs->kdisc[0] < rhs->kdisc[0]);
+    if (sgn)
+        return sgn;
 
-    if (lhs->kdisc[1] > rhs->kdisc[1])
-        return 1;
+    sgn = (lhs->kdisc[1] > rhs->kdisc[1]) - (lhs->kdisc[1] < rhs->kdisc[1]);
+    if (sgn)
+        return sgn;
 
-    if (lhs->kdisc[1] < rhs->kdisc[1])
-        return -1;
+    sgn = (lhs->kdisc[2] > rhs->kdisc[2]) - (lhs->kdisc[2] < rhs->kdisc[2]);
+    if (sgn)
+        return sgn;
 
-    if (lhs->kdisc[2] > rhs->kdisc[2])
-        return 1;
-
-    if (lhs->kdisc[2] < rhs->kdisc[2])
-        return -1;
-
-    return 0;
+    return (lhs->kdisc[3] > rhs->kdisc[3]) - (lhs->kdisc[3] < rhs->kdisc[3]);
 }
 
 /**

@@ -269,6 +269,8 @@ search:
                 mnode = node;
             node = rcu_dereference(node->bn_right);
         }
+
+        __builtin_prefetch(node);
     }
 
     return mnode ? mnode->bn_kv : NULL;
@@ -300,9 +302,9 @@ bn_insert_or_replace(
     oldroot = tree->br_root;
     flags = is_tomb ? BN_INSERT_FLAG_TOMB : 0;
 
-    newroot =
-        bn_insert_impl(tree, oldroot, &skey->bsk_key_imm, skey->bsk_key, sval, &tree->br_kv, flags);
-    if (ev(!newroot))
+    newroot = bn_insert_impl(tree, oldroot, &skey->bsk_key_imm, skey->bsk_key,
+                             sval, &tree->br_kv, flags);
+    if (!newroot)
         return merr(ENOMEM);
 
     bn_update_root_node(tree, oldroot, newroot);
