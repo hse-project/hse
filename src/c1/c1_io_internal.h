@@ -16,21 +16,15 @@ void
 c1_io_shutdown_threads(struct c1_io *io);
 
 merr_t
-c1_io_get_tree(
-    struct c1 *       c1,
-    struct c1_kvinfo *cki,
-    struct c1_tree ** out,
-    int *             idx,
-    u64 *             mutation,
-    int               type);
+c1_io_get_tree(struct c1 *c1, struct c1_kvinfo *cki, struct c1_tree **out, int *idx, u64 *mutation);
 
 merr_t
 c1_io_get_tree_txn(
-    struct c1 *       c1,
-    struct c1_kvinfo *cki,
-    struct c1_tree ** out,
-    int *             idx,
-    u64 *             mutation);
+    struct c1 *         c1,
+    struct c1_iterinfo *ci,
+    struct c1_tree **   out,
+    int *               idx,
+    u64 *               mutation);
 
 void
 c1_io_iter_kvbtxn(struct c1_io *io, struct c1_io_queue *q, u8 tidx);

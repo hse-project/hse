@@ -21,6 +21,7 @@ struct c1_journal {
     int               c1j_rdonly;
     u64               c1j_seqno;
     u32               c1j_gen;
+    atomic_t          c1j_treecnt;
     u64               c1j_oid1;
     u64               c1j_oid2;
     u64               c1j_resetseqno;

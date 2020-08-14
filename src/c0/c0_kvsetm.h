@@ -74,6 +74,12 @@ struct c0kvsm_info {
     s8                  c0s_mindex;
 };
 
+enum c0kvsm_mut_type {
+    C0KVSM_TYPE_TX = 0,
+    C0KVSM_TYPE_NONTX = 1,
+    C0KVSM_TYPE_BOTH = 2,
+};
+
 /**
  * c0kvsm_reset - Resets the c0kvs mutation info.
  * @ckm:
@@ -163,7 +169,7 @@ c0kvsm_copy_bkv(struct c0_kvset *c0kvs, struct c0kvsm_info *info, u8 mindex, boo
  * @istxn:
  */
 bool
-c0kvsm_has_kvmut(struct c0_kvset *c0kvs, u8 mindex, bool istxn);
+c0kvsm_has_kvmut(struct c0_kvset *c0kvs, u8 mindex, enum c0kvsm_mut_type type);
 
 /**
  * c0kvsm_get_kcnt - Get the number of bonsai_kv elements in the mutation list
@@ -172,7 +178,7 @@ c0kvsm_has_kvmut(struct c0_kvset *c0kvs, u8 mindex, bool istxn);
  * @istxn:
  */
 u32
-c0kvsm_get_kcnt(struct c0_kvset *c0kvs, u8 mindex, bool istxn);
+c0kvsm_get_kcnt(struct c0_kvset *c0kvs, u8 mindex, enum c0kvsm_mut_type type);
 
 /**
  * c0kvsm_get_vcnt - Get the number of mutated values
@@ -181,7 +187,13 @@ c0kvsm_get_kcnt(struct c0_kvset *c0kvs, u8 mindex, bool istxn);
  * @istxn:
  */
 u32
-c0kvsm_get_vcnt(struct c0_kvset *c0kvs, u8 mindex, bool istxn);
+c0kvsm_get_vcnt(struct c0_kvset *c0kvs, u8 mindex, enum c0kvsm_mut_type type);
+
+u64
+c0kvsm_get_ksize(struct c0_kvset *c0kvs, u8 mindex, enum c0kvsm_mut_type type);
+
+u64
+c0kvsm_get_vsize(struct c0_kvset *c0kvs, u8 mindex, enum c0kvsm_mut_type type);
 
 /**
  * c0kvsm_get_kvsize - Get the mutation size
@@ -191,13 +203,7 @@ c0kvsm_get_vcnt(struct c0_kvset *c0kvs, u8 mindex, bool istxn);
  * @txpsz:   tx pending size
  */
 u64
-c0kvsm_get_kvsize(
-    struct c0_kvset *c0kvs,
-    u8               mindex,
-    bool             istxn,
-    u64 *            txpsz,
-    u64 *            ksize,
-    u64 *            vsize);
+c0kvsm_get_kvsize(struct c0_kvset *c0kvs, u8 mindex, enum c0kvsm_mut_type type);
 
 /**
  * c0kvsm_get_minseq - Get the min. sequence number

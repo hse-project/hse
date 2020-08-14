@@ -45,6 +45,7 @@ c1_journal_create(
     jrnl->c1j_oid2 = oid2;
     jrnl->c1j_mp = mp;
     jrnl->c1j_mdc = NULL;
+    atomic_set(&jrnl->c1j_treecnt, 0);
     memset(&jrnl->c1j_pcset, 0, sizeof(jrnl->c1j_pcset));
     *out = jrnl;
 

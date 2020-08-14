@@ -269,9 +269,9 @@ void
 c0skm_set_tseqno(struct c0sk *handle, u64 seqno)
 {
     struct c0sk_mutation *c0skm;
-    struct c0sk_impl *self;
-    bool swapped;
-    u64 old;
+    struct c0sk_impl *    self;
+    bool                  swapped;
+    u64                   old;
 
     if (!handle)
         return;
@@ -364,7 +364,6 @@ c0skm_get_kvsize(struct c0sk_mutation *c0skm, size_t *sz_out)
             c0kvmsm_get_info(c0kvms, &info, &txinfo, true);
             first = 0;
             size += info.c0ms_kvbytes + txinfo.c0ms_kvbytes;
-            size += info.c0ms_kvpbytes + txinfo.c0ms_kvpbytes;
         } else {
             if (c0kvms_is_ingested(c0kvms) ||
                 (c0kvms_is_finalized(c0kvms) && !c0kvms_is_mutating(c0kvms)))
@@ -464,7 +463,7 @@ c0skm_ingest(struct c0sk_mutation *c0skm, u8 itype, u64 *gen)
      * scanning the list below.
      */
     nkvms = (fgen - lgen + 1) + C0_MUT_KVMS_MIN;
-    sz = nkvms * (sizeof(*c0kvmsv) + sizeof(* final));
+    sz = nkvms * (sizeof(*c0kvmsv) + sizeof(*final));
 
     c0kvmsv = malloc(sz);
     if (!c0kvmsv)
@@ -575,8 +574,7 @@ c0skm_ingest(struct c0sk_mutation *c0skm, u8 itype, u64 *gen)
     }
 
     if (cnt && itype == C1_INGEST_SYNC) {
-        sz = txinfo.c0ms_kvbytes + txinfo.c0ms_kvpbytes;
-        sz += info.c0ms_kvbytes + info.c0ms_kvpbytes;
+        sz = txinfo.c0ms_kvbytes + info.c0ms_kvbytes;
 
         atomic64_set(&c0skm->c0skm_ingest_sz, sz);
 

@@ -182,10 +182,13 @@ c1_log_issue_txn(
     int             sync);
 
 merr_t
-c1_log_reserve_space(struct c1_log *log, u64 rsvsz, u64 peeksz);
+c1_log_reserve_space(struct c1_log *log, u64 rsvsz, bool spare);
 
 u64
 c1_log_refresh_space(struct c1_log *log);
+
+bool
+c1_log_has_space(struct c1_log *log, u64 sz, u64 *rsvdsz);
 
 merr_t
 c1_log_make(

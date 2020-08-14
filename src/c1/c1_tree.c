@@ -36,7 +36,6 @@ c1_tree_create(
 
     INIT_LIST_HEAD(&tree->c1t_list);
     atomic_set(&tree->c1t_nextlog, 0);
-    atomic_set(&tree->c1t_txmeta_idx, 0);
     atomic64_set(&tree->c1t_mutation, 0);
     atomic64_set(&tree->c1t_rsvdspace, 0);
     tree->c1t_capacity = capacity;
@@ -176,8 +175,7 @@ c1_tree_make(struct c1_tree *tree)
     if (logsize < MB)
         return merr(ev(EINVAL));
 
-    if (logsize > HSE_C1_MAX_LOG_SIZE)
-        logsize = HSE_C1_MAX_LOG_SIZE;
+    logsize = clamp_t(u64, logsize, HSE_C1_MIN_LOG_SIZE, HSE_C1_MAX_LOG_SIZE);
 
     for (i = 0; i < numlogs; i++) {
         err = c1_log_make(
@@ -345,8 +343,7 @@ c1_tree_get_log_capacity(struct c1_tree *tree)
 
     logsize = tree->c1t_capacity / numlogs;
 
-    if (logsize > HSE_C1_MAX_LOG_SIZE)
-        logsize = HSE_C1_MAX_LOG_SIZE;
+    logsize = clamp_t(u64, logsize, HSE_C1_MIN_LOG_SIZE, HSE_C1_MAX_LOG_SIZE);
 
     return logsize;
 }
@@ -412,7 +409,7 @@ c1_tree_reserve_space_txn(struct c1_tree *tree, u64 size)
     u64 reserved;
 
     available = HSE_C1_TREE_USEABLE_CAPACITY(tree->c1t_capacity);
-    if (size >= available) {
+    if (size > available) {
         hse_log(
             HSE_ERR "c1_tree ingest size 0x%lx exceeded capacity 0x%lx",
             (unsigned long)size,
@@ -423,8 +420,10 @@ c1_tree_reserve_space_txn(struct c1_tree *tree, u64 size)
 
     reserved = atomic64_add_return(size, &tree->c1t_rsvdspace);
 
-    if (reserved >= available)
+    if (reserved > available) {
+        atomic64_sub(size, &tree->c1t_rsvdspace);
         return merr(ENOMEM);
+    }
 
     return 0;
 }
@@ -442,13 +441,7 @@ c1_tree_refresh_space(struct c1_tree *tree)
 }
 
 merr_t
-c1_tree_reserve_space(
-    struct c1_tree *tree,
-    u64             rsvsz,
-    int *           idx,
-    u64 *           mutation,
-    u64             peeksz,
-    bool            txmeta)
+c1_tree_reserve_space(struct c1_tree *tree, u64 rsvsz, int *idx, u64 *mutation, bool spare)
 {
     struct c1_log *log;
     int            i;
@@ -456,19 +449,13 @@ c1_tree_reserve_space(
     int            numlogs;
     merr_t         err;
 
-    if (peeksz == 0 && txmeta) {
-        *idx = atomic_read(&tree->c1t_txmeta_idx);
-        *mutation = atomic64_add_return(1, &tree->c1t_mutation);
-        return 0;
-    }
-
     numlogs = tree->c1t_stripe_width;
     nextlog = atomic_read(&tree->c1t_nextlog);
     nextlog %= numlogs;
 
     log = tree->c1t_log[nextlog];
 
-    err = c1_log_reserve_space(log, rsvsz, peeksz);
+    err = c1_log_reserve_space(log, rsvsz, spare);
     if (!err) {
         *idx = nextlog;
         goto exit_succ;
@@ -483,7 +470,7 @@ c1_tree_reserve_space(
 
         log = tree->c1t_log[i];
 
-        err = c1_log_reserve_space(log, rsvsz, peeksz);
+        err = c1_log_reserve_space(log, rsvsz, spare);
         if (!err) {
             *idx = i;
             goto exit_succ;
@@ -498,6 +485,69 @@ c1_tree_reserve_space(
 exit_succ:
     *mutation = atomic64_add_return(1, &tree->c1t_mutation);
     atomic_inc(&tree->c1t_nextlog);
+
+    return 0;
+}
+
+merr_t
+c1_tree_reserve_space_iter(
+    struct c1_tree *    tree,
+    u32                 kmetasz,
+    u32                 vmetasz,
+    u32                 kvbmetasz,
+    u64                 stripsz,
+    struct c1_iterinfo *ci)
+{
+    int i;
+    int nextlog;
+    int numlogs;
+    u64 rsvdsz[HSE_C1_DEFAULT_STRIPE_WIDTH] = {};
+
+    numlogs = tree->c1t_stripe_width;
+    nextlog = atomic_read(&tree->c1t_nextlog);
+    nextlog %= numlogs;
+
+    /*
+     * Simulate iter distribution across mlogs and determine if
+     * there's enough space to hold this mutation set.
+     */
+    for (i = 0; i < ci->ci_iterc; i++) {
+        struct c1_log *log;
+        u64            sz;
+        u32            kvbc;
+
+        if (ci->ci_iterv[i].ck_kcnt == 0)
+            continue;
+
+        log = tree->c1t_log[nextlog];
+
+        sz = ci->ci_iterv[i].ck_kvsz;
+        assert(stripsz);
+        kvbc = (sz / stripsz) + 1;
+        sz +=
+            (kmetasz * ci->ci_iterv[i].ck_kcnt + vmetasz * ci->ci_iterv[i].ck_vcnt +
+             kvbmetasz * kvbc);
+
+        assert(nextlog < HSE_C1_DEFAULT_STRIPE_WIDTH);
+        if (!c1_log_has_space(log, sz, &rsvdsz[nextlog])) {
+            int j = (nextlog + 1) % numlogs;
+
+            while (j != nextlog) {
+                log = tree->c1t_log[j];
+
+                assert(j < HSE_C1_DEFAULT_STRIPE_WIDTH);
+                if (c1_log_has_space(log, sz, &rsvdsz[j]))
+                    break;
+
+                j = (j + 1) % numlogs;
+            }
+
+            if (j == nextlog)
+                return merr(ENOSPC);
+        }
+
+        nextlog = (nextlog + 1) % numlogs;
+    }
 
     return 0;
 }
@@ -607,8 +657,8 @@ c1_tree_reset(struct c1_tree *tree, u64 newseqno, u32 newgen)
 }
 BullseyeCoverageRestore
 
-    merr_t
-    c1_tree_flush(struct c1_tree *tree)
+merr_t
+c1_tree_flush(struct c1_tree *tree)
 {
     int    i;
     int    numlogs;

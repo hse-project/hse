@@ -483,11 +483,11 @@ c1_io_next_tree(struct c1 *c1, struct c1_tree *cur)
 
 merr_t
 c1_io_get_tree_txn(
-    struct c1 *       c1,
-    struct c1_kvinfo *cki,
-    struct c1_tree ** out,
-    int *             idx,
-    u64 *             mutation)
+    struct c1 *         c1,
+    struct c1_iterinfo *ci,
+    struct c1_tree **   out,
+    int *               idx,
+    u64 *               mutation)
 {
     struct c1_tree *tree;
     struct c1_io *  io;
@@ -495,7 +495,7 @@ c1_io_get_tree_txn(
     merr_t err = 0;
     u32    recsz, kvbc;
     u64    ns, txsz;
-    bool   tx = true;
+    bool   spare, retry;
 
     io = c1->c1_io;
 
@@ -506,12 +506,13 @@ c1_io_get_tree_txn(
 
     /* Add the kvtuple, vtuple and kvb meta sz */
     assert(c1_ingest_stripsize(c1) != 0);
-    txsz = cki->ck_kvsz;
+    txsz = ci->ci_total.ck_kvsz;
     kvbc = (txsz / c1_ingest_stripsize(c1)) + 1;
     txsz +=
-        (io->c1io_kmetasz * cki->ck_kcnt + io->c1io_vmetasz * cki->ck_vcnt +
+        (io->c1io_kmetasz * ci->ci_total.ck_kcnt + io->c1io_vmetasz * ci->ci_total.ck_vcnt +
          io->c1io_kvbmetasz * kvbc);
 
+    spare = retry = false;
     while (1) {
         tree = c1_current_tree(c1);
         assert(tree != NULL);
@@ -520,35 +521,52 @@ c1_io_get_tree_txn(
          * both data and tx records.
          */
         err = c1_tree_reserve_space_txn(tree, txsz + recsz);
-        if (err && ev(merr_errno(err) != ENOMEM))
+        if (err && (ev(merr_errno(err) != ENOMEM) || retry)) {
+            hse_elog(
+                HSE_ERR "Unable to reserve mutation set size %lu in a c1 tree: @@e",
+                err,
+                txsz + recsz);
             return err;
+        }
 
         if (!err) {
-            /* If space was successfully reserved from c1 tree,
-             * then reserve it from mlog for the tx records.
-             */
-            err = c1_tree_reserve_space(tree, recsz, idx, mutation, txsz, tx);
-            if (!err)
-                break;
-
-            if (ev(merr_errno(err) != ENOMEM))
+            /* Reserve recsz first */
+            err = c1_tree_reserve_space(tree, recsz, idx, mutation, spare);
+            if (err && (ev(merr_errno(err) != ENOMEM) || retry))
                 return err;
 
-            /* If mlog reservation fails, then space has to be
-             * reserved again from a new c1 tree.
-             */
+            if (!err) {
+                /* Try reserving space for the mutation set by iter */
+                err = c1_tree_reserve_space_iter(
+                    tree,
+                    io->c1io_kmetasz,
+                    io->c1io_vmetasz,
+                    io->c1io_kvbmetasz,
+                    c1_ingest_stripsize(c1),
+                    ci);
+                if (ev(err) && retry) {
+                    hse_elog(
+                        HSE_ERR "Unable to reserve mutation set size %lu by iter: @@e", err, txsz);
+                    return err;
+                }
+
+                if (!err)
+                    break;
+            }
         }
+
+        assert(!retry);
 
         ns = perfc_lat_start(&io->c1io_pcset);
 
-        /* If either c1 tree or mlog reservation fails, retry with
-         * the next c1 tree.
-         */
+        /* If either c1 tree or mlog reservation fails, retry once with a new tree. */
         err = c1_io_next_tree(c1, tree);
         if (ev(err))
             return err;
         ns = perfc_lat_start(&io->c1io_pcset) - ns;
         perfc_rec_sample(&io->c1io_pcset, PERFC_DI_C1_TREE, ns);
+
+        retry = true;
     }
 
     *out = tree;
@@ -558,13 +576,7 @@ c1_io_get_tree_txn(
 }
 
 merr_t
-c1_io_get_tree(
-    struct c1 *       c1,
-    struct c1_kvinfo *cki,
-    struct c1_tree ** out,
-    int *             idx,
-    u64 *             mutation,
-    int               type)
+c1_io_get_tree(struct c1 *c1, struct c1_kvinfo *cki, struct c1_tree **out, int *idx, u64 *mutation)
 {
     struct c1_tree *tree;
     struct c1_io *  io;
@@ -587,14 +599,14 @@ c1_io_get_tree(
          io->c1io_kvbmetasz * kvbc);
 
     /* Reserve space from mlog. */
-    err = c1_tree_reserve_space(tree, kvsz, idx, mutation, 0, type != C1_TYPE_KVB);
+    err = c1_tree_reserve_space(tree, kvsz, idx, mutation, false);
     if (ev(err)) {
-        hse_log(HSE_WARNING "Reservation exceeded usable capacity, kvsz %lu, type %d", kvsz, type);
-
         /* Use from the spare tree capacity to finish logging this mutation set. */
-        err = c1_tree_reserve_space(tree, kvsz, idx, mutation, 0, type < C1_TYPE_END);
-        if (ev(err))
+        err = c1_tree_reserve_space(tree, kvsz, idx, mutation, true);
+        if (ev(err)) {
+            hse_elog(HSE_ERR "Reservation from spare failed, kvsz %lu :@@e", err, kvsz);
             return err;
+        }
     }
 
     *out = tree;
@@ -813,7 +825,7 @@ c1_issue_iter(
     mutex_lock(&io->c1io_space_mtx);
     perfc_rec_lat(&io->c1io_pcset, PERFC_LT_C1_IOSLK, cycles);
 
-    err = c1_io_get_tree(c1, cki, &q->c1q_tree, &q->c1q_idx, &q->c1q_mutation, C1_TYPE_KVB);
+    err = c1_io_get_tree(c1, cki, &q->c1q_tree, &q->c1q_idx, &q->c1q_mutation);
     if (ev(err)) {
         mutex_unlock(&io->c1io_space_mtx);
         free(q);
@@ -855,7 +867,7 @@ c1_issue_iter(
 }
 
 merr_t
-c1_io_txn_begin(struct c1 *c1, u64 txnid, struct c1_kvinfo *cki, int sync)
+c1_io_txn_begin(struct c1 *c1, u64 txnid, struct c1_iterinfo *ci, int sync)
 {
     struct c1_io_queue *q;
     struct c1_io *      io;
@@ -891,13 +903,11 @@ c1_io_txn_begin(struct c1 *c1, u64 txnid, struct c1_kvinfo *cki, int sync)
     mutex_lock(&io->c1io_space_mtx);
     perfc_rec_lat(&io->c1io_pcset, PERFC_LT_C1_IOSLK, cycles);
 
-    err = c1_io_get_tree_txn(c1, cki, &q->c1q_tree, &q->c1q_idx, &q->c1q_mutation);
+    err = c1_io_get_tree_txn(c1, ci, &q->c1q_tree, &q->c1q_idx, &q->c1q_mutation);
     if (ev(err)) {
         mutex_unlock(&io->c1io_space_mtx);
         goto err_exit;
     }
-
-    atomic_set(&q->c1q_tree->c1t_txmeta_idx, q->c1q_idx);
 
     txn->c1t_segno = q->c1q_tree->c1t_seqno;
     txn->c1t_gen = q->c1q_tree->c1t_gen;
@@ -974,7 +984,7 @@ c1_io_txn_commit(struct c1 *c1, u64 txnid, u64 seqno, int sync)
     perfc_rec_lat(&io->c1io_pcset, PERFC_LT_C1_IOSLK, cycles);
 
     cki.ck_kvsz = size;
-    err = c1_io_get_tree(c1, &cki, &q->c1q_tree, &q->c1q_idx, &q->c1q_mutation, C1_TYPE_TXN_COMMIT);
+    err = c1_io_get_tree(c1, &cki, &q->c1q_tree, &q->c1q_idx, &q->c1q_mutation);
     if (ev(err)) {
         mutex_unlock(&io->c1io_space_mtx);
         free(txn);
@@ -1115,7 +1125,7 @@ c1_io_txn_abort(struct c1 *c1, u64 txnid)
     perfc_rec_lat(&io->c1io_pcset, PERFC_LT_C1_IOSLK, cycles);
 
     cki.ck_kvsz = size;
-    err = c1_io_get_tree(c1, &cki, &q->c1q_tree, &q->c1q_idx, &q->c1q_mutation, C1_TYPE_TXN_ABORT);
+    err = c1_io_get_tree(c1, &cki, &q->c1q_tree, &q->c1q_idx, &q->c1q_mutation);
     if (ev(err)) {
         mutex_unlock(&io->c1io_space_mtx);
 

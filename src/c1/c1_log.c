@@ -88,8 +88,7 @@ c1_log_alloc(
 {
     struct c1_log *log;
     struct cheap * cheap[HSE_C1_DEFAULT_STRIPE_WIDTH];
-
-    int i;
+    int            i;
 
     log = malloc(sizeof(*log));
     if (!log)
@@ -315,8 +314,8 @@ c1_log_reset(struct c1_log *log, u64 newseqno, u64 newgen)
 }
 BullseyeCoverageRestore
 
-    merr_t
-    c1_log_flush(struct c1_log *log)
+merr_t
+c1_log_flush(struct c1_log *log)
 {
     merr_t err;
 
@@ -345,7 +344,7 @@ c1_log_set_capacity(struct c1_log *log, u64 size)
 }
 
 merr_t
-c1_log_reserve_space(struct c1_log *log, u64 rsvsz, u64 peeksz)
+c1_log_reserve_space(struct c1_log *log, u64 rsvsz, bool spare)
 {
     merr_t err;
     u64    available;
@@ -362,18 +361,20 @@ c1_log_reserve_space(struct c1_log *log, u64 rsvsz, u64 peeksz)
     if (ev(err))
         return err;
 
-    available = HSE_C1_LOG_USEABLE_CAPACITY(log->c1l_space);
-    if (rsvsz >= available) {
+    available = spare ? log->c1l_space : HSE_C1_LOG_USEABLE_CAPACITY(log->c1l_space);
+    if (rsvsz > available) {
         hse_log(
-            HSE_ERR "c1_log ingest rsvsz 0x%lx exceeded capacity 0x%lx",
+            HSE_ERR "c1 log sizing issue, reserve size %lu exceeds capacity %lu",
             (unsigned long)rsvsz,
             (unsigned long)available);
         return merr(ENOSPC);
     }
     reserved = atomic64_add_return(rsvsz, &log->c1l_rsvdspace);
 
-    if ((len >= available) || (reserved + peeksz >= available))
+    if ((len > available) || (reserved > available)) {
+        atomic64_sub(rsvsz, &log->c1l_rsvdspace);
         return merr(ENOMEM);
+    }
 
     return 0;
 }
@@ -391,6 +392,23 @@ c1_log_refresh_space(struct c1_log *log)
     atomic64_set(&log->c1l_rsvdspace, len);
 
     return len;
+}
+
+bool
+c1_log_has_space(struct c1_log *log, u64 sz, u64 *rsvdsz)
+{
+    u64 available;
+    u64 rsvd;
+
+    available = HSE_C1_LOG_USEABLE_CAPACITY(log->c1l_space);
+
+    rsvd = *rsvdsz ?: atomic64_read(&log->c1l_rsvdspace);
+    rsvd += sz;
+
+    if (rsvd <= available)
+        *rsvdsz = rsvd;
+
+    return rsvd <= available;
 }
 
 static void
@@ -574,7 +592,7 @@ c1_log_issue_kvb(
 
         if (ev(i > (numiov - HSE_C1_KEY_IOVS))) {
             err = merr(EINVAL);
-            hse_log(HSE_ERR "c1 ingest kv overflow %s:%d", __func__, __LINE__);
+            hse_log(HSE_ERR "%s: c1 ingest kv overflow: %d %lu", __func__, i, (u_long)numiov);
             assert(i <= (numiov - HSE_C1_KEY_IOVS));
             goto err_exit;
         }
@@ -615,7 +633,13 @@ c1_log_issue_kvb(
 
             if ((j >= kvb->c1kvb_vtcount) || (i >= numiov)) {
                 err = merr(ev(EINVAL));
-                hse_log(HSE_ERR "c1 ingest kv overflow %s:%d", __func__, __LINE__);
+                hse_log(
+                    HSE_ERR "%s: c1 ingest kv overflow: %d %lu, %d %u",
+                    __func__,
+                    i,
+                    (u_long)numiov,
+                    j,
+                    kvb->c1kvb_vtcount);
                 goto err_exit;
             }
 
