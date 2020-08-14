@@ -6,178 +6,114 @@
 #include <hse_util/platform.h>
 #include <hse_util/minmax.h>
 #include <hse_util/key_util.h>
+#include <hse/hse_limits.h>
 
+/* If you change the size of struct key_immediate then you'll need to update
+ * key_immediate_init(), key_imm_klen(), and key_immediate_cmp_full().
+ */
+_Static_assert(sizeof(struct key_immediate) == 32,
+               "size of key_immediate changed");
+
+/* If HSE_KVS_COUNT_MAX becomes larger than 256 then you'll need
+ * to update key_immediate_init() and key_immediate_index().
+ */
+_Static_assert(HSE_KVS_COUNT_MAX <= 256,
+               "HSE_KVS_COUNT_MAX larger than expected");
+
+
+/* This function may look expensive, but since the size of ki_data[]
+ * is known, fixed, and small the optimizer won't generate any calls
+ * to memset nor memcpy.
+ */
 void
 key_immediate_init(const void *key, size_t klen, u16 index, struct key_immediate *imm)
 {
-    const u8 *src = key;
-    u64 *     dst;
+    size_t dlen = klen;
 
-    dst = imm->ki_data;
-    dst[0] = (u64)index << 48;
-    dst[1] = 0;
+    if (dlen > KI_DLEN_MAX)
+        dlen = KI_DLEN_MAX;
 
-    imm->ki_dlen = KI_DLEN_MAX;
-    imm->ki_klen = klen;
+    memset(imm, 0, sizeof(*imm));
+    memcpy((char *)imm->ki_data + 1, key, dlen);
 
-    if (imm->ki_dlen > imm->ki_klen)
-        imm->ki_dlen = imm->ki_klen;
+    imm->ki_data[0] = be64toh(imm->ki_data[0]);
+    imm->ki_data[1] = be64toh(imm->ki_data[1]);
+    imm->ki_data[2] = be64toh(imm->ki_data[2]);
+    imm->ki_data[3] = be64toh(imm->ki_data[3]);
 
-    switch (imm->ki_dlen) {
-        default:
-        case 14:
-            dst[1] |= (u64)src[13] << 0; /* FALLTHROUGH */
-        case 13:
-            dst[1] |= (u64)src[12] << 8; /* FALLTHROUGH */
-        case 12:
-            dst[1] |= (u64)src[11] << 16; /* FALLTHROUGH */
-        case 11:
-            dst[1] |= (u64)src[10] << 24; /* FALLTHROUGH */
-        case 10:
-            dst[1] |= (u64)src[9] << 32; /* FALLTHROUGH */
-        case 9:
-            dst[1] |= (u64)src[8] << 40; /* FALLTHROUGH */
-        case 8:
-            dst[1] |= (u64)src[7] << 48; /* FALLTHROUGH */
-        case 7:
-            dst[1] |= (u64)src[6] << 56; /* FALLTHROUGH */
-                                         /* Note: dst[] index change here */
-        case 6:
-            dst[0] |= (u64)src[5] << 0; /* FALLTHROUGH */
-        case 5:
-            dst[0] |= (u64)src[4] << 8; /* FALLTHROUGH */
-        case 4:
-            dst[0] |= (u64)src[3] << 16; /* FALLTHROUGH */
-        case 3:
-            dst[0] |= (u64)src[2] << 24; /* FALLTHROUGH */
-        case 2:
-            dst[0] |= (u64)src[1] << 32; /* FALLTHROUGH */
-        case 1:
-            dst[0] |= (u64)src[0] << 40; /* FALLTHROUGH */
-        case 0:
-            break;
-    }
+    imm->ki_data[0] |= (u64)index << 56;
+    imm->ki_data[3] |= (dlen << 16) | klen;
 }
 
 s32
 key_immediate_cmp_full(const struct key_immediate *imm0, const struct key_immediate *imm1)
 {
-    if (imm0->ki_data[0] < imm1->ki_data[0])
-        return -1;
-    if (imm0->ki_data[0] > imm1->ki_data[0])
-        return 1;
-    if (imm0->ki_data[1] < imm1->ki_data[1])
-        return -1;
-    if (imm0->ki_data[1] > imm1->ki_data[1])
-        return 1;
+    /* The first comparison includes the skidx.
+     */
+    if (imm0->ki_data[0] != imm1->ki_data[0])
+        return (imm0->ki_data[0] < imm1->ki_data[0]) ? -1 : 1;
+
+    if (imm0->ki_data[1] != imm1->ki_data[1])
+        return (imm0->ki_data[1] < imm1->ki_data[1]) ? -1 : 1;
+
+    if (imm0->ki_data[2] != imm1->ki_data[2])
+        return (imm0->ki_data[2] < imm1->ki_data[2]) ? -1 : 1;
+
+    /* The final comparison includes the d-length but not the k-length.
+     */
+    if ((imm0->ki_data[3] >> 16) != (imm1->ki_data[3] >> 16))
+        return ((imm0->ki_data[3] >> 16) < (imm1->ki_data[3] >> 16)) ? -1 : 1;
 
     /* If there is more to compare, tell the caller by returning S32_MIN.
      * Since keys are limited to 1023 bytes at this layer, this can't
      * be a return value from this function other than in this case.
      */
-    if (imm0->ki_klen > imm0->ki_dlen && imm1->ki_klen > imm1->ki_dlen)
+    if (key_imm_klen(imm0) > KI_DLEN_MAX &&
+        key_imm_klen(imm1) > KI_DLEN_MAX)
         return S32_MIN;
 
     /* Otherwise, the result comes down to the key lengths. */
-    return (imm0->ki_klen - imm1->ki_klen);
+    return (key_imm_klen(imm0) - key_imm_klen(imm1));
 }
 
-s32
-key_full_cmp(
-    const struct key_immediate *imm0,
-    const void *                key0,
-    const struct key_immediate *imm1,
-    const void *                key1)
-{
-    s32 rc;
 
-    rc = key_immediate_cmp(imm0, imm1);
-    if (rc != S32_MIN)
-        return rc;
-
-    /* If memcmp returns 0, then either (1) keys are equal or (2)
-     * one key is a prefix of the other.  In either case returning
-     * len1-len2 results in desired behavior:
-     *
-     *   imm0->ki_klen == imm1->ki_klen --> return 0 (keys are equal).
-     *   imm0->ki_klen <  imm1->ki_klen --> return neg; (key1 < ken2).
-     *   imm0->ki_klen >  imm1->ki_klen --> return pos (key1 > key2).
-     *
-     * Note that we skip over most of the bytes (i.e., skip) that
-     * key_immediate_cmp() compared, while retaining the 8-byte
-     * alignment of the key pointers (see key_immediate_init()).
-     */
-    rc = memcmp(
-        key0 + KI_DLEN_MAX,
-        key1 + KI_DLEN_MAX,
-        min_t(u16, imm0->ki_klen, imm1->ki_klen) - KI_DLEN_MAX);
-
-    return rc == 0 ? (int)(imm0->ki_klen - imm1->ki_klen) : rc;
-}
+/* If you change the size of struct key_disc then you'll need
+ * to update key_disc_init() and key_disc_cmp().
+ */
+_Static_assert(sizeof(struct key_disc) == 32,
+               "size of key_disc changed");
 
 void
 key_disc_init(const void *key, size_t len, struct key_disc *kdisc)
 {
-    const u8 *src = key;
-    u64 *     dst = kdisc->kdisc;
+    if (len > sizeof(kdisc->kdisc))
+        len = sizeof(kdisc->kdisc);
 
-    dst[0] = 0;
-    dst[1] = 0;
-    dst[2] = 0;
+    memset(kdisc, 0, sizeof(*kdisc));
+    memcpy(kdisc->kdisc, key, len);
 
-    switch (len) {
-        default:
-        case 24:
-            dst[2] |= (u64)src[23] << 0; /* FALLTHROUGH */
-        case 23:
-            dst[2] |= (u64)src[22] << 8; /* FALLTHROUGH */
-        case 22:
-            dst[2] |= (u64)src[21] << 16; /* FALLTHROUGH */
-        case 21:
-            dst[2] |= (u64)src[20] << 24; /* FALLTHROUGH */
-        case 20:
-            dst[2] |= (u64)src[19] << 32; /* FALLTHROUGH */
-        case 19:
-            dst[2] |= (u64)src[18] << 40; /* FALLTHROUGH */
-        case 18:
-            dst[2] |= (u64)src[17] << 48; /* FALLTHROUGH */
-        case 17:
-            dst[2] |= (u64)src[16] << 56; /* FALLTHROUGH */
-        case 16:
-            dst[1] |= (u64)src[15] << 0; /* FALLTHROUGH */
-        case 15:
-            dst[1] |= (u64)src[14] << 8; /* FALLTHROUGH */
-        case 14:
-            dst[1] |= (u64)src[13] << 16; /* FALLTHROUGH */
-        case 13:
-            dst[1] |= (u64)src[12] << 24; /* FALLTHROUGH */
-        case 12:
-            dst[1] |= (u64)src[11] << 32; /* FALLTHROUGH */
-        case 11:
-            dst[1] |= (u64)src[10] << 40; /* FALLTHROUGH */
-        case 10:
-            dst[1] |= (u64)src[9] << 48; /* FALLTHROUGH */
-        case 9:
-            dst[1] |= (u64)src[8] << 56; /* FALLTHROUGH */
-        case 8:
-            dst[0] |= (u64)src[7] << 0; /* FALLTHROUGH */
-        case 7:
-            dst[0] |= (u64)src[6] << 8; /* FALLTHROUGH */
-        case 6:
-            dst[0] |= (u64)src[5] << 16; /* FALLTHROUGH */
-        case 5:
-            dst[0] |= (u64)src[4] << 24; /* FALLTHROUGH */
-        case 4:
-            dst[0] |= (u64)src[3] << 32; /* FALLTHROUGH */
-        case 3:
-            dst[0] |= (u64)src[2] << 40; /* FALLTHROUGH */
-        case 2:
-            dst[0] |= (u64)src[1] << 48; /* FALLTHROUGH */
-        case 1:
-            dst[0] |= (u64)src[0] << 56; /* FALLTHROUGH */
-        case 0:
-            break;
-    }
+    kdisc->kdisc[0] = be64toh(kdisc->kdisc[0]);
+    kdisc->kdisc[1] = be64toh(kdisc->kdisc[1]);
+    kdisc->kdisc[2] = be64toh(kdisc->kdisc[2]);
+    kdisc->kdisc[3] = be64toh(kdisc->kdisc[3]);
+}
+
+int
+key_disc_cmp(const struct key_disc *lhs, const struct key_disc *rhs)
+{
+    if (lhs->kdisc[0] != rhs->kdisc[0])
+        return (lhs->kdisc[0] < rhs->kdisc[0]) ? -1 : 1;
+
+    if (lhs->kdisc[1] != rhs->kdisc[1])
+        return (lhs->kdisc[1] < rhs->kdisc[1]) ? -1 : 1;
+
+    if (lhs->kdisc[2] != rhs->kdisc[2])
+        return (lhs->kdisc[2] < rhs->kdisc[2]) ? -1 : 1;
+
+    if (lhs->kdisc[3] != rhs->kdisc[3])
+        return (lhs->kdisc[3] < rhs->kdisc[3]) ? -1 : 1;
+
+    return 0;
 }
 
 BullseyeCoverageSaveOff

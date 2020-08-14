@@ -9,6 +9,7 @@
 #include <hse_util/minmax.h>
 #include <hse_util/key_util.h>
 
+#include <stdlib.h>
 #include <string.h>
 
 MTF_BEGIN_UTEST_COLLECTION(key_util_test);
@@ -71,18 +72,22 @@ MTF_DEFINE_UTEST(key_util_test, check_key_immediate_index)
     u32                  res;
     int                  i;
 
-    for (i = 0; i < 65536; ++i) {
+    for (i = 0; i < HSE_KVS_COUNT_MAX; ++i) {
         key_immediate_init(key, key_len, i, &key_imm);
         res = key_immediate_index(&key_imm);
         ASSERT_EQ(i, res);
     }
 }
 
-u16 index0_array[] = { 0, 1, 3, 7, 11, 171, 293, 512, 513 };
+u16 index0_array[] = {
+    0, 1, 2, 3, 7, 8, 9, 12, 15, 16, 17, 31, 32, 33, 63, 64, 65,
+    HSE_KVS_COUNT_MAX / 2 - 1, HSE_KVS_COUNT_MAX / 2, HSE_KVS_COUNT_MAX / 2 + 1,
+    HSE_KVS_COUNT_MAX - 2, HSE_KVS_COUNT_MAX - 1
+};
 
-MTF_DEFINE_IVALUES(idx0, 9, index0_array)
-MTF_DEFINE_IRANGE(idx1, 0, 100)
-MTF_DEFINE_IRANGE_STEP(idx2, (13 << 8), (251 << 8), 73)
+MTF_DEFINE_IVALUES(idx0, NELEM(index0_array), index0_array)
+MTF_DEFINE_IRANGE(idx1, 0, HSE_KVS_COUNT_MAX)
+MTF_DEFINE_IRANGE_STEP(idx2, 0, HSE_KVS_COUNT_MAX, 1)
 
 MTF_DEFINE_UTEST_CP2(
     key_util_test,
@@ -100,6 +105,18 @@ MTF_DEFINE_UTEST_CP2(
     size_t               k1_len = strlen(k1);
     struct key_immediate im0, im1;
     int                  res;
+
+    if (idx0 >= HSE_KVS_COUNT_MAX) {
+        printf("%s: idx0 %u >= HSE_KVS_COUNT_MAX %u\n",
+               __func__, idx0, HSE_KVS_COUNT_MAX);
+        ASSERT_LT(idx0, HSE_KVS_COUNT_MAX);
+    }
+
+    if (idx1 >= HSE_KVS_COUNT_MAX) {
+        printf("%s: idx1 %u >= HSE_KVS_COUNT_MAX %u\n",
+               __func__, idx1, HSE_KVS_COUNT_MAX);
+        ASSERT_LT(idx1, HSE_KVS_COUNT_MAX);
+    }
 
     key_immediate_init(k0, k0_len, idx0, &im0);
     key_immediate_init(k1, k1_len, idx1, &im1);
@@ -124,16 +141,55 @@ MTF_DEFINE_UTEST_CP2(
     u16,
     idx2)
 {
-    const char *         k0 = "batman";
-    size_t               k0_len = strlen(k0);
-    const char *         k1 = "batman";
-    size_t               k1_len = strlen(k1);
+    static __thread bool inited;
+    u8 key[KI_DLEN_MAX + 7];
+    size_t klen;
     struct key_immediate im0, im1;
     int                  res;
 
-    key_immediate_init(k0, k0_len, idx0, &im0);
-    key_immediate_init(k1, k1_len, idx2, &im1);
-    res = key_full_cmp(&im0, k0, &im1, k1);
+    if (!inited) {
+        srandom(time(NULL));
+        inited = true;
+    }
+
+    if (idx0 >= HSE_KVS_COUNT_MAX) {
+        printf("%s: idx0 %u >= HSE_KVS_COUNT_MAX %u\n",
+               __func__, idx0, HSE_KVS_COUNT_MAX);
+        ASSERT_LT(idx0, HSE_KVS_COUNT_MAX);
+    }
+
+    if (idx2 >= HSE_KVS_COUNT_MAX) {
+        printf("%s: idx2 %u >= HSE_KVS_COUNT_MAX %u\n",
+               __func__, idx2, HSE_KVS_COUNT_MAX);
+        ASSERT_LT(idx2, HSE_KVS_COUNT_MAX);
+    }
+
+    /* All key bytes derive from idx0...
+     */
+    klen = (random() % sizeof(key)) + 1;
+    memset(key, idx0, klen);
+
+    key_immediate_init(key, klen, idx0, &im0);
+    key_immediate_init(key, klen, idx2, &im1);
+
+    res = key_full_cmp(&im0, key, &im1, key);
+
+    if (idx0 < idx2)
+        ASSERT_LT(res, 0);
+    else if (idx2 < idx0)
+        ASSERT_GT(res, 0);
+    else
+        ASSERT_EQ(0, res);
+
+    /* All key bytes derive from idx2...
+     */
+    klen = (random() % sizeof(key)) + 1;
+    memset(key, idx2, klen);
+
+    key_immediate_init(key, klen, idx0, &im0);
+    key_immediate_init(key, klen, idx2, &im1);
+
+    res = key_full_cmp(&im0, key, &im1, key);
 
     if (idx0 < idx2)
         ASSERT_LT(res, 0);
@@ -152,6 +208,18 @@ MTF_DEFINE_UTEST_CP2(key_util_test, vary_index3, MTF_ST_IRANGE, u16, idx1, MTF_S
     size_t               k1_len = strlen(k1);
     struct key_immediate im0, im1;
     int                  res;
+
+    if (idx1 >= HSE_KVS_COUNT_MAX) {
+        printf("%s: idx1 %u >= HSE_KVS_COUNT_MAX %u\n",
+               __func__, idx1, HSE_KVS_COUNT_MAX);
+        ASSERT_LT(idx1, HSE_KVS_COUNT_MAX);
+    }
+
+    if (idx2 >= HSE_KVS_COUNT_MAX) {
+        printf("%s: idx2 %u >= HSE_KVS_COUNT_MAX %u\n",
+               __func__, idx2, HSE_KVS_COUNT_MAX);
+        ASSERT_LT(idx2, HSE_KVS_COUNT_MAX);
+    }
 
     key_immediate_init(k0, k0_len, idx1, &im0);
     key_immediate_init(k1, k1_len, idx2, &im1);

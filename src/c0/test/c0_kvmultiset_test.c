@@ -302,7 +302,7 @@ MTF_DEFINE_UTEST_PREPOST(c0_kvmultiset_test, ingest_sk, no_fail_pre, no_fail_pos
         ++keys_out;
 
         kt.kt_data = bkv->bkv_key;
-        kt.kt_len = bkv->bkv_key_imm.ki_klen;
+        kt.kt_len = key_imm_klen(&bkv->bkv_key_imm);
         skidx = key_immediate_index(&bkv->bkv_key_imm);
 
         vt.vt_len = val->bv_vlen;

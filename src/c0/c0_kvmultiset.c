@@ -469,6 +469,7 @@ c0kvms_cursor_skip_pfx(struct c0_kvmultiset_cursor *cur, struct bonsai_kv *pt_bk
 {
     struct element_source *   pt_es = pt_bkv->bkv_es;
     struct c0_kvset_iterator *iter;
+    u32                       klen;
     int                       i;
     s64                       rc;
 
@@ -481,9 +482,11 @@ c0kvms_cursor_skip_pfx(struct c0_kvmultiset_cursor *cur, struct bonsai_kv *pt_bk
      * that matches. If not, skip seeking this kvms.
      */
 
+    klen = key_imm_klen(&pt_bkv->bkv_key_imm);
     iter = cur->c0mc_iterv;
+
     for (i = 0; i < cur->c0mc_iterc; ++i)
-        c0_kvset_iterator_skip_pfx(iter++, pt_bkv->bkv_key, pt_bkv->bkv_key_imm.ki_klen, 0);
+        c0_kvset_iterator_skip_pfx(iter++, pt_bkv->bkv_key, klen, 0);
 
     c0kvms_cursor_prepare(cur);
 
@@ -683,7 +686,7 @@ c0kvms_cursor_update(struct c0_kvmultiset_cursor *cur, void *key, u32 klen, u32 
      */
     if (bin_heap2_peek(cur->c0mc_bh, (void **)&bkv)) {
         if (bkv->bkv_es != cur->c0mc_esrcv[0] &&
-            !keycmp(key, klen, bkv->bkv_key, bkv->bkv_key_imm.ki_klen))
+            !keycmp(key, klen, bkv->bkv_key, key_imm_klen(&bkv->bkv_key_imm)))
             bin_heap2_pop(cur->c0mc_bh, (void **)&bkv);
     }
 
@@ -766,7 +769,7 @@ BullseyeCoverageSaveOff
 
         bin_heap2_pop(cur.c0mc_bh, &item);
         kv = item;
-        len = kv->bkv_key_imm.ki_klen;
+        len = key_imm_klen(&kv->bkv_key_imm);
 
         if (key_immediate_index(&kv->bkv_key_imm) != cur.c0mc_skidx)
             continue;

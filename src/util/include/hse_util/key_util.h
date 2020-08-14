@@ -10,7 +10,11 @@
 #include <hse_util/minmax.h>
 #include <hse_util/assert.h>
 
-#define KI_DLEN_MAX (14)
+/* Max number of a key's bytes that we can store in a key_immediate
+ * minus 4 (i.e., the skidx byte + dlen byte + two bytes used to
+ * store the full key length).
+ */
+#define KI_DLEN_MAX     (sizeof(((struct key_immediate *)0)->ki_data) - 4)
 
 /**
  * struct key_immediate - compact representation of part of a key & its length
@@ -20,27 +24,43 @@
  * where it will be placed within the Bonsai tree node structure.  The layout
  * of this structure should not be altered w/o careful consideration.
  *
- * @ki_data:           array of 8-byte buffers
- * @ki_dlen:           length of key data di_data[]
- * @ki_klen:           total length of the real key
+ * ki_data[] is treated as an array of bytes, and from a big endian view
+ * is encoded as follows:
+ *
+ * byte offset:  [    0] [1.................28] [  29] [      30] [      31]
+ * purpose:      [skidx] [first n bytes of key] [dlen] [klen MSB] [klen LSB]
+ *
+ * where "dlen" is the length of the first n bytes of the key that will fit
+ * in the key immediate, and "klen" is the full length of the key.
+ *
+ * key_immediate_init() encodes the above into host byte order such
+ * that we can quickly compare keys via simple integer comparison of
+ * the ki_data[] array elements.
+ *
+ * @ki_data:  array of bytes
  */
 struct key_immediate {
-    u64 ki_data[2];
-    u16 ki_dlen;
-    u16 ki_klen;
+    u64 ki_data[4];
 };
+
 
 static inline u32
 key_immediate_index(const struct key_immediate *imm)
 {
-    return imm->ki_data[0] >> 48;
+    return imm->ki_data[0] >> 56;
+}
+
+static inline u32
+key_imm_klen(const struct key_immediate *imm)
+{
+    return imm->ki_data[3] & 0xfffful;
 }
 
 /**
  * key_immediate_init() - Initialize key_immediate from given key & index
- * @key:       Key to delete
+ * @key:       Key to encode
  * @key_len:   Key length
- * @index:     Index to use
+ * @index:     Index of kvs
  * @immediate: Pointer to struct key_immediate to fill out
  */
 void
@@ -52,23 +72,14 @@ key_immediate_cmp_full(const struct key_immediate *imm0, const struct key_immedi
 static __always_inline s32
 key_immediate_cmp(const struct key_immediate *imm0, const struct key_immediate *imm1)
 {
-    if (imm0->ki_data[0] < imm1->ki_data[0])
-        return -1;
-    if (imm0->ki_data[0] > imm1->ki_data[0])
-        return 1;
+    if (imm0->ki_data[0] != imm1->ki_data[0])
+        return (imm0->ki_data[0] < imm1->ki_data[0]) ? -1 : 1;
 
     return key_immediate_cmp_full(imm0, imm1);
 }
 
-s32
-key_full_cmp(
-    const struct key_immediate *imm0,
-    const void *                key0,
-    const struct key_immediate *imm1,
-    const void *                key1);
-
 /**
- * inner_key_cmp() - lexicographic key comparator
+ * key_inner_cmp() - lexicographic key comparator
  * key0:        key data ptr
  * key0_len     key0 data length
  * key1:        key data ptr
@@ -83,11 +94,30 @@ key_full_cmp(
  *   len1 >  len2 --> return pos (key1 > key2).
  */
 static inline int
-inner_key_cmp(const void *key0, int key0_len, const void *key1, int key1_len)
+key_inner_cmp(const void *key0, int key0_len, const void *key1, int key1_len)
 {
     int rc = memcmp(key0, key1, min(key0_len, key1_len));
 
-    return rc == 0 ? key0_len - key1_len : rc;
+    return rc ? rc : (key0_len - key1_len);
+}
+
+static inline s32
+key_full_cmp(
+    const struct key_immediate *imm0,
+    const void *                key0,
+    const struct key_immediate *imm1,
+    const void *                key1)
+{
+    s32 rc;
+
+    rc = key_immediate_cmp(imm0, imm1);
+
+    if (rc == S32_MIN)
+        rc = key_inner_cmp(
+            key0 + KI_DLEN_MAX, key_imm_klen(imm0) - KI_DLEN_MAX,
+            key1 + KI_DLEN_MAX, key_imm_klen(imm1) - KI_DLEN_MAX);
+
+    return rc;
 }
 
 /**
@@ -99,7 +129,7 @@ inner_key_cmp(const void *key0, int key0_len, const void *key1, int key1_len)
  * integer comparison and yield a lexicographic comparison.
  */
 struct key_disc {
-    u64 kdisc[3];
+    u64 kdisc[4];
 };
 
 /**
@@ -121,29 +151,8 @@ key_disc_init(const void *key, size_t len, struct key_disc *kdisc);
  *  1:  %lhs sorts lexicographically greater than %rhs
  *  0:  %lhs equals %rhs
  */
-static inline int
-key_disc_cmp(const struct key_disc *lhs, const struct key_disc *rhs)
-{
-    if (lhs->kdisc[0] > rhs->kdisc[0])
-        return 1;
-
-    if (lhs->kdisc[0] < rhs->kdisc[0])
-        return -1;
-
-    if (lhs->kdisc[1] > rhs->kdisc[1])
-        return 1;
-
-    if (lhs->kdisc[1] < rhs->kdisc[1])
-        return -1;
-
-    if (lhs->kdisc[2] > rhs->kdisc[2])
-        return 1;
-
-    if (lhs->kdisc[2] < rhs->kdisc[2])
-        return -1;
-
-    return 0;
-}
+int
+key_disc_cmp(const struct key_disc *lhs, const struct key_disc *rhs);
 
 /**
  * memlcp() - return longest common prefix

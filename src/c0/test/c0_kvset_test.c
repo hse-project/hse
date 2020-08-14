@@ -521,7 +521,7 @@ MTF_DEFINE_UTEST_PREPOST(c0_kvset_test, advanced_repeated_put, no_fail_pre, no_f
     ASSERT_EQ(true, found);
 
     tr_keys++;
-    tr_key_bytes += bkv->bkv_key_imm.ki_klen;
+    tr_key_bytes += key_imm_klen(&bkv->bkv_key_imm);
 
     val = bkv->bkv_values;
     ASSERT_NE(0, val);
@@ -532,14 +532,14 @@ MTF_DEFINE_UTEST_PREPOST(c0_kvset_test, advanced_repeated_put, no_fail_pre, no_f
         tr_val_bytes += val->bv_vlen;
 
     last_key = bkv->bkv_key;
-    last_key_len = bkv->bkv_key_imm.ki_klen;
+    last_key_len = key_imm_klen(&bkv->bkv_key_imm);
 
     /* loop over the elements in order */
     while (source->es_get_next(source, (void *)&bkv)) {
         int rc;
 
         key = bkv->bkv_key;
-        key_len = bkv->bkv_key_imm.ki_klen;
+        key_len = key_imm_klen(&bkv->bkv_key_imm);
 
         val = bkv->bkv_values;
         ASSERT_NE(0, val);
@@ -989,7 +989,7 @@ MTF_DEFINE_UTEST_PREPOST(c0_kvset_test, iterator, no_fail_pre, no_fail_post)
         source = c0_kvset_iterator_get_es(&iter);
 
         for (c = 'b'; source->es_get_next(source, (void *)&bkv); ++c) {
-            u16 klen = bkv->bkv_key_imm.ki_klen;
+            u16 klen = key_imm_klen(&bkv->bkv_key_imm);
 
             ASSERT_EQ(1, klen);
             ASSERT_EQ(c, bkv->bkv_key[0]);
@@ -1010,7 +1010,7 @@ MTF_DEFINE_UTEST_PREPOST(c0_kvset_test, iterator, no_fail_pre, no_fail_post)
         source = c0_kvset_iterator_get_es(&iter);
 
         for (c = 'y'; source->es_get_next(source, (void *)&bkv); --c) {
-            u16 klen = bkv->bkv_key_imm.ki_klen;
+            u16 klen = key_imm_klen(&bkv->bkv_key_imm);
 
             ASSERT_EQ(1, klen);
             ASSERT_EQ(c, bkv->bkv_key[0]);

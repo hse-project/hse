@@ -334,7 +334,7 @@ c0kvsm_add_txpend(
     size_t sfx_len;
     size_t hashlen;
 
-    klen = bkv->bkv_key_imm.ki_klen;
+    klen = key_imm_klen(&bkv->bkv_key_imm);
     set = c0skm_get_perfc_kv(c0skm);
     cn = c0sk_get_cn(c0skm->c0skm_c0skh, skidx);
     sfx_len = cn_get_sfx_len(cn);
@@ -353,7 +353,7 @@ c0kvsm_add_txpend(
     if (s_list_empty(&bkv->bkv_txpend)) {
         s_list_add_tail(&bkv->bkv_txpend, &ckmp->c0m_tail);
         ++ckmp->c0m_kcnt;
-        ckmp->c0m_ksize += bkv->bkv_key_imm.ki_klen;
+        ckmp->c0m_ksize += key_imm_klen(&bkv->bkv_key_imm);
         perfc_inc(set, PERFC_BA_C0SKM_KVKPN);
     }
 

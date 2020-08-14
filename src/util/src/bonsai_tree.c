@@ -112,14 +112,7 @@ bn_insert_impl(
         return node;
     }
 
-    res = key_immediate_cmp(key_imm, &node->bn_key_imm);
-    if (res == S32_MIN)
-        res = inner_key_cmp(
-            key + key_imm->ki_dlen,
-            key_imm->ki_klen - key_imm->ki_dlen,
-            node->bn_kv->bkv_key + node->bn_key_imm.ki_dlen,
-            node->bn_key_imm.ki_klen - node->bn_key_imm.ki_dlen);
-
+    res = key_full_cmp(key_imm, key, &node->bn_key_imm, node->bn_kv->bkv_key);
     if (res < 0) {
         ins = bn_insert_impl(
             tree, node->bn_left, key_imm, key, sval, node->bn_kv, flags & ~BN_INSERT_FLAG_RIGHT);
@@ -159,7 +152,7 @@ bn_find_next_pfx(struct bonsai_root *tree, const struct bonsai_skey *skey)
 
     ki = &skey->bsk_key_imm;
     key = skey->bsk_key;
-    klen = ki->ki_klen;
+    klen = key_imm_klen(ki);
     skidx = key_immediate_index(ki);
 
     node = rcu_dereference(tree->br_root);
@@ -170,7 +163,7 @@ bn_find_next_pfx(struct bonsai_root *tree, const struct bonsai_skey *skey)
 
         res = skidx - node_skidx;
         if (res == 0)
-            res = inner_key_cmp(key, klen, node->bn_kv->bkv_key, klen);
+            res = key_inner_cmp(key, klen, node->bn_kv->bkv_key, klen);
 
         if (res < 0) {
             mnode = node;
@@ -196,7 +189,7 @@ bn_find_impl(struct bonsai_root *tree, const struct bonsai_skey *skey, enum bons
 
     ki = &skey->bsk_key_imm;
     key = skey->bsk_key;
-    klen = ki->ki_klen;
+    klen = key_imm_klen(ki);
     lcp = KI_DLEN_MAX;
 
     /* Once the tree has been finalized we can safely compare the
@@ -255,13 +248,13 @@ search:
     while (node) {
         res = key_immediate_cmp(ki, &node->bn_key_imm);
         if (unlikely(res == S32_MIN)) {
-            assert(node->bn_key_imm.ki_klen >= lcp);
+            assert(key_imm_klen(&node->bn_key_imm) >= lcp);
 
             /* At this point we are assured that both keys'
              * ki_dlen are greater than KI_DLEN_MAX.
              */
-            res = inner_key_cmp(
-                key, klen, node->bn_kv->bkv_key + lcp, node->bn_key_imm.ki_klen - lcp);
+            res = key_inner_cmp(
+                key, klen, node->bn_kv->bkv_key + lcp, key_imm_klen(&node->bn_key_imm) - lcp);
         }
 
         if (unlikely(res == 0))
@@ -276,6 +269,8 @@ search:
                 mnode = node;
             node = rcu_dereference(node->bn_right);
         }
+
+        __builtin_prefetch(node, 0, 2);
     }
 
     return mnode ? mnode->bn_kv : NULL;
@@ -307,9 +302,9 @@ bn_insert_or_replace(
     oldroot = tree->br_root;
     flags = is_tomb ? BN_INSERT_FLAG_TOMB : 0;
 
-    newroot =
-        bn_insert_impl(tree, oldroot, &skey->bsk_key_imm, skey->bsk_key, sval, &tree->br_kv, flags);
-    if (ev(!newroot))
+    newroot = bn_insert_impl(tree, oldroot, &skey->bsk_key_imm, skey->bsk_key,
+                             sval, &tree->br_kv, flags);
+    if (!newroot)
         return merr(ENOMEM);
 
     bn_update_root_node(tree, oldroot, newroot);
@@ -496,7 +491,7 @@ bn_finalize(struct bonsai_root *tree)
      * of work required to find a key in TreeBB_Find().
      */
     if (kmin != kmax) {
-        lcp = min_t(uint, kmin->bkv_key_imm.ki_klen, kmax->bkv_key_imm.ki_klen);
+        lcp = min_t(uint, key_imm_klen(&kmin->bkv_key_imm), key_imm_klen(&kmax->bkv_key_imm));
 
         if (lcp > KI_DLEN_MAX &&
             key_immediate_index(&kmin->bkv_key_imm) == key_immediate_index(&kmax->bkv_key_imm)) {
