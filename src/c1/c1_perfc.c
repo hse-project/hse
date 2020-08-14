@@ -44,19 +44,8 @@ struct perfc_name c1_perfc_io[] = {
     NE(PERFC_RA_C1_IOQUE, 3, "Rate of c1 io queued", "c_ioq(/s)"),
     NE(PERFC_RA_C1_IOPRO, 3, "Rate of c1 io processed", "c_iop(/s)"),
     NE(PERFC_LT_C1_IOQUE, 3, "c1 io wait time", "l_ioq(ns)"),
-    NE(PERFC_LT_C1_IOQLK, 3, "c1 io q lock wait time", "l_iql(ns)", 10),
-    NE(PERFC_LT_C1_IOSLK, 3, "c1 space lock wait time", "l_isl(ns)", 10),
     NE(PERFC_LT_C1_IOPRO, 3, "c1 io processing time", "l_iop(ns)"),
     NE(PERFC_BA_C1_IOERR, 3, "Count of c1 io errors", "c_ioerr"),
-    NE(PERFC_BA_C1_IOMBK, 3, "Count of c1 mblk ios", "c_iombk"),
-    NE(PERFC_BA_C1_IOMLG, 3, "Count of c1 mlog ios", "c_iombc"),
-    NE(PERFC_DI_C1_IOMBK, 3, "Latency of c1 mblk ios", "l_mbk(ns)"),
-    NE(PERFC_DI_C1_IOMLG, 3, "Latency of c1 mlog ios", "l_mlg(ns)", 10),
-    NE(PERFC_LT_C1_MLGFL, 3, "Lat. of c1 mlog flushes", "l_mlf(ns)"),
-    NE(PERFC_LT_C1_MB1FL, 3, "mblk interim flush lat.", "l_mb1(ns)", 10),
-    NE(PERFC_LT_C1_MB2FL, 3, "mblk final flush lat.", "l_mb2(ns)", 10),
-    NE(PERFC_DI_C1_IOVSZ, 3, "value size in pipeline", "c_valsz"),
-    NE(PERFC_DI_C1_TREE, 3, "Latency of tree alloc", "l_tree(ns)"),
 };
 
 NE_CHECK(c1_perfc_io, PERFC_EN_C1IO, "c1 perfc io table/enum mismatch");
@@ -75,42 +64,11 @@ NE_CHECK(c1_perfc_tree, PERFC_EN_C1TREE, "c1 perfc tree table/enum mismatch");
 void
 c1_perfc_init(void)
 {
-    struct perfc_ivl *ivl;
-
-    merr_t err;
-    int    i;
-    u64    boundv[PERFC_IVL_MAX];
-
-    /* Allocate interval instance for the distribution counters (pow2). */
-    boundv[0] = 1;
-    for (i = 1; i < PERFC_IVL_MAX; i++)
-        boundv[i] = boundv[i - 1] * 2;
-
-    err = perfc_ivl_create(PERFC_IVL_MAX, boundv, &ivl);
-    if (err) {
-        hse_elog(HSE_WARNING "c1 perfc, unable to allocate pow2 ivl: @@e", err);
-        return;
-    }
-
-    c1_perfc_io[PERFC_DI_C1_IOMLG].pcn_ivl = ivl;
-    c1_perfc_io[PERFC_DI_C1_IOMBK].pcn_ivl = ivl;
-    c1_perfc_io[PERFC_DI_C1_IOVSZ].pcn_ivl = ivl;
-    c1_perfc_io[PERFC_DI_C1_TREE].pcn_ivl = ivl;
 }
 
 void
 c1_perfc_fini(void)
 {
-    const struct perfc_ivl *ivl;
-
-    ivl = c1_perfc_io[PERFC_DI_C1_IOMLG].pcn_ivl;
-    if (ivl) {
-        c1_perfc_io[PERFC_DI_C1_IOMLG].pcn_ivl = NULL;
-        c1_perfc_io[PERFC_DI_C1_IOMBK].pcn_ivl = NULL;
-        c1_perfc_io[PERFC_DI_C1_IOVSZ].pcn_ivl = NULL;
-        c1_perfc_io[PERFC_DI_C1_TREE].pcn_ivl = NULL;
-        perfc_ivl_destroy(ivl);
-    }
 }
 
 static merr_t

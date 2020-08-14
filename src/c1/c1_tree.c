@@ -563,8 +563,7 @@ c1_tree_issue_kvb(
     u64                           mutation,
     struct c1_kvbundle *          kvb,
     int                           sync,
-    u8                            tidx,
-    struct c1_log_stats *         statsp)
+    u8                            tidx)
 {
     struct c1_log *log;
     u64            seqno;
@@ -576,7 +575,7 @@ c1_tree_issue_kvb(
     log = tree->c1t_log[idx];
 
     return c1_log_issue_kvb(
-        log, vbldr, ingestid, vsize, kvb, seqno, txnid, gen, mutation, sync, tidx, statsp);
+        log, vbldr, ingestid, vsize, kvb, seqno, txnid, gen, mutation, sync, tidx);
 }
 
 merr_t

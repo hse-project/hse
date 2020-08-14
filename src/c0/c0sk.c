@@ -450,14 +450,14 @@ c0sk_calibrate(struct c0sk_impl *self)
         struct timespec req = {.tv_nsec = MSEC_PER_SEC * 10 };
 
         start = get_cycles();
-        for (i = 0; i < imax; ++i)
+        for (i = 0; i < imax * 128; ++i)
             cpgc = get_cycles();
-        cpgc = (cpgc - start) / imax;
+        cpgc = (cpgc - start) / (imax * 128);
 
         start = get_cycles();
-        for (i = 0; i < imax; ++i)
+        for (i = 0; i < imax * 128; ++i)
             gtns = get_time_ns();
-        cpgtns = (get_cycles() - start) / imax;
+        cpgtns = (get_cycles() - start) / (imax * 128);
 
         if (last > (cpgtns * 97) / 100 && last < (cpgtns * 103) / 100)
             break;
@@ -469,13 +469,14 @@ c0sk_calibrate(struct c0sk_impl *self)
 
     /* Meausre nsecs per call of get_time_ns() and compute CPU freq.
      */
+    usleep(1);
     cps = get_cycles();
     start = get_time_ns();
-    for (i = 0; i < imax * 2; ++i)
+    for (i = 0; i < imax * 128; ++i)
         gtns = get_time_ns();
     cps = get_cycles() - cps;
     cps = (cps - cpgc - cpgtns) * NSEC_PER_SEC / (gtns - start);
-    gtns = (gtns - start) / (imax * 2);
+    gtns = (gtns - start) / (imax * 128);
 
     /* Measure the fixed overhead of calling nanosleep().  Typically
      * this is roughly 50us (i.e., each request takes at least 50us
@@ -504,14 +505,8 @@ c0sk_calibrate(struct c0sk_impl *self)
     if (self->c0sk_kvdb_rp->throttle_sleep_min_ns == 0)
         self->c0sk_kvdb_rp->throttle_sleep_min_ns = self->c0sk_nslpmin;
 
-    hse_log(
-        HSE_NOTICE "%s: c/gc %ld, c/gtns %ld, c/s %ld, gtns %ld ns, nslpmin %d ns",
-        __func__,
-        cpgc,
-        cpgtns,
-        cps,
-        gtns,
-        self->c0sk_nslpmin);
+    hse_log(HSE_NOTICE "%s: c/gc %ld, c/gtns %ld, c/s %ld, gtns %ld ns, nslpmin %d ns",
+            __func__, cpgc, cpgtns, cps, gtns, self->c0sk_nslpmin);
 }
 
 merr_t

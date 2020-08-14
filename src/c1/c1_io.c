@@ -34,15 +34,10 @@ struct c1_io {
     atomic64_t               c1io_queued_reqs;
     atomic64_t               c1io_pending_reqs;
     atomic64_t               c1io_log_time;
-    atomic64_t               c1io_cumlat;
-    atomic64_t               c1io_cumbytes;
-    atomic64_t               c1io_maxlat;
-    atomic64_t               c1io_samples;
     struct cv                c1io_cv;
     struct c1_kvset_builder *c1io_bldr;
     struct c1_ioarg *        c1io_arg;
     struct c1_ioslave *      c1io_slave;
-    struct throttle_sensor * c1io_sensor;
     u32                      c1io_kvbmetasz;
     u32                      c1io_kmetasz;
     u32                      c1io_vmetasz;
@@ -150,10 +145,6 @@ c1_io_create(struct c1 *c1, u64 dtime, const char *mpname, int threads)
     atomic64_set(&io->c1io_queued_reqs, 0);
     atomic64_set(&io->c1io_pending_reqs, 0);
     atomic64_set(&io->c1io_log_time, get_time_ns() + C1LOG_TIME);
-    atomic64_set(&io->c1io_maxlat, 0);
-    atomic64_set(&io->c1io_cumlat, 0);
-    atomic64_set(&io->c1io_cumbytes, 0);
-    atomic64_set(&io->c1io_samples, 0);
 
     err = c1_record_type2len(C1_TYPE_KVT, C1_VERSION, &io->c1io_kmetasz);
     if (ev(err))
@@ -258,7 +249,6 @@ c1_io_thread_master(void *arg)
 {
     struct c1_io *      io = arg;
     struct list_head    list;
-    u64                 cycles = 0;
     bool                need_lock;
     u64                 queued_reqs;
     struct c1_io_queue *q;
@@ -281,10 +271,8 @@ c1_io_thread_master(void *arg)
 
         need_lock = true;
         if (!atomic64_read(&io->c1io_queued_reqs)) {
-            cycles = perfc_lat_start(&io->c1io_pcset);
             mutex_lock(&io->c1io_queue_mtx);
 
-            perfc_rec_lat(&io->c1io_pcset, PERFC_LT_C1_IOQLK, cycles);
             need_lock = false;
 
             if (list_empty(&io->c1io_list)) {
@@ -305,12 +293,8 @@ c1_io_thread_master(void *arg)
             }
         }
 
-        if (need_lock) {
-            cycles = perfc_lat_start(&io->c1io_pcset);
+        if (need_lock)
             mutex_lock(&io->c1io_queue_mtx);
-
-            perfc_rec_lat(&io->c1io_pcset, PERFC_LT_C1_IOQLK, cycles);
-        }
 
         atomic_set(&io->c1io_wakeup, 0);
 
@@ -493,8 +477,8 @@ c1_io_get_tree_txn(
     struct c1_io *  io;
 
     merr_t err = 0;
+    u64    txsz;
     u32    recsz, kvbc;
-    u64    ns, txsz;
     bool   spare, retry;
 
     io = c1->c1_io;
@@ -557,14 +541,10 @@ c1_io_get_tree_txn(
 
         assert(!retry);
 
-        ns = perfc_lat_start(&io->c1io_pcset);
-
         /* If either c1 tree or mlog reservation fails, retry once with a new tree. */
         err = c1_io_next_tree(c1, tree);
         if (ev(err))
             return err;
-        ns = perfc_lat_start(&io->c1io_pcset) - ns;
-        perfc_rec_sample(&io->c1io_pcset, PERFC_DI_C1_TREE, ns);
 
         retry = true;
     }
@@ -637,32 +617,21 @@ c1_io_iter_kvbtxn(struct c1_io *io, struct c1_io_queue *q, u8 tidx)
     struct c1_kvbundle *     kvb;
     struct kvb_builder_iter *iter;
     merr_t                   err;
-    struct c1_log_stats      stats;
-    struct c1_log_stats *    statsp;
-    u64                      cycles = 0;
 
     iter = q->c1q_iter;
-
-    statsp = &stats;
-    memset(statsp, 0, sizeof(*statsp));
 
     while (1) {
         err = iter->get_next(iter, &kvb);
         if (ev(err) || !kvb) {
             if (!kvb && iter->kvbi_bldrelm) {
 
-                cycles = perfc_lat_start(&io->c1io_pcset);
-
                 err = c1_kvset_builder_flush_elem(iter->kvbi_bldrelm, tidx);
                 if (ev(err))
                     io->c1io_err = err;
-
-                perfc_rec_lat(&io->c1io_pcset, PERFC_LT_C1_MB1FL, cycles);
             }
 
             iter->put(iter);
             io->c1io_err = err;
-
             break;
         }
 
@@ -679,8 +648,7 @@ c1_io_iter_kvbtxn(struct c1_io *io, struct c1_io_queue *q, u8 tidx)
             q->c1q_mutation,
             kvb,
             q->c1q_sync,
-            tidx,
-            statsp);
+            tidx);
         if (ev(err)) {
             iter->put(iter);
             io->c1io_err = err;
@@ -688,9 +656,6 @@ c1_io_iter_kvbtxn(struct c1_io *io, struct c1_io_queue *q, u8 tidx)
             perfc_inc(&io->c1io_pcset, PERFC_BA_C1_IOERR);
             break;
         }
-
-        ci_io_iter_update_stats(io, statsp, iter->kvbi_vsize + iter->kvbi_ksize);
-        memset(statsp, 0, sizeof(*statsp));
     }
 }
 
@@ -706,7 +671,6 @@ c1_issue_sync(struct c1 *c1, int sync, bool skip_flush)
     struct c1_io_queue q;
     struct c1_io *     io;
     merr_t             err;
-    u64                cycles = 0;
 
     io = c1->c1_io;
 
@@ -729,18 +693,14 @@ c1_issue_sync(struct c1 *c1, int sync, bool skip_flush)
     mutex_init(&q.c1q_mtx);
     cv_init(&q.c1q_cv, "c1synccv");
 
-    q.c1q_stime = perfc_lat_start(&io->c1io_pcset);
-
     mutex_lock(&io->c1io_queue_mtx);
-    perfc_rec_lat(&io->c1io_pcset, PERFC_LT_C1_IOQLK, q.c1q_stime);
-
     list_add_tail(&q.c1q_list, &io->c1io_list);
     atomic64_inc(&io->c1io_queued_reqs);
     perfc_inc(&io->c1io_pcset, PERFC_RA_C1_IOQUE);
 
     mutex_lock(&q.c1q_mtx);
-
     mutex_unlock(&io->c1io_queue_mtx);
+
     c1_io_wakeup(io);
 
     cv_wait(&q.c1q_cv, &q.c1q_mtx);
@@ -757,16 +717,12 @@ c1_issue_sync(struct c1 *c1, int sync, bool skip_flush)
 
 log_flush:
     mutex_lock(&io->c1io_space_mtx);
-    cycles = perfc_lat_start(&io->c1io_pcset);
+
     err = c1_tree_flush(c1_current_tree(c1));
     if (!ev(err)) {
-        perfc_rec_lat(&io->c1io_pcset, PERFC_LT_C1_MLGFL, cycles);
-        cycles = perfc_lat_start(&io->c1io_pcset);
         err = c1_kvset_builder_flush(io->c1io_bldr);
         if (merr_errno(err) == ENOENT)
             err = 0;
-        if (!ev(err))
-            perfc_rec_lat(&io->c1io_pcset, PERFC_LT_C1_MB2FL, cycles);
     }
     mutex_unlock(&io->c1io_space_mtx);
 
@@ -785,7 +741,6 @@ c1_issue_iter(
     struct c1_io_queue *          q;
     struct c1_io *                io;
     merr_t                        err;
-    u64                           cycles = 0;
 
     if (c1_sync_or_flush_command(iter))
         return c1_issue_sync(c1, sync, false);
@@ -815,9 +770,7 @@ c1_issue_iter(
     q->c1q_txn = NULL;
     q->c1q_idx = 0;
 
-    cycles = perfc_lat_startu(&io->c1io_pcset, PERFC_LT_C1_IOSLK);
     mutex_lock(&io->c1io_space_mtx);
-    perfc_rec_lat(&io->c1io_pcset, PERFC_LT_C1_IOSLK, cycles);
 
     err = c1_io_get_tree(c1, cki, &q->c1q_tree, &q->c1q_idx, &q->c1q_mutation);
     if (ev(err)) {
@@ -831,10 +784,7 @@ c1_issue_iter(
         return err;
     }
 
-    cycles = perfc_lat_startu(&io->c1io_pcset, PERFC_LT_C1_IOQLK);
     mutex_lock(&io->c1io_queue_mtx);
-    perfc_rec_lat(&io->c1io_pcset, PERFC_LT_C1_IOQLK, cycles);
-
     mutex_unlock(&io->c1io_space_mtx);
 
     if (ev(io->c1io_err)) {
@@ -867,7 +817,6 @@ c1_io_txn_begin(struct c1 *c1, u64 txnid, struct c1_iterinfo *ci, int sync)
     struct c1_io *      io;
     merr_t              err;
     struct c1_ttxn *    txn;
-    u64                 cycles = 0;
 
     txn = malloc(sizeof(*txn));
     if (!txn)
@@ -891,11 +840,7 @@ c1_io_txn_begin(struct c1 *c1, u64 txnid, struct c1_iterinfo *ci, int sync)
     q->c1q_iter = NULL;
     q->c1q_idx = 0;
 
-    q->c1q_stime = perfc_lat_start(&io->c1io_pcset);
-
-    cycles = perfc_lat_start(&io->c1io_pcset);
     mutex_lock(&io->c1io_space_mtx);
-    perfc_rec_lat(&io->c1io_pcset, PERFC_LT_C1_IOSLK, cycles);
 
     err = c1_io_get_tree_txn(c1, ci, &q->c1q_tree, &q->c1q_idx, &q->c1q_mutation);
     if (ev(err)) {
@@ -906,10 +851,7 @@ c1_io_txn_begin(struct c1 *c1, u64 txnid, struct c1_iterinfo *ci, int sync)
     txn->c1t_segno = q->c1q_tree->c1t_seqno;
     txn->c1t_gen = q->c1q_tree->c1t_gen;
 
-    cycles = perfc_lat_start(&io->c1io_pcset);
     mutex_lock(&io->c1io_queue_mtx);
-    perfc_rec_lat(&io->c1io_pcset, PERFC_LT_C1_IOQLK, cycles);
-
     mutex_unlock(&io->c1io_space_mtx);
 
     if (ev(io->c1io_err)) {
@@ -923,6 +865,7 @@ c1_io_txn_begin(struct c1 *c1, u64 txnid, struct c1_iterinfo *ci, int sync)
     perfc_inc(&io->c1io_pcset, PERFC_RA_C1_IOQUE);
     perfc_inc(&c1->c1_pcset_op, PERFC_RA_C1_TXBEG);
     mutex_unlock(&io->c1io_queue_mtx);
+
     c1_io_wakeup(io);
 
     return 0;
@@ -942,7 +885,6 @@ c1_io_txn_commit(struct c1 *c1, u64 txnid, u64 seqno, int sync)
     merr_t              err;
     u32                 size;
     struct c1_ttxn *    txn;
-    u64                 cycles = 0;
     struct c1_tree *    tree;
     struct c1_kvinfo    cki = {};
 
@@ -973,11 +915,9 @@ c1_io_txn_commit(struct c1 *c1, u64 txnid, u64 seqno, int sync)
     q->c1q_iter = NULL;
     q->c1q_idx = 0;
 
-    cycles = perfc_lat_start(&io->c1io_pcset);
     mutex_lock(&io->c1io_space_mtx);
-    perfc_rec_lat(&io->c1io_pcset, PERFC_LT_C1_IOSLK, cycles);
-
     cki.ck_kvsz = size;
+
     err = c1_io_get_tree(c1, &cki, &q->c1q_tree, &q->c1q_idx, &q->c1q_mutation);
     if (ev(err)) {
         mutex_unlock(&io->c1io_space_mtx);
@@ -990,10 +930,7 @@ c1_io_txn_commit(struct c1 *c1, u64 txnid, u64 seqno, int sync)
     txn->c1t_segno = q->c1q_tree->c1t_seqno;
     txn->c1t_gen = q->c1q_tree->c1t_gen;
 
-    cycles = perfc_lat_start(&io->c1io_pcset);
     mutex_lock(&io->c1io_queue_mtx);
-    perfc_rec_lat(&io->c1io_pcset, PERFC_LT_C1_IOQLK, cycles);
-
     mutex_unlock(&io->c1io_space_mtx);
 
     if (ev(io->c1io_err)) {
@@ -1010,6 +947,7 @@ c1_io_txn_commit(struct c1 *c1, u64 txnid, u64 seqno, int sync)
     perfc_inc(&io->c1io_pcset, PERFC_RA_C1_IOQUE);
     perfc_inc(&c1->c1_pcset_op, PERFC_RA_C1_TXCOM);
     mutex_unlock(&io->c1io_queue_mtx);
+
     c1_io_wakeup(io);
 
     err = c1_issue_sync(c1, sync, true);
@@ -1084,7 +1022,6 @@ c1_io_txn_abort(struct c1 *c1, u64 txnid)
     merr_t              err;
     u32                 size;
     struct c1_ttxn *    txn;
-    u64                 cycles = 0;
     struct c1_kvinfo    cki = {};
 
     err = c1_record_type2len(C1_TYPE_TXN, C1_VERSION, &size);
@@ -1114,11 +1051,9 @@ c1_io_txn_abort(struct c1 *c1, u64 txnid)
     q->c1q_iter = NULL;
     q->c1q_idx = 0;
 
-    cycles = perfc_lat_start(&io->c1io_pcset);
     mutex_lock(&io->c1io_space_mtx);
-    perfc_rec_lat(&io->c1io_pcset, PERFC_LT_C1_IOSLK, cycles);
-
     cki.ck_kvsz = size;
+
     err = c1_io_get_tree(c1, &cki, &q->c1q_tree, &q->c1q_idx, &q->c1q_mutation);
     if (ev(err)) {
         mutex_unlock(&io->c1io_space_mtx);
@@ -1131,11 +1066,9 @@ c1_io_txn_abort(struct c1 *c1, u64 txnid)
     txn->c1t_segno = q->c1q_tree->c1t_seqno;
     txn->c1t_gen = q->c1q_tree->c1t_gen;
 
-    cycles = perfc_lat_start(&io->c1io_pcset);
     mutex_lock(&io->c1io_queue_mtx);
-    perfc_rec_lat(&io->c1io_pcset, PERFC_LT_C1_IOQLK, cycles);
-
     mutex_unlock(&io->c1io_space_mtx);
+
     if (ev(io->c1io_err)) {
         mutex_unlock(&io->c1io_queue_mtx);
 
@@ -1207,78 +1140,6 @@ c1_io_rec_perf(struct c1_io *io, struct c1_io_queue *q, u64 start, merr_t err)
         perfc_rec_lat(&io->c1io_pcset, PERFC_LT_C1_IOTOT, q->c1q_stime);
         perfc_rec_lat(&io->c1io_pcset, PERFC_LT_C1_IOPRO, start);
     }
-}
-
-void
-ci_io_iter_update_stats(struct c1_io *io, struct c1_log_stats *statsp, u64 size)
-{
-    u64 max_latency, latency;
-    u64 ns, log_time, samples;
-    u64 avglat, maxlat, bytes;
-
-    if (PERFC_ISON(&io->c1io_pcset)) {
-        perfc_add(&io->c1io_pcset, PERFC_BA_C1_IOMBK, statsp->c1log_mbwrites);
-        perfc_rec_sample(&io->c1io_pcset, PERFC_DI_C1_IOMBK, statsp->c1log_mblatency);
-        perfc_add(&io->c1io_pcset, PERFC_BA_C1_IOMLG, statsp->c1log_mlwrites);
-        perfc_rec_sample(&io->c1io_pcset, PERFC_DI_C1_IOMLG, statsp->c1log_mllatency);
-        perfc_rec_sample(&io->c1io_pcset, PERFC_DI_C1_IOVSZ, statsp->c1log_vsize);
-    }
-
-    latency = max_t(u64, statsp->c1log_mblatency, statsp->c1log_mllatency);
-
-    /* Ignore extremely low latency under 1us samples */
-    if (latency < 1000)
-        return;
-
-    max_latency = io->c1io_dtimens / 2;
-
-    /* Ignore sub-millisecond samples */
-    if (latency < (1000 * 1000))
-        return;
-
-    /* Report durability io statistics */
-    if (atomic64_read(&io->c1io_maxlat) < latency)
-        atomic64_set(&io->c1io_maxlat, latency);
-
-    samples = atomic64_inc_return(&io->c1io_samples);
-    avglat = atomic64_add_return(latency, &io->c1io_cumlat);
-    bytes = atomic64_add_return(size, &io->c1io_cumbytes);
-
-    ns = get_time_ns();
-    log_time = atomic64_read(&io->c1io_log_time);
-    if (ns < log_time)
-        return;
-
-    maxlat = atomic64_read(&io->c1io_maxlat);
-    avglat /= samples;
-
-    ns += C1LOG_TIME;
-
-    if (atomic64_cmpxchg(&io->c1io_log_time, log_time, ns) != log_time)
-        return;
-
-    if (maxlat > io->c1io_dtimens)
-        hse_log(
-            HSE_ERR "durability is at risk expected latency <= %lu ms, "
-                    "average and maximum in the last %lu seconds "
-                    "are %lu ms and %lu ms",
-            (ulong)io->c1io_dtimens / (1000 * 1000),
-            C1LOG_TIME / NSEC_PER_SEC,
-            (ulong)(avglat / (1000 * 1000)),
-            (ulong)(maxlat / (1000 * 1000)));
-    else if (maxlat >= max_latency)
-        hse_log(
-            HSE_NOTICE "durability io latency max. %ld ns avg. %ld ns "
-                       "total bytes %ld avg. bytes per sec. %ld",
-            (ulong)maxlat,
-            (ulong)avglat,
-            (ulong)bytes,
-            (ulong)(bytes / samples));
-
-    atomic64_set(&io->c1io_maxlat, 0);
-    atomic64_set(&io->c1io_cumlat, 0);
-    atomic64_set(&io->c1io_cumbytes, 0);
-    atomic64_set(&io->c1io_samples, 0);
 }
 
 BullseyeCoverageRestore
