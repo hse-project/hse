@@ -501,6 +501,7 @@ c1_tree_reserve_space_iter(
     int i;
     int nextlog;
     int numlogs;
+    u64 rsvdsz[HSE_C1_DEFAULT_STRIPE_WIDTH] = {};
 
     numlogs = tree->c1t_stripe_width;
     nextlog = atomic_read(&tree->c1t_nextlog);
@@ -527,13 +528,15 @@ c1_tree_reserve_space_iter(
             (kmetasz * ci->ci_iterv[i].ck_kcnt + vmetasz * ci->ci_iterv[i].ck_vcnt +
              kvbmetasz * kvbc);
 
-        if (!c1_log_has_space(log, sz)) {
+        assert(nextlog < HSE_C1_DEFAULT_STRIPE_WIDTH);
+        if (!c1_log_has_space(log, sz, &rsvdsz[nextlog])) {
             int j = (nextlog + 1) % numlogs;
 
             while (j != nextlog) {
                 log = tree->c1t_log[j];
 
-                if (c1_log_has_space(log, sz))
+                assert(j < HSE_C1_DEFAULT_STRIPE_WIDTH);
+                if (c1_log_has_space(log, sz, &rsvdsz[j]))
                     break;
 
                 j = (j + 1) % numlogs;
