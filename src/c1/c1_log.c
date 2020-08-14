@@ -82,7 +82,7 @@ c1_log_alloc(
 {
     struct c1_log *log;
     struct cheap * cheap[HSE_C1_DEFAULT_STRIPE_WIDTH];
-    int i;
+    int            i;
 
     log = calloc(1, sizeof(*log));
     if (!log)
@@ -279,8 +279,8 @@ c1_log_reset(struct c1_log *log, u64 newseqno, u64 newgen)
 }
 BullseyeCoverageRestore
 
-    merr_t
-    c1_log_flush(struct c1_log *log)
+merr_t
+c1_log_flush(struct c1_log *log)
 {
     merr_t err;
 
@@ -309,7 +309,7 @@ c1_log_set_capacity(struct c1_log *log, u64 size)
 }
 
 merr_t
-c1_log_reserve_space(struct c1_log *log, u64 rsvsz, u64 peeksz)
+c1_log_reserve_space(struct c1_log *log, u64 rsvsz, bool spare)
 {
     merr_t err;
     u64    available;
@@ -326,18 +326,20 @@ c1_log_reserve_space(struct c1_log *log, u64 rsvsz, u64 peeksz)
     if (ev(err))
         return err;
 
-    available = HSE_C1_LOG_USEABLE_CAPACITY(log->c1l_space);
-    if (rsvsz >= available) {
+    available = spare ? log->c1l_space : HSE_C1_LOG_USEABLE_CAPACITY(log->c1l_space);
+    if (rsvsz > available) {
         hse_log(
-            HSE_ERR "c1_log ingest rsvsz 0x%lx exceeded capacity 0x%lx",
+            HSE_ERR "c1 log sizing issue, reserve size %lu exceeds capacity %lu",
             (unsigned long)rsvsz,
             (unsigned long)available);
         return merr(ENOSPC);
     }
     reserved = atomic64_add_return(rsvsz, &log->c1l_rsvdspace);
 
-    if ((len >= available) || (reserved + peeksz >= available))
+    if ((len > available) || (reserved > available)) {
+        atomic64_sub(rsvsz, &log->c1l_rsvdspace);
         return merr(ENOMEM);
+    }
 
     return 0;
 }
@@ -355,6 +357,18 @@ c1_log_refresh_space(struct c1_log *log)
     atomic64_set(&log->c1l_rsvdspace, len);
 
     return len;
+}
+
+bool
+c1_log_has_space(struct c1_log *log, u64 sz)
+{
+    u64 available;
+    u64 rsvd;
+
+    available = HSE_C1_LOG_USEABLE_CAPACITY(log->c1l_space);
+    rsvd = atomic64_read(&log->c1l_rsvdspace);
+
+    return (rsvd + sz) <= available;
 }
 
 static void
@@ -538,8 +552,7 @@ c1_log_issue_kvb(
         skt = &next->c1kvt_kt;
 
         if (ev(i > (numiov - HSE_C1_KEY_IOVS))) {
-            hse_log(HSE_ERR "%s: c1 ingest kv overflow: %d %lu",
-                    __func__, i, (u_long)numiov);
+            hse_log(HSE_ERR "%s: c1 ingest kv overflow: %d %lu", __func__, i, (u_long)numiov);
             assert(i <= (numiov - HSE_C1_KEY_IOVS));
             return merr(EINVAL);
         }
@@ -576,8 +589,13 @@ c1_log_issue_kvb(
         s_list_for_each_entry(nextvt, &next->c1kvt_vt.c1vt_vth, c1vt_next)
         {
             if (ev(j >= kvb->c1kvb_vtcount || i >= numiov)) {
-                hse_log(HSE_ERR "%s: c1 ingest kv overflow: %d %lu, %d %u",
-                        __func__, i, (u_long)numiov, j, kvb->c1kvb_vtcount);
+                hse_log(
+                    HSE_ERR "%s: c1 ingest kv overflow: %d %lu, %d %u",
+                    __func__,
+                    i,
+                    (u_long)numiov,
+                    j,
+                    kvb->c1kvb_vtcount);
                 assert(j < kvb->c1kvb_vtcount);
                 assert(i < numiov);
                 return merr(EINVAL);
@@ -646,8 +664,11 @@ c1_log_issue_kvb(
         }
 
         if (ev(vtalen || vtacount)) {
-            hse_log(HSE_ERR "%s: c1 ingest failed: vtalen %lu, vtacount %lu",
-                    __func__, (u_long)vtalen, (u_long)vtacount);
+            hse_log(
+                HSE_ERR "%s: c1 ingest failed: vtalen %lu, vtacount %lu",
+                __func__,
+                (u_long)vtalen,
+                (u_long)vtacount);
             assert(!vtalen);
             assert(!vtacount);
             return merr(EIO);
@@ -693,9 +714,11 @@ c1_log_issue_kvb(
 
         hse_elog(
             HSE_ERR "%s: mpool_mlog_append failed: mlog len %zu, reserved space %ld: @@e",
-            err, __func__, len, atomic64_read(&log->c1l_rsvdspace));
-    }
-    else {
+            err,
+            __func__,
+            len,
+            atomic64_read(&log->c1l_rsvdspace));
+    } else {
         log->c1l_maxkv_seqno = max_t(u64, log->c1l_maxkv_seqno, kvb->c1kvb_maxseqno);
 
         if (statsp) {

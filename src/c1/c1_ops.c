@@ -346,8 +346,8 @@ c1_cningest_status(struct c1 *c1, u64 seqno, merr_t status, u64 cnid, const stru
 }
 BullseyeCoverageRestore
 
-    bool
-    c1_ingest_seqno(struct c1 *c1, u64 seqno)
+bool
+c1_ingest_seqno(struct c1 *c1, u64 seqno)
 {
     /*
      * If ikvdb is NULL then it is a special case for unit tests
@@ -519,9 +519,9 @@ c1_replay_on_ikvdb(
 }
 
 merr_t
-c1_txn_begin(struct c1 *c1, u64 txnid, struct c1_kvinfo *cki, int flag)
+c1_txn_begin(struct c1 *c1, u64 txnid, struct c1_iterinfo *ci, int flag)
 {
-    return c1_io_txn_begin(c1, txnid, cki, flag);
+    return c1_io_txn_begin(c1, txnid, ci, flag);
 }
 
 merr_t

@@ -72,7 +72,7 @@ _c1_ingest(struct c1 *c1, struct kvb_builder_iter *iter, struct c1_kvinfo *cki, 
 }
 
 merr_t
-_c1_txn_begin(struct c1 *c1, u64 txnid, struct c1_kvinfo *cki, int flag)
+_c1_txn_begin(struct c1 *c1, u64 txnid, struct c1_iterinfo *ci, int flag)
 {
     return 0;
 }

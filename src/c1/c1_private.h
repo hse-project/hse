@@ -97,16 +97,16 @@
 #define MB (1024UL * 1024)
 #define GB (1024UL * MB)
 #define HSE_C1_TREE_CNT_LB 0
-#define HSE_C1_TREE_CNT_UB 5
+#define HSE_C1_TREE_CNT_UB 10
 #define HSE_C1_DEFAULT_THREAD_CNT HSE_C1_DEFAULT_STRIPE_WIDTH
 #define HSE_C1_DEFAULT_STRIP_SIZE (32 * 1024)
 #define HSE_C1_MIN_DTIME 50          /* 50 ms */
 #define HSE_C1_DEFAULT_DTIME 500     /* 500 ms */
 #define HSE_C1_MAX_DTIME (60 * 1000) /* 60 seconds */
 #define HSE_C1_DEFAULT_DSIZE (35 * MB)
-#define HSE_C1_MAX_CAP (64 * GB)
-#define HSE_C1_MIN_CAP (16 * MB)
-#define HSE_C1_DEFAULT_CAP (16 * GB)
+#define HSE_C1_MAX_CAP (16 * GB)
+#define HSE_C1_MIN_CAP (4 * GB)
+#define HSE_C1_DEFAULT_CAP (6 * GB)
 #define HSE_C1_MIN_CACHESIZE 10
 
 #endif /* HSE_C1_PRIVATE_H */

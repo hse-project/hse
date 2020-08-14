@@ -14,6 +14,7 @@
 #include <hse_ikvdb/tuple.h>
 #include <hse_ikvdb/c1_kvcache.h>
 #include <hse_ikvdb/kvdb_cparams.h>
+#include <hse_ikvdb/limits.h>
 
 #define HSE_C1_DEFAULT_STRIPE_WIDTH 4
 #define HSE_C1_VBLOCK_GROUPID ((u64)0xC1C1C1C1)
@@ -62,6 +63,12 @@ struct c1_kvinfo {
     u64 ck_kcnt;
     u64 ck_vcnt;
     u64 ck_kvsz;
+};
+
+struct c1_iterinfo {
+    u32              ci_iterc;
+    struct c1_kvinfo ci_iterv[HSE_C0_INGEST_WIDTH_MAX * 2];
+    struct c1_kvinfo ci_total;
 };
 
 /**
@@ -158,12 +165,12 @@ c1_ingest(struct c1 *c1, struct kvb_builder_iter *iter, struct c1_kvinfo *cki, i
  * c1_txn_begin() - Beginning of a c1 transaction
  *@c1:    c1 handle
  *@txnid: Unique transaction identifier.
- *@cki:   c1 kv info
+ *@ci:    c1 iter info
  *@flag:  Reserved for combining sync and async txs in future.
  */
 /* MTF_MOCK */
 merr_t
-c1_txn_begin(struct c1 *c1, u64 txnid, struct c1_kvinfo *cki, int flag);
+c1_txn_begin(struct c1 *c1, u64 txnid, struct c1_iterinfo *ci, int flag);
 
 /**
  * c1_txn_commit() - Commits  a c1 transaction
