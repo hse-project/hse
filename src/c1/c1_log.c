@@ -395,15 +395,20 @@ c1_log_refresh_space(struct c1_log *log)
 }
 
 bool
-c1_log_has_space(struct c1_log *log, u64 sz)
+c1_log_has_space(struct c1_log *log, u64 sz, u64 *rsvdsz)
 {
     u64 available;
     u64 rsvd;
 
     available = HSE_C1_LOG_USEABLE_CAPACITY(log->c1l_space);
-    rsvd = atomic64_read(&log->c1l_rsvdspace);
 
-    return (rsvd + sz) <= available;
+    rsvd = *rsvdsz ?: atomic64_read(&log->c1l_rsvdspace);
+    rsvd += sz;
+
+    if (rsvd <= available)
+        *rsvdsz = rsvd;
+
+    return rsvd <= available;
 }
 
 static void
