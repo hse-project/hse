@@ -176,86 +176,124 @@ c0kvsm_reset_mlist(struct c0_kvset *c0kvs, u8 mindex)
 }
 
 bool
-c0kvsm_has_kvmut(struct c0_kvset *c0kvs, u8 mindex, bool istxn)
+c0kvsm_has_kvmut(struct c0_kvset *c0kvs, u8 mindex, enum c0kvsm_mut_type type)
 {
     struct c0_kvsetm *ckm;
+    bool              result = true;
 
-    if (istxn) {
+    if (type == C0KVSM_TYPE_TX || type == C0KVSM_TYPE_BOTH) {
         struct c0_kvsetm *ckmp;
 
         ckmp = c0kvsm_get_txpend(c0kvs);
         ckm = c0kvsm_get_tx(c0kvs, mindex);
 
-        return (ckmp->c0m_kcnt != 0 || ckm->c0m_kcnt != 0);
+        result = (ckmp->c0m_kcnt != 0 || ckm->c0m_kcnt != 0);
+
+        if (type == C0KVSM_TYPE_TX)
+            return result;
     }
 
     ckm = c0kvsm_get(c0kvs, mindex);
 
-    return (ckm->c0m_kcnt != 0);
+    return result && (ckm->c0m_kcnt != 0);
 }
 
 u32
-c0kvsm_get_kcnt(struct c0_kvset *c0kvs, u8 mindex, bool istxn)
+c0kvsm_get_kcnt(struct c0_kvset *c0kvs, u8 mindex, enum c0kvsm_mut_type type)
 {
     struct c0_kvsetm *ckm;
+    u32               kcnt = 0;
 
-    if (istxn) {
+    if (type == C0KVSM_TYPE_TX || type == C0KVSM_TYPE_BOTH) {
         struct c0_kvsetm *ckmp;
 
         ckmp = c0kvsm_get_txpend(c0kvs);
         ckm = c0kvsm_get_tx(c0kvs, mindex);
 
-        return ckmp->c0m_kcnt + ckm->c0m_kcnt;
+        kcnt = ckmp->c0m_kcnt + ckm->c0m_kcnt;
+
+        if (type == C0KVSM_TYPE_TX)
+            return kcnt;
     }
 
     ckm = c0kvsm_get(c0kvs, mindex);
 
-    return ckm->c0m_kcnt;
+    return kcnt + ckm->c0m_kcnt;
 }
 
 u32
-c0kvsm_get_vcnt(struct c0_kvset *c0kvs, u8 mindex, bool istxn)
+c0kvsm_get_vcnt(struct c0_kvset *c0kvs, u8 mindex, enum c0kvsm_mut_type type)
 {
     struct c0_kvsetm *ckm;
+    u32               vcnt = 0;
 
-    if (istxn) {
+    if (type == C0KVSM_TYPE_TX || type == C0KVSM_TYPE_BOTH) {
         struct c0_kvsetm *ckmp;
 
         ckmp = c0kvsm_get_txpend(c0kvs);
         ckm = c0kvsm_get_tx(c0kvs, mindex);
 
-        return ckmp->c0m_vcnt + ckm->c0m_vcnt;
+        vcnt = ckmp->c0m_vcnt + ckm->c0m_vcnt;
+
+        if (type == C0KVSM_TYPE_TX)
+            return vcnt;
     }
 
     ckm = c0kvsm_get(c0kvs, mindex);
 
-    return ckm->c0m_vcnt;
+    return vcnt + ckm->c0m_vcnt;
 }
 
 u64
-c0kvsm_get_kvsize(struct c0_kvset *c0kvs, u8 mindex, bool istxn, u64 *txpsz, u64 *ksize, u64 *vsize)
+c0kvsm_get_ksize(struct c0_kvset *c0kvs, u8 mindex, enum c0kvsm_mut_type type)
 {
     struct c0_kvsetm *ckm;
+    u64               ksize = 0;
 
-    if (istxn) {
-        if (txpsz) {
-            struct c0_kvsetm *ckmp;
+    if (type == C0KVSM_TYPE_TX || type == C0KVSM_TYPE_BOTH) {
+        struct c0_kvsetm *ckmp;
 
-            ckmp = c0kvsm_get_txpend(c0kvs);
-            *txpsz = ckmp->c0m_ksize + ckmp->c0m_vsize;
-        }
-
+        ckmp = c0kvsm_get_txpend(c0kvs);
         ckm = c0kvsm_get_tx(c0kvs, mindex);
-    } else {
-        ckm = c0kvsm_get(c0kvs, mindex);
+
+        ksize = ckmp->c0m_ksize + ckm->c0m_ksize;
+
+        if (type == C0KVSM_TYPE_TX)
+            return ksize;
     }
 
-    if (ksize)
-        *ksize = ckm->c0m_ksize;
-    if (vsize)
-        *vsize = ckm->c0m_vsize;
+    ckm = c0kvsm_get(c0kvs, mindex);
 
-    return ckm->c0m_ksize + ckm->c0m_vsize;
+    return ksize + ckm->c0m_ksize;
+}
+
+u64
+c0kvsm_get_vsize(struct c0_kvset *c0kvs, u8 mindex, enum c0kvsm_mut_type type)
+{
+    struct c0_kvsetm *ckm;
+    u64               vsize = 0;
+
+    if (type == C0KVSM_TYPE_TX || type == C0KVSM_TYPE_BOTH) {
+        struct c0_kvsetm *ckmp;
+
+        ckmp = c0kvsm_get_txpend(c0kvs);
+        ckm = c0kvsm_get_tx(c0kvs, mindex);
+
+        vsize = ckmp->c0m_vsize + ckm->c0m_vsize;
+
+        if (type == C0KVSM_TYPE_TX)
+            return vsize;
+    }
+
+    ckm = c0kvsm_get(c0kvs, mindex);
+
+    return vsize + ckm->c0m_vsize;
+}
+
+u64
+c0kvsm_get_kvsize(struct c0_kvset *c0kvs, u8 mindex, enum c0kvsm_mut_type type)
+{
+    return c0kvsm_get_ksize(c0kvs, mindex, type) + c0kvsm_get_vsize(c0kvs, mindex, type);
 }
 
 u64

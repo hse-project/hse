@@ -76,7 +76,8 @@ c0kvmsm_ingest_internal(
 {
     struct c0kvmsm_info info;
     struct c0kvmsm_info txinfo;
-    struct c1_kvinfo    cki = {};
+    struct c1_iterinfo  ci = {};
+    struct c1_kvinfo *  ck;
 
     const char *action = "";
     int         ref;
@@ -110,11 +111,19 @@ c0kvmsm_ingest_internal(
     /* Get the c1 transaction ID. */
     txnid = c1_get_txnid(c1h);
 
+    ck = &ci.ci_total;
+    ck->ck_kvsz = txinfo.c0ms_kvbytes + info.c0ms_kvbytes;
+    ck->ck_kcnt = txinfo.c0ms_kcnt + info.c0ms_kcnt;
+    ck->ck_vcnt = txinfo.c0ms_vcnt + info.c0ms_vcnt;
+
+    if (tx)
+        c0kvmsm_iterv_stats(c0kvms, &ci, C0KVSM_TYPE_TX);
+
+    if (nontx)
+        c0kvmsm_iterv_stats(c0kvms, &ci, C0KVSM_TYPE_NONTX);
+
     /* Start an async. c1 transaction. */
-    cki.ck_kvsz = txinfo.c0ms_kvbytes + txinfo.c0ms_kvpbytes + info.c0ms_kvbytes;
-    cki.ck_kcnt = txinfo.c0ms_kcnt + info.c0ms_kcnt;
-    cki.ck_vcnt = txinfo.c0ms_vcnt + info.c0ms_vcnt;
-    err = c1_txn_begin(c1h, txnid, &cki, C1_INGEST_ASYNC);
+    err = c1_txn_begin(c1h, txnid, &ci, C1_INGEST_ASYNC);
     if (ev(err)) {
         c0kvmsm_reset_mlist(c0kvms, 0);
         return err;
@@ -122,7 +131,7 @@ c0kvmsm_ingest_internal(
 
     /* Ingest tx mutations from all c0 kvsets belonging to this kvms. */
     if (tx) {
-        err = c0kvmsm_ingest_common(c0kvms, c0skm, c1h, gen, &ref, txnseq, tx);
+        err = c0kvmsm_ingest_common(c0kvms, c0skm, c1h, gen, &ref, txnseq, C0KVSM_TYPE_TX);
         if (ev(err)) {
             c1_txn_abort(c1h, txnid);
             aborted = true;
@@ -132,7 +141,7 @@ c0kvmsm_ingest_internal(
 
     /* Ingest non-tx mutations. */
     if (nontx) {
-        err = c0kvmsm_ingest_common(c0kvms, c0skm, c1h, gen, &ref, 0, false);
+        err = c0kvmsm_ingest_common(c0kvms, c0skm, c1h, gen, &ref, 0, C0KVSM_TYPE_NONTX);
         if (ev(err)) {
             c1_txn_abort(c1h, txnid);
             aborted = true;
@@ -183,7 +192,6 @@ wait:
 
     if (txinfo_out) {
         txinfo_out->c0ms_kvbytes += txinfo.c0ms_kvbytes;
-        txinfo_out->c0ms_kvpbytes += txinfo.c0ms_kvpbytes;
         txinfo_out->c0ms_kvscnt += txinfo.c0ms_kvscnt;
     }
 
@@ -198,7 +206,7 @@ c0kvmsm_ingest_common(
     u64                   gen,
     int *                 ref,
     u64                   txnseq,
-    bool                  istxn)
+    enum c0kvsm_mut_type  type)
 {
     struct kvb_builder_iter **iterv;
     struct perfc_set *        set;
@@ -208,10 +216,11 @@ c0kvmsm_ingest_common(
     u64    go = 0;
     u64    tksz = 0;
     u64    tvsz = 0;
-    u32    iterc;
     u32    kvsetc;
+    u64    maxkvsz;
     bool   ingest = false;
     bool   found = false;
+    bool   istxn = (type == C0KVSM_TYPE_TX);
     u16    nkiter;
     u16    kidx = 0;
     int    i;
@@ -220,15 +229,10 @@ c0kvmsm_ingest_common(
 
     set = c0skm_get_perfc_kv(c0skm);
 
-    /* 'nkiter' determines the number of c0kvsets processed by
-     * a single iterator.
-     */
-    kvsetc = c0kvms_width(c0kvms);
-    /* +1 for ptomb kvset and +1 for rounding up. */
-    iterc = (kvsetc / C0KVMSM_ITER_FACTOR) + 2;
-    nkiter = (kvsetc + iterc - 1) / iterc;
+    c0kvmsm_iter_params_get(c0kvms, &maxkvsz, &nkiter);
 
-    err = c0kvmsm_iterv_alloc(c0kvms, gen, istxn, iterc, nkiter, set, &iterv);
+    kvsetc = c0kvms_width(c0kvms);
+    err = c0kvmsm_iterv_alloc(c0kvms, gen, istxn, kvsetc, nkiter, set, &iterv);
     if (ev(err)) {
         c0kvmsm_reset_mlist(c0kvms, 0);
 
@@ -241,8 +245,6 @@ c0kvmsm_ingest_common(
 
         u64 minseq;
         u64 maxseq;
-        u64 ksz = 0;
-        u64 vsz = 0;
         u32 nbkv;
         u8  mindex;
 
@@ -261,12 +263,12 @@ c0kvmsm_ingest_common(
         }
 
         /* Process this c0kvset if it has mutations. */
-        if (c0kvsm_has_kvmut(c0kvs, mindex, istxn)) {
+        if (c0kvsm_has_kvmut(c0kvs, mindex, type)) {
             found = true;
 
             minseq = c0kvsm_get_minseq(c0kvs, mindex);
             maxseq = c0kvsm_get_maxseq(c0kvs, mindex);
-            nbkv = c0kvsm_get_kcnt(c0kvs, mindex, istxn);
+            nbkv = c0kvsm_get_kcnt(c0kvs, mindex, type);
 
             err = c0kvsm_info_set(info, minseq, maxseq, nbkv, kidx);
             if (ev(err)) {
@@ -278,13 +280,12 @@ c0kvmsm_ingest_common(
             }
 
             /* Get the total key & value size for this c0kvset.*/
-            c0kvsm_get_kvsize(c0kvs, mindex, istxn, NULL, &ksz, &vsz);
-            tksz += ksz;
-            tvsz += vsz;
+            tksz += c0kvsm_get_ksize(c0kvs, mindex, type);
+            tvsz += c0kvsm_get_vsize(c0kvs, mindex, type);
 
             /* Get the key & value count for this c0kvset.*/
-            kvi.ck_kcnt += c0kvsm_get_kcnt(c0kvs, mindex, istxn);
-            kvi.ck_vcnt += c0kvsm_get_vcnt(c0kvs, mindex, istxn);
+            kvi.ck_kcnt += nbkv;
+            kvi.ck_vcnt += c0kvsm_get_vcnt(c0kvs, mindex, type);
 
             go = perfc_lat_startu(set, PERFC_LT_C0SKM_COPY);
             c0kvsm_copy_bkv(c0kvs, info, mindex, istxn, kidx);
@@ -294,7 +295,7 @@ c0kvmsm_ingest_common(
              * After aggregating 'nkiter' c0kvsets, queue this
              * iterator for c1 ingest.
              */
-            ingest = ((i == 0) || (++kidx == nkiter));
+            ingest = ((i == 0) || (++kidx == nkiter) || (tksz + tvsz > maxkvsz));
             if (ingest)
                 kidx = 0;
 
@@ -340,7 +341,7 @@ c0kvmsm_ingest_common(
 
 exit:
     /* If any iterators are unsed from the loop above, destroy them. */
-    while (++lslot < iterc) {
+    while (++lslot < kvsetc) {
         assert(!iterv[lslot]->kvbi_c0skm);
         kvb_builder_iter_destroy(iterv[lslot], set);
     }
@@ -406,7 +407,8 @@ c0kvmsm_get_info(
     kvsetc = c0kvms_width(c0kvms);
 
     for (i = 0; i < kvsetc; ++i) {
-        struct c0_kvset *c0kvs;
+        struct c0_kvset *    c0kvs;
+        enum c0kvsm_mut_type type;
 
         u8 mindex;
 
@@ -415,35 +417,21 @@ c0kvmsm_get_info(
         if (!active)
             mindex ^= 1;
 
-        if (info) { /* non-tx */
-            u64  cnt;
-            bool tx = false;
+        for (type = C0KVSM_TYPE_TX; type < C0KVSM_TYPE_BOTH; type++) {
+            struct c0kvmsm_info *ci;
+            u64                  cnt;
 
-            info->c0ms_kvbytes += c0kvsm_get_kvsize(c0kvs, mindex, tx, NULL, NULL, NULL);
+            ci = (type == C0KVSM_TYPE_TX) ? txinfo : info;
+            if (ci) {
+                ci->c0ms_kvbytes += c0kvsm_get_kvsize(c0kvs, mindex, type);
 
-            cnt = c0kvsm_get_kcnt(c0kvs, mindex, tx);
-            if (cnt > 0)
-                ++info->c0ms_kvscnt;
-            info->c0ms_kcnt += cnt;
+                cnt = c0kvsm_get_kcnt(c0kvs, mindex, type);
+                if (cnt > 0)
+                    ++ci->c0ms_kvscnt;
+                ci->c0ms_kcnt += cnt;
 
-            info->c0ms_vcnt += c0kvsm_get_vcnt(c0kvs, mindex, tx);
-        }
-
-        if (txinfo) { /* tx */
-            u64  txpsz, cnt;
-            bool tx = true;
-
-            txpsz = 0;
-
-            txinfo->c0ms_kvbytes += c0kvsm_get_kvsize(c0kvs, mindex, tx, &txpsz, NULL, NULL);
-            txinfo->c0ms_kvpbytes += txpsz;
-
-            cnt = c0kvsm_get_kcnt(c0kvs, mindex, tx);
-            if (cnt > 0)
-                ++txinfo->c0ms_kvscnt;
-            txinfo->c0ms_kcnt += cnt;
-
-            txinfo->c0ms_vcnt += c0kvsm_get_vcnt(c0kvs, mindex, tx);
+                ci->c0ms_vcnt += c0kvsm_get_vcnt(c0kvs, mindex, type);
+            }
         }
     }
 }
@@ -509,4 +497,66 @@ c0kvmsm_iterv_alloc(
     *iterv = itv;
 
     return 0;
+}
+
+void
+c0kvmsm_iterv_stats(struct c0_kvmultiset *c0kvms, struct c1_iterinfo *ci, enum c0kvsm_mut_type type)
+{
+    struct c1_kvinfo *ck;
+
+    u64 maxkvsz;
+    u32 kvsetc;
+    u16 nkiter;
+    u16 kidx;
+    int slot;
+    int i;
+
+    c0kvmsm_iter_params_get(c0kvms, &maxkvsz, &nkiter);
+
+    kidx = 0;
+    slot = ci->ci_iterc;
+    ck = &ci->ci_iterv[slot];
+
+    kvsetc = c0kvms_width(c0kvms);
+    for (i = 0; i < kvsetc; ++i) {
+        struct c0_kvset *c0kvs;
+        u8               mindex;
+
+        c0kvs = c0kvms_get_c0kvset(c0kvms, i);
+        mindex = c0kvsm_get_mindex(c0kvs) ^ 1;
+
+        if (!c0kvsm_has_kvmut(c0kvs, mindex, type))
+            continue;
+
+        assert(slot < HSE_C0_INGEST_WIDTH_MAX * 2);
+        ck->ck_kcnt += c0kvsm_get_kcnt(c0kvs, mindex, type);
+        ck->ck_vcnt += c0kvsm_get_vcnt(c0kvs, mindex, type);
+        ck->ck_kvsz += c0kvsm_get_kvsize(c0kvs, mindex, type);
+
+        if (i == 0 || ck->ck_kvsz > maxkvsz || ++kidx == nkiter) {
+            kidx = 0;
+            ck = &ci->ci_iterv[++slot];
+        }
+    }
+
+    ci->ci_iterc = slot + 1;
+}
+
+void
+c0kvmsm_iter_params_get(struct c0_kvmultiset *c0kvms, u64 *maxkvsz, u16 *nkiter)
+{
+    u32 kvsetc;
+    u32 iterc;
+
+    kvsetc = c0kvms_width(c0kvms);
+    iterc = (kvsetc / C0KVMSM_ITER_FACTOR) + 2; /* +1 for ptomb */
+
+    /* 'nkiter' determines the number of c0kvsets in a single iterator. */
+    *nkiter = (kvsetc + iterc - 1) / iterc;
+
+    /*
+     * If we have enough data to fill an mblock or two, we should be good. Assuming 32MiB
+     * c1 vblocks.
+     */
+    *maxkvsz = 64 << 20;
 }

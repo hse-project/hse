@@ -20,15 +20,13 @@ struct c1;
 
 /**
  * struct c0kvmsm_info - c0_kvmultiset mutation info
- * @c0ms_kvbytes:  size of mutation
- * @c0ms_kvpbytes: size of tx pending bytes
+ * @c0ms_kvbytes:  size of mutation (includes pending bytes in case of txn mutation)
  * @c0ms_kcnt:     key count
  * @c0ms_vcnt:     value count
  * @c0ms_kvscnt:   number of kvsets mutated
  */
 struct c0kvmsm_info {
     u64 c0ms_kvbytes;
-    u64 c0ms_kvpbytes;
     u64 c0ms_kcnt;
     u64 c0ms_vcnt;
     u32 c0ms_kvscnt;
