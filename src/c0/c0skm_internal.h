@@ -55,77 +55,83 @@ struct c0skm_work {
 
 /**
  * struct c0sk_mutation -
+ * @c0skm_c1h:          c1 handle
+ * @c0skm_c0skh:        c0sk handle
+ * @c0skm_dtime:        durability time
+ * @c0skm_dsize:        durability size
+ * @c0skm_pcset_op:     perfc instance for c0skm
+ * @c0skm_closing:      close in progress
+ * @c0skm_err:          hard c1 error, stops any further c1 ingests.
+ *
  * @c0skm_wq_mut:       mutation workqueue
  * @c0skm_timerw:       timer work
  * @c0skm_tsyncw:       timer flush/sync work
  * @c0skm_syncw:        kvdb sync work
  * @c0skm_flushw:       kvdb flush work
- * @c0skm_freezew:      freeze work
- * @c0skm_c1h:          c1 handle
- * @c0skm_c0skh:        c0sk handle
- * @c0skm_dtime:        durability time
- * @c0skm_dsize:        durability size
+ *
  * @c0skm_sync_waiters: kvdb sync waiters list
  * @c0skm_sync_mutex:   kvdb sync mutex
  * @c0skm_syncgen:      kvdb sync generation
  * @c0skm_syncpend:     kvdb sync pending
  * @c0skm_syncing:      sync in progress
  * @c0skm_tsyncing:     timer sync in progress
+ *
+ * @c0skm_mutgen:       c0sk mutation generation
+ * @c0skm_flushing:     flush in progress
+ * @c0skm_throttle:     throttle parameters
+ * @c0skm_tseqno:       seqno of highest committed transaction
+ *
  * @c0skm_reqtime:      arrival time of put/get request. The inaccuracy arising
  *                      from concurrent updates to arrival time is fine, as the
  *                      cocurrent put threads are close to each other in time.
  *                      Having this field as volatile ensures that the timer
  *                      thread can see this update. Atomic reqtime is expensive.
- * @c0skm_mutgen:       c0sk mutation generation
- * @c0skm_flushing:     flush in progress
- * @c0skm_closing:      close in progress
- * @c0skm_err:          hard c1 error, stops any further c1 ingests.
- * @c0skm_pcset_op:     perfc instance for c0skm
- * @c0skm_throttle:     throttle parameters
- * @c0skm_tseqno:       seqno of highest committed transaction
  *
  * %c0skm_tseqno is heavily read/written by all cpus and hence lives
  * in it's own cacheline (see kvdb_ctxn_commit()).
  */
 struct c0sk_mutation {
-    struct workqueue_struct *c0skm_wq_mut;
-    struct c0skm_work        c0skm_timerw;
-    struct c0skm_work        c0skm_tsyncw;
-    struct c0skm_work        c0skm_syncw;
-    struct c0skm_work        c0skm_flushw;
+    struct c1          *c0skm_c1h;
+    struct c0sk_impl   *c0skm_c0skh;
+    u64                 c0skm_dtime;
+    u64                 c0skm_dsize;
+    struct perfc_set    c0skm_pcset_op;
+    struct perfc_set    c0skm_pcset_kv;
 
-    struct c1 *       c0skm_c1h;
-    struct c0sk_impl *c0skm_c0skh;
-    u64               c0skm_dtime;
-    u64               c0skm_dsize;
+    struct workqueue_struct    *c0skm_wq_mut;
+    struct throttle_sensor     *c0skm_dtime_sensor;
+    struct throttle_sensor     *c0skm_dsize_sensor;
+    atomic_t                    c0skm_flushing;
+    atomic_t                    c0skm_closing;
+    atomic64_t                  c0skm_err;
 
-    __aligned(SMP_CACHE_BYTES) struct list_head c0skm_sync_waiters;
-    struct mutex c0skm_sync_mutex;
-    u64          c0skm_syncgen;
-    bool         c0skm_syncpend;
-    atomic_t     c0skm_syncing;
-    atomic_t     c0skm_tsyncing;
+    __aligned(SMP_CACHE_BYTES)
+    struct c0skm_work           c0skm_timerw;
+    struct c0skm_work           c0skm_tsyncw;
+    struct c0skm_work           c0skm_syncw;
+    struct c0skm_work           c0skm_flushw;
 
-    volatile u64 c0skm_reqtime;
-    atomic64_t   c0skm_mutgen;
-    atomic64_t   c0skm_err;
-    atomic_t     c0skm_flushing;
-    atomic_t     c0skm_closing;
-    u32          c0skm_tmax;
+    __aligned(SMP_CACHE_BYTES)
+    struct mutex        c0skm_sync_mutex;
+    struct list_head    c0skm_sync_waiters;
+    u64                 c0skm_syncgen;
 
-    __aligned(SMP_CACHE_BYTES) u64 c0skm_cnid[HSE_KVS_COUNT_MAX];
+    bool                c0skm_syncpend;
+    atomic_t            c0skm_syncing;
+    atomic_t            c0skm_tsyncing;
 
-    struct perfc_set c0skm_pcset_op;
-    struct perfc_set c0skm_pcset_kv;
+    atomic64_t          c0skm_mutgen;
+    atomic64_t          c0skm_ingest_start;
+    atomic64_t          c0skm_ingest_end;
+    atomic64_t          c0skm_ingest_sz;
 
-    struct throttle_sensor *c0skm_dtime_sensor;
-    struct throttle_sensor *c0skm_dsize_sensor;
-    atomic64_t              c0skm_ingest_start;
-    atomic64_t              c0skm_ingest_end;
-    atomic64_t              c0skm_ingest_sz;
+    atomic64_t      c0skm_tseqno   __aligned(SMP_CACHE_BYTES);
+    volatile u64    c0skm_reqtime  __aligned(SMP_CACHE_BYTES);
 
-    __aligned(SMP_CACHE_BYTES) atomic64_t c0skm_tseqno;
+    u8 c0skm_cnid[HSE_KVS_COUNT_MAX]  __aligned(SMP_CACHE_BYTES);
 };
+
+_Static_assert(HSE_KVS_COUNT_MAX <= 256, "c0skm_cnid type too small");
 
 /**
  * c0skm_reqtime_set() - sets request arrival time
