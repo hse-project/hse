@@ -32,9 +32,6 @@ c1_io_iter_kvbtxn(struct c1_io *io, struct c1_io_queue *q, u8 tidx);
 void
 c1_io_rec_perf(struct c1_io *io, struct c1_io_queue *q, u64 start, merr_t err);
 
-void
-ci_io_iter_update_stats(struct c1_io *io, struct c1_log_stats *statsp, u64 size);
-
 bool
 c1_sync_or_flush_command(struct kvb_builder_iter *iter);
 

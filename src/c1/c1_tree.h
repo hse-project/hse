@@ -17,7 +17,6 @@ struct c1_complete;
 struct c1_kvset_builder;
 struct c1_kvset_builder_elem;
 struct c1_mblk;
-struct c1_log_stats;
 
 struct c1_tree {
     struct list_head    c1t_list;     /* c1 tree list */
@@ -138,8 +137,7 @@ c1_tree_issue_kvb(
     u64                           mutation,
     struct c1_kvbundle *          kvb,
     int                           sync,
-    u8                            tidx,
-    struct c1_log_stats *         statsp);
+    u8                            tidx);
 
 merr_t
 c1_tree_issue_txn(struct c1_tree *tree, int idx, u64 mutation, struct c1_ttxn *txn, int sync);

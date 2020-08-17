@@ -113,14 +113,6 @@ struct c1_kvbundle {
     u64                c1kvb_maxkey; /* For future use */
 };
 
-struct c1_log_stats {
-    u32 c1log_mlwrites;
-    u32 c1log_mbwrites;
-    u64 c1log_mllatency;
-    u64 c1log_mblatency;
-    u64 c1log_vsize;
-};
-
 static inline u64
 c1_log_kvseqno(struct c1_log *log)
 {
@@ -171,8 +163,7 @@ c1_log_issue_kvb(
     u32                           gen,
     u64                           mutation,
     int                           sync,
-    u8                            tidx,
-    struct c1_log_stats *         statsp);
+    u8                            tidx);
 
 merr_t
 c1_log_issue_txn(

@@ -503,8 +503,7 @@ c1_log_issue_kvb(
     u32                           gen,
     u64                           mutation,
     int                           sync,
-    u8                            tidx,
-    struct c1_log_stats *         statsp)
+    u8                            tidx)
 {
     size_t                 vtsz, iovsz, kvtomfsz;
     struct c1_kvbundle_omf omf;
@@ -522,7 +521,6 @@ c1_log_issue_kvb(
     u64                    vtacount;
     u64                    vtalen;
     int                    logtype;
-    u64                    latency = 0;
     struct iovec           siov;
 
     atomic64_add(kvb->c1kvb_ktcount, &log->c1l_ckcount);
@@ -625,9 +623,6 @@ c1_log_issue_kvb(
             ++i;
             assert(i < numiov);
 
-            if (statsp)
-                latency = get_time_ns();
-
             err = c1_log_add_val(
                 log,
                 vbldr,
@@ -642,22 +637,6 @@ c1_log_issue_kvb(
                 vsize);
             if (ev(err))
                 return err;
-
-            if (statsp && (logtype == C1_LOG_MBLOCK)) {
-                statsp->c1log_mbwrites++;
-                latency = get_time_ns() - latency;
-                if (latency > 0) {
-                    statsp->c1log_mblatency += latency;
-                    statsp->c1log_mblatency >>= 1;
-                }
-            } else if (statsp) {
-                statsp->c1log_mlwrites++;
-                latency = get_time_ns() - latency;
-                if (latency > 0) {
-                    statsp->c1log_mllatency += latency;
-                    statsp->c1log_mllatency >>= 1;
-                }
-            }
 
             omf_set_c1vt_logtype(&vt[j], logtype);
 
@@ -699,12 +678,9 @@ c1_log_issue_kvb(
     omf_set_c1kvb_maxkey(&omf, kvb->c1kvb_maxkey);
     omf_set_c1kvb_ingestid(&omf, ingestid);
 
-    mutex_lock(&log->c1l_ingest_mtx);
-    if (statsp)
-        latency = get_time_ns();
-
     /* Send header to mlog first, followed by the key-value bundle...
      */
+    mutex_lock(&log->c1l_ingest_mtx);
     siov.iov_base = &omf;
     siov.iov_len = sizeof(omf);
 
@@ -725,12 +701,6 @@ c1_log_issue_kvb(
             atomic64_read(&log->c1l_rsvdspace));
     } else {
         log->c1l_maxkv_seqno = max_t(u64, log->c1l_maxkv_seqno, kvb->c1kvb_maxseqno);
-
-        if (statsp) {
-            latency = get_time_ns() - latency;
-            statsp->c1log_mllatency += latency;
-            statsp->c1log_vsize = vsize;
-        }
     }
     mutex_unlock(&log->c1l_ingest_mtx);
 
