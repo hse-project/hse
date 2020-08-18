@@ -69,13 +69,13 @@ MTF_DEFINE_UTEST(timer_test, timer_test_jiffies)
     ASSERT_EQ(j, 0);
 
     j = msecs_to_jiffies(MSEC_PER_SEC);
-    ASSERT_EQ(j, HZ);
+    ASSERT_EQ(j, HSE_HZ);
 
     j = msecs_to_jiffies(MSEC_PER_SEC - 1);
-    ASSERT_EQ(j, HZ);
+    ASSERT_EQ(j, HSE_HZ - 1);
 
     j = msecs_to_jiffies(MSEC_PER_SEC * 2 - 1);
-    ASSERT_EQ(j, HZ * 2);
+    ASSERT_EQ(j, HSE_HZ * 2 - 1);
 
     j = msecs_to_jiffies(-1);
     ASSERT_EQ(j, MAX_JIFFY_OFFSET);
@@ -86,13 +86,13 @@ MTF_DEFINE_UTEST(timer_test, timer_test_jiffies)
     ASSERT_EQ(j, 0);
 
     j = usecs_to_jiffies(USEC_PER_SEC);
-    ASSERT_EQ(j, HZ);
+    ASSERT_EQ(j, HSE_HZ);
 
     j = usecs_to_jiffies(USEC_PER_SEC - 1);
-    ASSERT_EQ(j, HZ);
+    ASSERT_EQ(j, HSE_HZ);
 
     j = usecs_to_jiffies(USEC_PER_SEC * 2 - 1);
-    ASSERT_EQ(j, HZ * 2);
+    ASSERT_EQ(j, HSE_HZ * 2);
 
     j = usecs_to_jiffies(-1);
     ASSERT_EQ(j, MAX_JIFFY_OFFSET);
@@ -103,7 +103,7 @@ MTF_DEFINE_UTEST(timer_test, timer_test_jiffies)
     ASSERT_EQ(j, 0);
 
     j = nsecs_to_jiffies(NSEC_PER_SEC);
-    ASSERT_EQ(j, HZ);
+    ASSERT_EQ(j, HSE_HZ);
 }
 
 /* Create timers of varying delays and measure the time

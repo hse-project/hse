@@ -139,12 +139,8 @@ _Static_assert(HSE_KVS_COUNT_MAX <= 256, "c0skm_cnid type too small");
  * @start:
  */
 static inline void
-c0skm_reqtime_set(struct c0sk *self, u64 start)
+c0skm_reqtime_set(struct c0sk_mutation *c0skm, u64 start)
 {
-    struct c0sk_mutation *c0skm;
-
-    c0skm = c0sk_get_mhandle(self);
-
     if (!c0skm)
         return;
 

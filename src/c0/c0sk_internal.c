@@ -1673,7 +1673,7 @@ c0sk_merge_impl(
     seqnoref = HSE_REF_TO_SQNREF(priv);
 
     if (c0kvms_is_tracked(dst))
-        start = get_time_ns();
+        start = jclock_ns;
 
     coalescesz = self->c0sk_kvdb_rp->c0_coalesce_sz;
     if (ev(c0kvms_should_ingest(dst, coalescesz), HSE_INFO)) {
@@ -1722,7 +1722,7 @@ unlock:
     }
 
     if (start > 0)
-        c0skm_reqtime_set(&self->c0sk_handle, start);
+        c0skm_reqtime_set(self->c0sk_mhandle, start);
 
     /* On success we return a with a reference on *dstp and
      * a reference on *privp which the caller must release.
@@ -1772,7 +1772,7 @@ c0sk_putdel(
         }
 
         if (c0kvms_is_tracked(dst))
-            start = get_time_ns();
+            start = jclock_ns;
 
         kvs = c0kvms_get_hashed_c0kvset(dst, kt->kt_hash);
 
@@ -1804,7 +1804,7 @@ c0sk_putdel(
     }
 
     if (start > 0)
-        c0skm_reqtime_set(&self->c0sk_handle, start);
+        c0skm_reqtime_set(self->c0sk_mhandle, start);
 
     return err;
 }

@@ -9,15 +9,105 @@
 #include <hse_util/workqueue.h>
 
 #include <pthread.h>
+#include <sys/prctl.h>
 
-__aligned(64) static spinlock_t timer_xlock;
+static spinlock_t timer_xlock __aligned(64);
 static struct list_head timer_list;
-volatile bool           timer_running;
-volatile unsigned long  jiffies;
 
-__aligned(64) static struct workqueue_struct *timer_wq;
+static struct workqueue_struct *timer_wq __aligned(64);
 static struct work_struct timer_dispatch_work;
 static struct work_struct timer_jclock_work;
+
+volatile bool  timer_running __read_mostly;
+unsigned long  timer_nslpmin __read_mostly;
+unsigned long  timer_slack __read_mostly;
+unsigned long  tsc_freq __read_mostly;
+
+volatile unsigned long  jiffies __aligned(16);
+volatile unsigned long  jclock_ns __aligned(64);
+
+
+/**
+ * timer_calibrate() - measure overhead of calling nanosleep()
+ */
+static void
+timer_calibrate(void)
+{
+    long cpgc, cpgtns, gtns, cps;
+    long start, i, last = 0;
+    long imax = 1024;
+    int rc;
+
+    /* Measure cycles per call of get_cycles() (cpgc), and cycles
+     * per call of get_time_ns() (cpgtns).  Keep trying until we
+     * have two successive samples within 3% of each other over
+     * a 10ms period.
+     */
+    while (1) {
+        struct timespec req = {.tv_nsec = MSEC_PER_SEC * 10 };
+
+        start = get_cycles();
+        for (i = 0; i < imax * 128; ++i)
+            cpgc = get_cycles();
+        cpgc = (cpgc - start) / (imax * 128);
+
+        start = get_cycles();
+        for (i = 0; i < imax * 128; ++i)
+            gtns = get_time_ns();
+        cpgtns = (get_cycles() - start) / (imax * 128);
+
+        if (last > (cpgtns * 97) / 100 && last < (cpgtns * 103) / 100)
+            break;
+
+        last = last ? 0 : cpgtns;
+
+        clock_nanosleep(CLOCK_MONOTONIC, 0, &req, NULL);
+    }
+
+    /* Measure nsecs per call of get_time_ns() and compute CPU freq.
+     */
+    usleep(1000);
+    cps = get_cycles();
+    start = get_time_ns();
+    for (i = 0; i < imax * 128; ++i)
+        gtns = get_time_ns();
+    cps = get_cycles() - cps;
+    cps = (cps - cpgc - cpgtns) * NSEC_PER_SEC / (gtns - start);
+    gtns = (gtns - start) / (imax * 128);
+
+    /* Measure the fixed overhead of calling nanosleep().  Typically
+     * this is roughly 50us (i.e., each request takes at least 50us
+     * longer than the requested sleep time).
+     */
+    while (1) {
+        struct timespec req = {.tv_nsec = 100 };
+        int             rc = 0;
+
+        start = get_time_ns();
+        for (i = 0; i < imax; ++i)
+            rc |= clock_nanosleep(CLOCK_MONOTONIC, 0, &req, NULL);
+
+        timer_nslpmin = (get_time_ns() - start - gtns) / imax;
+        if (!rc)
+            break;
+    }
+
+    /* If our measured value of nslpmin is high, it's probably because
+     * high resolution timers are not enabled.  But it might be due to
+     * the machine being really busy, so cap it to a reasonable amount.
+     */
+    rc = prctl(PR_GET_TIMERSLACK, 0, 0, 0, 0);
+
+    timer_slack = (rc == -1) ? timer_nslpmin : rc;
+    if (timer_nslpmin > timer_slack * 2)
+        timer_nslpmin = timer_slack;
+
+    tsc_freq = cps;
+
+    hse_log(HSE_NOTICE
+            "%s: c/gc %ld, c/gtns %ld, c/s %ld, gtns %ld ns, nslpmin %lu ns, timerslack %lu",
+            __func__, cpgc, cpgtns, cps, gtns, timer_nslpmin, timer_slack);
+}
 
 static __always_inline void
 timer_lock(void)
@@ -40,32 +130,25 @@ timer_first(void)
 static void
 timer_jclock_cb(struct work_struct *work)
 {
-    struct timer_list *first;
-    struct timespec    req;
-    sigset_t           set;
-    u64                last;
+    struct timer_list  *first;
+    sigset_t            set;
 
     sigfillset(&set);
     pthread_sigmask(SIG_BLOCK, &set, 0);
 
-    last = get_time_ns();
-    jiffies = nsecs_to_jiffies(last - (last % NSEC_PER_JIFFY));
+    timer_calibrate();
 
     while (timer_running) {
-        u64 now = get_time_ns();
-        u64 incr = 1;
+        struct timespec ts;
+        unsigned long now;
 
-        /* Always increment jiffies by one for each clock tick
-         * (even if the clock went backward).  Catch up if we
-         * we slept longer than one jiffie.
-         */
-        if (now > last && now > last + NSEC_PER_JIFFY)
-            incr = nsecs_to_jiffies(now - last) - 1;
-        last = now;
+        clock_gettime(CLOCK_MONOTONIC, &ts);
+        now = ts.tv_sec * NSEC_PER_SEC + ts.tv_nsec;
+
+        jclock_ns = now;
+        jiffies = nsecs_to_jiffies(now);
 
         timer_lock();
-        jiffies += incr;
-
         first = timer_first();
         if (first && first->expires > jiffies)
             first = NULL;
@@ -74,14 +157,10 @@ timer_jclock_cb(struct work_struct *work)
         if (first)
             queue_work(timer_wq, &timer_dispatch_work);
 
-        /* Sleep for the remainder of the current jiffy in attempt
-         * to align our jiffies update with the leading edge of
-         * the system clock.
-         */
-        req.tv_nsec = NSEC_PER_JIFFY - (now % NSEC_PER_JIFFY);
-        req.tv_sec = 0;
+        ts.tv_sec = 0;
+        ts.tv_nsec = roundup(now, NSEC_PER_JIFFY) - now;
 
-        nanosleep(&req, NULL);
+        clock_nanosleep(CLOCK_MONOTONIC, 0, &ts, NULL);
     }
 }
 
