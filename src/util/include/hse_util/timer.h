@@ -36,17 +36,17 @@ struct timer_list {
 };
 
 /* jiffies is updated HSE_HZ times per second and reflects
- * relects the time of CLOCK_MONOTONIC divided by HSE_HZ.
+ * the time of CLOCK_MONOTONIC divided by HSE_HZ.
  *
- * jclock_ns is updated HSE_HZ times per second and
- * relects the time of CLOCK_MONOTONIC in nanoseconds.
+ * jclock_ns is updated HSE_HZ times per second and reflects
+ * the time of CLOCK_MONOTONIC in nanoseconds.
  *
  * timer_slack is the timer thread's TIMERSLACK (see prctl(2)).
  *
  * timer_nslpmin is the timer thread's measured timer slack
  * of clock_nanosleep().
  *
- * tsc_freq is the measure value of the time stamp counter.
+ * tsc_freq is the measured frequency of the time stamp counter.
  */
 extern volatile unsigned long jiffies;
 extern volatile unsigned long jclock_ns;

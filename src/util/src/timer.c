@@ -38,7 +38,7 @@ timer_calibrate(void)
     long imax = 1024;
     int rc;
 
-    /* Meausre cycles per call of get_cycles() (cpgc), and cycles
+    /* Measure cycles per call of get_cycles() (cpgc), and cycles
      * per call of get_time_ns() (cpgtns).  Keep trying until we
      * have two successive samples within 3% of each other over
      * a 10ms period.
@@ -64,7 +64,7 @@ timer_calibrate(void)
         clock_nanosleep(CLOCK_MONOTONIC, 0, &req, NULL);
     }
 
-    /* Meausre nsecs per call of get_time_ns() and compute CPU freq.
+    /* Measure nsecs per call of get_time_ns() and compute CPU freq.
      */
     usleep(1000);
     cps = get_cycles();
