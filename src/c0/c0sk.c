@@ -430,70 +430,13 @@ c0sk_pfx_probe(
 }
 
 /**
- * c0sk_calibrate - measure overhead of calling nanosleep()
+ * c0sk_calibrate() - record overhead of calling nanosleep()
  * @self:   ptr to c0sk
- *
  */
 static void
 c0sk_calibrate(struct c0sk_impl *self)
 {
-    long cpgc, cpgtns, gtns, cps;
-    long start, i, last = 0;
-    long imax = 1024;
-
-    /* Meausre cycles per call of get_cycles() (cpgc), and cycles
-     * per call of get_time_ns() (cpgtns).  Keep trying until we
-     * have two successive samples within 3% of each other over
-     * a 10ms period.
-     */
-    while (1) {
-        struct timespec req = {.tv_nsec = MSEC_PER_SEC * 10 };
-
-        start = get_cycles();
-        for (i = 0; i < imax * 128; ++i)
-            cpgc = get_cycles();
-        cpgc = (cpgc - start) / (imax * 128);
-
-        start = get_cycles();
-        for (i = 0; i < imax * 128; ++i)
-            gtns = get_time_ns();
-        cpgtns = (get_cycles() - start) / (imax * 128);
-
-        if (last > (cpgtns * 97) / 100 && last < (cpgtns * 103) / 100)
-            break;
-
-        last = last ? 0 : cpgtns;
-
-        nanosleep(&req, NULL);
-    }
-
-    /* Meausre nsecs per call of get_time_ns() and compute CPU freq.
-     */
-    usleep(1);
-    cps = get_cycles();
-    start = get_time_ns();
-    for (i = 0; i < imax * 128; ++i)
-        gtns = get_time_ns();
-    cps = get_cycles() - cps;
-    cps = (cps - cpgc - cpgtns) * NSEC_PER_SEC / (gtns - start);
-    gtns = (gtns - start) / (imax * 128);
-
-    /* Measure the fixed overhead of calling nanosleep().  Typically
-     * this is roughly 50us (i.e., each request takes at least 50us
-     * longer than the requested sleep time).
-     */
-    while (1) {
-        struct timespec req = {.tv_nsec = 100 };
-        int             rc = 0;
-
-        start = get_time_ns();
-        for (i = 0; i < imax; ++i)
-            rc |= nanosleep(&req, NULL);
-
-        self->c0sk_nslpmin = (get_time_ns() - start - gtns) / imax;
-        if (!rc)
-            break;
-    }
+    self->c0sk_nslpmin = timer_nslpmin;
 
     /* If our measured value of nslpmin is high, it's probably because
      * high resolution timers are not enabled.  But it might be due to
@@ -504,9 +447,6 @@ c0sk_calibrate(struct c0sk_impl *self)
 
     if (self->c0sk_kvdb_rp->throttle_sleep_min_ns == 0)
         self->c0sk_kvdb_rp->throttle_sleep_min_ns = self->c0sk_nslpmin;
-
-    hse_log(HSE_NOTICE "%s: c/gc %ld, c/gtns %ld, c/s %ld, gtns %ld ns, nslpmin %d ns",
-            __func__, cpgc, cpgtns, cps, gtns, self->c0sk_nslpmin);
 }
 
 merr_t

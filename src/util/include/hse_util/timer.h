@@ -18,14 +18,14 @@
 #include <hse_util/time.h>
 #include <hse_util/list.h>
 
-merr_t
-hse_timer_init(void);
-void
-hse_timer_fini(void);
+merr_t hse_timer_init(void);
+void hse_timer_fini(void);
 
-#define MAX_JIFFY_OFFSET ((LONG_MAX >> 1) - 1)
-#define USEC_PER_JIFFY (USEC_PER_SEC / HZ)
-#define NSEC_PER_JIFFY (NSEC_PER_SEC / HZ)
+#define HSE_HZ  1000
+
+#define MAX_JIFFY_OFFSET    ((LONG_MAX >> 1) - 1)
+#define USEC_PER_JIFFY      (USEC_PER_SEC / HSE_HZ)
+#define NSEC_PER_JIFFY      (NSEC_PER_SEC / HSE_HZ)
 
 struct timer_list {
     struct list_head entry;
@@ -35,7 +35,24 @@ struct timer_list {
     unsigned long data;
 };
 
+/* jiffies is updated HSE_HZ times per second and reflects
+ * relects the time of CLOCK_MONOTONIC divided by HSE_HZ.
+ *
+ * jclock_ns is updated HSE_HZ times per second and
+ * relects the time of CLOCK_MONOTONIC in nanoseconds.
+ *
+ * timer_slack is the timer thread's TIMERSLACK (see prctl(2)).
+ *
+ * timer_nslpmin is the timer thread's measured timer slack
+ * of clock_nanosleep().
+ *
+ * tsc_freq is the measure value of the time stamp counter.
+ */
 extern volatile unsigned long jiffies;
+extern volatile unsigned long jclock_ns;
+extern unsigned long timer_nslpmin;
+extern unsigned long timer_slack;
+extern unsigned long tsc_freq;
 
 static __always_inline unsigned long
 msecs_to_jiffies(const unsigned int m)
@@ -43,7 +60,7 @@ msecs_to_jiffies(const unsigned int m)
     if ((int)m < 0)
         return MAX_JIFFY_OFFSET;
 
-    return (m + (MSEC_PER_SEC / HZ) - 1) / (MSEC_PER_SEC / HZ);
+    return (m + (MSEC_PER_SEC / HSE_HZ) - 1) / (MSEC_PER_SEC / HSE_HZ);
 }
 
 static __always_inline unsigned long
@@ -52,13 +69,13 @@ usecs_to_jiffies(const unsigned int m)
     if ((int)m < 0)
         return MAX_JIFFY_OFFSET;
 
-    return (m + (USEC_PER_SEC / HZ) - 1) / (USEC_PER_SEC / HZ);
+    return (m + (USEC_PER_SEC / HSE_HZ) - 1) / (USEC_PER_SEC / HSE_HZ);
 }
 
 static __always_inline unsigned long
 nsecs_to_jiffies(const u64 m)
 {
-    return (m + (NSEC_PER_SEC / HZ) - 1) / (NSEC_PER_SEC / HZ);
+    return (m + (NSEC_PER_SEC / HSE_HZ) - 1) / (NSEC_PER_SEC / HSE_HZ);
 }
 
 #define init_timer(_timer) INIT_LIST_HEAD(&(_timer)->entry)
