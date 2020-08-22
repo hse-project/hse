@@ -30,10 +30,10 @@ static char *pc_type_names[] = {
  * perfc_verbosity will be "on".
  * Later the user can change this global verbosity on the fly.
  */
-u32 perfc_verbosity_default = 2;
-u32 perfc_verbosity = 2;
+u32 perfc_verbosity_default __read_mostly = 2;
+u32 perfc_verbosity __read_mostly = 2;
 
-struct perfc_ivl *perfc_di_ivl;
+struct perfc_ivl *perfc_di_ivl __read_mostly;
 
 /**
  * perfc_ctrseti_clear() - Clear a counter set instance.
@@ -42,52 +42,82 @@ struct perfc_ivl *perfc_di_ivl;
 static void
 perfc_ctrseti_clear(struct perfc_seti *seti)
 {
-    struct perfc_ctr_hdr *hdr;
-    struct perfc_rate *   rate;
-    struct perfc_dis *    dis;
-    u64                   vadd;
-    u64                   vsub;
-    u32                   cidx;
-    int                   i;
+    const struct perfc_ivl *ivl;
+    struct perfc_ctr_hdr   *hdr;
+    struct perfc_rate      *rate;
+    struct perfc_dis       *dis;
+    struct perfc_val       *val;
+    struct perfc_bkt       *bkt;
+
+    u64 vadd, vsub, vtmp;
+    u32 cidx;
+    int i, j;
 
     for (cidx = 0; cidx < seti->pcs_ctrc; ++cidx) {
         hdr = &seti->pcs_ctrv[cidx].hdr;
 
         switch (hdr->pch_type) {
-            case PERFC_TYPE_RA:
-                vadd = vsub = 0;
-                for (i = 0; i < PERFC_PCV_MAX; ++i) {
-                    struct perfc_val *v = &hdr->pch_val[i];
+        case PERFC_TYPE_RA:
+            val = hdr->pch_val;
+            vadd = vsub = 0;
 
-                    vadd += atomic64_read(&v->pcv_vadd);
-                    vsub += atomic64_read(&v->pcv_vsub);
-                }
+            for (i = 0; i < PERFC_VALPERCNT; ++i) {
+                vtmp = atomic64_read(&val->pcv_vsub);
+                atomic64_sub(vtmp, &val->pcv_vsub);
+                vsub += vtmp;
 
-                vadd = (vadd > vsub) ? (vadd - vsub) : 0;
+                vtmp = atomic64_read(&val->pcv_vadd);
+                atomic64_sub(vtmp, &val->pcv_vadd);
+                vadd += vtmp;
 
-                /* Put the current value in the old one.  This is
+                val += PERFC_VALPERCPU;
+            }
+
+            vadd = (vadd > vsub) ? (vadd - vsub) : 0;
+
+            /* Put the current value in the old one.  This is
              * done to get a valid rate next time the counter
              * is read.
              */
-                rate = &seti->pcs_ctrv[cidx].rate;
-                rate->pcr_old_val = vadd;
-                rate->pcr_old_time_ns = get_time_ns();
-                break;
+            rate = &seti->pcs_ctrv[cidx].rate;
+            rate->pcr_old_val = vadd;
+            rate->pcr_old_time_ns = get_time_ns();
+            break;
 
-            case PERFC_TYPE_DI:
-            case PERFC_TYPE_LT:
-                dis = &seti->pcs_ctrv[cidx].dis;
-                dis->pdi_min = 0;
-                dis->pdi_max = 0;
-                break;
+        case PERFC_TYPE_DI:
+        case PERFC_TYPE_LT:
+            dis = &seti->pcs_ctrv[cidx].dis;
+            dis->pdi_min = 0;
+            dis->pdi_max = 0;
 
-            case PERFC_TYPE_SL:
-            case PERFC_TYPE_BA:
-            default:
-                break;
+            bkt = dis->pdi_hdr.pch_bktv;
+            ivl = dis->pdi_ivl;
+
+            for (j = 0; j < PERFC_GRP_MAX; ++j) {
+                bkt = dis->pdi_hdr.pch_bktv + (PERFC_IVL_MAX + 1) * j;
+
+                for (i = 0; i < ivl->ivl_cnt + 1; ++i, ++bkt) {
+                    vtmp = atomic64_read(&bkt->pcb_vadd);
+                    atomic64_sub(vtmp, &bkt->pcb_vadd);
+
+                    vtmp = atomic64_read(&bkt->pcb_hits);
+                    atomic64_sub(vtmp, &bkt->pcb_hits);
+                }
+            }
+            break;
+
+        case PERFC_TYPE_SL:
+        case PERFC_TYPE_BA:
+        default:
+            val = hdr->pch_val;
+
+            vtmp = atomic64_read(&val->pcv_vsub);
+            atomic64_sub(vtmp, &val->pcv_vsub);
+
+            vtmp = atomic64_read(&val->pcv_vadd);
+            atomic64_sub(vtmp, &val->pcv_vadd);
+            break;
         }
-
-        memset(hdr->pch_val, 0, sizeof(hdr->pch_val));
     }
 }
 
@@ -138,6 +168,7 @@ static void
 perfc_ra_emit(struct perfc_rate *rate, struct yaml_context *yc)
 {
     char value[DT_PATH_LEN];
+    struct perfc_val *val;
     u64  dt, dx, ops;
     u64  vadd, vsub;
     u64  curr, prev;
@@ -151,11 +182,14 @@ perfc_ra_emit(struct perfc_rate *rate, struct yaml_context *yc)
         dt = 0;
 
     prev = rate->pcr_old_val;
+
+    val = rate->pcr_hdr.pch_val;
     vadd = vsub = curr = 0;
 
-    for (i = 0; i < PERFC_PCV_MAX; ++i) {
-        vadd += atomic64_read(&rate->pcr_hdr.pch_val[i].pcv_vadd);
-        vsub += atomic64_read(&rate->pcr_hdr.pch_val[i].pcv_vsub);
+    for (i = 0; i < PERFC_VALPERCNT; ++i) {
+        vadd += atomic64_read(&val->pcv_vadd);
+        vsub += atomic64_read(&val->pcv_vsub);
+        val += PERFC_VALPERCPU;
     }
 
     curr = (vadd > vsub) ? (vadd - vsub) : 0;
@@ -276,14 +310,15 @@ perfc_di_emit(struct perfc_dis *dis, struct yaml_context *yc)
 static __always_inline void
 _gather_values(struct perfc_ctr_hdr *hdr, u64 *vadd, u64 *vsub)
 {
-    int i;
+    struct perfc_val   *val = hdr->pch_val;
+    int                 i;
 
     *vadd = *vsub = 0;
-    for (i = 0; i < PERFC_PCV_MAX; ++i) {
-        struct perfc_val *v = &hdr->pch_val[i];
 
-        *vadd += atomic64_read(&v->pcv_vadd);
-        *vsub += atomic64_read(&v->pcv_vsub);
+    for (i = 0; i < PERFC_VALPERCNT; ++i) {
+        *vadd += atomic64_read(&val->pcv_vadd);
+        *vsub += atomic64_read(&val->pcv_vsub);
+        val += PERFC_VALPERCPU;
     }
 }
 
@@ -330,38 +365,38 @@ emit_handler_ctrset(struct dt_element *dte, struct yaml_context *yc)
         yaml_element_field(yc, "is_on", value);
 
         switch (ctr_hdr->pch_type) {
-            case PERFC_TYPE_BA:
-                _gather_values(ctr_hdr, &vadd, &vsub);
-                vadd = vadd > vsub ? vadd - vsub : 0;
+        case PERFC_TYPE_BA:
+            _gather_values(ctr_hdr, &vadd, &vsub);
+            vadd = vadd > vsub ? vadd - vsub : 0;
 
-                u64_to_string(value, sizeof(value), vadd);
-                yaml_element_field(yc, "value", value);
-                break;
+            u64_to_string(value, sizeof(value), vadd);
+            yaml_element_field(yc, "value", value);
+            break;
 
-            case PERFC_TYPE_RA:
-                perfc_ra_emit(&seti->pcs_ctrv[cidx].rate, yc);
-                break;
+        case PERFC_TYPE_RA:
+            perfc_ra_emit(&seti->pcs_ctrv[cidx].rate, yc);
+            break;
 
-            case PERFC_TYPE_SL:
-                _gather_values(ctr_hdr, &vadd, &vsub);
+        case PERFC_TYPE_SL:
+            _gather_values(ctr_hdr, &vadd, &vsub);
 
-                /* 'sum' and 'hitcnt' field names must match here and
+            /* 'sum' and 'hitcnt' field names must match here and
              * for distribution counters
              */
-                u64_to_string(value, sizeof(value), vadd);
-                yaml_element_field(yc, "sum", value);
+            u64_to_string(value, sizeof(value), vadd);
+            yaml_element_field(yc, "sum", value);
 
-                u64_to_string(value, sizeof(value), vsub);
-                yaml_element_field(yc, "hitcnt", value);
-                break;
+            u64_to_string(value, sizeof(value), vsub);
+            yaml_element_field(yc, "hitcnt", value);
+            break;
 
-            case PERFC_TYPE_DI:
-            case PERFC_TYPE_LT:
-                perfc_di_emit(&seti->pcs_ctrv[cidx].dis, yc);
-                break;
+        case PERFC_TYPE_DI:
+        case PERFC_TYPE_LT:
+            perfc_di_emit(&seti->pcs_ctrv[cidx].dis, yc);
+            break;
 
-            default:
-                break;
+        default:
+            break;
         }
 
         yaml_end_element(yc);
@@ -693,11 +728,12 @@ perfc_ctrseti_alloc(
     char               family[DT_PATH_LEN] = "";
     u32                err = 0;
     const char *       famptr;
-    size_t             sz;
+    size_t             valdatasz, sz;
+    void              *valdata, *valcur;
     char *             meaning;
     u32                famlen;
     u32                type;
-    u32                i;
+    u32                n, i;
 
     assert(setp);
 
@@ -786,25 +822,41 @@ perfc_ctrseti_alloc(
     dte->dte_ops = &perfc_ops;
     strlcpy(dte->dte_path, path, sizeof(dte->dte_path));
 
-    /* Allocate the counter set instance in one big chunk so that addresses
-     * of individual counters can be determined via computation rather than
-     * indirection via a series of pointers.
+    /* Allocate the counter set instance in one big chunk.
      */
     sz = sizeof(*seti) + sizeof(seti->pcs_ctrv[0]) * ctrc;
+    sz = roundup(sz, SMP_CACHE_BYTES);
 
-    seti = alloc_aligned(sz, __alignof(*seti), GFP_KERNEL);
+    for (n = i = 0; i < ctrc; ++i) {
+        const struct perfc_name *entry = &ctrv[i];
+
+        type = perfc_ctr_name2type(entry->pcn_name);
+
+        if (!(type == PERFC_TYPE_DI || type == PERFC_TYPE_LT))
+            ++n;
+    }
+
+    n = ctrc - n + (roundup(n, 4) / 4) + 1;
+
+    valdatasz = sizeof(struct perfc_val) * PERFC_VALPERCNT * PERFC_VALPERCPU * n + 1;
+
+    seti = alloc_aligned(sz + valdatasz, SMP_CACHE_BYTES, GFP_KERNEL);
     if (ev(!seti)) {
         free(dte);
         return merr(ENOMEM);
     }
 
-    memset(seti, 0, sz);
+    memset(seti, 0, sz + valdatasz);
     strlcpy(seti->pcs_path, path, sizeof(seti->pcs_path));
     strlcpy(seti->pcs_famname, family, sizeof(seti->pcs_famname));
     strlcpy(seti->pcs_ctrseti_name, ctrseti_name, sizeof(seti->pcs_ctrseti_name));
     seti->pcs_handle = setp;
     seti->pcs_ctrnamev = ctrv;
     seti->pcs_ctrc = ctrc;
+
+    valdata = (char *)seti + sz;
+    valcur = NULL;
+    n = 0;
 
     /* For each counter in the set, initialize the counter according
      * to the counter type.
@@ -836,6 +888,18 @@ perfc_ctrseti_alloc(
 
             dis->pdi_pct = entry->pcn_samplepct * PERFC_PCT_SCALE / 100;
             dis->pdi_ivl = ivl;
+
+            pch->pch_bktv = valdata;
+            valdata += sizeof(struct perfc_val) * PERFC_VALPERCNT * PERFC_VALPERCPU;
+        } else {
+            if (!valcur || (n % PERFC_VALPERCPU) == 0) {
+                valcur = valdata;
+                valdata += sizeof(struct perfc_val) * PERFC_VALPERCNT * PERFC_VALPERCPU;
+            }
+
+            pch->pch_val = valcur;
+            valcur += sizeof(struct perfc_val);
+            ++n;
         }
     }
 
@@ -918,7 +982,7 @@ perfc_latdis_record(struct perfc_dis *dis, u64 sample)
         dis->pdi_min = sample;
 
     bkt = dis->pdi_hdr.pch_bktv;
-    bkt += ((raw_smp_processor_id() / 4) % PERFC_GRP_MAX) * (PERFC_IVL_MAX + 1);
+    bkt += (raw_smp_processor_id() % PERFC_GRP_MAX) * (PERFC_IVL_MAX + 1);
 
     /* Index into ivl_map[] with ilog2(sample) to skip buckets whose bounds
      * are smaller than sample.  Note that we constrain sample to produce an
@@ -944,8 +1008,8 @@ perfc_lat_record_impl(struct perfc_dis *dis, u64 sample)
 {
     assert(dis->pdi_hdr.pch_type == PERFC_TYPE_LT);
 
-    if (get_cycles() % PERFC_PCT_SCALE < dis->pdi_pct)
-        perfc_latdis_record(dis, get_time_ns() - sample);
+    if (sample % PERFC_PCT_SCALE < dis->pdi_pct)
+        perfc_latdis_record(dis, cycles_to_nsecs(get_cycles() - sample));
 }
 
 void

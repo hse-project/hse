@@ -60,6 +60,14 @@ extern struct timer_jclock timer_jclock;
 extern unsigned long timer_nslpmin;
 extern unsigned long timer_slack;
 extern unsigned long tsc_freq;
+extern unsigned long tsc_mult;
+extern unsigned int tsc_shift;
+
+static __always_inline u64
+cycles_to_nsecs(u64 cycles)
+{
+    return (cycles * tsc_mult) >> tsc_shift;
+}
 
 static __always_inline unsigned long
 msecs_to_jiffies(const unsigned int m)

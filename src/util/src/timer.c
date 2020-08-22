@@ -19,9 +19,11 @@ static struct work_struct timer_jclock_work;
 static struct work_struct timer_dispatch_work;
 static struct workqueue_struct *timer_wq __aligned(64);
 
-unsigned long  timer_nslpmin __read_mostly;
-unsigned long  timer_slack __read_mostly;
-unsigned long  tsc_freq __read_mostly;
+unsigned long timer_nslpmin __read_mostly;
+unsigned long timer_slack __read_mostly;
+unsigned long tsc_freq __read_mostly;
+unsigned long tsc_mult __read_mostly;
+unsigned int tsc_shift __read_mostly;
 
 struct timer_jclock timer_jclock;
 
@@ -101,6 +103,8 @@ timer_calibrate(void)
         timer_nslpmin = timer_slack;
 
     tsc_freq = cps;
+    tsc_shift = 20;
+    tsc_mult = (NSEC_PER_SEC << tsc_shift) / tsc_freq;
 
     hse_log(HSE_NOTICE
             "%s: c/gc %ld, c/gtns %ld, c/s %ld, gtns %ld ns, nslpmin %lu ns, timerslack %lu",

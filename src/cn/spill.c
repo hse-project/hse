@@ -228,7 +228,7 @@ kv_spill(struct cn_compaction_work *w)
     bool dbg_dup __maybe_unused;
 
     if (w->cw_prog_interval && w->cw_progress)
-        tprog = get_time_ns();
+        tprog = jiffies;
 
     err = merge_init(&bh, w->cw_inputv, w->cw_kvset_cnt, &w->cw_stats);
     if (ev(err))
@@ -264,7 +264,7 @@ new_key:
     }
 
     if (tprog) {
-        u64 now = get_time_ns();
+        u64 now = jiffies;
 
         if (now - tprog > w->cw_prog_interval) {
             tprog = now;

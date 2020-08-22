@@ -86,7 +86,7 @@ c0sk_perfc_fini(void)
 /* c0skm related perfc initialization */
 
 struct perfc_name c0skm_perfc_op[] = {
-    NE(PERFC_LT_C0SKM_INGEST, 2, "Latency of c0skm ingest", "l_cskmi(ns)"),
+    NE(PERFC_DI_C0SKM_INGEST, 2, "Latency of c0skm ingest", "d_cskmi(ns)"),
 
     NE(PERFC_RA_C0SKM_SYNC, 3, "Rate of c0skm sync", "c_sync(/s)"),
     NE(PERFC_LT_C0SKM_SYNC, 3, "Latency of c0skm sync", "l_sync(ns)"),
@@ -156,6 +156,7 @@ c0skm_perfc_init(void)
     c0skm_perfc_kv[PERFC_DI_C0SKM_KVVPB].pcn_ivl = ivl;
     c0skm_perfc_kv[PERFC_DI_C0SKM_KVKSK].pcn_ivl = ivl;
     c0skm_perfc_op[PERFC_DI_C0SKM_TSYNCD].pcn_ivl = ivl;
+    c0skm_perfc_op[PERFC_DI_C0SKM_INGEST].pcn_ivl = ivl;
     c0skm_perfc_kv[PERFC_DI_C0SKM_DSIZE].pcn_ivl = ivl;
     c0skm_perfc_kv[PERFC_DI_C0SKM_DTIME].pcn_ivl = ivl;
 

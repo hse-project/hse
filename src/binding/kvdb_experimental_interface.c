@@ -112,7 +112,7 @@ hse_kvs_prefix_probe_exp(
     struct kvs_buf      kbuf, vbuf;
     enum key_lookup_res res;
     merr_t              err = 0;
-    u64                 sum;
+    u64                 sum __maybe_unused;
 
     if (!handle || !pfx || !pfx_len || !found || !val_len)
         err = merr(EINVAL);
@@ -166,7 +166,7 @@ hse_kvs_prefix_probe_exp(
             break;
     }
 
-    PERFC_INCADD_RU(&kvdb_pc, PERFC_RA_KVDBOP_KVS_PFXPROBE, PERFC_BA_KVDBOP_KVS_GETB, sum, 1024);
+    PERFC_INCADD_RU(&kvdb_pc, PERFC_RA_KVDBOP_KVS_PFXPROBE, PERFC_BA_KVDBOP_KVS_GETB, sum, 128);
 
     return 0UL;
 }
