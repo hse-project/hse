@@ -596,7 +596,7 @@ bonsai_client_multithread_test(void)
     }
 #endif
 
-    cheap = cheap_create(16, 5 * GB);
+    cheap = cheap_create(16, 1 * GB);
     if (!cheap)
         return -1;
 
@@ -658,10 +658,10 @@ bonsai_client_multithread_test(void)
 
         found = bn_find(broot, &skey, &kv);
 
-        if (random_number)
-            continue;
-
         if (!found) {
+            if (random_number)
+                continue;
+
             hse_log(HSE_ERR "Key %u (%x) not found", i, *key);
             rc = ENOENT;
             break;
@@ -683,7 +683,7 @@ bonsai_client_multithread_test(void)
      * because key_current isn't the max number of items
      * in the tree.
      */
-    if (!err && !random_number) {
+    if (!err) {
         int j = 0, k = 0;
 
         kvnext = rcu_dereference(broot->br_kv.bkv_next);
@@ -700,6 +700,8 @@ bonsai_client_multithread_test(void)
             ++k;
         }
 
+        hse_log(HSE_DEBUG "%s: %d %d %d, key_current %d, rand %d",
+                __func__, i, j, k, key_current, random_number);
         assert(j == k);
     }
 
