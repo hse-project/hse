@@ -11,21 +11,19 @@
 #include <pthread.h>
 #include <sys/prctl.h>
 
-static spinlock_t timer_xlock __aligned(64);
+static volatile bool timer_running;
 static struct list_head timer_list;
+static spinlock_t timer_xlock __aligned(64);
 
-static struct workqueue_struct *timer_wq __aligned(64);
-static struct work_struct timer_dispatch_work;
 static struct work_struct timer_jclock_work;
+static struct work_struct timer_dispatch_work;
+static struct workqueue_struct *timer_wq __aligned(64);
 
-volatile bool  timer_running __read_mostly;
 unsigned long  timer_nslpmin __read_mostly;
 unsigned long  timer_slack __read_mostly;
 unsigned long  tsc_freq __read_mostly;
 
-volatile unsigned long  jiffies __aligned(16);
-volatile unsigned long  jclock_ns __aligned(64);
-
+struct timer_jclock timer_jclock;
 
 /**
  * timer_calibrate() - measure overhead of calling nanosleep()
@@ -140,17 +138,18 @@ timer_jclock_cb(struct work_struct *work)
 
     while (timer_running) {
         struct timespec ts;
-        unsigned long now;
+        unsigned long now, jnow;
 
         clock_gettime(CLOCK_MONOTONIC, &ts);
         now = ts.tv_sec * NSEC_PER_SEC + ts.tv_nsec;
 
-        jclock_ns = now;
-        jiffies = nsecs_to_jiffies(now);
+        jnow = nsecs_to_jiffies(now);
+        atomic64_set(&timer_jclock.jc_jiffies, jnow);
+        atomic64_set(&timer_jclock.jc_jclock_ns, now);
 
         timer_lock();
         first = timer_first();
-        if (first && first->expires > jiffies)
+        if (first && first->expires > jnow)
             first = NULL;
         timer_unlock();
 
@@ -261,7 +260,6 @@ void
 hse_timer_fini(void)
 {
     struct timer_list *t, *next;
-    ulong              n;
 
     if (!timer_wq)
         return;
@@ -269,11 +267,6 @@ hse_timer_fini(void)
     timer_running = false;
     destroy_workqueue(timer_wq);
     timer_wq = NULL;
-
-    n = nsecs_to_jiffies(get_time_ns());
-
-    if ((n > jiffies && n > jiffies + HZ) || (n < jiffies && jiffies > n + HZ))
-        hse_log(HSE_ERR "%s: HZ %d, jiffies drift > HZ: %lu != %lu", __func__, HZ, jiffies, n);
 
     /* It's an iffy proposition touching the entries on the timer
      * list as their memory may have been freed and reused.

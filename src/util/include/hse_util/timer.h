@@ -14,18 +14,22 @@
  * - init_timer
  */
 
+#include <hse_util/arch.h>
+#include <hse_util/atomic.h>
 #include <hse_util/hse_err.h>
 #include <hse_util/time.h>
 #include <hse_util/list.h>
-
-merr_t hse_timer_init(void);
-void hse_timer_fini(void);
 
 #define HSE_HZ  1000
 
 #define MAX_JIFFY_OFFSET    ((LONG_MAX >> 1) - 1)
 #define USEC_PER_JIFFY      (USEC_PER_SEC / HSE_HZ)
 #define NSEC_PER_JIFFY      (NSEC_PER_SEC / HSE_HZ)
+
+struct timer_jclock {
+    atomic64_t  jc_jclock_ns;
+    atomic64_t  jc_jiffies;
+} __aligned(SMP_CACHE_BYTES);
 
 struct timer_list {
     struct list_head entry;
@@ -48,8 +52,11 @@ struct timer_list {
  *
  * tsc_freq is the measured frequency of the time stamp counter.
  */
-extern volatile unsigned long jiffies;
-extern volatile unsigned long jclock_ns;
+extern struct timer_jclock timer_jclock;
+
+#define jclock_ns   atomic64_read(&timer_jclock.jc_jclock_ns)
+#define jiffies     atomic64_read(&timer_jclock.jc_jiffies)
+
 extern unsigned long timer_nslpmin;
 extern unsigned long timer_slack;
 extern unsigned long tsc_freq;
@@ -102,5 +109,8 @@ add_timer(struct timer_list *timer);
  */
 int
 del_timer(struct timer_list *timer);
+
+merr_t hse_timer_init(void);
+void hse_timer_fini(void);
 
 #endif /* HSE_PLATFORM_TIMER_H */

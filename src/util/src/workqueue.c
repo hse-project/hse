@@ -389,7 +389,7 @@ queue_delayed_work(struct workqueue_struct *wq, struct delayed_work *dwork, unsi
     assert(dwork->timer.function == delayed_work_timer_fn);
     assert(dwork->timer.data == (ulong)dwork);
 
-    expires = jiffies + delay;
+    expires = nsecs_to_jiffies(get_time_ns()) + delay;
 
     mutex_lock(&wq->wq_lock);
     pending = work_pending(&dwork->work);

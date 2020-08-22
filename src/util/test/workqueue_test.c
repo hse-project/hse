@@ -113,6 +113,7 @@ void
 myworker_delayed(struct work_struct *wstruct)
 {
     struct mywork *w = container_of(wstruct, struct mywork, dwstruct.work);
+
     atomic_inc(&counter);
     w->counter += 1;
 
@@ -156,9 +157,14 @@ MTF_DEFINE_UTEST(workqueue_test, run)
     }
 
     hse_log(HSE_DEBUG "Running  %d jobs", expected);
-    usleep(100 * 1000);
+    for (i = 0; i < expected * 3; ++i) {
+        if (atomic_read(&counter) >= expected)
+            break;
+        usleep(1000);
+    }
     actual = atomic_read(&counter);
-    hse_log(HSE_DEBUG "Finished %d jobs", actual);
+    hse_log(HSE_DEBUG "Finished %d of %d delayed jobs in %d milliseconds",
+            actual, expected, i);
     ASSERT_EQ(expected, actual);
 
     destroy_workqueue(q);
@@ -172,6 +178,7 @@ MTF_DEFINE_UTEST(workqueue_test, run_delay)
     const int                num_works = 10;
     int                      max_active = 5;
     int                      i, expected, actual;
+    u_long                   delta, deltamax;
     bool                     b;
 
     expected = 0;
@@ -197,16 +204,26 @@ MTF_DEFINE_UTEST(workqueue_test, run_delay)
 
         expected += myworks[i]->chain + 1;
 
+        delta = get_time_ns();
+        deltamax = msecs_to_jiffies(i * 10);
+
         INIT_DELAYED_WORK(&myworks[i]->dwstruct, myworker_delayed);
         b = queue_delayed_work(q, &myworks[i]->dwstruct, msecs_to_jiffies(i * 10));
         ASSERT_TRUE(b);
     }
 
     hse_log(HSE_DEBUG "Running %d delayed jobs", expected);
-    usleep(num_works * 20 * 1000);
+    for (i = 0; i < expected * 333; ++i) {
+        if (atomic_read(&counter) >= expected)
+            break;
+        usleep(1000);
+    }
+    delta = nsecs_to_jiffies(get_time_ns() - delta);
     actual = atomic_read(&counter);
-    hse_log(HSE_DEBUG "Finished %d delayed jobs", actual);
+    hse_log(HSE_DEBUG "Finished %d of %d delayed jobs in %d milliseconds",
+            actual, expected, i);
     ASSERT_EQ(expected, actual);
+    ASSERT_GE(delta, deltamax);
 
     destroy_workqueue(q);
     free(myworks);
@@ -217,7 +234,7 @@ MTF_DEFINE_UTEST(workqueue_test, t_delayed_work)
     struct workqueue_struct *q;
     struct delayed_work      work;
 
-    ulong worker_delay_ms;
+    ulong worker_delay_ms, delta;
     int   cnt;
     int   i;
     bool  b;
@@ -229,6 +246,7 @@ MTF_DEFINE_UTEST(workqueue_test, t_delayed_work)
 
     worker_delay_ms = 500;
 
+    delta = get_time_ns();
     INIT_DELAYED_WORK(&work, simple_worker);
     b = queue_delayed_work(q, &work, msecs_to_jiffies(worker_delay_ms));
     ASSERT_TRUE(b);
@@ -238,13 +256,13 @@ MTF_DEFINE_UTEST(workqueue_test, t_delayed_work)
     ASSERT_EQ(cnt, 0);
 
     /* Delay, then verify counter is set to one. */
-    for (i = 0; i < 10 && !cnt; ++i) {
-        usleep(worker_delay_ms * 1000);
+    for (i = 0; i < worker_delay_ms * 2 && !cnt; ++i) {
+        usleep(1000);
         cnt = atomic_read(&counter);
     }
+    delta = nsecs_to_jiffies(get_time_ns() - delta);
     ASSERT_EQ(cnt, 1);
-    ASSERT_GE(i, 1);
-    ASSERT_LT(i, 10);
+    ASSERT_GE(delta, msecs_to_jiffies(worker_delay_ms));
 
     destroy_workqueue(q);
 }

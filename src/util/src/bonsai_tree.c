@@ -7,11 +7,11 @@
 
 #include "bonsai_tree_pvt.h"
 
-#define BN_INSERT_FLAG_RIGHT 1
-#define BN_INSERT_FLAG_TOMB 2
+#define BN_INSERT_FLAG_RIGHT    0x01u
+#define BN_INSERT_FLAG_TOMB     0x02u
 
-static inline struct bonsai_node *
-bn_update(
+static struct bonsai_node *
+bn_ior_replace(
     struct bonsai_root *      tree,
     struct bonsai_node *      node,
     const struct bonsai_sval *sval,
@@ -28,7 +28,7 @@ bn_update(
     }
 
     v = bn_val_alloc(tree, sval);
-    if (ev(!v))
+    if (!v)
         return NULL;
 
     SET_IOR_REPORADD(code);
@@ -40,100 +40,154 @@ bn_update(
 }
 
 static struct bonsai_node *
-bn_insert_impl(
-    struct bonsai_root *        tree,
-    struct bonsai_node *        node,
+bn_ior_insert(
+    struct bonsai_root         *tree,
     const struct key_immediate *key_imm,
-    const void *                key,
-    const struct bonsai_sval *  sval,
-    struct bonsai_kv *          parent,
+    const void                 *key,
+    const struct bonsai_sval   *sval,
+    struct bonsai_kv           *parent,
     u32                         flags)
 {
-    struct bonsai_node *ins;
-    s32                 res;
+    struct bonsai_kv *head, *prev_span, *next_span;
+    struct bonsai_node *node;
+    enum bonsai_ior_code code;
 
-    if (!node) {
-        enum bonsai_ior_code code;
-        struct bonsai_kv *   head, *prev_span, *next_span;
+    node = bn_node_alloc(tree, key_imm, key, sval);
+    if (!node)
+        return NULL;
 
-        node = bn_node_alloc(tree, key_imm, key, sval);
-        if (ev(!node))
-            return NULL;
+    if (flags & BN_INSERT_FLAG_RIGHT) {
+        node->bn_kv->bkv_next = parent->bkv_next;
+        node->bn_kv->bkv_prev = parent;
+    } else {
+        node->bn_kv->bkv_next = parent;
+        node->bn_kv->bkv_prev = parent->bkv_prev;
+    }
 
-        if (flags & BN_INSERT_FLAG_RIGHT) {
-            node->bn_kv->bkv_next = parent->bkv_next;
-            node->bn_kv->bkv_prev = parent;
-        } else {
-            node->bn_kv->bkv_next = parent;
-            node->bn_kv->bkv_prev = parent->bkv_prev;
-        }
+    rcu_assign_pointer(node->bn_kv->bkv_next->bkv_prev, node->bn_kv);
+    rcu_assign_pointer(node->bn_kv->bkv_prev->bkv_next, node->bn_kv);
 
-        rcu_assign_pointer(node->bn_kv->bkv_next->bkv_prev, node->bn_kv);
-        rcu_assign_pointer(node->bn_kv->bkv_prev->bkv_next, node->bn_kv);
+    /* Get the tail end of the tombspans for prev and next nodes. */
+    prev_span = node->bn_kv->bkv_prev->bkv_tomb;
+    next_span = node->bn_kv->bkv_next->bkv_tomb;
 
-        /* Get the tail end of the tombspans for prev and next nodes. */
-        prev_span = node->bn_kv->bkv_prev->bkv_tomb;
-        next_span = node->bn_kv->bkv_next->bkv_tomb;
+    if (unlikely(prev_span && (prev_span->bkv_flags & BKV_FLAG_TOMB_HEAD)))
+        prev_span = prev_span->bkv_tomb;
 
-        if (unlikely(prev_span && (prev_span->bkv_flags & BKV_FLAG_TOMB_HEAD)))
-            prev_span = prev_span->bkv_tomb;
+    if (unlikely(next_span && (next_span->bkv_flags & BKV_FLAG_TOMB_HEAD)))
+        next_span = next_span->bkv_tomb;
 
-        if (unlikely(next_span && (next_span->bkv_flags & BKV_FLAG_TOMB_HEAD)))
-            next_span = next_span->bkv_tomb;
-
-        if (flags & BN_INSERT_FLAG_TOMB) {
-            if (unlikely(prev_span)) {
-                head = prev_span->bkv_tomb;
-                assert(head->bkv_flags & BKV_FLAG_TOMB_HEAD);
-                assert(head->bkv_tomb);
-
-                /* Extend the tombspan to the right */
-                if (prev_span != next_span)
-                    head->bkv_tomb = node->bn_kv;
-
-                node->bn_kv->bkv_tomb = head;
-            } else {
-                /* Start a new tomb span */
-                head = node->bn_kv;
-                head->bkv_flags |= BKV_FLAG_TOMB_HEAD;
-                head->bkv_tomb = node->bn_kv;
-            }
-        } else if (unlikely(prev_span && (prev_span == next_span))) {
-            /* This put invalidates a tomb span */
+    if (flags & BN_INSERT_FLAG_TOMB) {
+        if (unlikely(prev_span)) {
             head = prev_span->bkv_tomb;
             assert(head->bkv_flags & BKV_FLAG_TOMB_HEAD);
             assert(head->bkv_tomb);
-            head->bkv_tomb = NULL;
+
+            /* Extend the tombspan to the right */
+            if (prev_span != next_span)
+                head->bkv_tomb = node->bn_kv;
+
+            node->bn_kv->bkv_tomb = head;
+        } else {
+            /* Start a new tomb span */
+            head = node->bn_kv;
+            head->bkv_flags |= BKV_FLAG_TOMB_HEAD;
+            head->bkv_tomb = node->bn_kv;
+        }
+    } else if (unlikely(prev_span && (prev_span == next_span))) {
+        /* This put invalidates a tomb span */
+        head = prev_span->bkv_tomb;
+        assert(head->bkv_flags & BKV_FLAG_TOMB_HEAD);
+        assert(head->bkv_tomb);
+        head->bkv_tomb = NULL;
+    }
+
+    SET_IOR_INS(code);
+    tree->br_client.bc_iorcb(tree->br_client.bc_rock, &code, node->bn_kv, NULL, NULL);
+
+    return node;
+}
+
+/* For efficiency, bn_ior_impl() uses the least-significant bit
+ * of the bonsai node pointer to remember which way it went when
+ * searching for the insertion point.
+ */
+#define BN_IOR_RIGHT    ((uintptr_t)BN_INSERT_FLAG_RIGHT)
+#define BN_IOR_MASK     ((uintptr_t)(sizeof(uintptr_t) - 1))
+
+_Static_assert(BN_IOR_RIGHT > 0 && BN_IOR_RIGHT < BN_IOR_MASK,
+               "bn_ior_impl() requires BN_INSERT_FLAG_RIGHT to be 1 or 2");
+
+static struct bonsai_node *
+bn_ior_impl(
+    struct bonsai_root         *tree,
+    struct bonsai_node         *node,
+    const struct key_immediate *key_imm,
+    const void                 *key,
+    const struct bonsai_sval   *sval,
+    struct bonsai_kv           *parent,
+    u32                         flags)
+{
+    struct bonsai_node *prev;
+    int n = 0;
+    s32 res;
+
+    /* Find the position to insert or node to replace, keeping track
+     * of all nodes visited and which way (left or right) we went...
+     */
+    while (node) {
+        res = key_full_cmp(key_imm, key, &node->bn_key_imm, node->bn_kv->bkv_key);
+
+        if (unlikely(res == 0))
+            break;
+
+        if (res < 0) {
+            tree->br_stack[n++] = (uintptr_t)node;
+            node = node->bn_left;
+        } else {
+            tree->br_stack[n++] = (uintptr_t)node | BN_IOR_RIGHT;
+            node = node->bn_right;
         }
 
-        SET_IOR_INS(code);
-        tree->br_client.bc_iorcb(tree->br_client.bc_rock, &code, node->bn_kv, NULL, NULL);
+        __builtin_prefetch(node, 0, 2);
 
-        return node;
+        if (n >= NELEM(tree->br_stack))
+            return NULL; /* should never happen */
     }
 
-    res = key_full_cmp(key_imm, key, &node->bn_key_imm, node->bn_kv->bkv_key);
-    if (res < 0) {
-        ins = bn_insert_impl(
-            tree, node->bn_left, key_imm, key, sval, node->bn_kv, flags & ~BN_INSERT_FLAG_RIGHT);
-        if (ev(!ins))
-            return NULL;
-
-        return bn_balance_tree(tree, node, ins, node->bn_right, key_imm, key, B_UPDATE_L);
+    if (n > 0) {
+        flags &= ~BN_INSERT_FLAG_RIGHT;
+        flags |= (tree->br_stack[n - 1] & BN_IOR_MASK);
+        prev = (void *)(tree->br_stack[n - 1] & ~BN_IOR_MASK);
+        parent = prev->bn_kv;
     }
 
-    if (res > 0) {
-        ins = bn_insert_impl(
-            tree, node->bn_right, key_imm, key, sval, node->bn_kv, flags | BN_INSERT_FLAG_RIGHT);
-        if (ev(!ins))
-            return NULL;
+    if (node)
+        node = bn_ior_replace(tree, node, sval, flags);
+    else
+        node = bn_ior_insert(tree, key_imm, key, sval, parent, flags);
 
-        return bn_balance_tree(tree, node, node->bn_left, ins, key_imm, key, B_UPDATE_R);
+    if (!node)
+        return NULL;
+
+    /* Failure up to this point is safe in that the tree will not have been
+     * modified.  It's not clear, however, if failure during rebalancing
+     * could yield a corrupted tree.  To be safe, the caller must ensure
+     * that there is sufficient memory for about (maxdepth * 3) nodes.
+     */
+    while (node && n-- > 0) {
+        bool right;
+
+        right = (void *)(tree->br_stack[n] & BN_IOR_RIGHT);
+        prev = (void *)(tree->br_stack[n] & ~BN_IOR_MASK);
+
+        if (right)
+            node = bn_balance_tree(tree, prev, prev->bn_left, node, key_imm, key, B_UPDATE_R);
+        else
+            node = bn_balance_tree(tree, prev, node, prev->bn_right, key_imm, key, B_UPDATE_L);
     }
 
-    assert(res == 0);
-
-    return bn_update(tree, node, sval, flags);
+    return node;
 }
 
 static inline struct bonsai_kv *
@@ -302,8 +356,8 @@ bn_insert_or_replace(
     oldroot = tree->br_root;
     flags = is_tomb ? BN_INSERT_FLAG_TOMB : 0;
 
-    newroot = bn_insert_impl(tree, oldroot, &skey->bsk_key_imm, skey->bsk_key,
-                             sval, &tree->br_kv, flags);
+    newroot = bn_ior_impl(tree, oldroot, &skey->bsk_key_imm, skey->bsk_key,
+                          sval, &tree->br_kv, flags);
     if (!newroot)
         return merr(ENOMEM);
 
@@ -451,7 +505,7 @@ bn_create(
     if (ev(!cheap || !cb || !tree))
         return merr(EINVAL);
 
-    r = cheap_malloc(cheap, sizeof(*r));
+    r = cheap_memalign(cheap, __alignof(*r), sizeof(*r));
     if (ev(!r))
         return merr(ENOMEM);
 

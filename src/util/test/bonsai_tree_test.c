@@ -48,16 +48,16 @@ static struct cheap *cheap;
 /* [HSE_REVISIT] Need to replace these constants, macros. */
 #define HSE_CORE_TOMB_REG ((void *)~0x1UL)
 #define HSE_CORE_TOMB_PFX ((void *)~0UL)
-#define GB (1024 * 1024 * 1024)
-#define MB (1024 * 1024)
+#define GB (1024ul * 1024 * 1024)
+#define MB (1024ul * 1024)
 
 struct bonsai_root *   broot;
 static int             induce_alloc_failure;
-unsigned long          key_begin = 1;
-unsigned long          key_end = 999999999;
+unsigned int           key_begin = 0;
+unsigned int           key_end = 7 * 1024 * 1024;
 static int             stop_producer_threads;
 static int             stop_consumer_threads;
-static unsigned long   key_current = 1;
+static unsigned int    key_current = 1;
 static int             num_consumers = 4;
 static int             num_producers = 4;
 static int             runtime_insecs = 7;
@@ -185,11 +185,11 @@ init_tree(struct bonsai_root **tree, enum bonsai_alloc_mode allocm)
 {
     merr_t err;
 
-    if (allocm == HSE_ALLOC_CURSOR) {
-        cheap = cheap_create(16, 128 * MB);
-        if (!cheap)
-            return;
-    }
+    *tree = NULL;
+
+    cheap = cheap_create(16, 1024 * MB);
+    if (!cheap)
+        return;
 
     err = bn_create(cheap, 32 * 1024, bonsai_client_insert_callback, NULL, tree);
     if (err)
@@ -301,30 +301,19 @@ no_fail_post(struct mtf_test_info *info)
 static void
 bonsai_client_wait_for_test_completion(void)
 {
-    struct timeval start;
-    struct timeval end;
-    unsigned long  microseconds;
+    u_long stop = get_time_ns() + (runtime_insecs * NSEC_PER_SEC);
 
-    gettimeofday(&start, NULL);
-
-    while (1) {
-        gettimeofday(&end, NULL);
-        microseconds = ((end.tv_sec - start.tv_sec) * 1000 * 1000) + end.tv_usec - start.tv_usec;
-
-        if (microseconds >= (runtime_insecs * 1000 * 1000))
-            break;
-
+    while (get_time_ns() < stop)
         usleep(1000);
-    }
 }
 
 static void *
 bonsai_client_producer(void *arg)
 {
-    unsigned long  i;
+    unsigned long *val;
+    unsigned int *key;
     merr_t         err = 0;
-    unsigned long *key = NULL;
-    unsigned long *val = NULL;
+    int i;
 
     struct bonsai_skey skey = { 0 };
     struct bonsai_sval sval = { 0 };
@@ -337,11 +326,7 @@ bonsai_client_producer(void *arg)
 
     xrand_init(0);
 
-    if (key_size < sizeof(*key))
-        key = calloc(1, sizeof(*key));
-    else
-        key = calloc(1, key_size);
-
+    key = calloc(1, roundup(key_size, sizeof(*key)));
     if (!key)
         goto exit;
 
@@ -351,17 +336,17 @@ bonsai_client_producer(void *arg)
     if (!val)
         goto exit;
 
-    for (i = key_begin; i <= key_end; i++) {
-        if (random_number == 0)
-            *key = i;
-        else
-            *key = xrand();
+    while (!stop_producer_threads) {
+        for (i = key_begin; i < key_end; i++) {
+            if (random_number == 0)
+                *key = htobe32(i);
+            else
+                *key = htobe32(xrand());
 
-        *val = *key;
+            *val = *key;
 
-        while (!stop_producer_threads) {
             bn_skey_init(key, key_size, 0, &skey);
-            bn_sval_init(val, val_size, *val, &sval);
+            bn_sval_init(val, val_size, HSE_ORDNL_TO_SQNREF(*val), &sval);
 
             pthread_mutex_lock(&mtx);
             err = bn_insert_or_replace(broot, &skey, &sval, false);
@@ -375,15 +360,19 @@ bonsai_client_producer(void *arg)
                 err = 0;
             else if (err)
                 break;
+
+            if (stop_producer_threads)
+                break;
+
+            if ((xrand() % 128) < 13)
+                usleep(1);
         }
 
         if (err) {
-            hse_elog(HSE_ERR "bn_insert %ld result @@e", err, i);
+            hse_elog(HSE_ERR "%s: bn_insert %u/%u result @@e",
+                     err, __func__, i, key_current);
             break;
         }
-
-        if (stop_producer_threads)
-            break;
     }
 
 exit:
@@ -444,7 +433,7 @@ bonsai_client_lcp_test(void *arg)
         key[KI_DLEN_MAX + 26] = 'a' + i;
 
         bn_skey_init(key, KI_DLEN_MAX + 27, tid, &skey);
-        bn_sval_init(&val, sizeof(val), val, &sval);
+        bn_sval_init(&val, sizeof(val), HSE_ORDNL_TO_SQNREF(val), &sval);
 
         pthread_mutex_lock(&mtx);
         err = bn_insert_or_replace(broot, &skey, &sval, false);
@@ -536,12 +525,12 @@ bonsai_client_consumer(void *arg)
     struct bonsai_skey skey = { 0 };
     struct bonsai_kv * kv = NULL;
 
-    unsigned long  i;
-    unsigned long  key_last;
-    unsigned long *key;
-    bool           found = true;
+    unsigned int    key_last;
+    unsigned int   *key;
+    bool            found = true;
+    int             i;
 
-    key = calloc(1, key_size);
+    key = calloc(1, roundup(key_size, sizeof(*key)));
     if (!key)
         goto exit;
 
@@ -552,7 +541,7 @@ bonsai_client_consumer(void *arg)
         key_last = key_current;
 
         for (i = 1; i <= key_last; i++) {
-            *key = i;
+            *key = htobe32(i);
             bn_skey_init(key, key_size, 0, &skey);
 
             rcu_read_lock();
@@ -563,7 +552,7 @@ bonsai_client_consumer(void *arg)
                 break;
 
             if (!found) {
-                hse_log(HSE_ERR "key %ld not found", i);
+                hse_log(HSE_ERR "key %u not found", i);
                 break;
             }
         }
@@ -574,7 +563,7 @@ bonsai_client_consumer(void *arg)
     }
 
 #ifdef BONSAI_TREE_DEBUG
-    hse_log(HSE_INFO "Stopped consumer ... last key %ld", i);
+    hse_log(HSE_INFO "Stopped consumer ... last key %u", i);
 #endif
 
     BONSAI_RCU_UNREGISTER();
@@ -587,32 +576,31 @@ exit:
 static int
 bonsai_client_multithread_test(void)
 {
-    int        rc;
-    int        i;
     pthread_t *consumer_tids;
     pthread_t *producer_tids;
     void *     ret;
-
-    struct bonsai_skey skey = { 0 };
-    struct bonsai_kv * kv = NULL;
+    int        rc, i;
 
 #ifdef BONSAI_TREE_CLIENT_VERIFY
-    unsigned long *key;
+    struct bonsai_skey skey;
+    struct bonsai_kv *kvnext, *kv;
+
+    unsigned int *key;
     merr_t         err;
     bool           found;
 
-    key = calloc(1, key_size);
+    key = calloc(1, roundup(key_size, sizeof(*key)));
     if (!key) {
         rc = ENOMEM;
         goto exit;
     }
 #endif
 
-    cheap = cheap_create(16, 64 * MB);
+    cheap = cheap_create(16, 1 * GB);
     if (!cheap)
         return -1;
 
-    err = bn_create(cheap, 32 * 1024, bonsai_client_insert_callback, NULL, &broot);
+    err = bn_create(cheap, 128 * 1024, bonsai_client_insert_callback, NULL, &broot);
     if (err) {
         hse_log(HSE_ERR "Bonsai tree create failed");
         return err;
@@ -658,23 +646,65 @@ bonsai_client_multithread_test(void)
     hse_log(HSE_INFO "Before teardown noded added %ld removed %ld", client.bnc_add, client.bnc_del);
 #endif
 
+    rcu_barrier();
+
 #ifdef BONSAI_TREE_CLIENT_VERIFY
+    rcu_read_lock();
+    kvnext = rcu_dereference(broot->br_kv.bkv_next);
+
     for (i = 1; i < key_current; i++) {
-        *key = i;
+        *key = htobe32(i);
         bn_skey_init(key, key_size, 0, &skey);
 
-        rcu_read_lock();
         found = bn_find(broot, &skey, &kv);
-        rcu_read_unlock();
 
-        if ((random_number == 0) && !found) {
+        if (!found) {
+            if (random_number)
+                continue;
+
+            hse_log(HSE_ERR "Key %u (%x) not found", i, *key);
             rc = ENOENT;
-            hse_log(HSE_ERR "Key %ld not found", *key);
             break;
         }
+
+        /* Verify that the first key_current items are in order.
+         */
+        if (kvnext != kv) {
+            hse_log(HSE_ERR "Key %u (%x) not found in sorted list", i, *key);
+            rc = EINVAL;
+            break;
+        }
+
+        kvnext = rcu_dereference(kvnext->bkv_next);
     }
 
-    rcu_read_lock();
+    /* Check to see if forw/back lists have the same number
+     * of items.  They may have more items than key_current
+     * because key_current isn't the max number of items
+     * in the tree.
+     */
+    if (!err) {
+        int j = 0, k = 0;
+
+        kvnext = rcu_dereference(broot->br_kv.bkv_next);
+
+        while (kvnext != &broot->br_kv) {
+            kvnext = rcu_dereference(kvnext->bkv_next);
+            ++j;
+        }
+
+        kvnext = rcu_dereference(broot->br_kv.bkv_prev);
+
+        while (kvnext != &broot->br_kv) {
+            kvnext = rcu_dereference(kvnext->bkv_prev);
+            ++k;
+        }
+
+        hse_log(HSE_DEBUG "%s: %d %d %d, key_current %d, rand %d",
+                __func__, i, j, k, key_current, random_number);
+        assert(j == k);
+    }
+
     bn_traverse(broot);
     rcu_read_unlock();
 #endif
@@ -726,11 +756,9 @@ bonsai_client_singlethread_test(enum bonsai_alloc_mode allocm)
     struct bonsai_sval   sval = { 0 };
     struct bonsai_kv *   kv = NULL;
 
-    if (allocm == HSE_ALLOC_CURSOR) {
-        cheap = cheap_create(16, 64 * MB);
-        if (!cheap)
-            return -1;
-    }
+    cheap = cheap_create(16, 64 * MB);
+    if (!cheap)
+        return -1;
 
     err = bn_create(cheap, 32 * 1024, bonsai_client_insert_callback, NULL, &broot);
     if (err) {
@@ -746,7 +774,7 @@ bonsai_client_singlethread_test(enum bonsai_alloc_mode allocm)
             /* Initialize Key */
             bn_skey_init(&a[i], sizeof(a[i]), 0, &skey);
             /* Initialize Value */
-            bn_sval_init(&a[i], sizeof(a[i]), a[i], &sval);
+            bn_sval_init(&a[i], sizeof(a[i]), HSE_ORDNL_TO_SQNREF(a[i]), &sval);
 
             err = bn_insert_or_replace(broot, &skey, &sval, false);
             if (merr_errno(err) == EEXIST)
@@ -1265,7 +1293,7 @@ bonsai_tombspan_test(enum bonsai_alloc_mode allocm, struct mtf_test_info *lcl_ti
 void
 bonsai_basic_test(enum bonsai_alloc_mode allocm, struct mtf_test_info *lcl_ti)
 {
-    const int           LEN = 128 * 1024;
+    const int           LEN = 1024 * 1024;
     struct bonsai_root *tree;
     uintptr_t           op_seqno;
     uintptr_t           seqnoref;

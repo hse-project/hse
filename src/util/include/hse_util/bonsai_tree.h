@@ -113,12 +113,9 @@ struct bonsai_sval {
  * @bkv_key:
  *
  * A bonsai_kv includes the key and a list of bonsai_val objects.
- * The reference count is protected by the updater's mutex (i.e., it
- * may only be modified within the scope of an update/delete operation).
  */
 struct bonsai_kv {
     struct key_immediate   bkv_key_imm;
-    u16                    bkv_rsvd;
     u16                    bkv_flags;
     struct bonsai_val *    bkv_values;
     struct bonsai_kv *     bkv_prev;
@@ -206,14 +203,16 @@ struct bonsai_client {
  * @br_root:      pointer to the root of bonsai_tree
  * @br_bounds:    indicates bounds are established and lcp
  * @br_client:    bonsai client instance
+ * @br_stack:     used by bn_ior_impl() to eliminate recursion
  * @br_kv:        a circular k/v list, next=head, prev=tail
  *
- * There is one such structure for every bonsai tree.
+ * There is one bonsai_root for each bonsai tree.
  */
 struct bonsai_root {
     struct bonsai_node  *br_root;
     atomic_t             br_bounds;
     struct bonsai_client br_client;
+    uintptr_t            br_stack[40];
     struct bonsai_kv     br_kv;
 };
 
