@@ -2077,7 +2077,7 @@ ikvdb_kvs_put(
     merr_t             err;
     u64                start;
 
-    start = kvdb_kop_is_priority(os) ? 0 : get_time_ns();
+    start = kvdb_kop_is_priority(os) ? 0 : get_cycles();
 
     if (ev(!handle))
         return merr(EINVAL);

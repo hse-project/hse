@@ -595,8 +595,8 @@ perfc_dis_record_impl(struct perfc_dis *dis, u64 sample);
  */
 BullseyeCoverageSaveOff
 
-    static __always_inline struct perfc_seti *
-    PERFC_ISON(struct perfc_set *pcs)
+static __always_inline struct perfc_seti *
+PERFC_ISON(struct perfc_set *pcs)
 {
     if (pcs && pcs->ps_bitmap > 0)
         return pcs->ps_seti;

@@ -612,19 +612,13 @@ throttle(struct throttle *self, u64 start, u32 len)
     struct timespec timespec;
 
     long target, elapsed, now, delay;
-    u64  frac, calls, cycles;
-    uint pct;
+    u64  frac, calls;
 
-    target = (u64)self->thr_delay_raw * len / 1024;
-
-    now = get_time_ns();
-    elapsed = now - start;
-    delay = target - elapsed;
-    if (delay < 128)
-        return 0;
-
-    if (now >= atomic64_read(&self->thr_next) && spin_trylock(&self->thr_lock)) {
+    if (jclock_ns >= atomic64_read(&self->thr_next) && spin_trylock(&self->thr_lock)) {
         ulong debug = 0;
+        uint pct;
+
+        now = get_time_ns();
 
         /* Update thr_next ASAP to stave off trylock attempts.
          */
@@ -653,22 +647,26 @@ throttle(struct throttle *self, u64 start, u32 len)
             return 0;
 
         hse_log(
-            HSE_NOTICE "%s: nslpmin %lu target %ld elapsed %ld delay %ld "
-                       "calls %lu pct %u",
+            HSE_NOTICE "%s: nslpmin %lu target %ld calls %lu pct %u",
             __func__,
             self->thr_rp->throttle_sleep_min_ns,
-            target,
-            elapsed,
-            delay,
+            (u64)self->thr_delay_raw * len / 1024,
             (ulong)calls,
             pct);
 
         return 0;
     }
 
-    cycles = get_cycles(); /* Use TSC as an RNG */
+    /* Use the low bits of the TSC as an RNG */
+    if (start % 128 < atomic_read(&self->thr_pct))
+        return 0;
 
-    if (cycles % 128 < atomic_read(&self->thr_pct))
+    now = get_cycles();
+    elapsed = cycles_to_nsecs(now - start);
+
+    target = (u64)self->thr_delay_raw * len / 1024;
+    delay = target - elapsed;
+    if (delay < 256)
         return 0;
 
     /* The system adds an additional 50us to each nanosleep() request,
@@ -683,18 +681,19 @@ throttle(struct throttle *self, u64 start, u32 len)
             delay -= self->thr_nslpmin;
         delay -= self->thr_nslpmin;
         delay = min(delay, NSEC_PER_SEC - 1);
-    } else if (cycles % 64 < 8) {
-        delay = 100;
+    } else if (now % 64 < 8) {
+        delay = self->thr_nslpmin * 2;
     }
 
     timespec.tv_nsec = delay;
     timespec.tv_sec = 0;
-    nanosleep(&timespec, 0);
+    clock_nanosleep(CLOCK_MONOTONIC, 0, &timespec, 0);
 
     /* Compute the requested delay time vs actual response time
      * as a percentage (scaled to 128).
      */
-    elapsed = get_time_ns() - now;
+    elapsed = cycles_to_nsecs(get_cycles() - now);
+
     frac = (delay * 128) / (elapsed | 1);
     if (frac > 128)
         frac = 128;
