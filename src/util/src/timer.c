@@ -102,13 +102,34 @@ timer_calibrate(void)
     if (timer_nslpmin > timer_slack * 2)
         timer_nslpmin = timer_slack;
 
+#if __amd64__
     tsc_freq = cps;
-    tsc_shift = 20;
+    tsc_shift = 21;
     tsc_mult = (NSEC_PER_SEC << tsc_shift) / tsc_freq;
+#else
+    /* Default implementation of get_cycles() use clock_gettime().
+     */
+    tsc_freq = NSEC_PER_SEC;
+    tsc_shift = 0;
+    tsc_mult = 1;
+#endif
 
     hse_log(HSE_NOTICE
             "%s: c/gc %ld, c/gtns %ld, c/s %ld, gtns %ld ns, nslpmin %lu ns, timerslack %lu",
             __func__, cpgc, cpgtns, cps, gtns, timer_nslpmin, timer_slack);
+
+    if (1) {
+        uint cpu;
+
+        usleep(1000);
+        cps = get_cycles();
+        start = get_time_ns();
+        for (i = 0; i < imax * 128; ++i)
+            cpu = raw_smp_processor_id();
+        cps = get_cycles() - cps;
+        hse_log(HSE_NOTICE "%s: cpu %u, %lu, %lu",
+                __func__, cpu, cps / i, cycles_to_nsecs(cps) / i);
+    }
 }
 
 static __always_inline void

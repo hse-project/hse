@@ -37,14 +37,21 @@ get_realtime(struct timespec *ts)
 static __always_inline u64
 get_cycles(void)
 {
-    unsigned int tickl, tickh;
-
-    __asm__ __volatile__("rdtsc" : "=a"(tickl), "=d"(tickh));
-    return ((unsigned long long)tickh << 32) | tickl;
+    return __builtin_ia32_rdtsc();
 }
 
 #else
-#error get_cycles() not implemented for this architecture
+
+#warning "using default implementation for get_cycles()"
+
+/* If you change this you must update tsc_freq, tsc_mult,
+ * and tsc_shift in timer.c to match.
+ */
+static __always_inline u64
+get_cycles(void)
+{
+    return get_time_ns();
+}
 #endif
 
 
