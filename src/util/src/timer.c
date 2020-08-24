@@ -27,70 +27,121 @@ unsigned int tsc_shift __read_mostly;
 
 struct timer_jclock timer_jclock;
 
+__attribute__((__noinline__))
+u64
+timer_calibrate_nsleep(void)
+{
+    struct timespec req = {.tv_nsec = 100 };
+
+    return clock_nanosleep(CLOCK_MONOTONIC, 0, &req, NULL);
+}
+
+__attribute__((__noinline__))
+u64
+timer_calibrate_tls(void)
+{
+    static __thread u64 counter;
+
+    return ++counter;
+}
+
+__attribute__((__noinline__))
+u64
+timer_calibrate_gtns(void)
+{
+    return get_time_ns();
+}
+
+__attribute__((__noinline__))
+u64
+timer_calibrate_gc(void)
+{
+    return get_cycles();
+}
+
+__attribute__((__noinline__))
+u64
+timer_calibrate_null(void)
+{
+    return 0;
+}
+
+__attribute__((__noinline__))
+u64
+timer_calibrate_loop(int imax, u64 (*func)(void))
+{
+    u64 x __maybe_unused;
+    u64 start;
+    int i;
+
+    start = get_cycles();
+
+    for (i = 0; i < imax; ++i)
+        x += func();
+    smp_mb();
+
+    return get_cycles() - start;
+}
+
 /**
- * timer_calibrate() - measure overhead of calling nanosleep()
+ * timer_calibrate() - Determine TSC frequency and cost of various facilities
  */
 static void
 timer_calibrate(void)
 {
-    long cpgc, cpgtns, gtns, cps;
-    long start, i, last = 0;
-    long imax = 1024;
-    int rc;
+    ulong cyc_null, cyc_gc, cyc_gtns, cyc_tls, cyc_nsleep;
+    ulong cps, nsecs, diff, last;
+    int imax = 333 * 1000, rc, n;
 
-    /* Measure cycles per call of get_cycles() (cpgc), and cycles
-     * per call of get_time_ns() (cpgtns).  Keep trying until we
-     * have two successive samples within 3% of each other over
-     * a 10ms period.
+    usleep(USEC_PER_SEC / 9);
+
+    /* First we measure a few functions that we call a lot in order
+     * to get an idea of how much they cost.  Results are likely to
+     * vary due to how busy the machine, turbo capabilities, ...
      */
-    while (1) {
-        struct timespec req = {.tv_nsec = MSEC_PER_SEC * 10 };
+    cyc_null = timer_calibrate_loop(imax * 3, timer_calibrate_null);
+    cyc_null = timer_calibrate_loop(imax, timer_calibrate_null);
 
-        start = get_cycles();
-        for (i = 0; i < imax * 128; ++i)
-            cpgc = get_cycles();
-        cpgc = (cpgc - start) / (imax * 128);
+    cyc_gc = timer_calibrate_loop(imax, timer_calibrate_gc);
+    cyc_gc = (cyc_gc - cyc_null) / imax;
 
-        start = get_cycles();
-        for (i = 0; i < imax * 128; ++i)
-            gtns = get_time_ns();
-        cpgtns = (get_cycles() - start) / (imax * 128);
+    cyc_gtns = timer_calibrate_loop(imax, timer_calibrate_gtns);
+    cyc_gtns = (cyc_gtns - cyc_null) / imax;
 
-        if (last > (cpgtns * 97) / 100 && last < (cpgtns * 103) / 100)
+    cyc_tls = timer_calibrate_loop(imax, timer_calibrate_gtns);
+    cyc_tls = (cyc_tls - cyc_null) / imax;
+
+    cyc_nsleep = timer_calibrate_loop(5000, timer_calibrate_nsleep);
+    cyc_nsleep = (cyc_nsleep - ((cyc_null * 5000) / imax)) / 5000;
+
+    last = 0;
+    n = 0;
+
+    /* Compute TSC frequency.
+     */
+    while (n++ < 100) {
+        usleep(USEC_PER_SEC / 9);
+
+        cps = get_cycles();
+        nsecs = get_time_ns();
+        usleep(USEC_PER_SEC / 9);
+        nsecs = get_time_ns() - nsecs;
+        cps = (get_cycles() - cps) * NSEC_PER_SEC / nsecs;
+
+        diff = (cps > last) ? (cps - last) : (last - cps);
+
+        if (diff < 50000 && nsecs > USEC_PER_SEC / 10)
             break;
 
-        last = last ? 0 : cpgtns;
-
-        clock_nanosleep(CLOCK_MONOTONIC, 0, &req, NULL);
+        last = roundup(cps, 50000);
+        last = (last / 100000) * 100000;
     }
 
-    /* Measure nsecs per call of get_time_ns() and compute CPU freq.
-     */
-    usleep(1000);
-    cps = get_cycles();
-    start = get_time_ns();
-    for (i = 0; i < imax * 128; ++i)
-        gtns = get_time_ns();
-    cps = get_cycles() - cps;
-    cps = (cps - cpgc - cpgtns) * NSEC_PER_SEC / (gtns - start);
-    gtns = (gtns - start) / (imax * 128);
+    tsc_freq = cps;
+    tsc_shift = 21;
+    tsc_mult = (NSEC_PER_SEC << tsc_shift) / tsc_freq;
 
-    /* Measure the fixed overhead of calling nanosleep().  Typically
-     * this is roughly 50us (i.e., each request takes at least 50us
-     * longer than the requested sleep time).
-     */
-    while (1) {
-        struct timespec req = {.tv_nsec = 100 };
-        int             rc = 0;
-
-        start = get_time_ns();
-        for (i = 0; i < imax; ++i)
-            rc |= clock_nanosleep(CLOCK_MONOTONIC, 0, &req, NULL);
-
-        timer_nslpmin = (get_time_ns() - start - gtns) / imax;
-        if (!rc)
-            break;
-    }
+    timer_nslpmin = cycles_to_nsecs(cyc_nsleep);
 
     /* If our measured value of nslpmin is high, it's probably because
      * high resolution timers are not enabled.  But it might be due to
@@ -102,34 +153,12 @@ timer_calibrate(void)
     if (timer_nslpmin > timer_slack * 2)
         timer_nslpmin = timer_slack;
 
-#if __amd64__
-    tsc_freq = cps;
-    tsc_shift = 21;
-    tsc_mult = (NSEC_PER_SEC << tsc_shift) / tsc_freq;
-#else
-    /* Default implementation of get_cycles() use clock_gettime().
-     */
-    tsc_freq = NSEC_PER_SEC;
-    tsc_shift = 0;
-    tsc_mult = 1;
-#endif
-
     hse_log(HSE_NOTICE
-            "%s: c/gc %ld, c/gtns %ld, c/s %ld, gtns %ld ns, nslpmin %lu ns, timerslack %lu",
-            __func__, cpgc, cpgtns, cps, gtns, timer_nslpmin, timer_slack);
-
-    if (1) {
-        uint cpu;
-
-        usleep(1000);
-        cps = get_cycles();
-        start = get_time_ns();
-        for (i = 0; i < imax * 128; ++i)
-            cpu = raw_smp_processor_id();
-        cps = get_cycles() - cps;
-        hse_log(HSE_NOTICE "%s: cpu %u, %lu, %lu",
-                __func__, cpu, cps / i, cycles_to_nsecs(cps) / i);
-    }
+            "%s: gc %lu/%lu, gtns %lu/%lu, tls %lu/%lu, c/s %lu/%d, timerslack %lu/%lu",
+            __func__, cyc_gc, cycles_to_nsecs(cyc_gc),
+            cyc_gtns, cycles_to_nsecs(cyc_gtns),
+            cyc_tls, cycles_to_nsecs(cyc_tls),
+            cps, n, timer_nslpmin, timer_slack);
 }
 
 static __always_inline void
@@ -277,6 +306,9 @@ hse_timer_init(void)
 
     timer_running = true;
     queue_work(timer_wq, &timer_jclock_work);
+
+    while (!jiffies)
+        usleep(10000);
 
     return 0;
 }
