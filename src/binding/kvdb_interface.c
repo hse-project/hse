@@ -369,24 +369,21 @@ hse_kvs_put(
 {
     struct kvs_ktuple kt;
     struct kvs_vtuple vt;
-    merr_t            err = 0;
+    merr_t            err;
 
-    if (!handle || !key || (val_len > 0 && !val))
-        err = merr(EINVAL);
-    else if (os && (((os->kop_opaque >> 16) != 0xb0de) || ((os->kop_opaque & 0x0000ffff) != 1)))
-        err = merr(EINVAL);
-    else if (key_len > HSE_KVS_KLEN_MAX)
-        err = merr(ENAMETOOLONG);
-    else if (key_len == 0)
-        err = merr(ENOENT);
-    else if (val_len > HSE_KVS_VLEN_MAX)
-        err = merr(EMSGSIZE);
-
-    if (ev(err))
-        return err;
+    if (unlikely( !handle || !key || (val_len > 0 && !val) ))
+        return merr(EINVAL);
+    if (unlikely( os && (((os->kop_opaque >> 16) != 0xb0de) || ((os->kop_opaque & 0x0000ffff) != 1)) ))
+        return merr(EINVAL);
+    if (unlikely( key_len > HSE_KVS_KLEN_MAX ))
+        return merr(ENAMETOOLONG);
+    if (unlikely( key_len == 0 ))
+        return merr(ENOENT);
+    if (unlikely( val_len > HSE_KVS_VLEN_MAX ))
+        return merr(EMSGSIZE);
 
     PERFC_INCADD_RU(
-        &kvdb_pc, PERFC_RA_KVDBOP_KVS_PUT, PERFC_BA_KVDBOP_KVS_PUTB, key_len + val_len, 1024);
+        &kvdb_pc, PERFC_RA_KVDBOP_KVS_PUT, PERFC_BA_KVDBOP_KVS_PUTB, key_len + val_len, 128);
 
     kvs_ktuple_init_nohash(&kt, key, key_len);
     kvs_vtuple_init(&vt, (void *)val, val_len);
@@ -410,21 +407,18 @@ hse_kvs_get(
     struct kvs_ktuple   kt;
     struct kvs_buf      vbuf;
     enum key_lookup_res res;
-    merr_t              err = 0;
+    merr_t              err;
 
-    if (!handle || !key || !found || !val_len)
-        err = merr(EINVAL);
-    else if (os && (((os->kop_opaque >> 16) != 0xb0de) || ((os->kop_opaque & 0x0000ffff) != 1)))
-        err = merr(EINVAL);
-    else if (!valbuf && valbuf_sz > 0)
-        err = merr(EINVAL);
-    else if (key_len > HSE_KVS_KLEN_MAX)
-        err = merr(ENAMETOOLONG);
-    else if (key_len == 0)
-        err = merr(ENOENT);
-
-    if (ev(err))
-        return err;
+    if (unlikely( !handle || !key || !found || !val_len ))
+        return merr(EINVAL);
+    if (unlikely( os && (((os->kop_opaque >> 16) != 0xb0de) || ((os->kop_opaque & 0x0000ffff) != 1)) ))
+        return merr(EINVAL);
+    if (unlikely( !valbuf && valbuf_sz > 0 ))
+        return merr(EINVAL);
+    if (unlikely( key_len > HSE_KVS_KLEN_MAX ))
+        return merr(ENAMETOOLONG);
+    if (unlikely( key_len == 0 ))
+        return merr(ENOENT);
 
     /* If valbuf is NULL and valbuf_sz is zero, this call is meant as a
      * probe for the existence of the key and length of its value. To
@@ -451,7 +445,7 @@ hse_kvs_get(
         return merr(EPROTO);
 
     PERFC_INCADD_RU(
-        &kvdb_pc, PERFC_RA_KVDBOP_KVS_GET, PERFC_BA_KVDBOP_KVS_GETB, *found ? *val_len : 0, 1024);
+        &kvdb_pc, PERFC_RA_KVDBOP_KVS_GET, PERFC_BA_KVDBOP_KVS_GETB, *found ? *val_len : 0, 128);
 
     return 0UL;
 }
@@ -665,7 +659,7 @@ hse_kvs_cursor_create(
     else if (os && (((os->kop_opaque >> 16) != 0xb0de) || ((os->kop_opaque & 0x0000ffff) != 1)))
         err = merr(EINVAL);
 
-    PERFC_INC_RU(&kvdb_pc, PERFC_RA_KVDBOP_KVS_CURSOR_CREATE, 1024);
+    PERFC_INC_RU(&kvdb_pc, PERFC_RA_KVDBOP_KVS_CURSOR_CREATE, 128);
 
     err = ikvdb_kvs_cursor_create(handle, os, prefix, pfx_len, cursor);
 
@@ -682,7 +676,7 @@ hse_kvs_cursor_update(struct hse_kvs_cursor *cursor, struct hse_kvdb_opspec *os)
     else if (os && (((os->kop_opaque >> 16) != 0xb0de) || ((os->kop_opaque & 0x0000ffff) != 1)))
         err = merr(EINVAL);
 
-    PERFC_INC_RU(&kvdb_pc, PERFC_RA_KVDBOP_KVS_CURSOR_UPDATE, 1024);
+    PERFC_INC_RU(&kvdb_pc, PERFC_RA_KVDBOP_KVS_CURSOR_UPDATE, 128);
 
     err = ikvdb_kvs_cursor_update(cursor, os);
 
@@ -706,7 +700,7 @@ hse_kvs_cursor_seek(
     else if (os && (((os->kop_opaque >> 16) != 0xb0de) || ((os->kop_opaque & 0x0000ffff) != 1)))
         err = merr(EINVAL);
 
-    PERFC_INC_RU(&kvdb_pc, PERFC_RA_KVDBOP_KVS_CURSOR_SEEK, 1024);
+    PERFC_INC_RU(&kvdb_pc, PERFC_RA_KVDBOP_KVS_CURSOR_SEEK, 128);
 
     kt.kt_len = 0;
     err = ikvdb_kvs_cursor_seek(cursor, os, key, len, 0, 0, found ? &kt : 0);
@@ -737,7 +731,7 @@ hse_kvs_cursor_seek_range(
     else if (os && (((os->kop_opaque >> 16) != 0xb0de) || ((os->kop_opaque & 0x0000ffff) != 1)))
         err = merr(EINVAL);
 
-    PERFC_INC_RU(&kvdb_pc, PERFC_RA_KVDBOP_KVS_CURSOR_SEEK, 1024);
+    PERFC_INC_RU(&kvdb_pc, PERFC_RA_KVDBOP_KVS_CURSOR_SEEK, 128);
 
     kt.kt_len = 0;
     err = ikvdb_kvs_cursor_seek(cursor, os, key, key_len, limit, limit_len, found ? &kt : 0);
@@ -774,7 +768,7 @@ hse_kvs_cursor_read(
             PERFC_RA_KVDBOP_KVS_CURSOR_READ,
             PERFC_BA_KVDBOP_KVS_GETB,
             *klen + *klen,
-            1024);
+            128);
     }
 
     return err;

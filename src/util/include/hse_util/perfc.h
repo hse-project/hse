@@ -10,22 +10,26 @@
 #include <hse_util/assert.h>
 #include <hse_util/atomic.h>
 #include <hse_util/timing.h>
+#include <hse_util/timer.h>
 #include <hse_util/hse_err.h>
 #include <hse_util/data_tree.h>
 
 /* MTF_MOCK_DECL(perfc) */
 
-/* PERFC_PCV_MAX    max per-cpu values per counter
- * PERFC_IVL_MAX    max bounds in a distribution counter
- * PERFC_BKT_MAX    max buckets in a distribution counter
- * PERFC_GRP_MAX    max bucket groups distribution counter
- * PERFC_PCT_SCALE  power-of-two scaling factor for pdi_pct
+/* PERFC_VALPERCNT          max per-cpu values per counter
+ * PERFC_VALPERCPU          max per-cpu values per cacheline
+ * PERFC_IVL_MAX            max bounds in a distribution counter
+ * PERFC_BKT_MAX            max buckets in a distribution counter
+ * PERFC_GRP_MAX            max bucket groups distribution counter
+ * PERFC_PCT_SCALE          power-of-two scaling factor for pdi_pct
  */
-#define PERFC_PCV_MAX (32)
-#define PERFC_IVL_MAX (PERFC_PCV_MAX - 1)
-#define PERFC_GRP_MAX (sizeof(struct perfc_val) / sizeof(struct perfc_bkt))
-#define PERFC_BKT_MAX (PERFC_GRP_MAX * (PERFC_IVL_MAX + 1))
-#define PERFC_PCT_SCALE (128)
+#define PERFC_VALPERCNT     (64)
+#define PERFC_VALPERCPU     (SMP_CACHE_BYTES / sizeof(struct perfc_val))
+#define PERFC_VAL_MAX       (PERFC_VALPERCNT * PERFC_VALPERCPU)
+#define PERFC_IVL_MAX       (PERFC_VALPERCNT / 2 - 1)
+#define PERFC_GRP_MAX       (SMP_CACHE_BYTES / sizeof(struct perfc_bkt) * 2)
+#define PERFC_BKT_MAX       (PERFC_GRP_MAX * (PERFC_IVL_MAX + 1))
+#define PERFC_PCT_SCALE     (128)
 
 struct perfc_ivl;
 
@@ -288,11 +292,10 @@ perfc_ivl_destroy(const struct perfc_ivl *ivl);
 
 /* The perfc "rollup" macros are similar to their namesakes with
  * the exception that they only update the specified counter(s)
- * once every 1024 calls (i.e., a rollup update).
- * The purpose of this is to reduce (by three orders of magnitude)
- * the impact to the system of maintaining a hot perf counter that
- * is accurate.  Note that this is currently only effective in
- * user space, and only for global counters.
+ * once every _rumax calls (i.e., a rollup update).
+ * The purpose of this is to reduce (by orders of magnitude) the
+ * impact to the system of maintaining a hot perf counter that
+ * is accurate.
  */
 
 /* The rollup code is tested explicitly in perfc_test.c,
@@ -329,7 +332,7 @@ BullseyeCoverageSaveOff
         }                                                          \
     } while (0)
 
-    BullseyeCoverageRestore
+BullseyeCoverageRestore
 
     /**
  * struct perfc_ivl - interval bounds map
@@ -379,7 +382,7 @@ struct perfc_name {
 struct perfc_val {
     atomic64_t pcv_vadd;
     atomic64_t pcv_vsub;
-} __aligned(SMP_CACHE_BYTES / 2);
+};
 
 /**
  * struct perfc_bkt - per-node data for distribution counters
@@ -405,18 +408,18 @@ struct perfc_bkt {
  * @pch_bkt:        distribution counter bucket data (per-cpu node)
  *
  * For basic and rate counters there is one pch_val[] per cpu (modulo
- * PERFC_PCV_MAX).  For distribution counters each pch_val[] object
+ * PERFC_VALPERCNT).  For distribution counters each pch_val[] object
  * constitutes one bucket in the distribution.
  */
 struct perfc_ctr_hdr {
-    enum perfc_type pch_type;
-    u32             pch_flags;
-    u32             pch_prio;
+    enum perfc_type     pch_type;
+    u32                 pch_flags;
+    u32                 pch_prio;
 
     union {
-        struct perfc_val pch_val[PERFC_PCV_MAX];
-        struct perfc_bkt pch_bktv[PERFC_BKT_MAX];
-    } __aligned(SMP_CACHE_BYTES);
+        struct perfc_val   *pch_val;
+        struct perfc_bkt   *pch_bktv;
+    };
 };
 
 /**
@@ -592,8 +595,8 @@ perfc_dis_record_impl(struct perfc_dis *dis, u64 sample);
  */
 BullseyeCoverageSaveOff
 
-    static __always_inline struct perfc_seti *
-    PERFC_ISON(struct perfc_set *pcs)
+static __always_inline struct perfc_seti *
+PERFC_ISON(struct perfc_set *pcs)
 {
     if (pcs && pcs->ps_bitmap > 0)
         return pcs->ps_seti;
@@ -631,7 +634,7 @@ perfc_ison(struct perfc_set *pcs, u32 cidx)
 static __always_inline u64
 perfc_lat_start(struct perfc_set *pcs)
 {
-    return PERFC_ISON(pcs) ? get_time_ns() : 0;
+    return PERFC_ISON(pcs) ? get_cycles() : 0;
 }
 
 /**
@@ -651,7 +654,7 @@ perfc_lat_startu(struct perfc_set *pcs, const u32 cidx)
 
     pcsi = perfc_ison(pcs, cidx);
     if (unlikely(pcsi))
-        return get_time_ns();
+        return get_cycles();
 
     return 0;
 }
@@ -673,7 +676,7 @@ perfc_lat_startl(struct perfc_set *pcs, const u32 cidx)
 
     pcsi = perfc_ison(pcs, cidx);
     if (likely(pcsi))
-        return get_time_ns();
+        return get_cycles();
 
     return 0;
 }
@@ -706,10 +709,10 @@ perfc_lat_record(struct perfc_set *pcs, const u32 cidx, const u64 start)
 static __always_inline void
 perfc_sl_record(struct perfc_set *pcs, const u32 cidx, const u64 start)
 {
-    struct perfc_seti *   pcsi;
-    struct perfc_ctr_hdr *hdr;
-    u64                   val;
-    unsigned int          cpu;
+    struct perfc_ctr_hdr   *hdr;
+    struct perfc_seti      *pcsi;
+    u64                     val;
+    uint                    i;
 
     if (!start)
         return;
@@ -721,11 +724,13 @@ perfc_sl_record(struct perfc_set *pcs, const u32 cidx, const u64 start)
     hdr = &pcsi->pcs_ctrv[cidx].hdr;
     assert(hdr->pch_type == PERFC_TYPE_SL);
 
-    val = get_time_ns() - start;
+    val = cycles_to_nsecs(get_cycles() - start);
 
-    cpu = (raw_smp_processor_id() / 2) % PERFC_PCV_MAX;
-    atomic64_add(val, &hdr->pch_val[cpu].pcv_vadd); /* sum */
-    atomic64_inc(&hdr->pch_val[cpu].pcv_vsub);      /* hitcnt */
+    i = raw_smp_processor_id() % PERFC_VALPERCNT;
+    i *= PERFC_VALPERCPU;
+
+    atomic64_add(val, &hdr->pch_val[i].pcv_vadd); /* sum */
+    atomic64_inc(&hdr->pch_val[i].pcv_vsub);      /* hitcnt */
 }
 
 /**
@@ -767,7 +772,7 @@ perfc_set(struct perfc_set *pcs, const u32 cidx, const u64 val)
     if (!pcsi)
         return;
 
-    atomic64_set(&pcsi->pcs_ctrv[cidx].hdr.pch_val[0].pcv_vadd, val);
+    atomic64_set(&pcsi->pcs_ctrv[cidx].hdr.pch_val[0].pcv_vadd, 0);
     atomic64_set(&pcsi->pcs_ctrv[cidx].hdr.pch_val[0].pcv_vsub, 0);
 }
 
@@ -776,15 +781,17 @@ perfc_set(struct perfc_set *pcs, const u32 cidx, const u64 val)
 static __always_inline void
 perfc_inc(struct perfc_set *pcs, const u32 cidx)
 {
-    unsigned int       cpu;
-    struct perfc_seti *pcsi;
+    struct perfc_seti  *pcsi;
+    uint                i;
 
     pcsi = perfc_ison(pcs, cidx);
     if (!pcsi)
         return;
 
-    cpu = (raw_smp_processor_id() / 2) % PERFC_PCV_MAX;
-    atomic64_add(1, &pcsi->pcs_ctrv[cidx].hdr.pch_val[cpu].pcv_vadd);
+    i = raw_smp_processor_id() % PERFC_VALPERCNT;
+    i *= PERFC_VALPERCPU;
+
+    atomic64_add(1, &pcsi->pcs_ctrv[cidx].hdr.pch_val[i].pcv_vadd);
 }
 
 /* Decrement a performance counter.
@@ -792,15 +799,17 @@ perfc_inc(struct perfc_set *pcs, const u32 cidx)
 static __always_inline void
 perfc_dec(struct perfc_set *pcs, const u32 cidx)
 {
-    unsigned int       cpu;
-    struct perfc_seti *pcsi;
+    struct perfc_seti  *pcsi;
+    uint                i;
 
     pcsi = perfc_ison(pcs, cidx);
     if (!pcsi)
         return;
 
-    cpu = (raw_smp_processor_id() / 2) % PERFC_PCV_MAX;
-    atomic64_add(1, &pcsi->pcs_ctrv[cidx].hdr.pch_val[cpu].pcv_vsub);
+    i = raw_smp_processor_id() % PERFC_VALPERCNT;
+    i *= PERFC_VALPERCPU;
+
+    atomic64_add(1, &pcsi->pcs_ctrv[cidx].hdr.pch_val[i].pcv_vsub);
 }
 
 /* Add a value to a performance counter.
@@ -808,15 +817,17 @@ perfc_dec(struct perfc_set *pcs, const u32 cidx)
 static __always_inline void
 perfc_add(struct perfc_set *pcs, const u32 cidx, const u64 val)
 {
-    unsigned int       cpu;
-    struct perfc_seti *pcsi;
+    struct perfc_seti  *pcsi;
+    uint                i;
 
     pcsi = perfc_ison(pcs, cidx);
     if (!pcsi)
         return;
 
-    cpu = (raw_smp_processor_id() / 2) % PERFC_PCV_MAX;
-    atomic64_add(val, &pcsi->pcs_ctrv[cidx].hdr.pch_val[cpu].pcv_vadd);
+    i = raw_smp_processor_id() % PERFC_VALPERCNT;
+    i *= PERFC_VALPERCPU;
+
+    atomic64_add(val, &pcsi->pcs_ctrv[cidx].hdr.pch_val[i].pcv_vadd);
 }
 
 /* Add values to two performance counters from the same family.
@@ -824,18 +835,20 @@ perfc_add(struct perfc_set *pcs, const u32 cidx, const u64 val)
 static __always_inline void
 perfc_add2(struct perfc_set *pcs, const u32 cidx1, const u64 val1, const u32 cidx2, const u64 val2)
 {
-    unsigned int       cpu;
-    struct perfc_seti *pcsi;
+    struct perfc_seti  *pcsi;
+    uint                i;
 
     pcsi = perfc_ison(pcs, cidx1);
     if (!pcsi)
         return;
 
-    cpu = (raw_smp_processor_id() / 2) % PERFC_PCV_MAX;
-    atomic64_add(val1, &pcsi->pcs_ctrv[cidx1].hdr.pch_val[cpu].pcv_vadd);
+    i = raw_smp_processor_id() % PERFC_VALPERCNT;
+    i *= PERFC_VALPERCPU;
+
+    atomic64_add(val1, &pcsi->pcs_ctrv[cidx1].hdr.pch_val[i].pcv_vadd);
 
     if (pcs->ps_bitmap & (1ull << cidx2))
-        atomic64_add(val2, &pcsi->pcs_ctrv[cidx2].hdr.pch_val[cpu].pcv_vadd);
+        atomic64_add(val2, &pcsi->pcs_ctrv[cidx2].hdr.pch_val[i].pcv_vadd);
 }
 
 /* Subtract a value from a performance counter.
@@ -843,20 +856,22 @@ perfc_add2(struct perfc_set *pcs, const u32 cidx1, const u64 val1, const u32 cid
 static __always_inline void
 perfc_sub(struct perfc_set *pcs, const u32 cidx, const u64 val)
 {
-    unsigned int       cpu;
-    struct perfc_seti *pcsi;
+    struct perfc_seti  *pcsi;
+    uint                i;
 
     pcsi = perfc_ison(pcs, cidx);
     if (!pcsi)
         return;
 
-    cpu = (raw_smp_processor_id() / 2) % PERFC_PCV_MAX;
-    atomic64_add(val, &pcsi->pcs_ctrv[cidx].hdr.pch_val[cpu].pcv_vsub);
+    i = raw_smp_processor_id() % PERFC_VALPERCNT;
+    i *= PERFC_VALPERCPU;
+
+    atomic64_add(val, &pcsi->pcs_ctrv[cidx].hdr.pch_val[i].pcv_vsub);
 }
 
 BullseyeCoverageRestore
 
-    extern struct perfc_ivl *perfc_di_ivl;
+extern struct perfc_ivl *perfc_di_ivl;
 
 /*
  * perfc_ctrseti_alloc() - allocate a counter set instance

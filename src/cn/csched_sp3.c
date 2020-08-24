@@ -1521,7 +1521,7 @@ sp3_submit(struct sp3 *sp, struct cn_compaction_work *w, uint qnum, uint rbt_idx
     w->cw_sched = sp;
     w->cw_completion = sp3_work_complete;
     w->cw_progress = sp3_work_progress;
-    w->cw_prog_interval = NSEC_PER_SEC;
+    w->cw_prog_interval = nsecs_to_jiffies(NSEC_PER_SEC);
     w->cw_debug = csched_rp_dbg_comp(sp->rp);
 
     sp->samp_wip.i_alen += w->cw_est.cwe_samp.i_alen;

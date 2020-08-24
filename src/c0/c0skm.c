@@ -831,7 +831,7 @@ c0skm_tsync_or_flush_work(struct c0sk_mutation *c0skm, enum c0skm_ingest_type it
         atomic64_set(&c0skm->c0skm_err, err);
         kvdb_health_error(c0sk->c0sk_kvdb_health, err);
     } else {
-        perfc_rec_lat(&c0skm->c0skm_pcset_op, PERFC_LT_C0SKM_INGEST, start);
+        perfc_dis_record(&c0skm->c0skm_pcset_op, PERFC_DI_C0SKM_INGEST, get_time_ns() - start);
     }
 
     if (tsync)
@@ -866,9 +866,8 @@ c0skm_sync_work(struct c0sk_mutation *c0skm)
         smp_wmb();
 
         err = c0skm_ingest(c0skm, C1_INGEST_SYNC, &gen);
-        if (!ev(err)) {
-            perfc_rec_lat(&c0skm->c0skm_pcset_op, PERFC_LT_C0SKM_INGEST, start);
-        }
+        if (!ev(err))
+            perfc_dis_record(&c0skm->c0skm_pcset_op, PERFC_DI_C0SKM_INGEST, get_time_ns() - start);
 
         atomic64_set(&c0skm->c0skm_ingest_end, get_time_ns());
     }

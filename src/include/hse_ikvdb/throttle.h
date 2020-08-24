@@ -119,21 +119,21 @@ struct throttle_mavg {
 
 /**
  * struct throttle - throttle state
+ * @thr_next:           time at which to recompute %thr_pct (nsecs)
+ * @thr_pct:            percentage of requests not to throttle
+ * @thr_delay_raw:      raw throttle delay amount
+ * @thr_nslpmin:        fixed overhead of nanosleep() (nsecs)
+ * @thr_lock:           lock for updating %thr_pct
  * @thr_mavg:           struct to compute mavg
  * @thr_reduce_sum:     sum to compute cumulative mavg while reducing sleep
- * @thr_delay_raw:      raw throttle delay amount
  * @thr_delay_min:      minimum sleep value to use (updated every lmax_cycles)
  * @thr_update_ms:      read sensors every thr_update_ms
  * @thr_reduce_cycles:  min cycles before attempting to reduce sleep value
  * @thr_inject_cycles:  insert sleep val for inject cycles and monitor response
  * @thr_delta_cycles:   cycles to wait after changing sleep to see a change
  * @thr_skip_cycles:    cycles to skip (to compute mavg) after changing sleep
- * @thr_next:           time at which to recompute %thr_pct (nsecs)
- * @thr_pct:            percentage of requests not to throttle
  * @thr_cycles:         counter of throttle_update calls
- * @thr_lock:           lock for updating %thr_pct
  * @thr_update:         time at which to make periodic adjustments
- * @thr_nslpmin:        fixed overhead of nanosleep() (nsecs)
  * @thr_state:          current throttling state (increase/reduce/no change)
  * @thr_csched:         current sensor value for csched
  * @thr_delay_prev:     previous sleep value (prior to attempting reduction)
@@ -152,9 +152,15 @@ struct throttle_mavg {
  * @thr_sensorv:        vector of throttle sensors
  */
 struct throttle {
+    atomic_t             thr_pct;
+    atomic64_t           thr_next;
+    uint                 thr_delay_raw;
+    int                  thr_nslpmin;
+    spinlock_t           thr_lock;
+
+    __aligned(SMP_CACHE_BYTES)
     struct throttle_mavg thr_mavg;
     ulong                thr_reduce_sum;
-    uint                 thr_delay_raw;
     uint                 thr_delay_min;
     uint                 thr_lmin_cycles;
     uint                 thr_update_ms;
@@ -162,12 +168,8 @@ struct throttle {
     uint                 thr_inject_cycles;
     uint                 thr_delta_cycles;
     uint                 thr_skip_cycles;
-    atomic64_t           thr_next;
-    atomic_t             thr_pct;
     uint                 thr_cycles;
-    spinlock_t           thr_lock;
     ulong                thr_update;
-    int                  thr_nslpmin;
     enum throttle_state  thr_state;
     uint                 thr_csched;
     uint                 thr_delay_prev;
