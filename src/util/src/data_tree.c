@@ -451,25 +451,31 @@ struct dt_tree *dt_data_tree;
 void
 dt_init(void)
 {
-    if (dt_data_tree == NULL) {
-        /* This tree is shared by Error Counters, Traces,
-         * Performance Counters, and Component Info.
-         */
-        spin_lock_init(&dt_tree_list_lock);
-        INIT_LIST_HEAD(&dt_tree_list);
-        dt_data_tree = dt_create("data");
-        event_counter_init();
-        config_init();
+    if (dt_data_tree) {
+        assert(!dt_data_tree);
+        return;
     }
+
+    /* This tree is shared by Error Counters, Traces,
+     * Performance Counters, and Component Info.
+     */
+    spin_lock_init(&dt_tree_list_lock);
+    INIT_LIST_HEAD(&dt_tree_list);
+    dt_data_tree = dt_create("data");
+    event_counter_init();
+    config_init();
 }
 
 void
-dt_shutdown(void)
+dt_fini(void)
 {
-    if (dt_data_tree) {
-        dt_destroy(dt_data_tree);
-        dt_data_tree = NULL;
+    if (!dt_data_tree) {
+        assert(dt_data_tree);
+        return;
     }
+
+    dt_destroy(dt_data_tree);
+    dt_data_tree = NULL;
 }
 
 void

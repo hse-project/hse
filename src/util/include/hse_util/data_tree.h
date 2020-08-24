@@ -144,18 +144,18 @@ void
 dt_init(void);
 
 /**
- * dt_shutdown - Free resources allocated in dt_init
+ * dt_fini - Free resources allocated by dt_init().
  *
- * dt_shutdown (no arguments) frees the workqueue allocated in dt_init,
+ * dt_init (no arguments) frees the workqueue allocated by dt_init()
  * and removes the dt_data_tree, which will free all of the elements
  * currently in the tree.
  *
- * Called by hse_platform kernel module cleanup code.
+ * May only be called by hse_platform kernel module cleanup code.
  *
  * Return: void
  */
 void
-dt_shutdown(void);
+dt_fini(void);
 
 /**
  * dt_create - Create a dt_tree.

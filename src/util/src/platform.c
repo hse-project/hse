@@ -154,6 +154,6 @@ hse_platform_fini(void)
     kmem_cache_fini();
     perfc_shutdown();
     hse_timer_fini();
-    dt_shutdown();
+    dt_fini();
     hse_logging_fini();
 }
