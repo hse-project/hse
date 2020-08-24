@@ -121,8 +121,10 @@ dt_add(struct dt_tree *tree, struct dt_element *dte)
     struct rb_node **new, *parent = NULL;
     int err = 0;
 
-    if ((tree == NULL) || (dte == NULL))
+    if (!tree || !dte)
         return -EINVAL;
+
+    assert(dte->dte_type != DT_TYPE_INVALID);
 
     dt_lock(tree);
 

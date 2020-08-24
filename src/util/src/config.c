@@ -117,6 +117,9 @@ emit_handler(struct dt_element *dte, struct yaml_context *yc)
     const char *       path;
     u64                t;
 
+    assert(dte);
+    assert(dte->dte_type != DT_TYPE_INVALID);
+
     path = skip("/data/config/", dte->dte_path);
     yaml_start_element(yc, "path", path);
 
@@ -153,7 +156,6 @@ emit_handler(struct dt_element *dte, struct yaml_context *yc)
 
             default:
                 val = dflt = -1;
-                assert(0);
                 break;
         }
 
@@ -342,6 +344,7 @@ hse_config(
 
     dte->dte_ops = &config_ops;
     dte->dte_data = cfg;
+    dte->dte_type = DT_TYPE_DONT_CARE;
 
     strlcpy(cfg->instance, instance, DT_PATH_ELEMENT_LEN);
     strlcpy(cfg->path, path, DT_PATH_ELEMENT_LEN);

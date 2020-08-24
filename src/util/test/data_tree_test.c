@@ -688,6 +688,7 @@ worker(void *context, int id)
 
                 sprintf(dte->dte_path, "/test/worker%d/node%d", id, i);
                 dte->dte_ops = &test_element_alt_ops;
+                dte->dte_type = DT_TYPE_DONT_CARE;
                 dt_add(test->worker[id].tree, dte);
             }
         }
