@@ -14,8 +14,7 @@
 #include <hse_util/data_tree.h>
 #include <hse_util/perfc.h>
 
-#define BUF_SIZE (1024 * 1024 * 4)
-char buf[BUF_SIZE];
+char yamlbuf[128 * 1024];
 
 int
 platform_pre(struct mtf_test_info *ti)
@@ -59,18 +58,14 @@ MTF_DEFINE_UTEST(perfc, perfc_basic_create_find_and_remove)
     count = dt_iterate_cmd(dt_data_tree, DT_OP_COUNT, PERFC_ROOT_PATH, NULL, NULL, NULL, NULL);
     ASSERT_EQ(before + 1, count);
 
-    yc.yaml_buf = buf;
-    yc.yaml_buf_sz = BUF_SIZE;
+    yc.yaml_buf = yamlbuf;
+    yc.yaml_buf_sz = sizeof(yamlbuf);
     yc.yaml_emit = NULL;
 
     count = dt_iterate_cmd(dt_data_tree, DT_OP_EMIT, PERFC_ROOT_PATH, &dip, NULL, NULL, NULL);
 
     /* 3, for /data, /data/perfc, /data/perfc/joker */
     ASSERT_EQ(before + 3, count);
-
-    printf("=====================================\n");
-    printf("%s", buf);
-    printf("=====================================\n");
 
     n = snprintf(
         path,
@@ -135,18 +130,15 @@ MTF_DEFINE_UTEST(perfc, perfc_basic_set)
     ASSERT_TRUE(n > 0 && n < sizeof(path));
 
     dip.yc = &yc;
-    yc.yaml_buf = buf;
-    yc.yaml_buf_sz = BUF_SIZE;
+    yc.yaml_buf = yamlbuf;
+    yc.yaml_buf_sz = sizeof(yamlbuf);
     yc.yaml_emit = NULL;
     count = dt_iterate_cmd(dt_data_tree, DT_OP_EMIT, PERFC_ROOT_PATH, &dip, NULL, NULL, NULL);
 
     /* 3, for /data, /data/perfc, /data/perfc/poison_ivy */
     ASSERT_EQ(before + 3, count);
 
-    printf("=====================================\n");
-    printf("%s", buf);
-    printf("=====================================\n");
-    ASSERT_NE(NULL, strstr(buf, "value: 42"));
+    ASSERT_NE(NULL, strstr(yamlbuf, "value: 42"));
 
     dte = dt_find(dt_data_tree, path, 1);
     ASSERT_NE(dte, NULL);
@@ -297,14 +289,13 @@ MTF_DEFINE_UTEST(perfc, perfc_verbosity_set_test)
 
     /* Emit */
     dip.yc = &yc;
-    yc.yaml_buf = buf;
-    yc.yaml_buf_sz = BUF_SIZE;
+    yc.yaml_buf = yamlbuf;
+    yc.yaml_buf_sz = sizeof(yamlbuf);
     yc.yaml_emit = NULL;
     count = dt_iterate_cmd(dt_data_tree, DT_OP_EMIT, dsp.path, &dip, NULL, NULL, NULL);
-    printf("=====================================\n");
-    printf("%s", buf);
-    printf("=====================================\n");
-    ASSERT_NE(NULL, strstr(buf, "current: 0x4"));
+    ASSERT_NE(NULL, strstr(yamlbuf, "current: 0x4"));
+
+    perfc_ctrseti_free(&set);
 }
 
 MTF_DEFINE_UTEST(perfc, ctrset_path)
