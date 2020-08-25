@@ -772,7 +772,7 @@ perfc_set(struct perfc_set *pcs, const u32 cidx, const u64 val)
     if (!pcsi)
         return;
 
-    atomic64_set(&pcsi->pcs_ctrv[cidx].hdr.pch_val[0].pcv_vadd, 0);
+    atomic64_set(&pcsi->pcs_ctrv[cidx].hdr.pch_val[0].pcv_vadd, val);
     atomic64_set(&pcsi->pcs_ctrv[cidx].hdr.pch_val[0].pcv_vsub, 0);
 }
 

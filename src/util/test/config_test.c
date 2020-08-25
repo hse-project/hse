@@ -20,18 +20,9 @@
 #undef COMPNAME
 #define COMPNAME __func__
 
-static inline void
-destroy_data_tree(void)
-{
-    dt_destroy(dt_data_tree);
-    dt_data_tree = NULL;
-}
-
 int
 config_test_pre(struct mtf_test_info *lcl_ti)
 {
-    destroy_data_tree();
-    dt_init();
     return 0;
 }
 
@@ -194,14 +185,15 @@ MTF_DEFINE_UTEST(config, config_emit)
     struct hse_config *         mc;
     size_t                      count;
     int                         ret;
-    u64                         default_nut = 42;
-    u64                         peanut = default_nut;
-    u32                         default_coin = 2;
-    u32                         penny = default_coin;
-    u16                         default_drug = 1500;
-    u16                         aspirin = default_drug;
-    u8                          default_plane = 5;
-    u8                          cessna = default_plane;
+
+    static u64                  default_nut = 42;
+    static u64                  peanut = 42;
+    static u32                  default_coin = 2;
+    static u32                  penny = 2;
+    static u16                  default_drug = 1500;
+    static u16                  aspirin = 1500;
+    static u8                   default_plane = 5;
+    static u8                   cessna = 5;
 
     buf = calloc(1, MC_EMIT_BUF_SIZE);
     ASSERT_NE(buf, NULL);
@@ -1139,9 +1131,9 @@ MTF_DEFINE_UTEST(config, config_string_macro)
     int                         ret;
     struct dt_set_parameters    dsp;
     union dt_iterate_parameters dip = {.dsp = &dsp };
-    char *                      cars_default = "cadillac";
+    static char                *cars_default = "cadillac";
 #define CARS_MAX 20
-    char                buick[CARS_MAX];
+    static char         buick[CARS_MAX];
     char *              buf;
     struct yaml_context yc = {
         .yaml_indent = 0, .yaml_offset = 0,

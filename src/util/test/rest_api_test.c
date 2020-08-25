@@ -71,9 +71,6 @@ MTF_DEFINE_UTEST_PREPOST(rest_api, get_handler_test, rest_start, rest_stop)
     merr_t      err;
     const char *path;
 
-    dt_shutdown();
-    dt_init();
-
     ERROR_COUNTER();
 
     /* Register the alias "test_dt" to send requests to DT */
@@ -91,17 +88,6 @@ MTF_DEFINE_UTEST_PREPOST(rest_api, get_handler_test, rest_start, rest_stop)
     memset(buf, 0, sizeof(buf));
     err = curl_get(0, sock, buf, sizeof(buf));
     ASSERT_EQ(merr_errno(err), EINVAL);
-
-    dt_shutdown();
-
-    /* No tree */
-    path = "/test_dt/event_counter";
-    memset(buf, 0, sizeof(buf));
-    err = curl_get(path, sock, buf, sizeof(buf));
-    ASSERT_EQ(0, buf[0]);
-    ASSERT_EQ(0, err);
-
-    dt_init();
 }
 
 MTF_DEFINE_UTEST_PREPOST(rest_api, put_handler_test, rest_start, rest_stop)
@@ -114,8 +100,6 @@ MTF_DEFINE_UTEST_PREPOST(rest_api, put_handler_test, rest_start, rest_stop)
     struct event_counter *ec;
     struct dt_element *   dte;
 
-    dt_shutdown();
-    dt_init();
     rest_init();
 
     err = rest_url_register(0, 0, rest_dt_get, rest_dt_put, "data");
@@ -145,7 +129,7 @@ MTF_DEFINE_UTEST_PREPOST(rest_api, put_handler_test, rest_start, rest_stop)
     err = curl_put(path, sock, 0, 0, buf, sizeof(buf));
     ASSERT_EQ(0, err);
     /* check in dt_tree if trip odometer is non-zero */
-    ASSERT_NE(0, ec->ev_trip_odometer);
+    ASSERT_EQ(1, ec->ev_trip_odometer);
 
     /* Ends on some random arg */
     path = "data/event_counter/put_handler_test?trip_od=1&just_a_word";
@@ -174,18 +158,6 @@ MTF_DEFINE_UTEST_PREPOST(rest_api, put_handler_test, rest_start, rest_stop)
     err = curl_put(path, sock, 0, 0, buf, sizeof(buf));
     ASSERT_EQ(0, strncmp(invalid_path, buf, strlen(invalid_path)));
     ASSERT_EQ(0, err);
-
-    dt_shutdown();
-
-    /* No tree */
-    const char *no_tree = "No data tree found";
-
-    path = "data/event_counter/put_handler_test?trip_od=1";
-    err = curl_put(path, sock, 0, 0, buf, sizeof(buf));
-    ASSERT_EQ(0, strncmp(no_tree, buf, strlen(no_tree)));
-    ASSERT_EQ(0, err);
-
-    dt_init();
 }
 
 MTF_DEFINE_UTEST_PREPOST(rest_api, no_handlers_test, rest_start, rest_stop)

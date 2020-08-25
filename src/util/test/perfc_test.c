@@ -14,8 +14,7 @@
 #include <hse_util/data_tree.h>
 #include <hse_util/perfc.h>
 
-#define BUF_SIZE 4096
-char buf[BUF_SIZE];
+char yamlbuf[128 * 1024];
 
 int
 platform_pre(struct mtf_test_info *ti)
@@ -42,7 +41,10 @@ MTF_DEFINE_UTEST(perfc, perfc_basic_create_find_and_remove)
     char                        path[128];
     struct perfc_name           ctrnames = { 0 };
     struct perfc_set            set = { 0 };
+    size_t                      before;
     merr_t                      err;
+
+    before = dt_iterate_cmd(dt_data_tree, DT_OP_COUNT, PERFC_ROOT_PATH, NULL, NULL, NULL, NULL);
 
     ctrnames.pcn_name = "PERFC_BA_FAM_TEST";
     ctrnames.pcn_hdr = "whysoserious";
@@ -54,20 +56,16 @@ MTF_DEFINE_UTEST(perfc, perfc_basic_create_find_and_remove)
     ASSERT_EQ(0, err);
 
     count = dt_iterate_cmd(dt_data_tree, DT_OP_COUNT, PERFC_ROOT_PATH, NULL, NULL, NULL, NULL);
-    ASSERT_EQ(1, count);
+    ASSERT_EQ(before + 1, count);
 
-    yc.yaml_buf = buf;
-    yc.yaml_buf_sz = BUF_SIZE;
+    yc.yaml_buf = yamlbuf;
+    yc.yaml_buf_sz = sizeof(yamlbuf);
     yc.yaml_emit = NULL;
 
     count = dt_iterate_cmd(dt_data_tree, DT_OP_EMIT, PERFC_ROOT_PATH, &dip, NULL, NULL, NULL);
 
     /* 3, for /data, /data/perfc, /data/perfc/joker */
-    ASSERT_EQ(count, 3);
-
-    printf("=====================================\n");
-    printf("%s", buf);
-    printf("=====================================\n");
+    ASSERT_EQ(before + 3, count);
 
     n = snprintf(
         path,
@@ -104,11 +102,14 @@ MTF_DEFINE_UTEST(perfc, perfc_basic_set)
 
     struct perfc_name ctrnames = { 0 };
     struct perfc_set  set = { 0 };
+    size_t            before;
     merr_t            err;
+
+    before = dt_iterate_cmd(dt_data_tree, DT_OP_COUNT, PERFC_ROOT_PATH, NULL, NULL, NULL, NULL);
 
     ctrnames.pcn_name = "PERFC_BA_FAM_TEST";
     ctrnames.pcn_hdr = "whysoserious";
-    ctrnames.pcn_desc = "joker";
+    ctrnames.pcn_desc = "poison_ivy";
     ctrnames.pcn_flags = 0;
     ctrnames.pcn_prio = 1;
 
@@ -116,6 +117,7 @@ MTF_DEFINE_UTEST(perfc, perfc_basic_set)
     ASSERT_EQ(0, err);
 
     perfc_set(&set, 0, new_value);
+
     n = snprintf(
         path,
         sizeof(path),
@@ -128,18 +130,15 @@ MTF_DEFINE_UTEST(perfc, perfc_basic_set)
     ASSERT_TRUE(n > 0 && n < sizeof(path));
 
     dip.yc = &yc;
-    yc.yaml_buf = buf;
-    yc.yaml_buf_sz = BUF_SIZE;
+    yc.yaml_buf = yamlbuf;
+    yc.yaml_buf_sz = sizeof(yamlbuf);
     yc.yaml_emit = NULL;
     count = dt_iterate_cmd(dt_data_tree, DT_OP_EMIT, PERFC_ROOT_PATH, &dip, NULL, NULL, NULL);
 
     /* 3, for /data, /data/perfc, /data/perfc/poison_ivy */
-    ASSERT_EQ(count, 3);
+    ASSERT_EQ(before + 3, count);
 
-    printf("=====================================\n");
-    printf("%s", buf);
-    printf("=====================================\n");
-    ASSERT_NE(NULL, strstr(buf, "value: 42"));
+    ASSERT_NE(NULL, strstr(yamlbuf, "value: 42"));
 
     dte = dt_find(dt_data_tree, path, 1);
     ASSERT_NE(dte, NULL);
@@ -267,11 +266,6 @@ MTF_DEFINE_UTEST(perfc, perfc_verbosity_set_test)
         .yaml_indent = 0, .yaml_offset = 0,
     };
 
-    perfc_shutdown();
-    dt_shutdown();
-    dt_init();
-    perfc_init();
-
     ctrnames.pcn_desc = "mycounter";
     ctrnames.pcn_hdr = "mycounterhdr";
     ctrnames.pcn_flags = 0;
@@ -282,8 +276,8 @@ MTF_DEFINE_UTEST(perfc, perfc_verbosity_set_test)
     ASSERT_EQ(0, err);
     perfc_add(&set, 0, 3);
 
-    dsp.path = "/data/config/platform/perfc/perfc_verbosity";
-    dsp.value = "3";
+    dsp.path = "/data/config/kvdb/perfc/perfc_verbosity";
+    dsp.value = "4";
     dsp.value_len = strlen(dsp.value);
     dsp.field = DT_FIELD_ENABLED;
     dip.dsp = &dsp;
@@ -295,14 +289,13 @@ MTF_DEFINE_UTEST(perfc, perfc_verbosity_set_test)
 
     /* Emit */
     dip.yc = &yc;
-    yc.yaml_buf = buf;
-    yc.yaml_buf_sz = BUF_SIZE;
+    yc.yaml_buf = yamlbuf;
+    yc.yaml_buf_sz = sizeof(yamlbuf);
     yc.yaml_emit = NULL;
-    count = dt_iterate_cmd(dt_data_tree, DT_OP_EMIT, PERFC_ROOT_PATH, &dip, NULL, NULL, NULL);
-    printf("=====================================\n");
-    printf("%s", buf);
-    printf("=====================================\n");
-    ASSERT_NE(NULL, strstr(buf, "value: 7"));
+    count = dt_iterate_cmd(dt_data_tree, DT_OP_EMIT, dsp.path, &dip, NULL, NULL, NULL);
+    ASSERT_NE(NULL, strstr(yamlbuf, "current: 0x4"));
+
+    perfc_ctrseti_free(&set);
 }
 
 MTF_DEFINE_UTEST(perfc, ctrset_path)
@@ -328,7 +321,8 @@ static u64
 perfc_value(struct perfc_set *pcs, u32 cidx)
 {
     struct perfc_ctr_hdr *hdr;
-    struct perfc_seti *   pcsi;
+    struct perfc_seti    *pcsi;
+    struct perfc_val     *val;
     u64                   vadd;
     u64                   vsub;
     int                   i;
@@ -337,13 +331,13 @@ perfc_value(struct perfc_set *pcs, u32 cidx)
     hdr = &pcsi->pcs_ctrv[cidx].hdr;
     assert(hdr->pch_type == PERFC_TYPE_BA);
 
+    val = hdr->pch_val;
     vadd = vsub = 0;
 
-    for (i = 0; i < PERFC_PCV_MAX; ++i) {
-        struct perfc_val *v = &hdr->pch_val[i];
-
-        vadd += atomic64_read(&v->pcv_vadd);
-        vsub += atomic64_read(&v->pcv_vsub);
+    for (i = 0; i < PERFC_VALPERCNT; ++i) {
+        vadd += atomic64_read(&val->pcv_vadd);
+        vsub += atomic64_read(&val->pcv_vsub);
+        val += PERFC_VALPERCPU;
     }
 
     return vadd - vsub;

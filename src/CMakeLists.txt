@@ -1294,11 +1294,11 @@ if( HSE_UNIT_TEST_FLAG )
         LINK_LIBS ${UNIT_TEST_LINK_LIBS}
         )
 
-    # [HSE_REVISIT] - why is this commented out?
-    #hse_unit_test(
-    #     NAME perfc_test
-    #     SRCS util/test/perfc_test.c
-    #     LINK_LIBS ${UNIT_TEST_LINK_LIBS} )
+    hse_unit_test(
+         NAME perfc_test
+         SRCS util/test/perfc_test.c
+         INCLUDES ${UNIT_TEST_INCLUDE_DIRS}
+         LINK_LIBS ${UNIT_TEST_LINK_LIBS} )
 
     hse_unit_test(
         NAME event_counter_test
@@ -1307,11 +1307,11 @@ if( HSE_UNIT_TEST_FLAG )
         LINK_LIBS ${UNIT_TEST_LINK_LIBS}
         )
 
-    # [HSE_REVISIT] - why is this commented out?
-    #hse_unit_test(
-    #    NAME config_test
-    #    SRCS util/test/config_test.c
-    #    LINK_LIBS ${UNIT_TEST_LINK_LIBS} )
+    hse_unit_test(
+        NAME config_test
+        SRCS util/test/config_test.c
+        INCLUDES ${UNIT_TEST_INCLUDE_DIRS}
+        LINK_LIBS ${UNIT_TEST_LINK_LIBS} )
 
     hse_unit_test(
         NAME printbuf_test
