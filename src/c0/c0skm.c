@@ -469,8 +469,8 @@ c0skm_ingest(struct c0sk_mutation *c0skm, u8 itype, u64 *gen)
 
     if (ev(sz > c0skm->c0skm_c0kvmsv_sz)) {
         c0kvmsv = malloc(sz);
-        if (!c0kvmsv)
-            return merr(ev(ENOMEM));
+        if (ev(!c0kvmsv))
+            return merr(ENOMEM);
 
         free(c0skm->c0skm_c0kvmsv);
         c0skm->c0skm_c0kvmsv = c0kvmsv;

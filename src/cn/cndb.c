@@ -3211,7 +3211,6 @@ cndb_txn_txd(struct cndb *cndb, u64 txid, u64 cnid, u64 tag, int n_oids, u64 *oi
     }
 
     sz = n_oids * sizeof(*oidv) + sizeof(*txd);
-    ev(sz > cndb->cndb_cbufsz);
 
     if (ev(sz > sizeof(txdbuf) || sz > cndb->cndb_cbufsz)) {
         txd = malloc(sz);
