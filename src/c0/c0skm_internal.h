@@ -104,6 +104,8 @@ struct c0sk_mutation {
     atomic_t                    c0skm_flushing;
     atomic_t                    c0skm_closing;
     atomic64_t                  c0skm_err;
+    struct c0_kvmultiset      **c0skm_c0kvmsv;
+    size_t                      c0skm_c0kvmsv_sz;
 
     __aligned(SMP_CACHE_BYTES)
     struct c0skm_work           c0skm_timerw;

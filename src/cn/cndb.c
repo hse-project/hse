@@ -2895,14 +2895,12 @@ cndb_journal(struct cndb *cndb, void *data, size_t sz)
 merr_t
 cndb_journal_adopt(struct cndb *cndb, void **data, size_t sz)
 {
-
     merr_t err;
 
     mutex_lock(&cndb->cndb_lock);
     err = cndb_accept(cndb, *data, sz);
 
     if (sz > cndb->cndb_cbufsz) {
-
         free(cndb->cndb_cbuf);
         cndb->cndb_cbufsz = sz;
         cndb->cndb_cbuf = *data;
@@ -3077,9 +3075,15 @@ cndb_cn_drop(struct cndb *cndb, u64 cnid)
         goto done;
     }
 
-    /* cndb_rollover removes the indicated cn and culls its metadata */
+    /* cndb_rollover() removes the specified cn and culls its metadata.
+     *
+     * TODO: As a temporary measure, call cndb_compact() to purge
+     * orphans from cndb_tagv[].  See cndb_cull() for more detail.
+     */
     mutex_lock(&cndb->cndb_lock);
     err = cndb_rollover(cndb);
+    if (!err)
+        err = cndb_compact(cndb);
     mutex_unlock(&cndb->cndb_lock);
 
     msg = " rollover failed, cndb_cn_drop may be retried on next r/w open";
@@ -3129,7 +3133,8 @@ cndb_txn_txc(
     struct kvset_mblocks *mblocks,
     u32                   keepvbc)
 {
-    struct cndb_txc_omf *txc = NULL;
+    struct cndb_txc_omf  txcbuf[1024 / sizeof(struct cndb_txc_omf)];
+    struct cndb_txc_omf *txc = txcbuf;
     merr_t               err;
     int                  i, cnt;
     size_t               sz;
@@ -3146,12 +3151,17 @@ cndb_txn_txc(
         cnt = mblocks->kblks.n_blks + mblocks->vblks.n_blks;
 
     sz = sizeof(*txc) + cnt * sizeof(u64);
+    ev(sz > cndb->cndb_cbufsz);
 
-    txc = calloc(1, sz);
-    if (!txc) {
-        err = merr(ev(ENOMEM, HSE_ERR));
-        goto out;
+    if (ev(sz > sizeof(txcbuf) || sz > cndb->cndb_cbufsz)) {
+        txc = malloc(sz);
+        if (!txc) {
+            err = merr(ev(ENOMEM, HSE_ERR));
+            goto out;
+        }
     }
+
+    memset(txc, 0, sz);
 
     pblks = (void *)&txc[1];
 
@@ -3178,31 +3188,40 @@ cndb_txn_txc(
     err = cndb_journal_adopt(cndb, (void **)&txc, sz);
     ev(err, HSE_ERR);
 
-out:
-    free(txc);
+  out:
+    if (txc != txcbuf)
+        free(txc);
+
     return err;
 }
 
 merr_t
 cndb_txn_txd(struct cndb *cndb, u64 txid, u64 cnid, u64 tag, int n_oids, u64 *oidv)
 {
-    struct cndb_txd_omf *txd = NULL;
+    struct cndb_txd_omf  txdbuf[1024 / sizeof(struct cndb_txd_omf)];
+    struct cndb_txd_omf *txd = txdbuf;
     merr_t               err;
     size_t               sz;
     struct cndb_oid_omf *pblks;
     int                  i;
 
-    assert(txid > tag);
-    if (txid <= tag)
-        return merr(ev(EL2NSYNC, HSE_ERR));
+    if (ev(txid <= tag, HSE_ERR)) {
+        assert(txid > tag);
+        return merr(EL2NSYNC);
+    }
 
     sz = n_oids * sizeof(*oidv) + sizeof(*txd);
-    txd = calloc(1, sz);
+    ev(sz > cndb->cndb_cbufsz);
 
-    if (!txd) {
-        err = merr(ev(ENOMEM, HSE_ERR));
-        goto out;
+    if (ev(sz > sizeof(txdbuf) || sz > cndb->cndb_cbufsz)) {
+        txd = malloc(sz);
+        if (!txd) {
+            err = merr(ev(ENOMEM, HSE_ERR));
+            goto out;
+        }
     }
+
+    memset(txd, 0, sz);
 
     pblks = (void *)&txd[1];
 
@@ -3215,9 +3234,13 @@ cndb_txn_txd(struct cndb *cndb, u64 txid, u64 cnid, u64 tag, int n_oids, u64 *oi
     for (i = 0; i < n_oids; i++)
         omf_set_cndb_oid(pblks++, oidv[i]);
 
-    err = ev(cndb_journal_adopt(cndb, (void **)&txd, sz), HSE_ERR);
-out:
-    free(txd);
+    err = cndb_journal_adopt(cndb, (void **)&txd, sz);
+    ev(err, HSE_ERR);
+
+  out:
+    if (txd != txdbuf)
+        free(txd);
+
     return err;
 }
 

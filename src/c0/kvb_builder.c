@@ -282,25 +282,23 @@ kvb_builder_kvtuple_add(
     struct c1_kvtuple *kvt;
     struct c1_kvcache *kvc;
 
-    u64    minseqno;
-    u64    maxseqno;
-    merr_t err;
-    u64    klen;
-    u64    vlen;
-    u64    cnid;
+    u64    minseqno, maxseqno;
+    u64    klen, vlen, cnid;
     u32    skidx;
+    merr_t err;
 
     *kvlen = 0;
     *ckvt = NULL;
 
-    kvc = iter->kvbi_kvcache;
-
     skidx = key_immediate_index(&bkv->bkv_key_imm);
     cnid = c0skm_get_cnid(iter->kvbi_c0skm, skidx);
-    if (cnid == 0) { /* Invalid cnid */
-        hse_log(HSE_ERR "KVS got closed underneath for skidx %u", skidx);
-        return merr(ev(ENOENT));
+
+    if (ev(cnid == 0)) { /* Invalid cnid */
+        hse_log(HSE_ERR "%s: invalid cnid %lu for skidx %u", __func__, cnid, skidx);
+        return merr(ENOENT);
     }
+
+    kvc = iter->kvbi_kvcache;
 
     /* Allocate kv tuple */
     err = c1_kvtuple_alloc(kvc, &kvt);

@@ -3,9 +3,8 @@
  * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
  */
 
-#include <hse_ikvdb/kvb_builder.h>
-#include <hse_util/barrier.h>
 #include <hse_ikvdb/throttle.h>
+#include <hse_ikvdb/kvb_builder.h>
 
 #include "c1_private.h"
 #include "c1_io_internal.h"
@@ -14,130 +13,207 @@
 struct c1_ioarg;
 struct c1_ioslave;
 
-#define C1LOG_TIME (600UL * NSEC_PER_SEC)
-
-struct c1_io {
-    struct c1_thread **      c1io_thr;
-    struct perfc_set         c1io_pcset;
-    struct c1_tree *         c1io_tree;
-    merr_t                   c1io_err;
-    atomic_t                 c1io_wakeup;
-    int                      c1io_threads;
-    atomic_t                 c1io_start;
-    atomic_t                 c1io_stop;
-    atomic_t                 c1io_stop_slave;
-    u64                      c1io_dtimens;
-    struct list_head         c1io_list;
-    struct mutex             c1io_space_mtx;
-    struct mutex             c1io_sleep_mtx;
-    struct mutex             c1io_queue_mtx;
-    atomic64_t               c1io_queued_reqs;
-    atomic64_t               c1io_pending_reqs;
-    atomic64_t               c1io_log_time;
-    struct cv                c1io_cv;
-    struct c1_kvset_builder *c1io_bldr;
-    struct c1_ioarg *        c1io_arg;
-    struct c1_ioslave *      c1io_slave;
-    u32                      c1io_kvbmetasz;
-    u32                      c1io_kmetasz;
-    u32                      c1io_vmetasz;
-};
-
-struct c1_ioslave {
-    struct list_head c1io_slave_list;
-    struct mutex     c1io_slave_mtx;
-    struct cv        c1io_slave_cv;
-};
-
-struct c1_ioarg {
-    int           c1ioa_idx;
-    struct c1_io *c1ioa_io;
-};
+#define C1LOG_TIME      (600UL * NSEC_PER_SEC)
 
 /* c1q_txn and c1q_iter can never be set at the same time. c1q_txn is set
  * only by the c1_io_txn_* APIs.
  */
 struct c1_io_queue {
     struct list_head         c1q_list;
-    struct c1_tree *         c1q_tree;
+    struct c1_tree          *c1q_tree;
     struct kvb_builder_iter *c1q_iter;
-    struct c1_ttxn *         c1q_txn;
+    struct c1_ttxn          *c1q_txn;
     u64                      c1q_txnid;
     u64                      c1q_mutation;
     u64                      c1q_stime;
     int                      c1q_idx;
     int                      c1q_sync;
+    struct c1_ttxn           c1q_txnbuf;
+
+    __aligned(SMP_CACHE_BYTES)
     struct mutex             c1q_mtx;
     struct cv                c1q_cv;
 };
 
+struct c1_io {
+    struct perfc_set         c1io_pcset;
+    struct c1_tree          *c1io_tree;
+    struct c1_ioslave       *c1io_slave;
+    struct c1_kvset_builder *c1io_bldr;
+    merr_t                   c1io_err;
+    u32                      c1io_kvbmetasz;
+    u32                      c1io_kmetasz;
+    u32                      c1io_vmetasz;
+    int                      c1io_threads;
+    atomic_t                 c1io_start;
+    atomic_t                 c1io_stop;
+    atomic_t                 c1io_stop_slave;
+    u64                      c1io_dtimens;
+    struct c1_ioarg         *c1io_arg;
+    struct c1_thread       **c1io_thr;
+
+    __aligned(SMP_CACHE_BYTES)
+    struct mutex             c1io_space_mtx;
+    struct list_head         c1io_qfree;
+
+    __aligned(SMP_CACHE_BYTES)
+    struct mutex             c1io_queue_mtx;
+    struct list_head         c1io_list;
+
+    __aligned(SMP_CACHE_BYTES)
+    struct mutex             c1io_sleep_mtx;
+    struct cv                c1io_cv;
+
+    __aligned(SMP_CACHE_BYTES)
+    atomic64_t               c1io_queued_reqs;
+    atomic64_t               c1io_pending_reqs;
+    atomic64_t               c1io_log_time;
+    atomic_t                 c1io_wakeup;
+
+    __aligned(SMP_CACHE_BYTES)
+    struct c1_io_queue       c1io_ioqv[45];
+};
+
+struct c1_ioslave {
+    struct mutex     c1io_slave_mtx;
+    struct list_head c1io_slave_list;
+    struct list_head c1io_slave_qfree;
+    struct cv        c1io_slave_cv;
+} __aligned(SMP_CACHE_BYTES);
+
+struct c1_ioarg {
+    int           c1ioa_idx;
+    struct c1_io *c1ioa_io;
+};
+
+
+static void
+c1_io_queue_free(struct c1_io *io, struct c1_io_queue *q)
+{
+    if ((void *)q < (void *)io || (void *)q >= (void *)(io + 1))
+        free(q);
+}
+
+static void
+c1_io_shutdown_threads(struct c1_io *io)
+{
+    struct c1_ioslave *slave;
+    int                i;
+
+    assert(!atomic_read(&io->c1io_stop));
+
+    /* Stop master thread
+     */
+    atomic_inc(&io->c1io_stop);
+
+    mutex_lock(&io->c1io_sleep_mtx);
+    cv_broadcast(&io->c1io_cv);
+    mutex_unlock(&io->c1io_sleep_mtx);
+
+    /* Master thread is stopped. It must have transferred the last
+     * request (if any) to slaves' queue. This will avoid a case
+     * where the slaves are stopped with master having pending
+     * requests in its queue.
+     */
+    atomic_inc(&io->c1io_stop_slave);
+
+    /* Stop slave threads
+     */
+    for (i = 1; i < io->c1io_threads; i++) {
+        slave = &io->c1io_slave[i - 1];
+
+        mutex_lock(&slave->c1io_slave_mtx);
+        cv_signal(&slave->c1io_slave_cv);
+        mutex_unlock(&slave->c1io_slave_mtx);
+    }
+
+    for (i = 0; i < io->c1io_threads; i++)
+        c1_thread_destroy(io->c1io_thr[i]);
+
+    for (i = 1; i < io->c1io_threads; i++) {
+        slave = &io->c1io_slave[i - 1];
+
+        mutex_lock(&slave->c1io_slave_mtx);
+        list_splice(&slave->c1io_slave_qfree, &io->c1io_qfree);
+        INIT_LIST_HEAD(&slave->c1io_slave_qfree);
+        mutex_unlock(&slave->c1io_slave_mtx);
+
+        mutex_destroy(&slave->c1io_slave_mtx);
+        cv_destroy(&slave->c1io_slave_cv);
+    }
+}
+
+static void
+c1_io_destroy_impl(struct c1_io *io)
+{
+    struct c1_io_queue *q;
+
+    if (!io)
+        return;
+
+    /* Stop master and slave threads
+     */
+    c1_io_shutdown_threads(io);
+
+    c1_kvset_builder_destroy(io->c1io_bldr);
+
+    c1_perfc_io_free(&io->c1io_pcset);
+
+    while (!list_empty(&io->c1io_qfree)) {
+        q = list_first_entry(&io->c1io_qfree, typeof(*q), c1q_list);
+        list_del(&q->c1q_list);
+        c1_io_queue_free(io, q);
+    }
+
+    mutex_destroy(&io->c1io_space_mtx);
+    mutex_destroy(&io->c1io_sleep_mtx);
+    mutex_destroy(&io->c1io_queue_mtx);
+    cv_destroy(&io->c1io_cv);
+
+    free_aligned(io->c1io_slave);
+    free(io->c1io_thr);
+    free(io->c1io_arg);
+    free_aligned(io);
+}
+
+void
+c1_io_destroy(struct c1 *c1)
+{
+    c1_io_destroy_impl(c1->c1_io);
+}
+
 merr_t
 c1_io_create(struct c1 *c1, u64 dtime, const char *mpname, int threads)
 {
-    struct c1_thread **thr = NULL;
-    struct c1_io *     io;
-    merr_t             err;
-    int                i;
-    struct c1_ioarg *  arg;
-    int                slavethreads = threads;
-    struct c1_ioslave *slave;
+    struct c1_ioslave  *slave;
+    struct c1_ioarg    *arg;
+    struct c1_io       *io;
+    merr_t              err;
+    size_t              sz;
+    int                 i;
 
-    arg = malloc_array(threads, sizeof(*arg));
-    if (!arg)
-        return merr(ev(ENOMEM));
+    c1->c1_io = NULL;
 
-    io = malloc(sizeof(*io));
-    if (!io) {
+    arg = calloc(threads, sizeof(*arg));
+    if (ev(!arg))
+        return merr(ENOMEM);
+
+    io = alloc_aligned(sizeof(*io), PAGE_SIZE, 0);
+    if (ev(!io)) {
         free(arg);
-        return merr(ev(ENOMEM));
+        return merr(ENOMEM);
     }
 
     memset(io, 0, sizeof(*io));
+    INIT_LIST_HEAD(&io->c1io_list);
+    INIT_LIST_HEAD(&io->c1io_qfree);
+    mutex_init(&io->c1io_space_mtx);
+    mutex_init(&io->c1io_sleep_mtx);
+    mutex_init(&io->c1io_queue_mtx);
+    cv_init(&io->c1io_cv, "c1io_master_cv");
     io->c1io_arg = arg;
 
-    err = c1_kvset_builder_create(c1_c0sk_get(c1), &io->c1io_bldr);
-    if (ev(err)) {
-        free(arg);
-        free(io);
-        return err;
-    }
-
-    /* Increment by 1 to include the master thread. */
-    ++threads;
-
-    thr = malloc_array(threads, sizeof(*thr));
-    if (!thr) {
-        free(arg);
-        c1_kvset_builder_destroy(io->c1io_bldr);
-        free(io);
-        return merr(ev(ENOMEM));
-    }
-
-    io->c1io_slave = malloc_array(slavethreads, sizeof(*io->c1io_slave));
-    if (!io->c1io_slave) {
-        free(arg);
-        c1_kvset_builder_destroy(io->c1io_bldr);
-        free(io);
-        free(thr);
-        return merr(ev(ENOMEM));
-    }
-
-    memset(thr, 0, threads * sizeof(*thr));
-
-    c1_perfc_io_alloc(&io->c1io_pcset, mpname);
-
-    /* Setting up structure per-thread structure for slave threads
-     */
-    for (i = 0; i < slavethreads; i++) {
-        arg[i].c1ioa_idx = i;
-        arg[i].c1ioa_io = io;
-    }
-
     io->c1io_dtimens = dtime * 1000UL * 1000;
-    io->c1io_threads = threads;
-    io->c1io_thr = thr;
-    io->c1io_err = 0;
-    io->c1io_tree = NULL;
     atomic_set(&io->c1io_start, 0);
     atomic_set(&io->c1io_stop, 0);
     atomic_set(&io->c1io_stop_slave, 0);
@@ -146,109 +222,101 @@ c1_io_create(struct c1 *c1, u64 dtime, const char *mpname, int threads)
     atomic64_set(&io->c1io_pending_reqs, 0);
     atomic64_set(&io->c1io_log_time, get_time_ns() + C1LOG_TIME);
 
+    /* Prime the io queue cache with preallocated items...
+     */
+    for (i = 0; i < NELEM(io->c1io_ioqv); ++i) {
+        struct c1_io_queue *q = io->c1io_ioqv + i;
+
+        list_add_tail(&q->c1q_list, &io->c1io_qfree);
+    }
+
+    sz = threads * sizeof(*io->c1io_slave);
+
+    io->c1io_slave = alloc_aligned(sz, __alignof(*io->c1io_slave), 0);
+    if (ev(!io->c1io_slave)) {
+        err = merr(ENOMEM);
+        goto errout;
+    }
+
+    memset(io->c1io_slave, 0, sz);
+
+    /* Add 1 for the master thread.
+     */
+    io->c1io_thr = calloc(threads + 1, sizeof(*io->c1io_thr));
+    if (ev(!io->c1io_thr)) {
+        err = merr(ENOMEM);
+        goto errout;
+    }
+
+    err = c1_kvset_builder_create(c1_c0sk_get(c1), &io->c1io_bldr);
+    if (ev(err))
+        goto errout;
+
+    c1_perfc_io_alloc(&io->c1io_pcset, mpname);
+
     err = c1_record_type2len(C1_TYPE_KVT, C1_VERSION, &io->c1io_kmetasz);
     if (ev(err))
-        goto err_exit;
+        goto errout;
 
     err = c1_record_type2len(C1_TYPE_VT, C1_VERSION, &io->c1io_vmetasz);
     if (ev(err))
-        goto err_exit;
+        goto errout;
 
     err = c1_record_type2len(C1_TYPE_KVB, C1_VERSION, &io->c1io_kvbmetasz);
     if (ev(err))
-        goto err_exit;
+        goto errout;
 
     /* [HSE_REVISIT] Successive code changes made the scope of master
      * thread to be very shallow. Consider removing it entirely in
      * a future revision.
      */
-    err = c1_thread_create("c1iomaster", c1_io_thread_master, io, &thr[0]);
+    err = c1_thread_create("c1iomaster", c1_io_thread_master, io, &io->c1io_thr[0]);
     if (ev(err))
-        goto err_exit;
+        goto errout;
 
-    /*  The structures are initiatized if master thread is created. The
-     *  thread however is executed only after c1_thread_run below. This
-     *  order helps in the cleanups.
-     */
-    INIT_LIST_HEAD(&io->c1io_list);
-    mutex_init(&io->c1io_space_mtx);
-    mutex_init(&io->c1io_sleep_mtx);
-    mutex_init(&io->c1io_queue_mtx);
-    cv_init(&io->c1io_cv, "c1io_master_cv");
+    ++io->c1io_threads;
 
-    for (i = 1; i < threads; i++) {
-        err = c1_thread_create("c1ioslave", c1_io_thread_slave, &arg[i - 1], &thr[i]);
-        if (ev(err))
-            goto err_exit;
+    for (i = 0; i < threads; ++i) {
+        slave = &io->c1io_slave[i];
 
-        /* Initialize per-slave structure after successful
-         * thread creation
-         */
-        slave = &io->c1io_slave[i - 1];
         INIT_LIST_HEAD(&slave->c1io_slave_list);
+        INIT_LIST_HEAD(&slave->c1io_slave_qfree);
         mutex_init(&slave->c1io_slave_mtx);
         cv_init(&slave->c1io_slave_cv, "c1io_slave_cv");
-    }
 
-    /* Barrier for per-thread structures before spawing master
-     * and slave threads.
-     */
-    smp_mb();
+        arg[i].c1ioa_idx = i;
+        arg[i].c1ioa_io = io;
+
+        err = c1_thread_create("c1ioslave", c1_io_thread_slave,
+                               &arg[i], &io->c1io_thr[i + 1]);
+        if (ev(err)) {
+            mutex_destroy(&slave->c1io_slave_mtx);
+            cv_destroy(&slave->c1io_slave_cv);
+            goto errout;
+        }
+
+        ++io->c1io_threads;
+    }
 
     atomic_set(&io->c1io_start, 1);
 
-    for (i = 0; i < threads; i++)
-        c1_thread_run(thr[i]);
+    for (i = 0; i < threads + 1; ++i)
+        c1_thread_run(io->c1io_thr[i]);
 
     c1->c1_io = io;
 
-    return 0;
-
-err_exit:
-    /* Need to stop threads if they are spawned and then kill them.
-     */
-    atomic_inc(&io->c1io_stop);
-    c1_io_shutdown_threads(io);
-
-    c1_perfc_io_free(&io->c1io_pcset);
-
-    c1_kvset_builder_destroy(io->c1io_bldr);
-
-    free(io->c1io_slave);
-    free(io->c1io_arg);
-    free(io);
-    free(thr);
+  errout:
+    if (err)
+        c1_io_destroy_impl(io);
 
     return err;
-}
-
-void
-c1_io_destroy(struct c1 *c1)
-{
-    struct c1_io *io = c1->c1_io;
-
-    assert(!atomic_read(&io->c1io_stop));
-    atomic_inc(&io->c1io_stop);
-
-    /* Stop master and slave threads
-     */
-    c1_io_shutdown_threads(io);
-
-    c1_kvset_builder_destroy(io->c1io_bldr);
-
-    free(io->c1io_thr);
-    free(io->c1io_slave);
-    free(io->c1io_arg);
-
-    c1_perfc_io_free(&io->c1io_pcset);
-    free(io);
 }
 
 void
 c1_io_thread_master(void *arg)
 {
     struct c1_io *      io = arg;
-    struct list_head    list;
+    struct list_head    qfree, list;
     bool                need_lock;
     u64                 queued_reqs;
     struct c1_io_queue *q;
@@ -256,15 +324,11 @@ c1_io_thread_master(void *arg)
     struct c1_ioslave * slave;
 
     assert(io);
-
-    /* Barrier for ensuring per-thread structures are initialized
-     * by the parent thread.
-     */
-    smp_mb();
-
     assert(atomic_read(&io->c1io_start) == 1);
 
     hse_log(HSE_DEBUG "c1 io thread starts");
+
+    INIT_LIST_HEAD(&qfree);
 
     while (1) {
         INIT_LIST_HEAD(&list);
@@ -287,8 +351,8 @@ c1_io_thread_master(void *arg)
                 mutex_unlock(&io->c1io_queue_mtx);
 
                 cv_wait(&io->c1io_cv, &io->c1io_sleep_mtx);
-
                 mutex_unlock(&io->c1io_sleep_mtx);
+
                 need_lock = true;
             }
         }
@@ -317,14 +381,25 @@ c1_io_thread_master(void *arg)
 
             idx = q->c1q_idx;
             assert(idx < (io->c1io_threads - 1));
-            list_del_init(&q->c1q_list);
+            list_del(&q->c1q_list);
 
             slave = &io->c1io_slave[idx];
 
             mutex_lock(&slave->c1io_slave_mtx);
             list_add_tail(&q->c1q_list, &slave->c1io_slave_list);
+            list_splice(&slave->c1io_slave_qfree, &qfree);
+            INIT_LIST_HEAD(&slave->c1io_slave_qfree);
+
             cv_signal(&slave->c1io_slave_cv);
             mutex_unlock(&slave->c1io_slave_mtx);
+        }
+
+        if (!list_empty(&qfree)) {
+            mutex_lock(&io->c1io_space_mtx);
+            list_splice(&qfree, &io->c1io_qfree);
+            mutex_unlock(&io->c1io_space_mtx);
+
+            INIT_LIST_HEAD(&qfree);
         }
     }
 }
@@ -347,22 +422,23 @@ c1_io_thread_slave(void *arg)
     tidx = ioarg->c1ioa_idx;
     assert(tidx < (io->c1io_threads - 1));
 
-    /* Barrier for ensuring per-thread structures are initialized
-     * by the parent thread.
-     */
-    smp_mb();
+    hse_log(HSE_DEBUG "c1 io thread slave %d starts", tidx);
 
     assert(atomic_read(&io->c1io_start) == 1);
     slave = &io->c1io_slave[tidx];
-
-    hse_log(HSE_DEBUG "c1 io thread slave %d starts", tidx);
+    q = NULL;
 
     while (1) {
         mutex_lock(&slave->c1io_slave_mtx);
+        if (q) {
+            list_add(&q->c1q_list, &slave->c1io_slave_qfree);
+            q = NULL;
+        }
 
         while (list_empty(&slave->c1io_slave_list)) {
             if (atomic_read(&io->c1io_stop_slave)) {
                 mutex_unlock(&slave->c1io_slave_mtx);
+
                 hse_log(HSE_DEBUG "c1 io thread slave %d stops", tidx);
                 return;
             }
@@ -375,11 +451,9 @@ c1_io_thread_slave(void *arg)
 
         list_del(&q->c1q_list);
         err = ev(io->c1io_err);
-
         mutex_unlock(&slave->c1io_slave_mtx);
 
         assert(tidx == q->c1q_idx);
-
         assert(atomic64_read(&io->c1io_pending_reqs) > 0);
 
         if (PERFC_ISON(&io->c1io_pcset)) {
@@ -397,23 +471,23 @@ c1_io_thread_slave(void *arg)
                 perfc_inc(&io->c1io_pcset, PERFC_BA_C1_IOERR);
             }
 
-            atomic64_dec(&io->c1io_pending_reqs);
-
             c1_io_rec_perf(io, q, start, err);
 
-            free(q->c1q_txn);
-            free(q);
-
+            atomic64_dec(&io->c1io_pending_reqs);
             continue;
         }
 
         iter = q->c1q_iter;
         if (c1_sync_or_flush_command(iter)) {
-
             mutex_lock(&q->c1q_mtx);
             cv_signal(&q->c1q_cv);
             mutex_unlock(&q->c1q_mtx);
+
+            /* q came from caller's stack (e.g., c1_issue_sync())
+             * and must not be touched after dropping the mutex.
+             */
             atomic64_dec(&io->c1io_pending_reqs);
+            q = NULL;
             continue;
         }
 
@@ -421,14 +495,11 @@ c1_io_thread_slave(void *arg)
             c1_io_iter_kvbtxn(io, q, tidx);
             c1_io_rec_perf(io, q, start, err);
         } else {
-
             c1_io_rec_perf(io, q, start, err);
-
             iter->put(iter);
         }
 
         atomic64_dec(&io->c1io_pending_reqs);
-        free(q);
     }
 }
 
@@ -668,7 +739,7 @@ c1_sync_or_flush_command(struct kvb_builder_iter *iter)
 merr_t
 c1_issue_sync(struct c1 *c1, int sync, bool skip_flush)
 {
-    struct c1_io_queue q;
+    struct c1_io_queue q = { .c1q_sync = sync };
     struct c1_io *     io;
     merr_t             err;
 
@@ -685,10 +756,6 @@ c1_issue_sync(struct c1 *c1, int sync, bool skip_flush)
     }
 
     INIT_LIST_HEAD(&q.c1q_list);
-    q.c1q_sync = sync;
-    q.c1q_iter = NULL;
-    q.c1q_txn = NULL;
-    q.c1q_idx = 0;
 
     mutex_init(&q.c1q_mtx);
     cv_init(&q.c1q_cv, "c1synccv");
@@ -759,9 +826,21 @@ c1_issue_iter(
     }
 
     iter->kvbi_bldrelm = bldr;
-    q = malloc(sizeof(*q));
-    if (!q)
-        return merr(ev(ENOMEM));
+
+    mutex_lock(&io->c1io_space_mtx);
+    q = list_first_entry_or_null(&io->c1io_qfree, typeof(*q), c1q_list);
+    if (ev(!q)) {
+        mutex_unlock(&io->c1io_space_mtx);
+
+        q = calloc(1, sizeof(*q));
+        if (ev(!q))
+            return merr(ENOMEM);
+
+        mutex_lock(&io->c1io_space_mtx);
+        list_add(&q->c1q_list, &io->c1io_qfree);
+    }
+
+    list_del(&q->c1q_list);
 
     INIT_LIST_HEAD(&q->c1q_list);
     q->c1q_sync = sync;
@@ -770,17 +849,15 @@ c1_issue_iter(
     q->c1q_txn = NULL;
     q->c1q_idx = 0;
 
-    mutex_lock(&io->c1io_space_mtx);
-
     err = c1_io_get_tree(c1, cki, &q->c1q_tree, &q->c1q_idx, &q->c1q_mutation);
     if (ev(err)) {
         mutex_unlock(&io->c1io_space_mtx);
-        free(q);
 
         if (bldr)
             c1_kvset_builder_elem_put(io->c1io_bldr, bldr);
 
         iter->kvbi_bldrelm = NULL;
+        c1_io_queue_free(io, q);
         return err;
     }
 
@@ -790,12 +867,11 @@ c1_issue_iter(
     if (ev(io->c1io_err)) {
         mutex_unlock(&io->c1io_queue_mtx);
 
-        free(q);
-
         if (bldr)
             c1_kvset_builder_elem_put(io->c1io_bldr, bldr);
 
         iter->kvbi_bldrelm = NULL;
+        c1_io_queue_free(io, q);
         return io->c1io_err;
     }
 
@@ -818,17 +894,25 @@ c1_io_txn_begin(struct c1 *c1, u64 txnid, struct c1_iterinfo *ci, int sync)
     merr_t              err;
     struct c1_ttxn *    txn;
 
-    txn = malloc(sizeof(*txn));
-    if (!txn)
-        return merr(ev(ENOMEM));
-
     io = c1->c1_io;
-    q = malloc(sizeof(*q));
-    if (!q) {
-        free(txn);
-        return merr(ev(ENOMEM));
+
+    mutex_lock(&io->c1io_space_mtx);
+    q = list_first_entry_or_null(&io->c1io_qfree, typeof(*q), c1q_list);
+    if (ev(!q)) {
+        mutex_unlock(&io->c1io_space_mtx);
+
+        q = calloc(1, sizeof(*q));
+        if (ev(!q))
+            return merr(ENOMEM);
+
+        mutex_lock(&io->c1io_space_mtx);
+        list_add(&q->c1q_list, &io->c1io_qfree);
+        c1_io_queue_free(io, q);
     }
 
+    list_del(&q->c1q_list);
+
+    txn = &q->c1q_txnbuf;
     txn->c1t_kvseqno = C1_INVALID_SEQNO;
     txn->c1t_txnid = txnid;
     txn->c1t_cmd = C1_TYPE_TXN_BEGIN;
@@ -840,12 +924,12 @@ c1_io_txn_begin(struct c1 *c1, u64 txnid, struct c1_iterinfo *ci, int sync)
     q->c1q_iter = NULL;
     q->c1q_idx = 0;
 
-    mutex_lock(&io->c1io_space_mtx);
-
     err = c1_io_get_tree_txn(c1, ci, &q->c1q_tree, &q->c1q_idx, &q->c1q_mutation);
     if (ev(err)) {
         mutex_unlock(&io->c1io_space_mtx);
-        goto err_exit;
+
+        c1_io_queue_free(io, q);
+        return err;
     }
 
     txn->c1t_segno = q->c1q_tree->c1t_seqno;
@@ -856,8 +940,9 @@ c1_io_txn_begin(struct c1 *c1, u64 txnid, struct c1_iterinfo *ci, int sync)
 
     if (ev(io->c1io_err)) {
         mutex_unlock(&io->c1io_queue_mtx);
-        err = io->c1io_err;
-        goto err_exit;
+
+        c1_io_queue_free(io, q);
+        return io->c1io_err;
     }
 
     list_add_tail(&q->c1q_list, &io->c1io_list);
@@ -869,12 +954,6 @@ c1_io_txn_begin(struct c1 *c1, u64 txnid, struct c1_iterinfo *ci, int sync)
     c1_io_wakeup(io);
 
     return 0;
-
-err_exit:
-    free(txn);
-    free(q);
-
-    return err;
 }
 
 merr_t
@@ -893,17 +972,25 @@ c1_io_txn_commit(struct c1 *c1, u64 txnid, u64 seqno, int sync)
         return err;
     size *= 2;
 
-    txn = malloc(sizeof(*txn));
-    if (!txn)
-        return merr(ev(ENOMEM));
-
     io = c1->c1_io;
-    q = malloc(sizeof(*q));
-    if (!q) {
-        free(txn);
-        return merr(ev(ENOMEM));
+
+    mutex_lock(&io->c1io_space_mtx);
+    q = list_first_entry_or_null(&io->c1io_qfree, typeof(*q), c1q_list);
+    if (ev(!q)) {
+        mutex_unlock(&io->c1io_space_mtx);
+
+        q = calloc(1, sizeof(*q));
+        if (ev(!q))
+            return merr(ENOMEM);
+
+        mutex_lock(&io->c1io_space_mtx);
+        list_add(&q->c1q_list, &io->c1io_qfree);
+        c1_io_queue_free(io, q);
     }
 
+    list_del(&q->c1q_list);
+
+    txn = &q->c1q_txnbuf;
     txn->c1t_kvseqno = seqno;
     txn->c1t_txnid = txnid;
     txn->c1t_cmd = C1_TYPE_TXN_COMMIT;
@@ -915,14 +1002,13 @@ c1_io_txn_commit(struct c1 *c1, u64 txnid, u64 seqno, int sync)
     q->c1q_iter = NULL;
     q->c1q_idx = 0;
 
-    mutex_lock(&io->c1io_space_mtx);
     cki.ck_kvsz = size;
 
     err = c1_io_get_tree(c1, &cki, &q->c1q_tree, &q->c1q_idx, &q->c1q_mutation);
     if (ev(err)) {
         mutex_unlock(&io->c1io_space_mtx);
-        free(txn);
-        free(q);
+
+        c1_io_queue_free(io, q);
         return err;
     }
     tree = q->c1q_tree;
@@ -936,8 +1022,7 @@ c1_io_txn_commit(struct c1 *c1, u64 txnid, u64 seqno, int sync)
     if (ev(io->c1io_err)) {
         mutex_unlock(&io->c1io_queue_mtx);
 
-        free(txn);
-        free(q);
+        c1_io_queue_free(io, q);
         return io->c1io_err;
     }
 
@@ -960,59 +1045,6 @@ c1_io_txn_commit(struct c1 *c1, u64 txnid, u64 seqno, int sync)
     return 0;
 }
 
-void
-c1_io_shutdown_threads(struct c1_io *io)
-{
-    struct c1_ioslave *slave;
-    int                i;
-
-    /* If there is no master thread, there will be no slaves either.
-     */
-    if (!io->c1io_thr || !io->c1io_thr[0])
-        return;
-
-    assert(io->c1io_slave);
-
-    /* Stop master thread
-     */
-    mutex_lock(&io->c1io_sleep_mtx);
-    cv_broadcast(&io->c1io_cv);
-    mutex_unlock(&io->c1io_sleep_mtx);
-    c1_thread_destroy(io->c1io_thr[0]);
-
-    /* Master thread is stopped. It must have transferred the last
-     * request (if any) to slaves' queue. This will avoid a case
-     * where the slaves are stopped with master having pending
-     * requests in its queue.
-     */
-    atomic_inc(&io->c1io_stop_slave);
-
-    /* Stop slave threads
-     */
-    for (i = 1; i < io->c1io_threads; i++) {
-        if (io->c1io_thr[i]) {
-            slave = &io->c1io_slave[i - 1];
-            mutex_lock(&slave->c1io_slave_mtx);
-            cv_signal(&slave->c1io_slave_cv);
-            mutex_unlock(&slave->c1io_slave_mtx);
-        }
-    }
-
-    for (i = 1; i < io->c1io_threads; i++) {
-        if (io->c1io_thr[i]) {
-            slave = &io->c1io_slave[i - 1];
-            c1_thread_destroy(io->c1io_thr[i]);
-            mutex_destroy(&slave->c1io_slave_mtx);
-            cv_destroy(&slave->c1io_slave_cv);
-        }
-    }
-
-    mutex_destroy(&io->c1io_space_mtx);
-    mutex_destroy(&io->c1io_sleep_mtx);
-    mutex_destroy(&io->c1io_queue_mtx);
-    cv_destroy(&io->c1io_cv);
-}
-
 BullseyeCoverageSaveOff
 merr_t
 c1_io_txn_abort(struct c1 *c1, u64 txnid)
@@ -1029,17 +1061,24 @@ c1_io_txn_abort(struct c1 *c1, u64 txnid)
         return err;
     size *= 2;
 
-    txn = malloc(sizeof(*txn));
-    if (!txn)
-        return merr(ev(ENOMEM));
-
     io = c1->c1_io;
-    q = malloc(sizeof(*q));
-    if (!q) {
-        free(txn);
-        return merr(ev(ENOMEM));
+
+    mutex_lock(&io->c1io_space_mtx);
+    q = list_first_entry_or_null(&io->c1io_qfree, typeof(*q), c1q_list);
+    if (ev(!q)) {
+        mutex_unlock(&io->c1io_space_mtx);
+
+        q = calloc(1, sizeof(*q));
+        if (ev(!q))
+            return merr(ENOMEM);
+
+        mutex_lock(&io->c1io_space_mtx);
+        list_add(&q->c1q_list, &io->c1io_qfree);
     }
 
+    list_del(&q->c1q_list);
+
+    txn = &q->c1q_txnbuf;
     txn->c1t_kvseqno = C1_INVALID_SEQNO;
     txn->c1t_txnid = txnid;
     txn->c1t_cmd = C1_TYPE_TXN_ABORT;
@@ -1051,15 +1090,13 @@ c1_io_txn_abort(struct c1 *c1, u64 txnid)
     q->c1q_iter = NULL;
     q->c1q_idx = 0;
 
-    mutex_lock(&io->c1io_space_mtx);
     cki.ck_kvsz = size;
 
     err = c1_io_get_tree(c1, &cki, &q->c1q_tree, &q->c1q_idx, &q->c1q_mutation);
     if (ev(err)) {
         mutex_unlock(&io->c1io_space_mtx);
 
-        free(txn);
-        free(q);
+        c1_io_queue_free(io, q);
         return err;
     }
 
@@ -1072,8 +1109,7 @@ c1_io_txn_abort(struct c1 *c1, u64 txnid)
     if (ev(io->c1io_err)) {
         mutex_unlock(&io->c1io_queue_mtx);
 
-        free(txn);
-        free(q);
+        c1_io_queue_free(io, q);
         return io->c1io_err;
     }
 

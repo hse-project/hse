@@ -31,25 +31,20 @@ __attribute__((__noinline__))
 u64
 timer_calibrate_nsleep(void)
 {
-    struct timespec req = {.tv_nsec = 100 };
+    struct timespec req = {.tv_nsec = 1 };
 
-    return clock_nanosleep(CLOCK_MONOTONIC, 0, &req, NULL);
-}
+    clock_nanosleep(CLOCK_MONOTONIC, 0, &req, NULL);
 
-__attribute__((__noinline__))
-u64
-timer_calibrate_tls(void)
-{
-    static __thread u64 counter;
-
-    return ++counter;
+    return get_cycles();
 }
 
 __attribute__((__noinline__))
 u64
 timer_calibrate_gtns(void)
 {
-    return get_time_ns();
+    get_time_ns();
+
+    return get_cycles();
 }
 
 __attribute__((__noinline__))
@@ -61,26 +56,35 @@ timer_calibrate_gc(void)
 
 __attribute__((__noinline__))
 u64
-timer_calibrate_null(void)
+timer_calibrate_loop(int itermax, u64 (*func)(void), u64 *minresp)
 {
-    return 0;
-}
+    u64 mincycles, minres;
+    int i, j;
 
-__attribute__((__noinline__))
-u64
-timer_calibrate_loop(int imax, u64 (*func)(void))
-{
-    u64 x __maybe_unused;
-    u64 start;
-    int i;
+    mincycles = U64_MAX;
+    minres = U64_MAX;
 
-    start = get_cycles();
+    for (i = 0; i < 3; ++i) {
+        u64 cycles, last, res;
 
-    for (i = 0; i < imax; ++i)
-        x += func();
-    smp_mb();
+        cycles = get_cycles();
+        last = 0;
 
-    return get_cycles() - start;
+        for (j = 0; j < itermax; ++j) {
+            res = func();
+            if (res - last < minres)
+                minres = res - last;
+            last = res;
+        }
+
+        cycles = get_cycles() - cycles;
+        if (cycles < mincycles)
+            mincycles = cycles;
+    }
+
+    *minresp = minres;
+
+    return mincycles;
 }
 
 /**
@@ -89,30 +93,24 @@ timer_calibrate_loop(int imax, u64 (*func)(void))
 static void
 timer_calibrate(void)
 {
-    ulong cyc_null, cyc_gc, cyc_gtns, cyc_tls, cyc_nsleep;
+    ulong cyc_loop, cyc_gc, cyc_gtns, cyc_nsleep, gc, gtns;
     ulong cps, nsecs, diff, last;
-    int imax = 333 * 1000, rc, n;
+    int imax = 10000, rc, n;
 
-    usleep(USEC_PER_SEC / 9);
+    usleep((getpid() % 10) * 10);
 
     /* First we measure a few functions that we call a lot in order
      * to get an idea of how much they cost.  Results are likely to
      * vary due to how busy the machine, turbo capabilities, ...
      */
-    cyc_null = timer_calibrate_loop(imax * 3, timer_calibrate_null);
-    cyc_null = timer_calibrate_loop(imax, timer_calibrate_null);
+    cyc_loop = timer_calibrate_loop(imax, timer_calibrate_gc, &gc);
+    cyc_gc = cyc_loop / imax;
 
-    cyc_gc = timer_calibrate_loop(imax, timer_calibrate_gc);
-    cyc_gc = (cyc_gc - cyc_null) / imax;
+    cyc_gtns = timer_calibrate_loop(imax, timer_calibrate_gtns, &gtns);
+    cyc_gtns = (cyc_gtns - cyc_loop) / imax;
 
-    cyc_gtns = timer_calibrate_loop(imax, timer_calibrate_gtns);
-    cyc_gtns = (cyc_gtns - cyc_null) / imax;
-
-    cyc_tls = timer_calibrate_loop(imax, timer_calibrate_gtns);
-    cyc_tls = (cyc_tls - cyc_null) / imax;
-
-    cyc_nsleep = timer_calibrate_loop(5000, timer_calibrate_nsleep);
-    cyc_nsleep = (cyc_nsleep - ((cyc_null * 5000) / imax)) / 5000;
+    cyc_nsleep = timer_calibrate_loop(1000, timer_calibrate_nsleep, &diff);
+    cyc_nsleep = (cyc_nsleep - ((cyc_loop * 1000) / imax)) / 1000;
 
     last = 0;
     n = 0;
@@ -154,10 +152,9 @@ timer_calibrate(void)
         timer_nslpmin = timer_slack;
 
     hse_log(HSE_NOTICE
-            "%s: gc %lu/%lu, gtns %lu/%lu, tls %lu/%lu, c/s %lu/%d, timerslack %lu/%lu",
-            __func__, cyc_gc, cycles_to_nsecs(cyc_gc),
-            cyc_gtns, cycles_to_nsecs(cyc_gtns),
-            cyc_tls, cycles_to_nsecs(cyc_tls),
+            "%s: gc %lu/%lu %lu/%lu, gtns %lu/%lu %lu/%lu, c/s %lu/%d, timerslack %lu/%lu",
+            __func__, cyc_gc, gc, cycles_to_nsecs(cyc_gc), cycles_to_nsecs(gc),
+            cyc_gtns, gtns - gc, cycles_to_nsecs(cyc_gtns), cycles_to_nsecs(gtns - gc),
             cps, n, timer_nslpmin, timer_slack);
 }
 

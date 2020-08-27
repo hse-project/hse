@@ -34,6 +34,9 @@ struct field_name {
     dt_field_t  field_val;
 };
 
+struct dt_tree *dt_data_tree __read_mostly;
+
+
 static void
 dt_lock(struct dt_tree *tree)
 {
@@ -445,8 +448,6 @@ dt_create(const char *name)
 
     return tree;
 }
-
-struct dt_tree *dt_data_tree;
 
 void
 dt_init(void)
