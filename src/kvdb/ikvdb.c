@@ -514,16 +514,12 @@ ikvdb_c1_replay_put(
          * to crash. Skip replaying this key, if there's no kvs
          * instance corresponding to the specified cnid.
          */
-        hse_log(
-            HSE_WARNING "%s: Replay detected dropped KVS, "
-                        "id: %lu",
-            __func__,
-            (ulong)cnid);
+        hse_log(HSE_WARNING "%s: dropping put %lu for invalid kvs cnid %lu",
+                __func__, (ulong)seqno, (ulong)cnid);
         return 0;
     }
 
     kk = (struct kvdb_kvs *)kvs;
-    assert(kk);
 
     return ikvs_put(kk->kk_ikvs, os, kt, vt, HSE_ORDNL_TO_SQNREF(seqno));
 }
@@ -551,16 +547,12 @@ ikvdb_c1_replay_del(
          * to crash. Skip replaying this key, if there's no kvs
          * instance corresponding to the specified cnid.
          */
-        hse_log(
-            HSE_WARNING "%s: Replay detected dropped KVS, "
-                        "id: %lu",
-            __func__,
-            (ulong)cnid);
+        hse_log(HSE_WARNING "%s: dropping del %lu for invalid kvs cnid %lu",
+                __func__, (ulong)seqno, (ulong)cnid);
         return 0;
     }
 
     kk = (struct kvdb_kvs *)kvs;
-    assert(kk);
 
     tombval = *(u64 *)vt->vt_data;
     if (tombval == (u64)HSE_CORE_TOMB_REG)

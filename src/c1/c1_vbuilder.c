@@ -61,6 +61,9 @@ c1_kvset_builder_destroy(struct c1_kvset_builder *bldrs)
 {
     struct c1_kvset_builder_elem *elem, *elem_tmp;
 
+    if (!bldrs)
+        return;
+
     mutex_lock(&bldrs->c1kvsb_mtx);
 
     list_for_each_entry_safe (elem, elem_tmp, &bldrs->c1kvsb_list, c1kvsbe_list) {
@@ -84,9 +87,9 @@ c1_kvset_builder_elem_create_int(
     struct c1_kvset_builder_elem *elem;
     int                           i;
 
-    elem = malloc(sizeof(*elem));
-    if (!elem)
-        return merr(ev(ENOMEM));
+    elem = alloc_aligned(sizeof(*elem), __alignof(*elem), 0);
+    if (ev(!elem))
+        return merr(ENOMEM);
 
     elem->c1kvsbe_c0sk = bldrs->c1kvsb_c0sk;
 
@@ -193,7 +196,7 @@ c1_kvset_builder_elem_destroy(struct c1_kvset_builder_elem *elem)
                 c0sk_kvset_builder_destroy(c0sk, bldrs[i]);
     }
 
-    free(elem);
+    free_aligned(elem);
 }
 
 void

@@ -157,6 +157,7 @@ c0skm_close(struct c0sk *handle)
 
     c0skm_perfc_free(c0skm);
 
+    free(c0skm->c0skm_c0kvmsv);
     free_aligned(c0skm);
 
     self->c0sk_mhandle = NULL;
@@ -464,10 +465,19 @@ c0skm_ingest(struct c0sk_mutation *c0skm, u8 itype, u64 *gen)
      */
     nkvms = (fgen - lgen + 1) + C0_MUT_KVMS_MIN;
     sz = nkvms * (sizeof(*c0kvmsv) + sizeof(*final));
+    sz = roundup(sz, SMP_CACHE_BYTES);
 
-    c0kvmsv = malloc(sz);
-    if (!c0kvmsv)
-        return merr(ev(ENOMEM));
+    if (ev(sz > c0skm->c0skm_c0kvmsv_sz)) {
+        c0kvmsv = malloc(sz);
+        if (ev(!c0kvmsv))
+            return merr(ENOMEM);
+
+        free(c0skm->c0skm_c0kvmsv);
+        c0skm->c0skm_c0kvmsv = c0kvmsv;
+        c0skm->c0skm_c0kvmsv_sz = sz;
+    }
+
+    c0kvmsv = c0skm->c0skm_c0kvmsv;
 
     final = (void *)(c0kvmsv + nkvms);
     kvmsid = 0;
@@ -567,7 +577,6 @@ c0skm_ingest(struct c0sk_mutation *c0skm, u8 itype, u64 *gen)
                 c0kvmsm_reset_mlist(c0kvmsv[i], 0);
                 c0kvms_putref(c0kvmsv[i]);
             }
-            free(c0kvmsv);
             return err;
         }
         cnt++;
@@ -593,8 +602,6 @@ c0skm_ingest(struct c0sk_mutation *c0skm, u8 itype, u64 *gen)
 
     if (gen)
         *gen = old_gen;
-
-    free(c0kvmsv);
 
     return 0;
 }

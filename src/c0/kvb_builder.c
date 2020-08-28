@@ -3,6 +3,8 @@
  * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
  */
 
+#define MTF_MOCK_IMPL_kvb_builder
+
 #include <hse_util/platform.h>
 #include <hse_util/slab.h>
 #include <hse_util/perfc.h>
@@ -123,6 +125,7 @@ kvb_builder_iter_put(struct kvb_builder_iter *iter)
         return;
 
     c0kvms = iter->kvbi_c0kvms;
+    assert(c0kvms);
 
     c0kvms_mlock(c0kvms);
     ref = iter->kvbi_ref;
@@ -282,25 +285,23 @@ kvb_builder_kvtuple_add(
     struct c1_kvtuple *kvt;
     struct c1_kvcache *kvc;
 
-    u64    minseqno;
-    u64    maxseqno;
-    merr_t err;
-    u64    klen;
-    u64    vlen;
-    u64    cnid;
+    u64    minseqno, maxseqno;
+    u64    klen, vlen, cnid;
     u32    skidx;
+    merr_t err;
 
     *kvlen = 0;
     *ckvt = NULL;
 
-    kvc = iter->kvbi_kvcache;
-
     skidx = key_immediate_index(&bkv->bkv_key_imm);
     cnid = c0skm_get_cnid(iter->kvbi_c0skm, skidx);
-    if (cnid == 0) { /* Invalid cnid */
-        hse_log(HSE_ERR "KVS got closed underneath for skidx %u", skidx);
-        return merr(ev(ENOENT));
+
+    if (ev(cnid == 0)) { /* Invalid cnid */
+        hse_log(HSE_ERR "%s: invalid cnid %lu for skidx %u", __func__, cnid, skidx);
+        return merr(ENOENT);
     }
+
+    kvc = iter->kvbi_kvcache;
 
     /* Allocate kv tuple */
     err = c1_kvtuple_alloc(kvc, &kvt);
@@ -491,3 +492,8 @@ kvb_builder_vtuple_add(
 
     return 0;
 }
+
+
+#if defined(HSE_UNIT_TEST_MODE) && HSE_UNIT_TEST_MODE == 1
+#include "kvb_builder_ut_impl.i"
+#endif /* HSE_UNIT_TEST_MODE */

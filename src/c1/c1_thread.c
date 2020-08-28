@@ -16,34 +16,32 @@ merr_t
 c1_thread_create(const char *thrname, void (*fp)(void *arg), void *arg, struct c1_thread **out)
 {
     struct c1_thread *thr;
-    merr_t            err;
+
+    *out = NULL;
 
     thr = malloc(sizeof(*thr));
-    if (!thr)
-        return merr(ev(ENOMEM));
-
-    thr->c1thr_wq = alloc_workqueue("%s", 0, 1, thrname);
-    if (!thr->c1thr_wq) {
-        err = merr(ev(ENOMEM));
-        goto err_exit;
-    }
+    if (ev(!thr))
+        return merr(ENOMEM);
 
     thr->c1thr_fp = fp;
     thr->c1thr_arg = arg;
 
+    thr->c1thr_wq = alloc_workqueue("%s", 0, 1, thrname);
+    if (ev(!thr->c1thr_wq)) {
+        free(thr);
+        return merr(ENOMEM);
+    }
+
     *out = thr;
 
     return 0;
-
-err_exit:
-
-    free(thr);
-    return err;
 }
 
 merr_t
 c1_thread_destroy(struct c1_thread *thr)
 {
+    assert(thr);
+
     destroy_workqueue(thr->c1thr_wq);
     free(thr);
 
