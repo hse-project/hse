@@ -9,9 +9,6 @@
 merr_t
 kvb_builder_get_next(struct kvb_builder_iter *iter, struct c1_kvbundle **ckvb);
 
-void
-kvb_builder_iter_put(struct kvb_builder_iter *iter);
-
 merr_t
 kvb_builder_kvtuple_add(
     struct kvb_builder_iter *iter,

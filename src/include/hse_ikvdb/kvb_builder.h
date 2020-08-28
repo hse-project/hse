@@ -12,6 +12,8 @@
 #include <hse_util/hse_err.h>
 #include <hse_util/slist.h>
 
+/* MTF_MOCK_DECL(kvb_builder) */
+
 struct c0_kvmultiset;
 struct c0_kvset;
 struct c1;
@@ -97,6 +99,7 @@ kvb_builder_iter_init(
  * kvb_builder_iter_put() -
  * @iter: iterator handle
  */
+/* MTF_MOCK */
 void
 kvb_builder_iter_put(struct kvb_builder_iter *iter);
 
@@ -114,5 +117,9 @@ kvb_builder_iter_destroy(struct kvb_builder_iter *iter, struct perfc_set *pc);
  */
 bool
 kvb_builder_iter_istxn(struct kvb_builder_iter *iter);
+
+#if defined(HSE_UNIT_TEST_MODE) && HSE_UNIT_TEST_MODE == 1
+#include "kvb_builder_ut.h"
+#endif /* HSE_UNIT_TEST_MODE */
 
 #endif /* HSE_CORE_KVB_BUILDER_H */

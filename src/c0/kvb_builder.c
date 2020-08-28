@@ -3,6 +3,8 @@
  * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
  */
 
+#define MTF_MOCK_IMPL_kvb_builder
+
 #include <hse_util/platform.h>
 #include <hse_util/slab.h>
 #include <hse_util/perfc.h>
@@ -123,6 +125,7 @@ kvb_builder_iter_put(struct kvb_builder_iter *iter)
         return;
 
     c0kvms = iter->kvbi_c0kvms;
+    assert(c0kvms);
 
     c0kvms_mlock(c0kvms);
     ref = iter->kvbi_ref;
@@ -489,3 +492,8 @@ kvb_builder_vtuple_add(
 
     return 0;
 }
+
+
+#if defined(HSE_UNIT_TEST_MODE) && HSE_UNIT_TEST_MODE == 1
+#include "kvb_builder_ut_impl.i"
+#endif /* HSE_UNIT_TEST_MODE */
