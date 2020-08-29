@@ -6,6 +6,7 @@
 #ifndef HSE_C1_THREAD_H
 #define HSE_C1_THREAD_H
 
+#if 0
 struct c1_thread;
 
 merr_t
@@ -20,5 +21,6 @@ c1_thread_run(struct c1_thread *thr);
 
 merr_t
 c1_thread_destroy(struct c1_thread *thr);
+#endif
 
 #endif /* HSE_C1_THREAD_H */

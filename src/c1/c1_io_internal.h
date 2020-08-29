@@ -6,11 +6,13 @@
 #ifndef HSE_C1_IO_INTERNAL_H
 #define HSE_C1_IO_INTERNAL_H
 
+#if 0
 void
 c1_io_thread_master(void *arg);
 
 void
 c1_io_thread_slave(void *arg);
+#endif
 
 merr_t
 c1_io_get_tree(struct c1 *c1, struct c1_kvinfo *cki, struct c1_tree **out, int *idx, u64 *mutation);

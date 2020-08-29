@@ -2,7 +2,7 @@
 /*
  * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
  */
-
+#if 0
 #include "c1_private.h"
 
 struct c1_thread {
@@ -69,3 +69,4 @@ c1_thread_run(struct c1_thread *thr)
 
     return 0;
 }
+#endif

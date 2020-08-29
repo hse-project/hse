@@ -22,17 +22,19 @@ struct c1_kvset_builder {
 };
 
 struct c1_kvset_builder_elem {
-    struct list_head      c1kvsbe_list;
-    struct kvset_builder *c1kvsbe_bldrs[HSE_KVS_COUNT_MAX];
-    struct c0sk *         c1kvsbe_c0sk;
-    atomic64_t            c1kvsbe_gen;
-    u64                   c1kvsbe_sign;
+    struct list_head        c1kvsbe_list;
+    struct c0sk            *c1kvsbe_c0sk;
+    atomic64_t              c1kvsbe_gen;
+    u64                     c1kvsbe_sign;
 
-    __aligned(SMP_CACHE_BYTES) struct mutex c1kvsbe_flush_mtx;
-    atomic64_t c1kvsbe_refcnt;
-    atomic_t   c1kvsbe_acquired;
+    __aligned(SMP_CACHE_BYTES)
+    struct mutex            c1kvsbe_flush_mtx;
+    atomic64_t              c1kvsbe_refcnt;
+    atomic_t                c1kvsbe_acquired;
 
-    __aligned(SMP_CACHE_BYTES) struct rw_semaphore c1kvsbe_sem[HSE_KVS_COUNT_MAX];
+    __aligned(SMP_CACHE_BYTES)
+    struct kvset_builder   *c1kvsbe_bldrs[HSE_KVS_COUNT_MAX];
+    struct rw_semaphore     c1kvsbe_sem[HSE_KVS_COUNT_MAX];
 };
 
 merr_t
@@ -41,8 +43,8 @@ c1_kvset_builder_create(struct c0sk *c0sk, struct c1_kvset_builder **bldrsout)
     struct c1_kvset_builder *bldrs;
 
     bldrs = malloc(sizeof(*bldrs));
-    if (!bldrs)
-        return merr(ev(ENOMEM));
+    if (ev(!bldrs))
+        return merr(ENOMEM);
 
     mutex_init(&bldrs->c1kvsb_mtx);
     INIT_LIST_HEAD(&bldrs->c1kvsb_list);

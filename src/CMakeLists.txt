@@ -1059,14 +1059,6 @@ if( HSE_UNIT_TEST_FLAG )
         )
 
     hse_unit_test(
-        NAME c1_thread_test
-        LABELS c1
-        SRCS c1/test/c1_thread_test.c
-        INCLUDES ${UNIT_TEST_INCLUDE_DIRS}
-        LINK_LIBS ${UNIT_TEST_LINK_LIBS}
-        )
-
-    hse_unit_test(
         NAME c1_txn_test
         LABELS c1
         SRCS
