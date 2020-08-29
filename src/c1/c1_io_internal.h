@@ -6,14 +6,6 @@
 #ifndef HSE_C1_IO_INTERNAL_H
 #define HSE_C1_IO_INTERNAL_H
 
-#if 0
-void
-c1_io_thread_master(void *arg);
-
-void
-c1_io_thread_slave(void *arg);
-#endif
-
 merr_t
 c1_io_get_tree(struct c1 *c1, struct c1_kvinfo *cki, struct c1_tree **out, int *idx, u64 *mutation);
 
@@ -26,10 +18,7 @@ c1_io_get_tree_txn(
     u64 *               mutation);
 
 void
-c1_io_iter_kvbtxn(struct c1_io *io, struct c1_io_queue *q, u8 tidx);
-
-void
-c1_io_rec_perf(struct c1_io *io, struct c1_io_queue *q, u64 start, merr_t err);
+c1_io_iter_kvbtxn(struct c1_io *io, struct c1_io_queue *q);
 
 bool
 c1_sync_or_flush_command(struct kvb_builder_iter *iter);
