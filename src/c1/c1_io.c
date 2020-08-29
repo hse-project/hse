@@ -10,12 +10,6 @@
 #include "c1_io_internal.h"
 #include "c1_omf_internal.h"
 
-struct c1_thread {
-    struct work_struct  c1thr_work;
-    struct c1_io       *c1thr_io;
-    int                 c1thr_idx;
-};
-
 /* c1q_txn and c1q_iter can never be set at the same time. c1q_txn is set
  * only by the c1_io_txn_* APIs.
  */
@@ -37,116 +31,41 @@ struct c1_io_queue {
 };
 
 struct c1_io_worker {
-    struct mutex        c1io_slave_mtx;
-    struct list_head    c1io_slave_list;
-    bool                c1io_slave_stop;
-    struct list_head    c1io_slave_qfree;
-    struct cv           c1io_slave_cv;
+    struct mutex        c1w_mtx;
+    struct list_head    c1w_list;
+    bool                c1w_stop;
+    struct cv           c1w_cv;
+
+    struct work_struct  c1w_work;
+    struct c1_io       *c1w_io;
+    int                 c1w_idx;
 } __aligned(SMP_CACHE_BYTES);
 
 struct c1_io {
-    struct perfc_set         c1io_pcset;
-    struct c1_tree          *c1io_tree;
-    struct c1_io_worker     *c1io_slave;
-    struct c1_kvset_builder *c1io_bldr;
-    merr_t                   c1io_err;
-    u32                      c1io_kvbmetasz;
-    u32                      c1io_kmetasz;
-    u32                      c1io_vmetasz;
-    int                      c1io_threads;
-    u64                      c1io_dtimens;
-    struct c1_thread        *c1io_thr;
-    struct workqueue_struct *c1io_wq;
+    u32                         c1io_kvbmetasz;
+    u32                         c1io_kmetasz;
+    u32                         c1io_vmetasz;
+    int                         c1io_threads;
+    struct c1_kvset_builder    *c1io_bldr;
+    merr_t                      c1io_err;
+
+    struct perfc_set            c1io_pcset;
+    struct c1_io_worker        *c1io_slave;
+    u64                         c1io_dtimens;
+
+    struct workqueue_struct    *c1io_wq;
 
     __aligned(SMP_CACHE_BYTES)
-    struct mutex             c1io_space_mtx;
-    struct list_head         c1io_qfree;
+    struct mutex                c1io_space_mtx;
+    struct list_head            c1io_qfree;
 
     __aligned(SMP_CACHE_BYTES)
-    struct mutex             c1io_queue_mtx;
-    struct list_head         c1io_list;
-    atomic_t                 c1io_queued_reqs;
-    bool                     c1io_stop;
-    struct cv                c1io_cv;
+    atomic_t                    c1io_pending_reqs;
 
     __aligned(SMP_CACHE_BYTES)
-    atomic_t                 c1io_pending_reqs;
-
-    __aligned(SMP_CACHE_BYTES)
-    struct c1_io_queue       c1io_ioqv[46];
+    struct c1_io_queue          c1io_ioqv[47];
 };
 
-
-static void
-c1_io_director(struct work_struct *work)
-{
-    struct c1_io_worker    *slave;
-    struct c1_io_queue     *qtmp, *q;
-    struct c1_thread       *thr;
-    struct c1_io           *io;
-    struct list_head        qfree;
-    struct list_head        list;
-
-    hse_log(HSE_DEBUG "c1 io director starting");
-
-    thr = container_of(work, struct c1_thread, c1thr_work);
-
-    INIT_LIST_HEAD(&qfree);
-    io = thr->c1thr_io;
-
-    while (1) {
-        u32 queued_reqs;
-
-        mutex_lock(&io->c1io_queue_mtx);
-        while (list_empty(&io->c1io_list)) {
-            if (io->c1io_stop) {
-                mutex_unlock(&io->c1io_queue_mtx);
-
-                hse_log(HSE_DEBUG "c1 io director stopped");
-                return;
-            }
-
-            cv_wait(&io->c1io_cv, &io->c1io_queue_mtx);
-        }
-
-        INIT_LIST_HEAD(&list);
-        list_splice_tail(&io->c1io_list, &list);
-        INIT_LIST_HEAD(&io->c1io_list);
-
-        queued_reqs = atomic_read(&io->c1io_queued_reqs);
-        atomic_add(queued_reqs, &io->c1io_pending_reqs);
-        atomic_sub(queued_reqs, &io->c1io_queued_reqs);
-        mutex_unlock(&io->c1io_queue_mtx);
-
-        /* Take out each request and queue them to per-slave list
-         */
-        list_for_each_entry_safe(q, qtmp, &list, c1q_list) {
-            int idx;
-
-            idx = q->c1q_idx;
-            assert(idx < io->c1io_threads);
-
-            slave = &io->c1io_slave[idx];
-            list_del(&q->c1q_list);
-
-            mutex_lock(&slave->c1io_slave_mtx);
-            list_add_tail(&q->c1q_list, &slave->c1io_slave_list);
-            list_splice(&slave->c1io_slave_qfree, &qfree);
-            INIT_LIST_HEAD(&slave->c1io_slave_qfree);
-
-            cv_signal(&slave->c1io_slave_cv);
-            mutex_unlock(&slave->c1io_slave_mtx);
-        }
-
-        if (!list_empty(&qfree)) {
-            mutex_lock(&io->c1io_space_mtx);
-            list_splice(&qfree, &io->c1io_qfree);
-            mutex_unlock(&io->c1io_space_mtx);
-
-            INIT_LIST_HEAD(&qfree);
-        }
-    }
-}
 
 static void
 c1_io_worker(struct work_struct *work)
@@ -154,49 +73,49 @@ c1_io_worker(struct work_struct *work)
     struct kvb_builder_iter    *iter;
     struct c1_io_worker        *slave;
     struct c1_io_queue         *q;
-    struct c1_thread           *thr;
     struct c1_io               *io;
     u64 start;
     int tidx;
 
-    thr = container_of(work, struct c1_thread, c1thr_work);
+    slave = container_of(work, struct c1_io_worker, c1w_work);
 
-    io = thr->c1thr_io;
-    tidx = thr->c1thr_idx;
+    io = slave->c1w_io;
+    tidx = slave->c1w_idx;
 
     assert(tidx < io->c1io_threads);
 
     hse_log(HSE_DEBUG "c1 io worker %d starting", tidx);
 
-    slave = &io->c1io_slave[tidx];
     start = 0;
     q = NULL;
 
     while (1) {
         merr_t  err;
 
-        mutex_lock(&slave->c1io_slave_mtx);
         if (q) {
-            list_add(&q->c1q_list, &slave->c1io_slave_qfree);
+            mutex_lock(&io->c1io_space_mtx);
+            list_add(&q->c1q_list, &io->c1io_qfree);
+            mutex_unlock(&io->c1io_space_mtx);
             q = NULL;
         }
 
-        while (list_empty(&slave->c1io_slave_list)) {
-            if (slave->c1io_slave_stop) {
-                mutex_unlock(&slave->c1io_slave_mtx);
+        mutex_lock(&slave->c1w_mtx);
+        while (list_empty(&slave->c1w_list)) {
+            if (slave->c1w_stop) {
+                mutex_unlock(&slave->c1w_mtx);
 
                 hse_log(HSE_DEBUG "c1 io worker %d stopped", tidx);
                 return;
             }
 
-            cv_wait(&slave->c1io_slave_cv, &slave->c1io_slave_mtx);
+            cv_wait(&slave->c1w_cv, &slave->c1w_mtx);
         }
 
-        q = list_first_entry(&slave->c1io_slave_list, struct c1_io_queue, c1q_list);
+        q = list_first_entry(&slave->c1w_list, struct c1_io_queue, c1q_list);
 
         list_del(&q->c1q_list);
         err = ev(io->c1io_err);
-        mutex_unlock(&slave->c1io_slave_mtx);
+        mutex_unlock(&slave->c1w_mtx);
 
         assert(tidx == q->c1q_idx);
         assert(atomic_read(&io->c1io_pending_reqs) > 0);
@@ -254,22 +173,13 @@ c1_io_shutdown_threads(struct c1_io *io)
     struct c1_io_worker *slave;
     int i;
 
-    assert(!io->c1io_stop);
-
-    mutex_lock(&io->c1io_queue_mtx);
-    io->c1io_stop = true;
-    cv_broadcast(&io->c1io_cv);
-    mutex_unlock(&io->c1io_queue_mtx);
-
-    /* TODO: There's no guarantee the director is stopped at this point... */
-
     for (i = 0; i < io->c1io_threads; ++i) {
         slave = &io->c1io_slave[i];
 
-        mutex_lock(&slave->c1io_slave_mtx);
-        slave->c1io_slave_stop = true;
-        cv_signal(&slave->c1io_slave_cv);
-        mutex_unlock(&slave->c1io_slave_mtx);
+        mutex_lock(&slave->c1w_mtx);
+        slave->c1w_stop = true;
+        cv_signal(&slave->c1w_cv);
+        mutex_unlock(&slave->c1w_mtx);
     }
 
     destroy_workqueue(io->c1io_wq);
@@ -277,13 +187,8 @@ c1_io_shutdown_threads(struct c1_io *io)
     for (i = 0; i < io->c1io_threads; ++i) {
         slave = &io->c1io_slave[i];
 
-        mutex_lock(&slave->c1io_slave_mtx);
-        list_splice(&slave->c1io_slave_qfree, &io->c1io_qfree);
-        INIT_LIST_HEAD(&slave->c1io_slave_qfree);
-        mutex_unlock(&slave->c1io_slave_mtx);
-
-        mutex_destroy(&slave->c1io_slave_mtx);
-        cv_destroy(&slave->c1io_slave_cv);
+        mutex_destroy(&slave->c1w_mtx);
+        cv_destroy(&slave->c1w_cv);
     }
 }
 
@@ -315,11 +220,8 @@ c1_io_destroy_impl(struct c1_io *io)
     }
 
     mutex_destroy(&io->c1io_space_mtx);
-    mutex_destroy(&io->c1io_queue_mtx);
-    cv_destroy(&io->c1io_cv);
 
     free_aligned(io->c1io_slave);
-    free(io->c1io_thr);
     free_aligned(io);
 }
 
@@ -343,15 +245,13 @@ c1_io_create(struct c1 *c1, u64 dtime, const char *mpname, int threads)
     if (ev(!io))
         return merr(ENOMEM);
 
+    hse_log(HSE_ERR "%s: %zu %p %zu",
+            __func__, sizeof(*io), io, offsetof(struct c1_io, c1io_ioqv));
     memset(io, 0, sizeof(*io));
-    INIT_LIST_HEAD(&io->c1io_list);
     INIT_LIST_HEAD(&io->c1io_qfree);
     mutex_init(&io->c1io_space_mtx);
-    mutex_init(&io->c1io_queue_mtx);
-    cv_init(&io->c1io_cv, "c1iodcv");
 
     io->c1io_dtimens = dtime * 1000UL * 1000;
-    atomic_set(&io->c1io_queued_reqs, 0);
     atomic_set(&io->c1io_pending_reqs, 0);
 
     /* Prime the io queue cache with preallocated items...
@@ -366,14 +266,6 @@ c1_io_create(struct c1 *c1, u64 dtime, const char *mpname, int threads)
 
     io->c1io_slave = alloc_aligned(sz, __alignof(*io->c1io_slave), 0);
     if (ev(!io->c1io_slave)) {
-        err = merr(ENOMEM);
-        goto errout;
-    }
-
-    /* Add 1 for the director thread.
-     */
-    io->c1io_thr = calloc(threads + 1, sizeof(*io->c1io_thr));
-    if (ev(!io->c1io_thr)) {
         err = merr(ENOMEM);
         goto errout;
     }
@@ -396,42 +288,29 @@ c1_io_create(struct c1 *c1, u64 dtime, const char *mpname, int threads)
     if (ev(err))
         goto errout;
 
-    io->c1io_wq = alloc_workqueue("%s", 0, threads + 1, "c1wq");
+    io->c1io_wq = alloc_workqueue("%s", 0, threads, "c1wq");
     if (ev(!io->c1io_wq)) {
         err = merr(ENOMEM);
         goto errout;
     }
 
-    /* [HSE_REVISIT] Successive code changes made the scope of director
-     * thread to be very shallow. Consider removing it entirely in
-     * a future revision.
-     */
-    INIT_WORK(&io->c1io_thr[0].c1thr_work, c1_io_director);
-    io->c1io_thr[0].c1thr_idx = -1;
-    io->c1io_thr[0].c1thr_io = io;
-
-    for (i = 0; i < threads; ++i) {
-        struct c1_io_worker *slave;
-        struct c1_thread *thr;
-
-        slave = &io->c1io_slave[i];
-        memset(slave, 0, sizeof(*slave));
-        INIT_LIST_HEAD(&slave->c1io_slave_list);
-        INIT_LIST_HEAD(&slave->c1io_slave_qfree);
-        mutex_init(&slave->c1io_slave_mtx);
-        cv_init(&slave->c1io_slave_cv, "c1iowcv");
-
-        thr = &io->c1io_thr[i + 1];
-        INIT_WORK(&thr->c1thr_work, c1_io_worker);
-        thr->c1thr_idx = i;
-        thr->c1thr_io = io;
-    }
-
     io->c1io_threads = threads;
     c1->c1_io = io;
 
-    for (i = 0; i < threads + 1; ++i)
-        queue_work(io->c1io_wq, &io->c1io_thr[i].c1thr_work);
+    for (i = 0; i < threads; ++i) {
+        struct c1_io_worker *slave = &io->c1io_slave[i];
+
+        memset(slave, 0, sizeof(*slave));
+        mutex_init(&slave->c1w_mtx);
+        INIT_LIST_HEAD(&slave->c1w_list);
+        cv_init(&slave->c1w_cv, "c1wcv");
+
+        INIT_WORK(&slave->c1w_work, c1_io_worker);
+        slave->c1w_idx = i;
+        slave->c1w_io = io;
+
+        queue_work(io->c1io_wq, &slave->c1w_work);
+    }
 
   errout:
     if (err)
@@ -558,7 +437,6 @@ c1_io_get_tree_txn(
     }
 
     *out = tree;
-    io->c1io_tree = tree;
 
     return 0;
 }
@@ -598,7 +476,6 @@ c1_io_get_tree(struct c1 *c1, struct c1_kvinfo *cki, struct c1_tree **out, int *
     }
 
     *out = tree;
-    io->c1io_tree = tree;
 
     return 0;
 }
@@ -606,13 +483,7 @@ c1_io_get_tree(struct c1 *c1, struct c1_kvinfo *cki, struct c1_tree **out, int *
 static inline bool
 c1_io_pending_reqs(struct c1_io *io)
 {
-    return (atomic_read(&io->c1io_queued_reqs) || atomic_read(&io->c1io_pending_reqs));
-}
-
-static __always_inline void
-c1_io_wakeup(struct c1_io *io)
-{
-    cv_signal(&io->c1io_cv);
+    return atomic_read(&io->c1io_pending_reqs);
 }
 
 void
@@ -672,9 +543,10 @@ c1_sync_or_flush_command(struct kvb_builder_iter *iter)
 merr_t
 c1_issue_sync(struct c1 *c1, int sync, bool skip_flush)
 {
-    struct c1_io_queue  q = { .c1q_sync = sync };
-    struct c1_io       *io;
-    merr_t              err;
+    struct c1_io_queue      q = { .c1q_sync = sync };
+    struct c1_io_worker    *worker;
+    struct c1_io           *io;
+    merr_t                  err;
 
     io = c1->c1_io;
 
@@ -693,14 +565,17 @@ c1_issue_sync(struct c1 *c1, int sync, bool skip_flush)
     mutex_init(&q.c1q_mtx);
     cv_init(&q.c1q_cv, "c1synccv");
 
-    mutex_lock(&io->c1io_queue_mtx);
-    list_add_tail(&q.c1q_list, &io->c1io_list);
-    atomic_inc(&io->c1io_queued_reqs);
-    perfc_inc(&io->c1io_pcset, PERFC_RA_C1_IOQUE);
-
     mutex_lock(&q.c1q_mtx);
-    c1_io_wakeup(io);
-    mutex_unlock(&io->c1io_queue_mtx);
+
+    worker = &io->c1io_slave[q.c1q_idx];
+
+    mutex_lock(&worker->c1w_mtx);
+    list_add_tail(&q.c1q_list, &worker->c1w_list);
+    atomic_inc(&io->c1io_pending_reqs);
+    cv_signal(&worker->c1w_cv);
+    mutex_unlock(&worker->c1w_mtx);
+
+    perfc_inc(&io->c1io_pcset, PERFC_RA_C1_IOQUE);
 
     cv_wait(&q.c1q_cv, &q.c1q_mtx);
     mutex_unlock(&q.c1q_mtx);
@@ -737,6 +612,7 @@ c1_issue_iter(
     int                      sync)
 {
     struct c1_kvset_builder_elem   *bldr;
+    struct c1_io_worker            *worker;
     struct c1_io_queue             *q;
     struct c1_io                   *io;
     merr_t                          err;
@@ -792,13 +668,9 @@ c1_issue_iter(
         c1_io_queue_free(io, q);
         return err;
     }
-
-    mutex_lock(&io->c1io_queue_mtx);
     mutex_unlock(&io->c1io_space_mtx);
 
     if (ev(io->c1io_err)) {
-        mutex_unlock(&io->c1io_queue_mtx);
-
         if (bldr)
             c1_kvset_builder_elem_put(io->c1io_bldr, bldr);
 
@@ -808,10 +680,13 @@ c1_issue_iter(
     }
 
     q->c1q_stime = perfc_lat_start(&io->c1io_pcset);
-    list_add_tail(&q->c1q_list, &io->c1io_list);
-    atomic_inc(&io->c1io_queued_reqs);
-    c1_io_wakeup(io);
-    mutex_unlock(&io->c1io_queue_mtx);
+    worker = &io->c1io_slave[q->c1q_idx];
+
+    mutex_lock(&worker->c1w_mtx);
+    list_add_tail(&q->c1q_list, &worker->c1w_list);
+    atomic_inc(&io->c1io_pending_reqs);
+    cv_signal(&worker->c1w_cv);
+    mutex_unlock(&worker->c1w_mtx);
 
     perfc_inc(&io->c1io_pcset, PERFC_RA_C1_IOQUE);
 
@@ -821,10 +696,11 @@ c1_issue_iter(
 merr_t
 c1_io_txn_begin(struct c1 *c1, u64 txnid, struct c1_iterinfo *ci, int sync)
 {
-    struct c1_io_queue *q;
-    struct c1_ttxn     *txn;
-    struct c1_io       *io;
-    merr_t              err;
+    struct c1_io_worker    *worker;
+    struct c1_io_queue     *q;
+    struct c1_ttxn         *txn;
+    struct c1_io           *io;
+    merr_t                  err;
 
     io = c1->c1_io;
 
@@ -865,21 +741,21 @@ c1_io_txn_begin(struct c1 *c1, u64 txnid, struct c1_iterinfo *ci, int sync)
 
     txn->c1t_segno = q->c1q_tree->c1t_seqno;
     txn->c1t_gen = q->c1q_tree->c1t_gen;
-
-    mutex_lock(&io->c1io_queue_mtx);
     mutex_unlock(&io->c1io_space_mtx);
 
     if (ev(io->c1io_err)) {
-        mutex_unlock(&io->c1io_queue_mtx);
-
         c1_io_queue_free(io, q);
         return io->c1io_err;
     }
 
-    list_add_tail(&q->c1q_list, &io->c1io_list);
-    atomic_inc(&io->c1io_queued_reqs);
-    c1_io_wakeup(io);
-    mutex_unlock(&io->c1io_queue_mtx);
+    q->c1q_stime = perfc_lat_start(&io->c1io_pcset);
+    worker = &io->c1io_slave[q->c1q_idx];
+
+    mutex_lock(&worker->c1w_mtx);
+    list_add_tail(&q->c1q_list, &worker->c1w_list);
+    atomic_inc(&io->c1io_pending_reqs);
+    cv_signal(&worker->c1w_cv);
+    mutex_unlock(&worker->c1w_mtx);
 
     perfc_inc(&io->c1io_pcset, PERFC_RA_C1_IOQUE);
     perfc_inc(&c1->c1_pcset_op, PERFC_RA_C1_TXBEG);
@@ -890,13 +766,14 @@ c1_io_txn_begin(struct c1 *c1, u64 txnid, struct c1_iterinfo *ci, int sync)
 merr_t
 c1_io_txn_commit(struct c1 *c1, u64 txnid, u64 seqno, int sync)
 {
-    struct c1_kvinfo    cki = {};
-    struct c1_io_queue *q;
-    struct c1_ttxn     *txn;
-    struct c1_tree     *tree;
-    struct c1_io       *io;
-    merr_t              err;
-    u32                 size;
+    struct c1_kvinfo        cki = {};
+    struct c1_io_worker    *worker;
+    struct c1_io_queue     *q;
+    struct c1_ttxn         *txn;
+    struct c1_tree         *tree;
+    struct c1_io           *io;
+    merr_t                  err;
+    u32                     size;
 
     err = c1_record_type2len(C1_TYPE_TXN, C1_VERSION, &size);
     if (ev(err))
@@ -945,22 +822,21 @@ c1_io_txn_commit(struct c1 *c1, u64 txnid, u64 seqno, int sync)
 
     txn->c1t_segno = q->c1q_tree->c1t_seqno;
     txn->c1t_gen = q->c1q_tree->c1t_gen;
-
-    mutex_lock(&io->c1io_queue_mtx);
     mutex_unlock(&io->c1io_space_mtx);
 
     if (ev(io->c1io_err)) {
-        mutex_unlock(&io->c1io_queue_mtx);
-
         c1_io_queue_free(io, q);
         return io->c1io_err;
     }
 
     q->c1q_stime = perfc_lat_start(&io->c1io_pcset);
-    list_add_tail(&q->c1q_list, &io->c1io_list);
-    atomic_inc(&io->c1io_queued_reqs);
-    c1_io_wakeup(io);
-    mutex_unlock(&io->c1io_queue_mtx);
+    worker = &io->c1io_slave[q->c1q_idx];
+
+    mutex_lock(&worker->c1w_mtx);
+    list_add_tail(&q->c1q_list, &worker->c1w_list);
+    atomic_inc(&io->c1io_pending_reqs);
+    cv_signal(&worker->c1w_cv);
+    mutex_unlock(&worker->c1w_mtx);
 
     perfc_inc(&io->c1io_pcset, PERFC_RA_C1_IOQUE);
     perfc_inc(&c1->c1_pcset_op, PERFC_RA_C1_TXCOM);
@@ -979,12 +855,13 @@ BullseyeCoverageSaveOff
 merr_t
 c1_io_txn_abort(struct c1 *c1, u64 txnid)
 {
-    struct c1_kvinfo    cki = {};
-    struct c1_io_queue *q;
-    struct c1_ttxn     *txn;
-    struct c1_io       *io;
-    merr_t              err;
-    u32                 size;
+    struct c1_kvinfo        cki = {};
+    struct c1_io_worker    *worker;
+    struct c1_io_queue     *q;
+    struct c1_ttxn         *txn;
+    struct c1_io           *io;
+    merr_t                  err;
+    u32                     size;
 
     err = c1_record_type2len(C1_TYPE_TXN, C1_VERSION, &size);
     if (ev(err))
@@ -1023,31 +900,25 @@ c1_io_txn_abort(struct c1 *c1, u64 txnid)
     cki.ck_kvsz = size;
 
     err = c1_io_get_tree(c1, &cki, &q->c1q_tree, &q->c1q_idx, &q->c1q_mutation);
-    if (ev(err)) {
-        mutex_unlock(&io->c1io_space_mtx);
-
-        c1_io_queue_free(io, q);
-        return err;
+    if (!err) {
+        txn->c1t_segno = q->c1q_tree->c1t_seqno;
+        txn->c1t_gen = q->c1q_tree->c1t_gen;
     }
-
-    txn->c1t_segno = q->c1q_tree->c1t_seqno;
-    txn->c1t_gen = q->c1q_tree->c1t_gen;
-
-    mutex_lock(&io->c1io_queue_mtx);
     mutex_unlock(&io->c1io_space_mtx);
 
-    if (ev(io->c1io_err)) {
-        mutex_unlock(&io->c1io_queue_mtx);
-
+    if (ev(err || io->c1io_err)) {
         c1_io_queue_free(io, q);
-        return io->c1io_err;
+        return err ?: io->c1io_err;
     }
 
     q->c1q_stime = perfc_lat_start(&io->c1io_pcset);
-    list_add_tail(&q->c1q_list, &io->c1io_list);
-    atomic_inc(&io->c1io_queued_reqs);
-    c1_io_wakeup(io);
-    mutex_unlock(&io->c1io_queue_mtx);
+    worker = &io->c1io_slave[q->c1q_idx];
+
+    mutex_lock(&worker->c1w_mtx);
+    list_add_tail(&q->c1q_list, &worker->c1w_list);
+    atomic_inc(&io->c1io_pending_reqs);
+    cv_signal(&worker->c1w_cv);
+    mutex_unlock(&worker->c1w_mtx);
 
     perfc_inc(&io->c1io_pcset, PERFC_RA_C1_IOQUE);
     perfc_inc(&c1->c1_pcset_op, PERFC_RA_C1_TXABT);
