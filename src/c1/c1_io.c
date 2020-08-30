@@ -75,17 +75,17 @@ static void
 c1_io_worker(struct work_struct *work)
 {
     struct kvb_builder_iter    *iter;
-    struct c1_io_worker        *slave;
+    struct c1_io_worker        *worker;
     struct c1_io_queue         *q;
     struct c1_io               *io;
     struct list_head            qfree;
     int                         nfree;
     u64                         start;
 
-    slave = container_of(work, struct c1_io_worker, c1w_work);
+    worker = container_of(work, struct c1_io_worker, c1w_work);
 
     INIT_LIST_HEAD(&qfree);
-    io = slave->c1w_io;
+    io = worker->c1w_io;
     start = 0;
     nfree = 0;
     q = NULL;
@@ -107,24 +107,25 @@ c1_io_worker(struct work_struct *work)
             }
         }
 
-        mutex_lock(&slave->c1w_mtx);
-        cv_broadcast(&slave->c1w_cv); /* wake up syncdone waiters */
+        mutex_lock(&worker->c1w_mtx);
+        cv_broadcast(&worker->c1w_cv); /* wake up syncdone waiters */
 
-        while (list_empty(&slave->c1w_list)) {
-            if (slave->c1w_stop) {
-                mutex_unlock(&slave->c1w_mtx);
+        while (list_empty(&worker->c1w_list)) {
+            if (worker->c1w_stop) {
+                list_splice(&qfree, &worker->c1w_list);
+                mutex_unlock(&worker->c1w_mtx);
                 return;
             }
 
-            cv_wait(&slave->c1w_cv, &slave->c1w_mtx);
+            cv_wait(&worker->c1w_cv, &worker->c1w_mtx);
         }
 
-        q = list_first_entry(&slave->c1w_list, struct c1_io_queue, c1q_list);
+        q = list_first_entry(&worker->c1w_list, struct c1_io_queue, c1q_list);
 
         list_del(&q->c1q_list);
-        mutex_unlock(&slave->c1w_mtx);
+        mutex_unlock(&worker->c1w_mtx);
 
-        assert(q->c1q_idx == slave->c1w_idx);
+        assert(q->c1q_idx == worker->c1w_idx);
         assert(atomic_read(&io->c1io_pending) > 0);
 
         atomic_dec(&io->c1io_pending);
@@ -170,31 +171,6 @@ c1_io_worker(struct work_struct *work)
 }
 
 static void
-c1_io_shutdown_threads(struct c1_io *io)
-{
-    struct c1_io_worker *slave;
-    int i;
-
-    for (i = 0; i < io->c1io_workerc; ++i) {
-        slave = &io->c1io_workerv[i];
-
-        mutex_lock(&slave->c1w_mtx);
-        slave->c1w_stop = true;
-        cv_signal(&slave->c1w_cv);
-        mutex_unlock(&slave->c1w_mtx);
-    }
-
-    destroy_workqueue(io->c1io_wq);
-
-    for (i = 0; i < io->c1io_workerc; ++i) {
-        slave = &io->c1io_workerv[i];
-
-        mutex_destroy(&slave->c1w_mtx);
-        cv_destroy(&slave->c1w_cv);
-    }
-}
-
-static void
 c1_io_queue_free(struct c1_io *io, struct c1_io_queue *q)
 {
     if (q < io->c1io_ioqv || q >= io->c1io_ioqv + NELEM(io->c1io_ioqv))
@@ -204,12 +180,31 @@ c1_io_queue_free(struct c1_io *io, struct c1_io_queue *q)
 static void
 c1_io_destroy_impl(struct c1_io *io)
 {
+    struct c1_io_worker *worker;
     struct c1_io_queue *q;
+    int i;
 
     if (!io)
         return;
 
-    c1_io_shutdown_threads(io);
+    for (i = 0; i < io->c1io_workerc; ++i) {
+        worker = &io->c1io_workerv[i];
+
+        mutex_lock(&worker->c1w_mtx);
+        worker->c1w_stop = true;
+        cv_signal(&worker->c1w_cv);
+        mutex_unlock(&worker->c1w_mtx);
+    }
+
+    destroy_workqueue(io->c1io_wq);
+
+    for (i = 0; i < io->c1io_workerc; ++i) {
+        worker = &io->c1io_workerv[i];
+
+        list_splice(&worker->c1w_list, &io->c1io_qfree);
+        mutex_destroy(&worker->c1w_mtx);
+        cv_destroy(&worker->c1w_cv);
+    }
 
     c1_kvset_builder_destroy(io->c1io_bldr);
 
@@ -236,10 +231,10 @@ c1_io_destroy(struct c1 *c1)
 merr_t
 c1_io_create(struct c1 *c1, u64 dtime, const char *mpname, int threads)
 {
-    struct c1_io       *io;
-    merr_t              err;
-    size_t              sz;
-    int                 i;
+    struct c1_io   *io;
+    merr_t          err;
+    size_t          sz;
+    int             i;
 
     c1->c1_io = NULL;
 
@@ -321,7 +316,6 @@ static merr_t
 c1_io_next_tree(struct c1 *c1, struct c1_tree *cur)
 {
     struct c1_complete cmp;
-
     merr_t err;
 
     (void)c1_tree_get_complete(cur, &cmp);
@@ -481,8 +475,8 @@ c1_io_get_tree(struct c1 *c1, struct c1_kvinfo *cki, struct c1_tree **out, int *
 void
 c1_io_iter_kvbtxn(struct c1_io *io, struct c1_io_queue *q)
 {
-    struct c1_kvbundle         *kvb;
     struct kvb_builder_iter    *iter;
+    struct c1_kvbundle         *kvb;
     merr_t                      err;
     int                         tidx;
 
