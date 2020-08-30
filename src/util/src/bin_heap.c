@@ -11,17 +11,17 @@
 #include <hse_util/event_counter.h>
 #include <hse_util/bin_heap.h>
 
-#define BH_PARENT(index) (((index)-1) / 2)
-#define BH_LEFT(index) ((2 * (index)) + 1)
-#define BH_RIGHT(index) ((2 * (index)) + 2)
+#define BH_PARENT(_index)   (((_index) - 1) / 2)
+#define BH_LEFT(_index)     ((2 * (_index)) + 1)
+#define BH_RIGHT(_index)    ((2 * (_index)) + 2)
 
 struct bin_heap {
-    void **              bh_item_ptrs;
-    void *               bh_items;
-    s32                  bh_item_size;
-    s32                  bh_n_items;
-    s32                  bh_max_items;
-    bin_heap_compare_fn *bh_compare;
+    void                   *bh_items;
+    s32                     bh_item_size;
+    s32                     bh_n_items;
+    s32                     bh_max_items;
+    bin_heap_compare_fn    *bh_compare;
+    void                   *bh_item_ptrs[];
 };
 
 merr_t
@@ -35,30 +35,23 @@ bin_heap_create(
     int              i;
     size_t           sz;
 
-    if (!bh_out || !compare || item_size <= 0 || !max_items)
-        return merr(ev(EINVAL));
+    if (ev( !bh_out || !compare || item_size <= 0 || !max_items ))
+        return merr(EINVAL);
 
-    bh = calloc(1, sizeof(struct bin_heap));
-    if (!bh)
-        return merr(ev(ENOMEM));
+    sz = sizeof(*bh);
+    sz += max_items * sizeof(bh->bh_item_ptrs[0]);
+    sz += max_items * item_size;
 
+    bh = malloc(sz);
+    if (ev(!bh))
+        return merr(ENOMEM);
+
+    memset(bh, 0, sizeof(*bh));
+    bh->bh_items = bh->bh_item_ptrs + max_items;
+    bh->bh_item_size = item_size;
+    bh->bh_n_items = 0;
     bh->bh_max_items = max_items;
     bh->bh_compare = compare;
-    bh->bh_item_size = item_size;
-    sz = bh->bh_max_items * bh->bh_item_size;
-    bh->bh_items = malloc(sz);
-    if (!bh->bh_items) {
-        free(bh);
-        return merr(ev(ENOMEM));
-    }
-
-    sz = bh->bh_max_items * sizeof(void *);
-    bh->bh_item_ptrs = malloc(sz);
-    if (!bh->bh_item_ptrs) {
-        free(bh->bh_items);
-        free(bh);
-        return merr(ev(ENOMEM));
-    }
 
     for (i = 0; i < max_items; i++)
         bh->bh_item_ptrs[i] = bh->bh_items + i * bh->bh_item_size;
@@ -70,26 +63,16 @@ bin_heap_create(
 void
 bin_heap_destroy(struct bin_heap *bh)
 {
-    if (bh) {
-        free(bh->bh_item_ptrs);
-        free(bh->bh_items);
-        free(bh);
-    }
+    free(bh);
 }
 
-static inline void *
-item_ptr(struct bin_heap *bh, s32 index)
-{
-    return bh->bh_item_ptrs[index];
-}
-
-static inline int
+static __always_inline int
 compare_items(struct bin_heap *bh, s32 index1, s32 index2)
 {
     return bh->bh_compare(bh->bh_item_ptrs[index1], bh->bh_item_ptrs[index2]);
 }
 
-static inline void
+static __always_inline void
 swap_items(struct bin_heap *bh, s32 a_index, s32 b_index)
 {
     void *tmp;
@@ -258,9 +241,9 @@ bin_heap_insert(struct bin_heap *bh, const void *new_item)
     return 0;
 }
 
-#define BH2_PARENT(i) ((i - 1) / 2)
-#define BH2_LEFT(i) (2 * i + 1)
-#define BH2_RIGHT(i) (2 * i + 2)
+#define BH2_PARENT(_index)  (((_index) - 1) / 2)
+#define BH2_LEFT(_index)    (2 * (_index) + 1)
+#define BH2_RIGHT(_index)   (2 * (_index) + 2)
 
 static __always_inline int
 bin_heap2_cmp(bin_heap2_compare_fn *cmp, struct heap_node *elts, int a, int b)
