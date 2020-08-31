@@ -118,33 +118,35 @@ _hse_fmt(char *buf, size_t buflen, const char *fmt, ...);
 /* hse_log_pri() is not intended to be used externally, it exists
  * only to decode the priority value from the HSE_* definitions.
  */
-#define hse_log_pri(pri, fmt, async, hse_args, ...)                                             \
-    do {                                                                                        \
-        static struct event_counter _ev = {.ev_odometer = ATOMIC_INIT(0),                       \
-                                           .ev_trip_odometer = 0,                               \
-                                           .ev_log_level = pri,                                 \
-                                           .ev_flags = EV_FLAGS_HSE_LOG };                      \
-        static struct dt_element _dte = {                                                       \
-            .dte_data = &_ev,                                                                   \
-            .dte_ops = &event_counter_ops,                                                      \
-            .dte_type = DT_TYPE_ERROR_COUNTER,                                                  \
-            .dte_flags = DT_FLAGS_NON_REMOVEABLE,                                               \
-            .dte_line = __LINE__,                                                               \
-            .dte_file = __FILE__,                                                               \
-            .dte_func = __func__,                                                               \
-            .dte_comp = COMPNAME,                                                               \
-        };                                                                                      \
-        static volatile u64 mlp_next;                                                           \
-                                                                                                \
-        event_counter(&_dte, &_ev);                                                             \
-        if (unlikely(_ev.ev_log_level <= hse_logging_control.mlc_cur_pri)) {                    \
-            u64 mlp_now = get_time_ns();                                                        \
-                                                                                                \
-            if (mlp_now > mlp_next) {                                                           \
-                mlp_next = mlp_now + hse_logging_control.mlc_squelch_ns;                        \
+#define hse_log_pri(pri, fmt, async, hse_args, ...)                     \
+    do {                                                                \
+        static struct event_counter _ev = {                             \
+            .ev_odometer = ATOMIC_INIT(0),                              \
+            .ev_trip_odometer = 0,                                      \
+            .ev_log_level = pri,                                        \
+            .ev_flags = EV_FLAGS_HSE_LOG                                \
+        };                                                              \
+        static struct dt_element _dte = {                               \
+            .dte_data = &_ev,                                           \
+            .dte_ops = &event_counter_ops,                              \
+            .dte_type = DT_TYPE_ERROR_COUNTER,                          \
+            .dte_flags = DT_FLAGS_NON_REMOVEABLE,                       \
+            .dte_line = __LINE__,                                       \
+            .dte_file = __FILE__,                                       \
+            .dte_func = __func__,                                       \
+            .dte_comp = COMPNAME,                                       \
+        };                                                              \
+        static volatile u64 mlp_next;                                   \
+                                                                        \
+        event_counter(&_dte, &_ev);                                     \
+        if (unlikely(_ev.ev_log_level <= hse_logging_control.mlc_cur_pri)) { \
+            u64 mlp_now = get_time_ns();                                \
+                                                                        \
+            if (mlp_now > mlp_next) {                                   \
+                mlp_next = mlp_now + hse_logging_control.mlc_squelch_ns; \
                 _hse_log(__FILE__, __LINE__, (pri), (fmt), (async), (hse_args), ##__VA_ARGS__); \
-            }                                                                                   \
-        }                                                                                       \
+            }                                                           \
+        }                                                               \
     } while (0)
 
 #else /* NO_ERROR_COUNTER */

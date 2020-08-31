@@ -67,12 +67,6 @@ MTF_DEFINE_UTEST_PREPOST(
 
     tree = dt_create("data");
     ASSERT_EQ(tree, NULL);
-
-    g_fail_nth_alloc_cnt = 0;
-    g_fail_nth_alloc_limit = 1;
-
-    tree = dt_create("data");
-    ASSERT_EQ(tree, NULL);
 }
 #endif /* HSE_UNIT_TEST_MODE */
 

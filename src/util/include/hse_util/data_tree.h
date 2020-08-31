@@ -64,17 +64,20 @@ enum { DT_OP_INVALID, DT_OP_EMIT, DT_OP_SET, DT_OP_COUNT, DT_OP_LOG };
 #define DT_FLAGS_NON_REMOVEABLE 0x2
 
 struct dt_element {
-    struct rb_node         dte_node;
-    void *                 dte_data;
-    struct dt_element_ops *dte_ops;
-    dt_type_t              dte_type;
-    int                    dte_severity;
-    uint32_t               dte_flags;
-    int                    dte_line;
-    const char *           dte_file;
-    const char *           dte_func;
-    const char *           dte_comp;
-    char                   dte_path[DT_PATH_LEN]; /* whole path */
+    union {
+        struct rb_node      dte_node;
+        struct list_head    dte_list;
+    };
+    void                   *dte_data;
+    struct dt_element_ops  *dte_ops;
+    dt_type_t               dte_type;
+    int                     dte_severity;
+    uint32_t                dte_flags;
+    int                     dte_line;
+    const char             *dte_file;
+    const char             *dte_func;
+    const char             *dte_comp;
+    char                    dte_path[DT_PATH_LEN]; /* whole path */
 };
 
 /**

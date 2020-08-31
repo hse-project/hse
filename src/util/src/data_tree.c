@@ -15,13 +15,13 @@
 #include <3rdparty/rbtree.h>
 
 struct dt_tree {
-    struct rb_root       root;
-    spinlock_t           dt_tree_lock;
-    unsigned long        dt_tree_lock_flags;
-    struct list_head     new_dtes_list;
-    struct dt_element *  root_element;
-    struct dt_notifiers *callback_notifiers;
-    char                 name[DT_PATH_ELEMENT_LEN];
+    spinlock_t          dt_lock;
+    struct rb_root      dt_root;
+    spinlock_t          dt_pending_lock;
+    struct list_head    dt_pending_list;
+
+    __aligned(SMP_CACHE_BYTES)
+    struct dt_element   dt_element;
 };
 
 /**
@@ -37,16 +37,16 @@ struct field_name {
 struct dt_tree *dt_data_tree __read_mostly;
 
 
-static void
+static __always_inline void
 dt_lock(struct dt_tree *tree)
 {
-    spin_lock_irqsave(&tree->dt_tree_lock, tree->dt_tree_lock_flags);
+    spin_lock(&tree->dt_lock);
 }
 
-static void
+static __always_inline void
 dt_unlock(struct dt_tree *tree)
 {
-    spin_unlock_irqrestore(&tree->dt_tree_lock, tree->dt_tree_lock_flags);
+    spin_unlock(&tree->dt_lock);
 }
 
 static size_t
@@ -117,36 +117,32 @@ dt_build_pathname(char *string, char **saveptr)
     return string;
 }
 
-int
-dt_add(struct dt_tree *tree, struct dt_element *dte)
+/* Caller must hold dt_lock.
+ */
+static int
+dt_add_pending_dte(struct dt_tree *tree, struct dt_element *dte)
 {
-    struct rb_root *root;
     struct rb_node **new, *parent = NULL;
-    int err = 0;
-
-    if (!tree || !dte)
-        return -EINVAL;
+    struct rb_root *root;
 
     assert(dte->dte_type != DT_TYPE_INVALID);
 
-    dt_lock(tree);
+    root = &tree->dt_root;
+    new = &root->rb_node;
 
-    root = &tree->root;
-    new = &(root->rb_node);
-    /* Figure out where to put new node */
     while (*new) {
-        struct dt_element *this = container_of(*new, struct dt_element, dte_node);
-        int result = strcmp(dte->dte_path, this->dte_path);
+        struct dt_element *this = container_of(*new, typeof(*this), dte_node);
+        int result;
 
+        result = (dte == this) ? 0 : strcmp(dte->dte_path, this->dte_path);
         parent = *new;
+
         if (result < 0)
-            new = &((*new)->rb_left);
+            new = &(*new)->rb_left;
         else if (result > 0)
-            new = &((*new)->rb_right);
-        else {
-            err = -EEXIST;
-            goto out;
-        }
+            new = &(*new)->rb_right;
+        else
+            return -EEXIST;
     }
 
     /* Add new node and rebalance tree. */
@@ -154,12 +150,74 @@ dt_add(struct dt_tree *tree, struct dt_element *dte)
     rb_insert_color(&dte->dte_node, root);
     dte->dte_flags |= DT_FLAGS_IN_TREE;
 
-out:
-    dt_unlock(tree);
-    return err;
+    /* This ev() serves to prove that we can add a new event
+     * counter whilst holding the dt spinlock.
+     */
+    ev(1);
+
+    return 0;
+}
+
+/* Caller must hold dt_lock.
+ */
+static void
+dt_add_pending(struct dt_tree *tree)
+{
+    struct dt_element *dte;
+    struct list_head list;
+    int rc;
+
+    INIT_LIST_HEAD(&list);
+
+    spin_lock(&tree->dt_pending_lock);
+    list_splice(&tree->dt_pending_list, &list);
+    INIT_LIST_HEAD(&tree->dt_pending_list);
+    spin_unlock(&tree->dt_pending_lock);
+
+    while (!list_empty(&list)) {
+        dte = list_first_entry(&list, typeof(*dte), dte_list);
+        list_del(&dte->dte_list);
+
+        rc = dt_add_pending_dte(tree, dte);
+
+        if (ev(rc) && dte->dte_ops && dte->dte_ops->remove)
+            dte->dte_ops->remove(dte);
+    }
 }
 
 int
+dt_add(struct dt_tree *tree, struct dt_element *dte)
+{
+    struct dt_element *item;
+    int rc = 0;
+
+    if (!tree || !dte)
+        return -EINVAL;
+
+    assert(dte->dte_type != DT_TYPE_INVALID);
+
+    /* Check the pending list to protect against broken or malicious
+     * callers trying to add the same dte more than once.  There is
+     * still a case where the new dte is already in the rb tree, and
+     * attempts to insert it will fail, but caller will be notified
+     * only asynchronously via the remove() callback.
+     */
+    spin_lock(&tree->dt_pending_lock);
+    list_for_each_entry(item, &tree->dt_pending_list, dte_list) {
+        if (item == dte || 0 == strcmp(item->dte_path, dte->dte_path)) {
+            rc = -EEXIST;
+            break;
+        }
+    }
+
+    if (!rc)
+        list_add_tail(&dte->dte_list, &tree->dt_pending_list);
+    spin_unlock(&tree->dt_pending_lock);
+
+    return rc;
+}
+
+static int
 dt_remove_locked(struct dt_tree *tree, struct dt_element *dte, int force)
 {
     if ((force == 0) && (dte->dte_flags & DT_FLAGS_NON_REMOVEABLE)) {
@@ -169,7 +227,7 @@ dt_remove_locked(struct dt_tree *tree, struct dt_element *dte, int force)
         return -EACCES;
     }
 
-    rb_erase(&dte->dte_node, &tree->root);
+    rb_erase(&dte->dte_node, &tree->dt_root);
 
     if (dte->dte_ops && dte->dte_ops->remove) {
         /* Invoke the remove handler for cleanup of the
@@ -186,12 +244,15 @@ dt_remove(struct dt_tree *tree, struct dt_element *dte)
     int ret;
 
     dt_lock(tree);
+    dt_add_pending(tree);
+
     ret = dt_remove_locked(tree, dte, 0);
     dt_unlock(tree);
+
     return ret;
 }
 
-/* Assumes that dt_tree_lock is held */
+/* Assumes that dt_lock is held */
 struct dt_element *
 dt_find_locked(struct dt_tree *tree, const char *path, int exact)
 {
@@ -206,7 +267,9 @@ dt_find_locked(struct dt_tree *tree, const char *path, int exact)
     if (tree == NULL)
         return NULL;
 
-    root = &tree->root;
+    dt_add_pending(tree);
+
+    root = &tree->dt_root;
     node = root->rb_node;
 
     pathlen = strnlen(path, DT_PATH_LEN);
@@ -214,7 +277,6 @@ dt_find_locked(struct dt_tree *tree, const char *path, int exact)
         return NULL;
 
     while (node) {
-
         dte = container_of(node, struct dt_element, dte_node);
 
         result = strcmp(path, dte->dte_path);
@@ -243,7 +305,8 @@ dt_find_locked(struct dt_tree *tree, const char *path, int exact)
         prev = result;
         dte = NULL;
     }
-out:
+
+  out:
     if ((exact == 0) && (dte == NULL)) {
         /* We've passed what we were looking for */
         dte = last_valid;
@@ -259,6 +322,7 @@ dt_find(struct dt_tree *tree, const char *path, int exact)
     dt_lock(tree);
     ret = dt_find_locked(tree, path, exact);
     dt_unlock(tree);
+
     return ret;
 }
 
@@ -272,8 +336,8 @@ dt_remove_by_name(struct dt_tree *tree, char *path)
     dte = dt_find_locked(tree, path, 1);
     if (dte)
         ret = dt_remove_locked(tree, dte, 1);
-
     dt_unlock(tree);
+
     return ret;
 }
 
@@ -301,8 +365,8 @@ dt_remove_recursive(struct dt_tree *tree, char *path)
             break;
         }
     }
-
     dt_unlock(tree);
+
     return ret;
 }
 
@@ -419,34 +483,51 @@ dt_get_tree(char *path)
 struct dt_tree *
 dt_create(const char *name)
 {
-    struct dt_tree *   tree;
-    struct dt_element *element;
+    struct dt_element  *element;
+    struct dt_tree     *tree;
 
     if (strnlen(name, DT_PATH_ELEMENT_LEN) >= DT_PATH_ELEMENT_LEN)
         return NULL;
 
-    tree = calloc(1, sizeof(*tree));
-    if (ev(tree == NULL))
+    tree = alloc_aligned(sizeof(*tree), __alignof(*tree), 0);
+    if (ev(!tree))
         return NULL;
 
-    spin_lock_init(&tree->dt_tree_lock);
-    INIT_LIST_HEAD(&tree->new_dtes_list);
-    strlcpy(tree->name, name, sizeof(tree->name));
+    memset(tree, 0, sizeof(*tree));
+    spin_lock_init(&tree->dt_lock);
+    spin_lock_init(&tree->dt_pending_lock);
+    INIT_LIST_HEAD(&tree->dt_pending_list);
 
-    element = calloc(1, sizeof(*element));
-    if (ev(element == NULL)) {
-        free(tree);
-        return NULL;
-    }
-
+    element = &tree->dt_element;
     snprintf(element->dte_path, sizeof(element->dte_path), "/%s", name);
     element->dte_ops = &dt_root_ops;
     element->dte_type = DT_TYPE_ROOT;
-    tree->root_element = element;
     dt_register_tree(element->dte_path, tree);
     dt_add(tree, element);
 
     return tree;
+}
+
+void
+dt_destroy(struct dt_tree *tree)
+{
+    struct rb_root     *root;
+    struct dt_element  *dte;
+
+    dt_lock(tree);
+    dt_add_pending(tree);
+
+    root = &tree->dt_root;
+
+    while (root->rb_node) {
+        dte = container_of(root->rb_node, typeof(*dte), dte_node);
+        dt_remove_locked(tree, dte, 1);
+    }
+
+    dt_unregister_tree(tree);
+    dt_unlock(tree);
+
+    free_aligned(tree);
 }
 
 void
@@ -479,38 +560,7 @@ dt_fini(void)
     dt_data_tree = NULL;
 }
 
-void
-dt_destroy(struct dt_tree *tree)
-{
-    struct rb_root *   root;
-    struct rb_node *   node;
-    struct dt_element *element;
-
-    while (!list_empty(&tree->new_dtes_list))
-        msleep(20);
-
-    dt_lock(tree);
-
-    root = &tree->root;
-    node = root->rb_node;
-
-    while (node) {
-        element = container_of(node, struct dt_element, dte_node);
-        dt_remove_locked(tree, element, 1);
-        node = root->rb_node;
-    }
-
-    dt_unregister_tree(tree);
-
-    element = tree->root_element;
-    tree->root_element = NULL;
-    dt_unlock(tree);
-
-    free(element);
-    free(tree);
-}
-
-/* Assumes dt_tree_lock is held */
+/* Assumes dt_lock is held */
 static size_t
 emit_roots_upto(struct dt_tree *tree, const char *path, struct yaml_context *yc)
 {
@@ -562,6 +612,8 @@ dt_iterate_cmd(
         return 0;
 
     dt_lock(tree);
+    dt_add_pending(tree);
+
     if (DT_OP_EMIT == op) {
         if ((dip == NULL) || (dip->yc == NULL)) {
             dt_unlock(tree);
@@ -655,8 +707,9 @@ dt_iterate_next(struct dt_tree *tree, const char *path, struct dt_element *previ
         return dte;
     }
 
-    dte = previous;
+    dt_add_pending(tree);
 
+    dte = previous;
     if (dte) {
         node = rb_next(&dte->dte_node);
         dte = container_of(node, struct dt_element, dte_node);
@@ -666,8 +719,8 @@ dt_iterate_next(struct dt_tree *tree, const char *path, struct dt_element *previ
             dte = NULL;
         }
     }
-
     dt_unlock(tree);
+
     return dte;
 }
 
