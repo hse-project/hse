@@ -79,7 +79,6 @@
 #include "c1_omf.h"
 #include "c1_ops.h"
 #include "c1_utils.h"
-#include "c1_thread.h"
 #include "c1_log.h"
 #include "c1_log_utils.h"
 #include "c1_tree.h"

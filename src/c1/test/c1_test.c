@@ -1041,16 +1041,6 @@ again:
     ASSERT_EQ(ENOMEM, merr_errno(err));
     mapi_inject_unset(mapi_idx_malloc);
 
-    mapi_inject_once(mapi_idx_malloc, 3, 0);
-    err = c1_io_create(c1, 50, "mock_mp", 4);
-    ASSERT_EQ(ENOMEM, merr_errno(err));
-    mapi_inject_unset(mapi_idx_malloc);
-
-    mapi_inject_once(mapi_idx_malloc, 4, 0);
-    err = c1_io_create(c1, 50, "mock_mp", 4);
-    ASSERT_EQ(ENOMEM, merr_errno(err));
-    mapi_inject_unset(mapi_idx_malloc);
-
     err = c1_tree_alloc(NULL, 12, 1, 5, 6, &mclass, 4096, 4, 4096, &tree);
     ASSERT_EQ(0, err);
 

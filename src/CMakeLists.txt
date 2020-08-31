@@ -164,7 +164,6 @@ set( C1_SOURCE_FILES
     c1/c1_ops.c
     c1/c1_utils.c
     c1/c1_io.c
-    c1/c1_thread.c
     c1/c1_compact.c
     c1/c1_kv.c
     c1/c1_perfc.c
@@ -1054,14 +1053,6 @@ if( HSE_UNIT_TEST_FLAG )
         SRCS
             c1/test/c1_make_test.c
             c1/test/mock_mpool.c
-        INCLUDES ${UNIT_TEST_INCLUDE_DIRS}
-        LINK_LIBS ${UNIT_TEST_LINK_LIBS}
-        )
-
-    hse_unit_test(
-        NAME c1_thread_test
-        LABELS c1
-        SRCS c1/test/c1_thread_test.c
         INCLUDES ${UNIT_TEST_INCLUDE_DIRS}
         LINK_LIBS ${UNIT_TEST_LINK_LIBS}
         )
