@@ -194,6 +194,16 @@ function(hse_unit_test)
 
     add_executable(${param_EXECUTABLE} ${param_SRCS})
 
+    if("${EXPLICIT_MPOOL_LIB_DIR}" STREQUAL "true")
+        set_property(TARGET ${param_EXECUTABLE}
+            APPEND_STRING PROPERTY LINK_FLAGS "-Wl,-rpath,${MPOOL_LIB_DIR} ")
+    endif()
+
+    if("${EXPLICIT_BLKID_LIB_DIR}" STREQUAL "true")
+        set_property(TARGET ${param_EXECUTABLE}
+            APPEND_STRING PROPERTY LINK_FLAGS "-Wl,-rpath,${BLKID_LIB_DIR} ")
+    endif()
+
     set_property(TARGET ${param_EXECUTABLE}
         APPEND_STRING PROPERTY COMPILE_FLAGS ${param_CFLAGS})
 
@@ -213,7 +223,6 @@ function(hse_unit_test)
     endif()
 
     target_compile_options(${param_EXECUTABLE} PRIVATE "-DHSE_UNIT_TEST_MODE=1" )
-
 endfunction()
 
 #----------------------------------------------------------------
@@ -436,15 +445,18 @@ function(hse_library)
             COMPONENT ${param_COMPONENT}
             )
     endif()
+
 endfunction()
 
 
 #----------------------------------------------------------------
 #
-# HSE_LIBRARY : Function to build a library
+# HSE_UT_MOCK_GENERATE : Function to create mock entry point
+#                        routines
 #
 #----------------------------------------------------------------
 function(hse_ut_mock_generate)
+
     if( HSE_UNIT_TEST_FLAG )
 
         #------------------------------------------------
@@ -532,9 +544,18 @@ function(hse_ut_mock_generate)
         endif()
 
     endif()
+
 endfunction()
 
+#----------------------------------------------------------------
+#
+# HSE_UT_PUBLISH_INCLUDE_DIRS : Function to publish the include
+#                               directories containing the
+#                               generated header files
+#
+#----------------------------------------------------------------
 function(hse_ut_publish_include_dirs)
+
     if( HSE_UNIT_TEST_FLAG )
 
         #------------------------------------------------
@@ -572,6 +593,7 @@ function(hse_ut_publish_include_dirs)
             )
 
     endif()
+
 endfunction()
 
 #----------------------------------------------------------------
@@ -587,6 +609,7 @@ endfunction()
 #----------------------------------------------------------------
 
 function(hse_doc)
+
     set(one_value_opts
         NAME            # (required) name for collection of object files
         COMPONENT       # (required) installation component
@@ -626,6 +649,7 @@ function(hse_doc)
             COMPONENT ${param_COMPONENT}
             )
     endif()
+
 endfunction()
 
 #----------------------------------------------------------------
@@ -643,6 +667,7 @@ endfunction()
 #----------------------------------------------------------------
 
 function(hse_mkdocs)
+
     set(one_value_opts
         NAME            # (required) name for document
         SRCDIR          # (required) directory containing docs and YAML cfg
@@ -748,6 +773,7 @@ endfunction()
 #----------------------------------------------------------------
 
 function(hse_pandoc)
+
     set(one_value_opts
         NAME            # (required) name for document
         STYLESHEET      # (optional) stylesheet for HTML output
@@ -834,4 +860,5 @@ function(hse_pandoc)
             DESTINATION ${param_DESTINATION}
             COMPONENT ${param_COMPONENT})
     endif()
+
 endfunction()

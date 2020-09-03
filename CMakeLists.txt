@@ -214,23 +214,12 @@ set(HSE_USER_MPOOL_LINK_LIBS
 )
 
 
+################################################################
 #
-# Needed to handle the hard-coded link line for hse_platform_init
+# Common package options
 #
-set( HSE_UTIL_BIN_DIR "${PROJECT_BINARY_DIR}/src/util/src" )
-set( CMAKE_EXE_LINKER_FLAGS
-  "${CMAKE_EXE_LINKER_FLAGS} -L ${HSE_UTIL_BIN_DIR}" )
+################################################################
 
-#
-# Needed to handle the hard-coded link line for hse_kvdb_init
-#
-set( HSE_KVDB_BIN_DIR "${PROJECT_BINARY_DIR}/src" )
-set( CMAKE_EXE_LINKER_FLAGS
-  "${CMAKE_EXE_LINKER_FLAGS} -L ${HSE_KVDB_BIN_DIR}" )
-
-
-# Common package options...
-#
 set( CPACK_PACKAGE_NAME                   "${PROJECT_NAME}" )
 set( CPACK_PACKAGE_LICENSE                "ASL 2.0" )
 set( CPACK_PACKAGE_VENDOR                 "${BUILD_PKG_VENDOR}" )
