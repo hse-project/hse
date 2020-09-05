@@ -167,7 +167,6 @@ set( C1_SOURCE_FILES
     c1/c1_compact.c
     c1/c1_kv.c
     c1/c1_perfc.c
-    c1/c1_vbuilder.c
     c1/c1_mblk.c
     c1/c1_diag.c
     c1/c1_omf.c

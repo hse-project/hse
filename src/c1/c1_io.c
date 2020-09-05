@@ -44,7 +44,6 @@ struct c1_io {
     u32                         c1io_kmetasz;
     u32                         c1io_vmetasz;
     int                         c1io_workerc;
-    struct c1_kvset_builder    *c1io_bldr;
     merr_t                      c1io_err;
     struct perfc_set            c1io_pcset;
     struct c1_io_worker        *c1io_workerv;
@@ -206,8 +205,6 @@ c1_io_destroy_impl(struct c1_io *io)
         cv_destroy(&worker->c1w_cv);
     }
 
-    c1_kvset_builder_destroy(io->c1io_bldr);
-
     c1_perfc_io_free(&io->c1io_pcset);
 
     while (!list_empty(&io->c1io_qfree)) {
@@ -264,10 +261,6 @@ c1_io_create(struct c1 *c1, u64 dtime, const char *mpname, int threads)
         err = merr(ENOMEM);
         goto errout;
     }
-
-    err = c1_kvset_builder_create(c1_c0sk_get(c1), &io->c1io_bldr);
-    if (ev(err))
-        goto errout;
 
     err = c1_record_type2len(C1_TYPE_KVT, C1_VERSION, &io->c1io_kmetasz);
     if (ev(err))
@@ -486,24 +479,13 @@ c1_io_iter_kvbtxn(struct c1_io *io, struct c1_io_queue *q)
     while (1) {
         err = iter->get_next(iter, &kvb);
         if (ev(err) || !kvb) {
-            if (!kvb && iter->kvbi_bldrelm) {
-
-                err = c1_kvset_builder_flush_elem(iter->kvbi_bldrelm, tidx);
-                if (ev(err))
-                    io->c1io_err = err;
-            }
-
             iter->put(iter);
             io->c1io_err = err;
             break;
         }
 
-        if (iter->kvbi_bldrelm)
-            assert(c1_kvset_builder_elem_valid(iter->kvbi_bldrelm, iter->kvbi_ingestid));
-
         err = c1_tree_issue_kvb(
             q->c1q_tree,
-            iter->kvbi_bldrelm,
             iter->kvbi_ingestid,
             iter->kvbi_vsize,
             q->c1q_idx,
@@ -571,11 +553,6 @@ log_flush:
     mutex_lock(&io->c1io_space_mtx);
 
     err = c1_tree_flush(c1_current_tree(c1));
-    if (!ev(err)) {
-        err = c1_kvset_builder_flush(io->c1io_bldr);
-        if (merr_errno(err) == ENOENT)
-            err = 0;
-    }
     mutex_unlock(&io->c1io_space_mtx);
 
     return err;
@@ -589,7 +566,6 @@ c1_issue_iter(
     struct c1_kvinfo *       cki,
     int                      sync)
 {
-    struct c1_kvset_builder_elem   *bldr;
     struct c1_io_worker            *worker;
     struct c1_io_queue             *q;
     struct c1_io                   *io;
@@ -600,18 +576,6 @@ c1_issue_iter(
 
     io = c1->c1_io;
     assert(io);
-    assert(io->c1io_bldr);
-    assert(!iter->kvbi_bldrelm);
-
-    bldr = NULL;
-    if (likely(c1_vbldr(c1))) {
-        err = c1_kvset_builder_elem_create(io->c1io_bldr, iter->kvbi_ingestid, &bldr);
-        assert(!err);
-        if (ev(err))
-            return err;
-    }
-
-    iter->kvbi_bldrelm = bldr;
 
     mutex_lock(&io->c1io_space_mtx);
     q = list_first_entry_or_null(&io->c1io_qfree, typeof(*q), c1q_list);
@@ -639,20 +603,12 @@ c1_issue_iter(
     if (ev(err)) {
         mutex_unlock(&io->c1io_space_mtx);
 
-        if (bldr)
-            c1_kvset_builder_elem_put(io->c1io_bldr, bldr);
-
-        iter->kvbi_bldrelm = NULL;
         c1_io_queue_free(io, q);
         return err;
     }
     mutex_unlock(&io->c1io_space_mtx);
 
     if (ev(io->c1io_err)) {
-        if (bldr)
-            c1_kvset_builder_elem_put(io->c1io_bldr, bldr);
-
-        iter->kvbi_bldrelm = NULL;
         c1_io_queue_free(io, q);
         return io->c1io_err;
     }
@@ -829,7 +785,6 @@ c1_io_txn_commit(struct c1 *c1, u64 txnid, u64 seqno, int sync)
     return 0;
 }
 
-BullseyeCoverageSaveOff
 merr_t
 c1_io_txn_abort(struct c1 *c1, u64 txnid)
 {
@@ -903,49 +858,3 @@ c1_io_txn_abort(struct c1 *c1, u64 txnid)
 
     return 0;
 }
-
-merr_t
-c1_io_kvset_builder_get(struct c1 *c1, u64 gen, struct kvset_builder ***c1bldrout)
-{
-    struct c1_io *io = c1->c1_io;
-
-    if (unlikely(!c1_vbldr(c1))) {
-        *c1bldrout = NULL;
-        return 0;
-    }
-
-    assert(io);
-    assert(io->c1io_bldr);
-
-    return c1_kvset_vbuilder_acquire(io->c1io_bldr, gen, c1bldrout);
-}
-
-void
-c1_io_kvset_builder_put(struct c1 *c1, u64 gen)
-{
-    struct c1_io *io = c1->c1_io;
-
-    if (ev(!c1_vbldr(c1)))
-        return;
-
-    assert(io);
-    assert(io->c1io_bldr);
-
-    c1_kvset_vbuilder_release(io->c1io_bldr, gen);
-}
-
-void
-c1_io_kvset_builder_release(struct c1 *c1, struct c1_kvset_builder_elem *elem)
-{
-    struct c1_io *io = c1->c1_io;
-
-    if (unlikely(!c1_vbldr(c1)))
-        return;
-
-    assert(io);
-    assert(io->c1io_bldr);
-
-    c1_kvset_builder_elem_put(io->c1io_bldr, elem);
-}
-
-BullseyeCoverageRestore

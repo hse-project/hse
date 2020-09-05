@@ -31,7 +31,6 @@ struct c0sk;
 struct kvdb_rparams;
 struct ikvdb_c1_replay;
 struct kvset_builder;
-struct c1_kvset_builder_elem;
 struct throttle_sensor;
 
 struct mpool;
@@ -374,34 +373,6 @@ c1_ikvdb(struct c1 *c1);
  */
 u64
 c1_get_txnid(struct c1 *c1);
-
-/**
- * c1_builder_get() - Acquires c1s kvset builder
- * @c1:          c1 handle
- * @gen:         kvms gen
- * @bldrout:     kvset builder
- */
-/* MTF_MOCK */
-merr_t
-c1_builder_get(struct c1 *c1, u64 gen, struct kvset_builder ***bldrout);
-
-/**
- * c1_builder_put() - Releases c1s kvset builder
- * @c1:               c1 handle
- * @gen:              kvms gen
- */
-/* MTF_MOCK */
-void
-c1_builder_put(struct c1 *c1, u64 gen);
-
-/**
- * c1_kvset_builder_release() - Releases c1s kvset builder
- * @c1:                         c1 handle
- * @elm:                        vbuilder element
- */
-/* MTF_MOCK */
-void
-c1_kvset_builder_release(struct c1 *c1, struct c1_kvset_builder_elem *elem);
 
 #if defined(HSE_UNIT_TEST_MODE) && HSE_UNIT_TEST_MODE == 1
 #include "c1_ut.h"

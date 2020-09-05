@@ -25,15 +25,6 @@ merr_t
 c1_io_txn_abort(struct c1 *c1, u64 txnid);
 
 merr_t
-c1_io_kvset_builder_get(struct c1 *c1, u64 gen, struct kvset_builder ***c1bldrout);
-
-void
-c1_io_kvset_builder_put(struct c1 *c1, u64 gen);
-
-void
-c1_io_kvset_builder_release(struct c1 *c1, struct c1_kvset_builder_elem *elem);
-
-merr_t
 c1_issue_iter(
     struct c1 *              c1,
     struct kvb_builder_iter *iter,

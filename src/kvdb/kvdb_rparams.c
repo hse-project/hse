@@ -87,7 +87,6 @@ kvdb_rparams_defaults(void)
         .dur_intvl_ms = 500,
         .dur_throttle_enable = 1,
         .dur_buf_sz = 36700160, /* 35 MiB */
-        .dur_vbb = 1,
         .dur_delay_pct = 30,
         .dur_throttle_lo_th = 90,
         .dur_throttle_hi_th = 150,
@@ -162,7 +161,6 @@ static struct param_inst   kvdb_rp_table[] = {
     KVDB_PARAM_EXP(dur_enable, "0: disable durability, 1:enable durability"),
     KVDB_PARAM(dur_intvl_ms, "durability lag in ms"),
     KVDB_PARAM_EXP(dur_buf_sz, "durability buffer size in bytes"),
-    KVDB_PARAM_EXP(dur_vbb, "enable/disable vblock builder"),
     KVDB_PARAM_EXP(dur_delay_pct, "durability delay percent"),
     KVDB_PARAM_EXP(dur_throttle_lo_th, "low watermark for throttling in percentage"),
     KVDB_PARAM_EXP(dur_throttle_hi_th, "high watermark for throttling in percentage"),

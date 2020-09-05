@@ -316,7 +316,6 @@ c0kvmsm_ingest_common(
             c0kvsm_ptinfo_set(info, txnseq, (i == 0));
 
         kvb_builder_iter_init(iterv[slot], c0skm, c0kvms, c1h, ref, tksz, tvsz, istxn);
-        assert(iterv[slot]->kvbi_bldrelm == NULL);
 
         lslot = slot;
         kvi.ck_kvsz = tksz + tvsz;

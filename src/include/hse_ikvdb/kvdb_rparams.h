@@ -75,7 +75,6 @@ struct kvdb_rparams {
     unsigned long dur_enable;
     unsigned long dur_intvl_ms;
     unsigned long dur_buf_sz;
-    unsigned long dur_vbb;
     unsigned long dur_delay_pct;
     unsigned long dur_throttle_enable;
     unsigned long dur_throttle_lo_th;

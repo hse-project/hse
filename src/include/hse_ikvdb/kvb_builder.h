@@ -20,7 +20,6 @@ struct c1;
 struct c1_kvcache;
 struct c1_kvbundle;
 struct c0kvsm_info;
-struct c1_kvset_builder_elem;
 
 /**
  * struct kvb_builder_iter - c0 key-value mutation iterator
@@ -30,8 +29,6 @@ struct c1_kvset_builder_elem;
  * @kvbi_kvcache:  c1 kv cache handle
  * @kvbi_info:     kvset mutation info.
  * @kvbi_ingestid: ingest id
- * @kvbi_vbldr:    ptr to vbuilder
- * @kvbi_bldrelm:
  * @kvbi_kvbc:     kv bundle count
  * @kvbi_ref:      reference count
  * @kvbi_ksize:    size of keys mutated
@@ -46,8 +43,6 @@ struct kvb_builder_iter {
     struct c1_kvcache *           kvbi_kvcache;
     struct c0kvsm_info *          kvbi_info;
     u64                           kvbi_ingestid;
-    void *                        kvbi_vbldr;
-    struct c1_kvset_builder_elem *kvbi_bldrelm;
     u64                           kvbi_kvbc;
     int *                         kvbi_ref;
     u64                           kvbi_ksize;

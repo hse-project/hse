@@ -91,7 +91,6 @@
 #include "c1_txn.h"
 #include "c1_kv.h"
 #include "c1_mblk.h"
-#include "c1_vbuilder.h"
 
 #define MB (1024UL * 1024)
 #define GB (1024UL * MB)

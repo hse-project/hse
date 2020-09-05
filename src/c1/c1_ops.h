@@ -25,7 +25,6 @@ struct c1 {
     struct mutex            c1_txn_mtx;
     atomic_t                c1_active_cnt;
     bool                    c1_rdonly;
-    bool                    c1_vbldr;
     u64                     c1_ingest_kvseqno;
     u64                     c1_kvdb_seqno;
     u64                     c1_txnid;
@@ -40,7 +39,6 @@ struct c1 {
     struct list_head        c1_tree_new;
     struct list_head        c1_txn;
     struct ikvdb *          c1_ikvdb;
-    struct c0sk *           c1_c0sk;
     struct ikvdb_c1_replay *c1_replay_hdl;
     struct c1_kvcache       c1_kvc[HSE_C1_DEFAULT_STRIPE_WIDTH];
 
@@ -69,18 +67,6 @@ c1_rdonly(struct c1 *c1)
 /* MTF_MOCK */
 u64
 c1_kvmsgen(struct c1 *c1);
-
-static inline bool
-c1_vbldr(struct c1 *c1)
-{
-    return c1->c1_vbldr;
-}
-
-static inline struct c0sk *
-c1_c0sk_get(struct c1 *c1)
-{
-    return c1->c1_c0sk;
-}
 
 BullseyeCoverageSaveOff static inline void
 c1_set_kvdb_seqno(struct c1 *c1, u64 seqno)

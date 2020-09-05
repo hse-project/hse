@@ -69,9 +69,6 @@ kvb_builder_iter_destroy(struct kvb_builder_iter *iter, struct perfc_set *pc)
     if (kvc)
         c1_put_kvcache(kvc);
 
-    if (iter->kvbi_c1h && iter->kvbi_bldrelm)
-        c1_kvset_builder_release(iter->kvbi_c1h, iter->kvbi_bldrelm);
-
     for (i = 0; i < iter->kvbi_info->c0s_nkiter; i++)
         free(iter->kvbi_info->c0s_bkvs[i]);
 
@@ -492,7 +489,6 @@ kvb_builder_vtuple_add(
 
     return 0;
 }
-
 
 #if defined(HSE_UNIT_TEST_MODE) && HSE_UNIT_TEST_MODE == 1
 #include "kvb_builder_ut_impl.i"
