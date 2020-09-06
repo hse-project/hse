@@ -17,7 +17,6 @@
 #include <hse_ikvdb/limits.h>
 
 #define HSE_C1_DEFAULT_STRIPE_WIDTH 4
-#define HSE_C1_VBLOCK_GROUPID ((u64)0xC1C1C1C1)
 
 /* MTF_MOCK_DECL(c1) */
 

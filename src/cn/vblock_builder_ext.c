@@ -146,7 +146,7 @@ _vblock_start_ext(struct vblock_builder *bld, u8 slot)
     memset(vbb->wbuf, 0x0, VBLOCK_HDR_LEN);
     omf_set_vbh_magic(vbb->wbuf, VBLOCK_HDR_MAGIC);
     omf_set_vbh_version(vbb->wbuf, VBLOCK_HDR_VERSION2);
-    omf_set_vbh_vgroup(vbb->wbuf, HSE_C1_VBLOCK_GROUPID);
+    //omf_set_vbh_vgroup(vbb->wbuf, HSE_C1_VBLOCK_GROUPID);
 
     atomic_set(&vbb->wbuf_off, VBLOCK_HDR_LEN);
     atomic_set(&vbb->wbuf_wlen, VBLOCK_HDR_LEN);
