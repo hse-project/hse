@@ -405,9 +405,6 @@ MTF_DEFINE_UTEST_PRE(vblock_reader_test, t_vbr_read_ahead, pre)
     vbr_readahead(&vblk_desc, off, len, 0, ra_len, 1, rahv, NULL);
     ASSERT_EQ(rahv->vgidx, atomic_read(&vblk_desc.vbd_vgidx));
 
-    off = 1234567;
-    vbr_readahead_simple(&vblk_desc, off, len, ra_len, NULL);
-
     /* read nothing */
     vbr_readahead(&vblk_desc, off, len, 0, ra_len, 1, rahv, NULL);
     ASSERT_EQ(rahv->vgidx, atomic_read(&vblk_desc.vbd_vgidx));

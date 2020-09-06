@@ -116,9 +116,6 @@ mocks_set(struct mtf_test_info *info)
 
     mapi_inject(mapi_idx_cndb_cn_drop, 0);
 
-    mapi_inject(mapi_idx_c1_kvset_builder_add_val, merr(EIO));
-    mapi_inject(mapi_idx_c1_kvset_vbuilder_acquire, 0);
-    mapi_inject(mapi_idx_c1_kvset_builder_add_val, 0);
     mapi_inject(mapi_idx_kvset_builder_get_mblocks, 0);
     mapi_inject(mapi_idx_kvset_builder_add_key, 0);
     mapi_inject(mapi_idx_kvset_builder_add_val, 0);
