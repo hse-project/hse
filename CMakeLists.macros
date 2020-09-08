@@ -194,12 +194,14 @@ function(hse_unit_test)
 
     add_executable(${param_EXECUTABLE} ${param_SRCS})
 
-    if("${EXPLICIT_MPOOL_LIB_DIR}" STREQUAL "true")
+    # tell the laoder to look in the right place for the mpool library
+    if("${DEV_MPOOL_LIB_DIR}" STREQUAL "true")
         set_property(TARGET ${param_EXECUTABLE}
             APPEND_STRING PROPERTY LINK_FLAGS "-Wl,-rpath,${MPOOL_LIB_DIR} ")
     endif()
 
-    if("${EXPLICIT_BLKID_LIB_DIR}" STREQUAL "true")
+    # tell the laoder to look in the right place for the mpool library
+    if("${DEV_BLKID_LIB_DIR}" STREQUAL "true")
         set_property(TARGET ${param_EXECUTABLE}
             APPEND_STRING PROPERTY LINK_FLAGS "-Wl,-rpath,${BLKID_LIB_DIR} ")
     endif()
