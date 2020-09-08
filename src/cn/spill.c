@@ -458,7 +458,7 @@ get_values:
                     if (w->cw_drop_tombv[i] && bg_val)
                         continue;
 
-                    err = kvset_builder_add_val(w->cw_child[i], seq, vdata, vlen, 0, NULL);
+                    err = kvset_builder_add_val(w->cw_child[i], seq, vdata, vlen, 0);
                     if (ev(err))
                         goto done;
 
@@ -470,7 +470,7 @@ get_values:
                 if (w->cw_drop_tombv[cnum] && HSE_CORE_IS_TOMB(vdata) && bg_val)
                     continue; /* skip value */
 
-                err = kvset_builder_add_val(child, seq, vdata, vlen, complen, NULL);
+                err = kvset_builder_add_val(child, seq, vdata, vlen, complen);
                 if (ev(err))
                     goto done;
 

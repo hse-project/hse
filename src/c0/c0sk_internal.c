@@ -304,8 +304,7 @@ c0sk_builder_add(
     struct c0_kvmultiset *kvms,
     struct bonsai_kv *    bkv,
     struct bonsai_val *   head,
-    u32                   unsorted,
-    bool                  ext_bldr)
+    u32                   unsorted)
 {
     struct bonsai_val *val, *next;
     u64                seqno_prev, pt_seqno_prev;
@@ -366,10 +365,7 @@ c0sk_builder_add(
 
     len = 0;
     for (val = head; val; val = next) {
-        struct c1_bonsai_vbldr *vbb = NULL;
-
-        atomic64_t *vbldrp;
-        int         rc;
+        int rc;
 
         next = val->bv_free;
         val->bv_free = NULL;
@@ -390,14 +386,8 @@ c0sk_builder_add(
         else
             seqno_prev = seqno;
 
-        if (ext_bldr) {
-            vbldrp = (atomic64_t *)&val->bv_rock;
-            vbb = (struct c1_bonsai_vbldr *)atomic64_read(vbldrp);
-            atomic64_set(vbldrp, 0);
-        }
-
         err = kvset_builder_add_val(
-            bldr, seqno, val->bv_vlen ? val->bv_value : val->bv_valuep, val->bv_vlen, 0, vbb);
+            bldr, seqno, val->bv_vlen ? val->bv_value : val->bv_valuep, val->bv_vlen, 0);
         if (err)
             return ev(err);
     }
@@ -412,17 +402,6 @@ c0sk_builder_add(
     return err;
 }
 
-void
-c0sk_vset_builder_get_committed_vblocks(struct kvset_builder *bld, bool ext_bldr, u32 *cmt_out)
-{
-    if (!ext_bldr)
-        return;
-
-    *cmt_out = kvset_builder_get_committed_vblock_count(bld);
-
-    kvset_builder_remove_unused_vblocks(bld);
-}
-
 static void
 c0sk_ingest_rec_perfc(struct perfc_set *perfc, u32 sidx, u64 cycles)
 {
@@ -432,173 +411,6 @@ c0sk_ingest_rec_perfc(struct perfc_set *perfc, u32 sidx, u64 cycles)
     cycles = (perfc_lat_start(perfc) - cycles) / (1000 * 1000);
 
     perfc_rec_sample(perfc, sidx, cycles);
-}
-
-static merr_t
-c0sk_ingest_merge_bldrs(
-    struct c0sk_impl *     c0sk,
-    struct kvset_builder **dst,
-    struct kvset_builder **src)
-{
-    merr_t err = 0;
-    u32    i;
-
-    struct kvset_builder *srcbldr;
-    struct kvset_builder *dstbldr;
-    struct cn *           cn;
-
-    for (i = 0; i < HSE_KVS_COUNT_MAX; i++) {
-        srcbldr = src[i];
-        dstbldr = dst[i];
-
-        if (!srcbldr)
-            continue;
-
-        cn = c0sk->c0sk_cnv[i];
-
-        if (!dstbldr) {
-            err = kvset_builder_create(
-                &dstbldr, cn, cn_get_ingest_perfc(cn), get_time_ns(), KVSET_BUILDER_FLAGS_INGEST);
-            if (ev(err))
-                break;
-
-            kvset_builder_set_agegroup(dstbldr, HSE_MPOLICY_AGE_ROOT);
-
-            dst[i] = dstbldr;
-        }
-
-        err = kvset_builder_merge_vblocks(dstbldr, srcbldr);
-        if (ev(err))
-            break;
-    }
-
-    return err;
-}
-
-static void
-c0sk_ingest_bldr_put(struct c0_ingest_work *ingest, u64 c0vlen, u64 c1vlen, bool ext_bldr)
-{
-    struct kvset_builder **bldrs;
-    struct c0_kvmultiset * kvms;
-    struct c0sk_impl *     c0sk;
-    s32                    i;
-    s32                    j;
-
-    if (!ext_bldr)
-        return;
-
-    c0sk = c0sk_h2r(ingest->c0iw_c0);
-    if (!c0sk->c0sk_kvdb_rp->c0_coalesce_sz)
-        assert(ingest->c0iw_coalescec == 1);
-
-    for (i = 0; i < ingest->c0iw_coalescec; i++) {
-        if (!ingest->c0iw_coalscedbldrs[i])
-            continue;
-
-        /* Destroy kvset builders first before releasing
-         * c1 strcutrue that contain them.
-         */
-        bldrs = ingest->c0iw_coalscedbldrs[i];
-        for (j = 0; j < HSE_KVS_COUNT_MAX; j++) {
-            if (bldrs && bldrs[j]) {
-                c0sk_kvset_builder_destroy(ingest->c0iw_c0, bldrs[j]);
-                bldrs[j] = NULL;
-            }
-        }
-
-        kvms = ingest->c0iw_coalscedkvms[i];
-        c0skm_bldr_put(ingest->c0iw_c0, c0kvms_rsvd_sn_get(kvms), c0vlen, c1vlen);
-
-        ingest->c0iw_coalscedbldrs[i] = NULL;
-        ingest->c0iw_coalscedkvms[i] = NULL;
-
-        c0vlen = 0;
-        c1vlen = 0;
-    }
-
-    ingest->c0iw_ext_bldrs = NULL;
-    ingest->c0iw_coalescec = 0;
-}
-
-static merr_t
-c0sk_ingest_bldr_get(struct c0_ingest_work *ingest)
-{
-    struct c0sk_impl *c0sk;
-    merr_t            err;
-
-    struct c0_kvmultiset * kvms;
-    struct kvset_builder **bldrs = NULL;
-    s32                    i;
-
-    if (!ingest)
-        return 0;
-
-    ingest->c0iw_ext_bldrs = NULL;
-
-    if (!c0sk_get_mhandle(ingest->c0iw_c0))
-        return 0;
-
-    c0sk = c0sk_h2r(ingest->c0iw_c0);
-    kvms = ingest->c0iw_coalscedkvms[0];
-
-    err = c0skm_bldr_get(ingest->c0iw_c0, c0kvms_rsvd_sn_get(kvms), &bldrs);
-    if (err) {
-        ev(merr_errno(err) != ENOENT);
-        assert(merr_errno(err) == ENOENT);
-
-        /* Need to get the remaining c1 vbuilder if the number
-         * of coalesced kvms > 1.
-         */
-        if (merr_errno(err) == ENOENT)
-            err = 0;
-        else
-            return err;
-    }
-
-    ingest->c0iw_coalscedbldrs[0] = bldrs;
-    if (!c0sk->c0sk_kvdb_rp->c0_coalesce_sz)
-        assert(ingest->c0iw_coalescec == 1);
-
-    /* Merge vblock builders for all (coalesced) c0kvms
-     */
-    for (i = 1; i < ingest->c0iw_coalescec; i++) {
-        struct kvset_builder **child;
-
-        ingest->c0iw_coalscedbldrs[i] = child = NULL;
-
-        kvms = ingest->c0iw_coalscedkvms[i];
-        err = c0skm_bldr_get(ingest->c0iw_c0, c0kvms_rsvd_sn_get(kvms), &child);
-        if (err) {
-            ev(merr_errno(err) != ENOENT);
-            assert(merr_errno(err) == ENOENT);
-
-            if (merr_errno(err) == ENOENT)
-                err = 0;
-
-            ingest->c0iw_coalscedbldrs[i] = NULL;
-            continue;
-        }
-
-        if (!child)
-            continue;
-
-        ingest->c0iw_coalscedbldrs[i] = child;
-        if (!bldrs) {
-            bldrs = child;
-            continue;
-        }
-
-        err = c0sk_ingest_merge_bldrs(c0sk, bldrs, ingest->c0iw_coalscedbldrs[i]);
-        if (ev(err))
-            break;
-    }
-
-    if (err)
-        c0sk_ingest_bldr_put(ingest, 0, 0, true);
-    else if (bldrs)
-        ingest->c0iw_ext_bldrs = bldrs;
-
-    return err;
 }
 
 void
@@ -623,8 +435,6 @@ c0sk_ingest_worker(struct work_struct *work)
     u16                       skidx;
     merr_t                    err;
     struct cn *               cn;
-    u64                       c0_vlen;
-    u64                       c1_vlen;
     u64                       go = 0;
 
     /* Maintain separate ptomb seqno prev to distinguish b/w a key and a
@@ -642,7 +452,6 @@ c0sk_ingest_worker(struct work_struct *work)
     struct kvset_mblocks **mbv;
     u32 *                  cmtv;
     bool                   do_cn_ingest = false;
-    bool                   ext_bldr = false;
     u64                    ingestid;
 
     ingest = container_of(work, struct c0_ingest_work, c0iw_work);
@@ -712,11 +521,6 @@ c0sk_ingest_worker(struct work_struct *work)
     if (ingestid == HSE_SQNREF_INVALID)
         ingestid = CNDB_DFLT_INGESTID;
 
-    if (ingest->c0iw_ext_bldrs) {
-        bldrs = ingest->c0iw_ext_bldrs;
-        ext_bldr = true;
-    }
-
     /* Due to how sourcev[] is constructed by c0sk_coalesce(), the bin
      * heap returns identicals keys in order of youngest to oldest
      * disambiguated by skidx.
@@ -741,7 +545,7 @@ c0sk_ingest_worker(struct work_struct *work)
         if (val_head && (bn_kv_cmp(bkv, bkv_prev) || skidx != skidx_prev)) {
             *val_tailp = NULL;
 
-            err = c0sk_builder_add(bldr, kvms, bkv_prev, val_head, unsorted, ext_bldr);
+            err = c0sk_builder_add(bldr, kvms, bkv_prev, val_head, unsorted);
             if (ev(err))
                 goto health_err;
 
@@ -836,7 +640,7 @@ c0sk_ingest_worker(struct work_struct *work)
     if (val_head) {
         *val_tailp = NULL;
 
-        err = c0sk_builder_add(bldr, kvms, bkv_prev, val_head, unsorted, ext_bldr);
+        err = c0sk_builder_add(bldr, kvms, bkv_prev, val_head, unsorted);
         if (ev(err))
             goto health_err;
 
@@ -849,8 +653,6 @@ c0sk_ingest_worker(struct work_struct *work)
     for (i = 0; i < HSE_KVS_COUNT_MAX; ++i) {
         if (bldrs[i] == 0)
             continue;
-
-        c0sk_vset_builder_get_committed_vblocks(bldrs[i], ext_bldr, &cmtv[i]);
 
         mbc[i] = 1;
         mbv[i] = &mblocks[i];
@@ -912,20 +714,9 @@ exit_err:
     if (ev(err))
         hse_elog(HSE_ERR "c0 ingest failed on %p: @@e", err, kvms);
 
-    c0_vlen = 0;
-    c1_vlen = 0;
-
     for (i = 0; i < HSE_KVS_COUNT_MAX; ++i) {
-        u64 c0, c1;
-
         if (bldrs[i] == 0)
             continue;
-
-        if (ext_bldr)
-            kvset_builder_get_c0c1vstat(bldrs[i], &c0, &c1);
-
-        c0_vlen += c0;
-        c1_vlen += c1;
 
         kvset_mblocks_destroy(&mblocks[i]);
         kvset_builder_destroy(bldrs[i]);
@@ -940,7 +731,6 @@ exit_err:
         ingest->gencur = c0kvms_gen_current(kvms);
     }
 
-    c0sk_ingest_bldr_put(ingest, c0_vlen, c1_vlen, ext_bldr);
     c0sk_kvmultiset_ingest_completion(c0sk, kvms);
 }
 
@@ -955,8 +745,6 @@ static void
 c0sk_ingest_worker_start(struct c0sk_impl *self, struct c0_ingest_work *ingest)
 {
     struct c0_ingest_work *next;
-
-    c0sk_ingest_bldr_get(ingest);
 
     while (ingest) {
         next = ingest->c0iw_next;
@@ -1825,7 +1613,7 @@ c0sk_kvset_builder_create(struct c0sk *c0sk, u32 skidx, struct kvset_builder **b
         cn,
         cn_get_ingest_perfc(cn),
         get_time_ns(),
-        (KVSET_BUILDER_FLAGS_INGEST | KVSET_BUILDER_FLAGS_EXT));
+        KVSET_BUILDER_FLAGS_INGEST);
     if (ev(err))
         return err;
 
@@ -1838,16 +1626,6 @@ void
 c0sk_kvset_builder_destroy(struct c0sk *c0sk, struct kvset_builder *bldr)
 {
     kvset_builder_destroy(bldr);
-}
-
-merr_t
-c0sk_kvset_builder_flush(struct c0sk *c0sk, struct kvset_builder *bldr)
-{
-    merr_t err;
-
-    err = kvset_builder_flush_vblock(bldr);
-
-    return ev(err);
 }
 
 struct c0sk_mutation *

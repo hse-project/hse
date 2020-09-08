@@ -208,9 +208,8 @@ vbb_create(
     u64                     vgroup,
     uint                    flags)
 {
-    struct vblock_builder *bld;
-    struct kvs_rparams *   rp;
-    merr_t                 err;
+    struct vblock_builder  *bld;
+    struct kvs_rparams     *rp;
 
     assert(builder_out);
 
@@ -226,22 +225,12 @@ vbb_create(
     bld->flags = flags;
     bld->vgroup = vgroup;
     bld->max_size = rp->vblock_size_mb << 20;
+    bld->agegroup = HSE_MPOLICY_AGE_LEAF;
 
     bld->wbuf = alloc_page_aligned(WBUF_LEN_MAX, 0);
     if (ev(!bld->wbuf)) {
         free(bld);
         return merr(ENOMEM);
-    }
-    bld->agegroup = HSE_MPOLICY_AGE_LEAF;
-
-    if (flags & KVSET_BUILDER_FLAGS_EXT) {
-        err = vbb_create_ext(bld, rp);
-        if (ev(err)) {
-            free_aligned(bld->wbuf);
-            free(bld);
-            return err;
-        }
-        bld->agegroup = HSE_MPOLICY_AGE_SYNC;
     }
 
     *builder_out = bld;

@@ -76,16 +76,4 @@ struct kvset_builder {
     u64 last_ptseq;
     u32 vblk_baseidx;
 };
-
-bool
-kvset_vbuilder_vblock_exists(
-    struct kvset_builder *  self,
-    u64                     seq,
-    const void *            vdata,
-    uint                    vlen,
-    struct c1_bonsai_vbldr *vbldr,
-    uint *                  vbidx_out,
-    uint *                  vboff_out,
-    u64 *                   vbid_out);
-
 #endif

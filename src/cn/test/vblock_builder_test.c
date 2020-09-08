@@ -251,33 +251,6 @@ MTF_DEFINE_UTEST_PRE(test, t_vbb_ingest_flag, test_setup)
     vbb_destroy(vbb);
 }
 
-/* Test: KVSET_BUILDER_FLAGS_EXT flag. */
-MTF_DEFINE_UTEST_PRE(test, t_vbb_ext_flag, test_setup)
-{
-    struct vblock_builder *vbb;
-    struct blk_list        blks;
-    merr_t                 err;
-    uint                   flags;
-
-    flags = KVSET_BUILDER_FLAGS_EXT;
-
-    err = vbb_create(VBB_CREATE_ARGS, flags);
-    ASSERT_EQ(err, 0);
-    err = add_entry(lcl_ti, vbb, 123, 0);
-    ASSERT_EQ(err, 0);
-    err = vbb_finish(vbb, &blks);
-    ASSERT_EQ(err, 0);
-    ASSERT_GE(blks.n_blks, 1);
-    blk_list_free(&blks);
-    vbb_destroy(vbb);
-
-    /* Again, but with a vbb_create_ext mocked to fail */
-    mapi_inject(mapi_idx_vbb_create_ext, -1);
-
-    err = vbb_create(VBB_CREATE_ARGS, flags);
-    ASSERT_NE(err, 0);
-}
-
 /* Test: vbb_add_entry, mblock allocation failure */
 MTF_DEFINE_UTEST_PRE(test, t_vbb_add_entry_fail_mblock_alloc, test_setup)
 {
