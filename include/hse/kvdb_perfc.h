@@ -305,8 +305,6 @@ enum kvdb_perfc_sidx_c0skmop {
 };
 
 enum kvdb_perfc_sidx_c0skmkv {
-    PERFC_RA_C0SKM_ITERC,
-    PERFC_RA_C0SKM_ITERD,
     PERFC_RA_C0SKM_C1ING,
     PERFC_LT_C0SKM_C1ING,
     PERFC_DI_C0SKM_KVBPI,

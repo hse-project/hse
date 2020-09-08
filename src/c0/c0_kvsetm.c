@@ -20,19 +20,14 @@
 struct c0_kvmultiset;
 
 void
-c0kvsm_info_init(struct c0kvsm_info *info, u64 gen, void *bkvs, void *nbkv, u16 nkiter, bool istxn)
+c0kvsm_info_init(struct c0kvsm_info *info, u64 gen, u16 nkiter, bool istxn)
 {
-    info->c0s_kcnt = 0;
-    info->c0s_bkvs = bkvs;
-    info->c0s_nbkv = nbkv;
     info->c0s_minseqno = U64_MAX;
     info->c0s_gen = gen;
     info->c0s_txn = istxn;
     info->c0s_mindex = -1;
     info->c0s_nkiter = nkiter;
-    info->c0s_bkvidx = 0;
-    info->c0s_cbkv = 0;
-    info->c0s_tbkv = 0;
+    info->c0s_nbkv = (void *)(info->c0s_bkvs + nkiter);
 }
 
 merr_t

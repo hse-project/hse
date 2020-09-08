@@ -50,15 +50,13 @@ struct kvb_builder_iter {
 
     merr_t (*get_next)(struct kvb_builder_iter *iter, struct c1_kvbundle **kvb);
     void (*put)(struct kvb_builder_iter *iter);
-
-} __aligned(SMP_CACHE_BYTES);
+};
 
 /*
  * kvb_builder_iter_alloc() -
  * @kvmsgen: kvms generation number
  * @gen:     mutation generation
  * @istxn:   tx or non-tx iter
- * @pc:      perfc handle
  * @iter:    iterator handle (output)
  */
 merr_t
@@ -67,7 +65,6 @@ kvb_builder_iter_alloc(
     u64                       gen,
     bool                      istxn,
     u16                       cpi,
-    struct perfc_set *        pc,
     struct kvb_builder_iter **iter);
 
 /*
@@ -101,10 +98,9 @@ kvb_builder_iter_put(struct kvb_builder_iter *iter);
 /*
  * kvb_builder_iter_destroy() -
  * @iter: iterator handle
- * @pc:   perfc handle
  */
 void
-kvb_builder_iter_destroy(struct kvb_builder_iter *iter, struct perfc_set *pc);
+kvb_builder_iter_destroy(struct kvb_builder_iter *iter);
 
 /*
  * kvb_builder_iter_istxn() -

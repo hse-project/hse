@@ -232,7 +232,7 @@ c0kvmsm_ingest_common(
     c0kvmsm_iter_params_get(c0kvms, &maxkvsz, &nkiter);
 
     kvsetc = c0kvms_width(c0kvms);
-    err = c0kvmsm_iterv_alloc(c0kvms, gen, istxn, kvsetc, nkiter, set, &iterv);
+    err = c0kvmsm_iterv_alloc(c0kvms, gen, istxn, kvsetc, nkiter, &iterv);
     if (ev(err)) {
         c0kvmsm_reset_mlist(c0kvms, 0);
 
@@ -342,7 +342,7 @@ exit:
     /* If any iterators are unsed from the loop above, destroy them. */
     while (++lslot < kvsetc) {
         assert(!iterv[lslot]->kvbi_c0skm);
-        kvb_builder_iter_destroy(iterv[lslot], set);
+        kvb_builder_iter_destroy(iterv[lslot]);
     }
 
     free(iterv);
@@ -466,7 +466,6 @@ c0kvmsm_iterv_alloc(
     bool                       istxn,
     u32                        iterc,
     u16                        nkiter,
-    struct perfc_set *         pc,
     struct kvb_builder_iter ***iterv)
 {
     struct kvb_builder_iter **itv;
@@ -476,17 +475,17 @@ c0kvmsm_iterv_alloc(
 
     ingestid = c0kvms_rsvd_sn_get(c0kvms);
 
-    itv = calloc(iterc, sizeof(*itv));
+    itv = malloc(iterc * sizeof(*itv));
     if (ev(!itv))
         return merr(ENOMEM);
 
     for (i = 0; i < iterc; i++) {
         merr_t err;
 
-        err = kvb_builder_iter_alloc(ingestid, gen, istxn, nkiter, pc, &itv[i]);
+        err = kvb_builder_iter_alloc(ingestid, gen, istxn, nkiter, &itv[i]);
         if (ev(err)) {
             while (--i >= 0)
-                kvb_builder_iter_destroy(itv[i], pc);
+                kvb_builder_iter_destroy(itv[i]);
             free(itv);
 
             return err;

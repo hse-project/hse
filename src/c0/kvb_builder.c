@@ -27,36 +27,29 @@ kvb_builder_iter_alloc(
     u64                       gen,
     bool                      istxn,
     u16                       nkiter,
-    struct perfc_set *        pc,
     struct kvb_builder_iter **iter)
 {
     struct kvb_builder_iter *it;
-
     size_t sz;
-    void * bkvs;
-    void * nbkv;
 
     sz = sizeof(*it) + sizeof(*it->kvbi_info) + nkiter * sizeof(void *) + nkiter * sizeof(u32);
 
     it = calloc(1, sz);
-    if (!it)
-        return merr(ev(ENOMEM));
+    if (ev(!it))
+        return merr(ENOMEM);
 
     it->kvbi_ingestid = ingestid;
     it->kvbi_info = (void *)(it + 1);
-    bkvs = (void *)(it->kvbi_info + 1);
-    nbkv = (void *)((void **)bkvs + nkiter);
 
-    c0kvsm_info_init(it->kvbi_info, gen, bkvs, nbkv, nkiter, istxn);
+    c0kvsm_info_init(it->kvbi_info, gen, nkiter, istxn);
 
     *iter = it;
-    perfc_inc(pc, PERFC_RA_C0SKM_ITERC);
 
     return 0;
 }
 
 void
-kvb_builder_iter_destroy(struct kvb_builder_iter *iter, struct perfc_set *pc)
+kvb_builder_iter_destroy(struct kvb_builder_iter *iter)
 {
     struct c1_kvcache *kvc;
 
@@ -71,8 +64,6 @@ kvb_builder_iter_destroy(struct kvb_builder_iter *iter, struct perfc_set *pc)
 
     for (i = 0; i < iter->kvbi_info->c0s_nkiter; i++)
         free(iter->kvbi_info->c0s_bkvs[i]);
-
-    perfc_inc(pc, PERFC_RA_C0SKM_ITERD);
 
     free(iter);
 }
@@ -91,6 +82,7 @@ kvb_builder_iter_init(
     iter->kvbi_c0skm = c0skm;
     iter->kvbi_c0kvms = c0kvms;
     iter->kvbi_c1h = c1h;
+    iter->kvbi_kvbc = 0;
     iter->kvbi_ref = ref;
     iter->kvbi_ksize = ksize;
     iter->kvbi_vsize = vsize;
@@ -100,9 +92,6 @@ kvb_builder_iter_init(
     c0kvms_mlock(c0kvms);
     ++(*ref);
     c0kvms_munlock(c0kvms);
-
-    if (PERFC_ISON(c0skm_get_perfc_kv(c0skm)))
-        iter->kvbi_kvbc = 0;
 }
 
 bool
@@ -131,7 +120,7 @@ kvb_builder_iter_put(struct kvb_builder_iter *iter)
         c0kvms_msignal(c0kvms);
     c0kvms_munlock(c0kvms);
 
-    kvb_builder_iter_destroy(iter, c0skm_get_perfc_kv(iter->kvbi_c0skm));
+    kvb_builder_iter_destroy(iter);
 }
 
 merr_t
@@ -143,7 +132,6 @@ kvb_builder_get_next(struct kvb_builder_iter *iter, struct c1_kvbundle **ckvb)
     struct c1 *           c1h;
     struct c0kvsm_info *  info;
     struct c0_kvmultiset *c0kvms;
-    struct c0sk_mutation *c0skm;
     struct perfc_set *    set;
 
     merr_t err;
@@ -157,16 +145,18 @@ kvb_builder_get_next(struct kvb_builder_iter *iter, struct c1_kvbundle **ckvb)
 
     c1h = iter->kvbi_c1h;
     info = iter->kvbi_info;
-    c0skm = iter->kvbi_c0skm;
-    tail = NULL;
-    kskip = 0;
     *ckvb = NULL;
 
     kidx = info->c0s_bkvidx;
     cbkv = info->c0s_cbkv;
     tbkv = info->c0s_tbkv;
     nbkv = info->c0s_kcnt;
-    set = c0skm_get_perfc_kv(c0skm);
+
+#ifdef HSE_BUILD_RELEASE
+    set = NULL; /* compiler will elide all perf calls */
+#else
+    set = c0skm_get_perfc_kv(iter->kvbi_c0skm);
+#endif
 
     /* No more bundles to consume */
     if (tbkv >= nbkv) {
@@ -186,8 +176,8 @@ kvb_builder_get_next(struct kvb_builder_iter *iter, struct c1_kvbundle **ckvb)
     kvc = iter->kvbi_kvcache;
     if (!kvc) {
         kvc = c1_get_kvcache(c1h);
-        if (!kvc)
-            return merr(ev(ENOENT));
+        if (ev(!kvc))
+            return merr(ENOENT);
 
         iter->kvbi_kvcache = kvc;
     }
@@ -198,6 +188,7 @@ kvb_builder_get_next(struct kvb_builder_iter *iter, struct c1_kvbundle **ckvb)
 
     stripsz = c1_ingest_stripsize(c1h);
     kvlen = 0;
+    kskip = 0;
     tail = NULL;
 
     /* Fill a stripsz worth of data in this kvb */

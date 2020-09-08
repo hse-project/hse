@@ -108,8 +108,6 @@ NE_CHECK(c0skm_perfc_op, PERFC_EN_C0SKMOP, "c0skm perfc ops table/enum mismatch"
 struct perfc_name c0skm_perfc_kv[] = {
     NE(PERFC_LT_C0SKM_C1ING, 3, "Latency of c0skm c1 ingests", "l_c1ing(ns)"),
 
-    NE(PERFC_RA_C0SKM_ITERC, 3, "Rate of c0kvmsm iter create", "c_itc(/s)"),
-    NE(PERFC_RA_C0SKM_ITERD, 3, "Rate of c0kvmsm iter destroy", "c_itd(/s)"),
     NE(PERFC_RA_C0SKM_C1ING, 3, "Rate of c0skm c1 ingests", "c_c1ing(/s)"),
     NE(PERFC_DI_C0SKM_KVBPI, 3, "Count of kvb per iter", "d_kvbn"),
     NE(PERFC_DI_C0SKM_KVBSZ, 3, "Size of kvb", "d_kvbs(b)"),
