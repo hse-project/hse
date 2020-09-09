@@ -16,7 +16,6 @@ Primary Targets:
   help      -- Print this message.
   package   -- Build "all" and generate deb/rpm packages
   rebuild   -- Alias for 'distclean all'.
-  smoke     -- Run smoke tests.
   test      -- Run unit tests.
 
 Target Modiiers:
@@ -236,6 +235,22 @@ BUILD_NUMBER  ?= 0
 
 MPOOL_INCLUDE_DIR ?= /usr/include
 
+# The variables DEV_MPOOL_LIB_DIR and DEV_BLKID_LIB_DIR are set to true if the
+# developer is explicitly pointing the build to particular built images of the
+# mpool and blkid libraries
+
+ifeq (${MPOOL_LIB_DIR},)
+	DEV_MPOOL_LIB_DIR := true
+else
+	DEV_MPOOL_LIB_DIR := false
+endif
+
+ifeq (${BLKID_LIB_DIR},)
+	DEV_BLKID_LIB_DIR := true
+else
+	DEV_BLKID_LIB_DIR := false
+endif
+
 ifeq (${BUILD_PKG_TYPE},deb)
 	MPOOL_LIB_DIR ?= /usr/lib/x86_64-linux-gnu
 	BLKID_LIB_DIR ?= /usr/lib/x86_64-linux-gnu/mpool
@@ -294,31 +309,33 @@ RUN_CTEST_U = $(RUN_CTEST) $(CTEST_ULABEL)
 
 
 define config-gen =
-	(echo '# Note: When a variable is set multiple times in this file' ;\
-	echo '#       it is the *first* setting that sticks!' ;\
-	echo ;\
-	echo 'Set( BUILD_NUMBER        "$(BUILD_NUMBER)" CACHE STRING "" )' ;\
-	echo 'Set( BUILD_TYPE          "$(BUILD_TYPE)" CACHE STRING "" )' ;\
-	echo 'Set( BUILD_CFLAGS        "$(BUILD_CFLAGS)" CACHE STRING "" )' ;\
-	echo 'Set( BUILD_CDEFS         "$(BUILD_CDEFS)" CACHE STRING "" )' ;\
-	echo 'Set( BUILD_STYPE         "$(BUILD_STYPE)" CACHE STRING "" )' ;\
-	echo 'Set( BUILD_PKG_ARCH      "$(BUILD_PKG_ARCH)" CACHE STRING "" )' ;\
-	echo 'Set( BUILD_PKG_DIST      "$(BUILD_PKG_DIST)" CACHE STRING "" )' ;\
-	echo 'Set( BUILD_PKG_REL       "$(BUILD_PKG_REL)" CACHE STRING "" )' ;\
-	echo 'Set( BUILD_PKG_SHA       "$(BUILD_PKG_SHA)" CACHE STRING "" )' ;\
-	echo 'Set( BUILD_PKG_TAG       "$(BUILD_PKG_TAG)" CACHE STRING "" )' ;\
-	echo 'Set( BUILD_PKG_TYPE      "$(BUILD_PKG_TYPE)" CACHE STRING "" )' ;\
-	echo 'Set( BUILD_PKG_VERSION   "$(BUILD_PKG_VERSION)" CACHE STRING "" )' ;\
-	echo 'Set( BUILD_PKG_VENDOR    "'$(BUILD_PKG_VENDOR)'" CACHE STRING "" )' ;\
-	echo 'Set( BUILD_PKG_VQUAL     "$(BUILD_PKG_VQUAL)" CACHE STRING "" )' ;\
-	echo 'Set( CMAKE_BUILD_TYPE    "$(CMAKE_BUILD_TYPE)" CACHE STRING "" )' ;\
-	echo 'Set( HSE_UNIT_TEST_FLAG  "${HSE_UNIT_TEST_FLAG}" CACHE STRING "" )' ;\
-	echo 'Set( UBSAN               "$(UBSAN)" CACHE BOOL "" )' ;\
-	echo 'Set( ASAN                "$(ASAN)" CACHE BOOL "" )' ;\
-	echo 'set( MPOOL_INCLUDE_DIR   "$(MPOOL_INCLUDE_DIR)" CACHE STRING "" FORCE)' ;\
-	echo 'set( MPOOL_LIB_DIR       "$(MPOOL_LIB_DIR)" CACHE STRING "" FORCE)' ;\
-	echo 'set( BLKID_LIB_DIR       "$(BLKID_LIB_DIR)" CACHE STRING "" FORCE)' ;\
-	)
+	( echo '# Note: When a variable is set multiple times in this file' ;\
+	  echo '#       it is the *first* setting that sticks!' ;\
+	  echo ;\
+	  echo 'Set( BUILD_NUMBER           "$(BUILD_NUMBER)" CACHE STRING "" )' ;\
+	  echo 'Set( BUILD_TYPE             "$(BUILD_TYPE)" CACHE STRING "" )' ;\
+	  echo 'Set( BUILD_CFLAGS           "$(BUILD_CFLAGS)" CACHE STRING "" )' ;\
+	  echo 'Set( BUILD_CDEFS            "$(BUILD_CDEFS)" CACHE STRING "" )' ;\
+	  echo 'Set( BUILD_STYPE            "$(BUILD_STYPE)" CACHE STRING "" )' ;\
+	  echo 'Set( BUILD_PKG_ARCH         "$(BUILD_PKG_ARCH)" CACHE STRING "" )' ;\
+	  echo 'Set( BUILD_PKG_DIST         "$(BUILD_PKG_DIST)" CACHE STRING "" )' ;\
+	  echo 'Set( BUILD_PKG_REL          "$(BUILD_PKG_REL)" CACHE STRING "" )' ;\
+	  echo 'Set( BUILD_PKG_SHA          "$(BUILD_PKG_SHA)" CACHE STRING "" )' ;\
+	  echo 'Set( BUILD_PKG_TAG          "$(BUILD_PKG_TAG)" CACHE STRING "" )' ;\
+	  echo 'Set( BUILD_PKG_TYPE         "$(BUILD_PKG_TYPE)" CACHE STRING "" )' ;\
+	  echo 'Set( BUILD_PKG_VERSION      "$(BUILD_PKG_VERSION)" CACHE STRING "" )' ;\
+	  echo 'Set( BUILD_PKG_VENDOR       "'$(BUILD_PKG_VENDOR)'" CACHE STRING "" )' ;\
+	  echo 'Set( BUILD_PKG_VQUAL        "$(BUILD_PKG_VQUAL)" CACHE STRING "" )' ;\
+	  echo 'Set( CMAKE_BUILD_TYPE       "$(CMAKE_BUILD_TYPE)" CACHE STRING "" )' ;\
+	  echo 'Set( HSE_UNIT_TEST_FLAG     "${HSE_UNIT_TEST_FLAG}" CACHE STRING "" )' ;\
+	  echo 'Set( UBSAN                  "$(UBSAN)" CACHE BOOL "" )' ;\
+	  echo 'Set( ASAN                   "$(ASAN)" CACHE BOOL "" )' ;\
+	  echo 'set( MPOOL_INCLUDE_DIR      "$(MPOOL_INCLUDE_DIR)" CACHE STRING "" FORCE)' ;\
+	  echo 'set( DEV_MPOOL_LIB_DIR      "$(DEV_MPOOL_LIB_DIR)" CACHE STRING "" FORCE)' ;\
+	  echo 'set( MPOOL_LIB_DIR          "$(MPOOL_LIB_DIR)" CACHE STRING "" FORCE)' ;\
+	  echo 'set( DEV_BLKID_LIB_DIR      "$(DEV_BLKID_LIB_DIR)" CACHE STRING "" FORCE)' ;\
+	  echo 'set( BLKID_LIB_DIR          "$(BLKID_LIB_DIR)" CACHE STRING "" FORCE)' ;\
+  )
 endef
 
 
@@ -337,7 +354,7 @@ endif
 #
 CONFIG = $(BUILD_PKG_DIR)/config.cmake
 
-ifeq ($(filter config-preview help print-% printq-% smoke test testp load unload,$(MAKECMDGOALS)),)
+ifeq ($(filter config-preview help print-% printq-% test testp load unload,$(MAKECMDGOALS)),)
 $(shell $(config-gen) | cmp -s - ${CONFIG} || rm -f ${CONFIG})
 endif
 
@@ -392,7 +409,7 @@ ${CONFIG}: Makefile CMakeLists.txt $(wildcard scripts/${BUILD_PKG_TYPE}/CMakeLis
 
 config: $(SUBREPO_PATH_LIST) $(CONFIG)
 
-distclean scrub:
+distclean:
 	rm -rf ${BUILD_PKG_DIR} *.${BUILD_PKG_TYPE}
 
 help:
