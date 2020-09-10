@@ -612,14 +612,16 @@ MTF_DEFINE_UTEST_PREPOST(c0sk_test, throttling, no_fail_pre, no_fail_post)
 
 MTF_DEFINE_UTEST_PREPOST(c0sk_test, ingest_fail, no_fail_pre, no_fail_post)
 {
-    struct kvdb_rparams kvdb_rp;
-    struct kvs_rparams  kvs_rp;
-    struct c0 *         test_c0 = 0;
-    struct kvs_ktuple   kt = { 0 };
-    merr_t              err;
-    struct mock_kvdb    mkvdb;
-    struct cn *         mock_cn;
-    atomic64_t          seqno;
+    struct kvdb_rparams   kvdb_rp;
+    struct kvs_rparams    kvs_rp;
+    struct c0_kvmultiset *kvms;
+    struct kvs_ktuple     kt = { 0 };
+    merr_t                err;
+    struct c0sk_impl *    self;
+    struct mock_kvdb      mkvdb;
+    struct cn *           mock_cn;
+    atomic64_t            seqno;
+    u16                   skidx = 0;
 
     kvdb_rp = kvdb_rparams_defaults();
     kvs_rp = kvs_rparams_defaults();
@@ -634,20 +636,27 @@ MTF_DEFINE_UTEST_PREPOST(c0sk_test, ingest_fail, no_fail_pre, no_fail_post)
     err = create_mock_cn(&mock_cn, false, false, &kvs_rp, 0);
     ASSERT_EQ(0, err);
 
-    err = c0_open((struct ikvdb *)&mkvdb, &kvs_rp, mock_cn, 0, &test_c0);
+    err = c0sk_c0_register(mkvdb.ikdb_c0sk, mock_cn, &skidx);
     ASSERT_EQ(0, err);
-    ASSERT_NE(0, test_c0);
+
+    self = c0sk_h2r(mkvdb.ikdb_c0sk);
+
+    err = c0kvms_create(1, 0, 0, &seqno, false, &kvms);
+    ASSERT_EQ(0, err);
+    ASSERT_NE(NULL, kvms);
+
+    err = c0sk_install_c0kvms(self, NULL, kvms);
+    ASSERT_EQ(0, err);
 
     mapi_inject(mapi_idx_kvset_builder_create, ENOMEM);
 
     kt.kt_len = 3;
     kt.kt_data = "foo";
 
-    err = c0_del(test_c0, &kt, HSE_SQNREF_SINGLE);
+    err = c0sk_del(mkvdb.ikdb_c0sk, skidx, &kt, HSE_SQNREF_SINGLE);
     ASSERT_EQ(0, err);
 
-    err = c0_close(test_c0);
-    ASSERT_EQ(0, err);
+    c0kvms_putref(kvms);
 
     err = c0sk_close(mkvdb.ikdb_c0sk);
     ASSERT_EQ(0, err);
