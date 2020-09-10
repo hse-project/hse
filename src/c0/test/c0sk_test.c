@@ -470,12 +470,12 @@ MTF_DEFINE_UTEST_PREPOST(c0sk_test, various, no_fail_pre, no_fail_post)
 {
     struct kvdb_rparams kvdb_rp;
     struct kvs_rparams  kvs_rp;
-    struct c0 *         test_c0 = NULL;
     struct c0sk_impl *  self;
     merr_t              err;
     struct mock_kvdb    mkvdb;
     struct cn *         mock_cn;
     atomic64_t          seqno;
+    u16                 skidx = 0;
 
     kvdb_rp = kvdb_rparams_defaults();
     kvs_rp = kvs_rparams_defaults();
@@ -490,9 +490,8 @@ MTF_DEFINE_UTEST_PREPOST(c0sk_test, various, no_fail_pre, no_fail_post)
     err = create_mock_cn(&mock_cn, false, false, &kvs_rp, 0);
     ASSERT_EQ(0, err);
 
-    err = c0_open((struct ikvdb *)&mkvdb, &kvs_rp, mock_cn, 0, &test_c0);
+    err = c0sk_c0_register(mkvdb.ikdb_c0sk, mock_cn, &skidx);
     ASSERT_EQ(0, err);
-    ASSERT_NE(0, test_c0);
 
     self = c0sk_h2r(mkvdb.ikdb_c0sk);
 
@@ -504,9 +503,6 @@ MTF_DEFINE_UTEST_PREPOST(c0sk_test, various, no_fail_pre, no_fail_post)
 
     err = c0sk_merge_impl(self, NULL, NULL, 0);
     ASSERT_NE(0, err);
-
-    err = c0_close(test_c0);
-    ASSERT_EQ(0, err);
 
     err = c0sk_close(mkvdb.ikdb_c0sk);
     ASSERT_EQ(0, err);
