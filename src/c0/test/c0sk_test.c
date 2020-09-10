@@ -200,7 +200,7 @@ MTF_DEFINE_UTEST_PREPOST(c0sk_test, c0sk_example, no_fail_pre, no_fail_post)
 
     self = c0sk_h2r(mkvdb.ikdb_c0sk);
 
-    err = c0kvms_create(1, 1, 0, &seqno, false, &c0kvms);
+    err = c0kvms_create(1, 0, 0, &seqno, false, &c0kvms);
     ASSERT_EQ(0, err);
     ASSERT_NE(NULL, c0kvms);
 
@@ -231,7 +231,7 @@ MTF_DEFINE_UTEST_PREPOST(c0sk_test, c0sk_example, no_fail_pre, no_fail_post)
     err = c0sk_del(mkvdb.ikdb_c0sk, skidx, &kt, HSE_SQNREF_SINGLE);
     ASSERT_EQ(0, err);
 
-    c0kvms_finalize(c0kvms, NULL);
+    c0kvms_putref(c0kvms);
 
     err = c0sk_close(mkvdb.ikdb_c0sk);
     ASSERT_EQ(0, err);
