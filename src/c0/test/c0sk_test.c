@@ -514,7 +514,6 @@ MTF_DEFINE_UTEST_PREPOST(c0sk_test, throttling, no_fail_pre, no_fail_post)
 {
     struct kvdb_rparams kvdb_rp;
     struct kvs_rparams  kvs_rp;
-    struct c0 *         test_c0 = NULL;
     struct c0sk_impl *  self;
     merr_t              err;
     struct mock_kvdb    mkvdb;
@@ -526,6 +525,7 @@ MTF_DEFINE_UTEST_PREPOST(c0sk_test, throttling, no_fail_pre, no_fail_post)
     size_t              c0sk_kvmultisets_sz_saved;
     atomic64_t          seqno;
     int                 i;
+    u16                 skidx = 0;
     /* static because kvdb_fini uses this to log dt */
     static struct throttle throttle;
 
@@ -545,9 +545,8 @@ MTF_DEFINE_UTEST_PREPOST(c0sk_test, throttling, no_fail_pre, no_fail_post)
     err = create_mock_cn(&mock_cn, false, false, &kvs_rp, 0);
     ASSERT_EQ(0, err);
 
-    err = c0_open((struct ikvdb *)&mkvdb, &kvs_rp, mock_cn, 0, &test_c0);
+    err = c0sk_c0_register(mkvdb.ikdb_c0sk, mock_cn, &skidx);
     ASSERT_EQ(0, err);
-    ASSERT_NE(0, test_c0);
 
     self = c0sk_h2r(mkvdb.ikdb_c0sk);
 
@@ -604,9 +603,6 @@ MTF_DEFINE_UTEST_PREPOST(c0sk_test, throttling, no_fail_pre, no_fail_post)
 
     self->c0sk_kvmultisets_cnt = c0sk_kvmultisets_cnt_saved;
     self->c0sk_kvmultisets_sz = c0sk_kvmultisets_sz_saved;
-
-    err = c0_close(test_c0);
-    ASSERT_EQ(0, err);
 
     err = c0sk_close(mkvdb.ikdb_c0sk);
     ASSERT_EQ(0, err);
