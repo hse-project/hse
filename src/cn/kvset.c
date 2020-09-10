@@ -119,7 +119,7 @@ struct rbufcache {
 
 struct rbufcache rbc;
 
-static void
+static void __cold
 kvset_rbuf_init(void)
 {
     spin_lock_init(&rbc.lock);
@@ -127,7 +127,7 @@ kvset_rbuf_init(void)
     rbc.cnt = 0;
 }
 
-static void
+static void __cold
 kvset_rbuf_fini(void)
 {
     void *head;
@@ -443,14 +443,16 @@ kvset_kblk_init(
  * must free the vector when finished.
  */
 static u64 *
-blkid_list_to_vec(struct blk_list *blkl)
+blkid_list_to_vec(struct blk_list *blkl, size_t bufc, u64 *bufv)
 {
+    u64 *v = bufv;
     int  i;
-    u64 *v;
 
-    v = malloc_array(blkl->n_blks, sizeof(u64));
-    if (ev(!v))
-        return NULL;
+    if (blkl->n_blks > bufc) {
+        v = malloc_array(blkl->n_blks, sizeof(u64));
+        if (ev(!v))
+            return NULL;
+    }
 
     for (i = 0; i < blkl->n_blks; i++)
         v[i] = blkl->blks[i].bk_blkid;
@@ -469,15 +471,16 @@ kvset_map_blklist(
     u64                       mblock_max,
     struct mpool_mcache_map **mapv)
 {
-    uint   mx, cnt, idc;
-    u64 *  idv, *allocv;
-    merr_t err;
+    uint    mx, cnt, idc;
+    u64    *idv, *allocv;
+    u64     bufv[64];
+    merr_t  err;
 
     idc = blks->n_blks;
     if (!idc)
         return 0;
 
-    idv = allocv = blkid_list_to_vec(blks);
+    idv = allocv = blkid_list_to_vec(blks, NELEM(bufv), bufv);
     if (ev(!idv))
         return merr(ENOMEM);
 
@@ -495,7 +498,9 @@ kvset_map_blklist(
         idv += cnt;
     }
 
-    free(allocv);
+    if (allocv != bufv)
+        free(allocv);
+
     return err;
 }
 
@@ -922,11 +927,12 @@ kvset_create(struct cn_tree *tree, u64 tag, struct kvset_meta *km, struct kvset 
     uint           flags = 0;
 
     if (n_vblks) {
+        u64 bufv[64];
         u64 *idv;
 
-        idv = blkid_list_to_vec(&km->km_vblk_list);
-        if (!idv)
-            return merr(ev(ENOMEM));
+        idv = blkid_list_to_vec(&km->km_vblk_list, NELEM(bufv), bufv);
+        if (ev(!idv))
+            return merr(ENOMEM);
 
         if (km->km_node_level == 0)
             flags |= MBSET_FLAGS_VBLK_ROOT;
@@ -943,7 +949,9 @@ kvset_create(struct cn_tree *tree, u64 tag, struct kvset_meta *km, struct kvset 
             flags,
             cn_vma_mblock_max(tree->cn, MP_MED_CAPACITY),
             &vbset);
-        free(idv);
+
+        if (idv != bufv)
+            free(idv);
         if (ev(err))
             return err;
 

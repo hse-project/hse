@@ -98,8 +98,23 @@ struct merr_info {
 /**
  * merr() - Pack given errno and call-site info into a merr_t
  */
-#define merr(_errnum) merr_pack((_errnum), _hse_merr_file, __LINE__)
-#define merr_once(_errnum) merr_pack((_errnum), _hse_merr_file, __LINE__)
+#define merr(_errnum)   merr_pack((_errnum), _hse_merr_file, __LINE__)
+
+#define merr_once(_errnum)                                              \
+({									\
+    merr_t _err;                                                        \
+                                                                        \
+    if (__builtin_constant_p(_errnum)) {                                \
+        static merr_t _moerr __read_mostly;                             \
+                                                                        \
+        if (unlikely(!_moerr))                                          \
+            _moerr = merr_pack((_errnum), _hse_merr_file, __LINE__);    \
+        _err = _moerr;                                                  \
+    } else {								\
+        _err = merr_pack((_errnum), _hse_merr_file, __LINE__);          \
+    }									\
+    _err;                                                               \
+})
 
 /* Not a public API, called only via the merr() macro.
  */

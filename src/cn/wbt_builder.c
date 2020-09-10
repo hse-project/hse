@@ -555,11 +555,13 @@ merr_t
 wbb_init(struct wbb *wbb, void *nodev, uint max_pgc, uint *wbt_pgc)
 {
     void * kst, *iov_base[KMD_CHUNKS];
+    struct intern_builder *ibldr;
     uint   kst_pgc;
     uint   i;
     merr_t err = 0;
 
     /* Save state that persists across "init" */
+    ibldr = wbb->ibldr;
     kst = wbb->cnode_key_stage;
     kst_pgc = wbb->cnode_key_stage_pgc;
     for (i = 0; i < KMD_CHUNKS; i++)
@@ -584,9 +586,12 @@ wbb_init(struct wbb *wbb, void *nodev, uint max_pgc, uint *wbt_pgc)
     if (err)
         return err;
 
-    wbb->ibldr = ib_create(wbb);
-    if (ev(!wbb->ibldr))
-        return merr(ENOMEM);
+    wbb->ibldr = ibldr;
+    if (!wbb->ibldr) {
+        wbb->ibldr = ib_create(wbb);
+        if (ev(!wbb->ibldr))
+            return merr(ENOMEM);
+    }
 
     *wbt_pgc = wbb->lnodec;
     return 0;
@@ -674,7 +679,7 @@ wbb_inode_has_space(struct wbb *wbb, uint inode_cnt)
 void
 wbb_reset(struct wbb *wbb, uint *wbt_pgc)
 {
-    ib_destroy(wbb->ibldr);
+    ib_reset(wbb->ibldr);
     wbb_init(wbb, wbb->nodev, wbb->nodev_len, wbt_pgc);
 }
 

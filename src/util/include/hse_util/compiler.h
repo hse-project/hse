@@ -38,6 +38,9 @@
 
 #define __read_mostly __attribute__((__section__(".read_mostly")))
 
+#define __hot           __attribute__((__hot__))
+#define __cold          __attribute__((__cold__))
+
 /*
  * There are multiple ways GCC_VERSION could be defined.  This mimics
  * the kernel's definition in include/linux/compiler-gcc.h.

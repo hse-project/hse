@@ -19,6 +19,9 @@ struct intern_builder *
 ib_create(struct wbb *wbb);
 
 void
+ib_reset(struct intern_builder *ibldr);
+
+void
 ib_destroy(struct intern_builder *ibldr);
 
 void
@@ -28,9 +31,9 @@ uint
 ib_iovec_construct(struct intern_builder *ibldr, struct iovec *iov);
 
 merr_t
-ib_init(void);
+ib_init(void) __cold;
 
 void
-ib_fini(void);
+ib_fini(void) __cold;
 
 #endif /* HSE_KVS_INTERN_BUILDER_H */

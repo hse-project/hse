@@ -80,10 +80,10 @@ enum {
 };
 
 merr_t
-kvset_init(void);
+kvset_init(void) __cold;
 
 void
-kvset_fini(void);
+kvset_fini(void) __cold;
 
 u64
 kvset_get_tag(struct kvset *kvset);
