@@ -2162,25 +2162,26 @@ MTF_DEFINE_UTEST_PREPOST(c0sk_test, c0_register, no_fail_pre, no_fail_post)
 
 MTF_DEFINE_UTEST_PREPOST(c0sk_test, c0_cursor_ptombs, no_fail_pre, no_fail_post)
 {
-    struct kvdb_rparams kvdb_rp;
-    struct kvs_rparams  kvs_rp;
-    struct mock_kvdb    mkvdb;
-    struct kvs_ktuple   kt;
-    struct kvs_vtuple   vt;
-    struct kvs_kvtuple  kvt;
-    struct c0sk *       c0sk;
-    struct c0 *         c0;
-    struct cn *         cn;
-    struct c0_cursor *  cur;
-    int                 skidx;
-    int                 tot_keys = 20000;
-    u64                 pt_seq = -1;
-    uint                kbuf[2], vbuf;
-    merr_t              err;
-    bool                eof;
-    uint                cnt, expcnt;
-    int                 i;
-    atomic64_t          seqno;
+    struct kvdb_rparams   kvdb_rp;
+    struct kvs_rparams    kvs_rp;
+    struct mock_kvdb      mkvdb;
+    struct kvs_ktuple     kt;
+    struct kvs_vtuple     vt;
+    struct kvs_kvtuple    kvt;
+    struct c0sk *         c0sk;
+    struct c0_kvmultiset *kvms;
+    struct cn *           cn;
+    struct c0sk_impl *    self;
+    struct c0_cursor *    cur;
+    u16                   skidx;
+    int                   tot_keys = 20000;
+    u64                   pt_seq = -1;
+    uint                  kbuf[2], vbuf;
+    merr_t                err;
+    bool                  eof;
+    uint                  cnt, expcnt;
+    int                   i;
+    atomic64_t            seqno;
 
     kvdb_rp = kvdb_rparams_defaults();
     kvs_rp = kvs_rparams_defaults();
@@ -2196,14 +2197,20 @@ MTF_DEFINE_UTEST_PREPOST(c0sk_test, c0_cursor_ptombs, no_fail_pre, no_fail_post)
     err = create_mock_cn(&cn, false, false, &kvs_rp, 4);
     ASSERT_EQ(0, err);
 
-    err = c0_open((struct ikvdb *)&mkvdb, &kvs_rp, cn, 0, &c0);
+    err = c0sk_c0_register(mkvdb.ikdb_c0sk, cn, &skidx);
     ASSERT_EQ(0, err);
-    ASSERT_NE((struct c0 *)0, c0);
+
+    self = c0sk_h2r(mkvdb.ikdb_c0sk);
 
     _ikvdb_get_c0sk((struct ikvdb *)&mkvdb, &c0sk);
     ASSERT_EQ(c0sk, mkvdb.ikdb_c0sk);
 
-    skidx = c0_index(c0);
+    err = c0kvms_create(1, 0, 0, &seqno, false, &kvms);
+    ASSERT_EQ(0, err);
+    ASSERT_NE(NULL, kvms);
+
+    err = c0sk_install_c0kvms(self, NULL, kvms);
+    ASSERT_EQ(0, err);
 
     MOCK_SET(c0sk_internal, _c0sk_release_multiset);
 
@@ -2226,14 +2233,14 @@ MTF_DEFINE_UTEST_PREPOST(c0sk_test, c0_cursor_ptombs, no_fail_pre, no_fail_post)
         kvs_ktuple_init(&kt, kbuf, sizeof(kbuf));
 
         vbuf = atomic64_read(&seqno);
-        err = c0_put(c0, &kt, &vt, HSE_SQNREF_SINGLE);
+        err = c0sk_put(mkvdb.ikdb_c0sk, skidx, &kt, &vt, HSE_SQNREF_SINGLE);
         ASSERT_EQ(0, err);
         if (i > 0 && i % 4000 == 0)
             c0sk_flush(c0sk, NULL);
 
         if (i > 0 && i == 8765) {
             kvs_ktuple_init(&kt, kbuf, sizeof(kbuf[0]));
-            c0_prefix_del(c0, &kt, HSE_SQNREF_SINGLE);
+            c0sk_prefix_del(mkvdb.ikdb_c0sk, skidx, &kt, HSE_SQNREF_SINGLE);
             pt_seq = atomic64_read(&seqno);
 
             /* use a tree prefix length of sizeof(kbuf[0]) */
@@ -2295,7 +2302,7 @@ MTF_DEFINE_UTEST_PREPOST(c0sk_test, c0_cursor_ptombs, no_fail_pre, no_fail_post)
     /* cleanup */
     kbuf[0] = 1;
     kvs_ktuple_init(&kt, kbuf, sizeof(kbuf[0]));
-    err = c0_prefix_del(c0, &kt, HSE_SQNREF_SINGLE);
+    err = c0sk_prefix_del(mkvdb.ikdb_c0sk, skidx, &kt, HSE_SQNREF_SINGLE);
     ASSERT_EQ(0, err);
 
     err = c0sk_cursor_seek(cur, NULL, 0, NULL, NULL);
@@ -2326,8 +2333,7 @@ MTF_DEFINE_UTEST_PREPOST(c0sk_test, c0_cursor_ptombs, no_fail_pre, no_fail_post)
 
     c0sk_cursor_destroy(cur);
 
-    err = c0_close(c0);
-    ASSERT_EQ(0, err);
+    c0kvms_putref(kvms);
 
     err = c0sk_close(mkvdb.ikdb_c0sk);
     ASSERT_EQ(0, err);
