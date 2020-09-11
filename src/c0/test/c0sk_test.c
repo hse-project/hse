@@ -830,11 +830,11 @@ MTF_DEFINE_UTEST_PREPOST(c0sk_test, serial_put1, no_fail_pre, no_fail_post)
 
 MTF_DEFINE_UTEST_PREPOST(c0sk_test, serial_put2, no_fail_pre, no_fail_post)
 {
-    struct kvdb_rparams kvdb_rp;
-    struct kvs_rparams  kvs_rp;
-    const int           num_kvs = 8;
-    struct c0 *         test_c0[num_kvs];
-    merr_t              err;
+    struct kvdb_rparams   kvdb_rp;
+    struct kvs_rparams    kvs_rp;
+    const int             num_kvs = 8;
+    struct c0_kvmultiset *kvms[num_kvs];
+    merr_t                err;
 
     const int             kw = 6;
     const int             num_keys = 30000;
@@ -848,7 +848,9 @@ MTF_DEFINE_UTEST_PREPOST(c0sk_test, serial_put2, no_fail_pre, no_fail_post)
     int                   i, j;
     struct mock_kvdb      mkvdb;
     struct cn *           mock_cn;
+    struct c0sk_impl *    self;
     atomic64_t            seqno;
+    u16                   skidx = 0;
 
     kvdb_rp = kvdb_rparams_defaults();
     kvs_rp = kvs_rparams_defaults();
@@ -863,10 +865,18 @@ MTF_DEFINE_UTEST_PREPOST(c0sk_test, serial_put2, no_fail_pre, no_fail_post)
     err = create_mock_cn(&mock_cn, false, false, &kvs_rp, 0);
     ASSERT_EQ(0, err);
 
+    err = c0sk_c0_register(mkvdb.ikdb_c0sk, mock_cn, &skidx);
+    ASSERT_EQ(0, err);
+
+    self = c0sk_h2r(mkvdb.ikdb_c0sk);
+
     for (i = 0; i < num_kvs; i++) {
-        err = c0_open((struct ikvdb *)&mkvdb, &kvs_rp, mock_cn, 0, &test_c0[i]);
+        err = c0kvms_create(1, 0, 0, &seqno, false, &kvms[i]);
         ASSERT_EQ(0, err);
-        ASSERT_NE((struct c0 *)0, test_c0[i]);
+        ASSERT_NE(NULL, kvms[i]);
+
+        err = c0sk_install_c0kvms(self, NULL, kvms[i]);
+        ASSERT_EQ(0, err);
     }
 
     kg = create_key_generator(2176782000, kw);
@@ -887,14 +897,13 @@ MTF_DEFINE_UTEST_PREPOST(c0sk_test, serial_put2, no_fail_pre, no_fail_post)
         memcpy(val_buf, key_buf, kw);
 
         for (j = 0; j < num_kvs; j++) {
-            err = c0_put(test_c0[j], &kt, &vt, HSE_SQNREF_SINGLE);
+            err = c0sk_put(mkvdb.ikdb_c0sk, skidx, &kt, &vt, HSE_SQNREF_SINGLE);
             ASSERT_EQ(0, err);
         }
     }
 
     for (i = 0; i < num_kvs; i++) {
-        err = c0_close(test_c0[i]);
-        ASSERT_EQ(0, err);
+        c0kvms_putref(kvms[i]);
     }
 
     destroy_key_generator(kg);
