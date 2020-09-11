@@ -164,13 +164,15 @@ throttle_init_params(struct throttle *self, struct kvdb_rparams *rp)
     } else {
         self->thr_delay_raw = THROTTLE_DELAY_START_DEFAULT;
 
-        hse_log(HSE_NOTICE "Invalid setting for throttle_init_policy: %s, using \"default\"",
-                self->thr_rp->throttle_init_policy);
+        hse_log(
+            HSE_NOTICE "Invalid setting for throttle_init_policy: %s, using \"default\"",
+            self->thr_rp->throttle_init_policy);
     }
 
     if (self->thr_rp->throttle_debug_intvl_s == 0) {
-        hse_log(HSE_NOTICE "Invalid setting for throttle_debug_intvl_s: %u, using 1",
-                self->thr_rp->throttle_debug_intvl_s);
+        hse_log(
+            HSE_NOTICE "Invalid setting for throttle_debug_intvl_s: %u, using 1",
+            self->thr_rp->throttle_debug_intvl_s);
         self->thr_rp->throttle_debug_intvl_s = 1U;
     }
 
@@ -201,6 +203,8 @@ throttle_init_params(struct throttle *self, struct kvdb_rparams *rp)
     time_ms = min_t(uint, time_ms, 4000);
     self->thr_delta_cycles =
         time_ms / self->thr_update_ms + (time_ms % self->thr_update_ms ? 1 : 0);
+
+    hse_log(HSE_NOTICE "throttle init policy: %s", self->thr_rp->throttle_init_policy);
 
     hse_log(
         HSE_NOTICE "throttle init: delay %d u_ms %d rcycles %d"
@@ -255,7 +259,7 @@ throttle_reduce_debug(struct throttle *self, uint sensor, uint mavg)
 static void
 throttle_increase(struct throttle *self, uint value)
 {
-    uint  delta = 0;
+    uint delta = 0;
 
     assert(self->thr_state == THROTTLE_INCREASE);
 
@@ -616,7 +620,7 @@ throttle(struct throttle *self, u64 start, u32 len)
 
     if (jclock_ns >= atomic64_read(&self->thr_next) && spin_trylock(&self->thr_lock)) {
         ulong debug = 0;
-        uint pct;
+        uint  pct;
 
         now = get_time_ns();
 
