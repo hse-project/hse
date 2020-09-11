@@ -1459,20 +1459,23 @@ MTF_DEFINE_UTEST_PREPOST(c0sk_test, parallel_get_put, no_fail_pre, no_fail_post)
     destroy_mock_cn(mock_cn);
 }
 
-MTF_DEFINE_UTEST_PREPOST(c0sk_test, c0_get_test, no_fail_pre, no_fail_post)
+MTF_DEFINE_UTEST_PREPOST(c0sk_test, c0sk_get_test, no_fail_pre, no_fail_post)
 {
-    struct kvdb_rparams kvdb_rp;
-    struct kvs_rparams  kvs_rp;
-    struct c0 *         test_c0 = 0;
-    merr_t              err;
-    struct kvs_ktuple   kt = { 0 };
-    struct kvs_vtuple   vt = { 0 };
-    char                buf[100];
-    struct kvs_buf      vbuf;
-    enum key_lookup_res res;
-    struct mock_kvdb    mkvdb;
-    struct cn *         mock_cn;
-    atomic64_t          seqno;
+    struct kvdb_rparams   kvdb_rp;
+    struct kvs_rparams    kvs_rp;
+    struct c0_kvmultiset *kvms = 0;
+    merr_t                err;
+    struct kvs_ktuple     kt = { 0 };
+    struct kvs_vtuple     vt = { 0 };
+    char                  buf[100];
+    struct kvs_buf        vbuf;
+    enum key_lookup_res   res;
+    struct mock_kvdb      mkvdb;
+    struct cn *           mock_cn;
+    struct c0sk_impl *    self;
+    atomic64_t            seqno;
+    u16                   skidx = 0;
+    const u32             pfx_len = 0;
 
     kvdb_rp = kvdb_rparams_defaults();
     kvs_rp = kvs_rparams_defaults();
@@ -1484,31 +1487,39 @@ MTF_DEFINE_UTEST_PREPOST(c0sk_test, c0_get_test, no_fail_pre, no_fail_post)
     ASSERT_EQ(0, err);
     ASSERT_NE((struct c0sk *)0, mkvdb.ikdb_c0sk);
 
-    err = create_mock_cn(&mock_cn, false, false, &kvs_rp, 0);
+    err = create_mock_cn(&mock_cn, false, false, &kvs_rp, pfx_len);
     ASSERT_EQ(0, err);
 
-    err = c0_open((struct ikvdb *)&mkvdb, &kvs_rp, mock_cn, 0, &test_c0);
+    err = c0sk_c0_register(mkvdb.ikdb_c0sk, mock_cn, &skidx);
     ASSERT_EQ(0, err);
-    ASSERT_NE((struct c0 *)0, test_c0);
+
+    self = c0sk_h2r(mkvdb.ikdb_c0sk);
+
+    err = c0kvms_create(1, 0, 0, &seqno, false, &kvms);
+    ASSERT_EQ(0, err);
+    ASSERT_NE(NULL, kvms);
+
+    err = c0sk_install_c0kvms(self, NULL, kvms);
+    ASSERT_EQ(0, err);
 
     kt.kt_data = "alpha";
     kt.kt_len = strlen(kt.kt_data);
     vt.vt_data = "this_is_a_large_val";
     vt.vt_len = strlen(vt.vt_data);
 
-    err = c0_put(test_c0, &kt, &vt, HSE_SQNREF_SINGLE);
+    err = c0sk_put(mkvdb.ikdb_c0sk, skidx, &kt, &vt, HSE_SQNREF_SINGLE);
     ASSERT_EQ(0, err);
 
     /* small buffer */
     kvs_buf_init(&vbuf, buf, 4); /* insufficiently sized buffer */
-    err = c0_get(test_c0, &kt, atomic64_read(&seqno), 0, &res, &vbuf);
+    err = c0sk_get(mkvdb.ikdb_c0sk, skidx, pfx_len, &kt, atomic64_read(&seqno), 0, &res, &vbuf);
     ASSERT_EQ(0, merr_errno(err));
     ASSERT_EQ(res, FOUND_VAL);
     ASSERT_EQ(vbuf.b_len, vt.vt_len);
     ASSERT_EQ(0, strncmp(buf, "this", vbuf.b_buf_sz));
 
     kvs_buf_init(&vbuf, buf, vbuf.b_len);
-    err = c0_get(test_c0, &kt, atomic64_read(&seqno), 0, &res, &vbuf);
+    err = c0sk_get(mkvdb.ikdb_c0sk, skidx, pfx_len, &kt, atomic64_read(&seqno), 0, &res, &vbuf);
     ASSERT_EQ(0, err);
     ASSERT_EQ(res, FOUND_VAL);
     ASSERT_EQ(vbuf.b_len, vt.vt_len);
@@ -1518,12 +1529,11 @@ MTF_DEFINE_UTEST_PREPOST(c0sk_test, c0_get_test, no_fail_pre, no_fail_post)
     kt.kt_data = "shouldnt_exist";
     kt.kt_len = strlen(kt.kt_data);
     kvs_buf_init(&vbuf, buf, sizeof(buf));
-    err = c0_get(test_c0, &kt, atomic64_read(&seqno), 0, &res, &vbuf);
+    err = c0sk_get(mkvdb.ikdb_c0sk, skidx, pfx_len, &kt, atomic64_read(&seqno), 0, &res, &vbuf);
     ASSERT_EQ(0, err);
     ASSERT_EQ(res, NOT_FOUND);
 
-    err = c0_close(test_c0);
-    ASSERT_EQ(0, err);
+    c0kvms_putref(kvms);
 
     err = c0sk_close(mkvdb.ikdb_c0sk);
     ASSERT_EQ(0, err);
