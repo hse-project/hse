@@ -1567,7 +1567,7 @@ release_deferred(struct c0sk *self)
     }
 }
 
-MTF_DEFINE_UTEST_PREPOST(c0sk_test, c0sk_cursor_robust, no_fail_pre, no_fail_post)
+MTF_DEFINE_UTEST_PREPOST(c0sk_test, c0_cursor_robust, no_fail_pre, no_fail_post)
 {
     struct kvdb_rparams   kvdb_rp;
     struct kvs_rparams    kvs_rp;
@@ -1788,7 +1788,7 @@ MTF_DEFINE_UTEST_PREPOST(c0sk_test, c0sk_cursor_robust, no_fail_pre, no_fail_pos
     destroy_mock_cn(cn);
 }
 
-MTF_DEFINE_UTEST_PREPOST(c0sk_test, c0sk_cursor_eagain, no_fail_pre, no_fail_post)
+MTF_DEFINE_UTEST_PREPOST(c0sk_test, c0_cursor_eagain, no_fail_pre, no_fail_post)
 {
     struct kvdb_rparams   kvdb_rp;
     struct kvs_rparams    kvs_rp;
@@ -1876,7 +1876,7 @@ MTF_DEFINE_UTEST_PREPOST(c0sk_test, c0sk_cursor_eagain, no_fail_pre, no_fail_pos
     destroy_mock_cn(cn);
 }
 
-MTF_DEFINE_UTEST_PREPOST(c0sk_test, c0sk_rcursor_robust, no_fail_pre, no_fail_post)
+MTF_DEFINE_UTEST_PREPOST(c0sk_test, c0_rcursor_robust, no_fail_pre, no_fail_post)
 {
     struct kvdb_rparams   kvdb_rp;
     struct kvs_rparams    kvs_rp;
