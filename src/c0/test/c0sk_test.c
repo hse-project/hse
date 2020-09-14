@@ -13,6 +13,7 @@
 #include <hse_util/seqno.h>
 
 #include <hse_ikvdb/limits.h>
+#include <hse_ikvdb/c0.h>
 #include <hse_ikvdb/c0sk.h>
 #include <hse_ikvdb/c0_kvmultiset.h>
 #include <hse_ikvdb/kvs.h>
