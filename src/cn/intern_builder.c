@@ -3,6 +3,7 @@
  * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
  */
 
+#include <hse/hse_limits.h>
 #include <hse_util/platform.h>
 #include <hse_util/slab.h>
 #include <hse_util/event_counter.h>
@@ -16,26 +17,17 @@
  * struct intern_node - node data
  *
  * @buf:  a PAGE_SIZE buffer that stores compressed keys (lcp elimiated keys)
- * @used: used bytes in @buf
  * @next: next node;
  */
-
 struct intern_node {
-    unsigned char *        buf;
-    uint                   used;
-    struct intern_builder *ib_back;
-    struct intern_node *   next;
+    unsigned char      *buf;
+    struct intern_node *next;
 };
 
 struct intern_key {
     uint          child_idx;
     uint          klen;
     unsigned char kdata[];
-};
-
-struct intern_builder {
-    struct intern_level *base;
-    struct wbb *         wbb;
 };
 
 /**
@@ -53,39 +45,90 @@ struct intern_builder {
  * @sbuf_used:      used bytes in @sbuf
  */
 struct intern_level {
-    uint                 curr_rkeys_sum;
-    uint                 curr_rkeys_cnt;
-    uint                 curr_child;
-    uint                 full_node_cnt;
-    uint                 level;
-    struct intern_node * node_head;
-    struct intern_node * node_curr;
-    size_t               node_lcp_len;
-    unsigned char *      sbuf;
-    size_t               sbuf_sz;
-    size_t               sbuf_used;
-    struct intern_level *parent;
+    uint                    curr_rkeys_sum;
+    uint                    curr_rkeys_cnt;
+    uint                    curr_child;
+    uint                    full_node_cnt;
+    uint                    level;
+    uint                    node_lcp_len;
+    struct intern_node     *node_head;
+    struct intern_node     *node_curr;
+    unsigned char          *sbuf;
+    uint                    sbuf_sz;
+    uint                    sbuf_used;
+    struct intern_level    *parent;
+    struct intern_builder  *ibldr;
 };
 
+/* Max sizes of objects embedded into struct intern_builder.
+ */
+#define IB_ENODEV_MAX       NELEM(((struct intern_builder *)0)->nodev)
+#define IB_ELEVELV_MAX      NELEM(((struct intern_builder *)0)->levelv)
+#define IB_ESBUFSZ_MAX      ((8192 - sizeof(struct intern_builder) - 16) / IB_ELEVELV_MAX)
 
-static struct kmem_cache *ib_node_cache;
+/**
+ * struct intern_buiilder -
+ * @base:       pointer to the first allocated level object
+ * @wbb:        pointer to owning the wt builder
+ * @nodec:      number of nodes allocated from nodev[]
+ * @sbufs:      head of a singly-linked list of free sbufs
+ * @levelc:     number of levels allocated from levelv[]
+ * @levelv:     private cache of level objects
+ * @nodev:      private cache of node objects
+ * @sbufv:      IB_ESBUFSZ_MAX scratch bytes per embedded level
+ *
+ * %intern_builder embeds several small but sufficiently large caches
+ * (node, level, and sbuf) so as to maintain a very high locality
+ * of reference when accessing any part of the builder.
+ */
+struct intern_builder {
+    struct intern_level    *base;
+    struct wbb             *wbb;
+    u_char                 *sbufs;
+    uint                    nodec;
+    uint                    levelc;
+    struct intern_level     levelv[5];
+    struct intern_node      nodev[48];
+    u_char                  sbufv[];
+};
+
+/* If you increase the size of IB_ESBUFSZ_MAX or HSE_KVS_KLEN_MAX then
+ * you probably need to increase the buffer grow size in ib_sbuf_key_add().
+ */
+_Static_assert(IB_ESBUFSZ_MAX < 4096, "adjust grow size in ib_sbuf_key_add()");
+_Static_assert(HSE_KVS_KLEN_MAX < 4096, "adjust grow size in ib_sbuf_key_add()");
+
+
+static struct kmem_cache *ib_node_cache __read_mostly;
+static struct kmem_cache *ib_cache __read_mostly;
 static atomic_t           ib_init_ref;
 
 merr_t
 ib_init(void)
 {
-    struct kmem_cache *zone;
+    size_t sz;
 
     if (atomic_inc_return(&ib_init_ref) > 1)
         return 0;
 
-    zone = kmem_cache_create("ibldr", sizeof(struct intern_node), 0, 0, NULL);
-    if (ev(!zone)) {
+    sz = sizeof(struct intern_node);
+
+    ib_node_cache = kmem_cache_create("ibnode", sz, 0, 0, NULL);
+    if (ev(!ib_node_cache)) {
         atomic_dec(&ib_init_ref);
         return merr(ENOMEM);
     }
 
-    ib_node_cache = zone;
+    sz = sizeof(struct intern_builder);
+    sz += IB_ESBUFSZ_MAX * IB_ELEVELV_MAX;
+
+    ib_cache = kmem_cache_create("ibldr", sz, 0, 0, NULL);
+    if (ev(!ib_cache)) {
+        kmem_cache_destroy(ib_node_cache);
+        ib_node_cache = NULL;
+        atomic_dec(&ib_init_ref);
+        return merr(ENOMEM);
+    }
 
     return 0;
 }
@@ -98,6 +141,29 @@ ib_fini(void)
 
     kmem_cache_destroy(ib_node_cache);
     ib_node_cache = NULL;
+}
+
+static __always_inline bool
+ib_node_free(struct intern_builder *ib, struct intern_node *n)
+{
+    if (!(n >= ib->nodev && n < ib->nodev + NELEM(ib->nodev))) {
+        kmem_cache_free(ib_node_cache, n);
+        return true;
+    }
+
+    return false;
+}
+
+static __always_inline void
+ib_level_free(struct intern_builder *ib, struct intern_level *l)
+{
+    if (l->sbuf_sz > IB_ESBUFSZ_MAX) {
+        *(void **)l->sbuf = ib->sbufs;
+        ib->sbufs = l->sbuf;
+    }
+
+    if (!(l >= ib->levelv && l < ib->levelv + NELEM(ib->levelv)))
+        free(l);
 }
 
 /*
@@ -132,36 +198,51 @@ ib_lcp_len(struct intern_level *ib, const struct key_obj *ko)
     return new_pfxlen;
 }
 
-#define SCRATCH_BUFSZ (1 << 20)
-
 static merr_t
-ib_sbuf_key_add(struct intern_level *ib, uint child_idx, struct key_obj *kobj)
+ib_sbuf_key_add(struct intern_level *l, uint child_idx, struct key_obj *kobj)
 {
-    uint               klen = key_obj_len(kobj);
     struct intern_key *k;
+    uint klen = key_obj_len(kobj);
+    uint newsz;
 
-    if (!ib->sbuf) {
-        ib->sbuf_sz = SCRATCH_BUFSZ;
-        ib->sbuf = malloc(ib->sbuf_sz * sizeof(*ib->sbuf));
-        if (!ib->sbuf)
-            return merr(ENOMEM);
+    /* Grow scratch buffer, if necessary.  On entry l->sbuf is almost always
+     * pointing to an embedded scratch buffer, it might be NULL if the level
+     * object is not an embeedded object, otherwise it will be pointing at a
+     * buffer previously allocated in this block.
+     */
+    newsz = l->sbuf_used + klen + sizeof(*k);
+
+    if (unlikely(newsz > l->sbuf_sz)) {
+        void *sbuf = NULL;
+
+        newsz = roundup(newsz, 4096) * 2;
+
+        if (l->sbuf_sz > IB_ESBUFSZ_MAX)
+            sbuf = l->sbuf;
+
+        if (!sbuf && l->ibldr->sbufs) {
+            sbuf = l->ibldr->sbufs;
+            l->ibldr->sbufs = *(void **)sbuf;
+        } else {
+            sbuf = realloc(sbuf, newsz);
+            if (!sbuf)
+                return merr(ENOMEM);
+        }
+
+        if (l->sbuf_sz == IB_ESBUFSZ_MAX)
+            memcpy(sbuf, l->sbuf, l->sbuf_used);
+
+        l->sbuf_sz = newsz;
+        l->sbuf = sbuf;
     }
 
-    /* Grow scratch space if necessary */
-    if (ib->sbuf_used + klen + sizeof(*k) > ib->sbuf_sz) {
-        ib->sbuf_sz += SCRATCH_BUFSZ;
-        ib->sbuf = realloc(ib->sbuf, ib->sbuf_sz * sizeof(*ib->sbuf));
-        if (!ib->sbuf)
-            return merr(ENOMEM);
-    }
+    l->node_lcp_len = ib_lcp_len(l, kobj);
 
-    ib->node_lcp_len = ib_lcp_len(ib, kobj);
-
-    k = (void *)(ib->sbuf + ib->sbuf_used);
+    k = (void *)(l->sbuf + l->sbuf_used);
     k->child_idx = child_idx;
-    key_obj_copy(k->kdata, ib->sbuf_sz - ib->sbuf_used, &k->klen, kobj);
+    key_obj_copy(k->kdata, l->sbuf_sz - l->sbuf_used, &k->klen, kobj);
 
-    ib->sbuf_used += k->klen + sizeof(*k);
+    l->sbuf_used += sizeof(*k) + roundup(k->klen, 8);
 
     return 0;
 }
@@ -212,7 +293,7 @@ ib_node_publish(struct intern_level *ib, uint last_child)
         assert((void *)entry < sfxp);
 
         entry++;
-        k = (void *)k + sizeof(*k) + k->klen;
+        k = (void *)k + sizeof(*k) + roundup(k->klen, 8);
     }
 
     /* should have space for this last entry */
@@ -225,50 +306,68 @@ ib_node_publish(struct intern_level *ib, uint last_child)
 }
 
 static merr_t
-ib_new_node(struct wbb *wbb, struct intern_level *ib)
+ib_new_node(struct wbb *wbb, struct intern_level *l)
 {
+    struct intern_builder *ib = l->ibldr;
     struct intern_node *n;
 
-    n = kmem_cache_alloc(ib_node_cache, GFP_KERNEL);
-    if (!n)
-        return merr(ENOMEM);
+    if (ib->nodec < NELEM(ib->nodev)) {
+        n = ib->nodev + ib->nodec;
+    } else {
+        n = kmem_cache_alloc(ib_node_cache, 0);
+        if (!n)
+            return merr(ENOMEM);
+    }
+
+    n->next = NULL;
 
     n->buf = wbb_inode_get_page(wbb);
     if (!n->buf) {
-        kmem_cache_free(ib_node_cache, n);
+        ib_node_free(ib, n);
         return merr(ENOMEM);
     }
 
-    n->next = 0;
-    ib->sbuf_used = 0;
+    ++ib->nodec;
 
-    if (ib->node_curr)
-        ib->node_curr->next = n;
+    if (l->node_curr)
+        l->node_curr->next = n;
     else
-        ib->node_head = n;
+        l->node_head = n;
 
-    ib->node_curr = n;
+    l->node_curr = n;
+    l->sbuf_used = 0;
 
     return 0;
 }
 
 struct intern_level *
-ib_level_create(struct intern_builder *ibldr, uint level)
+ib_level_create(struct intern_builder *ib, uint level)
 {
     struct intern_level *l;
-    merr_t               err;
+    merr_t err;
 
-    l = calloc(1, sizeof(*l));
-    if (ev(!l))
-        return 0;
+    if (ib->levelc < NELEM(ib->levelv)) {
+        l = ib->levelv + ib->levelc;
 
-    err = ib_new_node(ibldr->wbb, l);
-    if (err) {
-        free(l);
-        return 0;
+        memset(l, 0, sizeof(*l));
+        l->sbuf = ib->sbufv + IB_ESBUFSZ_MAX * ib->levelc;
+        l->sbuf_sz = IB_ESBUFSZ_MAX;
+    } else {
+        l = calloc(1, sizeof(*l));
+        if (!l)
+            return NULL;
     }
 
     l->level = level;
+    l->ibldr = ib;
+
+    err = ib_new_node(ib->wbb, l);
+    if (err) {
+        ib_level_free(ib, l);
+        return NULL;
+    }
+
+    ++ib->levelc;
 
     return l;
 }
@@ -276,17 +375,16 @@ ib_level_create(struct intern_builder *ibldr, uint level)
 void
 ib_level_destroy(struct intern_level *l)
 {
-    struct intern_node *n = l->node_head;
+    struct intern_builder *ib = l->ibldr;
+    struct intern_node *n;
 
-    while (n) {
-        struct intern_node *curr = n;
-
-        n = n->next;
-        kmem_cache_free(ib_node_cache, curr);
+    while (ib->nodec > NELEM(ib->nodev) && (n = l->node_head)) {
+        l->node_head = n->next;
+        if (ib_node_free(ib, n))
+            --ib->nodec;
     }
 
-    free(l->sbuf);
-    free(l);
+    ib_level_free(ib, l);
 }
 
 struct intern_builder *
@@ -294,33 +392,51 @@ ib_create(struct wbb *wbb)
 {
     struct intern_builder *ib;
 
-    ib = malloc(sizeof(*ib));
-    if (!ib)
-        return NULL;
-
-    ib->base = NULL;
-    ib->wbb = wbb;
+    ib = kmem_cache_alloc(ib_cache, 0);
+    if (ib) {
+        ib->base = NULL;
+        ib->wbb = wbb;
+        ib->sbufs = NULL;
+        ib->nodec = 0;
+        ib->levelc = 0;
+    }
 
     return ib;
 }
 
 void
-ib_destroy(struct intern_builder *ibldr)
+ib_reset(struct intern_builder *ib)
 {
     struct intern_level *l;
 
-    if (!ibldr)
+    if (!ib)
         return;
 
-    l = ibldr->base;
-    while (l) {
-        struct intern_level *parent = l->parent;
-
+    while ((l = ib->base)) {
+        ib->base = l->parent;
         ib_level_destroy(l);
-        l = parent;
     }
 
-    free(ibldr);
+    ib->nodec  = 0;
+    ib->levelc  = 0;
+}
+
+void
+ib_destroy(struct intern_builder *ib)
+{
+    u_char *sbuf;
+
+    if (!ib)
+        return;
+
+    ib_reset(ib);
+
+    while ((sbuf = ib->sbufs)) {
+        ib->sbufs = *(void **)sbuf;
+        free(sbuf);
+    }
+
+    kmem_cache_free(ib_cache, ib);
 }
 
 static merr_t
