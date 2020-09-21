@@ -9,7 +9,6 @@
 #define WBUF_LEN_MAX (1024 * 1024)
 #define VBLOCK_HDR_LEN 4096
 
-struct vbb_ext;
 struct cn_merge_stats;
 
 /**
@@ -82,7 +81,6 @@ struct vblock_builder {
     u64                        vgroup;
     bool                       destruct;
     u32                        opt_wrsz;
-    struct vbb_ext *           vbb_ext;
 };
 
 static inline bool

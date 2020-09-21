@@ -20,7 +20,6 @@ struct cn;
 struct kvset_builder;
 struct kvs_rparams;
 struct perfc_set;
-struct c1_bonsai_vbldr;
 struct cn_merge_stats;
 
 #define KVSET_BUILDER_FLAGS_NONE    (0)
@@ -103,10 +102,6 @@ kvset_builder_destroy(struct kvset_builder *builder);
 /* MTF_MOCK */
 void
 kvset_mblocks_destroy(struct kvset_mblocks *kvset);
-
-/* MTF_MOCK */
-u32
-kvset_builder_vblock_hdr_len(void);
 
 /* MTF_MOCK */
 void

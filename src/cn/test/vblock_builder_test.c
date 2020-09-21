@@ -81,9 +81,6 @@ test_setup(struct mtf_test_info *lcl_ti)
     mapi_inject(mapi_idx_tbkt_request, 0);
     mapi_inject(mapi_idx_tbkt_delay, 0);
 
-    mapi_inject(mapi_idx_vbb_create_ext, 0);
-    mapi_inject(mapi_idx_vbb_destroy_ext, 0);
-
     return 0;
 }
 

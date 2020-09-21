@@ -17,7 +17,6 @@ struct c1_bonsai_vbldr;
 
 enum {
     C1_LOG_MLOG,
-    C1_LOG_MBLOCK,
 };
 
 struct c1_log_desc {

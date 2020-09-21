@@ -4,8 +4,8 @@
  */
 
 #define MTF_MOCK_IMPL_vblock_builder
+
 #include "vblock_builder.h"
-#include "vblock_builder_ext.h"
 
 #include <hse_util/alloc.h>
 #include <hse_util/slab.h>
@@ -247,9 +247,6 @@ vbb_destroy(struct vblock_builder *bld)
 
     abort_mblocks(bld->ds, &bld->vblk_list);
     blk_list_free(&bld->vblk_list);
-
-    if (bld->vbb_ext)
-        vbb_destroy_ext(bld);
 
     free_aligned(bld->wbuf);
     free(bld);

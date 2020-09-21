@@ -36,7 +36,6 @@ struct c1_tree {
     struct mpool *      c1t_ds;
     struct c1_log **    c1t_log;
     struct c1_log_desc *c1t_desc;
-    struct c1_mblk *    c1t_mblk;
 };
 
 static inline void
