@@ -21,6 +21,8 @@
 
 /* MTF_MOCK_DECL(ikvdb) */
 
+struct yaml_context;
+
 struct ikvdb;
 struct ikvdb_impl;
 struct kvdb_txn;
@@ -528,6 +530,16 @@ ikvdb_export(struct ikvdb *handle, struct kvdb_cparams *cparams, const char *pat
  */
 merr_t
 ikvdb_import_kvdb_cparams(const char *path, struct kvdb_cparams *kvdb_cparams);
+
+/**
+ * ikvdb_kvs_query_tree() - get cn tree shape and write to fd
+ * @kvs:  kvs handle
+ * @yc:   yaml context
+ * @fd:   output file descriptor
+ * @list: whether or not to list kblock and vblock ids
+ */
+merr_t
+ikvdb_kvs_query_tree(struct hse_kvs *kvs, struct yaml_context *yc, int fd, bool list);
 
 /*
  * [HSE_REVISIT] - This whole callback setup up needs to be reworked.
