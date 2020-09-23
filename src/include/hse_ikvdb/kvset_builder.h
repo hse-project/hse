@@ -20,13 +20,11 @@ struct cn;
 struct kvset_builder;
 struct kvs_rparams;
 struct perfc_set;
-struct c1_bonsai_vbldr;
 struct cn_merge_stats;
 
-#define KVSET_BUILDER_FLAGS_NONE (0)
-#define KVSET_BUILDER_FLAGS_SPARE (1u << 0)
-#define KVSET_BUILDER_FLAGS_EXT (1u << 1)    /* from c1, to cn root node */
-#define KVSET_BUILDER_FLAGS_INGEST (1u << 2) /* from c0 or c1, to cn root node */
+#define KVSET_BUILDER_FLAGS_NONE    (0)
+#define KVSET_BUILDER_FLAGS_SPARE   (1u << 0)
+#define KVSET_BUILDER_FLAGS_INGEST  (1u << 2) /* from c0 or c1, to cn root node */
 
 /* MTF_MOCK_DECL(kvset_builder) */
 /* MTF_MOCK */
@@ -81,8 +79,7 @@ kvset_builder_add_val(
     u64                     seq,
     const void *            vdata,
     uint                    vlen,
-    uint                    complen,
-    struct c1_bonsai_vbldr *vbldr);
+    uint                    complen);
 
 /* MTF_MOCK */
 merr_t
@@ -105,47 +102,6 @@ kvset_builder_destroy(struct kvset_builder *builder);
 /* MTF_MOCK */
 void
 kvset_mblocks_destroy(struct kvset_mblocks *kvset);
-
-/* MTF_MOCK */
-merr_t
-kvset_builder_flush_vblock(struct kvset_builder *self);
-
-/* MTF_MOCK */
-merr_t
-kvset_builder_add_val_ext(
-    struct kvset_builder *self,
-    u64                   seq,
-    const void *          vdata,
-    uint                  vlen,
-    bool                  wait,
-    u8                    index,
-    u64 *                 vbidout,
-    uint *                vbidxout,
-    uint *                vboffout);
-
-/* MTF_MOCK */
-void
-kvset_builder_get_c0c1vstat(struct kvset_builder *self, u64 *c0_vlen, u64 *c1_vlen);
-
-/* MTF_MOCK */
-merr_t
-kvset_builder_finish_vblock(struct kvset_builder *self, u8 index);
-
-/* MTF_MOCK */
-void
-kvset_builder_remove_unused_vblocks(struct kvset_builder *self);
-
-/* MTF_MOCK */
-u32
-kvset_builder_vblock_hdr_len(void);
-
-/* MTF_MOCK */
-u32
-kvset_builder_get_committed_vblock_count(struct kvset_builder *self);
-
-/* MTF_MOCK */
-merr_t
-kvset_builder_merge_vblocks(struct kvset_builder *dst, struct kvset_builder *src);
 
 /* MTF_MOCK */
 void

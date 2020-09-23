@@ -122,26 +122,26 @@ MTF_DEFINE_UTEST_PREPOST(test, t_kvset_builder_add_entry1, pre, post)
      * Four flavors for add_val
      */
     /* zlen values: vlen or both vdata and vlen set to 0 */
-    err = kvset_builder_add_val(bld, seq1, 0, 0, 0, NULL);
+    err = kvset_builder_add_val(bld, seq1, 0, 0, 0);
     ASSERT_EQ(err, 0);
-    err = kvset_builder_add_val(bld, seq1, vdata1, 0, 0, NULL);
+    err = kvset_builder_add_val(bld, seq1, vdata1, 0, 0);
     ASSERT_EQ(err, 0);
     /* tombstone: vlen can be zero or non-zero */
-    err = kvset_builder_add_val(bld, seq1, HSE_CORE_TOMB_REG, 0, 0, NULL);
+    err = kvset_builder_add_val(bld, seq1, HSE_CORE_TOMB_REG, 0, 0);
     ASSERT_EQ(err, 0);
-    err = kvset_builder_add_val(bld, seq1, HSE_CORE_TOMB_REG, vlen1, 0, NULL);
+    err = kvset_builder_add_val(bld, seq1, HSE_CORE_TOMB_REG, vlen1, 0);
     ASSERT_EQ(err, 0);
     /* pfx tombstone: vlen can be zero or non-zero */
-    err = kvset_builder_add_val(bld, seq1, HSE_CORE_TOMB_PFX, 0, 0, NULL);
+    err = kvset_builder_add_val(bld, seq1, HSE_CORE_TOMB_PFX, 0, 0);
     ASSERT_EQ(err, 0);
-    err = kvset_builder_add_val(bld, seq1, HSE_CORE_TOMB_PFX, vlen1, 0, NULL);
+    err = kvset_builder_add_val(bld, seq1, HSE_CORE_TOMB_PFX, vlen1, 0);
     ASSERT_EQ(err, 0);
     /* real values */
-    err = kvset_builder_add_val(bld, seq1, vdata1, vlen1, 0, NULL);
+    err = kvset_builder_add_val(bld, seq1, vdata1, vlen1, 0);
     ASSERT_EQ(err, 0);
-    err = kvset_builder_add_val(bld, seq2, vdata2, vlen2, 0, NULL);
+    err = kvset_builder_add_val(bld, seq2, vdata2, vlen2, 0);
     ASSERT_EQ(err, 0);
-    err = kvset_builder_add_val(bld, seq2, 0, 0, 0, NULL);
+    err = kvset_builder_add_val(bld, seq2, 0, 0, 0);
     ASSERT_EQ(err, 0);
 
     /*
@@ -200,7 +200,7 @@ MTF_DEFINE_UTEST_PREPOST(test, t_kvset_builder_add_val_fail1, pre, post)
 
     api = mapi_idx_vbb_add_entry;
     mapi_inject(api, 1234);
-    err = kvset_builder_add_val(bld, seq, value, strlen(value), 0, NULL);
+    err = kvset_builder_add_val(bld, seq, value, strlen(value), 0);
     ASSERT_EQ(err, 1234);
 
     mapi_inject_unset(api);
@@ -270,7 +270,7 @@ MTF_DEFINE_UTEST_PREPOST(test, t_reserve_kmd2, pre, post)
 
     /* Do it again with kvset_builder_add_val */
     for (i = 0; i < 100; i++) {
-        err = kvset_builder_add_val(bld, seq, "foobar", 6, 0, NULL);
+        err = kvset_builder_add_val(bld, seq, "foobar", 6, 0);
         if (err)
             break;
     }
@@ -313,7 +313,7 @@ MTF_DEFINE_UTEST_PREPOST(test, t_kvset_builder_get_mblocks, pre, post)
     ASSERT_EQ(err, 0);
     ASSERT_TRUE(bld);
 
-    err = kvset_builder_add_val(bld, seq, "foobar", 6, 0, NULL);
+    err = kvset_builder_add_val(bld, seq, "foobar", 6, 0);
     ASSERT_EQ(err, 0);
 
     key2kobj(&ko, "foobar", 6);

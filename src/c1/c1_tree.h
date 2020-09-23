@@ -14,8 +14,6 @@
 
 struct c1_log;
 struct c1_complete;
-struct c1_kvset_builder;
-struct c1_kvset_builder_elem;
 struct c1_mblk;
 
 struct c1_tree {
@@ -38,7 +36,6 @@ struct c1_tree {
     struct mpool *      c1t_ds;
     struct c1_log **    c1t_log;
     struct c1_log_desc *c1t_desc;
-    struct c1_mblk *    c1t_mblk;
 };
 
 static inline void
@@ -129,7 +126,6 @@ c1_tree_space_threshold(struct c1_tree *tree);
 merr_t
 c1_tree_issue_kvb(
     struct c1_tree *              tree,
-    struct c1_kvset_builder_elem *vldr,
     u64                           ingestid,
     u64                           vsize,
     int                           idx,

@@ -356,24 +356,24 @@ MTF_DEFINE_UTEST_PREPOST(c0_kvmultiset_test, ingest_mutation_test, no_fail_pre, 
     ASSERT_EQ(0, err);
     ASSERT_NE((struct c0_kvmultiset *)NULL, kvms);
 
-    err = c0kvmsm_iterv_alloc(kvms, 1, 0, 2, 10, NULL, &iterv);
+    err = c0kvmsm_iterv_alloc(kvms, 1, 0, 2, 10, &iterv);
     ASSERT_EQ(0, err);
 
     for (i = 0; i < 2; i++)
-        kvb_builder_iter_destroy(iterv[i], NULL);
+        kvb_builder_iter_destroy(iterv[i]);
 
     mapi_inject(mapi_idx_malloc, 0);
-    err = c0kvmsm_iterv_alloc(kvms, 1, 0, 2, 10, NULL, &iterv);
+    err = c0kvmsm_iterv_alloc(kvms, 1, 0, 2, 10, &iterv);
     ASSERT_EQ(ENOMEM, merr_errno(err));
     mapi_inject_unset(mapi_idx_malloc);
 
     mapi_inject_once(mapi_idx_malloc, 2, 0);
-    err = c0kvmsm_iterv_alloc(kvms, 1, 0, 2, 10, NULL, &iterv);
+    err = c0kvmsm_iterv_alloc(kvms, 1, 0, 2, 10, &iterv);
     ASSERT_EQ(ENOMEM, merr_errno(err));
     mapi_inject_unset(mapi_idx_malloc);
 
     mapi_inject_once(mapi_idx_malloc, 3, 0);
-    err = c0kvmsm_iterv_alloc(kvms, 1, 0, 2, 10, NULL, &iterv);
+    err = c0kvmsm_iterv_alloc(kvms, 1, 0, 2, 10, &iterv);
     ASSERT_EQ(ENOMEM, merr_errno(err));
     mapi_inject_unset(mapi_idx_malloc);
 

@@ -385,116 +385,9 @@ c1_log_add_val_mlog(struct c1_vtuple *vt, struct iovec *iov, size_t *size, int *
     *logtype = C1_LOG_MLOG;
 }
 
-static inline bool
-c1_log_use_mblock(struct c1_kvset_builder_elem *vbldr, struct c1_vtuple *vt, u64 kvbsize, u64 vsize)
-{
-    if (!vbldr || (vt->c1vt_data == HSE_CORE_TOMB_REG) || (vt->c1vt_data == HSE_CORE_TOMB_PFX) ||
-        (vt->c1vt_vlen <= HSE_C1_SMALL_VALUE_THRESHOLD))
-        return false;
-
-    return true;
-}
-
-static merr_t
-c1_log_add_val(
-    struct c1_log *               log,
-    struct c1_kvset_builder_elem *vbldr,
-    u32                           skidx,
-    u64                           cnid,
-    struct c1_vtuple *            vt,
-    struct iovec *                iov,
-    size_t *                      size,
-    int *                         logtype,
-    u8                            tidx,
-    u64                           kvbsize,
-    u64                           vsize)
-{
-    struct c1_mblk_omf *    omf;
-    struct c1_bonsai_vbldr *vbb;
-    merr_t                  err;
-    atomic64_t *            vbbptr;
-
-    /*
-     * [HSE_REVISIT] Need a more comprehensive criteria for
-     * making the decision (mlog or mblock) here which includes
-     * media class.
-     */
-    if (!c1_log_use_mblock(vbldr, vt, kvbsize, vsize)) {
-        c1_log_add_val_mlog(vt, iov, size, logtype);
-        return 0;
-    }
-
-    if (atomic_read(&log->c1l_mb_lowutil) > 0) {
-        c1_log_add_val_mlog(vt, iov, size, logtype);
-        return 0;
-    }
-
-    *logtype = C1_LOG_MBLOCK;
-
-    mutex_lock(&log->c1l_ingest_mtx);
-    vbb = cheap_malloc(log->c1l_cheap[tidx], sizeof(*vbb));
-    omf = cheap_malloc(log->c1l_cheap[tidx], sizeof(*omf));
-
-    if (!vbb || !omf || (atomic_read(&log->c1l_mb_lowutil) > 0)) {
-        mutex_unlock(&log->c1l_ingest_mtx);
-        c1_log_add_val_mlog(vt, iov, size, logtype);
-        return 0;
-    }
-
-    memset(vbb, 0, sizeof(*vbb));
-    memset(omf, 0, sizeof(*omf));
-
-    vbbptr = (atomic64_t *)vt->c1vt_vbuilder;
-    atomic64_set(vbbptr, 0);
-
-    err = c1_kvset_builder_add_val(
-        vbldr,
-        skidx,
-        cnid,
-        vt->c1vt_seqno,
-        vt->c1vt_data,
-        vt->c1vt_vlen,
-        tidx,
-        &vbb->cbv_gen,
-        &vbb->cbv_blkid,
-        &vbb->cbv_blkidx,
-        &vbb->cbv_blkoff,
-        &vbb->cbv_bldr);
-
-    if (err && merr_errno(err) == ENOSPC)
-        atomic_set(&log->c1l_mb_lowutil, 1);
-
-    mutex_unlock(&log->c1l_ingest_mtx);
-    if (err) {
-        c1_log_add_val_mlog(vt, iov, size, logtype);
-
-        return 0;
-    }
-
-    omf_set_c1mblk_id(omf, vbb->cbv_blkid);
-    omf_set_c1mblk_off(omf, vbb->cbv_blkoff);
-
-    vbb->cbv_blkvlen = vt->c1vt_vlen;
-    vbb->cbv_blkval = (u64)vt->c1vt_data;
-
-    /*
-     * c0sk_ingest_worker reads the above fields to validate
-     * contents.
-     */
-    smp_mb();
-    atomic64_set(vbbptr, (unsigned long)vbb);
-
-    *size += sizeof(*omf);
-    iov->iov_base = omf;
-    iov->iov_len = sizeof(*omf);
-
-    return 0;
-}
-
 merr_t
 c1_log_issue_kvb(
     struct c1_log *               log,
-    struct c1_kvset_builder_elem *vbldr,
     u64                           ingestid,
     u64                           vsize,
     struct c1_kvbundle *          kvb,
@@ -623,20 +516,7 @@ c1_log_issue_kvb(
             ++i;
             assert(i < numiov);
 
-            err = c1_log_add_val(
-                log,
-                vbldr,
-                next->c1kvt_skidx,
-                next->c1kvt_cnid,
-                nextvt,
-                &iov[i],
-                &size,
-                &logtype,
-                tidx,
-                kvb->c1kvb_size,
-                vsize);
-            if (ev(err))
-                return err;
+            c1_log_add_val_mlog(nextvt, &iov[i], &size, &logtype);
 
             omf_set_c1vt_logtype(&vt[j], logtype);
 

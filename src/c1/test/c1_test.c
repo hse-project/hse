@@ -1009,11 +1009,11 @@ again:
     ASSERT_EQ(0, err);
 
     mapi_inject(mapi_idx_malloc, 0);
-    err = kvb_builder_iter_alloc(1, 1, 0, 2, NULL, &iter);
+    err = kvb_builder_iter_alloc(1, 1, 0, 2, &iter);
     ASSERT_EQ(ENOMEM, merr_errno(err));
     mapi_inject_unset(mapi_idx_malloc);
 
-    kvb_builder_iter_destroy(NULL, NULL);
+    kvb_builder_iter_destroy(NULL);
     kvb_builder_iter_put(NULL);
 
     err = c1_issue_iter(c1, NULL, 0, &ci.ci_total, C1_INGEST_SYNC);

@@ -49,8 +49,7 @@ _kvset_builder_add_val(
     u64                     seq,
     const void *            vdata,
     uint                    vlen,
-    uint                    complen,
-    struct c1_bonsai_vbldr *vbldr)
+    uint                    complen)
 {
     return 0;
 }

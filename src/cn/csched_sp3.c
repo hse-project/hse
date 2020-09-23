@@ -1512,12 +1512,6 @@ sp3_submit(struct sp3 *sp, struct cn_compaction_work *w, uint qnum, uint rbt_idx
             break;
     }
 
-    /* Use mcache for root spills to efficiently handle c1 vblocks. */
-    if (cn_node_isroot(tn)) {
-        w->cw_iter_flags |= kvset_iter_flag_mcache;
-        w->cw_io_workq = NULL;
-    }
-
     w->cw_sched = sp;
     w->cw_completion = sp3_work_complete;
     w->cw_progress = sp3_work_progress;

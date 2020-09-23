@@ -4,8 +4,8 @@
  */
 
 #define MTF_MOCK_IMPL_vblock_builder
+
 #include "vblock_builder.h"
-#include "vblock_builder_ext.h"
 
 #include <hse_util/alloc.h>
 #include <hse_util/slab.h>
@@ -208,9 +208,8 @@ vbb_create(
     u64                     vgroup,
     uint                    flags)
 {
-    struct vblock_builder *bld;
-    struct kvs_rparams *   rp;
-    merr_t                 err;
+    struct vblock_builder  *bld;
+    struct kvs_rparams     *rp;
 
     assert(builder_out);
 
@@ -226,22 +225,12 @@ vbb_create(
     bld->flags = flags;
     bld->vgroup = vgroup;
     bld->max_size = rp->vblock_size_mb << 20;
+    bld->agegroup = HSE_MPOLICY_AGE_LEAF;
 
     bld->wbuf = alloc_page_aligned(WBUF_LEN_MAX, 0);
     if (ev(!bld->wbuf)) {
         free(bld);
         return merr(ENOMEM);
-    }
-    bld->agegroup = HSE_MPOLICY_AGE_LEAF;
-
-    if (flags & KVSET_BUILDER_FLAGS_EXT) {
-        err = vbb_create_ext(bld, rp);
-        if (ev(err)) {
-            free_aligned(bld->wbuf);
-            free(bld);
-            return err;
-        }
-        bld->agegroup = HSE_MPOLICY_AGE_SYNC;
     }
 
     *builder_out = bld;
@@ -258,9 +247,6 @@ vbb_destroy(struct vblock_builder *bld)
 
     abort_mblocks(bld->ds, &bld->vblk_list);
     blk_list_free(&bld->vblk_list);
-
-    if (bld->vbb_ext)
-        vbb_destroy_ext(bld);
 
     free_aligned(bld->wbuf);
     free(bld);

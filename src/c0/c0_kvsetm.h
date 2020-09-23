@@ -58,8 +58,6 @@ struct c0_kvsetm {
  * @c0s_mindex:   mutation index
  */
 struct c0kvsm_info {
-    struct bonsai_kv ***c0s_bkvs;
-    u32 *               c0s_nbkv;
     u64                 c0s_minseqno;
     u64                 c0s_maxseqno;
     u64                 c0s_tseqno;
@@ -72,6 +70,8 @@ struct c0kvsm_info {
     bool                c0s_ptomb;
     u16                 c0s_nkiter;
     s8                  c0s_mindex;
+    u32                *c0s_nbkv;
+    struct bonsai_kv  **c0s_bkvs[];
 };
 
 enum c0kvsm_mut_type {
@@ -225,13 +225,11 @@ c0kvsm_get_maxseq(struct c0_kvset *c0kvs, u8 mindex);
  * c0kvsm_info_init - Initialize a mutation info instance
  * @info:
  * @gen:
- * @bkvs:
- * @nbkv:
  * @nkiter:
  * @istxn:
  */
 void
-c0kvsm_info_init(struct c0kvsm_info *info, u64 gen, void *bkvs, void *nbkv, u16 nkiter, bool istxn);
+c0kvsm_info_init(struct c0kvsm_info *info, u64 gen, u16 nkiter, bool istxn);
 
 /**
  * c0kvsm_info_bkv_first - Returns the first bkv element from rbtree

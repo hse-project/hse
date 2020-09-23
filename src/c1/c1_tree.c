@@ -555,7 +555,6 @@ c1_tree_reserve_space_iter(
 merr_t
 c1_tree_issue_kvb(
     struct c1_tree *              tree,
-    struct c1_kvset_builder_elem *vbldr,
     u64                           ingestid,
     u64                           vsize,
     int                           idx,
@@ -575,7 +574,7 @@ c1_tree_issue_kvb(
     log = tree->c1t_log[idx];
 
     return c1_log_issue_kvb(
-        log, vbldr, ingestid, vsize, kvb, seqno, txnid, gen, mutation, sync, tidx);
+        log, ingestid, vsize, kvb, seqno, txnid, gen, mutation, sync, tidx);
 }
 
 merr_t

@@ -955,62 +955,6 @@ c0skm_ingest_worker(struct work_struct *work)
     }
 }
 
-merr_t
-c0skm_bldr_get(struct c0sk *handle, u64 gen, struct kvset_builder ***bldrout)
-{
-    struct c0sk_mutation * c0skm;
-    struct c0sk_impl *     self;
-    merr_t                 err;
-    struct c1 *            c1h;
-    struct kvset_builder **bldr;
-
-    self = c0sk_h2r(handle);
-    bldr = NULL;
-    c0skm = self->c0sk_mhandle;
-    if (!c0skm)
-        return 0;
-
-    c1h = c0skm->c0skm_c1h;
-    assert(c1h);
-
-    err = c1_builder_get(c1h, gen, &bldr);
-    if (err) {
-        ev(merr_errno(err) != ENOENT);
-        return err;
-    }
-
-    *bldrout = bldr;
-
-    return 0;
-}
-
-void
-c0skm_bldr_put(struct c0sk *handle, u64 gen, u64 c0vlen, u64 c1vlen)
-{
-    struct c0sk_mutation *c0skm;
-    struct c0sk_impl *    self;
-    struct c1 *           c1h;
-    u64                   vratio;
-
-    self = c0sk_h2r(handle);
-    c0skm = self->c0sk_mhandle;
-
-    if (ev(!c0skm))
-        return;
-
-    c1h = c0skm->c0skm_c1h;
-    assert(c1h);
-
-    c1_builder_put(c1h, gen);
-
-    if (!(c1vlen + c0vlen))
-        return;
-
-    vratio = (c1vlen * 100) / (c1vlen + c0vlen);
-
-    perfc_rec_sample(&c0skm->c0skm_pcset_op, PERFC_DI_C0SKM_VBLDRT, vratio);
-}
-
 void
 c0skm_dtime_throttle_sensor(struct c0sk *handle, struct throttle_sensor *sensor)
 {

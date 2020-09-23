@@ -6,7 +6,6 @@
 #ifndef HSE_C1_LOG_H
 #define HSE_C1_LOG_H
 
-struct c1_kvset_builder_elem;
 struct c1_bonsai_vbldr;
 
 #define HSE_C1_KEY_IOVS (1 + 1) /* 1 each for kvt, key*/
@@ -18,7 +17,6 @@ struct c1_bonsai_vbldr;
 
 enum {
     C1_LOG_MLOG,
-    C1_LOG_MBLOCK,
 };
 
 struct c1_log_desc {
@@ -154,7 +152,6 @@ struct c1_ttxn;
 merr_t
 c1_log_issue_kvb(
     struct c1_log *               log,
-    struct c1_kvset_builder_elem *vbldr,
     u64                           ingestid,
     u64                           vsize,
     struct c1_kvbundle *          kvb,

@@ -373,72 +373,8 @@ c1_log_put_mblk_value(struct c1 *c1, struct c1log_mblk *mblk)
 }
 
 static merr_t
-c1_log_get_mblk_value_impl(
-    struct c1 *        c1,
-    u64                blkid,
-    u64                blkoff,
-    struct c1log_mblk *mblk,
-    char **            valueout)
-{
-    struct mpool *           ds;
-    merr_t                   err;
-    struct mpool_mcache_map *map;
-
-    if (blkid == last_mblk.blkid) {
-        *mblk = last_mblk;
-        *valueout = mpool_mcache_getbase(last_mblk.map, 0) + blkoff;
-        return 0;
-    }
-
-    c1_log_put_mblk_value(c1, mblk);
-
-    if (!c1->c1_jrnl) {
-        printf("c1 log error journal missing\n");
-        return merr(EINVAL);
-    }
-
-    ds = c1_journal_get_mp(c1->c1_jrnl);
-    if (!ds) {
-        printf("c1 log error dataset missing\n");
-        return merr(EINVAL);
-    }
-
-    err = mpool_mcache_mmap(ds, 1, &blkid, MPC_VMA_COLD, &map);
-    if (err)
-        return err;
-
-    mblk->blkid = blkid;
-    mblk->map = map;
-    mblk->ds = ds;
-    last_mblk = *mblk;
-
-    *valueout = (char *)(mpool_mcache_getbase(map, 0) + blkoff);
-
-    return 0;
-}
-
-static merr_t
-c1_log_get_mblk_value(struct c1 *c1, char *omf, struct c1log_mblk *mblk, char **valueout)
-{
-    struct c1_mblk_meta mb;
-
-    merr_t err;
-
-    err = c1_record_unpack_bytype(omf, C1_TYPE_MBLK, c1->c1_version, (union c1_record *)&mb);
-    if (ev(err))
-        return err;
-
-    return c1_log_get_mblk_value_impl(c1, mb.c1mblk_id, mb.c1mblk_off, mblk, valueout);
-
-    return 0;
-}
-
-static merr_t
 c1_log_print_vtuple(struct c1 *c1, u64 n, char *vtomf, struct c1_vtuple_meta *vtm)
 {
-    struct c1log_mblk  mblk = {};
-    struct c1log_mblk *mblkp;
-
     char * value = NULL;
     merr_t err;
 
@@ -462,15 +398,7 @@ c1_log_print_vtuple(struct c1 *c1, u64 n, char *vtomf, struct c1_vtuple_meta *vt
     if (!dump_value)
         return 0;
 
-    if (vtm->c1vm_logtype == C1_LOG_MBLOCK) {
-        mblkp = &mblk;
-        err = c1_log_get_mblk_value(c1, vtm->c1vm_data, mblkp, &value);
-        if (err)
-            return err;
-    } else {
-        mblkp = NULL;
-        value = vtm->c1vm_data;
-    }
+    value = vtm->c1vm_data;
 
     if (ascii_fmt) {
         printf("\tvalue contents (ascii) ");
@@ -529,16 +457,7 @@ c1_log_replay_kvtuple(struct c1 *c1, void **nextkey)
             return err;
 
         value += len;
-
-        if (vtm.c1vm_logtype == C1_LOG_MBLOCK) {
-            err = c1_record_type2len(C1_TYPE_MBLK, c1->c1_version, &len);
-            if (ev(err))
-                return err;
-
-            value += len;
-        } else {
-            value += vtm.c1vm_vlen;
-        }
+        value += vtm.c1vm_vlen;
     }
 
     *nextkey = value;

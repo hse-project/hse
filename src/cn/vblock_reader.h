@@ -17,9 +17,8 @@
  * VBR_REVERSE    caller is performing reverse iteration
  * VBR_FULLSCAN   caller intends to read all values
  */
-#define VBR_REVERSE (0x0001u)
-#define VBR_FULLSCAN (0x0002u)
-#define VBR_UNORDERED (0x0004u)
+#define VBR_REVERSE     (0x0001u)
+#define VBR_FULLSCAN    (0x0002u)
 
 struct mpool;
 struct mpool_mcache_map;
@@ -113,22 +112,6 @@ vbr_readahead(
     u32                      ra_len,
     u32                      ra_histc,
     struct ra_hist *         ra_histv,
-    struct workqueue_struct *wq);
-
-/**
- * vbr_readahead_simple()
- * @vbd:   vblock descriptor
- * @off:
- * @vlen:
- * @ra_len:
- * @wq:
- */
-void
-vbr_readahead_simple(
-    struct vblock_desc *     vbd,
-    u32                      off,
-    u32                      vlen,
-    u32                      ra_len,
     struct workqueue_struct *wq);
 
 /**

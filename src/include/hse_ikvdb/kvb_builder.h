@@ -20,7 +20,6 @@ struct c1;
 struct c1_kvcache;
 struct c1_kvbundle;
 struct c0kvsm_info;
-struct c1_kvset_builder_elem;
 
 /**
  * struct kvb_builder_iter - c0 key-value mutation iterator
@@ -30,8 +29,6 @@ struct c1_kvset_builder_elem;
  * @kvbi_kvcache:  c1 kv cache handle
  * @kvbi_info:     kvset mutation info.
  * @kvbi_ingestid: ingest id
- * @kvbi_vbldr:    ptr to vbuilder
- * @kvbi_bldrelm:
  * @kvbi_kvbc:     kv bundle count
  * @kvbi_ref:      reference count
  * @kvbi_ksize:    size of keys mutated
@@ -46,8 +43,6 @@ struct kvb_builder_iter {
     struct c1_kvcache *           kvbi_kvcache;
     struct c0kvsm_info *          kvbi_info;
     u64                           kvbi_ingestid;
-    void *                        kvbi_vbldr;
-    struct c1_kvset_builder_elem *kvbi_bldrelm;
     u64                           kvbi_kvbc;
     int *                         kvbi_ref;
     u64                           kvbi_ksize;
@@ -55,15 +50,13 @@ struct kvb_builder_iter {
 
     merr_t (*get_next)(struct kvb_builder_iter *iter, struct c1_kvbundle **kvb);
     void (*put)(struct kvb_builder_iter *iter);
-
-} __aligned(SMP_CACHE_BYTES);
+};
 
 /*
  * kvb_builder_iter_alloc() -
  * @kvmsgen: kvms generation number
  * @gen:     mutation generation
  * @istxn:   tx or non-tx iter
- * @pc:      perfc handle
  * @iter:    iterator handle (output)
  */
 merr_t
@@ -72,7 +65,6 @@ kvb_builder_iter_alloc(
     u64                       gen,
     bool                      istxn,
     u16                       cpi,
-    struct perfc_set *        pc,
     struct kvb_builder_iter **iter);
 
 /*
@@ -106,10 +98,9 @@ kvb_builder_iter_put(struct kvb_builder_iter *iter);
 /*
  * kvb_builder_iter_destroy() -
  * @iter: iterator handle
- * @pc:   perfc handle
  */
 void
-kvb_builder_iter_destroy(struct kvb_builder_iter *iter, struct perfc_set *pc);
+kvb_builder_iter_destroy(struct kvb_builder_iter *iter);
 
 /*
  * kvb_builder_iter_istxn() -

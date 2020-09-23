@@ -16,7 +16,6 @@
 
 struct c0sk;
 struct kvdb_rparams;
-struct kvset_builder;
 struct c1;
 struct throttle_sensor;
 
@@ -64,20 +63,6 @@ c0skm_sync(struct c0sk *self);
  */
 void
 c0skm_set_tseqno(struct c0sk *handle, u64 seqno);
-
-/**
- * c0skm_bldr_get() - get builder from c0skm/c1
- * @self:             Instance of struct c0sk to flush
- * @gen:              kvms gen number
- * @bldrout:          kvset builder
- */
-/* MTF_MOCK */
-merr_t
-c0skm_bldr_get(struct c0sk *self, u64 gen, struct kvset_builder ***bldrout);
-
-/* MTF_MOCK */
-void
-c0skm_bldr_put(struct c0sk *self, u64 gen, u64 c0vlen, u64 c1vlen);
 
 /**
  * c0skm_dtime_throttle_sensor() - Initialize c0skm dtime throttling

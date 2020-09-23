@@ -356,8 +356,6 @@ c1_tree_replay_nextkey(
     struct c1_kvtuple_meta kvtm;
     char *                 vtomf;
     struct c1_vtuple_meta  vtm;
-    char *                 mblkomf = NULL;
-    struct c1_mblk_meta    mblk;
     struct kvs_ktuple      kt;
     struct kvs_vtuple      vt;
     u64                    seqno;
@@ -425,16 +423,7 @@ c1_tree_replay_nextkey(
             return err;
 
         value += len;
-        if (vtm.c1vm_logtype == C1_LOG_MBLOCK) {
-            mblkomf = vtm.c1vm_data;
-            err = c1_record_type2len(C1_TYPE_MBLK, c1->c1_version, &len);
-            if (ev(err))
-                return err;
-
-            value += len;
-        } else {
-            value += vlen;
-        }
+        value += vlen;
 
         assert(seqno >= minseqno);
         assert(seqno <= maxseqno);
@@ -448,24 +437,7 @@ c1_tree_replay_nextkey(
         if (!c1_ingest_seqno(c1, seqno))
             continue;
 
-        if (vtm.c1vm_logtype == C1_LOG_MBLOCK) {
-            err = c1_record_unpack_bytype(
-                mblkomf, C1_TYPE_MBLK, c1->c1_version, (union c1_record *)&mblk);
-            if (ev(err))
-                return err;
-
-            err = c1_mblk_get_val(tree->c1t_mblk, mblk.c1mblk_id, mblk.c1mblk_off, &vdata, vlen);
-            if (ev(err)) {
-                if (merr_errno(err) == ENOENT) {
-                    err = 0;
-                    continue;
-                }
-
-                return err;
-            }
-        } else {
-            vdata = vtm.c1vm_data;
-        }
+        vdata = vtm.c1vm_data;
 
         if (tomb)
             vlen = 0;
@@ -473,13 +445,6 @@ c1_tree_replay_nextkey(
         kvs_vtuple_init(&vt, vdata, vlen);
 
         err = c1_tree_replay_exec(c1, cnid, seqno, &kt, &vt, tomb);
-
-        if (vtm.c1vm_logtype == C1_LOG_MBLOCK)
-            c1_mblk_put_val(tree->c1t_mblk, mblk.c1mblk_id, mblk.c1mblk_off, vdata, vlen);
-        if (ev(err)) {
-            hse_elog(HSE_ERR "%s: c1 kvdb_c1_replay_exec failed: @@e", err, __func__);
-            return err;
-        }
 
         if (!i) {
             atomic64_inc(&tree->c1t_numkeys);
@@ -696,12 +661,6 @@ c1_tree_replay(struct c1 *c1, struct c1_tree *tree)
         return 0;
     }
 
-    err = c1_mblk_create(c1_journal_get_mp(c1->c1_jrnl), &tree->c1t_mblk);
-    if (ev(err)) {
-        hse_elog(HSE_ERR "%s: c1_mblk_create failed: @@e", err, __func__);
-        return err;
-    }
-
     /*
      * Process transactions first. The key/value(s) which are not
      * part of transactions, but arrive before a transaction are
@@ -710,7 +669,6 @@ c1_tree_replay(struct c1 *c1, struct c1_tree *tree)
     err = c1_tree_replay_txn(c1, tree);
     if (ev(err)) {
         hse_elog(HSE_ERR "%s: c1 replay TXN failed: @@e", err, __func__);
-        c1_mblk_destroy(tree->c1t_mblk);
         return err;
     }
 
@@ -719,7 +677,6 @@ c1_tree_replay(struct c1 *c1, struct c1_tree *tree)
      */
     err = c1_tree_replay_kvb(c1, tree, (u64)-1, 0);
     if (ev(err)) {
-        c1_mblk_destroy(tree->c1t_mblk);
         hse_elog(HSE_ERR "%s: c1 replay KVB failed: @@e", err, __func__);
         return err;
     }
@@ -730,12 +687,6 @@ c1_tree_replay(struct c1 *c1, struct c1_tree *tree)
      * and their memory will be freed.
      */
     c1_tree_replay_release_txnkvb(tree);
-
-    c1_mblk_destroy(tree->c1t_mblk);
-    if (ev(err)) {
-        hse_elog(HSE_ERR "%s: kvdb sync failed: @@e", err, __func__);
-        return err;
-    }
 
     hse_log(
         HSE_WARNING "c1 replay summary - tree: %p, ver: %lu-%lu, "

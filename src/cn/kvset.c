@@ -2183,9 +2183,6 @@ struct kvset_iterator {
     struct iter_meta         pti_meta;
 
     struct ra_hist ra_histv[64];
-    u8 *           ra_bitmap; /* For unordered vblocks. */
-    u8             ra_vblk_nbytes;
-    u64            ra_timer;
 
     /* ------------------------------------------------
      * From here down is for iterating via mblock_read
@@ -2517,9 +2514,6 @@ kvset_iter_free_buffers(struct kvset_iterator *iter, struct kblk_reader *kr)
         free(iter->vreaders);
         iter->vreaders = 0;
     }
-
-    free(iter->ra_bitmap);
-    iter->ra_bitmap = NULL;
 }
 
 static merr_t
@@ -2758,23 +2752,6 @@ kvset_iter_create(
 
         if (iter->asyncio)
             kvset_iter_mblock_read_start(iter);
-    } else if (
-        fullscan && iter->vra_len > 0 && ks->ks_node_level == 0 &&
-        !cn_tree_is_capped(ks->ks_tree)) {
-        uint vra_len;
-        uint nbkts;
-
-        iter->vra_flags |= VBR_UNORDERED;
-
-        vra_len = min_t(uint, iter->vra_len * 8, 2 << 20);
-        nbkts = (ks->ks_rp->vblock_size_mb << 20) / vra_len;
-        iter->ra_vblk_nbytes = max_t(uint, nbkts >> 3, 1);
-
-        iter->ra_bitmap = calloc(iter->ks->ks_st.kst_vblks, iter->ra_vblk_nbytes);
-        if (ev(!iter->ra_bitmap)) {
-            err = merr(ENOMEM);
-            goto err_exit1;
-        }
     }
 
     *handle = &iter->handle;
@@ -3637,65 +3614,6 @@ skip_read_ahead:
 }
 
 static void *
-kvset_iter_valptr_mcache_root(struct kvset_iterator *iter, uint vbidx, uint vboff, uint vlen)
-{
-    struct kvset *      ks;
-    struct vblock_desc *vbd;
-
-    uint raoff;
-    uint vra_len;
-    u64  now;
-    u8 * ra_bitmap;
-    u8   index;
-
-    ks = iter->ks;
-    vbd = lvx2vbd(ks, vbidx);
-    raoff = vboff;
-    vra_len = iter->vra_len;
-
-    if (vbd->vbd_vgroup != HSE_C1_VBLOCK_GROUPID) {
-        vbr_readahead(
-            vbd,
-            raoff,
-            vlen,
-            iter->vra_flags,
-            vra_len,
-            NELEM(iter->ra_histv),
-            iter->ra_histv,
-            iter->vra_wq);
-
-        return vbr_value(vbd, vboff, vlen);
-    }
-
-    /* The values in the c1 vblocks have no ordering and needs special
-     * handling.
-     */
-    vra_len = min_t(uint, vra_len * 8, 2 << 20);
-    raoff = vboff & ~(vra_len - 1);
-    index = raoff >> ilog2(vra_len);
-
-    ra_bitmap = iter->ra_bitmap + vbidx * iter->ra_vblk_nbytes;
-
-    /* Reset the RA bitmap every 5 secs. The mcache reaper reaps pages
-     * that are not accessed in the last 10s by default. The readahead
-     * is asynchronous and is not going to impact spill time.
-     */
-    now = get_time_ns();
-    if (now - iter->ra_timer >= 5000ULL * USEC_PER_SEC) {
-        memset(iter->ra_bitmap, 0, iter->ks->ks_st.kst_vblks * iter->ra_vblk_nbytes);
-        iter->ra_timer = now;
-    }
-
-    if (!hse_bitmap_test32(ra_bitmap, index)) {
-        hse_bitmap_set32(ra_bitmap, index);
-
-        vbr_readahead_simple(vbd, raoff, vlen, vra_len, iter->vra_wq);
-    }
-
-    return vbr_value(vbd, vboff, vlen);
-}
-
-static void *
 kvset_iter_get_valptr_mcache(struct kvset_iterator *iter, uint vbidx, uint vboff, uint vlen)
 {
     struct kvset *      ks = iter->ks;
@@ -3705,9 +3623,6 @@ kvset_iter_get_valptr_mcache(struct kvset_iterator *iter, uint vbidx, uint vboff
     assert(vbd);
 
     if (iter->vra_len > 0) {
-        if (iter->vra_flags & VBR_UNORDERED)
-            return kvset_iter_valptr_mcache_root(iter, vbidx, vboff, vlen);
-
         vbr_readahead(
             vbd,
             vboff,

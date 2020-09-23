@@ -219,10 +219,8 @@ c1_open(
 
     c1->c1_jrnl = jrnl;
     c1->c1_ikvdb = ikvdb;
-    c1->c1_c0sk = c0sk;
     c1->c1_rdonly = rdonly;
     c1->c1_kvms_gen = kvmsgen;
-    c1->c1_vbldr = (bool)rparams->dur_vbb;
 
     err = c1_replay(c1);
     if (ev(err))
@@ -554,24 +552,6 @@ u64
 c1_kvmsgen(struct c1 *c1)
 {
     return c1->c1_kvms_gen;
-}
-
-merr_t
-c1_builder_get(struct c1 *c1, u64 gen, struct kvset_builder ***bldrout)
-{
-    return c1_io_kvset_builder_get(c1, gen, bldrout);
-}
-
-void
-c1_builder_put(struct c1 *c1, u64 gen)
-{
-    c1_io_kvset_builder_put(c1, gen);
-}
-
-void
-c1_kvset_builder_release(struct c1 *c1, struct c1_kvset_builder_elem *elem)
-{
-    c1_io_kvset_builder_release(c1, elem);
 }
 
 #if defined(HSE_UNIT_TEST_MODE) && HSE_UNIT_TEST_MODE == 1

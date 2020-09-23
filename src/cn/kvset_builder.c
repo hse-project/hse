@@ -154,8 +154,6 @@ kvset_builder_add_key(struct kvset_builder *self, const struct key_obj *kobj)
  * @vlen: Length of uncompressed value.
  * @complen: Length of compressed value if value is compressed. Must
  *           be set to 0 if value is not compressed.
- * @c1: Handle for c1 builder. Set during ingest from c0/c1 into cn and
- *      used to determine if value exists in a c1 vblock.
  *
  * Notes on compression:
  * - If @complen > 0, then the value is already compressed and will be
@@ -181,8 +179,7 @@ kvset_builder_add_val(
     u64                     seq,
     const void             *vdata,
     uint                    vlen,
-    uint                    complen,
-    struct c1_bonsai_vbldr *c1)
+    uint                    complen)
 {
     merr_t           err;
     u64              seqno_prev;
@@ -210,75 +207,54 @@ kvset_builder_add_val(
 
         uint vbidx = 0, vboff = 0;
         u64 vbid = 0;
-        bool c1value;
         uint omlen; /* on media length */
 
         assert(vdata);
 
-        c1value = c1 && kvset_vbuilder_vblock_exists(self, seq, vdata, vlen,
-            c1, &vbidx, &vboff, &vbid);
+        /* add value to vblock */
 
-        if (c1value) {
-
-            /* value already in a c1 vlbock.
-             * c1 compressed values not currently supported.
+        if (self->compress && complen == 0) {
+            /* Try to compress value.  If it can't be compressed
+             * for whatever reason, just leave complen == 0 and
+             * the following code will figure it out.
              */
-            if (ev(complen > 0)) {
-                assert(0);
-                return merr(EBUG);
+            complen = self->compress->cop_estimate(vdata, vlen);
+
+            if (unlikely(!complen)) {
+                /* compression library says "no" */
+                goto add_entry;
             }
 
-            omlen = vlen;
-
-            self->key_stats.c1_vlen += vlen;
-
-        } else {
-
-            /* add value to vblock */
-
-            if (self->compress && complen == 0) {
-                /* Try to compress value.  If it can't be compressed
-                 * for whatever reason, just leave complen == 0 and
-                 * the following code will figure it out.
-                 */
-                complen = self->compress->cop_estimate(vdata, vlen);
-
-                if (unlikely(!complen)) {
-                    /* compression library says "no" */
+            if (unlikely(self->compress_buf_sz < complen)) {
+                /* need a bigger buffer */
+                free(self->compress_buf);
+                self->compress_buf_sz = ALIGN(complen, PAGE_SIZE);
+                self->compress_buf = malloc(self->compress_buf_sz);
+                if (unlikely(!self->compress_buf)) {
+                    self->compress_buf_sz = 0;
+                    complen = 0;
                     goto add_entry;
                 }
-
-                if (unlikely(self->compress_buf_sz < complen)) {
-                    /* need a bigger buffer */
-                    free(self->compress_buf);
-                    self->compress_buf_sz = ALIGN(complen, PAGE_SIZE);
-                    self->compress_buf = malloc(self->compress_buf_sz);
-                    if (unlikely(!self->compress_buf)) {
-                        self->compress_buf_sz = 0;
-                        complen = 0;
-                        goto add_entry;
-                    }
-                }
-
-                err = self->compress->cop_compress(vdata, vlen,
-                    self->compress_buf, self->compress_buf_sz,
-                    &complen);
-
-                if (complen > HSE_KVS_VLEN_MAX || ev(err))
-                    complen = 0;
-                else
-                    vdata = self->compress_buf;
             }
 
-          add_entry:
-            /* vblock builder needs on-media length */
-            omlen = complen ? complen : vlen;
-            err = vbb_add_entry(self->vbb, vdata, omlen, &vbid, &vbidx, &vboff);
-            if (ev(err))
-                return err;
+            err = self->compress->cop_compress(vdata, vlen,
+                                               self->compress_buf, self->compress_buf_sz,
+                                               &complen);
 
-            self->key_stats.c0_vlen += omlen;
+            if (complen > HSE_KVS_VLEN_MAX || ev(err))
+                complen = 0;
+            else
+                vdata = self->compress_buf;
         }
+
+      add_entry:
+        /* vblock builder needs on-media length */
+        omlen = complen ? complen : vlen;
+        err = vbb_add_entry(self->vbb, vdata, omlen, &vbid, &vbidx, &vboff);
+        if (ev(err))
+            return err;
+
+        self->key_stats.c0_vlen += omlen;
 
         if (complen)
             kmd_add_cval(self->main.kmd, &self->main.kmd_used, seq, vbidx, vboff, vlen, complen);
@@ -466,44 +442,6 @@ kvset_builder_get_mblocks(struct kvset_builder *self, struct kvset_mblocks *mblk
         mblks->bl_last_ptlen = self->last_ptlen;
         mblks->bl_last_ptseq = self->last_ptseq;
     }
-
-    return 0;
-}
-
-merr_t
-kvset_builder_merge_vblocks(struct kvset_builder *dst, struct kvset_builder *src)
-{
-    struct blk_list blk;
-    merr_t          err;
-    u32             baseidx;
-
-    u32 nblks __maybe_unused;
-    u32 count __maybe_unused;
-
-    assert(dst);
-    assert(src);
-
-    err = vbb_finish(src->vbb, &blk);
-    if (err)
-        return err;
-
-    baseidx = vbb_get_blk_count(dst->vbb);
-
-    /* Update base index post merge so that the function
-     * kvset_vbuilder_vblock_exists() which gets called later
-     * retrieves the actual index in the merged kvset builder.
-     */
-    src->vblk_baseidx = baseidx;
-
-    nblks = blk.n_blks;
-
-    err = vbb_blk_list_merge(dst->vbb, src->vbb, &blk);
-    if (ev(err))
-        return err;
-
-    count = vbb_get_blk_count(dst->vbb);
-
-    assert(count == (baseidx + nblks));
 
     return 0;
 }

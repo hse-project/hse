@@ -378,14 +378,6 @@ void
 c0sk_kvset_builder_destroy(struct c0sk *c0sk, struct kvset_builder *bldr);
 
 /**
- * c0sk_kvset_builder_flush() - Commits mblocks in builder
- * @c0sk: c0sk handle
- * @bldr: builder
- */
-merr_t
-c0sk_kvset_builder_flush(struct c0sk *c0sk, struct kvset_builder *bldr);
-
-/**
  * c0sk_enable_mutation() - Enable mutation tracking.
  * @c0sk: c0sk handle
  */

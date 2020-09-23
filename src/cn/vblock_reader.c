@@ -92,31 +92,6 @@ vbr_desc_update(
 }
 
 void
-vbr_readahead_simple(
-    struct vblock_desc *     vbd,
-    u32                      voff,
-    u32                      vlen,
-    u32                      ra_len,
-    struct workqueue_struct *wq)
-{
-    size_t end;
-
-    assert(ra_len >= PAGE_SIZE);
-
-    end = roundup(voff + vlen, ra_len);
-    voff &= PAGE_MASK;
-    ra_len = end - voff;
-
-    if (voff + ra_len > vbd->vbd_len)
-        ra_len = vbd->vbd_len - voff;
-
-    if (wq)
-        vbr_madvise_async(vbd, voff, ra_len, MADV_WILLNEED, wq);
-    else
-        vbr_madvise(vbd, voff, ra_len, MADV_WILLNEED);
-}
-
-void
 vbr_readahead(
     struct vblock_desc *     vbd,
     u32                      voff,

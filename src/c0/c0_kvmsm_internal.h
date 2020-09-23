@@ -41,7 +41,6 @@ c0kvmsm_iterv_alloc(
     bool                       istxn,
     u32                        iterc,
     u16                        nkiter,
-    struct perfc_set *         pc,
     struct kvb_builder_iter ***iterv);
 
 void

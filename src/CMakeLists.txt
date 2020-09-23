@@ -107,8 +107,6 @@ set( CN_SOURCE_FILES
      cn/wbt_reader_v4.c
      cn/wbt_reader_v5.c
      cn/wbt_reader.c
-     cn/vblock_builder_ext.c
-     cn/kvset_builder_ext.c
      cn/vcomp_params.c
      )
 
@@ -167,8 +165,6 @@ set( C1_SOURCE_FILES
     c1/c1_compact.c
     c1/c1_kv.c
     c1/c1_perfc.c
-    c1/c1_vbuilder.c
-    c1/c1_mblk.c
     c1/c1_diag.c
     c1/c1_omf.c
     )
