@@ -50,14 +50,6 @@ c1_journal_inc_seqno(struct c1_journal *jrnl)
     jrnl->c1j_gen = 0;
 }
 
-static inline struct mpool *
-c1_journal_get_mp(struct c1_journal *jrnl)
-{
-    assert(jrnl);
-
-    return jrnl->c1j_mp;
-}
-
 merr_t
 c1_journal_alloc(struct mpool *mp, int mediaclass, u64 capacity, struct c1_journal **out);
 
