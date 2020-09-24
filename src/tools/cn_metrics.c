@@ -33,6 +33,7 @@ usage(void)
            "-h      show this help list\n"
            "-l      use alternate node loc format\n"
            "-n      show node-level data only (skip kvsets)\n"
+           "-y      output tree shape in yaml\n"
            "FMT  h=human(default), s=scalar, x=hex, e=exp\n"
            "\n");
 }
@@ -209,6 +210,7 @@ struct options {
     uint bnfmt; /* big number format */
     int  nodes_only;
     int  all_blocks;
+    int  yaml_output;
     int  alternate_loc;
 
     /* derived */
@@ -224,7 +226,7 @@ process_options(int argc, char *argv[])
 {
     int c;
 
-    while ((c = getopt(argc, argv, ":bf:hln")) != -1) {
+    while ((c = getopt(argc, argv, ":bf:hlny")) != -1) {
         switch (c) {
             case 'h':
                 usage();
@@ -255,6 +257,9 @@ process_options(int argc, char *argv[])
                 }
                 break;
 
+            case 'y':
+                opt.yaml_output = 1;
+                break;
             case '?':
                 syntax("invalid option -%c", optopt);
                 exit(EX_USAGE);
@@ -542,16 +547,6 @@ main(int argc, char **argv)
     opt.bnfmt = BN_HUMAN;
     process_options(argc, argv);
 
-    /* derived options */
-    opt.bnfw = bn_width(opt.bnfmt);
-    if (opt.alternate_loc) {
-        opt.loc_hdr = "Lvl Off Idx";
-        opt.loc_fmt = "%3d %3d %3d";
-    } else {
-        opt.loc_hdr = "Loc";
-        opt.loc_fmt = "%d,%d,%d";
-    }
-
     rc = hse_kvdb_init();
     if (rc) {
         errmsg = "kvdb_init";
@@ -577,17 +572,40 @@ main(int argc, char **argv)
         goto done;
     }
 
-    cn = ikvdb_kvs_get_cn(kvs);
-    if (!cn) {
-        errmsg = "cn_open";
-        rc = merr(EBUG);
-        goto done;
+    if (opt.yaml_output) {
+        char yaml_buf[4096]; /* Meant to fit one line of the yaml output */
+        struct yaml_context yc = {
+            .yaml_indent = 0,
+            .yaml_offset = 0,
+            .yaml_buf = yaml_buf,
+            .yaml_buf_sz = sizeof(yaml_buf),
+            .yaml_emit = NULL,
+        };
+
+        rc = ikvdb_kvs_query_tree(kvs, &yc, STDOUT_FILENO, opt.all_blocks);
+    } else {
+        /* derived options */
+        opt.bnfw = bn_width(opt.bnfmt);
+        if (opt.alternate_loc) {
+            opt.loc_hdr = "Lvl Off Idx";
+            opt.loc_fmt = "%3d %3d %3d";
+        } else {
+            opt.loc_hdr = "Loc";
+            opt.loc_fmt = "%d,%d,%d";
+        }
+
+        cn = ikvdb_kvs_get_cn(kvs);
+        if (!cn) {
+            errmsg = "cn_open";
+            rc = merr(EBUG);
+            goto done;
+        }
+
+        struct cn_tree *tree = cn_get_tree(cn);
+
+        memset(&ctx, 0, sizeof(ctx));
+        cn_tree_preorder_walk(tree, KVSET_ORDER_NEWEST_FIRST, tree_walk_callback, &ctx);
     }
-
-    struct cn_tree *tree = cn_get_tree(cn);
-
-    memset(&ctx, 0, sizeof(ctx));
-    cn_tree_preorder_walk(tree, KVSET_ORDER_NEWEST_FIRST, tree_walk_callback, &ctx);
 
 done:
     if (kvs)

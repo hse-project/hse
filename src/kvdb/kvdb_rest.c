@@ -459,8 +459,8 @@ print_tree(struct ctx *ctx, struct cn_node_loc *loc, struct kvset *kvset)
     return 0;
 }
 
-static merr_t
-query_tree(struct kvdb_kvs *kvs, struct yaml_context *yc, int fd, bool list)
+merr_t
+kvs_rest_query_tree(struct kvdb_kvs *kvs, struct yaml_context *yc, int fd, bool list)
 {
     struct cn *           cn = kvs_cn(kvs->kk_ikvs);
     struct ctx            ctx;
@@ -606,7 +606,7 @@ rest_kvs_tree(
             return merr(ev(E2BIG));
     }
 
-    query_tree(kvs, &yc, fd, list_blkid);
+    kvs_rest_query_tree(kvs, &yc, fd, list_blkid);
 
     atomic_dec(&kvs->kk_refcnt);
 

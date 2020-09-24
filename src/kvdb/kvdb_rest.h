@@ -15,6 +15,8 @@
 
 #include <hse_ikvdb/kvset_view.h>
 
+struct kvdb_kvs;
+
 merr_t
 kvdb_rest_register(const char *mp_name, void *kvdb);
 
@@ -26,3 +28,6 @@ kvs_rest_register(const char *mp_name, const char *kvs_name, void *kvs);
 
 merr_t
 kvs_rest_deregister(const char *mp_name, const char *kvs_name);
+
+merr_t
+kvs_rest_query_tree(struct kvdb_kvs *kvs, struct yaml_context *yc, int fd, bool list);
