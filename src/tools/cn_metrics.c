@@ -33,6 +33,7 @@ usage(void)
            "-h      show this help list\n"
            "-l      use alternate node loc format\n"
            "-n      show node-level data only (skip kvsets)\n"
+           "-y      output tree shape in yaml\n"
            "FMT  h=human(default), s=scalar, x=hex, e=exp\n"
            "\n");
 }

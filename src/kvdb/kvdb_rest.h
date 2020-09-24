@@ -15,6 +15,8 @@
 
 #include <hse_ikvdb/kvset_view.h>
 
+struct kvdb_kvs;
+
 merr_t
 kvdb_rest_register(const char *mp_name, void *kvdb);
 
