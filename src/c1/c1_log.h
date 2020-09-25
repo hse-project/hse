@@ -9,9 +9,9 @@
 #define HSE_C1_KEY_IOVS (1 + 1) /* 1 each for kvt, key*/
 #define HSE_C1_VAL_IOVS (1 + 1) /* 1 each for vallen & val) */
 
-#define HSE_C1_LOG_USEABLE_CAPACITY(_space) (((_space) * 80) / 100)
-#define HSE_C1_LOG_CHEAPSZ                  (1024 * MB)
-#define HSE_C1_SMALL_VALUE_THRESHOLD        16
+/* Efficient computation of (_space * .80).
+ */
+#define HSE_C1_LOG_USEABLE_CAPACITY(_space) (((_space) * 838860ul) >> 20)
 
 enum {
     C1_LOG_MLOG,
@@ -43,7 +43,6 @@ struct c1_log {
     atomic64_t         c1l_cvcount;
     struct mpool *     c1l_mp;
     struct mpool_mlog *c1l_mlh;
-    struct cheap *     c1l_cheap[HSE_C1_DEFAULT_STRIPE_WIDTH];
     struct list_head   c1l_kvb_list;
     struct list_head   c1l_txn_list;
     char *             c1l_ibuf;

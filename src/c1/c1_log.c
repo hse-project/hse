@@ -71,11 +71,6 @@ c1_log_destroy(struct mpool *mp, struct c1_log_desc *desc)
 static void
 c1_log_free(struct c1_log *log)
 {
-    int i;
-
-    for (i = 0; i < HSE_C1_DEFAULT_STRIPE_WIDTH; i++)
-        cheap_destroy(log->c1l_cheap[i]);
-
     free(log->c1l_ibuf);
     free_aligned(log);
 }
@@ -92,7 +87,6 @@ c1_log_alloc(
     struct c1_log **out)
 {
     struct c1_log *log;
-    int            i;
 
     *out = NULL;
 
@@ -124,18 +118,6 @@ c1_log_alloc(
     mutex_init(&log->c1l_ingest_mtx);
     INIT_LIST_HEAD(&log->c1l_kvb_list);
     INIT_LIST_HEAD(&log->c1l_txn_list);
-
-    for (i = 0; i < HSE_C1_DEFAULT_STRIPE_WIDTH; i++) {
-        struct cheap *cheap;
-
-        cheap = cheap_create(16, HSE_C1_LOG_CHEAPSZ / HSE_C1_DEFAULT_STRIPE_WIDTH);
-        if (ev(!cheap)) {
-            c1_log_free(log);
-            return merr(ENOMEM);
-        }
-
-        log->c1l_cheap[i] = cheap;
-    }
 
     *out = log;
 
@@ -258,7 +240,6 @@ merr_t
 c1_log_reset(struct c1_log *log, u64 newseqno, u64 newgen)
 {
     merr_t err;
-    int    i;
 
     err = mpool_mlog_erase(log->c1l_mlh, 0);
     if (ev(err))
@@ -271,9 +252,6 @@ c1_log_reset(struct c1_log *log, u64 newseqno, u64 newgen)
     atomic64_set(&log->c1l_kcount, 0);
     atomic64_set(&log->c1l_ckcount, 0);
     atomic64_set(&log->c1l_cvcount, 0);
-
-    for (i = 0; i < HSE_C1_DEFAULT_STRIPE_WIDTH; i++)
-        cheap_reset(log->c1l_cheap[i], 0);
 
     return c1_log_format(log);
 }
