@@ -14,7 +14,6 @@
 
 struct c1_log;
 struct c1_complete;
-struct c1_mblk;
 
 struct c1_tree {
     struct list_head    c1t_list;     /* c1 tree list */

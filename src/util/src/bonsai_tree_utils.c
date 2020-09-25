@@ -59,7 +59,6 @@ bn_val_alloc(struct bonsai_root *tree, const struct bonsai_sval *sval)
     v->bv_flags = 0;
     v->bv_vlen = vlen;
     v->bv_valuep = sval->bsv_val;
-    v->bv_rock = NULL;
     atomic64_set(&v->bv_priv, 0);
 
     if (vlen > 0)

@@ -68,6 +68,13 @@ c1_log_destroy(struct mpool *mp, struct c1_log_desc *desc)
     return 0;
 }
 
+static void
+c1_log_free(struct c1_log *log)
+{
+    free(log->c1l_ibuf);
+    free_aligned(log);
+}
+
 static merr_t
 c1_log_alloc(
     struct mpool *  mp,
@@ -78,16 +85,16 @@ c1_log_alloc(
     u64             oid,
     u64             capacity,
     struct c1_log **out)
-
 {
     struct c1_log *log;
-    struct cheap * cheap[HSE_C1_DEFAULT_STRIPE_WIDTH];
-    int            i;
 
-    log = calloc(1, sizeof(*log));
-    if (!log)
-        return merr(ev(ENOMEM));
+    *out = NULL;
 
+    log = alloc_aligned(sizeof(*log), SMP_CACHE_BYTES, 0);
+    if (ev(!log))
+        return merr(ENOMEM);
+
+    memset(log, 0, sizeof(*log));
     log->c1l_mdcoid1 = mdcoid1;
     log->c1l_mdcoid2 = mdcoid2;
     log->c1l_oid = oid;
@@ -112,34 +119,9 @@ c1_log_alloc(
     INIT_LIST_HEAD(&log->c1l_kvb_list);
     INIT_LIST_HEAD(&log->c1l_txn_list);
 
-    for (i = 0; i < HSE_C1_DEFAULT_STRIPE_WIDTH; i++) {
-        cheap[i] =
-            cheap_create(sizeof(cheap), HSE_C1_LOG_VBLDR_HEAPSZ / HSE_C1_DEFAULT_STRIPE_WIDTH);
-        if (!cheap[i]) {
-            while (--i >= 0)
-                cheap_destroy(cheap[i]);
-            free(log->c1l_ibuf);
-            free(log);
-            return merr(ev(ENOMEM));
-        }
-        log->c1l_cheap[i] = cheap[i];
-    }
-
     *out = log;
 
     return 0;
-}
-
-static void
-c1_log_free(struct c1_log *log)
-{
-    int i;
-
-    for (i = 0; i < HSE_C1_DEFAULT_STRIPE_WIDTH; i++)
-        cheap_destroy(log->c1l_cheap[i]);
-
-    free(log->c1l_ibuf);
-    free(log);
 }
 
 merr_t
@@ -221,8 +203,8 @@ c1_log_open(
 
     err = mpool_mlog_open(log->c1l_mp, log->c1l_oid, 0, &mlog_gen, &mlh);
     if (ev(err)) {
-        c1_log_free(log);
         hse_elog(HSE_ERR "%s: mpool_mlog_open failed: @@e", err, __func__);
+        c1_log_free(log);
         return err;
     }
 
@@ -258,7 +240,6 @@ merr_t
 c1_log_reset(struct c1_log *log, u64 newseqno, u64 newgen)
 {
     merr_t err;
-    int    i;
 
     err = mpool_mlog_erase(log->c1l_mlh, 0);
     if (ev(err))
@@ -271,9 +252,6 @@ c1_log_reset(struct c1_log *log, u64 newseqno, u64 newgen)
     atomic64_set(&log->c1l_kcount, 0);
     atomic64_set(&log->c1l_ckcount, 0);
     atomic64_set(&log->c1l_cvcount, 0);
-
-    for (i = 0; i < HSE_C1_DEFAULT_STRIPE_WIDTH; i++)
-        cheap_reset(log->c1l_cheap[i], 0);
 
     return c1_log_format(log);
 }

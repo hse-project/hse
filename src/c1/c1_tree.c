@@ -30,10 +30,11 @@ c1_tree_create(
 {
     struct c1_tree *tree;
 
-    tree = malloc(sizeof(*tree));
-    if (!tree)
-        return merr(ev(ENOMEM));
+    tree = alloc_aligned(sizeof(*tree), SMP_CACHE_BYTES, 0);
+    if (ev(!tree))
+        return merr(ENOMEM);
 
+    memset(tree, 0, sizeof(*tree));
     INIT_LIST_HEAD(&tree->c1t_list);
     atomic_set(&tree->c1t_nextlog, 0);
     atomic64_set(&tree->c1t_mutation, 0);
@@ -148,7 +149,7 @@ c1_tree_alloc(
 
     err = c1_tree_alloc_impl(tree);
     if (ev(err)) {
-        free(tree);
+        free_aligned(tree);
         return err;
     }
 
@@ -327,7 +328,7 @@ c1_tree_close(struct c1_tree *tree)
     if (ev(err))
         return err;
 
-    free(tree);
+    free_aligned(tree);
 
     return 0;
 }

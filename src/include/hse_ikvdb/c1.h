@@ -47,16 +47,6 @@ enum c1_ingest_type {
     C1_INGEST_SYNC,
 };
 
-struct c1_bonsai_vbldr {
-    struct kvset_builder *cbv_bldr;
-    u64                   cbv_gen;
-    u64                   cbv_blkid;
-    u32                   cbv_blkidx;
-    u32                   cbv_blkoff;
-    u64                   cbv_blkvlen;
-    u64                   cbv_blkval;
-};
-
 struct c1_kvinfo {
     u64 ck_kcnt;
     u64 ck_vcnt;
@@ -333,13 +323,12 @@ merr_t
 c1_vtuple_alloc(struct c1_kvcache *cc, struct c1_vtuple **cvt);
 
 /**
- * c1_vtuple_init - Initialize a c1 vtuple element
+ * c1_vtuple_init() - Initialize a c1 vtuple element
  * @ckvt: c1 vtuple handle
  * @vlen:
  * @seqno:
  * @data:
  * @tomb:
- * @vbuilder:
  */
 void
 c1_vtuple_init(
@@ -347,8 +336,7 @@ c1_vtuple_init(
     u64                      vlen,
     u64                      seqno,
     void *                   data,
-    bool                     tomb,
-    struct c1_bonsai_vbldr **vbuilder);
+    bool                     tomb);
 
 /**
  * c1_is_clean -

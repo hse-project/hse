@@ -370,7 +370,6 @@ kvb_builder_vtuple_add(
     for (val = bkv->bkv_values; val; val = val->bv_next) {
         enum hse_seqno_state     state;
         struct c1_vtuple *       cvt;
-        struct c1_bonsai_vbldr **vbldr;
 
         merr_t err;
         void * data;
@@ -459,14 +458,12 @@ kvb_builder_vtuple_add(
             tomb = true;
         }
 
-        vbldr = (struct c1_bonsai_vbldr **)&val->bv_rock;
-
         if (*minseqno > seqno)
             *minseqno = seqno;
         if (*maxseqno < seqno)
             *maxseqno = seqno;
 
-        c1_vtuple_init(cvt, len, seqno, data, tomb, vbldr);
+        c1_vtuple_init(cvt, len, seqno, data, tomb);
 
         c1_kvtuple_addval(ckvt, cvt, &tail);
 

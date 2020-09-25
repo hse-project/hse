@@ -20,32 +20,35 @@
  */
 struct c1 {
     struct mutex            c1_list_mtx;
-    struct mutex            c1_active_mtx;
+    struct list_head        c1_tree_new;
+
+    __aligned(SMP_CACHE_BYTES * 2)
     struct mutex            c1_alloc_mtx;
-    struct mutex            c1_txn_mtx;
+    struct mutex            c1_active_mtx;
+    struct list_head        c1_tree_inuse;
     atomic_t                c1_active_cnt;
-    bool                    c1_rdonly;
+
+    __aligned(SMP_CACHE_BYTES)
     u64                     c1_ingest_kvseqno;
     u64                     c1_kvdb_seqno;
     u64                     c1_txnid;
     u64                     c1_kvms_gen;
-    u16                     c1_version; /* used only during replay */
-    struct c1_io *          c1_io;
-    struct c1_journal *     c1_jrnl;
-    struct c1_replay        c1_rep;
-    struct list_head        c1_tree_reset;
-    struct list_head        c1_tree_inuse;
-    struct list_head        c1_tree_clean;
-    struct list_head        c1_tree_new;
-    struct list_head        c1_txn;
-    struct ikvdb *          c1_ikvdb;
+    struct c1_io           *c1_io;
+    struct c1_journal      *c1_jrnl;
+    struct ikvdb           *c1_ikvdb;
     struct ikvdb_c1_replay *c1_replay_hdl;
     struct c1_kvcache       c1_kvc[HSE_C1_DEFAULT_STRIPE_WIDTH];
 
     /* Perf counters */
-    struct perfc_set c1_pcset_op;
-    struct perfc_set c1_pcset_kv;
-    struct perfc_set c1_pcset_tree;
+    struct perfc_set    c1_pcset_op;
+    struct perfc_set    c1_pcset_kv;
+    struct perfc_set    c1_pcset_tree;
+
+    struct c1_replay    c1_rep;
+    u16                 c1_version; /* used only during replay */
+    bool                c1_rdonly;
+    struct list_head    c1_tree_reset;
+    struct list_head    c1_tree_clean;
 };
 
 typedef merr_t
@@ -82,9 +85,9 @@ c1_get_kvdb_seqno(struct c1 *c1)
 }
 BullseyeCoverageRestore
 
-    /* MTF_MOCK */
-    struct c1 *
-    c1_create(const char *mpname);
+/* MTF_MOCK */
+struct c1 *
+c1_create(const char *mpname);
 
 void
 c1_destroy(struct c1 *c1);

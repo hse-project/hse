@@ -63,7 +63,6 @@ struct bonsai_skey {
  * @bv_flags:     flags, used by the client
  * @bv_vlen:      length of value
  * @bv_valuep:    ptr to value
- * @bv_rock:      client-specific rock pointer
  * @bv_value:     value data
  *
  * A bonsai_val includes the value data and may be on both the bnkv_values
@@ -77,7 +76,6 @@ struct bonsai_val {
     unsigned int       bv_flags;
     unsigned int       bv_vlen;
     void *             bv_valuep;
-    void *             bv_rock;
     char               bv_value[];
 };
 
