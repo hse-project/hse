@@ -279,14 +279,12 @@ c1_vtuple_init(
     u64                      vlen,
     u64                      seqno,
     void *                   data,
-    bool                     tomb,
-    struct c1_bonsai_vbldr **vbuilder)
+    bool                     tomb)
 {
     cvt->c1vt_vlen = vlen;
     cvt->c1vt_seqno = seqno;
     cvt->c1vt_data = data;
     cvt->c1vt_tomb = tomb;
-    cvt->c1vt_vbuilder = vbuilder;
 }
 
 void

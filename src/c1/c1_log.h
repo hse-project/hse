@@ -6,14 +6,12 @@
 #ifndef HSE_C1_LOG_H
 #define HSE_C1_LOG_H
 
-struct c1_bonsai_vbldr;
-
 #define HSE_C1_KEY_IOVS (1 + 1) /* 1 each for kvt, key*/
 #define HSE_C1_VAL_IOVS (1 + 1) /* 1 each for vallen & val) */
 
-#define HSE_C1_LOG_USEABLE_CAPACITY(space) ((space * 80) / 100)
-#define HSE_C1_LOG_VBLDR_HEAPSZ (1024 * MB)
-#define HSE_C1_SMALL_VALUE_THRESHOLD 16
+#define HSE_C1_LOG_USEABLE_CAPACITY(_space) (((_space) * 80) / 100)
+#define HSE_C1_LOG_CHEAPSZ                  (1024 * MB)
+#define HSE_C1_SMALL_VALUE_THRESHOLD        16
 
 enum {
     C1_LOG_MLOG,
@@ -81,7 +79,6 @@ struct c1_vtuple {
     u64                      c1vt_vlen;
     u64                      c1vt_seqno;
     void *                   c1vt_data;
-    struct c1_bonsai_vbldr **c1vt_vbuilder;
     bool                     c1vt_tomb;
 };
 

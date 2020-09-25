@@ -93,10 +93,11 @@ c1_create(const char *mpname)
     struct c1 *c1;
     merr_t     err;
 
-    c1 = malloc(sizeof(*c1));
+    c1 = alloc_aligned(sizeof(*c1), __alignof(*c1), 0);
     if (ev(!c1))
         return NULL;
 
+    memset(c1, 0, sizeof(*c1));
     c1->c1_replay_hdl = NULL;
     c1->c1_jrnl = NULL;
     c1->c1_io = NULL;
@@ -106,12 +107,10 @@ c1_create(const char *mpname)
     INIT_LIST_HEAD(&c1->c1_tree_clean);
     INIT_LIST_HEAD(&c1->c1_tree_reset);
     INIT_LIST_HEAD(&c1->c1_tree_new);
-    INIT_LIST_HEAD(&c1->c1_txn);
 
     mutex_init(&c1->c1_list_mtx);
     mutex_init(&c1->c1_active_mtx);
     mutex_init(&c1->c1_alloc_mtx);
-    mutex_init(&c1->c1_txn_mtx);
 
     atomic_set(&c1->c1_active_cnt, 0);
     c1->c1_ingest_kvseqno = C1_INVALID_SEQNO;
@@ -131,7 +130,7 @@ c1_create(const char *mpname)
 
     err = c1_kvcache_create(c1);
     if (ev(err)) {
-        free(c1);
+        free_aligned(c1);
         return NULL;
     }
 
@@ -147,8 +146,15 @@ c1_destroy(struct c1 *c1)
         return;
 
     c1_kvcache_destroy(c1);
+
+    assert(list_empty(&c1->c1_rep.c1r_desc));
+    assert(list_empty(&c1->c1_rep.c1r_complete));
+    assert(list_empty(&c1->c1_rep.c1r_info));
+    assert(list_empty(&c1->c1_rep.c1r_reset));
+    assert(list_empty(&c1->c1_rep.c1r_ingest));
+
     c1_perfc_free(c1);
-    free(c1);
+    free_aligned(c1);
 }
 
 merr_t
@@ -260,11 +266,7 @@ err_exit:
     if (c1 && c1->c1_replay_hdl)
         (void)ikvdb_c1_replay_close(ikvdb, c1->c1_replay_hdl);
 
-    if (c1) {
-        c1_kvcache_destroy(c1);
-        c1_perfc_free(c1);
-        free(c1);
-    }
+    c1_destroy(c1);
     c1_journal_close(jrnl);
 
     return err;
@@ -293,16 +295,7 @@ c1_close(struct c1 *c1)
     if (ev(err2))
         hse_elog(HSE_ERR "%s: Cannot close journal  : @@e", err2, __func__);
 
-    c1_kvcache_destroy(c1);
-
-    assert(list_empty(&c1->c1_rep.c1r_desc));
-    assert(list_empty(&c1->c1_rep.c1r_complete));
-    assert(list_empty(&c1->c1_rep.c1r_info));
-    assert(list_empty(&c1->c1_rep.c1r_reset));
-    assert(list_empty(&c1->c1_rep.c1r_ingest));
-
-    c1_perfc_free(c1);
-    free(c1);
+    c1_destroy(c1);
 
     if (!err)
         err = err2;

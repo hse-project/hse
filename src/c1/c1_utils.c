@@ -674,14 +674,16 @@ c1_destroy_tree(struct mpool *mp, u64 oid1, u64 oid2, struct c1 *c1)
 
     list_for_each_entry_safe (tree, tree_tmp, &c1->c1_tree_inuse, c1t_list) {
         list_del(&tree->c1t_list);
+
         err2 = ev(c1_tree_get_desc(tree, &desc, &numdesc));
         assert(err2 == 0);
+
         err2 = c1_tree_destroy(mp, desc, numdesc);
         if (ev(err2 != 0))
             err = err2;
 
         free(desc);
-        free(tree);
+        free_aligned(tree);
     }
 
     return err;

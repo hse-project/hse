@@ -47,17 +47,17 @@ struct c1_io {
     merr_t                      c1io_err;
     struct perfc_set            c1io_pcset;
     struct c1_io_worker        *c1io_workerv;
+    struct workqueue_struct    *c1io_wq;
+
+    __aligned(SMP_CACHE_BYTES)
+    atomic_t                    c1io_pending;
 
     __aligned(SMP_CACHE_BYTES)
     struct mutex                c1io_space_mtx;
     struct list_head            c1io_qfree;
 
     __aligned(SMP_CACHE_BYTES)
-    atomic_t                    c1io_pending;
-
-    __aligned(SMP_CACHE_BYTES)
     struct c1_io_queue          c1io_ioqv[61];
-    struct workqueue_struct    *c1io_wq;
 };
 
 
