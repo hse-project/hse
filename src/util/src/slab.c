@@ -51,6 +51,8 @@
 #include <hse_util/page.h>
 #include <hse_util/slab.h>
 
+#include <syscall.h>
+
 #define MAX_NUMNODES 4
 
 /* KMC_SPC              number of slabs per chunk (power of 2)
@@ -65,10 +67,11 @@
 #define KMC_CHUNK_MASK (~(KMC_CHUNK_SZ - 1))
 #define KMC_CHUNK_OFFSET (KMC_CHUNK_SZ - sizeof(struct kmc_chunk))
 
-#define KMC_PCPU_MIN (4)
+#define KMC_PCPU_MIN (1)
 #define KMC_PCPU_MAX (32)
 
-#define kmc_slab_first(_head) list_first_entry_or_null((_head), struct kmc_slab, slab_entry)
+#define kmc_slab_first(_head)   list_first_entry_or_null((_head), struct kmc_slab, slab_entry)
+#define kmc_slab_last(_head)    list_last_entry_or_null((_head), struct kmc_slab, slab_entry)
 
 #define kmc_slab_foreach(_slab, _next, _head) \
     list_for_each_entry_safe ((_slab), (_next), (_head), slab_entry)
@@ -100,7 +103,7 @@ struct kmc_zone;
  * @slab_magic:     used to detect access to invalid slab
  * @slab_bitmap:    bitmap of free items within the slab
  *
- * A slab is a 32KB contiguous piece of virtual memory aligned on a 32KB
+ * A slab is a 64KB contiguous piece of virtual memory aligned on a 64KB
  * boundary from which some number of items may be allocated.  The maximum
  * number of items is limited to 1024 (the size of the bitmap), but the
  * actual limit is limited to however many items of a given item size and
@@ -111,11 +114,12 @@ struct kmc_slab {
     struct list_head  slab_entry;
     struct list_head *slab_list;
     struct kmc_chunk *slab_chunk;
-    struct kmc_pcpu * slab_pcpu;
+    struct kmc_pcpu  *slab_pcpu;
     void *            slab_base;
     struct list_head  slab_zentry;
 
-    __aligned(SMP_CACHE_BYTES) bool slab_expired;
+    __aligned(SMP_CACHE_BYTES)
+    bool  slab_expired;
     uint  slab_bmidx;
     uint  slab_imax;
     uint  slab_iused;
@@ -123,7 +127,7 @@ struct kmc_slab {
     ulong slab_zfree;
     void *slab_magic;
     u8    slab_bitmap[sizeof(long) * 16];
-};
+} __aligned(SMP_CACHE_BYTES * 2);
 
 /**
  * struct kmc_node - perf-numa-node chunk management
@@ -140,7 +144,7 @@ struct kmc_node {
     uint             node_nchunks;
     struct list_head node_partial;
     struct list_head node_full;
-} __aligned(SMP_CACHE_BYTES);
+} __aligned(SMP_CACHE_BYTES * 2);
 
 /**
  * struct kmc_chunk - per-numa node affined chunk of memory
@@ -223,7 +227,8 @@ struct kmem_cache {
     void (*zone_ctor)(void *);
     void *zone_magic;
 
-    __aligned(SMP_CACHE_BYTES) spinlock_t zone_lock;
+    __aligned(SMP_CACHE_BYTES * 2)
+    spinlock_t       zone_lock;
     uint             zone_nslabs;
     struct list_head zone_slabs;
     ulong            zone_zalloc;
@@ -242,17 +247,18 @@ struct kmem_cache {
  * struct kmc - kmem cache globals
  */
 static struct {
-    struct kmem_cache *      kmc_pagecache;
+    struct kmem_cache       *kmc_pagecache;
     struct workqueue_struct *kmc_wq;
     atomic_t                 kmc_huge_used;
-    int                      kmc_huge_max;
+    uint                     kmc_huge_max;
 
-    __aligned(SMP_CACHE_BYTES) struct mutex kmc_zone_lock;
+    __aligned(SMP_CACHE_BYTES)
+    struct mutex     kmc_zone_lock;
     struct list_head kmc_zones;
     int              kmc_nzones;
 
     struct kmc_node kmc_nodev[MAX_NUMNODES];
-} kmc __aligned(SMP_CACHE_BYTES);
+} kmc;
 
 static void
 kmc_reaper(struct work_struct *work);
@@ -299,7 +305,7 @@ kmc_chunk_create(struct kmem_cache *zone, struct kmc_node *node)
     struct kmc_chunk *chunk;
     struct kmc_slab * slab;
 
-    int    flags = MAP_ANON | MAP_PRIVATE | MAP_HUGETLB;
+    int    flags = MAP_ANON | MAP_PRIVATE | MAP_HUGETLB | MAP_POPULATE;
     int    prot = PROT_READ | PROT_WRITE;
     size_t chunksz, slabsz, hugesz, basesz;
     void * base, *mem;
@@ -428,16 +434,15 @@ kmc_slab_mprotect(struct kmc_slab *slab, int prot)
 }
 
 struct kmc_slab *
-kmc_slab_alloc(struct kmem_cache *zone, int flags)
+kmc_slab_alloc(struct kmem_cache *zone, uint nodeid, int flags)
 {
     struct kmc_chunk *chunk;
-    struct kmc_slab * slab;
-    struct kmc_node * node;
-    char *            item;
-    int               i;
+    struct kmc_slab  *slab;
+    struct kmc_node  *node;
+    char             *item;
+    int i;
 
-    i = (raw_smp_processor_id() / zone->zone_pcpuc);
-    node = kmc.kmc_nodev + (i % MAX_NUMNODES);
+    node = kmc.kmc_nodev + (nodeid % NELEM(kmc.kmc_nodev));
 
     kmc_node_lock(node);
     chunk = kmc_chunk_first(&node->node_partial);
@@ -597,12 +602,12 @@ kmem_cache_alloc(struct kmem_cache *zone, gfp_t flags)
     struct kmc_slab *slab;
     void *           mem;
     int              idx;
+    uint cpuid, nodeid;
 
     assert(zone);
     assert(zone->zone_magic == zone);
 
-    idx = (raw_smp_processor_id() / 2) % zone->zone_pcpuc;
-    pcpu = zone->zone_pcpuv + idx;
+    pcpu = zone->zone_pcpuv + (raw_smp_processor_id() % zone->zone_pcpuc);
 
     kmc_pcpu_lock(pcpu);
     while (1) {
@@ -619,7 +624,14 @@ kmem_cache_alloc(struct kmem_cache *zone, gfp_t flags)
         }
         kmc_pcpu_unlock(pcpu);
 
-        slab = kmc_slab_alloc(zone, flags);
+        if (syscall(SYS_getcpu, &cpuid, &nodeid)) {
+            cpuid = raw_smp_processor_id();
+            nodeid = cpuid;
+        }
+
+        slab = kmc_slab_alloc(zone, nodeid, flags);
+
+        pcpu = zone->zone_pcpuv + (cpuid % zone->zone_pcpuc);
 
         kmc_pcpu_lock(pcpu);
         if (slab) {
@@ -752,7 +764,7 @@ kmc_reaper(struct work_struct *work)
 {
     struct kmem_cache *zone;
     struct list_head   expired;
-    struct kmc_slab *  slab, *next;
+    struct kmc_slab   *slab, *next;
 
     ulong delay;
     int   i;
@@ -770,15 +782,14 @@ kmc_reaper(struct work_struct *work)
 
         kmc_pcpu_lock(pcpu);
         slab = kmc_slab_first(&pcpu->pcpu_partial);
-        if (slab && slab->slab_iused == 0) {
+        if (slab && slab->slab_iused == 0 && slab != kmc_slab_last(&pcpu->pcpu_partial)) {
             list_del(&slab->slab_entry);
             list_add(&slab->slab_entry, &pcpu->pcpu_empty);
             slab->slab_list = &pcpu->pcpu_empty;
             slab->slab_expired = false;
         }
 
-        kmc_slab_foreach(slab, next, &pcpu->pcpu_empty)
-        {
+        kmc_slab_foreach(slab, next, &pcpu->pcpu_empty) {
             if (slab->slab_expired) {
                 list_del(&slab->slab_entry);
                 list_add(&slab->slab_entry, &expired);
@@ -789,7 +800,8 @@ kmc_reaper(struct work_struct *work)
         kmc_pcpu_unlock(pcpu);
     }
 
-    kmc_slab_foreach(slab, next, &expired) kmc_slab_free(zone, slab);
+    kmc_slab_foreach(slab, next, &expired)
+        kmc_slab_free(zone, slab);
 
     if (zone == kmc.kmc_pagecache) {
         for (i = 0; i < MAX_NUMNODES; ++i) {
@@ -842,7 +854,7 @@ kmem_cache_create(const char *name, size_t size, size_t align, ulong flags, void
     if (iasz > slab_sz / 4)
         return NULL;
 
-    pcpuc = clamp_t(uint, num_online_cpus() / 4, KMC_PCPU_MIN, KMC_PCPU_MAX);
+    pcpuc = clamp_t(uint, num_conf_cpus(), KMC_PCPU_MIN, KMC_PCPU_MAX);
     zone_sz = sizeof(*zone) + sizeof(zone->zone_pcpuv[0]) * pcpuc;
     zone_sz = ALIGN(zone_sz, SMP_CACHE_BYTES);
 
@@ -881,7 +893,41 @@ kmem_cache_create(const char *name, size_t size, size_t align, ulong flags, void
     delay = msecs_to_jiffies(zone->zone_delay);
     queue_delayed_work(kmc.kmc_wq, &zone->zone_dwork, delay);
 
-    return (void *)zone;
+    if (1) {
+        cpu_set_t omask, nmask;
+        void *p;
+	int rc;
+
+        rc = pthread_getaffinity_np(pthread_self(), sizeof(omask), &omask);
+        if (rc) {
+            hse_log(HSE_ERR "%s: getaffinity failed: zone %s, cpu %u, errno %d",
+                    __func__, zone->zone_name, raw_smp_processor_id(), rc);
+            CPU_ZERO(&omask);
+        }
+
+        for (i = 0; i < CPU_COUNT(&omask); ++i) {
+            if (!CPU_ISSET(i, &omask))
+                continue;
+
+            CPU_ZERO(&nmask);
+            CPU_SET(i, &nmask);
+
+            rc = pthread_setaffinity_np(pthread_self(), sizeof(nmask), &nmask);
+            if (rc) {
+                hse_log(HSE_ERR "%s: setaffinity failed: zone %s, cpu %u, errno %d",
+                        __func__, zone->zone_name, i, rc);
+                continue;
+	    }
+
+            p = kmem_cache_alloc(zone, 0);
+            if (p)
+                kmem_cache_free(zone, p);
+	}
+
+        pthread_setaffinity_np(pthread_self(), sizeof(omask), &omask);
+    }
+
+    return zone;
 }
 
 /*
@@ -951,7 +997,7 @@ kmem_cache_init(void)
     mutex_init(&kmc.kmc_zone_lock);
     INIT_LIST_HEAD(&kmc.kmc_zones);
     kmc.kmc_nzones = 0;
-    kmc.kmc_huge_max = 32;
+    kmc.kmc_huge_max = 128;
 
     for (i = 0; i < MAX_NUMNODES; ++i) {
         spin_lock_init(&kmc.kmc_nodev[i].node_lock);
@@ -988,7 +1034,8 @@ kmem_cache_fini(void)
     kmc.kmc_pagecache = NULL;
     mutex_unlock(&kmc.kmc_zone_lock);
 
-    kmc_zone_foreach(zone, next, &kmc.kmc_zones) kmem_cache_destroy((void *)zone);
+    kmc_zone_foreach(zone, next, &kmc.kmc_zones)
+        kmem_cache_destroy((void *)zone);
 
     destroy_workqueue(kmc.kmc_wq);
     mutex_destroy(&kmc.kmc_zone_lock);
@@ -1214,8 +1261,7 @@ kmc_rest_get_vmstat(
           " %7u %7u %9lu %9lu %13lu %13lu\n";
 
     mutex_lock(&kmc.kmc_zone_lock);
-    kmc_zone_foreach(zone, next, &kmc.kmc_zones)
-    {
+    kmc_zone_foreach(zone, next, &kmc.kmc_zones) {
         n = kmc_snprintf(zone, buf, sizeof(buf), fmt);
         if (n > 0) {
             n = min_t(int, n, sizeof(buf));

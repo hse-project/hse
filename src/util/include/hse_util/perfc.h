@@ -24,7 +24,7 @@
  * PERFC_PCT_SCALE          power-of-two scaling factor for pdi_pct
  */
 #define PERFC_VALPERCNT     (64)
-#define PERFC_VALPERCPU     (SMP_CACHE_BYTES / sizeof(struct perfc_val))
+#define PERFC_VALPERCPU     ((SMP_CACHE_BYTES * 2) / sizeof(struct perfc_val))
 #define PERFC_VAL_MAX       (PERFC_VALPERCNT * PERFC_VALPERCPU)
 #define PERFC_IVL_MAX       (PERFC_VALPERCNT / 2 - 1)
 #define PERFC_GRP_MAX       (SMP_CACHE_BYTES / sizeof(struct perfc_bkt) * 2)

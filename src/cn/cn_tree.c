@@ -142,165 +142,6 @@ cn_setname(const char *name)
     pthread_setname_np(pthread_self(), name);
 }
 
-static uint
-rmlock_bktidx(struct rmlock *lock)
-{
-    return (raw_smp_processor_id()) % RMLOCK_MAX;
-}
-
-static void
-rmlock_init(struct rmlock *lock)
-{
-    int i;
-
-    atomic_set(&lock->rm_writer, 0);
-
-    lock->rm_bktmax = min_t(u32, num_conf_cpus(), RMLOCK_MAX);
-    if (lock->rm_bktmax < 2)
-        lock->rm_bktmax = RMLOCK_MAX;
-
-    /* Note:  Unlike pthread r/w locks, linux rw_semaphore prefers
-     * writers to readers.
-     */
-    for (i = 0; i < RMLOCK_MAX; ++i)
-        init_rwsem(&lock->rm_bktv[i].rm_lock);
-
-    /* The last lock in rm_bktv[] is used to serialize writers.  Readers
-     * try to acquire it only if a writer is active.  By making it prefer
-     * readers, we ensure that all readers waiting on a active writer
-     * will be allowed to proceed without interruption by a waiting writer.
-     * Note that this will not starve writers, as the next writer will
-     * be permitted to acquire the write lock once all the previously
-     * interrupted readers have released their read locks.
-     */
-    init_rwsem_reader(&lock->rm_bktv[RMLOCK_MAX].rm_lock);
-    lock->rm_bktv[RMLOCK_MAX].rm_rwcnt = U64_MAX;
-}
-
-static void
-rmlock_destroy(struct rmlock *lock)
-{
-}
-
-void
-rmlock_rlock(struct rmlock *lock, void **cookiep)
-{
-    struct rmlock_bkt *bkt;
-    u64                val;
-
-    bkt = lock->rm_bktv + rmlock_bktidx(lock);
-    val = bkt->rm_rwcnt & ~(1ul << 63);
-
-    while (!rmlock_cmpxchg(&bkt->rm_rwcnt, &val, val + 1)) {
-        if (val & (1ul << 63)) {
-            bkt = lock->rm_bktv + RMLOCK_MAX;
-            down_read(&bkt->rm_lock);
-            break;
-        }
-
-        cpu_relax();
-        val &= ~(1ul << 63);
-    }
-
-    *cookiep = bkt;
-}
-
-void
-rmlock_runlock(void *cookie)
-{
-    struct rmlock_bkt *bkt = cookie;
-    u64                val;
-
-    val = bkt->rm_rwcnt;
-
-    if (val == U64_MAX) {
-        up_read(&bkt->rm_lock);
-        return;
-    }
-
-    while (!rmlock_cmpxchg(&bkt->rm_rwcnt, &val, val - 1))
-        cpu_relax();
-}
-
-static void
-rmlock_yield(struct rmlock *lock, void **cookiep)
-{
-    struct rmlock_bkt *bkt;
-
-    if (atomic_read(&lock->rm_writer)) {
-        rmlock_runlock(*cookiep);
-
-        bkt = lock->rm_bktv + RMLOCK_MAX;
-
-        down_read(&bkt->rm_lock);
-        *cookiep = bkt;
-    }
-}
-
-static void
-rmlock_wlock(struct rmlock *lock)
-{
-    struct rmlock_bkt *bkt;
-
-    u8   busy[RMLOCK_MAX];
-    uint i, n, x;
-    u64  val;
-
-    /* Serialize all writers on the last lock in rm_bktv[], then acquire
-     * all the unlocked locks to prevent new readers from acquiring
-     * them.  Finally, repeatedly attempt to acquire each busy lock
-     * until we've acquired all the locks in rm_bktv[].
-     */
-    down_write(&lock->rm_bktv[RMLOCK_MAX].rm_lock);
-    atomic_set(&lock->rm_writer, 1);
-    bkt = lock->rm_bktv;
-
-    for (i = n = 0; i < lock->rm_bktmax; ++i, ++bkt) {
-        val = 0;
-
-        if (!rmlock_cmpxchg(&bkt->rm_rwcnt, &val, 1ul << 63))
-            busy[n++] = i;
-    }
-
-    while (n > 0) {
-        for (i = x = 0; i < n; ++i) {
-            bkt = lock->rm_bktv + busy[i];
-            val = 0;
-
-            if (!rmlock_cmpxchg(&bkt->rm_rwcnt, &val, 1ul << 63))
-                busy[x++] = busy[i];
-        }
-
-        /* If we didn't acquire all of the remaining locks then
-         * give up the cpu, likely the system is under duress...
-         */
-        if (ev(x > 0))
-            cpu_relax();
-
-        n = x;
-    }
-}
-
-static void
-rmlock_wunlock(struct rmlock *lock)
-{
-    struct rmlock_bkt *bkt = lock->rm_bktv;
-    u64                val;
-    int                i;
-
-    for (i = 0; i < lock->rm_bktmax; ++i, ++bkt) {
-        val = 1ul << 63;
-
-        while (!rmlock_cmpxchg(&bkt->rm_rwcnt, &val, 0)) {
-            cpu_relax();
-            val = 1ul << 63;
-        }
-    }
-
-    atomic_set(&lock->rm_writer, 0);
-    up_write(&lock->rm_bktv[RMLOCK_MAX].rm_lock);
-}
-
 bool
 cn_node_isleaf(const struct cn_tree_node *node);
 
@@ -520,6 +361,7 @@ cn_tree_create(
     struct kvs_rparams *rp)
 {
     struct cn_tree *tree;
+    merr_t err;
 
     *handle = NULL;
 
@@ -570,7 +412,11 @@ cn_tree_create(
     tree->ct_l_nodec = 1;
     tree->ct_lvl_max = 0; /* root at level 0 */
 
-    rmlock_init(&tree->ct_lock);
+    err = rmlock_init(&tree->ct_lock);
+    if (err) {
+        cn_tree_destroy(tree);
+        return err;
+    }
 
     /* setup cn_tree handle and return */
     *handle = tree;
@@ -1143,7 +989,7 @@ vtc_alloc(void)
     struct table *  tab;
     uint            cnt;
 
-    bkt = vtc + (raw_smp_processor_id() / 2) % NELEM(vtc);
+    bkt = vtc + (raw_smp_processor_id() % NELEM(vtc));
 
     spin_lock(&bkt->lock);
     tab = bkt->head;
@@ -1169,7 +1015,7 @@ vtc_free(struct table *tab)
 {
     struct vtc_bkt *bkt;
 
-    bkt = vtc + (raw_smp_processor_id() / 2) % NELEM(vtc);
+    bkt = vtc + (raw_smp_processor_id() % NELEM(vtc));
 
     spin_lock(&bkt->lock);
     if (bkt->cnt < bkt->max) {

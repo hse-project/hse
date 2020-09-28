@@ -9,6 +9,7 @@
 /* MTF_MOCK_DECL(cn_tree_internal) */
 
 #include <hse_util/mutex.h>
+#include <hse_util/rmlock.h>
 #include <hse_util/list.h>
 
 #include <hse/hse_limits.h>
@@ -32,29 +33,6 @@ struct hlog;
  * in the cN tree (i.e., tree->ct_bktv[]).  To update/modify a kvset list,
  * a thread must acquire a write lock on each and every lock in ct_bktv[].
  */
-
-#define RMLOCK_MAX (128)
-
-/**
- * A "read-mostly" lock.
- *
- * [HSE_REVISIT] Move this into platform and formalize the API.  Maybe
- * replace with prwlock...
- */
-struct rmlock_bkt {
-    u64                 rm_rwcnt;
-    struct rw_semaphore rm_lock;
-} __aligned(SMP_CACHE_BYTES);
-
-struct rmlock {
-    atomic_t rm_writer;
-    u32      rm_bktmax;
-
-    struct rmlock_bkt rm_bktv[RMLOCK_MAX + 1];
-};
-
-#define rmlock_cmpxchg(_ptr, _oldp, _new) \
-    __atomic_compare_exchange_n((_ptr), (_oldp), (_new), false, __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST)
 
 /**
  * struct cn_kle_cache - kvset list entry cache
@@ -170,7 +148,7 @@ struct cn_tree {
 
     __aligned(SMP_CACHE_BYTES) struct cn_kle_cache ct_kle_cache;
 
-    __aligned(SMP_CACHE_BYTES) struct rmlock ct_lock;
+    struct rmlock ct_lock;
 };
 
 /**
