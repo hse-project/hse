@@ -1057,9 +1057,9 @@ aligned_alloc(size_t align, size_t size)
 static u64
 kmc_test(int which, size_t size, size_t align, void *zone)
 {
-    void *addrv[1000];
-    u64   itermax = 1000000;
-    u64   tstart, tstop;
+    u64   itermax = 1024 * 8;
+    void *addrv[itermax / 3];
+    u64   tstart;
     int   i;
 
     memset(addrv, 0, sizeof(addrv));
@@ -1069,52 +1069,48 @@ kmc_test(int which, size_t size, size_t align, void *zone)
         int idx = i % ARRAY_SIZE(addrv);
 
         switch (which) {
-            case 1:
-                free(addrv[idx]);
-                addrv[idx] = malloc(size);
-                break;
+        case 1:
+            free(addrv[idx]);
+            addrv[idx] = malloc(size);
+            break;
 
-            case 2:
-                free(addrv[idx]);
-                addrv[idx] = aligned_alloc(align, size);
-                break;
+        case 2:
+            free(addrv[idx]);
+            addrv[idx] = aligned_alloc(align, size);
+            break;
 
-            case 3:
-                free_aligned(addrv[idx]);
-                addrv[idx] = alloc_aligned(size, align, GFP_KERNEL);
-                break;
+        case 3:
+            free_aligned(addrv[idx]);
+            addrv[idx] = alloc_aligned(size, align, GFP_KERNEL);
+            break;
 
-            case 4:
-                kmem_cache_free(zone, addrv[idx]);
-                addrv[idx] = kmem_cache_alloc(zone, GFP_KERNEL);
-                break;
+        case 4:
+            kmem_cache_free(zone, addrv[idx]);
+            addrv[idx] = kmem_cache_alloc(zone, GFP_KERNEL);
+            break;
 
-            default:
-                break;
+        default:
+            break;
         }
     }
 
     for (i = 0; i < ARRAY_SIZE(addrv); ++i) {
         switch (which) {
-            case 1:
-                free(addrv[i]);
-                break;
-            case 2:
-                free(addrv[i]);
-                break;
-            case 3:
-                free_aligned(addrv[i]);
-                break;
-            case 4:
-                kmem_cache_free(zone, addrv[i]);
-                break;
-            default:
-                break;
+        case 3:
+            free_aligned(addrv[i]);
+            break;
+
+        case 4:
+            kmem_cache_free(zone, addrv[i]);
+            break;
+
+        default:
+            free(addrv[i]);
+            break;
         }
     }
-    tstop = get_time_ns();
 
-    return (tstop - tstart) / itermax;
+    return (get_time_ns() - tstart) / itermax;
 }
 
 static void
@@ -1127,42 +1123,47 @@ kmc_rest_get_test(
 {
     char         buf[128];
     const size_t bufsz = sizeof(buf);
-    const char * fmt = "%9zu %9zu %8lu %s\n";
     size_t       sz;
     int          n;
 
-    n = snprintf(buf, sizeof(buf), "%9s %9s %8s %s\n", "SIZE", "ALIGN", "NS/ALLOC", "ALLOCATOR");
+    n = snprintf(buf, sizeof(buf), "%4s %9s %9s %13s %13s %16s\n",
+                 "cpu", "size", "malloc", "aligned_alloc", "alloc_aligned", "kmem_cache_alloc");
     rest_write_safe(info->resp_fd, buf, n);
 
-    for (sz = 8; true; sz *= 2) {
+    for (sz = 8; sz < 4u << 20; sz *= 2) {
         size_t align = sz;
         void * zone;
         u64    nspa;
 
-        nspa = kmc_test(1, sz, align, NULL);
-        nspa = kmc_test(1, sz, align, NULL);
-        n = snprintf(buf, bufsz, fmt, sz, align, nspa, "malloc");
-        rest_write_safe(info->resp_fd, buf, n);
-
-        nspa = kmc_test(2, sz, align, NULL);
-        nspa = kmc_test(2, sz, align, NULL);
-        n = snprintf(buf, bufsz, fmt, sz, align, nspa, "aligned_alloc");
-        rest_write_safe(info->resp_fd, buf, n);
-
-        nspa = kmc_test(3, sz, align, NULL);
-        nspa = kmc_test(3, sz, align, NULL);
-        n = snprintf(buf, bufsz, fmt, sz, align, nspa, "alloc_aligned");
-        rest_write_safe(info->resp_fd, buf, n);
-
         zone = kmem_cache_create(__func__, sz, align, 0, NULL);
-        if (!zone)
-            break;
 
-        nspa = kmc_test(4, sz, align, zone);
-        nspa = kmc_test(4, sz, align, zone);
-        n = snprintf(buf, bufsz, fmt, sz, align, nspa, "kmem_cache_alloc");
+        n = snprintf(buf, bufsz, "%4u %9zu", raw_smp_processor_id(), sz);
         rest_write_safe(info->resp_fd, buf, n);
-        kmem_cache_destroy(zone);
+
+        nspa = kmc_test(1, sz, align, NULL);
+        nspa = kmc_test(1, sz, align, NULL);
+        n = snprintf(buf, bufsz, " %9zu",  nspa);
+        rest_write_safe(info->resp_fd, buf, n);
+
+        nspa = kmc_test(2, sz, align, NULL);
+        nspa = kmc_test(2, sz, align, NULL);
+        n = snprintf(buf, bufsz, " %13zu",  nspa);
+        rest_write_safe(info->resp_fd, buf, n);
+
+        nspa = kmc_test(3, sz, align, NULL);
+        nspa = kmc_test(3, sz, align, NULL);
+        n = snprintf(buf, bufsz, " %13zu",  nspa);
+        rest_write_safe(info->resp_fd, buf, n);
+
+        if (zone) {
+            nspa = kmc_test(4, sz, align, zone);
+            nspa = kmc_test(4, sz, align, zone);
+            n = snprintf(buf, bufsz, " %16zu",  nspa);
+            rest_write_safe(info->resp_fd, buf, n);
+            kmem_cache_destroy(zone);
+        }
+
+        rest_write_safe(info->resp_fd, "\n", 1);
     }
 }
 
