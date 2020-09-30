@@ -30,9 +30,9 @@ struct active_ctxn_set {
  * buckets reasonably constrained w.r.t the number of active ctxns
  * reduces the overhead required to maintain the horizon.
  */
-static const u8 active_ctxn_bkt_maskv[] = { 3,  3,  3,  3,  7,  7,  7,  7,  7,  7,  7,
-                                            15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15,
-                                            15, 15, 31, 31, 31, 31, 31, 31, 31, 31 };
+static const u8 active_ctxn_bkt_maskv[] = {
+    3, 3, 3, 3, 7, 7, 7, 7, 7, 7, 7, 15, 15, 15, 15, 15
+};
 
 /**
  * struct active_ctxn_bkt -
@@ -42,7 +42,7 @@ static const u8 active_ctxn_bkt_maskv[] = { 3,  3,  3,  3,  7,  7,  7,  7,  7,  
 struct active_ctxn_bkt {
     struct active_ctxn_tree *acb_tree;
     volatile u64             acb_min_view_sns;
-} __aligned(SMP_CACHE_BYTES);
+} __aligned(SMP_CACHE_BYTES * 2);
 
 /**
  * struct active_ctxn_set_impl

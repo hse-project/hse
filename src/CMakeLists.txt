@@ -63,6 +63,7 @@ set( UTIL_SOURCE_FILES
     util/src/rest_client.c
     util/src/rest_dt.c
     util/src/rest_dt.h
+    util/src/rmlock.c
     util/src/slab.c
     util/src/table.c
     util/src/time.c

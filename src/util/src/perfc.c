@@ -825,7 +825,7 @@ perfc_ctrseti_alloc(
     /* Allocate the counter set instance in one big chunk.
      */
     sz = sizeof(*seti) + sizeof(seti->pcs_ctrv[0]) * ctrc;
-    sz = roundup(sz, SMP_CACHE_BYTES);
+    sz = roundup(sz, SMP_CACHE_BYTES * 2);
 
     for (n = i = 0; i < ctrc; ++i) {
         const struct perfc_name *entry = &ctrv[i];
@@ -840,7 +840,7 @@ perfc_ctrseti_alloc(
 
     valdatasz = sizeof(struct perfc_val) * PERFC_VALPERCNT * PERFC_VALPERCPU * n + 1;
 
-    seti = alloc_aligned(sz + valdatasz, SMP_CACHE_BYTES, GFP_KERNEL);
+    seti = alloc_aligned(sz + valdatasz, SMP_CACHE_BYTES * 2, GFP_KERNEL);
     if (ev(!seti)) {
         free(dte);
         return merr(ENOMEM);

@@ -11,9 +11,7 @@
 #include <hse_util/hse_err.h>
 #include <hse_util/gfp.h>
 
-#define SLAB_POISON 0x00000800ul
 #define SLAB_HWCACHE_ALIGN 0x00002000ul
-#define SLAB_ACCOUNT 0x04000000ul
 
 static __always_inline void *
 malloc_array(size_t n, size_t size)

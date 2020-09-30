@@ -157,7 +157,7 @@ MTF_DEFINE_UTEST_PREPOST(cn_open_test, cn_open_enomem, pre, post)
     /* cn_open requires `num_allocs` memory allocations. Expose each one
      * and verify we tested them all.
      */
-    num_allocs = 6 + 20; /* 10 perfc set * 2 allocations per set. */
+    num_allocs = 7 + 20; /* 10 perfc set * 2 allocations per set. */
 
     for (i = 0; i <= num_allocs; i++) {
 

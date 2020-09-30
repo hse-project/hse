@@ -224,7 +224,7 @@ kvdb_keylock_list_lock(struct kvdb_keylock *handle, void **cookiep)
     struct kvdb_keylock_impl *klock = kvdb_keylock_h2r(handle);
     struct kvdb_dlock *       dlock = klock->kl_dlockv;
 
-    dlock += (raw_smp_processor_id() / 2) % KVDB_DLOCK_MAX;
+    dlock += raw_smp_processor_id() % KVDB_DLOCK_MAX;
 
     mutex_lock(&dlock->kd_lock);
     *cookiep = dlock;
@@ -347,7 +347,7 @@ kvdb_keylock_expire(struct kvdb_keylock *handle, u64 min_view_sn)
     /* Start with the dlock onto which we most likely queued
      * a lock set.
      */
-    idx = (raw_smp_processor_id() / 2) % KVDB_DLOCK_MAX;
+    idx = raw_smp_processor_id() % KVDB_DLOCK_MAX;
     mask = (1u << KVDB_DLOCK_MAX) - 1;
     INIT_LIST_HEAD(&expired);
 
