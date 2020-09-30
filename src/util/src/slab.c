@@ -371,10 +371,10 @@ kmc_chunk_create(struct kmem_cache *zone, struct kmc_node *node)
         mprotect(base, (size_t)(mem - base), PROT_NONE);
     ev(1);
 
-/* Initialize the chunk header, which is placed at the end
+    /* Initialize the chunk header, which is placed at the end
      * of the chunk.
      */
-chunk_init:
+  chunk_init:
     chunk = mem + chunksz - sizeof(*chunk);
     chunk->ch_magic = chunk;
     chunk->ch_hugecnt = hugecnt;
@@ -607,6 +607,9 @@ kmem_cache_alloc(struct kmem_cache *zone, gfp_t flags)
     assert(zone);
     assert(zone->zone_magic == zone);
 
+    /* TODO: Use cpu core ID here (rather than logical cpu ID) to improve
+     * the likelihood of obtaining NUMA-local memory.
+     */
     pcpu = zone->zone_pcpuv + (raw_smp_processor_id() % zone->zone_pcpuc);
 
     kmc_pcpu_lock(pcpu);
@@ -893,40 +896,52 @@ kmem_cache_create(const char *name, size_t size, size_t align, ulong flags, void
     delay = msecs_to_jiffies(zone->zone_delay);
     queue_delayed_work(kmc.kmc_wq, &zone->zone_dwork, delay);
 
-    if (1) {
+    /* Warm up each per-cpu bucket.  This should equitably distribute
+     * huge pages across all zones at system start and ensure they can
+     * provide an initial minimum of jitter-free allocation requests.
+     */
+    if (true) {
         cpu_set_t omask, nmask;
+        uint cpu;
         void *p;
-	int rc;
+        int rc;
 
+        /* TODO: Use dynamic cpu sets to accomodate more than 1024 cpus...
+         */
         rc = pthread_getaffinity_np(pthread_self(), sizeof(omask), &omask);
         if (rc) {
             hse_log(HSE_ERR "%s: getaffinity failed: zone %s, cpu %u, errno %d",
                     __func__, zone->zone_name, raw_smp_processor_id(), rc);
-            CPU_ZERO(&omask);
+            goto errout;
         }
 
-        for (i = 0; i < CPU_COUNT(&omask); ++i) {
-            if (!CPU_ISSET(i, &omask))
+        cpu = raw_smp_processor_id();
+
+        for (i = 0; i < CPU_SETSIZE; ++i) {
+            cpu = (cpu + 1) % CPU_SETSIZE;
+
+            if (!CPU_ISSET(cpu, &omask))
                 continue;
 
             CPU_ZERO(&nmask);
-            CPU_SET(i, &nmask);
+            CPU_SET(cpu, &nmask);
 
             rc = pthread_setaffinity_np(pthread_self(), sizeof(nmask), &nmask);
             if (rc) {
                 hse_log(HSE_ERR "%s: setaffinity failed: zone %s, cpu %u, errno %d",
-                        __func__, zone->zone_name, i, rc);
+                        __func__, zone->zone_name, cpu, rc);
                 continue;
-	    }
+            }
 
             p = kmem_cache_alloc(zone, 0);
             if (p)
                 kmem_cache_free(zone, p);
-	}
+        }
 
         pthread_setaffinity_np(pthread_self(), sizeof(omask), &omask);
     }
 
+  errout:
     return zone;
 }
 

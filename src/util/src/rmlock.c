@@ -9,7 +9,7 @@
 #define RMLOCK_MAX      (128)
 
 #define rmlock_cmpxchg(_ptr, _oldp, _new) \
-    __atomic_compare_exchange_n((_ptr), (_oldp), (_new), false, __ATOMIC_RELAXED, __ATOMIC_RELAXED)
+    __atomic_compare_exchange_n((_ptr), (_oldp), (_new), false, __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST)
 
 
 static __always_inline uint
@@ -49,7 +49,7 @@ rmlock_init(struct rmlock *lock)
 
     /* rm_sema is used to serialize writers.  Readers acquire it only if
      * a writer is active.  By making it prefer readers, we ensure that
-     * all readers waiting on a active writer will be allowed to proceed
+     * all readers waiting on an active writer will be allowed to proceed
      * without interruption by a waiting writer.
      * Note that this will not starve writers, as the next writer will
      * be permitted to acquire the write only after all readers waiting
@@ -80,7 +80,7 @@ rmlock_rlock(struct rmlock *lock, void **cookiep)
 
     while (!rmlock_cmpxchg(&bkt->rm_rwcnt, &val, val + 1)) {
         if (val & (1ul << 63)) {
-	    bkt = &lock->rm_bkt;
+            bkt = &lock->rm_bkt;
             down_read(&lock->rm_sema);
             break;
         }
