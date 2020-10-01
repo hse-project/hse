@@ -851,7 +851,7 @@ hse_kvdb_flush(struct hse_kvdb *kvdb);
  *
  *     hse_kvdb_compact(<kvdb handle>, HSE_KVDB_COMP_FLAG_CANCEL);
  *
- * See the function hse_kvdb_compact_status(). This function is thread safe.
+ * See the function hse_kvdb_compact_status_get(). This function is thread safe.
  *
  * @param kvdb:  KVDB handle from hse_kvdb_open()
  * @param flags: Compaction flags
@@ -882,7 +882,7 @@ struct hse_kvdb_compact_status {
  * @return The function's error status
  */
 hse_err_t
-hse_kvdb_compact_status(struct hse_kvdb *kvdb, struct hse_kvdb_compact_status *status);
+hse_kvdb_compact_status_get(struct hse_kvdb *kvdb, struct hse_kvdb_compact_status *status);
 
 /**@}*/
 

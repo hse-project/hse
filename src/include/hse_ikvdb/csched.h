@@ -74,7 +74,7 @@ csched_compact_request(struct csched *handle, int flags);
 
 /* MTF_MOCK */
 void
-csched_compact_status(struct csched *handle, struct hse_kvdb_compact_status *status);
+csched_compact_status_get(struct csched *handle, struct hse_kvdb_compact_status *status);
 
 /* MTF_MOCK */
 struct tbkt *

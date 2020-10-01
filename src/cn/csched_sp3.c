@@ -2258,7 +2258,7 @@ sp3_op_compact_request(struct csched_ops *handle, int flags)
 }
 
 static void
-sp3_op_compact_status(struct csched_ops *handle, struct hse_kvdb_compact_status *status)
+sp3_op_compact_status_get(struct csched_ops *handle, struct hse_kvdb_compact_status *status)
 {
     struct sp3 *sp = h2sp(handle);
 
@@ -2468,7 +2468,7 @@ sp3_create(
     sp->ops.cs_notify_ingest = sp3_op_notify_ingest;
     sp->ops.cs_throttle_sensor = sp3_op_throttle_sensor;
     sp->ops.cs_compact_request = sp3_op_compact_request;
-    sp->ops.cs_compact_status = sp3_op_compact_status;
+    sp->ops.cs_compact_status_get = sp3_op_compact_status_get;
     sp->ops.cs_tree_add = sp3_op_tree_add;
     sp->ops.cs_tree_remove = sp3_op_tree_remove;
     sp->ops.cs_tbkt_maint_get = sp3_op_tbkt_maint_get;

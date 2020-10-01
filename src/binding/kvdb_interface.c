@@ -801,13 +801,13 @@ hse_kvdb_compact(struct hse_kvdb *handle, int flags)
 }
 
 hse_err_t
-kvdb_compact_status(struct hse_kvdb *handle, struct hse_kvdb_compact_status *status)
+hse_kvdb_compact_status_get(struct hse_kvdb *handle, struct hse_kvdb_compact_status *status)
 {
     if (ev(!handle || !status))
         return merr(EINVAL);
 
     memset(status, 0, sizeof(*status));
-    ikvdb_compact_status((struct ikvdb *)handle, status);
+    ikvdb_compact_status_get((struct ikvdb *)handle, status);
 
     return 0UL;
 }

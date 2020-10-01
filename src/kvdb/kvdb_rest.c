@@ -142,7 +142,7 @@ rest_kvdb_compact_request(
 }
 
 static merr_t
-rest_kvdb_compact_status(
+rest_kvdb_compact_status_get(
     const char *      path,
     struct conn_info *info,
     const char *      url,
@@ -165,7 +165,7 @@ rest_kvdb_compact_status(
     if (ev(strcmp(action, "status")))
         return merr(EINVAL);
 
-    ikvdb_compact_status(ikvdb, &status);
+    ikvdb_compact_status_get(ikvdb, &status);
 
     buf_off = 0;
     b = snprintf_append(buf, bufsz, &buf_off, "status:\n");
@@ -196,7 +196,7 @@ kvdb_rest_register(const char *mp_name, void *kvdb)
     status = rest_url_register(
         kvdb,
         URL_FLAG_NONE,
-        rest_kvdb_compact_status,
+        rest_kvdb_compact_status_get,
         rest_kvdb_compact_request,
         "mpool/%s/compact",
         mp_name);
