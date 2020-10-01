@@ -2629,6 +2629,11 @@ kvset_iter_enable_mblock_read(struct kvset_iterator *iter)
      * reader because vblocks will be consumed in order.  Kvsets
      * produced by kcompaction will need one reader for each vgroup.
      */
+    if (!iter->ks->ks_vgroups) {
+        iter->vreaders = NULL;
+        return 0;
+    }
+
     iter->vreaders = calloc(iter->ks->ks_vgroups, sizeof(*iter->vreaders));
     if (ev(!iter->vreaders))
         goto nomem;
