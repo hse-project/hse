@@ -6,9 +6,11 @@
 #include <hse_util/platform.h>
 #include <hse_util/event_counter.h>
 #include <hse_util/slab.h>
-#include <hse_ikvdb/limits.h>
 #include <hse_util/log2.h>
 #include <hse_util/fmt.h>
+#include <hse_util/compression_lz4.h>
+
+#include <hse_ikvdb/limits.h>
 #include <hse_ikvdb/c0_kvset.h>
 #include <hse_ikvdb/c0_kvset_iterator.h>
 
@@ -955,10 +957,12 @@ c0kvs_get_excl(
     uintptr_t *              oseqnoref)
 {
     struct c0_kvset_impl *self;
-    struct bonsai_val *   val;
     struct bonsai_skey    skey;
-    struct bonsai_kv *    kv;
-    bool                  found;
+    struct bonsai_val    *val;
+    struct bonsai_kv     *kv;
+    uint copylen, outlen, clen, ulen;
+    bool found;
+    merr_t err;
 
     *oseqnoref = HSE_ORDNL_TO_SQNREF(0);
     *res = NOT_FOUND;
@@ -968,26 +972,46 @@ c0kvs_get_excl(
     kv = NULL;
 
     found = bn_find(self->c0s_broot, &skey, &kv);
-    if (found) {
-        val = c0kvs_findval(handle, kv, view_seqno, seqnoref);
-        if (val) {
-            *oseqnoref = val->bv_seqnoref;
+    if (!found)
+        return 0;
 
-            if (HSE_CORE_IS_TOMB(val->bv_valuep)) {
-                *res = FOUND_TMB;
-            } else {
-                u32 copylen = vbuf->b_len = bonsai_val_len(val);
+    val = c0kvs_findval(handle, kv, view_seqno, seqnoref);
+    if (!val)
+        return 0;
 
-                if (copylen > vbuf->b_buf_sz)
-                    copylen = vbuf->b_buf_sz;
+    *oseqnoref = val->bv_seqnoref;
 
-                if (copylen > 0 && vbuf->b_buf)
-                    memcpy(vbuf->b_buf, val->bv_value, copylen);
+    if (HSE_CORE_IS_TOMB(val->bv_valuep)) {
+        *res = FOUND_TMB;
+        return 0;
+    }
 
-                *res = FOUND_VAL;
-            }
+    vbuf->b_len = bonsai_val_len(val);
+    copylen = vbuf->b_len;
+
+    if (copylen > vbuf->b_buf_sz)
+        copylen = vbuf->b_buf_sz;
+
+    if (copylen > 0 && vbuf->b_buf) {
+        clen = bonsai_val_clen(val);
+        ulen = bonsai_val_ulen(val);
+
+        if (clen > 0) {
+            err = compress_lz4_ops.cop_decompress(
+                val->bv_value, clen, vbuf->b_buf, vbuf->b_buf_sz, &outlen);
+            if (ev(err))
+                return err;
+
+            if (ev(outlen != min_t(uint, ulen, vbuf->b_buf_sz)))
+                return merr(EBUG);
+
+            vbuf->b_len = outlen;
+        } else {
+            memcpy(vbuf->b_buf, val->bv_value, copylen);
         }
     }
+
+    *res = FOUND_VAL;
 
     return 0;
 }
@@ -1087,17 +1111,37 @@ c0kvs_pfx_probe_excl(
         }
 
         if (++qctx->seen == 1) {
-            size_t copylen;
-
-            kbuf->b_len = klen;
-            vbuf->b_len = bonsai_val_len(val);
+            uint copylen, outlen, clen, ulen;
 
             /* copyout key and value */
+            kbuf->b_len = klen;
             copylen = min_t(size_t, kbuf->b_len, kbuf->b_buf_sz);
             memcpy(kbuf->b_buf, kv->bkv_key, copylen);
 
-            copylen = min_t(size_t, vbuf->b_len, vbuf->b_buf_sz);
-            memcpy(vbuf->b_buf, val->bv_value, copylen);
+            vbuf->b_len = bonsai_val_len(val);
+            copylen = vbuf->b_len;
+
+            if (copylen > vbuf->b_buf_sz)
+                copylen = vbuf->b_buf_sz;
+
+            if (copylen > 0 && vbuf->b_buf) {
+                clen = bonsai_val_clen(val);
+                ulen = bonsai_val_ulen(val);
+
+                if (clen > 0) {
+                    err = compress_lz4_ops.cop_decompress(
+                        val->bv_value, clen, vbuf->b_buf, vbuf->b_buf_sz, &outlen);
+                    if (ev(err))
+                        return err;
+
+                    if (ev(outlen != min_t(uint, ulen, vbuf->b_buf_sz)))
+                        return merr(EBUG);
+
+                    vbuf->b_len = outlen;
+                } else {
+                    memcpy(vbuf->b_buf, val->bv_value, copylen);
+                }
+            }
         }
     }
 

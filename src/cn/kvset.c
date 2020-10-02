@@ -1610,7 +1610,6 @@ kvset_lookup_val(struct kvset *ks, struct kvs_vtuple_ref *vref, struct kvs_buf *
         || (copylen >= ks->ks_vmin && ks->ks_node_level >= ks->ks_vminlvl);
 
     if (vref->vb.vr_complen) {
-        extern struct compress_ops compress_lz4_ops;
         uint outlen;
 
         if (direct)
