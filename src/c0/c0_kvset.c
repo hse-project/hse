@@ -402,7 +402,7 @@ c0kvs_ior_cb(
         assert(new_val == NULL);
 
         val = kv->bkv_values;
-        n_vlen = val->bv_vlen;
+        n_vlen = bonsai_val_len(val);
         n_val = (n_vlen == 0) ? val->bv_valuep : val->bv_value;
 
         if (state == HSE_SQNREF_STATE_SINGLE)
@@ -419,8 +419,7 @@ c0kvs_ior_cb(
         else
             mut_seqno = seqno;
 
-        c0kvsm_insert_bkv(
-            (struct c0_kvset *)cli_rock, *code, kv, mut_seqno, klen, n_vlen, 0, txn_op);
+        c0kvsm_insert_bkv(cli_rock, *code, kv, mut_seqno, klen, n_vlen, 0, txn_op);
 
         return;
     }
@@ -491,11 +490,11 @@ c0kvs_ior_cb(
     o_val = NULL;
 
     if (old) {
-        o_vlen = old->bv_vlen;
+        o_vlen = bonsai_val_len(old);
         o_val = (o_vlen == 0) ? old->bv_valuep : old->bv_value;
     }
 
-    n_vlen = new_val->bv_vlen;
+    n_vlen = bonsai_val_len(new_val);
     n_val = (n_vlen == 0) ? new_val->bv_valuep : new_val->bv_value;
 
     c0kvs_ior_stats(
@@ -513,8 +512,7 @@ c0kvs_ior_cb(
     else
         mut_seqno = seqno;
 
-    c0kvsm_insert_bkv(
-        (struct c0_kvset *)cli_rock, *code, kv, mut_seqno, klen, n_vlen, o_vlen, txn_op);
+    c0kvsm_insert_bkv(cli_rock, *code, kv, mut_seqno, klen, n_vlen, o_vlen, txn_op);
 }
 
 static __always_inline bool
@@ -857,9 +855,9 @@ c0kvs_put(
     struct bonsai_sval    sval;
 
     bn_skey_init(key->kt_data, key->kt_len, skidx, &skey);
-    bn_sval_init(value->vt_data, value->vt_len, seqnoref, &sval);
+    bn_sval_init(value->vt_data, value->vt_xlen, seqnoref, &sval);
 
-    return c0kvs_putdel(self, &skey, &sval, key->kt_len + value->vt_len, false);
+    return c0kvs_putdel(self, &skey, &sval, key->kt_len + kvs_vtuple_len(value), false);
 }
 
 merr_t
@@ -978,7 +976,7 @@ c0kvs_get_excl(
             if (HSE_CORE_IS_TOMB(val->bv_valuep)) {
                 *res = FOUND_TMB;
             } else {
-                u32 copylen = vbuf->b_len = val->bv_vlen;
+                u32 copylen = vbuf->b_len = bonsai_val_len(val);
 
                 if (copylen > vbuf->b_buf_sz)
                     copylen = vbuf->b_buf_sz;
@@ -1092,7 +1090,7 @@ c0kvs_pfx_probe_excl(
             size_t copylen;
 
             kbuf->b_len = klen;
-            vbuf->b_len = val->bv_vlen;
+            vbuf->b_len = bonsai_val_len(val);
 
             /* copyout key and value */
             copylen = min_t(size_t, kbuf->b_len, kbuf->b_buf_sz);
@@ -1223,13 +1221,9 @@ c0kvs_debug(struct c0_kvset *handle, void *key, int klen)
             u64   seqno = HSE_SQNREF_TO_ORDNL(v->bv_seqnoref);
             char *label = HSE_CORE_IS_TOMB(v->bv_valuep) ? "tomb" : "len";
 
-            printf(
-                "%sseqnoref %p seqno %lu %s %d",
-                comma,
-                (void *)v->bv_seqnoref,
-                seqno,
-                label,
-                v->bv_vlen);
+            printf("%sseqnoref %p seqno %lu %s %u",
+                   comma, (void *)v->bv_seqnoref,
+                   seqno, label, bonsai_val_len(v));
             comma = ", ";
         }
         printf("\n");

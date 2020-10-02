@@ -1475,10 +1475,12 @@ copy_kv(void *buf, struct kvs_kvtuple *kvt, struct bonsai_kv *bkv, struct bonsai
 
     kvt->kvt_key.kt_len = klen;
     kvt->kvt_key.kt_data = memcpy(buf, bkv->bkv_key, klen);
-    kvt->kvt_value.vt_len = val->bv_vlen;
-    kvt->kvt_value.vt_data = HSE_CORE_IS_TOMB(val->bv_valuep)
-                                 ? val->bv_valuep
-                                 : memcpy(buf + klen, val->bv_value, val->bv_vlen);
+    kvt->kvt_value.vt_xlen = val->bv_xlen;
+
+    if (HSE_CORE_IS_TOMB(val->bv_valuep))
+        kvt->kvt_value.vt_data = val->bv_valuep;
+    else
+        kvt->kvt_value.vt_data = memcpy(buf + klen, val->bv_value, bonsai_val_len(val));
 }
 
 static merr_t
@@ -1848,13 +1850,14 @@ c0sk_cursor_update(
 
 BullseyeCoverageSaveOff
 
-    __maybe_unused void
-    c0sk_cursor_debug_base(
-        struct c0sk *handle,
-        u64          seqno,
-        const void * prefix,
-        int          pfx_len,
-        int          skidx)
+__used __cold
+void
+c0sk_cursor_debug_base(
+    struct c0sk *handle,
+    u64          seqno,
+    const void  *prefix,
+    int          pfx_len,
+    int          skidx)
 {
     struct cursor_summary summary;
     struct c0_cursor *    cur;
@@ -1889,8 +1892,8 @@ BullseyeCoverageSaveOff
         char               vbuf[128];
 
         fmt_hex(kbuf, sizeof(kbuf), kt->kt_data, kt->kt_len);
-        fmt_hex(vbuf, sizeof(vbuf), vt->vt_data, vt->vt_len);
-        printf("%3d, %s = %s, %d\n", kt->kt_len, kbuf, vbuf, vt->vt_len);
+        fmt_hex(vbuf, sizeof(vbuf), vt->vt_data, kvs_vtuple_len(vt));
+        printf("%3d, %s = %s, %u\n", kt->kt_len, kbuf, vbuf, kvs_vtuple_len(vt));
     }
     cur->c0cur_debug = 0;
 
@@ -1901,13 +1904,15 @@ BullseyeCoverageSaveOff
         return;
 }
 
-__maybe_unused void
+__used __cold
+void
 c0sk_cursor_debug(struct c0_cursor *cur)
 {
     c0sk_cursor_debug_base(
         cur->c0cur_c0sk, cur->c0cur_seqno, cur->c0cur_prefix, cur->c0cur_pfx_len, cur->c0cur_skidx);
 }
 
+__used __cold
 static void
 c0sk_cursor_debug_val(struct c0_cursor *cur, uintptr_t seqnoref, struct bonsai_kv *bkv)
 {
@@ -1928,8 +1933,8 @@ c0sk_cursor_debug_val(struct c0_cursor *cur, uintptr_t seqnoref, struct bonsai_k
 
 BullseyeCoverageRestore
 
-    void
-    c0sk_install_callback(struct c0sk *handle, struct kvdb_callback *callback)
+void
+c0sk_install_callback(struct c0sk *handle, struct kvdb_callback *callback)
 {
     struct c0sk_impl *self = c0sk_h2r(handle);
 

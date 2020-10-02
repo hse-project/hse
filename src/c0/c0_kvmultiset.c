@@ -739,8 +739,9 @@ c0kvms_cursor_create(
 
 BullseyeCoverageSaveOff
 
-    __maybe_unused static void
-    c0kvms_cursor_debug(struct c0_kvmultiset *handle, int skidx)
+__used __cold
+static void
+c0kvms_cursor_debug(struct c0_kvmultiset *handle, int skidx)
 {
     struct c0_kvmultiset_cursor cur;
     struct element_source *     es;
@@ -782,7 +783,7 @@ BullseyeCoverageSaveOff
         printf("es %2d: %3d, %s = ", idx, len, disp);
 
         for (v = kv->bkv_values; v; v = v->bv_next) {
-            len = v->bv_vlen;
+            len = v->bv_xlen;
             fmt_pe(disp, max, v->bv_value, len);
             printf(
                 "%s, len %d seqref 0x%lx%s",
@@ -797,14 +798,15 @@ BullseyeCoverageSaveOff
     c0kvms_cursor_destroy(&cur);
 }
 
-__maybe_unused void
+__used __cold
+void
 c0kvms_cursor_kvs_debug(struct c0_kvmultiset *handle, void *key, int klen)
 {
-    /* iterate each c0ms separately, looking for key */
     struct c0_kvmultiset_impl *self = c0_kvmultiset_h2r(handle);
 
     int i;
 
+    /* iterate each c0ms separately, looking for key */
     for (i = 0; i < self->c0ms_num_sets; ++i) {
         printf("kvms %p set[%d] ", self, i);
         c0kvs_debug(self->c0ms_sets[i], key, klen);
@@ -813,19 +815,10 @@ c0kvms_cursor_kvs_debug(struct c0_kvmultiset *handle, void *key, int klen)
 
 BullseyeCoverageRestore
 
-    void
-    c0kvms_cursor_destroy(struct c0_kvmultiset_cursor *cur)
+void
+c0kvms_cursor_destroy(struct c0_kvmultiset_cursor *cur)
 {
-    BullseyeCoverageSaveOff
-        /* this impossible condition prevents debug from being elided */
-        if (cur->c0mc_skidx == -1000)
-    {
-        c0kvms_cursor_debug(cur->c0mc_kvms, 0);
-        c0kvms_cursor_kvs_debug(cur->c0mc_kvms, 0, 0);
-    }
-    BullseyeCoverageRestore
-
-        bin_heap2_destroy(cur->c0mc_bh);
+    bin_heap2_destroy(cur->c0mc_bh);
 }
 
 struct c0_ingest_work *

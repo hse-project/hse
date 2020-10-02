@@ -39,7 +39,7 @@ struct kvs_ktuple {
 
 struct kvs_vtuple {
     void *vt_data;
-    s32   vt_len;
+    u64   vt_xlen;
 };
 
 struct kvs_buf {
@@ -87,10 +87,19 @@ kvs_ktuple_init_nohash(struct kvs_ktuple *kt, const void *key, s32 key_len)
 }
 
 static inline void
-kvs_vtuple_init(struct kvs_vtuple *vt, void *val, s32 val_len)
+kvs_vtuple_init(struct kvs_vtuple *vt, void *val, u64 xlen)
 {
     vt->vt_data = val;
-    vt->vt_len = val_len;
+    vt->vt_xlen = xlen;
+}
+
+static __always_inline uint
+kvs_vtuple_len(const struct kvs_vtuple *vt)
+{
+    uint clen = vt->vt_xlen >> 32;
+    uint ulen = vt->vt_xlen & 0xfffffffful;
+
+    return clen ?: ulen;
 }
 
 static inline void

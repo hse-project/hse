@@ -61,7 +61,7 @@ struct bonsai_skey {
  * @bv_seqnoref:  sequence number reference
  * @bv_priv:      client's private value
  * @bv_flags:     flags, used by the client
- * @bv_vlen:      length of value
+ * @bv_xlen:      length of value
  * @bv_valuep:    ptr to value
  * @bv_value:     value data
  *
@@ -74,24 +74,52 @@ struct bonsai_val {
     uintptr_t          bv_seqnoref;
     atomic64_t         bv_priv;
     unsigned int       bv_flags;
-    unsigned int       bv_vlen;
-    void *             bv_valuep;
+    u64                bv_xlen;
+    void              *bv_valuep;
     char               bv_value[];
 };
+
+static __always_inline uint
+bonsai_val_len(const struct bonsai_val *bv)
+{
+    uint clen = bv->bv_xlen >> 32;
+    uint ulen = bv->bv_xlen & 0xfffffffful;
+
+    return clen ?: ulen;
+}
+
+static __always_inline uint
+bonsai_val_ulen(const struct bonsai_val *bv)
+{
+    return bv->bv_xlen & 0xfffffffful;
+}
+
+static __always_inline uint
+bonsai_val_clen(const struct bonsai_val *bv)
+{
+    return bv->bv_xlen >> 32;
+}
 
 /**
  * struct bonsai_sval - input value argument
  * @bsv_val:      pointer to value data
+ * @bsv_xlen:     value length
  * @bsv_seqnoref: sequence number reference
- * @bsv_unused:   client's private value (unused)
- * @bsv_vlen:     value length
  */
 struct bonsai_sval {
-    void *       bsv_val;
-    uintptr_t    bsv_seqnoref;
-    unsigned int bsv_unused;
-    u32          bsv_vlen;
+    void     *bsv_val;
+    u64       bsv_xlen;
+    uintptr_t bsv_seqnoref;
 };
+
+static __always_inline uint
+bonsai_sval_len(const struct bonsai_sval *bsv)
+{
+    uint clen = bsv->bsv_xlen >> 32;
+    uint ulen = bsv->bsv_xlen & 0xfffffffful;
+
+    return clen ?: ulen;
+}
 
 #define BKV_FLAG_PTOMB 0x01
 #define BKV_FLAG_TOMB_HEAD 0x02
@@ -391,17 +419,16 @@ bn_skey_init(const void *key, s32 klen, u16 index, struct bonsai_skey *skey)
 /**
  * bn_sval_init() - initialize a bonsai_sval instance
  * @val:      value
- * @vlen:     value length
+ * @xlen:     value length
  * @seqnoref: sequence number reference
  * @sval:
  */
 static inline void
-bn_sval_init(void *val, u32 vlen, uintptr_t seqnoref, struct bonsai_sval *sval)
+bn_sval_init(void *val, u64 xlen, uintptr_t seqnoref, struct bonsai_sval *sval)
 {
     sval->bsv_val = val;
-    sval->bsv_vlen = vlen;
+    sval->bsv_xlen = xlen;
     sval->bsv_seqnoref = seqnoref;
-    sval->bsv_unused = 0;
 }
 
 static inline s32

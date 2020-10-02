@@ -28,6 +28,8 @@
 #include <unistd.h>
 #include <sys/types.h>
 
+__thread char tls_vbuf[HSE_KVS_VLEN_MAX + PAGE_SIZE * 2] __aligned(PAGE_SIZE);
+
 static __always_inline u64
 kvdb_lat_startu(const u32 cidx)
 {

@@ -399,7 +399,7 @@ kvb_builder_vtuple_add(
         state = seqnoref_to_seqno(val->bv_seqnoref, &seqno);
         if (state != HSE_SQNREF_STATE_DEFINED) {
             if (istxn && (state == HSE_SQNREF_STATE_INVALID || state == HSE_SQNREF_STATE_UNDEFINED))
-                c0kvsm_add_txpend(c0kvms, iter->kvbi_c0skm, bkv, val->bv_vlen, skidx, &c0kvs);
+                c0kvsm_add_txpend(c0kvms, iter->kvbi_c0skm, bkv, bonsai_val_len(val), skidx, &c0kvs);
             continue;
         }
 
@@ -426,7 +426,7 @@ kvb_builder_vtuple_add(
          * cannot process a tx mutation partially.
          */
         if (istxn && seqno > info->c0s_tseqno) {
-            c0kvsm_add_txpend(c0kvms, iter->kvbi_c0skm, bkv, val->bv_vlen, skidx, &c0kvs);
+            c0kvsm_add_txpend(c0kvms, iter->kvbi_c0skm, bkv, bonsai_val_len(val), skidx, &c0kvs);
             continue;
         }
 
@@ -449,8 +449,8 @@ kvb_builder_vtuple_add(
         tomb = false;
 
         /* For a tombstone, store the unique pointer on media. */
-        if (val->bv_vlen != 0) {
-            len = val->bv_vlen;
+        if (bonsai_val_len(val)) {
+            len = bonsai_val_len(val);
             data = val->bv_value;
         } else if (val->bv_valuep == HSE_CORE_TOMB_REG || val->bv_valuep == HSE_CORE_TOMB_PFX) {
             len = sizeof(val->bv_valuep);
