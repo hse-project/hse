@@ -406,10 +406,8 @@ hse_kvs_put(
 
         err = compress_lz4_ops.cop_compress(val, val_len, tls_vbuf, tls_vbufsz, &clen);
 
-        if (!err && clen > 0 && clen < val_len) {
-            vt.vt_data = tls_vbuf;
-            vt.vt_xlen = ((u64)clen << 32) | val_len; /* TODO: Hide me... */
-        }
+        if (!err && clen < val_len)
+            kvs_vtuple_vcinit(&vt, tls_vbuf, val_len, clen);
     }
 
     err = ikvdb_kvs_put(handle, os, &kt, &vt);

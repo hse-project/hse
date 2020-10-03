@@ -2103,7 +2103,7 @@ ikvdb_kvs_put(
     }
 
     if (start > 0)
-        ikvdb_throttle(parent, start, kt->kt_len + kvs_vtuple_len(vt));
+        ikvdb_throttle(parent, start, kt->kt_len + kvs_vtuple_vlen(vt));
 
     return 0;
 }
@@ -2741,7 +2741,7 @@ ikvdb_kvs_cursor_read(
     *key_len = kvt.kvt_key.kt_len;
 
     *val = kvt.kvt_value.vt_data;
-    *val_len = kvs_vtuple_len(&kvt.kvt_value);
+    *val_len = kvs_vtuple_vlen(&kvt.kvt_value);
 
     perfc_lat_record(
         cur->kc_pkvsl_pc,

@@ -383,7 +383,7 @@ c0sk_builder_add(
             seqno_prev = seqno;
 
         err = kvset_builder_add_val(
-            bldr, seqno, bonsai_val_len(val) ? val->bv_value : val->bv_valuep,
+            bldr, seqno, bonsai_val_vlen(val) ? val->bv_value : val->bv_valuep,
             bonsai_val_ulen(val), bonsai_val_clen(val));
 
         if (ev(err))

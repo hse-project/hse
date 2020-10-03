@@ -1475,12 +1475,13 @@ copy_kv(void *buf, struct kvs_kvtuple *kvt, struct bonsai_kv *bkv, struct bonsai
 
     kvt->kvt_key.kt_len = klen;
     kvt->kvt_key.kt_data = memcpy(buf, bkv->bkv_key, klen);
+
     kvt->kvt_value.vt_xlen = val->bv_xlen;
 
     if (HSE_CORE_IS_TOMB(val->bv_valuep))
         kvt->kvt_value.vt_data = val->bv_valuep;
     else
-        kvt->kvt_value.vt_data = memcpy(buf + klen, val->bv_value, bonsai_val_len(val));
+        kvt->kvt_value.vt_data = memcpy(buf + klen, val->bv_value, bonsai_val_vlen(val));
 }
 
 static merr_t
@@ -1892,8 +1893,8 @@ c0sk_cursor_debug_base(
         char               vbuf[128];
 
         fmt_hex(kbuf, sizeof(kbuf), kt->kt_data, kt->kt_len);
-        fmt_hex(vbuf, sizeof(vbuf), vt->vt_data, kvs_vtuple_len(vt));
-        printf("%3d, %s = %s, %u\n", kt->kt_len, kbuf, vbuf, kvs_vtuple_len(vt));
+        fmt_hex(vbuf, sizeof(vbuf), vt->vt_data, kvs_vtuple_vlen(vt));
+        printf("%3d, %s = %s, %u\n", kt->kt_len, kbuf, vbuf, kvs_vtuple_vlen(vt));
     }
     cur->c0cur_debug = 0;
 

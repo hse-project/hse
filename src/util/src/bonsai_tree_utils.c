@@ -46,7 +46,7 @@ bn_val_alloc(struct bonsai_root *tree, const struct bonsai_sval *sval)
     size_t             sz;
     uint               vlen;
 
-    vlen = bonsai_sval_len(sval);
+    vlen = bonsai_sval_vlen(sval);
     sz = sizeof(*v) + vlen;
 
     v = bn_alloc(tree, sz);

@@ -404,7 +404,7 @@ c0kvs_ior_cb(
         assert(new_val == NULL);
 
         val = kv->bkv_values;
-        n_vlen = bonsai_val_len(val);
+        n_vlen = bonsai_val_vlen(val);
         n_val = (n_vlen == 0) ? val->bv_valuep : val->bv_value;
 
         if (state == HSE_SQNREF_STATE_SINGLE)
@@ -492,11 +492,11 @@ c0kvs_ior_cb(
     o_val = NULL;
 
     if (old) {
-        o_vlen = bonsai_val_len(old);
+        o_vlen = bonsai_val_vlen(old);
         o_val = (o_vlen == 0) ? old->bv_valuep : old->bv_value;
     }
 
-    n_vlen = bonsai_val_len(new_val);
+    n_vlen = bonsai_val_vlen(new_val);
     n_val = (n_vlen == 0) ? new_val->bv_valuep : new_val->bv_value;
 
     c0kvs_ior_stats(
@@ -859,7 +859,7 @@ c0kvs_put(
     bn_skey_init(key->kt_data, key->kt_len, skidx, &skey);
     bn_sval_init(value->vt_data, value->vt_xlen, seqnoref, &sval);
 
-    return c0kvs_putdel(self, &skey, &sval, key->kt_len + kvs_vtuple_len(value), false);
+    return c0kvs_putdel(self, &skey, &sval, key->kt_len + kvs_vtuple_vlen(value), false);
 }
 
 merr_t
@@ -986,7 +986,7 @@ c0kvs_get_excl(
         return 0;
     }
 
-    vbuf->b_len = bonsai_val_len(val);
+    vbuf->b_len = bonsai_val_vlen(val);
     copylen = vbuf->b_len;
 
     if (copylen > vbuf->b_buf_sz)
@@ -1118,7 +1118,7 @@ c0kvs_pfx_probe_excl(
             copylen = min_t(size_t, kbuf->b_len, kbuf->b_buf_sz);
             memcpy(kbuf->b_buf, kv->bkv_key, copylen);
 
-            vbuf->b_len = bonsai_val_len(val);
+            vbuf->b_len = bonsai_val_vlen(val);
             copylen = vbuf->b_len;
 
             if (copylen > vbuf->b_buf_sz)
@@ -1267,7 +1267,7 @@ c0kvs_debug(struct c0_kvset *handle, void *key, int klen)
 
             printf("%sseqnoref %p seqno %lu %s %u",
                    comma, (void *)v->bv_seqnoref,
-                   seqno, label, bonsai_val_len(v));
+                   seqno, label, bonsai_val_vlen(v));
             comma = ", ";
         }
         printf("\n");

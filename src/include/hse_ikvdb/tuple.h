@@ -37,6 +37,15 @@ struct kvs_ktuple {
     s32         kt_len;
 };
 
+/**
+ * struct kvs_vtuple - a container for carrying a value
+ * @vt_data: ptr to the value in-core memory or a special tomb value
+ * @vt_xlen: opaque encoded length
+ *
+ * Always use kvs_vtuple_vlen() to learn the in-core length of a value.
+ * If it returns zero then @kt_data likely is not a valid pointer but
+ * instead encodes a special value (e.g., a tomb).
+ */
 struct kvs_vtuple {
     void *vt_data;
     u64   vt_xlen;
@@ -86,6 +95,16 @@ kvs_ktuple_init_nohash(struct kvs_ktuple *kt, const void *key, s32 key_len)
     kt->kt_hash = 0;
 }
 
+/**
+ * kvs_vtuple_init() - initialize a value tuple
+ * @vt:   the vtuple to initialize
+ * @val:  pointer to the in-core value or other encoding (e.g. tomb)
+ * @xlen: length of @val, opaque encoded @xlen, or zero for tomb
+ *
+ * kvs_vtuple_init() may be used to initialize a simple, uncompressed
+ * value or tomb encoding.  It may also be used to initialize a vtuple
+ * from the fields of an existing encoded vtuple.
+ */
 static inline void
 kvs_vtuple_init(struct kvs_vtuple *vt, void *val, u64 xlen)
 {
@@ -93,13 +112,41 @@ kvs_vtuple_init(struct kvs_vtuple *vt, void *val, u64 xlen)
     vt->vt_xlen = xlen;
 }
 
+/**
+ * kvs_vtuple_vcinit() - initialize a compressed value tuple
+ * @vt:   the vtuple to initialize
+ * @val:  pointer to compressed in-core value
+ * @vlen: the uncompressed value length
+ * @clen: the compressed value length
+ *
+ * A compressed value length should always be greater than zero
+ * and less than the uncompressed value length.  The val pointer
+ * should always be a valid memory pointer, not a tomb encoding.
+ */
+static inline void
+kvs_vtuple_vcinit(struct kvs_vtuple *vt, void *val, uint vlen, uint clen)
+{
+    assert(!(HSE_CORE_IS_TOMB(val) && HSE_CORE_IS_PTOMB(val)));
+    assert(clen > 0 && clen < vlen);
+
+    vt->vt_data = val;
+    vt->vt_xlen = ((u64)clen << 32) | vlen;
+}
+
+/**
+ * kvs_vtuple_vlen() - return in-core value length
+ * @vt: ptr to a vtuple
+ *
+ * kvs_vtuple_vlen() returns the in-core length (in bytes) of the
+ * given vtuple, irrespective of whether or not it is compressed.
+ */
 static __always_inline uint
-kvs_vtuple_len(const struct kvs_vtuple *vt)
+kvs_vtuple_vlen(const struct kvs_vtuple *vt)
 {
     uint clen = vt->vt_xlen >> 32;
-    uint ulen = vt->vt_xlen & 0xfffffffful;
+    uint vlen = vt->vt_xlen & 0xfffffffful;
 
-    return clen ?: ulen;
+    return clen ?: vlen;
 }
 
 static inline void
