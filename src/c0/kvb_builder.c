@@ -449,12 +449,14 @@ kvb_builder_vtuple_add(
         tomb = false;
 
         /* For a tombstone, store the unique pointer on media. */
-        if (bonsai_val_vlen(val)) {
-            len = bonsai_val_vlen(val);
+        if (bonsai_val_vlen(val) > 0) {
             data = val->bv_value;
+            len = val->bv_xlen;
+            tlen += bonsai_val_vlen(val);
         } else if (val->bv_valuep == HSE_CORE_TOMB_REG || val->bv_valuep == HSE_CORE_TOMB_PFX) {
-            len = sizeof(val->bv_valuep);
             data = &val->bv_valuep;
+            len = sizeof(val->bv_valuep);
+            tlen += len;
             tomb = true;
         }
 
@@ -466,8 +468,6 @@ kvb_builder_vtuple_add(
         c1_vtuple_init(cvt, len, seqno, data, tomb);
 
         c1_kvtuple_addval(ckvt, cvt, &tail);
-
-        tlen += len;
     }
 
     *vlen = tlen;

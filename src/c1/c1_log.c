@@ -357,9 +357,11 @@ c1_log_has_space(struct c1_log *log, u64 sz, u64 *rsvdsz)
 static void
 c1_log_add_val_mlog(struct c1_vtuple *vt, struct iovec *iov, size_t *size, int *logtype)
 {
-    *size += vt->c1vt_vlen;
+    uint vlen = c1_vtuple_vlen(vt);
+
+    *size += vlen;
     iov->iov_base = vt->c1vt_data;
-    iov->iov_len = vt->c1vt_vlen;
+    iov->iov_len = vlen;
     *logtype = C1_LOG_MLOG;
 }
 
@@ -438,7 +440,7 @@ c1_log_issue_kvb(
         omf_set_c1kvt_sign(&kvtomf[nextkvt], C1_KEY_MAGIC);
         omf_set_c1kvt_klen(&kvtomf[nextkvt], skt->c1kt_klen);
         omf_set_c1kvt_cnid(&kvtomf[nextkvt], next->c1kvt_cnid);
-        omf_set_c1kvt_vlen(&kvtomf[nextkvt], next->c1kvt_vt.c1vt_vlen);
+        omf_set_c1kvt_xlen(&kvtomf[nextkvt], next->c1kvt_vt.c1vt_vlen);
         omf_set_c1kvt_vcount(&kvtomf[nextkvt], next->c1kvt_vt.c1vt_vcount);
 
         iov[i].iov_base = &kvtomf[nextkvt];
@@ -482,7 +484,7 @@ c1_log_issue_kvb(
 
             omf_set_c1vt_sign(&vt[j], C1_VAL_MAGIC);
             omf_set_c1vt_seqno(&vt[j], nextvt->c1vt_seqno);
-            omf_set_c1vt_vlen(&vt[j], nextvt->c1vt_vlen);
+            omf_set_c1vt_xlen(&vt[j], nextvt->c1vt_xlen);
             omf_set_c1vt_tomb(&vt[j], nextvt->c1vt_tomb ? 1 : 0);
 
             assert(i < numiov);
@@ -502,7 +504,7 @@ c1_log_issue_kvb(
             j++;
 
             vtacount--;
-            vtalen -= nextvt->c1vt_vlen;
+            vtalen -= c1_vtuple_vlen(nextvt);
         }
 
         if (ev(vtalen || vtacount)) {

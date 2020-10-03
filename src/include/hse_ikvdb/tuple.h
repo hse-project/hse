@@ -113,7 +113,7 @@ kvs_vtuple_init(struct kvs_vtuple *vt, void *val, u64 xlen)
 }
 
 /**
- * kvs_vtuple_vcinit() - initialize a compressed value tuple
+ * kvs_vtuple_cinit() - initialize a compressed value tuple
  * @vt:   the vtuple to initialize
  * @val:  pointer to compressed in-core value
  * @vlen: the uncompressed value length
@@ -124,7 +124,7 @@ kvs_vtuple_init(struct kvs_vtuple *vt, void *val, u64 xlen)
  * should always be a valid memory pointer, not a tomb encoding.
  */
 static inline void
-kvs_vtuple_vcinit(struct kvs_vtuple *vt, void *val, uint vlen, uint clen)
+kvs_vtuple_cinit(struct kvs_vtuple *vt, void *val, uint vlen, uint clen)
 {
     assert(!(HSE_CORE_IS_TOMB(val) && HSE_CORE_IS_PTOMB(val)));
     assert(clen > 0 && clen < vlen);
@@ -147,6 +147,12 @@ kvs_vtuple_vlen(const struct kvs_vtuple *vt)
     uint vlen = vt->vt_xlen & 0xfffffffful;
 
     return clen ?: vlen;
+}
+
+static __always_inline uint
+kvs_vtuple_clen(const struct kvs_vtuple *vt)
+{
+    return vt->vt_xlen >> 32;
 }
 
 static inline void

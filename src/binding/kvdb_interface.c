@@ -24,17 +24,9 @@
 #include <hse_util/rest_api.h>
 #include <hse_util/logging.h>
 #include <hse_util/string.h>
-#include <hse_util/compression_lz4.h>
 
 #include <unistd.h>
 #include <sys/types.h>
-
-/* tls_vbuf[] is a thread-local buffer used as a compression output buffer
- * by hse_kvs_put().  It is also used for direct reads by kvset_lookup_val(),
- * and hence must be sufficiently large and aligned for both purposes.
- */
-__thread char tls_vbuf[HSE_KVS_VLEN_MAX + PAGE_SIZE * 2] __aligned(PAGE_SIZE);
-const size_t tls_vbufsz = sizeof(tls_vbuf);
 
 static __always_inline u64
 kvdb_lat_startu(const u32 cidx)
@@ -395,20 +387,6 @@ hse_kvs_put(
 
     kvs_ktuple_init_nohash(&kt, key, key_len);
     kvs_vtuple_init(&vt, (void *)val, val_len);
-
-    /* TODO: Call vcomp_compress_ops(cn_get_rp(cn)) at open and stash
-     * the result in the kvs handle, then check it here on each call.
-     *
-     * TODO: Teach c1 about encoded vtuple lengths...
-     */
-    if (val_len > CN_SMALL_VALUE_THRESHOLD) {
-        uint clen;
-
-        err = compress_lz4_ops.cop_compress(val, val_len, tls_vbuf, tls_vbufsz, &clen);
-
-        if (!err && clen < val_len)
-            kvs_vtuple_vcinit(&vt, tls_vbuf, val_len, clen);
-    }
 
     err = ikvdb_kvs_put(handle, os, &kt, &vt);
 

@@ -184,7 +184,7 @@ _Static_assert(
 struct c1_vtuple_omf {
     __le64 c1vt_sign;
     __le64 c1vt_seqno;
-    __le64 c1vt_vlen;
+    __le64 c1vt_xlen;
     __le32 c1vt_tomb;
     __le32 c1vt_logtype;
     u8     c1vt_data[0];
@@ -204,7 +204,7 @@ struct c1_kvtuple_omf {
     __le64 c1kvt_sign;
     __le64 c1kvt_klen;
     __le64 c1kvt_cnid;
-    __le64 c1kvt_vlen;
+    __le64 c1kvt_xlen;
     __le64 c1kvt_vcount;
     u8     c1kvt_data[0];
 } __packed;
@@ -262,7 +262,7 @@ OMF_SETGET(struct c1_complete_omf, c1comp_kvseqno, 64)
 
 OMF_SETGET(struct c1_vtuple_omf, c1vt_sign, 64)
 OMF_SETGET(struct c1_vtuple_omf, c1vt_seqno, 64)
-OMF_SETGET(struct c1_vtuple_omf, c1vt_vlen, 64)
+OMF_SETGET(struct c1_vtuple_omf, c1vt_xlen, 64)
 OMF_SETGET(struct c1_vtuple_omf, c1vt_tomb, 32)
 OMF_SETGET(struct c1_vtuple_omf, c1vt_logtype, 32)
 
@@ -280,7 +280,7 @@ OMF_SETGET(struct c1_treetxn_omf, c1ttxn_flag, 32)
 OMF_SETGET(struct c1_kvtuple_omf, c1kvt_sign, 64)
 OMF_SETGET(struct c1_kvtuple_omf, c1kvt_klen, 64)
 OMF_SETGET(struct c1_kvtuple_omf, c1kvt_cnid, 64)
-OMF_SETGET(struct c1_kvtuple_omf, c1kvt_vlen, 64)
+OMF_SETGET(struct c1_kvtuple_omf, c1kvt_xlen, 64)
 OMF_SETGET(struct c1_kvtuple_omf, c1kvt_vcount, 64)
 
 #endif /* HSE_C1_OMF_H */

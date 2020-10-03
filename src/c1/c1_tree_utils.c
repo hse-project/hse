@@ -402,7 +402,7 @@ c1_tree_replay_nextkey(
         if (ev(err))
             return err;
 
-        vlen = vtm.c1vm_vlen;
+        vlen = c1_vtuple_meta_vlen(&vtm);
 
         if (vlen && (vtm.c1vm_sign != C1_VAL_MAGIC)) {
             err = merr(ev(EINVAL));
@@ -438,6 +438,7 @@ c1_tree_replay_nextkey(
             continue;
 
         vdata = vtm.c1vm_data;
+        vlen = vtm.c1vm_xlen;
 
         if (tomb)
             vlen = 0;

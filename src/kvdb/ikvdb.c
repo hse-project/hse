@@ -54,12 +54,20 @@
 #include <hse_util/rest_api.h>
 #include <hse_util/log2.h>
 #include <hse_util/atomic.h>
+#include <hse_util/compression_lz4.h>
 
 #include <3rdparty/xxhash.h>
 #include <3rdparty/cJSON.h>
 
 #include "kvdb_rest.h"
 #include "kvdb_params.h"
+
+/* tls_vbuf[] is a thread-local buffer used as a compression output buffer
+ * by ikvdb_kvs_put().  It is also used for direct reads by kvset_lookup_val(),
+ * and hence must be sufficiently large and aligned for both purposes.
+ */
+__thread char tls_vbuf[HSE_KVS_VLEN_MAX + PAGE_SIZE * 2] __aligned(PAGE_SIZE);
+const size_t tls_vbufsz = sizeof(tls_vbuf);
 
 struct perfc_set kvdb_pkvdbl_pc __read_mostly;
 struct perfc_set kvdb_pc __read_mostly;
@@ -2075,9 +2083,11 @@ ikvdb_kvs_put(
 {
     struct kvdb_kvs *  kk = (struct kvdb_kvs *)handle;
     struct ikvdb_impl *parent;
+    struct kvs_vtuple  vtbuf;
     u64                put_seqno;
     merr_t             err;
     u64                start;
+    uint vlen, clen;
 
     start = kvdb_kop_is_priority(os) ? 0 : get_cycles();
 
@@ -2094,6 +2104,22 @@ ikvdb_kvs_put(
     if (ev(err))
         return err;
 
+    /* TODO: Call vcomp_compress_ops(cn_get_rp(cn)) at open and stash
+     * the result in the kvs handle, then check it here on each call.
+     */
+    vlen = kvs_vtuple_vlen(vt);
+    clen = kvs_vtuple_clen(vt);
+
+    if (clen == 0 && vlen > CN_SMALL_VALUE_THRESHOLD) {
+        err = compress_lz4_ops.cop_compress(vt->vt_data, vlen, tls_vbuf, tls_vbufsz, &clen);
+
+        if (!err && clen < vlen) {
+            kvs_vtuple_cinit(&vtbuf, tls_vbuf, vlen, clen);
+            vt = &vtbuf;
+            vlen = clen;
+        }
+    }
+
     put_seqno = kvdb_kop_is_txn(os) ? 0 : HSE_SQNREF_SINGLE;
 
     err = ikvs_put(kk->kk_ikvs, os, kt, vt, put_seqno);
@@ -2103,7 +2129,7 @@ ikvdb_kvs_put(
     }
 
     if (start > 0)
-        ikvdb_throttle(parent, start, kt->kt_len + kvs_vtuple_vlen(vt));
+        ikvdb_throttle(parent, start, kt->kt_len + vlen);
 
     return 0;
 }
