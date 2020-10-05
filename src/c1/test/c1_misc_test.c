@@ -385,8 +385,7 @@ MTF_DEFINE_UTEST_PREPOST(c1_misc_test, misc5, test_pre, test_post)
         mapi_inject_once(mapi_idx_malloc, i + 1, 0);
 
         kvs_ktuple_init(&kt, "key", 3);
-        vt.vt_data = buffer;
-        vt.vt_len = vt_len;
+        kvs_vtuple_init(&vt, buffer, vt_len);
 
         err = ikvdb_kvs_put(kvs_h, NULL, &kt, &vt);
         if (err)
@@ -450,8 +449,7 @@ MTF_DEFINE_UTEST_PREPOST(c1_misc_test, misc6, test_pre, test_post)
     for (i = 0; i < 20; i++) {
         mapi_inject_once(mapi_idx_malloc, i + 1, 0);
         kvs_ktuple_init(&kt, "key", 3);
-        vt.vt_data = buffer;
-        vt.vt_len = vt_len;
+        kvs_vtuple_init(&vt, buffer, vt_len);
 
         err = ikvdb_kvs_put(kvs_h, NULL, &kt, &vt);
         if (err)
@@ -544,8 +542,7 @@ MTF_DEFINE_UTEST_PREPOST(c1_misc_test, misc7, test_pre, test_post)
 
     for (i = 0; i < 1024; i++) {
         kvs_ktuple_init(&kt, "key", 3);
-        vt.vt_data = buffer;
-        vt.vt_len = vt_len;
+        kvs_vtuple_init(&vt, buffer, vt_len);
 
         err = ikvdb_kvs_put(kvs_h, NULL, &kt, &vt);
         if (err)
@@ -617,8 +614,7 @@ MTF_DEFINE_UTEST_PREPOST(c1_misc_test, misc8, test_pre, test_post)
 
     for (i = 0; i < 1024; i++) {
         kvs_ktuple_init(&kt, "key", 3);
-        vt.vt_data = buffer;
-        vt.vt_len = vt_len;
+        kvs_vtuple_init(&vt, buffer, vt_len);
 
         err = ikvdb_kvs_put(kvs_h, NULL, &kt, &vt);
     }
@@ -627,8 +623,7 @@ MTF_DEFINE_UTEST_PREPOST(c1_misc_test, misc8, test_pre, test_post)
     mapi_inject(mapi_idx_mpool_mdc_append, merr(ev(EIO)));
     for (i = 0; i < 1024; i++) {
         kvs_ktuple_init(&kt, "key", 3);
-        vt.vt_data = buffer;
-        vt.vt_len = vt_len;
+        kvs_vtuple_init(&vt, buffer, vt_len);
 
         err = ikvdb_kvs_put(kvs_h, NULL, &kt, &vt);
     }
@@ -785,8 +780,7 @@ MTF_DEFINE_UTEST_PREPOST(c1_misc_test, misc10, test_pre, test_post)
 
     for (i = 0; i < 1024; i++) {
         kvs_ktuple_init(&kt, "key", 3);
-        vt.vt_data = buffer;
-        vt.vt_len = vt_len;
+        kvs_vtuple_init(&vt, buffer, vt_len);
 
         err = ikvdb_kvs_put(kvs_h, NULL, &kt, &vt);
     }

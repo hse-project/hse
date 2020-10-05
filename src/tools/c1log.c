@@ -343,7 +343,7 @@ c1_log_print_ktuple(char *kvtomf, struct c1_kvtuple_meta *kvtm, u16 ver)
         (unsigned long)kvtm->c1kvm_sign,
         (unsigned long)kvtm->c1kvm_klen,
         (unsigned long)kvtm->c1kvm_cnid,
-        (unsigned long)kvtm->c1kvm_vlen,
+        (unsigned long)c1_kvtuple_meta_vlen(kvtm),
         (unsigned long)kvtm->c1kvm_vcount);
 
     if (!dump_key)
@@ -391,7 +391,7 @@ c1_log_print_vtuple(struct c1 *c1, u64 n, char *vtomf, struct c1_vtuple_meta *vt
         (unsigned long)n,
         (unsigned long)vtm->c1vm_sign,
         (unsigned long)vtm->c1vm_seqno,
-        (unsigned long)vtm->c1vm_vlen,
+        (unsigned long)c1_vtuple_meta_vlen(vtm),
         (unsigned int)vtm->c1vm_tomb,
         (unsigned int)vtm->c1vm_logtype);
 
@@ -402,10 +402,10 @@ c1_log_print_vtuple(struct c1 *c1, u64 n, char *vtomf, struct c1_vtuple_meta *vt
 
     if (ascii_fmt) {
         printf("\tvalue contents (ascii) ");
-        c1_log_print_kvtuple(value, vtm->c1vm_vlen, true);
+        c1_log_print_kvtuple(value, c1_vtuple_meta_vlen(vtm), true);
     } else {
         printf("\tvalue contents (hex)   ");
-        c1_log_print_kvtuple(value, vtm->c1vm_vlen, false);
+        c1_log_print_kvtuple(value, c1_vtuple_meta_vlen(vtm), false);
     }
 
     printf("\n");
@@ -447,7 +447,7 @@ c1_log_replay_kvtuple(struct c1 *c1, void **nextkey)
 
         c1_log_print_vtuple(c1, i, vtomf, &vtm);
 
-        if (vtm.c1vm_vlen && (vtm.c1vm_sign != C1_VAL_MAGIC)) {
+        if (c1_vtuple_meta_vlen(&vtm) && (vtm.c1vm_sign != C1_VAL_MAGIC)) {
             printf("Invalid vtuple signature\n");
             return merr(EINVAL);
         }
@@ -457,7 +457,7 @@ c1_log_replay_kvtuple(struct c1 *c1, void **nextkey)
             return err;
 
         value += len;
-        value += vtm.c1vm_vlen;
+        value += c1_vtuple_meta_vlen(&vtm);
     }
 
     *nextkey = value;

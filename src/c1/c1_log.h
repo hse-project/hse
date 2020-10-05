@@ -75,7 +75,7 @@ struct c1_ktuple {
 
 struct c1_vtuple {
     struct s_list_head       c1vt_next;
-    u64                      c1vt_vlen;
+    u64                      c1vt_xlen;
     u64                      c1vt_seqno;
     void *                   c1vt_data;
     bool                     c1vt_tomb;
@@ -106,6 +106,15 @@ struct c1_kvbundle {
     u64                c1kvb_minkey; /* For future use */
     u64                c1kvb_maxkey; /* For future use */
 };
+
+static __always_inline uint
+c1_vtuple_vlen(const struct c1_vtuple *vt)
+{
+    uint clen = vt->c1vt_xlen >> 32;
+    uint vlen = vt->c1vt_xlen & 0xfffffffful;
+
+    return clen ?: vlen;
+}
 
 static inline u64
 c1_log_kvseqno(struct c1_log *log)

@@ -310,7 +310,6 @@ c0sk_builder_add(
     u64                seqno_prev, pt_seqno_prev;
     u64                seqno;
     merr_t             err;
-    int                len;
 
     assert(bldr && bkv && head);
 
@@ -363,7 +362,6 @@ c0sk_builder_add(
     seqno_prev = U64_MAX;
     pt_seqno_prev = U64_MAX;
 
-    len = 0;
     for (val = head; val; val = next) {
         int rc;
 
@@ -371,8 +369,6 @@ c0sk_builder_add(
         val->bv_free = NULL;
 
         seqnoref_to_seqno(val->bv_seqnoref, &seqno);
-
-        len += val->bv_vlen + key_imm_klen(&bkv->bkv_key_imm);
 
         rc = seq_prev_cmp(val->bv_valuep, seqno, seqno_prev, pt_seqno_prev);
 
@@ -387,9 +383,11 @@ c0sk_builder_add(
             seqno_prev = seqno;
 
         err = kvset_builder_add_val(
-            bldr, seqno, val->bv_vlen ? val->bv_value : val->bv_valuep, val->bv_vlen, 0);
-        if (err)
-            return ev(err);
+            bldr, seqno, bonsai_val_vlen(val) ? val->bv_value : val->bv_valuep,
+            bonsai_val_ulen(val), bonsai_val_clen(val));
+
+        if (ev(err))
+            return err;
     }
 
     {
@@ -1362,7 +1360,7 @@ c0sk_merge_bkv(
         if (!HSE_CORE_IS_TOMB(bv->bv_valuep)) {
             struct kvs_vtuple vt;
 
-            kvs_vtuple_init(&vt, bv->bv_value, bv->bv_vlen);
+            kvs_vtuple_init(&vt, bv->bv_value, bv->bv_xlen);
             err = c0kvs_put(c0kvs, skidx, &kt, &vt, seqnoref);
         } else if (bv->bv_valuep == HSE_CORE_TOMB_REG) {
             err = c0kvs_del(c0kvs, skidx, &kt, seqnoref);
@@ -1539,9 +1537,6 @@ c0sk_putdel(
     u64    start = 0;
     merr_t err;
     u64    coalescesz = self->c0sk_kvdb_rp->c0_coalesce_sz;
-    u32    sz = kt->kt_len;
-
-    sz += (vt) ? vt->vt_len : 0;
 
     while (1) {
         struct c0_kvmultiset *dst;

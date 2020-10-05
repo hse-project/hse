@@ -1116,7 +1116,7 @@ bonsai_weight_test(enum bonsai_alloc_mode allocm, struct mtf_test_info *lcl_ti)
 
             ASSERT_NE(NULL, v);
             ASSERT_EQ(seqno, v->bv_seqnoref);
-            ASSERT_EQ(j, v->bv_vlen);
+            ASSERT_EQ(j, bonsai_val_vlen(v));
             ASSERT_EQ(0, memcmp(key, v->bv_value, j));
             rcu_read_unlock();
         }
@@ -1355,7 +1355,7 @@ bonsai_basic_test(enum bonsai_alloc_mode allocm, struct mtf_test_info *lcl_ti)
         v = findValue(kv, op_seqno, 0);
         ASSERT_NE(NULL, v);
         ASSERT_EQ(op_seqno, HSE_SQNREF_TO_ORDNL(v->bv_seqnoref));
-        ASSERT_EQ(sizeof(key), v->bv_vlen);
+        ASSERT_EQ(sizeof(key), bonsai_val_vlen(v));
         memcpy((char *)&val, v->bv_value, sizeof(val));
         ASSERT_EQ(key, val);
         rcu_read_unlock();
@@ -1369,7 +1369,7 @@ bonsai_basic_test(enum bonsai_alloc_mode allocm, struct mtf_test_info *lcl_ti)
         v = findValue(kv, op_seqno, 0);
         ASSERT_NE(NULL, v);
         ASSERT_EQ(op_seqno, HSE_SQNREF_TO_ORDNL(v->bv_seqnoref));
-        ASSERT_EQ(sizeof(key), v->bv_vlen);
+        ASSERT_EQ(sizeof(key), bonsai_val_vlen(v));
         memcpy((char *)&val, v->bv_value, sizeof(val));
         ASSERT_EQ(key, val);
         rcu_read_unlock();
@@ -1437,7 +1437,7 @@ bonsai_update_test(enum bonsai_alloc_mode allocm, struct mtf_test_info *lcl_ti)
         ASSERT_NE(NULL, v);
 
         ASSERT_EQ(op_seqno, HSE_SQNREF_TO_ORDNL(v->bv_seqnoref));
-        ASSERT_EQ(sizeof(value), v->bv_vlen);
+        ASSERT_EQ(sizeof(value), bonsai_val_vlen(v));
         memcpy((char *)&val, v->bv_value, sizeof(val));
         ASSERT_EQ(LEN - MAX_VALUES + i + 1, val);
         rcu_read_unlock();
@@ -1659,7 +1659,7 @@ again:
 
             seqnoref = HSE_ORDNL_TO_SQNREF(op_seqno);
             sval.bsv_seqnoref = seqnoref;
-            sval.bsv_vlen = 0;
+            sval.bsv_xlen = 0;
 
             rcu_read_lock();
             if (op_seqno % 200 == 0) {
@@ -1675,7 +1675,7 @@ again:
             } else {
                 value = key - op_seqno;
                 sval.bsv_val = (void *)&value;
-                sval.bsv_vlen = sizeof(value);
+                sval.bsv_xlen = sizeof(value);
 
                 err = bn_insert_or_replace(tree, &skey, &sval, false);
                 ASSERT_EQ(0, err);
@@ -1710,12 +1710,12 @@ again:
 
             if (op_seqno % 200 == 0) {
                 ASSERT_EQ(HSE_CORE_TOMB_REG, pval->bv_valuep);
-                ASSERT_EQ(0, pval->bv_vlen);
+                ASSERT_EQ(0, bonsai_val_vlen(pval));
             } else if (op_seqno % 500 == 0) {
                 uintptr_t lcl_seqnoref;
 
                 ASSERT_EQ(HSE_CORE_TOMB_PFX, pval->bv_valuep);
-                ASSERT_EQ(0, pval->bv_vlen);
+                ASSERT_EQ(0, bonsai_val_vlen(pval));
 
                 lcl_seqnoref = HSE_ORDNL_TO_SQNREF(op_seqno + 2);
                 kv = NULL;
@@ -1737,7 +1737,7 @@ again:
             } else {
                 ASSERT_EQ(0, memcmp((void *)&value, pval->bv_value, sz));
                 ASSERT_EQ(op_seqno, HSE_SQNREF_TO_ORDNL(pval->bv_seqnoref));
-                ASSERT_EQ(pval->bv_vlen, sz);
+                ASSERT_EQ(bonsai_val_vlen(pval), sz);
             }
             rcu_read_unlock();
         }

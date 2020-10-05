@@ -383,7 +383,7 @@ omf_c1_kvtuple_unpack(char *omf, union c1_record *rec, u32 *omf_len)
     kvtm->c1kvm_sign = omf_c1kvt_sign(kvt_omf);
     kvtm->c1kvm_klen = omf_c1kvt_klen(kvt_omf);
     kvtm->c1kvm_cnid = omf_c1kvt_cnid(kvt_omf);
-    kvtm->c1kvm_vlen = omf_c1kvt_vlen(kvt_omf);
+    kvtm->c1kvm_xlen = omf_c1kvt_xlen(kvt_omf);
     kvtm->c1kvm_vcount = omf_c1kvt_vcount(kvt_omf);
     kvtm->c1kvm_data = (char *)kvt_omf->c1kvt_data;
 
@@ -506,7 +506,7 @@ omf_c1_vtuple_unpack(char *omf, union c1_record *rec, u32 *omf_len)
 
     vtm->c1vm_sign = omf_c1vt_sign(vt_omf);
     vtm->c1vm_seqno = omf_c1vt_seqno(vt_omf);
-    vtm->c1vm_vlen = omf_c1vt_vlen(vt_omf);
+    vtm->c1vm_xlen = omf_c1vt_xlen(vt_omf);
     vtm->c1vm_tomb = omf_c1vt_tomb(vt_omf);
     vtm->c1vm_logtype = omf_c1vt_logtype(vt_omf);
     vtm->c1vm_data = (char *)vt_omf->c1vt_data;

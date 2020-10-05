@@ -190,7 +190,7 @@ c1_kvbundle_get_vtc(struct c1_kvbundle *ckvb)
 
 /*
  * c1 KV tuple related interfaces
- **/
+ */
 
 merr_t
 c1_kvtuple_alloc(struct c1_kvcache *cc, struct c1_kvtuple **ckvt)
@@ -244,7 +244,7 @@ c1_kvtuple_addval(struct c1_kvtuple *ckvt, struct c1_vtuple *cvt, struct s_list_
 
     cvta = &ckvt->c1kvt_vt;
 
-    cvta->c1vt_vlen += cvt->c1vt_vlen;
+    cvta->c1vt_vlen += c1_vtuple_vlen(cvt);
     ++cvta->c1vt_vcount;
 
     if (*tail == NULL)
@@ -254,11 +254,12 @@ c1_kvtuple_addval(struct c1_kvtuple *ckvt, struct c1_vtuple *cvt, struct s_list_
 }
 BullseyeCoverageRestore
 
-    /*
+/*
  * c1 value tuple related interfaces
- **/
-    merr_t
-    c1_vtuple_alloc(struct c1_kvcache *cc, struct c1_vtuple **cvt)
+ */
+
+merr_t
+c1_vtuple_alloc(struct c1_kvcache *cc, struct c1_vtuple **cvt)
 {
     struct c1_vtuple *vt;
 
@@ -276,12 +277,12 @@ BullseyeCoverageRestore
 void
 c1_vtuple_init(
     struct c1_vtuple *       cvt,
-    u64                      vlen,
+    u64                      xlen,
     u64                      seqno,
     void *                   data,
     bool                     tomb)
 {
-    cvt->c1vt_vlen = vlen;
+    cvt->c1vt_xlen = xlen;
     cvt->c1vt_seqno = seqno;
     cvt->c1vt_data = data;
     cvt->c1vt_tomb = tomb;

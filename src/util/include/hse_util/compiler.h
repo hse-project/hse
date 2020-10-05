@@ -34,10 +34,9 @@
 #define __aligned(SIZE) __attribute__((aligned(SIZE)))
 #endif
 
-#define __maybe_unused __attribute__((__unused__))
-
-#define __read_mostly __attribute__((__section__(".read_mostly")))
-
+#define __read_mostly   __attribute__((__section__(".read_mostly")))
+#define __maybe_unused  __attribute__((__unused__))
+#define __used          __attribute__((__used__))
 #define __hot           __attribute__((__hot__))
 #define __cold          __attribute__((__cold__))
 

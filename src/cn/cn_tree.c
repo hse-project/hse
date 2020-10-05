@@ -2595,12 +2595,11 @@ cn_tree_cursor_read(struct pscan *cur, struct kvs_kvtuple *kvt, bool *eof)
     /* copyout before drop dups! */
     kvt->kvt_key.kt_data = key_obj_copy(cur->buf, cur->bufsz, &klen, &item.kobj);
     kvt->kvt_key.kt_len = klen;
+    // what about kt_hash ??? */
 
-    kvt->kvt_value.vt_data = cur->buf + kvt->kvt_key.kt_len;
-    kvt->kvt_value.vt_len  = vlen;
+    kvs_vtuple_init(&kvt->kvt_value, cur->buf + kvt->kvt_key.kt_len, vlen);
 
     if (complen) {
-
         extern struct compress_ops compress_lz4_ops;
         uint len_check;
 

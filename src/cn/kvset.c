@@ -1477,6 +1477,8 @@ kvset_get_immediate_value(struct kvs_vtuple_ref *vref, struct kvs_buf *vbuf)
     return 0;
 }
 
+extern __thread char tls_vbuf[];
+
 static merr_t
 kvset_lookup_val_direct(
     struct kvset *      ks,
@@ -1506,29 +1508,66 @@ kvset_lookup_val_direct(
     aligned_all = aligned_vbuf && IS_ALIGNED(copylen, PAGE_SIZE) &&
                   IS_ALIGNED(vbd->vbd_off + vboff, PAGE_SIZE);
 
-    /* Eliminate both the malloc and buffer copy by reading directly
-     * into vbuf if everything is sufficiently aligned (i.e.,
-     * aligned_all is true).  If not, try to eliminate the malloc
-     * and improve the buffer copy if at least vbuf is aligned and
-     * large enough to contain the entire read.
+    /* Eliminate the buffer copy by reading directly into vbuf if
+     * everything is sufficiently aligned (i.e., aligned_all is true).
+     * If not, try to improve the buffer copy if at least vbuf is
+     * aligned and large enough to contain the entire read.
      */
-    if (!aligned_all && !(aligned_vbuf && vbufsz >= iov.iov_len)) {
-        iov.iov_base = alloc_page_aligned(iov.iov_len, GFP_KERNEL);
-        if (!iov.iov_base)
-            return merr(ev(ENOMEM));
-    }
+    if (!aligned_all && !(aligned_vbuf && vbufsz >= iov.iov_len))
+        iov.iov_base = (void *)ALIGN((uintptr_t)tls_vbuf, PAGE_SIZE);
 
     err = mpool_mblock_read(ks->ks_ds, mbid, &iov, 1, off);
+    if (err) {
+        hse_elog(HSE_ERR "%s: off %lx, len %lx, copylen %u, vbufsz %u: @@e",
+                 err, __func__, off, iov.iov_len, copylen, vbufsz);
+        return err;
+    }
 
     if (!aligned_all) {
         void *src = iov.iov_base + (vboff & ~PAGE_MASK);
 
-        if (!err)
-            memmove(vbuf, src, copylen);
-
-        if (iov.iov_base != vbuf)
-            free_aligned(iov.iov_base);
+        memmove(vbuf, src, copylen);
     }
+
+    return 0;
+}
+
+static merr_t
+kvset_lookup_val_direct_decompress(
+    struct kvset       *ks,
+    struct vblock_desc *vbd,
+    u16                 vbidx,
+    u32                 vboff,
+    void               *vbuf,
+    uint                copylen,
+    uint                omlen,
+    uint               *outlenp)
+{
+    extern struct compress_ops compress_lz4_ops;
+    struct iovec iov;
+    size_t       off;
+    merr_t       err;
+    void        *src;
+    u64          mbid;
+
+    mbid = lvx2mbid(ks, vbidx);
+
+    off = vbd->vbd_off + (vboff & PAGE_MASK);
+
+    iov.iov_len = ALIGN(vboff + omlen, PAGE_SIZE) - (vboff & PAGE_MASK);
+
+    iov.iov_base = (void *)ALIGN((uintptr_t)tls_vbuf, PAGE_SIZE);
+
+    err = mpool_mblock_read(ks->ks_ds, mbid, &iov, 1, off);
+    if (err) {
+        hse_elog(HSE_ERR "%s: off %lx, len %lx, copylen %u, omlen %u: @@e",
+                 err, __func__, off, iov.iov_len, copylen, omlen);
+        return err;
+    }
+
+    src = iov.iov_base + (vboff & ~PAGE_MASK);
+
+    err = compress_lz4_ops.cop_decompress(src, omlen, vbuf, copylen, outlenp);
 
     return ev(err);
 }
@@ -1541,6 +1580,7 @@ kvset_lookup_val(struct kvset *ks, struct kvs_vtuple_ref *vref, struct kvs_buf *
     merr_t              err;
     void               *src, *dst;
     uint                omlen, copylen;
+    bool direct;
 
     assert(vref->vr_type == vtype_ival
         || vref->vr_type == vtype_zval
@@ -1566,14 +1606,22 @@ kvset_lookup_val(struct kvset *ks, struct kvs_vtuple_ref *vref, struct kvs_buf *
     dst = vbuf->b_buf;
     copylen = min(vref->vb.vr_len, vbuf->b_buf_sz);
 
-    if (vref->vb.vr_complen) {
+    direct = copylen >= ks->ks_vmax
+        || (copylen >= ks->ks_vmin && ks->ks_node_level >= ks->ks_vminlvl);
 
-        extern struct compress_ops compress_lz4_ops;
+    if (vref->vb.vr_complen) {
         uint outlen;
 
-        err = compress_lz4_ops.cop_decompress(src, omlen, dst, copylen, &outlen);
-        if (ev(err))
-            return err;
+        if (direct)
+            err = kvset_lookup_val_direct_decompress(
+                ks, vbd, vref->vb.vr_index, vref->vb.vr_off, dst, copylen, omlen, &outlen);
+
+        if (!direct || err) {
+            err = compress_lz4_ops.cop_decompress(src, omlen, dst, copylen, &outlen);
+            if (ev(err))
+                return err;
+        }
+
         if (ev(copylen == vref->vb.vr_len && outlen != copylen)) {
             /* oops: full size buffer, but not able to decompress all data */
             assert(0);
@@ -1581,18 +1629,13 @@ kvset_lookup_val(struct kvset *ks, struct kvs_vtuple_ref *vref, struct kvs_buf *
         }
 
     } else {
-
-        /* Use direct read for large values */
-        bool direct = copylen >= ks->ks_vmax
-            || (copylen >= ks->ks_vmin && ks->ks_node_level >= ks->ks_vminlvl);
-
         if (direct) {
             err = kvset_lookup_val_direct(
                 ks, vbd, vref->vb.vr_index, vref->vb.vr_off, vbuf->b_buf, vbuf->b_buf_sz, copylen);
-            if (ev(err))
-                err = 0; /* fall through to memcpy */
-            else
+            if (!ev(err))
                 goto done;
+
+            err = 0; /* fall through to memcpy */
         }
 
         memcpy(dst, src, copylen);

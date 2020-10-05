@@ -54,12 +54,20 @@
 #include <hse_util/rest_api.h>
 #include <hse_util/log2.h>
 #include <hse_util/atomic.h>
+#include <hse_util/compression_lz4.h>
 
 #include <3rdparty/xxhash.h>
 #include <3rdparty/cJSON.h>
 
 #include "kvdb_rest.h"
 #include "kvdb_params.h"
+
+/* tls_vbuf[] is a thread-local buffer used as a compression output buffer
+ * by ikvdb_kvs_put().  It is also used for direct reads by kvset_lookup_val(),
+ * and hence must be sufficiently large and aligned for both purposes.
+ */
+__thread char tls_vbuf[HSE_KVS_VLEN_MAX + PAGE_SIZE * 2] __aligned(PAGE_SIZE);
+const size_t tls_vbufsz = sizeof(tls_vbuf);
 
 struct perfc_set kvdb_pkvdbl_pc __read_mostly;
 struct perfc_set kvdb_pc __read_mostly;
@@ -1127,6 +1135,7 @@ kvdb_kvs_create(void)
         memset(kvs, 0, sizeof(*kvs));
         mutex_init(&kvs->kk_cursors_lock);
         INIT_LIST_HEAD(&kvs->kk_cursors);
+        kvs->kk_vcompmin = UINT_MAX;
         atomic_set(&kvs->kk_refcnt, 0);
     }
 
@@ -1814,6 +1823,7 @@ ikvdb_kvs_open(
     uint                     flags,
     struct hse_kvs **        kvs_out)
 {
+    const struct compress_ops *cops;
     struct ikvdb_impl *self = ikvdb_h2r(handle);
     struct kvdb_kvs *  kvs;
     int                idx;
@@ -1857,6 +1867,15 @@ ikvdb_kvs_open(
 
     kvs->kk_parent = self;
 
+    kvs->kk_vcompmin = UINT_MAX;
+    cops = vcomp_compress_ops(&rp);
+    if (cops && cops->cop_compress) {
+        kvs->kk_vcompress = cops->cop_compress;
+        kvs->kk_vcompmin = max_t(uint, CN_SMALL_VALUE_THRESHOLD, rp.vcompmin);
+
+        assert(tls_vbufsz >= cops->cop_estimate(NULL, HSE_KVS_VLEN_MAX));
+    }
+
     /* Need a lock to prevent ikvdb_close from freeing up resources from
      * under us
      */
@@ -1877,12 +1896,10 @@ ikvdb_kvs_open(
     atomic_inc(&kvs->kk_refcnt);
 
     *kvs_out = (struct hse_kvs *)kvs;
+
+  err_out:
     mutex_unlock(&self->ikdb_lock);
 
-    return 0;
-
-err_out:
-    mutex_unlock(&self->ikdb_lock);
     return err;
 }
 
@@ -1892,28 +1909,27 @@ ikvdb_kvs_close(struct hse_kvs *handle)
     struct kvdb_kvs *  kk = (struct kvdb_kvs *)handle;
     struct ikvdb_impl *parent = kk->kk_parent;
     merr_t             err;
-    struct ikvs *      ikvs_tmp;
+    struct ikvs       *ikvs;
 
     mutex_lock(&parent->ikdb_lock);
-
-    if (!kk->kk_ikvs) {
-        mutex_unlock(&parent->ikdb_lock);
-        return merr(ev(EBADF));
+    ikvs = kk->kk_ikvs;
+    if (ikvs) {
+        kk->kk_vcompmin = UINT_MAX;
+        kk->kk_ikvs = NULL;
     }
-
-    ikvs_tmp = kk->kk_ikvs;
-    kk->kk_ikvs = 0;
-
     mutex_unlock(&parent->ikdb_lock);
+
+    if (ev(!ikvs))
+        return merr(EBADF);
 
     /* if refcnt goes down to 1, it would mean we have the only ref.
      * Set it to 0 and proceed
      * if not, keep spinning
      */
     while (atomic_cmpxchg(&kk->kk_refcnt, 1, 0) > 1)
-        cpu_relax();
+        usleep(333);
 
-    err = kvs_close(ikvs_tmp);
+    err = kvs_close(ikvs);
 
     return err;
 }
@@ -2075,9 +2091,11 @@ ikvdb_kvs_put(
 {
     struct kvdb_kvs *  kk = (struct kvdb_kvs *)handle;
     struct ikvdb_impl *parent;
+    struct kvs_vtuple  vtbuf;
     u64                put_seqno;
     merr_t             err;
     u64                start;
+    uint vlen, clen;
 
     start = kvdb_kop_is_priority(os) ? 0 : get_cycles();
 
@@ -2094,6 +2112,19 @@ ikvdb_kvs_put(
     if (ev(err))
         return err;
 
+    vlen = kvs_vtuple_vlen(vt);
+    clen = kvs_vtuple_clen(vt);
+
+    if (clen == 0 && vlen > kk->kk_vcompmin) {
+        err = kk->kk_vcompress(vt->vt_data, vlen, tls_vbuf, tls_vbufsz, &clen);
+
+        if (!err && clen < vlen) {
+            kvs_vtuple_cinit(&vtbuf, tls_vbuf, vlen, clen);
+            vt = &vtbuf;
+            vlen = clen;
+        }
+    }
+
     put_seqno = kvdb_kop_is_txn(os) ? 0 : HSE_SQNREF_SINGLE;
 
     err = ikvs_put(kk->kk_ikvs, os, kt, vt, put_seqno);
@@ -2103,7 +2134,7 @@ ikvdb_kvs_put(
     }
 
     if (start > 0)
-        ikvdb_throttle(parent, start, kt->kt_len + vt->vt_len);
+        ikvdb_throttle(parent, start, kt->kt_len + vlen);
 
     return 0;
 }
@@ -2739,8 +2770,9 @@ ikvdb_kvs_cursor_read(
 
     *key = kvt.kvt_key.kt_data;
     *key_len = kvt.kvt_key.kt_len;
+
     *val = kvt.kvt_value.vt_data;
-    *val_len = kvt.kvt_value.vt_len;
+    *val_len = kvs_vtuple_vlen(&kvt.kvt_value);
 
     perfc_lat_record(
         cur->kc_pkvsl_pc,

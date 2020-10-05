@@ -8,18 +8,18 @@
 #include <hse_util/hse_err.h>
 #include <hse_util/inttypes.h>
 
-typedef uint (*compress_op_estimate_fn)(
+typedef uint compress_op_estimate_t(
     const void *data,
     uint        len);
 
-typedef merr_t (*compress_op_compress_fn)(
+typedef merr_t compress_op_compress_t(
     const void *src,
     uint        src_len,
     void       *dst,
     uint        dst_capacity,
     uint       *dst_len);
 
-typedef merr_t (*compress_op_decompress_fn)(
+typedef merr_t compress_op_decompress_t(
     const void *src,
     uint        src_len,
     void       *dst,
@@ -27,9 +27,9 @@ typedef merr_t (*compress_op_decompress_fn)(
     uint       *dst_len);
 
 struct compress_ops {
-    compress_op_estimate_fn   cop_estimate;
-    compress_op_compress_fn   cop_compress;
-    compress_op_decompress_fn cop_decompress;
+    compress_op_estimate_t   *cop_estimate;
+    compress_op_compress_t   *cop_compress;
+    compress_op_decompress_t *cop_decompress;
 };
 
 #endif

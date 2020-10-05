@@ -243,8 +243,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, begin, mapi_pre, mapi_post)
 
     sprintf(kbuf, "c017snapple17");
     kvs_ktuple_init(&kt, kbuf, 1 + strlen(kbuf));
-    vt.vt_data = vbuf;
-    vt.vt_len = sizeof(vbuf);
+    kvs_vtuple_init(&vt, vbuf, sizeof(vbuf));
 
     err = kvdb_ctxn_put(handle, c0, &kt, &vt);
     ASSERT_EQ(ENOMEM, merr_errno(err));
@@ -303,8 +302,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, basic_commit, mapi_pre, mapi_post)
 
     sprintf(kbuf, "c017snapple17");
     kvs_ktuple_init(&kt, kbuf, 1 + strlen(kbuf));
-    vt.vt_data = vbuf;
-    vt.vt_len = sizeof(vbuf);
+    kvs_vtuple_init(&vt, vbuf, sizeof(vbuf));
 
     atomic64_set(&kvdb_seq, initial_seq);
 
@@ -463,8 +461,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, basic_commit_seqno, mapi_pre, mapi_post
 
     sprintf(kbuf, "c017snapple17");
     kvs_ktuple_init(&kt, kbuf, 1 + strlen(kbuf));
-    vt.vt_data = vbuf;
-    vt.vt_len = sizeof(vbuf);
+    kvs_vtuple_init(&vt, vbuf, sizeof(vbuf));
 
     atomic64_set(&kvdb_seq, initial_seq);
 
@@ -917,8 +914,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, txn_timeout, mapi_pre, mapi_post)
     ASSERT_EQ(0, err);
     ASSERT_NE(0, klock);
 
-    vt.vt_data = vbuf;
-    vt.vt_len = sizeof(vbuf);
+    kvs_vtuple_init(&vt, vbuf, sizeof(vbuf));
 
     atomic64_set(&kvdb_seq, initial_value);
 
@@ -987,8 +983,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, txn_cleanup, mapi_pre, mapi_post)
 
     sprintf(kbuf, "c017snapple17");
     kvs_ktuple_init(&kt, kbuf, 1 + strlen(kbuf));
-    vt.vt_data = vbuf;
-    vt.vt_len = sizeof(vbuf);
+    kvs_vtuple_init(&vt, vbuf, sizeof(vbuf));
 
     atomic64_set(&kvdb_seq, initial_value);
 
@@ -1208,8 +1203,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, txn_seq, mapi_pre, mapi_post)
 
     sprintf(kbuf, "c017snapple17");
     kvs_ktuple_init(&kt, kbuf, 1 + strlen(kbuf));
-    vt.vt_data = vbuf;
-    vt.vt_len = sizeof(vbuf);
+    kvs_vtuple_init(&vt, vbuf, sizeof(vbuf));
 
     atomic64_set(&kvdb_seq, initial_value);
 
@@ -1286,8 +1280,7 @@ parallel_ctxn_helper(void *arg)
     enum key_lookup_res       res;
     struct kvs_buf            valbuf = {};
 
-    vt.vt_data = vbuf;
-    vt.vt_len = sizeof(vbuf);
+    kvs_vtuple_init(&vt, vbuf, sizeof(vbuf));
 
     for (i = 0; i < 10000; i++) {
         sprintf(kbuf, "%05dc017snapple17%05d", i, i);

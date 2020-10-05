@@ -44,9 +44,9 @@ bn_val_alloc(struct bonsai_root *tree, const struct bonsai_sval *sval)
 {
     struct bonsai_val *v;
     size_t             sz;
-    u32                vlen;
+    uint               vlen;
 
-    vlen = sval->bsv_vlen;
+    vlen = bonsai_sval_vlen(sval);
     sz = sizeof(*v) + vlen;
 
     v = bn_alloc(tree, sz);
@@ -57,7 +57,7 @@ bn_val_alloc(struct bonsai_root *tree, const struct bonsai_sval *sval)
     v->bv_free = NULL;
     v->bv_seqnoref = sval->bsv_seqnoref;
     v->bv_flags = 0;
-    v->bv_vlen = vlen;
+    v->bv_xlen = sval->bsv_xlen;
     v->bv_valuep = sval->bsv_val;
     atomic64_set(&v->bv_priv, 0);
 

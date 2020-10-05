@@ -61,12 +61,16 @@ struct bonsai_skey {
  * @bv_seqnoref:  sequence number reference
  * @bv_priv:      client's private value
  * @bv_flags:     flags, used by the client
- * @bv_vlen:      length of value
+ * @bv_xlen:      opaque encoded value length
  * @bv_valuep:    ptr to value
  * @bv_value:     value data
  *
  * A bonsai_val includes the value data and may be on both the bnkv_values
  * list and the free list at the same time.
+ *
+ * Note that the value length (@bv_xlen) is an opaque encoding of compressed
+ * and uncompressed value lengths so one must use the bonsai_val_*len()
+ * functions to decode it.
  */
 struct bonsai_val {
     struct bonsai_val *bv_next;
@@ -74,24 +78,84 @@ struct bonsai_val {
     uintptr_t          bv_seqnoref;
     atomic64_t         bv_priv;
     unsigned int       bv_flags;
-    unsigned int       bv_vlen;
-    void *             bv_valuep;
+    u64                bv_xlen;
+    void              *bv_valuep;
     char               bv_value[];
 };
 
 /**
+ * bonsai_val_ulen() - return uncompressed value length
+ * @bv: ptr to a bonsai val
+ *
+ * bonsai_val_ulen() returns the uncompressed length (in bytes) of the
+ * given bonsai value.  Note that uncompressed value lengths are always
+ * greater than compressed value lengths.
+ */
+static __always_inline uint
+bonsai_val_ulen(const struct bonsai_val *bv)
+{
+    return bv->bv_xlen & 0xfffffffful;
+}
+
+/**
+ * bonsai_val_clen() - return compressed value length
+ * @bv: ptr to a bonsai val
+ *
+ * bonsai_val_clen() returns the compressed length (in bytes) of the
+ * given bonsai value.  If the value is not compressed then zero is
+ * returned.  Note that compressed value lengths are always less than
+ * uncompressed value lengths.
+ */
+static __always_inline uint
+bonsai_val_clen(const struct bonsai_val *bv)
+{
+    return bv->bv_xlen >> 32;
+}
+
+/**
+ * bonsai_val_vlen() - return in-core value length
+ * @bv: ptr to a bonsai val
+ *
+ * bonsai_val_vlen() returns the in-core length (in bytes) of the
+ * given bonsai value, irrespective of whether or not it is compressed.
+ */
+static __always_inline uint
+bonsai_val_vlen(const struct bonsai_val *bv)
+{
+    return bonsai_val_clen(bv) ?: bonsai_val_ulen(bv);
+}
+
+/**
  * struct bonsai_sval - input value argument
  * @bsv_val:      pointer to value data
+ * @bsv_xlen:     opaque encoded value length
  * @bsv_seqnoref: sequence number reference
- * @bsv_unused:   client's private value (unused)
- * @bsv_vlen:     value length
+ *
+ * Note that the value length (@bsv_xlen) is an opaque encoding of compressed
+ * and uncompressed value lengths so one must use the bonsai_sval_vlen()
+ * function decode it.
  */
 struct bonsai_sval {
-    void *       bsv_val;
-    uintptr_t    bsv_seqnoref;
-    unsigned int bsv_unused;
-    u32          bsv_vlen;
+    void     *bsv_val;
+    u64       bsv_xlen;
+    uintptr_t bsv_seqnoref;
 };
+
+/**
+ * bonsai_sval_vlen() - return in-core value length
+ * @bsv: pointer to a bonsai sval
+ *
+ * bonsai_sval_vlen() returns the in-core length (in bytes) of the
+ * given bonsaid svalue, irrespective of whether or not it is compressed.
+ */
+static __always_inline uint
+bonsai_sval_vlen(const struct bonsai_sval *bsv)
+{
+    uint clen = bsv->bsv_xlen >> 32;
+    uint vlen = bsv->bsv_xlen & 0xfffffffful;
+
+    return clen ?: vlen;
+}
 
 #define BKV_FLAG_PTOMB 0x01
 #define BKV_FLAG_TOMB_HEAD 0x02
@@ -391,17 +455,16 @@ bn_skey_init(const void *key, s32 klen, u16 index, struct bonsai_skey *skey)
 /**
  * bn_sval_init() - initialize a bonsai_sval instance
  * @val:      value
- * @vlen:     value length
+ * @xlen:     value length
  * @seqnoref: sequence number reference
  * @sval:
  */
 static inline void
-bn_sval_init(void *val, u32 vlen, uintptr_t seqnoref, struct bonsai_sval *sval)
+bn_sval_init(void *val, u64 xlen, uintptr_t seqnoref, struct bonsai_sval *sval)
 {
     sval->bsv_val = val;
-    sval->bsv_vlen = vlen;
+    sval->bsv_xlen = xlen;
     sval->bsv_seqnoref = seqnoref;
-    sval->bsv_unused = 0;
 }
 
 static inline s32

@@ -6,9 +6,11 @@
 #include <hse_util/platform.h>
 #include <hse_util/event_counter.h>
 #include <hse_util/slab.h>
-#include <hse_ikvdb/limits.h>
 #include <hse_util/log2.h>
 #include <hse_util/fmt.h>
+#include <hse_util/compression_lz4.h>
+
+#include <hse_ikvdb/limits.h>
 #include <hse_ikvdb/c0_kvset.h>
 #include <hse_ikvdb/c0_kvset_iterator.h>
 
@@ -402,7 +404,7 @@ c0kvs_ior_cb(
         assert(new_val == NULL);
 
         val = kv->bkv_values;
-        n_vlen = val->bv_vlen;
+        n_vlen = bonsai_val_vlen(val);
         n_val = (n_vlen == 0) ? val->bv_valuep : val->bv_value;
 
         if (state == HSE_SQNREF_STATE_SINGLE)
@@ -419,8 +421,7 @@ c0kvs_ior_cb(
         else
             mut_seqno = seqno;
 
-        c0kvsm_insert_bkv(
-            (struct c0_kvset *)cli_rock, *code, kv, mut_seqno, klen, n_vlen, 0, txn_op);
+        c0kvsm_insert_bkv(cli_rock, *code, kv, mut_seqno, klen, n_vlen, 0, txn_op);
 
         return;
     }
@@ -491,11 +492,11 @@ c0kvs_ior_cb(
     o_val = NULL;
 
     if (old) {
-        o_vlen = old->bv_vlen;
+        o_vlen = bonsai_val_vlen(old);
         o_val = (o_vlen == 0) ? old->bv_valuep : old->bv_value;
     }
 
-    n_vlen = new_val->bv_vlen;
+    n_vlen = bonsai_val_vlen(new_val);
     n_val = (n_vlen == 0) ? new_val->bv_valuep : new_val->bv_value;
 
     c0kvs_ior_stats(
@@ -513,8 +514,7 @@ c0kvs_ior_cb(
     else
         mut_seqno = seqno;
 
-    c0kvsm_insert_bkv(
-        (struct c0_kvset *)cli_rock, *code, kv, mut_seqno, klen, n_vlen, o_vlen, txn_op);
+    c0kvsm_insert_bkv(cli_rock, *code, kv, mut_seqno, klen, n_vlen, o_vlen, txn_op);
 }
 
 static __always_inline bool
@@ -857,9 +857,9 @@ c0kvs_put(
     struct bonsai_sval    sval;
 
     bn_skey_init(key->kt_data, key->kt_len, skidx, &skey);
-    bn_sval_init(value->vt_data, value->vt_len, seqnoref, &sval);
+    bn_sval_init(value->vt_data, value->vt_xlen, seqnoref, &sval);
 
-    return c0kvs_putdel(self, &skey, &sval, key->kt_len + value->vt_len, false);
+    return c0kvs_putdel(self, &skey, &sval, key->kt_len + kvs_vtuple_vlen(value), false);
 }
 
 merr_t
@@ -957,10 +957,12 @@ c0kvs_get_excl(
     uintptr_t *              oseqnoref)
 {
     struct c0_kvset_impl *self;
-    struct bonsai_val *   val;
     struct bonsai_skey    skey;
-    struct bonsai_kv *    kv;
-    bool                  found;
+    struct bonsai_val    *val;
+    struct bonsai_kv     *kv;
+    uint copylen, outlen, clen, ulen;
+    bool found;
+    merr_t err;
 
     *oseqnoref = HSE_ORDNL_TO_SQNREF(0);
     *res = NOT_FOUND;
@@ -970,26 +972,46 @@ c0kvs_get_excl(
     kv = NULL;
 
     found = bn_find(self->c0s_broot, &skey, &kv);
-    if (found) {
-        val = c0kvs_findval(handle, kv, view_seqno, seqnoref);
-        if (val) {
-            *oseqnoref = val->bv_seqnoref;
+    if (!found)
+        return 0;
 
-            if (HSE_CORE_IS_TOMB(val->bv_valuep)) {
-                *res = FOUND_TMB;
-            } else {
-                u32 copylen = vbuf->b_len = val->bv_vlen;
+    val = c0kvs_findval(handle, kv, view_seqno, seqnoref);
+    if (!val)
+        return 0;
 
-                if (copylen > vbuf->b_buf_sz)
-                    copylen = vbuf->b_buf_sz;
+    *oseqnoref = val->bv_seqnoref;
 
-                if (copylen > 0 && vbuf->b_buf)
-                    memcpy(vbuf->b_buf, val->bv_value, copylen);
+    if (HSE_CORE_IS_TOMB(val->bv_valuep)) {
+        *res = FOUND_TMB;
+        return 0;
+    }
 
-                *res = FOUND_VAL;
-            }
+    vbuf->b_len = bonsai_val_vlen(val);
+    copylen = vbuf->b_len;
+
+    if (copylen > vbuf->b_buf_sz)
+        copylen = vbuf->b_buf_sz;
+
+    if (copylen > 0 && vbuf->b_buf) {
+        clen = bonsai_val_clen(val);
+        ulen = bonsai_val_ulen(val);
+
+        if (clen > 0) {
+            err = compress_lz4_ops.cop_decompress(
+                val->bv_value, clen, vbuf->b_buf, vbuf->b_buf_sz, &outlen);
+            if (ev(err))
+                return err;
+
+            if (ev(outlen != min_t(uint, ulen, vbuf->b_buf_sz)))
+                return merr(EBUG);
+
+            vbuf->b_len = outlen;
+        } else {
+            memcpy(vbuf->b_buf, val->bv_value, copylen);
         }
     }
+
+    *res = FOUND_VAL;
 
     return 0;
 }
@@ -1089,17 +1111,37 @@ c0kvs_pfx_probe_excl(
         }
 
         if (++qctx->seen == 1) {
-            size_t copylen;
-
-            kbuf->b_len = klen;
-            vbuf->b_len = val->bv_vlen;
+            uint copylen, outlen, clen, ulen;
 
             /* copyout key and value */
+            kbuf->b_len = klen;
             copylen = min_t(size_t, kbuf->b_len, kbuf->b_buf_sz);
             memcpy(kbuf->b_buf, kv->bkv_key, copylen);
 
-            copylen = min_t(size_t, vbuf->b_len, vbuf->b_buf_sz);
-            memcpy(vbuf->b_buf, val->bv_value, copylen);
+            vbuf->b_len = bonsai_val_vlen(val);
+            copylen = vbuf->b_len;
+
+            if (copylen > vbuf->b_buf_sz)
+                copylen = vbuf->b_buf_sz;
+
+            if (copylen > 0 && vbuf->b_buf) {
+                clen = bonsai_val_clen(val);
+                ulen = bonsai_val_ulen(val);
+
+                if (clen > 0) {
+                    err = compress_lz4_ops.cop_decompress(
+                        val->bv_value, clen, vbuf->b_buf, vbuf->b_buf_sz, &outlen);
+                    if (ev(err))
+                        return err;
+
+                    if (ev(outlen != min_t(uint, ulen, vbuf->b_buf_sz)))
+                        return merr(EBUG);
+
+                    vbuf->b_len = outlen;
+                } else {
+                    memcpy(vbuf->b_buf, val->bv_value, copylen);
+                }
+            }
         }
     }
 
@@ -1223,13 +1265,9 @@ c0kvs_debug(struct c0_kvset *handle, void *key, int klen)
             u64   seqno = HSE_SQNREF_TO_ORDNL(v->bv_seqnoref);
             char *label = HSE_CORE_IS_TOMB(v->bv_valuep) ? "tomb" : "len";
 
-            printf(
-                "%sseqnoref %p seqno %lu %s %d",
-                comma,
-                (void *)v->bv_seqnoref,
-                seqno,
-                label,
-                v->bv_vlen);
+            printf("%sseqnoref %p seqno %lu %s %u",
+                   comma, (void *)v->bv_seqnoref,
+                   seqno, label, bonsai_val_vlen(v));
             comma = ", ";
         }
         printf("\n");

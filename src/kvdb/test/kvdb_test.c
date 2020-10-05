@@ -73,11 +73,11 @@ MTF_DEFINE_UTEST_PRE(kvdb_test, kvdb_null_key_test, general_pre)
     const char *           mpool = "mpool";
     const char *           kvs = "kvs";
     uint64_t               err;
-    struct kvs_ktuple      kt = { 0 };
-    struct kvs_vtuple      vt = { 0 };
     bool                   found;
     char                   buf[100];
     size_t                 vlen;
+    char                  *key, *val;
+    size_t                 keylen, vallen;
 
     HSE_KVDB_OPSPEC_INIT(&opspec);
 
@@ -91,20 +91,21 @@ MTF_DEFINE_UTEST_PRE(kvdb_test, kvdb_null_key_test, general_pre)
     err = hse_kvdb_kvs_open(kvdb_h, kvs, 0, &kvs_h);
     ASSERT_EQ(0, err);
 
-    kt.kt_data = "key";
-    kt.kt_len = 0;
-    vt.vt_data = "value";
-    vt.vt_len = strlen(vt.vt_data);
-    err = hse_kvs_put(kvs_h, &opspec, kt.kt_data, kt.kt_len, vt.vt_data, vt.vt_len);
+    key = "key";
+    keylen = 0;
+    val = "value";
+    vallen = strlen(val);
+
+    err = hse_kvs_put(kvs_h, &opspec, key, keylen, val, vallen);
     ASSERT_EQ(ENOENT, merr_errno(err));
 
-    err = hse_kvs_delete(kvs_h, &opspec, kt.kt_data, kt.kt_len);
+    err = hse_kvs_delete(kvs_h, &opspec, key, keylen);
     ASSERT_EQ(ENOENT, merr_errno(err));
 
-    err = hse_kvs_get(kvs_h, &opspec, kt.kt_data, kt.kt_len, &found, buf, sizeof(buf), &vlen);
+    err = hse_kvs_get(kvs_h, &opspec, key, keylen, &found, buf, sizeof(buf), &vlen);
     ASSERT_EQ(ENOENT, merr_errno(err));
 
-    err = hse_kvs_prefix_delete(kvs_h, &opspec, kt.kt_data, kt.kt_len, 0);
+    err = hse_kvs_prefix_delete(kvs_h, &opspec, key, keylen, 0);
     ASSERT_EQ(ENOENT, merr_errno(err));
 
     err = ikvdb_close((struct ikvdb *)kvdb_h);
@@ -120,11 +121,11 @@ MTF_DEFINE_UTEST_PRE(kvdb_test, kvdb_getco_test, general_pre)
     const char *           mpool = "mpool";
     const char *           kvs = "kvs";
     uint64_t               err;
-    struct kvs_ktuple      kt = { 0 };
-    struct kvs_vtuple      vt = { 0 };
     bool                   found;
     char                   buf[100];
     size_t                 vlen;
+    char                  *key, *val;
+    size_t                 keylen, vallen;
 
     HSE_KVDB_OPSPEC_INIT(&opspec);
 
@@ -138,11 +139,12 @@ MTF_DEFINE_UTEST_PRE(kvdb_test, kvdb_getco_test, general_pre)
     err = hse_kvdb_kvs_open(kvdb_h, kvs, 0, &kvs_h);
     ASSERT_EQ(0, err);
 
-    kt.kt_data = "alpha";
-    kt.kt_len = strlen(kt.kt_data);
-    vt.vt_data = "beta";
-    vt.vt_len = strlen(vt.vt_data);
-    err = hse_kvs_put(kvs_h, &opspec, kt.kt_data, kt.kt_len, vt.vt_data, vt.vt_len);
+    key = "alpha";
+    keylen = strlen(key);
+    val = "beta";
+    vallen = strlen(val);
+
+    err = hse_kvs_put(kvs_h, &opspec, key, keylen, val, vallen);
     ASSERT_EQ(0, err);
 
     /*
@@ -153,16 +155,16 @@ MTF_DEFINE_UTEST_PRE(kvdb_test, kvdb_getco_test, general_pre)
      */
 
     /* insufficiently sized buffer */
-    err = hse_kvs_get(kvs_h, &opspec, kt.kt_data, kt.kt_len, &found, buf, vt.vt_len - 2, &vlen);
+    err = hse_kvs_get(kvs_h, &opspec, key, keylen, &found, buf, vallen - 2, &vlen);
     ASSERT_EQ(0, err);
     ASSERT_EQ(found, true);
-    ASSERT_EQ(vlen, vt.vt_len);
+    ASSERT_EQ(vlen, vallen);
 
     /* correctly sized buffer */
-    err = hse_kvs_get(kvs_h, &opspec, kt.kt_data, kt.kt_len, &found, buf, vlen, &vlen);
+    err = hse_kvs_get(kvs_h, &opspec, key, keylen, &found, buf, vlen, &vlen);
     ASSERT_EQ(0, err);
     ASSERT_EQ(found, true);
-    ASSERT_EQ(vlen, vt.vt_len);
+    ASSERT_EQ(vlen, vallen);
 
     err = ikvdb_close((struct ikvdb *)kvdb_h);
     ASSERT_EQ(0, err);

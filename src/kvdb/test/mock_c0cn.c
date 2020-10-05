@@ -44,10 +44,16 @@ struct c0;
 
 struct c0_data {
     int  klen;
-    int  vlen;
+    u64  xlen;
     char key[KEY_LEN];
     char val[KEY_LEN];
 };
+
+static inline uint
+c0_data_vlen(struct c0_data *d)
+{
+    return d->xlen & 0xfffffffful;
+}
 
 struct mock_cn {
     char            tripwire[PAGE_SIZE * 3];
@@ -239,15 +245,15 @@ _c0_put(
     struct mock_c0 *m0 = (void *)handle;
     int             i;
 
-    if (kt->kt_len > KEY_LEN || vt->vt_len > VAL_LEN)
+    if (kt->kt_len > KEY_LEN || kvs_vtuple_vlen(vt) > VAL_LEN)
         return merr(ev(EINVAL));
 
     for (i = 0; i < KEY_CNT; ++i) {
         if (m0->data[i].klen == 0) {
             memcpy(&m0->data[i].key, kt->kt_data, kt->kt_len);
-            memcpy(&m0->data[i].val, vt->vt_data, vt->vt_len);
+            memcpy(&m0->data[i].val, vt->vt_data, kvs_vtuple_vlen(vt));
             m0->data[i].klen = kt->kt_len;
-            m0->data[i].vlen = vt->vt_len;
+            m0->data[i].xlen = vt->vt_xlen;
             return 0;
         }
     }
@@ -274,7 +280,7 @@ _c0_get(
         if (m0->data[i].klen && memcmp(m0->data[i].key, kt->kt_data, kt->kt_len) == 0) {
             u32 copylen;
 
-            vbuf->b_len = m0->data[i].vlen;
+            vbuf->b_len = c0_data_vlen(&m0->data[i]);
 
             copylen = MIN(vbuf->b_len, vbuf->b_buf_sz);
             memcpy(vbuf->b_buf, m0->data[i].val, copylen);
@@ -475,7 +481,7 @@ _cn_cursor_read(void *handle, struct kvs_kvtuple *kvt, bool *eof)
             kvt->kvt_key.kt_data = d->key;
             kvt->kvt_key.kt_len = d->klen;
             kvt->kvt_value.vt_data = d->val;
-            kvt->kvt_value.vt_len = d->vlen;
+            kvt->kvt_value.vt_xlen = d->xlen;
             *eof = false;
 
             return 0;
