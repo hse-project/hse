@@ -106,6 +106,7 @@ kvs_rparams_defaults(void)
 
         .mclass_policy = "capacity_only",
 
+        .vcompmin = CN_SMALL_VALUE_THRESHOLD,
         .value_compression = VCOMP_PARAM_NONE,
 
         .rpmagic = RPARAMS_MAGIC,
@@ -193,8 +194,9 @@ static struct param_inst  kvs_rp_table[] = {
     KVS_PARAM_EXP(rdonly, "open kvs in read-only mode"),
 
     KVS_PARAM_STR(mclass_policy, "media class policy name"),
-    KVS_PARAM_STR(value_compression, "value compression"),
 
+    KVS_PARAM_EXP(vcompmin, "value length above which compression is considered"),
+    KVS_PARAM_STR(value_compression, "value compression algorithm (lz4 or none)"),
 
     PARAM_INST_END
 };

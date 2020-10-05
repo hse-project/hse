@@ -87,6 +87,8 @@ struct kvs_rparams {
     unsigned long rdonly;
 
     char mclass_policy[HSE_MPOLICY_NAME_LEN_MAX];
+
+    unsigned long vcompmin;
     char value_compression[VCOMP_PARAM_STR_SZ];
 
     unsigned long rpmagic;

@@ -490,10 +490,13 @@ c1_tree_replay_kvb_impl(struct c1 *c1, struct c1_tree *tree, struct c1_kvb *kvb)
 static merr_t
 c1_tree_replay_kvb(struct c1 *c1, struct c1_tree *tree, u64 mutation, u64 txnid)
 {
+    static u64     ingestid = U64_MAX;
     struct c1_kvb *kvb;
     struct c1_kvb *tmpkvb;
+    u64            kvb_bundles, kvb_replayed;
     merr_t         err;
-    static u64     ingestid = U64_MAX;
+
+    kvb_bundles = kvb_replayed = 0;
 
     list_for_each_entry_safe (kvb, tmpkvb, &tree->c1t_kvb_list, c1kvb_list) {
 
@@ -522,20 +525,30 @@ c1_tree_replay_kvb(struct c1 *c1, struct c1_tree *tree, u64 mutation, u64 txnid)
          */
         if ((txnid && txnid == kvb->c1kvb_txnid) ||
             (!txnid && !kvb->c1kvb_txnid && kvb->c1kvb_mutation <= mutation)) {
+            bool ingestable;
 
             assert(!txnid || (txnid && kvb->c1kvb_mutation <= mutation));
 
-            if (c1_ingest_kvbundle(c1_kvmsgen(c1), kvb->c1kvb_ingestid)) {
+            ingestable = c1_ingest_kvbundle(c1_kvmsgen(c1), kvb->c1kvb_ingestid);
+            if (ingestable) {
                 err = c1_tree_replay_kvb_impl(c1, tree, kvb);
                 if (ev(err))
                     return err;
+
+                ++kvb_replayed;
             }
+
+            ++kvb_bundles;
 
             list_del(&kvb->c1kvb_list);
             free(kvb->c1kvb_data);
             free(kvb);
         }
     }
+
+    if (kvb_replayed < kvb_bundles)
+        hse_log(HSE_ERR "%s: mut %lu, txnid %lu, ingestid %lu, replayed %lu of %lu bundles",
+                __func__, mutation, ingestid, txnid, kvb_bundles, kvb_replayed);
 
     return 0;
 }
