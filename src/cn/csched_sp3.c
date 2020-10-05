@@ -7,7 +7,6 @@
 
 #include <hse_util/platform.h>
 #include <hse_util/slab.h>
-#include <hse_util/token_bucket.h>
 #include <hse_util/string.h>
 
 #include <hse_ikvdb/cn.h>
@@ -216,11 +215,6 @@ struct sp3 {
         u64 csched_leaf_pct;
     } inputs;
 
-    u64 iowrite_limit_burst;
-    u64 iowrite_limit_rate;
-
-    atomic64_t wbyte_spill_rt;
-
     /* Working parameters, derived from kvdb_rparams mirrored
      * in 'struct inputs'.
      */
@@ -269,10 +263,6 @@ struct sp3 {
     __aligned(SMP_CACHE_BYTES)
     struct mutex        work_list_lock;
     struct list_head    work_list;
-
-    /* Accessed by monitor and job threads */
-    __aligned(SMP_CACHE_BYTES)
-    struct tbkt tbkt;
 
     __aligned(SMP_CACHE_BYTES)
     u64  ucomp_prev_report_ns;
@@ -884,33 +874,11 @@ sp3_refresh_worker_counts(struct sp3 *sp)
 }
 
 static void
-sp3_refresh_rate_limiters(struct sp3 *sp)
-{
-    u64 burst = sp->rp->csched_wr_burst_sz;
-    u64 rate = sp->rp->csched_wr_rate_max;
-
-    if (burst == sp->iowrite_limit_burst && rate == sp->iowrite_limit_rate)
-        return;
-
-    hse_log(
-        HSE_NOTICE "sp3: set maintenance write limits:"
-                   " burst %lu MiB, rate %lu MiB",
-        (ulong)burst,
-        (ulong)rate);
-
-    sp->iowrite_limit_burst = burst;
-    sp->iowrite_limit_rate = rate;
-
-    tbkt_reinit(&sp->tbkt, burst << 20, rate << 20);
-}
-
-static void
 sp3_refresh_settings(struct sp3 *sp)
 {
     sp3_refresh_samp(sp);
     sp3_refresh_thresholds(sp);
     sp3_refresh_worker_counts(sp);
-    sp3_refresh_rate_limiters(sp);
 }
 
 /*****************************************************************
@@ -2224,12 +2192,6 @@ sp3_monitor(struct work_struct *work)
  *
  ****************************************************************/
 
-static struct tbkt *
-sp3_op_tbkt_maint_get(struct csched_ops *handle)
-{
-    return &h2sp(handle)->tbkt;
-}
-
 static void
 sp3_op_throttle_sensor(struct csched_ops *handle, struct throttle_sensor *sensor)
 {
@@ -2438,8 +2400,6 @@ sp3_create(
 
     cv_init(&sp->cv, "csched");
 
-    tbkt_init(&sp->tbkt, 0, 0);
-
     INIT_LIST_HEAD(&sp->mon_tlist);
     INIT_LIST_HEAD(&sp->new_tlist);
     INIT_LIST_HEAD(&sp->work_list);
@@ -2471,7 +2431,6 @@ sp3_create(
     sp->ops.cs_compact_status_get = sp3_op_compact_status_get;
     sp->ops.cs_tree_add = sp3_op_tree_add;
     sp->ops.cs_tree_remove = sp3_op_tree_remove;
-    sp->ops.cs_tbkt_maint_get = sp3_op_tbkt_maint_get;
 
     if (perfc_ctrseti_alloc(
             COMPNAME, sp->name, csched_sp3_perfc, PERFC_EN_SP3, "sp3", &sp->sched_pc))

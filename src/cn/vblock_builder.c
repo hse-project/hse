@@ -14,7 +14,6 @@
 #include <hse_util/assert.h>
 #include <hse_util/logging.h>
 #include <hse_util/perfc.h>
-#include <hse_util/token_bucket.h>
 
 #include <hse_ikvdb/kvs_rparams.h>
 #include <hse_ikvdb/tuple.h>
@@ -126,22 +125,13 @@ _vblock_write(struct vblock_builder *bld)
 {
     merr_t                 err;
     struct iovec           iov;
-    bool                   ingest;
     struct cn_merge_stats *stats = bld->mstats;
     u64                    tstart;
 
     assert(bld->blkid);
 
-    ingest = bld->flags & KVSET_BUILDER_FLAGS_INGEST;
     iov.iov_base = bld->wbuf;
     iov.iov_len = bld->wbuf_len;
-
-    if (!ingest) {
-        struct tbkt *tb = cn_get_tbkt_maint(bld->cn);
-
-        if (tb)
-            tbkt_delay(tbkt_request(tb, iov.iov_len));
-    }
 
     /* Function mblk_blow_chunks(), which is used in the kblock builder,
      * is not needed here because our write buffer is already

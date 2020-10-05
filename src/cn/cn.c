@@ -117,12 +117,6 @@ cn_get_rp(const struct cn *cn)
     return cn->rp;
 }
 
-struct tbkt *
-cn_get_tbkt_maint(const struct cn *cn)
-{
-    return csched_tbkt_maint_get(cn->csched);
-}
-
 struct mclass_policy *
 cn_get_mclass_policy(const struct cn *cn)
 {

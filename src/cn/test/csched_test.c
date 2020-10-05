@@ -51,12 +51,6 @@ mocked_sp_tree_remove(struct csched_ops *handle, struct cn_tree *tree, bool canc
 {
 }
 
-static struct tbkt *
-mocked_sp_tbkt_maint_get(struct csched_ops *handle)
-{
-    return 0;
-}
-
 static void
 mocked_sp_throttle_sensor(struct csched_ops *handle, struct throttle_sensor *ts)
 {
@@ -114,7 +108,6 @@ mocked_sp_create(
         (*handle)->cs_notify_ingest = mocked_sp_notify_ingest;
         (*handle)->cs_tree_add = mocked_sp_tree_add;
         (*handle)->cs_tree_remove = mocked_sp_tree_remove;
-        (*handle)->cs_tbkt_maint_get = mocked_sp_tbkt_maint_get;
         (*handle)->cs_throttle_sensor = mocked_sp_throttle_sensor;
         (*handle)->cs_compact_request = mocked_sp_compact_request;
         (*handle)->cs_compact_status_get = mocked_sp_compact_status_get;
@@ -273,7 +266,6 @@ MTF_DEFINE_UTEST_PRE(test, t_csched_methods, pre_test)
     csched_throttle_sensor(cs, 0);
     csched_compact_request(cs, flags);
     csched_compact_status_get(cs, &status);
-    csched_tbkt_maint_get(cs);
     csched_notify_ingest(cs, tree, 1234, 1234);
     csched_tree_remove(cs, tree, true);
 
@@ -291,7 +283,6 @@ MTF_DEFINE_UTEST_PRE(test, t_csched_methods, pre_test)
     csched_throttle_sensor(cs, 0);
     csched_compact_request(cs, flags);
     csched_compact_status_get(cs, &status);
-    csched_tbkt_maint_get(cs);
     csched_notify_ingest(cs, tree, 1234, 1234);
     csched_tree_remove(cs, tree, true);
 
@@ -301,7 +292,6 @@ MTF_DEFINE_UTEST_PRE(test, t_csched_methods, pre_test)
     cs = 0;
     csched_tree_add(cs, tree);
     csched_throttle_sensor(cs, 0);
-    csched_tbkt_maint_get(cs);
     csched_notify_ingest(cs, tree, 1234, 1234);
     csched_tree_remove(cs, tree, true);
 }

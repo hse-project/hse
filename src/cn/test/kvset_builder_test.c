@@ -45,7 +45,6 @@ pre(struct mtf_test_info *mtf)
     mapi_inject(mapi_idx_cn_get_cnid, TEST_DEF_UTAG);
     mapi_inject(mapi_idx_cn_get_dataset, 0);
     mapi_inject(mapi_idx_cn_get_flags, 0);
-    mapi_inject(mapi_idx_cn_get_tbkt_maint, 0);
 
     mocked_kvs_rp = kvs_rparams_defaults();
     MOCK_SET_FN(cn, cn_get_rp, mocked_cn_get_rp);

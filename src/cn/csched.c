@@ -118,17 +118,6 @@ csched_compact_status_get(struct csched *handle, struct hse_kvdb_compact_status 
         cs->cs_compact_status_get(cs, status);
 }
 
-struct tbkt *
-csched_tbkt_maint_get(struct csched *handle)
-{
-    struct csched_ops *cs = (void *)handle;
-
-    if (cs && cs->cs_tbkt_maint_get)
-        return cs->cs_tbkt_maint_get(cs);
-
-    return 0;
-}
-
 #if defined(HSE_UNIT_TEST_MODE) && HSE_UNIT_TEST_MODE == 1
 #include "csched_ut_impl.i"
 #endif /* HSE_UNIT_TEST_MODE */

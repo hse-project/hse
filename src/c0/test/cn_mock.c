@@ -127,8 +127,6 @@ create_mock_cn(
     mapi_inject(mapi_idx_cn_disable_maint, 0);
     mapi_inject(mapi_idx_cn_get_cnid, 1);
     mapi_inject(mapi_idx_cn_get_rp, 0);
-    mapi_inject(mapi_idx_cn_get_tbkt_maint, 0);
-
     mapi_inject(mapi_idx_cn_disable_maint, 0);
 
     mock_cn->integrity_check = INTEGRITY_CHECK;

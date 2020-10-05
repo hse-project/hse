@@ -96,10 +96,6 @@ struct mpool *
 cn_get_dataset(const struct cn *cn);
 
 /* MTF_MOCK */
-struct tbkt *
-cn_get_tbkt_maint(const struct cn *cn);
-
-/* MTF_MOCK */
 struct mclass_policy *
 cn_get_mclass_policy(const struct cn *cn);
 

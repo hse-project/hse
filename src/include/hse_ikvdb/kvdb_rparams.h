@@ -69,9 +69,6 @@ struct kvdb_rparams {
     unsigned long csched_leaf_len_params;
     unsigned long csched_node_min_ttl;
 
-    unsigned long csched_wr_burst_sz;
-    unsigned long csched_wr_rate_max;
-
     unsigned long dur_enable;
     unsigned long dur_intvl_ms;
     unsigned long dur_buf_sz;

@@ -154,8 +154,6 @@ static struct param_inst   kvdb_rp_table[] = {
     KVDB_PARAM_EXP(csched_ispill_params, "internal node spill params [min,max]"),
     KVDB_PARAM_EXP(csched_leaf_comp_params, "leaf compact params [poppct,min,max]"),
     KVDB_PARAM_EXP(csched_leaf_len_params, "leaf length params [idlem,idlec,kvcompc,min,max]"),
-    KVDB_PARAM_EXP(csched_wr_burst_sz, "csched write burst size"),
-    KVDB_PARAM_EXP(csched_wr_rate_max, "csched write sustained rate limit"),
     KVDB_PARAM_EXP(csched_node_min_ttl, "Min. time-to-live for cN nodes (secs)"),
 
     KVDB_PARAM_EXP(dur_enable, "0: disable durability, 1:enable durability"),
@@ -208,8 +206,6 @@ static char const *const kvdb_rp_writable[] = {
     "csched_leaf_comp_params",
     "csched_leaf_len_params",
     "csched_debug_mask",
-    "csched_wr_burst_sz",
-    "csched_wr_rate_max",
 };
 
 void

@@ -75,7 +75,6 @@ test_setup(struct mtf_test_info *lcl_ti)
     mapi_inject(mapi_idx_cn_get_cnid, 1001);
     mapi_inject(mapi_idx_cn_get_dataset, 0);
     mapi_inject(mapi_idx_cn_get_flags, 0);
-    mapi_inject(mapi_idx_cn_get_tbkt_maint, 0);
     mapi_inject(mapi_idx_cn_pc_mclass_get, 0);
 
     mapi_inject(mapi_idx_tbkt_request, 0);
@@ -233,9 +232,6 @@ MTF_DEFINE_UTEST_PRE(test, t_vbb_ingest_flag, test_setup)
     ASSERT_GE(blks.n_blks, 1);
     blk_list_free(&blks);
     vbb_destroy(vbb);
-
-    /* Again, but with a (mocked) tocken bucket */
-    mapi_inject(mapi_idx_cn_get_tbkt_maint, 1);
 
     err = vbb_create(VBB_CREATE_ARGS, flags);
     ASSERT_EQ(err, 0);
