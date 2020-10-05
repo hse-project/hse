@@ -52,7 +52,6 @@ kvdb_rparams_defaults(void)
         .perfc_enable = 2,
 
         .throttle_update_ns = 250 * 100 * 1000,
-        .sos_log = 1000,
 
         .c0_heap_cache_sz_max = HSE_C0_CCACHE_SZ_MAX,
         .c0_heap_sz = 0,
@@ -123,11 +122,6 @@ static struct param_inst   kvdb_rp_table[] = {
 
     KVDB_PARAM_EXP(throttle_update_ns, "throttle update sensors time in ns"),
 
-    KVDB_PARAM_EXP(
-        sos_log,
-        "sos log update interval "
-        "(0: disable, N>0: update every N milliseconds)"),
-
     KVDB_PARAM_EXP(c0_heap_cache_sz_max, "max size of cheap cache (bytes)"),
     KVDB_PARAM_EXP(c0_heap_sz, "cheap or malloc size"),
     KVDB_PARAM_U32_EXP(c0_debug, "set c0 debug flags"),
@@ -191,7 +185,6 @@ static struct param_inst   kvdb_rp_table[] = {
 
 static char const *const kvdb_rp_writable[] = {
     "c0_debug",
-    "sos_log",
     "throttle_debug",
     "csched_policy",
     "csched_qthreads",

@@ -137,7 +137,6 @@ set( KVDB_SOURCE_FILES
     kvdb/kvdb_cparams.c
     kvdb/kvdb_rparams.c
     kvdb/hse_params.c
-    kvdb/sos_log.c
     kvdb/throttle.c
     kvdb/wp.c
     kvdb/kvdb_rest.c
