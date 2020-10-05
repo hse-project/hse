@@ -1652,7 +1652,7 @@ ikvdb_kvs_make(struct ikvdb *handle, const char *kvs_name, const struct hse_para
     mutex_lock(&self->ikdb_lock);
 
     if (self->ikdb_kvs_cnt >= HSE_KVS_COUNT_MAX) {
-        err = merr(ev(ENOSPC));
+        err = merr(ev(EINVAL));
         goto err_out;
     }
 
