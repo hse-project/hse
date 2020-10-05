@@ -385,12 +385,7 @@ ${BTYPES}: ${BTYPESDEP}
 endif
 
 clean:
-	for d in $(patsubst %,${BUILD_PKG_DIR}/%,src cli test samples) ; do \
-		if test -f "$$d/Makefile"; then \
-			$(MAKE) --no-print-directory -C "$$d" clean ;\
-		fi ;\
-	done
-	find ${BUILD_PKG_DIR} -name \*.${BUILD_PKG_TYPE} -exec rm -f {} \;
+	$(MAKE) -C ${BUILD_PKG_DIR} clean
 
 config-preview:
 ifneq ($(wildcard ${CONFIG}),)
