@@ -110,12 +110,12 @@ csched_compact_request(struct csched *handle, int flags)
 }
 
 void
-csched_compact_status(struct csched *handle, struct hse_kvdb_compact_status *status)
+csched_compact_status_get(struct csched *handle, struct hse_kvdb_compact_status *status)
 {
     struct csched_ops *cs = (void *)handle;
 
-    if (cs && cs->cs_compact_status)
-        cs->cs_compact_status(cs, status);
+    if (cs && cs->cs_compact_status_get)
+        cs->cs_compact_status_get(cs, status);
 }
 
 struct tbkt *

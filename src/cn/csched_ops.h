@@ -27,7 +27,7 @@ struct csched_ops {
 
     void (*cs_compact_request)(struct csched_ops *, int);
 
-    void (*cs_compact_status)(struct csched_ops *, struct hse_kvdb_compact_status *);
+    void (*cs_compact_status_get)(struct csched_ops *, struct hse_kvdb_compact_status *);
 
     struct tbkt *(*cs_tbkt_maint_get)(struct csched_ops *);
 

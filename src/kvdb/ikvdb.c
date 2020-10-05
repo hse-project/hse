@@ -2787,14 +2787,14 @@ ikvdb_compact(struct ikvdb *handle, int flags)
 }
 
 void
-ikvdb_compact_status(struct ikvdb *handle, struct hse_kvdb_compact_status *status)
+ikvdb_compact_status_get(struct ikvdb *handle, struct hse_kvdb_compact_status *status)
 {
     struct ikvdb_impl *self = ikvdb_h2r(handle);
 
     if (ev(self->ikdb_rdonly))
         return;
 
-    csched_compact_status(self->ikdb_csched, status);
+    csched_compact_status_get(self->ikdb_csched, status);
 }
 
 merr_t

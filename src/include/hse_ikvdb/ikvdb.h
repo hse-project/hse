@@ -473,7 +473,7 @@ ikvdb_compact(struct ikvdb *self, int flags);
 struct hse_kvdb_compact_status;
 
 void
-ikvdb_compact_status(struct ikvdb *handle, struct hse_kvdb_compact_status *status);
+ikvdb_compact_status_get(struct ikvdb *handle, struct hse_kvdb_compact_status *status);
 
 /**
  * ikvdb_kvdb_handle()    - Convert an ikvdb reference to an ikvdb

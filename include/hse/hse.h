@@ -164,9 +164,22 @@ hse_kvdb_fini(void);
 const char *
 hse_kvdb_version_string(void);
 
+/**
+ * A string representing the HSE KVDB libary version tag
+ *
+ * The version tag starts with a sequence (e.g., r1.9.0) and then, depending
+ * on the type of build may have additional information appended. This function is
+ * thread safe.
+ */
 const char *
 hse_kvdb_version_tag(void);
 
+/**
+ * A string representing the HSE KVDB library version commit hash
+ *
+ * The version commit hash is a git commit hash
+ * (e.g., b55fe07774d7cbc1492d7b8a47dc2c194cd3e24a). This function is thread safe.
+ */
 const char *
 hse_kvdb_version_sha(void);
 
@@ -851,7 +864,7 @@ hse_kvdb_flush(struct hse_kvdb *kvdb);
  *
  *     hse_kvdb_compact(<kvdb handle>, HSE_KVDB_COMP_FLAG_CANCEL);
  *
- * See the function hse_kvdb_compact_status(). This function is thread safe.
+ * See the function hse_kvdb_compact_status_get(). This function is thread safe.
  *
  * @param kvdb:  KVDB handle from hse_kvdb_open()
  * @param flags: Compaction flags
@@ -882,7 +895,7 @@ struct hse_kvdb_compact_status {
  * @return The function's error status
  */
 hse_err_t
-hse_kvdb_compact_status(struct hse_kvdb *kvdb, struct hse_kvdb_compact_status *status);
+hse_kvdb_compact_status_get(struct hse_kvdb *kvdb, struct hse_kvdb_compact_status *status);
 
 /**@}*/
 
@@ -935,7 +948,7 @@ hse_params_from_file(struct hse_params *params, const char *path);
 /**
  * Parse params from a string
  *
- * This function takes a string and parses it, populating the supplied params object. If
+ * This function takes a string and parses it as YAML, populating the supplied params object. If
  * the string is not a valid params specification, the parsing will fail. Client
  * applications can use the experimental function hse_params_err_exp() to get more
  * information as to what problem occurred in processing the string. This function is
