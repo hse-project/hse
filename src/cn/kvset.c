@@ -2629,36 +2629,39 @@ kvset_iter_enable_mblock_read(struct kvset_iterator *iter)
      * reader because vblocks will be consumed in order.  Kvsets
      * produced by kcompaction will need one reader for each vgroup.
      */
-    iter->vreaders = calloc(iter->ks->ks_vgroups, sizeof(*iter->vreaders));
-    if (ev(!iter->vreaders))
-        goto nomem;
-    for (i = 0; i < iter->ks->ks_vgroups; i++) {
-        vr = iter->vreaders + i;
-
-        mbio_init(&vr->mbio);
-
-        mem = kvset_rbuf_alloc(vr_buf_sz * 2);
-        if (ev(!mem))
+    iter->vreaders = NULL;
+    if (iter->ks->ks_vgroups) {
+        iter->vreaders = calloc(iter->ks->ks_vgroups, sizeof(*iter->vreaders));
+        if (ev(!iter->vreaders))
             goto nomem;
+        for (i = 0; i < iter->ks->ks_vgroups; i++) {
+            vr = iter->vreaders + i;
 
-        vr->vr_buf[0].data = mem;
-        vr->vr_buf[0].off = 0;
-        vr->vr_buf[0].len = 0;
-        vr->vr_buf[0].idx = UINT_MAX;
+            mbio_init(&vr->mbio);
 
-        vr->asyncio = iter->asyncio;
-        if (iter->asyncio) {
-            vr->vr_buf[1].data = mem + vr_buf_sz;
-            vr->vr_buf[1].off = 0;
-            vr->vr_buf[1].len = 0;
-            vr->vr_buf[1].idx = UINT_MAX;
+            mem = kvset_rbuf_alloc(vr_buf_sz * 2);
+            if (ev(!mem))
+                goto nomem;
+
+            vr->vr_buf[0].data = mem;
+            vr->vr_buf[0].off = 0;
+            vr->vr_buf[0].len = 0;
+            vr->vr_buf[0].idx = UINT_MAX;
+
+            vr->asyncio = iter->asyncio;
+            if (iter->asyncio) {
+                vr->vr_buf[1].data = mem + vr_buf_sz;
+                vr->vr_buf[1].off = 0;
+                vr->vr_buf[1].len = 0;
+                vr->vr_buf[1].idx = UINT_MAX;
+            }
+
+            vr->vr_active = 0;
+            vr->vr_buf_sz = vr_buf_sz;
+
+            vr->ds = iter->ks->ks_ds;
+            vr->pc = iter->pc;
         }
-
-        vr->vr_active = 0;
-        vr->vr_buf_sz = vr_buf_sz;
-
-        vr->ds = iter->ks->ks_ds;
-        vr->pc = iter->pc;
     }
 
     return 0;
