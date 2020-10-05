@@ -250,8 +250,8 @@ MTF_DEFINE_UTEST_PREPOST(c0_kvmultiset_test, ingest_sk, no_fail_pre, no_fail_pos
 
             skidx = kbuf[0] % 256;
             kvs_ktuple_init(&kt, kbuf, sizeof(kbuf));
-            vt.vt_data = vbuf;
-            vt.vt_len = sizeof(vbuf);
+            kvs_vtuple_init(&vt, vbuf, sizeof(vbuf));
+
             seqno = HSE_ORDNL_TO_SQNREF(kbuf[0]);
             err = c0kvs_put(p, skidx, &kt, &vt, seqno);
             ASSERT_EQ(0, err);
@@ -305,11 +305,10 @@ MTF_DEFINE_UTEST_PREPOST(c0_kvmultiset_test, ingest_sk, no_fail_pre, no_fail_pos
         kt.kt_len = key_imm_klen(&bkv->bkv_key_imm);
         skidx = key_immediate_index(&bkv->bkv_key_imm);
 
-        vt.vt_len = val->bv_vlen;
-        vt.vt_data = vt.vt_len ? val->bv_value : val->bv_valuep;
+        kvs_vtuple_init(&vt, bonsai_val_vlen(val) ? val->bv_value : val->bv_valuep, val->bv_xlen);
 
         keyb_out += kt.kt_len;
-        valb_out += vt.vt_len;
+        valb_out += kvs_vtuple_vlen(&vt);
 
         if (vt.vt_data == HSE_CORE_TOMB_REG)
             ++tombs_out;

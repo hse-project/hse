@@ -562,6 +562,7 @@ MTF_DEFINE_UTEST_PREPOST(ikvdb_test, txn_del_test, test_pre, test_post)
     struct kvs_buf         vbuf;
     char                   buf[100];
     enum key_lookup_res    found;
+    char                  *str;
 
     HSE_KVDB_OPSPEC_INIT(&opspec);
 
@@ -585,8 +586,8 @@ MTF_DEFINE_UTEST_PREPOST(ikvdb_test, txn_del_test, test_pre, test_post)
     ASSERT_NE(NULL, kvs_h);
 
     kvs_ktuple_init(&kt, "key", 3);
-    vt.vt_data = "data";
-    vt.vt_len = strlen(vt.vt_data);
+    str = "data";
+    kvs_vtuple_init(&vt, str, strlen(str));
 
     err = ikvdb_kvs_put(kvs_h, 0, &kt, &vt);
     ASSERT_EQ(0, err);
@@ -640,6 +641,7 @@ parallel_transactions(void *info)
     enum key_lookup_res    found;
     char                   vbuf[100];
     merr_t                 err;
+    char                  *str;
 
     HSE_KVDB_OPSPEC_INIT(&opspec);
 
@@ -651,8 +653,8 @@ parallel_transactions(void *info)
 
     snprintf(kbuf, sizeof(kbuf), "key-%d", ti->idx);
     kvs_ktuple_init(&kt, kbuf, strlen(kbuf));
-    vt.vt_data = "data";
-    vt.vt_len = strlen(vt.vt_data);
+    str = "data";
+    kvs_vtuple_init(&vt, str, strlen(str));
 
     err = ikvdb_kvs_put(ti->kvs, &opspec, &kt, &vt);
     VERIFY_EQ_RET(0, err, 0);
@@ -904,10 +906,9 @@ MTF_DEFINE_UTEST_PREPOST(ikvdb_test, cursor_1, test_pre_c0, test_post_c0)
 
     /* insert data into "c0" */
     for (i = 0; i < NELEM(kvdata); ++i) {
-        kt.kt_data = kvdata[i].key;
-        kt.kt_len = strlen(kt.kt_data);
-        vt.vt_data = kvdata[i].val;
-        vt.vt_len = strlen(vt.vt_data);
+        kvs_ktuple_init(&kt, kvdata[i].key, strlen(kvdata[i].key));
+        kvs_vtuple_init(&vt, kvdata[i].val, strlen(kvdata[i].val));
+
         err = ikvdb_kvs_put(kvs_h, &opspec, &kt, &vt);
         ASSERT_EQ(0, err);
     }
@@ -1075,10 +1076,8 @@ MTF_DEFINE_UTEST_PREPOST(ikvdb_test, cursor_tx, test_pre_c0, test_post_c0)
 
 #define PUT(op, kvdata)                            \
     do {                                           \
-        kt.kt_data = kvdata.key;                   \
-        kt.kt_len = strlen(kt.kt_data);            \
-        vt.vt_data = kvdata.val;                   \
-        vt.vt_len = strlen(vt.vt_data);            \
+        kvs_ktuple_init(&kt, kvdata.key, strlen(kvdata.key)); \
+        kvs_vtuple_init(&vt, kvdata.val, strlen(kvdata.val)); \
         err = ikvdb_kvs_put(kvs_h, &op, &kt, &vt); \
         ASSERT_EQ(0, err);                         \
     } while (0)

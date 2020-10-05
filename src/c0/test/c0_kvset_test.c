@@ -106,8 +106,8 @@ MTF_DEFINE_UTEST_PREPOST(c0_kvset_test, basic_put_get, no_fail_pre, no_fail_post
                 ++j;
             }
 
-            vt.vt_data = vbuf;
-            vt.vt_len = sizeof(vbuf);
+            kvs_vtuple_init(&vt, vbuf, sizeof(vbuf));
+
             err = c0kvs_put(kvs, 0, &kt, &vt, iseqnoref);
             ASSERT_EQ(0, err);
         }
@@ -301,9 +301,9 @@ MTF_DEFINE_UTEST_PREPOST(c0_kvset_test, basic_repeated_put, no_fail_pre, no_fail
     ASSERT_NE((struct c0_kvset *)0, kvs);
 
     kvs_ktuple_init(&kt, kbuf, 1);
-    vt.vt_data = vbuf;
-    vt.vt_len = 1;
-    kvs_buf_init(&vb, vt.vt_data, vt.vt_len);
+    kvs_vtuple_init(&vt, vbuf, 1);
+    kvs_buf_init(&vb, vt.vt_data, kvs_vtuple_vlen(&vt));
+
     iseqnoref = HSE_ORDNL_TO_SQNREF(0);
 
     for (i = 0; i < 10; ++i) {
@@ -326,9 +326,8 @@ MTF_DEFINE_UTEST_PREPOST(c0_kvset_test, basic_repeated_put, no_fail_pre, no_fail
 
     kbuf[0] = 3;
     vbuf[0] = 4;
-    vt.vt_data = vbuf;
-    vt.vt_len = 1;
-    kvs_buf_init(&vb, vt.vt_data, vt.vt_len);
+    kvs_vtuple_init(&vt, vbuf, 1);
+    kvs_buf_init(&vb, vt.vt_data, kvs_vtuple_vlen(&vt));
     err = c0kvs_put(kvs, 0, &kt, &vt, iseqnoref);
     ASSERT_EQ(0, err);
     vbuf[0] = 0;
@@ -343,9 +342,8 @@ MTF_DEFINE_UTEST_PREPOST(c0_kvset_test, basic_repeated_put, no_fail_pre, no_fail
     kbuf[0] = 3;
     iseqnoref = HSE_ORDNL_TO_SQNREF(2);
     vbuf[0] = 1;
-    vt.vt_data = vbuf;
-    vt.vt_len = 1;
-    kvs_buf_init(&vb, vt.vt_data, vt.vt_len);
+    kvs_vtuple_init(&vt, vbuf, 1);
+    kvs_buf_init(&vb, vt.vt_data, kvs_vtuple_vlen(&vt));
     err = c0kvs_put(kvs, 0, &kt, &vt, iseqnoref);
     ASSERT_EQ(0, err);
 
@@ -380,8 +378,8 @@ MTF_DEFINE_UTEST_PREPOST(c0_kvset_test, basic_repeated_put, no_fail_pre, no_fail
 
     kbuf[0] = 3;
     iseqnoref = HSE_ORDNL_TO_SQNREF(3);
-    vt.vt_len = 0;
-    kvs_buf_init(&vb, vt.vt_data, vt.vt_len);
+    kvs_vtuple_init(&vt, vbuf, 0);
+    kvs_buf_init(&vb, vt.vt_data, kvs_vtuple_vlen(&vt));
     err = c0kvs_put(kvs, 0, &kt, &vt, iseqnoref);
     ASSERT_EQ(0, err);
 
@@ -446,8 +444,7 @@ MTF_DEFINE_UTEST_PREPOST(c0_kvset_test, advanced_repeated_put, no_fail_pre, no_f
     ASSERT_NE((struct c0_kvset *)0, kvs);
 
     kvs_ktuple_init(&kt, kbuf, sizeof(kbuf));
-    vt.vt_data = vbuf;
-    vt.vt_len = sizeof(vbuf);
+    kvs_vtuple_init(&vt, vbuf, sizeof(vbuf));
 
     /* Insert a bunch of pseudo-random stuff ... */
     srand(42);
@@ -496,7 +493,7 @@ MTF_DEFINE_UTEST_PREPOST(c0_kvset_test, advanced_repeated_put, no_fail_pre, no_f
     for (i = reinsert_count - 1; i >= 0; --i) {
         kbuf[0] = keys[indexes[i]];
         for (j = 0; j < 8; ++j) {
-            kvs_buf_init(&vb, vt.vt_data, vt.vt_len);
+            kvs_buf_init(&vb, vt.vt_data, kvs_vtuple_vlen(&vt));
             res = (enum key_lookup_res) - 1;
             view_seqno = j;
             err = c0kvs_get_excl(kvs, 0, &kt, view_seqno, 0, &res, &vb, &oseqnoref);
@@ -529,7 +526,7 @@ MTF_DEFINE_UTEST_PREPOST(c0_kvset_test, advanced_repeated_put, no_fail_pre, no_f
     if (HSE_CORE_IS_TOMB(val->bv_valuep))
         tr_tombs++;
     else
-        tr_val_bytes += val->bv_vlen;
+        tr_val_bytes += bonsai_val_vlen(val);
 
     last_key = bkv->bkv_key;
     last_key_len = key_imm_klen(&bkv->bkv_key_imm);
@@ -556,7 +553,7 @@ MTF_DEFINE_UTEST_PREPOST(c0_kvset_test, advanced_repeated_put, no_fail_pre, no_f
         if (HSE_CORE_IS_TOMB(val->bv_valuep))
             tr_tombs++;
         else
-            tr_val_bytes += val->bv_vlen;
+            tr_val_bytes += bonsai_val_vlen(val);
 
         last_key = key;
         last_key_len = key_len;
@@ -602,8 +599,8 @@ MTF_DEFINE_UTEST_PREPOST(c0_kvset_test, basic_put_get_del, no_fail_pre, no_fail_
             vbuf[j] = 1;
             ++j;
         }
-        vt.vt_data = vbuf;
-        vt.vt_len = sizeof(vbuf);
+
+        kvs_vtuple_init(&vt, vbuf, sizeof(vbuf));
 
         err = c0kvs_put(kvs, 0, &kt, &vt, iseqnoref);
         ASSERT_EQ(0, err);
@@ -616,7 +613,7 @@ MTF_DEFINE_UTEST_PREPOST(c0_kvset_test, basic_put_get_del, no_fail_pre, no_fail_
 
         kt.kt_len = 1 + strlen(kbuf);
         view_seqno = i + 1;
-        kvs_buf_init(&vb, vt.vt_data, vt.vt_len);
+        kvs_buf_init(&vb, vt.vt_data, kvs_vtuple_vlen(&vt));
 
         res = (enum key_lookup_res) - 1;
         err = c0kvs_get_excl(kvs, 0, &kt, view_seqno, 0, &res, &vb, &oseqnoref);
@@ -749,8 +746,7 @@ MTF_DEFINE_UTEST_PREPOST(c0_kvset_test, get_content_metrics, no_fail_pre, no_fai
     ASSERT_EQ(0, total_value_bytes);
 
     kvs_ktuple_init(&kt, kbuf, sizeof(kbuf));
-    vt.vt_data = vbuf;
-    vt.vt_len = sizeof(vbuf);
+    kvs_vtuple_init(&vt, vbuf, sizeof(vbuf));
     seqno = HSE_ORDNL_TO_SQNREF(0);
 
     for (i = 0; i < initial_insert_count; ++i) {
@@ -842,8 +838,7 @@ MTF_DEFINE_UTEST_PREPOST(c0_kvset_test, finalize, no_fail_pre, no_fail_post)
     c0kvs_ingesting_init(kvs, &ingesting);
 
     kvs_ktuple_init(&kt, kbuf, 0);
-    vt.vt_data = vbuf;
-    vt.vt_len = sizeof(vbuf);
+    kvs_vtuple_init(&vt, vbuf, sizeof(vbuf));
     iseqno = HSE_ORDNL_TO_SQNREF(0);
 
     for (i = 0; i < 10; ++i) {
@@ -871,7 +866,7 @@ MTF_DEFINE_UTEST_PREPOST(c0_kvset_test, finalize, no_fail_pre, no_fail_post)
         sprintf(kbuf, "c0%03dsnapple%03d", i, i);
         kt.kt_len = 1 + strlen(kbuf);
         iseqno = HSE_ORDNL_TO_SQNREF(1);
-        kvs_buf_init(&vb, vt.vt_data, vt.vt_len);
+        kvs_buf_init(&vb, vt.vt_data, kvs_vtuple_vlen(&vt));
 
         res = (enum key_lookup_res) - 1;
         err = c0kvs_get_excl(kvs, 0, &kt, iseqno, 0, &res, &vb, &oseqno);
@@ -914,8 +909,7 @@ MTF_DEFINE_UTEST_PREPOST(c0_kvset_test, finalize, no_fail_pre, no_fail_post)
         kt.kt_len = 1 + strlen(kbuf);
 
         memset(vbuf, 0, sizeof(vbuf));
-        vt.vt_data = vbuf;
-        vt.vt_len = sizeof(vbuf);
+        kvs_vtuple_init(&vt, vbuf, sizeof(vbuf));
 
         err = c0kvs_put(kvs, 0, &kt, &vt, iseqno);
     }

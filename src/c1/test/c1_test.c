@@ -944,10 +944,8 @@ again:
     err = c1_open(NULL, false, c1_oid1, c1_oid2, 0, "mock_mp", &kvdb_rp, NULL, NULL, &c1);
     ASSERT_EQ(0, err);
 
-    kt.kt_len = 3;
-    kt.kt_data = "foo";
-    vt.vt_len = 3;
-    vt.vt_data = "foo";
+    kvs_ktuple_init(&kt, "foo", 3);
+    kvs_vtuple_init(&vt, "foo", 3);
 
     seqnoref = HSE_ORDNL_TO_SQNREF(0);
 
@@ -1194,8 +1192,7 @@ MTF_DEFINE_UTEST_PREPOST(c1_test, ingest_replay, no_fail_pre, no_fail_post)
     err = c0_del(test_c0, &kt, seqnoref);
     ASSERT_EQ(0, err);
 
-    vt.vt_data = "data";
-    vt.vt_len = strlen(vt.vt_data);
+    kvs_vtuple_init(&vt, "data", 4);
     err = c0_put(test_c0, &kt, &vt, seqnoref);
 
     err = c0_close(test_c0);
@@ -1301,8 +1298,7 @@ MTF_DEFINE_UTEST_PREPOST(c1_test, ingest_replay2, no_fail_pre, no_fail_post)
     err = c0_del(test_c0, &kt, seqnoref);
     ASSERT_EQ(0, err);
 
-    vt.vt_data = "data";
-    vt.vt_len = strlen(vt.vt_data);
+    kvs_vtuple_init(&vt, "data", 4);
     err = c0_put(test_c0, &kt, &vt, seqnoref);
 
     err = c0_close(test_c0);
@@ -1430,8 +1426,7 @@ MTF_DEFINE_UTEST_PREPOST(c1_test, ingest_replay3, no_fail_pre, no_fail_post)
     err = c0_del(test_c0, &kt, seqnoref);
     ASSERT_EQ(0, err);
 
-    vt.vt_data = "data";
-    vt.vt_len = strlen(vt.vt_data);
+    kvs_vtuple_init(&vt, "data", 4);
     err = c0_put(test_c0, &kt, &vt, seqnoref);
 
     err = c1_close(c1);
@@ -1711,10 +1706,10 @@ MTF_DEFINE_UTEST_PREPOST(c1_test, upgrade2, no_fail_pre, no_fail_post)
     omf = (char *)&vt_omf;
     upgrade_test_bytype(omf, C1_TYPE_VT, sizeof(vt_omf), lcl_ti);
 
-    omf_set_c1vt_vlen(&vt_omf, 1000);
+    omf_set_c1vt_xlen(&vt_omf, 1000);
     err = c1_record_unpack_bytype(omf, C1_TYPE_VT, C1_VERSION, &rec);
     ASSERT_EQ(0, err);
-    ASSERT_EQ(rec.v.c1vm_vlen, 1000);
+    ASSERT_EQ(c1_vtuple_meta_vlen(&rec.v), 1000);
 
     /* C1_TYPE_MBLK */
     omf = (char *)&mblk_omf;

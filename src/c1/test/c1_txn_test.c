@@ -261,8 +261,7 @@ MTF_DEFINE_UTEST_PREPOST(c1_txn_test, commit, test_pre, test_post)
     ASSERT_EQ(0, err);
 
     kvs_ktuple_init(&kt, "key", 3);
-    vt.vt_data = buffer;
-    vt.vt_len = vt_len;
+    kvs_vtuple_init(&vt, buffer, vt_len);
 
     err = ikvdb_kvs_put(kvs_h, &os, &kt, &vt);
     ASSERT_EQ(0, err);
@@ -284,8 +283,7 @@ MTF_DEFINE_UTEST_PREPOST(c1_txn_test, commit, test_pre, test_post)
     ASSERT_EQ(0, err);
 
     kvs_ktuple_init(&kt, "Key", 3);
-    vt.vt_data = "data";
-    vt.vt_len = strlen(vt.vt_data);
+    kvs_vtuple_init(&vt, "data", 4);
     err = ikvdb_kvs_put(kvs_h, &os, &kt, &vt);
     ASSERT_EQ(0, err);
 
@@ -373,8 +371,7 @@ MTF_DEFINE_UTEST_PREPOST(c1_txn_test, commit_replay, test_pre, test_post)
     ASSERT_EQ(0, err);
 
     kvs_ktuple_init(&kt, "key", 3);
-    vt.vt_data = buffer;
-    vt.vt_len = vt_len;
+    kvs_vtuple_init(&vt, buffer, vt_len);
 
     err = ikvdb_kvs_put(kvs_h, &os, &kt, &vt);
     ASSERT_EQ(0, err);
@@ -398,8 +395,7 @@ MTF_DEFINE_UTEST_PREPOST(c1_txn_test, commit_replay, test_pre, test_post)
     ASSERT_EQ(0, err);
 
     kvs_ktuple_init(&kt, "key1", 3);
-    vt.vt_data = "data";
-    vt.vt_len = strlen(vt.vt_data);
+    kvs_vtuple_init(&vt, "data", 4);
     err = ikvdb_kvs_put(kvs_h, &os, &kt, &vt);
     ASSERT_EQ(0, err);
 
@@ -464,8 +460,7 @@ c1_txn_test_perform_ingest(struct ikvdb *hdl, struct hse_kvs *kvs_h, bool pdel)
             goto err_exit;
 
         kvs_ktuple_init(&kt, "key", 3);
-        vt.vt_data = buffer;
-        vt.vt_len = vt_len;
+        kvs_vtuple_init(&vt, buffer, vt_len);
 
         err = ikvdb_kvs_put(kvs_h, &os, &kt, &vt);
         if (err)

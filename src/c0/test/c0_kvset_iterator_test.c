@@ -46,10 +46,8 @@ MTF_DEFINE_UTEST(c0_kvset_iterator_test, basic_construction)
     err = c0kvs_create(HSE_C0_CHEAP_SZ_DFLT, 0, 0, false, &kvs);
     ASSERT_NE((struct c0_kvset *)0, kvs);
 
-    kt.kt_data = kbuf;
-    kt.kt_len = sizeof(kbuf);
-    vt.vt_data = vbuf;
-    vt.vt_len = sizeof(vbuf);
+    kvs_ktuple_init(&kt, kbuf, sizeof(kbuf));
+    kvs_vtuple_init(&vt, vbuf, sizeof(vbuf));
 
     srand(42);
     for (i = 0; i < insert_count; ++i) {
@@ -114,10 +112,8 @@ MTF_DEFINE_UTEST(c0_kvset_iterator_test, element_source)
     br = c0_kvset_iterator_eof(&riter);
     ASSERT_TRUE(br);
 
-    kt.kt_data = kbuf;
-    kt.kt_len = sizeof(kbuf);
-    vt.vt_data = vbuf;
-    vt.vt_len = sizeof(vbuf);
+    kvs_ktuple_init(&kt, kbuf, sizeof(kbuf));
+    kvs_vtuple_init(&vt, vbuf, sizeof(vbuf));
 
     srand(42);
     for (i = 0; i < insert_count; ++i) {
@@ -243,10 +239,8 @@ MTF_DEFINE_UTEST(c0_kvset_iterator_test, seek)
     ASSERT_NE((struct c0_kvset *)0, kvs);
     kvs_impl = c0_kvset_h2r(kvs);
 
-    kt.kt_data = kbuf;
-    kt.kt_len = sizeof(kbuf);
-    vt.vt_data = vbuf;
-    vt.vt_len = sizeof(vbuf);
+    kvs_ktuple_init(&kt, kbuf, sizeof(kbuf));
+    kvs_vtuple_init(&vt, vbuf, sizeof(vbuf));
 
     srand(42);
     for (i = 0; i < insert_count; ++i) {
@@ -391,10 +385,8 @@ MTF_DEFINE_UTEST(c0_kvset_iterator_test, skip)
     ASSERT_NE((struct c0_kvset *)0, kvs);
     kvs_impl = c0_kvset_h2r(kvs);
 
-    kt.kt_data = kbuf;
-    kt.kt_len = sizeof(kbuf);
-    vt.vt_data = vbuf;
-    vt.vt_len = sizeof(vbuf);
+    kvs_ktuple_init(&kt, kbuf, sizeof(kbuf));
+    kvs_vtuple_init(&vt, vbuf, sizeof(vbuf));
 
     exp1[0] = 1;
     exp2[0] = 2;

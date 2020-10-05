@@ -1401,6 +1401,7 @@ MTF_DEFINE_UTEST_PREPOST(c0sk_test, c0sk_get_test, no_fail_pre, no_fail_post)
     atomic64_t            seqno;
     u16                   skidx = 0;
     const u32             pfx_len = 0;
+    char                 *str;
 
     kvdb_rp = kvdb_rparams_defaults();
     kvs_rp = kvs_rparams_defaults();
@@ -1427,10 +1428,10 @@ MTF_DEFINE_UTEST_PREPOST(c0sk_test, c0sk_get_test, no_fail_pre, no_fail_post)
     err = c0sk_install_c0kvms(self, NULL, kvms);
     ASSERT_EQ(0, err);
 
-    kt.kt_data = "alpha";
-    kt.kt_len = strlen(kt.kt_data);
-    vt.vt_data = "this_is_a_large_val";
-    vt.vt_len = strlen(vt.vt_data);
+    str = "alpha";
+    kvs_ktuple_init(&kt, str, strlen(str));
+    str = "this_is_a_large_val";
+    kvs_vtuple_init(&vt, str, strlen(str));
 
     err = c0sk_put(mkvdb.ikdb_c0sk, skidx, &kt, &vt, HSE_SQNREF_SINGLE);
     ASSERT_EQ(0, err);
@@ -1440,19 +1441,19 @@ MTF_DEFINE_UTEST_PREPOST(c0sk_test, c0sk_get_test, no_fail_pre, no_fail_post)
     err = c0sk_get(mkvdb.ikdb_c0sk, skidx, pfx_len, &kt, atomic64_read(&seqno), 0, &res, &vbuf);
     ASSERT_EQ(0, merr_errno(err));
     ASSERT_EQ(res, FOUND_VAL);
-    ASSERT_EQ(vbuf.b_len, vt.vt_len);
+    ASSERT_EQ(vbuf.b_len, kvs_vtuple_vlen(&vt));
     ASSERT_EQ(0, strncmp(buf, "this", vbuf.b_buf_sz));
 
     kvs_buf_init(&vbuf, buf, vbuf.b_len);
     err = c0sk_get(mkvdb.ikdb_c0sk, skidx, pfx_len, &kt, atomic64_read(&seqno), 0, &res, &vbuf);
     ASSERT_EQ(0, err);
     ASSERT_EQ(res, FOUND_VAL);
-    ASSERT_EQ(vbuf.b_len, vt.vt_len);
+    ASSERT_EQ(vbuf.b_len, kvs_vtuple_vlen(&vt));
     ASSERT_EQ(0, strncmp(buf, vt.vt_data, vbuf.b_len));
 
     /* nonexistent key */
-    kt.kt_data = "shouldnt_exist";
-    kt.kt_len = strlen(kt.kt_data);
+    str = "shouldnt_exist";
+    kvs_ktuple_init(&kt, str, strlen(str));
     kvs_buf_init(&vbuf, buf, sizeof(buf));
     err = c0sk_get(mkvdb.ikdb_c0sk, skidx, pfx_len, &kt, atomic64_read(&seqno), 0, &res, &vbuf);
     ASSERT_EQ(0, err);
@@ -1596,8 +1597,13 @@ MTF_DEFINE_UTEST_PREPOST(c0sk_test, c0_cursor_robust, no_fail_pre, no_fail_post)
         /* this cursor will NOT see these keys */
 
         for (; j < n; ++j) {
+            int vlen;
+
             kvs_ktuple_init(&kt, kbuf, sprintf(kbuf, "%05d", keys[j]) + 1);
-            vt.vt_len = sprintf(vbuf, "%lu", (ulong)atomic64_read(&seqno));
+
+            vlen = sprintf(vbuf, "%lu", (ulong)atomic64_read(&seqno));
+            kvs_vtuple_init(&vt, vbuf, vlen);
+
             err = c0sk_put(mkvdb.ikdb_c0sk, skidx, &kt, &vt, HSE_SQNREF_SINGLE);
             ASSERT_EQ(0, err);
             if (random() % 100 < 5)
@@ -1774,9 +1780,13 @@ MTF_DEFINE_UTEST_PREPOST(c0sk_test, c0_cursor_eagain, no_fail_pre, no_fail_post)
 
     /* at least one too many */
     for (i = 0; i <= HSE_C0_KVSET_CURSOR_MAX; ++i) {
+        int vlen;
 
         kvs_ktuple_init(&kt, kbuf, sprintf(kbuf, "%05d", i));
-        vt.vt_len = sprintf(vbuf, "%lu", (ulong)atomic64_read(&seqno));
+
+        vlen = sprintf(vbuf, "%lu", (ulong)atomic64_read(&seqno));
+        kvs_vtuple_init(&vt, vbuf, vlen);
+
         err = c0sk_put(c0sk, skidx, &kt, &vt, HSE_SQNREF_SINGLE);
         ASSERT_EQ(0, err);
 
@@ -1909,8 +1919,13 @@ MTF_DEFINE_UTEST_PREPOST(c0sk_test, c0_rcursor_robust, no_fail_pre, no_fail_post
         /* this cursor will NOT see these keys */
 
         for (; j < n; ++j) {
+            int vlen;
+
             kvs_ktuple_init(&kt, kbuf, sprintf(kbuf, "%05d", keys[j]) + 1);
-            vt.vt_len = sprintf(vbuf, "%lu", (ulong)atomic64_read(&seqno));
+
+            vlen = sprintf(vbuf, "%lu", (ulong)atomic64_read(&seqno));
+            kvs_vtuple_init(&vt, vbuf, vlen);
+
             err = c0sk_put(mkvdb.ikdb_c0sk, skidx, &kt, &vt, HSE_SQNREF_SINGLE);
             ASSERT_EQ(0, err);
             if (random() % 100 < 5)
@@ -2144,8 +2159,8 @@ MTF_DEFINE_UTEST_PREPOST(c0sk_test, c0_cursor_ptombs, no_fail_pre, no_fail_post)
     mapi_calls_clear(mapi_idx_c0_put);
 
     kt.kt_data = kbuf;
-    vt.vt_data = &vbuf;
-    vt.vt_len = sizeof(vbuf);
+
+    kvs_vtuple_init(&vt, &vbuf, sizeof(vbuf));
 
     kt.kt_data = kbuf;
     kt.kt_len = sizeof(kbuf);
