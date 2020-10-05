@@ -52,7 +52,6 @@ test_pre(struct mtf_test_info *ti)
     mapi_inject(mapi_idx_cn_get_cnid, 0);
     mapi_inject(mapi_idx_cn_get_ingest_perfc, 0);
     mapi_inject(mapi_idx_cn_get_sfx_len, 0);
-    mapi_inject(mapi_idx_cn_get_tbkt_maint, 0);
 
     mapi_inject(mapi_idx_cndb_cn_drop, 0);
 
@@ -75,7 +74,6 @@ test_post(struct mtf_test_info *ti)
     mapi_inject_unset(mapi_idx_cn_get_cnid);
     mapi_inject_unset(mapi_idx_cn_get_ingest_perfc);
     mapi_inject_unset(mapi_idx_cn_get_sfx_len);
-    mapi_inject_unset(mapi_idx_cn_get_tbkt_maint);
 
     mapi_inject_unset(mapi_idx_c0_get_pfx_len);
 

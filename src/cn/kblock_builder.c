@@ -24,7 +24,6 @@
 #include <hse_util/event_counter.h>
 #include <hse_util/perfc.h>
 #include <hse_util/hlog.h>
-#include <hse_util/token_bucket.h>
 #include <hse_util/log2.h>
 
 #include "omf.h"
@@ -278,13 +277,6 @@ mblk_blow_chunks(
             aoff = 0;
             ax++;
             continue;
-        }
-
-        if (!(self->flags & KVSET_BUILDER_FLAGS_INGEST)) {
-            struct tbkt *tb = cn_get_tbkt_maint(self->cn);
-
-            if (tb)
-                tbkt_delay(tbkt_request(tb, wlen));
         }
 
         if (alen >= need) {
