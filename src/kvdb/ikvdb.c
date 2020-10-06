@@ -2490,6 +2490,15 @@ ikvdb_kvs_cursor_update(struct hse_kvs_cursor *cur, struct hse_kvdb_opspec *os)
     if (ev(cur->kc_err))
         return cur->kc_err;
 
+    /* Check if this call is trying to change cursor direction. */
+    if (os) {
+        bool os_reverse  = kvdb_kop_is_reverse(os);
+        bool cur_reverse = cur->kc_flags && (cur->kc_flags & HSE_KVDB_KOP_FLAG_REVERSE);
+
+        if (ev(os_reverse != cur_reverse))
+            return merr(EINVAL);
+    }
+
     /*
      * Update is allowed to unbind a txn, bind to a new txn,
      * change from txn A to txn B without a unbind, or just
