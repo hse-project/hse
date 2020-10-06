@@ -39,7 +39,6 @@ struct kvdb_rparams {
     unsigned int perfc_enable;
 
     unsigned long throttle_update_ns;
-    unsigned long sos_log;
 
     unsigned long c0_heap_cache_sz_max;
     unsigned long c0_heap_sz;

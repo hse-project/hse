@@ -42,7 +42,6 @@
 #include "kvdb_kvs.h"
 #include "active_ctxn_set.h"
 #include "kvdb_keylock.h"
-#include "sos_log.h"
 
 #include <mpool/mpool.h>
 
@@ -150,11 +149,6 @@ struct ikvdb_impl {
     struct cn_kvdb *      ikdb_cn_kvdb;
 
     struct throttle ikdb_throttle;
-
-    struct sos_log *    ikdb_sos;
-    void *              ikdb_sos_buf;
-    size_t              ikdb_sos_buf_sz;
-    struct delayed_work ikdb_sos_dwork;
 
     struct mpool *           ikdb_ds;
     struct kvdb_log *        ikdb_log;
@@ -678,98 +672,6 @@ out:
     kvdb_log_close(log);
 
     return err;
-}
-
-static void
-ikvdb_sos_sched(struct ikvdb_impl *self);
-
-static void
-ikvdb_sos_worker(struct work_struct *work)
-{
-    struct ikvdb_impl *         self;
-    merr_t                      err;
-    struct yaml_context         yc;
-    union dt_iterate_parameters dip;
-    time_t                      t;
-    struct timeval              tv;
-    struct tm                   tm;
-    char                        tmp[128];
-
-    const char *iso_time_fmt = "%04d-%02d-%02dT%02d:%02d:%02d.%06ldZ";
-
-    self = container_of(work, struct ikvdb_impl, ikdb_sos_dwork.work);
-
-    if (!self->ikdb_rp.sos_log)
-        goto resched;
-
-    /* Open SOS log.  It might be the first open.  If log is already open
-     * it'll be a no-op or a rollover to a new log file.
-     */
-    err = sos_log_open(self->ikdb_sos);
-    if (ev(err))
-        goto resched;
-
-    memset(&yc, 0, sizeof(yc));
-    yc.yaml_buf = self->ikdb_sos_buf;
-    yc.yaml_buf_sz = self->ikdb_sos_buf_sz;
-
-    memset(&dip, 0, sizeof(dip));
-    dip.yc = &yc;
-
-    yaml_start_element_type(&yc, "sos_debug");
-
-    /* Note: using Greenwich mean time. */
-    gettimeofday(&tv, NULL);
-    t = tv.tv_sec;
-    gmtime_r(&t, &tm);
-    snprintf(
-        tmp,
-        sizeof(tmp),
-        iso_time_fmt,
-        tm.tm_year + 1900,
-        tm.tm_mon + 1,
-        tm.tm_mday,
-        tm.tm_hour,
-        tm.tm_min,
-        tm.tm_sec,
-        tv.tv_usec);
-
-    yaml_element_field(&yc, "timestamp", tmp);
-
-    snprintf(tmp, sizeof(tmp), "%d", getpid());
-    yaml_element_field(&yc, "pid", tmp);
-
-    yaml_start_element_type(&yc, "event_counters");
-
-    dt_iterate_cmd(dt_data_tree, DT_OP_EMIT, "/data/event_counter", &dip, 0, 0, 0);
-
-    yaml_end_element_type(&yc); /* event_counters */
-    yaml_end_element_type(&yc); /*sos_debug*/
-
-    sos_log_write(self->ikdb_sos, yc.yaml_buf, yc.yaml_offset);
-
-resched:
-    ikvdb_sos_sched(self);
-}
-
-static void
-ikvdb_sos_sched(struct ikvdb_impl *self)
-{
-    bool succ __maybe_unused;
-    uint      msecs;
-
-    /* If 'ikdb_rp.sos_log == 0', then we will not write data
-     * to sos log, but we still keep the delayed work active so it can
-     * respond to changes made via the REST interface.  The delayed work
-     * task will simply requeue if 'ikdb_rp.sos_log == 0'.
-     */
-    msecs = self->ikdb_rp.sos_log;
-    if (!msecs)
-        msecs = 1000;
-
-    INIT_DELAYED_WORK(&self->ikdb_sos_dwork, ikvdb_sos_worker);
-    succ = queue_delayed_work(self->ikdb_workqueue, &self->ikdb_sos_dwork, msecs_to_jiffies(msecs));
-    assert(succ);
 }
 
 static void
@@ -1440,25 +1342,6 @@ ikvdb_open(
         goto err1;
     }
 
-    /* SOS Log
-     */
-    self->ikdb_sos_buf_sz = 32 * 1024;
-    self->ikdb_sos_buf = malloc(self->ikdb_sos_buf_sz);
-    if (!self->ikdb_sos_buf) {
-        err = merr(ENOMEM);
-        hse_elog(HSE_ERR "cannot open %s: @@e", err, mp_name);
-        goto err1;
-    }
-
-    err = sos_log_create(self->ikdb_mpname, &self->ikdb_rp, &self->ikdb_sos);
-    if (err) {
-        hse_elog(HSE_ERR "cannot open %s: @@e", err, mp_name);
-        goto err1;
-    }
-
-    if (!self->ikdb_rdonly)
-        ikvdb_sos_sched(self);
-
     /*
      * Install c1 related callbacks for c0sk to use
      */
@@ -1479,7 +1362,6 @@ ikvdb_open(
     return 0;
 
 err1:
-    free(self->ikdb_sos_buf);
     c1_close(self->ikdb_c1);
     c0sk_close(self->ikdb_c0sk);
     self->ikdb_work_stop = true;
@@ -1962,14 +1844,9 @@ ikvdb_close(struct ikvdb *handle)
     /* Shutdown workqueue
      */
     if (!self->ikdb_rdonly) {
-        while (!cancel_delayed_work(&self->ikdb_sos_dwork))
-            msleep(250);
         self->ikdb_work_stop = true;
         destroy_workqueue(self->ikdb_workqueue);
     }
-
-    sos_log_destroy(self->ikdb_sos);
-    free(self->ikdb_sos_buf);
 
     /* Deregistering this url before trying to get ikdb_lock prevents
      * a deadlock between this call and an ongoing call to ikvdb_get_names()
@@ -3109,67 +2986,6 @@ kvdb_perfc_finish(void)
     kvdb_perfc_fini();
 }
 
-/* [HSE_REVISIT]
- * 4 MiB, as we dump the entire data tree into this buffer, i.e., /data. There
- * is no deterministic way to determine a max bound for this buffer size.
- * So, if you notice truncated YAML contents in dt.log, it is due to this
- * buffer size.
- */
-#define DT_BUFSZ (4 * 1024 * 1024)
-
-static void
-log_dt(void)
-{
-    const char *dt_out = "/var/log/hse/dt.log";
-    int         fd;
-    merr_t      err;
-
-    fd = open(dt_out, O_WRONLY | O_APPEND);
-    if (fd != -1) {
-        time_t      t;
-        struct tm * tm;
-        ssize_t     cc;
-        char        tmp[64];
-        static char buf[DT_BUFSZ]; /* 4 MiB, use bss here */
-        char *      path = "/data";
-
-        struct yaml_context yc = {
-            .yaml_buf = buf,
-            .yaml_buf_sz = sizeof(buf),
-            .yaml_indent = 0,
-            .yaml_offset = 0,
-        };
-        union dt_iterate_parameters dip = { .yc = &yc };
-
-        flock(fd, LOCK_EX);
-
-        time(&t);
-        tm = localtime(&t);
-        strftime(tmp, sizeof(tmp), "%FT%H:%M:%S%z", tm);
-        yaml_start_element_type(&yc, tmp);
-
-        snprintf(tmp, sizeof(tmp), "%d", getpid());
-        yaml_element_field(&yc, "pid", tmp);
-
-        dt_iterate_cmd(dt_data_tree, DT_OP_EMIT, path, &dip, 0, 0, 0);
-        yaml_end_element(&yc);
-        yaml_end_element_type(&yc);
-
-        cc = write(fd, buf, yc.yaml_offset);
-        if (cc != yc.yaml_offset) {
-            err = cc == -1 ? merr(errno) : merr(EIO);
-            hse_elog(
-                HSE_WARNING "data tree could not be dumped "
-                            "to %s: @@e",
-                err,
-                dt_out);
-        }
-
-        flock(fd, LOCK_UN);
-        close(fd);
-    }
-}
-
 /* Called once by load() at program start or module load time.
  */
 merr_t
@@ -3193,7 +3009,6 @@ ikvdb_init(void)
 errout:
     if (err) {
         kvs_fini();
-        log_dt();
         kvdb_perfc_finish();
     }
 
@@ -3207,7 +3022,6 @@ ikvdb_fini(void)
 {
     cn_fini();
     c0_fini();
-    log_dt();
     kvs_fini();
     kvdb_perfc_finish();
 }
