@@ -1478,6 +1478,7 @@ kvset_get_immediate_value(struct kvs_vtuple_ref *vref, struct kvs_buf *vbuf)
 }
 
 extern __thread char tls_vbuf[];
+extern const size_t tls_vbufsz;
 
 static merr_t
 kvset_lookup_val_direct(
@@ -1513,21 +1514,30 @@ kvset_lookup_val_direct(
      * If not, try to improve the buffer copy if at least vbuf is
      * aligned and large enough to contain the entire read.
      */
-    if (!aligned_all && !(aligned_vbuf && vbufsz >= iov.iov_len))
-        iov.iov_base = (void *)ALIGN((uintptr_t)tls_vbuf, PAGE_SIZE);
+    if (!aligned_all && !(aligned_vbuf && vbufsz >= iov.iov_len)) {
+        iov.iov_base = tls_vbuf;
+
+        if (iov.iov_len > tls_vbufsz) {
+            iov.iov_base = alloc_aligned(iov.iov_len, PAGE_SIZE, 0);
+            if (!iov.iov_base)
+                return merr(ENOMEM);
+        }
+    }
 
     err = mpool_mblock_read(ks->ks_ds, mbid, &iov, 1, off);
     if (err) {
         hse_elog(HSE_ERR "%s: off %lx, len %lx, copylen %u, vbufsz %u: @@e",
                  err, __func__, off, iov.iov_len, copylen, vbufsz);
-        return err;
+    } else {
+        if (!aligned_all) {
+            void *src = iov.iov_base + (vboff & ~PAGE_MASK);
+
+            memmove(vbuf, src, copylen);
+        }
     }
 
-    if (!aligned_all) {
-        void *src = iov.iov_base + (vboff & ~PAGE_MASK);
-
-        memmove(vbuf, src, copylen);
-    }
+    if (iov.iov_base != vbuf && iov.iov_base != tls_vbuf)
+        free_aligned(iov.iov_base);
 
     return 0;
 }
@@ -1555,19 +1565,26 @@ kvset_lookup_val_direct_decompress(
     off = vbd->vbd_off + (vboff & PAGE_MASK);
 
     iov.iov_len = ALIGN(vboff + omlen, PAGE_SIZE) - (vboff & PAGE_MASK);
+    iov.iov_base = tls_vbuf;
 
-    iov.iov_base = (void *)ALIGN((uintptr_t)tls_vbuf, PAGE_SIZE);
+    if (iov.iov_len > tls_vbufsz) {
+        iov.iov_base = alloc_aligned(iov.iov_len, PAGE_SIZE, 0);
+        if (!iov.iov_base)
+            return merr(ENOMEM);
+    }
 
     err = mpool_mblock_read(ks->ks_ds, mbid, &iov, 1, off);
     if (err) {
         hse_elog(HSE_ERR "%s: off %lx, len %lx, copylen %u, omlen %u: @@e",
                  err, __func__, off, iov.iov_len, copylen, omlen);
-        return err;
+    } else {
+        src = iov.iov_base + (vboff & ~PAGE_MASK);
+
+        err = compress_lz4_ops.cop_decompress(src, omlen, vbuf, copylen, outlenp);
     }
 
-    src = iov.iov_base + (vboff & ~PAGE_MASK);
-
-    err = compress_lz4_ops.cop_decompress(src, omlen, vbuf, copylen, outlenp);
+    if (iov.iov_base != tls_vbuf)
+        free_aligned(iov.iov_base);
 
     return ev(err);
 }
