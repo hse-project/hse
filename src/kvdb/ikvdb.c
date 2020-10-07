@@ -65,7 +65,8 @@
  * by ikvdb_kvs_put().  It is also used for direct reads by kvset_lookup_val(),
  * and hence must be sufficiently large and aligned for both purposes.
  */
-__thread char tls_vbuf[HSE_KVS_VLEN_MAX + PAGE_SIZE * 2] __aligned(PAGE_SIZE);
+/*__thread char tls_vbuf[HSE_KVS_VLEN_MAX + PAGE_SIZE * 2] __aligned(PAGE_SIZE);*/
+__thread char tls_vbuf[32 * 1024] __aligned(PAGE_SIZE);
 const size_t tls_vbufsz = sizeof(tls_vbuf);
 
 struct perfc_set kvdb_pkvdbl_pc __read_mostly;
@@ -1755,7 +1756,7 @@ ikvdb_kvs_open(
         kvs->kk_vcompress = cops->cop_compress;
         kvs->kk_vcompmin = max_t(uint, CN_SMALL_VALUE_THRESHOLD, rp.vcompmin);
 
-        assert(tls_vbufsz >= cops->cop_estimate(NULL, HSE_KVS_VLEN_MAX));
+        /*assert(tls_vbufsz >= cops->cop_estimate(NULL, HSE_KVS_VLEN_MAX));*/
     }
 
     /* Need a lock to prevent ikvdb_close from freeing up resources from
