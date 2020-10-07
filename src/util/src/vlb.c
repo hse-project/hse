@@ -6,42 +6,35 @@
 #include <hse_util/platform.h>
 #include <hse_util/vlb.h>
 
+#include <syscall.h>
+
+#define VLB_NODES_MAX       (4) /* max numa nodes */
+#define VLB_BPN_MAX         (4) /* max per-cpu buckets per node */
+
 struct vlb_cache {
     spinlock_t  lock;
     void       *head;
     int         cnt;
 } __aligned(SMP_CACHE_BYTES * 2);
 
-static struct vlb_cache vlbc;
+static struct vlb_cache vlbcv[VLB_NODES_MAX * VLB_BPN_MAX];
 
-merr_t
-vlb_init(void)
+static struct vlb_cache *
+vlb_cpu2cache(void)
 {
-    spin_lock_init(&vlbc.lock);
-    vlbc.head = NULL;
-    vlbc.cnt = 0;
+    uint cpuid, nodeid;
 
-    return 0;
-}
-
-void
-vlb_fini(void)
-{
-    void *head;
-
-    spin_lock(&vlbc.lock);
-    head = vlbc.head;
-    vlbc.head = NULL;
-    vlbc.cnt = 0;
-    spin_unlock(&vlbc.lock);
-
-    while (head) {
-        void *mem = head;
-
-        head = *(void **)head;
-
-        munmap(mem, VLB_ALLOCSZ_MAX);
+    if (syscall(SYS_getcpu, &cpuid, &nodeid)) {
+        cpuid = raw_smp_processor_id();
+        nodeid = cpuid;
     }
+
+    /* TODO: Use core ID in lieu of cpu ID.  Given that we don't have core ID handy
+     * we use four buckets per node to improve the chances that (cpuid mod 4) will
+     * map to the same core.  If contention becomes a problem then try raising
+     * VLB_BPN_MAX to 8.
+     */
+    return vlbcv + (((nodeid % VLB_NODES_MAX) * VLB_BPN_MAX) + (cpuid % VLB_BPN_MAX));
 }
 
 void *
@@ -51,18 +44,20 @@ vlb_alloc(size_t sz)
     void *mem = NULL;
 
     if (sz <= allocsz) {
+        struct vlb_cache *vlbc = vlb_cpu2cache();
+
         sz = allocsz;
 
-        spin_lock(&vlbc.lock);
-        mem = vlbc.head;
+        spin_lock(&vlbc->lock);
+        mem = vlbc->head;
         if (mem) {
-            vlbc.head = *(void **)mem;
-            vlbc.cnt--;
+            vlbc->head = *(void **)mem;
+            vlbc->cnt--;
         }
-        spin_unlock(&vlbc.lock);
+        spin_unlock(&vlbc->lock);
     }
 
-    if (ev(!mem, HSE_INFO)) {
+    if (!mem) {
         int flags = MAP_ANON | MAP_PRIVATE;
         int prot = PROT_READ | PROT_WRITE;
 
@@ -71,7 +66,7 @@ vlb_alloc(size_t sz)
             return NULL;
     }
 
-    return ev(mem, HSE_INFO);
+    return mem;
 }
 
 void
@@ -86,28 +81,63 @@ vlb_free(void *mem, size_t used)
 
     assert(IS_ALIGNED((uintptr_t)mem, PAGE_SIZE));
 
-    if (ev(used > allocsz)) {
+    if (used > allocsz) {
         munmap(mem, used);
         return;
     }
 
-    if (ev(used > keepsz))
+    if (used > keepsz)
         rc = madvise(mem + keepsz, used - keepsz, MADV_DONTNEED);
 
     if (!rc) {
-        spin_lock(&vlbc.lock);
-        if (vlbc.cnt * keepsz < VLB_CACHESZ_MAX) {
-            *(void **)mem = vlbc.head;
-            vlbc.head = mem;
-            vlbc.cnt++;
+        struct vlb_cache *vlbc = vlb_cpu2cache();
+
+        spin_lock(&vlbc->lock);
+        if (vlbc->cnt * keepsz < VLB_CACHESZ_MAX / VLB_BPN_MAX) {
+            *(void **)mem = vlbc->head;
+            vlbc->head = mem;
+            vlbc->cnt++;
             mem = NULL;
         }
-        spin_unlock(&vlbc.lock);
+        spin_unlock(&vlbc->lock);
     }
 
-    if (ev(mem, HSE_INFO))
+    if (mem)
         munmap(mem, allocsz);
-
-    ev(1, HSE_INFO);
 }
 
+merr_t
+vlb_init(void)
+{
+    int i;
+
+    for (i = 0; i < NELEM(vlbcv); ++i)
+        spin_lock_init(&vlbcv[i].lock);
+
+    return 0;
+}
+
+void
+vlb_fini(void)
+{
+    void *head;
+    int i;
+
+    for (i = 0; i < NELEM(vlbcv); ++i) {
+        struct vlb_cache *vlbc = vlbcv + i;
+
+        spin_lock(&vlbc->lock);
+        head = vlbc->head;
+        vlbc->head = NULL;
+        vlbc->cnt = 0;
+        spin_unlock(&vlbc->lock);
+
+        while (head) {
+            void *mem = head;
+
+            head = *(void **)head;
+
+            munmap(mem, VLB_ALLOCSZ_MAX);
+        }
+    }
+}

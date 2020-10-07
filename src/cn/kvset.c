@@ -1366,6 +1366,7 @@ kvset_lookup_val_direct(
     struct iovec iov;
     bool         aligned_vbuf;
     bool         aligned_all;
+    bool         freeme;
     size_t       off;
     merr_t       err;
     u64          mbid;
@@ -1376,6 +1377,7 @@ kvset_lookup_val_direct(
 
     iov.iov_len = ALIGN(vboff + copylen, PAGE_SIZE) - (vboff & PAGE_MASK);
     iov.iov_base = vbuf;
+    freeme = false;
 
     aligned_vbuf = IS_ALIGNED((ulong)vbuf, PAGE_SIZE);
 
@@ -1388,12 +1390,14 @@ kvset_lookup_val_direct(
      * aligned and large enough to contain the entire read.
      */
     if (!aligned_all && !(aligned_vbuf && vbufsz >= iov.iov_len)) {
-        iov.iov_base = tls_vbuf;
+        iov.iov_base = PTR_ALIGN((void *)tls_vbuf, PAGE_SIZE);
 
-        if (iov.iov_len > tls_vbufsz) {
-            iov.iov_base = alloc_aligned(iov.iov_len, PAGE_SIZE, 0);
+        if (iov.iov_len > tls_vbuf + tls_vbufsz - (char *)iov.iov_base) {
+            iov.iov_base = vlb_alloc(iov.iov_len);
             if (!iov.iov_base)
                 return merr(ENOMEM);
+
+            freeme = true;
         }
     }
 
@@ -1409,8 +1413,8 @@ kvset_lookup_val_direct(
         }
     }
 
-    if (iov.iov_base != vbuf && iov.iov_base != tls_vbuf)
-        free_aligned(iov.iov_base);
+    if (freeme)
+        vlb_free(iov.iov_base, iov.iov_len);
 
     return 0;
 }
@@ -1426,8 +1430,8 @@ kvset_lookup_val_direct_decompress(
     uint                omlen,
     uint               *outlenp)
 {
-    extern struct compress_ops compress_lz4_ops;
     struct iovec iov;
+    bool         freeme;
     size_t       off;
     merr_t       err;
     void        *src;
@@ -1438,12 +1442,15 @@ kvset_lookup_val_direct_decompress(
     off = vbd->vbd_off + (vboff & PAGE_MASK);
 
     iov.iov_len = ALIGN(vboff + omlen, PAGE_SIZE) - (vboff & PAGE_MASK);
-    iov.iov_base = tls_vbuf;
+    iov.iov_base = PTR_ALIGN((void *)tls_vbuf, PAGE_SIZE);
+    freeme = false;
 
-    if (iov.iov_len > tls_vbufsz) {
-        iov.iov_base = alloc_aligned(iov.iov_len, PAGE_SIZE, 0);
+    if (iov.iov_len > tls_vbuf + tls_vbufsz - (char *)iov.iov_base) {
+        iov.iov_base = vlb_alloc(iov.iov_len);
         if (!iov.iov_base)
             return merr(ENOMEM);
+
+        freeme = true;
     }
 
     err = mpool_mblock_read(ks->ks_ds, mbid, &iov, 1, off);
@@ -1456,8 +1463,8 @@ kvset_lookup_val_direct_decompress(
         err = compress_lz4_ops.cop_decompress(src, omlen, vbuf, copylen, outlenp);
     }
 
-    if (iov.iov_base != tls_vbuf)
-        free_aligned(iov.iov_base);
+    if (freeme)
+        vlb_free(iov.iov_base, iov.iov_len);
 
     return ev(err);
 }
