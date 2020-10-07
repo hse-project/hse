@@ -1446,4 +1446,11 @@ if( HSE_UNIT_TEST_FLAG )
         LINK_LIBS ${UNIT_TEST_LINK_LIBS}
         )
 
+    hse_unit_test(
+        NAME vlb_test
+        SRCS util/test/vlb_test.c
+        INCLUDES ${UNIT_TEST_INCLUDE_DIRS}
+        LINK_LIBS ${UNIT_TEST_LINK_LIBS}
+        )
+
 endif()
