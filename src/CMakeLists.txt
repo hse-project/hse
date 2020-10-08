@@ -30,6 +30,7 @@ set( UTIL_SOURCE_FILES
     util/src/bonsai_tree_balance.c
     util/src/bonsai_tree_pvt.h
     util/src/bonsai_tree_utils.c
+    util/src/compression_lz4.c
     util/src/condvar.c
     util/src/config.c
     util/src/cursor_heap.c
@@ -70,9 +71,9 @@ set( UTIL_SOURCE_FILES
     util/src/timer.c
     util/src/token_bucket.c
     util/src/version.c
+    util/src/vlb.c
     util/src/workqueue.c
     util/src/yaml.c
-    util/src/compression_lz4.c
     ../3rdparty/src/rbtree.c
     ../3rdparty/src/cJSON.c
     ../3rdparty/src/xxhash.c
@@ -1442,6 +1443,13 @@ if( HSE_UNIT_TEST_FLAG )
         LINK_DIRS
             ${MPOOL_LIB_DIR}
             ${BLKID_LIB_DIR}
+        LINK_LIBS ${UNIT_TEST_LINK_LIBS}
+        )
+
+    hse_unit_test(
+        NAME vlb_test
+        SRCS util/test/vlb_test.c
+        INCLUDES ${UNIT_TEST_INCLUDE_DIRS}
         LINK_LIBS ${UNIT_TEST_LINK_LIBS}
         )
 

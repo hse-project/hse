@@ -53,6 +53,7 @@
 #include <hse_util/rest_api.h>
 #include <hse_util/log2.h>
 #include <hse_util/atomic.h>
+#include <hse_util/vlb.h>
 #include <hse_util/compression_lz4.h>
 
 #include <3rdparty/xxhash.h>
@@ -62,10 +63,8 @@
 #include "kvdb_params.h"
 
 /* tls_vbuf[] is a thread-local buffer used as a compression output buffer
- * by ikvdb_kvs_put().  It is also used for direct reads by kvset_lookup_val(),
- * and hence must be sufficiently large and aligned for both purposes.
+ * by ikvdb_kvs_put() and for small direct reads by kvset_lookup_val().
  */
-/*__thread char tls_vbuf[HSE_KVS_VLEN_MAX + PAGE_SIZE * 2] __aligned(PAGE_SIZE);*/
 __thread char tls_vbuf[32 * 1024] __aligned(PAGE_SIZE);
 const size_t tls_vbufsz = sizeof(tls_vbuf);
 
@@ -1755,8 +1754,6 @@ ikvdb_kvs_open(
     if (cops && cops->cop_compress) {
         kvs->kk_vcompress = cops->cop_compress;
         kvs->kk_vcompmin = max_t(uint, CN_SMALL_VALUE_THRESHOLD, rp.vcompmin);
-
-        /*assert(tls_vbufsz >= cops->cop_estimate(NULL, HSE_KVS_VLEN_MAX));*/
     }
 
     /* Need a lock to prevent ikvdb_close from freeing up resources from
@@ -1974,6 +1971,8 @@ ikvdb_kvs_put(
     merr_t             err;
     u64                start;
     uint vlen, clen;
+    size_t vbufsz;
+    void *vbuf;
 
     start = kvdb_kop_is_priority(os) ? 0 : get_cycles();
 
@@ -1992,20 +1991,35 @@ ikvdb_kvs_put(
 
     vlen = kvs_vtuple_vlen(vt);
     clen = kvs_vtuple_clen(vt);
+    vbuf = NULL;
 
     if (clen == 0 && vlen > kk->kk_vcompmin) {
-        err = kk->kk_vcompress(vt->vt_data, vlen, tls_vbuf, tls_vbufsz, &clen);
+        vbufsz = tls_vbufsz;
+        vbuf = tls_vbuf;
 
-        if (!err && clen < vlen) {
-            kvs_vtuple_cinit(&vtbuf, tls_vbuf, vlen, clen);
-            vt = &vtbuf;
-            vlen = clen;
+        if (vlen > vbufsz) {
+            vbufsz = vlen + PAGE_SIZE * 2;
+            vbuf = vlb_alloc(vbufsz);
+        }
+
+        if (vbuf) {
+            err = kk->kk_vcompress(vt->vt_data, vlen, vbuf, vbufsz, &clen);
+
+            if (!err && clen < vlen) {
+                kvs_vtuple_cinit(&vtbuf, vbuf, vlen, clen);
+                vt = &vtbuf;
+                vlen = clen;
+            }
         }
     }
 
     put_seqno = kvdb_kop_is_txn(os) ? 0 : HSE_SQNREF_SINGLE;
 
     err = ikvs_put(kk->kk_ikvs, os, kt, vt, put_seqno);
+
+    if (vbuf && vbuf != tls_vbuf)
+        vlb_free(vbuf, vbufsz);
+
     if (err) {
         ev(merr_errno(err) != ECANCELED);
         return err;

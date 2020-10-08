@@ -68,7 +68,7 @@
 #define KMC_CHUNK_OFFSET (KMC_CHUNK_SZ - sizeof(struct kmc_chunk))
 
 #define KMC_PCPU_MIN (1)
-#define KMC_PCPU_MAX (32)
+#define KMC_PCPU_MAX (8)
 
 #define kmc_slab_first(_head)   list_first_entry_or_null((_head), struct kmc_slab, slab_entry)
 #define kmc_slab_last(_head)    list_last_entry_or_null((_head), struct kmc_slab, slab_entry)

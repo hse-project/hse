@@ -18,6 +18,7 @@
 #include <hse_util/log2.h>
 #include <hse_util/mman.h>
 #include <hse_util/compression_lz4.h>
+#include <hse_util/vlb.h>
 
 #include <hse/hse_limits.h>
 #include <hse/kvdb_perfc.h>
@@ -101,134 +102,6 @@ struct kvset_cache {
 static struct kvset_cache kvset_cache[3] __read_mostly;
 static struct kmem_cache *kvset_iter_cache __read_mostly;
 static atomic_t           kvset_init_ref;
-
-/* The kvset read buf cache maintains a small pool of preallocated large
- * (mostly sparse) buffers primarily for cn maintenance reads.  The cache
- * helps to minimize the number of trips into the kernel to allocate large
- * buffers that would perform expensive address map modifications.
- */
-#define KVSET_RBUF_ALLOCSZ_MAX  (roundup(HSE_KVS_VLEN_MAX * 2, 2ul << 20))
-#define KVSET_RBUF_CACHESZ_MAX  (2ul << 30)
-#define KVSET_RBUF_KEEPSZ_MAX   (1ul << 20)
-
-struct rbufcache {
-    spinlock_t   lock;
-    void *       head;
-    int          cnt;
-} __aligned(SMP_CACHE_BYTES);
-
-struct rbufcache rbc;
-
-static void __cold
-kvset_rbuf_init(void)
-{
-    spin_lock_init(&rbc.lock);
-    rbc.head = NULL;
-    rbc.cnt = 0;
-}
-
-static void __cold
-kvset_rbuf_fini(void)
-{
-    void *head;
-
-    spin_lock(&rbc.lock);
-    head = rbc.head;
-    rbc.head = NULL;
-    rbc.cnt = 0;
-    spin_unlock(&rbc.lock);
-
-    while (head) {
-        void *mem = head;
-
-        head = *(void **)head;
-
-        munmap(mem, KVSET_RBUF_ALLOCSZ_MAX);
-    }
-}
-
-/**
- * kvset_rbuf_alloc() - allocate a read buffer
- * @sz: requested buffer size
- *
- * Caller may request any size, but only requests of size %sz
- * or smaller will come from the cache.
- */
-static void *
-kvset_rbuf_alloc(size_t sz)
-{
-    size_t allocsz = KVSET_RBUF_ALLOCSZ_MAX;
-    void *mem = NULL;
-
-    if (sz <= allocsz) {
-        sz = allocsz;
-
-        spin_lock(&rbc.lock);
-        mem = rbc.head;
-        if (mem) {
-            rbc.head = *(void **)mem;
-            rbc.cnt--;
-        }
-        spin_unlock(&rbc.lock);
-    }
-
-    if (ev(!mem, HSE_INFO)) {
-        int flags = MAP_ANON | MAP_PRIVATE;
-        int prot = PROT_READ | PROT_WRITE;
-
-        mem = mmap(NULL, sz, prot, flags, -1, 0);
-        if (ev(mem == MAP_FAILED))
-            return NULL;
-    }
-
-    return ev(mem, HSE_INFO);
-}
-
-/**
- * kvset_rbuf_free() - free a read buffer
- * @mem:  buffer address from kvset_rbuf_alloc()
- * @used: see below
- *
- * %used must be the size of the allocation from kvset_rbuf_alloc()
- * if it was larger than KVSET_RBUF_ALLOCSZ_MAX.  Otherwise, it
- * should indicate the amount of the buffer that was modified.
- */
-static void
-kvset_rbuf_free(void *mem, size_t used)
-{
-    size_t allocsz = KVSET_RBUF_ALLOCSZ_MAX;
-    size_t keepsz = KVSET_RBUF_KEEPSZ_MAX;
-    int    rc = 0;
-
-    if (!mem)
-        return;
-
-    assert(IS_ALIGNED((uintptr_t)mem, PAGE_SIZE));
-
-    if (ev(used > allocsz)) {
-        munmap(mem, used);
-        return;
-    }
-
-    if (ev(used > keepsz))
-        rc = madvise(mem + keepsz, used - keepsz, MADV_DONTNEED);
-
-    if (!rc) {
-        spin_lock(&rbc.lock);
-        if (rbc.cnt * keepsz < KVSET_RBUF_CACHESZ_MAX) {
-            *(void **)mem = rbc.head;
-            rbc.head = mem;
-            rbc.cnt++;
-            mem = NULL;
-        }
-        spin_unlock(&rbc.lock);
-    }
-
-    if (ev(mem, HSE_INFO))
-        munmap(mem, allocsz);
-
-    ev(1, HSE_INFO);
-}
 
 /* A kvset contains a logical array of vblocks and kblocks reference vblocks by
  * an index into this logical array.  However, data about vblocks are stored
@@ -1493,6 +1366,7 @@ kvset_lookup_val_direct(
     struct iovec iov;
     bool         aligned_vbuf;
     bool         aligned_all;
+    bool         freeme;
     size_t       off;
     merr_t       err;
     u64          mbid;
@@ -1503,6 +1377,7 @@ kvset_lookup_val_direct(
 
     iov.iov_len = ALIGN(vboff + copylen, PAGE_SIZE) - (vboff & PAGE_MASK);
     iov.iov_base = vbuf;
+    freeme = false;
 
     aligned_vbuf = IS_ALIGNED((ulong)vbuf, PAGE_SIZE);
 
@@ -1515,12 +1390,14 @@ kvset_lookup_val_direct(
      * aligned and large enough to contain the entire read.
      */
     if (!aligned_all && !(aligned_vbuf && vbufsz >= iov.iov_len)) {
-        iov.iov_base = tls_vbuf;
+        iov.iov_base = PTR_ALIGN((void *)tls_vbuf, PAGE_SIZE);
 
-        if (iov.iov_len > tls_vbufsz) {
-            iov.iov_base = alloc_aligned(iov.iov_len, PAGE_SIZE, 0);
+        if (iov.iov_len > tls_vbuf + tls_vbufsz - (char *)iov.iov_base) {
+            iov.iov_base = vlb_alloc(iov.iov_len);
             if (!iov.iov_base)
                 return merr(ENOMEM);
+
+            freeme = true;
         }
     }
 
@@ -1536,8 +1413,8 @@ kvset_lookup_val_direct(
         }
     }
 
-    if (iov.iov_base != vbuf && iov.iov_base != tls_vbuf)
-        free_aligned(iov.iov_base);
+    if (freeme)
+        vlb_free(iov.iov_base, iov.iov_len);
 
     return 0;
 }
@@ -1553,8 +1430,8 @@ kvset_lookup_val_direct_decompress(
     uint                omlen,
     uint               *outlenp)
 {
-    extern struct compress_ops compress_lz4_ops;
     struct iovec iov;
+    bool         freeme;
     size_t       off;
     merr_t       err;
     void        *src;
@@ -1565,12 +1442,15 @@ kvset_lookup_val_direct_decompress(
     off = vbd->vbd_off + (vboff & PAGE_MASK);
 
     iov.iov_len = ALIGN(vboff + omlen, PAGE_SIZE) - (vboff & PAGE_MASK);
-    iov.iov_base = tls_vbuf;
+    iov.iov_base = PTR_ALIGN((void *)tls_vbuf, PAGE_SIZE);
+    freeme = false;
 
-    if (iov.iov_len > tls_vbufsz) {
-        iov.iov_base = alloc_aligned(iov.iov_len, PAGE_SIZE, 0);
+    if (iov.iov_len > tls_vbuf + tls_vbufsz - (char *)iov.iov_base) {
+        iov.iov_base = vlb_alloc(iov.iov_len);
         if (!iov.iov_base)
             return merr(ENOMEM);
+
+        freeme = true;
     }
 
     err = mpool_mblock_read(ks->ks_ds, mbid, &iov, 1, off);
@@ -1583,8 +1463,8 @@ kvset_lookup_val_direct_decompress(
         err = compress_lz4_ops.cop_decompress(src, omlen, vbuf, copylen, outlenp);
     }
 
-    if (iov.iov_base != tls_vbuf)
-        free_aligned(iov.iov_base);
+    if (freeme)
+        vlb_free(iov.iov_base, iov.iov_len);
 
     return ev(err);
 }
@@ -2387,18 +2267,18 @@ kvset_iter_kblock_read(struct work_struct *rock)
     if (iov.iov_len > buf->kmd_buf_sz) {
         size_t sz = roundup(iov.iov_len, 128 * 1024);
 
-        if (sz < KVSET_RBUF_ALLOCSZ_MAX)
-            sz = KVSET_RBUF_ALLOCSZ_MAX;
+        if (sz < VLB_ALLOCSZ_MAX)
+            sz = VLB_ALLOCSZ_MAX;
 
-        iov.iov_base = kvset_rbuf_alloc(sz);
+        iov.iov_base = vlb_alloc(sz);
         if (ev(!iov.iov_base)) {
             err = merr(ENOMEM);
             goto done;
         }
 
-        kvset_rbuf_free(buf->kmd_buf, buf->kmd_used_sz);
+        vlb_free(buf->kmd_buf, buf->kmd_used_sz);
 
-        buf->kmd_used_sz = (sz > KVSET_RBUF_ALLOCSZ_MAX) ? sz : iov.iov_len;
+        buf->kmd_used_sz = (sz > VLB_ALLOCSZ_MAX) ? sz : iov.iov_len;
         buf->kmd_buf_sz = sz;
         buf->kmd_buf = iov.iov_base;
 
@@ -2562,15 +2442,15 @@ kvset_iter_free_buffers(struct kvset_iterator *iter, struct kblk_reader *kr)
     uint i;
 
     /* one allocation for node_buf */
-    kvset_rbuf_free(kr->kr_buf[0].node_buf, kr->kr_buf[0].node_buf_sz * 2);
+    vlb_free(kr->kr_buf[0].node_buf, kr->kr_buf[0].node_buf_sz * 2);
 
     /* separate allocations for kmd_buf */
-    kvset_rbuf_free(kr->kr_buf[0].kmd_buf, kr->kr_buf[0].kmd_used_sz);
-    kvset_rbuf_free(kr->kr_buf[1].kmd_buf, kr->kr_buf[1].kmd_used_sz);
+    vlb_free(kr->kr_buf[0].kmd_buf, kr->kr_buf[0].kmd_used_sz);
+    vlb_free(kr->kr_buf[1].kmd_buf, kr->kr_buf[1].kmd_used_sz);
 
     if (iter->vreaders) {
         for (i = 0; i < iter->ks->ks_vgroups; i++)
-            kvset_rbuf_free(iter->vreaders[i].vr_buf[0].data, iter->vreaders[i].vr_buf_sz * 2);
+            vlb_free(iter->vreaders[i].vr_buf[0].data, iter->vreaders[i].vr_buf_sz * 2);
         free(iter->vreaders);
         iter->vreaders = 0;
     }
@@ -2585,8 +2465,8 @@ kvset_iter_enable_mblock_read_cmn(struct kvset_iterator *iter, struct kblk_reade
 
     /* compute appropriate node buffer size */
     kb_max_sz = iter->ks->ks_rp->kblock_size_mb << 20;
-    if (kb_max_sz > KVSET_RBUF_ALLOCSZ_MAX / 2)
-        kb_max_sz = KVSET_RBUF_ALLOCSZ_MAX / 2;
+    if (kb_max_sz > VLB_ALLOCSZ_MAX / 2)
+        kb_max_sz = VLB_ALLOCSZ_MAX / 2;
 
     node_buf_sz = iter->ks->ks_rp->cn_compact_kblk_ra;
     if (node_buf_sz > kb_max_sz)
@@ -2596,7 +2476,7 @@ kvset_iter_enable_mblock_read_cmn(struct kvset_iterator *iter, struct kblk_reade
     node_buf_sz = PAGE_ALIGN(node_buf_sz);
 
     /* two buffers for asyncio, one for syncio */
-    mem = kvset_rbuf_alloc(node_buf_sz * 2);
+    mem = vlb_alloc(node_buf_sz * 2);
     if (ev(!mem))
         goto nomem;
 
@@ -2673,8 +2553,8 @@ kvset_iter_enable_mblock_read(struct kvset_iterator *iter)
     vr_buf_sz = max_t(uint, PAGE_SIZE, ra_size);
 
     vb_max_sz = iter->ks->ks_rp->vblock_size_mb << 20;
-    if (vb_max_sz > KVSET_RBUF_ALLOCSZ_MAX / 2)
-        vb_max_sz = KVSET_RBUF_ALLOCSZ_MAX / 2;
+    if (vb_max_sz > VLB_ALLOCSZ_MAX / 2)
+        vb_max_sz = VLB_ALLOCSZ_MAX / 2;
 
     if (vr_buf_sz > vb_max_sz)
         vr_buf_sz = vb_max_sz;
@@ -2699,7 +2579,7 @@ kvset_iter_enable_mblock_read(struct kvset_iterator *iter)
 
             mbio_init(&vr->mbio);
 
-            mem = kvset_rbuf_alloc(vr_buf_sz * 2);
+            mem = vlb_alloc(vr_buf_sz * 2);
             if (ev(!mem))
                 goto nomem;
 
@@ -3868,13 +3748,10 @@ kvset_init(void)
     if (atomic_inc_return(&kvset_init_ref) > 1)
         return 0;
 
-    kvset_rbuf_init();
-
     sz = sizeof(struct kvset_iterator);
 
     cache = kmem_cache_create("kvsiter", sz, SMP_CACHE_BYTES, 0, NULL);
     if (ev(!cache)) {
-        kvset_rbuf_fini();
         atomic_dec(&kvset_init_ref);
         return merr(ENOMEM);
     }
@@ -3915,8 +3792,6 @@ kvset_fini(void)
     }
 
     kmem_cache_destroy(kvset_iter_cache);
-
-    kvset_rbuf_fini();
 }
 
 #if defined(HSE_UNIT_TEST_MODE) && HSE_UNIT_TEST_MODE == 1

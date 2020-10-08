@@ -8,6 +8,7 @@
 #include <hse_util/data_tree.h>
 #include <hse_util/perfc.h>
 #include <hse_util/timer.h>
+#include <hse_util/vlb.h>
 #include <hse_util/hse_log_fmt.h>
 
 #include <hse_version.h>
@@ -108,6 +109,10 @@ hse_platform_init(void)
     if (err)
         goto errout;
 
+    err = vlb_init();
+    if (err)
+        goto errout;
+
     dt_init();
     hse_logging_post_init();
     hse_log_reg_platform();
@@ -155,5 +160,6 @@ hse_platform_fini(void)
     perfc_shutdown();
     hse_timer_fini();
     dt_fini();
+    vlb_fini();
     hse_logging_fini();
 }
