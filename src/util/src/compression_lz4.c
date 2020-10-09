@@ -3,15 +3,14 @@
  * Copyright (C) 2020 Micron Technology, Inc.  All rights reserved.
  */
 
-
-#include <lz4.h>
-
 #include <hse_util/assert.h>
 #include <hse_util/event_counter.h>
 #include <hse_util/compression_lz4.h>
 
-#if ((LZ4_VERSION_MAJOR < 1) || (LZ4_VERSION_MAJOR == 1 && LZ4_VERSION_MINOR < 7))
-#error "Need LZ4 1.7.0 or higher"
+#include <lz4.h>
+
+#if LZ4_VERSION_NUMBER < (10000 + 900 + 2)
+#error "Need LZ4 1.9.2 or higher"
 #endif
 
 static
@@ -30,7 +29,6 @@ compress_lz4_estimate(
     return (uint)LZ4_compressBound((int)len);
 }
 
-
 static
 merr_t
 compress_lz4_compress(
@@ -40,36 +38,25 @@ compress_lz4_compress(
     uint        dst_capacity,
     uint       *dst_len)
 {
+    LZ4_stream_t ctx; /* this is large, around 16K */
     int len;
-    int dst_cap;
-
-    assert(src && dst && dst_len);
-
-    if (ev(!src_len || !dst_capacity))
-        return merr(EINVAL);
 
     /* LZ4 API uses ints, protect against sign and size mismatch.
      * - If src_len is too big, there's nothing we can do because this
      *   API only supports compression of a single block (i.e., no
      *   framing or streaming).
-     * - If dst_capacity is too big, just reduce it to INT_MAX.  If
-     *   result doesn't fit an error will be returned.
+     * - If dst_capacity is too big it's probably a bug.
+     * - If result doesn't fit an error will be returned.
      */
+    assert(src && dst && dst_len);
+    assert(src_len && dst_capacity);
+    assert(src_len < LZ4_MAX_INPUT_SIZE && dst_capacity < INT_MAX);
 
-    if (ev(src_len > LZ4_MAX_INPUT_SIZE))
-        return merr(EINVAL);
+    len = LZ4_compress_fast_extState(&ctx, src, dst, src_len, dst_capacity, 1);
 
-    if (ev(dst_capacity > INT_MAX))
-        dst_cap = INT_MAX;
-    else
-        dst_cap = (int)dst_capacity;
+    *dst_len = len;
 
-    len = LZ4_compress_default(src, dst, (int)src_len, dst_cap);
-    if (ev(!len || len < 0 || len > dst_capacity))
-        return merr(EFBIG);
-
-    *dst_len = (uint)len;
-    return 0;
+    return (len < 1) ? merr(EFBIG) : 0;
 }
 
 static
@@ -82,37 +69,23 @@ compress_lz4_decompress(
     uint       *dst_len)
 {
     int len;
-    int dst_cap;
-
-    assert(src && dst && dst_len);
-
-    if (ev(!src_len || !dst_capacity))
-        return merr(EINVAL);
 
     /* LZ4 API uses ints, protect against sign and size mismatch.
      * - If src_len is too big, there's nothing we can do because this
      *   API only supports compression of a single block (i.e., no
      *   framing or streaming).  It's also a sign that this buffer
      *   wasn't compressed with this interface.  Oops.
-     * - If dst_capacity is too big, just reduce it to INT_MAX.  If
-     *   result doesn't fit an error will be returned.
+     * - If dst_capacity is too big it's probably a bug.
      */
+    assert(src && dst && dst_len);
+    assert(src_len && dst_capacity);
+    assert(src_len < INT_MAX && dst_capacity < INT_MAX);
 
-    if (ev(src_len > INT_MAX))
-        return merr(EINVAL);
+    len = LZ4_decompress_safe_partial(src, dst, src_len, dst_capacity, dst_capacity);
 
-    if (ev(dst_capacity > INT_MAX))
-        dst_cap = INT_MAX;
-    else
-        dst_cap = (int)dst_capacity;
+    *dst_len = len;
 
-    len = LZ4_decompress_safe_partial(src, dst, (int)src_len, dst_cap, dst_cap);
-
-    if (ev(!len || len < 0 || len > dst_capacity))
-        return merr(EFBIG);
-
-    *dst_len = (uint)len;
-    return 0;
+    return (len < 1) ? merr(EFBIG) : 0;
 }
 
 struct compress_ops compress_lz4_ops __read_mostly = {

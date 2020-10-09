@@ -226,11 +226,13 @@ endif()
 set( HSE_KVDB_LIB_DEPS
     libyaml-ext
     libcurl-ext
+    liblz4-ext
     )
 
 set( HSE_KVDB_LIB_LINK_LIBS
     ${LIBCURL_LIBS}
     ${LIBYAML_LIBS}
+    ${LIBLZ4_LIBS}
     urcu-bp
     uuid
     pthread
@@ -1451,6 +1453,16 @@ if( HSE_UNIT_TEST_FLAG )
         SRCS util/test/vlb_test.c
         INCLUDES ${UNIT_TEST_INCLUDE_DIRS}
         LINK_LIBS ${UNIT_TEST_LINK_LIBS}
+        )
+
+    hse_unit_test(
+        NAME compression_test
+        SRCS util/test/compression_test.c
+        INCLUDES ${UNIT_TEST_INCLUDE_DIRS}
+        DEPS liblz4-ext
+        LINK_LIBS
+            ${UNIT_TEST_LINK_LIBS}
+            ${LIBLZ4_LIBS}
         )
 
 endif()
