@@ -12,7 +12,6 @@
 #include "cn_metrics.h"
 
 struct cn;
-struct compress_ops;
 
 struct kmd_info {
     u8 *   kmd;
@@ -51,10 +50,6 @@ struct kvset_builder {
 
     struct vblock_builder *vbb;
     struct blk_list        vblk_list;
-
-    struct compress_ops    *compress;
-    void                   *compress_buf;
-    uint                    compress_buf_sz;
 
     u64 seqno_max;
     u64 seqno_min;
