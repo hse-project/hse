@@ -91,3 +91,32 @@ ExternalProject_Add(
     INSTALL_COMMAND
         COMMAND make -s install  # install to HSE_STAGE
 )
+
+# liblz4 - just the library part of the lz4 repo
+#
+# To avoid running afoul of the GPL/LGPL we only build/install
+# from the lib subdirectory which has a BSD 2-Clause license.
+#
+set(LIBLZ4_LIBS ${HSE_STAGE_DIR}/lib/liblz4.a PARENT_SCOPE)
+
+ExternalProject_Add(
+
+    liblz4-ext # Must match rsync destination dir
+
+    PREFIX "${CMAKE_CURRENT_BINARY_DIR}"
+
+    BUILD_IN_SOURCE 1
+
+    DOWNLOAD_COMMAND
+        COMMAND /usr/bin/rsync -a --exclude .git ${HSE_SUB_REPOS}/lz4/ ./liblz4-ext
+
+    UPDATE_COMMAND ""
+
+    CONFIGURE_COMMAND ""
+
+    BUILD_COMMAND
+        COMMAND make -C lib -j MOREFLAGS=-fPIC
+
+    INSTALL_COMMAND
+        COMMAND make -C lib install DESTDIR=${HSE_STAGE_DIR} prefix= libdir=/lib
+)

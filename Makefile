@@ -284,7 +284,11 @@ curl_repo := curl
 ${curl_repo}_tag := curl-7_50_3
 ${curl_repo}_url := https://github.com/curl/curl
 
-SUBREPO_PATH_LIST := sub/$(curl_repo) sub/$(libyaml_repo)
+lz4_repo := lz4
+${lz4_repo}_tag := v1.9.2
+${lz4_repo}_url := https://github.com/lz4/lz4
+
+SUBREPO_PATH_LIST := sub/$(curl_repo) sub/$(libyaml_repo) sub/$(lz4_repo)
 
 PERL_CMAKE_NOISE_FILTER := \
     perl -e '$$|=1;\

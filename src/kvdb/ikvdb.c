@@ -1751,9 +1751,17 @@ ikvdb_kvs_open(
 
     kvs->kk_vcompmin = UINT_MAX;
     cops = vcomp_compress_ops(&rp);
-    if (cops && cops->cop_compress) {
+    if (cops) {
+        assert(cops->cop_compress && cops->cop_estimate);
+
         kvs->kk_vcompress = cops->cop_compress;
         kvs->kk_vcompmin = max_t(uint, CN_SMALL_VALUE_THRESHOLD, rp.vcompmin);
+
+        kvs->kk_vcompbnd = cops->cop_estimate(NULL, tls_vbufsz);
+        kvs->kk_vcompbnd = tls_vbufsz - (kvs->kk_vcompbnd - tls_vbufsz);
+        assert(kvs->kk_vcompbnd < tls_vbufsz);
+
+        assert(cops->cop_estimate(NULL, HSE_KVS_VLEN_MAX) < HSE_KVS_VLEN_MAX + PAGE_SIZE * 2);
     }
 
     /* Need a lock to prevent ikvdb_close from freeing up resources from
@@ -1991,13 +1999,12 @@ ikvdb_kvs_put(
 
     vlen = kvs_vtuple_vlen(vt);
     clen = kvs_vtuple_clen(vt);
-    vbuf = NULL;
+
+    vbufsz = tls_vbufsz;
+    vbuf = tls_vbuf;
 
     if (clen == 0 && vlen > kk->kk_vcompmin) {
-        vbufsz = tls_vbufsz;
-        vbuf = tls_vbuf;
-
-        if (vlen > vbufsz) {
+        if (vlen > kk->kk_vcompbnd) {
             vbufsz = vlen + PAGE_SIZE * 2;
             vbuf = vlb_alloc(vbufsz);
         }
@@ -2017,7 +2024,7 @@ ikvdb_kvs_put(
 
     err = ikvs_put(kk->kk_ikvs, os, kt, vt, put_seqno);
 
-    if (vbuf && vbuf != tls_vbuf)
+    if (vbuf != tls_vbuf)
         vlb_free(vbuf, vbufsz);
 
     if (err) {
