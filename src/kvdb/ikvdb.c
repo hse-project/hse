@@ -85,7 +85,7 @@ struct ikvdb {
 
 /* Max buckets in ctxn cache.  Must be prime for best results.
  */
-#define KVDB_CTXN_BKT_MAX (61)
+#define KVDB_CTXN_BKT_MAX (31)
 
 /* Simple fixed-size stack for caching ctxn objects.
  */
@@ -93,7 +93,7 @@ struct kvdb_ctxn_bkt {
     spinlock_t        kcb_lock;
     uint              kcb_ctxnc;
     struct kvdb_ctxn *kcb_ctxnv[7];
-} __aligned(SMP_CACHE_BYTES);
+} __aligned(SMP_CACHE_BYTES * 2);
 
 /**
  * struct ikvdb_impl - private representation of a kvdb
@@ -134,7 +134,7 @@ struct kvdb_ctxn_bkt {
  * the first field of %ikdb_health out of the first cache line.  Similarly,
  * the group of fields which contains %ikdb_seqno is heavily concurrently
  * accessed and heavily modified. Only add a new field to this group if it
- * will fit into the existing unused pad space.
+ * will be accessed just before or after accessing ikdb_curcnt or ikdb_seqno.
  */
 struct ikvdb_impl {
     struct ikvdb          ikdb_handle;
@@ -159,13 +159,13 @@ struct ikvdb_impl {
     struct kvdb_callback     ikdb_c1_callback;
     struct hse_params *      ikdb_profile;
 
-    __aligned(SMP_CACHE_BYTES) atomic_t ikdb_curcnt;
-    u32 ikdb_curcnt_max;
+    atomic_t ikdb_curcnt __aligned(SMP_CACHE_BYTES * 2);
+    u32      ikdb_curcnt_max;
 
-    __aligned(SMP_CACHE_BYTES) atomic64_t ikdb_seqno;
-    atomic64_t ikdb_seqno_cur;
+    atomic64_t ikdb_seqno __aligned(SMP_CACHE_BYTES * 2);
+    atomic64_t ikdb_seqno_cur __aligned(SMP_CACHE_BYTES * 2);
 
-    __aligned(SMP_CACHE_BYTES) struct kvdb_rparams ikdb_rp;
+    struct kvdb_rparams  ikdb_rp __aligned(SMP_CACHE_BYTES * 2);
     struct kvdb_ctxn_bkt ikdb_ctxn_cache[KVDB_CTXN_BKT_MAX];
 
     /* Put the mostly cold data at end of the structure to improve
@@ -765,11 +765,10 @@ ikvdb_txn_init(struct ikvdb_impl *self)
 static void
 ikvdb_txn_fini(struct ikvdb_impl *self)
 {
-    int i;
+    int i, j;
 
     for (i = 0; i < NELEM(self->ikdb_ctxn_cache); ++i) {
         struct kvdb_ctxn_bkt *bkt = self->ikdb_ctxn_cache + i;
-        int                   j;
 
         for (j = 0; j < bkt->kcb_ctxnc; ++j)
             kvdb_ctxn_free(bkt->kcb_ctxnv[j]);

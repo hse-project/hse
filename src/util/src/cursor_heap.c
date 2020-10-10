@@ -12,24 +12,6 @@
 #include <hse_util/event_counter.h>
 #include <hse_util/cursor_heap.h>
 
-static void *
-alloc_lazy(size_t size)
-{
-    void *mem;
-
-    /* Use MAP_PRIVATE so that cheap_trim() can release pages.
-     */
-    mem = mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_ANON | MAP_PRIVATE, -1, 0);
-
-    return (mem == MAP_FAILED) ? NULL : mem;
-}
-
-static void
-free_lazy(struct cheap *h)
-{
-    munmap(h->mem, ALIGN(h->size, PAGE_SIZE));
-}
-
 struct cheap *
 cheap_create(size_t alignment, size_t size)
 {
@@ -48,10 +30,13 @@ cheap_create(size_t alignment, size_t size)
      */
     size = ALIGN(size, 2u << 20);
 
-    mem = alloc_lazy(size);
-    if (mem) {
+    /* Use MAP_PRIVATE so that cheap_trim() can release pages.
+     */
+    mem = mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_ANON | MAP_PRIVATE, -1, 0);
+
+    if (mem != MAP_FAILED) {
         size_t halign = ALIGN(sizeof(*h), SMP_CACHE_BYTES);
-        size_t color = (get_cycles() >> 2) % 4;
+        size_t color = (get_cycles() >> 2) % 16;
         size_t offset = SMP_CACHE_BYTES * color;
 
         /* Offset the base of the cheap by a pseudo-random number of
@@ -81,7 +66,7 @@ cheap_destroy(struct cheap *h)
     assert(h->magic == (uintptr_t)h);
     h->magic = ~h->magic;
 
-    free_lazy(h);
+    munmap(h->mem, ALIGN(h->size, PAGE_SIZE));
     ev(1);
 }
 
