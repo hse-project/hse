@@ -1509,6 +1509,8 @@ kvset_lookup_val(struct kvset *ks, struct kvs_vtuple_ref *vref, struct kvs_buf *
     if (vref->vb.vr_complen) {
         uint outlen;
 
+        err = 0;
+
         if (direct)
             err = kvset_lookup_val_direct_decompress(
                 ks, vbd, vref->vb.vr_index, vref->vb.vr_off, dst, copylen, omlen, &outlen);

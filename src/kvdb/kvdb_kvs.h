@@ -18,6 +18,8 @@ struct kvdb_kvs;
 /**
  * struct kvdb_kvs - Describes a kvs in the kvdb - open or closed
  * @kk_ikvs:         kvs handle. NULL if closed.
+ * @kk_seqno:        pointer to parent->ikdb_seqno
+ * @kk_seqno_cur:    pointer to parent->ikdb_seqno_cur
  * @kk_parent:       pointer to parent kvdb_impl instance.
  * @kk_vcompmin:     value length above which compression is considered
  * @kk_vcompbnd:     compression output buffer size estimate for tls_vbuf[]
@@ -33,6 +35,8 @@ struct kvdb_kvs;
  */
 struct kvdb_kvs {
     struct ikvs            *kk_ikvs;
+    atomic64_t             *kk_seqno;
+    atomic64_t             *kk_seqno_cur;
     struct ikvdb_impl      *kk_parent;
     u32                     kk_vcompmin;
     u32                     kk_vcompbnd;

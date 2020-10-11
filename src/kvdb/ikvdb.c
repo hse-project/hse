@@ -145,11 +145,11 @@ struct ikvdb_impl {
     struct kvdb_keylock * ikdb_keylock;
     struct c0sk *         ikdb_c0sk;
     struct kvdb_health    ikdb_health;
-    struct csched *       ikdb_csched;
-    struct cn_kvdb *      ikdb_cn_kvdb;
 
     struct throttle ikdb_throttle;
 
+    struct csched *          ikdb_csched;
+    struct cn_kvdb *         ikdb_cn_kvdb;
     struct mpool *           ikdb_ds;
     struct kvdb_log *        ikdb_log;
     struct cndb *            ikdb_cndb;
@@ -1747,6 +1747,8 @@ ikvdb_kvs_open(
     }
 
     kvs->kk_parent = self;
+    kvs->kk_seqno = &self->ikdb_seqno;
+    kvs->kk_seqno_cur = &self->ikdb_seqno_cur;
 
     kvs->kk_vcompmin = UINT_MAX;
     cops = vcomp_compress_ops(&rp);
@@ -2223,21 +2225,22 @@ ikvdb_kvs_prefix_delete(
  */
 
 static void
-update_cursor_horizon(struct kvdb_kvs *kk)
+update_cursor_horizon(struct kvdb_kvs *kk, const struct hse_kvs_cursor *cur)
 {
-    struct hse_kvs_cursor *oldest;
-    u64                    seq;
+    const struct hse_kvs_cursor *oldest;
+    u64 seq = U64_MAX;
 
     /* caller must hold kk_cursors_lock */
 
-    if (list_empty(&kk->kk_cursors)) {
-        seq = U64_MAX;
-    } else {
+    if (!list_empty(&kk->kk_cursors)) {
         oldest = list_last_entry(&kk->kk_cursors, struct hse_kvs_cursor, kc_link);
+        if (cur != oldest)
+            return;
+
         seq = oldest->kc_seq;
     }
 
-    atomic64_set(&kk->kk_parent->ikdb_seqno_cur, seq);
+    atomic64_set(kk->kk_seqno_cur, seq);
 }
 
 static bool
@@ -2247,7 +2250,7 @@ cursor_insert_horizon(struct hse_kvs_cursor *cursor, uint64_t *seqno)
 
     /* Add to cursor list only if this is NOT part of a txn. */
     if (*seqno == HSE_SQNREF_UNDEFINED) {
-        *seqno = atomic64_fetch_add(1, &kk->kk_parent->ikdb_seqno);
+        *seqno = atomic64_fetch_add(1, kk->kk_seqno);
         list_add(&cursor->kc_link, &kk->kk_cursors);
         return true;
     }
@@ -2264,7 +2267,7 @@ cursor_reserve_seqno(struct hse_kvs_cursor *cursor, uint64_t *seqno)
     mutex_lock(&kk->kk_cursors_lock);
     cursor->kc_added_to_list = cursor_insert_horizon(cursor, seqno);
     if (cursor->kc_added_to_list)
-        update_cursor_horizon(kk);
+        update_cursor_horizon(kk, cursor);
     mutex_unlock(&kk->kk_cursors_lock);
 }
 
@@ -2278,7 +2281,7 @@ cursor_release_seqno(struct hse_kvs_cursor *cursor)
 
     mutex_lock(&kk->kk_cursors_lock);
     list_del(&cursor->kc_link);
-    update_cursor_horizon(kk);
+    update_cursor_horizon(kk, cursor);
     mutex_unlock(&kk->kk_cursors_lock);
 }
 
