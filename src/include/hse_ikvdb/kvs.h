@@ -52,7 +52,7 @@ struct hse_kvs_cursor {
     struct kc_filter       kc_filter;
 
     __aligned(SMP_CACHE_BYTES) struct list_head kc_link;
-    bool kc_added_to_list;
+    bool kc_on_list;
 };
 
 merr_t

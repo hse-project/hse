@@ -2230,26 +2230,6 @@ ikvdb_kvs_prefix_delete(
  * condition, as simply repeating the call may succeed.
  */
 
-static __always_inline void
-cursor_update_horizon(struct hse_kvs_cursor *cursor)
-{
-    struct kvdb_kvs *kk = cursor->kc_kvs;
-    struct hse_kvs_cursor *oldest;
-    u64 seq = U64_MAX;
-
-    /* caller must hold kk_cursors_spin lock */
-
-    if (!list_empty(&kk->kk_cursors_list)) {
-        oldest = list_last_entry(&kk->kk_cursors_list, struct hse_kvs_cursor, kc_link);
-        if (cursor != oldest)
-            return;
-
-        seq = oldest->kc_seq;
-    }
-
-    atomic64_set(kk->kk_seqno_cur, seq);
-}
-
 static void
 cursor_reserve_seqno(struct hse_kvs_cursor *cursor)
 {
@@ -2267,9 +2247,12 @@ cursor_reserve_seqno(struct hse_kvs_cursor *cursor)
     spin_lock(&kk->kk_cursors_spin);
 
     cursor->kc_seq = atomic64_fetch_add(1, kk->kk_seqno);
+
+    if (list_empty(&kk->kk_cursors_list))
+        atomic64_set(kk->kk_seqno_cur, cursor->kc_seq);
+
     list_add(&cursor->kc_link, &kk->kk_cursors_list);
-    cursor->kc_added_to_list = true;
-    cursor_update_horizon(cursor);
+    cursor->kc_on_list = true;
 
     spin_unlock(&kk->kk_cursors_spin);
     mutex_unlock(&kk->kk_cursors_mtxv[i].mtx);
@@ -2279,9 +2262,10 @@ static void
 cursor_release_seqno(struct hse_kvs_cursor *cursor)
 {
     struct kvdb_kvs *kk = cursor->kc_kvs;
+    struct hse_kvs_cursor *oldest;
     uint i;
 
-    if (!cursor->kc_added_to_list)
+    if (!cursor->kc_on_list)
         return;
 
     i = raw_smp_processor_id() % NELEM(kk->kk_cursors_mtxv);
@@ -2289,8 +2273,20 @@ cursor_release_seqno(struct hse_kvs_cursor *cursor)
     mutex_lock(&kk->kk_cursors_mtxv[i].mtx);
     spin_lock(&kk->kk_cursors_spin);
 
+    oldest = list_last_entry(&kk->kk_cursors_list, struct hse_kvs_cursor, kc_link);
     list_del(&cursor->kc_link);
-    cursor_update_horizon(cursor);
+    cursor->kc_on_list = false;
+
+    if (cursor == oldest) {
+        u64 seq = U64_MAX;
+
+        if (!list_empty(&kk->kk_cursors_list)) {
+            oldest = list_last_entry(&kk->kk_cursors_list, struct hse_kvs_cursor, kc_link);
+            seq = oldest->kc_seq;
+        }
+
+        atomic64_set(kk->kk_seqno_cur, seq);
+    }
 
     spin_unlock(&kk->kk_cursors_spin);
     mutex_unlock(&kk->kk_cursors_mtxv[i].mtx);
