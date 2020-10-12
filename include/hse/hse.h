@@ -712,6 +712,8 @@ hse_kvs_cursor_create(
  * to "un-bind" a cursor from a transaction the caller may either NULL out the kop_txn
  * field or clear the HSE_KVDB_KOP_FLAG_BIND_TXN flag. This function is thread safe
  * across disparate cursors.
+ * If the opspec is not NULL, the fields of the opspec structure that need to remain
+ * unchanged must be set to their original values (as set at hse_kvs_cursor_create()).
  *
  * @param cursor: Cursor handle from hse_kvs_cursor_create()
  * @param opspec: Optional flags, optional txn
