@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 /*
  * xxHash - Extremely Fast Hash algorithm
  * Copyright (C) 2012-2020 Yann Collet
@@ -37,7 +38,10 @@
  * xxhash.c instantiates functions defined in xxhash.h
  */
 
+#ifndef XXH_STATIC_LINKING_ONLY
 #define XXH_STATIC_LINKING_ONLY   /* access advanced declarations */
+#endif
+
 #define XXH_IMPLEMENTATION   /* access definitions */
 
 #include <3rdparty/xxhash.h>

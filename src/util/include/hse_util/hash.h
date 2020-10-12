@@ -9,10 +9,6 @@
 #include <hse_util/inttypes.h>
 #include <hse_util/hse_err.h>
 
-/* This macro needs to be defined before including xxhash.h
- * so the *_state_t macros are not incomplete.
- */
-#define XXH_STATIC_LINKING_ONLY
 #include <3rdparty/xxhash.h>
 
 #define HSE_HASH_SEED32 0x9747b28cU

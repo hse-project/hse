@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 /*
  * xxHash - Extremely Fast Hash algorithm
  * Header File
