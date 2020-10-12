@@ -1030,14 +1030,17 @@ static struct kvdb_kvs *
 kvdb_kvs_create(void)
 {
     struct kvdb_kvs *kvs;
+    int i;
 
     kvs = alloc_aligned(sizeof(*kvs), __alignof(*kvs), GFP_KERNEL);
     if (kvs) {
         memset(kvs, 0, sizeof(*kvs));
-        mutex_init(&kvs->kk_cursors_lock);
-        INIT_LIST_HEAD(&kvs->kk_cursors);
         kvs->kk_vcompmin = UINT_MAX;
         atomic_set(&kvs->kk_refcnt, 0);
+        for (i = 0; i < NELEM(kvs->kk_cursors_mtxv); ++i)
+            mutex_init(&kvs->kk_cursors_mtxv[i].mtx);
+        spin_lock_init(&kvs->kk_cursors_spin);
+        INIT_LIST_HEAD(&kvs->kk_cursors_list);
     }
 
     return kvs;
@@ -1046,9 +1049,12 @@ kvdb_kvs_create(void)
 static void
 kvdb_kvs_destroy(struct kvdb_kvs *kvs)
 {
+    int i;
+
     if (kvs) {
         assert(atomic_read(&kvs->kk_refcnt) == 0);
-        mutex_destroy(&kvs->kk_cursors_lock);
+        for (i = 0; i < NELEM(kvs->kk_cursors_mtxv); ++i)
+            mutex_destroy(&kvs->kk_cursors_mtxv[i].mtx);
         memset(kvs, -1, sizeof(*kvs));
         free_aligned(kvs);
     }
@@ -2224,17 +2230,18 @@ ikvdb_kvs_prefix_delete(
  * condition, as simply repeating the call may succeed.
  */
 
-static void
-update_cursor_horizon(struct kvdb_kvs *kk, const struct hse_kvs_cursor *cur)
+static __always_inline void
+cursor_update_horizon(struct hse_kvs_cursor *cursor)
 {
-    const struct hse_kvs_cursor *oldest;
+    struct kvdb_kvs *kk = cursor->kc_kvs;
+    struct hse_kvs_cursor *oldest;
     u64 seq = U64_MAX;
 
-    /* caller must hold kk_cursors_lock */
+    /* caller must hold kk_cursors_spin lock */
 
-    if (!list_empty(&kk->kk_cursors)) {
-        oldest = list_last_entry(&kk->kk_cursors, struct hse_kvs_cursor, kc_link);
-        if (cur != oldest)
+    if (!list_empty(&kk->kk_cursors_list)) {
+        oldest = list_last_entry(&kk->kk_cursors_list, struct hse_kvs_cursor, kc_link);
+        if (cursor != oldest)
             return;
 
         seq = oldest->kc_seq;
@@ -2243,46 +2250,50 @@ update_cursor_horizon(struct kvdb_kvs *kk, const struct hse_kvs_cursor *cur)
     atomic64_set(kk->kk_seqno_cur, seq);
 }
 
-static bool
-cursor_insert_horizon(struct hse_kvs_cursor *cursor, uint64_t *seqno)
-{
-    struct kvdb_kvs *kk = cursor->kc_kvs;
-
-    /* Add to cursor list only if this is NOT part of a txn. */
-    if (*seqno == HSE_SQNREF_UNDEFINED) {
-        *seqno = atomic64_fetch_add(1, kk->kk_seqno);
-        list_add(&cursor->kc_link, &kk->kk_cursors);
-        return true;
-    }
-
-    return false;
-}
-
 static void
-cursor_reserve_seqno(struct hse_kvs_cursor *cursor, uint64_t *seqno)
-
+cursor_reserve_seqno(struct hse_kvs_cursor *cursor)
 {
     struct kvdb_kvs *kk = cursor->kc_kvs;
+    uint i;
 
-    mutex_lock(&kk->kk_cursors_lock);
-    cursor->kc_added_to_list = cursor_insert_horizon(cursor, seqno);
-    if (cursor->kc_added_to_list)
-        update_cursor_horizon(kk, cursor);
-    mutex_unlock(&kk->kk_cursors_lock);
+    /* Add to cursor list only if this is NOT part of a txn.
+     */
+    if (cursor->kc_seq != HSE_SQNREF_UNDEFINED)
+        return;
+
+    i = raw_smp_processor_id() % NELEM(kk->kk_cursors_mtxv);
+
+    mutex_lock(&kk->kk_cursors_mtxv[i].mtx);
+    spin_lock(&kk->kk_cursors_spin);
+
+    cursor->kc_seq = atomic64_fetch_add(1, kk->kk_seqno);
+    list_add(&cursor->kc_link, &kk->kk_cursors_list);
+    cursor->kc_added_to_list = true;
+    cursor_update_horizon(cursor);
+
+    spin_unlock(&kk->kk_cursors_spin);
+    mutex_unlock(&kk->kk_cursors_mtxv[i].mtx);
 }
 
 static void
 cursor_release_seqno(struct hse_kvs_cursor *cursor)
 {
     struct kvdb_kvs *kk = cursor->kc_kvs;
+    uint i;
 
     if (!cursor->kc_added_to_list)
         return;
 
-    mutex_lock(&kk->kk_cursors_lock);
+    i = raw_smp_processor_id() % NELEM(kk->kk_cursors_mtxv);
+
+    mutex_lock(&kk->kk_cursors_mtxv[i].mtx);
+    spin_lock(&kk->kk_cursors_spin);
+
     list_del(&cursor->kc_link);
-    update_cursor_horizon(kk, cursor);
-    mutex_unlock(&kk->kk_cursors_lock);
+    cursor_update_horizon(cursor);
+
+    spin_unlock(&kk->kk_cursors_spin);
+    mutex_unlock(&kk->kk_cursors_mtxv[i].mtx);
 }
 
 static merr_t
@@ -2437,7 +2448,7 @@ ikvdb_kvs_cursor_create(
     cur->kc_bind = 0;
 
     /* Temporarily lock a view until this cursor gets refs on cn kvsets. */
-    cursor_reserve_seqno(cur, &cur->kc_seq);
+    cursor_reserve_seqno(cur);
     err = ikvs_cursor_init(cur);
     cursor_release_seqno(cur);
 
@@ -2538,7 +2549,7 @@ ikvdb_kvs_cursor_update(struct hse_kvs_cursor *cur, struct hse_kvdb_opspec *os)
     /* Temporarily reserve seqno until this cursor gets refs on
      * cn kvsets.
      */
-    cursor_reserve_seqno(cur, &cur->kc_seq);
+    cursor_reserve_seqno(cur);
     cur->kc_err = ikvs_cursor_update(cur, cur->kc_seq);
     cursor_release_seqno(cur);
 

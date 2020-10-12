@@ -15,6 +15,10 @@ struct ikvs;
 struct ikvdb_impl;
 struct kvdb_kvs;
 
+struct kk_cursors_mtx {
+    struct mutex mtx;
+} __aligned(SMP_CACHE_BYTES * 2);
+
 /**
  * struct kvdb_kvs - Describes a kvs in the kvdb - open or closed
  * @kk_ikvs:         kvs handle. NULL if closed.
@@ -29,9 +33,14 @@ struct kvdb_kvs;
  * @kk_flags:        flags for cn.
  * @kk_refcnt:       count of current users of the instance. Used mainly to
  *                   synchronize with rest requests.
- * @kk_cursors_lock: lock to access the list (heavily contended)
- * @kk_cursors:      list of cursors currently traversing the cn tree.
+ * @kk_cursors_mtxv: array of mutexes to reduce contention on @kk_cursors_spin
+ * @kk_cursors_spin: spinlock to protect @kk_cursors_list
+ * @kk_cursors_list: list of cursors currently traversing the cn tree.
  * @kk_name:         kvs name.
+ *
+ * To access @kk_cursor_list one must acquire @kk_cursors_spin.  To reduce
+ * contention on @kk_cursors_spin, first acquire one of the mutexes in the
+ * @kk_cursors_mtxv array.
  */
 struct kvdb_kvs {
     struct ikvs            *kk_ikvs;
@@ -46,8 +55,9 @@ struct kvdb_kvs {
     u32                     kk_flags;
     atomic_t                kk_refcnt;
 
-    struct mutex     kk_cursors_lock __aligned(SMP_CACHE_BYTES * 2);
-    struct list_head kk_cursors;
+    struct kk_cursors_mtx kk_cursors_mtxv[4];
+    spinlock_t            kk_cursors_spin;
+    struct list_head      kk_cursors_list;
 
     char kk_name[HSE_KVS_NAME_LEN_MAX];
 };
