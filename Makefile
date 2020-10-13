@@ -226,6 +226,10 @@ else
 	CMAKE_BUILD_TYPE := Release
 endif
 
+# This macro needs to be defined before including xxhash.h
+# so the *_state_t macros are not incomplete.
+BUILD_CDEFS += -DXXH_STATIC_LINKING_ONLY
+
 BUILD_DIR     ?= ${SRC_DIR}/builds
 BUILD_NODE    ?= $(shell uname -n)
 BUILD_PKG_DIR ?= ${BUILD_DIR}/${BUILD_NODE}/${BUILD_PKG_TYPE}/${BUILD_TYPE}
