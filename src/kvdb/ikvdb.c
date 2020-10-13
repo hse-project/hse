@@ -85,7 +85,7 @@ struct ikvdb {
 
 /* Max buckets in ctxn cache.  Must be prime for best results.
  */
-#define KVDB_CTXN_BKT_MAX (61)
+#define KVDB_CTXN_BKT_MAX (31)
 
 /* Simple fixed-size stack for caching ctxn objects.
  */
@@ -93,7 +93,7 @@ struct kvdb_ctxn_bkt {
     spinlock_t        kcb_lock;
     uint              kcb_ctxnc;
     struct kvdb_ctxn *kcb_ctxnv[7];
-} __aligned(SMP_CACHE_BYTES);
+} __aligned(SMP_CACHE_BYTES * 2);
 
 /**
  * struct ikvdb_impl - private representation of a kvdb
@@ -134,7 +134,7 @@ struct kvdb_ctxn_bkt {
  * the first field of %ikdb_health out of the first cache line.  Similarly,
  * the group of fields which contains %ikdb_seqno is heavily concurrently
  * accessed and heavily modified. Only add a new field to this group if it
- * will fit into the existing unused pad space.
+ * will be accessed just before or after accessing ikdb_curcnt or ikdb_seqno.
  */
 struct ikvdb_impl {
     struct ikvdb          ikdb_handle;
@@ -145,11 +145,11 @@ struct ikvdb_impl {
     struct kvdb_keylock * ikdb_keylock;
     struct c0sk *         ikdb_c0sk;
     struct kvdb_health    ikdb_health;
-    struct csched *       ikdb_csched;
-    struct cn_kvdb *      ikdb_cn_kvdb;
 
     struct throttle ikdb_throttle;
 
+    struct csched *          ikdb_csched;
+    struct cn_kvdb *         ikdb_cn_kvdb;
     struct mpool *           ikdb_ds;
     struct kvdb_log *        ikdb_log;
     struct cndb *            ikdb_cndb;
@@ -159,13 +159,13 @@ struct ikvdb_impl {
     struct kvdb_callback     ikdb_c1_callback;
     struct hse_params *      ikdb_profile;
 
-    __aligned(SMP_CACHE_BYTES) atomic_t ikdb_curcnt;
-    u32 ikdb_curcnt_max;
+    atomic_t ikdb_curcnt __aligned(SMP_CACHE_BYTES * 2);
+    u32      ikdb_curcnt_max;
 
-    __aligned(SMP_CACHE_BYTES) atomic64_t ikdb_seqno;
-    atomic64_t ikdb_seqno_cur;
+    atomic64_t ikdb_seqno __aligned(SMP_CACHE_BYTES * 2);
+    atomic64_t ikdb_seqno_cur __aligned(SMP_CACHE_BYTES * 2);
 
-    __aligned(SMP_CACHE_BYTES) struct kvdb_rparams ikdb_rp;
+    struct kvdb_rparams  ikdb_rp __aligned(SMP_CACHE_BYTES * 2);
     struct kvdb_ctxn_bkt ikdb_ctxn_cache[KVDB_CTXN_BKT_MAX];
 
     /* Put the mostly cold data at end of the structure to improve
@@ -765,11 +765,10 @@ ikvdb_txn_init(struct ikvdb_impl *self)
 static void
 ikvdb_txn_fini(struct ikvdb_impl *self)
 {
-    int i;
+    int i, j;
 
     for (i = 0; i < NELEM(self->ikdb_ctxn_cache); ++i) {
         struct kvdb_ctxn_bkt *bkt = self->ikdb_ctxn_cache + i;
-        int                   j;
 
         for (j = 0; j < bkt->kcb_ctxnc; ++j)
             kvdb_ctxn_free(bkt->kcb_ctxnv[j]);
@@ -1031,14 +1030,17 @@ static struct kvdb_kvs *
 kvdb_kvs_create(void)
 {
     struct kvdb_kvs *kvs;
+    int i;
 
     kvs = alloc_aligned(sizeof(*kvs), __alignof(*kvs), GFP_KERNEL);
     if (kvs) {
         memset(kvs, 0, sizeof(*kvs));
-        mutex_init(&kvs->kk_cursors_lock);
-        INIT_LIST_HEAD(&kvs->kk_cursors);
         kvs->kk_vcompmin = UINT_MAX;
         atomic_set(&kvs->kk_refcnt, 0);
+        for (i = 0; i < NELEM(kvs->kk_cursors_mtxv); ++i)
+            mutex_init(&kvs->kk_cursors_mtxv[i].mtx);
+        spin_lock_init(&kvs->kk_cursors_spin);
+        INIT_LIST_HEAD(&kvs->kk_cursors_list);
     }
 
     return kvs;
@@ -1047,9 +1049,12 @@ kvdb_kvs_create(void)
 static void
 kvdb_kvs_destroy(struct kvdb_kvs *kvs)
 {
+    int i;
+
     if (kvs) {
         assert(atomic_read(&kvs->kk_refcnt) == 0);
-        mutex_destroy(&kvs->kk_cursors_lock);
+        for (i = 0; i < NELEM(kvs->kk_cursors_mtxv); ++i)
+            mutex_destroy(&kvs->kk_cursors_mtxv[i].mtx);
         memset(kvs, -1, sizeof(*kvs));
         free_aligned(kvs);
     }
@@ -1748,6 +1753,8 @@ ikvdb_kvs_open(
     }
 
     kvs->kk_parent = self;
+    kvs->kk_seqno = &self->ikdb_seqno;
+    kvs->kk_seqno_cur = &self->ikdb_seqno_cur;
 
     kvs->kk_vcompmin = UINT_MAX;
     cops = vcomp_compress_ops(&rp);
@@ -2224,63 +2231,65 @@ ikvdb_kvs_prefix_delete(
  */
 
 static void
-update_cursor_horizon(struct kvdb_kvs *kk)
-{
-    struct hse_kvs_cursor *oldest;
-    u64                    seq;
-
-    /* caller must hold kk_cursors_lock */
-
-    if (list_empty(&kk->kk_cursors)) {
-        seq = U64_MAX;
-    } else {
-        oldest = list_last_entry(&kk->kk_cursors, struct hse_kvs_cursor, kc_link);
-        seq = oldest->kc_seq;
-    }
-
-    atomic64_set(&kk->kk_parent->ikdb_seqno_cur, seq);
-}
-
-static bool
-cursor_insert_horizon(struct hse_kvs_cursor *cursor, uint64_t *seqno)
+cursor_reserve_seqno(struct hse_kvs_cursor *cursor)
 {
     struct kvdb_kvs *kk = cursor->kc_kvs;
+    uint i;
 
-    /* Add to cursor list only if this is NOT part of a txn. */
-    if (*seqno == HSE_SQNREF_UNDEFINED) {
-        *seqno = atomic64_fetch_add(1, &kk->kk_parent->ikdb_seqno);
-        list_add(&cursor->kc_link, &kk->kk_cursors);
-        return true;
-    }
+    /* Add to cursor list only if this is NOT part of a txn.
+     */
+    if (cursor->kc_seq != HSE_SQNREF_UNDEFINED)
+        return;
 
-    return false;
-}
+    i = raw_smp_processor_id() % NELEM(kk->kk_cursors_mtxv);
 
-static void
-cursor_reserve_seqno(struct hse_kvs_cursor *cursor, uint64_t *seqno)
+    mutex_lock(&kk->kk_cursors_mtxv[i].mtx);
+    spin_lock(&kk->kk_cursors_spin);
 
-{
-    struct kvdb_kvs *kk = cursor->kc_kvs;
+    cursor->kc_seq = atomic64_fetch_add(1, kk->kk_seqno);
 
-    mutex_lock(&kk->kk_cursors_lock);
-    cursor->kc_added_to_list = cursor_insert_horizon(cursor, seqno);
-    if (cursor->kc_added_to_list)
-        update_cursor_horizon(kk);
-    mutex_unlock(&kk->kk_cursors_lock);
+    if (list_empty(&kk->kk_cursors_list))
+        atomic64_set(kk->kk_seqno_cur, cursor->kc_seq);
+
+    list_add(&cursor->kc_link, &kk->kk_cursors_list);
+    cursor->kc_on_list = true;
+
+    spin_unlock(&kk->kk_cursors_spin);
+    mutex_unlock(&kk->kk_cursors_mtxv[i].mtx);
 }
 
 static void
 cursor_release_seqno(struct hse_kvs_cursor *cursor)
 {
     struct kvdb_kvs *kk = cursor->kc_kvs;
+    struct hse_kvs_cursor *oldest;
+    uint i;
 
-    if (!cursor->kc_added_to_list)
+    if (!cursor->kc_on_list)
         return;
 
-    mutex_lock(&kk->kk_cursors_lock);
+    i = raw_smp_processor_id() % NELEM(kk->kk_cursors_mtxv);
+
+    mutex_lock(&kk->kk_cursors_mtxv[i].mtx);
+    spin_lock(&kk->kk_cursors_spin);
+
+    oldest = list_last_entry(&kk->kk_cursors_list, struct hse_kvs_cursor, kc_link);
     list_del(&cursor->kc_link);
-    update_cursor_horizon(kk);
-    mutex_unlock(&kk->kk_cursors_lock);
+    cursor->kc_on_list = false;
+
+    if (cursor == oldest) {
+        u64 seq = U64_MAX;
+
+        if (!list_empty(&kk->kk_cursors_list)) {
+            oldest = list_last_entry(&kk->kk_cursors_list, struct hse_kvs_cursor, kc_link);
+            seq = oldest->kc_seq;
+        }
+
+        atomic64_set(kk->kk_seqno_cur, seq);
+    }
+
+    spin_unlock(&kk->kk_cursors_spin);
+    mutex_unlock(&kk->kk_cursors_mtxv[i].mtx);
 }
 
 static merr_t
@@ -2435,7 +2444,7 @@ ikvdb_kvs_cursor_create(
     cur->kc_bind = 0;
 
     /* Temporarily lock a view until this cursor gets refs on cn kvsets. */
-    cursor_reserve_seqno(cur, &cur->kc_seq);
+    cursor_reserve_seqno(cur);
     err = ikvs_cursor_init(cur);
     cursor_release_seqno(cur);
 
@@ -2536,7 +2545,7 @@ ikvdb_kvs_cursor_update(struct hse_kvs_cursor *cur, struct hse_kvdb_opspec *os)
     /* Temporarily reserve seqno until this cursor gets refs on
      * cn kvsets.
      */
-    cursor_reserve_seqno(cur, &cur->kc_seq);
+    cursor_reserve_seqno(cur);
     cur->kc_err = ikvs_cursor_update(cur, cur->kc_seq);
     cursor_release_seqno(cur);
 

@@ -51,11 +51,10 @@ struct kvdb_ctxn_set_impl {
     u64                      txn_wkth_delay;
     u64                      ktn_txn_timeout;
 
-    __aligned(SMP_CACHE_BYTES) atomic64_t ktn_tseqno_head;
+    atomic64_t ktn_tseqno_head __aligned(SMP_CACHE_BYTES * 2);
+    atomic64_t ktn_tseqno_tail __aligned(SMP_CACHE_BYTES * 2);
 
-    __aligned(SMP_CACHE_BYTES) atomic64_t ktn_tseqno_tail;
-
-    __aligned(SMP_CACHE_BYTES) struct mutex ktn_list_mutex;
+    struct mutex ktn_list_mutex __aligned(SMP_CACHE_BYTES * 2);
     struct cds_list_head ktn_alloc_list;
     struct list_head     ktn_pending;
     atomic_t             ktn_reading;

@@ -39,11 +39,27 @@ struct mpool;
 
 /*-  Key Value Store  -------------------------------------------------------*/
 
+/**
+ * struct cache_bucket - a list of cursors per rb_node
+ * @node:     how we link into rb tree
+ * @list:     list of cached cursors
+ * @oldest:   insertion time (ns) of oldest cursor on %list
+ * @cnt:      number of cursors on %list
+ * @freeme:   if %true, bucket must be freed via %free()
+ */
+struct cache_bucket {
+    struct rb_node          node;
+    struct kvs_cursor_impl *list;
+    u64                     oldest;
+    int                     cnt;
+    bool                    freeme;
+} __aligned(SMP_CACHE_BYTES);
+
 struct curcache {
     struct mutex         cca_lock;
     struct rb_root       cca_root;
     struct cache_bucket *cca_bkt_head;
-} __aligned(SMP_CACHE_BYTES);
+} __aligned(SMP_CACHE_BYTES * 2);
 
 struct ikvs {
     uint             ikv_sfx_len;
@@ -56,15 +72,13 @@ struct ikvs {
     struct perfc_set ikv_cc_pc;
     struct perfc_set ikv_cd_pc;
 
-    __aligned(SMP_CACHE_BYTES)
-    struct curcache ikv_curcachev[7];
-    struct cache_bucket *ikv_curcache_bktmem;
-
-    __aligned(SMP_CACHE_BYTES)
     struct kvs_rparams ikv_rp;
 
-    const char *ikv_mpool_name;
     const char *ikv_kvs_name;
+    const char *ikv_mpool_name;
+    struct cache_bucket *ikv_curcache_bktmem;
+
+    struct curcache ikv_curcachev[8];
 };
 
 struct perfc_name kvs_cc_perfc_op[] = {
@@ -761,22 +775,6 @@ enum { BIT_NONE = 0, BIT_C0 = 1, BIT_CN = 2, BIT_BOTH = 3 };
 #define node2bucket(n) container_of(n, struct cache_bucket, node)
 
 /**
- * struct cache_bucket - a list of cursors per rb_node
- * @node:     how we link into rb tree
- * @list:     list of cached cursors
- * @oldest:   insertion time (ns) of oldest cursor on %list
- * @cnt:      number of cursors on %list
- * @freeme:   if %true, bucket must be freed via %free()
- */
-struct cache_bucket {
-    struct rb_node          node;
-    struct kvs_cursor_impl *list;
-    u64                     oldest;
-    int                     cnt;
-    bool                    freeme;
-} __aligned(SMP_CACHE_BYTES);
-
-/**
  * ikvs_cursor_bkt_alloc() - allocate a cursor cache node
  * @cca:  ptr to cursor cache
  *
@@ -986,11 +984,7 @@ ikvs_cursor_reap(struct ikvs *kvs)
 static struct curcache *
 ikvs_td2cca(struct ikvs *kvs, u64 pfxhash)
 {
-    ulong i = pfxhash ?: pthread_self();
-
-    i %= NELEM(kvs->ikv_curcachev);
-
-    return kvs->ikv_curcachev + i;
+    return kvs->ikv_curcachev + (raw_smp_processor_id() % NELEM(kvs->ikv_curcachev));
 }
 
 static int
@@ -1134,6 +1128,7 @@ ikvs_cursor_reset(struct kvs_cursor_impl *cursor, int bit)
         cursor->kci_cd_pc = &kvs->ikv_cd_pc;
 }
 
+__attribute__((__noinline__))
 static struct kvs_cursor_impl *
 ikvs_cursor_restore(struct ikvs *kvs, const void *prefix, size_t pfx_len, u64 pfxhash, bool reverse)
 {
@@ -2230,11 +2225,11 @@ kvs_create(struct ikvs **ikvs_out, struct kvs_rparams *rp)
     memset(ikvs, 0, sizeof(*ikvs));
     ikvs->ikv_rp = *rp;
 
-    nmax = 1024;
+    nmax = (PAGE_SIZE * 4) / sizeof(*bkt);
     n = NELEM(ikvs->ikv_curcachev) * nmax;
     sz = sizeof(*bkt) * n;
 
-    bkt = alloc_aligned(sz, __alignof(*bkt), GFP_KERNEL);
+    bkt = alloc_aligned(sz, PAGE_SIZE, GFP_KERNEL);
     if (ev(!bkt)) {
         free_aligned(ikvs);
         return merr(ENOMEM);

@@ -782,7 +782,7 @@ hse_kvs_cursor_destroy(struct hse_kvs_cursor *cursor)
     if (ev(!cursor))
         return merr(EINVAL);
 
-    perfc_inc(&kvdb_pc, PERFC_RA_KVDBOP_KVS_CURSOR_DESTROY);
+    PERFC_INC_RU(&kvdb_pc, PERFC_RA_KVDBOP_KVS_CURSOR_DESTROY, 128);
 
     err = ikvdb_kvs_cursor_destroy(cursor);
 

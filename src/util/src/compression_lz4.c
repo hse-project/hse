@@ -38,7 +38,6 @@ compress_lz4_compress(
     uint        dst_capacity,
     uint       *dst_len)
 {
-    LZ4_stream_t ctx; /* this is large, around 16K */
     int len;
 
     /* LZ4 API uses ints, protect against sign and size mismatch.
@@ -52,7 +51,7 @@ compress_lz4_compress(
     assert(src_len && dst_capacity);
     assert(src_len < LZ4_MAX_INPUT_SIZE && dst_capacity < INT_MAX);
 
-    len = LZ4_compress_fast_extState(&ctx, src, dst, src_len, dst_capacity, 1);
+    len = LZ4_compress_fast(src, dst, src_len, dst_capacity, 1);
 
     *dst_len = len;
 

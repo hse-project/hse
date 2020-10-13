@@ -10,24 +10,27 @@
 
 #include <hse/hse_limits.h>
 
-/* The read buf cache maintains a small pool of preallocated large
- * (mostly sparse) buffers primarily for cn maintenance reads.  The cache
- * helps to minimize the number of trips into the kernel to allocate large
- * buffers that would perform expensive address map modifications.
+/* The very-large-buffer cache maintains a small pool of large, page
+ * aligned buffers for use cases such as direct reads and compression.
+ * The cache helps to minimize the number of trips into the kernel
+ * that would otherwise perform expensive address map modifications.
+ *
+ * The vlb cache makes an effort to return a NUMA local buffer to
+ * callers of vlb_alloc(), but more work needs to be done to improve
+ * the situation.
  */
-#define VLB_ALLOCSZ_MAX     (roundup(HSE_KVS_VLEN_MAX, PAGE_SIZE) * 2)
+#define VLB_ALLOCSZ_MAX     (HSE_KVS_VLEN_MAX * 2)
 #define VLB_CACHESZ_MAX     (2ul << 30)
 #define VLB_KEEPSZ_MAX      (1ul << 20)
-
-merr_t vlb_init(void) __cold;
-void vlb_fini(void) __cold;
 
 /**
  * vlb_alloc() - allocate a read buffer
  * @sz: requested buffer size
  *
- * Caller may request any size, but only requests of size %sz
- * or smaller will come from the cache.
+ * Caller may request any size, but only requests of size
+ * VLB_ALLOCSZ_MAX or smaller will come from the cache.
+ * Requests larger than VLB_ALLOCSZ_MAX must specify the
+ * same size parameter to vlb_free() as given to vlb_alloc().
  */
 void *vlb_alloc(size_t sz);
 
@@ -36,10 +39,14 @@ void *vlb_alloc(size_t sz);
  * @mem:  buffer address from vlb_alloc()
  * @used: see below
  *
- * %used must be the size of the allocation from vlb_alloc()
- * if it was larger than VLB_ALLOCSZ_MAX.  Otherwise, it
- * should indicate the amount of the buffer that was modified.
+ * %used must be the exact size of the allocation given to vlb_alloc()
+ * if it was larger than VLB_ALLOCSZ_MAX.  Otherwise, it should be
+ * a best effort estimate of how much of the buffer was actually
+ * modified.
  */
 void vlb_free(void *mem, size_t used);
+
+merr_t vlb_init(void) __cold;
+void vlb_fini(void) __cold;
 
 #endif

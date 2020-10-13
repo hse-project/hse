@@ -15,7 +15,6 @@
 #include <hse_util/event_counter.h>
 #include <hse_util/slab.h>
 #include <hse_util/bonsai_tree.h>
-#include <hse_util/compression.h>
 
 #include "kcompact.h"
 #include "spill.h"
@@ -56,8 +55,6 @@ kvset_builder_create(
     bld->cn = cn;
     bld->key_stats.seqno_prev = U64_MAX;
     bld->key_stats.seqno_prev_ptomb = U64_MAX;
-
-    bld->compress = vcomp_compress_ops(cn_get_rp(cn));
 
     *bld_out = bld;
     return 0;
@@ -159,11 +156,6 @@ kvset_builder_add_key(struct kvset_builder *self, const struct key_obj *kobj)
  * - If @complen > 0, then the value is already compressed and will be
  *   stored on media as is (even if compression is not enabled for this
  *   kvset).
- * - If @complen == 0, and compression is enabled for this kvset, then the
- *   value will be compressed before writing to media if compression
- *   results in a worthwhile size reduction.  For example, a 10,000 byte
- *   value that compressed to 9999 bytes will not be stored in compressed
- *   from.
  *
  * Special cases for tombstones:
  *  - If @vdata == %HSE_CORE_TOMB_PFX, then a prefix tombstone is added
@@ -213,41 +205,6 @@ kvset_builder_add_val(
 
         /* add value to vblock */
 
-        if (self->compress && complen == 0) {
-            /* Try to compress value.  If it can't be compressed
-             * for whatever reason, just leave complen == 0 and
-             * the following code will figure it out.
-             */
-            complen = self->compress->cop_estimate(vdata, vlen);
-
-            if (unlikely(!complen)) {
-                /* compression library says "no" */
-                goto add_entry;
-            }
-
-            if (unlikely(self->compress_buf_sz < complen)) {
-                /* need a bigger buffer */
-                free(self->compress_buf);
-                self->compress_buf_sz = ALIGN(complen, PAGE_SIZE);
-                self->compress_buf = malloc(self->compress_buf_sz);
-                if (unlikely(!self->compress_buf)) {
-                    self->compress_buf_sz = 0;
-                    complen = 0;
-                    goto add_entry;
-                }
-            }
-
-            err = self->compress->cop_compress(vdata, vlen,
-                                               self->compress_buf, self->compress_buf_sz,
-                                               &complen);
-
-            if (complen > HSE_KVS_VLEN_MAX || ev(err))
-                complen = 0;
-            else
-                vdata = self->compress_buf;
-        }
-
-      add_entry:
         /* vblock builder needs on-media length */
         omlen = complen ? complen : vlen;
         err = vbb_add_entry(self->vbb, vdata, omlen, &vbid, &vbidx, &vboff);
@@ -364,7 +321,6 @@ kvset_builder_destroy(struct kvset_builder *bld)
 
     free(bld->main.kmd);
     free(bld->sec.kmd);
-    free(bld->compress_buf);
     free(bld);
 }
 
