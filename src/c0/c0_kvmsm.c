@@ -178,7 +178,7 @@ wait:
 
     /* Now that all mutations are persisted, issue a Tx COMMIT. */
     if (!aborted) {
-        err = c1_txn_commit(c1h, txnid, txnseq, C1_INGEST_SYNC);
+        err = c1_txn_commit(c1h, txnid, c0kvms_rsvd_sn_get(c0kvms), C1_INGEST_SYNC);
         if (ev(err)) {
             c1_txn_abort(c1h, txnid);
             return err;

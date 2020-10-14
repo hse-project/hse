@@ -15,6 +15,7 @@
 #include <hse_ikvdb/c1_kvcache.h>
 #include <hse_ikvdb/kvdb_cparams.h>
 #include <hse_ikvdb/limits.h>
+#include <hse_ikvdb/kvdb_health.h>
 
 #define HSE_C1_DEFAULT_STRIPE_WIDTH 4
 
@@ -109,11 +110,12 @@ c1_free(struct mpool *ds, u64 oid1, u64 oid2);
  *@rdonly:     Read-only mode
  *@oid1:       First OID of c1 MDC
  *@oid2:       Second OID of c1 MDC
- *@kvmsgen:    kvsmgen of last successful cn ingest
+ *@cningestid: ingestid of last successful cn ingest
  *@mpname:     mpool name
  *@dbname:     kvdb name
  *@ikvdb:      internal kvdb handle for callbacks
  *@c0sk:       c0sk handle
+ *@health:     kvdb health
  *@c1:         (output) c1 handle
  */
 /* MTF_MOCK */
@@ -123,11 +125,12 @@ c1_open(
     int                  rdonly,
     u64                  oid1,
     u64                  oid2,
-    u64                  kvmsgen,
+    u64                  cningestid,
     const char *         mpname,
     struct kvdb_rparams *rparams,
     struct ikvdb *       ikvdb,
     struct c0sk *        c0sk,
+    struct kvdb_health  *health,
     struct c1 **         out);
 
 /**
@@ -168,7 +171,7 @@ c1_txn_begin(struct c1 *c1, u64 txnid, struct c1_iterinfo *ci, int flag);
  */
 /* MTF_MOCK */
 merr_t
-c1_txn_commit(struct c1 *c1, u64 txnid, u64 seqno, int flag);
+c1_txn_commit(struct c1 *c1, u64 txnid, u64 ingestid, int flag);
 
 /**
  * c1_txn_commit() - Aborts a c1 transaction
@@ -331,12 +334,7 @@ c1_vtuple_alloc(struct c1_kvcache *cc, struct c1_vtuple **cvt);
  * @tomb:
  */
 void
-c1_vtuple_init(
-    struct c1_vtuple *       cvt,
-    u64                      vlen,
-    u64                      seqno,
-    void *                   data,
-    bool                     tomb);
+c1_vtuple_init(struct c1_vtuple *cvt, u64 vlen, u64 seqno, void *data, bool tomb);
 
 /**
  * c1_is_clean -

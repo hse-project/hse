@@ -299,7 +299,7 @@ c1log_log_replay_txn(struct c1 *c1, char *omf)
         (unsigned long)ttxn.c1txn_seqno,
         (unsigned long)ttxn.c1txn_gen,
         (unsigned long)ttxn.c1txn_id,
-        (unsigned long)ttxn.c1txn_kvseqno,
+        (unsigned long)ttxn.c1txn_ingestid,
         (unsigned long)ttxn.c1txn_mutation,
         (unsigned long)ttxn.c1txn_cmd,
         (unsigned long)ttxn.c1txn_flag);

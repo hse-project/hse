@@ -45,11 +45,12 @@ _c1_open(
     int                  rdonly,
     u64                  oid1,
     u64                  oid2,
-    u64                  kvmsgen,
+    u64                  cningestid,
     const char *         mpname,
     struct kvdb_rparams *rparams,
     struct ikvdb *       ikvdb,
     struct c0sk *        c0sk,
+    struct kvdb_health  *health,
     struct c1 **         out)
 {
     *out = NULL;

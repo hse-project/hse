@@ -553,6 +553,8 @@ c1_replay_impl(struct c1 *c1)
         /* Erase c1 logs to make subsequent replays to finish qucikly
          * without requiring to go through their contents.
          */
+        if (jrnl->c1j_kvdb_health)
+            err = kvdb_health_check(jrnl->c1j_kvdb_health, KVDB_HEALTH_FLAG_ALL);
         if (!err)
             c1_replay_trees_reset(c1);
     }
@@ -832,8 +834,8 @@ c1_next_tree_impl(struct c1 *c1)
     }
 
     if (atomic_read(&jrnl->c1j_treecnt) >= HSE_C1_TREE_CNT_UB) {
-	    hse_log(HSE_ERR "No. of c1 trees cannot exceed %d", HSE_C1_TREE_CNT_UB);
-	    return merr(ENOSPC);
+        hse_log(HSE_ERR "No. of c1 trees cannot exceed %d", HSE_C1_TREE_CNT_UB);
+        return merr(ENOSPC);
     }
 
     err = c1_new_tree(

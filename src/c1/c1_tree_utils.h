@@ -54,7 +54,7 @@ c1_tree_replay(struct c1 *c1, struct c1_tree *tree);
 
 /* MTF_MOCK */
 bool
-c1_ingest_kvbundle(u64 ingestid, u64 kvmsgen);
+c1_should_replay(u64 cningestid, u64 c1ingestid);
 
 int
 c1_tree_kvb_cmp(void *arg1, void *arg2);

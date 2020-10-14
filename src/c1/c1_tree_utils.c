@@ -169,7 +169,7 @@ c1_tree_replay_process_txn(struct c1 *c1, struct c1_tree *tree)
     }
 
     for (j = 0; j < numlogs; j++) {
-        err = c1_log_replay(tree->c1t_log[j], c1_kvmsgen(c1), c1->c1_version);
+        err = c1_log_replay(tree->c1t_log[j], c1_cningestid(c1), c1->c1_version);
         if (ev(err))
             if (ev(merr_errno(err) != ENOENT))
                 goto err_exit;
@@ -218,7 +218,7 @@ c1_tree_replay_process_kvb(struct c1 *c1, struct c1_tree *tree)
     }
 
     for (j = 0; j < numlogs; j++) {
-        err = c1_log_replay(tree->c1t_log[j], c1_kvmsgen(c1), c1->c1_version);
+        err = c1_log_replay(tree->c1t_log[j], c1_cningestid(c1), c1->c1_version);
         if (ev(err))
             if (merr_errno(err) != ENOENT)
                 goto err_exit;
@@ -322,32 +322,32 @@ c1_tree_replay_verify_txn_list(struct c1_tree *tree)
 }
 #endif
 
-#pragma push_macro("c1_ingest_kvbundle")
-#undef c1_ingest_kvbundle
+#pragma push_macro("c1_should_replay")
+#undef c1_should_replay
 
 bool
-c1_ingest_kvbundle(u64 ingestid, u64 kvmsgen)
+c1_should_replay(u64 cningestid, u64 c1ingestid)
 {
-    if (ingestid == CNDB_INVAL_INGESTID)
+    if (cningestid == CNDB_INVAL_INGESTID)
         return true;
 
-    if (ingestid == CNDB_DFLT_INGESTID)
+    if (cningestid == CNDB_DFLT_INGESTID)
         return true;
 
-    if (ingestid && kvmsgen && (kvmsgen > ingestid))
+    if (cningestid && c1ingestid && (c1ingestid > cningestid))
         return true;
 
     return false;
 }
 
-#pragma pop_macro("c1_ingest_kvbundle")
+#pragma pop_macro("c1_should_replay")
 
 static merr_t
 c1_tree_replay_nextkey(
     struct c1 *     c1,
     struct c1_tree *tree,
     void **         nextkey,
-    u64             kvmsgen,
+    u64             c1ingestid,
     u64             mutation,
     u64             minseqno,
     u64             maxseqno)
@@ -427,7 +427,7 @@ c1_tree_replay_nextkey(
 
         assert(seqno >= minseqno);
         assert(seqno <= maxseqno);
-        assert(c1_kvmsgen(c1) >= CNDB_DFLT_INGESTID || kvmsgen > c1_kvmsgen(c1));
+        assert(c1_cningestid(c1) >= CNDB_DFLT_INGESTID || c1ingestid > c1_cningestid(c1));
 
         /*
          * Support for nested c1 replay failure. Ignore all entries
@@ -490,7 +490,7 @@ c1_tree_replay_kvb_impl(struct c1 *c1, struct c1_tree *tree, struct c1_kvb *kvb)
 static merr_t
 c1_tree_replay_kvb(struct c1 *c1, struct c1_tree *tree, u64 mutation, u64 txnid)
 {
-    static u64     ingestid = U64_MAX;
+    static u64     c1ingestid = U64_MAX;
     struct c1_kvb *kvb;
     struct c1_kvb *tmpkvb;
     u64            kvb_bundles, kvb_replayed;
@@ -510,14 +510,14 @@ c1_tree_replay_kvb(struct c1 *c1, struct c1_tree *tree, u64 mutation, u64 txnid)
          * indicates that we are crossing c0kvms and the bundles till
          * that point (if any) can be flushed as an independent entity.
          */
-        if (ingestid != U64_MAX && kvb->c1kvb_ingestid != ingestid &&
-            c1_ingest_kvbundle(c1_kvmsgen(c1), ingestid)) {
+        if (c1ingestid != U64_MAX && kvb->c1kvb_ingestid != c1ingestid &&
+            c1_should_replay(c1_cningestid(c1), c1ingestid)) {
             err = ikvdb_flush(c1_ikvdb(c1));
             if (ev(err))
                 return err;
         }
 
-        ingestid = kvb->c1kvb_ingestid;
+        c1ingestid = kvb->c1kvb_ingestid;
 
         /* For tx replay, replay all kv bundles containing this txnid.
          * For non-tx replay, replay all kv bundles having mutation
@@ -529,7 +529,7 @@ c1_tree_replay_kvb(struct c1 *c1, struct c1_tree *tree, u64 mutation, u64 txnid)
 
             assert(!txnid || (txnid && kvb->c1kvb_mutation <= mutation));
 
-            ingestable = c1_ingest_kvbundle(c1_kvmsgen(c1), kvb->c1kvb_ingestid);
+            ingestable = c1_should_replay(c1_cningestid(c1), kvb->c1kvb_ingestid);
             if (ingestable) {
                 err = c1_tree_replay_kvb_impl(c1, tree, kvb);
                 if (ev(err))
@@ -547,8 +547,8 @@ c1_tree_replay_kvb(struct c1 *c1, struct c1_tree *tree, u64 mutation, u64 txnid)
     }
 
     if (kvb_replayed < kvb_bundles)
-        hse_log(HSE_ERR "%s: mut %lu, txnid %lu, ingestid %lu, replayed %lu of %lu bundles",
-                __func__, mutation, ingestid, txnid, kvb_bundles, kvb_replayed);
+        hse_log(HSE_ERR "%s: mut %lu, txnid %lu, c1ingestid %lu, replayed %lu of %lu bundles",
+                __func__, mutation, c1ingestid, txnid, kvb_bundles, kvb_replayed);
 
     return 0;
 }

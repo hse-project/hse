@@ -654,7 +654,7 @@ c1_io_txn_begin(struct c1 *c1, u64 txnid, struct c1_iterinfo *ci, int sync)
     list_del(&q->c1q_list);
 
     txn = &q->c1q_txnbuf;
-    txn->c1t_kvseqno = C1_INVALID_SEQNO;
+    txn->c1t_ingestid = C1_INVALID_SEQNO;
     txn->c1t_txnid = txnid;
     txn->c1t_cmd = C1_TYPE_TXN_BEGIN;
     txn->c1t_flag = sync;
@@ -698,7 +698,7 @@ c1_io_txn_begin(struct c1 *c1, u64 txnid, struct c1_iterinfo *ci, int sync)
 }
 
 merr_t
-c1_io_txn_commit(struct c1 *c1, u64 txnid, u64 seqno, int sync)
+c1_io_txn_commit(struct c1 *c1, u64 txnid, u64 ingestid, int sync)
 {
     struct c1_kvinfo        cki = {};
     struct c1_io_worker    *worker;
@@ -732,7 +732,7 @@ c1_io_txn_commit(struct c1 *c1, u64 txnid, u64 seqno, int sync)
     list_del(&q->c1q_list);
 
     txn = &q->c1q_txnbuf;
-    txn->c1t_kvseqno = seqno;
+    txn->c1t_ingestid = ingestid;
     txn->c1t_txnid = txnid;
     txn->c1t_cmd = C1_TYPE_TXN_COMMIT;
     txn->c1t_flag = sync;
@@ -819,7 +819,7 @@ c1_io_txn_abort(struct c1 *c1, u64 txnid)
     list_del(&q->c1q_list);
 
     txn = &q->c1q_txnbuf;
-    txn->c1t_kvseqno = C1_INVALID_SEQNO;
+    txn->c1t_ingestid = C1_INVALID_SEQNO;
     txn->c1t_txnid = txnid;
     txn->c1t_cmd = C1_TYPE_TXN_ABORT;
     txn->c1t_flag = C1_INGEST_ASYNC;

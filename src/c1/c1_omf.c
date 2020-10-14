@@ -480,7 +480,7 @@ omf_c1_treetxn_unpack(char *omf, union c1_record *rec, u32 *omf_len)
     ttxn->c1txn_seqno = omf_c1ttxn_seqno(ttxn_omf);
     ttxn->c1txn_gen = omf_c1ttxn_gen(ttxn_omf);
     ttxn->c1txn_id = omf_c1ttxn_id(ttxn_omf);
-    ttxn->c1txn_kvseqno = omf_c1ttxn_kvseqno(ttxn_omf);
+    ttxn->c1txn_ingestid = omf_c1ttxn_ingestid(ttxn_omf);
     ttxn->c1txn_mutation = omf_c1ttxn_mutation(ttxn_omf);
     ttxn->c1txn_cmd = omf_c1ttxn_cmd(ttxn_omf);
     ttxn->c1txn_flag = omf_c1ttxn_flag(ttxn_omf);

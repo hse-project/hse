@@ -7,7 +7,7 @@
 #define HSE_C1_TXN_H
 
 struct c1_ttxn {
-    u64 c1t_kvseqno;
+    u64 c1t_ingestid;
     u64 c1t_segno;
     u64 c1t_gen;
     u64 c1t_txnid;
@@ -20,7 +20,7 @@ struct c1_treetxn {
     u64              c1txn_seqno;
     u64              c1txn_gen;
     u64              c1txn_id;
-    u64              c1txn_kvseqno;
+    u64              c1txn_ingestid;
     u64              c1txn_mutation;
     u32              c1txn_cmd;
     u32              c1txn_flag;

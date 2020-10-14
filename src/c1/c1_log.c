@@ -594,7 +594,7 @@ c1_log_issue_txn(
     omf_set_c1ttxn_seqno(&omf, txn->c1t_segno);
     omf_set_c1ttxn_gen(&omf, txn->c1t_gen);
     omf_set_c1ttxn_id(&omf, txn->c1t_txnid);
-    omf_set_c1ttxn_kvseqno(&omf, txn->c1t_kvseqno);
+    omf_set_c1ttxn_ingestid(&omf, txn->c1t_ingestid);
     omf_set_c1ttxn_mutation(&omf, mutation);
     omf_set_c1ttxn_cmd(&omf, txn->c1t_cmd);
     omf_set_c1ttxn_flag(&omf, txn->c1t_flag);

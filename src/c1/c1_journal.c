@@ -23,6 +23,7 @@ c1_journal_create(
     u64                 dsize,
     u64                 capacity,
     u64                 jrnlsize,
+    struct kvdb_health *health,
     struct c1_journal **out)
 {
     struct c1_journal *jrnl;
@@ -45,6 +46,7 @@ c1_journal_create(
     jrnl->c1j_oid2 = oid2;
     jrnl->c1j_mp = mp;
     jrnl->c1j_mdc = NULL;
+    jrnl->c1j_kvdb_health = health;
     atomic_set(&jrnl->c1j_treecnt, 0);
     memset(&jrnl->c1j_pcset, 0, sizeof(jrnl->c1j_pcset));
     *out = jrnl;
@@ -72,6 +74,7 @@ c1_journal_alloc(struct mpool *mp, int mediaclass, u64 capacity, struct c1_journ
         0,
         capacity,
         HSE_C1_JOURNAL_SIZE,
+        NULL,
         &jrnl);
     if (ev(err))
         return err;
@@ -113,6 +116,7 @@ c1_journal_make(
         HSE_C1_DEFAULT_DSIZE,
         capacity,
         HSE_C1_JOURNAL_SIZE,
+        NULL,
         &jrnl);
     if (ev(err))
         return err;
@@ -167,12 +171,14 @@ c1_journal_open(
     const char *        mpname,
     u64                 oid1,
     u64                 oid2,
+    struct kvdb_health *health,
     struct c1_journal **out)
 {
     merr_t             err;
     struct c1_journal *jrnl = NULL;
 
-    err = c1_journal_create(mp, C1_INITIAL_SEQNO, 0, oid1, oid2, mclass, mpname, 0, 0, 0, 0, &jrnl);
+    err = c1_journal_create(
+        mp, C1_INITIAL_SEQNO, 0, oid1, oid2, mclass, mpname, 0, 0, 0, 0, health, &jrnl);
     if (ev(err))
         return err;
 
@@ -206,7 +212,11 @@ c1_journal_close(struct c1_journal *jrnl)
         return 0;
     }
 
-    if (!jrnl->c1j_rdonly) {
+    err = 0;
+    if (jrnl->c1j_kvdb_health)
+        err = kvdb_health_check(jrnl->c1j_kvdb_health, KVDB_HEALTH_FLAG_ALL);
+
+    if (!err && !jrnl->c1j_rdonly) {
         err = c1_journal_write_close(jrnl);
         if (ev(err))
             return err;
@@ -313,7 +323,8 @@ c1_journal_close_mdc(struct c1_journal *jrnl)
     return 0;
 }
 
-BullseyeCoverageSaveOff merr_t
+BullseyeCoverageSaveOff
+merr_t
 c1_journal_compact_begin(struct c1_journal *jrnl)
 {
     assert(jrnl->c1j_mdc != NULL);
@@ -350,8 +361,8 @@ c1_journal_format(struct c1_journal *jrnl)
 }
 BullseyeCoverageRestore
 
-    merr_t
-    c1_journal_replay(struct c1 *c1, struct c1_journal *jrnl, c1_journal_replay_cb *cb)
+merr_t
+c1_journal_replay(struct c1 *c1, struct c1_journal *jrnl, c1_journal_replay_cb *cb)
 {
     return c1_journal_replay_impl(c1, jrnl, cb);
 }
@@ -455,7 +466,8 @@ c1_journal_complete_tree(struct c1_journal *jrnl, u64 seqno, u32 gen, u64 kvseqn
     return ev(err);
 }
 
-BullseyeCoverageSaveOff merr_t
+BullseyeCoverageSaveOff
+merr_t
 c1_journal_write_version(struct c1_journal *jrnl)
 {
     struct c1_ver_omf ver;
@@ -479,8 +491,8 @@ c1_journal_write_version(struct c1_journal *jrnl)
 }
 BullseyeCoverageRestore
 
-    merr_t
-    c1_journal_write_info(struct c1_journal *jrnl)
+merr_t
+c1_journal_write_info(struct c1_journal *jrnl)
 {
     struct c1_info_omf info;
     merr_t             err;

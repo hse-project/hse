@@ -188,7 +188,7 @@ c1_log_replay_close(struct c1_log *log, bool destroy)
 }
 
 static merr_t
-c1_log_replay_kvb(struct c1_log *log, u64 ingestid, u16 ver)
+c1_log_replay_kvb(struct c1_log *log, u64 cningestid, u16 ver)
 {
     struct c1_kvb *kvb;
 
@@ -209,7 +209,7 @@ c1_log_replay_kvb(struct c1_log *log, u64 ingestid, u16 ver)
         return err;
     }
 
-    if (!c1_ingest_kvbundle(ingestid, kvb->c1kvb_ingestid)) {
+    if (!c1_should_replay(cningestid, kvb->c1kvb_ingestid)) {
         c1_log_skip_data(log, kvb->c1kvb_size);
         free(kvb);
         return 0;
@@ -239,7 +239,7 @@ c1_log_replay_kvb(struct c1_log *log, u64 ingestid, u16 ver)
 #ifdef C1_DEBUG_KVB_REPLAY
     hse_log(
         HSE_DEBUG "c1 replay kvb seqno %lx gen %x txn %lxkcount %lx "
-                  "mutation %lx size %lx minseqno %lx maxseqno %lx",
+                "mutation %lx size %lx minseqno %lx maxseqno %lx",
         (unsigned long)kvb->c1kvb_seqno,
         (unsigned int)kvb->c1kvb_gen,
         (unsigned long)kvb->c1kvb_txnid,
@@ -254,7 +254,7 @@ c1_log_replay_kvb(struct c1_log *log, u64 ingestid, u16 ver)
 }
 
 static merr_t
-c1_log_replay_txn(struct c1_log *log, u64 ingestid, u16 ver)
+c1_log_replay_txn(struct c1_log *log, u64 cningestid, u16 ver)
 {
     struct c1_treetxn *ttxn;
 
@@ -280,7 +280,7 @@ c1_log_replay_txn(struct c1_log *log, u64 ingestid, u16 ver)
         return 0;
     }
 
-    if (!c1_ingest_kvbundle(ingestid, ttxn->c1txn_kvseqno)) {
+    if (!c1_should_replay(cningestid, ttxn->c1txn_ingestid)) {
         free(ttxn);
 
         return 0;
@@ -292,11 +292,11 @@ c1_log_replay_txn(struct c1_log *log, u64 ingestid, u16 ver)
 
     hse_log(
         HSE_DEBUG "replay txn seqno %lx gen %lx txnid %lx "
-                  "kvseqno %lx cmd %x flag %x",
+                "c1ingestid %lx cmd %x flag %x",
         (unsigned long)ttxn->c1txn_seqno,
         (unsigned long)ttxn->c1txn_gen,
         (unsigned long)ttxn->c1txn_id,
-        (unsigned long)ttxn->c1txn_kvseqno,
+        (unsigned long)ttxn->c1txn_ingestid,
         (unsigned int)ttxn->c1txn_cmd,
         (unsigned int)ttxn->c1txn_flag);
 
@@ -304,7 +304,7 @@ c1_log_replay_txn(struct c1_log *log, u64 ingestid, u16 ver)
 }
 
 static merr_t
-c1_log_replay_metadata(struct c1_log *log, u64 ingestid, u16 ver)
+c1_log_replay_metadata(struct c1_log *log, u64 cningestid, u16 ver)
 {
     struct c1_kvb kvb;
 
@@ -347,7 +347,7 @@ c1_log_replay_metadata(struct c1_log *log, u64 ingestid, u16 ver)
                 break;
 
             case C1_TYPE_TXN:
-                err = c1_log_replay_txn(log, ingestid, ver);
+                err = c1_log_replay_txn(log, cningestid, ver);
                 break;
 
             default:
@@ -362,7 +362,7 @@ c1_log_replay_metadata(struct c1_log *log, u64 ingestid, u16 ver)
 }
 
 static merr_t
-c1_log_replay_kvbundle(struct c1_log *log, u64 ingestid, u16 ver)
+c1_log_replay_kvbundle(struct c1_log *log, u64 cningestid, u16 ver)
 {
     merr_t err;
     char * hdromf;
@@ -381,7 +381,7 @@ c1_log_replay_kvbundle(struct c1_log *log, u64 ingestid, u16 ver)
 
         switch (omf_c1_header_type(hdromf)) {
             case C1_TYPE_KVB:
-                err = c1_log_replay_kvb(log, ingestid, ver);
+                err = c1_log_replay_kvb(log, cningestid, ver);
                 break;
 
             case C1_TYPE_TXN:
@@ -400,18 +400,19 @@ c1_log_replay_kvbundle(struct c1_log *log, u64 ingestid, u16 ver)
 }
 
 merr_t
-c1_log_replay(struct c1_log *log, u64 ingestid, u16 ver)
+c1_log_replay(struct c1_log *log, u64 cningestid, u16 ver)
 {
     if (log->c1l_reptype == C1_REPLAY_METADATA)
-        return c1_log_replay_metadata(log, ingestid, ver);
+        return c1_log_replay_metadata(log, cningestid, ver);
 
-    return c1_log_replay_kvbundle(log, ingestid, ver);
+    return c1_log_replay_kvbundle(log, cningestid, ver);
 }
 
 /*
  * c1log diagnostics functions. Disabling coverage on them.
  */
-BullseyeCoverageSaveOff merr_t
+BullseyeCoverageSaveOff
+merr_t
 c1_log_diag_replay_open(struct c1_log *log, c1_journal_replay_cb *cb, void *cbarg, u16 ver)
 {
     void * buffer;
