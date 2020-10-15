@@ -229,6 +229,7 @@ endif
 # This macro needs to be defined before including xxhash.h
 # so the *_state_t macros are not incomplete.
 BUILD_CDEFS += -DXXH_STATIC_LINKING_ONLY
+BUILD_CDEFS += -DXXH_PRIVATE_API
 
 BUILD_DIR     ?= ${SRC_DIR}/builds
 BUILD_NODE    ?= $(shell uname -n)
@@ -288,11 +289,7 @@ curl_repo := curl
 ${curl_repo}_tag := curl-7_50_3
 ${curl_repo}_url := https://github.com/curl/curl
 
-lz4_repo := lz4
-${lz4_repo}_tag := v1.9.2
-${lz4_repo}_url := https://github.com/lz4/lz4
-
-SUBREPO_PATH_LIST := sub/$(curl_repo) sub/$(libyaml_repo) sub/$(lz4_repo)
+SUBREPO_PATH_LIST := sub/$(curl_repo) sub/$(libyaml_repo)
 
 PERL_CMAKE_NOISE_FILTER := \
     perl -e '$$|=1;\

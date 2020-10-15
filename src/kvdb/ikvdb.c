@@ -2008,12 +2008,14 @@ ikvdb_kvs_put(
     clen = kvs_vtuple_clen(vt);
 
     vbufsz = tls_vbufsz;
-    vbuf = tls_vbuf;
+    vbuf = NULL;
 
     if (clen == 0 && vlen > kk->kk_vcompmin) {
         if (vlen > kk->kk_vcompbnd) {
             vbufsz = vlen + PAGE_SIZE * 2;
             vbuf = vlb_alloc(vbufsz);
+        } else {
+            vbuf = tls_vbuf;
         }
 
         if (vbuf) {
@@ -2031,8 +2033,8 @@ ikvdb_kvs_put(
 
     err = ikvs_put(kk->kk_ikvs, os, kt, vt, put_seqno);
 
-    if (vbuf != tls_vbuf)
-        vlb_free(vbuf, vbufsz);
+    if (vbuf && vbuf != tls_vbuf)
+        vlb_free(vbuf, clen);
 
     if (err) {
         ev(merr_errno(err) != ECANCELED);

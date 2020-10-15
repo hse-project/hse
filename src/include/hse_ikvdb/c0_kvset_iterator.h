@@ -10,6 +10,8 @@
 #include <hse_util/element_source.h>
 #include <hse_util/bonsai_tree.h>
 
+#pragma GCC visibility push(hidden)
+
 #define HSE_C0_KVSET_ITER_MAX (HSE_C0_INGEST_WIDTH_MAX * 3)
 
 /**
@@ -131,5 +133,7 @@ c0_kvset_iterator_skip_pfx(
  */
 struct element_source *
 c0_kvset_iterator_get_es(struct c0_kvset_iterator *handle);
+
+#pragma GCC visibility pop
 
 #endif

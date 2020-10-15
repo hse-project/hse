@@ -7,6 +7,8 @@
 
 #include <hse_util/compression.h>
 
+#include <3rdparty/lz4.h>
+
 extern struct compress_ops compress_lz4_ops;
 
 #endif

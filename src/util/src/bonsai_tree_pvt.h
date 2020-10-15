@@ -13,6 +13,8 @@
 #include <hse_util/bonsai_tree.h>
 #include <hse_util/assert.h>
 
+#pragma GCC visibility push(hidden)
+
 enum bonsai_update_lr {
     B_UPDATE_L = 0,
     B_UPDATE_R = 1,
@@ -140,4 +142,7 @@ bn_height_update(struct bonsai_node *node)
 
     node->bn_height++;
 }
+
+#pragma GCC visibility pop
+
 #endif /* HSE_BONSAI_TREE_PVT_H */
