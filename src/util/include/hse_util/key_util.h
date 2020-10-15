@@ -10,6 +10,8 @@
 #include <hse_util/minmax.h>
 #include <hse_util/assert.h>
 
+#pragma GCC visibility push(hidden)
+
 /* Max number of a key's bytes that we can store in a key_immediate
  * minus 4 (i.e., the skidx byte + dlen byte + two bytes used to
  * store the full key length).
@@ -324,5 +326,7 @@ key2kobj(struct key_obj *kobj, const void *kdata, size_t klen)
 
     return kobj;
 }
+
+#pragma GCC visibility pop
 
 #endif

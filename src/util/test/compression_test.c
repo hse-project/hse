@@ -18,8 +18,6 @@ MTF_DEFINE_UTEST(compression_test, compress)
     merr_t err;
     int i;
 
-    printf("%s: lz4 version %s\n", __func__, LZ4_versionString());
-
     srcsz = HSE_KVS_VLEN_MAX + 16;
     src = src_base = malloc(srcsz);
     ASSERT_NE(NULL, src);
