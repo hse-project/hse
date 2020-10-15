@@ -14,7 +14,3 @@ that is very liberal.
 Libyaml is a BSD-style license.  Public domain with a copyright notice
 requirement.
 
-## liblz4
-
-The lz4 repo is dual BSD/GPLv2 licensed.  We only use the "lib" component
-which is completely covered by the BSD 2-Clause license.

@@ -9,6 +9,8 @@
 #include <hse_util/atomic.h>
 #include <hse_util/rwsem.h>
 
+#pragma GCC visibility push(hidden)
+
 /**
  * A "read-mostly" lock.
  */
@@ -34,5 +36,7 @@ void rmlock_runlock(void *cookie);
 void rmlock_yield(struct rmlock *lock, void **cookiep);
 void rmlock_wlock(struct rmlock *lock);
 void rmlock_wunlock(struct rmlock *lock);
+
+#pragma GCC visibility pop
 
 #endif

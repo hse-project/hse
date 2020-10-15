@@ -53,6 +53,8 @@
 
 #include <syscall.h>
 
+#pragma GCC visibility push(hidden)
+
 #define MAX_NUMNODES 4
 
 /* KMC_SPC              number of slabs per chunk (power of 2)
@@ -1289,9 +1291,6 @@ kmc_rest_get_vmstat(
     return 0;
 }
 
-extern void
-malloc_stats(void);
-
 merr_t
 kmc_rest_get(
     const char *      path,
@@ -1307,11 +1306,6 @@ kmc_rest_get(
 
     if (strstr(path, "/test")) {
         kmc_rest_get_test(path, info, url, iter, context);
-        return 0;
-    }
-
-    if (strstr(path, "/stats")) {
-        malloc_stats();
         return 0;
     }
 
@@ -1335,6 +1329,8 @@ free_page(unsigned long addr)
 {
     kmem_cache_free(kmc.kmc_pagecache, (void *)addr);
 }
+
+#pragma GCC visibility pop
 
 #if HSE_UNIT_TEST_MODE
 #include "slab_ut_impl.i"

@@ -7,8 +7,6 @@
 #include <hse_util/event_counter.h>
 #include <hse_util/compression_lz4.h>
 
-#include <lz4.h>
-
 #if LZ4_VERSION_NUMBER < (10000 + 900 + 2)
 #error "Need LZ4 1.9.2 or higher"
 #endif
@@ -82,9 +80,20 @@ compress_lz4_decompress(
 
     len = LZ4_decompress_safe_partial(src, dst, src_len, dst_capacity, dst_capacity);
 
+    /* Decompression should not fail.  If it does you've likely got a buggy
+     * version of lz4, or you've unwittingly linked against a buggy version
+     * (i.e., any version prior to v1.9.2).
+     */
+    if (unlikely( len < 1 )) {
+        hse_log(HSE_ERR "%s: slen %u, cap %u, len %d, src %p, dst %p, ver %s",
+                __func__, src_len, dst_capacity, len, src, dst, LZ4_versionString());
+
+        return merr(EFBIG);
+    }
+
     *dst_len = len;
 
-    return (len < 1) ? merr(EFBIG) : 0;
+    return 0;
 }
 
 struct compress_ops compress_lz4_ops __read_mostly = {

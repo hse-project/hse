@@ -19,6 +19,8 @@
 #include <hse_util/slist.h>
 #include <hse_util/rcu.h>
 
+#pragma GCC visibility push(hidden)
+
 #define BONSAI_TREE_BALANCE_THRESHOLD 4
 #define BONSAI_MUT_LISTC 2
 
@@ -548,5 +550,7 @@ bv_set_txn(struct bonsai_val *val)
 {
     val->bv_flags |= BV_TXNVAL;
 }
+
+#pragma GCC visibility pop
 
 #endif /* HSE_BONSAI_TREE_H */

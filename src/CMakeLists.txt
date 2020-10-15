@@ -74,8 +74,9 @@ set( UTIL_SOURCE_FILES
     util/src/vlb.c
     util/src/workqueue.c
     util/src/yaml.c
-    ../3rdparty/src/rbtree.c
     ../3rdparty/src/cJSON.c
+    ../3rdparty/src/lz4.c
+    ../3rdparty/src/rbtree.c
     ../3rdparty/src/xxhash.c
     )
 
@@ -226,13 +227,11 @@ endif()
 set( HSE_KVDB_LIB_DEPS
     libyaml-ext
     libcurl-ext
-    liblz4-ext
     )
 
 set( HSE_KVDB_LIB_LINK_LIBS
     ${LIBCURL_LIBS}
     ${LIBYAML_LIBS}
-    ${LIBLZ4_LIBS}
     urcu-bp
     uuid
     pthread
@@ -240,7 +239,6 @@ set( HSE_KVDB_LIB_LINK_LIBS
     mpool
     mpool-blkid
     m
-    lz4
     )
 
 set( HSE_KVDB_LIB_INCLUDES
@@ -1459,10 +1457,8 @@ if( HSE_UNIT_TEST_FLAG )
         NAME compression_test
         SRCS util/test/compression_test.c
         INCLUDES ${UNIT_TEST_INCLUDE_DIRS}
-        DEPS liblz4-ext
         LINK_LIBS
             ${UNIT_TEST_LINK_LIBS}
-            ${LIBLZ4_LIBS}
         )
 
 endif()

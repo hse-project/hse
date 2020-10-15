@@ -25,6 +25,8 @@ malloc_array(size_t n, size_t size)
 struct kmem_cache;
 struct kmc_zone;
 
+#pragma GCC visibility push(hidden)
+
 /* MTF_MOCK */
 merr_t
 kmem_cache_init(void);
@@ -56,6 +58,8 @@ kmem_cache_zalloc(struct kmem_cache *cache, gfp_t flags)
 {
     return kmem_cache_alloc(cache, flags | __GFP_ZERO);
 }
+
+#pragma GCC visibility pop
 
 #if HSE_UNIT_TEST_MODE
 #include "slab_ut.h"
