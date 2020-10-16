@@ -106,7 +106,6 @@ int
 kvs_cparams_validate(struct kvs_cparams *cparams)
 {
     bool valid_fanout;
-    u32  f;
 
     if (ev(!cparams))
         return EINVAL;
@@ -118,13 +117,8 @@ kvs_cparams_validate(struct kvs_cparams *cparams)
     }
 
     /* Validate fanout */
-    valid_fanout = false;
-    for (f = CN_FANOUT_MIN; f <= CN_FANOUT_MAX; f = f * 2) {
-        if (f == cparams->cp_fanout) {
-            valid_fanout = true;
-            break;
-        }
-    }
+    valid_fanout = cparams->cp_fanout >= CN_FANOUT_MIN && cparams->cp_fanout <= CN_FANOUT_MAX &&
+                   (cparams->cp_fanout & (cparams->cp_fanout - 1)) == 0;
 
     if (!valid_fanout) {
         hse_log(
