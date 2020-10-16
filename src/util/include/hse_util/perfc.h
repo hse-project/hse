@@ -14,6 +14,8 @@
 #include <hse_util/hse_err.h>
 #include <hse_util/data_tree.h>
 
+#pragma GCC visibility push(hidden)
+
 /* MTF_MOCK_DECL(perfc) */
 
 /* PERFC_VALPERCNT          max per-cpu values per counter
@@ -960,6 +962,8 @@ perfc_ctrseti_path(struct perfc_set *set);
  */
 extern void
 perfc_ctrseti_invalidate_handle(struct perfc_set *set);
+
+#pragma GCC visibility pop
 
 #if defined(HSE_UNIT_TEST_MODE) && HSE_UNIT_TEST_MODE == 1
 #include "perfc_ut.h"

@@ -62,6 +62,8 @@
 #include "kvdb_rest.h"
 #include "kvdb_params.h"
 
+#pragma GCC visibility push(hidden)
+
 /* tls_vbuf[] is a thread-local buffer used as a compression output buffer
  * by ikvdb_kvs_put() and for small direct reads by kvset_lookup_val().
  */
@@ -73,6 +75,8 @@ struct perfc_set kvdb_pc __read_mostly;
 
 struct perfc_set kvdb_metrics_pc __read_mostly;
 struct perfc_set c0_metrics_pc __read_mostly;
+
+#pragma GCC visibility pop
 
 BUILD_BUG_ON_MSG(
     (sizeof(uintptr_t) != sizeof(u64)),
