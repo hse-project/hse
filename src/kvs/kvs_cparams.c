@@ -48,11 +48,11 @@ kvs_cparams_table(void)
 struct kvs_cparams
 kvs_cparams_defaults(void)
 {
-    struct kvs_cparams params = {.cp_fanout = 16,
-                                 .cp_pfx_len = 0,
-                                 .cp_pfx_pivot = 2, /* only used when pfx_len > 0 */
-                                 .cp_kvs_ext01 = 0,
-                                 .cp_cpmagic = CPARAMS_MAGIC };
+    struct kvs_cparams params = { .cp_fanout = 16,
+                                  .cp_pfx_len = 0,
+                                  .cp_pfx_pivot = 2, /* only used when pfx_len > 0 */
+                                  .cp_kvs_ext01 = 0,
+                                  .cp_cpmagic = CPARAMS_MAGIC };
 
     return params;
 }
