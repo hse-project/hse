@@ -31,7 +31,6 @@
 #define KVDB_PARAM_STR(_name, _desc) \
     PARAM_INST_STRING(kvdb_rp_ref._name, sizeof(kvdb_rp_ref._name), #_name, _desc)
 
-
 /*
  * Steps to add a new kvdb run-time parameter(rparam):
  * 1. Add a new struct element to struct kvdb_rparams.
@@ -69,10 +68,10 @@ kvdb_rparams_defaults(void)
 
         .csched_policy = 3,
         .csched_debug_mask = 0,
-        .csched_samp_max = 0,
-        .csched_lo_th_pct = 0,
-        .csched_hi_th_pct = 0,
-        .csched_leaf_pct = 0,
+        .csched_samp_max = 15,
+        .csched_lo_th_pct = 25,
+        .csched_hi_th_pct = 75,
+        .csched_leaf_pct = 90,
         .csched_vb_scatter_pct = 100,
         .csched_qthreads = 0,
         .csched_node_len_max = 0,
