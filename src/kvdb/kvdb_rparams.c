@@ -68,7 +68,7 @@ kvdb_rparams_defaults(void)
 
         .csched_policy = 3,
         .csched_debug_mask = 0,
-        .csched_samp_max = 15,
+        .csched_samp_max = 150,
         .csched_lo_th_pct = 25,
         .csched_hi_th_pct = 75,
         .csched_leaf_pct = 90,
