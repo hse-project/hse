@@ -19,6 +19,8 @@
 #include <hse_util/perfc.h>
 #include <hse_util/workqueue.h>
 
+#pragma GCC visibility push(hidden)
+
 /* MTF_MOCK_DECL(ikvdb) */
 
 struct yaml_context;
@@ -587,6 +589,8 @@ kvdb_kop_is_bind_txn(const struct hse_kvdb_opspec *os)
 {
     return os && (os->kop_flags & HSE_KVDB_KOP_FLAG_BIND_TXN);
 }
+
+#pragma GCC visibility pop
 
 #if defined(HSE_UNIT_TEST_MODE) && HSE_UNIT_TEST_MODE == 1
 #include "ikvdb_ut.h"

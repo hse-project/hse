@@ -55,7 +55,7 @@ struct kvdb_kvs {
     u32                     kk_flags;
     atomic_t                kk_refcnt;
 
-    struct kk_cursors_mtx kk_cursors_mtxv[4];
+    struct kk_cursors_mtx kk_cursors_mtxv[3];
     spinlock_t            kk_cursors_spin;
     struct list_head      kk_cursors_list;
 
