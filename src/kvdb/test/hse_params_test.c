@@ -142,10 +142,12 @@ MTF_DEFINE_UTEST(hse_params, param_conversion)
     ASSERT_NE(result, NULL);
     ASSERT_EQ(strcmp(result, "567"), 0);
 
-    kvdb_rp = hse_params_to_kvdb_rparams(params, NULL);
+    err = hse_params_to_kvdb_rparams(params, NULL, &kvdb_rp);
+    ASSERT_EQ(0, err);
     ASSERT_EQ(kvdb_rp.low_mem, 1);
 
-    kvs_rp = hse_params_to_kvs_rparams(params, NULL, NULL);
+    err = hse_params_to_kvs_rparams(params, NULL, NULL, &kvs_rp);
+    ASSERT_EQ(0, err);
     ASSERT_EQ(kvs_rp.c0_cursor_ttl, 567);
 
     hse_params_destroy(params);
@@ -165,13 +167,16 @@ MTF_DEFINE_UTEST(hse_params, global_params)
     err = hse_params_set(params, "kvs.kvs_test.fanout", "8");
     ASSERT_EQ(err, 0);
 
-    kvs_cp = hse_params_to_kvs_cparams(params, NULL, NULL);
+    err = hse_params_to_kvs_cparams(params, NULL, NULL, &kvs_cp);
+    ASSERT_EQ(0, err);
     ASSERT_EQ(kvs_cp.cp_fanout, 32);
 
-    kvs_cp = hse_params_to_kvs_cparams(params, "kvs_test", NULL);
+    err = hse_params_to_kvs_cparams(params, "kvs_test", NULL, &kvs_cp);
+    ASSERT_EQ(0, err);
     ASSERT_EQ(kvs_cp.cp_fanout, 8);
 
-    kvs_cp = hse_params_to_kvs_cparams(params, "kvs_other", NULL);
+    err = hse_params_to_kvs_cparams(params, "kvs_other", NULL, &kvs_cp);
+    ASSERT_EQ(0, err);
     ASSERT_EQ(kvs_cp.cp_fanout, 32);
 
     hse_params_destroy(params);
