@@ -617,8 +617,7 @@ sp3_refresh_samp(struct sp3 *sp)
         const u64 new_val =
             clamp_t(u64, sp->rp->csched_samp_max, CSCHED_SAMP_MAX_MIN, CSCHED_SAMP_MAX_MAX);
         hse_log(
-            HSE_NOTICE "sp3 kvdb_rparam %s changed from %lu to %lu",
-            "csched_samp_max",
+            HSE_NOTICE "sp3 kvdb_rparam csched_samp_max changed from %lu to %lu",
             (ulong)sp->inputs.csched_samp_max,
             (ulong)new_val);
         sp->inputs.csched_samp_max = new_val;
@@ -627,8 +626,7 @@ sp3_refresh_samp(struct sp3 *sp)
         const u64 new_val =
             clamp_t(u64, sp->rp->csched_lo_th_pct, CSCHED_LO_TH_PCT_MIN, CSCHED_LO_TH_PCT_MAX);
         hse_log(
-            HSE_NOTICE "sp3 kvdb_rparam %s changed from %lu to %lu",
-            "csched_lo_th_pct",
+            HSE_NOTICE "sp3 kvdb_rparam csched_lo_th_pct changed from %lu to %lu",
             (ulong)sp->inputs.csched_lo_th_pct,
             (ulong)new_val);
         sp->inputs.csched_lo_th_pct = new_val;
@@ -637,8 +635,7 @@ sp3_refresh_samp(struct sp3 *sp)
         const u64 new_val =
             clamp_t(u64, sp->rp->csched_hi_th_pct, CSCHED_HI_TH_PCT_MIN, CSCHED_HI_TH_PCT_MAX);
         hse_log(
-            HSE_NOTICE "sp3 kvdb_rparam %s changed from %lu to %lu",
-            "csched_hi_th_pct",
+            HSE_NOTICE "sp3 kvdb_rparam csched_hi_th_pct changed from %lu to %lu",
             (ulong)sp->inputs.csched_hi_th_pct,
             (ulong)new_val);
         sp->inputs.csched_hi_th_pct = new_val;
@@ -647,8 +644,7 @@ sp3_refresh_samp(struct sp3 *sp)
         const u64 new_val =
             clamp_t(u64, sp->rp->csched_leaf_pct, CSCHED_LEAF_PCT_MIN, CSCHED_LEAF_PCT_MAX);
         hse_log(
-            HSE_NOTICE "sp3 kvdb_rparam %s changed from %lu to %lu",
-            "csched_leaf_pct",
+            HSE_NOTICE "sp3 kvdb_rparam csched_leaf_pct changed from %lu to %lu",
             (ulong)sp->inputs.csched_leaf_pct,
             (ulong)new_val);
         sp->inputs.csched_leaf_pct = new_val;
