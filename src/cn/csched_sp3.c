@@ -142,19 +142,19 @@ struct mpool;
 
 /* Red-Black Trees */
 #define RBT_RI_ALEN 0 /* root and internal nodes sorted by alen */
-#define RBT_L_PCAP 1  /* leaf nodes sorted by pct capacity */
-#define RBT_L_GARB 2  /* leaf nodes sorted by garbage */
-#define RBT_LI_LEN 3  /* internal and leaf nodes, sorted by #kvsets */
-#define RBT_L_SCAT 4  /* leaf nodes sorted by vblock scatter */
+#define RBT_L_PCAP  1 /* leaf nodes sorted by pct capacity */
+#define RBT_L_GARB  2 /* leaf nodes sorted by garbage */
+#define RBT_LI_LEN  3 /* internal and leaf nodes, sorted by #kvsets */
+#define RBT_L_SCAT  4 /* leaf nodes sorted by vblock scatter */
 
-#define CSCHED_SAMP_MAX_MIN 100
-#define CSCHED_SAMP_MAX_MAX 999
+#define CSCHED_SAMP_MAX_MIN  100
+#define CSCHED_SAMP_MAX_MAX  999
 #define CSCHED_LO_TH_PCT_MIN 5
 #define CSCHED_LO_TH_PCT_MAX 95
 #define CSCHED_HI_TH_PCT_MIN 5
 #define CSCHED_HI_TH_PCT_MAX 95
-#define CSCHED_LEAF_PCT_MIN 1
-#define CSCHED_LEAF_PCT_MAX 99
+#define CSCHED_LEAF_PCT_MIN  1
+#define CSCHED_LEAF_PCT_MAX  99
 
 static const char *const rbt_name[] = {
     "ri_size", "l_size", "l_garb", "li_len", "l_scat",
@@ -258,21 +258,21 @@ struct sp3 {
     struct perfc_set     sched_pc;
 
     /* Accessed by monitor and infrequently by open/close threads */
-    __aligned(SMP_CACHE_BYTES) struct mutex new_tlist_lock;
-    struct list_head new_tlist;
-    atomic_t         destruct;
+    struct mutex new_tlist_lock __aligned(SMP_CACHE_BYTES);
+    struct list_head            new_tlist;
+    atomic_t                    destruct;
 
     /* Accessed by monitor, open/close, ingest and jobs threads */
-    __aligned(SMP_CACHE_BYTES) struct mutex mutex;
-    struct cv cv;
+    struct mutex mutex __aligned(SMP_CACHE_BYTES);
+    struct cv          cv;
 
     /* Accessed monitor and infrequently by job threads */
-    __aligned(SMP_CACHE_BYTES) struct mutex work_list_lock;
-    struct list_head work_list;
+    struct mutex work_list_lock __aligned(SMP_CACHE_BYTES);
+    struct list_head            work_list;
 
-    __aligned(SMP_CACHE_BYTES) u64 ucomp_prev_report_ns;
-    bool ucomp_active;
-    bool ucomp_canceled;
+    u64 ucomp_prev_report_ns __aligned(SMP_CACHE_BYTES);
+    bool                     ucomp_active;
+    bool                     ucomp_canceled;
 };
 
 /* external to internal handle */
@@ -289,16 +289,16 @@ struct sp3 {
  * expressions such as '(1 + r) / r'.
  */
 #define SCALE 10000
-#define ONE SCALE
+#define ONE   SCALE
 
 /* Easy-ish access to run-time parameters */
-#define debug_samp_work(_sp) (csched_rp_dbg_samp_work((_sp)->rp))
+#define debug_samp_work(_sp)   (csched_rp_dbg_samp_work((_sp)->rp))
 #define debug_samp_ingest(_sp) (csched_rp_dbg_samp_ingest((_sp)->rp))
-#define debug_tree_life(_sp) (csched_rp_dbg_tree_life((_sp)->rp))
-#define debug_dirty_node(_sp) (csched_rp_dbg_dirty_node((_sp)->rp))
-#define debug_sched(_sp) (csched_rp_dbg_sched((_sp)->rp))
-#define debug_qos(_sp) (csched_rp_dbg_qos((_sp)->rp))
-#define debug_rbtree(_sp) (csched_rp_dbg_rbtree((_sp)->rp))
+#define debug_tree_life(_sp)   (csched_rp_dbg_tree_life((_sp)->rp))
+#define debug_dirty_node(_sp)  (csched_rp_dbg_dirty_node((_sp)->rp))
+#define debug_sched(_sp)       (csched_rp_dbg_sched((_sp)->rp))
+#define debug_qos(_sp)         (csched_rp_dbg_qos((_sp)->rp))
+#define debug_rbtree(_sp)      (csched_rp_dbg_rbtree((_sp)->rp))
 
 static inline double
 safe_div(double numer, double denom)
