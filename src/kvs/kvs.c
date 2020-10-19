@@ -78,7 +78,7 @@ struct ikvs {
     const char *ikv_mpool_name;
     struct cache_bucket *ikv_curcache_bktmem;
 
-    struct curcache ikv_curcachev[8];
+    struct curcache ikv_curcachev[7];
 };
 
 struct perfc_name kvs_cc_perfc_op[] = {
@@ -984,7 +984,9 @@ ikvs_cursor_reap(struct ikvs *kvs)
 static struct curcache *
 ikvs_td2cca(struct ikvs *kvs, u64 pfxhash)
 {
-    return kvs->ikv_curcachev + (raw_smp_processor_id() % NELEM(kvs->ikv_curcachev));
+    u64 i = pfxhash ?: pthread_self();
+
+    return kvs->ikv_curcachev + (i % NELEM(kvs->ikv_curcachev));
 }
 
 static int
@@ -2225,7 +2227,7 @@ kvs_create(struct ikvs **ikvs_out, struct kvs_rparams *rp)
     memset(ikvs, 0, sizeof(*ikvs));
     ikvs->ikv_rp = *rp;
 
-    nmax = (PAGE_SIZE * 4) / sizeof(*bkt);
+    nmax = 1024;
     n = NELEM(ikvs->ikv_curcachev) * nmax;
     sz = sizeof(*bkt) * n;
 
