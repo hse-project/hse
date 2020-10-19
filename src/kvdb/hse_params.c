@@ -16,8 +16,8 @@
 #include <hse_ikvdb/mclass_policy.h>
 
 #define HP_DICT_ENTRIES_MAX 512
-#define HP_DICT_LEN_MAX 256
-#define HP_ERR_BUF_SZ 1024
+#define HP_DICT_LEN_MAX     256
+#define HP_ERR_BUF_SZ       1024
 
 /* [HSE_REVISIT]
  * Temporary implementation for mocking a dictionary. Since the params
@@ -431,7 +431,7 @@ hse_params_to_kvdb_cparams(
     struct param_inst * table = kvdb_cparams_table();
 
     err = params_convert(params, table, &cp, "kvdb.");
-    if (err != 0)
+    if (ev(err))
         return err;
 
     memcpy(out, &cp, sizeof(struct kvdb_cparams));
