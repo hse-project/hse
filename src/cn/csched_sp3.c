@@ -2114,8 +2114,7 @@ sp3_monitor(struct work_struct *work)
     struct periodic_check chk_refresh;
     struct periodic_check chk_shape;
 
-    u64 now;
-    u64 last_activity;
+    u64 now, last_activity;
 
     now = get_time_ns();
     last_activity = now;
