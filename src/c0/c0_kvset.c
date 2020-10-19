@@ -18,6 +18,14 @@
 #include "c0_cursor.h"
 #include "c0_kvsetm.h"
 
+/* The minimum c0 cheap size should be at least 2MB and large enough to accomodate
+ * at least one max-sized kvs value plus associated overhead.
+ */
+_Static_assert(HSE_C0_CHEAP_SZ_MIN >= (2ul << 20), "min c0 cheap size too small");
+_Static_assert(HSE_C0_CHEAP_SZ_MIN >= HSE_KVS_VLEN_MAX + (1ul << 20), "min c0 cheap size too small");
+_Static_assert(HSE_C0_CHEAP_SZ_DFLT >= HSE_C0_CHEAP_SZ_MIN, "default c0 cheap size too small");
+_Static_assert(HSE_C0_CHEAP_SZ_MAX >= HSE_C0_CHEAP_SZ_DFLT, "max c0 cheap size too small");
+
 /*
  * A struct c0_kvset contains a Bonsai tree that is used in a RCU style.
  * In userspace this is part of the Bonsai tree library. The kernel space
