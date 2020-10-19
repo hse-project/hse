@@ -608,7 +608,7 @@ sp3_refresh_samp(struct sp3 *sp)
          csched_hi_th_pct_changed = sp->inputs.csched_hi_th_pct != sp->rp->csched_hi_th_pct,
          csched_leaf_pct_changed = sp->inputs.csched_leaf_pct != sp->rp->csched_leaf_pct;
 
-    // Early return if nothing changed
+    /* Early return if nothing changed */
     if (!csched_samp_max_changed && !csched_lo_th_pct_changed && !csched_hi_th_pct_changed &&
         !csched_leaf_pct_changed)
         return;
