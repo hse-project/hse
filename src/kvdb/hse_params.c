@@ -374,6 +374,9 @@ params_convert(
     merr_t err = 0;
     int    i;
 
+    if (!params || !table)
+        return merr(EINVAL);
+
     /* [HSE_REVISIT]
      * Offset Assumes that the first element in the table is the
      * first field in the struct. Need to remove the concept
@@ -427,7 +430,7 @@ hse_params_to_kvdb_cparams(
     struct kvdb_cparams cp = ref ? *ref : kvdb_cparams_defaults();
     struct param_inst * table = kvdb_cparams_table();
 
-    if (!params || !table) {
+    if (params && table) {
         err = params_convert(params, table, &cp, "kvdb.");
         if (ev(err))
             return err;
@@ -452,7 +455,7 @@ hse_params_to_kvdb_rparams(
     struct kvdb_rparams rp = ref ? *ref : kvdb_rparams_defaults();
     struct param_inst * table = kvdb_rparams_table();
 
-    if (!params || !table) {
+    if (params && table) {
         err = params_convert(params, table, &rp, "kvdb.");
         if (ev(err))
             return err;
@@ -514,7 +517,7 @@ hse_params_to_kvs_cparams(
     struct kvs_cparams cp = ref ? *ref : kvs_cparams_defaults();
     struct param_inst *table = kvs_cparams_table();
 
-    if (!params || !table) {
+    if (params && table) {
         err = params_convert(params, table, &cp, "kvs.");
         if (ev(err))
             return err;
@@ -524,7 +527,7 @@ hse_params_to_kvs_cparams(
         char filter[HP_DICT_LEN_MAX];
 
         snprintf(filter, sizeof(filter), "kvs.%s.", kvs_name);
-        if (!params || !table) {
+        if (params && table) {
             err = params_convert(params, table, &cp, filter);
             if (ev(err))
                 return err;
@@ -551,7 +554,7 @@ hse_params_to_kvs_rparams(
     struct kvs_rparams rp = ref ? *ref : kvs_rparams_defaults();
     struct param_inst *table = kvs_rparams_table();
 
-    if (!params || !table) {
+    if (params && table) {
         err = params_convert(params, table, &rp, "kvs.");
         if (ev(err))
             return err;
@@ -561,7 +564,7 @@ hse_params_to_kvs_rparams(
         char filter[HP_DICT_LEN_MAX];
 
         snprintf(filter, sizeof(filter), "kvs.%s.", kvs_name);
-        if (!params || !table) {
+        if (params && table) {
             err = params_convert(params, table, &rp, filter);
             if (ev(err))
                 return err;
