@@ -23,7 +23,9 @@ hse_kvdb_export_exp(struct hse_kvdb *handle, struct hse_params *params, const ch
     if (ev(!handle || !path))
         return merr(EINVAL);
 
-    dbparams = hse_params_to_kvdb_cparams(params, NULL);
+    err = hse_params_to_kvdb_cparams(params, NULL, &dbparams);
+    if (ev(err))
+        return err;
 
     err = ikvdb_export((struct ikvdb *)handle, &dbparams, path);
     if (ev(err))
@@ -112,7 +114,7 @@ hse_kvs_prefix_probe_exp(
     struct kvs_buf      kbuf, vbuf;
     enum key_lookup_res res;
     merr_t              err = 0;
-    u64                 sum __maybe_unused;
+    u64 sum             __maybe_unused;
 
     if (!handle || !pfx || !pfx_len || !found || !val_len)
         err = merr(EINVAL);

@@ -48,11 +48,11 @@ kvs_cparams_table(void)
 struct kvs_cparams
 kvs_cparams_defaults(void)
 {
-    struct kvs_cparams params = {.cp_fanout = 16,
-                                 .cp_pfx_len = 0,
-                                 .cp_pfx_pivot = 2, /* only used when pfx_len > 0 */
-                                 .cp_kvs_ext01 = 0,
-                                 .cp_cpmagic = CPARAMS_MAGIC };
+    struct kvs_cparams params = { .cp_fanout = 16,
+                                  .cp_pfx_len = 0,
+                                  .cp_pfx_pivot = 2, /* only used when pfx_len > 0 */
+                                  .cp_kvs_ext01 = 0,
+                                  .cp_cpmagic = CPARAMS_MAGIC };
 
     return params;
 }
@@ -106,7 +106,6 @@ int
 kvs_cparams_validate(struct kvs_cparams *cparams)
 {
     bool valid_fanout;
-    u32  f;
 
     if (ev(!cparams))
         return EINVAL;
@@ -118,13 +117,8 @@ kvs_cparams_validate(struct kvs_cparams *cparams)
     }
 
     /* Validate fanout */
-    valid_fanout = false;
-    for (f = CN_FANOUT_MIN; f <= CN_FANOUT_MAX; f = f * 2) {
-        if (f == cparams->cp_fanout) {
-            valid_fanout = true;
-            break;
-        }
-    }
+    valid_fanout = cparams->cp_fanout >= CN_FANOUT_MIN && cparams->cp_fanout <= CN_FANOUT_MAX &&
+                   (cparams->cp_fanout & (cparams->cp_fanout - 1)) == 0;
 
     if (!valid_fanout) {
         hse_log(

@@ -68,13 +68,13 @@
  * by ikvdb_kvs_put() and for small direct reads by kvset_lookup_val().
  */
 __thread char tls_vbuf[32 * 1024] __aligned(PAGE_SIZE);
-const size_t tls_vbufsz = sizeof(tls_vbuf);
+const size_t  tls_vbufsz = sizeof(tls_vbuf);
 
 struct perfc_set kvdb_pkvdbl_pc __read_mostly;
-struct perfc_set kvdb_pc __read_mostly;
+struct perfc_set kvdb_pc        __read_mostly;
 
 struct perfc_set kvdb_metrics_pc __read_mostly;
-struct perfc_set c0_metrics_pc __read_mostly;
+struct perfc_set c0_metrics_pc   __read_mostly;
 
 #pragma GCC visibility pop
 
@@ -164,13 +164,13 @@ struct ikvdb_impl {
     struct hse_params *      ikdb_profile;
 
     atomic_t ikdb_curcnt __aligned(SMP_CACHE_BYTES * 2);
-    u32      ikdb_curcnt_max;
+    u32                  ikdb_curcnt_max;
 
-    atomic64_t ikdb_seqno __aligned(SMP_CACHE_BYTES * 2);
+    atomic64_t ikdb_seqno     __aligned(SMP_CACHE_BYTES * 2);
     atomic64_t ikdb_seqno_cur __aligned(SMP_CACHE_BYTES * 2);
 
-    struct kvdb_rparams  ikdb_rp __aligned(SMP_CACHE_BYTES * 2);
-    struct kvdb_ctxn_bkt ikdb_ctxn_cache[KVDB_CTXN_BKT_MAX];
+    struct kvdb_rparams ikdb_rp __aligned(SMP_CACHE_BYTES * 2);
+    struct kvdb_ctxn_bkt        ikdb_ctxn_cache[KVDB_CTXN_BKT_MAX];
 
     /* Put the mostly cold data at end of the structure to improve
      * the density of the hotter data.
@@ -520,8 +520,11 @@ ikvdb_c1_replay_put(
          * to crash. Skip replaying this key, if there's no kvs
          * instance corresponding to the specified cnid.
          */
-        hse_log(HSE_WARNING "%s: dropping put %lu for invalid kvs cnid %lu",
-                __func__, (ulong)seqno, (ulong)cnid);
+        hse_log(
+            HSE_WARNING "%s: dropping put %lu for invalid kvs cnid %lu",
+            __func__,
+            (ulong)seqno,
+            (ulong)cnid);
         return 0;
     }
 
@@ -553,8 +556,11 @@ ikvdb_c1_replay_del(
          * to crash. Skip replaying this key, if there's no kvs
          * instance corresponding to the specified cnid.
          */
-        hse_log(HSE_WARNING "%s: dropping del %lu for invalid kvs cnid %lu",
-                __func__, (ulong)seqno, (ulong)cnid);
+        hse_log(
+            HSE_WARNING "%s: dropping del %lu for invalid kvs cnid %lu",
+            __func__,
+            (ulong)seqno,
+            (ulong)cnid);
         return 0;
     }
 
@@ -1034,7 +1040,7 @@ static struct kvdb_kvs *
 kvdb_kvs_create(void)
 {
     struct kvdb_kvs *kvs;
-    int i;
+    int              i;
 
     kvs = alloc_aligned(sizeof(*kvs), __alignof(*kvs), GFP_KERNEL);
     if (kvs) {
@@ -1216,7 +1222,9 @@ ikvdb_open(
         goto err2;
     }
 
-    rp = hse_params_to_kvdb_rparams(params, NULL);
+    err = hse_params_to_kvdb_rparams(params, NULL, &rp);
+    if (ev(err))
+        return err;
 
     hse_params_to_mclass_policies(params, self->ikdb_mpolicies, NELEM(self->ikdb_mpolicies));
 
@@ -1525,10 +1533,14 @@ ikvdb_kvs_make(struct ikvdb *handle, const char *kvs_name, const struct hse_para
         return err;
 
     /* load profile */
-    profile = hse_params_to_kvs_cparams(self->ikdb_profile, kvs_name, NULL);
+    err = hse_params_to_kvs_cparams(self->ikdb_profile, kvs_name, NULL, &profile);
+    if (ev(err))
+        return err;
 
     /* overwrite with new params */
-    kvs_cparams = hse_params_to_kvs_cparams(params, kvs_name, &profile);
+    err = hse_params_to_kvs_cparams(params, kvs_name, &profile, &kvs_cparams);
+    if (ev(err))
+        return err;
 
     err = kvs_cparams_validate(&kvs_cparams);
     if (ev(err))
@@ -1697,11 +1709,7 @@ ikvdb_kvs_count(struct ikvdb *handle, unsigned int *count)
 }
 
 merr_t
-ikvdb_kvs_query_tree(
-        struct hse_kvs      *kvs,
-        struct yaml_context *yc,
-        int                  fd,
-        bool                 list)
+ikvdb_kvs_query_tree(struct hse_kvs *kvs, struct yaml_context *yc, int fd, bool list)
 {
     return kvs_rest_query_tree((struct kvdb_kvs *)kvs, yc, fd, list);
 }
@@ -1715,17 +1723,21 @@ ikvdb_kvs_open(
     struct hse_kvs **        kvs_out)
 {
     const struct compress_ops *cops;
-    struct ikvdb_impl *self = ikvdb_h2r(handle);
-    struct kvdb_kvs *  kvs;
-    int                idx;
-    struct kvs_rparams rp, profile;
-    merr_t             err;
+    struct ikvdb_impl *        self = ikvdb_h2r(handle);
+    struct kvdb_kvs *          kvs;
+    int                        idx;
+    struct kvs_rparams         rp, profile;
+    merr_t                     err;
 
     /* load profile */
-    profile = hse_params_to_kvs_rparams(self->ikdb_profile, kvs_name, NULL);
+    err = hse_params_to_kvs_rparams(self->ikdb_profile, kvs_name, NULL, &profile);
+    if (ev(err))
+        return err;
 
     /* overwrite with CLI/API changes */
-    rp = hse_params_to_kvs_rparams(params, kvs_name, &profile);
+    err = hse_params_to_kvs_rparams(params, kvs_name, &profile, &rp);
+    if (ev(err))
+        return err;
 
     rp.rdonly = self->ikdb_rp.read_only; /* inherit from kvdb */
 
@@ -1796,7 +1808,7 @@ ikvdb_kvs_open(
 
     *kvs_out = (struct hse_kvs *)kvs;
 
-  err_out:
+err_out:
     mutex_unlock(&self->ikdb_lock);
 
     return err;
@@ -1808,7 +1820,7 @@ ikvdb_kvs_close(struct hse_kvs *handle)
     struct kvdb_kvs *  kk = (struct kvdb_kvs *)handle;
     struct ikvdb_impl *parent = kk->kk_parent;
     merr_t             err;
-    struct ikvs       *ikvs;
+    struct ikvs *      ikvs;
 
     mutex_lock(&parent->ikdb_lock);
     ikvs = kk->kk_ikvs;
@@ -1989,9 +2001,9 @@ ikvdb_kvs_put(
     u64                put_seqno;
     merr_t             err;
     u64                start;
-    uint vlen, clen;
-    size_t vbufsz;
-    void *vbuf;
+    uint               vlen, clen;
+    size_t             vbufsz;
+    void *             vbuf;
 
     start = kvdb_kop_is_priority(os) ? 0 : get_cycles();
 
@@ -2240,7 +2252,7 @@ static void
 cursor_reserve_seqno(struct hse_kvs_cursor *cursor)
 {
     struct kvdb_kvs *kk = cursor->kc_kvs;
-    uint i;
+    uint             i;
 
     /* Add to cursor list only if this is NOT part of a txn.
      */
@@ -2267,9 +2279,9 @@ cursor_reserve_seqno(struct hse_kvs_cursor *cursor)
 static void
 cursor_release_seqno(struct hse_kvs_cursor *cursor)
 {
-    struct kvdb_kvs *kk = cursor->kc_kvs;
+    struct kvdb_kvs *      kk = cursor->kc_kvs;
     struct hse_kvs_cursor *oldest;
-    uint i;
+    uint                   i;
 
     if (!cursor->kc_on_list)
         return;
@@ -2498,7 +2510,7 @@ ikvdb_kvs_cursor_update(struct hse_kvs_cursor *cur, struct hse_kvdb_opspec *os)
 
     /* Check if this call is trying to change cursor direction. */
     if (os) {
-        bool os_reverse  = kvdb_kop_is_reverse(os);
+        bool os_reverse = kvdb_kop_is_reverse(os);
         bool cur_reverse = cur->kc_flags && (cur->kc_flags & HSE_KVDB_KOP_FLAG_REVERSE);
 
         if (ev(os_reverse != cur_reverse))

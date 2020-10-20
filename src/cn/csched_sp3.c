@@ -142,10 +142,19 @@ struct mpool;
 
 /* Red-Black Trees */
 #define RBT_RI_ALEN 0 /* root and internal nodes sorted by alen */
-#define RBT_L_PCAP 1  /* leaf nodes sorted by pct capacity */
-#define RBT_L_GARB 2  /* leaf nodes sorted by garbage */
-#define RBT_LI_LEN 3  /* internal and leaf nodes, sorted by #kvsets */
-#define RBT_L_SCAT 4  /* leaf nodes sorted by vblock scatter */
+#define RBT_L_PCAP  1 /* leaf nodes sorted by pct capacity */
+#define RBT_L_GARB  2 /* leaf nodes sorted by garbage */
+#define RBT_LI_LEN  3 /* internal and leaf nodes, sorted by #kvsets */
+#define RBT_L_SCAT  4 /* leaf nodes sorted by vblock scatter */
+
+#define CSCHED_SAMP_MAX_MIN  100
+#define CSCHED_SAMP_MAX_MAX  999
+#define CSCHED_LO_TH_PCT_MIN 5
+#define CSCHED_LO_TH_PCT_MAX 95
+#define CSCHED_HI_TH_PCT_MIN 5
+#define CSCHED_HI_TH_PCT_MAX 95
+#define CSCHED_LEAF_PCT_MIN  1
+#define CSCHED_LEAF_PCT_MAX  99
 
 static const char *const rbt_name[] = {
     "ri_size", "l_size", "l_garb", "li_len", "l_scat",
@@ -191,7 +200,7 @@ struct sp3 {
     struct list_head         mon_tlist;
     struct sp3_thresholds    thresh;
     struct throttle_sensor * throttle_sensor;
-    struct kvdb_health      *health;
+    struct kvdb_health *     health;
 
     struct rb_root rbt[RBT_MAX];
 
@@ -202,8 +211,8 @@ struct sp3 {
     uint             rr_job_type;
     u64              job_id;
 
-    int              activity;
-    bool             idle;
+    int  activity;
+    bool idle;
 
     struct cn_compaction_work *wp;
 
@@ -249,25 +258,21 @@ struct sp3 {
     struct perfc_set     sched_pc;
 
     /* Accessed by monitor and infrequently by open/close threads */
-    __aligned(SMP_CACHE_BYTES)
-    struct mutex        new_tlist_lock;
-    struct list_head    new_tlist;
-    atomic_t            destruct;
+    struct mutex new_tlist_lock __aligned(SMP_CACHE_BYTES);
+    struct list_head            new_tlist;
+    atomic_t                    destruct;
 
     /* Accessed by monitor, open/close, ingest and jobs threads */
-    __aligned(SMP_CACHE_BYTES)
-    struct mutex    mutex;
-    struct cv       cv;
+    struct mutex mutex __aligned(SMP_CACHE_BYTES);
+    struct cv          cv;
 
     /* Accessed monitor and infrequently by job threads */
-    __aligned(SMP_CACHE_BYTES)
-    struct mutex        work_list_lock;
-    struct list_head    work_list;
+    struct mutex work_list_lock __aligned(SMP_CACHE_BYTES);
+    struct list_head            work_list;
 
-    __aligned(SMP_CACHE_BYTES)
-    u64  ucomp_prev_report_ns;
-    bool ucomp_active;
-    bool ucomp_canceled;
+    u64 ucomp_prev_report_ns __aligned(SMP_CACHE_BYTES);
+    bool                     ucomp_active;
+    bool                     ucomp_canceled;
 };
 
 /* external to internal handle */
@@ -284,16 +289,16 @@ struct sp3 {
  * expressions such as '(1 + r) / r'.
  */
 #define SCALE 10000
-#define ONE SCALE
+#define ONE   SCALE
 
 /* Easy-ish access to run-time parameters */
-#define debug_samp_work(_sp) (csched_rp_dbg_samp_work((_sp)->rp))
+#define debug_samp_work(_sp)   (csched_rp_dbg_samp_work((_sp)->rp))
 #define debug_samp_ingest(_sp) (csched_rp_dbg_samp_ingest((_sp)->rp))
-#define debug_tree_life(_sp) (csched_rp_dbg_tree_life((_sp)->rp))
-#define debug_dirty_node(_sp) (csched_rp_dbg_dirty_node((_sp)->rp))
-#define debug_sched(_sp) (csched_rp_dbg_sched((_sp)->rp))
-#define debug_qos(_sp) (csched_rp_dbg_qos((_sp)->rp))
-#define debug_rbtree(_sp) (csched_rp_dbg_rbtree((_sp)->rp))
+#define debug_tree_life(_sp)   (csched_rp_dbg_tree_life((_sp)->rp))
+#define debug_dirty_node(_sp)  (csched_rp_dbg_dirty_node((_sp)->rp))
+#define debug_sched(_sp)       (csched_rp_dbg_sched((_sp)->rp))
+#define debug_qos(_sp)         (csched_rp_dbg_qos((_sp)->rp))
+#define debug_rbtree(_sp)      (csched_rp_dbg_rbtree((_sp)->rp))
 
 static inline double
 safe_div(double numer, double denom)
@@ -589,71 +594,61 @@ sp3_log_job_samp(
         HSE_SLOG_END);
 }
 
-/*****************************************************************
- *
- * Space amp parameters
- *
- ****************************************************************/
-
-#define SP3_PARAM_DEF(NAME, DFLT_VAL, MIN_VAL, MAX_VAL)                       \
-    {                                                                         \
-        .name = #NAME, .rp_offset = offsetof(struct kvdb_rparams, NAME),      \
-        .sp_offset = offsetof(struct sp3, inputs.NAME), .min_val = (MIN_VAL), \
-        .max_val = (MAX_VAL), .dflt_val = (DFLT_VAL)                          \
-    }
-
-struct sp3_param_def {
-    const char *name;
-    size_t      rp_offset;
-    size_t      sp_offset;
-    u64         min_val;
-    u64         max_val;
-    u64         dflt_val;
-};
-
-static const struct sp3_param_def sp3_params[] = { SP3_PARAM_DEF(csched_samp_max, 150, 100, 999),
-                                                   SP3_PARAM_DEF(csched_lo_th_pct, 25, 5, 95),
-                                                   SP3_PARAM_DEF(csched_hi_th_pct, 75, 5, 95),
-                                                   SP3_PARAM_DEF(csched_leaf_pct, 90, 1, 99) };
-
 static void
 sp3_refresh_samp(struct sp3 *sp)
 {
-    const uint np = NELEM(sp3_params);
-    bool       changed = false;
-    uint       i;
-    u64        samp, lwm, hwm, leaf, r;
-    u64        good_max, good_min;
-    u64        good_hwm, good_lwm;
-    u64        samp_hwm, samp_lwm;
-    u64        range;
+    u64 samp, lwm, hwm, leaf, r;
+    u64 good_max, good_min;
+    u64 good_hwm, good_lwm;
+    u64 samp_hwm, samp_lwm;
+    u64 range;
 
-    for (i = 0; i < np; i++) {
+    bool csched_samp_max_changed = sp->inputs.csched_samp_max != sp->rp->csched_samp_max,
+         csched_lo_th_pct_changed = sp->inputs.csched_lo_th_pct != sp->rp->csched_lo_th_pct,
+         csched_hi_th_pct_changed = sp->inputs.csched_hi_th_pct != sp->rp->csched_hi_th_pct,
+         csched_leaf_pct_changed = sp->inputs.csched_leaf_pct != sp->rp->csched_leaf_pct;
 
-        u64 *rp_ptr = (void *)sp->rp + sp3_params[i].rp_offset;
-        u64 *sp_ptr = (void *)sp + sp3_params[i].sp_offset;
-        u64  new_val = *rp_ptr;
-
-        if (!new_val)
-            new_val = sp3_params[i].dflt_val;
-
-        if (*sp_ptr == new_val)
-            continue;
-
-        new_val = clamp_t(u64, new_val, sp3_params[i].min_val, sp3_params[i].max_val);
-
-        hse_log(
-            HSE_NOTICE "sp3 kvdb_rparam %s changed from %lu to %lu",
-            sp3_params[i].name,
-            (ulong)*sp_ptr,
-            (ulong)new_val);
-
-        *sp_ptr = new_val;
-        changed = true;
-    }
-
-    if (!changed)
+    /* Early return if nothing changed */
+    if (!csched_samp_max_changed && !csched_lo_th_pct_changed && !csched_hi_th_pct_changed &&
+        !csched_leaf_pct_changed)
         return;
+
+    if (csched_samp_max_changed) {
+        const u64 new_val =
+            clamp_t(u64, sp->rp->csched_samp_max, CSCHED_SAMP_MAX_MIN, CSCHED_SAMP_MAX_MAX);
+        hse_log(
+            HSE_NOTICE "sp3 kvdb_rparam csched_samp_max changed from %lu to %lu",
+            (ulong)sp->inputs.csched_samp_max,
+            (ulong)new_val);
+        sp->inputs.csched_samp_max = new_val;
+    }
+    if (csched_lo_th_pct_changed) {
+        const u64 new_val =
+            clamp_t(u64, sp->rp->csched_lo_th_pct, CSCHED_LO_TH_PCT_MIN, CSCHED_LO_TH_PCT_MAX);
+        hse_log(
+            HSE_NOTICE "sp3 kvdb_rparam csched_lo_th_pct changed from %lu to %lu",
+            (ulong)sp->inputs.csched_lo_th_pct,
+            (ulong)new_val);
+        sp->inputs.csched_lo_th_pct = new_val;
+    }
+    if (csched_hi_th_pct_changed) {
+        const u64 new_val =
+            clamp_t(u64, sp->rp->csched_hi_th_pct, CSCHED_HI_TH_PCT_MIN, CSCHED_HI_TH_PCT_MAX);
+        hse_log(
+            HSE_NOTICE "sp3 kvdb_rparam csched_hi_th_pct changed from %lu to %lu",
+            (ulong)sp->inputs.csched_hi_th_pct,
+            (ulong)new_val);
+        sp->inputs.csched_hi_th_pct = new_val;
+    }
+    if (csched_leaf_pct_changed) {
+        const u64 new_val =
+            clamp_t(u64, sp->rp->csched_leaf_pct, CSCHED_LEAF_PCT_MIN, CSCHED_LEAF_PCT_MAX);
+        hse_log(
+            HSE_NOTICE "sp3 kvdb_rparam csched_leaf_pct changed from %lu to %lu",
+            (ulong)sp->inputs.csched_leaf_pct,
+            (ulong)new_val);
+        sp->inputs.csched_leaf_pct = new_val;
+    }
 
     hse_log(
         HSE_NOTICE "sp3 new samp input params:"
@@ -892,7 +887,7 @@ sp3_ucomp_cancel(struct sp3 *sp)
 {
     if (!sp->ucomp_active) {
         hse_log(HSE_NOTICE "ignoring request to cancel user-initiated"
-            " compaction because there is no active request");
+                           " compaction because there is no active request");
         return;
     }
 
@@ -922,21 +917,28 @@ sp3_ucomp_report(struct sp3 *sp, bool final)
 
     if (final) {
 
-        hse_log(HSE_NOTICE "user-initiated compaction complete: space_amp %u.%02u",
-            curr / 100, curr % 100);
+        hse_log(
+            HSE_NOTICE "user-initiated compaction complete: space_amp %u.%02u",
+            curr / 100,
+            curr % 100);
 
     } else {
 
-        u64 started  = sp->jobs_started;
-        u64 finished = sp->jobs_finished;
-        uint goal    = sp->samp_lwm * 100 / SCALE;
+        u64  started = sp->jobs_started;
+        u64  finished = sp->jobs_finished;
+        uint goal = sp->samp_lwm * 100 / SCALE;
 
-        hse_log(HSE_NOTICE "user-initiated compaction in progress:"
-            " jobs: active %lu, started %lu, finished %lu;"
-            " space_amp: current %u.%02u, goal %u.%02u;",
-            started - finished, started, finished,
-            curr / 100, curr % 100,
-            goal / 100, goal % 100);
+        hse_log(
+            HSE_NOTICE "user-initiated compaction in progress:"
+                       " jobs: active %lu, started %lu, finished %lu;"
+                       " space_amp: current %u.%02u, goal %u.%02u;",
+            started - finished,
+            started,
+            finished,
+            curr / 100,
+            curr % 100,
+            goal / 100,
+            goal % 100);
     }
 }
 
@@ -966,7 +968,6 @@ sp3_ucomp_check(struct sp3 *sp)
  * SP3 red-black trees
  *
  */
-
 
 static void
 sp3_rb_erase(struct rb_root *root, struct sp3_rbe *rbe)
@@ -1523,8 +1524,9 @@ sp3_submit(struct sp3 *sp, struct cn_compaction_work *w, uint qnum, uint rbt_idx
                 "nd_hll%%",
                 "%lu",
                 (ulong)(
-                    cn_ns_keys(&w->cw_ns) == 0 ? 0 : ((100 * w->cw_ns.ns_keys_uniq) /
-                                                      cn_ns_keys(&w->cw_ns)))),
+                    cn_ns_keys(&w->cw_ns) == 0
+                        ? 0
+                        : ((100 * w->cw_ns.ns_keys_uniq) / cn_ns_keys(&w->cw_ns)))),
             HSE_SLOG_FIELD("rdsz_b", "%ld", (long)w->cw_est.cwe_read_sz),
             HSE_SLOG_FIELD("wrsz_b", "%ld", (long)w->cw_est.cwe_write_sz),
             HSE_SLOG_FIELD("i_alen_b", "%ld", (long)w->cw_est.cwe_samp.i_alen),
@@ -2075,7 +2077,7 @@ sp3_update_samp(struct sp3 *sp)
         if (sp->samp_targ > sp->samp_hwm) {
             sp->samp_reduce = true;
             hse_log(
-                HSE_NOTICE"sp3 expected samp %u above hwm %u, enable samp reduction",
+                HSE_NOTICE "sp3 expected samp %u above hwm %u, enable samp reduction",
                 sp->samp_targ * 100 / SCALE,
                 sp->samp_hwm * 100 / SCALE);
         }
@@ -2085,7 +2087,7 @@ sp3_update_samp(struct sp3 *sp)
 static void
 sp3_compact(struct sp3 *sp)
 {
-    uint   cur_jobs;
+    uint cur_jobs;
 
     assert(sp->jobs_started >= sp->jobs_finished);
     cur_jobs = sp->jobs_started - sp->jobs_finished;
@@ -2112,8 +2114,7 @@ sp3_monitor(struct work_struct *work)
     struct periodic_check chk_refresh;
     struct periodic_check chk_shape;
 
-    u64  now;
-    u64  last_activity;
+    u64 now, last_activity;
 
     now = get_time_ns();
     last_activity = now;
@@ -2181,8 +2182,7 @@ sp3_monitor(struct work_struct *work)
         if (sp->activity)
             last_activity = get_time_ns();
 
-        sp->idle = now > last_activity + 5 * NSEC_PER_SEC
-            && sp->jobs_started == sp->jobs_finished;
+        sp->idle = now > last_activity + 5 * NSEC_PER_SEC && sp->jobs_started == sp->jobs_finished;
     }
 }
 

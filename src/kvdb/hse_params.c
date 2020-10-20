@@ -16,8 +16,8 @@
 #include <hse_ikvdb/mclass_policy.h>
 
 #define HP_DICT_ENTRIES_MAX 512
-#define HP_DICT_LEN_MAX 256
-#define HP_ERR_BUF_SZ 1024
+#define HP_DICT_LEN_MAX     256
+#define HP_ERR_BUF_SZ       1024
 
 /* [HSE_REVISIT]
  * Temporary implementation for mocking a dictionary. Since the params
@@ -173,13 +173,6 @@ param_validate(struct hse_params *params, const char *key, const char *val)
             val, pi[index].pi_value, pi[index].pi_type.param_size);
         if (ev(err))
             return merr(EINVAL);
-
-        if (pi[index].pi_type.param_range_check) {
-            err = pi[index].pi_type.param_range_check(
-                pi[index].pi_type.param_min, pi[index].pi_type.param_max, pi[index].pi_value);
-            if (ev(err))
-                return merr(EINVAL);
-        }
     }
 
     /* Check that the media class policy requested for the KVS is defined. */
@@ -223,10 +216,7 @@ hse_params_free(struct hse_params *params)
     free(params);
 }
 
-
-
 /* Public API */
-
 
 hse_err_t
 hse_params_create(struct hse_params **params)
@@ -331,11 +321,11 @@ hse_params_set(struct hse_params *params, const char *key, const char *val)
 
 char *
 hse_params_get(
-    const struct hse_params    *params,
-    const char                 *key,
-    char                       *buf,
-    size_t                      buf_sz,
-    size_t                     *param_sz)
+    const struct hse_params *params,
+    const char *             key,
+    char *                   buf,
+    size_t                   buf_sz,
+    size_t *                 param_sz)
 {
     int i, len;
 
@@ -374,17 +364,18 @@ hse_params_destroy(struct hse_params *params)
 
 /* Internals */
 
-static void
+static merr_t
 params_convert(
-    const struct hse_params    *params,
-    struct param_inst          *table,
-    void                       *base,
-    const char                 *filter)
+    const struct hse_params *params,
+    struct param_inst *      table,
+    void *                   base,
+    const char *             filter)
 {
-    int i;
+    merr_t err = 0;
+    int    i;
 
     if (!params || !table)
-        return;
+        return merr(EINVAL);
 
     /* [HSE_REVISIT]
      * Offset Assumes that the first element in the table is the
@@ -407,42 +398,82 @@ params_convert(
         if (!hse_params_get(params, key, result, sizeof(result), 0))
             continue;
 
+        /* Perform validation as late as possible to coincide with the
+         * realization of a cparams or rparams struct from hse_params.
+         */
+        if (table[i].pi_type.param_range_check) {
+            err = table[i].pi_type.param_range_check(
+                table[i].pi_type.param_min, table[i].pi_type.param_max, table[i].pi_value);
+            if (ev(err))
+                return merr(EINVAL);
+        }
+
         offset = table[i].pi_value - table[0].pi_value;
 
         table[i].pi_type.param_str_to_val(result, base + offset, table[i].pi_type.param_size);
     }
+
+    return err;
 }
 
-struct kvdb_cparams
-hse_params_to_kvdb_cparams(const struct hse_params *params, struct kvdb_cparams *ref)
+merr_t
+hse_params_to_kvdb_cparams(
+    const struct hse_params *params,
+    struct kvdb_cparams *    ref,
+    struct kvdb_cparams *    out)
 {
+    merr_t err = 0;
+
+    if (!out)
+        return merr(EINVAL);
+
     struct kvdb_cparams cp = ref ? *ref : kvdb_cparams_defaults();
     struct param_inst * table = kvdb_cparams_table();
 
-    params_convert(params, table, &cp, "kvdb.");
+    if (params && table) {
+        err = params_convert(params, table, &cp, "kvdb.");
+        if (ev(err))
+            return err;
+    }
 
-    return cp;
+    memcpy(out, &cp, sizeof(struct kvdb_cparams));
+
+    return err;
 }
 
-struct kvdb_rparams
-hse_params_to_kvdb_rparams(const struct hse_params *params, struct kvdb_rparams *ref)
+merr_t
+hse_params_to_kvdb_rparams(
+    const struct hse_params *params,
+    struct kvdb_rparams *    ref,
+    struct kvdb_rparams *    out)
 {
+    merr_t err = 0;
+
+    if (!out)
+        return merr(EINVAL);
+
     struct kvdb_rparams rp = ref ? *ref : kvdb_rparams_defaults();
     struct param_inst * table = kvdb_rparams_table();
 
-    params_convert(params, table, &rp, "kvdb.");
+    if (params && table) {
+        err = params_convert(params, table, &rp, "kvdb.");
+        if (ev(err))
+            return err;
+    }
 
-    return rp;
+    memcpy(out, &rp, sizeof(struct kvdb_rparams));
+
+    return err;
 }
 
 void
 hse_params_to_mclass_policies(
-    const struct hse_params    *params,
-    struct mclass_policy       *policies,
-    int                         entries)
+    const struct hse_params *params,
+    struct mclass_policy *   policies,
+    int                      entries)
 {
-    int    i, count = 0;
-    merr_t err = 0;
+    int                i, count = 0;
+    merr_t             err = 0;
     struct hse_params *lparams = 0;
 
     if (!policies)
@@ -471,46 +502,78 @@ hse_params_to_mclass_policies(
         hse_params_destroy(lparams);
 }
 
-struct kvs_cparams
+merr_t
 hse_params_to_kvs_cparams(
-    const struct hse_params    *params,
-    const char                 *kvs_name,
-    struct kvs_cparams         *ref)
+    const struct hse_params *params,
+    const char *             kvs_name,
+    struct kvs_cparams *     ref,
+    struct kvs_cparams *     out)
 {
+    merr_t err = 0;
+
+    if (!out)
+        return merr(EINVAL);
+
     struct kvs_cparams cp = ref ? *ref : kvs_cparams_defaults();
     struct param_inst *table = kvs_cparams_table();
 
-    params_convert(params, table, &cp, "kvs.");
+    if (params && table) {
+        err = params_convert(params, table, &cp, "kvs.");
+        if (ev(err))
+            return err;
+    }
 
     if (kvs_name) {
         char filter[HP_DICT_LEN_MAX];
 
         snprintf(filter, sizeof(filter), "kvs.%s.", kvs_name);
-        params_convert(params, table, &cp, filter);
+        if (params && table) {
+            err = params_convert(params, table, &cp, filter);
+            if (ev(err))
+                return err;
+        }
     }
 
-    return cp;
+    memcpy(out, &cp, sizeof(struct kvs_cparams));
+
+    return err;
 }
 
-struct kvs_rparams
+merr_t
 hse_params_to_kvs_rparams(
-    const struct hse_params    *params,
-    const char                 *kvs_name,
-    struct kvs_rparams         *ref)
+    const struct hse_params *params,
+    const char *             kvs_name,
+    struct kvs_rparams *     ref,
+    struct kvs_rparams *     out)
 {
+    merr_t err = 0;
+
+    if (!out)
+        return merr(EINVAL);
+
     struct kvs_rparams rp = ref ? *ref : kvs_rparams_defaults();
     struct param_inst *table = kvs_rparams_table();
 
-    params_convert(params, table, &rp, "kvs.");
+    if (params && table) {
+        err = params_convert(params, table, &rp, "kvs.");
+        if (ev(err))
+            return err;
+    }
 
     if (kvs_name) {
         char filter[HP_DICT_LEN_MAX];
 
         snprintf(filter, sizeof(filter), "kvs.%s.", kvs_name);
-        params_convert(params, table, &rp, filter);
+        if (params && table) {
+            err = params_convert(params, table, &rp, filter);
+            if (ev(err))
+                return err;
+        }
     }
 
-    return rp;
+    memcpy(out, &rp, sizeof(struct kvs_rparams));
+
+    return err;
 }
 
 /* Utilities */

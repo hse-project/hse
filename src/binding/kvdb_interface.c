@@ -118,13 +118,15 @@ hse_kvdb_make(const char *mpool_name, const struct hse_params *params)
     tstart = perfc_lat_start(&kvdb_pkvdbl_pc);
     perfc_inc(&kvdb_pc, PERFC_RA_KVDBOP_KVDB_MAKE);
 
-    dbparams = hse_params_to_kvdb_cparams(params, NULL);
+    err = hse_params_to_kvdb_cparams(params, NULL, &dbparams);
+    if (ev(err))
+        return err;
 
     err = kvdb_cparams_validate(&dbparams);
     if (ev(err))
         return err;
 
-    err = mpool_open(mpool_name, O_RDWR|O_EXCL, &ds, NULL);
+    err = mpool_open(mpool_name, O_RDWR | O_EXCL, &ds, NULL);
     if (err)
         return err;
 
@@ -172,10 +174,7 @@ handle_rparams(struct kvdb_rparams *params)
 }
 
 hse_err_t
-hse_kvdb_open(
-    const char                 *mpool_name,
-    const struct hse_params    *params,
-    struct hse_kvdb           **handle)
+hse_kvdb_open(const char *mpool_name, const struct hse_params *params, struct hse_kvdb **handle)
 {
     merr_t              err;
     struct ikvdb *      ikvdb;
@@ -190,7 +189,9 @@ hse_kvdb_open(
     tstart = perfc_lat_start(&kvdb_pkvdbl_pc);
     perfc_inc(&kvdb_pc, PERFC_RA_KVDBOP_KVDB_OPEN);
 
-    rparams = hse_params_to_kvdb_rparams(params, NULL);
+    err = hse_params_to_kvdb_rparams(params, NULL, &rparams);
+    if (ev(err))
+        return err;
 
     rc = kvdb_rparams_validate(&rparams);
     if (ev(rc))
@@ -202,7 +203,7 @@ hse_kvdb_open(
      * Need exclusive access to prevent multiple applications from
      * working on the same KVDB, which would cause corruption.
      */
-    err = mpool_open(mpool_name, O_RDWR|O_EXCL, &kvdb_ds, NULL);
+    err = mpool_open(mpool_name, O_RDWR | O_EXCL, &kvdb_ds, NULL);
     if (ev(err))
         return err;
 
@@ -323,10 +324,10 @@ hse_kvdb_kvs_drop(struct hse_kvdb *handle, const char *kvs_name)
 
 hse_err_t
 hse_kvdb_kvs_open(
-    struct hse_kvdb            *handle,
-    const char                 *kvs_name,
-    const struct hse_params    *params,
-    struct hse_kvs            **kvs_out)
+    struct hse_kvdb *        handle,
+    const char *             kvs_name,
+    const struct hse_params *params,
+    struct hse_kvs **        kvs_out)
 {
     merr_t err;
     u64    tstart;
@@ -371,15 +372,16 @@ hse_kvs_put(
     struct kvs_vtuple vt;
     merr_t            err;
 
-    if (unlikely( !handle || !key || (val_len > 0 && !val) ))
+    if (unlikely(!handle || !key || (val_len > 0 && !val)))
         return merr(EINVAL);
-    if (unlikely( os && (((os->kop_opaque >> 16) != 0xb0de) || ((os->kop_opaque & 0x0000ffff) != 1)) ))
+    if (unlikely(
+            os && (((os->kop_opaque >> 16) != 0xb0de) || ((os->kop_opaque & 0x0000ffff) != 1))))
         return merr(EINVAL);
-    if (unlikely( key_len > HSE_KVS_KLEN_MAX ))
+    if (unlikely(key_len > HSE_KVS_KLEN_MAX))
         return merr(ENAMETOOLONG);
-    if (unlikely( key_len == 0 ))
+    if (unlikely(key_len == 0))
         return merr(ENOENT);
-    if (unlikely( val_len > HSE_KVS_VLEN_MAX ))
+    if (unlikely(val_len > HSE_KVS_VLEN_MAX))
         return merr(EMSGSIZE);
 
     PERFC_INCADD_RU(
@@ -409,15 +411,16 @@ hse_kvs_get(
     enum key_lookup_res res;
     merr_t              err;
 
-    if (unlikely( !handle || !key || !found || !val_len ))
+    if (unlikely(!handle || !key || !found || !val_len))
         return merr(EINVAL);
-    if (unlikely( os && (((os->kop_opaque >> 16) != 0xb0de) || ((os->kop_opaque & 0x0000ffff) != 1)) ))
+    if (unlikely(
+            os && (((os->kop_opaque >> 16) != 0xb0de) || ((os->kop_opaque & 0x0000ffff) != 1))))
         return merr(EINVAL);
-    if (unlikely( !valbuf && valbuf_sz > 0 ))
+    if (unlikely(!valbuf && valbuf_sz > 0))
         return merr(EINVAL);
-    if (unlikely( key_len > HSE_KVS_KLEN_MAX ))
+    if (unlikely(key_len > HSE_KVS_KLEN_MAX))
         return merr(ENAMETOOLONG);
-    if (unlikely( key_len == 0 ))
+    if (unlikely(key_len == 0))
         return merr(ENOENT);
 
     /* If valbuf is NULL and valbuf_sz is zero, this call is meant as a

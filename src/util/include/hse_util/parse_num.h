@@ -77,29 +77,33 @@ parse_ulong(const char *str, unsigned long *result);
 static inline merr_t
 parse_long(const char *str, long *result);
 
+// clang-format off
 /* definitions */
-__parse_unsigned_func(parse_u8, u8, (u8)0, U8_MAX) __parse_signed_func(parse_s8, s8, S8_MIN, S8_MAX)
+__parse_unsigned_func(parse_u8, u8, (u8)0, U8_MAX)
+__parse_signed_func(parse_s8, s8, S8_MIN, S8_MAX)
 
-    __parse_unsigned_func(parse_u16, u16, (u16)0, U16_MAX)
-        __parse_signed_func(parse_s16, s16, S16_MIN, S16_MAX)
+__parse_unsigned_func(parse_u16, u16, (u16)0, U16_MAX)
+__parse_signed_func(parse_s16, s16, S16_MIN, S16_MAX)
 
-            __parse_unsigned_func(parse_u32, u32, (u32)0, U32_MAX)
-                __parse_signed_func(parse_s32, s32, S32_MIN, S32_MAX)
+__parse_unsigned_func(parse_u32, u32, (u32)0, U32_MAX)
+__parse_signed_func(parse_s32, s32, S32_MIN, S32_MAX)
 
-                    __parse_unsigned_func(parse_u64, u64, (u64)0, U64_MAX) __parse_signed_func(
-                        parse_s64,
-                        s64,
-                        S64_MIN,
-                        S64_MAX)
+__parse_unsigned_func(parse_u64, u64, (u64)0, U64_MAX)
+__parse_signed_func(
+    parse_s64,
+    s64,
+    S64_MIN,
+    S64_MAX)
 
-                        __parse_unsigned_func(parse_uint, unsigned int, (unsigned int)0, UINT_MAX)
-                            __parse_signed_func(parse_int, int, INT_MIN, INT_MAX)
+__parse_unsigned_func(parse_uint, unsigned int, (unsigned int)0, UINT_MAX)
+__parse_signed_func(parse_int, int, INT_MIN, INT_MAX)
 
-                                __parse_unsigned_func(
-                                    parse_ulong,
-                                    unsigned long,
-                                    (unsigned long)0,
-                                    ULONG_MAX)
-                                    __parse_signed_func(parse_long, long, LONG_MIN, LONG_MAX)
+__parse_unsigned_func(
+    parse_ulong,
+    unsigned long,
+    (unsigned long)0,
+    ULONG_MAX)
+__parse_signed_func(parse_long, long, LONG_MIN, LONG_MAX)
+// clang-format on
 
 #endif

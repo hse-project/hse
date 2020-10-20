@@ -112,7 +112,6 @@ _kvb_builder_iter_put(struct kvb_builder_iter *iter)
     free(iter);
 }
 
-
 static void
 mocks_unset(void)
 {
@@ -739,7 +738,8 @@ MTF_DEFINE_UTEST_PREPOST(c1_txn_test, commit_replay5, test_pre, test_post)
     err = hse_params_set(params, "kvs.pfx_len", "3");
     ASSERT_EQ(0, err);
 
-    kvs_cp = hse_params_to_kvs_cparams(params, kvs1, NULL);
+    err = hse_params_to_kvs_cparams(params, kvs1, NULL, &kvs_cp);
+    ASSERT_EQ(0, err);
 
     err = ikvdb_kvs_make(hdl, kvs1, params);
     ASSERT_EQ(0, err);
