@@ -14,6 +14,7 @@
 #include <hse_util/table.h>
 #include <hse_util/string.h>
 #include <hse_util/fmt.h>
+#include <hse_util/compression_lz4.h>
 
 #include <hse_util/rcu.h>
 #include <hse_util/cds_list.h>
@@ -38,6 +39,12 @@
 #include "c0sk_internal.h"
 #include "c0skm_internal.h"
 #include "c0_cursor.h"
+
+/* A cursor k/v buffer must be able to hold both a full size key and full size value.
+ * The value follows the key and starts on an 8-byte alignment after the key.
+ */
+#define C0_CURSOR_BUFSZ     (HSE_KVS_KLEN_MAX + HSE_KVS_VLEN_MAX + 8)
+
 
 void
 c0sk_perfc_alloc(struct c0sk_impl *self)
@@ -1169,8 +1176,6 @@ c0sk_cursor_init(struct c0_cursor *cur)
     return 0;
 }
 
-#define C0_CURSOR_BUFSZ ((HSE_KVS_KLEN_MAX) + (HSE_KVS_VLEN_MAX))
-
 /*
  * A c0sk cursor uses c0cur_kvmsv[] (kvmsv[]) to keep track of all KVMSes, and
  * c0cur_active (list) to track all kvms cursors.
@@ -1213,8 +1218,8 @@ c0sk_cursor_create(
     merr_t            err;
 
     cur = malloc(sizeof(*cur) + C0_CURSOR_BUFSZ);
-    if (!cur)
-        return merr(ev(ENOMEM));
+    if (ev(!cur))
+        return merr(ENOMEM);
 
     /* zero the minimal amount necessary */
     memset(cur, 0, sizeof(*cur));
@@ -1467,21 +1472,41 @@ c0sk_cursor_seek(
     return 0;
 }
 
-static inline void
-copy_kv(void *buf, struct kvs_kvtuple *kvt, struct bonsai_kv *bkv, struct bonsai_val *val)
+static merr_t
+copy_kv(void *buf, size_t bufsz, struct kvs_kvtuple *kvt, struct bonsai_kv *bkv, struct bonsai_val *val)
 {
     struct key_immediate *imm = &bkv->bkv_key_imm;
     u32 klen = key_imm_klen(imm);
+    uint clen, ulen, outlen;
+    merr_t err;
 
-    kvt->kvt_key.kt_len = klen;
-    kvt->kvt_key.kt_data = memcpy(buf, bkv->bkv_key, klen);
+    memcpy(buf, bkv->bkv_key, klen);
+    kvs_ktuple_init_nohash(&kvt->kvt_key, buf, klen);
 
-    kvt->kvt_value.vt_xlen = val->bv_xlen;
+    if (HSE_CORE_IS_TOMB(val->bv_valuep)) {
+        kvs_vtuple_init(&kvt->kvt_value, val->bv_valuep, val->bv_xlen);
+        return 0;
+    }
 
-    if (HSE_CORE_IS_TOMB(val->bv_valuep))
-        kvt->kvt_value.vt_data = val->bv_valuep;
-    else
-        kvt->kvt_value.vt_data = memcpy(buf + klen, val->bv_value, bonsai_val_vlen(val));
+    bufsz -= roundup(klen, 8);
+    buf += roundup(klen, 8);
+
+    clen = bonsai_val_clen(val);
+    ulen = bonsai_val_ulen(val);
+
+    if (clen > 0) {
+        err = compress_lz4_ops.cop_decompress(val->bv_value, clen, buf, bufsz, &outlen);
+
+        if (!err && outlen != ulen)
+            err = merr(EBUG);
+    } else {
+        memcpy(buf, val->bv_value, ulen);
+        err = 0;
+    }
+
+    kvs_vtuple_init(&kvt->kvt_value, buf, ulen);
+
+    return err;
 }
 
 static merr_t
@@ -1524,11 +1549,11 @@ c0sk_cursor_read(struct c0_cursor *cur, struct kvs_kvtuple *kvt, bool *eof)
 {
     struct bonsai_kv *bkv, *dup;
     uintptr_t         seqnoref;
+    merr_t err;
 
     if (cur->c0cur_state != C0CUR_STATE_READY) {
         char * last = cur->c0cur_buf;
         int    len = cur->c0cur_keylen;
-        merr_t err;
 
         if (cur->c0cur_state & C0CUR_STATE_NEED_INIT)
             if (c0sk_cursor_init(cur))
@@ -1670,7 +1695,10 @@ c0sk_cursor_read(struct c0_cursor *cur, struct kvs_kvtuple *kvt, bool *eof)
          * affecting the present cursor key/value.
          */
 
-        copy_kv(cur->c0cur_buf, kvt, bkv, val);
+        err = copy_kv(cur->c0cur_buf, C0_CURSOR_BUFSZ, kvt, bkv, val);
+        if (err)
+            return err;
+
         cur->c0cur_keylen = kvt->kvt_key.kt_len;
         *eof = false;
         return 0;
