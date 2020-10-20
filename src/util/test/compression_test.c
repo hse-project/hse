@@ -157,6 +157,9 @@ MTF_DEFINE_UTEST(compression_test, mongo)
     ASSERT_EQ(0, err);
     ASSERT_EQ(4, dbuflen);
     ASSERT_EQ(0, memcmp(srcv, dbuf, dbuflen));
+
+    free(dbuf);
+    free(cbuf);
 }
 
 
