@@ -236,7 +236,7 @@ c1_log_replay_kvb(struct c1_log *log, u64 cningestid, u16 ver)
 
     list_add_tail(&kvb->c1kvb_list, &log->c1l_kvb_list);
 
-#ifdef C1_DEBUG_KVB_REPLAY
+#ifdef HSE_BUILD_DEBUG
     hse_log(
         HSE_DEBUG "c1 replay kvb seqno %lx gen %x txn %lxkcount %lx "
                 "mutation %lx size %lx minseqno %lx maxseqno %lx",
@@ -290,6 +290,7 @@ c1_log_replay_txn(struct c1_log *log, u64 cningestid, u16 ver)
 
     list_add_tail(&ttxn->c1txn_list, &log->c1l_txn_list);
 
+#ifdef HSE_BUILD_DEBUG
     hse_log(
         HSE_DEBUG "replay txn seqno %lx gen %lx txnid %lx "
                 "c1ingestid %lx cmd %x flag %x",
@@ -299,6 +300,7 @@ c1_log_replay_txn(struct c1_log *log, u64 cningestid, u16 ver)
         (unsigned long)ttxn->c1txn_ingestid,
         (unsigned int)ttxn->c1txn_cmd,
         (unsigned int)ttxn->c1txn_flag);
+#endif
 
     return 0;
 }
