@@ -284,6 +284,7 @@ struct injections injections[] = {
     { 0, mapi_idx_cn_get_flags },
     { 0, mapi_idx_cn_get_sched },
     { 0, mapi_idx_cn_get_maint_wq },
+    { 0, mapi_idx_cn_inc_ingest_dgen },
 
     /* csched */
     { 0, mapi_idx_csched_notify_ingest },

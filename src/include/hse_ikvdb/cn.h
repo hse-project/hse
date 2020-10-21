@@ -88,6 +88,10 @@ u64
 cn_get_ingest_dgen(const struct cn *cn);
 
 /* MTF_MOCK */
+void
+cn_inc_ingest_dgen(struct cn *cn);
+
+/* MTF_MOCK */
 struct kvs_rparams *
 cn_get_rp(const struct cn *cn);
 

@@ -111,6 +111,12 @@ cn_get_ingest_dgen(const struct cn *cn)
     return atomic64_read(&cn->cn_ingest_dgen);
 }
 
+void
+cn_inc_ingest_dgen(struct cn *cn)
+{
+    atomic64_inc(&cn->cn_ingest_dgen);
+}
+
 struct kvs_rparams *
 cn_get_rp(const struct cn *cn)
 {
@@ -590,7 +596,7 @@ cn_ingest_prep(
     if (!childv || childc != 1)
         return merr(ev(EINVAL));
 
-    dgen = atomic64_add_return(1, &cn->cn_ingest_dgen);
+    dgen = atomic64_read(&cn->cn_ingest_dgen) + 1;
 
     /* Note: cn_mblocks_commit() creates "C" records in CNDB */
     err = cn_mblocks_commit(
