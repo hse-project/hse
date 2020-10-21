@@ -32,7 +32,7 @@ struct c1 {
     u64                     c1_ingest_kvseqno;
     u64                     c1_kvdb_seqno;
     u64                     c1_txnid;
-    u64                     c1_kvms_gen;
+    u64                     c1_cningestid;
     struct c1_io           *c1_io;
     struct c1_journal      *c1_jrnl;
     struct ikvdb           *c1_ikvdb;
@@ -69,7 +69,7 @@ c1_rdonly(struct c1 *c1)
 
 /* MTF_MOCK */
 u64
-c1_kvmsgen(struct c1 *c1);
+c1_cningestid(struct c1 *c1);
 
 BullseyeCoverageSaveOff static inline void
 c1_set_kvdb_seqno(struct c1 *c1, u64 seqno)

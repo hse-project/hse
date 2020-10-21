@@ -170,7 +170,7 @@ struct c1_treetxn_omf {
     __le64            c1ttxn_seqno;
     __le64            c1ttxn_gen;
     __le64            c1ttxn_id;
-    __le64            c1ttxn_kvseqno;
+    __le64            c1ttxn_ingestid;
     __le64            c1ttxn_mutation;
     __le32            c1ttxn_cmd;
     __le32            c1ttxn_flag;
@@ -271,7 +271,7 @@ OMF_SETGET(struct c1_mblk_omf, c1mblk_off, 32)
 
 OMF_SETGET(struct c1_treetxn_omf, c1ttxn_seqno, 64)
 OMF_SETGET(struct c1_treetxn_omf, c1ttxn_gen, 64)
-OMF_SETGET(struct c1_treetxn_omf, c1ttxn_kvseqno, 64)
+OMF_SETGET(struct c1_treetxn_omf, c1ttxn_ingestid, 64)
 OMF_SETGET(struct c1_treetxn_omf, c1ttxn_mutation, 64)
 OMF_SETGET(struct c1_treetxn_omf, c1ttxn_id, 64)
 OMF_SETGET(struct c1_treetxn_omf, c1ttxn_cmd, 32)

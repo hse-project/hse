@@ -164,7 +164,7 @@ c1_free(struct mpool *ds, u64 oid1, u64 oid2)
     struct c1 *        c1;
     merr_t             err;
 
-    err = c1_journal_open(false, ds, MP_MED_STAGING, NULL, oid1, oid2, &jrnl);
+    err = c1_journal_open(false, ds, MP_MED_STAGING, NULL, oid1, oid2, NULL, &jrnl);
     if (ev(err))
         return err;
 
@@ -201,11 +201,12 @@ c1_open(
     int                  rdonly,
     u64                  oid1,
     u64                  oid2,
-    u64                  kvmsgen,
+    u64                  cningestid,
     const char *         mpname,
     struct kvdb_rparams *rparams,
     struct ikvdb *       ikvdb,
     struct c0sk *        c0sk,
+    struct kvdb_health  *health,
     struct c1 **         out)
 {
     struct c1_journal *jrnl;
@@ -213,7 +214,7 @@ c1_open(
     merr_t             err;
     u64                dtime;
 
-    err = c1_journal_open(rdonly, ds, MP_MED_STAGING, mpname, oid1, oid2, &jrnl);
+    err = c1_journal_open(rdonly, ds, MP_MED_STAGING, mpname, oid1, oid2, health, &jrnl);
     if (ev(err))
         return err;
 
@@ -226,7 +227,7 @@ c1_open(
     c1->c1_jrnl = jrnl;
     c1->c1_ikvdb = ikvdb;
     c1->c1_rdonly = rdonly;
-    c1->c1_kvms_gen = kvmsgen;
+    c1->c1_cningestid = cningestid;
 
     err = c1_replay(c1);
     if (ev(err))
@@ -516,9 +517,9 @@ c1_txn_begin(struct c1 *c1, u64 txnid, struct c1_iterinfo *ci, int flag)
 }
 
 merr_t
-c1_txn_commit(struct c1 *c1, u64 txnid, u64 seqno, int flag)
+c1_txn_commit(struct c1 *c1, u64 txnid, u64 ingestid, int flag)
 {
-    return c1_io_txn_commit(c1, txnid, seqno, flag);
+    return c1_io_txn_commit(c1, txnid, ingestid, flag);
 }
 
 BullseyeCoverageSaveOff
@@ -542,9 +543,9 @@ c1_cur_txnid(struct c1 *c1)
 }
 
 u64
-c1_kvmsgen(struct c1 *c1)
+c1_cningestid(struct c1 *c1)
 {
-    return c1->c1_kvms_gen;
+    return c1->c1_cningestid;
 }
 
 #if defined(HSE_UNIT_TEST_MODE) && HSE_UNIT_TEST_MODE == 1

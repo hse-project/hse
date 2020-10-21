@@ -377,12 +377,12 @@ MTF_DEFINE_UTEST_PREPOST(c1_test, basic4, no_fail_pre, no_fail_post)
     ASSERT_EQ(0, err);
 
     mapi_inject_once(mapi_idx_c1_tree_get_desc, 1, merr(EINVAL));
-    err = c1_open(NULL, false, c1_oid1, c1_oid2, 0, "mock_mp", &kvdb_rp, NULL, NULL, &c1);
+    err = c1_open(NULL, false, c1_oid1, c1_oid2, 0, "mock_mp", &kvdb_rp, NULL, NULL, NULL, &c1);
     ASSERT_NE(0, err);
     mapi_inject_unset(mapi_idx_c1_tree_get_desc);
 
     mapi_inject_once(mapi_idx_malloc, 4, 0);
-    err = c1_open(NULL, false, c1_oid1, c1_oid2, 0, "mock_mp", &kvdb_rp, NULL, NULL, &c1);
+    err = c1_open(NULL, false, c1_oid1, c1_oid2, 0, "mock_mp", &kvdb_rp, NULL, NULL, NULL, &c1);
     ASSERT_NE(0, err);
     mapi_inject_unset(mapi_idx_malloc);
 
@@ -408,7 +408,7 @@ MTF_DEFINE_UTEST_PREPOST(c1_test, basic4, no_fail_pre, no_fail_post)
     err = c1_make(NULL, &kvdb_cp, c1_oid1, c1_oid2);
     ASSERT_EQ(0, err);
 
-    err = c1_open(NULL, false, c1_oid1, c1_oid2, 0, "mock_mp", &kvdb_rp, NULL, NULL, &c1);
+    err = c1_open(NULL, false, c1_oid1, c1_oid2, 0, "mock_mp", &kvdb_rp, NULL, NULL, NULL, &c1);
     ASSERT_EQ(0, err);
 
     err = c1_close(c1);
@@ -642,11 +642,11 @@ MTF_DEFINE_UTEST_PREPOST(c1_test, basic5, no_fail_pre, no_fail_post)
     ASSERT_EQ(0, err);
 
     mapi_inject(mapi_idx_malloc, 0);
-    err = c1_open(NULL, false, c1_oid1, c1_oid2, 0, "mock_mp", &kvdb_rp, NULL, NULL, &c1);
+    err = c1_open(NULL, false, c1_oid1, c1_oid2, 0, "mock_mp", &kvdb_rp, NULL, NULL, NULL, &c1);
     ASSERT_NE(0, err);
     mapi_inject_unset(mapi_idx_malloc);
 
-    err = c1_open(NULL, false, c1_oid1, c1_oid2, 0, "mock_mp", &kvdb_rp, NULL, NULL, &c1);
+    err = c1_open(NULL, false, c1_oid1, c1_oid2, 0, "mock_mp", &kvdb_rp, NULL, NULL, NULL, &c1);
     ASSERT_EQ(0, err);
 
     mapi_inject(mapi_idx_malloc, 0);
@@ -734,37 +734,37 @@ MTF_DEFINE_UTEST_PREPOST(c1_test, basic6, no_fail_pre, no_fail_post)
     ASSERT_EQ(0, err);
 
     mapi_inject_once(mapi_idx_c1_journal_compact_begin, 1, merr(EINVAL));
-    err = c1_open(NULL, false, c1_oid1, c1_oid2, 0, "mock_mp", &kvdb_rp, NULL, NULL, &c1);
+    err = c1_open(NULL, false, c1_oid1, c1_oid2, 0, "mock_mp", &kvdb_rp, NULL, NULL, NULL, &c1);
     ASSERT_NE(0, err);
     mapi_inject_unset(mapi_idx_c1_journal_compact_begin);
 
     mapi_inject_once(mapi_idx_c1_journal_format, 1, merr(EINVAL));
-    err = c1_open(NULL, false, c1_oid1, c1_oid2, 0, "mock_mp", &kvdb_rp, NULL, NULL, &c1);
+    err = c1_open(NULL, false, c1_oid1, c1_oid2, 0, "mock_mp", &kvdb_rp, NULL, NULL, NULL, &c1);
     ASSERT_NE(0, err);
     mapi_inject_unset(mapi_idx_c1_journal_format);
 
     mapi_inject_once(mapi_idx_c1_compact_reset_trees, 1, merr(EINVAL));
-    err = c1_open(NULL, false, c1_oid1, c1_oid2, 0, "mock_mp", &kvdb_rp, NULL, NULL, &c1);
+    err = c1_open(NULL, false, c1_oid1, c1_oid2, 0, "mock_mp", &kvdb_rp, NULL, NULL, NULL, &c1);
     ASSERT_NE(0, err);
     mapi_inject_unset(mapi_idx_c1_compact_reset_trees);
 
     mapi_inject_once(mapi_idx_c1_compact_clean_trees, 1, merr(EINVAL));
-    err = c1_open(NULL, false, c1_oid1, c1_oid2, 0, "mock_mp", &kvdb_rp, NULL, NULL, &c1);
+    err = c1_open(NULL, false, c1_oid1, c1_oid2, 0, "mock_mp", &kvdb_rp, NULL, NULL, NULL, &c1);
     ASSERT_NE(0, err);
     mapi_inject_unset(mapi_idx_c1_compact_clean_trees);
 
     mapi_inject_once(mapi_idx_c1_compact_inuse_trees, 1, merr(EINVAL));
-    err = c1_open(NULL, false, c1_oid1, c1_oid2, 0, "mock_mp", &kvdb_rp, NULL, NULL, &c1);
+    err = c1_open(NULL, false, c1_oid1, c1_oid2, 0, "mock_mp", &kvdb_rp, NULL, NULL, NULL, &c1);
     ASSERT_NE(0, err);
     mapi_inject_unset(mapi_idx_c1_compact_inuse_trees);
 
     mapi_inject_once(mapi_idx_c1_compact_new_trees, 1, merr(EINVAL));
-    err = c1_open(NULL, false, c1_oid1, c1_oid2, 0, "mock_mp", &kvdb_rp, NULL, NULL, &c1);
+    err = c1_open(NULL, false, c1_oid1, c1_oid2, 0, "mock_mp", &kvdb_rp, NULL, NULL, NULL, &c1);
     ASSERT_NE(0, err);
     mapi_inject_unset(mapi_idx_c1_compact_new_trees);
 
     mapi_inject_once(mapi_idx_c1_journal_compact_end, 1, merr(EINVAL));
-    err = c1_open(NULL, false, c1_oid1, c1_oid2, 0, "mock_mp", &kvdb_rp, NULL, NULL, &c1);
+    err = c1_open(NULL, false, c1_oid1, c1_oid2, 0, "mock_mp", &kvdb_rp, NULL, NULL, NULL, &c1);
     ASSERT_NE(0, err);
     mapi_inject_unset(mapi_idx_c1_journal_compact_end);
 
@@ -846,7 +846,7 @@ MTF_DEFINE_UTEST_PREPOST(c1_test, ingest, no_fail_pre, no_fail_post)
     err = c1_make(NULL, &kvdb_cp, c1_oid1, c1_oid2);
     ASSERT_EQ(0, err);
 
-    err = c1_open(NULL, false, c1_oid1, c1_oid2, 0, "mock_mp", &kvdb_rp, NULL, NULL, &c1);
+    err = c1_open(NULL, false, c1_oid1, c1_oid2, 0, "mock_mp", &kvdb_rp, NULL, NULL, NULL, &c1);
     ASSERT_EQ(0, err);
 
     kt.kt_len = 3;
@@ -941,7 +941,7 @@ again:
     err = c1_make(NULL, &kvdb_cp, c1_oid1, c1_oid2);
     ASSERT_EQ(0, err);
 
-    err = c1_open(NULL, false, c1_oid1, c1_oid2, 0, "mock_mp", &kvdb_rp, NULL, NULL, &c1);
+    err = c1_open(NULL, false, c1_oid1, c1_oid2, 0, "mock_mp", &kvdb_rp, NULL, NULL, NULL, &c1);
     ASSERT_EQ(0, err);
 
     kvs_ktuple_init(&kt, "foo", 3);
@@ -1173,7 +1173,7 @@ MTF_DEFINE_UTEST_PREPOST(c1_test, ingest_replay, no_fail_pre, no_fail_post)
     err = c1_make(NULL, &kvdb_cp, c1_oid1, c1_oid2);
     ASSERT_EQ(0, err);
 
-    err = c1_open(NULL, false, c1_oid1, c1_oid2, 0, "mock_mp", &kvdb_rp, NULL, NULL, &c1);
+    err = c1_open(NULL, false, c1_oid1, c1_oid2, 0, "mock_mp", &kvdb_rp, NULL, NULL, NULL, &c1);
     ASSERT_EQ(0, err);
 
     /*
@@ -1206,7 +1206,7 @@ MTF_DEFINE_UTEST_PREPOST(c1_test, ingest_replay, no_fail_pre, no_fail_post)
     ASSERT_EQ(0, err);
 
     MOCK_SET(c1, _c1_is_clean);
-    err = c1_open(NULL, false, c1_oid1, c1_oid2, 0, "mock_mp", &kvdb_rp, NULL, NULL, &c1);
+    err = c1_open(NULL, false, c1_oid1, c1_oid2, 0, "mock_mp", &kvdb_rp, NULL, NULL, NULL, &c1);
     ASSERT_EQ(0, err);
 
     mapi_inject(mapi_idx_malloc, 0);
@@ -1279,7 +1279,7 @@ MTF_DEFINE_UTEST_PREPOST(c1_test, ingest_replay2, no_fail_pre, no_fail_post)
     err = c1_make(NULL, &kvdb_cp, c1_oid1, c1_oid2);
     ASSERT_EQ(0, err);
 
-    err = c1_open(NULL, false, c1_oid1, c1_oid2, 0, "mock_mp", &kvdb_rp, NULL, NULL, &c1);
+    err = c1_open(NULL, false, c1_oid1, c1_oid2, 0, "mock_mp", &kvdb_rp, NULL, NULL, NULL, &c1);
     ASSERT_EQ(0, err);
 
     /*
@@ -1319,7 +1319,7 @@ MTF_DEFINE_UTEST_PREPOST(c1_test, ingest_replay2, no_fail_pre, no_fail_post)
 
     for (i = 0; i < 16; i++) {
         mapi_inject_once(mapi_idx_malloc, i, 0);
-        err = c1_open(NULL, false, c1_oid1, c1_oid2, 0, "mock_mp", &kvdb_rp, NULL, NULL, &c1);
+        err = c1_open(NULL, false, c1_oid1, c1_oid2, 0, "mock_mp", &kvdb_rp, NULL, NULL, NULL, &c1);
         if (!err)
             c1_close(c1);
         else {
@@ -1411,7 +1411,7 @@ MTF_DEFINE_UTEST_PREPOST(c1_test, ingest_replay3, no_fail_pre, no_fail_post)
     err = c1_make(NULL, &kvdb_cp, c1_oid1, c1_oid2);
     ASSERT_EQ(0, err);
 
-    err = c1_open(NULL, false, c1_oid1, c1_oid2, 0, "mock_mp", &kvdb_rp, NULL, NULL, &c1);
+    err = c1_open(NULL, false, c1_oid1, c1_oid2, 0, "mock_mp", &kvdb_rp, NULL, NULL, NULL, &c1);
     ASSERT_EQ(0, err);
 
     kvs_ktuple_init(&kt, "foo", 3);
@@ -1443,12 +1443,12 @@ MTF_DEFINE_UTEST_PREPOST(c1_test, ingest_replay3, no_fail_pre, no_fail_post)
     MOCK_SET(c1, _c1_is_clean);
 
     mapi_inject(mapi_idx_mpool_mdc_cstart, merr(EIO));
-    err = c1_open(NULL, false, c1_oid1, c1_oid2, 0, "mock_mp", &kvdb_rp, NULL, NULL, &c1);
+    err = c1_open(NULL, false, c1_oid1, c1_oid2, 0, "mock_mp", &kvdb_rp, NULL, NULL, NULL, &c1);
     ASSERT_NE(0, err);
     mapi_inject_unset(mapi_idx_mpool_mdc_cstart);
 
     mapi_inject(mapi_idx_mpool_mdc_cend, merr(EIO));
-    err = c1_open(NULL, false, c1_oid1, c1_oid2, 0, "mock_mp", &kvdb_rp, NULL, NULL, &c1);
+    err = c1_open(NULL, false, c1_oid1, c1_oid2, 0, "mock_mp", &kvdb_rp, NULL, NULL, NULL, &c1);
     ASSERT_NE(0, err);
     mapi_inject_unset(mapi_idx_mpool_mdc_cend);
 

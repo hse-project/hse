@@ -277,6 +277,7 @@ ikvdb_c1_open(struct ikvdb_impl *self, struct mpool *ds, u64 ingestid)
             &self->ikdb_rp,
             &self->ikdb_handle,
             self->ikdb_c0sk,
+            &self->ikdb_health,
             &self->ikdb_c1);
 
         return ev(err);
@@ -296,6 +297,7 @@ ikvdb_c1_open(struct ikvdb_impl *self, struct mpool *ds, u64 ingestid)
         &self->ikdb_rp,
         &self->ikdb_handle,
         self->ikdb_c0sk,
+        &self->ikdb_health,
         &self->ikdb_c1);
     if (ev(err))
         return err;

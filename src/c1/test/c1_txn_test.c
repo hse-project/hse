@@ -540,17 +540,17 @@ MTF_DEFINE_UTEST_PREPOST(c1_txn_test, commit_replay2, test_pre, test_post)
     ASSERT_EQ(0, err);
 
     mapi_inject(mapi_idx_c1_is_clean, 0);
-    mapi_inject(mapi_idx_c1_ingest_kvbundle, true);
+    mapi_inject(mapi_idx_c1_should_replay, true);
     mapi_inject(mapi_idx_c1_ingest_seqno, false);
-    mapi_inject(mapi_idx_c1_kvmsgen, 0);
+    mapi_inject(mapi_idx_c1_cningestid, 0);
 
     err = ikvdb_open(mpool, ds, NULL, &hdl);
     ASSERT_EQ(0, err);
 
     mapi_inject_unset(mapi_idx_c1_is_clean);
-    mapi_inject_unset(mapi_idx_c1_ingest_kvbundle);
+    mapi_inject_unset(mapi_idx_c1_should_replay);
     mapi_inject_unset(mapi_idx_c1_ingest_seqno);
-    mapi_inject_unset(mapi_idx_c1_kvmsgen);
+    mapi_inject_unset(mapi_idx_c1_cningestid);
 
     err = ikvdb_close(hdl);
     ASSERT_EQ(0, err);
@@ -675,6 +675,7 @@ MTF_DEFINE_UTEST_PREPOST(c1_txn_test, commit_replay4, test_pre, test_post)
 
     mapi_inject(mapi_idx_c1_ikvdb, 0);
     mapi_inject(mapi_idx_c1_replay_on_ikvdb, merr(ev(EIO)));
+    mapi_inject(mapi_idx_c1_is_clean, true);
 
     err = ikvdb_open(mpool, ds, NULL, &hdl);
 
@@ -773,6 +774,7 @@ MTF_DEFINE_UTEST_PREPOST(c1_txn_test, commit_replay5, test_pre, test_post)
 
     mapi_inject(mapi_idx_c1_ikvdb, 0);
     mapi_inject(mapi_idx_c1_replay_on_ikvdb, merr(ev(EIO)));
+    mapi_inject(mapi_idx_c1_is_clean, true);
 
     err = ikvdb_open(mpool, ds, params, &hdl);
 

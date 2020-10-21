@@ -13,21 +13,22 @@
 /* MTF_MOCK_DECL(c1_journal) */
 
 struct c1_journal {
-    u64               c1j_dtime;    /* Durability time */
-    u64               c1j_dsize;    /* Durability size */
-    u64               c1j_capacity; /* c1 overall size */
-    u64               c1j_jrnlsize; /* Journal size */
-    int               c1j_mediaclass;
-    int               c1j_rdonly;
-    u64               c1j_seqno;
-    u32               c1j_gen;
-    atomic_t          c1j_treecnt;
-    u64               c1j_oid1;
-    u64               c1j_oid2;
-    u64               c1j_resetseqno;
-    struct mpool *    c1j_mp;
-    struct mpool_mdc *c1j_mdc;
-    struct perfc_set  c1j_pcset;
+    u64                 c1j_dtime;    /* Durability time */
+    u64                 c1j_dsize;    /* Durability size */
+    u64                 c1j_capacity; /* c1 overall size */
+    u64                 c1j_jrnlsize; /* Journal size */
+    int                 c1j_mediaclass;
+    int                 c1j_rdonly;
+    u64                 c1j_seqno;
+    u32                 c1j_gen;
+    atomic_t            c1j_treecnt;
+    u64                 c1j_oid1;
+    u64                 c1j_oid2;
+    u64                 c1j_resetseqno;
+    struct mpool *      c1j_mp;
+    struct kvdb_health *c1j_kvdb_health;
+    struct mpool_mdc   *c1j_mdc;
+    struct perfc_set    c1j_pcset;
 };
 
 static inline void
@@ -73,6 +74,7 @@ c1_journal_open(
     const char *        mpname,
     u64                 oid1,
     u64                 oid2,
+    struct kvdb_health *health,
     struct c1_journal **out);
 
 merr_t
