@@ -918,6 +918,7 @@ MTF_DEFINE_UTEST_PREPOST(cn_cursor, capped_update, pre, post)
     u64                   dummy_ikvdb[32] = { 0 };
     struct kvs_cparams    cp = {};
     int                   i;
+    const int             initial_kvset_cnt = 4;
 
     struct nkv_tab make[] = {
         { 1024, 1024 * 0, 0, VMX_S32, KVDATA_BE_KEY, 1 },
@@ -933,7 +934,7 @@ MTF_DEFINE_UTEST_PREPOST(cn_cursor, capped_update, pre, post)
     ITV_INIT(itv, 3, make);
     ITV_INIT(itv, 4, make);
 
-    mk = ITV_KVSET_MOCK(itv[4]);
+    mk = ITV_KVSET_MOCK(itv[initial_kvset_cnt - 1]);
     mapi_inject(mapi_idx_cn_tree_initial_dgen, mk->dgen);
 
     err = cndb_init(&cndb, ds, true, 0, CNDB_ENTRIES, 0, 0, &health);
@@ -957,7 +958,7 @@ MTF_DEFINE_UTEST_PREPOST(cn_cursor, capped_update, pre, post)
     tree = cn_get_tree(cn);
     ASSERT_NE(tree, NULL);
 
-    for (i = 0; i < NELEM(make) - 1; ++i) {
+    for (i = 0; i < initial_kvset_cnt; ++i) {
         err = cn_tree_insert_kvset(tree, ITV_KVSET(itv[i]), 0, 0);
         ASSERT_EQ(err, 0);
     }
@@ -966,8 +967,10 @@ MTF_DEFINE_UTEST_PREPOST(cn_cursor, capped_update, pre, post)
     err = cn_cursor_create(cn, seqno, false, NULL, 0, &sum, &cur);
     ASSERT_EQ(err, 0);
 
-    err = cn_tree_insert_kvset(tree, ITV_KVSET(itv[NELEM(make) - 1]), 0, 0);
-    ASSERT_EQ(err, 0);
+    for (; i < NELEM(make); ++i) {
+        err = cn_tree_insert_kvset(tree, ITV_KVSET(itv[i]), 0, 0);
+        ASSERT_EQ(err, 0);
+    }
 
     bool updated = false;
 
@@ -1069,6 +1072,7 @@ MTF_DEFINE_UTEST_PREPOST(cn_cursor, capped_update_errors, pre, post)
     u64                   dummy_ikvdb[32] = { 0 };
     struct kvs_cparams    cp = {};
     int                   i;
+    const int             initial_kvset_cnt = 2;
 
     struct nkv_tab make[] = {
         { 1024, 1024 * 0, 0, VMX_S32, KVDATA_BE_KEY, 1 },
@@ -1084,7 +1088,7 @@ MTF_DEFINE_UTEST_PREPOST(cn_cursor, capped_update_errors, pre, post)
     ITV_INIT(itv, 3, make);
     ITV_INIT(itv, 4, make);
 
-    mk = ITV_KVSET_MOCK(itv[4]);
+    mk = ITV_KVSET_MOCK(itv[initial_kvset_cnt - 1]);
     mapi_inject(mapi_idx_cn_tree_initial_dgen, mk->dgen);
 
     err = cndb_init(&cndb, ds, true, 0, CNDB_ENTRIES, 0, 0, &health);
@@ -1108,7 +1112,7 @@ MTF_DEFINE_UTEST_PREPOST(cn_cursor, capped_update_errors, pre, post)
     tree = cn_get_tree(cn);
     ASSERT_NE(tree, NULL);
 
-    for (i = 0; i < 2; ++i) {
+    for (i = 0; i < initial_kvset_cnt; ++i) {
         err = cn_tree_insert_kvset(tree, ITV_KVSET(itv[i]), 0, 0);
         ASSERT_EQ(err, 0);
     }

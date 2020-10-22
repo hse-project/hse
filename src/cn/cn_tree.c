@@ -1962,23 +1962,14 @@ cn_tree_cursor_create(struct pscan *cur, struct cn_tree *tree)
      * cn_tree_lookup().
      */
 
-    /*
-     * Use the ingest dgen for tree traversal correctness.
-     * But due to the race where ingest_dgen is updated before
-     * the kvset is linked into the cn tree, the cursor dgen
-     * must be set to the best dgen encountered in the tree.
-     * See the note above on dgen rules.
-     */
-
     node = tree->ct_root;
     khashmap = cn_tree_get_khashmap(tree);
-    tdgenv[0] = cn_get_ingest_dgen(cur->cn);
-    cur->dgen = 0;
     shift = khashmap ? CN_KHASHMAP_SHIFT : cur->shift;
 
 #define dgen_at(_idx) (tdgenv[1 + _idx])
 
     rmlock_rlock(&tree->ct_lock, &lock);
+    cur->dgen = tdgenv[0] = cn_get_ingest_dgen(cur->cn);
     while (node) {
 
         /* recover least dgen of parent when entering a node */
@@ -1998,8 +1989,8 @@ cn_tree_cursor_create(struct pscan *cur, struct cn_tree *tree)
                 err = merr(EAGAIN);
                 break;
             }
-            if (x > cur->dgen)
-                cur->dgen = x;
+
+            assert(x <= cur->dgen);
 
             /* determine if this kvset participates.
              * If prefixed tree, check if kvset has ptombs.
@@ -3470,6 +3461,7 @@ cn_tree_ingest_update(struct cn_tree *tree, struct kvset *kvset, void *ptomb, ui
 
     rmlock_wlock(&tree->ct_lock);
     kvset_list_add(kvset, &tree->ct_root->tn_kvset_list);
+    cn_inc_ingest_dgen(tree->cn);
 
     /* Record ptomb as the max ptomb seen by this cn */
     if (cn_get_flags(tree->cn) & CN_CFLAG_CAPPED) {
