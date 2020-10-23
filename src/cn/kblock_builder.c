@@ -884,8 +884,9 @@ kblock_finish(struct kblock_builder *bld, struct wbb *ptree)
     iov[0].iov_len = KBLOCK_HDR_LEN;
 
     /* Finalize the wbtree.  May increase kblk->wbt_pgc. */
+    assert(kblk->wbtree);
     wbb_hdr_init(kblk->wbtree, &wbt_hdr);
-    if (kblk->wbtree && wbb_entries(kblk->wbtree)) {
+    if (wbb_entries(kblk->wbtree)) {
         err = wbb_freeze(
             kblk->wbtree,
             &wbt_hdr,
