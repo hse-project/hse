@@ -456,7 +456,7 @@ static struct url_desc *
 get_url_desc(const char *path)
 {
     int              i, cnt;
-    struct url_desc *match = 0;
+    struct url_desc *match = NULL;
     size_t           match_len = 0;
 
     mutex_lock(&rest.url_tab_lock);
@@ -464,14 +464,21 @@ get_url_desc(const char *path)
 
     for (i = 0; i < cnt; i++) {
         struct url_desc *p = table_at(rest.url_tab, i);
-        size_t           len = strlen(p->name);
 
-        if (strncmp(p->name, path, len) == 0) {
-
-            if (len > match_len) {
-                /* we want the most precise match */
-                match_len = len;
+        if (p->url_flags & URL_FLAG_EXACT) {
+            if (strcmp(p->name, path) == 0) {
                 match = p;
+                break;
+            }
+        } else {
+            size_t len = strlen(p->name);
+
+            if (strncmp(p->name, path, len) == 0) {
+                if (len > match_len) {
+                    /* we want the most precise match */
+                    match_len = len;
+                    match = p;
+                }
             }
         }
     }
@@ -787,7 +794,7 @@ webserver_response(
         size_t bytes;
         int    sz = get_hse_version(NULL, 0) + 1;
 
-        http_status = MHD_HTTP_NOT_IMPLEMENTED;
+        http_status = MHD_HTTP_NOT_FOUND;
 
         /* REST API version */
         if (strcmp(method, MHD_HTTP_METHOD_GET) == 0 && strcasecmp(path, "version") == 0) {

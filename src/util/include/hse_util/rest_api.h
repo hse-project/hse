@@ -16,7 +16,9 @@
 
 enum rest_url_flags {
     URL_FLAG_NONE = 0,
-    URL_FLAG_BINVAL = 1,
+    URL_FLAG_BINVAL = 1 << 1,
+    URL_FLAG_EXACT =
+        1 << 2, /* Whether the registered route should match exactly with the requested route */
 };
 
 struct kv_iter;
