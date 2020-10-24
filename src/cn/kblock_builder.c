@@ -834,7 +834,7 @@ static merr_t
 kblock_finish(struct kblock_builder *bld, struct wbb *ptree)
 {
     struct bloom_hdr_omf blm_hdr;
-    struct wbt_hdr_omf   wbt_hdr;
+    struct wbt_hdr_omf   wbt_hdr = { 0 };
     struct wbt_hdr_omf   pt_hdr = { 0 };
     struct mblock_props  mbprop;
 
@@ -884,18 +884,23 @@ kblock_finish(struct kblock_builder *bld, struct wbb *ptree)
     iov[0].iov_len = KBLOCK_HDR_LEN;
 
     /* Finalize the wbtree.  May increase kblk->wbt_pgc. */
+    assert(kblk->wbtree);
     wbb_hdr_init(kblk->wbtree, &wbt_hdr);
-    err = wbb_freeze(
-        kblk->wbtree,
-        &wbt_hdr,
-        kblk->wbt_pgc + free_pgc(kblk),
-        &kblk->wbt_pgc,
-        iov + iov_cnt,
-        iov_max,
-        &i);
-    if (ev(err))
-        goto errout;
-    iov_cnt += i;
+    if (wbb_entries(kblk->wbtree)) {
+        err = wbb_freeze(
+            kblk->wbtree,
+            &wbt_hdr,
+            kblk->wbt_pgc + free_pgc(kblk),
+            &kblk->wbt_pgc,
+            iov + iov_cnt,
+            iov_max,
+            &i);
+        if (ev(err))
+            goto errout;
+        iov_cnt += i;
+    } else {
+        kblk->wbt_pgc = 0;
+    }
 
     /* Finalize Bloom filter. */
     err = _kblock_finish_bloom(kblk, &blm_hdr);
