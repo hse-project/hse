@@ -314,24 +314,20 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_rest, cn_tree_view_create_failure, test_pre, test_
     mapi_inject_unset(mapi_idx_cn_tree_view_create);
 }
 
+/* The tested non-exact paths should return an error
+ */
 MTF_DEFINE_UTEST_PREPOST(kvdb_rest, unexact_paths, test_pre, test_post)
 {
     char   path[128];
-    char   buf[1024];
     merr_t err;
 
     snprintf(path, sizeof(path), "mpool/%s/kvs/%s", MP, KVS1);
-
-    memset(buf, 0, sizeof(buf));
-    err = curl_get(path, sock, buf, sizeof(buf));
-    ASSERT_EQ(0, buf[0]);
-    ASSERT_EQ(0, err);
+    err = curl_get(path, sock, NULL, 0);
+    ASSERT_NE(0, err);
 
     snprintf(path, sizeof(path), "mpool/%s/kkk", MP);
-    memset(buf, 0, sizeof(buf));
-    err = curl_get(path, sock, buf, sizeof(buf));
-    ASSERT_EQ(0, buf[0]);
-    ASSERT_EQ(0, err);
+    err = curl_get(path, sock, NULL, 0);
+    ASSERT_NE(0, err);
 }
 
 /* Tests to verify yaml output of the cn_tree
@@ -605,7 +601,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_rest, t_curperf, test_pre, test_post)
     } testcases[] = {
 
         { true, "" },
-        { true, "xxx" }, /* tests the "verify path is exact" case */
+        { false, "xxx" }, /* tests the "verify path is exact" case */
 
         { true, "?prefix" },
         { true, "?prefix=" },

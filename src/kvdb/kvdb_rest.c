@@ -188,7 +188,7 @@ kvdb_rest_register(const char *mp_name, void *kvdb)
     if (!mp_name || !kvdb)
         return merr(ev(EINVAL));
 
-    status = rest_url_register(kvdb, URL_FLAG_NONE, rest_kvdb_get, 0, "mpool/%s", mp_name);
+    status = rest_url_register(kvdb, URL_FLAG_EXACT, rest_kvdb_get, 0, "mpool/%s", mp_name);
 
     if (ev(status) && !err)
         err = status;
@@ -937,13 +937,19 @@ kvs_rest_register(const char *mp_name, const char *kvs_name, void *kvs)
         return merr(ev(EINVAL));
 
     status = rest_url_register(
-        kvs, URL_FLAG_NONE, rest_kvs_tree, 0, "mpool/%s/kvs/%s/cn/tree", mp_name, kvs_name);
+        kvs, URL_FLAG_EXACT, rest_kvs_tree, 0, "mpool/%s/kvs/%s/cn/tree", mp_name, kvs_name);
 
     if (ev(status) && !err)
         err = status;
 
     status = rest_url_register(
-        kvs, URL_FLAG_BINVAL, rest_kvs_curperf, 0, "mpool/%s/kvs/%s/curperf", mp_name, kvs_name);
+        kvs,
+        URL_FLAG_BINVAL | URL_FLAG_EXACT,
+        rest_kvs_curperf,
+        0,
+        "mpool/%s/kvs/%s/curperf",
+        mp_name,
+        kvs_name);
 
     if (ev(status) && !err)
         err = status;
