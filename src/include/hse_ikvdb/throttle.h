@@ -24,10 +24,15 @@ enum {
 
 #define THROTTLE_INIT_POLICY_NAME_LEN_MAX 32
 
-#define THROTTLE_DELAY_START_DEFAULT 4194303
-#define THROTTLE_DELAY_START_MEDIUM   731241
-#define THROTTLE_DELAY_START_LIGHT    251137
-
+/* Raw delay values.
+ * Use throttle_raw_to_rate to convert to byte rate.
+ * Comments show the corresponding rate.
+ */
+#define THROTTLE_DELAY_MAX           268435456  /*        500,000  bytes/sec */
+#define THROTTLE_DELAY_START_DEFAULT   4194303  /*     32,000,007  bytes/sec */
+#define THROTTLE_DELAY_START_MEDIUM     731241  /*    183,547,869  bytes/sec */
+#define THROTTLE_DELAY_START_LIGHT      251137  /*    534,440,277  bytes/sec */
+#define THROTTLE_DELAY_MIN                8192  /* 16,384,000,000  bytes/sec */
 
 #define THROTTLE_SMAX_CNT 24
 #define THROTTLE_REDUCE_CYCLES 200
@@ -36,8 +41,6 @@ enum {
 #define THROTTLE_DELTA_CYCLES 32
 #define THROTTLE_LMAX_CYCLES 400
 #define THROTTLE_SENSOR_SCALE 1000
-#define THROTTLE_DELAY_MIN 8192
-#define THROTTLE_DELAY_MAX 268435456
 #define THROTTLE_MAX_RUN 6
 
 /**
@@ -200,7 +203,7 @@ throttle_init_params(struct throttle *self, struct kvdb_rparams *rp);
 void
 throttle_fini(struct throttle *self);
 
-void
+uint
 throttle_update(struct throttle *self);
 
 bool
@@ -234,5 +237,15 @@ throttle_reduce_debug(struct throttle *self, uint value, uint mavg);
  */
 long
 throttle(struct throttle *self, u64 start, u32 len);
+
+static inline
+u64
+throttle_raw_to_rate(unsigned raw_delay)
+{
+    if (unlikely(raw_delay == 0))
+        return U64_MAX;
+
+    return (500000ul * THROTTLE_DELAY_MAX) / raw_delay;
+}
 
 #endif

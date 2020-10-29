@@ -38,8 +38,6 @@ struct kvdb_rparams {
     unsigned int throttle_disable;
     unsigned int perfc_enable;
 
-    unsigned long throttle_update_ns;
-
     unsigned long c0_heap_cache_sz_max;
     unsigned long c0_heap_sz;
     unsigned int  c0_debug;
@@ -76,11 +74,14 @@ struct kvdb_rparams {
     unsigned long dur_throttle_lo_th;
     unsigned long dur_throttle_hi_th;
 
+    unsigned long throttle_update_ns;
     unsigned int  throttle_relax;
     unsigned int  throttle_debug;
     unsigned int  throttle_debug_intvl_s;
     unsigned long throttle_c0_hi_th;
     unsigned long throttle_sleep_min_ns;
+    unsigned long throttle_burst;
+    unsigned long throttle_rate;
     char          throttle_init_policy[THROTTLE_INIT_POLICY_NAME_LEN_MAX];
 
     /* The following fields are typically only accessed by kvdb open
