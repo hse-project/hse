@@ -1322,11 +1322,11 @@ ikvdb_open(
     if (rp.low_mem || mavail < 32)
         ikvdb_low_mem_adjust(self);
 
-    tbkt_init(&self->ikdb_tb, self->ikdb_rp.throttle_burst, self->ikdb_rp.throttle_rate);
-
     kvdb_rparams_print(&rp);
 
     throttle_init(&self->ikdb_throttle, &self->ikdb_rp);
+    throttle_init_params(&self->ikdb_throttle, &self->ikdb_rp);
+    tbkt_init(&self->ikdb_tb, self->ikdb_rp.throttle_burst, self->ikdb_rp.throttle_rate);
 
     if (!self->ikdb_rdonly) {
         err = csched_create(
@@ -1453,7 +1453,6 @@ ikvdb_open(
 
     ikvdb_rest_register(self, *handle);
 
-    throttle_init_params(&self->ikdb_throttle, &self->ikdb_rp);
     ikvdb_init_throttle_params(self);
 
     return 0;
