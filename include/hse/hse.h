@@ -465,6 +465,12 @@ hse_kvs_delete(
  * in progress, then that iteration can fail if hse_kvs_prefix_delete() is called with
  * a filter matching the iteration. This function is thread safe.
  *
+ * If hse_kvs_prefix_delete() is called from a transaction context, it affects no
+ * key-value mutations that are part of the same transaction. Stated differently, for
+ * KVS commands issued within a transaction, all calls to hse_kvs_prefix_delete() are
+ * treated as though they were issued serially at the beginning of the transaction
+ * regardless of the actual order these commands appeared in.
+ *
  * @param kvs:         KVS handle from hse_kvdb_kvs_open()
  * @param opspec:      KVDB op struct
  * @param filt:        Filter for keys to delete
