@@ -230,8 +230,11 @@ c1_open(
     c1->c1_cningestid = cningestid;
 
     err = c1_replay(c1);
-    if (ev(err))
+    if (ev(err)) {
+        if (health)
+            kvdb_health_error(health, err);
         goto err_exit2;
+    }
 
     c1_journal_set_info(jrnl, rparams->dur_intvl_ms, rparams->dur_buf_sz);
 

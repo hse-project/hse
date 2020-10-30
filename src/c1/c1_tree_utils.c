@@ -415,9 +415,6 @@ c1_tree_replay_nextkey(
             return err;
         }
 
-        seqno = vtm.c1vm_seqno;
-        tomb = (vtm.c1vm_tomb == 1) ? true : false;
-
         err = c1_record_type2len(C1_TYPE_VT, c1->c1_version, &len);
         if (ev(err))
             return err;
@@ -425,8 +422,8 @@ c1_tree_replay_nextkey(
         value += len;
         value += vlen;
 
-        assert(seqno >= minseqno);
-        assert(seqno <= maxseqno);
+        seqno = vtm.c1vm_seqno;
+        assert(seqno >= minseqno && seqno <= maxseqno && seqno >= c1ingestid);
         assert(c1_cningestid(c1) >= CNDB_DFLT_INGESTID || c1ingestid > c1_cningestid(c1));
 
         /*
@@ -440,6 +437,7 @@ c1_tree_replay_nextkey(
         vdata = vtm.c1vm_data;
         vlen = vtm.c1vm_xlen;
 
+        tomb = (vtm.c1vm_tomb == 1) ? true : false;
         if (tomb)
             vlen = 0;
 
@@ -496,11 +494,20 @@ c1_tree_replay_kvb(struct c1 *c1, struct c1_tree *tree, u64 mutation, u64 txnid)
     u64            kvb_bundles, kvb_replayed;
     merr_t         err;
 
+    if (ev(!txnid || !mutation)) {
+        hse_log(
+            HSE_ERR "Invalid txnid %lu or mutation %lu in c1 version %u",
+            txnid,
+            mutation,
+            c1->c1_version);
+        return merr(EINVAL);
+    }
+
     kvb_bundles = kvb_replayed = 0;
 
     list_for_each_entry_safe (kvb, tmpkvb, &tree->c1t_kvb_list, c1kvb_list) {
 
-        if ((mutation != (u64)-1) && kvb->c1kvb_mutation > mutation)
+        if (kvb->c1kvb_mutation > mutation)
             break;
 
         /* Determine flush boundary based on ingestid. A kv bundle
@@ -512,22 +519,21 @@ c1_tree_replay_kvb(struct c1 *c1, struct c1_tree *tree, u64 mutation, u64 txnid)
          */
         if (c1ingestid != U64_MAX && kvb->c1kvb_ingestid != c1ingestid &&
             c1_should_replay(c1_cningestid(c1), c1ingestid)) {
-            err = ikvdb_flush(c1_ikvdb(c1));
+            err = ikvdb_sync(c1_ikvdb(c1));
             if (ev(err))
                 return err;
         }
 
         c1ingestid = kvb->c1kvb_ingestid;
+        assert(kvb->c1kvb_minseqno >= c1ingestid);
+        assert(kvb->c1kvb_txnid);
 
         /* For tx replay, replay all kv bundles containing this txnid.
          * For non-tx replay, replay all kv bundles having mutation
          * no. <= to the mutation no. passed by the caller.
          */
-        if ((txnid && txnid == kvb->c1kvb_txnid) ||
-            (!txnid && !kvb->c1kvb_txnid && kvb->c1kvb_mutation <= mutation)) {
+        if (txnid == kvb->c1kvb_txnid) {
             bool ingestable;
-
-            assert(!txnid || (txnid && kvb->c1kvb_mutation <= mutation));
 
             ingestable = c1_should_replay(c1_cningestid(c1), kvb->c1kvb_ingestid);
             if (ingestable) {
@@ -547,8 +553,14 @@ c1_tree_replay_kvb(struct c1 *c1, struct c1_tree *tree, u64 mutation, u64 txnid)
     }
 
     if (kvb_replayed < kvb_bundles)
-        hse_log(HSE_ERR "%s: mut %lu, txnid %lu, c1ingestid %lu, replayed %lu of %lu bundles",
-                __func__, mutation, c1ingestid, txnid, kvb_bundles, kvb_replayed);
+        hse_log(
+            HSE_ERR "%s: mut %lu, txnid %lu, c1ingestid %lu, replayed %lu of %lu bundles",
+            __func__,
+            mutation,
+            c1ingestid,
+            txnid,
+            kvb_bundles,
+            kvb_replayed);
 
     return 0;
 }
@@ -563,17 +575,6 @@ c1_tree_replay_txn(struct c1 *c1, struct c1_tree *tree)
     list_for_each_entry_safe (txn, tmptxn, &tree->c1t_txn_list, c1txn_list) {
         list_del(&txn->c1txn_list);
 
-        /*
-         * Process non-tranactional ingests which arrived
-         * before a given transaction.
-         */
-        err = c1_tree_replay_kvb(c1, tree, txn->c1txn_mutation, 0);
-        if (ev(err))
-            return err;
-
-        /*
-         * Then process the contents of this transaction
-         */
         err = c1_tree_replay_kvb(c1, tree, txn->c1txn_mutation, txn->c1txn_id);
         if (ev(err))
             return err;
@@ -675,23 +676,9 @@ c1_tree_replay(struct c1 *c1, struct c1_tree *tree)
         return 0;
     }
 
-    /*
-     * Process transactions first. The key/value(s) which are not
-     * part of transactions, but arrive before a transaction are
-     * processed first before the transaction.
-     */
     err = c1_tree_replay_txn(c1, tree);
     if (ev(err)) {
         hse_elog(HSE_ERR "%s: c1 replay TXN failed: @@e", err, __func__);
-        return err;
-    }
-
-    /*
-     * Process key/value(s) which are not part of any tranaction.
-     */
-    err = c1_tree_replay_kvb(c1, tree, (u64)-1, 0);
-    if (ev(err)) {
-        hse_elog(HSE_ERR "%s: c1 replay KVB failed: @@e", err, __func__);
         return err;
     }
 

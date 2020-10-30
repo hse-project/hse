@@ -1203,8 +1203,6 @@ kbb_finish(struct kblock_builder *bld, struct blk_list *kblks, u64 seqno_min, u6
             (KBLOCK_HDR_PAGES + HLOG_PGC + bld->curr.blm_pgc + wbb_page_cnt_get(bld->curr.wbtree)) *
             PAGE_SIZE;
 
-        hse_log(HSE_DEBUG "kbsize %lu kbused %lu ptsize %lu", kbsize, kbused, ptsize);
-
         /* Write ptree here if we have enough space */
         if ((kbused + ptsize < kbsize)) {
             pt_kblock = false;
