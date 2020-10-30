@@ -2596,6 +2596,13 @@ ikvdb_kvs_cursor_update(struct hse_kvs_cursor *cur, struct hse_kvdb_opspec *os)
 
     perfc_lat_record(cur->kc_pkvsl_pc, PERFC_LT_PKVSL_KVS_CURSOR_UPDATE, tstart);
 
+    /* Since the update code doesn't currently allow retrying, change the error code
+     * if it's an EAGAIN. Wherever possible, the code retries the cursor update call
+     * internally.
+     */
+    if (ev(merr_errno(cur->kc_err) == EAGAIN))
+        cur->kc_err = merr(EWOULDBLOCK);
+
     return ev(cur->kc_err);
 }
 
