@@ -383,8 +383,11 @@ c0sk_builder_add(
             seqno_prev = seqno;
 
         err = kvset_builder_add_val(
-            bldr, seqno, bonsai_val_vlen(val) ? val->bv_value : val->bv_valuep,
-            bonsai_val_ulen(val), bonsai_val_clen(val));
+            bldr,
+            seqno,
+            bonsai_val_vlen(val) ? val->bv_value : val->bv_valuep,
+            bonsai_val_ulen(val),
+            bonsai_val_clen(val));
 
         if (ev(err))
             return err;
@@ -787,6 +790,9 @@ c0sk_coalesce(struct c0sk_impl *self, struct c0_kvmultiset *kvms)
     used = c0kvms_used_get(kvms);
     hwm = self->c0sk_kvdb_rp->c0_coalesce_sz * 1024 * 1024;
     hwm = (hwm * 80) / 100;
+
+    if (atomic_read(&self->c0sk_replaying) > 0)
+        hwm *= 2;
 
     if (!hwm || self->c0sk_closing)
         delay = 0;
@@ -1604,11 +1610,7 @@ c0sk_kvset_builder_create(struct c0sk *c0sk, u32 skidx, struct kvset_builder **b
     cn = self->c0sk_cnv[skidx];
 
     err = kvset_builder_create(
-        bldrout,
-        cn,
-        cn_get_ingest_perfc(cn),
-        get_time_ns(),
-        KVSET_BUILDER_FLAGS_INGEST);
+        bldrout, cn, cn_get_ingest_perfc(cn), get_time_ns(), KVSET_BUILDER_FLAGS_INGEST);
     if (ev(err))
         return err;
 

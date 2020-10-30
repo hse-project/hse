@@ -53,7 +53,7 @@ c1_replay_version(struct c1 *c1, char *omf)
 
     if (vers.c1v_version > C1_VERSION) {
         hse_log(
-            HSE_ERR "%s Reading new OMF (version %u) with old "
+            HSE_ERR "%s: Reading new OMF (version %u) with old "
                     "binary (version %d), please upgrade.",
             __func__,
             vers.c1v_version,
@@ -62,7 +62,7 @@ c1_replay_version(struct c1 *c1, char *omf)
     }
 
     if (vers.c1v_magic != C1_MAGIC) {
-        hse_log(HSE_ERR "%s Invalid magic 0x%x", __func__, (unsigned int)vers.c1v_magic);
+        hse_log(HSE_ERR "%s: Invalid magic 0x%x", __func__, (unsigned int)vers.c1v_magic);
         return merr(ev(EINVAL));
     }
 
@@ -576,6 +576,18 @@ c1_replay(struct c1 *c1)
         hse_elog(HSE_ERR "%s: c1 journal replay failed: @@e", err, __func__);
         c1_replay_close(c1);
         return err;
+    }
+
+    if (c1->c1_version == C1_VERSION1 && !c1_is_clean(c1)) {
+        hse_log(
+            HSE_ERR "%s: Reading c1 version %u records with binary version %d is not supported,"
+                    " please downgrade and recover data.",
+            __func__,
+            c1->c1_version,
+            C1_VERSION);
+
+        c1_replay_close(c1);
+        return merr(EPROTO);
     }
 
     err = c1_replay_process_ingest(c1);
