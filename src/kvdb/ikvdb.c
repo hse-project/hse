@@ -2702,7 +2702,7 @@ ikvdb_kvs_cursor_update(struct hse_kvs_cursor *cur, struct hse_kvdb_opspec *os)
      * internally.
      */
     if (ev(merr_errno(cur->kc_err) == EAGAIN))
-        cur->kc_err = merr(EWOULDBLOCK);
+        cur->kc_err = merr(ENOTRECOVERABLE);
 
     return ev(cur->kc_err);
 }
