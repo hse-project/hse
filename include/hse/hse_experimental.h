@@ -18,26 +18,33 @@
 /* MTF_MOCK_DECL(hse_experimental) */
 
 /**
- * hse_kvdb_export_exp() - export a kvdb into files
- * @handle: kvdb handle
- * @params: configuration parameters
- * @path: export target path
+ * Export a kvdb into files
+ *
+ * This function is not thread safe.
+ *
+ * @param handle: KVDB handle hse_kvdb_open()
+ * @param params: Configuration parameters
+ * @return The function's error status
  */
 /* MTF_MOCK */
 hse_err_t
 hse_kvdb_export_exp(struct hse_kvdb *handle, struct hse_params *params, const char *path);
 
 /**
- * hse_kvdb_import_exp() - import a kvdb from files
- * @mpool_name: name of mpool
- * @path: import target path
+ * Import a kvdb from files
+ *
+ * This function is not thread safe.
+ *
+ * @param mpool_name: Mpool name
+ * @param path:       Import target path
+ * @return The function's error status
  */
 /* MTF_MOCK */
 hse_err_t
 hse_kvdb_import_exp(const char *mpool_name, const char *path);
 
 /**
- * hse_mpool_utype - unique uuid to identify hse mpools
+ * Unique uuid to identify hse mpools
  *
  * 0ccf8ce8-6f8f-11ea-adfc-248a07151670
  */
@@ -59,19 +66,23 @@ enum hse_kvs_pfx_probe_cnt {
 };
 
 /**
- * hse_kvs_prefix_probe_exp() - probe for prefix. Outputs how many matches were
- *                              encountered - zero, one or multiple.
- * @kvs:       KVS handle
- * @opspec:    specification for delete operation
- * @pfx:       prefix to be probed
- * @pfx_len:   length of @pfx
- * @found:     (output) Zero, one or multiple matches seen
- * @keybuf:    buffer which will be populated with contents of first seen key
- * @keybuf_sz: size of @keybuf
- * @key_len:   (output) length of first seen key
- * @valbuf:    buffer which will be populated with value for @keybuf
- * @valbuf_sz: size of @valbuf
- * @val_len:   (output) length of the value seen
+ * Probe for a prefix
+ *
+ * Outputs how many matches were encountered - zero, one or multiple. This function is
+ * thread safe.
+ *
+ * @param kvs:       KVS handle from hse_kvdb_kvs_open()
+ * @param opspec:    Specification for delete operation
+ * @param pfx:       Prefix to be probed
+ * @param pfx_len:   Length of @pfx
+ * @param found:     [out] Zero, one or multiple matches seen
+ * @param keybuf:    Buffer which will be populated with contents of first seen key
+ * @param keybuf_sz: Size of @keybuf
+ * @param key_len:   [out] Length of first seen key
+ * @param valbuf:    Buffer which will be populated with value for @keybuf
+ * @param valbuf_sz: Size of @valbuf
+ * @param val_len:   [out] Length of the value seen
+ * @return The function's error status
  */
 hse_err_t
 hse_kvs_prefix_probe_exp(
@@ -88,12 +99,14 @@ hse_kvs_prefix_probe_exp(
     size_t *                    val_len);
 
 /**
- * hse_params_err_exp() - retrieve last error message
- * @params: configuration parameters
- * @buf:    output buffer
- * @buf_sz: size of buffer
+ * Retrieve the last error message
  *
- * Returns a pointer to the provided buffer.
+ * This function is not thread safe.
+ *
+ * @param params: Configuration parameters
+ * @param buf:    Output buffer
+ * @param buf_sz: Size of buffer
+ * @return A pointer to the provided buffer.
  */
 char *
 hse_params_err_exp(const struct hse_params *params, char *buf, size_t buf_sz);
