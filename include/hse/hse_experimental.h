@@ -20,7 +20,8 @@
 /**
  * Export a kvdb into files
  *
- * This function is not thread safe.
+ * This function is not thread safe. Note that calling other functions that alter the
+ * state of the KVDB while it is being exported is also not supported.
  *
  * @param handle: KVDB handle hse_kvdb_open()
  * @param params: Configuration parameters
@@ -33,7 +34,8 @@ hse_kvdb_export_exp(struct hse_kvdb *handle, struct hse_params *params, const ch
 /**
  * Import a kvdb from files
  *
- * This function is not thread safe.
+ * This function is not thread safe. Note that calling other functions that alter the
+ * state of the mpool while it is being imported is also not supported.
  *
  * @param mpool_name: Mpool name
  * @param path:       Import target path
