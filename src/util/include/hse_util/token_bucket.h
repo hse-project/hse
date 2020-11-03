@@ -19,6 +19,7 @@ struct tbkt {
     u64        tb_rate;
     u64        tb_refill_time;
     u64        tb_dt_max;
+    u64        tb_requests;
 };
 
 /* MTF_MOCK */

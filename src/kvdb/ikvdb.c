@@ -165,7 +165,14 @@ struct ikvdb_impl {
     struct kvdb_callback     ikdb_c1_callback;
     struct hse_params *      ikdb_profile;
 
-    struct tbkt  ikdb_tb  __aligned(SMP_CACHE_BYTES * 2);
+#define IKDB_TBC 7
+    struct {
+        struct tbkt tb __aligned(SMP_CACHE_BYTES * 2);
+    }  ikdb_tbv[IKDB_TBC];
+
+    u64 ikdb_tb_burst;
+    u64 ikdb_tb_rate;
+
     u64          ikdb_tb_dbg;
     u64          ikdb_tb_dbg_next;
     atomic64_t   ikdb_tb_dbg_ops;
@@ -731,7 +738,11 @@ ikvdb_tb_configure(
     u64                 rate,
     bool                initialize)
 {
-    burst = burst;
+    /* Divide burst and rate evenly among token buckets.
+     * Don't worry that we lose up to IKDB_TBC-1 tokens since IKDB_TBC
+     * is small and burst/rate values are large.
+     */
+    burst = burst / IKDB_TBC;
     rate  = rate  / IKDB_TBC;
 
     for (int i = 0; i < IKDB_TBC; i++) {
@@ -746,33 +757,24 @@ static
 void
 ikvdb_rate_limit_set(struct ikvdb_impl *self, u64 rate)
 {
+    u64 burst = rate / 2;
+
     /* cache debug params from KVDB runtime params */
     self->ikdb_tb_dbg = self->ikdb_rp.throttle_debug & THROTTLE_DEBUG_TB_MASK;
 
     if (self->ikdb_tb_dbg & THROTTLE_DEBUG_TB_OLD)
         return;
 
-    if (!(self->ikdb_tb_dbg & THROTTLE_DEBUG_TB_MANUAL)) {
+    /* debug: manual control: get burst and rate from rparams  */
+    if (unlikely(self->ikdb_tb_dbg & THROTTLE_DEBUG_TB_MANUAL)) {
+        burst = self->ikdb_rp.throttle_burst;
+        rate  = self->ikdb_rp.throttle_rate;
+    }
 
-        /* normal operating mode */
-        tbkt_adjust(&self->ikdb_tb, rate/2, rate);
-
-    } else {
-
-        /* debug: manual control */
-        u64     cur_burst = tbkt_burst_get(&self->ikdb_tb);
-        u64     cur_rate  = tbkt_rate_get(&self->ikdb_tb);
-        u64     new_burst;
-        u64     new_rate;
-
-        new_burst = self->ikdb_rp.throttle_burst;
-        new_rate  = self->ikdb_rp.throttle_rate;
-
-        if (!new_burst) new_burst = cur_burst;
-        if (!new_rate)  new_rate  = cur_rate;
-
-        if (cur_burst != new_burst || cur_rate != new_rate)
-            tbkt_adjust(&self->ikdb_tb, new_burst, new_rate);
+    if (burst != self->ikdb_tb_burst || rate != self->ikdb_tb_rate) {
+        self->ikdb_tb_burst = burst;
+        self->ikdb_tb_rate = rate;
+        ikvdb_tb_configure(self, self->ikdb_tb_burst, self->ikdb_tb_rate, false);
     }
 
     if (self->ikdb_tb_dbg) {
@@ -789,14 +791,20 @@ ikvdb_rate_limit_set(struct ikvdb_impl *self, u64 rate)
             hse_log(
                 HSE_NOTICE
                 " tbkt_debug: manual %d shunt %d ops %8ld  bytes %10ld"
-                " sleep_ns %12ld burst %10lu rate %10lu raw %10ld balance %9ld",
+                " sleep_ns %12ld burst %10lu rate %10lu raw %10ld"
+                " balance %ld %ld %ld ops %lu %lu %lu",
                 (bool)(self->ikdb_tb_dbg & THROTTLE_DEBUG_TB_MANUAL),
                 (bool)(self->ikdb_tb_dbg & THROTTLE_DEBUG_TB_SHUNT),
                 dbg_ops, dbg_bytes, dbg_sleep_ns,
-                tbkt_burst_get(&self->ikdb_tb),
-                tbkt_rate_get(&self->ikdb_tb),
+                self->ikdb_tb_burst,
+                self->ikdb_tb_rate,
                 throttle_delay(&self->ikdb_throttle),
-                (s64)self->ikdb_tb.tb_balance);
+                (s64)self->ikdb_tbv[0].tb.tb_balance,
+                (s64)self->ikdb_tbv[1].tb.tb_balance,
+                (s64)self->ikdb_tbv[2].tb.tb_balance,
+                self->ikdb_tbv[0].tb.tb_requests,
+                self->ikdb_tbv[1].tb.tb_requests,
+                self->ikdb_tbv[2].tb.tb_requests);
 
             atomic64_sub(dbg_ops, &self->ikdb_tb_dbg_ops);
             atomic64_sub(dbg_bytes, &self->ikdb_tb_dbg_bytes);
@@ -1374,7 +1382,11 @@ ikvdb_open(
 
     throttle_init(&self->ikdb_throttle, &self->ikdb_rp);
     throttle_init_params(&self->ikdb_throttle, &self->ikdb_rp);
-    tbkt_init(&self->ikdb_tb, self->ikdb_rp.throttle_burst, self->ikdb_rp.throttle_rate);
+
+    self->ikdb_tb_burst = self->ikdb_rp.throttle_burst;
+    self->ikdb_tb_rate  = self->ikdb_rp.throttle_rate;
+
+    ikvdb_tb_configure(self, self->ikdb_tb_burst, self->ikdb_tb_rate, true);
 
     if (!self->ikdb_rdonly) {
         err = csched_create(
@@ -2115,17 +2127,18 @@ ikvdb_throttle(struct ikvdb_impl *p, u64 start, u32 len)
         perfc_rec_sample(&kvdb_metrics_pc, PERFC_DI_KVDBMETRICS_THROTTLE, delay);
 }
 
-
 static
 void
 ikvdb_throttle2(struct ikvdb_impl *self, u64 bytes)
 {
     u64 sleep_ns;
+    uint bkt;
 
     if (!throttle_active(&self->ikdb_throttle))
         return;
 
-    sleep_ns = tbkt_request(&self->ikdb_tb, bytes);
+    bkt = xrand32() % IKDB_TBC;
+    sleep_ns = tbkt_request(&self->ikdb_tbv[bkt].tb, bytes);
     tbkt_delay(sleep_ns);
 
     if (self->ikdb_tb_dbg) {

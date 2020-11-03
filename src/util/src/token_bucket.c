@@ -184,6 +184,8 @@ tbkt_request(struct tbkt *self, u64 request)
 
     spin_lock(&self->tb_lock);
 
+    ++self->tb_requests;
+
     /* Refill the bucket based on elapsed time. */
     tbkti_refill(self);
 
