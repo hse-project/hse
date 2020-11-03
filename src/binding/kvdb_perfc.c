@@ -39,8 +39,10 @@ struct perfc_name kvdb_perfc_op[] = {
        "Count of kvs_cursor_destroy",
        "c_kvs_cursor_destroy(/s)"),
 
-    NE(PERFC_BA_KVDBOP_KVS_PUTB, 1, "Total puts size (bytes)", "c_kvs_put_bytes"),
-    NE(PERFC_BA_KVDBOP_KVS_GETB, 1, "Total gets size (bytes)", "c_kvs_get_bytes"),
+    NE(PERFC_BA_KVDBOP_KVS_PUTB,     1, "kvs_put klen+vlen", "c_kvs_put_bytes"),
+    NE(PERFC_BA_KVDBOP_KVS_GETB,     1, "kvs_get klen+vlen", "c_kvs_get_bytes"),
+    NE(PERFC_BA_KVDBOP_KVS_DELB,     1, "kvs_del klen",      "c_kvs_del_bytes"),
+    NE(PERFC_BA_KVDBOP_KVS_PFX_DELB, 1, "kvs_pfxdel klen",   "c_kvs_pfxdel_bytes"),
 
     NE(PERFC_RA_KVDBOP_KVDB_MAKE, 3, "Count of kvdb_make", "c_kvdb_make(/s)"),
     NE(PERFC_RA_KVDBOP_KVDB_OPEN, 3, "Count of kvdb_open", "c_kvdb_open(/s)"),

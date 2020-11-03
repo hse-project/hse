@@ -384,13 +384,14 @@ hse_kvs_put(
     if (unlikely(val_len > HSE_KVS_VLEN_MAX))
         return merr(EMSGSIZE);
 
-    PERFC_INCADD_RU(
-        &kvdb_pc, PERFC_RA_KVDBOP_KVS_PUT, PERFC_BA_KVDBOP_KVS_PUTB, key_len + val_len, 128);
-
     kvs_ktuple_init_nohash(&kt, key, key_len);
     kvs_vtuple_init(&vt, (void *)val, val_len);
 
     err = ikvdb_kvs_put(handle, os, &kt, &vt);
+
+    if (!err)
+        PERFC_INCADD_RU(
+            &kvdb_pc, PERFC_RA_KVDBOP_KVS_PUT, PERFC_BA_KVDBOP_KVS_PUTB, key_len + val_len, 128);
 
     return err;
 }
@@ -474,11 +475,14 @@ hse_kvs_delete(struct hse_kvs *handle, struct hse_kvdb_opspec *os, const void *k
     if (ev(err))
         return err;
 
-    perfc_inc(&kvdb_pc, PERFC_RA_KVDBOP_KVS_DEL);
 
     kvs_ktuple_init_nohash(&kt, key, key_len);
 
     err = ikvdb_kvs_del(handle, os, &kt);
+
+    if (!err)
+        PERFC_INCADD_RU(
+            &kvdb_pc, PERFC_RA_KVDBOP_KVS_DEL, PERFC_BA_KVDBOP_KVS_DELB, key_len, 128);
 
     return err;
 }
@@ -501,11 +505,14 @@ hse_kvs_prefix_delete(
     else if (ev(key_len > HSE_KVS_MAX_PFXLEN))
         return merr(ENAMETOOLONG);
 
-    perfc_inc(&kvdb_pc, PERFC_RA_KVDBOP_KVS_PFX_DEL);
-
     kvs_ktuple_init(&kt, prefix_key, key_len);
 
     err = ikvdb_kvs_prefix_delete(handle, os, &kt, kvs_pfx_len);
+
+    if (!err)
+        PERFC_INCADD_RU(
+            &kvdb_pc, PERFC_RA_KVDBOP_KVS_PFX_DEL, PERFC_BA_KVDBOP_KVS_PFX_DELB, key_len, 128);
+
 
     return err;
 }
@@ -770,7 +777,7 @@ hse_kvs_cursor_read(
             &kvdb_pc,
             PERFC_RA_KVDBOP_KVS_CURSOR_READ,
             PERFC_BA_KVDBOP_KVS_GETB,
-            *klen + *klen,
+            *klen + *vlen,
             128);
     }
 

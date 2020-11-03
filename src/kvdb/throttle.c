@@ -426,7 +426,7 @@ throttle_switch_state(struct throttle *self, enum throttle_state state, uint max
     }
 }
 
-void
+uint
 throttle_update(struct throttle *self)
 {
     struct throttle_mavg *mavg = &self->thr_mavg;
@@ -592,6 +592,8 @@ throttle_update(struct throttle *self)
         if (self->thr_cycles % debug_intvl_cycles == 0)
             throttle_debug(self);
     }
+
+    return self->thr_delay_raw;
 }
 
 void

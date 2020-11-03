@@ -47,10 +47,7 @@ kvdb_rparams_defaults(void)
 {
     struct kvdb_rparams k = {
         .read_only = 0,
-        .throttle_disable = 0,
         .perfc_enable = 2,
-
-        .throttle_update_ns = 250 * 100 * 1000,
 
         .c0_heap_cache_sz_max = HSE_C0_CCACHE_SZ_MAX,
         .c0_heap_sz = 0,
@@ -89,6 +86,13 @@ kvdb_rparams_defaults(void)
         .dur_throttle_lo_th = 90,
         .dur_throttle_hi_th = 150,
 
+        /* Initial burst and rate will be updated by the throttler,
+         * but initial values should be low to avoid surprises during startup.
+         */
+        .throttle_disable = 0,
+        .throttle_update_ns = 25 * 1000 * 1000,
+        .throttle_burst = 10ul << 20,
+        .throttle_rate = 10ul << 20,
         .throttle_relax = 1,
         .throttle_debug = 0,
         .throttle_debug_intvl_s = 300,
@@ -116,10 +120,7 @@ kvdb_rparams_defaults(void)
 static struct kvdb_rparams kvdb_rp_ref;
 static struct param_inst   kvdb_rp_table[] = {
     KVDB_PARAM_U32(read_only, "readonly flag"),
-    KVDB_PARAM_U32_EXP(throttle_disable, "disable sleep throttle"),
     KVDB_PARAM_U32_EXP(perfc_enable, "0: disable, 1: enable"),
-
-    KVDB_PARAM_EXP(throttle_update_ns, "throttle update sensors time in ns"),
 
     KVDB_PARAM_EXP(c0_heap_cache_sz_max, "max size of cheap cache (bytes)"),
     KVDB_PARAM_EXP(c0_heap_sz, "cheap or malloc size"),
@@ -156,12 +157,17 @@ static struct param_inst   kvdb_rp_table[] = {
     KVDB_PARAM_EXP(dur_throttle_lo_th, "low watermark for throttling in percentage"),
     KVDB_PARAM_EXP(dur_throttle_hi_th, "high watermark for throttling in percentage"),
     KVDB_PARAM_EXP(dur_throttle_enable, "enable durablity throttling"),
+
+    KVDB_PARAM_U32_EXP(throttle_disable, "disable sleep throttle"),
+    KVDB_PARAM_EXP(throttle_update_ns, "throttle update sensors time in ns"),
     KVDB_PARAM_U32_EXP(throttle_relax, "throttle relax"),
     KVDB_PARAM_U32_EXP(throttle_debug, "throttle debug"),
     KVDB_PARAM_U32_EXP(throttle_debug_intvl_s, "throttle debug interval (secs)"),
     KVDB_PARAM_EXP(throttle_sleep_min_ns, "nanosleep time overhead (nsecs)"),
     KVDB_PARAM_EXP(throttle_c0_hi_th, "throttle sensor: c0 high water mark (MiB)"),
     KVDB_PARAM_STR(throttle_init_policy, "throttle initialization policy"),
+    KVDB_PARAM_EXP(throttle_burst, "initial throttle burst size (bytes)"),
+    KVDB_PARAM_EXP(throttle_rate, "initial throttle rate (bytes/sec)"),
 
     KVDB_PARAM_U32(log_lvl, "log message verbosity. Range: 0 to 7."),
     KVDB_PARAM_EXP(log_squelch_ns, "drop messages repeated within nsec window"),
@@ -185,6 +191,10 @@ static struct param_inst   kvdb_rp_table[] = {
 static char const *const kvdb_rp_writable[] = {
     "c0_debug",
     "throttle_debug",
+    "throttle_debug_intvl_s",
+    "throttle_update_ns",
+    "throttle_burst",
+    "throttle_rate",
     "csched_policy",
     "csched_qthreads",
     "csched_node_len_max",
