@@ -1,5 +1,6 @@
+/* SPDX-License-Identifier: CC0-1.0 */
 /*
- * Copyright (C) 2015-2018 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
  */
 
 #ifndef HSE_XOROSHIRO_H
@@ -20,7 +21,7 @@
  */
 
 static inline uint64_t
-rotl(const uint64_t x, int k)
+xoroshiro_rotl(const uint64_t x, int k)
 {
 	return (x << k) | (x >> (64 - k));
 }
@@ -49,8 +50,8 @@ xoroshiro128plus(uint64_t *s)
 	const uint64_t result = s0 + s1;
 
 	s1 ^= s0;
-	s[0] = rotl(s0, 55) ^ s1 ^ (s1 << 14); /* a, b */
-	s[1] = rotl(s1, 36); /* c */
+	s[0] = xoroshiro_rotl(s0, 55) ^ s1 ^ (s1 << 14); /* a, b */
+	s[1] = xoroshiro_rotl(s1, 36); /* c */
 
 	return result;
 }
