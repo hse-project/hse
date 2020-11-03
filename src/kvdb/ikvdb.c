@@ -59,6 +59,7 @@
 
 #include <3rdparty/xxhash.h>
 #include <3rdparty/cJSON.h>
+#include <3rdparty/xoroshiro.h>
 
 #include "kvdb_rest.h"
 #include "kvdb_params.h"
@@ -692,6 +693,53 @@ out:
     kvdb_log_close(log);
 
     return err;
+}
+
+static __thread int xrand_initialized;
+static __thread uint64_t xrand_state[2];
+
+static void
+xrand_init(uint64_t seed)
+{
+    xrand_initialized = 1;
+    xoroshiro128plus_init(xrand_state, seed);
+}
+
+#if 0
+static uint64_t
+xrand64(void)
+{
+    if (unlikely(!xrand_initialized))
+        xrand_init(get_time_ns());
+    return xoroshiro128plus(xrand_state);
+}
+#endif
+
+static uint32_t
+xrand32(void)
+{
+    if (unlikely(!xrand_initialized))
+        xrand_init(get_time_ns());
+    return xoroshiro128plus(xrand_state);
+}
+
+static inline
+void
+ikvdb_tb_configure(
+    struct ikvdb_impl  *self,
+    u64                 burst,
+    u64                 rate,
+    bool                initialize)
+{
+    burst = burst;
+    rate  = rate  / IKDB_TBC;
+
+    for (int i = 0; i < IKDB_TBC; i++) {
+        if (initialize)
+            tbkt_init(&self->ikdb_tbv[i].tb, burst, rate);
+        else
+            tbkt_adjust(&self->ikdb_tbv[i].tb, burst, rate);
+    }
 }
 
 static
