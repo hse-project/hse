@@ -9,7 +9,11 @@
 /* MTF_MOCK_DECL(slab) */
 
 #include <hse_util/hse_err.h>
-#include <hse_util/gfp.h>
+
+#define __GFP_ZERO 0x00000001
+#define GFP_KERNEL 0x00000004
+
+typedef unsigned gfp_t;
 
 #define SLAB_HWCACHE_ALIGN 0x00002000ul
 
@@ -60,6 +64,10 @@ kmem_cache_zalloc(struct kmem_cache *cache, gfp_t flags)
 }
 
 #pragma GCC visibility pop
+
+unsigned long __get_free_page(gfp_t flags);
+unsigned long get_zeroed_page(gfp_t flags);
+void free_page(unsigned long addr);
 
 #if HSE_UNIT_TEST_MODE
 #include "slab_ut.h"

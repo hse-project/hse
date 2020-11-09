@@ -8,7 +8,6 @@
 
 #include <hse_util/base.h>
 #include <hse_util/inttypes.h>
-#include <hse_util/gfp.h>
 
 /* MTF_MOCK_DECL(alloc) */
 
@@ -37,5 +36,7 @@ free_aligned(const void *ptr);
 #if defined(HSE_UNIT_TEST_MODE) && HSE_UNIT_TEST_MODE == 1
 #include "alloc_ut.h"
 #endif /* HSE_UNIT_TEST_MODE */
+
+#include <hse_util/slab.h>
 
 #endif
