@@ -1322,17 +1322,43 @@ kmc_rest_get(
     return merr(EINVAL);
 }
 
-unsigned long
-__get_free_page(gfp_t flags)
-{
-    if (flags & __GFP_ZERO)
-        return get_zeroed_page(flags);
+#pragma GCC visibility pop
 
+void *
+hse_page_alloc(void)
+{
+    return kmem_cache_alloc(kmc.kmc_pagecache);
+}
+
+void *
+hse_page_zalloc(void)
+{
+    void *mem;
+
+    mem = kmem_cache_alloc(kmc.kmc_pagecache);
+    if (mem)
+        memset(mem, 0, PAGE_SIZE);
+
+    return mem;
+}
+
+void
+hse_page_free(void *mem)
+{
+    kmem_cache_free(kmc.kmc_pagecache, mem);
+}
+
+/* The following clunky interfaces are going away real soon now,
+ * DO NOT use in new code.
+ */
+unsigned long
+__get_free_page(unsigned int flags)
+{
     return (ulong)kmem_cache_alloc(kmc.kmc_pagecache);
 }
 
 unsigned long
-get_zeroed_page(gfp_t flags)
+get_zeroed_page(unsigned int flags)
 {
     return (ulong)kmem_cache_zalloc(kmc.kmc_pagecache);
 }
@@ -1342,8 +1368,6 @@ free_page(unsigned long addr)
 {
     kmem_cache_free(kmc.kmc_pagecache, (void *)addr);
 }
-
-#pragma GCC visibility pop
 
 #if HSE_UNIT_TEST_MODE
 #include "slab_ut_impl.i"

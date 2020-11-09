@@ -9,7 +9,7 @@
 #include <hse_util/mtx_pool.h>
 
 struct mtx_node {
-    __aligned(64) struct mutex sn_mtx;
+    struct mutex sn_mtx __aligned(SMP_CACHE_BYTES);
     struct cv sn_cv;
 };
 
@@ -30,10 +30,8 @@ mtx_pool_create(size_t nodes)
     nodes = min_t(size_t, nodes, max);
     nodes = max_t(size_t, nodes, 1);
 
-    pool = (void *)__get_free_page(GFP_KERNEL);
+    pool = hse_page_alloc();
     if (pool) {
-        int rc __maybe_unused;
-
         pool->sp_nodec = nodes;
 
         for (i = 0; i < nodes; ++i) {
@@ -48,8 +46,7 @@ mtx_pool_create(size_t nodes)
 void
 mtx_pool_destroy(struct mtx_pool *pool)
 {
-    int rc __maybe_unused;
-    int    i;
+    int i;
 
     if (ev(!pool))
         return;
@@ -59,7 +56,7 @@ mtx_pool_destroy(struct mtx_pool *pool)
         cv_destroy(&pool->sp_nodev[i].sn_cv);
     }
 
-    free_page((ulong)pool);
+    hse_page_free(pool);
 }
 
 struct mtx_node *

@@ -58,27 +58,21 @@ MTF_DEFINE_UTEST(allocation, methods)
 
 MTF_DEFINE_UTEST(allocation, page_basic)
 {
-    void *zeropage;
-    ulong addr;
+    void *zeropage, *addr;
 
     zeropage = calloc(1, PAGE_SIZE);
     ASSERT_NE(NULL, zeropage);
 
-    addr = __get_free_page(GFP_KERNEL);
+    addr = hse_page_alloc();
     ASSERT_NE(0, addr);
-    memset((void *)addr, 0xaa, PAGE_SIZE);
-    free_page(addr);
+    memset(addr, 0xaa, PAGE_SIZE);
+    hse_page_free(addr);
 
-    addr = __get_free_page(GFP_KERNEL | __GFP_ZERO);
+    addr = hse_page_zalloc();
     ASSERT_NE(0, addr);
-    ASSERT_EQ(0, memcmp((void *)addr, zeropage, PAGE_SIZE));
-    memset((void *)addr, 0xaa, PAGE_SIZE);
-    free_page(addr);
-
-    addr = get_zeroed_page(GFP_KERNEL);
-    ASSERT_NE(0, addr);
-    ASSERT_EQ(0, memcmp((void *)addr, zeropage, PAGE_SIZE));
-    free_page(addr);
+    ASSERT_EQ(0, memcmp(addr, zeropage, PAGE_SIZE));
+    memset(addr, 0xaa, PAGE_SIZE);
+    hse_page_free(addr);
 
     free(zeropage);
 }

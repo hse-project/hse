@@ -10,11 +10,6 @@
 
 #include <hse_util/hse_err.h>
 
-#define __GFP_ZERO 0x00000001
-#define GFP_KERNEL 0x00000004
-
-typedef unsigned int gfp_t;
-
 #define SLAB_HWCACHE_ALIGN 0x00002000ul
 
 static __always_inline void *
@@ -63,8 +58,22 @@ kmem_cache_zalloc(struct kmem_cache *cache);
 
 #pragma GCC visibility pop
 
-unsigned long __get_free_page(gfp_t flags);
-unsigned long get_zeroed_page(gfp_t flags);
+/* The following hse_page_* interfaces must be visible to libmpool.
+ */
+void *
+hse_page_alloc(void);
+
+void *
+hse_page_zalloc(void);
+
+void
+hse_page_free(void *mem);
+
+/* The following clunky interfaces are going away real soon now,
+ * DO NOT use in new code.
+ */
+unsigned long __get_free_page(unsigned int flags);
+unsigned long get_zeroed_page(unsigned int flags);
 void free_page(unsigned long addr);
 
 #if HSE_UNIT_TEST_MODE

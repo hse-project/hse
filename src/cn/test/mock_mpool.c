@@ -337,7 +337,7 @@ _mpool_mcache_getpages(
         struct iovec iov;
 
         iov.iov_len = PAGE_SIZE;
-        iov.iov_base = (void *)__get_free_page(GFP_KERNEL);
+        iov.iov_base = hse_page_alloc();
         VERIFY_TRUE_RET(iov.iov_base, merr(EBUG));
 
         err = mblock_rw(map->mbidv[idx], &iov, 1, offsets[i] * PAGE_SIZE, true);
