@@ -20,6 +20,8 @@
  * http://xoroshiro.di.unimi.it/
  */
 
+#include <inttypes.h>
+
 static inline uint64_t
 xoroshiro_rotl(const uint64_t x, int k)
 {

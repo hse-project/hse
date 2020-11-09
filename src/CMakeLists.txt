@@ -73,6 +73,7 @@ set( UTIL_SOURCE_FILES
     util/src/version.c
     util/src/vlb.c
     util/src/workqueue.c
+    util/src/xrand.c
     util/src/yaml.c
     ../3rdparty/src/cJSON.c
     ../3rdparty/src/lz4.c
@@ -1256,7 +1257,7 @@ if( HSE_UNIT_TEST_FLAG )
         DEPS libcurl-ext
         LINK_LIBS
             ${UNIT_TEST_LINK_LIBS}
-            ${LIBCURL_LIBS} 
+            ${LIBCURL_LIBS}
             rt
             microhttpd
         )
@@ -1268,11 +1269,11 @@ if( HSE_UNIT_TEST_FLAG )
         DEPS libcurl-ext
         LINK_LIBS
             ${UNIT_TEST_LINK_LIBS}
-            ${LIBCURL_LIBS} 
+            ${LIBCURL_LIBS}
             rt
             microhttpd
         )
-        
+
     hse_unit_test(
         NAME data_tree_test
         SRCS
@@ -1459,6 +1460,14 @@ if( HSE_UNIT_TEST_FLAG )
         INCLUDES ${UNIT_TEST_INCLUDE_DIRS}
         LINK_LIBS
             ${UNIT_TEST_LINK_LIBS}
+        )
+
+    hse_unit_test(
+        NAME xrand_test
+        SRCS
+            util/test/xrand_test.c
+        INCLUDES ${UNIT_TEST_INCLUDE_DIRS}
+        LINK_LIBS ${UNIT_TEST_LINK_LIBS}
         )
 
 endif()
