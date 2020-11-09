@@ -147,7 +147,7 @@ hse_kvdb_make(const char *mpool_name, const struct hse_params *params)
         else if (err)
             goto errout;
 
-        mparams.mp_mblocksz[i] == 32 ? 0 : merr(EINVAL);
+        err = mparams.mp_mblocksz[i] == 32 ? 0 : merr(EINVAL);
         if (ev(err))
             goto errout;
     }
