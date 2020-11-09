@@ -138,6 +138,20 @@ hse_kvdb_make(const char *mpool_name, const struct hse_params *params)
     if (err)
         goto errout;
 
+    for (int i = 0; i < MP_MED_NUMBER; i++) {
+        struct mpool_mclass_props mcprops;
+
+        err = mpool_mclass_get(ds, i, &mcprops);
+        if (merr_errno(err) == ENOENT)
+            continue;
+        else if (err)
+            goto errout;
+
+        err = mcprops.mc_mblocksz == 32 ? 0 : merr(EINVAL);
+        if (ev(err))
+            goto errout;
+    }
+
     err = mpool_mdc_get_root(ds, &oid1, &oid2);
     if (err)
         goto errout;
@@ -206,6 +220,20 @@ hse_kvdb_open(const char *mpool_name, const struct hse_params *params, struct hs
     err = mpool_open(mpool_name, O_RDWR | O_EXCL, &kvdb_ds, NULL);
     if (ev(err))
         return err;
+
+    for (int i = 0; i < MP_MED_NUMBER; i++) {
+        struct mpool_mclass_props mcprops;
+
+        err = mpool_mclass_get(kvdb_ds, i, &mcprops);
+        if (merr_errno(err) == ENOENT)
+            continue;
+        else if (err)
+            goto close_ds;
+
+        err = mcprops.mc_mblocksz == 32 ? 0 : merr(EINVAL);
+        if (ev(err))
+            goto close_ds;
+    }
 
     err = ikvdb_open(mpool_name, kvdb_ds, params, &ikvdb);
     if (ev(err))
