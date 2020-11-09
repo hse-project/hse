@@ -139,7 +139,7 @@ wbti_alloc(struct wbti **wbti_out)
 {
     struct wbti *self;
 
-    self = kmem_cache_alloc(wbti_cache, GFP_KERNEL);
+    self = kmem_cache_alloc(wbti_cache);
     if (ev(!self))
         return merr(ENOMEM);
 

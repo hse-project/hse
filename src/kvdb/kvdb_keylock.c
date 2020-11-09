@@ -546,7 +546,7 @@ kvdb_keylock_lock(
         ctxn_locks->ctxn_locks_entryc++;
         entry->lte_kfree = false;
     } else {
-        entry = kmem_cache_alloc(kvdb_ctxn_entry_cache, GFP_KERNEL);
+        entry = kmem_cache_alloc(kvdb_ctxn_entry_cache);
         if (ev(!entry))
             return merr(ENOMEM);
 
@@ -605,7 +605,7 @@ kvdb_ctxn_locks_create(struct kvdb_ctxn_locks **locksp)
 {
     struct kvdb_ctxn_locks_impl *impl;
 
-    impl = kmem_cache_alloc(kvdb_ctxn_locks_cache, GFP_KERNEL);
+    impl = kmem_cache_alloc(kvdb_ctxn_locks_cache);
     if (ev(!impl)) {
         *locksp = NULL;
         return merr(ENOMEM);

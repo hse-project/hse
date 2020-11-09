@@ -436,7 +436,7 @@ kmc_slab_mprotect(struct kmc_slab *slab, int prot)
 }
 
 struct kmc_slab *
-kmc_slab_alloc(struct kmem_cache *zone, uint nodeid, int flags)
+kmc_slab_alloc(struct kmem_cache *zone, uint nodeid)
 {
     struct kmc_chunk *chunk;
     struct kmc_slab  *slab;
@@ -598,7 +598,7 @@ kmc_slab_ffs(struct kmc_slab *slab)
 }
 
 void *
-kmem_cache_alloc(struct kmem_cache *zone, gfp_t flags)
+kmem_cache_alloc(struct kmem_cache *zone)
 {
     struct kmc_pcpu *pcpu;
     struct kmc_slab *slab;
@@ -634,7 +634,7 @@ kmem_cache_alloc(struct kmem_cache *zone, gfp_t flags)
             nodeid = cpuid;
         }
 
-        slab = kmc_slab_alloc(zone, nodeid, flags);
+        slab = kmc_slab_alloc(zone, nodeid);
 
         pcpu = zone->zone_pcpuv + (cpuid % zone->zone_pcpuc);
 
@@ -669,11 +669,21 @@ kmem_cache_alloc(struct kmem_cache *zone, gfp_t flags)
 
     mem = (char *)slab->slab_base + idx * zone->zone_iasz;
 
-    if (flags & __GFP_ZERO)
+    return mem;
+}
+
+void *
+kmem_cache_zalloc(struct kmem_cache *zone)
+{
+    void *mem;
+
+    mem = kmem_cache_alloc(zone);
+    if (mem)
         memset(mem, 0, zone->zone_isize);
 
     return mem;
 }
+
 
 static struct kmc_slab *
 kmc_addr2slab(struct kmem_cache *zone, void *mem, uint *idxp)
@@ -935,7 +945,7 @@ kmem_cache_create(const char *name, size_t size, size_t align, ulong flags, void
                 continue;
             }
 
-            p = kmem_cache_alloc(zone, 0);
+            p = kmem_cache_alloc(zone);
             if (p)
                 kmem_cache_free(zone, p);
         }
@@ -1103,7 +1113,7 @@ kmc_test(int which, size_t size, size_t align, void *zone)
 
         case 4:
             kmem_cache_free(zone, addrv[idx]);
-            addrv[idx] = kmem_cache_alloc(zone, GFP_KERNEL);
+            addrv[idx] = kmem_cache_alloc(zone);
             break;
 
         default:
@@ -1315,13 +1325,16 @@ kmc_rest_get(
 unsigned long
 __get_free_page(gfp_t flags)
 {
-    return (ulong)kmem_cache_alloc(kmc.kmc_pagecache, flags);
+    if (flags & __GFP_ZERO)
+        return get_zeroed_page(flags);
+
+    return (ulong)kmem_cache_alloc(kmc.kmc_pagecache);
 }
 
 unsigned long
 get_zeroed_page(gfp_t flags)
 {
-    return (ulong)kmem_cache_zalloc(kmc.kmc_pagecache, flags);
+    return (ulong)kmem_cache_zalloc(kmc.kmc_pagecache);
 }
 
 void

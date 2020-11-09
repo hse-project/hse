@@ -118,7 +118,7 @@ MTF_DEFINE_UTEST(allocation, kmem_cache_basic)
     ASSERT_NE(NULL, zone);
     ASSERT_EQ(4096, kmem_cache_size(zone));
 
-    mem = kmem_cache_alloc(zone, GFP_KERNEL);
+    mem = kmem_cache_alloc(zone);
     ASSERT_NE(NULL, mem);
     kmem_cache_free(zone, mem);
     kmem_cache_free(zone, NULL);
@@ -128,7 +128,7 @@ MTF_DEFINE_UTEST(allocation, kmem_cache_basic)
     ASSERT_NE(NULL, zone);
     ASSERT_EQ(8, kmem_cache_size(zone));
 
-    mem = kmem_cache_alloc(zone, GFP_KERNEL);
+    mem = kmem_cache_alloc(zone);
     ASSERT_NE(NULL, mem);
     kmem_cache_free(zone, mem);
     kmem_cache_destroy(zone);
@@ -140,7 +140,7 @@ MTF_DEFINE_UTEST(allocation, kmem_cache_basic)
         ASSERT_NE(NULL, zonev[i]);
         ASSERT_EQ(i, kmem_cache_size(zonev[i]));
 
-        memv[i] = kmem_cache_alloc(zonev[i], GFP_KERNEL);
+        memv[i] = kmem_cache_alloc(zonev[i]);
         ASSERT_NE(NULL, memv[i]);
     }
 
@@ -179,7 +179,7 @@ uma_test_alloc(
 
             kmem_cache_free(zone, memv[idx]);
 
-            mem = kmem_cache_alloc(zone, GFP_KERNEL);
+            mem = kmem_cache_alloc(zone);
             ASSERT_NE_RET(NULL, mem, 0);
             ASSERT_TRUE_RET(IS_ALIGNED((uintptr_t)mem, align), 0);
 

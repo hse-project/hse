@@ -1315,7 +1315,7 @@ ikvs_cursor_alloc(struct ikvs *kvs, const void *prefix, size_t pfx_len, bool rev
 
     len = reverse ? HSE_KVS_KLEN_MAX : pfx_len;
 
-    cur = kmem_cache_alloc(kvs_cursor_zone, GFP_KERNEL);
+    cur = kmem_cache_alloc(kvs_cursor_zone);
     if (ev(!cur))
         return NULL;
 

@@ -256,7 +256,7 @@ cn_node_alloc(struct cn_tree *tree, uint level, uint offset)
 {
     struct cn_tree_node *tn;
 
-    tn = kmem_cache_alloc(cn_node_cache, GFP_KERNEL | __GFP_ZERO);
+    tn = kmem_cache_zalloc(cn_node_cache);
     if (ev(!tn))
         return NULL;
 

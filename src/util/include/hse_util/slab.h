@@ -51,17 +51,15 @@ kmem_cache_size(struct kmem_cache *cache);
 
 /* MTF_MOCK */
 void *
-kmem_cache_alloc(struct kmem_cache *cache, gfp_t flags);
+kmem_cache_alloc(struct kmem_cache *cache);
 
 /* MTF_MOCK */
 void
 kmem_cache_free(struct kmem_cache *cache, void *mem);
 
-static __always_inline void *
-kmem_cache_zalloc(struct kmem_cache *cache, gfp_t flags)
-{
-    return kmem_cache_alloc(cache, flags | __GFP_ZERO);
-}
+/* MTF_MOCK */
+void *
+kmem_cache_zalloc(struct kmem_cache *cache);
 
 #pragma GCC visibility pop
 

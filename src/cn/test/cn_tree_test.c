@@ -519,7 +519,7 @@ MTF_DEFINE_UTEST_PRE(test, t_cn_tree_create_node, test_setup)
     ASSERT_EQ(1 << 4, (cn_tree_get_cparams(tree))->cp_fanout);
 
     /* allocation failure */
-    api = mapi_idx_kmem_cache_alloc;
+    api = mapi_idx_kmem_cache_zalloc;
     mapi_inject_once_ptr(api, 1, NULL);
     err = cn_tree_create_node(tree, 1, 1, 0);
     ASSERT_EQ(merr_errno(err), ENOMEM);

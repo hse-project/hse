@@ -314,7 +314,7 @@ ib_new_node(struct wbb *wbb, struct intern_level *l)
     if (ib->nodec < NELEM(ib->nodev)) {
         n = ib->nodev + ib->nodec;
     } else {
-        n = kmem_cache_alloc(ib_node_cache, 0);
+        n = kmem_cache_alloc(ib_node_cache);
         if (!n)
             return merr(ENOMEM);
     }
@@ -392,7 +392,7 @@ ib_create(struct wbb *wbb)
 {
     struct intern_builder *ib;
 
-    ib = kmem_cache_alloc(ib_cache, 0);
+    ib = kmem_cache_alloc(ib_cache);
     if (ib) {
         ib->base = NULL;
         ib->wbb = wbb;

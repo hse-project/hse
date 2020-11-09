@@ -67,6 +67,7 @@ mapi_init(void)
      */
     mock_ptrs[mapi_idx_calloc] = mock_ptrs[mapi_idx_malloc];
     mock_ptrs[mapi_idx_kmem_cache_alloc] = mock_ptrs[mapi_idx_malloc];
+    mock_ptrs[mapi_idx_kmem_cache_zalloc] = mock_ptrs[mapi_idx_malloc];
 
     /* [HSE_REVISIT] These were never mocked, but probably should be. */
     /* mock_ptrs[mapi_idx_realloc] = mock_ptrs[mapi_idx_malloc]; */
