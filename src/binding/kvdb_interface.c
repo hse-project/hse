@@ -235,7 +235,7 @@ hse_kvdb_open(const char *mpool_name, const struct hse_params *params, struct hs
         err = mpool_mclass_get(kvdb_ds, i, &mcprops);
         if (err == ENOENT)
             continue;
-        else if (err)
+        else if (ev(err))
             goto close_ds;
 
         err = mparams.mp_mblocksz[i] == 32 ? 0 : merr(EINVAL);
