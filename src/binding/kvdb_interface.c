@@ -139,6 +139,14 @@ hse_kvdb_make(const char *mpool_name, const struct hse_params *params)
         goto errout;
 
     for (int i = 0; i < MP_MED_NUMBER; i++) {
+        struct mpool_mclass_props mcprops;
+
+        err = mpool_mclass_get(ds, i, &mcprops);
+        if (err == ENOENT)
+            continue;
+        else if (err)
+            goto errout;
+
         mparams.mp_mblocksz[i] == 32 ? 0 : merr(EINVAL);
         if (ev(err))
             goto errout;
@@ -222,6 +230,14 @@ hse_kvdb_open(const char *mpool_name, const struct hse_params *params, struct hs
         goto close_ds;
 
     for (int i = 0; i < MP_MED_NUMBER; i++) {
+        struct mpool_mclass_props mcprops;
+
+        err = mpool_mclass_get(kvdb_ds, i, &mcprops);
+        if (err == ENOENT)
+            continue;
+        else if (err)
+            goto close_ds;
+
         err = mparams.mp_mblocksz[i] == 32 ? 0 : merr(EINVAL);
         if (ev(err))
             goto close_ds;
