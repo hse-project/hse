@@ -32,10 +32,6 @@
 #include <sys/uio.h>
 #include <linux/fs.h>
 
-/* copied from linux/compiler.h */
-#define likely(x) __builtin_expect(!!(x), 1)
-#define unlikely(x) __builtin_expect(!!(x), 0)
-
 #define container_of(ptr, type, member)                \
     ({                                                 \
         __typeof(((type *)0)->member) *_p = (ptr);     \

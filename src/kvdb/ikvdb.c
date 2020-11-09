@@ -56,10 +56,10 @@
 #include <hse_util/vlb.h>
 #include <hse_util/compression_lz4.h>
 #include <hse_util/token_bucket.h>
+#include <hse_util/xrand.h>
 
 #include <3rdparty/xxhash.h>
 #include <3rdparty/cJSON.h>
-#include <3rdparty/xoroshiro.h>
 
 #include "kvdb_rest.h"
 #include "kvdb_params.h"
@@ -700,34 +700,6 @@ out:
     kvdb_log_close(log);
 
     return err;
-}
-
-static __thread int xrand_initialized;
-static __thread uint64_t xrand_state[2];
-
-static void
-xrand_init(uint64_t seed)
-{
-    xrand_initialized = 1;
-    xoroshiro128plus_init(xrand_state, seed);
-}
-
-#if 0
-static uint64_t
-xrand64(void)
-{
-    if (unlikely(!xrand_initialized))
-        xrand_init(get_time_ns());
-    return xoroshiro128plus(xrand_state);
-}
-#endif
-
-static uint32_t
-xrand32(void)
-{
-    if (unlikely(!xrand_initialized))
-        xrand_init(get_time_ns());
-    return xoroshiro128plus(xrand_state);
 }
 
 static inline
@@ -2137,7 +2109,7 @@ ikvdb_throttle2(struct ikvdb_impl *self, u64 bytes)
     if (!throttle_active(&self->ikdb_throttle))
         return;
 
-    bkt = xrand32() % IKDB_TBC;
+    bkt = xrand64_tls() % IKDB_TBC;
     sleep_ns = tbkt_request(&self->ikdb_tbv[bkt].tb, bytes);
     tbkt_delay(sleep_ns);
 
