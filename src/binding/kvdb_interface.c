@@ -142,10 +142,14 @@ hse_kvdb_make(const char *mpool_name, const struct hse_params *params)
         struct mpool_mclass_props mcprops;
 
         err = mpool_mclass_get(ds, i, &mcprops);
-        if (merr_errno(err) == ENOENT)
+        if (merr_errno(err) == ENOENT) {
+            /* Reset err in the case the last item is ENOENT,
+             * so we don't fail the next err check after the for loop */
+            err = 0;
             continue;
-        else if (err)
+        } else if (err) {
             goto errout;
+        }
 
         err = mcprops.mc_mblocksz == 32 ? 0 : merr(EINVAL);
         if (ev(err))
@@ -228,10 +232,14 @@ hse_kvdb_open(const char *mpool_name, const struct hse_params *params, struct hs
         struct mpool_mclass_props mcprops;
 
         err = mpool_mclass_get(kvdb_ds, i, &mcprops);
-        if (merr_errno(err) == ENOENT)
+        if (merr_errno(err) == ENOENT) {
+            /* Reset err in the case the last item is ENOENT,
+             * so we don't fail the next err check after the for loop */
+            err = 0;
             continue;
-        else if (ev(err))
+        } else if (err) {
             goto close_ds;
+        }
 
         err = mcprops.mc_mblocksz == 32 ? 0 : merr(EINVAL);
         if (ev(err))
