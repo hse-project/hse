@@ -138,6 +138,10 @@ hse_kvdb_make(const char *mpool_name, const struct hse_params *params)
     if (err)
         goto errout;
 
+    err = mparams.mp_mblocksz[MP_MED_CAPACITY] == 32 ? 0 : merr(EINVAL);
+    if (err)
+        goto errout;
+
     err = mpool_mdc_get_root(ds, &oid1, &oid2);
     if (err)
         goto errout;
