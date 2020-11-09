@@ -138,7 +138,9 @@ hse_kvdb_make(const char *mpool_name, const struct hse_params *params)
     if (err)
         goto errout;
 
-    err = mparams.mp_mblocksz[MP_MED_CAPACITY] == 32 ? 0 : merr(EINVAL);
+    err = mparams.mp_mblocksz[MP_MED_STAGING] == 32 && mparams.mp_mblocksz[MP_MED_CAPACITY] == 32
+              ? 0
+              : merr(EINVAL);
     if (err)
         goto errout;
 
@@ -183,6 +185,7 @@ hse_kvdb_open(const char *mpool_name, const struct hse_params *params, struct hs
     merr_t              err;
     struct ikvdb *      ikvdb;
     struct mpool *      kvdb_ds;
+    struct mpool_params mparams;
     struct kvdb_rparams rparams;
     u64                 tstart;
     u64                 rc;
@@ -210,6 +213,16 @@ hse_kvdb_open(const char *mpool_name, const struct hse_params *params, struct hs
     err = mpool_open(mpool_name, O_RDWR | O_EXCL, &kvdb_ds, NULL);
     if (ev(err))
         return err;
+
+    err = mpool_params_get(kvdb_ds, &mparams, NULL);
+    if (ev(err))
+        goto close_ds;
+
+    err = mparams.mp_mblocksz[MP_MED_STAGING] == 32 && mparams.mp_mblocksz[MP_MED_CAPACITY] == 32
+              ? 0
+              : merr(EINVAL);
+    if (ev(err))
+        goto close_ds;
 
     err = ikvdb_open(mpool_name, kvdb_ds, params, &ikvdb);
     if (ev(err))
