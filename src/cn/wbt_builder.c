@@ -198,13 +198,13 @@ wbb_kmd_append(struct wbb *wbb, const void *data, uint dlen, bool copy)
     struct iovec *iov = wbb->kmd_iov + ix;
 
     while (dlen > 0) {
-        if (ix >= NELEM(wbb->kmd_iov))
-            return merr(ev(ENOMEM));
+        if (ev(ix >= NELEM(wbb->kmd_iov)))
+            return merr(ENOMEM);
         if (!iov->iov_base) {
             iov->iov_len = 0;
-            iov->iov_base = alloc_page_aligned(KMD_CHUNK_LEN, GFP_KERNEL);
-            if (!iov->iov_base)
-                return merr(ev(ENOMEM));
+            iov->iov_base = alloc_page_aligned(KMD_CHUNK_LEN);
+            if (ev(!iov->iov_base))
+                return merr(ENOMEM);
         }
         bytes = dlen < KMD_CHUNK_LEN - iov->iov_len ? dlen : KMD_CHUNK_LEN - iov->iov_len;
         if (copy) {
@@ -623,7 +623,7 @@ wbb_create(
     if (ev(!wbb->cnode_key_stage))
         goto err_exit;
 
-    nodev = alloc_page_aligned(max_pgc * PAGE_SIZE, GFP_KERNEL);
+    nodev = alloc_page_aligned(max_pgc * PAGE_SIZE);
     if (ev(!nodev))
         goto err_exit;
 

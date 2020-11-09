@@ -180,7 +180,7 @@ kvdb_ctxn_alloc(
 
     kvdb_ctxn_set = kvdb_ctxn_set_h2r(kcs_handle);
 
-    ctxn = alloc_aligned(sizeof(*ctxn), __alignof(*ctxn), GFP_KERNEL);
+    ctxn = alloc_aligned(sizeof(*ctxn), __alignof(*ctxn));
     if (ev(!ctxn))
         return NULL;
 
@@ -1142,16 +1142,16 @@ kvdb_ctxn_set_create(struct kvdb_ctxn_set **handle_out, u64 txn_timeout_ms, u64 
 
     *handle_out = 0;
 
-    ktn = alloc_aligned(sizeof(*ktn), __alignof(*ktn), GFP_KERNEL);
-    if (!ktn)
-        return merr(ev(ENOMEM));
+    ktn = alloc_aligned(sizeof(*ktn), __alignof(*ktn));
+    if (ev(!ktn))
+        return merr(ENOMEM);
 
     memset(ktn, 0, sizeof(*ktn));
 
     ktn->ktn_wq = alloc_workqueue("kvdb_ctxn_set", 0, 1);
-    if (!ktn->ktn_wq) {
+    if (ev(!ktn->ktn_wq)) {
         free_aligned(ktn);
-        return merr(ev(ENOMEM));
+        return merr(ENOMEM);
     }
 
     atomic64_set(&ktn->ktn_tseqno_head, 0);

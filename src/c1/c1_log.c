@@ -90,7 +90,7 @@ c1_log_alloc(
 
     *out = NULL;
 
-    log = alloc_aligned(sizeof(*log), SMP_CACHE_BYTES, 0);
+    log = alloc_aligned(sizeof(*log), SMP_CACHE_BYTES);
     if (ev(!log))
         return merr(ENOMEM);
 

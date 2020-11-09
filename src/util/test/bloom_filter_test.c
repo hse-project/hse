@@ -105,7 +105,7 @@ MTF_DEFINE_UTEST(bloom_filter_basic, BasicInsert)
         desc = bf_compute_bithash_est(prob);
 
         sz = ALIGN(n_elts * desc.bhd_bits_per_elt, PAGE_SIZE);
-        bits = alloc_aligned(sz, PAGE_SIZE, 0);
+        bits = alloc_aligned(sz, PAGE_SIZE);
         ASSERT_NE(NULL, bits);
 
         bf_filter_init(&f, desc, n_elts, bits, sz);

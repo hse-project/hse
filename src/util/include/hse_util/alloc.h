@@ -19,19 +19,18 @@
  * alloc_aligned() - allocated aligned memory
  * @size:   desired number of bytes
  * @align:  desired alignment
- * @flags:  flags passed to kmalloc()
  *
- * %align must be a power-of-two less than or equal to PAGE_SIZE.
+ * %align must be a power-of-two
  */
 /* MTF_MOCK */
 void *
-alloc_aligned(size_t size, size_t align, unsigned flags);
+alloc_aligned(size_t size, size_t align);
 
 /* MTF_MOCK */
 void
 free_aligned(const void *ptr);
 
-#define alloc_page_aligned(SIZE, FLAGS) alloc_aligned((SIZE), PAGE_SIZE, (FLAGS))
+#define alloc_page_aligned(_sz) alloc_aligned((_sz), PAGE_SIZE)
 
 #if defined(HSE_UNIT_TEST_MODE) && HSE_UNIT_TEST_MODE == 1
 #include "alloc_ut.h"

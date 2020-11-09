@@ -237,7 +237,7 @@ add_worker(struct sts *self, uint qnum)
     if (ev(qnum > self->qc))
         return merr(EINVAL);
 
-    w = alloc_aligned(sizeof(*w), SMP_CACHE_BYTES, 0);
+    w = alloc_aligned(sizeof(*w), SMP_CACHE_BYTES);
     if (ev(!w))
         return merr(ENOMEM);
 
@@ -414,7 +414,7 @@ sts_create(struct kvdb_rparams *rp, const char *name, uint nq, struct sts **hand
     if (ev(nq > STS_QUEUES_MAX))
         return merr(EINVAL);
 
-    self = alloc_aligned(sizeof(*self), SMP_CACHE_BYTES, 0);
+    self = alloc_aligned(sizeof(*self), SMP_CACHE_BYTES);
     if (ev(!self))
         return merr(ENOMEM);
 
@@ -432,7 +432,7 @@ sts_create(struct kvdb_rparams *rp, const char *name, uint nq, struct sts **hand
 
     /* Allocate cache aligned queue structs */
     len = sizeof(self->qv[0]) * (nq + 1);
-    self->qv = alloc_aligned(len, SMP_CACHE_BYTES, 0);
+    self->qv = alloc_aligned(len, SMP_CACHE_BYTES);
     if (ev(!self->qv)) {
         free_aligned(self);
         return merr(ENOMEM);

@@ -472,7 +472,7 @@ kvset_create2(
          sizeof(ks->ks_vbsetv[0]) * vbsetc + sizeof(ks->ks_vblk2mbs[0]) * n_vblks);
 
     if (ev(alloc_len > kvset_cache[0].sz))
-        ks = alloc_aligned(alloc_len, SMP_CACHE_BYTES, GFP_KERNEL);
+        ks = alloc_aligned(alloc_len, SMP_CACHE_BYTES);
     else if (alloc_len > kvset_cache[1].sz)
         ks = kmem_cache_alloc(kvset_cache[0].cache, GFP_KERNEL);
     else if (alloc_len > kvset_cache[2].sz)

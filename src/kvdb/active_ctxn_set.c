@@ -119,7 +119,7 @@ active_ctxn_set_create(struct active_ctxn_set **handle, atomic64_t *kvdb_seqno_a
     sz = sizeof(*self);
     sz += sizeof(self->acs_bktv[0]) * max_bkts;
 
-    self = alloc_aligned(sz, __alignof(*self), GFP_KERNEL);
+    self = alloc_aligned(sz, __alignof(*self));
     if (ev(!self))
         return merr(ENOMEM);
 
@@ -373,8 +373,8 @@ active_ctxn_set_remove(
 }
 BullseyeCoverageRestore
 
-    merr_t
-    active_ctxn_tree_create(u32 max_elts, u32 index, struct active_ctxn_tree **tree)
+merr_t
+active_ctxn_tree_create(u32 max_elts, u32 index, struct active_ctxn_tree **tree)
 {
     struct active_ctxn_tree *self;
     size_t                   sz;
@@ -385,7 +385,7 @@ BullseyeCoverageRestore
     sz = sizeof(*self);
     sz += sizeof(self->act_entryv[0]) * max_elts;
 
-    self = alloc_aligned(sz, __alignof(*self), GFP_KERNEL);
+    self = alloc_aligned(sz, __alignof(*self));
     if (ev(!self))
         return merr(ENOMEM);
 

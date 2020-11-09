@@ -863,7 +863,7 @@ kmem_cache_create(const char *name, size_t size, size_t align, ulong flags, void
     zone_sz = sizeof(*zone) + sizeof(zone->zone_pcpuv[0]) * pcpuc;
     zone_sz = ALIGN(zone_sz, SMP_CACHE_BYTES);
 
-    zone = alloc_aligned(zone_sz, __alignof(*zone), GFP_KERNEL);
+    zone = alloc_aligned(zone_sz, __alignof(*zone));
     if (ev(!zone))
         return NULL;
 
@@ -1098,7 +1098,7 @@ kmc_test(int which, size_t size, size_t align, void *zone)
 
         case 3:
             free_aligned(addrv[idx]);
-            addrv[idx] = alloc_aligned(size, align, GFP_KERNEL);
+            addrv[idx] = alloc_aligned(size, align);
             break;
 
         case 4:

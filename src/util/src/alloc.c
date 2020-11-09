@@ -24,7 +24,7 @@
 #endif
 
 void *
-alloc_aligned(size_t size, size_t align, unsigned flags)
+alloc_aligned(size_t size, size_t align)
 {
     void * mem;
     size_t sz;
@@ -43,9 +43,6 @@ alloc_aligned(size_t size, size_t align, unsigned flags)
 
         *(ptr - 1) = mem;
         mem = ptr;
-
-        if (flags & __GFP_ZERO)
-            memset(mem, 0, size);
     }
 
     return mem;

@@ -2382,7 +2382,7 @@ sp3_create(
     /* Allocate cache aligned space for struct csched + sp->name */
     name_sz = strlen(mp) + 1;
     alloc_sz = sizeof(*sp) + name_sz;
-    sp = alloc_aligned(alloc_sz, SMP_CACHE_BYTES, GFP_KERNEL);
+    sp = alloc_aligned(alloc_sz, SMP_CACHE_BYTES);
     if (ev(!sp))
         return merr(ENOMEM);
 

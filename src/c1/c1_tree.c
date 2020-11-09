@@ -30,7 +30,7 @@ c1_tree_create(
 {
     struct c1_tree *tree;
 
-    tree = alloc_aligned(sizeof(*tree), SMP_CACHE_BYTES, 0);
+    tree = alloc_aligned(sizeof(*tree), SMP_CACHE_BYTES);
     if (ev(!tree))
         return merr(ENOMEM);
 

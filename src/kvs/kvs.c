@@ -2220,7 +2220,7 @@ kvs_create(struct ikvs **ikvs_out, struct kvs_rparams *rp)
 
     *ikvs_out = NULL;
 
-    ikvs = alloc_aligned(sizeof(*ikvs), __alignof(*ikvs), GFP_KERNEL);
+    ikvs = alloc_aligned(sizeof(*ikvs), __alignof(*ikvs));
     if (ev(!ikvs))
         return merr(ENOMEM);
 
@@ -2231,7 +2231,7 @@ kvs_create(struct ikvs **ikvs_out, struct kvs_rparams *rp)
     n = NELEM(ikvs->ikv_curcachev) * nmax;
     sz = sizeof(*bkt) * n;
 
-    bkt = alloc_aligned(sz, PAGE_SIZE, GFP_KERNEL);
+    bkt = alloc_aligned(sz, PAGE_SIZE);
     if (ev(!bkt)) {
         free_aligned(ikvs);
         return merr(ENOMEM);

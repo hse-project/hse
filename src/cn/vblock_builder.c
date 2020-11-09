@@ -217,7 +217,7 @@ vbb_create(
     bld->max_size = rp->vblock_size_mb << 20;
     bld->agegroup = HSE_MPOLICY_AGE_LEAF;
 
-    bld->wbuf = alloc_page_aligned(WBUF_LEN_MAX, 0);
+    bld->wbuf = alloc_page_aligned(WBUF_LEN_MAX);
     if (ev(!bld->wbuf)) {
         free(bld);
         return merr(ENOMEM);

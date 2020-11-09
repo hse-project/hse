@@ -93,7 +93,7 @@ c1_create(const char *mpname)
     struct c1 *c1;
     merr_t     err;
 
-    c1 = alloc_aligned(sizeof(*c1), __alignof(*c1), 0);
+    c1 = alloc_aligned(sizeof(*c1), __alignof(*c1));
     if (ev(!c1))
         return NULL;
 

@@ -13,7 +13,7 @@
 #define __GFP_ZERO 0x00000001
 #define GFP_KERNEL 0x00000004
 
-typedef unsigned gfp_t;
+typedef unsigned int gfp_t;
 
 #define SLAB_HWCACHE_ALIGN 0x00002000ul
 

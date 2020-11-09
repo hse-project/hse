@@ -373,7 +373,7 @@ cn_tree_create(
     if (ev(cp->cp_pfx_len > HSE_KVS_MAX_PFXLEN))
         return merr(EINVAL);
 
-    tree = alloc_aligned(sizeof(*tree), __alignof(*tree), GFP_KERNEL);
+    tree = alloc_aligned(sizeof(*tree), __alignof(*tree));
     if (ev(!tree))
         return merr(ENOMEM);
 

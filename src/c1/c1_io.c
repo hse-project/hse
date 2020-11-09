@@ -235,7 +235,7 @@ c1_io_create(struct c1 *c1, u64 dtime, const char *mpname, int threads)
 
     c1->c1_io = NULL;
 
-    io = alloc_aligned(sizeof(*io), PAGE_SIZE, 0);
+    io = alloc_aligned(sizeof(*io), PAGE_SIZE);
     if (ev(!io))
         return merr(ENOMEM);
 
@@ -256,7 +256,7 @@ c1_io_create(struct c1 *c1, u64 dtime, const char *mpname, int threads)
 
     sz = sizeof(*io->c1io_workerv) * threads;
 
-    io->c1io_workerv = alloc_aligned(sz, __alignof(*io->c1io_workerv), 0);
+    io->c1io_workerv = alloc_aligned(sz, __alignof(*io->c1io_workerv));
     if (ev(!io->c1io_workerv)) {
         err = merr(ENOMEM);
         goto errout;

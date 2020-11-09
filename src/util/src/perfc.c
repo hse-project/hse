@@ -646,7 +646,7 @@ perfc_ivl_create(int boundc, const u64 *boundv, struct perfc_ivl **ivlp)
     sz = sizeof(*ivl);
     sz += sizeof(ivl->ivl_bound[0]) * boundc;
 
-    ivl = alloc_aligned(sz, SMP_CACHE_BYTES, GFP_KERNEL);
+    ivl = alloc_aligned(sz, SMP_CACHE_BYTES);
     if (ev(!ivl))
         return merr(ENOMEM);
 
@@ -840,7 +840,7 @@ perfc_ctrseti_alloc(
 
     valdatasz = sizeof(struct perfc_val) * PERFC_VALPERCNT * PERFC_VALPERCPU * n + 1;
 
-    seti = alloc_aligned(sz + valdatasz, SMP_CACHE_BYTES * 2, GFP_KERNEL);
+    seti = alloc_aligned(sz + valdatasz, SMP_CACHE_BYTES * 2);
     if (ev(!seti)) {
         free(dte);
         return merr(ENOMEM);
