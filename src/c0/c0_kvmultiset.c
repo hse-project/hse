@@ -516,6 +516,7 @@ c0kvms_pfx_probe_rcu(
     struct c0_kvmultiset *   handle,
     u16                      skidx,
     const struct kvs_ktuple *kt,
+    u32                      sfx_len,
     u64                      view_seqno,
     uintptr_t                seqref,
     enum key_lookup_res *    res,
@@ -529,7 +530,7 @@ c0kvms_pfx_probe_rcu(
 
     c0kvs = c0kvms_get_hashed_c0kvset(handle, kt->kt_hash);
 
-    err = c0kvs_pfx_probe_rcu(c0kvs, skidx, kt, view_seqno, seqref, res, qctx, kbuf, vbuf, pt_seqno);
+    err = c0kvs_pfx_probe_rcu(c0kvs, skidx, kt, sfx_len, view_seqno, seqref, res, qctx, kbuf, vbuf, pt_seqno);
     return ev(err);
 }
 
@@ -538,6 +539,7 @@ c0kvms_pfx_probe_excl(
     struct c0_kvmultiset *   handle,
     u16                      skidx,
     const struct kvs_ktuple *kt,
+    u32                      sfx_len,
     u64                      view_seqno,
     uintptr_t                seqref,
     enum key_lookup_res *    res,
@@ -551,7 +553,7 @@ c0kvms_pfx_probe_excl(
 
     c0kvs = c0kvms_get_hashed_c0kvset(handle, kt->kt_hash);
 
-    err = c0kvs_pfx_probe_excl(c0kvs, skidx, kt, view_seqno, seqref, res, qctx, kbuf, vbuf, pt_seqno);
+    err = c0kvs_pfx_probe_excl(c0kvs, skidx, kt, sfx_len, view_seqno, seqref, res, qctx, kbuf, vbuf, pt_seqno);
     return ev(err);
 }
 

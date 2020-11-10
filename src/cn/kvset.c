@@ -1683,13 +1683,15 @@ get_more:
         /* copy out suffix */
         uint  slen = kobj.ko_sfx_len;
         uint  plen = kobj.ko_pfx_len;
+        uint  remaining;
         void *p;
 
         p = curr_sfx_data + ks->ks_sfx_len - slen;
         memcpy(p, kobj.ko_sfx, slen);
 
-        p = (void *)(kobj.ko_pfx + plen + ks->ks_sfx_len - slen);
-        memcpy(curr_sfx_data, p, ks->ks_sfx_len - slen);
+        remaining = ks->ks_sfx_len - slen;
+        p = (void *)(kobj.ko_pfx + plen - remaining);
+        memcpy(curr_sfx_data, p, remaining);
         curr_sfx = curr_sfx_data;
     }
 

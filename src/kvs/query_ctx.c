@@ -4,6 +4,7 @@
  */
 
 #include <hse_util/page.h>
+#include <hse_util/hash.h>
 #include <hse_util/slab.h>
 #include <hse_util/keycmp.h>
 #include <hse_util/byteorder.h>
@@ -148,7 +149,8 @@ qctx_tomb_insert(struct query_ctx *qctx, const void *sfx, size_t sfx_len)
     struct rb_root * root;
     struct rb_node **link;
 
-    bkt = *(uint64_t *)sfx % TT_WIDTH;
+    assert(sfx_len > 0);
+    bkt = hse_hash64(sfx, sfx_len) % TT_WIDTH;
     root = &qctx->tomb_tree[bkt];
     link = &root->rb_node;
 
@@ -199,7 +201,8 @@ qctx_tomb_seen(struct query_ctx *qctx, const void *sfx, size_t sfx_len)
     int               bkt;
     struct rb_node *  n;
 
-    bkt = *(uint64_t *)sfx % TT_WIDTH;
+    assert(sfx_len > 0);
+    bkt = hse_hash64(sfx, sfx_len) % TT_WIDTH;
     n = qctx->tomb_tree[bkt].rb_node;
 
     if (!qctx->ntombs)
