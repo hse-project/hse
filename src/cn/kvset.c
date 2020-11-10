@@ -442,7 +442,6 @@ kvset_create2(
     uint          kmapc;
     uint          vbsetc;
     u64           kvdb_kalen, kvdb_valen, mblock_max;
-    u32           pfx_len;
     ulong         kra, vra;
 
     struct kvs_cparams *cp;
@@ -488,7 +487,6 @@ kvset_create2(
     ds = cn_tree_get_ds(tree);
     rp = cn_tree_get_rp(tree);
     cn_kvdb = cn_tree_get_cnkvdb(tree);
-    pfx_len = cp->cp_pfx_len;
 
     memset(ks, 0, alloc_len);
     ks->ks_kmapv = (void *)(ks->ks_kblks + n_kblks);
@@ -516,7 +514,8 @@ kvset_create2(
     ks->ks_tag = tag;
     ks->ks_cnid = cn_tree_get_cnid(tree);
     ks->ks_cndb = cn_tree_get_cndb(tree);
-    ks->ks_pfx_len = pfx_len;
+    ks->ks_pfx_len = cp->cp_pfx_len;
+    ks->ks_sfx_len = cp->cp_sfx_len;
     ks->ks_node_level = km->km_node_level;
     ks->ks_vminlvl = min_t(u16, rp->cn_mcache_vminlvl, U16_MAX);
     ks->ks_vmin = rp->cn_mcache_vmin;
@@ -1578,9 +1577,8 @@ kvset_pfx_lookup(
 
     struct key_obj kobj, kt_obj, kbuf_obj;
 
-    u8          curr_sfx_data[sizeof(uint64_t)];
+    u8          curr_sfx_data[HSE_KVS_KLEN_MAX];
     const void *curr_sfx;
-    uint        curr_sfx_len;
 
     key2kobj(&kt_obj, kt->kt_data, kt->kt_len);
 
@@ -1676,28 +1674,27 @@ get_more:
             goto get_more; /* key is hidden behind ptomb; skip */
     }
 
-    curr_sfx_len = sizeof(curr_sfx_data);
     if (!kobj.ko_sfx_len) {
-        assert(kobj.ko_pfx_len > curr_sfx_len);
-        curr_sfx = kobj.ko_pfx + kobj.ko_pfx_len - curr_sfx_len;
-    } else if (kobj.ko_sfx_len >= curr_sfx_len) {
-        curr_sfx = kobj.ko_sfx + kobj.ko_sfx_len - curr_sfx_len;
+        assert(kobj.ko_pfx_len > ks->ks_sfx_len);
+        curr_sfx = kobj.ko_pfx + kobj.ko_pfx_len - ks->ks_sfx_len;
+    } else if (kobj.ko_sfx_len >= ks->ks_sfx_len) {
+        curr_sfx = kobj.ko_sfx + kobj.ko_sfx_len - ks->ks_sfx_len;
     } else {
         /* copy out suffix */
         uint  slen = kobj.ko_sfx_len;
         uint  plen = kobj.ko_pfx_len;
         void *p;
 
-        p = curr_sfx_data + curr_sfx_len - slen;
+        p = curr_sfx_data + ks->ks_sfx_len - slen;
         memcpy(p, kobj.ko_sfx, slen);
 
-        p = (void *)(kobj.ko_pfx + plen + curr_sfx_len - slen);
-        memcpy(curr_sfx_data, p, curr_sfx_len - slen);
+        p = (void *)(kobj.ko_pfx + plen + ks->ks_sfx_len - slen);
+        memcpy(curr_sfx_data, p, ks->ks_sfx_len - slen);
         curr_sfx = curr_sfx_data;
     }
 
     if (*res == FOUND_TMB) {
-        err = qctx_tomb_insert(qctx, curr_sfx, curr_sfx_len);
+        err = qctx_tomb_insert(qctx, curr_sfx, ks->ks_sfx_len);
         if (ev(err))
             return err;
 
@@ -1713,7 +1710,7 @@ get_more:
             goto get_more; /* duplicate */
     }
 
-    if (qctx_tomb_seen(qctx, curr_sfx, curr_sfx_len))
+    if (qctx_tomb_seen(qctx, curr_sfx, ks->ks_sfx_len))
         goto get_more; /* skip key. There's a matching tomb. */
 
     /* This kv-pair counts towards the query's matches. Copy out kv if this
