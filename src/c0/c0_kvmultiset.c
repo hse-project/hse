@@ -908,7 +908,7 @@ c0kvms_create(
     num_sets = (num_sets + 1) & ~1u;
     assert(num_sets > 1 && num_sets <= max_sets);
 
-    kvms = kmem_cache_alloc(c0kvms_cache, GFP_KERNEL);
+    kvms = kmem_cache_alloc(c0kvms_cache);
     if (ev(!kvms))
         return merr(ENOMEM);
 

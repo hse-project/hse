@@ -9,7 +9,6 @@
 /* MTF_MOCK_DECL(slab) */
 
 #include <hse_util/hse_err.h>
-#include <hse_util/gfp.h>
 
 #define SLAB_HWCACHE_ALIGN 0x00002000ul
 
@@ -47,19 +46,35 @@ kmem_cache_size(struct kmem_cache *cache);
 
 /* MTF_MOCK */
 void *
-kmem_cache_alloc(struct kmem_cache *cache, gfp_t flags);
+kmem_cache_alloc(struct kmem_cache *cache);
 
 /* MTF_MOCK */
 void
 kmem_cache_free(struct kmem_cache *cache, void *mem);
 
-static __always_inline void *
-kmem_cache_zalloc(struct kmem_cache *cache, gfp_t flags)
-{
-    return kmem_cache_alloc(cache, flags | __GFP_ZERO);
-}
+/* MTF_MOCK */
+void *
+kmem_cache_zalloc(struct kmem_cache *cache);
 
 #pragma GCC visibility pop
+
+/* The following hse_page_* interfaces must be visible to libmpool.
+ */
+void *
+hse_page_alloc(void);
+
+void *
+hse_page_zalloc(void);
+
+void
+hse_page_free(void *mem);
+
+/* The following clunky interfaces are going away real soon now,
+ * DO NOT use in new code.
+ */
+unsigned long __get_free_page(unsigned int flags);
+unsigned long get_zeroed_page(unsigned int flags);
+void free_page(unsigned long addr);
 
 #if HSE_UNIT_TEST_MODE
 #include "slab_ut.h"

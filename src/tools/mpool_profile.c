@@ -86,7 +86,7 @@ profile_worker(
 
     work = container_of(arg, struct mp_profile_work, work_elem);
 
-    buf = alloc_aligned(PAGE_SIZE, work->block_sz, 0);
+    buf = alloc_aligned(PAGE_SIZE, work->block_sz);
     if (!buf) {
         fprintf(stderr, "alloc_aligned() failed for %lu bytes, page aligned\n", work->block_sz);
         work->err = merr(ENOMEM);

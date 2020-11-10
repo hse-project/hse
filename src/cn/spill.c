@@ -383,7 +383,7 @@ get_values:
                 if (bufsz_min < bufsz)
                     bufsz += PAGE_SIZE;
 
-                buf = alloc_aligned(bufsz, PAGE_SIZE, GFP_KERNEL);
+                buf = alloc_aligned(bufsz, PAGE_SIZE);
                 if (!buf) {
                     err = merr(ENOMEM);
                     goto done;

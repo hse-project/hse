@@ -569,7 +569,7 @@ kc_vblock_meta(struct mpool *ds, struct blk_list *list)
         }
 
         /* Verify correctness of vblocks' headers */
-        vb_buf = alloc_page_aligned(PAGE_SIZE, GFP_KERNEL);
+        vb_buf = alloc_page_aligned(PAGE_SIZE);
         iov.iov_base = vb_buf;
         iov.iov_len = PAGE_SIZE;
 
@@ -620,7 +620,7 @@ read_mblock(struct mpool *ds, u64 blkid, void **buf)
     }
 
     len = props.mpr_write_len;
-    mem = alloc_page_aligned(len, GFP_KERNEL);
+    mem = alloc_page_aligned(len);
     if (ev(!mem)) {
         print_err("mblock 0x%08lx: cannot allocate memory (%lu bytes)", blkid, len);
         return 1;

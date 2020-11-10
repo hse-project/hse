@@ -256,7 +256,7 @@ cn_node_alloc(struct cn_tree *tree, uint level, uint offset)
 {
     struct cn_tree_node *tn;
 
-    tn = kmem_cache_alloc(cn_node_cache, GFP_KERNEL | __GFP_ZERO);
+    tn = kmem_cache_zalloc(cn_node_cache);
     if (ev(!tn))
         return NULL;
 
@@ -373,7 +373,7 @@ cn_tree_create(
     if (ev(cp->cp_pfx_len > HSE_KVS_MAX_PFXLEN))
         return merr(EINVAL);
 
-    tree = alloc_aligned(sizeof(*tree), __alignof(*tree), GFP_KERNEL);
+    tree = alloc_aligned(sizeof(*tree), __alignof(*tree));
     if (ev(!tree))
         return merr(ENOMEM);
 

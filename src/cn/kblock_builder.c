@@ -601,7 +601,7 @@ _kblock_finish_bloom(struct curr_kblock *kblk, struct bloom_hdr_omf *blm_hdr)
         kblk->bloom_len = kblk->blm_pgc * PAGE_SIZE;
         if (kblk->bloom_alloc_len < kblk->bloom_len) {
             free_aligned(kblk->bloom);
-            kblk->bloom = alloc_page_aligned(kblk->bloom_len, GFP_KERNEL);
+            kblk->bloom = alloc_page_aligned(kblk->bloom_len);
             if (ev(!kblk->bloom)) {
                 kblk->bloom_len = 0;
                 kblk->bloom_alloc_len = 0;
@@ -860,7 +860,7 @@ kblock_finish(struct kblock_builder *bld, struct wbb *ptree)
 
     /* Allocate kblock hdr */
     if (!kblk->kblk_hdr) {
-        kblk->kblk_hdr = alloc_page_aligned(KBLOCK_HDR_LEN, GFP_KERNEL);
+        kblk->kblk_hdr = alloc_page_aligned(KBLOCK_HDR_LEN);
         if (ev(!kblk->kblk_hdr)) {
             err = merr(ENOMEM);
             goto errout;

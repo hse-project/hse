@@ -282,7 +282,7 @@ kbr_read_blm_pages(
         size_t       len = desc->bd_n_pages * PAGE_SIZE;
         u8 *         pages;
 
-        pages = alloc_page_aligned(len, GFP_KERNEL);
+        pages = alloc_page_aligned(len);
         if (ev(!pages))
             return merr(ENOMEM);
 

@@ -43,7 +43,7 @@ qctx_thread_dtor(void *mem)
     while (hdr) {
         struct te_page_hdr *next = hdr->next;
 
-        free_page((unsigned long)hdr);
+        hse_page_free(hdr);
         hdr = next;
     }
 
@@ -71,7 +71,7 @@ alloc_tomb_mem(struct query_ctx *qctx, size_t bytes)
         if (!ptr)
             return 0;
 
-        ptr->pglist = (void *)__get_free_page(GFP_KERNEL);
+        ptr->pglist = hse_page_alloc();
         if (!ptr->pglist) {
             free(ptr);
             return 0;
@@ -84,7 +84,7 @@ alloc_tomb_mem(struct query_ctx *qctx, size_t bytes)
 
         rc = pthread_setspecific(tomb_thread_key, ptr);
         if (ev(rc)) {
-            free_page((unsigned long)ptr->pglist);
+            hse_page_free(ptr->pglist);
             free(ptr);
             return 0;
         }
@@ -98,7 +98,7 @@ alloc_tomb_mem(struct query_ctx *qctx, size_t bytes)
             /* No more cached pages. Allocate and use a new page */
             void *mem;
 
-            mem = (void *)__get_free_page(GFP_KERNEL);
+            mem = hse_page_alloc();
             if (!mem)
                 return 0;
 

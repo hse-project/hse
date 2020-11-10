@@ -925,7 +925,7 @@ cn_tstate_create(struct cn *cn)
     void *                 ptr;
     size_t                 sz;
 
-    impl = alloc_aligned(sizeof(*impl), __alignof(*impl), GFP_KERNEL);
+    impl = alloc_aligned(sizeof(*impl), __alignof(*impl));
     if (ev(!impl))
         return merr(ENOMEM);
 
@@ -1179,9 +1179,9 @@ cn_open(
     if (!rp)
         sz += sizeof(*rp);
 
-    cn = alloc_aligned(sz, __alignof(*cn), GFP_KERNEL);
-    if (!cn)
-        return merr(ev(ENOMEM));
+    cn = alloc_aligned(sz, __alignof(*cn));
+    if (ev(!cn))
+        return merr(ENOMEM);
 
     memset(cn, 0, sz);
 
@@ -1504,7 +1504,7 @@ cn_pscan_create(void)
 
     sz = (2u << 20) - __alignof(*cur);
 
-    mem = alloc_aligned(sz, __alignof(*cur), GFP_KERNEL);
+    mem = alloc_aligned(sz, __alignof(*cur));
     if (ev(!mem))
         return NULL;
 

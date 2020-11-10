@@ -473,7 +473,7 @@ c0sk_open(
 
     assert(health);
 
-    c0sk = alloc_aligned(sizeof(*c0sk), __alignof(*c0sk), GFP_KERNEL);
+    c0sk = alloc_aligned(sizeof(*c0sk), __alignof(*c0sk));
     if (ev(!c0sk)) {
         err = merr(ENOMEM);
         goto errout;
@@ -789,7 +789,7 @@ c0sk_cursor_get_free(struct c0_cursor *cur)
         return p;
     }
 
-    return alloc_aligned(sizeof(*p), SMP_CACHE_BYTES, GFP_KERNEL);
+    return alloc_aligned(sizeof(*p), SMP_CACHE_BYTES);
 }
 
 static void

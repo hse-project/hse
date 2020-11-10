@@ -67,9 +67,9 @@ c0skm_open(struct c0sk *handle, struct kvdb_rparams *rp, struct c1 *c1h, const c
     assert(!rp->dur_throttle_enable || rp->dur_throttle_hi_th <= 150);
     assert(!rp->dur_throttle_enable || rp->dur_throttle_lo_th < rp->dur_throttle_hi_th);
 
-    c0skm = alloc_aligned(sizeof(*c0skm), __alignof(*c0skm), GFP_KERNEL);
-    if (!c0skm)
-        return merr(ev(ENOMEM));
+    c0skm = alloc_aligned(sizeof(*c0skm), __alignof(*c0skm));
+    if (ev(!c0skm))
+        return merr(ENOMEM);
 
     memset(c0skm, 0, sizeof(*c0skm));
 

@@ -68,10 +68,10 @@ hlog_create(struct hlog **hlog_out, uint p)
     sz = regc * sizeof(*hlog->regv);
     sz = ALIGN(sz, PAGE_SIZE);
 
-    hlog->regv = alloc_page_aligned(sz, GFP_KERNEL);
-    if (!hlog->regv) {
+    hlog->regv = alloc_page_aligned(sz);
+    if (ev(!hlog->regv)) {
         free(hlog);
-        return merr(ev(ENOMEM));
+        return merr(ENOMEM);
     }
 
     memset(hlog->regv, 0, sz);

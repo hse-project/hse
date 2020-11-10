@@ -472,13 +472,13 @@ kvset_create2(
          sizeof(ks->ks_vbsetv[0]) * vbsetc + sizeof(ks->ks_vblk2mbs[0]) * n_vblks);
 
     if (ev(alloc_len > kvset_cache[0].sz))
-        ks = alloc_aligned(alloc_len, SMP_CACHE_BYTES, GFP_KERNEL);
+        ks = alloc_aligned(alloc_len, SMP_CACHE_BYTES);
     else if (alloc_len > kvset_cache[1].sz)
-        ks = kmem_cache_alloc(kvset_cache[0].cache, GFP_KERNEL);
+        ks = kmem_cache_alloc(kvset_cache[0].cache);
     else if (alloc_len > kvset_cache[2].sz)
-        ks = kmem_cache_alloc(kvset_cache[1].cache, GFP_KERNEL);
+        ks = kmem_cache_alloc(kvset_cache[1].cache);
     else
-        ks = kmem_cache_alloc(kvset_cache[2].cache, GFP_KERNEL);
+        ks = kmem_cache_alloc(kvset_cache[2].cache);
 
     if (ev(!ks))
         return merr(ENOMEM);
@@ -2656,7 +2656,7 @@ kvset_iter_create(
     if (ev(reverse && (io_workq || mblock_read)))
         return merr(EINVAL);
 
-    iter = kmem_cache_zalloc(kvset_iter_cache, GFP_KERNEL);
+    iter = kmem_cache_zalloc(kvset_iter_cache);
     if (ev(!iter))
         return merr(ENOMEM);
 

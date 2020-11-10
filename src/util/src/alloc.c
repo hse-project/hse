@@ -24,7 +24,7 @@
 #endif
 
 void *
-alloc_aligned(size_t size, size_t align, unsigned flags)
+alloc_aligned(size_t size, size_t align)
 {
     void * mem;
     size_t sz;
@@ -43,9 +43,6 @@ alloc_aligned(size_t size, size_t align, unsigned flags)
 
         *(ptr - 1) = mem;
         mem = ptr;
-
-        if (flags & __GFP_ZERO)
-            memset(mem, 0, size);
     }
 
     return mem;
@@ -60,21 +57,6 @@ free_aligned(const void *ptr)
     }
 }
 
-/**
- * mget_free_page() - __get_free_page() cannot be mocked because
- *      it is a kernel macro. To workaround, this function is added and
- *      mocked.
- */
-#pragma push_macro("mget_free_page")
-#undef mget_free_page
-unsigned long
-mget_free_page(int flags)
-{
-    return __get_free_page(flags);
-}
-#pragma pop_macro("mget_free_page")
-
 #if defined(HSE_UNIT_TEST_MODE) && HSE_UNIT_TEST_MODE == 1
-#include "gfp_ut_impl.i"
 #include "alloc_ut_impl.i"
 #endif /* HSE_UNIT_TEST_MODE */
