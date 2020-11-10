@@ -224,6 +224,14 @@ struct kvs_cursor_tombs {
     bool kct_valid;
 };
 
+enum cursor_op {
+    OP_CREATE,
+    OP_UPDATE,
+    OP_READ,
+    OP_SEEK,
+    OP_DESTROY,
+};
+
 struct kvs_cursor_impl {
     struct hse_kvs_cursor   kci_handle;
     struct curcache_entry   kci_cache;
@@ -246,6 +254,8 @@ struct kvs_cursor_impl {
     struct kvs_kvtuple *kci_last; /* last tuple read */
     u8 *                kci_last_kbuf;
     u32                 kci_last_klen;
+    enum cursor_op      kci_last_op;
+    bool                kci_toss;
 
     u32 kci_ready : 2;
     u32 kci_eof : 2;
@@ -1120,6 +1130,7 @@ ikvs_cursor_reset(struct kvs_cursor_impl *cursor, int bit)
     cursor->kci_eof &= ~bit;
     cursor->kci_seek &= ~bit;
     cursor->kci_peek &= ~bit;
+    cursor->kci_toss = true;
 
     cursor->kci_cc_pc = NULL;
     cursor->kci_cd_pc = NULL;
@@ -1330,6 +1341,7 @@ ikvs_cursor_alloc(struct ikvs *kvs, const void *prefix, size_t pfx_len, bool rev
     if (prefix)
         memcpy(cur->kci_prefix, prefix, pfx_len);
 
+    cur->kci_toss = true;
     cur->kci_last_kbuf = (void *)cur->kci_prefix + len;
     cur->kci_limit = (void *)cur->kci_last_kbuf + HSE_KVS_KLEN_MAX;
     cur->kci_limit_len = 0;
@@ -1507,6 +1519,7 @@ ikvs_cursor_init(struct hse_kvs_cursor *cursor)
 
 error:
     cursor->kc_err = err;
+    cur->kci_last_op = OP_CREATE;
     return err;
 }
 
@@ -1673,6 +1686,9 @@ ikvs_cursor_update(struct hse_kvs_cursor *handle, u64 seqno)
         perfc_rec_sample(cursor->kci_cd_pc, PERFC_DI_CD_ACTIVEKVSETS_CN, active);
     }
 
+    if (cursor->kci_last_op == OP_SEEK)
+        cursor->kci_toss = false;
+    cursor->kci_last_op = OP_UPDATE;
     return 0;
 }
 
@@ -1864,6 +1880,7 @@ ikvs_cursor_seek(
         tombs->kct_update = false;
     }
 
+    cursor->kci_last_op = OP_SEEK;
     return 0;
 }
 
@@ -1972,9 +1989,10 @@ repeat:
             perfc_inc(cc_pc, PERFC_BA_CC_EAGAIN_CN);
     }
 
-    /* If we needed to seek, toss read key if it matches last */
+    /* If we needed to seek, toss read key if it matches last and kci_toss is true */
     if (need_seek && cursor->kci_last) {
-        if (!keycmp(key, klen, cursor->kci_last_kbuf, cursor->kci_last_klen))
+        if (!keycmp(key, klen, cursor->kci_last_kbuf, cursor->kci_last_klen) &&
+            cursor->kci_toss)
             toss = true;
     }
 
@@ -2031,6 +2049,7 @@ ikvs_cursor_replenish(struct kvs_cursor_impl *cursor, bool *eofp)
             }
         }
 
+        cursor->kci_toss = true;
         *eofp = (cursor->kci_ready == BIT_NONE);
         if (*eofp)
             break;
@@ -2126,11 +2145,16 @@ ikvs_cursor_read(struct hse_kvs_cursor *handle, struct kvs_kvtuple *kvt, bool *e
         cursor->kci_err = 0;
     }
 
+    /* kci_toss should be false only for the order of operations [seek, update, read] */
+    if (cursor->kci_last_op != OP_UPDATE)
+        cursor->kci_toss = true;
+
     if (cursor->kci_ready != BIT_BOTH)
         cursor->kci_err = ikvs_cursor_replenish(cursor, eofp);
     else
         *eofp = false;
 
+    assert(cursor->kci_toss == true);
     if (cursor->kci_err)
         return ev(cursor->kci_err);
 
@@ -2146,6 +2170,7 @@ ikvs_cursor_read(struct hse_kvs_cursor *handle, struct kvs_kvtuple *kvt, bool *e
     } else {
         perfc_inc(cursor->kci_cc_pc, PERFC_BA_CC_EOF);
         assert(*eofp);
+        cursor->kci_last_op = OP_READ;
         return 0;
     }
 
@@ -2204,6 +2229,7 @@ ikvs_cursor_read(struct hse_kvs_cursor *handle, struct kvs_kvtuple *kvt, bool *e
         cursor->kci_ready = oready;
     }
 
+    cursor->kci_last_op = OP_READ;
     return 0;
 }
 
