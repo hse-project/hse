@@ -253,7 +253,7 @@ struct kvs_cursor_impl {
     u32 kci_peek : 1;
     u32 kci_toss : 1;
     u32 kci_reverse : 1;
-    u32 kci_unused : 14;
+    u32 kci_unused : 15;
     u32 kci_pfx_len : 8;
 
     u64    kci_pfxhash;
@@ -1867,6 +1867,12 @@ ikvs_cursor_seek(
         tombs->kct_update = false;
     }
 
+    /* This flag is used to prevent tossing the last read key in this seek
+     * when this seek is followed by update and read. A call to read will
+     * perform a seek only when it's preceded by an update or create. In other
+     * words, when read sees this flag set, the order of operations has been
+     * [seek, update, read] and it should skip tossing the key.
+     */
     cursor->kci_toss = 0;
     return 0;
 }
