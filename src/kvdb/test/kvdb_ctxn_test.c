@@ -1167,7 +1167,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, txn_independence, mapi_pre, mapi_post)
 
 MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, seq_state, mapi_pre, mapi_post)
 {
-    enum hse_seqno_state state;
+    enum kvdb_ctxn_state state;
     uintptr_t            seq;
     uintptr_t            ref;
 

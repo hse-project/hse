@@ -313,7 +313,7 @@ kv_iter_init(struct kv_iter *iter)
     return 0;
 }
 
-static int
+static enum MHD_Result
 extract_kv_pairs(void *cls, enum MHD_ValueKind kind, const char *key, const char *value)
 {
     struct session *    session = cls;
@@ -709,7 +709,7 @@ err:
     return tmp;
 }
 
-static int
+static enum MHD_Result
 webserver_response(
     void *                 cls,
     struct MHD_Connection *connection,
@@ -717,7 +717,7 @@ webserver_response(
     const char *           method,
     const char *           version,
     const char *           upload_data,
-    size_t *               upload_data_size,
+    unsigned long *        upload_data_size,
     void **                ptr)
 {
     const char *     request_pfx = "http+unix://";
