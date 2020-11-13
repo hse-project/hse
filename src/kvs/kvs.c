@@ -251,6 +251,7 @@ struct kvs_cursor_impl {
     u32 kci_eof : 2;
     u32 kci_seek : 2;
     u32 kci_peek : 1;
+    u32 kci_toss : 1;
     u32 kci_reverse : 1;
     u32 kci_unused : 15;
     u32 kci_pfx_len : 8;
@@ -1135,6 +1136,7 @@ ikvs_cursor_reset(struct kvs_cursor_impl *cursor, int bit)
     cursor->kci_eof &= ~bit;
     cursor->kci_seek &= ~bit;
     cursor->kci_peek &= ~bit;
+    cursor->kci_toss = 1;
 
     cursor->kci_cc_pc = NULL;
     cursor->kci_cd_pc = NULL;
@@ -1349,6 +1351,7 @@ ikvs_cursor_alloc(struct ikvs *kvs, const void *prefix, size_t pfx_len, bool rev
     cur->kci_limit = (void *)cur->kci_last_kbuf + HSE_KVS_KLEN_MAX;
     cur->kci_limit_len = 0;
     cur->kci_handle.kc_filter.kcf_maxkey = 0;
+    cur->kci_toss = 1;
 
     /*
      * Store the key to seek to, for cached cursors.
@@ -1879,6 +1882,13 @@ ikvs_cursor_seek(
         tombs->kct_update = false;
     }
 
+    /* This flag is used to prevent tossing the last read key in this seek
+     * when this seek is followed by update and read. A call to read will
+     * perform a seek only when it's preceded by an update or create. In other
+     * words, when read sees this flag set, the order of operations has been
+     * [seek, update, read] and it should skip tossing the key.
+     */
+    cursor->kci_toss = 0;
     return 0;
 }
 
@@ -1987,9 +1997,10 @@ repeat:
             perfc_inc(cc_pc, PERFC_BA_CC_EAGAIN_CN);
     }
 
-    /* If we needed to seek, toss read key if it matches last */
+    /* If we needed to seek, toss read key if it matches last and kci_toss is true */
     if (need_seek && cursor->kci_last) {
-        if (!keycmp(key, klen, cursor->kci_last_kbuf, cursor->kci_last_klen))
+        if (!keycmp(key, klen, cursor->kci_last_kbuf, cursor->kci_last_klen) &&
+            cursor->kci_toss)
             toss = true;
     }
 
@@ -2146,6 +2157,7 @@ ikvs_cursor_read(struct hse_kvs_cursor *handle, struct kvs_kvtuple *kvt, bool *e
     else
         *eofp = false;
 
+    cursor->kci_toss = 1;
     if (cursor->kci_err)
         return ev(cursor->kci_err);
 
