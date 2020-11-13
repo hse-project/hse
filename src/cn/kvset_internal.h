@@ -59,6 +59,7 @@ struct kvset {
     u64           ks_dgen; /* relative age of entries */
     struct mpool *ks_ds;
     u32           ks_pfx_len; /* cn tree pfx_len */
+    u32           ks_sfx_len; /* cn tree sfx_len */
     u16           ks_node_level;
     u16           ks_vminlvl;
     u32           ks_vmin;
