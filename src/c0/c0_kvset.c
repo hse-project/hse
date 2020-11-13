@@ -1092,6 +1092,8 @@ c0kvs_pfx_probe_excl(
                     kbuf->b_buf, min_t(size_t, kbuf->b_len, kbuf->b_buf_sz)))
             continue; /* duplicate */
 
+        /* We ensure that klen is atleast pfx_len + sfx_len bytes long during put/delete. */
+        assert(klen >= sfx_len);
         /* Skip key if there is a matching tomb */
         if (qctx_tomb_seen(qctx, kv->bkv_key + klen - sfx_len, sfx_len))
             continue;

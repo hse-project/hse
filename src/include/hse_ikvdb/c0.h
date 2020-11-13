@@ -103,7 +103,7 @@ s32
 c0_get_pfx_len(struct c0 *c0);
 
 /* MTF_MOCK */
-s32
+u32
 c0_get_sfx_len(struct c0 *c0);
 
 /**

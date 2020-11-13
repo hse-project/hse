@@ -51,7 +51,7 @@ struct c0_impl {
     struct c0sk *       c0_c0sk;
     u32                 c0_index;
     s32                 c0_pfx_len;
-    s32                 c0_sfx_len;
+    u32                 c0_sfx_len;
     u64                 c0_hash;
     struct cn *         c0_cn;
     struct kvs_rparams *c0_rp; /* not owned by c0 */
@@ -86,7 +86,7 @@ c0_get_pfx_len(struct c0 *handle)
     return self->c0_pfx_len;
 }
 
-s32
+u32
 c0_get_sfx_len(struct c0 *handle)
 {
     struct c0_impl *self = c0_h2r(handle);
