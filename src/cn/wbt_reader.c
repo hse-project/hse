@@ -157,7 +157,7 @@ wbti_create(
     bool                  reverse,
     bool                  cache)
 {
-    struct wbti *self;
+    struct wbti *self = NULL;
     merr_t       err;
 
     err = wbti_alloc(&self);
