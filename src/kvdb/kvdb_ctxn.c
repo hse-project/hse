@@ -1070,6 +1070,7 @@ kvdb_ctxn_pfx_probe(
 
     /* Check txn's local mutations */
     err = c0kvms_pfx_probe_excl(ctxn->ctxn_kvms, c0_index(c0), kt,
+                                c0_get_sfx_len(c0),
                                 ctxn->ctxn_view_seqno, ctxn->ctxn_seqref,
                                 res, qctx, kbuf, vbuf, 0);
     if (ev(err)) {
