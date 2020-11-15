@@ -313,7 +313,11 @@ kv_iter_init(struct kv_iter *iter)
     return 0;
 }
 
+#if (MHD_VERSION >= 0x00097002)
 static enum MHD_Result
+#else
+static int
+#endif
 extract_kv_pairs(void *cls, enum MHD_ValueKind kind, const char *key, const char *value)
 {
     struct session *    session = cls;
@@ -709,7 +713,11 @@ err:
     return tmp;
 }
 
+#if (MHD_VERSION >= 0x00097002)
 static enum MHD_Result
+#else
+static int
+#endif
 webserver_response(
     void *                 cls,
     struct MHD_Connection *connection,
