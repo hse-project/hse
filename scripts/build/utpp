@@ -359,7 +359,7 @@ function process_functions(func_names, func_kus,
             gsub("/", "_", unique_str)
             gsub(/\./, "_", unique_str)
             gsub(/\-/, "_", unique_str)
-            gsub(/\@/, "_", unique_str)
+            gsub(/@/, "_", unique_str)
             printf("#ifndef %s\n", unique_str) > TARGET_FILE;
             printf("#define %s\n\n", unique_str) > TARGET_FILE;
 

@@ -67,7 +67,7 @@ struct nfault_probe cndb_ack_probes[CNDB_NUM_PROBES] = {
     {},                                /* CNDB_PROBE_DROP_TXD */
 };
 
-struct nfault_probe *cndb_probes = cndb_no_probes;
+static struct nfault_probe *cndb_probes = cndb_no_probes;
 
 /* PRIVATE */
 int

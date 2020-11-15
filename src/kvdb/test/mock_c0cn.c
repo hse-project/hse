@@ -573,7 +573,7 @@ _cndb_cn_make(struct cndb *cndb, struct kvs_cparams *cp, u64 *cnid, char *name)
     return 0;
 }
 
-struct kvs_cparams cp;
+static struct kvs_cparams cp;
 
 void
 mock_cn_set()
