@@ -281,27 +281,27 @@ kvdb_rparams_print(struct kvdb_rparams *rparams)
     params_print(kvdb_rp_table, n, "kvdb_rparams", rparams, (void *)&kvdb_rp_ref);
 }
 
-int
+merr_t
 kvdb_rparams_validate(struct kvdb_rparams *params)
 {
     if (ev(!params))
-        return EINVAL;
+        return merr(EINVAL);
 
     if (params->rpmagic != RPARAMS_MAGIC) {
         hse_log(HSE_ERR "runtime parameters struct not properly "
                         "initialized(use kvdb_rparams_defaults())");
-        return EINVAL;
+        return merr(EINVAL);
     }
 
     if (params->log_lvl > 7) {
         hse_log(HSE_ERR "log_lvl cannot be greater than 7");
-        return EINVAL;
+        return merr(EINVAL);
     }
 
     return 0;
 }
 
-int
+merr_t
 kvdb_rparams_parse(int argc, char **argv, struct kvdb_rparams *params, int *next_arg)
 {
     int                i;
@@ -310,11 +310,11 @@ kvdb_rparams_parse(int argc, char **argv, struct kvdb_rparams *params, int *next
     merr_t             err;
 
     if (ev(!argv || !params))
-        return EINVAL;
+        return merr(EINVAL);
 
     pi = calloc(num_elems, sizeof(*pi));
     if (!pi)
-        return ENOMEM;
+        return merr(ENOMEM);
 
     /* Create an instance table from the reference table by copying
      * the members, and adjusting value pointers to be relative
@@ -336,7 +336,8 @@ kvdb_rparams_parse(int argc, char **argv, struct kvdb_rparams *params, int *next
     err = process_params(argc, argv, pi, next_arg, 0);
 
     free(pi);
-    return merr_errno(ev(err));
+
+    return ev(err);
 }
 
 struct kvdb_rparams kvdb_rp_dt_defaults;

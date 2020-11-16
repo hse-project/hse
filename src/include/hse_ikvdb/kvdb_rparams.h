@@ -120,7 +120,7 @@ kvdb_rparams_table(void);
  * Parse the parameters in argv and populate the structure 'params'
  * accordingly
  */
-int
+merr_t
 kvdb_rparams_parse(int argc, char **argv, struct kvdb_rparams *params, int *next_arg);
 
 void
@@ -147,7 +147,7 @@ kvdb_rparams_help(char *buf, size_t buf_len, struct kvdb_rparams *rparams);
  *
  * Check if the parameters are valid
  */
-int
+merr_t
 kvdb_rparams_validate(struct kvdb_rparams *params);
 
 /**
@@ -170,7 +170,7 @@ kvdb_rparams_defaults(void);
 /**
  * kvdb_get_num_rparams() - get total number of runtime parameters
  */
-unsigned int
+u32
 kvdb_get_num_rparams(void);
 
 /**
