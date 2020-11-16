@@ -203,7 +203,6 @@ verify_seek(
     verify(lcl_ti, cur, vtab, vc, 0);
 }
 
-#if 0
 static
 void
 verify_seek_eof(
@@ -233,7 +232,6 @@ verify_seek_eof(
 
     verify(lcl_ti, cur, vtab, vc, 0);
 }
-#endif
 
 MTF_BEGIN_UTEST_COLLECTION_PRE(cn_cursor, test_collection_setup)
 
@@ -324,11 +322,11 @@ MTF_DEFINE_UTEST_PREPOST(cn_cursor, repeat_update, pre, post)
     struct mock_kvset * mk;
     struct mpool *      ds = (void *)-1;
     struct kv_iterator *itv[1];
-    /*void                 *cur;*/
+    void                 *cur;
     merr_t         err;
     struct cndb    cndb;
     struct cndb_cn cndbcn = cndb_cn_initializer(3, 0, 0);
-    /*struct cursor_summary sum;*/
+    struct cursor_summary sum;
     struct kvdb_kvs    kk = { 0 };
     u64                dummy_ikvdb[32] = { 0 };
     struct kvs_cparams cp = {};
@@ -364,7 +362,6 @@ MTF_DEFINE_UTEST_PREPOST(cn_cursor, repeat_update, pre, post)
     err = cn_tree_insert_kvset(tree, ITV_KVSET(itv[0]), 0, 0);
     ASSERT_EQ(err, 0);
 
-#if 0
     err = cn_cursor_create(cn, seqno, false, NULL, 0, &sum, &cur);
     ASSERT_EQ(err, 0);
     ASSERT_NE(cur, NULL);
@@ -377,7 +374,6 @@ MTF_DEFINE_UTEST_PREPOST(cn_cursor, repeat_update, pre, post)
 
     cn_tree_cursor_destroy(cur);
     cn_tree_cursor_destroy(cur);
-#endif
 
     err = cn_close(cn);
     ASSERT_EQ(err, 0);
@@ -409,7 +405,6 @@ MTF_DEFINE_UTEST_PREPOST(cn_cursor, root_1kvset, pre, post)
         { 0x400, 0, 0, VMX_S32, KVDATA_BE_KEY, 1 },
     };
 
-#if 0
     unsigned char   pfx1[] = { 0, 0, 1 };
     unsigned char   pfx2[] = { 0, 0, 2 };
     unsigned char   pfx5[] = { 0, 0, 5 };
@@ -419,7 +414,6 @@ MTF_DEFINE_UTEST_PREPOST(cn_cursor, root_1kvset, pre, post)
         { 0x100, 0x100, 0x100, VMX_S32, 0, 0 },
         /* none */
     };
-#endif
 
     ITV_INIT(itv, 0, make);
 
@@ -448,11 +442,9 @@ MTF_DEFINE_UTEST_PREPOST(cn_cursor, root_1kvset, pre, post)
     err = cn_tree_insert_kvset(tree, ITV_KVSET(itv[0]), 0, 0);
     ASSERT_EQ(err, 0);
 
-#if 0
     verify_cursor(lcl_ti, cn, pfx2, sizeof(pfx2), vtab, 1);
     verify_cursor(lcl_ti, cn, pfx1, sizeof(pfx2), vtab+1, 1);
     verify_cursor(lcl_ti, cn, pfx5, sizeof(pfx5), 0, 0);
-#endif
 
     err = cn_close(cn);
     ASSERT_EQ(err, 0);
@@ -515,6 +507,7 @@ MTF_DEFINE_UTEST_PREPOST(cn_cursor, root_4kvsets, pre, post)
 
     mk = ITV_KVSET_MOCK(itv[3]);
     mapi_inject(mapi_idx_cn_tree_initial_dgen, mk->dgen);
+    mapi_inject_ptr(mapi_idx_ikvdb_get_csched, NULL);
 
     err = cndb_init(&cndb, ds, true, 0, CNDB_ENTRIES, 0, 0, &health);
     ASSERT_EQ(err, 0);
@@ -543,7 +536,7 @@ MTF_DEFINE_UTEST_PREPOST(cn_cursor, root_4kvsets, pre, post)
         ASSERT_EQ(err, 0);
     }
 
-/*
+    /*
      * and validate we get what we expect
      */
 #if 0
@@ -615,7 +608,6 @@ MTF_DEFINE_UTEST_PREPOST(cn_cursor, prefix_tree, pre, post)
         { 0x20, 0x190, 0x0000, VMX_S32, KVDATA_BE_KEY, 4 }, /* loc 0,0 */
     };
 
-#if 0
     unsigned char pfx1[] = { 0, 0, 1 };
     unsigned char pfx2[] = { 0, 0, 2 };
     unsigned char all[]  = { 0, 0 };
@@ -638,7 +630,6 @@ MTF_DEFINE_UTEST_PREPOST(cn_cursor, prefix_tree, pre, post)
         { 0x40,  0x760, 0x1300, VMX_S32, 0, 0 },/* dgen 6, loc 1,3 */
         { 0x20,  0x900, 0x0000, VMX_S32, 0, 0 },/* dgen 7, loc 0,0 */
     };
-#endif
 
     struct locmap {
         int lvl;
@@ -664,6 +655,7 @@ MTF_DEFINE_UTEST_PREPOST(cn_cursor, prefix_tree, pre, post)
 
     mk = ITV_KVSET_MOCK(itv[7]);
     mapi_inject(mapi_idx_cn_tree_initial_dgen, mk->dgen);
+    mapi_inject_ptr(mapi_idx_ikvdb_get_csched, NULL);
 
     err = cndb_init(&cndb, ds, true, 0, CNDB_ENTRIES, 0, 0, &health);
     ASSERT_EQ(err, 0);
@@ -694,14 +686,12 @@ MTF_DEFINE_UTEST_PREPOST(cn_cursor, prefix_tree, pre, post)
         ASSERT_EQ(err, 0);
     }
 
-/*
+    /*
      * and validate we get what we expect
      */
-#if 0
     verify_cursor(lcl_ti, cn, pfx2, sizeof(pfx2), vtab, 2);
     verify_cursor(lcl_ti, cn, pfx1, sizeof(pfx1), vtab+2, 3);
     verify_cursor(lcl_ti, cn, all,  sizeof(all),  vtab+5, 8);
-#endif
 
     err = cn_close(cn);
     ASSERT_EQ(err, 0);
@@ -766,10 +756,9 @@ MTF_DEFINE_UTEST_PREPOST(cn_cursor, cursor_seek, pre, post)
         { 0x20, 0x190, 0x0000, VMX_S32, KVDATA_BE_KEY, 4 }, /* loc 0,0 */
     };
 
-    /*unsigned char pfx1[] = { 0, 0, 1 };*/
+    unsigned char pfx1[] = { 0, 0, 1 };
 
     unsigned char seek0[] = { 0, 0, 0, 0 }; /* before */
-#if 0
     unsigned char seek1[] = { 0, 0, 1, 0 };     /* first */
     unsigned char seek2[] = { 0, 0, 1, 0x80 };  /* middle */
     unsigned char seek3[] = { 0, 0, 2, 0 };     /* past */
@@ -792,7 +781,6 @@ MTF_DEFINE_UTEST_PREPOST(cn_cursor, cursor_seek, pre, post)
         /* seek3 */
         /* eof */
     };
-#endif
 
     struct locmap {
         int lvl;
@@ -851,10 +839,9 @@ MTF_DEFINE_UTEST_PREPOST(cn_cursor, cursor_seek, pre, post)
         ASSERT_EQ(err, 0);
     }
 
-/*
+    /*
      * and validate we get what we expect
      */
-#if 0
 #define VERIFY(pfx, seek, vtab, vc) \
     verify_seek(lcl_ti, cn, pfx, sizeof(pfx), seek, sizeof(seek), vtab, vc)
 
@@ -866,7 +853,6 @@ MTF_DEFINE_UTEST_PREPOST(cn_cursor, cursor_seek, pre, post)
 
     verify_seek_eof(lcl_ti, cn, pfx1, sizeof(pfx1),
             seek0, sizeof(seek0), vtab, 3);
-#endif
 
     err = cn_close(cn);
     ASSERT_EQ(err, 0);
