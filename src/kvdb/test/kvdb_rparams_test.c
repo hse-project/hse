@@ -69,23 +69,23 @@ MTF_DEFINE_UTEST(kvdb_rparams, kvdb_rparams_validate_test)
 {
     struct kvdb_rparams p = kvdb_rparams_defaults();
     char                buf[128], *str;
-    int                 err;
+    merr_t              err;
     u32                 n;
 
     /* Normal Working */
     err = kvdb_rparams_validate(&p);
-    ASSERT_EQ(err, 0);
+    ASSERT_EQ(merr_errno(err), 0);
 
     /* NULL arg */
     err = kvdb_rparams_validate(NULL);
-    ASSERT_EQ(err, EINVAL);
+    ASSERT_EQ(merr_errno(err), EINVAL);
 
     n = kvdb_get_num_rparams();
     ASSERT_GT(n, 0);
 
     p.rpmagic = 0xDEADBEEF;
     err = kvdb_rparams_validate(&p);
-    ASSERT_EQ(err, EINVAL);
+    ASSERT_EQ(merr_errno(err), EINVAL);
 
     str = kvdb_rparams_help(buf, sizeof(buf), &p);
     ASSERT_EQ(buf, str);
