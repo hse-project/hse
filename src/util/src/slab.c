@@ -1348,27 +1348,6 @@ hse_page_free(void *mem)
     kmem_cache_free(kmc.kmc_pagecache, mem);
 }
 
-/* The following clunky interfaces are going away real soon now,
- * DO NOT use in new code.
- */
-unsigned long
-__get_free_page(unsigned int flags)
-{
-    return (ulong)kmem_cache_alloc(kmc.kmc_pagecache);
-}
-
-unsigned long
-get_zeroed_page(unsigned int flags)
-{
-    return (ulong)kmem_cache_zalloc(kmc.kmc_pagecache);
-}
-
-void
-free_page(unsigned long addr)
-{
-    kmem_cache_free(kmc.kmc_pagecache, (void *)addr);
-}
-
 #if HSE_UNIT_TEST_MODE
 #include "slab_ut_impl.i"
 #endif
