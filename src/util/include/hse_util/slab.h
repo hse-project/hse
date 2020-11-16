@@ -69,13 +69,6 @@ hse_page_zalloc(void);
 void
 hse_page_free(void *mem);
 
-/* The following clunky interfaces are going away real soon now,
- * DO NOT use in new code.
- */
-unsigned long __get_free_page(unsigned int flags);
-unsigned long get_zeroed_page(unsigned int flags);
-void free_page(unsigned long addr);
-
 #if HSE_UNIT_TEST_MODE
 #include "slab_ut.h"
 #endif /* HSE_UNIT_TEST_MODE */
