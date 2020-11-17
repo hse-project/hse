@@ -698,6 +698,8 @@ cursor_test_execute(struct cursor_test *ct, struct hse_kvs *kvs)
     u64   dt;
     ulong i;
 
+    HSE_KVDB_OPSPEC_INIT(&ops);
+
     if (p->ctp_reverse)
         ops.kop_flags |= HSE_KVDB_KOP_FLAG_REVERSE;
 
