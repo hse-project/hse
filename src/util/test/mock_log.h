@@ -24,13 +24,15 @@ enum type_spec {
     ts_ptr = 11
 };
 
-struct logging_result {
+typedef struct logging_result {
     char msg_buffer[MAX_MSG_SIZE];
     char count;
     char names[MAX_NV_PAIRS][MAX_NV_SIZE];
     char values[MAX_NV_PAIRS][MAX_NV_SIZE];
     char index;
-} shared_result;
+} logging_result;
+
+extern logging_result shared_result;
 
 void
 test_preprocess_fmt_string(
