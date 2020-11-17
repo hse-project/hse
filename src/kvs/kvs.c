@@ -616,15 +616,30 @@ ikvs_del(struct ikvs *kvs, struct hse_kvdb_opspec *os, struct kvs_ktuple *kt, u6
     struct perfc_set *pkvsl_pc = ikvs_perfc_pkvsl(kvs);
     struct kvdb_ctxn *ctxn = 0;
     struct c0 *       c0 = kvs->ikv_c0;
+    size_t            sfx_len;
     size_t            hashlen;
     u64               tstart;
     merr_t            err;
 
     tstart = perfc_lat_start(pkvsl_pc);
 
-    hashlen = kt->kt_len - kvs->ikv_sfx_len;
+    sfx_len = kvs->ikv_sfx_len;
+    hashlen = kt->kt_len - sfx_len;
     kt->kt_hash = key_hash64(kt->kt_data, hashlen);
 
+    /* Assert that either
+     *  1. This is NOT a suffixed tree, OR
+     *  2. keylen is at least pfx_len + sfx_len
+     */
+    if (ev(sfx_len && kt->kt_len < sfx_len + kvs->ikv_pfx_len)) {
+        hse_log(
+            HSE_ERR "%s is a suffixed kvs. Keys must be at least "
+                    "pfx_len(%u) + sfx_len(%u) bytes long.",
+            kvs->ikv_kvs_name,
+            kvs->ikv_pfx_len,
+            kvs->ikv_sfx_len);
+        return merr(EINVAL);
+    }
     if (os && os->kop_txn)
         ctxn = kvdb_ctxn_h2h(os->kop_txn);
 

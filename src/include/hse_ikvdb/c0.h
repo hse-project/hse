@@ -102,6 +102,10 @@ c0_get_width(struct c0 *self);
 s32
 c0_get_pfx_len(struct c0 *c0);
 
+/* MTF_MOCK */
+u32
+c0_get_sfx_len(struct c0 *c0);
+
 /**
  * c0_put() - insert a key/value pair into the struct c0
  * @self:      Instance of struct c0 into which to insert
