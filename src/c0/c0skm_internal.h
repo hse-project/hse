@@ -130,7 +130,7 @@ struct c0sk_mutation {
     atomic64_t      c0skm_tseqno   __aligned(SMP_CACHE_BYTES);
     volatile u64    c0skm_reqtime  __aligned(SMP_CACHE_BYTES);
 
-    u8 c0skm_cnid[HSE_KVS_COUNT_MAX]  __aligned(SMP_CACHE_BYTES);
+    u64 c0skm_cnid[HSE_KVS_COUNT_MAX]  __aligned(SMP_CACHE_BYTES);
 };
 
 _Static_assert(HSE_KVS_COUNT_MAX <= 256, "c0skm_cnid type too small");
