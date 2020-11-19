@@ -486,8 +486,11 @@ throttle_update(struct throttle *self)
         if (mavg->tm_curr >= THROTTLE_SENSOR_SCALE) {
             throttle_switch_state(self, THROTTLE_INCREASE, max_val);
         } else {
-            uint cmavg;
+            const uint cmavg_hi  = THROTTLE_SENSOR_SCALE * 90 / 100;
+            const uint cmavg_mid = THROTTLE_SENSOR_SCALE * 25 / 100;
+            const uint cmavg_lo  = THROTTLE_SENSOR_SCALE * 10 / 100;
             bool reduce = false;
+            uint cmavg;
 
             if (self->thr_monitor_cnt)
                 self->thr_reduce_sum += max_val;
@@ -497,13 +500,10 @@ throttle_update(struct throttle *self)
             self->thr_monitor_cnt++;
             cmavg = self->thr_reduce_sum / self->thr_monitor_cnt;
 
-            if (self->thr_monitor_cnt >= self->thr_reduce_cycles &&
-                cmavg < THROTTLE_SENSOR_SCALE * 9 / 10) {
+            if (cmavg < cmavg_hi && self->thr_monitor_cnt >= self->thr_reduce_cycles) {
                 reduce = true;
                 self->thr_max_tries = 5;
-            } else if (
-                cmavg < THROTTLE_SENSOR_SCALE / 4 &&
-                self->thr_monitor_cnt >= self->thr_reduce_cycles / 4) {
+            } else if (cmavg < cmavg_mid && self->thr_monitor_cnt >= self->thr_reduce_cycles / 4) {
                 reduce = true;
                 self->thr_max_tries = 2;
             }
@@ -526,22 +526,18 @@ throttle_update(struct throttle *self)
             if (reduce && self->thr_csched < THROTTLE_SENSOR_SCALE) {
 
                 int delta = self->thr_delay_raw - self->thr_delay_test;
-                const int hi = THROTTLE_SENSOR_SCALE * 95 / 100; /* 95% */
-                const int lo = THROTTLE_SENSOR_SCALE * 10 / 100; /* 10% */
                 const double pmax = 0.40; /* max percent reduce when cmavg==lo */
                 const double pmin = 0.01; /* min percent reduce when cmavg==hi */
                 double p;
 
+                assert(cmavg <= cmavg_hi);
+
                 if (delta <= 0 || delta >= self->thr_delay_raw) {
-                    if (cmavg > hi) {
-                        delta = 0;
-                    } else {
-                        if (cmavg > lo)
-                            p = pmax - (pmax - pmin) * (cmavg - lo) / (hi - lo);
-                        else
-                            p = pmax;
-                        delta = p * self->thr_delay_raw;
-                    }
+                    if (cmavg > cmavg_lo)
+                        p = pmax - (pmax - pmin) * (cmavg - cmavg_lo) / (cmavg_hi - cmavg_lo);
+                    else
+                        p = pmax;
+                    delta = p * self->thr_delay_raw;
                 }
 
                 if (delta > 0) {
