@@ -855,7 +855,7 @@ ikvdb_maint_task(struct work_struct *work)
 
         /* Use a smaller delay at program start to avoid unnecessarily
          * holding up a short lived program.  Once we hit 100ms we'll
-         * stop incrmenting maxdelay.
+         * stop incrementing maxdelay.
          */
         if (maxdelay < 100000)
             maxdelay += 3000;
