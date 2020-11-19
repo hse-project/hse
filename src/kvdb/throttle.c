@@ -215,11 +215,6 @@ throttle_init_params(struct throttle *self, struct kvdb_rparams *rp)
         self->thr_inject_cycles,
         self->thr_skip_cycles,
         self->thr_delta_cycles);
-
-    hse_log(
-        HSE_NOTICE "throttle debug setting: %d, matching: %d",
-        self->thr_rp->throttle_debug,
-        ((self->thr_rp->throttle_debug & THROTTLE_DEBUG_DELAYV) ? 1 : 0));
 }
 
 void
@@ -244,9 +239,8 @@ void
 throttle_reduce_debug(struct throttle *self, uint sensor, uint mavg)
 {
     hse_log(
-        HSE_NOTICE "throttle: mred %u icnt %u raw %d prev %d trial %d"
+        HSE_NOTICE "throttle: icnt %u raw %d prev %d trial %d"
                    " mcnt %d v %d cmavg %d",
-        self->thr_try_mreduce,
         self->thr_inject_cnt,
         self->thr_delay_raw,
         self->thr_delay_prev,
@@ -300,7 +294,6 @@ throttle_increase(struct throttle *self, uint value)
         }
 
         self->thr_state = THROTTLE_NO_CHANGE;
-        self->thr_try_mreduce = false;
         self->thr_monitor_cnt = 0;
         self->thr_delay_idelta = 0;
         self->thr_delay_test = 0;
@@ -360,14 +353,6 @@ throttle_decrease(struct throttle *self, uint svalue)
         self->thr_delay_raw = self->thr_delay_prev;
         self->thr_delay_test = self->thr_delay_prev - delta / 2;
 
-        /*
-         * Turn off the multiplicative decrease in sleep time.
-         */
-        if (unlikely(self->thr_try_mreduce)) {
-            self->thr_try_mreduce = false;
-            self->thr_delay_test = 0;
-        }
-
         if (debug & THROTTLE_DEBUG_REDUCE)
             throttle_reduce_debug(self, svalue, 0);
 
@@ -387,19 +372,8 @@ throttle_decrease(struct throttle *self, uint svalue)
             if (self->thr_num_tries < self->thr_max_tries) {
                 self->thr_inject_cnt = self->thr_inject_cycles * (self->thr_num_tries + 1);
             } else {
-                /*
-                 * Set the sleep value to the reduced one.
-                 * Try a multiplicative decrease next time so
-                 * long as the mavg sensor value remains below
-                 * THROTTLE_SENSOR_SCALE/2.
-                 */
-                self->thr_try_mreduce = true;
-                if (self->thr_delay_test >= delta)
-                    self->thr_delay_test -= delta;
-
                 if (debug & THROTTLE_DEBUG_REDUCE)
                     throttle_reduce_debug(self, svalue, 0);
-
                 throttle_reset_state(self);
             }
         }
@@ -431,10 +405,9 @@ throttle_update(struct throttle *self)
 {
     struct throttle_mavg *mavg = &self->thr_mavg;
     u32                   max_val = 0;
-    int                   i, diff;
     u64                   debug = self->thr_rp->throttle_debug;
 
-    for (i = 0; i < THROTTLE_SENSOR_CNT; i++) {
+    for (int i = 0; i < THROTTLE_SENSOR_CNT; i++) {
         u32  tmp = atomic_read(&self->thr_sensorv[i].ts_sensor);
         u32  cidx = UINT_MAX;
         bool ignore = false;
@@ -524,11 +497,6 @@ throttle_update(struct throttle *self)
             self->thr_monitor_cnt++;
             cmavg = self->thr_reduce_sum / self->thr_monitor_cnt;
 
-            /* Switch off multiplicative acceleration when
-             * the cmavg exceeds a threshold. */
-            if (self->thr_try_mreduce && cmavg >= THROTTLE_SENSOR_SCALE / 2)
-                self->thr_try_mreduce = false;
-
             if (self->thr_monitor_cnt >= self->thr_reduce_cycles &&
                 cmavg < THROTTLE_SENSOR_SCALE * 9 / 10) {
                 reduce = true;
@@ -542,31 +510,43 @@ throttle_update(struct throttle *self)
 
             /*
              * If the moving average has remained low for at least
-             * thr_reduce_cycles, attempt to reduce the
-             * sleep value.
+             * thr_reduce_cycles and the csched sensor is in good
+             * shape, then attempt to reduce the trial delay.  Set
+             * delay based on where cmavg is in the range 0..1000 as
+             * follows:
+             *
+             *    0..100      reduce delay by pmax (40%)
+             *    101..950    scale from pmax down to pmin (1%)
+             *    951..1000   do not start trials (system is happy)
+             *
+             * Reducing delay by p < 1.0 increases rate by a factor of
+             * 1/(1-p), so p=0.40 increases rate by factor of 1.66 and
+             * p=0.01 increases rate by 1%.
              */
             if (reduce && self->thr_csched < THROTTLE_SENSOR_SCALE) {
-                int del = self->thr_delay_raw - self->thr_delay_test;
 
-                if (unlikely(self->thr_try_mreduce))
-                    del *= 2;
+                int delta = self->thr_delay_raw - self->thr_delay_test;
+                const int hi = THROTTLE_SENSOR_SCALE * 95 / 100; /* 95% */
+                const int lo = THROTTLE_SENSOR_SCALE * 10 / 100; /* 10% */
+                const double pmax = 0.40; /* max percent reduce when cmavg==lo */
+                const double pmin = 0.01; /* min percent reduce when cmavg==hi */
+                double p;
 
-                if (del <= 0 || del >= self->thr_delay_raw) {
-                    diff = THROTTLE_SENSOR_SCALE - cmavg;
-                    diff *= 100;
-                    diff /= THROTTLE_SENSOR_SCALE;
-
-                    if (diff >= 90)
-                        del = self->thr_delay_raw / 2;
-                    else if (diff >= 15)
-                        del = self->thr_delay_raw / 10;
-                    else if (diff > 5 && diff < 15)
-                        del = self->thr_delay_raw / 100;
+                if (delta <= 0 || delta >= self->thr_delay_raw) {
+                    if (cmavg > hi) {
+                        delta = 0;
+                    } else {
+                        if (cmavg > lo)
+                            p = pmax - (pmax - pmin) * (cmavg - lo) / (hi - lo);
+                        else
+                            p = pmax;
+                        delta = p * self->thr_delay_raw;
+                    }
                 }
 
-                if (del > 0) {
+                if (delta > 0) {
                     self->thr_delay_prev = self->thr_delay_raw;
-                    self->thr_delay_raw -= del;
+                    self->thr_delay_raw -= delta;
                     self->thr_delay_test = self->thr_delay_raw;
                     self->thr_inject_cnt = self->thr_inject_cycles;
                     self->thr_num_tries = 0;
