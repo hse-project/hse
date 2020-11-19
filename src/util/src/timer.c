@@ -64,6 +64,8 @@ timer_calibrate_loop(int itermax, u64 (*func)(void), u64 *minresp)
     mincycles = U64_MAX;
     minres = U64_MAX;
 
+    usleep(1000);
+
     for (i = 0; i < 3; ++i) {
         u64 cycles, last, res;
 
@@ -91,13 +93,20 @@ timer_calibrate_loop(int itermax, u64 (*func)(void), u64 *minresp)
  * timer_calibrate() - Determine TSC frequency and cost of various facilities
  */
 static void
-timer_calibrate(void)
+timer_calibrate(ulong delay)
 {
+    static ulong cps_start, nsecs_start;
     ulong cyc_loop, cyc_gc, cyc_gtns, cyc_nsleep, gc, gtns;
-    ulong cps, nsecs, diff, last;
-    int imax = 10000, rc, n;
+    ulong cps, nsecs, diff;
+    int imax = 32768, rc;
 
-    usleep((getpid() % 10) * 10);
+    if (!cps_start) {
+        cps_start = get_cycles();
+        nsecs_start = get_time_ns();
+    }
+
+    cps = cps_start;
+    nsecs = nsecs_start;
 
     /* First we measure a few functions that we call a lot in order
      * to get an idea of how much they cost.  Results are likely to
@@ -109,31 +118,22 @@ timer_calibrate(void)
     cyc_gtns = timer_calibrate_loop(imax, timer_calibrate_gtns, &gtns);
     cyc_gtns = (cyc_gtns - cyc_loop) / imax;
 
-    cyc_nsleep = timer_calibrate_loop(1000, timer_calibrate_nsleep, &diff);
-    cyc_nsleep = (cyc_nsleep - ((cyc_loop * 1000) / imax)) / 1000;
+    cyc_nsleep = timer_calibrate_loop(64, timer_calibrate_nsleep, &diff);
+    cyc_nsleep = (cyc_nsleep - ((cyc_loop * 64) / imax)) / 64;
 
-    last = 0;
-    n = 0;
+    usleep(delay);
 
-    /* Compute TSC frequency.
+    /* Compute TSC frequency.  Scale down measurements if the sample
+     * period was too long and would cause an overflow.
      */
-    while (n++ < 100) {
-        usleep(USEC_PER_SEC / 9);
+    nsecs = get_time_ns() - nsecs;
+    cps = get_cycles() - cps;
 
-        cps = get_cycles();
-        nsecs = get_time_ns();
-        usleep(USEC_PER_SEC / 9);
-        nsecs = get_time_ns() - nsecs;
-        cps = (get_cycles() - cps) * NSEC_PER_SEC / nsecs;
-
-        diff = (cps > last) ? (cps - last) : (last - cps);
-
-        if (diff < 50000 && nsecs > USEC_PER_SEC / 10)
-            break;
-
-        last = roundup(cps, 50000);
-        last = (last / 100000) * 100000;
+    while (cps > ULONG_MAX / NSEC_PER_SEC) {
+        cps >>= 1;
+        nsecs >>= 1;
     }
+    cps = (cps * NSEC_PER_SEC) / nsecs;
 
     tsc_freq = cps;
     tsc_shift = 21;
@@ -152,10 +152,10 @@ timer_calibrate(void)
         timer_nslpmin = timer_slack;
 
     hse_log(HSE_NOTICE
-            "%s: gc %lu/%lu %lu/%lu, gtns %lu/%lu %lu/%lu, c/s %lu/%d, timerslack %lu/%lu",
+            "%s: get_cycles %lu/%lucy %lu/%luns, get_time_ns %lu/%lucy %lu/%luns, c/s %lu, timerslack %lu/%lu",
             __func__, cyc_gc, gc, cycles_to_nsecs(cyc_gc), cycles_to_nsecs(gc),
             cyc_gtns, gtns - gc, cycles_to_nsecs(cyc_gtns), cycles_to_nsecs(gtns - gc),
-            cps, n, timer_nslpmin, timer_slack);
+            cps, timer_nslpmin, timer_slack);
 }
 
 static __always_inline void
@@ -179,13 +179,17 @@ timer_first(void)
 static void
 timer_jclock_cb(struct work_struct *work)
 {
-    struct timer_list  *first;
-    sigset_t            set;
+    struct timer_list recalibrate, *first;
+    sigset_t          set;
 
     sigfillset(&set);
     pthread_sigmask(SIG_BLOCK, &set, 0);
 
-    timer_calibrate();
+    /* Recalibrate the TSC after one second for a much more accurate measurement.
+     */
+    setup_timer(&recalibrate, timer_calibrate, 1);
+    recalibrate.expires = nsecs_to_jiffies(get_time_ns() + NSEC_PER_SEC);
+    add_timer(&recalibrate);
 
     while (timer_running) {
         struct timespec ts;
@@ -212,6 +216,8 @@ timer_jclock_cb(struct work_struct *work)
 
         clock_nanosleep(CLOCK_MONOTONIC, 0, &ts, NULL);
     }
+
+    del_timer(&recalibrate);
 }
 
 static void
@@ -295,6 +301,12 @@ hse_timer_init(void)
     INIT_WORK(&timer_jclock_work, timer_jclock_cb);
     INIT_WORK(&timer_dispatch_work, timer_dispatch_cb);
 
+    /* Take an initial quick measurement of the TSC so as not to hold
+     * up short lived program invocations.  We'll take a more accurate
+     * measurement a few seconds after the timer starts.
+     */
+    timer_calibrate(10000);
+
     timer_wq = alloc_workqueue("timer_wq", 0, 2);
     if (!timer_wq) {
         hse_log(HSE_ERR "%s: alloc_workqueue failed", __func__);
@@ -305,7 +317,7 @@ hse_timer_init(void)
     queue_work(timer_wq, &timer_jclock_work);
 
     while (!jiffies)
-        usleep(10000);
+        usleep(3000);
 
     return 0;
 }

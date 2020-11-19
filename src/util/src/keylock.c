@@ -26,8 +26,9 @@ struct keylock_impl {
     u64            kli_num_entries;
     keylock_cb_fn *kli_cb_func;
 
-    __aligned(SMP_CACHE_BYTES) struct mutex kli_kmutex;
+    struct mutex kli_kmutex __aligned(SMP_CACHE_BYTES * 2);
     struct keylock_stats kli_stats;
+
     struct keylock_entry kli_entries[];
 };
 
@@ -59,14 +60,13 @@ keylock_create(u64 num_ents, keylock_cb_fn *cb_func, struct keylock **handle_out
     if (ev(!table))
         return merr(ENOMEM);
 
-    memset(table, 0, sz);
+    memset(table, 0, sizeof(*table));
     table->kli_num_entries = num_ents;
+    table->kli_cb_func = cb_func ? cb_func : keylock_cb_func;
+    mutex_init_adaptive(&table->kli_kmutex);
 
     for (i = 0; i < num_ents; ++i)
         table->kli_entries[i] = EMPTY_ENTRY;
-
-    table->kli_cb_func = cb_func ? cb_func : keylock_cb_func;
-    mutex_init_adaptive(&table->kli_kmutex);
 
     *handle_out = &table->kli_handle;
 

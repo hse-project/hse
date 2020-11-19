@@ -1155,7 +1155,10 @@ cli_hse_kvs_create_impl(struct cli *cli, const char *cfile, const char *kvdb, co
     if (cli_hse_init(cli))
         return -1;
 
-    hp = parse_cmdline_hse_params(cli, cfile, "kvdb.excl=1", 0);
+    /* Reduce throttle update period to improve kvdb close time.
+     */
+    hp = parse_cmdline_hse_params(cli, cfile, "kvdb.excl=1",
+                                  "kvdb.throttle_update_ns=3000000", NULL);
     if (!hp)
         return EX_USAGE;
 
@@ -1190,7 +1193,10 @@ cli_hse_kvs_destroy_impl(struct cli *cli, const char *cfile, const char *kvdb, c
     if (cli_hse_init(cli))
         return -1;
 
-    hp = parse_cmdline_hse_params(cli, cfile, "kvdb.excl=1", 0);
+    /* Reduce throttle update period to improve kvdb close time.
+     */
+    hp = parse_cmdline_hse_params(cli, cfile, "kvdb.excl=1",
+                                  "kvdb.throttle_update_ns=3000000", NULL);
     if (!hp)
         return EX_USAGE;
 
