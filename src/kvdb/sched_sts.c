@@ -36,8 +36,8 @@
 #define SS_EXIT 2
 
 /* Sleep/wait times, milliseconds */
-#define EXIT_SLEEP_MS 100
-#define WORKER_INIT_SLEEP_MS 100
+#define EXIT_SLEEP_MS 3
+#define WORKER_INIT_SLEEP_MS 3
 #define WORKER_PAUSE_SLEEP_MS 100
 #define JOB_GET_TIMEOUT_MS 10
 #define MONITOR_TIMEOUT_MS 250
