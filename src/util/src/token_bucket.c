@@ -179,7 +179,7 @@ tbkt_request(struct tbkt *self, u64 request)
     u64 request_max;
     bool debt;
 
-    if (unlikely(self->tb_rate == 0 || request == 0))
+    if (unlikely(request == 0 || self->tb_rate == 0))
         return 0;
 
     spin_lock(&self->tb_lock);

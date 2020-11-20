@@ -148,7 +148,6 @@ struct throttle_mavg {
  * @thr_longest_run:    longest run of sensor values seen
  * @thr_num_tries:      number of trials in current reduction cycle
  * @thr_max_tries:      max number of trials
- * @thr_try_mreduce:    if set double prev sleep delta to ramp up quickly
  * @thr_rp:
  * @thr_perfc:
  * @thr_data:           raw nanosleep performance metrics
@@ -184,7 +183,6 @@ struct throttle {
     uint                 thr_longest_run;
     uint                 thr_num_tries;
     uint                 thr_max_tries;
-    bool                 thr_try_mreduce;
     struct kvdb_rparams *thr_rp;
     struct perfc_set     thr_sensor_perfc;
     struct perfc_set     thr_sleep_perfc;
