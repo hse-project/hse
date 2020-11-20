@@ -13,10 +13,12 @@
 
 /* Struct tbkt members should be considered private.  */
 struct tbkt {
-    spinlock_t tb_lock;
-    u64        tb_balance;
-    u64        tb_burst;
     u64        tb_rate;
+
+    spinlock_t tb_lock __aligned(128);
+
+    u64        tb_balance __aligned(64);
+    u64        tb_burst;
     u64        tb_refill_time;
     u64        tb_dt_max;
     u64        tb_requests;
