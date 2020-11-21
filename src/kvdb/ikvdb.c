@@ -64,6 +64,8 @@
 #include "kvdb_rest.h"
 #include "kvdb_params.h"
 
+#include <syscall.h>
+
 #pragma GCC visibility push(hidden)
 
 /* tls_vbuf[] is a thread-local buffer used as a compression output buffer
@@ -165,7 +167,7 @@ struct ikvdb_impl {
     struct kvdb_callback     ikdb_c1_callback;
     struct hse_params *      ikdb_profile;
 
-#define IKDB_TBC 7
+#define IKDB_TBC 8
     struct {
         struct tbkt tb __aligned(SMP_CACHE_BYTES * 2);
     }  ikdb_tbv[IKDB_TBC];
@@ -2119,13 +2121,18 @@ static
 void
 ikvdb_throttle2(struct ikvdb_impl *self, u64 bytes)
 {
+    uint cpuid, nodeid, bkt;
     u64 sleep_ns;
-    uint bkt;
 
     if (!throttle_active(&self->ikdb_throttle))
         return;
 
-    bkt = xrand64_tls() % IKDB_TBC;
+    if (unlikely( syscall(SYS_getcpu, &cpuid, &nodeid) ))
+        nodeid = raw_smp_processor_id();
+
+    bkt = xrand64_tls() % (IKDB_TBC / 2);
+    bkt += (nodeid % 2) * (IKDB_TBC / 2);
+
     sleep_ns = tbkt_request(&self->ikdb_tbv[bkt].tb, bytes);
     tbkt_delay(sleep_ns);
 
