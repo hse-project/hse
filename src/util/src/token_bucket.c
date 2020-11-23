@@ -100,7 +100,7 @@ tbkti_init(struct tbkt *self, u64 burst, u64 rate)
  * parameter 'now'.  This function has no side effects. Caller is expected to
  * update token bucket's balance and refill time.
  */
-u64
+static u64
 tbkti_balance(struct tbkt *self, u64 now)
 {
     u64 dt;
@@ -128,7 +128,7 @@ tbkti_balance(struct tbkt *self, u64 now)
     return self->tb_balance + refill;
 }
 
-void
+static void
 tbkti_refill(struct tbkt *self)
 {
     u64 now = get_time_ns();
@@ -173,18 +173,15 @@ tbkt_rate_get(struct tbkt *self)
 u64
 tbkt_request(struct tbkt *self, u64 request)
 {
-    u64 delay;
-    u64 rate;
-    u64 amount;
+    u64 delay, rate, amount;
     u64 request_max;
     bool debt;
 
     if (unlikely(request == 0 || self->tb_rate == 0))
         return 0;
 
-    spin_lock(&self->tb_lock);
-
-    ++self->tb_requests;
+    if (!spin_trylock(&self->tb_lock))
+        return 128;
 
     /* Refill the bucket based on elapsed time. */
     tbkti_refill(self);
@@ -205,6 +202,10 @@ tbkt_request(struct tbkt *self, u64 request)
 
     /* Make the withdrawal */
     self->tb_balance -= request;
+
+#ifndef HSE_BUILD_RELEASE
+    self->tb_requests++;
+#endif
 
     /* Save rate and debt status for use after lock */
     rate = self->tb_rate;
