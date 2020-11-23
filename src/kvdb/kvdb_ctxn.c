@@ -813,6 +813,14 @@ kvdb_ctxn_get_state(struct kvdb_ctxn *handle)
     return seqnoref_to_state(ctxn->ctxn_seqref);
 }
 
+void
+kvdb_ctxn_set_seqref(struct kvdb_ctxn *handle, uintptr_t seqref)
+{
+    struct kvdb_ctxn_impl *ctxn = kvdb_ctxn_h2r(handle);
+
+    ctxn->ctxn_seqref = seqref;
+}
+
 merr_t
 kvdb_ctxn_get_view_seqno(struct kvdb_ctxn *handle, u64 *view_seqno)
 {
