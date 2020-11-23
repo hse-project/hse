@@ -373,6 +373,11 @@ MTF_DEFINE_UTEST_PREPOST(ikvdb_test, basic_lifecycle, test_pre, test_post)
     ikvdb_txn_free(store, txn1);
     ikvdb_txn_free(store, txn2);
 
+    // At this point one of the previous txns will be recycled for txn3
+    struct hse_kvdb_txn *txn3 = ikvdb_txn_alloc(store);
+    ASSERT_EQ(KVDB_CTXN_INVALID, ikvdb_txn_state(store, txn3));
+    ikvdb_txn_free(store, txn3);
+
     err = ikvdb_close(store);
     ASSERT_EQ(0, err);
 

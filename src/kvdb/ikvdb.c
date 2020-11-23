@@ -3004,8 +3004,10 @@ ikvdb_txn_alloc(struct ikvdb *handle)
     struct kvdb_ctxn *    ctxn = NULL;
 
     spin_lock(&bkt->kcb_lock);
-    if (bkt->kcb_ctxnc > 0)
+    if (bkt->kcb_ctxnc > 0) {
         ctxn = bkt->kcb_ctxnv[--bkt->kcb_ctxnc];
+        kvdb_ctxn_set_seqref(ctxn, HSE_SQNREF_INVALID);
+    }
     spin_unlock(&bkt->kcb_lock);
 
     if (ctxn)
