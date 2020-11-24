@@ -20,6 +20,7 @@
 #include <hse_util/fmt.h>
 #include <hse_util/byteorder.h>
 #include <hse_util/slab.h>
+#include <hse_util/table.h>
 
 #include <hse_ikvdb/c0.h>
 #include <hse_ikvdb/cn.h>
@@ -34,6 +35,8 @@
 #include <hse_ikvdb/cursor.h>
 
 #include "kvs_params.h"
+
+#include <syscall.h>
 
 struct mpool;
 
@@ -53,12 +56,13 @@ struct cache_bucket {
     u64                     oldest;
     int                     cnt;
     bool                    freeme;
-} __aligned(SMP_CACHE_BYTES);
+};
 
 struct curcache {
     struct mutex         cca_lock;
     struct rb_root       cca_root;
     struct cache_bucket *cca_bkt_head;
+    struct table        *cca_c0curtab;
 } __aligned(SMP_CACHE_BYTES * 2);
 
 struct ikvs {
@@ -78,7 +82,11 @@ struct ikvs {
     const char *ikv_mpool_name;
     struct cache_bucket *ikv_curcache_bktmem;
 
-    struct curcache ikv_curcachev[7];
+    /* The width of the cursor cache divided by two should
+     * yield a prime in order for ikvs_td2cca() to work well.
+     */
+    uint            ikv_curcache_preenidx;
+    struct curcache ikv_curcachev[10];
 };
 
 struct perfc_name kvs_cc_perfc_op[] = {
@@ -833,6 +841,18 @@ ikvs_cursor_bkt_free(struct curcache *cca, struct cache_bucket *bkt)
     }
 }
 
+struct c0curtab_elem {
+    struct c0_cursor *c0cur;
+};
+
+static void
+ikvs_c0curtab_cb(void *arg)
+{
+    struct c0curtab_elem *cte = arg;
+
+    c0_cursor_destroy(cte->c0cur);
+}
+
 static void
 ikvs_curcache_preen(
     struct curcache *cca,
@@ -878,14 +898,18 @@ ikvs_curcache_preen(
                 continue;
             }
 
-            /* [HSE_REVISIT] Get this c0_cursor_destroy()
-             * call out from under the lock...
-             */
             if (now >= cur->kci_cache.cc_c0_ttl) {
                 if (cur->kci_c0cur) {
+                    struct c0curtab_elem *cte;
+
+                    cte = table_append(cca->cca_c0curtab);
+                    if (!cte)
+                        break;
+
+                    cte->c0cur = cur->kci_c0cur;
+                    cur->kci_c0cur = NULL;
+
                     cur->kci_cache.cc_c0_ttl = U64_MAX;
-                    c0_cursor_destroy(cur->kci_c0cur);
-                    cur->kci_c0cur = 0;
                     ++c0_retired;
                 }
             }
@@ -910,6 +934,11 @@ ikvs_curcache_preen(
             b->oldest = oldest;
     }
     mutex_unlock(&cca->cca_lock);
+
+    if (table_len(cca->cca_c0curtab) > 0) {
+        table_apply(cca->cca_c0curtab, ikvs_c0curtab_cb);
+        table_reset(cca->cca_c0curtab);
+    }
 
     /* [MU_REVIST] Offload cleanup to a workqueue...
      */
@@ -943,10 +972,14 @@ ikvs_maint_task(struct ikvs *kvs, u64 now)
 {
     uint c0_retired = 0;
     uint cn_retired = 0;
-    int  i;
+    int  idx, i;
 
-    for (i = 0; i < NELEM(kvs->ikv_curcachev); ++i)
-        ikvs_curcache_preen(kvs->ikv_curcachev + i, kvs, now, &c0_retired, &cn_retired);
+    /* Preen only a few cursor cache buckets per call...
+     */
+    for (i = 0; i < (NELEM(kvs->ikv_curcachev) / 4) + 1; ++i) {
+        idx = kvs->ikv_curcache_preenidx++ % NELEM(kvs->ikv_curcachev);
+        ikvs_curcache_preen(kvs->ikv_curcachev + idx, kvs, now, &c0_retired, &cn_retired);
+    }
 
     if (c0_retired > 0)
         perfc_add(&kvs->ikv_cc_pc, PERFC_BA_CC_RETIRE_C0, c0_retired);
@@ -1000,9 +1033,15 @@ ikvs_cursor_reap(struct ikvs *kvs)
 static struct curcache *
 ikvs_td2cca(struct ikvs *kvs, u64 pfxhash)
 {
-    u64 i = pfxhash ?: pthread_self();
+    uint cpuid, nodeid, i;
 
-    return kvs->ikv_curcachev + (i % NELEM(kvs->ikv_curcachev));
+    if (unlikely( syscall(SYS_getcpu, &cpuid, &nodeid) ))
+        nodeid = raw_smp_processor_id();
+
+    i = (pfxhash ?: pthread_self()) % (NELEM(kvs->ikv_curcachev) / 2);
+    i += (nodeid % 2) * (NELEM(kvs->ikv_curcachev) / 2);
+
+    return kvs->ikv_curcachev + i;
 }
 
 static int
@@ -2275,6 +2314,13 @@ kvs_create(struct ikvs **ikvs_out, struct kvs_rparams *rp)
         mutex_init(&cca->cca_lock);
         cca->cca_root = RB_ROOT;
 
+        cca->cca_c0curtab = table_create(1024, sizeof(struct c0curtab_elem), false);
+        if (!cca->cca_c0curtab) {
+            free_aligned(bkt);
+            free_aligned(ikvs);
+            return merr(ENOMEM);
+        }
+
         for (j = 0; j < nmax; ++j) {
             ikvs_cursor_bkt_free(cca, bkt);
             ++bkt;
@@ -2296,8 +2342,10 @@ kvs_destroy(struct ikvs *kvs)
         return;
     }
 
-    for (i = 0; i < NELEM(kvs->ikv_curcachev); ++i)
+    for (i = 0; i < NELEM(kvs->ikv_curcachev); ++i) {
+        table_destroy(kvs->ikv_curcachev[i].cca_c0curtab);
         mutex_destroy(&kvs->ikv_curcachev[i].cca_lock);
+    }
     free_aligned(kvs->ikv_curcache_bktmem);
 
     free((void *)kvs->ikv_mpool_name);

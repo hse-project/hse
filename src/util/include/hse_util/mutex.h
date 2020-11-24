@@ -133,23 +133,21 @@ mutex_destroy(struct mutex *mutex)
 static __always_inline void
 mutex_lock(struct mutex *mutex)
 {
-    int rc;
+    int rc __maybe_unused;
 
     rc = pthread_mutex_lock(&mutex->pth_mutex);
 
-    if (unlikely(rc))
-        abort();
+    assert(!rc);
 }
 
 static __always_inline void
 mutex_unlock(struct mutex *mutex)
 {
-    int rc;
+    int rc __maybe_unused;
 
     rc = pthread_mutex_unlock(&mutex->pth_mutex);
 
-    if (unlikely(rc))
-        abort();
+    assert(!rc);
 }
 
 /*

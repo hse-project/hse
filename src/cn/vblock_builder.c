@@ -61,8 +61,7 @@ _vblock_start(struct vblock_builder *bld)
 
     spare = !!(bld->flags & KVSET_BUILDER_FLAGS_SPARE);
 
-    if (stats)
-        tstart = get_time_ns();
+    tstart = get_time_ns();
 
     do {
         mclass = mclass_policy_get_type(mpolicy, bld->agegroup, HSE_MPOLICY_DTYPE_VALUE, allocs);
@@ -137,8 +136,7 @@ _vblock_write(struct vblock_builder *bld)
      * is not needed here because our write buffer is already
      * smallish (1MiB) and a multiple of the mblock stripe length.
      */
-    if (stats)
-        tstart = get_time_ns();
+    tstart = get_time_ns();
 
     err = mpool_mblock_write(bld->ds, bld->blkid, &iov, 1);
 

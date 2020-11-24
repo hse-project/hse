@@ -117,19 +117,22 @@ struct kvdb_ctxn_bkt {
  * @ikdb_log:           KVDB log handle
  * @ikdb_cndb:          CNDB handle
  * @ikdb_workqueue:
- * @ikdb_maint_work:
  * @ikdb_curcnt:        number of active cursors
  * @ikdb_curcnt_max:    maximum number of active cursors
+ * @ikdb_cur_ticket:    ticket lock ticket dispenser (serializes ikvdb_cur_list access)
+ * @ikdb_cur_serving:   ticket lock "now serving" number
  * @ikdb_seqno:         current sequence number for the struct ikvdb
- * @ikdb_seqno_cur:     oldest seqno of cursors
+ * @ikdb_cur_list:      list of cursors holding the cursor horizon
+ * @ikdb_cur_horizon:   oldest seqno in cursor ikdb_cur_list
  * @ikdb_c1:            Opaque structure for c1
  * @ikdb_c1_callback    c1 specific c0sk event handlers
- * @ikdb_profile:       hse params stored as profile
  * @ikdb_rp:            KVDB run time params
  * @ikdb_ctxn_cache:    ctxn cache
  * @ikdb_lock:          protects ikdb_kvs_vec/ikdb_kvs_cnt writes
  * @ikdb_kvs_cnt:       number of KVSes in ikdb_kvs_vec
  * @ikdb_kvs_vec:       vector of KVDB KVSes
+ * @ikdb_maint_work:
+ * @ikdb_profile:       hse params stored as profile
  * @ikdb_cndb_oid1:
  * @ikdb_cndb_oid2:
  * @ikdb_c1_oid1:       First OID of c1 MDC
@@ -142,7 +145,7 @@ struct kvdb_ctxn_bkt {
  * the first field of %ikdb_health out of the first cache line.  Similarly,
  * the group of fields which contains %ikdb_seqno is heavily concurrently
  * accessed and heavily modified. Only add a new field to this group if it
- * will be accessed just before or after accessing ikdb_curcnt or ikdb_seqno.
+ * will be accessed just before or after accessing %ikdb_curcnt or %ikdb_seqno.
  */
 struct ikvdb_impl {
     struct ikvdb          ikdb_handle;
@@ -165,7 +168,6 @@ struct ikvdb_impl {
     struct active_ctxn_set * ikdb_active_txn_set;
     struct c1 *              ikdb_c1;
     struct kvdb_callback     ikdb_c1_callback;
-    struct hse_params *      ikdb_profile;
 
 #define IKDB_TBC 8
     struct {
@@ -182,10 +184,13 @@ struct ikvdb_impl {
     atomic64_t   ikdb_tb_dbg_sleep_ns;
 
     atomic_t ikdb_curcnt __aligned(SMP_CACHE_BYTES * 2);
-    u32                  ikdb_curcnt_max;
+    u32      ikdb_curcnt_max;
 
-    atomic64_t ikdb_seqno     __aligned(SMP_CACHE_BYTES * 2);
-    atomic64_t ikdb_seqno_cur __aligned(SMP_CACHE_BYTES * 2);
+    atomic64_t       ikdb_cur_ticket __aligned(SMP_CACHE_BYTES * 2);
+    atomic64_t       ikdb_cur_serving __aligned(SMP_CACHE_BYTES);
+    atomic64_t       ikdb_seqno __aligned(SMP_CACHE_BYTES * 2);
+    struct list_head ikdb_cur_list __aligned(SMP_CACHE_BYTES);
+    atomic64_t       ikdb_cur_horizon;
 
     struct kvdb_rparams ikdb_rp __aligned(SMP_CACHE_BYTES * 2);
     struct kvdb_ctxn_bkt        ikdb_ctxn_cache[KVDB_CTXN_BKT_MAX];
@@ -198,6 +203,7 @@ struct ikvdb_impl {
     struct kvdb_kvs *  ikdb_kvs_vec[HSE_KVS_COUNT_MAX];
     struct work_struct ikdb_maint_work;
     struct work_struct ikdb_throttle_work;
+    struct hse_params *ikdb_profile;
 
     struct mclass_policy ikdb_mpolicies[HSE_MPOLICY_COUNT];
 
@@ -207,6 +213,8 @@ struct ikvdb_impl {
     u64  ikdb_c1_oid2;
     char ikdb_mpname[MPOOL_NAMESZ_MAX];
 };
+
+static void cursor_view_task(struct ikvdb_impl *self);
 
 static merr_t
 ikvdb_flush_int(struct ikvdb_impl *self)
@@ -847,6 +855,8 @@ ikvdb_maint_task(struct work_struct *work)
         }
         mutex_unlock(&self->ikdb_lock);
 
+        cursor_view_task(self);
+
         /* Sleep for 100ms minus processing overhead.  Does not account
          * for sleep time variance.  Divide delta by 1024 rather than
          * 1000 to facilitate intentional drift.
@@ -1173,8 +1183,6 @@ kvdb_kvs_create(void)
         atomic_set(&kvs->kk_refcnt, 0);
         for (i = 0; i < NELEM(kvs->kk_cursors_mtxv); ++i)
             mutex_init(&kvs->kk_cursors_mtxv[i].mtx);
-        spin_lock_init(&kvs->kk_cursors_spin);
-        INIT_LIST_HEAD(&kvs->kk_cursors_list);
     }
 
     return kvs;
@@ -1433,8 +1441,11 @@ ikvdb_open(
         goto err1;
     }
 
+    INIT_LIST_HEAD(&self->ikdb_cur_list);
     atomic64_set(&self->ikdb_seqno, seqno);
-    atomic64_set(&self->ikdb_seqno_cur, U64_MAX);
+    atomic64_set(&self->ikdb_cur_ticket, 0);
+    atomic64_set(&self->ikdb_cur_serving, 0);
+    atomic64_set(&self->ikdb_cur_horizon, U64_MAX);
 
     err = kvdb_ctxn_set_create(
         &self->ikdb_ctxn_set, self->ikdb_rp.txn_timeout, self->ikdb_rp.txn_wkth_delay);
@@ -1899,7 +1910,10 @@ ikvdb_kvs_open(
 
     kvs->kk_parent = self;
     kvs->kk_seqno = &self->ikdb_seqno;
-    kvs->kk_seqno_cur = &self->ikdb_seqno_cur;
+    kvs->kk_cur_horizon = &self->ikdb_cur_horizon;
+    kvs->kk_cur_ticket = &self->ikdb_cur_ticket;
+    kvs->kk_cur_serving = &self->ikdb_cur_serving;
+    kvs->kk_cur_list = &self->ikdb_cur_list;
 
     kvs->kk_vcompmin = UINT_MAX;
     cops = vcomp_compress_ops(&rp);
@@ -2407,66 +2421,146 @@ ikvdb_kvs_prefix_delete(
  * condition, as simply repeating the call may succeed.
  */
 
-static void
-cursor_reserve_seqno(struct hse_kvs_cursor *cursor)
+static __always_inline void
+cursor_view_remove_locked(struct hse_kvs_cursor *cursor)
 {
     struct kvdb_kvs *kk = cursor->kc_kvs;
-    uint             i;
+    struct hse_kvs_cursor *oldest, *prev;
+
+    assert(cursor->kc_on_list);
+    assert(cursor->kc_kvs);
+
+  again:
+    oldest = list_last_entry(kk->kk_cur_list, typeof(*cursor), kc_link);
+    prev = list_prev_entry_or_null(cursor, kc_link, kk->kk_cur_list);
+
+    /* Must ensure list_del() is complete and visible before setting
+     * kc_on_list=true, and must not dereference cursor afterward.
+     */
+    list_del(&cursor->kc_link);
+    __atomic_thread_fence(__ATOMIC_RELEASE);
+    cursor->kc_on_list = false;
+
+    if (cursor == oldest) {
+        u64 seq = U64_MAX;
+
+        if (prev) {
+            seq = prev->kc_seq;
+
+            if (prev->kc_released) {
+                cursor = prev;
+                goto again;
+            }
+        }
+
+        atomic64_set(kk->kk_cur_horizon, seq);
+    }
+    else if (prev && prev->kc_released) {
+        cursor = prev;
+        goto again;
+    }
+}
+
+static void
+cursor_view_remove(struct hse_kvs_cursor *cursor)
+{
+    struct kvdb_kvs *kk;
+    struct mutex *mtx;
+    uint cpuid;
+
+    if (!cursor->kc_on_list)
+        return;
+
+    kk = cursor->kc_kvs;
+    cpuid = raw_smp_processor_id() % NELEM(kk->kk_cursors_mtxv);
+    mtx = &kk->kk_cursors_mtxv[cpuid].mtx;
+
+    mutex_lock(mtx);
+    if (cursor->kc_on_list) {
+        u64 ticket;
+
+        ticket = atomic64_fetch_add(1, kk->kk_cur_ticket);
+
+        while (ticket != atomic64_read_acq(kk->kk_cur_serving))
+            cpu_relax();
+
+        if (cursor->kc_on_list)
+            cursor_view_remove_locked(cursor);
+
+        atomic64_inc_rel(kk->kk_cur_serving);
+    }
+    mutex_unlock(mtx);
+}
+
+static void
+cursor_view_release(struct hse_kvs_cursor *cursor)
+{
+    cursor->kc_released = true;
+}
+
+static void
+cursor_view_acquire(struct hse_kvs_cursor *cursor)
+{
+    struct kvdb_kvs *kk;
+    struct mutex *mtx;
+    uint cpuid;
+    u64 ticket;
+
+    if (cursor->kc_on_list)
+        cursor_view_remove(cursor);
 
     /* Add to cursor list only if this is NOT part of a txn.
      */
     if (cursor->kc_seq != HSE_SQNREF_UNDEFINED)
         return;
 
-    i = raw_smp_processor_id() % NELEM(kk->kk_cursors_mtxv);
+    kk = cursor->kc_kvs;
+    cpuid = raw_smp_processor_id() % NELEM(kk->kk_cursors_mtxv);
+    mtx = &kk->kk_cursors_mtxv[cpuid].mtx;
 
-    mutex_lock(&kk->kk_cursors_mtxv[i].mtx);
-    spin_lock(&kk->kk_cursors_spin);
+    /* The per-kvs mutex allows access to the ticket lock by at most four
+     * threads per kvs, whereas the ticket lock serializes access to the
+     * view management list amongst all threads in all kvs' that are
+     * trying to manage the horizon.
+     */
+    mutex_lock(mtx);
+    ticket = atomic64_fetch_add(1, kk->kk_cur_ticket);
+
+    while (ticket != atomic64_read_acq(kk->kk_cur_serving))
+        cpu_relax();
 
     cursor->kc_seq = atomic64_fetch_add(1, kk->kk_seqno);
 
-    if (list_empty(&kk->kk_cursors_list))
-        atomic64_set(kk->kk_seqno_cur, cursor->kc_seq);
+    if (list_empty(kk->kk_cur_list))
+        atomic64_set(kk->kk_cur_horizon, cursor->kc_seq);
 
-    list_add(&cursor->kc_link, &kk->kk_cursors_list);
+    list_add(&cursor->kc_link, kk->kk_cur_list);
     cursor->kc_on_list = true;
+    cursor->kc_released = false;
 
-    spin_unlock(&kk->kk_cursors_spin);
-    mutex_unlock(&kk->kk_cursors_mtxv[i].mtx);
+    atomic64_inc_rel(kk->kk_cur_serving);
+    mutex_unlock(mtx);
 }
 
 static void
-cursor_release_seqno(struct hse_kvs_cursor *cursor)
+cursor_view_task(struct ikvdb_impl *self)
 {
-    struct kvdb_kvs *      kk = cursor->kc_kvs;
-    struct hse_kvs_cursor *oldest;
-    uint                   i;
+    struct hse_kvs_cursor *cursor;
+    u64 ticket;
 
-    if (!cursor->kc_on_list)
-        return;
+    ticket = atomic64_fetch_add(1, &self->ikdb_cur_ticket);
 
-    i = raw_smp_processor_id() % NELEM(kk->kk_cursors_mtxv);
+    while (ticket != atomic64_read_acq(&self->ikdb_cur_serving))
+        cpu_relax();
 
-    mutex_lock(&kk->kk_cursors_mtxv[i].mtx);
-    spin_lock(&kk->kk_cursors_spin);
+    /* Because cursor_view_release() is lazy we must periodically check
+     * to see if the horizon needs to be updated.
+     */
+    cursor = list_last_entry_or_null(&self->ikdb_cur_list, typeof(*cursor), kc_link);
+    if (cursor && cursor->kc_released)
+        cursor_view_remove_locked(cursor);
 
-    oldest = list_last_entry(&kk->kk_cursors_list, struct hse_kvs_cursor, kc_link);
-    list_del(&cursor->kc_link);
-    cursor->kc_on_list = false;
-
-    if (cursor == oldest) {
-        u64 seq = U64_MAX;
-
-        if (!list_empty(&kk->kk_cursors_list)) {
-            oldest = list_last_entry(&kk->kk_cursors_list, struct hse_kvs_cursor, kc_link);
-            seq = oldest->kc_seq;
-        }
-
-        atomic64_set(kk->kk_seqno_cur, seq);
-    }
-
-    spin_unlock(&kk->kk_cursors_spin);
-    mutex_unlock(&kk->kk_cursors_mtxv[i].mtx);
+    atomic64_inc_rel(&self->ikdb_cur_serving);
 }
 
 static merr_t
@@ -2621,12 +2715,12 @@ ikvdb_kvs_cursor_create(
     cur->kc_bind = 0;
 
     /* Temporarily lock a view until this cursor gets refs on cn kvsets. */
-    cursor_reserve_seqno(cur);
+    cursor_view_acquire(cur);
     err = ikvs_cursor_init(cur);
-    cursor_release_seqno(cur);
+    cursor_view_release(cur);
 
     /* ... but only bind lifecycle if asked */
-    if (!ev(err)) {
+    if (!err) {
         if (bind) {
             /*
              * No need to wait for ongoing commits. A transaction waited when its view was
@@ -2731,9 +2825,9 @@ ikvdb_kvs_cursor_update(struct hse_kvs_cursor *cur, struct hse_kvdb_opspec *os)
     /* Temporarily reserve seqno until this cursor gets refs on
      * cn kvsets.
      */
-    cursor_reserve_seqno(cur);
+    cursor_view_acquire(cur);
     cur->kc_err = ikvs_cursor_update(cur, cur->kc_seq);
-    cursor_release_seqno(cur);
+    cursor_view_release(cur);
 
     /* ... but only bind lifecycle if asked */
     if (!ev(cur->kc_err)) {
@@ -2759,6 +2853,9 @@ ikvdb_kvs_cursor_update(struct hse_kvs_cursor *cur, struct hse_kvdb_opspec *os)
      */
     if (ev(merr_errno(cur->kc_err) == EAGAIN))
         cur->kc_err = merr(ENOTRECOVERABLE);
+
+    if (cur->kc_err)
+        cursor_view_remove(cur);
 
     return ev(cur->kc_err);
 }
@@ -2893,6 +2990,8 @@ ikvdb_kvs_cursor_destroy(struct hse_kvs_cursor *cur)
     if (!cur)
         return 0;
 
+    cursor_view_remove(cur);
+
     pkvsl_pc = cur->kc_pkvsl_pc;
     tstart = perfc_lat_start(pkvsl_pc);
 
@@ -2964,21 +3063,26 @@ ikvdb_horizon(struct ikvdb *handle)
     struct ikvdb_impl *self = ikvdb_h2r(handle);
     u64                horizon;
     u64                b, c;
-    u64                a;
 
-    b = atomic64_read(&self->ikdb_seqno_cur);
+    b = atomic64_read(&self->ikdb_cur_horizon);
     c = active_ctxn_set_horizon(self->ikdb_active_txn_set);
-
-    /* Must read a after b and c to test assertions. */
-    a = atomic64_read(&self->ikdb_seqno);
-    assert(b == U64_MAX || a >= b);
-    assert(a >= c);
 
     horizon = min_t(u64, b, c);
 
-    perfc_set(&kvdb_metrics_pc, PERFC_BA_KVDBMETRICS_SEQNO, a);
-    perfc_set(&kvdb_metrics_pc, PERFC_BA_KVDBMETRICS_CURHORIZON, horizon);
-    perfc_set(&kvdb_metrics_pc, PERFC_BA_KVDBMETRICS_HORIZON, horizon);
+    if (unlikely( perfc_ison(&kvdb_metrics_pc, PERFC_BA_KVDBMETRICS_SEQNO) )) {
+        u64 a;
+
+        /* Must read a after b and c to test assertions. */
+        __atomic_thread_fence(__ATOMIC_RELEASE);
+
+        a = atomic64_read(&self->ikdb_seqno);
+        assert(b == U64_MAX || a >= b);
+        assert(a >= c);
+
+        perfc_set(&kvdb_metrics_pc, PERFC_BA_KVDBMETRICS_SEQNO, a);
+        perfc_set(&kvdb_metrics_pc, PERFC_BA_KVDBMETRICS_CURHORIZON, b);
+        perfc_set(&kvdb_metrics_pc, PERFC_BA_KVDBMETRICS_HORIZON, horizon);
+    }
 
     return horizon;
 }
