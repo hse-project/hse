@@ -526,6 +526,9 @@ skip_search:
 bool
 wbti5_seek(struct wbti *self, struct kvs_ktuple *seek)
 {
+    if (unlikely(!self->wbd->wbd_n_pages))
+        return false;
+
     return self->reverse ? wbti_seek_rev(self, seek) : wbti_seek_fwd(self, seek);
 }
 
