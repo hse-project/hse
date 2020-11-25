@@ -167,8 +167,32 @@ tbkt_rate_get(struct tbkt *self)
     return self->tb_rate;
 }
 
-/* Returns the number of nanoseconds the caller should
- * delay to respect the rate limit.
+/*
+ * tbkt_request() - returns the number of nanoseconds the caller should
+ *                  delay to respect the rate limit.
+ *
+ * Spinlock thrashing avoidance: The token bucket lock is acquired
+ * with spin_trylock instead spin_lock.  When the trylock fails, a
+ * small delay is returned without modifying the token bucket state.
+ * The seems to eliminate spinlock thrashing which would otherwise
+ * occur when many threads make small token requests (e.g., 200+
+ * threads "putting" 0-byte values).  Returning a small fixed delay when
+ * trylock fails seems not to affect overall rate because:
+ *   - Measurements with worst case workloads show this trylock fails
+ *     less than 0.5% of the time, so even if the fixed delay is
+ *     inaccurate, it does not significantly impact overall rate.
+ *   - Trylock failures typically occur when the average delay is
+ *     small in the first place (the larger the delay, the more time
+ *     between requests, less likely to have lock contention).
+ *
+ * Preventing a balance inversion: Requests must not reduce balance so
+ * much it flips form a negative balance to a positive balance.  In
+ * theory this would only happen if 1) the requesters weren't delaying
+ * before issuing their next request, or 2) many concurrent threads
+ * made huge requests (the number of threads times average request
+ * would have to be on the order of U64_MAX).  Balance inversion is
+ * avoided by reducing the request size if an update would cause an
+ * inversion.
  */
 u64
 tbkt_request(struct tbkt *self, u64 request)
@@ -186,26 +210,13 @@ tbkt_request(struct tbkt *self, u64 request)
     /* Refill the bucket based on elapsed time. */
     tbkti_refill(self);
 
+    /* Prevent balance inversion */
     request_max = self->tb_balance - self->tb_burst - 1u;
-    if (unlikely(request > request_max)) {
-        /* We've hit the limit of this token bucket.
-         * This would only happen if 1) the requesters weren't delaying
-         * before issuing next request, or 2) many concurrent threads made
-         * huge requests (the number of threads times average request would
-         * have to be on the order of U64_MAX).
-         *
-         * Mitigate by capping the request size.  Not a great solution because
-         * caller not the the delay he deserves.
-         */
+    if (unlikely(request > request_max))
         request = request_max;
-    }
 
     /* Make the withdrawal */
     self->tb_balance -= request;
-
-#ifndef HSE_BUILD_RELEASE
-    self->tb_requests++;
-#endif
 
     /* Save rate and debt status for use after lock */
     rate = self->tb_rate;
@@ -213,23 +224,9 @@ tbkt_request(struct tbkt *self, u64 request)
 
     spin_unlock(&self->tb_lock);
 
-    /* Ugh... another place to overflow? */
     delay = debt ? amount * NSEC_PER_SEC / rate : 0;
 
     return delay;
-}
-
-void
-tbkt_delay(u64 nsec)
-{
-    struct timespec timespec;
-
-    if (!nsec)
-        return;
-
-    timespec.tv_sec = nsec / NSEC_PER_SEC;
-    timespec.tv_nsec = nsec % NSEC_PER_SEC;
-    nanosleep(&timespec, 0);
 }
 
 #if defined(HSE_UNIT_TEST_MODE) && HSE_UNIT_TEST_MODE == 1

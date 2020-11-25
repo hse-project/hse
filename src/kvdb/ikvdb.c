@@ -167,10 +167,8 @@ struct ikvdb_impl {
     struct kvdb_callback     ikdb_c1_callback;
     struct hse_params *      ikdb_profile;
 
-#define IKDB_TBC 8
-    struct {
-        struct tbkt tb __aligned(SMP_CACHE_BYTES * 2);
-    }  ikdb_tbv[IKDB_TBC];
+#define IKDB_TBC 7
+    struct tbkt ikdb_tbv[IKDB_TBC];
 
     u64 ikdb_tb_burst;
     u64 ikdb_tb_rate;
@@ -721,9 +719,9 @@ ikvdb_tb_configure(
 
     for (int i = 0; i < IKDB_TBC; i++) {
         if (initialize)
-            tbkt_init(&self->ikdb_tbv[i].tb, burst, rate);
+            tbkt_init(&self->ikdb_tbv[i], burst, rate);
         else
-            tbkt_adjust(&self->ikdb_tbv[i].tb, burst, rate);
+            tbkt_adjust(&self->ikdb_tbv[i], burst, rate);
     }
 }
 
@@ -757,7 +755,7 @@ ikvdb_rate_limit_set(struct ikvdb_impl *self, u64 rate)
 
         if (now > self->ikdb_tb_dbg_next) {
 
-            /* periodic debug report */
+            /* periodic debug output */
             long dbg_ops      = atomic64_read(&self->ikdb_tb_dbg_ops);
             long dbg_bytes    = atomic64_read(&self->ikdb_tb_dbg_bytes);
             long dbg_sleep_ns = atomic64_read(&self->ikdb_tb_dbg_sleep_ns);
@@ -765,20 +763,13 @@ ikvdb_rate_limit_set(struct ikvdb_impl *self, u64 rate)
             hse_log(
                 HSE_NOTICE
                 " tbkt_debug: manual %d shunt %d ops %8ld  bytes %10ld"
-                " sleep_ns %12ld burst %10lu rate %10lu raw %10ld"
-                " balance %ld %ld %ld ops %lu %lu %lu",
+                " sleep_ns %12ld burst %10lu rate %10lu raw %10lu",
                 (bool)(self->ikdb_tb_dbg & THROTTLE_DEBUG_TB_MANUAL),
                 (bool)(self->ikdb_tb_dbg & THROTTLE_DEBUG_TB_SHUNT),
                 dbg_ops, dbg_bytes, dbg_sleep_ns,
                 self->ikdb_tb_burst,
                 self->ikdb_tb_rate,
-                throttle_delay(&self->ikdb_throttle),
-                (s64)self->ikdb_tbv[0].tb.tb_balance,
-                (s64)self->ikdb_tbv[1].tb.tb_balance,
-                (s64)self->ikdb_tbv[2].tb.tb_balance,
-                self->ikdb_tbv[0].tb.tb_requests,
-                self->ikdb_tbv[1].tb.tb_requests,
-                self->ikdb_tbv[2].tb.tb_requests);
+                throttle_delay(&self->ikdb_throttle));
 
             atomic64_sub(dbg_ops, &self->ikdb_tb_dbg_ops);
             atomic64_sub(dbg_bytes, &self->ikdb_tb_dbg_bytes);
@@ -2105,19 +2096,19 @@ static
 void
 ikvdb_throttle2(struct ikvdb_impl *self, u64 bytes)
 {
-    uint cpuid, nodeid, bkt;
+    uint bkt;
     u64 sleep_ns;
 
     if (!throttle_active(&self->ikdb_throttle))
         return;
 
-    if (unlikely( syscall(SYS_getcpu, &cpuid, &nodeid) ))
-        nodeid = raw_smp_processor_id();
+    /* Random selection (with a good enough PRNG) ensures an even
+     * distribution across bkts.  If the distribution were uneven,
+     * the application would be limited more than necessary.
+     */
+    bkt = xrand64_tls() % IKDB_TBC;
 
-    bkt = xrand64_tls() % (IKDB_TBC / 2);
-    bkt += (nodeid % 2) * (IKDB_TBC / 2);
-
-    sleep_ns = tbkt_request(&self->ikdb_tbv[bkt].tb, bytes);
+    sleep_ns = tbkt_request(&self->ikdb_tbv[bkt], bytes);
     tbkt_delay(sleep_ns);
 
     if (self->ikdb_tb_dbg) {
