@@ -2073,7 +2073,7 @@ cn_tree_cursor_create(struct pscan *cur, struct cn_tree *tree)
     }
 
     if (iterc > cur->itermax) {
-        uint itermax = ALIGN(iterc, 1024);
+        uint itermax = ALIGN(iterc, 256);
 
         free(cur->iterv);
         free(cur->esrcv);
@@ -2251,7 +2251,7 @@ cn_tree_capped_cursor_update(struct pscan *cur, struct cn_tree *tree)
     /* Grow iterator vectors if necessary.
      */
     if (iterc > cur->itermax) {
-        uint itermax = ALIGN(iterc, 1024);
+        uint itermax = ALIGN(iterc, 256);
 
         p = malloc(itermax * sizeof(*cur->iterv));
         q = malloc(itermax * sizeof(*cur->esrcv));

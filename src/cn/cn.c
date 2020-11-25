@@ -17,6 +17,7 @@
 #include <hse_util/slab.h>
 #include <hse_util/log2.h>
 #include <hse_util/string.h>
+#include <hse_util/vlb.h>
 
 #include <hse_util/perfc.h>
 
@@ -1490,10 +1491,6 @@ cn_work_submit(struct cn *cn, cn_work_fn *handler, struct cn_work *work)
  *
  * Currently we allocate a 2MB buffer which we expect to come
  * from mmap.  Rarely will more than a few pages be touched.
- *
- * [MU_REVIST] If malloc/free doesn't efficiently cache these
- * chunks we'll want to cache them ourselves.  NOte that
- * currently we alloc/free these about 300 times per second.
  */
 static struct pscan *
 cn_pscan_create(void)
@@ -1502,18 +1499,18 @@ cn_pscan_create(void)
     size_t        sz;
     void *        mem;
 
-    sz = (2u << 20) - __alignof(*cur);
+    sz = sizeof(*cur) * 16 + HSE_KVS_KLEN_MAX + HSE_KVS_VLEN_MAX;
 
-    mem = alloc_aligned(sz, __alignof(*cur));
+    mem = vlb_alloc(sz);
     if (ev(!mem))
         return NULL;
 
     /* Mitigate cacheline aliasing...
      */
-    cur = mem + __alignof(*cur) * ((get_cycles() / 2) % 7);
+    cur = mem + __alignof(*cur) * ((get_cycles() >> 1) % 16);
 
     memset(cur, 0, sizeof(*cur));
-    cur->bufsz = mem + sz - (void *)(cur + 1);
+    cur->bufsz = HSE_KVS_KLEN_MAX + HSE_KVS_VLEN_MAX;
     cur->base = mem;
 
     return cur;
@@ -1522,7 +1519,10 @@ cn_pscan_create(void)
 static void
 cn_pscan_free(struct pscan *cur)
 {
-    free_aligned(cur->base);
+    /* TODO: Track how much of cur->buf[] we used and pass
+     * the correct total size used to vlb_free().
+     */
+    vlb_free(cur->base, HSE_KVS_VLEN_MAX);
 }
 
 /*

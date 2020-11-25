@@ -16,14 +16,17 @@ struct ikvdb_impl;
 struct kvdb_kvs;
 
 struct kk_cursors_mtx {
-    struct mutex mtx;
-} __aligned(SMP_CACHE_BYTES * 2);
+    struct mutex mtx __aligned(SMP_CACHE_BYTES * 2);
+};
 
 /**
  * struct kvdb_kvs - Describes a kvs in the kvdb - open or closed
  * @kk_ikvs:         kvs handle. NULL if closed.
+ * @kk_cur_ticket:   pointer to parent->ikdb_cur_ticket (ticket lock)
+ * @kk_cur_serving:  pointer to parent->ikdb_cur_serving (ticket lock)
  * @kk_seqno:        pointer to parent->ikdb_seqno
- * @kk_seqno_cur:    pointer to parent->ikdb_seqno_cur
+ * @kk_cur_list:     pointer to parent->ikdb_cur_list
+ * @kk_cur_horizon:  pointer to parent->ikdb_cur_horizon
  * @kk_parent:       pointer to parent kvdb_impl instance.
  * @kk_vcompmin:     value length above which compression is considered
  * @kk_vcompbnd:     compression output buffer size estimate for tls_vbuf[]
@@ -34,18 +37,15 @@ struct kk_cursors_mtx {
  * @kk_refcnt:       count of current users of the instance. Used mainly to
  *                   synchronize with rest requests.
  * @kk_cursors_mtxv: array of mutexes to reduce contention on @kk_cursors_spin
- * @kk_cursors_spin: spinlock to protect @kk_cursors_list
- * @kk_cursors_list: list of cursors currently traversing the cn tree.
  * @kk_name:         kvs name.
- *
- * To access @kk_cursor_list one must acquire @kk_cursors_spin.  To reduce
- * contention on @kk_cursors_spin, first acquire one of the mutexes in the
- * @kk_cursors_mtxv array.
  */
 struct kvdb_kvs {
     struct ikvs            *kk_ikvs;
+    atomic64_t             *kk_cur_ticket;
+    atomic64_t             *kk_cur_serving;
     atomic64_t             *kk_seqno;
-    atomic64_t             *kk_seqno_cur;
+    struct list_head       *kk_cur_list;
+    atomic64_t             *kk_cur_horizon;
     struct ikvdb_impl      *kk_parent;
     u32                     kk_vcompmin;
     u32                     kk_vcompbnd;
@@ -55,11 +55,9 @@ struct kvdb_kvs {
     u32                     kk_flags;
     atomic_t                kk_refcnt;
 
-    struct kk_cursors_mtx kk_cursors_mtxv[3];
-    spinlock_t            kk_cursors_spin;
-    struct list_head      kk_cursors_list;
-
     char kk_name[HSE_KVS_NAME_LEN_MAX];
+
+    struct kk_cursors_mtx kk_cursors_mtxv[4];
 };
 
 #endif

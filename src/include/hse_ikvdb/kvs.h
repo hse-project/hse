@@ -51,8 +51,9 @@ struct hse_kvs_cursor {
     atomic_t *             kc_cursor_cnt;
     struct kc_filter       kc_filter;
 
-    __aligned(SMP_CACHE_BYTES) struct list_head kc_link;
-    bool kc_on_list;
+    struct list_head kc_link __aligned(SMP_CACHE_BYTES);
+    volatile bool kc_on_list;
+    volatile bool kc_released;
 };
 
 merr_t
