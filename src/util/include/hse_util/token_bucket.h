@@ -13,16 +13,32 @@
 
 /* Struct tbkt members should be considered private.  */
 struct tbkt {
-    u64        tb_rate;
 
-    spinlock_t tb_lock __aligned(128);
+    spinlock_t  tb_lock __aligned(2*SMP_CACHE_BYTES);
 
-    u64        tb_balance __aligned(64);
-    u64        tb_burst;
-    u64        tb_refill_time;
-    u64        tb_dt_max;
-    u64        tb_requests;
+    /* Read/Write inside of lock.  Rarely read outside of lock. */
+    u64         tb_balance __aligned(2*SMP_CACHE_BYTES);
+    u64         tb_rate;
+    u64         tb_burst;
+    u64         tb_refill_time;
+    u64         tb_dt_max;
 };
+
+static inline
+void
+tbkt_delay(u64 nsec)
+{
+    struct timespec timespec;
+
+    if (!nsec)
+        return;
+
+    timespec.tv_sec = nsec / NSEC_PER_SEC;
+    timespec.tv_nsec = nsec % NSEC_PER_SEC;
+    nanosleep(&timespec, 0);
+}
+
+#pragma GCC visibility push(hidden)
 
 /* MTF_MOCK */
 void
@@ -31,10 +47,6 @@ tbkt_init(struct tbkt *tb, u64 burst, u64 rate);
 /* MTF_MOCK */
 u64
 tbkt_request(struct tbkt *tb, u64 tokens);
-
-/* MTF_MOCK */
-void
-tbkt_delay(u64 nsec);
 
 /* MTF_MOCK */
 u64
@@ -47,6 +59,8 @@ tbkt_rate_get(struct tbkt *self);
 /* MTF_MOCK */
 void
 tbkt_adjust(struct tbkt *self, u64 burst, u64 rate);
+
+#pragma GCC visibility pop
 
 #if defined(HSE_UNIT_TEST_MODE) && HSE_UNIT_TEST_MODE == 1
 #include "token_bucket_ut.h"

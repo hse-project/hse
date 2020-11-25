@@ -56,13 +56,15 @@
 #include <hse_util/vlb.h>
 #include <hse_util/compression_lz4.h>
 #include <hse_util/token_bucket.h>
+#include <hse_util/xrand.h>
 
 #include <3rdparty/xxhash.h>
 #include <3rdparty/cJSON.h>
-#include <3rdparty/xoroshiro.h>
 
 #include "kvdb_rest.h"
 #include "kvdb_params.h"
+
+#include <syscall.h>
 
 #pragma GCC visibility push(hidden)
 
@@ -166,9 +168,7 @@ struct ikvdb_impl {
     struct hse_params *      ikdb_profile;
 
 #define IKDB_TBC 7
-    struct {
-        struct tbkt tb __aligned(SMP_CACHE_BYTES * 2);
-    }  ikdb_tbv[IKDB_TBC];
+    struct tbkt ikdb_tbv[IKDB_TBC];
 
     u64 ikdb_tb_burst;
     u64 ikdb_tb_rate;
@@ -702,34 +702,6 @@ out:
     return err;
 }
 
-static __thread int xrand_initialized;
-static __thread uint64_t xrand_state[2];
-
-static void
-xrand_init(uint64_t seed)
-{
-    xrand_initialized = 1;
-    xoroshiro128plus_init(xrand_state, seed);
-}
-
-#if 0
-static uint64_t
-xrand64(void)
-{
-    if (unlikely(!xrand_initialized))
-        xrand_init(get_time_ns());
-    return xoroshiro128plus(xrand_state);
-}
-#endif
-
-static uint32_t
-xrand32(void)
-{
-    if (unlikely(!xrand_initialized))
-        xrand_init(get_time_ns());
-    return xoroshiro128plus(xrand_state);
-}
-
 static inline
 void
 ikvdb_tb_configure(
@@ -747,9 +719,9 @@ ikvdb_tb_configure(
 
     for (int i = 0; i < IKDB_TBC; i++) {
         if (initialize)
-            tbkt_init(&self->ikdb_tbv[i].tb, burst, rate);
+            tbkt_init(&self->ikdb_tbv[i], burst, rate);
         else
-            tbkt_adjust(&self->ikdb_tbv[i].tb, burst, rate);
+            tbkt_adjust(&self->ikdb_tbv[i], burst, rate);
     }
 }
 
@@ -783,7 +755,7 @@ ikvdb_rate_limit_set(struct ikvdb_impl *self, u64 rate)
 
         if (now > self->ikdb_tb_dbg_next) {
 
-            /* periodic debug report */
+            /* periodic debug output */
             long dbg_ops      = atomic64_read(&self->ikdb_tb_dbg_ops);
             long dbg_bytes    = atomic64_read(&self->ikdb_tb_dbg_bytes);
             long dbg_sleep_ns = atomic64_read(&self->ikdb_tb_dbg_sleep_ns);
@@ -791,20 +763,13 @@ ikvdb_rate_limit_set(struct ikvdb_impl *self, u64 rate)
             hse_log(
                 HSE_NOTICE
                 " tbkt_debug: manual %d shunt %d ops %8ld  bytes %10ld"
-                " sleep_ns %12ld burst %10lu rate %10lu raw %10ld"
-                " balance %ld %ld %ld ops %lu %lu %lu",
+                " sleep_ns %12ld burst %10lu rate %10lu raw %10lu",
                 (bool)(self->ikdb_tb_dbg & THROTTLE_DEBUG_TB_MANUAL),
                 (bool)(self->ikdb_tb_dbg & THROTTLE_DEBUG_TB_SHUNT),
                 dbg_ops, dbg_bytes, dbg_sleep_ns,
                 self->ikdb_tb_burst,
                 self->ikdb_tb_rate,
-                throttle_delay(&self->ikdb_throttle),
-                (s64)self->ikdb_tbv[0].tb.tb_balance,
-                (s64)self->ikdb_tbv[1].tb.tb_balance,
-                (s64)self->ikdb_tbv[2].tb.tb_balance,
-                self->ikdb_tbv[0].tb.tb_requests,
-                self->ikdb_tbv[1].tb.tb_requests,
-                self->ikdb_tbv[2].tb.tb_requests);
+                throttle_delay(&self->ikdb_throttle));
 
             atomic64_sub(dbg_ops, &self->ikdb_tb_dbg_ops);
             atomic64_sub(dbg_bytes, &self->ikdb_tb_dbg_bytes);
@@ -2131,14 +2096,19 @@ static
 void
 ikvdb_throttle2(struct ikvdb_impl *self, u64 bytes)
 {
-    u64 sleep_ns;
     uint bkt;
+    u64 sleep_ns;
 
     if (!throttle_active(&self->ikdb_throttle))
         return;
 
-    bkt = xrand32() % IKDB_TBC;
-    sleep_ns = tbkt_request(&self->ikdb_tbv[bkt].tb, bytes);
+    /* Random selection (with a good enough PRNG) ensures an even
+     * distribution across bkts.  If the distribution were uneven,
+     * the application would be limited more than necessary.
+     */
+    bkt = xrand64_tls() % IKDB_TBC;
+
+    sleep_ns = tbkt_request(&self->ikdb_tbv[bkt], bytes);
     tbkt_delay(sleep_ns);
 
     if (self->ikdb_tb_dbg) {
