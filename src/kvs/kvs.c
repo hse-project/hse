@@ -260,6 +260,7 @@ struct kvs_cursor_impl {
     u32 kci_seek : 2;
     u32 kci_peek : 1;
     u32 kci_toss : 1;
+    u32 kci_force_toss : 1;
     u32 kci_reverse : 1;
     u32 kci_unused : 15;
     u32 kci_pfx_len : 8;
@@ -1176,6 +1177,7 @@ ikvs_cursor_reset(struct kvs_cursor_impl *cursor, int bit)
     cursor->kci_seek &= ~bit;
     cursor->kci_peek &= ~bit;
     cursor->kci_toss = 1;
+    cursor->kci_force_toss = 0;
 
     cursor->kci_cc_pc = NULL;
     cursor->kci_cd_pc = NULL;
@@ -1391,6 +1393,7 @@ ikvs_cursor_alloc(struct ikvs *kvs, const void *prefix, size_t pfx_len, bool rev
     cur->kci_limit_len = 0;
     cur->kci_handle.kc_filter.kcf_maxkey = 0;
     cur->kci_toss = 1;
+    cur->kci_force_toss = 0;
 
     /*
      * Store the key to seek to, for cached cursors.
@@ -2037,7 +2040,8 @@ repeat:
     }
 
     /* If we needed to seek, toss read key if it matches last and kci_toss is true */
-    if (need_seek && cursor->kci_last) {
+    if ((need_seek && cursor->kci_last) || cursor->kci_force_toss) {
+        cursor->kci_force_toss = 0;
         if (!keycmp(key, klen, cursor->kci_last_kbuf, cursor->kci_last_klen) &&
             cursor->kci_toss)
             toss = true;
@@ -2068,15 +2072,16 @@ ikvs_cursor_replenish(struct kvs_cursor_impl *cursor, bool *eofp)
     u64                      read_tombs = 0;
     bool                     need_seek = (cursor->kci_seek > 0);
 
-    do {
-        if (need_seek && cursor->kci_last) {
-            memcpy(
-                cursor->kci_last_kbuf,
-                cursor->kci_last->kvt_key.kt_data,
-                cursor->kci_last->kvt_key.kt_len);
+    if (need_seek && cursor->kci_last) {
+        memcpy(
+            cursor->kci_last_kbuf,
+            cursor->kci_last->kvt_key.kt_data,
+            cursor->kci_last->kvt_key.kt_len);
 
-            cursor->kci_last_klen = cursor->kci_last->kvt_key.kt_len;
-        }
+        cursor->kci_last_klen = cursor->kci_last->kvt_key.kt_len;
+    }
+
+    do {
 
         if (!bit_on(kci_ready, BIT_C0) && !bit_on(kci_eof, BIT_C0)) {
             err = ikvs_cursor_replenish_impl(cursor, BIT_C0);
@@ -2110,6 +2115,8 @@ ikvs_cursor_replenish(struct kvs_cursor_impl *cursor, bool *eofp)
             bool  c0ptomb = HSE_CORE_IS_PTOMB(vt_data);
 
             all_tombs = all_tombs && !c0ptomb;
+            if (need_seek && c0ptomb)
+                cursor->kci_force_toss = 1;
 
             if (bit_on(kci_ready, BIT_CN)) {
                 /* [HSE_REVISIT] when rc == 0 and c0ptomb is
