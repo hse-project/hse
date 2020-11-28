@@ -261,7 +261,7 @@ MTF_DEFINE_UTEST(kvs_rparams, kvs_rparams_diff_test)
     rp.cn_bloom_create = 0;
     rp.cn_mcache_wbt = 3;
     rp.cn_maint_delay = 300;
-    rp.cn_cursor_ttl = 2000;
+    rp.kvs_cursor_ttl = 2000;
 
     kvs_rparams_diff(&rp, &count, *callback);
     ASSERT_EQ(count, 4);

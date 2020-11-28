@@ -2287,7 +2287,7 @@ ikvdb_kvs_cursor_seek(
     }
 
     /* errors on seek are not fatal */
-    err = ikvs_cursor_seek(cur, key, (u32)len, limit, (u32)limit_len, kt);
+    err = kvs_cursor_seek(cur, key, (u32)len, limit, (u32)limit_len, kt);
 
     perfc_lat_record(cur->kc_pkvsl_pc, PERFC_LT_PKVSL_KVS_CURSOR_SEEK, tstart);
 
@@ -2328,7 +2328,7 @@ ikvdb_kvs_cursor_read(
             return cur->kc_err;
     }
 
-    err = ikvs_cursor_read(cur, &kvt, eof);
+    err = kvs_cursor_read(cur, &kvt, eof);
     if (ev(err))
         return err;
     if (*eof)

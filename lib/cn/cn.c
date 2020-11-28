@@ -1225,7 +1225,7 @@ cn_open(
     /* If this cn is capped disable c1 vbuilder to be space efficient.
      */
     if (cn_is_capped(cn)) {
-        rp->cn_cursor_ttl = rp->cn_capped_ttl;
+        rp->kvs_cursor_ttl = rp->cn_capped_ttl;
         rp->c1_vblock_cap = 0;
     }
 

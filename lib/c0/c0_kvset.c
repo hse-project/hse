@@ -215,9 +215,7 @@ c0kvs_ior_stats(
  * put:
  *   s = kvdb_seqno
  *   if (kvms_seqno != HSE_SQNREF_INVALID):
- *     use kvms_seqno
- *   else
- *     use s
+ *     s = kvms_seqno
  */
 static u64
 c0kvs_seqno_set(struct c0_kvset_impl *c0kvs, struct bonsai_val *bv)

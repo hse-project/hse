@@ -42,6 +42,7 @@ kvs_rparams_defaults(void)
 {
     struct kvs_rparams k = {
         .kvs_debug = 0,
+        .kvs_cursor_ttl = 1000,
 
         .cn_maint_disable = 0,
         .cn_diag_mode = 0,
@@ -58,12 +59,9 @@ kvs_rparams_defaults(void)
         .cn_compact_kblk_ra = 512 * 1024,
         .cn_compact_vra = 128 * 1024,
 
-        .c0_cursor_ttl = 1000,
-
         .cn_capped_ttl = 9000,
         .cn_capped_vra = 512 * 1024,
 
-        .cn_cursor_ttl = 1000,
         .cn_cursor_vra = 8 * 1024,
         .cn_cursor_kra = 0,
         .cn_cursor_seq = 0,
@@ -118,8 +116,7 @@ kvs_rparams_defaults(void)
 static struct kvs_rparams kvs_rp_ref;
 static struct param_inst  kvs_rp_table[] = {
     KVS_PARAM_EXP(kvs_debug, "enable kvs debugging"),
-
-    KVS_PARAM_EXP(c0_cursor_ttl, "cached c0 cursor time-to-live (ms)"),
+    KVS_PARAM_EXP(kvs_cursor_ttl, "cached cursor time-to-live (ms)"),
 
     KVS_PARAM_EXP(cn_node_size_lo, "low end of max node size range (MiB)"),
     KVS_PARAM_EXP(cn_node_size_hi, "high end of max node size range (MiB)"),
@@ -131,7 +128,6 @@ static struct param_inst  kvs_rp_table[] = {
     KVS_PARAM_EXP(cn_capped_ttl, "cn cursor cache TTL (ms) for capped kvs"),
     KVS_PARAM_EXP(cn_capped_vra, "capped cursor vblk madvise-ahead (bytes)"),
 
-    KVS_PARAM_EXP(cn_cursor_ttl, "cached cN cursor time-to-live (ms)"),
     KVS_PARAM_EXP(cn_cursor_vra, "cursor vblk madvise-ahead (bytes)"),
     KVS_PARAM_EXP(cn_cursor_kra, "cursor kblk madvise-ahead (boolean)"),
     KVS_PARAM_EXP(cn_cursor_seq, "optimize cn_tree for longer sequential cursor accesses"),

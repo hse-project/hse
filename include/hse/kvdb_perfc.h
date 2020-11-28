@@ -198,8 +198,7 @@ enum kvdb_perfc_cnmclass {
 };
 
 enum kvdb_perfc_sidx_cursorcache {
-    PERFC_BA_CC_RETIRE_C0,
-    PERFC_BA_CC_RETIRE_CN,
+    PERFC_BA_CC_RETIRE_KVS,
     PERFC_BA_CC_SAVE,
     PERFC_BA_CC_SAVE_DESTROY,
     PERFC_BA_CC_RESTORE,
