@@ -639,8 +639,27 @@ kvset_create2(
 
     ks->ks_minkey = ks->ks_kblks[0].kb_koff_min;
     ks->ks_minklen = ks->ks_kblks[0].kb_klen_min;
-    ks->ks_maxkey = ks->ks_kblks[n_kblks - 1].kb_koff_max;
-    ks->ks_maxklen = ks->ks_kblks[n_kblks - 1].kb_klen_max;
+    {
+        int         last = n_kblks - 1;
+        const void *last_key = ks->ks_kblks[last].kb_koff_max;
+        u16         last_klen = ks->ks_kblks[last].kb_klen_max;
+
+        /* If last kblock contains only ptombs and it's not the only kblock
+         * in the kvset, compare max keys with penultimate kblock.
+         */
+        ks->ks_maxkey = last_key;
+        ks->ks_maxklen = last_klen;
+        if (ks->ks_kblks[last].kb_wbt_desc.wbd_n_pages == 0 && n_kblks > 1) {
+            int         prev = last - 1;
+            const void *prev_key = ks->ks_kblks[prev].kb_koff_max;
+            u16         prev_klen = ks->ks_kblks[prev].kb_klen_max;
+
+            if (keycmp(prev_key, prev_klen, last_key, last_klen) > 0) {
+                ks->ks_maxkey = prev_key;
+                ks->ks_maxklen = prev_klen;
+            }
+        }
+    }
 
     /* The last kblock's header doubles as a kvset header.
      * Retrieve kvset's seqno range from this kblock's hdr.
@@ -652,7 +671,14 @@ kvset_create2(
     /* Initialize kvset key min/max discriminators - only from main wbt
      */
     ks->ks_kdisc_min = ks->ks_kblks[0].kb_kdisc_min;
-    ks->ks_kdisc_max = ks->ks_kblks[n_kblks - 1].kb_kdisc_max;
+    {
+        int last = n_kblks - 1;
+
+        if (ks->ks_kblks[last].kb_wbt_desc.wbd_n_pages == 0 && n_kblks > 1)
+            --last;
+
+        ks->ks_kdisc_max = ks->ks_kblks[last].kb_kdisc_max;
+    }
 
     /* Check to see if all keys in this kvset have a common prefix.
      * If so, then remember it so that we can leverage it to reduce
