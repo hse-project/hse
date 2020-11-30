@@ -25,8 +25,6 @@
 #define CHEAP_POISON_SZ (SMP_CACHE_BYTES * 2)
 #endif
 
-#pragma GCC visibility push(hidden)
-
 /* Everything in this structure is opaque to callers (but not really,
  * because the cheap unit tests need access to the implementation).
  */
@@ -153,7 +151,5 @@ cheap_used(struct cheap *h);
  */
 size_t
 cheap_avail(struct cheap *h);
-
-#pragma GCC visibility pop
 
 #endif /* HSE_PLATFORM_CURSOR_HEAP_H */

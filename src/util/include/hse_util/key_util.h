@@ -10,8 +10,6 @@
 #include <hse_util/minmax.h>
 #include <hse_util/assert.h>
 
-#pragma GCC visibility push(hidden)
-
 /* Max number of a key's bytes that we can store in a key_immediate
  * minus 4 (i.e., the skidx byte + dlen byte + two bytes used to
  * store the full key length).
@@ -115,10 +113,12 @@ key_full_cmp(
     rc = key_immediate_cmp(imm0, imm1);
 
     if (rc == S32_MIN)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Warray-bounds"
         rc = key_inner_cmp(
             key0 + KI_DLEN_MAX, key_imm_klen(imm0) - KI_DLEN_MAX,
             key1 + KI_DLEN_MAX, key_imm_klen(imm1) - KI_DLEN_MAX);
-
+#pragma GCC diagnostic pop
     return rc;
 }
 
@@ -326,7 +326,5 @@ key2kobj(struct key_obj *kobj, const void *kdata, size_t klen)
 
     return kobj;
 }
-
-#pragma GCC visibility pop
 
 #endif

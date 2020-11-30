@@ -9,7 +9,7 @@
 #include <hse_util/param.h>
 #include <hse_util/string.h>
 
-#include <hse_version.h>
+#include <hse/hse_version.h>
 
 #include "logging_impl.h"
 #include "logging_util.h"

@@ -18,7 +18,7 @@
 #include <hse_ikvdb/wp.h>
 #include <hse_ikvdb/hse_params_internal.h>
 
-#include <hse_version.h>
+#include <hse/hse_version.h>
 
 #include <hse_util/platform.h>
 #include <hse_util/rest_api.h>

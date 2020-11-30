@@ -11,7 +11,7 @@
 #include <hse_util/vlb.h>
 #include <hse_util/hse_log_fmt.h>
 
-#include <hse_version.h>
+#include <hse/hse_version.h>
 
 #include <hse_util/program_name.h>
 #include <hse_util/rest_api.h>

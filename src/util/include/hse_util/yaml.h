@@ -29,6 +29,8 @@ struct yaml_context {
     void *                 yaml_free;
 };
 
+#pragma GCC visibility push(default)
+
 void
 yaml_start_element_type(struct yaml_context *yc, const char *name);
 
@@ -69,5 +71,7 @@ yaml_print_and_rewind(struct yaml_context *yc);
  */
 void
 yaml_realloc_buf(struct yaml_context *yc);
+
+#pragma GCC visibility pop
 
 #endif /* HSE_PLATFORM_YAML_H */

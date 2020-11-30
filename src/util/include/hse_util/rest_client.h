@@ -11,6 +11,8 @@
 #include <hse_util/hse_err.h>
 #include <hse_util/rest_api.h>
 
+#pragma GCC visibility push(default)
+
 /**
  * curl_get() -
  * @path:   url following "http://localhost"
@@ -38,5 +40,7 @@ curl_put(
     size_t      data_size,
     char *      resp,
     size_t      resp_size);
+
+#pragma GCC visibility pop
 
 #endif /* HSE_UI_REST_CLI_H */

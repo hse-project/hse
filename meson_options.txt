@@ -1,0 +1,20 @@
+option('cli', type: 'boolean', value: true,
+	description: 'Build the CLI')
+option('exe-install-rpath', type: 'boolean', value: false,
+	description: 'Add rpath of prefix/libdir/ to the CLI')
+option('tests', type: 'boolean', value: true,
+	description: 'Build tests')
+option('ycsb', type: 'boolean', value: false,
+	description: 'Build JNI bridge artifacts')
+option('tools', type: 'boolean', value: true,
+	description: 'Build tools')
+option('samples', type: 'boolean', value: true,
+	description: 'Build samples')
+option('valgrind-support', type: 'feature', value: 'auto',
+	description: 'Enable valgrind support')
+option('bindings-python', type: 'boolean', value: true,
+	description: 'Build Python bindings')
+option('mpool-include-dir', type: 'string', value: '/usr/include/mpool',
+	description: 'Location of the mpool include directory on the system')
+option('mpool-lib-dir', type: 'string', value: '',
+	description: 'Directory containing libmpool.so')

@@ -19,8 +19,6 @@
 #include <hse_util/slist.h>
 #include <hse_util/rcu.h>
 
-#pragma GCC visibility push(hidden)
-
 #define BONSAI_TREE_BALANCE_THRESHOLD 4
 
 enum bonsai_ior_code {
@@ -510,7 +508,5 @@ bn_kv_cmp_rev(const void *lhs, const void *rhs)
 
     return key_inner_cmp(r_key, r_klen, l_key, l_klen);
 }
-
-#pragma GCC visibility pop
 
 #endif /* HSE_BONSAI_TREE_H */

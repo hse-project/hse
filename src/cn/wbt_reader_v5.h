@@ -6,8 +6,6 @@
 #ifndef HSE_KVS_CN_WBT_READER_v5_H
 #define HSE_KVS_CN_WBT_READER_v5_H
 
-#pragma GCC visibility push(hidden)
-
 struct wbti;
 
 bool
@@ -34,7 +32,5 @@ wbtr5_read_vref(
     u64                         seq,
     enum key_lookup_res *       lookup_res,
     struct kvs_vtuple_ref *     vref);
-
-#pragma GCC visibility pop
 
 #endif /* HSE_KVS_CN_WBT_READER_v5_H */

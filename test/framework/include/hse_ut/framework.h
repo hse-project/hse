@@ -47,7 +47,7 @@ const char *mtf_verify_file;
                                                    .tci_res_rd_index = 0,            \
                                                    .tci_out_rd_state = RD_READY,     \
                                                    .tci_rock = 0 };                  \
-    static u16 __mtf_tci_testidx = 0;
+    static u16 __mtf_tci_testidx __maybe_unused = 0;
 
 #define ___MTF_INNER_BEGIN_UTEST_COLLECTION(name, pre_hook, post_hook)                                                                                                                                                                                                                                                                  \
     ___MTF_INNER_BEGIN_UTEST_COLLECTION_SHARED(name, pre_hook, post_hook)                                                                                                                                                                                                                                                               \

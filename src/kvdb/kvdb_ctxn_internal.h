@@ -8,8 +8,6 @@
 
 #include <hse_ikvdb/kvdb_ctxn.h>
 
-#pragma GCC visibility push(hidden)
-
 /**
  * struct kvdb_ctxn_impl -
  * @ctxn_inner_handle:
@@ -103,7 +101,5 @@ kvdb_ctxn_merge(
     int *                  num_retries,
     uintptr_t **           priv,
     struct c0_kvmultiset **dstp);
-
-#pragma GCC visibility pop
 
 #endif

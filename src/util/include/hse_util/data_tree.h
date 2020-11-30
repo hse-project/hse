@@ -11,7 +11,7 @@
 #include <hse_util/inttypes.h>
 #include <hse_util/bug.h>
 
-#include <3rdparty/rbtree.h>
+#include <rbtree/rbtree.h>
 
 typedef enum {
     DT_TYPE_INVALID,

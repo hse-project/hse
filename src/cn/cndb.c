@@ -2955,7 +2955,7 @@ cndb_close(struct cndb *cndb)
 struct kvs_cparams *
 cndb_cn_cparams(struct cndb *cndb, u64 cnid)
 {
-    struct cndb_cn *cn;
+    struct cndb_cn *cn = NULL;
 
     if (ev(cndb_cnv_get(cndb, cnid, &cn)))
         return NULL;

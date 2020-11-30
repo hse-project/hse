@@ -38,8 +38,6 @@ tbkt_delay(u64 nsec)
     nanosleep(&timespec, 0);
 }
 
-#pragma GCC visibility push(hidden)
-
 /* MTF_MOCK */
 void
 tbkt_init(struct tbkt *tb, u64 burst, u64 rate);
@@ -59,8 +57,6 @@ tbkt_rate_get(struct tbkt *self);
 /* MTF_MOCK */
 void
 tbkt_adjust(struct tbkt *self, u64 burst, u64 rate);
-
-#pragma GCC visibility pop
 
 #if defined(HSE_UNIT_TEST_MODE) && HSE_UNIT_TEST_MODE == 1
 #include "token_bucket_ut.h"

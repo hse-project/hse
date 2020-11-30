@@ -9,7 +9,7 @@
 #include <hse_util/inttypes.h>
 #include <hse_util/compiler.h>
 
-#include <3rdparty/xoroshiro.h>
+#include <xoroshiro/xoroshiro.h>
 
 #include <pthread.h>
 

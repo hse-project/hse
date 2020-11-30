@@ -12,8 +12,6 @@
 
 struct bin_heap;
 
-#pragma GCC visibility push(hidden)
-
 /*
  * The return value of bin_heap_compare_fn determines if the heap
  * structure is a min-heap or a max-heap:
@@ -138,7 +136,5 @@ bin_heap2_replace_src(struct bin_heap2 *bh, struct element_source *es);
 
 s64
 bin_heap2_age_cmp(struct bin_heap2 *bh, struct element_source *es1, struct element_source *es2);
-
-#pragma GCC visibility pop
 
 #endif

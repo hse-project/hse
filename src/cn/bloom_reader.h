@@ -10,8 +10,6 @@
 
 #include <hse_ikvdb/tuple.h>
 
-#pragma GCC visibility push(hidden)
-
 struct mpool;
 struct kvs_mblk_desc;
 
@@ -77,7 +75,5 @@ bloom_reader_mcache_lookup(
 merr_t
 bloom_reader_filter_info(struct bloom_desc *blm_rgn_desc, u32 *hash_cnt, u32 *modulus);
 #endif
-
-#pragma GCC visibility pop
 
 #endif

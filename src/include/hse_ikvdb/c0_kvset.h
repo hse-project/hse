@@ -12,8 +12,6 @@
 
 #include <hse_ikvdb/kvs.h>
 
-#pragma GCC visibility push(hidden)
-
 struct c0_kvset {
 };
 
@@ -414,7 +412,5 @@ c0kvs_preserve_tombspan(
     u32              kmin_len,
     const void *     kmax,
     u32              kmax_len);
-
-#pragma GCC visibility pop
 
 #endif /* HSE_CORE_C0_KVSET_H */

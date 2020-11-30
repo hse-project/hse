@@ -11,8 +11,6 @@
 
 #include <hse_ikvdb/tuple.h>
 
-#pragma GCC visibility push(hidden)
-
 struct kvs_mblk_desc;
 struct wbt_desc;
 struct mpool;
@@ -156,8 +154,6 @@ merr_t
 wbti_init(void);
 void
 wbti_fini(void);
-
-#pragma GCC visibility pop
 
 #if defined(HSE_UNIT_TEST_MODE) && HSE_UNIT_TEST_MODE == 1
 #include "wbt_reader_ut.h"

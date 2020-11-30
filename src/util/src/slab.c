@@ -53,8 +53,6 @@
 
 #include <syscall.h>
 
-#pragma GCC visibility push(hidden)
-
 #define MAX_NUMNODES 4
 
 /* KMC_SPC              number of slabs per chunk (power of 2)
@@ -1321,8 +1319,6 @@ kmc_rest_get(
 
     return merr(EINVAL);
 }
-
-#pragma GCC visibility pop
 
 void *
 hse_page_alloc(void)

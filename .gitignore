@@ -1,5 +1,4 @@
 *~
-builds
 TAGS
 GPATH
 GRTAGS
@@ -19,3 +18,10 @@ bull.cov
 *.swp
 \#*
 .#*
+subprojects/*
+!subprojects/*.wrap
+!subprojects/packagefiles
+*build*/
+!scripts/build/
+.pytest_cache/
+*venv*/

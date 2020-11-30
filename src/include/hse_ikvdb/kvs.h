@@ -16,8 +16,6 @@
 #include <hse_ikvdb/kvs_rparams.h>
 #include <hse_ikvdb/query_ctx.h>
 
-#pragma GCC visibility push(hidden)
-
 #define TOMBSPAN_MIN_WIDTH 8
 
 /* MTF_MOCK_DECL(kvs) */
@@ -190,8 +188,6 @@ kvs_init(void);
 
 void
 kvs_fini(void);
-
-#pragma GCC visibility pop
 
 #if defined(HSE_UNIT_TEST_MODE) && HSE_UNIT_TEST_MODE == 1
 #include "kvs_ut.h"

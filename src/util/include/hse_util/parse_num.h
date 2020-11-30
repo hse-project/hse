@@ -9,6 +9,8 @@
 #include <hse_util/inttypes.h>
 #include <hse_util/hse_err.h>
 
+#pragma GCC visibility push(default)
+
 merr_t
 parse_u64_range(const char *str, char **endptr, u64 min_accept, u64 max_accept, u64 *result);
 
@@ -76,6 +78,8 @@ static inline merr_t
 parse_ulong(const char *str, unsigned long *result);
 static inline merr_t
 parse_long(const char *str, long *result);
+
+#pragma GCC visibility pop
 
 // clang-format off
 /* definitions */

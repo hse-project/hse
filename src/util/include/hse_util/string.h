@@ -6,6 +6,6 @@
 #ifndef HSE_PLATFORM_STRING_H
 #define HSE_PLATFORM_STRING_H
 
-#include <3rdparty/string.h>
+#include <bsd/string.h>
 
 #endif

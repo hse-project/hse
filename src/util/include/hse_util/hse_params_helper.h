@@ -8,6 +8,8 @@
 
 struct hse_params;
 
+#pragma GCC visibility push(default)
+
 /**
  * hse_parse_cli() - parse params from the command line
  * @argc:     argument count
@@ -18,6 +20,8 @@ struct hse_params;
  */
 uint64_t
 hse_parse_cli(int argc, char **argv, int *next_arg, int flag, struct hse_params *params);
+
+#pragma GCC visibility pop
 
 /**
  * hse_get_param_table() - return underlying params table

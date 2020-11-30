@@ -9,8 +9,6 @@
 #include <hse_util/hse_err.h>
 #include <hse_util/inttypes.h>
 
-#pragma GCC visibility push(hidden)
-
 /* MTF_MOCK_DECL(cn_cursor) */
 
 struct cn;
@@ -53,8 +51,6 @@ cn_cursor_destroy(void *cursor);
 /* MTF_MOCK */
 merr_t
 cn_cursor_active_kvsets(void *cursor, u32 *active, u32 *total);
-
-#pragma GCC visibility pop
 
 #if defined(HSE_UNIT_TEST_MODE) && HSE_UNIT_TEST_MODE == 1
 #include "cn_cursor_ut.h"

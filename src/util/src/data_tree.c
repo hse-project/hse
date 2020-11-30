@@ -12,7 +12,7 @@
 #include <hse_util/config.h>
 #include <hse_util/data_tree.h>
 
-#include <3rdparty/rbtree.h>
+#include <rbtree/rbtree.h>
 
 struct dt_tree {
     spinlock_t          dt_lock;

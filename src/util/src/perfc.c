@@ -15,7 +15,7 @@
 #include <hse_util/log2.h>
 #include <hse_util/string.h>
 
-#include <3rdparty/rbtree.h>
+#include <rbtree/rbtree.h>
 
 #define PERFC_PRIO_MIN 1
 #define PERFC_PRIO_MAX 4

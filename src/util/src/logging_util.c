@@ -10,7 +10,7 @@
 #include "logging_util.h"
 #include <syslog.h>
 
-#include <hse_version.h>
+#include <hse/hse_version.h>
 
 #define MAX_MSG_SIZE 500
 

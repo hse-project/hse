@@ -17,8 +17,6 @@
 #include <hse_ikvdb/tuple.h>
 #include <hse_ikvdb/kvdb_health.h>
 
-#pragma GCC visibility push(hidden)
-
 struct c0_kvmultiset;
 struct c0sk;
 struct c0_cursor;
@@ -351,8 +349,6 @@ c0sk_get_first_c0kvms(struct c0sk *handle);
 
 struct c0_kvmultiset *
 c0sk_get_last_c0kvms(struct c0sk *handle);
-
-#pragma GCC visibility pop
 
 #if defined(HSE_UNIT_TEST_MODE) && HSE_UNIT_TEST_MODE == 1
 #include "c0sk_ut.h"

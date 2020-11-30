@@ -5,7 +5,7 @@
 
 #include <hse_util/string.h>
 
-#include "hse_version.h"
+#include <hse/hse_version.h>
 
 /**
  * hse_version() - retrieve version string
