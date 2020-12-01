@@ -443,11 +443,13 @@ kvset_create2(
     uint          vbsetc;
     u64           kvdb_kalen, kvdb_valen, mblock_max;
     ulong         kra, vra;
+    int           last_kb;
 
     struct kvs_cparams *cp;
 
     /* need kblocks, vblocks optional */
     assert(n_kblks);
+    last_kb = n_kblks - 1;
 
     mblock_max = cn_vma_mblock_max(tree->cn, MP_MED_CAPACITY);
 
@@ -640,17 +642,16 @@ kvset_create2(
     ks->ks_minkey = ks->ks_kblks[0].kb_koff_min;
     ks->ks_minklen = ks->ks_kblks[0].kb_klen_min;
     {
-        int         last = n_kblks - 1;
-        const void *last_key = ks->ks_kblks[last].kb_koff_max;
-        u16         last_klen = ks->ks_kblks[last].kb_klen_max;
+        const void *last_key = ks->ks_kblks[last_kb].kb_koff_max;
+        u16         last_klen = ks->ks_kblks[last_kb].kb_klen_max;
 
         /* If last kblock contains only ptombs and it's not the only kblock
          * in the kvset, compare max keys with penultimate kblock.
          */
         ks->ks_maxkey = last_key;
         ks->ks_maxklen = last_klen;
-        if (ks->ks_kblks[last].kb_wbt_desc.wbd_n_pages == 0 && n_kblks > 1) {
-            int         prev = last - 1;
+        if (ks->ks_kblks[last_kb].kb_wbt_desc.wbd_n_pages == 0 && n_kblks > 1) {
+            int         prev = last_kb - 1;
             const void *prev_key = ks->ks_kblks[prev].kb_koff_max;
             u16         prev_klen = ks->ks_kblks[prev].kb_klen_max;
 
@@ -664,15 +665,15 @@ kvset_create2(
     /* The last kblock's header doubles as a kvset header.
      * Retrieve kvset's seqno range from this kblock's hdr.
      */
-    ks->ks_seqno_min = ks->ks_kblks[n_kblks - 1].kb_seqno_min;
-    ks->ks_seqno_max = ks->ks_kblks[n_kblks - 1].kb_seqno_max;
+    ks->ks_seqno_min = ks->ks_kblks[last_kb].kb_seqno_min;
+    ks->ks_seqno_max = ks->ks_kblks[last_kb].kb_seqno_max;
     assert(ks->ks_seqno_max >= ks->ks_seqno_min);
 
     /* Initialize kvset key min/max discriminators - only from main wbt
      */
     ks->ks_kdisc_min = ks->ks_kblks[0].kb_kdisc_min;
     {
-        int last = n_kblks - 1;
+        int last = last_kb;
 
         if (ks->ks_kblks[last].kb_wbt_desc.wbd_n_pages == 0 && n_kblks > 1)
             --last;
@@ -685,7 +686,7 @@ kvset_create2(
      * the amount of work required to find keys with common prefixes.
      */
     lkb = ks->ks_kblks;
-    rkb = ks->ks_kblks + n_kblks - 1;
+    rkb = ks->ks_kblks + last_kb;
 
     ks->ks_lcp = min_t(size_t, lkb->kb_klen_min, rkb->kb_klen_max);
     ks->ks_lcp = memlcpq(lkb->kb_koff_min, rkb->kb_koff_max, ks->ks_lcp);
