@@ -374,6 +374,7 @@ MTF_DEFINE_UTEST_PREPOST(cn_cursor, repeat_update, pre, post)
 
     cn_tree_cursor_destroy(cur);
     cn_tree_cursor_destroy(cur);
+    cn_cursor_destroy(cur);
 
     err = cn_close(cn);
     ASSERT_EQ(err, 0);
