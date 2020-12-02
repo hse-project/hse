@@ -84,7 +84,7 @@ enum kvdb_ctxn_state
 kvdb_ctxn_get_state(struct kvdb_ctxn *txn);
 
 void
-kvdb_ctxn_set_seqref(struct kvdb_ctxn *txn, uintptr_t seqref);
+kvdb_ctxn_reset(struct kvdb_ctxn *txn);
 
 merr_t
 kvdb_ctxn_get_view_seqno(struct kvdb_ctxn *txn, u64 *view_seqno);
