@@ -744,6 +744,7 @@ _kblock_make_header(
             }
         }
 
+        /* [HSE_REVISIT] Why do we need the padding? */
         if (pad_and_copy) {
             uint len;
 

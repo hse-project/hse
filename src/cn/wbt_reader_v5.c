@@ -697,6 +697,9 @@ wbtr5_read_vref(
 
     assert(kt->kt_len > 0);
 
+    if (unlikely(!wbd->wbd_n_pages))
+        goto done;
+
     node_num = wbtr_seek_page(kbd, wbd, kt_data, kt_len, 0);
 
     assert(0 <= node_num && node_num < wbd->wbd_n_pages);
