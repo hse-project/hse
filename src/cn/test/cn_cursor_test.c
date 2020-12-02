@@ -143,11 +143,11 @@ verify(struct mtf_test_info *lcl_ti, void *cur, struct nkv_tab *vtab, int vc, in
         ++val;
 
         if (++nk == vtab[vi].nkeys) {
-            ASSERT_LE(vi, vc);
             nk = 0;
-            ++vi;
-            key = vtab[vi].key1;
-            val = vtab[vi].val1;
+            if (++vi < vc) {
+                key = vtab[vi].key1;
+                val = vtab[vi].val1;
+            }
         }
     }
     ASSERT_EQ(eof, true);
@@ -382,6 +382,7 @@ MTF_DEFINE_UTEST_PREPOST(cn_cursor, repeat_update, pre, post)
     free(cndb.cndb_keepv);
     free(cndb.cndb_tagv);
     free(cndb.cndb_cbuf);
+    free(mk->iter_data);
 
     kvset_iter_release(itv[0]);
 }
@@ -453,6 +454,7 @@ MTF_DEFINE_UTEST_PREPOST(cn_cursor, root_1kvset, pre, post)
     free(cndb.cndb_keepv);
     free(cndb.cndb_tagv);
     free(cndb.cndb_cbuf);
+    free(mk->iter_data);
 
     kvset_iter_release(itv[0]);
 }
@@ -491,12 +493,12 @@ MTF_DEFINE_UTEST_PREPOST(cn_cursor, root_4kvsets, pre, post)
     unsigned char all[]  = { 0, 0 };
 
     struct nkv_tab vtab[] = {
-        { 0x080,     0,      0, VMX_S32, 0, 0 },        /* dgen 1 */
+        { 0x080, 0, 0, VMX_S32, 0, 0 }, /* dgen 1 */
         /* tombstones from 0x80..0xc0      dgen 3 */
-        { 0x040, 0x0c0,   0xc0, VMX_S32, 0, 0 },        /* dgen 1 */
-        { 0x100, 0x100, 0x1100, VMX_S32, 0, 0 },        /* dgen 2 */
-        { 0x100, 0x200, 0x2200, VMX_S32, 0, 0 },        /* dgen 4 */
-        { 0x300, 0x300, 0x2300, VMX_S32, 0, 0 }         /* dgen 4 */
+        { 0x040, 0x0c0, 0xc0, VMX_S32, 0, 0 },   /* dgen 1 */
+        { 0x100, 0x100, 0x1100, VMX_S32, 0, 0 }, /* dgen 2 */
+        { 0x100, 0x200, 0x2200, VMX_S32, 0, 0 }, /* dgen 4 */
+        { 0x300, 0x300, 0x2300, VMX_S32, 0, 0 }  /* dgen 4 */
     };
 #endif
 
@@ -544,14 +546,21 @@ MTF_DEFINE_UTEST_PREPOST(cn_cursor, root_4kvsets, pre, post)
     verify_cursor(lcl_ti, cn, pfx1, sizeof(pfx1), vtab+2, 1);
     verify_cursor(lcl_ti, cn, pfx2, sizeof(pfx2), vtab+3, 1);
     verify_cursor(lcl_ti, cn, pfx9, sizeof(pfx9), 0, 0);
-    verify_cursor(lcl_ti, cn, all,  sizeof(all),  vtab, 5);
+    verify_cursor(lcl_ti, cn, all, sizeof(all), vtab, 5);
 #endif
 
     err = cn_close(cn);
     ASSERT_EQ(err, 0);
 
-    for (i = 0; i < NELEM(make); ++i)
+#if 0
+    for (i = 0; i < NELEM(make); ++i) {
+        struct mock_kv_iterator *iter = itv[i]->kvi_context;
+        struct kvdata *          d = iter->kvset->iter_data;
+
+        free(d);
         kvset_iter_release(itv[i]);
+    }
+#endif
 
     free(cndb.cndb_workv);
     free(cndb.cndb_keepv);
@@ -696,8 +705,13 @@ MTF_DEFINE_UTEST_PREPOST(cn_cursor, prefix_tree, pre, post)
     err = cn_close(cn);
     ASSERT_EQ(err, 0);
 
-    for (i = 0; i < NELEM(make); ++i)
+    for (i = 0; i < NELEM(make); ++i) {
+        struct mock_kv_iterator *iter = itv[i]->kvi_context;
+        struct kvdata *          d = iter->kvset->iter_data;
+
+        free(d);
         kvset_iter_release(itv[i]);
+    }
 
     free(cndb.cndb_workv);
     free(cndb.cndb_keepv);
@@ -857,8 +871,13 @@ MTF_DEFINE_UTEST_PREPOST(cn_cursor, cursor_seek, pre, post)
     err = cn_close(cn);
     ASSERT_EQ(err, 0);
 
-    for (i = 0; i < NELEM(make); ++i)
+    for (i = 0; i < NELEM(make); ++i) {
+        struct mock_kv_iterator *iter = itv[i]->kvi_context;
+        struct kvdata *          d = iter->kvset->iter_data;
+
+        free(d);
         kvset_iter_release(itv[i]);
+    }
 
     free(cndb.cndb_workv);
     free(cndb.cndb_keepv);
