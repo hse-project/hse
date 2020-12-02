@@ -814,11 +814,11 @@ kvdb_ctxn_get_state(struct kvdb_ctxn *handle)
 }
 
 void
-kvdb_ctxn_set_seqref(struct kvdb_ctxn *handle, uintptr_t seqref)
+kvdb_ctxn_reset(struct kvdb_ctxn *handle)
 {
     struct kvdb_ctxn_impl *ctxn = kvdb_ctxn_h2r(handle);
 
-    ctxn->ctxn_seqref = seqref;
+    ctxn->ctxn_seqref = HSE_SQNREF_INVALID;
 }
 
 merr_t
