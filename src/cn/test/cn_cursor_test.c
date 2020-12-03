@@ -374,6 +374,7 @@ MTF_DEFINE_UTEST_PREPOST(cn_cursor, repeat_update, pre, post)
 
     cn_tree_cursor_destroy(cur);
     cn_tree_cursor_destroy(cur);
+    cn_cursor_destroy(cur);
 
     err = cn_close(cn);
     ASSERT_EQ(err, 0);
@@ -382,9 +383,14 @@ MTF_DEFINE_UTEST_PREPOST(cn_cursor, repeat_update, pre, post)
     free(cndb.cndb_keepv);
     free(cndb.cndb_tagv);
     free(cndb.cndb_cbuf);
-    free(mk->iter_data);
 
-    kvset_iter_release(itv[0]);
+    for (int i = 0; i < NELEM(make); ++i) {
+        struct mock_kv_iterator *iter = itv[i]->kvi_context;
+        struct kvdata *          d = iter->kvset->iter_data;
+
+        free(d);
+        kvset_iter_release(itv[i]);
+    }
 }
 
 MTF_DEFINE_UTEST_PREPOST(cn_cursor, root_1kvset, pre, post)
@@ -454,9 +460,14 @@ MTF_DEFINE_UTEST_PREPOST(cn_cursor, root_1kvset, pre, post)
     free(cndb.cndb_keepv);
     free(cndb.cndb_tagv);
     free(cndb.cndb_cbuf);
-    free(mk->iter_data);
 
-    kvset_iter_release(itv[0]);
+    for (int i = 0; i < NELEM(make); ++i) {
+        struct mock_kv_iterator *iter = itv[i]->kvi_context;
+        struct kvdata *          d = iter->kvset->iter_data;
+
+        free(d);
+        kvset_iter_release(itv[i]);
+    }
 }
 
 MTF_DEFINE_UTEST_PREPOST(cn_cursor, root_4kvsets, pre, post)
@@ -553,7 +564,7 @@ MTF_DEFINE_UTEST_PREPOST(cn_cursor, root_4kvsets, pre, post)
     ASSERT_EQ(err, 0);
 
 #if 0
-    for (i = 0; i < NELEM(make); ++i) {
+    for (int i = 0; i < NELEM(make); ++i) {
         struct mock_kv_iterator *iter = itv[i]->kvi_context;
         struct kvdata *          d = iter->kvset->iter_data;
 
