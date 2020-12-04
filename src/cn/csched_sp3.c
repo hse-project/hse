@@ -947,7 +947,7 @@ sp3_ucomp_check(struct sp3 *sp)
 {
     if (sp->ucomp_active) {
 
-        bool completed = sp->idle;
+        bool completed = sp->idle || sp->samp_curr < sp->samp_lwm;
         u64  now = get_time_ns();
         bool report = now > sp->ucomp_prev_report_ns + 5 * NSEC_PER_SEC;
 
