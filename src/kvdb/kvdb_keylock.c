@@ -41,10 +41,10 @@ struct kvdb_keylock {
  * @kd_mvs:     most recently expired minimum view seqno
  */
 struct kvdb_dlock {
-    struct mutex     kd_lock;
+    struct mutex     kd_lock __aligned(SMP_CACHE_BYTES * 2);
     struct list_head kd_list;
     volatile u64     kd_mvs;
-} __aligned(SMP_CACHE_BYTES);
+};
 
 /**
  * struct kvdb_keylock_impl - manages key locks across transactions
@@ -151,7 +151,7 @@ kvdb_keylock_create(struct kvdb_keylock **handle_out, u32 num_tables, u64 num_en
     memset(&klock->kl_perfc_set, 0, sizeof(klock->kl_perfc_set));
 
     for (i = 0; i < KVDB_DLOCK_MAX; ++i) {
-        mutex_init_adaptive(&klock->kl_dlockv[i].kd_lock);
+        mutex_init(&klock->kl_dlockv[i].kd_lock);
         INIT_LIST_HEAD(&klock->kl_dlockv[i].kd_list);
         klock->kl_dlockv[i].kd_mvs = 0;
     }
