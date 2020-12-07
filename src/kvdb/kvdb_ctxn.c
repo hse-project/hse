@@ -28,38 +28,42 @@
 #include "kvdb_ctxn_internal.h"
 #include "kvdb_keylock.h"
 
+#include <semaphore.h>
+
 struct kvdb_ctxn_set {
 };
 
 /**
  * struct kvdb_ctxn_set_impl -
  * @ktn_wq:           workqueue struct for queueing transaction worker thread
- * @txn_wkth_delay:        delay in jiffies to use for transaction worker thread
- * @ktn_txn_timeout:      max time to live (in msecs) after which txn is aborted
- * @ktn_tseqno_head:
- * @ktn_tseqno_tail:
+ * @txn_wkth_delay:   delay in jiffies to use for transaction worker thread
+ * @ktn_txn_timeout:  max time to live (in msecs) after which txn is aborted
+ * @ktn_dwork:        delayed work struct
+ * @ktn_tseqno_head:  used to serialize commits in seqno order
+ * @ktn_tseqno_tail:  used to serialize commits in seqno order
+ * @ktn_tseqno_sema:  used to limit threads spinning in kvdb_ctxn_set_wait_commits()
  * @ktn_list_mutex:   protects updates to list of allocated transactions
  * @ktn_alloc_list:   RCU list of allocated transactions
  * @ktn_pending:      transactions to be freed when reader thread finishes
  * @ktn_reading:      indicates whether the worker thread is reading the list
  * @ktn_queued:       has the worker thread been queued
- * @ktn_dwork:        delayed work struct
  */
 struct kvdb_ctxn_set_impl {
     struct kvdb_ctxn_set     ktn_handle;
     struct workqueue_struct *ktn_wq;
     u64                      txn_wkth_delay;
     u64                      ktn_txn_timeout;
+    struct delayed_work      ktn_dwork;
 
     atomic64_t ktn_tseqno_head __aligned(SMP_CACHE_BYTES * 2);
     atomic64_t ktn_tseqno_tail __aligned(SMP_CACHE_BYTES * 2);
+    sem_t      ktn_tseqno_sema __aligned(SMP_CACHE_BYTES * 2);
 
-    struct mutex ktn_list_mutex __aligned(SMP_CACHE_BYTES * 2);
-    struct cds_list_head ktn_alloc_list;
+    struct mutex         ktn_list_mutex __aligned(SMP_CACHE_BYTES * 2);
+    struct cds_list_head ktn_alloc_list __aligned(SMP_CACHE_BYTES);
     struct list_head     ktn_pending;
     atomic_t             ktn_reading;
     bool                 ktn_queued;
-    struct delayed_work  ktn_dwork;
 };
 
 #define kvdb_ctxn_set_h2r(handle) container_of(handle, struct kvdb_ctxn_set_impl, ktn_handle)
@@ -243,6 +247,9 @@ void
 kvdb_ctxn_set_wait_commits(struct kvdb_ctxn_set *handle)
 {
     struct kvdb_ctxn_set_impl *kvdb_ctxn_set = kvdb_ctxn_set_h2r(handle);
+    u64 head, tail;
+    sem_t *sema;
+    int spin;
 
     /*
      * This transaction started its commit only after our view was established.
@@ -250,7 +257,7 @@ kvdb_ctxn_set_wait_commits(struct kvdb_ctxn_set *handle)
      * Every transaction that starts its commit after our view is established
      * will have a commit_seqno strictly greater than our view_seqno.
      */
-    u64 head = atomic64_read_acq(&kvdb_ctxn_set->ktn_tseqno_head);
+    head = atomic64_read_acq(&kvdb_ctxn_set->ktn_tseqno_head);
 
     /*
      * Ensure that all preceding commits have published their mutations.
@@ -258,8 +265,35 @@ kvdb_ctxn_set_wait_commits(struct kvdb_ctxn_set *handle)
      * We do not expect any new committing transactions' mutations
      * to unexpectedly pop up within our view after this wait is over.
      */
+  again:
+    spin = 32;
+
+    /* At 4-billion commits per second it would take more than 136
+     * years for head to wrap.  So we just don't worry about it...
+     */
+    while (spin > 0) {
+        tail = atomic64_read(&kvdb_ctxn_set->ktn_tseqno_tail);
+        if (tail >= head)
+            return;
+
+        cpu_relax();
+        spin--;
+    }
+
+    /* At this point the view still isn't stable, but if we busy-wait
+     * indefinitely we could bring the system to a crawl.  So we use
+     * counting semaphore to limit the number of threads allowed to
+     * busy-wait for their view to stabilize.
+     */
+    sema = &kvdb_ctxn_set->ktn_tseqno_sema;
+
+    if (sem_wait(sema))
+        goto again; /* Probably EINTR */
+
     while (atomic64_read(&kvdb_ctxn_set->ktn_tseqno_tail) < head)
         cpu_relax();
+
+    sem_post(&kvdb_ctxn_set->ktn_tseqno_sema);
 }
 
 void
@@ -668,18 +702,20 @@ retry:
      */
     rcu_read_lock();
     if (dst) {
-        static atomic_t lock;
+        static struct {
+            atomic_t lock __aligned(SMP_CACHE_BYTES * 2);
+        } seq;
 
         /* merge */
         /*
          * Ensure that threads mint commit sequence numbers in increasing order
          * of ctxn_tseqno_head.
          */
-        while (!atomic_cas(&lock, 0, 1))
+        while (!atomic_cas(&seq.lock, 0, 1))
             cpu_relax();
         head = atomic64_inc_acq(ctxn->ctxn_tseqno_head);
         commit_sn = 1 + atomic64_fetch_add_rel(2, ctxn->ctxn_kvdb_seq_addr);
-        atomic_cas(&lock, 1, 0);
+        atomic_cas(&seq.lock, 1, 0);
 
         rsvd_sn = c0kvms_rsvd_sn_get(dst);
 
@@ -1148,6 +1184,7 @@ merr_t
 kvdb_ctxn_set_create(struct kvdb_ctxn_set **handle_out, u64 txn_timeout_ms, u64 delay_msecs)
 {
     struct kvdb_ctxn_set_impl *ktn;
+    int limit, rc;
 
     *handle_out = 0;
 
@@ -1157,8 +1194,22 @@ kvdb_ctxn_set_create(struct kvdb_ctxn_set **handle_out, u64 txn_timeout_ms, u64 
 
     memset(ktn, 0, sizeof(*ktn));
 
+    /* Limit the number of threads allowed to busy-wait
+     * indefinitely in kvdb_ctxn_set_wait_commits().
+     */
+    limit = clamp_t(int, num_online_cpus() / 8, 1, 8);
+
+    rc = sem_init(&ktn->ktn_tseqno_sema, 0, limit);
+    if (ev(rc)) {
+        int xerrno = errno;
+
+        free_aligned(ktn);
+        return merr(xerrno);
+    }
+
     ktn->ktn_wq = alloc_workqueue("kvdb_ctxn_set", 0, 1);
     if (ev(!ktn->ktn_wq)) {
+        sem_destroy(&ktn->ktn_tseqno_sema);
         free_aligned(ktn);
         return merr(ENOMEM);
     }
@@ -1208,6 +1259,7 @@ kvdb_ctxn_set_destroy(struct kvdb_ctxn_set *handle)
         kvdb_ctxn_free(&ctxn->ctxn_inner_handle);
 
     mutex_destroy(&ktn->ktn_list_mutex);
+    sem_destroy(&ktn->ktn_tseqno_sema);
 
     free_aligned(ktn);
 }
