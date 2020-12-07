@@ -21,6 +21,9 @@
 
 #include <hse_ikvdb/limits.h>
 
+#include <syscall.h>
+#include <semaphore.h>
+
 struct active_ctxn_set {
 };
 
@@ -42,45 +45,51 @@ static const u8 active_ctxn_bkt_maskv[] = {
 struct active_ctxn_bkt {
     struct active_ctxn_tree *acb_tree;
     volatile u64             acb_min_view_sns;
-} __aligned(SMP_CACHE_BYTES * 2);
+};
 
 /**
- * struct active_ctxn_set_impl
+ * struct active_ctxn_set_impl -
  * @acs_handle:         opaque handle for this struct
  * @acs_bkt_end:        ptr to one bucket past the last valid bucket
  * @acs_seqno_addr:
  * @acs_min_view_sn:    set minimum view seqno
  * @acs_min_view_bkt:   bucket which contains current min-view-sn
- * @acs_active:         count of active transactions
  * @acs_horizon:
+ * @acs_active:         count of active transactions
  * @acs_lock:           min_view_sn computation lock
+ * @acs_chgaccum:       accumulated changes to apply to acs_changing
  * @acs_changing:       head of a bucket is changing to/from empty
  * @acs_bktv:           active client transaction sets
  */
 struct active_ctxn_set_impl {
-    struct active_ctxn_set acs_handle;
-    u8                     acs_maskv[NELEM(active_ctxn_bkt_maskv)];
-    atomic64_t *           acs_seqno_addr;
-
-    __aligned(SMP_CACHE_BYTES) volatile u64 acs_min_view_sn;
-    volatile void *acs_min_view_bkt;
-
-    __aligned(SMP_CACHE_BYTES) atomic_t acs_active;
-
-    __aligned(SMP_CACHE_BYTES) atomic64_t acs_horizon;
-
-    __aligned(SMP_CACHE_BYTES) spinlock_t acs_lock;
-    atomic_t                acs_changing;
+    struct active_ctxn_set  acs_handle;
+    u8                      acs_maskv[NELEM(active_ctxn_bkt_maskv)];
+    atomic64_t             *acs_seqno_addr;
     struct active_ctxn_bkt *acs_bkt_end;
 
-    struct active_ctxn_bkt acs_bktv[];
+    volatile u64   acs_min_view_sn __aligned(SMP_CACHE_BYTES * 2);
+    volatile void *acs_min_view_bkt;
+    atomic64_t     acs_horizon;
+
+    struct {
+        atomic_t acs_active __aligned(SMP_CACHE_BYTES * 2);
+    } acs_nodev[2];
+
+    spinlock_t acs_lock      __aligned(SMP_CACHE_BYTES * 2);
+    uint       acs_chgaccum  __aligned(SMP_CACHE_BYTES);
+    atomic_t   acs_changing  __aligned(SMP_CACHE_BYTES * 2);
+
+    struct active_ctxn_bkt acs_bktv[] __aligned(SMP_CACHE_BYTES * 2);
 };
 
 #define active_ctxn_set_h2r(handle) container_of(handle, struct active_ctxn_set_impl, acs_handle)
 
+struct active_ctxn_tree;
+
 struct active_ctxn_entry {
-    struct list_head ace_link;
-    void *           ace_tree;
+    struct list_head         ace_link;
+    struct active_ctxn_tree *ace_tree;
+    atomic_t                *ace_active;
     union {
         u64   ace_view_sn;
         void *ace_next;
@@ -96,12 +105,32 @@ struct active_ctxn_entry {
  * @act_entryv: fixed-size cache of entry objects
  */
 struct active_ctxn_tree {
-    spinlock_t                act_lock;
-    struct list_head          act_head;
-    struct active_ctxn_bkt *  act_bkt;
+    spinlock_t                act_lock __aligned(SMP_CACHE_BYTES * 2);
+    sem_t                     act_sema;
+    struct list_head          act_head __aligned(SMP_CACHE_BYTES * 2);
+    struct active_ctxn_bkt   *act_bkt;
     struct active_ctxn_entry *act_cache;
     struct active_ctxn_entry  act_entryv[];
 };
+
+static struct active_ctxn_entry *
+active_ctxn_entry_alloc(struct active_ctxn_entry **entry_listp)
+{
+    struct active_ctxn_entry *entry;
+
+    entry = *entry_listp;
+    if (entry)
+        *entry_listp = entry->ace_next;
+
+    return entry;
+}
+
+static void
+active_ctxn_entry_free(struct active_ctxn_entry **entry_listp, struct active_ctxn_entry *entry)
+{
+    entry->ace_next = *entry_listp;
+    *entry_listp = entry;
+}
 
 merr_t
 active_ctxn_set_create(struct active_ctxn_set **handle, atomic64_t *kvdb_seqno_addr)
@@ -142,7 +171,8 @@ active_ctxn_set_create(struct active_ctxn_set **handle, atomic64_t *kvdb_seqno_a
     self->acs_min_view_sn = atomic64_read(kvdb_seqno_addr);
     atomic64_set(&self->acs_horizon, self->acs_min_view_sn);
     self->acs_min_view_bkt = NULL;
-    atomic_set(&self->acs_active, 1);
+    atomic_set(&self->acs_nodev[0].acs_active, 0);
+    atomic_set(&self->acs_nodev[1].acs_active, 0);
     atomic_set(&self->acs_changing, 0);
     spin_lock_init(&self->acs_lock);
     self->acs_bkt_end = self->acs_bktv;
@@ -189,7 +219,8 @@ active_ctxn_set_horizon(struct active_ctxn_set *handle)
     /* Read old horizon and KVDB seqno before checking active txn cnt */
     smp_rmb();
 
-    if (atomic_read(&self->acs_active) > 1) {
+    if (atomic_read(&self->acs_nodev[0].acs_active) ||
+        atomic_read(&self->acs_nodev[1].acs_active)) {
         newh = self->acs_min_view_sn;
     } else {
         /* Any transaction that began but wasn't reflected in acs_active
@@ -259,22 +290,43 @@ active_ctxn_set_insert(struct active_ctxn_set *handle, u64 *viewp, void **cookie
     struct active_ctxn_entry *   entry;
     struct active_ctxn_tree *    tree;
     struct active_ctxn_bkt *     bkt;
-    u32                          idx;
+    atomic_t                    *active;
+    sem_t                       *sema;
+    uint                         idx;
     bool                         changed;
 
-    idx = atomic_inc_return(&self->acs_active) / 2;
+    static __thread uint cpuid, nodeid, cnt;
+
+    if (cnt++ % 16 == 0) {
+        if (unlikely( syscall(SYS_getcpu, &cpuid, &nodeid, NULL) ))
+            cpuid = nodeid = raw_smp_processor_id();
+    }
+
+    active = &self->acs_nodev[nodeid & 1].acs_active;
+
+    idx = atomic_inc_return(active) / 2;
     if (idx > NELEM(active_ctxn_bkt_maskv) - 1)
         idx = NELEM(active_ctxn_bkt_maskv) - 1;
-    idx = raw_smp_processor_id() & self->acs_maskv[idx];
 
-    bkt = self->acs_bktv + idx;
+    bkt = self->acs_bktv + (cpuid & self->acs_maskv[idx]);
     tree = bkt->acb_tree;
+    sema = NULL;
 
-    spin_lock(&tree->act_lock);
+    if (!spin_trylock(&tree->act_lock)) {
+        if (idx > 4) {
+            sema = &tree->act_sema;
+            if (sem_wait(sema))
+                sema = NULL; /* Probably EINTR */
+        }
+        spin_lock(&tree->act_lock);
+    }
+
     entry = active_ctxn_entry_alloc(&tree->act_cache);
     if (ev(!entry)) {
         spin_unlock(&tree->act_lock);
-        atomic_dec(&self->acs_active);
+        if (sema)
+            sem_post(sema);
+        atomic_dec(active);
         return merr(ENOMEM);
     }
 
@@ -284,6 +336,7 @@ active_ctxn_set_insert(struct active_ctxn_set *handle, u64 *viewp, void **cookie
 
     entry->ace_view_sn = atomic64_fetch_add(1, self->acs_seqno_addr);
     entry->ace_tree = tree;
+    entry->ace_active = active;
     list_add_tail(&entry->ace_link, &tree->act_head);
 
     if (changed) {
@@ -299,10 +352,19 @@ active_ctxn_set_insert(struct active_ctxn_set *handle, u64 *viewp, void **cookie
         if (bkt >= self->acs_bkt_end)
             self->acs_bkt_end = bkt + 1;
 
-        if (atomic_dec_rel(&self->acs_changing) == 0)
+        /* Accumulate changes in acs_chgaccum to reduce the number
+         * of atomic operations on acs_changing.
+         */
+        if (atomic_read(&self->acs_changing) - ++self->acs_chgaccum == 0) {
+            atomic_sub_rel(self->acs_chgaccum, &self->acs_changing);
+            self->acs_chgaccum = 0;
             active_ctxn_set_update(self, 0);
+        }
         spin_unlock(&self->acs_lock);
     }
+
+    if (sema)
+        sem_post(sema);
 
     *viewp = entry->ace_view_sn;
     *cookiep = entry;
@@ -310,7 +372,8 @@ active_ctxn_set_insert(struct active_ctxn_set *handle, u64 *viewp, void **cookie
     return 0;
 }
 
-BullseyeCoverageSaveOff void
+BullseyeCoverageSaveOff
+void
 active_ctxn_set_remove(
     struct active_ctxn_set *handle,
     void *                  cookie,
@@ -324,11 +387,13 @@ active_ctxn_set_remove(
     u64                          entry_sn;
     u64                          min_sn;
     bool                         changed;
+    atomic_t                    *active;
 
     entry = cookie;
     entry_sn = entry->ace_view_sn;
+    active = entry->ace_active;
     tree = entry->ace_tree;
-    bkt = tree->act_bkt;
+    bkt = NULL;
 
     spin_lock(&tree->act_lock);
     changed = list_is_first(&entry->ace_link, &tree->act_head);
@@ -338,6 +403,7 @@ active_ctxn_set_remove(
         first = list_first_entry_or_null(&tree->act_head, typeof(*first), ace_link);
         min_sn = first ? first->ace_view_sn : U64_MAX;
 
+        bkt = tree->act_bkt;
         bkt->acb_min_view_sns = min_sn;
     }
 
@@ -366,10 +432,10 @@ active_ctxn_set_remove(
         cpu_relax();
     }
 
+    atomic_dec(active);
+
     *min_view_sn = self->acs_min_view_sn;
     *min_changed = *min_view_sn > entry_sn;
-
-    atomic_dec(&self->acs_active);
 }
 BullseyeCoverageRestore
 
@@ -399,6 +465,7 @@ active_ctxn_tree_create(u32 max_elts, u32 index, struct active_ctxn_tree **tree)
 
     spin_lock_init(&self->act_lock);
     INIT_LIST_HEAD(&self->act_head);
+    sem_init(&self->act_sema, 0, 4);
 
     *tree = self;
 
@@ -408,26 +475,7 @@ active_ctxn_tree_create(u32 max_elts, u32 index, struct active_ctxn_tree **tree)
 void
 active_ctxn_tree_destroy(struct active_ctxn_tree *self)
 {
+    sem_destroy(&self->act_sema);
     free_aligned(self);
 }
 
-struct active_ctxn_entry *
-active_ctxn_entry_alloc(struct active_ctxn_entry **entry_listp)
-{
-    struct active_ctxn_entry *entry;
-
-    entry = *entry_listp;
-    if (entry) {
-        *entry_listp = entry->ace_next;
-        entry->ace_view_sn = 0;
-    }
-
-    return entry;
-}
-
-void
-active_ctxn_entry_free(struct active_ctxn_entry **entry_listp, struct active_ctxn_entry *entry)
-{
-    entry->ace_next = *entry_listp;
-    *entry_listp = entry;
-}

@@ -10,6 +10,8 @@
 #include <hse_util/atomic.h>
 #include <hse_util/hse_err.h>
 
+#pragma GCC visibility push(hidden)
+
 struct active_ctxn_set;
 
 merr_t
@@ -30,5 +32,7 @@ active_ctxn_set_remove(
 
 u64
 active_ctxn_set_horizon(struct active_ctxn_set *handle);
+
+#pragma GCC visibility pop
 
 #endif

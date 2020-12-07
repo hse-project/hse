@@ -264,13 +264,13 @@ kvdb_ctxn_set_wait_commits(struct kvdb_ctxn_set *handle)
      * This ensures that we have a consistent read snapshot to work with.
      * We do not expect any new committing transactions' mutations
      * to unexpectedly pop up within our view after this wait is over.
+     *
+     * Note: At 4-billion commits per second it would take more than 136
+     * years for head to wrap.  So we just don't worry about it...
      */
   again:
     spin = 32;
 
-    /* At 4-billion commits per second it would take more than 136
-     * years for head to wrap.  So we just don't worry about it...
-     */
     while (spin > 0) {
         tail = atomic64_read(&kvdb_ctxn_set->ktn_tseqno_tail);
         if (tail >= head)

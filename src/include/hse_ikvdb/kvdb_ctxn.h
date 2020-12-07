@@ -11,6 +11,8 @@
 #include <hse_util/hse_err.h>
 #include <hse_util/keylock.h>
 
+#pragma GCC visibility push(hidden)
+
 struct c0;
 struct cn;
 struct ikvs;
@@ -157,5 +159,7 @@ kvdb_ctxn_set_wait_commits(struct kvdb_ctxn_set *handle);
 
 void
 kvdb_ctxn_set_destroy(struct kvdb_ctxn_set *handle);
+
+#pragma GCC visibility pop
 
 #endif

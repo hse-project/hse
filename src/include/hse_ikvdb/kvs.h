@@ -16,6 +16,8 @@
 #include <hse_ikvdb/kvs_rparams.h>
 #include <hse_ikvdb/query_ctx.h>
 
+#pragma GCC visibility push(hidden)
+
 #define TOMBSPAN_MIN_WIDTH 8
 
 /* MTF_MOCK_DECL(kvs) */
@@ -46,14 +48,12 @@ struct hse_kvs_cursor {
     struct kvdb_ctxn_bind *kc_bind;
     u64                    kc_gen;
     u64                    kc_seq;
+    volatile bool          kc_on_list;
     unsigned int           kc_flags;
     merr_t                 kc_err;
     atomic_t *             kc_cursor_cnt;
     struct kc_filter       kc_filter;
-
-    struct list_head kc_link __aligned(SMP_CACHE_BYTES);
-    volatile bool kc_on_list;
-    volatile bool kc_released;
+    void                  *kc_viewcookie;
 };
 
 merr_t
@@ -190,6 +190,8 @@ kvs_init(void);
 
 void
 kvs_fini(void);
+
+#pragma GCC visibility pop
 
 #if defined(HSE_UNIT_TEST_MODE) && HSE_UNIT_TEST_MODE == 1
 #include "kvs_ut.h"

@@ -14,6 +14,8 @@
 #include <hse_ikvdb/ikvdb.h>
 #include <hse_ikvdb/cursor.h>
 
+#pragma GCC visibility push(hidden)
+
 #define CURSOR_FLAG_SEQNO_CHANGE 1
 #define CURSOR_FLAG_TOMBS_INV_KVMS 2
 #define CURSOR_FLAG_TOMBS_INV_PUTS 4
@@ -278,6 +280,8 @@ c0_cursor_ctxn_preserve_tombspan(
     u32               kmin_len,
     const void *      kmax,
     u32               kmax_len);
+
+#pragma GCC visibility pop
 
 #if defined(HSE_UNIT_TEST_MODE) && HSE_UNIT_TEST_MODE == 1
 #include "c0_ut.h"

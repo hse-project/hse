@@ -15,10 +15,4 @@ active_ctxn_tree_create(u32 max_elts, u32 index, struct active_ctxn_tree **tree)
 void
 active_ctxn_tree_destroy(struct active_ctxn_tree *self);
 
-struct active_ctxn_entry *
-active_ctxn_entry_alloc(struct active_ctxn_entry **entry_listp);
-
-void
-active_ctxn_entry_free(struct active_ctxn_entry **entry_listp, struct active_ctxn_entry *entry);
-
 #endif

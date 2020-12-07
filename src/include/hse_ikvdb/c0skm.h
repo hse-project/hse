@@ -14,6 +14,8 @@
 #include <hse_ikvdb/tuple.h>
 #include <hse_ikvdb/kvdb_health.h>
 
+#pragma GCC visibility push(hidden)
+
 struct c0sk;
 struct kvdb_rparams;
 struct c1;
@@ -81,6 +83,8 @@ c0skm_dtime_throttle_sensor(struct c0sk *handle, struct throttle_sensor *sensor)
 /* MTF_MOCK */
 void
 c0skm_dsize_throttle_sensor(struct c0sk *handle, struct throttle_sensor *sensor);
+
+#pragma GCC visibility pop
 
 #if defined(HSE_UNIT_TEST_MODE) && HSE_UNIT_TEST_MODE == 1
 #include "c0skm_ut.h"

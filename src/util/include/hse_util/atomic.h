@@ -110,6 +110,12 @@ atomic_sub(int i, atomic_t *v)
     (void)__atomic_fetch_sub(&v->counter, i, __ATOMIC_RELAXED);
 }
 
+static inline void
+atomic_sub_rel(int i, atomic_t *v)
+{
+    (void)__atomic_fetch_sub(&v->counter, i, __ATOMIC_RELEASE);
+}
+
 /* Atomically increments @v by 1. */
 static inline void
 atomic_inc(atomic_t *v)
