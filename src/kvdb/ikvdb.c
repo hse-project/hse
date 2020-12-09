@@ -169,8 +169,7 @@ struct ikvdb_impl {
     struct c1 *              ikdb_c1;
     struct kvdb_callback     ikdb_c1_callback;
 
-#define IKDB_TBC 7
-    struct tbkt ikdb_tbv[IKDB_TBC];
+    struct tbkt ikdb_tb __aligned(SMP_CACHE_BYTES * 2);
 
     u64 ikdb_tb_burst;
     u64 ikdb_tb_rate;
@@ -718,19 +717,10 @@ ikvdb_tb_configure(
     u64                 rate,
     bool                initialize)
 {
-    /* Divide burst and rate evenly among token buckets.
-     * Don't worry that we lose up to IKDB_TBC-1 tokens since IKDB_TBC
-     * is small and burst/rate values are large.
-     */
-    burst = burst / IKDB_TBC;
-    rate  = rate  / IKDB_TBC;
-
-    for (int i = 0; i < IKDB_TBC; i++) {
-        if (initialize)
-            tbkt_init(&self->ikdb_tbv[i], burst, rate);
-        else
-            tbkt_adjust(&self->ikdb_tbv[i], burst, rate);
-    }
+    if (initialize)
+        tbkt_init(&self->ikdb_tb, burst, rate);
+    else
+        tbkt_adjust(&self->ikdb_tb, burst, rate);
 }
 
 static
@@ -2126,19 +2116,12 @@ static
 void
 ikvdb_throttle2(struct ikvdb_impl *self, u64 bytes)
 {
-    uint bkt;
     u64 sleep_ns;
 
     if (!throttle_active(&self->ikdb_throttle))
         return;
 
-    /* Random selection (with a good enough PRNG) ensures an even
-     * distribution across bkts.  If the distribution were uneven,
-     * the application would be limited more than necessary.
-     */
-    bkt = xrand64_tls() % IKDB_TBC;
-
-    sleep_ns = tbkt_request(&self->ikdb_tbv[bkt], bytes);
+    sleep_ns = tbkt_request(&self->ikdb_tb, bytes);
     tbkt_delay(sleep_ns);
 
     if (self->ikdb_tb_dbg) {
