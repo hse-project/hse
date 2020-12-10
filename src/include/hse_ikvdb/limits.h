@@ -27,8 +27,7 @@
 #define HSE_C0_MAINT_THREADS_DFLT (5)
 #define HSE_C0_MAINT_THREADS_MAX (32)
 
-#define HSE_ACTIVE_CTXN_BKTS_MAX (16)
-#define HSE_ACTIVE_CTXN_ELTS_MAX (1000)
+#define HSE_VIEWSET_ELTS_MAX (1000)
 
 /* We use the c0kvms ptomb c0kvs cheap to store the c0kvms-priv and
  * c0 ingest-work buffers.  We desire to size the priv buffer such

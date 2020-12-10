@@ -148,19 +148,19 @@ MTF_BEGIN_UTEST_COLLECTION(kvdb_ctxn_test)
 MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, alloc, mapi_pre, mapi_post)
 {
     struct kvdb_ctxn *      handle;
-    struct active_ctxn_set *acs;
+    struct viewset         *acs;
     merr_t                  err;
     atomic64_t              kvdb_seq;
 
     mapi_inject_once_ptr(mapi_idx_alloc_aligned, 1, NULL);
-    err = active_ctxn_set_create(&acs, &kvdb_seq);
+    err = viewset_create(&acs, &kvdb_seq);
     ASSERT_NE(0, err);
 
     mapi_inject_once_ptr(mapi_idx_alloc_aligned, 2, NULL);
-    err = active_ctxn_set_create(&acs, &kvdb_seq);
+    err = viewset_create(&acs, &kvdb_seq);
     ASSERT_NE(0, err);
 
-    err = active_ctxn_set_create(&acs, &kvdb_seq);
+    err = viewset_create(&acs, &kvdb_seq);
     ASSERT_TRUE(err == 0);
 
     mapi_calls_clear(mapi_idx_malloc);
@@ -181,18 +181,18 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, alloc, mapi_pre, mapi_post)
     ASSERT_EQ(2, mapi_calls(mapi_idx_malloc));
     ASSERT_EQ(2, mapi_calls(mapi_idx_free));
 
-    active_ctxn_set_destroy(acs);
-    active_ctxn_set_destroy(NULL);
+    viewset_destroy(acs);
+    viewset_destroy(NULL);
 }
 
 MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, alloc_fail, mapi_pre, mapi_post)
 {
     struct kvdb_ctxn *      handle;
-    struct active_ctxn_set *acs;
+    struct viewset *acs;
     merr_t                  err;
     atomic64_t              kvdb_seq;
 
-    err = active_ctxn_set_create(&acs, &kvdb_seq);
+    err = viewset_create(&acs, &kvdb_seq);
     ASSERT_TRUE(err == 0);
 
     err = kvdb_ctxn_set_create(&kvdb_ctxn_set, tn_timeout, tn_delay);
@@ -205,13 +205,13 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, alloc_fail, mapi_pre, mapi_post)
     kvdb_ctxn_free(0);
     kvdb_ctxn_set_destroy(kvdb_ctxn_set);
 
-    active_ctxn_set_destroy(acs);
+    viewset_destroy(acs);
 }
 
 MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, begin, mapi_pre, mapi_post)
 {
     struct kvdb_ctxn *      handle;
-    struct active_ctxn_set *acs;
+    struct viewset *acs;
     struct kvdb_ctxn_impl * ctxn;
     atomic64_t              kvdb_seq;
     const u64               initial_seq = 117UL;
@@ -227,7 +227,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, begin, mapi_pre, mapi_post)
     err = kvdb_ctxn_set_create(&kvdb_ctxn_set, tn_timeout, tn_delay);
     ASSERT_EQ(err, 0);
 
-    err = active_ctxn_set_create(&acs, &kvdb_seq);
+    err = viewset_create(&acs, &kvdb_seq);
     ASSERT_TRUE(err == 0);
 
     handle = kvdb_ctxn_alloc(NULL, &kvdb_seq, kvdb_ctxn_set, acs, NULL);
@@ -268,7 +268,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, begin, mapi_pre, mapi_post)
 
     ASSERT_EQ(initial_seq + 3, atomic64_read(&kvdb_seq));
     ASSERT_EQ(atomic64_read(&kvdb_seq) - 1, ctxn->ctxn_view_seqno);
-    ASSERT_LE(active_ctxn_set_horizon(acs), initial_seq + 4);
+    ASSERT_LE(viewset_horizon(acs), initial_seq + 4);
     ASSERT_TRUE(HSE_SQNREF_INDIRECT_P(ctxn->ctxn_seqref));
     tmp_seqnoref = HSE_SQNREF_TO_SQNREF(ctxn->ctxn_seqref);
     ASSERT_TRUE(HSE_SQNREF_UNDEF_P(tmp_seqnoref));
@@ -279,13 +279,13 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, begin, mapi_pre, mapi_post)
 
     kvdb_ctxn_set_destroy(kvdb_ctxn_set);
 
-    active_ctxn_set_destroy(acs);
+    viewset_destroy(acs);
 }
 
 MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, basic_commit, mapi_pre, mapi_post)
 {
     struct kvdb_ctxn *      handle;
-    struct active_ctxn_set *acs;
+    struct viewset *acs;
     struct kvdb_keylock *   klock;
     struct kvdb_ctxn_impl * ctxn;
     const u64               initial_seq = 117UL;
@@ -306,12 +306,12 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, basic_commit, mapi_pre, mapi_post)
 
     atomic64_set(&kvdb_seq, initial_seq);
 
-    err = active_ctxn_set_create(&acs, &kvdb_seq);
+    err = viewset_create(&acs, &kvdb_seq);
     ASSERT_TRUE(err == 0);
 
     err = kvdb_ctxn_set_create(&kvdb_ctxn_set, tn_timeout, tn_delay);
     ASSERT_EQ(err, 0);
-    ASSERT_LE(active_ctxn_set_horizon(acs), initial_seq);
+    ASSERT_LE(viewset_horizon(acs), initial_seq);
 
     handle = kvdb_ctxn_alloc(klock, &kvdb_seq, kvdb_ctxn_set, acs, NULL);
     ASSERT_NE(NULL, handle);
@@ -324,7 +324,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, basic_commit, mapi_pre, mapi_post)
 
     err = kvdb_ctxn_put(handle, c0, &kt, &vt);
     ASSERT_EQ(0, err);
-    ASSERT_LE(active_ctxn_set_horizon(acs), initial_seq + 1);
+    ASSERT_LE(viewset_horizon(acs), initial_seq + 1);
 
     err = kvdb_ctxn_commit(handle);
     ASSERT_EQ(0, err);
@@ -340,7 +340,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, basic_commit, mapi_pre, mapi_post)
     kvdb_ctxn_free(handle);
     kvdb_ctxn_set_destroy(kvdb_ctxn_set);
 
-    active_ctxn_set_destroy(acs);
+    viewset_destroy(acs);
     kvdb_keylock_destroy(klock);
 }
 
@@ -349,7 +349,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, basic_commit, mapi_pre, mapi_post)
 MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, basic_commit_twice, mapi_pre, mapi_post)
 {
     struct kvdb_ctxn *      handle;
-    struct active_ctxn_set *acs;
+    struct viewset *acs;
     struct kvdb_keylock *   klock;
     const u64               initial_seq = 117UL;
     atomic64_t              kvdb_seq;
@@ -361,7 +361,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, basic_commit_twice, mapi_pre, mapi_post
 
     atomic64_set(&kvdb_seq, initial_seq);
 
-    err = active_ctxn_set_create(&acs, &kvdb_seq);
+    err = viewset_create(&acs, &kvdb_seq);
     ASSERT_TRUE(err == 0);
 
     err = kvdb_ctxn_set_create(&kvdb_ctxn_set, tn_timeout, tn_delay);
@@ -382,7 +382,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, basic_commit_twice, mapi_pre, mapi_post
     kvdb_ctxn_free(handle);
     kvdb_ctxn_set_destroy(kvdb_ctxn_set);
 
-    active_ctxn_set_destroy(acs);
+    viewset_destroy(acs);
     kvdb_keylock_destroy(klock);
 }
 
@@ -392,7 +392,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, basic_commit_proto, mapi_pre, mapi_post
 {
     atomic64_t              kvdb_seq;
     struct kvdb_ctxn *      handle;
-    struct active_ctxn_set *acs;
+    struct viewset *acs;
     struct kvdb_keylock *   klock;
     const u64               initial_seq = 117UL;
     merr_t                  err;
@@ -403,7 +403,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, basic_commit_proto, mapi_pre, mapi_post
 
     atomic64_set(&kvdb_seq, initial_seq);
 
-    err = active_ctxn_set_create(&acs, &kvdb_seq);
+    err = viewset_create(&acs, &kvdb_seq);
     ASSERT_TRUE(err == 0);
 
     err = kvdb_ctxn_set_create(&kvdb_ctxn_set, tn_timeout, tn_delay);
@@ -424,7 +424,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, basic_commit_proto, mapi_pre, mapi_post
     kvdb_ctxn_free(handle);
     kvdb_ctxn_set_destroy(kvdb_ctxn_set);
 
-    active_ctxn_set_destroy(acs);
+    viewset_destroy(acs);
     kvdb_keylock_destroy(klock);
 }
 
@@ -445,7 +445,7 @@ _c0sk_flush(struct c0sk *handle, struct c0_kvmultiset *new)
 MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, basic_commit_seqno, mapi_pre, mapi_post)
 {
     struct kvdb_ctxn *      handle;
-    struct active_ctxn_set *acs;
+    struct viewset *acs;
     struct kvdb_keylock *   klock;
     const u64               initial_seq = 117UL;
     merr_t                  err;
@@ -465,12 +465,12 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, basic_commit_seqno, mapi_pre, mapi_post
 
     atomic64_set(&kvdb_seq, initial_seq);
 
-    err = active_ctxn_set_create(&acs, &kvdb_seq);
+    err = viewset_create(&acs, &kvdb_seq);
     ASSERT_TRUE(err == 0);
 
     err = kvdb_ctxn_set_create(&kvdb_ctxn_set, tn_timeout, tn_delay);
     ASSERT_EQ(err, 0);
-    ASSERT_LE(active_ctxn_set_horizon(acs), initial_seq);
+    ASSERT_LE(viewset_horizon(acs), initial_seq);
 
     /* Two merge failures and first != dst */
     handle = kvdb_ctxn_alloc(NULL, &kvdb_seq, kvdb_ctxn_set, acs, NULL);
@@ -514,7 +514,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, basic_commit_seqno, mapi_pre, mapi_post
     kvdb_ctxn_free(handle);
     kvdb_ctxn_set_destroy(kvdb_ctxn_set);
 
-    active_ctxn_set_destroy(acs);
+    viewset_destroy(acs);
     kvdb_keylock_destroy(klock);
 
     MOCK_UNSET(c0sk, _c0sk_flush);
@@ -523,7 +523,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, basic_commit_seqno, mapi_pre, mapi_post
 MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, basic_abort, mapi_pre, mapi_post)
 {
     struct kvdb_ctxn *      handle;
-    struct active_ctxn_set *acs;
+    struct viewset *acs;
     struct kvdb_ctxn_impl * ctxn;
     merr_t                  err;
     atomic64_t              kvdb_seq;
@@ -531,7 +531,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, basic_abort, mapi_pre, mapi_post)
 
     atomic64_set(&kvdb_seq, initial_seq);
 
-    err = active_ctxn_set_create(&acs, &kvdb_seq);
+    err = viewset_create(&acs, &kvdb_seq);
     ASSERT_TRUE(err == 0);
 
     err = kvdb_ctxn_set_create(&kvdb_ctxn_set, tn_timeout, tn_delay);
@@ -555,7 +555,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, basic_abort, mapi_pre, mapi_post)
     kvdb_ctxn_free(handle);
     kvdb_ctxn_set_destroy(kvdb_ctxn_set);
 
-    active_ctxn_set_destroy(acs);
+    viewset_destroy(acs);
 }
 
 /* "abort" can be called from any state.
@@ -563,14 +563,14 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, basic_abort, mapi_pre, mapi_post)
 MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, basic_abort_twice, mapi_pre, mapi_post)
 {
     struct kvdb_ctxn *      handle;
-    struct active_ctxn_set *acs;
+    struct viewset *acs;
     merr_t                  err;
     const u64               initial_seq = 117UL;
     atomic64_t              kvdb_seq;
 
     atomic64_set(&kvdb_seq, initial_seq);
 
-    err = active_ctxn_set_create(&acs, &kvdb_seq);
+    err = viewset_create(&acs, &kvdb_seq);
     ASSERT_TRUE(err == 0);
 
     err = kvdb_ctxn_set_create(&kvdb_ctxn_set, tn_timeout, tn_delay);
@@ -594,13 +594,13 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, basic_abort_twice, mapi_pre, mapi_post)
     kvdb_ctxn_free(handle);
     kvdb_ctxn_set_destroy(kvdb_ctxn_set);
 
-    active_ctxn_set_destroy(acs);
+    viewset_destroy(acs);
 }
 
 MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, get_view_seqno, mapi_pre, mapi_post)
 {
     struct kvdb_ctxn *      handle;
-    struct active_ctxn_set *acs;
+    struct viewset *acs;
     struct kvdb_keylock *   klock;
     const u64               initial_seq = 117UL;
     u64                     view_seqno;
@@ -613,7 +613,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, get_view_seqno, mapi_pre, mapi_post)
 
     atomic64_set(&kvdb_seq, initial_seq);
 
-    err = active_ctxn_set_create(&acs, &kvdb_seq);
+    err = viewset_create(&acs, &kvdb_seq);
     ASSERT_TRUE(err == 0);
 
     err = kvdb_ctxn_set_create(&kvdb_ctxn_set, tn_timeout, tn_delay);
@@ -642,14 +642,14 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, get_view_seqno, mapi_pre, mapi_post)
     kvdb_ctxn_free(handle);
     kvdb_ctxn_set_destroy(kvdb_ctxn_set);
 
-    active_ctxn_set_destroy(acs);
+    viewset_destroy(acs);
     kvdb_keylock_destroy(klock);
 }
 
 MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, get_state, mapi_pre, mapi_post)
 {
     struct kvdb_ctxn *      handle;
-    struct active_ctxn_set *acs;
+    struct viewset *acs;
     struct kvdb_keylock *   klock;
     const u64               initial_seq = 117UL;
     enum kvdb_ctxn_state    state;
@@ -662,7 +662,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, get_state, mapi_pre, mapi_post)
 
     atomic64_set(&kvdb_seq, initial_seq);
 
-    err = active_ctxn_set_create(&acs, &kvdb_seq);
+    err = viewset_create(&acs, &kvdb_seq);
     ASSERT_TRUE(err == 0);
 
     err = kvdb_ctxn_set_create(&kvdb_ctxn_set, tn_timeout, tn_delay);
@@ -695,7 +695,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, get_state, mapi_pre, mapi_post)
     kvdb_ctxn_free(handle);
     kvdb_ctxn_set_destroy(kvdb_ctxn_set);
 
-    active_ctxn_set_destroy(acs);
+    viewset_destroy(acs);
     kvdb_keylock_destroy(klock);
 }
 
@@ -704,7 +704,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, get_state, mapi_pre, mapi_post)
 MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, put_get_del, mapi_pre, mapi_post)
 {
     struct kvdb_ctxn *      handle;
-    struct active_ctxn_set *acs;
+    struct viewset *acs;
     struct kvdb_keylock *   klock;
     enum kvdb_ctxn_state    state;
     const u64               initial_value = 117UL;
@@ -729,7 +729,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, put_get_del, mapi_pre, mapi_post)
 
     atomic64_set(&kvdb_seq, initial_value);
 
-    err = active_ctxn_set_create(&acs, &kvdb_seq);
+    err = viewset_create(&acs, &kvdb_seq);
     ASSERT_TRUE(err == 0);
 
     err = kvdb_ctxn_set_create(&kvdb_ctxn_set, tn_timeout, tn_delay);
@@ -803,7 +803,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, put_get_del, mapi_pre, mapi_post)
     kvdb_ctxn_free(handle);
     kvdb_ctxn_set_destroy(kvdb_ctxn_set);
 
-    active_ctxn_set_destroy(acs);
+    viewset_destroy(acs);
     kvdb_keylock_destroy(klock);
 }
 
@@ -812,7 +812,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, put_get_del, mapi_pre, mapi_post)
 MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, put_get_pdel, mapi_pre, mapi_post)
 {
     struct kvdb_ctxn *      handle;
-    struct active_ctxn_set *acs;
+    struct viewset *acs;
     struct kvdb_keylock *   klock;
     enum kvdb_ctxn_state    state;
     const u64               initial_value = 117UL;
@@ -840,7 +840,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, put_get_pdel, mapi_pre, mapi_post)
 
     atomic64_set(&kvdb_seq, initial_value);
 
-    err = active_ctxn_set_create(&acs, &kvdb_seq);
+    err = viewset_create(&acs, &kvdb_seq);
     ASSERT_TRUE(err == 0);
 
     err = kvdb_ctxn_set_create(&kvdb_ctxn_set, tn_timeout, tn_delay);
@@ -888,7 +888,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, put_get_pdel, mapi_pre, mapi_post)
     kvdb_ctxn_free(handle);
     kvdb_ctxn_set_destroy(kvdb_ctxn_set);
 
-    active_ctxn_set_destroy(acs);
+    viewset_destroy(acs);
     kvdb_keylock_destroy(klock);
 }
 
@@ -898,7 +898,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, txn_timeout, mapi_pre, mapi_post)
     int                     i;
     const int               num_txns = 32;
     enum kvdb_ctxn_state    state;
-    struct active_ctxn_set *acs;
+    struct viewset *acs;
     struct kvdb_ctxn_impl * ctxn;
     struct kvdb_keylock *   klock;
     struct kvdb_ctxn *      handles[num_txns];
@@ -918,7 +918,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, txn_timeout, mapi_pre, mapi_post)
 
     atomic64_set(&kvdb_seq, initial_value);
 
-    err = active_ctxn_set_create(&acs, &kvdb_seq);
+    err = viewset_create(&acs, &kvdb_seq);
     ASSERT_TRUE(err == 0);
 
     err = kvdb_ctxn_set_create(&kvdb_ctxn_set, delay_ms, delay_ms / 5);
@@ -958,7 +958,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, txn_timeout, mapi_pre, mapi_post)
 
     kvdb_ctxn_set_destroy(kvdb_ctxn_set);
 
-    active_ctxn_set_destroy(acs);
+    viewset_destroy(acs);
     kvdb_keylock_destroy(klock);
 }
 
@@ -967,7 +967,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, txn_cleanup, mapi_pre, mapi_post)
     merr_t                  err;
     int                     i;
     const int               num_txns = 5;
-    struct active_ctxn_set *acs;
+    struct viewset *acs;
     struct kvdb_keylock *   klock;
     struct kvdb_ctxn *      handles[num_txns];
     const u64               initial_value = 117UL;
@@ -987,7 +987,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, txn_cleanup, mapi_pre, mapi_post)
 
     atomic64_set(&kvdb_seq, initial_value);
 
-    err = active_ctxn_set_create(&acs, &kvdb_seq);
+    err = viewset_create(&acs, &kvdb_seq);
     ASSERT_TRUE(err == 0);
 
     err = kvdb_ctxn_set_create(&kvdb_ctxn_set, tn_timeout, tn_delay);
@@ -1006,7 +1006,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, txn_cleanup, mapi_pre, mapi_post)
 
     kvdb_ctxn_set_destroy(kvdb_ctxn_set);
 
-    active_ctxn_set_destroy(acs);
+    viewset_destroy(acs);
     kvdb_keylock_destroy(klock);
 }
 
@@ -1015,7 +1015,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, txn_cleanup, mapi_pre, mapi_post)
  */
 MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, txn_hash, mapi_pre, mapi_post)
 {
-    struct active_ctxn_set *acs;
+    struct viewset *acs;
     struct kvdb_keylock *   klock;
     struct kvdb_ctxn *      ctxn;
     struct kvs_ktuple       kt;
@@ -1033,7 +1033,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, txn_hash, mapi_pre, mapi_post)
 
     atomic64_set(&kvdb_seq, time(NULL));
 
-    err = active_ctxn_set_create(&acs, &kvdb_seq);
+    err = viewset_create(&acs, &kvdb_seq);
     ASSERT_TRUE(err == 0);
 
     err = kvdb_ctxn_set_create(&kvdb_ctxn_set, tn_timeout, tn_delay);
@@ -1077,7 +1077,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, txn_hash, mapi_pre, mapi_post)
     kvdb_ctxn_abort(ctxn);
 
     kvdb_ctxn_set_destroy(kvdb_ctxn_set);
-    active_ctxn_set_destroy(acs);
+    viewset_destroy(acs);
     kvdb_keylock_destroy(klock);
 }
 
@@ -1086,7 +1086,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, txn_hash, mapi_pre, mapi_post)
  */
 MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, txn_independence, mapi_pre, mapi_post)
 {
-    struct active_ctxn_set *acs;
+    struct viewset *acs;
     struct kvdb_keylock *   klock;
     struct kvdb_ctxn *      ctxn1, *ctxn2;
     struct c0 *             c0a, *c0b;
@@ -1112,7 +1112,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, txn_independence, mapi_pre, mapi_post)
 
     atomic64_set(&kvdb_seq, time(NULL));
 
-    err = active_ctxn_set_create(&acs, &kvdb_seq);
+    err = viewset_create(&acs, &kvdb_seq);
     ASSERT_TRUE(err == 0);
 
     err = kvdb_ctxn_set_create(&kvdb_ctxn_set, tn_timeout, tn_delay);
@@ -1158,7 +1158,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, txn_independence, mapi_pre, mapi_post)
     kvdb_ctxn_abort(ctxn2);
 
     kvdb_ctxn_set_destroy(kvdb_ctxn_set);
-    active_ctxn_set_destroy(acs);
+    viewset_destroy(acs);
     kvdb_keylock_destroy(klock);
 
     c0_close(c0b);
@@ -1185,7 +1185,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, txn_seq, mapi_pre, mapi_post)
     merr_t                  err;
     int                     i;
     const int               num_txns = 256;
-    struct active_ctxn_set *acs;
+    struct viewset *acs;
     struct kvdb_keylock *   klock;
     struct kvdb_ctxn *      handles[num_txns];
     const u64               initial_value = 117UL;
@@ -1207,14 +1207,14 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, txn_seq, mapi_pre, mapi_post)
 
     atomic64_set(&kvdb_seq, initial_value);
 
-    err = active_ctxn_set_create(&acs, &kvdb_seq);
+    err = viewset_create(&acs, &kvdb_seq);
     ASSERT_TRUE(err == 0);
 
     delay_us = 3000;
     err = kvdb_ctxn_set_create(&kvdb_ctxn_set, tn_timeout, delay_us / 1000);
     ASSERT_EQ(err, 0);
 
-    horizon = active_ctxn_set_horizon(acs);
+    horizon = viewset_horizon(acs);
     ASSERT_EQ(horizon, initial_value);
 
     for (i = 0; i < num_txns; i++) {
@@ -1227,7 +1227,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, txn_seq, mapi_pre, mapi_post)
         ASSERT_EQ(err, 0);
     }
 
-    curr_seq = active_ctxn_set_horizon(acs);
+    curr_seq = viewset_horizon(acs);
     ASSERT_EQ(horizon, curr_seq);
 
     for (i = 0; i < num_txns; i++) {
@@ -1236,7 +1236,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, txn_seq, mapi_pre, mapi_post)
         else
             kvdb_ctxn_abort(handles[i]);
 
-        curr_seq = active_ctxn_set_horizon(acs);
+        curr_seq = viewset_horizon(acs);
         ASSERT_LE(horizon, curr_seq);
         ASSERT_LE(curr_seq, atomic64_read(&kvdb_seq));
 
@@ -1246,12 +1246,12 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, txn_seq, mapi_pre, mapi_post)
     for (i = 0; i < num_txns / 3; i += 3)
         kvdb_ctxn_free(handles[i]);
 
-    horizon = active_ctxn_set_horizon(acs);
+    horizon = viewset_horizon(acs);
     ASSERT_EQ(horizon, atomic64_read(&kvdb_seq));
 
     kvdb_ctxn_set_destroy(kvdb_ctxn_set);
 
-    active_ctxn_set_destroy(acs);
+    viewset_destroy(acs);
     kvdb_keylock_destroy(klock);
 }
 
@@ -1311,7 +1311,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, multiple_ctxn_commit, mapi_pre, mapi_po
     merr_t                  err;
     int                     i, rc;
     const int               num_txns = 32;
-    struct active_ctxn_set *acs;
+    struct viewset *acs;
     struct kvdb_keylock *   klock;
     struct kvdb_ctxn *      handles[num_txns];
     atomic_t                owner_thread[32] = {};
@@ -1326,7 +1326,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, multiple_ctxn_commit, mapi_pre, mapi_po
 
     atomic64_set(&kvdb_seq, initial_value);
 
-    err = active_ctxn_set_create(&acs, &kvdb_seq);
+    err = viewset_create(&acs, &kvdb_seq);
     ASSERT_TRUE(err == 0);
 
     err = kvdb_ctxn_set_create(&kvdb_ctxn_set, tn_timeout, tn_delay);
@@ -1355,7 +1355,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, multiple_ctxn_commit, mapi_pre, mapi_po
 
     kvdb_ctxn_set_destroy(kvdb_ctxn_set);
 
-    active_ctxn_set_destroy(acs);
+    viewset_destroy(acs);
     kvdb_keylock_destroy(klock);
 }
 
@@ -1382,7 +1382,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, kvdb_ctxn_test_merge, mapi_pre, mapi_po
 {
     struct kvdb_ctxn *      handle;
     struct kvdb_ctxn_impl * ctxn;
-    struct active_ctxn_set *acs;
+    struct viewset *acs;
     atomic64_t              kvdb_seq;
     const u64               initial_seq = 10;
     merr_t                  err;
@@ -1393,7 +1393,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, kvdb_ctxn_test_merge, mapi_pre, mapi_po
     err = kvdb_ctxn_set_create(&kvdb_ctxn_set, tn_timeout, tn_delay);
     ASSERT_EQ(err, 0);
 
-    err = active_ctxn_set_create(&acs, &kvdb_seq);
+    err = viewset_create(&acs, &kvdb_seq);
     ASSERT_TRUE(err == 0);
 
     struct kvdb_keylock *klock;
@@ -1466,7 +1466,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, kvdb_ctxn_test_merge, mapi_pre, mapi_po
     kvdb_ctxn_free(handle);
     kvdb_ctxn_set_destroy(kvdb_ctxn_set);
 
-    active_ctxn_set_destroy(acs);
+    viewset_destroy(acs);
     kvdb_keylock_destroy(klock);
 }
 

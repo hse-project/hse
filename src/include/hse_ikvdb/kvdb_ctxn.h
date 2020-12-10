@@ -23,7 +23,7 @@ struct kvs_vtuple;
 struct kvs_buf;
 struct kvdb_keylock;
 struct kvdb_ctxn_set;
-struct active_ctxn_set;
+struct viewset;
 struct query_ctx;
 
 enum key_lookup_res;
@@ -67,7 +67,7 @@ kvdb_ctxn_alloc(
     struct kvdb_keylock *   kvdb_keylock,
     atomic64_t *            kvdb_seqno_addr,
     struct kvdb_ctxn_set *  kvdb_ctxn_set,
-    struct active_ctxn_set *active_txn_set,
+    struct viewset         *active_txn_set,
     struct c0sk *           c0sk);
 
 void

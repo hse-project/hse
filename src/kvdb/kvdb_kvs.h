@@ -33,7 +33,7 @@ struct kvdb_kvs;
 struct kvdb_kvs {
     struct ikvs            *kk_ikvs;
     atomic64_t             *kk_seqno;
-    struct active_ctxn_set *kk_viewset;
+    struct viewset         *kk_viewset;
     struct ikvdb_impl      *kk_parent;
     u32                     kk_vcompmin;
     u32                     kk_vcompbnd;
