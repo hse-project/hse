@@ -86,7 +86,7 @@ struct ikvs {
      * yield a prime in order for ikvs_td2cca() to work well.
      */
     uint            ikv_curcache_preenidx;
-    struct curcache ikv_curcachev[10];
+    struct curcache ikv_curcachev[14];
 };
 
 struct perfc_name kvs_cc_perfc_op[] = {
@@ -1039,7 +1039,7 @@ ikvs_td2cca(struct ikvs *kvs, u64 pfxhash)
     if (unlikely( syscall(SYS_getcpu, &cpuid, &nodeid) ))
         nodeid = raw_smp_processor_id();
 
-    i = (pfxhash ?: pthread_self()) % (NELEM(kvs->ikv_curcachev) / 2);
+    i = pthread_self() % (NELEM(kvs->ikv_curcachev) / 2);
     i += (nodeid % 2) * (NELEM(kvs->ikv_curcachev) / 2);
 
     return kvs->ikv_curcachev + i;

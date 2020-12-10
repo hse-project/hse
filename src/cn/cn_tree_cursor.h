@@ -11,6 +11,8 @@
 #include <hse_util/inttypes.h>
 #include <hse_util/hse_err.h>
 
+#pragma GCC visibility push(hidden)
+
 struct pscan;
 struct cn_tree;
 struct kvs_ktuple;
@@ -43,6 +45,8 @@ cn_tree_cursor_destroy(struct pscan *cur);
 /* MTF_MOCK */
 merr_t
 cn_tree_cursor_active_kvsets(struct pscan *cur, u32 *active, u32 *total);
+
+#pragma GCC visibility pop
 
 #if defined(HSE_UNIT_TEST_MODE) && HSE_UNIT_TEST_MODE == 1
 #include "cn_tree_cursor_ut.h"

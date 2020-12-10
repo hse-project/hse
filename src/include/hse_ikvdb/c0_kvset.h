@@ -12,6 +12,8 @@
 
 #include <hse_ikvdb/kvs.h>
 
+#pragma GCC visibility push(hidden)
+
 struct c0_kvset {
 };
 
@@ -421,5 +423,7 @@ c0kvs_preserve_tombspan(
  */
 void
 c0kvs_enable_mutation(struct c0_kvset *handle);
+
+#pragma GCC visibility pop
 
 #endif /* HSE_CORE_C0_KVSET_H */

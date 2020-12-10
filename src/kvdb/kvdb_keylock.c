@@ -26,7 +26,7 @@
 
 #include "kvdb_keylock.h"
 
-#define KVDB_DLOCK_MAX 8 /* Must be power-of-2 */
+#define KVDB_DLOCK_MAX 4 /* Must be power-of-2 */
 #define KVDB_LOCKS_SZ (16 * 1024 - SMP_CACHE_BYTES)
 
 struct kvdb_keylock {

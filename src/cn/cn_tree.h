@@ -19,6 +19,8 @@
 #include "kcompact.h"
 #include "kvset.h"
 
+#pragma GCC visibility push(hidden)
+
 /* MTF_MOCK_DECL(cn_tree) */
 
 struct cn_tree;
@@ -128,6 +130,8 @@ cn_tree_init(void);
 
 void
 cn_tree_fini(void);
+
+#pragma GCC visibility pop
 
 #if defined(HSE_UNIT_TEST_MODE) && HSE_UNIT_TEST_MODE == 1
 #include "cn_tree_ut.h"

@@ -58,6 +58,7 @@ struct kvdb_ctxn_set_impl {
     atomic64_t ktn_tseqno_head __aligned(SMP_CACHE_BYTES * 2);
     atomic64_t ktn_tseqno_tail __aligned(SMP_CACHE_BYTES * 2);
     sem_t      ktn_tseqno_sema __aligned(SMP_CACHE_BYTES * 2);
+    spinlock_t ktn_tseqno_sync __aligned(SMP_CACHE_BYTES * 2);
 
     struct mutex         ktn_list_mutex __aligned(SMP_CACHE_BYTES * 2);
     struct cds_list_head ktn_alloc_list __aligned(SMP_CACHE_BYTES);
@@ -264,13 +265,13 @@ kvdb_ctxn_set_wait_commits(struct kvdb_ctxn_set *handle)
      * This ensures that we have a consistent read snapshot to work with.
      * We do not expect any new committing transactions' mutations
      * to unexpectedly pop up within our view after this wait is over.
+     *
+     * Note: At 4-billion commits per second it would take more than 136
+     * years for head to wrap.  So we just don't worry about it...
      */
   again:
     spin = 32;
 
-    /* At 4-billion commits per second it would take more than 136
-     * years for head to wrap.  So we just don't worry about it...
-     */
     while (spin > 0) {
         tail = atomic64_read(&kvdb_ctxn_set->ktn_tseqno_tail);
         if (tail >= head)
@@ -702,20 +703,17 @@ retry:
      */
     rcu_read_lock();
     if (dst) {
-        static struct {
-            atomic_t lock __aligned(SMP_CACHE_BYTES * 2);
-        } seq;
+        struct kvdb_ctxn_set_impl *kcs = kvdb_ctxn_set_h2r(ctxn->ctxn_kvdb_ctxn_set);
 
         /* merge */
         /*
          * Ensure that threads mint commit sequence numbers in increasing order
          * of ctxn_tseqno_head.
          */
-        while (!atomic_cas(&seq.lock, 0, 1))
-            cpu_relax();
+        spin_lock(&kcs->ktn_tseqno_sync);
         head = atomic64_inc_acq(ctxn->ctxn_tseqno_head);
         commit_sn = 1 + atomic64_fetch_add_rel(2, ctxn->ctxn_kvdb_seq_addr);
-        atomic_cas(&seq.lock, 1, 0);
+        spin_unlock(&kcs->ktn_tseqno_sync);
 
         rsvd_sn = c0kvms_rsvd_sn_get(dst);
 
@@ -1216,6 +1214,7 @@ kvdb_ctxn_set_create(struct kvdb_ctxn_set **handle_out, u64 txn_timeout_ms, u64 
 
     atomic64_set(&ktn->ktn_tseqno_head, 0);
     atomic64_set(&ktn->ktn_tseqno_tail, 0);
+    spin_lock_init(&ktn->ktn_tseqno_sync);
     atomic_set(&ktn->ktn_reading, 0);
     ktn->ktn_queued = false;
     ktn->ktn_txn_timeout = txn_timeout_ms;

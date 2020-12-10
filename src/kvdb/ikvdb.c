@@ -166,6 +166,7 @@ struct ikvdb_impl {
     struct cndb *            ikdb_cndb;
     struct workqueue_struct *ikdb_workqueue;
     struct active_ctxn_set * ikdb_active_txn_set;
+    struct active_ctxn_set * ikdb_cur_viewset;
     struct c1 *              ikdb_c1;
     struct kvdb_callback     ikdb_c1_callback;
 
@@ -183,14 +184,9 @@ struct ikvdb_impl {
     atomic_t ikdb_curcnt __aligned(SMP_CACHE_BYTES * 2);
     u32      ikdb_curcnt_max;
 
-    atomic64_t       ikdb_cur_ticket __aligned(SMP_CACHE_BYTES * 2);
-    atomic64_t       ikdb_cur_serving __aligned(SMP_CACHE_BYTES);
-    atomic64_t       ikdb_seqno __aligned(SMP_CACHE_BYTES * 2);
-    struct list_head ikdb_cur_list __aligned(SMP_CACHE_BYTES);
-    atomic64_t       ikdb_cur_horizon;
-
-    struct kvdb_rparams ikdb_rp __aligned(SMP_CACHE_BYTES * 2);
-    struct kvdb_ctxn_bkt        ikdb_ctxn_cache[KVDB_CTXN_BKT_MAX];
+    atomic64_t           ikdb_seqno __aligned(SMP_CACHE_BYTES * 2);
+    struct kvdb_rparams  ikdb_rp __aligned(SMP_CACHE_BYTES * 2);
+    struct kvdb_ctxn_bkt ikdb_ctxn_cache[KVDB_CTXN_BKT_MAX];
 
     /* Put the mostly cold data at end of the structure to improve
      * the density of the hotter data.
@@ -210,8 +206,6 @@ struct ikvdb_impl {
     u64  ikdb_c1_oid2;
     char ikdb_mpname[MPOOL_NAMESZ_MAX];
 };
-
-static void cursor_view_task(struct ikvdb_impl *self);
 
 static merr_t
 ikvdb_flush_int(struct ikvdb_impl *self)
@@ -836,8 +830,6 @@ ikvdb_maint_task(struct work_struct *work)
         }
         mutex_unlock(&self->ikdb_lock);
 
-        cursor_view_task(self);
-
         /* Sleep for 100ms minus processing overhead.  Does not account
          * for sleep time variance.  Divide delta by 1024 rather than
          * 1000 to facilitate intentional drift.
@@ -990,9 +982,9 @@ ikvdb_diag_open(
     memset(self, 0, sizeof(*self));
 
     n = strlcpy(self->ikdb_mpname, mp_name, sizeof(self->ikdb_mpname));
-    if (n >= sizeof(self->ikdb_mpname)) {
-        err = merr(ev(ENAMETOOLONG));
-        goto err_exit1;
+    if (ev(n >= sizeof(self->ikdb_mpname))) {
+        err = merr(ENAMETOOLONG);
+        goto err_exit0;
     }
 
     self->ikdb_ds = ds;
@@ -1009,6 +1001,10 @@ ikvdb_diag_open(
     err = active_ctxn_set_create(&self->ikdb_active_txn_set, &self->ikdb_seqno);
     if (ev(err))
         goto err_exit0;
+
+    err = active_ctxn_set_create(&self->ikdb_cur_viewset, &self->ikdb_seqno);
+    if (ev(err))
+        goto err_exit1;
 
     err =
         kvdb_keylock_create(&self->ikdb_keylock, rparams->keylock_tables, rparams->keylock_entries);
@@ -1050,6 +1046,7 @@ err_exit2:
     kvdb_keylock_destroy(self->ikdb_keylock);
 
 err_exit1:
+    active_ctxn_set_destroy(self->ikdb_cur_viewset);
     active_ctxn_set_destroy(self->ikdb_active_txn_set);
 
 err_exit0:
@@ -1082,6 +1079,7 @@ ikvdb_diag_close(struct ikvdb *handle)
 
     ikvdb_txn_fini(self);
 
+    active_ctxn_set_destroy(self->ikdb_cur_viewset);
     active_ctxn_set_destroy(self->ikdb_active_txn_set);
 
     kvdb_keylock_destroy(self->ikdb_keylock);
@@ -1155,15 +1153,12 @@ static struct kvdb_kvs *
 kvdb_kvs_create(void)
 {
     struct kvdb_kvs *kvs;
-    int              i;
 
     kvs = alloc_aligned(sizeof(*kvs), __alignof(*kvs));
     if (kvs) {
         memset(kvs, 0, sizeof(*kvs));
         kvs->kk_vcompmin = UINT_MAX;
         atomic_set(&kvs->kk_refcnt, 0);
-        for (i = 0; i < NELEM(kvs->kk_cursors_mtxv); ++i)
-            mutex_init(&kvs->kk_cursors_mtxv[i].mtx);
     }
 
     return kvs;
@@ -1172,12 +1167,8 @@ kvdb_kvs_create(void)
 static void
 kvdb_kvs_destroy(struct kvdb_kvs *kvs)
 {
-    int i;
-
     if (kvs) {
         assert(atomic_read(&kvs->kk_refcnt) == 0);
-        for (i = 0; i < NELEM(kvs->kk_cursors_mtxv); ++i)
-            mutex_destroy(&kvs->kk_cursors_mtxv[i].mtx);
         memset(kvs, -1, sizeof(*kvs));
         free_aligned(kvs);
     }
@@ -1393,6 +1384,12 @@ ikvdb_open(
         goto err1;
     }
 
+    err = active_ctxn_set_create(&self->ikdb_cur_viewset, &self->ikdb_seqno);
+    if (err) {
+        hse_elog(HSE_ERR "cannot open %s: @@e", err, mp_name);
+        goto err1;
+    }
+
     err = kvdb_keylock_create(&self->ikdb_keylock, rp.keylock_tables, rp.keylock_entries);
     if (err) {
         hse_elog(HSE_ERR "cannot open %s: @@e", err, mp_name);
@@ -1422,11 +1419,7 @@ ikvdb_open(
         goto err1;
     }
 
-    INIT_LIST_HEAD(&self->ikdb_cur_list);
     atomic64_set(&self->ikdb_seqno, seqno);
-    atomic64_set(&self->ikdb_cur_ticket, 0);
-    atomic64_set(&self->ikdb_cur_serving, 0);
-    atomic64_set(&self->ikdb_cur_horizon, U64_MAX);
 
     err = kvdb_ctxn_set_create(
         &self->ikdb_ctxn_set, self->ikdb_rp.txn_timeout, self->ikdb_rp.txn_wkth_delay);
@@ -1511,6 +1504,7 @@ err1:
     cndb_close(self->ikdb_cndb);
     kvdb_log_close(self->ikdb_log);
     kvdb_keylock_destroy(self->ikdb_keylock);
+    active_ctxn_set_destroy(self->ikdb_cur_viewset);
     active_ctxn_set_destroy(self->ikdb_active_txn_set);
     csched_destroy(self->ikdb_csched);
     throttle_fini(&self->ikdb_throttle);
@@ -1891,10 +1885,7 @@ ikvdb_kvs_open(
 
     kvs->kk_parent = self;
     kvs->kk_seqno = &self->ikdb_seqno;
-    kvs->kk_cur_horizon = &self->ikdb_cur_horizon;
-    kvs->kk_cur_ticket = &self->ikdb_cur_ticket;
-    kvs->kk_cur_serving = &self->ikdb_cur_serving;
-    kvs->kk_cur_list = &self->ikdb_cur_list;
+    kvs->kk_viewset = self->ikdb_cur_viewset;
 
     kvs->kk_vcompmin = UINT_MAX;
     cops = vcomp_compress_ops(&rp);
@@ -2076,6 +2067,7 @@ ikvdb_close(struct ikvdb *handle)
 
     kvdb_keylock_destroy(self->ikdb_keylock);
 
+    active_ctxn_set_destroy(self->ikdb_cur_viewset);
     active_ctxn_set_destroy(self->ikdb_active_txn_set);
 
     csched_destroy(self->ikdb_csched);
@@ -2395,146 +2387,35 @@ ikvdb_kvs_prefix_delete(
  * condition, as simply repeating the call may succeed.
  */
 
-static __always_inline void
-cursor_view_remove_locked(struct hse_kvs_cursor *cursor)
-{
-    struct kvdb_kvs *kk = cursor->kc_kvs;
-    struct hse_kvs_cursor *oldest, *prev;
-
-    assert(cursor->kc_on_list);
-    assert(cursor->kc_kvs);
-
-  again:
-    oldest = list_last_entry(kk->kk_cur_list, typeof(*cursor), kc_link);
-    prev = list_prev_entry_or_null(cursor, kc_link, kk->kk_cur_list);
-
-    /* Must ensure list_del() is complete and visible before setting
-     * kc_on_list=true, and must not dereference cursor afterward.
-     */
-    list_del(&cursor->kc_link);
-    __atomic_thread_fence(__ATOMIC_RELEASE);
-    cursor->kc_on_list = false;
-
-    if (cursor == oldest) {
-        u64 seq = U64_MAX;
-
-        if (prev) {
-            seq = prev->kc_seq;
-
-            if (prev->kc_released) {
-                cursor = prev;
-                goto again;
-            }
-        }
-
-        atomic64_set(kk->kk_cur_horizon, seq);
-    }
-    else if (prev && prev->kc_released) {
-        cursor = prev;
-        goto again;
-    }
-}
-
 static void
-cursor_view_remove(struct hse_kvs_cursor *cursor)
+cursor_view_release(struct hse_kvs_cursor *cursor)
 {
-    struct kvdb_kvs *kk;
-    struct mutex *mtx;
-    uint cpuid;
+    u64 minview;
+    u32 minchg;
 
     if (!cursor->kc_on_list)
         return;
 
-    kk = cursor->kc_kvs;
-    cpuid = raw_smp_processor_id() % NELEM(kk->kk_cursors_mtxv);
-    mtx = &kk->kk_cursors_mtxv[cpuid].mtx;
-
-    mutex_lock(mtx);
-    if (cursor->kc_on_list) {
-        u64 ticket;
-
-        ticket = atomic64_fetch_add(1, kk->kk_cur_ticket);
-
-        while (ticket != atomic64_read_acq(kk->kk_cur_serving))
-            cpu_relax();
-
-        if (cursor->kc_on_list)
-            cursor_view_remove_locked(cursor);
-
-        atomic64_inc_rel(kk->kk_cur_serving);
-    }
-    mutex_unlock(mtx);
+    active_ctxn_set_remove(cursor->kc_kvs->kk_viewset, cursor->kc_viewcookie, &minchg, &minview);
+    cursor->kc_on_list = false;
 }
 
-static void
-cursor_view_release(struct hse_kvs_cursor *cursor)
-{
-    cursor->kc_released = true;
-}
-
-static void
+static merr_t
 cursor_view_acquire(struct hse_kvs_cursor *cursor)
 {
-    struct kvdb_kvs *kk;
-    struct mutex *mtx;
-    uint cpuid;
-    u64 ticket;
-
-    if (cursor->kc_on_list)
-        cursor_view_remove(cursor);
+    merr_t err;
 
     /* Add to cursor list only if this is NOT part of a txn.
      */
     if (cursor->kc_seq != HSE_SQNREF_UNDEFINED)
-        return;
+        return 0;
 
-    kk = cursor->kc_kvs;
-    cpuid = raw_smp_processor_id() % NELEM(kk->kk_cursors_mtxv);
-    mtx = &kk->kk_cursors_mtxv[cpuid].mtx;
+    err = active_ctxn_set_insert(cursor->kc_kvs->kk_viewset, &cursor->kc_seq,
+                                 &cursor->kc_viewcookie);
+    if (!err)
+        cursor->kc_on_list = true;
 
-    /* The per-kvs mutex allows access to the ticket lock by at most four
-     * threads per kvs, whereas the ticket lock serializes access to the
-     * view management list amongst all threads in all kvs' that are
-     * trying to manage the horizon.
-     */
-    mutex_lock(mtx);
-    ticket = atomic64_fetch_add(1, kk->kk_cur_ticket);
-
-    while (ticket != atomic64_read_acq(kk->kk_cur_serving))
-        cpu_relax();
-
-    cursor->kc_seq = atomic64_fetch_add(1, kk->kk_seqno);
-
-    if (list_empty(kk->kk_cur_list))
-        atomic64_set(kk->kk_cur_horizon, cursor->kc_seq);
-
-    list_add(&cursor->kc_link, kk->kk_cur_list);
-    cursor->kc_on_list = true;
-    cursor->kc_released = false;
-
-    atomic64_inc_rel(kk->kk_cur_serving);
-    mutex_unlock(mtx);
-}
-
-static void
-cursor_view_task(struct ikvdb_impl *self)
-{
-    struct hse_kvs_cursor *cursor;
-    u64 ticket;
-
-    ticket = atomic64_fetch_add(1, &self->ikdb_cur_ticket);
-
-    while (ticket != atomic64_read_acq(&self->ikdb_cur_serving))
-        cpu_relax();
-
-    /* Because cursor_view_release() is lazy we must periodically check
-     * to see if the horizon needs to be updated.
-     */
-    cursor = list_last_entry_or_null(&self->ikdb_cur_list, typeof(*cursor), kc_link);
-    if (cursor && cursor->kc_released)
-        cursor_view_remove_locked(cursor);
-
-    atomic64_inc_rel(&self->ikdb_cur_serving);
+    return err;
 }
 
 static merr_t
@@ -2689,22 +2570,23 @@ ikvdb_kvs_cursor_create(
     cur->kc_bind = 0;
 
     /* Temporarily lock a view until this cursor gets refs on cn kvsets. */
-    cursor_view_acquire(cur);
-    err = ikvs_cursor_init(cur);
-    cursor_view_release(cur);
-
-    /* ... but only bind lifecycle if asked */
+    err = cursor_view_acquire(cur);
     if (!err) {
-        if (bind) {
-            /*
-             * No need to wait for ongoing commits. A transaction waited when its view was
-             * being established i.e. at the time of transaction begin.
-             */
-            err = cursor_bind_txn(cur, bind);
-        } else {
-            /* New cursor view is established. Now wait on ongoing commits. */
-            kvdb_ctxn_set_wait_commits(ikvdb->ikdb_ctxn_set);
+        err = ikvs_cursor_init(cur);
+        if (!err) {
+            if (bind) {
+                /*
+                 * No need to wait for ongoing commits. A transaction waited when its view was
+                 * being established i.e. at the time of transaction begin.
+                 */
+                err = cursor_bind_txn(cur, bind);
+            } else {
+                /* New cursor view is established. Now wait on ongoing commits. */
+                kvdb_ctxn_set_wait_commits(ikvdb->ikdb_ctxn_set);
+            }
         }
+
+        cursor_view_release(cur);
     }
 
     if (ev(err)) {
@@ -2799,22 +2681,23 @@ ikvdb_kvs_cursor_update(struct hse_kvs_cursor *cur, struct hse_kvdb_opspec *os)
     /* Temporarily reserve seqno until this cursor gets refs on
      * cn kvsets.
      */
-    cursor_view_acquire(cur);
-    cur->kc_err = ikvs_cursor_update(cur, cur->kc_seq);
-    cursor_view_release(cur);
-
-    /* ... but only bind lifecycle if asked */
-    if (!ev(cur->kc_err)) {
-        if (bind) {
-            /*
-             * No need to wait for ongoing commits. A transaction waited when its view was
-             * being established i.e. at the time of transaction begin.
-             */
-            cur->kc_err = cursor_bind_txn(cur, bind);
-        } else {
-            /* New cursor view is established. Now wait on ongoing commits. */
-            kvdb_ctxn_set_wait_commits(cur->kc_kvs->kk_parent->ikdb_ctxn_set);
+    err = cursor_view_acquire(cur);
+    if (!err) {
+        cur->kc_err = ikvs_cursor_update(cur, cur->kc_seq);
+        if (!ev(cur->kc_err)) {
+            if (bind) {
+                /*
+                 * No need to wait for ongoing commits. A transaction waited when its view was
+                 * being established i.e. at the time of transaction begin.
+                 */
+                cur->kc_err = cursor_bind_txn(cur, bind);
+            } else {
+                /* New cursor view is established. Now wait on ongoing commits. */
+                kvdb_ctxn_set_wait_commits(cur->kc_kvs->kk_parent->ikdb_ctxn_set);
+            }
         }
+
+        cursor_view_release(cur);
     }
 
     cur->kc_flags = os ? os->kop_flags : 0;
@@ -2827,9 +2710,6 @@ ikvdb_kvs_cursor_update(struct hse_kvs_cursor *cur, struct hse_kvdb_opspec *os)
      */
     if (ev(merr_errno(cur->kc_err) == EAGAIN))
         cur->kc_err = merr(ENOTRECOVERABLE);
-
-    if (cur->kc_err)
-        cursor_view_remove(cur);
 
     return ev(cur->kc_err);
 }
@@ -2964,8 +2844,6 @@ ikvdb_kvs_cursor_destroy(struct hse_kvs_cursor *cur)
     if (!cur)
         return 0;
 
-    cursor_view_remove(cur);
-
     pkvsl_pc = cur->kc_pkvsl_pc;
     tstart = perfc_lat_start(pkvsl_pc);
 
@@ -3038,7 +2916,7 @@ ikvdb_horizon(struct ikvdb *handle)
     u64                horizon;
     u64                b, c;
 
-    b = atomic64_read(&self->ikdb_cur_horizon);
+    b = active_ctxn_set_horizon(self->ikdb_cur_viewset);
     c = active_ctxn_set_horizon(self->ikdb_active_txn_set);
 
     horizon = min_t(u64, b, c);
