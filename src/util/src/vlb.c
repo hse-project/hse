@@ -24,7 +24,7 @@ vlb_cpu2cache(void)
 {
     uint cpuid, nodeid;
 
-    if (syscall(SYS_getcpu, &cpuid, &nodeid)) {
+    if (syscall(SYS_getcpu, &cpuid, &nodeid, NULL)) {
         cpuid = raw_smp_processor_id();
         nodeid = cpuid;
     }

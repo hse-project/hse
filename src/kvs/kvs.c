@@ -1036,7 +1036,7 @@ ikvs_td2cca(struct ikvs *kvs, u64 pfxhash)
 {
     uint cpuid, nodeid, i;
 
-    if (unlikely( syscall(SYS_getcpu, &cpuid, &nodeid) ))
+    if (unlikely( syscall(SYS_getcpu, &cpuid, &nodeid, NULL) ))
         nodeid = raw_smp_processor_id();
 
     i = pthread_self() % (NELEM(kvs->ikv_curcachev) / 2);
