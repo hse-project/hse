@@ -136,7 +136,7 @@ endef
 
 # Edit the package VERSION and QUALifier when we cut a release branch or tag:
 BUILD_PKG_VERSION := 1.9.0
-BUILD_PKG_VQUAL := '~rc1'
+BUILD_PKG_VQUAL := ''
 
 BUILD_PKG_VENDOR ?= "Micron Technology, Inc."
 
