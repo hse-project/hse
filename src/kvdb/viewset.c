@@ -16,8 +16,8 @@
 #include <hse_util/hse_err.h>
 #include <hse_util/event_counter.h>
 
-#include "active_ctxn_set.h"
-#include "active_ctxn_set_internal.h"
+#include "viewset.h"
+#include "viewset_internal.h"
 
 #include <hse_ikvdb/limits.h>
 
