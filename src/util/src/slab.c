@@ -70,7 +70,7 @@
 #define KMC_CHUNK_OFFSET (KMC_CHUNK_SZ - sizeof(struct kmc_chunk))
 
 #define KMC_PCPU_MIN (1)
-#define KMC_PCPU_MAX (8)
+#define KMC_PCPU_MAX (16)
 
 #define kmc_slab_first(_head)   list_first_entry_or_null((_head), struct kmc_slab, slab_entry)
 #define kmc_slab_last(_head)    list_last_entry_or_null((_head), struct kmc_slab, slab_entry)
@@ -195,7 +195,7 @@ struct kmc_pcpu {
     struct list_head pcpu_partial;
     struct list_head pcpu_empty;
     struct list_head pcpu_full;
-} __aligned(SMP_CACHE_BYTES);
+} __aligned(SMP_CACHE_BYTES * 2);
 
 /**
  * struct kmem_cache - a zone of uniformly sized parcels of memory
@@ -629,7 +629,7 @@ kmem_cache_alloc(struct kmem_cache *zone)
         }
         kmc_pcpu_unlock(pcpu);
 
-        if (syscall(SYS_getcpu, &cpuid, &nodeid)) {
+        if (syscall(SYS_getcpu, &cpuid, &nodeid, NULL)) {
             cpuid = raw_smp_processor_id();
             nodeid = cpuid;
         }

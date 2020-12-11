@@ -309,7 +309,7 @@ BullseyeCoverageSaveOff
     do {                                      \
         static __thread struct {              \
             u64 cnt;                          \
-        } ru __aligned(SMP_CACHE_BYTES);      \
+        } ru;                                 \
                                               \
         if (unlikely(++ru.cnt >= (_rumax))) { \
             perfc_add((_pc), (_cid), ru.cnt); \
@@ -322,7 +322,7 @@ BullseyeCoverageSaveOff
         static __thread struct {                                   \
             u64 cnt;                                               \
             u64 sum;                                               \
-        } ru __aligned(SMP_CACHE_BYTES);                           \
+        } ru;                                                      \
                                                                    \
         ru.cnt += 1;                                               \
         ru.sum += (_val2);                                         \

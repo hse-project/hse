@@ -24,71 +24,71 @@
 #include <syscall.h>
 #include <semaphore.h>
 
-struct active_ctxn_set {
+struct viewset {
 };
 
 /* The bucket mask is indexed by the number of active transactions
  * to obtain a bitmask used to constrain the number of buckets
- * available to active_ctxn_set_insert().  Keeping the number of
+ * available to viewset_insert().  Keeping the number of
  * buckets reasonably constrained w.r.t the number of active ctxns
  * reduces the overhead required to maintain the horizon.
  */
-static const u8 active_ctxn_bkt_maskv[] = {
+static const u8 viewset_bkt_maskv[] = {
     3, 3, 3, 3, 7, 7, 7, 7, 7, 7, 7, 15, 15, 15, 15, 15
 };
 
 /**
- * struct active_ctxn_bkt -
- * @acb_tree:           ptr to the active_ctxn_tree object
+ * struct viewset_bkt -
+ * @acb_tree:           ptr to the viewset_tree object
  * @acb_min_view_sns:   minimum view sequence number for the set
  */
-struct active_ctxn_bkt {
-    struct active_ctxn_tree *acb_tree;
+struct viewset_bkt {
+    struct viewset_tree *acb_tree;
     volatile u64             acb_min_view_sns;
 };
 
 /**
- * struct active_ctxn_set_impl -
- * @acs_handle:         opaque handle for this struct
- * @acs_bkt_end:        ptr to one bucket past the last valid bucket
- * @acs_seqno_addr:
- * @acs_min_view_sn:    set minimum view seqno
- * @acs_min_view_bkt:   bucket which contains current min-view-sn
- * @acs_horizon:
- * @acs_active:         count of active transactions
- * @acs_lock:           min_view_sn computation lock
- * @acs_chgaccum:       accumulated changes to apply to acs_changing
- * @acs_changing:       head of a bucket is changing to/from empty
- * @acs_bktv:           active client transaction sets
+ * struct viewset_impl -
+ * @vs_handle:         opaque handle for this struct
+ * @vs_bkt_end:        ptr to one bucket past the last valid bucket
+ * @vs_seqno_addr:
+ * @vs_min_view_sn:    set minimum view seqno
+ * @vs_min_view_bkt:   bucket which contains current min-view-sn
+ * @vs_horizon:
+ * @vs_active:         count of active transactions
+ * @vs_lock:           min_view_sn computation lock
+ * @vs_chgaccum:       accumulated changes to apply to vs_changing
+ * @vs_changing:       head of a bucket is changing to/from empty
+ * @vs_bktv:           active client transaction sets
  */
-struct active_ctxn_set_impl {
-    struct active_ctxn_set  acs_handle;
-    u8                      acs_maskv[NELEM(active_ctxn_bkt_maskv)];
-    atomic64_t             *acs_seqno_addr;
-    struct active_ctxn_bkt *acs_bkt_end;
+struct viewset_impl {
+    struct viewset      vs_handle;
+    u8                  vs_maskv[NELEM(viewset_bkt_maskv)];
+    atomic64_t         *vs_seqno_addr;
+    struct viewset_bkt *vs_bkt_end;
 
-    volatile u64   acs_min_view_sn __aligned(SMP_CACHE_BYTES * 2);
-    volatile void *acs_min_view_bkt;
-    atomic64_t     acs_horizon;
+    volatile u64   vs_min_view_sn __aligned(SMP_CACHE_BYTES * 2);
+    volatile void *vs_min_view_bkt;
+    atomic64_t     vs_horizon;
 
     struct {
-        atomic_t acs_active __aligned(SMP_CACHE_BYTES * 2);
-    } acs_nodev[2];
+        atomic_t vs_active __aligned(SMP_CACHE_BYTES * 2);
+    } vs_nodev[2];
 
-    spinlock_t acs_lock      __aligned(SMP_CACHE_BYTES * 2);
-    uint       acs_chgaccum  __aligned(SMP_CACHE_BYTES);
-    atomic_t   acs_changing  __aligned(SMP_CACHE_BYTES * 2);
+    spinlock_t vs_lock      __aligned(SMP_CACHE_BYTES * 2);
+    uint       vs_chgaccum  __aligned(SMP_CACHE_BYTES);
+    atomic_t   vs_changing  __aligned(SMP_CACHE_BYTES * 2);
 
-    struct active_ctxn_bkt acs_bktv[] __aligned(SMP_CACHE_BYTES * 2);
+    struct viewset_bkt vs_bktv[] __aligned(SMP_CACHE_BYTES * 2);
 };
 
-#define active_ctxn_set_h2r(handle) container_of(handle, struct active_ctxn_set_impl, acs_handle)
+#define viewset_h2r(handle) container_of(handle, struct viewset_impl, vs_handle)
 
-struct active_ctxn_tree;
+struct viewset_tree;
 
-struct active_ctxn_entry {
+struct viewset_entry {
     struct list_head         ace_link;
-    struct active_ctxn_tree *ace_tree;
+    struct viewset_tree *ace_tree;
     atomic_t                *ace_active;
     union {
         u64   ace_view_sn;
@@ -97,26 +97,26 @@ struct active_ctxn_entry {
 };
 
 /**
- * struct active_ctxn_tree
+ * struct viewset_tree
  * @act_lock:   lock protecting the list
  * @act_head:   head of list of sorted entries
  * @act_bkt:    ptr to bucket which contains this tree object
  * @act_cache:  head of entry cache free list
  * @act_entryv: fixed-size cache of entry objects
  */
-struct active_ctxn_tree {
+struct viewset_tree {
     spinlock_t                act_lock __aligned(SMP_CACHE_BYTES * 2);
     sem_t                     act_sema;
     struct list_head          act_head __aligned(SMP_CACHE_BYTES * 2);
-    struct active_ctxn_bkt   *act_bkt;
-    struct active_ctxn_entry *act_cache;
-    struct active_ctxn_entry  act_entryv[];
+    struct viewset_bkt   *act_bkt;
+    struct viewset_entry *act_cache;
+    struct viewset_entry  act_entryv[];
 };
 
-static struct active_ctxn_entry *
-active_ctxn_entry_alloc(struct active_ctxn_entry **entry_listp)
+static struct viewset_entry *
+viewset_entry_alloc(struct viewset_entry **entry_listp)
 {
-    struct active_ctxn_entry *entry;
+    struct viewset_entry *entry;
 
     entry = *entry_listp;
     if (entry)
@@ -126,61 +126,61 @@ active_ctxn_entry_alloc(struct active_ctxn_entry **entry_listp)
 }
 
 static void
-active_ctxn_entry_free(struct active_ctxn_entry **entry_listp, struct active_ctxn_entry *entry)
+viewset_entry_free(struct viewset_entry **entry_listp, struct viewset_entry *entry)
 {
     entry->ace_next = *entry_listp;
     *entry_listp = entry;
 }
 
 merr_t
-active_ctxn_set_create(struct active_ctxn_set **handle, atomic64_t *kvdb_seqno_addr)
+viewset_create(struct viewset **handle, atomic64_t *kvdb_seqno_addr)
 {
-    struct active_ctxn_set_impl *self;
+    struct viewset_impl *self;
 
-    u32    max_elts = HSE_ACTIVE_CTXN_ELTS_MAX;
+    u32    max_elts = HSE_VIEWSET_ELTS_MAX;
     u32    max_bkts;
     merr_t err = 0;
     size_t sz;
     int    i;
 
-    max_bkts = NELEM(self->acs_maskv);
+    max_bkts = NELEM(self->vs_maskv);
 
     sz = sizeof(*self);
-    sz += sizeof(self->acs_bktv[0]) * max_bkts;
+    sz += sizeof(self->vs_bktv[0]) * max_bkts;
 
     self = alloc_aligned(sz, __alignof(*self));
     if (ev(!self))
         return merr(ENOMEM);
 
     memset(self, 0, sz);
-    memcpy(self->acs_maskv, active_ctxn_bkt_maskv, sizeof(self->acs_maskv));
+    memcpy(self->vs_maskv, viewset_bkt_maskv, sizeof(self->vs_maskv));
 
     for (i = 0; i < max_bkts; ++i) {
-        struct active_ctxn_bkt *bkt = self->acs_bktv + i;
+        struct viewset_bkt *bkt = self->vs_bktv + i;
 
         bkt->acb_min_view_sns = U64_MAX;
 
-        err = active_ctxn_tree_create(max_elts, i, &bkt->acb_tree);
+        err = viewset_tree_create(max_elts, i, &bkt->acb_tree);
         if (ev(err))
             break;
 
         bkt->acb_tree->act_bkt = bkt;
     }
 
-    self->acs_seqno_addr = kvdb_seqno_addr;
-    self->acs_min_view_sn = atomic64_read(kvdb_seqno_addr);
-    atomic64_set(&self->acs_horizon, self->acs_min_view_sn);
-    self->acs_min_view_bkt = NULL;
-    atomic_set(&self->acs_nodev[0].acs_active, 0);
-    atomic_set(&self->acs_nodev[1].acs_active, 0);
-    atomic_set(&self->acs_changing, 0);
-    spin_lock_init(&self->acs_lock);
-    self->acs_bkt_end = self->acs_bktv;
+    self->vs_seqno_addr = kvdb_seqno_addr;
+    self->vs_min_view_sn = atomic64_read(kvdb_seqno_addr);
+    atomic64_set(&self->vs_horizon, self->vs_min_view_sn);
+    self->vs_min_view_bkt = NULL;
+    atomic_set(&self->vs_nodev[0].vs_active, 0);
+    atomic_set(&self->vs_nodev[1].vs_active, 0);
+    atomic_set(&self->vs_changing, 0);
+    spin_lock_init(&self->vs_lock);
+    self->vs_bkt_end = self->vs_bktv;
 
-    *handle = &self->acs_handle;
+    *handle = &self->vs_handle;
 
     if (err) {
-        active_ctxn_set_destroy(*handle);
+        viewset_destroy(*handle);
         *handle = NULL;
     }
 
@@ -188,55 +188,55 @@ active_ctxn_set_create(struct active_ctxn_set **handle, atomic64_t *kvdb_seqno_a
 }
 
 void
-active_ctxn_set_destroy(struct active_ctxn_set *handle)
+viewset_destroy(struct viewset *handle)
 {
-    struct active_ctxn_set_impl *self;
+    struct viewset_impl *self;
     int                          i;
 
     if (ev(!handle))
         return;
 
-    self = active_ctxn_set_h2r(handle);
+    self = viewset_h2r(handle);
 
-    for (i = 0; i < NELEM(active_ctxn_bkt_maskv); ++i) {
-        struct active_ctxn_bkt *bkt = self->acs_bktv + i;
+    for (i = 0; i < NELEM(viewset_bkt_maskv); ++i) {
+        struct viewset_bkt *bkt = self->vs_bktv + i;
 
-        active_ctxn_tree_destroy(bkt->acb_tree);
+        viewset_tree_destroy(bkt->acb_tree);
     }
 
     free_aligned(self);
 }
 
 u64
-active_ctxn_set_horizon(struct active_ctxn_set *handle)
+viewset_horizon(struct viewset *handle)
 {
-    struct active_ctxn_set_impl *self = active_ctxn_set_h2r(handle);
+    struct viewset_impl *self = viewset_h2r(handle);
 
     u64 newh;
-    u64 kvdb_seq = atomic64_read(self->acs_seqno_addr);
-    u64 oldh = atomic64_read(&self->acs_horizon);
+    u64 kvdb_seq = atomic64_read(self->vs_seqno_addr);
+    u64 oldh = atomic64_read(&self->vs_horizon);
 
     /* Read old horizon and KVDB seqno before checking active txn cnt */
     smp_rmb();
 
-    if (atomic_read(&self->acs_nodev[0].acs_active) ||
-        atomic_read(&self->acs_nodev[1].acs_active)) {
-        newh = self->acs_min_view_sn;
+    if (atomic_read(&self->vs_nodev[0].vs_active) ||
+        atomic_read(&self->vs_nodev[1].vs_active)) {
+        newh = self->vs_min_view_sn;
     } else {
-        /* Any transaction that began but wasn't reflected in acs_active
+        /* Any transaction that began but wasn't reflected in vs_active
          * will have a view seqno that is larger than kvdb_seq.
          */
         newh = kvdb_seq;
     }
 
-    /* self->acs_min_view_sn updates are lazy. self->acs_min_view_sn may be
+    /* self->vs_min_view_sn updates are lazy. self->vs_min_view_sn may be
      * lagging behind a previously returned horizon.
      */
     while (newh > oldh) {
-        if (atomic64_cmpxchg(&self->acs_horizon, oldh, newh) == oldh)
+        if (atomic64_cmpxchg(&self->vs_horizon, oldh, newh) == oldh)
             return newh;
 
-        oldh = atomic64_read(&self->acs_horizon);
+        oldh = atomic64_read(&self->vs_horizon);
     }
 
     assert(oldh >= newh);
@@ -245,22 +245,22 @@ active_ctxn_set_horizon(struct active_ctxn_set *handle)
 }
 
 /**
- * active_ctxn_set_update() - update set minimum view seqno
+ * viewset_update() - update set minimum view seqno
  * @self:       ptr to active_ctxn object
  * @entry_sn:   caller's min view seqno
  *
  * This function must be called with the ace_lock held.
  */
 static inline void
-active_ctxn_set_update(struct active_ctxn_set_impl *self, u64 entry_sn)
+viewset_update(struct viewset_impl *self, u64 entry_sn)
 {
-    struct active_ctxn_bkt *min_bkt, *bkt;
+    struct viewset_bkt *min_bkt, *bkt;
     u64                     min_sn;
 
     min_sn = U64_MAX;
     min_bkt = NULL;
 
-    for (bkt = self->acs_bktv; bkt < self->acs_bkt_end; ++bkt) {
+    for (bkt = self->vs_bktv; bkt < self->vs_bkt_end; ++bkt) {
         u64 old = bkt->acb_min_view_sns;
 
         if (old < min_sn) {
@@ -269,7 +269,7 @@ active_ctxn_set_update(struct active_ctxn_set_impl *self, u64 entry_sn)
         }
     }
 
-    if (atomic_read_acq(&self->acs_changing))
+    if (atomic_read_acq(&self->vs_changing))
         return;
 
     /* No active transaction in the system after a remove. */
@@ -278,18 +278,18 @@ active_ctxn_set_update(struct active_ctxn_set_impl *self, u64 entry_sn)
         min_sn = entry_sn;
     }
 
-    assert(min_sn >= self->acs_min_view_sn);
-    self->acs_min_view_sn = min_sn;
-    self->acs_min_view_bkt = min_bkt;
+    assert(min_sn >= self->vs_min_view_sn);
+    self->vs_min_view_sn = min_sn;
+    self->vs_min_view_bkt = min_bkt;
 }
 
 merr_t
-active_ctxn_set_insert(struct active_ctxn_set *handle, u64 *viewp, void **cookiep)
+viewset_insert(struct viewset *handle, u64 *viewp, void **cookiep)
 {
-    struct active_ctxn_set_impl *self = active_ctxn_set_h2r(handle);
-    struct active_ctxn_entry *   entry;
-    struct active_ctxn_tree *    tree;
-    struct active_ctxn_bkt *     bkt;
+    struct viewset_impl *self = viewset_h2r(handle);
+    struct viewset_entry *   entry;
+    struct viewset_tree *    tree;
+    struct viewset_bkt *     bkt;
     atomic_t                    *active;
     sem_t                       *sema;
     uint                         idx;
@@ -302,13 +302,13 @@ active_ctxn_set_insert(struct active_ctxn_set *handle, u64 *viewp, void **cookie
             cpuid = nodeid = raw_smp_processor_id();
     }
 
-    active = &self->acs_nodev[nodeid & 1].acs_active;
+    active = &self->vs_nodev[nodeid & 1].vs_active;
 
     idx = atomic_inc_return(active) / 2;
-    if (idx > NELEM(active_ctxn_bkt_maskv) - 1)
-        idx = NELEM(active_ctxn_bkt_maskv) - 1;
+    if (idx > NELEM(viewset_bkt_maskv) - 1)
+        idx = NELEM(viewset_bkt_maskv) - 1;
 
-    bkt = self->acs_bktv + (cpuid & self->acs_maskv[idx]);
+    bkt = self->vs_bktv + (cpuid & self->vs_maskv[idx]);
     tree = bkt->acb_tree;
     sema = NULL;
 
@@ -321,7 +321,7 @@ active_ctxn_set_insert(struct active_ctxn_set *handle, u64 *viewp, void **cookie
         spin_lock(&tree->act_lock);
     }
 
-    entry = active_ctxn_entry_alloc(&tree->act_cache);
+    entry = viewset_entry_alloc(&tree->act_cache);
     if (ev(!entry)) {
         spin_unlock(&tree->act_lock);
         if (sema)
@@ -332,9 +332,9 @@ active_ctxn_set_insert(struct active_ctxn_set *handle, u64 *viewp, void **cookie
 
     changed = list_empty(&tree->act_head);
     if (changed)
-        atomic_inc_acq(&self->acs_changing);
+        atomic_inc_acq(&self->vs_changing);
 
-    entry->ace_view_sn = atomic64_fetch_add(1, self->acs_seqno_addr);
+    entry->ace_view_sn = atomic64_fetch_add(1, self->vs_seqno_addr);
     entry->ace_tree = tree;
     entry->ace_active = active;
     list_add_tail(&entry->ace_link, &tree->act_head);
@@ -346,21 +346,21 @@ active_ctxn_set_insert(struct active_ctxn_set *handle, u64 *viewp, void **cookie
     spin_unlock(&tree->act_lock);
 
     if (changed) {
-        spin_lock(&self->acs_lock);
-        assert(entry->ace_view_sn >= self->acs_min_view_sn);
+        spin_lock(&self->vs_lock);
+        assert(entry->ace_view_sn >= self->vs_min_view_sn);
 
-        if (bkt >= self->acs_bkt_end)
-            self->acs_bkt_end = bkt + 1;
+        if (bkt >= self->vs_bkt_end)
+            self->vs_bkt_end = bkt + 1;
 
-        /* Accumulate changes in acs_chgaccum to reduce the number
-         * of atomic operations on acs_changing.
+        /* Accumulate changes in vs_chgaccum to reduce the number
+         * of atomic operations on vs_changing.
          */
-        if (atomic_read(&self->acs_changing) - ++self->acs_chgaccum == 0) {
-            atomic_sub_rel(self->acs_chgaccum, &self->acs_changing);
-            self->acs_chgaccum = 0;
-            active_ctxn_set_update(self, 0);
+        if (atomic_read(&self->vs_changing) - ++self->vs_chgaccum == 0) {
+            atomic_sub_rel(self->vs_chgaccum, &self->vs_changing);
+            self->vs_chgaccum = 0;
+            viewset_update(self, 0);
         }
-        spin_unlock(&self->acs_lock);
+        spin_unlock(&self->vs_lock);
     }
 
     if (sema)
@@ -374,16 +374,16 @@ active_ctxn_set_insert(struct active_ctxn_set *handle, u64 *viewp, void **cookie
 
 BullseyeCoverageSaveOff
 void
-active_ctxn_set_remove(
-    struct active_ctxn_set *handle,
+viewset_remove(
+    struct viewset *handle,
     void *                  cookie,
     u32 *                   min_changed,
     u64 *                   min_view_sn)
 {
-    struct active_ctxn_set_impl *self = active_ctxn_set_h2r(handle);
-    struct active_ctxn_entry *   entry, *first;
-    struct active_ctxn_tree *    tree;
-    struct active_ctxn_bkt *     bkt;
+    struct viewset_impl *self = viewset_h2r(handle);
+    struct viewset_entry *   entry, *first;
+    struct viewset_tree *    tree;
+    struct viewset_bkt *     bkt;
     u64                          entry_sn;
     u64                          min_sn;
     bool                         changed;
@@ -407,25 +407,25 @@ active_ctxn_set_remove(
         bkt->acb_min_view_sns = min_sn;
     }
 
-    active_ctxn_entry_free(&tree->act_cache, entry);
+    viewset_entry_free(&tree->act_cache, entry);
     spin_unlock(&tree->act_lock);
 
     while (changed) {
-        if (atomic_read_acq(&self->acs_changing))
+        if (atomic_read_acq(&self->vs_changing))
             break;
 
-        if (entry_sn < self->acs_min_view_sn)
+        if (entry_sn < self->vs_min_view_sn)
             break;
 
-        if (self->acs_min_view_bkt != bkt)
+        if (self->vs_min_view_bkt != bkt)
             break;
 
-        if (spin_trylock(&self->acs_lock)) {
-            if (entry_sn >= self->acs_min_view_sn) {
-                u64 seq = atomic64_read(self->acs_seqno_addr);
-                active_ctxn_set_update(self, seq);
+        if (spin_trylock(&self->vs_lock)) {
+            if (entry_sn >= self->vs_min_view_sn) {
+                u64 seq = atomic64_read(self->vs_seqno_addr);
+                viewset_update(self, seq);
             }
-            spin_unlock(&self->acs_lock);
+            spin_unlock(&self->vs_lock);
             break;
         }
 
@@ -434,15 +434,15 @@ active_ctxn_set_remove(
 
     atomic_dec(active);
 
-    *min_view_sn = self->acs_min_view_sn;
+    *min_view_sn = self->vs_min_view_sn;
     *min_changed = *min_view_sn > entry_sn;
 }
 BullseyeCoverageRestore
 
 merr_t
-active_ctxn_tree_create(u32 max_elts, u32 index, struct active_ctxn_tree **tree)
+viewset_tree_create(u32 max_elts, u32 index, struct viewset_tree **tree)
 {
-    struct active_ctxn_tree *self;
+    struct viewset_tree *self;
     size_t                   sz;
     int                      i;
 
@@ -473,7 +473,7 @@ active_ctxn_tree_create(u32 max_elts, u32 index, struct active_ctxn_tree **tree)
 }
 
 void
-active_ctxn_tree_destroy(struct active_ctxn_tree *self)
+viewset_tree_destroy(struct viewset_tree *self)
 {
     sem_destroy(&self->act_sema);
     free_aligned(self);

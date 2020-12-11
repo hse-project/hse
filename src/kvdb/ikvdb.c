@@ -93,15 +93,15 @@ struct ikvdb {
 
 /* Max buckets in ctxn cache.  Must be prime for best results.
  */
-#define KVDB_CTXN_BKT_MAX (31)
+#define KVDB_CTXN_BKT_MAX (17)
 
 /* Simple fixed-size stack for caching ctxn objects.
  */
 struct kvdb_ctxn_bkt {
-    spinlock_t        kcb_lock;
+    spinlock_t        kcb_lock __aligned(SMP_CACHE_BYTES * 2);
     uint              kcb_ctxnc;
-    struct kvdb_ctxn *kcb_ctxnv[7];
-} __aligned(SMP_CACHE_BYTES * 2);
+    struct kvdb_ctxn *kcb_ctxnv[15];
+};
 
 /**
  * struct ikvdb_impl - private representation of a kvdb
@@ -165,8 +165,8 @@ struct ikvdb_impl {
     struct kvdb_log *        ikdb_log;
     struct cndb *            ikdb_cndb;
     struct workqueue_struct *ikdb_workqueue;
-    struct active_ctxn_set * ikdb_active_txn_set;
-    struct active_ctxn_set * ikdb_cur_viewset;
+    struct viewset          *ikdb_txn_viewset;
+    struct viewset          *ikdb_cur_viewset;
     struct c1 *              ikdb_c1;
     struct kvdb_callback     ikdb_c1_callback;
 
@@ -998,11 +998,11 @@ ikvdb_diag_open(
 
     ikvdb_txn_init(self);
 
-    err = active_ctxn_set_create(&self->ikdb_active_txn_set, &self->ikdb_seqno);
+    err = viewset_create(&self->ikdb_txn_viewset, &self->ikdb_seqno);
     if (ev(err))
         goto err_exit0;
 
-    err = active_ctxn_set_create(&self->ikdb_cur_viewset, &self->ikdb_seqno);
+    err = viewset_create(&self->ikdb_cur_viewset, &self->ikdb_seqno);
     if (ev(err))
         goto err_exit1;
 
@@ -1046,8 +1046,8 @@ err_exit2:
     kvdb_keylock_destroy(self->ikdb_keylock);
 
 err_exit1:
-    active_ctxn_set_destroy(self->ikdb_cur_viewset);
-    active_ctxn_set_destroy(self->ikdb_active_txn_set);
+    viewset_destroy(self->ikdb_cur_viewset);
+    viewset_destroy(self->ikdb_txn_viewset);
 
 err_exit0:
     ikvdb_txn_fini(self);
@@ -1079,8 +1079,8 @@ ikvdb_diag_close(struct ikvdb *handle)
 
     ikvdb_txn_fini(self);
 
-    active_ctxn_set_destroy(self->ikdb_cur_viewset);
-    active_ctxn_set_destroy(self->ikdb_active_txn_set);
+    viewset_destroy(self->ikdb_cur_viewset);
+    viewset_destroy(self->ikdb_txn_viewset);
 
     kvdb_keylock_destroy(self->ikdb_keylock);
     mutex_destroy(&self->ikdb_lock);
@@ -1378,13 +1378,13 @@ ikvdb_open(
     self->ikdb_curcnt_max = (((mavail << 30) * 10) / 100) >> 20;
     atomic_set(&self->ikdb_curcnt, 0);
 
-    err = active_ctxn_set_create(&self->ikdb_active_txn_set, &self->ikdb_seqno);
+    err = viewset_create(&self->ikdb_txn_viewset, &self->ikdb_seqno);
     if (err) {
         hse_elog(HSE_ERR "cannot open %s: @@e", err, mp_name);
         goto err1;
     }
 
-    err = active_ctxn_set_create(&self->ikdb_cur_viewset, &self->ikdb_seqno);
+    err = viewset_create(&self->ikdb_cur_viewset, &self->ikdb_seqno);
     if (err) {
         hse_elog(HSE_ERR "cannot open %s: @@e", err, mp_name);
         goto err1;
@@ -1504,8 +1504,8 @@ err1:
     cndb_close(self->ikdb_cndb);
     kvdb_log_close(self->ikdb_log);
     kvdb_keylock_destroy(self->ikdb_keylock);
-    active_ctxn_set_destroy(self->ikdb_cur_viewset);
-    active_ctxn_set_destroy(self->ikdb_active_txn_set);
+    viewset_destroy(self->ikdb_cur_viewset);
+    viewset_destroy(self->ikdb_txn_viewset);
     csched_destroy(self->ikdb_csched);
     throttle_fini(&self->ikdb_throttle);
 
@@ -2067,8 +2067,8 @@ ikvdb_close(struct ikvdb *handle)
 
     kvdb_keylock_destroy(self->ikdb_keylock);
 
-    active_ctxn_set_destroy(self->ikdb_cur_viewset);
-    active_ctxn_set_destroy(self->ikdb_active_txn_set);
+    viewset_destroy(self->ikdb_cur_viewset);
+    viewset_destroy(self->ikdb_txn_viewset);
 
     csched_destroy(self->ikdb_csched);
 
@@ -2396,7 +2396,7 @@ cursor_view_release(struct hse_kvs_cursor *cursor)
     if (!cursor->kc_on_list)
         return;
 
-    active_ctxn_set_remove(cursor->kc_kvs->kk_viewset, cursor->kc_viewcookie, &minchg, &minview);
+    viewset_remove(cursor->kc_kvs->kk_viewset, cursor->kc_viewcookie, &minchg, &minview);
     cursor->kc_on_list = false;
 }
 
@@ -2410,8 +2410,8 @@ cursor_view_acquire(struct hse_kvs_cursor *cursor)
     if (cursor->kc_seq != HSE_SQNREF_UNDEFINED)
         return 0;
 
-    err = active_ctxn_set_insert(cursor->kc_kvs->kk_viewset, &cursor->kc_seq,
-                                 &cursor->kc_viewcookie);
+    err = viewset_insert(cursor->kc_kvs->kk_viewset, &cursor->kc_seq,
+                         &cursor->kc_viewcookie);
     if (!err)
         cursor->kc_on_list = true;
 
@@ -2916,8 +2916,8 @@ ikvdb_horizon(struct ikvdb *handle)
     u64                horizon;
     u64                b, c;
 
-    b = active_ctxn_set_horizon(self->ikdb_cur_viewset);
-    c = active_ctxn_set_horizon(self->ikdb_active_txn_set);
+    b = viewset_horizon(self->ikdb_cur_viewset);
+    c = viewset_horizon(self->ikdb_txn_viewset);
 
     horizon = min_t(u64, b, c);
 
@@ -2968,7 +2968,7 @@ ikvdb_txn_alloc(struct ikvdb *handle)
         self->ikdb_keylock,
         &self->ikdb_seqno,
         self->ikdb_ctxn_set,
-        self->ikdb_active_txn_set,
+        self->ikdb_txn_viewset,
         self->ikdb_c0sk);
     if (ev(!ctxn))
         return NULL;

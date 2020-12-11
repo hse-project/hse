@@ -175,7 +175,7 @@ kvdb_ctxn_alloc(
     struct kvdb_keylock *   kvdb_keylock,
     atomic64_t *            kvdb_seqno_addr,
     struct kvdb_ctxn_set *  kcs_handle,
-    struct active_ctxn_set *active_ctxn_set,
+    struct viewset         *viewset,
     struct c0sk *           c0sk)
 {
     struct kvdb_ctxn_impl *    ctxn;
@@ -193,7 +193,7 @@ kvdb_ctxn_alloc(
     atomic_set(&ctxn->ctxn_lock, 0);
     ctxn->ctxn_seqref = HSE_SQNREF_INVALID;
     ctxn->ctxn_kvdb_keylock = kvdb_keylock;
-    ctxn->ctxn_active_set = active_ctxn_set;
+    ctxn->ctxn_viewset = viewset;
     ctxn->ctxn_c0sk = c0sk;
     ctxn->ctxn_kvdb_ctxn_set = kcs_handle;
     ctxn->ctxn_kvdb_seq_addr = kvdb_seqno_addr;
@@ -381,8 +381,8 @@ kvdb_ctxn_begin(struct kvdb_ctxn *handle)
     ctxn->ctxn_bind = 0;
     ctxn->ctxn_begin_ts = get_time_ns();
 
-    err = active_ctxn_set_insert(
-        ctxn->ctxn_active_set, &ctxn->ctxn_view_seqno, &ctxn->ctxn_active_set_cookie);
+    err = viewset_insert(
+        ctxn->ctxn_viewset, &ctxn->ctxn_view_seqno, &ctxn->ctxn_viewset_cookie);
     if (ev(err))
         goto errout;
 
@@ -410,10 +410,10 @@ kvdb_ctxn_deactivate(struct kvdb_ctxn_impl *ctxn)
 
     ctxn->ctxn_can_insert = false;
 
-    cookie = ctxn->ctxn_active_set_cookie;
-    ctxn->ctxn_active_set_cookie = NULL;
+    cookie = ctxn->ctxn_viewset_cookie;
+    ctxn->ctxn_viewset_cookie = NULL;
 
-    active_ctxn_set_remove(ctxn->ctxn_active_set, cookie, &min_changed, &new_min);
+    viewset_remove(ctxn->ctxn_viewset, cookie, &min_changed, &new_min);
     if (min_changed)
         kvdb_keylock_expire(ctxn->ctxn_kvdb_keylock, new_min);
 }
@@ -661,7 +661,7 @@ retry:
      *     transaction that began execution prior to the commit of A
      *     completes.
      *
-     *   - The active_ctxn_set mechanism is used to efficiently track what
+     *   - The viewset mechanism is used to efficiently track what
      *     the lowest view sequence number is for any active txn.  If there
      *     are no active txn's, then that number is U64_MAX.
      *
