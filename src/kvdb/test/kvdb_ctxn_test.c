@@ -30,7 +30,7 @@
 
 #include "../kvdb_ctxn_internal.h"
 #include "../kvdb_keylock.h"
-#include "../active_ctxn_set.h"
+#include "../viewset.h"
 
 #define MOCK_SET(group, func) mtfm_##group##func##_set(func)
 

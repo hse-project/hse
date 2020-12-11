@@ -40,7 +40,7 @@
 
 #include "kvdb_log.h"
 #include "kvdb_kvs.h"
-#include "active_ctxn_set.h"
+#include "viewset.h"
 #include "kvdb_keylock.h"
 
 #include <mpool/mpool.h>

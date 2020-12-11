@@ -24,7 +24,7 @@
 #include <hse_ikvdb/c0skm.h>
 #include <hse_ikvdb/limits.h>
 
-#include "active_ctxn_set.h"
+#include "viewset.h"
 #include "kvdb_ctxn_internal.h"
 #include "kvdb_keylock.h"
 

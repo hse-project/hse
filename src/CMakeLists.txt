@@ -135,7 +135,6 @@ set( KVDB_SOURCE_FILES
     kvdb/kvdb_ctxn.c
     kvdb/ctxn_perfc.c
     kvdb/kvdb_keylock.c
-    kvdb/active_ctxn_set.c
     kvdb/kvdb_health.c
     kvdb/kvdb_cparams.c
     kvdb/kvdb_rparams.c
@@ -146,6 +145,7 @@ set( KVDB_SOURCE_FILES
     kvdb/sched_sts.c
     kvdb/sched_sts_perfc.c
     kvdb/mclass_policy.c
+    kvdb/viewset.c
      )
 
 set( KVS_SOURCE_FILES
