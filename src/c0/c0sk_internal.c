@@ -100,50 +100,42 @@ c0sk_adjust_throttling(struct c0sk_impl *self)
 {
     const struct kvdb_rparams *rp = self->c0sk_kvdb_rp;
 
-    size_t sz;
-    size_t lwm;
-    size_t hwm;
-    size_t hwm_range;
-    size_t new;
+    size_t new, old, sz;
+    size_t lwm, hwm;
 
     if (!self->c0sk_sensor || !rp->throttle_c0_hi_th)
         return 0;
 
-    /* lwm = 2G, hwm = 4G, hwm_max = hwm + 10G */
-    lwm = 2ul * 1024 * 1024 * 1024;
+    lwm = 1ul << 30;
     hwm = max_t(size_t, lwm, rp->throttle_c0_hi_th * 1024 * 1024);
-    hwm_range = 10ul * 1024 * 1024 * 1024;
 
     /* Current size is based on current pending kvms RAM usage plus
-     * a fixed 1/1024 of the hwm per pending kvms.
+     * a fixed amount per pending kvms.
      */
     sz = self->c0sk_kvmultisets_sz;
-    sz += rp->throttle_c0_hi_th * 1024 * self->c0sk_kvmultisets_cnt;
+    sz += (rp->throttle_c0_hi_th * self->c0sk_kvmultisets_cnt / 64) << 20;
 
-    if (sz < lwm) {
-        new = 0;
-    } else if (sz < hwm) {
-        /* 0 <= new < scale */
-        new = THROTTLE_SENSOR_SCALE *(sz - lwm) / lwm;
-    } else {
-        /* scale <= new < 2*scale */
-        new = (THROTTLE_SENSOR_SCALE + THROTTLE_SENSOR_SCALE * (sz - hwm) / hwm_range);
+    old = throttle_sensor_get(self->c0sk_sensor);
+    new = 0;
+
+    if (sz > lwm) {
+        new = THROTTLE_SENSOR_SCALE * sz / hwm;
+        new = min_t(size_t, new, THROTTLE_SENSOR_SCALE * 2);
+
+        if (new < old)
+            new = (new + old * 7) / 8;
     }
 
-    if (self->c0sk_kvdb_rp->throttle_debug & THROTTLE_DEBUG_SENSOR_C0SK)
-        hse_log(
-            HSE_NOTICE "throttle:"
-                       " c0sk: kvms_cnt %lu kvms_sz_MiB %lu"
-                       " sensor: %d -> %d",
-            (ulong)self->c0sk_kvmultisets_cnt,
-            (ulong)self->c0sk_kvmultisets_sz >> 20,
-            throttle_sensor_get(self->c0sk_sensor),
-            (int)new);
+    throttle_sensor_set(self->c0sk_sensor, new);
 
     perfc_rec_sample(&self->c0sk_pc_ingest, PERFC_DI_C0SKING_THRSR, new);
 
-    assert(new <= INT_MAX);
-    throttle_sensor_set(self->c0sk_sensor, (int)new);
+    if (self->c0sk_kvdb_rp->throttle_debug & THROTTLE_DEBUG_SENSOR_C0SK)
+        hse_log(HSE_NOTICE "%s: kvms_cnt %d, kvms_sz_MiB %zu, sensor: %zu -> %zu",
+                __func__, self->c0sk_kvmultisets_cnt,
+                self->c0sk_kvmultisets_sz >> 20,
+                old, new);
+
     return new;
 }
 
@@ -1408,7 +1400,6 @@ c0sk_merge_impl(
     uintptr_t seqnoref, *priv;
     uint      flags, i, iterc;
     size_t    itervsz;
-    u64       coalescesz;
     u64       start;
     merr_t    err;
 
@@ -1467,8 +1458,7 @@ c0sk_merge_impl(
     if (c0kvms_is_tracked(dst))
         start = jclock_ns;
 
-    coalescesz = self->c0sk_kvdb_rp->c0_coalesce_sz;
-    if (ev(c0kvms_should_ingest(dst, coalescesz), HSE_INFO)) {
+    if (ev(c0kvms_should_ingest(dst), HSE_INFO)) {
         err = merr(ENOMEM);
         goto unlock;
     }
@@ -1542,7 +1532,6 @@ c0sk_putdel(
 {
     u64    start = 0;
     merr_t err;
-    u64    coalescesz = self->c0sk_kvdb_rp->c0_coalesce_sz;
 
     while (1) {
         struct c0_kvmultiset *dst;
@@ -1555,7 +1544,7 @@ c0sk_putdel(
             return merr(EINVAL);
         }
 
-        if (ev(c0kvms_should_ingest(dst, coalescesz)) && atomic_read(&self->c0sk_replaying) == 0) {
+        if (ev(c0kvms_should_ingest(dst)) && atomic_read(&self->c0sk_replaying) == 0) {
             err = merr(ENOMEM);
             goto unlock;
         }

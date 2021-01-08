@@ -377,12 +377,11 @@ c0kvms_avail(struct c0_kvmultiset *handle)
 }
 
 bool
-c0kvms_should_ingest(struct c0_kvmultiset *handle, u64 coalescesz)
+c0kvms_should_ingest(struct c0_kvmultiset *handle)
 {
     struct c0_kvmultiset_impl *self = c0_kvmultiset_h2r(handle);
     int                        width, cnt, n;
     uint                       r;
-    u64                        sz = 0;
 
     if (atomic_read(&self->c0ms_ingesting) > 0)
         return true;
@@ -392,26 +391,25 @@ c0kvms_should_ingest(struct c0_kvmultiset *handle, u64 coalescesz)
     if (r % 64 > 2)
         return false;
 
-    /* Sample about 1/3 of the availale c0kvsets, and return true
-     * if the average number of entries exceeds the threshold.
+    /* Sample half of the available c0 kvsets, and return true
+     * if the average number of entries exceeds the threshold
+     * or there isn't enough space to accomodate a large value.
      * This helps keeps the bonsai trees from growing too deep.
      */
     assert(self->c0ms_num_sets > 1);
     width = self->c0ms_num_sets;
-    n = width / 3;
+    n = width / 2;
     r %= (width - n);
 
-    if (likely(coalescesz)) {
-        while (n-- > 0)
-            sz += c0kvs_used(self->c0ms_sets[r++]);
+    cnt = (HSE_C0KVMS_PRIV_MAX / width) * n;
+    cnt = (cnt * 768) / 1024; /* 75% */
 
-        return ((3 * sz) > (coalescesz << 20));
-    }
+    while (n-- > 0 && cnt >= 0) {
+        if (c0kvs_avail(self->c0ms_sets[r]) < HSE_KVS_KLEN_MAX + HSE_KVS_VLEN_MAX)
+            return true;
 
-    cnt = min_t(int, n * 36 * 1024, HSE_C0KVMS_PRIV_MAX);
-
-    while (n-- > 0 && cnt > 0)
         cnt -= c0kvs_get_element_count(self->c0ms_sets[r++]);
+    }
 
     return (cnt < 0);
 }

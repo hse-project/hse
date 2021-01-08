@@ -336,7 +336,7 @@ size_t
 c0kvms_avail(struct c0_kvmultiset *mset);
 
 bool
-c0kvms_should_ingest(struct c0_kvmultiset *handle, u64 coalescesz);
+c0kvms_should_ingest(struct c0_kvmultiset *handle);
 
 /**
  * c0kvms_width() - obtain the number of contained struct c0_kvset's
