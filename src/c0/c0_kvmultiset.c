@@ -393,7 +393,7 @@ c0kvms_should_ingest(struct c0_kvmultiset *handle)
 
     /* Sample half of the available c0 kvsets, and return true
      * if the average number of entries exceeds the threshold
-     * or there isn't enough space to accomodate a large value.
+     * or there isn't enough space to accommodate a large value.
      * This helps keeps the bonsai trees from growing too deep.
      */
     assert(self->c0ms_num_sets > 1);

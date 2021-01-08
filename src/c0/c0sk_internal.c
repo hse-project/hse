@@ -122,6 +122,8 @@ c0sk_adjust_throttling(struct c0sk_impl *self)
         new = THROTTLE_SENSOR_SCALE * sz / hwm;
         new = min_t(size_t, new, THROTTLE_SENSOR_SCALE * 2);
 
+        /* Ease off the throttle to ameliorate stop-n-go behavior...
+         */
         if (new < old)
             new = (new + old * 7) / 8;
     }
