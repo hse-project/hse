@@ -56,7 +56,7 @@ kvdb_rparams_defaults(void)
         .c0_ingest_delay = HSE_C0_INGEST_DELAY_DFLT,
         .c0_ingest_width = 0,
         .c0_mutex_pool_sz = 7,
-        .c0_coalesce_sz = 2048,
+        .c0_coalesce_sz = 128,
 
         .txn_heap_sz = HSE_C0_CHEAP_SZ_MAX,
         .txn_ingest_delay = HSE_C0_INGEST_DELAY_DFLT,
@@ -78,7 +78,7 @@ kvdb_rparams_defaults(void)
         .csched_leaf_len_params = 0,
         .csched_node_min_ttl = 17,
 
-        .dur_enable = 1,
+        .dur_enable = 0,
         .dur_intvl_ms = 500,
         .dur_throttle_enable = 1,
         .dur_buf_sz = 36700160, /* 35 MiB */
@@ -96,7 +96,7 @@ kvdb_rparams_defaults(void)
         .throttle_relax = 1,
         .throttle_debug = 0,
         .throttle_debug_intvl_s = 300,
-        .throttle_c0_hi_th = 1024 * 8,
+        .throttle_c0_hi_th = 1024 * 4,
         .throttle_init_policy = "default",
 
         .log_lvl = HSE_LOG_PRI_DEFAULT,
