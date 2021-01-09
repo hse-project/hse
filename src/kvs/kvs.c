@@ -28,7 +28,6 @@
 #include <hse_ikvdb/limits.h>
 #include <hse_ikvdb/key_hash.h>
 #include <hse_ikvdb/cn_cursor.h>
-#include <hse_ikvdb/c1.h>
 #include <hse_ikvdb/kvdb_ctxn.h>
 #include <hse_ikvdb/tuple.h>
 #include <hse_ikvdb/kvdb_health.h>
@@ -69,7 +68,6 @@ struct ikvs {
     uint             ikv_sfx_len;
     uint             ikv_pfx_len;
     struct c0 *      ikv_c0;
-    struct c1 *      ikv_c1;
     struct cn *      ikv_cn;
     struct mpool *   ikv_ds;
     struct perfc_set ikv_pkvsl_pc; /* Public kvs interfaces Lat. */
@@ -441,8 +439,6 @@ kvs_open(
     if (ev(err))
         goto err_exit;
 
-    ikvdb_get_c1(kvdb, &ikvs->ikv_c1);
-
     err = kvs_rparams_add_to_dt(mp_name, kvs_name, &ikvs->ikv_rp);
     if (ev(err))
         hse_log(HSE_WARNING "Unable to add run-time parameters"
@@ -499,12 +495,6 @@ kvs_close(struct ikvs *ikvs)
     err = c0_close(ikvs->ikv_c0);
     if (err)
         hse_elog(HSE_ERR "%s: c0_close @@e", err, __func__);
-
-    if (ikvs->ikv_c1 && !ikvs->ikv_rp.rdonly) {
-        err = c1_sync(ikvs->ikv_c1);
-        if (err)
-            hse_elog(HSE_ERR "%s: c1_sync @@e", err, __func__);
-    }
 
     err = cn_close(ikvs->ikv_cn);
     if (err)

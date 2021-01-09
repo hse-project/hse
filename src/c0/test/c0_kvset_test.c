@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
 #include <hse_ut/framework.h>
@@ -63,7 +63,7 @@ MTF_DEFINE_UTEST_PREPOST(c0_kvset_test, basic, no_fail_pre, no_fail_post)
     struct c0_kvset *kvs;
     merr_t           err = 0;
 
-    err = c0kvs_create(HSE_C0_CHEAP_SZ_DFLT, 0, 0, false, &kvs);
+    err = c0kvs_create(HSE_C0_CHEAP_SZ_DFLT, 0, 0, &kvs);
     ASSERT_EQ(0, err);
     ASSERT_NE((struct c0_kvset *)0, kvs);
 
@@ -85,7 +85,7 @@ MTF_DEFINE_UTEST_PREPOST(c0_kvset_test, basic_put_get, no_fail_pre, no_fail_post
     int              i;
     int              seq;
 
-    err = c0kvs_create(HSE_C0_CHEAP_SZ_DFLT, 0, 0, false, &kvs);
+    err = c0kvs_create(HSE_C0_CHEAP_SZ_DFLT, 0, 0, &kvs);
     ASSERT_NE((struct c0_kvset *)0, kvs);
 
     for (i = 0; i < 10; ++i) {
@@ -204,7 +204,7 @@ MTF_DEFINE_UTEST_PREPOST(c0_kvset_test, basic_put_get_fail, no_fail_pre, no_fail
 
     /* Allocate smallest possible kvs.
      */
-    err = c0kvs_create(0, 0, 0, false, &kvs);
+    err = c0kvs_create(0, 0, 0, &kvs);
     ASSERT_NE(NULL, kvs);
 
     atomic_set(&ingesting, 0);
@@ -297,7 +297,7 @@ MTF_DEFINE_UTEST_PREPOST(c0_kvset_test, basic_repeated_put, no_fail_pre, no_fail
     u64                 view_seqno;
     int                 i;
 
-    err = c0kvs_create(HSE_C0_CHEAP_SZ_DFLT, 0, 0, false, &kvs);
+    err = c0kvs_create(HSE_C0_CHEAP_SZ_DFLT, 0, 0, &kvs);
     ASSERT_NE((struct c0_kvset *)0, kvs);
 
     kvs_ktuple_init(&kt, kbuf, 1);
@@ -440,7 +440,7 @@ MTF_DEFINE_UTEST_PREPOST(c0_kvset_test, advanced_repeated_put, no_fail_pre, no_f
     ASSERT_TRUE(rcu_thrd);
     set_thread_call_rcu_data(rcu_thrd);
 
-    err = c0kvs_create(HSE_C0_CHEAP_SZ_DFLT, 0, 0, false, &kvs);
+    err = c0kvs_create(HSE_C0_CHEAP_SZ_DFLT, 0, 0, &kvs);
     ASSERT_NE((struct c0_kvset *)0, kvs);
 
     kvs_ktuple_init(&kt, kbuf, sizeof(kbuf));
@@ -584,7 +584,7 @@ MTF_DEFINE_UTEST_PREPOST(c0_kvset_test, basic_put_get_del, no_fail_pre, no_fail_
     uintptr_t           iseqnoref, oseqnoref;
     u64                 view_seqno;
 
-    err = c0kvs_create(HSE_C0_CHEAP_SZ_DFLT, 0, 0, false, &kvs);
+    err = c0kvs_create(HSE_C0_CHEAP_SZ_DFLT, 0, 0, &kvs);
     ASSERT_NE((struct c0_kvset *)0, kvs);
 
     for (i = 0; i < 10; ++i) {
@@ -735,7 +735,7 @@ MTF_DEFINE_UTEST_PREPOST(c0_kvset_test, get_content_metrics, no_fail_pre, no_fai
     const int         delete_step = 3;
     uintptr_t         seqno;
 
-    err = c0kvs_create(HSE_C0_CHEAP_SZ_DFLT, 0, 0, false, &kvs);
+    err = c0kvs_create(HSE_C0_CHEAP_SZ_DFLT, 0, 0, &kvs);
     ASSERT_NE((struct c0_kvset *)0, kvs);
 
     c0kvs_get_content_metrics(
@@ -831,7 +831,7 @@ MTF_DEFINE_UTEST_PREPOST(c0_kvset_test, finalize, no_fail_pre, no_fail_post)
     int                 i;
     uintptr_t           iseqno, oseqno;
 
-    err = c0kvs_create(HSE_C0_CHEAP_SZ_DFLT, 0, 0, false, &kvs);
+    err = c0kvs_create(HSE_C0_CHEAP_SZ_DFLT, 0, 0, &kvs);
     ASSERT_NE((struct c0_kvset *)0, kvs);
 
     atomic_set(&ingesting, 0);
@@ -947,7 +947,7 @@ MTF_DEFINE_UTEST_PREPOST(c0_kvset_test, iterator, no_fail_pre, no_fail_post)
     int               i;
     char              c;
 
-    err = c0kvs_create(HSE_C0_CHEAP_SZ_DFLT, 0, 0, false, &kvs);
+    err = c0kvs_create(HSE_C0_CHEAP_SZ_DFLT, 0, 0, &kvs);
     ASSERT_NE(NULL, kvs);
 
     atomic_set(&ingesting, 0);

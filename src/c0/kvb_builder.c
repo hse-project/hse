@@ -282,7 +282,8 @@ kvb_builder_kvtuple_add(
     *ckvt = NULL;
 
     skidx = key_immediate_index(&bkv->bkv_key_imm);
-    cnid = c0skm_get_cnid(iter->kvbi_c0skm, skidx);
+    //cnid = c0skm_get_cnid(iter->kvbi_c0skm, skidx);
+    cnid = 0;
 
     if (ev(cnid == 0)) { /* Invalid cnid */
         hse_log(HSE_ERR "%s: invalid cnid %lu for skidx %u", __func__, cnid, skidx);

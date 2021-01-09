@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
 #ifndef HSE_CORE_C0_KVMULTISET_H
@@ -44,7 +44,6 @@ struct c0_kvmultiset {
  * @alloc_sz:        Maximum cheap or malloc allocation size
  * @ingest_delay:    Max ingest coalesce wait time (in seconds)
  * @kvdb_seq:        ptr to kvdb seqno. Used only by non-txn KVMS.
- * @tracked:         indicates whether to track mutations for this kvms.
  * @multiset:        Returned struct c0_kvset (on success)
  *
  * Passing HSE_C0KVS_ALLOC_MALLOC tells the implementation to use
@@ -63,7 +62,6 @@ c0kvms_create(
     size_t                 alloc_sz,
     u64                    ingest_delay,
     atomic64_t *           kvdb_seq,
-    bool                   tracked,
     struct c0_kvmultiset **multiset);
 
 void
@@ -128,9 +126,6 @@ c0kvms_ptomb_c0kvset_get(struct c0_kvmultiset *handle);
 size_t
 c0kvms_size(struct c0_kvmultiset *handle);
 
-size_t
-c0kvms_get_mut_sz(struct c0_kvmultiset *handle);
-
 /**
  * c0kvms_get_hashed_c0kvset() - obtain the c0_kvset at the given index
  * @mset:  Struct c0_kvmultiset to lookup in
@@ -165,7 +160,7 @@ c0kvms_get_c0kvset(struct c0_kvmultiset *mset, u32 index);
  * could be modified after finalization, and that can occur only as a reult
  * of a ctxn flush operation.
  *
- * So, until we fix the flush aberration, one must call c0vksm_priv_wait()
+ * So, until we fix the flush aberration, one must call c0kvms_priv_wait()
  * or check that c0kvms_priv_busy() returns false to be assured that the
  * contents of a given kvms are completely stable.
  */
@@ -250,22 +245,6 @@ bool
 c0kvms_is_ingested(struct c0_kvmultiset *mset);
 
 /**
- * c0kvms_is_tracked() - return 'true' if mutations are tracked in this kvms
- * @handle:  Struct c0_kvmultiset
- *
- */
-bool
-c0kvms_is_tracked(struct c0_kvmultiset *handle);
-
-/**
- * c0kvms_enable_mutation() - enable mutation tracking for this kvms.
- * @handle:  Struct c0_kvmultiset
- *
- */
-void
-c0kvms_enable_mutation(struct c0_kvmultiset *handle);
-
-/**
  * c0kvms_is_ingesting() - return 'true' if the kvms is ingesting
  * @mset:  Struct c0_kvmultiset
  *
@@ -282,23 +261,6 @@ c0kvms_enable_mutation(struct c0_kvmultiset *handle);
 /* MTF_MOCK */
 bool
 c0kvms_is_ingesting(struct c0_kvmultiset *mset);
-
-/**
- * c0kvms_is_mutating() - return 'true' if the kvms is mutating
- *                        applicable iff the kvms is ingesting
- * @mset:  Struct c0_kvmultiset
- *
- */
-bool
-c0kvms_is_mutating(struct c0_kvmultiset *mset);
-
-/**
- * c0kvms_unset_mutating() - unset mutating field
- * @mset:  Struct c0_kvmultiset
- *
- */
-void
-c0kvms_unset_mutating(struct c0_kvmultiset *mset);
 
 /**
  * c0kvms_get_element_count - obtain the total number of elements
@@ -325,12 +287,6 @@ c0kvms_used_get(struct c0_kvmultiset *mset);
 
 void
 c0kvms_used_set(struct c0_kvmultiset *mset, size_t used);
-
-size_t
-c0kvms_mut_sz_get(struct c0_kvmultiset *mset);
-
-void
-c0kvms_mut_sz_set(struct c0_kvmultiset *mset, size_t mut_sz);
 
 size_t
 c0kvms_avail(struct c0_kvmultiset *mset);
@@ -527,45 +483,18 @@ c0kvms_preserve_tombspan(
     u32                   kmin_len,
     const void *          kmax,
     u32                   kmax_len);
-/**
- * c0kvms_mlock() - acquire c0kvms mutation lock.
- * @handle:     kvms on which to operate
- */
-void
-c0kvms_mlock(struct c0_kvmultiset *handle);
-
-/**
- * c0kvms_munlock() - release c0kvms mutation lock.
- * @handle:     kvms on which to operate
- */
-void
-c0kvms_munlock(struct c0_kvmultiset *handle);
-
-/**
- * c0kvms_mwait() - wait on c0kvms mutation cv.
- * @handle:     kvms on which to operate
- */
-void
-c0kvms_mwait(struct c0_kvmultiset *handle);
-
-/**
- * c0kvms_msignal() - signal c0kvms mutation cv.
- * @handle:     kvms on which to operate
- */
-void
-c0kvms_msignal(struct c0_kvmultiset *handle);
 
 /**
  * c0kvms_init() - called to initialize c0kvms subsystem
  */
 merr_t
-c0kvms_init(void);
+c0kvms_init(void) __cold;
 
 /**
  * c0kvms_fini() - called when c0kvms is no longer needed
  */
 void
-c0kvms_fini(void);
+c0kvms_fini(void) __cold;
 
 #if defined(HSE_UNIT_TEST_MODE) && HSE_UNIT_TEST_MODE == 1
 #include "c0_kvmultiset_ut.h"

@@ -216,8 +216,8 @@ MTF_DEFINE_UTEST_PRE(test, t_dur_params, pre_test)
 
 MTF_DEFINE_UTEST_PRE(test, t_range, pre_test)
 {
-    int i, value1, value2, value3, range;
     int ranges[5] = { 750, 1001, 1500, 1800, 2001 };
+    int i, value1, value2, range;
 
     init();
 
@@ -226,11 +226,9 @@ MTF_DEFINE_UTEST_PRE(test, t_range, pre_test)
 
         value1 = rand() % range;
         value2 = rand() % range;
-        value3 = rand() % range;
 
         throttle_sensor_set(sv[0], value1);
         throttle_sensor_set(sv[1], value2);
-        throttle_sensor_set(sv[2], value3);
         throttle_update(t);
         throttle_debug(t);
         throttle_reduce_debug(t, value2, 0);
@@ -244,11 +242,9 @@ MTF_DEFINE_UTEST_PRE(test, t_range, pre_test)
 
         value1 = vmin + rand() % range;
         value2 = vmin + rand() % range;
-        value3 = vmin + rand() % range;
 
         throttle_sensor_set(sv[0], value1);
         throttle_sensor_set(sv[1], value2);
-        throttle_sensor_set(sv[2], value3);
         throttle_update(t);
         throttle_debug(t);
         throttle_reduce_debug(t, value2, 0);
@@ -260,11 +256,9 @@ MTF_DEFINE_UTEST_PRE(test, t_range, pre_test)
 
         value1 = rand() % range;
         value2 = rand() % range;
-        value3 = THROTTLE_SENSOR_SCALE * 2;
 
         throttle_sensor_set(sv[0], value1);
         throttle_sensor_set(sv[1], value2);
-        throttle_sensor_set(sv[2], value3);
         throttle_update(t);
         throttle_debug(t);
         throttle_reduce_debug(t, value2, 0);
@@ -275,11 +269,9 @@ MTF_DEFINE_UTEST_PRE(test, t_range, pre_test)
     for (i = 0; i < 100000; i++) {
         value1 = rand() % range;
         value2 = rand() % range;
-        value3 = rand() % range;
 
         throttle_sensor_set(sv[0], value1);
         throttle_sensor_set(sv[1], value2);
-        throttle_sensor_set(sv[2], value3);
         throttle_update(t);
         throttle_debug(t);
         throttle_reduce_debug(t, value2, 0);

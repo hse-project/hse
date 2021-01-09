@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
 #include <hse_ut/framework.h>
@@ -26,7 +26,6 @@
 #define KVS3 KVS "3"
 
 #include "mock_c0cn.h"
-#include "mock_c1.h"
 #include "../kvdb_rest.h"
 #include "../../cn/kvset.h"
 #include "../../cn/cn_metrics.h"
@@ -156,7 +155,6 @@ test_pre(struct mtf_test_info *ti)
     mapi_inject(mapi_idx_kvset_get_nth_vblock_id, 0x70310e);
 
     mock_c0cn_set();
-    mock_c1_set();
 
     mapi_inject(mapi_idx_c0_get_pfx_len, 0);
 

@@ -331,17 +331,6 @@ c0sk_cursor_update(
 merr_t
 c0sk_cursor_destroy(struct c0_cursor *cur);
 
-struct kvdb_callback;
-
-/**
- * c0sk_install_callback() - Allows callers to subscribe to certain
- *                           interesting events inside c0sk.
- * @self:       Instance of struct c0sk from which to delete
- * @callback:   Callback structures defining events of interest.
- */
-void
-c0sk_install_callback(struct c0sk *handle, struct kvdb_callback *callback);
-
 bool
 c0sk_cursor_ctxn_preserve_tombspan(
     struct c0_cursor *cur,
@@ -379,34 +368,6 @@ c0sk_kvset_builder_create(struct c0sk *c0sk, u32 skidx, struct kvset_builder **b
  */
 void
 c0sk_kvset_builder_destroy(struct c0sk *c0sk, struct kvset_builder *bldr);
-
-/**
- * c0sk_enable_mutation() - Enable mutation tracking.
- * @c0sk: c0sk handle
- */
-void
-c0sk_enable_mutation(struct c0sk *handle);
-
-/**
- * c0sk_is_replaying() - get replaying flag
- * @handle: c0sk handle
- */
-int
-c0sk_is_replaying(struct c0sk *handle);
-
-/**
- * c0sk_set_replaying() - set replaying flag
- * @handle: c0sk handle
- */
-void
-c0sk_set_replaying(struct c0sk *handle);
-
-/**
- * c0sk_unset_replaying() - unset replaying flag
- * @handle: c0sk handle
- */
-void
-c0sk_unset_replaying(struct c0sk *handle);
 
 #pragma GCC visibility pop
 

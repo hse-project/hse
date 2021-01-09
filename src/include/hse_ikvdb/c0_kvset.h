@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
 #ifndef HSE_CORE_C0_KVSET_H
@@ -65,7 +65,6 @@ c0kvs_fini(void);
  * @alloc_sz:   Maximum cheap or malloc allocation size
  * @kvdb_seq:   Ptr to kvdb seqno
  * @kvms_seq:   Ptr to kvms seqno.
- * @priv:       private c0kvset or not
  * @handlep:    Returned struct c0_kvset (on success)
  *
  * Passing HSE_C0KVS_ALLOC_MALLOC tells the implementation to use
@@ -79,7 +78,6 @@ c0kvs_create(
     size_t            alloc_sz,
     atomic64_t *      kvdb_seq,
     atomic64_t *      kvms_seq,
-    bool              priv,
     struct c0_kvset **handlep);
 
 /**
@@ -416,13 +414,6 @@ c0kvs_preserve_tombspan(
     u32              kmin_len,
     const void *     kmax,
     u32              kmax_len);
-
-/**
- * c0kvs_enable_mutation - Enable mutation tracking for this c0kvset.
- * @handle: struct c0_kvset
- */
-void
-c0kvs_enable_mutation(struct c0_kvset *handle);
 
 #pragma GCC visibility pop
 

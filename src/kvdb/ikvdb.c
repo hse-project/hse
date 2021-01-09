@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
 #define MTF_MOCK_IMPL_ikvdb
@@ -12,13 +12,8 @@
 #include <hse_ikvdb/kvdb_health.h>
 #include <hse_ikvdb/kvs.h>
 #include <hse_ikvdb/c0.h>
-#include <hse_ikvdb/c1.h>
-#include <hse_ikvdb/c1_replay.h>
-#include <hse_ikvdb/c1_perfc.h>
 #include <hse_ikvdb/c0sk.h>
-#include <hse_ikvdb/c0skm.h>
 #include <hse_ikvdb/c0sk_perfc.h>
-#include <hse_ikvdb/c0skm_perfc.h>
 #include <hse_ikvdb/cn.h>
 #include <hse_ikvdb/cn_kvdb.h>
 #include <hse_ikvdb/cn_perfc.h>
@@ -124,8 +119,6 @@ struct kvdb_ctxn_bkt {
  * @ikdb_seqno:         current sequence number for the struct ikvdb
  * @ikdb_cur_list:      list of cursors holding the cursor horizon
  * @ikdb_cur_horizon:   oldest seqno in cursor ikdb_cur_list
- * @ikdb_c1:            Opaque structure for c1
- * @ikdb_c1_callback    c1 specific c0sk event handlers
  * @ikdb_rp:            KVDB run time params
  * @ikdb_ctxn_cache:    ctxn cache
  * @ikdb_lock:          protects ikdb_kvs_vec/ikdb_kvs_cnt writes
@@ -135,8 +128,6 @@ struct kvdb_ctxn_bkt {
  * @ikdb_profile:       hse params stored as profile
  * @ikdb_cndb_oid1:
  * @ikdb_cndb_oid2:
- * @ikdb_c1_oid1:       First OID of c1 MDC
- * @ikdb_c1_oid2:       Second OID of c1 MDC
  * @ikdb_mpname:        KVDB mpool name
  *
  * Note:  The first group of fields are read-mostly and some of them are
@@ -167,8 +158,6 @@ struct ikvdb_impl {
     struct workqueue_struct *ikdb_workqueue;
     struct viewset          *ikdb_txn_viewset;
     struct viewset          *ikdb_cur_viewset;
-    struct c1 *              ikdb_c1;
-    struct kvdb_callback     ikdb_c1_callback;
 
     struct tbkt ikdb_tb __aligned(SMP_CACHE_BYTES * 2);
 
@@ -202,8 +191,6 @@ struct ikvdb_impl {
 
     u64  ikdb_cndb_oid1;
     u64  ikdb_cndb_oid2;
-    u64  ikdb_c1_oid1;
-    u64  ikdb_c1_oid2;
     char ikdb_mpname[MPOOL_NAMESZ_MAX];
 };
 
@@ -223,375 +210,6 @@ struct ikvdb *
 ikvdb_kvdb_handle(struct ikvdb_impl *self)
 {
     return &self->ikdb_handle;
-}
-
-static merr_t
-ikvdb_c1_make(
-    struct kvdb_log *    log,
-    struct mpool *       ds,
-    u64 *                oid1,
-    u64 *                oid2,
-    struct kvdb_cparams *cparams,
-    struct kvdb_log_tx **tx)
-{
-    merr_t err;
-
-    err = c1_alloc(ds, cparams, oid1, oid2);
-    if (ev(err))
-        return err;
-
-    err = kvdb_log_mdc_create(log, KVDB_LOG_MDC_ID_C1, *oid1, *oid2, tx);
-    if (ev(err))
-        goto make_exit;
-
-    err = c1_make(ds, cparams, *oid1, *oid2);
-    if (ev(err))
-        goto make_exit2;
-
-    err = kvdb_log_done(log, *tx);
-    if (ev(err))
-        goto make_exit2;
-
-    return 0;
-
-make_exit2:
-    kvdb_log_abort(log, *tx);
-
-make_exit:
-    c1_free(ds, *oid1, *oid2);
-
-    return err;
-}
-
-static merr_t
-ikvdb_c1_open(struct ikvdb_impl *self, struct mpool *ds, u64 ingestid)
-{
-    merr_t err;
-
-    /* If c1 is disabled at create time, leave it disabled at open time
-     * as well. The KVDB run-time parameter "dur_enable" is not honored
-     * in this scenario.
-     */
-    if (!self->ikdb_c1_oid1) {
-        assert(!self->ikdb_c1_oid1);
-        self->ikdb_c1 = NULL;
-
-        return 0;
-    }
-
-    /* c1 is enabled at kvdb open time. */
-    if (self->ikdb_rp.dur_enable && self->ikdb_c1_oid1) {
-
-        assert(self->ikdb_c1_oid2);
-
-        err = c1_open(
-            ds,
-            self->ikdb_rdonly,
-            self->ikdb_c1_oid1,
-            self->ikdb_c1_oid2,
-            ingestid,
-            self->ikdb_mpname,
-            &self->ikdb_rp,
-            &self->ikdb_handle,
-            self->ikdb_c0sk,
-            &self->ikdb_health,
-            &self->ikdb_c1);
-
-        return ev(err);
-    }
-
-    /* c1 is disabled at kvdb open time. Need c1 replay. */
-    assert(self->ikdb_rp.dur_enable == 0);
-    assert(self->ikdb_c1_oid2);
-
-    err = c1_open(
-        ds,
-        self->ikdb_rdonly,
-        self->ikdb_c1_oid1,
-        self->ikdb_c1_oid2,
-        ingestid,
-        self->ikdb_mpname,
-        &self->ikdb_rp,
-        &self->ikdb_handle,
-        self->ikdb_c0sk,
-        &self->ikdb_health,
-        &self->ikdb_c1);
-    if (ev(err))
-        return err;
-
-    err = c1_close(self->ikdb_c1);
-    self->ikdb_c1 = NULL;
-
-    return 0;
-}
-
-static void
-ikvdb_c1_cningest_status_callback(
-    struct ikvdb *ikdb,
-    unsigned long seqnum,
-    unsigned long status,
-    unsigned long cnid,
-    const void *  key,
-    unsigned int  key_len)
-{
-    struct ikvdb_impl *self = ikvdb_h2r(ikdb);
-    merr_t             err = status;
-
-    if (self->ikdb_c1) {
-        struct kvs_ktuple kt;
-
-        kvs_ktuple_init(&kt, key, key_len);
-        c1_cningest_status(self->ikdb_c1, seqnum, err, cnid, &kt);
-    }
-}
-
-static void
-ikvdb_c1_install_callbacks(struct ikvdb_impl *self)
-{
-    struct kvdb_callback *cb = &self->ikdb_c1_callback;
-
-    if (!self->ikdb_c1) {
-        c0sk_install_callback(self->ikdb_c0sk, NULL);
-        return;
-    }
-
-    cb->kc_cbarg = &self->ikdb_handle;
-    cb->kc_cn_ingest_callback = ikvdb_c1_cningest_status_callback;
-
-    c0sk_install_callback(self->ikdb_c0sk, cb);
-}
-
-/*
- * c1 REPLAY functions - c1 to ikvdb implemented by ikvdb
- */
-struct ikvdb_c1_replay {
-    struct hse_kvs **kvs;
-    unsigned int     count;
-};
-
-/*
- * ikvdb_c1_replay_get_kvs returns struct hse_kvs if a matching cnid
- * is found.
- */
-struct hse_kvs *
-ikvdb_c1_replay_get_kvs(struct ikvdb_c1_replay *replay, u64 ikdb_cn_id)
-{
-    int              i;
-    struct kvdb_kvs *kvs;
-
-    for (i = 0; i < replay->count; i++) {
-        kvs = (struct kvdb_kvs *)replay->kvs[i];
-        if (kvs->kk_cnid == ikdb_cn_id)
-            return replay->kvs[i];
-    }
-
-    return NULL;
-}
-
-void
-ikvdb_set_replaying(struct ikvdb *ikdb)
-{
-    struct ikvdb_impl *self;
-
-    if (ev(!ikdb))
-        return;
-
-    self = ikvdb_h2r(ikdb);
-
-    if (self->ikdb_c0sk)
-        c0sk_set_replaying(self->ikdb_c0sk);
-}
-
-void
-ikvdb_unset_replaying(struct ikvdb *ikdb)
-{
-    struct ikvdb_impl *self;
-
-    if (ev(!ikdb))
-        return;
-
-    self = ikvdb_h2r(ikdb);
-
-    if (self->ikdb_c0sk)
-        c0sk_unset_replaying(self->ikdb_c0sk);
-}
-
-/*
- * ikvdb_c1_replay_open is an important as far as c1 replay is
- * concerned. It goes through the list of kvses in a kvdb.
- * It first invokes ikvdb_get_names to get the list of kvses and
- * then invokes ikvdb_kvs_open on them to obtain kvs handles. These
- * handles are later used by c1 replay function to ingest contents
- * of c1 into kvdb.
- */
-merr_t
-ikvdb_c1_replay_open(struct ikvdb *ikdb, struct ikvdb_c1_replay **ikvdbhandle)
-{
-    merr_t                  err;
-    unsigned int            count;
-    int                     i;
-    int                     kvs_size;
-    char **                 kvsv = NULL;
-    struct hse_kvs **       kvs;
-    struct ikvdb_c1_replay *out;
-
-    if (!ikdb)
-        return 0;
-
-    out = malloc(sizeof(*out));
-    if (!out)
-        return merr(ev(ENOMEM));
-
-    err = ikvdb_get_names(ikdb, &count, &kvsv);
-    if (ev(err)) {
-        free(out);
-        return err;
-    }
-
-    kvs_size = sizeof(*kvs) * count;
-
-    kvs = malloc(kvs_size);
-    if (!out) {
-        ikvdb_free_names(ikdb, kvsv);
-        free(out);
-        return merr(ev(ENOMEM));
-    }
-
-    out->kvs = kvs;
-    out->count = count;
-
-    for (i = 0; i < count; i++) {
-        err = ikvdb_kvs_open(ikdb, kvsv[i], NULL, IKVS_OFLAG_REPLAY, &kvs[i]);
-        if (ev(err)) {
-            hse_log(HSE_WARNING "ikvdb_kvs_open %s error %d", kvsv[i], merr_errno(err));
-            break;
-        }
-    }
-
-    ikvdb_free_names(ikdb, kvsv);
-
-    if (ev(err)) {
-        free(out);
-        while (i-- > 0)
-            (void)ikvdb_kvs_close(kvs[i]);
-        free(kvs);
-        return err;
-    }
-
-    *ikvdbhandle = out;
-
-    return 0;
-}
-
-merr_t
-ikvdb_c1_replay_close(struct ikvdb *ikdb, struct ikvdb_c1_replay *replay)
-{
-    unsigned int i;
-    merr_t       err;
-
-    if (!ikdb)
-        return 0;
-
-    err = ikvdb_sync_int(ikvdb_h2r(ikdb));
-
-    for (i = 0; i < replay->count; i++)
-        (void)ikvdb_kvs_close(replay->kvs[i]);
-
-    free(replay->kvs);
-    free(replay);
-
-    return err;
-}
-
-void
-ikvdb_c1_set_seqno(struct ikvdb *ikdb, u64 seqno)
-{
-    struct ikvdb_impl *self;
-
-    if (ev(!ikdb))
-        return;
-
-    self = ikvdb_h2r(ikdb);
-
-    if (seqno > atomic64_read(&self->ikdb_seqno))
-        atomic64_set(&self->ikdb_seqno, seqno);
-}
-
-merr_t
-ikvdb_c1_replay_put(
-    struct ikvdb *           ikdb,
-    struct ikvdb_c1_replay * replay,
-    u64                      seqno,
-    u64                      cnid,
-    struct hse_kvdb_opspec * os,
-    struct kvs_ktuple *      kt,
-    const struct kvs_vtuple *vt)
-{
-    struct hse_kvs * kvs;
-    struct kvdb_kvs *kk;
-
-    if (!ikdb)
-        return 0;
-
-    kvs = ikvdb_c1_replay_get_kvs(replay, cnid);
-    if (!kvs) {
-        /* It's possible that this KVS got dropped just prior
-         * to crash. Skip replaying this key, if there's no kvs
-         * instance corresponding to the specified cnid.
-         */
-        hse_log(
-            HSE_WARNING "%s: dropping put %lu for invalid kvs cnid %lu",
-            __func__,
-            (ulong)seqno,
-            (ulong)cnid);
-        return 0;
-    }
-
-    kk = (struct kvdb_kvs *)kvs;
-
-    return ikvs_put(kk->kk_ikvs, os, kt, vt, HSE_ORDNL_TO_SQNREF(seqno));
-}
-
-merr_t
-ikvdb_c1_replay_del(
-    struct ikvdb *          ikdb,
-    struct ikvdb_c1_replay *replay,
-    u64                     seqno,
-    u64                     cnid,
-    struct hse_kvdb_opspec *os,
-    struct kvs_ktuple *     kt,
-    struct kvs_vtuple *     vt)
-{
-    struct hse_kvs * kvs;
-    struct kvdb_kvs *kk;
-    u64              tombval;
-
-    if (!ikdb)
-        return 0;
-
-    kvs = ikvdb_c1_replay_get_kvs(replay, cnid);
-    if (!kvs) {
-        /* It's possible that this KVS got dropped just prior
-         * to crash. Skip replaying this key, if there's no kvs
-         * instance corresponding to the specified cnid.
-         */
-        hse_log(
-            HSE_WARNING "%s: dropping del %lu for invalid kvs cnid %lu",
-            __func__,
-            (ulong)seqno,
-            (ulong)cnid);
-        return 0;
-    }
-
-    kk = (struct kvdb_kvs *)kvs;
-
-    tombval = *(u64 *)vt->vt_data;
-    if (tombval == (u64)HSE_CORE_TOMB_REG)
-        return ikvs_del(kk->kk_ikvs, os, kt, HSE_ORDNL_TO_SQNREF(seqno));
-
-    assert(tombval == (u64)HSE_CORE_TOMB_PFX);
-
-    return ikvs_prefix_del(kk->kk_ikvs, os, kt, HSE_ORDNL_TO_SQNREF(seqno));
 }
 
 void
@@ -657,11 +275,8 @@ ikvdb_make(
     merr_t              err;
     u64                 cndb_o1, cndb_o2;
     u64                 cndb_captgt;
-    u64                 c1_oid1, c1_oid2;
     struct kvdb_log_tx *tx = NULL;
 
-    c1_oid2 = 0;
-    c1_oid2 = 0;
     cndb_o1 = 0;
     cndb_o2 = 0;
 
@@ -691,8 +306,6 @@ ikvdb_make(
     err = kvdb_log_done(log, tx);
     if (ev(err))
         goto out;
-
-    err = ikvdb_c1_make(log, ds, &c1_oid1, &c1_oid2, cparams, &tx);
 
 out:
     /* Failed ikvdb_make() indicates that the caller or operator should
@@ -859,12 +472,6 @@ ikvdb_init_throttle_params(struct ikvdb_impl *self)
 
     c0sk_throttle_sensor(
         self->ikdb_c0sk, throttle_sensor(&self->ikdb_throttle, THROTTLE_SENSOR_C0SK));
-
-    c0skm_dtime_throttle_sensor(
-        self->ikdb_c0sk, throttle_sensor(&self->ikdb_throttle, THROTTLE_SENSOR_C0SKM_DTIME));
-
-    c0skm_dsize_throttle_sensor(
-        self->ikdb_c0sk, throttle_sensor(&self->ikdb_throttle, THROTTLE_SENSOR_C0SKM_DSIZE));
 }
 
 static void
@@ -901,27 +508,6 @@ ikvdb_diag_cndb(struct ikvdb *handle, struct cndb **cndb)
         return merr(ev(EINVAL));
 
     *cndb = self->ikdb_cndb;
-
-    return 0;
-}
-
-merr_t
-ikvdb_diag_c1(struct ikvdb *handle, u64 ingestid, struct c1 **c1)
-{
-    struct ikvdb_impl *self = ikvdb_h2r(handle);
-    merr_t             err;
-
-    if (!self || !c1)
-        return merr(ev(EINVAL));
-
-    if (!self->ikdb_rdonly)
-        return merr(ev(EINVAL));
-
-    err = ikvdb_c1_open(self, self->ikdb_ds, ingestid);
-    if (ev(err))
-        return err;
-
-    *c1 = self->ikdb_c1;
 
     return 0;
 }
@@ -1015,12 +601,14 @@ ikvdb_diag_open(
     if (ev(err))
         goto err_exit2;
 
+    u64 c1_oid1, c1_oid2; // Remove me...
+
     err = kvdb_log_replay(
         self->ikdb_log,
         &self->ikdb_cndb_oid1,
         &self->ikdb_cndb_oid2,
-        &self->ikdb_c1_oid1,
-        &self->ikdb_c1_oid2);
+        &c1_oid1,
+        &c1_oid2);
     if (ev(err))
         goto err_exit3;
 
@@ -1402,12 +990,14 @@ ikvdb_open(
         goto err1;
     }
 
+    u64 c1_oid1, c1_oid2; // Remove me ...
+
     err = kvdb_log_replay(
         self->ikdb_log,
         &self->ikdb_cndb_oid1,
         &self->ikdb_cndb_oid2,
-        &self->ikdb_c1_oid1,
-        &self->ikdb_c1_oid2);
+        &c1_oid1,
+        &c1_oid2);
     if (err) {
         hse_elog(HSE_ERR "cannot open %s: @@e", err, mp_name);
         goto err1;
@@ -1457,28 +1047,6 @@ ikvdb_open(
         }
     }
 
-    /* NOTE: c1 replay happens inside this call, which is before this
-     * object (struct ikvdb_impl) is fully initialized.  Certain items
-     * must be initialized before c1 replay, other items must be
-     * initialized after.
-     */
-    err = ikvdb_c1_open(self, ds, ingestid);
-    if (err) {
-        hse_elog(HSE_ERR "cannot open %s: @@e", err, mp_name);
-        goto err1;
-    }
-
-    err = c0skm_open(self->ikdb_c0sk, &self->ikdb_rp, self->ikdb_c1, mp_name);
-    if (err) {
-        hse_elog(HSE_ERR "cannot open %s: @@e", err, mp_name);
-        goto err1;
-    }
-
-    /*
-     * Install c1 related callbacks for c0sk to use
-     */
-    ikvdb_c1_install_callbacks(self);
-
     ikvdb_perfc_alloc(self);
     kvdb_keylock_perfc_init(self->ikdb_keylock, &self->ikdb_ctxn_op);
 
@@ -1493,7 +1061,6 @@ ikvdb_open(
     return 0;
 
 err1:
-    c1_close(self->ikdb_c1);
     c0sk_close(self->ikdb_c0sk);
     self->ikdb_work_stop = true;
     destroy_workqueue(self->ikdb_workqueue);
@@ -1533,14 +1100,6 @@ ikvdb_get_c0sk(struct ikvdb *handle, struct c0sk **out)
     struct ikvdb_impl *self = ikvdb_h2r(handle);
 
     *out = self->ikdb_c0sk;
-}
-
-void
-ikvdb_get_c1(struct ikvdb *handle, struct c1 **out)
-{
-    struct ikvdb_impl *self = ikvdb_h2r(handle);
-
-    *out = self->ikdb_c1;
 }
 
 struct csched *
@@ -1860,11 +1419,6 @@ ikvdb_kvs_open(
     if (ev(err))
         return err;
 
-    /*
-     * Install c1 related callbacks for c0sk to use
-     */
-    ikvdb_c1_install_callbacks(self);
-
     if (rp.kv_print_config)
         kvs_rparams_print(&rp);
 
@@ -2052,12 +1606,6 @@ ikvdb_close(struct ikvdb *handle)
     err = kvdb_log_close(self->ikdb_log);
     if (ev(err))
         ret = ret ?: err;
-
-    if (self->ikdb_c1) {
-        err = c1_close(self->ikdb_c1);
-        if (ev(err))
-            ret = ret ?: err;
-    }
 
     mutex_unlock(&self->ikdb_lock);
 
@@ -2886,13 +2434,10 @@ ikvdb_sync(struct ikvdb *handle)
 {
     struct ikvdb_impl *self = ikvdb_h2r(handle);
 
-    if (self->ikdb_rdonly)
-        return merr(ev(EROFS));
+    if (ev(self->ikdb_rdonly))
+        return merr(EROFS);
 
-    if (!self->ikdb_c1)
-        return ikvdb_sync_int(self);
-
-    return c0skm_sync(self->ikdb_c0sk);
+    return ikvdb_sync_int(self);
 }
 
 merr_t
@@ -2900,13 +2445,10 @@ ikvdb_flush(struct ikvdb *handle)
 {
     struct ikvdb_impl *self = ikvdb_h2r(handle);
 
-    if (self->ikdb_rdonly)
-        return merr(ev(EROFS));
+    if (ev(self->ikdb_rdonly))
+        return merr(EROFS);
 
-    if (!self->ikdb_c1)
-        return ikvdb_flush_int(self);
-
-    return c0skm_flush(self->ikdb_c0sk);
+    return ikvdb_flush_int(self);
 }
 
 u64
@@ -3122,8 +2664,6 @@ kvdb_perfc_initialize(void)
     kvdb_perfc_init();
     kvs_perfc_init();
     c0sk_perfc_init();
-    c0skm_perfc_init();
-    c1_perfc_init();
     cn_perfc_init();
     throttle_perfc_init();
 
@@ -3161,8 +2701,6 @@ kvdb_perfc_finish(void)
 
     throttle_perfc_fini();
     cn_perfc_fini();
-    c1_perfc_fini();
-    c0skm_perfc_fini();
     c0sk_perfc_fini();
     kvs_perfc_fini();
     kvdb_perfc_fini();

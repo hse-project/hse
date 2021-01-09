@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
 #include <hse_util/platform.h>
@@ -23,7 +23,6 @@
 #define MTF_MOCK_IMPL_c0sk
 
 #include <hse_ikvdb/c0sk.h>
-#include <hse_ikvdb/c0skm.h>
 #include <hse_ikvdb/c0sk_perfc.h>
 #include <hse_ikvdb/c0.h>
 #include <hse_ikvdb/cn.h>
@@ -37,7 +36,6 @@
 #include <hse_ikvdb/rparam_debug_flags.h>
 
 #include "c0sk_internal.h"
-#include "c0skm_internal.h"
 #include "c0_cursor.h"
 
 /* A cursor k/v buffer must be able to hold both a full size key and full size value.
@@ -201,22 +199,20 @@ c0sk_c0_register(struct c0sk *handle, struct cn *cn, u16 *skidx)
     struct c0sk_impl *self;
     int               i;
 
-    if (!handle || !cn || !skidx)
-        return merr(ev(EINVAL));
+    if (ev(!handle || !cn || !skidx))
+        return merr(EINVAL);
 
     self = c0sk_h2r(handle);
 
-    for (i = 0; i < HSE_KVS_COUNT_MAX; ++i)
+    for (i = 0; i < HSE_KVS_COUNT_MAX; ++i) {
         if (self->c0sk_cnv[i] == 0) {
-
             cn_ref_get(cn);
             self->c0sk_cnv[i] = cn;
             *skidx = i;
 
-            c0skm_skidx_register(self, i, cn);
-
             return 0;
         }
+    }
 
     err = merr(ev(ENOSPC));
     hse_elog(HSE_DEBUG "Attempt to register too many c0's with c0sk: @@e", err);
@@ -237,8 +233,6 @@ c0sk_c0_deregister(struct c0sk *handle, u16 skidx)
     assert(skidx < HSE_KVS_COUNT_MAX);
     if (skidx >= HSE_KVS_COUNT_MAX)
         return merr(ev(ERANGE));
-
-    c0skm_skidx_deregister(self, skidx);
 
     if (self->c0sk_cnv[skidx]) {
         cn_ref_put(self->c0sk_cnv[skidx]);
@@ -485,7 +479,6 @@ c0sk_open(
     c0sk->c0sk_kvdb_rp = kvdb_rp;
     c0sk->c0sk_ds = mp_dataset;
     c0sk->c0sk_kvdb_health = health;
-    c0sk->c0sk_mhandle = NULL;
     c0sk->c0sk_csched = csched;
 
     c0sk->c0sk_kvdb_seq = kvdb_seq;
@@ -497,8 +490,6 @@ c0sk_open(
 
     INIT_LIST_HEAD(&c0sk->c0sk_rcu_pending);
     c0sk->c0sk_rcu_active = false;
-
-    atomic_set(&c0sk->c0sk_replaying, 0);
 
     err = c0sk_initialize_concurrency_control(c0sk);
     if (ev(err))
@@ -535,7 +526,6 @@ c0sk_open(
         kvdb_rp->c0_heap_sz,
         kvdb_rp->c0_ingest_delay,
         c0sk->c0sk_kvdb_seq,
-        !!c0sk->c0sk_mhandle,
         &c0kvms);
     if (ev(err))
         goto errout;
@@ -582,7 +572,6 @@ c0sk_close(struct c0sk *handle)
     self->c0sk_closing = true;
 
     c0sk_sync(handle);
-    c0skm_close(handle);
 
     /* There should be only one (empty) kvms on the list after
      * calling c0sk_sync() and waiting for ingest to complete.
@@ -1962,56 +1951,6 @@ c0sk_cursor_debug_val(struct c0_cursor *cur, uintptr_t seqnoref, struct bonsai_k
 }
 
 BullseyeCoverageRestore
-
-void
-c0sk_install_callback(struct c0sk *handle, struct kvdb_callback *callback)
-{
-    struct c0sk_impl *self = c0sk_h2r(handle);
-
-    self->c0sk_callback = callback;
-}
-
-void
-c0sk_enable_mutation(struct c0sk *handle)
-{
-    struct c0_kvmultiset *c0kvms;
-
-    rcu_read_lock();
-    c0kvms = c0sk_get_first_c0kvms(handle);
-    if (c0kvms)
-        c0kvms_enable_mutation(c0kvms);
-    rcu_read_unlock();
-}
-
-int
-c0sk_is_replaying(struct c0sk *handle)
-{
-    struct c0sk_impl *self;
-
-    self = c0sk_h2r(handle);
-
-    return atomic_read(&self->c0sk_replaying);
-}
-
-void
-c0sk_set_replaying(struct c0sk *handle)
-{
-    struct c0sk_impl *self;
-
-    self = c0sk_h2r(handle);
-
-    atomic_set(&self->c0sk_replaying, 1);
-}
-
-void
-c0sk_unset_replaying(struct c0sk *handle)
-{
-    struct c0sk_impl *self;
-
-    self = c0sk_h2r(handle);
-
-    atomic_set(&self->c0sk_replaying, 0);
-}
 
 struct cn *
 c0sk_get_cn(struct c0sk_impl *c0sk, u64 skidx)

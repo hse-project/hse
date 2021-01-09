@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
 #define _GNU_SOURCE /* for pthread_getname_np() */
@@ -18,7 +18,6 @@
 
 #include <hse_ikvdb/ikvdb.h>
 #include <hse_ikvdb/c0sk.h>
-#include <hse_ikvdb/c0skm.h>
 #include <hse_ikvdb/c0sk_perfc.h>
 #include <hse_ikvdb/cn.h>
 #include <hse_ikvdb/cndb.h>
@@ -32,8 +31,6 @@
 #include <hse_ikvdb/rparam_debug_flags.h>
 
 #include "c0sk_internal.h"
-#include "c0skm_internal.h"
-#include "c0_kvmsm.h"
 #include "c0_ingest_work.h"
 
 merr_t
@@ -141,32 +138,11 @@ c0sk_adjust_throttling(struct c0sk_impl *self)
     return new;
 }
 
-static void
-c0sk_cn_ingest_callback(
-    struct c0sk_impl *c0sk,
-    unsigned long     seqno,
-    unsigned long     status,
-    unsigned long     cnid,
-    const void *      key,
-    unsigned int      key_len)
-{
-    struct ikvdb *ikdb;
-
-    if (!c0sk->c0sk_callback || !c0sk->c0sk_callback->kc_cn_ingest_callback)
-        return;
-
-    ikdb = c0sk->c0sk_callback->kc_cbarg;
-    c0sk->c0sk_callback->kc_cn_ingest_callback(ikdb, seqno, status, cnid, key, key_len);
-}
-
 /**
  * c0sk_rsvd_sn_set() - called when a new kvms is activated
  * @c0sk:   c0sk handle
  * @kvms:   handle to kvms being activated
  *
- * If c1 is enabled and replaying, this function is a no-op.
- *
- * If c1 is not replaying, or not enabled:
  * This function is invoked when activating a new KVMS. At this point, there
  * could be older threads still updating the old KVMS.
  * But there is at most one thread that
@@ -174,22 +150,12 @@ c0sk_cn_ingest_callback(
  *
  * Regardless, we always reserve a seqno in case we're here on behalf of a
  * txn flush.
- *
- * There needs to be a way for c1 to distinguish between 2 KVMSes. To achieve
- * this, bump up the seqno by 1 so the resulting seqno is larger than anything
- * in the current kvms.
  */
 static void
 c0sk_rsvd_sn_set(struct c0sk_impl *c0sk, struct c0_kvmultiset *kvms)
 {
     unsigned int inc = 2;
     u64          res;
-
-    if (atomic_read(&c0sk->c0sk_replaying))
-        return;
-
-    if (c0sk->c0sk_mhandle)
-        ++inc; /* c1 needs a way to distinguish between KVMSes */
 
     /* flush from txcommit context; reverve seqno for txn. */
 
@@ -416,14 +382,11 @@ c0sk_ingest_worker(struct work_struct *work)
     struct bonsai_kv *        bkv;
     struct kvset_builder *    bldr;
     struct kvset_builder **   bldrs;
-    const void *              last_key = NULL;
-    u16                       last_klen = 0;
     struct bonsai_val *       val_head;
     struct bonsai_val **      val_tailp;
     struct bonsai_val **      val_prevp;
     struct bonsai_val *       val;
     u64                       seqno;
-    u64                       last_skidx = 0;
     u16                       unsorted;
     s16                       debug;
     u16                       skidx_prev;
@@ -535,7 +498,7 @@ c0sk_ingest_worker(struct work_struct *work)
     while (bin_heap2_pop(minheap, (void **)&bkv)) {
         bool have_val = false;
 
-        last_skidx = skidx = key_immediate_index(&bkv->bkv_key_imm);
+        skidx = key_immediate_index(&bkv->bkv_key_imm);
 
         if (val_head && (bn_kv_cmp(bkv, bkv_prev) || skidx != skidx_prev)) {
             *val_tailp = NULL;
@@ -553,8 +516,6 @@ c0sk_ingest_worker(struct work_struct *work)
         }
 
         bkv_prev = bkv;
-        last_klen = key_imm_klen(&bkv->bkv_key_imm);
-        last_key = bkv->bkv_key;
 
         /* Append values from the current key to the list of values
          * from previous identical keys.  Swap adjacent values that
@@ -698,9 +659,6 @@ exit_err:
         c0sk_ingest_rec_perfc(&c0sk->c0sk_pc_ingest, PERFC_DI_C0SKING_FIN, go);
         if (ev(err))
             kvdb_health_error(c0sk->c0sk_kvdb_health, err);
-
-        if (ingested)
-            c0sk_cn_ingest_callback(c0sk, seqno_max, err, last_skidx, last_key, last_klen);
     }
 
     if (debug)
@@ -785,9 +743,6 @@ c0sk_coalesce(struct c0sk_impl *self, struct c0_kvmultiset *kvms)
     hwm = self->c0sk_kvdb_rp->c0_coalesce_sz * 1024 * 1024;
     hwm = (hwm * 80) / 100;
 
-    if (atomic_read(&self->c0sk_replaying) > 0)
-        hwm *= 2;
-
     if (!hwm || self->c0sk_closing)
         delay = 0;
     else
@@ -828,8 +783,7 @@ c0sk_coalesce(struct c0sk_impl *self, struct c0_kvmultiset *kvms)
             /* [HSE_REVISIT] For now, don't let coalesce list
              * get too big (size and length).
              */
-            if (((atomic_read(&self->c0sk_replaying) == 0) && self->c0sk_coalesce_sz >= hwm) ||
-                self->c0sk_coalesce_cnt > 16)
+            if (self->c0sk_coalesce_sz >= hwm || self->c0sk_coalesce_cnt > 16)
                 delay = 0;
 
             if (old->c0iw_iterc >= HSE_C0_KVSET_ITER_MAX * 75 / 100)
@@ -1022,8 +976,8 @@ c0sk_release_multiset(struct c0sk_impl *self, struct c0_kvmultiset *multiset)
  * c0sk_ingest_boost() - return %true if ingest boost is required
  * @self:       ptr to c0sk_impl
  *
- * It is desirable to boost the ingest process during c1 replay
- * and/or if the caller is a mongod replication worker thread.
+ * It is desirable to boost the ingest process if the caller is a mongod
+ * replication worker thread.
  */
 static bool
 c0sk_ingest_boost(struct c0sk_impl *self)
@@ -1039,7 +993,7 @@ c0sk_ingest_boost(struct c0sk_impl *self)
             return true;
     }
 
-    return atomic_read(&self->c0sk_replaying) > 0;
+    return false;
 }
 
 /**
@@ -1178,19 +1132,16 @@ errout:
 
 BullseyeCoverageSaveOff
 
-    merr_t
-    c0sk_queue_ingest(struct c0sk_impl *self, struct c0_kvmultiset *old, struct c0_kvmultiset *new)
+merr_t
+c0sk_queue_ingest(struct c0sk_impl *self, struct c0_kvmultiset *old, struct c0_kvmultiset *new)
 {
     struct mtx_node *   node;
     struct c0_usage     usage = { 0 };
-    struct c0kvmsm_info info = {};
-    struct c0kvmsm_info txinfo = {};
 
     bool   leader, created;
     u64    cycles;
     uint   conc;
     merr_t err;
-    size_t sz;
 
 genchk:
     if (c0kvms_gen_read(old) < atomic64_read(&self->c0sk_ingest_gen))
@@ -1246,10 +1197,6 @@ genchk:
     c0kvms_usage(old, &usage);
     c0kvms_used_set(old, usage.u_alloc - usage.u_free);
 
-    c0kvmsm_get_info(old, &info, &txinfo, true);
-    sz = info.c0ms_kvbytes + txinfo.c0ms_kvbytes;
-    c0kvms_mut_sz_set(old, sz);
-
     if (ev(new)) {
         /* do nothing */
     } else {
@@ -1260,7 +1207,6 @@ genchk:
             self->c0sk_cheap_sz,
             self->c0sk_kvdb_rp->c0_ingest_delay,
             self->c0sk_kvdb_seq,
-            !!self->c0sk_mhandle,
             &new);
 
         created = !err;
@@ -1402,7 +1348,6 @@ c0sk_merge_impl(
     uintptr_t seqnoref, *priv;
     uint      flags, i, iterc;
     size_t    itervsz;
-    u64       start;
     merr_t    err;
 
     if (ev(!self || !src || !dstp || !privp))
@@ -1420,7 +1365,6 @@ c0sk_merge_impl(
 
     flags = C0_KVSET_ITER_FLAG_PTOMB;
     priv = NULL;
-    start = 0;
     iterc = 0;
     err = 0;
 
@@ -1456,9 +1400,6 @@ c0sk_merge_impl(
     }
 
     seqnoref = HSE_REF_TO_SQNREF(priv);
-
-    if (c0kvms_is_tracked(dst))
-        start = jclock_ns;
 
     if (ev(c0kvms_should_ingest(dst), HSE_INFO)) {
         err = merr(ENOMEM);
@@ -1505,9 +1446,6 @@ unlock:
         return err;
     }
 
-    if (start > 0)
-        c0skm_reqtime_set(self->c0sk_mhandle, start);
-
     /* On success we return a with a reference on *dstp and
      * a reference on *privp which the caller must release.
      */
@@ -1532,7 +1470,6 @@ c0sk_putdel(
     const struct kvs_vtuple *vt,
     uintptr_t                seqnoref)
 {
-    u64    start = 0;
     merr_t err;
 
     while (1) {
@@ -1546,13 +1483,10 @@ c0sk_putdel(
             return merr(EINVAL);
         }
 
-        if (ev(c0kvms_should_ingest(dst)) && atomic_read(&self->c0sk_replaying) == 0) {
+        if (ev(c0kvms_should_ingest(dst))) {
             err = merr(ENOMEM);
             goto unlock;
         }
-
-        if (c0kvms_is_tracked(dst))
-            start = jclock_ns;
 
         kvs = c0kvms_get_hashed_c0kvset(dst, kt->kt_hash);
 
@@ -1583,9 +1517,6 @@ c0sk_putdel(
         c0kvms_putref(dst);
     }
 
-    if (start > 0)
-        c0skm_reqtime_set(self->c0sk_mhandle, start);
-
     return err;
 }
 
@@ -1614,19 +1545,6 @@ void
 c0sk_kvset_builder_destroy(struct c0sk *c0sk, struct kvset_builder *bldr)
 {
     kvset_builder_destroy(bldr);
-}
-
-struct c0sk_mutation *
-c0sk_get_mhandle(struct c0sk *handle)
-{
-    struct c0sk_impl *self;
-
-    if (!handle)
-        return 0;
-
-    self = c0sk_h2r(handle);
-
-    return self->c0sk_mhandle;
 }
 
 #if defined(HSE_UNIT_TEST_MODE) && HSE_UNIT_TEST_MODE == 1

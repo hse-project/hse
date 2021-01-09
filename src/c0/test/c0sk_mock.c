@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
 #include <assert.h>
@@ -202,7 +202,7 @@ create_mock_c0sk(struct c0sk **c0sk)
 
     *c0sk = (struct c0sk *)mock_c0sk;
 
-    return create_mock_c0skm(*c0sk);
+    return 0;
 }
 
 void

@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
 /*
@@ -77,6 +77,8 @@ pre(struct mtf_test_info *info)
     mapi_inject(mapi_idx_cndb_cn_blob_set, 0);
     mapi_inject(mapi_idx_kvset_pt_start, -1);
     mapi_inject_ptr(mapi_idx_ikvdb_get_mclass_policy, (void *)5);
+    mapi_inject_ptr(mapi_idx_ikvdb_get_csched, NULL);
+    mapi_inject(mapi_idx_ikvdb_rdonly, false);
 
     return 0;
 }
@@ -90,6 +92,30 @@ post(struct mtf_test_info *info)
     mapi_inject_clear();
 
     return 0;
+}
+
+/* Must be larger than sizeof(struct ikvdb_impl).
+ */
+const size_t dummy_ikvdb_sz = PAGE_SIZE * 8;
+
+/* Create a dummy ikvdb object that will trip a segfault when accessed.
+ */
+void *
+dummy_ikvdb_create(void)
+{
+    void *p;
+
+    p = mmap(NULL, dummy_ikvdb_sz, PROT_NONE, MAP_ANON | MAP_PRIVATE, -1, 0);
+    if (p == MAP_FAILED)
+        abort();
+
+    return p;
+}
+
+void
+dummy_ikvdb_destroy(void *p)
+{
+    munmap(p, dummy_ikvdb_sz);
 }
 
 /* --------------------------------------------------
@@ -242,7 +268,6 @@ MTF_DEFINE_UTEST_PREPOST(cn_cursor, create_prefix, pre, post)
     struct cndb        cndb;
     struct cndb_cn     cndbcn = cndb_cn_initializer(3, 0, 0);
     struct kvdb_kvs    kk = { 0 };
-    u64                dummy_ikvdb[32] = { 0 };
     struct kvs_cparams cp = {};
 
     merr_t err;
@@ -255,7 +280,7 @@ MTF_DEFINE_UTEST_PREPOST(cn_cursor, create_prefix, pre, post)
     ASSERT_NE(cndb.cndb_keepv, NULL);
     ASSERT_NE(cndb.cndb_tagv, NULL);
 
-    kk.kk_parent = (void *)&dummy_ikvdb;
+    kk.kk_parent = dummy_ikvdb_create();
     kk.kk_cparams = &cp;
     kk.kk_cparams->cp_fanout = 1 << 3;
 
@@ -269,6 +294,7 @@ MTF_DEFINE_UTEST_PREPOST(cn_cursor, create_prefix, pre, post)
     err = cn_close(cn);
     ASSERT_EQ(err, 0);
 
+    dummy_ikvdb_destroy(kk.kk_parent);
     free(cndb.cndb_workv);
     free(cndb.cndb_keepv);
     free(cndb.cndb_tagv);
@@ -283,7 +309,6 @@ MTF_DEFINE_UTEST_PREPOST(cn_cursor, create_noprefix, pre, post)
     struct cndb        cndb;
     struct cndb_cn     cndbcn = cndb_cn_initializer(3, 0, 0);
     struct kvdb_kvs    kk = { 0 };
-    u64                dummy_ikvdb[32] = { 0 };
     struct kvs_cparams cp = {};
 
     err = cndb_init(&cndb, ds, true, 0, CNDB_ENTRIES, 0, 0, &health);
@@ -295,7 +320,7 @@ MTF_DEFINE_UTEST_PREPOST(cn_cursor, create_noprefix, pre, post)
     ASSERT_NE(cndb.cndb_keepv, NULL);
     ASSERT_NE(cndb.cndb_tagv, NULL);
 
-    kk.kk_parent = (void *)&dummy_ikvdb;
+    kk.kk_parent = dummy_ikvdb_create();
     kk.kk_cparams = &cp;
     kk.kk_cparams->cp_fanout = 1 << 3;
 
@@ -309,6 +334,7 @@ MTF_DEFINE_UTEST_PREPOST(cn_cursor, create_noprefix, pre, post)
     err = cn_close(cn);
     ASSERT_EQ(err, 0);
 
+    dummy_ikvdb_destroy(kk.kk_parent);
     free(cndb.cndb_workv);
     free(cndb.cndb_keepv);
     free(cndb.cndb_tagv);
@@ -328,7 +354,6 @@ MTF_DEFINE_UTEST_PREPOST(cn_cursor, repeat_update, pre, post)
     struct cndb_cn cndbcn = cndb_cn_initializer(3, 0, 0);
     struct cursor_summary sum;
     struct kvdb_kvs    kk = { 0 };
-    u64                dummy_ikvdb[32] = { 0 };
     struct kvs_cparams cp = {};
 
     struct nkv_tab make[] = {
@@ -349,7 +374,7 @@ MTF_DEFINE_UTEST_PREPOST(cn_cursor, repeat_update, pre, post)
     ASSERT_NE(cndb.cndb_keepv, NULL);
     ASSERT_NE(cndb.cndb_tagv, NULL);
 
-    kk.kk_parent = (void *)&dummy_ikvdb;
+    kk.kk_parent = dummy_ikvdb_create();
     kk.kk_cparams = &cp;
     kk.kk_cparams->cp_fanout = 1 << 3;
 
@@ -379,6 +404,7 @@ MTF_DEFINE_UTEST_PREPOST(cn_cursor, repeat_update, pre, post)
     err = cn_close(cn);
     ASSERT_EQ(err, 0);
 
+    dummy_ikvdb_destroy(kk.kk_parent);
     free(cndb.cndb_workv);
     free(cndb.cndb_keepv);
     free(cndb.cndb_tagv);
@@ -405,7 +431,6 @@ MTF_DEFINE_UTEST_PREPOST(cn_cursor, root_1kvset, pre, post)
     struct cndb        cndb;
     struct cndb_cn     cndbcn = cndb_cn_initializer(3, 0, 0);
     struct kvdb_kvs    kk = { 0 };
-    u64                dummy_ikvdb[32] = { 0 };
     struct kvs_cparams cp = {};
 
     struct nkv_tab make[] = {
@@ -436,7 +461,7 @@ MTF_DEFINE_UTEST_PREPOST(cn_cursor, root_1kvset, pre, post)
     ASSERT_NE(cndb.cndb_keepv, NULL);
     ASSERT_NE(cndb.cndb_tagv, NULL);
 
-    kk.kk_parent = (void *)&dummy_ikvdb;
+    kk.kk_parent = dummy_ikvdb_create();
     kk.kk_cparams = &cp;
     kk.kk_cparams->cp_fanout = 1 << 3;
 
@@ -456,6 +481,7 @@ MTF_DEFINE_UTEST_PREPOST(cn_cursor, root_1kvset, pre, post)
     err = cn_close(cn);
     ASSERT_EQ(err, 0);
 
+    dummy_ikvdb_destroy(kk.kk_parent);
     free(cndb.cndb_workv);
     free(cndb.cndb_keepv);
     free(cndb.cndb_tagv);
@@ -484,7 +510,6 @@ MTF_DEFINE_UTEST_PREPOST(cn_cursor, root_4kvsets, pre, post)
     struct kvs_cparams  cp = {};
 
     struct kvdb_kvs kk = { 0 };
-    u64             dummy_ikvdb[32] = { 0 };
 
     /*
      * create 4 kvsets in root,
@@ -531,7 +556,7 @@ MTF_DEFINE_UTEST_PREPOST(cn_cursor, root_4kvsets, pre, post)
     ASSERT_NE(cndb.cndb_keepv, NULL);
     ASSERT_NE(cndb.cndb_tagv, NULL);
 
-    kk.kk_parent = (void *)&dummy_ikvdb;
+    kk.kk_parent = dummy_ikvdb_create();
     kk.kk_cparams = &cp;
     kk.kk_cparams->cp_fanout = 1 << 3;
 
@@ -573,6 +598,7 @@ MTF_DEFINE_UTEST_PREPOST(cn_cursor, root_4kvsets, pre, post)
     }
 #endif
 
+    dummy_ikvdb_destroy(kk.kk_parent);
     free(cndb.cndb_workv);
     free(cndb.cndb_keepv);
     free(cndb.cndb_tagv);
@@ -594,7 +620,6 @@ MTF_DEFINE_UTEST_PREPOST(cn_cursor, prefix_tree, pre, post)
     struct kvs_cparams cp = {};
 
     struct kvdb_kvs kk = { 0 };
-    u64             dummy_ikvdb[32] = { 0 };
 
     /*
      * create a tree with fanout 4, populate root, level 1,
@@ -686,7 +711,7 @@ MTF_DEFINE_UTEST_PREPOST(cn_cursor, prefix_tree, pre, post)
     ASSERT_NE(cndb.cndb_keepv, NULL);
     ASSERT_NE(cndb.cndb_tagv, NULL);
 
-    kk.kk_parent = (void *)&dummy_ikvdb;
+    kk.kk_parent = dummy_ikvdb_create();
     kk.kk_cparams = &cp;
     kk.kk_cparams->cp_fanout = 1 << 2;
 
@@ -724,6 +749,7 @@ MTF_DEFINE_UTEST_PREPOST(cn_cursor, prefix_tree, pre, post)
         kvset_iter_release(itv[i]);
     }
 
+    dummy_ikvdb_destroy(kk.kk_parent);
     free(cndb.cndb_workv);
     free(cndb.cndb_keepv);
     free(cndb.cndb_tagv);
@@ -744,7 +770,6 @@ MTF_DEFINE_UTEST_PREPOST(cn_cursor, cursor_seek, pre, post)
     struct cndb_cn cndbcn = cndb_cn_initializer(2, 0, 0);
 
     struct kvdb_kvs kk = { 0 };
-    u64             dummy_ikvdb[32] = { 0 };
 
     struct kvs_cparams cp = {};
 
@@ -841,7 +866,7 @@ MTF_DEFINE_UTEST_PREPOST(cn_cursor, cursor_seek, pre, post)
     ASSERT_NE(cndb.cndb_keepv, NULL);
     ASSERT_NE(cndb.cndb_tagv, NULL);
 
-    kk.kk_parent = (void *)&dummy_ikvdb;
+    kk.kk_parent = dummy_ikvdb_create();
     kk.kk_cparams = &cp;
     kk.kk_cparams->cp_fanout = 1 << 2;
 
@@ -890,6 +915,7 @@ MTF_DEFINE_UTEST_PREPOST(cn_cursor, cursor_seek, pre, post)
         kvset_iter_release(itv[i]);
     }
 
+    dummy_ikvdb_destroy(kk.kk_parent);
     free(cndb.cndb_workv);
     free(cndb.cndb_keepv);
     free(cndb.cndb_tagv);
@@ -931,7 +957,6 @@ MTF_DEFINE_UTEST_PREPOST(cn_cursor, capped_update, pre, post)
     struct cndb_cn        cndbcn = cndb_cn_initializer(3, 0, 0);
     struct cursor_summary sum;
     struct kvdb_kvs       kk = { 0 };
-    u64                   dummy_ikvdb[32] = { 0 };
     struct kvs_cparams    cp = {};
     int                   i;
     const int             initial_kvset_cnt = 4;
@@ -962,7 +987,7 @@ MTF_DEFINE_UTEST_PREPOST(cn_cursor, capped_update, pre, post)
     ASSERT_NE(cndb.cndb_keepv, NULL);
     ASSERT_NE(cndb.cndb_tagv, NULL);
 
-    kk.kk_parent = (void *)&dummy_ikvdb;
+    kk.kk_parent = dummy_ikvdb_create();
     kk.kk_cparams = &cp;
     kk.kk_cparams->cp_fanout = 1 << 3;
     kk.kk_cparams->cp_kvs_ext01 = 1;
@@ -1055,6 +1080,7 @@ MTF_DEFINE_UTEST_PREPOST(cn_cursor, capped_update, pre, post)
     err = cn_close(cn);
     ASSERT_EQ(err, 0);
 
+    dummy_ikvdb_destroy(kk.kk_parent);
     free(cndb.cndb_workv);
     free(cndb.cndb_keepv);
     free(cndb.cndb_tagv);
@@ -1085,7 +1111,6 @@ MTF_DEFINE_UTEST_PREPOST(cn_cursor, capped_update_errors, pre, post)
     struct cndb_cn        cndbcn = cndb_cn_initializer(3, 0, 0);
     struct cursor_summary sum;
     struct kvdb_kvs       kk = { 0 };
-    u64                   dummy_ikvdb[32] = { 0 };
     struct kvs_cparams    cp = {};
     int                   i;
     const int             initial_kvset_cnt = 2;
@@ -1116,7 +1141,7 @@ MTF_DEFINE_UTEST_PREPOST(cn_cursor, capped_update_errors, pre, post)
     ASSERT_NE(cndb.cndb_keepv, NULL);
     ASSERT_NE(cndb.cndb_tagv, NULL);
 
-    kk.kk_parent = (void *)&dummy_ikvdb;
+    kk.kk_parent = dummy_ikvdb_create();
     kk.kk_cparams = &cp;
     kk.kk_cparams->cp_fanout = 1 << 3;
     kk.kk_cparams->cp_kvs_ext01 = 1;
@@ -1155,6 +1180,7 @@ MTF_DEFINE_UTEST_PREPOST(cn_cursor, capped_update_errors, pre, post)
     err = cn_close(cn);
     ASSERT_EQ(err, 0);
 
+    dummy_ikvdb_destroy(kk.kk_parent);
     free(cndb.cndb_workv);
     free(cndb.cndb_keepv);
     free(cndb.cndb_tagv);

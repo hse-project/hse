@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
 #include <hse_util/platform.h>
@@ -20,7 +20,6 @@
 #include <hse_ikvdb/kvdb_health.h>
 #include <hse_ikvdb/c0.h>
 #include <hse_ikvdb/c0sk.h>
-#include <hse_ikvdb/c0skm.h>
 #include <hse_ikvdb/cn.h>
 #include <hse_ikvdb/c0_kvset.h>
 #include <hse_ikvdb/c0_kvmultiset.h>
@@ -360,19 +359,10 @@ c0_sync(struct c0 *handle)
 {
     struct c0_impl *self = c0_h2r(handle);
 
-    merr_t err;
-
     if (self->c0_rp->rdonly)
         return 0;
 
-    /* Issue c0sk_sync first so that the contents of the closing KVS is
-     * already in cN when c0skm_sync is invoked, hence less work for it.
-     * */
-    err = c0sk_sync(self->c0_c0sk);
-    if (err)
-        return ev(err);
-
-    return c0skm_sync(self->c0_c0sk);
+    return c0sk_sync(self->c0_c0sk);
 }
 
 u16
