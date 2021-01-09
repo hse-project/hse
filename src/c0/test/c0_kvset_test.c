@@ -254,13 +254,18 @@ MTF_DEFINE_UTEST_PREPOST(c0_kvset_test, basic_put_get_fail, no_fail_pre, no_fail
 
     ASSERT_EQ(0, atomic_read(&ingesting));
 
-    /* Fill up the kvs to trigger the ingesting flag
+    /* Fill up the kvs (no longer triggers the ingesting flag).
+     * We use a key that is larger than the value in an attempt
+     * to ensure that a delete after a failed put will fail for
+     * the same reason.
      */
-    while (1) {
-        u64 key = get_time_ns();
+    u64 key[8] = { 0 };
 
-        kvs_ktuple_init(&kt, &key, sizeof(key));
-        kvs_vtuple_init(&vt, &key, sizeof(key));
+    key[0] = get_cycles();
+
+    while (1) {
+        kvs_ktuple_init(&kt, key, sizeof(key));
+        kvs_vtuple_init(&vt, key, sizeof(key[0]));
 
         err = c0kvs_put(kvs, 0, &kt, &vt, seqnoref);
         err2 = merr_errno(err);
@@ -275,6 +280,8 @@ MTF_DEFINE_UTEST_PREPOST(c0_kvset_test, basic_put_get_fail, no_fail_pre, no_fail
 
         ASSERT_EQ(0, err);
         ASSERT_EQ(0, atomic_read(&ingesting));
+
+        key[0]++;
     }
 
     synchronize_rcu();
