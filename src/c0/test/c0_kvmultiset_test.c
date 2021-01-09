@@ -23,9 +23,6 @@
 #include <hse_ikvdb/kvb_builder.h>
 
 #include "../c0_ingest_work.h"
-#include "../c0skm_internal.h"
-#include "../c0_kvmsm.h"
-#include "../c0_kvmsm_internal.h"
 
 #include <assert.h>
 #include <stdlib.h>

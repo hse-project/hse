@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
 #include <hse_util/event_counter.h>
@@ -56,10 +56,8 @@ bn_val_alloc(struct bonsai_root *tree, const struct bonsai_sval *sval)
     v->bv_next = NULL;
     v->bv_free = NULL;
     v->bv_seqnoref = sval->bsv_seqnoref;
-    v->bv_flags = 0;
     v->bv_xlen = sval->bsv_xlen;
     v->bv_valuep = sval->bsv_val;
-    atomic64_set(&v->bv_priv, 0);
 
     if (vlen > 0)
         memcpy(v->bv_value, sval->bsv_val, vlen);
@@ -77,9 +75,7 @@ bn_kv_init(
 {
     struct bonsai_val *v;
     struct bonsai_kv * kv;
-
     size_t sz;
-    int    i;
 
     sz = sizeof(*kv) + key_imm_klen(key_imm);
 
@@ -91,12 +87,6 @@ bn_kv_init(
     kv->bkv_prev = NULL;
     kv->bkv_tomb = NULL;
     kv->bkv_es = NULL;
-
-    for (i = 0; i < BONSAI_MUT_LISTC; i++) {
-        INIT_S_LIST_HEAD(&kv->bkv_mnext[i]);
-        INIT_S_LIST_HEAD(&kv->bkv_txmnext[i]);
-    }
-    INIT_S_LIST_HEAD(&kv->bkv_txpend);
 
     kv->bkv_flags = 0;
     kv->bkv_key_imm = *key_imm;

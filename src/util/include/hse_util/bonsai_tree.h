@@ -22,7 +22,6 @@
 #pragma GCC visibility push(hidden)
 
 #define BONSAI_TREE_BALANCE_THRESHOLD 4
-#define BONSAI_MUT_LISTC 2
 
 enum bonsai_ior_code {
     B_IOR_INSERTED = 1,
@@ -30,11 +29,6 @@ enum bonsai_ior_code {
     B_IOR_ADDED_VALUE = 3,
     B_IOR_REP_OR_ADD = 4,
 };
-
-/*
- * Bonsai value flags
- */
-#define BV_TXNVAL (0x01)
 
 #define IS_IOR_INS(_c) ((_c) == B_IOR_INSERTED)
 #define IS_IOR_REP(_c) ((_c) == B_IOR_REPLACED)
@@ -61,8 +55,6 @@ struct bonsai_skey {
  * @bv_next:      ptr to next value in list
  * @bv_free:      ptr to next value in free list
  * @bv_seqnoref:  sequence number reference
- * @bv_priv:      client's private value
- * @bv_flags:     flags, used by the client
  * @bv_xlen:      opaque encoded value length
  * @bv_valuep:    ptr to value
  * @bv_value:     value data
@@ -78,8 +70,6 @@ struct bonsai_val {
     struct bonsai_val *bv_next;
     struct bonsai_val *bv_free;
     uintptr_t          bv_seqnoref;
-    atomic64_t         bv_priv;
-    unsigned int       bv_flags;
     u64                bv_xlen;
     void              *bv_valuep;
     char               bv_value[];
@@ -171,9 +161,6 @@ bonsai_sval_vlen(const struct bonsai_sval *bsv)
  * @bkv_prev:
  * @bkv_next:
  * @bkv_es:
- * @bkv_mnext:
- * @bkv_txmnext:
- * @bkv_txpend:
  * @bkv_key:
  *
  * A bonsai_kv includes the key and a list of bonsai_val objects.
@@ -186,9 +173,6 @@ struct bonsai_kv {
     struct bonsai_kv *     bkv_next;
     struct bonsai_kv *     bkv_tomb;
     struct element_source *bkv_es;
-    struct s_list_head     bkv_mnext[BONSAI_MUT_LISTC];
-    struct s_list_head     bkv_txmnext[BONSAI_MUT_LISTC];
-    struct s_list_head     bkv_txpend;
     char                   bkv_key[];
 };
 
@@ -525,30 +509,6 @@ bn_kv_cmp_rev(const void *lhs, const void *rhs)
     }
 
     return key_inner_cmp(r_key, r_klen, l_key, l_klen);
-}
-
-static inline void
-bv_priv_set(struct bonsai_val *val, u64 priv)
-{
-    atomic64_set(&val->bv_priv, priv);
-}
-
-static inline u64
-bv_priv_get(struct bonsai_val *val)
-{
-    return atomic64_read(&val->bv_priv);
-}
-
-static inline u8
-bv_is_txn(struct bonsai_val *val)
-{
-    return (val->bv_flags & BV_TXNVAL);
-}
-
-static inline void
-bv_set_txn(struct bonsai_val *val)
-{
-    val->bv_flags |= BV_TXNVAL;
 }
 
 #pragma GCC visibility pop
