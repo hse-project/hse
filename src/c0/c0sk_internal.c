@@ -21,7 +21,6 @@
 #include <hse_ikvdb/c0sk_perfc.h>
 #include <hse_ikvdb/cn.h>
 #include <hse_ikvdb/cndb.h>
-#include <hse_ikvdb/c1.h>
 #include <hse_ikvdb/kvset_builder.h>
 #include <hse_ikvdb/c0_kvmultiset.h>
 #include <hse_ikvdb/c0_kvset.h>
