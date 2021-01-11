@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
 #ifndef HSE_KVDB_THROTTLE_H
@@ -17,8 +17,6 @@
 enum {
     THROTTLE_SENSOR_CSCHED,
     THROTTLE_SENSOR_C0SK,
-    THROTTLE_SENSOR_C0SKM_DTIME,
-    THROTTLE_SENSOR_C0SKM_DSIZE,
     THROTTLE_SENSOR_CNT
 };
 

@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
 #ifndef HSE_KVS_C0SK_INTERNAL_H
@@ -70,7 +70,6 @@ struct c0sk_impl {
     struct workqueue_struct *c0sk_wq_maint;
     struct mtx_pool *        c0sk_mtx_pool;
     struct kvdb_health *     c0sk_kvdb_health;
-    struct kvdb_callback *   c0sk_callback; /* not owned by c0sk */
     struct csched *          c0sk_csched;
     struct throttle_sensor * c0sk_sensor;
     struct cn *              c0sk_cnv[HSE_KVS_COUNT_MAX];
@@ -101,8 +100,6 @@ struct c0sk_impl {
     u64      c0sk_release_gen;
 
     atomic64_t *          c0sk_kvdb_seq;
-    struct c0sk_mutation *c0sk_mhandle;
-    atomic_t              c0sk_replaying;
     bool                  c0sk_closing;
     bool                  c0sk_syncing;
 

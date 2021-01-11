@@ -124,15 +124,3 @@ diag_kvdb_get_cndb(struct hse_kvdb *handle, struct cndb **cndb)
 
     return 0UL;
 }
-
-merr_t
-diag_kvdb_get_c1(struct hse_kvdb *handle, u64 ingestid, struct c1 **c1)
-{
-    merr_t err;
-
-    err = ikvdb_diag_c1((struct ikvdb *)handle, ingestid, c1);
-    if (ev(err))
-        return err;
-
-    return 0UL;
-}

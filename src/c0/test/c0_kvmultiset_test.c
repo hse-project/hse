@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
 #include <hse_ut/framework.h>
@@ -23,9 +23,6 @@
 #include <hse_ikvdb/kvb_builder.h>
 
 #include "../c0_ingest_work.h"
-#include "../c0skm_internal.h"
-#include "../c0_kvmsm.h"
-#include "../c0_kvmsm_internal.h"
 
 #include <assert.h>
 #include <stdlib.h>
@@ -75,7 +72,7 @@ MTF_DEFINE_UTEST_PREPOST(c0_kvmultiset_test, basic, no_fail_pre, no_fail_post)
     merr_t                err;
     u32                   rc;
 
-    err = c0kvms_create(1, HSE_C0_CHEAP_SZ_DFLT, 0, 0, true, &kvms);
+    err = c0kvms_create(1, HSE_C0_CHEAP_SZ_DFLT, 0, 0, &kvms);
     ASSERT_EQ(0, err);
     ASSERT_NE((struct c0_kvmultiset *)0, kvms);
 
@@ -100,7 +97,7 @@ MTF_DEFINE_UTEST_PREPOST(c0_kvmultiset_test, basic_create, no_fail_pre, no_fail_
 
     const int WIDTH = 8;
 
-    err = c0kvms_create(WIDTH, HSE_C0_CHEAP_SZ_DFLT, 0, 0, true, &kvms);
+    err = c0kvms_create(WIDTH, HSE_C0_CHEAP_SZ_DFLT, 0, 0, &kvms);
     ASSERT_EQ(0, err);
     ASSERT_NE((struct c0_kvmultiset *)0, kvms);
 
@@ -122,7 +119,7 @@ MTF_DEFINE_UTEST_PREPOST(c0_kvmultiset_test, limit_create, no_fail_pre, no_fail_
 
     const int WIDTH = -1;
 
-    err = c0kvms_create(WIDTH, HSE_C0_CHEAP_SZ_DFLT, 0, 0, true, &kvms);
+    err = c0kvms_create(WIDTH, HSE_C0_CHEAP_SZ_DFLT, 0, 0, &kvms);
     ASSERT_EQ(0, err);
     ASSERT_NE((struct c0_kvmultiset *)0, kvms);
 
@@ -141,7 +138,7 @@ MTF_DEFINE_UTEST_PREPOST(c0_kvmultiset_test, create_insert_check, no_fail_pre, n
 
     ASSERT_LT(WIDTH, 256);
 
-    err = c0kvms_create(WIDTH, HSE_C0_CHEAP_SZ_DFLT, 0, 0, true, &kvms);
+    err = c0kvms_create(WIDTH, HSE_C0_CHEAP_SZ_DFLT, 0, 0, &kvms);
     ASSERT_EQ(0, err);
     ASSERT_NE((struct c0_kvmultiset *)0, kvms);
 
@@ -228,7 +225,7 @@ MTF_DEFINE_UTEST_PREPOST(c0_kvmultiset_test, ingest_sk, no_fail_pre, no_fail_pos
 
     ASSERT_LT(WIDTH, 200);
 
-    err = c0kvms_create(WIDTH, HSE_C0_CHEAP_SZ_DFLT, 0, 0, true, &kvms);
+    err = c0kvms_create(WIDTH, HSE_C0_CHEAP_SZ_DFLT, 0, 0, &kvms);
     ASSERT_EQ(0, err);
     ASSERT_NE((struct c0_kvmultiset *)NULL, kvms);
 
@@ -339,47 +336,6 @@ MTF_DEFINE_UTEST_PREPOST(c0_kvmultiset_test, ingest_sk, no_fail_pre, no_fail_pos
     assert(usage.u_keyb == keyb_out);
     assert(usage.u_valb == valb_out);
 
-    c0kvms_putref(kvms);
-}
-
-MTF_DEFINE_UTEST_PREPOST(c0_kvmultiset_test, ingest_mutation_test, no_fail_pre, no_fail_post)
-{
-    struct c0_kvmultiset *    kvms = 0;
-    struct kvb_builder_iter **iterv;
-
-    merr_t    err;
-    const int WIDTH = 3;
-    int       i;
-
-    err = c0kvms_create(WIDTH, HSE_C0_CHEAP_SZ_DFLT, 0, 0, true, &kvms);
-    ASSERT_EQ(0, err);
-    ASSERT_NE((struct c0_kvmultiset *)NULL, kvms);
-
-    err = c0kvmsm_iterv_alloc(kvms, 1, 0, 2, 10, &iterv);
-    ASSERT_EQ(0, err);
-
-    for (i = 0; i < 2; i++)
-        kvb_builder_iter_destroy(iterv[i]);
-
-    mapi_inject(mapi_idx_malloc, 0);
-    err = c0kvmsm_iterv_alloc(kvms, 1, 0, 2, 10, &iterv);
-    ASSERT_EQ(ENOMEM, merr_errno(err));
-    mapi_inject_unset(mapi_idx_malloc);
-
-    mapi_inject_once(mapi_idx_malloc, 2, 0);
-    err = c0kvmsm_iterv_alloc(kvms, 1, 0, 2, 10, &iterv);
-    ASSERT_EQ(ENOMEM, merr_errno(err));
-    mapi_inject_unset(mapi_idx_malloc);
-
-    mapi_inject_once(mapi_idx_malloc, 3, 0);
-    err = c0kvmsm_iterv_alloc(kvms, 1, 0, 2, 10, &iterv);
-    ASSERT_EQ(ENOMEM, merr_errno(err));
-    mapi_inject_unset(mapi_idx_malloc);
-
-    free(iterv);
-
-    c0kvms_unset_mutating(kvms);
-    ASSERT_EQ(false, c0kvms_is_mutating(kvms));
     c0kvms_putref(kvms);
 }
 

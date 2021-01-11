@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
 #include <hse_util/assert.h>
@@ -21,7 +21,6 @@
 #include <hse_ikvdb/c0_kvmultiset.h>
 #include <hse_ikvdb/c0.h>
 #include <hse_ikvdb/c0sk.h>
-#include <hse_ikvdb/c0skm.h>
 #include <hse_ikvdb/limits.h>
 
 #include "viewset.h"
@@ -331,7 +330,6 @@ kvdb_ctxn_enable_inserts(struct kvdb_ctxn_impl *ctxn)
             ctxn->ctxn_heap_sz,
             ctxn->ctxn_ingest_delay,
             ctxn->ctxn_kvdb_seq_addr,
-            !!c0sk_get_mhandle(ctxn->ctxn_c0sk),
             &ctxn->ctxn_kvms);
         if (ev(err))
             return err;
@@ -782,7 +780,6 @@ retry:
     if (dst)
         *priv = ref;
 
-    c0skm_set_tseqno(ctxn->ctxn_c0sk, commit_sn);
     atomic64_inc_rel(ctxn->ctxn_tseqno_tail);
 
     locks = ctxn->ctxn_locks_handle;

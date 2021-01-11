@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
 #include <hse_ut/framework.h>
@@ -26,7 +26,6 @@
 #include "../c0/c0sk_internal.h"
 
 #include "mock_c0cn.h"
-#include "mock_c1.h"
 #include <dirent.h>
 
 /*
@@ -42,8 +41,6 @@ test_pre(struct mtf_test_info *ti)
     mock_kvdb_log_set();
     mock_cndb_set();
     mock_c0cn_set();
-    mock_c1_set();
-    mock_c0skm_set();
 
     kvs_cp = kvs_cparams_defaults();
     mapi_inject_ptr(mapi_idx_cndb_cn_cparams, &kvs_cp);
@@ -67,8 +64,6 @@ test_post(struct mtf_test_info *ti)
 {
     mock_kvdb_log_unset();
     mock_c0cn_unset();
-    mock_c1_unset();
-    mock_c0skm_unset();
 
     mapi_inject_unset(mapi_idx_cn_get_rp);
     mapi_inject_unset(mapi_idx_cn_get_cnid);
@@ -88,8 +83,6 @@ test_pre_c0(struct mtf_test_info *ti)
     mock_kvdb_log_set();
     mock_cndb_set();
     mock_cn_set();
-    mock_c1_set();
-    mock_c0skm_set();
 
     return 0;
 }
@@ -99,8 +92,6 @@ test_post_c0(struct mtf_test_info *ti)
 {
     mock_kvdb_log_unset();
     mock_cn_unset();
-    mock_c1_unset();
-    mock_c0skm_unset();
 
     return 0;
 }

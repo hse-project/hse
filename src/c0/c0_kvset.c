@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
 #include <hse_util/platform.h>
@@ -256,104 +256,6 @@ c0kvs_seqno_set(struct c0_kvset_impl *c0kvs, struct bonsai_val *bv)
     return seq;
 }
 
-static inline bool
-c0kvsm_insert_bkv_nontx(struct c0_kvsetm *ckm, struct bonsai_kv *kv, u8 idx)
-{
-    if (s_list_empty(&kv->bkv_mnext[idx])) {
-        s_list_add_tail(&kv->bkv_mnext[idx], &ckm->c0m_tail);
-        ++ckm->c0m_kcnt;
-
-        return false;
-    }
-
-    return true;
-}
-
-static inline bool
-c0kvsm_insert_bkv_tx(struct c0_kvsetm *ckm, struct bonsai_kv *kv, u8 idx)
-{
-    ckm->c0m_minseqno = 0;
-
-    if (s_list_empty(&kv->bkv_txmnext[idx])) {
-        s_list_add_tail(&kv->bkv_txmnext[idx], &ckm->c0m_tail);
-        ++ckm->c0m_kcnt;
-
-        return false;
-    }
-
-    return true;
-}
-
-static inline void
-c0kvsm_update_seqno(struct c0_kvsetm *ckm, u64 seqno)
-{
-    if (seqno < ckm->c0m_minseqno)
-        ckm->c0m_minseqno = seqno;
-
-    if (seqno > ckm->c0m_maxseqno)
-        ckm->c0m_maxseqno = seqno;
-}
-
-static void
-c0kvsm_insert_bkv(
-    struct c0_kvset * handle,
-    u32               code,
-    struct bonsai_kv *kv,
-    u64               seqno,
-    u64               klen,
-    u64               vlen,
-    u64               ovlen,
-    bool              istxn)
-{
-    struct c0_kvset_impl *c0kvs;
-    struct c0_kvsetm *    ckm;
-
-    bool found = false;
-    u8   idx;
-
-    c0kvs = c0_kvset_h2r(handle);
-
-    mutex_lock(&c0kvs->c0s_mlock);
-
-    idx = c0kvsm_get_mindex(handle);
-
-    if (istxn) {
-        ckm = &c0kvs->c0s_txm[idx];
-        found = c0kvsm_insert_bkv_tx(ckm, kv, idx);
-    } else {
-        ckm = &c0kvs->c0s_m[idx];
-        found = c0kvsm_insert_bkv_nontx(ckm, kv, idx);
-        c0kvsm_update_seqno(ckm, seqno);
-    }
-
-    /* Include key size in the mutation list only if the key gets added
-     * to the list.
-     * */
-    if (!found)
-        ckm->c0m_ksize += klen;
-
-    ckm->c0m_vsize += vlen;
-    ++ckm->c0m_vcnt;
-
-    /* If:
-     *     1. bonsai_kv is already part of mutation list AND
-     *     2. The value is replaced and the replaced value element
-     *     has a sequence number in the range
-     *     [c0m_minseqref, c0m_maxseqref] or an invalid sequence no.
-     *     in the case of a transaction.
-     * then:
-     *     deduct the old value length.
-     */
-    if (IS_IOR_REP(code) && found &&
-        (istxn || (seqno >= ckm->c0m_minseqno && seqno <= ckm->c0m_maxseqno)) &&
-        ckm->c0m_vsize >= ovlen) {
-        ckm->c0m_vsize -= ovlen;
-        --ckm->c0m_vcnt;
-    }
-
-    mutex_unlock(&c0kvs->c0s_mlock);
-}
-
 /**
  * c0kvs_ior_cb() - Callback method to update stats on insert/replace and
  *                  attach a value element to the values list.
@@ -382,29 +284,21 @@ c0kvs_ior_cb(
 
     uintptr_t    seqnoref;
     u64          seqno = 0;
-    u64          mut_seqno = 0;
     const void * o_val;
     unsigned int o_vlen;
     const void * n_val;
     unsigned int n_vlen;
-    bool         tracked;
-    bool         txn_op, txn_merge, txn_put;
+    bool         txn_merge;
     u16          klen;
 
     state = HSE_SQNREF_STATE_UNDEFINED;
     c0kvs = c0_kvset_h2r(cli_rock);
-    txn_op = false;
-    txn_merge = false;
-    txn_put = false;
-    tracked = c0kvs->c0s_mut_tracked;
     klen = key_imm_klen(&kv->bkv_key_imm);
 
     seqnoref = IS_IOR_INS(*code) ? kv->bkv_values->bv_seqnoref : new_val->bv_seqnoref;
     state = seqnoref_to_seqno(seqnoref, &seqno);
 
     txn_merge = state == HSE_SQNREF_STATE_INVALID;
-    txn_put = state == HSE_SQNREF_STATE_UNDEFINED;
-    txn_op = txn_put || txn_merge;
 
     if (IS_IOR_INS(*code)) {
         struct bonsai_val *val;
@@ -419,17 +313,6 @@ c0kvs_ior_cb(
             seqno = c0kvs_seqno_set(c0kvs, val);
 
         c0kvs_ior_stats(c0kvs, *code, NULL, 0, NULL, 0, kv->bkv_key, klen, n_val, n_vlen);
-
-        if (!tracked)
-            return;
-
-        /* Flag the value as transaction mutation. */
-        if (txn_op)
-            bv_set_txn(val);
-        else
-            mut_seqno = seqno;
-
-        c0kvsm_insert_bkv(cli_rock, *code, kv, mut_seqno, klen, n_vlen, 0, txn_op);
 
         return;
     }
@@ -513,16 +396,7 @@ c0kvs_ior_cb(
     if (IS_IOR_REP(*code))
         *old_val = old;
 
-    if (!tracked)
-        return;
-
-    /* Flag the value as transaction mutation. */
-    if (txn_op)
-        bv_set_txn(new_val);
-    else
-        mut_seqno = seqno;
-
-    c0kvsm_insert_bkv(cli_rock, *code, kv, mut_seqno, klen, n_vlen, o_vlen, txn_op);
+    return;
 }
 
 static __always_inline bool
@@ -625,49 +499,11 @@ c0kvs_findpfxval(struct bonsai_kv *kv, uintptr_t seqnoref)
     return val;
 }
 
-void
-c0kvsm_reset(struct c0_kvsetm *ckm)
-{
-    if (ev(!ckm))
-        return;
-
-    INIT_S_LIST_HEAD(&ckm->c0m_head);
-    ckm->c0m_tail = &ckm->c0m_head;
-    ckm->c0m_minseqno = U64_MAX;
-    ckm->c0m_maxseqno = 0;
-    ckm->c0m_ksize = 0;
-    ckm->c0m_vsize = 0;
-    ckm->c0m_kcnt = 0;
-    ckm->c0m_vcnt = 0;
-}
-
-static void
-c0kvsm_init(struct c0_kvset *handle)
-{
-    struct c0_kvset_impl *set;
-
-    int i;
-
-    if (ev(!handle))
-        return;
-
-    set = c0_kvset_h2r(handle);
-
-    for (i = 0; i < BONSAI_MUT_LISTC; i++) {
-        c0kvsm_reset(&set->c0s_m[i]);
-        c0kvsm_reset(&set->c0s_txm[i]);
-    }
-    c0kvsm_reset(&set->c0s_txpend);
-
-    set->c0s_mindex = 0;
-}
-
 merr_t
 c0kvs_create(
     size_t            alloc_sz,
     atomic64_t *      kvdb_seqno,
     atomic64_t *      kvms_seqno,
-    bool              tracked,
     struct c0_kvset **handlep)
 {
     struct c0_kvset_impl *set;
@@ -698,7 +534,6 @@ c0kvs_create(
     set->c0s_ingesting = &c0kvs_ingesting;
     atomic_set(&set->c0s_finalized, 0);
     mutex_init(&set->c0s_mutex);
-    mutex_init(&set->c0s_mlock);
 
     err = bn_create(cheap, HSE_C0_BNODE_SLAB_SZ, c0kvs_ior_cb, set, &set->c0s_broot);
     if (ev(err)) {
@@ -711,11 +546,8 @@ c0kvs_create(
 created:
     set->c0s_kvdb_seqno = kvdb_seqno;
     set->c0s_kvms_seqno = kvms_seqno;
-    set->c0s_mut_tracked = tracked;
 
     *handlep = &set->c0s_handle;
-
-    c0kvsm_init(*handlep);
 
     return 0;
 }
@@ -724,8 +556,6 @@ static void
 c0kvs_destroy_impl(struct c0_kvset_impl *set)
 {
     mutex_destroy(&set->c0s_mutex);
-    mutex_destroy(&set->c0s_mlock);
-
     cheap_destroy(set->c0s_cheap);
 }
 
@@ -782,8 +612,6 @@ c0kvs_reset(struct c0_kvset *handle, size_t sz)
     set->c0s_total_key_bytes = 0;
     set->c0s_total_value_bytes = 0;
     set->c0s_num_keys = 0;
-
-    c0kvsm_init(handle);
 }
 
 void
@@ -1377,60 +1205,4 @@ c0kvs_preserve_tombspan(
     rcu_read_unlock();
 
     return cmp >= 0;
-}
-
-void
-c0kvs_enable_mutation(struct c0_kvset *handle)
-{
-    struct c0_kvset_impl *self = c0_kvset_h2r(handle);
-
-    self->c0s_mut_tracked = true;
-}
-
-u8
-c0kvsm_get_mindex(struct c0_kvset *handle)
-{
-    struct c0_kvset_impl *self = c0_kvset_h2r(handle);
-
-    return self->c0s_mindex;
-}
-
-void
-c0kvsm_switch(struct c0_kvset *handle)
-{
-    struct c0_kvset_impl *self = c0_kvset_h2r(handle);
-    u8                    idx;
-
-    idx = c0kvsm_get_mindex(handle) ^ 1;
-
-    assert(s_list_empty(&self->c0s_m[idx].c0m_head));
-    assert(s_list_empty(&self->c0s_txm[idx].c0m_head));
-
-    mutex_lock(&self->c0s_mlock);
-    self->c0s_mindex = idx;
-    mutex_unlock(&self->c0s_mlock);
-}
-
-struct c0_kvsetm *
-c0kvsm_get(struct c0_kvset *handle, u8 mindex)
-{
-    struct c0_kvset_impl *self = c0_kvset_h2r(handle);
-
-    return &self->c0s_m[mindex];
-}
-
-struct c0_kvsetm *
-c0kvsm_get_tx(struct c0_kvset *handle, u8 mindex)
-{
-    struct c0_kvset_impl *self = c0_kvset_h2r(handle);
-
-    return &self->c0s_txm[mindex];
-}
-
-struct c0_kvsetm *
-c0kvsm_get_txpend(struct c0_kvset *handle)
-{
-    struct c0_kvset_impl *self = c0_kvset_h2r(handle);
-
-    return &self->c0s_txpend;
 }

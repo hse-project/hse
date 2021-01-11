@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
 #define MTF_MOCK_IMPL_c0kvms
@@ -49,12 +49,6 @@
  * @c0ms_priv_base:     base of priv memory pool dedicated
  * @c0ms_priv_lock:     protects certain c0ms_priv_* fields
  * @c0ms_priv_refcnt:   count of active private regions
- * @c0ms_mut_mtx:       per c0kvms mutex used in the mutation logic
- * @c0ms_mut_cv:        per c0kvms cv used in the mutation logic
- * @c0ms_mutating:      used if c0ms_ingesting > 0
- * @c0ms_mut_tracked:   mutations tracked or not
- * @c0ms_mut_sz:        mutation size (in bytes)
- * @c0ms_num_sets:      the number of c0 kvsets
  * @c0ms_resetsz:       size used by fully set up c0kvms
  * @c0ms_sets:          vector of c0 kvset pointers
  */
@@ -68,8 +62,6 @@ struct c0_kvmultiset_impl {
     __aligned(SMP_CACHE_BYTES) atomic_t c0ms_ingesting;
     bool                     c0ms_ingested;
     bool                     c0ms_finalized;
-    bool                     c0ms_mutating;
-    bool                     c0ms_mut_tracked;
     size_t                   c0ms_txn_thresh_lo;
     size_t                   c0ms_txn_thresh_hi;
     struct c0_ingest_work *  c0ms_ingest_work;
@@ -87,11 +79,7 @@ struct c0_kvmultiset_impl {
 
     __aligned(SMP_CACHE_BYTES) atomic_t c0ms_priv_refcnt;
 
-    __aligned(SMP_CACHE_BYTES) struct mutex c0ms_mut_mtx;
-    struct cv c0ms_mut_cv;
-
-    size_t c0ms_used;
-    size_t c0ms_mut_sz;
+    __aligned(SMP_CACHE_BYTES) size_t c0ms_used;
 
     __aligned(SMP_CACHE_BYTES) u32 c0ms_num_sets;
     u32              c0ms_resetsz;
@@ -179,14 +167,6 @@ c0kvms_is_ingested(struct c0_kvmultiset *handle)
     return self->c0ms_ingested;
 }
 
-bool
-c0kvms_is_tracked(struct c0_kvmultiset *handle)
-{
-    struct c0_kvmultiset_impl *self = c0_kvmultiset_h2r(handle);
-
-    return self->c0ms_mut_tracked;
-}
-
 void
 c0kvms_ingest_delay_set(struct c0_kvmultiset *handle, u64 delay)
 {
@@ -237,37 +217,6 @@ c0kvms_is_ingesting(struct c0_kvmultiset *handle)
     struct c0_kvmultiset_impl *self = c0_kvmultiset_h2r(handle);
 
     return atomic_read(&self->c0ms_ingesting) > 0;
-}
-
-bool
-c0kvms_is_mutating(struct c0_kvmultiset *handle)
-{
-    struct c0_kvmultiset_impl *self = c0_kvmultiset_h2r(handle);
-
-    return self->c0ms_mutating;
-}
-
-void
-c0kvms_unset_mutating(struct c0_kvmultiset *handle)
-{
-    struct c0_kvmultiset_impl *self = c0_kvmultiset_h2r(handle);
-
-    self->c0ms_mutating = false;
-}
-
-void
-c0kvms_enable_mutation(struct c0_kvmultiset *handle)
-{
-    struct c0_kvmultiset_impl *self = c0_kvmultiset_h2r(handle);
-    int                        i;
-
-    self->c0ms_mut_tracked = true;
-
-    for (i = 0; i < self->c0ms_num_sets; ++i) {
-        struct c0_kvset *c0kvs = self->c0ms_sets[i];
-
-        c0kvs_enable_mutation(c0kvs);
-    }
 }
 
 u64
@@ -345,22 +294,6 @@ c0kvms_used_set(struct c0_kvmultiset *handle, size_t used)
     struct c0_kvmultiset_impl *self = c0_kvmultiset_h2r(handle);
 
     self->c0ms_used = used;
-}
-
-void
-c0kvms_mut_sz_set(struct c0_kvmultiset *handle, size_t mut_sz)
-{
-    struct c0_kvmultiset_impl *self = c0_kvmultiset_h2r(handle);
-
-    self->c0ms_mut_sz = mut_sz;
-}
-
-size_t
-c0kvms_mut_sz_get(struct c0_kvmultiset *handle)
-{
-    struct c0_kvmultiset_impl *self = c0_kvmultiset_h2r(handle);
-
-    return self->c0ms_mut_sz;
 }
 
 size_t
@@ -880,7 +813,6 @@ c0kvms_create(
     size_t                 alloc_sz,
     u64                    ingest_delay,
     atomic64_t *           kvdb_seq,
-    bool                   tracked,
     struct c0_kvmultiset **multiset)
 {
     struct c0_kvmultiset_impl *kvms;
@@ -922,12 +854,7 @@ c0kvms_create(
     kvms->c0ms_priv_max = HSE_C0KVMS_PRIV_MAX;
     cv_init(&kvms->c0ms_priv_cv, "c0ms_priv_cv");
 
-    mutex_init(&kvms->c0ms_mut_mtx);
-    cv_init(&kvms->c0ms_mut_cv, "c0ms_mut_cv");
-
     kvms->c0ms_ingest_delay = ingest_delay;
-    kvms->c0ms_mutating = true;
-    kvms->c0ms_mut_tracked = tracked;
     kvms->c0ms_rsvd_sn = HSE_SQNREF_INVALID;
 
     /* mark this seqno 'not in use'. */
@@ -946,7 +873,7 @@ c0kvms_create(
         sz = alloc_sz;
 
     for (i = 0; i < num_sets; ++i) {
-        err = c0kvs_create(sz, kvdb_seq, &kvms->c0ms_seqno, tracked, &kvms->c0ms_sets[i]);
+        err = c0kvs_create(sz, kvdb_seq, &kvms->c0ms_seqno, &kvms->c0ms_sets[i]);
         if (ev(err)) {
             if (i > 1)
                 break;
@@ -1057,7 +984,6 @@ c0kvms_reset(struct c0_kvmultiset *handle)
 
     self->c0ms_finalized = false;
     self->c0ms_ingested = false;
-    self->c0ms_mutating = true;
 
     resetsz = self->c0ms_resetsz;
 
@@ -1206,38 +1132,6 @@ c0kvms_preserve_tombspan(
     }
 
     return true;
-}
-
-void
-c0kvms_mlock(struct c0_kvmultiset *handle)
-{
-    struct c0_kvmultiset_impl *self = c0_kvmultiset_h2r(handle);
-
-    mutex_lock(&self->c0ms_mut_mtx);
-}
-
-void
-c0kvms_munlock(struct c0_kvmultiset *handle)
-{
-    struct c0_kvmultiset_impl *self = c0_kvmultiset_h2r(handle);
-
-    mutex_unlock(&self->c0ms_mut_mtx);
-}
-
-void
-c0kvms_mwait(struct c0_kvmultiset *handle)
-{
-    struct c0_kvmultiset_impl *self = c0_kvmultiset_h2r(handle);
-
-    cv_wait(&self->c0ms_mut_cv, &self->c0ms_mut_mtx);
-}
-
-void
-c0kvms_msignal(struct c0_kvmultiset *handle)
-{
-    struct c0_kvmultiset_impl *self = c0_kvmultiset_h2r(handle);
-
-    cv_signal(&self->c0ms_mut_cv);
 }
 
 merr_t

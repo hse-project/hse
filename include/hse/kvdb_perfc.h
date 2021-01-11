@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
 #ifndef HSE_KVDB_PERFC_API_H
@@ -135,8 +135,6 @@ enum kvdb_perfc_sidx_kvdb_metrics {
 enum kvdb_perfc_sidx_api_throttle {
     PERFC_DI_THSR_CSCHED,
     PERFC_DI_THSR_C0SK,
-    PERFC_DI_THSR_C0SKM_DTIME,
-    PERFC_DI_THSR_C0SKM_DSIZE,
     PERFC_DI_THSR_MAX,
     PERFC_DI_THSR_MAVG,
     PERFC_EN_THSR

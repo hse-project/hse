@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
 #include <hse_ut/framework.h>
@@ -20,7 +20,6 @@
 
 #include "hse_ikvdb/c0.h"
 #include "mock_c0cn.h"
-#include "mock_c1.h"
 
 #include "../../util/test/mock_log.h"
 
@@ -50,7 +49,6 @@ general_pre(struct mtf_test_info *ti)
     mapi_inject(mapi_idx_mpool_mdc_close, 0);
 
     mock_c0cn_set();
-    mock_c1_set();
     mock_cndb_set();
     mapi_inject(mapi_idx_mpool_open, 0);
     mapi_inject(mapi_idx_mpool_close, 0);

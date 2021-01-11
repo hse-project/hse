@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
 #include <hse_ut/framework.h>
@@ -23,7 +23,6 @@
 #include "c0sk_mock.h"
 #include <hse_test_support/key_generation.h>
 #include <hse_test_support/random_buffer.h>
-#include "../../kvdb/test/mock_c1.h"
 
 #include <assert.h>
 #include <stdlib.h>
@@ -58,7 +57,6 @@ int
 test_collection_setup(struct mtf_test_info *info)
 {
     mock_set(info);
-    mock_c1_set();
 
     return 0;
 }
@@ -67,7 +65,7 @@ int
 test_collection_teardown(struct mtf_test_info *info)
 {
     mock_unset();
-    mock_c1_unset();
+
     return 0;
 }
 
@@ -88,8 +86,6 @@ MTF_DEFINE_UTEST(c0_test, basic_open_close)
     ASSERT_EQ(0, err);
     err = create_mock_c0sk(&c0sk);
     ASSERT_EQ(0, err);
-
-    mock_c0skm_set();
 
     ikvdb_get_c0sk_gv_c0sk = c0sk;
 

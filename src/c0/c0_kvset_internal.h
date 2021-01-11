@@ -7,7 +7,6 @@
 #define HSE_CORE_C0_KVSET_INTERNAL_H
 
 #include <hse_util/bonsai_tree.h>
-#include "c0_kvsetm.h"
 
 #define c0_kvset_h2r(handle) container_of(handle, struct c0_kvset_impl, c0s_handle)
 
@@ -29,12 +28,6 @@
  * @c0s_num_keys:          how many keys (includes tombstones)
  * @c0s_num_tombstones:    how many tombstones
  * @c0s_mutex:             mutex for bonsai tree updates
- * @c0s_mlock:             lock protecting the mutation list
- * @c0s_m:                 pair of non-tx mutation list
- * @c0s_txm:               pair of tx mutation list
- * @c0s_txpend:            tx pending list
- * @c0s_mut_tracked:       whether mutations tracked or not
- * @c0s_mindex:            mutation index
  *
  * Note:  To improve performance in the face of heavy contention, %c0s_mutex
  * is laid out so that it straddles two cache lines:  The lock word and other
@@ -66,15 +59,6 @@ struct c0_kvset_impl {
     u32          c0s_num_tombstones;
     u64          c0s_pad;
     struct mutex c0s_mutex;
-
-    __aligned(SMP_CACHE_BYTES) struct mutex c0s_mlock;
-
-    __aligned(SMP_CACHE_BYTES) struct c0_kvsetm c0s_m[BONSAI_MUT_LISTC];
-    struct c0_kvsetm c0s_txm[BONSAI_MUT_LISTC];
-    struct c0_kvsetm c0s_txpend;
-
-    __aligned(SMP_CACHE_BYTES) bool c0s_mut_tracked;
-    u8 c0s_mindex;
 };
 
 #endif

@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
 #include <hse_util/minmax.h>
@@ -23,10 +23,6 @@ static struct perfc_name throttle_sen_perfc[] = {
     NE(PERFC_DI_THSR_CSCHED, 2, "csched leaf percent sensor", "thsr_csched"),
 
     NE(PERFC_DI_THSR_C0SK, 2, "c0sk sensor", "thsr_c0sk"),
-
-    NE(PERFC_DI_THSR_C0SKM_DTIME, 2, "c0sk mutation dtime sensor", "thsr_c0skm_dtime"),
-
-    NE(PERFC_DI_THSR_C0SKM_DSIZE, 2, "c0sk mutation dsize sensor", "thsr_c0skm_dsize"),
 
     NE(PERFC_DI_THSR_MAX, 2, "max sensor", "thsr_max"),
 
@@ -72,8 +68,6 @@ throttle_perfc_init(void)
 
     throttle_sen_perfc[PERFC_DI_THSR_CSCHED].pcn_ivl = sensor_ivl;
     throttle_sen_perfc[PERFC_DI_THSR_C0SK].pcn_ivl = sensor_ivl;
-    throttle_sen_perfc[PERFC_DI_THSR_C0SKM_DTIME].pcn_ivl = sensor_ivl;
-    throttle_sen_perfc[PERFC_DI_THSR_C0SKM_DSIZE].pcn_ivl = sensor_ivl;
     throttle_sen_perfc[PERFC_DI_THSR_MAX].pcn_ivl = sensor_ivl;
     throttle_sen_perfc[PERFC_DI_THSR_MAVG].pcn_ivl = sensor_ivl;
     throttle_sleep_perfc[PERFC_DI_THR_SVAL].pcn_ivl = sleep_ivl;
@@ -422,12 +416,6 @@ throttle_update(struct throttle *self)
                 break;
             case THROTTLE_SENSOR_C0SK:
                 cidx = PERFC_DI_THSR_C0SK;
-                break;
-            case THROTTLE_SENSOR_C0SKM_DTIME:
-                cidx = PERFC_DI_THSR_C0SKM_DTIME;
-                break;
-            case THROTTLE_SENSOR_C0SKM_DSIZE:
-                cidx = PERFC_DI_THSR_C0SKM_DSIZE;
                 break;
         }
 

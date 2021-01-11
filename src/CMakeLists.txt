@@ -117,16 +117,12 @@ set( CN_SOURCE_FILES
 set( C0_SOURCE_FILES
     c0/c0.c
     c0/c0_kvmultiset.c
-    c0/c0_kvmsm.c
     c0/c0_kvset.c
-    c0/c0_kvsetm.c
     c0/c0_kvset_iterator.c
     c0/c0_ingest_work.c
     c0/c0sk.c
-    c0/c0skm.c
     c0/c0sk_internal.c
     c0/c0sk_perfc.c
-    c0/kvb_builder.c
      )
 
 set( KVDB_SOURCE_FILES
@@ -155,23 +151,6 @@ set( KVS_SOURCE_FILES
     kvs/query_ctx.c
     )
 
-set( C1_SOURCE_FILES
-    c1/c1_journal.c
-    c1/c1_journal_utils.c
-    c1/c1_tree.c
-    c1/c1_tree_utils.c
-    c1/c1_log.c
-    c1/c1_log_utils.c
-    c1/c1_ops.c
-    c1/c1_utils.c
-    c1/c1_io.c
-    c1/c1_compact.c
-    c1/c1_kv.c
-    c1/c1_perfc.c
-    c1/c1_diag.c
-    c1/c1_omf.c
-    )
-
 set( BINDING_SOURCE_FILES
     binding/kvdb_interface.c
     binding/kvdb_experimental_interface.c
@@ -185,7 +164,6 @@ set( KVDB_LIB_SOURCE_FILES
     ${CN_SOURCE_FILES}
     ${KVS_SOURCE_FILES}
     ${KVDB_SOURCE_FILES}
-    ${C1_SOURCE_FILES}
     ${UTIL_SOURCE_FILES}
     )
 
@@ -209,9 +187,6 @@ if( HSE_UNIT_TEST_FLAG )
 
     # sets HSE_C0_UT_GS_INCLUDE_DIRS
     hse_ut_publish_include_dirs(COMPONENT hse_c0)
-
-    # sets HSE_C1_UT_GS_INCLUDE_DIRS
-    hse_ut_publish_include_dirs(COMPONENT hse_c1)
 
     # sets HSE_CN_UT_GS_INCLUDE_DIRS
     hse_ut_publish_include_dirs(COMPONENT hse_cn)
@@ -251,7 +226,6 @@ set( HSE_KVDB_LIB_INCLUDES
     ${HSE_UT_FMWK_INCLUDE_DIRS}
     ${HSE_UTIL_UT_GS_INCLUDE_DIRS}
     ${HSE_C0_UT_GS_INCLUDE_DIRS}
-    ${HSE_C1_UT_GS_INCLUDE_DIRS}
     ${HSE_CN_UT_GS_INCLUDE_DIRS}
     ${HSE_KVDB_UT_GS_INCLUDE_DIRS}
     ${HSE_KVDB_INCLUDE_UT_GS_INCLUDE_DIRS}
@@ -361,20 +335,6 @@ hse_executable(
 hse_executable(
     NAME cndb_log
     SRCS tools/cndb_log.c
-    INCLUDES ${HSE_COMPLETE_INCLUDE_DIRS}
-    LINK_DIRS
-        ${MPOOL_LIB_DIR}
-        ${BLKID_LIB_DIR}
-    LINK_LIBS
-        hse_kvdb_static-lib
-        ${HSE_USER_MPOOL_LINK_LIBS}
-    DESTINATION ${HSE_DIAG_BIN}
-    COMPONENT runtime
-)
-
-hse_executable(
-    NAME c1log
-    SRCS tools/c1log.c
     INCLUDES ${HSE_COMPLETE_INCLUDE_DIRS}
     LINK_DIRS
         ${MPOOL_LIB_DIR}
@@ -532,16 +492,6 @@ if( HSE_UNIT_TEST_FLAG )
         ${HSE_C0_UT_GS_INCLUDE_DIRS}
         )
 
-    # hse_kvdb_static-lib depends on mocking src/c0 interfaces
-    hse_ut_mock_generate(
-        DEPENDENTS hse_kvdb_static-lib
-        GENSRC_PREFIX hse_c1
-        SEARCH_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/c1
-        )
-    set( UT_INCLUDE_DIRS ${UT_INCLUDE_DIRS}
-        ${HSE_C1_UT_GS_INCLUDE_DIRS}
-        )
-
     # hse_kvdb_static-lib depends on mocking src/cn interfaces
     hse_ut_mock_generate(
         DEPENDENTS hse_kvdb_static-lib
@@ -575,7 +525,6 @@ if( HSE_UNIT_TEST_FLAG )
             cn/test/mock_kvset.c
             cn/test/mock_kvset_builder.c
             kvdb/test/mock_c0cn.c
-            kvdb/test/mock_c1.c
         INCLUDES
             ${HSE_UTIL_INCLUDE_DIRS}
             ${HSE_TEST_INCLUDE_DIRS}
@@ -586,7 +535,6 @@ if( HSE_UNIT_TEST_FLAG )
             ${HSE_TEST_SUPPORT_UT_GS_INCLUDE_DIRS}
             ${HSE_UTIL_UT_GS_INCLUDE_DIRS}
             ${HSE_C0_UT_GS_INCLUDE_DIRS}
-            ${HSE_C1_UT_GS_INCLUDE_DIRS}
             ${HSE_CN_UT_GS_INCLUDE_DIRS}
             ${HSE_KVDB_UT_GS_INCLUDE_DIRS}
             ${HSE_KVDB_INCLUDE_UT_GS_INCLUDE_DIRS}
@@ -789,7 +737,6 @@ if( HSE_UNIT_TEST_FLAG )
             c0/test/c0_test.c
             c0/test/cn_mock.c
             c0/test/c0sk_mock.c
-            kvdb/test/mock_c1.c
         INCLUDES ${UNIT_TEST_INCLUDE_DIRS}
         LINK_LIBS ${UNIT_TEST_LINK_LIBS}
         )
@@ -824,14 +771,6 @@ if( HSE_UNIT_TEST_FLAG )
         NAME c0_kvmultiset_test
         LABELS c0
         SRCS c0/test/c0_kvmultiset_test.c
-        INCLUDES ${UNIT_TEST_INCLUDE_DIRS}
-        LINK_LIBS ${UNIT_TEST_LINK_LIBS}
-        )
-
-    hse_unit_test(
-        NAME c0skm_test
-        LABELS c0
-        SRCS c0/test/c0skm_test.c
         INCLUDES ${UNIT_TEST_INCLUDE_DIRS}
         LINK_LIBS ${UNIT_TEST_LINK_LIBS}
         )
@@ -1030,65 +969,6 @@ if( HSE_UNIT_TEST_FLAG )
         NAME encoder_perf
         LABELS cn
         SRCS cn/test/encoder_perf.c
-        INCLUDES ${UNIT_TEST_INCLUDE_DIRS}
-        LINK_LIBS ${UNIT_TEST_LINK_LIBS}
-        )
-
-    hse_unit_test(
-        NAME c1_test
-        LABELS c1
-        SRCS
-            c0/test/cn_mock.c
-            c1/test/c1_test.c
-            c1/test/mock_mpool.c
-        INCLUDES ${UNIT_TEST_INCLUDE_DIRS}
-        LINK_LIBS ${UNIT_TEST_LINK_LIBS}
-        )
-
-    hse_unit_test(
-        NAME c1_make_test
-        LABELS c1
-        SRCS
-            c1/test/c1_make_test.c
-            c1/test/mock_mpool.c
-        INCLUDES ${UNIT_TEST_INCLUDE_DIRS}
-        LINK_LIBS ${UNIT_TEST_LINK_LIBS}
-        )
-
-    hse_unit_test(
-        NAME c1_txn_test
-        LABELS c1
-        SRCS
-            c0/test/cn_mock.c
-            c1/test/c1_txn_test.c
-            c1/test/mock_mpool.c
-        INCLUDES ${UNIT_TEST_INCLUDE_DIRS}
-        LINK_LIBS ${UNIT_TEST_LINK_LIBS}
-        )
-
-    hse_unit_test(
-        NAME c1_slist_test
-        LABELS c1
-        SRCS c1/test/c1_slist_test.c
-        INCLUDES ${UNIT_TEST_INCLUDE_DIRS}
-        LINK_LIBS ${UNIT_TEST_LINK_LIBS}
-        )
-
-    hse_unit_test(
-        NAME c1_kvcache_test
-        LABELS c1
-        SRCS c1/test/c1_kvcache_test.c
-        INCLUDES ${UNIT_TEST_INCLUDE_DIRS}
-        LINK_LIBS ${UNIT_TEST_LINK_LIBS}
-        )
-
-    hse_unit_test(
-        NAME c1_misc_test
-        LABEL c1
-        SRCS
-            c0/test/cn_mock.c
-            c1/test/c1_misc_test.c
-            c1/test/mock_mpool.c
         INCLUDES ${UNIT_TEST_INCLUDE_DIRS}
         LINK_LIBS ${UNIT_TEST_LINK_LIBS}
         )
