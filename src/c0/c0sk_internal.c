@@ -1519,33 +1519,6 @@ c0sk_putdel(
     return err;
 }
 
-merr_t
-c0sk_kvset_builder_create(struct c0sk *c0sk, u32 skidx, struct kvset_builder **bldrout)
-{
-    struct c0sk_impl *self;
-    merr_t            err;
-    struct cn *       cn;
-
-    self = c0sk_h2r(c0sk);
-
-    cn = self->c0sk_cnv[skidx];
-
-    err = kvset_builder_create(
-        bldrout, cn, cn_get_ingest_perfc(cn), get_time_ns(), KVSET_BUILDER_FLAGS_INGEST);
-    if (ev(err))
-        return err;
-
-    kvset_builder_set_agegroup(*bldrout, HSE_MPOLICY_AGE_SYNC);
-
-    return 0;
-}
-
-void
-c0sk_kvset_builder_destroy(struct c0sk *c0sk, struct kvset_builder *bldr)
-{
-    kvset_builder_destroy(bldr);
-}
-
 #if defined(HSE_UNIT_TEST_MODE) && HSE_UNIT_TEST_MODE == 1
 #include "c0sk_internal_ut_impl.i"
 #endif /* HSE_UNIT_TEST_MODE */

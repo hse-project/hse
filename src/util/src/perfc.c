@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
 #define MTF_MOCK_IMPL_perfc
@@ -1019,19 +1019,6 @@ perfc_dis_record_impl(struct perfc_dis *dis, u64 sample)
 
     if (get_cycles() % PERFC_PCT_SCALE < dis->pdi_pct)
         perfc_latdis_record(dis, sample);
-}
-
-int
-perfc_cleanup(const char *component)
-{
-    char prefix[DT_PATH_LEN];
-    int  count;
-
-    /* prefix is  "/data/perfc/<COMPONENT>" */
-    snprintf(prefix, DT_PATH_LEN, PERFC_ROOT_PATH "/%s", component);
-    count = dt_remove_recursive(dt_data_tree, prefix);
-
-    return count;
 }
 
 #if defined(HSE_UNIT_TEST_MODE) && HSE_UNIT_TEST_MODE == 1
