@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
 #ifndef HSE_CORE_C0SK_H
@@ -351,23 +351,6 @@ c0sk_get_first_c0kvms(struct c0sk *handle);
 
 struct c0_kvmultiset *
 c0sk_get_last_c0kvms(struct c0sk *handle);
-
-/**
- * c0sk_kvset_builder_create() - Wrapper for kvset create
- * @c0sk:  c0sk handle
- * @skidx: structured key index
- * @bldrout: output
- */
-merr_t
-c0sk_kvset_builder_create(struct c0sk *c0sk, u32 skidx, struct kvset_builder **bldrout);
-
-/**
- * c0sk_kvset_builder_destroy() - Wrapper for kvset destroy
- * @c0sk: c0sk handle
- * @bldr: builder
- */
-void
-c0sk_kvset_builder_destroy(struct c0sk *c0sk, struct kvset_builder *bldr);
 
 #pragma GCC visibility pop
 

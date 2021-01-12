@@ -11,7 +11,6 @@
 #include <hse_util/platform.h>
 
 #include "c0sk_mock.h"
-#include "../../kvdb/test/mock_c1.h"
 
 merr_t
 _c0sk_open(

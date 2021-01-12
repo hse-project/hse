@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
 #ifndef HSE_KVS_CN_BLOOM_READER_H
@@ -67,6 +67,7 @@ bloom_reader_mcache_lookup(
     struct kvs_ktuple *         kt,
     bool *                      hit);
 
+#if HSE_UNIT_TEST_MODE
 /**
  * bloom_reader_filter_info() - Retrieve the characteristics of the bloom filter
  * @blm_rgn_desc:  region descriptor of kblock's Bloom filter region
@@ -75,6 +76,7 @@ bloom_reader_mcache_lookup(
  */
 merr_t
 bloom_reader_filter_info(struct bloom_desc *blm_rgn_desc, u32 *hash_cnt, u32 *modulus);
+#endif
 
 #pragma GCC visibility pop
 

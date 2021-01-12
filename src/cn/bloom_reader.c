@@ -1,15 +1,12 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
 #include <hse_util/hse_err.h>
 #include <hse_util/event_counter.h>
 #include <hse_util/page.h>
-#include <hse_util/alloc.h>
-#include <hse_util/slab.h>
 #include <hse_util/bloom_filter.h>
-#include <hse_util/bitmap.h>
 
 #include <hse_ikvdb/tuple.h>
 #include <hse_ikvdb/key_hash.h>
@@ -75,6 +72,7 @@ bloom_reader_buffer_lookup(const struct bloom_desc *desc, const u8 *bitmap, stru
     return bf_lookup(kt->kt_hash, bitmap, desc->bd_n_hashes, desc->bd_rotl, desc->bd_bktmask);
 }
 
+#if HSE_UNIT_TEST_MODE
 merr_t
 bloom_reader_filter_info(struct bloom_desc *desc, u32 *hash_cnt, u32 *modulus)
 {
@@ -83,3 +81,4 @@ bloom_reader_filter_info(struct bloom_desc *desc, u32 *hash_cnt, u32 *modulus)
 
     return 0;
 }
+#endif

@@ -26,7 +26,6 @@
 #include <hse_ikvdb/tuple.h>
 #include <hse_ikvdb/cn_kvdb.h>
 #include <hse_ikvdb/ikvdb.h>
-#include <hse_ikvdb/c1.h>
 #include <hse_ikvdb/kvs_rparams.h>
 
 #include "kvs_mblk_desc.h"
