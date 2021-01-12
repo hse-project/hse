@@ -390,8 +390,9 @@ run_tests_preamble(struct mtf_test_coll_info *tci)
 
     mtf_print(
         tci,
-        "[==========] Running %d tests from collection %s.\n",
-        tci->tci_num_tests,
+        "[==========] Running %d test%s from collection %s.\n",
+        tci->tci_named ? 1 : tci->tci_num_tests,
+        tci->tci_named ? "" : "s",
         tci->tci_coll_name);
 
     if (tci->tci_pre_run_hook && tci->tci_pre_run_hook(&ti)) {
@@ -424,7 +425,6 @@ run_test(
     ti.ti_status = 1;
 
     if (tci->tci_named && strcmp(tci->tci_named, ti.ti_name)) {
-        mtf_print(tci, "[ SKIPPED  ] %s.%s\n", tci->tci_coll_name, ti.ti_name);
         tci->tci_test_results[i] = TR_NONE;
         return 0;
     }
@@ -504,9 +504,10 @@ run_tests_wrapup(struct mtf_test_coll_info *tci, int success_cnt, int failed_cnt
 
     mtf_print(
         tci,
-        "[==========] %d tests from collection %s ran "
+        "[==========] %d test%s from collection %s ran "
         "(%d ms total).\n",
-        tci->tci_num_tests,
+        tci->tci_named ? 1 : tci->tci_num_tests,
+        tci->tci_named ? "" : "s",
         tci->tci_coll_name,
         total_time);
 
