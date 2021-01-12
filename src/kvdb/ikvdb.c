@@ -339,9 +339,6 @@ ikvdb_rate_limit_set(struct ikvdb_impl *self, u64 rate)
     /* cache debug params from KVDB runtime params */
     self->ikdb_tb_dbg = self->ikdb_rp.throttle_debug & THROTTLE_DEBUG_TB_MASK;
 
-    if (self->ikdb_tb_dbg & THROTTLE_DEBUG_TB_OLD)
-        return;
-
     /* debug: manual control: get burst and rate from rparams  */
     if (unlikely(self->ikdb_tb_dbg & THROTTLE_DEBUG_TB_MANUAL)) {
         burst = self->ikdb_rp.throttle_burst;
@@ -1633,33 +1630,11 @@ ikvdb_close(struct ikvdb *handle)
     return ret;
 }
 
-/**
- * ikvdb_throttle() - sleep after a successful put
- * @p:
- * @start: time in ns at which the put op began
- * @len:   total key + value length for the put
- */
-static inline void
-ikvdb_throttle(struct ikvdb_impl *p, u64 start, u32 len)
-{
-    long delay __maybe_unused;
-
-    if (!throttle_active(&p->ikdb_throttle))
-        return;
-
-    delay = throttle(&p->ikdb_throttle, start, len);
-    if (delay > 0)
-        perfc_rec_sample(&kvdb_metrics_pc, PERFC_DI_KVDBMETRICS_THROTTLE, delay);
-}
-
 static
 void
-ikvdb_throttle2(struct ikvdb_impl *self, u64 bytes)
+ikvdb_throttle(struct ikvdb_impl *self, u64 bytes)
 {
     u64 sleep_ns;
-
-    if (!throttle_active(&self->ikdb_throttle))
-        return;
 
     sleep_ns = tbkt_request(&self->ikdb_tb, bytes);
     tbkt_delay(sleep_ns);
@@ -1740,12 +1715,8 @@ ikvdb_kvs_put(
         return err;
     }
 
-    if (start > 0) {
-        if (!(parent->ikdb_tb_dbg & THROTTLE_DEBUG_TB_OLD))
-            ikvdb_throttle2(parent, kt->kt_len + (clen ? clen : vlen));
-        else
-            ikvdb_throttle(parent, start, kt->kt_len + vlen);
-    }
+    if (start > 0)
+        ikvdb_throttle(parent, kt->kt_len + (clen ? clen : vlen));
 
     return 0;
 }

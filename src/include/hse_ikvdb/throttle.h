@@ -202,9 +202,6 @@ throttle_fini(struct throttle *self);
 uint
 throttle_update(struct throttle *self);
 
-bool
-throttle_active(struct throttle *self);
-
 static inline long
 throttle_delay(struct throttle *self)
 {
@@ -222,17 +219,6 @@ throttle_debug(struct throttle *self);
 
 void
 throttle_reduce_debug(struct throttle *self, uint value, uint mavg);
-
-/**
- * throttle() - sleep after a successful put
- * @self:
- * @start: time in ns at which the put op began
- * @len:   total key + value length for the put
- *
- * Return: Returns the time slept in ns in this call.
- */
-long
-throttle(struct throttle *self, u64 start, u32 len);
 
 static inline
 u64

@@ -379,6 +379,9 @@ throttle_switch_state(struct throttle *self, enum throttle_state state, uint max
 {
     assert(max <= 2 * THROTTLE_SENSOR_SCALE);
 
+    if (self->thr_rp->throttle_disable)
+        return;
+
     if (self->thr_state != state) {
         assert(self->thr_state == THROTTLE_NO_CHANGE);
         self->thr_state = state;
@@ -464,6 +467,9 @@ throttle_update(struct throttle *self)
 
         perfc_rec_sample(&self->thr_sensor_perfc, PERFC_DI_THSR_MAVG, mavg->tm_curr);
     }
+
+    if (unlikely(self->thr_rp->throttle_disable))
+        return 0;
 
     if (self->thr_state != THROTTLE_NO_CHANGE) {
         throttle_switch_state(self, self->thr_state, max_val);
@@ -574,111 +580,4 @@ throttle_debug(struct throttle *self)
         atomic_read(&self->thr_sensorv[0].ts_sensor),
         atomic_read(&self->thr_sensorv[1].ts_sensor),
         atomic_read(&self->thr_sensorv[2].ts_sensor));
-}
-
-long
-throttle(struct throttle *self, u64 start, u32 len)
-{
-    struct timespec timespec;
-
-    long target, elapsed, now, delay;
-    u64  frac, calls;
-
-    if (jclock_ns >= atomic64_read(&self->thr_next) && spin_trylock(&self->thr_lock)) {
-        ulong debug = 0;
-        uint  pct;
-
-        now = get_time_ns();
-
-        /* Update thr_next ASAP to stave off trylock attempts.
-         */
-        atomic64_set(&self->thr_next, now + NSEC_PER_SEC / 7);
-
-        /* Compute and update the percentage of requests
-         * that should skip the call to nanosleep().
-         */
-        calls = atomic64_read(&self->thr_data);
-        atomic64_sub(calls, &self->thr_data);
-
-        frac = calls >> 32;
-        calls &= 0xffffffff;
-        pct = frac / (calls | 1);
-        pct = clamp_t(uint, pct, 0, 126); /* limit to 98% */
-        atomic_set(&self->thr_pct, pct);
-
-        if (now > self->thr_update) {
-            self->thr_nslpmin = self->thr_rp->throttle_sleep_min_ns;
-            self->thr_update = now + NSEC_PER_SEC;
-            debug = self->thr_rp->throttle_debug;
-        }
-        spin_unlock(&self->thr_lock);
-
-        if (!(debug & THROTTLE_DEBUG_DELAY))
-            return 0;
-
-        hse_log(
-            HSE_NOTICE "%s: nslpmin %lu target %ld calls %lu pct %u",
-            __func__,
-            self->thr_rp->throttle_sleep_min_ns,
-            (u64)self->thr_delay_raw * len / 1024,
-            (ulong)calls,
-            pct);
-
-        return 0;
-    }
-
-    /* Use the low bits of the TSC as an RNG */
-    if (start % 128 < atomic_read(&self->thr_pct))
-        return 0;
-
-    now = get_cycles();
-    elapsed = cycles_to_nsecs(now - start);
-
-    target = (u64)self->thr_delay_raw * len / 1024;
-    delay = target - elapsed;
-    if (delay < 256)
-        return 0;
-
-    /* The system adds an additional 50us to each nanosleep() request,
-     * and an additional 50us for requests larger than roughly 400us.
-     * thr_nslpmin is the minimum overhead we measured in
-     * c0sk_calibrate().  We subtract nslpmin from only a fraction
-     * of the requests smaller than nslpmin to avoid boxcarring of
-     * threads in the next timer slot.
-     */
-    if (delay > self->thr_nslpmin) {
-        if (delay > self->thr_nslpmin * 8)
-            delay -= self->thr_nslpmin;
-        delay -= self->thr_nslpmin;
-        delay = min(delay, NSEC_PER_SEC - 1);
-    } else if (now % 64 < 8) {
-        delay = self->thr_nslpmin * 2;
-    }
-
-    timespec.tv_nsec = delay;
-    timespec.tv_sec = 0;
-    clock_nanosleep(CLOCK_MONOTONIC, 0, &timespec, 0);
-
-    /* Compute the requested delay time vs actual response time
-     * as a percentage (scaled to 128).
-     */
-    elapsed = cycles_to_nsecs(get_cycles() - now);
-
-    frac = (delay * 128) / (elapsed | 1);
-    if (frac > 128)
-        frac = 128;
-    frac = 128 - frac;
-
-    /* Add frac to the cumulative frac count in the upper 32 bits,
-     * and add 1 to the cumulative call count in the lower 32 bits.
-     */
-    atomic64_add(frac << 32 | 1, &self->thr_data);
-
-    return elapsed;
-}
-
-bool
-throttle_active(struct throttle *self)
-{
-    return (self->thr_rp->throttle_disable) ? false : (self->thr_delay_raw != 0);
 }
