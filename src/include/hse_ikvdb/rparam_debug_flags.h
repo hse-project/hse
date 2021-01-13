@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
 #ifndef HSE_IKVDB_RPARAM_DEBUG_FLAGS_H
@@ -23,6 +23,5 @@
 #define THROTTLE_DEBUG_TB_DEBUG     0x00010000
 #define THROTTLE_DEBUG_TB_MANUAL    0x00100000
 #define THROTTLE_DEBUG_TB_SHUNT     0x01000000
-#define THROTTLE_DEBUG_TB_OLD       0x10000000
 
 #endif

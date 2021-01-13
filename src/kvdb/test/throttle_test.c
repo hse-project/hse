@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
 #include <hse_ut/framework.h>
@@ -99,9 +99,6 @@ MTF_DEFINE_UTEST_PRE(test, t_basic, pre_test)
 
     throttle_init_params(t, &kvdb_rp);
 
-    /* throttle is active at init */
-    ASSERT_EQ(throttle_active(t), true);
-
     /* delay should be THROTTLE_DELAY_START_DEFAULT after init params */
     ASSERT_EQ(THROTTLE_DELAY_START_DEFAULT, throttle_delay(t));
 
@@ -135,9 +132,6 @@ MTF_DEFINE_UTEST_PRE(test, t_dur_params, pre_test)
 
     throttle_init(t, &kvdb_rp);
     throttle_init_params(t, &kvdb_rp);
-
-    /* throttle is active at init */
-    ASSERT_EQ(throttle_active(t), true);
 
     /* get sensors */
     for (i = 0; i < sc; i++) {
@@ -198,9 +192,6 @@ MTF_DEFINE_UTEST_PRE(test, t_dur_params, pre_test)
 
     throttle_init(t, &kvdb_rp);
     throttle_init_params(t, &kvdb_rp);
-
-    /* throttle is disabled */
-    ASSERT_EQ(throttle_active(t), false);
 
     throttle_fini(t);
 
@@ -276,53 +267,6 @@ MTF_DEFINE_UTEST_PRE(test, t_range, pre_test)
         throttle_debug(t);
         throttle_reduce_debug(t, value2, 0);
     }
-}
-
-MTF_DEFINE_UTEST_PRE(test, t_coverage, pre_test)
-{
-    long delay;
-
-    init();
-
-    t->thr_delay_raw = 0;
-
-    /* Should return immediately having not delayed the request.
-     */
-    delay = throttle(t, get_time_ns(), KMIN);
-    ASSERT_EQ(0, delay);
-
-    /* Should run update code (including debug stuff).
-     */
-    kvdb_rp.throttle_debug = -1;
-    t->thr_delay_raw = USEC_PER_SEC * 100;
-
-    delay = throttle(t, get_time_ns(), KMIN);
-    ASSERT_EQ(0, delay);
-
-    /* Run update code again, this time without debugging.
-     */
-    t->thr_update = get_time_ns() + NSEC_PER_SEC * 86400;
-    atomic64_set(&t->thr_next, 0);
-    kvdb_rp.throttle_debug = 0;
-
-    delay = throttle(t, get_time_ns(), KMIN);
-    ASSERT_EQ(0, delay);
-
-    /* Set next update interval 1 day into the future so that
-     * the update code won't run anytime soon...
-     */
-    atomic64_set(&t->thr_next, get_time_ns() + NSEC_PER_SEC * 86400);
-
-    /* Should delay by at least 50us.
-     */
-    delay = throttle(t, get_time_ns(), KMIN);
-    ASSERT_GE(delay, t->thr_nslpmin);
-
-    /* Set the pct threshold so that no throttling will be done.
-     */
-    atomic_set(&t->thr_pct, INT_MAX);
-    delay = throttle(t, get_time_ns(), KMIN);
-    ASSERT_EQ(0, delay);
 }
 
 MTF_END_UTEST_COLLECTION(test);
