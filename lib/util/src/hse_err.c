@@ -121,9 +121,6 @@ merr_strinfo(merr_t err, char *buf, size_t buf_sz, size_t *need_sz)
     int off = 0, sz = 0;
 
     if (err) {
-        if (!(err & MERR_RSVD_MASK))
-            return mpool_strinfo(err, buf, buf_sz);
-
         if (merr_file(err))
             sz = snprintf(buf, buf_sz, "%s:%d: ", merr_file(err), merr_lineno(err));
         if (sz < 0) {

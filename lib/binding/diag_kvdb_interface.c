@@ -59,7 +59,7 @@ diag_kvdb_open(
      * Need exclusive access to prevent multiple applications from
      * working on the same KVDB, which would cause corruption.
      */
-    err = mpool_open(mpool_name, O_RDWR|O_EXCL, &kvdb_ds, NULL);
+    err = mpool_open(mpool_name, O_RDWR|O_EXCL, &kvdb_ds);
     if (ev(err))
         return err;
 

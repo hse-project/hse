@@ -779,7 +779,7 @@ eread_ds(int argc, char **argv)
 
     /* O_EXCL not required since mblocks are immutable by definition
      * and we are reading them directly. */
-    err = merr_to_hse_err(mpool_open(mpname, O_RDONLY, &ds, NULL));
+    err = merr_to_hse_err(mpool_open(mpname, O_RDONLY, &ds));
     if (err)
         fatal(err, "mpool_open");
 

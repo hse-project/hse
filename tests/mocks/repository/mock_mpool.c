@@ -73,7 +73,7 @@ get_mblock(u64 id, struct mocked_mblock **mb)
     return 0;
 }
 
-static mpool_err_t
+static merr_t
 _mpool_mblock_alloc(
     struct mpool *       mp,
     enum mp_media_classp mclassp,
@@ -103,7 +103,7 @@ _mpool_mblock_alloc(
     return 0;
 }
 
-mpool_err_t
+merr_t
 _mpool_mblock_props_get(struct mpool *mp, uint64_t objid, struct mblock_props *props)
 {
     merr_t                err;
@@ -129,19 +129,19 @@ _mpool_mblock_props_get(struct mpool *mp, uint64_t objid, struct mblock_props *p
     return 0;
 }
 
-static mpool_err_t
+static merr_t
 _mpool_mblock_commit(struct mpool *mp, uint64_t id)
 {
     return 0;
 }
 
-static mpool_err_t
+static merr_t
 _mpool_mblock_abort(struct mpool *mp, uint64_t id)
 {
     return 0;
 }
 
-static mpool_err_t
+static merr_t
 _mpool_mblock_delete(struct mpool *mp, uint64_t id)
 {
     merr_t                err;
@@ -160,8 +160,8 @@ _mpool_mblock_delete(struct mpool *mp, uint64_t id)
     return 0;
 }
 
-mpool_err_t
-_mpool_params_get(struct mpool *mp, struct mpool_params *params, struct mpool_devrpt *ei)
+merr_t
+_mpool_params_get(struct mpool *mp, struct mpool_params *params)
 {
     params->mp_vma_size_max = 30;
     params->mp_mblocksz[MP_MED_CAPACITY] = 32 << 20;
@@ -169,7 +169,7 @@ _mpool_params_get(struct mpool *mp, struct mpool_params *params, struct mpool_de
     return 0;
 }
 
-mpool_err_t
+merr_t
 _mpool_mclass_get(struct mpool *mp, enum mp_media_classp mclass, struct mpool_mclass_props *props)
 {
     if (mclass >= MP_MED_NUMBER)
@@ -239,7 +239,7 @@ mblock_rw(u64 id, const struct iovec *iov, int niov, size_t off, bool read)
     return 0;
 }
 
-static mpool_err_t
+static merr_t
 _mpool_mcache_mmap(
     struct mpool *            mp,
     size_t                    mbidc,
@@ -276,7 +276,7 @@ _mpool_mcache_mmap(
     return 0;
 }
 
-static mpool_err_t
+static merr_t
 _mpool_mcache_munmap(struct mpool_mcache_map *handle)
 {
     merr_t             err;
@@ -310,7 +310,7 @@ _mpool_mcache_getbase(struct mpool_mcache_map *handle, u_int idx)
     return mb->mb_base;
 }
 
-static mpool_err_t
+static merr_t
 _mpool_mcache_madvise(
     struct mpool_mcache_map *map,
     uint                     mbidx,
@@ -321,7 +321,7 @@ _mpool_mcache_madvise(
     return 0;
 }
 
-static mpool_err_t
+static merr_t
 _mpool_mcache_getpages(
     struct mpool_mcache_map *handle,
     u_int                    pagec,
@@ -353,13 +353,13 @@ _mpool_mcache_getpages(
     return 0;
 }
 
-static mpool_err_t
+static merr_t
 _mpool_mblock_read(struct mpool *mp, uint64_t id, const struct iovec *iovec, int niov, off_t off)
 {
     return mblock_rw(id, iovec, niov, off, true);
 }
 
-static mpool_err_t
+static merr_t
 _mpool_mblock_write(struct mpool *mp, uint64_t id, const struct iovec *iovec, int niov)
 {
     return mblock_rw(id, iovec, niov, 0, false);
@@ -398,7 +398,7 @@ mpm_getlen_default(void *buf, size_t len)
     return p->len + sizeof(struct mpm_mdc_rechdr_default);
 }
 
-static mpool_err_t
+static merr_t
 _mpool_mdc_open(
     struct mpool *     mp,
     uint64_t           oid1,
@@ -440,14 +440,14 @@ mpm_mdc_set_getlen(struct mpool_mdc *mdc, size_t (*getlen)(void *, size_t))
     return 0;
 }
 
-mpool_err_t
+merr_t
 _mpool_mdc_close(struct mpool_mdc *mdc)
 {
     free(mdc);
     return 0;
 }
 
-mpool_err_t
+merr_t
 _mpool_mdc_cstart(struct mpool_mdc *mdc)
 {
     struct mocked_mdc *m = (void *)mdc;
@@ -457,13 +457,13 @@ _mpool_mdc_cstart(struct mpool_mdc *mdc)
     return 0;
 }
 
-mpool_err_t
+merr_t
 _mpool_mdc_cend(struct mpool_mdc *mdc)
 {
     return 0;
 }
 
-mpool_err_t
+merr_t
 _mpool_mdc_append(struct mpool_mdc *mdc, void *data, ssize_t len, bool sync)
 {
     struct mocked_mdc *m = (void *)mdc;
@@ -476,7 +476,7 @@ _mpool_mdc_append(struct mpool_mdc *mdc, void *data, ssize_t len, bool sync)
     return 0;
 }
 
-mpool_err_t
+merr_t
 _mpool_mdc_rewind(struct mpool_mdc *mdc)
 {
     struct mocked_mdc *m = (void *)mdc;
@@ -485,7 +485,7 @@ _mpool_mdc_rewind(struct mpool_mdc *mdc)
     return 0;
 }
 
-mpool_err_t
+merr_t
 _mpool_mdc_read(struct mpool_mdc *mdc, void *data, size_t max, size_t *dlen)
 {
     struct mocked_mdc *   m = (void *)mdc;

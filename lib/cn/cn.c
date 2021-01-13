@@ -1148,7 +1148,7 @@ cn_open(
     assert(health);
     assert(cn_out);
 
-    mperr = mpool_params_get(ds, &mpool_params, NULL);
+    mperr = mpool_params_get(ds, &mpool_params);
     if (mperr) {
         hse_log(HSE_ERR "mpool_params_get error %s\n", merr_info(mperr, &ei));
         return merr_errno(mperr);

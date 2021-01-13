@@ -120,7 +120,7 @@ kvdb_list_print(
     hse_err_t err;
     int       i;
 
-    err = merr_to_hse_err(mpool_list(&propc, &propv, NULL));
+    err = merr_to_hse_err(mpool_list(&propc, &propv));
     if (err)
         return hse_err_to_errno(err);
 
@@ -139,7 +139,6 @@ kvdb_list_print(
             yaml_start_element_type(yc, "kvdbs");
 
         yaml_start_element(yc, "name", props->mp_name);
-        yaml_element_field(yc, "label", props->mp_label);
 
         if (!verbose) {
             yaml_end_element(yc);
@@ -542,9 +541,8 @@ hse_kvdb_params(const char *kvdb, bool get)
     size_t               bufsz = (32 * 1024);
     int                  allc, i;
     struct mpool_params *allv = 0;
-    struct mpool_devrpt  ei;
 
-    err = mpool_list(&allc, &allv, &ei);
+    err = mpool_list(&allc, &allv);
     if (err) {
         char buf[256];
         hse_err_to_string(err, buf, sizeof(buf), NULL);
@@ -564,7 +562,7 @@ hse_kvdb_params(const char *kvdb, bool get)
     allv = 0;
 
     if (!match) {
-        err = mpool_scan(&allc, &allv, &ei);
+        err = mpool_scan(&allc, &allv);
         if (err) {
             char buf[256];
             hse_err_to_string(err, buf, sizeof(buf), NULL);

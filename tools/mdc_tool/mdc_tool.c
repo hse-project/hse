@@ -192,7 +192,7 @@ main(int argc, char **argv)
      * immutable (i.e., they could be modified by another application
      * if we didn't have exclusive access).
      */
-    err = merr_to_hse_err(mpool_open(argv[0], O_RDONLY | O_EXCL, &ds, NULL));
+    err = merr_to_hse_err(mpool_open(argv[0], O_RDONLY|O_EXCL, &ds));
     if (err)
         fatal("mpool_open", err);
 

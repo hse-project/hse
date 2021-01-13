@@ -18,6 +18,8 @@ static struct kvdb_cparams kvdb_cp_ref;
 
 static struct param_inst kvdb_cp_table[] = {
     PARAM_INST_U64_EXP(kvdb_cp_ref.dur_capacity, "dur_capacity", "durability capacity in MiB"),
+    PARAM_INST_STRING(kvdb_cp_ref.capdir, sizeof(kvdb_cp_ref.capdir), "capdir", "Storage directory for capacity mclass"),
+    PARAM_INST_STRING(kvdb_cp_ref.stgdir, sizeof(kvdb_cp_ref.stgdir), "stgdir", "Storage directory for staging mclass"),
     PARAM_INST_END
 };
 
@@ -38,6 +40,8 @@ kvdb_cparams_defaults(void)
 {
     struct kvdb_cparams params = {
         .dur_capacity = 6144, /*  6 GiB */
+        .capdir = "",
+        .stgdir = "",
         .cpmagic = CPARAMS_MAGIC,
     };
 

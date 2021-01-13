@@ -35,7 +35,7 @@ struct mp_profile_work {
     u32                   mblock_cnt;
     u64                   mblock_sz;
     u64                   block_sz;
-    mpool_err_t           err;
+    merr_t                err;
     u64                  *samples;
 };
 
@@ -81,7 +81,7 @@ profile_worker(
     u64                     start, stop;
     struct mblock_props     mbprop;
     u64                     handle;
-    mpool_err_t             err = 0;
+    merr_t                  err = 0;
     u32                     i, sample_idx;
     char                    errbuf[160];
     int                     block, num_blocks;
@@ -109,9 +109,9 @@ profile_worker(
     for (block = 0; block < mblock_cnt; ++block) {
         err = mpool_mblock_alloc(mp, mc, false, &handle, &mbprop);
         if (err) {
-            fprintf(stderr, "mpool_mblock_alloc() failed: %s\n",
-                    mpool_strerror(err, errbuf, sizeof(errbuf)));
-            work->err = mpool_errno(err);
+            merr_strerror(err, errbuf, sizeof(errbuf));
+            fprintf(stderr, "mpool_mblock_alloc() failed: %s\n", errbuf);
+            work->err = merr_errno(err);
 
             break;
         }
@@ -124,8 +124,8 @@ profile_worker(
 
             err = mpool_mblock_write(mp, handle, &iov, 1);
             if (err) {
-                fprintf(stderr, "mpool_mblock_write() failed: %s\n",
-                        mpool_strerror(err, errbuf, sizeof(errbuf)));
+                merr_strerror(err, errbuf, sizeof(errbuf));
+                fprintf(stderr, "mpool_mblock_write() failed: %s\n", errbuf);
                 work->err = err;
                 break;
             }
@@ -137,8 +137,8 @@ profile_worker(
 
         err = mpool_mblock_abort(mp, handle);
         if (err) {
-            fprintf(stderr, "mpool_mblock_abort() failed: %s\n",
-                    mpool_strerror(err, errbuf, sizeof(errbuf)));
+            merr_strerror(err, errbuf, sizeof(errbuf));
+            fprintf(stderr, "mpool_mblock_abort() failed: %s\n", errbuf);
             if (work->err == 0)
                 work->err = err;
 
@@ -220,8 +220,9 @@ perform_profile_run(
     for (i = 0; i < thread_cnt; ++i) {
         if (work_specs[i].err) {
             error_seen = 1;
+            merr_strerror(work_specs[i].err, errbuf, sizeof(errbuf));
             fprintf(stderr, "thread %d experienced mpool error : %s\n",
-                    i, mpool_strerror(work_specs[i].err, errbuf, sizeof(errbuf)));
+                    i, errbuf);
         }
     }
 
@@ -274,7 +275,7 @@ profile_mpool(
     u32                  thread_cnt,
     double              *score)
 {
-    mpool_err_t         mp_err;
+    merr_t              mp_err;
     int                 flags = O_EXCL | O_RDWR;
     struct mpool       *mp;
     u64                 block_sz = MP_PROF_BLOCK_SIZE;
@@ -282,10 +283,10 @@ profile_mpool(
     char                errbuf[160];
     int                 rc;
 
-    mp_err = mpool_open(mpname, flags, &mp, NULL);
+    mp_err = mpool_open(mpname, flags, &mp);
     if (mp_err) {
-        fprintf(stderr, "error from mpool_open() : %s\n",
-                mpool_strerror(mp_err, errbuf, sizeof(errbuf)));
+        merr_strerror(mp_err, errbuf, sizeof(errbuf));
+        fprintf(stderr, "error from mpool_open() : %s\n", errbuf);
         return -1;
     }
 
@@ -312,7 +313,7 @@ get_mpool_info(
     const char        *mpname,
     struct mpool_info *info)
 {
-    mpool_err_t               mp_err;
+    merr_t                    mp_err;
     struct mpool             *mp;
     int                       flags = O_EXCL | O_RDWR;
     struct mpool_params       params;
@@ -320,28 +321,28 @@ get_mpool_info(
     struct mpool_mclass_props mc_props;
     char                      errbuf[160];
 
-    mp_err = mpool_open(mpname, flags, &mp, NULL);
+    mp_err = mpool_open(mpname, flags, &mp);
     if (mp_err) {
-        fprintf(stderr, "error from mpool_open() : %s\n",
-                mpool_strerror(mp_err, errbuf, sizeof(errbuf)));
+        merr_strerror(mp_err, errbuf, sizeof(errbuf));
+        fprintf(stderr, "error from mpool_open() : %s\n", errbuf);
         return -1;
     }
 
-    mp_err = mpool_params_get(mp, &params, NULL);
+    mp_err = mpool_params_get(mp, &params);
     if (mp_err) {
         mpool_close(mp);
-        fprintf(stderr, "error from mpool_params_get() : %s\n",
-                mpool_strerror(mp_err, errbuf, sizeof(errbuf)));
+        merr_strerror(mp_err, errbuf, sizeof(errbuf));
+        fprintf(stderr, "error from mpool_params_get() : %s\n", errbuf);
         return -1;
     }
 
     mc = MP_MED_STAGING;
     mp_err = mpool_mclass_get(mp, mc, &mc_props);
     if (mp_err) {
-        if (mpool_errno(mp_err) != ENOENT) {
+        if (merr_errno(mp_err) != ENOENT) {
             mpool_close(mp);
-            fprintf(stderr, "error from mpool_mclass_get() for STAGING: %s\n",
-                    mpool_strerror(mp_err, errbuf, sizeof(errbuf)));
+            merr_strerror(mp_err, errbuf, sizeof(errbuf));
+            fprintf(stderr, "error from mpool_mclass_get() for STAGING: %s\n", errbuf);
             return -1;
         }
 
@@ -359,8 +360,8 @@ get_mpool_info(
     mc = MP_MED_CAPACITY;
     mp_err = mpool_mclass_get(mp, mc, &mc_props);
     if (mp_err) { /* there must be an MP_MED_CAPACITY media class */
-        fprintf(stderr, "error from mpool_mclass_get() for CAPACITY : %s\n",
-                mpool_strerror(mp_err, errbuf, sizeof(errbuf)));
+        merr_strerror(mp_err, errbuf, sizeof(errbuf));
+        fprintf(stderr, "error from mpool_mclass_get() for CAPACITY : %s\n", errbuf);
         mpool_close(mp);
         return -1;
     }

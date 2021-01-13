@@ -306,8 +306,8 @@ MTF_DEFINE_UTEST_PRE(kvdb_test, kvdb_cursor_test, general_pre)
     MOCK_UNSET(platform, _hse_meminfo);
 }
 
-mpool_err_t
-_mpool_open(const char *mp_name, uint32_t flags, struct mpool **dsp, struct mpool_devrpt *ei)
+int64_t
+_mpool_open(const char *mp_name, uint32_t flags, struct mpool **dsp)
 {
     *dsp = (struct mpool *)-1;
     return 0;
