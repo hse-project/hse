@@ -1223,7 +1223,7 @@ genchk:
         }
     }
 
-/* Resign as leader and awaken all waiters...
+    /* Resign as leader and awaken all waiters...
      */
 resign:
     mtx_pool_lock_all(self->c0sk_mtx_pool);
@@ -1240,12 +1240,12 @@ resign:
 
 BullseyeCoverageRestore
 
-    /*
+/*
  * Flush the present kvmultiset (queue it for ingest).
  * For sync(), we need to know when this c0kvms has been ingested.
  */
-    merr_t
-    c0sk_flush_current_multiset(struct c0sk_impl *self, struct c0_kvmultiset *new, u64 *genp)
+merr_t
+c0sk_flush_current_multiset(struct c0sk_impl *self, struct c0_kvmultiset *new, u64 *genp)
 {
     struct c0_kvmultiset *old;
     merr_t                err;
@@ -1265,13 +1265,39 @@ again:
     if (genp) {
         *genp = c0kvms_gen_read(old);
         c0kvms_ingest_delay_set(old, 0);
+
+        /* Caller intends to wait on this flush to be persisted.  To ameliorate
+         * the generation of small kvsets we linger around a bit in hopes of
+         * piggybacking upon a naturally occuring flush.  This works well if
+         * the ingest rate is high.  If the ingest rate is low it simply
+         * serves to limit the sync frequency to roughly dur_intvl_ms.
+         */
+        if (!self->c0sk_closing) {
+            long waitmax = self->c0sk_kvdb_rp->dur_intvl_ms;
+            long delay = min_t(long, waitmax / 10 + 1, 100);
+
+            while ((waitmax -= delay) > 0) {
+                struct c0_kvmultiset *cur;
+
+                usleep(delay * 1000);
+
+                rcu_read_lock();
+                cur = c0sk_get_first_c0kvms(&self->c0sk_handle);
+                rcu_read_unlock();
+
+                if (cur != old) {
+                    c0kvms_putref(old);
+                    return 0;
+                }
+            }
+        }
     }
 
     err = c0sk_queue_ingest(self, old, new);
 
     c0kvms_putref(old);
 
-    if (new &&merr_errno(err) == EAGAIN)
+    if (new && merr_errno(err) == EAGAIN)
         goto again;
 
     return ev(err);
