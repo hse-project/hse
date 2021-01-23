@@ -1658,12 +1658,9 @@ ikvdb_kvs_put(
     struct kvs_vtuple  vtbuf;
     u64                put_seqno;
     merr_t             err;
-    u64                start;
     uint               vlen, clen;
     size_t             vbufsz;
     void *             vbuf;
-
-    start = kvdb_kop_is_priority(os) ? 0 : get_cycles();
 
     if (ev(!handle))
         return merr(EINVAL);
@@ -1715,7 +1712,7 @@ ikvdb_kvs_put(
         return err;
     }
 
-    if (start > 0)
+    if (!(kvdb_kop_is_priority(os) || parent->ikdb_rp.throttle_disable))
         ikvdb_throttle(parent, kt->kt_len + (clen ? clen : vlen));
 
     return 0;

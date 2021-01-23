@@ -271,6 +271,8 @@ enum param_flag {
 
 #define PARAM_INST_U8(val, name, msg) PARAM_INST_type(u8, val, name, msg)
 
+#define PARAM_INST_U8_EXP(val, name, msg) PARAM_INST_EXP_type(u8, val, name, msg)
+
 #define PARAM_INST_U16(val, name, msg) PARAM_INST_type(u16, val, name, msg)
 
 #define PARAM_INST_U32(val, name, msg) PARAM_INST_type(u32, val, name, msg)

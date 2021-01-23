@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
 #ifndef HSE_KVDB_RPARAMS_H
@@ -9,12 +9,15 @@
 #include <hse_ikvdb/throttle.h>
 
 #include <stddef.h>
+#include <stdint.h>
 
 /**
  * struct kvdb_rparams -
  * @read_only:        readonly flag
  * @throttle_disable: disable put/del throttling
- * @perfc_enable:     priority level. 0 implies default(2).
+ * @perfc_enable:     perf counter verbosity
+ * @c0_diag_mode:     disable c0 spill
+ * @c0_debug:         c0 debug flags (see rparam_debug_flags.h)
  * @log_lvl:          log level for hse_log.
  * @log_squelch_ns:   log squelch window in nsec
  * @keylock_tables:   number of keylock hash tables
@@ -22,9 +25,6 @@
  * @txn_wkth_delay:        delay (msecs) to invoke transaction worker thread
  * @cndb_entries:     max number of entries CNDB's in memory structures. Note
  *                    that this does not affect the MDC's size.
- * @pct_bandwidth:    qos, %  mpoolbandwidth for the kvdb
- * @iotag2vq:         qos, association iotags to mpool qos virtual queues.
- * @vq_w:             qos, virtual queues weights
  *
  * The following tunable parameters can have a major impact on the way KVDB
  * operates.  Test thoroughly after any modifications.
@@ -32,24 +32,27 @@
  * To improve cacheline utilization, group frequently accessed fields
  * towards the beginning of this structure, and rarely accesssed
  * fields towards the end.
+ *
+ * [HSE_REVISIT] The KVDB PARAM macros in kvdb_params.c expect these fields
+ * to be fixed-width types, so we should update them when convenient...
  */
 struct kvdb_rparams {
-    unsigned int read_only;
-    unsigned int throttle_disable;
-    unsigned int perfc_enable;
+    uint8_t read_only;
+    uint8_t throttle_disable;
+    uint8_t perfc_enable;
+    uint8_t c0_diag_mode;
+    uint8_t c0_debug;
 
-    unsigned long c0_heap_cache_sz_max;
-    unsigned long c0_heap_sz;
-    unsigned int  c0_debug;
-    unsigned int  c0_diag_mode;
-    unsigned long c0_ingest_delay;
-    unsigned long c0_ingest_width;
-    unsigned long c0_coalesce_sz;
+    uint64_t c0_heap_cache_sz_max;
+    uint64_t c0_heap_sz;
+    uint32_t c0_ingest_delay;
+    uint32_t c0_ingest_width;
+    uint64_t c0_coalesce_sz;
 
-    unsigned long txn_heap_sz;
-    unsigned long txn_ingest_delay;
-    unsigned long txn_ingest_width;
-    unsigned long txn_timeout;
+    uint64_t txn_heap_sz;
+    uint32_t txn_ingest_delay;
+    uint32_t txn_ingest_width;
+    uint64_t txn_timeout;
 
     unsigned int  csched_policy;
     unsigned long csched_debug_mask;
@@ -87,9 +90,9 @@ struct kvdb_rparams {
     /* The following fields are typically only accessed by kvdb open
      * and hence are extremely cold.
      */
-    unsigned int  log_lvl;
     unsigned long log_squelch_ns;
     unsigned long txn_wkth_delay;
+    unsigned int  log_lvl;
     unsigned int  cndb_entries;
     unsigned int  c0_maint_threads;
     unsigned int  c0_ingest_threads;

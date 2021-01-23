@@ -516,7 +516,8 @@ c0sk_open(
         goto errout;
     }
 
-    c0sk->c0sk_ingest_width_max = HSE_C0_INGEST_WIDTH_MAX - 12;
+    c0sk->c0sk_ingest_width_max = HSE_C0_INGEST_WIDTH_DYN;
+
     if (kvdb_rp->c0_ingest_width == 0)
         c0sk->c0sk_ingest_width = c0sk->c0sk_ingest_width_max / 2;
 
