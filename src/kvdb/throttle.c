@@ -569,15 +569,13 @@ throttle_update(struct throttle *self)
 void
 throttle_debug(struct throttle *self)
 {
-    hse_log(
-        HSE_NOTICE "throttle: delay %d min %d mavg %d cnt %d state %d"
-                   " sensors %d %d %d",
-        self->thr_delay_raw,
-        self->thr_delay_min,
-        self->thr_mavg.tm_curr,
-        self->thr_monitor_cnt,
-        self->thr_state,
-        atomic_read(&self->thr_sensorv[0].ts_sensor),
-        atomic_read(&self->thr_sensorv[1].ts_sensor),
-        atomic_read(&self->thr_sensorv[2].ts_sensor));
+    hse_log(HSE_NOTICE "%s: delay %d min %d mavg %d cnt %d state %d sensors %d %d",
+            __func__,
+            self->thr_delay_raw,
+            self->thr_delay_min,
+            self->thr_mavg.tm_curr,
+            self->thr_monitor_cnt,
+            self->thr_state,
+            atomic_read(&self->thr_sensorv[0].ts_sensor),
+            atomic_read(&self->thr_sensorv[1].ts_sensor));
 }

@@ -115,7 +115,7 @@ get_cfg_data(char *param_name, char *mp_name)
 
     rp = dte->dte_data;
 
-    /* [MSE_REVISIT] Don't we have a "config get" function?
+    /* [HSE_REVISIT] Don't we have a "config get" function?
      */
     switch (rp->data_sz) {
     case 1:
