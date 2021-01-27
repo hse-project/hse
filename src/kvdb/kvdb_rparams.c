@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
 #include <hse_util/logging.h>
@@ -24,8 +24,10 @@
 
 #define KVDB_PARAM_EXP(_name, _desc) PARAM_INST_U64_EXP(kvdb_rp_ref._name, #_name, _desc)
 
+#define KVDB_PARAM_U8(_name, _desc) PARAM_INST_U8(kvdb_rp_ref._name, #_name, _desc)
 #define KVDB_PARAM_U32(_name, _desc) PARAM_INST_U32(kvdb_rp_ref._name, #_name, _desc)
 
+#define KVDB_PARAM_U8_EXP(_name, _desc) PARAM_INST_U8_EXP(kvdb_rp_ref._name, #_name, _desc)
 #define KVDB_PARAM_U32_EXP(_name, _desc) PARAM_INST_U32_EXP(kvdb_rp_ref._name, #_name, _desc)
 
 #define KVDB_PARAM_STR(_name, _desc) \
@@ -119,20 +121,20 @@ kvdb_rparams_defaults(void)
 
 static struct kvdb_rparams kvdb_rp_ref;
 static struct param_inst   kvdb_rp_table[] = {
-    KVDB_PARAM_U32(read_only, "readonly flag"),
-    KVDB_PARAM_U32_EXP(perfc_enable, "0: disable, 1: enable"),
+    KVDB_PARAM_U8(read_only, "readonly flag"),
+    KVDB_PARAM_U8_EXP(perfc_enable, "0: disable, [123]: enable"),
 
-    KVDB_PARAM_EXP(c0_heap_cache_sz_max, "max size of cheap cache (bytes)"),
-    KVDB_PARAM_EXP(c0_heap_sz, "cheap or malloc size"),
-    KVDB_PARAM_U32_EXP(c0_debug, "set c0 debug flags"),
-    KVDB_PARAM_U32_EXP(c0_diag_mode, "enable/disable c0 diag mode"),
-    KVDB_PARAM_EXP(c0_ingest_delay, "max ingest coalesce delay (seconds)"),
-    KVDB_PARAM_EXP(c0_ingest_width, "number of c0 trees in parallel (min 2)"),
-    KVDB_PARAM_EXP(c0_coalesce_sz, "c0 ingest coalesce size in MiB"),
+    KVDB_PARAM_EXP(c0_heap_cache_sz_max, "max size of c0 cheap cache (bytes)"),
+    KVDB_PARAM_EXP(c0_heap_sz, "max c0 cheap size (bytes)"),
+    KVDB_PARAM_U8_EXP(c0_debug, "c0 debug flags"),
+    KVDB_PARAM_U8_EXP(c0_diag_mode, "disable c0 spill"),
+    KVDB_PARAM_U32_EXP(c0_ingest_delay, "max c0 ingest coalesce delay (seconds)"),
+    KVDB_PARAM_U32_EXP(c0_ingest_width, "fix c0 kvms width (min 2), zero for dynamic width"),
+    KVDB_PARAM_EXP(c0_coalesce_sz, "max c0 ingest coalesce size (MiB)"),
 
-    KVDB_PARAM_EXP(txn_heap_sz, "cheap or malloc size"),
-    KVDB_PARAM_EXP(txn_ingest_delay, "max ingest coalesce delay (seconds)"),
-    KVDB_PARAM_EXP(txn_ingest_width, "number of txn trees in parallel"),
+    KVDB_PARAM_EXP(txn_heap_sz, "max txn cheap size (bytes)"),
+    KVDB_PARAM_U32_EXP(txn_ingest_delay, "max ingest coalesce delay (seconds)"),
+    KVDB_PARAM_U32_EXP(txn_ingest_width, "number of txn trees in parallel"),
     KVDB_PARAM_EXP(txn_timeout, "transaction timeout (ms)"),
 
     KVDB_PARAM_U32_EXP(csched_policy, "csched (compaction scheduler) policy"),
@@ -158,9 +160,9 @@ static struct param_inst   kvdb_rp_table[] = {
     KVDB_PARAM_EXP(dur_throttle_hi_th, "high watermark for throttling in percentage"),
     KVDB_PARAM_EXP(dur_throttle_enable, "enable durablity throttling"),
 
-    KVDB_PARAM_U32_EXP(throttle_disable, "disable sleep throttle"),
+    KVDB_PARAM_U8_EXP(throttle_disable, "disable sleep throttle"),
     KVDB_PARAM_EXP(throttle_update_ns, "throttle update sensors time in ns"),
-    KVDB_PARAM_U32_EXP(throttle_relax, "throttle relax"),
+    KVDB_PARAM_U32_EXP(throttle_relax, "allow c0 boost to disable throttling"),
     KVDB_PARAM_U32_EXP(throttle_debug, "throttle debug"),
     KVDB_PARAM_U32_EXP(throttle_debug_intvl_s, "throttle debug interval (secs)"),
     KVDB_PARAM_EXP(throttle_sleep_min_ns, "nanosleep time overhead (nsecs)"),
@@ -372,7 +374,16 @@ kvdb_rparams_add_to_dt(const char *mp_name, struct kvdb_rparams *p)
 
         param_showp = kvdb_rp_table[i].pi_type.param_val_to_str;
 
-        if (param_showp == show_u32) {
+        if (param_showp == show_u8) {
+            CFG_U32(
+                mp_name,
+                param_name,
+                (void *)p + offset,
+                (void *)&kvdb_rp_dt_defaults + offset,
+                NULL,
+                p,
+                writable);
+        } else if (param_showp == show_u32) {
             CFG_U32(
                 mp_name,
                 param_name,

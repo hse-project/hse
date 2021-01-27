@@ -992,7 +992,7 @@ c0sk_ingest_boost(struct c0sk_impl *self)
             return true;
     }
 
-    return false;
+    return (rp->throttle_relax > 1);
 }
 
 /**
@@ -1011,7 +1011,7 @@ conc2width(struct c0sk_impl *self, uint conc)
 
     conc = min_t(uint, conc, NELEM(cwtab) - 1);
 
-    return min_t(uint, cwtab[conc], self->c0sk_ingest_width_max);
+    return cwtab[conc];
 }
 
 /**
@@ -1025,38 +1025,19 @@ c0sk_ingest_tune(struct c0sk_impl *self, struct c0_usage *usage)
     struct kvdb_rparams *rp = self->c0sk_kvdb_rp;
 
     size_t oldsz, newsz, pct_used, pct_diff;
-    bool   changed;
-    uint   width;
+    uint width, width_max;
 
     oldsz = pct_used = pct_diff = 0;
 
-    /* c1_replay() requires a maximally provisioned kvms, as does a
-     * mongod replication secondary node (the latter to reduce contention
-     * on the bonsai tree locks in the face of a high number of replication
-     * worker threads). In both cases we effectively disable throttling
-     * as it prevents mongod secondary replication workers from keeping up
-     * with the primary and/or is of no practical use during c1 replay.
+    /* A mongod replica node requires a maximally provisioned
+     * kvms with throttling disabled in order to mitigate lag.
      */
     if (c0sk_ingest_boost(self)) {
-        width = HSE_C0_INGEST_WIDTH_MAX;
-        newsz = HSE_C0_INGEST_SZ_MAX / width;
-        newsz *= 1048576;
-
-        /* [HSE_REVISIT] Throttling was disabled here */
-
-        ev(self->c0sk_ingest_width < width);
-        goto errout;
-    }
-
-    /* Return ingest to normal if we were previously boosted.  This has
-     * the potential to thrash between being boosted and not boosted,
-     * but that doesn't happen in practice.
-     */
-    if (self->c0sk_ingest_width > self->c0sk_ingest_width_max) {
-        self->c0sk_ingest_width = self->c0sk_ingest_width_max;
-
-        /* [HSE_REVISIT] Throttling was enabled here */
-        ev(1);
+        width_max = HSE_C0_INGEST_WIDTH_MAX;
+        rp->throttle_disable |= 0x80;
+    } else {
+        width_max = self->c0sk_ingest_width_max;
+        rp->throttle_disable &= ~0x80;
     }
 
     /* Determine the ingest width hint for the next ingest based on
@@ -1099,34 +1080,26 @@ c0sk_ingest_tune(struct c0sk_impl *self, struct c0_usage *usage)
 
         if (width * newsz > HSE_C0_INGEST_SZ_MAX)
             width = HSE_C0_INGEST_SZ_MAX / newsz;
-        width = min_t(u64, width, self->c0sk_ingest_width_max);
-        width = max_t(u64, width, HSE_C0_INGEST_WIDTH_MIN);
 
         newsz *= 1048576;
-        newsz = min_t(u64, newsz, HSE_C0_CHEAP_SZ_MAX);
-        newsz = max_t(u64, newsz, HSE_C0_CHEAP_SZ_MIN);
+        newsz = min_t(size_t, newsz, HSE_C0_CHEAP_SZ_MAX);
+        newsz = max_t(size_t, newsz, HSE_C0_CHEAP_SZ_MIN);
     }
 
-errout:
-    changed = (self->c0sk_ingest_width != width || self->c0sk_cheap_sz != newsz);
+    width = min_t(uint, width, width_max);
+    width = max_t(uint, width, HSE_C0_INGEST_WIDTH_MIN);
 
     self->c0sk_ingest_width = width;
     self->c0sk_cheap_sz = newsz;
 
-    if (rp->c0_debug & C0_DEBUG_INGTUNE && changed)
-        hse_log(
-            HSE_NOTICE "%s: used %zu%% diff %zu%%, %zu -> %zu (%zu) "
-                       "width %u/%u, conc %u, keys %lu",
-            __func__,
-            pct_used,
-            pct_diff,
-            oldsz,
-            newsz / 1048576ul,
-            (width * newsz) / 1048576ul,
-            width,
-            self->c0sk_ingest_width_max,
-            self->c0sk_ingest_conc,
-            usage->u_keys);
+    if (rp->c0_debug & C0_DEBUG_INGTUNE)
+        hse_log(HSE_NOTICE
+                "%s: used %zu%% diff %zu%%, %zu -> %zu (%zu) width %u/%u/%u, conc %u, keys %lu",
+                __func__, pct_used, pct_diff,
+                oldsz, newsz / 1048576ul, (width * newsz) / 1048576ul,
+                width, width_max, self->c0sk_ingest_width_max,
+                self->c0sk_ingest_conc,
+                usage->u_keys);
 }
 
 BullseyeCoverageSaveOff

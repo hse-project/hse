@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
 #include <hse_ut/framework.h>
@@ -110,9 +110,28 @@ get_cfg_data(char *param_name, char *mp_name)
     snprintf(path, sizeof(path), "/data/config/%s/%s/%s", COMPNAME, mp_name, param_name);
 
     dte = dt_find(dt_data_tree, path, 1);
+    if (!dte)
+        abort();
+
     rp = dte->dte_data;
 
-    return *(u64 *)rp->data;
+    /* [HSE_REVISIT] Don't we have a "config get" function?
+     */
+    switch (rp->data_sz) {
+    case 1:
+        return *(u8 *)rp->data;
+
+    case 2:
+        return *(u16 *)rp->data;
+
+    case 4:
+        return *(u32 *)rp->data;
+
+    case 8:
+        return *(u64 *)rp->data;
+    }
+
+    abort();
 }
 
 static int
@@ -150,10 +169,26 @@ MTF_DEFINE_UTEST(kvdb_rparams, kvdb_rparams_add_to_dt_test)
     ASSERT_EQ(merr_errno(err), 0);
     kvdb_rparams_remove_from_dt(mp_name);
 
-    p.c0_ingest_width = 4;
+    /* c0_debug is a uint8_t
+     */
+    p.c0_debug = 0xab;
     err = kvdb_rparams_add_to_dt(mp_name, &p);
     ASSERT_EQ(err, 0);
-    ASSERT_EQ(4, get_cfg_data("c0_ingest_width", mp_name));
+    ASSERT_EQ(0xab, get_cfg_data("c0_debug", mp_name));
+
+    /* c0_ingest_width is a uint32_t
+     */
+    p.c0_ingest_width = 0x12345678;
+    err = kvdb_rparams_add_to_dt(mp_name, &p);
+    ASSERT_EQ(err, 0);
+    ASSERT_EQ(0x12345678, get_cfg_data("c0_ingest_width", mp_name));
+
+    /* c0_heap_sz is a uint64_t
+     */
+    p.c0_heap_sz = 0x9988776655443322ul;
+    err = kvdb_rparams_add_to_dt(mp_name, &p);
+    ASSERT_EQ(err, 0);
+    ASSERT_EQ(0x9988776655443322ul, get_cfg_data("c0_heap_sz", mp_name));
 
     /* Check some params at random */
     ASSERT_EQ(0, is_writable("read_only", mp_name));
@@ -171,7 +206,7 @@ MTF_DEFINE_UTEST(kvdb_rparams, kvdb_rparams_diff_test)
     rp.c0_ingest_width = 5;
     rp.low_mem = 1;
 
-    kvdb_rparams_diff(&rp, &count, *callback);
+    kvdb_rparams_diff(&rp, &count, callback);
     ASSERT_EQ(count, 3);
 }
 

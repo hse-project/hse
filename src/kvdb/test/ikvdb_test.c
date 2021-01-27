@@ -688,7 +688,7 @@ MTF_DEFINE_UTEST_PREPOST(ikvdb_test, txn_put_test, test_pre, test_post)
 
     hse_params_create(&params);
 
-    err = hse_params_set(params, "kvdb.c0_debug", "0x00000010");
+    err = hse_params_set(params, "kvdb.c0_debug", "0x10");
     ASSERT_EQ(err, 0);
 
     err = ikvdb_open(mpool, ds, params, &h);
@@ -743,7 +743,7 @@ MTF_DEFINE_UTEST_PREPOST(ikvdb_test, aborted_txn_bind, test_pre, test_post)
 
     hse_params_create(&params);
 
-    err = hse_params_set(params, "kvdb.c0_debug", "0x11111111");
+    err = hse_params_set(params, "kvdb.c0_debug", "0x10");
     ASSERT_EQ(err, 0);
 
     err = hse_params_set(params, "kvdb.c0_diag_mode", "1");
@@ -803,7 +803,7 @@ MTF_DEFINE_UTEST_PREPOST(ikvdb_test, cursor_0, test_pre, test_post)
 
     hse_params_create(&params);
 
-    err = hse_params_set(params, "kvdb.c0_debug", "0x11111111");
+    err = hse_params_set(params, "kvdb.c0_debug", "0x10");
     ASSERT_EQ(err, 0);
 
     err = hse_params_set(params, "kvdb.c0_diag_mode", "1");
