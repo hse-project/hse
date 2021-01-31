@@ -6,8 +6,9 @@
 
 api_version: 1
 kvs.MainKvs:
-  pfx_len: 4
+  pfx_len: 9
   pfx_pivot: 1
+  value_compression: lz4
 kvs.UniqIdxKvs:
-  pfx_len: 4
+  pfx_len: 11
   pfx_pivot: 1

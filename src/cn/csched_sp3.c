@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
 #define MTF_MOCK_IMPL_csched_sp3
@@ -1407,6 +1407,9 @@ sp3_comp_thread_name(
             break;
         case CN_CR_SPILL_TINY:
             r = "st";
+            break;
+        case CN_CR_ILONG_LW:
+            r = "li";
             break;
         case CN_CR_LBIG:
             r = "bn";

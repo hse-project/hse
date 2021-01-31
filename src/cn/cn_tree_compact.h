@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
 #ifndef HSE_KVDB_CN_CN_TREE_COMPACT_H
@@ -39,6 +39,7 @@ enum cn_comp_rule {
     CN_CR_SPILL,          /* normal spill */
     CN_CR_SPILL_ONE,      /* spill a single kvset b/c it was large */
     CN_CR_SPILL_TINY,     /* spill many small kvsets */
+    CN_CR_ILONG_LW,       /* long interior node, light weight */
     CN_CR_LBIG,           /* big leaf (near pop threshold) */
     CN_CR_LBIG_ONE,       /* big leaf, compact one kvset */
     CN_CR_LGARB,          /* leaf garbage (reducing space amp) */
@@ -86,6 +87,8 @@ cn_comp_rule2str(enum cn_comp_rule rule)
             return "spill_one";
         case CN_CR_SPILL_TINY:
             return "spill_tiny";
+        case CN_CR_ILONG_LW:
+            return "ilong_lw";
         case CN_CR_LBIG:
             return "big";
         case CN_CR_LBIG_ONE:

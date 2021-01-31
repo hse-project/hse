@@ -58,6 +58,7 @@ struct c0_kvmultiset_impl {
     atomic64_t           c0ms_seqno;
     u64                  c0ms_rsvd_sn;
     u64                  c0ms_ingest_delay;
+    u64                  c0ms_ctime;
 
     __aligned(SMP_CACHE_BYTES) atomic_t c0ms_ingesting;
     bool                     c0ms_ingested;
@@ -856,6 +857,7 @@ c0kvms_create(
 
     kvms->c0ms_ingest_delay = ingest_delay;
     kvms->c0ms_rsvd_sn = HSE_SQNREF_INVALID;
+    kvms->c0ms_ctime = get_time_ns();
 
     /* mark this seqno 'not in use'. */
     atomic64_set(&kvms->c0ms_seqno, HSE_SQNREF_INVALID);
@@ -1132,6 +1134,14 @@ c0kvms_preserve_tombspan(
     }
 
     return true;
+}
+
+u64
+c0kvms_ctime(struct c0_kvmultiset *handle)
+{
+    struct c0_kvmultiset_impl *self = c0_kvmultiset_h2r(handle);
+
+    return self->c0ms_ctime;
 }
 
 merr_t

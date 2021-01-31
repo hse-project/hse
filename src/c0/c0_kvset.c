@@ -399,32 +399,6 @@ c0kvs_ior_cb(
     return;
 }
 
-static __always_inline bool
-c0kvs_should_ingest(struct c0_kvset *handle, u32 nvals)
-{
-    struct c0_kvset_impl *self;
-
-    size_t total;
-    size_t free;
-
-    /* [HSE_REVISIT]: Based on experiments, read performance suffers if
-     * a get thread traverses more than 3K nodes in the values list.
-     * This limit needs to be configurable.
-     */
-    if (likely(nvals < 3072 || !handle))
-        return false;
-
-    self = c0_kvset_h2r(handle);
-    total = self->c0s_alloc_sz;
-    free = c0kvs_avail(handle);
-
-    /* If free space is less than 75% of total space, then ingest. This
-     * is to guard against pathological cases that could result in
-     * frequent ingests.
-     */
-    return (free < (total * 3) / 4);
-}
-
 /**
  * c0kvs_findval() - Method to pick a value element from the bkv_values list,
  *                   based on seqno.
@@ -470,7 +444,12 @@ c0kvs_findval(struct c0_kvset *handle, struct bonsai_kv *kv, u64 view_seqno, uin
         }
     }
 
-    if (c0kvs_should_ingest(handle, nvals))
+    /* [HSE_REVISIT] Read perf is severely impacted when the value list
+     * grows too long (e.g., a high put rate with Zipfian distribution).
+     * OTOH, tiny ingests wreak havoc on cn and cause the oplog kvs to
+     * grow spectacularly long (and with severe mblock fragmentation).
+     */
+    if (nvals > 2048)
         atomic_inc((c0_kvset_h2r(handle))->c0s_ingesting);
 
     return val_ge;

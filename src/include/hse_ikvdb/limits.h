@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
 #ifndef HSE_IKVS_LIMITS_H
@@ -22,9 +22,9 @@
 #define HSE_C0_INGEST_WIDTH_MIN     (8)
 #define HSE_C0_INGEST_WIDTH_DFLT    (8)
 #define HSE_C0_INGEST_WIDTH_DYN     (20)
-#define HSE_C0_INGEST_WIDTH_MAX     (HSE_C0_INGEST_WIDTH_DYN + 28)
+#define HSE_C0_INGEST_WIDTH_MAX     (HSE_C0_INGEST_WIDTH_DYN + 12)
 
-#define HSE_C0_INGEST_DELAY_DFLT (30)
+#define HSE_C0_INGEST_DELAY_DFLT (0)
 #define HSE_C0_INGEST_SZ_MAX (2048) /* MiB */
 
 #define HSE_C0_INGEST_THREADS_DFLT (3)
