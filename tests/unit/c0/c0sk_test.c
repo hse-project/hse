@@ -16,6 +16,7 @@
 #include <hse_ikvdb/c0.h>
 #include <hse_ikvdb/c0sk.h>
 #include <hse_ikvdb/c0_kvmultiset.h>
+#include <hse_ikvdb/c0snr_set.h>
 #include <hse_ikvdb/kvs.h>
 #include <hse_ikvdb/kvset_builder.h>
 #include <hse_ikvdb/kvdb_health.h>
@@ -39,6 +40,11 @@
 static struct kvdb_health    mock_health;
 static struct cursor_summary summary;
 struct csched *              csched;
+
+#define MAX_TXNS (32)
+
+atomic_t ctxn_locks[MAX_TXNS];
+uintptr_t c0snr[MAX_TXNS];
 
 struct kvdb_rparams kvdb_rp;
 
@@ -137,6 +143,26 @@ no_fail_post(struct mtf_test_info *info)
     g_fail_nth_alloc_cnt = 0;
     g_fail_nth_alloc_limit = -1;
     MOCK_UNSET(c0sk_internal, _c0sk_release_multiset);
+
+    return 0;
+}
+
+int
+no_fail_ctxn_pre(struct mtf_test_info *info)
+{
+    int i;
+
+    g_fail_nth_alloc_cnt = 0;
+    g_fail_nth_alloc_limit = -1;
+
+    mocks_set(info);
+
+    for (i = 0; i < MAX_TXNS; i++) {
+        atomic_set(&ctxn_locks[i], 0);
+        c0snr[i] = 0;
+    }
+
+    kvdb_health_clear(&mock_health, KVDB_HEALTH_FLAG_NOMEM);
 
     return 0;
 }
@@ -444,12 +470,6 @@ MTF_DEFINE_UTEST_PREPOST(c0sk_test, various, no_fail_pre, no_fail_post)
     err = c0sk_install_c0kvms(self, NULL, NULL);
     ASSERT_EQ(0, err);
 
-    err = c0sk_merge_impl(NULL, NULL, NULL, 0);
-    ASSERT_NE(0, err);
-
-    err = c0sk_merge_impl(self, NULL, NULL, 0);
-    ASSERT_NE(0, err);
-
     err = c0sk_close(mkvdb.ikdb_c0sk);
     ASSERT_EQ(0, err);
 
@@ -694,7 +714,7 @@ MTF_DEFINE_UTEST_PREPOST(c0sk_test, serial_put1, no_fail_pre, no_fail_post)
     struct mock_kvdb      mkvdb;
     struct cn *           mock_cn;
     atomic64_t            seqno;
-    u16                   skidx = 0;
+    u16                   skidx[num_kvs];
 
     kvdb_rp = kvdb_rparams_defaults();
     kvs_rp = kvs_rparams_defaults();
@@ -709,12 +729,12 @@ MTF_DEFINE_UTEST_PREPOST(c0sk_test, serial_put1, no_fail_pre, no_fail_post)
     err = create_mock_cn(&mock_cn, false, false, &kvs_rp, 0);
     ASSERT_EQ(0, err);
 
-    err = c0sk_c0_register(mkvdb.ikdb_c0sk, mock_cn, &skidx);
-    ASSERT_EQ(0, err);
-
     self = c0sk_h2r(mkvdb.ikdb_c0sk);
 
     for (i = 0; i < num_kvs; i++) {
+        err = c0sk_c0_register(mkvdb.ikdb_c0sk, mock_cn, &skidx[i]);
+        ASSERT_EQ(0, err);
+
         err = c0kvms_create(1, 0, 0, &seqno, &kvms[i]);
         ASSERT_EQ(0, err);
         ASSERT_NE(NULL, kvms[i]);
@@ -741,7 +761,7 @@ MTF_DEFINE_UTEST_PREPOST(c0sk_test, serial_put1, no_fail_pre, no_fail_post)
         memcpy(val_buf, key_buf, kw);
 
         for (j = 0; j < num_kvs; j++) {
-            err = c0sk_put(mkvdb.ikdb_c0sk, skidx, &kt, &vt, HSE_SQNREF_SINGLE);
+            err = c0sk_put(mkvdb.ikdb_c0sk, skidx[j], &kt, &vt, HSE_SQNREF_SINGLE);
             ASSERT_EQ(0, err);
         }
     }
@@ -779,7 +799,153 @@ MTF_DEFINE_UTEST_PREPOST(c0sk_test, serial_put2, no_fail_pre, no_fail_post)
     struct cn *           mock_cn;
     struct c0sk_impl *    self;
     atomic64_t            seqno;
-    u16                   skidx = 0;
+    u16                   skidx[num_kvs];
+
+    kvdb_rp = kvdb_rparams_defaults();
+    kvs_rp = kvs_rparams_defaults();
+
+    kvdb_rp.c0_ingest_width = 2;
+
+    atomic64_set(&seqno, 0);
+    err = c0sk_open(&kvdb_rp, 0, "mock_mp", &mock_health, csched, &seqno, &mkvdb.ikdb_c0sk);
+    ASSERT_EQ(0, err);
+    ASSERT_NE((struct c0sk *)0, mkvdb.ikdb_c0sk);
+
+    err = create_mock_cn(&mock_cn, false, false, &kvs_rp, 0);
+    ASSERT_EQ(0, err);
+
+    self = c0sk_h2r(mkvdb.ikdb_c0sk);
+
+    for (i = 0; i < num_kvs; i++) {
+        err = c0sk_c0_register(mkvdb.ikdb_c0sk, mock_cn, &skidx[i]);
+        ASSERT_EQ(0, err);
+
+        err = c0kvms_create(1, 0, 0, &seqno, &kvms[i]);
+        ASSERT_EQ(0, err);
+        ASSERT_NE(NULL, kvms[i]);
+
+        err = c0sk_install_c0kvms(self, NULL, kvms[i]);
+        ASSERT_EQ(0, err);
+    }
+
+    kg = create_key_generator(2176782000, kw);
+    ASSERT_NE(kg, (void *)0);
+
+    memset(key_buf, 0, sizeof(key_buf));
+    memset(val_buf, 0, sizeof(val_buf));
+
+    kvs_ktuple_init(&kt, key_buf, key_len);
+    kvs_vtuple_init(&vt, val_buf, val_len);
+
+    srand(456);
+    for (i = 0; i < num_keys; ++i) {
+        u32 key_num = generate_random_u32(0, 4000000000);
+
+        get_key(kg, key_buf, key_num);
+
+        memcpy(val_buf, key_buf, kw);
+
+        for (j = 0; j < num_kvs; j++) {
+            err = c0sk_put(mkvdb.ikdb_c0sk, skidx[j], &kt, &vt, HSE_SQNREF_SINGLE);
+            ASSERT_EQ(0, err);
+        }
+    }
+
+    for (i = 0; i < num_kvs; i++) {
+        c0kvms_putref(kvms[i]);
+    }
+
+    destroy_key_generator(kg);
+
+    err = c0sk_close(mkvdb.ikdb_c0sk);
+    ASSERT_EQ(0, err);
+
+    destroy_mock_cn(mock_cn);
+}
+
+static __always_inline bool
+ctxn_trylock(int num)
+{
+    assert(num < MAX_TXNS);
+    return atomic_cmpxchg(&ctxn_locks[num], 0, 1) == 0;
+}
+
+static __always_inline void
+ctxn_unlock(int num)
+{
+    int old __maybe_unused;
+
+    assert(num < MAX_TXNS);
+
+    old = atomic_cmpxchg(&ctxn_locks[num], 1, 0);
+    assert(old == 1);
+}
+
+static void
+c0sk_test_finish_txn(int index, u64 commit_sn)
+{
+    uintptr_t *priv;
+    uintptr_t ref;
+    u64 osn __maybe_unused;
+
+    assert(index >= 0 && index < MAX_TXNS);
+
+    if (ctxn_trylock(index)) {
+        ref = c0snr[index];
+        priv = (uintptr_t *)ref;
+        if (priv) {
+            assert(seqnoref_to_seqno(ref, &osn) == HSE_SQNREF_STATE_UNDEFINED);
+            if (commit_sn == 0)
+                *priv = HSE_SQNREF_ABORTED;
+            else
+                *priv = HSE_ORDNL_TO_SQNREF(commit_sn);
+
+            c0snr_clear_txn(priv);
+            c0snr[index] = 0;
+        }
+        ctxn_unlock(index);
+    }
+}
+
+static void
+c0snr_set_abort_test_handler(struct kvdb_ctxn *ctxn)
+{
+    long index = (long)ctxn;
+
+    if (index) {
+        index--;
+        assert(index < MAX_TXNS);
+
+        c0sk_test_finish_txn((int)index, 0);
+    }
+}
+
+MTF_DEFINE_UTEST_PREPOST(c0sk_test, ctxn_put, no_fail_ctxn_pre, no_fail_post)
+{
+    struct kvdb_rparams     kvdb_rp;
+    struct kvs_rparams      kvs_rp;
+    const int               num_kvs = 8;
+    struct c0snr_set       *css;
+    struct c0_kvmultiset   *kvms[num_kvs];
+    merr_t                  err;
+
+    const int               num_txns = 32;
+    const int               kw = 6;
+    const int               num_keys = 30000;
+    struct key_generator   *kg;
+    u8                      key_buf[kw + 1];
+    int                     key_len = kw;
+    u8                      val_buf[100];
+    int                     val_len = 100;
+    struct kvs_ktuple       kt;
+    struct kvs_vtuple       vt;
+    int                     i, j;
+    struct mock_kvdb        mkvdb;
+    struct cn              *mock_cn;
+    struct c0sk_impl       *self;
+    atomic64_t              seqno;
+    u16                     skidx = 0;
+    uintptr_t               priv, iseqnoref;
 
     kvdb_rp = kvdb_rparams_defaults();
     kvs_rp = kvs_rparams_defaults();
@@ -796,6 +962,21 @@ MTF_DEFINE_UTEST_PREPOST(c0sk_test, serial_put2, no_fail_pre, no_fail_post)
 
     err = c0sk_c0_register(mkvdb.ikdb_c0sk, mock_cn, &skidx);
     ASSERT_EQ(0, err);
+
+    err = c0snr_set_create(c0snr_set_abort_test_handler, &css);
+    ASSERT_TRUE(err == 0);
+
+    for (i = 0; i < num_txns; ++i) {
+        uintptr_t *tmp;
+
+        tmp = c0snr_set_get_c0snr(css, (struct kvdb_ctxn *)(int64_t)(i + 1));
+        ASSERT_NE(0, tmp);
+
+        *tmp = HSE_SQNREF_UNDEFINED;
+
+        assert(c0snr[i] == 0);
+        c0snr[i] = (uintptr_t)tmp;
+    }
 
     self = c0sk_h2r(mkvdb.ikdb_c0sk);
 
@@ -826,16 +1007,42 @@ MTF_DEFINE_UTEST_PREPOST(c0sk_test, serial_put2, no_fail_pre, no_fail_post)
         memcpy(val_buf, key_buf, kw);
 
         for (j = 0; j < num_kvs; j++) {
-            err = c0sk_put(mkvdb.ikdb_c0sk, skidx, &kt, &vt, HSE_SQNREF_SINGLE);
+            int idx = i % num_txns;
+            u64 oseqno __maybe_unused;
+
+retry:
+            if (ctxn_trylock(idx)) {
+                priv = c0snr[idx];
+                if (priv) {
+                    assert(seqnoref_to_seqno(priv, &oseqno) == HSE_SQNREF_STATE_UNDEFINED);
+                } else {
+                    ctxn_unlock(idx);
+                    j = num_kvs - 1;
+                    continue;
+                }
+            } else {
+                goto retry;
+            }
+
+            iseqnoref = HSE_REF_TO_SQNREF(priv);
+
+            err = c0sk_put(mkvdb.ikdb_c0sk, skidx, &kt, &vt, iseqnoref);
             ASSERT_EQ(0, err);
+
+            ctxn_unlock(idx);
         }
     }
+
+    for (i = 0; i < num_txns; ++i)
+        c0sk_test_finish_txn(i, 0);
 
     for (i = 0; i < num_kvs; i++) {
         c0kvms_putref(kvms[i]);
     }
 
     destroy_key_generator(kg);
+
+    c0snr_set_destroy(css);
 
     err = c0sk_close(mkvdb.ikdb_c0sk);
     ASSERT_EQ(0, err);
@@ -846,9 +1053,11 @@ MTF_DEFINE_UTEST_PREPOST(c0sk_test, serial_put2, no_fail_pre, no_fail_post)
 struct parallel_thrd_arg {
     struct c0sk *         ikdb_c0sk;
     struct key_generator *kg;
+    uintptr_t             c0snr;
     int                   kw;
     int                   cnt;
     int                   pfx_len;
+    int                   index;
     u16                   skidx;
 };
 
@@ -862,6 +1071,8 @@ parallel_put_helper(void *arg)
     const int             kw = p->kw;
     const int             cnt = p->cnt;
     const u16             skidx = p->skidx;
+    int                   idx = p->index;
+    uintptr_t             priv;
     merr_t                err;
     u8                    key_buf[kw + 1];
     int                   key_len = kw;
@@ -874,6 +1085,8 @@ parallel_put_helper(void *arg)
     memset(key_buf, 0, sizeof(key_buf));
     memset(val_buf, 0, sizeof(val_buf));
 
+    priv = (idx == -1) ? HSE_SQNREF_SINGLE : 0;
+
     for (i = 0; i < cnt; ++i) {
         u32 key_num = generate_random_u32(0, 4000000000);
 
@@ -884,12 +1097,31 @@ parallel_put_helper(void *arg)
         kvs_ktuple_init(&kt, key_buf, key_len);
         kvs_vtuple_init(&vt, val_buf, val_len);
 
+        if (idx != -1) {
+retry:
+            if (ctxn_trylock(idx)) {
+                u64 oseqno __maybe_unused;
+
+                priv = c0snr[idx];
+                if (priv) {
+                    assert(seqnoref_to_seqno(priv, &oseqno) == HSE_SQNREF_STATE_UNDEFINED);
+                } else {
+                    ctxn_unlock(idx);
+                    break;
+                }
+            } else {
+                goto retry;
+            }
+        }
         if (cnt % 59)
-            err = c0sk_del(ikdb, skidx, &kt, HSE_SQNREF_SINGLE);
+            err = c0sk_del(ikdb, skidx, &kt, priv);
         else if (cnt % 199)
-            err = c0sk_prefix_del(ikdb, skidx, &kt, HSE_SQNREF_SINGLE);
+            err = c0sk_prefix_del(ikdb, skidx, &kt, priv);
         else
-            err = c0sk_put(ikdb, skidx, &kt, &vt, HSE_SQNREF_SINGLE);
+            err = c0sk_put(ikdb, skidx, &kt, &vt, priv);
+
+        if (idx != -1)
+            ctxn_unlock(idx);
 
         if (err)
             hse_elog(HSE_ERR "c0sk_put() failed: @@e", err);
@@ -918,7 +1150,7 @@ MTF_DEFINE_UTEST_PREPOST(c0sk_test, parallel_put1, no_fail_pre, no_fail_post)
     struct cn *              mock_cn;
     struct c0sk_impl *       self;
     atomic64_t               seqno;
-    u16                      skidx;
+    u16                      skidx[num_kvs];
 
     kvdb_rp = kvdb_rparams_defaults();
     kvs_rp = kvs_rparams_defaults();
@@ -933,12 +1165,12 @@ MTF_DEFINE_UTEST_PREPOST(c0sk_test, parallel_put1, no_fail_pre, no_fail_post)
     err = create_mock_cn(&mock_cn, false, false, &kvs_rp, 0);
     ASSERT_EQ(0, err);
 
-    err = c0sk_c0_register(mkvdb.ikdb_c0sk, mock_cn, &skidx);
-    ASSERT_EQ(0, err);
-
     self = c0sk_h2r(mkvdb.ikdb_c0sk);
 
     for (i = 0; i < num_kvs; i++) {
+        err = c0sk_c0_register(mkvdb.ikdb_c0sk, mock_cn, &skidx[i]);
+        ASSERT_EQ(0, err);
+
         err = c0kvms_create(1, 0, 0, &seqno, &kvms[i]);
         ASSERT_EQ(0, err);
         ASSERT_NE(NULL, kvms[i]);
@@ -957,7 +1189,8 @@ MTF_DEFINE_UTEST_PREPOST(c0sk_test, parallel_put1, no_fail_pre, no_fail_post)
         argstruct.kg = kg;
         argstruct.kw = kw;
         argstruct.cnt = 25;
-        argstruct.skidx = skidx;
+        argstruct.skidx = skidx[i];
+        argstruct.index = -1;
 
         for (j = 0; j < num_threads; ++j) {
             rc = pthread_create(
@@ -1004,7 +1237,7 @@ MTF_DEFINE_UTEST_PREPOST(c0sk_test, parallel_put2, no_fail_pre, no_fail_post)
     struct cn *              mock_cn;
     struct c0sk_impl *       self;
     atomic64_t               seqno;
-    u16                      skidx = 0;
+    u16                      skidx[num_kvs];
 
     kvdb_rp = kvdb_rparams_defaults();
     kvs_rp = kvs_rparams_defaults();
@@ -1019,12 +1252,12 @@ MTF_DEFINE_UTEST_PREPOST(c0sk_test, parallel_put2, no_fail_pre, no_fail_post)
     err = create_mock_cn(&mock_cn, false, false, &kvs_rp, 0);
     ASSERT_EQ(0, err);
 
-    err = c0sk_c0_register(mkvdb.ikdb_c0sk, mock_cn, &skidx);
-    ASSERT_EQ(0, err);
-
     self = c0sk_h2r(mkvdb.ikdb_c0sk);
 
     for (i = 0; i < num_kvs; i++) {
+        err = c0sk_c0_register(mkvdb.ikdb_c0sk, mock_cn, &skidx[i]);
+        ASSERT_EQ(0, err);
+
         err = c0kvms_create(1, 0, 0, &seqno, &kvms[i]);
         ASSERT_EQ(0, err);
         ASSERT_NE(NULL, kvms[i]);
@@ -1043,7 +1276,8 @@ MTF_DEFINE_UTEST_PREPOST(c0sk_test, parallel_put2, no_fail_pre, no_fail_post)
         argstruct.kg = kg;
         argstruct.kw = kw;
         argstruct.cnt = 2500;
-        argstruct.skidx = skidx;
+        argstruct.skidx = skidx[i];
+        argstruct.index = -1;
 
         for (j = 0; j < num_threads; ++j) {
             rc = pthread_create(
@@ -1090,7 +1324,7 @@ MTF_DEFINE_UTEST_PREPOST(c0sk_test, parallel_put3, no_fail_pre, no_fail_post)
     struct cn *              mock_cn;
     struct c0sk_impl *       self;
     atomic64_t               seqno;
-    u16                      skidx = 0;
+    u16                      skidx[num_kvs];
 
     kvdb_rp = kvdb_rparams_defaults();
     kvs_rp = kvs_rparams_defaults();
@@ -1105,12 +1339,12 @@ MTF_DEFINE_UTEST_PREPOST(c0sk_test, parallel_put3, no_fail_pre, no_fail_post)
     err = create_mock_cn(&mock_cn, false, false, &kvs_rp, 0);
     ASSERT_EQ(0, err);
 
-    err = c0sk_c0_register(mkvdb.ikdb_c0sk, mock_cn, &skidx);
-    ASSERT_EQ(0, err);
-
     self = c0sk_h2r(mkvdb.ikdb_c0sk);
 
     for (i = 0; i < num_kvs; i++) {
+        err = c0sk_c0_register(mkvdb.ikdb_c0sk, mock_cn, &skidx[i]);
+        ASSERT_EQ(0, err);
+
         err = c0kvms_create(1, 0, 0, &seqno, &kvms[i]);
         ASSERT_EQ(0, err);
         ASSERT_NE(NULL, kvms[i]);
@@ -1129,6 +1363,8 @@ MTF_DEFINE_UTEST_PREPOST(c0sk_test, parallel_put3, no_fail_pre, no_fail_post)
         argstruct.kg = kg;
         argstruct.kw = kw;
         argstruct.cnt = 10000;
+        argstruct.skidx = skidx[i];
+        argstruct.index = -1;
 
         for (j = 0; j < num_threads; ++j) {
             rc = pthread_create(
@@ -1156,6 +1392,124 @@ MTF_DEFINE_UTEST_PREPOST(c0sk_test, parallel_put3, no_fail_pre, no_fail_post)
     destroy_mock_cn(mock_cn);
 }
 
+MTF_DEFINE_UTEST_PREPOST(c0sk_test, parallel_ctxn_put, no_fail_ctxn_pre, no_fail_post)
+{
+    struct kvdb_rparams     kvdb_rp;
+    struct kvs_rparams      kvs_rp;
+    const int               num_kvs = 4;
+    struct c0snr_set       *css;
+    struct c0_kvmultiset   *kvms[num_kvs];
+    merr_t                  err;
+
+    const int                kw = 11;
+    const int                num_threads = 29;
+    pthread_t                thread_idv[num_threads * num_kvs];
+    int                      rc;
+    struct parallel_thrd_arg argstruct;
+    struct key_generator *   kg;
+    int                      i, j;
+    struct mock_kvdb         mkvdb;
+    struct cn *              mock_cn;
+    struct c0sk_impl *       self;
+    atomic64_t               seqno;
+    u16                      skidx[num_kvs];
+
+    kvdb_rp = kvdb_rparams_defaults();
+    kvs_rp = kvs_rparams_defaults();
+
+    kvdb_rp.c0_ingest_width = num_threads;
+
+    atomic64_set(&seqno, 0);
+    err = c0sk_open(&kvdb_rp, 0, "mock_mp", &mock_health, csched, &seqno, &mkvdb.ikdb_c0sk);
+    ASSERT_EQ(0, err);
+    ASSERT_NE((struct c0sk *)0, mkvdb.ikdb_c0sk);
+
+    err = create_mock_cn(&mock_cn, false, false, &kvs_rp, 0);
+    ASSERT_EQ(0, err);
+
+    err = c0snr_set_create(c0snr_set_abort_test_handler, &css);
+    ASSERT_TRUE(err == 0);
+
+    for (i = 0; i < num_threads; ++i) {
+        uintptr_t *tmp;
+
+        tmp = c0snr_set_get_c0snr(css, (struct kvdb_ctxn *)(int64_t)(i + 1));
+        ASSERT_NE(0, tmp);
+
+        *tmp = HSE_SQNREF_UNDEFINED;
+
+        assert(i < MAX_TXNS && c0snr[i] == 0);
+        c0snr[i] = (uintptr_t)tmp;
+    }
+
+    self = c0sk_h2r(mkvdb.ikdb_c0sk);
+
+    for (i = 0; i < num_kvs; i++) {
+        err = c0sk_c0_register(mkvdb.ikdb_c0sk, mock_cn, &skidx[i]);
+        ASSERT_EQ(0, err);
+
+        err = c0kvms_create(1, 0, 0, &seqno, &kvms[i]);
+        ASSERT_EQ(0, err);
+        ASSERT_NE(NULL, kvms[i]);
+
+        err = c0sk_install_c0kvms(self, NULL, kvms[i]);
+        ASSERT_EQ(0, err);
+    }
+
+    kg = create_key_generator(2176782000, kw);
+    ASSERT_NE(kg, (void *)0);
+
+    srand(456);
+
+    for (i = 0; i < num_kvs; i++) {
+        argstruct.ikdb_c0sk = mkvdb.ikdb_c0sk;
+        argstruct.kg = kg;
+        argstruct.kw = kw;
+        argstruct.skidx = skidx[i];
+        argstruct.cnt = 10000;
+
+        for (j = 0; j < num_threads; ++j) {
+            argstruct.index = j;
+
+            rc = pthread_create(
+                thread_idv + i * num_threads + j, 0, parallel_put_helper, &argstruct);
+            ASSERT_EQ(0, rc);
+        }
+    }
+
+    for (i = 0; i < num_threads * num_kvs; ++i) {
+        rc = pthread_join(thread_idv[i], 0);
+        ASSERT_EQ(0, rc);
+    }
+
+    for (i = 0; i < num_threads; ++i) {
+        if (i % 2 == 0) {
+            c0sk_test_finish_txn(i, 0);
+        }
+    }
+
+    for (i = 0; i < num_threads; ++i) {
+        if (i % 2) {
+            c0sk_test_finish_txn(i, 6 + i);
+        }
+    }
+
+    synchronize_rcu();
+
+    for (i = 0; i < num_kvs; i++) {
+        c0kvms_putref(kvms[i]);
+    }
+
+    destroy_key_generator(kg);
+
+    c0snr_set_destroy(css);
+
+    err = c0sk_close(mkvdb.ikdb_c0sk);
+    ASSERT_EQ(0, err);
+
+    destroy_mock_cn(mock_cn);
+}
+
 MTF_DEFINE_UTEST_PREPOST(c0sk_test, parallel_put_cheap, no_fail_pre, no_fail_post)
 {
     struct kvdb_rparams   kvdb_rp;
@@ -1175,7 +1529,7 @@ MTF_DEFINE_UTEST_PREPOST(c0sk_test, parallel_put_cheap, no_fail_pre, no_fail_pos
     struct cn *              mock_cn;
     struct c0sk_impl *       self;
     atomic64_t               seqno;
-    u16                      skidx = 0;
+    u16                      skidx[num_kvs];
 
     kvdb_rp = kvdb_rparams_defaults();
     kvs_rp = kvs_rparams_defaults();
@@ -1190,12 +1544,12 @@ MTF_DEFINE_UTEST_PREPOST(c0sk_test, parallel_put_cheap, no_fail_pre, no_fail_pos
     err = create_mock_cn(&mock_cn, false, false, &kvs_rp, 0);
     ASSERT_EQ(0, err);
 
-    err = c0sk_c0_register(mkvdb.ikdb_c0sk, mock_cn, &skidx);
-    ASSERT_EQ(0, err);
-
     self = c0sk_h2r(mkvdb.ikdb_c0sk);
 
     for (i = 0; i < num_kvs; i++) {
+        err = c0sk_c0_register(mkvdb.ikdb_c0sk, mock_cn, &skidx[i]);
+        ASSERT_EQ(0, err);
+
         err = c0kvms_create(1, 0, 0, &seqno, &kvms[i]);
         ASSERT_EQ(0, err);
         ASSERT_NE(NULL, kvms[i]);
@@ -1213,7 +1567,9 @@ MTF_DEFINE_UTEST_PREPOST(c0sk_test, parallel_put_cheap, no_fail_pre, no_fail_pos
         argstruct.ikdb_c0sk = mkvdb.ikdb_c0sk;
         argstruct.kg = kg;
         argstruct.kw = kw;
+        argstruct.skidx = skidx[i];
         argstruct.cnt = 2500;
+        argstruct.index = -1;
 
         for (j = 0; j < num_threads; ++j) {
             rc = pthread_create(
@@ -1308,7 +1664,7 @@ MTF_DEFINE_UTEST_PREPOST(c0sk_test, parallel_get_put, no_fail_pre, no_fail_post)
     struct cn *              mock_cn;
     struct c0sk_impl *       self;
     atomic64_t               seqno;
-    u16                      skidx = 0;
+    u16                      skidx[num_kvs];
     const u32                pfx_len = 0;
 
     kvdb_rp = kvdb_rparams_defaults();
@@ -1324,12 +1680,12 @@ MTF_DEFINE_UTEST_PREPOST(c0sk_test, parallel_get_put, no_fail_pre, no_fail_post)
     err = create_mock_cn(&mock_cn, false, false, &kvs_rp, pfx_len);
     ASSERT_EQ(0, err);
 
-    err = c0sk_c0_register(mkvdb.ikdb_c0sk, mock_cn, &skidx);
-    ASSERT_EQ(0, err);
-
     self = c0sk_h2r(mkvdb.ikdb_c0sk);
 
     for (i = 0; i < num_kvs; i++) {
+        err = c0sk_c0_register(mkvdb.ikdb_c0sk, mock_cn, &skidx[i]);
+        ASSERT_EQ(0, err);
+
         err = c0kvms_create(1, 0, 0, &seqno, &kvms[i]);
         ASSERT_EQ(0, err);
         ASSERT_NE(NULL, kvms[i]);
@@ -1348,7 +1704,7 @@ MTF_DEFINE_UTEST_PREPOST(c0sk_test, parallel_get_put, no_fail_pre, no_fail_post)
         argstruct.kg = kg;
         argstruct.kw = kw;
         argstruct.cnt = 25000;
-        argstruct.skidx = skidx;
+        argstruct.skidx = skidx[i];
         argstruct.pfx_len = pfx_len;
 
         for (j = 0; j < num_get_threads; ++j) {
@@ -1358,6 +1714,8 @@ MTF_DEFINE_UTEST_PREPOST(c0sk_test, parallel_get_put, no_fail_pre, no_fail_post)
         }
 
         for (j = 0; j < num_put_threads; ++j) {
+            argstruct.index = -1;
+
             rc = pthread_create(
                 pthread_idv + i * num_put_threads + j, 0, parallel_put_helper, &argstruct);
             ASSERT_EQ(0, rc);

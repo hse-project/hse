@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
 #ifndef HSE_KVDB_CTXN_H
@@ -22,6 +22,7 @@ struct kvs_buf;
 struct kvdb_keylock;
 struct kvdb_ctxn_set;
 struct viewset;
+struct c0snr_set;
 struct query_ctx;
 
 enum key_lookup_res;
@@ -66,6 +67,7 @@ kvdb_ctxn_alloc(
     atomic64_t *            kvdb_seqno_addr,
     struct kvdb_ctxn_set *  kvdb_ctxn_set,
     struct viewset         *active_txn_set,
+    struct c0snr_set       *c0snrset,
     struct c0sk *           c0sk);
 
 void

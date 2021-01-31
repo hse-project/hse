@@ -22,6 +22,7 @@
 #include <hse_ikvdb/c0_kvmultiset.h>
 #include <hse_ikvdb/c0.h>
 #include <hse_ikvdb/c0sk.h>
+#include <hse_ikvdb/c0snr_set.h>
 #include <hse_ikvdb/limits.h>
 
 #include "viewset.h"
@@ -176,7 +177,8 @@ kvdb_ctxn_alloc(
     atomic64_t *            kvdb_seqno_addr,
     struct kvdb_ctxn_set *  kcs_handle,
     struct viewset         *viewset,
-    struct c0sk *           c0sk)
+    struct c0snr_set       *c0snrset,
+    struct c0sk            *c0sk)
 {
     struct kvdb_ctxn_impl *    ctxn;
     struct kvdb_ctxn_set_impl *kvdb_ctxn_set;
@@ -194,22 +196,16 @@ kvdb_ctxn_alloc(
     ctxn->ctxn_seqref = HSE_SQNREF_INVALID;
     ctxn->ctxn_kvdb_keylock = kvdb_keylock;
     ctxn->ctxn_viewset = viewset;
+    ctxn->ctxn_c0snr_set = c0snrset;
     ctxn->ctxn_c0sk = c0sk;
     ctxn->ctxn_kvdb_ctxn_set = kcs_handle;
     ctxn->ctxn_kvdb_seq_addr = kvdb_seqno_addr;
     ctxn->ctxn_tseqno_head = &kvdb_ctxn_set->ktn_tseqno_head;
     ctxn->ctxn_tseqno_tail = &kvdb_ctxn_set->ktn_tseqno_tail;
-    ctxn->ctxn_ingest_width = HSE_C0_INGEST_WIDTH_DFLT;
-    ctxn->ctxn_ingest_delay = HSE_C0_INGEST_DELAY_DFLT;
-    ctxn->ctxn_heap_sz = HSE_C0_CHEAP_SZ_DFLT;
 
     rp = c0sk_rparams(ctxn->ctxn_c0sk);
-    if (rp) {
+    if (rp)
         ctxn->ctxn_commit_abort_pct = rp->txn_commit_abort_pct;
-        ctxn->ctxn_ingest_width = rp->txn_ingest_width;
-        ctxn->ctxn_ingest_delay = rp->txn_ingest_delay;
-        ctxn->ctxn_heap_sz = rp->txn_heap_sz;
-    }
 
     mutex_lock(&kvdb_ctxn_set->ktn_list_mutex);
     cds_list_add_rcu(&ctxn->ctxn_alloc_link, &kvdb_ctxn_set->ktn_alloc_list);
@@ -313,46 +309,29 @@ kvdb_ctxn_free(struct kvdb_ctxn *handle)
     assert(!ctxn->ctxn_bind);
     assert(!ctxn->ctxn_locks_handle);
 
-    if (ctxn->ctxn_kvms)
-        c0kvms_putref(ctxn->ctxn_kvms);
-
     kvdb_ctxn_set_remove(ctxn->ctxn_kvdb_ctxn_set, ctxn);
 }
 
 static merr_t
 kvdb_ctxn_enable_inserts(struct kvdb_ctxn_impl *ctxn)
 {
-    struct kvdb_ctxn_locks *locks;
-    uintptr_t *             priv;
-    merr_t                  err;
-
-    if (!ctxn->ctxn_kvms) {
-        err = c0kvms_create(
-            ctxn->ctxn_ingest_width,
-            ctxn->ctxn_heap_sz,
-            ctxn->ctxn_ingest_delay,
-            ctxn->ctxn_kvdb_seq_addr,
-            &ctxn->ctxn_kvms);
-        if (ev(err))
-            return err;
-    }
+    struct kvdb_ctxn_locks     *locks;
+    uintptr_t                  *priv;
+    merr_t                      err;
 
     err = kvdb_ctxn_locks_create(&locks);
-    if (ev(err)) {
-        c0kvms_putref(ctxn->ctxn_kvms);
-        ctxn->ctxn_kvms = NULL;
+    if (ev(err))
         return err;
-    }
 
-    priv = c0kvms_priv_alloc(ctxn->ctxn_kvms);
+    priv = c0snr_set_get_c0snr(ctxn->ctxn_c0snr_set, &ctxn->ctxn_inner_handle);
     if (ev(!priv)) {
-        c0kvms_putref(ctxn->ctxn_kvms);
         kvdb_ctxn_locks_destroy(locks);
-        ctxn->ctxn_kvms = NULL;
         return merr(ENOMEM);
     }
 
+    assert(*priv == HSE_SQNREF_INVALID);
     *priv = HSE_SQNREF_UNDEFINED;
+
     ctxn->ctxn_seqref = HSE_REF_TO_SQNREF(priv);
     ctxn->ctxn_locks_handle = locks;
     ctxn->ctxn_can_insert = 1;
@@ -391,10 +370,6 @@ kvdb_ctxn_begin(struct kvdb_ctxn *handle)
     ctxn->ctxn_can_insert = 0;
     ctxn->ctxn_seqref = HSE_SQNREF_UNDEFINED;
 
-    /* KVS Cursors need an always-consistent kvms state. */
-    if (ctxn->ctxn_kvms)
-        c0kvms_reset(ctxn->ctxn_kvms);
-
 errout:
     kvdb_ctxn_unlock(ctxn);
 
@@ -425,7 +400,23 @@ kvdb_ctxn_abort_inner(struct kvdb_ctxn_impl *ctxn)
     struct kvdb_ctxn_bind * bind;
     struct kvdb_keylock *   keylock;
 
-    ctxn->ctxn_seqref = HSE_SQNREF_ABORTED;
+    if (ctxn->ctxn_can_insert) {
+        uintptr_t *priv = (uintptr_t *)ctxn->ctxn_seqref;
+
+        *priv = HSE_SQNREF_ABORTED;
+
+        /* Once the indirect assignment has been performed the
+         * transaction itself no longer needs to read the shared value
+         * and instead just puts it into its private area. This is
+         * preserved until the transaction is reused and allows us to
+         * remember that the state of the transaction is "aborted".
+         */
+        ctxn->ctxn_seqref = HSE_SQNREF_ABORTED;
+
+        c0snr_clear_txn(priv);
+    } else {
+        ctxn->ctxn_seqref = HSE_SQNREF_ABORTED;
+    }
 
     bind = ctxn->ctxn_bind;
     if (bind) {
@@ -462,8 +453,6 @@ kvdb_ctxn_abort_inner(struct kvdb_ctxn_impl *ctxn)
 
     /* At this point the transaction ceases to be considered active */
     kvdb_ctxn_deactivate(ctxn);
-
-    c0kvms_priv_release(ctxn->ctxn_kvms);
 }
 
 void
@@ -483,65 +472,6 @@ kvdb_ctxn_abort(struct kvdb_ctxn *handle)
     kvdb_ctxn_unlock(ctxn);
 }
 
-/* Set two ctxn kvms size thresholds T1 and T2 (T1 < T2).
- *
- * if (size < T1):
- *     Retry merge 5 times.
- *     Flush if all merge attempts fail.
- * else if (size < T2):
- *     Try merge once.
- *     Flush after 1 merge failure.
- * else  // size > T2
- *     Always flush src. Do not bother with merge.
- */
-merr_t
-kvdb_ctxn_merge(
-    struct kvdb_ctxn_impl *ctxn,
-    int *                  num_retries,
-    uintptr_t **           privp,
-    struct c0_kvmultiset **dstp)
-{
-    struct c0_kvmultiset *src = ctxn->ctxn_kvms;
-
-    size_t thresh_lo, thresh_hi;
-    size_t src_size;
-    merr_t err;
-
-    c0kvms_thresholds_get(src, &thresh_lo, &thresh_hi);
-    src_size = c0kvms_used(src);
-
-    if (ev(src_size > thresh_hi || *num_retries == 0))
-        return merr(EFBIG); /* Let caller fallback on flush */
-
-    if (ev(src_size > thresh_lo))
-        *num_retries = 0;
-
-    while (1) {
-        err = c0sk_merge(ctxn->ctxn_c0sk, src, dstp, privp);
-        if (!err)
-            break;
-
-        if (ev(merr_errno(err) != ENOMEM))
-            break;
-
-        if (ev((*num_retries)-- < 1))
-            break;
-
-        ev(1);
-    }
-
-    return err;
-}
-
-/* The flush lock serializes threads performing a flush-commit
- * while ensuring they all make forward progress.  Meanwhile,
- * the flush_busy flag is used to prevent merge-flush threads
- * from getting into the inner commit critical section which
- * could deadlock a flush-commit thread on the keylist lock.
- */
-static DEFINE_MUTEX(flush_lock);
-static atomic_t flush_busy = ATOMIC_INIT(0);
-
 merr_t
 kvdb_ctxn_commit(struct kvdb_ctxn *handle)
 {
@@ -550,15 +480,10 @@ kvdb_ctxn_commit(struct kvdb_ctxn *handle)
     struct kvdb_ctxn_locks *locks;
     enum kvdb_ctxn_state    state;
     void *                  cookie;
-    merr_t                  err;
-    struct c0_kvmultiset *  dst;
-    struct c0_kvmultiset *  first;
     uintptr_t *             priv;
     uintptr_t               ref;
     u64                     commit_sn;
-    u64                     rsvd_sn;
     u64                     head;
-    int                     num_retries;
 
     if (ev(!kvdb_ctxn_trylock(ctxn)))
         return merr(EPROTO);
@@ -601,64 +526,6 @@ kvdb_ctxn_commit(struct kvdb_ctxn *handle)
         kvdb_ctxn_unlock(ctxn);
 
         return 0;
-    }
-
-    /* Acquire a reference on the kvms so that it cannot be freed
-     * before we update it via ctxn_seqno (which points into kvms
-     * via the kvms priv ptr).
-     */
-    c0kvms_getref(ctxn->ctxn_kvms);
-
-    num_retries = 5;
-
-retry:
-    head = 0;
-    priv = NULL;
-    dst = NULL;
-
-    err = kvdb_ctxn_merge(ctxn, &num_retries, &priv, &dst);
-    if (ev(err)) {
-        assert(!dst && !priv);
-
-        /* Serialize all flush operations to ensure we don't
-         * deadlock on keylock list lock.
-         */
-        mutex_lock(&flush_lock);
-        atomic_inc(&flush_busy);
-
-        /* To maintain seqno ordering for c1, the following order of
-         * operations must be followed:
-         *  1. increment head.
-         *  2. get seqno.
-         *  3. increment tail.
-         *  4. Wait for tail to catch up with head.
-         *
-         * Since a flush needs to reserve a seqno before it returns,
-         * increment head before calling flush.
-         */
-        head = atomic64_inc_acq(ctxn->ctxn_tseqno_head);
-        err = c0sk_flush(ctxn->ctxn_c0sk, ctxn->ctxn_kvms);
-        if (err) {
-            atomic_dec(&flush_busy);
-            mutex_unlock(&flush_lock);
-
-            /* Ensure that threads leave in the same order in which they
-             * incremented ctxn_tseqno_head.
-             */
-            while (atomic64_read(ctxn->ctxn_tseqno_tail) + 1 < head)
-                cpu_relax();
-            atomic64_inc(ctxn->ctxn_tseqno_tail);
-        }
-    }
-
-    /* If there is an error at this point, we can neither publish nor
-     * persist any mutations made by this transaction, so we abort it.
-     */
-    if (ev(err)) {
-        kvdb_ctxn_abort_inner(ctxn);
-        c0kvms_putref(ctxn->ctxn_kvms);
-        kvdb_ctxn_unlock(ctxn);
-        return err;
     }
 
     /* At this point the commit will succeed so we just need to perform
@@ -708,73 +575,17 @@ retry:
 
     kvdb_keylock_list_lock(ctxn->ctxn_kvdb_keylock, &cookie);
 
-    /* Hold the RCU read lock through the update to *priv to ensure
-     * the current active kvms cannot reach the finalized state until
-     * after we release the lock.  Note that a ctxn_kvms that has been
-     * flushed is not subject to this constraint (it could still be
-     * the active kvms, or it could be finalized and awaiting ingest).
+    struct kvdb_ctxn_set_impl *kcs = kvdb_ctxn_set_h2r(ctxn->ctxn_kvdb_ctxn_set);
+    priv = (uintptr_t *)ctxn->ctxn_seqref;
+
+    /*
+     * Ensure that threads mint commit sequence numbers in increasing order
+     * of ctxn_tseqno_head.
      */
-    rcu_read_lock();
-    if (dst) {
-        struct kvdb_ctxn_set_impl *kcs = kvdb_ctxn_set_h2r(ctxn->ctxn_kvdb_ctxn_set);
-
-        /* merge */
-        /*
-         * Ensure that threads mint commit sequence numbers in increasing order
-         * of ctxn_tseqno_head.
-         */
-        spin_lock(&kcs->ktn_tseqno_sync);
-        head = atomic64_inc_acq(ctxn->ctxn_tseqno_head);
-        commit_sn = 1 + atomic64_fetch_add_rel(2, ctxn->ctxn_kvdb_seq_addr);
-        spin_unlock(&kcs->ktn_tseqno_sync);
-
-        rsvd_sn = c0kvms_rsvd_sn_get(dst);
-
-        /* Retry the merge if dst is no longer the active kvms or if
-         * commit_sn is lower than the kvms reserved seqno (the latter
-         * to ensure rsvd_sn is always the lowest seqno in a kvms).
-         */
-        first = c0sk_get_first_c0kvms(ctxn->ctxn_c0sk);
-        if (ev(first != dst || commit_sn < rsvd_sn || atomic_read(&flush_busy))) {
-            rcu_read_unlock();
-
-            kvdb_keylock_list_unlock(cookie);
-            c0kvms_priv_release(dst);
-            c0kvms_putref(dst);
-
-            /* Ensure that threads leave in the same order in which they
-             * incremented ctxn_tseqno_head.
-             */
-            while (atomic64_read(ctxn->ctxn_tseqno_tail) + 1 < head)
-                cpu_relax();
-            atomic64_inc(ctxn->ctxn_tseqno_tail);
-
-            ev(rsvd_sn == HSE_SQNREF_INVALID);
-            ev(commit_sn < rsvd_sn);
-            goto retry;
-        }
-
-        assert(!c0kvms_is_finalized(dst));
-    } else {
-        /* flush */
-
-        /* Now that we've acquired our keylock list lock we can
-         * allow merge-commit threads into this critsec behind us...
-         */
-        atomic_dec(&flush_busy);
-
-        rsvd_sn = c0kvms_rsvd_sn_get(ctxn->ctxn_kvms);
-        assert(rsvd_sn > 0 && rsvd_sn != HSE_SQNREF_INVALID);
-        assert(atomic64_read(ctxn->ctxn_kvdb_seq_addr) >= rsvd_sn);
-
-        commit_sn = rsvd_sn;
-
-        /* For post-mortem analysis...
-         */
-        first = c0sk_get_first_c0kvms(ctxn->ctxn_c0sk);
-        ev(first != ctxn->ctxn_kvms);
-        ev(c0kvms_is_finalized(ctxn->ctxn_kvms));
-    }
+    spin_lock(&kcs->ktn_tseqno_sync);
+    head = atomic64_inc_acq(ctxn->ctxn_tseqno_head);
+    commit_sn = 1 + atomic64_fetch_add_rel(2, ctxn->ctxn_kvdb_seq_addr);
+    spin_unlock(&kcs->ktn_tseqno_sync);
 
     /* We leverage tseqno head and tail to ensure that we never present
      * a commit_sn to c1 for which there might be a lower commit_sn that
@@ -791,11 +602,18 @@ retry:
      * ordinal value.
      */
     ref = HSE_ORDNL_TO_SQNREF(commit_sn);
-    *(uintptr_t *)ctxn->ctxn_seqref = ref;
-    if (dst)
-        *priv = ref;
+    *priv = ref;
 
     atomic64_inc_rel(ctxn->ctxn_tseqno_tail);
+
+    /* Once the indirect assignment has been performed the
+     * transaction itself no longer needs to see the shared value
+     * and instead just puts it into its private area. This is
+     * preserved until the transaction is reused and allows us to
+     * remember that the state of the transaction is "committed".
+     */
+    ctxn->ctxn_seqref = ref;
+    c0snr_clear_txn(priv);
 
     locks = ctxn->ctxn_locks_handle;
     ctxn->ctxn_locks_handle = NULL;
@@ -807,26 +625,6 @@ retry:
 
     kvdb_keylock_list_unlock(cookie);
 
-    /* At this point if the merge failed (dst == nil) then the flush
-     * succeeded and consumed dst's birth reference.  Otherwise, the
-     * merge succeeded and so we must release dst's birth reference.
-     */
-    if (dst) {
-        assert(!c0kvms_is_finalized(dst));
-
-        c0kvms_priv_release(dst);
-        c0kvms_putref(dst);
-    }
-    rcu_read_unlock();
-
-    /* Once the indirect assignment has been performed the
-     * transaction itself no longer needs to see the shared value
-     * and instead just puts it into its private area. This is
-     * preserved until the transaction is re-used and allows us to
-     * remember that the state of the transaction is "committed".
-     */
-    ctxn->ctxn_seqref = ref;
-
     if (locks)
         kvdb_ctxn_locks_destroy(locks);
 
@@ -837,14 +635,6 @@ retry:
     }
 
     kvdb_ctxn_deactivate(ctxn);
-
-    c0kvms_priv_release(ctxn->ctxn_kvms);
-    c0kvms_putref(ctxn->ctxn_kvms);
-
-    if (!dst) {
-        mutex_unlock(&flush_lock);
-        ctxn->ctxn_kvms = 0;
-    }
 
     kvdb_ctxn_unlock(ctxn);
 
@@ -878,14 +668,6 @@ kvdb_ctxn_get_view_seqno(struct kvdb_ctxn *handle, u64 *view_seqno)
     *view_seqno = ctxn->ctxn_view_seqno;
 
     return 0;
-}
-
-struct c0_kvmultiset *
-kvdb_ctxn_get_kvms(struct kvdb_ctxn *handle)
-{
-    struct kvdb_ctxn_impl *ctxn = kvdb_ctxn_h2r(handle);
-
-    return ctxn ? ctxn->ctxn_kvms : 0;
 }
 
 uintptr_t
@@ -944,7 +726,6 @@ kvdb_ctxn_put(
 {
     struct kvdb_ctxn_impl *ctxn = kvdb_ctxn_h2r(handle);
     merr_t                 err = 0;
-    struct c0_kvset *      c0kvs;
     u64                    hash;
 
     if (ev(!kvdb_ctxn_trylock(ctxn)))
@@ -978,9 +759,7 @@ kvdb_ctxn_put(
     if (ctxn->ctxn_bind)
         kvdb_ctxn_bind_invalidate(ctxn->ctxn_bind);
 
-    c0kvs = c0kvms_get_hashed_c0kvset(ctxn->ctxn_kvms, kt->kt_hash);
-
-    err = c0kvs_put(c0kvs, c0_index(c0), kt, vt, ctxn->ctxn_seqref);
+    err = c0_put(c0, kt, vt, ctxn->ctxn_seqref);
 
 errout:
     kvdb_ctxn_unlock(ctxn);
@@ -1001,8 +780,6 @@ kvdb_ctxn_get(
     merr_t                 err;
     u64                    view_seqno;
     uintptr_t              seqnoref;
-    uintptr_t              rslt_seqnoref;
-    struct c0_kvset *      c0kvs;
 
     if (ev(!kvdb_ctxn_trylock(ctxn)))
         return merr(EPROTO);
@@ -1014,37 +791,6 @@ kvdb_ctxn_get(
 
     view_seqno = ctxn->ctxn_view_seqno;
     seqnoref = ctxn->ctxn_seqref;
-
-    if (ctxn->ctxn_can_insert) {
-        /* first look in the kvdb_ctxn's private store */
-        c0kvs = c0kvms_get_hashed_c0kvset(ctxn->ctxn_kvms, kt->kt_hash);
-
-        err = c0kvs_get_excl(c0kvs, c0_index(c0), kt, view_seqno,
-                             seqnoref, res, vbuf, &rslt_seqnoref);
-
-        if (!err && *res == NOT_FOUND) {
-            uintptr_t pt_seqref;
-            u32       pfx_len = c0_get_pfx_len(c0);
-
-            /* check if there is a ptomb for the key */
-
-            c0kvs = c0kvms_ptomb_c0kvset_get(ctxn->ctxn_kvms);
-            if (pfx_len > 0 && kt->kt_len >= pfx_len) {
-                /* kvs is prefixed. Check for ptombs.
-                 */
-                c0kvs_prefix_get_excl(c0kvs, c0_index(c0), kt, view_seqno, pfx_len, &pt_seqref);
-
-                if (pt_seqref != HSE_ORDNL_TO_SQNREF(0)) {
-                    vbuf->b_len = 0;
-                    *res = FOUND_PTMB;
-                }
-            }
-        }
-
-        /* if we got an error or found it, we're done */
-        if (ev(err) || *res != NOT_FOUND)
-            goto errout;
-    }
 
     /* look in the c0 container */
     err = c0_get(c0, kt, view_seqno, seqnoref, res, vbuf);
@@ -1060,7 +806,6 @@ kvdb_ctxn_del(struct kvdb_ctxn *handle, struct c0 *c0, const struct kvs_ktuple *
 {
     struct kvdb_ctxn_impl *ctxn = kvdb_ctxn_h2r(handle);
     merr_t                 err = 0;
-    struct c0_kvset *      c0kvs;
     u64                    hash;
 
     if (ev(!kvdb_ctxn_trylock(ctxn)))
@@ -1090,11 +835,9 @@ kvdb_ctxn_del(struct kvdb_ctxn *handle, struct c0 *c0, const struct kvs_ktuple *
     if (ctxn->ctxn_bind)
         kvdb_ctxn_bind_invalidate(ctxn->ctxn_bind);
 
-    c0kvs = c0kvms_get_hashed_c0kvset(ctxn->ctxn_kvms, kt->kt_hash);
+    err = c0_del(c0, (struct kvs_ktuple *)kt, ctxn->ctxn_seqref);
 
-    err = c0kvs_del(c0kvs, c0_index(c0), kt, ctxn->ctxn_seqref);
-
-errout:
+  errout:
     kvdb_ctxn_unlock(ctxn);
 
     return err;
@@ -1112,9 +855,6 @@ kvdb_ctxn_pfx_probe(
     struct kvs_buf *         vbuf)
 {
     struct kvdb_ctxn_impl *ctxn = kvdb_ctxn_h2r(handle);
-    merr_t                 err;
-    uintptr_t              pt_seqref;
-    struct c0_kvset *      pt_c0kvs;
 
     if (ev(!kvdb_ctxn_trylock(ctxn)))
         return merr(EPROTO);
@@ -1122,6 +862,7 @@ kvdb_ctxn_pfx_probe(
     if (!ctxn->ctxn_can_insert)
         goto skip_txkvms;
 
+#if 0
     /* Check txn's local mutations */
     err = c0kvms_pfx_probe_excl(ctxn->ctxn_kvms, c0_index(c0), kt,
                                 c0_get_sfx_len(c0),
@@ -1147,6 +888,7 @@ kvdb_ctxn_pfx_probe(
             return 0; /* found a ptomb. Do not proceed. */
         }
     }
+#endif
 
 skip_txkvms:
     /* Look through rest of c0 for pfx */
@@ -1160,9 +902,8 @@ skip_txkvms:
 merr_t
 kvdb_ctxn_prefix_del(struct kvdb_ctxn *handle, struct c0 *c0, const struct kvs_ktuple *kt)
 {
-    struct kvdb_ctxn_impl *ctxn = kvdb_ctxn_h2r(handle);
-    struct c0_kvset *      c0kvs;
-    merr_t                 err;
+    struct kvdb_ctxn_impl  *ctxn = kvdb_ctxn_h2r(handle);
+    merr_t                  err;
 
     if (ev(!kvdb_ctxn_trylock(ctxn)))
         return merr(EPROTO);
@@ -1181,8 +922,7 @@ kvdb_ctxn_prefix_del(struct kvdb_ctxn *handle, struct c0 *c0, const struct kvs_k
     if (ctxn->ctxn_bind)
         kvdb_ctxn_bind_invalidate(ctxn->ctxn_bind);
 
-    c0kvs = c0kvms_ptomb_c0kvset_get(ctxn->ctxn_kvms);
-    err = c0kvs_prefix_del(c0kvs, c0_index(c0), kt, ctxn->ctxn_seqref);
+    err = c0_prefix_del(c0, (struct kvs_ktuple *)kt, ctxn->ctxn_seqref);
 
 errout:
     kvdb_ctxn_unlock(ctxn);

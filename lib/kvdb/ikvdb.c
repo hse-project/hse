@@ -21,6 +21,7 @@
 #include <hse_ikvdb/kvdb_perfc.h>
 #include <hse_ikvdb/cndb.h>
 #include <hse_ikvdb/kvdb_ctxn.h>
+#include <hse_ikvdb/c0snr_set.h>
 #include <hse_ikvdb/limits.h>
 #include <hse_ikvdb/key_hash.h>
 #include <hse_ikvdb/diag_kvdb.h>
@@ -142,6 +143,7 @@ struct ikvdb_impl {
     bool                  ikdb_rdonly;
     bool                  ikdb_work_stop;
     struct kvdb_ctxn_set *ikdb_ctxn_set;
+    struct c0snr_set     *ikdb_c0snr_set;
     struct perfc_set      ikdb_ctxn_op;
     struct kvdb_keylock * ikdb_keylock;
     struct c0sk *         ikdb_c0sk;
@@ -1002,6 +1004,12 @@ ikvdb_open(
         goto err1;
     }
 
+    err = c0snr_set_create(kvdb_ctxn_abort, &self->ikdb_c0snr_set);
+    if (err) {
+        hse_elog(HSE_ERR "cannot open %s: @@e", err, mp_name);
+        goto err1;
+    }
+
     err = cn_kvdb_create(&self->ikdb_cn_kvdb);
     if (err) {
         hse_elog(HSE_ERR "cannot open %s: @@e", err, mp_name);
@@ -1051,6 +1059,7 @@ err1:
     cn_kvdb_destroy(self->ikdb_cn_kvdb);
     for (i = 0; i < self->ikdb_kvs_cnt; i++)
         kvdb_kvs_destroy(self->ikdb_kvs_vec[i]);
+    c0snr_set_destroy(self->ikdb_c0snr_set);
     kvdb_ctxn_set_destroy(self->ikdb_ctxn_set);
     cndb_close(self->ikdb_cndb);
     kvdb_log_close(self->ikdb_log);
@@ -1596,6 +1605,8 @@ ikvdb_close(struct ikvdb *handle)
     ikvdb_txn_fini(self);
 
     kvdb_ctxn_set_destroy(self->ikdb_ctxn_set);
+
+    c0snr_set_destroy(self->ikdb_c0snr_set);
 
     kvdb_keylock_destroy(self->ikdb_keylock);
 
@@ -2466,6 +2477,7 @@ ikvdb_txn_alloc(struct ikvdb *handle)
         &self->ikdb_seqno,
         self->ikdb_ctxn_set,
         self->ikdb_txn_viewset,
+        self->ikdb_c0snr_set,
         self->ikdb_c0sk);
     if (ev(!ctxn))
         return NULL;

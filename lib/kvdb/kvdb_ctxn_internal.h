@@ -19,7 +19,6 @@
  * @ctxn_kvdb_keylock:        address of the KVDB keylock
  * @ctxn_locks_handle:        container to store acquired write locks
  * @ctxn_view_seqno:          seqno at time of transaction begin call
- * @ctxn_kvms:                buffer which stores transaction data
  * @ctxn_bind:
  * @ctxn_viewset:
  * @ctxn_c0sk:                address of underlying c0sk
@@ -47,7 +46,6 @@ struct kvdb_ctxn_impl {
     struct kvdb_keylock *   ctxn_kvdb_keylock;
     struct kvdb_ctxn_locks *ctxn_locks_handle;
     u64                     ctxn_view_seqno;
-    struct c0_kvmultiset *  ctxn_kvms;
     struct kvdb_ctxn_bind * ctxn_bind;
 
     struct viewset       *ctxn_viewset HSE_ALIGNED(SMP_CACHE_BYTES);
@@ -56,10 +54,7 @@ struct kvdb_ctxn_impl {
     atomic64_t *          ctxn_kvdb_seq_addr;
     atomic64_t *          ctxn_tseqno_head;
     atomic64_t *          ctxn_tseqno_tail;
-
-    u32 ctxn_ingest_width;
-    u32 ctxn_ingest_delay;
-    u64 ctxn_heap_sz;
+    struct c0snr_set     *ctxn_c0snr_set;
 
     u64                  ctxn_begin_ts HSE_ALIGNED(SMP_CACHE_BYTES);
     void                *ctxn_viewset_cookie;

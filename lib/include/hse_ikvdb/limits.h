@@ -34,6 +34,7 @@
 #define HSE_C0_MAINT_THREADS_MAX (32)
 
 #define HSE_VIEWSET_ELTS_MAX (1000)
+#define HSE_C0SNRSET_ELTS_MAX (1000)
 
 /* We use the c0kvms ptomb c0kvs cheap to store the c0kvms-priv and
  * c0 ingest-work buffers.  We desire to size the priv buffer such
@@ -42,7 +43,7 @@
  * ingest-work buffer, sizeof(uintptr_t) for the priv buffer entry
  * size, and limit it to about 1 million entries.
  */
-#define HSE_C0KVMS_PRIV_MAX min(((HSE_C0_CCACHE_TRIMSZ - (128ul * 1024)) / 8), 1280ul * 1024)
+#define HSE_C0KVMS_C0SNR_MAX min(((HSE_C0_CCACHE_TRIMSZ - (128ul * 1024)) / 8), 1280ul * 1024)
 
 /* Using any size other than 32MB will likely cause problems
  * due to the way space is allocated to wbtree internal nodes.

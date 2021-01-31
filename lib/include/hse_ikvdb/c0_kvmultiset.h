@@ -153,16 +153,6 @@ c0kvms_get_c0kvset(struct c0_kvmultiset *mset, u32 index);
  *
  * This function is invoked on a kvms at the end of the RCU grace
  * period during which it ceased being the active kvms.
- *
- * A kvms that is finalized is a guarantee that the kvms is stable and may
- * no longer be modified by put or delete operations, including updates to
- * the priv buffer.  However, there remains a case where the priv buffer
- * could be modified after finalization, and that can occur only as a reult
- * of a ctxn flush operation.
- *
- * So, until we fix the flush aberration, one must call c0kvms_priv_wait()
- * or check that c0kvms_priv_busy() returns false to be assured that the
- * contents of a given kvms are completely stable.
  */
 void
 c0kvms_finalize(struct c0_kvmultiset *mset, struct workqueue_struct *wq);
@@ -294,6 +284,9 @@ c0kvms_avail(struct c0_kvmultiset *mset);
 bool
 c0kvms_should_ingest(struct c0_kvmultiset *handle);
 
+void
+c0kvms_abort_active(struct c0_kvmultiset *handle);
+
 /**
  * c0kvms_width() - obtain the number of contained struct c0_kvset's
  * @mset:     Struct c0_kvmultiset to query
@@ -409,60 +402,13 @@ struct c0_ingest_work *
 c0kvms_ingest_work_prepare(struct c0_kvmultiset *mset, void *c0);
 
 /**
- * c0kvms_priv_alloc() - allocate a ptr to private storage within the kvms
- * @handle:     kvms on which to operate
+ * c0kvms_c0snr_alloc() - alloc space to record a txn's c0snr
+ * @mset:     Struct c0_kvmultiset
  *
- * c0kvms_priv_alloc() returns a unique ptr to storage guaranteed to hold
- * at least a uintptr_t.  The lifetime of the storage is tied to the kvms
- * from which it was allocated, and hence the caller must relinquish its
- * reference to storage before the kvms can be ingested.
- *
- * c0kvms_priv_alloc() synchronizes with kvms ingest processing such that
- * full ingest will be delayed until each successful call to
- * c0kvms_priv_alloc() made on a given kvms has been balanced by a call
- * to c0kvms_priv_release().
- *
- * This interface is primarily used by the ctxn layer, but may be used
- * for other nefarious purposes.  Note that the storage pool dedicated to
- * this facility is limited:  It will not be grown or replenished once it
- * consumed and there is no way to return allocated storage to the pool.
- *
- * The caller of c0kvms_priv_alloc() must hold a reference on the kvms.
- *
- * Return: A ptr to unique kvms private storage on success, NULL on failure.
+ * Return: pointer to a uintptr_t
  */
-void *
-c0kvms_priv_alloc(struct c0_kvmultiset *handle);
-
-/**
- * c0kvms_priv_release() - relinquish control of kvms private storage
- * @handle:     kvms on which to operate
- *
- * c0kvms_priv_release() notifies the kvms that no further accesses to
- * storage allocated via c0kvms_priv_alloc() will occur.  The caller
- * must call c0kvms_priv_release() exactly once for each successful
- * call to c0kvms_priv_alloc().
- *
- * Note that the release does not free or in any way perturb the data,
- * which will remain intact until the kvms is destroyed.
- *
- * The caller of must hold a reference on the kvms.
- */
-/* MTF_MOCK */
-void
-c0kvms_priv_release(struct c0_kvmultiset *handle);
-
-/**
- * c0kvms_priv_wait() - for for all priv allocations to be relinquished
- * @handle:     kvms on which to operate
- *
- * The caller of must hold a reference on the kvms.
- */
-void
-c0kvms_priv_wait(struct c0_kvmultiset *handle);
-
-bool
-c0kvms_priv_busy(struct c0_kvmultiset *handle);
+uintptr_t *
+c0kvms_c0snr_alloc(struct c0_kvmultiset *handle);
 
 /**
  * c0kvms_preserve_tombspan() - check whether the tombspan can be

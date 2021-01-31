@@ -645,26 +645,6 @@ c0sk_flush(struct c0sk *handle, struct c0_kvmultiset *new)
     return c0sk_flush_current_multiset(self, new, NULL);
 }
 
-merr_t
-c0sk_merge(
-    struct c0sk *          handle,
-    struct c0_kvmultiset * src,
-    struct c0_kvmultiset **dstp,
-    uintptr_t **           ref)
-{
-    struct c0sk_impl *self;
-
-    if (ev(!handle))
-        return merr(EINVAL);
-
-    self = c0sk_h2r(handle);
-
-    if (self->c0sk_kvdb_rp->read_only)
-        return 0;
-
-    return c0sk_merge_impl(self, src, dstp, ref);
-}
-
 static void
 c0sk_sync_debug(struct c0sk_impl *self, u64 waiter_gen)
 {
@@ -851,12 +831,15 @@ c0sk_cursor_ctxn_preserve_tombspan(
     const void *      kmax,
     u32               kmax_len)
 {
-    struct c0_kvmultiset *kvms;
-
-    kvms = cur->c0cur_ctxn ? kvdb_ctxn_get_kvms(cur->c0cur_ctxn) : NULL;
-    if (kvms)
+    /* [HSE_REVISIT] Tombstone spans used to detect mutations by looking at the transaction kvms
+     * which no longer exists. Need to revisit tombstone span logic.
+     */
+#if 0
+        kvms = cur->c0cur_ctxn ? kvdb_ctxn_get_kvms(cur->c0cur_ctxn) : NULL;
+        if (kvms)
         return c0kvms_preserve_tombspan(kvms, cur->c0cur_skidx, kmin, kmin_len, kmax, kmax_len);
-    return true;
+#endif
+    return false;
 }
 
 static void
@@ -1305,7 +1288,7 @@ c0sk_get_last_c0kvms(struct c0sk *handle)
 merr_t
 c0sk_cursor_bind_txn(struct c0_cursor *cur, struct kvdb_ctxn *ctxn)
 {
-    struct c0_kvmultiset *kvms;
+    struct c0_kvmultiset *kvms = NULL;
     struct c0_kvmultiset_cursor *this, *next;
 
     cur->c0cur_ctxn = ctxn;
@@ -1363,9 +1346,12 @@ c0sk_cursor_bind_txn(struct c0_cursor *cur, struct kvdb_ctxn *ctxn)
      * a txn KVMS, it would prevent the txn from reusing it until the
      * cursor is destroyed.
      */
-    kvms = kvdb_ctxn_get_kvms(ctxn);
-    if (!kvms)
-        return 0;
+    /*
+     * [HSE_REVISIT] Update cursors.
+     * kvms = kvdb_ctxn_get_kvms(ctxn);
+     * if (!kvms)
+     *  return 0;
+     */
 
     if (cur->c0cur_state & C0CUR_STATE_NEED_INIT)
         if (c0sk_cursor_init(cur))
@@ -1376,7 +1362,7 @@ c0sk_cursor_bind_txn(struct c0_cursor *cur, struct kvdb_ctxn *ctxn)
         return cur->c0cur_merr;
     }
 
-    c0sk_cursor_add_kvms(cur, kvms);
+    // c0sk_cursor_add_kvms(cur, kvms);
     return ev(cur->c0cur_merr);
 }
 
@@ -1737,7 +1723,7 @@ c0sk_cursor_update(
     u32 *                    flags_out)
 {
     struct c0_kvmultiset *new[HSE_C0_KVSET_CURSOR_MAX];
-    struct c0_kvmultiset *       kvms;
+    struct c0_kvmultiset *       kvms = NULL;
     struct c0_kvmultiset_cursor *active, *p;
     struct c0sk_impl *           c0sk;
     int                          cnt, nact;
@@ -1777,9 +1763,12 @@ c0sk_cursor_update(
     active = cur->c0cur_active;
 
     if (cur->c0cur_ctxn) {
-        kvms = kvdb_ctxn_get_kvms(cur->c0cur_ctxn);
-        if (!kvms)
-            return 0;
+        /*
+         * [HSE_REVISIT] Update cursors.
+         * kvms = kvdb_ctxn_get_kvms(ctxn);
+         * if (!kvms)
+         *  return 0;
+         */
 
         if (kvms == active->c0mc_kvms) {
             c0sk_cursor_update_active(cur);

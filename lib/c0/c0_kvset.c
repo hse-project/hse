@@ -287,17 +287,13 @@ c0kvs_ior_cb(
     unsigned int o_vlen;
     const void * n_val;
     unsigned int n_vlen;
-    bool         txn_merge;
     u16          klen;
 
-    state = HSE_SQNREF_STATE_UNDEFINED;
     c0kvs = c0_kvset_h2r(cli_rock);
     klen = key_imm_klen(&kv->bkv_key_imm);
 
     seqnoref = IS_IOR_INS(*code) ? kv->bkv_values->bv_seqnoref : new_val->bv_seqnoref;
     state = seqnoref_to_seqno(seqnoref, &seqno);
-
-    txn_merge = state == HSE_SQNREF_STATE_INVALID;
 
     if (IS_IOR_INS(*code)) {
         struct bonsai_val *val;
@@ -336,23 +332,31 @@ c0kvs_ior_cb(
 
     old = kv->bkv_values;
 
-    /* For a transaction merge, values can be added directly to the head
-     * of the bonsai values list without traversal because:
-     *
-     * 1. Values come with a seqnoref of HSE_SQNREF_INVALID, which is
-     * greater than any other seqnoref that will be found in the values
-     * list. This optimization avoid an unnecessary traversal.
-     *
-     * 2. There can't be a value in the list with a seqnoref of
-     * HSE_SQNREF_INVALID, as the same key cannot be modified by more
-     * than one transaction.
+    /*
+     * The new value belongs to an active transaction or has a well defined
+     * ordinal value.
+     * Active transaction elements (HSE_SQNREF_STATE_UNDEFINED) are always at the
+     * head of the list. There is at most one active transaction writing to this
+     * key (write collision detection). If the value belongs to the same active
+     * transaction or has the same seqno, replace it with the updated value.
+     * If the new value has a well defined seqno, traverse the list to
+     * find its position in the ordered (by seqno) list. Note that existing
+     * elements on the list may not have well defined seqnos (active/aborted).
      */
-    while (old && !txn_merge) {
+    while (old) {
+        /* Replace a value from the same transaction or with the same seqno. */
         if (seqnoref == old->bv_seqnoref) {
             SET_IOR_REP(*code);
             break;
         }
 
+        /*
+         * If the new value belongs to an active transaction, break and
+         * insert at head.
+         * If the new value has a seqno, find its position in the ordered list
+         * and ignore elements with active (undefined) seqnos, those that were
+         * aborted.
+         */
         if (seqnoref_gt(seqnoref, old->bv_seqnoref))
             break;
 

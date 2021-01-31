@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
 #ifndef HSE_PLATFORM_SEQNO_H
@@ -135,13 +135,33 @@ seqnoref_diff(uintptr_t sqnref0, uintptr_t sqnref1)
 static inline bool
 seqnoref_gt(uintptr_t sqnref0, uintptr_t sqnref1)
 {
-    u64 seq0, seq1;
+    u64                     seq0 = 0, seq1 = 0;
+    enum hse_seqno_state    state0;
 
-    if (seqnoref_to_seqno(sqnref0, &seq0) != HSE_SQNREF_STATE_DEFINED)
-        return false;
+    state0 = seqnoref_to_seqno(sqnref0, &seq0);
 
-    if (seqnoref_to_seqno(sqnref1, &seq1) != HSE_SQNREF_STATE_DEFINED)
+    /*
+     * Active transaction elements are always at the front and "greater"
+     * than any other element on the list.
+     */
+    if (state0 == HSE_SQNREF_STATE_UNDEFINED)
         return true;
+
+    /*
+     * [HSE_REVISIT]
+     * This needs to be updated when the transactional/non-transactional
+     * model changes.
+     * If the list contains elements inserted by transactions alone or by
+     * non-transactions alone, is there a need to search for its position?
+     * Can it be inserted at the head of the list?
+     *
+     * For now, continue comparing if there are elements on the list without a
+     * valid seqno (active). Active/aborted elements may be interspersed with
+     * elements with valid seqnos.
+     */
+    if (state0 != HSE_SQNREF_STATE_DEFINED ||
+        seqnoref_to_seqno(sqnref1, &seq1) != HSE_SQNREF_STATE_DEFINED)
+        return false;
 
     return seq0 > seq1;
 }

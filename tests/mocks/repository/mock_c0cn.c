@@ -40,9 +40,9 @@ struct cn;
 struct mpool;
 struct c0;
 
-#define KEY_LEN 10
-#define VAL_LEN 10
-#define KEY_CNT 10
+#define KEY_LEN 20
+#define VAL_LEN 20
+#define KEY_CNT 5200
 
 struct c0_data {
     int  klen;
@@ -64,11 +64,16 @@ struct mock_cn {
     atomic_t        refcnt;
 } HSE_ALIGNED(PAGE_SIZE);
 
+struct c0 {
+};
+
 struct mock_c0 {
-    char           tripwire[PAGE_SIZE * 3];
-    struct c0_data data[KEY_CNT];
-    u64            hash;
-    u32            index;
+    struct c0       handle;
+    struct c0sk    *c0_c0sk;
+    u32             index;
+    char            tripwire[PAGE_SIZE * 3] __aligned(PAGE_SIZE);
+    struct c0_data  data[KEY_CNT];
+    u64             hash;
 } HSE_ALIGNED(PAGE_SIZE);
 
 struct c0_cursor {
@@ -108,7 +113,7 @@ _c0_open(struct ikvdb *kvdb, struct kvs_rparams *rp, struct cn *cn, struct mpool
     /* Make the tripwire pages inaccessible to catch errant
      * unmocked accesses dead in their tracks.
      */
-    if (mprotect(m0, sizeof(m0->tripwire), PROT_NONE))
+    if (mprotect(m0->tripwire, sizeof(m0->tripwire), PROT_NONE))
         return merr(errno);
 
     m0->index = atomic_inc_return(&_c0_open_cnt);
@@ -242,10 +247,10 @@ _c0_put(
     struct c0 *              handle,
     const struct kvs_ktuple *kt,
     const struct kvs_vtuple *vt,
-    const uintptr_t          seqno)
+    const uintptr_t          seqnoref)
 {
-    struct mock_c0 *m0 = (void *)handle;
-    int             i;
+    struct mock_c0         *m0 = (void *)handle;
+    int                     i;
 
     if (kt->kt_len > KEY_LEN || kvs_vtuple_vlen(vt) > VAL_LEN)
         return merr(ev(EINVAL));
@@ -325,6 +330,26 @@ _c0_del(struct c0 *handle, struct kvs_ktuple *kt, const uintptr_t seqno)
 
     return 0;
 }
+
+static merr_t
+_c0_prefix_del(struct c0 *handle, struct kvs_ktuple *kt, u64 seqno)
+{
+    struct mock_c0 *m0 = (void *)handle;
+    int             i;
+
+    if (kt->kt_len > KEY_LEN)
+        return merr(ev(EINVAL));
+
+    for (i = 0; i < KEY_CNT; ++i) {
+        if (m0->data[i].klen && memcmp(m0->data[i].key, kt->kt_data, kt->kt_len) == 0) {
+            m0->data[i].klen = 0;
+            return 0;
+        }
+    }
+
+    return 0;
+}
+
 
 static merr_t
 _cn_open(
@@ -644,6 +669,7 @@ mock_c0_set()
     MOCK_SET(c0, _c0_put);
     MOCK_SET(c0, _c0_get);
     MOCK_SET(c0, _c0_del);
+    MOCK_SET(c0, _c0_prefix_del);
     MOCK_SET(c0, _c0_cursor_create);
     MOCK_SET(c0, _c0_cursor_update);
     MOCK_SET(c0, _c0_cursor_bind_txn);
@@ -664,6 +690,7 @@ mock_c0_unset()
     MOCK_UNSET(c0, _c0_put);
     MOCK_UNSET(c0, _c0_get);
     MOCK_UNSET(c0, _c0_del);
+    MOCK_UNSET(c0, _c0_prefix_del);
     MOCK_UNSET(c0, _c0_cursor_create);
     MOCK_UNSET(c0, _c0_cursor_update);
     MOCK_UNSET(c0, _c0_cursor_bind_txn);

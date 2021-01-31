@@ -18,6 +18,7 @@
 
 #include <hse_ikvdb/ikvdb.h>
 #include <hse_ikvdb/c0sk.h>
+#include <hse_ikvdb/c0snr_set.h>
 #include <hse_ikvdb/c0sk_perfc.h>
 #include <hse_ikvdb/cn.h>
 #include <hse_ikvdb/cndb.h>
@@ -431,12 +432,15 @@ c0sk_ingest_worker(struct work_struct *work)
     ingestid = CNDB_DFLT_INGESTID;
     err = 0;
 
+    /* [HSE_REVISIT]
+     * Abort all active transactions for now until LC is implemented.
+     */
+    c0kvms_abort_active(kvms);
+
     assert(c0sk->c0sk_kvdb_health);
 
     if (debug)
         ingest->t0 = get_time_ns();
-
-    c0kvms_priv_wait(kvms);
 
     if (ev(iterc == 0))
         goto exit_err;
@@ -526,6 +530,7 @@ c0sk_ingest_worker(struct work_struct *work)
             int                  rc;
 
             state = seqnoref_to_seqno(val->bv_seqnoref, &seqno);
+            assert(state == HSE_SQNREF_STATE_DEFINED || state == HSE_SQNREF_STATE_ABORTED);
 
             rc = seq_prev_cmp(val->bv_valuep, seqno, seqno_prev, pt_seqno_prev);
 
@@ -927,7 +932,7 @@ c0sk_rcu_sync(struct c0sk_impl *self, struct c0_kvmultiset *c0kvms, bool start)
 
 /*
  * NB: do NOT define MTF_MOCK_IMPL_, so all callers can be usurped.
- * The pramgas allow for proper compilation when IMPL is not defined.
+ * The pragmas allow for proper compilation when IMPL is not defined.
  */
 
 #pragma push_macro("c0sk_release_multiset")
@@ -1303,183 +1308,6 @@ again:
     return ev(err);
 }
 
-static merr_t
-c0sk_merge_bkv(
-    struct c0sk_impl *    self,
-    struct bonsai_kv *    bkv,
-    struct c0_kvmultiset *dst,
-    uintptr_t             seqnoref)
-{
-    struct kvs_ktuple  kt;
-    struct bonsai_val *bv;
-    struct c0_kvset *  c0kvs;
-    merr_t             err;
-    u32                skidx;
-    size_t             sfx_len;
-
-    kvs_ktuple_init_nohash(&kt, bkv->bkv_key, key_imm_klen(&bkv->bkv_key_imm));
-
-    skidx = key_immediate_index(&bkv->bkv_key_imm);
-    sfx_len = cn_get_sfx_len(self->c0sk_cnv[skidx]);
-    kt.kt_hash = key_hash64(kt.kt_data, kt.kt_len - sfx_len);
-
-    c0kvs = c0kvms_get_hashed_c0kvset(dst, kt.kt_hash);
-    err = 0;
-
-    bv = bkv->bkv_values;
-    while (bv) {
-        if (!HSE_CORE_IS_TOMB(bv->bv_valuep)) {
-            struct kvs_vtuple vt;
-
-            kvs_vtuple_init(&vt, bv->bv_value, bv->bv_xlen);
-            err = c0kvs_put(c0kvs, skidx, &kt, &vt, seqnoref);
-        } else if (bv->bv_valuep == HSE_CORE_TOMB_REG) {
-            err = c0kvs_del(c0kvs, skidx, &kt, seqnoref);
-        } else {
-            assert(bv->bv_valuep == HSE_CORE_TOMB_PFX);
-
-            err = c0kvs_prefix_del(c0kvms_ptomb_c0kvset_get(dst), skidx, &kt, seqnoref);
-        }
-
-        if (ev(err))
-            break;
-
-        bv = bv->bv_next;
-    }
-
-    return err;
-}
-
-/* This function attempts to migrate the contents of a transaction's
- * private c0kvms into the common active c0kvms.  It works in concert
- * with c0sk_merge_bkv() to get the data from within a transaction
- * into the active c0kvms.  It attempts to do this and if succesful
- * it will make that data active.  Otherwise, it abandons the progress
- * that it has made and starts over.  In some instances it will fail
- * in which case the transaction's private c0kvms will be queued
- * for ingest.
- */
-merr_t
-c0sk_merge_impl(
-    struct c0sk_impl *     self,
-    struct c0_kvmultiset * src,
-    struct c0_kvmultiset **dstp,
-    uintptr_t **           privp)
-{
-    struct c0_kvset_iterator *iterv;
-    struct c0_kvmultiset *    dst;
-    struct c0_kvset *         kvs;
-
-    uintptr_t seqnoref, *priv;
-    uint      flags, i, iterc;
-    size_t    itervsz;
-    merr_t    err;
-
-    if (ev(!self || !src || !dstp || !privp))
-        return merr(EINVAL);
-
-    /* Allocate space for the vector of iterators from the source
-     * ptomb c0kvs, which should always have ample free space.
-     */
-    itervsz = sizeof(*iterv) * c0kvms_width(src);
-    kvs = c0kvms_get_c0kvset(src, 0);
-
-    iterv = c0kvs_alloc(kvs, __alignof(*iterv), itervsz);
-    if (ev(!iterv))
-        return merr(EFBIG);
-
-    flags = C0_KVSET_ITER_FLAG_PTOMB;
-    priv = NULL;
-    iterc = 0;
-    err = 0;
-
-    /* Build a list of iterators from the source c0kvs that are not empty.
-     */
-    for (i = 0; i < c0kvms_width(src); ++i) {
-        kvs = c0kvms_get_c0kvset(src, i);
-
-        if (c0kvs_get_element_count(kvs) > 0)
-            c0kvs_iterator_init(kvs, &iterv[iterc++], flags, 0);
-
-        flags = 0;
-    }
-
-    /* Caller needs a ref on dst to prevent it from being destroyed
-     * before they can update *priv and release their references on
-     * both priv and dst.  We also need a ref on dst in case there's
-     * an error and we need to wait on a pending ingest.
-     */
-    rcu_read_lock();
-    dst = c0sk_get_first_c0kvms(&self->c0sk_handle);
-    if (ev(!dst, HSE_WARNING)) {
-        err = merr(EINVAL);
-        goto unlock;
-    }
-
-    c0kvms_getref(dst);
-
-    priv = c0kvms_priv_alloc(dst);
-    if (ev(!priv)) {
-        err = merr(ENOMEM);
-        goto unlock;
-    }
-
-    seqnoref = HSE_REF_TO_SQNREF(priv);
-
-    if (ev(c0kvms_should_ingest(dst), HSE_INFO)) {
-        err = merr(ENOMEM);
-        goto unlock;
-    }
-
-    for (i = 0; i < iterc; ++i) {
-        struct c0_kvmultiset * first;
-        struct element_source *es;
-        struct bonsai_kv *     bkv;
-
-        es = c0_kvset_iterator_get_es(&iterv[i]);
-
-        while (es->es_get_next(es, (void *)&bkv)) {
-            err = c0sk_merge_bkv(self, bkv, dst, seqnoref);
-            if (ev(err))
-                goto unlock;
-        }
-
-        first = c0sk_get_first_c0kvms(&self->c0sk_handle);
-        if (ev(first != dst)) {
-            err = merr(ENOMEM);
-            break;
-        }
-    }
-
-    assert(!c0kvms_is_finalized(dst)); /* See c0kvs_putdel() */
-
-unlock:
-    rcu_read_unlock();
-
-    if (ev(err)) {
-        if (priv)
-            c0kvms_priv_release(dst);
-
-        if (merr_errno(err) == ENOMEM)
-            (void)c0sk_queue_ingest(self, dst, NULL);
-
-        c0kvms_putref(dst);
-
-        *privp = NULL;
-        *dstp = NULL;
-
-        return err;
-    }
-
-    /* On success we return a with a reference on *dstp and
-     * a reference on *privp which the caller must release.
-     */
-    *privp = priv;
-    *dstp = dst;
-
-    return 0;
-}
-
 /*
  * Client applications of c0sk have three entry points: put, delete, and get.
  * Both put and del modify the contents of c0sk - i.e., they are writers.
@@ -1496,10 +1324,15 @@ c0sk_putdel(
     uintptr_t                seqnoref)
 {
     merr_t err;
+    bool is_txn = (seqnoref != HSE_SQNREF_SINGLE);
 
     while (1) {
-        struct c0_kvmultiset *dst;
-        struct c0_kvset *     kvs;
+        struct c0_kvmultiset   *dst;
+        struct c0_kvset        *kvs;
+        bool                    first_entry = false;
+        uintptr_t              *entry = NULL;
+        uintptr_t              *priv = (uintptr_t *)seqnoref;
+        u64                     dst_gen;
 
         rcu_read_lock();
         dst = c0sk_get_first_c0kvms(&self->c0sk_handle);
@@ -1511,6 +1344,29 @@ c0sk_putdel(
         if (ev(c0kvms_should_ingest(dst))) {
             err = merr(ENOMEM);
             goto unlock;
+        }
+
+        if (is_txn) {
+            u64 curr_gen = c0snr_get_cgen(priv);
+
+            dst_gen = c0kvms_gen_read(dst);
+            first_entry = (curr_gen != dst_gen);
+
+            if (first_entry) {
+                /* This is the first put for the given txn.
+                 * Although C0SNRs can be reused as transactions abort/commit, a C0SNR
+                 * within a KVMS is associated with at most one transaction.
+                 * Within the context of the put, the C0SNR cannot be reused.
+                 * It can only be freed at transaction commit/abort.
+                 * The transaction put is still ongoing and prevents any other activity
+                 * within the same transaction including commits/aborts.
+                 */
+                entry = c0kvms_c0snr_alloc(dst);
+                if (ev(!entry)) {
+                    err = merr(ENOMEM);
+                    goto unlock;
+                }
+            }
         }
 
         kvs = c0kvms_get_hashed_c0kvset(dst, kt->kt_hash);
@@ -1528,6 +1384,21 @@ c0sk_putdel(
         }
 
         assert(!c0kvms_is_finalized(dst)); /* See c0kvs_putdel() */
+
+        if (first_entry) {
+            assert(entry);
+            if (!err) {
+                /*
+                 * Acquire a ref on the C0SNR. This prevents it from being
+                 * freed/reused by another transaction. It is released at
+                 * the time of KVMS destroy.
+                 */
+                *entry = seqnoref;
+                c0snr_getref(priv, dst_gen);
+            } else {
+                *entry = 0;
+            }
+        }
 
     unlock:
         if (merr_errno(err) == ENOMEM)

@@ -736,7 +736,6 @@ MTF_DEFINE_UTEST_PREPOST(ikvdb_test, txn_put_test, test_pre, test_post)
     ASSERT_NE(NULL, kvs_h);
 
     mapi_inject(mapi_idx_c0sk_sync, 0);
-    mapi_inject(mapi_idx_c0sk_merge, merr(EAGAIN));
 
     for (i = 0; i < num_txn; i++) {
         info[i].kvdb = h;
@@ -751,7 +750,6 @@ MTF_DEFINE_UTEST_PREPOST(ikvdb_test, txn_put_test, test_pre, test_post)
         ASSERT_EQ(0, rc);
     }
 
-    mapi_inject_unset(mapi_idx_c0sk_merge);
     mapi_inject_unset(mapi_idx_c0sk_sync);
 
     err = ikvdb_close(h);

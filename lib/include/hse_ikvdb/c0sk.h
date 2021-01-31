@@ -201,14 +201,6 @@ merr_t
 c0sk_prefix_del(struct c0sk *self, u16 skidx, const struct kvs_ktuple *key, u64 seq);
 
 /**
- * c0sk_rparams() - Get a ptr to c0sk kvdb rparams
- * @self:       Instance of struct c0sk
- *
- */
-struct kvdb_rparams *
-c0sk_rparams(struct c0sk *self);
-
-/**
  * c0sk_flush() - Start ingest of existing c0sk data
  * @self:       Instance of struct c0sk to flush
  * @new:        Ptr to new kvms to install
@@ -223,18 +215,12 @@ merr_t
 c0sk_flush(struct c0sk *self, struct c0_kvmultiset *new);
 
 /**
- * c0sk_merge() - merge the 'from' kvms into the 'first' kvms
- * @self:     struct c0sk into which to merge
- * @src:      source kvms
+ * c0sk_rparams() - Get a ptr to c0sk kvdb rparams
+ * @self:       Instance of struct c0sk
  *
  */
-/* MTF_MOCK */
-merr_t
-c0sk_merge(
-    struct c0sk *          self,
-    struct c0_kvmultiset * src,
-    struct c0_kvmultiset **dstp,
-    uintptr_t **           ref);
+struct kvdb_rparams *
+c0sk_rparams(struct c0sk *self);
 
 /**
  * c0sk_sync() - Force immediate ingest of existing c0sk data
