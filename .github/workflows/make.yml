@@ -1,0 +1,13 @@
+name: make
+on: [push]
+jobs:
+  build:
+    runs-on: ubuntu-18.04
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        submodules: true
+    - uses: lukka/get-cmake@latest
+    - run: |
+        make release config
+        make release
