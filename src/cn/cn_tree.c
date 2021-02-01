@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
 #define MTF_MOCK_IMPL_cn_tree
@@ -2097,6 +2097,8 @@ cn_tree_cursor_create(struct pscan *cur, struct cn_tree *tree)
     kv_iter = cur->iterv;
     esrc = cur->esrcv;
 
+    assert(cur->iterc == 0);
+
     for (i = 0; i < iterc; ++i) {
         struct kvstarts *   s = table_at(view, i);
         struct kv_iterator *p;
@@ -2127,6 +2129,10 @@ cn_tree_cursor_create(struct pscan *cur, struct cn_tree *tree)
         *esrc++ = &p->kvi_es;
 
         ++cur->iterc;
+    }
+
+    for (i = 0; i < cur->iterc; ++i) {
+        assert(cur->iterv[i]);
     }
 
     err = bin_heap2_create(cur->iterc, cur->reverse ? cn_kv_cmp_rev : cn_kv_cmp, &cur->bh);
@@ -2189,6 +2195,7 @@ cn_tree_capped_cursor_update(struct pscan *cur, struct cn_tree *tree)
      */
     rmlock_rlock(&tree->ct_lock, &lock);
     iterc = cn_ns_kvsets(&node->tn_ns);
+
     list_for_each_entry (le, &node->tn_kvset_list, le_link) {
         struct kvset *   ks = le->le_kvset;
         struct kvstarts *s;
@@ -2219,6 +2226,19 @@ cn_tree_capped_cursor_update(struct pscan *cur, struct cn_tree *tree)
 
     old_cnt = iterc - new_cnt;
     perfc_add(pc, PERFC_BA_CNCAPPED_OLD, old_cnt);
+
+    /* [HSE_REVISIT] Something has gone awry with this optimization,
+     * need to figure it out.  Going forward, we should double-check
+     * that the old_cnt kvsets in cur->iterv[] are indeed the ones
+     * we think they are...
+     *
+     * Meanwhile, we can simply destroy this cursor and rebuild it
+     * from the ground up (caller will retry a few times).
+     */
+    if (ev(old_cnt > cur->iterc)) {
+        err = merr(EAGAIN);
+        goto errout;
+    }
 
     /* The cursor's kvset list contains kvsets that are either
      *   1. no longer part of the cn tree (compacted away), or
@@ -2328,6 +2348,10 @@ cn_tree_capped_cursor_update(struct pscan *cur, struct cn_tree *tree)
     }
 
 done:
+    for (i = 0; i < iterc; ++i) {
+        assert(cur->iterv[i]);
+    }
+
     cur->iterc = iterc;
     err = bin_heap2_create(cur->iterc, cn_kv_cmp, &cur->bh);
     if (ev(err))
@@ -2675,6 +2699,8 @@ cn_tree_cursor_seek(
                 continue;
             }
         }
+
+        assert(cur->iterv[i]);
 
         cur->merr = kvset_iter_seek(cur->iterv[i], key, len, &eof);
         if (ev(cur->merr))

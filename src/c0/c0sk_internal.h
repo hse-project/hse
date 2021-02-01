@@ -96,6 +96,7 @@ struct c0sk_impl {
     u32      c0sk_ingest_width_max;
     u32      c0sk_ingest_width;
     u32      c0sk_cheap_sz;
+    int      c0sk_boost;
     int      c0sk_nslpmin;
     u64      c0sk_release_gen;
 

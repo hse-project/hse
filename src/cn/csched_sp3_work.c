@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
 #define MTF_MOCK_IMPL_csched_sp3_work
@@ -231,6 +231,14 @@ sp3_work_ispill(
         clen = cn_ns_clen(&stats);
 
         if (clen < SIZE_128MIB) {
+            if (cnt > cnt_max) {
+                /* Don't let tiny interior nodes grow too long, they might
+                 * never be large enough to spill.
+                 */
+                *action = CN_ACTION_COMPACT_KV;
+                *rule = CN_CR_ILONG_LW;
+                return cnt;
+            }
             return 0;
         } else if (clen < SIZE_1GIB) {
             *rule = CN_CR_SPILL_TINY;

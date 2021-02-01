@@ -712,7 +712,7 @@ c0sk_sync(struct c0sk *handle)
     err = c0sk_flush_current_multiset(self, NULL, &waiter.c0skw_gen);
     if (ev(err)) {
         self->c0sk_syncing = false;
-        return err;
+        return merr_errno(err) == EAGAIN ? 0 : err;
     }
 
     cv_init(&waiter.c0skw_cv, __func__);

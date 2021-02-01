@@ -850,7 +850,7 @@ cn_maintenance_task(struct work_struct *context)
         if (!cn->rp->cn_maint_disable)
             cn_tree_capped_compact(cn->cn_tree);
 
-        msleep(100);
+        usleep(USEC_PER_SEC);
     }
 }
 
@@ -1640,22 +1640,20 @@ cn_cursor_update(void *cursor, u64 seqno, bool *updated)
 
     do {
         err = cn_tree_cursor_update(cur, cur->cn->cn_tree);
-        if (ev(err))
-            hse_elog(HSE_NOTICE "cn_cursor_update: @@e", err);
     } while (merr_errno(err) == EAGAIN && --attempts > 0);
+
+    ev(attempts != 5);
 
     if (updated)
         *updated = true;
 
-    if (!err) {
-        if (attempts != 5)
-            hse_log(HSE_NOTICE "cn_cursor_update: corrected");
-    } else if (merr_errno(err) == EAGAIN)
-        return err;
+    if (err && merr_errno(err) != EAGAIN) {
+        hse_elog(HSE_ERR "%s: update failed (%p %lu): @@e",
+                 err, __func__, cursor, seqno);
+        cur->merr = err;
+    }
 
-    cur->merr = err;
-
-    return ev(cur->merr);
+    return err;
 }
 
 merr_t

@@ -194,18 +194,6 @@ struct ikvdb_impl {
     char ikdb_mpname[MPOOL_NAMESZ_MAX];
 };
 
-static merr_t
-ikvdb_flush_int(struct ikvdb_impl *self)
-{
-    return c0sk_flush(self->ikdb_c0sk, NULL);
-}
-
-static merr_t
-ikvdb_sync_int(struct ikvdb_impl *self)
-{
-    return ev(c0sk_sync(self->ikdb_c0sk));
-}
-
 struct ikvdb *
 ikvdb_kvdb_handle(struct ikvdb_impl *self)
 {
@@ -2405,7 +2393,7 @@ ikvdb_sync(struct ikvdb *handle)
     if (ev(self->ikdb_rdonly))
         return merr(EROFS);
 
-    return ikvdb_sync_int(self);
+    return c0sk_sync(self->ikdb_c0sk);
 }
 
 merr_t
@@ -2416,7 +2404,7 @@ ikvdb_flush(struct ikvdb *handle)
     if (ev(self->ikdb_rdonly))
         return merr(EROFS);
 
-    return ikvdb_flush_int(self);
+    return c0sk_flush(self->ikdb_c0sk, NULL);
 }
 
 u64

@@ -1027,17 +1027,23 @@ c0sk_ingest_tune(struct c0sk_impl *self, struct c0_usage *usage)
     size_t oldsz, newsz, pct_used, pct_diff;
     uint width, width_max;
 
+    width_max = HSE_C0_INGEST_WIDTH_MAX;
     oldsz = pct_used = pct_diff = 0;
 
     /* A mongod replica node requires a maximally provisioned
      * kvms with throttling disabled in order to mitigate lag.
      */
     if (c0sk_ingest_boost(self)) {
-        width_max = HSE_C0_INGEST_WIDTH_MAX;
-        rp->throttle_disable |= 0x80;
-    } else {
+        rp->throttle_disable |= 0x80u;
+        self->c0sk_boost = 4;
+    }
+    else if (self->c0sk_boost > 0) {
+        rp->throttle_disable |= 0x80u;
+        self->c0sk_boost--;
+    }
+    else {
         width_max = self->c0sk_ingest_width_max;
-        rp->throttle_disable &= ~0x80;
+        rp->throttle_disable &= ~0x80u;
     }
 
     /* Determine the ingest width hint for the next ingest based on
@@ -1046,6 +1052,7 @@ c0sk_ingest_tune(struct c0sk_impl *self, struct c0_usage *usage)
     width = rp->c0_ingest_width;
     if (width == 0) {
         width = conc2width(self, self->c0sk_ingest_conc);
+        width = min_t(uint, width, width_max);
 
         if (width < self->c0sk_ingest_width)
             width = (width + self->c0sk_ingest_width * 15) / 16;
@@ -1077,14 +1084,14 @@ c0sk_ingest_tune(struct c0sk_impl *self, struct c0_usage *usage)
             newsz = (newsz + oldsz * 3) / 4;
             newsz = newsz * pct_used / 100;
         }
-
-        if (width * newsz > HSE_C0_INGEST_SZ_MAX)
-            width = HSE_C0_INGEST_SZ_MAX / newsz;
-
-        newsz *= 1048576;
-        newsz = min_t(size_t, newsz, HSE_C0_CHEAP_SZ_MAX);
-        newsz = max_t(size_t, newsz, HSE_C0_CHEAP_SZ_MIN);
     }
+
+    if (width * newsz > HSE_C0_INGEST_SZ_MAX)
+        width = HSE_C0_INGEST_SZ_MAX / newsz;
+
+    newsz *= 1048576;
+    newsz = min_t(size_t, newsz, HSE_C0_CHEAP_SZ_MAX);
+    newsz = max_t(size_t, newsz, HSE_C0_CHEAP_SZ_MIN);
 
     width = min_t(uint, width, width_max);
     width = max_t(uint, width, HSE_C0_INGEST_WIDTH_MIN);
@@ -1094,11 +1101,11 @@ c0sk_ingest_tune(struct c0sk_impl *self, struct c0_usage *usage)
 
     if (rp->c0_debug & C0_DEBUG_INGTUNE)
         hse_log(HSE_NOTICE
-                "%s: used %zu%% diff %zu%%, %zu -> %zu (%zu) width %u/%u/%u, conc %u, keys %lu",
+                "%s: used %zu%% diff %zu%%, %zu -> %zu (%zu) width %u/%u/%u, conc %u, boost %u, keys %lu",
                 __func__, pct_used, pct_diff,
                 oldsz, newsz / 1048576ul, (width * newsz) / 1048576ul,
                 width, width_max, self->c0sk_ingest_width_max,
-                self->c0sk_ingest_conc,
+                self->c0sk_ingest_conc, self->c0sk_boost,
                 usage->u_keys);
 }
 
@@ -1245,9 +1252,29 @@ again:
          * the ingest rate is high.  If the ingest rate is low it simply
          * serves to limit the sync frequency to roughly dur_intvl_ms.
          */
-        if (!self->c0sk_closing) {
-            long waitmax = self->c0sk_kvdb_rp->dur_intvl_ms;
+        if (!self->c0sk_closing && !new) {
+            long waitmax = self->c0sk_kvdb_rp->dur_intvl_ms / 2;
             long delay = min_t(long, waitmax / 10 + 1, 100);
+
+#if 1
+            char namebuf[16];
+            int rc;
+
+            rc = pthread_getname_np(pthread_self(), namebuf, sizeof(namebuf));
+
+            /* [HSE_REVISIT] Restrict mongod to syncing no more than once
+             * every ten seconds as syncing more frequently generates tiny
+             * kvsets that wreak havoc on cn (e.g., capped kvs' can grow
+             * spectacularly long...)
+             * Remove this once the new WAL is in place.
+             */
+            if (!rc && 0 == strncmp(namebuf, "KVDBJou.Flusher", 15)) {
+                if (c0kvms_ctime(old) + NSEC_PER_SEC * 10 > get_time_ns()) {
+                    c0kvms_putref(old);
+                    return EAGAIN;
+                }
+            }
+#endif
 
             while ((waitmax -= delay) > 0) {
                 struct c0_kvmultiset *cur;
