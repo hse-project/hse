@@ -957,9 +957,6 @@ MTF_DEFINE_UTEST(cndb_test, cndb_misc_test)
     cn.rp = &rp;
     cndb.cndb_kvdb_health = &health;
 
-    err = cndb_drop(NULL, 0, 0);
-    ASSERT_EQ(0, err);
-
     mutex_init(&cndb.cndb_lock);
     err = cndb_cn_drop(&cndb, 0);
     ASSERT_EQ(ENOENT, merr_errno(err));

@@ -36,10 +36,11 @@ struct mblock_fset {
  * mblock_fset_open() - open an mblock fileset
  *
  * @mc:             media class handle
+ * @flags:          open flags
  * @mbfsp (output): mblock fileset handle
  */
 merr_t
-mblock_fset_open(struct media_class *mc, struct mblock_fset **mbfsp);
+mblock_fset_open(struct media_class *mc, int flags, struct mblock_fset **mbfsp);
 
 /**
  * mblock_fset_close() - close an mblock fileset

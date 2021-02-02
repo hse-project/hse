@@ -70,7 +70,7 @@ kvdb_list_props(const char *mpool, struct hse_params *params, struct yaml_contex
     unsigned int     kvs_cnt;
     char **          kvs_list;
     hse_err_t        err;
-    char             path[128];
+    char             path[129];
     int              i;
 
     err = hse_kvdb_open(mpool, params, &hdl);
@@ -114,6 +114,28 @@ kvdb_list_print(
     bool                 verbose,
     int *                count)
 {
+    struct merr_info info;
+    hse_err_t err;
+
+#if 1 /* HSE_REVISIT */
+
+    yaml_start_element_type(yc, "kvdbs");
+
+    yaml_start_element(yc, "name", mpname);
+
+    err = kvdb_list_props(mpname, params, yc);
+    if (err) {
+        char buf[256];
+        hse_err_to_string(err, buf, sizeof(buf), NULL);
+        yaml_field_fmt(yc, "error", "\"kvdb_list_props failed: %s\"", buf);
+    }
+
+    yaml_end_element(yc);
+    yaml_end_element_type(yc);
+
+    *count = 1;
+
+#else
     struct mpool_params *propv = NULL;
 
     int       propc = 0;
@@ -158,8 +180,10 @@ kvdb_list_print(
     if (*count)
         yaml_end_element_type(yc);
 
-    hse_params_destroy(params);
     free(propv);
+#endif
+
+    hse_params_destroy(params);
 
     return 0;
 }

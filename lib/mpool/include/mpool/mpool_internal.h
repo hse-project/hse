@@ -18,6 +18,9 @@
 
 #define MPOOL_MBSIZE_MB_DEFAULT     32
 
+struct mdc_props;
+struct mdc_capacity;
+
 /**
  * mp_media_classp = Media classes
  *
@@ -181,40 +184,6 @@ struct mblock_props_ex {
 	uint8_t                 mbx_zonecnt;      /* zone count per strip */
 	uint8_t                 mbx_rsvd1[7];
 	uint64_t                mbx_rsvd2;
-};
-
-
-/**
- * enum mdc_open_flags -
- * @MDC_OF_SKIP_SER: appends and reads are guaranteed to be serialized
- *                   outside of the MDC API
- */
-enum mdc_open_flags {
-	MDC_OF_SKIP_SER  = 0x1,
-};
-
-/**
- * struct mdc_capacity -
- * @mdt_captgt: capacity target for mlog in bytes
- * @mpt_spare:  true if alloc MDC from spare space
- */
-struct mdc_capacity {
-	uint64_t   mdt_captgt;
-	bool       mdt_spare;
-};
-
-/**
- * struct mdc_props -
- * @mdc_objid1:
- * @mdc_objid2:
- * @mdc_alloc_cap:
- * @mdc_mclassp:
- */
-struct mdc_props {
-	uint64_t               mdc_objid1;
-	uint64_t               mdc_objid2;
-	uint64_t               mdc_alloc_cap;
-	enum mp_media_classp   mdc_mclassp;
 };
 
 

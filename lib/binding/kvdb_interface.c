@@ -8,6 +8,7 @@
 #include <mpool/mpool.h>
 #include <mpool/mpool2.h>
 
+#include <3rdparty/crc32c.h>
 #include <hse/hse.h>
 #include <hse/hse_experimental.h>
 #include <hse/kvdb_perfc.h>
@@ -124,7 +125,7 @@ hse_kvdb_make(const char *mpool_name, const struct hse_params *params)
     if (ev(err))
         return merr_to_hse_err(err);
 
-    err = mpool_open2(mpool_name, params, &ds);
+    err = mpool_open(mpool_name, params, O_RDWR | O_CREAT, &ds);
     if (ev(err))
         return merr_to_hse_err(err);
 
@@ -150,7 +151,7 @@ hse_kvdb_make(const char *mpool_name, const struct hse_params *params)
             goto errout;
     }
 
-    err = mpool_mdc_get_root(ds, &oid1, &oid2);
+    err = mpool_mdc_rootid_get(ds, &oid1, &oid2);
     if (ev(err))
         goto errout;
 
@@ -167,9 +168,30 @@ hse_kvdb_make(const char *mpool_name, const struct hse_params *params)
     perfc_lat_record(&kvdb_pkvdbl_pc, PERFC_LT_PKVDBL_KVDB_MAKE, tstart);
 
 errout:
-    mpool_close2(ds);
+    mpool_close(ds);
 
     return merr_to_hse_err(err);
+}
+
+hse_err_t
+hse_kvdb_drop(struct hse_kvdb *handle)
+{
+    struct ikvdb *ikvdb;
+    struct mpool *mp;
+    merr_t err;
+
+    ikvdb = (struct ikvdb *)handle;
+    mp = ikvdb_mpool_get(ikvdb);
+
+    err = ikvdb_drop(ikvdb);
+    if (ev(err))
+        return merr_to_hse_err(err);
+
+    err = mpool_destroy(mp);
+    if (ev(err))
+        return merr_to_hse_err(err);
+
+    return 0;
 }
 
 static merr_t
@@ -190,7 +212,7 @@ hse_kvdb_open(const char *mpool_name, const struct hse_params *params, struct hs
 {
     merr_t              err;
     struct ikvdb *      ikvdb;
-    struct mpool *      kvdb_ds;
+    struct mpool *      mp;
     struct kvdb_rparams rparams;
     u64                 tstart;
 
@@ -214,14 +236,14 @@ hse_kvdb_open(const char *mpool_name, const struct hse_params *params, struct hs
      * Need exclusive access to prevent multiple applications from
      * working on the same KVDB, which would cause corruption.
      */
-    err = mpool_open(mpool_name, O_RDWR | O_EXCL, &kvdb_ds);
+    err = mpool_open(mpool_name, params, O_RDWR, &mp);
     if (ev(err))
         return merr_to_hse_err(err);
 
     for (int i = 0; i < MP_MED_NUMBER; i++) {
         struct mpool_mclass_props mcprops;
 
-        err = mpool_mclass_get(kvdb_ds, i, &mcprops);
+        err = mpool_mclass_get(mp, i, &mcprops);
         if (merr_errno(err) == ENOENT)
             continue;
         else if (err)
@@ -232,7 +254,7 @@ hse_kvdb_open(const char *mpool_name, const struct hse_params *params, struct hs
             goto close_ds;
     }
 
-    err = ikvdb_open(mpool_name, kvdb_ds, params, &ikvdb);
+    err = ikvdb_open(mpool_name, mp, params, &ikvdb);
     if (ev(err))
         goto close_ds;
 
@@ -264,7 +286,7 @@ hse_kvdb_open(const char *mpool_name, const struct hse_params *params, struct hs
     return 0;
 
 close_ds:
-    mpool_close(kvdb_ds);
+    mpool_close(mp);
 
     return merr_to_hse_err(err);
 }
@@ -273,7 +295,7 @@ hse_err_t
 hse_kvdb_close(struct hse_kvdb *handle)
 {
     merr_t        err = 0, err2 = 0;
-    struct mpool *ds;
+    struct mpool *mp;
 
     if (HSE_UNLIKELY(!handle))
         return merr_to_hse_err(merr(EINVAL));
@@ -281,12 +303,12 @@ hse_kvdb_close(struct hse_kvdb *handle)
     perfc_inc(&kvdb_pc, PERFC_RA_KVDBOP_KVDB_CLOSE);
 
     /* Retrieve mpool descriptor before ikvdb_impl is free'd */
-    ds = ikvdb_mpool_get((struct ikvdb *)handle);
+    mp = ikvdb_mpool_get((struct ikvdb *)handle);
 
     err = ikvdb_close((struct ikvdb *)handle);
     ev(err);
 
-    err2 = mpool_close(ds);
+    err2 = mpool_close(mp);
     ev(err2);
 
     return err ? merr_to_hse_err(err) : merr_to_hse_err(err2);

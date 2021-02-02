@@ -142,34 +142,31 @@ merr_t
 cndb_alloc(struct mpool *ds, u64 *captgt, u64 *oid1_out, u64 *oid2_out)
 {
     merr_t               err;
-    struct mdc_capacity  mdcap;
-    struct mdc_props     props = { 0 };
     enum mp_media_classp mclassp = MP_MED_STAGING;
     u64                  staging_absent;
+    size_t               capacity;
 
     if (captgt && *captgt)
-        mdcap.mdt_captgt = *captgt;
+        capacity = *captgt;
     else
-        mdcap.mdt_captgt = CNDB_CAPTGT_DEFAULT;
-
-    mdcap.mdt_spare = false;
+        capacity = CNDB_CAPTGT_DEFAULT;
 
     staging_absent = mpool_mclass_get(ds, MP_MED_STAGING, NULL);
     if (staging_absent)
         mclassp = MP_MED_CAPACITY;
 
-    err = mpool_mdc_alloc(ds, oid1_out, oid2_out, mclassp, &mdcap, &props);
+    err = mpool_mdc_alloc(ds, CNDB_MAGIC, capacity, mclassp, oid1_out, oid2_out);
     if (ev(err)) {
         hse_elog(
             HSE_ERR "%s: cannot allocate cNDB MDC (%lld): @@e",
             err,
             __func__,
-            (long long int)mdcap.mdt_captgt);
+            (long long int)capacity);
         return err;
     }
 
     if (captgt)
-        *captgt = props.mdc_alloc_cap;
+        *captgt = capacity;
 
     return 0;
 }
@@ -192,7 +189,7 @@ cndb_make(struct mpool *ds, u64 captgt, u64 oid1, u64 oid2)
         return err;
     }
 
-    err = mpool_mdc_open(ds, oid1, oid2, 0, &mdc);
+    err = mpool_mdc_open(ds, oid1, oid2, &mdc);
     if (err) {
         hse_elog(HSE_ERR "%s: cannot open cNDB MDC: @@e", err, __func__);
         return err;
@@ -234,9 +231,9 @@ errout:
 }
 
 merr_t
-cndb_drop(struct mpool *ds, u64 oid1, u64 oid2)
+cndb_drop(struct mpool *mp, u64 oid1, u64 oid2)
 {
-    return 0;
+    return mpool_mdc_delete(mp, oid1, oid2);
 }
 
 /* PRIVATE */
@@ -336,7 +333,7 @@ cndb_open(
         goto errout;
     }
 
-    err = mpool_mdc_open(ds, oid1, oid2, 0, &cndb->cndb_mdc);
+    err = mpool_mdc_open(ds, oid1, oid2, &cndb->cndb_mdc);
     if (err) {
         CNDB_LOG(err, cndb, HSE_ERR, " mdc open failed");
         goto errout;

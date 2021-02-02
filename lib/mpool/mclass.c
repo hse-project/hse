@@ -42,7 +42,12 @@ mclass_lockfile_rel(int dirfd)
 }
 
 merr_t
-mclass_open(struct mpool *mp, enum mclass_id mcid, const char *dpath, struct media_class **handle)
+mclass_open(
+    struct mpool        *mp,
+    enum mclass_id       mcid,
+    const char          *dpath,
+    int                  flags,
+    struct media_class **handle)
 {
     struct media_class *mc;
 
@@ -61,8 +66,10 @@ mclass_open(struct mpool *mp, enum mclass_id mcid, const char *dpath, struct med
 
     if (mcid == MCID_CAPACITY) {
         err = mclass_lockfile_acq(dirfd(dirp));
-        if (ev(err))
-            goto err_exit2;
+        if (ev(err)) {
+            closedir(dirp);
+            return err;
+        }
     }
 
     mc = calloc(1, sizeof(*mc));
@@ -76,7 +83,7 @@ mclass_open(struct mpool *mp, enum mclass_id mcid, const char *dpath, struct med
 
     strlcpy(mc->dpath, dpath, sizeof(mc->dpath));
 
-    err = mblock_fset_open(mc, &mc->mbfsp);
+    err = mblock_fset_open(mc, flags, &mc->mbfsp);
     if (err) {
         hse_elog(HSE_ERR "Opening data files failed, mcid %d: @@e", err, mcid);
         goto err_exit1;
@@ -90,6 +97,7 @@ err_exit1:
     free(mc);
 
 err_exit2:
+    mclass_lockfile_rel(dirfd(dirp));
     closedir(dirp);
 
     return err;
@@ -139,11 +147,11 @@ mclass_params_set(struct media_class *mc, const char *key, const char *val, size
     dirfd = mclass_dirfd(mc);
 
     fd = openat(dirfd, key, O_CREAT | O_RDWR | O_SYNC | O_TRUNC, S_IRUSR | S_IWUSR);
-    if (fd < 0)
+    if (ev(fd < 0))
         return merr(errno);
 
     cc = pwrite(fd, val, len, 0);
-    if (cc != len) {
+    if (ev(cc != len)) {
         err = merr(errno);
         goto errout;
     }
@@ -164,11 +172,11 @@ mclass_params_get(struct media_class *mc, const char *key, char *val, size_t len
     dirfd = mclass_dirfd(mc);
 
     fd = openat(dirfd, key, O_RDONLY);
-    if (fd < 0)
+    if (ev(fd < 0))
         return merr(errno);
 
     cc = pread(fd, val, len, 0);
-    if (cc < 0) {
+    if (ev(cc < 0)) {
         err = merr(errno);
         goto errout;
     }
@@ -177,6 +185,33 @@ errout:
     close(fd);
 
     return err;
+}
+
+static int
+params_removecb(const char *path, const struct stat *sb, int typeflag, struct FTW *ftwbuf)
+{
+    if (strstr(path, "params-"))
+        return remove(path);
+
+    return 0;
+}
+
+merr_t
+mclass_params_remove(struct media_class *mc)
+{
+    const char *dpath;
+    int rc;
+
+    if (ev(!mc))
+        return merr(EINVAL);
+
+    dpath = mclass_dpath(mc);
+
+    rc = nftw(dpath, params_removecb, 8, FTW_DEPTH | FTW_PHYS);
+    if (ev(rc < 0))
+        return merr(rc);
+
+    return 0;
 }
 
 int

@@ -7,38 +7,32 @@
 #define MPOOL_MDC_H
 
 #include <hse_util/mutex.h>
+#include <hse_util/hse_err.h>
+
+#define MDC_ROOT_MAGIC    (0xFACE0FFF)
 
 struct media_class;
 struct mdc_file;
 struct io_ops;
+struct mpool;
 
 struct mpool_mdc {
 	struct mutex           lock;
 	struct mdc_file       *mfp1;
 	struct mdc_file       *mfp2;
 	struct mdc_file       *mfpa;
+
 	struct media_class    *mc;
-
 	struct mpool          *mp;
-
-	uint64_t               magic;
-	int                    vers;
 };
 
-struct mdc_file {
-	struct mpool_mdc      *mdc;
+struct media_class *
+mdc_mclass_get(struct mpool_mdc *mdc);
 
-	int64_t                gen;
-	size_t                 size;
+merr_t
+mpool_mdc_root_init(struct mpool *mp);
 
-	uint64_t               logid;
-
-	int                    dirfd;
-	int                    fd;
-	char                   name[32];
-
-	struct io_ops         *io;
-};
+merr_t
+mpool_mdc_root_destroy(struct mpool *mp);
 
 #endif /* MPOOL_MDC_H */
-

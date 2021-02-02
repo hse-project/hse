@@ -424,11 +424,11 @@ kvdb_log_open(struct mpool *ds, struct kvdb_log **handle, int mode)
     log->kl_ds = ds;
     log->kl_rdonly = (mode == O_RDONLY);
 
-    err = mpool_mdc_get_root(ds, &oid1, &oid2);
+    err = mpool_mdc_rootid_get(ds, &oid1, &oid2);
     if (ev(err))
         goto err_exit;
 
-    err = mpool_mdc_open(log->kl_ds, oid1, oid2, 0, &log->kl_mdc);
+    err = mpool_mdc_open(log->kl_ds, oid1, oid2, &log->kl_mdc);
     if (ev(err))
         goto err_exit;
 

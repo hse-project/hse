@@ -22,6 +22,7 @@ struct csched;
 #include <hse_util/perfc.h>
 
 #include <hse/hse_limits.h>
+#include <mpool/mpool_internal.h>
 
 struct cn {
     struct cn_tree *  cn_tree;

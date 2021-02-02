@@ -283,7 +283,8 @@ profile_mpool(
     char                errbuf[160];
     int                 rc;
 
-    mp_err = mpool_open(mpname, flags, &mp);
+    /* TODO: fix this */
+    mp_err = mpool_open(mpname, NULL, flags, &mp);
     if (mp_err) {
         merr_strerror(mp_err, errbuf, sizeof(errbuf));
         fprintf(stderr, "error from mpool_open() : %s\n", errbuf);
@@ -321,7 +322,8 @@ get_mpool_info(
     struct mpool_mclass_props mc_props;
     char                      errbuf[160];
 
-    mp_err = mpool_open(mpname, flags, &mp);
+    /* TODO: fix this */
+    mp_err = mpool_open(mpname, NULL, flags, &mp);
     if (mp_err) {
         merr_strerror(mp_err, errbuf, sizeof(errbuf));
         fprintf(stderr, "error from mpool_open() : %s\n", errbuf);

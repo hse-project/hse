@@ -109,7 +109,7 @@ struct kvdb_ctxn_bkt {
  * @ikdb_keylock:       handle to the KVDB keylock
  * @ikdb_c0sk:          c0sk handle
  * @ikdb_health:
- * @ikdb_ds:            dataset
+ * @ikdb_mp:            mpool handle
  * @ikdb_log:           KVDB log handle
  * @ikdb_cndb:          CNDB handle
  * @ikdb_workqueue:
@@ -155,7 +155,7 @@ struct ikvdb_impl {
 
     struct csched *          ikdb_csched;
     struct cn_kvdb *         ikdb_cn_kvdb;
-    struct mpool *           ikdb_ds;
+    struct mpool *           ikdb_mp;
     struct kvdb_log *        ikdb_log;
     struct cndb *            ikdb_cndb;
     struct workqueue_struct *ikdb_workqueue;
@@ -256,7 +256,7 @@ validate_kvs_name(const char *name)
 
 merr_t
 ikvdb_make(
-    struct mpool *       ds,
+    struct mpool *       mp,
     u64                  oid1, /* kvdb oids */
     u64                  oid2,
     struct kvdb_cparams *cparams,
@@ -271,7 +271,7 @@ ikvdb_make(
     cndb_o1 = 0;
     cndb_o2 = 0;
 
-    err = kvdb_log_open(ds, &log, O_RDWR);
+    err = kvdb_log_open(mp, &log, O_RDWR);
     if (ev(err))
         goto out;
 
@@ -280,7 +280,7 @@ ikvdb_make(
         goto out;
 
     cndb_captgt = 0;
-    err = cndb_alloc(ds, &cndb_captgt, &cndb_o1, &cndb_o2);
+    err = cndb_alloc(mp, &cndb_captgt, &cndb_o1, &cndb_o2);
     if (ev(err))
         goto out;
 
@@ -288,7 +288,7 @@ ikvdb_make(
     if (ev(err))
         goto out;
 
-    err = cndb_make(ds, cndb_captgt, cndb_o1, cndb_o2);
+    err = cndb_make(mp, cndb_captgt, cndb_o1, cndb_o2);
     if (ev(err)) {
         kvdb_log_abort(log, tx);
         goto out;
@@ -557,7 +557,7 @@ ikvdb_diag_kvslist(struct ikvdb *handle, struct diag_kvdb_kvs_list *list, int le
 merr_t
 ikvdb_diag_open(
     const char *         mp_name,
-    struct mpool *       ds,
+    struct mpool *       mp,
     struct kvdb_rparams *rparams,
     struct ikvdb **      handle)
 {
@@ -580,7 +580,7 @@ ikvdb_diag_open(
         goto err_exit0;
     }
 
-    self->ikdb_ds = ds;
+    self->ikdb_mp = mp;
 
     assert(rparams);
     self->ikdb_rp = *rparams;
@@ -604,7 +604,7 @@ ikvdb_diag_open(
     if (ev(err))
         goto err_exit1;
 
-    err = kvdb_log_open(ds, &self->ikdb_log, rparams->read_only ? O_RDONLY : O_RDWR);
+    err = kvdb_log_open(mp, &self->ikdb_log, rparams->read_only ? O_RDONLY : O_RDWR);
     if (ev(err))
         goto err_exit2;
 
@@ -613,7 +613,7 @@ ikvdb_diag_open(
         goto err_exit3;
 
     err = cndb_open(
-        ds,
+        mp,
         self->ikdb_rdonly,
         &self->ikdb_seqno,
         rparams->cndb_entries,
@@ -778,7 +778,7 @@ ikvdb_cndb_open(struct ikvdb_impl *self, u64 *seqno, u64 *ingestid)
     struct kvdb_kvs *kvs;
 
     err = cndb_open(
-        self->ikdb_ds,
+        self->ikdb_mp,
         self->ikdb_rdonly,
         &self->ikdb_seqno,
         self->ikdb_rp.cndb_entries,
@@ -877,7 +877,7 @@ ikvdb_low_mem_adjust(struct ikvdb_impl *self)
 merr_t
 ikvdb_open(
     const char *             mp_name,
-    struct mpool *           ds,
+    struct mpool *           mp,
     const struct hse_params *params,
     struct ikvdb **          handle)
 {
@@ -900,7 +900,7 @@ ikvdb_open(
     memset(self, 0, sizeof(*self));
     mutex_init(&self->ikdb_lock);
     ikvdb_txn_init(self);
-    self->ikdb_ds = ds;
+    self->ikdb_mp = mp;
 
     n = strlcpy(self->ikdb_mpname, mp_name, sizeof(self->ikdb_mpname));
     if (n >= sizeof(self->ikdb_mpname)) {
@@ -944,7 +944,7 @@ ikvdb_open(
     if (!self->ikdb_rdonly) {
         err = csched_create(
             csched_rp_policy(&self->ikdb_rp),
-            self->ikdb_ds,
+            self->ikdb_mp,
             &self->ikdb_rp,
             self->ikdb_mpname,
             &self->ikdb_health,
@@ -982,7 +982,7 @@ ikvdb_open(
         goto err1;
     }
 
-    err = kvdb_log_open(ds, &self->ikdb_log, self->ikdb_rdonly ? O_RDONLY : O_RDWR);
+    err = kvdb_log_open(mp, &self->ikdb_log, self->ikdb_rdonly ? O_RDONLY : O_RDWR);
     if (err) {
         hse_elog(HSE_ERR "cannot open %s: @@e", err, mp_name);
         goto err1;
@@ -1031,7 +1031,7 @@ ikvdb_open(
 
     err = c0sk_open(
         &self->ikdb_rp,
-        ds,
+        mp,
         self->ikdb_mpname,
         &self->ikdb_health,
         self->ikdb_csched,
@@ -1473,7 +1473,7 @@ ikvdb_kvs_open(
         handle,
         kvs,
         self->ikdb_mpname,
-        self->ikdb_ds,
+        self->ikdb_mp,
         self->ikdb_cndb,
         self->ikdb_lc,
         &rp,
@@ -1538,7 +1538,7 @@ ikvdb_mpool_get(struct ikvdb *handle)
 {
     struct ikvdb_impl *self = ikvdb_h2r(handle);
 
-    return handle ? self->ikdb_ds : NULL;
+    return handle ? self->ikdb_mp : NULL;
 }
 
 merr_t

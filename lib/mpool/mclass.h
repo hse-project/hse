@@ -42,11 +42,17 @@ struct media_class {
  * @mp:    mpool handle
  * @mcid:  mclass ID
  * @dpath: mclass directory path
+ * @flags: open flags
  *
  * @handle(output): mclass handle
  */
 merr_t
-mclass_open(struct mpool *mp, enum mclass_id mcid, const char *dpath, struct media_class **handle);
+mclass_open(
+    struct mpool        *mp,
+    enum mclass_id       mcid,
+    const char          *dpath,
+    int                  flags,
+    struct media_class **handle);
 
 /**
  * mclass_close() - close an mclass
@@ -69,6 +75,9 @@ mclass_params_set(struct media_class *mc, const char *key, const char *val, size
 
 merr_t
 mclass_params_get(struct media_class *mc, const char *key, char *val, size_t len);
+
+merr_t
+mclass_params_remove(struct media_class *mc);
 
 /**
  * mclass_id() - get mclass id

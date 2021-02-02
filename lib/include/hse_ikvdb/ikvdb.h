@@ -102,14 +102,21 @@ kvdb_perfc_register(void *pc);
 
 /**
  * ikvdb_make() - create a new KVDB instance within the named mpool
- * @ds:        dataset descriptor
+ * @mp:        mpool handle
  * @oid1:      oid of mlog1 of the mdc
  * @oid2:      oid of mlog2 of the mdc
  * @params:    fixed configuration parameters
  * @captgt:    captgt of the mdc
  */
 merr_t
-ikvdb_make(struct mpool *ds, u64 oid1, u64 oid2, struct kvdb_cparams *params, u64 captgt);
+ikvdb_make(struct mpool *mp, u64 oid1, u64 oid2, struct kvdb_cparams *params, u64 captgt);
+
+/**
+ * ikvdb_drop() - Drop a given KVDB
+ * @handle: handle to the opened kvdb
+ */
+merr_t
+ikvdb_drop(struct ikvdb *handle);
 
 /**
  * ikvdb_diag_cndb() - returns a pointer to kvdb's cndb
@@ -134,14 +141,14 @@ ikvdb_diag_kvslist(struct ikvdb *handle, struct diag_kvdb_kvs_list *list, int le
 /**
  * ikvdb_diag_open() - open relevant media streams with minimal processing
  * @mp_name:        mpool/kvdb name
- * @ds:             dataset descriptor
+ * @mp:             mpool handle
  * @rparams:        run time parameters that affect how the KVDB will be used
  * @handle:         (output) handle to access the opened KVDB
  */
 merr_t
 ikvdb_diag_open(
     const char *         mp_name,
-    struct mpool *       ds,
+    struct mpool *       mp,
     struct kvdb_rparams *rparams,
     struct ikvdb **      handle);
 
@@ -155,14 +162,14 @@ ikvdb_diag_close(struct ikvdb *handle);
 /**
  * ikvdb_open() - prepare HSE KVDB target for subsequent use by the application
  * @mp_name:        mpool/kbdb name
- * @ds:             dataset descriptor
+ * @mp:             mpool handle
  * @params:         run time parameters that affect how the KVDB will be used
  * @kvdb:           (output) handle to access the opened KVDB
  */
 merr_t
 ikvdb_open(
     const char                 *mp_name,
-    struct mpool               *ds,
+    struct mpool               *mp,
     const struct hse_params    *params,
     struct ikvdb              **kvdb);
 

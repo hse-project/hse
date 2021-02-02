@@ -71,13 +71,13 @@ eopen_mdc(struct mpool *ds, u64 oid1, u64 oid2, struct mpool_mdc **mdc)
     hse_err_t err;
 
     if (oid1 && oid2)
-        err = merr_to_hse_err(mpool_mdc_open(ds, oid1, oid2, 0, mdc));
+        err = merr_to_hse_err(mpool_mdc_open(ds, oid1, oid2, mdc));
     else {
-        err = merr_to_hse_err(mpool_mdc_get_root(ds, &oid1, &oid2));
+        err = merr_to_hse_err(mpool_mdc_rootid_get(ds, &oid1, &oid2));
         if (err)
-            fatal("mpool_mdc_get_root", err);
+            fatal("mpool_mdc_rootid_get", err);
 
-        err = merr_to_hse_err(mpool_mdc_open(ds, oid1, oid2, 0, mdc));
+        err = merr_to_hse_err(mpool_mdc_open(ds, oid1, oid2, mdc));
     }
 
     if (err)
@@ -192,7 +192,8 @@ main(int argc, char **argv)
      * immutable (i.e., they could be modified by another application
      * if we didn't have exclusive access).
      */
-    err = merr_to_hse_err(mpool_open(argv[0], O_RDONLY|O_EXCL, &ds));
+    /* TODO: fix this */
+    err = merr_to_hse_err(mpool_open(argv[0], NULL, O_RDONLY, &ds));
     if (err)
         fatal("mpool_open", err);
 

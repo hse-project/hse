@@ -5,22 +5,9 @@
 
 #define MTF_MOCK_IMPL_mpool
 
+#include <hse_util/hse_err.h>
+
 #include <mpool/mpool.h>
-
-merr_t
-mpool_create(
-	const char             *mpname,
-	const char             *devname,
-	struct mpool_params    *params,
-	uint32_t                flags)
-{
-    return 0;
-}
-
-merr_t mpool_destroy(const char *mpname, uint32_t flags)
-{
-    return 0;
-}
 
 merr_t
 mpool_mclass_add(
@@ -39,17 +26,6 @@ merr_t mpool_scan(int *propcp, struct mpool_params **propvp)
 }
 
 merr_t mpool_list(int *propcp, struct mpool_params **propvp)
-{
-    return 0;
-}
-
-merr_t
-mpool_open(const char *mpname, uint32_t flags, struct mpool **mp)
-{
-    return 0;
-}
-
-merr_t mpool_close(struct mpool *mp)
 {
     return 0;
 }
@@ -88,88 +64,6 @@ mpool_params_set(struct mpool *mp, struct mpool_params *params)
 {
     return 0;
 }
-
-merr_t
-mpool_mdc_alloc(
-	struct mpool               *mp,
-	uint64_t                   *logid1,
-	uint64_t                   *logid2,
-	enum mp_media_classp        mclassp,
-	const struct mdc_capacity  *capreq,
-	struct mdc_props           *props)
-{
-    return 0;
-}
-
-merr_t mpool_mdc_commit(struct mpool *mp, uint64_t logid1, uint64_t logid2)
-{
-    return 0;
-}
-
-merr_t mpool_mdc_abort(struct mpool *mp, uint64_t logid1, uint64_t logid2)
-{
-    return 0;
-}
-
-merr_t mpool_mdc_delete(struct mpool *mp, uint64_t logid1, uint64_t logid2)
-{
-    return 0;
-}
-
-merr_t mpool_mdc_get_root(struct mpool *mp, uint64_t *logid1, uint64_t *logid2)
-{
-    *logid1 = 0;
-    *logid2 = 0;
-
-    return 0;
-}
-
-merr_t
-mpool_mdc_open(
-	struct mpool        *mp,
-	uint64_t             logid1,
-	uint64_t             logid2,
-	uint8_t              flags,
-	struct mpool_mdc   **mdc_out)
-{
-    return 0;
-}
-
-merr_t mpool_mdc_close(struct mpool_mdc *mdc)
-{
-    return 0;
-}
-
-merr_t mpool_mdc_rewind(struct mpool_mdc *mdc)
-{
-    return 0;
-}
-
-merr_t mpool_mdc_read(struct mpool_mdc *mdc, void *data, size_t len, size_t *rdlen)
-{
-    return 0;
-}
-
-merr_t mpool_mdc_append(struct mpool_mdc *mdc, void *data, ssize_t len, bool sync)
-{
-    return 0;
-}
-
-merr_t mpool_mdc_cstart(struct mpool_mdc *mdc)
-{
-    return 0;
-}
-
-merr_t mpool_mdc_cend(struct mpool_mdc *mdc)
-{
-    return 0;
-}
-
-merr_t mpool_mdc_usage(struct mpool_mdc *mdc, size_t *usage)
-{
-    return 0;
-}
-
 
 merr_t
 mpool_mblock_alloc(

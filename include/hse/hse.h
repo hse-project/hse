@@ -238,6 +238,18 @@ hse_err_t
 hse_kvdb_make(const char *mp_name, const struct hse_params *params);
 
 /**
+ * Remove a KVDB
+ *
+ * It is an error to call this function on a KVDB that is open. This function is not
+ * thread safe.
+ *
+ * @param kvdb:     KVDB handle from hse_kvdb_open()
+ * @return The function's error status
+ */
+hse_err_t
+hse_kvdb_drop(struct hse_kvdb *kvdb);
+
+/**
  * Open an HSE KVDB for use by the application
  *
  * The KVDB must already exist and the client must have permission to use it. This

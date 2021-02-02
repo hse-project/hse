@@ -137,7 +137,7 @@ struct kvs_cparams cp;
  * changes).
  */
 struct mapi_injection inject_list[] = {
-    { mapi_idx_mpool_mdc_get_root, MAPI_RC_SCALAR, 0 },
+    { mapi_idx_mpool_mdc_rootid_get, MAPI_RC_SCALAR, 0 },
     { mapi_idx_mpool_mdc_open, MAPI_RC_SCALAR, 0 },
     { mapi_idx_mpool_mdc_close, MAPI_RC_SCALAR, 0 },
     { mapi_idx_mpool_mdc_append, MAPI_RC_SCALAR, 0 },

@@ -12,7 +12,6 @@
 #include <hse_ikvdb/kvs_cparams.h>
 #include <hse_ikvdb/cn.h>
 #include <hse_ikvdb/kvdb_health.h>
-#include <mpool/mpool_ioctl.h>
 
 #include <cn/cn_internal.h>
 

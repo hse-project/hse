@@ -53,11 +53,17 @@ struct mblock_file {
  * @fs:    mblock fileset handle
  * @dirfd: mclass directory fd
  * @name:  file name
+ * @flags: open flags
  * @handle(output): mblock file handle
  *
  */
 merr_t
-mblock_file_open(struct mblock_fset *mbfsp, int dirfd, char *name, struct mblock_file **handle);
+mblock_file_open(
+    struct mblock_fset  *mbfsp,
+    int                  dirfd,
+    char                *name,
+    int                  flags,
+    struct mblock_file **handle);
 
 /**
  * mblock_file_close() - close an mblock file

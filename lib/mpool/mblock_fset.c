@@ -58,7 +58,7 @@ mblock_fset_meta_remove(const char *dpath)
 }
 
 merr_t
-mblock_fset_open(struct media_class *mc, struct mblock_fset **handle)
+mblock_fset_open(struct media_class *mc, int flags, struct mblock_fset **handle)
 {
     struct mblock_fset *mbfsp;
 
@@ -84,7 +84,7 @@ mblock_fset_open(struct media_class *mc, struct mblock_fset **handle)
 
         snprintf(name, sizeof(name), "%s-%d-%d", "mblock-data", mclass_id(mc), i);
 
-        err = mblock_file_open(mbfsp, mclass_dirfd(mc), name, &mbfsp->filev[i]);
+        err = mblock_file_open(mbfsp, mclass_dirfd(mc), name, flags, &mbfsp->filev[i]);
         if (ev(err))
             goto err_exit;
     }

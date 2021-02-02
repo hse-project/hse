@@ -403,7 +403,6 @@ _mpool_mdc_open(
     struct mpool *     mp,
     uint64_t           oid1,
     uint64_t           oid2,
-    uint8_t            flags,
     struct mpool_mdc **mdc)
 {
     struct mocked_mblock *mb = 0;
@@ -464,7 +463,7 @@ _mpool_mdc_cend(struct mpool_mdc *mdc)
 }
 
 merr_t
-_mpool_mdc_append(struct mpool_mdc *mdc, void *data, ssize_t len, bool sync)
+_mpool_mdc_append(struct mpool_mdc *mdc, void *data, size_t len, bool sync)
 {
     struct mocked_mdc *m = (void *)mdc;
     int                end = m->wcur + len;
@@ -748,7 +747,7 @@ mock_mpool_set(void)
     MOCK_SET(mpool, _mpool_params_get);
     MOCK_SET(mpool, _mpool_mclass_get);
 
-    mapi_inject(mapi_idx_mpool_mdc_get_root, 0);
+    mapi_inject(mapi_idx_mpool_mdc_rootid_get, 0);
 }
 
 void
@@ -779,7 +778,7 @@ mock_mpool_unset(void)
     MOCK_UNSET(mpool, _mpool_mdc_rewind);
     MOCK_UNSET(mpool, _mpool_mdc_read);
 
-    mapi_inject_unset(mapi_idx_mpool_mdc_get_root);
+    mapi_inject_unset(mapi_idx_mpool_mdc_rootid_get);
 
     for (i = 0; i < MPM_MAX_MBLOCKS; ++i)
         mapi_safe_free(mocked_mblocks[i].mb_base);
