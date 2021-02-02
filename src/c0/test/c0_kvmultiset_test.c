@@ -20,7 +20,6 @@
 
 #include <hse_ikvdb/c0_kvmultiset.h>
 #include <hse_ikvdb/c0_kvset.h>
-#include <hse_ikvdb/kvb_builder.h>
 
 #include "../c0_ingest_work.h"
 

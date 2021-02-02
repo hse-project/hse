@@ -16,7 +16,6 @@
 
 #include "c0_kvset_internal.h"
 #include "c0_cursor.h"
-#include "c0_kvsetm.h"
 
 /* The minimum c0 cheap size should be at least 2MB and large enough to accomodate
  * at least one max-sized kvs value plus associated overhead.
