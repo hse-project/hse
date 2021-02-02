@@ -55,7 +55,6 @@ set( UTIL_SOURCE_FILES
     util/src/parser.c
     util/src/parser_internal.h
     util/src/perfc.c
-    util/src/pipe_find.c
     util/src/platform.c
     util/src/printbuf.c
     util/src/program_name.c
