@@ -59,19 +59,19 @@ MTF_DEFINE_UTEST(json, json_basic_usage)
     jc.json_buf = buf;
     jc.json_buf_sz = sizeof(buf);
 
-    pos += snprintf(cmp + pos, sizeof(cmp), "%s", "{");
+    pos += snprintf(cmp + pos, sizeof(cmp) - pos, "%s", "{");
     json_element_start(&jc, 0);
     ASSERT_EQ(strcmp(buf, cmp), 0);
 
-    pos += snprintf(cmp + pos, sizeof(cmp), "%s", "\"hello\":\"world\",");
+    pos += snprintf(cmp + pos, sizeof(cmp) - pos, "%s", "\"hello\":\"world\",");
     json_element_field(&jc, "hello", "%s", "world");
     ASSERT_EQ(strcmp(buf, cmp), 0);
 
-    pos += snprintf(cmp + pos, sizeof(cmp), "%s", "\"content\":[1,2,3],");
+    pos += snprintf(cmp + pos, sizeof(cmp) - pos, "%s", "\"content\":[1,2,3],");
     json_element_list(&jc, "content", "%d", argc, argv);
     ASSERT_EQ(strcmp(buf, cmp), 0);
 
-    snprintf(cmp + pos - 1, sizeof(cmp), "%s", "}");
+    snprintf(cmp + pos - 1, sizeof(cmp) - pos + 1, "%s", "}");
     json_element_end(&jc);
     ASSERT_EQ(strcmp(buf, cmp), 0);
 }
@@ -85,35 +85,35 @@ MTF_DEFINE_UTEST(json, json_nested_field)
     jc.json_buf = buf;
     jc.json_buf_sz = sizeof(buf);
 
-    pos += snprintf(cmp + pos, sizeof(cmp), "%s", "{");
+    pos += snprintf(cmp + pos, sizeof(cmp) - pos, "%s", "{");
     json_element_start(&jc, 0);
     ASSERT_EQ(strcmp(buf, cmp), 0);
 
-    pos += snprintf(cmp + pos, sizeof(cmp), "%s", "\"child1\":{");
+    pos += snprintf(cmp + pos, sizeof(cmp) - pos, "%s", "\"child1\":{");
     json_element_start(&jc, "child1");
     ASSERT_EQ(strcmp(buf, cmp), 0);
 
-    pos += snprintf(cmp + pos, sizeof(cmp), "%s", "\"depth\":1,");
+    pos += snprintf(cmp + pos, sizeof(cmp) - pos, "%s", "\"depth\":1,");
     json_element_field(&jc, "depth", "%d", 1);
     ASSERT_EQ(strcmp(buf, cmp), 0);
 
-    pos += snprintf(cmp + pos, sizeof(cmp), "%s", "\"child2\":{");
+    pos += snprintf(cmp + pos, sizeof(cmp) - pos, "%s", "\"child2\":{");
     json_element_start(&jc, "child2");
     ASSERT_EQ(strcmp(buf, cmp), 0);
 
-    pos += snprintf(cmp + pos, sizeof(cmp), "%s", "\"depth\":2,");
+    pos += snprintf(cmp + pos, sizeof(cmp) - pos, "%s", "\"depth\":2,");
     json_element_field(&jc, "depth", "%d", 2);
     ASSERT_EQ(strcmp(buf, cmp), 0);
 
-    pos += snprintf(cmp + pos - 1, sizeof(cmp), "%s", "},") - 1;
+    pos += snprintf(cmp + pos - 1, sizeof(cmp) - pos + 1, "%s", "},") - 1;
     json_element_end(&jc);
     ASSERT_EQ(strcmp(buf, cmp), 0);
 
-    pos += snprintf(cmp + pos - 1, sizeof(cmp), "%s", "},") - 1;
+    pos += snprintf(cmp + pos - 1, sizeof(cmp) - pos + 1, "%s", "},") - 1;
     json_element_end(&jc);
     ASSERT_EQ(strcmp(buf, cmp), 0);
 
-    snprintf(cmp + pos - 1, sizeof(cmp), "%s", "}");
+    snprintf(cmp + pos - 1, sizeof(cmp) - pos + 1, "%s", "}");
     json_element_end(&jc);
     ASSERT_EQ(strcmp(buf, cmp), 0);
 
@@ -147,27 +147,27 @@ MTF_DEFINE_UTEST(json, json_field_fmt)
     jc.json_buf = buf;
     jc.json_buf_sz = sizeof(buf);
 
-    pos += snprintf(cmp + pos, sizeof(cmp), "%s", "{");
+    pos += snprintf(cmp + pos, sizeof(cmp) - pos, "%s", "{");
     json_element_start(&jc, 0);
     ASSERT_EQ(strcmp(buf, cmp), 0);
 
-    pos += snprintf(cmp + pos, sizeof(cmp), "\"string\":\"%s\",", "abcdef");
+    pos += snprintf(cmp + pos, sizeof(cmp) - pos, "\"string\":\"%s\",", "abcdef");
     json_element_field(&jc, "string", "%s", "abcdef");
     ASSERT_EQ(strcmp(buf, cmp), 0);
 
-    pos += snprintf(cmp + pos, sizeof(cmp), "\"number\":%d,", 42);
+    pos += snprintf(cmp + pos, sizeof(cmp) - pos, "\"number\":%d,", 42);
     json_element_field(&jc, "number", "%d", 42);
     ASSERT_EQ(strcmp(buf, cmp), 0);
 
-    pos += snprintf(cmp + pos, sizeof(cmp), "\"hex\":\"%x\",", 1024);
+    pos += snprintf(cmp + pos, sizeof(cmp) - pos, "\"hex\":\"%x\",", 1024);
     json_element_field(&jc, "hex", "%x", 1024);
     ASSERT_EQ(strcmp(buf, cmp), 0);
 
-    pos += snprintf(cmp + pos, sizeof(cmp), "\"pointer\":\"%p\",", &buf);
+    pos += snprintf(cmp + pos, sizeof(cmp) - pos, "\"pointer\":\"%p\",", &buf);
     json_element_field(&jc, "pointer", "%p", &buf);
     ASSERT_EQ(strcmp(buf, cmp), 0);
 
-    snprintf(cmp + pos - 1, sizeof(cmp), "%s", "}");
+    snprintf(cmp + pos - 1, sizeof(cmp) - pos + 1, "%s", "}");
     json_element_end(&jc);
     ASSERT_EQ(strcmp(buf, cmp), 0);
 }
@@ -185,35 +185,35 @@ MTF_DEFINE_UTEST(json, json_list_fmt)
     jc.json_buf = buf;
     jc.json_buf_sz = sizeof(buf);
 
-    pos += snprintf(cmp + pos, sizeof(cmp), "%s", "{");
+    pos += snprintf(cmp + pos, sizeof(cmp) - pos, "%s", "{");
     json_element_start(&jc, 0);
     ASSERT_EQ(strcmp(buf, cmp), 0);
 
     /* supported formats */
 
-    pos += snprintf(cmp + pos, sizeof(cmp), "\"pets\":[\"cat\",\"dog\"],");
+    pos += snprintf(cmp + pos, sizeof(cmp) - pos, "\"pets\":[\"cat\",\"dog\"],");
     json_element_list(&jc, "pets", "%s", 2, list_1);
     ASSERT_EQ(strcmp(buf, cmp), 0);
 
-    pos += snprintf(cmp + pos, sizeof(cmp), "\"seconds\":[764,5663],");
+    pos += snprintf(cmp + pos, sizeof(cmp) - pos, "\"seconds\":[764,5663],");
     json_element_list(&jc, "seconds", "%d", 2, list_2);
     ASSERT_EQ(strcmp(buf, cmp), 0);
 
-    pos += snprintf(cmp + pos, sizeof(cmp), "\"money\":[4843454565,8656934565],");
+    pos += snprintf(cmp + pos, sizeof(cmp) - pos, "\"money\":[4843454565,8656934565],");
     json_element_list(&jc, "money", "%lu", 2, list_3);
     ASSERT_EQ(strcmp(buf, cmp), 0);
 
     /* unsupported formats */
 
-    pos += snprintf(cmp + pos, sizeof(cmp), "\"hex\":[],");
+    pos += snprintf(cmp + pos, sizeof(cmp) - pos, "\"hex\":[],");
     json_element_list(&jc, "hex", "%x", 2, list_2);
     ASSERT_EQ(strcmp(buf, cmp), 0);
 
-    pos += snprintf(cmp + pos, sizeof(cmp), "\"pointer\":[],");
+    pos += snprintf(cmp + pos, sizeof(cmp) - pos, "\"pointer\":[],");
     json_element_list(&jc, "pointer", "%p", 2, list_2);
     ASSERT_EQ(strcmp(buf, cmp), 0);
 
-    snprintf(cmp + pos - 1, sizeof(cmp), "%s", "}");
+    snprintf(cmp + pos - 1, sizeof(cmp) - pos, "%s", "}");
     json_element_end(&jc);
     ASSERT_EQ(strcmp(buf, cmp), 0);
 }

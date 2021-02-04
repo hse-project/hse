@@ -518,7 +518,7 @@ struct perfc_seti {
     struct perfc_set *       pcs_handle;
     const struct perfc_name *pcs_ctrnamev;
     union perfc_ctru         pcs_ctrv[];
-} __aligned(1024);
+};
 
 #define PERFC_CTR_IDX_PREFIX "PERFC_"
 #define PERFC_CTR_IDX_END "PERFC_EN_"

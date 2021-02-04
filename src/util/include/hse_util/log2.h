@@ -7,6 +7,8 @@
 #define HSE_LOG2_H
 
 #include <assert.h>
+#include <sys/param.h>
+#include <stdbool.h>
 
 static inline __attribute__((const)) unsigned int
 ilog2(unsigned long n)
