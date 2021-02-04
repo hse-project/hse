@@ -2173,6 +2173,7 @@ cn_tree_capped_cursor_update(struct pscan *cur, struct cn_tree *tree)
     bool                     allocated;
     int                      i;
     u64                      dgen = 0;
+    u64                      node_oldest_dgen;
     struct perfc_set *       pc = cn_pc_capped_get(tree->cn);
 
     node = tree->ct_root;
@@ -2185,8 +2186,6 @@ cn_tree_capped_cursor_update(struct pscan *cur, struct cn_tree *tree)
     cur->bh = NULL;
     cur->eof = 0;
 
-    old_cnt = new_cnt = 0;
-
     view = vtc_alloc();
     if (ev(!view))
         return merr(ENOMEM);
@@ -2194,7 +2193,8 @@ cn_tree_capped_cursor_update(struct pscan *cur, struct cn_tree *tree)
     /* Identify new kvsets and the old ones that are still valid.
      */
     rmlock_rlock(&tree->ct_lock, &lock);
-    iterc = cn_ns_kvsets(&node->tn_ns);
+
+    old_cnt = new_cnt = 0;
 
     list_for_each_entry (le, &node->tn_kvset_list, le_link) {
         struct kvset *   ks = le->le_kvset;
@@ -2220,25 +2220,27 @@ cn_tree_capped_cursor_update(struct pscan *cur, struct cn_tree *tree)
         dgen = dgen ?: ks_dgen;
         new_cnt++;
     }
+
+    le = list_last_entry(&node->tn_kvset_list, struct kvset_list_entry, le_link);
+    node_oldest_dgen = kvset_get_dgen(le->le_kvset);
     rmlock_runlock(lock);
 
-    perfc_add(pc, PERFC_BA_CNCAPPED_NEW, new_cnt);
+    /* Find the oldest kvset in cur->iterv[] that's still alive in the node.
+     */
+    for (i = cur->iterc - 1; i >= 0; i--) {
+        struct kv_iterator *it = cur->iterv[i];
+        u64 ks_dgen = kvset_get_dgen(kvset_from_iter(it));
 
-    old_cnt = iterc - new_cnt;
+        if (ks_dgen >= node_oldest_dgen)
+            break;
+    }
+
+    old_cnt = i < 0 ? 0 : i;
+
+    perfc_add(pc, PERFC_BA_CNCAPPED_NEW, new_cnt);
     perfc_add(pc, PERFC_BA_CNCAPPED_OLD, old_cnt);
 
-    /* [HSE_REVISIT] Something has gone awry with this optimization,
-     * need to figure it out.  Going forward, we should double-check
-     * that the old_cnt kvsets in cur->iterv[] are indeed the ones
-     * we think they are...
-     *
-     * Meanwhile, we can simply destroy this cursor and rebuild it
-     * from the ground up (caller will retry a few times).
-     */
-    if (ev(old_cnt > cur->iterc)) {
-        err = merr(EAGAIN);
-        goto errout;
-    }
+    iterc = old_cnt + new_cnt;
 
     /* The cursor's kvset list contains kvsets that are either
      *   1. no longer part of the cn tree (compacted away), or
