@@ -2235,7 +2235,7 @@ cn_tree_capped_cursor_update(struct pscan *cur, struct cn_tree *tree)
             break;
     }
 
-    old_cnt = i < 0 ? 0 : i;
+    old_cnt = i + 1;
 
     perfc_add(pc, PERFC_BA_CNCAPPED_NEW, new_cnt);
     perfc_add(pc, PERFC_BA_CNCAPPED_OLD, old_cnt);
