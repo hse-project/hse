@@ -14,6 +14,7 @@
 #include <hse_util/page.h>
 #include <hse_util/delay.h>
 #include <hse_util/event_counter.h>
+#include <hse_util/xrand.h>
 
 #include <hse_ikvdb/kvs.h>
 #include <hse_ikvdb/kvdb_ctxn.h>
@@ -204,6 +205,7 @@ kvdb_ctxn_alloc(
 
     rp = c0sk_rparams(ctxn->ctxn_c0sk);
     if (rp) {
+        ctxn->ctxn_commit_abort_pct = rp->txn_commit_abort_pct;
         ctxn->ctxn_ingest_width = rp->txn_ingest_width;
         ctxn->ctxn_ingest_delay = rp->txn_ingest_delay;
         ctxn->ctxn_heap_sz = rp->txn_heap_sz;
@@ -565,6 +567,19 @@ kvdb_ctxn_commit(struct kvdb_ctxn *handle)
     if (ev(state != KVDB_CTXN_ACTIVE)) {
         kvdb_ctxn_unlock(ctxn);
         return merr(EINVAL);
+    }
+
+    /* Inject a commit fault for testing purposes.  For example, the
+     * hse-mongo connector will throw a WriteConflictException (WCE)
+     * when kvdb_ctxn_commit() returns an error which should cause
+     * mongod to restart the transaction.
+     */
+    if (ctxn->ctxn_commit_abort_pct) {
+        if (ev((xrand64_tls() % 16384) < ctxn->ctxn_commit_abort_pct)) {
+            kvdb_ctxn_abort_inner(ctxn);
+            kvdb_ctxn_unlock(ctxn);
+            return merr(ECANCELED);
+        }
     }
 
     /* If this transaction never wrote anything then the commit path is

@@ -19,10 +19,8 @@
 #include "cn_tree_internal.h"
 #include "kvset.h"
 
-#define SIZE_128MIB ((size_t)128 << 20)
-#define SIZE_256MIB ((size_t)256 << 20)
-
-#define SIZE_1GIB ((size_t)1 << 30)
+#define SIZE_128MIB     ((size_t)128 << 20)
+#define SIZE_1GIB       ((size_t)1 << 30)
 
 /* The bonus count limits bonus work (scatter and idle)
  * [HSE_REVISIT] Do this correctly via job queues...
@@ -231,15 +229,15 @@ sp3_work_ispill(
         clen = cn_ns_clen(&stats);
 
         if (clen < SIZE_128MIB) {
-            if (cnt > cnt_max) {
-                /* Don't let tiny interior nodes grow too long, they might
-                 * never be large enough to spill.
-                 */
-                *action = CN_ACTION_COMPACT_KV;
-                *rule = CN_CR_ILONG_LW;
-                return cnt;
-            }
-            return 0;
+            if (cnt < cnt_min)
+                return 0;
+
+            /* Don't let tiny interior nodes grow too long, they might
+             * never be large enough to spill.
+             */
+            *action = CN_ACTION_COMPACT_KV;
+            *rule = CN_CR_ILONG_LW;
+            return cnt;
         } else if (clen < SIZE_1GIB) {
             *rule = CN_CR_SPILL_TINY;
             return cnt;
@@ -434,10 +432,20 @@ sp3_work_leaf_len(
         if (runlen >= runlen_min)
             return (compc > 0) ? runlen_min : runlen;
 
-        /* Don't let lightweight nodes grow too long.
+        /* Don't let lightweight nodes grow too long.  For the most part this only
+         * applies to "index" nodes (i.e., nodes where the values are much smaller
+         * than the keys).
          */
-        if (cn_ns_kvsets(&stats) > runlen_min && cn_ns_clen(&stats) < SIZE_256MIB) {
+        if (cn_ns_kvsets(&stats) > runlen_min && cn_ns_clen(&stats) < SIZE_1GIB) {
             *mark = list_last_entry(head, typeof(*le), le_link);
+
+            /* Exclude the oldest kvset (if possible) as it should already
+             * be highly compacted.
+             */
+            le = list_prev_entry(*mark, le_link);
+            if (kvset_get_compc((*mark)->le_kvset) > kvset_get_compc(le->le_kvset))
+                *mark = le;
+
             *action = CN_ACTION_COMPACT_KV;
             *rule = CN_CR_LSHORT_LW;
             return runlen_min;

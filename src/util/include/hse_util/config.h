@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
 #ifndef HSE_PLATFORM_CONFIG_H
@@ -159,6 +159,62 @@ config_u32(
 }
 #define CFG_U32(path, instance, data, dfault, validator, rock, writable) \
     config_u32(COMPNAME, instance, path, data, dfault, validator, rock, writable)
+
+static inline struct hse_config *
+config_u16(
+    const char *component,
+    const char *instance,
+    const char *path,
+    u16        *data,
+    u16        *dfault,
+    validator_t validator,
+    void *      rock,
+    bool        writable)
+{
+    return hse_config(
+        component,
+        instance,
+        path,
+        data,
+        sizeof(u16),
+        dfault,
+        validator,
+        rock,
+        NULL,
+        NULL,
+        show_u16,
+        writable);
+}
+#define CFG_U16(path, instance, data, dfault, validator, rock, writable) \
+    config_u16(COMPNAME, instance, path, data, dfault, validator, rock, writable)
+
+static inline struct hse_config *
+config_u8(
+    const char *component,
+    const char *instance,
+    const char *path,
+    u8         *data,
+    u8         *dfault,
+    validator_t validator,
+    void *      rock,
+    bool        writable)
+{
+    return hse_config(
+        component,
+        instance,
+        path,
+        data,
+        sizeof(u8),
+        dfault,
+        validator,
+        rock,
+        NULL,
+        NULL,
+        show_u8,
+        writable);
+}
+#define CFG_U8(path, instance, data, dfault, validator, rock, writable) \
+    config_u8(COMPNAME, instance, path, data, dfault, validator, rock, writable)
 
 static inline struct hse_config *
 config_bool(

@@ -37,11 +37,12 @@
  * to be fixed-width types, so we should update them when convenient...
  */
 struct kvdb_rparams {
-    uint8_t read_only;
-    uint8_t throttle_disable;
-    uint8_t perfc_enable;
-    uint8_t c0_diag_mode;
-    uint8_t c0_debug;
+    uint8_t  read_only;
+    uint8_t  throttle_disable;
+    uint8_t  perfc_enable;
+    uint8_t  c0_diag_mode;
+    uint8_t  c0_debug;
+    uint16_t txn_commit_abort_pct;
 
     uint64_t c0_heap_cache_sz_max;
     uint64_t c0_heap_sz;

@@ -2,3 +2,13 @@
 # Workload: MongoDB Sysbench
 
 api_version: 1
+
+kvs.MainKvs:
+  value_compression: none
+  pfx_len: 9
+
+kvs.UniqIdxKvs:
+  pfx_len: 5
+
+kvs.StdIdxKvs:
+  pfx_len: 0
