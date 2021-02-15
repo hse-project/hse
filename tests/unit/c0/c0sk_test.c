@@ -2011,7 +2011,7 @@ MTF_DEFINE_UTEST_PREPOST(c0sk_test, c0_cursor_robust, no_fail_pre, no_fail_post)
     }
 
     /* now update the first cursor, which should see all keys in order */
-    err = c0sk_cursor_update(cur[0], atomic64_read(&seqno), 0, 0, 0);
+    err = c0sk_cursor_update(cur[0], atomic64_read(&seqno), 0);
     ASSERT_EQ(0, err);
 
     seek[0] = 0;
@@ -2153,7 +2153,7 @@ MTF_DEFINE_UTEST_PREPOST(c0sk_test, c0_cursor_eagain, no_fail_pre, no_fail_post)
         ASSERT_EQ(0, err);
 
         c0sk_flush(c0sk, NULL);
-        err = c0sk_cursor_update(cur, atomic64_fetch_add(1, &seqno), 0, 0, 0);
+        err = c0sk_cursor_update(cur, atomic64_fetch_add(1, &seqno), 0);
         if (err)
             ASSERT_EQ(EAGAIN, merr_errno(err));
         else
@@ -2333,7 +2333,7 @@ MTF_DEFINE_UTEST_PREPOST(c0sk_test, c0_rcursor_robust, no_fail_pre, no_fail_post
     }
 
     /* now update the first cursor, which should see all keys in order */
-    err = c0sk_cursor_update(cur[0], atomic64_read(&seqno), 0, 0, 0);
+    err = c0sk_cursor_update(cur[0], atomic64_read(&seqno), 0);
     ASSERT_EQ(0, err);
 
     /* seek to the first key */
@@ -2573,7 +2573,7 @@ MTF_DEFINE_UTEST_PREPOST(c0sk_test, c0_cursor_ptombs, no_fail_pre, no_fail_post)
     /* use a tree prefix length of sizeof(kbuf[0]) */
     u32 flags = 0;
 
-    err = c0sk_cursor_update(cur, atomic64_read(&seqno), 0, 0, &flags);
+    err = c0sk_cursor_update(cur, atomic64_read(&seqno), &flags);
     ASSERT_EQ(0, err);
     ASSERT_TRUE(flags & CURSOR_FLAG_SEQNO_CHANGE);
 
@@ -2612,7 +2612,7 @@ MTF_DEFINE_UTEST_PREPOST(c0sk_test, c0_cursor_ptombs, no_fail_pre, no_fail_post)
 
     flags = 0;
 
-    err = c0sk_cursor_update(cur, HSE_SQNREF_SINGLE, 0, 0, &flags);
+    err = c0sk_cursor_update(cur, HSE_SQNREF_SINGLE, &flags);
     ASSERT_EQ(0, err);
     ASSERT_TRUE(flags & CURSOR_FLAG_SEQNO_CHANGE);
 

@@ -395,22 +395,4 @@ c0kvs_iterator_init(struct c0_kvset *set, struct c0_kvset_iterator *iter, uint f
 void
 c0kvs_debug(struct c0_kvset *set, void *key, int klen);
 
-/**
- * c0kvs_preserve_tombspan() - check whether the tombstone span can be
- * preserved (no mutations to the interval).
- * @handle:     kvset on which to operate
- * @kmin:        min tomb key
- * @kmin_len:    min tomb key length
- * @kmax:        max tomb key
- * @kmax_len:    max tomb key length
- */
-bool
-c0kvs_preserve_tombspan(
-    struct c0_kvset *handle,
-    u16              index,
-    const void *     kmin,
-    u32              kmin_len,
-    const void *     kmax,
-    u32              kmax_len);
-
 #endif /* HSE_CORE_C0_KVSET_H */

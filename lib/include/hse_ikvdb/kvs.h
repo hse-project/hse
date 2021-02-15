@@ -47,6 +47,7 @@ struct hse_kvs_cursor {
     struct kvdb_ctxn_bind *kc_bind;
     u64                    kc_gen;
     u64                    kc_seq;
+    u64                    kc_create_time;
     volatile bool          kc_on_list;
     unsigned int           kc_flags;
     merr_t                 kc_err;
@@ -144,9 +145,6 @@ ikvs_cursor_update(struct hse_kvs_cursor *cursor, u64 seqno);
 
 merr_t
 kvs_cursor_read(struct hse_kvs_cursor *cursor, struct kvs_kvtuple *kvt, bool *eof);
-
-void
-ikvs_cursor_tombspan_check(struct hse_kvs_cursor *handle);
 
 void
 kvs_perfc_register(void *pc);

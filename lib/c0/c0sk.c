@@ -823,97 +823,6 @@ c0sk_cursor_ptomb_reset(struct c0_cursor *cur)
     cur->c0cur_ptomb_es = 0;
 }
 
-bool
-c0sk_cursor_ctxn_preserve_tombspan(
-    struct c0_cursor *cur,
-    const void *      kmin,
-    u32               kmin_len,
-    const void *      kmax,
-    u32               kmax_len)
-{
-    /* [HSE_REVISIT] Tombstone spans used to detect mutations by looking at the transaction kvms
-     * which no longer exists. Need to revisit tombstone span logic.
-     */
-#if 0
-        kvms = cur->c0cur_ctxn ? kvdb_ctxn_get_kvms(cur->c0cur_ctxn) : NULL;
-        if (kvms)
-        return c0kvms_preserve_tombspan(kvms, cur->c0cur_skidx, kmin, kmin_len, kmax, kmax_len);
-#endif
-    return false;
-}
-
-static void
-c0sk_cursor_preserve_tombspan(
-    struct c0_cursor *       cur,
-    u64                      last_gen,
-    struct c0_kvmultiset **  kvmsv,
-    int                      cnt,
-    const struct kvs_ktuple *kt_min,
-    const struct kvs_ktuple *kt_max,
-    u32 *                    out)
-{
-    struct c0sk_impl *c0sk;
-    int               i;
-    const void *      kmin, *kmax;
-    u32               kmin_len, kmax_len;
-
-    c0sk = c0sk_h2r(cur->c0cur_c0sk);
-
-    assert(kt_min);
-    assert(kt_max);
-    assert(out);
-
-    c0sk = c0sk_h2r(cur->c0cur_c0sk);
-    kmin = kt_min->kt_data;
-    kmin_len = kt_min->kt_len;
-    kmax = kt_max->kt_data;
-    kmax_len = kt_max->kt_len;
-
-    /* If we've ingested any KVMS since the last active KVMS, then
-     * we cannot detect mutations. Invalidate the tombspan.
-     */
-    if ((cnt && c0kvms_gen_read(kvmsv[cnt - 1]) > last_gen) ||
-        (!cnt && c0sk->c0sk_release_gen >= last_gen)) {
-        if (out)
-            *out = *out | CURSOR_FLAG_TOMBS_INV_KVMS;
-        return;
-    }
-
-    for (i = 0; i < cnt; i++) {
-        if (c0kvms_gen_read(kvmsv[i]) < last_gen)
-            return;
-
-        /*
-         * [HSE_REVISIT]
-         * If ingests aren't happening, it is possible that a single
-         * mutation within the tombspan invalidates it. The mutation may
-         * have occurred prior to creating the tombspan. It repeatedly
-         * invalidates the tombspan because the same KVMS is active
-         * when this cached c0 cursor is reused.
-         */
-        if (!c0kvms_preserve_tombspan(kvmsv[i], cur->c0cur_skidx, kmin, kmin_len, kmax, kmax_len))
-            break;
-    }
-
-    if (i != cnt) {
-        if (c0kvms_gen_read(kvmsv[0]) == cur->c0cur_inv_gen) {
-            cur->c0cur_inv_cnt++;
-        } else {
-            cur->c0cur_inv_gen = c0kvms_gen_read(kvmsv[0]);
-            cur->c0cur_inv_cnt = 0;
-        }
-
-        if (cur->c0cur_inv_cnt % TOMBSPAN_INVALIDATE_COUNT == 0) {
-            c0sk_flush(cur->c0cur_c0sk, NULL);
-            if (out)
-                *out = *out | CURSOR_FLAG_TOMBS_FLUSH;
-        }
-
-        if (out)
-            *out = *out | CURSOR_FLAG_TOMBS_INV_PUTS;
-    }
-}
-
 /*
  * look for ingested kvms and release them:
  * instead of crawling the list matching each, find the last
@@ -1718,8 +1627,6 @@ merr_t
 c0sk_cursor_update(
     struct c0_cursor *       cur,
     u64                      seqno,
-    const struct kvs_ktuple *kt_min,
-    const struct kvs_ktuple *kt_max,
     u32 *                    flags_out)
 {
     struct c0_kvmultiset *new[HSE_C0_KVSET_CURSOR_MAX];
@@ -1728,8 +1635,6 @@ c0sk_cursor_update(
     struct c0sk_impl *           c0sk;
     int                          cnt, nact;
     merr_t                       err;
-    bool                         tombs = (kt_min != 0);
-    u64                          last_gen = cur->c0cur_act_gen;
 
     if (flags_out)
         *flags_out = (seqno != cur->c0cur_seqno) ? CURSOR_FLAG_SEQNO_CHANGE : 0;
@@ -1742,10 +1647,6 @@ c0sk_cursor_update(
     if (cur->c0cur_state & C0CUR_STATE_NEED_INIT) {
         if (c0sk_cursor_init(cur))
             return ev(cur->c0cur_merr);
-
-        if (HSE_UNLIKELY(tombs))
-            c0sk_cursor_preserve_tombspan(
-                cur, last_gen, cur->c0cur_kvmsv, cur->c0cur_cnt, kt_min, kt_max, flags_out);
 
         if (!cur->c0cur_ctxn)
             return 0;
@@ -1797,7 +1698,6 @@ c0sk_cursor_update(
     }
 
     c0sk = c0sk_h2r(cur->c0cur_c0sk);
-    last_gen = cur->c0cur_act_gen;
     cnt = 0;
 
     rcu_read_lock();
@@ -1818,9 +1718,6 @@ c0sk_cursor_update(
             c0kvms_putref(new[cnt]);
         return merr(EAGAIN);
     }
-
-    if (HSE_UNLIKELY(tombs))
-        c0sk_cursor_preserve_tombspan(cur, last_gen, new, cnt, kt_min, kt_max, flags_out);
 
     c0sk_cursor_record_active_gen(cur, new, cnt);
 

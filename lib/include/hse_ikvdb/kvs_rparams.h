@@ -33,6 +33,7 @@ struct kvs_rparams {
 
     unsigned long cn_maint_delay;
     unsigned long cn_maint_disable;
+    unsigned long cn_seek_num_kvsets;
     unsigned long cn_maint_threads;
     unsigned long cn_compaction_debug; /* 1=compact, 2=ingest */
 

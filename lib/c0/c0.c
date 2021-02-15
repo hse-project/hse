@@ -278,17 +278,6 @@ c0_cursor_bind_txn(struct c0_cursor *c0cur, struct kvdb_ctxn *ctxn)
     return c0sk_cursor_bind_txn(c0cur, ctxn);
 }
 
-bool
-c0_cursor_ctxn_preserve_tombspan(
-    struct c0_cursor *c0cur,
-    const void *      kmin,
-    u32               kmin_len,
-    const void *      kmax,
-    u32               kmax_len)
-{
-    return c0sk_cursor_ctxn_preserve_tombspan(c0cur, kmin, kmin_len, kmax, kmax_len);
-}
-
 merr_t
 c0_cursor_seek(
     struct c0_cursor * c0cur,
@@ -332,13 +321,11 @@ merr_t
 c0_cursor_update(
     struct c0_cursor *       c0cur,
     u64                      seqno,
-    const struct kvs_ktuple *kt_min,
-    const struct kvs_ktuple *kt_max,
     u32 *                    flags_out)
 {
     merr_t err;
 
-    err = c0sk_cursor_update(c0cur, seqno, kt_min, kt_max, flags_out);
+    err = c0sk_cursor_update(c0cur, seqno, flags_out);
     return ev(err);
 }
 

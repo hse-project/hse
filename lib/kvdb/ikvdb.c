@@ -1962,7 +1962,6 @@ cursor_unbind_txn(struct hse_kvs_cursor *cur)
     struct kvdb_ctxn_bind *bind = cur->kc_bind;
 
     if (bind) {
-        ikvs_cursor_tombspan_check(cur);
         cur->kc_gen = -1;
         cur->kc_bind = 0;
 
@@ -2077,7 +2076,6 @@ ikvdb_kvs_cursor_create(
     cur->kc_flags = os ? os->kop_flags : 0;
     cur->kc_cursor_cnt = &ikvdb->ikdb_curcnt;
     atomic_inc(cur->kc_cursor_cnt);
-    perfc_inc(&kvdb_metrics_pc, PERFC_BA_KVDBMETRICS_CURCNT);
 
     cur->kc_kvs = kk;
     cur->kc_gen = 0;
@@ -2086,7 +2084,9 @@ ikvdb_kvs_cursor_create(
     /* Temporarily lock a view until this cursor gets refs on cn kvsets. */
     err = cursor_view_acquire(cur);
     if (!err) {
+        u64 ts = perfc_lat_start(pkvsl_pc);
         err = ikvs_cursor_init(cur);
+        perfc_lat_record(pkvsl_pc, PERFC_LT_PKVSL_KVS_CURSOR_INIT, ts);
         if (!err) {
             if (bind) {
                 /*
@@ -2108,6 +2108,7 @@ ikvdb_kvs_cursor_create(
         cur = 0;
     }
 
+    cur->kc_create_time = tstart;
     perfc_lat_record(pkvsl_pc, PERFC_LT_PKVSL_KVS_CURSOR_CREATE, tstart);
 
     *cursorp = cur;
@@ -2353,22 +2354,24 @@ merr_t
 ikvdb_kvs_cursor_destroy(struct hse_kvs_cursor *cur)
 {
     struct perfc_set *pkvsl_pc;
-    u64               tstart;
+    u64               tstart, ctime;
 
     if (!cur)
         return 0;
 
     pkvsl_pc = cur->kc_pkvsl_pc;
     tstart = perfc_lat_start(pkvsl_pc);
+    ctime = cur->kc_create_time;
 
     cursor_unbind_txn(cur);
-
     atomic_dec(cur->kc_cursor_cnt);
+
     perfc_dec(&kvdb_metrics_pc, PERFC_BA_KVDBMETRICS_CURCNT);
 
     ikvs_cursor_free(cur);
 
     perfc_lat_record(pkvsl_pc, PERFC_LT_PKVSL_KVS_CURSOR_DESTROY, tstart);
+    perfc_lat_record(pkvsl_pc, PERFC_LT_PKVSL_KVS_CURSOR_FULL, ctime);
 
     return 0;
 }

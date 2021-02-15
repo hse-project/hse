@@ -411,26 +411,6 @@ uintptr_t *
 c0kvms_c0snr_alloc(struct c0_kvmultiset *handle);
 
 /**
- * c0kvms_preserve_tombspan() - check whether the tombspan can be
- * preserved (no mutations to the interval).
- * @handle:     kvms on which to operate
- * @kmin:        min tomb key
- * @kmin_len:    min tomb key length
- * @kmax:        max tomb key
- * @kmax_len:    max tomb key length
- *
- * The caller must hold a reference on the kvms.
- */
-bool
-c0kvms_preserve_tombspan(
-    struct c0_kvmultiset *handle,
-    u16                   index,
-    const void *          kmin,
-    u32                   kmin_len,
-    const void *          kmax,
-    u32                   kmax_len);
-
-/**
  * c0kvms_ctime() - retrieve the kvms creation time (get_time_ns() semantics)
  * @mset: struct c0_kvset
  */

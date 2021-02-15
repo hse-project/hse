@@ -55,18 +55,6 @@ struct perfc_name kvs_cc_perfc_op[] = {
     NE(PERFC_BA_CC_EOF, 3, "Count of cursor eof", "c_eofs"),
     NE(PERFC_BA_CC_READ_C0, 2, "Count of cursor c0 reads", "c_c0_reads"),
     NE(PERFC_BA_CC_READ_CN, 2, "Count of cursor cN reads", "c_cN_reads"),
-    NE(PERFC_BA_CC_TOMB_C0, 3, "Count of cursor c0 tomb reads", "c_c0_tomb_reads"),
-    NE(PERFC_BA_CC_TOMB_SPAN, 3, "Count of cursor c0 tomb spans", "c_c0_tombspan"),
-    NE(PERFC_BA_CC_TOMB_SPAN_INV, 3, "Count of cursor c0 tomb span inv ", "c_c0_tombspan_inv"),
-    NE(PERFC_BA_CC_TOMB_INV_KVMS, 3, "Count of tomb invalidates (kvms) ", "c_c0_tombspan_inv_kvms"),
-    NE(PERFC_BA_CC_TOMB_INV_PUTS, 3, "Count of tomb invalidates (puts) ", "c_c0_tombspan_inv_puts"),
-    NE(PERFC_BA_CC_TOMB_INV_TXN, 3, "Count of tomb invalidates (txns) ", "c_c0_tombspan_inv_txn"),
-    NE(PERFC_BA_CC_TOMB_FLUSH, 3, "Count of tomb c0 flush ", "c_c0_tomb_flush"),
-    NE(PERFC_BA_CC_TOMB_SKIPS, 3, "Count of cursor c0 tomb skips", "c_c0_tomb_skips"),
-    NE(PERFC_BA_CC_TOMB_SKIPLEN, 3, "Count of cursor c0 tombs skipped (len)", "c_c0_tombs_skipped"),
-    NE(PERFC_BA_CC_TOMB_SPAN_ADD, 3, "Count of cursor c0 tombs added to span", "c_c0_tombs_add"),
-    NE(PERFC_BA_CC_TOMB_SPAN_TIME, 3, "Tomb span build time since invalidate", "c_c0_tombspan_"
-                                                                               "time")
 };
 
 NE_CHECK(kvs_cc_perfc_op, PERFC_EN_CC, "cursor cache perfc ops table/enum mismatch");
@@ -113,38 +101,6 @@ struct curcache_entry {
     struct kvs_cursor_impl *cc_next;
 };
 
-/**
- * struct kvs_cursor_tombs -
- * @kct_min:          min key in tombstone span
- * @kct_max:          max c0 key in tombstone span
- * @kct_cnmax:        max cn key in tombstone span
- * @kct_min_len:      kct_min key len
- * @kct_max_len:      kct_max key len
- * @kct_cnmax_len:    kct_cnmax key len
- * @kct_seq:          last seqno at which this tombstone span was valid
- * @kct_width:        number of c0 tombstones in this span
- * @kct_start:        time at which this tombstone span was first recorded
- * @kct_update:       set if we need to update the max key (new/updated span)
- * @kct_skip:         set if the cursor seek used this span to skip tombstones
- * @kct_cn_eof:       set if the span was used in the last seek and cn returned eof
- * @kct_valid:        is the tombstone span valid
- */
-struct kvs_cursor_tombs {
-    char kct_min[HSE_KVS_KLEN_MAX];
-    char kct_max[HSE_KVS_KLEN_MAX];
-    char kct_cnmax[HSE_KVS_KLEN_MAX];
-    u32  kct_min_len;
-    u32  kct_max_len;
-    u32  kct_cnmax_len;
-    u64  kct_seq;
-    u64  kct_width;
-    u64  kct_start;
-    bool kct_update;
-    bool kct_skip;
-    bool kct_cn_eof;
-    bool kct_valid;
-};
-
 struct kvs_cursor_impl {
     struct hse_kvs_cursor   kci_handle;
     struct curcache_entry   kci_cache;
@@ -153,7 +109,6 @@ struct kvs_cursor_impl {
     struct ikvs *           kci_kvs;
     struct c0_cursor *      kci_c0cur;
     void *                  kci_cncur;
-    struct kvs_cursor_tombs kci_tombs;
     struct cursor_summary   kci_summary;
 
     /* current values for each cursor read */
@@ -161,10 +116,6 @@ struct kvs_cursor_impl {
     struct kvs_kvtuple kci_cnkv;
     u32                kci_limit_len;
     void *             kci_limit;
-
-    // TODO Gaurav: do we need this?
-    const void *       kci_seekkey;
-    u32                kci_seeklen;
 
     struct kvs_kvtuple *kci_last; /* last tuple read */
     u8 *                kci_last_kbuf;
@@ -185,26 +136,6 @@ struct kvs_cursor_impl {
 
     char kci_prefix[];
 } __aligned(SMP_CACHE_BYTES);
-
-void print_flags(struct kvs_cursor_impl *c, const char *caller_name, int line_nr)
-{
-    hse_log(HSE_ERR "gsr flags [%s:%d]: "
-            "kci_c0_eof %d, "
-            "kci_cn_eof %d, "
-            "kci_need_read_c0 %d, "
-            "kci_need_read_cn %d, "
-            "kci_need_toss %d, "
-            "kci_need_seek %d, "
-            "kci_reverse %d, ",
-            caller_name, line_nr,
-            c->kci_c0_eof,
-            c->kci_cn_eof,
-            c->kci_need_read_c0,
-            c->kci_need_read_cn,
-            c->kci_need_toss,
-            c->kci_need_seek,
-            c->kci_reverse);
-}
 
 static struct kmem_cache *kvs_cursor_zone;
 
@@ -457,7 +388,7 @@ ikvs_td2cca(struct ikvs *kvs, u64 pfxhash)
     if (unlikely( syscall(SYS_getcpu, &cpuid, &nodeid) ))
         nodeid = raw_smp_processor_id();
 
-    i = (pfxhash ?: pthread_self()) % (NELEM(kvs->ikv_curcachev) / 2);
+    i = pthread_self() % (NELEM(kvs->ikv_curcachev) / 2);
     i += (nodeid % 2) * (NELEM(kvs->ikv_curcachev) / 2);
 
     return kvs->ikv_curcachev + i;
@@ -621,8 +552,6 @@ ikvs_cursor_restore(struct ikvs *kvs, const void *prefix, size_t pfx_len, u64 pf
     if (!cur)
         return NULL;
 
-    perfc_lat_record(cur->kci_cd_pc, PERFC_LT_CD_RESTORE, tstart);
-
     if (cur->kci_c0cur) {
         struct c0_cursor *c0cur = cur->kci_c0cur;
         merr_t            err;
@@ -634,6 +563,8 @@ ikvs_cursor_restore(struct ikvs *kvs, const void *prefix, size_t pfx_len, u64 pf
             return 0;
         }
     }
+
+    perfc_lat_record(cur->kci_cd_pc, PERFC_LT_CD_RESTORE, tstart);
 
     return cur;
 }
@@ -834,58 +765,6 @@ static __always_inline u64
     return ts.tv_sec * 1000000000ULL + ts.tv_nsec;
 }
 
-static void
-ikvs_cursor_tombs_invalidate(struct kvs_cursor_impl *cursor)
-{
-    struct kvs_cursor_tombs *tombs = &cursor->kci_tombs;
-
-    tombs->kct_valid = false;
-    tombs->kct_cn_eof = false;
-    tombs->kct_update = false;
-    tombs->kct_max_len = 0;
-    tombs->kct_min_len = 0;
-    tombs->kct_cnmax_len = 0;
-    perfc_inc(&cursor->kci_kvs->ikv_cc_pc, PERFC_BA_CC_TOMB_SPAN_INV);
-    perfc_set(
-        cursor->kci_cc_pc, PERFC_BA_CC_TOMB_SPAN_TIME, (get_time_ns() - tombs->kct_start) / 1000);
-}
-
-static void
-ikvs_cursor_tombs_update(struct kvs_cursor_impl *cur, u32 flags)
-{
-    if (!(flags & CURSOR_FLAG_TOMBS_INV_KVMS) && !(flags & CURSOR_FLAG_TOMBS_INV_PUTS))
-        return;
-
-    ikvs_cursor_tombs_invalidate(cur);
-
-    if (flags & CURSOR_FLAG_TOMBS_INV_KVMS)
-        perfc_inc(cur->kci_cc_pc, PERFC_BA_CC_TOMB_INV_KVMS);
-    if (flags & CURSOR_FLAG_TOMBS_INV_PUTS)
-        perfc_inc(cur->kci_cc_pc, PERFC_BA_CC_TOMB_INV_PUTS);
-    if (flags & CURSOR_FLAG_TOMBS_FLUSH)
-        perfc_inc(cur->kci_cc_pc, PERFC_BA_CC_TOMB_FLUSH);
-}
-
-static bool
-kct_in_view(struct kvs_cursor_impl *cur,
-            struct kvs_ktuple *tmin,
-            struct kvs_ktuple *tmax)
-{
-    if (likely(!cur->kci_tombs.kct_valid))
-        return false;
-
-    if (cur->kci_handle.kc_seq >= cur->kci_tombs.kct_seq) {
-        tmin->kt_data = cur->kci_tombs.kct_min;
-        tmin->kt_len = cur->kci_tombs.kct_min_len;
-        tmax->kt_data = cur->kci_tombs.kct_max;
-        tmax->kt_len = cur->kci_tombs.kct_max_len;
-        return true;
-    }
-
-    ikvs_cursor_tombs_invalidate(cur);
-    return false;
-}
-
 merr_t
 ikvs_cursor_init(struct hse_kvs_cursor *cursor)
 {
@@ -927,24 +806,12 @@ ikvs_cursor_init(struct hse_kvs_cursor *cursor)
             &cur->kci_c0cur);
         perfc_lat_record(cur->kci_cd_pc, PERFC_LT_CD_CREATE_C0, tstart);
     } else {
-        /* Check that the cursor can see the tombspan valid at kct_seqno. */
-        struct kvs_ktuple  kt_min, kt_max;
-        struct kvs_ktuple *tmin = 0, *tmax = 0;
-
-        if (kct_in_view(cur, &kt_min, &kt_max)) {
-            tmin = &kt_min;
-            tmax = &kt_max;
-        }
-
         tstart = perfc_lat_start(cur->kci_cd_pc);
-        err = c0_cursor_update(cur->kci_c0cur, seqno, tmin, tmax, &flags);
+        err = c0_cursor_update(cur->kci_c0cur, seqno, &flags);
         perfc_lat_record(cur->kci_cd_pc, PERFC_LT_CD_UPDATE_C0, tstart);
 
         if (flags & CURSOR_FLAG_SEQNO_CHANGE)
             perfc_inc(cur->kci_cc_pc, PERFC_BA_CC_INIT_UPDATE_C0);
-
-        if (unlikely(cur->kci_tombs.kct_valid))
-            ikvs_cursor_tombs_update(cur, flags);
 
         cur->kci_need_seek = 1;
     }
@@ -989,48 +856,18 @@ ikvs_cursor_init(struct hse_kvs_cursor *cursor)
 
         cur->kci_need_toss = 0;
         if (cur->kci_need_seek) {
-            hse_log(HSE_ERR "reusing");
-            print_flags(cur, __func__, __LINE__);
             memcpy(cur->kci_last_kbuf, cur->kci_prefix, cur->kci_pfxlen);
             cur->kci_last_klen = cur->kci_pfxlen;
             if (cur->kci_reverse) {
                 cur->kci_last_klen = HSE_KVS_KLEN_MAX;
                 memset(cur->kci_last_kbuf + cur->kci_pfxlen, 0xFF, HSE_KVS_KLEN_MAX - cur->kci_pfxlen);
             }
-        } else {
-            hse_log(HSE_ERR "not reusing");
         }
     }
 
 error:
     cursor->kc_err = err;
     return err;
-}
-
-void
-ikvs_cursor_tombspan_check(struct hse_kvs_cursor *handle)
-{
-    struct kvs_cursor_impl * cursor = (void *)handle;
-    struct kvdb_ctxn_bind *  bind = handle->kc_bind;
-    struct kvs_cursor_tombs *tombs = &cursor->kci_tombs;
-
-    /*
-     * The tombspan is detected and updated by the cursor. The transaction
-     * that this cursor is bound to may still be active/aborted/committed.
-     * Preserve the tombspan only if it committed; or if it aborted and no
-     * changes were made within the transaction.
-     * Note the seqno at which this tombstone span is still valid.
-     * This is to guard against invalid tombspan extension (newly read
-     * tombstones that haven't committed yet as per the cursor's view).
-     * The tombspan is validated prior to use in cursor_update.
-     */
-    if (unlikely(tombs->kct_valid && bind && bind->b_update)) {
-        tombs->kct_seq = bind->b_seq;
-        if (!bind->b_preserve) {
-            perfc_inc(cursor->kci_cc_pc, PERFC_BA_CC_TOMB_INV_TXN);
-            ikvs_cursor_tombs_invalidate(cursor);
-        }
-    }
 }
 
 merr_t
@@ -1074,8 +911,6 @@ ikvs_cursor_update(struct hse_kvs_cursor *handle, u64 seqno)
 {
     struct kvs_cursor_impl *cursor = (void *)handle;
     struct kvdb_ctxn_bind * bind = handle->kc_bind;
-    struct kvs_ktuple       kt_min, kt_max;
-    struct kvs_ktuple *     tmin = 0, *tmax = 0;
     u32                     flags;
     bool                    updated;
     u64                     tstart;
@@ -1091,12 +926,6 @@ ikvs_cursor_update(struct hse_kvs_cursor *handle, u64 seqno)
 
     if (bind)
         handle->kc_gen = atomic64_read(&bind->b_gen);
-
-    /* Check that this cursor can see the tombspan committed at kct_seq. */
-    if (kct_in_view(cursor, &kt_min, &kt_max)) {
-        tmin = &kt_min;
-        tmax = &kt_max;
-    }
 
     /* Copy out last key that was read */
     if (cursor->kci_last) {
@@ -1114,7 +943,7 @@ ikvs_cursor_update(struct hse_kvs_cursor *handle, u64 seqno)
 
     /* Update c0 cursor */
     tstart = perfc_lat_start(cursor->kci_cd_pc);
-    cursor->kci_err = c0_cursor_update(cursor->kci_c0cur, seqno, tmin, tmax, &flags);
+    cursor->kci_err = c0_cursor_update(cursor->kci_c0cur, seqno, &flags);
     if (ev(cursor->kci_err)) {
         if (merr_errno(cursor->kci_err) == EAGAIN)
             perfc_inc(cursor->kci_cc_pc, PERFC_BA_CC_EAGAIN_C0);
@@ -1124,9 +953,6 @@ ikvs_cursor_update(struct hse_kvs_cursor *handle, u64 seqno)
 
     if (flags & CURSOR_FLAG_SEQNO_CHANGE)
         perfc_inc(cursor->kci_cc_pc, PERFC_BA_CC_UPDATED_C0);
-
-    if (unlikely(cursor->kci_tombs.kct_valid))
-        ikvs_cursor_tombs_update(cursor, flags);
 
     /* Update cn cursor */
     tstart = perfc_lat_start(cursor->kci_cd_pc);
@@ -1171,69 +997,6 @@ cursor_cmp(struct kvs_cursor_impl *cursor)
         cursor->kci_c0kv.kvt_key.kt_len,
         cursor->kci_cnkv.kvt_key.kt_data,
         cursor->kci_cnkv.kvt_key.kt_len);
-}
-
-/*
- * If this is called from a seek and a span of tombstones was read, track a new
- * tombstone span or extend an existing one.
- */
-void
-tombspans_mark_for_update(struct kvs_cursor_impl *cursor, u32 read_tombs, bool all_tombs)
-{
-    struct kvs_cursor_tombs *tombs = &cursor->kci_tombs;
-    bool eof = cursor->kci_c0_eof || cursor->kci_cn_eof;
-
-    if (unlikely(
-            (tombs->kct_skip || (read_tombs >= TOMBSPAN_MIN_WIDTH && all_tombs)) &&
-            !eof && !cursor->kci_reverse)) {
-        if (tombs->kct_skip) {
-            /*
-             * Tombstones were skipped during seek, but new ones
-             * were read. Extend the ongoing tombstone span to
-             * include the newly read tombstones.
-             */
-            assert(tombs->kct_valid);
-            tombs->kct_width = tombs->kct_width + read_tombs;
-            tombs->kct_update = true;
-
-            perfc_add(cursor->kci_cc_pc, PERFC_BA_CC_TOMB_SPAN_ADD, read_tombs);
-        } else {
-            /* Invalidate the old span (if any) and create a new one. */
-            if (tombs->kct_valid)
-                ikvs_cursor_tombs_invalidate(cursor);
-
-            tombs->kct_start = get_time_ns();
-            tombs->kct_width = read_tombs;
-            tombs->kct_min_len = cursor->kci_seeklen;
-            memcpy(tombs->kct_min, cursor->kci_seekkey, tombs->kct_min_len);
-            tombs->kct_valid = true;
-            tombs->kct_update = true;
-
-            perfc_inc(cursor->kci_cc_pc, PERFC_BA_CC_TOMB_SPAN);
-        }
-    }
-}
-
-void
-tombspans_update_cnkey(struct kvs_cursor_impl *cursor)
-{
-    struct kvs_cursor_tombs *tombs = &cursor->kci_tombs;
-    struct kvs_ktuple *      cnkey = &cursor->kci_cnkv.kvt_key;
-
-    if (cursor->kci_cn_eof)
-        cursor->kci_tombs.kct_cn_eof = true;
-
-    /* If the last key was read from c0, it means c0key < cnkey
-     */
-    if (cursor->kci_need_read_c0) {
-            assert(keycmp(cnkey->kt_data, cnkey->kt_len,
-                          tombs->kct_cnmax, tombs->kct_cnmax_len) >= 0);
-
-            tombs->kct_cnmax_len = cnkey->kt_len;
-            memcpy(tombs->kct_cnmax, cnkey->kt_data, cnkey->kt_len);
-    } else {
-            tombs->kct_cnmax_len = 0;
-    }
 }
 
 static inline merr_t
@@ -1347,11 +1110,8 @@ drop_prefixes(struct kvs_cursor_impl *cursor, struct kvs_ktuple *pt)
 merr_t
 cursor_replenish(struct kvs_cursor_impl *cursor, bool *eofp)
 {
-    bool is_tomb, is_ptomb;
-    //bool pt_valid = false;
+    bool is_ptomb;
     merr_t err = 0;
-    u32 read_tombs = 0;
-    bool all_tombs = true;
 
     *eofp = false;
     do {
@@ -1369,9 +1129,6 @@ cursor_replenish(struct kvs_cursor_impl *cursor, bool *eofp)
         dbg_curr_klen = cursor->kci_last->kvt_key.kt_len;
 
         is_ptomb = HSE_CORE_IS_PTOMB(cursor->kci_last->kvt_value.vt_data);
-        if (is_ptomb)
-            all_tombs = false;
-
         if (is_ptomb) {
             struct kvs_ktuple *pt_key;
 
@@ -1379,16 +1136,7 @@ cursor_replenish(struct kvs_cursor_impl *cursor, bool *eofp)
             drop_prefixes(cursor, pt_key);
         }
 
-        is_tomb = HSE_CORE_IS_TOMB(cursor->kci_last->kvt_value.vt_data) && !is_ptomb;
-        if (is_tomb)
-            ++read_tombs;
-
-    } while (is_tomb || is_ptomb);
-
-    // TODO Gaurav: Club into one function
-    tombspans_mark_for_update(cursor, read_tombs, all_tombs);
-    if (unlikely(cursor->kci_tombs.kct_update))
-        tombspans_update_cnkey(cursor);
+    } while (is_ptomb);
 
 out:
     return err;
@@ -1433,7 +1181,6 @@ kvs_cursor_read(struct hse_kvs_cursor *handle, struct kvs_kvtuple *kvt, bool *eo
         // TODO Gaurav: make sure that kci_last_kbuf/klen contains:
         //   1. pfx/pfx0xFFF... after a create, or
         //   2. kci_last's contents after an update
-        print_flags(cursor, __func__, __LINE__);
         cursor->kci_err = kvs_cursor_seek(&cursor->kci_handle,
                                            cursor->kci_last_kbuf,
                                            cursor->kci_last_klen, 0, 0, &key);
@@ -1452,6 +1199,9 @@ kvs_cursor_read(struct hse_kvs_cursor *handle, struct kvs_kvtuple *kvt, bool *eo
          * The need_toss flag is not set for:
          *  1. [seek, update, read]: Here the key we seek-ed to was never read
          *  2. [create, read]: Here we've yet to position at prefix
+         *
+         *  In addition to the order of operations, it's also important to check whether
+         *  the key still exists and has not been deleted since the last update/create.
          */
         toss = toss &&
                !keycmp(cursor->kci_last_kbuf, cursor->kci_last_klen, key.kt_data, key.kt_len);
@@ -1471,90 +1221,9 @@ kvs_cursor_read(struct hse_kvs_cursor *handle, struct kvs_kvtuple *kvt, bool *eo
     if (*eofp)
         return 0;
 
-
     cursor->kci_need_toss = 1;
     *kvt = *cursor->kci_last;
     return 0;
-}
-
-/*
- * If the key that we are seeking to is the min of the current
- * tombstone span, seek to the max span key. This is safe if this
- * transaction hasn't made any mutations. We may also seek to a
- * distinct key in cn (if larger)/set EOF based on the results
- * of the last seek during which this tombspan was valid.
- */
-static void
-tombspan_landing_get(struct kvs_cursor_impl *cursor, struct kvs_ktuple *c0kt, struct kvs_ktuple *cnkt)
-{
-    struct kvs_cursor_tombs *tombs = &cursor->kci_tombs;
-    void *                   kmin, *kmax;
-    const void *             cnkey;
-    u32                      kmin_len, kmax_len, cnklen;
-
-    assert(c0kt && cnkt);
-
-    kmin = cursor->kci_tombs.kct_min;
-    kmin_len = cursor->kci_tombs.kct_min_len;
-    kmax = cursor->kci_tombs.kct_max;
-    kmax_len = cursor->kci_tombs.kct_max_len;
-
-    if (!keycmp(tombs->kct_min, tombs->kct_min_len, c0kt->kt_data, c0kt->kt_len)) {
-        if (c0_cursor_ctxn_preserve_tombspan(
-                cursor->kci_c0cur, kmin, kmin_len, kmax, kmax_len)) {
-
-            const void *key = tombs->kct_max;
-            size_t len = tombs->kct_max_len;
-
-            if (keycmp(tombs->kct_cnmax, tombs->kct_cnmax_len, key, len) <= 0) {
-                cnkey = tombs->kct_max;
-                cnklen = tombs->kct_max_len;
-            } else {
-                /* Seek to the last cn key, if larger. */
-                cnkey = tombs->kct_cnmax;
-                cnklen = tombs->kct_cnmax_len;
-            }
-
-            kvs_ktuple_init(c0kt, key, len);
-            kvs_ktuple_init(cnkt, cnkey, cnklen);
-
-            /* We hit an EOF in cn cursor during the last seek. */
-            if (tombs->kct_cn_eof)
-                cursor->kci_cn_eof = 1;
-
-            tombs->kct_skip = true;
-            perfc_inc(cursor->kci_cc_pc, PERFC_BA_CC_TOMB_SKIPS);
-            perfc_add(cursor->kci_cc_pc, PERFC_BA_CC_TOMB_SKIPLEN, tombs->kct_width);
-        } else {
-            perfc_inc(cursor->kci_cc_pc, PERFC_BA_CC_TOMB_INV_PUTS);
-            ikvs_cursor_tombs_invalidate(cursor);
-        }
-    }
-}
-
-/*
- * Set max key for a new span or expand an existing one.
- * If a span is expanded, the key sought to must be larger.
- */
-void
-tombspan_extend(struct kvs_cursor_impl *cursor)
-{
-    struct kvs_cursor_tombs *tombs = &cursor->kci_tombs;
-    struct kvs_ktuple *kt = &cursor->kci_last->kvt_key;
-
-    assert(!tombs->kct_skip ||
-           keycmp(kt->kt_data, kt->kt_len, tombs->kct_max, tombs->kct_max_len) >= 0);
-
-    tombs->kct_max_len = kt->kt_len;
-    memcpy(tombs->kct_max, kt->kt_data, kt->kt_len);
-
-    /*
-     * Since we detected new tombstones, we must confirm the bound transaction commits
-     * the tombstones for this expanded span to be valid.
-     */
-    if (cursor->kci_handle.kc_bind)
-        cursor->kci_handle.kc_bind->b_update = true;
-    tombs->kct_update = false;
 }
 
 merr_t
@@ -1601,34 +1270,23 @@ kvs_cursor_seek(
 
     kvs_ktuple_init(&c0kt, key, len);
 
-    cursor->kci_seekkey = c0kt.kt_data;
-    cursor->kci_seeklen = c0kt.kt_len;
     cursor->kci_c0_eof = 0;
     cursor->kci_cn_eof = 0;
 
     cnkt = c0kt;
-    cursor->kci_tombs.kct_skip = false;
-    if (unlikely(cursor->kci_tombs.kct_valid))
-        tombspan_landing_get(cursor, &c0kt, &cnkt);
 
-    print_flags(cursor, __func__, __LINE__);
     cursor->kci_err = cursor_seek(cursor, &c0kt, &cnkt);
     if (ev(cursor->kci_err))
         return cursor->kci_err;
 
-    cursor->kci_tombs.kct_update = false;
     cursor->kci_need_read_c0 = 1;
     cursor->kci_need_read_cn = 1;
-    print_flags(cursor, __func__, __LINE__);
     cursor->kci_err = cursor_replenish(cursor, &eof);
 
     cursor->kci_need_toss = 0;
     cursor->kci_need_seek = 0;
 
-    print_flags(cursor, __func__, __LINE__);
     if (eof || ev(cursor->kci_err)) {
-        if (unlikely(cursor->kci_tombs.kct_valid))
-            ikvs_cursor_tombs_invalidate(cursor);
         if (kt)
             kt->kt_len = 0;
         return cursor->kci_err;
@@ -1637,13 +1295,9 @@ kvs_cursor_seek(
     if (kt)
         *kt = cursor->kci_last->kvt_key;
 
-    if (unlikely(cursor->kci_tombs.kct_update))
-        tombspan_extend(cursor);
-
     cursor->kci_need_read_c0 = 0;
     cursor->kci_need_read_cn = 0;
 
-    print_flags(cursor, __func__, __LINE__);
     return 0;
 }
 

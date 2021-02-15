@@ -1099,27 +1099,6 @@ c0kvms_c0snr_alloc(struct c0_kvmultiset *handle)
     return entry;
 }
 
-bool
-c0kvms_preserve_tombspan(
-    struct c0_kvmultiset *handle,
-    u16                   index,
-    const void *          kmin,
-    u32                   kmin_len,
-    const void *          kmax,
-    u32                   kmax_len)
-{
-    struct c0_kvmultiset_impl *self = c0_kvmultiset_h2r(handle);
-    int                        i;
-
-    /* Skip ptomb c0kvset - c0ms_sets[0] */
-    for (i = 1; i < self->c0ms_num_sets; i++) {
-        if (!c0kvs_preserve_tombspan(self->c0ms_sets[i], index, kmin, kmin_len, kmax, kmax_len))
-            return false;
-    }
-
-    return true;
-}
-
 u64
 c0kvms_ctime(struct c0_kvmultiset *handle)
 {

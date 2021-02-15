@@ -1152,37 +1152,3 @@ c0kvs_fini(void)
 
     c0kvs_reinit(0);
 }
-
-bool
-c0kvs_preserve_tombspan(
-    struct c0_kvset *handle,
-    u16              index,
-    const void *     kmin,
-    u32              kmin_len,
-    const void *     kmax,
-    u32              kmax_len)
-{
-    struct c0_kvset_impl *self = c0_kvset_h2r(handle);
-    struct bonsai_skey    skey_min;
-    struct bonsai_kv *    kv = 0;
-    bool                  found;
-    int                   cmp = 0;
-
-    /*
-     * The tombspan interval can be preserved if the next key with a value
-     * other than a tombstone doesn't fall within the tombstone span.
-     */
-    assert(index < HSE_KVS_COUNT_MAX);
-
-    bn_skey_init(kmin, kmin_len, index, &skey_min);
-
-    rcu_read_lock();
-    found = bn_skiptombs_GE(self->c0s_broot, &skey_min, &kv);
-    if (found) {
-        assert(kv);
-        cmp = keycmp(kv->bkv_key, key_imm_klen(&kv->bkv_key_imm), kmax, kmax_len);
-    }
-    rcu_read_unlock();
-
-    return cmp >= 0;
-}

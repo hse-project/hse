@@ -45,6 +45,7 @@ kvs_rparams_defaults(void)
         .kvs_cursor_ttl = 1000,
 
         .cn_maint_disable = 0,
+        .cn_seek_num_kvsets = 0,
         .cn_diag_mode = 0,
         .cn_bloom_create = 1,
         .cn_bloom_lookup = 1,
@@ -155,6 +156,7 @@ static struct param_inst  kvs_rp_table[] = {
 
     KVS_PARAM_EXP(cn_diag_mode, "enable/disable cn diag mode"),
     KVS_PARAM_EXP(cn_maint_disable, "disable cn maintenance"),
+    KVS_PARAM_EXP(cn_seek_num_kvsets, "num kvsets in binheap"),
     KVS_PARAM_EXP(cn_bloom_create, "enable bloom creation"),
     KVS_PARAM_EXP(
         cn_bloom_lookup,

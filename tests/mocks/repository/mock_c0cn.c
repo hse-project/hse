@@ -189,8 +189,6 @@ static merr_t
 _c0_cursor_update(
     struct c0_cursor *       cur,
     u64                      seqno,
-    const struct kvs_ktuple *kmin,
-    const struct kvs_ktuple *kmax,
     u32 *                    flags)
 {
     return 0;
