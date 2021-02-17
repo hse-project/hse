@@ -8,28 +8,24 @@
 
 #include <hse_util/hse_err.h>
 
-#define MBLOCK_FS_FCNT_MAX      (1 << 8)    /* 8-bit for file-id */
-#define MBLOCK_FS_FCNT_DFLT      32
+#include "mblock_file.h"
+
+#define MBLOCK_METAHDR_VERSION 1
+#define MBLOCK_METAHDR_MAGIC   0xffaaccee
+
+#define MBLOCK_FSET_FILES_MAX     (1 << MBID_FILEID_BITS)
+#define MBLOCK_FSET_FILES_DEFAULT 32
 
 struct mblock_file;
+struct mblock_fset;
 
-/**
- * struct mblock_fset - mblock fileset instance
- *
- * @mc:        media class handle
- * @filev:     vector of mblock file handles
- * @filec:     mblock file count
- * @meta_fd:   fd of the fileset meta file
- * @meta_name: fileset meta file name
- */
-struct mblock_fset {
-	struct media_class  *mc;
-
-	struct mblock_file **filev;
-	int                  filec;
-
-	int                  meta_fd;
-	char                 meta_name[32];
+struct mblock_metahdr {
+    uint32_t vers;
+    uint32_t magic;
+    uint8_t  mcid;
+    uint8_t  fcnt;
+    uint8_t  blkbits;
+    uint8_t  mcbits;
 };
 
 /**
@@ -40,7 +36,7 @@ struct mblock_fset {
  * @mbfsp (output): mblock fileset handle
  */
 merr_t
-mblock_fset_open(struct media_class *mc, int flags, struct mblock_fset **mbfsp);
+mblock_fset_open(struct media_class *mc, uint8_t fcnt, int flags, struct mblock_fset **mbfsp);
 
 /**
  * mblock_fset_close() - close an mblock fileset
@@ -58,5 +54,35 @@ mblock_fset_close(struct mblock_fset *mbfsp);
 void
 mblock_fset_remove(struct mblock_fset *mbfsp);
 
-#endif /* MPOOL_MBLOCK_FSET_H */
+merr_t
+mblock_fset_alloc(struct mblock_fset *mbfsp, int mbidc, uint64_t *mbidv);
 
+merr_t
+mblock_fset_commit(struct mblock_fset *mbfsp, uint64_t *mbidv, int mbidc);
+
+merr_t
+mblock_fset_abort(struct mblock_fset *mbfsp, uint64_t *mbidv, int mbidc);
+
+merr_t
+mblock_fset_delete(struct mblock_fset *mbfsp, uint64_t *mbidv, int mbidc);
+
+merr_t
+mblock_fset_write(
+    struct mblock_fset *mbfsp,
+    uint64_t            mbid,
+    const struct iovec *iov,
+    int                 iovc,
+    off_t               off);
+
+merr_t
+mblock_fset_read(
+    struct mblock_fset *mbfsp,
+    uint64_t            mbid,
+    const struct iovec *iov,
+    int                 iovc,
+    off_t               off);
+
+merr_t
+mblock_fset_find(struct mblock_fset *mbfsp, uint64_t *mbidv, int mbidc);
+
+#endif /* MPOOL_MBLOCK_FSET_H */

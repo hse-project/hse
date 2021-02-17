@@ -26,6 +26,7 @@
  */
 struct kvdb_cparams {
     size_t        dur_capacity;
+    u8            filecnt;
     char          capdir[PATH_MAX];
     char          stgdir[PATH_MAX];
     unsigned long cpmagic;

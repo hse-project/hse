@@ -172,7 +172,7 @@ _mpool_params_get(struct mpool *mp, struct mpool_params *params)
 merr_t
 _mpool_mclass_get(struct mpool *mp, enum mp_media_classp mclass, struct mpool_mclass_props *props)
 {
-    if (mclass >= MP_MED_NUMBER)
+    if (mclass >= MP_MED_COUNT)
         return merr(EINVAL);
 
     if (mclass == MP_MED_STAGING)

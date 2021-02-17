@@ -306,7 +306,7 @@ struct mp_media_class_info {
 };
 
 struct mpool_info {
-    struct mp_media_class_info mc_info[MP_MED_NUMBER];
+    struct mp_media_class_info mc_info[MP_MED_COUNT];
 };
 
 int

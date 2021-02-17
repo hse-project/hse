@@ -8,24 +8,27 @@
 #include <hse_util/hse_err.h>
 
 #include <mpool/mpool.h>
+#include "mblock_file.h"
 
 merr_t
 mpool_mclass_add(
-	const char             *mpname,
-	const char             *devname,
-	enum mp_media_classp    mclass,
-	struct mpool_params    *params,
-	uint32_t                flags)
+    const char          *mpname,
+    const char          *devname,
+    enum mp_media_classp mclass,
+    struct mpool_params *params,
+    uint32_t             flags)
 {
     return 0;
 }
 
-merr_t mpool_scan(int *propcp, struct mpool_params **propvp)
+merr_t
+mpool_scan(int *propcp, struct mpool_params **propvp)
 {
     return 0;
 }
 
-merr_t mpool_list(int *propcp, struct mpool_params **propvp)
+merr_t
+mpool_list(int *propcp, struct mpool_params **propvp)
 {
     return 0;
 }
@@ -37,17 +40,19 @@ mpool_mclass_get(struct mpool *mp, enum mp_media_classp mclass, struct mpool_mcl
         return merr(ENOENT);
 
     if (props)
-        props->mc_mblocksz = MPOOL_MBSIZE_MB_DEFAULT;
+        props->mc_mblocksz = MBLOCK_SIZE_MB;
 
     return 0;
 }
 
-merr_t mpool_usage_get(struct mpool *mp, struct mpool_usage *usage)
+merr_t
+mpool_usage_get(struct mpool *mp, struct mpool_usage *usage)
 {
     return 0;
 }
 
-void mpool_params_init(struct mpool_params *params)
+void
+mpool_params_init(struct mpool_params *params)
 {
 }
 
@@ -67,106 +72,84 @@ mpool_params_set(struct mpool *mp, struct mpool_params *params)
 
 merr_t
 mpool_mblock_alloc(
-	struct mpool           *mp,
-	enum mp_media_classp	mclassp,
-	bool                    spare,
-	uint64_t               *mbid,
-	struct mblock_props    *props)
-{
-    return 0;
-}
-
-merr_t mpool_mblock_find(struct mpool *mp, uint64_t objid, struct mblock_props *props)
-{
-    return 0;
-}
-
-merr_t mpool_mblock_commit(struct mpool *mp, uint64_t mbid)
-{
-    return 0;
-}
-
-merr_t mpool_mblock_abort(struct mpool *mp, uint64_t mbid)
-{
-    return 0;
-}
-
-merr_t mpool_mblock_delete(struct mpool *mp, uint64_t mbid)
-{
-    return 0;
-}
-
-merr_t mpool_mblock_props_get(struct mpool *mp, uint64_t mbid, struct mblock_props *props)
-{
-    return 0;
-}
-
-merr_t mpool_mblock_write(struct mpool *mp, uint64_t mbid, const struct iovec *iov, int iovc)
+    struct mpool        *mp,
+    enum mp_media_classp mclassp,
+    bool                 spare,
+    uint64_t            *mbid,
+    struct mblock_props *props)
 {
     return 0;
 }
 
 merr_t
-mpool_mblock_read(struct mpool *mp, uint64_t mbid, const struct iovec *iov, int iovc, off_t offset)
+mpool_mblock_props_get(struct mpool *mp, uint64_t mbid, struct mblock_props *props)
+{
+    return 0;
+}
+
+merr_t
+mpool_mblock_write(struct mpool *mp, uint64_t mbid, const struct iovec *iov, int iovc)
 {
     return 0;
 }
 
 merr_t
 mpool_mcache_madvise(
-	struct mpool_mcache_map    *map,
-	uint32_t                    mbidx,
-	off_t                       offset,
-	size_t                      length,
-	int                         advice)
+    struct mpool_mcache_map *map,
+    uint32_t                 mbidx,
+    off_t                    offset,
+    size_t                   length,
+    int                      advice)
 {
     return 0;
 }
 
-merr_t mpool_mcache_purge(struct mpool_mcache_map *map, const struct mpool *mp)
+merr_t
+mpool_mcache_purge(struct mpool_mcache_map *map, const struct mpool *mp)
 {
     return 0;
 }
 
 merr_t
 mpool_mcache_mincore(
-	struct mpool_mcache_map    *map,
-	const struct mpool         *mp,
-	size_t                     *rssp,
-	size_t                     *vssp)
+    struct mpool_mcache_map *map,
+    const struct mpool      *mp,
+    size_t                  *rssp,
+    size_t                  *vssp)
 {
     return 0;
 }
 
-void *mpool_mcache_getbase(struct mpool_mcache_map *map, const uint32_t mbidx)
+void *
+mpool_mcache_getbase(struct mpool_mcache_map *map, const uint32_t mbidx)
 {
     return NULL;
 }
 
-
 merr_t
 mpool_mcache_getpages(
-	struct mpool_mcache_map    *map,
-	const uint32_t              pagec,
-	const uint32_t              mbidx,
-	const off_t                 offsetv[],
-	void                       *pagev[])
+    struct mpool_mcache_map *map,
+    const uint32_t           pagec,
+    const uint32_t           mbidx,
+    const off_t              offsetv[],
+    void                    *pagev[])
 {
     return 0;
 }
 
 merr_t
 mpool_mcache_mmap(
-	struct mpool               *mp,
-	size_t                      mbidc,
-	uint64_t                   *mbidv,
-	enum mpc_vma_advice         advice,
-	struct mpool_mcache_map    **mapp)
+    struct mpool             *mp,
+    size_t                    mbidc,
+    uint64_t                 *mbidv,
+    enum mpc_vma_advice       advice,
+    struct mpool_mcache_map **mapp)
 {
     return 0;
 }
 
-merr_t mpool_mcache_munmap(struct mpool_mcache_map *map)
+merr_t
+mpool_mcache_munmap(struct mpool_mcache_map *map)
 {
     return 0;
 }

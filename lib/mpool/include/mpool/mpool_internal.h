@@ -12,14 +12,9 @@
 #include <sys/uio.h>
 #include <sys/types.h>
 
-#define MPOOL_NAMESZ_MAX            64
+#define MPOOL_NAMESZ_MAX 64
 
-#define MPOOL_ROOT_LOG_CAP          (8 * 1024 * 1024)
-
-#define MPOOL_MBSIZE_MB_DEFAULT     32
-
-struct mdc_props;
-struct mdc_capacity;
+#define MPOOL_ROOT_LOG_CAP (8 * 1024 * 1024)
 
 /**
  * mp_media_classp = Media classes
@@ -28,13 +23,13 @@ struct mdc_capacity;
  * @MP_MED_STAGING:  Initial data ingest, hot data storage, or similar.
  */
 enum mp_media_classp {
-	MP_MED_CAPACITY   = 0,
-	MP_MED_STAGING    = 1,
+    MP_MED_CAPACITY = 0,
+    MP_MED_STAGING = 1,
 };
 
-#define MP_MED_BASE        MP_MED_CAPACITY
-#define MP_MED_NUMBER      (MP_MED_STAGING + 1)
-#define MP_MED_INVALID     U8_MAX
+#define MP_MED_BASE    MP_MED_CAPACITY
+#define MP_MED_COUNT   (MP_MED_STAGING + 1)
+#define MP_MED_INVALID U8_MAX
 
 /**
  * struct mpool_params -
@@ -53,28 +48,28 @@ enum mp_media_classp {
  * @mp_name:            mpool name (2x for planned expansion)
  */
 struct mpool_params {
-	uuid_t      mp_poolid;
-	uid_t       mp_uid;
-	gid_t       mp_gid;
-	mode_t      mp_mode;
-	uint8_t     mp_stat;
-	uint8_t     mp_spare_cap;
-	uint8_t     mp_spare_stg;
-	uint8_t     mp_rsvd0;
-	uint64_t    mp_mdc_captgt;
-	uint64_t    mp_oidv[2];
-	uint32_t    mp_ra_pages_max;
-	uint32_t    mp_vma_size_max;
-	uint32_t    mp_mblocksz[MP_MED_NUMBER];
-	uint16_t    mp_mdc0cap;
-	uint16_t    mp_mdcncap;
-	uint16_t    mp_mdcnum;
-	uint16_t    mp_rsvd1;
-	uint32_t    mp_rsvd2;
-	uint64_t    mp_rsvd3;
-	uint64_t    mp_rsvd4;
-	uuid_t      mp_utype;
-	char        mp_name[MPOOL_NAMESZ_MAX * 2];
+    uuid_t   mp_poolid;
+    uid_t    mp_uid;
+    gid_t    mp_gid;
+    mode_t   mp_mode;
+    uint8_t  mp_stat;
+    uint8_t  mp_spare_cap;
+    uint8_t  mp_spare_stg;
+    uint8_t  mp_rsvd0;
+    uint64_t mp_mdc_captgt;
+    uint64_t mp_oidv[2];
+    uint32_t mp_ra_pages_max;
+    uint32_t mp_vma_size_max;
+    uint32_t mp_mblocksz[MP_MED_COUNT];
+    uint16_t mp_mdc0cap;
+    uint16_t mp_mdcncap;
+    uint16_t mp_mdcnum;
+    uint16_t mp_rsvd1;
+    uint32_t mp_rsvd2;
+    uint64_t mp_rsvd3;
+    uint64_t mp_rsvd4;
+    uuid_t   mp_utype;
+    char     mp_name[MPOOL_NAMESZ_MAX * 2];
 };
 
 /**
@@ -95,20 +90,20 @@ struct mpool_params {
  * @mpu_mlog_cnt:    number of active mlogs
  */
 struct mpool_usage {
-	uint64_t   mpu_total;
-	uint64_t   mpu_usable;
-	uint64_t   mpu_fusable;
-	uint64_t   mpu_used;
-	uint64_t   mpu_spare;
-	uint64_t   mpu_fspare;
+    uint64_t mpu_total;
+    uint64_t mpu_usable;
+    uint64_t mpu_fusable;
+    uint64_t mpu_used;
+    uint64_t mpu_spare;
+    uint64_t mpu_fspare;
 
-	uint64_t   mpu_alen;
-	uint64_t   mpu_wlen;
-	uint64_t   mpu_mblock_alen;
-	uint64_t   mpu_mblock_wlen;
-	uint64_t   mpu_mlog_alen;
-	uint32_t   mpu_mblock_cnt;
-	uint32_t   mpu_mlog_cnt;
+    uint64_t mpu_alen;
+    uint64_t mpu_wlen;
+    uint64_t mpu_mblock_alen;
+    uint64_t mpu_mblock_wlen;
+    uint64_t mpu_mlog_alen;
+    uint32_t mpu_mblock_cnt;
+    uint32_t mpu_mlog_cnt;
 };
 
 /**
@@ -124,17 +119,17 @@ struct mpool_usage {
  * @mc_usage: feature bitmask
  */
 struct mpool_mclass_xprops {
-	uint8_t                    mc_devtype;
-	uint8_t                    mc_mclass;
-	uint8_t                    mc_sectorsz;
-	uint8_t                    mc_rsvd1;
-	uint32_t                   mc_spare;
-	uint16_t                   mc_uacnt;
-	uint16_t                   mc_rsvd2;
-	uint32_t                   mc_zonepg;
-	uint64_t                   mc_features;
-	uint64_t                   mc_rsvd3;
-	struct mpool_usage         mc_usage;
+    uint8_t            mc_devtype;
+    uint8_t            mc_mclass;
+    uint8_t            mc_sectorsz;
+    uint8_t            mc_rsvd1;
+    uint32_t           mc_spare;
+    uint16_t           mc_uacnt;
+    uint16_t           mc_rsvd2;
+    uint32_t           mc_zonepg;
+    uint64_t           mc_features;
+    uint64_t           mc_rsvd3;
+    struct mpool_usage mc_usage;
 };
 
 /**
@@ -149,13 +144,13 @@ struct mpool_mclass_xprops {
  * @mc_spare_used: bytes allocated from spare space
  */
 struct mpool_mclass_props {
-	uint32_t   mc_mblocksz;
-	uint32_t   mc_rsvd;
-	uint64_t   mc_total;
-	uint64_t   mc_usable;
-	uint64_t   mc_used;
-	uint64_t   mc_spare;
-	uint64_t   mc_spare_used;
+    uint32_t mc_mblocksz;
+    uint32_t mc_rsvd;
+    uint64_t mc_total;
+    uint64_t mc_usable;
+    uint64_t mc_used;
+    uint64_t mc_spare;
+    uint64_t mc_spare_used;
 };
 
 /*
@@ -169,23 +164,22 @@ struct mpool_mclass_props {
  * @mpr_iscommitted:  Is this mblock committed?
  */
 struct mblock_props {
-	uint64_t                mpr_objid;
-	uint32_t                mpr_alloc_cap;
-	uint32_t                mpr_write_len;
-	uint32_t                mpr_optimal_wrsz;
-	uint32_t                mpr_mclassp; /* enum mp_media_classp */
-	uint8_t                 mpr_iscommitted;
-	uint8_t                 mpr_rsvd1[7];
-	uint64_t                mpr_rsvd2;
+    uint64_t mpr_objid;
+    uint32_t mpr_alloc_cap;
+    uint32_t mpr_write_len;
+    uint32_t mpr_optimal_wrsz;
+    uint32_t mpr_mclassp; /* enum mp_media_classp */
+    uint8_t  mpr_iscommitted;
+    uint8_t  mpr_rsvd1[7];
+    uint64_t mpr_rsvd2;
 };
 
 struct mblock_props_ex {
-	struct mblock_props     mbx_props;
-	uint8_t                 mbx_zonecnt;      /* zone count per strip */
-	uint8_t                 mbx_rsvd1[7];
-	uint64_t                mbx_rsvd2;
+    struct mblock_props mbx_props;
+    uint8_t             mbx_zonecnt; /* zone count per strip */
+    uint8_t             mbx_rsvd1[7];
+    uint64_t            mbx_rsvd2;
 };
-
 
 /**
  * enum mpc_vma_advice -
@@ -194,11 +188,6 @@ struct mblock_props_ex {
  * @MPC_VMA_HOT:
  * @MPC_VMA_PINNED:
  */
-enum mpc_vma_advice {
-	MPC_VMA_COLD = 0,
-	MPC_VMA_WARM,
-	MPC_VMA_HOT,
-	MPC_VMA_PINNED
-};
+enum mpc_vma_advice { MPC_VMA_COLD = 0, MPC_VMA_WARM, MPC_VMA_HOT, MPC_VMA_PINNED };
 
 #endif /* MPOOL_INTERNAL_H */

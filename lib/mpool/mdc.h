@@ -9,22 +9,10 @@
 #include <hse_util/mutex.h>
 #include <hse_util/hse_err.h>
 
-#define MDC_ROOT_MAGIC    (0xFACE0FFF)
+#define MDC_ROOT_MAGIC (0xFACE0FFF)
 
-struct media_class;
-struct mdc_file;
-struct io_ops;
 struct mpool;
-
-struct mpool_mdc {
-	struct mutex           lock;
-	struct mdc_file       *mfp1;
-	struct mdc_file       *mfp2;
-	struct mdc_file       *mfpa;
-
-	struct media_class    *mc;
-	struct mpool          *mp;
-};
+struct mpool_mdc;
 
 struct media_class *
 mdc_mclass_get(struct mpool_mdc *mdc);

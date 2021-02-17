@@ -51,7 +51,7 @@ io_sync_read(int fd, off_t off, const struct iovec *iov, int iovcnt, int flags)
 
     while (left > 0) {
         size_t cc, len;
-        int cnt;
+        int    cnt;
 
         cnt = min_t(int, left, IOV_MAX);
 
@@ -83,7 +83,7 @@ io_sync_write(int fd, off_t off, const struct iovec *iov, int iovcnt, int flags)
 
     while (left > 0) {
         size_t cc, len;
-        int cnt;
+        int    cnt;
 
         cnt = min_t(int, left, IOV_MAX);
 

@@ -17,20 +17,29 @@
 #include "mpool.h"
 #include "mdc.h"
 
-#define UUID_STRLEN    36
+#define UUID_STRLEN 36
+
+/**
+ * struct mpool - mpool handle
+ *
+ * @mc:       media class handles
+ * @name:     mpool/kvdb name
+ */
+struct mpool {
+    struct media_class *mc[MP_MED_COUNT];
+
+    char name[64];
+};
 
 merr_t
-mpool_open(
-    const char                  *name,
-    const struct hse_params     *params,
-    uint32_t                     flags,
-    struct mpool               **handle)
+mpool_open(const char *name, const struct hse_params *params, uint32_t flags, struct mpool **handle)
 {
     struct mpool *mp;
 
-    const char *mc_key[MCID_MAX] = {"kvdb.capdir", "kvdb.stgdir"};
+    const char *mc_key[MP_MED_COUNT] = { "kvdb.capdir", "kvdb.stgdir" };
+    char        fbuf[4];
     merr_t      err;
-    int         i;
+    int         i, fcnt = 0;
 
     *handle = NULL;
 
@@ -41,23 +50,30 @@ mpool_open(
     if (ev(!mp))
         return merr(ENOMEM);
 
-    for (i = MCID_CAPACITY; i < MCID_MAX; i++) {
+    /* Extract the experimental filecnt parameter */
+    if (hse_params_get(params, "kvdb.filecnt", fbuf, sizeof(fbuf), NULL)) {
+        if (fbuf[0] != '\0')
+            fcnt = atoi(fbuf);
+    }
+
+    for (i = MP_MED_BASE; i < MP_MED_COUNT; i++) {
         char dpath[PATH_MAX];
 
         if (hse_params_get(params, mc_key[i], dpath, sizeof(dpath), NULL)) {
             if (dpath[0] != '\0') {
-                err = mclass_open(mp, i, dpath, flags, &mp->mc[i]);
+                err = mclass_open(mp, i, dpath, fcnt, flags, &mp->mc[i]);
                 if (ev(err)) {
-                    hse_log(HSE_ERR "Malformed storage path for mclass %s", mc_key[i]);
+                    hse_log(
+                        HSE_ERR "%s: Malformed storage path for mclass %s", __func__, mc_key[i]);
                     goto errout;
                 }
             }
         }
     }
 
-    if (!mp->mc[MCID_CAPACITY]) {
+    if (!mp->mc[MP_MED_CAPACITY]) {
         err = merr(EINVAL);
-        hse_log(HSE_ERR "Capacity mclass path is missing for mpool %s", name);
+        hse_log(HSE_ERR "%s: Capacity mclass path is missing for mpool %s", __func__, name);
         goto errout;
     }
 
@@ -72,7 +88,7 @@ mpool_open(
     return 0;
 
 errout:
-    while (i-- > MCID_CAPACITY)
+    while (i-- > MP_MED_BASE)
         mclass_close(mp->mc[i]);
 
     free(mp);
@@ -84,16 +100,16 @@ merr_t
 mpool_close(struct mpool *mp)
 {
     merr_t err = 0;
-    int i;
+    int    i;
 
     if (ev(!mp))
         return merr(EINVAL);
 
-    for (i = MCID_MAX - 1; i >= MCID_CAPACITY; i--) {
+    for (i = MP_MED_COUNT - 1; i >= MP_MED_BASE; i--) {
         if (mp->mc[i]) {
             err = mclass_close(mp->mc[i]);
             if (err)
-                hse_log(HSE_ERR "Closing mclass id %d failed", i);
+                hse_log(HSE_ERR "%s: Closing mclass id %d failed", __func__, i);
         }
     }
 
@@ -112,12 +128,12 @@ mpool_destroy(struct mpool *mp)
 
     mpool_mdc_root_destroy(mp);
 
-    for (i = MCID_MAX - 1; i >= MCID_CAPACITY; i--) {
+    for (i = MP_MED_COUNT - 1; i >= MP_MED_BASE; i--) {
         struct media_class *mc;
 
         mc = mp->mc[i];
 
-        if (i == MCID_CAPACITY)
+        if (i == MP_MED_CAPACITY)
             mclass_params_remove(mc);
 
         mclass_destroy(mc);
@@ -131,14 +147,14 @@ mpool_destroy(struct mpool *mp)
 merr_t
 mpool_params_get2(struct mpool *mp, struct mpool_params *params)
 {
-    char ubuf[UUID_STRLEN + 1];
+    char   ubuf[UUID_STRLEN + 1];
     merr_t err;
 
     memset(params, 0, sizeof(*params));
 
     /* Fill utype if present. */
-    err = mclass_params_get(mp->mc[MCID_CAPACITY], "params-utype",
-                            (char *)ubuf, sizeof(ubuf) - 1);
+    err =
+        mclass_params_get(mp->mc[MP_MED_CAPACITY], "params-utype", (char *)ubuf, sizeof(ubuf) - 1);
     if (!err) {
         ubuf[UUID_STRLEN] = '\0';
         uuid_parse((const char *)ubuf, params->mp_utype);
@@ -155,16 +171,16 @@ mpool_params_set2(struct mpool *mp, struct mpool_params *params)
 
         uuid_unparse(params->mp_utype, ubuf);
 
-        return mclass_params_set(mp->mc[MCID_CAPACITY], "params-utype",
-                                 (const char *)ubuf, sizeof(ubuf) - 1);
+        return mclass_params_set(
+            mp->mc[MP_MED_CAPACITY], "params-utype", (const char *)ubuf, sizeof(ubuf) - 1);
     }
 
     return 0;
 }
 
 struct media_class *
-mpool_mch_get(struct mpool *mp, enum mclass_id mcid)
+mpool_mclass_handle(struct mpool *mp, enum mp_media_classp mclass)
 {
-    assert(mcid < MCID_MAX);
-    return mp->mc[mcid];
+    assert(mclass < MP_MED_COUNT);
+    return mp->mc[mclass];
 }

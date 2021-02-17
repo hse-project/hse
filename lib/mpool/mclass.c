@@ -19,6 +19,21 @@
 #include "mclass.h"
 #include "mblock_fset.h"
 
+/**
+ * struct media_class - represents a mclass instance
+ *
+ * @dirp:  mclass directory stream
+ * @mbfsp: mblock fileset handle
+ * @mcid:  mclass ID (persisted in mblock/mdc metadata)
+ * @dpath: mclass directory path
+ */
+struct media_class {
+    DIR                *dirp;
+    struct mblock_fset *mbfsp;
+    enum mclass_id      mcid;
+    char                dpath[PATH_MAX];
+};
+
 static merr_t
 mclass_lockfile_acq(int dirfd)
 {
@@ -44,27 +59,28 @@ mclass_lockfile_rel(int dirfd)
 merr_t
 mclass_open(
     struct mpool        *mp,
-    enum mclass_id       mcid,
+    enum mp_media_classp mclass,
     const char          *dpath,
+    uint8_t              fcnt,
     int                  flags,
     struct media_class **handle)
 {
     struct media_class *mc;
 
-    DIR    *dirp;
-    merr_t  err;
+    DIR   *dirp;
+    merr_t err;
 
-    if (ev(!mp || !dpath || !handle || mcid >= MCID_MAX))
+    if (ev(!mp || !dpath || !handle || mclass >= MP_MED_COUNT))
         return merr(EINVAL);
 
     dirp = opendir(dpath);
     if (!dirp) {
         err = merr(errno);
-        hse_elog(HSE_ERR "Opening mclass dir %s failed: @@e", err, dpath);
+        hse_elog(HSE_ERR "%s: Opening mclass dir %s failed: @@e", err, __func__, dpath);
         return err;
     }
 
-    if (mcid == MCID_CAPACITY) {
+    if (mclass == MP_MED_CAPACITY) {
         err = mclass_lockfile_acq(dirfd(dirp));
         if (ev(err)) {
             closedir(dirp);
@@ -79,13 +95,13 @@ mclass_open(
     }
 
     mc->dirp = dirp;
-    mc->mcid = mcid;
+    mc->mcid = mclass_to_mcid(mclass);
 
     strlcpy(mc->dpath, dpath, sizeof(mc->dpath));
 
-    err = mblock_fset_open(mc, flags, &mc->mbfsp);
+    err = mblock_fset_open(mc, fcnt, flags, &mc->mbfsp);
     if (err) {
-        hse_elog(HSE_ERR "Opening data files failed, mcid %d: @@e", err, mcid);
+        hse_elog(HSE_ERR "%s: Opening data files failed, mclass %d: @@e", err, __func__, mclass);
         goto err_exit1;
     }
 
@@ -111,7 +127,7 @@ mclass_close(struct media_class *mc)
 
     mblock_fset_close(mc->mbfsp);
 
-    if (mc->mcid == MCID_CAPACITY)
+    if (mcid_to_mclass(mc->mcid) == MP_MED_CAPACITY)
         mclass_lockfile_rel(dirfd(mc->dirp));
 
     closedir(mc->dirp);
@@ -129,7 +145,7 @@ mclass_destroy(struct media_class *mc)
 
     mblock_fset_remove(mc->mbfsp);
 
-    if (mc->mcid == MCID_CAPACITY)
+    if (mcid_to_mclass(mc->mcid) == MP_MED_CAPACITY)
         mclass_lockfile_rel(dirfd(mc->dirp));
 
     closedir(mc->dirp);
@@ -140,9 +156,9 @@ mclass_destroy(struct media_class *mc)
 merr_t
 mclass_params_set(struct media_class *mc, const char *key, const char *val, size_t len)
 {
-    int fd, dirfd;
+    int     fd, dirfd;
     ssize_t cc;
-    merr_t err=0;
+    merr_t  err = 0;
 
     dirfd = mclass_dirfd(mc);
 
@@ -165,9 +181,9 @@ errout:
 merr_t
 mclass_params_get(struct media_class *mc, const char *key, char *val, size_t len)
 {
-    int fd, dirfd;
+    int     fd, dirfd;
     ssize_t cc;
-    merr_t err=0;
+    merr_t  err = 0;
 
     dirfd = mclass_dirfd(mc);
 
@@ -200,7 +216,7 @@ merr_t
 mclass_params_remove(struct media_class *mc)
 {
     const char *dpath;
-    int rc;
+    int         rc;
 
     if (ev(!mc))
         return merr(EINVAL);
@@ -230,4 +246,44 @@ const char *
 mclass_dpath(struct media_class *mc)
 {
     return mc->dpath;
+}
+
+struct mblock_fset *
+mclass_fset(struct media_class *mc)
+{
+    return mc->mbfsp;
+}
+
+enum mclass_id
+mclass_to_mcid(enum mp_media_classp mclass)
+{
+    switch (mclass) {
+        case MP_MED_CAPACITY:
+            return MCID_CAPACITY;
+
+        case MP_MED_STAGING:
+            return MCID_STAGING;
+
+        default:
+            break;
+    }
+
+    return MCID_INVALID;
+}
+
+enum mp_media_classp
+mcid_to_mclass(enum mclass_id mcid)
+{
+    switch (mcid) {
+        case MCID_CAPACITY:
+            return MP_MED_CAPACITY;
+
+        case MCID_STAGING:
+            return MP_MED_STAGING;
+
+        default:
+            break;
+    }
+
+    return MP_MED_INVALID;
 }

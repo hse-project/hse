@@ -977,7 +977,7 @@ cli_hse_kvdb_list(struct cli_cmd *self, struct cli *cli)
     const struct cmd_spec spec = {
         .usagev =
             {
-                "[options] [<kvdb>]",
+                "[options] <kvdb>",
                 NULL,
             },
         .optionv =
@@ -1024,12 +1024,15 @@ cli_hse_kvdb_list(struct cli_cmd *self, struct cli *cli)
         }
     }
 
-    /* optional */
-    kvdb_name = cli_next_arg(cli);
-
     if (help) {
         cmd_print_help(self, help_style_usage, stdout);
         return 0;
+    }
+
+    kvdb_name = cli_next_arg(cli);
+    if (!kvdb_name) {
+        fprintf(stderr, "%s: missing kvdb name, use -h for help\n", self->cmd_path);
+        return EX_USAGE;
     }
 
     return cli_hse_kvdb_list_impl(cli, cfile, kvdb_name);

@@ -12,39 +12,25 @@
 
 #include "mclass.h"
 
-#define MDC_LOGHDR_MAGIC       ((u32)0xdeadbeef)
-#define MDC_LOGHDR_VERSION     ((u32)1)
-#define MDC_LOGHDR_LEN         (4096)
-#define MDC_RA_BYTES           (128 << 10)
+#define MDC_LOGHDR_MAGIC   ((u32)0xdeadbeef)
+#define MDC_LOGHDR_VERSION ((u32)1)
+#define MDC_LOGHDR_LEN     (4096)
+#define MDC_RA_BYTES       (128 << 10)
+
+struct mpool_mdc;
+struct mdc_file;
 
 struct mdc_loghdr {
-	uint32_t              vers;
-	uint32_t              magic;
-	uint64_t              gen;
-	uint32_t              rsvd;
-	uint32_t              crc;
-};
-
-struct mdc_file {
-	struct mpool_mdc      *mdc;
-	struct mdc_loghdr      lh;
-
-	uint64_t               logid;
-	int                    fd;
-
-	off_t                  raoff;
-	off_t                  woff;
-	off_t                  roff;
-	size_t                 size;
-
-	const struct io_ops   *io;
-	char                  *addr;
-	char                   name[32];
+    uint32_t vers;
+    uint32_t magic;
+    uint64_t gen;
+    uint32_t rsvd;
+    uint32_t crc;
 };
 
 struct mdc_rechdr {
-	uint64_t               size;
-	uint32_t               crc;
+    uint64_t size;
+    uint32_t crc;
 };
 
 merr_t

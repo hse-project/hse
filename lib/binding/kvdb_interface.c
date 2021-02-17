@@ -137,7 +137,7 @@ hse_kvdb_make(const char *mpool_name, const struct hse_params *params)
     if (ev(err))
         goto errout;
 
-    for (int i = 0; i < MP_MED_NUMBER; i++) {
+    for (int i = 0; i < MP_MED_COUNT; i++) {
         struct mpool_mclass_props mcprops;
 
         err = mpool_mclass_get(ds, i, &mcprops);
@@ -184,6 +184,10 @@ hse_kvdb_drop(struct hse_kvdb *handle)
     mp = ikvdb_mpool_get(ikvdb);
 
     err = ikvdb_drop(ikvdb);
+    if (ev(err))
+        return merr_to_hse_err(err);
+
+    err = ikvdb_close(ikvdb);
     if (ev(err))
         return merr_to_hse_err(err);
 
@@ -240,7 +244,7 @@ hse_kvdb_open(const char *mpool_name, const struct hse_params *params, struct hs
     if (ev(err))
         return merr_to_hse_err(err);
 
-    for (int i = 0; i < MP_MED_NUMBER; i++) {
+    for (int i = 0; i < MP_MED_COUNT; i++) {
         struct mpool_mclass_props mcprops;
 
         err = mpool_mclass_get(mp, i, &mcprops);
