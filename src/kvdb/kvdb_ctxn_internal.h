@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
 #ifndef HSE_KVDB_TXN_INTERNAL_H
@@ -13,30 +13,38 @@
 /**
  * struct kvdb_ctxn_impl -
  * @ctxn_inner_handle:
+ * @ctxn_lock:                thread-thread API call serialization
+ * @ctxn_can_insert:          true when txn can accept puts
+ * @ctxn_cursors_max:
+ * @ctxn_commit_abort_pct:    percent of txn commits to abort (for testing)
  * @ctxn_seqref:              transaction seqref
- * @ctxn_view_seqno:          seqno at time of transaction begin call
- * @ctxn_c0sk:                address of underlying c0sk
- * @ctxn_kvms:                buffer which stores transaction data
- * @ctxn_locks_handle:        container to store acquired write locks
- * @ctxn_kvdb_txn_set:        address of the KVDB txns struct
- * @ctxn_alloc_link:          used to queue onto KVDB allocated txn list
- * @ctxn_free_link:           used to queue onto the list of txns to be freed
  * @ctxn_kvdb_keylock:        address of the KVDB keylock
+ * @ctxn_locks_handle:        container to store acquired write locks
+ * @ctxn_view_seqno:          seqno at time of transaction begin call
+ * @ctxn_kvms:                buffer which stores transaction data
+ * @ctxn_bind:
+ * @ctxn_viewset:
+ * @ctxn_c0sk:                address of underlying c0sk
+ * @ctxn_kvdb_ctxn_set:       address of the KVDB txns struct
  * @ctxn_kvdb_seq_addr:       address of atomic used to generate seqnos
- * @ctxn_locks_cursor_alloc:
+ * @ctxn_alloc_link:          used to queue onto KVDB allocated txn list
+ * @ctxn_tseqno_head:
+ * @ctxn_tseqno_tail:
  * @ctxn_ingest_width:
  * @ctxn_ingest_delay:
  * @ctxn_heap_sz:
- * @ctxn_threads:             number of threads active in the transaction
- * @ctxn_locks_cursor_sz:
- * @ctxn_can_insert:
- * @ctxn_cursor_alloc:
+ * @ctxn_begin_ts:
+ * @ctxn_viewset_cookie:
+ * @ctxn_alloc_link:
+ * @ctxn_free_link:           used to queue onto the list of txns to be freed
+ * @ctxn_abort_link:
  */
 struct kvdb_ctxn_impl {
     struct kvdb_ctxn        ctxn_inner_handle;
     atomic_t                ctxn_lock;
     u8                      ctxn_can_insert;
     u8                      ctxn_cursors_max;
+    u16                     ctxn_commit_abort_pct;
     uintptr_t               ctxn_seqref;
     struct kvdb_keylock *   ctxn_kvdb_keylock;
     struct kvdb_ctxn_locks *ctxn_locks_handle;

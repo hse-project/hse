@@ -24,10 +24,12 @@
 
 #define KVDB_PARAM_EXP(_name, _desc) PARAM_INST_U64_EXP(kvdb_rp_ref._name, #_name, _desc)
 
-#define KVDB_PARAM_U8(_name, _desc) PARAM_INST_U8(kvdb_rp_ref._name, #_name, _desc)
+#define KVDB_PARAM_U8(_name, _desc)  PARAM_INST_U8(kvdb_rp_ref._name, #_name, _desc)
+#define KVDB_PARAM_U16(_name, _desc) PARAM_INST_U16(kvdb_rp_ref._name, #_name, _desc)
 #define KVDB_PARAM_U32(_name, _desc) PARAM_INST_U32(kvdb_rp_ref._name, #_name, _desc)
 
-#define KVDB_PARAM_U8_EXP(_name, _desc) PARAM_INST_U8_EXP(kvdb_rp_ref._name, #_name, _desc)
+#define KVDB_PARAM_U8_EXP(_name, _desc)  PARAM_INST_U8_EXP(kvdb_rp_ref._name, #_name, _desc)
+#define KVDB_PARAM_U16_EXP(_name, _desc) PARAM_INST_U16_EXP(kvdb_rp_ref._name, #_name, _desc)
 #define KVDB_PARAM_U32_EXP(_name, _desc) PARAM_INST_U32_EXP(kvdb_rp_ref._name, #_name, _desc)
 
 #define KVDB_PARAM_STR(_name, _desc) \
@@ -64,6 +66,7 @@ kvdb_rparams_defaults(void)
         .txn_ingest_delay = HSE_C0_INGEST_DELAY_DFLT,
         .txn_ingest_width = HSE_C0_INGEST_WIDTH_DFLT,
         .txn_timeout = 1000 * 60 * 5,
+        .txn_commit_abort_pct = 0,
 
         .csched_policy = 3,
         .csched_debug_mask = 0,
@@ -136,6 +139,7 @@ static struct param_inst   kvdb_rp_table[] = {
     KVDB_PARAM_U32_EXP(txn_ingest_delay, "max ingest coalesce delay (seconds)"),
     KVDB_PARAM_U32_EXP(txn_ingest_width, "number of txn trees in parallel"),
     KVDB_PARAM_EXP(txn_timeout, "transaction timeout (ms)"),
+    KVDB_PARAM_U16_EXP(txn_commit_abort_pct, "pct of commits to abort ((pct * 16384) / 100)"),
 
     KVDB_PARAM_U32_EXP(csched_policy, "csched (compaction scheduler) policy"),
     KVDB_PARAM_EXP(csched_debug_mask, "csched debug (bit mask)"),
@@ -210,6 +214,7 @@ static char const *const kvdb_rp_writable[] = {
     "csched_leaf_comp_params",
     "csched_leaf_len_params",
     "csched_debug_mask",
+    "txn_commit_abort_pct",
 };
 
 void
@@ -375,7 +380,16 @@ kvdb_rparams_add_to_dt(const char *mp_name, struct kvdb_rparams *p)
         param_showp = kvdb_rp_table[i].pi_type.param_val_to_str;
 
         if (param_showp == show_u8) {
-            CFG_U32(
+            CFG_U8(
+                mp_name,
+                param_name,
+                (void *)p + offset,
+                (void *)&kvdb_rp_dt_defaults + offset,
+                NULL,
+                p,
+                writable);
+        } else if (param_showp == show_u16) {
+            CFG_U16(
                 mp_name,
                 param_name,
                 (void *)p + offset,

@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
 #ifndef HSE_UI_CLI_PARAM_H
@@ -269,29 +269,24 @@ enum param_flag {
             0                                                                                      \
     }
 
-#define PARAM_INST_U8(val, name, msg) PARAM_INST_type(u8, val, name, msg)
+#define PARAM_INST_U8(val, name, msg)       PARAM_INST_type(u8, val, name, msg)
+#define PARAM_INST_U16(val, name, msg)      PARAM_INST_type(u16, val, name, msg)
+#define PARAM_INST_U32(val, name, msg)      PARAM_INST_type(u32, val, name, msg)
+#define PARAM_INST_S32(val, name, msg)      PARAM_INST_type(s32, val, name, msg)
+#define PARAM_INST_U64(val, name, msg)      PARAM_INST_type(u64, val, name, msg)
+#define PARAM_INST_S64(val, name, msg)      PARAM_INST_type(s64, val, name, msg)
 
-#define PARAM_INST_U8_EXP(val, name, msg) PARAM_INST_EXP_type(u8, val, name, msg)
+#define PARAM_INST_U8_EXP(val, name, msg)   PARAM_INST_EXP_type(u8, val, name, msg)
+#define PARAM_INST_U16_EXP(val, name, msg)  PARAM_INST_EXP_type(u16, val, name, msg)
+#define PARAM_INST_U32_EXP(val, name, msg)  PARAM_INST_EXP_type(u32, val, name, msg)
+#define PARAM_INST_U64_EXP(val, name, msg)  PARAM_INST_EXP_type(u64, val, name, msg)
 
-#define PARAM_INST_U16(val, name, msg) PARAM_INST_type(u16, val, name, msg)
-
-#define PARAM_INST_U32(val, name, msg) PARAM_INST_type(u32, val, name, msg)
-
-#define PARAM_INST_U32_EXP(val, name, msg) PARAM_INST_EXP_type(u32, val, name, msg)
 
 typedef u32 u32_size;
 #define PARAM_INST_U32_SIZE(val, name, msg) PARAM_INST_type(u32_size, val, name, msg)
 
-#define PARAM_INST_U64(val, name, msg) PARAM_INST_type(u64, val, name, msg)
-
-#define PARAM_INST_U64_EXP(val, name, msg) PARAM_INST_EXP_type(u64, val, name, msg)
-
 typedef u64 u64_size;
 #define PARAM_INST_U64_SIZE(val, name, msg) PARAM_INST_type(u64_size, val, name, msg)
-
-#define PARAM_INST_S64(val, name, msg) PARAM_INST_type(s64, val, name, msg)
-
-#define PARAM_INST_S32(val, name, msg) PARAM_INST_type(s32, val, name, msg)
 
 #define PARAM_INST_BOOL(val, name, msg) PARAM_INST_type(bool, val, name, msg)
 

@@ -1,14 +1,11 @@
 # Copyright (C) 2019 Micron Technology.  All rights reserved.
 # Workload: MongoDB YCSB, all workloads, load and run phase
-#
-# The following parameters are experimental:
-#   pfx_pivot: sets the pivot level
 
 api_version: 1
+
 kvs.MainKvs:
-  pfx_len: 9
-  pfx_pivot: 1
   value_compression: lz4
+  pfx_len: 9
+
 kvs.UniqIdxKvs:
-  pfx_len: 11
-  pfx_pivot: 1
+  pfx_len: 10
