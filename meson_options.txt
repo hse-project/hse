@@ -14,8 +14,8 @@ option('samples', type: 'boolean', value: true,
 	description: 'Build samples')
 option('valgrind-support', type: 'feature', value: 'auto',
 	description: 'Enable valgrind support')
-option('bindings-python', type: 'boolean', value: true,
-	description: 'Build Python bindings')
+option('bindings-python', type: 'boolean', value: false,
+	description: 'Build Python bindings (building tools/tests may also require building the Python bindings)')
 option('kvpy', type: 'boolean', value: false,
 	description: 'Enable the kvpy scripts')
 option('kvpy-kvdb', type: 'string', value: 'kvpy',
