@@ -242,7 +242,6 @@ if get_option('tools')
 			'HDR_HISTOGRAM_BUILD_SHARED': get_option('default_library') != 'static',
 			'HDR_HISTOGRAM_BUILD_PROGRAMS': false,
 			'HDR_HISTOGRAM_BUILD_STATIC': get_option('default_library') == 'static' or get_option('default_library') == 'both',
-			'MESON_LIBDIR': get_option('libdir'),
 		})
 		hdr_histogram_proj = cmake.subproject('HdrHistogram_c', options: hdr_histogram_options)
 		hdr_histogram_dep = hdr_histogram_proj.dependency('hdr_histogram')
