@@ -377,12 +377,13 @@ clang_format = find_program('clang-format', required: in_ci)
 if clang_format.found()
 	project_files = run_command(
 		'find',
-		'cli',
-		'hsejni',
-		'include',
-		'samples',
-		'lib',
-		'tools',
+		meson.project_source_root() 'cli',
+		meson.project_source_root() 'hsejni',
+		meson.project_source_root() 'include',
+		meson.project_source_root() 'lib',
+		meson.project_source_root() 'samples',
+		meson.project_source_root() 'tests',
+		meson.project_source_root() 'tools',
 		'-type',
 		'f',
 		'(',
@@ -392,9 +393,9 @@ if clang_format.found()
 		'-name',
 		'*.h.in',
 		')',
-		'-print0',
+		'-print',
 		check: true,
-	).stdout().strip().split('\0')
+	).stdout().strip().split('\n')
 
 	clang_format_command = [
 		clang_format,
