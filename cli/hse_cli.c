@@ -146,10 +146,10 @@ static cli_cmd_func_t cli_hse_kvdb_list;
 static cli_cmd_func_t cli_hse_kvdb_compact;
 static cli_cmd_func_t cli_hse_kvdb_params;
 struct cli_cmd        cli_hse_kvdb_commands[] = {
-    { "create",  "Create a KVDB", cli_hse_kvdb_create, 0 },
-    { "list",    "List KVDBs", cli_hse_kvdb_list, 0 },
+    { "create", "Create a KVDB", cli_hse_kvdb_create, 0 },
+    { "list", "List KVDBs", cli_hse_kvdb_list, 0 },
     { "compact", "Compact a KVDB", cli_hse_kvdb_compact, 0 },
-    { "params",  "Show KVDB configuration parameters", cli_hse_kvdb_params, 0 },
+    { "params", "Show KVDB configuration parameters", cli_hse_kvdb_params, 0 },
     { 0 },
 };
 
@@ -478,8 +478,8 @@ cli_getopt(struct cli *self)
         if (c == ':')
             fprintf(stderr, "%s: option '%s' requires an argument\n", self->cmd->cmd_path, name);
         else
-            fprintf(stderr, "%s: invalid option '%s', use -h for help\n",
-                    self->cmd->cmd_path, name);
+            fprintf(
+                stderr, "%s: invalid option '%s', use -h for help\n", self->cmd->cmd_path, name);
     }
 
     return c;
@@ -666,7 +666,8 @@ cli_hse_kvdb_create_impl(struct cli *cli, const char *cfile, const char *kvdb_na
                     STR("A KVDB already exists on mpool '%s'.  You can destroy and\n"
                         "recreate mpool '%s', or create a new mpool with different\n"
                         "name and create a KVDB on it.\n"),
-                    kvdb_name, kvdb_name);
+                    kvdb_name,
+                    kvdb_name);
                 break;
             case ENOENT:
                 fprintf(
@@ -698,11 +699,11 @@ done:
 static int
 cli_hse_kvdb_list_impl(struct cli *cli, const char *kvdb_name)
 {
-    struct hse_params  *hp = 0;
-    char                buf[YAML_BUF_SIZE];
-    int                 rc;
-    int                 count;
-    const char         *extra_arg;
+    struct hse_params *hp = 0;
+    char               buf[YAML_BUF_SIZE];
+    int                rc;
+    int                count;
+    const char *       extra_arg;
 
     struct yaml_context yc = {
         .yaml_buf = buf,
@@ -714,8 +715,11 @@ cli_hse_kvdb_list_impl(struct cli *cli, const char *kvdb_name)
 
     extra_arg = cli_next_arg(cli);
     if (extra_arg) {
-        fprintf(stderr, "%s: unexpected parameter: '%s', use -h for help.\n",
-            cli->cmd->cmd_path, extra_arg);
+        fprintf(
+            stderr,
+            "%s: unexpected parameter: '%s', use -h for help.\n",
+            cli->cmd->cmd_path,
+            extra_arg);
         return EX_USAGE;
     }
 
@@ -1066,8 +1070,11 @@ cli_hse_kvdb_params_impl(struct cli *cli, const char *kvdb)
      */
     extra_arg = cli_next_arg(cli);
     if (extra_arg) {
-        fprintf(stderr, "%s: unexpected parameter: '%s', use -h for help.\n",
-            cli->cmd->cmd_path, extra_arg);
+        fprintf(
+            stderr,
+            "%s: unexpected parameter: '%s', use -h for help.\n",
+            cli->cmd->cmd_path,
+            extra_arg);
         return EX_USAGE;
     }
 
@@ -1157,8 +1164,8 @@ cli_hse_kvs_create_impl(struct cli *cli, const char *cfile, const char *kvdb, co
 
     /* Reduce throttle update period to improve kvdb close time.
      */
-    hp = parse_cmdline_hse_params(cli, cfile, "kvdb.excl=1",
-                                  "kvdb.throttle_update_ns=3000000", NULL);
+    hp = parse_cmdline_hse_params(
+        cli, cfile, "kvdb.excl=1", "kvdb.throttle_update_ns=3000000", NULL);
     if (!hp)
         return EX_USAGE;
 
@@ -1195,8 +1202,8 @@ cli_hse_kvs_destroy_impl(struct cli *cli, const char *cfile, const char *kvdb, c
 
     /* Reduce throttle update period to improve kvdb close time.
      */
-    hp = parse_cmdline_hse_params(cli, cfile, "kvdb.excl=1",
-                                  "kvdb.throttle_update_ns=3000000", NULL);
+    hp = parse_cmdline_hse_params(
+        cli, cfile, "kvdb.excl=1", "kvdb.throttle_update_ns=3000000", NULL);
     if (!hp)
         return EX_USAGE;
 
@@ -1250,8 +1257,8 @@ cli_hse_kvs_create(struct cli_cmd *self, struct cli *cli)
 
     const char *cfile = 0;
     const char *kvdb_arg = 0;
-    char       *kvdb = 0;
-    char       *kvs = 0;
+    char *      kvdb = 0;
+    char *      kvs = 0;
     bool        help = false;
     int         c, rc;
 

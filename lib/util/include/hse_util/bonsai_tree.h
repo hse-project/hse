@@ -28,14 +28,14 @@ enum bonsai_ior_code {
     B_IOR_REP_OR_ADD = 4,
 };
 
-#define IS_IOR_INS(_c) ((_c) == B_IOR_INSERTED)
-#define IS_IOR_REP(_c) ((_c) == B_IOR_REPLACED)
-#define IS_IOR_ADD(_c) ((_c) == B_IOR_ADDED_VALUE)
+#define IS_IOR_INS(_c)      ((_c) == B_IOR_INSERTED)
+#define IS_IOR_REP(_c)      ((_c) == B_IOR_REPLACED)
+#define IS_IOR_ADD(_c)      ((_c) == B_IOR_ADDED_VALUE)
 #define IS_IOR_REPORADD(_c) ((_c) == B_IOR_REP_OR_ADD)
 
-#define SET_IOR_INS(_c) ((_c) = B_IOR_INSERTED)
-#define SET_IOR_REP(_c) ((_c) = B_IOR_REPLACED)
-#define SET_IOR_ADD(_c) ((_c) = B_IOR_ADDED_VALUE)
+#define SET_IOR_INS(_c)      ((_c) = B_IOR_INSERTED)
+#define SET_IOR_REP(_c)      ((_c) = B_IOR_REPLACED)
+#define SET_IOR_ADD(_c)      ((_c) = B_IOR_ADDED_VALUE)
 #define SET_IOR_REPORADD(_c) ((_c) = B_IOR_REP_OR_ADD)
 
 /**
@@ -69,7 +69,7 @@ struct bonsai_val {
     struct bonsai_val *bv_free;
     uintptr_t          bv_seqnoref;
     u64                bv_xlen;
-    void              *bv_valuep;
+    void *             bv_valuep;
     char               bv_value[];
 };
 
@@ -126,7 +126,7 @@ bonsai_val_vlen(const struct bonsai_val *bv)
  * function decode it.
  */
 struct bonsai_sval {
-    void     *bsv_val;
+    void *    bsv_val;
     u64       bsv_xlen;
     uintptr_t bsv_seqnoref;
 };
@@ -147,7 +147,7 @@ bonsai_sval_vlen(const struct bonsai_sval *bsv)
     return clen ?: vlen;
 }
 
-#define BKV_FLAG_PTOMB 0x01
+#define BKV_FLAG_PTOMB     0x01
 #define BKV_FLAG_TOMB_HEAD 0x02
 
 /**
@@ -193,11 +193,11 @@ struct bonsai_kv {
  * be caused by tree update operations).
  */
 struct bonsai_node {
-    struct bonsai_node   *bn_left;
-    struct bonsai_node   *bn_right;
-    struct key_immediate  bn_key_imm;
-    s32                   bn_height;
-    struct bonsai_kv     *bn_kv;
+    struct bonsai_node * bn_left;
+    struct bonsai_node * bn_right;
+    struct key_immediate bn_key_imm;
+    s32                  bn_height;
+    struct bonsai_kv *   bn_kv;
 } HSE_ALIGNED(64);
 
 _Static_assert(sizeof(struct bonsai_node) == 64, "bonsai node too large");
@@ -234,10 +234,10 @@ typedef void (*bonsai_ior_cb)(
  * Stores client specific callback and opaque parameters.
  */
 struct bonsai_client {
-    struct cheap   *bc_cheap;
-    bonsai_ior_cb   bc_iorcb;
-    void           *bc_rock;
-    size_t          bc_slab_sz;
+    struct cheap *bc_cheap;
+    bonsai_ior_cb bc_iorcb;
+    void *        bc_rock;
+    size_t        bc_slab_sz;
 
     HSE_ALIGNED(SMP_CACHE_BYTES)
     struct bonsai_node *bc_slab_cur;
@@ -255,7 +255,7 @@ struct bonsai_client {
  * There is one bonsai_root for each bonsai tree.
  */
 struct bonsai_root {
-    struct bonsai_node  *br_root;
+    struct bonsai_node * br_root;
     atomic_t             br_bounds;
     struct bonsai_client br_client;
     uintptr_t            br_stack[40];
@@ -274,7 +274,7 @@ struct bonsai_root {
  */
 merr_t
 bn_create(
-    struct cheap        *cheap,
+    struct cheap *       cheap,
     size_t               slabsz,
     bonsai_ior_cb        cb,
     void *               rock,

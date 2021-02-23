@@ -163,8 +163,7 @@ MTF_DEFINE_UTEST(workqueue_test, run)
         usleep(1000);
     }
     actual = atomic_read(&counter);
-    hse_log(HSE_DEBUG "Finished %d of %d delayed jobs in %d milliseconds",
-            actual, expected, i);
+    hse_log(HSE_DEBUG "Finished %d of %d delayed jobs in %d milliseconds", actual, expected, i);
     ASSERT_EQ(expected, actual);
 
     destroy_workqueue(q);
@@ -220,8 +219,7 @@ MTF_DEFINE_UTEST(workqueue_test, run_delay)
     }
     delta = nsecs_to_jiffies(get_time_ns() - delta);
     actual = atomic_read(&counter);
-    hse_log(HSE_DEBUG "Finished %d of %d delayed jobs in %d milliseconds",
-            actual, expected, i);
+    hse_log(HSE_DEBUG "Finished %d of %d delayed jobs in %d milliseconds", actual, expected, i);
     ASSERT_EQ(expected, actual);
     ASSERT_GE(delta, deltamax);
 

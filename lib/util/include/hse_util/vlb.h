@@ -19,9 +19,9 @@
  * callers of vlb_alloc(), but more work needs to be done to improve
  * the situation.
  */
-#define VLB_ALLOCSZ_MAX     (HSE_KVS_VLEN_MAX * 2)
-#define VLB_CACHESZ_MAX     (2ul << 30)
-#define VLB_KEEPSZ_MAX      (1ul << 20)
+#define VLB_ALLOCSZ_MAX (HSE_KVS_VLEN_MAX * 2)
+#define VLB_CACHESZ_MAX (2ul << 30)
+#define VLB_KEEPSZ_MAX  (1ul << 20)
 
 /**
  * vlb_alloc() - allocate a read buffer
@@ -32,7 +32,8 @@
  * Requests larger than VLB_ALLOCSZ_MAX must specify the
  * same size parameter to vlb_free() as given to vlb_alloc().
  */
-void *vlb_alloc(size_t sz);
+void *
+vlb_alloc(size_t sz);
 
 /**
  * vlb_free() - free a read buffer
@@ -44,9 +45,12 @@ void *vlb_alloc(size_t sz);
  * a best effort estimate of how much of the buffer was actually
  * modified.
  */
-void vlb_free(void *mem, size_t used);
+void
+vlb_free(void *mem, size_t used);
 
-merr_t vlb_init(void) HSE_COLD;
-void vlb_fini(void) HSE_COLD;
+merr_t
+vlb_init(void) HSE_COLD;
+void
+vlb_fini(void) HSE_COLD;
 
 #endif

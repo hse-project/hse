@@ -22,14 +22,14 @@
  * PERFC_GRP_MAX            max cpu groups in a distribution counter
  * PERFC_PCT_SCALE          power-of-two scaling factor for pdi_pct
  */
-#define PERFC_VALPERCNT     (128)
-#define PERFC_VALPERCPU     ((SMP_CACHE_BYTES * 2) / sizeof(struct perfc_val))
-#define PERFC_VAL_MAX       (PERFC_VALPERCNT * PERFC_VALPERCPU)
-#define PERFC_IVL_MAX       (32 - 1)
+#define PERFC_VALPERCNT (128)
+#define PERFC_VALPERCPU ((SMP_CACHE_BYTES * 2) / sizeof(struct perfc_val))
+#define PERFC_VAL_MAX   (PERFC_VALPERCNT * PERFC_VALPERCPU)
+#define PERFC_IVL_MAX   (32 - 1)
 #define PERFC_GRP_MAX \
-  ((PERFC_VALPERCNT * SMP_CACHE_BYTES * 2) / ((PERFC_IVL_MAX + 1) * sizeof(struct perfc_bkt)))
+    ((PERFC_VALPERCNT * SMP_CACHE_BYTES * 2) / ((PERFC_IVL_MAX + 1) * sizeof(struct perfc_bkt)))
 
-#define PERFC_PCT_SCALE     (128)
+#define PERFC_PCT_SCALE (128)
 
 struct perfc_ivl;
 
@@ -303,16 +303,16 @@ perfc_ivl_destroy(const struct perfc_ivl *ivl);
  */
 BullseyeCoverageSaveOff
 
-#define PERFC_INC_RU(_pc, _cid, _rumax)       \
-    do {                                      \
-        static __thread struct {              \
-            u64 cnt;                          \
-        } ru;                                 \
-                                              \
+#define PERFC_INC_RU(_pc, _cid, _rumax)           \
+    do {                                          \
+        static __thread struct {                  \
+            u64 cnt;                              \
+        } ru;                                     \
+                                                  \
         if (HSE_UNLIKELY(++ru.cnt >= (_rumax))) { \
-            perfc_add((_pc), (_cid), ru.cnt); \
-            ru.cnt = 0;                       \
-        }                                     \
+            perfc_add((_pc), (_cid), ru.cnt);     \
+            ru.cnt = 0;                           \
+        }                                         \
     } while (0)
 
 #define PERFC_INCADD_RU(_pc, _cidx1, _cidx2, _val2, _rumax)        \
@@ -325,14 +325,14 @@ BullseyeCoverageSaveOff
         ru.cnt += 1;                                               \
         ru.sum += (_val2);                                         \
                                                                    \
-        if (HSE_UNLIKELY(ru.cnt >= (_rumax))) {                        \
+        if (HSE_UNLIKELY(ru.cnt >= (_rumax))) {                    \
             perfc_add2((_pc), (_cidx1), ru.cnt, (_cidx2), ru.sum); \
             ru.cnt = 0;                                            \
             ru.sum = 0;                                            \
         }                                                          \
     } while (0)
 
-BullseyeCoverageRestore
+    BullseyeCoverageRestore
 
     /**
  * struct perfc_ivl - interval bounds map
@@ -412,13 +412,13 @@ struct perfc_bkt {
  * constitutes one bucket in the distribution.
  */
 struct perfc_ctr_hdr {
-    enum perfc_type     pch_type;
-    u32                 pch_flags;
-    u32                 pch_prio;
+    enum perfc_type pch_type;
+    u32             pch_flags;
+    u32             pch_prio;
 
     union {
-        struct perfc_val   *pch_val;
-        struct perfc_bkt   *pch_bktv;
+        struct perfc_val *pch_val;
+        struct perfc_bkt *pch_bktv;
     };
 };
 
@@ -519,13 +519,13 @@ struct perfc_seti {
 };
 
 #define PERFC_CTR_IDX_PREFIX "PERFC_"
-#define PERFC_CTR_IDX_END "PERFC_EN_"
-#define PERCF_CTR_TYPE_LEN 2
-#define PERFC_CTR_TYPE_BA "BA"
-#define PERFC_CTR_TYPE_RA "RA"
-#define PERFC_CTR_TYPE_DI "DI"
-#define PERFC_CTR_TYPE_LT "LT"
-#define PERFC_CTR_TYPE_SL "SL"
+#define PERFC_CTR_IDX_END    "PERFC_EN_"
+#define PERCF_CTR_TYPE_LEN   2
+#define PERFC_CTR_TYPE_BA    "BA"
+#define PERFC_CTR_TYPE_RA    "RA"
+#define PERFC_CTR_TYPE_DI    "DI"
+#define PERFC_CTR_TYPE_LT    "LT"
+#define PERFC_CTR_TYPE_SL    "SL"
 
 enum perfc_ctr_flags {
     PCC_FLAGS_ENABLED = 0x1,
@@ -588,15 +588,15 @@ perfc_lat_record_impl(struct perfc_dis *dis, u64 sample);
 void
 perfc_dis_record_impl(struct perfc_dis *dis, u64 sample);
 
-#define perfc_rec_lat perfc_lat_record
+#define perfc_rec_lat    perfc_lat_record
 #define perfc_rec_sample perfc_dis_record
 
 /* [HSE_REVISIT] Add unit tests for all these predicates...
  */
 BullseyeCoverageSaveOff
 
-static HSE_ALWAYS_INLINE struct perfc_seti *
-PERFC_ISON(struct perfc_set *pcs)
+    static HSE_ALWAYS_INLINE struct perfc_seti *
+    PERFC_ISON(struct perfc_set *pcs)
 {
     if (pcs && pcs->ps_bitmap > 0)
         return pcs->ps_seti;
@@ -709,10 +709,10 @@ perfc_lat_record(struct perfc_set *pcs, const u32 cidx, const u64 start)
 static HSE_ALWAYS_INLINE void
 perfc_sl_record(struct perfc_set *pcs, const u32 cidx, const u64 start)
 {
-    struct perfc_ctr_hdr   *hdr;
-    struct perfc_seti      *pcsi;
-    u64                     val;
-    uint                    i;
+    struct perfc_ctr_hdr *hdr;
+    struct perfc_seti *   pcsi;
+    u64                   val;
+    uint                  i;
 
     if (!start)
         return;
@@ -781,8 +781,8 @@ perfc_set(struct perfc_set *pcs, const u32 cidx, const u64 val)
 static HSE_ALWAYS_INLINE void
 perfc_inc(struct perfc_set *pcs, const u32 cidx)
 {
-    struct perfc_seti  *pcsi;
-    uint                i;
+    struct perfc_seti *pcsi;
+    uint               i;
 
     pcsi = perfc_ison(pcs, cidx);
     if (!pcsi)
@@ -799,8 +799,8 @@ perfc_inc(struct perfc_set *pcs, const u32 cidx)
 static HSE_ALWAYS_INLINE void
 perfc_dec(struct perfc_set *pcs, const u32 cidx)
 {
-    struct perfc_seti  *pcsi;
-    uint                i;
+    struct perfc_seti *pcsi;
+    uint               i;
 
     pcsi = perfc_ison(pcs, cidx);
     if (!pcsi)
@@ -817,8 +817,8 @@ perfc_dec(struct perfc_set *pcs, const u32 cidx)
 static HSE_ALWAYS_INLINE void
 perfc_add(struct perfc_set *pcs, const u32 cidx, const u64 val)
 {
-    struct perfc_seti  *pcsi;
-    uint                i;
+    struct perfc_seti *pcsi;
+    uint               i;
 
     pcsi = perfc_ison(pcs, cidx);
     if (!pcsi)
@@ -835,8 +835,8 @@ perfc_add(struct perfc_set *pcs, const u32 cidx, const u64 val)
 static HSE_ALWAYS_INLINE void
 perfc_add2(struct perfc_set *pcs, const u32 cidx1, const u64 val1, const u32 cidx2, const u64 val2)
 {
-    struct perfc_seti  *pcsi;
-    uint                i;
+    struct perfc_seti *pcsi;
+    uint               i;
 
     pcsi = perfc_ison(pcs, cidx1);
     if (!pcsi)
@@ -856,8 +856,8 @@ perfc_add2(struct perfc_set *pcs, const u32 cidx1, const u64 val1, const u32 cid
 static HSE_ALWAYS_INLINE void
 perfc_sub(struct perfc_set *pcs, const u32 cidx, const u64 val)
 {
-    struct perfc_seti  *pcsi;
-    uint                i;
+    struct perfc_seti *pcsi;
+    uint               i;
 
     pcsi = perfc_ison(pcs, cidx);
     if (!pcsi)
@@ -871,7 +871,7 @@ perfc_sub(struct perfc_set *pcs, const u32 cidx, const u64 val)
 
 BullseyeCoverageRestore
 
-extern struct perfc_ivl *perfc_di_ivl;
+    extern struct perfc_ivl *perfc_di_ivl;
 
 /*
  * perfc_ctrseti_alloc() - allocate a counter set instance

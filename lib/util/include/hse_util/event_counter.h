@@ -23,7 +23,7 @@ struct event_counter {
     struct dt_element *ev_dte;
 } HSE_ALIGNED(SMP_CACHE_BYTES);
 
-#define EV_FLAGS_HSE_LOG 0x1
+#define EV_FLAGS_HSE_LOG                   0x1
 #define EV_LIST_FLAG_SINCE_LAST_CHECKPOINT 0x1
 
 /* NON-API Functions */
@@ -223,17 +223,17 @@ extern struct dt_element_ops event_counter_ops;
     })
 
 #if _BullseyeCoverage
-#define EV1(e) EV_PRI(e, HSE_ERR_VAL, HSE_MARK)
+#define EV1(e)            EV_PRI(e, HSE_ERR_VAL, HSE_MARK)
 #define EV2(e, pri, mark) EV_PRI(e, pri, mark)
 #else
-#define EV1(e)                                                        \
-    ({                                                                \
-        typeof(e) _tmp = e;                                           \
+#define EV1(e)                                                            \
+    ({                                                                    \
+        typeof(e) _tmp = e;                                               \
         HSE_UNLIKELY(_tmp) ? EV_PRI(_tmp, HSE_INFO_VAL, HSE_MARK) : _tmp; \
     })
-#define EV2(e, pri, mark)                                \
-    ({                                                   \
-        typeof(e) _tmp = e;                              \
+#define EV2(e, pri, mark)                                    \
+    ({                                                       \
+        typeof(e) _tmp = e;                                  \
         HSE_UNLIKELY(_tmp) ? EV_PRI(_tmp, pri, mark) : _tmp; \
     })
 #endif
@@ -250,6 +250,6 @@ extern struct dt_element_ops event_counter_ops;
  *          EV2(rc, HSE_ERR_VAL, HSE_MARK)
  */
 #define EV_PRI_NO_MARK(e, pri) EV2(e, pri, HSE_MARK)
-#define ev(...) EV_GET_MACRO(__VA_ARGS__, EV2, EV_PRI_NO_MARK, EV1)(__VA_ARGS__)
+#define ev(...)                EV_GET_MACRO(__VA_ARGS__, EV2, EV_PRI_NO_MARK, EV1)(__VA_ARGS__)
 
 #endif /* HSE_PLATFORM_ERROR_COUNTER_H */

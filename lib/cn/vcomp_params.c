@@ -10,19 +10,15 @@
 #include <hse_util/compiler.h>
 #include <hse_util/compression_lz4.h>
 
-static
-bool
-vcomp_param_match(
-    const struct kvs_rparams   *rp,
-    const char                 *check)
+static bool
+vcomp_param_match(const struct kvs_rparams *rp, const char *check)
 {
     size_t len = strlen(check);
 
     /* Use sizeof(rp->value_compression) to protect
      * against it not being null terminated.
      */
-    return (len < sizeof(rp->value_compression))
-        && (!strcmp(check, rp->value_compression));
+    return (len < sizeof(rp->value_compression)) && (!strcmp(check, rp->value_compression));
 }
 
 bool

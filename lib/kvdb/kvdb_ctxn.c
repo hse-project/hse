@@ -57,14 +57,14 @@ struct kvdb_ctxn_set_impl {
 
     atomic64_t ktn_tseqno_head HSE_ALIGNED(SMP_CACHE_BYTES * 2);
     atomic64_t ktn_tseqno_tail HSE_ALIGNED(SMP_CACHE_BYTES * 2);
-    sem_t      ktn_tseqno_sema HSE_ALIGNED(SMP_CACHE_BYTES * 2);
+    sem_t ktn_tseqno_sema      HSE_ALIGNED(SMP_CACHE_BYTES * 2);
     spinlock_t ktn_tseqno_sync HSE_ALIGNED(SMP_CACHE_BYTES * 2);
 
-    struct mutex         ktn_list_mutex HSE_ALIGNED(SMP_CACHE_BYTES * 2);
+    struct mutex ktn_list_mutex         HSE_ALIGNED(SMP_CACHE_BYTES * 2);
     struct cds_list_head ktn_alloc_list HSE_ALIGNED(SMP_CACHE_BYTES);
-    struct list_head     ktn_pending;
-    atomic_t             ktn_reading;
-    bool                 ktn_queued;
+    struct list_head                    ktn_pending;
+    atomic_t                            ktn_reading;
+    bool                                ktn_queued;
 };
 
 #define kvdb_ctxn_set_h2r(handle) container_of(handle, struct kvdb_ctxn_set_impl, ktn_handle)
@@ -172,11 +172,11 @@ kvdb_ctxn_set_thread(struct work_struct *work)
 
 struct kvdb_ctxn *
 kvdb_ctxn_alloc(
-    struct kvdb_keylock *   kvdb_keylock,
-    atomic64_t *            kvdb_seqno_addr,
-    struct kvdb_ctxn_set *  kcs_handle,
-    struct viewset         *viewset,
-    struct c0sk *           c0sk)
+    struct kvdb_keylock * kvdb_keylock,
+    atomic64_t *          kvdb_seqno_addr,
+    struct kvdb_ctxn_set *kcs_handle,
+    struct viewset *      viewset,
+    struct c0sk *         c0sk)
 {
     struct kvdb_ctxn_impl *    ctxn;
     struct kvdb_ctxn_set_impl *kvdb_ctxn_set;
@@ -249,9 +249,9 @@ void
 kvdb_ctxn_set_wait_commits(struct kvdb_ctxn_set *handle)
 {
     struct kvdb_ctxn_set_impl *kvdb_ctxn_set = kvdb_ctxn_set_h2r(handle);
-    u64 head, tail;
-    sem_t *sema;
-    int spin;
+    u64                        head, tail;
+    sem_t *                    sema;
+    int                        spin;
 
     /*
      * This transaction started its commit only after our view was established.
@@ -270,7 +270,7 @@ kvdb_ctxn_set_wait_commits(struct kvdb_ctxn_set *handle)
      * Note: At 4-billion commits per second it would take more than 136
      * years for head to wrap.  So we just don't worry about it...
      */
-  again:
+again:
     spin = 32;
 
     while (spin > 0) {
@@ -381,8 +381,7 @@ kvdb_ctxn_begin(struct kvdb_ctxn *handle)
     ctxn->ctxn_bind = 0;
     ctxn->ctxn_begin_ts = get_time_ns();
 
-    err = viewset_insert(
-        ctxn->ctxn_viewset, &ctxn->ctxn_view_seqno, &ctxn->ctxn_viewset_cookie);
+    err = viewset_insert(ctxn->ctxn_viewset, &ctxn->ctxn_view_seqno, &ctxn->ctxn_viewset_cookie);
     if (ev(err))
         goto errout;
 
@@ -1019,8 +1018,8 @@ kvdb_ctxn_get(
         /* first look in the kvdb_ctxn's private store */
         c0kvs = c0kvms_get_hashed_c0kvset(ctxn->ctxn_kvms, kt->kt_hash);
 
-        err = c0kvs_get_excl(c0kvs, c0_index(c0), kt, view_seqno,
-                             seqnoref, res, vbuf, &rslt_seqnoref);
+        err = c0kvs_get_excl(
+            c0kvs, c0_index(c0), kt, view_seqno, seqnoref, res, vbuf, &rslt_seqnoref);
 
         if (!err && *res == NOT_FOUND) {
             uintptr_t pt_seqref;
@@ -1123,10 +1122,18 @@ kvdb_ctxn_pfx_probe(
         goto skip_txkvms;
 
     /* Check txn's local mutations */
-    err = c0kvms_pfx_probe_excl(ctxn->ctxn_kvms, c0_index(c0), kt,
-                                c0_get_sfx_len(c0),
-                                ctxn->ctxn_view_seqno, ctxn->ctxn_seqref,
-                                res, qctx, kbuf, vbuf, 0);
+    err = c0kvms_pfx_probe_excl(
+        ctxn->ctxn_kvms,
+        c0_index(c0),
+        kt,
+        c0_get_sfx_len(c0),
+        ctxn->ctxn_view_seqno,
+        ctxn->ctxn_seqref,
+        res,
+        qctx,
+        kbuf,
+        vbuf,
+        0);
     if (ev(err)) {
         kvdb_ctxn_unlock(ctxn);
         return err;
@@ -1194,7 +1201,7 @@ merr_t
 kvdb_ctxn_set_create(struct kvdb_ctxn_set **handle_out, u64 txn_timeout_ms, u64 delay_msecs)
 {
     struct kvdb_ctxn_set_impl *ktn;
-    int limit, rc;
+    int                        limit, rc;
 
     *handle_out = 0;
 

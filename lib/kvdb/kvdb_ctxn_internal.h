@@ -50,19 +50,19 @@ struct kvdb_ctxn_impl {
     struct c0_kvmultiset *  ctxn_kvms;
     struct kvdb_ctxn_bind * ctxn_bind;
 
-    struct viewset       *ctxn_viewset HSE_ALIGNED(SMP_CACHE_BYTES);
-    struct c0sk *         ctxn_c0sk;
-    struct kvdb_ctxn_set *ctxn_kvdb_ctxn_set;
-    atomic64_t *          ctxn_kvdb_seq_addr;
-    atomic64_t *          ctxn_tseqno_head;
-    atomic64_t *          ctxn_tseqno_tail;
+    struct viewset *ctxn_viewset HSE_ALIGNED(SMP_CACHE_BYTES);
+    struct c0sk *                ctxn_c0sk;
+    struct kvdb_ctxn_set *       ctxn_kvdb_ctxn_set;
+    atomic64_t *                 ctxn_kvdb_seq_addr;
+    atomic64_t *                 ctxn_tseqno_head;
+    atomic64_t *                 ctxn_tseqno_tail;
 
     u32 ctxn_ingest_width;
     u32 ctxn_ingest_delay;
     u64 ctxn_heap_sz;
 
-    u64                  ctxn_begin_ts HSE_ALIGNED(SMP_CACHE_BYTES);
-    void                *ctxn_viewset_cookie;
+    u64 ctxn_begin_ts    HSE_ALIGNED(SMP_CACHE_BYTES);
+    void *               ctxn_viewset_cookie;
     struct cds_list_head ctxn_alloc_link;
     struct list_head     ctxn_free_link;
     struct list_head     ctxn_abort_link;

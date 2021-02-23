@@ -222,10 +222,10 @@ kv_spill(struct cn_compaction_work *w)
     u64    tstart;
     u64    tprog = 0;
 
-    u64 dbg_prev_seq HSE_MAYBE_UNUSED;
-    uint dbg_prev_src HSE_MAYBE_UNUSED;
+    u64 dbg_prev_seq        HSE_MAYBE_UNUSED;
+    uint dbg_prev_src       HSE_MAYBE_UNUSED;
     uint dbg_nvals_this_key HSE_MAYBE_UNUSED;
-    bool dbg_dup HSE_MAYBE_UNUSED;
+    bool dbg_dup            HSE_MAYBE_UNUSED;
 
     if (w->cw_prog_interval && w->cw_progress)
         tprog = jiffies;
@@ -334,8 +334,15 @@ get_values:
             tstart = get_time_ns();
 
         if (!kvset_iter_next_vref(
-                w->cw_inputv[curr.src], &curr.vctx, &seq, &vtype, &vbidx, &vboff,
-                &vdata, &vlen, &complen))
+                w->cw_inputv[curr.src],
+                &curr.vctx,
+                &seq,
+                &vtype,
+                &vbidx,
+                &vboff,
+                &vdata,
+                &vlen,
+                &complen))
             break;
 
         if (vtype == vtype_val)

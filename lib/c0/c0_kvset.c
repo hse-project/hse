@@ -21,7 +21,9 @@
  * at least one max-sized kvs value plus associated overhead.
  */
 _Static_assert(HSE_C0_CHEAP_SZ_MIN >= (2ul << 20), "min c0 cheap size too small");
-_Static_assert(HSE_C0_CHEAP_SZ_MIN >= HSE_KVS_VLEN_MAX + (1ul << 20), "min c0 cheap size too small");
+_Static_assert(
+    HSE_C0_CHEAP_SZ_MIN >= HSE_KVS_VLEN_MAX + (1ul << 20),
+    "min c0 cheap size too small");
 _Static_assert(HSE_C0_CHEAP_SZ_DFLT >= HSE_C0_CHEAP_SZ_MIN, "default c0 cheap size too small");
 _Static_assert(HSE_C0_CHEAP_SZ_MAX >= HSE_C0_CHEAP_SZ_DFLT, "max c0 cheap size too small");
 
@@ -772,11 +774,11 @@ c0kvs_get_excl(
 {
     struct c0_kvset_impl *self;
     struct bonsai_skey    skey;
-    struct bonsai_val    *val;
-    struct bonsai_kv     *kv;
-    uint copylen, outlen, clen, ulen;
-    bool found;
-    merr_t err;
+    struct bonsai_val *   val;
+    struct bonsai_kv *    kv;
+    uint                  copylen, outlen, clen, ulen;
+    bool                  found;
+    merr_t                err;
 
     *oseqnoref = HSE_ORDNL_TO_SQNREF(0);
     *res = NOT_FOUND;
@@ -843,8 +845,7 @@ c0kvs_get_rcu(
 {
     assert(rcu_read_ongoing());
 
-    return c0kvs_get_excl(handle, skidx, key, view_seqno,
-                          seqnoref, res, vbuf, oseqnoref);
+    return c0kvs_get_excl(handle, skidx, key, view_seqno, seqnoref, res, vbuf, oseqnoref);
 }
 
 merr_t
@@ -894,8 +895,7 @@ c0kvs_pfx_probe_excl(
             break; /* eof */
 
         if (qctx->seen &&
-            !keycmp(kv->bkv_key, klen,
-                    kbuf->b_buf, min_t(size_t, kbuf->b_len, kbuf->b_buf_sz)))
+            !keycmp(kv->bkv_key, klen, kbuf->b_buf, min_t(size_t, kbuf->b_len, kbuf->b_buf_sz)))
             continue; /* duplicate */
 
         /* We ensure that klen is atleast pfx_len + sfx_len bytes long during put/delete. */
@@ -981,8 +981,8 @@ c0kvs_pfx_probe_rcu(
 {
     assert(rcu_read_ongoing());
 
-    return c0kvs_pfx_probe_excl(handle, skidx, key, sfx_len, view_seqno, seqnoref,
-                                res, qctx, kbuf, vbuf, pt_seq);
+    return c0kvs_pfx_probe_excl(
+        handle, skidx, key, sfx_len, view_seqno, seqnoref, res, qctx, kbuf, vbuf, pt_seq);
 }
 
 /*
@@ -1083,9 +1083,13 @@ c0kvs_debug(struct c0_kvset *handle, void *key, int klen)
             u64   seqno = HSE_SQNREF_TO_ORDNL(v->bv_seqnoref);
             char *label = HSE_CORE_IS_TOMB(v->bv_valuep) ? "tomb" : "len";
 
-            printf("%sseqnoref %p seqno %lu %s %u",
-                   comma, (void *)v->bv_seqnoref,
-                   seqno, label, bonsai_val_vlen(v));
+            printf(
+                "%sseqnoref %p seqno %lu %s %u",
+                comma,
+                (void *)v->bv_seqnoref,
+                seqno,
+                label,
+                bonsai_val_vlen(v));
             comma = ", ";
         }
         printf("\n");

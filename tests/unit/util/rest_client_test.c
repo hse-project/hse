@@ -13,7 +13,7 @@
 
 #include <hse/hse_version.h>
 
-#define MP "r_client_mp"
+#define MP   "r_client_mp"
 #define KVDB "r_client_kv"
 #define SOCK "/tmp/" MP "." KVDB ".rest"
 

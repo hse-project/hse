@@ -35,7 +35,7 @@ enum kvdb_log_disp {
     KVDB_LOG_DISP_ABORT_DONE,
 };
 
-#define KVDB_LOG_DISP_MAKE_DONE(d) ((d & 1) ? d + 1 : d)
+#define KVDB_LOG_DISP_MAKE_DONE(d)   ((d & 1) ? d + 1 : d)
 #define KVDB_LOG_DISP_MAKE_UNDONE(d) ((d & 1) ? d : d - 1)
 
 enum kvdb_log_mdc_id {

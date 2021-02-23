@@ -6,11 +6,10 @@
 #include <hse_util/platform.h>
 #include <hse_util/rmlock.h>
 
-#define RMLOCK_MAX      (128)
+#define RMLOCK_MAX (128)
 
 #define rmlock_cmpxchg(_ptr, _oldp, _new) \
     __atomic_compare_exchange_n((_ptr), (_oldp), (_new), false, __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST)
-
 
 static HSE_ALWAYS_INLINE uint
 rmlock_bktidx(struct rmlock *lock)
@@ -22,7 +21,7 @@ merr_t
 rmlock_init(struct rmlock *lock)
 {
     size_t sz;
-    int i;
+    int    i;
 
     if (!lock)
         return merr(EINVAL);

@@ -58,10 +58,10 @@
 /* MERR_ALIGN      Alignment of _merr_file in section "hse_merr"
  * MERR_INFO_SZ    Max size of struct merr_info message buffer
  */
-#define MERR_ALIGN      (1 << 6)
-#define MERR_INFO_SZ    (MERR_ALIGN * 2 + 200)
+#define MERR_ALIGN   (1 << 6)
+#define MERR_INFO_SZ (MERR_ALIGN * 2 + 200)
 
-#define _merr_section __attribute__((__section__("hse_merr")))
+#define _merr_section    __attribute__((__section__("hse_merr")))
 #define _merr_attributes _merr_section HSE_ALIGNED(MERR_ALIGN) HSE_MAYBE_UNUSED
 
 static char _hse_merr_file[] _merr_attributes = __BASE_FILE__;
@@ -93,13 +93,11 @@ typedef s64 merr_t;
 
 #pragma GCC visibility push(default)
 
-static HSE_ALWAYS_INLINE
-uint64_t
+static HSE_ALWAYS_INLINE uint64_t
 merr_to_hse_err(merr_t merr)
 {
     return (uint64_t)merr;
 }
-
 
 struct merr_info {
     char buf[MERR_INFO_SZ];
@@ -108,23 +106,23 @@ struct merr_info {
 /**
  * merr() - Pack given errno and call-site info into a merr_t
  */
-#define merr(_errnum)   merr_pack((_errnum), _hse_merr_file, __LINE__)
+#define merr(_errnum) merr_pack((_errnum), _hse_merr_file, __LINE__)
 
-#define merr_once(_errnum)                                              \
-({									\
-    merr_t _err;                                                        \
-                                                                        \
-    if (__builtin_constant_p(_errnum)) {                                \
-        static merr_t _moerr HSE_READ_MOSTLY;                             \
-                                                                        \
-        if (HSE_UNLIKELY(!_moerr))                                          \
-            _moerr = merr_pack((_errnum), _hse_merr_file, __LINE__);    \
-        _err = _moerr;                                                  \
-    } else {								\
-        _err = merr_pack((_errnum), _hse_merr_file, __LINE__);          \
-    }									\
-    _err;                                                               \
-})
+#define merr_once(_errnum)                                               \
+    ({                                                                   \
+        merr_t _err;                                                     \
+                                                                         \
+        if (__builtin_constant_p(_errnum)) {                             \
+            static merr_t _moerr HSE_READ_MOSTLY;                        \
+                                                                         \
+            if (HSE_UNLIKELY(!_moerr))                                   \
+                _moerr = merr_pack((_errnum), _hse_merr_file, __LINE__); \
+            _err = _moerr;                                               \
+        } else {                                                         \
+            _err = merr_pack((_errnum), _hse_merr_file, __LINE__);       \
+        }                                                                \
+        _err;                                                            \
+    })
 
 /* Not a public API, called only via the merr() macro.
  */

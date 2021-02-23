@@ -97,8 +97,12 @@ main(int argc, char **argv)
 
     printf("After seek to key010:\n");
     printf("expected: key:%s\tval:%s\n", "key010", "val010");
-    printf("found:    key:%.*s\tval:%.*s\n", (int)cur_klen, (char *)cur_key,
-           (int)cur_vlen, (char *)cur_val);
+    printf(
+        "found:    key:%.*s\tval:%.*s\n",
+        (int)cur_klen,
+        (char *)cur_key,
+        (int)cur_vlen,
+        (char *)cur_val);
 
     hse_kvs_cursor_destroy(cursor);
 

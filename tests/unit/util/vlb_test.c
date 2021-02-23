@@ -13,8 +13,8 @@ MTF_BEGIN_UTEST_COLLECTION(vlb_test);
 MTF_DEFINE_UTEST(vlb_test, alloc)
 {
     const int imax = VLB_CACHESZ_MAX / VLB_ALLOCSZ_MAX + 3;
-    void *memv[imax];
-    int i;
+    void *    memv[imax];
+    int       i;
 
     /* Allocate a few more buffers over the cache size max,
      */
@@ -32,7 +32,6 @@ MTF_DEFINE_UTEST(vlb_test, alloc)
     for (i = 0; i < imax; ++i)
         vlb_free(memv[i], HSE_KVS_VLEN_MAX);
 
-
     /* Allocate and free a buffer, should come from cache.
      */
     ASSERT_TRUE(VLB_KEEPSZ_MAX + PAGE_SIZE < VLB_ALLOCSZ_MAX);
@@ -41,13 +40,11 @@ MTF_DEFINE_UTEST(vlb_test, alloc)
     ASSERT_NE(NULL, memv[0]);
     vlb_free(memv[0], VLB_KEEPSZ_MAX);
 
-
     /* Allocate and free a buffer over the max alloc size.
      */
     memv[0] = vlb_alloc(VLB_ALLOCSZ_MAX * 2);
     ASSERT_NE(NULL, memv[0]);
     vlb_free(memv[0], VLB_ALLOCSZ_MAX * 2);
-
 
     /* Try to allocate an impossibly large buffer.
      */

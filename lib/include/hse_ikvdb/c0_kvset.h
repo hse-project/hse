@@ -268,7 +268,6 @@ c0kvs_pfx_probe_excl(
     struct kvs_buf *         vbuf,
     u64                      pt_seq);
 
-
 /**
  * c0kvs_prefix_get_rcu() - given a key, retrieve a value from a struct c0_kvset
  * @handle:    Struct c0_kvset to search

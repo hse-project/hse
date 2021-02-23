@@ -49,9 +49,9 @@
 
 #define VERBOSE_PER_FILE1 1
 #define VERBOSE_PER_FILE2 2
-#define VERBOSE_PER_KEY1 3
-#define VERBOSE_PER_KEY2 4
-#define VERBOSE_MAX 5
+#define VERBOSE_PER_KEY1  3
+#define VERBOSE_PER_KEY2  4
+#define VERBOSE_MAX       5
 
 #define MAX_TEST_FILES 256
 
@@ -752,8 +752,7 @@ _kvset_builder_add_val_internal(
                 tag = "pt";
                 break;
         }
-        printf( "%lu %s %.*s\n", (ulong)ref_seq, tag, ref_vlen,
-            ref_vdata ? (char *)ref_vdata : "");
+        printf("%lu %s %.*s\n", (ulong)ref_seq, tag, ref_vlen, ref_vdata ? (char *)ref_vdata : "");
     }
 
     if (vtype != vtype_ptomb) {
@@ -822,11 +821,11 @@ _kvset_builder_add_vref(
 
 merr_t
 _kvset_builder_add_val(
-    struct kvset_builder *  self,
-    u64                     seq,
-    const void *            vdata,
-    uint                    vlen,
-    uint                    complen)
+    struct kvset_builder *self,
+    u64                   seq,
+    const void *          vdata,
+    uint                  vlen,
+    uint                  complen)
 {
     enum kmd_vtype vtype;
 
@@ -1045,7 +1044,7 @@ kv_spill_test_kvi_release(struct kv_iterator *kvi)
     free(kvi->kvi_context);
 }
 
-struct kv_iterator_ops kvi_ops = {.kvi_release = kv_spill_test_kvi_release };
+struct kv_iterator_ops kvi_ops = { .kvi_release = kv_spill_test_kvi_release };
 
 static merr_t
 kv_spill_test_kvi_create(
@@ -1079,9 +1078,9 @@ kv_spill_test_kvi_create(
     return 0;
 }
 
-#define MODE_SPILL 0
-#define MODE_KCOMPACT 1
-#define MODE_KHASHMAP 2
+#define MODE_SPILL        0
+#define MODE_KCOMPACT     1
+#define MODE_KHASHMAP     2
 #define MODE_KHASHMAP_ERR 3
 
 static struct cn_compaction_work *
@@ -1220,7 +1219,8 @@ run_testcase(struct mtf_test_info *lcl_ti, int mode, const char *info)
 
     if (mode == MODE_SPILL) {
         struct kvs_cparams cp = {
-            .cp_fanout = tp.fanout, .cp_pfx_len = tp.pfx_len,
+            .cp_fanout = tp.fanout,
+            .cp_pfx_len = tp.pfx_len,
         };
 
         if (tp.pfx_len == 0)

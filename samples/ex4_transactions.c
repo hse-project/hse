@@ -76,17 +76,19 @@ main(int argc, char **argv)
 
     rc = hse_kvdb_kvs_open(kvdb, kvs_name1, NULL, &kvs1);
     if (rc) {
-        printf("Cannot open kvs %s: %s\n",
-               kvs_name1,
-               hse_err_to_string(rc, errbuf, sizeof(errbuf), 0));
+        printf(
+            "Cannot open kvs %s: %s\n",
+            kvs_name1,
+            hse_err_to_string(rc, errbuf, sizeof(errbuf), 0));
         exit(1);
     }
 
     rc = hse_kvdb_kvs_open(kvdb, kvs_name2, NULL, &kvs2);
     if (rc) {
-        printf("Cannot open kvs %s: %s\n",
-               kvs_name2,
-               hse_err_to_string(rc, errbuf, sizeof(errbuf), 0));
+        printf(
+            "Cannot open kvs %s: %s\n",
+            kvs_name2,
+            hse_err_to_string(rc, errbuf, sizeof(errbuf), 0));
         exit(1);
     }
 

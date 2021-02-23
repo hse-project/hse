@@ -468,7 +468,8 @@ replay_log(struct tool_info *ti)
     ti->cndb->cndb_rdonly = true;
 
     /* read the version record, then rewind. */
-    err = merr_to_hse_err(mpool_mdc_read(ti->cndb->cndb_mdc, ti->cndb->cndb_cbuf, ti->cndb->cndb_cbufsz, &len));
+    err = merr_to_hse_err(
+        mpool_mdc_read(ti->cndb->cndb_mdc, ti->cndb->cndb_cbuf, ti->cndb->cndb_cbufsz, &len));
     if (ev(err))
         return err;
 
@@ -563,7 +564,7 @@ replay_log(struct tool_info *ti)
 int
 main(int argc, char **argv)
 {
-    hse_err_t           err;
+    hse_err_t        err;
     int              c;
     struct tool_info ti = { 0 };
 

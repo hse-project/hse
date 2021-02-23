@@ -8,13 +8,13 @@
 
 #include <syscall.h>
 
-#define VLB_NODES_MAX       (4) /* max numa nodes */
-#define VLB_BPN_MAX         (4) /* max per-cpu buckets per node */
+#define VLB_NODES_MAX (4) /* max numa nodes */
+#define VLB_BPN_MAX   (4) /* max per-cpu buckets per node */
 
 struct vlb_cache {
-    spinlock_t  lock;
-    void       *head;
-    int         cnt;
+    spinlock_t lock;
+    void *     head;
+    int        cnt;
 } HSE_ALIGNED(SMP_CACHE_BYTES * 2);
 
 static struct vlb_cache vlbcv[VLB_NODES_MAX * VLB_BPN_MAX];
@@ -41,7 +41,7 @@ void *
 vlb_alloc(size_t sz)
 {
     size_t allocsz = VLB_ALLOCSZ_MAX;
-    void *mem = NULL;
+    void * mem = NULL;
 
     if (sz <= allocsz) {
         struct vlb_cache *vlbc = vlb_cpu2cache();
@@ -74,7 +74,7 @@ vlb_free(void *mem, size_t used)
 {
     size_t allocsz = VLB_ALLOCSZ_MAX;
     size_t keepsz = VLB_KEEPSZ_MAX;
-    int rc = 0;
+    int    rc = 0;
 
     if (!mem)
         return;
@@ -121,7 +121,7 @@ void
 vlb_fini(void)
 {
     void *head;
-    int i;
+    int   i;
 
     for (i = 0; i < NELEM(vlbcv); ++i) {
         struct vlb_cache *vlbc = vlbcv + i;

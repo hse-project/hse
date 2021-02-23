@@ -462,7 +462,8 @@ c0kvms_pfx_probe_rcu(
 
     c0kvs = c0kvms_get_hashed_c0kvset(handle, kt->kt_hash);
 
-    err = c0kvs_pfx_probe_rcu(c0kvs, skidx, kt, sfx_len, view_seqno, seqref, res, qctx, kbuf, vbuf, pt_seqno);
+    err = c0kvs_pfx_probe_rcu(
+        c0kvs, skidx, kt, sfx_len, view_seqno, seqref, res, qctx, kbuf, vbuf, pt_seqno);
     return ev(err);
 }
 
@@ -485,7 +486,8 @@ c0kvms_pfx_probe_excl(
 
     c0kvs = c0kvms_get_hashed_c0kvset(handle, kt->kt_hash);
 
-    err = c0kvs_pfx_probe_excl(c0kvs, skidx, kt, sfx_len, view_seqno, seqref, res, qctx, kbuf, vbuf, pt_seqno);
+    err = c0kvs_pfx_probe_excl(
+        c0kvs, skidx, kt, sfx_len, view_seqno, seqref, res, qctx, kbuf, vbuf, pt_seqno);
     return ev(err);
 }
 
@@ -673,9 +675,8 @@ c0kvms_cursor_create(
 
 BullseyeCoverageSaveOff
 
-HSE_USED HSE_COLD
-static void
-c0kvms_cursor_debug(struct c0_kvmultiset *handle, int skidx)
+    HSE_USED HSE_COLD static void
+    c0kvms_cursor_debug(struct c0_kvmultiset *handle, int skidx)
 {
     struct c0_kvmultiset_cursor cur;
     struct element_source *     es;
@@ -732,8 +733,7 @@ c0kvms_cursor_debug(struct c0_kvmultiset *handle, int skidx)
     c0kvms_cursor_destroy(&cur);
 }
 
-HSE_USED HSE_COLD
-void
+HSE_USED HSE_COLD void
 c0kvms_cursor_kvs_debug(struct c0_kvmultiset *handle, void *key, int klen)
 {
     struct c0_kvmultiset_impl *self = c0_kvmultiset_h2r(handle);
@@ -749,8 +749,8 @@ c0kvms_cursor_kvs_debug(struct c0_kvmultiset *handle, void *key, int klen)
 
 BullseyeCoverageRestore
 
-void
-c0kvms_cursor_destroy(struct c0_kvmultiset_cursor *cur)
+    void
+    c0kvms_cursor_destroy(struct c0_kvmultiset_cursor *cur)
 {
     bin_heap2_destroy(cur->c0mc_bh);
 }

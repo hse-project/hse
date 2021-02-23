@@ -121,7 +121,7 @@ mocked_sp3_create(
     struct mpool *       ds,
     struct kvdb_rparams *rp,
     const char *         mp,
-    struct kvdb_health  *health,
+    struct kvdb_health * health,
     struct csched_ops ** handle)
 {
     merr_t err;

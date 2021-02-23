@@ -92,7 +92,7 @@ extract_kv_to_files(struct hse_kvs *kvs, int file_cnt, char **files)
         do {
             hse_kvs_cursor_read(cur, NULL, &key, &klen, &val, &vlen, &eof);
             if (!eof)
-              data_found = true;
+                data_found = true;
 
             if (eof)
                 break;
@@ -106,7 +106,7 @@ extract_kv_to_files(struct hse_kvs *kvs, int file_cnt, char **files)
         close(fd);
 
         if (!data_found)
-          err_print("No chunk keys found for file '%s'", files[i]);
+            err_print("No chunk keys found for file '%s'", files[i]);
     }
 
     return 0;

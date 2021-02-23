@@ -17,7 +17,7 @@ static inline void *
 bn_node_alloc_impl(struct bonsai_root *tree)
 {
     struct bonsai_client *client;
-    void *mem;
+    void *                mem;
 
     client = &tree->br_client;
 
@@ -75,7 +75,7 @@ bn_kv_init(
 {
     struct bonsai_val *v;
     struct bonsai_kv * kv;
-    size_t sz;
+    size_t             sz;
 
     sz = sizeof(*kv) + key_imm_klen(key_imm);
 

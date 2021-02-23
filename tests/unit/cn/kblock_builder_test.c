@@ -56,7 +56,7 @@ void *key_buf;
 void *kmd_buf;
 int   salt;
 
-#define BIG_KLEN 1000
+#define BIG_KLEN   1000
 #define BIG_KMDLEN 100000
 
 #define WORK_BUF_SIZE (100 * 1024)

@@ -12,19 +12,19 @@
 
 struct viewset;
 
-merr_t viewset_create(struct viewset **handle, atomic64_t *kvdb_seqno_addr);
-
-void viewset_destroy(struct viewset *handle);
-
-merr_t viewset_insert(struct viewset *handle, u64 *viewp, void **cookiep);
+merr_t
+viewset_create(struct viewset **handle, atomic64_t *kvdb_seqno_addr);
 
 void
-viewset_remove(
-    struct viewset *handle,
-    void           *cookie,
-    u32            *min_changed,
-    u64            *min_view_sn);
+viewset_destroy(struct viewset *handle);
 
-u64 viewset_horizon(struct viewset *handle);
+merr_t
+viewset_insert(struct viewset *handle, u64 *viewp, void **cookiep);
+
+void
+viewset_remove(struct viewset *handle, void *cookie, u32 *min_changed, u64 *min_view_sn);
+
+u64
+viewset_horizon(struct viewset *handle);
 
 #endif

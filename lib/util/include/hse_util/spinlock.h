@@ -18,7 +18,7 @@ typedef struct {
  * pthread_spinlock_t, but the GNU C Library implemenation of pthreads
  * uses a value of 1 for the unlocked state.
  */
-#define DEFINE_SPINLOCK(xx) spinlock_t xx = {.lock = 1 }
+#define DEFINE_SPINLOCK(xx) spinlock_t xx = { .lock = 1 }
 
 static inline void
 spin_lock_init(spinlock_t *lock)

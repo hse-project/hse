@@ -25,10 +25,10 @@ enum cn_mutation {
 };
 
 /* flags for cn_mb_est_alen() */
-#define CN_MB_EST_FLAGS_NONE (0)
+#define CN_MB_EST_FLAGS_NONE     (0)
 #define CN_MB_EST_FLAGS_PREALLOC (1u << 0) /* preallocate w/ max_captgt */
 #define CN_MB_EST_FLAGS_TRUNCATE (1u << 1) /* truncation enabled */
-#define CN_MB_EST_FLAGS_POW2 (1u << 2)     /* round mblk sz to power of 2 */
+#define CN_MB_EST_FLAGS_POW2     (1u << 2) /* round mblk sz to power of 2 */
 
 /* MTF_MOCK */
 size_t

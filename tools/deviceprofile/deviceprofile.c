@@ -27,7 +27,7 @@ struct deviceprofile_calibrate;
 
 struct deviceprofile_calibrate_work {
     struct work_struct                  dp_work;
-    hse_err_t                              dp_err;
+    hse_err_t                           dp_err;
     int                                 dp_tid;
     struct deviceprofile_calibrate *    dp_calibrate;
     struct deviceprofile_calibrate_elem dp_elem;
@@ -55,7 +55,7 @@ deviceprofile_calibrate_worker(struct work_struct *arg)
     u64                                  handle, samplesize;
     u64                                  blocksize, mblksize;
     u64                                  ops = 0, ns1, ns2;
-    hse_err_t                               err = 0, err2;
+    hse_err_t                            err = 0, err2;
     struct iovec                         iov;
     void *                               buf;
     int                                  i;
@@ -70,8 +70,11 @@ deviceprofile_calibrate_worker(struct work_struct *arg)
 
     /* enforce that samplesize == k*mblksize for some positive integer k */
     if ((samplesize % mblksize) != 0) {
-        fprintf(stderr, "sample size (%ld) must be a multiple of mblock size (%ld)\n",
-                samplesize, mblksize);
+        fprintf(
+            stderr,
+            "sample size (%ld) must be a multiple of mblock size (%ld)\n",
+            samplesize,
+            mblksize);
         return;
     }
 
@@ -97,8 +100,10 @@ deviceprofile_calibrate_worker(struct work_struct *arg)
         err = mpool_mblock_alloc(
             work->dp_calibrate->dp_ds, work->dp_calibrate->dp_mclass, false, &handle, &mbprop);
         if (err) {
-            fprintf(stderr, "mpool_mblock_alloc() failed: %s\n",
-                    mpool_strerror(err, errbuf, sizeof(errbuf)));
+            fprintf(
+                stderr,
+                "mpool_mblock_alloc() failed: %s\n",
+                mpool_strerror(err, errbuf, sizeof(errbuf)));
             work->dp_err = err;
             break;
         }
@@ -111,8 +116,10 @@ deviceprofile_calibrate_worker(struct work_struct *arg)
 
             err = mpool_mblock_write(work->dp_calibrate->dp_ds, handle, &iov, 1);
             if (err) {
-                fprintf(stderr, "mpool_mblock_write() failed: %s\n",
-                        mpool_strerror(err, errbuf, sizeof(errbuf)));
+                fprintf(
+                    stderr,
+                    "mpool_mblock_write() failed: %s\n",
+                    mpool_strerror(err, errbuf, sizeof(errbuf)));
                 work->dp_err = err;
                 break;
             }
@@ -121,15 +128,17 @@ deviceprofile_calibrate_worker(struct work_struct *arg)
             ops++;
             hdr_record_value(work->dp_elem.dp_histogram, ns2);
             if (ns2 < work->dp_min)
-              work->dp_min = ns2;
+                work->dp_min = ns2;
             if (ns2 > work->dp_max)
-              work->dp_max = ns2;
+                work->dp_max = ns2;
         }
 
         err2 = mpool_mblock_abort(work->dp_calibrate->dp_ds, handle);
         if (err2) {
-            fprintf(stderr, "mpool_mblock_write() failed: %s\n",
-                    mpool_strerror(err2, errbuf, sizeof(errbuf)));
+            fprintf(
+                stderr,
+                "mpool_mblock_write() failed: %s\n",
+                mpool_strerror(err2, errbuf, sizeof(errbuf)));
             work->dp_err = (err == 0) ? err2 : err;
             break;
         }
@@ -198,23 +207,23 @@ deviceprofile_calibrate_sample(
     for (i = 0; i < deviceprofile->dp_threads; i++)
         hdr_add(histogram, deviceprofile->dp_elem_work[i].dp_elem.dp_histogram);
 
-    write->dp_latmin      = hdr_mean(histogram);
-    write->dp_latmax      = hdr_max(histogram);
-    write->dp_latmean     = hdr_mean(histogram);
-    write->dp_latsigma    = hdr_stddev(histogram);
-    write->dp_lat90pctle  = hdr_value_at_percentile(histogram, 90.0);
-    write->dp_lat95pctle  = hdr_value_at_percentile(histogram, 95.0);
-    write->dp_lat99pctle  = hdr_value_at_percentile(histogram, 99.0);
+    write->dp_latmin = hdr_mean(histogram);
+    write->dp_latmax = hdr_max(histogram);
+    write->dp_latmean = hdr_mean(histogram);
+    write->dp_latsigma = hdr_stddev(histogram);
+    write->dp_lat90pctle = hdr_value_at_percentile(histogram, 90.0);
+    write->dp_lat95pctle = hdr_value_at_percentile(histogram, 95.0);
+    write->dp_lat99pctle = hdr_value_at_percentile(histogram, 99.0);
     write->dp_lat999pctle = hdr_value_at_percentile(histogram, 99.9);
 
     write->dp_trulatmin = 0xffffffffffffffffUL;
     write->dp_trulatmax = 0x0UL;
     for (i = 0; i < deviceprofile->dp_threads; i++) {
         if (deviceprofile->dp_elem_work[i].dp_min < write->dp_trulatmin)
-          write->dp_trulatmin = deviceprofile->dp_elem_work[i].dp_min;
+            write->dp_trulatmin = deviceprofile->dp_elem_work[i].dp_min;
 
         if (deviceprofile->dp_elem_work[i].dp_max > write->dp_trulatmax)
-          write->dp_trulatmax = deviceprofile->dp_elem_work[i].dp_max;
+            write->dp_trulatmax = deviceprofile->dp_elem_work[i].dp_max;
     }
 
     memset(read, 0, sizeof(*read));

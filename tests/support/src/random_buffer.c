@@ -11,11 +11,11 @@
 void
 randomize_buffer(void *buf, size_t len, unsigned int seed)
 {
-    unsigned int *  tmp = (unsigned int *)buf;
-    u_int           last;
-    long int        remain = len;
-    int             i;
-    struct xrand xr;
+    unsigned int *tmp = (unsigned int *)buf;
+    u_int         last;
+    long int      remain = len;
+    int           i;
+    struct xrand  xr;
 
     if (len == 0)
         return;
@@ -34,13 +34,13 @@ randomize_buffer(void *buf, size_t len, unsigned int seed)
 int
 validate_random_buffer(void *buf, size_t len, unsigned int seed)
 {
-    unsigned int *  tmp = (unsigned int *)buf;
-    unsigned int    val;
-    char *          expect = (char *)&val;
-    char *          found;
-    long int        remain = len;
-    int             i;
-    struct xrand xr;
+    unsigned int *tmp = (unsigned int *)buf;
+    unsigned int  val;
+    char *        expect = (char *)&val;
+    char *        found;
+    long int      remain = len;
+    int           i;
+    struct xrand  xr;
 
     if (len == 0)
         return -1; /* success... */

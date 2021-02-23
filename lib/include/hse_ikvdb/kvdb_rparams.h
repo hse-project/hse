@@ -99,10 +99,10 @@ struct kvdb_rparams {
     unsigned int  c0_ingest_threads;
     unsigned int  c0_mutex_pool_sz;
 
-    unsigned int  keylock_entries;
-    unsigned int  keylock_tables;
-    unsigned int  low_mem;
-    unsigned int  excl;
+    unsigned int keylock_entries;
+    unsigned int keylock_tables;
+    unsigned int low_mem;
+    unsigned int excl;
 
     unsigned int rpmagic;
 };

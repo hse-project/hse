@@ -17,10 +17,10 @@
 #include <hse_ikvdb/cn_tree_view.h>
 #include <hse_ikvdb/ikvdb.h>
 
-#define MP "kvdb_rest_mp"
+#define MP   "kvdb_rest_mp"
 #define SOCK "/tmp/" MP ".rest"
 
-#define KVS "kvdb_rest_kvs"
+#define KVS  "kvdb_rest_kvs"
 #define KVS1 KVS "1"
 #define KVS2 KVS "2"
 #define KVS3 KVS "3"

@@ -92,9 +92,9 @@ struct ikvdb {
 /* Simple fixed-size stack for caching ctxn objects.
  */
 struct kvdb_ctxn_bkt {
-    spinlock_t        kcb_lock HSE_ALIGNED(SMP_CACHE_BYTES * 2);
-    uint              kcb_ctxnc;
-    struct kvdb_ctxn *kcb_ctxnv[15];
+    spinlock_t kcb_lock HSE_ALIGNED(SMP_CACHE_BYTES * 2);
+    uint                kcb_ctxnc;
+    struct kvdb_ctxn *  kcb_ctxnv[15];
 };
 
 /**
@@ -155,26 +155,26 @@ struct ikvdb_impl {
     struct kvdb_log *        ikdb_log;
     struct cndb *            ikdb_cndb;
     struct workqueue_struct *ikdb_workqueue;
-    struct viewset          *ikdb_txn_viewset;
-    struct viewset          *ikdb_cur_viewset;
+    struct viewset *         ikdb_txn_viewset;
+    struct viewset *         ikdb_cur_viewset;
 
     struct tbkt ikdb_tb HSE_ALIGNED(SMP_CACHE_BYTES * 2);
 
     u64 ikdb_tb_burst;
     u64 ikdb_tb_rate;
 
-    u64          ikdb_tb_dbg;
-    u64          ikdb_tb_dbg_next;
-    atomic64_t   ikdb_tb_dbg_ops;
-    atomic64_t   ikdb_tb_dbg_bytes;
-    atomic64_t   ikdb_tb_dbg_sleep_ns;
+    u64        ikdb_tb_dbg;
+    u64        ikdb_tb_dbg_next;
+    atomic64_t ikdb_tb_dbg_ops;
+    atomic64_t ikdb_tb_dbg_bytes;
+    atomic64_t ikdb_tb_dbg_sleep_ns;
 
     atomic_t ikdb_curcnt HSE_ALIGNED(SMP_CACHE_BYTES * 2);
-    u32      ikdb_curcnt_max;
+    u32                  ikdb_curcnt_max;
 
-    atomic64_t           ikdb_seqno HSE_ALIGNED(SMP_CACHE_BYTES * 2);
-    struct kvdb_rparams  ikdb_rp HSE_ALIGNED(SMP_CACHE_BYTES * 2);
-    struct kvdb_ctxn_bkt ikdb_ctxn_cache[KVDB_CTXN_BKT_MAX];
+    atomic64_t ikdb_seqno       HSE_ALIGNED(SMP_CACHE_BYTES * 2);
+    struct kvdb_rparams ikdb_rp HSE_ALIGNED(SMP_CACHE_BYTES * 2);
+    struct kvdb_ctxn_bkt        ikdb_ctxn_cache[KVDB_CTXN_BKT_MAX];
 
     /* Put the mostly cold data at end of the structure to improve
      * the density of the hotter data.
@@ -303,13 +303,8 @@ out:
     return err;
 }
 
-static inline
-void
-ikvdb_tb_configure(
-    struct ikvdb_impl  *self,
-    u64                 burst,
-    u64                 rate,
-    bool                initialize)
+static inline void
+ikvdb_tb_configure(struct ikvdb_impl *self, u64 burst, u64 rate, bool initialize)
 {
     if (initialize)
         tbkt_init(&self->ikdb_tb, burst, rate);
@@ -317,8 +312,7 @@ ikvdb_tb_configure(
         tbkt_adjust(&self->ikdb_tb, burst, rate);
 }
 
-static
-void
+static void
 ikvdb_rate_limit_set(struct ikvdb_impl *self, u64 rate)
 {
     u64 burst = rate / 2;
@@ -329,7 +323,7 @@ ikvdb_rate_limit_set(struct ikvdb_impl *self, u64 rate)
     /* debug: manual control: get burst and rate from rparams  */
     if (HSE_UNLIKELY(self->ikdb_tb_dbg & THROTTLE_DEBUG_TB_MANUAL)) {
         burst = self->ikdb_rp.throttle_burst;
-        rate  = self->ikdb_rp.throttle_rate;
+        rate = self->ikdb_rp.throttle_rate;
     }
 
     if (burst != self->ikdb_tb_burst || rate != self->ikdb_tb_rate) {
@@ -345,17 +339,18 @@ ikvdb_rate_limit_set(struct ikvdb_impl *self, u64 rate)
         if (now > self->ikdb_tb_dbg_next) {
 
             /* periodic debug output */
-            long dbg_ops      = atomic64_read(&self->ikdb_tb_dbg_ops);
-            long dbg_bytes    = atomic64_read(&self->ikdb_tb_dbg_bytes);
+            long dbg_ops = atomic64_read(&self->ikdb_tb_dbg_ops);
+            long dbg_bytes = atomic64_read(&self->ikdb_tb_dbg_bytes);
             long dbg_sleep_ns = atomic64_read(&self->ikdb_tb_dbg_sleep_ns);
 
             hse_log(
-                HSE_NOTICE
-                " tbkt_debug: manual %d shunt %d ops %8ld  bytes %10ld"
-                " sleep_ns %12ld burst %10lu rate %10lu raw %10lu",
+                HSE_NOTICE " tbkt_debug: manual %d shunt %d ops %8ld  bytes %10ld"
+                           " sleep_ns %12ld burst %10lu rate %10lu raw %10lu",
                 (bool)(self->ikdb_tb_dbg & THROTTLE_DEBUG_TB_MANUAL),
                 (bool)(self->ikdb_tb_dbg & THROTTLE_DEBUG_TB_SHUNT),
-                dbg_ops, dbg_bytes, dbg_sleep_ns,
+                dbg_ops,
+                dbg_bytes,
+                dbg_sleep_ns,
                 self->ikdb_tb_burst,
                 self->ikdb_tb_rate,
                 throttle_delay(&self->ikdb_throttle));
@@ -383,7 +378,7 @@ ikvdb_throttle_task(struct work_struct *work)
 
         if (tstart > throttle_update_prev + self->ikdb_rp.throttle_update_ns) {
 
-            uint raw  = throttle_update(&self->ikdb_throttle);
+            uint raw = throttle_update(&self->ikdb_throttle);
             u64  rate = throttle_raw_to_rate(raw);
 
             ikvdb_rate_limit_set(self, rate);
@@ -404,14 +399,14 @@ static void
 ikvdb_maint_task(struct work_struct *work)
 {
     struct ikvdb_impl *self;
-    u64 maxdelay;
+    u64                maxdelay;
 
     self = container_of(work, struct ikvdb_impl, ikdb_maint_work);
 
     maxdelay = 10000; /* 10ms initial delay time */
 
     while (!self->ikdb_work_stop) {
-        u64 tstart = get_time_ns();
+        u64  tstart = get_time_ns();
         uint i;
 
         /* [HSE_REVISIT] move from big lock to using refcnts for
@@ -588,11 +583,7 @@ ikvdb_diag_open(
     u64 c1_oid1, c1_oid2; // Remove me...
 
     err = kvdb_log_replay(
-        self->ikdb_log,
-        &self->ikdb_cndb_oid1,
-        &self->ikdb_cndb_oid2,
-        &c1_oid1,
-        &c1_oid2);
+        self->ikdb_log, &self->ikdb_cndb_oid1, &self->ikdb_cndb_oid2, &c1_oid1, &c1_oid2);
     if (ev(err))
         goto err_exit3;
 
@@ -926,7 +917,7 @@ ikvdb_open(
     throttle_init_params(&self->ikdb_throttle, &self->ikdb_rp);
 
     self->ikdb_tb_burst = self->ikdb_rp.throttle_burst;
-    self->ikdb_tb_rate  = self->ikdb_rp.throttle_rate;
+    self->ikdb_tb_rate = self->ikdb_rp.throttle_rate;
 
     ikvdb_tb_configure(self, self->ikdb_tb_burst, self->ikdb_tb_rate, true);
 
@@ -977,11 +968,7 @@ ikvdb_open(
     u64 c1_oid1, c1_oid2; // Remove me ...
 
     err = kvdb_log_replay(
-        self->ikdb_log,
-        &self->ikdb_cndb_oid1,
-        &self->ikdb_cndb_oid2,
-        &c1_oid1,
-        &c1_oid2);
+        self->ikdb_log, &self->ikdb_cndb_oid1, &self->ikdb_cndb_oid2, &c1_oid1, &c1_oid2);
     if (err) {
         hse_elog(HSE_ERR "cannot open %s: @@e", err, mp_name);
         goto err1;
@@ -1617,8 +1604,7 @@ ikvdb_close(struct ikvdb *handle)
     return ret;
 }
 
-static
-void
+static void
 ikvdb_throttle(struct ikvdb_impl *self, u64 bytes)
 {
     u64 sleep_ns;
@@ -1913,8 +1899,7 @@ cursor_view_acquire(struct hse_kvs_cursor *cursor)
     if (cursor->kc_seq != HSE_SQNREF_UNDEFINED)
         return 0;
 
-    err = viewset_insert(cursor->kc_kvs->kk_viewset, &cursor->kc_seq,
-                         &cursor->kc_viewcookie);
+    err = viewset_insert(cursor->kc_kvs->kk_viewset, &cursor->kc_seq, &cursor->kc_viewcookie);
     if (!err)
         cursor->kc_on_list = true;
 
@@ -2418,7 +2403,7 @@ ikvdb_horizon(struct ikvdb *handle)
 
     horizon = min_t(u64, b, c);
 
-    if (HSE_UNLIKELY( perfc_ison(&kvdb_metrics_pc, PERFC_BA_KVDBMETRICS_SEQNO) )) {
+    if (HSE_UNLIKELY(perfc_ison(&kvdb_metrics_pc, PERFC_BA_KVDBMETRICS_SEQNO))) {
         u64 a;
 
         /* Must read a after b and c to test assertions. */
@@ -2810,7 +2795,7 @@ ikvdb_kvs_import(struct work_struct *work)
  * KVDB_DUMP_CUR_VER - dump version understood by this binary
  * @KVDB_DUMP_VER1:
  */
-#define KVDB_DUMP_VER1 1
+#define KVDB_DUMP_VER1    1
 #define KVDB_DUMP_CUR_VER KVDB_DUMP_VER1
 
 /**

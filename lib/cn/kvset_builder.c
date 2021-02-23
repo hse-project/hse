@@ -69,7 +69,7 @@ err_exit1:
 static int
 reserve_kmd(struct kmd_info *ki)
 {
-    uint initial = 16*1024;
+    uint initial = 16 * 1024;
     uint need = 256;
     uint min_size = ki->kmd_used + need;
     uint new_size;
@@ -167,11 +167,11 @@ kvset_builder_add_key(struct kvset_builder *self, const struct key_obj *kobj)
  */
 merr_t
 kvset_builder_add_val(
-    struct kvset_builder   *self,
-    u64                     seq,
-    const void             *vdata,
-    uint                    vlen,
-    uint                    complen)
+    struct kvset_builder *self,
+    u64                   seq,
+    const void *          vdata,
+    uint                  vlen,
+    uint                  complen)
 {
     merr_t           err;
     u64              seqno_prev;
@@ -198,7 +198,7 @@ kvset_builder_add_val(
     } else {
 
         uint vbidx = 0, vboff = 0;
-        u64 vbid = 0;
+        u64  vbid = 0;
         uint omlen; /* on media length */
 
         assert(vdata);
@@ -251,12 +251,12 @@ kvset_builder_add_val(
  */
 merr_t
 kvset_builder_add_vref(
-    struct kvset_builder   *self,
-    u64                     seq,
-    uint                    vbidx,
-    uint                    vboff,
-    uint                    vlen,
-    uint                    complen)
+    struct kvset_builder *self,
+    u64                   seq,
+    uint                  vbidx,
+    uint                  vboff,
+    uint                  vlen,
+    uint                  complen)
 {
     uint om_len = complen ? complen : vlen; /* on-media length */
 

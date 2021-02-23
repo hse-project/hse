@@ -11,8 +11,8 @@
 #include <stdlib.h>
 #include <pthread.h>
 
-
-int compare_u64(const void *ptr_a, const void *ptr_b)
+int
+compare_u64(const void *ptr_a, const void *ptr_b)
 {
     u64 a = *(u64 *)ptr_a;
     u64 b = *(u64 *)ptr_b;
@@ -31,21 +31,19 @@ int compare_u64(const void *ptr_a, const void *ptr_b)
  * doesn't add much value and will increase the time it takes to run
  * the test.
  */
-#define SEQUENCE_LEN       (10 * 1000)
-#define SEQUENCE_LEN_TLS   (100)
-
-
+#define SEQUENCE_LEN     (10 * 1000)
+#define SEQUENCE_LEN_TLS (100)
 
 MTF_BEGIN_UTEST_COLLECTION(xrand_test);
 
 MTF_DEFINE_UTEST(xrand_test, seed_test)
 {
-    u64 seedv[] = { 0, 1, 2, 1234, (u64)-1234, U64_MAX, (u64)S64_MAX };
+    u64  seedv[] = { 0, 1, 2, 1234, (u64)-1234, U64_MAX, (u64)S64_MAX };
     uint seedc = sizeof(seedv) / sizeof(seedv[0]);
     uint iters = SEQUENCE_LEN;
 
     struct xrand xr1, xr2;
-    u64 v1, v2, s1, s2;
+    u64          v1, v2, s1, s2;
 
     /* Same seed ==> same sequence. */
     for (uint sx = 0; sx < seedc; sx++) {
@@ -92,7 +90,7 @@ MTF_DEFINE_UTEST(xrand_test, seed_test)
  */
 MTF_DEFINE_UTEST(xrand_test, norepeat)
 {
-    u64 seedv[] = { 0, 1234 };
+    u64  seedv[] = { 0, 1234 };
     uint seedc = sizeof(seedv) / sizeof(seedv[0]);
     uint iters = SEQUENCE_LEN;
     u64 *values;
@@ -119,10 +117,10 @@ MTF_DEFINE_UTEST(xrand_test, norepeat)
                 printf("> rv  0x%016lx\n", (ulong)values[i]);
             else if (i == 5)
                 printf("> rv  ...\n");
-            else if (i > iters-5)
-                printf("> rv  0x%016lx\n", (ulong)values[i+1]);
+            else if (i > iters - 5)
+                printf("> rv  0x%016lx\n", (ulong)values[i + 1]);
 
-            ASSERT_NE(values[i], values[i+1]);
+            ASSERT_NE(values[i], values[i + 1]);
         }
     }
 
@@ -156,18 +154,18 @@ MTF_DEFINE_UTEST(xrand_test, tls_norepeat)
             printf("> rv  0x%016lx\n", (ulong)values[i]);
         else if (i == 5)
             printf("> rv  ...\n");
-        else if (i > iters-5)
-            printf("> rv  0x%016lx\n", (ulong)values[i+1]);
+        else if (i > iters - 5)
+            printf("> rv  0x%016lx\n", (ulong)values[i + 1]);
 
-        ASSERT_NE(values[i], values[i+1]);
+        ASSERT_NE(values[i], values[i + 1]);
     }
 
     mapi_safe_free(values);
 }
 
 struct tinfo {
-    pthread_t   tid;
-    u64         values[SEQUENCE_LEN_TLS];
+    pthread_t tid;
+    u64       values[SEQUENCE_LEN_TLS];
 };
 
 void *
@@ -189,10 +187,10 @@ generate(void *rock)
  */
 MTF_DEFINE_UTEST(xrand_test, tls_correctness)
 {
-    const uint threads = 3;
+    const uint   threads = 3;
     struct tinfo tinfo[threads];
-    const uint nvals = NELEM(tinfo[0].values);
-    int rc;
+    const uint   nvals = NELEM(tinfo[0].values);
+    int          rc;
 
     for (uint tx = 0; tx < threads; tx++) {
         rc = pthread_create(&tinfo[tx].tid, NULL, generate, &tinfo[tx]);
@@ -205,7 +203,7 @@ MTF_DEFINE_UTEST(xrand_test, tls_correctness)
     }
 
     for (uint i = 0; i < nvals; i++) {
-        printf("rv %d: 0x%016lx",i,tinfo[0].values[i]);
+        printf("rv %d: 0x%016lx", i, tinfo[0].values[i]);
         for (uint tx = 1; tx < threads; tx++) {
             printf("  0x%016lx", tinfo[tx].values[i]);
             ASSERT_NE(tinfo[0].values[i], tinfo[tx].values[i]);
@@ -213,6 +211,5 @@ MTF_DEFINE_UTEST(xrand_test, tls_correctness)
         printf("\n");
     }
 }
-
 
 MTF_END_UTEST_COLLECTION(xrand_test)

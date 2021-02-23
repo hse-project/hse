@@ -45,7 +45,7 @@ csched_create(
     struct mpool *       ds,
     struct kvdb_rparams *rp,
     const char *         mp_name,
-    struct kvdb_health  *health,
+    struct kvdb_health * health,
     struct csched **     csched);
 
 /* MTF_MOCK */

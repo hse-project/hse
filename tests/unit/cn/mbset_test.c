@@ -17,11 +17,11 @@
 
 #define mock_alloc_cap (4 * 1024 * 1024)
 #define mock_write_len (mock_alloc_cap - 128 * 1024)
-#define MBLOCKS_MAX ((1UL << 30) / (32 << 20))
+#define MBLOCKS_MAX    ((1UL << 30) / (32 << 20))
 
 #define MILLION ((u64)1000000)
 
-#define id2bnum(id) ((id)-100 * MILLION)
+#define id2bnum(id)   ((id)-100 * MILLION)
 #define bnum2id(bnum) ((bnum) + 100 * MILLION)
 
 #define id2map(id) ((id) + 3 * MILLION)

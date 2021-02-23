@@ -79,11 +79,28 @@ MTF_DEFINE_UTEST(key_util_test, check_key_immediate_index)
     }
 }
 
-u16 index0_array[] = {
-    0, 1, 2, 3, 7, 8, 9, 12, 15, 16, 17, 31, 32, 33, 63, 64, 65,
-    HSE_KVS_COUNT_MAX / 2 - 1, HSE_KVS_COUNT_MAX / 2, HSE_KVS_COUNT_MAX / 2 + 1,
-    HSE_KVS_COUNT_MAX - 2, HSE_KVS_COUNT_MAX - 1
-};
+u16 index0_array[] = { 0,
+                       1,
+                       2,
+                       3,
+                       7,
+                       8,
+                       9,
+                       12,
+                       15,
+                       16,
+                       17,
+                       31,
+                       32,
+                       33,
+                       63,
+                       64,
+                       65,
+                       HSE_KVS_COUNT_MAX / 2 - 1,
+                       HSE_KVS_COUNT_MAX / 2,
+                       HSE_KVS_COUNT_MAX / 2 + 1,
+                       HSE_KVS_COUNT_MAX - 2,
+                       HSE_KVS_COUNT_MAX - 1 };
 
 MTF_DEFINE_IVALUES(idx0, NELEM(index0_array), index0_array)
 MTF_DEFINE_IRANGE(idx1, 0, HSE_KVS_COUNT_MAX)
@@ -107,14 +124,12 @@ MTF_DEFINE_UTEST_CP2(
     int                  res;
 
     if (idx0 >= HSE_KVS_COUNT_MAX) {
-        printf("%s: idx0 %u >= HSE_KVS_COUNT_MAX %u\n",
-               __func__, idx0, HSE_KVS_COUNT_MAX);
+        printf("%s: idx0 %u >= HSE_KVS_COUNT_MAX %u\n", __func__, idx0, HSE_KVS_COUNT_MAX);
         ASSERT_LT(idx0, HSE_KVS_COUNT_MAX);
     }
 
     if (idx1 >= HSE_KVS_COUNT_MAX) {
-        printf("%s: idx1 %u >= HSE_KVS_COUNT_MAX %u\n",
-               __func__, idx1, HSE_KVS_COUNT_MAX);
+        printf("%s: idx1 %u >= HSE_KVS_COUNT_MAX %u\n", __func__, idx1, HSE_KVS_COUNT_MAX);
         ASSERT_LT(idx1, HSE_KVS_COUNT_MAX);
     }
 
@@ -142,8 +157,8 @@ MTF_DEFINE_UTEST_CP2(
     idx2)
 {
     static __thread bool inited;
-    u8 key[KI_DLEN_MAX + 7];
-    size_t klen;
+    u8                   key[KI_DLEN_MAX + 7];
+    size_t               klen;
     struct key_immediate im0, im1;
     int                  res;
 
@@ -153,14 +168,12 @@ MTF_DEFINE_UTEST_CP2(
     }
 
     if (idx0 >= HSE_KVS_COUNT_MAX) {
-        printf("%s: idx0 %u >= HSE_KVS_COUNT_MAX %u\n",
-               __func__, idx0, HSE_KVS_COUNT_MAX);
+        printf("%s: idx0 %u >= HSE_KVS_COUNT_MAX %u\n", __func__, idx0, HSE_KVS_COUNT_MAX);
         ASSERT_LT(idx0, HSE_KVS_COUNT_MAX);
     }
 
     if (idx2 >= HSE_KVS_COUNT_MAX) {
-        printf("%s: idx2 %u >= HSE_KVS_COUNT_MAX %u\n",
-               __func__, idx2, HSE_KVS_COUNT_MAX);
+        printf("%s: idx2 %u >= HSE_KVS_COUNT_MAX %u\n", __func__, idx2, HSE_KVS_COUNT_MAX);
         ASSERT_LT(idx2, HSE_KVS_COUNT_MAX);
     }
 
@@ -210,14 +223,12 @@ MTF_DEFINE_UTEST_CP2(key_util_test, vary_index3, MTF_ST_IRANGE, u16, idx1, MTF_S
     int                  res;
 
     if (idx1 >= HSE_KVS_COUNT_MAX) {
-        printf("%s: idx1 %u >= HSE_KVS_COUNT_MAX %u\n",
-               __func__, idx1, HSE_KVS_COUNT_MAX);
+        printf("%s: idx1 %u >= HSE_KVS_COUNT_MAX %u\n", __func__, idx1, HSE_KVS_COUNT_MAX);
         ASSERT_LT(idx1, HSE_KVS_COUNT_MAX);
     }
 
     if (idx2 >= HSE_KVS_COUNT_MAX) {
-        printf("%s: idx2 %u >= HSE_KVS_COUNT_MAX %u\n",
-               __func__, idx2, HSE_KVS_COUNT_MAX);
+        printf("%s: idx2 %u >= HSE_KVS_COUNT_MAX %u\n", __func__, idx2, HSE_KVS_COUNT_MAX);
         ASSERT_LT(idx2, HSE_KVS_COUNT_MAX);
     }
 

@@ -391,8 +391,8 @@ static void
 test_init(struct test *t, struct test_params *params, struct mtf_test_info *lcl_ti)
 {
     struct xrand xr;
-    u64             i, j, tmp;
-    merr_t          err;
+    u64          i, j, tmp;
+    merr_t       err;
 
     memset(t, 0, sizeof(*t));
     t->p = *params;
@@ -435,7 +435,8 @@ test_fini(struct test *t)
     MTF_DEFINE_UTEST(bin_heap_test, NAME##_##N1##V1##_##N2##V2)                    \
     {                                                                              \
         struct test_params tp = {                                                  \
-            .N1 = V1, .N2 = V2,                                                    \
+            .N1 = V1,                                                              \
+            .N2 = V2,                                                              \
         };                                                                         \
         struct test test;                                                          \
                                                                                    \

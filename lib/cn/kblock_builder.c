@@ -38,7 +38,7 @@
 extern struct tbkt sp3_tbkt;
 
 #define KBLOCK_HDR_PAGES 1
-#define KBLOCK_HDR_LEN ((KBLOCK_HDR_PAGES) * (PAGE_SIZE))
+#define KBLOCK_HDR_LEN   ((KBLOCK_HDR_PAGES) * (PAGE_SIZE))
 
 #define HSP_HASH_MAX_KEYS (16 * 1024)
 
@@ -652,7 +652,7 @@ _kblock_finish_bloom(struct curr_kblock *kblk, struct bloom_hdr_omf *blm_hdr)
 static void
 _kblock_make_header(
     struct curr_kblock *   kblk,
-    struct wbb         *   ptree,
+    struct wbb *           ptree,
     struct wbt_hdr_omf *   wbt_hdr,
     struct wbt_hdr_omf *   pt_hdr,
     uint                   pt_pgc,
@@ -666,9 +666,9 @@ _kblock_make_header(
     unsigned        off;
     const unsigned  align = 7;
 
-    struct key_obj  tmp_kobj;
-    unsigned char   tmp_kobj_buf[HSE_KVS_KLEN_MAX];
-    unsigned int    tmp_kobj_bufsz = sizeof(tmp_kobj_buf);
+    struct key_obj tmp_kobj;
+    unsigned char  tmp_kobj_buf[HSE_KVS_KLEN_MAX];
+    unsigned int   tmp_kobj_bufsz = sizeof(tmp_kobj_buf);
 
     assert(kblk->num_keys > 0);
 
@@ -712,15 +712,15 @@ _kblock_make_header(
     wbb_min_max_keys(kblk->wbtree, &min_kobj, &max_kobj);
     if (ptree) {
         struct key_obj *pt_min, *pt_max;
-        uint minklen, maxklen;
-        uint minptlen, maxptlen;
-        int rc;
-        bool pad_and_copy = false;
+        uint            minklen, maxklen;
+        uint            minptlen, maxptlen;
+        int             rc;
+        bool            pad_and_copy = false;
 
         wbb_min_max_keys(ptree, &pt_min, &pt_max);
 
-        minklen  = key_obj_len(min_kobj);
-        maxklen  = key_obj_len(max_kobj);
+        minklen = key_obj_len(min_kobj);
+        maxklen = key_obj_len(max_kobj);
         minptlen = key_obj_len(pt_min);
         maxptlen = key_obj_len(pt_max);
 
@@ -932,7 +932,15 @@ kblock_finish(struct kblock_builder *bld, struct wbb *ptree)
     /* Format kblock header. */
     kblk->num_keys += ptree ? wbb_entries(ptree) : 0;
     _kblock_make_header(
-        kblk, ptree, &wbt_hdr, &pt_hdr, pt_pgc, &blm_hdr, bld->seqno_min, bld->seqno_max, kblk->kblk_hdr);
+        kblk,
+        ptree,
+        &wbt_hdr,
+        &pt_hdr,
+        pt_pgc,
+        &blm_hdr,
+        bld->seqno_min,
+        bld->seqno_max,
+        kblk->kblk_hdr);
 
     assert(iov_cnt <= iov_max);
 

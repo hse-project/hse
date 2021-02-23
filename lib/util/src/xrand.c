@@ -8,9 +8,8 @@
 #include <hse_util/compiler.h>
 #include <hse_util/arch.h>
 
-__thread struct xrand    xrand_tls;
-__thread u64             xrand_tls_seed;
-
+__thread struct xrand xrand_tls;
+__thread u64          xrand_tls_seed;
 
 void
 xrand_init(struct xrand *xr, u64 seed)

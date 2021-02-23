@@ -27,7 +27,7 @@
 #include "kvdb_keylock.h"
 
 #define KVDB_DLOCK_MAX 4 /* Must be power-of-2 */
-#define KVDB_LOCKS_SZ (16 * 1024 - SMP_CACHE_BYTES)
+#define KVDB_LOCKS_SZ  (16 * 1024 - SMP_CACHE_BYTES)
 
 struct kvdb_keylock {
 };
@@ -41,9 +41,9 @@ struct kvdb_keylock {
  * @kd_mvs:     most recently expired minimum view seqno
  */
 struct kvdb_dlock {
-    struct mutex     kd_lock HSE_ALIGNED(SMP_CACHE_BYTES * 2);
-    struct list_head kd_list;
-    volatile u64     kd_mvs;
+    struct mutex kd_lock HSE_ALIGNED(SMP_CACHE_BYTES * 2);
+    struct list_head     kd_list;
+    volatile u64         kd_mvs;
 };
 
 /**

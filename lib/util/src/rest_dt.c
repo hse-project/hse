@@ -26,7 +26,7 @@ rest_dt_put(
     struct dt_tree *            tree;
     struct dt_set_parameters    dsp;
     struct dt_element *         dte;
-    union dt_iterate_parameters dip = {.dsp = &dsp };
+    union dt_iterate_parameters dip = { .dsp = &dsp };
     struct rest_kv *            kv;
     struct yaml_context         yc = { 0 };
     char                        buf[1024 * 1024];
@@ -112,7 +112,7 @@ rest_dt_get(
     size_t                      bufsz;
     char *                      buf;
     struct yaml_context         yc = { 0 };
-    union dt_iterate_parameters dip = {.yc = &yc };
+    union dt_iterate_parameters dip = { .yc = &yc };
 
     switch (rest_kv_count(iter)) {
         case 0:

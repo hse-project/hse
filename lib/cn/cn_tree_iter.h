@@ -35,7 +35,7 @@ struct tree_iter {
 /* TOPDOWN:  Pre-order traversal, visit parents before children.
  * BOTTOMUP: Post-order traversal, visit children before parents.
  */
-#define TRAVERSE_TOPDOWN 0
+#define TRAVERSE_TOPDOWN  0
 #define TRAVERSE_BOTTOMUP 1
 
 void

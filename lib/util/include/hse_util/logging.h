@@ -44,14 +44,14 @@ typedef enum {
  *
  */
 
-#define HSE_EMERG HSE_EMERG_VAL, HSE_MARK
-#define HSE_ALERT HSE_ALERT_VAL, HSE_MARK
-#define HSE_CRIT HSE_CRIT_VAL, HSE_MARK
-#define HSE_ERR HSE_ERR_VAL, HSE_MARK
+#define HSE_EMERG   HSE_EMERG_VAL, HSE_MARK
+#define HSE_ALERT   HSE_ALERT_VAL, HSE_MARK
+#define HSE_CRIT    HSE_CRIT_VAL, HSE_MARK
+#define HSE_ERR     HSE_ERR_VAL, HSE_MARK
 #define HSE_WARNING HSE_WARNING_VAL, HSE_MARK
-#define HSE_NOTICE HSE_NOTICE_VAL, HSE_MARK
-#define HSE_INFO HSE_INFO_VAL, HSE_MARK
-#define HSE_DEBUG HSE_DEBUG_VAL, HSE_MARK
+#define HSE_NOTICE  HSE_NOTICE_VAL, HSE_MARK
+#define HSE_INFO    HSE_INFO_VAL, HSE_MARK
+#define HSE_DEBUG   HSE_DEBUG_VAL, HSE_MARK
 
 /*
  * A single log instance can have no more than MAX_HSE_SPECS hse-specific
@@ -118,42 +118,40 @@ _hse_fmt(char *buf, size_t buflen, const char *fmt, ...);
 /* hse_log_pri() is not intended to be used externally, it exists
  * only to decode the priority value from the HSE_* definitions.
  */
-#define hse_log_pri(pri, fmt, async, hse_args, ...)                     \
-    do {                                                                \
-        static struct event_counter _ev = {                             \
-            .ev_odometer = ATOMIC_INIT(0),                              \
-            .ev_trip_odometer = 0,                                      \
-            .ev_log_level = pri,                                        \
-            .ev_flags = EV_FLAGS_HSE_LOG                                \
-        };                                                              \
-        static struct dt_element _dte = {                               \
-            .dte_data = &_ev,                                           \
-            .dte_ops = &event_counter_ops,                              \
-            .dte_type = DT_TYPE_ERROR_COUNTER,                          \
-            .dte_flags = DT_FLAGS_NON_REMOVEABLE,                       \
-            .dte_line = __LINE__,                                       \
-            .dte_file = __FILE__,                                       \
-            .dte_func = __func__,                                       \
-            .dte_comp = COMPNAME,                                       \
-        };                                                              \
-        static volatile u64 mlp_next;                                   \
-                                                                        \
-        event_counter(&_dte, &_ev);                                     \
-        if (HSE_UNLIKELY(_ev.ev_log_level <= hse_logging_control.mlc_cur_pri)) { \
-            u64 mlp_now = get_time_ns();                                \
-                                                                        \
-            if (mlp_now > mlp_next) {                                   \
-                mlp_next = mlp_now + hse_logging_control.mlc_squelch_ns; \
+#define hse_log_pri(pri, fmt, async, hse_args, ...)                                             \
+    do {                                                                                        \
+        static struct event_counter _ev = { .ev_odometer = ATOMIC_INIT(0),                      \
+                                            .ev_trip_odometer = 0,                              \
+                                            .ev_log_level = pri,                                \
+                                            .ev_flags = EV_FLAGS_HSE_LOG };                     \
+        static struct dt_element    _dte = {                                                    \
+            .dte_data = &_ev,                                                                \
+            .dte_ops = &event_counter_ops,                                                   \
+            .dte_type = DT_TYPE_ERROR_COUNTER,                                               \
+            .dte_flags = DT_FLAGS_NON_REMOVEABLE,                                            \
+            .dte_line = __LINE__,                                                            \
+            .dte_file = __FILE__,                                                            \
+            .dte_func = __func__,                                                            \
+            .dte_comp = COMPNAME,                                                            \
+        };                                                                                      \
+        static volatile u64 mlp_next;                                                           \
+                                                                                                \
+        event_counter(&_dte, &_ev);                                                             \
+        if (HSE_UNLIKELY(_ev.ev_log_level <= hse_logging_control.mlc_cur_pri)) {                \
+            u64 mlp_now = get_time_ns();                                                        \
+                                                                                                \
+            if (mlp_now > mlp_next) {                                                           \
+                mlp_next = mlp_now + hse_logging_control.mlc_squelch_ns;                        \
                 _hse_log(__FILE__, __LINE__, (pri), (fmt), (async), (hse_args), ##__VA_ARGS__); \
-            }                                                           \
-        }                                                               \
+            }                                                                                   \
+        }                                                                                       \
     } while (0)
 
 #else /* NO_ERROR_COUNTER */
 
 #define hse_log_pri(pri, fmt, async, hse_args, ...)                                         \
     do {                                                                                    \
-        if (HSE_UNLIKELY((pri) <= hse_logging_control.mlc_cur_pri))                             \
+        if (HSE_UNLIKELY((pri) <= hse_logging_control.mlc_cur_pri))                         \
             _hse_log(__FILE__, __LINE__, (pri), (fmt), (async), (hse_args), ##__VA_ARGS__); \
     } while (0)
 
@@ -175,7 +173,7 @@ _hse_fmt(char *buf, size_t buflen, const char *fmt, ...);
 #define hse_log_sync(log_fmt, ...) hse_log_pri(log_fmt, false, NULL, ##__VA_ARGS__)
 
 #define hse_openlog(identity, verbose) _hse_openlog((identity), (verbose))
-#define hse_closelog() _hse_closelog()
+#define hse_closelog()                 _hse_closelog()
 
 void
 _hse_log(
@@ -236,10 +234,10 @@ enum slog_token {
     _SLOG_END_TOKEN
 };
 
-#define HSE_SLOG_START(type) NULL, _SLOG_START_TOKEN, "type", "%s", (type)
+#define HSE_SLOG_START(type)      NULL, _SLOG_START_TOKEN, "type", "%s", (type)
 #define HSE_SLOG_CHILD_START(key) _SLOG_CHILD_START_TOKEN, (key)
-#define HSE_SLOG_CHILD_END _SLOG_CHILD_END_TOKEN
-#define HSE_SLOG_END _SLOG_END_TOKEN
+#define HSE_SLOG_CHILD_END        _SLOG_CHILD_END_TOKEN
+#define HSE_SLOG_END              _SLOG_END_TOKEN
 
 #define HSE_SLOG_FIELD(key, fmt, val) hse_slog_validate_field(fmt, val), (key), (fmt), (val)
 
@@ -247,7 +245,7 @@ enum slog_token {
     hse_slog_validate_list(fmt, val[0]), (key), (fmt), (cnt), (val)
 
 #define hse_slog_pri(pri, fmt, ...) hse_slog_internal((pri), __VA_ARGS__)
-#define hse_slog(log_fmt, ...) hse_slog_pri(log_fmt, __VA_ARGS__, NULL)
+#define hse_slog(log_fmt, ...)      hse_slog_pri(log_fmt, __VA_ARGS__, NULL)
 
 #define hse_slog_append(logger, ...) hse_slog_append_internal((logger), __VA_ARGS__, NULL)
 

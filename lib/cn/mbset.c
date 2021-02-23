@@ -229,8 +229,8 @@ mbset_create(
      * - array of udata structs
      */
     alloc_len =
-        (sizeof(*self) + sizeof(*self->mbs_idv) * idc +
-         sizeof(*self->mbs_mapv) * mapc + udata_sz * idc);
+        (sizeof(*self) + sizeof(*self->mbs_idv) * idc + sizeof(*self->mbs_mapv) * mapc +
+         udata_sz * idc);
 
     self = calloc(1, alloc_len);
     if (!self)

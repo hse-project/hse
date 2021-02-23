@@ -78,7 +78,7 @@ struct kvs_import {
 };
 
 #define IKVDB_SUB_NAME_SEP ":"
-#define HSE_KVDB_DESC "Heterogeneous-memory Storage Engine KVDB"
+#define HSE_KVDB_DESC      "Heterogeneous-memory Storage Engine KVDB"
 
 /**
  * ikvdb_init() - prepare the ikvdb subsystem for use
@@ -163,12 +163,12 @@ ikvdb_diag_close(struct ikvdb *handle);
  */
 merr_t
 ikvdb_open(
-    const char                 *mp_name,
-    struct mpool               *ds,
-    const struct hse_params    *params,
-    struct ikvdb              **kvdb);
+    const char *             mp_name,
+    struct mpool *           ds,
+    const struct hse_params *params,
+    struct ikvdb **          kvdb);
 
-#define IKVS_OFLAG_NONE 0
+#define IKVS_OFLAG_NONE   0
 #define IKVS_OFLAG_REPLAY 1 /* used when c1 opens ikvs/kvs/cn for replay */
 
 /**
@@ -182,11 +182,11 @@ ikvdb_open(
  */
 merr_t
 ikvdb_kvs_open(
-    struct ikvdb               *kvdb,
-    const char                 *kvs_name,
-    const struct hse_params    *params,
-    uint                        ikvs_oflags,
-    struct hse_kvs            **kvs_out);
+    struct ikvdb *           kvdb,
+    const char *             kvs_name,
+    const struct hse_params *params,
+    uint                     ikvs_oflags,
+    struct hse_kvs **        kvs_out);
 
 /**
  * ikvdb_rdonly() - is the KVDB read only?

@@ -25,11 +25,11 @@ MTF_BEGIN_UTEST_COLLECTION_PREPOST(hse_err_test, merr_test_pre, merr_test_post);
 
 MTF_DEFINE_UTEST(hse_err_test, merr_test_1)
 {
-    char   errinfo[MERR_INFO_SZ];
-    char   errbuf[300];
+    char        errinfo[MERR_INFO_SZ];
+    char        errbuf[300];
     const char *file;
-    int    rval;
-    merr_t err;
+    int         rval;
+    merr_t      err;
 
     rval = 0;
     err = merr(rval);

@@ -411,7 +411,8 @@ hse_kvs_put(
     if (HSE_UNLIKELY(!handle || !key || (val_len > 0 && !val)))
         return merr_to_hse_err(merr(EINVAL));
 
-    if (os && HSE_UNLIKELY(((os->kop_opaque >> 16) != 0xb0de) || ((os->kop_opaque & 0x0000ffff) != 1)))
+    if (os &&
+        HSE_UNLIKELY(((os->kop_opaque >> 16) != 0xb0de) || ((os->kop_opaque & 0x0000ffff) != 1)))
         return merr_to_hse_err(merr(EINVAL));
 
     if (HSE_UNLIKELY(key_len > HSE_KVS_KLEN_MAX))
@@ -455,7 +456,8 @@ hse_kvs_get(
     if (HSE_UNLIKELY(!handle || !key || !found || !val_len))
         return merr_to_hse_err(merr(EINVAL));
 
-    if (os && HSE_UNLIKELY(((os->kop_opaque >> 16) != 0xb0de) || ((os->kop_opaque & 0x0000ffff) != 1)))
+    if (os &&
+        HSE_UNLIKELY(((os->kop_opaque >> 16) != 0xb0de) || ((os->kop_opaque & 0x0000ffff) != 1)))
         return merr_to_hse_err(merr(EINVAL));
 
     if (HSE_UNLIKELY(!valbuf && valbuf_sz > 0))
@@ -509,7 +511,8 @@ hse_kvs_delete(struct hse_kvs *handle, struct hse_kvdb_opspec *os, const void *k
     if (HSE_UNLIKELY(!handle || !key))
         return merr_to_hse_err(merr(EINVAL));
 
-    if (os && HSE_UNLIKELY(((os->kop_opaque >> 16) != 0xb0de) || ((os->kop_opaque & 0x0000ffff) != 1)))
+    if (os &&
+        HSE_UNLIKELY(((os->kop_opaque >> 16) != 0xb0de) || ((os->kop_opaque & 0x0000ffff) != 1)))
         return merr_to_hse_err(merr(EINVAL));
 
     if (HSE_UNLIKELY(key_len > HSE_KVS_KLEN_MAX))
@@ -523,8 +526,7 @@ hse_kvs_delete(struct hse_kvs *handle, struct hse_kvdb_opspec *os, const void *k
     ev(err);
 
     if (!err)
-        PERFC_INCADD_RU(
-            &kvdb_pc, PERFC_RA_KVDBOP_KVS_DEL, PERFC_BA_KVDBOP_KVS_DELB, key_len, 128);
+        PERFC_INCADD_RU(&kvdb_pc, PERFC_RA_KVDBOP_KVS_DEL, PERFC_BA_KVDBOP_KVS_DELB, key_len, 128);
 
     return merr_to_hse_err(err);
 }
@@ -716,7 +718,8 @@ hse_kvs_cursor_create(
     if (HSE_UNLIKELY(!handle || !cursor || (pfx_len && !prefix)))
         return merr_to_hse_err(merr(EINVAL));
 
-    if (os && HSE_UNLIKELY(((os->kop_opaque >> 16) != 0xb0de) || ((os->kop_opaque & 0x0000ffff) != 1)))
+    if (os &&
+        HSE_UNLIKELY(((os->kop_opaque >> 16) != 0xb0de) || ((os->kop_opaque & 0x0000ffff) != 1)))
         return merr_to_hse_err(merr(EINVAL));
 
     PERFC_INC_RU(&kvdb_pc, PERFC_RA_KVDBOP_KVS_CURSOR_CREATE, 128);
@@ -735,7 +738,8 @@ hse_kvs_cursor_update(struct hse_kvs_cursor *cursor, struct hse_kvdb_opspec *os)
     if (HSE_UNLIKELY(!cursor))
         return merr_to_hse_err(merr(EINVAL));
 
-    if (os && HSE_UNLIKELY(((os->kop_opaque >> 16) != 0xb0de) || ((os->kop_opaque & 0x0000ffff) != 1)))
+    if (os &&
+        HSE_UNLIKELY(((os->kop_opaque >> 16) != 0xb0de) || ((os->kop_opaque & 0x0000ffff) != 1)))
         return merr_to_hse_err(merr(EINVAL));
 
     PERFC_INC_RU(&kvdb_pc, PERFC_RA_KVDBOP_KVS_CURSOR_UPDATE, 128);
@@ -761,7 +765,8 @@ hse_kvs_cursor_seek(
     if (HSE_UNLIKELY(!cursor))
         return merr_to_hse_err(merr(EINVAL));
 
-    if (os && HSE_UNLIKELY(((os->kop_opaque >> 16) != 0xb0de) || ((os->kop_opaque & 0x0000ffff) != 1)))
+    if (os &&
+        HSE_UNLIKELY(((os->kop_opaque >> 16) != 0xb0de) || ((os->kop_opaque & 0x0000ffff) != 1)))
         return merr_to_hse_err(merr(EINVAL));
 
     PERFC_INC_RU(&kvdb_pc, PERFC_RA_KVDBOP_KVS_CURSOR_SEEK, 128);
@@ -795,7 +800,8 @@ hse_kvs_cursor_seek_range(
     if (HSE_UNLIKELY(!cursor))
         return merr_to_hse_err(merr(EINVAL));
 
-    if (os && HSE_UNLIKELY(((os->kop_opaque >> 16) != 0xb0de) || ((os->kop_opaque & 0x0000ffff) != 1)))
+    if (os &&
+        HSE_UNLIKELY(((os->kop_opaque >> 16) != 0xb0de) || ((os->kop_opaque & 0x0000ffff) != 1)))
         return merr_to_hse_err(merr(EINVAL));
 
     PERFC_INC_RU(&kvdb_pc, PERFC_RA_KVDBOP_KVS_CURSOR_SEEK, 128);
@@ -827,7 +833,8 @@ hse_kvs_cursor_read(
     if (HSE_UNLIKELY(!cursor || !key || !klen || !val || !vlen || !eof))
         return merr_to_hse_err(merr(EINVAL));
 
-    if (os && HSE_UNLIKELY(((os->kop_opaque >> 16) != 0xb0de) || ((os->kop_opaque & 0x0000ffff) != 1)))
+    if (os &&
+        HSE_UNLIKELY(((os->kop_opaque >> 16) != 0xb0de) || ((os->kop_opaque & 0x0000ffff) != 1)))
         return merr_to_hse_err(merr(EINVAL));
 
     err = ikvdb_kvs_cursor_read(cursor, os, key, klen, val, vlen, eof);

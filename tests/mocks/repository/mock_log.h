@@ -8,7 +8,7 @@
 
 #define MAX_MSG_SIZE 500
 #define MAX_NV_PAIRS 50
-#define MAX_NV_SIZE 100
+#define MAX_NV_SIZE  100
 
 enum type_spec {
     ts_char = 1,

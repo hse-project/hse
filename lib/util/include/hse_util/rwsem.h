@@ -146,7 +146,7 @@ up_write(struct rw_semaphore *sem)
     assert(rc == 0);
 }
 
-#define down_read_nested(sem, subclass) down_read(sem)
+#define down_read_nested(sem, subclass)  down_read(sem)
 #define down_write_nested(sem, subclass) down_write(sem)
 
 #endif

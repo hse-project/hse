@@ -20,7 +20,7 @@
  * @next: next node;
  */
 struct intern_node {
-    unsigned char      *buf;
+    unsigned char *     buf;
     struct intern_node *next;
 };
 
@@ -45,26 +45,26 @@ struct intern_key {
  * @sbuf_used:      used bytes in @sbuf
  */
 struct intern_level {
-    uint                    curr_rkeys_sum;
-    uint                    curr_rkeys_cnt;
-    uint                    curr_child;
-    uint                    full_node_cnt;
-    uint                    level;
-    uint                    node_lcp_len;
-    struct intern_node     *node_head;
-    struct intern_node     *node_curr;
-    unsigned char          *sbuf;
-    uint                    sbuf_sz;
-    uint                    sbuf_used;
-    struct intern_level    *parent;
-    struct intern_builder  *ibldr;
+    uint                   curr_rkeys_sum;
+    uint                   curr_rkeys_cnt;
+    uint                   curr_child;
+    uint                   full_node_cnt;
+    uint                   level;
+    uint                   node_lcp_len;
+    struct intern_node *   node_head;
+    struct intern_node *   node_curr;
+    unsigned char *        sbuf;
+    uint                   sbuf_sz;
+    uint                   sbuf_used;
+    struct intern_level *  parent;
+    struct intern_builder *ibldr;
 };
 
 /* Max sizes of objects embedded into struct intern_builder.
  */
-#define IB_ENODEV_MAX       NELEM(((struct intern_builder *)0)->nodev)
-#define IB_ELEVELV_MAX      NELEM(((struct intern_builder *)0)->levelv)
-#define IB_ESBUFSZ_MAX      ((8192 - sizeof(struct intern_builder) - 16) / IB_ELEVELV_MAX)
+#define IB_ENODEV_MAX  NELEM(((struct intern_builder *)0)->nodev)
+#define IB_ELEVELV_MAX NELEM(((struct intern_builder *)0)->levelv)
+#define IB_ESBUFSZ_MAX ((8192 - sizeof(struct intern_builder) - 16) / IB_ELEVELV_MAX)
 
 /**
  * struct intern_buiilder -
@@ -82,14 +82,14 @@ struct intern_level {
  * of reference when accessing any part of the builder.
  */
 struct intern_builder {
-    struct intern_level    *base;
-    struct wbb             *wbb;
-    u_char                 *sbufs;
-    uint                    nodec;
-    uint                    levelc;
-    struct intern_level     levelv[5];
-    struct intern_node      nodev[48];
-    u_char                  sbufv[];
+    struct intern_level *base;
+    struct wbb *         wbb;
+    u_char *             sbufs;
+    uint                 nodec;
+    uint                 levelc;
+    struct intern_level  levelv[5];
+    struct intern_node   nodev[48];
+    u_char               sbufv[];
 };
 
 /* If you increase the size of IB_ESBUFSZ_MAX or HSE_KVS_KLEN_MAX then
@@ -98,10 +98,9 @@ struct intern_builder {
 _Static_assert(IB_ESBUFSZ_MAX < 4096, "adjust grow size in ib_sbuf_key_add()");
 _Static_assert(HSE_KVS_KLEN_MAX < 4096, "adjust grow size in ib_sbuf_key_add()");
 
-
 static struct kmem_cache *ib_node_cache HSE_READ_MOSTLY;
-static struct kmem_cache *ib_cache HSE_READ_MOSTLY;
-static atomic_t           ib_init_ref;
+static struct kmem_cache *ib_cache      HSE_READ_MOSTLY;
+static atomic_t                         ib_init_ref;
 
 merr_t
 ib_init(void)
@@ -202,8 +201,8 @@ static merr_t
 ib_sbuf_key_add(struct intern_level *l, uint child_idx, struct key_obj *kobj)
 {
     struct intern_key *k;
-    uint klen = key_obj_len(kobj);
-    uint newsz;
+    uint               klen = key_obj_len(kobj);
+    uint               newsz;
 
     /* Grow scratch buffer, if necessary.  On entry l->sbuf is almost always
      * pointing to an embedded scratch buffer, it might be NULL if the level
@@ -309,7 +308,7 @@ static merr_t
 ib_new_node(struct wbb *wbb, struct intern_level *l)
 {
     struct intern_builder *ib = l->ibldr;
-    struct intern_node *n;
+    struct intern_node *   n;
 
     if (ib->nodec < NELEM(ib->nodev)) {
         n = ib->nodev + ib->nodec;
@@ -344,7 +343,7 @@ struct intern_level *
 ib_level_create(struct intern_builder *ib, uint level)
 {
     struct intern_level *l;
-    merr_t err;
+    merr_t               err;
 
     if (ib->levelc < NELEM(ib->levelv)) {
         l = ib->levelv + ib->levelc;
@@ -376,7 +375,7 @@ void
 ib_level_destroy(struct intern_level *l)
 {
     struct intern_builder *ib = l->ibldr;
-    struct intern_node *n;
+    struct intern_node *   n;
 
     while (ib->nodec > NELEM(ib->nodev) && (n = l->node_head)) {
         l->node_head = n->next;
@@ -417,8 +416,8 @@ ib_reset(struct intern_builder *ib)
         ib_level_destroy(l);
     }
 
-    ib->nodec  = 0;
-    ib->levelc  = 0;
+    ib->nodec = 0;
+    ib->levelc = 0;
 }
 
 void
@@ -440,11 +439,7 @@ ib_destroy(struct intern_builder *ib)
 }
 
 static merr_t
-key_add(
-    struct intern_builder *ibldr,
-    struct key_obj *       right_edge,
-    uint *                 node_cnt,
-    bool                   count_only)
+key_add(struct intern_builder *ibldr, struct key_obj *right_edge, uint *node_cnt, bool count_only)
 {
     struct intern_level *l;
     int                  cnt = 0;

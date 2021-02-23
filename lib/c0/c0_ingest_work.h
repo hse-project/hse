@@ -38,22 +38,22 @@
  * [HSE_REVISIT]
  */
 struct c0_ingest_work {
-    struct work_struct          c0iw_work;
-    void                       *c0iw_c0;
-    struct bin_heap2           *c0iw_minheap;
-    struct element_source      *c0iw_sourcev[HSE_C0_KVSET_ITER_MAX];
-    struct c0_kvset_iterator    c0iw_iterv[HSE_C0_KVSET_ITER_MAX];
-    struct c0_kvmultiset       *c0iw_coalscedkvms[HSE_C0_KVSET_ITER_MAX];
-    struct kvset_builder       *c0iw_bldrs[HSE_KVS_COUNT_MAX];
-    struct kvset_mblocks        c0iw_mblocks[HSE_KVS_COUNT_MAX];
-    struct c0_kvmultiset       *c0iw_c0kvms;
-    u32                         c0iw_iterc;
-    u32                         c0iw_coalescec;
-    struct c0_ingest_work      *c0iw_next;
-    struct c0_ingest_work     **c0iw_tailp;
-    int                         c0iw_mbc[HSE_KVS_COUNT_MAX];
-    struct kvset_mblocks       *c0iw_mbv[HSE_KVS_COUNT_MAX];
-    u32                         c0iw_cmtv[HSE_KVS_COUNT_MAX];
+    struct work_struct       c0iw_work;
+    void *                   c0iw_c0;
+    struct bin_heap2 *       c0iw_minheap;
+    struct element_source *  c0iw_sourcev[HSE_C0_KVSET_ITER_MAX];
+    struct c0_kvset_iterator c0iw_iterv[HSE_C0_KVSET_ITER_MAX];
+    struct c0_kvmultiset *   c0iw_coalscedkvms[HSE_C0_KVSET_ITER_MAX];
+    struct kvset_builder *   c0iw_bldrs[HSE_KVS_COUNT_MAX];
+    struct kvset_mblocks     c0iw_mblocks[HSE_KVS_COUNT_MAX];
+    struct c0_kvmultiset *   c0iw_c0kvms;
+    u32                      c0iw_iterc;
+    u32                      c0iw_coalescec;
+    struct c0_ingest_work *  c0iw_next;
+    struct c0_ingest_work ** c0iw_tailp;
+    int                      c0iw_mbc[HSE_KVS_COUNT_MAX];
+    struct kvset_mblocks *   c0iw_mbv[HSE_KVS_COUNT_MAX];
+    u32                      c0iw_cmtv[HSE_KVS_COUNT_MAX];
 
     struct c0_usage c0iw_usage;
     u64             c0iw_tenqueued;

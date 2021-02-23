@@ -115,7 +115,7 @@ c0sk_adjust_throttling(struct c0sk_impl *self)
     new = 0;
 
     if (sz > lwm) {
-        new = THROTTLE_SENSOR_SCALE * sz / hwm;
+        new = THROTTLE_SENSOR_SCALE *sz / hwm;
         new = min_t(size_t, new, THROTTLE_SENSOR_SCALE * 2);
 
         /* Ease off the throttle to ameliorate stop-n-go behavior...
@@ -129,10 +129,13 @@ c0sk_adjust_throttling(struct c0sk_impl *self)
     perfc_rec_sample(&self->c0sk_pc_ingest, PERFC_DI_C0SKING_THRSR, new);
 
     if (self->c0sk_kvdb_rp->throttle_debug & THROTTLE_DEBUG_SENSOR_C0SK)
-        hse_log(HSE_NOTICE "%s: kvms_cnt %d, kvms_sz_MiB %zu, sensor: %zu -> %zu",
-                __func__, self->c0sk_kvmultisets_cnt,
-                self->c0sk_kvmultisets_sz >> 20,
-                old, new);
+        hse_log(
+            HSE_NOTICE "%s: kvms_cnt %d, kvms_sz_MiB %zu, sensor: %zu -> %zu",
+            __func__,
+            self->c0sk_kvmultisets_cnt,
+            self->c0sk_kvmultisets_sz >> 20,
+            old,
+            new);
 
     return new;
 }
@@ -444,7 +447,8 @@ c0sk_ingest_worker(struct work_struct *work)
     if (c0sk->c0sk_kvdb_rp->c0_diag_mode)
         goto exit_err;
 
-    while (HSE_UNLIKELY((c0sk->c0sk_kvdb_rp->c0_debug & C0_DEBUG_ACCUMULATE) && !c0sk->c0sk_syncing))
+    while (
+        HSE_UNLIKELY((c0sk->c0sk_kvdb_rp->c0_debug & C0_DEBUG_ACCUMULATE) && !c0sk->c0sk_syncing))
         cpu_relax();
 
     /* ingests do not stop on block deletion failures. */
@@ -1025,7 +1029,7 @@ c0sk_ingest_tune(struct c0sk_impl *self, struct c0_usage *usage)
     struct kvdb_rparams *rp = self->c0sk_kvdb_rp;
 
     size_t oldsz, newsz, pct_used, pct_diff;
-    uint width, width_max;
+    uint   width, width_max;
 
     width_max = HSE_C0_INGEST_WIDTH_MAX;
     oldsz = pct_used = pct_diff = 0;
@@ -1036,12 +1040,10 @@ c0sk_ingest_tune(struct c0sk_impl *self, struct c0_usage *usage)
     if (c0sk_ingest_boost(self)) {
         rp->throttle_disable |= 0x80u;
         self->c0sk_boost = 4;
-    }
-    else if (self->c0sk_boost > 0) {
+    } else if (self->c0sk_boost > 0) {
         rp->throttle_disable |= 0x80u;
         self->c0sk_boost--;
-    }
-    else {
+    } else {
         width_max = self->c0sk_ingest_width_max;
         rp->throttle_disable &= ~0x80u;
     }
@@ -1100,22 +1102,30 @@ c0sk_ingest_tune(struct c0sk_impl *self, struct c0_usage *usage)
     self->c0sk_cheap_sz = newsz;
 
     if (rp->c0_debug & C0_DEBUG_INGTUNE)
-        hse_log(HSE_NOTICE
-                "%s: used %zu%% diff %zu%%, %zu -> %zu (%zu) width %u/%u/%u, conc %u, boost %u, keys %lu",
-                __func__, pct_used, pct_diff,
-                oldsz, newsz / 1048576ul, (width * newsz) / 1048576ul,
-                width, width_max, self->c0sk_ingest_width_max,
-                self->c0sk_ingest_conc, self->c0sk_boost,
-                usage->u_keys);
+        hse_log(
+            HSE_NOTICE "%s: used %zu%% diff %zu%%, %zu -> %zu (%zu) width %u/%u/%u, conc %u, boost "
+                       "%u, keys %lu",
+            __func__,
+            pct_used,
+            pct_diff,
+            oldsz,
+            newsz / 1048576ul,
+            (width * newsz) / 1048576ul,
+            width,
+            width_max,
+            self->c0sk_ingest_width_max,
+            self->c0sk_ingest_conc,
+            self->c0sk_boost,
+            usage->u_keys);
 }
 
 BullseyeCoverageSaveOff
 
-merr_t
-c0sk_queue_ingest(struct c0sk_impl *self, struct c0_kvmultiset *old, struct c0_kvmultiset *new)
+    merr_t
+    c0sk_queue_ingest(struct c0sk_impl *self, struct c0_kvmultiset *old, struct c0_kvmultiset *new)
 {
-    struct mtx_node *   node;
-    struct c0_usage     usage = { 0 };
+    struct mtx_node *node;
+    struct c0_usage  usage = { 0 };
 
     bool   leader, created;
     u64    cycles;
@@ -1220,12 +1230,12 @@ resign:
 
 BullseyeCoverageRestore
 
-/*
+    /*
  * Flush the present kvmultiset (queue it for ingest).
  * For sync(), we need to know when this c0kvms has been ingested.
  */
-merr_t
-c0sk_flush_current_multiset(struct c0sk_impl *self, struct c0_kvmultiset *new, u64 *genp)
+    merr_t
+    c0sk_flush_current_multiset(struct c0sk_impl *self, struct c0_kvmultiset *new, u64 *genp)
 {
     struct c0_kvmultiset *old;
     merr_t                err;
@@ -1258,7 +1268,7 @@ again:
 
 #if 1
             char namebuf[16];
-            int rc;
+            int  rc;
 
             rc = pthread_getname_np(pthread_self(), namebuf, sizeof(namebuf));
 
@@ -1297,7 +1307,7 @@ again:
 
     c0kvms_putref(old);
 
-    if (new && merr_errno(err) == EAGAIN)
+    if (new &&merr_errno(err) == EAGAIN)
         goto again;
 
     return ev(err);

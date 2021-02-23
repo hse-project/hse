@@ -48,7 +48,7 @@ struct mpool;
 /* Maximum reclen is currently based on a C record, with 3500 blockids. */
 #define CNDB_CBUFSZ_DEFAULT (sizeof(struct cndb_txc_omf) + (sizeof(u64) * 3500))
 #define CNDB_CAPTGT_DEFAULT (CNDB_ENTRIES * CNDB_CBUFSZ_DEFAULT / 4)
-#define CNDB_HIGH_WATER(c) ((c)->cndb_captgt * 3 / 4)
+#define CNDB_HIGH_WATER(c)  ((c)->cndb_captgt * 3 / 4)
 
 struct cndb_cn {
     struct kvs_cparams cn_cp;

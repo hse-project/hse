@@ -10,7 +10,7 @@
 
 #include <hse/hse_limits.h>
 
-#define WP_FILE 0
+#define WP_FILE   0
 #define WP_STRING 1
 
 struct hse_params;

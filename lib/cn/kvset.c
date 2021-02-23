@@ -98,9 +98,9 @@ struct kvset_cache {
     size_t             sz;
 };
 
-static struct kvset_cache kvset_cache[3] HSE_READ_MOSTLY;
+static struct kvset_cache                  kvset_cache[3] HSE_READ_MOSTLY;
 static struct kmem_cache *kvset_iter_cache HSE_READ_MOSTLY;
-static atomic_t           kvset_init_ref;
+static atomic_t                            kvset_init_ref;
 
 /* A kvset contains a logical array of vblocks and kblocks reference vblocks by
  * an index into this logical array.  However, data about vblocks are stored
@@ -343,10 +343,10 @@ kvset_map_blklist(
     u64                       mblock_max,
     struct mpool_mcache_map **mapv)
 {
-    uint    mx, cnt, idc;
-    u64    *idv, *allocv;
-    u64     bufv[64];
-    merr_t  err;
+    uint   mx, cnt, idc;
+    u64 *  idv, *allocv;
+    u64    bufv[64];
+    merr_t err;
 
     idc = blks->n_blks;
     if (!idc)
@@ -750,9 +750,9 @@ kvset_create2(
     kvdb_kalen >>= 30;
     kvdb_valen >>= 30;
 
-#define ra_lev0(_ra) ((_ra)&0xffu)
-#define ra_lev1(_ra) (((_ra) >> 8) & 0xffu)
-#define ra_pct(_ra) (((_ra) >> 16) & 0xffu)
+#define ra_lev0(_ra)     ((_ra)&0xffu)
+#define ra_lev1(_ra)     (((_ra) >> 8) & 0xffu)
+#define ra_pct(_ra)      (((_ra) >> 16) & 0xffu)
 #define ra_willneed(_ra) (((_ra) >> 24) & 0x01u)
 
     /* Enable mcache readahead for cn level zero k/v blocks and for
@@ -825,7 +825,7 @@ kvset_create(struct cn_tree *tree, u64 tag, struct kvset_meta *km, struct kvset 
     uint           flags = 0;
 
     if (n_vblks) {
-        u64 bufv[64];
+        u64  bufv[64];
         u64 *idv;
 
         idv = blkid_list_to_vec(&km->km_vblk_list, NELEM(bufv), bufv);
@@ -1266,8 +1266,7 @@ kvset_ptomb_lookup(
     return 0;
 }
 
-static
-merr_t
+static merr_t
 kvset_lookup_vref(
     struct kvset *         ks,
     struct kvs_ktuple *    kt,
@@ -1376,7 +1375,7 @@ kvset_get_immediate_value(struct kvs_vtuple_ref *vref, struct kvs_buf *vbuf)
 }
 
 extern __thread char tls_vbuf[];
-extern const size_t tls_vbufsz;
+extern const size_t  tls_vbufsz;
 
 static merr_t
 kvset_lookup_val_direct(
@@ -1428,8 +1427,14 @@ kvset_lookup_val_direct(
 
     err = mpool_mblock_read(ks->ks_ds, mbid, &iov, 1, off);
     if (err) {
-        hse_elog(HSE_ERR "%s: off %lx, len %lx, copylen %u, vbufsz %u: @@e",
-                 err, __func__, off, iov.iov_len, copylen, vbufsz);
+        hse_elog(
+            HSE_ERR "%s: off %lx, len %lx, copylen %u, vbufsz %u: @@e",
+            err,
+            __func__,
+            off,
+            iov.iov_len,
+            copylen,
+            vbufsz);
     } else {
         if (!aligned_all) {
             void *src = iov.iov_base + (vboff & ~PAGE_MASK);
@@ -1446,20 +1451,20 @@ kvset_lookup_val_direct(
 
 static merr_t
 kvset_lookup_val_direct_decompress(
-    struct kvset       *ks,
+    struct kvset *      ks,
     struct vblock_desc *vbd,
     u16                 vbidx,
     u32                 vboff,
-    void               *vbuf,
+    void *              vbuf,
     uint                copylen,
     uint                omlen,
-    uint               *outlenp)
+    uint *              outlenp)
 {
     struct iovec iov;
     bool         freeme;
     size_t       off;
     merr_t       err;
-    void        *src;
+    void *       src;
     u64          mbid;
 
     mbid = lvx2mbid(ks, vbidx);
@@ -1480,8 +1485,14 @@ kvset_lookup_val_direct_decompress(
 
     err = mpool_mblock_read(ks->ks_ds, mbid, &iov, 1, off);
     if (err) {
-        hse_elog(HSE_ERR "%s: off %lx, len %lx, copylen %u, omlen %u: @@e",
-                 err, __func__, off, iov.iov_len, copylen, omlen);
+        hse_elog(
+            HSE_ERR "%s: off %lx, len %lx, copylen %u, omlen %u: @@e",
+            err,
+            __func__,
+            off,
+            iov.iov_len,
+            copylen,
+            omlen);
     } else {
         src = iov.iov_base + (vboff & ~PAGE_MASK);
 
@@ -1494,20 +1505,18 @@ kvset_lookup_val_direct_decompress(
     return ev(err);
 }
 
-static
-merr_t
+static merr_t
 kvset_lookup_val(struct kvset *ks, struct kvs_vtuple_ref *vref, struct kvs_buf *vbuf)
 {
     struct vblock_desc *vbd;
     merr_t              err;
-    void               *src, *dst;
+    void *              src, *dst;
     uint                omlen, copylen;
-    bool direct;
+    bool                direct;
 
-    assert(vref->vr_type == vtype_ival
-        || vref->vr_type == vtype_zval
-        || vref->vr_type == vtype_val
-        || vref->vr_type == vtype_cval);
+    assert(
+        vref->vr_type == vtype_ival || vref->vr_type == vtype_zval || vref->vr_type == vtype_val ||
+        vref->vr_type == vtype_cval);
 
     if (HSE_UNLIKELY(vref->vr_type == vtype_zval)) {
         vbuf->b_len = 0;
@@ -1528,8 +1537,8 @@ kvset_lookup_val(struct kvset *ks, struct kvs_vtuple_ref *vref, struct kvs_buf *
     dst = vbuf->b_buf;
     copylen = min(vref->vb.vr_len, vbuf->b_buf_sz);
 
-    direct = copylen >= ks->ks_vmax
-        || (copylen >= ks->ks_vmin && ks->ks_node_level >= ks->ks_vminlvl);
+    direct =
+        copylen >= ks->ks_vmax || (copylen >= ks->ks_vmin && ks->ks_node_level >= ks->ks_vminlvl);
 
     if (vref->vb.vr_complen) {
         uint outlen;
@@ -1565,7 +1574,7 @@ kvset_lookup_val(struct kvset *ks, struct kvs_vtuple_ref *vref, struct kvs_buf *
         memcpy(dst, src, copylen);
     }
 
-  done:
+done:
     vbuf->b_len = vref->vb.vr_len;
     return 0;
 }
@@ -2980,7 +2989,8 @@ kvset_iter_seek(struct kv_iterator *handle, const void *key, s32 len, bool *eof)
     pt_start = kvset_pt_start(ks);
     if (pt_start >= 0) {
         struct kvs_ktuple kt_pfx = {
-            .kt_data = key, .kt_len = ks->ks_pfx_len,
+            .kt_data = key,
+            .kt_len = ks->ks_pfx_len,
         };
 
         if (kt_pfx.kt_len > abs(kt.kt_len))
@@ -3267,8 +3277,7 @@ next_key:
     return 0;
 }
 
-static
-merr_t
+static merr_t
 kvset_iter_next_wbt_key(struct kv_iterator *handle, const void **kdata, uint *klen)
 {
     struct kvset_iterator *iter = handle_to_kvset_iter(handle);
@@ -3320,8 +3329,7 @@ kvset_iter_next_pt_key_mcache(struct kvset_iterator *iter, const void **kdata, u
     return 0;
 }
 
-static
-merr_t
+static merr_t
 kvset_iter_next_pt_key(struct kv_iterator *handle, const void **kdata, uint *klen)
 {
     struct kvset_iterator *iter = handle_to_kvset_iter(handle);

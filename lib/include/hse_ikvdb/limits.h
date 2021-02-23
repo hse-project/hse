@@ -6,9 +6,9 @@
 #ifndef HSE_IKVS_LIMITS_H
 #define HSE_IKVS_LIMITS_H
 
-#define HSE_C0_CHEAP_SZ_MIN (1024 * 1024 * 8ul)
+#define HSE_C0_CHEAP_SZ_MIN  (1024 * 1024 * 8ul)
 #define HSE_C0_CHEAP_SZ_DFLT (1024 * 1024 * 8ul)
-#define HSE_C0_CHEAP_SZ_MAX (1024 * 1024 * 256ul)
+#define HSE_C0_CHEAP_SZ_MAX  (1024 * 1024 * 256ul)
 #define HSE_C0_CCACHE_SZ_MAX (1024 * 1024 * 1024 * 16ul)
 #define HSE_C0_CCACHE_TRIMSZ (HSE_C0_CHEAP_SZ_MIN * 4)
 
@@ -19,19 +19,19 @@
  * fixed size kvms (fixed either by rparams or via boosting, see
  * c0sk_ingest_tune() for details).
  */
-#define HSE_C0_INGEST_WIDTH_MIN     (8)
-#define HSE_C0_INGEST_WIDTH_DFLT    (8)
-#define HSE_C0_INGEST_WIDTH_DYN     (20)
-#define HSE_C0_INGEST_WIDTH_MAX     (HSE_C0_INGEST_WIDTH_DYN + 12)
+#define HSE_C0_INGEST_WIDTH_MIN  (8)
+#define HSE_C0_INGEST_WIDTH_DFLT (8)
+#define HSE_C0_INGEST_WIDTH_DYN  (20)
+#define HSE_C0_INGEST_WIDTH_MAX  (HSE_C0_INGEST_WIDTH_DYN + 12)
 
 #define HSE_C0_INGEST_DELAY_DFLT (0)
-#define HSE_C0_INGEST_SZ_MAX (2048) /* MiB */
+#define HSE_C0_INGEST_SZ_MAX     (2048) /* MiB */
 
 #define HSE_C0_INGEST_THREADS_DFLT (3)
-#define HSE_C0_INGEST_THREADS_MAX (8)
+#define HSE_C0_INGEST_THREADS_MAX  (8)
 
 #define HSE_C0_MAINT_THREADS_DFLT (5)
-#define HSE_C0_MAINT_THREADS_MAX (32)
+#define HSE_C0_MAINT_THREADS_MAX  (32)
 
 #define HSE_VIEWSET_ELTS_MAX (1000)
 

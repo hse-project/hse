@@ -27,12 +27,12 @@
 #define BONSAI_RCU_REGISTER()
 #define BONSAI_RCU_UNREGISTER()
 #else
-#define BONSAI_RCU_REGISTER()       rcu_register_thread()
-#define BONSAI_RCU_UNREGISTER()     rcu_unregister_thread()
+#define BONSAI_RCU_REGISTER()   rcu_register_thread()
+#define BONSAI_RCU_UNREGISTER() rcu_unregister_thread()
 #endif
 
 #ifdef LIBURCU_QSBR
-#define BONSAI_RCU_QUIESCE()        rcu_quiescent_state()
+#define BONSAI_RCU_QUIESCE() rcu_quiescent_state()
 #else
 #define BONSAI_RCU_QUIESCE()
 #endif
@@ -48,8 +48,8 @@ static struct cheap *cheap;
 /* [HSE_REVISIT] Need to replace these constants, macros. */
 #define HSE_CORE_TOMB_REG ((void *)~0x1UL)
 #define HSE_CORE_TOMB_PFX ((void *)~0UL)
-#define GB (1024ul * 1024 * 1024)
-#define MB (1024ul * 1024)
+#define GB                (1024ul * 1024 * 1024)
+#define MB                (1024ul * 1024)
 
 struct bonsai_root *   broot;
 static int             induce_alloc_failure;
@@ -311,9 +311,9 @@ static void *
 bonsai_client_producer(void *arg)
 {
     unsigned long *val = NULL;
-    unsigned int *key;
+    unsigned int * key;
     merr_t         err = 0;
-    int i;
+    int            i;
 
     struct bonsai_skey skey = { 0 };
     struct bonsai_sval sval = { 0 };
@@ -369,8 +369,7 @@ bonsai_client_producer(void *arg)
         }
 
         if (err) {
-            hse_elog(HSE_ERR "%s: bn_insert %u/%u result @@e",
-                     err, __func__, i, key_current);
+            hse_elog(HSE_ERR "%s: bn_insert %u/%u result @@e", err, __func__, i, key_current);
             break;
         }
     }
@@ -525,10 +524,10 @@ bonsai_client_consumer(void *arg)
     struct bonsai_skey skey = { 0 };
     struct bonsai_kv * kv = NULL;
 
-    unsigned int    key_last;
-    unsigned int   *key;
-    bool            found = true;
-    int             i;
+    unsigned int  key_last;
+    unsigned int *key;
+    bool          found = true;
+    int           i;
 
     key = calloc(1, roundup(key_size, sizeof(*key)));
     if (!key)
@@ -583,11 +582,11 @@ bonsai_client_multithread_test(void)
 
 #ifdef BONSAI_TREE_CLIENT_VERIFY
     struct bonsai_skey skey;
-    struct bonsai_kv *kvnext, *kv;
+    struct bonsai_kv * kvnext, *kv;
 
     unsigned int *key;
-    merr_t         err;
-    bool           found;
+    merr_t        err;
+    bool          found;
 
     key = calloc(1, roundup(key_size, sizeof(*key)));
     if (!key) {
@@ -700,8 +699,14 @@ bonsai_client_multithread_test(void)
             ++k;
         }
 
-        hse_log(HSE_DEBUG "%s: %d %d %d, key_current %d, rand %d",
-                __func__, i, j, k, key_current, random_number);
+        hse_log(
+            HSE_DEBUG "%s: %d %d %d, key_current %d, rand %d",
+            __func__,
+            i,
+            j,
+            k,
+            key_current,
+            random_number);
         assert(j == k);
     }
 
@@ -1212,7 +1217,8 @@ bonsai_tombspan_test(enum bonsai_alloc_mode allocm, struct mtf_test_info *lcl_ti
         key = (u64)i << 24;
 
         bn_skey_init(&key, sizeof(key), index, &skey);
-        bn_sval_init(HSE_CORE_TOMB_REG, 0, HSE_ORDNL_TO_SQNREF(bonsai_xrand() & 0xFFFFFFFFFFFFF), &sval);
+        bn_sval_init(
+            HSE_CORE_TOMB_REG, 0, HSE_ORDNL_TO_SQNREF(bonsai_xrand() & 0xFFFFFFFFFFFFF), &sval);
 
         rcu_read_lock();
         err = bn_insert_or_replace(tree, &skey, &sval, true);

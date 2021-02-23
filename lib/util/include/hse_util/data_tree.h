@@ -47,9 +47,9 @@ typedef enum {
  * then dataset constituents, provision is made for one of the path elements
  * to be compound and contain 3 name fields plus two separator characters.
  */
-#define DT_PATH_ELEMENT_CNT 7
-#define DT_PATH_ELEMENT_LEN 32
-#define DT_PATH_SEPARATOR_CNT (DT_PATH_ELEMENT_CNT - 1)
+#define DT_PATH_ELEMENT_CNT      7
+#define DT_PATH_ELEMENT_LEN      32
+#define DT_PATH_SEPARATOR_CNT    (DT_PATH_ELEMENT_CNT - 1)
 #define DT_PATH_COMP_ELEMENT_LEN ((DT_PATH_ELEMENT_LEN * 3) + 2)
 
 #define DT_PATH_LEN                                                                        \
@@ -60,24 +60,24 @@ typedef enum {
 enum { DT_OP_INVALID, DT_OP_EMIT, DT_OP_SET, DT_OP_COUNT, DT_OP_LOG };
 
 /* Flags */
-#define DT_FLAGS_IN_TREE 0x1
+#define DT_FLAGS_IN_TREE        0x1
 #define DT_FLAGS_NON_REMOVEABLE 0x2
 
 struct dt_element {
     union {
-        struct rb_node      dte_node;
-        struct list_head    dte_list;
+        struct rb_node   dte_node;
+        struct list_head dte_list;
     };
-    void                   *dte_data;
-    struct dt_element_ops  *dte_ops;
-    dt_type_t               dte_type;
-    int                     dte_severity;
-    uint32_t                dte_flags;
-    int                     dte_line;
-    const char             *dte_file;
-    const char             *dte_func;
-    const char             *dte_comp;
-    char                    dte_path[DT_PATH_LEN]; /* whole path */
+    void *                 dte_data;
+    struct dt_element_ops *dte_ops;
+    dt_type_t              dte_type;
+    int                    dte_severity;
+    uint32_t               dte_flags;
+    int                    dte_line;
+    const char *           dte_file;
+    const char *           dte_func;
+    const char *           dte_comp;
+    char                   dte_path[DT_PATH_LEN]; /* whole path */
 };
 
 /**

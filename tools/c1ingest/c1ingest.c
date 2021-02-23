@@ -25,120 +25,118 @@
 #include <tools/key_generation.h>
 
 /* Default key/value lengths */
-#define KLEN_DEFAULT   23
-#define VLEN_DEFAULT   1018
+#define KLEN_DEFAULT 23
+#define VLEN_DEFAULT 1018
 
-#define KLEN_MAX  1000
-#define VLEN_MAX  (10*1024)
-
+#define KLEN_MAX 1000
+#define VLEN_MAX (10 * 1024)
 
 struct opts {
-    bool    help;
-    bool    version;
-    char   *mpool;
-    char   *kvs;
-    u64     keys;
-    uint    klen;
-    uint    vlen;
-    uint    threads;
-    uint    pfxlen;
-    bool    unclean;
-    bool    show_ops;
-    bool    dryrun;
-    bool    do_all;
-    bool    do_put;
-    bool    do_vput;
-    bool    do_up;
-    bool    do_vup;
-    bool    do_del;
-    bool    do_vdel;
-    bool    do_pdel;
-    bool    do_vpdel;
-    bool    binary;
-    bool    do_txn;
-    bool    do_mixed;
-    bool    ingest;
-    u64     kstart;
-    u32     errcnt;
-    bool    params;
+    bool  help;
+    bool  version;
+    char *mpool;
+    char *kvs;
+    u64   keys;
+    uint  klen;
+    uint  vlen;
+    uint  threads;
+    uint  pfxlen;
+    bool  unclean;
+    bool  show_ops;
+    bool  dryrun;
+    bool  do_all;
+    bool  do_put;
+    bool  do_vput;
+    bool  do_up;
+    bool  do_vup;
+    bool  do_del;
+    bool  do_vdel;
+    bool  do_pdel;
+    bool  do_vpdel;
+    bool  binary;
+    bool  do_txn;
+    bool  do_mixed;
+    bool  ingest;
+    u64   kstart;
+    u32   errcnt;
+    bool  params;
 };
 
-
-#define KEY_SHOWLEN  23
-#define VAL_SHOWLEN  35
+#define KEY_SHOWLEN 23
+#define VAL_SHOWLEN 35
 
 char *KEY_PREFIX = "K%016lx";
 char *VAL_PREFIX = "V%016lx_%016u";
 
 struct opts opt;
 
-const char *mode = "";
-const char *progname = NULL;
+const char *   mode = "";
+const char *   progname = NULL;
 struct timeval tv_start;
-int verbose = 0;
-atomic64_t errors;
-static bool ingest_mode;
-static u32 sync_time;
+int            verbose = 0;
+atomic64_t     errors;
+static bool    ingest_mode;
+static u32     sync_time;
 
 static struct key_generator *key_gen;
-static const long key_space_size = 4000000000UL;
-static bool single_kvs;
+static const long            key_space_size = 4000000000UL;
+static bool                  single_kvs;
 
-struct hse_kvdb *kvdb;
+struct hse_kvdb *  kvdb;
 struct hse_params *params;
-atomic64_t put_cnt;
-atomic64_t del_cnt;
-atomic64_t put_verify_cnt;
-atomic64_t del_verify_cnt;
+atomic64_t         put_cnt;
+atomic64_t         del_cnt;
+atomic64_t         put_verify_cnt;
+atomic64_t         del_verify_cnt;
 
 struct thread_info {
-    struct hse_kvdb        *kvdb;
-    struct hse_kvs         *kvs;
-    pthread_t           tid;
-    uint                id;
+    struct hse_kvdb *kvdb;
+    struct hse_kvs * kvs;
+    pthread_t        tid;
+    uint             id;
 
-    char       *kvs_name;
-    bool        joined;
+    char *kvs_name;
+    bool  joined;
 
     /* reference key */
-    void       *ref_key;
-    size_t      ref_klen;
+    void * ref_key;
+    size_t ref_klen;
 
     /* reference value */
-    void       *ref_val;
-    size_t      ref_vlen;
+    void * ref_val;
+    size_t ref_vlen;
 
     /* buffer for kvdb_get */
-    void       *get_val;
+    void *get_val;
 
-    void       *pfx;
-    int         pfxlen;
+    void *pfx;
+    int   pfxlen;
 };
 
-static void syntax(const char *fmt, ...);
-static void quit(const char *fmt, ...);
-static void usage(void);
+static void
+syntax(const char *fmt, ...);
+static void
+quit(const char *fmt, ...);
+static void
+usage(void);
 
 /*
  * Use our own asserts so they're enabled in all builds.
  * This code relies on them to catch errors.
  */
-#define my_assert(condition)                                    \
-    do {                                                        \
-        int ass_hurts = !(condition);                           \
-        if (ass_hurts) {                                        \
-            fprintf(stderr,                                     \
-                    "assert(%s) failed at %s:%d\n", #condition, \
-                    __FILE__, __LINE__);                        \
-            exit(-1);                                           \
-        }                                                       \
+#define my_assert(condition)                                                                 \
+    do {                                                                                     \
+        int ass_hurts = !(condition);                                                        \
+        if (ass_hurts) {                                                                     \
+            fprintf(stderr, "assert(%s) failed at %s:%d\n", #condition, __FILE__, __LINE__); \
+            exit(-1);                                                                        \
+        }                                                                                    \
     } while (0)
-
 
 static void
 quit(const char *fmt, ...)
 {
-    char msg[256];
+    char    msg[256];
     va_list ap;
 
     if (fmt && *fmt) {
@@ -155,7 +153,7 @@ quit(const char *fmt, ...)
 static void
 syntax(const char *fmt, ...)
 {
-    char msg[256];
+    char    msg[256];
     va_list ap;
 
     va_start(ap, fmt);
@@ -166,27 +164,17 @@ syntax(const char *fmt, ...)
     exit(EX_USAGE);
 }
 
-
-static
-void
-_error_quit(
-    const char *detail,
-    hse_err_t   err,
-    const char *file,
-    int         line)
+static void
+_error_quit(const char *detail, hse_err_t err, const char *file, int line)
 {
     char err_buf[300];
 
     hse_err_to_string(err, err_buf, sizeof(err_buf), 0);
 
-    quit("%s:%d: %s: %s", file, line,
-         (detail && *detail) ? detail : "",
-         err_buf);
+    quit("%s:%d: %s: %s", file, line, (detail && *detail) ? detail : "", err_buf);
 }
 
-#define error_quit(detail, err)			\
-    _error_quit(detail, err, __FILE__, __LINE__)
-
+#define error_quit(detail, err) _error_quit(detail, err, __FILE__, __LINE__)
 
 void
 announce_header(void)
@@ -194,16 +182,15 @@ announce_header(void)
     if (!verbose)
         return;
 
-    printf("*** %8s %7s %7s %7s %8s  %s\n",
-           "TID", "USER", "SYS", "REAL", "MODE", "MESSAGE");
+    printf("*** %8s %7s %7s %7s %8s  %s\n", "TID", "USER", "SYS", "REAL", "MODE", "MESSAGE");
 }
 
 void
 announce(const char *msg)
 {
     struct timeval tv_now;
-    struct rusage rusage;
-    int rc;
+    struct rusage  rusage;
+    int            rc;
 
     if (!verbose)
         return;
@@ -216,15 +203,17 @@ announce(const char *msg)
 
         rtime = (tv_now.tv_sec - tv_start.tv_sec) * 1000000;
         rtime += (tv_now.tv_usec - tv_start.tv_usec);
-        utime = rusage.ru_utime.tv_sec * 1000000
-            + rusage.ru_utime.tv_usec;
-        stime = rusage.ru_stime.tv_sec * 1000000
-            + rusage.ru_stime.tv_usec;
+        utime = rusage.ru_utime.tv_sec * 1000000 + rusage.ru_utime.tv_usec;
+        stime = rusage.ru_stime.tv_sec * 1000000 + rusage.ru_stime.tv_usec;
 
-        printf("*** %8lx %7ld %7ld %7ld %8s  %s\n",
-               pthread_self() & 0xffffffffu,
-               utime / 1000, stime / 1000, rtime / 1000,
-               mode, msg);
+        printf(
+            "*** %8lx %7ld %7ld %7ld %8s  %s\n",
+            pthread_self() & 0xffffffffu,
+            utime / 1000,
+            stime / 1000,
+            rtime / 1000,
+            mode,
+            msg);
     }
 }
 
@@ -233,61 +222,57 @@ announce(const char *msg)
  */
 
 enum opt_enum {
-    opt_ingest      = 'I',
-    opt_binary	= 'b',
-    opt_keys	= 'c',
-    opt_help	= 'h',
-    opt_klen        = 'l',
-    opt_vlen        = 'L',
-    opt_dryrun	= 'n',
+    opt_ingest = 'I',
+    opt_binary = 'b',
+    opt_keys = 'c',
+    opt_help = 'h',
+    opt_klen = 'l',
+    opt_vlen = 'L',
+    opt_dryrun = 'n',
 
-    opt_do_put	= 'p',
-    opt_do_up	= 'u',
-    opt_do_del	= 'd',
-    opt_do_pdel	= 'D',
-    opt_do_txn      = 'x',
-    opt_do_mixed    = 'm',
+    opt_do_put = 'p',
+    opt_do_up = 'u',
+    opt_do_del = 'd',
+    opt_do_pdel = 'D',
+    opt_do_txn = 'x',
+    opt_do_mixed = 'm',
 
-    opt_version	= 'V',
-    opt_verbose	= 'v',
-    opt_kstart      = 's',
-    opt_errcnt      = 'e',
-    opt_params      = 'C',
-    opt_threads     = 't',
-    opt_time        = 'T',
-    opt_pfxlen      = 'f',
+    opt_version = 'V',
+    opt_verbose = 'v',
+    opt_kstart = 's',
+    opt_errcnt = 'e',
+    opt_params = 'C',
+    opt_threads = 't',
+    opt_time = 'T',
+    opt_pfxlen = 'f',
 
     opt_unclean,
 };
 
+struct option longopts[] = { { "binary", no_argument, NULL, opt_binary },
+                             { "ingest", no_argument, NULL, opt_ingest },
+                             { "dryrun", no_argument, NULL, opt_dryrun },
+                             { "help", no_argument, NULL, opt_help },
+                             { "keys", required_argument, NULL, opt_keys },
+                             { "klen", required_argument, NULL, opt_klen },
+                             { "vlen", required_argument, NULL, opt_vlen },
+                             { "threads", required_argument, NULL, opt_threads },
+                             { "pfxlen", required_argument, NULL, opt_pfxlen },
 
-struct option longopts[] = {
-    { "binary",     no_argument,        NULL,  opt_binary },
-    { "ingest",     no_argument,        NULL,  opt_ingest },
-    { "dryrun",     no_argument,        NULL,  opt_dryrun },
-    { "help",       no_argument,        NULL,  opt_help },
-    { "keys",       required_argument,  NULL,  opt_keys },
-    { "klen",       required_argument,  NULL,  opt_klen },
-    { "vlen",       required_argument,  NULL,  opt_vlen },
-    { "threads",    required_argument,  NULL,  opt_threads },
-    { "pfxlen",     required_argument,  NULL,  opt_pfxlen},
+                             { "put", no_argument, NULL, opt_do_put },
+                             { "up", no_argument, NULL, opt_do_up },
+                             { "del", no_argument, NULL, opt_do_del },
+                             { "pdel", no_argument, NULL, opt_do_pdel },
+                             { "txn", no_argument, NULL, opt_do_txn },
+                             { "mixed", no_argument, NULL, opt_do_mixed },
 
-    { "put",        no_argument,        NULL,  opt_do_put },
-    { "up",         no_argument,        NULL,  opt_do_up },
-    { "del",        no_argument,        NULL,  opt_do_del },
-    { "pdel",       no_argument,        NULL,  opt_do_pdel },
-    { "txn",        no_argument,        NULL,  opt_do_txn},
-    { "mixed",      no_argument,        NULL,  opt_do_mixed},
-
-
-    { "verbose",    optional_argument,  NULL,  opt_verbose },
-    { "version",    no_argument,        NULL,  opt_version  },
-    { "kstart",     required_argument,  NULL,  opt_kstart  },
-    { "errcnt",     required_argument,  NULL,  opt_errcnt  },
-    { "params",     no_argument,        NULL,  opt_params  },
-    { "time",       required_argument,  NULL,  opt_time    },
-    { 0, 0, 0, 0 }
-};
+                             { "verbose", optional_argument, NULL, opt_verbose },
+                             { "version", no_argument, NULL, opt_version },
+                             { "kstart", required_argument, NULL, opt_kstart },
+                             { "errcnt", required_argument, NULL, opt_errcnt },
+                             { "params", no_argument, NULL, opt_params },
+                             { "time", required_argument, NULL, opt_time },
+                             { 0, 0, 0, 0 } };
 
 /* A thread-safe version of strerror().
  */
@@ -302,11 +287,8 @@ strerror(int errnum)
     return tls_errbuf;
 }
 
-
-static
-void
-options_default(
-    struct opts *opt)
+static void
+options_default(struct opts *opt)
 {
     memset(opt, 0, sizeof(*opt));
     opt->keys = 10;
@@ -316,38 +298,33 @@ options_default(
     opt->vlen = VLEN_DEFAULT;
 }
 
-#define GET_VALUE(TYPE, OPTARG, VALUE)					\
-    do {                                                                \
-	if (parse_##TYPE(OPTARG, VALUE)) {				\
-            syntax("Unable to parse "#TYPE" number: '%s'", OPTARG);	\
-	}								\
+#define GET_VALUE(TYPE, OPTARG, VALUE)                                \
+    do {                                                              \
+        if (parse_##TYPE(OPTARG, VALUE)) {                            \
+            syntax("Unable to parse " #TYPE " number: '%s'", OPTARG); \
+        }                                                             \
     } while (0)
 
-#define GET_DOUBLE(OPTARG, VALUE)                               \
-    do {                                                        \
-	if (1 != sscanf(OPTARG, "%lg", VALUE)) {                \
-            syntax("Unable to parse double: '%s'", OPTARG);     \
-	}                                                       \
+#define GET_DOUBLE(OPTARG, VALUE)                           \
+    do {                                                    \
+        if (1 != sscanf(OPTARG, "%lg", VALUE)) {            \
+            syntax("Unable to parse double: '%s'", OPTARG); \
+        }                                                   \
     } while (0)
 
 int
-options_parse(
-    int argc,
-    char **argv,
-    struct opts *opt,
-    int *last_arg)
+options_parse(int argc, char **argv, struct opts *opt, int *last_arg)
 {
     int done;
 
     /* Dynamically build optstring from longopts[] for getopt_long_only().
      */
-    const size_t optstringsz =
-        (sizeof(longopts) / sizeof(longopts[0])) * 3 + 3;
-    char optstring[optstringsz + 1];
+    const size_t         optstringsz = (sizeof(longopts) / sizeof(longopts[0])) * 3 + 3;
+    char                 optstring[optstringsz + 1];
     const struct option *longopt;
-    char *pc = optstring;
+    char *               pc = optstring;
 
-    *pc++ = ':';    /* Disable getopt error messages */
+    *pc++ = ':'; /* Disable getopt error messages */
 
     for (longopt = longopts; longopt->name; ++longopt) {
         if (!longopt->flag && isprint(longopt->val)) {
@@ -373,137 +350,135 @@ options_parse(
             break; /* got '--' or end of arg list */
 
         switch (c) {
-        case opt_ingest:
-            opt->ingest = true;
-            ingest_mode = true;
-            break;
+            case opt_ingest:
+                opt->ingest = true;
+                ingest_mode = true;
+                break;
 
-        case opt_binary:
-            opt->binary = true;
-            break;
+            case opt_binary:
+                opt->binary = true;
+                break;
 
-        case opt_params:
-            opt->params = true;
-            break;
+            case opt_params:
+                opt->params = true;
+                break;
 
-        case opt_help:
-            opt->help = true;
-            break;
+            case opt_help:
+                opt->help = true;
+                break;
 
-        case opt_kstart:
-            GET_VALUE(u64, optarg, &opt->kstart);
-            break;
+            case opt_kstart:
+                GET_VALUE(u64, optarg, &opt->kstart);
+                break;
 
-        case opt_errcnt:
-            GET_VALUE(u32, optarg, &opt->errcnt);
-            if (opt->errcnt == 0)
-                opt->errcnt = (1L<<32) - 1;
-            break;
+            case opt_errcnt:
+                GET_VALUE(u32, optarg, &opt->errcnt);
+                if (opt->errcnt == 0)
+                    opt->errcnt = (1L << 32) - 1;
+                break;
 
-        case opt_verbose:
-            if (optarg)
-                GET_VALUE(int, optarg, &verbose);
-            else
-                ++verbose;
-            opt->show_ops = (verbose > 1);
-            break;
+            case opt_verbose:
+                if (optarg)
+                    GET_VALUE(int, optarg, &verbose);
+                else
+                    ++verbose;
+                opt->show_ops = (verbose > 1);
+                break;
 
-        case opt_version:
-            opt->version = true;
-            break;
+            case opt_version:
+                opt->version = true;
+                break;
 
-        case opt_keys:
-            GET_VALUE(u64, optarg, &opt->keys);
-            break;
+            case opt_keys:
+                GET_VALUE(u64, optarg, &opt->keys);
+                break;
 
-        case opt_klen:
-            GET_VALUE(uint, optarg, &opt->klen);
-            break;
+            case opt_klen:
+                GET_VALUE(uint, optarg, &opt->klen);
+                break;
 
-        case opt_vlen:
-            GET_VALUE(uint, optarg, &opt->vlen);
-            break;
+            case opt_vlen:
+                GET_VALUE(uint, optarg, &opt->vlen);
+                break;
 
-        case opt_threads:
-            GET_VALUE(uint, optarg, &opt->threads);
-            break;
+            case opt_threads:
+                GET_VALUE(uint, optarg, &opt->threads);
+                break;
 
-        case opt_pfxlen:
-            GET_VALUE(uint, optarg, &opt->pfxlen);
-            break;
+            case opt_pfxlen:
+                GET_VALUE(uint, optarg, &opt->pfxlen);
+                break;
 
-        case opt_dryrun:
-            opt->dryrun = true;
-            break;
+            case opt_dryrun:
+                opt->dryrun = true;
+                break;
 
-        case opt_do_put:
-            if (ingest_mode)
-                opt->do_put  = true;
-            else
-                opt->do_vput = true;
-            break;
+            case opt_do_put:
+                if (ingest_mode)
+                    opt->do_put = true;
+                else
+                    opt->do_vput = true;
+                break;
 
-        case opt_do_up:
-            if (ingest_mode) {
-                opt->do_up   = true;
-            } else {
-                opt->do_vup  = true;
-                opt->do_vput = false;
-            }
-            break;
-
-        case opt_do_del:
-            if (ingest_mode) {
-                opt->do_del  = true;
-            } else {
-                opt->do_vdel = true;
-                opt->do_vup  = false;
-                opt->do_vput = false;
-            }
-            break;
-
-        case opt_do_pdel:
-            if (ingest_mode) {
-                opt->do_pdel  = true;
-            } else {
-                opt->do_vpdel = true;
-                opt->do_vdel  = false;
-                opt->do_vup   = false;
-                opt->do_vput  = false;
-            }
-            break;
-
-        case opt_do_txn:
-            opt->do_txn = true;
-            break;
-
-        case opt_do_mixed:
-            opt->do_mixed = true;
-            break;
-
-        case ':':
-            syntax("missing argument for option '%s'",
-                   argv[curind]);
-            break;
-
-        case '?':
-            syntax("invalid option '%s'", argv[optind-1]);
-            break;
-
-        case opt_time:
-            GET_VALUE(uint, optarg, &sync_time);
-            break;
-
-        default:
-            if (c == 0) {
-                if (!longopt[longidx].flag) {
-                    syntax("unhandled option '--%s'",
-                           longopts[longidx].name);
+            case opt_do_up:
+                if (ingest_mode) {
+                    opt->do_up = true;
+                } else {
+                    opt->do_vup = true;
+                    opt->do_vput = false;
                 }
-            } else {
-                syntax("unhandled option '%s'", argv[curind]);
-            }
-            break;
+                break;
+
+            case opt_do_del:
+                if (ingest_mode) {
+                    opt->do_del = true;
+                } else {
+                    opt->do_vdel = true;
+                    opt->do_vup = false;
+                    opt->do_vput = false;
+                }
+                break;
+
+            case opt_do_pdel:
+                if (ingest_mode) {
+                    opt->do_pdel = true;
+                } else {
+                    opt->do_vpdel = true;
+                    opt->do_vdel = false;
+                    opt->do_vup = false;
+                    opt->do_vput = false;
+                }
+                break;
+
+            case opt_do_txn:
+                opt->do_txn = true;
+                break;
+
+            case opt_do_mixed:
+                opt->do_mixed = true;
+                break;
+
+            case ':':
+                syntax("missing argument for option '%s'", argv[curind]);
+                break;
+
+            case '?':
+                syntax("invalid option '%s'", argv[optind - 1]);
+                break;
+
+            case opt_time:
+                GET_VALUE(uint, optarg, &sync_time);
+                break;
+
+            default:
+                if (c == 0) {
+                    if (!longopt[longidx].flag) {
+                        syntax("unhandled option '--%s'", longopts[longidx].name);
+                    }
+                } else {
+                    syntax("unhandled option '%s'", argv[curind]);
+                }
+                break;
         }
     }
 
@@ -513,8 +488,7 @@ options_parse(
     if (ingest_mode && !opt->do_put && !opt->do_up && !opt->do_del)
         opt->do_all = true;
 
-    if (!ingest_mode && !opt->do_vput && !opt->do_vup &&
-        !opt->do_vdel && !opt->do_vpdel)
+    if (!ingest_mode && !opt->do_vput && !opt->do_vup && !opt->do_vdel && !opt->do_vpdel)
         opt->do_vdel = true;
 
     if (opt->do_mixed)
@@ -535,7 +509,7 @@ options_parse(
             return -1;
         }
 
-        opt->klen   = opt->pfxlen;
+        opt->klen = opt->pfxlen;
         opt->binary = false;
         if (opt->threads > 1)
             opt->do_txn = false;
@@ -557,8 +531,7 @@ options_parse(
 static void
 usage(void)
 {
-    printf("usage: %s <mpool> <kvslist> [options] [param=value]\n",
-           progname);
+    printf("usage: %s <mpool> <kvslist> [options] [param=value]\n", progname);
     printf("Key/value count and format:\n"
            "  -t, --threads      number of threads\n"
            "  -s, --kstart       starting index of keys, default=0\n"
@@ -610,7 +583,7 @@ usage(void)
 static void
 add_error(const char *fmt, ...)
 {
-    char msg[256];
+    char    msg[256];
     va_list ap;
 
     atomic64_inc(&errors);
@@ -638,7 +611,6 @@ test_kvdb_open(void)
     rc = hse_kvdb_open(opt.mpool, params, &kvdb);
     if (rc)
         error_quit("hse_kvdb_open failed", rc);
-
 }
 
 void
@@ -651,8 +623,7 @@ test_kvs_open(struct thread_info *ti, char *message)
         return;
     }
 
-    rc = hse_kvdb_kvs_open(kvdb, ti->kvs_name,
-                           params, &ti->kvs);
+    rc = hse_kvdb_kvs_open(kvdb, ti->kvs_name, params, &ti->kvs);
     if (rc)
         error_quit("hse_kvdb_kvs_open failed", rc);
 
@@ -676,11 +647,9 @@ test_start_phase(struct thread_info *ti, char *message)
     if (!ti->kvs) {
         ti->kvdb = kvdb;
         if (verbose)
-            printf("T%u: hse_kvdb_kvs_open %s\n",
-                   ti->id, ti->kvs_name);
+            printf("T%u: hse_kvdb_kvs_open %s\n", ti->id, ti->kvs_name);
         if (!opt.dryrun) {
-            err = hse_kvdb_kvs_open(kvdb, ti->kvs_name,
-                                    params, &ti->kvs);
+            err = hse_kvdb_kvs_open(kvdb, ti->kvs_name, params, &ti->kvs);
             if (err)
                 error_quit("hse_kvdb_kvs_open failed", err);
         } else {
@@ -696,14 +665,7 @@ test_end_phase(struct thread_info *ti, bool final)
 }
 
 void
-fmt_string(
-    char *str,
-    int len,
-    int max_len,
-    char fill,
-    char *fmt,
-    u64 fmt_arg1,
-    int fmt_arg2)
+fmt_string(char *str, int len, int max_len, char fill, char *fmt, u64 fmt_arg1, int fmt_arg2)
 {
     int i;
 
@@ -712,19 +674,16 @@ fmt_string(
 
     snprintf(str, len, fmt, fmt_arg1, fmt_arg2);
     i = strlen(str);
-    while (i+1 < len)
+    while (i + 1 < len)
         str[i++] = fill;
     str[i] = '\0';
 }
 
 void
-fmt_key(
-    struct thread_info *ti,
-    int len,
-    unsigned long num)
+fmt_key(struct thread_info *ti, int len, unsigned long num)
 {
     static atomic_t u;
-    unsigned char *str = ti->ref_key;
+    unsigned char * str = ti->ref_key;
 
     if (len < 3) {
         memcpy(str, "BAD", len);
@@ -733,7 +692,7 @@ fmt_key(
 
     if (key_gen) {
         get_key(key_gen, str, num);
-        str[len-1] = 0;
+        str[len - 1] = 0;
     } else {
         u32 v;
 
@@ -751,15 +710,12 @@ int key_showlen;
 int val_showlen;
 
 void
-set_kv(
-    struct thread_info *ti,
-    u64                 keynum,
-    uint                salt)
+set_kv(struct thread_info *ti, u64 keynum, uint salt)
 {
     if (opt.binary) {
         uint64_t *pdata = (uint64_t *)ti->ref_val;
         uint32_t *data = (uint32_t *)ti->ref_key;
-        int idx;
+        int       idx;
 
         /* Each binary key/value is a function of the previous
          * key/value.
@@ -782,12 +738,10 @@ set_kv(
     fmt_key(ti, opt.klen, keynum);
 
     if (opt.vlen > 0)
-        fmt_string(ti->ref_val,
-                   opt.vlen, VLEN_MAX, '*', VAL_PREFIX,
-                   keynum, salt);
+        fmt_string(ti->ref_val, opt.vlen, VLEN_MAX, '*', VAL_PREFIX, keynum, salt);
 
-    ti->ref_klen  = opt.klen;
-    ti->ref_vlen  = opt.vlen;
+    ti->ref_klen = opt.klen;
+    ti->ref_vlen = opt.vlen;
 
     key_showlen = ti->ref_klen;
     val_showlen = ti->ref_vlen;
@@ -811,8 +765,8 @@ test_put(struct thread_info *ti, uint salt, bool istxn, bool ismixed)
     hse_err_t err;
     u64       i, last_key;
 
-    struct hse_kvdb_txn    *txn = NULL;
-    struct hse_kvdb_opspec  os;
+    struct hse_kvdb_txn *  txn = NULL;
+    struct hse_kvdb_opspec os;
 
     test_start_phase(ti, salt ? "Update existing keys" : "Insert new keys");
 
@@ -825,19 +779,23 @@ test_put(struct thread_info *ti, uint salt, bool istxn, bool ismixed)
 
     last_key = opt.kstart + opt.keys;
     for (i = opt.kstart; i < last_key; i++) {
-        char *txkey=0;
-        uint *txkeyp=0, nkeys = 0;
+        char *txkey = 0;
+        uint *txkeyp = 0, nkeys = 0;
 
         set_kv(ti, i, salt);
         if (opt.show_ops) {
-            printf("T%u: PUT(%lu,%u): key[%zu]=%.*s..."
-                   " val[%zu]=%.*s...\n",
-                   ti->id, i, salt, ti->ref_klen,
-                   key_showlen,
-                   (char *)ti->ref_key,
-                   ti->ref_vlen,
-                   val_showlen,
-                   (char *)ti->ref_val);
+            printf(
+                "T%u: PUT(%lu,%u): key[%zu]=%.*s..."
+                " val[%zu]=%.*s...\n",
+                ti->id,
+                i,
+                salt,
+                ti->ref_klen,
+                key_showlen,
+                (char *)ti->ref_key,
+                ti->ref_vlen,
+                val_showlen,
+                (char *)ti->ref_val);
         }
 
         if (opt.dryrun)
@@ -849,9 +807,13 @@ test_put(struct thread_info *ti, uint salt, bool istxn, bool ismixed)
         if (istxn)
             hse_kvdb_txn_begin(ti->kvdb, txn);
 
-        err = hse_kvs_put(ti->kvs, istxn ? &os : NULL,
-                          (char *)ti->ref_key, ti->ref_klen,
-                          (char *)ti->ref_val, ti->ref_vlen);
+        err = hse_kvs_put(
+            ti->kvs,
+            istxn ? &os : NULL,
+            (char *)ti->ref_key,
+            ti->ref_klen,
+            (char *)ti->ref_val,
+            ti->ref_vlen);
         if (err)
             error_quit("kvdb_put failed", err);
 
@@ -862,18 +824,15 @@ test_put(struct thread_info *ti, uint salt, bool istxn, bool ismixed)
             if (nkeys == 1) {
                 txkey = calloc(1, ti->ref_klen);
                 if (!txkey)
-                    error_quit("Tx calloc failed",
-                               ENOMEM);
-                memcpy(txkey, (char *)ti->ref_key,
-                       ti->ref_klen);
+                    error_quit("Tx calloc failed", ENOMEM);
+                memcpy(txkey, (char *)ti->ref_key, ti->ref_klen);
                 txkeyp = (uint *)txkey;
             }
 
             *txkeyp ^= (nkeys == 1) ? 9973 : 6991;
 
-            err = hse_kvs_put(ti->kvs, &os, (char *)txkey,
-                              ti->ref_klen, (char *)ti->ref_val,
-                              ti->ref_vlen);
+            err = hse_kvs_put(
+                ti->kvs, &os, (char *)txkey, ti->ref_klen, (char *)ti->ref_val, ti->ref_vlen);
             if (err)
                 error_quit("kvdb_put failed", err);
 
@@ -888,19 +847,15 @@ test_put(struct thread_info *ti, uint salt, bool istxn, bool ismixed)
 }
 
 void
-test_delete(
-    struct thread_info *ti,
-    bool                prefix,
-    bool                istxn,
-    bool                ismixed)
+test_delete(struct thread_info *ti, bool prefix, bool istxn, bool ismixed)
 {
     hse_err_t err;
-    u64 i, last_key;
-    uint salt = -1; /* not important for delete */
-    size_t pfxlen;
+    u64       i, last_key;
+    uint      salt = -1; /* not important for delete */
+    size_t    pfxlen;
 
-    struct hse_kvdb_txn    *txn = NULL;
-    struct hse_kvdb_opspec  os;
+    struct hse_kvdb_txn *  txn = NULL;
+    struct hse_kvdb_opspec os;
 
     HSE_KVDB_OPSPEC_INIT(&os);
 
@@ -915,9 +870,13 @@ test_delete(
     for (i = opt.kstart; i < last_key; i++) {
         set_kv(ti, i, salt);
         if (opt.show_ops)
-            printf("T%u: DEL(%lu,NA): key[%zu]=%.*s...\n",
-                   ti->id, i, ti->ref_klen,
-                   key_showlen, (char *)ti->ref_key);
+            printf(
+                "T%u: DEL(%lu,NA): key[%zu]=%.*s...\n",
+                ti->id,
+                i,
+                ti->ref_klen,
+                key_showlen,
+                (char *)ti->ref_key);
 
         if (opt.dryrun)
             continue;
@@ -929,14 +888,12 @@ test_delete(
             hse_kvdb_txn_begin(ti->kvdb, txn);
 
         if (!prefix) {
-            err = hse_kvs_delete(ti->kvs, istxn ? &os : NULL,
-                                 (char *)ti->ref_key, ti->ref_klen);
+            err = hse_kvs_delete(ti->kvs, istxn ? &os : NULL, (char *)ti->ref_key, ti->ref_klen);
             if (err)
                 error_quit("kvs_del failed", err);
         } else {
-            err = hse_kvs_prefix_delete(ti->kvs, istxn ? &os : NULL,
-                                        (char *)ti->ref_key, ti->ref_klen,
-                                        &pfxlen);
+            err = hse_kvs_prefix_delete(
+                ti->kvs, istxn ? &os : NULL, (char *)ti->ref_key, ti->ref_klen, &pfxlen);
             if (err)
                 error_quit("kvs_prefix_del failed", err);
         }
@@ -950,26 +907,22 @@ test_delete(
     test_end_phase(ti, false);
 }
 
-
 void
 test_put_verify(struct thread_info *ti, uint salt, bool istxn, bool ismixed)
 {
-    u64 i, last_key;
+    u64    i, last_key;
     size_t get_vlen;
-    void  *get_val = ti->get_val;
+    void * get_val = ti->get_val;
 
-    test_start_phase(ti,
-                     salt
-                     ? "Verify updated keys"
-                     : "Verify inserted keys");
+    test_start_phase(ti, salt ? "Verify updated keys" : "Verify inserted keys");
 
     last_key = opt.kstart + opt.keys;
     for (i = opt.kstart; i < last_key; i++) {
         hse_err_t err;
-        bool  found = false;
-        bool  found_err = false;
-        uint *txkeyp = NULL, nkeys = 0;
-        char *txkey = NULL;
+        bool      found = false;
+        bool      found_err = false;
+        uint *    txkeyp = NULL, nkeys = 0;
+        char *    txkey = NULL;
 
         if (atomic64_read(&errors) >= opt.errcnt)
             break;
@@ -979,9 +932,14 @@ test_put_verify(struct thread_info *ti, uint salt, bool istxn, bool ismixed)
         set_kv(ti, i, salt);
 
         if (opt.show_ops)
-            printf("T%u: VERIFY_PUT(%lu,%d): key[%zu]=%.*s...\n",
-                   ti->id, i, salt, ti->ref_klen,
-                   key_showlen, key);
+            printf(
+                "T%u: VERIFY_PUT(%lu,%d): key[%zu]=%.*s...\n",
+                ti->id,
+                i,
+                salt,
+                ti->ref_klen,
+                key_showlen,
+                key);
 
         if (opt.dryrun)
             continue;
@@ -990,16 +948,20 @@ test_put_verify(struct thread_info *ti, uint salt, bool istxn, bool ismixed)
             istxn = (i % 2 == 0);
 
         get_vlen = (size_t)-1;
-        err = hse_kvs_get(ti->kvs, NULL, ti->ref_key, ti->ref_klen,
-                          &found, get_val, VLEN_MAX, &get_vlen);
+        err = hse_kvs_get(
+            ti->kvs, NULL, ti->ref_key, ti->ref_klen, &found, get_val, VLEN_MAX, &get_vlen);
         if (err)
             error_quit("hse_kvs_get failed", err);
 
         if (!found) {
-            add_error("key not found: tid %d "
-                      "key#%d[%zu]=%.*s...",
-                      ti->id, i, ti->ref_klen,
-                      key_showlen, key);
+            add_error(
+                "key not found: tid %d "
+                "key#%d[%zu]=%.*s...",
+                ti->id,
+                i,
+                ti->ref_klen,
+                key_showlen,
+                key);
             if (istxn) {
                 found_err = true;
                 goto txn_atomic;
@@ -1008,42 +970,54 @@ test_put_verify(struct thread_info *ti, uint salt, bool istxn, bool ismixed)
         }
 
         if (get_vlen != ti->ref_vlen) {
-            add_error("vput: key found, but value has wrong length:"
-                      " key#%d[%zu]=%.*s..."
-                      " expected len=%zu got %zu",
-                      i, ti->ref_klen,
-                      key_showlen, key,
-                      ti->ref_vlen,
-                      get_vlen);
+            add_error(
+                "vput: key found, but value has wrong length:"
+                " key#%d[%zu]=%.*s..."
+                " expected len=%zu got %zu",
+                i,
+                ti->ref_klen,
+                key_showlen,
+                key,
+                ti->ref_vlen,
+                get_vlen);
             continue;
         }
 
         if (opt.show_ops)
-            printf("T%u: VERIFY_PUT(%lu,%d): val[%zu]=%.*s...\n",
-                   ti->id, i, salt, get_vlen,
-                   val_showlen, (char *)get_val);
+            printf(
+                "T%u: VERIFY_PUT(%lu,%d): val[%zu]=%.*s...\n",
+                ti->id,
+                i,
+                salt,
+                get_vlen,
+                val_showlen,
+                (char *)get_val);
 
-        if (ti->ref_vlen > 0 &&
-            memcmp(get_val, ti->ref_val, ti->ref_vlen)) {
-            add_error("vput: key found, but value wrong:"
-                      " kvs %s: key#%d[%zu]=%.*s..."
-                      " val[%zu]=%.*s..."
-                      " expected %.*s",
-                      ti->kvs_name, i, ti->ref_klen,
-                      key_showlen, key,
-                      ti->ref_vlen, val_showlen,
-                      ti->ref_val,
-                      val_showlen, get_val);
+        if (ti->ref_vlen > 0 && memcmp(get_val, ti->ref_val, ti->ref_vlen)) {
+            add_error(
+                "vput: key found, but value wrong:"
+                " kvs %s: key#%d[%zu]=%.*s..."
+                " val[%zu]=%.*s..."
+                " expected %.*s",
+                ti->kvs_name,
+                i,
+                ti->ref_klen,
+                key_showlen,
+                key,
+                ti->ref_vlen,
+                val_showlen,
+                ti->ref_val,
+                val_showlen,
+                get_val);
             abort();
         }
 
-      txn_atomic:
+    txn_atomic:
         while (istxn && nkeys++ < 2) {
             if (nkeys == 1) {
                 txkey = calloc(1, ti->ref_klen);
                 if (!txkey)
-                    error_quit("Tx alloc failed",
-                               ENOMEM);
+                    error_quit("Tx alloc failed", ENOMEM);
                 memcpy(txkey, ti->ref_key, ti->ref_klen);
                 txkeyp = (uint *)txkey;
             }
@@ -1051,22 +1025,32 @@ test_put_verify(struct thread_info *ti, uint salt, bool istxn, bool ismixed)
             *txkeyp ^= (nkeys == 1) ? 9973 : 6991;
             get_vlen = (size_t)-1;
 
-            err = hse_kvs_get(ti->kvs, NULL, txkey, ti->ref_klen,
-                              &found, get_val, VLEN_MAX, &get_vlen);
+            err = hse_kvs_get(
+                ti->kvs, NULL, txkey, ti->ref_klen, &found, get_val, VLEN_MAX, &get_vlen);
             if (err) {
                 free(txkey);
                 error_quit("hse_kvs_get failed", err);
             }
 
             if (!found && !found_err)
-                add_error("Tx atomicity bug, key%d not found: "
-                          "key#%d[%zu]=%.*s...", nkeys,
-                          i, ti->ref_klen, key_showlen, txkey);
+                add_error(
+                    "Tx atomicity bug, key%d not found: "
+                    "key#%d[%zu]=%.*s...",
+                    nkeys,
+                    i,
+                    ti->ref_klen,
+                    key_showlen,
+                    txkey);
 
             if (found && found_err)
-                add_error("Tx atomicity bug, key%d found: "
-                          "key#%d[%zu]=%.*s...", nkeys,
-                          i, ti->ref_klen, key_showlen, txkey);
+                add_error(
+                    "Tx atomicity bug, key%d found: "
+                    "key#%d[%zu]=%.*s...",
+                    nkeys,
+                    i,
+                    ti->ref_klen,
+                    key_showlen,
+                    txkey);
 
             if (nkeys == 2) {
                 free(txkey);
@@ -1080,13 +1064,12 @@ test_put_verify(struct thread_info *ti, uint salt, bool istxn, bool ismixed)
 }
 
 void
-test_delete_verify(
-    struct thread_info *ti)
+test_delete_verify(struct thread_info *ti)
 {
-    u64 i, last_key;
-    uint salt = -1; /* not important for delete */
+    u64    i, last_key;
+    uint   salt = -1; /* not important for delete */
     size_t get_vlen;
-    void  *get_val = ti->get_val;
+    void * get_val = ti->get_val;
 
     test_start_phase(ti, "Verify deleted keys");
 
@@ -1097,30 +1080,36 @@ test_delete_verify(
     for (i = opt.kstart; i < last_key; i++) {
 
         hse_err_t err;
-        bool found = false;
+        bool      found = false;
 
         if (atomic64_read(&errors) >= opt.errcnt)
             break;
 
         set_kv(ti, i, salt);
         if (opt.show_ops)
-            printf("T%u: VERIFY_DEL(%lu,NA): key[%zu]=%.*s...\n",
-                   ti->id, i, ti->ref_klen,
-                   key_showlen, (char *)ti->ref_key);
+            printf(
+                "T%u: VERIFY_DEL(%lu,NA): key[%zu]=%.*s...\n",
+                ti->id,
+                i,
+                ti->ref_klen,
+                key_showlen,
+                (char *)ti->ref_key);
         if (opt.dryrun)
             continue;
 
-        err = hse_kvs_get(ti->kvs, NULL, ti->ref_key,
-                          ti->ref_klen, &found, get_val,
-                          VLEN_MAX, &get_vlen);
+        err = hse_kvs_get(
+            ti->kvs, NULL, ti->ref_key, ti->ref_klen, &found, get_val, VLEN_MAX, &get_vlen);
         if (err)
             error_quit("hse_kvs_get failed", err);
 
         if (found) {
-            add_error("found key after it was deleted:"
-                      "key#%d[%zu]=%.*s...",
-                      i, ti->ref_klen, key_showlen,
-                      (char *)ti->ref_key);
+            add_error(
+                "found key after it was deleted:"
+                "key#%d[%zu]=%.*s...",
+                i,
+                ti->ref_klen,
+                key_showlen,
+                (char *)ti->ref_key);
         }
     }
 
@@ -1133,7 +1122,7 @@ void *
 thread_main(void *arg)
 {
     struct thread_info *ti = arg;
-    uint salt;
+    uint                salt;
 
     salt = 0;
 
@@ -1145,15 +1134,13 @@ thread_main(void *arg)
 
     salt = 1;
 
-    if (atomic64_read(&errors) < opt.errcnt &&
-        (opt.do_all || opt.do_up))
+    if (atomic64_read(&errors) < opt.errcnt && (opt.do_all || opt.do_up))
         test_put(ti, salt, opt.do_txn, opt.do_mixed);
 
     if (atomic64_read(&errors) < opt.errcnt && opt.do_vup)
         test_put_verify(ti, salt, opt.do_txn, opt.do_mixed);
 
-    if (atomic64_read(&errors) < opt.errcnt &&
-        (opt.do_all || opt.do_del))
+    if (atomic64_read(&errors) < opt.errcnt && (opt.do_all || opt.do_del))
         test_delete(ti, false, opt.do_txn, opt.do_mixed);
     if (atomic64_read(&errors) < opt.errcnt && opt.do_vdel)
         test_delete_verify(ti);
@@ -1166,7 +1153,6 @@ thread_main(void *arg)
 
     test_end_phase(ti, true);
 
-
     return NULL;
 }
 
@@ -1174,39 +1160,34 @@ void
 print_result(void)
 {
     if (atomic64_read(&put_cnt))
-        printf("c1ingest : No. of successful puts %ld\n",
-               atomic64_read(&put_cnt));
+        printf("c1ingest : No. of successful puts %ld\n", atomic64_read(&put_cnt));
 
     if (atomic64_read(&put_verify_cnt))
-        printf("c1ingest : No. of successful verified puts %ld\n",
-               atomic64_read(&put_verify_cnt));
+        printf("c1ingest : No. of successful verified puts %ld\n", atomic64_read(&put_verify_cnt));
 
     if (atomic64_read(&del_cnt))
-        printf("c1ingest : No. of successful deletes %ld\n",
-               atomic64_read(&del_cnt));
+        printf("c1ingest : No. of successful deletes %ld\n", atomic64_read(&del_cnt));
 
     if (atomic64_read(&del_verify_cnt))
-        printf("c1ingest : No. of successful verified deletes %ld\n",
-               atomic64_read(&del_verify_cnt));
+        printf(
+            "c1ingest : No. of successful verified deletes %ld\n", atomic64_read(&del_verify_cnt));
 
     if (atomic64_read(&errors) >= opt.errcnt)
-        quit("Exiting, because %lu error(s) were encountered\n",
-             atomic64_read(&errors));
+        quit("Exiting, because %lu error(s) were encountered\n", atomic64_read(&errors));
 
     announce("Successful");
 }
-
 
 int
 c1ingest_run(int argc, char **argv)
 {
     struct thread_info *threads = NULL;
     struct thread_info *ti;
-    char             *pctx; /* parse context */
-    char             *cp;   /* generic char ptr */
-    uint              kvsc;
-    int               rc;
-    uint              i;
+    char *              pctx; /* parse context */
+    char *              cp;   /* generic char ptr */
+    uint                kvsc;
+    int                 rc;
+    uint                i;
 
     gettimeofday(&tv_start, NULL);
 
@@ -1217,18 +1198,16 @@ c1ingest_run(int argc, char **argv)
         syntax("number of keys must be > 0");
 
     /* pgd expects null-terminated strings, thus klen-1 */
-    key_gen = create_key_generator(key_space_size, opt.klen-1);
+    key_gen = create_key_generator(key_space_size, opt.klen - 1);
     if (!key_gen && opt.klen < 8)
-        key_gen = create_key_generator(key_space_size/100, opt.klen-1);
+        key_gen = create_key_generator(key_space_size / 100, opt.klen - 1);
 
     if (opt.threads == 0)
         opt.threads = 1;
 
     threads = calloc(opt.threads, sizeof(*threads));
     if (!threads)
-        quit("unable to calloc %zu bytes for thread_info",
-             opt.threads * sizeof(*threads));
-
+        quit("unable to calloc %zu bytes for thread_info", opt.threads * sizeof(*threads));
 
     /* Figure each thread's kvs name and kvs prefix.
      * Example input with 5 threads:
@@ -1254,8 +1233,7 @@ c1ingest_run(int argc, char **argv)
             cp = strchr(ti->kvs_name, '/');
             if (cp) {
                 if (cp[1] == 0)
-                    quit("prefix missing kvs: %s",
-                         ti->kvs_name);
+                    quit("prefix missing kvs: %s", ti->kvs_name);
                 *cp++ = 0;
                 ti->pfx = ti->kvs_name;
                 ti->pfxlen = strlen(ti->pfx);
@@ -1277,7 +1255,7 @@ c1ingest_run(int argc, char **argv)
 
     if ((kvsc == 1) && (opt.threads > 1)) {
         single_kvs = true;
-        opt.keys  /= opt.threads;
+        opt.keys /= opt.threads;
     }
 
     /* Convert format strings to kvs names */
@@ -1294,9 +1272,10 @@ c1ingest_run(int argc, char **argv)
         /* Ensure that no two threads are given the same kvs name. */
         for (n = 0; !single_kvs && n < i; n++)
             if (!strcmp(ti->kvs_name, threads[n].kvs_name))
-                quit("no two threads may work"
-                     " on the same kvs: %s",
-                     ti->kvs_name);
+                quit(
+                    "no two threads may work"
+                    " on the same kvs: %s",
+                    ti->kvs_name);
     }
 
     for (i = 0, ti = threads; i < opt.threads; i++, ti++) {
@@ -1320,7 +1299,7 @@ c1ingest_run(int argc, char **argv)
 
         for (i = 1; i < opt.threads; i++) {
             ti++;
-            ti->kvs  = threads->kvs;
+            ti->kvs = threads->kvs;
             ti->kvdb = threads->kvdb;
         }
     }
@@ -1331,8 +1310,7 @@ c1ingest_run(int argc, char **argv)
     for (i = 0, ti = threads; i < opt.threads; i++, ti++) {
         rc = pthread_create(&ti->tid, NULL, thread_main, ti);
         if (rc) {
-            printf("%s: pthread_create failed: %s\n",
-                   progname, strerror(rc));
+            printf("%s: pthread_create failed: %s\n", progname, strerror(rc));
             ti->joined = true;
             continue;
         }
@@ -1352,8 +1330,7 @@ c1ingest_run(int argc, char **argv)
 
         rc = pthread_join(ti->tid, NULL);
         if (rc && rc != EINVAL && rc != ESRCH) {
-            printf("%s: pthread_join failed: %s\n",
-                   progname, strerror(rc));
+            printf("%s: pthread_join failed: %s\n", progname, strerror(rc));
             continue;
         }
 
@@ -1366,7 +1343,7 @@ c1ingest_run(int argc, char **argv)
 
     if (verbose) {
         struct timeval tv_stop;
-        struct rusage rusage;
+        struct rusage  rusage;
 
         gettimeofday(&tv_stop, NULL);
 
@@ -1376,33 +1353,32 @@ c1ingest_run(int argc, char **argv)
 
             rtime = (tv_stop.tv_sec - tv_start.tv_sec) * 1000000;
             rtime += (tv_stop.tv_usec - tv_start.tv_usec);
-            utime = rusage.ru_utime.tv_sec * 1000000
-                + rusage.ru_utime.tv_usec;
-            stime = rusage.ru_stime.tv_sec * 1000000
-                + rusage.ru_stime.tv_usec;
+            utime = rusage.ru_utime.tv_sec * 1000000 + rusage.ru_utime.tv_usec;
+            stime = rusage.ru_stime.tv_sec * 1000000 + rusage.ru_stime.tv_usec;
 
-            printf("%s: resource usage:\n"
-                   "%12ld  real time (milliseconds)\n"
-                   "%12ld  user time (milliseconds)\n"
-                   "%12ld  system time (milliseconds)\n"
-                   "%12ld  max resident set size (KiB)\n"
-                   "%12ld  page reclaims\n"
-                   "%12ld  page faults\n"
-                   "%12ld  block input operations\n"
-                   "%12ld  block output operations\n"
-                   "%12ld  voluntary context switches\n"
-                   "%12ld  involuntary context switches\n",
-                   progname,
-                   rtime / 1000,
-                   utime / 1000,
-                   stime / 1000,
-                   rusage.ru_minflt,
-                   rusage.ru_majflt,
-                   rusage.ru_inblock,
-                   rusage.ru_oublock,
-                   rusage.ru_nvcsw,
-                   rusage.ru_nivcsw,
-                   rusage.ru_maxrss);
+            printf(
+                "%s: resource usage:\n"
+                "%12ld  real time (milliseconds)\n"
+                "%12ld  user time (milliseconds)\n"
+                "%12ld  system time (milliseconds)\n"
+                "%12ld  max resident set size (KiB)\n"
+                "%12ld  page reclaims\n"
+                "%12ld  page faults\n"
+                "%12ld  block input operations\n"
+                "%12ld  block output operations\n"
+                "%12ld  voluntary context switches\n"
+                "%12ld  involuntary context switches\n",
+                progname,
+                rtime / 1000,
+                utime / 1000,
+                stime / 1000,
+                rusage.ru_minflt,
+                rusage.ru_majflt,
+                rusage.ru_inblock,
+                rusage.ru_oublock,
+                rusage.ru_nvcsw,
+                rusage.ru_nivcsw,
+                rusage.ru_maxrss);
         }
     }
 
@@ -1438,14 +1414,13 @@ c1ingest_parse(int argc, char **argv)
 
     hse_params_create(&params);
 
-    err = hse_parse_cli(argc - last_arg, argv + last_arg,
-                        &last_arg, 0, params);
+    err = hse_parse_cli(argc - last_arg, argv + last_arg, &last_arg, 0, params);
     if (err)
         syntax("parameters could not be processed");
 
     if (last_arg + 2 == argc) {
         opt.mpool = argv[last_arg++];
-        opt.kvs   = argv[last_arg++];
+        opt.kvs = argv[last_arg++];
     } else if (last_arg + 2 < argc) {
         syntax("extraneous argument: %s", argv[last_arg + 2]);
     } else {
@@ -1479,16 +1454,18 @@ main(int argc, char **argv)
     if (!ingest_mode)
         printf("Running in replay mode\n");
     else
-        printf("Running in ingest mode, %s\n",
-               opt.do_mixed ? "Tx and non-Tx" :
-               (opt.do_txn ? "Tx" : "non-Tx"));
+        printf(
+            "Running in ingest mode, %s\n",
+            opt.do_mixed ? "Tx and non-Tx" : (opt.do_txn ? "Tx" : "non-Tx"));
 
     if (ingest_mode) {
         err = c1ingest_run(argc, argv);
         if (!err) {
-            printf("Ingest is over, waiting for %u ms "
-                   "to abort\n", sync_time);
-            usleep(sync_time*1000);
+            printf(
+                "Ingest is over, waiting for %u ms "
+                "to abort\n",
+                sync_time);
+            usleep(sync_time * 1000);
         }
 
         printf("Aborting process (err=%lx) ...\n", err);

@@ -46,10 +46,7 @@ diag_kvdb_kvslist(struct hse_kvdb *kvdb, struct diag_kvdb_kvs_list *list, int le
  * not started.
  */
 merr_t
-diag_kvdb_open(
-    const char *         mp_name,
-    struct kvdb_rparams *rparams,
-    struct hse_kvdb **   kvdb);
+diag_kvdb_open(const char *mp_name, struct kvdb_rparams *rparams, struct hse_kvdb **kvdb);
 
 /**
  * diag_kvdb_close() - close a kvdb opened for diagnostic purposes

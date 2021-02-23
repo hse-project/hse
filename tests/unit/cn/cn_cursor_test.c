@@ -229,21 +229,20 @@ verify_seek(
     verify(lcl_ti, cur, vtab, vc, 0);
 }
 
-static
-void
+static void
 verify_seek_eof(
     struct mtf_test_info *lcl_ti,
-    struct cn            *cn,
-    void                 *pfx,
+    struct cn *           cn,
+    void *                pfx,
     int                   pfx_len,
-    void                 *seek,
+    void *                seek,
     int                   seeklen,
-    struct nkv_tab       *vtab,
+    struct nkv_tab *      vtab,
     int                   vc)
 {
     struct cursor_summary sum;
-    void *cur;
-    merr_t err;
+    void *                cur;
+    merr_t                err;
 
     err = cn_cursor_create(cn, seqno, false, pfx, pfx_len, &sum, &cur);
     ASSERT_EQ(err, 0);
@@ -343,18 +342,18 @@ MTF_DEFINE_UTEST_PREPOST(cn_cursor, create_noprefix, pre, post)
 
 MTF_DEFINE_UTEST_PREPOST(cn_cursor, repeat_update, pre, post)
 {
-    struct cn *         cn;
-    struct cn_tree *    tree;
-    struct mock_kvset * mk;
-    struct mpool *      ds = (void *)-1;
-    struct kv_iterator *itv[1];
-    void                 *cur;
-    merr_t         err;
-    struct cndb    cndb;
-    struct cndb_cn cndbcn = cndb_cn_initializer(3, 0, 0);
+    struct cn *           cn;
+    struct cn_tree *      tree;
+    struct mock_kvset *   mk;
+    struct mpool *        ds = (void *)-1;
+    struct kv_iterator *  itv[1];
+    void *                cur;
+    merr_t                err;
+    struct cndb           cndb;
+    struct cndb_cn        cndbcn = cndb_cn_initializer(3, 0, 0);
     struct cursor_summary sum;
-    struct kvdb_kvs    kk = { 0 };
-    struct kvs_cparams cp = {};
+    struct kvdb_kvs       kk = { 0 };
+    struct kvs_cparams    cp = {};
 
     struct nkv_tab make[] = {
         { 0x400, 0, 0, VMX_S32, KVDATA_BE_KEY, 1 },
@@ -437,13 +436,12 @@ MTF_DEFINE_UTEST_PREPOST(cn_cursor, root_1kvset, pre, post)
         { 0x400, 0, 0, VMX_S32, KVDATA_BE_KEY, 1 },
     };
 
-    unsigned char   pfx1[] = { 0, 0, 1 };
-    unsigned char   pfx2[] = { 0, 0, 2 };
-    unsigned char   pfx5[] = { 0, 0, 5 };
+    unsigned char pfx1[] = { 0, 0, 1 };
+    unsigned char pfx2[] = { 0, 0, 2 };
+    unsigned char pfx5[] = { 0, 0, 5 };
 
-    struct nkv_tab  vtab[] = {
-        { 0x100, 0x200, 0x200, VMX_S32, 0, 0 },
-        { 0x100, 0x100, 0x100, VMX_S32, 0, 0 },
+    struct nkv_tab vtab[] = {
+        { 0x100, 0x200, 0x200, VMX_S32, 0, 0 }, { 0x100, 0x100, 0x100, VMX_S32, 0, 0 },
         /* none */
     };
 
@@ -475,7 +473,7 @@ MTF_DEFINE_UTEST_PREPOST(cn_cursor, root_1kvset, pre, post)
     ASSERT_EQ(err, 0);
 
     verify_cursor(lcl_ti, cn, pfx2, sizeof(pfx2), vtab, 1);
-    verify_cursor(lcl_ti, cn, pfx1, sizeof(pfx2), vtab+1, 1);
+    verify_cursor(lcl_ti, cn, pfx1, sizeof(pfx2), vtab + 1, 1);
     verify_cursor(lcl_ti, cn, pfx5, sizeof(pfx5), 0, 0);
 
     err = cn_close(cn);
@@ -655,25 +653,25 @@ MTF_DEFINE_UTEST_PREPOST(cn_cursor, prefix_tree, pre, post)
 
     unsigned char pfx1[] = { 0, 0, 1 };
     unsigned char pfx2[] = { 0, 0, 2 };
-    unsigned char all[]  = { 0, 0 };
+    unsigned char all[] = { 0, 0 };
 
     struct nkv_tab vtab[] = {
-        { 0x60,  0x200, 0x2900, VMX_S32, 0, 0 },/* pfx2, loc 2,9 */
-        { 0x40,  0x260, 0x1200, VMX_S32, 0, 0 },/* pfx2, loc 1,2 */
+        { 0x60, 0x200, 0x2900, VMX_S32, 0, 0 }, /* pfx2, loc 2,9 */
+        { 0x40, 0x260, 0x1200, VMX_S32, 0, 0 }, /* pfx2, loc 1,2 */
 
-        { 0x60,  0x100, 0x2600, VMX_S32, 0, 0 },/* pfx1, loc 2,6 */
-        { 0x30,  0x160, 0x1100, VMX_S32, 0, 0 },/* pfx1, loc 1,1 */
-        { 0x20,  0x190, 0x0000, VMX_S32, 0, 0 },/* pfx1, loc 0,0 */
+        { 0x60, 0x100, 0x2600, VMX_S32, 0, 0 }, /* pfx1, loc 2,6 */
+        { 0x30, 0x160, 0x1100, VMX_S32, 0, 0 }, /* pfx1, loc 1,1 */
+        { 0x20, 0x190, 0x0000, VMX_S32, 0, 0 }, /* pfx1, loc 0,0 */
 
         /* full scan sees this */
-        { 0x40,  0x000, 0x1000, VMX_S32, 0, 0 },/* dgen 3, loc 1,0 */
-        { 0x60,  0x100, 0x2600, VMX_S32, 0, 0 },/* dgen 1, loc 2,6 */
-        { 0x30,  0x160, 0x1100, VMX_S32, 0, 0 },/* dgen 4, loc 1,1 */
-        { 0x20,  0x190, 0x0000, VMX_S32, 0, 0 },/* dgen 8, loc 0,0 */
-        { 0x60,  0x200, 0x2900, VMX_S32, 0, 0 },/* dgen 2, loc 2,9 */
-        { 0x40,  0x260, 0x1200, VMX_S32, 0, 0 },/* dgen 5, loc 1,2 */
-        { 0x40,  0x760, 0x1300, VMX_S32, 0, 0 },/* dgen 6, loc 1,3 */
-        { 0x20,  0x900, 0x0000, VMX_S32, 0, 0 },/* dgen 7, loc 0,0 */
+        { 0x40, 0x000, 0x1000, VMX_S32, 0, 0 }, /* dgen 3, loc 1,0 */
+        { 0x60, 0x100, 0x2600, VMX_S32, 0, 0 }, /* dgen 1, loc 2,6 */
+        { 0x30, 0x160, 0x1100, VMX_S32, 0, 0 }, /* dgen 4, loc 1,1 */
+        { 0x20, 0x190, 0x0000, VMX_S32, 0, 0 }, /* dgen 8, loc 0,0 */
+        { 0x60, 0x200, 0x2900, VMX_S32, 0, 0 }, /* dgen 2, loc 2,9 */
+        { 0x40, 0x260, 0x1200, VMX_S32, 0, 0 }, /* dgen 5, loc 1,2 */
+        { 0x40, 0x760, 0x1300, VMX_S32, 0, 0 }, /* dgen 6, loc 1,3 */
+        { 0x20, 0x900, 0x0000, VMX_S32, 0, 0 }, /* dgen 7, loc 0,0 */
     };
 
     struct locmap {
@@ -735,8 +733,8 @@ MTF_DEFINE_UTEST_PREPOST(cn_cursor, prefix_tree, pre, post)
      * and validate we get what we expect
      */
     verify_cursor(lcl_ti, cn, pfx2, sizeof(pfx2), vtab, 2);
-    verify_cursor(lcl_ti, cn, pfx1, sizeof(pfx1), vtab+2, 3);
-    verify_cursor(lcl_ti, cn, all,  sizeof(all),  vtab+5, 8);
+    verify_cursor(lcl_ti, cn, pfx1, sizeof(pfx1), vtab + 2, 3);
+    verify_cursor(lcl_ti, cn, all, sizeof(all), vtab + 5, 8);
 
     err = cn_close(cn);
     ASSERT_EQ(err, 0);
@@ -808,25 +806,20 @@ MTF_DEFINE_UTEST_PREPOST(cn_cursor, cursor_seek, pre, post)
 
     unsigned char pfx1[] = { 0, 0, 1 };
 
-    unsigned char seek0[] = { 0, 0, 0, 0 }; /* before */
-    unsigned char seek1[] = { 0, 0, 1, 0 };     /* first */
-    unsigned char seek2[] = { 0, 0, 1, 0x80 };  /* middle */
-    unsigned char seek3[] = { 0, 0, 2, 0 };     /* past */
+    unsigned char seek0[] = { 0, 0, 0, 0 };    /* before */
+    unsigned char seek1[] = { 0, 0, 1, 0 };    /* first */
+    unsigned char seek2[] = { 0, 0, 1, 0x80 }; /* middle */
+    unsigned char seek3[] = { 0, 0, 2, 0 };    /* past */
 
     struct nkv_tab vtab[] = {
         /* seek0, seek1 */
-        { 0x60,  0x100, 0x2600,
-          VMX_S32, 0, 0 },      /* pfx1, loc 2,6 */
-        { 0x30,  0x160, 0x1100,
-          VMX_S32, 0, 0 },      /* pfx1, loc 1,1 */
-        { 0x20,  0x190, 0x0000,
-          VMX_S32, 0, 0 },      /* pfx1, loc 0,0 */
+        { 0x60, 0x100, 0x2600, VMX_S32, 0, 0 }, /* pfx1, loc 2,6 */
+        { 0x30, 0x160, 0x1100, VMX_S32, 0, 0 }, /* pfx1, loc 1,1 */
+        { 0x20, 0x190, 0x0000, VMX_S32, 0, 0 }, /* pfx1, loc 0,0 */
 
         /* seek2 */
-        { 0x10,  0x180, 0x1120,
-          VMX_S32, 0, 0 },      /* pfx1, loc 1,1 */
-        { 0x20,  0x190, 0x0000,
-          VMX_S32, 0, 0 },      /* pfx1, loc 0,0 */
+        { 0x10, 0x180, 0x1120, VMX_S32, 0, 0 }, /* pfx1, loc 1,1 */
+        { 0x20, 0x190, 0x0000, VMX_S32, 0, 0 }, /* pfx1, loc 0,0 */
 
         /* seek3 */
         /* eof */
@@ -895,14 +888,13 @@ MTF_DEFINE_UTEST_PREPOST(cn_cursor, cursor_seek, pre, post)
 #define VERIFY(pfx, seek, vtab, vc) \
     verify_seek(lcl_ti, cn, pfx, sizeof(pfx), seek, sizeof(seek), vtab, vc)
 
-    VERIFY(pfx1, seek0, vtab,   3);
-    VERIFY(pfx1, seek1, vtab,   3);
-    VERIFY(pfx1, seek2, vtab+3, 2);
-    VERIFY(pfx1, seek3, 0,      0);
+    VERIFY(pfx1, seek0, vtab, 3);
+    VERIFY(pfx1, seek1, vtab, 3);
+    VERIFY(pfx1, seek2, vtab + 3, 2);
+    VERIFY(pfx1, seek3, 0, 0);
 #undef VERIFY
 
-    verify_seek_eof(lcl_ti, cn, pfx1, sizeof(pfx1),
-            seek0, sizeof(seek0), vtab, 3);
+    verify_seek_eof(lcl_ti, cn, pfx1, sizeof(pfx1), seek0, sizeof(seek0), vtab, 3);
 
     err = cn_close(cn);
     ASSERT_EQ(err, 0);

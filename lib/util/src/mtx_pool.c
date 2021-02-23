@@ -10,7 +10,7 @@
 
 struct mtx_node {
     struct mutex sn_mtx HSE_ALIGNED(SMP_CACHE_BYTES);
-    struct cv sn_cv;
+    struct cv           sn_cv;
 };
 
 struct mtx_pool {

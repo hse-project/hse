@@ -196,8 +196,8 @@ vbb_create(
     u64                     vgroup,
     uint                    flags)
 {
-    struct vblock_builder  *bld;
-    struct kvs_rparams     *rp;
+    struct vblock_builder *bld;
+    struct kvs_rparams *   rp;
 
     assert(builder_out);
 

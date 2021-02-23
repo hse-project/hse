@@ -17,8 +17,8 @@
  * VBR_REVERSE    caller is performing reverse iteration
  * VBR_FULLSCAN   caller intends to read all values
  */
-#define VBR_REVERSE     (0x0001u)
-#define VBR_FULLSCAN    (0x0002u)
+#define VBR_REVERSE  (0x0001u)
+#define VBR_FULLSCAN (0x0002u)
 
 struct mpool;
 struct mpool_mcache_map;

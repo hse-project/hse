@@ -118,26 +118,26 @@ static const unsigned int mclass_policy_nentries[] = { NELEM(agegroups),
                                                        NELEM(dtypes),
                                                        NELEM(mclasses) };
 
-static const struct mclass_policy mclass_policy_default =
-    { .mc_name = "default_policy",
-      .mc_table = {
-          {
-              { HSE_MPOLICY_MEDIA_STAGING, HSE_MPOLICY_MEDIA_INVALID },
-              { HSE_MPOLICY_MEDIA_STAGING, HSE_MPOLICY_MEDIA_INVALID },
-          },
-          {
-              { HSE_MPOLICY_MEDIA_STAGING, HSE_MPOLICY_MEDIA_INVALID },
-              { HSE_MPOLICY_MEDIA_STAGING, HSE_MPOLICY_MEDIA_INVALID },
-          },
-          {
-              { HSE_MPOLICY_MEDIA_STAGING, HSE_MPOLICY_MEDIA_INVALID },
-              { HSE_MPOLICY_MEDIA_STAGING, HSE_MPOLICY_MEDIA_INVALID },
-          },
-          {
-              { HSE_MPOLICY_MEDIA_STAGING, HSE_MPOLICY_MEDIA_INVALID },
-              { HSE_MPOLICY_MEDIA_CAPACITY, HSE_MPOLICY_MEDIA_INVALID },
-          },
-      } };
+static const struct mclass_policy
+    mclass_policy_default = { .mc_name = "default_policy",
+                              .mc_table = {
+                                  {
+                                      { HSE_MPOLICY_MEDIA_STAGING, HSE_MPOLICY_MEDIA_INVALID },
+                                      { HSE_MPOLICY_MEDIA_STAGING, HSE_MPOLICY_MEDIA_INVALID },
+                                  },
+                                  {
+                                      { HSE_MPOLICY_MEDIA_STAGING, HSE_MPOLICY_MEDIA_INVALID },
+                                      { HSE_MPOLICY_MEDIA_STAGING, HSE_MPOLICY_MEDIA_INVALID },
+                                  },
+                                  {
+                                      { HSE_MPOLICY_MEDIA_STAGING, HSE_MPOLICY_MEDIA_INVALID },
+                                      { HSE_MPOLICY_MEDIA_STAGING, HSE_MPOLICY_MEDIA_INVALID },
+                                  },
+                                  {
+                                      { HSE_MPOLICY_MEDIA_STAGING, HSE_MPOLICY_MEDIA_INVALID },
+                                      { HSE_MPOLICY_MEDIA_CAPACITY, HSE_MPOLICY_MEDIA_INVALID },
+                                  },
+                              } };
 
 unsigned int
 mclass_policy_get_num_fields()

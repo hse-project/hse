@@ -74,7 +74,7 @@ struct mutex {
     pthread_mutex_t pth_mutex;
 };
 
-#define DEFINE_MUTEX(mutexname) struct mutex mutexname = {.pth_mutex = PTHREAD_MUTEX_INITIALIZER }
+#define DEFINE_MUTEX(mutexname) struct mutex mutexname = { .pth_mutex = PTHREAD_MUTEX_INITIALIZER }
 
 #define mutex_lock_nested(lock, subclass) mutex_lock((lock))
 

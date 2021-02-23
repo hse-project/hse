@@ -11,15 +11,12 @@
 /* If you change the size of struct key_immediate then you'll need to update
  * key_immediate_init(), key_imm_klen(), and key_immediate_cmp_full().
  */
-_Static_assert(sizeof(struct key_immediate) == 32,
-               "size of key_immediate changed");
+_Static_assert(sizeof(struct key_immediate) == 32, "size of key_immediate changed");
 
 /* If HSE_KVS_COUNT_MAX becomes larger than 256 then you'll need
  * to update key_immediate_init() and key_immediate_index().
  */
-_Static_assert(HSE_KVS_COUNT_MAX <= 256,
-               "HSE_KVS_COUNT_MAX larger than expected");
-
+_Static_assert(HSE_KVS_COUNT_MAX <= 256, "HSE_KVS_COUNT_MAX larger than expected");
 
 /* This function may look expensive, but since the size of ki_data[]
  * is known, fixed, and small the optimizer won't generate any calls
@@ -68,20 +65,17 @@ key_immediate_cmp_full(const struct key_immediate *imm0, const struct key_immedi
      * Since keys are limited to 1023 bytes at this layer, this can't
      * be a return value from this function other than in this case.
      */
-    if (key_imm_klen(imm0) > KI_DLEN_MAX &&
-        key_imm_klen(imm1) > KI_DLEN_MAX)
+    if (key_imm_klen(imm0) > KI_DLEN_MAX && key_imm_klen(imm1) > KI_DLEN_MAX)
         return S32_MIN;
 
     /* Otherwise, the result comes down to the key lengths. */
     return (key_imm_klen(imm0) - key_imm_klen(imm1));
 }
 
-
 /* If you change the size of struct key_disc then you'll need
  * to update key_disc_init() and key_disc_cmp().
  */
-_Static_assert(sizeof(struct key_disc) == 32,
-               "size of key_disc changed");
+_Static_assert(sizeof(struct key_disc) == 32, "size of key_disc changed");
 
 void
 key_disc_init(const void *key, size_t len, struct key_disc *kdisc)
@@ -119,8 +113,8 @@ key_disc_cmp(const struct key_disc *lhs, const struct key_disc *rhs)
 BullseyeCoverageSaveOff
 
 #if __amd64__
-size_t
-memlcp(const void *s1, const void *s2, size_t len)
+    size_t
+    memlcp(const void *s1, const void *s2, size_t len)
 {
     size_t rc;
 

@@ -168,7 +168,7 @@ Java_org_micron_hse_API_fini(JNIEnv *env, jobject jobj)
 }
 
 JNIEXPORT void JNICALL
-               Java_org_micron_hse_API_open(
+Java_org_micron_hse_API_open(
     JNIEnv *env,
     jobject jobj,
     jshort  dbType,
@@ -327,7 +327,7 @@ errout:
 }
 
 JNIEXPORT jint JNICALL
-               Java_org_micron_hse_API_put(
+Java_org_micron_hse_API_put(
     JNIEnv *   env,
     jobject    jobj,
     jlong      handle,
@@ -489,7 +489,7 @@ Java_org_micron_hse_API_del(JNIEnv *env, jobject jobj, jlong handle, jbyteArray 
 }
 
 JNIEXPORT void JNICALL
-               Java_org_micron_hse_API_createCursor(
+Java_org_micron_hse_API_createCursor(
     JNIEnv *env,
     jobject jobj,
     jlong   handle,

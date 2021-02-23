@@ -31,15 +31,15 @@ struct kvdb_kvs;
  * @kk_name:         kvs name.
  */
 struct kvdb_kvs {
-    struct ikvs            *kk_ikvs;
-    atomic64_t             *kk_seqno;
-    struct viewset         *kk_viewset;
-    struct ikvdb_impl      *kk_parent;
+    struct ikvs *           kk_ikvs;
+    atomic64_t *            kk_seqno;
+    struct viewset *        kk_viewset;
+    struct ikvdb_impl *     kk_parent;
     u32                     kk_vcompmin;
     u32                     kk_vcompbnd;
     compress_op_compress_t *kk_vcompress;
     u64                     kk_cnid;
-    struct kvs_cparams     *kk_cparams;
+    struct kvs_cparams *    kk_cparams;
     u32                     kk_flags;
     atomic_t                kk_refcnt;
 

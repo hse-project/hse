@@ -17,8 +17,8 @@
 /*-  Key/Value Tuple  -------------------------------------------------------*/
 
 /* tombstone value */
-#define HSE_CORE_TOMB_REG ((void *)~0x1UL)
-#define HSE_CORE_TOMB_PFX ((void *)~0UL)
+#define HSE_CORE_TOMB_REG     ((void *)~0x1UL)
+#define HSE_CORE_TOMB_PFX     ((void *)~0UL)
 #define HSE_CORE_IS_TOMB(ptr) (((uintptr_t)(ptr) & ~0x1UL) == ~0x1UL)
 
 #define HSE_CORE_IS_PTOMB(ptr) (((uintptr_t)(ptr) & ~0x0UL) == ~0x0UL)

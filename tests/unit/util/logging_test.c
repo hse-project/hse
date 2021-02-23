@@ -19,7 +19,7 @@
 #include <stddef.h>
 
 #define MAX_NV_PAIRS 50
-#define MAX_NV_SIZE 100
+#define MAX_NV_SIZE  100
 
 #undef hse_xlog
 #define hse_xlog(log_fmt, hse_args, ...) hse_log_pri(log_fmt, false, hse_args, ##__VA_ARGS__)

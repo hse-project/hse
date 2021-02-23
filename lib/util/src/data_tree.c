@@ -15,13 +15,13 @@
 #include <rbtree/rbtree.h>
 
 struct dt_tree {
-    spinlock_t          dt_lock;
-    struct rb_root      dt_root;
-    spinlock_t          dt_pending_lock;
-    struct list_head    dt_pending_list;
+    spinlock_t       dt_lock;
+    struct rb_root   dt_root;
+    spinlock_t       dt_pending_lock;
+    struct list_head dt_pending_list;
 
     HSE_ALIGNED(SMP_CACHE_BYTES)
-    struct dt_element   dt_element;
+    struct dt_element dt_element;
 };
 
 /**
@@ -35,7 +35,6 @@ struct field_name {
 };
 
 struct dt_tree *dt_data_tree HSE_READ_MOSTLY;
-
 
 static HSE_ALWAYS_INLINE void
 dt_lock(struct dt_tree *tree)
@@ -164,8 +163,8 @@ static void
 dt_add_pending(struct dt_tree *tree)
 {
     struct dt_element *dte;
-    struct list_head list;
-    int rc;
+    struct list_head   list;
+    int                rc;
 
     INIT_LIST_HEAD(&list);
 
@@ -189,7 +188,7 @@ int
 dt_add(struct dt_tree *tree, struct dt_element *dte)
 {
     struct dt_element *item;
-    int rc = 0;
+    int                rc = 0;
 
     if (!tree || !dte)
         return -EINVAL;
@@ -203,7 +202,7 @@ dt_add(struct dt_tree *tree, struct dt_element *dte)
      * only asynchronously via the remove() callback.
      */
     spin_lock(&tree->dt_pending_lock);
-    list_for_each_entry(item, &tree->dt_pending_list, dte_list) {
+    list_for_each_entry (item, &tree->dt_pending_list, dte_list) {
         if (item == dte || 0 == strcmp(item->dte_path, dte->dte_path)) {
             rc = -EEXIST;
             break;
@@ -306,7 +305,7 @@ dt_find_locked(struct dt_tree *tree, const char *path, int exact)
         dte = NULL;
     }
 
-  out:
+out:
     if ((exact == 0) && (dte == NULL)) {
         /* We've passed what we were looking for */
         dte = last_valid;
@@ -483,8 +482,8 @@ dt_get_tree(char *path)
 struct dt_tree *
 dt_create(const char *name)
 {
-    struct dt_element  *element;
-    struct dt_tree     *tree;
+    struct dt_element *element;
+    struct dt_tree *   tree;
 
     if (strnlen(name, DT_PATH_ELEMENT_LEN) >= DT_PATH_ELEMENT_LEN)
         return NULL;
@@ -511,8 +510,8 @@ dt_create(const char *name)
 void
 dt_destroy(struct dt_tree *tree)
 {
-    struct rb_root     *root;
-    struct dt_element  *dte;
+    struct rb_root *   root;
+    struct dt_element *dte;
 
     dt_lock(tree);
     dt_add_pending(tree);
@@ -731,9 +730,10 @@ void
 dt_tree_emit_path(char *path)
 {
     struct yaml_context yc = {
-        .yaml_indent = 0, .yaml_offset = 0,
+        .yaml_indent = 0,
+        .yaml_offset = 0,
     };
-    union dt_iterate_parameters dip = {.yc = &yc };
+    union dt_iterate_parameters dip = { .yc = &yc };
 
     yc.yaml_buf = dt_tree_emit_buf;
     yc.yaml_buf_sz = sizeof(dt_tree_emit_buf);
@@ -747,9 +747,10 @@ void
 dt_tree_emit_pathbuf(char *path, char *buf, u32 buflen)
 {
     struct yaml_context yc = {
-        .yaml_indent = 0, .yaml_offset = 0,
+        .yaml_indent = 0,
+        .yaml_offset = 0,
     };
-    union dt_iterate_parameters dip = {.yc = &yc };
+    union dt_iterate_parameters dip = { .yc = &yc };
 
     yc.yaml_buf = buf;
     yc.yaml_buf_sz = buflen;
@@ -767,7 +768,7 @@ dt_tree_emit(void)
 void
 dt_tree_log_path(char *path, int log_level)
 {
-    union dt_iterate_parameters dip = {.log_level = log_level };
+    union dt_iterate_parameters dip = { .log_level = log_level };
 
     (void)dt_iterate_cmd(dt_data_tree, DT_OP_LOG, path, &dip, NULL, NULL, NULL);
 }

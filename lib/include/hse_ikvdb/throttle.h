@@ -14,11 +14,7 @@
 #include <hse_util/perfc.h>
 #include <hse_util/condvar.h>
 
-enum {
-    THROTTLE_SENSOR_CSCHED,
-    THROTTLE_SENSOR_C0SK,
-    THROTTLE_SENSOR_CNT
-};
+enum { THROTTLE_SENSOR_CSCHED, THROTTLE_SENSOR_C0SK, THROTTLE_SENSOR_CNT };
 
 #define THROTTLE_INIT_POLICY_NAME_LEN_MAX 32
 
@@ -26,20 +22,20 @@ enum {
  * Use throttle_raw_to_rate to convert to byte rate.
  * Comments show the corresponding rate.
  */
-#define THROTTLE_DELAY_MAX           268435456  /*        500,000  bytes/sec */
-#define THROTTLE_DELAY_START_DEFAULT   4194303  /*     32,000,007  bytes/sec */
-#define THROTTLE_DELAY_START_MEDIUM     731241  /*    183,547,869  bytes/sec */
-#define THROTTLE_DELAY_START_LIGHT      251137  /*    534,440,277  bytes/sec */
-#define THROTTLE_DELAY_MIN                8192  /* 16,384,000,000  bytes/sec */
+#define THROTTLE_DELAY_MAX           268435456 /*        500,000  bytes/sec */
+#define THROTTLE_DELAY_START_DEFAULT 4194303   /*     32,000,007  bytes/sec */
+#define THROTTLE_DELAY_START_MEDIUM  731241    /*    183,547,869  bytes/sec */
+#define THROTTLE_DELAY_START_LIGHT   251137    /*    534,440,277  bytes/sec */
+#define THROTTLE_DELAY_MIN           8192      /* 16,384,000,000  bytes/sec */
 
-#define THROTTLE_SMAX_CNT 24
+#define THROTTLE_SMAX_CNT      24
 #define THROTTLE_REDUCE_CYCLES 200
-#define THROTTLE_INJECT_MS 200
-#define THROTTLE_SKIP_CYCLES 20
-#define THROTTLE_DELTA_CYCLES 32
-#define THROTTLE_LMAX_CYCLES 400
-#define THROTTLE_SENSOR_SCALE 1000
-#define THROTTLE_MAX_RUN 6
+#define THROTTLE_INJECT_MS     200
+#define THROTTLE_SKIP_CYCLES   20
+#define THROTTLE_DELTA_CYCLES  32
+#define THROTTLE_LMAX_CYCLES   400
+#define THROTTLE_SENSOR_SCALE  1000
+#define THROTTLE_MAX_RUN       6
 
 /**
  * struct throttle_sensor - throttle sensor
@@ -152,11 +148,11 @@ struct throttle_mavg {
  * @thr_sensorv:        vector of throttle sensors
  */
 struct throttle {
-    atomic_t             thr_pct;
-    atomic64_t           thr_next;
-    uint                 thr_delay_raw;
-    int                  thr_nslpmin;
-    spinlock_t           thr_lock;
+    atomic_t   thr_pct;
+    atomic64_t thr_next;
+    uint       thr_delay_raw;
+    int        thr_nslpmin;
+    spinlock_t thr_lock;
 
     HSE_ALIGNED(SMP_CACHE_BYTES)
     struct throttle_mavg thr_mavg;
@@ -220,8 +216,7 @@ throttle_debug(struct throttle *self);
 void
 throttle_reduce_debug(struct throttle *self, uint value, uint mavg);
 
-static inline
-u64
+static inline u64
 throttle_raw_to_rate(unsigned raw_delay)
 {
     if (HSE_UNLIKELY(raw_delay == 0))

@@ -8,8 +8,10 @@
 
 struct viewset_tree;
 
-merr_t viewset_tree_create(u32 max_elts, u32 index, struct viewset_tree **tree);
+merr_t
+viewset_tree_create(u32 max_elts, u32 index, struct viewset_tree **tree);
 
-void viewset_tree_destroy(struct viewset_tree *self);
+void
+viewset_tree_destroy(struct viewset_tree *self);
 
 #endif

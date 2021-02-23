@@ -35,8 +35,8 @@ struct c0_kvset_iterator {
 };
 
 #define C0_KVSET_ITER_FLAG_REVERSE 0x0001
-#define C0_KVSET_ITER_FLAG_PTOMB 0x0002
-#define C0_KVSET_ITER_FLAG_INDEX 0x0004
+#define C0_KVSET_ITER_FLAG_PTOMB   0x0002
+#define C0_KVSET_ITER_FLAG_INDEX   0x0004
 
 struct kvs_ktuple;
 

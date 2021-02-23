@@ -62,11 +62,11 @@ struct kvdb_ctxn_bind {
 
 struct kvdb_ctxn *
 kvdb_ctxn_alloc(
-    struct kvdb_keylock *   kvdb_keylock,
-    atomic64_t *            kvdb_seqno_addr,
-    struct kvdb_ctxn_set *  kvdb_ctxn_set,
-    struct viewset         *active_txn_set,
-    struct c0sk *           c0sk);
+    struct kvdb_keylock * kvdb_keylock,
+    atomic64_t *          kvdb_seqno_addr,
+    struct kvdb_ctxn_set *kvdb_ctxn_set,
+    struct viewset *      active_txn_set,
+    struct c0sk *         c0sk);
 
 void
 kvdb_ctxn_free(struct kvdb_ctxn *txn);

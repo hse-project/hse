@@ -24,89 +24,89 @@ struct bf_prob_range {
  */
 static const struct bf_prob_range bf_ranges[] = {
     {
-      bfpr_min : 100,
-      bfpr_max : 200,
-      bfpr_bhdesc : { bhd_bits_per_elt : 20, bhd_num_hashes : 14 }
+        bfpr_min : 100,
+        bfpr_max : 200,
+        bfpr_bhdesc : { bhd_bits_per_elt : 20, bhd_num_hashes : 14 }
     },
     {
-      bfpr_min : 200,
-      bfpr_max : 400,
-      bfpr_bhdesc : { bhd_bits_per_elt : 18, bhd_num_hashes : 13 }
+        bfpr_min : 200,
+        bfpr_max : 400,
+        bfpr_bhdesc : { bhd_bits_per_elt : 18, bhd_num_hashes : 13 }
     },
     {
-      bfpr_min : 400,
-      bfpr_max : 700,
-      bfpr_bhdesc : { bhd_bits_per_elt : 17, bhd_num_hashes : 12 }
+        bfpr_min : 400,
+        bfpr_max : 700,
+        bfpr_bhdesc : { bhd_bits_per_elt : 17, bhd_num_hashes : 12 }
     },
     {
-      bfpr_min : 700,
-      bfpr_max : 1100,
-      bfpr_bhdesc : { bhd_bits_per_elt : 16, bhd_num_hashes : 12 }
+        bfpr_min : 700,
+        bfpr_max : 1100,
+        bfpr_bhdesc : { bhd_bits_per_elt : 16, bhd_num_hashes : 12 }
     },
     {
-      bfpr_min : 1100,
-      bfpr_max : 1900,
-      bfpr_bhdesc : { bhd_bits_per_elt : 15, bhd_num_hashes : 11 }
+        bfpr_min : 1100,
+        bfpr_max : 1900,
+        bfpr_bhdesc : { bhd_bits_per_elt : 15, bhd_num_hashes : 11 }
     },
     {
-      bfpr_min : 1900,
-      bfpr_max : 3100,
-      bfpr_bhdesc : { bhd_bits_per_elt : 14, bhd_num_hashes : 10 }
+        bfpr_min : 1900,
+        bfpr_max : 3100,
+        bfpr_bhdesc : { bhd_bits_per_elt : 14, bhd_num_hashes : 10 }
     },
     {
-      bfpr_min : 3100,
-      bfpr_max : 5000,
-      bfpr_bhdesc : { bhd_bits_per_elt : 13, bhd_num_hashes : 10 }
+        bfpr_min : 3100,
+        bfpr_max : 5000,
+        bfpr_bhdesc : { bhd_bits_per_elt : 13, bhd_num_hashes : 10 }
     },
     {
-      bfpr_min : 5000,
-      bfpr_max : 8100,
-      bfpr_bhdesc : { bhd_bits_per_elt : 12, bhd_num_hashes : 9 }
+        bfpr_min : 5000,
+        bfpr_max : 8100,
+        bfpr_bhdesc : { bhd_bits_per_elt : 12, bhd_num_hashes : 9 }
     },
     {
-      bfpr_min : 8100,
-      bfpr_max : 13200,
-      bfpr_bhdesc : { bhd_bits_per_elt : 11, bhd_num_hashes : 8 }
+        bfpr_min : 8100,
+        bfpr_max : 13200,
+        bfpr_bhdesc : { bhd_bits_per_elt : 11, bhd_num_hashes : 8 }
     },
     {
-      bfpr_min : 13200,
-      bfpr_max : 21400,
-      bfpr_bhdesc : { bhd_bits_per_elt : 10, bhd_num_hashes : 7 }
+        bfpr_min : 13200,
+        bfpr_max : 21400,
+        bfpr_bhdesc : { bhd_bits_per_elt : 10, bhd_num_hashes : 7 }
     },
     {
-      bfpr_min : 21400,
-      bfpr_max : 34600,
-      bfpr_bhdesc : { bhd_bits_per_elt : 9, bhd_num_hashes : 7 }
+        bfpr_min : 21400,
+        bfpr_max : 34600,
+        bfpr_bhdesc : { bhd_bits_per_elt : 9, bhd_num_hashes : 7 }
     },
     {
-      bfpr_min : 34600,
-      bfpr_max : 55900,
-      bfpr_bhdesc : { bhd_bits_per_elt : 8, bhd_num_hashes : 6 }
+        bfpr_min : 34600,
+        bfpr_max : 55900,
+        bfpr_bhdesc : { bhd_bits_per_elt : 8, bhd_num_hashes : 6 }
     },
     {
-      bfpr_min : 55900,
-      bfpr_max : 90500,
-      bfpr_bhdesc : { bhd_bits_per_elt : 7, bhd_num_hashes : 5 }
+        bfpr_min : 55900,
+        bfpr_max : 90500,
+        bfpr_bhdesc : { bhd_bits_per_elt : 7, bhd_num_hashes : 5 }
     },
     {
-      bfpr_min : 90500,
-      bfpr_max : 146300,
-      bfpr_bhdesc : { bhd_bits_per_elt : 6, bhd_num_hashes : 5 }
+        bfpr_min : 90500,
+        bfpr_max : 146300,
+        bfpr_bhdesc : { bhd_bits_per_elt : 6, bhd_num_hashes : 5 }
     },
     {
-      bfpr_min : 146300,
-      bfpr_max : 200000,
-      bfpr_bhdesc : { bhd_bits_per_elt : 5, bhd_num_hashes : 4 }
+        bfpr_min : 146300,
+        bfpr_max : 200000,
+        bfpr_bhdesc : { bhd_bits_per_elt : 5, bhd_num_hashes : 4 }
     },
     {
-      bfpr_min : 200000,
-      bfpr_max : 1000000,
-      bfpr_bhdesc : { bhd_bits_per_elt : 4, bhd_num_hashes : 3 }
+        bfpr_min : 200000,
+        bfpr_max : 1000000,
+        bfpr_bhdesc : { bhd_bits_per_elt : 4, bhd_num_hashes : 3 }
     },
     {
-      bfpr_min : 0,
-      bfpr_max : UINT_MAX,
-      bfpr_bhdesc : { bhd_bits_per_elt : 2, bhd_num_hashes : 1 }
+        bfpr_min : 0,
+        bfpr_max : UINT_MAX,
+        bfpr_bhdesc : { bhd_bits_per_elt : 2, bhd_num_hashes : 1 }
     },
 };
 
