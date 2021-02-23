@@ -46,7 +46,3 @@ util_sources = files(
 	'xrand.c',
 	'yaml.c',
 )
-
-if get_option('tests')
-	subdir('mock')
-endif
