@@ -72,6 +72,9 @@ hse = both_libraries(
 hse_dep = declare_dependency(
 	link_with: hse,
 	version: meson.project_version(),
+	sources: [
+		version_h,
+	],
 	include_directories: [
 		public_includes,
 	],
@@ -81,6 +84,9 @@ hse_dep = declare_dependency(
 hse_static_dep = declare_dependency(
 	link_with: hse.get_static_lib(),
 	version: meson.project_version(),
+	sources: [
+		version_h,
+	],
 	include_directories: [
 		public_includes,
 	],
@@ -119,6 +125,11 @@ if get_option('tests')
 	hse_mock_dep = declare_dependency(
 		link_with: hse_mock,
 		version: meson.project_version(),
+		sources: [
+			version_h,
+			mapi_idx_h,
+			mock_sources,
+		],
 		include_directories: [
 			public_includes,
 		],

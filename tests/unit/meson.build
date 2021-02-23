@@ -9,9 +9,7 @@ common_test_includes = [
 	hse_mock_include_directories,
 ]
 
-common_test_sources = [
-	mapi_idx_h,
-]
+common_test_sources = []
 
 common_test_dependencies = [
 	hse_mock_dep,
