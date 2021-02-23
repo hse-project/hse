@@ -30,10 +30,10 @@ static char *pc_type_names[] = {
  * perfc_verbosity will be "on".
  * Later the user can change this global verbosity on the fly.
  */
-u32 perfc_verbosity_default __read_mostly = 2;
-u32 perfc_verbosity __read_mostly = 2;
+u32 perfc_verbosity_default HSE_READ_MOSTLY = 2;
+u32 perfc_verbosity HSE_READ_MOSTLY = 2;
 
-struct perfc_ivl *perfc_di_ivl __read_mostly;
+struct perfc_ivl *perfc_di_ivl HSE_READ_MOSTLY;
 
 /**
  * perfc_ctrseti_clear() - Clear a counter set instance.
@@ -307,7 +307,7 @@ perfc_di_emit(struct perfc_dis *dis, struct yaml_context *yc)
     yaml_element_field(yc, "bkts", bktstr);
 }
 
-static __always_inline void
+static HSE_ALWAYS_INLINE void
 _gather_values(struct perfc_ctr_hdr *hdr, u64 *vadd, u64 *vsub)
 {
     struct perfc_val   *val = hdr->pch_val;
@@ -970,7 +970,7 @@ perfc_ctrseti_invalidate_handle(struct perfc_set *set)
 
 _Static_assert(sizeof(struct perfc_val) >= sizeof(struct perfc_bkt), "sizeof perfc_bkt too large");
 
-static __always_inline void
+static HSE_ALWAYS_INLINE void
 perfc_latdis_record(struct perfc_dis *dis, u64 sample)
 {
     struct perfc_bkt *bkt;

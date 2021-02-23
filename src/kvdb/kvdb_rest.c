@@ -639,7 +639,7 @@ struct cursor_test {
     char                             ct_errmsg[128];
 };
 
-__printf(3, 4) static merr_t
+HSE_PRINTF(3, 4) static merr_t
     cursor_test_set_err(struct cursor_test *ct, merr_t err, const char *fmt, ...)
 {
     va_list ap;

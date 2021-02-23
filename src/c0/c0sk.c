@@ -1757,7 +1757,7 @@ c0sk_cursor_update(
         if (c0sk_cursor_init(cur))
             return ev(cur->c0cur_merr);
 
-        if (unlikely(tombs))
+        if (HSE_UNLIKELY(tombs))
             c0sk_cursor_preserve_tombspan(
                 cur, last_gen, cur->c0cur_kvmsv, cur->c0cur_cnt, kt_min, kt_max, flags_out);
 
@@ -1830,7 +1830,7 @@ c0sk_cursor_update(
         return merr(EAGAIN);
     }
 
-    if (unlikely(tombs))
+    if (HSE_UNLIKELY(tombs))
         c0sk_cursor_preserve_tombspan(cur, last_gen, new, cnt, kt_min, kt_max, flags_out);
 
     c0sk_cursor_record_active_gen(cur, new, cnt);
@@ -1869,7 +1869,7 @@ c0sk_cursor_update(
 
 BullseyeCoverageSaveOff
 
-__used __cold
+HSE_USED HSE_COLD
 void
 c0sk_cursor_debug_base(
     struct c0sk *handle,
@@ -1923,7 +1923,7 @@ c0sk_cursor_debug_base(
         return;
 }
 
-__used __cold
+HSE_USED HSE_COLD
 void
 c0sk_cursor_debug(struct c0_cursor *cur)
 {
@@ -1931,7 +1931,7 @@ c0sk_cursor_debug(struct c0_cursor *cur)
         cur->c0cur_c0sk, cur->c0cur_seqno, cur->c0cur_prefix, cur->c0cur_pfx_len, cur->c0cur_skidx);
 }
 
-__used __cold
+HSE_USED HSE_COLD
 static void
 c0sk_cursor_debug_val(struct c0_cursor *cur, uintptr_t seqnoref, struct bonsai_kv *bkv)
 {

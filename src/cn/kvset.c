@@ -98,8 +98,8 @@ struct kvset_cache {
     size_t             sz;
 };
 
-static struct kvset_cache kvset_cache[3] __read_mostly;
-static struct kmem_cache *kvset_iter_cache __read_mostly;
+static struct kvset_cache kvset_cache[3] HSE_READ_MOSTLY;
+static struct kmem_cache *kvset_iter_cache HSE_READ_MOSTLY;
 static atomic_t           kvset_init_ref;
 
 /* A kvset contains a logical array of vblocks and kblocks reference vblocks by
@@ -108,25 +108,25 @@ static atomic_t           kvset_init_ref;
  * logical index.  These functions hide the details of finding vblock info
  * from a logical vblock index.
  */
-static __always_inline struct mbset *
+static HSE_ALWAYS_INLINE struct mbset *
 lvx2mbs(struct kvset *ks, uint i)
 {
     return ks->ks_vblk2mbs[i].mbs;
 }
 
-static __always_inline uint
+static HSE_ALWAYS_INLINE uint
 lvx2mbs_bnum(struct kvset *ks, uint i)
 {
     return ks->ks_vblk2mbs[i].idx;
 }
 
-static __always_inline u64
+static HSE_ALWAYS_INLINE u64
 lvx2mbid(struct kvset *ks, uint i)
 {
     return mbset_get_mbid(lvx2mbs(ks, i), lvx2mbs_bnum(ks, i));
 }
 
-static __always_inline struct vblock_desc *
+static HSE_ALWAYS_INLINE struct vblock_desc *
 lvx2vbd(struct kvset *ks, uint i)
 {
     return mbset_get_udata(lvx2mbs(ks, i), lvx2mbs_bnum(ks, i));
@@ -1509,7 +1509,7 @@ kvset_lookup_val(struct kvset *ks, struct kvs_vtuple_ref *vref, struct kvs_buf *
         || vref->vr_type == vtype_val
         || vref->vr_type == vtype_cval);
 
-    if (unlikely(vref->vr_type == vtype_zval)) {
+    if (HSE_UNLIKELY(vref->vr_type == vtype_zval)) {
         vbuf->b_len = 0;
         return 0;
     }
@@ -1638,7 +1638,7 @@ next_kblk:
         const u64 lookup = kblk->kb_cn_bloom_lookup;
         bool      hit = true;
 
-        if (likely(lookup == BLOOM_LOOKUP_MCACHE)) {
+        if (HSE_LIKELY(lookup == BLOOM_LOOKUP_MCACHE)) {
             hit = bloom_reader_buffer_lookup(&kblk->kb_blm_desc, kblk->kb_blm_pages, kt);
         } else if (lookup == BLOOM_LOOKUP_BUFFER) {
             hit = bloom_reader_buffer_lookup(&kblk->kb_blm_desc, kblk->kb_blm_pages, kt);
@@ -2343,7 +2343,7 @@ enum read_type { READ_WBT = true, READ_PT = false };
 static void
 kblk_start_read(struct kvset_iterator *iter, struct kblk_reader *kr, enum read_type read_type)
 {
-    bool success       __maybe_unused;
+    bool success       HSE_MAYBE_UNUSED;
     struct kvset_kblk *kblk;
 
     assert(!kr->mbio.pending);
@@ -2425,7 +2425,7 @@ vr_start_read(
     struct workqueue_struct *workq,
     struct kvset *           ks)
 {
-    bool success __maybe_unused;
+    bool success HSE_MAYBE_UNUSED;
 
     /* update mblock properties */
     assert(lvx2vbd(ks, vbidx));
@@ -2457,7 +2457,7 @@ vr_start_read(
     return true;
 }
 
-static __always_inline bool
+static HSE_ALWAYS_INLINE bool
 vr_have_data(struct vr_buf *buf, uint idx, uint off, uint len)
 {
     return (buf->idx == idx && buf->off <= off && off + len <= buf->off + buf->len);

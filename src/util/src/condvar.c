@@ -23,7 +23,7 @@ cv_destroy(struct cv *cv)
 
     rc = pthread_cond_destroy(&cv->cv_waitq);
 
-    if (unlikely(rc || cv->cv_waiters > 0))
+    if (HSE_UNLIKELY(rc || cv->cv_waiters > 0))
         abort();
 }
 
@@ -38,7 +38,7 @@ cv_timedwait(struct cv *cv, struct mutex *mtx, const int timeout)
         rc = pthread_cond_wait(&cv->cv_waitq, &mtx->pth_mutex);
         --cv->cv_waiters;
 
-        if (unlikely(rc))
+        if (HSE_UNLIKELY(rc))
             abort();
         return 0;
     }
@@ -53,7 +53,7 @@ cv_timedwait(struct cv *cv, struct mutex *mtx, const int timeout)
     rc = pthread_cond_timedwait(&cv->cv_waitq, &mtx->pth_mutex, &ts);
     --cv->cv_waiters;
 
-    if (unlikely(rc != 0 && rc != ETIMEDOUT))
+    if (HSE_UNLIKELY(rc != 0 && rc != ETIMEDOUT))
         abort();
 
     return rc ? ETIMEDOUT : 0;

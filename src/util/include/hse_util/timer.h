@@ -29,7 +29,7 @@
 struct timer_jclock {
     atomic64_t  jc_jclock_ns;
     atomic64_t  jc_jiffies;
-} __aligned(SMP_CACHE_BYTES);
+} HSE_ALIGNED(SMP_CACHE_BYTES);
 
 struct timer_list {
     struct list_head entry;
@@ -81,7 +81,7 @@ extern unsigned long tsc_freq;
 extern unsigned long tsc_mult;
 extern unsigned int tsc_shift;
 
-static __always_inline u64
+static HSE_ALWAYS_INLINE u64
 cycles_to_nsecs(u64 cycles)
 {
     /* To avoid overflow cycles is limited to 2^(64 - tsc_shift)
@@ -90,7 +90,7 @@ cycles_to_nsecs(u64 cycles)
     return (cycles * tsc_mult) >> tsc_shift;
 }
 
-static __always_inline unsigned long
+static HSE_ALWAYS_INLINE unsigned long
 msecs_to_jiffies(const unsigned int m)
 {
     if ((int)m < 0)
@@ -99,7 +99,7 @@ msecs_to_jiffies(const unsigned int m)
     return (m + (MSEC_PER_SEC / HSE_HZ) - 1) / (MSEC_PER_SEC / HSE_HZ);
 }
 
-static __always_inline unsigned long
+static HSE_ALWAYS_INLINE unsigned long
 usecs_to_jiffies(const unsigned int m)
 {
     if ((int)m < 0)
@@ -108,7 +108,7 @@ usecs_to_jiffies(const unsigned int m)
     return (m + (USEC_PER_SEC / HSE_HZ) - 1) / (USEC_PER_SEC / HSE_HZ);
 }
 
-static __always_inline unsigned long
+static HSE_ALWAYS_INLINE unsigned long
 nsecs_to_jiffies(const u64 m)
 {
     return (m + (NSEC_PER_SEC / HSE_HZ) - 1) / (NSEC_PER_SEC / HSE_HZ);

@@ -22,12 +22,12 @@
 #define OMF_SETGET(type, member, bits) OMF_SETGET2(type, member, bits, member)
 
 #define OMF_SETGET2(type, member, bits, name)                        \
-    static __always_inline u##bits omf_##name(const type *s)         \
+    static HSE_ALWAYS_INLINE u##bits omf_##name(const type *s)         \
     {                                                                \
         BUILD_BUG_ON(sizeof(((type *)0)->member) * 8 != (bits));     \
         return le##bits##_to_cpu(s->member);                         \
     }                                                                \
-    static __always_inline void omf_set_##name(type *s, u##bits val) \
+    static HSE_ALWAYS_INLINE void omf_set_##name(type *s, u##bits val) \
     {                                                                \
         s->member = cpu_to_le##bits(val);                            \
     }
@@ -50,7 +50,7 @@
     }
 
 #define OMF_GET_VER(type, member, bits, ver)                           \
-    static __always_inline u##bits omf_##member##_##ver(const type *s) \
+    static HSE_ALWAYS_INLINE u##bits omf_##member##_##ver(const type *s) \
     {                                                                  \
         BUILD_BUG_ON(sizeof(((type *)0)->member) * 8 != (bits));       \
         return le##bits##_to_cpu(s->member);                           \

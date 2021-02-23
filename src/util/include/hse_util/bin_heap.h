@@ -94,7 +94,7 @@ bin_heap2_prepare_list(struct bin_heap2 *bh, u32 width, struct element_source *e
 bool
 bin_heap2_pop(struct bin_heap2 *bh, void **item);
 
-static __always_inline bool
+static HSE_ALWAYS_INLINE bool
 bin_heap2_peek(struct bin_heap2 *bh, void **item)
 {
     struct heap_node node;

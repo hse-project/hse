@@ -66,13 +66,13 @@ bin_heap_destroy(struct bin_heap *bh)
     free(bh);
 }
 
-static __always_inline int
+static HSE_ALWAYS_INLINE int
 compare_items(struct bin_heap *bh, s32 index1, s32 index2)
 {
     return bh->bh_compare(bh->bh_item_ptrs[index1], bh->bh_item_ptrs[index2]);
 }
 
-static __always_inline void
+static HSE_ALWAYS_INLINE void
 swap_items(struct bin_heap *bh, s32 a_index, s32 b_index)
 {
     void *tmp;
@@ -245,7 +245,7 @@ bin_heap_insert(struct bin_heap *bh, const void *new_item)
 #define BH2_LEFT(_index)    (2 * (_index) + 1)
 #define BH2_RIGHT(_index)   (2 * (_index) + 2)
 
-static __always_inline int
+static HSE_ALWAYS_INLINE int
 bin_heap2_cmp(bin_heap2_compare_fn *cmp, struct heap_node *elts, int a, int b)
 {
     int rc = cmp(elts[a].hn_data, elts[b].hn_data);

@@ -84,7 +84,7 @@ compress_lz4_decompress(
      * version of lz4, or you've unwittingly linked against a buggy version
      * (i.e., any version prior to v1.9.2).
      */
-    if (unlikely( len < 1 )) {
+    if (HSE_UNLIKELY( len < 1 )) {
         hse_log(HSE_ERR "%s: slen %u, cap %u, len %d, src %p, dst %p, ver %s",
                 __func__, src_len, dst_capacity, len, src, dst, LZ4_versionString());
 
@@ -96,7 +96,7 @@ compress_lz4_decompress(
     return 0;
 }
 
-struct compress_ops compress_lz4_ops __read_mostly = {
+struct compress_ops compress_lz4_ops HSE_READ_MOSTLY = {
     .cop_estimate   = compress_lz4_estimate,
     .cop_compress   = compress_lz4_compress,
     .cop_decompress = compress_lz4_decompress,

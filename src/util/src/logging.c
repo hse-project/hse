@@ -843,11 +843,11 @@ LITERAL_handler(
 {
     char *tgt = *tgt_pos;
 
-    if (unlikely(c == '%')) {
+    if (HSE_UNLIKELY(c == '%')) {
         *parse_state = IN_STD_FORMAT;
         *tgt++ = c;
     } else {
-        if (unlikely(c == '@' && *spec_pos == '@')) {
+        if (HSE_UNLIKELY(c == '@' && *spec_pos == '@')) {
             *parse_state = IN_HSE_FORMAT;
         } else {
             /* likely */

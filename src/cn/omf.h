@@ -72,7 +72,7 @@ struct kblock_hdr_omf {
     __le64 kbh_min_seqno;
     __le64 kbh_max_seqno;
 
-} __packed;
+} HSE_PACKED;
 
 /* Define set/get methods for kblock_hdr_omf */
 OMF_SETGET(struct kblock_hdr_omf, kbh_magic, 32)
@@ -137,7 +137,7 @@ struct bloom_hdr_omf {
     u8     bh_n_hashes;
     __le32 bh_rsvd2;
     __le32 bh_rsvd3;
-} __packed;
+} HSE_PACKED;
 
 /* Define set/get methods for bloom_hdr_omf */
 OMF_SETGET(struct bloom_hdr_omf, bh_magic, 32)
@@ -184,7 +184,7 @@ struct wbt_hdr_omf {
     __le16 wbt_kmd_pgc;  /* size of kmd region in pages */
     __le32 wbt_reserved1;
     __le32 wbt_reserved2;
-} __packed;
+} HSE_PACKED;
 
 OMF_SETGET(struct wbt_hdr_omf, wbt_magic, 32)
 OMF_SETGET(struct wbt_hdr_omf, wbt_version, 32)
@@ -209,7 +209,7 @@ struct wbt_node_hdr_omf {
     __le32 wbn_kmd;      /* offset in kmd region to this node's kmd */
     __le16 wbn_pfx_len;  /* length of the longest common prefix */
     __le16 wbn_padding;  /* unused padding */
-} __packed;
+} HSE_PACKED;
 
 OMF_SETGET(struct wbt_node_hdr_omf, wbn_magic, 16)
 OMF_SETGET(struct wbt_node_hdr_omf, wbn_num_keys, 16)
@@ -221,7 +221,7 @@ struct wbt4_node_hdr_omf {
     __le16 wbn4_magic;    /* node magic , distinguishes INEs from LFEs */
     __le16 wbn4_num_keys; /* number of keys in node */
     __le32 wbn4_kmd;      /* offset in kmd region to this node's kmd */
-} __packed;
+} HSE_PACKED;
 
 OMF_SETGET(struct wbt4_node_hdr_omf, wbn4_magic, 16)
 OMF_SETGET(struct wbt4_node_hdr_omf, wbn4_num_keys, 16)
@@ -231,7 +231,7 @@ OMF_SETGET(struct wbt4_node_hdr_omf, wbn4_kmd, 32)
 struct wbt_ine_omf {
     __le16 ine_koff;       /* byte offset from start of node to key */
     __le16 ine_left_child; /* node number of left child */
-} __packed;
+} HSE_PACKED;
 
 OMF_SETGET(struct wbt_ine_omf, ine_koff, 16)
 OMF_SETGET(struct wbt_ine_omf, ine_left_child, 16)
@@ -243,7 +243,7 @@ OMF_SETGET(struct wbt_ine_omf, ine_left_child, 16)
 struct wbt_lfe_omf {
     __le16 lfe_koff;
     __le16 lfe_kmd;
-} __packed;
+} HSE_PACKED;
 
 OMF_SETGET(struct wbt_lfe_omf, lfe_koff, 16)
 OMF_SETGET(struct wbt_lfe_omf, lfe_kmd, 16)
@@ -262,7 +262,7 @@ struct wbt3_hdr_omf {
     __le16 wbt3_kmd_pgc;  /* size of kmd region in pages */
     __le32 wbt3_reserved1;
     __le32 wbt3_reserved2;
-} __packed;
+} HSE_PACKED;
 
 OMF_SETGET(struct wbt3_hdr_omf, wbt3_magic, 32)
 OMF_SETGET(struct wbt3_hdr_omf, wbt3_version, 32)
@@ -277,7 +277,7 @@ struct wbt3_node_hdr_omf {
     __le16 wbn3_magic;    /* magic number, distinguishes INEs from LFEs */
     __le16 wbn3_num_keys; /* number of keys in node */
     __le32 wbn3_kmd;      /* offset in kmd region to node's kmd data */
-} __packed;
+} HSE_PACKED;
 
 OMF_SETGET(struct wbt3_node_hdr_omf, wbn3_magic, 16)
 OMF_SETGET(struct wbt3_node_hdr_omf, wbn3_num_keys, 16)
@@ -287,7 +287,7 @@ OMF_SETGET(struct wbt3_node_hdr_omf, wbn3_kmd, 32)
 struct wbt3_ine_omf {
     __le16 ine3_koff;       /* byte offset from start of node to key */
     __le16 ine3_left_child; /* node number of left child */
-} __packed;
+} HSE_PACKED;
 
 OMF_SETGET(struct wbt3_ine_omf, ine3_koff, 16)
 OMF_SETGET(struct wbt3_ine_omf, ine3_left_child, 16)
@@ -299,7 +299,7 @@ OMF_SETGET(struct wbt3_ine_omf, ine3_left_child, 16)
 struct wbt3_lfe_omf {
     __le16 lfe3_koff;
     __le16 lfe3_kmd;
-} __packed;
+} HSE_PACKED;
 
 OMF_SETGET(struct wbt3_lfe_omf, lfe3_koff, 16)
 OMF_SETGET(struct wbt3_lfe_omf, lfe3_kmd, 16)
@@ -321,7 +321,7 @@ struct vblock_hdr_omf {
     __le32 vbh_magic;
     __le32 vbh_version;
     __le64 vbh_vgroup;
-} __packed;
+} HSE_PACKED;
 
 OMF_SETGET(struct vblock_hdr_omf, vbh_magic, 32)
 OMF_SETGET(struct vblock_hdr_omf, vbh_version, 32)
@@ -334,7 +334,7 @@ struct vblock_hdr1_omf {
     __le32 vbh1_entries;
     __le32 vbh1_data_off; /* offset from start of vblock to values */
     __le64 vbh1_data_len; /* length of value region */
-} __packed;
+} HSE_PACKED;
 
 /* cn dynamic state
  */
@@ -351,7 +351,7 @@ struct cn_tstate_omf {
     __le32 ts_khm_gen;
     __le32 ts_khm_rsvd;
     u8     ts_khm_mapv[CN_TSTATE_KHM_SZ];
-} __packed;
+} HSE_PACKED;
 
 OMF_SETGET(struct cn_tstate_omf, ts_magic, 32)
 OMF_SETGET(struct cn_tstate_omf, ts_version, 32)

@@ -140,7 +140,7 @@ kvs_vtuple_cinit(struct kvs_vtuple *vt, void *val, uint vlen, uint clen)
  * kvs_vtuple_vlen() returns the in-core length (in bytes) of the
  * given vtuple, irrespective of whether or not it is compressed.
  */
-static __always_inline uint
+static HSE_ALWAYS_INLINE uint
 kvs_vtuple_vlen(const struct kvs_vtuple *vt)
 {
     uint clen = vt->vt_xlen >> 32;
@@ -149,7 +149,7 @@ kvs_vtuple_vlen(const struct kvs_vtuple *vt)
     return clen ?: vlen;
 }
 
-static __always_inline uint
+static HSE_ALWAYS_INLINE uint
 kvs_vtuple_clen(const struct kvs_vtuple *vt)
 {
     return vt->vt_xlen >> 32;

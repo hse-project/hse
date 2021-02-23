@@ -44,7 +44,7 @@ static inline
 u64
 xrand64_tls(void)
 {
-    if (unlikely(!xrand_tls_seed)) {
+    if (HSE_UNLIKELY(!xrand_tls_seed)) {
         xrand_tls_seed = pthread_self();
         xrand_init(&xrand_tls, xrand_tls_seed);
     }

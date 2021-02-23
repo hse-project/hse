@@ -12,7 +12,7 @@
 
 #define SLAB_HWCACHE_ALIGN 0x00002000ul
 
-static __always_inline void *
+static HSE_ALWAYS_INLINE void *
 malloc_array(size_t n, size_t size)
 {
     if (size != 0 && n > SIZE_MAX / size)

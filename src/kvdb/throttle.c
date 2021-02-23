@@ -468,7 +468,7 @@ throttle_update(struct throttle *self)
         perfc_rec_sample(&self->thr_sensor_perfc, PERFC_DI_THSR_MAVG, mavg->tm_curr);
     }
 
-    if (unlikely(self->thr_rp->throttle_disable))
+    if (HSE_UNLIKELY(self->thr_rp->throttle_disable))
         return 0;
 
     if (self->thr_state != THROTTLE_NO_CHANGE) {

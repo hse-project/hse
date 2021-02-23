@@ -243,7 +243,7 @@ path_step_to_target(struct cn_tree *tree, struct cn_node_loc *tgt, u32 curr_leve
 static size_t
 cn_node_size(void)
 {
-    struct cn_tree_node *node __maybe_unused;
+    struct cn_tree_node *node HSE_MAYBE_UNUSED;
     size_t                    sz;
 
     sz = sizeof(*node) + sizeof(*node->tn_childv) * CN_FANOUT_MAX;
@@ -974,7 +974,7 @@ cn_tree_insert_kvset(struct cn_tree *tree, struct kvset *kvset, uint level, uint
  * grow operations during tree traversal.
  */
 struct vtc_bkt {
-    __aligned(SMP_CACHE_BYTES) spinlock_t lock;
+    HSE_ALIGNED(SMP_CACHE_BYTES) spinlock_t lock;
     uint          cnt;
     uint          max;
     struct table *head;
@@ -1194,7 +1194,7 @@ unlock:
     rmlock_runlock(lock);
 }
 
-static __always_inline uint
+static HSE_ALWAYS_INLINE uint
 khashmap2child(struct cn_khashmap *khashmap, u64 hash, uint shift, uint level)
 {
     uint child = hash >> (shift * level);
@@ -1460,7 +1460,7 @@ cn_node_comp_token_get(struct cn_tree_node *tn)
 void
 cn_node_comp_token_put(struct cn_tree_node *tn)
 {
-    __maybe_unused int oldval;
+    HSE_MAYBE_UNUSED int oldval;
 
     oldval = atomic_cmpxchg(&tn->tn_compacting, 1, 0);
     assert(oldval == 1);
@@ -1479,7 +1479,7 @@ cn_comp_release(struct cn_compaction_work *w)
          * released unless it is at head of list.  Verify it is at
          * head and remove it.
          */
-        struct cn_compaction_work *tmp __maybe_unused;
+        struct cn_compaction_work *tmp HSE_MAYBE_UNUSED;
 
         mutex_lock(&w->cw_node->tn_rspills_lock);
         tmp = list_first_entry_or_null(&w->cw_node->tn_rspills, typeof(*tmp), cw_rspill_link);
@@ -2019,7 +2019,7 @@ cn_tree_cursor_create(struct pscan *cur, struct cn_tree *tree)
             ++iterc;
         }
 
-        if (unlikely(err)) {
+        if (HSE_UNLIKELY(err)) {
             rmlock_runlock(lock);
 
             hse_elog(
@@ -2512,7 +2512,7 @@ cn_tree_cursor_read(struct pscan *cur, struct kvs_kvtuple *kvt, bool *eof)
         return 0;
     }
 
-    if (unlikely(cur->filter))
+    if (HSE_UNLIKELY(cur->filter))
         key2kobj(&filter_ko, cur->filter->kcf_maxkey, cur->filter->kcf_maxklen);
 
     do {
@@ -2539,7 +2539,7 @@ cn_tree_cursor_read(struct pscan *cur, struct kvs_kvtuple *kvt, bool *eof)
             return 0;
         }
 
-        if (unlikely(cur->filter)) {
+        if (HSE_UNLIKELY(cur->filter)) {
             if (key_obj_cmp(&item.kobj, &filter_ko) > 0) {
                 *eof = (cur->eof = 1);
                 return 0;
@@ -3163,7 +3163,7 @@ cn_comp_cleanup(struct cn_compaction_work *w)
     uint i;
 
 
-    if (unlikely(w->cw_err)) {
+    if (HSE_UNLIKELY(w->cw_err)) {
 
         /* Failed spills cause node to become "wedged"  */
         if (ev(w->cw_rspill_conc && !w->cw_node->tn_rspills_wedged))

@@ -23,7 +23,7 @@ typedef struct {
 static inline void
 spin_lock_init(spinlock_t *lock)
 {
-    int rc __maybe_unused;
+    int rc HSE_MAYBE_UNUSED;
 
     rc = pthread_spin_init(&lock->lock, PTHREAD_PROCESS_PRIVATE);
     assert(rc == 0);
@@ -32,7 +32,7 @@ spin_lock_init(spinlock_t *lock)
 static inline void
 spin_lock(spinlock_t *lock)
 {
-    int rc __maybe_unused;
+    int rc HSE_MAYBE_UNUSED;
 
     rc = pthread_spin_lock(&lock->lock);
     assert(rc == 0);
@@ -51,20 +51,20 @@ spin_trylock(spinlock_t *lock)
 static inline void
 spin_unlock(spinlock_t *lock)
 {
-    int rc __maybe_unused;
+    int rc HSE_MAYBE_UNUSED;
 
     rc = pthread_spin_unlock(&lock->lock);
     assert(rc == 0);
 }
 
 static inline void
-spin_lock_irqsave(spinlock_t *lock, unsigned long flags __maybe_unused)
+spin_lock_irqsave(spinlock_t *lock, unsigned long flags HSE_MAYBE_UNUSED)
 {
     spin_lock(lock);
 }
 
 static inline void
-spin_unlock_irqrestore(spinlock_t *lock, unsigned long flags __maybe_unused)
+spin_unlock_irqrestore(spinlock_t *lock, unsigned long flags HSE_MAYBE_UNUSED)
 {
     spin_unlock(lock);
 }

@@ -17,7 +17,7 @@
  *  - KBLOCK Bloom filters
  */
 
-static __always_inline u64
+static HSE_ALWAYS_INLINE u64
 key_hash64(const void *data, size_t len)
 {
     assert(len < (1024 * 1024));
@@ -25,7 +25,7 @@ key_hash64(const void *data, size_t len)
     return hse_hash64(data, len);
 }
 
-static __always_inline u64
+static HSE_ALWAYS_INLINE u64
 key_hash64_seed(const void *data, size_t len, u64 seed)
 {
     return hse_hash64_seed(data, len, seed);
@@ -41,7 +41,7 @@ pfx_hash64(const void *data, int len, int pfx_len)
     return key_hash64(data, (pfx_len && len >= pfx_len) ? pfx_len : len);
 }
 
-static __always_inline u64
+static HSE_ALWAYS_INLINE u64
 key_obj_hash64(const struct key_obj *ko)
 {
     assert(key_obj_len(ko) < (1024 * 1024));
@@ -56,7 +56,7 @@ pfx_obj_hash64(const struct key_obj *ko, int pfx_len)
     uint min_pfx_len;
 
     assert(pfx_len >= 0);
-    if (unlikely(len <= pfx_len))
+    if (HSE_UNLIKELY(len <= pfx_len))
         return key_obj_hash64(ko);
 
     /* Common case: pfx_len < len */

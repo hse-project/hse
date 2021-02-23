@@ -62,7 +62,7 @@
 #define MERR_INFO_SZ    (MERR_ALIGN * 2 + 200)
 
 #define _merr_section __attribute__((__section__("hse_merr")))
-#define _merr_attributes _merr_section __aligned(MERR_ALIGN) __maybe_unused
+#define _merr_attributes _merr_section HSE_ALIGNED(MERR_ALIGN) HSE_MAYBE_UNUSED
 
 static char _hse_merr_file[] _merr_attributes = __BASE_FILE__;
 
@@ -93,7 +93,7 @@ typedef s64 merr_t;
 
 #pragma GCC visibility push(default)
 
-static __always_inline
+static HSE_ALWAYS_INLINE
 uint64_t
 merr_to_hse_err(merr_t merr)
 {
@@ -115,9 +115,9 @@ struct merr_info {
     merr_t _err;                                                        \
                                                                         \
     if (__builtin_constant_p(_errnum)) {                                \
-        static merr_t _moerr __read_mostly;                             \
+        static merr_t _moerr HSE_READ_MOSTLY;                             \
                                                                         \
-        if (unlikely(!_moerr))                                          \
+        if (HSE_UNLIKELY(!_moerr))                                          \
             _moerr = merr_pack((_errnum), _hse_merr_file, __LINE__);    \
         _err = _moerr;                                                  \
     } else {								\
@@ -152,7 +152,7 @@ merr_file(merr_t err);
 /**
  * merr_errno() - Return the errno from given merr_t
  */
-static __always_inline int
+static HSE_ALWAYS_INLINE int
 merr_errno(merr_t merr)
 {
     return merr & MERR_ERRNO_MASK;
@@ -161,7 +161,7 @@ merr_errno(merr_t merr)
 /**
  * merr_lineno() - Return the line number from given merr_t
  */
-static __always_inline int
+static HSE_ALWAYS_INLINE int
 merr_lineno(merr_t err)
 {
     return (err & MERR_LINE_MASK) >> MERR_LINE_SHIFT;
@@ -170,7 +170,7 @@ merr_lineno(merr_t err)
 /**
  * merr_info() - Format file, line, and errno into a merr_info
  */
-static __always_inline char *
+static HSE_ALWAYS_INLINE char *
 merr_info(merr_t err, struct merr_info *info)
 {
     return merr_strinfo(err, info->buf, sizeof(info->buf), 0);

@@ -151,7 +151,7 @@ struct curr_kblock {
     uint  bloom_alloc_len;
 };
 
-static __always_inline uint
+static HSE_ALWAYS_INLINE uint
 free_pgc(struct curr_kblock *kblk)
 {
     uint used = KBLOCK_HDR_PAGES + HLOG_PGC + kblk->blm_pgc + kblk->wbt_pgc;

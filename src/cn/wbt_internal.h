@@ -17,7 +17,7 @@
  * Current version - Version 5
  */
 
-static __always_inline struct wbt_lfe_omf *
+static HSE_ALWAYS_INLINE struct wbt_lfe_omf *
 wbt_lfe(void *node, int nth)
 {
     uint                hdr_sz = sizeof(struct wbt_node_hdr_omf);
@@ -26,14 +26,14 @@ wbt_lfe(void *node, int nth)
     return p + nth;
 }
 
-static __always_inline void
+static HSE_ALWAYS_INLINE void
 wbt_node_pfx(void *node, const void **pfx, uint *pfx_len)
 {
     *pfx_len = omf_wbn_pfx_len(node);
     *pfx = node + sizeof(struct wbt_node_hdr_omf);
 }
 
-static __always_inline void
+static HSE_ALWAYS_INLINE void
 wbt_lfe_key(void *node, struct wbt_lfe_omf *lfe, const void **kdata, uint *klen)
 {
     uint start, end;
@@ -51,7 +51,7 @@ wbt_lfe_key(void *node, struct wbt_lfe_omf *lfe, const void **kdata, uint *klen)
     *kdata = node + start;
 }
 
-static __always_inline uint
+static HSE_ALWAYS_INLINE uint
 wbt_lfe_kmd(void *node, struct wbt_lfe_omf *lfe)
 {
     u32 *p;
@@ -66,7 +66,7 @@ wbt_lfe_kmd(void *node, struct wbt_lfe_omf *lfe)
     return omf_wbn_kmd(node) + kmd_off;
 }
 
-static __always_inline struct wbt_ine_omf *
+static HSE_ALWAYS_INLINE struct wbt_ine_omf *
 wbt_ine(void *node, int nth)
 {
     uint                hdr_sz = sizeof(struct wbt_node_hdr_omf);
@@ -75,7 +75,7 @@ wbt_ine(void *node, int nth)
     return p + nth;
 }
 
-static __always_inline void
+static HSE_ALWAYS_INLINE void
 wbt_ine_key(void *node, struct wbt_ine_omf *ine, const void **kdata, uint *klen)
 {
     uint start, end;
@@ -93,7 +93,7 @@ wbt_ine_key(void *node, struct wbt_ine_omf *ine, const void **kdata, uint *klen)
 /*
  * Version 4
  */
-static __always_inline struct wbt_lfe_omf *
+static HSE_ALWAYS_INLINE struct wbt_lfe_omf *
 wbt4_lfe(void *node, int nth)
 {
     uint                hdr_sz = sizeof(struct wbt4_node_hdr_omf);
@@ -102,14 +102,14 @@ wbt4_lfe(void *node, int nth)
     return p + nth;
 }
 
-static __always_inline void
+static HSE_ALWAYS_INLINE void
 wbt4_node_pfx(void *node, const void **pfx, uint *pfx_len)
 {
     *pfx_len = 0;
     *pfx = NULL;
 }
 
-static __always_inline void
+static HSE_ALWAYS_INLINE void
 wbt4_lfe_key(void *node, struct wbt_lfe_omf *lfe, const void **kdata, uint *klen)
 {
     uint start, end;
@@ -127,7 +127,7 @@ wbt4_lfe_key(void *node, struct wbt_lfe_omf *lfe, const void **kdata, uint *klen
     *kdata = node + start;
 }
 
-static __always_inline struct wbt_ine_omf *
+static HSE_ALWAYS_INLINE struct wbt_ine_omf *
 wbt4_ine(void *node, int nth)
 {
     uint                hdr_sz = sizeof(struct wbt4_node_hdr_omf);
@@ -136,7 +136,7 @@ wbt4_ine(void *node, int nth)
     return p + nth;
 }
 
-static __always_inline void
+static HSE_ALWAYS_INLINE void
 wbt4_ine_key(void *node, struct wbt_ine_omf *ine, const void **kdata, uint *klen)
 {
     uint start, end;

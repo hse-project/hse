@@ -118,7 +118,7 @@ struct kmc_slab {
     void *            slab_base;
     struct list_head  slab_zentry;
 
-    __aligned(SMP_CACHE_BYTES)
+    HSE_ALIGNED(SMP_CACHE_BYTES)
     bool  slab_expired;
     uint  slab_bmidx;
     uint  slab_imax;
@@ -127,7 +127,7 @@ struct kmc_slab {
     ulong slab_zfree;
     void *slab_magic;
     u8    slab_bitmap[sizeof(long) * 16];
-} __aligned(SMP_CACHE_BYTES * 2);
+} HSE_ALIGNED(SMP_CACHE_BYTES * 2);
 
 /**
  * struct kmc_node - perf-numa-node chunk management
@@ -144,7 +144,7 @@ struct kmc_node {
     uint             node_nchunks;
     struct list_head node_partial;
     struct list_head node_full;
-} __aligned(SMP_CACHE_BYTES * 2);
+} HSE_ALIGNED(SMP_CACHE_BYTES * 2);
 
 /**
  * struct kmc_chunk - per-numa node affined chunk of memory
@@ -193,7 +193,7 @@ struct kmc_pcpu {
     struct list_head pcpu_partial;
     struct list_head pcpu_empty;
     struct list_head pcpu_full;
-} __aligned(SMP_CACHE_BYTES * 2);
+} HSE_ALIGNED(SMP_CACHE_BYTES * 2);
 
 /**
  * struct kmem_cache - a zone of uniformly sized parcels of memory
@@ -227,7 +227,7 @@ struct kmem_cache {
     void (*zone_ctor)(void *);
     void *zone_magic;
 
-    __aligned(SMP_CACHE_BYTES * 2)
+    HSE_ALIGNED(SMP_CACHE_BYTES * 2)
     spinlock_t       zone_lock;
     uint             zone_nslabs;
     struct list_head zone_slabs;
@@ -252,7 +252,7 @@ static struct {
     atomic_t                 kmc_huge_used;
     uint                     kmc_huge_max;
 
-    __aligned(SMP_CACHE_BYTES)
+    HSE_ALIGNED(SMP_CACHE_BYTES)
     struct mutex     kmc_zone_lock;
     struct list_head kmc_zones;
     int              kmc_nzones;
@@ -263,37 +263,37 @@ static struct {
 static void
 kmc_reaper(struct work_struct *work);
 
-static __always_inline void
+static HSE_ALWAYS_INLINE void
 kmc_node_lock(struct kmc_node *node)
 {
     spin_lock(&node->node_lock);
 }
 
-static __always_inline void
+static HSE_ALWAYS_INLINE void
 kmc_node_unlock(struct kmc_node *node)
 {
     spin_unlock(&node->node_lock);
 }
 
-static __always_inline void
+static HSE_ALWAYS_INLINE void
 kmem_cache_lock(struct kmem_cache *zone)
 {
     spin_lock(&zone->zone_lock);
 }
 
-static __always_inline void
+static HSE_ALWAYS_INLINE void
 kmem_cache_unlock(struct kmem_cache *zone)
 {
     spin_unlock(&zone->zone_lock);
 }
 
-static __always_inline void
+static HSE_ALWAYS_INLINE void
 kmc_pcpu_lock(struct kmc_pcpu *pcpu)
 {
     spin_lock(&pcpu->pcpu_lock);
 }
 
-static __always_inline void
+static HSE_ALWAYS_INLINE void
 kmc_pcpu_unlock(struct kmc_pcpu *pcpu)
 {
     spin_unlock(&pcpu->pcpu_lock);
@@ -702,7 +702,7 @@ kmc_addr2slab(struct kmem_cache *zone, void *mem, uint *idxp)
      */
     chunk = (struct kmc_chunk *)((addr & KMC_CHUNK_MASK) + KMC_CHUNK_OFFSET);
 
-    if (unlikely(chunk != chunk->ch_magic)) {
+    if (HSE_UNLIKELY(chunk != chunk->ch_magic)) {
         assert(chunk == chunk->ch_magic);
         abort(); /* invalid free or chunk corruption */
     }
@@ -712,7 +712,7 @@ kmc_addr2slab(struct kmem_cache *zone, void *mem, uint *idxp)
      */
     slab = chunk->ch_slabv + ((addr & ~KMC_CHUNK_MASK) / KMC_SLAB_SZ);
 
-    if (unlikely(slab != slab->slab_magic)) {
+    if (HSE_UNLIKELY(slab != slab->slab_magic)) {
         assert(slab == slab->slab_magic);
         abort(); /* invalid free or slab corruption */
     }
@@ -722,7 +722,7 @@ kmc_addr2slab(struct kmem_cache *zone, void *mem, uint *idxp)
      */
     idx = (mem - slab->slab_base) / zone->zone_iasz;
 
-    if (unlikely(idx >= slab->slab_imax)) {
+    if (HSE_UNLIKELY(idx >= slab->slab_imax)) {
         assert(idx < slab->slab_imax);
         abort(); /* invalid free or slab corruption */
     }

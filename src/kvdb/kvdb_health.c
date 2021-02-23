@@ -116,7 +116,7 @@ kvdb_health_check(struct kvdb_health *health, uint mask)
 
     mask &= atomic_read_acq(&health->krx_tripped_mask);
 
-    for (event = 1; unlikely(mask); event <<= 1) {
+    for (event = 1; HSE_UNLIKELY(mask); event <<= 1) {
         if (mask & event) {
             (void)get_atomics(health, event, &tp, &op, &ep);
 

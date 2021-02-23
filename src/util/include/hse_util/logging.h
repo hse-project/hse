@@ -139,7 +139,7 @@ _hse_fmt(char *buf, size_t buflen, const char *fmt, ...);
         static volatile u64 mlp_next;                                   \
                                                                         \
         event_counter(&_dte, &_ev);                                     \
-        if (unlikely(_ev.ev_log_level <= hse_logging_control.mlc_cur_pri)) { \
+        if (HSE_UNLIKELY(_ev.ev_log_level <= hse_logging_control.mlc_cur_pri)) { \
             u64 mlp_now = get_time_ns();                                \
                                                                         \
             if (mlp_now > mlp_next) {                                   \
@@ -153,7 +153,7 @@ _hse_fmt(char *buf, size_t buflen, const char *fmt, ...);
 
 #define hse_log_pri(pri, fmt, async, hse_args, ...)                                         \
     do {                                                                                    \
-        if (unlikely((pri) <= hse_logging_control.mlc_cur_pri))                             \
+        if (HSE_UNLIKELY((pri) <= hse_logging_control.mlc_cur_pri))                             \
             _hse_log(__FILE__, __LINE__, (pri), (fmt), (async), (hse_args), ##__VA_ARGS__); \
     } while (0)
 
@@ -185,7 +185,7 @@ _hse_log(
     const char *fmt_string,
     bool        async,
     void **     hse_args,
-    ...) __printf(4, 7);
+    ...) HSE_PRINTF(4, 7);
 
 void
 _hse_openlog(const char *identity, bool verbose);
@@ -263,12 +263,12 @@ hse_slog_append_internal(struct slog *sl, ...);
 int
 hse_slog_commit(struct slog *sl);
 
-static inline __printf(1, 2) int hse_slog_validate_field(char *fmt, ...)
+static inline HSE_PRINTF(1, 2) int hse_slog_validate_field(char *fmt, ...)
 {
     return _SLOG_FIELD_TOKEN;
 }
 
-static inline __printf(1, 2) int hse_slog_validate_list(char *fmt, ...)
+static inline HSE_PRINTF(1, 2) int hse_slog_validate_list(char *fmt, ...)
 {
     return _SLOG_LIST_TOKEN;
 }

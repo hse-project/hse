@@ -116,7 +116,7 @@ bn_height_max(int a, int b)
  *
  * Return:
  */
-static __always_inline int
+static HSE_ALWAYS_INLINE int
 bn_height_get(struct bonsai_node *node)
 {
     if (!node)
@@ -133,7 +133,7 @@ bn_height_get(struct bonsai_node *node)
  *
  * Return:
  */
-static __always_inline void
+static HSE_ALWAYS_INLINE void
 bn_height_update(struct bonsai_node *node)
 {
     node->bn_height = bn_height_max(bn_height_get(node->bn_left), bn_height_get(node->bn_right));

@@ -139,7 +139,7 @@ vbr_readahead(
      * than slots in rahv[]).
      */
     if (bkt == 0 || (rah->vgidx != vgidx && vlen < ra_len)) {
-        if (unlikely(ra_flags & VBR_FULLSCAN)) {
+        if (HSE_UNLIKELY(ra_flags & VBR_FULLSCAN)) {
             end = roundup(voff + vlen, ra_len);
             bkt = (voff + vlen) / ra_len;
             voff &= PAGE_MASK;

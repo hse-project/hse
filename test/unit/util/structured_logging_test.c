@@ -339,13 +339,9 @@ test_helper(char *buf, const char *fmt, ...)
         p = (char *)va_arg(args, void *);
     }
     buf -= 1;
-#if GCC_VERSION > 40500
 #pragma GCC diagnostic ignored "-Wformat-zero-length"
-#endif
     sprintf(buf, "");
-#if GCC_VERSION > 40500
 #pragma GCC diagnostic warning "-Wformat-zero-length"
-#endif
     va_end(args);
 
     return 0;

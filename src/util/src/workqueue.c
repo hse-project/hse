@@ -159,13 +159,13 @@ destroy_workqueue(struct workqueue_struct *wq)
     free(wq->wq_base);
 }
 
-static __always_inline bool
+static HSE_ALWAYS_INLINE bool
 work_pending(const struct work_struct *work)
 {
     return !list_empty(&work->entry);
 }
 
-static __always_inline struct work_struct *
+static HSE_ALWAYS_INLINE struct work_struct *
 workqueue_first(struct workqueue_struct *wq)
 {
     return list_first_entry_or_null(&wq->wq_pending, struct work_struct, entry);

@@ -88,7 +88,7 @@ struct key_stage_entry_leaf {
     u8  kdata[];
 };
 
-static __always_inline uint
+static HSE_ALWAYS_INLINE uint
 get_kmd_len(struct wbb *wbb)
 {
     uint len = wbb->kmd_iov_index * KMD_CHUNK_LEN + wbb->kmd_iov[wbb->kmd_iov_index].iov_len;
@@ -97,7 +97,7 @@ get_kmd_len(struct wbb *wbb)
     return len;
 }
 
-static __always_inline uint
+static HSE_ALWAYS_INLINE uint
 get_kmd_pgc(struct wbb *wbb)
 {
     uint pgc = (get_kmd_len(wbb) + PAGE_SIZE - 1) / PAGE_SIZE;
@@ -414,7 +414,7 @@ wbb_add_entry(
 
     /* Grow the staging area, if necessary */
     end = wbb->cnode_key_stage + (wbb->cnode_key_stage_pgc * PAGE_SIZE);
-    if (unlikely(wbb->cnode_key_cursor + sizeof(*kst_leaf) + klen > end)) {
+    if (HSE_UNLIKELY(wbb->cnode_key_cursor + sizeof(*kst_leaf) + klen > end)) {
         void *                       mem;
         uint                         off, new_pgc = 2 * wbb->cnode_key_stage_pgc;
         struct key_stage_entry_leaf *first;

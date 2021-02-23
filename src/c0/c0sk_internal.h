@@ -74,7 +74,7 @@ struct c0sk_impl {
     struct throttle_sensor * c0sk_sensor;
     struct cn *              c0sk_cnv[HSE_KVS_COUNT_MAX];
 
-    __aligned(SMP_CACHE_BYTES) struct mutex c0sk_kvms_mutex;
+    HSE_ALIGNED(SMP_CACHE_BYTES) struct mutex c0sk_kvms_mutex;
     s32                  c0sk_kvmultisets_cnt;
     size_t               c0sk_kvmultisets_sz;
     struct cds_list_head c0sk_kvmultisets;
@@ -87,10 +87,10 @@ struct c0sk_impl {
     bool               c0sk_rcu_active;
     struct work_struct c0sk_rcu_work;
 
-    __aligned(SMP_CACHE_BYTES) struct mutex c0sk_sync_mutex;
+    HSE_ALIGNED(SMP_CACHE_BYTES) struct mutex c0sk_sync_mutex;
     struct list_head c0sk_sync_waiters;
 
-    __aligned(SMP_CACHE_BYTES) atomic64_t c0sk_ingest_gen;
+    HSE_ALIGNED(SMP_CACHE_BYTES) atomic64_t c0sk_ingest_gen;
     atomic_t c0sk_ingest_ldr;
     u32      c0sk_ingest_conc;
     u32      c0sk_ingest_width_max;
@@ -104,7 +104,7 @@ struct c0sk_impl {
     bool                  c0sk_closing;
     bool                  c0sk_syncing;
 
-    __aligned(SMP_CACHE_BYTES) atomic64_t c0sk_c0ing_bldrs;
+    HSE_ALIGNED(SMP_CACHE_BYTES) atomic64_t c0sk_c0ing_bldrs;
 
     /* perf counters*/
     struct perfc_set c0sk_pc_op;

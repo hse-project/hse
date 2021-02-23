@@ -227,7 +227,7 @@ c0sk_kvmultiset_ingest_completion(struct c0sk_impl *c0sk, struct c0_kvmultiset *
  * -1 : seqno < prev
  *  0 : seqno == prev
  */
-static __always_inline int
+static HSE_ALWAYS_INLINE int
 seq_prev_cmp(void *valp, u64 seq, u64 seq_prev, u64 pt_seq_prev)
 {
     u64 ref_prev;
@@ -376,7 +376,7 @@ c0sk_ingest_rec_perfc(struct perfc_set *perfc, u32 sidx, u64 cycles)
 void
 c0sk_ingest_worker(struct work_struct *work)
 {
-    struct bin_heap2 *minheap __aligned(64);
+    struct bin_heap2 *minheap HSE_ALIGNED(64);
     struct bonsai_kv *        bkv_prev;
     struct bonsai_kv *        bkv;
     struct kvset_builder *    bldr;
@@ -444,7 +444,7 @@ c0sk_ingest_worker(struct work_struct *work)
     if (c0sk->c0sk_kvdb_rp->c0_diag_mode)
         goto exit_err;
 
-    while (unlikely((c0sk->c0sk_kvdb_rp->c0_debug & C0_DEBUG_ACCUMULATE) && !c0sk->c0sk_syncing))
+    while (HSE_UNLIKELY((c0sk->c0sk_kvdb_rp->c0_debug & C0_DEBUG_ACCUMULATE) && !c0sk->c0sk_syncing))
         cpu_relax();
 
     /* ingests do not stop on block deletion failures. */

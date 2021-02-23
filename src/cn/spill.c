@@ -67,13 +67,13 @@ replenish(struct bin_heap *bh, struct kv_iterator **iterv, uint src, struct cn_m
     merr_t              err;
     struct merge_item   item;
 
-    if (unlikely(iter->kvi_eof))
+    if (HSE_UNLIKELY(iter->kvi_eof))
         return 0;
 
     err = kvset_iter_next_key(iter, &item.kobj, &item.vctx);
     if (ev(err))
         return err;
-    if (unlikely(iter->kvi_eof))
+    if (HSE_UNLIKELY(iter->kvi_eof))
         return 0;
 
     item.src = src;
@@ -119,7 +119,7 @@ err_exit1:
 }
 
 /* return true if item returned, false if no more items */
-static __always_inline bool
+static HSE_ALWAYS_INLINE bool
 get_next_item(
     struct bin_heap *      bh,
     struct kv_iterator **  iterv,
@@ -222,10 +222,10 @@ kv_spill(struct cn_compaction_work *w)
     u64    tstart;
     u64    tprog = 0;
 
-    u64 dbg_prev_seq __maybe_unused;
-    uint dbg_prev_src __maybe_unused;
-    uint dbg_nvals_this_key __maybe_unused;
-    bool dbg_dup __maybe_unused;
+    u64 dbg_prev_seq HSE_MAYBE_UNUSED;
+    uint dbg_prev_src HSE_MAYBE_UNUSED;
+    uint dbg_nvals_this_key HSE_MAYBE_UNUSED;
+    bool dbg_dup HSE_MAYBE_UNUSED;
 
     if (w->cw_prog_interval && w->cw_progress)
         tprog = jiffies;
@@ -296,7 +296,7 @@ new_key:
          */
         idx = (hash >> w->cw_hash_shift) % CN_TSTATE_KHM_SZ;
 
-        if (unlikely(mapv[idx] == 0)) {
+        if (HSE_UNLIKELY(mapv[idx] == 0)) {
             spin_lock(&khashmap->khm_lock);
             while (mapv[idx] == 0)
                 mapv[idx] = (khashmap->khm_gen += 3);
@@ -410,7 +410,7 @@ get_values:
          *   if (dbg_nvals_this_key)
          *       assert(dbg_prev_seq > seq);
          */
-        if (unlikely(dbg_nvals_this_key && dbg_prev_seq <= seq)) {
+        if (HSE_UNLIKELY(dbg_nvals_this_key && dbg_prev_seq <= seq)) {
             assert(0);
             seqno_errcnt++;
         }
@@ -448,7 +448,7 @@ get_values:
          * value from the first kvset is emitted.
          */
         if (should_emit) {
-            if (unlikely(HSE_CORE_IS_PTOMB(vdata)) && w->cw_pfx_len == 0 && w->cw_outc > 1) {
+            if (HSE_UNLIKELY(HSE_CORE_IS_PTOMB(vdata)) && w->cw_pfx_len == 0 && w->cw_outc > 1) {
                 /* prefixed cn tree. But spilling by full hash.
                  * Pass on ptomb to all children
                  */

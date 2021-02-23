@@ -258,19 +258,19 @@ struct sp3 {
     struct perfc_set     sched_pc;
 
     /* Accessed by monitor and infrequently by open/close threads */
-    struct mutex new_tlist_lock __aligned(SMP_CACHE_BYTES);
+    struct mutex new_tlist_lock HSE_ALIGNED(SMP_CACHE_BYTES);
     struct list_head            new_tlist;
     atomic_t                    destruct;
 
     /* Accessed by monitor, open/close, ingest and jobs threads */
-    struct mutex mutex __aligned(SMP_CACHE_BYTES);
+    struct mutex mutex HSE_ALIGNED(SMP_CACHE_BYTES);
     struct cv          cv;
 
     /* Accessed monitor and infrequently by job threads */
-    struct mutex work_list_lock __aligned(SMP_CACHE_BYTES);
+    struct mutex work_list_lock HSE_ALIGNED(SMP_CACHE_BYTES);
     struct list_head            work_list;
 
-    u64 ucomp_prev_report_ns __aligned(SMP_CACHE_BYTES);
+    u64 ucomp_prev_report_ns HSE_ALIGNED(SMP_CACHE_BYTES);
     bool                     ucomp_active;
     bool                     ucomp_canceled;
 };

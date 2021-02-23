@@ -46,7 +46,7 @@ void *vlb_alloc(size_t sz);
  */
 void vlb_free(void *mem, size_t used);
 
-merr_t vlb_init(void) __cold;
-void vlb_fini(void) __cold;
+merr_t vlb_init(void) HSE_COLD;
+void vlb_fini(void) HSE_COLD;
 
 #endif

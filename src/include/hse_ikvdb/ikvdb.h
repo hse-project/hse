@@ -564,25 +564,25 @@ struct kvdb_callback {
 
 /* [HSE_REVISIT] - this stuff all needs to be ripped out */
 
-static __always_inline bool
+static HSE_ALWAYS_INLINE bool
 kvdb_kop_is_priority(const struct hse_kvdb_opspec *os)
 {
     return os && (os->kop_flags & HSE_KVDB_KOP_FLAG_PRIORITY);
 }
 
-static __always_inline bool
+static HSE_ALWAYS_INLINE bool
 kvdb_kop_is_txn(const struct hse_kvdb_opspec *os)
 {
     return os && os->kop_txn;
 }
 
-static __always_inline bool
+static HSE_ALWAYS_INLINE bool
 kvdb_kop_is_reverse(const struct hse_kvdb_opspec *os)
 {
     return os && (os->kop_flags & HSE_KVDB_KOP_FLAG_REVERSE);
 }
 
-static __always_inline bool
+static HSE_ALWAYS_INLINE bool
 kvdb_kop_is_bind_txn(const struct hse_kvdb_opspec *os)
 {
     return os && (os->kop_flags & HSE_KVDB_KOP_FLAG_BIND_TXN);

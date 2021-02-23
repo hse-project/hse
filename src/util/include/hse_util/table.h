@@ -64,7 +64,7 @@ table_len(struct table *tab)
  * @tab: table
  * @n:   index into table
  */
-static __always_inline void *
+static HSE_ALWAYS_INLINE void *
 table_at(struct table *tab, int n)
 {
     if (!tab || !tab->data || n > tab->capacity)

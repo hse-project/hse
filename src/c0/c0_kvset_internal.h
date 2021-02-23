@@ -52,7 +52,7 @@ struct c0_kvset_impl {
     atomic64_t *c0s_kvdb_seqno;
     atomic64_t *c0s_kvms_seqno;
 
-    __aligned(SMP_CACHE_BYTES) u64 c0s_total_key_bytes;
+    HSE_ALIGNED(SMP_CACHE_BYTES) u64 c0s_total_key_bytes;
     u64          c0s_total_value_bytes;
     u32          c0s_num_entries;
     u32          c0s_num_keys;

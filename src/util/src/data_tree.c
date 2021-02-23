@@ -20,7 +20,7 @@ struct dt_tree {
     spinlock_t          dt_pending_lock;
     struct list_head    dt_pending_list;
 
-    __aligned(SMP_CACHE_BYTES)
+    HSE_ALIGNED(SMP_CACHE_BYTES)
     struct dt_element   dt_element;
 };
 
@@ -34,16 +34,16 @@ struct field_name {
     dt_field_t  field_val;
 };
 
-struct dt_tree *dt_data_tree __read_mostly;
+struct dt_tree *dt_data_tree HSE_READ_MOSTLY;
 
 
-static __always_inline void
+static HSE_ALWAYS_INLINE void
 dt_lock(struct dt_tree *tree)
 {
     spin_lock(&tree->dt_lock);
 }
 
-static __always_inline void
+static HSE_ALWAYS_INLINE void
 dt_unlock(struct dt_tree *tree)
 {
     spin_unlock(&tree->dt_lock);

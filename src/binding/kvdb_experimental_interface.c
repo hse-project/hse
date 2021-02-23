@@ -114,7 +114,7 @@ hse_kvs_prefix_probe_exp(
     struct kvs_buf      kbuf, vbuf;
     enum key_lookup_res res;
     merr_t              err = 0;
-    u64 sum             __maybe_unused;
+    u64 sum             HSE_MAYBE_UNUSED;
 
     if (!handle || !pfx || !pfx_len || !found || !val_len)
         err = merr(EINVAL);

@@ -118,13 +118,13 @@ alloc_tomb_mem(struct query_ctx *qctx, size_t bytes)
     return te;
 }
 
-static __always_inline int
+static HSE_ALWAYS_INLINE int
 qctx_tomb_cmp(const void *lhs, size_t len1, const void *rhs, size_t len2)
 {
     const uint64_t *l, *r;
     uint64_t        ll, rr;
 
-    if (unlikely(len1 != sizeof(uint64_t) || len2 != sizeof(uint64_t)))
+    if (HSE_UNLIKELY(len1 != sizeof(uint64_t) || len2 != sizeof(uint64_t)))
         return keycmp(lhs, len1, rhs, len2);
 
     l = lhs;

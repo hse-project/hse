@@ -297,7 +297,7 @@ _mbset_destroy(struct mbset *self, bool *delete_errors)
 struct mbset *
 mbset_get_ref(struct mbset *self)
 {
-    int v __maybe_unused;
+    int v HSE_MAYBE_UNUSED;
 
     v = atomic_inc_return(&self->mbs_ref);
     assert(v > 1);

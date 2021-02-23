@@ -67,19 +67,19 @@ struct viewset_impl {
     atomic64_t         *vs_seqno_addr;
     struct viewset_bkt *vs_bkt_end;
 
-    volatile u64   vs_min_view_sn __aligned(SMP_CACHE_BYTES * 2);
+    volatile u64   vs_min_view_sn HSE_ALIGNED(SMP_CACHE_BYTES * 2);
     volatile void *vs_min_view_bkt;
     atomic64_t     vs_horizon;
 
     struct {
-        atomic_t vs_active __aligned(SMP_CACHE_BYTES * 2);
+        atomic_t vs_active HSE_ALIGNED(SMP_CACHE_BYTES * 2);
     } vs_nodev[2];
 
-    spinlock_t vs_lock      __aligned(SMP_CACHE_BYTES * 2);
-    uint       vs_chgaccum  __aligned(SMP_CACHE_BYTES);
-    atomic_t   vs_changing  __aligned(SMP_CACHE_BYTES * 2);
+    spinlock_t vs_lock      HSE_ALIGNED(SMP_CACHE_BYTES * 2);
+    uint       vs_chgaccum  HSE_ALIGNED(SMP_CACHE_BYTES);
+    atomic_t   vs_changing  HSE_ALIGNED(SMP_CACHE_BYTES * 2);
 
-    struct viewset_bkt vs_bktv[] __aligned(SMP_CACHE_BYTES * 2);
+    struct viewset_bkt vs_bktv[] HSE_ALIGNED(SMP_CACHE_BYTES * 2);
 };
 
 #define viewset_h2r(handle) container_of(handle, struct viewset_impl, vs_handle)
@@ -105,9 +105,9 @@ struct viewset_entry {
  * @act_entryv: fixed-size cache of entry objects
  */
 struct viewset_tree {
-    spinlock_t                act_lock __aligned(SMP_CACHE_BYTES * 2);
+    spinlock_t                act_lock HSE_ALIGNED(SMP_CACHE_BYTES * 2);
     sem_t                     act_sema;
-    struct list_head          act_head __aligned(SMP_CACHE_BYTES * 2);
+    struct list_head          act_head HSE_ALIGNED(SMP_CACHE_BYTES * 2);
     struct viewset_bkt   *act_bkt;
     struct viewset_entry *act_cache;
     struct viewset_entry  act_entryv[];
@@ -298,7 +298,7 @@ viewset_insert(struct viewset *handle, u64 *viewp, void **cookiep)
     static __thread uint cpuid, nodeid, cnt;
 
     if (cnt++ % 16 == 0) {
-        if (unlikely( syscall(SYS_getcpu, &cpuid, &nodeid, NULL) ))
+        if (HSE_UNLIKELY( syscall(SYS_getcpu, &cpuid, &nodeid, NULL) ))
             cpuid = nodeid = raw_smp_processor_id();
     }
 
@@ -478,4 +478,3 @@ viewset_tree_destroy(struct viewset_tree *self)
     sem_destroy(&self->act_sema);
     free_aligned(self);
 }
-

@@ -259,13 +259,13 @@ vbb_add_entry(
     assert(vlen);
     assert(vlen <= HSE_KVS_VLEN_MAX);
 
-    if (unlikely(!_vblock_has_room(bld, vlen))) {
+    if (HSE_UNLIKELY(!_vblock_has_room(bld, vlen))) {
         err = _vblock_finish(bld);
         if (ev(err))
             return err;
     }
 
-    if (unlikely(!bld->blkid)) {
+    if (HSE_UNLIKELY(!bld->blkid)) {
         err = _vblock_start(bld);
         if (ev(err))
             return err;

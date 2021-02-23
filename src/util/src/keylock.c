@@ -26,7 +26,7 @@ struct keylock_impl {
     u64            kli_num_entries;
     keylock_cb_fn *kli_cb_func;
 
-    struct mutex kli_kmutex __aligned(SMP_CACHE_BYTES * 2);
+    struct mutex kli_kmutex HSE_ALIGNED(SMP_CACHE_BYTES * 2);
     struct keylock_stats kli_stats;
 
     struct keylock_entry kli_entries[];
@@ -159,7 +159,7 @@ keylock_lock(
             /* The lock doesn't exist in the table. If the table is
              * full, exit. No room to insert a new entry.
              */
-            if (unlikely(full)) {
+            if (HSE_UNLIKELY(full)) {
                 stats->kls_table_full++;
                 mutex_unlock(&table->kli_kmutex);
 

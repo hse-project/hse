@@ -25,10 +25,10 @@
 #include "cn_metrics.h"
 #include "kblock_reader.h"
 
-static __always_inline bool
+static HSE_ALWAYS_INLINE bool
 kblock_hdr_valid(const struct kblock_hdr_omf *omf)
 {
-    return (likely(
+    return (HSE_LIKELY(
         omf_kbh_magic(omf) == KBLOCK_HDR_MAGIC && omf_kbh_version(omf) <= KBLOCK_HDR_VERSION));
 }
 

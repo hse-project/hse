@@ -245,7 +245,7 @@ event_counter_init(void)
 void
 event_counter(struct dt_element *dte, struct event_counter *ec)
 {
-    if (unlikely(1 == atomic_inc_return(&ec->ev_odometer))) {
+    if (HSE_UNLIKELY(1 == atomic_inc_return(&ec->ev_odometer))) {
         snprintf(
             dte->dte_path,
             DT_PATH_LEN,

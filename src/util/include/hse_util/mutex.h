@@ -119,31 +119,31 @@ mutex_init_adaptive(struct mutex *mutex)
     }
 }
 
-static __always_inline void
+static HSE_ALWAYS_INLINE void
 mutex_destroy(struct mutex *mutex)
 {
     int rc;
 
     rc = pthread_mutex_destroy(&mutex->pth_mutex);
 
-    if (unlikely(rc))
+    if (HSE_UNLIKELY(rc))
         abort();
 }
 
-static __always_inline void
+static HSE_ALWAYS_INLINE void
 mutex_lock(struct mutex *mutex)
 {
-    int rc __maybe_unused;
+    int rc HSE_MAYBE_UNUSED;
 
     rc = pthread_mutex_lock(&mutex->pth_mutex);
 
     assert(!rc);
 }
 
-static __always_inline void
+static HSE_ALWAYS_INLINE void
 mutex_unlock(struct mutex *mutex)
 {
-    int rc __maybe_unused;
+    int rc HSE_MAYBE_UNUSED;
 
     rc = pthread_mutex_unlock(&mutex->pth_mutex);
 
@@ -154,7 +154,7 @@ mutex_unlock(struct mutex *mutex)
  * NOTE: mutex_trylock() returns 1 if the mutex has been acquired
  * successfully, and 0 if not.
  */
-static __always_inline int
+static HSE_ALWAYS_INLINE int
 mutex_trylock(struct mutex *mutex)
 {
     int rc;

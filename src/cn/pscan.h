@@ -74,7 +74,7 @@ struct pscan {
     struct kc_filter *    filter;
     void *                base;
 
-    __aligned(SMP_CACHE_BYTES) char buf[];
+    HSE_ALIGNED(SMP_CACHE_BYTES) char buf[];
 };
 
 #endif

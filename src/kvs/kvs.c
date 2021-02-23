@@ -62,7 +62,7 @@ struct curcache {
     struct rb_root       cca_root;
     struct cache_bucket *cca_bkt_head;
     struct table        *cca_c0curtab;
-} __aligned(SMP_CACHE_BYTES * 2);
+} HSE_ALIGNED(SMP_CACHE_BYTES * 2);
 
 struct ikvs {
     uint             ikv_sfx_len;
@@ -267,7 +267,7 @@ struct kvs_cursor_impl {
     merr_t kci_err; /* bad cursor, must destroy */
 
     char kci_prefix[];
-} __aligned(SMP_CACHE_BYTES);
+} HSE_ALIGNED(SMP_CACHE_BYTES);
 
 static struct kmem_cache *kvs_cursor_zone;
 static atomic_t           kvs_init_ref;
@@ -556,7 +556,7 @@ ikvs_put(
         return merr(EINVAL);
     }
 
-    if (unlikely(os && os->kop_txn))
+    if (HSE_UNLIKELY(os && os->kop_txn))
         err = kvdb_ctxn_put(kvdb_ctxn_h2h(os->kop_txn), c0, kt, vt);
     else
         err = c0_put(c0, kt, vt, seqno);
@@ -1026,7 +1026,7 @@ ikvs_td2cca(struct ikvs *kvs, u64 pfxhash)
 {
     uint cpuid, nodeid, i;
 
-    if (unlikely( syscall(SYS_getcpu, &cpuid, &nodeid, NULL) ))
+    if (HSE_UNLIKELY( syscall(SYS_getcpu, &cpuid, &nodeid, NULL) ))
         nodeid = raw_smp_processor_id();
 
     i = pthread_self() % (NELEM(kvs->ikv_curcachev) / 2);
@@ -1289,7 +1289,7 @@ ikvs_cursor_save(struct kvs_cursor_impl *cur)
     u64               now;
     u64               c0_age, cn_age;
 
-    if (unlikely(kvs->ikv_rp.kvs_debug & 64)) {
+    if (HSE_UNLIKELY(kvs->ikv_rp.kvs_debug & 64)) {
         cursor_summary_log(cur);
         _perfc_readperseek_record(cur);
     }
@@ -1409,7 +1409,7 @@ ikvs_cursor_free(struct hse_kvs_cursor *cursor)
         ikvs_cursor_save(cursor_h2r(cursor));
 }
 
-static __always_inline u64
+static HSE_ALWAYS_INLINE u64
                        now(void)
 {
     struct timespec ts;
@@ -1492,7 +1492,7 @@ ikvs_cursor_init(struct hse_kvs_cursor *cursor)
         perfc_lat_record(cur->kci_cd_pc, PERFC_LT_CD_CREATE_C0, tstart);
     } else {
         /* Check that the cursor can see the tombspan valid at kct_seqno. */
-        if (unlikely(cur->kci_tombs.kct_valid)) {
+        if (HSE_UNLIKELY(cur->kci_tombs.kct_valid)) {
             if (seqno >= cur->kci_tombs.kct_seq) {
                 kt_min.kt_data = cur->kci_tombs.kct_min;
                 kt_min.kt_len = cur->kci_tombs.kct_min_len;
@@ -1512,7 +1512,7 @@ ikvs_cursor_init(struct hse_kvs_cursor *cursor)
         if (flags & CURSOR_FLAG_SEQNO_CHANGE)
             perfc_inc(cur->kci_cc_pc, PERFC_BA_CC_INIT_UPDATE_C0);
 
-        if (unlikely(cur->kci_tombs.kct_valid))
+        if (HSE_UNLIKELY(cur->kci_tombs.kct_valid))
             ikvs_cursor_tombs_update(cur, flags);
 
         cur->kci_seek |= BIT_C0; /* lazy init, must seek */
@@ -1577,7 +1577,7 @@ ikvs_cursor_tombspan_check(struct hse_kvs_cursor *handle)
      * tombstones that haven't committed yet as per the cursor's view).
      * The tombspan is validated prior to use in cursor_update.
      */
-    if (unlikely(tombs->kct_valid && bind && bind->b_update)) {
+    if (HSE_UNLIKELY(tombs->kct_valid && bind && bind->b_update)) {
         tombs->kct_seq = bind->b_seq;
         if (!bind->b_preserve) {
             perfc_inc(cursor->kci_cc_pc, PERFC_BA_CC_TOMB_INV_TXN);
@@ -1645,7 +1645,7 @@ ikvs_cursor_update(struct hse_kvs_cursor *handle, u64 seqno)
         handle->kc_gen = atomic64_read(&bind->b_gen);
 
     /* Check that this cursor can see the tombspan committed at kct_seq. */
-    if (unlikely(cursor->kci_tombs.kct_valid)) {
+    if (HSE_UNLIKELY(cursor->kci_tombs.kct_valid)) {
         if (seqno >= cursor->kci_tombs.kct_seq) {
             kt_min.kt_data = cursor->kci_tombs.kct_min;
             kt_min.kt_len = cursor->kci_tombs.kct_min_len;
@@ -1670,7 +1670,7 @@ ikvs_cursor_update(struct hse_kvs_cursor *handle, u64 seqno)
     if (flags & CURSOR_FLAG_SEQNO_CHANGE)
         perfc_inc(cursor->kci_cc_pc, PERFC_BA_CC_UPDATED_C0);
 
-    if (unlikely(cursor->kci_tombs.kct_valid))
+    if (HSE_UNLIKELY(cursor->kci_tombs.kct_valid))
         ikvs_cursor_tombs_update(cursor, flags);
 
     /*
@@ -1781,7 +1781,7 @@ ikvs_cursor_seek(
     cn_klen = cursor->kci_seeklen = len;
     tombs->kct_skip = false;
 
-    if (unlikely(tombs->kct_valid)) {
+    if (HSE_UNLIKELY(tombs->kct_valid)) {
         kmin = cursor->kci_tombs.kct_min;
         kmin_len = cursor->kci_tombs.kct_min_len;
         kmax = cursor->kci_tombs.kct_max;
@@ -1876,7 +1876,7 @@ ikvs_cursor_seek(
     tombs->kct_update = false;
     ikvs_cursor_read(handle, &kvt, &eof);
     if (eof || ev(cursor->kci_err)) {
-        if (unlikely(cursor->kci_tombs.kct_valid))
+        if (HSE_UNLIKELY(cursor->kci_tombs.kct_valid))
             ikvs_cursor_tombs_invalidate(cursor);
         if (kt)
             kt->kt_len = 0;
@@ -1893,7 +1893,7 @@ ikvs_cursor_seek(
     cn_cursor_active_kvsets(cursor->kci_cncur, &active, &total);
     perfc_rec_sample(cursor->kci_cd_pc, PERFC_DI_CD_ACTIVEKVSETS_CN, active);
 
-    if (unlikely(tombs->kct_update)) {
+    if (HSE_UNLIKELY(tombs->kct_update)) {
         /*
          * Set max key for a new span or expand an existing one.
          * If a span is expanded, the key sought to must be larger.
@@ -2141,7 +2141,7 @@ ikvs_cursor_replenish(struct kvs_cursor_impl *cursor, bool *eofp)
      * tombstone span or extend an existing one.
      */
     tombs = &cursor->kci_tombs;
-    if (unlikely(
+    if (HSE_UNLIKELY(
             (tombs->kct_skip || (read_tombs >= TOMBSPAN_MIN_WIDTH && all_tombs)) &&
             cursor->kci_peek && !*eofp && !cursor->kci_reverse)) {
         if (tombs->kct_skip) {
@@ -2220,7 +2220,7 @@ ikvs_cursor_read(struct hse_kvs_cursor *handle, struct kvs_kvtuple *kvt, bool *e
      * cursor to (if larger). This may avoid repeatedly reading tombstones
      * in cn (spans that are distinct from the ones being tracked in c0).
      */
-    if (unlikely(cursor->kci_tombs.kct_update)) {
+    if (HSE_UNLIKELY(cursor->kci_tombs.kct_update)) {
         struct kvs_cursor_tombs *tombs = &cursor->kci_tombs;
         struct kvs_ktuple *      cnkey = &cursor->kci_cnkv.kvt_key;
 

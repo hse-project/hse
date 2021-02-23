@@ -28,7 +28,7 @@ struct cv {
     const char *   cv_desc;
 };
 
-static __always_inline void
+static HSE_ALWAYS_INLINE void
 cv_signal(struct cv *cv)
 {
     int rc;
@@ -36,12 +36,12 @@ cv_signal(struct cv *cv)
     if (cv->cv_waiters > 0) {
         rc = pthread_cond_signal(&cv->cv_waitq);
 
-        if (unlikely(rc))
+        if (HSE_UNLIKELY(rc))
             abort();
     }
 }
 
-static __always_inline void
+static HSE_ALWAYS_INLINE void
 cv_broadcast(struct cv *cv)
 {
     int rc;
@@ -49,7 +49,7 @@ cv_broadcast(struct cv *cv)
     if (cv->cv_waiters > 0) {
         rc = pthread_cond_broadcast(&cv->cv_waitq);
 
-        if (unlikely(rc))
+        if (HSE_UNLIKELY(rc))
             abort();
     }
 }
@@ -97,7 +97,7 @@ cv_timedwait(struct cv *cv, struct mutex *mtx, const int timeout);
  *
  * Provides the same general semantics as pthread_cond_wait().
  */
-static __always_inline void
+static HSE_ALWAYS_INLINE void
 cv_wait(struct cv *cv, struct mutex *mtx)
 {
     cv_timedwait(cv, mtx, -1);

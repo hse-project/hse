@@ -76,19 +76,19 @@ _Static_assert(CNDB_CN_NAME_MAX == HSE_KVS_NAME_LEN_MAX, "kvs name len mismatch"
 
 struct cndb_oid_omf {
     __le64 cndb_oid;
-} __packed;
+} HSE_PACKED;
 
 struct cndb_hdr_omf {
     __le32 cnhdr_type;
     __le32 cnhdr_len;
-} __packed;
+} HSE_PACKED;
 
 struct cndb_ver_omf {
     struct cndb_hdr_omf hdr;
     __le32              cnver_magic;
     __le32              cnver_version;
     __le64              cnver_captgt;
-} __packed;
+} HSE_PACKED;
 
 /**
  * struct cndb_info_omf
@@ -120,7 +120,7 @@ struct cndb_info_omf {
     __le64              cninfo_cnid;
     char                cninfo_name[CNDB_CN_NAME_MAX];
     char                cninfo_meta[];
-} __packed;
+} HSE_PACKED;
 
 /**
  * struct cndb_info_omf8
@@ -151,7 +151,7 @@ struct cndb_info_omf_v8 {
     __le64              cninfo_cnid;
     char                cninfo_name[CNDB_CN_NAME_MAX];
     char                cninfo_meta[];
-} __packed;
+} HSE_PACKED;
 
 OMF_GET_VER(struct cndb_info_omf_v8, cninfo_fanout_bits, 32, v8);
 OMF_GET_VER(struct cndb_info_omf_v8, cninfo_prefix_len, 32, v8);
@@ -187,7 +187,7 @@ struct cndb_info_omf_v7 {
     __le64              cninfo_cnid;
     char                cninfo_name[CNDB_CN_NAME_MAX];
     char                cninfo_meta[];
-} __packed;
+} HSE_PACKED;
 
 OMF_GET_VER(struct cndb_info_omf_v7, cninfo_fanout_bits, 32, v7);
 OMF_GET_VER(struct cndb_info_omf_v7, cninfo_prefix_len, 32, v7);
@@ -218,7 +218,7 @@ struct cndb_info_omf_v6 {
     __le32              cninfo_flags;
     __le64              cninfo_cnid;
     char                cninfo_name[CNDB_CN_NAME_MAX];
-} __packed;
+} HSE_PACKED;
 
 OMF_GET_VER(struct cndb_info_omf_v6, cninfo_fanout_bits, 32, v6);
 OMF_GET_VER(struct cndb_info_omf_v6, cninfo_prefix_len, 32, v6);
@@ -246,7 +246,7 @@ struct cndb_info_omf_v4 {
     __le32              cninfo_prefix_len;
     __le64              cninfo_cnid;
     char                cninfo_name[CNDB_CN_NAME_MAX];
-} __packed;
+} HSE_PACKED;
 
 OMF_GET_VER(struct cndb_info_omf_v4, cninfo_fanout_bits, 32, v4);
 OMF_GET_VER(struct cndb_info_omf_v4, cninfo_prefix_len, 32, v4);
@@ -260,7 +260,7 @@ OMF_GET_CHBUF_VER(struct cndb_info_omf_v4, cninfo_name, v4);
 struct cndb_meta_omf {
     struct cndb_hdr_omf hdr;
     __le64              cnmeta_seqno_max;
-} __packed;
+} HSE_PACKED;
 
 /**
  * struct cndb_tx_omf_v4
@@ -271,7 +271,7 @@ struct cndb_tx_omf_v4 {
     __le64              tx_seqno;
     __le32              tx_nc;
     __le32              tx_nd;
-} __packed;
+} HSE_PACKED;
 
 OMF_GET_VER(struct cndb_tx_omf_v4, tx_id, 64, v4);
 OMF_GET_VER(struct cndb_tx_omf_v4, tx_seqno, 64, v4);
@@ -311,7 +311,7 @@ struct cndb_tx_omf {
     __le64              tx_ingestid;
     __le32              tx_nc;
     __le32              tx_nd;
-} __packed;
+} HSE_PACKED;
 
 #define CNDB_TXF_KEEPV 1 /* For field txc_flags in CNDB_VERSION4 */
 /*
@@ -348,7 +348,7 @@ struct cndb_txc_omf_v4 {
     __le32              txc_kcnt;
     __le32              txc_vcnt;
     __le32              txc_mcnt;
-} __packed;
+} HSE_PACKED;
 OMF_GET_VER(struct cndb_txc_omf_v4, txc_cnid, 64, v4);
 OMF_GET_VER(struct cndb_txc_omf_v4, txc_id, 64, v4);
 OMF_GET_VER(struct cndb_txc_omf_v4, txc_tag, 64, v4);
@@ -393,7 +393,7 @@ struct cndb_txc_omf {
     __le32              txc_kcnt;
     __le32              txc_vcnt;
     __le32              txc_mcnt;
-} __packed;
+} HSE_PACKED;
 
 /**
  * struct cndb_txm_omf_v8
@@ -423,7 +423,7 @@ struct cndb_txm_omf_v8 {
     __le64              txm_vused;
     __le32              txm_compc;
     __le32              txm_unused;
-} __packed;
+} HSE_PACKED;
 
 OMF_GET_VER(struct cndb_txm_omf_v8, txm_cnid, 64, v8);
 OMF_GET_VER(struct cndb_txm_omf_v8, txm_id, 64, v8);
@@ -463,7 +463,7 @@ struct cndb_txm_omf {
     __le64              txm_vused;
     __le32              txm_compc;
     __le32              txm_scatter;
-} __packed;
+} HSE_PACKED;
 
 /*
  * struct cndb_txd_omf
@@ -489,7 +489,7 @@ struct cndb_txd_omf {
     __le32              txd_n_oids;
     __le32              pad_do_not_use;
     /* an array of txd_n_oids mblock OIDs appears here */
-} __packed;
+} HSE_PACKED;
 
 enum { CNDB_ACK_TYPE_C = 1, CNDB_ACK_TYPE_D = 2 };
 
@@ -516,12 +516,12 @@ struct cndb_ack_omf {
     __le64              ack_cnid;
     __le32              ack_type;
     __le32              pad_do_not_use;
-} __packed;
+} HSE_PACKED;
 
 struct cndb_nak_omf {
     struct cndb_hdr_omf hdr;
     __le64              nak_txid;
-} __packed;
+} HSE_PACKED;
 
 OMF_SETGET(struct cndb_hdr_omf, cnhdr_type, 32);
 OMF_SETGET(struct cndb_hdr_omf, cnhdr_len, 32);

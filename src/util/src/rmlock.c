@@ -12,7 +12,7 @@
     __atomic_compare_exchange_n((_ptr), (_oldp), (_new), false, __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST)
 
 
-static __always_inline uint
+static HSE_ALWAYS_INLINE uint
 rmlock_bktidx(struct rmlock *lock)
 {
     return raw_smp_processor_id() % RMLOCK_MAX;

@@ -495,13 +495,13 @@ c0kvms_ctime(struct c0_kvmultiset *handle);
  * c0kvms_init() - called to initialize c0kvms subsystem
  */
 merr_t
-c0kvms_init(void) __cold;
+c0kvms_init(void) HSE_COLD;
 
 /**
  * c0kvms_fini() - called when c0kvms is no longer needed
  */
 void
-c0kvms_fini(void) __cold;
+c0kvms_fini(void) HSE_COLD;
 
 #if defined(HSE_UNIT_TEST_MODE) && HSE_UNIT_TEST_MODE == 1
 #include "c0_kvmultiset_ut.h"

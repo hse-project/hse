@@ -395,7 +395,7 @@ wbti_seek_rev(struct wbti *self, struct kvs_ktuple *kt)
     const void *             node_pfx;
     uint                     node_pfx_len;
 
-    int dbg_nrepeat __maybe_unused;
+    int dbg_nrepeat HSE_MAYBE_UNUSED;
 
     if (self->node_idx == NODE_EOF)
         return false;
@@ -449,7 +449,7 @@ repeat:
     }
 
     /* Check previous node if necessary. */
-    if (unlikely(create && cmp < 0 && node_num > 0)) {
+    if (HSE_UNLIKELY(create && cmp < 0 && node_num > 0)) {
         node_num--;
         dbg_nrepeat++;
         goto repeat;
@@ -482,7 +482,7 @@ repeat:
     /* Check previous node if cursor prefix is smaller than the current
      * node.
      */
-    if (unlikely(create && !first && node_num > 0)) {
+    if (HSE_UNLIKELY(create && !first && node_num > 0)) {
         node_num--;
         dbg_nrepeat++;
         goto repeat;
@@ -526,7 +526,7 @@ skip_search:
 bool
 wbti5_seek(struct wbti *self, struct kvs_ktuple *seek)
 {
-    if (unlikely(!self->wbd->wbd_n_pages))
+    if (HSE_UNLIKELY(!self->wbd->wbd_n_pages))
         return false;
 
     return self->reverse ? wbti_seek_rev(self, seek) : wbti_seek_fwd(self, seek);
@@ -565,8 +565,8 @@ wbti_next_fwd(struct wbti *self, const void **kdata, uint *klen, const void **km
     struct wbt_lfe_omf *lfe;
     size_t              off;
 
-    u64 seq __maybe_unused;
-    uint cnt __maybe_unused;
+    u64 seq HSE_MAYBE_UNUSED;
+    uint cnt HSE_MAYBE_UNUSED;
 
     if (self->node_idx == NODE_EOF)
         return false;
@@ -600,8 +600,8 @@ wbti_next_rev(struct wbti *self, const void **kdata, uint *klen, const void **km
     struct wbt_lfe_omf *lfe;
     size_t              off;
 
-    u64 seq __maybe_unused;
-    uint cnt __maybe_unused;
+    u64 seq HSE_MAYBE_UNUSED;
+    uint cnt HSE_MAYBE_UNUSED;
 
     if (self->node_idx == NODE_EOF)
         return false;
@@ -697,7 +697,7 @@ wbtr5_read_vref(
 
     assert(kt->kt_len > 0);
 
-    if (unlikely(!wbd->wbd_n_pages))
+    if (HSE_UNLIKELY(!wbd->wbd_n_pages))
         goto done;
 
     node_num = wbtr_seek_page(kbd, wbd, kt_data, kt_len, 0);

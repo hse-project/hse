@@ -21,7 +21,7 @@ struct event_counter {
     atomic_t           ev_odometer;
     u32                ev_flags;
     struct dt_element *ev_dte;
-} __aligned(SMP_CACHE_BYTES);
+} HSE_ALIGNED(SMP_CACHE_BYTES);
 
 #define EV_FLAGS_HSE_LOG 0x1
 #define EV_LIST_FLAG_SINCE_LAST_CHECKPOINT 0x1
@@ -229,12 +229,12 @@ extern struct dt_element_ops event_counter_ops;
 #define EV1(e)                                                        \
     ({                                                                \
         typeof(e) _tmp = e;                                           \
-        unlikely(_tmp) ? EV_PRI(_tmp, HSE_INFO_VAL, HSE_MARK) : _tmp; \
+        HSE_UNLIKELY(_tmp) ? EV_PRI(_tmp, HSE_INFO_VAL, HSE_MARK) : _tmp; \
     })
 #define EV2(e, pri, mark)                                \
     ({                                                   \
         typeof(e) _tmp = e;                              \
-        unlikely(_tmp) ? EV_PRI(_tmp, pri, mark) : _tmp; \
+        HSE_UNLIKELY(_tmp) ? EV_PRI(_tmp, pri, mark) : _tmp; \
     })
 #endif
 

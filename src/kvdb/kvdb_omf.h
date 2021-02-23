@@ -50,7 +50,7 @@ enum kvdb_log_mdc_id {
 struct kvdb_log_hdr2_omf {
     __le32 hdr_type;
     __le32 hdr_len;
-} __packed;
+} HSE_PACKED;
 
 #define KVDB_LOG_OMF_LEN(x) (x - sizeof(struct kvdb_log_hdr2_omf))
 
@@ -60,7 +60,7 @@ struct kvdb_log_ver4_omf {
     __le32                   ver_magic;
     __le32                   ver_version;
     __le64                   ver_captgt;
-} __packed;
+} HSE_PACKED;
 
 struct kvdb_log_mdc_omf {
     struct kvdb_log_hdr2_omf hdr;
@@ -70,7 +70,7 @@ struct kvdb_log_mdc_omf {
     __le64                   mdc_new_oid2;
     __le64                   mdc_old_oid1;
     __le64                   mdc_old_oid2;
-} __packed;
+} HSE_PACKED;
 
 OMF_SETGET(struct kvdb_log_hdr2_omf, hdr_type, 32);
 OMF_SETGET(struct kvdb_log_hdr2_omf, hdr_len, 32);
@@ -93,7 +93,7 @@ OMF_SETGET(struct kvdb_log_mdc_omf, mdc_old_oid2, 64);
 struct kvdb_kvmeta_omf {
     __le64 kvmt_klen;
     __le64 kvmt_vlen;
-} __packed;
+} HSE_PACKED;
 
 OMF_SETGET(struct kvdb_kvmeta_omf, kvmt_klen, 64);
 OMF_SETGET(struct kvdb_kvmeta_omf, kvmt_vlen, 64);

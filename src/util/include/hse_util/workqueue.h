@@ -68,7 +68,7 @@ alloc_workqueue(
     unsigned int flags,      /* ignored */
     int          max_active, /* number of threads servicing queue */
     ...                      /* fmt string arguments */
-    ) __printf(1, 4);
+    ) HSE_PRINTF(1, 4);
 
 /*
  * Destroy a workqueue.  Waits until all running work has finished and

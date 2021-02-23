@@ -13,17 +13,17 @@
 
 static volatile bool timer_running;
 static struct list_head timer_list;
-static spinlock_t timer_xlock __aligned(64);
+static spinlock_t timer_xlock HSE_ALIGNED(64);
 
 static struct work_struct timer_jclock_work;
 static struct work_struct timer_dispatch_work;
-static struct workqueue_struct *timer_wq __aligned(64);
+static struct workqueue_struct *timer_wq HSE_ALIGNED(64);
 
-unsigned long timer_nslpmin __read_mostly;
-unsigned long timer_slack __read_mostly;
-unsigned long tsc_freq __read_mostly;
-unsigned long tsc_mult __read_mostly;
-unsigned int tsc_shift __read_mostly;
+unsigned long timer_nslpmin HSE_READ_MOSTLY;
+unsigned long timer_slack HSE_READ_MOSTLY;
+unsigned long tsc_freq HSE_READ_MOSTLY;
+unsigned long tsc_mult HSE_READ_MOSTLY;
+unsigned int tsc_shift HSE_READ_MOSTLY;
 
 struct timer_jclock timer_jclock;
 
@@ -158,19 +158,19 @@ timer_calibrate(ulong delay)
             cps, timer_nslpmin, timer_slack);
 }
 
-static __always_inline void
+static HSE_ALWAYS_INLINE void
 timer_lock(void)
 {
     spin_lock(&timer_xlock);
 }
 
-static __always_inline void
+static HSE_ALWAYS_INLINE void
 timer_unlock(void)
 {
     spin_unlock(&timer_xlock);
 }
 
-static __always_inline struct timer_list *
+static HSE_ALWAYS_INLINE struct timer_list *
 timer_first(void)
 {
     return list_first_entry_or_null(&timer_list, struct timer_list, entry);
@@ -246,7 +246,7 @@ timer_dispatch_cb(struct work_struct *work)
     }
 }
 
-static __always_inline int
+static HSE_ALWAYS_INLINE int
 timer_pending(const struct timer_list *timer)
 {
     return !list_empty(&timer->entry);

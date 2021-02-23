@@ -213,13 +213,13 @@ bn_update_path(
     return node;
 }
 
-static __always_inline bool
+static HSE_ALWAYS_INLINE bool
 bn_need_left_balance(int lh, int rh)
 {
     return (lh - rh) >= BONSAI_TREE_BALANCE_THRESHOLD;
 }
 
-static __always_inline bool
+static HSE_ALWAYS_INLINE bool
 bn_need_right_balance(int lh, int rh)
 {
     return (rh - lh) >= BONSAI_TREE_BALANCE_THRESHOLD;

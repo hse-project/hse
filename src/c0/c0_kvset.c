@@ -53,7 +53,7 @@ struct c0kvs_cbkt {
     struct c0_kvset_impl *cb_head;
     size_t                cb_size;
     size_t                cb_max;
-} __aligned(SMP_CACHE_BYTES);
+} HSE_ALIGNED(SMP_CACHE_BYTES);
 
 /**
  * struct c0kvs_ccache - cache of initialized cheap-based c0kvs objects
@@ -243,7 +243,7 @@ c0kvs_seqno_set(struct c0_kvset_impl *c0kvs, struct bonsai_val *bv)
     seq = bv->bv_valuep == HSE_CORE_TOMB_PFX ? atomic64_add_return(1, sref) : atomic64_read(sref);
 
     /* If KVMS seqno is valid, use it. */
-    if (unlikely(atomic64_read(c0kvs->c0s_kvms_seqno) != HSE_SQNREF_INVALID)) {
+    if (HSE_UNLIKELY(atomic64_read(c0kvs->c0s_kvms_seqno) != HSE_SQNREF_INVALID)) {
         sref = c0kvs->c0s_kvms_seqno;
 
         seq =
@@ -600,13 +600,13 @@ c0kvs_ingesting_init(struct c0_kvset *handle, atomic_t *ingesting)
     self->c0s_ingesting = ingesting;
 }
 
-static __always_inline void
+static HSE_ALWAYS_INLINE void
 c0kvs_lock(struct c0_kvset_impl *self)
 {
     mutex_lock(&self->c0s_mutex);
 }
 
-static __always_inline void
+static HSE_ALWAYS_INLINE void
 c0kvs_unlock(struct c0_kvset_impl *self)
 {
     mutex_unlock(&self->c0s_mutex);
@@ -641,7 +641,7 @@ c0kvs_putdel(
     c0kvs_lock(self);
     avail = c0kvs_avail(&self->c0s_handle);
 
-    if (likely(sz < avail))
+    if (HSE_LIKELY(sz < avail))
         err = bn_insert_or_replace(self->c0s_broot, skey, sval, tomb);
     else
         err = (sz > self->c0s_alloc_sz) ? merr(EFBIG) : merr(ENOMEM);

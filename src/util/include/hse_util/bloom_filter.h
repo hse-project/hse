@@ -59,7 +59,7 @@ struct bloom_filter_stats {
     u32 bfs_filter_bits;
 };
 
-static __always_inline u64
+static HSE_ALWAYS_INLINE u64
 bf_rotl(const u64 x, u32 k)
 {
     return (x << k) | (x >> (64 - k));
@@ -71,7 +71,7 @@ bf_rotl(const u64 x, u32 k)
  * @modulus:    bit-to-bucket modulus
  * @bktshift:   number of bits per bucket
  */
-static __always_inline size_t
+static HSE_ALWAYS_INLINE size_t
 bf_hash2bkt(u64 hash, u32 modulus, u32 bktshift)
 {
     size_t bit, bkt;
@@ -92,7 +92,7 @@ bf_hash2bkt(u64 hash, u32 modulus, u32 bktshift)
  *     Returns the bit index of *hashp within the current bucket,
  *     and then advances *hashp to the next hash for the next call.
  */
-static __always_inline u32
+static HSE_ALWAYS_INLINE u32
 bf_hash2bit(u64 *hashp, u32 rotl, u32 mask)
 {
     u64 hash = *hashp;
@@ -118,7 +118,7 @@ bf_hash2bit(u64 *hashp, u32 rotl, u32 mask)
  *     Returns %true if all n hashes have bits set in the bucket,
  *     otherwise returns %false.
  */
-static __always_inline bool
+static HSE_ALWAYS_INLINE bool
 bf_lookup(u64 hash, const u8 *bitmap, s32 n, u32 rotl, u32 mask)
 {
     while (n-- > 0 && hse_bitmap_test32(bitmap, bf_hash2bit(&hash, rotl, mask)))
@@ -144,7 +144,7 @@ bf_lookup(u64 hash, const u8 *bitmap, s32 n, u32 rotl, u32 mask)
  * distribution that is noticable with small bucket sizes and power-of-two
  * modulus, as well as being more expensive to iteratively compute.
  */
-static __always_inline void
+static HSE_ALWAYS_INLINE void
 bf_populate(const struct bloom_filter *bf, u64 hash)
 {
     u8 *bitmap = bf->bf_bitmap;

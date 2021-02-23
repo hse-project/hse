@@ -15,7 +15,7 @@ struct vlb_cache {
     spinlock_t  lock;
     void       *head;
     int         cnt;
-} __aligned(SMP_CACHE_BYTES * 2);
+} HSE_ALIGNED(SMP_CACHE_BYTES * 2);
 
 static struct vlb_cache vlbcv[VLB_NODES_MAX * VLB_BPN_MAX];
 

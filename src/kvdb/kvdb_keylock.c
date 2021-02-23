@@ -41,7 +41,7 @@ struct kvdb_keylock {
  * @kd_mvs:     most recently expired minimum view seqno
  */
 struct kvdb_dlock {
-    struct mutex     kd_lock __aligned(SMP_CACHE_BYTES * 2);
+    struct mutex     kd_lock HSE_ALIGNED(SMP_CACHE_BYTES * 2);
     struct list_head kd_list;
     volatile u64     kd_mvs;
 };
@@ -109,7 +109,7 @@ struct kvdb_ctxn_locks_impl {
     volatile u64           ctxn_locks_end_seqno;
     uintptr_t              ctxn_locks_magic;
 
-    __aligned(SMP_CACHE_BYTES) struct rb_root ctxn_locks_tree;
+    HSE_ALIGNED(SMP_CACHE_BYTES) struct rb_root ctxn_locks_tree;
     u32 ctxn_locks_cnt;
     u32 ctxn_locks_entryc;
     u32 ctxn_locks_entrymax;
@@ -421,7 +421,7 @@ kvdb_keylock_release_locks(struct kvdb_keylock *kl_handle, struct kvdb_ctxn_lock
     struct rb_root *              tree;
     void *                        freeme;
 
-    int cnt __maybe_unused;
+    int cnt HSE_MAYBE_UNUSED;
 
     klock = kvdb_keylock_h2r(kl_handle);
     locks = kvdb_ctxn_locks_h2r(locks_handle);
@@ -541,7 +541,7 @@ kvdb_keylock_lock(
      */
     entryc = ctxn_locks->ctxn_locks_entryc;
 
-    if (likely(entryc < ctxn_locks->ctxn_locks_entrymax)) {
+    if (HSE_LIKELY(entryc < ctxn_locks->ctxn_locks_entrymax)) {
         entry = ctxn_locks->ctxn_locks_entryv + entryc;
         ctxn_locks->ctxn_locks_entryc++;
         entry->lte_kfree = false;

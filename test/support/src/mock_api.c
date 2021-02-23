@@ -27,7 +27,7 @@ struct mocked_api {
     u64      stop2;
     union rc rc2;
 
-    __aligned(SMP_CACHE_BYTES) atomic64_t calls;
+    HSE_ALIGNED(SMP_CACHE_BYTES) atomic64_t calls;
 };
 
 /*

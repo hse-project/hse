@@ -49,7 +49,7 @@ struct sts_worker {
     atomic_t    initializing;
     char        wname[16];
     uint        wqnum;
-} __aligned(SMP_CACHE_BYTES);
+} HSE_ALIGNED(SMP_CACHE_BYTES);
 
 static void *
 sts_worker_main(void *rock);
@@ -60,7 +60,7 @@ struct sts_queue {
     atomic_t         idle_workers;
     struct perfc_set qpc;
     struct sts *     sts;
-} __aligned(SMP_CACHE_BYTES);
+} HSE_ALIGNED(SMP_CACHE_BYTES);
 
 /**
  * struct sts - HSE scheduler used for cn tree ingest and compaction operations
@@ -507,7 +507,7 @@ worker_run_slice(struct sts_worker *w, struct sts_queue *q, struct sts_job *job)
     bool debug;
     u64  t0, t1;
     uint qnum, id;
- 
+
     assert(job->sj_job_fn);
 
     qnum = job->sj_qnum;
@@ -623,7 +623,7 @@ sts_worker_main(void *rock)
 
         while (true) {
 
-            int rc __maybe_unused;
+            int rc HSE_MAYBE_UNUSED;
 
             q = sts_qsel(self, w, &state);
             if (q) {

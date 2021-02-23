@@ -9,7 +9,7 @@
 #include <hse_util/mtx_pool.h>
 
 struct mtx_node {
-    struct mutex sn_mtx __aligned(SMP_CACHE_BYTES);
+    struct mutex sn_mtx HSE_ALIGNED(SMP_CACHE_BYTES);
     struct cv sn_cv;
 };
 

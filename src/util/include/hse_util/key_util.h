@@ -69,7 +69,7 @@ key_immediate_init(const void *key, size_t key_len, u16 index, struct key_immedi
 s32
 key_immediate_cmp_full(const struct key_immediate *imm0, const struct key_immediate *imm1);
 
-static __always_inline s32
+static HSE_ALWAYS_INLINE s32
 key_immediate_cmp(const struct key_immediate *imm0, const struct key_immediate *imm1)
 {
     if (imm0->ki_data[0] != imm1->ki_data[0])
@@ -195,7 +195,7 @@ struct key_obj {
     uint        ko_sfx_len;
 };
 
-static __always_inline void *
+static HSE_ALWAYS_INLINE void *
 key_obj_copy(void *kbuf, size_t kbuf_sz, uint *klen, const struct key_obj *kobj)
 {
     uint  copylen, keylen;
@@ -206,7 +206,7 @@ key_obj_copy(void *kbuf, size_t kbuf_sz, uint *klen, const struct key_obj *kobj)
         *klen = keylen;
 
     copylen = min_t(uint, kbuf_sz, kobj->ko_pfx_len);
-    if (likely(kbuf && kobj->ko_pfx))
+    if (HSE_LIKELY(kbuf && kobj->ko_pfx))
         memcpy(kbuf, kobj->ko_pfx, copylen);
 
     if (kbuf_sz <= kobj->ko_pfx_len)
@@ -214,13 +214,13 @@ key_obj_copy(void *kbuf, size_t kbuf_sz, uint *klen, const struct key_obj *kobj)
 
     copylen = min_t(uint, kbuf_sz - kobj->ko_pfx_len, kobj->ko_sfx_len);
     tmp_kbuf = kbuf + kobj->ko_pfx_len;
-    if (likely(tmp_kbuf && kobj->ko_sfx))
+    if (HSE_LIKELY(tmp_kbuf && kobj->ko_sfx))
         memcpy(tmp_kbuf, kobj->ko_sfx, copylen);
 
     return kbuf;
 }
 
-static __always_inline uint
+static HSE_ALWAYS_INLINE uint
 key_obj_len(const struct key_obj *kobj)
 {
     return kobj->ko_pfx_len + kobj->ko_sfx_len;
@@ -237,7 +237,7 @@ key_obj_len(const struct key_obj *kobj)
  *   negative int : ko1 is "less than" ko2
  *   positive int : ko1 is "greater than" ko2
  */
-static __always_inline int
+static HSE_ALWAYS_INLINE int
 key_obj_ncmp(const struct key_obj *ko1, const struct key_obj *ko2, uint cmplen)
 {
     uint      klen1 = key_obj_len(ko1);
@@ -257,9 +257,9 @@ key_obj_ncmp(const struct key_obj *ko1, const struct key_obj *ko2, uint cmplen)
     /* 1 ...
      */
     len = min_t(uint, limitv[0], limitv[2]);
-    if (likely(k1 && k2)) {
+    if (HSE_LIKELY(k1 && k2)) {
         rc = memcmp(k1, k2, len);
-        if (likely(rc))
+        if (HSE_LIKELY(rc))
             return rc;
     }
 
@@ -270,9 +270,9 @@ key_obj_ncmp(const struct key_obj *ko1, const struct key_obj *ko2, uint cmplen)
     /* 2 ...
      */
     len = min_t(uint, limitv[1], limitv[2]) - len;
-    if (likely(k1 && k2)) {
+    if (HSE_LIKELY(k1 && k2)) {
         rc = memcmp(k1, k2, len);
-        if (likely(rc))
+        if (HSE_LIKELY(rc))
             return rc;
     }
 
@@ -283,16 +283,16 @@ key_obj_ncmp(const struct key_obj *ko1, const struct key_obj *ko2, uint cmplen)
     /* 3 ...
      */
     len = limitv[2] - pos;
-    if (likely(k1 && k2)) {
+    if (HSE_LIKELY(k1 && k2)) {
         rc = memcmp(k1, k2, len);
-        if (likely(rc))
+        if (HSE_LIKELY(rc))
             return rc;
     }
 
     return (minlen < cmplen) ? klen1 - klen2 : 0;
 }
 
-static __always_inline int
+static HSE_ALWAYS_INLINE int
 key_obj_cmp(const struct key_obj *ko1, const struct key_obj *ko2)
 {
     return key_obj_ncmp(ko1, ko2, UINT_MAX);
@@ -310,13 +310,13 @@ key_obj_cmp_prefix(const struct key_obj *ko_pfx, const struct key_obj *ko_key)
     uint klen1 = key_obj_len(ko_pfx);
     uint klen2 = key_obj_len(ko_key);
 
-    if (likely(klen1 <= klen2))
+    if (HSE_LIKELY(klen1 <= klen2))
         return key_obj_ncmp(ko_pfx, ko_key, klen1);
 
     return 1;
 }
 
-static __always_inline struct key_obj *
+static HSE_ALWAYS_INLINE struct key_obj *
 key2kobj(struct key_obj *kobj, const void *kdata, size_t klen)
 {
     kobj->ko_pfx = NULL;

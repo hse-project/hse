@@ -790,7 +790,7 @@ cndb_import_md(struct cndb *cndb, struct cndb_hdr_omf *buf, union cndb_mtu **mtu
     union cndb_mtu *lmtu = NULL; /* local mtu */
 
     *mtu = NULL;
-    if (unlikely(typ == CNDB_TYPE_VERSION)) {
+    if (HSE_UNLIKELY(typ == CNDB_TYPE_VERSION)) {
         err = merr(EPROTO);
         CNDB_LOG(err, cndb, HSE_ERR, " bad preamble (type %d)", typ);
         return err;

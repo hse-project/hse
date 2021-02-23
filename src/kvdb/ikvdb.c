@@ -64,14 +64,14 @@
 /* tls_vbuf[] is a thread-local buffer used as a compression output buffer
  * by ikvdb_kvs_put() and for small direct reads by kvset_lookup_val().
  */
-__thread char tls_vbuf[32 * 1024] __aligned(PAGE_SIZE);
+__thread char tls_vbuf[32 * 1024] HSE_ALIGNED(PAGE_SIZE);
 const size_t  tls_vbufsz = sizeof(tls_vbuf);
 
-struct perfc_set kvdb_pkvdbl_pc __read_mostly;
-struct perfc_set kvdb_pc        __read_mostly;
+struct perfc_set kvdb_pkvdbl_pc HSE_READ_MOSTLY;
+struct perfc_set kvdb_pc        HSE_READ_MOSTLY;
 
-struct perfc_set kvdb_metrics_pc __read_mostly;
-struct perfc_set c0_metrics_pc   __read_mostly;
+struct perfc_set kvdb_metrics_pc HSE_READ_MOSTLY;
+struct perfc_set c0_metrics_pc   HSE_READ_MOSTLY;
 
 BUILD_BUG_ON_MSG(
     (sizeof(uintptr_t) != sizeof(u64)),
@@ -89,7 +89,7 @@ struct ikvdb {
 /* Simple fixed-size stack for caching ctxn objects.
  */
 struct kvdb_ctxn_bkt {
-    spinlock_t        kcb_lock __aligned(SMP_CACHE_BYTES * 2);
+    spinlock_t        kcb_lock HSE_ALIGNED(SMP_CACHE_BYTES * 2);
     uint              kcb_ctxnc;
     struct kvdb_ctxn *kcb_ctxnv[15];
 };
@@ -155,7 +155,7 @@ struct ikvdb_impl {
     struct viewset          *ikdb_txn_viewset;
     struct viewset          *ikdb_cur_viewset;
 
-    struct tbkt ikdb_tb __aligned(SMP_CACHE_BYTES * 2);
+    struct tbkt ikdb_tb HSE_ALIGNED(SMP_CACHE_BYTES * 2);
 
     u64 ikdb_tb_burst;
     u64 ikdb_tb_rate;
@@ -166,11 +166,11 @@ struct ikvdb_impl {
     atomic64_t   ikdb_tb_dbg_bytes;
     atomic64_t   ikdb_tb_dbg_sleep_ns;
 
-    atomic_t ikdb_curcnt __aligned(SMP_CACHE_BYTES * 2);
+    atomic_t ikdb_curcnt HSE_ALIGNED(SMP_CACHE_BYTES * 2);
     u32      ikdb_curcnt_max;
 
-    atomic64_t           ikdb_seqno __aligned(SMP_CACHE_BYTES * 2);
-    struct kvdb_rparams  ikdb_rp __aligned(SMP_CACHE_BYTES * 2);
+    atomic64_t           ikdb_seqno HSE_ALIGNED(SMP_CACHE_BYTES * 2);
+    struct kvdb_rparams  ikdb_rp HSE_ALIGNED(SMP_CACHE_BYTES * 2);
     struct kvdb_ctxn_bkt ikdb_ctxn_cache[KVDB_CTXN_BKT_MAX];
 
     /* Put the mostly cold data at end of the structure to improve
@@ -324,7 +324,7 @@ ikvdb_rate_limit_set(struct ikvdb_impl *self, u64 rate)
     self->ikdb_tb_dbg = self->ikdb_rp.throttle_debug & THROTTLE_DEBUG_TB_MASK;
 
     /* debug: manual control: get burst and rate from rparams  */
-    if (unlikely(self->ikdb_tb_dbg & THROTTLE_DEBUG_TB_MANUAL)) {
+    if (HSE_UNLIKELY(self->ikdb_tb_dbg & THROTTLE_DEBUG_TB_MANUAL)) {
         burst = self->ikdb_rp.throttle_burst;
         rate  = self->ikdb_rp.throttle_rate;
     }
@@ -2415,7 +2415,7 @@ ikvdb_horizon(struct ikvdb *handle)
 
     horizon = min_t(u64, b, c);
 
-    if (unlikely( perfc_ison(&kvdb_metrics_pc, PERFC_BA_KVDBMETRICS_SEQNO) )) {
+    if (HSE_UNLIKELY( perfc_ison(&kvdb_metrics_pc, PERFC_BA_KVDBMETRICS_SEQNO) )) {
         u64 a;
 
         /* Must read a after b and c to test assertions. */
@@ -2433,7 +2433,7 @@ ikvdb_horizon(struct ikvdb *handle)
     return horizon;
 }
 
-static __always_inline struct kvdb_ctxn_bkt *
+static HSE_ALWAYS_INLINE struct kvdb_ctxn_bkt *
 ikvdb_txn_tid2bkt(struct ikvdb_impl *self)
 {
     u64 tid = pthread_self();

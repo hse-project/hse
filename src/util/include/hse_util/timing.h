@@ -16,7 +16,7 @@
 
 BullseyeCoverageSaveOff
 
-static __always_inline u64
+static HSE_ALWAYS_INLINE u64
 get_time_ns(void)
 {
     struct timespec ts = { 0, 0 };
@@ -26,7 +26,7 @@ get_time_ns(void)
     return (u64)ts.tv_sec * 1000000000ULL + ts.tv_nsec;
 }
 
-static __always_inline int
+static HSE_ALWAYS_INLINE int
 get_realtime(struct timespec *ts)
 {
     return clock_gettime(CLOCK_REALTIME, ts);
@@ -34,7 +34,7 @@ get_realtime(struct timespec *ts)
 
 
 #if __amd64__
-static __always_inline u64
+static HSE_ALWAYS_INLINE u64
 get_cycles(void)
 {
     return __builtin_ia32_rdtsc();
@@ -47,7 +47,7 @@ get_cycles(void)
 /* If you change this you must update tsc_freq, tsc_mult,
  * and tsc_shift in timer.c to match.
  */
-static __always_inline u64
+static HSE_ALWAYS_INLINE u64
 get_cycles(void)
 {
     return get_time_ns();
@@ -64,7 +64,7 @@ get_cycles(void)
  *
  * [HSE_REVISIT] Use RDPID if available (see __getcpu()).
  */
-static __always_inline unsigned int
+static HSE_ALWAYS_INLINE unsigned int
 raw_smp_processor_id(void)
 {
     uint64_t aux;

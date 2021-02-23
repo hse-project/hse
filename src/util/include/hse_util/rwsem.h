@@ -77,19 +77,19 @@ init_rwsem_reader(struct rw_semaphore *sem)
         hse_log(HSE_INFO "pthread_rwlock_init() failed: %d", rc);
 }
 
-static __always_inline void
+static HSE_ALWAYS_INLINE void
 down_read(struct rw_semaphore *sem)
 {
-    int rc __maybe_unused;
+    int rc HSE_MAYBE_UNUSED;
 
     rc = pthread_rwlock_rdlock(&sem->rwsemlock);
     assert(rc == 0);
 }
 
-static __always_inline void
+static HSE_ALWAYS_INLINE void
 down_write(struct rw_semaphore *sem)
 {
-    int rc __maybe_unused;
+    int rc HSE_MAYBE_UNUSED;
 
     rc = pthread_rwlock_wrlock(&sem->rwsemlock);
     assert(rc == 0);
@@ -100,7 +100,7 @@ down_write(struct rw_semaphore *sem)
  */
 #if 0
 /* Return nonzero on success, zero on fail */
-static __always_inline
+static HSE_ALWAYS_INLINE
 int
 down_read_trylock(struct rw_semaphore *sem)
 {
@@ -114,7 +114,7 @@ down_read_trylock(struct rw_semaphore *sem)
 }
 
 /* Return nonzero on success, zero on fail */
-static __always_inline
+static HSE_ALWAYS_INLINE
 int
 down_write_trylock(struct rw_semaphore *sem)
 {
@@ -128,19 +128,19 @@ down_write_trylock(struct rw_semaphore *sem)
 }
 #endif
 
-static __always_inline void
+static HSE_ALWAYS_INLINE void
 up_read(struct rw_semaphore *sem)
 {
-    int rc __maybe_unused;
+    int rc HSE_MAYBE_UNUSED;
 
     rc = pthread_rwlock_unlock(&sem->rwsemlock);
     assert(rc == 0);
 }
 
-static __always_inline void
+static HSE_ALWAYS_INLINE void
 up_write(struct rw_semaphore *sem)
 {
-    int rc __maybe_unused;
+    int rc HSE_MAYBE_UNUSED;
 
     rc = pthread_rwlock_unlock(&sem->rwsemlock);
     assert(rc == 0);

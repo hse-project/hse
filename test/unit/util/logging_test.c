@@ -290,9 +290,7 @@ MTF_DEFINE_UTEST(hse_logging_test, Test_preprocess_fmt_string_std)
     struct hse_log_fmt_state state;
     int                      j = 0;
 /*
-#if GCC_VERSION > 40500
 #pragma GCC diagnostic ignored "-Wformat-zero-length"
-#endif
     {
         memset(reference, 0, sizeof(reference));
         memset(scratch,   0, sizeof(scratch));
@@ -317,9 +315,7 @@ MTF_DEFINE_UTEST(hse_logging_test, Test_preprocess_fmt_string_std)
         ASSERT_STREQ(reference, scratch);
 
     }
-#if GCC_VERSION > 40500
 #pragma GCC diagnostic warning "-Wformat-zero-length"
-#endif
     {
         memset(reference, 0, sizeof(reference));
         memset(scratch,   0, sizeof(scratch));
@@ -346,9 +342,7 @@ MTF_DEFINE_UTEST(hse_logging_test, Test_preprocess_fmt_string_std)
         ASSERT_STREQ(reference, scratch);
     }
 */
-#if GCC_VERSION > 40500
 #pragma GCC diagnostic warning "-Wformat-zero-length"
-#endif
     {
         memset(reference, 0, sizeof(reference));
         memset(scratch, 0, sizeof(scratch));

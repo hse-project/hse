@@ -6,47 +6,23 @@
 #ifndef HSE_PLATFORM_COMPILER_H
 #define HSE_PLATFORM_COMPILER_H
 
-/*
- * Assumes gcc
- */
-
-#ifndef likely
-#define likely(x) __builtin_expect(!!(x), 1)
-#endif
-
-#ifndef unlikely
-#define unlikely(x) __builtin_expect(!!(x), 0)
-#endif
-
-#ifndef __always_inline
-#define __always_inline inline __attribute__((always_inline))
-#endif
-
 /* Optimization barrier */
 /* The "volatile" is due to gcc bugs */
 #define barrier() asm volatile("" : : : "memory")
 
-#define __printf(a, b) __attribute__((format(printf, a, b)))
+#define HSE_LIKELY(x)     __builtin_expect(!!(x), 1)
+#define HSE_UNLIKELY(x)   __builtin_expect(!!(x), 0)
+#define HSE_ALWAYS_INLINE inline __attribute__((always_inline))
+#define HSE_PRINTF(a, b)  __attribute__((format(printf, a, b)))
+#define HSE_PACKED        __attribute__((packed))
+#define HSE_ALIGNED(SIZE) __attribute__((aligned(SIZE)))
+#define HSE_READ_MOSTLY   __attribute__((section(".read_mostly")))
+#define HSE_MAYBE_UNUSED  __attribute__((unused))
+#define HSE_USED          __attribute__((used))
+#define HSE_HOT           __attribute__((hot))
+#define HSE_COLD          __attribute__((cold))
 
-#define __packed __attribute__((packed))
-
-#ifndef __aligned
-#define __aligned(SIZE) __attribute__((aligned(SIZE)))
-#endif
-
-#define __read_mostly   __attribute__((__section__(".read_mostly")))
-#define __maybe_unused  __attribute__((__unused__))
-#define __used          __attribute__((__used__))
-#define __hot           __attribute__((__hot__))
-#define __cold          __attribute__((__cold__))
-
-/*
- * There are multiple ways GCC_VERSION could be defined.  This mimics
- * the kernel's definition in include/linux/compiler-gcc.h.
- */
-#define GCC_VERSION (__GNUC__ * 10000 + __GNUC_MINOR__ * 100 + __GNUC_PATCHLEVEL__)
-
-#if GCC_VERSION < 40700
+#if __STDC__VERSION__ <= 201112L
 #define _Static_assert(...)
 #endif
 
@@ -68,7 +44,7 @@
 #endif
 
 #if __amd64__
-static __always_inline void
+static HSE_ALWAYS_INLINE void
 cpu_relax(void)
 {
     asm volatile("rep; nop" ::: "memory");

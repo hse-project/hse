@@ -32,7 +32,7 @@ encode_hg16_32k(void *base, size_t *off, u64 val)
     }
 }
 
-static __always_inline u64
+static HSE_ALWAYS_INLINE u64
 decode_hg16_32k(const void *base, size_t *off)
 {
     const u8 *p = base + *off;
@@ -74,7 +74,7 @@ encode_hg24_4m(void *base, size_t *off, u64 val)
     }
 }
 
-static __always_inline u64
+static HSE_ALWAYS_INLINE u64
 decode_hg24_4m(const void *base, size_t *off)
 {
     const u8 *p = base + *off;
@@ -121,7 +121,7 @@ encode_hg32_1024m(void *base, size_t *off, u64 val)
     }
 }
 
-static __always_inline u64
+static HSE_ALWAYS_INLINE u64
 decode_hg32_1024m(const void *base, size_t *off)
 {
     const void *p = base + *off;
@@ -186,7 +186,7 @@ encode_hg64(void *base, size_t *off, u64 val)
     }
 }
 
-static __always_inline u64
+static HSE_ALWAYS_INLINE u64
 decode_hg64(const void *base, size_t *off)
 {
     const void *p = base + *off;
@@ -238,7 +238,7 @@ encode_varint(void *base, size_t *off, u64 val)
     *off = p - (u8 *)base;
 }
 
-static __always_inline u64
+static HSE_ALWAYS_INLINE u64
 decode_varint(const void *base, size_t *off)
 {
     const u8 *p = base + *off;

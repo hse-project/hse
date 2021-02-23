@@ -81,7 +81,7 @@ struct bonsai_val {
  * given bonsai value.  Note that uncompressed value lengths are always
  * greater than compressed value lengths.
  */
-static __always_inline uint
+static HSE_ALWAYS_INLINE uint
 bonsai_val_ulen(const struct bonsai_val *bv)
 {
     return bv->bv_xlen & 0xfffffffful;
@@ -96,7 +96,7 @@ bonsai_val_ulen(const struct bonsai_val *bv)
  * returned.  Note that compressed value lengths are always less than
  * uncompressed value lengths.
  */
-static __always_inline uint
+static HSE_ALWAYS_INLINE uint
 bonsai_val_clen(const struct bonsai_val *bv)
 {
     return bv->bv_xlen >> 32;
@@ -109,7 +109,7 @@ bonsai_val_clen(const struct bonsai_val *bv)
  * bonsai_val_vlen() returns the in-core length (in bytes) of the
  * given bonsai value, irrespective of whether or not it is compressed.
  */
-static __always_inline uint
+static HSE_ALWAYS_INLINE uint
 bonsai_val_vlen(const struct bonsai_val *bv)
 {
     return bonsai_val_clen(bv) ?: bonsai_val_ulen(bv);
@@ -138,7 +138,7 @@ struct bonsai_sval {
  * bonsai_sval_vlen() returns the in-core length (in bytes) of the
  * given bonsaid svalue, irrespective of whether or not it is compressed.
  */
-static __always_inline uint
+static HSE_ALWAYS_INLINE uint
 bonsai_sval_vlen(const struct bonsai_sval *bsv)
 {
     uint clen = bsv->bsv_xlen >> 32;
@@ -198,7 +198,7 @@ struct bonsai_node {
     struct key_immediate  bn_key_imm;
     s32                   bn_height;
     struct bonsai_kv     *bn_kv;
-} __aligned(64);
+} HSE_ALIGNED(64);
 
 _Static_assert(sizeof(struct bonsai_node) == 64, "bonsai node too large");
 
@@ -239,7 +239,7 @@ struct bonsai_client {
     void           *bc_rock;
     size_t          bc_slab_sz;
 
-    __aligned(SMP_CACHE_BYTES)
+    HSE_ALIGNED(SMP_CACHE_BYTES)
     struct bonsai_node *bc_slab_cur;
     struct bonsai_node *bc_slab_end;
 };

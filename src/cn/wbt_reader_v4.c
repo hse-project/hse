@@ -264,7 +264,7 @@ wbti_seek_rev(struct wbti *self, struct kvs_ktuple *kt)
     /* It wasn't a seek, must be a cursor create.  Compare with
      * the prefix of the best match to determine if found.
      */
-    if (unlikely(last < 0)) {
+    if (HSE_UNLIKELY(last < 0)) {
         /*
          * Consider two leaf nodes lnode N and N+1:
          *
@@ -337,8 +337,8 @@ wbti_next_fwd(struct wbti *self, const void **kdata, uint *klen, const void **km
     struct wbt_lfe_omf *lfe;
     size_t              off;
 
-    u64 seq __maybe_unused;
-    uint cnt __maybe_unused;
+    u64 seq HSE_MAYBE_UNUSED;
+    uint cnt HSE_MAYBE_UNUSED;
 
     if (self->node_idx == NODE_EOF)
         return false;
@@ -372,8 +372,8 @@ wbti_next_rev(struct wbti *self, const void **kdata, uint *klen, const void **km
     struct wbt_lfe_omf *lfe;
     size_t              off;
 
-    u64 seq __maybe_unused;
-    uint cnt __maybe_unused;
+    u64 seq HSE_MAYBE_UNUSED;
+    uint cnt HSE_MAYBE_UNUSED;
 
     if (self->node_idx == NODE_EOF)
         return false;

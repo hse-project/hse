@@ -17,7 +17,7 @@ struct rmlock;
 struct rmlock_bkt {
     u64            rm_rwcnt;
     struct rmlock *rm_lockp;
-} __aligned(SMP_CACHE_BYTES * 2);
+} HSE_ALIGNED(SMP_CACHE_BYTES * 2);
 
 struct rmlock {
     atomic_t rm_writer;
@@ -27,8 +27,8 @@ struct rmlock {
     struct rmlock_bkt *rm_bktv;
 };
 
-merr_t rmlock_init(struct rmlock *lock) __cold;
-void rmlock_destroy(struct rmlock *lock) __cold;
+merr_t rmlock_init(struct rmlock *lock) HSE_COLD;
+void rmlock_destroy(struct rmlock *lock) HSE_COLD;
 void rmlock_rlock(struct rmlock *lock, void **cookiep);
 void rmlock_runlock(void *cookie);
 void rmlock_yield(struct rmlock *lock, void **cookiep);

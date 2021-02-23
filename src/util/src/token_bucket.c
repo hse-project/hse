@@ -109,7 +109,7 @@ tbkti_balance(struct tbkt *self, u64 now)
     /* Don't expect time to move backward, but if it does just return the
      * current balance.
      */
-    if (unlikely(self->tb_refill_time > now))
+    if (HSE_UNLIKELY(self->tb_refill_time > now))
         return self->tb_balance;
 
     /* Compute refill based on dt (ie, elapsed time).  Use tb_dt_max to avoid
@@ -117,7 +117,7 @@ tbkti_balance(struct tbkt *self, u64 now)
      * return the max balance (which equals the burst size).
      */
     dt = now - self->tb_refill_time;
-    if (unlikely(dt > self->tb_dt_max))
+    if (HSE_UNLIKELY(dt > self->tb_dt_max))
         return self->tb_burst;
 
     refill = (u64) ((double) self->tb_rate * dt * 1e-9);
@@ -201,7 +201,7 @@ tbkt_request(struct tbkt *self, u64 request)
     u64 request_max;
     bool debt;
 
-    if (unlikely(request == 0 || self->tb_rate == 0))
+    if (HSE_UNLIKELY(request == 0 || self->tb_rate == 0))
         return 0;
 
     if (!spin_trylock(&self->tb_lock))
@@ -212,7 +212,7 @@ tbkt_request(struct tbkt *self, u64 request)
 
     /* Prevent balance inversion */
     request_max = self->tb_balance - self->tb_burst - 1u;
-    if (unlikely(request > request_max))
+    if (HSE_UNLIKELY(request > request_max))
         request = request_max;
 
     /* Make the withdrawal */

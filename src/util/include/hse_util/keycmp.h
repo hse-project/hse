@@ -7,6 +7,7 @@
 #define HSE_PLATFORM_KEYCMP_H
 
 #include <hse_util/base.h>
+#include <hse_util/compiler.h>
 #include <hse_util/inttypes.h>
 
 /*
@@ -38,7 +39,7 @@ keycmp(const void *key1, u32 len1, const void *key2, u32 len2)
  *   negative int : pfx is "less than" than key
  *   positive int : pfx is "greater than" key
  */
-static __always_inline int
+static HSE_ALWAYS_INLINE int
 keycmp_prefix(const void *pfx, u32 pfx_len, const void *key, u32 keylen)
 {
     return keylen < pfx_len ? 1 : memcmp(pfx, key, pfx_len);

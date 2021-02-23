@@ -99,8 +99,8 @@ _Static_assert(IB_ESBUFSZ_MAX < 4096, "adjust grow size in ib_sbuf_key_add()");
 _Static_assert(HSE_KVS_KLEN_MAX < 4096, "adjust grow size in ib_sbuf_key_add()");
 
 
-static struct kmem_cache *ib_node_cache __read_mostly;
-static struct kmem_cache *ib_cache __read_mostly;
+static struct kmem_cache *ib_node_cache HSE_READ_MOSTLY;
+static struct kmem_cache *ib_cache HSE_READ_MOSTLY;
 static atomic_t           ib_init_ref;
 
 merr_t
@@ -143,7 +143,7 @@ ib_fini(void)
     ib_node_cache = NULL;
 }
 
-static __always_inline bool
+static HSE_ALWAYS_INLINE bool
 ib_node_free(struct intern_builder *ib, struct intern_node *n)
 {
     if (!(n >= ib->nodev && n < ib->nodev + NELEM(ib->nodev))) {
@@ -154,7 +154,7 @@ ib_node_free(struct intern_builder *ib, struct intern_node *n)
     return false;
 }
 
-static __always_inline void
+static HSE_ALWAYS_INLINE void
 ib_level_free(struct intern_builder *ib, struct intern_level *l)
 {
     if (l->sbuf_sz > IB_ESBUFSZ_MAX) {
@@ -212,7 +212,7 @@ ib_sbuf_key_add(struct intern_level *l, uint child_idx, struct key_obj *kobj)
      */
     newsz = l->sbuf_used + klen + sizeof(*k);
 
-    if (unlikely(newsz > l->sbuf_sz)) {
+    if (HSE_UNLIKELY(newsz > l->sbuf_sz)) {
         void *sbuf = NULL;
 
         newsz = roundup(newsz, 4096) * 2;
@@ -606,8 +606,8 @@ ib_child_update(struct intern_builder *ibldr, uint num_leaves)
     struct intern_level *l;
     uint                 prev[2];
 
-    uint dbg_lvl_cnt __maybe_unused;
-    uint dbg_tot_cnt __maybe_unused;
+    uint dbg_lvl_cnt HSE_MAYBE_UNUSED;
+    uint dbg_tot_cnt HSE_MAYBE_UNUSED;
 
     prev[0] = 0;
     prev[1] = num_leaves;

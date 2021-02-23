@@ -14,10 +14,10 @@
 /* Struct tbkt members should be considered private.  */
 struct tbkt {
 
-    spinlock_t  tb_lock __aligned(2*SMP_CACHE_BYTES);
+    spinlock_t  tb_lock HSE_ALIGNED(2*SMP_CACHE_BYTES);
 
     /* Read/Write inside of lock.  Rarely read outside of lock. */
-    u64         tb_balance __aligned(2*SMP_CACHE_BYTES);
+    u64         tb_balance HSE_ALIGNED(2*SMP_CACHE_BYTES);
     u64         tb_rate;
     u64         tb_burst;
     u64         tb_refill_time;

@@ -22,7 +22,7 @@ bn_ior_replace(
     enum bonsai_ior_code code;
 
     /* Invalidate the tombspan, if any. */
-    if (unlikely(!(flags & BN_INSERT_FLAG_TOMB) && node->bn_kv->bkv_tomb)) {
+    if (HSE_UNLIKELY(!(flags & BN_INSERT_FLAG_TOMB) && node->bn_kv->bkv_tomb)) {
         node->bn_kv->bkv_tomb->bkv_tomb = NULL;
         node->bn_kv->bkv_tomb = NULL;
     }
@@ -71,14 +71,14 @@ bn_ior_insert(
     prev_span = node->bn_kv->bkv_prev->bkv_tomb;
     next_span = node->bn_kv->bkv_next->bkv_tomb;
 
-    if (unlikely(prev_span && (prev_span->bkv_flags & BKV_FLAG_TOMB_HEAD)))
+    if (HSE_UNLIKELY(prev_span && (prev_span->bkv_flags & BKV_FLAG_TOMB_HEAD)))
         prev_span = prev_span->bkv_tomb;
 
-    if (unlikely(next_span && (next_span->bkv_flags & BKV_FLAG_TOMB_HEAD)))
+    if (HSE_UNLIKELY(next_span && (next_span->bkv_flags & BKV_FLAG_TOMB_HEAD)))
         next_span = next_span->bkv_tomb;
 
     if (flags & BN_INSERT_FLAG_TOMB) {
-        if (unlikely(prev_span)) {
+        if (HSE_UNLIKELY(prev_span)) {
             head = prev_span->bkv_tomb;
             assert(head->bkv_flags & BKV_FLAG_TOMB_HEAD);
             assert(head->bkv_tomb);
@@ -94,7 +94,7 @@ bn_ior_insert(
             head->bkv_flags |= BKV_FLAG_TOMB_HEAD;
             head->bkv_tomb = node->bn_kv;
         }
-    } else if (unlikely(prev_span && (prev_span == next_span))) {
+    } else if (HSE_UNLIKELY(prev_span && (prev_span == next_span))) {
         /* This put invalidates a tomb span */
         head = prev_span->bkv_tomb;
         assert(head->bkv_flags & BKV_FLAG_TOMB_HEAD);
@@ -138,7 +138,7 @@ bn_ior_impl(
     while (node) {
         res = key_full_cmp(key_imm, key, &node->bn_key_imm, node->bn_kv->bkv_key);
 
-        if (unlikely(res == 0))
+        if (HSE_UNLIKELY(res == 0))
             break;
 
         if (res < 0) {
@@ -301,7 +301,7 @@ search:
 
     while (node) {
         res = key_immediate_cmp(ki, &node->bn_key_imm);
-        if (unlikely(res == S32_MIN)) {
+        if (HSE_UNLIKELY(res == S32_MIN)) {
             assert(key_imm_klen(&node->bn_key_imm) >= lcp);
 
             /* At this point we are assured that both keys'
@@ -311,15 +311,15 @@ search:
                 key, klen, node->bn_kv->bkv_key + lcp, key_imm_klen(&node->bn_key_imm) - lcp);
         }
 
-        if (unlikely(res == 0))
+        if (HSE_UNLIKELY(res == 0))
             return node->bn_kv;
 
         if (res < 0) {
-            if (unlikely(mtype == B_MATCH_GE))
+            if (HSE_UNLIKELY(mtype == B_MATCH_GE))
                 mnode = node;
             node = rcu_dereference(node->bn_left);
         } else {
-            if (unlikely(mtype == B_MATCH_LE))
+            if (HSE_UNLIKELY(mtype == B_MATCH_LE))
                 mnode = node;
             node = rcu_dereference(node->bn_right);
         }

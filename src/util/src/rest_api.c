@@ -100,10 +100,10 @@ struct rest {
     spinlock_t      sessions_lock;
     struct session *sessions[MAX_SESSIONS];
 
-    __aligned(SMP_CACHE_BYTES) struct mutex url_tab_lock;
+    HSE_ALIGNED(SMP_CACHE_BYTES) struct mutex url_tab_lock;
     struct table *url_tab; /* table of rest URLs */
 
-    __aligned(SMP_CACHE_BYTES) struct workqueue_struct *url_hdlr_wq;
+    HSE_ALIGNED(SMP_CACHE_BYTES) struct workqueue_struct *url_hdlr_wq;
     struct MHD_Daemon *monitor_daemon;
 
     int  sockfd;
@@ -423,7 +423,7 @@ kv_tab_free(struct table *tab)
 static void
 rest_session_release(struct session *s)
 {
-    int rc __maybe_unused;
+    int rc HSE_MAYBE_UNUSED;
 
     assert(s->magic == s);
 

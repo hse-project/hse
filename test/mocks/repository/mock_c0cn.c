@@ -60,14 +60,14 @@ struct mock_cn {
     struct c0_data *data;
     struct cndb *   cndb;
     atomic_t        refcnt;
-} __aligned(PAGE_SIZE);
+} HSE_ALIGNED(PAGE_SIZE);
 
 struct mock_c0 {
     char           tripwire[PAGE_SIZE * 3];
     struct c0_data data[KEY_CNT];
     u64            hash;
     u32            index;
-} __aligned(PAGE_SIZE);
+} HSE_ALIGNED(PAGE_SIZE);
 
 struct c0_cursor {
     char tripwire[PAGE_SIZE * 3];

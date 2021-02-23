@@ -31,9 +31,9 @@ uint
 ib_iovec_construct(struct intern_builder *ibldr, struct iovec *iov);
 
 merr_t
-ib_init(void) __cold;
+ib_init(void) HSE_COLD;
 
 void
-ib_fini(void) __cold;
+ib_fini(void) HSE_COLD;
 
 #endif /* HSE_KVS_INTERN_BUILDER_H */

@@ -107,25 +107,25 @@ mbset_purge(struct mbset *self, const struct mpool *ds);
 merr_t
 mbset_mincore(struct mbset *self, size_t *rss_out, size_t *vss_out);
 
-static __always_inline struct mpool *
+static HSE_ALWAYS_INLINE struct mpool *
 mbset_get_ds(struct mbset *self)
 {
     return self->mbs_ds;
 }
 
-static __always_inline u64
+static HSE_ALWAYS_INLINE u64
 mbset_get_wlen(struct mbset *self)
 {
     return self->mbs_wlen;
 }
 
-static __always_inline u64
+static HSE_ALWAYS_INLINE u64
 mbset_get_alen(struct mbset *self)
 {
     return self->mbs_alen;
 }
 
-static __always_inline struct mpool_mcache_map *
+static HSE_ALWAYS_INLINE struct mpool_mcache_map *
 mbset_get_map(struct mbset *self, uint blk_num)
 {
     bool valid = blk_num < self->mbs_idc;
@@ -134,7 +134,7 @@ mbset_get_map(struct mbset *self, uint blk_num)
     return valid ? self->mbs_mapv[blk_num / self->mbs_mblock_max] : 0;
 }
 
-static __always_inline uint
+static HSE_ALWAYS_INLINE uint
 mbset_get_map_idx(struct mbset *self, uint blk_num)
 {
     bool valid = blk_num < self->mbs_idc;
@@ -143,7 +143,7 @@ mbset_get_map_idx(struct mbset *self, uint blk_num)
     return valid ? blk_num % self->mbs_mblock_max : 0;
 }
 
-static __always_inline u64
+static HSE_ALWAYS_INLINE u64
 mbset_get_mbid(struct mbset *self, uint blk_num)
 {
     bool valid = blk_num < self->mbs_idc;
@@ -152,13 +152,13 @@ mbset_get_mbid(struct mbset *self, uint blk_num)
     return valid ? self->mbs_idv[blk_num] : 0;
 }
 
-static __always_inline uint
+static HSE_ALWAYS_INLINE uint
 mbset_get_blkc(struct mbset *self)
 {
     return self->mbs_idc;
 }
 
-static __always_inline void *
+static HSE_ALWAYS_INLINE void *
 mbset_get_udata(struct mbset *self, uint blk_num)
 {
     bool valid = blk_num < self->mbs_idc;

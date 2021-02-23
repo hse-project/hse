@@ -55,13 +55,13 @@ struct kvdb_ctxn_set_impl {
     u64                      ktn_txn_timeout;
     struct delayed_work      ktn_dwork;
 
-    atomic64_t ktn_tseqno_head __aligned(SMP_CACHE_BYTES * 2);
-    atomic64_t ktn_tseqno_tail __aligned(SMP_CACHE_BYTES * 2);
-    sem_t      ktn_tseqno_sema __aligned(SMP_CACHE_BYTES * 2);
-    spinlock_t ktn_tseqno_sync __aligned(SMP_CACHE_BYTES * 2);
+    atomic64_t ktn_tseqno_head HSE_ALIGNED(SMP_CACHE_BYTES * 2);
+    atomic64_t ktn_tseqno_tail HSE_ALIGNED(SMP_CACHE_BYTES * 2);
+    sem_t      ktn_tseqno_sema HSE_ALIGNED(SMP_CACHE_BYTES * 2);
+    spinlock_t ktn_tseqno_sync HSE_ALIGNED(SMP_CACHE_BYTES * 2);
 
-    struct mutex         ktn_list_mutex __aligned(SMP_CACHE_BYTES * 2);
-    struct cds_list_head ktn_alloc_list __aligned(SMP_CACHE_BYTES);
+    struct mutex         ktn_list_mutex HSE_ALIGNED(SMP_CACHE_BYTES * 2);
+    struct cds_list_head ktn_alloc_list HSE_ALIGNED(SMP_CACHE_BYTES);
     struct list_head     ktn_pending;
     atomic_t             ktn_reading;
     bool                 ktn_queued;
@@ -98,16 +98,16 @@ kvdb_ctxn_bind_cancel(struct kvdb_ctxn_bind *bind, bool preserve)
     bind->b_ctxn = 0;
 }
 
-static __always_inline bool
+static HSE_ALWAYS_INLINE bool
 kvdb_ctxn_trylock(struct kvdb_ctxn_impl *ctxn)
 {
     return atomic_cmpxchg(&ctxn->ctxn_lock, 0, 1) == 0;
 }
 
-static __always_inline void
+static HSE_ALWAYS_INLINE void
 kvdb_ctxn_unlock(struct kvdb_ctxn_impl *ctxn)
 {
-    int old __maybe_unused;
+    int old HSE_MAYBE_UNUSED;
 
     old = atomic_cmpxchg(&ctxn->ctxn_lock, 1, 0);
     assert(old == 1);
@@ -1137,7 +1137,7 @@ kvdb_ctxn_pfx_probe(
         return 0;
     }
 
-    if (likely(c0_get_pfx_len(c0) && kt->kt_len >= c0_get_pfx_len(c0))) {
+    if (HSE_LIKELY(c0_get_pfx_len(c0) && kt->kt_len >= c0_get_pfx_len(c0))) {
         /* Check if txn contains ptomb for query pfx */
         pt_c0kvs = c0kvms_ptomb_c0kvset_get(ctxn->ctxn_kvms);
         c0kvs_prefix_get_excl(

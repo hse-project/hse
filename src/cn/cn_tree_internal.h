@@ -57,7 +57,7 @@ struct cn_kle_hdr {
     struct list_head kh_entries;
     ulong            kh_nallocs;
     ulong            kh_nfrees;
-} __aligned(SMP_CACHE_BYTES);
+} HSE_ALIGNED(SMP_CACHE_BYTES);
 
 #define CN_KHASHMAP_SHIFT (8)
 
@@ -132,7 +132,7 @@ struct cn_tree {
     uint                 ct_lvl_max;
     struct cn_samp_stats ct_samp;
 
-    __aligned(SMP_CACHE_BYTES) union {
+    HSE_ALIGNED(SMP_CACHE_BYTES) union {
         struct sp3_tree sp3t;
     } ct_sched;
 
@@ -140,13 +140,13 @@ struct cn_tree {
     u64                      ct_capped_dgen;
     struct kvset_list_entry *ct_capped_le;
 
-    __aligned(SMP_CACHE_BYTES) struct kvdb_health *ct_kvdb_health;
+    HSE_ALIGNED(SMP_CACHE_BYTES) struct kvdb_health *ct_kvdb_health;
 
     u64 ct_last_ptseq;
     u32 ct_last_ptlen;
     u8  ct_last_ptomb[HSE_KVS_MAX_PFXLEN];
 
-    __aligned(SMP_CACHE_BYTES) struct cn_kle_cache ct_kle_cache;
+    HSE_ALIGNED(SMP_CACHE_BYTES) struct cn_kle_cache ct_kle_cache;
 
     struct rmlock ct_lock;
 };
@@ -181,13 +181,13 @@ struct cn_tree_node {
         struct sp3_node sp3n;
     } tn_sched;
 
-    __aligned(SMP_CACHE_BYTES) struct hlog *tn_hlog;
+    HSE_ALIGNED(SMP_CACHE_BYTES) struct hlog *tn_hlog;
     struct cn_node_stats tn_ns;
     struct cn_samp_stats tn_samp;
     u64                  tn_size_max;
     u64                  tn_update_incr_dgen;
 
-    __aligned(SMP_CACHE_BYTES) struct cn_node_loc tn_loc;
+    HSE_ALIGNED(SMP_CACHE_BYTES) struct cn_node_loc tn_loc;
     bool                 tn_terminal_node_warning;
     bool                 tn_pfx_spill;
     struct list_head     tn_kvset_list; /* head = newest kvset */

@@ -309,7 +309,7 @@ BullseyeCoverageSaveOff
             u64 cnt;                          \
         } ru;                                 \
                                               \
-        if (unlikely(++ru.cnt >= (_rumax))) { \
+        if (HSE_UNLIKELY(++ru.cnt >= (_rumax))) { \
             perfc_add((_pc), (_cid), ru.cnt); \
             ru.cnt = 0;                       \
         }                                     \
@@ -325,7 +325,7 @@ BullseyeCoverageSaveOff
         ru.cnt += 1;                                               \
         ru.sum += (_val2);                                         \
                                                                    \
-        if (unlikely(ru.cnt >= (_rumax))) {                        \
+        if (HSE_UNLIKELY(ru.cnt >= (_rumax))) {                        \
             perfc_add2((_pc), (_cidx1), ru.cnt, (_cidx2), ru.sum); \
             ru.cnt = 0;                                            \
             ru.sum = 0;                                            \
@@ -471,7 +471,7 @@ union perfc_ctru {
     struct perfc_basic   basic;
     struct perfc_rate    rate;
     struct perfc_dis     dis;
-} __aligned(SMP_CACHE_BYTES);
+} HSE_ALIGNED(SMP_CACHE_BYTES);
 
 /**
  * struct perfc_set - (struct perfc_set *) is a counter set instance handle.
@@ -595,7 +595,7 @@ perfc_dis_record_impl(struct perfc_dis *dis, u64 sample);
  */
 BullseyeCoverageSaveOff
 
-static __always_inline struct perfc_seti *
+static HSE_ALWAYS_INLINE struct perfc_seti *
 PERFC_ISON(struct perfc_set *pcs)
 {
     if (pcs && pcs->ps_bitmap > 0)
@@ -612,7 +612,7 @@ PERFC_ISON(struct perfc_set *pcs)
  * Return: NULL if not enabled, otherwise ptr to counter
  * implementation object.
  */
-static __always_inline struct perfc_seti *
+static HSE_ALWAYS_INLINE struct perfc_seti *
 perfc_ison(struct perfc_set *pcs, u32 cidx)
 {
     if (pcs && pcs->ps_bitmap & (1ull << cidx))
@@ -631,7 +631,7 @@ perfc_ison(struct perfc_set *pcs, u32 cidx)
  * Return: 0 if no counters from the family are enabled, otherwise
  * returns the current time in nanoseconds
  */
-static __always_inline u64
+static HSE_ALWAYS_INLINE u64
 perfc_lat_start(struct perfc_set *pcs)
 {
     return PERFC_ISON(pcs) ? get_cycles() : 0;
@@ -647,13 +647,13 @@ perfc_lat_start(struct perfc_set *pcs)
  * Return: 0 if the given counter is not enabled, otherwise
  * returns the current time in nanoseconds
  */
-static __always_inline u64
+static HSE_ALWAYS_INLINE u64
 perfc_lat_startu(struct perfc_set *pcs, const u32 cidx)
 {
     struct perfc_seti *pcsi;
 
     pcsi = perfc_ison(pcs, cidx);
-    if (unlikely(pcsi))
+    if (HSE_UNLIKELY(pcsi))
         return get_cycles();
 
     return 0;
@@ -669,13 +669,13 @@ perfc_lat_startu(struct perfc_set *pcs, const u32 cidx)
  * Return: 0 if the given counter is not enabled, otherwise
  * returns the current time in nanoseconds
  */
-static __always_inline u64
+static HSE_ALWAYS_INLINE u64
 perfc_lat_startl(struct perfc_set *pcs, const u32 cidx)
 {
     struct perfc_seti *pcsi;
 
     pcsi = perfc_ison(pcs, cidx);
-    if (likely(pcsi))
+    if (HSE_LIKELY(pcsi))
         return get_cycles();
 
     return 0;
@@ -684,7 +684,7 @@ perfc_lat_startl(struct perfc_set *pcs, const u32 cidx)
 /**
  * perfc_lat_record() - record a latency distribution measurement
  */
-static __always_inline void
+static HSE_ALWAYS_INLINE void
 perfc_lat_record(struct perfc_set *pcs, const u32 cidx, const u64 start)
 {
     struct perfc_seti *pcsi;
@@ -706,7 +706,7 @@ perfc_lat_record(struct perfc_set *pcs, const u32 cidx, const u64 start)
 /**
  * perfc_sl_record() - record a simple latency measurement
  */
-static __always_inline void
+static HSE_ALWAYS_INLINE void
 perfc_sl_record(struct perfc_set *pcs, const u32 cidx, const u64 start)
 {
     struct perfc_ctr_hdr   *hdr;
@@ -736,7 +736,7 @@ perfc_sl_record(struct perfc_set *pcs, const u32 cidx, const u64 start)
 /**
  * perfc_dis_record() - record a distribution sample
  */
-static __always_inline void
+static HSE_ALWAYS_INLINE void
 perfc_dis_record(struct perfc_set *pcs, const u32 cidx, const u64 val)
 {
     struct perfc_seti *pcsi;
@@ -778,7 +778,7 @@ perfc_set(struct perfc_set *pcs, const u32 cidx, const u64 val)
 
 /* Increment a performance counter.
  */
-static __always_inline void
+static HSE_ALWAYS_INLINE void
 perfc_inc(struct perfc_set *pcs, const u32 cidx)
 {
     struct perfc_seti  *pcsi;
@@ -796,7 +796,7 @@ perfc_inc(struct perfc_set *pcs, const u32 cidx)
 
 /* Decrement a performance counter.
  */
-static __always_inline void
+static HSE_ALWAYS_INLINE void
 perfc_dec(struct perfc_set *pcs, const u32 cidx)
 {
     struct perfc_seti  *pcsi;
@@ -814,7 +814,7 @@ perfc_dec(struct perfc_set *pcs, const u32 cidx)
 
 /* Add a value to a performance counter.
  */
-static __always_inline void
+static HSE_ALWAYS_INLINE void
 perfc_add(struct perfc_set *pcs, const u32 cidx, const u64 val)
 {
     struct perfc_seti  *pcsi;
@@ -832,7 +832,7 @@ perfc_add(struct perfc_set *pcs, const u32 cidx, const u64 val)
 
 /* Add values to two performance counters from the same family.
  */
-static __always_inline void
+static HSE_ALWAYS_INLINE void
 perfc_add2(struct perfc_set *pcs, const u32 cidx1, const u64 val1, const u32 cidx2, const u64 val2)
 {
     struct perfc_seti  *pcsi;
@@ -853,7 +853,7 @@ perfc_add2(struct perfc_set *pcs, const u32 cidx1, const u64 val1, const u32 cid
 
 /* Subtract a value from a performance counter.
  */
-static __always_inline void
+static HSE_ALWAYS_INLINE void
 perfc_sub(struct perfc_set *pcs, const u32 cidx, const u64 val)
 {
     struct perfc_seti  *pcsi;

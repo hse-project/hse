@@ -63,13 +63,13 @@ replenish(struct bin_heap *bh, struct kv_iterator **iterv, uint src, struct cn_m
     merr_t              err;
     struct merge_item   item;
 
-    if (unlikely(iter->kvi_eof))
+    if (HSE_UNLIKELY(iter->kvi_eof))
         return 0;
 
     err = kvset_iter_next_key(iter, &item.kobj, &item.vctx);
     if (ev(err))
         return err;
-    if (unlikely(iter->kvi_eof))
+    if (HSE_UNLIKELY(iter->kvi_eof))
         return 0;
 
     item.src = src;
@@ -115,7 +115,7 @@ err_exit1:
 }
 
 /* return true if item returned, false if no more items */
-static __always_inline bool
+static HSE_ALWAYS_INLINE bool
 get_next_item(
     struct bin_heap *      bh,
     struct kv_iterator **  iterv,
@@ -159,10 +159,10 @@ kcompact(struct cn_compaction_work *w)
     u64  pt_seq = 0;
     u64  tprog = 0;
 
-    u64 dbg_prev_seq __maybe_unused;
-    uint dbg_prev_src __maybe_unused;
-    uint dbg_nvals_this_key __maybe_unused;
-    bool dbg_dup __maybe_unused;
+    u64 dbg_prev_seq HSE_MAYBE_UNUSED;
+    uint dbg_prev_src HSE_MAYBE_UNUSED;
+    uint dbg_nvals_this_key HSE_MAYBE_UNUSED;
+    bool dbg_dup HSE_MAYBE_UNUSED;
 
     uint seqno_errcnt = 0;
 
@@ -222,7 +222,7 @@ get_values:
          *   if (dbg_nvals_this_key)
          *       assert(dbg_prev_seq > seq);
          */
-        if (unlikely(dbg_nvals_this_key && dbg_prev_seq <= seq)) {
+        if (HSE_UNLIKELY(dbg_nvals_this_key && dbg_prev_seq <= seq)) {
             assert(0);
             seqno_errcnt++;
         }

@@ -60,7 +60,7 @@ struct c0_kvmultiset_impl {
     u64                  c0ms_ingest_delay;
     u64                  c0ms_ctime;
 
-    __aligned(SMP_CACHE_BYTES) atomic_t c0ms_ingesting;
+    HSE_ALIGNED(SMP_CACHE_BYTES) atomic_t c0ms_ingesting;
     bool                     c0ms_ingested;
     bool                     c0ms_finalized;
     size_t                   c0ms_txn_thresh_lo;
@@ -69,20 +69,20 @@ struct c0_kvmultiset_impl {
     struct workqueue_struct *c0ms_wq;
     struct work_struct       c0ms_destroy_work;
 
-    __aligned(SMP_CACHE_BYTES) atomic_t c0ms_refcnt;
+    HSE_ALIGNED(SMP_CACHE_BYTES) atomic_t c0ms_refcnt;
 
-    __aligned(SMP_CACHE_BYTES) atomic_t c0ms_priv_cur;
+    HSE_ALIGNED(SMP_CACHE_BYTES) atomic_t c0ms_priv_cur;
     struct cv c0ms_priv_cv;
 
     size_t       c0ms_priv_max;
     uintptr_t *  c0ms_priv_base;
     struct mutex c0ms_priv_lock;
 
-    __aligned(SMP_CACHE_BYTES) atomic_t c0ms_priv_refcnt;
+    HSE_ALIGNED(SMP_CACHE_BYTES) atomic_t c0ms_priv_refcnt;
 
-    __aligned(SMP_CACHE_BYTES) size_t c0ms_used;
+    HSE_ALIGNED(SMP_CACHE_BYTES) size_t c0ms_used;
 
-    __aligned(SMP_CACHE_BYTES) u32 c0ms_num_sets;
+    HSE_ALIGNED(SMP_CACHE_BYTES) u32 c0ms_num_sets;
     u32              c0ms_resetsz;
     struct c0_kvset *c0ms_sets[HSE_C0_INGEST_WIDTH_MAX];
 };
@@ -673,7 +673,7 @@ c0kvms_cursor_create(
 
 BullseyeCoverageSaveOff
 
-__used __cold
+HSE_USED HSE_COLD
 static void
 c0kvms_cursor_debug(struct c0_kvmultiset *handle, int skidx)
 {
@@ -732,7 +732,7 @@ c0kvms_cursor_debug(struct c0_kvmultiset *handle, int skidx)
     c0kvms_cursor_destroy(&cur);
 }
 
-__used __cold
+HSE_USED HSE_COLD
 void
 c0kvms_cursor_kvs_debug(struct c0_kvmultiset *handle, void *key, int klen)
 {
@@ -1005,7 +1005,7 @@ c0kvms_getref(struct c0_kvmultiset *handle)
 {
     struct c0_kvmultiset_impl *self = c0_kvmultiset_h2r(handle);
 
-    int refcnt __maybe_unused;
+    int refcnt HSE_MAYBE_UNUSED;
 
     refcnt = atomic_inc_return(&self->c0ms_refcnt);
 
@@ -1147,7 +1147,7 @@ c0kvms_ctime(struct c0_kvmultiset *handle)
 merr_t
 c0kvms_init(void)
 {
-    struct c0_kvmultiset_impl *kvms __maybe_unused;
+    struct c0_kvmultiset_impl *kvms HSE_MAYBE_UNUSED;
 
     if (atomic_inc_return(&c0kvms_init_ref) > 1)
         return 0;

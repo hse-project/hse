@@ -144,7 +144,7 @@ bn64(char *buf, size_t buf_sz, enum bn_fmt fmt, u64 value)
     unsigned exp = 0;
     u64      pv = 0;
 
-    int n __maybe_unused;
+    int n HSE_MAYBE_UNUSED;
 
     switch (fmt) {
         case BN_HEX1:
