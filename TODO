@@ -1,0 +1,3 @@
+test -> tests
+src -> lib
+move test-support out of 'src'

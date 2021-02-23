@@ -75,7 +75,7 @@ util_tests = {
 	# in with hse_err.c. It also necessitates mpool as a dependency.
 	'hse_err_test': {
 		'sources': files(
-			meson.project_source_root() / 'src' / 'util' / 'src' / 'hse_err.c',
+			meson.project_source_root() / 'lib' / 'util' / 'src' / 'hse_err.c',
 		),
 		'dependencies': [
 			mpool_dep,

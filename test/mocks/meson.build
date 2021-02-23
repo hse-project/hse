@@ -14,22 +14,26 @@ mapi_idx_h = custom_target(
 )
 
 mocked_components = {
-	'c0': meson.project_source_root() / 'src' / 'c0',
-	'cn': meson.project_source_root() / 'src' / 'cn',
+	'c0': meson.project_source_root() / 'lib' / 'c0',
+	'cn': meson.project_source_root() / 'lib' / 'cn',
 	'hse': meson.project_source_root() / 'include' / 'hse',
-	'ikvdb': meson.project_source_root() / 'src' / 'include' / 'hse_ikvdb',
-	'kvdb': meson.project_source_root() / 'src' / 'kvdb',
-	'kvs': meson.project_source_root() / 'src' / 'kvs',
+	'ikvdb': meson.project_source_root() / 'lib' / 'include' / 'hse_ikvdb',
+	'kvdb': meson.project_source_root() / 'lib' / 'kvdb',
+	'kvs': meson.project_source_root() / 'lib' / 'kvs',
 	'mpool': get_option('mpool-include-dir'),
 	'test-support': meson.project_source_root() / 'test' / 'support' / 'include' / 'hse_test_support',
-	'util': meson.project_source_root() / 'src' / 'util' / 'include' / 'hse_util',
-	'util-internal': meson.project_source_root() / 'src' / 'util' / 'src',
+	'util': meson.project_source_root() / 'lib' / 'util' / 'include' / 'hse_util',
+	'util-internal': meson.project_source_root() / 'lib' / 'util' / 'src',
 }
 
 mock_includes = include_directories('.')
 mock_sources = [mapi_idx_h]
 
 foreach mc, source_dir : mocked_components
+	if not fs.exists(source_dir)
+		error('@0@ does not exist'.format(source_dir))
+	endif
+
 	ut_mock_decl_files_output = run_command(
 		ut_mock_decl_files,
 		source_dir,

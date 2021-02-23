@@ -241,7 +241,7 @@ if get_option('tests')
 	subdir('test' / 'framework')
 	subdir('test' / 'support')
 endif
-subdir('src')
+subdir('lib')
 if get_option('cli')
 	subdir('cli')
 endif
@@ -312,7 +312,7 @@ if clang_format.found()
 		'hsejni',
 		'include',
 		'samples',
-		'src',
+		'lib',
 		'tools',
 		'-type',
 		'f',
