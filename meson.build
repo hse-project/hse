@@ -237,9 +237,9 @@ subdir('3rdparty')
 subdir('include')
 if get_option('tests')
 	# need to know about mocks, framework, test support sources before entering src directory
-	subdir('test' / 'mocks')
-	subdir('test' / 'framework')
-	subdir('test' / 'support')
+	subdir('tests' / 'mocks')
+	subdir('tests' / 'framework')
+	subdir('tests' / 'support')
 endif
 subdir('lib')
 if get_option('cli')
@@ -297,8 +297,8 @@ endif
 
 if get_option('tests')
 	# now that we have libhse-mock, go into repository directory
-	subdir('test' / 'mocks' / 'repository')
-	subdir('test')
+	subdir('tests' / 'mocks' / 'repository')
+	subdir('tests')
 endif
 if get_option('tools')
 	subdir('tools')

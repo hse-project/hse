@@ -21,7 +21,7 @@ mocked_components = {
 	'kvdb': meson.project_source_root() / 'lib' / 'kvdb',
 	'kvs': meson.project_source_root() / 'lib' / 'kvs',
 	'mpool': get_option('mpool-include-dir'),
-	'test-support': meson.project_source_root() / 'test' / 'support' / 'include' / 'hse_test_support',
+	'test-support': meson.project_source_root() / 'tests' / 'support' / 'include' / 'hse_test_support',
 	'util': meson.project_source_root() / 'lib' / 'util' / 'include' / 'hse_util',
 	'util-internal': meson.project_source_root() / 'lib' / 'util' / 'src',
 }
