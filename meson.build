@@ -262,13 +262,22 @@ if get_option('tools')
 			'ENABLE_EXAMPLES': false,
 			'ENABLE_MONGOC': not libmongoc_dep.found() or mongo_c_driver_force_fallback ? 'ON' : 'OFF',
 			'ENABLE_BSON': not libbson_dep.found() or mongo_c_driver_force_fallback ? 'ON' : 'OFF',
+			'ENABLE_STATIC': get_option('default_library') == 'static' ? 'ON' : 'OFF',
 		})
 		mongo_c_driver_proj = cmake.subproject('mongo-c-driver', options: mongo_c_driver_options)
 		if not libmongoc_dep.found() or mongo_c_driver_force_fallback
-			libmongoc_dep = mongo_c_driver_proj.dependency('mongoc_shared')
+			if get_option('default_library') == 'static'
+				libmongoc_dep = mongo_c_driver_proj.dependency('mongoc_static')
+			else
+				libmongoc_dep = mongo_c_driver_proj.dependency('mongoc_shared')
+			endif
 		endif
 		if not libbson_dep.found() or mongo_c_driver_force_fallback
-			libbson_dep = mongo_c_driver_proj.dependency('bson_shared')
+			if get_option('default_library') == 'static'
+				libbson_dep = mongo_c_driver_proj.dependency('bson_static')
+			else
+				libbson_dep = mongo_c_driver_proj.dependency('bson_shared')
+			endif
 		endif
 	endif
 endif
