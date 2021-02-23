@@ -16,7 +16,9 @@ configs = files(
 	'native_ycsb_mclass_e_run.yml',
 )
 
-install_data(
-	configs,
-	install_dir: get_option('sysconfdir') / meson.project_name(),
-)
+if get_option('install-configs')
+	install_data(
+		configs,
+		install_dir: get_option('sysconfdir') / meson.project_name(),
+	)
+endif

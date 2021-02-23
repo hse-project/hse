@@ -10,6 +10,8 @@ option('tools', type: 'boolean', value: true,
 	description: 'Build tools')
 option('install-tools', type: 'boolean', value: false,
 	description: 'Install tools (mainly meant for developers/maintainers)')
+option('install-configs', type: 'boolean', value: false,
+	description: 'Install config files (mainly meant for developers/maintainers)')
 option('samples', type: 'boolean', value: true,
 	description: 'Build samples')
 option('valgrind-support', type: 'feature', value: 'auto',
