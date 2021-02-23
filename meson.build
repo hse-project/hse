@@ -246,6 +246,9 @@ if get_option('tools')
 		})
 		hdr_histogram_proj = cmake.subproject('HdrHistogram_c', options: hdr_histogram_options)
 		hdr_histogram_dep = hdr_histogram_proj.dependency('hdr_histogram')
+		hdr_histogram_from_subproject = true
+	else
+		hdr_histogram_from_subproject = false
 	endif
 	libmongoc_dep = dependency('libmongoc-1.0', required: false)
 	libbson_dep = dependency('libbson-1.0', required: false)

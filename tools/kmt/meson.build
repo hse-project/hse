@@ -2,10 +2,15 @@ sources = files(
 	'kmt.c',
 )
 
+c_args = [
+	common_tools_c_args,
+	'-DHDR_HISTOGRAM_FROM_SUBPROJECT=@0@'.format(hdr_histogram_from_subproject ? 1 : 0),
+]
+
 executable(
 	'kmt',
 	sources + tools_third_party_sources,
-	c_args: common_tools_c_args,
+	c_args: c_args,
 	include_directories: [
 		common_tools_include_directories,
 		tools_third_party_includes,
