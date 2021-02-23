@@ -99,9 +99,8 @@ environment, then use the following steps to set one up properly.
 
 ```shell
 # CWD = repository root
-# Recommend putting the venv in the build directory
-python3 -m venv build/venv
-source build/venv/bin/activate
+python3 -m venv venv
+source venv/bin/activate
 python3 -m pip install -r requirements.txt
 
 # To exit the virtual environment
