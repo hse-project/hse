@@ -14,7 +14,7 @@
  * minus 4 (i.e., the skidx byte + dlen byte + two bytes used to
  * store the full key length).
  */
-#define KI_DLEN_MAX     (sizeof(((struct key_immediate *)0)->ki_data) - 4)
+#define KI_DLEN_MAX (sizeof(((struct key_immediate *)0)->ki_data) - 4)
 
 /**
  * struct key_immediate - compact representation of part of a key & its length
@@ -42,7 +42,6 @@
 struct key_immediate {
     u64 ki_data[4];
 };
-
 
 static inline u32
 key_immediate_index(const struct key_immediate *imm)
@@ -112,13 +111,17 @@ key_full_cmp(
 
     rc = key_immediate_cmp(imm0, imm1);
 
-    if (rc == S32_MIN)
+    if (rc == S32_MIN) {
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Warray-bounds"
         rc = key_inner_cmp(
-            key0 + KI_DLEN_MAX, key_imm_klen(imm0) - KI_DLEN_MAX,
-            key1 + KI_DLEN_MAX, key_imm_klen(imm1) - KI_DLEN_MAX);
+            key0 + KI_DLEN_MAX,
+            key_imm_klen(imm0) - KI_DLEN_MAX,
+            key1 + KI_DLEN_MAX,
+            key_imm_klen(imm1) - KI_DLEN_MAX);
 #pragma GCC diagnostic pop
+    }
+
     return rc;
 }
 
