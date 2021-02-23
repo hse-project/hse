@@ -244,10 +244,10 @@ if get_option('tools')
 		HdrHistogram_c_options.add_cmake_defines({
 			'HDR_HISTOGRAM_BUILD_SHARED': get_option('default_library') != 'static',
 			'HDR_HISTOGRAM_BUILD_PROGRAMS': false,
-			'HDR_HISTOGRAM_BUILD_STATIC': get_option('default_library') == 'static' or get_option('default_library') == 'both',
+			'HDR_HISTOGRAM_BUILD_STATIC': get_option('default_library') == 'static',
 		})
 		HdrHistogram_c_proj = cmake.subproject('HdrHistogram_c', options: HdrHistogram_c_options)
-		HdrHistogram_c_dep = HdrHistogram_c_proj.dependency('hdr_histogram')
+		HdrHistogram_c_dep = HdrHistogram_c_proj.dependency('hdr_histogram@0@'.format(get_option('default_library') == 'static' ? '-static' : ''))
 		HdrHistogram_c_from_subproject = true
 	else
 		HdrHistogram_c_from_subproject = false

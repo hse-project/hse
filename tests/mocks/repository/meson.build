@@ -12,7 +12,7 @@ mock_repository_sources = [
 
 mock_repository_includes = include_directories('.')
 
-hse_mock_repository = library(
+hse_mock_repository = shared_library(
 	'hse-mock-repository',
 	mock_repository_sources,
 	c_args: [
