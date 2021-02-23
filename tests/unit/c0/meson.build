@@ -23,18 +23,20 @@ c0_tests = {
 			files(
 				'cn_mock.c',
 				'c0sk_mock.c',
-			)
+			),
 		],
 	},
 	'c0sk_test': {
 		'sources': [
 			files(
 				'cn_mock.c',
-			)
+				meson.project_source_root() / 'tools' / 'key_generation.c',
+			),
 		],
 		'dependencies': [
-			pthread_dep,
 			liburcu_bp_dep,
+			m_dep,
+			pthread_dep,
 		],
 	},
 }

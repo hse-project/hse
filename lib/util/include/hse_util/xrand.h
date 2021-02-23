@@ -52,4 +52,7 @@ xrand64_tls(void)
     return xrand64(&xrand_tls);
 }
 
+u64
+xrand_range64(struct xrand *xr, u64 lo, u64 hi);
+
 #endif

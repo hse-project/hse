@@ -16,7 +16,7 @@
 #include <hse_test_support/allocation.h>
 #endif /* HSE_UNIT_TEST_MODE */
 
-#include <hse_test_support/mwc_rand.h>
+#include <hse_util/xrand.h>
 
 #include <hse_util/slab.h>
 #include <hse_util/inttypes.h>

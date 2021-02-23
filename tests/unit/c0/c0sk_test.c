@@ -24,7 +24,7 @@
 #include <hse_ikvdb/kvdb_rparams.h>
 
 #include "cn_mock.h"
-#include <hse_test_support/key_generation.h>
+#include <tools/key_generation.h>
 #include <hse_ikvdb/tuple.h>
 #include <hse_ikvdb/csched.h>
 #include <hse_test_support/random_buffer.h>

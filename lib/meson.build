@@ -99,6 +99,7 @@ if get_option('tests')
 		test_framework_includes,
 		test_support_includes,
 		mock_includes,
+		tools_includes,
 	]
 
 	hse_mock_sources = [

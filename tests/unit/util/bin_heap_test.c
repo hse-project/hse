@@ -9,7 +9,7 @@
 
 #include <hse_ut/framework.h>
 #include <hse_test_support/mock_api.h>
-#include <hse_test_support/mwc_rand.h>
+#include <hse_util/xrand.h>
 
 #include <hse_util/platform.h>
 
@@ -390,7 +390,7 @@ UpAroundDown(struct test *t)
 static void
 test_init(struct test *t, struct test_params *params, struct mtf_test_info *lcl_ti)
 {
-    struct mwc_rand mwc;
+    struct xrand xr;
     u64             i, j, tmp;
     merr_t          err;
 
@@ -413,10 +413,10 @@ test_init(struct test *t, struct test_params *params, struct mtf_test_info *lcl_
 
     if (t->p.count > 0) {
         /* Knuth shuffle */
-        mwc_rand_init(&mwc, t->p.seed);
+        xrand_init(&xr, t->p.seed);
         for (i = t->p.count - 1; i > 0; i--) {
             /* use mod (weak randomness is okay) */
-            j = mwc_rand64(&mwc) % (i + 1);
+            j = xrand64(&xr) % (i + 1);
             tmp = t->input_items[i];
             t->input_items[i] = t->input_items[j];
             t->input_items[j] = tmp;

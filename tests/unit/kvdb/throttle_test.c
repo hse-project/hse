@@ -5,7 +5,7 @@
 
 #include <hse_ut/framework.h>
 #include <hse_test_support/mock_api.h>
-#include <hse_test_support/mwc_rand.h>
+#include <hse_util/xrand.h>
 #include <hse_test_support/mapi_alloc_tester.h>
 
 #include <hse_util/platform.h>

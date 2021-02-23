@@ -19,9 +19,9 @@
 #include <hse_util/keycmp.h>
 #include <hse_util/seqno.h>
 
-#include "../src/bonsai_tree_pvt.h"
+#include <util/src/bonsai_tree_pvt.h>
 
-#include <hse_test_support/mwc_rand.h>
+#include <hse_util/xrand.h>
 
 #if defined(LIBURCU_QSBR) || defined(LIBURCU_BP)
 #define BONSAI_RCU_REGISTER()
@@ -66,10 +66,10 @@ static size_t          key_size = 10;
 static size_t          val_size = 100;
 static pthread_mutex_t mtx;
 
-static __thread struct mwc_rand mwc;
+static __thread struct xrand xr;
 
 static void
-xrand_init(uint64_t seed64)
+bonsai_xrand_init(uint64_t seed64)
 {
     u32 seed32 = seed64;
 
@@ -80,13 +80,13 @@ xrand_init(uint64_t seed64)
 
     seed32 = seed32 ^ (seed64 >> 32);
 
-    mwc_rand_init(&mwc, seed32);
+    xrand_init(&xr, seed32);
 }
 
 static uint64_t
-xrand(void)
+bonsai_xrand(void)
 {
-    return mwc_rand64(&mwc);
+    return xrand64(&xr);
 }
 
 static void
@@ -259,7 +259,7 @@ test_collection_setup(struct mtf_test_info *info)
     fail_nth_alloc_test_pre(info);
 #endif
 
-    xrand_init(0);
+    bonsai_xrand_init(0);
 
     BONSAI_RCU_REGISTER();
 
@@ -282,7 +282,7 @@ no_fail_pre(struct mtf_test_info *info)
     g_fail_nth_alloc_limit = -1;
 #endif
 
-    xrand_init(0);
+    bonsai_xrand_init(0);
 
     return 0;
 }
@@ -324,7 +324,7 @@ bonsai_client_producer(void *arg)
      */
     BONSAI_RCU_REGISTER();
 
-    xrand_init(0);
+    bonsai_xrand_init(0);
 
     key = calloc(1, roundup(key_size, sizeof(*key)));
     if (!key)
@@ -341,7 +341,7 @@ bonsai_client_producer(void *arg)
             if (random_number == 0)
                 *key = htobe32(i);
             else
-                *key = htobe32(xrand());
+                *key = htobe32(bonsai_xrand());
 
             *val = *key;
 
@@ -364,7 +364,7 @@ bonsai_client_producer(void *arg)
             if (stop_producer_threads)
                 break;
 
-            if ((xrand() % 128) < 13)
+            if ((bonsai_xrand() % 128) < 13)
                 usleep(1);
         }
 
@@ -1196,7 +1196,7 @@ bonsai_tombspan_test(enum bonsai_alloc_mode allocm, struct mtf_test_info *lcl_ti
     const int           LEN = 256;
     struct bonsai_root *tree;
     int                 i, j;
-    u16                 index = xrand() % 256;
+    u16                 index = bonsai_xrand() % 256;
     struct bonsai_skey  skey = { 0 };
     struct bonsai_sval  sval = { 0 };
     struct bonsai_kv *  kv = NULL;
@@ -1212,7 +1212,7 @@ bonsai_tombspan_test(enum bonsai_alloc_mode allocm, struct mtf_test_info *lcl_ti
         key = (u64)i << 24;
 
         bn_skey_init(&key, sizeof(key), index, &skey);
-        bn_sval_init(HSE_CORE_TOMB_REG, 0, HSE_ORDNL_TO_SQNREF(xrand() & 0xFFFFFFFFFFFFF), &sval);
+        bn_sval_init(HSE_CORE_TOMB_REG, 0, HSE_ORDNL_TO_SQNREF(bonsai_xrand() & 0xFFFFFFFFFFFFF), &sval);
 
         rcu_read_lock();
         err = bn_insert_or_replace(tree, &skey, &sval, true);
@@ -1221,7 +1221,7 @@ bonsai_tombspan_test(enum bonsai_alloc_mode allocm, struct mtf_test_info *lcl_ti
         ASSERT_EQ(0, err);
 
         /* Search for one of the inserted keys */
-        j = xrand() % (i + 1);
+        j = bonsai_xrand() % (i + 1);
         key = 0x6100000000000000 + j;
         bn_skey_init(&key, sizeof(key), index, &skey);
 
@@ -1239,10 +1239,10 @@ bonsai_tombspan_test(enum bonsai_alloc_mode allocm, struct mtf_test_info *lcl_ti
     rcu_read_unlock();
 
     /* Update one of the keys with a value to invalidate the tombspan. */
-    j = xrand() % LEN;
+    j = bonsai_xrand() % LEN;
     key = (u64)i << 24;
     bn_skey_init(&key, sizeof(key), index, &skey);
-    bn_sval_init(&skey, sizeof(skey), HSE_ORDNL_TO_SQNREF(xrand() & 0xFFFFFFFFFFFFF), &sval);
+    bn_sval_init(&skey, sizeof(skey), HSE_ORDNL_TO_SQNREF(bonsai_xrand() & 0xFFFFFFFFFFFFF), &sval);
 
     rcu_read_lock();
     err = bn_insert_or_replace(tree, &skey, &sval, false);
@@ -1262,7 +1262,7 @@ bonsai_tombspan_test(enum bonsai_alloc_mode allocm, struct mtf_test_info *lcl_ti
     ASSERT_EQ(found, false);
 
     for (i = 0; i < 1024; ++i) {
-        key = xrand();
+        key = bonsai_xrand();
 
         bn_skey_init(&key, sizeof(key), i % 256, &skey);
         if (key & 1)
@@ -1471,12 +1471,12 @@ bonsai_original_test(enum bonsai_alloc_mode allocm, struct mtf_test_info *lcl_ti
         u64 key;
 
         /* Ensure keys are unique and non-consecutive. */
-        key = (i << 16) | (xrand() & 0xffff);
+        key = (i << 16) | (bonsai_xrand() & 0xffff);
         if (!numeric)
             key |= 0x6100000000000000;
 
         keys[i] = key;
-        bn_skey_init(&keys[i], sizeof(keys[i]), xrand() % 256, &skeys[i]);
+        bn_skey_init(&keys[i], sizeof(keys[i]), bonsai_xrand() % 256, &skeys[i]);
         bn_sval_init(&keys[i], sizeof(keys[i]), seqnoref, &sval);
 
         rcu_read_lock();
@@ -1635,7 +1635,7 @@ MTF_DEFINE_UTEST_PREPOST(bonsai_tree_test, complicated, no_fail_pre, no_fail_pos
     struct bonsai_sval sval = { 0 };
     struct bonsai_kv * kv;
 
-    xrand_init(0);
+    bonsai_xrand_init(0);
 
     MAX_VALUES_PER_KEY = 1;
 
@@ -1645,7 +1645,7 @@ again:
     init_tree(&tree, HSE_ALLOC_CURSOR);
 
     for (i = 0; i < LEN; ++i) {
-        rand_num = (i << 16) | (xrand() & 0xffff);
+        rand_num = (i << 16) | (bonsai_xrand() & 0xffff);
         key = rand_num | 0x6100000000000000;
         keys[i] = key;
         bn_skey_init(&key, sizeof(key), 143, &skey);

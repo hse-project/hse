@@ -207,6 +207,65 @@ libmicrohttpd_dep = dependency(
 )
 m_dep = cc.find_library('m', required: true)
 valgrind_dep = dependency('valgrind', required: get_option('valgrind-support'))
+if get_option('tools')
+	ncurses_dep = dependency('ncurses', required: true)
+	hdr_histogram_dep = cc.find_library('hdr_histogram', required: false)
+	hdr_histogram_correct_version = false
+	if hdr_histogram_dep.found()
+		hdr_histogram_correct_version = cc.compiles(
+			'''
+			#include <stdbool.h>
+			#include <hdr/hdr_histogram.h>
+
+			int
+			main(void)
+			{
+				struct hdr_histogram* histogram;
+				bool x = hdr_record_value_atomic(histogram, 0);
+				return 0;
+			}
+			''',
+			args: [
+				'-Werror',
+			],
+			dependencies: [
+				hdr_histogram_dep,
+			],
+		)
+	endif
+	if (not hdr_histogram_dep.found()
+			or (hdr_histogram_dep.found() and not hdr_histogram_correct_version)
+			or get_option('wrap_mode') == 'forcefallback'
+			or 'HdrHistogram_c' in get_option('force_fallback_for'))
+		hdr_histogram_options = cmake.subproject_options()
+		hdr_histogram_options.add_cmake_defines({
+			'HDR_HISTOGRAM_BUILD_SHARED': true,
+			'HDR_HISTOGRAM_BUILD_PROGRAMS': false,
+			'HDR_HISTOGRAM_BUILD_STATIC': false,
+		})
+		hdr_histogram_proj = cmake.subproject('HdrHistogram_c', options: hdr_histogram_options)
+		hdr_histogram_dep = hdr_histogram_proj.dependency('hdr_histogram')
+	endif
+	libmongoc_dep = dependency('libmongoc-1.0', required: false)
+	libbson_dep = dependency('libbson-1.0', required: false)
+	mongo_c_driver_force_fallback = get_option('wrap_mode') == 'forcefallback' or 'mongo-c-driver' in get_option('force_fallback_for')
+	if not libmongoc_dep.found() or not libbson_dep.found() or mongo_c_driver_force_fallback
+		mongo_c_driver_options = cmake.subproject_options()
+		mongo_c_driver_options.add_cmake_defines({
+			'ENABLE_TESTS': false,
+			'ENABLE_EXAMPLES': false,
+			'ENABLE_MONGOC': not libmongoc_dep.found() or mongo_c_driver_force_fallback ? 'ON' : 'OFF',
+			'ENABLE_BSON': not libbson_dep.found() or mongo_c_driver_force_fallback ? 'ON' : 'OFF',
+		})
+		mongo_c_driver_proj = cmake.subproject('mongo-c-driver', options: mongo_c_driver_options)
+		if not libmongoc_dep.found() or mongo_c_driver_force_fallback
+			libmongoc_dep = mongo_c_driver_proj.dependency('mongoc_shared')
+		endif
+		if not libbson_dep.found() or mongo_c_driver_force_fallback
+			libbson_dep = mongo_c_driver_proj.dependency('bson_shared')
+		endif
+	endif
+endif
 
 if not valgrind_dep.found()
 	add_project_arguments(
@@ -235,6 +294,10 @@ exe_install_rpath = get_option('exe-install-rpath') ? get_option('prefix') / get
 subdir('config')
 subdir('3rdparty')
 subdir('include')
+if get_option('tests') or get_option('tools')
+	# need access to tools_includes for tests and tools
+	subdir('tools' / 'include')
+endif
 if get_option('tests')
 	# need to know about mocks, framework, test support sources before entering src directory
 	subdir('tests' / 'mocks')

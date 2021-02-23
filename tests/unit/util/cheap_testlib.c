@@ -7,13 +7,13 @@
 
 #include <hse_util/page.h>
 #include <hse_util/cursor_heap.h>
+#include <hse_util/xrand.h>
 
 #include <hse_ut/conditions.h>
 
 #include "cheap_testlib.h"
 
 #include <hse_test_support/random_buffer.h>
-#include <hse_test_support/mwc_rand.h>
 
 /*
  * cheap_fill_test
@@ -75,7 +75,7 @@ cheap_verify_test1(struct cheap *h, u32 min_size, u32 max_size)
     char **         bufs = 0;
     u32 *           buf_sizes = 0;
     char *          zero_buffer = 0;
-    struct mwc_rand mwc;
+    struct xrand xr;
     s64             max_bufs;
     ssize_t         buf_ptr_array_size;
 
@@ -92,12 +92,12 @@ cheap_verify_test1(struct cheap *h, u32 min_size, u32 max_size)
     zero_buffer = calloc(1, max_size); /* calloc is zeroed */
     VERIFY_NE_RET(0, zero_buffer, -1);
 
-    mwc_rand_init(&mwc, 42);
+    xrand_init(&xr, 42);
 
     while (1) {
         int lrc, cond;
 
-        buf_sizes[i] = mwc_rand_range32(&mwc, min_size, max_size);
+        buf_sizes[i] = xrand_range64(&xr, min_size, max_size);
 
         cond = (buf_sizes[i] > max_size) || (buf_sizes[i] < min_size);
         VERIFY_FALSE_RET(cond, -1);
@@ -159,7 +159,7 @@ cheap_zero_test1(struct cheap *h, u32 min_size, u32 max_size)
     char **         bufs = 0;
     u32 *           buf_sizes = 0;
     char *          zero_buffer = 0;
-    struct mwc_rand mwc;
+    struct xrand xr;
     int             max_bufs;
 
     /* Malloc enough space to store an array of sizes if all allocations
@@ -174,12 +174,12 @@ cheap_zero_test1(struct cheap *h, u32 min_size, u32 max_size)
     zero_buffer = calloc(1, max_size); /* calloc is zeroed */
     VERIFY_NE_RET(0, zero_buffer, -1);
 
-    mwc_rand_init(&mwc, 42);
+    xrand_init(&xr, 42);
 
     while (1) {
         int lrc, cond;
 
-        buf_sizes[i] = mwc_rand_range32(&mwc, min_size, max_size);
+        buf_sizes[i] = xrand_range64(&xr, min_size, max_size);
 
         cond = (buf_sizes[i] > max_size) || (buf_sizes[i] < min_size);
         VERIFY_FALSE_RET(cond, -1);
@@ -219,7 +219,7 @@ cheap_strict_test1(struct cheap *h, u32 min_size, u32 max_size, enum which_stric
     int             i = 0;
     char **         bufs = 0;
     u32 *           buf_sizes = 0;
-    struct mwc_rand mwc;
+    struct xrand xr;
     int             max_bufs;
 
     /* Malloc enough space to store an array of sizes if all allocations
@@ -232,12 +232,12 @@ cheap_strict_test1(struct cheap *h, u32 min_size, u32 max_size, enum which_stric
     bufs = malloc(max_bufs * sizeof(*bufs));
     VERIFY_NE_RET(0, bufs, -1);
 
-    mwc_rand_init(&mwc, 42);
+    xrand_init(&xr, 42);
 
     while (1) {
         int cond;
 
-        buf_sizes[i] = mwc_rand_range32(&mwc, min_size, max_size);
+        buf_sizes[i] = xrand_range64(&xr, min_size, max_size);
         cond = (buf_sizes[i] > max_size) || (buf_sizes[i] < min_size);
         VERIFY_FALSE_RET(cond, -1);
 

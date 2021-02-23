@@ -9,7 +9,7 @@
 
 #include <hse_ut/framework.h>
 #include <hse_test_support/mock_api.h>
-#include <hse_test_support/mwc_rand.h>
+#include <hse_util/xrand.h>
 
 #include <hse_util/logging.h>
 #include <hse_util/keylock.h>

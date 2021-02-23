@@ -3,8 +3,8 @@
  * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
  */
 
+#include <hse_util/inttypes.h>
 #include <hse_util/platform.h>
-#include <hse_util/hse_err.h>
 #include <hse_util/string.h>
 #include <hse_util/log2.h>
 
@@ -126,11 +126,14 @@ _verify_kvs(struct cndb *cndb, int cndb_idx, struct entity *ent)
         info.cp->cp_pfx_len,
         info.cp->cp_sfx_len);
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wincompatible-pointer-types"
     cndb_cn_instantiate(
         cndb,
         cnv[cndb_idx]->cn_cnid,
         &info,
-        (merr_t(*)(void *, struct kvset_meta *, u64))verify_kvset);
+        (hse_err_t(*)(void *, struct kvset_meta *, u64))verify_kvset);
+#pragma GCC diagnostic pop
 
     return info.errors ? EILSEQ : 0;
 }

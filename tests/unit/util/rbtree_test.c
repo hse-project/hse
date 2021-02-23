@@ -9,7 +9,7 @@
 
 #include <rbtree/rbtree.h>
 
-#include <hse_test_support/mwc_rand.h>
+#include <hse_util/xrand.h>
 
 #include <hse_util/inttypes.h>
 #include <hse_util/logging.h>
@@ -37,7 +37,7 @@ struct test_set {
 struct test_set *
 test_set_create(int num_entries, u32 seed)
 {
-    struct mwc_rand  mwc;
+    struct xrand     xr;
     struct test_set *ts;
     int              key;
     int              i;
@@ -47,7 +47,7 @@ test_set_create(int num_entries, u32 seed)
         exit(-1);
     }
 
-    mwc_rand_init(&mwc, seed);
+    xrand_init(&xr, seed);
 
     ts = calloc(1, sizeof(struct test_set));
     if (!ts) {
@@ -67,7 +67,7 @@ test_set_create(int num_entries, u32 seed)
     /* create list of ordered keys, save a copy in shuffled list too */
     key = 0;
     for (i = 0; i < num_entries; i++) {
-        key += (int)mwc_rand_range32(&mwc, 1, 100);
+        key += (int)xrand_range64(&xr, 1, 100);
         ts->ordered_keys[i] = key;
         ts->shuffled_keys[i] = key;
     }
@@ -75,7 +75,7 @@ test_set_create(int num_entries, u32 seed)
     /* unbiased fisher yates */
     for (i = 0; i < (u32)num_entries; i++) {
         int tmp;
-        u32 random_index = mwc_rand_range32(&mwc, i, (u32)num_entries);
+        u32 random_index = xrand_range64(&xr, i, (u32)num_entries);
 
         assert(random_index < num_entries); /* open-ended */
         tmp = ts->shuffled_keys[random_index];

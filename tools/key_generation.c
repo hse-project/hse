@@ -3,14 +3,14 @@
  * Copyright (C) 2015-2017 Micron Technology, Inc.  All rights reserved.
  */
 
-#include <hse_test_support/key_generation.h>
-#include "key_generation_private.h"
-
-/* [HSE_REVISIT] - the kernel can't do floating point ... */
 #include <math.h>
-
 #include <stdlib.h>
 #include <string.h>
+
+#include <hse_util/inttypes.h>
+#include <tools/key_generation.h>
+
+#include "key_generation_private.h"
 
 s32
 elements_per_field(u64 key_space_sz, s32 key_width, s32 field_width, s32 sym_cnt)

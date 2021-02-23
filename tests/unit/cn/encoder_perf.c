@@ -5,7 +5,7 @@
 
 #include <hse_util/platform.h>
 #include <hse_util/slab.h>
-#include <hse_test_support/mwc_rand.h>
+#include <hse_util/xrand.h>
 
 #include <hse_ikvdb/omf_kmd.h>
 #include <hse_ikvdb/limits.h>
@@ -236,7 +236,7 @@ report(
 #define test_macro(NAME, ENCODE, DECODE, MAX_MASK, MODE)                      \
     do {                                                                      \
         struct timeval  prev, now, diff1, diff2;                              \
-        struct mwc_rand mwc;                                                  \
+        struct xrand xr;                                                  \
                                                                               \
         u64  xor1 = 0;                                                        \
         u64  xor2 = 0;                                                        \
@@ -248,7 +248,7 @@ report(
         int  mode;                                                            \
                                                                               \
         memset(mem, 0, mem_size);                                             \
-        mwc_rand_init(&mwc, seed);                                            \
+        xrand_init(&xr, seed);                                            \
                                                                               \
         /* mask: 3f, 3fff, 3fffff, etc */                                     \
         mode = (1 <= MODE && MODE <= 8) ? MODE : 8;                           \
@@ -256,7 +256,7 @@ report(
                                                                               \
         mode_mask = (1LL << ((mode)*8 - 2)) - 1;                              \
         for (i = 0; i < randc; i++)                                           \
-            randv[i] = mwc_rand64(&mwc) & (MAX_MASK)&mode_mask;               \
+            randv[i] = xrand64(&xr) & (MAX_MASK)&mode_mask;               \
                                                                               \
         gettimeofday(&prev, NULL);                                            \
         for (off = 0; off + 128 < mem_size;) {                                \
@@ -305,7 +305,7 @@ test(
     int MODE)
 {
     struct timeval  prev, now, diff1, diff2;
-    struct mwc_rand mwc;
+    struct xrand xr;
 
     u64  xor1 = 0;
     u64  xor2 = 0;
@@ -316,7 +316,7 @@ test(
     u64  mode_mask;
     int  mode;
 
-    mwc_rand_init(&mwc, seed);
+    xrand_init(&xr, seed);
 
     /* mask: 3f, 3fff, 3fffff, etc */
     mode = (1 <= MODE && MODE <= 8) ? MODE : 8;
@@ -324,7 +324,7 @@ test(
 
     mode_mask = (1LL << ((mode)*8 - 2)) - 1;
     for (i = 0; i < randc; i++)
-        randv[i] = mwc_rand64(&mwc) & (MAX_MASK)&mode_mask;
+        randv[i] = xrand64(&xr) & (MAX_MASK)&mode_mask;
 
     gettimeofday(&prev, NULL);
     for (off = 0; off + 128 < mem_size;) {
@@ -440,7 +440,7 @@ test_enc_name(enum test_enc enc)
 }
 
 struct kmd_test_profile {
-    struct mwc_rand mwc;
+    struct xrand xr;
     unsigned        max_keys;
     unsigned        max_ents_per_key;
     enum test_enc   enc;
@@ -825,9 +825,9 @@ run_kmd_perf(void)
     double                rtime, wtime;
     u64                   i;
 
-    mwc_rand_init(&mwc, seed);
+    xrand_init(&xr, seed);
     for (i = 0; i < randc; i++)
-        randv[i] = mwc_rand64(&mwc);
+        randv[i] = xrand64(&xr);
 
     gettimeofday(&t1, NULL);
     run_kmd_write_perf(&write);

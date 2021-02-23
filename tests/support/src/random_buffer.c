@@ -4,7 +4,7 @@
  */
 
 #include <hse_test_support/random_buffer.h>
-#include <hse_test_support/mwc_rand.h>
+#include <hse_util/xrand.h>
 
 #include <string.h>
 
@@ -15,17 +15,17 @@ randomize_buffer(void *buf, size_t len, unsigned int seed)
     u_int           last;
     long int        remain = len;
     int             i;
-    struct mwc_rand mwc;
+    struct xrand xr;
 
     if (len == 0)
         return;
 
-    mwc_rand_init(&mwc, seed);
+    xrand_init(&xr, seed);
     for (i = 0; remain > 0; i++, remain -= sizeof(*tmp)) {
         if (remain > sizeof(*tmp)) { /* likely */
-            tmp[i] = mwc_rand32(&mwc);
+            tmp[i] = xrand64(&xr);
         } else { /* unlikely */
-            last = mwc_rand32(&mwc);
+            last = xrand64(&xr);
             memcpy(&tmp[i], &last, remain);
         }
     }
@@ -40,14 +40,14 @@ validate_random_buffer(void *buf, size_t len, unsigned int seed)
     char *          found;
     long int        remain = len;
     int             i;
-    struct mwc_rand mwc;
+    struct xrand xr;
 
     if (len == 0)
         return -1; /* success... */
 
-    mwc_rand_init(&mwc, seed);
+    xrand_init(&xr, seed);
     for (i = 0; remain > 0; i++, remain -= sizeof(*tmp)) {
-        val = mwc_rand32(&mwc);
+        val = xrand64(&xr);
         if ((remain >= sizeof(*tmp)) && (val != tmp[i])) { /* Likely */
             return ((int)(len - remain));
         } else if (remain < sizeof(*tmp)) { /* Unlikely */

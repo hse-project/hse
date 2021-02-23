@@ -9,7 +9,6 @@
 
 #include <hse_util/platform.h>
 #include <hse_util/table.h>
-#include <hse_util/hse_err.h>
 
 #include <hse_util/string.h>
 #include <hse_util/fmt.h>
