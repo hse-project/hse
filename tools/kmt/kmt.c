@@ -147,7 +147,7 @@
 
 #include <xoroshiro/xoroshiro.h>
 
-#if HDR_HISTOGRAM_FROM_SUBPROJECT == 1
+#if HdrHistogram_c_from_subproject == 1
 #include <hdr_histogram.h>
 #else
 #include <hdr/hdr_histogram.h>

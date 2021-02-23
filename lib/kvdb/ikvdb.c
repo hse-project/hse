@@ -54,8 +54,11 @@
 #include <hse_util/xrand.h>
 
 #include <xxhash.h>
+#if CJSON_FROM_SUBPROJECT == 1
+#include <cJSON.h>
+#else
 #include <cjson/cJSON.h>
-
+#endif
 #include "kvdb_rest.h"
 #include "kvdb_params.h"
 

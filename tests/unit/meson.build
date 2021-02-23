@@ -14,6 +14,7 @@ common_test_sources = []
 common_test_dependencies = [
 	hse_mock_dep,
 	hse_mock_repository_dep,
+	hse_dependencies,
 ]
 
 subdir('c0')

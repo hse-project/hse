@@ -9,6 +9,11 @@ common_tools_include_directories = [
 	tools_includes,
 ]
 
+common_tools_dependencies = [
+	hse_static_dep,
+	hse_dependencies,
+]
+
 subdir('3rdparty')
 
 subdir('attack')

@@ -12,7 +12,7 @@ executable(
 		'..',
 	],
 	dependencies: [
-		hse_static_dep,
+		common_tools_dependencies,
 	],
 	install: get_option('install-tools'),
 	install_rpath: exe_install_rpath,

@@ -171,6 +171,9 @@ if (not cJSON_dep.found()
 	})
 	cJSON_proj = cmake.subproject('cJSON', options: cJSON_options)
 	cJSON_dep = cJSON_proj.dependency('cjson')
+	cJSON_from_subproject = true
+else
+	cJSON_from_subproject = false
 endif
 libbsd_dep = dependency(
 	'libbsd',
@@ -209,10 +212,10 @@ m_dep = cc.find_library('m', required: true)
 valgrind_dep = dependency('valgrind', required: get_option('valgrind-support'))
 if get_option('tools')
 	ncurses_dep = dependency('ncurses', required: true)
-	hdr_histogram_dep = cc.find_library('hdr_histogram', required: false)
-	hdr_histogram_correct_version = false
-	if hdr_histogram_dep.found()
-		hdr_histogram_correct_version = cc.compiles(
+	HdrHistogram_c_dep = cc.find_library('hdr_histogram', required: false)
+	HdrHistogram_c_correct_version = false
+	if HdrHistogram_c_dep.found()
+		HdrHistogram_c_correct_version = cc.compiles(
 			'''
 			#include <stdbool.h>
 			#include <hdr/hdr_histogram.h>
@@ -229,25 +232,25 @@ if get_option('tools')
 				'-Werror',
 			],
 			dependencies: [
-				hdr_histogram_dep,
+				HdrHistogram_c_dep,
 			],
 		)
 	endif
-	if (not hdr_histogram_dep.found()
-			or (hdr_histogram_dep.found() and not hdr_histogram_correct_version)
+	if (not HdrHistogram_c_dep.found()
+			or (HdrHistogram_c_dep.found() and not HdrHistogram_c_correct_version)
 			or get_option('wrap_mode') == 'forcefallback'
 			or 'HdrHistogram_c' in get_option('force_fallback_for'))
-		hdr_histogram_options = cmake.subproject_options()
-		hdr_histogram_options.add_cmake_defines({
+		HdrHistogram_c_options = cmake.subproject_options()
+		HdrHistogram_c_options.add_cmake_defines({
 			'HDR_HISTOGRAM_BUILD_SHARED': get_option('default_library') != 'static',
 			'HDR_HISTOGRAM_BUILD_PROGRAMS': false,
 			'HDR_HISTOGRAM_BUILD_STATIC': get_option('default_library') == 'static' or get_option('default_library') == 'both',
 		})
-		hdr_histogram_proj = cmake.subproject('HdrHistogram_c', options: hdr_histogram_options)
-		hdr_histogram_dep = hdr_histogram_proj.dependency('hdr_histogram')
-		hdr_histogram_from_subproject = true
+		HdrHistogram_c_proj = cmake.subproject('HdrHistogram_c', options: HdrHistogram_c_options)
+		HdrHistogram_c_dep = HdrHistogram_c_proj.dependency('hdr_histogram')
+		HdrHistogram_c_from_subproject = true
 	else
-		hdr_histogram_from_subproject = false
+		HdrHistogram_c_from_subproject = false
 	endif
 	libmongoc_dep = dependency('libmongoc-1.0', required: false)
 	libbson_dep = dependency('libbson-1.0', required: false)
@@ -292,7 +295,7 @@ if get_option('tests')
 	)
 endif
 
-exe_install_rpath = get_option('exe-install-rpath') ? get_option('prefix') / get_option('libdir') : ''
+exe_install_rpath = get_option('exe-install-rpath') ? '$ORIGIN' / '..' / get_option('libdir') : ''
 
 subdir('config')
 subdir('3rdparty')

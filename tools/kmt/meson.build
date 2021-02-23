@@ -4,7 +4,7 @@ sources = files(
 
 c_args = [
 	common_tools_c_args,
-	'-DHDR_HISTOGRAM_FROM_SUBPROJECT=@0@'.format(hdr_histogram_from_subproject ? 1 : 0),
+	'-DHdrHistogram_c_from_subproject=@0@'.format(HdrHistogram_c_from_subproject ? 1 : 0),
 ]
 
 executable(
@@ -16,8 +16,8 @@ executable(
 		tools_third_party_includes,
 	],
 	dependencies: [
-		hse_static_dep,
-		hdr_histogram_dep,
+		common_tools_dependencies,
+		HdrHistogram_c_dep,
 		libmongoc_dep,
 		libbson_dep,
 	],

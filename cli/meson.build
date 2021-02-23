@@ -12,9 +12,7 @@ hse_cli_c_args = [
 
 hse_cli_dependencies = [
 	hse_dep,
-	libcurl_dep,
-	uuid_dep,
-	mpool_dep,
+	hse_dependencies,
 ]
 
 hse_cli_include_directories = [

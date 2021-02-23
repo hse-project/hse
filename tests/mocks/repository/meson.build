@@ -27,6 +27,7 @@ hse_mock_repository = library(
 	],
 	dependencies: [
 		hse_mock_dep,
+		hse_dependencies,
 	],
 )
 

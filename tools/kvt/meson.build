@@ -11,7 +11,7 @@ executable(
 		tools_third_party_includes,
 	],
 	dependencies: [
-		hse_static_dep,
+		common_tools_dependencies,
 		ncurses_dep,
 	],
 	install: get_option('install-tools'),
