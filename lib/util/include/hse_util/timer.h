@@ -20,15 +20,15 @@
 #include <hse_util/time.h>
 #include <hse_util/list.h>
 
-#define HSE_HZ 1000
+#define HSE_HZ  1000
 
-#define MAX_JIFFY_OFFSET ((LONG_MAX >> 1) - 1)
-#define USEC_PER_JIFFY   (USEC_PER_SEC / HSE_HZ)
-#define NSEC_PER_JIFFY   (NSEC_PER_SEC / HSE_HZ)
+#define MAX_JIFFY_OFFSET    ((LONG_MAX >> 1) - 1)
+#define USEC_PER_JIFFY      (USEC_PER_SEC / HSE_HZ)
+#define NSEC_PER_JIFFY      (NSEC_PER_SEC / HSE_HZ)
 
 struct timer_jclock {
-    atomic64_t jc_jclock_ns;
-    atomic64_t jc_jiffies;
+    atomic64_t  jc_jclock_ns;
+    atomic64_t  jc_jiffies;
 } HSE_ALIGNED(SMP_CACHE_BYTES);
 
 struct timer_list {
@@ -72,14 +72,14 @@ struct timer_list {
  */
 extern struct timer_jclock timer_jclock;
 
-#define jclock_ns atomic64_read(&timer_jclock.jc_jclock_ns)
-#define jiffies   atomic64_read(&timer_jclock.jc_jiffies)
+#define jclock_ns   atomic64_read(&timer_jclock.jc_jclock_ns)
+#define jiffies     atomic64_read(&timer_jclock.jc_jiffies)
 
 extern unsigned long timer_nslpmin;
 extern unsigned long timer_slack;
 extern unsigned long tsc_freq;
 extern unsigned long tsc_mult;
-extern unsigned int  tsc_shift;
+extern unsigned int tsc_shift;
 
 static HSE_ALWAYS_INLINE u64
 cycles_to_nsecs(u64 cycles)
@@ -139,9 +139,7 @@ add_timer(struct timer_list *timer);
 int
 del_timer(struct timer_list *timer);
 
-merr_t
-hse_timer_init(void);
-void
-hse_timer_fini(void);
+merr_t hse_timer_init(void);
+void hse_timer_fini(void);
 
 #endif /* HSE_PLATFORM_TIMER_H */

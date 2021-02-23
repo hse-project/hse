@@ -23,13 +23,13 @@ struct kvdb_health {
     struct kvdb_health_stat krx_io;
 };
 
-#define KVDB_HEALTH_FLAG_NONE       0x0000u
-#define KVDB_HEALTH_FLAG_NOMEM      0x0001u
-#define KVDB_HEALTH_FLAG_NOSPACE    0x0002u
+#define KVDB_HEALTH_FLAG_NONE 0x0000u
+#define KVDB_HEALTH_FLAG_NOMEM 0x0001u
+#define KVDB_HEALTH_FLAG_NOSPACE 0x0002u
 #define KVDB_HEALTH_FLAG_DELBLKFAIL 0x0004u
-#define KVDB_HEALTH_FLAG_CNDBFAIL   0x0008u
-#define KVDB_HEALTH_FLAG_IO         0x0010u
-#define KVDB_HEALTH_FLAG_ALL        0x001fu
+#define KVDB_HEALTH_FLAG_CNDBFAIL 0x0008u
+#define KVDB_HEALTH_FLAG_IO 0x0010u
+#define KVDB_HEALTH_FLAG_ALL 0x001fu
 
 /**
  * kvdb_health_event() - specify a kvdb health event, with error

@@ -14,17 +14,18 @@
 /* Struct tbkt members should be considered private.  */
 struct tbkt {
 
-    spinlock_t tb_lock HSE_ALIGNED(2 * SMP_CACHE_BYTES);
+    spinlock_t  tb_lock HSE_ALIGNED(2*SMP_CACHE_BYTES);
 
     /* Read/Write inside of lock.  Rarely read outside of lock. */
-    u64 tb_balance HSE_ALIGNED(2 * SMP_CACHE_BYTES);
-    u64            tb_rate;
-    u64            tb_burst;
-    u64            tb_refill_time;
-    u64            tb_dt_max;
+    u64         tb_balance HSE_ALIGNED(2*SMP_CACHE_BYTES);
+    u64         tb_rate;
+    u64         tb_burst;
+    u64         tb_refill_time;
+    u64         tb_dt_max;
 };
 
-static inline void
+static inline
+void
 tbkt_delay(u64 nsec)
 {
     struct timespec timespec;

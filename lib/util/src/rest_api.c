@@ -24,9 +24,9 @@
 #include <poll.h>
 
 #define SESSIONS_PER_THREAD 5
-#define NUM_THREADS         3
-#define MAX_SESSIONS        (SESSIONS_PER_THREAD * NUM_THREADS)
-#define WQ_THREADS          5
+#define NUM_THREADS 3
+#define MAX_SESSIONS (SESSIONS_PER_THREAD * NUM_THREADS)
+#define WQ_THREADS 5
 
 #ifndef MHD_HTTP_NOT_ACCEPTABLE
 #define MHD_HTTP_NOT_ACCEPTABLE MHD_HTTP_METHOD_NOT_ACCEPTABLE
@@ -38,7 +38,7 @@
 
 #define URL_KLEN_MAX 32
 #define URL_VLEN_MAX 32
-#define KV_PAIR_MAX  16
+#define KV_PAIR_MAX 16
 
 enum {
     URL_GET = 1,
@@ -620,7 +620,7 @@ rest_response_free(void *cls)
 static ssize_t
 rest_response_cb(void *cls, uint64_t pos, char *buf, size_t max)
 {
-    struct timespec tv = { .tv_sec = 10 };
+    struct timespec tv = {.tv_sec = 10 };
     struct session *s = cls;
     struct pollfd   pfdv[1];
     sigset_t        mask;
@@ -1082,7 +1082,7 @@ rest_server_stop(void)
 ssize_t
 rest_write_safe(int fd, const char *buf, size_t sz)
 {
-    struct timespec tv = { .tv_sec = 10 };
+    struct timespec tv = {.tv_sec = 10 };
     struct pollfd   pfdv[1];
     sigset_t        mask;
     ssize_t         cc, nwr;

@@ -14,12 +14,12 @@ MTF_BEGIN_UTEST_COLLECTION(program_name);
 
 MTF_DEFINE_UTEST(program_name, basic)
 {
-    char*  name = NULL;
-    char*  base = NULL;
+    char * name = NULL;
+    char * base = NULL;
     merr_t err;
     int    rc;
-    char*  expect = "program_name_test";
-    char*  cp = NULL;
+    char * expect = "program_name_test";
+    char * cp = NULL;
 
     err = hse_program_name(&name, &base);
     ASSERT_EQ(0, err);

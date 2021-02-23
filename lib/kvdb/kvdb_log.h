@@ -19,7 +19,7 @@
 
 /* MTF_MOCK_DECL(kvdb_log) */
 
-#define KVDB_LOG_TABLE_DEFAULT   8192
+#define KVDB_LOG_TABLE_DEFAULT 8192
 #define KVDB_LOG_HIGH_WATER(log) (log->kl_captgt * 3 / 4)
 
 struct kvdb_kvs;

@@ -348,8 +348,7 @@ kvs_rparams_validate(struct kvs_rparams *params)
     }
 
     if (!vcomp_param_valid(params)) {
-        hse_log(
-            HSE_ERR "invalid setting for value_compression, valid settings are: %s",
+        hse_log(HSE_ERR"invalid setting for value_compression, valid settings are: %s",
             VCOMP_PARAM_SUPPORTED);
         return merr(EINVAL);
     }

@@ -12,8 +12,8 @@
 
 #include <hse_util/platform.h>
 
-#define MPM_MAX_MAPS       1024
-#define MPM_MAX_MBLOCKS    1024
+#define MPM_MAX_MAPS 1024
+#define MPM_MAX_MBLOCKS 1024
 #define MPM_MBLOCK_ID_BASE 10000
 
 /*

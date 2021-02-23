@@ -11,17 +11,17 @@
 #include <hse_util/event_counter.h>
 #include <hse_util/bin_heap.h>
 
-#define BH_PARENT(_index) (((_index)-1) / 2)
-#define BH_LEFT(_index)   ((2 * (_index)) + 1)
-#define BH_RIGHT(_index)  ((2 * (_index)) + 2)
+#define BH_PARENT(_index)   (((_index) - 1) / 2)
+#define BH_LEFT(_index)     ((2 * (_index)) + 1)
+#define BH_RIGHT(_index)    ((2 * (_index)) + 2)
 
 struct bin_heap {
-    void *               bh_items;
-    s32                  bh_item_size;
-    s32                  bh_n_items;
-    s32                  bh_max_items;
-    bin_heap_compare_fn *bh_compare;
-    void *               bh_item_ptrs[];
+    void                   *bh_items;
+    s32                     bh_item_size;
+    s32                     bh_n_items;
+    s32                     bh_max_items;
+    bin_heap_compare_fn    *bh_compare;
+    void                   *bh_item_ptrs[];
 };
 
 merr_t
@@ -35,7 +35,7 @@ bin_heap_create(
     int              i;
     size_t           sz;
 
-    if (ev(!bh_out || !compare || item_size <= 0 || !max_items))
+    if (ev( !bh_out || !compare || item_size <= 0 || !max_items ))
         return merr(EINVAL);
 
     sz = sizeof(*bh);
@@ -241,9 +241,9 @@ bin_heap_insert(struct bin_heap *bh, const void *new_item)
     return 0;
 }
 
-#define BH2_PARENT(_index) (((_index)-1) / 2)
-#define BH2_LEFT(_index)   (2 * (_index) + 1)
-#define BH2_RIGHT(_index)  (2 * (_index) + 2)
+#define BH2_PARENT(_index)  (((_index) - 1) / 2)
+#define BH2_LEFT(_index)    (2 * (_index) + 1)
+#define BH2_RIGHT(_index)   (2 * (_index) + 2)
 
 static HSE_ALWAYS_INLINE int
 bin_heap2_cmp(bin_heap2_compare_fn *cmp, struct heap_node *elts, int a, int b)

@@ -18,6 +18,7 @@
  * - If (burst < balance <= U64_MAX), the bucket has a debt of (U64_MAX - balance + 1) tokens.
  */
 
+
 static inline bool
 tbkti_in_debt(struct tbkt *self)
 {
@@ -36,6 +37,7 @@ tbkti_status(struct tbkt *self, u64 *amount)
 
     return in_debt;
 }
+
 
 static void
 tbkti_burst_set(struct tbkt *self, u64 burst)
@@ -61,10 +63,12 @@ tbkti_burst_set(struct tbkt *self, u64 burst)
     if (had_debt && !still_have_debt) {
         self->tb_balance = burst + 1u;
         assert(burst == U64_MAX || tbkti_in_debt(self));
-    } else if (!had_debt && still_have_debt) {
+    }
+    else if (!had_debt && still_have_debt) {
         self->tb_balance = burst;
         assert(!tbkti_in_debt(self));
     }
+
 }
 
 static void
@@ -116,7 +120,7 @@ tbkti_balance(struct tbkt *self, u64 now)
     if (HSE_UNLIKELY(dt > self->tb_dt_max))
         return self->tb_burst;
 
-    refill = (u64)((double)self->tb_rate * dt * 1e-9);
+    refill = (u64) ((double) self->tb_rate * dt * 1e-9);
 
     if (refill > self->tb_burst - self->tb_balance)
         return self->tb_burst;
@@ -193,8 +197,8 @@ tbkt_rate_get(struct tbkt *self)
 u64
 tbkt_request(struct tbkt *self, u64 request)
 {
-    u64  delay, rate, amount;
-    u64  request_max;
+    u64 delay, rate, amount;
+    u64 request_max;
     bool debt;
 
     if (HSE_UNLIKELY(request == 0 || self->tb_rate == 0))

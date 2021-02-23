@@ -33,7 +33,9 @@ struct viewset {
  * buckets reasonably constrained w.r.t the number of active ctxns
  * reduces the overhead required to maintain the horizon.
  */
-static const u8 viewset_bkt_maskv[] = { 3, 3, 3, 3, 7, 7, 7, 7, 7, 7, 7, 15, 15, 15, 15, 15 };
+static const u8 viewset_bkt_maskv[] = {
+    3, 3, 3, 3, 7, 7, 7, 7, 7, 7, 7, 15, 15, 15, 15, 15
+};
 
 /**
  * struct viewset_bkt -
@@ -42,7 +44,7 @@ static const u8 viewset_bkt_maskv[] = { 3, 3, 3, 3, 7, 7, 7, 7, 7, 7, 7, 15, 15,
  */
 struct viewset_bkt {
     struct viewset_tree *acb_tree;
-    volatile u64         acb_min_view_sns;
+    volatile u64             acb_min_view_sns;
 };
 
 /**
@@ -62,20 +64,20 @@ struct viewset_bkt {
 struct viewset_impl {
     struct viewset      vs_handle;
     u8                  vs_maskv[NELEM(viewset_bkt_maskv)];
-    atomic64_t *        vs_seqno_addr;
+    atomic64_t         *vs_seqno_addr;
     struct viewset_bkt *vs_bkt_end;
 
-    volatile u64 vs_min_view_sn HSE_ALIGNED(SMP_CACHE_BYTES * 2);
-    volatile void *             vs_min_view_bkt;
-    atomic64_t                  vs_horizon;
+    volatile u64   vs_min_view_sn HSE_ALIGNED(SMP_CACHE_BYTES * 2);
+    volatile void *vs_min_view_bkt;
+    atomic64_t     vs_horizon;
 
     struct {
         atomic_t vs_active HSE_ALIGNED(SMP_CACHE_BYTES * 2);
     } vs_nodev[2];
 
-    spinlock_t vs_lock   HSE_ALIGNED(SMP_CACHE_BYTES * 2);
-    uint vs_chgaccum     HSE_ALIGNED(SMP_CACHE_BYTES);
-    atomic_t vs_changing HSE_ALIGNED(SMP_CACHE_BYTES * 2);
+    spinlock_t vs_lock      HSE_ALIGNED(SMP_CACHE_BYTES * 2);
+    uint       vs_chgaccum  HSE_ALIGNED(SMP_CACHE_BYTES);
+    atomic_t   vs_changing  HSE_ALIGNED(SMP_CACHE_BYTES * 2);
 
     struct viewset_bkt vs_bktv[] HSE_ALIGNED(SMP_CACHE_BYTES * 2);
 };
@@ -85,9 +87,9 @@ struct viewset_impl {
 struct viewset_tree;
 
 struct viewset_entry {
-    struct list_head     ace_link;
+    struct list_head         ace_link;
     struct viewset_tree *ace_tree;
-    atomic_t *           ace_active;
+    atomic_t                *ace_active;
     union {
         u64   ace_view_sn;
         void *ace_next;
@@ -103,12 +105,12 @@ struct viewset_entry {
  * @act_entryv: fixed-size cache of entry objects
  */
 struct viewset_tree {
-    spinlock_t act_lock       HSE_ALIGNED(SMP_CACHE_BYTES * 2);
+    spinlock_t                act_lock HSE_ALIGNED(SMP_CACHE_BYTES * 2);
     sem_t                     act_sema;
-    struct list_head act_head HSE_ALIGNED(SMP_CACHE_BYTES * 2);
-    struct viewset_bkt *      act_bkt;
-    struct viewset_entry *    act_cache;
-    struct viewset_entry      act_entryv[];
+    struct list_head          act_head HSE_ALIGNED(SMP_CACHE_BYTES * 2);
+    struct viewset_bkt   *act_bkt;
+    struct viewset_entry *act_cache;
+    struct viewset_entry  act_entryv[];
 };
 
 static struct viewset_entry *
@@ -189,7 +191,7 @@ void
 viewset_destroy(struct viewset *handle)
 {
     struct viewset_impl *self;
-    int                  i;
+    int                          i;
 
     if (ev(!handle))
         return;
@@ -217,7 +219,8 @@ viewset_horizon(struct viewset *handle)
     /* Read old horizon and KVDB seqno before checking active txn cnt */
     smp_rmb();
 
-    if (atomic_read(&self->vs_nodev[0].vs_active) || atomic_read(&self->vs_nodev[1].vs_active)) {
+    if (atomic_read(&self->vs_nodev[0].vs_active) ||
+        atomic_read(&self->vs_nodev[1].vs_active)) {
         newh = self->vs_min_view_sn;
     } else {
         /* Any transaction that began but wasn't reflected in vs_active
@@ -252,7 +255,7 @@ static inline void
 viewset_update(struct viewset_impl *self, u64 entry_sn)
 {
     struct viewset_bkt *min_bkt, *bkt;
-    u64                 min_sn;
+    u64                     min_sn;
 
     min_sn = U64_MAX;
     min_bkt = NULL;
@@ -283,19 +286,19 @@ viewset_update(struct viewset_impl *self, u64 entry_sn)
 merr_t
 viewset_insert(struct viewset *handle, u64 *viewp, void **cookiep)
 {
-    struct viewset_impl * self = viewset_h2r(handle);
-    struct viewset_entry *entry;
-    struct viewset_tree * tree;
-    struct viewset_bkt *  bkt;
-    atomic_t *            active;
-    sem_t *               sema;
-    uint                  idx;
-    bool                  changed;
+    struct viewset_impl *self = viewset_h2r(handle);
+    struct viewset_entry *   entry;
+    struct viewset_tree *    tree;
+    struct viewset_bkt *     bkt;
+    atomic_t                    *active;
+    sem_t                       *sema;
+    uint                         idx;
+    bool                         changed;
 
     static __thread uint cpuid, nodeid, cnt;
 
     if (cnt++ % 16 == 0) {
-        if (HSE_UNLIKELY(syscall(SYS_getcpu, &cpuid, &nodeid, NULL)))
+        if (HSE_UNLIKELY( syscall(SYS_getcpu, &cpuid, &nodeid, NULL) ))
             cpuid = nodeid = raw_smp_processor_id();
     }
 
@@ -369,17 +372,22 @@ viewset_insert(struct viewset *handle, u64 *viewp, void **cookiep)
     return 0;
 }
 
-BullseyeCoverageSaveOff void
-viewset_remove(struct viewset *handle, void *cookie, u32 *min_changed, u64 *min_view_sn)
+BullseyeCoverageSaveOff
+void
+viewset_remove(
+    struct viewset *handle,
+    void *                  cookie,
+    u32 *                   min_changed,
+    u64 *                   min_view_sn)
 {
-    struct viewset_impl * self = viewset_h2r(handle);
-    struct viewset_entry *entry, *first;
-    struct viewset_tree * tree;
-    struct viewset_bkt *  bkt;
-    u64                   entry_sn;
-    u64                   min_sn;
-    bool                  changed;
-    atomic_t *            active;
+    struct viewset_impl *self = viewset_h2r(handle);
+    struct viewset_entry *   entry, *first;
+    struct viewset_tree *    tree;
+    struct viewset_bkt *     bkt;
+    u64                          entry_sn;
+    u64                          min_sn;
+    bool                         changed;
+    atomic_t                    *active;
 
     entry = cookie;
     entry_sn = entry->ace_view_sn;
@@ -431,12 +439,12 @@ viewset_remove(struct viewset *handle, void *cookie, u32 *min_changed, u64 *min_
 }
 BullseyeCoverageRestore
 
-    merr_t
-    viewset_tree_create(u32 max_elts, u32 index, struct viewset_tree **tree)
+merr_t
+viewset_tree_create(u32 max_elts, u32 index, struct viewset_tree **tree)
 {
     struct viewset_tree *self;
-    size_t               sz;
-    int                  i;
+    size_t                   sz;
+    int                      i;
 
     assert(max_elts > 0 && max_elts < 8192);
 

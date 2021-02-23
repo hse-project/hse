@@ -33,23 +33,23 @@
  */
 
 #define HSE_SQNREF_UNDEFINED (0xfffffffffffffffe)
-#define HSE_SQNREF_ABORTED   (0xfffffffffffffffc)
-#define HSE_SQNREF_INVALID   (0xfffffffffffffffa)
-#define HSE_SQNREF_SINGLE    (0xfffffffffffffff8)
-#define HSE_SQNREF_MASK      (0xfffffffffffffff0)
+#define HSE_SQNREF_ABORTED (0xfffffffffffffffc)
+#define HSE_SQNREF_INVALID (0xfffffffffffffffa)
+#define HSE_SQNREF_SINGLE (0xfffffffffffffff8)
+#define HSE_SQNREF_MASK (0xfffffffffffffff0)
 
-#define HSE_SQNREF_UNDEF_P(snr)    ((uintptr_t)(snr) == HSE_SQNREF_UNDEFINED)
-#define HSE_SQNREF_ABORTED_P(snr)  ((uintptr_t)(snr) == HSE_SQNREF_ABORTED)
-#define HSE_SQNREF_INVALID_P(snr)  ((uintptr_t)(snr) == HSE_SQNREF_INVALID)
-#define HSE_SQNREF_SINGLE_P(snr)   ((uintptr_t)(snr) == HSE_SQNREF_SINGLE)
-#define HSE_SQNREF_ORDNL_P(snr)    (((uintptr_t)(snr)&0x1UL) == 1)
+#define HSE_SQNREF_UNDEF_P(snr) ((uintptr_t)(snr) == HSE_SQNREF_UNDEFINED)
+#define HSE_SQNREF_ABORTED_P(snr) ((uintptr_t)(snr) == HSE_SQNREF_ABORTED)
+#define HSE_SQNREF_INVALID_P(snr) ((uintptr_t)(snr) == HSE_SQNREF_INVALID)
+#define HSE_SQNREF_SINGLE_P(snr) ((uintptr_t)(snr) == HSE_SQNREF_SINGLE)
+#define HSE_SQNREF_ORDNL_P(snr) (((uintptr_t)(snr)&0x1UL) == 1)
 #define HSE_SQNREF_INDIRECT_P(snr) (((uintptr_t)(snr)&0x1UL) == 0)
 
 #define HSE_SQNREF_TO_ORDNL(snr) \
     (HSE_SQNREF_ORDNL_P(snr) ? (((uintptr_t)(snr)) >> 1) : ((*(uintptr_t *)(snr)) >> 1))
-#define HSE_ORDNL_TO_SQNREF(ord)  ((uintptr_t)(((ord) << 1) | 0x1UL))
+#define HSE_ORDNL_TO_SQNREF(ord) ((uintptr_t)(((ord) << 1) | 0x1UL))
 #define HSE_SQNREF_TO_SQNREF(snr) (*(uintptr_t *)(snr))
-#define HSE_REF_TO_SQNREF(ref)    ((uintptr_t)(ref))
+#define HSE_REF_TO_SQNREF(ref) ((uintptr_t)(ref))
 
 enum hse_seqno_state {
     HSE_SQNREF_STATE_INVALID = 1,

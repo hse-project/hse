@@ -28,7 +28,7 @@
  * successive iterative rotation of the hash.
  */
 #define BF_BKTSHIFT (9)
-#define BF_ROTL     (11)
+#define BF_ROTL (11)
 
 _Static_assert(BF_BKTSHIFT >= 9 && BF_BKTSHIFT <= 15, "BF_BKTSHIFT is too large or too small");
 

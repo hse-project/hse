@@ -16,20 +16,15 @@
  * rp_usage does not return
  */
 
-int
-warn(int err, char *fmt, ...);
-void
-fatal(int err, char *fmt, ...);
-void
-rp_usage(void);
+int warn(int err, char *fmt, ...);
+void fatal(int err, char *fmt, ...);
+void rp_usage(void);
 
 /*
  * key/value formatting
  */
-char *
-fmt(void *out, int max, const void *data, int len);
-int
-fmt_data(char *out, char *in);
+char *fmt(void *out, int max, const void *data, int len);
+int   fmt_data(char *out, char *in);
 
 /*
  * globals: control the max of key and value displays in show
@@ -48,19 +43,19 @@ fmt_data(char *out, char *in);
  */
 
 struct app_opts {
-    int lineno;
-    int kmax;
-    int vmax;
-    int hexonly;
-    int zero;
+	int lineno;
+	int kmax;
+	int vmax;
+	int hexonly;
+	int zero;
 };
 extern struct app_opts Opts;
 
 /*
  * key/value display
  */
-void
-show(const void *key, size_t klen, const void *val, size_t vlen, int showlen);
+void show(const void *key, size_t klen,
+	  const void *val, size_t vlen, int showlen);
 
-void
-show_hex(const void *key, size_t klen, const void *val, size_t vlen, int showlen);
+void show_hex(const void *key, size_t klen,
+	      const void *val, size_t vlen, int showlen);

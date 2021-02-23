@@ -15,9 +15,9 @@ MTF_MODULE_UNDER_TEST(hse_platform);
 
 MTF_BEGIN_UTEST_COLLECTION(printbuf);
 
-#define DEFAULT_BUF_SZ     4096
-#define DEFAULT_STRING_SZ  50
-#define DEFAULT_BUF_VAL    1
+#define DEFAULT_BUF_SZ 4096
+#define DEFAULT_STRING_SZ 50
+#define DEFAULT_BUF_VAL 1
 #define DEFAULT_STRING_VAL 2
 
 /**
@@ -124,7 +124,7 @@ MTF_DEFINE_UTEST(printbuf, snprintf_append_single)
     free(string);
 }
 
-#define SHORT_BUF_SZ     20
+#define SHORT_BUF_SZ 20
 #define SHORT_BUF_OFFSET 100
 
 /* 3. Test overflow handling of sprintbuf */

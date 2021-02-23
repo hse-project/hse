@@ -159,10 +159,10 @@ kcompact(struct cn_compaction_work *w)
     u64  pt_seq = 0;
     u64  tprog = 0;
 
-    u64 dbg_prev_seq        HSE_MAYBE_UNUSED;
-    uint dbg_prev_src       HSE_MAYBE_UNUSED;
+    u64 dbg_prev_seq HSE_MAYBE_UNUSED;
+    uint dbg_prev_src HSE_MAYBE_UNUSED;
     uint dbg_nvals_this_key HSE_MAYBE_UNUSED;
-    bool dbg_dup            HSE_MAYBE_UNUSED;
+    bool dbg_dup HSE_MAYBE_UNUSED;
 
     uint seqno_errcnt = 0;
 
@@ -211,16 +211,11 @@ new_key:
 get_values:
     vdata = NULL;
 
-    while (horizon && kvset_iter_next_vref(
-                          w->cw_inputv[curr.src],
-                          &curr.vctx,
-                          &seq,
-                          &vtype,
-                          &vbidx,
-                          &vboff,
-                          &vdata,
-                          &vlen,
-                          &complen)) {
+    while (horizon &&
+           kvset_iter_next_vref(
+               w->cw_inputv[curr.src], &curr.vctx, &seq, &vtype, &vbidx, &vboff,
+               &vdata, &vlen, &complen))
+    {
         bool should_emit = false;
 
         /* Assertion logic:
@@ -268,12 +263,8 @@ get_values:
                 case vtype_val:
                 case vtype_cval:
                     err = kvset_builder_add_vref(
-                        w->cw_child[0],
-                        seq,
-                        vbidx + w->cw_vbmap.vbm_map[curr.src],
-                        vboff,
-                        vlen,
-                        complen);
+                        w->cw_child[0], seq, vbidx + w->cw_vbmap.vbm_map[curr.src],
+                        vboff, vlen, complen);
                     break;
                 case vtype_zval:
                 case vtype_ival:

@@ -361,7 +361,7 @@ cn_tree_create(
     struct kvs_rparams *rp)
 {
     struct cn_tree *tree;
-    merr_t          err;
+    merr_t err;
 
     *handle = NULL;
 
@@ -2229,7 +2229,7 @@ cn_tree_capped_cursor_update(struct pscan *cur, struct cn_tree *tree)
      */
     for (i = cur->iterc - 1; i >= 0; i--) {
         struct kv_iterator *it = cur->iterv[i];
-        u64                 ks_dgen = kvset_get_dgen(kvset_from_iter(it));
+        u64 ks_dgen = kvset_get_dgen(kvset_from_iter(it));
 
         if (ks_dgen >= node_oldest_dgen)
             break;
@@ -2555,13 +2555,15 @@ cn_tree_cursor_read(struct pscan *cur, struct kvs_kvtuple *kvt, bool *eof)
             u32            vboff;
 
             if (!kvset_iter_next_vref(
-                    kv_iter, &item.vctx, &seq, &vtype, &vbidx, &vboff, &vdata, &vlen, &complen)) {
+                    kv_iter, &item.vctx, &seq, &vtype, &vbidx,
+                    &vboff, &vdata, &vlen, &complen)) {
                 end = true;
                 break;
             }
 
-            cur->merr = kvset_iter_next_val(
-                kv_iter, &item.vctx, vtype, vbidx, vboff, &vdata, &vlen, &complen);
+            cur->merr =
+                kvset_iter_next_val(kv_iter, &item.vctx, vtype, vbidx,
+                    vboff, &vdata, &vlen, &complen);
             if (ev(cur->merr))
                 return cur->merr;
 
@@ -2616,10 +2618,10 @@ cn_tree_cursor_read(struct pscan *cur, struct kvs_kvtuple *kvt, bool *eof)
 
     if (complen) {
         extern struct compress_ops compress_lz4_ops;
-        uint                       len_check;
+        uint len_check;
 
-        cur->merr = compress_lz4_ops.cop_decompress(
-            vdata, complen, kvt->kvt_value.vt_data, vlen, &len_check);
+        cur->merr = compress_lz4_ops.cop_decompress(vdata, complen,
+            kvt->kvt_value.vt_data, vlen, &len_check);
         if (ev(cur->merr))
             return cur->merr;
         if (ev(len_check != vlen)) {
@@ -3160,6 +3162,7 @@ cn_comp_cleanup(struct cn_compaction_work *w)
     bool kcompact = w->cw_action == CN_ACTION_COMPACT_K;
     uint i;
 
+
     if (HSE_UNLIKELY(w->cw_err)) {
 
         /* Failed spills cause node to become "wedged"  */
@@ -3171,9 +3174,8 @@ cn_comp_cleanup(struct cn_compaction_work *w)
          * unless debugging.
          */
         if (w->cw_debug || !w->cw_canceled)
-            hse_elog(
-                HSE_ERR "compaction error @@e: sts/job %u comp %s rule %s"
-                        " cnid %lu lvl %u off %u dgenlo %lu dgenhi %lu wedge %d",
+            hse_elog(HSE_ERR "compaction error @@e: sts/job %u comp %s rule %s"
+                " cnid %lu lvl %u off %u dgenlo %lu dgenhi %lu wedge %d",
                 w->cw_err,
                 w->cw_job.sj_id,
                 cn_action2str(w->cw_action),

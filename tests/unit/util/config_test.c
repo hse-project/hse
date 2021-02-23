@@ -177,24 +177,23 @@ MTF_DEFINE_UTEST(config, config_emit)
 {
     char                direct_path[DT_PATH_LEN];
     struct yaml_context yc = {
-        .yaml_indent = 0,
-        .yaml_offset = 0,
+        .yaml_indent = 0, .yaml_offset = 0,
     };
-    union dt_iterate_parameters dip = { .yc = &yc };
+    union dt_iterate_parameters dip = {.yc = &yc };
     char *                      buf;
     struct dt_element *         direct;
     struct hse_config *         mc;
     size_t                      count;
     int                         ret;
 
-    static u64 default_nut = 42;
-    static u64 peanut = 42;
-    static u32 default_coin = 2;
-    static u32 penny = 2;
-    static u16 default_drug = 1500;
-    static u16 aspirin = 1500;
-    static u8  default_plane = 5;
-    static u8  cessna = 5;
+    static u64                  default_nut = 42;
+    static u64                  peanut = 42;
+    static u32                  default_coin = 2;
+    static u32                  penny = 2;
+    static u16                  default_drug = 1500;
+    static u16                  aspirin = 1500;
+    static u8                   default_plane = 5;
+    static u8                   cessna = 5;
 
     buf = calloc(1, MC_EMIT_BUF_SIZE);
     ASSERT_NE(buf, NULL);
@@ -366,7 +365,7 @@ MTF_DEFINE_UTEST(config, config_set)
     size_t                      count;
     int                         ret;
     struct dt_set_parameters    dsp;
-    union dt_iterate_parameters dip = { .dsp = &dsp };
+    union dt_iterate_parameters dip = {.dsp = &dsp };
     u32                         fish_default = 0xfeed;
     u32                         walleye = fish_default;
     u16                         guppy = 42;
@@ -639,7 +638,7 @@ MTF_DEFINE_UTEST(config, config_validator)
     u64                         after;
     size_t                      count;
     struct dt_set_parameters    dsp;
-    union dt_iterate_parameters dip = { .dsp = &dsp };
+    union dt_iterate_parameters dip = {.dsp = &dsp };
     u32                         bird_default = 16;
     u32                         robin = bird_default;     /* Rock 1 */
     u32                         parrot = bird_default;    /* Rock 2 */
@@ -819,7 +818,7 @@ MTF_DEFINE_UTEST(config, config_custom_setter)
     size_t                      count;
     int                         ret;
     struct dt_set_parameters    dsp;
-    union dt_iterate_parameters dip = { .dsp = &dsp };
+    union dt_iterate_parameters dip = {.dsp = &dsp };
     char *                      cloud_default = "nimbus";
     char                        my_cloud[128];
     char *                      new_value = "cumulus";
@@ -893,7 +892,7 @@ MTF_DEFINE_UTEST(config, config_u64_macro)
     size_t                      count;
     int                         ret;
     struct dt_set_parameters    dsp;
-    union dt_iterate_parameters dip = { .dsp = &dsp };
+    union dt_iterate_parameters dip = {.dsp = &dsp };
     u64                         dog_default = 0x1234567887654321;
     u64                         collie = dog_default;
     char *                      new_value = "8765432112345678";
@@ -960,7 +959,7 @@ MTF_DEFINE_UTEST(config, config_u32_macro)
     size_t                      count;
     int                         ret;
     struct dt_set_parameters    dsp;
-    union dt_iterate_parameters dip = { .dsp = &dsp };
+    union dt_iterate_parameters dip = {.dsp = &dsp };
     u32                         cat_default = 0x12345678;
     u32                         calico = cat_default;
     char *                      new_value = "87654321";
@@ -1027,16 +1026,15 @@ MTF_DEFINE_UTEST(config, config_bool_macro)
     size_t                      count;
     int                         ret;
     struct dt_set_parameters    dsp;
-    union dt_iterate_parameters dip = { .dsp = &dsp };
+    union dt_iterate_parameters dip = {.dsp = &dsp };
     bool                        badges_default = true;
     bool                        blazing_saddles_need_badges = badges_default;
     char *                      new_value = "false";
     char *                      buf;
     struct yaml_context         yc = {
-        .yaml_indent = 0,
-        .yaml_offset = 0,
+        .yaml_indent = 0, .yaml_offset = 0,
     };
-    union dt_iterate_parameters dip2 = { .yc = &yc };
+    union dt_iterate_parameters dip2 = {.yc = &yc };
 
     /* Create config variable using the macro. */
     CFG_BOOL(
@@ -1132,14 +1130,13 @@ MTF_DEFINE_UTEST(config, config_string_macro)
     size_t                      count;
     int                         ret;
     struct dt_set_parameters    dsp;
-    union dt_iterate_parameters dip = { .dsp = &dsp };
-    static char *               cars_default = "cadillac";
+    union dt_iterate_parameters dip = {.dsp = &dsp };
+    static char                *cars_default = "cadillac";
 #define CARS_MAX 20
     static char         buick[CARS_MAX];
     char *              buf;
     struct yaml_context yc = {
-        .yaml_indent = 0,
-        .yaml_offset = 0,
+        .yaml_indent = 0, .yaml_offset = 0,
     };
 
     snprintf(buick, CARS_MAX - 1, "buick");

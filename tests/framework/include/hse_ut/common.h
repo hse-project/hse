@@ -15,8 +15,8 @@
 
 #define MTF_PAGE_SIZE getpagesize()
 
-#define ___MTF_MAX_VALUE_COUNT      1000
-#define ___MTF_MAX_UTEST_INSTANCES  250
+#define ___MTF_MAX_VALUE_COUNT 1000
+#define ___MTF_MAX_UTEST_INSTANCES 250
 #define ___MTF_MAX_COLL_NAME_LENGTH 100
 
 enum mtf_test_coll_state { ST_INITIALIZING, ST_READY, ST_RUNNING, ST_DONE, ST_ERROR };

@@ -561,7 +561,7 @@ MTF_DEFINE_UTEST_PREPOST(ikvdb_test, txn_del_test, test_pre, test_post)
     struct kvs_buf         vbuf;
     char                   buf[100];
     enum key_lookup_res    found;
-    char *                 str;
+    char                  *str;
 
     HSE_KVDB_OPSPEC_INIT(&opspec);
 
@@ -640,7 +640,7 @@ parallel_transactions(void *info)
     enum key_lookup_res    found;
     char                   vbuf[100];
     merr_t                 err;
-    char *                 str;
+    char                  *str;
 
     HSE_KVDB_OPSPEC_INIT(&opspec);
 
@@ -1073,12 +1073,12 @@ MTF_DEFINE_UTEST_PREPOST(ikvdb_test, cursor_tx, test_pre_c0, test_post_c0)
     err = ikvdb_kvs_open(h, kvs, 0, 0, &kvs_h);
     ASSERT_EQ(0, err);
 
-#define PUT(op, kvdata)                                       \
-    do {                                                      \
+#define PUT(op, kvdata)                            \
+    do {                                           \
         kvs_ktuple_init(&kt, kvdata.key, strlen(kvdata.key)); \
         kvs_vtuple_init(&vt, kvdata.val, strlen(kvdata.val)); \
-        err = ikvdb_kvs_put(kvs_h, &op, &kt, &vt);            \
-        ASSERT_EQ(0, err);                                    \
+        err = ikvdb_kvs_put(kvs_h, &op, &kt, &vt); \
+        ASSERT_EQ(0, err);                         \
     } while (0)
 
     /* cursor should see these two keys; seqno 0 */

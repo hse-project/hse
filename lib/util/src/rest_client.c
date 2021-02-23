@@ -55,10 +55,7 @@ curl_get(const char *path, const char *sock, char *buf, size_t buf_size)
     merr_t          err = 0;
     long            http_code = MHD_HTTP_NOT_FOUND;
     struct resp_buf resp = {
-        .data = buf,
-        .len = buf_size,
-        .off = 0,
-        .full = false,
+        .data = buf, .len = buf_size, .off = 0, .full = false,
     };
 
     if (!path || !sock)
@@ -139,12 +136,9 @@ curl_put(
     merr_t      err = 0;
     long        http_code = MHD_HTTP_NOT_FOUND;
 
-    struct upload_buf up = { .data = data, .remaining = data_size, .off = 0 };
+    struct upload_buf up = {.data = data, .remaining = data_size, .off = 0 };
     struct resp_buf   resp = {
-        .data = buf,
-        .len = buf_size,
-        .off = 0,
-        .full = false,
+        .data = buf, .len = buf_size, .off = 0, .full = false,
     };
 
     if (!path || !sock)

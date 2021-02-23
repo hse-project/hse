@@ -8,11 +8,11 @@
 
 #include <hse_util/inttypes.h>
 
-#define VCOMP_PARAM_NONE "none"
-#define VCOMP_PARAM_LZ4  "lz4"
+#define VCOMP_PARAM_NONE    "none"
+#define VCOMP_PARAM_LZ4     "lz4"
 
-#define VCOMP_PARAM_SUPPORTED VCOMP_PARAM_NONE " " VCOMP_PARAM_LZ4
-#define VCOMP_PARAM_STR_SZ    8
+#define VCOMP_PARAM_SUPPORTED  VCOMP_PARAM_NONE " " VCOMP_PARAM_LZ4
+#define VCOMP_PARAM_STR_SZ 8
 
 struct kvs_rparams;
 struct compress_ops;

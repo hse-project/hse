@@ -19,8 +19,8 @@
 #include "cn_tree_internal.h"
 #include "kvset.h"
 
-#define SIZE_128MIB ((size_t)128 << 20)
-#define SIZE_1GIB   ((size_t)1 << 30)
+#define SIZE_128MIB     ((size_t)128 << 20)
+#define SIZE_1GIB       ((size_t)1 << 30)
 
 /* The bonus count limits bonus work (scatter and idle)
  * [HSE_REVISIT] Do this correctly via job queues...

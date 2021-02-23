@@ -22,12 +22,11 @@ usage(const char *program)
     printf("usage: %s -h\n", program);
     printf("-t number of I/O threads, default is 1\n");
     printf("-c media class, default is CAPACITY\n");
-    printf(
-        "-b Per-io block size in KB in the range (%u .. %u), "
-        "default is %u\n",
-        DEVICEPROFILE_MINBSIZE / (1 << 10),
-        DEVICEPROFILE_MAXBSIZE / (1 << 10),
-        1 << 10);
+    printf("-b Per-io block size in KB in the range (%u .. %u), "
+           "default is %u\n",
+           DEVICEPROFILE_MINBSIZE / (1 << 10),
+           DEVICEPROFILE_MAXBSIZE / (1 << 10),
+           1 << 10);
     printf("-s # of mblocks per thread to sample (optional, defaults to 1).\n");
     printf("\n\nEXAMPLES:\n");
     printf("%s -s 8192 mp1\n", program);
@@ -55,20 +54,19 @@ output_result_int(struct deviceprofile_stat *stat, bool write)
         "L99_ns",
         "L99.9_ns");
 
-    printf(
-        "%-5s\t%10lu\t%10lu\t%10lu\t%10lu\t%10lu\t%10.1f\t%10.1f\t%10lu\t%10lu\t%10lu\t%10lu\n",
-        (write) ? "WRITE" : "READ",
-        stat->dp_ops,
-        stat->dp_trulatmin,
-        stat->dp_trulatmax,
-        stat->dp_latmin,
-        stat->dp_latmax,
-        stat->dp_latmean,
-        stat->dp_latsigma,
-        stat->dp_lat90pctle,
-        stat->dp_lat95pctle,
-        stat->dp_lat99pctle,
-        stat->dp_lat999pctle);
+    printf("%-5s\t%10lu\t%10lu\t%10lu\t%10lu\t%10lu\t%10.1f\t%10.1f\t%10lu\t%10lu\t%10lu\t%10lu\n",
+           (write) ? "WRITE" : "READ",
+           stat->dp_ops,
+           stat->dp_trulatmin,
+           stat->dp_trulatmax,
+           stat->dp_latmin,
+           stat->dp_latmax,
+           stat->dp_latmean,
+           stat->dp_latsigma,
+           stat->dp_lat90pctle,
+           stat->dp_lat95pctle,
+           stat->dp_lat99pctle,
+           stat->dp_lat999pctle);
 }
 
 static void
@@ -84,7 +82,7 @@ int
 main(int argc, char *argv[])
 {
     struct deviceprofile_calibrate *dpc;
-    hse_err_t                       err;
+    hse_err_t                          err;
     struct deviceprofile_stat       rd, wr;
     struct mpool *                  ds;
     int                             flags = O_EXCL | O_RDWR;

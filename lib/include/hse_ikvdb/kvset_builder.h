@@ -22,9 +22,9 @@ struct kvs_rparams;
 struct perfc_set;
 struct cn_merge_stats;
 
-#define KVSET_BUILDER_FLAGS_NONE   (0)
-#define KVSET_BUILDER_FLAGS_SPARE  (1u << 0)
-#define KVSET_BUILDER_FLAGS_INGEST (1u << 2) /* from c0 or c1, to cn root node */
+#define KVSET_BUILDER_FLAGS_NONE    (0)
+#define KVSET_BUILDER_FLAGS_SPARE   (1u << 0)
+#define KVSET_BUILDER_FLAGS_INGEST  (1u << 2) /* from c0 or c1, to cn root node */
 
 /* MTF_MOCK_DECL(kvset_builder) */
 /* MTF_MOCK */
@@ -75,21 +75,21 @@ kvset_builder_add_key(struct kvset_builder *builder, const struct key_obj *ko);
 /* MTF_MOCK */
 merr_t
 kvset_builder_add_val(
-    struct kvset_builder *self,
-    u64                   seq,
-    const void *          vdata,
-    uint                  vlen,
-    uint                  complen);
+    struct kvset_builder *  self,
+    u64                     seq,
+    const void *            vdata,
+    uint                    vlen,
+    uint                    complen);
 
 /* MTF_MOCK */
 merr_t
 kvset_builder_add_vref(
-    struct kvset_builder *self,
-    u64                   seq,
-    uint                  vbidx,
-    uint                  vboff,
-    uint                  vlen,
-    uint                  complen);
+    struct kvset_builder   *self,
+    u64                     seq,
+    uint                    vbidx,
+    uint                    vboff,
+    uint                    vlen,
+    uint                    complen);
 
 /* MTF_MOCK */
 merr_t

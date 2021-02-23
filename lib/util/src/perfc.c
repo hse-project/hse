@@ -31,7 +31,7 @@ static char *pc_type_names[] = {
  * Later the user can change this global verbosity on the fly.
  */
 u32 perfc_verbosity_default HSE_READ_MOSTLY = 2;
-u32 perfc_verbosity         HSE_READ_MOSTLY = 2;
+u32 perfc_verbosity HSE_READ_MOSTLY = 2;
 
 struct perfc_ivl *perfc_di_ivl HSE_READ_MOSTLY;
 
@@ -43,11 +43,11 @@ static void
 perfc_ctrseti_clear(struct perfc_seti *seti)
 {
     const struct perfc_ivl *ivl;
-    struct perfc_ctr_hdr *  hdr;
-    struct perfc_rate *     rate;
-    struct perfc_dis *      dis;
-    struct perfc_val *      val;
-    struct perfc_bkt *      bkt;
+    struct perfc_ctr_hdr   *hdr;
+    struct perfc_rate      *rate;
+    struct perfc_dis       *dis;
+    struct perfc_val       *val;
+    struct perfc_bkt       *bkt;
 
     u64 vadd, vsub, vtmp;
     u32 cidx;
@@ -57,66 +57,66 @@ perfc_ctrseti_clear(struct perfc_seti *seti)
         hdr = &seti->pcs_ctrv[cidx].hdr;
 
         switch (hdr->pch_type) {
-            case PERFC_TYPE_RA:
-                val = hdr->pch_val;
-                vadd = vsub = 0;
+        case PERFC_TYPE_RA:
+            val = hdr->pch_val;
+            vadd = vsub = 0;
 
-                for (i = 0; i < PERFC_VALPERCNT; ++i) {
-                    vtmp = atomic64_read(&val->pcv_vsub);
-                    atomic64_sub(vtmp, &val->pcv_vsub);
-                    vsub += vtmp;
-
-                    vtmp = atomic64_read(&val->pcv_vadd);
-                    atomic64_sub(vtmp, &val->pcv_vadd);
-                    vadd += vtmp;
-
-                    val += PERFC_VALPERCPU;
-                }
-
-                vadd = (vadd > vsub) ? (vadd - vsub) : 0;
-
-                /* Put the current value in the old one.  This is
-             * done to get a valid rate next time the counter
-             * is read.
-             */
-                rate = &seti->pcs_ctrv[cidx].rate;
-                rate->pcr_old_val = vadd;
-                rate->pcr_old_time_ns = get_time_ns();
-                break;
-
-            case PERFC_TYPE_DI:
-            case PERFC_TYPE_LT:
-                dis = &seti->pcs_ctrv[cidx].dis;
-                dis->pdi_min = 0;
-                dis->pdi_max = 0;
-
-                bkt = dis->pdi_hdr.pch_bktv;
-                ivl = dis->pdi_ivl;
-
-                for (j = 0; j < PERFC_GRP_MAX; ++j) {
-                    bkt = dis->pdi_hdr.pch_bktv + (PERFC_IVL_MAX + 1) * j;
-
-                    for (i = 0; i < ivl->ivl_cnt + 1; ++i, ++bkt) {
-                        vtmp = atomic64_read(&bkt->pcb_vadd);
-                        atomic64_sub(vtmp, &bkt->pcb_vadd);
-
-                        vtmp = atomic64_read(&bkt->pcb_hits);
-                        atomic64_sub(vtmp, &bkt->pcb_hits);
-                    }
-                }
-                break;
-
-            case PERFC_TYPE_SL:
-            case PERFC_TYPE_BA:
-            default:
-                val = hdr->pch_val;
-
+            for (i = 0; i < PERFC_VALPERCNT; ++i) {
                 vtmp = atomic64_read(&val->pcv_vsub);
                 atomic64_sub(vtmp, &val->pcv_vsub);
+                vsub += vtmp;
 
                 vtmp = atomic64_read(&val->pcv_vadd);
                 atomic64_sub(vtmp, &val->pcv_vadd);
-                break;
+                vadd += vtmp;
+
+                val += PERFC_VALPERCPU;
+            }
+
+            vadd = (vadd > vsub) ? (vadd - vsub) : 0;
+
+            /* Put the current value in the old one.  This is
+             * done to get a valid rate next time the counter
+             * is read.
+             */
+            rate = &seti->pcs_ctrv[cidx].rate;
+            rate->pcr_old_val = vadd;
+            rate->pcr_old_time_ns = get_time_ns();
+            break;
+
+        case PERFC_TYPE_DI:
+        case PERFC_TYPE_LT:
+            dis = &seti->pcs_ctrv[cidx].dis;
+            dis->pdi_min = 0;
+            dis->pdi_max = 0;
+
+            bkt = dis->pdi_hdr.pch_bktv;
+            ivl = dis->pdi_ivl;
+
+            for (j = 0; j < PERFC_GRP_MAX; ++j) {
+                bkt = dis->pdi_hdr.pch_bktv + (PERFC_IVL_MAX + 1) * j;
+
+                for (i = 0; i < ivl->ivl_cnt + 1; ++i, ++bkt) {
+                    vtmp = atomic64_read(&bkt->pcb_vadd);
+                    atomic64_sub(vtmp, &bkt->pcb_vadd);
+
+                    vtmp = atomic64_read(&bkt->pcb_hits);
+                    atomic64_sub(vtmp, &bkt->pcb_hits);
+                }
+            }
+            break;
+
+        case PERFC_TYPE_SL:
+        case PERFC_TYPE_BA:
+        default:
+            val = hdr->pch_val;
+
+            vtmp = atomic64_read(&val->pcv_vsub);
+            atomic64_sub(vtmp, &val->pcv_vsub);
+
+            vtmp = atomic64_read(&val->pcv_vadd);
+            atomic64_sub(vtmp, &val->pcv_vadd);
+            break;
         }
     }
 }
@@ -167,13 +167,13 @@ set_handler(struct dt_element *dte, struct dt_set_parameters *dsp)
 static void
 perfc_ra_emit(struct perfc_rate *rate, struct yaml_context *yc)
 {
-    char              value[DT_PATH_LEN];
+    char value[DT_PATH_LEN];
     struct perfc_val *val;
-    u64               dt, dx, ops;
-    u64               vadd, vsub;
-    u64               curr, prev;
-    u64               curr_ns;
-    int               i;
+    u64  dt, dx, ops;
+    u64  vadd, vsub;
+    u64  curr, prev;
+    u64  curr_ns;
+    int  i;
 
     curr_ns = get_time_ns();
     dt = curr_ns - rate->pcr_old_time_ns;
@@ -310,8 +310,8 @@ perfc_di_emit(struct perfc_dis *dis, struct yaml_context *yc)
 static HSE_ALWAYS_INLINE void
 _gather_values(struct perfc_ctr_hdr *hdr, u64 *vadd, u64 *vsub)
 {
-    struct perfc_val *val = hdr->pch_val;
-    int               i;
+    struct perfc_val   *val = hdr->pch_val;
+    int                 i;
 
     *vadd = *vsub = 0;
 
@@ -365,38 +365,38 @@ emit_handler_ctrset(struct dt_element *dte, struct yaml_context *yc)
         yaml_element_field(yc, "is_on", value);
 
         switch (ctr_hdr->pch_type) {
-            case PERFC_TYPE_BA:
-                _gather_values(ctr_hdr, &vadd, &vsub);
-                vadd = vadd > vsub ? vadd - vsub : 0;
+        case PERFC_TYPE_BA:
+            _gather_values(ctr_hdr, &vadd, &vsub);
+            vadd = vadd > vsub ? vadd - vsub : 0;
 
-                u64_to_string(value, sizeof(value), vadd);
-                yaml_element_field(yc, "value", value);
-                break;
+            u64_to_string(value, sizeof(value), vadd);
+            yaml_element_field(yc, "value", value);
+            break;
 
-            case PERFC_TYPE_RA:
-                perfc_ra_emit(&seti->pcs_ctrv[cidx].rate, yc);
-                break;
+        case PERFC_TYPE_RA:
+            perfc_ra_emit(&seti->pcs_ctrv[cidx].rate, yc);
+            break;
 
-            case PERFC_TYPE_SL:
-                _gather_values(ctr_hdr, &vadd, &vsub);
+        case PERFC_TYPE_SL:
+            _gather_values(ctr_hdr, &vadd, &vsub);
 
-                /* 'sum' and 'hitcnt' field names must match here and
+            /* 'sum' and 'hitcnt' field names must match here and
              * for distribution counters
              */
-                u64_to_string(value, sizeof(value), vadd);
-                yaml_element_field(yc, "sum", value);
+            u64_to_string(value, sizeof(value), vadd);
+            yaml_element_field(yc, "sum", value);
 
-                u64_to_string(value, sizeof(value), vsub);
-                yaml_element_field(yc, "hitcnt", value);
-                break;
+            u64_to_string(value, sizeof(value), vsub);
+            yaml_element_field(yc, "hitcnt", value);
+            break;
 
-            case PERFC_TYPE_DI:
-            case PERFC_TYPE_LT:
-                perfc_di_emit(&seti->pcs_ctrv[cidx].dis, yc);
-                break;
+        case PERFC_TYPE_DI:
+        case PERFC_TYPE_LT:
+            perfc_di_emit(&seti->pcs_ctrv[cidx].dis, yc);
+            break;
 
-            default:
-                break;
+        default:
+            break;
         }
 
         yaml_end_element(yc);
@@ -729,7 +729,7 @@ perfc_ctrseti_alloc(
     u32                err = 0;
     const char *       famptr;
     size_t             valdatasz, sz;
-    void *             valdata, *valcur;
+    void              *valdata, *valcur;
     char *             meaning;
     u32                famlen;
     u32                type;
@@ -952,7 +952,7 @@ void
 perfc_ctrseti_invalidate_handle(struct perfc_set *set)
 {
     struct dt_set_parameters    dsp;
-    union dt_iterate_parameters dip = { .dsp = &dsp };
+    union dt_iterate_parameters dip = {.dsp = &dsp };
     struct perfc_seti *         seti = set->ps_seti;
     char                        path[DT_PATH_LEN];
 

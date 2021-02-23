@@ -48,9 +48,9 @@ struct sp3_thresholds {
  */
 #define SP3_RSPILL_KVSETS_MIN ((u8)1)
 #define SP3_ISPILL_KVSETS_MIN ((u8)1)
-#define SP3_LCOMP_KVSETS_MIN  ((u8)2)
-#define SP3_LLEN_RUNLEN_MIN   ((u8)2)
-#define SP3_LSCAT_THRESH_MIN  ((u8)2)
+#define SP3_LCOMP_KVSETS_MIN ((u8)2)
+#define SP3_LLEN_RUNLEN_MIN ((u8)2)
+#define SP3_LSCAT_THRESH_MIN ((u8)2)
 
 /* MTF_MOCK */
 merr_t
@@ -63,19 +63,19 @@ sp3_work(
     struct cn_compaction_work **wp);
 
 /* work queues */
-#define SP3_QNUM_UNUSED  0
-#define SP3_QNUM_INTERN  1
-#define SP3_QNUM_LEAF    2
+#define SP3_QNUM_UNUSED 0
+#define SP3_QNUM_INTERN 1
+#define SP3_QNUM_LEAF 2
 #define SP3_QNUM_LEAFBIG 3
-#define SP3_QNUM_LSCAT   4
-#define SP3_NUM_QUEUES   5
+#define SP3_QNUM_LSCAT 4
+#define SP3_NUM_QUEUES 5
 
 /* queue thread counts */
-#define SP3_QTHREADS_INTERN  4ul
-#define SP3_QTHREADS_LEAF    4ul /* these jobs don't use shared queue */
+#define SP3_QTHREADS_INTERN 4ul
+#define SP3_QTHREADS_LEAF 4ul    /* these jobs don't use shared queue */
 #define SP3_QTHREADS_LEAFBIG 4ul /* these jobs don't use shared queue */
-#define SP3_QTHREADS_LSCAT   2ul
-#define SP3_QTHREADS_SHARED  20ul
+#define SP3_QTHREADS_LSCAT 2ul
+#define SP3_QTHREADS_SHARED 20ul
 
 /* Default value CSCHED_QTHREADS rparam.
  */

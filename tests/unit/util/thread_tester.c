@@ -141,11 +141,11 @@ launch_worker(void *rock)
     return NULL;
 }
 
-struct thread_test_ops thtest_ops = { .thread_test_ctor = thread_test_ctor,
-                                      .thread_test_dtor = thread_test_dtor,
-                                      .thread_test_main = thread_test_main,
-                                      .thread_test_barrier = thread_test_barrier,
-                                      .thread_test_run = thread_test_run,
+struct thread_test_ops thtest_ops = {.thread_test_ctor = thread_test_ctor,
+                                     .thread_test_dtor = thread_test_dtor,
+                                     .thread_test_main = thread_test_main,
+                                     .thread_test_barrier = thread_test_barrier,
+                                     .thread_test_run = thread_test_run,
 
 #if 0
     /*
@@ -157,6 +157,6 @@ struct thread_test_ops thtest_ops = { .thread_test_ctor = thread_test_ctor,
     .thread_test_report
 #endif
 
-                                      .thread_test_wait_barrier = thread_test_wait_barrier,
-                                      .thread_test_starting_gate = thread_test_starting_gate,
-                                      .thread_test_finish_line = thread_test_finish_line };
+                                     .thread_test_wait_barrier = thread_test_wait_barrier,
+                                     .thread_test_starting_gate = thread_test_starting_gate,
+                                     .thread_test_finish_line = thread_test_finish_line };

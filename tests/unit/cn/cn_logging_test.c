@@ -20,7 +20,7 @@
 
 #define MAX_MSG_SIZE 500
 #define MAX_NV_PAIRS 50
-#define MAX_NV_SIZE  100
+#define MAX_NV_SIZE 100
 
 struct logging_result {
     char msg_buffer[MAX_MSG_SIZE];

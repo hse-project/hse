@@ -212,11 +212,11 @@ cn_merge_stats_diff(
     const struct cn_merge_stats *a,
     const struct cn_merge_stats *b)
 {
-    s->ms_srcs = a->ms_srcs - b->ms_srcs;
-    s->ms_keys_in = a->ms_keys_in - b->ms_keys_in;
+    s->ms_srcs     = a->ms_srcs     - b->ms_srcs;
+    s->ms_keys_in  = a->ms_keys_in  - b->ms_keys_in;
     s->ms_keys_out = a->ms_keys_out - b->ms_keys_out;
 
-    s->ms_key_bytes_in = a->ms_key_bytes_in - b->ms_key_bytes_in;
+    s->ms_key_bytes_in  = a->ms_key_bytes_in  - b->ms_key_bytes_in;
     s->ms_key_bytes_out = a->ms_key_bytes_out - b->ms_key_bytes_out;
     s->ms_val_bytes_out = a->ms_val_bytes_out - b->ms_val_bytes_out;
 
@@ -228,13 +228,13 @@ cn_merge_stats_diff(
     cn_merge_stats_ops_diff(&s->ms_vblk_alloc, &a->ms_vblk_alloc, &b->ms_vblk_alloc);
     cn_merge_stats_ops_diff(&s->ms_vblk_write, &a->ms_vblk_write, &b->ms_vblk_write);
 
-    cn_merge_stats_ops_diff(&s->ms_vblk_read1, &a->ms_vblk_read1, &b->ms_vblk_read1);
+    cn_merge_stats_ops_diff(&s->ms_vblk_read1,      &a->ms_vblk_read1,      &b->ms_vblk_read1);
     cn_merge_stats_ops_diff(&s->ms_vblk_read1_wait, &a->ms_vblk_read1_wait, &b->ms_vblk_read1_wait);
 
-    cn_merge_stats_ops_diff(&s->ms_vblk_read2, &a->ms_vblk_read2, &b->ms_vblk_read2);
+    cn_merge_stats_ops_diff(&s->ms_vblk_read2,      &a->ms_vblk_read2,      &b->ms_vblk_read2);
     cn_merge_stats_ops_diff(&s->ms_vblk_read2_wait, &a->ms_vblk_read2_wait, &b->ms_vblk_read2_wait);
 
-    cn_merge_stats_ops_diff(&s->ms_kblk_read, &a->ms_kblk_read, &b->ms_kblk_read);
+    cn_merge_stats_ops_diff(&s->ms_kblk_read,      &a->ms_kblk_read,      &b->ms_kblk_read);
     cn_merge_stats_ops_diff(&s->ms_kblk_read_wait, &a->ms_kblk_read_wait, &b->ms_kblk_read_wait);
 }
 

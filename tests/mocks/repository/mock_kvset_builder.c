@@ -45,11 +45,11 @@ _kvset_builder_add_key(struct kvset_builder *builder, const struct key_obj *kobj
 
 static merr_t
 _kvset_builder_add_val(
-    struct kvset_builder *self,
-    u64                   seq,
-    const void *          vdata,
-    uint                  vlen,
-    uint                  complen)
+    struct kvset_builder *  self,
+    u64                     seq,
+    const void *            vdata,
+    uint                    vlen,
+    uint                    complen)
 {
     return 0;
 }
@@ -61,13 +61,8 @@ _kvset_builder_add_nonval(struct kvset_builder *self, u64 seq, enum kmd_vtype vt
 }
 
 static merr_t
-_kvset_builder_add_vref(
-    struct kvset_builder *self,
-    u64                   seq,
-    uint                  vbidx,
-    uint                  vboff,
-    uint                  vlen,
-    uint                  complen)
+_kvset_builder_add_vref(struct kvset_builder *self, u64 seq,
+    uint vbidx, uint vboff, uint vlen, uint complen)
 {
     return 0;
 }

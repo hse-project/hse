@@ -51,7 +51,7 @@ struct hse_kvs_cursor {
     merr_t                 kc_err;
     atomic_t *             kc_cursor_cnt;
     struct kc_filter       kc_filter;
-    void *                 kc_viewcookie;
+    void                  *kc_viewcookie;
 };
 
 merr_t

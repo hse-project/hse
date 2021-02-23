@@ -15,7 +15,7 @@
  ****************************************************************/
 
 #define KBLOCK_HDR_VERSION ((u32)5)
-#define KBLOCK_HDR_MAGIC   ((u32)0xfadedfad)
+#define KBLOCK_HDR_MAGIC ((u32)0xfadedfad)
 
 /* This is currently set to 1350 which is the max key size supported. However,
  * with the current header sizes, this can grow up to (3972-7*2)/2 i.e. 1979
@@ -113,7 +113,7 @@ OMF_SETGET(struct kblock_hdr_omf, kbh_max_seqno, 64)
  *
  ****************************************************************/
 
-#define BLOOM_OMF_MAGIC   ((u32)('b' << 24 | 'l' << 16 | 'm' << 8 | 'h'))
+#define BLOOM_OMF_MAGIC ((u32)('b' << 24 | 'l' << 16 | 'm' << 8 | 'h'))
 #define BLOOM_OMF_VERSION ((u32)4)
 
 /**
@@ -166,7 +166,7 @@ OMF_SETGET(struct bloom_hdr_omf, bh_n_hashes, 8)
  */
 #define WBT_NODE_SIZE 4096 /* must equal system page size */
 
-#define WBT_TREE_MAGIC    ((u32)0x4a3a2a1a)
+#define WBT_TREE_MAGIC ((u32)0x4a3a2a1a)
 #define WBT_TREE_VERSION  WBT_TREE_VERSION6
 #define WBT_TREE_VERSION6 ((u32)6)
 #define WBT_TREE_VERSION5 ((u32)5)
@@ -252,8 +252,8 @@ OMF_SETGET(struct wbt_lfe_omf, lfe_kmd, 16)
 
 BullseyeCoverageSaveOff
 
-    /* WB tree version 3 header */
-    struct wbt3_hdr_omf {
+/* WB tree version 3 header */
+struct wbt3_hdr_omf {
     __le32 wbt3_magic;
     __le32 wbt3_version;
     __le16 wbt3_root;     /* index of wbtree root node */
@@ -312,12 +312,12 @@ BullseyeCoverageRestore
  *
  ****************************************************************/
 
-#define VBLOCK_HDR_MAGIC    ((u32)0xea73feed)
+#define VBLOCK_HDR_MAGIC ((u32)0xea73feed)
 #define VBLOCK_HDR_VERSION1 ((u32)1)
 #define VBLOCK_HDR_VERSION2 ((u32)2)
 
-    /* Version 2 header */
-    struct vblock_hdr_omf {
+/* Version 2 header */
+struct vblock_hdr_omf {
     __le32 vbh_magic;
     __le32 vbh_version;
     __le64 vbh_vgroup;
@@ -338,9 +338,9 @@ struct vblock_hdr1_omf {
 
 /* cn dynamic state
  */
-#define CN_TSTATE_MAGIC   (u32)('c' << 24 | 't' << 16 | 's' << 8 | 'm')
+#define CN_TSTATE_MAGIC (u32)('c' << 24 | 't' << 16 | 's' << 8 | 'm')
 #define CN_TSTATE_VERSION (u32)1
-#define CN_TSTATE_KHM_SZ  (1024)
+#define CN_TSTATE_KHM_SZ (1024)
 
 struct cn_tstate_omf {
     __le32 ts_magic;

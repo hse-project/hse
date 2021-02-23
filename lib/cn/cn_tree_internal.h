@@ -197,7 +197,7 @@ struct cn_tree_node {
 };
 
 /* cn_tree_node to sp3_node */
-#define tn2spn(_tn)  (&(_tn)->tn_sched.sp3n)
+#define tn2spn(_tn) (&(_tn)->tn_sched.sp3n)
 #define spn2tn(_spn) container_of(_spn, struct cn_tree_node, tn_sched.sp3n)
 
 /**

@@ -476,10 +476,7 @@ test_fini(struct test *t)
     MTF_DEFINE_UTEST(atomic_test, V1##_##N2##V2##_##N3##V3##_##N4##V4) \
     {                                                                  \
         struct test_params tp = {                                      \
-            .N1 = V1,                                                  \
-            .N2 = V2,                                                  \
-            .N3 = V3,                                                  \
-            .N4 = V4,                                                  \
+            .N1 = V1, .N2 = V2, .N3 = V3, .N4 = V4,                    \
         };                                                             \
         struct test test;                                              \
         test_init(&test, &tp, lcl_ti);                                 \

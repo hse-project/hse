@@ -59,11 +59,8 @@ struct hse_logging_infrastructure hse_logging_inf = {
     .mli_json_buf = 0,  /* buffer to accumulate json elements         */
     .mli_active = 0,    /* has the logging been initialized           */
     .mli_opened = 0,    /* has the logging been "opened"              */
-    .mli_async = { .al_wq = NULL,
-                   .al_cons = 0,
-                   .al_nb = 0,
-                   .al_entries = NULL,
-                   .al_th_working = false }
+    .mli_async =
+        {.al_wq = NULL, .al_cons = 0, .al_nb = 0, .al_entries = NULL, .al_th_working = false }
 };
 
 struct hse_log_code {
@@ -726,7 +723,7 @@ get_code_slot(int code)
 bool
 pack_source_info(struct hse_log_fmt_state *state)
 {
-    bool res;
+    bool        res;
 
     if (!state->source_info_set) {
         res =
@@ -965,7 +962,7 @@ append_hse_arg(
     struct hse_log_fmt_state *state,
     void *                    obj)
 {
-    bool res;
+    bool        res;
 
     if (!state->source_info_set) {
         res =
@@ -992,7 +989,7 @@ is_std_specifier(char c)
 {
     static char std_specifiers[] = { 'd', 'i', 'u', 'o', 'x', 'X', 'f', 'F', 'e', 'E',
                                      'g', 'G', 'a', 'A', 'c', 's', 'p', 'n', '%' };
-    int         i;
+    int i;
 
     for (i = 0; i < sizeof(std_specifiers); ++i) {
         if (c == std_specifiers[i])
@@ -1477,7 +1474,7 @@ hse_slog_commit(struct slog *sl)
     json_element_end(jc);
 
     if (sl->sl_entries)
-        hse_slog_emit(sl->sl_priority, "@cee:%s\n", jc->json_buf);
+	    hse_slog_emit(sl->sl_priority, "@cee:%s\n", jc->json_buf);
 
     free(jc->json_buf);
     free(sl);

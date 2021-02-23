@@ -165,8 +165,8 @@ config_u16(
     const char *component,
     const char *instance,
     const char *path,
-    u16 *       data,
-    u16 *       dfault,
+    u16        *data,
+    u16        *dfault,
     validator_t validator,
     void *      rock,
     bool        writable)
@@ -193,8 +193,8 @@ config_u8(
     const char *component,
     const char *instance,
     const char *path,
-    u8 *        data,
-    u8 *        dfault,
+    u8         *data,
+    u8         *dfault,
     validator_t validator,
     void *      rock,
     bool        writable)

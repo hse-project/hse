@@ -265,8 +265,7 @@ MTF_DEFINE_UTEST(data_tree, test_element_ops_function)
     struct dt_tree *    tree;
     struct dt_element * element;
     struct yaml_context yc = {
-        .yaml_offset = 0,
-        .yaml_indent = 0,
+        .yaml_offset = 0, .yaml_indent = 0,
     };
     struct dt_set_parameters dsp;
     int                      ret;
@@ -318,10 +317,9 @@ MTF_DEFINE_UTEST(data_tree, test_emit_overflow_protection)
     struct dt_tree *    tree;
     struct dt_element * element[3];
     struct yaml_context yc = {
-        .yaml_offset = 0,
-        .yaml_indent = 0,
+        .yaml_offset = 0, .yaml_indent = 0,
     };
-    union dt_iterate_parameters dip = { .yc = &yc };
+    union dt_iterate_parameters dip = {.yc = &yc };
     char *                      buf;
     int                         i;
 
@@ -598,8 +596,8 @@ MTF_DEFINE_UTEST(data_tree, test_iterate)
 /* Start Test: multi-writer, no reader */
 struct mtest *mtest;
 
-#define WORK_TYPE_ADD  0x1
-#define WORK_TYPE_DEL  0x2
+#define WORK_TYPE_ADD 0x1
+#define WORK_TYPE_DEL 0x2
 #define WORK_TYPE_FIND 0x4
 #define WORK_TYPE_ITER 0x8
 
@@ -666,10 +664,9 @@ worker(void *context, int id)
     struct dt_element * dte, *prev, *found;
     int                 i, loop;
     struct yaml_context yc = {
-        .yaml_offset = 0,
-        .yaml_indent = 0,
+        .yaml_offset = 0, .yaml_indent = 0,
     };
-    union dt_iterate_parameters dip = { .yc = &yc };
+    union dt_iterate_parameters dip = {.yc = &yc };
 
     mtest_barrier(mtest);
 

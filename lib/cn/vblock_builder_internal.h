@@ -6,7 +6,7 @@
 #ifndef HSE_KVS_CN_VBLOCK_BUILDER_INT_H
 #define HSE_KVS_CN_VBLOCK_BUILDER_INT_H
 
-#define WBUF_LEN_MAX   (1024 * 1024)
+#define WBUF_LEN_MAX (1024 * 1024)
 #define VBLOCK_HDR_LEN 4096
 
 struct cn_merge_stats;

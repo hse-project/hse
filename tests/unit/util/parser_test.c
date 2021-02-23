@@ -31,8 +31,7 @@ MTF_DEFINE_UTEST(parser_test, arg_checking)
 
     match_table_t empty_options = { { 0, 0 } };
     match_table_t options = {
-        { 0, "zero" },
-        { -1, NULL },
+        { 0, "zero" }, { -1, NULL },
     };
 
     rv = match_token(0, empty_options, &val);

@@ -69,15 +69,15 @@ my_memcmp(char *s1, char *s2, size_t len)
 int
 cheap_verify_test1(struct cheap *h, u32 min_size, u32 max_size)
 {
-    int          rc = -1;
-    int          i = 0;
-    int          num_bufs;
-    char **      bufs = 0;
-    u32 *        buf_sizes = 0;
-    char *       zero_buffer = 0;
+    int             rc = -1;
+    int             i = 0;
+    int             num_bufs;
+    char **         bufs = 0;
+    u32 *           buf_sizes = 0;
+    char *          zero_buffer = 0;
     struct xrand xr;
-    s64          max_bufs;
-    ssize_t      buf_ptr_array_size;
+    s64             max_bufs;
+    ssize_t         buf_ptr_array_size;
 
     /* Malloc enough space to store an array of sizes if all allocations
      * are the min_size */
@@ -155,12 +155,12 @@ cheap_verify_test1(struct cheap *h, u32 min_size, u32 max_size)
 int
 cheap_zero_test1(struct cheap *h, u32 min_size, u32 max_size)
 {
-    int          i = 0;
-    char **      bufs = 0;
-    u32 *        buf_sizes = 0;
-    char *       zero_buffer = 0;
+    int             i = 0;
+    char **         bufs = 0;
+    u32 *           buf_sizes = 0;
+    char *          zero_buffer = 0;
     struct xrand xr;
-    int          max_bufs;
+    int             max_bufs;
 
     /* Malloc enough space to store an array of sizes if all allocations
      * are the min_size */
@@ -216,11 +216,11 @@ cheap_zero_test1(struct cheap *h, u32 min_size, u32 max_size)
 int
 cheap_strict_test1(struct cheap *h, u32 min_size, u32 max_size, enum which_strict_test which)
 {
-    int          i = 0;
-    char **      bufs = 0;
-    u32 *        buf_sizes = 0;
+    int             i = 0;
+    char **         bufs = 0;
+    u32 *           buf_sizes = 0;
     struct xrand xr;
-    int          max_bufs;
+    int             max_bufs;
 
     /* Malloc enough space to store an array of sizes if all allocations
      * are the min_size.

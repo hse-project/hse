@@ -275,7 +275,7 @@ MTF_DEFINE_UTEST(param, u16_test)
     ASSERT_NE(0, err);
 
     for (i = 0; i < ARRAY_SIZE(av); ++i) {
-        const char * fmtv[] = { "%hu",    "  %hu",      " %hu ",      " \t%hu\t ", "%#hx",
+        const char *fmtv[] = { "%hu",    "  %hu",      " %hu ",      " \t%hu\t ", "%#hx",
                                "  %#hx", " %#hx ",     " \t%#hx\t ", "%#ho",      "  %#ho",
                                " %#ho ", " \t%#ho\t ", NULL };
         const char **fmt;
@@ -305,10 +305,10 @@ MTF_DEFINE_UTEST(param, u32_test)
 {
     const u32 av[] = { 0,    1,    2,    3,           4,       2047,        2048,        2049,
                        4095, 4096, 4096, U16_MAX - 1, U16_MAX, U16_MAX + 1, U32_MAX - 1, U32_MAX };
-    char      value[32], buf[32];
-    merr_t    err;
-    u32       b;
-    int       i;
+    char   value[32], buf[32];
+    merr_t err;
+    u32    b;
+    int    i;
 
     err = get_u32(value, NULL, sizeof(b));
     ASSERT_NE(0, err);
@@ -332,7 +332,7 @@ MTF_DEFINE_UTEST(param, u32_test)
     ASSERT_NE(0, err);
 
     for (i = 0; i < ARRAY_SIZE(av); ++i) {
-        const char * fmtv[] = { "%u",    "  %u",  "%u  ",      " %u ",      " \t%u\t ", "%#x",
+        const char *fmtv[] = { "%u",    "  %u",  "%u  ",      " %u ",      " \t%u\t ", "%#x",
                                "  %#x", "%#x  ", " %#x ",     " \t%#x\t ", "%#o",      "  %#o",
                                "%#o  ", " %#o ", " \t%#o\t ", NULL };
         const char **fmt;
@@ -362,10 +362,10 @@ MTF_DEFINE_UTEST(param, u32_size_test)
 {
     const u32 av[] = { 0,    1,    2,    3,           4,       2047,        2048,        2049,
                        4095, 4096, 4097, U16_MAX - 1, U16_MAX, U16_MAX + 1, U32_MAX - 1, U32_MAX };
-    char      value[32];
-    merr_t    err;
-    u32       b;
-    int       i;
+    char   value[32];
+    merr_t err;
+    u32    b;
+    int    i;
 
     err = get_u32_size(value, NULL, sizeof(b));
     ASSERT_NE(0, err);
@@ -389,7 +389,7 @@ MTF_DEFINE_UTEST(param, u32_size_test)
     ASSERT_NE(0, err);
 
     for (i = 0; i < ARRAY_SIZE(av); ++i) {
-        const char * fmtv[] = { "%u%c",        "  %u%c",       "%u%c  ",       " %u %c ",
+        const char *fmtv[] = { "%u%c",        "  %u%c",       "%u%c  ",       " %u %c ",
                                " \t%u %c\t ", "%#x%c",        "  %#x%c",      "%#x%c  ",
                                " %#x %c ",    " \t%#x %c\t ", "%#o%c",        "  %#o%c",
                                "%#o%c  ",     " %#o %c ",     " \t%#o %c\t ", NULL };
@@ -488,10 +488,10 @@ MTF_DEFINE_UTEST(param, u64_test)
                        (u64)U32_MAX + 1,
                        U64_MAX - 1,
                        U64_MAX };
-    char      value[32], buf[32];
-    merr_t    err;
-    u64       b;
-    int       i;
+    char   value[32], buf[32];
+    merr_t err;
+    u64    b;
+    int    i;
 
     err = get_u64(value, NULL, sizeof(b));
     ASSERT_NE(0, err);
@@ -525,7 +525,7 @@ MTF_DEFINE_UTEST(param, u64_test)
     ASSERT_EQ(EINVAL, merr_errno(err));
 
     for (i = 0; i < ARRAY_SIZE(av); ++i) {
-        const char * fmtv[] = { "%lu",       "  %lu",      "%lu  ",      " %lu ",
+        const char *fmtv[] = { "%lu",       "  %lu",      "%lu  ",      " %lu ",
                                " \t%lu\t ", "%#lx",       "  %#lx",     "%#lx  ",
                                " %#lx ",    " \t%#lx\t ", "%#lo",       "  %#lo",
                                "%#lo  ",    " %#lo ",     " \t%#lo\t ", NULL };
@@ -561,10 +561,10 @@ MTF_DEFINE_UTEST(param, u64_size_test)
                        2047,    2048,        2049,        4095,        4096,
                        4097,    U16_MAX - 1, U16_MAX,     U16_MAX + 1, U32_MAX - 1,
                        U32_MAX, U32_MAX + 1, U64_MAX - 1, U64_MAX };
-    char      value[32];
-    merr_t    err;
-    u64       b;
-    int       i;
+    char   value[32];
+    merr_t err;
+    u64    b;
+    int    i;
 
     err = get_u64_size(value, NULL, sizeof(b));
     ASSERT_NE(0, err);
@@ -588,7 +588,7 @@ MTF_DEFINE_UTEST(param, u64_size_test)
     ASSERT_NE(0, err);
 
     for (i = 0; i < ARRAY_SIZE(av); ++i) {
-        const char * fmtv[] = { "%lu%c",        "  %lu%c",       "%lu%c  ",       " %lu %c ",
+        const char *fmtv[] = { "%lu%c",        "  %lu%c",       "%lu%c  ",       " %lu %c ",
                                " \t%lu %c\t ", "%#lx%c",        "  %#lx%c",      "%#lx%c  ",
                                " %#lx %c ",    " \t%#lx %c\t ", "%#lo%c",        "  %#lo%c",
                                "%#lo%c  ",     " %#lo %c ",     " \t%#lo %c\t ", NULL };
@@ -626,10 +626,10 @@ MTF_DEFINE_UTEST(param, s64_test)
                        2049,        4095,        4096,        4096,    S16_MAX - 1,
                        S16_MAX,     S16_MAX + 1, S32_MAX - 1, S32_MAX, (s64)S32_MAX + 1,
                        S64_MAX - 1, S64_MAX };
-    char      value[32], buf[32];
-    merr_t    err;
-    s64       b;
-    int       i;
+    char   value[32], buf[32];
+    merr_t err;
+    s64    b;
+    int    i;
 
     err = get_s64(value, NULL, sizeof(b));
     ASSERT_NE(0, err);
@@ -653,7 +653,7 @@ MTF_DEFINE_UTEST(param, s64_test)
     ASSERT_NE(0, err);
 
     for (i = 0; i < ARRAY_SIZE(av); ++i) {
-        const char * fmtv[] = { "%s%ld",       "  %s%ld",      "%s%ld  ",      " %s%ld ",
+        const char *fmtv[] = { "%s%ld",       "  %s%ld",      "%s%ld  ",      " %s%ld ",
                                " \t%s%ld\t ", "%s%#lx",       "  %s%#lx",     "%s%#lx  ",
                                " %s%#lx ",    " \t%s%#lx\t ", "%s%#lo",       "  %s%#lo",
                                "%s%#lo  ",    " %s%#lo ",     " \t%s%#lo\t ", NULL };

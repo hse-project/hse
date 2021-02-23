@@ -11,8 +11,11 @@
 #error "Need LZ4 1.9.2 or higher"
 #endif
 
-static uint
-compress_lz4_estimate(const void *data, uint len)
+static
+uint
+compress_lz4_estimate(
+    const void *data,
+    uint        len)
 {
     if (!len)
         return 0;
@@ -24,8 +27,14 @@ compress_lz4_estimate(const void *data, uint len)
     return (uint)LZ4_compressBound((int)len);
 }
 
-static merr_t
-compress_lz4_compress(const void *src, uint src_len, void *dst, uint dst_capacity, uint *dst_len)
+static
+merr_t
+compress_lz4_compress(
+    const void *src,
+    uint        src_len,
+    void       *dst,
+    uint        dst_capacity,
+    uint       *dst_len)
 {
     int len;
 
@@ -47,8 +56,14 @@ compress_lz4_compress(const void *src, uint src_len, void *dst, uint dst_capacit
     return (len < 1) ? merr(EFBIG) : 0;
 }
 
-static merr_t
-compress_lz4_decompress(const void *src, uint src_len, void *dst, uint dst_capacity, uint *dst_len)
+static
+merr_t
+compress_lz4_decompress(
+    const void *src,
+    uint        src_len,
+    void       *dst,
+    uint        dst_capacity,
+    uint       *dst_len)
 {
     int len;
 
@@ -69,16 +84,9 @@ compress_lz4_decompress(const void *src, uint src_len, void *dst, uint dst_capac
      * version of lz4, or you've unwittingly linked against a buggy version
      * (i.e., any version prior to v1.9.2).
      */
-    if (HSE_UNLIKELY(len < 1)) {
-        hse_log(
-            HSE_ERR "%s: slen %u, cap %u, len %d, src %p, dst %p, ver %s",
-            __func__,
-            src_len,
-            dst_capacity,
-            len,
-            src,
-            dst,
-            LZ4_versionString());
+    if (HSE_UNLIKELY( len < 1 )) {
+        hse_log(HSE_ERR "%s: slen %u, cap %u, len %d, src %p, dst %p, ver %s",
+                __func__, src_len, dst_capacity, len, src, dst, LZ4_versionString());
 
         return merr(EFBIG);
     }
@@ -89,7 +97,7 @@ compress_lz4_decompress(const void *src, uint src_len, void *dst, uint dst_capac
 }
 
 struct compress_ops compress_lz4_ops HSE_READ_MOSTLY = {
-    .cop_estimate = compress_lz4_estimate,
-    .cop_compress = compress_lz4_compress,
+    .cop_estimate   = compress_lz4_estimate,
+    .cop_compress   = compress_lz4_compress,
     .cop_decompress = compress_lz4_decompress,
 };

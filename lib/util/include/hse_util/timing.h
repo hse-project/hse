@@ -16,8 +16,8 @@
 
 BullseyeCoverageSaveOff
 
-    static HSE_ALWAYS_INLINE u64
-    get_time_ns(void)
+static HSE_ALWAYS_INLINE u64
+get_time_ns(void)
 {
     struct timespec ts = { 0, 0 };
 
@@ -31,6 +31,7 @@ get_realtime(struct timespec *ts)
 {
     return clock_gettime(CLOCK_REALTIME, ts);
 }
+
 
 #if __amd64__
 static HSE_ALWAYS_INLINE u64
@@ -53,10 +54,11 @@ get_cycles(void)
 }
 #endif
 
+
 #if __amd64__
-#define VGETCPU_CPU_MASK  0xfff
+#define VGETCPU_CPU_MASK 0xfff
 #define GDT_ENTRY_PER_CPU 15
-#define __PER_CPU_SEG     (GDT_ENTRY_PER_CPU * 8 + 3)
+#define __PER_CPU_SEG (GDT_ENTRY_PER_CPU * 8 + 3)
 
 /* valgrind doesn't grok lsl, so use rdtscp if valgrind is enabled.
  *
@@ -84,6 +86,7 @@ raw_smp_processor_id(void)
 #endif
 
 #define smp_processor_id() raw_smp_processor_id()
+
 
 static inline unsigned int
 num_online_cpus(void)

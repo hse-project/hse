@@ -34,52 +34,52 @@ const char *mtf_verify_file;
 
 /* ========================================================================= */
 
-#define ___MTF_INNER_BEGIN_UTEST_COLLECTION_SHARED(name, pre_hook, post_hook)            \
-                                                                                         \
-    int utest_collection_##name __attribute__((unused)) = 0;                             \
-                                                                                         \
-    struct mtf_test_coll_info    _mtf_##name##_tci = { .tci_coll_name = #name,           \
-                                                    .tci_num_tests = 0,               \
-                                                    .tci_pre_run_hook = (pre_hook),   \
-                                                    .tci_post_run_hook = (post_hook), \
-                                                    .tci_state = ST_INITIALIZING,     \
-                                                    .tci_res_rd_state = RD_READY,     \
-                                                    .tci_res_rd_index = 0,            \
-                                                    .tci_out_rd_state = RD_READY,     \
-                                                    .tci_rock = 0 };                  \
+#define ___MTF_INNER_BEGIN_UTEST_COLLECTION_SHARED(name, pre_hook, post_hook)        \
+                                                                                     \
+    int utest_collection_##name __attribute__((unused)) = 0;                         \
+                                                                                     \
+    struct mtf_test_coll_info _mtf_##name##_tci = {.tci_coll_name = #name,           \
+                                                   .tci_num_tests = 0,               \
+                                                   .tci_pre_run_hook = (pre_hook),   \
+                                                   .tci_post_run_hook = (post_hook), \
+                                                   .tci_state = ST_INITIALIZING,     \
+                                                   .tci_res_rd_state = RD_READY,     \
+                                                   .tci_res_rd_index = 0,            \
+                                                   .tci_out_rd_state = RD_READY,     \
+                                                   .tci_rock = 0 };                  \
     static u16 __mtf_tci_testidx HSE_MAYBE_UNUSED = 0;
 
-#define ___MTF_INNER_BEGIN_UTEST_COLLECTION(name, pre_hook, post_hook)              \
-    ___MTF_INNER_BEGIN_UTEST_COLLECTION_SHARED(name, pre_hook, post_hook)           \
-                                                                                    \
-    union ___mtf_floatint {                                                         \
-        float fv;                                                                   \
-        int   iv;                                                                   \
-    };                                                                              \
-                                                                                    \
-    __attribute__((unused)) static int ___mtf_almost_equal_ulps_and_abs(            \
-        float x, float y, float max_diff, int max_ulps_diff)                        \
-    {                                                                               \
-        union ___mtf_floatint x_fi = { .fv = x };                                   \
-        union ___mtf_floatint y_fi = { .fv = y };                                   \
-                                                                                    \
-        int   x_i = x_fi.iv;                                                        \
-        int   y_i = y_fi.iv;                                                        \
-        float x_f = x_fi.fv;                                                        \
-        float y_f = y_fi.fv;                                                        \
-                                                                                    \
-        float abs_diff = fabsf(x_f - y_f);                                          \
-        if (abs_diff <= max_diff)                                                   \
-            return 1;                                                               \
-                                                                                    \
-        if (((x_i >> 31) != 0) != ((y_i >> 31) != 0))                               \
-            return 0;                                                               \
-                                                                                    \
-        if (abs(x_i - y_i) <= max_ulps_diff)                                        \
-            return 1;                                                               \
-                                                                                    \
-        return 0;                                                                   \
-    }                                                                               \
+#define ___MTF_INNER_BEGIN_UTEST_COLLECTION(name, pre_hook, post_hook)                                                                                                                                                                                                                                                                  \
+    ___MTF_INNER_BEGIN_UTEST_COLLECTION_SHARED(name, pre_hook, post_hook)                                                                                                                                                                                                                                                               \
+                                                                                                                                                                                                                                                                                                                                        \
+    union ___mtf_floatint {                                                                                                                                                                                                                                                                                                             \
+        float fv;                                                                                                                                                                                                                                                                                                                       \
+        int   iv;                                                                                                                                                                                                                                                                                                                       \
+    };                                                                                                                                                                                                                                                                                                                                  \
+                                                                                                                                                                                                                                                                                                                                        \
+    __attribute__((unused)) static int ___mtf_almost_equal_ulps_and_abs(                                                                                                                                                                                                                                                                \
+        float x, float y, float max_diff, int max_ulps_diff)                                                                                                                                                                                                                                                                            \
+    {                                                                                                                                                                                                                                                                                                                                   \
+        union ___mtf_floatint x_fi = {.fv = x };                                                                                                                                                                                                                                                                                        \
+        union ___mtf_floatint y_fi = {.fv = y };                                                                                                                                                                                                                                                                                        \
+                                                                                                                                                                                                                                                                                                                                        \
+        int   x_i = x_fi.iv;                                                                                                                                                                                                                                                                                                            \
+        int   y_i = y_fi.iv;                                                                                                                                                                                                                                                                                                            \
+        float x_f = x_fi.fv;                                                                                                                                                                                                                                                                                                            \
+        float y_f = y_fi.fv;                                                                                                                                                                                                                                                                                                            \
+                                                                                                                                                                                                                                                                                                                                        \
+        float abs_diff = fabsf(x_f - y_f);                                                                                                                                                                                                                                                                                              \
+        if (abs_diff <= max_diff)                                                                                                                                                                                                                                                                                                       \
+            return 1;                                                                                                                                                                                                                                                                                                                   \
+                                                                                                                                                                                                                                                                                                                                        \
+        if (((x_i >> 31) != 0) != ((y_i >> 31) != 0))                                                                                                                                                                                                                                                                                   \
+            return 0;                                                                                                                                                                                                                                                                                                                   \
+                                                                                                                                                                                                                                                                                                                                        \
+        if (abs(x_i - y_i) <= max_ulps_diff)                                                                                                                                                                                                                                                                                            \
+            return 1;                                                                                                                                                                                                                                                                                                                   \
+                                                                                                                                                                                                                                                                                                                                        \
+        return 0;                                                                                                                                                                                                                                                                                                                       \
+    }                                                                                                                                                                                                                                                                                                                                   \
     /*                                                                            \
  * Constructor priority for user test init routines.                          \
  * This priority value must be higher than all the constructor priorities     \

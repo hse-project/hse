@@ -48,7 +48,7 @@ struct nkv_tab {
 };
 
 /* Values for 'int be` member of struct nkv_tab */
-#define KVDATA_BE_KEY  true
+#define KVDATA_BE_KEY true
 #define KVDATA_INT_KEY false
 
 /*

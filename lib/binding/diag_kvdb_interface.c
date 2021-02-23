@@ -25,7 +25,10 @@
 #include <sys/types.h>
 
 merr_t
-diag_kvdb_open(const char *mpool_name, struct kvdb_rparams *rparams, struct hse_kvdb **handle)
+diag_kvdb_open(
+    const char *         mpool_name,
+    struct kvdb_rparams *rparams,
+    struct hse_kvdb **   handle)
 {
     merr_t              err;
     struct ikvdb *      ikvdb;
@@ -59,7 +62,7 @@ diag_kvdb_open(const char *mpool_name, struct kvdb_rparams *rparams, struct hse_
      * Need exclusive access to prevent multiple applications from
      * working on the same KVDB, which would cause corruption.
      */
-    err = mpool_open(mpool_name, O_RDWR | O_EXCL, &kvdb_ds, NULL);
+    err = mpool_open(mpool_name, O_RDWR|O_EXCL, &kvdb_ds, NULL);
     if (ev(err))
         return err;
 

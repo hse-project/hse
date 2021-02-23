@@ -61,7 +61,7 @@ struct curcache {
     struct mutex         cca_lock;
     struct rb_root       cca_root;
     struct cache_bucket *cca_bkt_head;
-    struct table *       cca_c0curtab;
+    struct table        *cca_c0curtab;
 } HSE_ALIGNED(SMP_CACHE_BYTES * 2);
 
 struct ikvs {
@@ -76,8 +76,8 @@ struct ikvs {
 
     struct kvs_rparams ikv_rp;
 
-    const char *         ikv_kvs_name;
-    const char *         ikv_mpool_name;
+    const char *ikv_kvs_name;
+    const char *ikv_mpool_name;
     struct cache_bucket *ikv_curcache_bktmem;
 
     /* The width of the cursor cache divided by two should
@@ -120,11 +120,8 @@ struct perfc_name kvs_cc_perfc_op[] = {
     NE(PERFC_BA_CC_TOMB_SKIPS, 3, "Count of cursor c0 tomb skips", "c_c0_tomb_skips"),
     NE(PERFC_BA_CC_TOMB_SKIPLEN, 3, "Count of cursor c0 tombs skipped (len)", "c_c0_tombs_skipped"),
     NE(PERFC_BA_CC_TOMB_SPAN_ADD, 3, "Count of cursor c0 tombs added to span", "c_c0_tombs_add"),
-    NE(PERFC_BA_CC_TOMB_SPAN_TIME,
-       3,
-       "Tomb span build time since invalidate",
-       "c_c0_tombspan_"
-       "time")
+    NE(PERFC_BA_CC_TOMB_SPAN_TIME, 3, "Tomb span build time since invalidate", "c_c0_tombspan_"
+                                                                               "time")
 };
 
 NE_CHECK(kvs_cc_perfc_op, PERFC_EN_CC, "cursor cache perfc ops table/enum mismatch");
@@ -1029,7 +1026,7 @@ ikvs_td2cca(struct ikvs *kvs, u64 pfxhash)
 {
     uint cpuid, nodeid, i;
 
-    if (HSE_UNLIKELY(syscall(SYS_getcpu, &cpuid, &nodeid, NULL)))
+    if (HSE_UNLIKELY( syscall(SYS_getcpu, &cpuid, &nodeid, NULL) ))
         nodeid = raw_smp_processor_id();
 
     i = pthread_self() % (NELEM(kvs->ikv_curcachev) / 2);
@@ -1181,7 +1178,8 @@ ikvs_cursor_reset(struct kvs_cursor_impl *cursor, int bit)
         cursor->kci_cd_pc = &kvs->ikv_cd_pc;
 }
 
-__attribute__((__noinline__)) static struct kvs_cursor_impl *
+__attribute__((__noinline__))
+static struct kvs_cursor_impl *
 ikvs_cursor_restore(struct ikvs *kvs, const void *prefix, size_t pfx_len, u64 pfxhash, bool reverse)
 {
     struct kvs_cursor_impl *cur;
@@ -1412,7 +1410,7 @@ ikvs_cursor_free(struct hse_kvs_cursor *cursor)
 }
 
 static HSE_ALWAYS_INLINE u64
-now(void)
+                       now(void)
 {
     struct timespec ts;
 
@@ -2034,7 +2032,8 @@ repeat:
     /* If we needed to seek, toss read key if it matches last and kci_toss is true */
     if ((need_seek && cursor->kci_last) || cursor->kci_force_toss) {
         cursor->kci_force_toss = 0;
-        if (!keycmp(key, klen, cursor->kci_last_kbuf, cursor->kci_last_klen) && cursor->kci_toss)
+        if (!keycmp(key, klen, cursor->kci_last_kbuf, cursor->kci_last_klen) &&
+            cursor->kci_toss)
             toss = true;
     }
 

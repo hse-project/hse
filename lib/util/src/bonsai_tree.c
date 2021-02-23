@@ -7,8 +7,8 @@
 
 #include "bonsai_tree_pvt.h"
 
-#define BN_INSERT_FLAG_RIGHT 0x01u
-#define BN_INSERT_FLAG_TOMB  0x02u
+#define BN_INSERT_FLAG_RIGHT    0x01u
+#define BN_INSERT_FLAG_TOMB     0x02u
 
 static struct bonsai_node *
 bn_ior_replace(
@@ -41,15 +41,15 @@ bn_ior_replace(
 
 static struct bonsai_node *
 bn_ior_insert(
-    struct bonsai_root *        tree,
+    struct bonsai_root         *tree,
     const struct key_immediate *key_imm,
-    const void *                key,
-    const struct bonsai_sval *  sval,
-    struct bonsai_kv *          parent,
+    const void                 *key,
+    const struct bonsai_sval   *sval,
+    struct bonsai_kv           *parent,
     u32                         flags)
 {
-    struct bonsai_kv *   head, *prev_span, *next_span;
-    struct bonsai_node * node;
+    struct bonsai_kv *head, *prev_span, *next_span;
+    struct bonsai_node *node;
     enum bonsai_ior_code code;
 
     node = bn_node_alloc(tree, key_imm, key, sval);
@@ -112,26 +112,25 @@ bn_ior_insert(
  * of the bonsai node pointer to remember which way it went when
  * searching for the insertion point.
  */
-#define BN_IOR_RIGHT ((uintptr_t)BN_INSERT_FLAG_RIGHT)
-#define BN_IOR_MASK  ((uintptr_t)(sizeof(uintptr_t) - 1))
+#define BN_IOR_RIGHT    ((uintptr_t)BN_INSERT_FLAG_RIGHT)
+#define BN_IOR_MASK     ((uintptr_t)(sizeof(uintptr_t) - 1))
 
-_Static_assert(
-    BN_IOR_RIGHT > 0 && BN_IOR_RIGHT < BN_IOR_MASK,
-    "bn_ior_impl() requires BN_INSERT_FLAG_RIGHT to be 1 or 2");
+_Static_assert(BN_IOR_RIGHT > 0 && BN_IOR_RIGHT < BN_IOR_MASK,
+               "bn_ior_impl() requires BN_INSERT_FLAG_RIGHT to be 1 or 2");
 
 static struct bonsai_node *
 bn_ior_impl(
-    struct bonsai_root *        tree,
-    struct bonsai_node *        node,
+    struct bonsai_root         *tree,
+    struct bonsai_node         *node,
     const struct key_immediate *key_imm,
-    const void *                key,
-    const struct bonsai_sval *  sval,
-    struct bonsai_kv *          parent,
+    const void                 *key,
+    const struct bonsai_sval   *sval,
+    struct bonsai_kv           *parent,
     u32                         flags)
 {
     struct bonsai_node *prev;
-    int                 n = 0;
-    s32                 res;
+    int n = 0;
+    s32 res;
 
     /* Find the position to insert or node to replace, keeping track
      * of all nodes visited and which way (left or right) we went...
@@ -357,8 +356,8 @@ bn_insert_or_replace(
     oldroot = tree->br_root;
     flags = is_tomb ? BN_INSERT_FLAG_TOMB : 0;
 
-    newroot =
-        bn_ior_impl(tree, oldroot, &skey->bsk_key_imm, skey->bsk_key, sval, &tree->br_kv, flags);
+    newroot = bn_ior_impl(tree, oldroot, &skey->bsk_key_imm, skey->bsk_key,
+                          sval, &tree->br_kv, flags);
     if (!newroot)
         return merr(ENOMEM);
 
@@ -495,7 +494,7 @@ bn_reset(struct bonsai_root *tree)
 
 merr_t
 bn_create(
-    struct cheap *       cheap,
+    struct cheap        *cheap,
     size_t               slabsz,
     bonsai_ior_cb        cb,
     void *               rock,
@@ -563,7 +562,8 @@ bn_finalize(struct bonsai_root *tree)
     }
 }
 
-__attribute__((__cold__)) static void
+__attribute__((__cold__))
+static void
 _bn_traverse(struct bonsai_node *node)
 {
     struct bonsai_node *left;
@@ -582,7 +582,8 @@ _bn_traverse(struct bonsai_node *node)
         _bn_traverse(right);
 }
 
-__attribute__((__cold__)) void
+__attribute__((__cold__))
+void
 bn_traverse(struct bonsai_root *tree)
 {
     struct bonsai_node *root;

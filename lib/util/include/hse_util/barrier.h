@@ -22,7 +22,7 @@
 /* Faster than mfence:  https://lore.kernel.org/patchwork/patch/850075/
  */
 #if __amd64__
-#define smp_mb() asm volatile("lock; addl $0,-4(%%rsp)" : : : "memory", "cc")
+#define smp_mb()    asm volatile("lock; addl $0,-4(%%rsp)" : : : "memory", "cc")
 
 #else
 #error smp_mb not implemented for this architecture

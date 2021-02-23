@@ -119,10 +119,10 @@ struct hse_kvdb_opspec {
         (os)->kop_txn = NULL;          \
     } while (0)
 
-#define HSE_KVDB_KOP_FLAG_REVERSE     0x01 /**< reverse cursor */
-#define HSE_KVDB_KOP_FLAG_BIND_TXN    0x02 /**< cursor bound to transaction */
+#define HSE_KVDB_KOP_FLAG_REVERSE 0x01     /**< reverse cursor */
+#define HSE_KVDB_KOP_FLAG_BIND_TXN 0x02    /**< cursor bound to transaction */
 #define HSE_KVDB_KOP_FLAG_STATIC_VIEW 0x04 /**< bound cursor's view is static */
-#define HSE_KVDB_KOP_FLAG_PRIORITY    0x08 /**< op won't be throttled @see, hse_kvs_put */
+#define HSE_KVDB_KOP_FLAG_PRIORITY 0x08    /**< op won't be throttled @see, hse_kvs_put */
 
 /**@}*/
 
@@ -212,6 +212,7 @@ int
 hse_err_to_errno(hse_err_t err);
 
 /**@}*/
+
 
 /** @name Primary Lifecycle Functions
  *        =====================================================
@@ -343,10 +344,10 @@ hse_kvdb_kvs_drop(struct hse_kvdb *kvdb, const char *kvs_name);
  */
 hse_err_t
 hse_kvdb_kvs_open(
-    struct hse_kvdb *        kvdb,
-    const char *             kvs_name,
-    const struct hse_params *params,
-    struct hse_kvs **        kvs_out);
+    struct hse_kvdb            *kvdb,
+    const char                 *kvs_name,
+    const struct hse_params    *params,
+    struct hse_kvs            **kvs_out);
 
 /**
  * Close an open KVS
@@ -361,6 +362,7 @@ hse_err_t
 hse_kvdb_kvs_close(struct hse_kvs *kvs);
 
 /**@}*/
+
 
 /** @name Create / Read / Update / Delete (CRUD) Functions
  *        =====================================================
@@ -486,6 +488,7 @@ hse_kvs_prefix_delete(
     size_t *                kvs_pfx_len);
 
 /**@}*/
+
 
 /** @name Transaction Functions
  *        =====================================================
@@ -627,6 +630,7 @@ enum hse_kvdb_txn_state
 hse_kvdb_txn_get_state(struct hse_kvdb *kvdb, struct hse_kvdb_txn *txn);
 
 /**@}*/
+
 
 /** @name Cursor Functions
  *        =====================================================
@@ -824,6 +828,7 @@ hse_kvs_cursor_destroy(struct hse_kvs_cursor *cursor);
 
 /**@}*/
 
+
 /** @name Data State Management Functions
  *        =====================================================
  * @{
@@ -849,7 +854,7 @@ hse_err_t
 hse_kvdb_flush(struct hse_kvdb *kvdb);
 
 /* Flags for hse_kvdb_compact() */
-#define HSE_KVDB_COMP_FLAG_CANCEL   0x01
+#define HSE_KVDB_COMP_FLAG_CANCEL 0x01
 #define HSE_KVDB_COMP_FLAG_SAMP_LWM 0x02
 
 /**
@@ -901,6 +906,7 @@ hse_err_t
 hse_kvdb_compact_status_get(struct hse_kvdb *kvdb, struct hse_kvdb_compact_status *status);
 
 /**@}*/
+
 
 /** @name Configuration Parameter Functions
  *        =====================================================
@@ -1003,11 +1009,11 @@ hse_params_set(struct hse_params *params, const char *key, const char *val);
  */
 char *
 hse_params_get(
-    const struct hse_params *params,
-    const char *             key,
-    char *                   buf,
-    size_t                   buf_len,
-    size_t *                 param_len);
+    const struct hse_params    *params,
+    const char                 *key,
+    char                       *buf,
+    size_t                      buf_len,
+    size_t                     *param_len);
 
 /**@}*/
 

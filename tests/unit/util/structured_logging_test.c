@@ -21,7 +21,7 @@
 
 #define MAX_MSG_SIZE 1000
 #define MAX_NV_PAIRS 50
-#define MAX_NV_SIZE  100
+#define MAX_NV_SIZE 100
 
 struct logging_result {
     char msg_buffer[MAX_MSG_SIZE];
@@ -176,7 +176,7 @@ MTF_DEFINE_UTEST(structured_logging_test, test_config)
     int                      def_x1 = 2;
     int                      ix = 0;
     struct dt_element        dte;
-    struct dt_set_parameters dsp = { .value = "42", .value_len = 3, .field = DT_FIELD_DATA };
+    struct dt_set_parameters dsp = {.value = "42", .value_len = 3, .field = DT_FIELD_DATA };
 
     cfg =
         CFG("laptop/lenovo",

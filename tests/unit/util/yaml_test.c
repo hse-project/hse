@@ -231,8 +231,7 @@ MTF_DEFINE_UTEST(yaml, yaml_single_element_type)
 {
     char *              buf;
     struct yaml_context yc = {
-        .yaml_indent = 0,
-        .yaml_offset = 0,
+        .yaml_indent = 0, .yaml_offset = 0,
     };
     struct test_mix *test_list = NULL;
     int              ret;
@@ -270,8 +269,7 @@ MTF_DEFINE_UTEST(yaml, yaml_successive_element_types)
 {
     char *              buf;
     struct yaml_context yc = {
-        .yaml_indent = 0,
-        .yaml_offset = 0,
+        .yaml_indent = 0, .yaml_offset = 0,
     };
     struct test_mix *test_list = NULL;
     int              ret;
@@ -304,8 +302,7 @@ MTF_DEFINE_UTEST(yaml, yaml_first_element)
 {
     char *              buf;
     struct yaml_context yc = {
-        .yaml_indent = 0,
-        .yaml_offset = 0,
+        .yaml_indent = 0, .yaml_offset = 0,
     };
     struct test_mix *test_list = NULL;
     int              ret;
@@ -342,8 +339,7 @@ MTF_DEFINE_UTEST(yaml, yaml_first_element_field)
 {
     char *              buf;
     struct yaml_context yc = {
-        .yaml_indent = 0,
-        .yaml_offset = 0,
+        .yaml_indent = 0, .yaml_offset = 0,
     };
     struct test_mix *test_list = NULL;
     int              ret;
@@ -394,8 +390,7 @@ MTF_DEFINE_UTEST(yaml, yaml_element_type_after_element)
 {
     char *              buf;
     struct yaml_context yc = {
-        .yaml_indent = 0,
-        .yaml_offset = 0,
+        .yaml_indent = 0, .yaml_offset = 0,
     };
     struct test_mix *test_list = NULL;
     int              ret;
@@ -436,8 +431,7 @@ MTF_DEFINE_UTEST(yaml, yaml_element_type_after_element_field)
 {
     char *              buf;
     struct yaml_context yc = {
-        .yaml_indent = 0,
-        .yaml_offset = 0,
+        .yaml_indent = 0, .yaml_offset = 0,
     };
     struct test_mix *test_list = NULL;
     int              ret;
@@ -482,8 +476,7 @@ MTF_DEFINE_UTEST(yaml, yaml_first_element_list)
 {
     char *              buf;
     struct yaml_context yc = {
-        .yaml_indent = 0,
-        .yaml_offset = 0,
+        .yaml_indent = 0, .yaml_offset = 0,
     };
     struct test_mix *test_list = NULL;
     int              ret;
@@ -534,8 +527,7 @@ MTF_DEFINE_UTEST(yaml, yaml_element_type_after_element_list)
 {
     char *              buf;
     struct yaml_context yc = {
-        .yaml_indent = 0,
-        .yaml_offset = 0,
+        .yaml_indent = 0, .yaml_offset = 0,
     };
     struct test_mix *test_list = NULL;
     int              ret;
@@ -583,9 +575,7 @@ MTF_DEFINE_UTEST(yaml, yaml_emit_and_rewind_test)
     char                line[16];
     int                 i, j;
     struct yaml_context yc = {
-        .yaml_prev = Yaml_Context_Type_Invalid,
-        .yaml_indent = 0,
-        .yaml_offset = 0,
+        .yaml_prev = Yaml_Context_Type_Invalid, .yaml_indent = 0, .yaml_offset = 0,
     };
 
     line[14] = '\0';

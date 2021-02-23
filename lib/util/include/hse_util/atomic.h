@@ -363,6 +363,7 @@ atomic64_cas(atomic64_t *v, long oldv, long newv)
         &v->counter, &retv, newv, 0, __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST);
 }
 
+
 /*
  * atomic_ptr_cmpxchg()
  *

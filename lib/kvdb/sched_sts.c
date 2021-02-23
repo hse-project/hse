@@ -31,16 +31,16 @@
 #endif /* HSE_UNIT_TEST_MODE */
 
 /* Scheduler state */
-#define SS_RUN   0
+#define SS_RUN 0
 #define SS_PAUSE 1
-#define SS_EXIT  2
+#define SS_EXIT 2
 
 /* Sleep/wait times, milliseconds */
-#define EXIT_SLEEP_MS          3
-#define WORKER_INIT_SLEEP_MS   3
-#define WORKER_PAUSE_SLEEP_MS  100
-#define JOB_GET_TIMEOUT_MS     10
-#define MONITOR_TIMEOUT_MS     250
+#define EXIT_SLEEP_MS 3
+#define WORKER_INIT_SLEEP_MS 3
+#define WORKER_PAUSE_SLEEP_MS 100
+#define JOB_GET_TIMEOUT_MS 10
+#define MONITOR_TIMEOUT_MS 250
 #define STATS_REPORT_PERIOD_MS 1000
 
 /* A worker thread */
@@ -91,11 +91,11 @@ struct sts {
 };
 
 /* queue lock */
-#define q_lock(s)   mutex_lock(&(s)->qlock)
+#define q_lock(s) mutex_lock(&(s)->qlock)
 #define q_unlock(s) mutex_unlock(&(s)->qlock)
 
 /* monitor lock */
-#define m_lock(s)   mutex_lock(&(s)->mlock)
+#define m_lock(s) mutex_lock(&(s)->mlock)
 #define m_unlock(s) mutex_unlock(&(s)->mlock)
 
 static void

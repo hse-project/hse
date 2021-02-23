@@ -3188,7 +3188,7 @@ cndb_txn_txc(
     err = cndb_journal_adopt(cndb, (void **)&txc, sz);
     ev(err, HSE_ERR);
 
-out:
+  out:
     if (txc != txcbuf)
         free(txc);
 
@@ -3236,7 +3236,7 @@ cndb_txn_txd(struct cndb *cndb, u64 txid, u64 cnid, u64 tag, int n_oids, u64 *oi
     err = cndb_journal_adopt(cndb, (void **)&txd, sz);
     ev(err, HSE_ERR);
 
-out:
+  out:
     if (txd != txdbuf)
         free(txd);
 

@@ -11,33 +11,35 @@
 #include <pthread.h>
 #include <sys/prctl.h>
 
-static volatile bool          timer_running;
-static struct list_head       timer_list;
+static volatile bool timer_running;
+static struct list_head timer_list;
 static spinlock_t timer_xlock HSE_ALIGNED(64);
 
-static struct work_struct                timer_jclock_work;
-static struct work_struct                timer_dispatch_work;
+static struct work_struct timer_jclock_work;
+static struct work_struct timer_dispatch_work;
 static struct workqueue_struct *timer_wq HSE_ALIGNED(64);
 
 unsigned long timer_nslpmin HSE_READ_MOSTLY;
-unsigned long timer_slack   HSE_READ_MOSTLY;
-unsigned long tsc_freq      HSE_READ_MOSTLY;
-unsigned long tsc_mult      HSE_READ_MOSTLY;
-unsigned int tsc_shift      HSE_READ_MOSTLY;
+unsigned long timer_slack HSE_READ_MOSTLY;
+unsigned long tsc_freq HSE_READ_MOSTLY;
+unsigned long tsc_mult HSE_READ_MOSTLY;
+unsigned int tsc_shift HSE_READ_MOSTLY;
 
 struct timer_jclock timer_jclock;
 
-__attribute__((__noinline__)) u64
+__attribute__((__noinline__))
+u64
 timer_calibrate_nsleep(void)
 {
-    struct timespec req = { .tv_nsec = 1 };
+    struct timespec req = {.tv_nsec = 1 };
 
     clock_nanosleep(CLOCK_MONOTONIC, 0, &req, NULL);
 
     return get_cycles();
 }
 
-__attribute__((__noinline__)) u64
+__attribute__((__noinline__))
+u64
 timer_calibrate_gtns(void)
 {
     get_time_ns();
@@ -45,13 +47,15 @@ timer_calibrate_gtns(void)
     return get_cycles();
 }
 
-__attribute__((__noinline__)) u64
+__attribute__((__noinline__))
+u64
 timer_calibrate_gc(void)
 {
     return get_cycles();
 }
 
-__attribute__((__noinline__)) u64
+__attribute__((__noinline__))
+u64
 timer_calibrate_loop(int itermax, u64 (*func)(void), u64 *minresp)
 {
     u64 mincycles, minres;
@@ -92,9 +96,9 @@ static void
 timer_calibrate(ulong delay)
 {
     static ulong cps_start, nsecs_start;
-    ulong        cyc_loop, cyc_gc, cyc_gtns, cyc_nsleep, gc, gtns;
-    ulong        cps, nsecs, diff;
-    int          imax = 32768, rc;
+    ulong cyc_loop, cyc_gc, cyc_gtns, cyc_nsleep, gc, gtns;
+    ulong cps, nsecs, diff;
+    int imax = 32768, rc;
 
     if (!cps_start) {
         cps_start = get_cycles();
@@ -147,21 +151,11 @@ timer_calibrate(ulong delay)
     if (timer_nslpmin > timer_slack * 2)
         timer_nslpmin = timer_slack;
 
-    hse_log(
-        HSE_NOTICE "%s: get_cycles %lu/%lucy %lu/%luns, get_time_ns %lu/%lucy %lu/%luns, c/s %lu, "
-                   "timerslack %lu/%lu",
-        __func__,
-        cyc_gc,
-        gc,
-        cycles_to_nsecs(cyc_gc),
-        cycles_to_nsecs(gc),
-        cyc_gtns,
-        gtns - gc,
-        cycles_to_nsecs(cyc_gtns),
-        cycles_to_nsecs(gtns - gc),
-        cps,
-        timer_nslpmin,
-        timer_slack);
+    hse_log(HSE_NOTICE
+            "%s: get_cycles %lu/%lucy %lu/%luns, get_time_ns %lu/%lucy %lu/%luns, c/s %lu, timerslack %lu/%lu",
+            __func__, cyc_gc, gc, cycles_to_nsecs(cyc_gc), cycles_to_nsecs(gc),
+            cyc_gtns, gtns - gc, cycles_to_nsecs(cyc_gtns), cycles_to_nsecs(gtns - gc),
+            cps, timer_nslpmin, timer_slack);
 }
 
 static HSE_ALWAYS_INLINE void
@@ -199,7 +193,7 @@ timer_jclock_cb(struct work_struct *work)
 
     while (timer_running) {
         struct timespec ts;
-        unsigned long   now, jnow;
+        unsigned long now, jnow;
 
         clock_gettime(CLOCK_MONOTONIC, &ts);
         now = ts.tv_sec * NSEC_PER_SEC + ts.tv_nsec;

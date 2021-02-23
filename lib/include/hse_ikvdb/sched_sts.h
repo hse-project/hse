@@ -19,7 +19,7 @@ struct kvdb_rparams;
  *   are stored in u8 types.
  */
 #define STS_QTHREADS_MAX UINT8_MAX
-#define STS_QWEIGHT_MAX  UINT8_MAX
+#define STS_QWEIGHT_MAX UINT8_MAX
 
 #define STS_QUEUES_MAX 5
 

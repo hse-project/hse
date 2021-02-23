@@ -40,7 +40,8 @@
 /* A cursor k/v buffer must be able to hold both a full size key and full size value.
  * The value follows the key and starts on an 8-byte alignment after the key.
  */
-#define C0_CURSOR_BUFSZ (HSE_KVS_KLEN_MAX + HSE_KVS_VLEN_MAX + 8)
+#define C0_CURSOR_BUFSZ     (HSE_KVS_KLEN_MAX + HSE_KVS_VLEN_MAX + 8)
+
 
 void
 c0sk_perfc_alloc(struct c0sk_impl *self)
@@ -413,8 +414,7 @@ c0sk_pfx_probe(
             pfx_seq = HSE_SQNREF_TO_ORDNL(ptomb_seqref);
         }
 
-        err = c0kvms_pfx_probe_rcu(
-            c0kvms, skidx, kt, sfx_len, view_seq, seqref, res, qctx, kbuf, vbuf, pfx_seq);
+        err = c0kvms_pfx_probe_rcu(c0kvms, skidx, kt, sfx_len, view_seq, seqref, res, qctx, kbuf, vbuf, pfx_seq);
         if (ev(err))
             break;
 
@@ -760,7 +760,7 @@ c0sk_sync(struct c0sk *handle)
 static void
 c0sk_cursor_debug_val(struct c0_cursor *cur, uintptr_t seqnoref, struct bonsai_kv *bkv);
 
-#define MSCUR_NEXT(_p)         es2mscur(((_p)->c0mc_es.es_next_src))
+#define MSCUR_NEXT(_p) es2mscur(((_p)->c0mc_es.es_next_src))
 #define MSCUR_SET_NEXT(_p, _q) ((_p)->c0mc_es.es_next_src = (void *)(_q))
 
 /*
@@ -1463,17 +1463,12 @@ c0sk_cursor_seek(
 }
 
 static merr_t
-copy_kv(
-    void *              buf,
-    size_t              bufsz,
-    struct kvs_kvtuple *kvt,
-    struct bonsai_kv *  bkv,
-    struct bonsai_val * val)
+copy_kv(void *buf, size_t bufsz, struct kvs_kvtuple *kvt, struct bonsai_kv *bkv, struct bonsai_val *val)
 {
     struct key_immediate *imm = &bkv->bkv_key_imm;
-    u32                   klen = key_imm_klen(imm);
-    uint                  clen, ulen, outlen;
-    merr_t                err;
+    u32 klen = key_imm_klen(imm);
+    uint clen, ulen, outlen;
+    merr_t err;
 
     memcpy(buf, bkv->bkv_key, klen);
     kvs_ktuple_init_nohash(&kvt->kvt_key, buf, klen);
@@ -1544,11 +1539,11 @@ c0sk_cursor_read(struct c0_cursor *cur, struct kvs_kvtuple *kvt, bool *eof)
 {
     struct bonsai_kv *bkv, *dup;
     uintptr_t         seqnoref;
-    merr_t            err;
+    merr_t err;
 
     if (cur->c0cur_state != C0CUR_STATE_READY) {
-        char *last = cur->c0cur_buf;
-        int   len = cur->c0cur_keylen;
+        char * last = cur->c0cur_buf;
+        int    len = cur->c0cur_keylen;
 
         if (cur->c0cur_state & C0CUR_STATE_NEED_INIT)
             if (c0sk_cursor_init(cur))
@@ -1564,7 +1559,7 @@ c0sk_cursor_read(struct c0_cursor *cur, struct kvs_kvtuple *kvt, bool *eof)
 
     while (bin_heap2_pop(cur->c0cur_bh, (void **)&bkv)) {
         struct key_immediate *imm = &bkv->bkv_key_imm;
-        struct bonsai_val *   val;
+        struct bonsai_val    *val;
         u32                   klen = key_imm_klen(imm);
         bool                  is_ptomb = bkv->bkv_flags & BKV_FLAG_PTOMB;
 
@@ -1586,8 +1581,9 @@ c0sk_cursor_read(struct c0_cursor *cur, struct kvs_kvtuple *kvt, bool *eof)
 
         if (cur->c0cur_filter &&
             keycmp(
-                bkv->bkv_key, klen, cur->c0cur_filter->kcf_maxkey, cur->c0cur_filter->kcf_maxklen) >
-                0) {
+                bkv->bkv_key, klen,
+                cur->c0cur_filter->kcf_maxkey,
+                cur->c0cur_filter->kcf_maxklen) > 0) {
             /* eof */
             break;
         }
@@ -1602,8 +1598,8 @@ c0sk_cursor_read(struct c0_cursor *cur, struct kvs_kvtuple *kvt, bool *eof)
         assert(!HSE_CORE_IS_PTOMB(val->bv_valuep) || is_ptomb);
 
         if (cur->c0cur_ptomb_key) {
-            if (keycmp_prefix(cur->c0cur_ptomb_key, cur->c0cur_ct_pfx_len, bkv->bkv_key, klen) ==
-                0) {
+            if (keycmp_prefix(
+                    cur->c0cur_ptomb_key, cur->c0cur_ct_pfx_len, bkv->bkv_key, klen) == 0) {
                 /* If this val is from txn kvms, do not compare
                  * seqnos.
                  */
@@ -1873,13 +1869,14 @@ c0sk_cursor_update(
 
 BullseyeCoverageSaveOff
 
-    HSE_USED HSE_COLD void
-    c0sk_cursor_debug_base(
-        struct c0sk *handle,
-        u64          seqno,
-        const void * prefix,
-        int          pfx_len,
-        int          skidx)
+HSE_USED HSE_COLD
+void
+c0sk_cursor_debug_base(
+    struct c0sk *handle,
+    u64          seqno,
+    const void  *prefix,
+    int          pfx_len,
+    int          skidx)
 {
     struct cursor_summary summary;
     struct c0_cursor *    cur;
@@ -1926,14 +1923,16 @@ BullseyeCoverageSaveOff
         return;
 }
 
-HSE_USED HSE_COLD void
+HSE_USED HSE_COLD
+void
 c0sk_cursor_debug(struct c0_cursor *cur)
 {
     c0sk_cursor_debug_base(
         cur->c0cur_c0sk, cur->c0cur_seqno, cur->c0cur_prefix, cur->c0cur_pfx_len, cur->c0cur_skidx);
 }
 
-HSE_USED HSE_COLD static void
+HSE_USED HSE_COLD
+static void
 c0sk_cursor_debug_val(struct c0_cursor *cur, uintptr_t seqnoref, struct bonsai_kv *bkv)
 {
     char buf[256];
@@ -1953,8 +1952,8 @@ c0sk_cursor_debug_val(struct c0_cursor *cur, uintptr_t seqnoref, struct bonsai_k
 
 BullseyeCoverageRestore
 
-    struct cn *
-    c0sk_get_cn(struct c0sk_impl *c0sk, u64 skidx)
+struct cn *
+c0sk_get_cn(struct c0sk_impl *c0sk, u64 skidx)
 {
     return c0sk->c0sk_cnv[skidx];
 }

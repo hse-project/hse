@@ -20,7 +20,7 @@ struct c0_kvmultiset;
 struct csched;
 
 #define TOMBSPAN_INVALIDATE_COUNT 256
-#define c0sk_h2r(handle)          container_of(handle, struct c0sk_impl, c0sk_handle)
+#define c0sk_h2r(handle) container_of(handle, struct c0sk_impl, c0sk_handle)
 
 struct c0sk {
 };
@@ -100,9 +100,9 @@ struct c0sk_impl {
     int      c0sk_nslpmin;
     u64      c0sk_release_gen;
 
-    atomic64_t *c0sk_kvdb_seq;
-    bool        c0sk_closing;
-    bool        c0sk_syncing;
+    atomic64_t *          c0sk_kvdb_seq;
+    bool                  c0sk_closing;
+    bool                  c0sk_syncing;
 
     HSE_ALIGNED(SMP_CACHE_BYTES) atomic64_t c0sk_c0ing_bldrs;
 

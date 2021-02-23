@@ -40,7 +40,8 @@ merr_pack(int errnum, const char *file, int line)
     if (!IS_ALIGNED((ulong)file, sizeof(file)))
         file = hse_merr_bug0; /* invalid file */
 
-    if (!(file > (char *)&__start_hse_merr || file < (char *)&__stop_hse_merr))
+    if (!(file > (char *)&__start_hse_merr ||
+          file < (char *)&__stop_hse_merr))
         goto finish; /* file outside libhse */
 
     if (!IS_ALIGNED((ulong)file, MERR_ALIGN))
@@ -51,7 +52,7 @@ merr_pack(int errnum, const char *file, int line)
     if (((s64)((u64)off << MERR_FILE_SHIFT) >> MERR_FILE_SHIFT) == off)
         err = (u64)off << MERR_FILE_SHIFT;
 
-finish:
+  finish:
     err |= (1ul << MERR_RSVD_SHIFT);
     err |= ((u64)line << MERR_LINE_SHIFT) & MERR_LINE_MASK;
     err |= errnum & MERR_ERRNO_MASK;
@@ -76,7 +77,8 @@ merr_file(merr_t err)
 
     file = hse_merr_base + (off * MERR_ALIGN);
 
-    if (!(file > (char *)&__start_hse_merr || file < (char *)&__stop_hse_merr))
+    if (!(file > (char *)&__start_hse_merr ||
+          file < (char *)&__stop_hse_merr))
         file = hse_merr_bug3;
 
     /* [HSE_REVISIT] We can simply 'return file;' here once we teach
@@ -101,7 +103,7 @@ merr_strerror(merr_t err, char *buf, size_t buf_sz)
 {
     int    errnum = merr_errno(err);
     int    rc;
-    char * errbuf;
+    char  *errbuf;
     size_t need_sz;
 
     const size_t errbuf_sz = 1000;
@@ -165,7 +167,8 @@ merr_strinfo(merr_t err, char *buf, size_t buf_sz, size_t *need_sz)
              */
             if (need_sz)
                 *need_sz = sz + 200;
-        } else {
+        }
+        else {
             off = sz;
             sz = merr_strerror(err, buf + off, buf_sz - off);
 

@@ -147,7 +147,7 @@ json_element_end(struct json_context *jc)
     jc->json_depth--;
 
     if (*(jc->json_buf + jc->json_offset - 1) != '{')
-        jc->json_offset--;
+	    jc->json_offset--;
 
     if (jc->json_depth)
         _json_snprintf(jc, "},");

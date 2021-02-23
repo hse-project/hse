@@ -33,10 +33,9 @@ MTF_DEFINE_UTEST(perfc, perfc_basic_create_find_and_remove)
 {
     size_t              count;
     struct yaml_context yc = {
-        .yaml_indent = 0,
-        .yaml_offset = 0,
+        .yaml_indent = 0, .yaml_offset = 0,
     };
-    union dt_iterate_parameters dip = { .yc = &yc };
+    union dt_iterate_parameters dip = {.yc = &yc };
     struct dt_element *         dte;
     int                         rc, n;
     char                        path[128];
@@ -93,8 +92,7 @@ MTF_DEFINE_UTEST(perfc, perfc_basic_set)
 {
     size_t              count;
     struct yaml_context yc = {
-        .yaml_indent = 0,
-        .yaml_offset = 0,
+        .yaml_indent = 0, .yaml_offset = 0,
     };
     union dt_iterate_parameters dip;
     struct dt_element *         dte;
@@ -265,8 +263,7 @@ MTF_DEFINE_UTEST(perfc, perfc_verbosity_set_test)
     int                         count;
 
     struct yaml_context yc = {
-        .yaml_indent = 0,
-        .yaml_offset = 0,
+        .yaml_indent = 0, .yaml_offset = 0,
     };
 
     ctrnames.pcn_desc = "mycounter";
@@ -324,8 +321,8 @@ static u64
 perfc_value(struct perfc_set *pcs, u32 cidx)
 {
     struct perfc_ctr_hdr *hdr;
-    struct perfc_seti *   pcsi;
-    struct perfc_val *    val;
+    struct perfc_seti    *pcsi;
+    struct perfc_val     *val;
     u64                   vadd;
     u64                   vsub;
     int                   i;

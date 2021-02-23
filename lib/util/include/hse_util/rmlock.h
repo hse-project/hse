@@ -20,26 +20,19 @@ struct rmlock_bkt {
 } HSE_ALIGNED(SMP_CACHE_BYTES * 2);
 
 struct rmlock {
-    atomic_t            rm_writer;
-    u32                 rm_bktmax;
+    atomic_t rm_writer;
+    u32      rm_bktmax;
     struct rw_semaphore rm_sema;
-    struct rmlock_bkt   rm_bkt;
-    struct rmlock_bkt * rm_bktv;
+    struct rmlock_bkt  rm_bkt;
+    struct rmlock_bkt *rm_bktv;
 };
 
-merr_t
-rmlock_init(struct rmlock *lock) HSE_COLD;
-void
-rmlock_destroy(struct rmlock *lock) HSE_COLD;
-void
-rmlock_rlock(struct rmlock *lock, void **cookiep);
-void
-rmlock_runlock(void *cookie);
-void
-rmlock_yield(struct rmlock *lock, void **cookiep);
-void
-rmlock_wlock(struct rmlock *lock);
-void
-rmlock_wunlock(struct rmlock *lock);
+merr_t rmlock_init(struct rmlock *lock) HSE_COLD;
+void rmlock_destroy(struct rmlock *lock) HSE_COLD;
+void rmlock_rlock(struct rmlock *lock, void **cookiep);
+void rmlock_runlock(void *cookie);
+void rmlock_yield(struct rmlock *lock, void **cookiep);
+void rmlock_wlock(struct rmlock *lock);
+void rmlock_wunlock(struct rmlock *lock);
 
 #endif

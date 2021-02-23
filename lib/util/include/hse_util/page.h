@@ -10,8 +10,8 @@
 #include <sys/mman.h>
 
 #define PAGE_SHIFT 12
-#define PAGE_SIZE  (1UL << PAGE_SHIFT)
-#define PAGE_MASK  (~(PAGE_SIZE - 1))
+#define PAGE_SIZE (1UL << PAGE_SHIFT)
+#define PAGE_MASK (~(PAGE_SIZE - 1))
 
 /* Align @x upward to @mask. Value of @mask should be one less
  * than a power of two (e.g., 0x0001ffff).

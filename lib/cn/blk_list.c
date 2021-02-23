@@ -56,7 +56,8 @@ abort_mblock(struct mpool *dataset, struct kvs_block *blk)
 
     err = mpool_mblock_abort(dataset, blk->bk_blkid);
     if (ev(err)) {
-        hse_elog(HSE_ERR "abort_mblock failed: @@e, blkid 0x%lx", err, (ulong)blk->bk_blkid);
+        hse_elog(
+            HSE_ERR "abort_mblock failed: @@e, blkid 0x%lx", err, (ulong)blk->bk_blkid);
     } else {
         blk->bk_blkid = 0;
     }
@@ -70,7 +71,8 @@ delete_mblock(struct mpool *dataset, struct kvs_block *blk)
 
     err = mpool_mblock_delete(dataset, blk->bk_blkid);
     if (ev(err)) {
-        hse_elog(HSE_ERR "delete_mblock failed: @@e, blkid 0x%lx", err, (ulong)blk->bk_blkid);
+        hse_elog(
+            HSE_ERR "delete_mblock failed: @@e, blkid 0x%lx", err, (ulong)blk->bk_blkid);
     } else {
         blk->bk_blkid = 0;
     }

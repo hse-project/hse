@@ -118,17 +118,17 @@ get_cfg_data(char *param_name, char *mp_name)
     /* [HSE_REVISIT] Don't we have a "config get" function?
      */
     switch (rp->data_sz) {
-        case 1:
-            return *(u8 *)rp->data;
+    case 1:
+        return *(u8 *)rp->data;
 
-        case 2:
-            return *(u16 *)rp->data;
+    case 2:
+        return *(u16 *)rp->data;
 
-        case 4:
-            return *(u32 *)rp->data;
+    case 4:
+        return *(u32 *)rp->data;
 
-        case 8:
-            return *(u64 *)rp->data;
+    case 8:
+        return *(u64 *)rp->data;
     }
 
     abort();

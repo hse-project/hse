@@ -21,15 +21,15 @@
  */
 #define OMF_SETGET(type, member, bits) OMF_SETGET2(type, member, bits, member)
 
-#define OMF_SETGET2(type, member, bits, name)                          \
+#define OMF_SETGET2(type, member, bits, name)                        \
     static HSE_ALWAYS_INLINE u##bits omf_##name(const type *s)         \
-    {                                                                  \
-        BUILD_BUG_ON(sizeof(((type *)0)->member) * 8 != (bits));       \
-        return le##bits##_to_cpu(s->member);                           \
-    }                                                                  \
+    {                                                                \
+        BUILD_BUG_ON(sizeof(((type *)0)->member) * 8 != (bits));     \
+        return le##bits##_to_cpu(s->member);                         \
+    }                                                                \
     static HSE_ALWAYS_INLINE void omf_set_##name(type *s, u##bits val) \
-    {                                                                  \
-        s->member = cpu_to_le##bits(val);                              \
+    {                                                                \
+        s->member = cpu_to_le##bits(val);                            \
     }
 
 /* Helper macro to define set/get methods for character strings
@@ -49,11 +49,11 @@
         memcpy(p, s->member, len < plen ? len : plen);                     \
     }
 
-#define OMF_GET_VER(type, member, bits, ver)                             \
+#define OMF_GET_VER(type, member, bits, ver)                           \
     static HSE_ALWAYS_INLINE u##bits omf_##member##_##ver(const type *s) \
-    {                                                                    \
-        BUILD_BUG_ON(sizeof(((type *)0)->member) * 8 != (bits));         \
-        return le##bits##_to_cpu(s->member);                             \
+    {                                                                  \
+        BUILD_BUG_ON(sizeof(((type *)0)->member) * 8 != (bits));       \
+        return le##bits##_to_cpu(s->member);                           \
     }
 
 #define OMF_GET_CHBUF_VER(type, member, ver)                                     \

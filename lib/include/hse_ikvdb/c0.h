@@ -14,10 +14,10 @@
 #include <hse_ikvdb/ikvdb.h>
 #include <hse_ikvdb/cursor.h>
 
-#define CURSOR_FLAG_SEQNO_CHANGE   1
+#define CURSOR_FLAG_SEQNO_CHANGE 1
 #define CURSOR_FLAG_TOMBS_INV_KVMS 2
 #define CURSOR_FLAG_TOMBS_INV_PUTS 4
-#define CURSOR_FLAG_TOMBS_FLUSH    8
+#define CURSOR_FLAG_TOMBS_FLUSH 8
 
 /* [HSE_REVISIT] - which of these are really necessary */
 

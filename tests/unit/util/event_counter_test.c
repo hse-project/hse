@@ -40,13 +40,12 @@ MTF_DEFINE_UTEST(event_counter, ev_create_and_search)
 {
     const char          path[] = "/data/event_counter";
     struct yaml_context yc = {
-        .yaml_indent = 0,
-        .yaml_offset = 0,
+        .yaml_indent = 0, .yaml_offset = 0,
     };
-    union dt_iterate_parameters dip = { .yc = &yc };
+    union dt_iterate_parameters dip = {.yc = &yc };
 
-    char * dbg_lvl = "HSE_DEBUG";
-    char * err_lvl = "HSE_ERR";
+    char *dbg_lvl = "HSE_DEBUG";
+    char *err_lvl = "HSE_ERR";
     size_t dbg_before, dbg_after;
     size_t err_before, err_after;
     char * buf;
@@ -58,12 +57,10 @@ MTF_DEFINE_UTEST(event_counter, ev_create_and_search)
     yc.yaml_buf_sz = 32768;
     yc.yaml_emit = NULL;
 
-    dbg_before =
-        dt_iterate_cmd(dt_data_tree, DT_OP_EMIT, path, &dip, NULL, "ev_log_level", dbg_lvl);
+    dbg_before = dt_iterate_cmd(dt_data_tree, DT_OP_EMIT, path, &dip, NULL, "ev_log_level", dbg_lvl);
     printf("%s: %s before, %zu items ---->\n%s\n<----\n", __func__, dbg_lvl, dbg_before, buf);
 
-    err_before =
-        dt_iterate_cmd(dt_data_tree, DT_OP_EMIT, path, &dip, NULL, "ev_log_level", err_lvl);
+    err_before = dt_iterate_cmd(dt_data_tree, DT_OP_EMIT, path, &dip, NULL, "ev_log_level", err_lvl);
     printf("%s: %s before, %zu items ---->\n%s\n<----\n", __func__, err_lvl, err_before, buf);
 
     ERROR_COUNTER(HSE_DEBUG);              /* HSE_DEBUG */
@@ -380,7 +377,7 @@ MTF_DEFINE_UTEST(event_counter, ev_trip_odometer_timestamp)
     int                         line;
     int                         ret;
     struct dt_set_parameters    dsp;
-    union dt_iterate_parameters dip = { .dsp = &dsp };
+    union dt_iterate_parameters dip = {.dsp = &dsp };
 
     /* Create an EC using the macro. */
     /* clang-format off */
@@ -452,7 +449,7 @@ MTF_DEFINE_UTEST(event_counter, ev_trip_odometer_counter)
     int                         count;
     int                         i;
     struct dt_set_parameters    dsp;
-    union dt_iterate_parameters dip = { .dsp = &dsp };
+    union dt_iterate_parameters dip = {.dsp = &dsp };
 
     /* Loop 10 times over the macro. Sleep a little between each
      * invocation, and watch that the timestamp advances correctly.
@@ -597,10 +594,9 @@ MTF_DEFINE_UTEST(event_counter, ev_emit)
     const char *        phile = ev_pathname(__FILE__);
     char                direct_path[DT_PATH_LEN];
     struct yaml_context yc = {
-        .yaml_indent = 0,
-        .yaml_offset = 0,
+        .yaml_indent = 0, .yaml_offset = 0,
     };
-    union dt_iterate_parameters dip = { .yc = &yc };
+    union dt_iterate_parameters dip = {.yc = &yc };
     char *                      buf;
     struct dt_element *         direct;
     struct event_counter *      ec;
@@ -716,7 +712,7 @@ MTF_DEFINE_UTEST(event_counter, ev_delete_protect)
 }
 
 #define EV_EMIT_OVERFLOW_BUF_SIZE 20
-#define FALSE_OFFSET              100
+#define FALSE_OFFSET 100
 
 /* 15. Test emit overflow protection
  */
@@ -725,10 +721,9 @@ MTF_DEFINE_UTEST(event_counter, ev_emit_overflow)
     const char *        phile = ev_pathname(__FILE__);
     char                direct_path[DT_PATH_LEN];
     struct yaml_context yc = {
-        .yaml_indent = 0,
-        .yaml_offset = 0,
+        .yaml_indent = 0, .yaml_offset = 0,
     };
-    union dt_iterate_parameters dip = { .yc = &yc };
+    union dt_iterate_parameters dip = {.yc = &yc };
     char *                      buf, *false_buf;
     struct dt_element *         direct;
     struct event_counter *      ec;
@@ -807,7 +802,7 @@ MTF_DEFINE_UTEST(event_counter, ev_put_invalid_field)
     int                         count;
     struct dt_element *         direct, *dte;
     struct dt_set_parameters    dsp;
-    union dt_iterate_parameters dip = { .dsp = &dsp };
+    union dt_iterate_parameters dip = {.dsp = &dsp };
 
     /* clang-format off */
     ERROR_COUNTER(); line = __LINE__;

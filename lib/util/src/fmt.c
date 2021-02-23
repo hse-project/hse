@@ -38,8 +38,8 @@ append_str(void *buf, size_t buf_size, size_t *offset, const char *str)
 }
 
 static bool url_unreserved[255] = {
-    ['a' ... 'z'] = 1, ['A' ... 'Z'] = 1, ['0' ... '9'] = 1, ['-'] = 1,
-    ['_'] = 1,         ['.'] = 1,         ['~'] = 1,
+        ['a' ... 'z'] = 1, ['A' ... 'Z'] = 1, ['0' ... '9'] = 1, ['-'] = 1,
+        ['_'] = 1,         ['.'] = 1,         ['~'] = 1,
 };
 
 size_t

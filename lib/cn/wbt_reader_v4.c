@@ -337,7 +337,7 @@ wbti_next_fwd(struct wbti *self, const void **kdata, uint *klen, const void **km
     struct wbt_lfe_omf *lfe;
     size_t              off;
 
-    u64 seq  HSE_MAYBE_UNUSED;
+    u64 seq HSE_MAYBE_UNUSED;
     uint cnt HSE_MAYBE_UNUSED;
 
     if (self->node_idx == NODE_EOF)
@@ -372,7 +372,7 @@ wbti_next_rev(struct wbti *self, const void **kdata, uint *klen, const void **km
     struct wbt_lfe_omf *lfe;
     size_t              off;
 
-    u64 seq  HSE_MAYBE_UNUSED;
+    u64 seq HSE_MAYBE_UNUSED;
     uint cnt HSE_MAYBE_UNUSED;
 
     if (self->node_idx == NODE_EOF)

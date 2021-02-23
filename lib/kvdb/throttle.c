@@ -480,11 +480,11 @@ throttle_update(struct throttle *self)
         if (mavg->tm_curr >= THROTTLE_SENSOR_SCALE) {
             throttle_switch_state(self, THROTTLE_INCREASE, max_val);
         } else {
-            const uint cmavg_hi = THROTTLE_SENSOR_SCALE * 90 / 100;
+            const uint cmavg_hi  = THROTTLE_SENSOR_SCALE * 90 / 100;
             const uint cmavg_mid = THROTTLE_SENSOR_SCALE * 25 / 100;
-            const uint cmavg_lo = THROTTLE_SENSOR_SCALE * 10 / 100;
-            bool       reduce = false;
-            uint       cmavg;
+            const uint cmavg_lo  = THROTTLE_SENSOR_SCALE * 10 / 100;
+            bool reduce = false;
+            uint cmavg;
 
             if (self->thr_monitor_cnt)
                 self->thr_reduce_sum += max_val;
@@ -519,10 +519,10 @@ throttle_update(struct throttle *self)
              */
             if (reduce && self->thr_csched < THROTTLE_SENSOR_SCALE) {
 
-                int          delta = self->thr_delay_raw - self->thr_delay_test;
+                int delta = self->thr_delay_raw - self->thr_delay_test;
                 const double pmax = 0.40; /* max percent reduce when cmavg==lo */
                 const double pmin = 0.01; /* min percent reduce when cmavg==hi */
-                double       p;
+                double p;
 
                 assert(cmavg <= cmavg_hi);
 
@@ -569,14 +569,13 @@ throttle_update(struct throttle *self)
 void
 throttle_debug(struct throttle *self)
 {
-    hse_log(
-        HSE_NOTICE "%s: delay %d min %d mavg %d cnt %d state %d sensors %d %d",
-        __func__,
-        self->thr_delay_raw,
-        self->thr_delay_min,
-        self->thr_mavg.tm_curr,
-        self->thr_monitor_cnt,
-        self->thr_state,
-        atomic_read(&self->thr_sensorv[0].ts_sensor),
-        atomic_read(&self->thr_sensorv[1].ts_sensor));
+    hse_log(HSE_NOTICE "%s: delay %d min %d mavg %d cnt %d state %d sensors %d %d",
+            __func__,
+            self->thr_delay_raw,
+            self->thr_delay_min,
+            self->thr_mavg.tm_curr,
+            self->thr_monitor_cnt,
+            self->thr_state,
+            atomic_read(&self->thr_sensorv[0].ts_sensor),
+            atomic_read(&self->thr_sensorv[1].ts_sensor));
 }

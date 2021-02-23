@@ -19,8 +19,8 @@
 #include "intern_builder.h"
 
 #define KMD_CHUNK_PAGES 256
-#define KMD_CHUNK_LEN   (KMD_CHUNK_PAGES * PAGE_SIZE)
-#define KMD_CHUNKS      (KBLOCK_MAX_SIZE / KMD_CHUNK_LEN)
+#define KMD_CHUNK_LEN (KMD_CHUNK_PAGES * PAGE_SIZE)
+#define KMD_CHUNKS (KBLOCK_MAX_SIZE / KMD_CHUNK_LEN)
 
 /**
  * struct wbb - a wb tree builder (wb --> "wants to be a b-tree")
@@ -554,11 +554,11 @@ wbb_freeze(
 merr_t
 wbb_init(struct wbb *wbb, void *nodev, uint max_pgc, uint *wbt_pgc)
 {
-    void *                 kst, *iov_base[KMD_CHUNKS];
+    void * kst, *iov_base[KMD_CHUNKS];
     struct intern_builder *ibldr;
-    uint                   kst_pgc;
-    uint                   i;
-    merr_t                 err = 0;
+    uint   kst_pgc;
+    uint   i;
+    merr_t err = 0;
 
     /* Save state that persists across "init" */
     ibldr = wbb->ibldr;
@@ -602,7 +602,7 @@ wbb_create(
     struct wbb **wbb_out,
     uint         max_pgc,
     uint *       wbt_pgc /* in/out */
-)
+    )
 {
     struct wbb *wbb = 0;
     void *      nodev = 0;
@@ -634,7 +634,7 @@ wbb_create(
     *wbb_out = wbb;
     return 0;
 
-err_exit:
+  err_exit:
 
     if (wbb) {
         free_aligned(nodev);

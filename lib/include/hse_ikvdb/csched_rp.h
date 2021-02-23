@@ -43,18 +43,18 @@ csched_bits_set(u64 word, uint shift, u64 mask, u64 bits)
  */
 
 #define CSCHED_RP_KVSET_ITER_SHIFT 8
-#define CSCHED_RP_KVSET_ITER_MASK  0x03
+#define CSCHED_RP_KVSET_ITER_MASK 0x03
 
 #define CSCHED_RP_POLICY_SHIFT 0
-#define CSCHED_RP_POLICY_MASK  0xff
+#define CSCHED_RP_POLICY_MASK 0xff
 
 /* runtime param to get kvset iterator behavior */
 #define csched_rp_kvset_iter(_rp) \
     csched_bits_get((_rp)->csched_policy, CSCHED_RP_KVSET_ITER_SHIFT, CSCHED_RP_KVSET_ITER_MASK)
 
 /* values for two-bit kvset iter field */
-#define csched_rp_kvset_iter_async  0
-#define csched_rp_kvset_iter_sync   1
+#define csched_rp_kvset_iter_async 0
+#define csched_rp_kvset_iter_sync 1
 #define csched_rp_kvset_iter_mcache 2
 
 /* runtime param to get policy (ingored after kvdb_open) */
@@ -65,21 +65,21 @@ csched_bits_set(u64 word, uint shift, u64 mask, u64 bits)
 #define csched_rp_dbg_comp(_rp) ((_rp)->csched_debug_mask & 0x000f)
 
 /* SP3 Debug */
-#define csched_rp_dbg_qos(_rp)   ((bool)((_rp)->csched_debug_mask & 0x0010))
+#define csched_rp_dbg_qos(_rp) ((bool)((_rp)->csched_debug_mask & 0x0010))
 #define csched_rp_dbg_sched(_rp) ((bool)((_rp)->csched_debug_mask & 0x0020))
-#define csched_rp_dbg_job(_rp)   ((bool)((_rp)->csched_debug_mask & 0x0040))
-#define csched_rp_dbg_jobv(_rp)  ((bool)((_rp)->csched_debug_mask & 0x0080))
+#define csched_rp_dbg_job(_rp) ((bool)((_rp)->csched_debug_mask & 0x0040))
+#define csched_rp_dbg_jobv(_rp) ((bool)((_rp)->csched_debug_mask & 0x0080))
 
-#define csched_rp_dbg_samp_work(_rp)   ((bool)((_rp)->csched_debug_mask & 0x0100))
+#define csched_rp_dbg_samp_work(_rp) ((bool)((_rp)->csched_debug_mask & 0x0100))
 #define csched_rp_dbg_samp_ingest(_rp) ((bool)((_rp)->csched_debug_mask & 0x0200))
-#define csched_rp_dbg_dirty_node(_rp)  ((bool)((_rp)->csched_debug_mask & 0x0400))
-#define csched_rp_dbg_tree_life(_rp)   ((bool)((_rp)->csched_debug_mask & 0x0800))
+#define csched_rp_dbg_dirty_node(_rp) ((bool)((_rp)->csched_debug_mask & 0x0400))
+#define csched_rp_dbg_tree_life(_rp) ((bool)((_rp)->csched_debug_mask & 0x0800))
 
 #define csched_rp_dbg_rbtree(_rp) ((bool)((_rp)->csched_debug_mask & 0x1000))
 
 /* STS Debug */
-#define csched_rp_dbg_jobs(_rp)   ((bool)((_rp)->csched_debug_mask & 0x2000))
-#define csched_rp_dbg_mon(_rp)    ((bool)((_rp)->csched_debug_mask & 0x4000))
+#define csched_rp_dbg_jobs(_rp) ((bool)((_rp)->csched_debug_mask & 0x2000))
+#define csched_rp_dbg_mon(_rp) ((bool)((_rp)->csched_debug_mask & 0x4000))
 #define csched_rp_dbg_worker(_rp) ((bool)((_rp)->csched_debug_mask & 0x8000))
 
 #endif

@@ -16,7 +16,7 @@
  * Make setting and removing mocks less noisy.
  * See components/kvdb/cn/test/mock_mpool.c for examples.
  */
-#define MOCK_SET(group, func)   mtfm_##group##func##_set(func)
+#define MOCK_SET(group, func) mtfm_##group##func##_set(func)
 #define MOCK_UNSET(group, func) mtfm_##group##func##_set(0)
 
 #define MOCK_SET_FN(group, orig_func, new_func) mtfm_##group##_##orig_func##_set(new_func)

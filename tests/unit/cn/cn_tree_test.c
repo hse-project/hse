@@ -428,7 +428,7 @@ MTF_DEFINE_UTEST_PRE(test, t_simple_api, test_setup)
 
     struct cn_tree *    tree = 0;
     struct kvs_cparams *out,
-        cp = { .cp_sfx_len = 0, .cp_pfx_len = 12, .cp_fanout = 8, .cp_pfx_pivot = 0 };
+        cp = {.cp_sfx_len = 0, .cp_pfx_len = 12, .cp_fanout = 8, .cp_pfx_pivot = 0 };
 
     err = cn_tree_create(&tree, NULL, 0, &cp, &mock_health, rp);
     ASSERT_EQ(err, 0);
@@ -896,8 +896,7 @@ MTF_DEFINE_UTEST_PRE(test, t_cn_comp, test_setup)
     MTF_DEFINE_UTEST_PRE(test, NAME##_##N1##V1, test_setup) \
     {                                                       \
         struct test_params tp = {                           \
-            .N1 = V1,                                       \
-            .verbose = VERBOSE,                             \
+            .N1 = V1, .verbose = VERBOSE,                   \
         };                                                  \
         struct test test;                                   \
                                                             \
@@ -909,9 +908,7 @@ MTF_DEFINE_UTEST_PRE(test, t_cn_comp, test_setup)
     MTF_DEFINE_UTEST_PRE(test, NAME##_##N1##V1##_##N2##V2, test_setup) \
     {                                                                  \
         struct test_params tp = {                                      \
-            .N1 = V1,                                                  \
-            .N2 = V2,                                                  \
-            .verbose = VERBOSE,                                        \
+            .N1 = V1, .N2 = V2, .verbose = VERBOSE,                    \
         };                                                             \
         struct test test;                                              \
                                                                        \

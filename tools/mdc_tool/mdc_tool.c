@@ -115,7 +115,7 @@ main(int argc, char **argv)
     struct mpool_mdc *mdc;
     char *            wpath;
     FILE *            fp;
-    hse_err_t         err;
+    hse_err_t            err;
     int               ignore;
     int               c;
 

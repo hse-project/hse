@@ -41,7 +41,7 @@ struct bloom_desc {
     u32 bd_bktsz;
 };
 
-#define BLOOM_LOOKUP_NONE   (0)
+#define BLOOM_LOOKUP_NONE (0)
 #define BLOOM_LOOKUP_MCACHE (1)
 #define BLOOM_LOOKUP_BUFFER (2) /* more efficient */
 

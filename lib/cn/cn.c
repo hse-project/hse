@@ -1379,12 +1379,12 @@ err_exit:
 merr_t
 cn_close(struct cn *cn)
 {
-    u64        report_ns = 5 * NSEC_PER_SEC;
-    void *     maint_wq = cn->cn_maint_wq;
-    void *     io_wq = cn->cn_io_wq;
-    u64        next_report;
+    u64   report_ns = 5 * NSEC_PER_SEC;
+    void *maint_wq = cn->cn_maint_wq;
+    void *io_wq = cn->cn_io_wq;
+    u64   next_report;
     useconds_t dlymax, dly;
-    bool       cancel;
+    bool  cancel;
 
     cn->cn_maintenance_stop = true;
     cn->cn_closing = true;
@@ -1648,7 +1648,8 @@ cn_cursor_update(void *cursor, u64 seqno, bool *updated)
         *updated = true;
 
     if (err && merr_errno(err) != EAGAIN) {
-        hse_elog(HSE_ERR "%s: update failed (%p %lu): @@e", err, __func__, cursor, seqno);
+        hse_elog(HSE_ERR "%s: update failed (%p %lu): @@e",
+                 err, __func__, cursor, seqno);
         cur->merr = err;
     }
 

@@ -40,7 +40,7 @@ struct mocked_map    mocked_maps[MPM_MAX_MAPS];
 /* Can only mock a single MDC */
 u64 mocked_mdc_id;
 
-#define id2index(id)    ((id)-MPM_MBLOCK_ID_BASE)
+#define id2index(id) ((id)-MPM_MBLOCK_ID_BASE)
 #define index2id(index) ((index) + MPM_MBLOCK_ID_BASE)
 
 static merr_t
@@ -294,7 +294,7 @@ _mpool_mcache_getbase(struct mpool_mcache_map *handle, u_int idx)
 {
     merr_t                err;
     struct mocked_map *   map = NULL;
-    struct mocked_mblock *mb = 0;
+    struct mocked_mblock *mb  = 0;
 
     err = get_mocked_map(handle, &map);
     VERIFY_EQ_RET(err, 0, NULL);

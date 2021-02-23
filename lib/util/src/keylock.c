@@ -27,12 +27,12 @@ struct keylock_impl {
     keylock_cb_fn *kli_cb_func;
 
     struct mutex kli_kmutex HSE_ALIGNED(SMP_CACHE_BYTES * 2);
-    struct keylock_stats    kli_stats;
+    struct keylock_stats kli_stats;
 
     struct keylock_entry kli_entries[];
 };
 
-static const struct keylock_entry EMPTY_ENTRY = { .kle_rock = (void *)-1 };
+static const struct keylock_entry EMPTY_ENTRY = {.kle_rock = (void *)-1 };
 
 #define NONEMPTY_ENTRY(_entry) ((_entry)->kle_rock != (void *)-1)
 

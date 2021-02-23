@@ -74,7 +74,7 @@ MTF_DEFINE_UTEST_PRE(kvdb_test, kvdb_null_key_test, general_pre)
     bool                   found;
     char                   buf[100];
     size_t                 vlen;
-    char *                 key, *val;
+    char                  *key, *val;
     size_t                 keylen, vallen;
 
     HSE_KVDB_OPSPEC_INIT(&opspec);
@@ -122,7 +122,7 @@ MTF_DEFINE_UTEST_PRE(kvdb_test, kvdb_getco_test, general_pre)
     bool                   found;
     char                   buf[100];
     size_t                 vlen;
-    char *                 key, *val;
+    char                  *key, *val;
     size_t                 keylen, vallen;
 
     HSE_KVDB_OPSPEC_INIT(&opspec);
