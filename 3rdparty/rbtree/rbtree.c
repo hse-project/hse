@@ -7,6 +7,7 @@
  */
 
 #include <assert.h>
+#include <stddef.h>
 
 #include "rbtree_types.h"
 

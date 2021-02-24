@@ -39,7 +39,7 @@
  * Do not include this file directly.  Use rbtree.h instead.
  */
 
-#include "tree.h"
+#include <bsd/sys/tree.h>
 
 struct rb_node {
 	RB_ENTRY(rb_node)	__entry;
