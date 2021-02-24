@@ -202,7 +202,7 @@ malloc_stats(void);
 #undef RB_ROOT
 #undef RB_PROTOTYPE_INTERNAL
 #undef RB_GENERATE_INTERNAL
-#include "tree.h"
+#include <bsd/sys/tree.h>
 
 /* Note - This opspec isn't a real HSE opspec, it's use is internal to kmt and
  *        is here to make the core kmt code re-usable in xkmt mode.
