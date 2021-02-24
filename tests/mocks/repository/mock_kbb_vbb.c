@@ -1,7 +1,9 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
+
+#include "framework_external.h"
 
 #include <hse_ut/conditions.h>
 
@@ -13,8 +15,8 @@
 #include <cn/kblock_builder.h>
 #include <cn/vblock_builder.h>
 
-#include "mock_kbb_vbb.h"
-#include "mock_mpool.h"
+#include <mocks/mock_kbb_vbb.h>
+#include <mocks/mock_mpool.h>
 
 static merr_t
 _kbb_create(struct kblock_builder **bld_out, struct cn *cn, struct perfc_set *pc, uint flags)

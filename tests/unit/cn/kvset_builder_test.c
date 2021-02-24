@@ -15,7 +15,7 @@
 
 #include <hse/hse_limits.h>
 
-#include "mock_kbb_vbb.h"
+#include <mocks/mock_kbb_vbb.h>
 
 int
 init(struct mtf_test_info *mtf)

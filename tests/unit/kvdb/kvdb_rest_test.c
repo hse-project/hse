@@ -25,7 +25,7 @@
 #define KVS2 KVS "2"
 #define KVS3 KVS "3"
 
-#include "mock_c0cn.h"
+#include <mocks/mock_c0cn.h>
 #include <kvdb/kvdb_rest.h>
 #include <cn/kvset.h>
 #include <cn/cn_metrics.h>

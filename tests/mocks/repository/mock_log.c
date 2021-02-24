@@ -1,11 +1,13 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
-#include "../src/logging_impl.h"
+#include "framework_external.h"
 
-#include "mock_log.h"
+#include "util/src/logging_impl.h"
+
+#include <mocks/mock_log.h>
 
 logging_result shared_result;
 

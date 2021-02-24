@@ -1,7 +1,9 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
+
+#include "framework_external.h"
 
 #include <hse_ut/conditions.h>
 #include <hse_test_support/mock_api.h>
@@ -16,7 +18,7 @@
 #include <hse_ikvdb/kvdb_health.h>
 
 #include <kvdb/kvdb_log.h>
-#include "mock_kvset_builder.h"
+#include <mocks/mock_kvset_builder.h>
 
 #include <stdlib.h>
 

@@ -21,7 +21,7 @@
 #include <cn/wbt_reader.h>
 #include <cn/cn_metrics.h>
 
-#include "mock_mpool.h"
+#include <mocks/mock_mpool.h>
 
 #include <assert.h>
 #include <stdlib.h>

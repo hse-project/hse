@@ -38,8 +38,8 @@
 #include <cn/pscan.h>
 #include <cn/kvset.h>
 
-#include "mock_mpool.h"
-#include "mock_kvset.h"
+#include <mocks/mock_mpool.h>
+#include <mocks/mock_kvset.h>
 
 static struct kvs_rparams rp;
 static struct kvdb_health health;

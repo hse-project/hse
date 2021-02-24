@@ -12,7 +12,7 @@
 
 #include <hse_ut/framework.h>
 #include <hse_test_support/mock_api.h>
-#include "mock_kvset_builder.h"
+#include <mocks/mock_kvset_builder.h>
 
 #include <hse_util/logging.h>
 #include <hse_util/parse_num.h>

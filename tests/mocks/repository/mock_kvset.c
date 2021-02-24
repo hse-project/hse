@@ -1,7 +1,9 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
+
+#include "framework_external.h"
 
 #include <hse_ut/conditions.h>
 #include <hse_test_support/mock_api.h>
@@ -14,8 +16,8 @@
 #include <cn/kvset.h>
 #include <cn/cn_tree_internal.h>
 
-#include "mock_mpool.h"
-#include "mock_kvset.h"
+#include <mocks/mock_mpool.h>
+#include <mocks/mock_kvset.h>
 
 /* ------------------------------------------------------------
  * Fake kvset data

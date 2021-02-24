@@ -19,9 +19,9 @@
 #include <mpool/mpool.h>
 
 #include <hse_ikvdb/c0.h>
-#include "mock_c0cn.h"
+#include <mocks/mock_c0cn.h>
 
-#include "mock_log.h"
+#include <mocks/mock_log.h>
 
 struct kvs_cparams cp;
 

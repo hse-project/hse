@@ -22,7 +22,7 @@
 #include <cn/cndb_internal.h>
 #include <cn/kvset.h>
 
-#include "mock_mpool.h"
+#include <mocks/mock_mpool.h>
 
 MTF_BEGIN_UTEST_COLLECTION(cndb_test);
 

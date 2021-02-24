@@ -25,7 +25,7 @@
 #include <c0/c0_cursor.h>
 #include <c0/c0sk_internal.h>
 
-#include "mock_c0cn.h"
+#include <mocks/mock_c0cn.h>
 #include <dirent.h>
 
 /*

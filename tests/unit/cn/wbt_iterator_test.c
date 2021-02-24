@@ -19,7 +19,7 @@
 #include <cn/wbt_reader.h>
 #include <cn/kvs_mblk_desc.h>
 
-#include "mock_mpool.h"
+#include <mocks/mock_mpool.h>
 
 #include <stdlib.h>
 

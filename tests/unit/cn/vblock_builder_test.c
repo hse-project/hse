@@ -22,7 +22,7 @@
 #include <cn/vblock_builder.h>
 #include <cn/blk_list.h>
 
-#include "mock_mpool.h"
+#include <mocks/mock_mpool.h>
 
 #include <assert.h>
 #include <stdlib.h>

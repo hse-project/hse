@@ -15,7 +15,7 @@
 #include <cn/vblock_reader.h>
 #include <cn/omf.h>
 
-#include "mock_mpool.h"
+#include <mocks/mock_mpool.h>
 
 #include <assert.h>
 #include <stdlib.h>

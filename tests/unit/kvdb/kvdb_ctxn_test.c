@@ -26,7 +26,7 @@
 #include <hse_ikvdb/tuple.h>
 #include <hse_test_support/random_buffer.h>
 
-#include "mock_c0cn.h"
+#include <mocks/mock_c0cn.h>
 
 #include <kvdb/kvdb_ctxn_internal.h>
 #include <kvdb/kvdb_keylock.h>

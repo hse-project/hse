@@ -18,7 +18,7 @@
 #include <kvdb/kvdb_kvs.h>
 #include <kvdb/kvdb_omf.h>
 
-#include "mock_mpool.h"
+#include <mocks/mock_mpool.h>
 
 #include <assert.h>
 #include <stdlib.h>

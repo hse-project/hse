@@ -26,7 +26,7 @@
 #include <cn/blk_list.h>
 #include <cn/bloom_reader.h>
 
-#include "mock_mpool.h"
+#include <mocks/mock_mpool.h>
 
 #include <assert.h>
 #include <stdlib.h>

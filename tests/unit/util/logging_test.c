@@ -15,7 +15,7 @@
 
 #include "../src/logging_impl.h"
 
-#include "mock_log.h"
+#include <mocks/mock_log.h>
 #include <stddef.h>
 
 #define MAX_NV_PAIRS 50

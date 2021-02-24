@@ -18,8 +18,8 @@
 #include <cn/kvset.h>
 #include <cn/cn_metrics.h>
 
-#include "mock_kvset.h"
-#include "mock_kvset_builder.h"
+#include <mocks/mock_kvset.h>
+#include <mocks/mock_kvset_builder.h>
 
 #include <assert.h>
 #include <stdlib.h>

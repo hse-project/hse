@@ -25,7 +25,7 @@
 #include <cn/cn_tree_compact.h>
 #include <cn/kvset.h>
 
-#include "mock_kvset.h"
+#include <mocks/mock_kvset.h>
 
 struct kvdb_health   health;
 struct cn_kvdb       cn_kvdb;

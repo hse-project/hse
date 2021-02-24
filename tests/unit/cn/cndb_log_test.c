@@ -19,8 +19,8 @@
 #include <cn/cndb_internal.h>
 #include <cn/bloom_reader.h>
 
-#include "mock_kvset.h"
-#include "mock_mpool.h"
+#include <mocks/mock_kvset.h>
+#include <mocks/mock_mpool.h>
 
 #include <assert.h>
 #include <stdlib.h>

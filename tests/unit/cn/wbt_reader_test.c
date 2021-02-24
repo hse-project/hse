@@ -14,7 +14,7 @@
 #include <cn/wbt_internal.h>
 #include <cn/kblock_reader.h>
 
-#include "mock_mpool.h"
+#include <mocks/mock_mpool.h>
 
 #include <stdlib.h>
 
