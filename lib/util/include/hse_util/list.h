@@ -16,6 +16,18 @@ struct list_head {
 
 #define list_for_each(ptr, head) for (ptr = (head)->next; ptr != (head); ptr = (ptr)->next)
 
+#define list_for_each_reverse(ptr, head) \
+	for (ptr = (head)->prev; ptr != (head); ptr = ptr->prev)
+
+#define list_for_each_safe(ptr, next, head) \
+	for (ptr = (head)->next, next = ptr->next; ptr != (head); \
+		 ptr = next, next = ptr->next)
+
+#define list_for_each_reverse_safe(ptr, next, head) \
+	for (ptr = (head)->prev, next = ptr->prev; \
+	     ptr != (head); \
+	     ptr = next, next = ptr->prev)
+
 #define list_for_each_entry(item, head, field)                                            \
     for (item = list_entry((head)->next, typeof(*item), field); &(item)->field != (head); \
          item = list_entry((item)->field.next, typeof(*item), field))

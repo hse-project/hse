@@ -1246,7 +1246,7 @@ void
 kvdb_ctxn_set_destroy(struct kvdb_ctxn_set *handle)
 {
     struct kvdb_ctxn_set_impl *ktn;
-    struct kvdb_ctxn_impl *    ctxn = 0, *next;
+    struct kvdb_ctxn_impl *    ctxn = 0;
     bool                       canceled;
 
     if (ev(!handle))
@@ -1263,11 +1263,17 @@ kvdb_ctxn_set_destroy(struct kvdb_ctxn_set *handle)
     destroy_workqueue(ktn->ktn_wq);
 
     /* Destroy transactions that haven't been aborted/committed/freed. */
-    cds_list_for_each_entry_rcu(ctxn, &ktn->ktn_alloc_list, ctxn_alloc_link)
+    struct cds_list_head *cds_entry;
+    cds_list_for_each_rcu(cds_entry, &ktn->ktn_alloc_list) {
+        ctxn = list_entry(cds_entry, typeof(*ctxn), ctxn_alloc_link);
         list_add_tail(&ctxn->ctxn_free_link, &ktn->ktn_pending);
+    }
 
-    list_for_each_entry_safe (ctxn, next, &ktn->ktn_pending, ctxn_free_link)
+    struct list_head *entry, *next;
+    list_for_each_safe(entry, next, &ktn->ktn_pending) {
+        ctxn = list_entry(entry, typeof(*ctxn), ctxn_free_link);
         kvdb_ctxn_free(&ctxn->ctxn_inner_handle);
+    }
 
     mutex_destroy(&ktn->ktn_list_mutex);
     sem_destroy(&ktn->ktn_tseqno_sema);

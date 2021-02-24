@@ -1175,8 +1175,9 @@ sp3_process_ingest(struct sp3 *sp)
     struct cn_tree *tree;
     bool            ingested = false;
 
-    list_for_each_entry (tree, &sp->mon_tlist, ct_sched.sp3t.spt_tlink) {
-
+    struct list_head *tree_entry;
+    list_for_each(tree_entry, &sp->mon_tlist) {
+        tree = list_entry(tree_entry, typeof(*tree), ct_sched.sp3t.spt_tlink);
         struct sp3_tree *spt = tree2spt(tree);
         int              v;
         long             alen;
@@ -1234,7 +1235,7 @@ sp3_process_worklist(struct sp3 *sp)
 static void
 sp3_process_new_trees(struct sp3 *sp)
 {
-    struct cn_tree * tree, *tmp;
+    struct cn_tree * tree;
     struct list_head list;
 
     INIT_LIST_HEAD(&list);
@@ -1245,8 +1246,9 @@ sp3_process_new_trees(struct sp3 *sp)
     INIT_LIST_HEAD(&sp->new_tlist);
     mutex_unlock(&sp->new_tlist_lock);
 
-    list_for_each_entry_safe (tree, tmp, &list, ct_sched.sp3t.spt_tlink) {
-
+    struct list_head *entry, *next;
+    list_for_each_safe(entry, next, &list) {
+        tree = list_entry(entry, typeof(*tree), ct_sched.sp3t.spt_tlink);
         struct sp3_tree *    spt = tree2spt(tree);
         struct cn_tree_node *tn;
         struct tree_iter     iter;
@@ -1281,10 +1283,11 @@ sp3_process_new_trees(struct sp3 *sp)
 static void
 sp3_prune_trees(struct sp3 *sp)
 {
-    struct cn_tree *tree, *tmp;
+    struct cn_tree *tree;
 
-    list_for_each_entry_safe (tree, tmp, &sp->mon_tlist, ct_sched.sp3t.spt_tlink) {
-
+    struct list_head *entry, *next;
+    list_for_each_safe(entry, next, &sp->mon_tlist) {
+        tree = list_entry(entry, typeof(*tree), ct_sched.sp3t.spt_tlink);
         struct sp3_tree *spt = tree2spt(tree);
         int              enabled = atomic_read(&spt->spt_enabled);
 
@@ -1299,13 +1302,11 @@ sp3_prune_trees(struct sp3 *sp)
             sp3_log_samp_one_tree(tree);
             sp3_log_samp_overall(sp);
 
-#ifdef HSE_BUILD_DEBUG
             assert(sp->samp.i_alen >= tree->ct_samp.i_alen);
             assert(sp->samp.r_alen >= tree->ct_samp.r_alen);
             assert(sp->samp.r_wlen >= tree->ct_samp.r_wlen);
             assert(sp->samp.l_alen >= tree->ct_samp.l_alen);
             assert(sp->samp.l_good >= tree->ct_samp.l_good);
-#endif
 
             if (sp->samp.i_alen >= tree->ct_samp.i_alen)
                 sp->samp.i_alen -= tree->ct_samp.i_alen;
@@ -1551,8 +1552,9 @@ sp3_check_roots(struct sp3 *sp)
 
     debug = csched_rp_dbg_comp(sp->rp);
 
-    list_for_each_entry (tree, &sp->mon_tlist, ct_sched.sp3t.spt_tlink) {
-
+    struct list_head *tree_entry;
+    list_for_each(tree_entry, &sp->mon_tlist) {
+        tree = list_entry(tree_entry, typeof(*tree), ct_sched.sp3t.spt_tlink);
         bool have_work;
         uint qnum;
 

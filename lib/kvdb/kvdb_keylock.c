@@ -175,7 +175,6 @@ kvdb_keylock_destroy(struct kvdb_keylock *handle)
 {
     struct kvdb_keylock_impl *   klock;
     struct kvdb_ctxn_locks_impl *curr;
-    struct kvdb_ctxn_locks_impl *tmp;
     int                          i;
 
     if (ev(!handle))
@@ -193,7 +192,9 @@ kvdb_keylock_destroy(struct kvdb_keylock *handle)
         list_splice(&dlock->kd_list, &expired);
         mutex_unlock(&dlock->kd_lock);
 
-        list_for_each_entry_safe (curr, tmp, &expired, ctxn_locks_link) {
+        struct list_head *entry;
+        list_for_each(entry, &expired) {
+            curr = list_entry(entry, typeof(*curr), ctxn_locks_link);
             struct kvdb_ctxn_locks *locks;
 
             locks = &curr->ctxn_locks_handle;
@@ -260,7 +261,7 @@ kvdb_keylock_insert_locks(struct kvdb_ctxn_locks *handle, u64 end_seqno, void *c
 {
     struct kvdb_ctxn_locks_impl *locks = kvdb_ctxn_locks_h2r(handle);
     struct kvdb_dlock *          dlock = cookie;
-    struct kvdb_ctxn_locks_impl *elem;
+    struct kvdb_ctxn_locks_impl *elem = NULL;
 
     assert(dlock);
 
@@ -271,12 +272,22 @@ kvdb_keylock_insert_locks(struct kvdb_ctxn_locks *handle, u64 end_seqno, void *c
     /* The correct position is more likely toward the end of the list, so
      * traverse in reverse.
      */
-    list_for_each_entry_reverse (elem, &dlock->kd_list, ctxn_locks_link) {
+    // list_for_each_entry_reverse (elem, &dlock->kd_list, ctxn_locks_link) {
+    //     printf("here\n");
+    //     if (end_seqno > elem->ctxn_locks_end_seqno)
+    //         break;
+    // }
+    // printf("####################\n");
+
+    struct list_head *entry;
+    list_for_each_reverse(entry, &dlock->kd_list) {
+        elem = list_entry(entry, typeof(*elem), ctxn_locks_link);
         if (end_seqno > elem->ctxn_locks_end_seqno)
             break;
     }
 
-    list_add(&locks->ctxn_locks_link, &elem->ctxn_locks_link);
+    if (elem)
+        list_add(&locks->ctxn_locks_link, &elem->ctxn_locks_link);
 }
 
 void
@@ -336,7 +347,7 @@ kvdb_keylock_prune_own_locks(struct kvdb_keylock *kl_handle, struct kvdb_ctxn_lo
 void
 kvdb_keylock_expire(struct kvdb_keylock *handle, u64 min_view_sn)
 {
-    struct kvdb_ctxn_locks_impl *curr, *tmp;
+    struct kvdb_ctxn_locks_impl *curr;
     struct kvdb_keylock_impl *   klock;
     struct list_head             expired;
     u32                          mask;
@@ -370,8 +381,9 @@ kvdb_keylock_expire(struct kvdb_keylock *handle, u64 min_view_sn)
         if (min_view_sn > dlock->kd_mvs) {
             dlock->kd_mvs = min_view_sn;
 
-            list_for_each_entry_safe (curr, tmp, &dlock->kd_list, ctxn_locks_link) {
-
+            struct list_head *entry, *next;
+            list_for_each_safe(entry, next, &dlock->kd_list) {
+                curr = list_entry(entry, typeof(*curr), ctxn_locks_link);
                 if (curr->ctxn_locks_end_seqno >= min_view_sn)
                     break;
 
@@ -385,7 +397,9 @@ kvdb_keylock_expire(struct kvdb_keylock *handle, u64 min_view_sn)
         }
         mutex_unlock(&dlock->kd_lock);
 
-        list_for_each_entry_safe (curr, tmp, &expired, ctxn_locks_link) {
+        struct list_head *entry, *next;
+        list_for_each_safe(entry, next, &expired) {
+            curr = list_entry(entry, typeof(*curr), ctxn_locks_link);
             struct kvdb_ctxn_locks *locks;
 
             locks = &curr->ctxn_locks_handle;
