@@ -21,7 +21,7 @@
 #include <hse_ikvdb/c0_kvmultiset.h>
 #include <hse_ikvdb/c0_kvset.h>
 
-#include "c0_ingest_work.h"
+#include <c0/c0_ingest_work.h>
 
 #include <assert.h>
 #include <stdlib.h>

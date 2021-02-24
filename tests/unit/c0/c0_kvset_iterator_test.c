@@ -19,7 +19,7 @@
 #include <hse_ikvdb/c0_kvset.h>
 #include <hse_ikvdb/c0_kvset_iterator.h>
 
-#include "c0_kvset_internal.h"
+#include <c0/c0_kvset_internal.h>
 
 #include <assert.h>
 #include <stdlib.h>

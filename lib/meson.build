@@ -135,6 +135,8 @@ if get_option('tests')
 		],
 		include_directories: [
 			public_includes,
+			hse_include_directories,
+			hse_mock_include_directories,
 		],
 		dependencies: hse_public_dependencies,
 	)

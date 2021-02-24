@@ -29,8 +29,8 @@
 #include <hse_ikvdb/csched.h>
 #include <hse_test_support/random_buffer.h>
 
-#include "c0sk_internal.h"
-#include "c0_cursor.h"
+#include <c0/c0sk_internal.h>
+#include <c0/c0_cursor.h>
 
 #include <assert.h>
 #include <stdlib.h>

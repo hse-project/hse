@@ -9,11 +9,11 @@
 #include <hse_ikvdb/kvdb_health.h>
 #include <mpool/mpool.h>
 
-#include "cn_internal.h"
-#include "cndb_internal.h"
-#include "cn_tree.h"
-#include "cn_tree_compact.h"
-#include "kvdb/kvdb_kvs.h"
+#include <cn/cn_internal.h>
+#include <cn/cndb_internal.h>
+#include <cn/cn_tree.h>
+#include <cn/cn_tree_compact.h>
+#include <kvdb/kvdb_kvs.h>
 
 static struct kvdb_health mock_health;
 
