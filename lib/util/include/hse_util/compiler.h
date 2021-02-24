@@ -22,10 +22,6 @@
 #define HSE_HOT           __attribute__((hot))
 #define HSE_COLD          __attribute__((cold))
 
-#if __STDC__VERSION__ <= 201112L
-#define _Static_assert(...)
-#endif
-
 #ifndef _BullseyeCoverage
 #define _BullseyeCoverage 0
 #endif

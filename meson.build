@@ -6,7 +6,7 @@ project(
 		'Apache-2.0',
 	],
 	default_options: [
-		'c_std=gnu99',
+		'c_std=gnu11',
 		'buildtype=debugoptimized',
 		'warning_level=2',
 	],
@@ -105,11 +105,6 @@ elif get_option('buildtype').startswith('debug')
 	elif get_option('buildtype') == 'debugoptimized'
 		build_stype = 'o'
 	endif
-
-	add_project_arguments(
-		'-DHSE_BUILD_DEBUG',
-		language: 'c',
-	)
 endif
 
 add_project_arguments(
