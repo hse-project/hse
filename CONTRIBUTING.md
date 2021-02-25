@@ -14,6 +14,17 @@ Python code you may find in the code base conforms entirely to the `black`
 formatter. Please make sure all contributions adhere to the aforementioned
 styles.
 
+## Cloning
+
+You can clone HSE through both HTTPS and SSH protocols.
+
+```sh
+# HTTPS
+git clone https://github.com/hse-project/hse.git
+# SSH
+git clone git@github.com:hse-project/hse.git
+```
+
 ## Building
 
 HSE uses the [Meson build system](https://mesonbuild.com). You can obtain a copy
@@ -97,6 +108,30 @@ Targets that you may find useful during HSE development:
 - `black`
 - `python`
 - `test`
+
+## Distributing
+
+### Source
+
+If you want to distribute HSE as a source tarball, then the following commands
+should drop a tar file in `build/meson-dist`.
+
+```sh
+# Read `meson dist -h` for other format options. Tests are disabled as an
+# example, but you may want the test suites to run.
+meson dist -C build --formats gz --no-tests
+```
+
+### Binary
+
+If you want to distribute HSE as a binary tarball, then the following commands
+should build a tar file where `--destdir` is specified.
+
+```sh
+meson install -C build --destdir /tmp/hse
+cd /tmp
+tar -czf hse.tar.gz hse
+```
 
 ## Python
 
