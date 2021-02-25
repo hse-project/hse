@@ -179,13 +179,13 @@ libbsd_dep = dependency(
 )
 lz4_dep = dependency(
 	'liblz4',
-	version: '1.9.2',
+	version: '==1.9.2',
 	required: true,
 	fallback: ['lz4', 'lz4_dep'],
 )
 xxhash_dep = dependency(
 	'libxxhash',
-	version: '0.8.0',
+	version: '==0.8.0',
 	required: true,
 	fallback: ['xxhash', 'xxhash_dep'],
 )
