@@ -63,7 +63,7 @@ ex1_get(
     snprintf(str, sizeof(str), "text:%s,number:%d", e->text, e->number);
     bytes = strnlen(str, sizeof(str));
 #pragma GCC diagnostic push
-#pragma GCC diagnostic ingored "-Wunused-result"
+#pragma GCC diagnostic ignored "-Wunused-result"
     write(info->resp_fd, str, bytes);
 #pragma GCC diagnostic pop
 
@@ -101,7 +101,7 @@ ex1_put(
     snprintf(str, sizeof(str), "text:%s,number:%d", e->text, e->number);
     bytes = strnlen(str, sizeof(str));
 #pragma GCC diagnostic push
-#pragma GCC diagnostic ingored "-Wunused-result"
+#pragma GCC diagnostic ignored "-Wunused-result"
     write(info->resp_fd, str, bytes);
 #pragma GCC diagnositc pop
 
