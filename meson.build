@@ -164,6 +164,7 @@ if (not cJSON_dep.found()
 		'BUILD_SHARED_LIBS': get_option('default_library') != 'static',
 		'BUILD_SHARED_AND_STATIC_LIBS': get_option('default_library') == 'both',
 	})
+	cJSON_options.set_override_option('werror', 'false')
 	cJSON_proj = cmake.subproject('cJSON', options: cJSON_options)
 	cJSON_dep = cJSON_proj.dependency('cjson')
 	cJSON_from_subproject = true
@@ -241,6 +242,7 @@ if get_option('tools')
 			'HDR_HISTOGRAM_BUILD_PROGRAMS': false,
 			'HDR_HISTOGRAM_BUILD_STATIC': get_option('default_library') == 'static',
 		})
+		HdrHistogram_c_options.set_override_option('werror', 'false')
 		HdrHistogram_c_proj = cmake.subproject('HdrHistogram_c', options: HdrHistogram_c_options)
 		HdrHistogram_c_dep = HdrHistogram_c_proj.dependency('hdr_histogram@0@'.format(get_option('default_library') == 'static' ? '-static' : ''))
 		HdrHistogram_c_from_subproject = true
@@ -259,6 +261,7 @@ if get_option('tools')
 			'ENABLE_BSON': not libbson_dep.found() or mongo_c_driver_force_fallback ? 'ON' : 'OFF',
 			'ENABLE_STATIC': get_option('default_library') == 'static' ? 'ON' : 'OFF',
 		})
+		mongo_c_driver_options.set_override_option('werror', 'false')
 		mongo_c_driver_proj = cmake.subproject('mongo-c-driver', options: mongo_c_driver_options)
 		if not libmongoc_dep.found() or mongo_c_driver_force_fallback
 			if get_option('default_library') == 'static'
