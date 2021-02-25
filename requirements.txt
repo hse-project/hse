@@ -6,6 +6,7 @@ Cython==0.29.21
 iniconfig==1.1.1
 meson==0.57.1
 mypy-extensions==0.4.3
+ninja==1.10.0.post2
 packaging==20.9
 pathspec==0.8.1
 pluggy==0.13.1
