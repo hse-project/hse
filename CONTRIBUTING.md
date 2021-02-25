@@ -83,6 +83,10 @@ meson test -C build [testname...]
 In the event the tests timeout, you can change Meson's timeout multiplier
 through the `-t` option.
 
+```sh
+meson test -C build -t 9 ikvdb_test
+```
+
 If you choose to add a feature or a bug fix to HSE, make sure to add any
 necessary tests to confirm that the contribution works as it should.
 
@@ -98,6 +102,21 @@ HSE has the following test suites:
 - `kvs` - run all kvs tests
 - `util` - run all util tests
 
+To run a full suite, run the following:
+
+```sh
+# If running multiple suites, use a comma separated list
+meson test -C build --suite [suite...]
+```
+
+To execute only tests pertaining to `c0`, run the following:
+
+```sh
+meson test -C build --suite c0
+```
+
+The default test setup for HSE will run *all* test suites.
+
 ## Targets
 
 Targets that you may find useful during HSE development:
@@ -108,6 +127,16 @@ Targets that you may find useful during HSE development:
 - `black`
 - `python`
 - `test`
+
+```sh
+ninja -C build [target...]
+```
+
+To format all C code for instance, run the following:
+
+```sh
+ninja -C build clang-format
+```
 
 ## Distributing
 
