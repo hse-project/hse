@@ -16,7 +16,15 @@ styles.
 
 ## Building
 
-HSE uses the [Meson build system](https://mesonbuild.com).
+HSE uses the [Meson build system](https://mesonbuild.com). You can obtain a copy
+of `meson` from PyPI or through your system repositories. HSE currently needs a
+copy of Meson >= 0.57 to build. If you choose to install from PyPI, it might
+make sense to just install Meson into a [virtual environment](#Python).
+
+```sh
+# From PyPI
+python3 -m pip install meson
+```
 
 Basic steps to build the project are the following:
 
