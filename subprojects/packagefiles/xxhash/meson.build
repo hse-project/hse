@@ -2,9 +2,6 @@ project(
 	'xxhash',
 	['c'],
 	version: '0.8.0',
-	default_options: [
-		'buildtype=debugoptimized',
-	],
 )
 
 inc = include_directories('.')
