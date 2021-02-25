@@ -130,18 +130,25 @@ if in_ci
 	build_rtype = '@0@@1@'.format(build_stype, build_number)
 endif
 
-# remove this libcurl funny business if Meson supports 'fallback' for CMake subprojects
 libcurl_dep = dependency(
 	'libcurl',
 	version: '>=7.61.1',
 	required: true,
 	fallback: ['curl', 'libcurl_dep'],
+	default_options: [
+		'buildtype=release',
+		'werror=false',
+	],
 )
 libyaml_dep = dependency(
 	'yaml-0.1',
 	version: '>=0.1.7',
 	required: true,
-	fallback: ['libyaml', 'libyaml_dep']
+	fallback: ['libyaml', 'libyaml_dep'],
+	default_options: [
+		'buildtype=release',
+		'werror=false',
+	],
 )
 pthread_dep = cc.find_library('pthread', required: true)
 uuid_dep = dependency('uuid', version: '>=2.31.1', required: true)
@@ -150,6 +157,10 @@ liburcu_bp_dep = dependency(
 	version: '>=0.10.1',
 	required: true,
 	fallback: ['userspace-rcu', 'liburcu_bp_dep'],
+	default_options: [
+		'buildtype=release',
+		'werror=false',
+	],
 )
 cJSON_dep = dependency(
 	'libcjson',
@@ -176,18 +187,30 @@ libbsd_dep = dependency(
 	version: '>=0.9.1',
 	required: true,
 	fallback: ['libbsd', 'libbsd_dep'],
+	default_options: [
+		'buildtype=release',
+		'werror=false',
+	],
 )
 lz4_dep = dependency(
 	'liblz4',
 	version: '==1.9.2',
 	required: true,
 	fallback: ['lz4', 'lz4_dep'],
+	default_options: [
+		'buildtype=release',
+		'werror=false',
+	],
 )
 xxhash_dep = dependency(
 	'libxxhash',
 	version: '==0.8.0',
 	required: true,
 	fallback: ['xxhash', 'xxhash_dep'],
+	default_options: [
+		'buildtype=release',
+		'werror=false',
+	],
 )
 if get_option('mpool-lib-dir') == ''
 	mpool_dep = cc.find_library('mpool', required: true)
@@ -203,6 +226,10 @@ libmicrohttpd_dep = dependency(
 	version: '>=0.9.59',
 	required: true,
 	fallback: ['libmicrohttpd', 'libmicrohttpd_dep'],
+	default_options: [
+		'buildtype=release',
+		'werror=false',
+	],
 )
 m_dep = cc.find_library('m', required: true)
 valgrind_dep = dependency('valgrind', required: get_option('valgrind-support'))
