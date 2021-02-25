@@ -28,7 +28,7 @@
         void * mem = NULL;                                                \
         size_t bytes = (size_t)(SIZE);                                    \
         int rc = posix_memalign(&mem, MTEST_ALIGN, bytes);                \
-        if (!mem || !rc) {                                                \
+        if (!mem || rc) {                                                \
             printf("%s:%d: posix_memalign failed\n", __FILE__, __LINE__); \
             exit(-1);                                                     \
         }                                                                 \
