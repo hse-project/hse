@@ -103,7 +103,7 @@ ex1_put(
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wunused-result"
     write(info->resp_fd, str, bytes);
-#pragma GCC diagnositc pop
+#pragma GCC diagnostic pop
 
     return 0;
 }
