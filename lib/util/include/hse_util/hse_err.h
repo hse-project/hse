@@ -61,7 +61,7 @@
 #define MERR_ALIGN      (1 << 6)
 #define MERR_INFO_SZ    (MERR_ALIGN * 2 + 200)
 
-#define _merr_section __attribute__((__section__("hse_merr")))
+#define _merr_section __attribute__((section("hse_merr")))
 #define _merr_attributes _merr_section HSE_ALIGNED(MERR_ALIGN) HSE_MAYBE_UNUSED
 
 static char _hse_merr_file[] _merr_attributes = __BASE_FILE__;
