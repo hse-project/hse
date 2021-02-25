@@ -153,7 +153,7 @@ liburcu_bp_dep = dependency(
 )
 cJSON_dep = dependency(
 	'libcjson',
-	version: '1.7.14',
+	version: '>=1.7.14',
 	required: get_option('wrap_mode') == 'nofallback',
 )
 if (not cJSON_dep.found()
@@ -178,13 +178,13 @@ libbsd_dep = dependency(
 )
 lz4_dep = dependency(
 	'liblz4',
-	version: '==1.9.2',
+	version: '1.9.2',
 	required: true,
 	fallback: ['lz4', 'lz4_dep'],
 )
 xxhash_dep = dependency(
 	'libxxhash',
-	version: '==0.8.0',
+	version: '0.8.0',
 	required: true,
 	fallback: ['xxhash', 'xxhash_dep'],
 )
@@ -247,8 +247,8 @@ if get_option('tools')
 	else
 		HdrHistogram_c_from_subproject = false
 	endif
-	libmongoc_dep = dependency('libmongoc-1.0', required: false)
-	libbson_dep = dependency('libbson-1.0', required: false)
+	libmongoc_dep = dependency('libmongoc-1.0', version: '1.7.14', required: false)
+	libbson_dep = dependency('libbson-1.0', version: '1.7.14', required: false)
 	mongo_c_driver_force_fallback = get_option('wrap_mode') == 'forcefallback' or 'mongo-c-driver' in get_option('force_fallback_for')
 	if not libmongoc_dep.found() or not libbson_dep.found() or mongo_c_driver_force_fallback
 		mongo_c_driver_options = cmake.subproject_options()
