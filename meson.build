@@ -247,8 +247,8 @@ if get_option('tools')
 	else
 		HdrHistogram_c_from_subproject = false
 	endif
-	libmongoc_dep = dependency('libmongoc-1.0', version: '1.7.14', required: false)
-	libbson_dep = dependency('libbson-1.0', version: '1.7.14', required: false)
+	libmongoc_dep = dependency('libmongoc-1.0', version: '1.7.3', required: false)
+	libbson_dep = dependency('libbson-1.0', version: '1.7.3', required: false)
 	mongo_c_driver_force_fallback = get_option('wrap_mode') == 'forcefallback' or 'mongo-c-driver' in get_option('force_fallback_for')
 	if not libmongoc_dep.found() or not libbson_dep.found() or mongo_c_driver_force_fallback
 		mongo_c_driver_options = cmake.subproject_options()
