@@ -108,7 +108,7 @@ components = {
 		'kvdb_keylock_test': {},
 		'kvdb_log_test': {
 			'args': [
-				meson.current_source_dir() / '..' / 'cn' / 'mdc_images',
+				meson.current_source_dir() / 'cn' / 'mdc_images',
 			],
 		},
 		'kvdb_rest_test': {},
