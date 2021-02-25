@@ -131,7 +131,10 @@ search_dir(const char *path)
         }
 
         tp.test_filev[tp.test_filec] = 0;
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-result"
         asprintf(&tp.test_filev[tp.test_filec], "%s/%s", path, ent->d_name);
+#pragma GCC diagnostic pop
         my_assert(tp.test_filev[tp.test_filec]);
         ++tp.test_filec;
     }

@@ -253,7 +253,10 @@ get_path(
 {
     size_t *len = context;
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-result"
     write(info->resp_fd, path, *len);
+#pragma GCC diagnostic pop
     return 0;
 }
 
@@ -293,7 +296,10 @@ get_url(
     struct kv_iter *  iter,
     void *            context)
 {
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-result"
     write(info->resp_fd, url, strlen(url));
+#pragma GCC diagnostic pop
     return 0;
 }
 

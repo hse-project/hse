@@ -1964,7 +1964,10 @@ MTF_DEFINE_UTEST_PREPOST(ikvdb_test, ikvdb_export_test, test_pre, test_post)
     n = snprintf(path_impt, sizeof(path_impt), "rm -rf %s", template);
     ASSERT_LT(n, sizeof(path_impt));
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-result"
     system(path_impt);
+#pragma GCC diagnostic pop
 }
 
 MTF_DEFINE_UTEST_PREPOST(ikvdb_test, ikvdb_test_various, test_pre, test_post)

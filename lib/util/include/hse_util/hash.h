@@ -9,7 +9,10 @@
 #include <hse_util/inttypes.h>
 #include <hse_util/hse_err.h>
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Warray-bounds"
 #include <xxhash.h>
+#pragma GCC diagnostic pop
 
 #define HSE_HASH_SEED32 0x9747b28cU
 #define HSE_HASH_SEED64 0xc1355cc4855a3f87UL
