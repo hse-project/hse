@@ -20,6 +20,10 @@ pymod = import('python')
 
 cc = meson.get_compiler('c')
 javac = meson.get_compiler('java')
+python = pymod.find_installation(
+	'python3',
+	required: true,
+)
 
 version_components = meson.project_version().split('.')
 
@@ -371,11 +375,6 @@ if not meson.is_subproject()
 endif
 
 if get_option('bindings-python') or get_option('tools') or get_option('tests')
-	python = pymod.find_installation(
-		'python3',
-		required: true,
-	)
-
 	python_has_hse = run_command(
 		python,
 		'-c',
@@ -442,16 +441,33 @@ if clang_format.found()
 		check: true,
 	).stdout().strip().split('\n')
 
-	clang_format_command = [
+	clang_format_help_text = run_command(
 		clang_format,
+		'--help',
+	).stdout().strip()
+
+	clang_format_has_dry_run = run_command(
+		python,
+		'-c',
+		'exit(not ("--dry-run" in """@0@""")'.format(clang_format_help_text)
+	).returncode() == 0
+
+	clang_format_has_werror = run_command(
+		python,
+		'-c',
+		'exit(not ("--Werror" in """@0@"""))'.format(clang_format_help_text)
+	).returncode() == 0
+
+	clang_format_command = [
+		clang_format.full_path(),
 		'--style=file',
 	]
 
-	if get_option('werror')
+	if get_option('werror') and clang_format_has_werror
 		clang_format_command += '--Werror'
 	endif
 
-	if in_ci
+	if in_ci and clang_format_has_dry_run
 		clang_format_command += '--dry-run'
 	else
 		clang_format_command += '-i'
@@ -459,10 +475,21 @@ if clang_format.found()
 
 	clang_format_command += project_files
 
-	run_target(
-		'clang-format',
-		command: clang_format_command,
-	)
+	if in_ci and not clang_format_has_dry_run and not clang_format_has_werror
+		run_target(
+			'clang-format',
+			command: [
+				'sh',
+				'-c',
+				'@0@ && @1@ -C @SOURCE_ROOT@ diff-files --quiet'.format(' '.join(clang_format_command), git.full_path()),
+			],
+		)
+	else
+		run_target(
+			'clang_format',
+			command: clang_format_command,
+		)
+	endif
 endif
 
 black = find_program('black', required: in_ci)
