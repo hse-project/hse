@@ -39,6 +39,7 @@ hse_include_directories = [
 	public_includes,
 	third_party_includes,
 	util_includes,
+	get_option('mpool-include-dir'),
 ]
 
 hse_dependencies = [
@@ -79,6 +80,7 @@ hse_dep = declare_dependency(
 	],
 	include_directories: [
 		public_includes,
+		get_option('mpool-include-dir'),
 	],
 	dependencies: hse_public_dependencies,
 )
@@ -91,6 +93,7 @@ hse_static_dep = declare_dependency(
 	],
 	include_directories: [
 		public_includes,
+		get_option('mpool-include-dir'),
 	],
 	dependencies: hse_public_dependencies,
 )
