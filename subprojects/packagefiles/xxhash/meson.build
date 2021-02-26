@@ -2,6 +2,9 @@ project(
 	'xxhash',
 	['c'],
 	version: '0.8.0',
+	default_options: [
+		'default_library=static',
+	],
 )
 
 inc = include_directories('.')
@@ -21,6 +24,9 @@ xxhash = library(
 
 xxhash_dep = declare_dependency(
 	link_with: xxhash,
+	compile_args: [
+		'-DXXH_INLINE_ALL',
+	],
 	include_directories: [
 		inc,
 	],

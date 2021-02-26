@@ -1,6 +1,5 @@
 common_tools_c_args = [
 	'-DCOMPNAME="kvdb"',
-	'-DXXH_PRIVATE_API',
 ]
 
 common_tools_include_directories = [

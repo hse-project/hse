@@ -28,7 +28,6 @@ hse_sources = [
 
 hse_c_args = [
 	'-DCOMPNAME="kvdb"',
-	'-DXXH_PRIVATE_API',
 	'-DCJSON_FROM_SUBPROJECT=@0@'.format(cJSON_from_subproject ? 1 : 0),
 	'-fvisibility=hidden',
 ]
@@ -101,7 +100,6 @@ hse_static_dep = declare_dependency(
 if get_option('tests')
 	hse_mock_c_args = [
 		'-DCOMPNAME="kvdb"',
-		'-DXXH_PRIVATE_API',
 		'-DCJSON_FROM_SUBPROJECT=@0@'.format(cJSON_from_subproject ? 1 : 0),
 		'-DHSE_UNIT_TEST_MODE=1',
 		'-fvisibility=default',

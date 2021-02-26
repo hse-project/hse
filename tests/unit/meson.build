@@ -1,7 +1,6 @@
 common_test_c_args = [
 	'-DHSE_UNIT_TEST_MODE=1',
 	'-DCOMPNAME="kvdb"',
-	'-DXXH_PRIVATE_API',
 ]
 
 common_test_includes = []

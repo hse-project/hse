@@ -17,7 +17,6 @@ hse_mock_repository = static_library(
 	c_args: [
 		'-DHSE_UNIT_TEST_MODE=1',
 		'-DCOMPNAME="kvdb"',
-		'-DXXH_PRIVATE_API',
 	],
 	include_directories: [
 		hse_include_directories,
