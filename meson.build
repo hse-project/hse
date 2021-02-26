@@ -201,28 +201,44 @@ libbsd_dep = dependency(
 		'werror=false',
 	],
 )
-lz4_dep = dependency(
-	'liblz4',
-	version: '==1.9.2',
-	required: true,
-	fallback: ['lz4', 'lz4_dep'],
-	default_options: [
-		'buildtype=release',
-		'warning_level=0',
-		'werror=false',
-	],
-)
-xxhash_dep = dependency(
-	'libxxhash',
-	version: '==0.8.0',
-	required: true,
-	fallback: ['xxhash', 'xxhash_dep'],
-	default_options: [
-		'buildtype=release',
-		'warning_level=0',
-		'werror=false',
-	],
-)
+if get_option('use-system-lz4')
+	warning('For best results, HSE should be built against a static lz4==1.9.2')
+	lz4_dep = dependency(
+		'liblz4',
+		version: '>=1.9.2',
+		required: true,
+	)
+else
+	lz4 = subproject(
+		'lz4',
+		default_options: [
+			'buildtype=release',
+			'default_library=static',
+			'warning_level=0',
+			'werror=false',
+		],
+	)
+	lz4_dep = lz4.get_variable('lz4_dep')
+endif
+if get_option('use-system-xxhash')
+	warning('For best results, HSE should be built against a static xxhash==0.8.0')
+	xxhash_dep = dependency(
+		'libxxhash',
+		version: '>=0.8.0',
+		required: true,
+	)
+else
+	xxhash = subproject(
+		'xxhash',
+		default_options: [
+			'buildtype=release',
+			'default_library=static',
+			'warning_level=0',
+			'werror=false',
+		],
+	)
+	xxhash_dep = xxhash.get_variable('xxhash_dep')
+endif
 if get_option('mpool-lib-dir') == ''
 	mpool_dep = cc.find_library('mpool', required: true)
 else

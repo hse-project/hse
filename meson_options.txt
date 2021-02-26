@@ -16,6 +16,10 @@ option('samples', type: 'boolean', value: true,
 	description: 'Build samples')
 option('valgrind-support', type: 'feature', value: 'auto',
 	description: 'Enable valgrind support')
+option('use-system-lz4', type: 'boolean', value: false,
+	description: 'Build against the system lz4 package')
+option('use-system-xxhash', type: 'boolean', value: false,
+	description: 'Build against the system xxhash package')
 option('bindings-python', type: 'boolean', value: false,
 	description: 'Build Python bindings (building tools/tests may also require building the Python bindings)')
 option('kvpy', type: 'boolean', value: false,
