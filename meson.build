@@ -202,7 +202,7 @@ libbsd_dep = dependency(
 	],
 )
 if get_option('use-system-lz4')
-	warning('For best results, HSE should be built against a static lz4==1.9.2')
+	message('For best results, HSE should be built against a static lz4==1.9.2')
 	lz4_dep = dependency(
 		'liblz4',
 		version: '>=1.9.2',
@@ -221,7 +221,7 @@ else
 	lz4_dep = lz4.get_variable('lz4_dep')
 endif
 if get_option('use-system-xxhash')
-	warning('For best results, HSE should be built against a static xxhash==0.8.0')
+	message('For best results, HSE should be built against a static xxhash==0.8.0')
 	xxhash_dep = dependency(
 		'libxxhash',
 		version: '>=0.8.0',
