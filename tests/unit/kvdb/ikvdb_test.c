@@ -28,6 +28,16 @@
 #include <mocks/mock_c0cn.h>
 #include <dirent.h>
 
+void
+_hse_meminfo(ulong *freep, ulong *availp, uint shift)
+{
+    if (freep)
+        *freep = 32;
+
+    if (availp)
+        *availp = 32;
+}
+
 /*
  * Pre and Post Functions
  */
@@ -143,7 +153,21 @@ release_deferred(struct c0sk *c0sk)
 }
 #endif
 
-MTF_BEGIN_UTEST_COLLECTION(ikvdb_test)
+static int
+collection_pre(struct mtf_test_info *t1)
+{
+    MOCK_SET(arch, _hse_meminfo);
+    return 0;
+}
+
+static int
+collection_post(struct mtf_test_info *t1)
+{
+    MOCK_UNSET(arch, _hse_meminfo);
+    return 0;
+}
+
+MTF_BEGIN_UTEST_COLLECTION_PREPOST(ikvdb_test, collection_pre, collection_post);
 
 MTF_DEFINE_UTEST_PREPOST(ikvdb_test, init, test_pre, test_post)
 {

@@ -8,6 +8,8 @@
 
 #include <hse_util/page.h>
 
+/* MTF_MOCK_DECL(arch) */
+
 #ifndef SMP_CACHE_BYTES
 #define SMP_CACHE_BYTES 64
 #endif
@@ -30,7 +32,12 @@
  *
  * %freep and/or %availp may be NULL.
  */
+/* MTF_MOCK */
 void
 hse_meminfo(unsigned long *freep, unsigned long *availp, unsigned int shift);
+
+#if defined(HSE_UNIT_TEST_MODE) && HSE_UNIT_TEST_MODE == 1
+#include "arch_ut.h"
+#endif /* HSE_UNIT_TEST_MODE */
 
 #endif

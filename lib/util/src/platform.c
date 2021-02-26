@@ -3,6 +3,8 @@
  * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
  */
 
+#define MTF_MOCK_IMPL_arch
+
 #include <hse_util/platform.h>
 #include <hse_util/page.h>
 #include <hse_util/data_tree.h>
@@ -163,3 +165,7 @@ hse_platform_fini(void)
     vlb_fini();
     hse_logging_fini();
 }
+
+#if defined(HSE_UNIT_TEST_MODE) && HSE_UNIT_TEST_MODE == 1
+#include "arch_ut_impl.i"
+#endif /* HSE_UNIT_TEST_MODE */

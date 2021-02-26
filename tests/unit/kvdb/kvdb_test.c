@@ -25,6 +25,16 @@
 
 struct kvs_cparams cp;
 
+void
+_hse_meminfo(ulong *freep, ulong *availp, uint shift)
+{
+    if (freep)
+        *freep = 32;
+
+    if (availp)
+        *availp = 32;
+}
+
 /*
  * Pre and Post Functions
  */
@@ -226,6 +236,8 @@ MTF_DEFINE_UTEST_PRE(kvdb_test, kvdb_cursor_test, general_pre)
      * c0, cn and cndb are mocked away, so these calls do nothing.
      */
 
+    MOCK_SET(arch, _hse_meminfo);
+
     HSE_KVDB_OPSPEC_INIT(&os);
 
     rc = hse_kvdb_open("mp1", 0, &h);
@@ -280,6 +292,8 @@ MTF_DEFINE_UTEST_PRE(kvdb_test, kvdb_cursor_test, general_pre)
 
     rc = hse_kvdb_close(h);
     ASSERT_EQ(0, rc);
+
+    MOCK_UNSET(arch, _hse_meminfo);
 }
 
 mpool_err_t

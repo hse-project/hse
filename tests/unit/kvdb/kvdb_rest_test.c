@@ -116,6 +116,16 @@ _kvset_get_metrics(struct kvset *kvset, struct kvset_metrics *metrics)
     metrics->vgroups = 1;
 }
 
+void
+_hse_meminfo(ulong *freep, ulong *availp, uint shift)
+{
+    if (freep)
+        *freep = 32;
+
+    if (availp)
+        *availp = 32;
+}
+
 struct kvs_cparams cp;
 
 static int
@@ -163,6 +173,7 @@ test_pre(struct mtf_test_info *ti)
     ct_view_do_nothing = true;
 
     MOCK_SET(kvset_view, _kvset_get_metrics);
+    MOCK_SET(arch, _hse_meminfo);
 
     /* Rest */
     rest_init();
@@ -201,6 +212,8 @@ test_post(struct mtf_test_info *ti)
     store = 0;
 
     hse_params_destroy(params);
+
+    MOCK_UNSET(arch, _hse_meminfo);
 
     return 0;
 }
