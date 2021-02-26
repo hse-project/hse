@@ -390,29 +390,27 @@ if not meson.is_subproject()
 	meson.override_dependency('@0@-1'.format(meson.project_name()), hse_dep)
 endif
 
-if get_option('bindings-python') or get_option('tools') or get_option('tests')
-	python_has_hse = run_command(
-		python,
-		'-c',
-		'import hse',
-	).returncode() == 0
+if get_option('bindings-python')
+	if get_option('tests') or get_option('tools')
+		message('tests and tools will use the built-in HSE Python bindings')
+	endif
 
 	python_depends = [hse]
-	python_env = environment()
 
-	# Use system hse unless nofallback is specified
-	if not python_has_hse or get_option('wrap_mode') != 'nofallback'
-		hse_python = subproject(
-			'hse-python',
-			required: true,
-			default_options: [
-				'tests=false',
-			],
-		)
+	hse_python = subproject(
+		'hse-python',
+		required: true,
+		default_options: [
+			'buildtype=release',
+			'warning_level=0',
+			'tests=false',
+		],
+	)
 
-		python_depends += hse_python.get_variable('extension_modules')
-		python_env.set('PYTHONPATH', hse_python.get_variable('project_build_root'))
-	endif
+	python_depends += hse_python.get_variable('extension_modules')
+	python_env = environment({
+		'PYTHONPATH': hse_python.get_variable('project_build_root'),
+	})
 
 	run_target(
 		'python-repl',
@@ -422,6 +420,12 @@ if get_option('bindings-python') or get_option('tools') or get_option('tests')
 		depends: python_depends,
 		env: python_env,
 	)
+else
+	if get_option('tests') or get_option('tools')
+		message('tests and tools will use the system HSE Python bindings')
+	endif
+
+	python_env = environment()
 endif
 
 if get_option('tests')
