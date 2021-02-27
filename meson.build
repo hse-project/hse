@@ -509,7 +509,7 @@ if clang_format.found()
 		)
 	else
 		run_target(
-			'clang_format',
+			'clang-format',
 			command: clang_format_command,
 		)
 	endif
