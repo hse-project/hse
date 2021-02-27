@@ -6,7 +6,6 @@ project(
 		'Apache-2.0',
 	],
 	default_options: [
-		'b_ndebug=if-release',
 		'c_std=gnu11',
 		'buildtype=debugoptimized',
 		'warning_level=2',
