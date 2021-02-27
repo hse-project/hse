@@ -183,4 +183,15 @@ mblock_file_insert(struct mblock_file *mbfp, uint64_t mbid);
 size_t
 mblock_file_meta_len(void);
 
+merr_t
+mblock_file_map_getbase(
+    struct mblock_file *mbfp,
+    uint64_t            mbid,
+    char              **addr_out);
+
+merr_t
+mblock_file_unmap(
+    struct mblock_file *mbfp,
+    uint64_t            mbid);
+
 #endif /* MPOOL_MBLOCK_FILE_H */

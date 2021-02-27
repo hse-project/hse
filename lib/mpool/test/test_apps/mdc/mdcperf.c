@@ -735,6 +735,7 @@ perf_seq_writes(const char *mpname, const struct hse_params *params)
         err = thread_create(tc, ml_verify, targ, tresp);
         if (err != 0) {
             fprintf(stderr, "%s: Error from thread_create", __func__);
+            free(v_arg);
             return err;
         }
 
@@ -765,6 +766,8 @@ perf_seq_writes(const char *mpname, const struct hse_params *params)
             (long)bytes_verified,
             usec,
             perf);
+
+        free(v_arg);
     }
 
 free_oid:

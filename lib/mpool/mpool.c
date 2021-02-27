@@ -15,6 +15,7 @@
 #include <mpool/mpool_internal.h>
 
 #include "mpool.h"
+#include "mblock_file.h"
 #include "mdc.h"
 
 #define UUID_STRLEN 36
@@ -149,6 +150,7 @@ mpool_params_get2(struct mpool *mp, struct mpool_params *params)
 {
     char   ubuf[UUID_STRLEN + 1];
     merr_t err;
+    int    i;
 
     memset(params, 0, sizeof(*params));
 
@@ -159,6 +161,9 @@ mpool_params_get2(struct mpool *mp, struct mpool_params *params)
         ubuf[UUID_STRLEN] = '\0';
         uuid_parse((const char *)ubuf, params->mp_utype);
     }
+
+    for (i = MP_MED_BASE; i < MP_MED_COUNT; i++)
+        params->mp_mblocksz[i] = MBLOCK_SIZE_MB;
 
     return 0;
 }
