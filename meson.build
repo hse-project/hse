@@ -218,7 +218,7 @@ else
 			'werror=false',
 		],
 	)
-	lz4_dep = lz4.get_variable('lz4_dep')
+	lz4_dep = lz4.get_variable('lz4_dep').as_link_whole()
 endif
 if get_option('use-system-xxhash')
 	message('For best results, HSE should be built against a static xxhash==0.8.0')
@@ -239,7 +239,7 @@ else
 			'inline-all=true',
 		],
 	)
-	xxhash_dep = xxhash.get_variable('xxhash_dep')
+	xxhash_dep = xxhash.get_variable('xxhash_dep').as_link_whole()
 endif
 if get_option('mpool-lib-dir') == ''
 	mpool_dep = cc.find_library('mpool', required: true)
