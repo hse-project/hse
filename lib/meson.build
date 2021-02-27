@@ -42,19 +42,22 @@ hse_include_directories = [
 ]
 
 hse_dependencies = [
+	# Add xxhash and lz4 first avoid potential inclusions from other
+	# dependencies shadowing ours. xxhash must come before lz4 so we avoid
+	# including xxhash.h from the lz4 source tree.
+	xxhash_dep,
+	lz4_dep,
 	cJSON_dep,
 	libbsd_dep,
 	libcurl_dep,
 	libmicrohttpd_dep,
 	liburcu_bp_dep,
 	libyaml_dep,
-	lz4_dep,
 	m_dep,
 	mpool_dep,
 	pthread_dep,
 	rbtree_dep,
 	uuid_dep,
-	xxhash_dep,
 ]
 
 hse_public_dependencies = [

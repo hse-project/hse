@@ -236,6 +236,8 @@ else
 			'default_library=static',
 			'warning_level=0',
 			'werror=false',
+			'cli=false',
+			'inline-all=true',
 		],
 	)
 	xxhash_dep = xxhash.get_variable('xxhash_dep')
