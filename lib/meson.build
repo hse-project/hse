@@ -75,9 +75,8 @@ hse = both_libraries(
 )
 
 hse_variables = {
-	'prefix': get_option('prefix'),
-	'includedir': get_option('prefix') / get_option('includedir'),
-	'libdir': get_option('prefix') / get_option('libdir'),
+	'source-root': meson.project_source_root(),
+	'build-root': meson.project_build_root(),
 }
 
 hse_dep = declare_dependency(
