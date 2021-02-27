@@ -100,6 +100,7 @@ merr_to_hse_err(merr_t merr)
     return (uint64_t)merr;
 }
 
+#pragma GCC visibility pop
 
 struct merr_info {
     char buf[MERR_INFO_SZ];
@@ -175,7 +176,5 @@ merr_info(merr_t err, struct merr_info *info)
 {
     return merr_strinfo(err, info->buf, sizeof(info->buf), 0);
 }
-
-#pragma GCC visibility pop
 
 #endif
