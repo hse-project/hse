@@ -74,6 +74,12 @@ hse = both_libraries(
 	install: true,
 )
 
+hse_variables = {
+	'prefix': get_option('prefix'),
+	'includedir': get_option('prefix') / get_option('includedir'),
+	'libdir': get_option('prefix') / get_option('libdir'),
+}
+
 hse_dep = declare_dependency(
 	link_with: hse,
 	version: meson.project_version(),
@@ -85,6 +91,7 @@ hse_dep = declare_dependency(
 		get_option('mpool-include-dir'),
 	],
 	dependencies: hse_public_dependencies,
+	variables: hse_variables,
 )
 
 hse_static_dep = declare_dependency(
@@ -98,6 +105,7 @@ hse_static_dep = declare_dependency(
 		get_option('mpool-include-dir'),
 	],
 	dependencies: hse_public_dependencies,
+	variables: hse_variables,
 )
 
 if get_option('tests')
