@@ -45,8 +45,8 @@ hse_dependencies = [
 	# Add xxhash and lz4 first avoid potential inclusions from other
 	# dependencies shadowing ours. xxhash must come before lz4 so we avoid
 	# including xxhash.h from the lz4 source tree.
-	xxhash_dep,
-	lz4_dep,
+	xxhash_dep.as_link_whole(),
+	lz4_dep.as_link_whole(),
 	cJSON_dep,
 	libbsd_dep,
 	libcurl_dep,
