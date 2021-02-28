@@ -251,7 +251,7 @@ get_path(
     struct kv_iter *  iter,
     void *            context)
 {
-    size_t *len = context;
+    ssize_t *len = context;
 
     return write(info->resp_fd, path, *len) == *len ? 0 : errno;
 }
