@@ -87,7 +87,6 @@ hse_dep = declare_dependency(
 	],
 	include_directories: [
 		public_includes,
-		get_option('mpool-include-dir'),
 	],
 	dependencies: hse_public_dependencies,
 	variables: hse_variables,
@@ -101,7 +100,6 @@ hse_static_dep = declare_dependency(
 	],
 	include_directories: [
 		public_includes,
-		get_option('mpool-include-dir'),
 	],
 	dependencies: hse_public_dependencies,
 	variables: hse_variables,
