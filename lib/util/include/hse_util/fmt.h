@@ -21,7 +21,7 @@
  * The return value, @n, is the "strlen" size of the string fmt_hexp()
  * tried to create.  If @n >= @dst_len, then the output is truncated.
  */
-int
+size_t
 fmt_pe(void *dst, size_t dst_len, const void *src, size_t src_len);
 
 /**
