@@ -253,11 +253,7 @@ get_path(
 {
     size_t *len = context;
 
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wunused-result"
-    write(info->resp_fd, path, *len);
-#pragma GCC diagnostic pop
-    return 0;
+    return write(info->resp_fd, path, *len) == *len ? 0 : errno;
 }
 
 MTF_DEFINE_UTEST_PREPOST(rest_api, reg_too_many_urls, rest_start, rest_stop)
@@ -296,11 +292,9 @@ get_url(
     struct kv_iter *  iter,
     void *            context)
 {
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wunused-result"
-    write(info->resp_fd, url, strlen(url));
-#pragma GCC diagnostic pop
-    return 0;
+    const size_t url_len = strlen(url);
+
+    return write(info->resp_fd, url, url_len) == url_len ? 0 : errno;
 }
 
 MTF_DEFINE_UTEST_PREPOST(rest_api, url_length_test, rest_start, rest_stop)
