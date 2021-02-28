@@ -816,8 +816,10 @@ kmc_reaper(struct work_struct *work)
     }
 
     struct list_head *entry, *next;
-    list_for_each_safe(entry, next, &expired)
+    list_for_each_safe(entry, next, &expired) {
+        slab = list_entry(entry, typeof(*slab), slab_entry);
         kmc_slab_free(zone, slab);
+    }
 
     if (zone == kmc.kmc_pagecache) {
         for (i = 0; i < MAX_NUMNODES; ++i) {
