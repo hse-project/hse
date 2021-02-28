@@ -147,7 +147,7 @@
 
 #include <xoroshiro/xoroshiro.h>
 
-#if HdrHistogram_c_from_subproject == 1
+#if HDR_HISTOGRAM_C_FROM_SUBPROJECT == 1
 #include <hdr_histogram.h>
 #else
 #include <hdr/hdr_histogram.h>
@@ -203,6 +203,11 @@ malloc_stats(void);
 #undef RB_PROTOTYPE_INTERNAL
 #undef RB_GENERATE_INTERNAL
 #include <bsd/sys/tree.h>
+
+typedef uint64_t hse_err_t;
+
+int
+hse_err_to_errno(hse_err_t err);
 
 /* Note - This opspec isn't a real HSE opspec, it's use is internal to kmt and
  *        is here to make the core kmt code re-usable in xkmt mode.
