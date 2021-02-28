@@ -131,7 +131,7 @@ struct kvs_cparams cp;
 static int
 test_pre(struct mtf_test_info *ti)
 {
-    merr_t          err;
+    merr_t          err = 0;
     struct mpool *  ds = (struct mpool *)-1;
     struct hse_kvs *kvs1 = 0;
     struct hse_kvs *kvs2 = 0;
@@ -196,7 +196,7 @@ test_pre(struct mtf_test_info *ti)
     err = ikvdb_kvs_open(store, KVS2, 0, 0, &kvs2);
     assert(err == 0);
 
-    return 0;
+    return err;
 }
 
 static int

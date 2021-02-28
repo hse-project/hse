@@ -6,6 +6,7 @@
 #define BONSAI_TREE_CLIENT_VERIFY
 #define BONSAI_TREE_CURSOR_HEAP
 
+#include <hse_util/compiler.h>
 #include <hse_util/string.h>
 #include <hse_util/alloc.h>
 #include <hse_util/hse_err.h>
@@ -462,8 +463,8 @@ bonsai_client_lcp_test(void *arg)
         struct bonsai_kv *          kv = NULL;
         struct bonsai_val *         v;
         unsigned long               val;
-        bool                        found;
-        const struct key_immediate *ki;
+        bool                        found HSE_MAYBE_UNUSED;
+        const struct key_immediate *ki HSE_MAYBE_UNUSED;
 
         key[KI_DLEN_MAX + 26] = 'a' + i;
 
@@ -490,7 +491,7 @@ bonsai_client_lcp_test(void *arg)
     for (i = 1; i < KI_DLEN_MAX + 27; i++) {
         struct bonsai_skey skey = { 0 };
         struct bonsai_kv * kv = NULL;
-        bool               found;
+        bool               found HSE_MAYBE_UNUSED;
 
         bn_skey_init(key, i, tid, &skey);
 
@@ -503,7 +504,7 @@ bonsai_client_lcp_test(void *arg)
     for (i = KI_DLEN_MAX + 28; i < sizeof(key); i++) {
         struct bonsai_skey skey = { 0 };
         struct bonsai_kv * kv = NULL;
-        bool               found;
+        bool               found HSE_MAYBE_UNUSED;
 
         bn_skey_init(key, i, tid, &skey);
 
