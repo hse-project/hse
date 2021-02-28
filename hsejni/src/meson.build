@@ -1,36 +1,36 @@
 hsejni_c_sources = files(
-	'hse_jni_util.c',
-	'hsejni.c',
+    'hse_jni_util.c',
+    'hsejni.c',
 )
 
 java_home = run_command(
-	'sh',
-	'-c',
-	'dirname $(dirname $(readlink -f $(which javac)))',
-	check: true,
+    'sh',
+    '-c',
+    'dirname $(dirname $(readlink -f $(which javac)))',
+    check: true,
 ).stdout().strip()
 
 hsejni_c_c_args = [
-	'-DCOMPNAME="hsejni"',
+    '-DCOMPNAME="hsejni"',
 ]
 
 hsejni_c = library(
-	'hsejni',
-	hsejni_c_sources,
-	c_args: hsejni_c_c_args,
-	include_directories: [
-		public_includes,
-		util_includes,
-		hsejni_includes,
-		include_directories(
-			'@0@'.format(java_home) / 'include',
-			'@0@'.format(java_home) / 'include' / 'linux'
-		),
-	],
-	dependencies: [
-		hse_dep,
-		pthread_dep,
-	],
-	version: meson.project_version(),
-	install: true,
+    'hsejni',
+    hsejni_c_sources,
+    c_args: hsejni_c_c_args,
+    include_directories: [
+        public_includes,
+        util_includes,
+        hsejni_includes,
+        include_directories(
+            '@0@'.format(java_home) / 'include',
+            '@0@'.format(java_home) / 'include' / 'linux'
+        ),
+    ],
+    dependencies: [
+        hse_dep,
+        pthread_dep,
+    ],
+    version: meson.project_version(),
+    install: true,
 )

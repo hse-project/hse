@@ -1,69 +1,69 @@
 option('cli', type: 'boolean', value: true, description: 'Build the CLI')
 option('inline-all', type: 'boolean', value: false,
-	description: '''Make all functions inline, with implementations being directly included within
-					xxhash.h. Inlining functions is beneficial for speed on small keys. It's
-					extremely effective when key length is expressed as a compile time constant,
-					with performance improvements observed in the +200% range.''')
+    description: '''Make all functions inline, with implementations being directly included within
+                    xxhash.h. Inlining functions is beneficial for speed on small keys. It's
+                    extremely effective when key length is expressed as a compile time constant,
+                    with performance improvements observed in the +200% range.''')
 option('namespace', type: 'string', value: '',
-	description: '''Prefixes all symbols with the value of namespace. This optoin can only use
-					compilable character set. Useful to evade symbol naming collisions, in case of
-					multiple inclusions of xxHash's source code. Client applications still use the
-					regular function names, as symbols are automatically translated through
-					xxhash.h.''')
+    description: '''Prefixes all symbols with the value of namespace. This optoin can only use
+                    compilable character set. Useful to evade symbol naming collisions, in case of
+                    multiple inclusions of xxHash's source code. Client applications still use the
+                    regular function names, as symbols are automatically translated through
+                    xxhash.h.''')
 option('force-memory-access', type: 'combo', choices: ['default', 'attribute', 'unaligned-reads', 'byteshift'],
-	value: 'default',
-	description: '''The default method 0 uses a portable memcpy() notation. Method 1 uses a
-					gcc-specific packed attribute, which can provide better performance for some
-					targets. Method 2 forces unaligned reads, which is not standards compliant, but
-					might sometimes be the only way to extract better read performance. Method 3
-					uses a byteshift operation, which is best for old compilers which don't inline
-					memcpy() or big-endian systems without a byteswap instruction''')
+    value: 'default',
+    description: '''The default method 0 uses a portable memcpy() notation. Method 1 uses a
+                    gcc-specific packed attribute, which can provide better performance for some
+                    targets. Method 2 forces unaligned reads, which is not standards compliant, but
+                    might sometimes be the only way to extract better read performance. Method 3
+                    uses a byteshift operation, which is best for old compilers which don't inline
+                    memcpy() or big-endian systems without a byteswap instruction''')
 option('force-align-check', type: 'boolean', value: false,
-	description: '''Use a faster direct read path when input is aligned. This option can result in
-					dramatic performance improvement when input to hash is aligned on 32 or 64-bit
-					boundaries, when running on architectures unable to load memory from unaligned
-					addresses, or suffering a performance penalty from it. It is (slightly)
-					detrimental on platform with good unaligned memory access performance (same
-					instruction for both aligned and unaligned accesses). This option is
-					automatically disabled on x86, x64 and aarch64, and enabled
-					on all other platforms.''')
+    description: '''Use a faster direct read path when input is aligned. This option can result in
+                    dramatic performance improvement when input to hash is aligned on 32 or 64-bit
+                    boundaries, when running on architectures unable to load memory from unaligned
+                    addresses, or suffering a performance penalty from it. It is (slightly)
+                    detrimental on platform with good unaligned memory access performance (same
+                    instruction for both aligned and unaligned accesses). This option is
+                    automatically disabled on x86, x64 and aarch64, and enabled
+                    on all other platforms.''')
 option('vector', type: 'combo', choices: ['default', 'scalar', 'sse2', 'avx2', 'avx512', 'neon', 'vsx'],
-	value: 'default',
-	description: '''Manually select a vector instruction set (default: auto-selected at compilation
-					time). Available instruction sets are XXH_SCALAR, XXH_SSE2, XXH_AVX2,
-					XXH_AVX512, XXH_NEON and XXH_VSX. Compiler may require additional flags to
-					ensure proper support (for example, gcc on linux will require -mavx2 for AVX2,
-					and -mavx512f for AVX512).''')
+    value: 'default',
+    description: '''Manually select a vector instruction set (default: auto-selected at compilation
+                    time). Available instruction sets are XXH_SCALAR, XXH_SSE2, XXH_AVX2,
+                    XXH_AVX512, XXH_NEON and XXH_VSX. Compiler may require additional flags to
+                    ensure proper support (for example, gcc on linux will require -mavx2 for AVX2,
+                    and -mavx512f for AVX512).''')
 option('prefetch', type: 'boolean', value: true,
-	description: 'Prefetching. XXH3 only.')
+    description: 'Prefetching. XXH3 only.')
 option('prefetch-dist', type: 'integer', value: 0,
-	description: 'Select prefetching distance. XXH3 only.')
+    description: 'Select prefetching distance. XXH3 only.')
 option('inline-hints', type: 'boolean', value: true,
-	description: '''By default, xxHash uses __attribute__((always_inline)) and __forceinline to
-					improve performance at the cost of code size. Defining this setting to false will
-					mark all internal functions as static, allowing the compiler to decide whether
-					to inline a function or not. This is very useful when optimizing for smallest
-					binary size, and is automatically defined when compiling with -O0, -Os, -Oz, or
-					-fno-inline on GCC and Clang. This may also increase performance depending on
-					compiler and architecture.''')
+    description: '''By default, xxHash uses __attribute__((always_inline)) and __forceinline to
+                    improve performance at the cost of code size. Defining this setting to false will
+                    mark all internal functions as static, allowing the compiler to decide whether
+                    to inline a function or not. This is very useful when optimizing for smallest
+                    binary size, and is automatically defined when compiling with -O0, -Os, -Oz, or
+                    -fno-inline on GCC and Clang. This may also increase performance depending on
+                    compiler and architecture.''')
 option('reroll', type: 'boolean', value: false,
-	description: '''Reduces the size of the generated code by not unrolling some loops. Impact on
-					performance may vary, depending on platform and algorithm.''')
+    description: '''Reduces the size of the generated code by not unrolling some loops. Impact on
+                    performance may vary, depending on platform and algorithm.''')
 option('accept-null-input-pointer', type: 'boolean', value: false,
-	description: '''If set to true, when input is a NULL pointer, xxHash'd result is the same as a
-					zero-length input (instead of a dereference segfault). Adds one branch at the
-					beginning of each hash.''')
+    description: '''If set to true, when input is a NULL pointer, xxHash'd result is the same as a
+                    zero-length input (instead of a dereference segfault). Adds one branch at the
+                    beginning of each hash.''')
 option('long-long', type: 'boolean', value: true,
-	description: '''Removes compilation of algorithms relying on 64-bit types (XXH3 and XXH64). Only
-					XXH32 will be compiled. Useful for targets (architectures and compilers) without
-					64-bit support.''')
+    description: '''Removes compilation of algorithms relying on 64-bit types (XXH3 and XXH64). Only
+                    XXH32 will be compiled. Useful for targets (architectures and compilers) without
+                    64-bit support.''')
 option('cpu-little-endian', type: 'feature', value: 'auto',
-	description: '''By default, endianess is determined by a runtime test resolved at compile time.
-					If, for some reason, the compiler cannot simplify the runtime test, it can cost
-					performance. It's possible to skip auto-detection and simply stating that the
-					architecture is little-endian by setting this option to enabled. Setting it to
-					disabled states big-endian.''')
+    description: '''By default, endianess is determined by a runtime test resolved at compile time.
+                    If, for some reason, the compiler cannot simplify the runtime test, it can cost
+                    performance. It's possible to skip auto-detection and simply stating that the
+                    architecture is little-endian by setting this option to enabled. Setting it to
+                    disabled states big-endian.''')
 option('dispatch', type: 'boolean', value: false,
-	description: '''Use xxh_x86dispatch.c, to automatically select between scalar, sse2, avx2 or
-					avx512 instruction set at runtime, depending on local host. This option is only
-					valid for x86/x64 systems.''')
+    description: '''Use xxh_x86dispatch.c, to automatically select between scalar, sse2, avx2 or
+                    avx512 instruction set at runtime, depending on local host. This option is only
+                    valid for x86/x64 systems.''')

@@ -1,16 +1,16 @@
 common_tools_c_args = [
-	'-DCOMPNAME="kvdb"',
+    '-DCOMPNAME="kvdb"',
 ]
 
 common_tools_include_directories = [
-	component_root_includes,
-	hse_include_directories,
-	tools_includes,
+    component_root_includes,
+    hse_include_directories,
+    tools_includes,
 ]
 
 common_tools_dependencies = [
-	hse_static_dep,
-	hse_dependencies,
+    hse_static_dep,
+    hse_dependencies,
 ]
 
 subdir('3rdparty')

@@ -1,32 +1,32 @@
 option('cli', type: 'boolean', value: true,
-	description: 'Build the CLI')
+    description: 'Build the CLI')
 option('exe-install-rpath', type: 'boolean', value: false,
-	description: 'Add rpath of prefix/libdir/ to the CLI')
+    description: 'Add rpath of prefix/libdir/ to the CLI')
 option('tests', type: 'boolean', value: true,
-	description: 'Build tests')
+    description: 'Build tests')
 option('ycsb', type: 'boolean', value: false,
-	description: 'Build JNI bridge artifacts')
+    description: 'Build JNI bridge artifacts')
 option('tools', type: 'boolean', value: true,
-	description: 'Build tools')
+    description: 'Build tools')
 option('install-tools', type: 'boolean', value: false,
-	description: 'Install tools (mainly meant for developers/maintainers)')
+    description: 'Install tools (mainly meant for developers/maintainers)')
 option('install-configs', type: 'boolean', value: false,
-	description: 'Install config files (mainly meant for developers/maintainers)')
+    description: 'Install config files (mainly meant for developers/maintainers)')
 option('samples', type: 'boolean', value: true,
-	description: 'Build samples')
+    description: 'Build samples')
 option('valgrind-support', type: 'feature', value: 'auto',
-	description: 'Enable valgrind support')
+    description: 'Enable valgrind support')
 option('use-system-lz4', type: 'boolean', value: false,
-	description: 'Build against the system lz4 package')
+    description: 'Build against the system lz4 package')
 option('use-system-xxhash', type: 'boolean', value: false,
-	description: 'Build against the system xxhash package')
+    description: 'Build against the system xxhash package')
 option('bindings-python', type: 'boolean', value: true,
-	description: 'Build Python bindings for use in tests and tools')
+    description: 'Build Python bindings for use in tests and tools')
 option('kvpy', type: 'boolean', value: false,
-	description: 'Enable the kvpy scripts')
+    description: 'Enable the kvpy scripts')
 option('kvpy-kvdb', type: 'string', value: 'kvpy',
-	description: 'KVDB the kvpy scripts will use')
+    description: 'KVDB the kvpy scripts will use')
 option('mpool-include-dir', type: 'string', value: '/usr/include/mpool',
-	description: 'Location of the mpool include directory on the system')
+    description: 'Location of the mpool include directory on the system')
 option('mpool-lib-dir', type: 'string', value: '',
-	description: 'Directory containing libmpool.so')
+    description: 'Directory containing libmpool.so')

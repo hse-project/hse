@@ -1,16 +1,16 @@
 sources = files(
-	'c1ingest.c',
-	'..' / 'key_generation.c',
+    'c1ingest.c',
+    '..' / 'key_generation.c',
 )
 
 executable(
-	'c1ingest',
-	sources,
-	c_args: common_tools_c_args,
-	include_directories: common_tools_include_directories,
-	dependencies: [
-		common_tools_dependencies,
-	],
-	install: get_option('install-tools'),
-	install_rpath: exe_install_rpath,
+    'c1ingest',
+    sources,
+    c_args: common_tools_c_args,
+    include_directories: common_tools_include_directories,
+    dependencies: [
+        common_tools_dependencies,
+    ],
+    install: get_option('install-tools'),
+    install_rpath: exe_install_rpath,
 )

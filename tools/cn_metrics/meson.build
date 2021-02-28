@@ -1,15 +1,15 @@
 sources = files(
-	'cn_metrics.c'
+    'cn_metrics.c'
 )
 
 executable(
-	'cn_metrics',
-	sources,
-	c_args: common_tools_c_args,
-	include_directories: common_tools_include_directories,
-	dependencies: [
-		common_tools_dependencies,
-	],
-	install: get_option('install-tools'),
-	install_rpath: exe_install_rpath,
+    'cn_metrics',
+    sources,
+    c_args: common_tools_c_args,
+    include_directories: common_tools_include_directories,
+    dependencies: [
+        common_tools_dependencies,
+    ],
+    install: get_option('install-tools'),
+    install_rpath: exe_install_rpath,
 )
