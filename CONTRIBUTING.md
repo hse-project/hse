@@ -11,7 +11,10 @@ or ask a question.
 
 All the C code within HSE conforms to the defined `clang-format` file. All
 Python code you may find in the code base conforms entirely to the `black`
-formatter. Please make sure all contributions adhere to the aforementioned
+formatter. For Meson files, try to match the style in other files, but most
+importantly please use 4 spaces for indention rather than tabs.
+
+Please make sure all contributions adhere to the aforementioned
 styles.
 
 ## Cloning
