@@ -777,7 +777,7 @@ kmc_reaper(struct work_struct *work)
 {
     struct kmem_cache *zone;
     struct list_head   expired;
-    struct kmc_slab   *slab;
+    struct kmc_slab   *slab, *next;
 
     ulong delay;
     int   i;
@@ -802,9 +802,7 @@ kmc_reaper(struct work_struct *work)
             slab->slab_expired = false;
         }
 
-        struct list_head *entry, *next;
-        list_for_each_safe(entry, next, &pcpu->pcpu_empty) {
-            slab = list_entry(entry, typeof(*slab), slab_entry);
+        kmc_slab_foreach(slab, next, &pcpu->pcpu_empty) {
             if (slab->slab_expired) {
                 list_del(&slab->slab_entry);
                 list_add(&slab->slab_entry, &expired);
@@ -815,11 +813,8 @@ kmc_reaper(struct work_struct *work)
         kmc_pcpu_unlock(pcpu);
     }
 
-    struct list_head *entry, *next;
-    list_for_each_safe(entry, next, &expired) {
-        slab = list_entry(entry, typeof(*slab), slab_entry);
+    kmc_slab_foreach(slab, next, &expired)
         kmc_slab_free(zone, slab);
-    }
 
     if (zone == kmc.kmc_pagecache) {
         for (i = 0; i < MAX_NUMNODES; ++i) {
@@ -1055,7 +1050,7 @@ kmem_cache_init(void)
 void
 kmem_cache_fini(void)
 {
-    struct kmem_cache *zone;
+    struct kmem_cache *zone, *next;
 
     if (!kmc.kmc_pagecache)
         return;
@@ -1064,11 +1059,8 @@ kmem_cache_fini(void)
     kmc.kmc_pagecache = NULL;
     mutex_unlock(&kmc.kmc_zone_lock);
 
-    struct list_head *entry, *next;
-    list_for_each_safe(entry, next, &kmc.kmc_zones) {
-        zone = list_entry(entry, typeof(*zone), zone_entry);
-        kmem_cache_destroy(zone);
-    }
+    kmc_zone_foreach(zone, next, &kmc.kmc_zones)
+        kmem_cache_destroy((void *)zone);
 
     destroy_workqueue(kmc.kmc_wq);
     mutex_destroy(&kmc.kmc_zone_lock);
