@@ -398,7 +398,6 @@ if get_option('bindings-python')
         message('tests and tools will use the built-in HSE Python bindings')
     endif
 
-    python_depends = [hse]
 
     hse_python = subproject(
         'hse-python',
@@ -410,7 +409,8 @@ if get_option('bindings-python')
         ],
     )
 
-    python_depends += hse_python.get_variable('extension_modules')
+    hse_python_extension_modules = hse_python.get_variable('extension_modules')
+    python_repl_depends = [hse_python_extension_modules]
     python_env = environment({
         'PYTHONPATH': hse_python.get_variable('project_build_root'),
     })
@@ -420,7 +420,7 @@ if get_option('bindings-python')
         command: [
             python,
         ],
-        depends: python_depends,
+        depends: python_repl_depends,
         env: python_env,
     )
 else

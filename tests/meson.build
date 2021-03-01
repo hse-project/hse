@@ -7,3 +7,4 @@ add_test_setup(
 )
 
 subdir('unit')
+subdir('functional')
