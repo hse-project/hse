@@ -90,11 +90,4 @@ seqnoref_to_state(uintptr_t seqnoref)
 void
 kvdb_ctxn_deactivate(struct kvdb_ctxn_impl *ctxn);
 
-merr_t
-kvdb_ctxn_merge(
-    struct kvdb_ctxn_impl *ctxn,
-    int *                  num_retries,
-    uintptr_t **           priv,
-    struct c0_kvmultiset **dstp);
-
 #endif

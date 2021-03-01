@@ -305,8 +305,10 @@ kvdb_log_replay(
     if (ev(err))
         return err;
 
-    if (len == 0)
+    if (len == 0) {
+        hse_log(HSE_ERR "gsr6: HUH!");
         return merr(ev(ENODATA));
+    }
 
     if (omf_hdr_type((void *)log->kl_buf) != KVDB_LOG_TYPE_VERSION)
         return merr(ev(EPROTO));

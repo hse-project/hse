@@ -873,7 +873,7 @@ ctxn_trylock(int num)
 static __always_inline void
 ctxn_unlock(int num)
 {
-    int old __maybe_unused;
+    int old;
 
     assert(num < MAX_TXNS);
 
@@ -886,7 +886,7 @@ c0sk_test_finish_txn(int index, u64 commit_sn)
 {
     uintptr_t *priv;
     uintptr_t ref;
-    u64 osn __maybe_unused;
+    u64 osn;
 
     assert(index >= 0 && index < MAX_TXNS);
 
@@ -1008,7 +1008,7 @@ MTF_DEFINE_UTEST_PREPOST(c0sk_test, ctxn_put, no_fail_ctxn_pre, no_fail_post)
 
         for (j = 0; j < num_kvs; j++) {
             int idx = i % num_txns;
-            u64 oseqno __maybe_unused;
+            u64 oseqno;
 
 retry:
             if (ctxn_trylock(idx)) {
@@ -1100,7 +1100,7 @@ parallel_put_helper(void *arg)
         if (idx != -1) {
 retry:
             if (ctxn_trylock(idx)) {
-                u64 oseqno __maybe_unused;
+                u64 oseqno;
 
                 priv = c0snr[idx];
                 if (priv) {

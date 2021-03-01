@@ -215,12 +215,12 @@ merr_t
 c0_cursor_restore(struct c0_cursor *c0cur);
 
 /**
- * c0_cursor_bind_txn() - add txn kvms to iterable c0
+ * c0_cursor_bind_txn() - Assign ctxn to c0 cursor
  * @c0cur:      Instance of struct c0_cursor
  * @ctxn:       The transaction to bind.
  */
 /* MTF_MOCK */
-merr_t
+void
 c0_cursor_bind_txn(struct c0_cursor *c0cur, struct kvdb_ctxn *ctxn);
 
 /**

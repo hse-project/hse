@@ -10,6 +10,8 @@
 #include <hse_util/list.h>
 #include <hse_util/inttypes.h>
 #include <hse_util/hse_err.h>
+#include <hse_util/mutex.h>
+#include <hse_util/perfc.h>
 
 #include <hse_ikvdb/tuple.h>
 #include <hse_ikvdb/kvdb_health.h>
@@ -126,7 +128,7 @@ merr_t
 ikvs_cursor_init(struct hse_kvs_cursor *cursor);
 
 merr_t
-ikvs_cursor_bind_txn(struct hse_kvs_cursor *cursor, struct kvdb_ctxn *ctxn);
+ikvs_cursor_bind_txn(struct hse_kvs_cursor *handle, struct kvdb_ctxn *ctxn);
 
 void
 ikvs_cursor_destroy(struct hse_kvs_cursor *cursor);
@@ -188,12 +190,11 @@ kvs_init(void);
 void
 kvs_fini(void);
 
-#pragma GCC visibility pop
+void
+kvs_cursor_perfc_free(struct perfc_set *pcs_cc, struct perfc_set *pcs_cd);
 
-// TODO Gaurav: These structs should be made local to kvs.c again. kvs_cursor should be given
-// necessary member accesses for that. Starting from here ...
-#include <hse_util/mutex.h>
-#include <hse_util/perfc.h>
+void
+kvs_cursor_perfc_alloc(const char *dbname, struct perfc_set *pcs_cc, struct perfc_set *pcs_cd);
 
 /**
  * struct cache_bucket - a list of cursors per rb_node
@@ -247,7 +248,6 @@ ikvs_cursor_reap(struct ikvs *kvs);
 void
 ikvs_cursor_bkt_free(struct curcache *cca, struct cache_bucket *bkt);
 
-// maybe these are fine here
 void
 kvs_cursor_perfc_fini(void);
 
@@ -256,13 +256,6 @@ kvs_cursor_zone_alloc(void);
 
 void
 kvs_cursor_zone_free(void);
-
-void
-kvs_cursor_perfc_free(struct perfc_set *pcs_cc, struct perfc_set *pcs_cd);
-
-void
-kvs_cursor_perfc_alloc(const char *dbname, struct perfc_set *pcs_cc, struct perfc_set *pcs_cd);
-// TODO Gaurav: ... till here
 
 #if defined(HSE_UNIT_TEST_MODE) && HSE_UNIT_TEST_MODE == 1
 #include "kvs_ut.h"

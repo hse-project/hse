@@ -781,17 +781,6 @@ c0sk_cursor_release(struct c0_cursor *cur)
     this = cur->c0cur_active;
     cur->c0cur_active = NULL;
 
-    /* Do not putref transaction KVMSes */
-    if (cur->c0cur_ctxn) {
-        next = MSCUR_NEXT(this);
-
-        c0kvms_cursor_destroy(this);
-        c0sk_cursor_put_free(cur, this);
-
-        cur->c0cur_ctxn = 0;
-        this = next;
-    }
-
     /* Destroy KVMS cursors */
     for (i = 0; this; this = next, i++) {
         next = MSCUR_NEXT(this);
@@ -861,9 +850,7 @@ c0sk_cursor_trim(struct c0_cursor *cur)
     rcu_read_unlock();
 
     /*
-     * Check if everything has been ingested;
-     * if this is trimming a bound cursor, ignore the first kvms,
-     * which will always be gen 0.
+     * Check if everything has been ingested
      */
     if (!cur->c0cur_ctxn && c0kvms_gen_read(this->c0mc_kvms) < lastgen) {
         cur->c0cur_active = NULL;
@@ -1194,85 +1181,10 @@ c0sk_get_last_c0kvms(struct c0sk *handle)
     return (&kvms->c0ms_link == head) ? NULL : kvms;
 }
 
-merr_t
+void
 c0sk_cursor_bind_txn(struct c0_cursor *cur, struct kvdb_ctxn *ctxn)
 {
-    struct c0_kvmultiset *kvms = NULL;
-    struct c0_kvmultiset_cursor *this, *next;
-
     cur->c0cur_ctxn = ctxn;
-    if (!ctxn) {
-        /*
-         * If there is no active kvms, then C0CUR_STATE_NEED_INIT
-         * should be set, and the txn had no kvms.
-         *
-         * e.g:
-         * kvdb_ctxn_begin($t)
-         * kvs_cursor_create(bind to $t)
-         * kvdb_ctxn_abort($t)
-         * kvs_cursor_read()
-         */
-        this = cur->c0cur_active;
-        if (!this) {
-            assert(cur->c0cur_state & C0CUR_STATE_NEED_INIT);
-            return 0;
-        }
-
-        kvms = this->c0mc_kvms;
-        next = MSCUR_NEXT(this);
-
-        /*
-         * Common cases:
-         *  1. Txn was successfully merged: in this case it's safe
-         *     to destroy the txn kvms cursor.
-         *  2. Txn kvms was flushed: unbind the txn because the cursor
-         *     didn't have a ref on this kvms while it belonged to the
-         *     txn. Also, simply getting a ref on this kvms is not
-         *     enough as there may be new KVMSes between this flushed
-         *     kvms and the first c0kvms in the cursor's view which
-         *     could be missed.
-         *  3. Txn merge failed: The txn kvms is still not on the c0sk
-         *     list, so it is safe to unbind.
-         *  4. There was no txn kvms (i.e. it was a read-only txn):
-         *     Nothing to do.
-         */
-
-        if (cur->c0cur_kvmsv[0] == kvms)
-            return 0; /* no txn kvms, nothing to do */
-
-        cur->c0cur_active = next;
-
-        bin_heap2_remove_src(cur->c0cur_bh, &this->c0mc_es, false);
-        c0kvms_cursor_destroy(this);
-        c0sk_cursor_put_free(cur, this);
-
-        --cur->c0cur_summary->n_kvms;
-        return 0;
-    }
-
-    /* cursors do not take references on txn KVMSes because a txn usually
-     * reuses its KVMSes. If a cursor were to hold on to a reference to
-     * a txn KVMS, it would prevent the txn from reusing it until the
-     * cursor is destroyed.
-     */
-    /*
-     * [HSE_REVISIT] Update cursors.
-     * kvms = kvdb_ctxn_get_kvms(ctxn);
-     * if (!kvms)
-     *  return 0;
-     */
-
-    if (cur->c0cur_state & C0CUR_STATE_NEED_INIT)
-        if (c0sk_cursor_init(cur))
-            return ev(cur->c0cur_merr);
-
-    if (ev(cur->c0cur_cnt >= HSE_C0_KVSET_CURSOR_MAX)) {
-        cur->c0cur_merr = merr(EAGAIN);
-        return cur->c0cur_merr;
-    }
-
-    // c0sk_cursor_add_kvms(cur, kvms);
-    return ev(cur->c0cur_merr);
 }
 
 merr_t
@@ -1634,13 +1546,14 @@ c0sk_cursor_update(
     struct c0_kvmultiset_cursor *active, *p;
     struct c0sk_impl *           c0sk;
     int                          cnt, nact;
-    merr_t                       err;
 
     if (flags_out)
         *flags_out = (seqno != cur->c0cur_seqno) ? CURSOR_FLAG_SEQNO_CHANGE : 0;
 
     cur->c0cur_seqno = seqno;
 
+    /* HSE_REVISIT: Skip trim if this is a bound cursor
+     */
     c0sk_cursor_trim(cur);
 
     /* trimming could possibly have removed all active kvms */
@@ -1652,40 +1565,11 @@ c0sk_cursor_update(
             return 0;
     }
 
-    /*
-     * If bound, the first kvms is the txn kvms.  However,
-     * a txn may not (yet) have a kvms -- no puts made (yet)
-     * so this update may be a nop, or there may be all the discovery
-     * and positioning work to do for a new kvms.
-     *
-     * NB: c0sk_cursor_init may not have been called (yet).
-     * e.g. create-with-bind, seek
+    /* HSE_REVISIT: For a bound cursor (!cur->c0cur_ctxn), just add any new kvms from
+     * the c0 list where gen(c0kvms) > gen(active).
      */
     active = cur->c0cur_active;
-
-    if (cur->c0cur_ctxn) {
-        /*
-         * [HSE_REVISIT] Update cursors.
-         * kvms = kvdb_ctxn_get_kvms(ctxn);
-         * if (!kvms)
-         *  return 0;
-         */
-
-        if (kvms == active->c0mc_kvms) {
-            c0sk_cursor_update_active(cur);
-            return 0;
-        }
-
-        /* kvms is new, so leverage bind */
-        err = c0sk_cursor_bind_txn(cur, cur->c0cur_ctxn);
-        return ev(err);
-    }
-
-    /* The cursor  must be unbound by this stage, in which case the elements
-     * in the list of cursors and the array of referenced KVMSes should
-     * correspond with each other.
-     */
-    assert(!active || active->c0mc_kvms == cur->c0cur_kvmsv[0]);
+    assert(active->c0mc_kvms == cur->c0cur_kvmsv[0]);
 
     for (nact = 0, p = active; p; p = MSCUR_NEXT(p))
         ++nact;

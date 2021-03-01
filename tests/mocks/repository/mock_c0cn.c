@@ -194,10 +194,10 @@ _c0_cursor_update(
     return 0;
 }
 
-static merr_t
+void
 _c0_cursor_bind_txn(struct c0_cursor *cur, struct kvdb_ctxn *txn)
 {
-    return 0;
+    return;
 }
 
 static merr_t

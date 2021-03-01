@@ -1982,8 +1982,8 @@ cursor_unbind_txn(struct hse_kvs_cursor *cur)
         }
 
         kvdb_ctxn_cursor_unbind(bind);
-        ikvs_cursor_bind_txn(cur, 0);
     }
+
     return 0;
 }
 
@@ -2106,9 +2106,10 @@ ikvdb_kvs_cursor_create(
     if (ev(err)) {
         ikvdb_kvs_cursor_destroy(cur);
         cur = 0;
+    } else {
+        cur->kc_create_time = tstart;
     }
 
-    cur->kc_create_time = tstart;
     perfc_lat_record(pkvsl_pc, PERFC_LT_PKVSL_KVS_CURSOR_CREATE, tstart);
 
     *cursorp = cur;

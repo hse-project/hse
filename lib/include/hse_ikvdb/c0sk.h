@@ -270,7 +270,7 @@ c0sk_cursor_restore(struct c0_cursor *cur);
  */
 struct kvdb_ctxn;
 
-merr_t
+void
 c0sk_cursor_bind_txn(struct c0_cursor *cur, struct kvdb_ctxn *ctxn);
 
 /**

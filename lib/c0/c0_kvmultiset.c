@@ -933,9 +933,34 @@ void
 c0kvms_abort_active(struct c0_kvmultiset *handle)
 {
     struct c0_kvmultiset_impl *self = c0_kvmultiset_h2r(handle);
-    uint c0snr_cnt = atomic_read(&self->c0ms_c0snr_cnt);
+    uint c0snr_cnt;
     int i;
+    int attempts = 5;
+    int bc = 0;
+    bool backoff = true;
 
+    while (attempts-- && backoff) {
+        backoff = false;
+        c0snr_cnt = atomic_read(&self->c0ms_c0snr_cnt);
+        for (i = 0; i < c0snr_cnt; i++) {
+            uintptr_t *ptr = (uintptr_t *)self->c0ms_c0snr_base[i];
+
+            if (ptr && c0snr_txn_is_active(ptr)) {
+                hse_log(HSE_ERR "gsr4 about to backoff");
+                backoff = true;
+                break;
+            }
+        }
+
+        if (backoff) {
+            bc++;
+            sleep(1);
+        }
+    }
+
+    if (bc)
+        hse_log(HSE_ERR "gsr4 attempts %d", bc);
+    c0snr_cnt = atomic_read(&self->c0ms_c0snr_cnt);
     for (i = 0; i < c0snr_cnt; i++) {
         uintptr_t *ptr = (uintptr_t *)self->c0ms_c0snr_base[i];
 

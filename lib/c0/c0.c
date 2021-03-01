@@ -272,10 +272,10 @@ c0_cursor_create(
     return ev(err);
 }
 
-merr_t
+void
 c0_cursor_bind_txn(struct c0_cursor *c0cur, struct kvdb_ctxn *ctxn)
 {
-    return c0sk_cursor_bind_txn(c0cur, ctxn);
+    c0sk_cursor_bind_txn(c0cur, ctxn);
 }
 
 merr_t

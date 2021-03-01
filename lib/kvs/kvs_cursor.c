@@ -2,34 +2,22 @@
 /*
  * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
  */
-// TODO Gaurav: revisit list of includes
-#include <hse/hse.h>
+
 #include <hse/kvdb_perfc.h>
 
 #include <hse_util/platform.h>
 #include <hse_util/slab.h>
 #include <hse_util/string.h>
-#include <hse_util/event_counter.h>
-#include <hse_util/perfc.h>
-#include <hse_util/darray.h>
-#include <hse_util/timing.h>
 #include <hse_util/fmt.h>
-#include <hse_util/byteorder.h>
-#include <hse_util/slab.h>
-#include <hse_util/table.h>
 
 #include <hse_ikvdb/c0.h>
 #include <hse_ikvdb/cn.h>
 #include <hse_ikvdb/kvs.h>
 #include <hse_ikvdb/limits.h>
-#include <hse_ikvdb/key_hash.h>
 #include <hse_ikvdb/cn_cursor.h>
 #include <hse_ikvdb/kvdb_ctxn.h>
 #include <hse_ikvdb/tuple.h>
-#include <hse_ikvdb/kvdb_health.h>
 #include <hse_ikvdb/cursor.h>
-
-#include "kvs_params.h"
 
 #include <syscall.h>
 
@@ -117,6 +105,9 @@ struct kvs_cursor_impl {
     u32                kci_limit_len;
     void *             kci_limit;
 
+    /* The kci_last* fields matter only when the kci_need_seek
+     * flag is set.
+     */
     struct kvs_kvtuple *kci_last; /* last tuple read */
     u8 *                kci_last_kbuf;
     u32                 kci_last_klen;
@@ -385,7 +376,7 @@ ikvs_td2cca(struct ikvs *kvs, u64 pfxhash)
 {
     uint cpuid, nodeid, i;
 
-    if (unlikely( syscall(SYS_getcpu, &cpuid, &nodeid) ))
+    if (( syscall(SYS_getcpu, &cpuid, &nodeid) ))
         nodeid = raw_smp_processor_id();
 
     i = pthread_self() % (NELEM(kvs->ikv_curcachev) / 2);
@@ -647,7 +638,7 @@ ikvs_cursor_save(struct kvs_cursor_impl *cur)
     u64               now;
     u64               cur_age;
 
-    if (unlikely(kvs->ikv_rp.kvs_debug & 64)) {
+    if ((kvs->ikv_rp.kvs_debug & 64)) {
         cursor_summary_log(cur);
         _perfc_readperseek_record(cur);
     }
@@ -874,18 +865,13 @@ merr_t
 ikvs_cursor_bind_txn(struct hse_kvs_cursor *handle, struct kvdb_ctxn *ctxn)
 {
     struct kvs_cursor_impl *cursor = (void *)handle;
-    merr_t                  err;
 
     if (ev(!cursor->kci_c0cur))
         return merr(ENXIO);
 
-    ++cursor->kci_summary.n_bind;
-    err = c0_cursor_bind_txn(cursor->kci_c0cur, ctxn);
+    c0_cursor_bind_txn(cursor->kci_c0cur, ctxn);
 
-    if (ev(merr_errno(err) == EAGAIN))
-        perfc_inc(&cursor->kci_kvs->ikv_cc_pc, PERFC_BA_CC_EAGAIN_C0);
-
-    return err;
+    return 0;
 }
 
 void
@@ -954,6 +940,8 @@ ikvs_cursor_update(struct hse_kvs_cursor *handle, u64 seqno)
     if (flags & CURSOR_FLAG_SEQNO_CHANGE)
         perfc_inc(cursor->kci_cc_pc, PERFC_BA_CC_UPDATED_C0);
 
+    /* HSE_REVISIT: Skip cn update if this is a bound cursor
+     */
     /* Update cn cursor */
     tstart = perfc_lat_start(cursor->kci_cd_pc);
     cursor->kci_err = cn_cursor_update(cursor->kci_cncur, seqno, &updated);
@@ -1005,7 +993,6 @@ read_c0(struct kvs_cursor_impl *cursor)
     bool eof;
     merr_t err;
 
-    // TODO Gaurav: should this expect EAGAIN?
     err = c0_cursor_read(cursor->kci_c0cur, &cursor->kci_c0kv, &eof);
     if (ev(err))
         return err;
@@ -1020,7 +1007,6 @@ read_cn(struct kvs_cursor_impl *cursor)
     bool eof;
     merr_t err;
 
-    // TODO Gaurav: should this expect EAGAIN?
     err = cn_cursor_read(cursor->kci_cncur, &cursor->kci_cnkv, &eof);
     if (ev(err))
         return err;
@@ -1110,14 +1096,11 @@ drop_prefixes(struct kvs_cursor_impl *cursor, struct kvs_ktuple *pt)
 merr_t
 cursor_replenish(struct kvs_cursor_impl *cursor, bool *eofp)
 {
-    bool is_ptomb;
+    bool is_ptomb, is_tomb;
     merr_t err = 0;
 
     *eofp = false;
     do {
-        const void *dbg_curr_key __maybe_unused;
-        size_t dbg_curr_klen __maybe_unused;
-
         err = cursor->kci_err = cursor_pop(cursor, eofp);
         if (ev(err))
             goto out;
@@ -1125,8 +1108,7 @@ cursor_replenish(struct kvs_cursor_impl *cursor, bool *eofp)
         if (*eofp)
             goto out;
 
-        dbg_curr_key  = cursor->kci_last->kvt_key.kt_data;
-        dbg_curr_klen = cursor->kci_last->kvt_key.kt_len;
+        is_tomb = HSE_CORE_IS_TOMB(cursor->kci_last->kvt_value.vt_data);
 
         is_ptomb = HSE_CORE_IS_PTOMB(cursor->kci_last->kvt_value.vt_data);
         if (is_ptomb) {
@@ -1136,7 +1118,7 @@ cursor_replenish(struct kvs_cursor_impl *cursor, bool *eofp)
             drop_prefixes(cursor, pt_key);
         }
 
-    } while (is_ptomb);
+    } while (is_ptomb || is_tomb);
 
 out:
     return err;
@@ -1178,9 +1160,6 @@ kvs_cursor_read(struct hse_kvs_cursor *handle, struct kvs_kvtuple *kvt, bool *eo
         struct kvs_ktuple key;
         bool toss = cursor->kci_need_toss;
 
-        // TODO Gaurav: make sure that kci_last_kbuf/klen contains:
-        //   1. pfx/pfx0xFFF... after a create, or
-        //   2. kci_last's contents after an update
         cursor->kci_err = kvs_cursor_seek(&cursor->kci_handle,
                                            cursor->kci_last_kbuf,
                                            cursor->kci_last_klen, 0, 0, &key);
@@ -1206,7 +1185,6 @@ kvs_cursor_read(struct hse_kvs_cursor *handle, struct kvs_kvtuple *kvt, bool *eo
         toss = toss &&
                !keycmp(cursor->kci_last_kbuf, cursor->kci_last_klen, key.kt_data, key.kt_len);
 
-        // TODO Gaurav: if you set need_read_c0/cn = 0 after the seek's replenish, the following one will be a peek
         if (toss) {
             cursor->kci_err = cursor_replenish(cursor, eofp);
             if (ev(cursor->kci_err))
