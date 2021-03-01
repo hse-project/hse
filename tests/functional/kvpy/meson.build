@@ -40,15 +40,15 @@ tests = [
 
 foreach t : tests
     test(
-		t,
-		python,
-		args: [
-			'@0@.py'.format(t),
-			get_option('kvpy-kvdb'),
-		],
-		depends: [hse_python_extension_modules],
-		workdir: meson.current_source_dir(),
-		is_parallel: false,
-		suite: ['functional', 'kvpy'],
-	)
+        t,
+        python,
+        args: [
+            '@0@.py'.format(t),
+            get_option('kvpy-kvdb'),
+        ],
+        depends: [hse_python_extension_modules],
+        workdir: meson.current_source_dir(),
+        is_parallel: false,
+        suite: ['functional', 'kvpy'],
+    )
 endforeach
