@@ -17,6 +17,8 @@
 
 /* MTF_MOCK_DECL(hse_experimental) */
 
+#pragma GCC visibility push(default)
+
 /**
  * Export a kvdb into files
  *
@@ -112,6 +114,8 @@ hse_kvs_prefix_probe_exp(
  */
 char *
 hse_params_err_exp(const struct hse_params *params, char *buf, size_t buf_sz);
+
+#pragma GCC visibility pop
 
 #if defined(HSE_UNIT_TEST_MODE) && HSE_UNIT_TEST_MODE == 1
 #include "hse_experimental_ut.h"

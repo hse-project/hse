@@ -47,7 +47,6 @@
 #include <stdint.h>
 #include <stdlib.h>
 
-
 /** @name Type Declarations / Shared Structures / Macros
  *        =====================================================
  * @{
@@ -127,6 +126,7 @@ struct hse_kvdb_opspec {
 
 /**@}*/
 
+#pragma GCC visibility push(default)
 
 /** @name Utility Routines
  *        =====================================================
@@ -1016,6 +1016,8 @@ hse_params_get(
     size_t                     *param_len);
 
 /**@}*/
+
+#pragma GCC visibility pop
 
 #if defined(HSE_UNIT_TEST_MODE) && HSE_UNIT_TEST_MODE == 1
 #include "hse_ut.h"

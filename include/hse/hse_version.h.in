@@ -1,0 +1,8 @@
+#ifndef HSE_VERSION_H
+#define HSE_VERSION_H
+
+static const char hse_version[] = "@build_version@";
+static const char hse_tag[] = "@build_tag@";
+static const char hse_sha[] = "@build_sha@";
+
+#endif

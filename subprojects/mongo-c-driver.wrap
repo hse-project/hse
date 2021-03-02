@@ -1,0 +1,6 @@
+[wrap-file]
+directory = mongo-c-driver-1.17.3
+
+source_url = https://github.com/mongodb/mongo-c-driver/archive/1.17.3.tar.gz
+source_filename = 1.17.3.tar.gz
+source_hash = 31b94c8aadd5d163b08e6998202e53601b1a21b9f08c1b94f7a4a446fd0738fc
