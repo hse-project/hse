@@ -7,6 +7,7 @@
 #include <stdio.h>
 
 #include <mpool/mpool.h>
+#include <mpool/mpool2.h>
 
 #include <hse_util/inttypes.h>
 
@@ -123,7 +124,7 @@ main(int argc, char *argv[])
                 break;
             case 'c':
                 mclass = (int)strtoul(optarg, &end, 0);
-                if ((mclass < MP_MED_BASE) || (mclass >= MP_MED_NUMBER)) {
+                if ((mclass < MP_MED_BASE) || (mclass >= MP_MED_COUNT)) {
                     usage(program);
                     return -1;
                 }
@@ -166,13 +167,13 @@ main(int argc, char *argv[])
         return -1;
     }
 
-    err = mpool_open(mpname, flags, &ds, NULL);
+    err = mpool_open(mpname, NULL, flags, &ds); /* TODO: needs fixing */
     if (err) {
         fprintf(stderr, "mpool_open error %ld\n", err);
         return -1;
     }
 
-    err = mpool_params_get(ds, &params, NULL);
+    err = mpool_params_get2(ds, &params);
     if (err) {
         mpool_close(ds);
         fprintf(stderr, "mpool_params_get error %ld\n", err);

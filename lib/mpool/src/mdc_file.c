@@ -12,7 +12,7 @@
 #include <sys/mman.h>
 #include <fcntl.h>
 
-#include <3rdparty/crc32c.h>
+#include <crc32c/crc32c.h>
 #include <hse_util/string.h>
 #include <hse_util/logging.h>
 #include <hse_util/event_counter.h>

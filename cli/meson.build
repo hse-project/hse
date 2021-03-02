@@ -19,7 +19,6 @@ hse_cli_include_directories = [
     component_root_includes,
     third_party_includes,
     util_includes,
-    get_option('mpool-include-dir'),
 ]
 
 hse_cli = executable(

@@ -114,7 +114,6 @@ kvdb_list_print(
     bool                 verbose,
     int *                count)
 {
-    struct merr_info info;
     hse_err_t err;
 
 #if 1 /* HSE_REVISIT */

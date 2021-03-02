@@ -13,7 +13,7 @@
 #include <fcntl.h>
 #include <ftw.h>
 
-#include <3rdparty/rbtree.h>
+#include <rbtree/rbtree.h>
 
 #include <hse_util/mutex.h>
 #include <hse_util/string.h>

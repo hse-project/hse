@@ -243,15 +243,6 @@ else
     cJSON_dep = cJSON_proj.dependency('cjson')
     cJSON_from_subproject = true
 endif
-if get_option('mpool-lib-dir') == ''
-    mpool_dep = cc.find_library('mpool', required: true)
-else
-    mpool_dep = cc.find_library(
-        'mpool',
-        required: true,
-        dirs: get_option('mpool-lib-dir'),
-    )
-endif
 libmicrohttpd_dep = dependency(
     'libmicrohttpd',
     version: '>=0.9.59',

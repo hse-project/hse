@@ -20,6 +20,7 @@ subdir('c0')
 subdir('lc')
 subdir('cn')
 subdir('kvdb')
+subdir('mpool')
 
 component_root_includes = include_directories('.')
 
@@ -31,6 +32,7 @@ hse_sources = [
     cn_sources,
     kvdb_sources,
     kvs_sources,
+    mpool_sources,
     util_sources,
 ]
 
@@ -46,7 +48,7 @@ hse_include_directories = [
     public_includes,
     third_party_includes,
     util_includes,
-    get_option('mpool-include-dir'),
+    mpool_includes,
 ]
 
 hse_dependencies = [
@@ -62,10 +64,10 @@ hse_dependencies = [
     liburcu_bp_dep,
     libyaml_dep,
     m_dep,
-    mpool_dep,
     thread_dep,
     rbtree_dep,
     uuid_dep,
+    crc32c_dep,
 ]
 
 hse_public_dependencies = [
@@ -80,7 +82,7 @@ hse = both_libraries(
     dependencies: hse_dependencies,
     version: meson.project_version(),
     install: true,
-    gnu_symbol_visibility: 'hidden',
+    #gnu_symbol_visibility: 'hidden', # Commented for testing libmpool
 )
 
 hse_variables = {

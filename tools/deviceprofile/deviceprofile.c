@@ -3,6 +3,7 @@
  */
 
 #include <mpool/mpool.h>
+#include <mpool/mpool2.h>
 #if HDR_HISTOGRAM_C_FROM_SUBPROJECT == 1
 #include <hdr_histogram.h>
 #else
@@ -60,7 +61,6 @@ deviceprofile_calibrate_worker(struct work_struct *arg)
     struct iovec                         iov;
     void *                               buf;
     int                                  i;
-    char                                 errbuf[160];
     int                                  block, num_blocks;
 
     work = container_of(arg, struct deviceprofile_calibrate_work, dp_work);
@@ -99,7 +99,7 @@ deviceprofile_calibrate_worker(struct work_struct *arg)
             work->dp_calibrate->dp_ds, work->dp_calibrate->dp_mclass, false, &handle, &mbprop);
         if (err) {
             fprintf(stderr, "mpool_mblock_alloc() failed: %s\n",
-                    mpool_strerror(err, errbuf, sizeof(errbuf)));
+                    strerror(merr_errno(err)));
             work->dp_err = err;
             break;
         }
@@ -113,7 +113,7 @@ deviceprofile_calibrate_worker(struct work_struct *arg)
             err = mpool_mblock_write(work->dp_calibrate->dp_ds, handle, &iov, 1);
             if (err) {
                 fprintf(stderr, "mpool_mblock_write() failed: %s\n",
-                        mpool_strerror(err, errbuf, sizeof(errbuf)));
+                        strerror(merr_errno(err)));
                 work->dp_err = err;
                 break;
             }
@@ -130,7 +130,7 @@ deviceprofile_calibrate_worker(struct work_struct *arg)
         err2 = mpool_mblock_abort(work->dp_calibrate->dp_ds, handle);
         if (err2) {
             fprintf(stderr, "mpool_mblock_write() failed: %s\n",
-                    mpool_strerror(err2, errbuf, sizeof(errbuf)));
+                    strerror(merr_errno(err)));
             work->dp_err = (err == 0) ? err2 : err;
             break;
         }

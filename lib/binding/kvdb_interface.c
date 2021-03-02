@@ -8,7 +8,6 @@
 #include <mpool/mpool.h>
 #include <mpool/mpool2.h>
 
-#include <3rdparty/crc32c.h>
 #include <hse/hse.h>
 #include <hse/hse_experimental.h>
 #include <hse/kvdb_perfc.h>

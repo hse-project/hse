@@ -1,0 +1,39 @@
+#!/bin/sh
+
+set -u
+set -e
+#set -o pipefail
+
+mkdir -p ${3}
+
+target=${1}
+inputs="${3}/inputs"
+depfile=${2}
+project_root=${4}
+
+echo "mapi-idx-generate: " > $depfile
+
+# Get a sorted list of input files
+find $project_root -type f -name '*.h' -print0 | sort -z | tee --append $depfile > "$inputs"
+
+sed -i "s/\x00/\n/g" $depfile
+
+xargs -0 -n1 "$project_root/scripts/build/utpp" -- -m < "$inputs" \
+    | sort -u \
+    | awk > "$target" '
+    BEGIN {
+        print "/* GENERATED FILE: DO NOT EDIT */"
+        print "#ifndef GEN_MAPI_IDX_H"
+        print "#define GEN_MAPI_IDX_H"
+        print "enum mapi_idx {"
+    }
+    {
+        print "\tmapi_idx_" $1 " = " cnt++ ","
+    }
+    END {
+        # intentionally anti-pattern, so does not hide any names
+        print "\tmax_mapi_idx = " cnt "\n};"
+        print "#endif"
+    }'
+
+exit 0

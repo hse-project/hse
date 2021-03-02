@@ -24,9 +24,3 @@ option('use-system-cjson', type: 'boolean', value: false,
     description: 'Build against the system cJSON package')
 option('bindings-python', type: 'boolean', value: true,
     description: 'Build Python bindings for use in tests and tools')
-option('mpool-include-dir', type: 'string', value: '/usr/include/mpool',
-    description: 'Location of the mpool include directory')
-option('mpool-lib-dir', type: 'string', value: '',
-    description: 'Directory containing libmpool.so')
-option('mpool-bin-dir', type: 'string', value: '',
-    description: 'Directory containing the mpool CLI')
