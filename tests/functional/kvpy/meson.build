@@ -46,7 +46,7 @@ foreach t : tests
             '@0@.py'.format(t),
             get_option('kvpy-kvdb'),
         ],
-        depends: [hse_python_extension_modules],
+        depends: hse_python_depends,
         workdir: meson.current_source_dir(),
         is_parallel: false,
         suite: ['functional', 'kvpy'],
