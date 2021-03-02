@@ -163,3 +163,5 @@ pkg.generate(
         '@0@-@1@'.format(meson.project_name(), hse_major_version),
     ],
 )
+
+meson.override_dependency('@0@-1'.format(meson.project_name()), hse_dep)

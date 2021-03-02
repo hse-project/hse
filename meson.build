@@ -389,10 +389,6 @@ if get_option('ycsb')
     subdir('hsejni')
 endif
 
-if not meson.is_subproject()
-    meson.override_dependency('@0@-1'.format(meson.project_name()), hse_dep)
-endif
-
 if get_option('bindings-python')
     if get_option('tests') or get_option('tools')
         message('tests and tools will use the built-in HSE Python bindings')
