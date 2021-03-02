@@ -3,6 +3,11 @@
  * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
+#define _GNU_SOURCE /* nftw(3) */
+
+#include <ftw.h>
+#include <dirent.h>
+
 #include <hse_ut/framework.h>
 #include <hse_test_support/mock_api.h>
 #include <hse_test_support/random_buffer.h>
@@ -26,7 +31,6 @@
 #include <c0/c0sk_internal.h>
 
 #include <mocks/mock_c0cn.h>
-#include <dirent.h>
 
 void
 _hse_meminfo(ulong *freep, ulong *availp, uint shift)
@@ -1879,6 +1883,12 @@ MTF_DEFINE_UTEST_PREPOST(ikvdb_test, prefix_delete_test, test_pre, test_post)
     hse_params_destroy(params);
 }
 
+static int
+export_destroy_cb(const char *fpath, const struct stat *sb, int typeflag, struct FTW *ftwbuf)
+{
+    return remove(fpath);
+}
+
 MTF_DEFINE_UTEST_PREPOST(ikvdb_test, ikvdb_export_test, test_pre, test_post)
 {
     struct ikvdb *      hdl;
@@ -1985,10 +1995,7 @@ MTF_DEFINE_UTEST_PREPOST(ikvdb_test, ikvdb_export_test, test_pre, test_post)
 
     hse_params_destroy(params);
 
-    n = snprintf(path_impt, sizeof(path_impt), "rm -rf %s", template);
-    ASSERT_LT(n, sizeof(path_impt));
-
-    err = system(path_impt);
+    err = nftw(template, export_destroy_cb, 4, FTW_DEPTH | FTW_PHYS);
     ASSERT_EQ(0, err);
 }
 
