@@ -32,8 +32,7 @@ kvset_builder_create(
     struct kvset_builder **bld_out,
     struct cn *            cn,
     struct perfc_set *     pc,
-    u64                    vgroup,
-    uint                   flags)
+    u64                    vgroup)
 {
     struct kvset_builder *bld;
     merr_t                err;
@@ -46,11 +45,11 @@ kvset_builder_create(
 
     bld->seqno_min = U64_MAX;
 
-    err = kbb_create(&bld->kbb, cn, pc, flags);
+    err = kbb_create(&bld->kbb, cn, pc);
     if (ev(err))
         goto err_exit1;
 
-    err = vbb_create(&bld->vbb, cn, pc, vgroup, flags);
+    err = vbb_create(&bld->vbb, cn, pc, vgroup);
     if (ev(err))
         goto err_exit2;
 

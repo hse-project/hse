@@ -133,14 +133,31 @@ tools = {
             'longtest' / 'rsgen.c',
         ),
     },
+    'mdcperf': {
+        'sources': files(
+            'mpool' / 'mdc' / 'common.c',
+            'mpool' / 'mdc' / 'thread.c',
+            'mpool' / 'mdc' / 'mdcperf.c',
+        ),
+    },
+    'mdctest': {
+        'sources': files(
+            'mpool' / 'mdc' / 'mdctest.c',
+        ),
+    },
     'mdc_tool': {
         'sources': files(
-            'mdc_tool' / 'mdc_tool.c',
+            'mpool' / 'mdc' / 'mdc_tool.c',
+        ),
+    },
+    'mpiotest': {
+        'sources': files(
+            'mpool' / 'mblock' / 'mpiotest.c',
         ),
     },
     'mpool_profile': {
         'sources': files(
-            'mpool_profile' / 'mpool_profile.c',
+            'mpool' / 'mblock' / 'mpool_profile.c',
         ),
     },
     'multicursor': {

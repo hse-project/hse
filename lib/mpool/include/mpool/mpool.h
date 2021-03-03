@@ -74,30 +74,6 @@ mpool_mclass_add(
     uint32_t             flags);
 
 /**
- * mpool_scan() - Scan disks for mpools
- * @propcp: (output) count of mpools found
- * @propvp: (output) vector of mpool properties
- *
- * %mpool_scan scans all drives on the system and builds
- * a list of tuples (mpool name and uuid) for each mpool found.
- *
- * Note that only valid fields in each struct mpool_params record
- * are %mp_poolid and %mp_name.
- */
-int64_t
-mpool_scan(int *propcp, struct mpool_params **propvp);
-
-/**
- * mpool_list() - Get list of active mpools
- * @propcp: (output) count of mpools found
- * @propvp: (output) vector of mpool properties
- *
- * %mpool_list retrieves the list of active mpools from the mpool kernel module.
- */
-int64_t
-mpool_list(int *propcp, struct mpool_params **propvp);
-
-/**
  * mpool_mclass_get() - get properties of the specified media class
  * @mp:      mpool descriptor
  * @mclass:  input media mclass
@@ -293,7 +269,6 @@ mpool_mdc_usage(struct mpool_mdc *mdc, size_t *usage);
  * mpool_mblock_alloc() - allocate an mblock
  * @mp:      mpool
  * @mclassp: media class
- * @spare:   allocate from spare zones
  * @mbid:    mblock object ID (output)
  * @props:   properties of new mblock (output) - will be returned if the ptr is non-NULL
  *
@@ -304,20 +279,8 @@ int64_t
 mpool_mblock_alloc(
     struct mpool        *mp,
     enum mp_media_classp mclassp,
-    bool                 spare,
     uint64_t            *mbid,
     struct mblock_props *props);
-
-/**
- * mpool_mblock_find() - look up an mblock by object ID
- * @mp:    mpool
- * @objid: mblock object ID
- * @props: mblock properties (returned if the ptr is non-NULL)
- *
- * Return: %0 on success, <%0 on error
- */
-int64_t
-mpool_mblock_find(struct mpool *mp, uint64_t objid, struct mblock_props *props);
 
 /**
  * mpool_mblock_commit() - commit an mblock

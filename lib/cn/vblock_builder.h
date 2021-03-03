@@ -27,7 +27,6 @@ enum hse_mclass_policy_age;
  * @bld_out: builder handle (output)
  * @cn: cn in which vblocks will be created
  * @pc: perf counters
- * @flags: kvset builder flags
  */
 /* MTF_MOCK */
 merr_t
@@ -35,8 +34,7 @@ vbb_create(
     struct vblock_builder **bld_out,
     struct cn *             cn,
     struct perfc_set *      pc,
-    u64                     vgroup,
-    uint                    flags);
+    u64                     vgroup);
 
 /**
  * vbb_destroy() - Destroy a vblock builder

@@ -123,7 +123,7 @@ MTF_DEFINE_UTEST_PRE(test, t_vbb_create1, test_setup)
     merr_t                 err;
     int                    i;
 
-    err = vbb_create(VBB_CREATE_ARGS, KVSET_BUILDER_FLAGS_NONE);
+    err = vbb_create(VBB_CREATE_ARGS);
     ASSERT_EQ(err, 0);
 
     for (i = 0; i < HSE_MPOLICY_AGE_CNT; i++) {
@@ -150,7 +150,7 @@ MTF_DEFINE_UTEST_PRE(test, t_vbb_create_fail_nomem, test_setup)
 
     void run(struct mtf_test_info * lcl_ti, uint i, uint j)
     {
-        err = vbb_create(VBB_CREATE_ARGS, KVSET_BUILDER_FLAGS_NONE);
+        err = vbb_create(VBB_CREATE_ARGS);
         if (i == j)
             ASSERT_EQ(err, 0);
         else
@@ -174,7 +174,7 @@ MTF_DEFINE_UTEST_PRE(test, t_vbb_finish_empty1, test_setup)
     struct blk_list        blks;
     merr_t                 err = 0;
 
-    err = vbb_create(VBB_CREATE_ARGS, KVSET_BUILDER_FLAGS_NONE);
+    err = vbb_create(VBB_CREATE_ARGS);
     ASSERT_EQ(err, 0);
 
     err = vbb_finish(vbb, &blks);
@@ -192,7 +192,7 @@ MTF_DEFINE_UTEST_PRE(test, t_vbb_finish_exact, test_setup)
     struct blk_list        blks;
     merr_t                 err = 0;
 
-    err = vbb_create(VBB_CREATE_ARGS, KVSET_BUILDER_FLAGS_NONE);
+    err = vbb_create(VBB_CREATE_ARGS);
     ASSERT_EQ(err, 0);
 
     err = fill_exact(lcl_ti, vbb, 0, 0);
@@ -206,37 +206,6 @@ MTF_DEFINE_UTEST_PRE(test, t_vbb_finish_exact, test_setup)
     vbb_destroy(vbb);
 }
 
-/* Test: KVSET_BUILDER_FLAGS_INGEST flag. */
-MTF_DEFINE_UTEST_PRE(test, t_vbb_ingest_flag, test_setup)
-{
-    struct vblock_builder *vbb;
-    struct blk_list        blks;
-    merr_t                 err;
-    uint                   flags;
-
-    flags = KVSET_BUILDER_FLAGS_INGEST;
-
-    err = vbb_create(VBB_CREATE_ARGS, flags);
-    ASSERT_EQ(err, 0);
-    err = add_entry(lcl_ti, vbb, 123, 0);
-    ASSERT_EQ(err, 0);
-    err = vbb_finish(vbb, &blks);
-    ASSERT_EQ(err, 0);
-    ASSERT_GE(blks.n_blks, 1);
-    blk_list_free(&blks);
-    vbb_destroy(vbb);
-
-    err = vbb_create(VBB_CREATE_ARGS, flags);
-    ASSERT_EQ(err, 0);
-    err = add_entry(lcl_ti, vbb, 123, 0);
-    ASSERT_EQ(err, 0);
-    err = vbb_finish(vbb, &blks);
-    ASSERT_EQ(err, 0);
-    ASSERT_GE(blks.n_blks, 1);
-    blk_list_free(&blks);
-    vbb_destroy(vbb);
-}
-
 /* Test: vbb_add_entry, mblock allocation failure */
 MTF_DEFINE_UTEST_PRE(test, t_vbb_add_entry_fail_mblock_alloc, test_setup)
 {
@@ -244,7 +213,7 @@ MTF_DEFINE_UTEST_PRE(test, t_vbb_add_entry_fail_mblock_alloc, test_setup)
     merr_t                 err = 0;
     struct vblock_builder *vbb = 0;
 
-    err = vbb_create(VBB_CREATE_ARGS, KVSET_BUILDER_FLAGS_NONE);
+    err = vbb_create(VBB_CREATE_ARGS);
     ASSERT_EQ(err, 0);
 
     api = mapi_idx_mpool_mblock_alloc;
@@ -268,7 +237,7 @@ MTF_DEFINE_UTEST_PRE(test, t_vbb_add_entry_fail_nomem, test_setup)
     merr_t                 err = 0;
     struct vblock_builder *vbb = 0;
 
-    err = vbb_create(VBB_CREATE_ARGS, KVSET_BUILDER_FLAGS_NONE);
+    err = vbb_create(VBB_CREATE_ARGS);
     ASSERT_EQ(err, 0);
 
     api = mapi_idx_malloc;
@@ -292,7 +261,7 @@ MTF_DEFINE_UTEST_PRE(test, t_vbb_add_entry_exact, test_setup)
     /*
      * Fill and finish to verify we get 1 vblock
      */
-    err = vbb_create(VBB_CREATE_ARGS, KVSET_BUILDER_FLAGS_NONE);
+    err = vbb_create(VBB_CREATE_ARGS);
     ASSERT_EQ(err, 0);
 
     err = fill_exact(lcl_ti, vbb, 0, 0);
@@ -310,7 +279,7 @@ MTF_DEFINE_UTEST_PRE(test, t_vbb_add_entry_exact, test_setup)
      * and verify 2 vblocks.  Throw in the INGEST
      * flag to cover different code branches.
      */
-    err = vbb_create(VBB_CREATE_ARGS, KVSET_BUILDER_FLAGS_NONE);
+    err = vbb_create(VBB_CREATE_ARGS);
     ASSERT_EQ(err, 0);
 
     err = fill_exact(lcl_ti, vbb, 0, 0);
@@ -343,7 +312,7 @@ MTF_DEFINE_UTEST_PRE(test, t_vbb_add_entry_fail_mblock_write, test_setup)
     /*
      * Case 1: vbb_add_entry -> _vblock_write -> mpool_mblock_write;
      */
-    err = vbb_create(VBB_CREATE_ARGS, KVSET_BUILDER_FLAGS_NONE);
+    err = vbb_create(VBB_CREATE_ARGS);
     ASSERT_EQ(err, 0);
 
     api = mapi_idx_mpool_mblock_write;
@@ -360,7 +329,7 @@ MTF_DEFINE_UTEST_PRE(test, t_vbb_add_entry_fail_mblock_write, test_setup)
      * Case 2: vbb_add_entry -> _vblock_finish ->
      * _vblock_write -> mpool_mblock_write;
      */
-    err = vbb_create(VBB_CREATE_ARGS, KVSET_BUILDER_FLAGS_NONE);
+    err = vbb_create(VBB_CREATE_ARGS);
     ASSERT_EQ(err, 0);
 
     err = fill_exact(lcl_ti, vbb, 100, 0); /* leave 100 bytes space */
@@ -380,7 +349,7 @@ MTF_DEFINE_UTEST_PRE(test, t_vbb_add_entry_fail_mblock_write, test_setup)
     /*
      * Case 3: vbb_add_entry -> _vblock_write -> mpool_mblock_write
      */
-    err = vbb_create(VBB_CREATE_ARGS, KVSET_BUILDER_FLAGS_NONE);
+    err = vbb_create(VBB_CREATE_ARGS);
     ASSERT_EQ(err, 0);
 
     api = mapi_idx_mpool_mblock_write;
@@ -397,7 +366,7 @@ MTF_DEFINE_UTEST_PRE(test, t_vbb_add_entry_fail_mblock_write, test_setup)
      * Case 4: vbb_add_entry -> _vblock_finish ->
      * _vblock_write -> mpool_mblock_write;
      */
-    err = vbb_create(VBB_CREATE_ARGS, KVSET_BUILDER_FLAGS_NONE);
+    err = vbb_create(VBB_CREATE_ARGS);
     ASSERT_EQ(err, 0);
 
     err = fill_exact(lcl_ti, vbb, 100, 0); /* leave 100 bytes space */
@@ -423,7 +392,7 @@ MTF_DEFINE_UTEST_PRE(test, t_vbb_finish_fail_mblock_write, test_setup)
     struct vblock_builder *vbb = 0;
     struct blk_list        blks;
 
-    err = vbb_create(VBB_CREATE_ARGS, KVSET_BUILDER_FLAGS_NONE);
+    err = vbb_create(VBB_CREATE_ARGS);
     ASSERT_EQ(err, 0);
 
     err = add_entry(lcl_ti, vbb, 123, 0);
@@ -558,7 +527,7 @@ run_test_case(struct mtf_test_info *lcl_ti, enum test_case tc, size_t n_vblocks)
         vlen,
         (long)(mblock_size - PAGE_SIZE - values_per_mblock * vlen));
 
-    err = vbb_create(VBB_CREATE_ARGS, KVSET_BUILDER_FLAGS_NONE);
+    err = vbb_create(VBB_CREATE_ARGS);
     ASSERT_EQ_RET(err, 0, 1);
 
     hse_log(HSE_INFO "Adding %zu values, expect %zu vblocks to be created", add_count, n_vblocks);

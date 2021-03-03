@@ -187,3 +187,21 @@ mpool_mcache_getpages(
 
     return 0;
 }
+
+merr_t
+mpool_mcache_purge(struct mpool_mcache_map *map, const struct mpool *mp)
+{
+    return merr(ENOTSUP);
+}
+
+merr_t
+mpool_mcache_mincore(
+    struct mpool_mcache_map *map,
+    const struct mpool      *mp,
+    size_t                  *rssp,
+    size_t                  *vssp)
+{
+    return merr(ENOTSUP);
+}
+
+

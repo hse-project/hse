@@ -48,7 +48,6 @@ _mpool_mblock_props_get(struct mpool *dsp, uint64_t objid, struct mblock_props *
     props->mpr_objid = objid;
     props->mpr_alloc_cap = mock_alloc_cap;
     props->mpr_write_len = mock_write_len;
-    props->mpr_iscommitted = true;
     return 0;
 }
 

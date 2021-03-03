@@ -142,7 +142,6 @@
 #include <hse_util/hse_err.h>
 
 #include <mpool/mpool.h>
-#include <mpool/mpool2.h>
 
 #include <xoroshiro/xoroshiro.h>
 
@@ -380,7 +379,7 @@ struct km_stats {
      * worker thread modifies the fields above, while the status
      * thread modifies the fields below (both non-atomically).
      */
-    __aligned(SMP_CACHE_BYTES * 2)
+    HSE_ALIGNED(SMP_CACHE_BYTES * 2)
     ulong oget, ogetbytes;
     ulong oput, oputbytes;
     ulong odel;
@@ -521,9 +520,9 @@ struct km_impl {
     mongoc_uri_t *        active_uri;
     mongoc_client_pool_t *client_pool;
 
-    atomic64_t keydistchunk __aligned(SMP_CACHE_BYTES * 2);
+    atomic64_t keydistchunk HSE_ALIGNED(SMP_CACHE_BYTES * 2);
 
-    struct km_latency      km_latency[KMT_LAT_REC_CNT] __aligned(SMP_CACHE_BYTES * 2);
+    struct km_latency      km_latency[KMT_LAT_REC_CNT] HSE_ALIGNED(SMP_CACHE_BYTES * 2);
     struct km_sync_latency km_sync_latency;
 };
 
@@ -553,7 +552,7 @@ struct km_inst {
     struct km_inst * next;
     struct km_stats  stats;
 
-    struct km_latency latency[KMT_LAT_REC_CNT] __aligned(SMP_CACHE_BYTES * 2);
+    struct km_latency latency[KMT_LAT_REC_CNT] HSE_ALIGNED(SMP_CACHE_BYTES * 2);
 };
 
 #define km_open(_impl)  ((_impl)->km_open((_impl)))
@@ -596,7 +595,7 @@ struct kvnode {
     uint     datalen;
     char    *key;
     char    *data;
-} __aligned(SMP_CACHE_BYTES);
+} HSE_ALIGNED(SMP_CACHE_BYTES);
 
 static inline int
 node_cmp(struct kvnode *lhs, struct kvnode *rhs)
@@ -693,7 +692,7 @@ struct bktlock {
         pthread_rwlock_t   rwlock;
         int spinlock;
     };
-} __aligned(SMP_CACHE_BYTES * 2);
+} HSE_ALIGNED(SMP_CACHE_BYTES * 2);
 
 struct bkt {
 #ifdef XKMT
@@ -770,7 +769,7 @@ struct {
 
     struct bktlock *bktlock;
     size_t          bktlocksz;
-} g __aligned(SMP_CACHE_BYTES * 2);
+}g HSE_ALIGNED(SMP_CACHE_BYTES * 2);
 
 void
 bkt_init(void)
@@ -1961,7 +1960,7 @@ km_rec_put_ds(struct km_inst *inst, struct km_rec *r)
     inst->stats.op = OP_MB_ALLOC;
     inst->stats.alloc++;
 
-    err = merr_to_hse_err(mpool_mblock_alloc2(impl->ds, mclass, &nmbid, &props));
+    err = merr_to_hse_err(mpool_mblock_alloc(impl->ds, mclass, &nmbid, &props));
     if (err)
         return err;
 
@@ -1988,7 +1987,7 @@ km_rec_put_ds(struct km_inst *inst, struct km_rec *r)
     inst->stats.put++;
     inst->stats.putbytes += secsz;
 
-    err = merr_to_hse_err(mpool_mblock_write2(impl->ds, nmbid, iov, 1, 0));
+    err = merr_to_hse_err(mpool_mblock_write(impl->ds, nmbid, iov, 1));
     if (err) {
         eprint("%s: mbwrite %lx failed: %lx\n", __func__, r->mbid, err);
         return err;

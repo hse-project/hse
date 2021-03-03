@@ -24,7 +24,7 @@ struct mdc_loghdr_omf {
     __le32 lh_rsvd;
     __le64 lh_gen;
     __le32 lh_crc;
-} __packed;
+} HSE_PACKED;
 
 /* Define set/get methods for mdc_loghdr_omf */
 OMF_SETGET(struct mdc_loghdr_omf, lh_vers, 32);
@@ -36,7 +36,7 @@ OMF_SETGET(struct mdc_loghdr_omf, lh_crc, 32);
 struct mdc_rechdr_omf {
     __le32 rh_crc;
     __le64 rh_size;
-} __packed;
+} HSE_PACKED;
 
 /* Define set/get methods for mdc_rechdr_omf */
 OMF_SETGET(struct mdc_rechdr_omf, rh_crc, 32);
@@ -68,7 +68,7 @@ struct mblock_metahdr_omf {
     u8     mh_fcnt;
     u8     mh_blkbits;
     u8     mh_mcbits;
-} __packed;
+} HSE_PACKED;
 
 /* Define set/get methods for mblock_metahdr_omf */
 OMF_SETGET(struct mblock_metahdr_omf, mh_vers, 32);
@@ -83,7 +83,7 @@ struct mblock_filehdr_omf {
     u8     fh_fileid;
     u8     fh_rsvd1;
     __le16 fh_rsvd2;
-} __packed;
+} HSE_PACKED;
 
 /* Define set/get methods for mblock_filehdr_omf */
 OMF_SETGET(struct mblock_filehdr_omf, fh_uniq, 32);
@@ -93,10 +93,14 @@ OMF_SETGET(struct mblock_filehdr_omf, fh_rsvd2, 16);
 
 struct mblock_oid_omf {
     __le64 mblk_id;
-} __packed;
+    __le32 mblk_wlen;
+} HSE_PACKED;
 
 /* Define set/get methods for mblock_oid_omf */
 OMF_SETGET(struct mblock_oid_omf, mblk_id, 64);
+OMF_SETGET(struct mblock_oid_omf, mblk_wlen, 32);
+
+#define MBLOCK_FILE_META_OIDLEN (sizeof(struct mblock_oid_omf))
 
 void
 omf_mblock_metahdr_pack_htole(struct mblock_metahdr *mh, char *outbuf);

@@ -20,8 +20,7 @@ _kvset_builder_create(
     struct kvset_builder **bld_out,
     struct cn *            cn,
     struct perfc_set *     pc,
-    u64                    vgroup,
-    uint                   flags)
+    u64                    vgroup)
 {
     struct mock_kvset_builder *mock;
 

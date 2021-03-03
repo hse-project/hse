@@ -1160,9 +1160,7 @@ cndb_blkdel(struct cndb *cndb, union cndb_mtu *mtu, u64 txid)
     }
 
     for (bx = 0; !err && bx < blks.n_blks; ++bx) {
-        struct mblock_props props = { 0 };
-
-        err = mpool_mblock_props_get(cndb->cndb_ds, blks.blks[bx].bk_blkid, &props);
+        err = mpool_mblock_props_get(cndb->cndb_ds, blks.blks[bx].bk_blkid, NULL);
         if (err) {
             if (merr_errno(err) != ENOENT) {
                 CNDB_LOGTX(
@@ -1186,24 +1184,18 @@ cndb_blkdel(struct cndb *cndb, union cndb_mtu *mtu, u64 txid)
             cndb,
             txid,
             HSE_NOTICE,
-            " %s block %lx",
-            (props.mpr_iscommitted) ? "delete" : "abort",
+            " delete block %lx",
             (ulong)blks.blks[bx].bk_blkid);
 
-        if (props.mpr_iscommitted)
-            err = delete_mblock(cndb->cndb_ds, &blks.blks[bx]);
-        else
-            err = abort_mblock(cndb->cndb_ds, &blks.blks[bx]);
-
+        err = delete_mblock(cndb->cndb_ds, &blks.blks[bx]);
         if (err) {
             CNDB_LOGTX(
                 err,
                 cndb,
                 txid,
                 HSE_ERR,
-                "block %lx %s failed",
-                (ulong)blks.blks[bx].bk_blkid,
-                props.mpr_iscommitted ? "delete" : "abort");
+                "block %lx delete failed",
+                (ulong)blks.blks[bx].bk_blkid);
             goto done;
         }
     }

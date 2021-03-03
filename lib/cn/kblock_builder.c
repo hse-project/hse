@@ -181,7 +181,6 @@ struct kblock_builder {
     struct blk_list            finished_kblks;
     struct curr_kblock         curr;
     bool                       finished;
-    uint                       flags;
     struct wbb *               ptree;
     uint                       pt_pgc;
     uint                       pt_max_pgc;
@@ -855,7 +854,6 @@ kblock_finish(struct kblock_builder *bld, struct wbb *ptree)
     uint   pt_pgc = 0;
     u64    tstart = 0;
     u64    kblocksz;
-    bool   spare;
 
     enum mp_media_classp mclass;
 
@@ -948,8 +946,6 @@ kblock_finish(struct kblock_builder *bld, struct wbb *ptree)
         goto errout;
     }
 
-    spare = !!(bld->flags & KVSET_BUILDER_FLAGS_SPARE);
-
     if (stats)
         tstart = get_time_ns();
 
@@ -961,7 +957,7 @@ kblock_finish(struct kblock_builder *bld, struct wbb *ptree)
             break;
         }
 
-        err = mpool_mblock_alloc(bld->ds, mclass, spare, &blkid, &mbprop);
+        err = mpool_mblock_alloc(bld->ds, mclass, &blkid, &mbprop);
     } while (err && ++allocs < HSE_MPOLICY_MEDIA_CNT);
 
     if (ev(err))
@@ -1019,7 +1015,7 @@ errout:
 
 /* Create a kblock builder */
 merr_t
-kbb_create(struct kblock_builder **builder_out, struct cn *cn, struct perfc_set *pc, uint flags)
+kbb_create(struct kblock_builder **builder_out, struct cn *cn, struct perfc_set *pc)
 {
     merr_t                 err;
     uint                   kb_size;
@@ -1037,7 +1033,6 @@ kbb_create(struct kblock_builder **builder_out, struct cn *cn, struct perfc_set 
     bld->rp = cn_get_rp(cn);
     bld->cp = cn_get_cparams(cn);
     bld->pc = pc;
-    bld->flags = flags;
     bld->agegroup = HSE_MPOLICY_AGE_LEAF;
 
     err = hlog_create(&bld->hlog, HLOG_PRECISION);

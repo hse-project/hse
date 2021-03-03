@@ -161,7 +161,6 @@ struct mpool_mclass_props {
  * @mpr_write_len:    written user-data in bytes
  * @mpr_optimal_wrsz: optimal write size(in bytes) for all but the last incremental mblock write
  * @mpr_mclassp:      media class
- * @mpr_iscommitted:  Is this mblock committed?
  */
 struct mblock_props {
     uint64_t mpr_objid;
@@ -169,16 +168,6 @@ struct mblock_props {
     uint32_t mpr_write_len;
     uint32_t mpr_optimal_wrsz;
     uint32_t mpr_mclassp; /* enum mp_media_classp */
-    uint8_t  mpr_iscommitted;
-    uint8_t  mpr_rsvd1[7];
-    uint64_t mpr_rsvd2;
-};
-
-struct mblock_props_ex {
-    struct mblock_props mbx_props;
-    uint8_t             mbx_zonecnt; /* zone count per strip */
-    uint8_t             mbx_rsvd1[7];
-    uint64_t            mbx_rsvd2;
 };
 
 /**

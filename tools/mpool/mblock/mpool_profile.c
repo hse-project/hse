@@ -107,7 +107,7 @@ profile_worker(
     num_blocks = mblock_sz / block_sz;
 
     for (block = 0; block < mblock_cnt; ++block) {
-        err = mpool_mblock_alloc(mp, mc, false, &handle, &mbprop);
+        err = mpool_mblock_alloc(mp, mc, &handle, &mbprop);
         if (err) {
             merr_strerror(err, errbuf, sizeof(errbuf));
             fprintf(stderr, "mpool_mblock_alloc() failed: %s\n", errbuf);

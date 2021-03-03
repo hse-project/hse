@@ -21,7 +21,7 @@
 struct mpool;
 
 merr_t
-mpool_mblock_alloc2(
+mpool_mblock_alloc(
     struct mpool        *mp,
     enum mp_media_classp mclass,
     uint64_t            *mbid,
@@ -43,6 +43,7 @@ mpool_mblock_alloc2(
         props->mpr_alloc_cap = MBLOCK_SIZE_MB << 20;
         props->mpr_optimal_wrsz = 128 << 10;
         props->mpr_mclassp = mclass;
+        props->mpr_write_len = 0;
     }
 
     return err;
@@ -94,33 +95,35 @@ mpool_mblock_delete(struct mpool *mp, uint64_t mbid)
 }
 
 merr_t
-mpool_mblock_find(struct mpool *mp, uint64_t mbid, struct mblock_props *props)
+mpool_mblock_props_get(struct mpool *mp, uint64_t mbid, struct mblock_props *props)
 {
     struct media_class  *mc;
     enum mp_media_classp mclass;
 
-    merr_t err;
+    uint32_t wlen;
+    merr_t   err;
 
-    if (ev(!mp))
+    if (!mp)
         return merr(EINVAL);
 
     mclass = mcid_to_mclass(mclassid(mbid));
     mc = mpool_mclass_handle(mp, mclass);
 
-    err = mblock_fset_find(mclass_fset(mc), &mbid, 1);
+    err = mblock_fset_find(mclass_fset(mc), &mbid, 1, props ? &wlen : NULL);
 
     if (!err && props) {
         props->mpr_objid = mbid;
         props->mpr_alloc_cap = MBLOCK_SIZE_MB << 20;
-        props->mpr_optimal_wrsz = 128 << 10;
+        props->mpr_optimal_wrsz = MBLOCK_OPT_WRITE_SZ;
         props->mpr_mclassp = mclass;
+        props->mpr_write_len = wlen;
     }
 
     return err;
 }
 
 merr_t
-mpool_mblock_write2(struct mpool *mp, uint64_t mbid, const struct iovec *iov, int iovc, off_t off)
+mpool_mblock_write(struct mpool *mp, uint64_t mbid, const struct iovec *iov, int iovc)
 {
     struct media_class  *mc;
     enum mp_media_classp mclass;
@@ -131,7 +134,7 @@ mpool_mblock_write2(struct mpool *mp, uint64_t mbid, const struct iovec *iov, in
     mclass = mcid_to_mclass(mclassid(mbid));
     mc = mpool_mclass_handle(mp, mclass);
 
-    return mblock_fset_write(mclass_fset(mc), mbid, iov, iovc, off);
+    return mblock_fset_write(mclass_fset(mc), mbid, iov, iovc);
 }
 
 merr_t

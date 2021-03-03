@@ -3,7 +3,6 @@
  */
 
 #include <mpool/mpool.h>
-#include <mpool/mpool2.h>
 #if HDR_HISTOGRAM_C_FROM_SUBPROJECT == 1
 #include <hdr_histogram.h>
 #else
@@ -96,7 +95,7 @@ deviceprofile_calibrate_worker(struct work_struct *arg)
 
     for (block = 0; block < num_blocks; ++block) {
         err = mpool_mblock_alloc(
-            work->dp_calibrate->dp_ds, work->dp_calibrate->dp_mclass, false, &handle, &mbprop);
+            work->dp_calibrate->dp_ds, work->dp_calibrate->dp_mclass, &handle, &mbprop);
         if (err) {
             fprintf(stderr, "mpool_mblock_alloc() failed: %s\n",
                     strerror(merr_errno(err)));

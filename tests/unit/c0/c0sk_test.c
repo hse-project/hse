@@ -59,8 +59,7 @@ _kvset_builder_create(
     struct kvset_builder **builder_out,
     struct cn *            cn,
     struct perfc_set *     pc,
-    u64                    vgroup,
-    uint                   flags)
+    u64                    vgroup)
 {
     *builder_out = (struct kvset_builder *)1111;
     return 0;

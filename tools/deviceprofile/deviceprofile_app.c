@@ -7,7 +7,6 @@
 #include <stdio.h>
 
 #include <mpool/mpool.h>
-#include <mpool/mpool2.h>
 
 #include <hse_util/inttypes.h>
 
@@ -173,7 +172,7 @@ main(int argc, char *argv[])
         return -1;
     }
 
-    err = mpool_params_get2(ds, &params);
+    err = mpool_params_get(ds, &params);
     if (err) {
         mpool_close(ds);
         fprintf(stderr, "mpool_params_get error %ld\n", err);

@@ -52,14 +52,11 @@ _vblock_start(struct vblock_builder *bld)
     u64                    blkid;
     u64                    tstart;
     uint                   allocs = 0;
-    bool                   spare;
     struct cn_merge_stats *stats = bld->mstats;
     struct kvs_rparams *   rp;
     enum mp_media_classp   mclass;
     struct mclass_policy * mpolicy = cn_get_mclass_policy(bld->cn);
     struct perfc_set *     mclass_pc = cn_pc_mclass_get(bld->cn);
-
-    spare = !!(bld->flags & KVSET_BUILDER_FLAGS_SPARE);
 
     tstart = get_time_ns();
 
@@ -71,7 +68,7 @@ _vblock_start(struct vblock_builder *bld)
             return err;
         }
 
-        err = mpool_mblock_alloc(bld->ds, mclass, spare, &blkid, &mbprop);
+        err = mpool_mblock_alloc(bld->ds, mclass, &blkid, &mbprop);
     } while (err && ++allocs < HSE_MPOLICY_MEDIA_CNT);
 
     if (ev(err))
@@ -189,8 +186,7 @@ vbb_create(
     struct vblock_builder **builder_out,
     struct cn *             cn,
     struct perfc_set *      pc,
-    u64                     vgroup,
-    uint                    flags)
+    u64                     vgroup)
 {
     struct vblock_builder  *bld;
     struct kvs_rparams     *rp;
@@ -206,7 +202,6 @@ vbb_create(
     bld->cn = cn;
     bld->pc = pc;
     bld->ds = cn_get_dataset(cn);
-    bld->flags = flags;
     bld->vgroup = vgroup;
     bld->max_size = rp->vblock_size_mb << 20;
     bld->agegroup = HSE_MPOLICY_AGE_LEAF;

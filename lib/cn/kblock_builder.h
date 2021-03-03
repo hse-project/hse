@@ -59,11 +59,10 @@ struct kbb_key_stats {
  * @builder_out: builder handle (output)
  * @cn: cn in which kblocks will be created
  * @pc: perf counters
- * @flags: kvset builder flags
  */
 /* MTF_MOCK */
 merr_t
-kbb_create(struct kblock_builder **bld_out, struct cn *cn, struct perfc_set *pc, uint flags);
+kbb_create(struct kblock_builder **bld_out, struct cn *cn, struct perfc_set *pc);
 
 /**
  * kbb_destroy() - Destroy a kblock builder

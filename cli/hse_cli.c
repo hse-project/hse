@@ -22,8 +22,6 @@
 #include <hse_util/yaml.h>
 #include <hse_util/string.h>
 
-#include <mpool/mpool.h>
-
 #include "cli_util.h"
 
 #define OPTION_HELP                 \

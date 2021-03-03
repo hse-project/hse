@@ -13,13 +13,11 @@
 #include <hse_util/timing.h>
 #include <hse_util/parse_num.h>
 
-#include <mpool/mpool.h>
-
 #include <hse/hse.h>
 #include <hse/hse_experimental.h> /* need 'hse_mpool_utype' */
 
 static int
-rest_kvs_list(struct yaml_context *yc, const char *mpool)
+rest_kvs_list(struct yaml_context *yc, const char *kvdb)
 {
     char      sock[PATH_MAX];
     char      url[PATH_MAX];
@@ -28,9 +26,9 @@ rest_kvs_list(struct yaml_context *yc, const char *mpool)
     char *    c;
     hse_err_t err;
 
-    snprintf(url, sizeof(url), "mpool/%s", mpool);
+    snprintf(url, sizeof(url), "mpool/%s", kvdb);
 
-    snprintf(sock, sizeof(sock), "%s/%s/%s.sock", REST_SOCK_ROOT, mpool, mpool);
+    snprintf(sock, sizeof(sock), "%s/%s.sock", getenv("HSE_REST_SOCK_PATH"), kvdb);
 
     buf = calloc(1, bufsz);
     if (!buf)
@@ -53,7 +51,7 @@ rest_kvs_list(struct yaml_context *yc, const char *mpool)
         while (*c != '-')
             c++;
 
-        snprintf(path, sizeof(path), "%s/%s", mpool, c + 2);
+        snprintf(path, sizeof(path), "%s/%s", kvdb, c + 2);
         yaml_element_list(yc, path);
     }
 
@@ -64,7 +62,7 @@ rest_kvs_list(struct yaml_context *yc, const char *mpool)
 }
 
 static hse_err_t
-kvdb_list_props(const char *mpool, struct hse_params *params, struct yaml_context *yc)
+kvdb_list_props(const char *kvdb, struct hse_params *params, struct yaml_context *yc)
 {
     struct hse_kvdb *hdl;
     unsigned int     kvs_cnt;
@@ -73,13 +71,13 @@ kvdb_list_props(const char *mpool, struct hse_params *params, struct yaml_contex
     char             path[129];
     int              i;
 
-    err = hse_kvdb_open(mpool, params, &hdl);
+    err = hse_kvdb_open(kvdb, params, &hdl);
     if (err) {
         if (hse_err_to_errno(err) != EBUSY && hse_err_to_errno(err) != ENODATA)
             return err;
 
         yaml_start_element_type(yc, "kvslist");
-        err = rest_kvs_list(yc, mpool);
+        err = rest_kvs_list(yc, kvdb);
         yaml_end_element_type(yc);
         return err;
     }
@@ -93,7 +91,7 @@ kvdb_list_props(const char *mpool, struct hse_params *params, struct yaml_contex
     yaml_start_element_type(yc, "kvslist");
 
     for (i = 0; i < kvs_cnt; i++) {
-        snprintf(path, sizeof(path), "%s/%s", mpool, kvs_list[i]);
+        snprintf(path, sizeof(path), "%s/%s", kvdb, kvs_list[i]);
         yaml_element_list(yc, path);
     }
 
@@ -108,7 +106,7 @@ kvdb_list_props(const char *mpool, struct hse_params *params, struct yaml_contex
 
 int
 kvdb_list_print(
-    const char *         mpname,
+    const char *         kvdb,
     struct hse_params *  params,
     struct yaml_context *yc,
     bool                 verbose,
@@ -116,13 +114,13 @@ kvdb_list_print(
 {
     hse_err_t err;
 
-#if 1 /* HSE_REVISIT */
+    /* HSE_REVISIT - list implementation */
 
     yaml_start_element_type(yc, "kvdbs");
 
-    yaml_start_element(yc, "name", mpname);
+    yaml_start_element(yc, "name", kvdb);
 
-    err = kvdb_list_props(mpname, params, yc);
+    err = kvdb_list_props(kvdb, params, yc);
     if (err) {
         char buf[256];
         hse_err_to_string(err, buf, sizeof(buf), NULL);
@@ -134,61 +132,13 @@ kvdb_list_print(
 
     *count = 1;
 
-#else
-    struct mpool_params *propv = NULL;
-
-    int       propc = 0;
-    hse_err_t err;
-    int       i;
-
-    err = merr_to_hse_err(mpool_list(&propc, &propv));
-    if (err)
-        return hse_err_to_errno(err);
-
-    *count = 0;
-    for (i = 0; i < propc; i++) {
-        const struct mpool_params *props = propv + i;
-
-        if (uuid_compare(props->mp_utype, hse_mpool_utype))
-            continue;
-
-        if (mpname && strcmp(props->mp_name, mpname))
-            continue;
-
-        *count += 1;
-        if (*count == 1)
-            yaml_start_element_type(yc, "kvdbs");
-
-        yaml_start_element(yc, "name", props->mp_name);
-
-        if (!verbose) {
-            yaml_end_element(yc);
-            continue;
-        }
-
-        err = kvdb_list_props(props->mp_name, params, yc);
-        if (err) {
-            char buf[256];
-            hse_err_to_string(err, buf, sizeof(buf), NULL);
-            yaml_field_fmt(yc, "error", "\"kvdb_list_props failed: %s\"", buf);
-        }
-
-        yaml_end_element(yc);
-    }
-
-    if (*count)
-        yaml_end_element_type(yc);
-
-    free(propv);
-#endif
-
     hse_params_destroy(params);
 
     return 0;
 }
 
 static hse_err_t
-rest_kvdb_comp(const char *mpool, const char *kvdb, const char *policy)
+rest_kvdb_comp(const char *kvdb, const char *policy)
 {
     char      sock[PATH_MAX];
     char      url[PATH_MAX];
@@ -196,9 +146,9 @@ rest_kvdb_comp(const char *mpool, const char *kvdb, const char *policy)
     size_t    bufsz = (4 * 1024);
     hse_err_t err;
 
-    snprintf(url, sizeof(url), "mpool/%s/compact/request?policy=%s", mpool, policy);
+    snprintf(url, sizeof(url), "mpool/%s/compact/request?policy=%s", kvdb, policy);
 
-    snprintf(sock, sizeof(sock), "%s/%s/%s.sock", REST_SOCK_ROOT, mpool, mpool);
+    snprintf(sock, sizeof(sock), "%s/%s.sock", getenv("HSE_REST_SOCK_PATH"), kvdb);
 
     buf = calloc(1, bufsz);
     if (!buf)
@@ -211,15 +161,15 @@ rest_kvdb_comp(const char *mpool, const char *kvdb, const char *policy)
 }
 
 static hse_err_t
-rest_kvdb_status(const char *mpool, const char *kvdb, size_t bufsz, char *buf)
+rest_kvdb_status(const char *kvdb, size_t bufsz, char *buf)
 {
     char      sock[PATH_MAX];
     char      url[PATH_MAX];
     hse_err_t err;
 
-    snprintf(url, sizeof(url), "mpool/%s/compact/status", mpool);
+    snprintf(url, sizeof(url), "mpool/%s/compact/status", kvdb);
 
-    snprintf(sock, sizeof(sock), "%s/%s/%s.sock", REST_SOCK_ROOT, mpool, mpool);
+    snprintf(sock, sizeof(sock), "%s/%s.sock", getenv("HSE_REST_SOCK_PATH"), kvdb);
 
     err = merr_to_hse_err(curl_get(url, sock, buf, bufsz));
     if (err)
@@ -229,15 +179,15 @@ rest_kvdb_status(const char *mpool, const char *kvdb, size_t bufsz, char *buf)
 }
 
 static hse_err_t
-rest_kvdb_params(const char *mpool, size_t bufsz, char *buf)
+rest_kvdb_params(const char *kvdb, size_t bufsz, char *buf)
 {
     char      sock[PATH_MAX];
     char      url[PATH_MAX];
     hse_err_t err;
 
-    snprintf(url, sizeof(url), "data/config/kvdb/%s", mpool);
+    snprintf(url, sizeof(url), "data/config/kvdb/%s", kvdb);
 
-    snprintf(sock, sizeof(sock), "%s/%s/%s.sock", REST_SOCK_ROOT, mpool, mpool);
+    snprintf(sock, sizeof(sock), "%s/%s.sock", getenv("HSE_REST_SOCK_PATH"), kvdb);
 
     err = merr_to_hse_err(curl_get(url, sock, buf, bufsz));
     if (err)
@@ -315,11 +265,11 @@ rest_status_parse(const char *buf, struct hse_kvdb_compact_status *status)
 
 /**
  * rest_params_print() - Print the KVDB params
- * @mpool:  mpool name
- * @buf:    input buffer containing yaml
+ * @kvdb:  kvdb name
+ * @buf:   input buffer containing yaml
  */
 static void
-rest_params_print(const char *mpool, const char *buf)
+rest_params_print(const char *kvdb, const char *buf)
 {
     char        pfx[PATH_MAX], key[PATH_MAX];
     char        value[32];
@@ -328,7 +278,7 @@ rest_params_print(const char *mpool, const char *buf)
 
     start = p = buf;
 
-    snprintf(pfx, sizeof(pfx), "kvdb/%s/", mpool);
+    snprintf(pfx, sizeof(pfx), "kvdb/%s/", kvdb);
 
     while (*p != '\0') {
         start = strstr(p, "path:");
@@ -400,7 +350,7 @@ rest_status_yaml(struct hse_kvdb_compact_status *status, char *buf, size_t bufsz
 
 int
 kvdb_compact_request(
-    const char *       mpool,
+    const char *       kvdb,
     struct hse_params *params,
     const char *       request_type,
     u32                timeout_sec)
@@ -415,13 +365,13 @@ kvdb_compact_request(
     char **kvs_list;
     uint   kvs_cnt;
 
-    err = hse_kvdb_open(mpool, params, &handle);
+    err = hse_kvdb_open(kvdb, params, &handle);
     if (err) {
         handle = 0;
         if (hse_err_to_errno(err) != EBUSY) {
             char buf[256];
             hse_err_to_string(err, buf, sizeof(buf), NULL);
-            fprintf(stderr, "kvdb open %s failed: %s\n", mpool, buf);
+            fprintf(stderr, "kvdb open %s failed: %s\n", kvdb, buf);
             goto err_out;
         }
     }
@@ -434,7 +384,7 @@ kvdb_compact_request(
         if (err) {
             char buf[256];
             hse_err_to_string(err, buf, sizeof(buf), NULL);
-            fprintf(stderr, "unable to get %s kvs names: %s\n", mpool, buf);
+            fprintf(stderr, "unable to get %s kvs names: %s\n", kvdb, buf);
             goto err_out;
         }
 
@@ -457,7 +407,7 @@ kvdb_compact_request(
 
         printf("issuing compaction request with timeout of %u seconds\n", timeout_sec);
 
-        err = rest_kvdb_comp(mpool, mpool, policy);
+        err = rest_kvdb_comp(kvdb, policy);
         if (err) {
             char buf[256];
             hse_err_to_string(err, buf, sizeof(buf), NULL);
@@ -465,7 +415,7 @@ kvdb_compact_request(
             goto err_out;
         }
 
-        err = rest_kvdb_status(mpool, mpool, sizeof(stat_buf), stat_buf);
+        err = rest_kvdb_status(kvdb, sizeof(stat_buf), stat_buf);
         if (err) {
             char buf[256];
             hse_err_to_string(err, buf, sizeof(buf), NULL);
@@ -484,7 +434,7 @@ kvdb_compact_request(
         stop_ts = get_time_ns() + (timeout_sec * 1000ul * 1000ul * 1000ul);
         while (status.kvcs_active) {
 
-            err = rest_kvdb_status(mpool, mpool, sizeof(stat_buf), stat_buf);
+            err = rest_kvdb_status(kvdb, sizeof(stat_buf), stat_buf);
             if (err) {
                 char buf[256];
                 hse_err_to_string(err, buf, sizeof(buf), NULL);
@@ -499,9 +449,9 @@ kvdb_compact_request(
 
             if (get_time_ns() > stop_ts) {
 
-                fprintf(stderr, "compact kvdb %s timed out\n", mpool);
+                fprintf(stderr, "compact kvdb %s timed out\n", kvdb);
 
-                err = rest_kvdb_comp(mpool, mpool, "cancel");
+                err = rest_kvdb_comp(kvdb, "cancel");
                 if (err) {
                     char buf[256];
                     hse_err_to_string(err, buf, sizeof(buf), NULL);
@@ -513,11 +463,11 @@ kvdb_compact_request(
             }
         }
 
-        printf("compact kvdb %s %s\n", mpool, status.kvcs_canceled ? "canceled" : "successful");
+        printf("compact kvdb %s %s\n", kvdb, status.kvcs_canceled ? "canceled" : "successful");
 
     } else if (strcmp(request_type, "cancel") == 0) {
 
-        err = rest_kvdb_comp(mpool, mpool, "cancel");
+        err = rest_kvdb_comp(kvdb, "cancel");
         if (err) {
             char buf[256];
             hse_err_to_string(err, buf, sizeof(buf), NULL);
@@ -525,11 +475,11 @@ kvdb_compact_request(
             goto err_out;
         }
 
-        printf("compact kvdb %s canceled\n", mpool);
+        printf("compact kvdb %s canceled\n", kvdb);
 
     } else if (strcmp(request_type, "status") == 0) {
 
-        err = rest_kvdb_status(mpool, mpool, sizeof(stat_buf), stat_buf);
+        err = rest_kvdb_status(kvdb, sizeof(stat_buf), stat_buf);
         if (err) {
             char buf[256];
             hse_err_to_string(err, buf, sizeof(buf), NULL);
@@ -558,66 +508,9 @@ err_out:
 int
 hse_kvdb_params(const char *kvdb, bool get)
 {
-    bool                 match = false;
-    hse_err_t            err = 0;
-    char *               buf;
-    size_t               bufsz = (32 * 1024);
-    int                  allc, i;
-    struct mpool_params *allv = 0;
-
-    err = mpool_list(&allc, &allv);
-    if (err) {
-        char buf[256];
-        hse_err_to_string(err, buf, sizeof(buf), NULL);
-        fprintf(stderr, "mpool_list failed: %s\n", buf);
-        return -EINVAL;
-    }
-
-    for (i = 0; i < allc; ++i) {
-        if (!strcmp(allv[i].mp_name, kvdb)) {
-            match = true;
-            break;
-        }
-    }
-
-    /* free mem allocated in mpool_list() */
-    free(allv);
-    allv = 0;
-
-    if (!match) {
-        err = mpool_scan(&allc, &allv);
-        if (err) {
-            char buf[256];
-            hse_err_to_string(err, buf, sizeof(buf), NULL);
-            fprintf(stderr, "mpool_scan failed: %s\n", buf);
-            return -EINVAL;
-        }
-
-        for (i = 0; i < allc; ++i) {
-
-            if (!strcmp(allv[i].mp_name, kvdb)) {
-                match = true;
-                break;
-            }
-        }
-
-        /* free mem allocated n mpool_scan() */
-        free(allv);
-        allv = 0;
-
-        if (!match) {
-            fprintf(stderr, "KVDB '%s' not found\n", kvdb);
-        } else {
-            fprintf(
-                stderr,
-                "Mpool '%s' is inactive. Must activate the mpool prior to accessing the KVDB.\n"
-                "Try: mpool activate '%s'\n",
-                kvdb,
-                kvdb);
-        }
-
-        return -EINVAL;
-    }
+    hse_err_t err = 0;
+    char *    buf;
+    size_t    bufsz = (32 * 1024);
 
     buf = calloc(1, bufsz);
     if (!buf)

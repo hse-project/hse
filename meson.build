@@ -430,9 +430,6 @@ path = '@0@:@1@'.format(
     ':'.join(executable_paths),
     path,
 )
-if get_option('mpool-bin-dir') != ''
-    path = '@0@:@1@'.format(get_option('mpool-bin-dir'), path)
-endif
 
 ld_library_path = run_command(
     'sh',
@@ -444,9 +441,6 @@ ld_library_path = '@0@:@1@'.format(
     ':'.join(library_paths),
     ld_library_path,
 )
-if get_option('mpool-lib-dir') != ''
-    ld_library_path = '@0@:@1@'.format(get_option('mpool-lib-dir'), ld_library_path)
-endif
 
 run_env.set('PATH', path)
 run_env.set('LD_LIBRARY_PATH', ld_library_path)

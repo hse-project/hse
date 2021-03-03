@@ -775,7 +775,7 @@ MTF_DEFINE_UTEST_PREPOST(cndb_test, cndb_blkdel_test, test_pre, test_post)
     *oidp = 0x21122112;
 
     mapi_inject(mapi_idx_mpool_mblock_props_get, 0);
-    mapi_inject(mapi_idx_mpool_mblock_abort, 0);
+    mapi_inject(mapi_idx_mpool_mblock_delete, 0);
     err = cndb_blkdel(&cndb, (void *)db, TXID_2);
     ASSERT_EQ(0, err);
 
@@ -784,12 +784,11 @@ MTF_DEFINE_UTEST_PREPOST(cndb_test, cndb_blkdel_test, test_pre, test_post)
     ASSERT_EQ(0, err);
 
     mapi_inject(mapi_idx_mpool_mblock_props_get, 0);
-    mapi_inject(mapi_idx_mpool_mblock_abort, EINVAL);
+    mapi_inject(mapi_idx_mpool_mblock_delete, EINVAL);
     err = cndb_blkdel(&cndb, (void *)db, TXID_2);
     ASSERT_EQ(EINVAL, merr_errno(err));
     mapi_inject_unset(mapi_idx_mpool_mblock_props_get);
     mapi_inject_unset(mapi_idx_mpool_mblock_delete);
-    mapi_inject_unset(mapi_idx_mpool_mblock_abort);
 
     mapi_inject_once_ptr(mapi_idx_malloc, 1, NULL);
     err = cndb_blkdel(&cndb, (void *)db, TXID_2);

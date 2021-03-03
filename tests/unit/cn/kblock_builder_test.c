@@ -55,7 +55,7 @@ int   salt;
 
 #define WORK_BUF_SIZE (100 * 1024)
 
-#define KBB_CREATE_ARGS &kbb, (void *)-1, 0, KVSET_BUILDER_FLAGS_NONE
+#define KBB_CREATE_ARGS &kbb, (void *)-1, 0
 
 struct kbb_key_stats key_stats = { .nvals = 3, .ntombs = 1, .tot_vlen = 144 };
 

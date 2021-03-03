@@ -6,7 +6,6 @@
 #define MTF_MOCK_IMPL_hse
 
 #include <mpool/mpool.h>
-#include <mpool/mpool2.h>
 
 #include <hse/hse.h>
 #include <hse/hse_experimental.h>
@@ -128,7 +127,7 @@ hse_kvdb_make(const char *mpool_name, const struct hse_params *params)
     if (ev(err))
         return merr_to_hse_err(err);
 
-    err = mpool_params_get2(ds, &mparams);
+    err = mpool_params_get(ds, &mparams);
     if (ev(err))
         goto errout;
 
@@ -160,7 +159,7 @@ hse_kvdb_make(const char *mpool_name, const struct hse_params *params)
 
     memcpy(mparams.mp_utype, &hse_mpool_utype, sizeof(mparams.mp_utype));
 
-    err = mpool_params_set2(ds, &mparams);
+    err = mpool_params_set(ds, &mparams);
     if (ev(err))
         goto errout;
 
@@ -267,7 +266,7 @@ hse_kvdb_open(const char *mpool_name, const struct hse_params *params, struct hs
         char   sock[PATH_MAX];
         size_t n;
 
-        n = snprintf(sock, sizeof(sock), "%s/%s/%s.sock", REST_SOCK_ROOT, mpool_name, mpool_name);
+        n = snprintf(sock, sizeof(sock), "%s/%s.sock", getenv("HSE_REST_SOCK_PATH"), mpool_name);
 
         if (n >= sizeof(sock)) {
             hse_log(

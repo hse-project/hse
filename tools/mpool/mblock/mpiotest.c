@@ -46,7 +46,6 @@
 #include <hse/hse.h>
 
 #include <mpool/mpool.h>
-#include <mpool/mpool2.h>
 
 #define MBLOCK_SIZE_MB_DEFAULT (32 << 20)
 #define WANDERMAX   (1024 * 128)
@@ -493,7 +492,7 @@ void *test_start(void *arg)
 		wander = (random() % test->t_wandermax) & PAGE_MASK;
 		wobble = (random() % test->t_wobblemax) & PAGE_MASK;
 
-		err = mpool_mblock_alloc2(mp, MP_MED_CAPACITY, &objid, &props);
+		err = mpool_mblock_alloc(mp, MP_MED_CAPACITY, &objid, &props);
 		if (err) {
 			if (merr_errno(err) == ENOSPC)
 				break;
@@ -523,7 +522,7 @@ void *test_start(void *arg)
 			niov = 2;
 		}
 
-		err = mpool_mblock_write2(mp, objid, iov, niov, 0);
+		err = mpool_mblock_write(mp, objid, iov, niov);
 		if (err) {
 			merr_strinfo(err, errbuf, sizeof(errbuf), NULL);
 			eprint("mpool_mblock_write: %d objid=0x%lx len=%zu: %s\n",
@@ -1096,7 +1095,7 @@ int main(int argc, char **argv)
 		exit(1);
 	}
 
-	err = mpool_params_get2(mp, &params);
+	err = mpool_params_get(mp, &params);
 	if (err) {
 		merr_strinfo(err, errbuf, sizeof(errbuf), NULL);
 		eprint("mpool_params_get(%s): %s\n", mpname, errbuf);

@@ -365,8 +365,7 @@ cn_kcompact(struct cn_compaction_work *w)
         &w->cw_child[0],
         cn_tree_get_cn(w->cw_tree),
         w->cw_pc,
-        w->cw_dgen_hi,
-        KVSET_BUILDER_FLAGS_SPARE);
+        w->cw_dgen_hi);
     if (ev(err))
         goto done;
 

@@ -77,7 +77,6 @@ static merr_t
 _mpool_mblock_alloc(
     struct mpool *       mp,
     enum mp_media_classp mclassp,
-    bool                 spare,
     uint64_t *           handle,
     struct mblock_props *props)
 {

@@ -19,7 +19,7 @@
 #include <mocks/mock_mpool.h>
 
 static merr_t
-_kbb_create(struct kblock_builder **bld_out, struct cn *cn, struct perfc_set *pc, uint flags)
+_kbb_create(struct kblock_builder **bld_out, struct cn *cn, struct perfc_set *pc)
 {
     *bld_out = (struct kblock_builder *)0x1111;
     return 0;
@@ -30,8 +30,7 @@ _vbb_create(
     struct vblock_builder **bld_out,
     struct cn *             cn,
     struct perfc_set *      pc,
-    u64                     vgroup,
-    uint                    flags)
+    u64                     vgroup)
 {
     *bld_out = (struct vblock_builder *)0x2222;
     return 0;
