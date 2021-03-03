@@ -1,0 +1,73 @@
+#!/usr/bin/bash
+
+# Prefix trees switch from prefix spilling to full key spilling when
+# spilling from a level with at least 1024 nodes;
+#
+# Nodes at each level for different fanouts:
+#
+#    Tree Level   Fanout=2    Fanout=4    Fanout=8    Fanout=16
+#    ----------   --------    --------    --------    ---------
+#    Root   0          1           1           1            1
+#    Level  1          2           4           8           16
+#    Level  2          4          16          64        **256** 
+#    Level  3          8          64       **512***      4096
+#    Level  4         16       **256**      4096        65536
+#    Level  5         32        1024       32768
+#    Level  6         64        4096
+#    Level  7      **128**     16384
+#    Level  8        256       65536
+#    Level  9        512
+#    Level  10      1024
+#    Level  11      2048
+#    Level  12      4096
+#    
+
+
+# Test logic
+# -----------
+# For each fanout:
+#   - Set max node size to 32MiB to enable faster testing with less data.
+#   - Create prefix tree.
+#   - Ingest significantly more than 32MiB data (eg, 2 X 32 Mib).
+#   - Run putbin in idle mode to let tree take final form
+#   - Verify tree shape
+
+node_size=32
+
+(( size = 32 << 20))
+(( klen = 20  ))
+(( vlen = 100 ))
+(( nkeys = 2 * size / (klen + vlen) ))
+
+rp="kvs.cn_close_wait=1 kvdb.csched_debug_mask=0x30 kvs.cn_node_size_lo=32 kvs.cn_node_size_hi=32 kvdb.csched_rspill_params=0x01ff kvdb.csched_ispill_params=0x01ff kvdb.csched_leaf_comp_params=0x0001ff kvdb.csched_qthreads=0x080808"
+
+mp=$(new_kvdb) || err
+
+for fanout in 2 4 8 16; do
+
+    case $fanout in
+        (2)  lvl=7;;
+        (4)  lvl=4;;
+        (8)  lvl=3;;
+        (16) lvl=2;;
+    esac
+
+    kvs=$(new_kvs $mp kvs.pfx_len=4 kvs.fanout=$fanout) || err
+
+
+    cmd kmt -j32 -f 'xxxx%016lx' -l$vlen:$vlen -s1 -i$nkeys $mp/$kvs $rp
+                                                                                      
+    cmd putbin -n 5000 $mp $kvs $rp
+
+    cmd cn_metrics $mp $kvs
+
+    # todo verify tree shape
+    #metrics_log=$LOG
+    #cmd grep -q "^n $lvl," $metrics_log
+    #cmd --exp-err-status grep -q "^n $((lvl+1))," $metrics_log
+
+done
+
+cmd $sudo mpool destroy "$mp"
+
+

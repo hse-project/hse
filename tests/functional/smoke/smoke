@@ -1,0 +1,642 @@
+#!/bin/bash
+
+# Be strict.  Write scripts accordingly.
+set -u
+set -o pipefail
+
+CMD=${0##*/}
+
+# Set up for tmp files and a trap to remove them
+rm_temp_files=1
+trap_sigs="0 1 2 3 15"
+trap trap_proc $trap_sigs
+trap_proc () {
+    set +u
+    if (( rm_temp_files )); then
+	/bin/rm -fr "$TMP" "$TMP".*
+    fi >& /dev/null
+    trap "" $trap_sigs
+}
+
+err () {
+    {
+        echo "*** ERROR ***"
+        while (( $# > 0 )); do
+            echo "$1"
+            shift
+        done
+    } 1>&2
+    exit 1
+}
+
+# Variables exported to individual test scripts.
+# Many of these can be modified by command-line args.
+export test_vg=hse_smoke
+export thin_lv=thinpool
+export smoke_lv_prefix=hse_smoke
+export min_size_gb=1024
+
+export VERBOSE=1
+export DRYRUN=0
+export LOG_TOPDIR=$HOME/smokelogs/$(date +"%Y%m%d/%H%M-$$")
+export TMP=/tmp/$CMD.$$
+export USE_VALGRIND=0
+export MSE_NOMISMATCH=${MSE_NOMISMATCH:-1}
+export sudo="sudo -E"
+
+# set for each test
+export TEST_SCRIPT_DIR=  # directory of test script
+export TEST=             # name of test
+export LOG_DIR=          # each test has its own logdir
+export LOG=              # default log file for current test
+
+export DEV_LIST_FILE=/etc/nf-test-devices
+
+
+# local vars (not exported to scripts)
+exported_functions=()
+smoke_dir=$(readlink -m "${BASH_SOURCE[0]}"/..) || err "readlink"
+smoke_test_dir=$smoke_dir
+
+lvinit_mode=0
+lvinit_device=
+test_script_options=
+test_list=()
+test_args=()
+show_info=0
+show_test_names=1
+all_tests=0
+USE_VALGRIND=0
+
+exported_functions+=(err)
+
+syntax () {
+    {
+        while (( $# > 0 )); do
+            echo "$1"
+            shift
+        done
+        echo "Use -h for help"
+    } 1>&2
+    exit 1
+}
+
+file_search () {
+    local f=$1; shift
+    local d
+    for d in "$@"; do
+        if [[ "$d" == "." || "$d" == "" ]]; then
+            if [[ -f "$f" ]]; then
+                echo "$f"
+                return
+            fi
+        elif [[ -f "$d/$f" ]]; then
+            echo "$d/$f"
+            return
+        fi
+    done
+}
+
+get_sys_tests () {
+    ls "$smoke_test_dir" | grep -Pv '^(group|disabled)' | grep -v '~$' | grep '^sys\.'
+}
+
+get_tests () {
+    ls "$smoke_test_dir" | grep -Pv '^(group|disabled)' | grep -v '~$' | grep -v '^sys\.'
+}
+
+get_group_tests () {
+    echo "$1" | grep -q ^group || err "Invalid group: $1"
+    [[ -f "$smoke_test_dir/$1" ]] || err "Invalid group: $1"
+    sed -e 's/#.*//' "$smoke_test_dir/$1"
+}
+
+get_groups () {
+    ls "$smoke_test_dir" | grep '^group' | grep -v '~$'
+}
+
+get_doc () {
+    sed -nre 's/#doc:\s*//p' "$smoke_test_dir/$1" || err "Invalid test: $1"
+}
+
+get_test_script () {
+    local t=$1; shift
+    local search=("$smoke_test_dir" "$@")
+    local f=$(file_search "$t" "${search[@]}")
+    if [[ "$f" == "" ]]; then
+        err "Invalid test: \"$t\"" \
+            "Search path: ${search[@]}"
+    fi
+    echo "$f"
+}
+
+exported_functions+=(get_test_devices)
+get_test_devices () {
+    local dev_list
+    local dev_count
+    local help=(
+        "File $DEV_LIST_FILE must contain a list of block special files that"
+        "will be reformatted during smoke testing.")
+
+    dev_list=($(sed -e 's/#.*//' "$DEV_LIST_FILE")) || err "Cannot read $DEV_LIST_FILE." "${help[@]}"
+
+    dev_count=${#dev_list[@]}
+    (( dev_count > 0 )) || err "${help[@]}"
+
+    for dev in "${dev_list[@]}"; do
+        [[ -b "$dev" ]] ||
+            err "File $DEV_LIST_FILE contains '$dev' which is not a block special file." \
+                "${help[@]}"
+        (( dev_count++ ))
+    done
+    echo "${dev_list[@]}"
+}
+
+
+check_system () {
+    local devs=$(get_test_devices) >/dev/null
+    local dev
+    local vg
+
+    for dev in $devs; do
+        vg=$($sudo pvs "$dev" --noheadings -o vg_name)
+        vg=$(echo "$vg" | sed -e 's/^ *//')
+        if [[ "$vg" == "" ]]; then
+            : # Good: not part of a VG
+        elif [[ "$vg" == "$test_vg" ]]; then
+            : # Good: part of the smoke test VG
+        else
+            err "Device '$dev' is part of volume group '$vg'" \
+                "You must remove it from the volume group or use" \
+                "a different device."
+        fi
+    done
+}
+
+check_tests () {
+    local g
+    local t
+    # verify each test mentioned in a group is valid
+    local GRPS=$(get_groups) || exit 1
+    for g in $GRPS; do
+        local GRPTESTS=$(get_group_tests "$g") || exit 1
+        for t in $GRPTESTS; do
+            (get_test_script "$t" >& /dev/null) ||
+                err "Group $g contains a non-existent test: $t"
+        done
+    done
+}
+
+check_modules () {
+    local match
+    local module=mpool
+
+    match=$(lsmod | grep "^$module" 2>/dev/null)
+    [[ "$match" == "" ]] && err "Kernel module '$module' not installed"
+}
+
+exported_functions+=(sys_reset)
+sys_reset () {
+    local mp
+    local dev_list
+    local dev_count
+    local dev
+
+    dev_list=($(sed -e 's/#.*//' "$DEV_LIST_FILE")) || err "Cannot read $DEV_LIST_FILE"
+    dev_count=${#dev_list[@]}
+
+    (( dev_count > 0 )) || err "File $DEV_LIST_FILE must contain a list of block special files"
+
+    for dev in "${dev_list[@]}"; do
+        [[ -b "$dev" ]] || err "File $DEV_LIST_FILE contains '$dev' which is not a block special file"
+        (( dev_count++ ))
+    done
+
+    cmd -i $sudo mpool scan --deactivate
+
+    if $sudo vgs "$test_vg" &> /dev/null; then
+        cmd -i $sudo vgremove -y "$test_vg"
+    fi
+
+    for dev in "${dev_list[@]}"; do
+        cmd $sudo pvcreate "$dev"
+    done
+    cmd $sudo vgcreate "$test_vg" "${dev_list[@]}"
+}
+
+exported_functions+=(sys_cleanup)
+sys_cleanup () {
+    cmd $sudo vgremove -y "$test_vg"
+}
+
+show_test_env () {
+    local var_name
+    local var_value
+
+    echo
+    echo "## Smoke environment vars ##"
+    for var_name in $NF_SMOKE_VARS; do
+        var_value=$(eval echo \"\$"$var_name"\")
+        printf "%-16s = %s\n" "$var_name" "$var_value"
+    done
+
+    echo
+    echo "## VG Info ##"
+    $sudo vgdisplay -v "$test_vg"
+}
+
+help ()
+{
+    echo "Usage: $CMD [options] test1 test2 ..."
+    echo "Options:"
+    echo "  -?, -h   // show the help message"
+    echo "  -i       // show info about test environment"
+    echo "  -l       // list tests"
+    echo "  -g       // list groups"
+    echo "  -ll      // long listing (tests with groups)"
+    echo "  -q       // be quiet"
+    echo "  -qq      // be silent except for errors"
+    echo "  -v       // show test output on console"
+    echo "  -x       // enable 'set -x' in test scripts"
+    echo "  -n       // dry run (may require invocation of 'mpool list')"
+    echo "  --all         // run all tests"
+    echo "  --logdir DIR  // override default log directory"
+    echo "  --valgrind    // run with valgrind"
+    echo "  --lvinit DEV  // create LV on DEV"
+    echo ""
+    echo "Run a specific test or group of tests:"
+    echo "  group.perf1 // run test group perf1"
+    echo "  --all       // alias for group.all"
+    echo ""
+    echo "Destructive shortcuts:"
+    echo "  --reset  // destroy all smoketest mpools and logical volumes"
+    echo ""
+    echo "Note: sudo access is required."
+    exit 0
+}
+
+exported_functions+=(cmd)
+cmd () {
+    local more=1
+    local check_status=1  # 0=ignore, 1=expect success, 2=expect error
+    local check_signal=0
+    local allow_stdout_noise=1
+    local status
+    while (( more && $# > 0 )); do
+        case "$1" in
+            (-i) # ignore status
+                check_status=0;
+                shift 1;;
+            (--exp-err-status)  # expect error status
+                check_status=2;
+                shift 1;;
+            (-s) # expect death by signal
+                check_signal=$2
+                check_signal=$((check_signal + 128))
+                check_status=2;
+                shift 2;;
+            (-q) allow_stdout_noise=0; shift;;
+            (-*) err "Unknown option: cmd $1";;
+            (*)  more=0;;
+        esac
+    done
+
+    local valgrind=0
+    if (( USE_VALGRIND )); then
+        if [[ "$1" =~ /stage/bin/ ]]; then
+            valgrind=1
+        fi
+    fi
+
+    # NF commands may emit a mismatch error when run under sudo.
+    # They are prefixed with a sudo [-E]; find the correct cmd name.
+
+    local arg
+    local log_base=""
+    local cnt=0
+    for arg in "$@"; do
+        arg=${arg##*/}
+        case "$arg" in
+            (hse1)  log_base="$log_base-$arg"; ((cnt++));;
+            (sudo) ;;
+            (-*)   ;;
+            (*)    log_base="$log_base-$arg"; ((cnt++));;
+        esac
+        (( cnt >= 4 )) && break
+    done
+
+    cmd_count=$(cat $TMP.cmd_count)
+    ((cmd_count++))
+    echo $cmd_count > $TMP.cmd_count
+
+    if (( DRYRUN )); then
+        log_base=log.cmd$(printf "%03d" $cmd_count)$log_base
+    else
+        log_base=$LOG_DIR/cmd$(printf "%03d" $cmd_count)$log_base
+    fi
+    LOG=$log_base.log
+
+    if (( valgrind )); then
+        # reset $@
+        set -- valgrind --suppressions=scripts/valgrind/default.supp --leak-check=full --log-file="$log_base.valgrind" "$@"
+    fi
+
+    if (( DRYRUN )); then
+        (( allow_stdout_noise )) && echo "$@"
+        return
+    fi
+
+    echo "#CMD: $@" >> "$LOG" 2>&1
+    local log_start_line=$(wc -l < "$LOG") || err "wc failed"
+    if (( allow_stdout_noise && VERBOSE > 1 )); then
+        # Echo command and output to terminal.
+        # Use stdbuf so terminal gets timely output.
+        echo "CMD: $@"
+        stdbuf -oL "$@" |& tee -a "$LOG"
+        status=${PIPESTATUS[0]}
+    else
+        # Use stdbuf to be consistent with the verbose > 1 case.  That is, use
+        # it in both cases. If it causes problems, eliminate in both cases.
+        (( allow_stdout_noise && VERBOSE )) && echo "$@"
+        stdbuf -oL "$@" >> "$LOG" 2>&1
+        status=$?
+    fi
+
+    echo "#CMD_STATUS: $status" >> "$LOG" 2>&1
+
+    case "$check_status" in
+        (0) ;; # ignore status
+        (1) # expect success
+            (( $status == 0 )) ||
+                err "Command failed with status $status." \
+                    "Command:  $*" \
+                    "Log file: $LOG"
+            ;;
+        (*) # expect error status
+            (( $status != 0 )) ||
+                err "Expected command to fail, but it exited with status 0" \
+                    "Command:  $*" \
+                    "Log file: $LOG"
+            ;;
+    esac
+
+    # Death by signal causes failure unless explicitly ignored.
+    # special case: ignore 255 b/c many programs use exit(-1) which
+    # maps to a return status of 255.
+    if (( status >= 128 && status != 255 && status != check_signal )); then
+        err "Command terminated by signal $((status-128))" \
+            "Command: $*" \
+            "Log file: $LOG"
+    fi
+    true
+}
+
+exported_functions+=(new_mpool)
+new_mpool () {
+
+    local mp=smoke
+    local lv=smoke
+
+    # Need '-q' flags because the output of this command is used by scripts
+    cmd -q -i $sudo mpool deactivate $mp
+    cmd -q -i $sudo lvremove -y "$test_vg"/"$lv"
+    cmd -q $sudo lvcreate -y -l "100%FREE" -n "$lv" "$test_vg"
+    cmd -q $sudo mpool create -f "$mp" "/dev/$test_vg/$lv" uid=$(id -u) gid=$(id -g)
+
+    echo "$mp"
+}
+
+exported_functions+=(new_kvdb)
+new_kvdb () {
+    local mp
+
+    mp=$(new_mpool) || err "new_mpool failed"
+
+    cmd -q hse1 kvdb create "$mp"
+
+    echo "$mp"
+}
+
+exported_functions+=(new_kvs)
+new_kvs () {
+
+    local base=kvs
+    local last_kvs
+    local count
+    local mp
+
+    if (( $# < 1 )); then
+	err "new_kvs takes mpool name as arg"
+    fi
+
+    mp=$1
+    shift
+
+    last_kvs=$(
+	$sudo hse1 kvdb list -v "$mp" 2>/dev/null |
+            sed -ne "s|  *- $mp/$base||p" |
+            sed -e  's/^00*$/0/; s/^00*\([1-9][0-9]*\)/\1/' |
+	    sort -un |
+	    tail -1) || err "hse1 kvs list failed!"
+
+    if [[ -n "$last_kvs" ]]; then
+	(( count = $last_kvs + 1 ))
+    else
+	(( count = 0 ))
+    fi
+
+    count=$(printf "%04d" "$count")
+    kvsname="$base$count"
+
+    cmd -q hse1 kvs create "$mp/$kvsname" "$@"
+
+    echo "$kvsname"
+}
+
+run_one_test () {
+
+    local script=$1
+    TEST=${script##*/}
+    TEST_SCRIPT_DIR=$(dirname $(readlink -m "$script"))
+
+    # Make sure LOG_DIR is a fresh dir.  Append incrementing numbers to
+    # default name to avoid reusing an existing directory.
+    log_sub_dir="$LOG_TOPDIR/$TEST"
+    if [[ -d "$log_sub_dir" ]]; then
+        suffix=0
+        while [[ -d "${log_sub_dir}.${suffix}" ]]; do
+            (( suffix++ ))
+        done
+        log_sub_dir=$log_sub_dir.$suffix
+    fi
+    LOG_DIR=$log_sub_dir
+
+    if (( !DRYRUN )); then
+        # create LOG_DIR
+        if [[ ! -d "$LOG_DIR" ]]; then
+            mkdir -p "$LOG_DIR" || err "Cannot create log directory: $LOG_DIR"
+        fi
+    fi
+
+    # announce test and set test log
+    local test_argc=${#test_args[@]}
+    if (( test_argc > 0 )); then
+        echo "#TEST: $TEST" "${test_args[@]}"
+    else
+        echo "#TEST: $TEST"
+    fi
+    echo "#LOGS: $LOG_DIR/"
+
+    # run test script
+    if (( test_argc > 0 )); then
+        bash -u $test_script_options "$script" "${test_args[@]}"
+        local status=$?
+    else
+        bash -u $test_script_options "$script"
+        local status=$?
+    fi
+    (( DRYRUN )) && return
+    rm -f $LOG_DIR/stat.success
+    rm -f $LOG_DIR/stat.failed
+
+    if (( status )); then
+        touch $LOG_DIR/stat.failed
+        err "TEST FAILED"
+        exit 1
+    fi
+    touch $LOG_DIR/stat.success
+}
+
+
+
+while (( $# > 0 )); do
+    case "$1" in
+
+        (-\?|-h) help;;
+        (--logdir)
+            (( $# > 1 )) || syntax "Expect value after '$1'"
+            LOG_TOPDIR="$2"
+            shift 2
+            ;;
+
+        (-g)
+            GRPS=$(get_groups) || exit 1
+            for g in $GRPS; do
+                printf "%-20s    ## %s\n" "$g" "$(get_doc "$g")"
+            done
+            exit 0
+            ;;
+
+        (-l)
+            for t in $(get_sys_tests) $(get_tests); do
+                printf "%-20s  # %s\n" "$t" "$(get_doc "$t")"
+            done
+            exit 0
+            ;;
+
+        (-ll)
+            for g in $(get_groups); do
+                printf "%-20s    ## %s\n" "$g" "$(get_doc "$g")"
+                for t in $(get_group_tests "$g"); do
+                    printf "  %-20s  # %s\n" "$t" "$(get_doc "$t")"
+                done
+                printf "\n"
+            done
+            exit 0
+            ;;
+
+        (--lvinit)
+            (( $# > 1 )) || syntax "Expect value after '$1'"
+            lvinit_mode=1
+            lvinit_device=$2
+            shift 2
+            ;;
+
+        (-n)    DRYRUN=1; shift;;
+        (-v)    (( VERBOSE++ )); shift;;
+        (-vv)   (( VERBOSE += 2 )); shift;;
+        (-q)    VERBOSE=0; shift;;
+        (-i)    show_info=1; shift;;
+        (-x)    test_script_options="-x"; shift;;
+        (--all) all_tests=1; shift;;
+        (--valgrind) USE_VALGRIND=1; shift;;
+        (--reset)  test_list+=(sys.reset); shift;;
+        (--)    shift; test_args=($@); shift $#;;
+        (-*)    syntax "Unknown option: '$1'";;
+
+        (*)     test_list+=($1); shift;;
+    esac
+done
+
+echo 0 > $TMP.cmd_count
+
+if (( show_info )); then
+    show_test_env
+    exit 0
+fi
+
+check_system
+check_tests
+check_modules
+
+# Export shell functions to test scripts
+for fn in "${exported_functions[@]}"; do
+    export -f "$fn"
+done
+
+# stupid bash treats an empty array as an unset var, so turn off -u
+# to check test_list, then re-enable
+set +u
+if (( all_tests )); then
+    if (( "${#test_list[@]}" != 0 )); then
+        err "Cannot specify a test or group with the '--all' option"
+    fi
+    test_list=($(get_tests))
+fi
+if (( "${#test_list[@]}" == 0 )); then
+    err "Must specify a test!"
+fi
+if [[ "$NF_SMOKING" != 1 ]]; then
+    err "Must run 'source smoke-setenv release' before running smoke tests"
+fi
+set -u
+
+# convert test_list into script_list
+script_list=()
+for arg in "${test_list[@]}"; do
+
+    match=0
+    spath=()
+    test_file=
+
+    if [[ -f "$arg" || -h "$arg" ]]; then
+        # path to test script given on command line
+        test_file=$arg
+        case "$arg" in
+            (*/*)  spath=($(dirname $arg) $smoke_test_dir);;
+            (*)    spath=($smoke_test_dir);;
+        esac
+    elif [[ -f "$smoke_test_dir/$arg" || -h "$smoke_test_dir/$arg" ]]; then
+        # test scripts exists in standard smoke test dir
+        test_file=$smoke_test_dir/$arg
+        spath=($(dirname $arg))
+    else
+        err "No such test: $arg"
+    fi
+
+    if echo "$test_file" | grep -Pq '(^group|/group)\.\w+$'; then
+        while read grptest; do
+            script=$(get_test_script "$grptest" "${spath[@]}") || exit 1
+            script_list+=($script)
+        done < <(grep -v '^#' < "$test_file")
+    else
+        script_list+=($test_file)
+    fi
+done
+
+for script in "${script_list[@]}"; do
+    echo 0 > $TMP.cmd_count
+    run_one_test "$script"
+done
+
+exit 0

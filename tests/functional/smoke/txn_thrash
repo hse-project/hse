@@ -1,0 +1,12 @@
+#!/usr/bin/bash
+
+mp=$(new_kvdb) || err
+kvs=$(new_kvs $mp) || err
+
+# Single threaded large transaction
+cmd txn_thrash $mp $kvs -j1 -c500000
+
+# Multi threaded, relatively small txns
+cmd txn_thrash $mp $kvs -j16 -c200000
+
+cmd $sudo mpool destroy "$mp"

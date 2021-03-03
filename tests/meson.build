@@ -1,8 +1,24 @@
 pytest = find_program('pytest', required: true)
 
+path = run_command(
+    'sh',
+    '-c',
+    'echo $PATH',
+    check: true,
+).stdout().strip()
+
+path = '@0@:@1@:@2@:@3@'.format(
+    cli_build_dir,
+    samples_build_dir,
+    tools_build_dir,
+    path,
+)
+
+run_env.set('PATH', path)
+
 add_test_setup(
     'default',
-    env: python_env,
+    env: run_env,
     is_default: true,
 )
 

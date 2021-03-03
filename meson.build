@@ -389,6 +389,7 @@ if get_option('ycsb')
     subdir('hsejni')
 endif
 
+run_env = environment()
 if get_option('bindings-python')
     if get_option('tests') or get_option('tools')
         message('tests and tools will use the built-in HSE Python bindings')
@@ -414,9 +415,7 @@ if get_option('bindings-python')
         hse_python_py_typed,
         hse_python_pyi_stubs,
     ]
-    python_env = environment({
-        'PYTHONPATH': hse_python.get_variable('project_build_root'),
-    })
+    run_env.set('PYTHONPATH', hse_python.get_variable('project_build_root'))
 
     run_target(
         'python-repl',
@@ -424,7 +423,7 @@ if get_option('bindings-python')
             python,
         ],
         depends: hse_python_depends,
-        env: python_env,
+        env: run_env,
     )
 else
     if get_option('tests') or get_option('tools')
@@ -432,16 +431,15 @@ else
     endif
 
     hse_python_depends = []
-    python_env = environment()
 endif
 
+if get_option('tools')
+    subdir('tools')
+endif
 if get_option('tests')
     # now that we have libhse-mock, go into repository directory
     subdir('tests' / 'mocks' / 'repository')
     subdir('tests')
-endif
-if get_option('tools')
-    subdir('tools')
 endif
 
 clang_format = find_program('clang-format', required: in_ci)

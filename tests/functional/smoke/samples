@@ -1,0 +1,26 @@
+#!/usr/bin/bash
+
+#doc: samples test
+
+mp=$(new_mpool) || err "new_mpool failed"
+
+cmd ex1_create $mp skvs0 skvs1 skvs2 skvs3 skvs4
+cmd ex2_simple_ops $mp skvs0
+cmd ex3_cursor $mp skvs1
+cmd ex4_transactions $mp skvs2 skvs3
+
+fbase=$LOG_DIR/large_val
+
+for ((n=1; n<10; n++)); do
+    cmd dd bs=1000000 count=$n if=/dev/urandom of=$fbase$n
+done
+
+cmd ex5_large_val $mp skvs4 $fbase*
+cmd ex5_large_val $mp skvs4 -x $fbase*
+cmd chmod 644 $fbase*.out
+
+for ((n=1; n<10; n++)); do
+    cmd cmp $fbase$n $fbase$n.out
+done
+
+cmd $sudo mpool destroy "$mp"

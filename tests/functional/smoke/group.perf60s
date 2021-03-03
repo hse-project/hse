@@ -1,0 +1,6 @@
+#doc: quick performance tests (each test < ~60s)
+kmtc0
+kmtw05
+kmtw20
+kmtw50
+longtest60

@@ -1,0 +1,5 @@
+#!/usr/bin/bash
+
+#doc: a "hello world" test
+
+cmd echo aloha

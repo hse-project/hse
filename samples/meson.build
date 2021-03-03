@@ -13,8 +13,7 @@ foreach e : examples
         dependencies: [
             hse_dep,
         ],
-        include_directories: [
-            public_includes,
-        ]
     )
 endforeach
+
+samples_build_dir = meson.current_build_dir()

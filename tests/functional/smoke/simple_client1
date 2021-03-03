@@ -1,0 +1,10 @@
+#!/usr/bin/bash
+
+#doc: simple_client test
+
+keys=1000
+mp=$(new_kvdb) || err
+kvs=$(new_kvs $mp) || err
+cmd simple_client $mp $kvs -c $keys
+
+cmd $sudo mpool destroy "$mp"

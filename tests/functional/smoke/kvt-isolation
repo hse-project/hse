@@ -1,0 +1,11 @@
+#!/usr/bin/bash
+
+#doc: simple kvt test (transactional, snapshot isolation)
+
+cpus=$(nproc)
+
+mp=$(new_kvdb) || err
+
+cmd kvt -i1000 -T60,$((cpus * 2)) -cv -l8 -m1 $mp
+  
+cmd $sudo mpool destroy "$mp"

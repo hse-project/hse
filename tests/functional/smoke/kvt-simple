@@ -1,0 +1,10 @@
+#!/usr/bin/bash
+
+#doc: simple kvt test (non-transactional)
+
+# kvdb/kvs test
+mp=$(new_kvdb) || err
+
+cmd kvt -i1m -t15 -cv -m1 $mp
+  
+cmd $sudo mpool destroy "$mp"

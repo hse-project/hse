@@ -1,0 +1,8 @@
+#!/usr/bin/bash
+
+# one thread does transactional PUTs while another periodically calls flush
+mp=$(new_kvdb) || err
+kvs=$(new_kvs $mp) || err
+cmd txput_flush $mp $kvs kvdb.low_mem=1
+
+cmd $sudo mpool destroy "$mp"

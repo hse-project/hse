@@ -1,0 +1,13 @@
+#!/usr/bin/bash
+
+#doc: quick longtest focused on c0
+mp=$(new_kvdb) || err
+kvs=$(new_kvs $mp) || err
+
+threads=1
+keys=5000
+
+cmd longtest $mp $kvs -t $threads -i 3 -c $keys
+cmd cn_metrics $mp $kvs
+
+cmd $sudo mpool destroy "$mp"

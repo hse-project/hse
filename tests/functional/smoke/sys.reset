@@ -1,0 +1,2 @@
+#doc: destroy and recreate smoketest volume group
+sys_reset

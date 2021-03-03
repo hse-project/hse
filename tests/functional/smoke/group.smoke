@@ -1,0 +1,7 @@
+#doc: smoke tests run by the top-level makefile with "make smoke"
+aloha
+version
+sys.reset
+group.kvdb
+sys.cleanup
+
