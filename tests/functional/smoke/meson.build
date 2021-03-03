@@ -4,7 +4,7 @@ endif
 
 tests = [
     'aloha',
-    'c1-correctness',
+    # 'c1-correctness',
     'coalesce',
     'compaction',
     'cursor_test1',
