@@ -14,6 +14,10 @@ path = '@0@:@1@:@2@:@3@'.format(
     path,
 )
 
+if get_option('mpool-bin-dir') != ''
+    path = '@0@:@1@'.format(get_option('mpool-bin-dir'), path)
+endif
+
 run_env.set('PATH', path)
 
 add_test_setup(
