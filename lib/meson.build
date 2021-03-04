@@ -29,7 +29,6 @@ hse_sources = [
 hse_c_args = [
     '-DCOMPNAME="kvdb"',
     '-DCJSON_FROM_SUBPROJECT=@0@'.format(cJSON_from_subproject ? 1 : 0),
-    '-fvisibility=hidden',
 ]
 
 hse_include_directories = [
@@ -72,6 +71,7 @@ hse = both_libraries(
     dependencies: hse_dependencies,
     version: meson.project_version(),
     install: true,
+    gnu_symbol_visibility: 'hidden',
 )
 
 hse_variables = {
@@ -107,10 +107,7 @@ hse_static_dep = declare_dependency(
 
 if get_option('tests')
     hse_mock_c_args = [
-        '-DCOMPNAME="kvdb"',
-        '-DCJSON_FROM_SUBPROJECT=@0@'.format(cJSON_from_subproject ? 1 : 0),
         '-DHSE_UNIT_TEST_MODE=1',
-        '-fvisibility=default',
     ]
 
     hse_mock_include_directories = [

@@ -1,12 +1,10 @@
 rbtree = static_library(
     'rbtree',
     ['rbtree.c'],
-    c_args: [
-        '-fvisibility=hidden',
-    ],
     dependencies: [
         libbsd_dep,
     ],
+    gnu_symbol_visibility: 'hidden',
 )
 
 rbtree_dep = declare_dependency(

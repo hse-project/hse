@@ -274,6 +274,7 @@ foreach c, tests : components
             c_args: t_c_args,
             include_directories: t_include_directories,
             dependencies: t_dependencies,
+            gnu_symbol_visibility: 'hidden',
         )
 
         t_suites = ['unit', c]

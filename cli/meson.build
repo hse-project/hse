@@ -29,6 +29,7 @@ hse_cli = executable(
     dependencies: hse_cli_dependencies,
     install: true,
     install_rpath: exe_install_rpath,
+    gnu_symbol_visibility: 'hidden',
 )
 
 meson.override_find_program('hse1', hse_cli)
