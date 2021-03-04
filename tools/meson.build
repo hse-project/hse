@@ -13,12 +13,12 @@ tools = {
             'kvs_helper.c',
         ),
     },
-    'c1ingest': {
-        'sources': files(
-            'c1ingest' / 'c1ingest.c',
-            'key_generation.c',
-        ),
-    },
+    # 'c1ingest': {
+    #     'sources': files(
+    #         'c1ingest' / 'c1ingest.c',
+    #         'key_generation.c',
+    #     ),
+    # },
     'capput': {
         'sources': files(
             'capput' / 'capput.c',
