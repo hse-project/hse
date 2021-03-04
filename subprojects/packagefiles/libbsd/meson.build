@@ -2,7 +2,7 @@ project(
     'libbsd',
     ['c'],
     version: '0.9.1',
-    meson_version: '>=0.57',
+    meson_version: '>=0.57.0',
 )
 
 extern = import('unstable_external_project')
@@ -16,7 +16,7 @@ if get_option('default_library') == 'shared'
     configure_options += '--disable-static'
 elif get_option('default_library') == 'static'
     configure_options += '--disable-shared'
-    configure_options += '--shared-static'
+    configure_options += '--enable-static'
 elif get_option('default_library') == 'both'
     configure_options += '--enable-shared'
     configure_options += '--enable-static'
