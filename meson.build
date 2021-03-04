@@ -141,7 +141,6 @@ libcurl_dep = dependency(
     required: true,
     fallback: ['curl', 'libcurl_dep'],
     default_options: [
-        'buildtype=release',
         'warning_level=0',
         'werror=false',
     ],
@@ -152,7 +151,6 @@ libyaml_dep = dependency(
     required: true,
     fallback: ['libyaml', 'libyaml_dep'],
     default_options: [
-        'buildtype=release',
         'warning_level=0',
         'werror=false',
     ],
@@ -165,7 +163,6 @@ liburcu_bp_dep = dependency(
     required: true,
     fallback: ['userspace-rcu', 'liburcu_bp_dep'],
     default_options: [
-        'buildtype=release',
         'warning_level=0',
         'werror=false',
     ],
@@ -197,7 +194,6 @@ libbsd_dep = dependency(
     required: true,
     fallback: ['libbsd', 'libbsd_dep'],
     default_options: [
-        'buildtype=release',
         'warning_level=0',
         'werror=false',
     ],
@@ -213,7 +209,6 @@ else
     lz4 = subproject(
         'lz4',
         default_options: [
-            'buildtype=release',
             'default_library=static',
             'warning_level=0',
             'werror=false',
@@ -232,7 +227,6 @@ else
     xxhash = subproject(
         'xxhash',
         default_options: [
-            'buildtype=release',
             'default_library=static',
             'warning_level=0',
             'werror=false',
@@ -257,7 +251,6 @@ libmicrohttpd_dep = dependency(
     required: true,
     fallback: ['libmicrohttpd', 'libmicrohttpd_dep'],
     default_options: [
-        'buildtype=release',
         'warning_level=0',
         'werror=false',
     ],
