@@ -141,6 +141,7 @@ libcurl_dep = dependency(
     required: true,
     fallback: ['curl', 'libcurl_dep'],
     default_options: [
+        'default_library=static',
         'warning_level=0',
         'werror=false',
     ],
@@ -151,6 +152,7 @@ libyaml_dep = dependency(
     required: true,
     fallback: ['libyaml', 'libyaml_dep'],
     default_options: [
+        'default_library=static',
         'warning_level=0',
         'werror=false',
     ],
@@ -163,6 +165,7 @@ liburcu_bp_dep = dependency(
     required: true,
     fallback: ['userspace-rcu', 'liburcu_bp_dep'],
     default_options: [
+        'default_library=static',
         'warning_level=0',
         'werror=false',
     ],
@@ -194,6 +197,7 @@ libbsd_dep = dependency(
     required: true,
     fallback: ['libbsd', 'libbsd_dep'],
     default_options: [
+        'default_library=static',
         'warning_level=0',
         'werror=false',
     ],
@@ -251,6 +255,7 @@ libmicrohttpd_dep = dependency(
     required: true,
     fallback: ['libmicrohttpd', 'libmicrohttpd_dep'],
     default_options: [
+        'default_library=static',
         'warning_level=0',
         'werror=false',
     ],
@@ -289,14 +294,14 @@ if get_option('tools')
             or 'HdrHistogram_c' in get_option('force_fallback_for'))
         HdrHistogram_c_options = cmake.subproject_options()
         HdrHistogram_c_options.add_cmake_defines({
-            'HDR_HISTOGRAM_BUILD_SHARED': get_option('default_library') != 'static',
+            'HDR_HISTOGRAM_BUILD_SHARED': false,
             'HDR_HISTOGRAM_BUILD_PROGRAMS': false,
-            'HDR_HISTOGRAM_BUILD_STATIC': get_option('default_library') == 'static',
+            'HDR_HISTOGRAM_BUILD_STATIC': true,
         })
         HdrHistogram_c_options.set_override_option('werror', 'false')
         HdrHistogram_c_options.set_override_option('warning_level', '0')
         HdrHistogram_c_proj = cmake.subproject('HdrHistogram_c', options: HdrHistogram_c_options)
-        HdrHistogram_c_dep = HdrHistogram_c_proj.dependency('hdr_histogram@0@'.format(get_option('default_library') == 'static' ? '-static' : ''))
+        HdrHistogram_c_dep = HdrHistogram_c_proj.dependency('hdr_histogram_static')
         HdrHistogram_c_from_subproject = true
     else
         HdrHistogram_c_from_subproject = false
@@ -311,25 +316,21 @@ if get_option('tools')
             'ENABLE_EXAMPLES': false,
             'ENABLE_MONGOC': not libmongoc_dep.found() or mongo_c_driver_force_fallback ? 'ON' : 'OFF',
             'ENABLE_BSON': not libbson_dep.found() or mongo_c_driver_force_fallback ? 'ON' : 'OFF',
-            'ENABLE_STATIC': get_option('default_library') == 'static' ? 'ON' : 'OFF',
+            'ENABLE_STATIC': 'ON',
             'ENABLE_AUTOMATIC_INIT_AND_CLEANUP': false,
         })
         mongo_c_driver_options.set_override_option('werror', 'false')
         mongo_c_driver_options.set_override_option('warning_level', '0')
         mongo_c_driver_proj = cmake.subproject('mongo-c-driver', options: mongo_c_driver_options)
         if not libmongoc_dep.found() or mongo_c_driver_force_fallback
-            if get_option('default_library') == 'static'
-                libmongoc_dep = mongo_c_driver_proj.dependency('mongoc_static')
-            else
-                libmongoc_dep = mongo_c_driver_proj.dependency('mongoc_shared')
-            endif
+            libmongoc_dep = [
+                mongo_c_driver_proj.dependency('mongoc_static'),
+                # Have to link against libresolv for static libmongoc
+                cc.find_library('resolv', required: true),
+            ]
         endif
         if not libbson_dep.found() or mongo_c_driver_force_fallback
-            if get_option('default_library') == 'static'
-                libbson_dep = mongo_c_driver_proj.dependency('bson_static')
-            else
-                libbson_dep = mongo_c_driver_proj.dependency('bson_shared')
-            endif
+            libbson_dep = mongo_c_driver_proj.dependency('bson_static')
         endif
     endif
 endif
