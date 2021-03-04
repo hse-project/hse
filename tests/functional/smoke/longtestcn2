@@ -1,0 +1,23 @@
+#!/usr/bin/bash
+
+#doc: quick longtest focused on cn
+mp=$(new_kvdb) || err
+
+# add 3 KVSes to the KVDB
+kvs1=$(new_kvs $mp) || err
+kvs2=$(new_kvs $mp) || err
+kvs3=$(new_kvs $mp) || err
+
+threads=4
+keys=100000
+seed=$RANDOM
+
+# This test requires '--once' to ensure each thread of each invocation of
+# longtest runs through exactly one iteration.
+for (( phase = 0; phase <= 9; phase++ )); do
+    cmd longtest $mp $kvs2 -t $threads -c $keys --mphase $((1<<phase)) --verify 100 --seed $seed --once -v
+    cmd cn_metrics $mp $kvs2
+done
+
+cmd $sudo mpool destroy "$mp"
+

@@ -2,7 +2,7 @@ project(
     'curl',
     ['c'],
     version: '7.61.1',
-    meson_version: '>=0.57',
+    meson_version: '>=0.57.0',
 )
 
 extern = import('unstable_external_project')
@@ -38,6 +38,7 @@ configure_options = [
     '--without-brotli',
     '--without-winssl',
     '--without-darwinssl',
+    '--without-ssl',
     '--without-gnutls',
     '--without-polarssl',
     '--without-mbedtls',
@@ -52,6 +53,7 @@ configure_options = [
     '--without-libidn2',
     '--without-nghttp2',
     '--without-zsh-functions-dir',
+    '--without-zlib',
 ]
 
 if get_option('default_library') == 'shared'
@@ -59,10 +61,12 @@ if get_option('default_library') == 'shared'
     configure_options += '--disable-static'
 elif get_option('default_library') == 'static'
     configure_options += '--disable-shared'
-    configure_options += '--shared-static'
+    configure_options += '--enable-static'
+    configure_options += '--with-pic'
 elif get_option('default_library') == 'both'
     configure_options += '--enable-shared'
     configure_options += '--enable-static'
+    configure_options += '--with-pic'
 endif
 
 proj = extern.add_project(

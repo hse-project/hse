@@ -1,0 +1,13 @@
+#!/usr/bin/bash
+
+#doc: simple putgetdel test
+
+keys=10000
+mp=$(new_kvdb) || err
+kvs=$(new_kvs $mp) || err
+
+cmd putgetdel $mp $kvs -c $keys
+cmd cndb_log -c $mp
+cmd cn_metrics $mp $kvs
+
+cmd $sudo mpool destroy "$mp"

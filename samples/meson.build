@@ -13,8 +13,7 @@ foreach e : examples
         dependencies: [
             hse_dep,
         ],
-        include_directories: [
-            public_includes,
-        ]
     )
 endforeach
+
+executable_paths += meson.current_build_dir()

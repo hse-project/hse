@@ -16,7 +16,6 @@ hse_cli_dependencies = [
 ]
 
 hse_cli_include_directories = [
-    public_includes,
     component_root_includes,
     third_party_includes,
     util_includes,
@@ -33,3 +32,5 @@ hse_cli = executable(
 )
 
 meson.override_find_program('hse1', hse_cli)
+
+executable_paths += meson.current_build_dir()

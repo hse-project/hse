@@ -2,11 +2,23 @@
  * Copyright (C) 2015-2019 Micron Technology, Inc.  All rights reserved.
  */
 
-#define COMPNAME "ctxn_validation"
-
-#include <xoroshiro/xoroshiro.h>
+#include <errno.h>
+#include <libgen.h>
+#include <pthread.h>
+#include <stdarg.h>
+#include <stdbool.h>
+#include <stdio.h>
+#include <string.h>
+#include <sys/resource.h>
+#include <sysexits.h>
 
 #include <hse/hse.h>
+#include <xoroshiro/xoroshiro.h>
+
+#include <hse_util/inttypes.h>
+#include <hse_util/minmax.h>
+#include <hse_util/hse_params_helper.h>
+#include <hse_util/timing.h>
 
 const char *progname, *mp_name, *kvs_name;
 ulong       itermax = 1;

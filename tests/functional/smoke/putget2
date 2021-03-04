@@ -1,0 +1,27 @@
+#!/usr/bin/bash
+
+#doc: simple putgetdel test on a KVDB kvs
+
+keys=10000
+mp=$(new_kvdb) || err
+t=4   #threads
+
+# add 4 KVSes to the KVDB
+kvs_unused1=$(new_kvs $mp) || err
+kvs1=$(new_kvs $mp) || err
+kvs2=$(new_kvs $mp) || err
+kvs3=$(new_kvs $mp) || err
+kvs4=$(new_kvs $mp) || err
+kvs_unused2=$(new_kvs $mp) || err
+
+kvs_list="$kvs1,$kvs2,$kvs3,$kvs4"
+
+cmd putgetdel $mp $kvs_list -v -t $t -c $keys
+cmd putgetdel $mp $kvs_list -v -t $t -c $keys --sync
+cmd putgetdel $mp $kvs_list -v -t $t -c $keys --ckvs
+cmd putgetdel $mp $kvs_list -v -t $t -c $keys --ckvdb
+
+cmd cndb_log -c $mp
+cmd cn_metrics $mp $kvs1
+
+cmd $sudo mpool destroy "$mp"

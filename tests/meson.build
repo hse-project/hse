@@ -2,7 +2,7 @@ pytest = find_program('pytest', required: true)
 
 add_test_setup(
     'default',
-    env: python_env,
+    env: run_env,
     is_default: true,
 )
 

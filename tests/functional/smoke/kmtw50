@@ -1,0 +1,18 @@
+#!/usr/bin/bash
+
+
+#doc: quick kvdb/cn performance test using kmt (60s, 50% writes)
+w=50
+seconds=60
+
+
+mp=$(new_kvdb) || err
+kvs=$(new_kvs $mp) || err
+
+cmd kmt -i20m -t$seconds -bcDR -s1 -w$w -j$(nproc) $mp/$kvs
+cmd cn_metrics $mp $kvs
+
+cmd $sudo mpool destroy "$mp"
+
+
+

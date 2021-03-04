@@ -141,7 +141,7 @@ libcurl_dep = dependency(
     required: true,
     fallback: ['curl', 'libcurl_dep'],
     default_options: [
-        'buildtype=release',
+        'default_library=static',
         'warning_level=0',
         'werror=false',
     ],
@@ -152,7 +152,7 @@ libyaml_dep = dependency(
     required: true,
     fallback: ['libyaml', 'libyaml_dep'],
     default_options: [
-        'buildtype=release',
+        'default_library=static',
         'warning_level=0',
         'werror=false',
     ],
@@ -165,7 +165,7 @@ liburcu_bp_dep = dependency(
     required: true,
     fallback: ['userspace-rcu', 'liburcu_bp_dep'],
     default_options: [
-        'buildtype=release',
+        'default_library=static',
         'warning_level=0',
         'werror=false',
     ],
@@ -197,7 +197,7 @@ libbsd_dep = dependency(
     required: true,
     fallback: ['libbsd', 'libbsd_dep'],
     default_options: [
-        'buildtype=release',
+        'default_library=static',
         'warning_level=0',
         'werror=false',
     ],
@@ -213,7 +213,6 @@ else
     lz4 = subproject(
         'lz4',
         default_options: [
-            'buildtype=release',
             'default_library=static',
             'warning_level=0',
             'werror=false',
@@ -232,7 +231,6 @@ else
     xxhash = subproject(
         'xxhash',
         default_options: [
-            'buildtype=release',
             'default_library=static',
             'warning_level=0',
             'werror=false',
@@ -257,7 +255,7 @@ libmicrohttpd_dep = dependency(
     required: true,
     fallback: ['libmicrohttpd', 'libmicrohttpd_dep'],
     default_options: [
-        'buildtype=release',
+        'default_library=static',
         'warning_level=0',
         'werror=false',
     ],
@@ -296,14 +294,14 @@ if get_option('tools')
             or 'HdrHistogram_c' in get_option('force_fallback_for'))
         HdrHistogram_c_options = cmake.subproject_options()
         HdrHistogram_c_options.add_cmake_defines({
-            'HDR_HISTOGRAM_BUILD_SHARED': get_option('default_library') != 'static',
+            'HDR_HISTOGRAM_BUILD_SHARED': false,
             'HDR_HISTOGRAM_BUILD_PROGRAMS': false,
-            'HDR_HISTOGRAM_BUILD_STATIC': get_option('default_library') == 'static',
+            'HDR_HISTOGRAM_BUILD_STATIC': true,
         })
         HdrHistogram_c_options.set_override_option('werror', 'false')
         HdrHistogram_c_options.set_override_option('warning_level', '0')
         HdrHistogram_c_proj = cmake.subproject('HdrHistogram_c', options: HdrHistogram_c_options)
-        HdrHistogram_c_dep = HdrHistogram_c_proj.dependency('hdr_histogram@0@'.format(get_option('default_library') == 'static' ? '-static' : ''))
+        HdrHistogram_c_dep = HdrHistogram_c_proj.dependency('hdr_histogram_static')
         HdrHistogram_c_from_subproject = true
     else
         HdrHistogram_c_from_subproject = false
@@ -318,25 +316,21 @@ if get_option('tools')
             'ENABLE_EXAMPLES': false,
             'ENABLE_MONGOC': not libmongoc_dep.found() or mongo_c_driver_force_fallback ? 'ON' : 'OFF',
             'ENABLE_BSON': not libbson_dep.found() or mongo_c_driver_force_fallback ? 'ON' : 'OFF',
-            'ENABLE_STATIC': get_option('default_library') == 'static' ? 'ON' : 'OFF',
+            'ENABLE_STATIC': 'ON',
             'ENABLE_AUTOMATIC_INIT_AND_CLEANUP': false,
         })
         mongo_c_driver_options.set_override_option('werror', 'false')
         mongo_c_driver_options.set_override_option('warning_level', '0')
         mongo_c_driver_proj = cmake.subproject('mongo-c-driver', options: mongo_c_driver_options)
         if not libmongoc_dep.found() or mongo_c_driver_force_fallback
-            if get_option('default_library') == 'static'
-                libmongoc_dep = mongo_c_driver_proj.dependency('mongoc_static')
-            else
-                libmongoc_dep = mongo_c_driver_proj.dependency('mongoc_shared')
-            endif
+            libmongoc_dep = [
+                mongo_c_driver_proj.dependency('mongoc_static'),
+                # Have to link against libresolv for static libmongoc
+                cc.find_library('resolv', required: true),
+            ]
         endif
         if not libbson_dep.found() or mongo_c_driver_force_fallback
-            if get_option('default_library') == 'static'
-                libbson_dep = mongo_c_driver_proj.dependency('bson_static')
-            else
-                libbson_dep = mongo_c_driver_proj.dependency('bson_shared')
-            endif
+            libbson_dep = mongo_c_driver_proj.dependency('bson_static')
         endif
     endif
 endif
@@ -347,6 +341,10 @@ if not valgrind_dep.found()
         language: 'c',
     )
 endif
+
+# Add paths to this variable if you want to see executables in the build
+# directory
+executable_paths = []
 
 if get_option('tests')
     mapi_idx_generate = find_program(
@@ -389,6 +387,9 @@ if get_option('ycsb')
     subdir('hsejni')
 endif
 
+# Environment in which various run_targets and tests will run in
+run_env = environment()
+
 if get_option('bindings-python')
     if get_option('tests') or get_option('tools')
         message('tests and tools will use the built-in HSE Python bindings')
@@ -414,9 +415,7 @@ if get_option('bindings-python')
         hse_python_py_typed,
         hse_python_pyi_stubs,
     ]
-    python_env = environment({
-        'PYTHONPATH': hse_python.get_variable('project_build_root'),
-    })
+    run_env.set('PYTHONPATH', hse_python.get_variable('project_build_root'))
 
     run_target(
         'python-repl',
@@ -424,7 +423,7 @@ if get_option('bindings-python')
             python,
         ],
         depends: hse_python_depends,
-        env: python_env,
+        env: run_env,
     )
 else
     if get_option('tests') or get_option('tools')
@@ -432,16 +431,34 @@ else
     endif
 
     hse_python_depends = []
-    python_env = environment()
 endif
+
+if get_option('tools')
+    subdir('tools')
+endif
+
+path = run_command(
+    'sh',
+    '-c',
+    'echo $PATH',
+    check: true,
+).stdout().strip()
+
+path = '@0@:@1@'.format(
+    ':'.join(executable_paths),
+    path,
+)
+
+if get_option('mpool-bin-dir') != ''
+    path = '@0@:@1@'.format(get_option('mpool-bin-dir'), path)
+endif
+
+run_env.set('PATH', path)
 
 if get_option('tests')
     # now that we have libhse-mock, go into repository directory
     subdir('tests' / 'mocks' / 'repository')
     subdir('tests')
-endif
-if get_option('tools')
-    subdir('tools')
 endif
 
 clang_format = find_program('clang-format', required: in_ci)
@@ -538,6 +555,16 @@ if black.found()
         command: black_command,
     )
 endif
+
+run_target(
+    'shell',
+    command: [
+        'sh',
+    ],
+    env: environment({
+        'PATH': path,
+    }),
+)
 
 if not meson.is_subproject()
     meson.add_dist_script('scripts' / 'release' / 'gen-version')

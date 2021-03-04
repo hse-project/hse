@@ -1,0 +1,17 @@
+#!/usr/bin/bash
+
+#doc: ensure we can create 256 kvs'
+
+mp=$(new_kvdb) || err
+
+
+typeset -i i=256
+
+while (( i>0 )) ; do
+    i=i-1
+    cmd hse1 kvs create "${mp}/kvs$i" || err
+done
+
+cmd kmt -i1k -t5 -cx -s1 "${mp}/kvs$i"
+
+cmd $sudo mpool destroy "$mp"

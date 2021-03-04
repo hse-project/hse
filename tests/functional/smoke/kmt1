@@ -1,0 +1,35 @@
+#!/usr/bin/bash
+
+#doc: simple kmt test on a KVDB kvs and on a dataset
+
+threads=$(nproc)
+recmax=$((4 * threads))
+
+# dataset test
+mp=$(new_mpool) || err
+cmd kmt -i $recmax -t10 -c -j$threads -w50 $mp
+cmd kmt -t10 -cD -j$threads -w50 $mp
+
+cmd $sudo mpool destroy "$mp"
+
+# kvdb/kvs test
+mp=$(new_kvdb) || err
+kvs1=$(new_kvs $mp) || err
+
+cmd kmt -i $recmax -t10 -c -j$threads -w50 $mp/$kvs1
+cmd kmt -t10 -cD -j$threads -w50 $mp/$kvs1 kvs.cn_verify=1
+cmd cn_metrics $mp $kvs1
+
+kvs2=$(new_kvs $mp) || err
+kvs3=$(new_kvs $mp) || err
+
+# test ingest + cn
+cmd kmt -i4m -t15 -cD -bl0 -j$threads -w50 $mp/$kvs2 kvs.c0_debug=1 kvs.cn_verify=1
+
+# hammer on c0 update
+cmd kmt -i448 -t15 -cD -j$threads -w50 -b $mp/$kvs3 kvs.c0_debug=1
+  
+cmd cn_metrics $mp $kvs2
+cmd cn_metrics $mp $kvs3
+
+cmd $sudo mpool destroy "$mp"
