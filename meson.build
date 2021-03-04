@@ -180,8 +180,9 @@ if (not cJSON_dep.found()
         or 'cJSON' in get_option('force_fallback_for'))
     cJSON_options = cmake.subproject_options()
     cJSON_options.add_cmake_defines({
-        'BUILD_SHARED_LIBS': get_option('default_library') != 'static',
-        'BUILD_SHARED_AND_STATIC_LIBS': get_option('default_library') == 'both',
+        'CMAKE_C_FLAGS': '-fPIC',
+        'BUILD_SHARED_LIBS': false,
+        'BUILD_SHARED_AND_STATIC_LIBS': false,
     })
     cJSON_options.set_override_option('werror', 'false')
     cJSON_options.set_override_option('warning_level', '0')
