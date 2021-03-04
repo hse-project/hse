@@ -276,4 +276,4 @@ foreach t, params : tools
     )
 endforeach
 
-tools_build_dir = meson.current_build_dir()
+executable_paths += meson.current_build_dir()

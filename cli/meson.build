@@ -33,4 +33,4 @@ hse_cli = executable(
 
 meson.override_find_program('hse1', hse_cli)
 
-cli_build_dir = meson.current_build_dir()
+executable_paths += meson.current_build_dir()

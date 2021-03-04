@@ -128,7 +128,8 @@ Targets that you may find useful during HSE development:
 - `uninstall`
 - `clang-format`
 - `black`
-- `python`
+- `python-repl`
+- `shell`
 - `test`
 
 ```sh

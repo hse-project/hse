@@ -16,4 +16,4 @@ foreach e : examples
     )
 endforeach
 
-samples_build_dir = meson.current_build_dir()
+executable_paths += meson.current_build_dir()

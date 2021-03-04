@@ -341,6 +341,10 @@ if not valgrind_dep.found()
     )
 endif
 
+# Add paths to this variable if you want to see executables in the build
+# directory
+executable_paths = []
+
 if get_option('tests')
     mapi_idx_generate = find_program(
         'scripts' / 'build' / 'mapi_idx_generate',
@@ -382,7 +386,9 @@ if get_option('ycsb')
     subdir('hsejni')
 endif
 
+# Environment in which various run_targets and tests will run in
 run_env = environment()
+
 if get_option('bindings-python')
     if get_option('tests') or get_option('tools')
         message('tests and tools will use the built-in HSE Python bindings')
@@ -429,6 +435,25 @@ endif
 if get_option('tools')
     subdir('tools')
 endif
+
+path = run_command(
+    'sh',
+    '-c',
+    'echo $PATH',
+    check: true,
+).stdout().strip()
+
+path = '@0@:@1@'.format(
+    ':'.join(executable_paths),
+    path,
+)
+
+if get_option('mpool-bin-dir') != ''
+    path = '@0@:@1@'.format(get_option('mpool-bin-dir'), path)
+endif
+
+run_env.set('PATH', path)
+
 if get_option('tests')
     # now that we have libhse-mock, go into repository directory
     subdir('tests' / 'mocks' / 'repository')
@@ -529,6 +554,16 @@ if black.found()
         command: black_command,
     )
 endif
+
+run_target(
+    'shell',
+    command: [
+        'sh',
+    ],
+    env: environment({
+        'PATH': path,
+    }),
+)
 
 if not meson.is_subproject()
     meson.add_dist_script('scripts' / 'release' / 'gen-version')
