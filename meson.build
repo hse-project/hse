@@ -110,6 +110,11 @@ elif get_option('buildtype').startswith('debug')
     elif get_option('buildtype') == 'debugoptimized'
         build_stype = 'o'
     endif
+
+    add_project_arguments(
+        '-DHSE_BUILD_DEBUG',
+        language: 'c',
+    )
 endif
 
 add_project_arguments(
