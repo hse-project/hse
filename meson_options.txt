@@ -1,7 +1,7 @@
 option('cli', type: 'boolean', value: true,
     description: 'Build the CLI')
-option('exe-install-rpath', type: 'boolean', value: false,
-    description: 'Add rpath of prefix/libdir/ to the CLI')
+option('install-rpath', type: 'boolean', value: false,
+    description: 'Add rpath to ELF files to faciliate discovery of libhse')
 option('tests', type: 'boolean', value: true,
     description: 'Build tests')
 option('ycsb', type: 'boolean', value: false,

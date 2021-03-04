@@ -367,7 +367,7 @@ if get_option('tests')
     )
 endif
 
-exe_install_rpath = get_option('exe-install-rpath') ? '$ORIGIN' / '..' / get_option('libdir') : ''
+exe_install_rpath = get_option('install-rpath') ? '$ORIGIN' / '..' / get_option('libdir') : ''
 
 subdir('config')
 subdir('3rdparty')
