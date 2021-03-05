@@ -29,6 +29,7 @@ cnt, *kv = hse_exp.kvs_prefix_probe(kvs, b"Abc", txn=txn)
 assert cnt == hse_exp.KvsPfxProbeCnt.ONE
 assert kv == [b"AbcXX", b"1"]
 
+kvdb.flush()
 kvs.put(b"AbcXZ", b"3", txn=txn)
 cnt, *kv = hse_exp.kvs_prefix_probe(kvs, b"Abc", txn=txn)  # inside txn
 assert cnt == hse_exp.KvsPfxProbeCnt.MUL
@@ -37,7 +38,6 @@ cnt, *kv = hse_exp.kvs_prefix_probe(kvs, b"Abc")  # outside txn
 assert cnt == hse_exp.KvsPfxProbeCnt.MUL
 assert kv == [b"AbcXY", b"2"]
 
-kvdb.flush()
 txn.commit()
 
 cnt, *kv = hse_exp.kvs_prefix_probe(kvs, b"Abc")

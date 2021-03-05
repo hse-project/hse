@@ -37,8 +37,6 @@ tests = [
     's35.ptomb_cursor',
     's36.ptomb_cursor2',
     's38.bound_basic',
-    's39.txn_put',
-    's40.cursor_order1',
 ]
 
 foreach t : tests
