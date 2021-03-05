@@ -345,12 +345,16 @@ if not valgrind_dep.found()
     )
 endif
 
+tests_enabled = 'none' not in get_option('tests')
+unit_tests_enabled = tests_enabled and 'unit' in get_option('tests')
+functional_tests_enabled = tests_enabled and 'functional' in get_option('tests')
+
 # Add paths to this variable if you want to see executables in the build
 # directory
 executable_paths = []
 library_paths = []
 
-if get_option('tests')
+if unit_tests_enabled
     mapi_idx_generate = find_program(
         'scripts' / 'build' / 'mapi_idx_generate',
         required: true,
@@ -370,15 +374,17 @@ exe_install_rpath = get_option('install-rpath') ? '$ORIGIN' / '..' / get_option(
 subdir('config')
 subdir('3rdparty')
 subdir('include')
-if get_option('tests') or get_option('tools')
-    # need access to tools_includes for tests and tools
+if unit_tests_enabled or get_option('tools')
+    # need access to tools_includes for unit tests and tools
     subdir('tools' / 'include')
 endif
-if get_option('tests')
+if tests_enabled
     # need to know about mocks, framework, test support sources before entering src directory
-    subdir('tests' / 'mocks')
+    if unit_tests_enabled
+        subdir('tests' / 'mocks')
+        subdir('tests' / 'support')
+    endif
     subdir('tests' / 'framework')
-    subdir('tests' / 'support')
 endif
 subdir('lib')
 if get_option('cli')
@@ -395,7 +401,7 @@ endif
 run_env = environment()
 
 if get_option('bindings-python')
-    if get_option('tests') or get_option('tools')
+    if tests_enabled or get_option('tools')
         message('tests and tools will use the built-in HSE Python bindings')
     endif
 
@@ -410,13 +416,9 @@ if get_option('bindings-python')
     )
 
     hse_python_extension_modules = hse_python.get_variable('extension_modules')
-    hse_python_init_py = hse_python.get_variable('init_py')
-    hse_python_py_typed = hse_python.get_variable('py_typed')
     hse_python_pyi_stubs = hse_python.get_variable('pyi_stubs')
     hse_python_depends = [
         hse_python_extension_modules,
-        hse_python_init_py,
-        hse_python_py_typed,
         hse_python_pyi_stubs,
     ]
     run_env.set('PYTHONPATH', hse_python.get_variable('project_build_root'))
@@ -430,7 +432,7 @@ if get_option('bindings-python')
         env: run_env,
     )
 else
-    if get_option('tests') or get_option('tools')
+    if tests_enabled or get_option('tools')
         message('tests and tools will use the system HSE Python bindings')
     endif
 
@@ -472,9 +474,11 @@ endif
 run_env.set('PATH', path)
 run_env.set('LD_LIBRARY_PATH', ld_library_path)
 
-if get_option('tests')
-    # now that we have libhse-mock, go into repository directory
-    subdir('tests' / 'mocks' / 'repository')
+if tests_enabled
+    if unit_tests_enabled
+        # now that we have libhse-mock, go into repository directory
+        subdir('tests' / 'mocks' / 'repository')
+    endif
     subdir('tests')
 endif
 

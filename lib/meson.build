@@ -105,7 +105,7 @@ hse_static_dep = declare_dependency(
     variables: hse_variables,
 )
 
-if get_option('tests')
+if unit_tests_enabled
     hse_mock_c_args = [
         '-DHSE_UNIT_TEST_MODE=1',
     ]
