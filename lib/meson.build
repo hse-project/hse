@@ -162,3 +162,5 @@ pkg.generate(
 )
 
 meson.override_dependency('@0@-1'.format(meson.project_name()), hse_dep)
+
+library_paths += meson.current_build_dir()

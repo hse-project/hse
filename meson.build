@@ -351,6 +351,7 @@ endif
 # Add paths to this variable if you want to see executables in the build
 # directory
 executable_paths = []
+library_paths = []
 
 if get_option('tests')
     mapi_idx_generate = find_program(
@@ -449,17 +450,30 @@ path = run_command(
     'echo $PATH',
     check: true,
 ).stdout().strip()
-
 path = '@0@:@1@'.format(
     ':'.join(executable_paths),
     path,
 )
-
 if get_option('mpool-bin-dir') != ''
     path = '@0@:@1@'.format(get_option('mpool-bin-dir'), path)
 endif
 
+ld_library_path = run_command(
+    'sh',
+    '-c',
+    'echo $LD_LIBRARY_PATH',
+    check: true,
+).stdout().strip()
+ld_library_path = '@0@:@1@'.format(
+    ':'.join(library_paths),
+    ld_library_path,
+)
+if get_option('mpool-lib-dir') != ''
+    ld_library_path = '@0@:@1@'.format(get_option('mpool-lib-dir'), ld_library_path)
+endif
+
 run_env.set('PATH', path)
+run_env.set('LD_LIBRARY_PATH', ld_library_path)
 
 if get_option('tests')
     # now that we have libhse-mock, go into repository directory
@@ -567,9 +581,7 @@ run_target(
     command: [
         'sh',
     ],
-    env: environment({
-        'PATH': path,
-    }),
+    env: run_env,
 )
 
 if not meson.is_subproject()
