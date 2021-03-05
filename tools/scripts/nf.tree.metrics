@@ -1,0 +1,138 @@
+#!/bin/bash
+
+set -u
+
+CMD=${0##*/}
+
+SUDO="sudo -E"
+
+# Set up for tmp files and a trap to remove them
+rm_temp_files=1
+trap_sigs="0 1 2 3 15"
+trap trap_proc $trap_sigs
+trap_proc () {
+    set +u
+    if (( rm_temp_files )); then
+	/bin/rm -fr "$TMP"
+    fi >& /dev/null
+    trap "" $trap_sigs
+}
+
+make_temp_dir () {
+    TMP=$(mktemp -d /tmp/${CMD}.XXXXXX)
+}
+
+err () {
+    while (( $# > 0 )); do
+        echo "$1"
+        shift
+    done 1>&2
+    exit 1
+}
+
+syntax () {
+    exit "$@" "Use -h for help"
+}
+
+help ()
+{
+    echo "$CMD: get kvs tree metrics"
+    echo "Usage:"
+    echo "    $CMD [options] mp/kvs1 mp/kvs2 ..."
+    echo "    $CMD [options] -a"
+    echo "Options:"
+    echo "    -h, -?   // help"
+    echo "    -a       // show metrics for all kvses"
+    echo "    -b       // show byte counts (vs kbyte or mbyte)"
+    echo "    -r       // raw output (eg, yaml if using rest interface)"
+    echo "    -q       // quiet"
+    echo "    -o <pre> // save output in files named <pre>.<mp>.<kvs>.txt"
+    exit 0
+}
+
+
+kvslist=()
+quiet=0
+all=0
+raw=0
+bytes=0
+out=""
+
+while (( $# > 0 )); do
+    case "$1" in
+        (-\?|-h) help;;
+        (*/*) kvslist+=($1); shift;;
+        (-a)  all=1; shift;;
+        (-r)  raw=1; shift;;
+        (-b)  bytes=1; shift;;
+        (-q)  quiet=1; shift;;
+        (-o)  [[ $# -gt 0 ]] || syntax "Option '$1' requires an argument"
+              out=$2
+              shift 2;;
+        (*)   syntax "Invalid arguments: '$1'";;
+    esac
+done
+
+make_temp_dir
+
+set -u
+if (( all || ${#kvslist[@]} == 0 )); then
+    nf.mplist -k > "$TMP"/tmplist
+    kvslist=($(cat "$TMP"/tmplist))
+    (( kvslist_len = ${#kvslist[@]} ))
+    if (( kvslist_len == 0 )); then
+        err "Command 'nf.mplist -k' did not find any kvses"
+    fi
+else
+    (( kvslist_len = ${#kvslist[@]} ))
+fi
+
+set +u
+
+#for kvs in "${kvslist[@]}"; do
+#    check=$(awk -v kvs="$kvs" -- '($1 == kvs) {print "yes"; exit 0;}' "$TMP"/tmplist)
+#    if [[ "$check" != "yes" ]]; then
+#        err "No such kvs: $kvs"
+#    fi
+#done
+
+get_tree_shape () {
+    local metrics_cmd1=($(which cn_metrics.py) "$1" "$2")
+    local metrics_cmd2=($(which cn_metrics) "$1" "$2")
+    local out="$TMP"/shape
+
+    if (( raw )); then
+        metrics_cmd1+=("-y")
+    fi
+    if (( bytes )); then
+        metrics_cmd2+=("-f" "s")
+    fi
+
+    $SUDO "${metrics_cmd1[@]}" > "$out" 2>/dev/null
+    if [[ "$?" != "0" || ! -s "$out" ]]; then
+        $SUDO "${metrics_cmd2[@]}" > "$out"
+        if [[ $? != 0  || ! -s "$out" ]]; then
+            err "Cannot get tree metrics.  Both commands failed:" \
+                "$SUDO ${metrics_cmd1[*]}" \
+                "$SUDO ${metrics_cmd2[*]}"
+        fi
+    fi
+    cat "$out"
+}
+
+for full_kvs in "${kvslist[@]}"; do
+    IFS=/ read -r mp kv <<<"$full_kvs"
+
+    $SUDO mpool list "$mp" > "$TMP"/mpool-list ||
+        err "Command failed: $SUDO mpool list $mp"
+
+    if [[ -n "$out" ]]; then
+        f=$out.$mp.$kv.txt
+        (( quiet )) || echo "$f"
+        get_tree_shape "$mp" "$kv" > "$f"
+    else
+        (( quiet )) || { echo; echo "== $full_kvs"; }
+        get_tree_shape "$mp" "$kv"
+    fi
+
+done
