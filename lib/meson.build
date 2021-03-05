@@ -54,7 +54,7 @@ hse_dependencies = [
     libyaml_dep,
     m_dep,
     mpool_dep,
-    pthread_dep,
+    thread_dep,
     rbtree_dep,
     uuid_dep,
 ]

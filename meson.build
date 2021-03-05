@@ -162,7 +162,7 @@ libyaml_dep = dependency(
         'werror=false',
     ],
 )
-pthread_dep = cc.find_library('pthread', required: true)
+thread_dep = dependency('threads', required: true)
 uuid_dep = dependency('uuid', version: '>=2.31.1', required: true)
 liburcu_bp_dep = dependency(
     'liburcu-bp',

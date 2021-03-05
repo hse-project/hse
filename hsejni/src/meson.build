@@ -29,7 +29,7 @@ hsejni_c = library(
     ],
     dependencies: [
         hse_dep,
-        pthread_dep,
+        thread_dep,
     ],
     version: meson.project_version(),
     install: true,
