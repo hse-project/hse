@@ -6,6 +6,7 @@ project(
         'Apache-2.0',
     ],
     default_options: [
+        'prefix=/opt/hse-1',
         'b_ndebug=if-release',
         'c_std=gnu11',
         'buildtype=debugoptimized',

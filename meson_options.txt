@@ -1,6 +1,6 @@
 option('cli', type: 'boolean', value: true,
     description: 'Build the CLI')
-option('install-rpath', type: 'boolean', value: false,
+option('install-rpath', type: 'boolean', value: true,
     description: 'Add rpath to ELF files to faciliate discovery of libhse')
 option('tests', type: 'boolean', value: true,
     description: 'Build tests')
