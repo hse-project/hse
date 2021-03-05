@@ -44,7 +44,7 @@ foreach t : tests
         python,
         args: [
             '@0@.py'.format(t),
-            get_option('kvpy-kvdb'),
+            get_option('tests-kvdb'),
         ],
         depends: hse_python_depends,
         workdir: meson.current_source_dir(),

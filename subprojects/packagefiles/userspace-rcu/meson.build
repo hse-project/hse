@@ -22,6 +22,10 @@ elif get_option('default_library') == 'both'
     configure_options += '--enable-static'
 endif
 
+if get_option('b_staticpic')
+    configure_options += '--with-pic'
+endif
+
 proj = extern.add_project(
     'configure',
     configure_options: configure_options,

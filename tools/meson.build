@@ -273,6 +273,7 @@ foreach t, params : tools
         dependencies: t_dependencies,
         install: get_option('install-tools'),
         install_rpath: exe_install_rpath,
+        gnu_symbol_visibility: 'hidden',
     )
 endforeach
 

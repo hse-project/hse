@@ -1,0 +1,111 @@
+#!/bin/bash
+
+set -u
+
+CMD=${0##*/}
+
+SUDO="sudo -E"
+
+# Set up for tmp files and a trap to remove them
+rm_temp_files=1
+trap_sigs="0 1 2 3 15"
+trap trap_proc $trap_sigs
+trap_proc () {
+    set +u
+    if (( rm_temp_files )); then
+	/bin/rm -fr "$TMP"
+    fi >& /dev/null
+    trap "" $trap_sigs
+}
+
+err () {
+    while (( $# > 0 )); do
+        echo "$1"
+        shift
+    done 1>&2
+    exit 1
+}
+
+syntax () {
+    exit "$@" "Use -h for help"
+}
+
+help ()
+{
+    echo "$CMD: list mpools and kvses"
+    echo "Options:"
+    echo "    -h, -?   // help"
+    echo "    -m       // list mpools"
+    echo "    -k       // list kvses"
+    echo "    -s       // use space separator"
+    exit 0
+}
+
+
+list_all=0
+list=()
+space=0
+
+while (( $# > 0 )); do
+    case "$1" in
+        (-\?|-h) help;;
+        (-a) list_all=1; shift;;
+        (-m) list+=(mpool); shift;;
+        (-k) list+=(kvs); shift;;
+        (-s) space=1; shift;;
+        (*)  syntax || syntax "Invalid arguments: '$1'";;
+    esac
+done
+
+TMP=$(mktemp -d /tmp/${CMD}.XXXXXX)
+
+$SUDO mpool list -v > $TMP/mpools ||
+    err "Cannot list mpools: $SUDO mpool list -v"
+
+$SUDO hse kvdb list -v > $TMP/kvses ||
+    err "Cannot list mpools: $SUDO mpool list -v"
+
+
+if (( list_all )); then
+    list=(mpool kvs)
+fi
+
+set +u
+(( ${#list[@]} == 0 )) && list=(kvs)
+set -u
+
+if (( ${#list[@]} > 1 )); then
+    show_prefix=1
+else
+    show_prefix=0
+fi   
+
+
+for p in "${list[@]}"; do
+    case "$p" in
+        (mpool)
+            s='/^mpools:/{flag=1;next} /^[^- ]/{flag=0;next} /^- name:/{printf "%s%s\n", prefix,$3}'
+            f=$TMP/mpools
+            ;;
+        (kvs)
+            s='/^  kvslist:/{flag=1;next} /^    [^- ]/{flag=0;next} /^    - /{printf "%s%s\n", prefix,$2}'
+            f=$TMP/kvses
+            ;;
+        (*)
+            err"BUG: $p"
+            ;;
+    esac
+
+    if (( show_prefix )); then
+        prefix="$p "
+    else
+        prefix=""
+    fi
+
+    if (( space )); then
+        awk -v prefix="$prefix" -- "$s" "$f" | sed -e 's,/, ,g'
+    else
+        awk -v prefix="$prefix" -- "$s" "$f"
+    fi
+
+done

@@ -1,9 +1,11 @@
 option('cli', type: 'boolean', value: true,
     description: 'Build the CLI')
-option('exe-install-rpath', type: 'boolean', value: false,
-    description: 'Add rpath of prefix/libdir/ to the CLI')
-option('tests', type: 'boolean', value: true,
-    description: 'Build tests')
+option('install-rpath', type: 'boolean', value: true,
+    description: 'Add rpath to ELF files to faciliate discovery of libhse')
+option('tests', type: 'array', choices: ['all', 'none', 'unit', 'functional'], value: ['unit'],
+    description: 'Build and enable tests')
+option('tests-kvdb', type: 'string', value: 'kvpy',
+    description: 'KVDB the tests will use')
 option('ycsb', type: 'boolean', value: false,
     description: 'Build JNI bridge artifacts')
 option('tools', type: 'boolean', value: true,
@@ -22,12 +24,6 @@ option('use-system-xxhash', type: 'boolean', value: false,
     description: 'Build against the system xxhash package')
 option('bindings-python', type: 'boolean', value: true,
     description: 'Build Python bindings for use in tests and tools')
-option('smoke', type: 'boolean', value: false,
-    description: 'Enable smoke tests')
-option('kvpy', type: 'boolean', value: false,
-    description: 'Enable the kvpy scripts')
-option('kvpy-kvdb', type: 'string', value: 'kvpy',
-    description: 'KVDB the kvpy scripts will use')
 option('mpool-include-dir', type: 'string', value: '/usr/include/mpool',
     description: 'Location of the mpool include directory')
 option('mpool-lib-dir', type: 'string', value: '',

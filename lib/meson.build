@@ -29,7 +29,6 @@ hse_sources = [
 hse_c_args = [
     '-DCOMPNAME="kvdb"',
     '-DCJSON_FROM_SUBPROJECT=@0@'.format(cJSON_from_subproject ? 1 : 0),
-    '-fvisibility=hidden',
 ]
 
 hse_include_directories = [
@@ -55,7 +54,7 @@ hse_dependencies = [
     libyaml_dep,
     m_dep,
     mpool_dep,
-    pthread_dep,
+    thread_dep,
     rbtree_dep,
     uuid_dep,
 ]
@@ -72,6 +71,7 @@ hse = both_libraries(
     dependencies: hse_dependencies,
     version: meson.project_version(),
     install: true,
+    gnu_symbol_visibility: 'hidden',
 )
 
 hse_variables = {
@@ -105,12 +105,9 @@ hse_static_dep = declare_dependency(
     variables: hse_variables,
 )
 
-if get_option('tests')
+if unit_tests_enabled
     hse_mock_c_args = [
-        '-DCOMPNAME="kvdb"',
-        '-DCJSON_FROM_SUBPROJECT=@0@'.format(cJSON_from_subproject ? 1 : 0),
         '-DHSE_UNIT_TEST_MODE=1',
-        '-fvisibility=default',
     ]
 
     hse_mock_include_directories = [
@@ -165,3 +162,5 @@ pkg.generate(
 )
 
 meson.override_dependency('@0@-1'.format(meson.project_name()), hse_dep)
+
+library_paths += meson.current_build_dir()

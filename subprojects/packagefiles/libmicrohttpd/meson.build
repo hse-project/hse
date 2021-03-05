@@ -26,10 +26,12 @@ if get_option('default_library') == 'shared'
 elif get_option('default_library') == 'static'
     configure_options += '--disable-shared'
     configure_options += '--enable-static'
-    configure_options += '--with-pic'
 elif get_option('default_library') == 'both'
     configure_options += '--enable-shared'
     configure_options += '--enable-static'
+endif
+
+if get_option('b_staticpic')
     configure_options += '--with-pic'
 endif
 

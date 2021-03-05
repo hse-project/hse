@@ -1,0 +1,297 @@
+#!/usr/bin/env python3
+
+import os
+import re
+import sys
+import argparse
+import subprocess as sp
+import yaml
+
+
+def warn(*lines, **kwargs):
+    print(*lines,
+          sep=kwargs.get('sep','\n'),
+          file=kwargs.get('file',sys.stderr))
+    return
+
+def fatal(*lines, **kwargs):
+    warn(*lines, **kwargs)
+    sys.exit(1)
+    return
+
+def help(argparser):
+    argparser.print_help()
+    return
+
+def make_argparser(cmd):
+    argparser = argparse.ArgumentParser(
+        prog=cmd,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        add_help=False,
+        description="""
+Convert NF data tree from YAML to a more readable form.
+""",
+        epilog="""
+""")
+    argparser.add_argument("mpool", nargs='?', help="name of mpool (eg, mp1)" )
+    argparser.add_argument( "-h",   dest="help", help="show help", action="store_true")
+    argparser.add_argument( "-l",   dest="list", help="list valid mpool/mpool paths", action="store_true")
+    argparser.add_argument( "-d",   dest="describe", help="show descriptions (for perf counters)", action="store_true")
+    argparser.add_argument( "-p",   dest="perfc",    help="show perf counters only", action="store_true")
+    argparser.add_argument( "-e",   dest="event",    help="show event counters only", action="store_true")
+    argparser.add_argument( "-c",   dest="config",   help="show config (rparams) only", action="store_true")
+    argparser.add_argument( "-z",   dest="hidezero", help="do not show counters with value of zero", action="store_true")
+    argparser.add_argument( "-r",   dest="raw", help="show raw output (yaml)", action="store_true")
+    return argparser;
+
+
+def get_error_counters(yml):
+
+    tag = "event_counter"
+    if tag not in yml:
+        fatal("Cannot find '{}' element in yaml output".format(tag))
+        pass
+
+    headers    = ['#module', 'file:line', 'function', 'count', 'type', 'sev', 'time']
+    alignments = [     '<',         '<',        '<',     '>',      '<',  '>',    '<']
+
+    lens = [ len(x) for x in headers ]
+
+    entries = []
+    for ev in yml[tag]:
+        m = re.match(r'/data/event_counter/(.*?)/(.*?)/(.*?)/(.*)$', ev['path'])
+        if m:
+            module = m.group(1)
+            filename = m.group(2)+":"+m.group(4)
+            func = m.group(3)
+        else:
+            module = 'unknown'
+            filename = ev['path']
+            func = ""
+            pass
+
+        if op.hidezero == False or ev['odometer'] != 0:
+            row = [module,
+                   filename,
+                   func,
+                   str(ev['odometer']),
+                   str(ev['source']),
+                   str(ev['level']),
+                   str(ev['odometer timestamp'])]
+            lens = [ max(x, len(y)) for x,y in zip(lens, row) ]
+            entries.append(row)
+            pass
+
+        pass
+
+
+    formats = [ "{:"+str(align)+str(width)+"}" for align, width in zip(alignments, lens) ]
+    return (headers, entries, formats)
+
+def get_perfc(yml):
+
+    global op
+
+    columns = []
+    columns.append( ['#name', '<'] )
+    columns.append( ['type', '<'] )
+    columns.append( ['units','<'] )
+    columns.append( ['value1','>'] )
+    columns.append( ['value2','>'] )
+    columns.append( ['value3','>'] )
+    if op.describe:
+        columns.append( ['description','<'] )
+        pass
+
+    headers, alignments = zip(*columns)
+
+    lens = [ len(x) for x in headers ]
+
+    entries = []
+    for pc in yml["perfc"]:
+        m = re.match(r'/data/perfc/(.*)$', pc['path'])
+        if m:
+            path = m.group(1)
+        else:
+            path = ev['path']
+            pass
+
+        for counter in pc['counters']:
+            value1 = '-'
+            value2 = '-'
+            value3 = '-'
+            if counter['type'] == "Basic":
+                value1 = counter['value']
+                all_zero = value1 == 0
+            elif counter['type'] == "Rate":
+                value1 = counter['rate']
+                value2 = counter['curr']
+                all_zero = value1 == 0 and value2 == 0
+                #value3 = counter['dt_ns']  # not very useful
+            elif counter['type'] == "Latency":
+                value1 = counter['average']
+                value2 = counter['min']
+                value3 = counter['max']
+                all_zero = value1 == 0 and value2 == 0 and value3 == 0
+            elif counter['type'] == "Distribution":
+                value1 = counter['average']
+                all_zero = value1 == 0
+                pass
+
+            if op.hidezero == False or not all_zero:
+                row = [
+                    path,
+                    counter['type'],
+                    counter['header'],
+                    str(value1),
+                    str(value2),
+                    str(value3),
+                ]
+                if op.describe:
+                    row.append(counter['description'])
+                    pass
+
+                lens = [ max(x, len(y)) for x,y in zip(lens, row) ]
+                entries.append(row)
+                pass
+
+            pass
+        pass
+
+    formats = [ "{:"+str(align)+str(width)+"}" for align, width in zip(alignments, lens) ]
+    return (headers, entries, formats)
+
+def get_config(yml):
+
+    #print yaml.dump(yml['config'])
+    tag = "config"
+    if tag not in yml:
+        fatal("Cannot find '{}' element in yaml output".format(tag))
+        pass
+
+    headers    = ['#module', 'Unit', 'Param', 'Current', 'Default', 'Writable']
+    alignments = [     '<',     '<',     '<',       '>',       '>',        '>']
+
+    lens = [ len(x) for x in headers ]
+
+    entries = []
+
+    for ev in yml[tag]:
+        #print yaml.dump(ev)
+        m = re.match(r'(.*?)/(.*)/(.*?)$', ev['path'])
+        if m:
+            module = m.group(1)
+            unit   = m.group(2)
+            param  = m.group(3)
+            pass
+
+        row = [module, unit, param, str(ev['current']), str(ev['default']), str(ev['writable'])]
+        lens = [ max(x, len(y)) for x,y in zip(lens, row) ]
+        entries.append(row)
+
+    formats = [ "{:"+str(align)+str(width)+"}" for align, width in zip(alignments, lens) ]
+    return (headers, entries, formats)
+
+def show(yml):
+
+    if op.perfc:
+        headers, entries, formats = get_perfc(yml)
+        fmt = "  ".join(formats)
+        print(fmt.format(*headers))
+        for ent in entries:
+            print(fmt.format(*ent))
+            pass
+        pass
+
+    if op.perfc and op.event:
+        print("")
+        pass
+
+    if op.event:
+        headers, entries, formats = get_error_counters(yml)
+        fmt = "  ".join(formats)
+        print(fmt.format(*headers))
+        for ent in entries:
+            print(fmt.format(*ent))
+            pass
+        pass
+
+    if op.config:
+        headers, entries, formats = get_config(yml)
+        fmt = "  ".join(formats)
+        print(fmt.format(*headers))
+        for ent in entries:
+            print(fmt.format(*ent))
+            pass
+        pass
+
+    return
+
+def main(args):
+
+    cmd = os.path.basename(__file__)
+    argparser = make_argparser(cmd)
+
+    global op
+    op = argparser.parse_args(args[1:])
+
+    if op.help:
+        help(argparser)
+        return 0
+
+    if not op.config and not op.perfc and not op.event:
+        op.perfc  = True
+        op.event  = True
+        op.config = False
+        pass
+
+    if op.list:
+        try:
+            sp_cmd = ["sudo", "find", "/var/run/mpool/", "-name", "*.sock"]
+            sp_out = sp.check_output(sp_cmd)
+        except sp.CalledProcessError:
+            fatal("\n".join(["ERROR: Command failed: "+ " ".join(sp_cmd)]))
+            pass
+        sp_text = sp_out.decode('utf-8').rstrip()
+        if op.raw:
+            print(sp_text)
+        else:
+            for sock_path in sp_text.split('\n'):
+                dirs = sock_path.split('/')
+                if len(dirs) > 4:
+                    print(dirs[3]+'/'+dirs[4])
+                    pass
+                pass
+            pass
+        return 0
+
+    mpool = vars(op).get("mpool",False)
+    if not mpool:
+        fatal("Must specify mpool, use -h for help")
+        pass
+
+    sock = "/var/run/mpool/" + mpool + "/" + mpool + ".sock"
+    url = "http://localhost/data"
+
+    curl_cmd = ['curl', '-s', '--noproxy', 'localhost', '--unix-socket', sock, url]
+    try:
+        buf = sp.check_output(curl_cmd)
+    except sp.CalledProcessError:
+        fatal("\n".join(["ERROR: Curl command failed.",
+                         "  "+ " ".join(curl_cmd),
+                         "Try either of following to get a list of mpools and datasets:",
+                         "  nf mpool list -v",
+                         "  find /var/run/mpool/ -name '*.sock'"]))
+        pass
+
+    if op.raw:
+        print(buf.decode('utf-8'))
+    else:
+        ybuf = yaml.load(buf)
+        show(ybuf)
+        pass
+
+    return 0
+
+if __name__ == "__main__":
+    exit(main(sys.argv))

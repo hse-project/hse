@@ -6,6 +6,7 @@ project(
         'Apache-2.0',
     ],
     default_options: [
+        'prefix=/opt/hse-1',
         'b_ndebug=if-release',
         'c_std=gnu11',
         'buildtype=debugoptimized',
@@ -52,11 +53,7 @@ if git.found() and fs.exists(meson.project_source_root() / '.git')
         check: true
     ).stdout().strip()
 elif fs.exists(meson.project_source_root() / 'VERSION')
-    version_file_components = run_command(
-        'cat',
-        meson.project_source_root() / 'VERSION',
-        check: true,
-    ).stdout().strip().split('\n')
+    version_file_components = fs.read(meson.project_source_root() / 'VERSION').stdout().strip().split('\n')
 
     build_tag = version_file_components[0]
     build_sha = version_file_components[1]
@@ -110,6 +107,11 @@ elif get_option('buildtype').startswith('debug')
     elif get_option('buildtype') == 'debugoptimized'
         build_stype = 'o'
     endif
+
+    add_project_arguments(
+        '-DHSE_BUILD_DEBUG',
+        language: 'c',
+    )
 endif
 
 add_project_arguments(
@@ -157,7 +159,7 @@ libyaml_dep = dependency(
         'werror=false',
     ],
 )
-pthread_dep = cc.find_library('pthread', required: true)
+thread_dep = dependency('threads', required: true)
 uuid_dep = dependency('uuid', version: '>=2.31.1', required: true)
 liburcu_bp_dep = dependency(
     'liburcu-bp',
@@ -194,7 +196,7 @@ else
 endif
 libbsd_dep = dependency(
     'libbsd',
-    version: '>=0.9.1',
+    version: '>=0.8.7',
     required: true,
     fallback: ['libbsd', 'libbsd_dep'],
     default_options: [
@@ -343,11 +345,16 @@ if not valgrind_dep.found()
     )
 endif
 
+tests_enabled = 'none' not in get_option('tests')
+unit_tests_enabled = tests_enabled and 'unit' in get_option('tests')
+functional_tests_enabled = tests_enabled and 'functional' in get_option('tests')
+
 # Add paths to this variable if you want to see executables in the build
 # directory
 executable_paths = []
+library_paths = []
 
-if get_option('tests')
+if unit_tests_enabled
     mapi_idx_generate = find_program(
         'scripts' / 'build' / 'mapi_idx_generate',
         required: true,
@@ -362,20 +369,22 @@ if get_option('tests')
     )
 endif
 
-exe_install_rpath = get_option('exe-install-rpath') ? '$ORIGIN' / '..' / get_option('libdir') : ''
+exe_install_rpath = get_option('install-rpath') ? '$ORIGIN' / '..' / get_option('libdir') : ''
 
 subdir('config')
 subdir('3rdparty')
 subdir('include')
-if get_option('tests') or get_option('tools')
-    # need access to tools_includes for tests and tools
+if unit_tests_enabled or get_option('tools')
+    # need access to tools_includes for unit tests and tools
     subdir('tools' / 'include')
 endif
-if get_option('tests')
+if tests_enabled
     # need to know about mocks, framework, test support sources before entering src directory
-    subdir('tests' / 'mocks')
+    if unit_tests_enabled
+        subdir('tests' / 'mocks')
+        subdir('tests' / 'support')
+    endif
     subdir('tests' / 'framework')
-    subdir('tests' / 'support')
 endif
 subdir('lib')
 if get_option('cli')
@@ -392,7 +401,7 @@ endif
 run_env = environment()
 
 if get_option('bindings-python')
-    if get_option('tests') or get_option('tools')
+    if tests_enabled or get_option('tools')
         message('tests and tools will use the built-in HSE Python bindings')
     endif
 
@@ -407,13 +416,9 @@ if get_option('bindings-python')
     )
 
     hse_python_extension_modules = hse_python.get_variable('extension_modules')
-    hse_python_init_py = hse_python.get_variable('init_py')
-    hse_python_py_typed = hse_python.get_variable('py_typed')
     hse_python_pyi_stubs = hse_python.get_variable('pyi_stubs')
     hse_python_depends = [
         hse_python_extension_modules,
-        hse_python_init_py,
-        hse_python_py_typed,
         hse_python_pyi_stubs,
     ]
     run_env.set('PYTHONPATH', hse_python.get_variable('project_build_root'))
@@ -427,7 +432,7 @@ if get_option('bindings-python')
         env: run_env,
     )
 else
-    if get_option('tests') or get_option('tools')
+    if tests_enabled or get_option('tools')
         message('tests and tools will use the system HSE Python bindings')
     endif
 
@@ -444,21 +449,36 @@ path = run_command(
     'echo $PATH',
     check: true,
 ).stdout().strip()
-
 path = '@0@:@1@'.format(
     ':'.join(executable_paths),
     path,
 )
-
 if get_option('mpool-bin-dir') != ''
     path = '@0@:@1@'.format(get_option('mpool-bin-dir'), path)
 endif
 
-run_env.set('PATH', path)
+ld_library_path = run_command(
+    'sh',
+    '-c',
+    'echo $LD_LIBRARY_PATH',
+    check: true,
+).stdout().strip()
+ld_library_path = '@0@:@1@'.format(
+    ':'.join(library_paths),
+    ld_library_path,
+)
+if get_option('mpool-lib-dir') != ''
+    ld_library_path = '@0@:@1@'.format(get_option('mpool-lib-dir'), ld_library_path)
+endif
 
-if get_option('tests')
-    # now that we have libhse-mock, go into repository directory
-    subdir('tests' / 'mocks' / 'repository')
+run_env.set('PATH', path)
+run_env.set('LD_LIBRARY_PATH', ld_library_path)
+
+if tests_enabled
+    if unit_tests_enabled
+        # now that we have libhse-mock, go into repository directory
+        subdir('tests' / 'mocks' / 'repository')
+    endif
     subdir('tests')
 endif
 
@@ -562,9 +582,7 @@ run_target(
     command: [
         'sh',
     ],
-    env: environment({
-        'PATH': path,
-    }),
+    env: run_env,
 )
 
 if not meson.is_subproject()

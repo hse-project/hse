@@ -13,6 +13,7 @@ foreach e : examples
         dependencies: [
             hse_dep,
         ],
+        gnu_symbol_visibility: 'hidden',
     )
 endforeach
 

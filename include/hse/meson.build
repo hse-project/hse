@@ -20,6 +20,5 @@ install_headers(
     'hse.h',
     'hse_limits.h',
     'hse_experimental.h',
-    'kvdb_perfc.h',
     subdir: include_subdir,
 )
