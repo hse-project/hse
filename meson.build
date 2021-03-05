@@ -53,11 +53,7 @@ if git.found() and fs.exists(meson.project_source_root() / '.git')
         check: true
     ).stdout().strip()
 elif fs.exists(meson.project_source_root() / 'VERSION')
-    version_file_components = run_command(
-        'cat',
-        meson.project_source_root() / 'VERSION',
-        check: true,
-    ).stdout().strip().split('\n')
+    version_file_components = fs.read(meson.project_source_root() / 'VERSION').stdout().strip().split('\n')
 
     build_tag = version_file_components[0]
     build_sha = version_file_components[1]
