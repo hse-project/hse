@@ -196,7 +196,7 @@ else
 endif
 libbsd_dep = dependency(
     'libbsd',
-    version: '>=0.9.1',
+    version: '>=0.8.7',
     required: true,
     fallback: ['libbsd', 'libbsd_dep'],
     default_options: [
