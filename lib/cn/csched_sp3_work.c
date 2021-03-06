@@ -19,7 +19,6 @@
 #include "cn_tree_internal.h"
 #include "kvset.h"
 
-#define SIZE_128MIB     ((size_t)128 << 20)
 #define SIZE_1GIB       ((size_t)1 << 30)
 
 /* The bonus count limits bonus work (scatter and idle)
@@ -145,7 +144,6 @@ sp3_work_estimate(struct cn_compaction_work *w, uint internal_children, uint lea
 static uint
 sp3_work_ispill_find_kvsets(struct sp3_node *spn, uint n_max, struct kvset_list_entry **mark)
 {
-    struct list_head *       head;
     uint                     n_kvsets;
     struct kvset_list_entry *le;
     struct cn_tree_node *    tn;
@@ -154,10 +152,7 @@ sp3_work_ispill_find_kvsets(struct sp3_node *spn, uint n_max, struct kvset_list_
     tn = spn2tn(spn);
 
     /* walk from tail (oldest), skip kvsets that are busy */
-    head = &tn->tn_kvset_list;
-    for (le = list_last_entry(head, typeof(*le), le_link); &le->le_link != head;
-         le = list_prev_entry(le, le_link)) {
-
+    list_for_each_entry_reverse(le, &tn->tn_kvset_list, le_link) {
         if (kvset_get_workid(le->le_kvset) == 0) {
             *mark = le;
             break;
@@ -170,9 +165,7 @@ sp3_work_ispill_find_kvsets(struct sp3_node *spn, uint n_max, struct kvset_list_
     n_kvsets = 1;
 
     /* look for sequence of non-busy kvsets */
-    for (le = list_prev_entry(le, le_link); &le->le_link != head;
-         le = list_prev_entry(le, le_link)) {
-
+    while ((le = list_prev_entry_or_null(le, le_link, &tn->tn_kvset_list))) {
         if (n_kvsets == n_max)
             break;
 
@@ -228,19 +221,15 @@ sp3_work_ispill(
         cn_node_stats_get(tn, &stats);
         clen = cn_ns_clen(&stats);
 
-        if (clen < SIZE_128MIB) {
-            if (cnt < cnt_min)
-                return 0;
-
-            /* Don't let tiny interior nodes grow too long, they might
-             * never be large enough to spill.
-             */
-            *action = CN_ACTION_COMPACT_KV;
-            *rule = CN_CR_ILONG_LW;
-            return cnt;
-        } else if (clen < SIZE_1GIB) {
+        /* Resist spilling tiny interior nodes, but don't let them grow too long.
+         * The downside here is that with a fanout of 16 we may potentially spill
+         * 8 tiny kvsets into 16 very tiny kvsets, worsening as we spill down the
+         * tree.  In this case it is probably better to kv-compact.  Unfortunately,
+         * the scheduler logic currently does not permit interior node compaction.
+         */
+        if (clen < SIZE_1GIB) {
             *rule = CN_CR_SPILL_TINY;
-            return cnt;
+            return (cnt < cnt_max) ? 0 : cnt;
         } else if (kvset_get_compc((*mark)->le_kvset) > 1) {
             *rule = CN_CR_SPILL_ONE;
             return 1;
