@@ -345,16 +345,25 @@ if not valgrind_dep.found()
     )
 endif
 
-tests_enabled = 'none' not in get_option('tests')
-unit_tests_enabled = tests_enabled and 'unit' in get_option('tests')
-functional_tests_enabled = tests_enabled and 'functional' in get_option('tests')
+enabled_tests = []
+foreach t : get_option('tests')
+    if t == 'all'
+        enabled_tests += 'unit'
+        enabled_tests += 'functional'
+        break
+    elif t == 'unit'
+        enabled_tests += 'unit'
+    elif t == 'functional'
+        enabled_tests += 'functional'
+    endif
+endforeach
 
-# Add paths to this variable if you want to see executables in the build
-# directory
+# Add paths to these variables if you want to see targets in the runtime
+# environment
 executable_paths = []
 library_paths = []
 
-if unit_tests_enabled
+if 'unit' in enabled_tests
     mapi_idx_generate = find_program(
         'scripts' / 'build' / 'mapi_idx_generate',
         required: true,
@@ -374,13 +383,13 @@ exe_install_rpath = get_option('install-rpath') ? '$ORIGIN' / '..' / get_option(
 subdir('config')
 subdir('3rdparty')
 subdir('include')
-if unit_tests_enabled or get_option('tools')
+if 'unit' in enabled_tests or get_option('tools')
     # need access to tools_includes for unit tests and tools
     subdir('tools' / 'include')
 endif
-if tests_enabled
+if enabled_tests.length() > 0
     # need to know about mocks, framework, test support sources before entering src directory
-    if unit_tests_enabled
+    if 'unit' in enabled_tests
         subdir('tests' / 'mocks')
         subdir('tests' / 'support')
     endif
@@ -401,7 +410,7 @@ endif
 run_env = environment()
 
 if get_option('bindings-python')
-    if tests_enabled or get_option('tools')
+    if enabled_tests.length() > 0 or get_option('tools')
         message('tests and tools will use the built-in HSE Python bindings')
     endif
 
@@ -432,7 +441,7 @@ if get_option('bindings-python')
         env: run_env,
     )
 else
-    if tests_enabled or get_option('tools')
+    if enabled_tests.length() > 0 or get_option('tools')
         message('tests and tools will use the system HSE Python bindings')
     endif
 
@@ -474,8 +483,8 @@ endif
 run_env.set('PATH', path)
 run_env.set('LD_LIBRARY_PATH', ld_library_path)
 
-if tests_enabled
-    if unit_tests_enabled
+if enabled_tests.length() > 0
+    if 'unit' in enabled_tests
         # now that we have libhse-mock, go into repository directory
         subdir('tests' / 'mocks' / 'repository')
     endif

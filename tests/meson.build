@@ -6,9 +6,9 @@ add_test_setup(
     is_default: true,
 )
 
-if unit_tests_enabled
+if 'unit' in enabled_tests
     subdir('unit')
 endif
-if functional_tests_enabled
+if 'functional' in enabled_tests
     subdir('functional')
 endif
