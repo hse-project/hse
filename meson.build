@@ -586,10 +586,16 @@ if black.found()
     )
 endif
 
+shell = run_command(
+    'sh',
+    '-c',
+    'echo $SHELL',
+    check: true,
+).stdout().strip()
 run_target(
     'shell',
     command: [
-        'sh',
+        shell,
     ],
     env: run_env,
 )
