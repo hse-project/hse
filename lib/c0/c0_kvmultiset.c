@@ -946,7 +946,6 @@ c0kvms_abort_active(struct c0_kvmultiset *handle)
             uintptr_t *ptr = (uintptr_t *)self->c0ms_c0snr_base[i];
 
             if (ptr && c0snr_txn_is_active(ptr)) {
-                hse_log(HSE_ERR "gsr4 about to backoff");
                 backoff = true;
                 break;
             }
@@ -958,8 +957,6 @@ c0kvms_abort_active(struct c0_kvmultiset *handle)
         }
     }
 
-    if (bc)
-        hse_log(HSE_ERR "gsr4 attempts %d", bc);
     c0snr_cnt = atomic_read(&self->c0ms_c0snr_cnt);
     for (i = 0; i < c0snr_cnt; i++) {
         uintptr_t *ptr = (uintptr_t *)self->c0ms_c0snr_base[i];

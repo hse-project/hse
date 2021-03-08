@@ -165,7 +165,6 @@ kvs_open(
      * dt entries fails.
      */
 
-    hse_log(HSE_ERR "gsr: here");
     ikvs->ikv_ds = ds;
     ikvs->ikv_mpool_name = strdup(mp_name);
     ikvs->ikv_kvs_name = strdup(kvs_name);

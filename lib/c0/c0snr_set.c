@@ -275,9 +275,6 @@ c0snr_set_get_c0snr(struct c0snr_set *handle, struct kvdb_ctxn *ctxn)
         spin_lock(&cslist->act_lock);
     }
 
-    if (!cslist || !cslist->act_cache)
-        hse_log(HSE_ERR "gsr5: cache full");
-
     entry = c0snr_set_entry_alloc(&cslist->act_cache);
     if (ev(!entry)) {
         spin_unlock(&cslist->act_lock);

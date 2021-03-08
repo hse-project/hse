@@ -734,7 +734,6 @@ kvdb_ctxn_put(
     {
         int x = seqnoref_to_state(ctxn->ctxn_seqref);
         if (ev(x != KVDB_CTXN_ACTIVE)) {
-            hse_log(HSE_ERR "gsr3 state: %d", x);
             err = merr(EPROTO);
             goto errout;
         }

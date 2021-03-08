@@ -450,7 +450,7 @@ c0kvs_findval(struct c0_kvset *handle, struct bonsai_kv *kv, u64 view_seqno, uin
      * OTOH, tiny ingests wreak havoc on cn and cause the oplog kvs to
      * grow spectacularly long (and with severe mblock fragmentation).
      */
-    if (nvals > 2048)
+    if (nvals > 2048 && handle)
         atomic_inc((c0_kvset_h2r(handle))->c0s_ingesting);
 
     return val_ge;
