@@ -168,7 +168,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, begin, mapi_pre, mapi_post)
     merr_t                  err;
     struct kvs_ktuple       kt;
     struct kvs_vtuple       vt;
-    char                    kbuf[10], vbuf[10];
+    char                    kbuf[16], vbuf[16];
     uintptr_t               tmp_seqnoref;
     struct c0              *c0 = NULL; /* c0 is mocked */
 
@@ -243,7 +243,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, basic_commit, mapi_pre, mapi_post)
     merr_t                  err;
     struct kvs_ktuple       kt;
     struct kvs_vtuple       vt;
-    char                    kbuf[10], vbuf[10];
+    char                    kbuf[16], vbuf[16];
     struct c0              *c0 = NULL; /* c0 is mocked */
     atomic64_t              kvdb_seq;
 
@@ -426,7 +426,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, basic_commit_seqno, mapi_pre, mapi_post
     merr_t                  err;
     struct kvs_ktuple       kt;
     struct kvs_vtuple       vt;
-    char                    kbuf[10], vbuf[10];
+    char                    kbuf[16], vbuf[16];
     struct c0              *c0 = NULL; /* c0 is mocked */
     atomic64_t              kvdb_seq;
 
@@ -936,7 +936,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, txn_timeout, mapi_pre, mapi_post)
     const u64               initial_value = 117UL;
     struct kvs_ktuple       kt;
     struct kvs_vtuple       vt;
-    char                    kbuf[10], vbuf[10];
+    char                    kbuf[16], vbuf[16];
     struct c0              *c0 = NULL; /* c0 is mocked */
     u32                     delay_ms = 500;
     atomic64_t              kvdb_seq;
@@ -1015,7 +1015,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, txn_cleanup, mapi_pre, mapi_post)
     const u64               initial_value = 117UL;
     struct kvs_ktuple       kt;
     struct kvs_vtuple       vt;
-    char                    kbuf[10], vbuf[10];
+    char                    kbuf[16], vbuf[16];
     struct c0              *c0 = NULL; /* c0 is mocked */
     atomic64_t              kvdb_seq;
 
@@ -1074,7 +1074,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, txn_hash, mapi_pre, mapi_post)
     struct c0              *c0 = NULL; /* c0 is mocked */
     struct kvs_ktuple       kt;
     struct kvs_vtuple       vt;
-    char                    kbuf[10];
+    char                    kbuf[16];
     atomic64_t              kvdb_seq;
     merr_t                  err;
     int                     i;
@@ -1208,7 +1208,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, txn_independence, mapi_pre, mapi_post)
     for (i = 0; i < 1024; ++i) {
         struct kvs_ktuple kt;
         struct kvs_vtuple vt;
-        char              kbuf[10];
+        char              kbuf[16];
 
         snprintf(kbuf, sizeof(kbuf), "%d", i);
         kvs_ktuple_init(&kt, kbuf, strlen(kbuf));
@@ -1261,7 +1261,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, txn_seq, mapi_pre, mapi_post)
     const u64               initial_value = 117UL;
     struct kvs_ktuple       kt;
     struct kvs_vtuple       vt;
-    char                    kbuf[10], vbuf[10];
+    char                    kbuf[16], vbuf[16];
     struct c0              *c0 = NULL; /* c0 is mocked */
     u64                     horizon, curr_seq;
     u32                     delay_us;
@@ -1352,7 +1352,7 @@ parallel_ctxn_helper(void *arg)
     int                       i;
     struct kvs_ktuple         kt;
     struct kvs_vtuple         vt;
-    char                      kbuf[10], vbuf[10];
+    char                      kbuf[16], vbuf[16];
     struct c0 *               c0 = NULL; /* c0 is mocked */
     struct cn *               cN = NULL; /* cN is mocked */
     enum key_lookup_res       res;
