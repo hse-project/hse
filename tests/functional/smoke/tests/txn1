@@ -1,0 +1,35 @@
+#!/usr/bin/bash
+
+#doc: simple transaction test on a KVDB kvs
+
+kvs1=$(new_kvs $mp) || err
+
+cmd $HSE_TOOLS_DIR/ctxn_validation $mp $kvs1
+cmd $HSE_TOOLS_DIR/ctxn_validation -i7 $mp $kvs1
+cmd $HSE_TOOLS_DIR/ctxn_validation -i17 $mp $kvs1
+cmd $HSE_TOOLS_DIR/ctxn_validation -i17 -K13 $mp $kvs1
+cmd $HSE_TOOLS_DIR/ctxn_validation -i34 -K13 $mp $kvs1
+cmd $HSE_TOOLS_DIR/ctxn_validation -s -k1 $mp $kvs1
+cmd $HSE_TOOLS_DIR/ctxn_validation -s -i9 -k1 $mp $kvs1
+cmd $HSE_TOOLS_DIR/ctxn_validation -s -i19 -k1000 $mp $kvs1
+cmd $HSE_TOOLS_DIR/ctxn_validation -s -i5555 -k1 $mp $kvs1
+cmd $HSE_TOOLS_DIR/ctxn_validation -s -i6666 -k7 $mp $kvs1
+cmd $HSE_TOOLS_DIR/ctxn_validation -s -i9999 -k173 $mp $kvs1
+cmd $HSE_TOOLS_DIR/ctxn_validation -c -i5 -k173 $mp $kvs1
+cmd $HSE_TOOLS_DIR/ctxn_validation -p pc -k1 $mp $kvs1
+cmd $HSE_TOOLS_DIR/ctxn_validation -p pc -k3 $mp $kvs1
+cmd $HSE_TOOLS_DIR/ctxn_validation -p pc -i1234 -k0 $mp $kvs1
+cmd $HSE_TOOLS_DIR/ctxn_validation -p pc -i1234 -k1 $mp $kvs1
+cmd $HSE_TOOLS_DIR/ctxn_validation -p pc -i1234 -k1 -r $mp $kvs1
+cmd $HSE_TOOLS_DIR/ctxn_validation -p pc -i1234 -k1 -j64 $mp $kvs1
+cmd $HSE_TOOLS_DIR/ctxn_validation -p gc -i1234 -k1 -j64 $mp $kvs1
+cmd $HSE_TOOLS_DIR/ctxn_validation -p pa -i5 -k1 -j64 $mp $kvs1
+cmd $HSE_TOOLS_DIR/ctxn_validation -p ga -i5 -k1 -j64 $mp $kvs1
+cmd $HSE_TOOLS_DIR/ctxn_validation -p pc -i1234 -k1 -r -j64 $mp $kvs1
+cmd $HSE_TOOLS_DIR/ctxn_validation -p gc -i1234 -k1 -r -j64 $mp $kvs1
+cmd $HSE_TOOLS_DIR/ctxn_validation -p pa -i5 -k1 -r -j64 $mp $kvs1
+cmd $HSE_TOOLS_DIR/ctxn_validation -p ga -i5 -k1 -r -j64 $mp $kvs1
+cmd $HSE_TOOLS_DIR/ctxn_validation -p pc -i1234 -k7 -r -j333 $mp $kvs1
+cmd $HSE_TOOLS_DIR/ctxn_validation $mp $kvs1
+
+

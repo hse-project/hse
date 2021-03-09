@@ -1,0 +1,13 @@
+#!/usr/bin/bash
+
+#doc: kmt/kvdb insert test: 1 billion 20-byte keys with 50-byte values
+
+kvs=$(new_kvs $mp) || err
+
+threads=$(( 2 * $(nproc) ))
+keys=1g
+
+cmd $HSE_TOOLS_DIR/kmt -j$threads -i$keys -s1 -l50 -b $mp/$kvs kvdb.perfc_enable=1
+cmd $HSE_TOOLS_DIR/cn_metrics $mp $kvs
+
+

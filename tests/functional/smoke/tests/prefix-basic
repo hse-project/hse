@@ -1,0 +1,64 @@
+#!/usr/bin/bash
+
+# This test creates a small kvs in which all keys start with an "x"
+# (the primary prefix) followed by one of 13 secondary prefixes,
+# followed by an ID unique to the preceding prefix.
+#
+# We then test that we can scan and find all keys by both their
+# primary and secondary prefixes.
+
+kvs=$(new_kvs $mp) || err
+
+typeset -i pfxmax=12
+typeset -i total=0
+typeset -i found
+typeset -i i
+
+i=1
+while (( i <= pfxmax )) ; do
+    pfx=$(printf "x%04d" $i)
+    cmd $HSE_TOOLS_DIR/kmt -j7 -f "${pfx}_%lu" -i $((100 * i)) $mp/$kvs
+    total+=$((100 * i))
+    i=i+1
+done
+
+# The count of keys with unique prefixes should be ${pfxmax}
+#
+cmd $HSE_TOOLS_DIR/pscan -c -k6 -u $mp $kvs
+found=$(awk '$1 !~ /^#/ && $2 ~ /unique/ {print $1}' $LOG)
+if [ $found -ne $pfxmax ] ; then
+    echo "error: invalid unique prefix count, expected $pfxmax, got $found" >&2
+    exit 1
+fi
+
+cmd $HSE_TOOLS_DIR/pscan $mp $kvs
+sed 1d < $LOG > $LOG_DIR/$HSE_TOOLS_DIR/pscan.1
+
+found=$($HSE_TOOLS_DIR/pscan -c $mp $kvs | awk '{print $1}')
+if [ $found -ne $total ] ; then
+    echo "error:  full scan failed to find all $total keys" >&2
+    exit 1
+fi
+
+cmd $HSE_TOOLS_DIR/pscan -p "x" $mp $kvs
+sed 1d < $LOG > $LOG_DIR/$HSE_TOOLS_DIR/pscan.2
+
+cmp ${LOG_DIR}/$HSE_TOOLS_DIR/pscan.1 ${LOG_DIR}/$HSE_TOOLS_DIR/pscan.2
+if (($?)) ; then
+    echo "error: prefix scan for [x] failed" >&2
+    exit 1
+fi
+
+i=1
+while (( i <= pfxmax )) ; do
+    pfx=$(printf "x%04d" $i)
+    found=$($HSE_TOOLS_DIR/pscan -c -p $pfx $mp $kvs | awk '{print $1}')
+    if [ $found -ne $((100 * i)) ] ; then
+	echo "error: prefix scan [x${i}] failed" >&2
+	exit 1
+    fi
+
+    i=i+1
+done
+
+

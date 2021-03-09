@@ -6,18 +6,6 @@ set -o pipefail
 
 CMD=${0##*/}
 
-# Set up for tmp files and a trap to remove them
-rm_temp_files=1
-trap_sigs="0 1 2 3 15"
-trap trap_proc $trap_sigs
-trap_proc () {
-    set +u
-    if (( rm_temp_files )); then
-	/bin/rm -fr "$TMP" "$TMP".*
-    fi >& /dev/null
-    trap "" $trap_sigs
-}
-
 err () {
     {
         echo "*** ERROR ***"
@@ -29,44 +17,30 @@ err () {
     exit 1
 }
 
-# Variables exported to individual test scripts.
-# Many of these can be modified by command-line args.
-export test_vg=hse_smoke
-export thin_lv=thinpool
-export smoke_lv_prefix=hse_smoke
-export min_size_gb=1024
-
+export STOP_ON_TEST_FAIL=0
+export KEEP_KVDB=0
 export VERBOSE=1
-export DRYRUN=0
-export LOG_TOPDIR=$HOME/smokelogs/$(date +"%Y%m%d/%H%M-$$")
-export TMP=/tmp/$CMD.$$
-export USE_VALGRIND=0
-export MSE_NOMISMATCH=${MSE_NOMISMATCH:-1}
-export sudo="sudo -E"
 
 # set for each test
 export TEST_SCRIPT_DIR=  # directory of test script
 export TEST=             # name of test
-export LOG_DIR=          # each test has its own logdir
-export LOG=              # default log file for current test
-
-export DEV_LIST_FILE=/etc/nf-test-devices
+export LOG_TOPDIR=       # all logs live under the top dir
+export LOG_DIR=          # each test has its own log dir
+export LOG=              # log file for current "cmd"
 
 
 # local vars (not exported to scripts)
 exported_functions=()
 smoke_dir=$(readlink -m "${BASH_SOURCE[0]}"/..) || err "readlink"
-smoke_test_dir=$smoke_dir
+smoke_test_dir=$smoke_dir/tests
+build_dir=
+mpool=
 
-lvinit_mode=0
-lvinit_device=
+
 test_script_options=
 test_list=()
 test_args=()
-show_info=0
 show_test_names=1
-all_tests=0
-USE_VALGRIND=0
 
 exported_functions+=(err)
 
@@ -84,6 +58,7 @@ syntax () {
 file_search () {
     local f=$1; shift
     local d
+
     for d in "$@"; do
         if [[ "$d" == "." || "$d" == "" ]]; then
             if [[ -f "$f" ]]; then
@@ -97,12 +72,8 @@ file_search () {
     done
 }
 
-get_sys_tests () {
-    ls "$smoke_test_dir" | grep -Pv '^(group|disabled)' | grep -v '~$' | grep '^sys\.'
-}
-
 get_tests () {
-    ls "$smoke_test_dir" | grep -Pv '^(group|disabled)' | grep -v '~$' | grep -v '^sys\.'
+    ls "$smoke_test_dir" | grep -Pv '^(group|disabled)' | grep -v '~$'
 }
 
 get_group_tests () {
@@ -122,6 +93,7 @@ get_doc () {
 get_test_script () {
     local t=$1; shift
     local search=("$smoke_test_dir" "$@")
+
     local f=$(file_search "$t" "${search[@]}")
     if [[ "$f" == "" ]]; then
         err "Invalid test: \"$t\"" \
@@ -130,46 +102,25 @@ get_test_script () {
     echo "$f"
 }
 
-exported_functions+=(get_test_devices)
-get_test_devices () {
-    local dev_list
-    local dev_count
-    local help=(
-        "File $DEV_LIST_FILE must contain a list of block special files that"
-        "will be reformatted during smoke testing.")
+check_cli() {
 
-    dev_list=($(sed -e 's/#.*//' "$DEV_LIST_FILE")) || err "Cannot read $DEV_LIST_FILE." "${help[@]}"
+    [[ -x "$HSE_CLI" ]] ||
+        err "Cannot find HSE CLI in build tree: $HSE_CLI"
 
-    dev_count=${#dev_list[@]}
-    (( dev_count > 0 )) || err "${help[@]}"
-
-    for dev in "${dev_list[@]}"; do
-        [[ -b "$dev" ]] ||
-            err "File $DEV_LIST_FILE contains '$dev' which is not a block special file." \
-                "${help[@]}"
-        (( dev_count++ ))
-    done
-    echo "${dev_list[@]}"
+    "$HSE_CLI" -h &> /dev/null ||
+        err "Cannot execute $HSE_CLI"
 }
 
+check_tools() {
 
-check_system () {
-    local devs=$(get_test_devices) >/dev/null
-    local dev
-    local vg
+    [[ -d "$HSE_TOOLS_DIR" ]] ||
+        err "Cannot find tools dir in build tree: $HSE_TOOLS_DIR"
 
-    for dev in $devs; do
-        vg=$($sudo pvs "$dev" --noheadings -o vg_name)
-        vg=$(echo "$vg" | sed -e 's/^ *//')
-        if [[ "$vg" == "" ]]; then
-            : # Good: not part of a VG
-        elif [[ "$vg" == "$test_vg" ]]; then
-            : # Good: part of the smoke test VG
-        else
-            err "Device '$dev' is part of volume group '$vg'" \
-                "You must remove it from the volume group or use" \
-                "a different device."
-        fi
+    local tool
+    for tool in putbin kmt; do
+        local f=$HSE_TOOLS_DIR/$tool
+        [[ -x "$f" ]] ||
+            err "Cannot find executable in tools dir: $f"
     done
 }
 
@@ -187,92 +138,28 @@ check_tests () {
     done
 }
 
-check_modules () {
-    local match
-    local module=mpool
-
-    match=$(lsmod | grep "^$module" 2>/dev/null)
-    [[ "$match" == "" ]] && err "Kernel module '$module' not installed"
-}
-
-exported_functions+=(sys_reset)
-sys_reset () {
-    local mp
-    local dev_list
-    local dev_count
-    local dev
-
-    dev_list=($(sed -e 's/#.*//' "$DEV_LIST_FILE")) || err "Cannot read $DEV_LIST_FILE"
-    dev_count=${#dev_list[@]}
-
-    (( dev_count > 0 )) || err "File $DEV_LIST_FILE must contain a list of block special files"
-
-    for dev in "${dev_list[@]}"; do
-        [[ -b "$dev" ]] || err "File $DEV_LIST_FILE contains '$dev' which is not a block special file"
-        (( dev_count++ ))
+exported_functions+=(destroy_all_kvs)
+destroy_all_kvs () {
+    "$HSE_CLI" kvdb list -v "$mp" \
+        | awk '($1=="kvslist:") {look=1} (look && $1 == "-") {print($2)}' \
+        | while read name; do
+        "$HSE_CLI" kvs destroy "$name" >/dev/null
     done
-
-    cmd -i $sudo mpool scan --deactivate
-
-    if $sudo vgs "$test_vg" &> /dev/null; then
-        cmd -i $sudo vgremove -y "$test_vg"
-    fi
-
-    for dev in "${dev_list[@]}"; do
-        cmd $sudo pvcreate "$dev"
-    done
-    cmd $sudo vgcreate "$test_vg" "${dev_list[@]}"
 }
 
-exported_functions+=(sys_cleanup)
-sys_cleanup () {
-    cmd $sudo vgremove -y "$test_vg"
+exported_functions+=(counter_reset)
+counter_reset () {
+    local f="$LOG_DIR/.counter.$1"
+    echo 0 >> "$f"
 }
 
-show_test_env () {
-    local var_name
-    local var_value
-
-    echo
-    echo "## Smoke environment vars ##"
-    for var_name in $NF_SMOKE_VARS; do
-        var_value=$(eval echo \"\$"$var_name"\")
-        printf "%-16s = %s\n" "$var_name" "$var_value"
-    done
-
-    echo
-    echo "## VG Info ##"
-    $sudo vgdisplay -v "$test_vg"
-}
-
-help ()
-{
-    echo "Usage: $CMD [options] test1 test2 ..."
-    echo "Options:"
-    echo "  -?, -h   // show the help message"
-    echo "  -i       // show info about test environment"
-    echo "  -l       // list tests"
-    echo "  -g       // list groups"
-    echo "  -ll      // long listing (tests with groups)"
-    echo "  -q       // be quiet"
-    echo "  -qq      // be silent except for errors"
-    echo "  -v       // show test output on console"
-    echo "  -x       // enable 'set -x' in test scripts"
-    echo "  -n       // dry run (may require invocation of 'mpool list')"
-    echo "  --all         // run all tests"
-    echo "  --logdir DIR  // override default log directory"
-    echo "  --valgrind    // run with valgrind"
-    echo "  --lvinit DEV  // create LV on DEV"
-    echo ""
-    echo "Run a specific test or group of tests:"
-    echo "  group.perf1 // run test group perf1"
-    echo "  --all       // alias for group.all"
-    echo ""
-    echo "Destructive shortcuts:"
-    echo "  --reset  // destroy all smoketest mpools and logical volumes"
-    echo ""
-    echo "Note: sudo access is required."
-    exit 0
+exported_functions+=(counter_increment)
+counter_increment () {
+    local f="$LOG_DIR/.counter.$1"
+    local count=$(cat "$f")
+    (( count++ ))
+    echo "$count" > "$f"
+    echo "$count"
 }
 
 exported_functions+=(cmd)
@@ -301,68 +188,30 @@ cmd () {
         esac
     done
 
-    local valgrind=0
-    if (( USE_VALGRIND )); then
-        if [[ "$1" =~ /stage/bin/ ]]; then
-            valgrind=1
-        fi
-    fi
+    local cmd_count=$(counter_increment cmd)
+    local log_base=$LOG_DIR/cmd$(printf "%03d" $cmd_count)
 
-    # NF commands may emit a mismatch error when run under sudo.
-    # They are prefixed with a sudo [-E]; find the correct cmd name.
-
-    local arg
-    local log_base=""
-    local cnt=0
-    for arg in "$@"; do
-        arg=${arg##*/}
-        case "$arg" in
-            (hse1)  log_base="$log_base-$arg"; ((cnt++));;
-            (sudo) ;;
-            (-*)   ;;
-            (*)    log_base="$log_base-$arg"; ((cnt++));;
-        esac
-        (( cnt >= 4 )) && break
-    done
-
-    cmd_count=$(cat $TMP.cmd_count)
-    ((cmd_count++))
-    echo $cmd_count > $TMP.cmd_count
-
-    if (( DRYRUN )); then
-        log_base=log.cmd$(printf "%03d" $cmd_count)$log_base
-    else
-        log_base=$LOG_DIR/cmd$(printf "%03d" $cmd_count)$log_base
-    fi
+    # This lets test scripts see logs from previous command
     LOG=$log_base.log
+    LOG_ERR=$log_base.err
 
-    if (( valgrind )); then
-        # reset $@
-        set -- valgrind --suppressions=scripts/valgrind/default.supp --leak-check=full --log-file="$log_base.valgrind" "$@"
+    echo "$@" > $log_base.cmd
+
+    if (( allow_stdout_noise && VERBOSE > 1)); then
+        # VERBOSE > 1 : user sees command line
+        echo "#CMD: $@"
     fi
-
-    if (( DRYRUN )); then
-        (( allow_stdout_noise )) && echo "$@"
-        return
-    fi
-
-    echo "#CMD: $@" >> "$LOG" 2>&1
-    local log_start_line=$(wc -l < "$LOG") || err "wc failed"
-    if (( allow_stdout_noise && VERBOSE > 1 )); then
-        # Echo command and output to terminal.
-        # Use stdbuf so terminal gets timely output.
-        echo "CMD: $@"
-        stdbuf -oL "$@" |& tee -a "$LOG"
+    if (( allow_stdout_noise && VERBOSE > 2 )); then
+        # VERBOSE > 2 : user sees stdout/stderr
+        "$@" 2>"$LOG_ERR" | tee "$LOG"
+        cat "$LOG_ERR"
         status=${PIPESTATUS[0]}
     else
-        # Use stdbuf to be consistent with the verbose > 1 case.  That is, use
-        # it in both cases. If it causes problems, eliminate in both cases.
-        (( allow_stdout_noise && VERBOSE )) && echo "$@"
-        stdbuf -oL "$@" >> "$LOG" 2>&1
+        "$@" >"$LOG" 2>"$LOG_ERR"
         status=$?
     fi
 
-    echo "#CMD_STATUS: $status" >> "$LOG" 2>&1
+    echo "$status" > $log_base.status
 
     case "$check_status" in
         (0) ;; # ignore status
@@ -391,66 +240,21 @@ cmd () {
     true
 }
 
-exported_functions+=(new_mpool)
-new_mpool () {
-
-    local mp=smoke
-    local lv=smoke
-
-    # Need '-q' flags because the output of this command is used by scripts
-    cmd -q -i $sudo mpool deactivate $mp
-    cmd -q -i $sudo lvremove -y "$test_vg"/"$lv"
-    cmd -q $sudo lvcreate -y -l "100%FREE" -n "$lv" "$test_vg"
-    cmd -q $sudo mpool create -f "$mp" "/dev/$test_vg/$lv" uid=$(id -u) gid=$(id -g)
-
-    echo "$mp"
-}
-
-exported_functions+=(new_kvdb)
-new_kvdb () {
-    local mp
-
-    mp=$(new_mpool) || err "new_mpool failed"
-
-    cmd -q hse1 kvdb create "$mp"
-
-    echo "$mp"
-}
-
 exported_functions+=(new_kvs)
 new_kvs () {
-
-    local base=kvs
-    local last_kvs
-    local count
-    local mp
 
     if (( $# < 1 )); then
 	err "new_kvs takes mpool name as arg"
     fi
 
-    mp=$1
+    local mp=$1 # TODO: use env var
     shift
 
-    last_kvs=$(
-	$sudo hse1 kvdb list -v "$mp" 2>/dev/null |
-            sed -ne "s|  *- $mp/$base||p" |
-            sed -e  's/^00*$/0/; s/^00*\([1-9][0-9]*\)/\1/' |
-	    sort -un |
-	    tail -1) || err "hse1 kvs list failed!"
-
-    if [[ -n "$last_kvs" ]]; then
-	(( count = $last_kvs + 1 ))
-    else
-	(( count = 0 ))
-    fi
-
-    count=$(printf "%04d" "$count")
-    kvsname="$base$count"
-
-    cmd -q hse1 kvs create "$mp/$kvsname" "$@"
-
-    echo "$kvsname"
+    # reset counters
+    local kvs_count=$(counter_increment kvs)
+    local kvs_name=smoke$kvs_count
+    cmd -q "$HSE_CLI" kvs create "$mp/$kvs_name" "$@"
+    echo "$kvs_name"
 }
 
 run_one_test () {
@@ -459,125 +263,181 @@ run_one_test () {
     TEST=${script##*/}
     TEST_SCRIPT_DIR=$(dirname $(readlink -m "$script"))
 
-    # Make sure LOG_DIR is a fresh dir.  Append incrementing numbers to
-    # default name to avoid reusing an existing directory.
-    log_sub_dir="$LOG_TOPDIR/$TEST"
-    if [[ -d "$log_sub_dir" ]]; then
-        suffix=0
-        while [[ -d "${log_sub_dir}.${suffix}" ]]; do
-            (( suffix++ ))
-        done
-        log_sub_dir=$log_sub_dir.$suffix
-    fi
-    LOG_DIR=$log_sub_dir
+    LOG_DIR=$LOG_TOPDIR/$TEST
 
-    if (( !DRYRUN )); then
-        # create LOG_DIR
-        if [[ ! -d "$LOG_DIR" ]]; then
-            mkdir -p "$LOG_DIR" || err "Cannot create log directory: $LOG_DIR"
+    # recreate LOG_DIR
+    rm -f "$LOG_DIR"
+    [[ -d "$LOG_DIR" ]] && err "Cannot remove old log directory: $LOG_DIR"
+    mkdir -p "$LOG_DIR" || err "Cannot create log directory: $LOG_DIR"
+
+    local test_argc=${#test_args[@]}
+
+    # announce test
+    if (( VERBOSE )); then
+        echo ""
+        if (( test_argc > 0 )); then
+            echo "#TEST: $TEST" "${test_args[@]}"
+        else
+            echo "#TEST: $TEST"
+        fi
+        echo "#LOGS: $LOG_DIR/"
+    fi
+
+    # reset counters for test script
+    counter_reset cmd
+    counter_reset kvs
+
+    # set env vars for test script
+    export mp=$mpool
+
+    case "$TEST" in
+        (aloha|version) true;;
+        (*) destroy_all_kvs;;
+    esac
+
+    start_sec=$(date +%s)
+    start_nsec=$(date +%N)
+
+    if (( test_argc > 0 )); then
+        bash -u $test_script_options "$script" "${test_args[@]}"
+        local test_failed=$?
+    else
+        bash -u $test_script_options "$script"
+        local test_failed=$?
+    fi
+
+    if (( test_failed )); then
+        touch $LOG_DIR/stat.failed
+        if (( STOP_ON_TEST_FAIL )); then
+            err "TEST FAILED"
         fi
     fi
 
-    # announce test and set test log
-    local test_argc=${#test_args[@]}
-    if (( test_argc > 0 )); then
-        echo "#TEST: $TEST" "${test_args[@]}"
-    else
-        echo "#TEST: $TEST"
+    if (( ! KEEP_KVDB )); then
+        destroy_all_kvs
     fi
-    echo "#LOGS: $LOG_DIR/"
 
-    # run test script
-    if (( test_argc > 0 )); then
-        bash -u $test_script_options "$script" "${test_args[@]}"
-        local status=$?
-    else
-        bash -u $test_script_options "$script"
-        local status=$?
-    fi
-    (( DRYRUN )) && return
-    rm -f $LOG_DIR/stat.success
-    rm -f $LOG_DIR/stat.failed
+    if (( ! test_failed )); then
+        end_sec=$(date +%s)
+        end_nsec=$(date +%N)
 
-    if (( status )); then
-        touch $LOG_DIR/stat.failed
-        err "TEST FAILED"
-        exit 1
+        # remove leading 0 from nsec values to ensure bash
+        # seeds it as a base 10 number.
+
+        start_nsec=$(echo "$start_nsec" | sed -e s/^0*//)
+        [[ -z "$start_nsec" ]] && start_nsec=0
+
+        end_nsec=$(echo "$end_nsec" | sed -e s/^0*//)
+        [[ -z "$end_nsec" ]] && end_nsec=0
+
+        (( msecs = (end_sec - start_sec) * 1000 + (end_nsec / 1000000 - start_nsec / 1000000) ))
+
+        duration=$(printf "%d.%03d\n" $((msecs/1000)) $((msecs%1000)))
+
+        if ((VERBOSE)); then
+            echo "#TIME: $duration seconds"
+        fi
+
+        echo "$duration" > $LOG_DIR/duration
+        touch $LOG_DIR/stat.success
     fi
-    touch $LOG_DIR/stat.success
+}
+
+show_groups () {
+    local g
+    for g in $(get_groups); do
+        printf "%-20s    ## %s\n" "$g" "$(get_doc "$g")"
+    done
+}
+show_tests () {
+    local t
+    for t in $(get_tests); do
+        printf "%-20s  # %s\n" "$t" "$(get_doc "$t")"
+    done
+}
+show_tests_long () {
+    local g
+    local t
+    for g in $(get_groups); do
+        printf "%-20s    ## %s\n" "$g" "$(get_doc "$g")"
+        for t in $(get_group_tests "$g"); do
+            printf "  %-20s  # %s\n" "$t" "$(get_doc "$t")"
+        done
+        printf "\n"
+    done
+}
+
+help ()
+{
+    echo "Usage:"
+    echo "  $CMD -C <BUILD_DIR> -m <mpool> [options]"
+    echo "Required:"
+    echo "  -C BUILD_DIR // set build dir (required)"
+    echo "Options:"
+    echo "  -d DIR       // override default log directory"
+    echo "  -g           // list groups"
+    echo "  -h           // show the help message"
+    echo "  -l           // list tests"
+    echo "  -L           // list tests, more detail"
+    echo "  -s           // stop on first test failure"
+    echo "  -v           // bump verbosity"
+    echo "  -V N         // set verbosity (0=quiet, 2=max)"
+    echo "  -x           // enable 'set -x' in test scripts (for debugging)"
+    echo "Notes:"
+    echo "  - Tests can be specified by name, by file or by group."
+    echo "  - Some tests are broken.  They can be run by name or with group \"all\"".
+    echo "Examples:"
+    echo "  $CMD -C build -m mp1               # run standard smoke tests"
+    echo "  $CMD -C build -m mp1 group.all     # run the 'all' group"
+    echo "  $CMD -C build -m mp1 putget1 kmt1  # run specific tests"
+    echo "  $CMD -C build -m mp1 tests/functional/smoke/tests/putget1   # run by file"
 }
 
 
-
-while (( $# > 0 )); do
-    case "$1" in
-
-        (-\?|-h) help;;
-        (--logdir)
-            (( $# > 1 )) || syntax "Expect value after '$1'"
-            LOG_TOPDIR="$2"
-            shift 2
-            ;;
-
-        (-g)
-            GRPS=$(get_groups) || exit 1
-            for g in $GRPS; do
-                printf "%-20s    ## %s\n" "$g" "$(get_doc "$g")"
-            done
-            exit 0
-            ;;
-
-        (-l)
-            for t in $(get_sys_tests) $(get_tests); do
-                printf "%-20s  # %s\n" "$t" "$(get_doc "$t")"
-            done
-            exit 0
-            ;;
-
-        (-ll)
-            for g in $(get_groups); do
-                printf "%-20s    ## %s\n" "$g" "$(get_doc "$g")"
-                for t in $(get_group_tests "$g"); do
-                    printf "  %-20s  # %s\n" "$t" "$(get_doc "$t")"
-                done
-                printf "\n"
-            done
-            exit 0
-            ;;
-
-        (--lvinit)
-            (( $# > 1 )) || syntax "Expect value after '$1'"
-            lvinit_mode=1
-            lvinit_device=$2
-            shift 2
-            ;;
-
-        (-n)    DRYRUN=1; shift;;
-        (-v)    (( VERBOSE++ )); shift;;
-        (-vv)   (( VERBOSE += 2 )); shift;;
-        (-q)    VERBOSE=0; shift;;
-        (-i)    show_info=1; shift;;
-        (-x)    test_script_options="-x"; shift;;
-        (--all) all_tests=1; shift;;
-        (--valgrind) USE_VALGRIND=1; shift;;
-        (--reset)  test_list+=(sys.reset); shift;;
-        (--)    shift; test_args=($@); shift $#;;
-        (-*)    syntax "Unknown option: '$1'";;
-
-        (*)     test_list+=($1); shift;;
-    esac
+while getopts ":C:d:ghklLm:m:svV:x" option; do
+    case "$option" in
+        (C) build_dir=$OPTARG;;
+        (d) LOG_TOPDIR=$OPTARG;;
+        (g) show_groups; exit 0;;
+        (h) help; exit 0;;
+        (k) KEEP_KVDB=1;;
+        (l) show_tests; exit 0;;
+        (L) show_tests_long; exit 0;;
+        (m) mpool=$OPTARG;;
+        (s) STOP_ON_TEST_FAIL=1;;
+        (v) (( VERBOSE++ ));;
+        (V) (( VERBOSE=OPTARG )); [[ "$VERBOSE" =~ ^[0-9]+$ ]] || err "Invalid verbosity value: $OPTARG";;
+        (x) test_script_options="-x";;
+        (\?) err "Invalid option: -$OPTARG";;
+        (:)  err "Invalid option: -$OPTARG requires a parameter";;
+        (*)  err "Bug in option parsing!";;
+    esac                      
 done
 
-echo 0 > $TMP.cmd_count
+shift $((OPTIND-1))
+test_list=("$@")
 
-if (( show_info )); then
-    show_test_env
-    exit 0
+[[ -n "$mpool"     ]] || err "Missing required parameter: -m <mpool>"
+[[ -n "$build_dir" ]] || err "Missing required parameter: -C <build_dir>"
+[[ -d "$build_dir" ]] || err "Non-existent build directory: $build_dir"
+
+if [[ -z "$LOG_TOPDIR" ]]; then
+    # Using default log dir
+    LOG_TOPDIR=$build_dir/smokelogs
+else
+    # Not using default log dir: let user remove it to avoid rm -fr fiasco
+    [[ ! -d "$LOG_TOPDIR" ]] ||
+        err "Custom log directory already exists: $LOG_TOPDIR" \
+            "Please remove it or use another path that doesn't yet exist"
 fi
 
-check_system
+export HSE_SAMPLES_DIR=$build_dir/samples
+export HSE_TOOLS_DIR=$build_dir/tools
+export HSE_CLI=$build_dir/cli/hse1
+
+check_cli
+check_tools
 check_tests
-check_modules
 
 # Export shell functions to test scripts
 for fn in "${exported_functions[@]}"; do
@@ -587,17 +447,8 @@ done
 # stupid bash treats an empty array as an unset var, so turn off -u
 # to check test_list, then re-enable
 set +u
-if (( all_tests )); then
-    if (( "${#test_list[@]}" != 0 )); then
-        err "Cannot specify a test or group with the '--all' option"
-    fi
-    test_list=($(get_tests))
-fi
 if (( "${#test_list[@]}" == 0 )); then
-    err "Must specify a test!"
-fi
-if [[ "$NF_SMOKING" != 1 ]]; then
-    err "Must run 'source smoke-setenv release' before running smoke tests"
+    test_list=(group.smoke)
 fi
 set -u
 
@@ -628,14 +479,16 @@ for arg in "${test_list[@]}"; do
         while read grptest; do
             script=$(get_test_script "$grptest" "${spath[@]}") || exit 1
             script_list+=($script)
-        done < <(grep -v '^#' < "$test_file")
+        done < <(grep -Pv '(^#)|(^\s*$)' < "$test_file")
     else
         script_list+=($test_file)
     fi
 done
 
+# run tests
+rm -fr "$LOG_TOPDIR"
+mkdir -p "$LOG_TOPDIR"
 for script in "${script_list[@]}"; do
-    echo 0 > $TMP.cmd_count
     run_one_test "$script"
 done
 

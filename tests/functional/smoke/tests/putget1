@@ -1,0 +1,8 @@
+#!/usr/bin/bash
+
+#doc: simple putgetdel test
+
+keys=10000
+kvs=$(new_kvs $mp) || err
+
+cmd $HSE_TOOLS_DIR/putgetdel $mp $kvs -c $keys

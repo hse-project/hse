@@ -1,0 +1,15 @@
+#!/usr/bin/bash
+
+#doc: 60s longtest
+kvs=$(new_kvs $mp) || err
+
+keys=$((20*1000*1000))
+threads=$(nproc)
+seconds=60
+
+cmd $HSE_TOOLS_DIR/longtest $mp $kvs -t $threads -s $seconds -c $keys kvdb.perfc_enable=1
+cmd $HSE_TOOLS_DIR/cn_metrics $mp $kvs
+
+
+
+

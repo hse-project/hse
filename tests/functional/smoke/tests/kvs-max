@@ -1,0 +1,14 @@
+#!/usr/bin/bash
+
+#doc: ensure we can create 256 kvs'
+
+typeset -i i=256
+
+while (( i>0 )) ; do
+    i=i-1
+    cmd "$HSE_CLI" kvs create "${mp}/kvs$i" || err
+done
+
+cmd $HSE_TOOLS_DIR/kmt -i1k -t5 -cx -s1 "${mp}/kvs$i"
+
+

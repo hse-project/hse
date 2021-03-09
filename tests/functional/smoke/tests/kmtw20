@@ -1,0 +1,15 @@
+#!/usr/bin/bash
+
+
+#doc: quick kvdb/cn performance test using kmt (60s, 20% writes)
+w=20
+seconds=60
+
+kvs=$(new_kvs $mp) || err
+
+cmd $HSE_TOOLS_DIR/kmt -i20m -t$seconds -bcDR -s1 -w$w -j$(nproc) $mp/$kvs
+cmd $HSE_TOOLS_DIR/cn_metrics $mp $kvs
+
+
+
+

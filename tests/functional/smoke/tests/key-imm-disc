@@ -1,0 +1,22 @@
+#!/usr/bin/bash
+
+#doc: test edges of key_immediate and key_disc
+
+key_formats=(
+    '%lx'    # 1 byte keys
+    '%09lx'  # 9 byte keys
+    '%09lx'  # 17 byte keys
+    '%022lx' # 22 byte keys (max key_immediate data size)
+    '%023lx' # 23 byte keys (max key_immediate data size + 1)
+    '%024lx' # 24 byte keys (max key_disc data size)
+    '%025lx' # 25 byte keys (max key_disc data size + 1)
+)
+
+
+for fmt in $key_formats; do
+    kvs=$(new_kvs $mp) || err
+    cmd $HSE_TOOLS_DIR/kmt -s1 -c -f "$fmt" -j3 -i16 -t30 $mp/$kvs
+    cmd $HSE_TOOLS_DIR/kmt -s1 -c -f "$fmt" $mp/$kvs
+done
+
+
