@@ -586,20 +586,35 @@ if black.found()
     )
 endif
 
-shell = run_command(
-    'sh',
-    '-c',
-    'echo $SHELL',
-    check: true,
-).stdout().strip()
-run_target(
-    'shell',
-    command: [
-        shell,
-    ],
-    env: run_env,
-)
-
 if not meson.is_subproject()
+    pkg_config_path = run_command(
+        'sh',
+        '-c',
+        'echo $PKG_CONFIG_PATH',
+        check: true,
+    ).stdout().strip()
+    run_env.set(
+        'PKG_CONFIG_PATH',
+        '@0@:@1@:@2@'.format(
+            meson.project_build_root() / 'meson-uninstalled',
+            ':'.join(get_option('pkg_config_path')),
+            pkg_config_path
+        )
+    )
+
+    shell = run_command(
+        'sh',
+        '-c',
+        'echo $SHELL',
+        check: true,
+    ).stdout().strip()
+    run_target(
+        'shell',
+        command: [
+            shell,
+        ],
+        env: run_env,
+    )
+
     meson.add_dist_script('scripts' / 'release' / 'gen-version')
 endif
