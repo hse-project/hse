@@ -67,13 +67,15 @@ struct mock_cn {
 struct c0 {
 };
 
+#define mock_c0_h2r(h) container_of(h, struct mock_c0, handle)
+
 struct mock_c0 {
+    char            tripwire[PAGE_SIZE * 3];
     struct c0       handle;
-    struct c0sk    *c0_c0sk;
-    u32             index;
-    char            tripwire[PAGE_SIZE * 3] __aligned(PAGE_SIZE);
     struct c0_data  data[KEY_CNT];
+    struct c0sk    *c0_c0sk;
     u64             hash;
+    u32             index;
 } HSE_ALIGNED(PAGE_SIZE);
 
 struct c0_cursor {
@@ -124,7 +126,7 @@ _c0_open(struct ikvdb *kvdb, struct kvs_rparams *rp, struct cn *cn, struct mpool
         mn->data = m0->data; /* inform mock_cn of the data */
     }
 
-    *h = (struct c0 *)m0;
+    *h = &m0->handle;
 
     return 0;
 }
@@ -132,7 +134,7 @@ _c0_open(struct ikvdb *kvdb, struct kvs_rparams *rp, struct cn *cn, struct mpool
 static merr_t
 _c0_close(struct c0 *h)
 {
-    struct mock_c0 *c0 = (void *)h;
+    struct mock_c0 *c0 = mock_c0_h2r(h);
 
     if (munmap(c0, sizeof(c0)))
         return merr(errno);
@@ -143,7 +145,7 @@ _c0_close(struct c0 *h)
 static u16
 _c0_index(struct c0 *handle)
 {
-    struct mock_c0 *m0 = (void *)handle;
+    struct mock_c0 *m0 = mock_c0_h2r(handle);
 
     return m0 ? m0->index : HSE_KVS_COUNT_MAX - 1;
 }
@@ -151,7 +153,7 @@ _c0_index(struct c0 *handle)
 static u64
 _c0_hash_get(struct c0 *handle)
 {
-    struct mock_c0 *m0 = (void *)handle;
+    struct mock_c0 *m0 = mock_c0_h2r(handle);
 
     return m0 ? m0->hash : -1;
 }
@@ -177,7 +179,7 @@ _c0_cursor_create(
     /* Make the tripwire pages inaccessible to catch errant
      * unmocked accesses dead in their tracks.
      */
-    if (mprotect(cur, sizeof(cur->tripwire), PROT_NONE))
+    if (mprotect(cur->tripwire, sizeof(cur->tripwire), PROT_NONE))
         return merr(errno);
 
     *c0cur = (void *)cur;
@@ -247,8 +249,8 @@ _c0_put(
     const struct kvs_vtuple *vt,
     const uintptr_t          seqnoref)
 {
-    struct mock_c0         *m0 = (void *)handle;
-    int                     i;
+    struct mock_c0 *m0 = mock_c0_h2r(handle);
+    int             i;
 
     if (kt->kt_len > KEY_LEN || kvs_vtuple_vlen(vt) > VAL_LEN)
         return merr(ev(EINVAL));
@@ -275,7 +277,7 @@ _c0_get(
     enum key_lookup_res *    res,
     struct kvs_buf *         vbuf)
 {
-    struct mock_c0 *m0 = (void *)handle;
+    struct mock_c0 *m0 = mock_c0_h2r(handle);
     int             i;
 
     if (kt->kt_len > KEY_LEN || vbuf->b_buf_sz > VAL_LEN)
@@ -313,7 +315,7 @@ _cn_get(
 static merr_t
 _c0_del(struct c0 *handle, struct kvs_ktuple *kt, const uintptr_t seqno)
 {
-    struct mock_c0 *m0 = (void *)handle;
+    struct mock_c0 *m0 = mock_c0_h2r(handle);
     int             i;
 
     if (kt->kt_len > KEY_LEN)
@@ -332,7 +334,7 @@ _c0_del(struct c0 *handle, struct kvs_ktuple *kt, const uintptr_t seqno)
 static merr_t
 _c0_prefix_del(struct c0 *handle, struct kvs_ktuple *kt, u64 seqno)
 {
-    struct mock_c0 *m0 = (void *)handle;
+    struct mock_c0 *m0 = mock_c0_h2r(handle);
     int             i;
 
     if (kt->kt_len > KEY_LEN)
