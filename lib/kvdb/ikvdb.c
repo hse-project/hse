@@ -2911,7 +2911,8 @@ ikvdb_import_toc(
         return err;
     }
 
-    buf = malloc(buflen);
+    /* Need an extra byte to terminate string read from TOC file */
+    buf = malloc(buflen + 1);
     if (!buf) {
         err = merr(ev(ENOMEM, HSE_ERR));
         fclose(f);
@@ -2931,6 +2932,8 @@ ikvdb_import_toc(
         free(buf);
         return err;
     }
+
+    buf[buflen] = '\0';
 
     crc_rd = le32_to_cpu(*((u32 *)buf));
 
