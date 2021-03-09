@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
 #include <hse_ut/framework.h>
@@ -182,7 +182,12 @@ MTF_DEFINE_UTEST(seqno_test, seqno_test_assert)
     if (0 == sigsetjmp(env, 1))
         state = seqnoref_to_seqno(seqno, &chk);
 
-#ifdef HSE_BUILD_RELEASE
+    /* If assert() is enabled then seqnoref_to_seqno() will quietly
+     * succeed and return HSE_SQNREF_STATE_INVALID.  Otherwise, the
+     * assert will fire and the we'll jump back to a context in
+     * which state contains its initial value.
+     */
+#ifdef NDEBUG
     ASSERT_EQ(state, HSE_SQNREF_STATE_INVALID);
     ASSERT_EQ(0, sigabrt_cnt);
 #else

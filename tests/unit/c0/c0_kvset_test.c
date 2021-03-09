@@ -1062,7 +1062,11 @@ MTF_DEFINE_UTEST_PREPOST(c0_kvset_test, finalize, no_fail_pre, no_fail_post)
         err = c0kvs_del(kvs, 0, &kt, iseqno);
     }
 
-#ifdef HSE_BUILD_RELEASE
+    /* If assert() is enabled then c0kvs_del() will quietly succeed.
+     * Otherwise, the assert will fire and the we'll jump back to a
+     * context in which err contains its initial value.
+     */
+#ifdef NDEBUG
     ASSERT_EQ(0, sigabrt_cnt);
     ASSERT_EQ(0, err);
 #else
@@ -1081,7 +1085,11 @@ MTF_DEFINE_UTEST_PREPOST(c0_kvset_test, finalize, no_fail_pre, no_fail_post)
         err = c0kvs_put(kvs, 0, &kt, &vt, iseqno);
     }
 
-#ifdef HSE_BUILD_RELEASE
+    /* If assert() is enabled then c0kvs_put() will quietly succeed.
+     * Otherwise, the assert will fire and the we'll jump back to a
+     * context in which err contains its initial value.
+     */
+#ifdef NDEBUG
     ASSERT_EQ(0, sigabrt_cnt);
     ASSERT_EQ(0, err);
 #else
