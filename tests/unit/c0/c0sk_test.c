@@ -1042,10 +1042,10 @@ retry:
 
     destroy_key_generator(kg);
 
-    c0snr_set_destroy(css);
-
     err = c0sk_close(mkvdb.ikdb_c0sk);
     ASSERT_EQ(0, err);
+
+    c0snr_set_destroy(css);
 
     destroy_mock_cn(mock_cn);
 }
@@ -1502,10 +1502,10 @@ MTF_DEFINE_UTEST_PREPOST(c0sk_test, parallel_ctxn_put, no_fail_ctxn_pre, no_fail
 
     destroy_key_generator(kg);
 
-    c0snr_set_destroy(css);
-
     err = c0sk_close(mkvdb.ikdb_c0sk);
     ASSERT_EQ(0, err);
+
+    c0snr_set_destroy(css);
 
     destroy_mock_cn(mock_cn);
 }
