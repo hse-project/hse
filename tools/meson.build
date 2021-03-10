@@ -1,4 +1,5 @@
 subdir('3rdparty')
+subdir('scripts')
 
 tools = {
     'attack': {
