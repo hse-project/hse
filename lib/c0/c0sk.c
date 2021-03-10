@@ -645,26 +645,6 @@ c0sk_flush(struct c0sk *handle, struct c0_kvmultiset *new)
     return c0sk_flush_current_multiset(self, new, NULL);
 }
 
-merr_t
-c0sk_merge(
-    struct c0sk *          handle,
-    struct c0_kvmultiset * src,
-    struct c0_kvmultiset **dstp,
-    uintptr_t **           ref)
-{
-    struct c0sk_impl *self;
-
-    if (ev(!handle))
-        return merr(EINVAL);
-
-    self = c0sk_h2r(handle);
-
-    if (self->c0sk_kvdb_rp->read_only)
-        return 0;
-
-    return c0sk_merge_impl(self, src, dstp, ref);
-}
-
 static void
 c0sk_sync_debug(struct c0sk_impl *self, u64 waiter_gen)
 {
@@ -801,17 +781,6 @@ c0sk_cursor_release(struct c0_cursor *cur)
     this = cur->c0cur_active;
     cur->c0cur_active = NULL;
 
-    /* Do not putref transaction KVMSes */
-    if (cur->c0cur_ctxn) {
-        next = MSCUR_NEXT(this);
-
-        c0kvms_cursor_destroy(this);
-        c0sk_cursor_put_free(cur, this);
-
-        cur->c0cur_ctxn = 0;
-        this = next;
-    }
-
     /* Destroy KVMS cursors */
     for (i = 0; this; this = next, i++) {
         next = MSCUR_NEXT(this);
@@ -841,94 +810,6 @@ c0sk_cursor_ptomb_reset(struct c0_cursor *cur)
     cur->c0cur_ptomb_klen = 0;
     cur->c0cur_ptomb_seq = 0;
     cur->c0cur_ptomb_es = 0;
-}
-
-bool
-c0sk_cursor_ctxn_preserve_tombspan(
-    struct c0_cursor *cur,
-    const void *      kmin,
-    u32               kmin_len,
-    const void *      kmax,
-    u32               kmax_len)
-{
-    struct c0_kvmultiset *kvms;
-
-    kvms = cur->c0cur_ctxn ? kvdb_ctxn_get_kvms(cur->c0cur_ctxn) : NULL;
-    if (kvms)
-        return c0kvms_preserve_tombspan(kvms, cur->c0cur_skidx, kmin, kmin_len, kmax, kmax_len);
-    return true;
-}
-
-static void
-c0sk_cursor_preserve_tombspan(
-    struct c0_cursor *       cur,
-    u64                      last_gen,
-    struct c0_kvmultiset **  kvmsv,
-    int                      cnt,
-    const struct kvs_ktuple *kt_min,
-    const struct kvs_ktuple *kt_max,
-    u32 *                    out)
-{
-    struct c0sk_impl *c0sk;
-    int               i;
-    const void *      kmin, *kmax;
-    u32               kmin_len, kmax_len;
-
-    c0sk = c0sk_h2r(cur->c0cur_c0sk);
-
-    assert(kt_min);
-    assert(kt_max);
-    assert(out);
-
-    c0sk = c0sk_h2r(cur->c0cur_c0sk);
-    kmin = kt_min->kt_data;
-    kmin_len = kt_min->kt_len;
-    kmax = kt_max->kt_data;
-    kmax_len = kt_max->kt_len;
-
-    /* If we've ingested any KVMS since the last active KVMS, then
-     * we cannot detect mutations. Invalidate the tombspan.
-     */
-    if ((cnt && c0kvms_gen_read(kvmsv[cnt - 1]) > last_gen) ||
-        (!cnt && c0sk->c0sk_release_gen >= last_gen)) {
-        if (out)
-            *out = *out | CURSOR_FLAG_TOMBS_INV_KVMS;
-        return;
-    }
-
-    for (i = 0; i < cnt; i++) {
-        if (c0kvms_gen_read(kvmsv[i]) < last_gen)
-            return;
-
-        /*
-         * [HSE_REVISIT]
-         * If ingests aren't happening, it is possible that a single
-         * mutation within the tombspan invalidates it. The mutation may
-         * have occurred prior to creating the tombspan. It repeatedly
-         * invalidates the tombspan because the same KVMS is active
-         * when this cached c0 cursor is reused.
-         */
-        if (!c0kvms_preserve_tombspan(kvmsv[i], cur->c0cur_skidx, kmin, kmin_len, kmax, kmax_len))
-            break;
-    }
-
-    if (i != cnt) {
-        if (c0kvms_gen_read(kvmsv[0]) == cur->c0cur_inv_gen) {
-            cur->c0cur_inv_cnt++;
-        } else {
-            cur->c0cur_inv_gen = c0kvms_gen_read(kvmsv[0]);
-            cur->c0cur_inv_cnt = 0;
-        }
-
-        if (cur->c0cur_inv_cnt % TOMBSPAN_INVALIDATE_COUNT == 0) {
-            c0sk_flush(cur->c0cur_c0sk, NULL);
-            if (out)
-                *out = *out | CURSOR_FLAG_TOMBS_FLUSH;
-        }
-
-        if (out)
-            *out = *out | CURSOR_FLAG_TOMBS_INV_PUTS;
-    }
 }
 
 /*
@@ -969,9 +850,7 @@ c0sk_cursor_trim(struct c0_cursor *cur)
     rcu_read_unlock();
 
     /*
-     * Check if everything has been ingested;
-     * if this is trimming a bound cursor, ignore the first kvms,
-     * which will always be gen 0.
+     * Check if everything has been ingested
      */
     if (!cur->c0cur_ctxn && c0kvms_gen_read(this->c0mc_kvms) < lastgen) {
         cur->c0cur_active = NULL;
@@ -1302,82 +1181,10 @@ c0sk_get_last_c0kvms(struct c0sk *handle)
     return (&kvms->c0ms_link == head) ? NULL : kvms;
 }
 
-merr_t
+void
 c0sk_cursor_bind_txn(struct c0_cursor *cur, struct kvdb_ctxn *ctxn)
 {
-    struct c0_kvmultiset *kvms;
-    struct c0_kvmultiset_cursor *this, *next;
-
     cur->c0cur_ctxn = ctxn;
-    if (!ctxn) {
-        /*
-         * If there is no active kvms, then C0CUR_STATE_NEED_INIT
-         * should be set, and the txn had no kvms.
-         *
-         * e.g:
-         * kvdb_ctxn_begin($t)
-         * kvs_cursor_create(bind to $t)
-         * kvdb_ctxn_abort($t)
-         * kvs_cursor_read()
-         */
-        this = cur->c0cur_active;
-        if (!this) {
-            assert(cur->c0cur_state & C0CUR_STATE_NEED_INIT);
-            return 0;
-        }
-
-        kvms = this->c0mc_kvms;
-        next = MSCUR_NEXT(this);
-
-        /*
-         * Common cases:
-         *  1. Txn was successfully merged: in this case it's safe
-         *     to destroy the txn kvms cursor.
-         *  2. Txn kvms was flushed: unbind the txn because the cursor
-         *     didn't have a ref on this kvms while it belonged to the
-         *     txn. Also, simply getting a ref on this kvms is not
-         *     enough as there may be new KVMSes between this flushed
-         *     kvms and the first c0kvms in the cursor's view which
-         *     could be missed.
-         *  3. Txn merge failed: The txn kvms is still not on the c0sk
-         *     list, so it is safe to unbind.
-         *  4. There was no txn kvms (i.e. it was a read-only txn):
-         *     Nothing to do.
-         */
-
-        if (cur->c0cur_kvmsv[0] == kvms)
-            return 0; /* no txn kvms, nothing to do */
-
-        cur->c0cur_active = next;
-
-        bin_heap2_remove_src(cur->c0cur_bh, &this->c0mc_es, false);
-        c0kvms_cursor_destroy(this);
-        c0sk_cursor_put_free(cur, this);
-
-        --cur->c0cur_summary->n_kvms;
-        return 0;
-    }
-
-    /* cursors do not take references on txn KVMSes because a txn usually
-     * reuses its KVMSes. If a cursor were to hold on to a reference to
-     * a txn KVMS, it would prevent the txn from reusing it until the
-     * cursor is destroyed.
-     */
-    kvms = kvdb_ctxn_get_kvms(ctxn);
-    if (!kvms)
-        return 0;
-
-    if (cur->c0cur_state & C0CUR_STATE_NEED_INIT)
-        if (c0sk_cursor_init(cur))
-            return ev(cur->c0cur_merr);
-
-    if (ev(cur->c0cur_cnt >= HSE_C0_KVSET_CURSOR_MAX)) {
-        cur->c0cur_merr = merr(EAGAIN);
-        return cur->c0cur_merr;
-    }
-
-    c0sk_cursor_add_kvms(cur, kvms);
-    return ev(cur->c0cur_merr);
 }
 
 merr_t
@@ -1732,24 +1539,21 @@ merr_t
 c0sk_cursor_update(
     struct c0_cursor *       cur,
     u64                      seqno,
-    const struct kvs_ktuple *kt_min,
-    const struct kvs_ktuple *kt_max,
     u32 *                    flags_out)
 {
     struct c0_kvmultiset *new[HSE_C0_KVSET_CURSOR_MAX];
-    struct c0_kvmultiset *       kvms;
+    struct c0_kvmultiset *       kvms = NULL;
     struct c0_kvmultiset_cursor *active, *p;
     struct c0sk_impl *           c0sk;
     int                          cnt, nact;
-    merr_t                       err;
-    bool                         tombs = (kt_min != 0);
-    u64                          last_gen = cur->c0cur_act_gen;
 
     if (flags_out)
         *flags_out = (seqno != cur->c0cur_seqno) ? CURSOR_FLAG_SEQNO_CHANGE : 0;
 
     cur->c0cur_seqno = seqno;
 
+    /* HSE_REVISIT: Skip trim if this is a bound cursor
+     */
     c0sk_cursor_trim(cur);
 
     /* trimming could possibly have removed all active kvms */
@@ -1757,45 +1561,15 @@ c0sk_cursor_update(
         if (c0sk_cursor_init(cur))
             return ev(cur->c0cur_merr);
 
-        if (HSE_UNLIKELY(tombs))
-            c0sk_cursor_preserve_tombspan(
-                cur, last_gen, cur->c0cur_kvmsv, cur->c0cur_cnt, kt_min, kt_max, flags_out);
-
         if (!cur->c0cur_ctxn)
             return 0;
     }
 
-    /*
-     * If bound, the first kvms is the txn kvms.  However,
-     * a txn may not (yet) have a kvms -- no puts made (yet)
-     * so this update may be a nop, or there may be all the discovery
-     * and positioning work to do for a new kvms.
-     *
-     * NB: c0sk_cursor_init may not have been called (yet).
-     * e.g. create-with-bind, seek
+    /* HSE_REVISIT: For a bound cursor (!cur->c0cur_ctxn), just add any new kvms from
+     * the c0 list where gen(c0kvms) > gen(active).
      */
     active = cur->c0cur_active;
-
-    if (cur->c0cur_ctxn) {
-        kvms = kvdb_ctxn_get_kvms(cur->c0cur_ctxn);
-        if (!kvms)
-            return 0;
-
-        if (kvms == active->c0mc_kvms) {
-            c0sk_cursor_update_active(cur);
-            return 0;
-        }
-
-        /* kvms is new, so leverage bind */
-        err = c0sk_cursor_bind_txn(cur, cur->c0cur_ctxn);
-        return ev(err);
-    }
-
-    /* The cursor  must be unbound by this stage, in which case the elements
-     * in the list of cursors and the array of referenced KVMSes should
-     * correspond with each other.
-     */
-    assert(!active || active->c0mc_kvms == cur->c0cur_kvmsv[0]);
+    assert(active->c0mc_kvms == cur->c0cur_kvmsv[0]);
 
     for (nact = 0, p = active; p; p = MSCUR_NEXT(p))
         ++nact;
@@ -1808,7 +1582,6 @@ c0sk_cursor_update(
     }
 
     c0sk = c0sk_h2r(cur->c0cur_c0sk);
-    last_gen = cur->c0cur_act_gen;
     cnt = 0;
 
     rcu_read_lock();
@@ -1829,9 +1602,6 @@ c0sk_cursor_update(
             c0kvms_putref(new[cnt]);
         return merr(EAGAIN);
     }
-
-    if (HSE_UNLIKELY(tombs))
-        c0sk_cursor_preserve_tombspan(cur, last_gen, new, cnt, kt_min, kt_max, flags_out);
 
     c0sk_cursor_record_active_gen(cur, new, cnt);
 

@@ -8,7 +8,6 @@
 #include "bonsai_tree_pvt.h"
 
 #define BN_INSERT_FLAG_RIGHT    0x01u
-#define BN_INSERT_FLAG_TOMB     0x02u
 
 static struct bonsai_node *
 bn_ior_replace(
@@ -20,12 +19,6 @@ bn_ior_replace(
     struct bonsai_val *  v;
     struct bonsai_val *  oldv;
     enum bonsai_ior_code code;
-
-    /* Invalidate the tombspan, if any. */
-    if (HSE_UNLIKELY(!(flags & BN_INSERT_FLAG_TOMB) && node->bn_kv->bkv_tomb)) {
-        node->bn_kv->bkv_tomb->bkv_tomb = NULL;
-        node->bn_kv->bkv_tomb = NULL;
-    }
 
     v = bn_val_alloc(tree, sval);
     if (!v)
@@ -48,7 +41,6 @@ bn_ior_insert(
     struct bonsai_kv           *parent,
     u32                         flags)
 {
-    struct bonsai_kv *head, *prev_span, *next_span;
     struct bonsai_node *node;
     enum bonsai_ior_code code;
 
@@ -66,41 +58,6 @@ bn_ior_insert(
 
     rcu_assign_pointer(node->bn_kv->bkv_next->bkv_prev, node->bn_kv);
     rcu_assign_pointer(node->bn_kv->bkv_prev->bkv_next, node->bn_kv);
-
-    /* Get the tail end of the tombspans for prev and next nodes. */
-    prev_span = node->bn_kv->bkv_prev->bkv_tomb;
-    next_span = node->bn_kv->bkv_next->bkv_tomb;
-
-    if (HSE_UNLIKELY(prev_span && (prev_span->bkv_flags & BKV_FLAG_TOMB_HEAD)))
-        prev_span = prev_span->bkv_tomb;
-
-    if (HSE_UNLIKELY(next_span && (next_span->bkv_flags & BKV_FLAG_TOMB_HEAD)))
-        next_span = next_span->bkv_tomb;
-
-    if (flags & BN_INSERT_FLAG_TOMB) {
-        if (HSE_UNLIKELY(prev_span)) {
-            head = prev_span->bkv_tomb;
-            assert(head->bkv_flags & BKV_FLAG_TOMB_HEAD);
-            assert(head->bkv_tomb);
-
-            /* Extend the tombspan to the right */
-            if (prev_span != next_span)
-                head->bkv_tomb = node->bn_kv;
-
-            node->bn_kv->bkv_tomb = head;
-        } else {
-            /* Start a new tomb span */
-            head = node->bn_kv;
-            head->bkv_flags |= BKV_FLAG_TOMB_HEAD;
-            head->bkv_tomb = node->bn_kv;
-        }
-    } else if (HSE_UNLIKELY(prev_span && (prev_span == next_span))) {
-        /* This put invalidates a tomb span */
-        head = prev_span->bkv_tomb;
-        assert(head->bkv_flags & BKV_FLAG_TOMB_HEAD);
-        assert(head->bkv_tomb);
-        head->bkv_tomb = NULL;
-    }
 
     SET_IOR_INS(code);
     tree->br_client.bc_iorcb(tree->br_client.bc_rock, &code, node->bn_kv, NULL, NULL);
@@ -351,13 +308,11 @@ bn_insert_or_replace(
 {
     struct bonsai_node *oldroot;
     struct bonsai_node *newroot;
-    u32                 flags;
 
     oldroot = tree->br_root;
-    flags = is_tomb ? BN_INSERT_FLAG_TOMB : 0;
 
     newroot = bn_ior_impl(tree, oldroot, &skey->bsk_key_imm, skey->bsk_key,
-                          sval, &tree->br_kv, flags);
+                          sval, &tree->br_kv, 0);
     if (!newroot)
         return merr(ENOMEM);
 
@@ -430,48 +385,6 @@ bn_find_pfx_GT(struct bonsai_root *tree, const struct bonsai_skey *skey, struct 
     return false;
 }
 
-bool
-bn_skiptombs_GE(struct bonsai_root *tree, const struct bonsai_skey *skey, struct bonsai_kv **kv)
-{
-    struct bonsai_kv *lkv;
-    struct bonsai_kv *head;
-
-    assert(kv);
-
-    lkv = bn_find_impl(tree, skey, B_MATCH_GE);
-    if (!lkv)
-        return false;
-
-    head = lkv->bkv_tomb;
-    if (head) {
-        struct bonsai_kv *end;
-
-        /* Skip past the contiguous tomb span */
-        if (lkv->bkv_flags & BKV_FLAG_TOMB_HEAD) {
-            assert(lkv == head || !(head->bkv_flags & BKV_FLAG_TOMB_HEAD));
-            end = head;
-        } else {
-            assert(head->bkv_flags & BKV_FLAG_TOMB_HEAD);
-            end = head->bkv_tomb;
-        }
-
-        /* The tombspan was invalidated */
-        if (!end)
-            end = lkv;
-
-        assert(bn_kv_cmp(end, lkv) >= 0);
-
-        if (end->bkv_next == &tree->br_kv)
-            return false;
-
-        *kv = end->bkv_next;
-        return true;
-    }
-
-    *kv = lkv;
-    return true;
-}
-
 void
 bn_reset(struct bonsai_root *tree)
 {
@@ -483,7 +396,6 @@ bn_reset(struct bonsai_root *tree)
 
     tree->br_kv.bkv_prev = &tree->br_kv;
     tree->br_kv.bkv_next = &tree->br_kv;
-    tree->br_kv.bkv_tomb = NULL;
     tree->br_kv.bkv_flags = 0;
 
     atomic_set(&tree->br_bounds, 0);

@@ -56,7 +56,7 @@
  * behavior that is so detrimental in some SMP scenarios. It's
  * essentially your deluxe model with all the fixin's.
  *
- * The PTHRED_MUTEX_ADAPTIVE_NP is a new mutex that is intended for high
+ * The PTHREAD_MUTEX_ADAPTIVE_NP is a new mutex that is intended for high
  * throughput at the sacrifice of fairness and even CPU cycles. This
  * mutex does not transfer ownership to a waiting thread, but rather
  * allows for competition. Also, over an SMP kernel, the lock operation

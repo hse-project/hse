@@ -201,14 +201,6 @@ merr_t
 c0sk_prefix_del(struct c0sk *self, u16 skidx, const struct kvs_ktuple *key, u64 seq);
 
 /**
- * c0sk_rparams() - Get a ptr to c0sk kvdb rparams
- * @self:       Instance of struct c0sk
- *
- */
-struct kvdb_rparams *
-c0sk_rparams(struct c0sk *self);
-
-/**
  * c0sk_flush() - Start ingest of existing c0sk data
  * @self:       Instance of struct c0sk to flush
  * @new:        Ptr to new kvms to install
@@ -223,18 +215,12 @@ merr_t
 c0sk_flush(struct c0sk *self, struct c0_kvmultiset *new);
 
 /**
- * c0sk_merge() - merge the 'from' kvms into the 'first' kvms
- * @self:     struct c0sk into which to merge
- * @src:      source kvms
+ * c0sk_rparams() - Get a ptr to c0sk kvdb rparams
+ * @self:       Instance of struct c0sk
  *
  */
-/* MTF_MOCK */
-merr_t
-c0sk_merge(
-    struct c0sk *          self,
-    struct c0_kvmultiset * src,
-    struct c0_kvmultiset **dstp,
-    uintptr_t **           ref);
+struct kvdb_rparams *
+c0sk_rparams(struct c0sk *self);
 
 /**
  * c0sk_sync() - Force immediate ingest of existing c0sk data
@@ -284,7 +270,7 @@ c0sk_cursor_restore(struct c0_cursor *cur);
  */
 struct kvdb_ctxn;
 
-merr_t
+void
 c0sk_cursor_bind_txn(struct c0_cursor *cur, struct kvdb_ctxn *ctxn);
 
 /**
@@ -310,16 +296,12 @@ c0sk_cursor_read(struct c0_cursor *cur, struct kvs_kvtuple *kvt, bool *eof);
  * c0sk_cursor_update() - update existing iterators over c0
  * @c0cur:      The existing cursor.
  * @seqno:      Sequence number of the cursor
- * @kt_min:     Min tombstone span key
- * @kt_max:     Max tombstone span key
  * @flags_out:  (out) flags to update tombspan and cursor stats
  */
 merr_t
 c0sk_cursor_update(
     struct c0_cursor *       cur,
     u64                      seqno,
-    const struct kvs_ktuple *kt_min,
-    const struct kvs_ktuple *kt_max,
     u32 *                    flags_out);
 
 /**
@@ -328,14 +310,6 @@ c0sk_cursor_update(
  */
 merr_t
 c0sk_cursor_destroy(struct c0_cursor *cur);
-
-bool
-c0sk_cursor_ctxn_preserve_tombspan(
-    struct c0_cursor *cur,
-    const void *      kmin,
-    u32               kmin_len,
-    const void *      kmax,
-    u32               kmax_len);
 
 /**
  * c0sk_get_first_c0kvms - return a ptr to the first kvms

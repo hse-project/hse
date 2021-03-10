@@ -723,17 +723,6 @@ cn_ingestv(
         goto done;
     }
 
-    if (ev(seqno_min < cndb_seqno(cndb))) {
-        err = merr(EINVAL);
-        hse_log(
-            HSE_ERR "seqno_min %lu seqno_max %lu cndb_seqno %lu",
-            (ulong)seqno_min,
-            (ulong)seqno_max,
-            (ulong)cndb_seqno(cndb));
-        assert(0);
-        goto done;
-    }
-
     kvsetv = calloc(ingestc, sizeof(*kvsetv));
     if (ev(!kvsetv)) {
         err = merr(EINVAL);
@@ -1225,7 +1214,7 @@ cn_open(
     /* If this cn is capped disable c1 vbuilder to be space efficient.
      */
     if (cn_is_capped(cn)) {
-        rp->cn_cursor_ttl = rp->cn_capped_ttl;
+        rp->kvs_cursor_ttl = rp->cn_capped_ttl;
         rp->c1_vblock_cap = 0;
     }
 

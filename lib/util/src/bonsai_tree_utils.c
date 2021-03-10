@@ -85,7 +85,6 @@ bn_kv_init(
 
     kv->bkv_next = NULL;
     kv->bkv_prev = NULL;
-    kv->bkv_tomb = NULL;
     kv->bkv_es = NULL;
 
     kv->bkv_flags = 0;

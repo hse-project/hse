@@ -169,7 +169,6 @@ struct bonsai_kv {
     struct bonsai_val *    bkv_values;
     struct bonsai_kv *     bkv_prev;
     struct bonsai_kv *     bkv_next;
-    struct bonsai_kv *     bkv_tomb;
     struct element_source *bkv_es;
     char                   bkv_key[];
 };

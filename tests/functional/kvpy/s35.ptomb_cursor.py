@@ -5,7 +5,7 @@ from hse import Kvdb, Params, Kvs
 
 
 def verify(kvs: Kvs, pfx: str, cnt: int):
-    # [HSE_REVISIT] Getting all keys is too slaw/freezes
+    # [HSE_REVISIT] Getting all keys is too slow/freezes
     get_cnt = 100
     if cnt < get_cnt:
         get_cnt = cnt

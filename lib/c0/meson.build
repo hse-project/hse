@@ -1,5 +1,6 @@
 c0_sources = files(
     'c0.c',
+    'c0snr_set.c',
     'c0_ingest_work.c',
     'c0_kvmultiset.c',
     'c0_kvset.c',

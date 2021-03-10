@@ -36,6 +36,7 @@ tests = [
     's34.sfx_test_tomb',
     's35.ptomb_cursor',
     's36.ptomb_cursor2',
+    's38.bound_basic',
 ]
 
 foreach t : tests

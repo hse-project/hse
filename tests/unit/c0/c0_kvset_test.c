@@ -414,6 +414,166 @@ MTF_DEFINE_UTEST_PREPOST(c0_kvset_test, basic_repeated_put, no_fail_pre, no_fail
     c0kvs_destroy(kvs);
 }
 
+MTF_DEFINE_UTEST_PREPOST(c0_kvset_test, ctxn_put, no_fail_pre, no_fail_post)
+{
+    struct c0_kvset *   kvs;
+    merr_t              err = 0;
+    char                kbuf[1], vbuf[1];
+    struct kvs_ktuple   kt;
+    struct kvs_vtuple   vt;
+    struct kvs_buf      vb;
+    uintptr_t           iseqnoref;
+    u64                 ctxn_priv_1[10], ctxn_priv_2[10];
+    int                 i;
+
+    err = c0kvs_create(HSE_C0_CHEAP_SZ_DFLT, 0, 0, &kvs);
+    ASSERT_NE((struct c0_kvset *)0, kvs);
+
+    kvs_ktuple_init(&kt, kbuf, 1);
+    kvs_vtuple_init(&vt, vbuf, 1);
+    kvs_buf_init(&vb, vt.vt_data, kvs_vtuple_vlen(&vt));
+
+    for (i = 0; i < 10; i++)
+        ctxn_priv_1[i] = HSE_SQNREF_UNDEFINED;
+
+    /* Insert a key per transaction */
+    for (i = 0; i < 10; ++i) {
+        kbuf[0] = i;
+        vbuf[0] = i;
+        iseqnoref = HSE_REF_TO_SQNREF(&ctxn_priv_1[i]);
+
+        err = c0kvs_put(kvs, 0, &kt, &vt, iseqnoref);
+        ASSERT_EQ(0, err);
+    }
+
+    /* Update the keys with non-transactional puts */
+    for (i = 0; i < 10; ++i) {
+        kbuf[0] = i;
+        vbuf[0] = i + 1;
+        iseqnoref = HSE_ORDNL_TO_SQNREF(3);
+
+        err = c0kvs_put(kvs, 0, &kt, &vt, iseqnoref);
+        ASSERT_EQ(0, err);
+    }
+
+    /* Update the keys within the same transaction */
+    for (i = 0; i < 10; ++i) {
+        kbuf[0] = i;
+        vbuf[0] = i + 2;
+        iseqnoref = HSE_REF_TO_SQNREF(&ctxn_priv_1[i]);
+
+        err = c0kvs_put(kvs, 0, &kt, &vt, iseqnoref);
+        ASSERT_EQ(0, err);
+    }
+
+    /* Update the keys with same seqno */
+    for (i = 0; i < 10; ++i) {
+        kbuf[0] = i;
+        vbuf[0] = i + 3;
+        iseqnoref = HSE_ORDNL_TO_SQNREF(3);
+
+        err = c0kvs_put(kvs, 0, &kt, &vt, iseqnoref);
+        ASSERT_EQ(0, err);
+    }
+
+    /* Update the keys with new seqno */
+    for (i = 0; i < 10; ++i) {
+        kbuf[0] = i;
+        vbuf[0] = i + 4;
+        iseqnoref = HSE_ORDNL_TO_SQNREF(4);
+
+        err = c0kvs_put(kvs, 0, &kt, &vt, iseqnoref);
+        ASSERT_EQ(0, err);
+    }
+
+    /* Commit the transactions. */
+    for (i = 0; i < 10; i++)
+        ctxn_priv_1[i] = HSE_ORDNL_TO_SQNREF(5);
+
+    /* Update the keys with non-transactional puts */
+    for (i = 0; i < 10; ++i) {
+        kbuf[0] = i;
+        vbuf[0] = i + 5;
+        iseqnoref = HSE_ORDNL_TO_SQNREF(6);
+
+        err = c0kvs_put(kvs, 0, &kt, &vt, iseqnoref);
+        ASSERT_EQ(0, err);
+    }
+
+    /* Repeat with second transaction which will be aborted. */
+    for (i = 0; i < 10; i++)
+        ctxn_priv_2[i] = HSE_SQNREF_UNDEFINED;
+
+    /* Insert a key per transaction */
+    for (i = 0; i < 10; ++i) {
+        kbuf[0] = i;
+        vbuf[0] = i + 6;
+        iseqnoref = HSE_REF_TO_SQNREF(&ctxn_priv_2[i]);
+
+        err = c0kvs_put(kvs, 0, &kt, &vt, iseqnoref);
+        ASSERT_EQ(0, err);
+    }
+
+    /* Update the keys with non-transactional puts */
+    for (i = 0; i < 10; ++i) {
+        kbuf[0] = i;
+        vbuf[0] = i + 7;
+        iseqnoref = HSE_ORDNL_TO_SQNREF(7);
+
+        err = c0kvs_put(kvs, 0, &kt, &vt, iseqnoref);
+        ASSERT_EQ(0, err);
+    }
+
+    /* Update the keys within the same transaction */
+    for (i = 0; i < 10; ++i) {
+        kbuf[0] = i;
+        vbuf[0] = i + 8;
+        iseqnoref = HSE_REF_TO_SQNREF(&ctxn_priv_2[i]);
+
+        err = c0kvs_put(kvs, 0, &kt, &vt, iseqnoref);
+        ASSERT_EQ(0, err);
+    }
+
+    /* Update the keys with same seqno */
+    for (i = 0; i < 10; ++i) {
+        kbuf[0] = i;
+        vbuf[0] = i + 9;
+        iseqnoref = HSE_ORDNL_TO_SQNREF(7);
+
+        err = c0kvs_put(kvs, 0, &kt, &vt, iseqnoref);
+        ASSERT_EQ(0, err);
+    }
+
+    /* Update the keys with non-transactional puts */
+    for (i = 0; i < 10; ++i) {
+        kbuf[0] = i;
+        vbuf[0] = i + 10;
+        iseqnoref = HSE_ORDNL_TO_SQNREF(8);
+
+        err = c0kvs_put(kvs, 0, &kt, &vt, iseqnoref);
+        ASSERT_EQ(0, err);
+    }
+
+    /* Abort the transactions. */
+    for (i = 0; i < 10; i++)
+        ctxn_priv_2[i] = HSE_SQNREF_ABORTED;
+
+    /* Update the keys with non-transactional puts */
+    for (i = 0; i < 10; ++i) {
+        kbuf[0] = i;
+        vbuf[0] = i + 11;
+        iseqnoref = HSE_ORDNL_TO_SQNREF(9);
+
+        err = c0kvs_put(kvs, 0, &kt, &vt, iseqnoref);
+        ASSERT_EQ(0, err);
+    }
+
+    synchronize_rcu();
+    rcu_barrier();
+
+    c0kvs_destroy(kvs);
+}
+
 MTF_DEFINE_UTEST_PREPOST(c0_kvset_test, advanced_repeated_put, no_fail_pre, no_fail_post)
 {
     struct c0_kvset *        kvs;
@@ -902,7 +1062,11 @@ MTF_DEFINE_UTEST_PREPOST(c0_kvset_test, finalize, no_fail_pre, no_fail_post)
         err = c0kvs_del(kvs, 0, &kt, iseqno);
     }
 
-#ifdef HSE_BUILD_RELEASE
+    /* If assert() is enabled then c0kvs_del() will quietly succeed.
+     * Otherwise, the assert will fire and the we'll jump back to a
+     * context in which err contains its initial value.
+     */
+#ifdef NDEBUG
     ASSERT_EQ(0, sigabrt_cnt);
     ASSERT_EQ(0, err);
 #else
@@ -921,7 +1085,11 @@ MTF_DEFINE_UTEST_PREPOST(c0_kvset_test, finalize, no_fail_pre, no_fail_post)
         err = c0kvs_put(kvs, 0, &kt, &vt, iseqno);
     }
 
-#ifdef HSE_BUILD_RELEASE
+    /* If assert() is enabled then c0kvs_put() will quietly succeed.
+     * Otherwise, the assert will fire and the we'll jump back to a
+     * context in which err contains its initial value.
+     */
+#ifdef NDEBUG
     ASSERT_EQ(0, sigabrt_cnt);
     ASSERT_EQ(0, err);
 #else

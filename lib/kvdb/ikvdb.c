@@ -21,6 +21,7 @@
 #include <hse_ikvdb/kvdb_perfc.h>
 #include <hse_ikvdb/cndb.h>
 #include <hse_ikvdb/kvdb_ctxn.h>
+#include <hse_ikvdb/c0snr_set.h>
 #include <hse_ikvdb/limits.h>
 #include <hse_ikvdb/key_hash.h>
 #include <hse_ikvdb/diag_kvdb.h>
@@ -142,6 +143,7 @@ struct ikvdb_impl {
     bool                  ikdb_rdonly;
     bool                  ikdb_work_stop;
     struct kvdb_ctxn_set *ikdb_ctxn_set;
+    struct c0snr_set     *ikdb_c0snr_set;
     struct perfc_set      ikdb_ctxn_op;
     struct kvdb_keylock * ikdb_keylock;
     struct c0sk *         ikdb_c0sk;
@@ -1002,6 +1004,12 @@ ikvdb_open(
         goto err1;
     }
 
+    err = c0snr_set_create(kvdb_ctxn_abort, &self->ikdb_c0snr_set);
+    if (err) {
+        hse_elog(HSE_ERR "cannot open %s: @@e", err, mp_name);
+        goto err1;
+    }
+
     err = cn_kvdb_create(&self->ikdb_cn_kvdb);
     if (err) {
         hse_elog(HSE_ERR "cannot open %s: @@e", err, mp_name);
@@ -1051,6 +1059,7 @@ err1:
     cn_kvdb_destroy(self->ikdb_cn_kvdb);
     for (i = 0; i < self->ikdb_kvs_cnt; i++)
         kvdb_kvs_destroy(self->ikdb_kvs_vec[i]);
+    c0snr_set_destroy(self->ikdb_c0snr_set);
     kvdb_ctxn_set_destroy(self->ikdb_ctxn_set);
     cndb_close(self->ikdb_cndb);
     kvdb_log_close(self->ikdb_log);
@@ -1597,6 +1606,8 @@ ikvdb_close(struct ikvdb *handle)
 
     kvdb_ctxn_set_destroy(self->ikdb_ctxn_set);
 
+    c0snr_set_destroy(self->ikdb_c0snr_set);
+
     kvdb_keylock_destroy(self->ikdb_keylock);
 
     viewset_destroy(self->ikdb_cur_viewset);
@@ -1951,7 +1962,6 @@ cursor_unbind_txn(struct hse_kvs_cursor *cur)
     struct kvdb_ctxn_bind *bind = cur->kc_bind;
 
     if (bind) {
-        ikvs_cursor_tombspan_check(cur);
         cur->kc_gen = -1;
         cur->kc_bind = 0;
 
@@ -1972,8 +1982,8 @@ cursor_unbind_txn(struct hse_kvs_cursor *cur)
         }
 
         kvdb_ctxn_cursor_unbind(bind);
-        ikvs_cursor_bind_txn(cur, 0);
     }
+
     return 0;
 }
 
@@ -2066,7 +2076,6 @@ ikvdb_kvs_cursor_create(
     cur->kc_flags = os ? os->kop_flags : 0;
     cur->kc_cursor_cnt = &ikvdb->ikdb_curcnt;
     atomic_inc(cur->kc_cursor_cnt);
-    perfc_inc(&kvdb_metrics_pc, PERFC_BA_KVDBMETRICS_CURCNT);
 
     cur->kc_kvs = kk;
     cur->kc_gen = 0;
@@ -2075,7 +2084,9 @@ ikvdb_kvs_cursor_create(
     /* Temporarily lock a view until this cursor gets refs on cn kvsets. */
     err = cursor_view_acquire(cur);
     if (!err) {
+        u64 ts = perfc_lat_start(pkvsl_pc);
         err = ikvs_cursor_init(cur);
+        perfc_lat_record(pkvsl_pc, PERFC_LT_PKVSL_KVS_CURSOR_INIT, ts);
         if (!err) {
             if (bind) {
                 /*
@@ -2095,6 +2106,8 @@ ikvdb_kvs_cursor_create(
     if (ev(err)) {
         ikvdb_kvs_cursor_destroy(cur);
         cur = 0;
+    } else {
+        cur->kc_create_time = tstart;
     }
 
     perfc_lat_record(pkvsl_pc, PERFC_LT_PKVSL_KVS_CURSOR_CREATE, tstart);
@@ -2276,7 +2289,7 @@ ikvdb_kvs_cursor_seek(
     }
 
     /* errors on seek are not fatal */
-    err = ikvs_cursor_seek(cur, key, (u32)len, limit, (u32)limit_len, kt);
+    err = kvs_cursor_seek(cur, key, (u32)len, limit, (u32)limit_len, kt);
 
     perfc_lat_record(cur->kc_pkvsl_pc, PERFC_LT_PKVSL_KVS_CURSOR_SEEK, tstart);
 
@@ -2317,7 +2330,7 @@ ikvdb_kvs_cursor_read(
             return cur->kc_err;
     }
 
-    err = ikvs_cursor_read(cur, &kvt, eof);
+    err = kvs_cursor_read(cur, &kvt, eof);
     if (ev(err))
         return err;
     if (*eof)
@@ -2342,22 +2355,24 @@ merr_t
 ikvdb_kvs_cursor_destroy(struct hse_kvs_cursor *cur)
 {
     struct perfc_set *pkvsl_pc;
-    u64               tstart;
+    u64               tstart, ctime;
 
     if (!cur)
         return 0;
 
     pkvsl_pc = cur->kc_pkvsl_pc;
     tstart = perfc_lat_start(pkvsl_pc);
+    ctime = cur->kc_create_time;
 
     cursor_unbind_txn(cur);
-
     atomic_dec(cur->kc_cursor_cnt);
+
     perfc_dec(&kvdb_metrics_pc, PERFC_BA_KVDBMETRICS_CURCNT);
 
     ikvs_cursor_free(cur);
 
     perfc_lat_record(pkvsl_pc, PERFC_LT_PKVSL_KVS_CURSOR_DESTROY, tstart);
+    perfc_lat_record(pkvsl_pc, PERFC_LT_PKVSL_KVS_CURSOR_FULL, ctime);
 
     return 0;
 }
@@ -2466,6 +2481,7 @@ ikvdb_txn_alloc(struct ikvdb *handle)
         &self->ikdb_seqno,
         self->ikdb_ctxn_set,
         self->ikdb_txn_viewset,
+        self->ikdb_c0snr_set,
         self->ikdb_c0sk);
     if (ev(!ctxn))
         return NULL;
@@ -2895,7 +2911,8 @@ ikvdb_import_toc(
         return err;
     }
 
-    buf = malloc(buflen);
+    /* Need an extra byte to terminate string read from TOC file */
+    buf = malloc(buflen + 1);
     if (!buf) {
         err = merr(ev(ENOMEM, HSE_ERR));
         fclose(f);
@@ -2915,6 +2932,8 @@ ikvdb_import_toc(
         free(buf);
         return err;
     }
+
+    buf[buflen] = '\0';
 
     crc_rd = le32_to_cpu(*((u32 *)buf));
 

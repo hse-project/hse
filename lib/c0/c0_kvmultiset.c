@@ -11,10 +11,12 @@
 #include <hse_util/perfc.h>
 #include <hse_util/fmt.h>
 #include <hse_util/rcu.h>
+#include <hse_util/seqno.h>
 
 #include <hse_ikvdb/cn.h>
 #include <hse_ikvdb/c0_kvmultiset.h>
 #include <hse_ikvdb/c0_kvset.h>
+#include <hse_ikvdb/c0snr_set.h>
 #include <hse_ikvdb/kvdb_perfc.h>
 
 #include "c0_cursor.h"
@@ -43,12 +45,10 @@
  * @c0ms_destroy_work   work struct for c0kvms_destroy() offload
  * @c0ms_wq:            workqueue for c0kvms_destroy() offload
  * @c0ms_refcnt:        used to manage the lifetime of the kvms
- * @c0ms_priv_cur:      current offset into priv memory pool
- * @c0ms_priv_cv:       used to synchronize with ingest processing
- * @c0ms_priv_max:      max elements in priv memory pool
- * @c0ms_priv_base:     base of priv memory pool dedicated
- * @c0ms_priv_lock:     protects certain c0ms_priv_* fields
- * @c0ms_priv_refcnt:   count of active private regions
+ * @c0ms_c0snr_cur:      current offset into c0snr memory pool
+ * @c0ms_c0snr_max:      max elements in c0snr memory pool
+ * @c0ms_c0snr_base:     base of c0snr memory pool dedicated
+ * @c0ms_c0snr_cnt:      count of distinct c0snrs (txns) in kvms
  * @c0ms_resetsz:       size used by fully set up c0kvms
  * @c0ms_sets:          vector of c0 kvset pointers
  */
@@ -71,14 +71,12 @@ struct c0_kvmultiset_impl {
 
     HSE_ALIGNED(SMP_CACHE_BYTES) atomic_t c0ms_refcnt;
 
-    HSE_ALIGNED(SMP_CACHE_BYTES) atomic_t c0ms_priv_cur;
-    struct cv c0ms_priv_cv;
+    HSE_ALIGNED(SMP_CACHE_BYTES) atomic_t c0ms_c0snr_cur;
 
-    size_t       c0ms_priv_max;
-    uintptr_t *  c0ms_priv_base;
-    struct mutex c0ms_priv_lock;
+    size_t              c0ms_c0snr_max;
+    uintptr_t          *c0ms_c0snr_base;
 
-    HSE_ALIGNED(SMP_CACHE_BYTES) atomic_t c0ms_priv_refcnt;
+    HSE_ALIGNED(SMP_CACHE_BYTES) atomic_t c0ms_c0snr_cnt;
 
     HSE_ALIGNED(SMP_CACHE_BYTES) size_t c0ms_used;
 
@@ -335,7 +333,7 @@ c0kvms_should_ingest(struct c0_kvmultiset *handle)
     n = width / 2;
     r %= (width - n);
 
-    cnt = (HSE_C0KVMS_PRIV_MAX / width) * n;
+    cnt = (HSE_C0KVMS_C0SNR_MAX / width) * n;
     cnt = (cnt * 768) / 1024; /* 75% */
 
     while (n-- > 0 && cnt >= 0) {
@@ -819,7 +817,7 @@ c0kvms_create(
     struct c0_kvmultiset_impl *kvms;
     merr_t                     err;
     size_t                     kvms_sz, sz;
-    size_t                     priv_sz, iw_sz;
+    size_t                     c0snr_sz, iw_sz;
     int                        i;
     u32                        max_sets;
 
@@ -850,10 +848,8 @@ c0kvms_create(
     atomic_set(&kvms->c0ms_refcnt, 1); /* birth reference */
     atomic_set(&kvms->c0ms_ingesting, 0);
 
-    atomic_set(&kvms->c0ms_priv_refcnt, 0);
-    mutex_init(&kvms->c0ms_priv_lock);
-    kvms->c0ms_priv_max = HSE_C0KVMS_PRIV_MAX;
-    cv_init(&kvms->c0ms_priv_cv, "c0ms_priv_cv");
+    atomic_set(&kvms->c0ms_c0snr_cnt, 0);
+    kvms->c0ms_c0snr_max = HSE_C0KVMS_C0SNR_MAX;
 
     kvms->c0ms_ingest_delay = ingest_delay;
     kvms->c0ms_rsvd_sn = HSE_SQNREF_INVALID;
@@ -863,14 +859,14 @@ c0kvms_create(
     atomic64_set(&kvms->c0ms_seqno, HSE_SQNREF_INVALID);
 
     /* The first kvset is reserved for ptombs and needn't be as large
-     * as the rest, so we leverage it for the priv buffer.  Note that
+     * as the rest, so we leverage it for the c0snr buffer.  Note that
      * we needn't fail the create if we cannot allocate all c0kvsets,
      * but at a minimum we need at least two c0kvsets.
      */
-    priv_sz = sizeof(*kvms->c0ms_priv_base) * HSE_C0KVMS_PRIV_MAX;
+    c0snr_sz = sizeof(*kvms->c0ms_c0snr_base) * HSE_C0KVMS_C0SNR_MAX;
     iw_sz = sizeof(*kvms->c0ms_ingest_work);
 
-    sz = HSE_C0_CHEAP_SZ_MIN * 2 + priv_sz + iw_sz;
+    sz = HSE_C0_CHEAP_SZ_MIN * 2 + c0snr_sz + iw_sz;
     if (sz < alloc_sz)
         sz = alloc_sz;
 
@@ -893,12 +889,12 @@ c0kvms_create(
     kvms->c0ms_txn_thresh_lo = kvms_sz >> 4; /* 1/16th of kvms size */
     kvms->c0ms_txn_thresh_hi = kvms_sz >> 2; /* 1/4th  of kvms size */
 
-    /* Allocate the priv buffer from the ptomb c0kvset,
+    /* Allocate the c0snr buffer from the ptomb c0kvset,
      * this should never fail.
      */
-    kvms->c0ms_priv_base = c0kvs_alloc(kvms->c0ms_sets[0], SMP_CACHE_BYTES, priv_sz);
-    if (ev(!kvms->c0ms_priv_base)) {
-        assert(kvms->c0ms_priv_base);
+    kvms->c0ms_c0snr_base = c0kvs_alloc(kvms->c0ms_sets[0], SMP_CACHE_BYTES, c0snr_sz);
+    if (ev(!kvms->c0ms_c0snr_base)) {
+        assert(kvms->c0ms_c0snr_base);
         err = merr(ENOMEM);
         goto errout;
     }
@@ -933,12 +929,46 @@ errout:
     return 0;
 }
 
+void
+c0kvms_abort_active(struct c0_kvmultiset *handle)
+{
+    struct c0_kvmultiset_impl *self = c0_kvmultiset_h2r(handle);
+    uint c0snr_cnt;
+    int i;
+    int attempts = 5;
+    bool backoff = true;
+
+    while (attempts-- && backoff) {
+        backoff = false;
+        c0snr_cnt = atomic_read(&self->c0ms_c0snr_cnt);
+        for (i = 0; i < c0snr_cnt; i++) {
+            uintptr_t *ptr = (uintptr_t *)self->c0ms_c0snr_base[i];
+
+            if (ptr && c0snr_txn_is_active(ptr)) {
+                backoff = true;
+                break;
+            }
+        }
+
+        if (backoff)
+            sleep(1);
+    }
+
+    c0snr_cnt = atomic_read(&self->c0ms_c0snr_cnt);
+    for (i = 0; i < c0snr_cnt; i++) {
+        uintptr_t *ptr = (uintptr_t *)self->c0ms_c0snr_base[i];
+
+        if (ptr)
+            c0snr_abort(ptr);
+    }
+}
+
 static void
 c0kvms_destroy(struct c0_kvmultiset_impl *mset)
 {
-    u32 i;
+    int i;
+    int c0snr_cnt = atomic_read(&mset->c0ms_c0snr_cnt);
 
-    assert(atomic_read(&mset->c0ms_priv_refcnt) == 0);
     assert(atomic_read(&mset->c0ms_refcnt) == 0);
 
     /* Must destroy c0ms_ingest_work before c0ms_set[0].
@@ -948,11 +978,18 @@ c0kvms_destroy(struct c0_kvmultiset_impl *mset)
 
     c0_ingest_work_fini(mset->c0ms_ingest_work);
 
+    for (i = 0; i < c0snr_cnt; i++) {
+        uintptr_t *ptr = (uintptr_t *)mset->c0ms_c0snr_base[i];
+
+        if (ptr)
+            c0snr_dropref(ptr);
+    }
+    atomic_sub(c0snr_cnt, &mset->c0ms_c0snr_cnt);
+
+    assert(atomic_read(&mset->c0ms_c0snr_cnt) == 0);
+
     for (i = 0; i < mset->c0ms_num_sets; ++i)
         c0kvs_destroy(mset->c0ms_sets[i]);
-
-    mutex_destroy(&mset->c0ms_priv_lock);
-    cv_destroy(&mset->c0ms_priv_cv);
 
     kmem_cache_free(c0kvms_cache, mset);
 
@@ -980,9 +1017,9 @@ c0kvms_reset(struct c0_kvmultiset *handle)
     atomic_set(&self->c0ms_refcnt, 1); /* birth reference */
     atomic_set(&self->c0ms_ingesting, 0);
 
-    assert(atomic_read(&self->c0ms_priv_refcnt) == 0);
-    atomic_set(&self->c0ms_priv_refcnt, 0);
-    atomic_set(&self->c0ms_priv_cur, 0);
+    assert(atomic_read(&self->c0ms_c0snr_cnt) == 0);
+    atomic_set(&self->c0ms_c0snr_cnt, 0);
+    atomic_set(&self->c0ms_c0snr_cur, 0);
 
     self->c0ms_finalized = false;
     self->c0ms_ingested = false;
@@ -1025,8 +1062,7 @@ c0kvms_putref(struct c0_kvmultiset *handle)
     if (atomic_dec_return(&self->c0ms_refcnt) > 0)
         return;
 
-    assert(atomic_read(&self->c0ms_priv_refcnt) == 0);
-    assert(atomic_read(&self->c0ms_refcnt) == 0);
+     assert(atomic_read(&self->c0ms_refcnt) == 0);
 
     if (self->c0ms_wq) {
         INIT_WORK(&self->c0ms_destroy_work, c0kvms_destroy_cb);
@@ -1062,78 +1098,24 @@ c0kvms_gen_current(struct c0_kvmultiset *handle)
     return atomic64_read(&c0kvms_gen);
 }
 
-void *
-c0kvms_priv_alloc(struct c0_kvmultiset *handle)
+uintptr_t *
+c0kvms_c0snr_alloc(struct c0_kvmultiset *handle)
 {
-    struct c0_kvmultiset_impl *self = c0_kvmultiset_h2r(handle);
-    uintptr_t *                priv;
-    uint                       cur;
+    struct c0_kvmultiset_impl  *self = c0_kvmultiset_h2r(handle);
+    uint                        cur;
+    uintptr_t                  *entry;
 
-    assert(self->c0ms_priv_base);
+    assert(self->c0ms_c0snr_base);
 
-    cur = atomic_fetch_add(1, &self->c0ms_priv_cur);
+    cur = atomic_fetch_add(1, &self->c0ms_c0snr_cur);
 
-    if (ev(cur >= self->c0ms_priv_max))
+    if (ev(cur >= self->c0ms_c0snr_max))
         return NULL;
 
-    atomic_inc(&self->c0ms_priv_refcnt);
-    priv = self->c0ms_priv_base + cur;
-    *priv = HSE_SQNREF_INVALID;
+    atomic_inc(&self->c0ms_c0snr_cnt);
+    entry = self->c0ms_c0snr_base + cur;
 
-    return priv;
-}
-
-void
-c0kvms_priv_release(struct c0_kvmultiset *handle)
-{
-    struct c0_kvmultiset_impl *self = c0_kvmultiset_h2r(handle);
-
-    if (atomic_dec_return(&self->c0ms_priv_refcnt) > 0)
-        return;
-
-    mutex_lock(&self->c0ms_priv_lock);
-    cv_broadcast(&self->c0ms_priv_cv);
-    mutex_unlock(&self->c0ms_priv_lock);
-}
-
-void
-c0kvms_priv_wait(struct c0_kvmultiset *handle)
-{
-    struct c0_kvmultiset_impl *self = c0_kvmultiset_h2r(handle);
-
-    mutex_lock(&self->c0ms_priv_lock);
-    while (atomic_read(&self->c0ms_priv_refcnt) > 0)
-        cv_wait(&self->c0ms_priv_cv, &self->c0ms_priv_lock);
-    mutex_unlock(&self->c0ms_priv_lock);
-}
-
-bool
-c0kvms_priv_busy(struct c0_kvmultiset *handle)
-{
-    struct c0_kvmultiset_impl *self = c0_kvmultiset_h2r(handle);
-
-    return !self->c0ms_finalized || atomic_read(&self->c0ms_priv_refcnt);
-}
-
-bool
-c0kvms_preserve_tombspan(
-    struct c0_kvmultiset *handle,
-    u16                   index,
-    const void *          kmin,
-    u32                   kmin_len,
-    const void *          kmax,
-    u32                   kmax_len)
-{
-    struct c0_kvmultiset_impl *self = c0_kvmultiset_h2r(handle);
-    int                        i;
-
-    /* Skip ptomb c0kvset - c0ms_sets[0] */
-    for (i = 1; i < self->c0ms_num_sets; i++) {
-        if (!c0kvs_preserve_tombspan(self->c0ms_sets[i], index, kmin, kmin_len, kmax, kmax_len))
-            return false;
-    }
-
-    return true;
+    return entry;
 }
 
 u64

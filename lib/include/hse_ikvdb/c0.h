@@ -215,12 +215,12 @@ merr_t
 c0_cursor_restore(struct c0_cursor *c0cur);
 
 /**
- * c0_cursor_bind_txn() - add txn kvms to iterable c0
+ * c0_cursor_bind_txn() - Assign ctxn to c0 cursor
  * @c0cur:      Instance of struct c0_cursor
  * @ctxn:       The transaction to bind.
  */
 /* MTF_MOCK */
-merr_t
+void
 c0_cursor_bind_txn(struct c0_cursor *c0cur, struct kvdb_ctxn *ctxn);
 
 /**
@@ -250,8 +250,6 @@ c0_cursor_read(struct c0_cursor *c0cur, struct kvs_kvtuple *kvt, bool *eof);
  * c0_cursor_update() - update existing iterators over c0
  * @c0cur:      Instance of struct c0_cursor
  * @seqno:      Sequence number of the cursor
- * @kt_min:     Min tombstone span key
- * @kt_max:     Max tombstone span key
  * @flags_out:  (out) flags to update tombstone span/cursor stats
  */
 /* MTF_MOCK */
@@ -259,8 +257,6 @@ merr_t
 c0_cursor_update(
     struct c0_cursor *       cur,
     u64                      seqno,
-    const struct kvs_ktuple *kt_min,
-    const struct kvs_ktuple *kt_max,
     u32 *                    flags_out);
 
 /**
@@ -270,14 +266,6 @@ c0_cursor_update(
 /* MTF_MOCK */
 merr_t
 c0_cursor_destroy(struct c0_cursor *c0cur);
-
-bool
-c0_cursor_ctxn_preserve_tombspan(
-    struct c0_cursor *c0cur,
-    const void *      kmin,
-    u32               kmin_len,
-    const void *      kmax,
-    u32               kmax_len);
 
 #if defined(HSE_UNIT_TEST_MODE) && HSE_UNIT_TEST_MODE == 1
 #include "c0_ut.h"

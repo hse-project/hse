@@ -11,7 +11,7 @@
 /* MTF_MOCK_DECL(arch) */
 
 #ifndef SMP_CACHE_BYTES
-#define SMP_CACHE_BYTES 64
+#define SMP_CACHE_BYTES (64)
 #endif
 
 /* Max readahead pages offered by mcache.

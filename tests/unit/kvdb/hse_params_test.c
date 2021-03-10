@@ -131,14 +131,14 @@ MTF_DEFINE_UTEST(hse_params, param_conversion)
     err = hse_params_set(params, "kvdb.low_mem", "1");
     ASSERT_EQ(err, 0);
 
-    err = hse_params_set(params, "kvs.c0_cursor_ttl", "567");
+    err = hse_params_set(params, "kvs.kvs_cursor_ttl", "567");
     ASSERT_EQ(err, 0);
 
     result = hse_params_get(params, "kvdb.low_mem", buf, sizeof(buf), 0);
     ASSERT_NE(result, NULL);
     ASSERT_EQ(strcmp(result, "1"), 0);
 
-    result = hse_params_get(params, "kvs.c0_cursor_ttl", buf, sizeof(buf), 0);
+    result = hse_params_get(params, "kvs.kvs_cursor_ttl", buf, sizeof(buf), 0);
     ASSERT_NE(result, NULL);
     ASSERT_EQ(strcmp(result, "567"), 0);
 
@@ -148,7 +148,7 @@ MTF_DEFINE_UTEST(hse_params, param_conversion)
 
     err = hse_params_to_kvs_rparams(params, NULL, NULL, &kvs_rp);
     ASSERT_EQ(0, err);
-    ASSERT_EQ(kvs_rp.c0_cursor_ttl, 567);
+    ASSERT_EQ(kvs_rp.kvs_cursor_ttl, 567);
 
     hse_params_destroy(params);
 }

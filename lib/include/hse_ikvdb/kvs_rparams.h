@@ -29,8 +29,7 @@
  */
 struct kvs_rparams {
     unsigned long kvs_debug;
-    unsigned long c0_cursor_ttl;
-    unsigned long cn_cursor_ttl;
+    unsigned long kvs_cursor_ttl;
 
     unsigned long cn_maint_delay;
     unsigned long cn_maint_disable;

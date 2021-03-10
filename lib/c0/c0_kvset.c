@@ -215,9 +215,7 @@ c0kvs_ior_stats(
  * put:
  *   s = kvdb_seqno
  *   if (kvms_seqno != HSE_SQNREF_INVALID):
- *     use kvms_seqno
- *   else
- *     use s
+ *     s = kvms_seqno
  */
 static u64
 c0kvs_seqno_set(struct c0_kvset_impl *c0kvs, struct bonsai_val *bv)
@@ -287,17 +285,13 @@ c0kvs_ior_cb(
     unsigned int o_vlen;
     const void * n_val;
     unsigned int n_vlen;
-    bool         txn_merge;
     u16          klen;
 
-    state = HSE_SQNREF_STATE_UNDEFINED;
     c0kvs = c0_kvset_h2r(cli_rock);
     klen = key_imm_klen(&kv->bkv_key_imm);
 
     seqnoref = IS_IOR_INS(*code) ? kv->bkv_values->bv_seqnoref : new_val->bv_seqnoref;
     state = seqnoref_to_seqno(seqnoref, &seqno);
-
-    txn_merge = state == HSE_SQNREF_STATE_INVALID;
 
     if (IS_IOR_INS(*code)) {
         struct bonsai_val *val;
@@ -336,23 +330,31 @@ c0kvs_ior_cb(
 
     old = kv->bkv_values;
 
-    /* For a transaction merge, values can be added directly to the head
-     * of the bonsai values list without traversal because:
-     *
-     * 1. Values come with a seqnoref of HSE_SQNREF_INVALID, which is
-     * greater than any other seqnoref that will be found in the values
-     * list. This optimization avoid an unnecessary traversal.
-     *
-     * 2. There can't be a value in the list with a seqnoref of
-     * HSE_SQNREF_INVALID, as the same key cannot be modified by more
-     * than one transaction.
+    /*
+     * The new value belongs to an active transaction or has a well defined
+     * ordinal value.
+     * Active transaction elements (HSE_SQNREF_STATE_UNDEFINED) are always at the
+     * head of the list. There is at most one active transaction writing to this
+     * key (write collision detection). If the value belongs to the same active
+     * transaction or has the same seqno, replace it with the updated value.
+     * If the new value has a well defined seqno, traverse the list to
+     * find its position in the ordered (by seqno) list. Note that existing
+     * elements on the list may not have well defined seqnos (active/aborted).
      */
-    while (old && !txn_merge) {
+    while (old) {
+        /* Replace a value from the same transaction or with the same seqno. */
         if (seqnoref == old->bv_seqnoref) {
             SET_IOR_REP(*code);
             break;
         }
 
+        /*
+         * If the new value belongs to an active transaction, break and
+         * insert at head.
+         * If the new value has a seqno, find its position in the ordered list
+         * and ignore elements with active (undefined) seqnos, those that were
+         * aborted.
+         */
         if (seqnoref_gt(seqnoref, old->bv_seqnoref))
             break;
 
@@ -448,7 +450,7 @@ c0kvs_findval(struct c0_kvset *handle, struct bonsai_kv *kv, u64 view_seqno, uin
      * OTOH, tiny ingests wreak havoc on cn and cause the oplog kvs to
      * grow spectacularly long (and with severe mblock fragmentation).
      */
-    if (nvals > 2048)
+    if (nvals > 2048 && handle)
         atomic_inc((c0_kvset_h2r(handle))->c0s_ingesting);
 
     return val_ge;
@@ -1149,38 +1151,4 @@ c0kvs_fini(void)
         return;
 
     c0kvs_reinit(0);
-}
-
-bool
-c0kvs_preserve_tombspan(
-    struct c0_kvset *handle,
-    u16              index,
-    const void *     kmin,
-    u32              kmin_len,
-    const void *     kmax,
-    u32              kmax_len)
-{
-    struct c0_kvset_impl *self = c0_kvset_h2r(handle);
-    struct bonsai_skey    skey_min;
-    struct bonsai_kv *    kv = 0;
-    bool                  found;
-    int                   cmp = 0;
-
-    /*
-     * The tombspan interval can be preserved if the next key with a value
-     * other than a tombstone doesn't fall within the tombstone span.
-     */
-    assert(index < HSE_KVS_COUNT_MAX);
-
-    bn_skey_init(kmin, kmin_len, index, &skey_min);
-
-    rcu_read_lock();
-    found = bn_skiptombs_GE(self->c0s_broot, &skey_min, &kv);
-    if (found) {
-        assert(kv);
-        cmp = keycmp(kv->bkv_key, key_imm_klen(&kv->bkv_key_imm), kmax, kmax_len);
-    }
-    rcu_read_unlock();
-
-    return cmp >= 0;
 }
