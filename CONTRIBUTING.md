@@ -28,6 +28,19 @@ git clone https://github.com/hse-project/hse.git
 git clone git@github.com:hse-project/hse.git
 ```
 
+## Git Hooks
+
+HSE has some Git hooks in its source tree that you are welcome to use.
+
+```shell
+ninja -C build git-hooks
+# or
+./scripts/dev/git-hooks
+```
+
+Either of the above commands will ensure that git hooks are properly setup for
+the project.
+
 ## Building
 
 HSE uses the [Meson build system](https://mesonbuild.com). You can obtain a copy
