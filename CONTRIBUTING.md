@@ -38,7 +38,7 @@ ninja -C build git-hooks
 ./scripts/dev/git-hooks
 ```
 
-Either of the above commands will ensure that git hooks are properly setup for
+Either of the above commands will ensure that Git hooks are properly setup for
 the project.
 
 ## Building
