@@ -534,5 +534,16 @@ if not meson.is_subproject()
         env: run_env,
     )
 
+    if fs.exists(meson.project_source_root() / '.git')
+        run_target(
+            'git-hooks',
+            command: [
+                'sh',
+                '-c',
+                'ln -s $(realpath @SOURCE_ROOT@)/scripts/dev/pre-commit $(realpath @SOURCE_ROOT@)/.git/hooks/pre-commit'
+            ]
+        )
+    endif
+
     meson.add_dist_script('scripts' / 'release' / 'gen-version')
 endif
