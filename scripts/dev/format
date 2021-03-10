@@ -20,7 +20,7 @@ function usage {
 
 # Path to source root. MESON_SOURCE_ROOT is set during script runs, but this
 # script won't always be run through Meson.
-source_root=$(dirname $(dirname $(dirname $0)))
+source_root=$(realpath $(dirname $(dirname $(dirname $0))))
 
 files=$(find \
 	"${source_root}/cli" \

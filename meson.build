@@ -494,7 +494,9 @@ endif
 format = find_program('scripts' / 'dev' / 'format', required: true)
 run_target(
     'format',
-    command: format,
+    command: [
+        format,
+    ],
 )
 run_target(
     'format-check',
@@ -535,13 +537,12 @@ if not meson.is_subproject()
     )
 
     if fs.exists(meson.project_source_root() / '.git')
+        git_hooks = find_program('scripts' / 'dev' / 'git-hooks', required: true)
         run_target(
             'git-hooks',
             command: [
-                'sh',
-                '-c',
-                'ln -s $(realpath @SOURCE_ROOT@)/scripts/dev/pre-commit $(realpath @SOURCE_ROOT@)/.git/hooks/pre-commit'
-            ]
+                git_hooks,
+            ],
         )
     endif
 
