@@ -491,100 +491,18 @@ if enabled_tests.length() > 0
     subdir('tests')
 endif
 
-clang_format = find_program('clang-format', required: in_ci)
-if clang_format.found()
-    project_files = run_command(
-        'find',
-        meson.project_source_root() / 'cli',
-        meson.project_source_root() / 'hsejni',
-        meson.project_source_root() / 'include',
-        meson.project_source_root() / 'lib',
-        meson.project_source_root() / 'samples',
-        meson.project_source_root() / 'tests',
-        meson.project_source_root() / 'tools',
-        '-type',
-        'f',
-        '(',
-        '-name',
-        '*.[ch]',
-        '-o',
-        '-name',
-        '*.h.in',
-        ')',
-        '-print',
-        check: true,
-    ).stdout().strip().split('\n')
-
-    clang_format_help_text = run_command(
-        clang_format,
-        '--help',
-    ).stdout().strip()
-
-    clang_format_has_dry_run = run_command(
-        python,
+format = find_program('scripts' / 'dev' / 'format', required: true)
+run_target(
+    'format',
+    command: format,
+)
+run_target(
+    'format-check',
+    command: [
+        format,
         '-c',
-        'exit(not ("--dry-run" in """@0@""")'.format(clang_format_help_text)
-    ).returncode() == 0
-
-    clang_format_has_werror = run_command(
-        python,
-        '-c',
-        'exit(not ("--Werror" in """@0@"""))'.format(clang_format_help_text)
-    ).returncode() == 0
-
-    clang_format_command = [
-        clang_format.full_path(),
-        '--style=file',
-    ]
-
-    if get_option('werror') and clang_format_has_werror
-        clang_format_command += '--Werror'
-    endif
-
-    if in_ci and clang_format_has_dry_run
-        clang_format_command += '--dry-run'
-    else
-        clang_format_command += '-i'
-    endif
-
-    clang_format_command += project_files
-
-    if in_ci and not clang_format_has_dry_run and not clang_format_has_werror
-        run_target(
-            'clang-format',
-            command: [
-                'sh',
-                '-c',
-                '@0@ && @1@ -C @SOURCE_ROOT@ diff-files --quiet'.format(' '.join(clang_format_command), git.full_path()),
-            ],
-        )
-    else
-        run_target(
-            'clang-format',
-            command: clang_format_command,
-        )
-    endif
-endif
-
-black = find_program('black', required: in_ci)
-if black.found()
-    black_command = [
-        black,
-        meson.project_source_root(),
-    ]
-
-    if in_ci
-        black_command += [
-            '--check',
-            '--diff',
-        ]
-    endif
-
-    run_target(
-        'black',
-        command: black_command,
-    )
-endif
+    ],
+)
 
 if not meson.is_subproject()
     pkg_config_path = run_command(
