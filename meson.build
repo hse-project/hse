@@ -345,16 +345,25 @@ if not valgrind_dep.found()
     )
 endif
 
-tests_enabled = 'none' not in get_option('tests')
-unit_tests_enabled = tests_enabled and 'unit' in get_option('tests')
-functional_tests_enabled = tests_enabled and 'functional' in get_option('tests')
+enabled_tests = []
+foreach t : get_option('tests')
+    if t == 'all'
+        enabled_tests += 'unit'
+        enabled_tests += 'functional'
+        break
+    elif t == 'unit'
+        enabled_tests += 'unit'
+    elif t == 'functional'
+        enabled_tests += 'functional'
+    endif
+endforeach
 
-# Add paths to this variable if you want to see executables in the build
-# directory
+# Add paths to these variables if you want to see targets in the runtime
+# environment
 executable_paths = []
 library_paths = []
 
-if unit_tests_enabled
+if 'unit' in enabled_tests
     mapi_idx_generate = find_program(
         'scripts' / 'build' / 'mapi_idx_generate',
         required: true,
@@ -374,13 +383,13 @@ exe_install_rpath = get_option('install-rpath') ? '$ORIGIN' / '..' / get_option(
 subdir('config')
 subdir('3rdparty')
 subdir('include')
-if unit_tests_enabled or get_option('tools')
+if 'unit' in enabled_tests or get_option('tools')
     # need access to tools_includes for unit tests and tools
     subdir('tools' / 'include')
 endif
-if tests_enabled
+if enabled_tests.length() > 0
     # need to know about mocks, framework, test support sources before entering src directory
-    if unit_tests_enabled
+    if 'unit' in enabled_tests
         subdir('tests' / 'mocks')
         subdir('tests' / 'support')
     endif
@@ -401,7 +410,7 @@ endif
 run_env = environment()
 
 if get_option('bindings-python')
-    if tests_enabled or get_option('tools')
+    if enabled_tests.length() > 0 or get_option('tools')
         message('tests and tools will use the built-in HSE Python bindings')
     endif
 
@@ -432,7 +441,7 @@ if get_option('bindings-python')
         env: run_env,
     )
 else
-    if tests_enabled or get_option('tools')
+    if enabled_tests.length() > 0 or get_option('tools')
         message('tests and tools will use the system HSE Python bindings')
     endif
 
@@ -474,117 +483,68 @@ endif
 run_env.set('PATH', path)
 run_env.set('LD_LIBRARY_PATH', ld_library_path)
 
-if tests_enabled
-    if unit_tests_enabled
+if enabled_tests.length() > 0
+    if 'unit' in enabled_tests
         # now that we have libhse-mock, go into repository directory
         subdir('tests' / 'mocks' / 'repository')
     endif
     subdir('tests')
 endif
 
-clang_format = find_program('clang-format', required: in_ci)
-if clang_format.found()
-    project_files = run_command(
-        'find',
-        meson.project_source_root() / 'cli',
-        meson.project_source_root() / 'hsejni',
-        meson.project_source_root() / 'include',
-        meson.project_source_root() / 'lib',
-        meson.project_source_root() / 'samples',
-        meson.project_source_root() / 'tests',
-        meson.project_source_root() / 'tools',
-        '-type',
-        'f',
-        '(',
-        '-name',
-        '*.[ch]',
-        '-o',
-        '-name',
-        '*.h.in',
-        ')',
-        '-print',
-        check: true,
-    ).stdout().strip().split('\n')
-
-    clang_format_help_text = run_command(
-        clang_format,
-        '--help',
-    ).stdout().strip()
-
-    clang_format_has_dry_run = run_command(
-        python,
-        '-c',
-        'exit(not ("--dry-run" in """@0@""")'.format(clang_format_help_text)
-    ).returncode() == 0
-
-    clang_format_has_werror = run_command(
-        python,
-        '-c',
-        'exit(not ("--Werror" in """@0@"""))'.format(clang_format_help_text)
-    ).returncode() == 0
-
-    clang_format_command = [
-        clang_format.full_path(),
-        '--style=file',
-    ]
-
-    if get_option('werror') and clang_format_has_werror
-        clang_format_command += '--Werror'
-    endif
-
-    if in_ci and clang_format_has_dry_run
-        clang_format_command += '--dry-run'
-    else
-        clang_format_command += '-i'
-    endif
-
-    clang_format_command += project_files
-
-    if in_ci and not clang_format_has_dry_run and not clang_format_has_werror
-        run_target(
-            'clang-format',
-            command: [
-                'sh',
-                '-c',
-                '@0@ && @1@ -C @SOURCE_ROOT@ diff-files --quiet'.format(' '.join(clang_format_command), git.full_path()),
-            ],
-        )
-    else
-        run_target(
-            'clang-format',
-            command: clang_format_command,
-        )
-    endif
-endif
-
-black = find_program('black', required: in_ci)
-if black.found()
-    black_command = [
-        black,
-        meson.project_source_root(),
-    ]
-
-    if in_ci
-        black_command += [
-            '--check',
-            '--diff',
-        ]
-    endif
-
-    run_target(
-        'black',
-        command: black_command,
-    )
-endif
-
+format = find_program('scripts' / 'dev' / 'format', required: true)
 run_target(
-    'shell',
+    'format',
     command: [
-        'sh',
+        format,
     ],
-    env: run_env,
+)
+run_target(
+    'format-check',
+    command: [
+        format,
+        '-c',
+    ],
 )
 
 if not meson.is_subproject()
+    pkg_config_path = run_command(
+        'sh',
+        '-c',
+        'echo $PKG_CONFIG_PATH',
+        check: true,
+    ).stdout().strip()
+    run_env.set(
+        'PKG_CONFIG_PATH',
+        '@0@:@1@:@2@'.format(
+            meson.project_build_root() / 'meson-uninstalled',
+            ':'.join(get_option('pkg_config_path')),
+            pkg_config_path
+        )
+    )
+
+    shell = run_command(
+        'sh',
+        '-c',
+        'echo $SHELL',
+        check: true,
+    ).stdout().strip()
+    run_target(
+        'shell',
+        command: [
+            shell,
+        ],
+        env: run_env,
+    )
+
+    if fs.exists(meson.project_source_root() / '.git')
+        git_hooks = find_program('scripts' / 'dev' / 'git-hooks', required: true)
+        run_target(
+            'git-hooks',
+            command: [
+                git_hooks,
+            ],
+        )
+    endif
+
     meson.add_dist_script('scripts' / 'release' / 'gen-version')
 endif

@@ -1,0 +1,82 @@
+#!/usr/bin/env sh
+
+if ! type clang-format > /dev/null 2>&1; then
+	>&2 echo "clang-format not found"
+	exit 1
+fi
+
+if ! type black > /dev/null 2>&1; then
+	>&2 echo "black not found"
+	exit 1
+fi
+
+function usage {
+	echo -e "Usage: format [OPTIONS]\n"
+	echo -e "\tFormatting script for HSE source code and files\n"
+	echo -e "Options:"
+	echo -e "\t-h\tPrint help"
+	echo -e "\t-c\tCheck if files are formatted properly"
+}
+
+# Path to source root. MESON_SOURCE_ROOT is set during script runs, but this
+# script won't always be run through Meson.
+source_root=$(realpath $(dirname $(dirname $(dirname $0))))
+
+files=$(find \
+	"${source_root}/cli" \
+	"${source_root}/hsejni" \
+	"${source_root}/include" \
+	"${source_root}/lib" \
+	"${source_root}/samples" \
+	"${source_root}/tests" \
+	"${source_root}/tools" \
+	-type f \( -name "*.[ch]" -o -name "*.h.in" \) -print)
+
+clang_format_help=$(clang-format --help)
+echo $clang_format_help | grep --quiet -- "--Werror"
+clang_format_has_werror=$?
+echo $clang_format_help | grep --quiet -- "--dry-run"
+clang_format_has_dry_run=$?
+
+check=0
+while getopts "hc" arg; do
+	case "${arg}" in
+		h)
+			usage
+			exit 0
+			;;
+		c)
+			check=1
+			;;
+		?)
+			>&2 echo "Invalid option '${arg}'"
+			usage
+			exit 1
+			;;
+	esac
+done
+
+if [ $check -eq 1 ]; then
+	found_issues=0
+
+	if [ $clang_format_has_dry_run -eq 0 ] && [ $clang_format_has_werror -eq 0 ]; then
+		clang-format --style=file --dry-run --Werror $files
+	else
+		clang-format --style=file -i $files && git diff-files --quiet
+	fi
+	if [ $? -ne 0 ]; then
+		found_issues=1
+	fi
+
+	black --check --diff $source_root
+	if [ $? -ne 0 ]; then
+		found_issues=1
+	fi
+
+	if [ $found_issues -ne 0 ]; then
+		exit 2
+	fi
+else
+	clang-format --style=file -i $files
+	black $source_root
+fi

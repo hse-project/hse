@@ -118,7 +118,16 @@ def main() -> int:
     while True:
         try:
             buf = sp.check_output(
-                ["curl", "--silent", "--fail", "--noproxy", "localhost", "--unix-socket", sock, url]
+                [
+                    "curl",
+                    "--silent",
+                    "--fail",
+                    "--noproxy",
+                    "localhost",
+                    "--unix-socket",
+                    sock,
+                    url,
+                ]
             )
         except sp.CalledProcessError:
             return -1

@@ -2,7 +2,7 @@ option('cli', type: 'boolean', value: true,
     description: 'Build the CLI')
 option('install-rpath', type: 'boolean', value: true,
     description: 'Add rpath to ELF files to faciliate discovery of libhse')
-option('tests', type: 'array', choices: ['all', 'none', 'unit', 'functional'], value: ['unit'],
+option('tests', type: 'array', choices: ['all', 'unit', 'functional'], value: ['unit'],
     description: 'Build and enable tests')
 option('tests-kvdb', type: 'string', value: 'kvpy',
     description: 'KVDB the tests will use')

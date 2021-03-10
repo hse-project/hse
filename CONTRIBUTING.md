@@ -28,6 +28,19 @@ git clone https://github.com/hse-project/hse.git
 git clone git@github.com:hse-project/hse.git
 ```
 
+## Git Hooks
+
+HSE has some Git hooks in its source tree that you are welcome to use.
+
+```shell
+ninja -C build git-hooks
+# or
+./scripts/dev/git-hooks
+```
+
+Either of the above commands will ensure that Git hooks are properly setup for
+the project.
+
 ## Building
 
 HSE uses the [Meson build system](https://mesonbuild.com). You can obtain a copy
@@ -97,13 +110,15 @@ necessary tests to confirm that the contribution works as it should.
 
 HSE has the following test suites:
 
-- `unit` - run all unit tests
-- `c0` - run all c0 tests
-- `cn` - run all cn tests
-- `framework` - run all test framework tests
-- `kvdb` - run all kvdb tests
-- `kvs` - run all kvs tests
-- `util` - run all util tests
+- `unit` - unit tests
+- `c0` - c0 tests
+- `cn` - cn tests
+- `framework` - test framework tests
+- `kvdb` - kvdb tests
+- `kvs` - kvs tests
+- `util` - util tests
+- `functional` - check HSE's functionality
+- `smoke` - smoke tests
 
 To run a full suite, run the following:
 
@@ -126,20 +141,20 @@ Targets that you may find useful during HSE development:
 
 - `install`
 - `uninstall`
-- `clang-format`
-- `black`
+- `format`
 - `python-repl`
 - `shell`
 - `test`
+- `git-hooks`
 
 ```sh
 ninja -C build [target...]
 ```
 
-To format all C code for instance, run the following:
+To format all code and source files for instance, run the following:
 
 ```sh
-ninja -C build clang-format
+ninja -C build format
 ```
 
 ## Distributing
@@ -147,7 +162,7 @@ ninja -C build clang-format
 ### Source
 
 If you want to distribute HSE as a source tarball, then the following commands
-should drop a tar file in `build/meson-dist`.
+should create a tar file in `build/meson-dist`.
 
 ```sh
 # Read `meson dist -h` for other format options. Tests are disabled as an
