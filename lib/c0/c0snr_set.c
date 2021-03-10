@@ -56,10 +56,10 @@ struct c0snr_set_impl {
     u8                      css_maskv[NELEM(c0snr_set_bkt_maskv)];
 
     struct {
-        atomic_t css_active __aligned(SMP_CACHE_BYTES * 2);
+        atomic_t css_active HSE_ALIGNED(SMP_CACHE_BYTES * 2);
     } css_nodev[2];
 
-    struct c0snr_set_bkt css_bktv[] __aligned(SMP_CACHE_BYTES * 2);
+    struct c0snr_set_bkt css_bktv[] HSE_ALIGNED(SMP_CACHE_BYTES * 2);
 };
 
 #define c0snr_set_h2r(handle) container_of(handle, struct c0snr_set_impl, css_handle)
@@ -85,7 +85,7 @@ struct c0snr_set_entry {
         void       *cse_next;
     };
 
-    atomic_t           cse_refcnt  __aligned(SMP_CACHE_BYTES);
+    atomic_t           cse_refcnt  HSE_ALIGNED(SMP_CACHE_BYTES);
 };
 
 #define KVMS_GEN_INVALID   (~0UL)
@@ -98,7 +98,7 @@ struct c0snr_set_entry {
  * @act_entryv: fixed-size cache of entry objects
  */
 struct c0snr_set_list {
-    spinlock_t              act_lock __aligned(SMP_CACHE_BYTES * 2);
+    spinlock_t              act_lock HSE_ALIGNED(SMP_CACHE_BYTES * 2);
     sem_t                   act_sema;
 
     /* Abort handler can go away when LC is in place */

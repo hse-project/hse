@@ -126,7 +126,7 @@ struct kvs_cursor_impl {
     merr_t kci_err; /* bad cursor, must destroy */
 
     char kci_prefix[];
-} __aligned(SMP_CACHE_BYTES);
+} HSE_ALIGNED(SMP_CACHE_BYTES);
 
 static struct kmem_cache *kvs_cursor_zone;
 

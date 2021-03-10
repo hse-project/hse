@@ -215,7 +215,7 @@ struct curcache {
     struct mutex         cca_lock;
     struct rb_root       cca_root;
     struct cache_bucket *cca_bkt_head;
-} __aligned(SMP_CACHE_BYTES * 2);
+} HSE_ALIGNED(SMP_CACHE_BYTES * 2);
 
 struct ikvs {
     uint             ikv_sfx_len;
