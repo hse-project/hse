@@ -8,18 +8,18 @@ class Util:
 
     def humanize(self, number):
         n = number
-        for sfx in ['', 'K', 'M', 'G', 'T', 'P', 'E']:
+        for sfx in ["", "K", "M", "G", "T", "P", "E"]:
             if abs(n) < 1000:
-                return '{:.2f}{}'.format(n, sfx)
+                return "{:.2f}{}".format(n, sfx)
             n = n / 1000
 
-        return '{:.2f}{}'.format(n, sfx)
+        return "{:.2f}{}".format(n, sfx)
 
     def file_to_yaml(self, filepath):
-        if filepath.endswith('.xz'):
-            fd = lzma.open(filepath, 'r')
+        if filepath.endswith(".xz"):
+            fd = lzma.open(filepath, "r")
         else:
-            fd = open(filepath, 'r')
+            fd = open(filepath, "r")
 
         try:
             shape = fd.read()
