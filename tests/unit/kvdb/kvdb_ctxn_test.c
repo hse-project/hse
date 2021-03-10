@@ -839,10 +839,8 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, put_get_pdel, mapi_pre, mapi_post)
     struct kvs_vtuple       vt;
     merr_t                  err;
     u64                     key[2], val, buf;
-//    enum key_lookup_res     res;
     struct kvs_buf          vbuf = {};
     struct c0              *c0 = NULL; /* c0 is mocked */
-//    struct cn              *cN = NULL; /* cN is mocked */
     atomic64_t              kvdb_seq;
 
     err = kvdb_keylock_create(&klock, 16, 65536);

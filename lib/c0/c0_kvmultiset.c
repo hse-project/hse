@@ -936,7 +936,6 @@ c0kvms_abort_active(struct c0_kvmultiset *handle)
     uint c0snr_cnt;
     int i;
     int attempts = 5;
-    int bc = 0;
     bool backoff = true;
 
     while (attempts-- && backoff) {
@@ -951,10 +950,8 @@ c0kvms_abort_active(struct c0_kvmultiset *handle)
             }
         }
 
-        if (backoff) {
-            bc++;
+        if (backoff)
             sleep(1);
-        }
     }
 
     c0snr_cnt = atomic_read(&self->c0ms_c0snr_cnt);

@@ -37,7 +37,6 @@ struct kvs_rparams;
 struct cn;
 struct cn_kvdb;
 
-
 struct kc_filter {
     const void *kcf_maxkey;
     size_t      kcf_maxklen;

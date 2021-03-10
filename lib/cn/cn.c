@@ -723,17 +723,6 @@ cn_ingestv(
         goto done;
     }
 
-    if (ev(seqno_min < cndb_seqno(cndb))) {
-        //err = merr(EINVAL);
-        hse_log(
-            HSE_ERR "seqno_min %lu seqno_max %lu cndb_seqno %lu",
-            (ulong)seqno_min,
-            (ulong)seqno_max,
-            (ulong)cndb_seqno(cndb));
-        //assert(0);
-        //goto done;
-    }
-
     kvsetv = calloc(ingestc, sizeof(*kvsetv));
     if (ev(!kvsetv)) {
         err = merr(EINVAL);
