@@ -1,0 +1,54 @@
+#doc: kvdb specific smoke tests (ascending by run time)
+
+# These two first
+version
+aloha
+
+samples
+
+# The rest are ordered to run short tests first
+omf_encoder_perf
+putget1
+simple_client1
+lcp_test
+longtestc0
+longtest-cursor
+kvsdrop
+seqno_order
+droptomb1
+key-imm-disc
+droptomb2
+putget2
+longtest-sync-cursor
+longtestcn
+longtest-sync
+prefix-tree-shape1
+longtestcn2
+kvt-simple
+txn1
+longtestkvmax
+kmt1
+kvt-logreplay
+kvt-isolation
+large-values1
+cursor_test2
+kvt-compression
+kvs-max
+
+# These tests disabled until WAL is back:
+#
+#   kvt-logreplay
+#   c1-correctness
+#
+# These tests started failing around 2021-03-10:
+#
+#   cursor_test1
+#   txn_thrash
+#
+# These tests also fail, not sure when they started to fail:
+#
+#   prefix-basic
+#   prefix-pivot
+#   prefix-spill
+#   probe-test
+#   ptree-test

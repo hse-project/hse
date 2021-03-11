@@ -1,0 +1,9 @@
+#!/usr/bin/bash
+
+#doc: simple kvt test (non-transactional)
+
+# kvdb/kvs test
+
+cmd $HSE_TOOLS_DIR/kvt -i1m -t15 -cv -m1 $mp
+  
+

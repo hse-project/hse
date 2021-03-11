@@ -1,0 +1,19 @@
+#!/usr/bin/bash
+
+#doc: quick longtest focused on cn cursors
+
+kvs=$(new_kvs $mp) || err
+
+threads=4
+keys=100000
+iter=3
+#absolute key min is 6, per $HSE_TOOLS_DIR/longtest command parser
+kmin=6
+#absolute key max is 8, because rsgen_decode() cannot handle more
+kmax=8
+
+cmd $HSE_TOOLS_DIR/longtest $mp $kvs -t $threads -i $iter -c $keys --kmin=$kmin --kmax=$kmax --cursor
+cmd $HSE_TOOLS_DIR/cndb_log -c $mp
+cmd $HSE_TOOLS_DIR/cn_metrics $mp $kvs
+
+

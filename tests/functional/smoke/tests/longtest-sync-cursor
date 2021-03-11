@@ -1,0 +1,27 @@
+#!/usr/bin/bash
+
+#doc: 60s longtest with sync with cursors
+
+kvs=$(new_kvs $mp) || err
+
+keys=$((1*1000*1000))
+threads=4
+seconds=60
+
+# use skewed distribution, and tell last thread (with fewest keys) to sync once per iteration.
+args=()
+args+=(-t $threads -s $seconds -c $keys -v)
+args+=(--poly=4) # skewed distribution
+args+=(--sync=$((threads-1)))
+args+=(--verify=100)
+args+=(--cursor)
+args+=(--kmin=8)
+args+=(--kmax=8)
+args+=(kvs.cn_compaction_debug=3)
+
+cmd $HSE_TOOLS_DIR/longtest $mp $kvs "${args[@]}"
+cmd $HSE_TOOLS_DIR/cn_metrics $mp $kvs
+
+
+
+

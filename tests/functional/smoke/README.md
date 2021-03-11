@@ -1,58 +1,35 @@
-# Smoke Tests
+# HSE Smoke Tests
 
-## Initial Setup
+First, ensure HSE has been built:
 
-### Pre-requisites for running these smoke tests
+    ninja -C build
 
-  - sudo access: these tests use sudo to perform certain functions.
+To run HSE smoke tests, you must first create a test mpool.  Here is
+an example command sequence that creates an mpool named "mp1".
 
-  - test block devices: You must have access to one more more block devices.
+    sudo mpool scan --deactivate
+    sudo mpool destroy mp1
+    sudo pvcreate /dev/nvme0n1
+    sudo vgcreate -y mp1 /dev/nvme0n1
+    sudo lvcreate -y -l '100%FREE' -n mp1  mp1 /dev/nvme0n1
+    sudo mpool create -f mp1 /dev/mp1/mp1 uid=$(id -u) gid=$(id -g)
+    sudo mpool activate mp1
+    sudo mpool list mp1
 
-  - `/etc/nf-test-devices`: A file that names the raw block devices to be used
-    for testing. The file should contain one block device special file name
-    per line, for example:
+If you created the mpool with "uid" and "gid" as shown above, you
+should not need root access to create the KVDB or run the smoke tests.
 
-        $ cat /etc/nf-test-devices
-        /dev/nvme0n1
-        /dev/nvme0n2
+Create the test KVDB:
 
-    All devices listed in `/etc/nf-test-devices` should be the same drive
-    model. If unsure, use a single device.
+    hse1 kvdb create mp1
 
-### Optional Features
+Run the smoke test, providing the build dir and the mpool name:
 
-Some tests rely on a python script to calculate descriptive statistics (min,
-max, mean, standard deviation, etc) from data stored in log files. These tests
-will still run (and will not fail), but to get the descriptive stats you need
-the following:
+    ./tests/functional/smoke/smoke -C build -m mp1
 
-    sudo dnf install python3-devel
-    pip3 install --user numpy
-    pip3 install --user pandas
+To get more help:
 
-## Quick Guide
+    ./tests/functional/smoke/smoke -h
 
-*WARNING*: running smoke tests *will* destroy data on the test block devices.
-
-The smoke tests make use of the system installed binaries, so make sure that
-all mpool, mpool-kmod, hse
-whether that is through an rpm/deb or `make $buildtype install`.
-
-All the smoke tests can be run using `make $buildtype smoke`.
-
-If you are working on a certain test, and you don't want to run all the tests,
-then you have two options:
-
-- Run the `tests/smoke/smoke $testname` script. This will only execute
-`$testname`. A list of test names is available through either the `-l` or `-ll`
-options of `tests/smoke/smoke`.
-- Run the specific test you are trying to execute in the `test/smoke/tests`
-directory. An example test run would look like
-`./tests/smoke/tests/simple_client1`.
-
-When executing the smoke tests through `meson`, the logs will output to
-`builds/$hostname/rpm/$buildtype/smokelogs`. Otherwise logs will be placed in
-`~/smokelogs`.
-
-For more information about the smoke tests suite, check out
-`test/smoke/smoke -h`.
+The tests take almost an hour to run a dual socket Intel Xeon E5-2690
+2.60GHz server with 256G DRAM and a fast SSD (9200).

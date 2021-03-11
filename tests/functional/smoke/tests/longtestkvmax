@@ -1,0 +1,19 @@
+#!/usr/bin/bash
+
+#doc: quick longtest focused on key/val max
+
+kvs=$(new_kvs $mp) || err
+
+threads=4
+keys=100
+seed=$RANDOM
+
+# This test requires '--once' to ensure each thread of each invocation of
+# $HSE_TOOLS_DIR/longtest runs through exactly one iteration.
+for (( phase = 0; phase <= 9; phase++ )); do
+    cmd $HSE_TOOLS_DIR/longtest $mp $kvs -t $threads -i 3 --once -c $keys --seed $seed --mphase $((1<<phase)) --verify 100 --klen 1344 --once -v
+    cmd $HSE_TOOLS_DIR/longtest $mp $kvs -t $threads -i 3 --once -c $keys --seed $seed --mphase $((1<<phase)) --verify 100 --vlen 1048576 --once -v
+    cmd $HSE_TOOLS_DIR/cn_metrics $mp $kvs
+done
+
+

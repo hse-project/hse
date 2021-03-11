@@ -1,0 +1,36 @@
+#!/usr/bin/bash
+
+#doc: test for complete annihilation during spills when tombs delete all existing keys
+keys=10
+
+kvs=$(new_kvs $mp) || err
+
+sp='[[:space:]]'
+
+rparams='kvdb.csched_debug_mask=0xffffffff kvs.cn_close_wait=1'
+
+# Generate 8 kvsets in root node, with distinct keys
+for ((i = 0; i < 8; i++)); do
+    cmd $HSE_TOOLS_DIR/putbin -s$((i*keys)) -c$keys $mp $kvs $rparams kvs.cn_maint_disable=1
+done
+
+# Let compaction run, which should spill all keys into level 1, then verify
+# no kvsets in level 0
+cmd $HSE_TOOLS_DIR/putbin -n 1000 $mp $kvs kvs.cn_close_wait=1 $rparams
+cmd $HSE_TOOLS_DIR/cn_metrics $mp $kvs
+check=$LOG
+cmd --exp-err-status grep -P "^k${sp}+0,0,0${sp}" "$check"
+
+# Repeat $HSE_TOOLS_DIR/putbin, but with -D to add tombstones
+for ((i = 0; i < 8; i++)); do
+    cmd $HSE_TOOLS_DIR/putbin -D -s$((i*keys)) -c$keys $mp $kvs $rparams kvs.cn_maint_disable=1
+done
+
+# Let compaction run, which should spill all keys into level 1, cause
+# kv-compactions, key annihilation, and leave an empty tree.
+cmd $HSE_TOOLS_DIR/putbin -n 3000 $mp $kvs $rparams
+cmd $HSE_TOOLS_DIR/cn_metrics $mp $kvs
+check=$LOG
+cmd grep -P "^t${sp}+0,0,0${sp}" "$check"
+
+

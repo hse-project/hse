@@ -1,9 +1,0 @@
-#!/bin/bash
-
-#doc: run all of the mpft correctness tests
-
-mp=$(new_mpool) || err
-
-cmd mpft wild.correctness mp=$mp
-
-cmd $sudo mpool destroy "$mp"

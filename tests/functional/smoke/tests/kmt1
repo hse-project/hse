@@ -1,0 +1,19 @@
+#!/usr/bin/bash
+
+#doc: simple kmt test on a KVDB kvs and on a dataset
+
+threads=$(nproc)
+recmax=$((4 * threads))
+
+kvs1=$(new_kvs $mp) || err
+kvs2=$(new_kvs $mp) || err
+kvs3=$(new_kvs $mp) || err
+
+cmd $HSE_TOOLS_DIR/kmt -i $recmax -t10 -c -j$threads -w50 $mp/$kvs1
+cmd $HSE_TOOLS_DIR/kmt -t10 -cD -j$threads -w50 $mp/$kvs1 kvs.cn_verify=1
+
+# test ingest + cn
+cmd $HSE_TOOLS_DIR/kmt -i4m -t15 -cD -bl0 -j$threads -w50 $mp/$kvs2 kvs.c0_debug=1 kvs.cn_verify=1
+
+# hammer on c0 update
+cmd $HSE_TOOLS_DIR/kmt -i448 -t15 -cD -j$threads -w50 -b $mp/$kvs3 kvs.c0_debug=1

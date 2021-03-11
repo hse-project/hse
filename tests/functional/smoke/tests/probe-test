@@ -1,0 +1,14 @@
+#!/usr/bin/bash
+
+# add a KVS to the KVDB
+# fanout=16 for a smaller pivot level
+kvs=$(new_kvs $mp kvs.fanout=16 kvs.pfx_len=8 kvs.sfx_len=8) || err
+
+p=10000
+c=1000
+s=10
+threads=96
+
+cmd $HSE_TOOLS_DIR/pfx_probe_test $mp $kvs -p$p -c$c -s$s -j$threads kvs.cn_node_size_hi=128 kvs.cn_node_size_lo=128 kvdb.csched_samp_max=100
+
+
