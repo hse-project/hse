@@ -9,7 +9,7 @@ public class API {
 			System.loadLibrary("libhsejni_Library_windows");
 		else
 			// Linux
-			System.loadLibrary("hsejni_c");
+			System.loadLibrary("hsejni");
 	}
 
 	public long getNativeHandle() {
