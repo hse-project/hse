@@ -6,7 +6,8 @@ aloha
 
 samples
 
-# The reset in order: short tests first
+# The rest are ordered to run short tests first
+omf_encoder_perf
 putget1
 simple_client1
 lcp_test

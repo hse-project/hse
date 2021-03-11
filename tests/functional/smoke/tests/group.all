@@ -35,6 +35,7 @@ longtest-cursor
 longtestkvmax
 longtest-sync
 longtest-sync-cursor
+omf_encoder_perf
 prefix-basic
 prefix-pivot
 prefix-spill
