@@ -277,7 +277,7 @@ report(
         gettimeofday(&now, NULL);                                             \
         timersub(&now, &prev, &diff2);                                        \
                                                                               \
-        snprintf(tnam, sizeof(tnam), "%-8s %-8s", NAME, modestr);             \
+        snprintf(tnam, sizeof(tnam), "%-10s %-8s", NAME, modestr);            \
         report(tnam, ops, off, diff1, diff2);                                 \
                                                                               \
         if (ops == 0)                                                         \
@@ -345,7 +345,7 @@ test(
     gettimeofday(&now, NULL);
     timersub(&now, &prev, &diff2);
 
-    snprintf(tnam, sizeof(tnam), "%-8s %-8s", NAME, modestr);
+    snprintf(tnam, sizeof(tnam), "%-10s %-8s", NAME, modestr);
     report(tnam, ops, off, diff1, diff2);
 
     if (ops == 0)
@@ -368,7 +368,7 @@ run_encoder_perf(u32 seed)
     test("warmup", encode_n8, decode_n8, U8_MAX, 1);
 
     printf("\n");
-    test("native8", encode_n8, decode_n8, U8_MAX, 1);
+    test("native8",  encode_n8, decode_n8, U8_MAX, 1);
     test("native16", encode_n16, decode_n16, U16_MAX, 2);
     test("native32", encode_n32, decode_n32, U32_MAX, 4);
     test("native64", encode_n64, decode_n64, U64_MAX, 8);
@@ -440,7 +440,7 @@ test_enc_name(enum test_enc enc)
 }
 
 struct kmd_test_profile {
-    struct xrand xr;
+    struct xrand    xr;
     unsigned        max_keys;
     unsigned        max_ents_per_key;
     enum test_enc   enc;
@@ -450,7 +450,7 @@ struct kmd_test_profile {
 unsigned
 tp_next_count(struct kmd_test_profile *tp)
 {
-    return (mwc_rand32(&tp->mwc) % tp->max_ents_per_key) + 1;
+    return (xrand64(&tp->xr) % tp->max_ents_per_key) + 1;
 }
 
 void
@@ -467,14 +467,14 @@ tp_next_entry(
     static char valbuf[CN_SMALL_VALUE_THRESHOLD] = { 17, 23, 42, 211, 164, 96, 11, 7 };
     u32         rv;
 
-    *seq = mwc_rand64(&tp->mwc) & HG64_MAX;
+    *seq = xrand64(&tp->xr) & HG64_MAX;
 
     if (tp->enc == enc_short)
         *seq &= 0x3f;
     else if (tp->enc == enc_med)
         *seq &= 0x3fff;
 
-    rv = mwc_rand32(&tp->mwc);
+    rv = xrand64(&tp->xr);
 
     if (tp->mix == vals_only)
         goto value;
@@ -488,7 +488,7 @@ tp_next_entry(
     if (rv < 5 * (U32_MAX / 100)) {
         *vtype = vtype_ival;
         *vdata = valbuf;
-        *vlen = 1 + mwc_rand32(&tp->mwc) % CN_SMALL_VALUE_THRESHOLD;
+        *vlen = 1 + xrand64(&tp->xr) % CN_SMALL_VALUE_THRESHOLD;
         return;
     }
 
@@ -510,9 +510,9 @@ tp_next_entry(
 
 value:
     *vtype = vtype_val;
-    *vboff = mwc_rand32(&tp->mwc);
-    *vbidx = mwc_rand32(&tp->mwc) & HG16_32K_MAX;
-    *vlen = mwc_rand32(&tp->mwc) & HG32_1024M_MAX;
+    *vboff = xrand64(&tp->xr);
+    *vbidx = xrand64(&tp->xr) & HG16_32K_MAX;
+    *vlen = xrand64(&tp->xr) & HG32_1024M_MAX;
     *clen = 0;
     if (*vlen <= CN_SMALL_VALUE_THRESHOLD)
         *vlen = CN_SMALL_VALUE_THRESHOLD;
@@ -523,7 +523,7 @@ value:
         *vbidx &= 0x3f;
         *vlen &= 0xfff;
     }
-    if (mwc_rand32(&tp->mwc) % 100 < 10) {
+    if (xrand64(&tp->xr) % 100 < 10) {
         *vtype = vtype_cval;
         *clen = *vlen / 2;
         if (!*clen)
@@ -755,10 +755,10 @@ run_kmd_profile(struct kmd_test_profile *tp)
 
     memset(mem, 0xab, mem_size);
 
-    mwc_rand_init(&tp->mwc, seed);
+    xrand_init(&tp->xr, seed);
     run_kmd_tp(tp, &write, true);
 
-    mwc_rand_init(&tp->mwc, seed);
+    xrand_init(&tp->xr, seed);
     run_kmd_tp(tp, &read, true);
 
     s = &write;
@@ -820,7 +820,7 @@ run_kmd_perf(void)
 {
     struct kmd_test_stats read = {}, write = {};
     struct timeval        t1, t2, tmp;
-    struct mwc_rand       mwc;
+    struct xrand          xr;
     double                M = 1024 * 1024;
     double                rtime, wtime;
     u64                   i;

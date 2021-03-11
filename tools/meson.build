@@ -64,6 +64,11 @@ tools = {
             HdrHistogram_c_dep,
         ],
     },
+    'omf_encoder_perf': {
+        'sources': files(
+            'omf_encoder_perf' / 'omf_encoder_perf.c',
+        ),
+    },
     'kmt': {
         'sources': files(
             'kmt' / 'kmt.c',
