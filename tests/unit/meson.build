@@ -289,7 +289,7 @@ foreach c, tests : components
         t_args = []
         if 'cases' in params
             foreach ident, args : params['cases']
-                t_name = ident == 'default' ? t : '@0@_@1@'.format(t, ident)
+                t_name = ident == 'default' ? t : '@0[@1@]'.format(t, ident)
                 t_args += args
 
                 test(

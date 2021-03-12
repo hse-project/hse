@@ -1,4 +1,4 @@
-hsejni_c_sources = files(
+hsejni_sources = files(
     'hse_jni_util.c',
     'hsejni.c',
 )
@@ -10,14 +10,14 @@ java_home = run_command(
     check: true,
 ).stdout().strip()
 
-hsejni_c_c_args = [
+hsejni_c_args = [
     '-DCOMPNAME="hsejni"',
 ]
 
-hsejni_c = library(
+hsejni = library(
     'hsejni',
-    hsejni_c_sources,
-    c_args: hsejni_c_c_args,
+    hsejni_sources,
+    c_args: hsejni_c_args,
     include_directories: [
         public_includes,
         util_includes,
