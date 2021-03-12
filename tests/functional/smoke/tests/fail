@@ -4,4 +4,4 @@
 
 ls foobar-no-such-file
 
-cmd $HSE_TOOLS_DIR/kmt invalid arguments fail me please
+cmd kmt invalid arguments fail me please

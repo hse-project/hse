@@ -6,7 +6,7 @@ kvs=$(new_kvs $mp) || err
 threads=1
 keys=5000
 
-cmd $HSE_TOOLS_DIR/longtest $mp $kvs -t $threads -i 3 -c $keys
-cmd $HSE_TOOLS_DIR/cn_metrics $mp $kvs
+cmd longtest $mp $kvs -t $threads -i 3 -c $keys
+cmd cn_metrics $mp $kvs
 
 

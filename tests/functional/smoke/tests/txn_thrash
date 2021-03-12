@@ -3,9 +3,9 @@
 kvs=$(new_kvs $mp) || err
 
 # Single threaded large transaction
-cmd $HSE_TOOLS_DIR/txn_thrash $mp $kvs -j1 -c500000
+cmd txn_thrash $mp $kvs -j1 -c500000
 
 # Multi threaded, relatively small txns
-cmd $HSE_TOOLS_DIR/txn_thrash $mp $kvs -j16 -c200000
+cmd txn_thrash $mp $kvs -j16 -c200000
 
 

@@ -2,5 +2,5 @@
 
 #doc: run omf_encoder_perf
 
-cmd $HSE_TOOLS_DIR/omf_encoder_per
+cmd omf_encoder_perf
 

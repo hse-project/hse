@@ -32,33 +32,33 @@ for pivot in 0 1 2 3 4; do
         kvs=$(new_kvs $mp kvs.fanout=$fanout kvs.pfx_len=4 kvs.pfx_pivot=$pivot) || err
     fi
 
-    cmd $HSE_TOOLS_DIR/kmt $mp/$kvs -s1 -j32 -f "${prefix}%023lx" -i$keys -l$vlen ${rparams[@]}
+    cmd kmt $mp/$kvs -s1 -j32 -f "${prefix}%023lx" -i$keys -l$vlen ${rparams[@]}
 
     # Run this a few times to finish off compaction.  Calling repeatedly with
     # cn_close_wait=1 is better than calling once with a longer wait b/c each
     # call will spill to the next level regardless of how long it takes.
     for (( i = 0; i < 5; i++ )); do
-        cmd $HSE_TOOLS_DIR/putbin $mp $kvs -n 1000 ${rparams[@]}
+        cmd putbin $mp $kvs -n 1000 ${rparams[@]}
     done
 
-    cmd $HSE_TOOLS_DIR/cn_metrics $mp $kvs
+    cmd cn_metrics $mp $kvs
 
     level=$((pivot + 1))
     count=$(grep "^n $level," $LOG | wc -l)
     if [[ "$count" != "$fanout" ]]; then
         err "Expected $fanout nodes at level $level, found $count nodes." \
-            "See $HSE_TOOLS_DIR/cn_metrics output in $LOG"
+            "See cn_metrics output in $LOG"
     fi
 
     level=$((pivot + 1))
     count=$(grep "^n $level," $LOG | wc -l)
     if [[ "$count" != "$fanout" ]]; then
         err "Expected $fanout nodes at level $level, found $count nodes." \
-            "See $HSE_TOOLS_DIR/cn_metrics output in $LOG"
+            "See cn_metrics output in $LOG"
     fi
 
     # scan and count keys
-    cmd $HSE_TOOLS_DIR/pscan $mp $kvs -p"$prefix" -c
+    cmd pscan $mp $kvs -p"$prefix" -c
     cmd grep -P "^$keys\\b" "$LOG"
 
 done

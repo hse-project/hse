@@ -12,9 +12,9 @@ kvs=$(new_kvs $mp) || err
 # - Verify
 # - Update same keys with 0-byte values
 # - Verify
-cmd $HSE_TOOLS_DIR/putgetdel $mp $kvs -c $keys --vlen 0   --put
-cmd $HSE_TOOLS_DIR/putgetdel $mp $kvs -c $keys --vlen 0  --vput
-cmd $HSE_TOOLS_DIR/putgetdel $mp $kvs -c $keys --vlen 10  --put
-cmd $HSE_TOOLS_DIR/putgetdel $mp $kvs -c $keys --vlen 10 --vput
-cmd $HSE_TOOLS_DIR/putgetdel $mp $kvs -c $keys --vlen 0   --put
-cmd $HSE_TOOLS_DIR/putgetdel $mp $kvs -c $keys --vlen 0  --vput
+cmd putgetdel $mp $kvs -c $keys --vlen 0   --put
+cmd putgetdel $mp $kvs -c $keys --vlen 0  --vput
+cmd putgetdel $mp $kvs -c $keys --vlen 10  --put
+cmd putgetdel $mp $kvs -c $keys --vlen 10 --vput
+cmd putgetdel $mp $kvs -c $keys --vlen 0   --put
+cmd putgetdel $mp $kvs -c $keys --vlen 0  --vput

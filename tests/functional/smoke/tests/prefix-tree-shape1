@@ -29,7 +29,7 @@
 #   - Set max node size to 32MiB to enable faster testing with less data.
 #   - Create prefix tree.
 #   - Ingest significantly more than 32MiB data (eg, 2 X 32 Mib).
-#   - Run $HSE_TOOLS_DIR/putbin in idle mode to let tree take final form
+#   - Run putbin in idle mode to let tree take final form
 #   - Verify tree shape
 
 node_size=32
@@ -53,11 +53,11 @@ for fanout in 2 4 8 16; do
     kvs=$(new_kvs $mp kvs.pfx_len=4 kvs.fanout=$fanout) || err
 
 
-    cmd $HSE_TOOLS_DIR/kmt -j32 -f 'xxxx%016lx' -l$vlen:$vlen -s1 -i$nkeys $mp/$kvs $rp
+    cmd kmt -j32 -f 'xxxx%016lx' -l$vlen:$vlen -s1 -i$nkeys $mp/$kvs $rp
                                                                                       
-    cmd $HSE_TOOLS_DIR/putbin -n 5000 $mp $kvs $rp
+    cmd putbin -n 5000 $mp $kvs $rp
 
-    cmd $HSE_TOOLS_DIR/cn_metrics $mp $kvs
+    cmd cn_metrics $mp $kvs
 
     # todo verify tree shape
     #metrics_log=$LOG

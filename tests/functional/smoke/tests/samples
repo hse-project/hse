@@ -2,10 +2,10 @@
 
 #doc: samples test
 
-cmd $HSE_SAMPLES_DIR/ex1_create $mp skvs0 skvs1 skvs2 skvs3 skvs4
-cmd $HSE_SAMPLES_DIR/ex2_simple_ops $mp skvs0
-cmd $HSE_SAMPLES_DIR/ex3_cursor $mp skvs1
-cmd $HSE_SAMPLES_DIR/ex4_transactions $mp skvs2 skvs3
+cmd ex1_create $mp skvs0 skvs1 skvs2 skvs3 skvs4
+cmd ex2_simple_ops $mp skvs0
+cmd ex3_cursor $mp skvs1
+cmd ex4_transactions $mp skvs2 skvs3
 
 fbase=$LOG_DIR/large_val
 
@@ -13,8 +13,8 @@ for ((n=1; n<10; n++)); do
     cmd dd bs=1000000 count=$n if=/dev/urandom of=$fbase$n
 done
 
-cmd $HSE_SAMPLES_DIR/ex5_large_val $mp skvs4 $fbase*
-cmd $HSE_SAMPLES_DIR/ex5_large_val $mp skvs4 -x $fbase*
+cmd ex5_large_val $mp skvs4 $fbase*
+cmd ex5_large_val $mp skvs4 -x $fbase*
 cmd chmod 644 $fbase*.out
 
 for ((n=1; n<10; n++)); do

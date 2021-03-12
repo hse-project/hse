@@ -16,29 +16,29 @@ kvs5=$(new_kvs $mp) || err
 kvs_list="$kvs1,$kvs2,$kvs3,$kvs4,$kvs5"
 
 # ingest mode
-cmd -s 9 $HSE_TOOLS_DIR/c1ingest $mp $kvs_list -I -v -t $t -c $keys -b -l 64 -L 64 -T $T
+cmd -s 9 c1ingest $mp $kvs_list -I -v -t $t -c $keys -b -l 64 -L 64 -T $T
 # verify mode
-cmd $HSE_TOOLS_DIR/c1ingest $mp $kvs_list -v -t $t -c $keys -b -l 64 -L 64 -T $T
+cmd c1ingest $mp $kvs_list -v -t $t -c $keys -b -l 64 -L 64 -T $T
 
 # drop one kvs and recreate it
-cmd "$HSE_CLI" kvs destroy $mp/$kvs2
+cmd hse1 kvs destroy $mp/$kvs2
 kvs2=$(new_kvs $mp) || err
 kvs_list="$kvs1,$kvs2,$kvs3,$kvs4,$kvs5"
 
 # ingest mode
-cmd -s 9 $HSE_TOOLS_DIR/c1ingest $mp $kvs_list -I -v -t $t -c $keys -p -b -l 64 -L 64 -T $T
+cmd -s 9 c1ingest $mp $kvs_list -I -v -t $t -c $keys -p -b -l 64 -L 64 -T $T
 # verify mode
-cmd $HSE_TOOLS_DIR/c1ingest $mp $kvs_list -v -t $t -c $keys -p -b -l 64 -L 64 -T $T
+cmd c1ingest $mp $kvs_list -v -t $t -c $keys -p -b -l 64 -L 64 -T $T
 
 # drop one kvs and recreate it
-cmd "$HSE_CLI" kvs destroy $mp/$kvs5
+cmd hse1 kvs destroy $mp/$kvs5
 kvs5=$(new_kvs $mp) || err
 kvs_list="$kvs1,$kvs2,$kvs3,$kvs4,$kvs5"
 
 # ingest mode
-cmd -s 9 $HSE_TOOLS_DIR/c1ingest $mp $kvs_list -I -v -t $t -c $keys -p -u -b -l 64 -L 64 -T $((T * 30))
+cmd -s 9 c1ingest $mp $kvs_list -I -v -t $t -c $keys -p -u -b -l 64 -L 64 -T $((T * 30))
 # verify mode
-cmd $HSE_TOOLS_DIR/c1ingest $mp $kvs_list -v -t $t -c $keys -p -u -b -l 64 -L 64 -T $T
+cmd c1ingest $mp $kvs_list -v -t $t -c $keys -p -u -b -l 64 -L 64 -T $T
 
 
 
@@ -46,9 +46,9 @@ cmd $HSE_TOOLS_DIR/c1ingest $mp $kvs_list -v -t $t -c $keys -p -u -b -l 64 -L 64
 kvs1=$(new_kvs $mp) || err
 
 # ingest mode
-cmd -s 9 $HSE_TOOLS_DIR/c1ingest $mp $kvs1 -I -v -c $keys -p -u -l 64 -L 1024 -T $T -x
+cmd -s 9 c1ingest $mp $kvs1 -I -v -c $keys -p -u -l 64 -L 1024 -T $T -x
 # verify mode
-cmd $HSE_TOOLS_DIR/c1ingest $mp $kvs1 -v -c $keys -p -u -l 64 -L 1024 -T $T -x
+cmd c1ingest $mp $kvs1 -v -c $keys -p -u -l 64 -L 1024 -T $T -x
 
 
 
@@ -56,8 +56,8 @@ cmd $HSE_TOOLS_DIR/c1ingest $mp $kvs1 -v -c $keys -p -u -l 64 -L 1024 -T $T -x
 kvs1=$(new_kvs $mp) || err
 
 # ingest mode
-cmd -s 9 $HSE_TOOLS_DIR/c1ingest $mp $kvs1 -I -v -c $keys -p -u -l 64 -L 1024 -T $T -m
+cmd -s 9 c1ingest $mp $kvs1 -I -v -c $keys -p -u -l 64 -L 1024 -T $T -m
 # verify mode
-cmd $HSE_TOOLS_DIR/c1ingest $mp $kvs1 -v -c $keys -p -u -l 64 -L 1024 -T $T -m
+cmd c1ingest $mp $kvs1 -v -c $keys -p -u -l 64 -L 1024 -T $T -m
 
 

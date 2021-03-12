@@ -6,9 +6,9 @@ typeset -i i=256
 
 while (( i>0 )) ; do
     i=i-1
-    cmd "$HSE_CLI" kvs create "${mp}/kvs$i" || err
+    cmd hse1 kvs create "${mp}/kvs$i" || err
 done
 
-cmd $HSE_TOOLS_DIR/kmt -i1k -t5 -cx -s1 "${mp}/kvs$i"
+cmd kmt -i1k -t5 -cx -s1 "${mp}/kvs$i"
 
 

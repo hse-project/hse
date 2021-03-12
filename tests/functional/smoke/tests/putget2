@@ -15,7 +15,7 @@ kvs_unused2=$(new_kvs $mp) || err
 
 kvs_list="$kvs1,$kvs2,$kvs3,$kvs4"
 
-cmd $HSE_TOOLS_DIR/putgetdel $mp $kvs_list -v -t $t -c $keys
-cmd $HSE_TOOLS_DIR/putgetdel $mp $kvs_list -v -t $t -c $keys --sync
-cmd $HSE_TOOLS_DIR/putgetdel $mp $kvs_list -v -t $t -c $keys --ckvs
-cmd $HSE_TOOLS_DIR/putgetdel $mp $kvs_list -v -t $t -c $keys --ckvdb
+cmd putgetdel $mp $kvs_list -v -t $t -c $keys
+cmd putgetdel $mp $kvs_list -v -t $t -c $keys --sync
+cmd putgetdel $mp $kvs_list -v -t $t -c $keys --ckvs
+cmd putgetdel $mp $kvs_list -v -t $t -c $keys --ckvdb
