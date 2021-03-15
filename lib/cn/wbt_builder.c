@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
 #include <hse_util/platform.h>
@@ -87,6 +87,14 @@ struct key_stage_entry_leaf {
     u16 klen;
     u8  kdata[];
 };
+
+static HSE_ALWAYS_INLINE size_t
+get_kst_sz(size_t klen)
+{
+    klen += offsetof(struct key_stage_entry_leaf, kdata);
+
+    return roundup(klen, __alignof(struct key_stage_entry_leaf));
+}
 
 static HSE_ALWAYS_INLINE uint
 get_kmd_len(struct wbb *wbb)
@@ -289,7 +297,7 @@ wbt_leaf_publish(struct wbb *wbb)
             wbb->wbt_first_kobj = wbb->wbt_last_kobj;
 
         entry++;
-        kin = (void *)kin + sizeof(*kin) + kin->klen;
+        kin = (void *)kin + get_kst_sz(kin->klen);
         wbb->entries++;
     }
 }
@@ -414,7 +422,7 @@ wbb_add_entry(
 
     /* Grow the staging area, if necessary */
     end = wbb->cnode_key_stage + (wbb->cnode_key_stage_pgc * PAGE_SIZE);
-    if (HSE_UNLIKELY(wbb->cnode_key_cursor + sizeof(*kst_leaf) + klen > end)) {
+    if (HSE_UNLIKELY(wbb->cnode_key_cursor + get_kst_sz(klen) > end)) {
         void *                       mem;
         uint                         off, new_pgc = 2 * wbb->cnode_key_stage_pgc;
         struct key_stage_entry_leaf *first;
@@ -448,7 +456,7 @@ wbb_add_entry(
 
     memcpy(kst_leaf->kdata + kobj->ko_pfx_len, kobj->ko_sfx, kobj->ko_sfx_len);
 
-    wbb->cnode_key_cursor += sizeof(*kst_leaf) + klen;
+    wbb->cnode_key_cursor += get_kst_sz(klen);
 
     if (wbb->cnode_nkeys == 0)
         wbb->cnode_first_key = kst_leaf->kdata;

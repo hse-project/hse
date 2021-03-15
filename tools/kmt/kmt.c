@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  *
  * kmt (kvs/mpool test) is a tool for stress testing kvs, mpool, and
  * raw/block devices in a multi-threaded environment.  It performs
@@ -4621,8 +4621,13 @@ main(int argc, char **argv)
         if (!fieldnamev)
             abort();
 
-        for (i = 0; i < fieldcount_max; ++i)
-            snprintf(fieldnamev + fieldnamew_max * i, fieldnamew_max, fieldname_fmt, i);
+        for (i = 0; i < fieldcount_max; ++i) {
+            int n;
+
+            n = snprintf(fieldnamev + fieldnamew_max * i, fieldnamew_max, fieldname_fmt, i);
+            if (n < fieldnamew_min || n >= fieldnamew_max)
+                abort();
+        }
         fieldnamev[fieldnamew_max * i] = '\000';
     }
 

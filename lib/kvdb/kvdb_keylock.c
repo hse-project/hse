@@ -193,7 +193,7 @@ kvdb_keylock_destroy(struct kvdb_keylock *handle)
         list_splice(&dlock->kd_list, &expired);
         mutex_unlock(&dlock->kd_lock);
 
-        list_for_each_entry_safe (curr, tmp, &expired, ctxn_locks_link) {
+        list_for_each_entry_safe(curr, tmp, &expired, ctxn_locks_link) {
             struct kvdb_ctxn_locks *locks;
 
             locks = &curr->ctxn_locks_handle;
@@ -271,12 +271,15 @@ kvdb_keylock_insert_locks(struct kvdb_ctxn_locks *handle, u64 end_seqno, void *c
     /* The correct position is more likely toward the end of the list, so
      * traverse in reverse.
      */
-    list_for_each_entry_reverse (elem, &dlock->kd_list, ctxn_locks_link) {
+    list_for_each_entry_reverse(elem, &dlock->kd_list, ctxn_locks_link) {
         if (end_seqno > elem->ctxn_locks_end_seqno)
             break;
     }
 
-    list_add(&locks->ctxn_locks_link, &elem->ctxn_locks_link);
+    if (elem)
+        list_add(&locks->ctxn_locks_link, &elem->ctxn_locks_link);
+    else
+        list_add(&locks->ctxn_locks_link, &dlock->kd_list);
 }
 
 void
@@ -370,8 +373,7 @@ kvdb_keylock_expire(struct kvdb_keylock *handle, u64 min_view_sn)
         if (min_view_sn > dlock->kd_mvs) {
             dlock->kd_mvs = min_view_sn;
 
-            list_for_each_entry_safe (curr, tmp, &dlock->kd_list, ctxn_locks_link) {
-
+            list_for_each_entry_safe(curr, tmp, &dlock->kd_list, ctxn_locks_link) {
                 if (curr->ctxn_locks_end_seqno >= min_view_sn)
                     break;
 
@@ -385,7 +387,7 @@ kvdb_keylock_expire(struct kvdb_keylock *handle, u64 min_view_sn)
         }
         mutex_unlock(&dlock->kd_lock);
 
-        list_for_each_entry_safe (curr, tmp, &expired, ctxn_locks_link) {
+        list_for_each_entry_safe(curr, tmp, &expired, ctxn_locks_link) {
             struct kvdb_ctxn_locks *locks;
 
             locks = &curr->ctxn_locks_handle;

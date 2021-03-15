@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015-2017 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2017,2021 Micron Technology, Inc.  All rights reserved.
  */
 
 #define _GNU_SOURCE /* for pthread_timedjoin_np() */
@@ -1001,16 +1001,20 @@ hexstr(
 	char   *out,
 	size_t  out_len)
 {
-	size_t i;
+    if (data_len * 2 + 1 < out_len) {
+        const char nybble2xdigit[] = "0123456789abcdef";
+        size_t i;
 
-	if (data_len * 2 + 1 < out_len) {
-		for (i = 0; i < data_len; i++)
-			sprintf(out + i * 2, "%02x", ((u8 *)data)[i]);
-	} else {
-		/* output buffer to small */
-		snprintf(out, out_len, "****");
-	}
-	return out;
+        for (i = 0; i < data_len; i++) {
+            out[i * 2] = nybble2xdigit[ ((u8)data[i] >> 4) ];
+            out[i * 2 + 1] = nybble2xdigit[ ((u8)data[i] & 0xfu) ];
+        }
+        out[data_len * 2] = '\000';
+    } else {
+        snprintf(out, out_len, "****");
+    }
+
+    return out;
 }
 
 
