@@ -13,13 +13,13 @@ struct kvdb_cparams;
 
 /**
  * kvdb_rparams_add_to_dt() -
- * @mp_name:   mpool name
+ * @kvdb_name:   kvdb name
  * @p: runtime parameters
  *
  * Add all kvdb run-time parameters to the config subtree of the data tree
  */
 merr_t
-kvdb_rparams_add_to_dt(const char *mp_name, struct kvdb_rparams *p);
+kvdb_rparams_add_to_dt(const char *kvdb_name, struct kvdb_rparams *p);
 
 merr_t
 kvdb_rparams_remove_from_dt(const char *mpool);

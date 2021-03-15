@@ -82,14 +82,14 @@ static void
 kvs_destroy(struct ikvs *kvs);
 
 static void
-kvs_perfc_alloc(const char *mp_name, const char *kvs_name, struct ikvs *kvs)
+kvs_perfc_alloc(const char *kvdb_name, const char *kvs_name, struct ikvs *kvs)
 {
     char   dbname_buf[DT_PATH_COMP_ELEMENT_LEN];
     size_t n;
 
     dbname_buf[0] = 0;
 
-    n = strlcpy(dbname_buf, mp_name, sizeof(dbname_buf));
+    n = strlcpy(dbname_buf, kvdb_name, sizeof(dbname_buf));
     if (ev(n >= sizeof(dbname_buf)))
         return;
     n = strlcat(dbname_buf, IKVDB_SUB_NAME_SEP, sizeof(dbname_buf));
@@ -142,7 +142,7 @@ merr_t
 kvs_open(
     struct ikvdb *      kvdb,
     struct kvdb_kvs *   kvs,
-    const char *        mp_name,
+    const char *        kvdb_name,
     struct mpool *      ds,
     struct cndb *       cndb,
     struct lc *         lc,
@@ -168,7 +168,7 @@ kvs_open(
      */
 
     ikvs->ikv_cnid = cnid;
-    ikvs->ikv_mpool_name = strdup(mp_name);
+    ikvs->ikv_mpool_name = strdup(kvdb_name);
     ikvs->ikv_kvs_name = strdup(kvs_name);
     ikvs->ikv_lc = lc;
 
@@ -187,7 +187,7 @@ kvs_open(
         cndb,
         cnid,
         &ikvs->ikv_rp,
-        mp_name,
+        kvdb_name,
         kvs_name,
         health,
         flags,
@@ -206,12 +206,12 @@ kvs_open(
     if (ev(err))
         goto err_exit;
 
-    err = kvs_rparams_add_to_dt(mp_name, kvs_name, &ikvs->ikv_rp);
+    err = kvs_rparams_add_to_dt(kvdb_name, kvs_name, &ikvs->ikv_rp);
     if (ev(err))
         hse_log(HSE_WARNING "Unable to add run-time parameters"
                             " to data tree");
 
-    kvs_perfc_alloc(mp_name, kvs_name, ikvs);
+    kvs_perfc_alloc(kvdb_name, kvs_name, ikvs);
 
     kvdb_kvs_set_ikvs(kvs, ikvs);
 

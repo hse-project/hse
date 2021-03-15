@@ -555,7 +555,7 @@ main(int argc, char **argv)
 
     hse_params_create(&params);
 
-    rc = hse_params_set(params, "kvdb.rdonly", "1");
+    rc = hse_params_set(params, "kvdb.read_only", "1");
 
     hse_params_set(params, "kvs.cn_diag_mode", "1");
     hse_params_set(params, "kvs.cn_maint_disable", "1");

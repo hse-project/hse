@@ -140,14 +140,14 @@ ikvdb_diag_kvslist(struct ikvdb *handle, struct diag_kvdb_kvs_list *list, int le
 
 /**
  * ikvdb_diag_open() - open relevant media streams with minimal processing
- * @mp_name:        mpool/kvdb name
+ * @kvdb_name:      kvdb name
  * @mp:             mpool handle
  * @rparams:        run time parameters that affect how the KVDB will be used
  * @handle:         (output) handle to access the opened KVDB
  */
 merr_t
 ikvdb_diag_open(
-    const char *         mp_name,
+    const char *         kvdb_name,
     struct mpool *       mp,
     struct kvdb_rparams *rparams,
     struct ikvdb **      handle);
@@ -161,14 +161,14 @@ ikvdb_diag_close(struct ikvdb *handle);
 
 /**
  * ikvdb_open() - prepare HSE KVDB target for subsequent use by the application
- * @mp_name:        mpool/kbdb name
+ * @kvdb_name:      kvdb name
  * @mp:             mpool handle
  * @params:         run time parameters that affect how the KVDB will be used
  * @kvdb:           (output) handle to access the opened KVDB
  */
 merr_t
 ikvdb_open(
-    const char                 *mp_name,
+    const char                 *kvdb_name,
     struct mpool               *mp,
     const struct hse_params    *params,
     struct ikvdb              **kvdb);

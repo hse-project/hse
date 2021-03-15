@@ -3,8 +3,6 @@
  * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
-#define _GNU_SOURCE
-
 #include <unistd.h>
 #include <stdlib.h>
 #include <sys/types.h>
@@ -26,6 +24,7 @@ struct mpool_mcache_map {
     size_t mbidc;
     void **addrv;
     uint64_t *mbidv;
+    uint32_t *wlenv;
 };
 
 merr_t
@@ -33,7 +32,6 @@ mpool_mcache_mmap(
     struct mpool             *mp,
     size_t                    mbidc,
     uint64_t                 *mbidv,
-    enum mpc_vma_advice       advice, /*unused*/
     struct mpool_mcache_map **mapp)
 {
     struct mpool_mcache_map *map;
@@ -48,7 +46,7 @@ mpool_mcache_mmap(
 
     *mapp = NULL;
 
-    sz = sizeof(*map) + mbidc * (sizeof(*map->addrv) + sizeof(*map->mbidv));
+    sz = sizeof(*map) + mbidc * (sizeof(*map->addrv) + sizeof(*map->mbidv) + sizeof(*map->wlenv));
     map = calloc(1, sz);
     if (!map)
         return merr(ENOMEM);
@@ -56,20 +54,27 @@ mpool_mcache_mmap(
     map->mbidc = mbidc;
     map->addrv = (void *)(map + 1);
     map->mbidv = (void *)(map->addrv + mbidc);
+    map->wlenv = (void *)(map->mbidv + mbidc);
 
     for (i = 0; i < mbidc; i++) {
         enum mp_media_classp mclass;
         char                *addr;
+        uint32_t             wlen;
 
         mclass = mcid_to_mclass(mclassid(mbidv[i]));
         mc = mpool_mclass_handle(mp, mclass);
+        if (!mc) {
+            err = merr(ENOENT);
+            goto errout;
+        }
 
-        err = mblock_fset_map_getbase(mclass_fset(mc), mbidv[i], &addr);
+        err = mblock_fset_map_getbase(mclass_fset(mc), mbidv[i], &addr, &wlen);
         if (ev(err))
             goto errout;
 
         map->addrv[i] = addr;
         map->mbidv[i] = mbidv[i];
+        map->wlenv[i] = wlen;
     }
     map->mp = mp;
 
@@ -101,6 +106,7 @@ mpool_mcache_munmap(struct mpool_mcache_map *map)
 
         mclass = mcid_to_mclass(mclassid(mbid));
         mc = mpool_mclass_handle(map->mp, mclass);
+        assert(mc);
 
         err = mblock_fset_unmap(mclass_fset(mc), mbid);
         if (err)
@@ -115,15 +121,21 @@ mpool_mcache_munmap(struct mpool_mcache_map *map)
 merr_t
 mpool_mcache_madvise(struct mpool_mcache_map *map, uint mbidx, off_t off, size_t len, int advice)
 {
-    size_t count;
+    size_t   count;
+    uint32_t wlen;
 
-    if (!map || mbidx >= map->mbidc || off < 0 || off >= MBLOCK_SIZE_BYTES)
+    if (!map || mbidx >= map->mbidc || off < 0)
+        return merr(EINVAL);
+
+    wlen = map->wlenv[mbidx];
+    if (off >= wlen)
         return merr(EINVAL);
 
     if (len == SIZE_MAX) {
         count = map->mbidc;
+        len = wlen - off;
     } else {
-        if (off + len > MBLOCK_SIZE_BYTES)
+        if (off + len > wlen)
             return merr(EINVAL);
         count = mbidx + 1;
     }
@@ -136,14 +148,16 @@ mpool_mcache_madvise(struct mpool_mcache_map *map, uint mbidx, off_t off, size_t
         if (!addr || addr == MAP_FAILED)
             return merr(EINVAL);
 
-        len = MBLOCK_SIZE_BYTES - off;
-
         rc = madvise(addr + off, len, advice);
         if (rc)
             return merr(errno);
 
+        if (++mbidx >= count)
+            break;
+
         off = 0;
-    } while (++mbidx < count);
+        len = map->wlenv[mbidx];
+    } while (true);
 
     return 0;
 }
@@ -179,7 +193,7 @@ mpool_mcache_getpages(
         off_t off;
 
         off = pagenumv[i] * PAGE_SIZE;
-        if (off + PAGE_SIZE > MBLOCK_SIZE_BYTES)
+        if (off + PAGE_SIZE > map->wlenv[mbidx])
             return merr(EINVAL);
 
         addrv[i] = addr + off;

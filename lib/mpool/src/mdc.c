@@ -38,15 +38,20 @@ mpool_mdc_alloc(
     uint64_t            *logid1,
     uint64_t            *logid2)
 {
-    enum mclass_id mcid;
-    merr_t         err;
-    uint64_t       id[2];
-    int            i, dirfd, flags, mode;
+    struct media_class *mc;
+    enum mclass_id      mcid;
+    merr_t              err;
+    uint64_t            id[2];
+    int                 i, dirfd, flags, mode;
 
     if (ev(!mp || mclass >= MP_MED_COUNT || capacity < MDC_LOGHDR_LEN))
         return merr(EINVAL);
 
-    dirfd = mclass_dirfd(mpool_mclass_handle(mp, mclass));
+    mc = mpool_mclass_handle(mp, mclass);
+    if (!mc)
+        return merr(ENOENT);
+
+    dirfd = mclass_dirfd(mc);
     flags = O_RDWR | O_CREAT | O_EXCL;
     mode = S_IRUSR | S_IWUSR;
 
@@ -71,16 +76,20 @@ mpool_mdc_alloc(
 merr_t
 mpool_mdc_commit(struct mpool *mp, uint64_t logid1, uint64_t logid2)
 {
-    enum mclass_id mcid;
-    merr_t         err;
-    int            dirfd, i;
-    uint64_t       id[] = { logid1, logid2 };
+    struct media_class *mc;
+    enum mclass_id      mcid;
+    merr_t              err;
+    int                 dirfd, i;
+    uint64_t            id[] = { logid1, logid2 };
 
     if (ev(!mp || !logids_valid(logid1, logid2)))
         return merr(EINVAL);
 
     mcid = logid_mcid(logid1);
-    dirfd = mclass_dirfd(mpool_mclass_handle(mp, mcid_to_mclass(mcid)));
+    mc = mpool_mclass_handle(mp, mcid_to_mclass(mcid));
+    if (!mc)
+        return merr(ENOENT);
+    dirfd = mclass_dirfd(mc);
 
     for (i = 0; i < 2; i++) {
         err = mdc_file_commit(dirfd, id[i]);
@@ -97,16 +106,20 @@ mpool_mdc_commit(struct mpool *mp, uint64_t logid1, uint64_t logid2)
 merr_t
 mpool_mdc_delete(struct mpool *mp, uint64_t logid1, uint64_t logid2)
 {
-    enum mclass_id mcid;
-    merr_t         err, rval = 0;
-    int            dirfd, i;
-    uint64_t       id[] = { logid1, logid2 };
+    struct media_class *mc;
+    enum mclass_id      mcid;
+    merr_t              err, rval = 0;
+    int                 dirfd, i;
+    uint64_t            id[] = { logid1, logid2 };
 
     if (ev(!mp || !logids_valid(logid1, logid2)))
         return merr(EINVAL);
 
     mcid = logid_mcid(logid1);
-    dirfd = mclass_dirfd(mpool_mclass_handle(mp, mcid_to_mclass(mcid)));
+    mc = mpool_mclass_handle(mp, mcid_to_mclass(mcid));
+    if (!mc)
+        return merr(ENOENT);
+    dirfd = mclass_dirfd(mc);
 
     for (i = 0; i < 2; i++) {
         err = mdc_file_destroy(dirfd, id[i]);
@@ -143,6 +156,8 @@ mpool_mdc_open(struct mpool *mp, uint64_t logid1, uint64_t logid2, struct mpool_
     mdc->mp = mp;
     mcid = logid_mcid(logid1);
     mdc->mc = mpool_mclass_handle(mp, mcid_to_mclass(mcid));
+    if (!mdc->mc)
+        return merr(ENOENT);
 
     err1 = mdc_file_open(mdc, logid1, &gen1, &mfp[0]);
     err2 = mdc_file_open(mdc, logid2, &gen2, &mfp[1]);
@@ -317,15 +332,19 @@ mpool_mdc_rootid_get(struct mpool *mp, uint64_t *logid1, uint64_t *logid2)
 static merr_t
 mdc_exists(struct mpool *mp, uint64_t logid1, uint64_t logid2, bool *exist)
 {
-    enum mclass_id mcid;
-    int            dirfd;
-    merr_t         err;
+    struct media_class *mc;
+    enum mclass_id      mcid;
+    int                 dirfd;
+    merr_t              err;
 
     if (!mp || logid1 == logid2 || !exist)
         return merr(EINVAL);
 
     mcid = logid_mcid(logid1);
-    dirfd = mclass_dirfd(mpool_mclass_handle(mp, mcid_to_mclass(mcid)));
+    mc = mpool_mclass_handle(mp, mcid_to_mclass(mcid));
+    if (!mc)
+        return merr(ENOENT);
+    dirfd = mclass_dirfd(mc);
 
     err = mdc_file_exists(dirfd, logid1, logid2, exist);
     if (ev(err))

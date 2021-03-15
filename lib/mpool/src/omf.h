@@ -64,6 +64,8 @@ omf_mdc_rechdr_len(void);
 struct mblock_metahdr_omf {
     __le32 mh_vers;
     __le32 mh_magic;
+    __le32 mh_fszmax_gb;
+    __le16 mh_mblksz_mb;
     u8     mh_mcid;
     u8     mh_fcnt;
     u8     mh_blkbits;
@@ -73,6 +75,8 @@ struct mblock_metahdr_omf {
 /* Define set/get methods for mblock_metahdr_omf */
 OMF_SETGET(struct mblock_metahdr_omf, mh_vers, 32);
 OMF_SETGET(struct mblock_metahdr_omf, mh_magic, 32);
+OMF_SETGET(struct mblock_metahdr_omf, mh_fszmax_gb, 32);
+OMF_SETGET(struct mblock_metahdr_omf, mh_mblksz_mb, 16);
 OMF_SETGET(struct mblock_metahdr_omf, mh_mcid, 8);
 OMF_SETGET(struct mblock_metahdr_omf, mh_fcnt, 8);
 OMF_SETGET(struct mblock_metahdr_omf, mh_blkbits, 8);

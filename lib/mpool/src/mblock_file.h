@@ -21,6 +21,8 @@
 #define MBLOCK_DATA_FILE_PFX "mblock-data"
 #define MBLOCK_OPT_WRITE_SZ  (128 << 10)
 
+#define MBLOCK_FILE_SIZE_MAX ((1ULL << MBID_BLOCK_BITS) << MBLOCK_SIZE_SHIFT)
+
 /**
  * Mblock ID in-memory layout
  *
@@ -57,19 +59,25 @@ struct mblock_filehdr {
     uint16_t rsvd2;
 };
 
-static inline int
+struct mblock_file_params {
+    size_t fszmax;
+    size_t mblocksz;
+    int    fileid;
+};
+
+static __always_inline inline int
 file_id(uint64_t mbid)
 {
     return (mbid & MBID_FILEID_MASK) >> MBID_FILEID_SHIFT;
 }
 
-static inline int
+static __always_inline int
 file_index(uint64_t mbid)
 {
     return file_id(mbid) - 1;
 }
 
-static inline enum mclass_id
+static __always_inline enum mclass_id
 mclassid(uint64_t mbid)
 {
     return (mbid & MBID_MCID_MASK) >> MBID_MCID_SHIFT;
@@ -85,12 +93,12 @@ mclassid(uint64_t mbid)
  */
 merr_t
 mblock_file_open(
-    struct mblock_fset  *mbfsp,
-    struct media_class  *mc,
-    int                  fileid,
-    int                  flags,
-    char                *meta_addr,
-    struct mblock_file **handle);
+    struct mblock_fset         *mbfsp,
+    struct media_class         *mc,
+    struct mblock_file_params  *params,
+    int                         flags,
+    char                       *meta_addr,
+    struct mblock_file        **handle);
 
 /**
  * mblock_file_close() - close an mblock file
@@ -180,13 +188,14 @@ merr_t
 mblock_file_insert(struct mblock_file *mbfp, uint64_t mbid);
 
 size_t
-mblock_file_meta_len(void);
+mblock_file_meta_len(size_t fszmax, size_t mblocksz);
 
 merr_t
 mblock_file_map_getbase(
     struct mblock_file *mbfp,
     uint64_t            mbid,
-    char              **addr_out);
+    char              **addr_out,
+    uint32_t           *wlen);
 
 merr_t
 mblock_file_unmap(

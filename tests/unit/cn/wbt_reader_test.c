@@ -78,7 +78,7 @@ t_wbtr_read_vref_helper(struct mtf_test_info *lcl_ti, const char *kblock_image_f
     blkdesc.mb_id = blkid;
     blkdesc.map_idx = 0;
 
-    err = mpool_mcache_mmap(mp_ds, 1, &blkdesc.mb_id, MPC_VMA_COLD, &blkdesc.map);
+    err = mpool_mcache_mmap(mp_ds, 1, &blkdesc.mb_id, &blkdesc.map);
     ASSERT_EQ(err, 0);
 
     blkdesc.map_base = mpool_mcache_getbase(blkdesc.map, blkdesc.map_idx);

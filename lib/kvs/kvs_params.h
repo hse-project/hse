@@ -13,7 +13,6 @@ struct kvs_cparams;
 
 /**
  * kvs_rparams_add_to_dt() -
- * @mp_name:   mpool name
  * @kvdb_name: kvdb name
  * @kvs_name:  kvs name
  * @p:         runtime parameters
@@ -21,17 +20,16 @@ struct kvs_cparams;
  * Add all kvs run-time parameters to the config subtree of the data tree
  */
 merr_t
-kvs_rparams_add_to_dt(const char *mp_name, const char *kvs_name, struct kvs_rparams *p);
+kvs_rparams_add_to_dt(const char *kvdb_name, const char *kvs_name, struct kvs_rparams *p);
 
 /**
  * kvs_rparams_remove_from_dt() -
- * @mp_name:   mpool name
  * @kvdb_name: kvdb name
  * @kvs_name:  kvs name
  *
  * Remove the KVS's subtree under /data/config
  */
 merr_t
-kvs_rparams_remove_from_dt(const char *mpool, const char *kvs);
+kvs_rparams_remove_from_dt(const char *kvdb, const char *kvs);
 
 #endif

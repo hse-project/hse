@@ -148,7 +148,7 @@ kvset_madvise_kblks(struct kvset *kvset, int advice, bool blooms, bool leaves);
  *
  * This function is used to change the mcache map readahead mode for all
  * mcache maps in the given kvset's kblocks, where %adivce may be one
- * of the following:  %MADV_RANDOM, %MADV_NORMAL, %MADV_SEQUENTIAL.
+ * of the following:  %MADV_RANDOM, %MADV_DONTNEED
  *
  * Note that the default mode for mcache maps is MADV_RANDOM, which
  * effectively disables readahead.
@@ -194,7 +194,7 @@ kvset_madvise_capped(struct kvset *kvset, int advice);
  *
  * This function is used to change the mcache map readahead mode for all
  * mcache maps in the given kvset's vblocks, where %adivce may be one
- * of the following:  %MADV_RANDOM, %MADV_NORMAL, %MADV_SEQUENTIAL.
+ * of the following:  %MADV_RANDOM, %MADV_DONTNEED
  *
  * Note that the default mode for mcache maps is %MADV_RANDOM, which
  * effectively disables readahead.

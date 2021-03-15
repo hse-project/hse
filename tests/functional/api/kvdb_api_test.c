@@ -51,23 +51,10 @@ MTF_DEFINE_UTEST(kvdb_api, kvdb_make_busy)
     ASSERT_EQ(hse_err_to_errno(err), EBUSY);
 }
 
-MTF_DEFINE_UTEST(kvdb_api, kvdb_make_no_mpool)
-{
-    hse_err_t err;
-
-    /* TC: A KVDB cannot be created on a non-existing MPOOL */
-    err = hse_kvdb_make("non_existing_mpool", NULL);
-    ASSERT_EQ(hse_err_to_errno(err), ENOENT);
-}
-
-MTF_DEFINE_UTEST(kvdb_api, kvdb_handle_no_mpool)
+MTF_DEFINE_UTEST(kvdb_api, kvdb_close)
 {
     hse_err_t        err;
     struct hse_kvdb *kvdb = NULL;
-
-    /* TC: A KVDB that is NULL cannot be opened */
-    err = hse_kvdb_open("test_mpool", NULL, &kvdb);
-    ASSERT_EQ(hse_err_to_errno(err), ENOENT);
 
     /* TC: hse_kvdb_close(NULL) --> EINVAL */
     err = hse_kvdb_close(NULL);

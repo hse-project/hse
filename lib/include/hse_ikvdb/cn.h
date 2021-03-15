@@ -45,7 +45,7 @@ cn_open(
     struct cndb *       cndb,
     u64                 cnid,
     struct kvs_rparams *rp,
-    const char *        mp_name,
+    const char *        kvdb_name,
     const char *        kvs_name,
     struct kvdb_health *health,
     uint                flags,

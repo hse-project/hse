@@ -13,8 +13,6 @@
 
 #include <hse/hse.h>
 
-#include <uuid/uuid.h>
-
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -51,20 +49,6 @@ hse_kvdb_export_exp(struct hse_kvdb *handle, struct hse_params *params, const ch
 hse_err_t
 hse_kvdb_import_exp(const char *mpool_name, const char *path);
 
-/**
- * Unique uuid to identify hse mpools
- *
- * 0ccf8ce8-6f8f-11ea-adfc-248a07151670
- */
-/* clang-format off */
-static const uuid_t
-hse_mpool_utype = {
-    0x0c, 0xcf, 0x8c, 0xe8,
-    0x6f, 0x8f,
-    0x11, 0xea,
-    0xad, 0xfc,
-    0x24, 0x8a, 0x07, 0x15, 0x16, 0x70
-};
 /* clang-format on */
 
 enum hse_kvs_pfx_probe_cnt {

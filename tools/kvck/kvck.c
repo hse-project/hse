@@ -116,8 +116,10 @@ _verify_kvs(struct cndb *cndb, int cndb_idx, struct entity *ent)
         if (kvs_tab[i].kdl_cnid == cnv[cndb_idx]->cn_cnid)
             break;
 
-    if (i >= cnt)
+    if (i >= cnt) {
+        free(ptr);
         return ENOENT;
+    }
 
     printf(
         "Checking kvs %s cnid %lu fanout %u pfx_len %u sfx_len %u\n",
@@ -135,6 +137,8 @@ _verify_kvs(struct cndb *cndb, int cndb_idx, struct entity *ent)
         &info,
         (hse_err_t(*)(void *, struct kvset_meta *, u64))verify_kvset);
 #pragma GCC diagnostic pop
+
+    free(ptr);
 
     return info.errors ? EILSEQ : 0;
 }

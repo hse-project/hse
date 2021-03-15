@@ -59,7 +59,7 @@ struct mapi_injection inject_list[] = {
     { mapi_idx_ikvdb_get_mclass_policy, MAPI_RC_PTR, (void *)5 },
     { mapi_idx_kvdb_kvs_cparams, MAPI_RC_PTR, &cp },
 
-    { mapi_idx_mpool_params_get, MAPI_RC_SCALAR, 0 },
+    { mapi_idx_mpool_props_get, MAPI_RC_SCALAR, 0 },
     { mapi_idx_mpool_mclass_get, MAPI_RC_SCALAR, ENOENT },
 
     { mapi_idx_kvdb_kvs_flags, MAPI_RC_SCALAR, 0 },

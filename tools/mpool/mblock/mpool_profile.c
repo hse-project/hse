@@ -301,7 +301,6 @@ profile_mpool(
 struct mp_media_class_info {
     u64 exists;
     u64 total_space;
-    u64 avail_space;
     u64 mblock_sz;
 };
 
@@ -317,7 +316,7 @@ get_mpool_info(
     merr_t                    mp_err;
     struct mpool             *mp;
     int                       flags = O_EXCL | O_RDWR;
-    struct mpool_params       params;
+    struct mpool_props        props;
     enum mp_media_classp      mc;
     struct mpool_mclass_props mc_props;
     char                      errbuf[160];
@@ -330,11 +329,11 @@ get_mpool_info(
         return -1;
     }
 
-    mp_err = mpool_params_get(mp, &params);
+    mp_err = mpool_props_get(mp, &props);
     if (mp_err) {
         mpool_close(mp);
         merr_strerror(mp_err, errbuf, sizeof(errbuf));
-        fprintf(stderr, "error from mpool_params_get() : %s\n", errbuf);
+        fprintf(stderr, "error from mpool_props_get() : %s\n", errbuf);
         return -1;
     }
 
@@ -350,13 +349,11 @@ get_mpool_info(
 
         info->mc_info[MP_MED_STAGING].exists = 0;
         info->mc_info[MP_MED_STAGING].total_space = 0;
-        info->mc_info[MP_MED_STAGING].avail_space = 0;
     }
     else {
         info->mc_info[MP_MED_STAGING].exists = 1;
         info->mc_info[MP_MED_STAGING].total_space = mc_props.mc_total;
-        info->mc_info[MP_MED_STAGING].avail_space = mc_props.mc_usable;
-        info->mc_info[MP_MED_STAGING].mblock_sz = params.mp_mblocksz[MP_MED_STAGING] * MiB;
+        info->mc_info[MP_MED_STAGING].mblock_sz = props.mp_mblocksz[MP_MED_STAGING] * MiB;
     }
 
     mc = MP_MED_CAPACITY;
@@ -370,8 +367,7 @@ get_mpool_info(
 
     info->mc_info[MP_MED_CAPACITY].exists = 1;
     info->mc_info[MP_MED_CAPACITY].total_space = mc_props.mc_total;
-    info->mc_info[MP_MED_CAPACITY].avail_space = mc_props.mc_usable;
-    info->mc_info[MP_MED_CAPACITY].mblock_sz = params.mp_mblocksz[MP_MED_CAPACITY] * MiB;
+    info->mc_info[MP_MED_CAPACITY].mblock_sz = props.mp_mblocksz[MP_MED_CAPACITY] * MiB;
 
     mpool_close(mp);
 
@@ -472,7 +468,7 @@ main(int argc, char *argv[])
 
     max_space_needed = max_thrds * MP_SPARE_MBLOCKS_PER_THREAD * mblock_sz;
 
-    if (info.mc_info[mc].avail_space < max_space_needed) {
+    if (info.mc_info[mc].total_space < max_space_needed) {
         char *mclass_name = (mc == MP_MED_STAGING) ? "STAGING" : "CAPACITY";
         u32 space_needed_mb = 1 + (max_space_needed / MiB);
 

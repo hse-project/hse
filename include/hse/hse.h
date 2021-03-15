@@ -224,18 +224,17 @@ hse_err_to_errno(hse_err_t err);
  */
 
 /**
- * Create a new KVDB instance within the named mpool
+ * Create a new KVDB instance
  *
- * The mpool must already exist and the client must have permission to use the
- * mpool. This function is not thread safe.
+ * This function is not thread safe.
  *
- * @param mp_name: Mpool name
+ * @param kvdb_name: KVDB name
  * @param params:  Fixed configuration parameters
  * @return The function's error status
  */
 /* MTF_MOCK */
 hse_err_t
-hse_kvdb_make(const char *mp_name, const struct hse_params *params);
+hse_kvdb_make(const char *kvdb_name, const struct hse_params *params);
 
 /**
  * Remove a KVDB
@@ -255,14 +254,14 @@ hse_kvdb_drop(struct hse_kvdb *kvdb);
  * The KVDB must already exist and the client must have permission to use it. This
  * function is not thread safe.
  *
- * @param mp_name: Mpool name in which the KVDB exists
+ * @param kvdb_name: KVDB name
  * @param params:  Configuration parameters
  * @param kvdb:    [out] Handle to access the opened KVDB
  * @return The function's error status
  */
 /* MTF_MOCK */
 hse_err_t
-hse_kvdb_open(const char *mp_name, const struct hse_params *params, struct hse_kvdb **kvdb);
+hse_kvdb_open(const char *kvdb_name, const struct hse_params *params, struct hse_kvdb **kvdb);
 
 /**
  * Close an open HSE KVDB

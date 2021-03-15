@@ -22,6 +22,8 @@ struct mblock_fset;
 struct mblock_metahdr {
     uint32_t vers;
     uint32_t magic;
+    uint32_t fszmax_gb;
+    uint16_t mblksz_mb;
     uint8_t  mcid;
     uint8_t  fcnt;
     uint8_t  blkbits;
@@ -36,7 +38,12 @@ struct mblock_metahdr {
  * @mbfsp (output): mblock fileset handle
  */
 merr_t
-mblock_fset_open(struct media_class *mc, uint8_t fcnt, int flags, struct mblock_fset **mbfsp);
+mblock_fset_open(
+    struct media_class  *mc,
+    uint8_t              fcnt,
+    size_t               fszmax,
+    int                  flags,
+    struct mblock_fset **mbfsp);
 
 /**
  * mblock_fset_close() - close an mblock fileset
@@ -88,7 +95,8 @@ merr_t
 mblock_fset_map_getbase(
     struct mblock_fset *mbfsp,
     uint64_t            mbid,
-    char              **addr_out);
+    char              **addr_out,
+    uint32_t           *wlen);
 
 merr_t
 mblock_fset_unmap(

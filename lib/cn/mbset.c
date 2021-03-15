@@ -153,24 +153,16 @@ _mbset_mblk_del(struct mbset *self)
 static merr_t
 _mbset_map(struct mbset *self, uint flags)
 {
-    enum mpc_vma_advice advice;
-
     merr_t err = 0;
     uint   mx = 0;
     uint   idc = self->mbs_idc;
     u64 *  idv = self->mbs_idv;
 
-    /* Root spill uses mcache. Mcache pages belonging to the root node
-     * vblocks are tagged as hot. This ensures that these pages are reaped
-     * as a last resort by the mcache reaper, helping spill performance.
-     */
-    advice = (flags & MBSET_FLAGS_VBLK_ROOT) ? MPC_VMA_HOT : MPC_VMA_COLD;
-
     while (idc > 0) {
         uint cnt = min_t(uint, idc, self->mbs_mblock_max);
 
         assert(mx < self->mbs_mapc);
-        err = mpool_mcache_mmap(self->mbs_ds, cnt, idv, advice, self->mbs_mapv + mx++);
+        err = mpool_mcache_mmap(self->mbs_ds, cnt, idv, self->mbs_mapv + mx++);
         if (ev(err))
             break;
         idc -= cnt;

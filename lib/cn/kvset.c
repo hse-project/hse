@@ -341,7 +341,6 @@ static merr_t
 kvset_map_blklist(
     struct mpool *            ds,
     struct blk_list *         blks,
-    enum mpc_vma_advice       advice,
     u64                       mblock_max,
     struct mpool_mcache_map **mapv)
 {
@@ -364,7 +363,7 @@ kvset_map_blklist(
     while (idc > 0) {
         cnt = min_t(uint, idc, mblock_max);
 
-        err = mpool_mcache_mmap(ds, cnt, idv, advice, mapv + mx++);
+        err = mpool_mcache_mmap(ds, cnt, idv, mapv + mx++);
         if (ev(err))
             break;
 
@@ -430,7 +429,6 @@ kvset_create2(
     struct mpool *      ds;
     struct kvs_rparams *rp;
     struct cn_kvdb *    cn_kvdb;
-    enum mpc_vma_advice advice;
 
     merr_t        err;
     uint          i, j;
@@ -546,16 +544,8 @@ kvset_create2(
         kc_kvset_check(ds, cp, km, map->khm_mapv);
     }
 
-    hse_meminfo(NULL, &mavail, 30);
-    advice = (mavail > 64) ? MPC_VMA_PINNED : MPC_VMA_HOT;
-
-    if (ks->ks_node_level == 1)
-        advice = MPC_VMA_HOT;
-    else if (ks->ks_node_level > 1)
-        advice = MPC_VMA_WARM;
-
     /* map kblocks */
-    err = kvset_map_blklist(ds, &km->km_kblk_list, advice, mblock_max, ks->ks_kmapv);
+    err = kvset_map_blklist(ds, &km->km_kblk_list, mblock_max, ks->ks_kmapv);
     if (ev(err))
         goto err_exit;
 
@@ -750,6 +740,8 @@ kvset_create2(
     if (cn_tree_is_replay(tree))
         goto done;
 
+    hse_meminfo(NULL, &mavail, 30);
+
     /* Convert from bytes to GiB for comparison w/ mavail. */
     kvdb_kalen >>= 30;
     kvdb_valen >>= 30;
@@ -778,30 +770,22 @@ kvset_create2(
 
     if (ks->ks_node_level < ra_lev0(kra) || (!km->km_restored && ks->ks_node_level < ra_lev1(kra) &&
                                              kvdb_kalen * 100 < ra_pct(kra) * mavail)) {
-
-        kvset_madvise_kmaps(ks, MADV_NORMAL);
-
         if (ks->ks_node_level == 0 || (ra_willneed(kra) & 0x01))
             kvset_madvise_kblks(ks, MADV_WILLNEED, true, true);
     }
 
     if (ks->ks_node_level < ra_lev0(vra) || (!km->km_restored && ks->ks_node_level < ra_lev1(vra) &&
                                              kvdb_valen * 100 < ra_pct(vra) * mavail)) {
-
-        kvset_madvise_vmaps(ks, MADV_NORMAL);
-
         /* Disable cursor vblock readahead and direct mblock
          * reads for all vblocks in this kvset.
          */
-        ks->ks_vminlvl = U16_MAX;
-
         if (ra_willneed(vra) & 0x01) {
             kvset_madvise_vblks(ks, MADV_WILLNEED);
+            ks->ks_vminlvl = U16_MAX;
             ks->ks_vra_len = 0;
         } else if (cn_tree_is_capped(ks->ks_tree)) {
             kvset_madvise_capped(ks, MADV_WILLNEED);
-        } else {
-            ks->ks_vra_len = 0;
+            ks->ks_vminlvl = U16_MAX;
         }
     }
 
@@ -2824,9 +2808,7 @@ kvset_madvise_kmaps(struct kvset *ks, int advice)
     merr_t err;
     u64    mblock_max;
 
-    assert(
-        advice == MADV_NORMAL || advice == MADV_DONTNEED || advice == MADV_SEQUENTIAL ||
-        advice == MADV_RANDOM);
+    assert(advice == MADV_DONTNEED || advice == MADV_RANDOM);
 
     mblock_max = cn_vma_mblock_max(ks->ks_tree->cn, MP_MED_CAPACITY);
 
@@ -2905,9 +2887,7 @@ kvset_madvise_vmaps(struct kvset *ks, int advice)
 {
     uint i;
 
-    assert(
-        advice == MADV_NORMAL || advice == MADV_DONTNEED || advice == MADV_SEQUENTIAL ||
-        advice == MADV_RANDOM);
+    assert(advice == MADV_DONTNEED || advice == MADV_RANDOM);
 
     for (i = 0; i < ks->ks_vbsetc; ++i)
         mbset_madvise(ks->ks_vbsetv[i], advice);

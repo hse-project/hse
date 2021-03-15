@@ -7,7 +7,6 @@ common_test_includes = [
     hse_include_directories,
     test_framework_includes,
     tools_includes,
-    get_option('mpool-include-dir'),
 ]
 
 common_test_sources = [

@@ -72,7 +72,7 @@ MTF_DEFINE_UTEST_PRE(vblock_reader_test, t_vbr_desc_read, pre)
     err = mpm_mblock_write(blkid, (void *)&vbhdr, 0, sizeof(struct vblock_hdr_omf));
     ASSERT_EQ(0, err);
 
-    err = mpool_mcache_mmap(ds, 1, &blkid, MPC_VMA_COLD, &map);
+    err = mpool_mcache_mmap(ds, 1, &blkid, &map);
     ASSERT_EQ(0, err);
 
     argv[0] = 0xdeadbeefdeadbeef;
@@ -113,7 +113,7 @@ MTF_DEFINE_UTEST_PRE(vblock_reader_test, t_vbr_desc_update, pre)
     err = mpm_mblock_write(blkid, (void *)&vbhdr, 0, sizeof(struct vblock_hdr_omf));
     ASSERT_EQ(0, err);
 
-    err = mpool_mcache_mmap(ds, 1, &blkid, MPC_VMA_COLD, &map);
+    err = mpool_mcache_mmap(ds, 1, &blkid, &map);
     ASSERT_EQ(0, err);
 
     argv[0] = 0xdeadbeefdeadbeef;
@@ -167,7 +167,7 @@ MTF_DEFINE_UTEST_PRE(vblock_reader_test, t_vbr_desc_read_errors, pre)
     err = mpm_mblock_write(blkid, (void *)&vbhdr, 0, sizeof(struct vblock_hdr_omf));
     ASSERT_EQ(0, err);
 
-    err = mpool_mcache_mmap(ds, 1, &blkid, MPC_VMA_COLD, &map);
+    err = mpool_mcache_mmap(ds, 1, &blkid, &map);
     ASSERT_EQ(0, err);
 
     /* vbr_desc_reaad -> mpool_mblock_getbase error */
@@ -202,7 +202,7 @@ MTF_DEFINE_UTEST_PRE(vblock_reader_test, t_detect_bad_magic, pre)
     err = mpm_mblock_write(blkid, (void *)&vbhdr, 0, sizeof(struct vblock_hdr_omf));
     ASSERT_EQ(0, err);
 
-    err = mpool_mcache_mmap(ds, 1, &blkid, MPC_VMA_COLD, &map);
+    err = mpool_mcache_mmap(ds, 1, &blkid, &map);
     ASSERT_EQ(0, err);
 
     err = vbr_desc_read(ds, map, 0, NULL, NULL, &props, &vblk_desc);
@@ -236,7 +236,7 @@ MTF_DEFINE_UTEST_PRE(vblock_reader_test, t_detect_bad_version, pre)
     err = mpm_mblock_write(blkid, (void *)&vbhdr, 0, sizeof(struct vblock_hdr_omf));
     ASSERT_EQ(0, err);
 
-    err = mpool_mcache_mmap(ds, 1, &blkid, MPC_VMA_COLD, &map);
+    err = mpool_mcache_mmap(ds, 1, &blkid, &map);
     ASSERT_EQ(0, err);
 
     err = vbr_desc_read(ds, map, 0, &vgroups, argv, &props, &vblk_desc);
@@ -270,7 +270,7 @@ MTF_DEFINE_UTEST_PRE(vblock_reader_test, t_detect_version1, pre)
     err = mpm_mblock_write(blkid, (void *)&vbhdr, 0, sizeof(struct vblock_hdr_omf));
     ASSERT_EQ(0, err);
 
-    err = mpool_mcache_mmap(ds, 1, &blkid, MPC_VMA_COLD, &map);
+    err = mpool_mcache_mmap(ds, 1, &blkid, &map);
     ASSERT_EQ(0, err);
 
     err = vbr_desc_read(ds, map, 0, &vgroups, argv, &props, &vblk_desc);
@@ -318,7 +318,7 @@ MTF_DEFINE_UTEST_PRE(vblock_reader_test, t_vbr_value, pre)
     err = mpm_mblock_write(blkid, vblk, 0, vblk_sz);
     ASSERT_EQ(err, 0);
 
-    err = mpool_mcache_mmap(ds, 1, &blkid, MPC_VMA_COLD, &map);
+    err = mpool_mcache_mmap(ds, 1, &blkid, &map);
     ASSERT_EQ(err, 0);
 
     err = vbr_desc_read(ds, map, 0, &vgroups, argv, &props, &vblk_desc);
@@ -375,7 +375,7 @@ MTF_DEFINE_UTEST_PRE(vblock_reader_test, t_vbr_read_ahead, pre)
     err = mpm_mblock_write(blkid, vblk, 0, vblk_sz);
     ASSERT_EQ(err, 0);
 
-    err = mpool_mcache_mmap(ds, 1, &blkid, MPC_VMA_COLD, &map);
+    err = mpool_mcache_mmap(ds, 1, &blkid, &map);
     ASSERT_EQ(err, 0);
 
     ra_len = 4096;
@@ -462,7 +462,7 @@ MTF_DEFINE_UTEST_PRE(vblock_reader_test, t_vbr_madvise_async, pre)
     err = mpm_mblock_write(blkid, vblk, 0, vblk_sz);
     ASSERT_EQ(err, 0);
 
-    err = mpool_mcache_mmap(ds, 1, &blkid, MPC_VMA_COLD, &map);
+    err = mpool_mcache_mmap(ds, 1, &blkid, &map);
     ASSERT_EQ(err, 0);
 
     ra_len = 128 * 1024;

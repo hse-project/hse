@@ -18,9 +18,14 @@ static struct kvdb_cparams kvdb_cp_ref;
 
 static struct param_inst kvdb_cp_table[] = {
     PARAM_INST_U64_EXP(kvdb_cp_ref.dur_capacity, "dur_capacity", "durability capacity in MiB"),
-    PARAM_INST_U8_EXP(kvdb_cp_ref.filecnt, "filecnt", "Count of data files per mclass"),
-    PARAM_INST_STRING(kvdb_cp_ref.capdir, sizeof(kvdb_cp_ref.capdir), "capdir", "Storage directory for capacity mclass"),
-    PARAM_INST_STRING(kvdb_cp_ref.stgdir, sizeof(kvdb_cp_ref.stgdir), "stgdir", "Storage directory for staging mclass"),
+    PARAM_INST_U32_EXP(kvdb_cp_ref.storage_fmaxsz, "storage_filesz", "file size in capacity mclass"),
+    PARAM_INST_U16_EXP(kvdb_cp_ref.storage_mbsz, "storage_objsz", "object size in capacity mclass"),
+    PARAM_INST_U8_EXP(kvdb_cp_ref.storage_fcnt, "storage_filecnt", "file count in capacity mclass"),
+    PARAM_INST_STRING(kvdb_cp_ref.storage_path, sizeof(kvdb_cp_ref.storage_path), "storage_path", "Storage path for capacity mclass"),
+    PARAM_INST_U32_EXP(kvdb_cp_ref.staging_fmaxsz, "staging_filesz", "file size in staging mclass"),
+    PARAM_INST_U16_EXP(kvdb_cp_ref.staging_mbsz, "staging_objsz", "object size in staging mclass"),
+    PARAM_INST_U8_EXP(kvdb_cp_ref.staging_fcnt, "staging_filecnt", "file count in staging mclass"),
+    PARAM_INST_STRING(kvdb_cp_ref.staging_path, sizeof(kvdb_cp_ref.staging_path), "staging_path", "Storage path for staging mclass"),
     PARAM_INST_END
 };
 
@@ -41,9 +46,14 @@ kvdb_cparams_defaults(void)
 {
     struct kvdb_cparams params = {
         .dur_capacity = 6144, /*  6 GiB */
-        .filecnt = 32,
-        .capdir = "",
-        .stgdir = "",
+        .storage_mbsz = 32, /* 32 MiB */
+        .storage_fcnt = 32,
+        .storage_fmaxsz  = 2048, /* 2 TiB */
+        .storage_path = "",
+        .staging_mbsz = 32, /* 32 MiB */
+        .staging_fcnt = 32,
+        .staging_fmaxsz  = 2048, /* 2 TiB */
+        .staging_path = "",
         .cpmagic = CPARAMS_MAGIC,
     };
 

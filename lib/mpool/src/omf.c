@@ -92,6 +92,8 @@ omf_mblock_metahdr_pack_htole(struct mblock_metahdr *mh, char *outbuf)
 
     omf_set_mh_vers(mhomf, mh->vers);
     omf_set_mh_magic(mhomf, mh->magic);
+    omf_set_mh_fszmax_gb(mhomf, mh->fszmax_gb);
+    omf_set_mh_mblksz_mb(mhomf, mh->mblksz_mb);
     omf_set_mh_mcid(mhomf, mh->mcid);
     omf_set_mh_fcnt(mhomf, mh->fcnt);
     omf_set_mh_blkbits(mhomf, mh->blkbits);
@@ -107,6 +109,8 @@ omf_mblock_metahdr_unpack_letoh(struct mblock_metahdr *mh, const char *inbuf)
 
     mh->vers = omf_mh_vers(mhomf);
     mh->magic = omf_mh_magic(mhomf);
+    mh->fszmax_gb = omf_mh_fszmax_gb(mhomf);
+    mh->mblksz_mb = omf_mh_mblksz_mb(mhomf);
     mh->mcid = omf_mh_mcid(mhomf);
     mh->fcnt = omf_mh_fcnt(mhomf);
     mh->blkbits = omf_mh_blkbits(mhomf);

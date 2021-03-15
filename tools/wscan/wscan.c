@@ -155,7 +155,7 @@ main(int argc, char **argv)
     hse_params_create(&params);
 
     hse_params_set(params, "kvdb.perfc_enable", "0");
-    hse_params_set(params, "kvdb.rdonly", "0");
+    hse_params_set(params, "kvdb.read_only", "0");
 
     hse_params_set(params, "kvs.cn_mcache_wbt", "0");
     hse_params_set(params, "kvs.cn_bloom_lookup", "0");

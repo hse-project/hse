@@ -3,8 +3,6 @@
  * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
-#define _GNU_SOURCE
-
 #include <unistd.h>
 #include <stdlib.h>
 #include <sys/types.h>

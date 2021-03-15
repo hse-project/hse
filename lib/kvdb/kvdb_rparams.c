@@ -344,12 +344,12 @@ kvdb_rparams_parse(int argc, char **argv, struct kvdb_rparams *params, int *next
 struct kvdb_rparams kvdb_rp_dt_defaults;
 
 merr_t
-kvdb_rparams_add_to_dt(const char *mp_name, struct kvdb_rparams *p)
+kvdb_rparams_add_to_dt(const char *kvdb_name, struct kvdb_rparams *p)
 {
     int i;
     int num_elems = NELEM(kvdb_rp_table);
 
-    if (!mp_name || !p)
+    if (!kvdb_name || !p)
         return merr(ev(EINVAL));
 
     kvdb_rp_dt_defaults = kvdb_rparams_defaults();
@@ -375,7 +375,7 @@ kvdb_rparams_add_to_dt(const char *mp_name, struct kvdb_rparams *p)
 
         if (param_showp == show_u8) {
             CFG_U8(
-                mp_name,
+                kvdb_name,
                 param_name,
                 (void *)p + offset,
                 (void *)&kvdb_rp_dt_defaults + offset,
@@ -384,7 +384,7 @@ kvdb_rparams_add_to_dt(const char *mp_name, struct kvdb_rparams *p)
                 writable);
         } else if (param_showp == show_u16) {
             CFG_U16(
-                mp_name,
+                kvdb_name,
                 param_name,
                 (void *)p + offset,
                 (void *)&kvdb_rp_dt_defaults + offset,
@@ -393,7 +393,7 @@ kvdb_rparams_add_to_dt(const char *mp_name, struct kvdb_rparams *p)
                 writable);
         } else if (param_showp == show_u32) {
             CFG_U32(
-                mp_name,
+                kvdb_name,
                 param_name,
                 (void *)p + offset,
                 (void *)&kvdb_rp_dt_defaults + offset,
@@ -402,7 +402,7 @@ kvdb_rparams_add_to_dt(const char *mp_name, struct kvdb_rparams *p)
                 writable);
         } else if (param_showp == show_u64) {
             CFG_U64(
-                mp_name,
+                kvdb_name,
                 param_name,
                 (void *)p + offset,
                 (void *)&kvdb_rp_dt_defaults + offset,
@@ -411,7 +411,7 @@ kvdb_rparams_add_to_dt(const char *mp_name, struct kvdb_rparams *p)
                 writable);
         } else if (param_showp == show_string) {
             CFG_STR(
-                mp_name,
+                kvdb_name,
                 param_name,
                 (void *)p + offset,
                 kvdb_rp_table[i].pi_type.param_size,

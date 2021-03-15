@@ -659,7 +659,6 @@ cli_hse_kvdb_create_impl(struct cli *cli, const char *cfile, const char *kvdb_na
 
     herr = hse_kvdb_make(kvdb_name, hp);
     if (herr) {
-        print_hse_err(cli, "hse_kvdb_make", herr);
         switch (hse_err_to_errno(herr)) {
             case EEXIST:
                 fprintf(
@@ -670,6 +669,7 @@ cli_hse_kvdb_create_impl(struct cli *cli, const char *cfile, const char *kvdb_na
                     kvdb_name, kvdb_name);
                 break;
             default:
+                print_hse_err(cli, "hse_kvdb_make", herr);
                 break;
         }
         goto done;
@@ -726,7 +726,6 @@ cli_hse_kvdb_list_impl(struct cli *cli, const char *cfile, const char *kvdb_name
 {
     struct hse_params  *hp = 0;
     char                buf[YAML_BUF_SIZE];
-    int                 rc;
     int                 count;
 
     struct yaml_context yc = {
@@ -740,12 +739,12 @@ cli_hse_kvdb_list_impl(struct cli *cli, const char *cfile, const char *kvdb_name
     if (cli_hse_init(cli))
         return -1;
 
-    hp = parse_cmdline_hse_params(cli, cfile, "kvdb.excl=1", "kvdb.rdonly=1", 0);
+    hp = parse_cmdline_hse_params(cli, cfile, "kvdb.excl=1", "kvdb.read_only=1", 0);
     if (!hp)
         return EX_USAGE;
 
-    rc = kvdb_list_print(kvdb_name, hp, &yc, (bool)verbosity, &count);
-    if (rc) {
+    count = kvdb_list_print(kvdb_name, hp, &yc, (bool)verbosity);
+    if (count < 0) {
         fprintf(stderr, "%s: unable to list KVDBs\n", cli->cmd->cmd_path);
         return -1;
     }

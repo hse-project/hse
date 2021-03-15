@@ -24,24 +24,30 @@ enum mclass_id {
     MCID_STAGING = 2,
 };
 
+struct mclass_params {
+    size_t  fszmax;
+    size_t  mblocksz;
+    u8      filecnt;
+    char    path[PATH_MAX];
+};
+
 /**
  * mclass_open() - open the specified mclass
  *
- * @mp:    mpool handle
- * @mcid:  mclass ID
- * @dpath: mclass directory path
- * @flags: open flags
+ * @mp:     mpool handle
+ * @mclass: media class
+ * @params: mclass params
+ * @flags:  open flags
  *
  * @handle(output): mclass handle
  */
 merr_t
 mclass_open(
-    struct mpool        *mp,
-    enum mp_media_classp mclass,
-    const char          *dpath,
-    uint8_t              fcnt,
-    int                  flags,
-    struct media_class **handle);
+    struct mpool         *mp,
+    enum mp_media_classp  mclass,
+    struct mclass_params *params,
+    int                   flags,
+    struct media_class  **handle);
 
 /**
  * mclass_close() - close an mclass
@@ -58,15 +64,6 @@ mclass_close(struct media_class *mc);
  */
 void
 mclass_destroy(struct media_class *mc);
-
-merr_t
-mclass_params_set(struct media_class *mc, const char *key, const char *val, size_t len);
-
-merr_t
-mclass_params_get(struct media_class *mc, const char *key, char *val, size_t len);
-
-merr_t
-mclass_params_remove(struct media_class *mc);
 
 /**
  * mclass_id() - get mclass id
@@ -101,4 +98,9 @@ mclass_to_mcid(enum mp_media_classp mclass);
 enum mp_media_classp
 mcid_to_mclass(enum mclass_id mcid);
 
+size_t
+mclass_mblocksz(struct media_class *mc);
+
+void
+mclass_mblocksz_set(struct media_class *mc, size_t mblocksz);
 #endif /* MPOOL_MCLASS_H */

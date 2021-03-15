@@ -87,7 +87,7 @@ read_blooms(struct mtf_test_info *lcl_ti, char *kblock_file)
     blkdesc.mb_id = blkid;
     blkdesc.map_idx = 0;
 
-    err = mpool_mcache_mmap(ds, 1, &blkdesc.mb_id, MPC_VMA_COLD, &blkdesc.map);
+    err = mpool_mcache_mmap(ds, 1, &blkdesc.mb_id, &blkdesc.map);
     ASSERT_EQ(0, err);
 
     mpm_mblock_read(blkid, &kb_hdr, 0, sizeof(struct kblock_hdr_omf));

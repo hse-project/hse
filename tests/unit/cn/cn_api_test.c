@@ -75,7 +75,7 @@ MTF_DEFINE_UTEST_PRE(cn_api, basic, pre)
     mapi_inject(mapi_idx_ikvdb_get_csched, 0);
     mapi_inject(mapi_idx_cndb_cn_blob_get, 0);
     mapi_inject(mapi_idx_cndb_cn_blob_set, 0);
-    mapi_inject(mapi_idx_mpool_params_get, 0);
+    mapi_inject(mapi_idx_mpool_props_get, 0);
     mapi_inject(mapi_idx_mpool_mclass_get, ENOENT);
 
     err = cn_open(0, ds, &kk, &cndb, 0, &rp, "mp", "kvs", &mock_health, 0, &cn);

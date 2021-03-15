@@ -89,7 +89,7 @@ main(int argc, char *argv[])
     const char *                    program, *mpname;
     int                             mclass, wpct, thrds;
     u64                             bsize, mblks_per_thrd, mblksize;
-    struct mpool_params             params;
+    struct mpool_props              props;
 
     program = strrchr(argv[0], '/');
     program = program ? program + 1 : argv[0];
@@ -172,14 +172,14 @@ main(int argc, char *argv[])
         return -1;
     }
 
-    err = mpool_params_get(ds, &params);
+    err = mpool_props_get(ds, &props);
     if (err) {
         mpool_close(ds);
-        fprintf(stderr, "mpool_params_get error %ld\n", err);
+        fprintf(stderr, "mpool_props_get error %ld\n", err);
         return -1;
     }
 
-    mblksize = params.mp_mblocksz[mclass] * MB;
+    mblksize = props.mp_mblocksz[mclass] * MB;
     err = deviceprofile_calibrate_create(ds, mclass, mblksize, mblks_per_thrd, thrds, &dpc);
     if (err) {
         fprintf(stderr, "Initialization error %ld\n", err);

@@ -3,8 +3,6 @@
  * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
-#define _GNU_SOURCE
-
 #include <unistd.h>
 #include <stdlib.h>
 #include <sys/types.h>
@@ -35,12 +33,14 @@ mpool_mblock_alloc(
         return merr(EINVAL);
 
     mc = mpool_mclass_handle(mp, mclass);
+    if (!mc)
+        return merr(ENOENT);
 
     err = mblock_fset_alloc(mclass_fset(mc), 1, mbid);
 
     if (!err && props) {
         props->mpr_objid = *mbid;
-        props->mpr_alloc_cap = MBLOCK_SIZE_MB << 20;
+        props->mpr_alloc_cap = mclass_mblocksz(mc);
         props->mpr_optimal_wrsz = 128 << 10;
         props->mpr_mclassp = mclass;
         props->mpr_write_len = 0;
@@ -60,6 +60,8 @@ mpool_mblock_commit(struct mpool *mp, uint64_t mbid)
 
     mclass = mcid_to_mclass(mclassid(mbid));
     mc = mpool_mclass_handle(mp, mclass);
+    if (!mc)
+        return merr(ENOENT);
 
     return mblock_fset_commit(mclass_fset(mc), &mbid, 1);
 }
@@ -75,6 +77,8 @@ mpool_mblock_abort(struct mpool *mp, uint64_t mbid)
 
     mclass = mcid_to_mclass(mclassid(mbid));
     mc = mpool_mclass_handle(mp, mclass);
+    if (!mc)
+        return merr(ENOENT);
 
     return mblock_fset_abort(mclass_fset(mc), &mbid, 1);
 }
@@ -90,6 +94,8 @@ mpool_mblock_delete(struct mpool *mp, uint64_t mbid)
 
     mclass = mcid_to_mclass(mclassid(mbid));
     mc = mpool_mclass_handle(mp, mclass);
+    if (!mc)
+        return merr(ENOENT);
 
     return mblock_fset_delete(mclass_fset(mc), &mbid, 1);
 }
@@ -108,12 +114,14 @@ mpool_mblock_props_get(struct mpool *mp, uint64_t mbid, struct mblock_props *pro
 
     mclass = mcid_to_mclass(mclassid(mbid));
     mc = mpool_mclass_handle(mp, mclass);
+    if (!mc)
+        return merr(ENOENT);
 
     err = mblock_fset_find(mclass_fset(mc), &mbid, 1, props ? &wlen : NULL);
 
     if (!err && props) {
         props->mpr_objid = mbid;
-        props->mpr_alloc_cap = MBLOCK_SIZE_MB << 20;
+        props->mpr_alloc_cap = mclass_mblocksz(mc);
         props->mpr_optimal_wrsz = MBLOCK_OPT_WRITE_SZ;
         props->mpr_mclassp = mclass;
         props->mpr_write_len = wlen;
@@ -133,6 +141,8 @@ mpool_mblock_write(struct mpool *mp, uint64_t mbid, const struct iovec *iov, int
 
     mclass = mcid_to_mclass(mclassid(mbid));
     mc = mpool_mclass_handle(mp, mclass);
+    if (!mc)
+        return merr(ENOENT);
 
     return mblock_fset_write(mclass_fset(mc), mbid, iov, iovc);
 }
@@ -148,6 +158,8 @@ mpool_mblock_read(struct mpool *mp, uint64_t mbid, const struct iovec *iov, int 
 
     mclass = mcid_to_mclass(mclassid(mbid));
     mc = mpool_mclass_handle(mp, mclass);
+    if (!mc)
+        return merr(ENOENT);
 
     return mblock_fset_read(mclass_fset(mc), mbid, iov, iovc, off);
 }

@@ -3,10 +3,9 @@
  * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
-#define _GNU_SOURCE
-
 #include <unistd.h>
 #include <stdlib.h>
+#include <stdalign.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/mman.h>
@@ -21,6 +20,7 @@
 #include <hse_util/logging.h>
 #include <hse_util/event_counter.h>
 #include <hse_util/minmax.h>
+#include <hse_util/log2.h>
 
 #include "mblock_file.h"
 #include "io.h"
@@ -29,13 +29,9 @@
 
 #define MBLOCK_FILE_META_HDRLEN (4096)
 
-#define MBLOCK_FILE_SIZE_MAX ((1ULL << MBID_BLOCK_BITS) << MBLOCK_SIZE_SHIFT)
-
 #define MBLOCK_FILE_UNIQ_DELTA (1024)
 
-#define MBLOCK_MMAP_CHUNK_SIZE (MBLOCK_SIZE_BYTES)
-#define MBLOCK_MMAP_CHUNK_MASK (~(MBLOCK_MMAP_CHUNK_SIZE - 1))
-#define MBLOCK_MMAP_CHUNK_SHIFT (MBLOCK_SIZE_SHIFT)
+#define MBLOCK_MMAP_CHUNK_MAX (1024)
 
 /**
  * struct mblock_rgn -
@@ -73,7 +69,7 @@ struct mblock_mmap {
  * @mmap:  mblock map
  * @io:    io handle for sync/async rw ops
  *
- * maxsz: maximum file size (2TiB with 16-bit block offset)
+ * fszmax: maximum file size (2TiB with 16-bit block offset and 32MiB mblocks)
  *
  * fd:   file handle
  * name: file name
@@ -85,7 +81,8 @@ struct mblock_file {
     struct mblock_fset *mbfsp;
     struct io_ops       io;
 
-    size_t         maxsz;
+    size_t         fszmax;
+    size_t         mblocksz;
     enum mclass_id mcid;
     int            fileid;
     int            fd;
@@ -110,6 +107,9 @@ struct mblock_file {
 static void
 mblock_file_unmapall(struct mblock_file *mbfp);
 
+static int
+mblock_mmap_cshift(size_t mblocksz);
+
 /**
  * Region map interfaces.
  */
@@ -123,7 +123,7 @@ mblock_rgnmap_init(struct mblock_file *mbfp, const char *name)
 
     uint32_t rmax;
 
-    rmcache = kmem_cache_create(name, sizeof(*rgn), __alignof(*rgn), 0, NULL);
+    rmcache = kmem_cache_create(name, sizeof(*rgn), alignof(*rgn), 0, NULL);
     if (ev(!rmcache))
         return merr(ENOMEM);
 
@@ -138,7 +138,7 @@ mblock_rgnmap_init(struct mblock_file *mbfp, const char *name)
     }
 
     rgn->rgn_start = 1;
-    rmax = mbfp->maxsz >> MBLOCK_SIZE_SHIFT;
+    rmax = mbfp->fszmax >> ilog2(mbfp->mblocksz);
     rgn->rgn_end = rmax + 1;
 
     mutex_lock(&rgnmap->rm_lock);
@@ -386,16 +386,16 @@ mblock_rgn_find(struct mblock_rgnmap *rgnmap, uint32_t key)
  * Mblock file meta interfaces.
  */
 
-static uint32_t
+static __always_inline uint32_t
 block_id(uint64_t mbid)
 {
     return mbid & MBID_BLOCK_MASK;
 }
 
-static uint64_t
-block_off(uint64_t mbid)
+static __always_inline uint64_t
+block_off(uint64_t mbid, size_t mblocksz)
 {
-    return ((uint64_t)block_id(mbid)) << MBLOCK_SIZE_SHIFT;
+    return ((uint64_t)block_id(mbid)) << ilog2(mblocksz);
 }
 
 static uint32_t
@@ -405,11 +405,11 @@ uniquifier(uint64_t mbid)
 }
 
 size_t
-mblock_file_meta_len(void)
+mblock_file_meta_len(size_t fszmax, size_t mblocksz)
 {
     size_t mblkc;
 
-    mblkc = MBLOCK_FILE_SIZE_MAX >> MBLOCK_SIZE_SHIFT;
+    mblkc = fszmax >> ilog2(mblocksz);
 
     return MBLOCK_FILE_META_HDRLEN + mblkc * MBLOCK_FILE_META_OIDLEN;
 }
@@ -449,7 +449,7 @@ mblock_file_meta_load(struct mblock_file *mbfp)
     if (fh.uniq != 0)
         mbfp->uniq = fh.uniq + MBLOCK_FILE_UNIQ_DELTA;
 
-    bound = addr + mblock_file_meta_len();
+    bound = addr + mblock_file_meta_len(mbfp->fszmax, mbfp->mblocksz);
     addr += MBLOCK_FILE_META_HDRLEN;
 
     while (addr < bound) {
@@ -549,23 +549,23 @@ mblock_file_meta_log(struct mblock_file *mbfp, uint64_t *mbidv, int mbidc, bool 
 
 merr_t
 mblock_file_open(
-    struct mblock_fset  *mbfsp,
-    struct media_class  *mc,
-    int                  fileid,
-    int                  flags,
-    char                *meta_addr,
-    struct mblock_file **handle)
+    struct mblock_fset         *mbfsp,
+    struct media_class         *mc,
+    struct mblock_file_params  *params,
+    int                         flags,
+    char                       *meta_addr,
+    struct mblock_file        **handle)
 {
     struct mblock_file *mbfp;
     enum mclass_id      mcid;
 
-    int    fd, rc, dirfd, mmapc, wlenc;
+    int    fd, rc, dirfd, mmapc, wlenc, fileid;
     merr_t err = 0;
     char   name[32], rname[32];
     bool   create = false;
-    size_t fszmax, sz;
+    size_t sz, mblocksz, fszmax;
 
-    if (ev(!mbfsp || !mc || !meta_addr || !handle))
+    if (ev(!mbfsp || !mc || !meta_addr || !handle || !params))
         return merr(EINVAL);
 
     if (flags == 0 || !(flags & (O_RDWR | O_RDONLY | O_WRONLY)))
@@ -577,6 +577,10 @@ mblock_file_open(
         flags |= O_EXCL;
     }
 
+    mblocksz = params->mblocksz;
+    fszmax = params->fszmax;
+    fileid = params->fileid;
+
     mcid = mclass_id(mc);
     dirfd = mclass_dirfd(mc);
     snprintf(name, sizeof(name), "%s-%d-%d", MBLOCK_DATA_FILE_PFX, mcid, fileid);
@@ -587,10 +591,8 @@ mblock_file_open(
     if (rc == 0 && create)
         return merr(EEXIST);
 
-    fszmax = MBLOCK_FILE_SIZE_MAX;
-    mmapc = fszmax >> MBLOCK_MMAP_CHUNK_SHIFT;
-
-    wlenc = fszmax >> MBLOCK_SIZE_SHIFT;
+    mmapc = fszmax >> mblock_mmap_cshift(mblocksz);
+    wlenc = fszmax >> ilog2(mblocksz);
 
     sz = sizeof(*mbfp) + mmapc * sizeof(*mbfp->mmapv) + wlenc * sizeof(*mbfp->wlenv);
     mbfp = calloc(1, sz);
@@ -602,8 +604,9 @@ mblock_file_open(
     mbfp->meta_addr = meta_addr;
     mbfp->fileid = fileid;
     mbfp->mcid = mcid;
+    mbfp->mblocksz = mblocksz;
 
-    mbfp->maxsz = fszmax;
+    mbfp->fszmax = fszmax;
     snprintf(rname, sizeof(rname), "%s-%d-%d", "rgnmap", mcid, fileid);
     err = mblock_rgnmap_init(mbfp, rname);
     if (ev(err)) {
@@ -634,7 +637,7 @@ mblock_file_open(
     mbfp->fd = fd;
 
     /* ftruncate to the maximum size to make it a sparse file */
-    rc = ftruncate(fd, mbfp->maxsz);
+    rc = ftruncate(fd, mbfp->fszmax);
     if (rc < 0) {
         err = merr(errno);
         hse_elog(HSE_ERR "%s: Truncating data file failed, file name %s: @@e", err, __func__, name);
@@ -796,6 +799,10 @@ mblock_file_meta_validate(struct mblock_file *mbfp, uint64_t *mbidv, int mbidc, 
     omfwlen = omf_mblk_wlen(mbomf);
 
     if (!omf_isvalid(*mbidv, omfid, wlen, omfwlen, exists)) {
+        if (ev(exists && *mbidv != omfid)) {
+            assert(uniquifier(omfid) > uniquifier(*mbidv));
+            return merr(ENOENT);
+        }
         assert(0);
         return merr(EBUG);
     }
@@ -878,6 +885,7 @@ merr_t
 mblock_file_delete(struct mblock_file *mbfp, uint64_t *mbidv, int mbidc)
 {
     uint64_t block;
+    size_t   mblocksz;
     merr_t   err;
     int      rc;
     bool delete = true;
@@ -895,12 +903,13 @@ mblock_file_delete(struct mblock_file *mbfp, uint64_t *mbidv, int mbidc)
     if (ev(err))
         return err;
 
+    mblocksz = mbfp->mblocksz;
     /* Discard mblock */
     rc = fallocate(
         mbfp->fd,
         FALLOC_FL_PUNCH_HOLE | FALLOC_FL_KEEP_SIZE,
-        block_off(*mbidv),
-        MBLOCK_SIZE_BYTES);
+        block_off(*mbidv, mblocksz),
+        mblocksz);
     ev(rc);
 
     atomic_set(mbfp->wlenv + block, 0);
@@ -933,7 +942,7 @@ mblock_file_read(
     off_t               off)
 {
     off_t  roff, eoff;
-    size_t len = 0;
+    size_t len = 0, mblocksz;
     merr_t err;
 
     if (ev(!mbfp || !iov))
@@ -946,8 +955,9 @@ mblock_file_read(
     if (err)
         return err;
 
-    roff = block_off(mbid);
-    eoff = roff + MBLOCK_SIZE_BYTES - 1;
+    mblocksz = mbfp->mblocksz;
+    roff = block_off(mbid, mblocksz);
+    eoff = roff + mblocksz - 1;
     roff += off;
 
     len = iov_len_get(iov, iovc);
@@ -964,7 +974,7 @@ mblock_file_write(
     const struct iovec *iov,
     int                 iovc)
 {
-    size_t    len;
+    size_t    len, mblocksz;
     off_t     woff, eoff, off;
     merr_t    err;
     atomic_t *wlenp;
@@ -982,8 +992,9 @@ mblock_file_write(
     wlenp = mbfp->wlenv + block_id(mbid);
     off = atomic_read(wlenp);
 
-    woff = block_off(mbid);
-    eoff = woff + MBLOCK_SIZE_BYTES - 1;
+    mblocksz = mbfp->mblocksz;
+    woff = block_off(mbid, mblocksz);
+    eoff = woff + mblocksz - 1;
     woff += off;
 
     len = iov_len_get(iov, iovc);
@@ -997,56 +1008,77 @@ mblock_file_write(
     return err;
 }
 
-static uint32_t
-chunk_idx(uint64_t mbid)
+static __always_inline size_t
+mblock_mmap_csize(size_t mblocksz)
 {
-    return block_off(mbid) >> MBLOCK_MMAP_CHUNK_SHIFT;
+    return mblocksz * MBLOCK_MMAP_CHUNK_MAX;
 }
 
-static uint64_t
-chunk_start_off(uint64_t mbid)
+static __always_inline uint64_t
+mblock_mmap_cmask(size_t mblocksz)
 {
-    return block_off(mbid) & MBLOCK_MMAP_CHUNK_MASK;
+    return ~(mblock_mmap_csize(mblocksz) - 1);
 }
 
-static uint64_t
-chunk_off(uint64_t mbid)
+static __always_inline int
+mblock_mmap_cshift(size_t mblocksz)
 {
-    return block_off(mbid) ^ chunk_start_off(mbid);
+    return ilog2(mblock_mmap_csize(mblocksz));
+}
+
+static __always_inline uint32_t
+chunk_idx(uint64_t mbid, size_t mblocksz)
+{
+    return block_off(mbid, mblocksz) >> mblock_mmap_cshift(mblocksz);
+}
+
+static __always_inline uint64_t
+chunk_start_off(uint64_t mbid, size_t mblocksz)
+{
+    return block_off(mbid, mblocksz) & mblock_mmap_cmask(mblocksz);
+}
+
+static __always_inline uint64_t
+chunk_off(uint64_t mbid, size_t mblocksz)
+{
+    return block_off(mbid, mblocksz) ^ chunk_start_off(mbid, mblocksz);
 }
 
 merr_t
 mblock_file_map_getbase(
     struct mblock_file *mbfp,
     uint64_t            mbid,
-    char              **addr_out)
+    char              **addr_out,
+    uint32_t           *wlen)
 {
     struct mblock_mmap *map;
     char *addr;
     int   cidx, rc;
     off_t soff, off;
+    size_t mblocksz;
     merr_t err = 0;
 
     if (!mbfp || !addr_out)
         return merr(EINVAL);
 
-    cidx = chunk_idx(mbid);
+    mblocksz = mbfp->mblocksz;
+    cidx = chunk_idx(mbid, mblocksz);
     map = &mbfp->mmapv[cidx];
 
-    soff = chunk_start_off(mbid);
-    off = chunk_off(mbid);
+    soff = chunk_start_off(mbid, mblocksz);
+    off = chunk_off(mbid, mblocksz);
 
     mutex_lock(&mbfp->mmap_lock);
     addr = map->addr;
     if (!addr) {
         /* Setup map */
-        addr = mmap(NULL, MBLOCK_MMAP_CHUNK_SIZE, PROT_READ, MAP_SHARED, mbfp->fd, soff);
+        addr = mmap(NULL, mblock_mmap_csize(mblocksz), PROT_READ, MAP_SHARED, mbfp->fd, soff);
         if (addr == MAP_FAILED) {
             err = merr(errno);
             goto exit;
         }
 
-        rc = madvise(addr, MBLOCK_MMAP_CHUNK_SIZE, MADV_RANDOM);
+        rc = madvise(addr, mblock_mmap_csize(mblocksz), MADV_RANDOM);
         if (rc) {
             err = merr(errno);
             goto exit;
@@ -1059,15 +1091,17 @@ mblock_file_map_getbase(
         assert(map->ref >= 1);
         ++map->ref;
 
-        rc = mprotect(addr + off, MBLOCK_SIZE_BYTES, PROT_READ);
+        rc = mprotect(addr + off, mbfp->mblocksz, PROT_READ);
         if (rc)
             err = merr(errno);
     }
 exit:
     mutex_unlock(&mbfp->mmap_lock);
 
-    if (!err)
-     *addr_out = addr + off;
+    if (!err) {
+        *addr_out = addr + off;
+        *wlen = atomic_read(mbfp->wlenv + block_id(mbid));
+    }
 
     return err;
 }
@@ -1080,24 +1114,26 @@ mblock_file_unmap(
     struct mblock_mmap *map;
     char  *addr;
     int    cidx;
+    size_t mblocksz;
     merr_t err = 0;
 
     if (!mbfp)
         return merr(EINVAL);
 
-    cidx = chunk_idx(mbid);
+    mblocksz = mbfp->mblocksz;
+    cidx = chunk_idx(mbid, mblocksz);
     map = &mbfp->mmapv[cidx];
 
     mutex_lock(&mbfp->mmap_lock);
     addr = map->addr;
     assert(addr);
     if (--map->ref == 0) {
-        int rc;
+        int    rc;
 
-        rc = madvise(addr, MBLOCK_MMAP_CHUNK_SIZE, MADV_DONTNEED);
+        rc = madvise(addr, mblock_mmap_csize(mblocksz), MADV_DONTNEED);
         ev(rc);
 
-        rc = munmap(addr, MBLOCK_MMAP_CHUNK_SIZE);
+        rc = munmap(addr, mblock_mmap_csize(mblocksz));
         if (rc)
             err = merr(errno);
         else
@@ -1130,7 +1166,7 @@ mblock_file_unmapall(struct mblock_file *mbfp)
             hse_log(HSE_WARNING "%s: Leaked map mcid %d fileid %d chunk-id %d ref %lu",
                     __func__, mbfp->mcid, mbfp->fileid, i, map->ref);
 
-            rc = munmap(addr, MBLOCK_MMAP_CHUNK_SIZE);
+            rc = munmap(addr, mblock_mmap_csize(mbfp->mblocksz));
             ev(rc);
 
             map->addr = NULL;

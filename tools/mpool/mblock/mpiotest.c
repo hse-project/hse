@@ -37,7 +37,6 @@
 #include <sys/uio.h>
 #include <signal.h>
 
-#include <hse_util/uuid.h>
 #include <hse_util/minmax.h>
 #include <hse_util/page.h>
 #include <hse_util/hse_err.h>
@@ -357,7 +356,7 @@ verify_with_mcache(
 
 	/* If we don't already have a map, create it */
 	if (!minfo->map) {
-		err = mpool_mcache_mmap(mp, mbidc, mbidv, MPC_VMA_COLD, &minfo->map);
+		err = mpool_mcache_mmap(mp, mbidc, mbidv, &minfo->map);
 		if (err)
 			goto mcache_map_err;
 
@@ -913,7 +912,7 @@ int main(int argc, char **argv)
 	struct stats        stats;
 	struct test        *testv;
 	struct mpool       *mp;
-	struct mpool_params params;
+	struct mpool_props  props;
     struct hse_params  *hparams;
 	sigset_t        sigmask_block;
 	sigset_t        sigmask_old;
@@ -1095,13 +1094,13 @@ int main(int argc, char **argv)
 		exit(1);
 	}
 
-	err = mpool_params_get(mp, &params);
+	err = mpool_props_get(mp, &props);
 	if (err) {
 		merr_strinfo(err, errbuf, sizeof(errbuf), NULL);
-		eprint("mpool_params_get(%s): %s\n", mpname, errbuf);
+		eprint("mpool_props_get(%s): %s\n", mpname, errbuf);
 		goto err_exit;
 	}
-	wbufsz = params.mp_mblocksz[MP_MED_CAPACITY] << 20;
+	wbufsz = props.mp_mblocksz[MP_MED_CAPACITY] << 20;
 
 	limit = wbufsz + WANDERMAX + WOBBLEMAX;
 

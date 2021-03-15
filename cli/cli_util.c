@@ -14,7 +14,6 @@
 #include <hse_util/parse_num.h>
 
 #include <hse/hse.h>
-#include <hse/hse_experimental.h> /* need 'hse_mpool_utype' */
 
 static int
 rest_kvs_list(struct yaml_context *yc, const char *kvdb)
@@ -72,20 +71,23 @@ kvdb_list_props(const char *kvdb, struct hse_params *params, struct yaml_context
     int              i;
 
     err = hse_kvdb_open(kvdb, params, &hdl);
-    if (err) {
-        if (hse_err_to_errno(err) != EBUSY && hse_err_to_errno(err) != ENODATA)
-            return err;
+    if (err && hse_err_to_errno(err) != EBUSY && hse_err_to_errno(err) != ENODATA)
+        return err;
 
+    yaml_start_element_type(yc, "kvdb");
+    yaml_start_element(yc, "name", kvdb);
+
+    if (err) {
         yaml_start_element_type(yc, "kvslist");
         err = rest_kvs_list(yc, kvdb);
         yaml_end_element_type(yc);
-        return err;
+        goto exit;
     }
 
     err = hse_kvdb_get_names(hdl, &kvs_cnt, &kvs_list);
     if (err) {
         hse_kvdb_close(hdl);
-        return err;
+        goto exit;
     }
 
     yaml_start_element_type(yc, "kvslist");
@@ -101,6 +103,10 @@ kvdb_list_props(const char *kvdb, struct hse_params *params, struct yaml_context
     hse_kvdb_free_names(hdl, kvs_list);
     hse_kvdb_close(hdl);
 
+exit:
+    yaml_end_element(yc);
+    yaml_end_element_type(yc); /* kvdb */
+
     return err;
 }
 
@@ -109,32 +115,28 @@ kvdb_list_print(
     const char *         kvdb,
     struct hse_params *  params,
     struct yaml_context *yc,
-    bool                 verbose,
-    int *                count)
+    bool                 verbose)
 {
     hse_err_t err;
-
-    /* HSE_REVISIT - list implementation */
-
-    yaml_start_element_type(yc, "kvdbs");
-
-    yaml_start_element(yc, "name", kvdb);
+    int count = 0;
 
     err = kvdb_list_props(kvdb, params, yc);
     if (err) {
         char buf[256];
+
+        if (hse_err_to_errno(err) == ENOENT)
+            goto errout;
+
         hse_err_to_string(err, buf, sizeof(buf), NULL);
         yaml_field_fmt(yc, "error", "\"kvdb_list_props failed: %s\"", buf);
     }
 
-    yaml_end_element(yc);
-    yaml_end_element_type(yc);
+    count = 1;
 
-    *count = 1;
-
+errout:
     hse_params_destroy(params);
 
-    return 0;
+    return count;
 }
 
 static hse_err_t

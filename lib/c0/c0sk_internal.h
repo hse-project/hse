@@ -54,7 +54,7 @@ struct c0sk {
  * @c0sk_cheap_sz:        ingest cheap size hint to use for next kvms create
  * @c0sk_closing:         set to %true when c0sk is closing
  * @c0sk_release_gen:     generation count of most recently released multiset
- * @c0sk_mpname:          mpool name
+ * @c0sk_kvdbname:        kvdb name
  * @c0sk_dbname:          kvdb name
  * @c0sk_kvdb_seq:        kvdb seqno
  * @c0sk_mhandle:         mutation handle
@@ -114,7 +114,7 @@ struct c0sk_impl {
     struct perfc_set c0sk_pc_op;
     struct perfc_set c0sk_pc_ingest;
 
-    char c0sk_mpname[MPOOL_NAMESZ_MAX + 1];
+    char c0sk_kvdbname[HSE_KVDB_NAME_LEN_MAX + 1];
 
     /* HSE_REVISIT: must track ALL c0sk cursors, so can invalidate them */
 };

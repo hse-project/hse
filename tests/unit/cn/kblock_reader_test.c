@@ -204,7 +204,7 @@ MTF_DEFINE_UTEST_PRE(kblock_reader_test, basic_wbt_blm_test, pre)
     err = mpm_mblock_write(blkid, fake_kblock_buf, 0, FAKE_KBLOCK_SIZE);
     ASSERT_EQ(0, err);
 
-    err = mpool_mcache_mmap(mp_ds, 1, &blkdesc.mb_id, MPC_VMA_COLD, &blkdesc.map);
+    err = mpool_mcache_mmap(mp_ds, 1, &blkdesc.mb_id, &blkdesc.map);
     ASSERT_EQ(0, err);
 
     init_kb_hdr(&kb);
@@ -315,7 +315,7 @@ MTF_DEFINE_UTEST_PRE(kblock_reader_test, t_kbr_madvise_bloom, pre)
     err = mpm_mblock_write(blkid, fake_kblock_buf, 0, FAKE_KBLOCK_SIZE);
     ASSERT_EQ(0, err);
 
-    err = mpool_mcache_mmap(mp_ds, 1, &blkdesc.mb_id, MPC_VMA_COLD, &blkdesc.map);
+    err = mpool_mcache_mmap(mp_ds, 1, &blkdesc.mb_id, &blkdesc.map);
     ASSERT_EQ(0, err);
 
     init_kb_hdr(&kb);
@@ -327,13 +327,13 @@ MTF_DEFINE_UTEST_PRE(kblock_reader_test, t_kbr_madvise_bloom, pre)
 
     /* once w/ forced error */
     mapi_inject_once(mapi_idx_mpool_mcache_madvise, 1, EINVAL);
-    kbr_madvise_bloom(&blkdesc, &blm_desc, MADV_NORMAL);
+    kbr_madvise_bloom(&blkdesc, &blm_desc, MADV_WILLNEED);
 
     /* once w/o error */
-    kbr_madvise_bloom(&blkdesc, &blm_desc, MADV_NORMAL);
+    kbr_madvise_bloom(&blkdesc, &blm_desc, MADV_WILLNEED);
 
     blm_desc.bd_n_pages = 0;
-    kbr_madvise_bloom(&blkdesc, &blm_desc, MADV_NORMAL);
+    kbr_madvise_bloom(&blkdesc, &blm_desc, MADV_WILLNEED);
 
     err = mpool_mcache_munmap(blkdesc.map);
     ASSERT_EQ(err, 0);
@@ -355,7 +355,7 @@ MTF_DEFINE_UTEST_PRE(kblock_reader_test, t_kbr_madvise_wbt_leaf_nodes, pre)
     err = mpm_mblock_write(blkid, fake_kblock_buf, 0, FAKE_KBLOCK_SIZE);
     ASSERT_EQ(0, err);
 
-    err = mpool_mcache_mmap(mp_ds, 1, &blkdesc.mb_id, MPC_VMA_COLD, &blkdesc.map);
+    err = mpool_mcache_mmap(mp_ds, 1, &blkdesc.mb_id, &blkdesc.map);
     ASSERT_EQ(0, err);
 
     init_kb_hdr(&kb);
@@ -367,13 +367,13 @@ MTF_DEFINE_UTEST_PRE(kblock_reader_test, t_kbr_madvise_wbt_leaf_nodes, pre)
 
     /* once w/ forced error */
     mapi_inject_once(mapi_idx_mpool_mcache_madvise, 1, EINVAL);
-    kbr_madvise_wbt_leaf_nodes(&blkdesc, &wb_desc, MADV_NORMAL);
+    kbr_madvise_wbt_leaf_nodes(&blkdesc, &wb_desc, MADV_WILLNEED);
 
     /* once w/o error */
-    kbr_madvise_wbt_leaf_nodes(&blkdesc, &wb_desc, MADV_NORMAL);
+    kbr_madvise_wbt_leaf_nodes(&blkdesc, &wb_desc, MADV_WILLNEED);
 
     wb_desc.wbd_leaf_cnt = 0;
-    kbr_madvise_wbt_leaf_nodes(&blkdesc, &wb_desc, MADV_NORMAL);
+    kbr_madvise_wbt_leaf_nodes(&blkdesc, &wb_desc, MADV_WILLNEED);
 
     err = mpool_mcache_munmap(blkdesc.map);
     ASSERT_EQ(err, 0);
@@ -395,7 +395,7 @@ MTF_DEFINE_UTEST_PRE(kblock_reader_test, t_kbr_madvise_wbt_int_nodes, pre)
     err = mpm_mblock_write(blkid, fake_kblock_buf, 0, FAKE_KBLOCK_SIZE);
     ASSERT_EQ(0, err);
 
-    err = mpool_mcache_mmap(mp_ds, 1, &blkdesc.mb_id, MPC_VMA_COLD, &blkdesc.map);
+    err = mpool_mcache_mmap(mp_ds, 1, &blkdesc.mb_id, &blkdesc.map);
     ASSERT_EQ(0, err);
 
     init_kb_hdr(&kb);
@@ -407,14 +407,14 @@ MTF_DEFINE_UTEST_PRE(kblock_reader_test, t_kbr_madvise_wbt_int_nodes, pre)
 
     /* once w/ forced error */
     mapi_inject_once(mapi_idx_mpool_mcache_madvise, 1, EINVAL);
-    kbr_madvise_wbt_int_nodes(&blkdesc, &wb_desc, MADV_NORMAL);
+    kbr_madvise_wbt_int_nodes(&blkdesc, &wb_desc, MADV_WILLNEED);
 
     /* once w/o error */
-    kbr_madvise_wbt_int_nodes(&blkdesc, &wb_desc, MADV_NORMAL);
+    kbr_madvise_wbt_int_nodes(&blkdesc, &wb_desc, MADV_WILLNEED);
 
     wb_desc.wbd_n_pages = 0;
     wb_desc.wbd_leaf_cnt = 0;
-    kbr_madvise_wbt_int_nodes(&blkdesc, &wb_desc, MADV_NORMAL);
+    kbr_madvise_wbt_int_nodes(&blkdesc, &wb_desc, MADV_WILLNEED);
 
     err = mpool_mcache_munmap(blkdesc.map);
     ASSERT_EQ(err, 0);
@@ -436,7 +436,7 @@ MTF_DEFINE_UTEST_PRE(kblock_reader_test, t_kbr_cache_pt_leaf_nodes, pre)
     err = mpm_mblock_write(blkid, fake_kblock_buf, 0, FAKE_KBLOCK_SIZE);
     ASSERT_EQ(0, err);
 
-    err = mpool_mcache_mmap(mp_ds, 1, &blkdesc.mb_id, MPC_VMA_COLD, &blkdesc.map);
+    err = mpool_mcache_mmap(mp_ds, 1, &blkdesc.mb_id, &blkdesc.map);
     ASSERT_EQ(0, err);
 
     init_kb_hdr(&kb);
@@ -476,7 +476,7 @@ MTF_DEFINE_UTEST_PRE(kblock_reader_test, t_corrupt_header, pre)
     err = mpm_mblock_write(blkid, fake_kblock_buf, 0, FAKE_KBLOCK_SIZE);
     ASSERT_EQ(0, err);
 
-    err = mpool_mcache_mmap(mp_ds, 1, &blkdesc.mb_id, MPC_VMA_COLD, &blkdesc.map);
+    err = mpool_mcache_mmap(mp_ds, 1, &blkdesc.mb_id, &blkdesc.map);
     ASSERT_EQ(err, 0);
 
     /* verify we can read w/o corruption */
@@ -549,7 +549,7 @@ MTF_DEFINE_UTEST_PRE(kblock_reader_test, basic_kblock_error_test, pre)
     err = write_kb_hdr(&kb, &blkdesc);
     ASSERT_EQ(err, 0);
 
-    err = mpool_mcache_mmap(mp_ds, 1, &blkdesc.mb_id, MPC_VMA_COLD, &blkdesc.map);
+    err = mpool_mcache_mmap(mp_ds, 1, &blkdesc.mb_id, &blkdesc.map);
     ASSERT_EQ(0, err);
 
     force_err = __LINE__;
