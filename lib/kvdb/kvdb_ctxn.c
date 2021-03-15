@@ -133,9 +133,9 @@ kvdb_ctxn_set_thread(struct work_struct *work)
     /* Abort all active transactions that have expired. */
     now = get_time_ns();
     ttl_ns = ktn->ktn_txn_timeout * 1000000UL;
+
     rcu_read_lock();
-    cds_list_for_each_entry_rcu(ctxn, &ktn->ktn_alloc_list, ctxn_alloc_link)
-    {
+    cds_list_for_each_entry_rcu(ctxn, &ktn->ktn_alloc_list, ctxn_alloc_link) {
         state = seqnoref_to_state(ctxn->ctxn_seqref);
         if (state == KVDB_CTXN_ACTIVE) {
             if (now > (ctxn->ctxn_begin_ts + ttl_ns))
@@ -144,7 +144,7 @@ kvdb_ctxn_set_thread(struct work_struct *work)
     }
     rcu_read_unlock();
 
-    list_for_each_entry (ctxn, &alist, ctxn_abort_link)
+    list_for_each_entry(ctxn, &alist, ctxn_abort_link)
         kvdb_ctxn_abort(&ctxn->ctxn_inner_handle);
 
     atomic_set(&ktn->ktn_reading, 0);
@@ -164,7 +164,7 @@ kvdb_ctxn_set_thread(struct work_struct *work)
     /* Free all transactions that were waiting for the thread
      * to finish reading.
      */
-    list_for_each_entry_safe (ctxn, next, &freelist, ctxn_free_link) {
+    list_for_each_entry_safe(ctxn, next, &freelist, ctxn_free_link) {
         kvdb_ctxn_cursor_unbind(ctxn->ctxn_bind);
         free_aligned(ctxn);
         ev(1);
@@ -1009,7 +1009,7 @@ kvdb_ctxn_set_destroy(struct kvdb_ctxn_set *handle)
     cds_list_for_each_entry_rcu(ctxn, &ktn->ktn_alloc_list, ctxn_alloc_link)
         list_add_tail(&ctxn->ctxn_free_link, &ktn->ktn_pending);
 
-    list_for_each_entry_safe (ctxn, next, &ktn->ktn_pending, ctxn_free_link)
+    list_for_each_entry_safe(ctxn, next, &ktn->ktn_pending, ctxn_free_link)
         kvdb_ctxn_free(&ctxn->ctxn_inner_handle);
 
     mutex_destroy(&ktn->ktn_list_mutex);

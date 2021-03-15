@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
 #ifndef HSE_PLATFORM_RCU_H
@@ -23,7 +23,5 @@ rcu_barrier_bp(void);
 #ifndef rcu_read_ongoing
 #define rcu_read_ongoing() true
 #endif
-
-#include <hse_util/cds_list.h>
 
 #endif

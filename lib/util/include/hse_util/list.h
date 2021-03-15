@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
 #ifndef HSE_PLATFORM_LIST_H
@@ -12,23 +12,34 @@ struct list_head {
     struct list_head *prev, *next;
 };
 
-#define list_entry(addr, type, field) ((type *)((char *)(addr) - (uintptr_t)(&((type *)0)->field)))
+#define list_entry(addr, type, field) \
+    ((type *)((char *)(addr) - (uintptr_t)(&((type *)0)->field)))
 
-#define list_for_each(ptr, head) for (ptr = (head)->next; ptr != (head); ptr = (ptr)->next)
+#define list_for_each(ptr, head) \
+    for (ptr = (head)->next; ptr != (head); ptr = (ptr)->next)
 
-#define list_for_each_entry(item, head, field)                                            \
-    for (item = list_entry((head)->next, typeof(*item), field); &(item)->field != (head); \
-         item = list_entry((item)->field.next, typeof(*item), field))
+/* The original for-each macros exhibit undefined behavior per the C spec
+ * (6.2.3.2 (7)) when they generate an invalid item pointer with incorrect
+ * alignment (as called out by ubsan).  We've fixed the macros to avoid
+ * this problem, but note that the fix alters the semantics: At the end
+ * of the iteration the item pointer is now NULL rather than pointing to
+ * the head of the list.
+ */
+#define list_for_each_entry(item, head, field)                          \
+    for (item = list_first_entry_or_null((head), typeof(*(item)), field); \
+         (item);                                                        \
+         item = list_next_entry_or_null((item), field, (head)))
 
-#define list_for_each_entry_reverse(item, head, field)                                    \
-    for (item = list_entry((head)->prev, typeof(*item), field); &(item)->field != (head); \
-         item = list_entry((item)->field.prev, typeof(*item), field))
+#define list_for_each_entry_reverse(item, head, field)                  \
+    for (item = list_last_entry_or_null((head), typeof(*(item)), field); \
+         (item);                                                        \
+         item = list_prev_entry_or_null((item), field, (head)))
 
-#define list_for_each_entry_safe(item, nitem, head, field)            \
-    for (item = list_entry((head)->next, typeof(*item), field),       \
-        nitem = list_entry((item)->field.next, typeof(*item), field); \
-         &(item)->field != (head);                                    \
-         item = nitem, nitem = list_entry((item)->field.next, typeof(*item), field))
+#define list_for_each_entry_safe(item, nitem, head, field)              \
+    for (item = list_first_entry_or_null((head), typeof(*(item)), field), \
+             nitem = (item) ? list_next_entry_or_null((item), field, (head)) : NULL; \
+         (item);                                                        \
+         item = (nitem), nitem = (item) ? list_next_entry_or_null((item), field, (head)) : NULL)
 
 static inline void
 INIT_LIST_HEAD(struct list_head *head)

@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
 #include <hse_ut/framework.h>
@@ -64,7 +64,12 @@ keyv_create(struct test_kblock *kblock)
     assert(keyv);
 
     for (i = 0; i < kblock->n_keys; ++i) {
-        snprintf(keybuf, sizeof(keybuf), kblock->key_fmt, kblock->key_modifier + i);
+        int n;
+
+        n = snprintf(keybuf, sizeof(keybuf), kblock->key_fmt, kblock->key_modifier + i);
+        if (n < 1 || n > sizeof(keybuf))
+            abort();
+
         keyv[i] = strdup(keybuf);
         assert(keyv[i]);
     }

@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
 #define MTF_MOCK_IMPL_param
@@ -642,7 +642,7 @@ bool show_advanced_params = false;
 merr_t
 process_params(int argc, char **argv, struct param_inst *pi, int *next_arg, u32 flag)
 {
-    struct match_token *table;
+    struct match_token *table = NULL;
     substring_t         val;
     merr_t              err;
     int                 arg;

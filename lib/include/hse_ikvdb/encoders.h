@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
 #ifndef HSE_KVDB_CN_ENCODERS_H
@@ -20,7 +20,8 @@
 static inline __attribute__((always_inline)) void
 encode_hg16_32k(void *base, size_t *off, u64 val)
 {
-    u8 *p = base + *off;
+    u8     *p = base + *off;
+    __be16  val16;
 
     assert(val <= HG16_32K_MAX);
     if (val < 0x80) {
@@ -28,7 +29,8 @@ encode_hg16_32k(void *base, size_t *off, u64 val)
         *p = (u8)val;
     } else {
         *off += 2;
-        *(u16 *)p = cpu_to_be16(0x8000 | (u16)val);
+        val16 = cpu_to_be16(0x8000 | (u16)val);
+        memcpy(p, &val16, sizeof(val16));
     }
 }
 
@@ -36,10 +38,12 @@ static HSE_ALWAYS_INLINE u64
 decode_hg16_32k(const void *base, size_t *off)
 {
     const u8 *p = base + *off;
+    __be16    val16;
 
     if (*p & 0x80) {
         *off += 2;
-        return 0x7fff & be16_to_cpu(*(const u16 *)p);
+        memcpy(&val16, p, sizeof(val16));
+        return 0x7fff & be16_to_cpu(val16);
     }
     *off += 1;
     return *p;
@@ -58,6 +62,8 @@ encode_hg24_4m(void *base, size_t *off, u64 val)
     const unsigned m1 = 0x7f;
     const unsigned m2 = 0x3fff;
     u8 *           p = base + *off;
+    __be32         val32;
+    __be16         val16;
 
     assert(val <= HG24_4M_MAX);
 
@@ -66,11 +72,13 @@ encode_hg24_4m(void *base, size_t *off, u64 val)
         *p = val;
     } else if (val <= m2) {
         *off += 2;
-        *(u16 *)p = cpu_to_be16(val | 0x8000);
+        val16 = cpu_to_be16(val | 0x8000);
+        memcpy(p, &val16, sizeof(val16));
     } else {
         *off += 3;
         *p = (val >> 16) | 0xc0;
-        *(u32 *)(p + 1) = cpu_to_be16(val);
+        val32 = cpu_to_be16(val);
+        memcpy(p + 1, &val32, sizeof(val32));
     }
 }
 
@@ -78,6 +86,7 @@ static HSE_ALWAYS_INLINE u64
 decode_hg24_4m(const void *base, size_t *off)
 {
     const u8 *p = base + *off;
+    __be16    val16;
 
     if (!(*p & 0x80)) {
         *off += 1;
@@ -90,7 +99,8 @@ decode_hg24_4m(const void *base, size_t *off)
     }
 
     *off += 2;
-    return 0x7fff & be16_to_cpu(*(const u16 *)p);
+    memcpy(&val16, p, sizeof(val16));
+    return 0x7fff & be16_to_cpu(val16);
 }
 
 /* HG32_1024M encoding:
@@ -106,6 +116,8 @@ encode_hg32_1024m(void *base, size_t *off, u64 val)
     const unsigned m1 = U8_MAX >> 1;
     const unsigned m2 = U16_MAX >> 2;
     void *         p = base + *off;
+    __be32         val32;
+    __be16         val16;
 
     assert(val <= HG32_1024M_MAX);
 
@@ -114,10 +126,12 @@ encode_hg32_1024m(void *base, size_t *off, u64 val)
         *(u8 *)p = val;
     } else if (val <= m2) {
         *off += 2;
-        *(u16 *)p = cpu_to_be16(val | 0x8000u);
+        val16 = cpu_to_be16(val | 0x8000u);
+        memcpy(p, &val16, sizeof(val16));
     } else {
         *off += 4;
-        *(u32 *)p = cpu_to_be32(val | 0xc0000000u);
+        val32 = cpu_to_be32(val | 0xc0000000u);
+        memcpy(p, &val32, sizeof(val32));
     }
 }
 
@@ -126,6 +140,8 @@ decode_hg32_1024m(const void *base, size_t *off)
 {
     const void *p = base + *off;
     uint        code = *(const u8 *)p;
+    __be32      val32;
+    __be16      val16;
 
     if (!(code & 0x80)) {
         *off += 1;
@@ -133,10 +149,12 @@ decode_hg32_1024m(const void *base, size_t *off)
     }
     if (code & 0x40) {
         *off += 4;
-        return be32_to_cpu(*(const u32 *)p) & HG32_1024M_MAX;
+        memcpy(&val32, p, sizeof(val32));
+        return be32_to_cpu(val32) & HG32_1024M_MAX;
     }
     *off += 2;
-    return be16_to_cpu(*(const u16 *)p) & (U16_MAX >> 2);
+    memcpy(&val16, p, sizeof(val16));
+    return be16_to_cpu(val16) & (U16_MAX >> 2);
 }
 
 /* HG64 encoding:
@@ -171,18 +189,27 @@ encode_hg64(void *base, size_t *off, u64 val)
     assert(val <= HG64_MAX);
 
     if (val <= HG64_MAX_2B) {
-        *off += 2;
-        *(u16 *)p = cpu_to_be16(val);
+        __be16 val16 = cpu_to_be16(val);
+
+        memcpy(p, &val16, sizeof(val16));
+        *off += sizeof(val16);
     } else if (val <= HG64_MAX_4B) {
-        *off += 4;
-        *(u32 *)p = cpu_to_be32(val | code4);
+        __be32 val32 = cpu_to_be32(val | code4);
+
+        memcpy(p, &val32, sizeof(val32));
+        *off += sizeof(val32);
     } else if (val <= HG64_MAX_6B) {
-        *off += 6;
-        *(u16 *)p = cpu_to_be16((val | code6) >> 32);
-        *(u32 *)(p + 2) = cpu_to_be32(val);
+        __be16 val16 = cpu_to_be16((val | code6) >> 32);
+        __be32 val32 = cpu_to_be32(val);
+
+        memcpy(p, &val16, sizeof(val16));
+        memcpy(p + sizeof(val16), &val32, sizeof(val32));
+        *off += sizeof(val16) + sizeof(val32);
     } else {
-        *off += 8;
-        *(u64 *)p = cpu_to_be64(val | code8);
+        __be64 val64 = cpu_to_be64(val | code8);
+
+        memcpy(p, &val64, sizeof(val64));
+        *off += sizeof(val64);
     }
 }
 
@@ -192,27 +219,35 @@ decode_hg64(const void *base, size_t *off)
     const void *p = base + *off;
     unsigned    code = *(const u8 *)p >> 6;
     u64         val;
+    __be64      val64;
+    __be32      val32;
+    __be16      val16;
 
     switch (code) {
         case 0:
-            *off += 2;
-            val = be16_to_cpu(*(const u16 *)p);
+            *off += sizeof(val16);
+            memcpy(&val16, p, sizeof(val16));
+            val = be16_to_cpu(val16);
             break;
         case 1:
-            *off += 4;
-            val = be32_to_cpu(*(const u32 *)p) & HG64_MAX_4B;
+            *off += sizeof(val32);
+            memcpy(&val32, p, sizeof(val32));
+            val = be32_to_cpu(val32) & HG64_MAX_4B;
             break;
         case 2:
-            *off += 6;
-            val = be16_to_cpu(*(const u16 *)p);
+            *off += sizeof(val16) + sizeof(val32);
+            memcpy(&val16, p, sizeof(val16));
+            val = be16_to_cpu(val16);
             val <<= 32;
-            val |= be32_to_cpu(*(const u32 *)(p + 2));
+            memcpy(&val32, p + sizeof(val16), sizeof(val32));
+            val |= be32_to_cpu(val32);
             val &= HG64_MAX_6B;
             break;
         case 3:
         default:
-            *off += 8;
-            val = be64_to_cpu(*(const u64 *)p) & HG64_MAX;
+            *off += sizeof(val64);
+            memcpy(&val64, p, sizeof(val64));
+            val = be64_to_cpu(val64) & HG64_MAX;
             break;
     }
 

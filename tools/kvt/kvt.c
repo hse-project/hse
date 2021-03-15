@@ -145,6 +145,8 @@
 #include <hse/hse.h>
 #include <hse/hse_version.h>
 
+#include <hse_util/page.h>
+
 #include <xoroshiro/xoroshiro.h>
 #include <3rdparty/murmur3.h>
 
@@ -2000,11 +2002,12 @@ kvt_init(const char *keyfile, const char *keyfmt, u_long keymax, bool dump)
         status("loading...");
     }
 
-    tdargv = calloc(ijobsmax, sizeof(*tdargv));
+    tdargv = aligned_alloc(__alignof(*tdargv), ijobsmax * sizeof(*tdargv));
     if (!tdargv) {
         eprint(errno, "calloc tdargv %u %zu", ijobsmax, sizeof(*tdargv));
         return EX_OSERR;
     }
+    memset(tdargv, 0, ijobsmax * sizeof(*tdargv));
 
     iters_status = ULONG_MAX;
     if ((verbosity > 0 && verbosity < 3) && isatty(1)) {
@@ -2351,6 +2354,7 @@ kvt_init_main(void *arg)
             cc = vlenmin + (xrand64() % (vlenmax - vlenmin + 1));
 
             datasrc = workq.randbuf + (xrand64() % (workq.randbufsz - cc + 1));
+            datasrc = PTR_ALIGN(datasrc, __alignof(uint64_t));
         } else {
             struct stat sb;
 
@@ -2548,11 +2552,12 @@ kvt_check(int check, bool dump)
     workq.tail = &workq.head;
     workq.running = true;
 
-    tdargv = calloc(cjobs, sizeof(*tdargv));
+    tdargv = aligned_alloc(__alignof(*tdargv), cjobs * sizeof(*tdargv));
     if (!tdargv) {
         eprint(errno, "calloc tdargv %u %zu", cjobs, sizeof(*tdargv));
         return EX_OSERR;
     }
+    memset(tdargv, 0, cjobs * sizeof(*tdargv));
 
     sigemptyset(&sigmask_block);
     sigaddset(&sigmask_block, SIGINT);
@@ -3144,11 +3149,12 @@ kvt_test(void)
     sigaddset(&sigmask_block, SIGALRM);
     pthread_sigmask(SIG_BLOCK, &sigmask_block, &sigmask_orig);
 
-    tdargv = calloc(tjobsmax, sizeof(*tdargv));
+    tdargv = aligned_alloc(__alignof(*tdargv), tjobsmax * sizeof(*tdargv));
     if (!tdargv) {
         eprint(errno, "calloc tdargv %u %zu", tjobsmax, sizeof(*tdargv));
         return EX_OSERR;
     }
+    memset(tdargv, 0, tjobsmax * sizeof(*tdargv));
 
     rc = pthread_barrier_init(&kvt_test_barrier, NULL, tjobsmax);
     if (rc) {

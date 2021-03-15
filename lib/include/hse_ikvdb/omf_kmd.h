@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
 #ifndef HSE_KVDB_OMF_KMD_H
@@ -135,24 +135,30 @@ kmd_add_ival(void *kmd, size_t *off, u64 seq, const void *vdata, u8 vlen)
 static inline void
 kmd_add_val(void *kmd, size_t *off, u64 seq, uint vbidx, uint vboff, uint vlen)
 {
+    __be32 val32;
+
     ((u8 *)kmd)[*off] = vtype_val;
     *off += 1;
     encode_hg64(kmd, off, seq);
     encode_hg16_32k(kmd, off, vbidx);
-    *(u32 *)(kmd + *off) = cpu_to_be32(vboff);
-    *off += 4;
+    val32 = cpu_to_be32(vboff);
+    memcpy(kmd + *off, &val32, sizeof(val32));
+    *off += sizeof(val32);
     encode_hg32_1024m(kmd, off, vlen);
 }
 
 static inline void
 kmd_add_cval(void *kmd, size_t *off, u64 seq, uint vbidx, uint vboff, uint vlen, uint complen)
 {
+    __be32 val32;
+
     ((u8 *)kmd)[*off] = vtype_cval;
     *off += 1;
     encode_hg64(kmd, off, seq);
     encode_hg16_32k(kmd, off, vbidx);
-    *(u32 *)(kmd + *off) = cpu_to_be32(vboff);
-    *off += 4;
+    val32 = cpu_to_be32(vboff);
+    memcpy(kmd + *off, &val32, sizeof(val32));
+    *off += sizeof(val32);
     encode_hg32_1024m(kmd, off, vlen);
     encode_hg32_1024m(kmd, off, complen);
 }
@@ -174,8 +180,11 @@ kmd_type_seq(const void *kmd, size_t *off, enum kmd_vtype *vtype, u64 *seq)
 static inline void
 kmd_val(const void *kmd, size_t *off, uint *vbidx, uint *vboff, uint *vlen)
 {
+    __be32 val32;
+
     *vbidx = decode_hg16_32k(kmd, off);
-    *vboff = be32_to_cpu(*(const u32 *)(kmd + *off));
+    memcpy(&val32, kmd + *off, sizeof(val32));
+    *vboff = be32_to_cpu(val32);
     *off += 4;
     *vlen = decode_hg32_1024m(kmd, off);
 }
@@ -183,8 +192,11 @@ kmd_val(const void *kmd, size_t *off, uint *vbidx, uint *vboff, uint *vlen)
 static inline void
 kmd_cval(const void *kmd, size_t *off, uint *vbidx, uint *vboff, uint *vlen, uint *complen)
 {
+    __be32 val32;
+
     *vbidx = decode_hg16_32k(kmd, off);
-    *vboff = be32_to_cpu(*(const u32 *)(kmd + *off));
+    memcpy(&val32, kmd + *off, sizeof(val32));
+    *vboff = be32_to_cpu(val32);
     *off += 4;
     *vlen = decode_hg32_1024m(kmd, off);
     *complen = decode_hg32_1024m(kmd, off);

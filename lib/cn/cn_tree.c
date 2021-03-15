@@ -2630,7 +2630,7 @@ cn_tree_cursor_read(struct pscan *cur, struct kvs_kvtuple *kvt, bool *eof)
             return cur->merr;
         }
 
-    } else {
+    } else if (vlen > 0) {
         memcpy(kvt->kvt_value.vt_data, vdata, vlen);
     }
 

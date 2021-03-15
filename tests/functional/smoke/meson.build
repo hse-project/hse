@@ -94,6 +94,7 @@ foreach suite, params : suites
                     '-m', get_option('tests-kvdb'),
                     t,
                 ],
+		timeout: 1800,
                 is_parallel: false,
                 suite: ['functional', suite],
             )
