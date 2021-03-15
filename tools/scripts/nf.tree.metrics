@@ -4,8 +4,6 @@ set -u
 
 CMD=${0##*/}
 
-SUDO="sudo -E"
-
 # Set up for tmp files and a trap to remove them
 rm_temp_files=1
 trap_sigs="0 1 2 3 15"
@@ -108,13 +106,13 @@ get_tree_shape () {
         metrics_cmd2+=("-f" "s")
     fi
 
-    $SUDO "${metrics_cmd1[@]}" > "$out" 2>/dev/null
+    "${metrics_cmd1[@]}" > "$out" 2>/dev/null
     if [[ "$?" != "0" || ! -s "$out" ]]; then
-        $SUDO "${metrics_cmd2[@]}" > "$out"
+        "${metrics_cmd2[@]}" > "$out"
         if [[ $? != 0  || ! -s "$out" ]]; then
             err "Cannot get tree metrics.  Both commands failed:" \
-                "$SUDO ${metrics_cmd1[*]}" \
-                "$SUDO ${metrics_cmd2[*]}"
+                "${metrics_cmd1[*]}" \
+                "${metrics_cmd2[*]}"
         fi
     fi
     cat "$out"
@@ -123,8 +121,8 @@ get_tree_shape () {
 for full_kvs in "${kvslist[@]}"; do
     IFS=/ read -r mp kv <<<"$full_kvs"
 
-    $SUDO mpool list "$mp" > "$TMP"/mpool-list ||
-        err "Command failed: $SUDO mpool list $mp"
+    mpool list "$mp" > "$TMP"/mpool-list ||
+        err "Command failed: mpool list $mp"
 
     if [[ -n "$out" ]]; then
         f=$out.$mp.$kv.txt

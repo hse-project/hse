@@ -4,8 +4,6 @@ set -u
 
 CMD=${0##*/}
 
-SUDO="sudo -E"
-
 # Set up for tmp files and a trap to remove them
 rm_temp_files=1
 trap_sigs="0 1 2 3 15"
@@ -59,11 +57,11 @@ done
 
 TMP=$(mktemp -d /tmp/${CMD}.XXXXXX)
 
-$SUDO mpool list -v > $TMP/mpools ||
-    err "Cannot list mpools: $SUDO mpool list -v"
+mpool list -v > $TMP/mpools ||
+    err "Cannot list mpools: mpool list -v"
 
-$SUDO hse kvdb list -v > $TMP/kvses ||
-    err "Cannot list mpools: $SUDO mpool list -v"
+hse1 kvdb list -v > $TMP/kvses ||
+    err "Cannot list mpools: hse1 kvdb list -v"
 
 
 if (( list_all )); then

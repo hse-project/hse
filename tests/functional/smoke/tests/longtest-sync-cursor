@@ -19,8 +19,8 @@ args+=(--kmin=8)
 args+=(--kmax=8)
 args+=(kvs.cn_compaction_debug=3)
 
-cmd $HSE_TOOLS_DIR/longtest $mp $kvs "${args[@]}"
-cmd $HSE_TOOLS_DIR/cn_metrics $mp $kvs
+cmd longtest $mp $kvs "${args[@]}"
+cmd cn_metrics $mp $kvs
 
 
 

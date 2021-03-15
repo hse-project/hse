@@ -6,17 +6,6 @@ set -o pipefail
 
 CMD=${0##*/}
 
-err () {
-    {
-        echo "*** ERROR ***"
-        while (( $# > 0 )); do
-            echo "$1"
-            shift
-        done
-    } 1>&2
-    exit 1
-}
-
 export STOP_ON_TEST_FAIL=0
 export KEEP_KVDB=0
 export VERBOSE=1
@@ -33,7 +22,6 @@ export LOG=              # log file for current "cmd"
 exported_functions=()
 smoke_dir=$(readlink -m "${BASH_SOURCE[0]}"/..) || err "readlink"
 smoke_test_dir=$smoke_dir/tests
-build_dir=
 mpool=
 
 
@@ -44,13 +32,24 @@ show_test_names=1
 
 exported_functions+=(err)
 
+err () {
+    {
+        echo "*** ERROR ***"
+        while (( $# > 0 )); do
+            echo "$1"
+            shift
+        done
+    } 1>&2
+    exit 1
+}
+
 syntax () {
     {
         while (( $# > 0 )); do
             echo "$1"
             shift
         done
-        echo "Use -h for help"
+        echo "Use -h or -hv for help"
     } 1>&2
     exit 1
 }
@@ -102,26 +101,13 @@ get_test_script () {
     echo "$f"
 }
 
-check_cli() {
-
-    [[ -x "$HSE_CLI" ]] ||
-        err "Cannot find HSE CLI in build tree: $HSE_CLI"
-
-    "$HSE_CLI" -h &> /dev/null ||
-        err "Cannot execute $HSE_CLI"
-}
-
-check_tools() {
-
-    [[ -d "$HSE_TOOLS_DIR" ]] ||
-        err "Cannot find tools dir in build tree: $HSE_TOOLS_DIR"
-
-    local tool
-    for tool in putbin kmt; do
-        local f=$HSE_TOOLS_DIR/$tool
-        [[ -x "$f" ]] ||
-            err "Cannot find executable in tools dir: $f"
+check_environment() {
+    for executable in hse1 kmt ex1_create; do
+        type -p $executable &>/dev/null ||
+            err "Cannot find $executable in PATH"
     done
+    hse1 -h &> /dev/null ||
+        err "Cannot execute HSE CLI: hse1"
 }
 
 check_tests () {
@@ -140,10 +126,10 @@ check_tests () {
 
 exported_functions+=(destroy_all_kvs)
 destroy_all_kvs () {
-    "$HSE_CLI" kvdb list -v "$mp" \
+    hse1 kvdb list -v "$mp" \
         | awk '($1=="kvslist:") {look=1} (look && $1 == "-") {print($2)}' \
         | while read name; do
-        "$HSE_CLI" kvs destroy "$name" >/dev/null
+        hse1 kvs destroy "$name" >/dev/null
     done
 }
 
@@ -253,13 +239,16 @@ new_kvs () {
     # reset counters
     local kvs_count=$(counter_increment kvs)
     local kvs_name=smoke$kvs_count
-    cmd -q "$HSE_CLI" kvs create "$mp/$kvs_name" "$@"
+    cmd -q hse1 kvs create "$mp/$kvs_name" "$@"
     echo "$kvs_name"
 }
 
 run_one_test () {
 
-    local script=$1
+    local test_num=$1; shift
+    local total_tests=$1; shift
+    local script=$1; shift
+
     TEST=${script##*/}
     TEST_SCRIPT_DIR=$(dirname $(readlink -m "$script"))
 
@@ -269,6 +258,7 @@ run_one_test () {
     rm -f "$LOG_DIR"
     [[ -d "$LOG_DIR" ]] && err "Cannot remove old log directory: $LOG_DIR"
     mkdir -p "$LOG_DIR" || err "Cannot create log directory: $LOG_DIR"
+    touch "$LOG_DIR"/stat.start
 
     local test_argc=${#test_args[@]}
 
@@ -276,9 +266,9 @@ run_one_test () {
     if (( VERBOSE )); then
         echo ""
         if (( test_argc > 0 )); then
-            echo "#TEST: $TEST" "${test_args[@]}"
+            echo "#TEST[$((test_num+1))/$total_tests]: $TEST" "${test_args[@]}"
         else
-            echo "#TEST: $TEST"
+            echo "#TEST[$((test_num+1))/$total_tests]: $TEST"
         fi
         echo "#LOGS: $LOG_DIR/"
     fi
@@ -343,18 +333,86 @@ run_one_test () {
     fi
 }
 
+show_report () {
+
+    local test_names=()
+    local test_results=()
+    local test_duration=()
+
+    local possible_names=$(ls "$LOG_TOPDIR" | sort)
+
+    local n=0
+
+    local name
+    local result
+    local duration
+
+    local n_failed=0
+    local n_success=0
+    local n_incomplete=0
+
+    local possible_names=$(ls "$LOG_TOPDIR" | sort)
+
+
+    for name in $possible_names; do
+        local d=$LOG_TOPDIR/$name
+        if [[ -f "$d/stat.start" ]]; then
+            if [[ -f "$d/stat.success" ]]; then
+                result="success"
+                ((n_success++))
+            elif [[ -f "$d/stat.failed" ]]; then
+                result="FAIL"
+                ((n_failed++))
+            else
+                result="INCOMPLETE"
+                ((n_incomplete++))
+            fi
+            duration=$(cat "$d/duration" 2>/dev/null || echo "nan")
+            test_names+=($name)
+            test_results+=($result)
+            test_duration+=($duration)
+            ((n++))
+        fi
+    done
+
+    local total_time=$(
+        for ((i=0; i<n; i++)); do
+            echo "${test_duration[$i]}"
+        done | awk -v sum=0 '{sum+=$1} END {print(int(sum))}')
+
+    printf "Tests:\n"
+    if (( n > 0 )); then
+        for ((i=0; i<n; i++)); do
+            printf "    %-20s  %10s  %8.3f\n" \
+                   "${test_names[$i]}" \
+                   "${test_results[$i]}" \
+                   "${test_duration[$i]}"
+        done
+    fi
+    printf "\n"
+    printf "Summary:\n"
+    printf "  %8u  incomplete tests\n"  $n_incomplete
+    printf "  %8u  failed tests\n"  $n_failed
+    printf "  %8u  successful tests\n"  $n_success
+    printf "  %8u  total tests\n"  $n
+    printf "  %8u  total execution time (seconds)\n" $total_time
+    printf "\n"
+}
+
 show_groups () {
     local g
     for g in $(get_groups); do
         printf "%-20s    ## %s\n" "$g" "$(get_doc "$g")"
     done
 }
+
 show_tests () {
     local t
     for t in $(get_tests); do
         printf "%-20s  # %s\n" "$t" "$(get_doc "$t")"
     done
 }
+
 show_tests_long () {
     local g
     local t
@@ -369,74 +427,112 @@ show_tests_long () {
 
 help ()
 {
+    echo "$CMD: HSE smoke test tool"
     echo "Usage:"
-    echo "  $CMD -C <BUILD_DIR> -m <mpool> [options]"
-    echo "Required:"
-    echo "  -C BUILD_DIR // set build dir (required)"
-    echo "Options:"
+    echo "  $CMD -m mp1 -d logs [options] [tests...] # run tests"
+    echo "  $CMD -r -d logs [options]                # show report"
+    echo "  $CMD { -l, -L, -g }                      # show test info"
+    echo "Parameters:"
+    echo "  -m MPOOL     // set mpool name"
     echo "  -d DIR       // override default log directory"
-    echo "  -g           // list groups"
-    echo "  -h           // show the help message"
+    echo "  -r           // show report from previous run"
     echo "  -l           // list tests"
     echo "  -L           // list tests, more detail"
+    echo "  -g           // list groups"
+    echo "  -h           // show the help message"
+    echo "Options:"
     echo "  -s           // stop on first test failure"
     echo "  -v           // bump verbosity"
     echo "  -V N         // set verbosity (0=quiet, 2=max)"
     echo "  -x           // enable 'set -x' in test scripts (for debugging)"
+
+    if (( VERBOSE <= 1 )); then
+        echo "Use -h -v to get more help"
+        return
+    fi
+
+    echo ""
     echo "Notes:"
     echo "  - Tests can be specified by name, by file or by group."
-    echo "  - Some tests are broken.  They can be run by name or with group \"all\"".
+    echo "  - Some tests are broken, but everything in the 'smoke' group should pass."
+    echo ""
     echo "Examples:"
-    echo "  $CMD -C build -m mp1               # run standard smoke tests"
-    echo "  $CMD -C build -m mp1 group.all     # run the 'all' group"
-    echo "  $CMD -C build -m mp1 putget1 kmt1  # run specific tests"
-    echo "  $CMD -C build -m mp1 tests/functional/smoke/tests/putget1   # run by file"
+    echo "  # Run all smoke tests"
+    echo "  $CMD -m mp1 -d logs"
+    echo ""
+    echo "  # Run putget1 and putget2"
+    echo "  $CMD -m mp1 -d logs putget1 putget2"
+    echo ""
+    echo "  # Run all kvt tests using shell glob expansion"
+    echo "  $CMD -m mp1 -d logs tests/functional/smoke/tests/kvt*"
+
 }
 
 
-while getopts ":C:d:ghklLm:m:svV:x" option; do
+action=test
+while getopts ":C:d:ghklLm:m:rsvV:x" option; do
     case "$option" in
-        (C) build_dir=$OPTARG;;
+
+        (g) action=show_groups;;
+        (h) action=help;;
+        (l) action=show_tests;;
+        (L) action=show_tests_long;;
+        (r) action=show_report;;
+
         (d) LOG_TOPDIR=$OPTARG;;
-        (g) show_groups; exit 0;;
-        (h) help; exit 0;;
         (k) KEEP_KVDB=1;;
-        (l) show_tests; exit 0;;
-        (L) show_tests_long; exit 0;;
         (m) mpool=$OPTARG;;
         (s) STOP_ON_TEST_FAIL=1;;
         (v) (( VERBOSE++ ));;
         (V) (( VERBOSE=OPTARG )); [[ "$VERBOSE" =~ ^[0-9]+$ ]] || err "Invalid verbosity value: $OPTARG";;
         (x) test_script_options="-x";;
+
         (\?) err "Invalid option: -$OPTARG";;
         (:)  err "Invalid option: -$OPTARG requires a parameter";;
         (*)  err "Bug in option parsing!";;
-    esac                      
+    esac
 done
 
 shift $((OPTIND-1))
 test_list=("$@")
 
-[[ -n "$mpool"     ]] || err "Missing required parameter: -m <mpool>"
-[[ -n "$build_dir" ]] || err "Missing required parameter: -C <build_dir>"
-[[ -d "$build_dir" ]] || err "Non-existent build directory: $build_dir"
+case "$action" in
+    (help)
+        help
+        exit 0
+        ;;
+    (test)
+        [[ -n "$mpool" ]]      || syntax "Missing required parameter: -m <mpool>"
+        [[ -n "$LOG_TOPDIR" ]] || sytnax "Missing required parameter: -d <logdir>"
+        ;;
+    (show_report)
+        [[ -n "$LOG_TOPDIR" ]] || sytnax "Missing required parameter: -d <logdir>"
+        [[ -d "$LOG_TOPDIR" ]] || sytnax "No such log dir: $LOG_TOPDIR"
+        show_report
+        exit 0
+        ;;
+    (show_tests)
+        show_tests
+        exit 0
+        ;;
+    (show_tests_long)
+        show_tests_long
+        exit 0
+        ;;
+    (show_groups)
+        show_groups
+        exit 0;
+        ;;
+    (*)
+        err "Bug in smoke script: action not handled"
+        ;;
+esac
 
-if [[ -z "$LOG_TOPDIR" ]]; then
-    # Using default log dir
-    LOG_TOPDIR=$build_dir/smokelogs
-else
-    # Not using default log dir: let user remove it to avoid rm -fr fiasco
-    [[ ! -d "$LOG_TOPDIR" ]] ||
-        err "Custom log directory already exists: $LOG_TOPDIR" \
-            "Please remove it or use another path that doesn't yet exist"
-fi
 
-export HSE_SAMPLES_DIR=$build_dir/samples
-export HSE_TOOLS_DIR=$build_dir/tools
-export HSE_CLI=$build_dir/cli/hse1
+# All the "show" and "help" paths have exited.
+# At this point we are running tests.
 
-check_cli
-check_tools
+check_environment
 check_tests
 
 # Export shell functions to test scripts
@@ -444,7 +540,7 @@ for fn in "${exported_functions[@]}"; do
     export -f "$fn"
 done
 
-# stupid bash treats an empty array as an unset var, so turn off -u
+# Stupid bash treats an empty array as an unset var, so turn off -u
 # to check test_list, then re-enable
 set +u
 if (( "${#test_list[@]}" == 0 )); then
@@ -452,7 +548,7 @@ if (( "${#test_list[@]}" == 0 )); then
 fi
 set -u
 
-# convert test_list into script_list
+# Convert test_list into script_list
 script_list=()
 for arg in "${test_list[@]}"; do
 
@@ -488,8 +584,11 @@ done
 # run tests
 rm -fr "$LOG_TOPDIR"
 mkdir -p "$LOG_TOPDIR"
-for script in "${script_list[@]}"; do
-    run_one_test "$script"
+
+count=${#script_list[@]}
+for ((i = 0; i < count; i++)); do
+    script=${script_list[$i]}
+    run_one_test $i $count "$script"
 done
 
 exit 0

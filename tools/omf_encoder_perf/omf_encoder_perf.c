@@ -13,16 +13,16 @@
 #include <byteswap.h>
 #include <getopt.h>
 
-#ifdef NDEBUG
-const size_t        mem_size = 1ULL * 1024 * 1024 * 1024;
-const unsigned long randc = 16ULL * 1024 * 1024;
-#else
-const size_t        mem_size = 1ULL * 4 * 1024 * 1024;
-const unsigned long randc = 1ULL * 1024 * 1024;
-#endif
+#define GiB 1024 * 1024 * 1024
+#define MiB 1024 * 1024
+
+const size_t mem_size = 1ull * GiB;
+const unsigned long randc = 16ull * MiB;
 void *mem;
 u64 * randv;
 u32   seed;
+
+int failed;
 
 #define ENCODER(NAME) \
     static inline __attribute__((always_inline)) void NAME(void *base, size_t *off, u64 val)
@@ -30,30 +30,12 @@ u32   seed;
 #define DECODER(NAME) \
     static inline __attribute__((always_inline)) u64 NAME(const void *base, size_t *off)
 
-DECODER(decode_n8)
-{
-    const u8 *p = base + *off;
-    *off += sizeof(*p);
-    return *p;
-}
-DECODER(decode_n16)
-{
-    const u16 *p = base + *off;
-    *off += sizeof(*p);
-    return *p;
-}
-DECODER(decode_n32)
-{
-    const u32 *p = base + *off;
-    *off += sizeof(*p);
-    return *p;
-}
-DECODER(decode_n64)
-{
-    const u64 *p = base + *off;
-    *off += sizeof(*p);
-    return *p;
-}
+
+/*****************************************************************
+ *
+ * Native codecs
+ *
+ */
 
 ENCODER(encode_n8)
 {
@@ -84,44 +66,36 @@ ENCODER(encode_n64)
     *p = (u64)val;
 }
 
-DECODER(decode_be16)
+DECODER(decode_n8)
+{
+    const u8 *p = base + *off;
+    *off += sizeof(*p);
+    return *p;
+}
+DECODER(decode_n16)
 {
     const u16 *p = base + *off;
     *off += sizeof(*p);
-    return be16toh(*p);
+    return *p;
 }
-DECODER(decode_le16)
-{
-    const u16 *p = base + *off;
-    *off += sizeof(*p);
-    return le16toh(*p);
-}
-
-DECODER(decode_be32)
+DECODER(decode_n32)
 {
     const u32 *p = base + *off;
     *off += sizeof(*p);
-    return be32toh(*p);
+    return *p;
 }
-DECODER(decode_le32)
+DECODER(decode_n64)
 {
-    const u32 *p = base + *off;
+    const u64 *p = base + *off;
     *off += sizeof(*p);
-    return le32toh(*p);
+    return *p;
 }
 
-DECODER(decode_be64)
-{
-    const u64 *p = base + *off;
-    *off += sizeof(*p);
-    return be64toh(*p);
-}
-DECODER(decode_le64)
-{
-    const u64 *p = base + *off;
-    *off += sizeof(*p);
-    return le64toh(*p);
-}
+/*****************************************************************
+ *
+ * BE/LE codecs
+ *
+ */
 
 ENCODER(encode_be16)
 {
@@ -167,6 +141,103 @@ ENCODER(encode_le64)
     *off += sizeof(*p);
     *p = htole64((u64)val);
 }
+
+DECODER(decode_be16)
+{
+    const u16 *p = base + *off;
+    *off += sizeof(*p);
+    return be16toh(*p);
+}
+DECODER(decode_le16)
+{
+    const u16 *p = base + *off;
+    *off += sizeof(*p);
+    return le16toh(*p);
+}
+
+DECODER(decode_be32)
+{
+    const u32 *p = base + *off;
+    *off += sizeof(*p);
+    return be32toh(*p);
+}
+DECODER(decode_le32)
+{
+    const u32 *p = base + *off;
+    *off += sizeof(*p);
+    return le32toh(*p);
+}
+
+DECODER(decode_be64)
+{
+    const u64 *p = base + *off;
+    *off += sizeof(*p);
+    return be64toh(*p);
+}
+DECODER(decode_le64)
+{
+    const u64 *p = base + *off;
+    *off += sizeof(*p);
+    return le64toh(*p);
+}
+
+
+#define CODEC(NAME,ENC_FN,DEC_FN)                               \
+    void NAME(                                                  \
+        bool encode,                                            \
+        u64 *ops_out,                                           \
+        u64 *bytes_out,                                         \
+        u64 *xor_out)                                           \
+    {                                                           \
+        u64 xor = 0;                                            \
+        u64 off = 0;                                            \
+        u64 ops = 0;                                            \
+        u64 val;                                                \
+                                                                \
+        if (encode) {                                           \
+                                                                \
+            while (off + 128 < mem_size) {                      \
+                val = randv[(randc - 1) & ops];                 \
+                xor ^= val;                                     \
+                ENC_FN(mem, &off, val);                         \
+                ops++;                                          \
+            }                                                   \
+                                                                \
+        } else {                                                \
+                                                                \
+            while (off + 128 < mem_size) {                      \
+                val = DEC_FN(mem, &off);                        \
+                xor ^= val;                                     \
+                assert(randv[(randc - 1) & ops] == val);        \
+                assert(off < mem_size);                         \
+                ops++;                                          \
+            }                                                   \
+        }                                                       \
+                                                                \
+        *ops_out = ops;                                         \
+        *bytes_out = off;                                       \
+        *xor_out = xor;                                         \
+    }
+
+CODEC(codec_n8,  encode_n8,  decode_n8);
+CODEC(codec_n16, encode_n16, decode_n16);
+CODEC(codec_n32, encode_n32, decode_n32);
+CODEC(codec_n64, encode_n64, decode_n64);
+
+CODEC(codec_be16, encode_be16, decode_be16);
+CODEC(codec_be32, encode_be32, decode_be32);
+CODEC(codec_be64, encode_be64, decode_be64);
+
+CODEC(codec_le16, encode_le16, decode_le16);
+CODEC(codec_le32, encode_le32, decode_le32);
+CODEC(codec_le64, encode_le64, decode_le64);
+
+CODEC(codec_hg16_32k,   encode_hg16_32k,   decode_hg16_32k);
+CODEC(codec_hg24_4m,    encode_hg24_4m,    decode_hg24_4m);
+CODEC(codec_hg32_1024m, encode_hg32_1024m, decode_hg32_1024m);
+CODEC(codec_hg64,       encode_hg64,       decode_hg64);
+
+CODEC(codec_varint,     encode_varint,     decode_varint);
 
 void
 report(
@@ -233,84 +304,18 @@ report(
         bytes / dec1);
 }
 
-#define test_macro(NAME, ENCODE, DECODE, MAX_MASK, MODE)                      \
-    do {                                                                      \
-        struct timeval  prev, now, diff1, diff2;                              \
-        struct xrand xr;                                                  \
-                                                                              \
-        u64  xor1 = 0;                                                        \
-        u64  xor2 = 0;                                                        \
-        u64  ops = 0;                                                         \
-        u64  i, off;                                                          \
-        char tnam[256];                                                       \
-        char modestr[32];                                                     \
-        u64  mode_mask;                                                       \
-        int  mode;                                                            \
-                                                                              \
-        memset(mem, 0, mem_size);                                             \
-        xrand_init(&xr, seed);                                            \
-                                                                              \
-        /* mask: 3f, 3fff, 3fffff, etc */                                     \
-        mode = (1 <= MODE && MODE <= 8) ? MODE : 8;                           \
-        snprintf(modestr, sizeof(modestr), "%dbytes", mode);                  \
-                                                                              \
-        mode_mask = (1LL << ((mode)*8 - 2)) - 1;                              \
-        for (i = 0; i < randc; i++)                                           \
-            randv[i] = xrand64(&xr) & (MAX_MASK)&mode_mask;               \
-                                                                              \
-        gettimeofday(&prev, NULL);                                            \
-        for (off = 0; off + 128 < mem_size;) {                                \
-            u64 val = randv[(randc - 1) & ops++];                             \
-            xor1 ^= val;                                                      \
-            ENCODE(mem, &off, val);                                           \
-        }                                                                     \
-        gettimeofday(&now, NULL);                                             \
-        timersub(&now, &prev, &diff1);                                        \
-                                                                              \
-        gettimeofday(&prev, NULL);                                            \
-        for (off = 0, i = 0; i < ops; i++) {                                  \
-            u64 val = DECODE(mem, &off);                                      \
-            xor2 ^= val;                                                      \
-            assert(randv[(randc - 1) & i] == val);                            \
-            assert(off < mem_size);                                           \
-        }                                                                     \
-        gettimeofday(&now, NULL);                                             \
-        timersub(&now, &prev, &diff2);                                        \
-                                                                              \
-        snprintf(tnam, sizeof(tnam), "%-10s %-8s", NAME, modestr);            \
-        report(tnam, ops, off, diff1, diff2);                                 \
-                                                                              \
-        if (ops == 0)                                                         \
-            printf("%s: BUG: no values encoded\n", NAME);                     \
-        else if (ops != i)                                                    \
-            printf(                                                           \
-                "%s: BUG: encode count != decode count"                       \
-                ": %lu != %lu\n",                                             \
-                NAME,                                                         \
-                ops,                                                          \
-                i);                                                           \
-        else if (xor1 != xor2)                                                \
-            printf("%s: BUG: XOR mismatch: %lx ! = %lx\n", NAME, xor1, xor2); \
-    } while (0)
-
-#ifdef NDEBUG
-#define test test_macro
-#else
-void
-test(
-    const char *NAME,
-    void (*ENCODE)(void *, size_t *, u64),
-    u64 (*DECODE)(const void *, size_t *),
+static inline void
+test(const char *NAME,
+    void (*codec)(bool encode, u64 *ops_inout, u64 *bytes_out, u64 *xor_out),
     u64 MAX_MASK,
     int MODE)
 {
     struct timeval  prev, now, diff1, diff2;
     struct xrand xr;
 
-    u64  xor1 = 0;
-    u64  xor2 = 0;
-    u64  ops = 0;
-    u64  i, off, val;
+    u64  xor1 = 0, xor2 = 0;
+    u64  ops1 = 0, ops2 = 0;
+    u64  bytes1 = 0, bytes2 = 0;
     char tnam[256];
     char modestr[32];
     u64  mode_mask;
@@ -323,100 +328,93 @@ test(
     snprintf(modestr, sizeof(modestr), "%dbytes", mode);
 
     mode_mask = (1LL << ((mode)*8 - 2)) - 1;
-    for (i = 0; i < randc; i++)
+    for (u64 i = 0; i < randc; i++)
         randv[i] = xrand64(&xr) & (MAX_MASK)&mode_mask;
 
     gettimeofday(&prev, NULL);
-    for (off = 0; off + 128 < mem_size;) {
-        val = randv[(randc - 1) & ops++];
-        xor1 ^= val;
-        ENCODE(mem, &off, val);
-    }
+    codec(true, &ops1, &bytes1, &xor1);
     gettimeofday(&now, NULL);
     timersub(&now, &prev, &diff1);
 
     gettimeofday(&prev, NULL);
-    for (off = 0, i = 0; i < ops; i++) {
-        val = DECODE(mem, &off);
-        xor2 ^= val;
-        assert(randv[(randc - 1) & i] == val);
-        assert(off < mem_size);
-    }
+    codec(false, &ops2, &bytes2, &xor2);
     gettimeofday(&now, NULL);
     timersub(&now, &prev, &diff2);
 
     snprintf(tnam, sizeof(tnam), "%-10s %-8s", NAME, modestr);
-    report(tnam, ops, off, diff1, diff2);
+    report(tnam, ops1, bytes1, diff1, diff2);
 
-    if (ops == 0)
+    if (ops1 == 0) {
+        failed = 1;
         printf("%s: BUG: no values encoded\n", NAME);
-    else if (ops != i)
-        printf(
-            "%s: BUG: encode count != decode count"
-            ": %lu != %lu\n",
-            NAME,
-            ops,
-            i);
-    else if (xor1 != xor2)
+    }
+    else if (ops1 != ops2) {
+        failed = 1;
+        printf("%s: BUG: encode ops != decode ops: %lu != %lu\n", NAME, ops1, ops2);
+    }
+    else if (bytes1 != bytes2) {
+        failed = 1;
+        printf("%s: BUG: encode bytes != decode bytes: %lu != %lu\n", NAME, bytes1, bytes2);
+    }
+    else if (xor1 != xor2) {
+        failed = 1;
         printf("%s: BUG: XOR mismatch: %lx ! = %lx\n", NAME, xor1, xor2);
+    }
 }
-#endif
 
 void
 run_encoder_perf(u32 seed)
 {
-    test("warmup", encode_n8, decode_n8, U8_MAX, 1);
-
-    printf("\n");
-    test("native8",  encode_n8, decode_n8, U8_MAX, 1);
-    test("native16", encode_n16, decode_n16, U16_MAX, 2);
-    test("native32", encode_n32, decode_n32, U32_MAX, 4);
-    test("native64", encode_n64, decode_n64, U64_MAX, 8);
+    test("warmup", codec_n8, U8_MAX, 1);
     printf("\n");
 
-    test("be16", encode_be16, decode_be16, U16_MAX, 2);
-    test("be32", encode_be32, decode_be32, U32_MAX, 4);
-    test("be64", encode_be64, decode_be64, U64_MAX, 8);
+    test("native8",  codec_n8,  U8_MAX,  1);
+    test("native16", codec_n16, U16_MAX, 2);
+    test("native32", codec_n32, U32_MAX, 4);
+    test("native64", codec_n64, U64_MAX, 8);
     printf("\n");
 
-    test("le16", encode_le16, decode_le16, U16_MAX, 2);
-    test("le32", encode_le32, decode_le32, U32_MAX, 4);
-    test("le64", encode_le64, decode_le64, U64_MAX, 8);
+    test("be16", codec_be16, U16_MAX, 2);
+    test("be32", codec_be32, U32_MAX, 4);
+    test("be64", codec_be64, U64_MAX, 8);
     printf("\n");
 
-    test("hg16_32k", encode_hg16_32k, decode_hg16_32k, HG16_32K_MAX, 1);
-    test("hg16_32k", encode_hg16_32k, decode_hg16_32k, HG16_32K_MAX, 2);
+    test("le16", codec_le16, U16_MAX, 2);
+    test("le32", codec_le32, U32_MAX, 4);
+    test("le64", codec_le64, U64_MAX, 8);
     printf("\n");
 
-    test("hg24_4m", encode_hg24_4m, decode_hg24_4m, HG24_4M_MAX, 1);
-    test("hg24_4m", encode_hg24_4m, decode_hg24_4m, HG24_4M_MAX, 2);
-    test("hg24_4m", encode_hg24_4m, decode_hg24_4m, HG24_4M_MAX, 3);
+    test("hg16_32k", codec_hg16_32k, HG16_32K_MAX, 1);
+    test("hg16_32k", codec_hg16_32k, HG16_32K_MAX, 2);
     printf("\n");
 
-    test("hg32_1024m", encode_hg32_1024m, decode_hg32_1024m, HG32_1024M_MAX, 1);
-    test("hg32_1024m", encode_hg32_1024m, decode_hg32_1024m, HG32_1024M_MAX, 2);
-    test("hg32_1024m", encode_hg32_1024m, decode_hg32_1024m, HG32_1024M_MAX, 3);
-    test("hg32_1024m", encode_hg32_1024m, decode_hg32_1024m, HG32_1024M_MAX, 4);
+    test("hg24_4m", codec_hg24_4m, HG24_4M_MAX, 1);
+    test("hg24_4m", codec_hg24_4m, HG24_4M_MAX, 2);
+    test("hg24_4m", codec_hg24_4m, HG24_4M_MAX, 3);
     printf("\n");
 
-    test("hg64", encode_hg64, decode_hg64, HG64_MAX, 2);
-    test("hg64", encode_hg64, decode_hg64, HG64_MAX, 4);
-    test("hg64", encode_hg64, decode_hg64, HG64_MAX, 6);
-    test("hg64", encode_hg64, decode_hg64, HG64_MAX, 8);
+    test("hg32_1024m", codec_hg32_1024m, HG32_1024M_MAX, 1);
+    test("hg32_1024m", codec_hg32_1024m, HG32_1024M_MAX, 2);
+    test("hg32_1024m", codec_hg32_1024m, HG32_1024M_MAX, 3);
+    test("hg32_1024m", codec_hg32_1024m, HG32_1024M_MAX, 4);
     printf("\n");
 
-    test("varint", encode_varint, decode_varint, U64_MAX, 1);
-    test("varint", encode_varint, decode_varint, U64_MAX, 2);
-    test("varint", encode_varint, decode_varint, U64_MAX, 3);
-    test("varint", encode_varint, decode_varint, U64_MAX, 4);
-    test("varint", encode_varint, decode_varint, U64_MAX, 5);
-    test("varint", encode_varint, decode_varint, U64_MAX, 6);
-    test("varint", encode_varint, decode_varint, U64_MAX, 7);
-    test("varint", encode_varint, decode_varint, U64_MAX, 8);
+    test("hg64", codec_hg64, HG64_MAX, 2);
+    test("hg64", codec_hg64, HG64_MAX, 4);
+    test("hg64", codec_hg64, HG64_MAX, 6);
+    test("hg64", codec_hg64, HG64_MAX, 8);
+    printf("\n");
+
+    test("varint", codec_varint, U64_MAX, 1);
+    test("varint", codec_varint, U64_MAX, 2);
+    test("varint", codec_varint, U64_MAX, 3);
+    test("varint", codec_varint, U64_MAX, 4);
+    test("varint", codec_varint, U64_MAX, 5);
+    test("varint", codec_varint, U64_MAX, 6);
+    test("varint", codec_varint, U64_MAX, 7);
+    test("varint", codec_varint, U64_MAX, 8);
     printf("\n");
 }
-
-#if 1
 
 struct kmd_test_stats {
     u64 nbytes, nkeys, nseqs, nvals, nivals, nzvals, ntombs, nptombs;
@@ -886,7 +884,6 @@ run_kmd_overhead(void)
         }
     }
 }
-#endif
 
 void
 usage(void)
@@ -949,12 +946,7 @@ main(int argc, char *argv[])
     if (kmd_perf)
         run_kmd_perf();
 
-#ifndef NDEBUG
-    printf("\nNote: this is a debug build. "
-           "Use a release build for better performance.\n\n");
-#endif
-
     free(mem);
     free(randv);
-    return 0;
+    return failed ? 1 : 0;
 }

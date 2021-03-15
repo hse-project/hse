@@ -9,8 +9,8 @@ keymax=99999999
 
 # This test puts and then flushes $flushmax unique keys, one at a time.
 #
-cmd $HSE_TOOLS_DIR/ksync -f ${flushmax} -k ${keymax} $mp $kvs1 kvdb.c0_ingest_delay=30
-cmd $HSE_TOOLS_DIR/cn_metrics $mp $kvs1
+cmd ksync -f ${flushmax} -k ${keymax} $mp $kvs1 kvdb.c0_ingest_delay=30
+cmd cn_metrics $mp $kvs1
 kvsets=$(grep -c ^k "${LOG}")
 
 if (( kvsets < 10 || kvsets > flushmax / 10 )); then

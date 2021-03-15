@@ -4,6 +4,6 @@
 
 # kvdb/kvs test
 
-cmd $HSE_TOOLS_DIR/kvt -i1m -t15 -cv -m1 $mp
+cmd kvt -i1m -t15 -cv -m1 $mp
   
 

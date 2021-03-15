@@ -12,10 +12,10 @@ kvs=$(new_kvs $mp) || err
 keys=$((1000 * 1000 * 4))
 nthread=20
 ncursor=10000
-cmd $HSE_TOOLS_DIR/multicursor_test $mp $kvs -c$keys -j$nthread -r$ncursor -l -v kvs.cn_node_size_lo=32 kvs.cn_node_size_hi=32
+cmd multicursor_test $mp $kvs -c$keys -j$nthread -r$ncursor -l -v kvs.cn_node_size_lo=32 kvs.cn_node_size_hi=32
 
 #
-# $HSE_TOOLS_DIR/capput tests
+# capput tests
 #
 chunksz=1000
 wth=96
@@ -26,11 +26,11 @@ dur=30
 
 # regular kvs
 kvs=$(new_kvs $mp kvs.pfx_len=8) || err
-cmd $HSE_TOOLS_DIR/capput $mp $kvs -j$wth -t$rth -c$chunksz -b$batchsz -m$pwin -d$dur -v kvs.cn_node_size_lo=32 kvs.cn_node_size_hi=32
+cmd capput $mp $kvs -j$wth -t$rth -c$chunksz -b$batchsz -m$pwin -d$dur -v kvs.cn_node_size_lo=32 kvs.cn_node_size_hi=32
 
 # capped kvs
 kvs=$(new_kvs $mp kvs.pfx_len=8 kvs.kvs_ext01=1) || err
-cmd $HSE_TOOLS_DIR/capput $mp $kvs -j$wth -t$rth -c$chunksz -b$batchsz -m$pwin -d$dur -v
+cmd capput $mp $kvs -j$wth -t$rth -c$chunksz -b$batchsz -m$pwin -d$dur -v
 
 
 

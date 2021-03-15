@@ -96,7 +96,7 @@ components = {
         'wbt_test': {},
     },
     'framework': {
-        'smoke': {},
+        'mock_test': {},
     },
     'kvdb': {
         'ctxn_perfc_test': {},

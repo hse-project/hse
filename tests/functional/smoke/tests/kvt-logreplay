@@ -4,10 +4,10 @@
 
 cpus=$(nproc)
 
-cmd $HSE_TOOLS_DIR/kvt -i1m $mp
-cmd -s 9  $HSE_TOOLS_DIR/kvt -T60,$((cpus * 2)) -ccv -l8 -m1 -K9,10,20 $mp
-cmd -s 9  $HSE_TOOLS_DIR/kvt -T60,$((cpus * 2)) -ccv -l8 -m1 -K9,15,25 $mp
+cmd kvt -i1m $mp
+cmd -s 9  kvt -T60,$((cpus * 2)) -ccv -l8 -m1 -K9,10,20 $mp
+cmd -s 9  kvt -T60,$((cpus * 2)) -ccv -l8 -m1 -K9,15,25 $mp
 
-cmd $HSE_TOOLS_DIR/kvt -cv $mp
+cmd kvt -cv $mp
   
 

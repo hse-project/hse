@@ -18,7 +18,7 @@ scanfor() {
 	local kv=$1; shift
 	local o="$@"; shift
 
-	cmd $HSE_TOOLS_DIR/pscan -c $mp $kv $rparams $o
+	cmd pscan -c $mp $kv $rparams $o
 
 	local n=$(awk '(NR == 2) {print $1}' "$LOG")
 	if [[ "$n" != "$nk" ]]; then
@@ -30,17 +30,17 @@ scanfor() {
 for kvs in $kvs0 $kvs1 $kvs2; do
 
 	# ingest
-	cmd $HSE_TOOLS_DIR/putbin -c $keys $mp $kvs $rparams
+	cmd putbin -c $keys $mp $kvs $rparams
 
         # force spill
-	cmd $HSE_TOOLS_DIR/putbin -n 1000 $mp $kvs kvdb.csched_debug_mask=0xffffffff kvs.cn_close_wait=1 kvdb.csched_rspill_params=0x01ff $rparams
+	cmd putbin -n 1000 $mp $kvs kvdb.csched_debug_mask=0xffffffff kvs.cn_close_wait=1 kvdb.csched_rspill_params=0x01ff $rparams
 
         # verify spill occurred
-	cmd $HSE_TOOLS_DIR/cn_metrics $mp $kvs
+	cmd cn_metrics $mp $kvs
         cmd --exp-err-status grep -P '^n[[:space:]]+0,0,' "$LOG"
 
         # look for keys
-	cmd $HSE_TOOLS_DIR/putbin -V -c $keys $mp $kvs $rparams
+	cmd putbin -V -c $keys $mp $kvs $rparams
 	scanfor $keys $mp $kvs ""
 	scanfor 256   $mp $kvs -p0x000001
 	scanfor 256   $mp $kvs -p0x000002

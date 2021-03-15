@@ -579,7 +579,7 @@ ib_key_add(
     uint *                 node_cnt,
     bool                   count_only)
 {
-    uint   max_inodec;
+    uint   max_inodec = 0;
     merr_t err;
 
     err = key_add(ibldr, right_edge, &max_inodec, true);
