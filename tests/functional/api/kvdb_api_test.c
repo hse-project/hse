@@ -11,34 +11,11 @@ char *           MPOOL_NAME;
 const char *     KVS_NAME = "kvs_test";
 struct hse_kvdb *KVDB_HANDLE = NULL;
 
-/* Temp Workaround for SBUSWNF-1438 */
-hse_err_t
-safe_kvdb_make(void)
-{
-    int i;
-    hse_err_t rc;
-
-    for (i = 0; i < 10; i++) {
-        rc = hse_kvdb_make(MPOOL_NAME, NULL);
-        if (!hse_err_to_errno(rc))
-            break;
-        sleep(1);
-    }
-
-    return rc;
-}
-
 /* Function Level */
 int
 do_nothing(void)
 {
     return EXIT_SUCCESS;
-}
-
-int
-kvdb_required(void)
-{
-    return safe_kvdb_make();
 }
 
 hse_err_t
@@ -224,6 +201,7 @@ main(int argc, char *argv[])
     printf("SUMMARY - kvdb_api_tests:\n");
     printf("Passed: %d\n", clean_test.passed);
     printf("Failed: %d\n", clean_test.failed);
+    printf("------------------------\n");
     printf("------------------------\n");
 
     return clean_test.failed > 0;
