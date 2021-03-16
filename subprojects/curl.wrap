@@ -1,8 +1,8 @@
 [wrap-file]
-directory = curl-curl-7_61_1
+directory = curl-curl-7_58_0
 
-source_url = https://github.com/curl/curl/archive/curl-7_61_1.tar.gz
-source_filename = curl-7_61_1.tar.gz
-source_hash = 575de3749ef97f713037c8ee1b8d0973fe4edcbf9c3edfc0c556097d0797af29
+source_url = https://github.com/curl/curl/archive/curl-7_58_0.tar.gz
+source_filename = curl-7_58_0.tar.gz
+source_hash = f8c49719582f2a1d8487c9df3c595e6abf03133ac9aca0aa1a06d53af008de7b
 
 patch_directory=curl

@@ -139,7 +139,7 @@ endif
 
 libcurl_dep = dependency(
     'libcurl',
-    version: '>=7.61.1',
+    version: '>=7.58.0',
     required: true,
     fallback: ['curl', 'libcurl_dep'],
     default_options: [
