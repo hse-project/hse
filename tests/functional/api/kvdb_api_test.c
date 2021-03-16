@@ -69,24 +69,6 @@ kvdb_make_testcase_no_mpool(void)
 }
 
 hse_err_t
-kvdb_make_testcase_special_char(void)
-{
-    return hse_kvdb_make(MPOOL_NAME, NULL);
-}
-
-hse_err_t
-kvdb_make_testcase_no_char(void)
-{
-    return hse_kvdb_make(MPOOL_NAME, NULL);
-}
-
-hse_err_t
-kvdb_make_testcase_31_char(void)
-{
-    return hse_kvdb_make(MPOOL_NAME, NULL);
-}
-
-hse_err_t
 kvdb_open_testcase_no_mpool(void)
 {
     return hse_kvdb_open("fake_mpool", NULL, &KVDB_HANDLE) == 0 ? 0 : ENOENT;
@@ -96,18 +78,6 @@ hse_err_t
 kvdb_open_testcase(void)
 {
     return hse_kvdb_open(MPOOL_NAME, NULL, &KVDB_HANDLE) == 0 ? 0 : ENOENT;
-}
-
-hse_err_t
-kvdb_open_testcase_reuse_handle(void)
-{
-    hse_err_t rc;
-
-    rc = hse_kvdb_open(MPOOL_NAME, NULL, &KVDB_HANDLE);
-    if (rc)
-        return rc;
-
-    return hse_kvdb_open(MPOOL_NAME, NULL, &KVDB_HANDLE);
 }
 
 hse_err_t

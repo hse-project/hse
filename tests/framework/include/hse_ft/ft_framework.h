@@ -29,10 +29,12 @@ execute_testcase(struct ft_collection *test, char *behavior, hse_err_t (*testcas
 {
     hse_err_t result, rc;
     bool      valid;
+    char buf[128];
 
     rc = test->before();
     if (rc) {
-        fprintf(stderr, "SETUP FAILED: %s (%d)\n", strerror(rc), hse_err_to_errno(rc));
+        hse_err_to_string(rc, buf, sizeof(buf), NULL);
+        fprintf(stderr, "SETUP FAILED: %s (%d)\n", buf, hse_err_to_errno(rc));
         exit(1);
     }
 
@@ -42,7 +44,8 @@ execute_testcase(struct ft_collection *test, char *behavior, hse_err_t (*testcas
 
     rc = test->after();
     if (rc) {
-        fprintf(stderr, "TEARDOWN FAILED: %s (%d)\n", strerror(rc), hse_err_to_errno(rc));
+        hse_err_to_string(rc, buf, sizeof(buf), NULL);
+        fprintf(stderr, "TEARDOWN FAILED: %s (%d)\n", buf, hse_err_to_errno(rc));
         exit(1);
     }
 
