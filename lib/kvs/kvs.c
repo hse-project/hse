@@ -284,6 +284,13 @@ ikvs_perfc_pkvsl(struct ikvs *ikvs)
     return NULL;
 }
 
+bool
+kvs_txn_is_enabled(
+    struct ikvs *kvs)
+{
+    return kvs->ikv_rp.enable_transactions;
+}
+
 merr_t
 ikvs_put(
     struct ikvs *            kvs,

@@ -3,12 +3,13 @@
 import sys
 import hse
 
-
 hse.Kvdb.init()
 
 kvdb = hse.Kvdb.open(sys.argv[1])
 kvdb.kvs_make("kvs1")
-kvs = kvdb.kvs_open("kvs1")
+p = hse.Params()
+p.set(key="kvs.enable_transactions", value="1")
+kvs = kvdb.kvs_open("kvs1", params=p)
 
 '''
 txn=None
@@ -35,8 +36,9 @@ for k, v in cursor.items():
 
 txn = kvdb.transaction()
 txn2 = kvdb.transaction()
-kvs.put(b'ab0', b'1')
-kvs.put(b'ab1', b'1')
+with kvdb.transaction() as t:
+    kvs.put(b'ab0', b'1', txn=t)
+    kvs.put(b'ab1', b'1', txn=t)
 txn.begin()
 txn2.begin()
 kvs.put(b'ab1', b'4', txn=txn2)

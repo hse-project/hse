@@ -79,6 +79,7 @@ main(int argc, char **argv)
 	uint i;
 
 	hse_params_create(&params);
+	hse_params_set(params, "kvs.enable_transactions", "1");
 
 	kh_rparams(&argc, &argv, params);
 	if (argc != 2) {

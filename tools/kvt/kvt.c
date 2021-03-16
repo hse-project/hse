@@ -1428,6 +1428,7 @@ main(int argc, char **argv)
 
     hse_params_create(&params);
     hse_params_set(params, "kvdb.perfc_enable", "0");
+    hse_params_set(params, "kvs.enable_transactions", "1");
     //hse_params_set(params, "kvs.value_compression", "lz4");
 
     for (i = 1; i < argc; ++i) {

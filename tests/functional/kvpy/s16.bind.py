@@ -3,23 +3,26 @@
 import sys
 import hse
 
-
 hse.Kvdb.init()
 
 try:
     kvdb = hse.Kvdb.open(sys.argv[1])
     kvdb.kvs_make("kvs16-1")
     kvdb.kvs_make("kvs16-2")
-    kvs1 = kvdb.kvs_open("kvs16-1")
-    kvs2 = kvdb.kvs_open("kvs16-2")
+    p = hse.Params()
+    p.set(key="kvs.enable_transactions", value="1")
+    kvs1 = kvdb.kvs_open("kvs16-1", params=p)
+    kvs2 = kvdb.kvs_open("kvs16-2", params=p)
 
-    kvs1.put(b"a", b"1")
-    kvs1.put(b"b", b"1")
-    kvs1.put(b"c", b"1")
+    with kvdb.transaction() as txn:
+        kvs1.put(b"a", b"1", txn=txn)
+        kvs1.put(b"b", b"1", txn=txn)
+        kvs1.put(b"c", b"1", txn=txn)
 
-    kvs2.put(b"a", b"2")
-    kvs2.put(b"b", b"2")
-    kvs2.put(b"c", b"2")
+    with kvdb.transaction() as txn:
+        kvs2.put(b"a", b"2", txn=txn)
+        kvs2.put(b"b", b"2", txn=txn)
+        kvs2.put(b"c", b"2", txn=txn)
 
     with kvdb.transaction() as txn:
         cursor = kvs1.cursor(bind_txn=True, txn=txn)
@@ -63,16 +66,18 @@ try:
     assert cursor1.eof
     txn.commit()
 
-    cursor2 = kvs2.cursor()
-    for k, v in cursor2.items():
-        assert v == b"2"
-    try:
-        cursor1.read()
-        assert False
-    except:
-        pass
+    with kvdb.transaction() as t:
+        cursor2 = kvs2.cursor(bind_txn=True, txn=t)
+        for k, v in cursor2.items():
+            assert v == b"2"
+        try:
+            cursor1.read()
+            assert False
+        except:
+            pass
+        cursor2.destroy()
+
     cursor1.destroy()
-    cursor2.destroy()
 finally:
     if kvs1:
         kvs1.close()

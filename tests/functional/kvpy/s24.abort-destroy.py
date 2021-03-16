@@ -1,13 +1,15 @@
 #!/usr/bin/env python3
 
 import sys
-from hse import Kvdb
+from hse import Kvdb, Params
 
 Kvdb.init()
 
 kvdb = Kvdb.open(sys.argv[1])
 kvdb.kvs_make("kvs24")
-kvs = kvdb.kvs_open("kvs24")
+p = Params()
+p.set(key="kvs.enable_transactions", value="1")
+kvs = kvdb.kvs_open("kvs24", params=p)
 
 txn = kvdb.transaction()
 txn.begin()

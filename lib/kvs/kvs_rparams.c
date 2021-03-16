@@ -43,6 +43,7 @@ kvs_rparams_defaults(void)
     struct kvs_rparams k = {
         .kvs_debug = 0,
         .kvs_cursor_ttl = 1000,
+        .enable_transactions = 0,
 
         .cn_maint_disable = 0,
         .cn_diag_mode = 0,
@@ -110,6 +111,7 @@ static struct kvs_rparams kvs_rp_ref;
 static struct param_inst  kvs_rp_table[] = {
     KVS_PARAM_EXP(kvs_debug, "enable kvs debugging"),
     KVS_PARAM_EXP(kvs_cursor_ttl, "cached cursor time-to-live (ms)"),
+    KVS_PARAM_EXP(enable_transactions, "enable transactions for the kvs"),
 
     KVS_PARAM_EXP(cn_node_size_lo, "low end of max node size range (MiB)"),
     KVS_PARAM_EXP(cn_node_size_hi, "high end of max node size range (MiB)"),

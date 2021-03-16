@@ -1640,6 +1640,37 @@ ikvdb_throttle(struct ikvdb_impl *self, u64 bytes)
     }
 }
 
+static bool
+is_write_allowed(
+    struct ikvs *           kvs,
+    struct hse_kvdb_opspec *os)
+{
+    bool kvs_is_txn = kvs_txn_is_enabled(kvs);
+    bool op_is_txn  = os && os->kop_txn;
+
+    if (ev(kvs_is_txn ^ op_is_txn)) {
+        hse_log(HSE_ERR "KVS and write must both be either transactional or non-transactional");
+        return false;
+    }
+
+    return true;
+}
+
+static bool
+is_read_allowed(
+    struct ikvs *           kvs,
+    struct hse_kvdb_opspec *os)
+{
+    bool kvs_is_txn = kvs_txn_is_enabled(kvs);
+
+    if (ev(os && os->kop_txn && !kvs_is_txn)) {
+        hse_log(HSE_ERR "KVS is not transactional. Cannot read using a transaction");
+        return false;
+    }
+
+    return true;
+}
+
 merr_t
 ikvdb_kvs_put(
     struct hse_kvs *         handle,
@@ -1657,6 +1688,9 @@ ikvdb_kvs_put(
     void *             vbuf;
 
     if (ev(!handle))
+        return merr(EINVAL);
+
+    if (ev(!is_write_allowed(kk->kk_ikvs, os)))
         return merr(EINVAL);
 
     parent = kk->kk_parent;
@@ -1728,6 +1762,9 @@ ikvdb_kvs_pfx_probe(
     if (ev(!handle))
         return merr(EINVAL);
 
+    if (ev(!is_read_allowed(kk->kk_ikvs, os)))
+        return merr(EINVAL);
+
     p = kk->kk_parent;
 
     if (kvdb_kop_is_txn(os)) {
@@ -1760,6 +1797,9 @@ ikvdb_kvs_get(
     if (ev(!handle))
         return merr(EINVAL);
 
+    if (ev(!is_read_allowed(kk->kk_ikvs, os)))
+        return merr(EINVAL);
+
     p = kk->kk_parent;
 
     if (kvdb_kop_is_txn(os)) {
@@ -1786,6 +1826,9 @@ ikvdb_kvs_del(struct hse_kvs *handle, struct hse_kvdb_opspec *os, struct kvs_ktu
     merr_t             err;
 
     if (ev(!handle))
+        return merr(EINVAL);
+
+    if (ev(!is_write_allowed(kk->kk_ikvs, os)))
         return merr(EINVAL);
 
     parent = kk->kk_parent;
@@ -1821,6 +1864,9 @@ ikvdb_kvs_prefix_delete(
     u64                pdel_seqno;
 
     if (ev(!handle))
+        return merr(EINVAL);
+
+    if (ev(!is_write_allowed(kk->kk_ikvs, os)))
         return merr(EINVAL);
 
     parent = kk->kk_parent;
@@ -2004,6 +2050,9 @@ ikvdb_kvs_cursor_create(
 
     *cursorp = NULL;
 
+    if (ev(!is_read_allowed(kk->kk_ikvs, os)))
+        return merr(EINVAL);
+
     pkvsl_pc = ikvs_perfc_pkvsl(kk->kk_ikvs);
     tstart = perfc_lat_start(pkvsl_pc);
 
@@ -2128,6 +2177,9 @@ ikvdb_kvs_cursor_update(struct hse_kvs_cursor *cur, struct hse_kvdb_opspec *os)
     /* a cursor in error cannot be updated - must be destroyed */
     if (ev(cur->kc_err))
         return cur->kc_err;
+
+    if (ev(!is_read_allowed(cur->kc_kvs->kk_ikvs, os)))
+        return merr(EINVAL);
 
     /* Check if this call is trying to change cursor direction. */
     if (os) {

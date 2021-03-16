@@ -3,7 +3,7 @@
 import sys
 from typing import List
 from hse import Kvdb
-from hse import Cursor
+from hse import Cursor, Params
 
 
 def check_keys(cursor: Cursor, expected: List[bytes]):
@@ -17,13 +17,16 @@ Kvdb.init()
 
 kvdb = Kvdb.open(sys.argv[1])
 kvdb.kvs_make("kvs18")
-kvs = kvdb.kvs_open("kvs18")
+p = Params()
+p.set(key="kvs.enable_transactions", value="1")
+kvs = kvdb.kvs_open("kvs18", params=p)
 
-# Insert some keys (non-txn inserts)
-kvs.put(b"a", b"1")
-kvs.put(b"b", b"2")
-kvs.put(b"c", b"3")
-kvs.put(b"d", b"4")
+# Insert some keys
+with kvdb.transaction() as txn:
+    kvs.put(b"a", b"1", txn=txn)
+    kvs.put(b"b", b"2", txn=txn)
+    kvs.put(b"c", b"3", txn=txn)
+    kvs.put(b"d", b"4", txn=txn)
 
 # Begin three transactions
 txn1 = kvdb.transaction()

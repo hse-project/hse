@@ -255,6 +255,9 @@ kvs_cursor_zone_alloc(void);
 void
 kvs_cursor_zone_free(void);
 
+bool
+kvs_txn_is_enabled(struct ikvs *kvs);
+
 #if HSE_MOCKING
 #include "kvs_ut.h"
 #endif

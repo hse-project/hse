@@ -9,10 +9,14 @@ hse.Kvdb.init()
 try:
     kvdb = hse.Kvdb.open(sys.argv[1])
     kvdb.kvs_make("kvs6")
-    kvs = kvdb.kvs_open("kvs6")
+    p = hse.Params()
+    p.set(key="kvs.enable_transactions", value="1")
+    kvs = kvdb.kvs_open("kvs6", params=p)
 
-    holder = kvs.cursor()
-    rholder = kvs.cursor(reverse=True)
+    cursor_txn = kvdb.transaction()
+    cursor_txn.begin()
+    holder = kvs.cursor(bind_txn=True, txn=cursor_txn)
+    rholder = kvs.cursor(reverse=True, bind_txn=True, txn=cursor_txn)
 
     txn = kvdb.transaction()
     exp_list = []
@@ -33,9 +37,12 @@ try:
     assert sum(1 for _ in holder.items()) == 0
     assert sum(1 for _ in rholder.items()) == 0
 
-    holder.update()
+    cursor_txn.abort()
+    cursor_txn = kvdb.transaction()
+    cursor_txn.begin()
+    holder.update(bind_txn=True, txn=cursor_txn)
     holder.seek(b"0")
-    rholder.update(reverse=True)
+    rholder.update(reverse=True, bind_txn=True, txn=cursor_txn)
     rholder.seek(None)
 
     holder_values = [v.decode() for _, v in holder.items() if v]
