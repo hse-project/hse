@@ -231,7 +231,7 @@ MTF_DEFINE_UTEST(c0_kvset_iterator_test, seek)
     struct element_source *  es;
     bool                     br;
     int                      source_count;
-    struct bonsai_kv *       last_bkv, *bkv;
+    struct bonsai_kv *       last_bkv = NULL, *bkv;
     void *                   seek;
     int                      seeklen;
 
