@@ -5,6 +5,7 @@
 
 #include <hse_util/platform.h>
 #include <hse_util/slab.h>
+#include <hse_util/vlb.h>
 #include <hse_util/event_counter.h>
 #include <hse_util/key_util.h>
 
@@ -30,7 +31,9 @@
  * @max_inodec: upper limit on number of internal nodes that will be needed
  * @max_pgc: max allowable size of wbtree in pages (nodes+kmd+bloom)
  * @cnode: current node
- * @cnode_key_cursor: spot for next key. Points into the staging area.
+ * @cnode_key_cursor:     insertion point into staging buffer for next key
+ * @cnode_key_stage_base: staging buffer base address
+ * @cnode_key_stage_end:  staging buffer end address
  * @cnode_nkeys: number of keys (aka, entries) in current node
  * @entries: total number of keys stored so far
  * @wbt_first_kobj: first key (aka, min key in wb tree)
@@ -55,6 +58,8 @@ struct wbb {
     void *cnode;
 
     void *cnode_key_cursor;
+    void *cnode_key_stage_base;
+    void *cnode_key_stage_end;
 
     uint  cnode_nkeys;
     uint  cnode_kmd_off;
@@ -63,35 +68,28 @@ struct wbb {
     uint  cnode_key_stage_pgc;
     uint  cnode_key_extra_cnt;
     void *cnode_first_key;
-    void *cnode_key_stage;
 
-    uint entries;
+    struct intern_builder *ibldr;
 
     struct key_obj wbt_first_kobj;
     struct key_obj wbt_last_kobj;
 
-    struct iovec kmd_iov[KMD_CHUNKS];
+    uint entries;
+
     uint         kmd_iov_index;
-
-    struct intern_builder *ibldr;
-};
-
-struct key_stage_entry_intern {
-    u16 child;
-    u16 klen;
-    u8  kdata[];
+    struct iovec kmd_iov[KMD_CHUNKS + 1];
 };
 
 struct key_stage_entry_leaf {
     u32 kmd_off;
     u16 klen;
-    u8  kdata[];
+    u8  kdata[] HSE_ALIGNED(sizeof(void *));
 };
 
 static HSE_ALWAYS_INLINE size_t
 get_kst_sz(size_t klen)
 {
-    klen += offsetof(struct key_stage_entry_leaf, kdata);
+    klen += sizeof(struct key_stage_entry_leaf);
 
     return roundup(klen, __alignof(struct key_stage_entry_leaf));
 }
@@ -130,7 +128,7 @@ static struct wbt_node_hdr_omf *
 _new_node(struct wbb *wbb)
 {
     wbb->cnode = wbb->nodev + wbb->lnodec * PAGE_SIZE;
-    wbb->cnode_key_cursor = wbb->cnode_key_stage;
+    wbb->cnode_key_cursor = wbb->cnode_key_stage_base;
     wbb->cnode_pfx_len = 0;
     wbb->cnode_sumlen = 0;
     wbb->cnode_kmd_off = get_kmd_len(wbb);
@@ -210,7 +208,7 @@ wbb_kmd_append(struct wbb *wbb, const void *data, uint dlen, bool copy)
             return merr(ENOMEM);
         if (!iov->iov_base) {
             iov->iov_len = 0;
-            iov->iov_base = alloc_page_aligned(KMD_CHUNK_LEN);
+            iov->iov_base = vlb_alloc(KMD_CHUNK_LEN);
             if (ev(!iov->iov_base))
                 return merr(ENOMEM);
         }
@@ -247,7 +245,7 @@ wbt_leaf_publish(struct wbb *wbb)
     void *              sfxp;  /* (out) current suffix ptr */
     int                 i;
 
-    struct key_stage_entry_leaf *kin = wbb->cnode_key_stage;
+    struct key_stage_entry_leaf *kin = wbb->cnode_key_stage_base;
 
     omf_set_wbn_num_keys(node_hdr, wbb->cnode_nkeys);
     omf_set_wbn_pfx_len(node_hdr, pfx_len);
@@ -278,8 +276,8 @@ wbt_leaf_publish(struct wbb *wbb)
             omf_set_lfe_kmd(entry, (u16)(kin->kmd_off));
         }
 
-        assert((void *)kin >= wbb->cnode_key_stage);
-        assert((void *)kin < wbb->cnode_key_stage + (wbb->cnode_key_stage_pgc * PAGE_SIZE));
+        assert((void *)kin >= wbb->cnode_key_stage_base);
+        assert((void *)kin < wbb->cnode_key_stage_end);
 
         memcpy(sfxp + key_extra, kin->kdata + pfx_len, sfx_len);
         omf_set_lfe_koff(entry, sfxp - wbb->cnode);
@@ -320,7 +318,6 @@ wbb_add_entry(
     size_t space, encoded_cnt_len;
     char   encoded_cnt[4]; /* large enough to hold kmd encoded count */
     size_t new_pfx_len;
-    void * end;
     uint   klen = key_obj_len(kobj);
 
     struct key_stage_entry_leaf *kst_leaf;
@@ -417,17 +414,16 @@ wbb_add_entry(
     /* Get the key's kmd offset within the node's kmd region. */
     entry_kmd_off -= wbb->cnode_kmd_off;
 
-    assert(wbb->cnode_key_cursor >= wbb->cnode_key_stage);
-    assert(wbb->cnode_key_cursor <= wbb->cnode_key_stage + (wbb->cnode_key_stage_pgc * PAGE_SIZE));
+    assert(wbb->cnode_key_cursor >= wbb->cnode_key_stage_base);
+    assert(wbb->cnode_key_cursor <= wbb->cnode_key_stage_end);
 
     /* Grow the staging area, if necessary */
-    end = wbb->cnode_key_stage + (wbb->cnode_key_stage_pgc * PAGE_SIZE);
-    if (HSE_UNLIKELY(wbb->cnode_key_cursor + get_kst_sz(klen) > end)) {
+    if (wbb->cnode_key_stage_end - wbb->cnode_key_cursor < get_kst_sz(klen)) {
         void *                       mem;
-        uint                         off, new_pgc = 2 * wbb->cnode_key_stage_pgc;
+        uint                         off, new_pgc;
         struct key_stage_entry_leaf *first;
 
-        off = wbb->cnode_key_cursor - wbb->cnode_key_stage;
+        new_pgc = wbb->cnode_key_stage_pgc ? wbb->cnode_key_stage_pgc * 2 : 8;
         if (new_pgc > 16)
             new_pgc = wbb->cnode_key_stage_pgc + 16;
 
@@ -435,14 +431,18 @@ wbb_add_entry(
         if (ev(!mem))
             return merr(ENOMEM);
 
-        memcpy(mem, wbb->cnode_key_stage, off);
-        free(wbb->cnode_key_stage);
+        off = wbb->cnode_key_cursor - wbb->cnode_key_stage_base;
+        if (off > 0) {
+            memcpy(mem, wbb->cnode_key_stage_base, off);
+            free(wbb->cnode_key_stage_base);
+        }
 
         wbb->cnode_key_stage_pgc = new_pgc;
-        wbb->cnode_key_stage = mem;
-        wbb->cnode_key_cursor = wbb->cnode_key_stage + off;
+        wbb->cnode_key_stage_base = mem;
+        wbb->cnode_key_stage_end = wbb->cnode_key_stage_base + new_pgc * PAGE_SIZE;
+        wbb->cnode_key_cursor = wbb->cnode_key_stage_base + off;
 
-        first = mem;
+        first = wbb->cnode_key_stage_base;
         wbb->cnode_first_key = first->kdata;
     }
 
@@ -562,26 +562,29 @@ wbb_freeze(
 merr_t
 wbb_init(struct wbb *wbb, void *nodev, uint max_pgc, uint *wbt_pgc)
 {
-    void * kst, *iov_base[KMD_CHUNKS];
+    void  *kst_base, *kst_end, *iov_base[KMD_CHUNKS + 1];
     struct intern_builder *ibldr;
     uint   kst_pgc;
     uint   i;
-    merr_t err = 0;
+    merr_t err;
 
     /* Save state that persists across "init" */
     ibldr = wbb->ibldr;
-    kst = wbb->cnode_key_stage;
+    kst_base = wbb->cnode_key_stage_base;
+    kst_end = wbb->cnode_key_stage_end;
     kst_pgc = wbb->cnode_key_stage_pgc;
-    for (i = 0; i < KMD_CHUNKS; i++)
+    for (i = 0; wbb->kmd_iov[i].iov_base; i++)
         iov_base[i] = wbb->kmd_iov[i].iov_base;
+    iov_base[i] = NULL;
 
     /* Reset */
     memset(wbb, 0, sizeof(*wbb));
 
     /* Restore */
-    wbb->cnode_key_stage = kst;
+    wbb->cnode_key_stage_base = kst_base;
+    wbb->cnode_key_stage_end = kst_end;
     wbb->cnode_key_stage_pgc = kst_pgc;
-    for (i = 0; i < KMD_CHUNKS; i++)
+    for (i = 0; iov_base[i]; i++)
         wbb->kmd_iov[i].iov_base = iov_base[i];
 
     /* Init new params */
@@ -626,11 +629,6 @@ wbb_create(
     if (ev(!wbb))
         goto err_exit;
 
-    wbb->cnode_key_stage_pgc = 2;
-    wbb->cnode_key_stage = malloc(wbb->cnode_key_stage_pgc * PAGE_SIZE);
-    if (ev(!wbb->cnode_key_stage))
-        goto err_exit;
-
     nodev = alloc_page_aligned(max_pgc * PAGE_SIZE);
     if (ev(!nodev))
         goto err_exit;
@@ -646,7 +644,6 @@ wbb_create(
 
     if (wbb) {
         free_aligned(nodev);
-        free(wbb->cnode_key_stage);
         free(wbb);
     }
 
@@ -687,8 +684,15 @@ wbb_inode_has_space(struct wbb *wbb, uint inode_cnt)
 void
 wbb_reset(struct wbb *wbb, uint *wbt_pgc)
 {
+    merr_t err;
+
     ib_reset(wbb->ibldr);
-    wbb_init(wbb, wbb->nodev, wbb->nodev_len, wbt_pgc);
+
+    /* [HSE_REVISIT] Inform caller if wbb_init() fails as the wbb is invalid.
+     */
+    err = wbb_init(wbb, wbb->nodev, wbb->nodev_len, wbt_pgc);
+    if (err)
+        abort();
 }
 
 void
@@ -699,10 +703,10 @@ wbb_destroy(struct wbb *wbb)
     if (wbb) {
         ib_destroy(wbb->ibldr);
 
-        for (i = 0; i < KMD_CHUNKS; i++)
-            free_aligned(wbb->kmd_iov[i].iov_base);
+        for (i = 0; wbb->kmd_iov[i].iov_base; i++)
+            vlb_free(wbb->kmd_iov[i].iov_base, KMD_CHUNK_LEN);
         free_aligned(wbb->nodev);
-        free(wbb->cnode_key_stage);
+        free(wbb->cnode_key_stage_base);
         free(wbb);
     }
 }

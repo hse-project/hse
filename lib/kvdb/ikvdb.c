@@ -1703,7 +1703,7 @@ ikvdb_kvs_put(
     err = ikvs_put(kk->kk_ikvs, os, kt, vt, put_seqno);
 
     if (vbuf && vbuf != tls_vbuf)
-        vlb_free(vbuf, clen);
+        vlb_free(vbuf, (vbufsz > VLB_ALLOCSZ_MAX) ? vbufsz : clen);
 
     if (err) {
         ev(merr_errno(err) != ECANCELED);
