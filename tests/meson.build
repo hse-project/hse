@@ -12,3 +12,5 @@ endif
 if 'functional' in enabled_tests
     subdir('functional')
 endif
+
+subdir('performance')
