@@ -125,7 +125,7 @@ add_project_arguments(
     language: 'c',
 )
 
-build_rtype = ''
+build_rtype = build_stype
 build_number_result = run_command(
     'sh',
     '-c',
@@ -134,7 +134,7 @@ build_number_result = run_command(
 in_ci = build_number_result.returncode() == 0
 if in_ci
     build_number = build_number_result.stdout().strip()
-    build_rtype = '@0@@1@'.format(build_stype, build_number)
+    build_rtype += build_number
 endif
 
 libcurl_dep = dependency(
