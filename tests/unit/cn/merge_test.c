@@ -710,10 +710,10 @@ _kvset_builder_add_val_internal(
     uint                  vlen)
 {
     bool           ref_eof;
-    u64            ref_seq;
-    enum kmd_vtype ref_vtype;
-    const void *   ref_vdata;
-    uint           ref_vlen;
+    u64            ref_seq = 0;
+    enum kmd_vtype ref_vtype = vtype_val;
+    const void *   ref_vdata = NULL;
+    uint           ref_vlen = 0;
 
     kvset_get_nth_val(
         tp.out_kvset_node,

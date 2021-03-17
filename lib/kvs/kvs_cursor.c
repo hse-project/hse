@@ -1157,7 +1157,7 @@ kvs_cursor_read(struct hse_kvs_cursor *handle, struct kvs_kvtuple *kvt, bool *eo
     }
 
     if (cursor->kci_need_seek) {
-        struct kvs_ktuple key;
+        struct kvs_ktuple key = { 0 };
         bool toss = cursor->kci_need_toss;
 
         cursor->kci_err = kvs_cursor_seek(&cursor->kci_handle,

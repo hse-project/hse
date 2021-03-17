@@ -3387,9 +3387,9 @@ merr_t
 ikvdb_export(struct ikvdb *handle, struct kvdb_cparams *kvdb_cparams, const char *path)
 {
     struct ikvdb_impl *      kvdb = ikvdb_h2r(handle);
-    char **                  kvsv;
+    char **                  kvsv = NULL;
     struct kvs_cparams *     kvs_cparams;
-    unsigned int             count;
+    unsigned int             count = 0;
     merr_t                   err;
     int                      i;
     struct hse_kvs *         kvs;
