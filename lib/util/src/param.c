@@ -647,7 +647,7 @@ process_params(int argc, char **argv, struct param_inst *pi, int *next_arg, u32 
     merr_t              err;
     int                 arg;
     int                 index;
-    int                 entry_cnt;
+    int                 entry_cnt = 0;
 
     /* Clear 'pi_set' to know what parameters are passed on the cmd line */
     for (index = 0; pi[index].pi_type.param_token != NULL; index++)
