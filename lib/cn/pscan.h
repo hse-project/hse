@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
 #ifndef HSE_KVDB_CN_PSCAN_H
@@ -16,31 +16,33 @@ struct cursor_summary;
 
 /**
  * struct pscan - allocated prefix scan context, including output buffer
- * @stats:      metrics for this scan; exists lifetime of cursor
+ * @bh:         how to merge iterators
  * @iterc:      number of kvsets referenced
  * @itermax:    max elements in iterv[] and esrcv[]
  * @iterv:      kvset iterator vector
  * @esrcv:      element source vector
- * @bin_heap:   how to merge iterators
  * @cn:         cn this cursor operates upon
- * @buf:        where to store current key + value
+ * @summary:
  * @pfx:        prefix is saved here
- * @pfx_len:     length of the prefix
- * @ct_pfx_len:  length of the tree prefix
+ * @pfx_len:    length of the prefix
+ * @ct_pfx_len: length of the tree prefix
  * @pfxhash:    hash for this prefix
  * @merr:       if cursor is in error state, this is why
  * @shift:      how to find next child node from pfxhash
  * @mask:
  * @dgen:       max dgen in this scan
- * @eof:        cursor eof separate from iterators
  * @seqno:      view sequence number for this cursor
  * @bufsz:      length of buffer for key + value
  * @reverse:    reverse iterator: 1=yes 0=no
  * @eof:        cursor is at eof: 1=yes 0=no
- * @pt_buf:     buffer for ptomb at cursor update
  * @pt_set:     if the ptomb in pt_kobj, if there is one, is relevant.
+ * @stats:      metrics for this scan; exists lifetime of cursor
+ * @filter:
+ * @base:       base memory address of pscan allocation
  * @pt_kobj:    ptomb key obj (key in kblk OR pt_buf[] right after cur update)
  * @pt_seq:     ptomb's seqno
+ * @pt_ptbuf:   buffer for ptomb at cursor update
+ * @buf:        where to store current key + value
  */
 struct pscan {
     struct bin_heap2 *      bh;
@@ -66,15 +68,19 @@ struct pscan {
     u32 eof : 1;
     u32 pt_set : 1;
 
-    struct key_obj pt_kobj;
-    u64            pt_seq;
-    unsigned char  pt_buf[HSE_KVS_MAX_PFXLEN];
-
     struct cn_merge_stats stats;
     struct kc_filter *    filter;
-    void *                base;
+    char *                base;
 
-    HSE_ALIGNED(SMP_CACHE_BYTES) char buf[];
+    struct key_obj pt_kobj;
+    u64            pt_seq;
+
+    /* WARNING: cn_pscan_create() initializes all the above fields
+     * up to but not including pt_buf[].  Use caution if you feel
+     * you must move pt_buf[] or add additional fields after it.
+     */
+    unsigned char  pt_buf[HSE_KVS_MAX_PFXLEN];
+    char           buf[];
 };
 
 #endif

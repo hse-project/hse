@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
 #ifndef HSE_PLATFORM_VLB_H
@@ -19,9 +19,17 @@
  * callers of vlb_alloc(), but more work needs to be done to improve
  * the situation.
  */
-#define VLB_ALLOCSZ_MAX     (HSE_KVS_VLEN_MAX * 2)
+#define VLB_ALLOCSZ_MAX     (4ul << 20)
 #define VLB_CACHESZ_MAX     (2ul << 30)
 #define VLB_KEEPSZ_MAX      (1ul << 20)
+
+/* If you trip this assert than you are probably experimenting with value
+ * lengths larger than 1MiB, in which case it's ok to remove this assert.
+ * However, be warned that value buffers will be allocated and freed on
+ * demand rather than come from the vlb cache.
+ */
+_Static_assert(VLB_ALLOCSZ_MAX >= (HSE_KVS_VLEN_MAX * 2),
+               "VLB_ALLOCSZ_MAX too small");
 
 /**
  * vlb_alloc() - allocate a read buffer

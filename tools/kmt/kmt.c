@@ -4617,11 +4617,11 @@ main(int argc, char **argv)
         fieldnamew_max = snprintf(NULL, 0, fieldname_fmt, fieldcount);
         fieldnamew_max = roundup(fieldnamew_max + 1, 8);
 
-        fieldnamev = aligned_alloc(128, (fieldcount_max + 1) * fieldnamew_max);
+        fieldnamev = aligned_alloc(128, (fieldcount + 1) * fieldnamew_max);
         if (!fieldnamev)
             abort();
 
-        for (i = 0; i < fieldcount_max; ++i) {
+        for (i = 0; i < fieldcount; ++i) {
             int n;
 
             n = snprintf(fieldnamev + fieldnamew_max * i, fieldnamew_max, fieldname_fmt, i);

@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
 #include <hse_util/platform.h>
@@ -13,8 +13,8 @@
 
 struct vlb_cache {
     spinlock_t  lock;
-    void       *head;
     int         cnt;
+    void       *head;
 } HSE_ALIGNED(SMP_CACHE_BYTES * 2);
 
 static struct vlb_cache vlbcv[VLB_NODES_MAX * VLB_BPN_MAX];
@@ -29,10 +29,7 @@ vlb_cpu2cache(void)
         nodeid = cpuid;
     }
 
-    /* TODO: Use core ID in lieu of cpu ID.  Given that we don't have core ID handy
-     * we use four buckets per node to improve the chances that (cpuid mod 4) will
-     * map to the same core.  If contention becomes a problem then try raising
-     * VLB_BPN_MAX to 8.
+    /* [HSE_REVISIT] Use core ID rather than cpuid.
      */
     return vlbcv + (((nodeid % VLB_NODES_MAX) * VLB_BPN_MAX) + (cpuid % VLB_BPN_MAX));
 }
@@ -64,6 +61,14 @@ vlb_alloc(size_t sz)
         mem = mmap(NULL, sz, prot, flags, -1, 0);
         if (ev(mem == MAP_FAILED))
             return NULL;
+
+        /* Store vlbc's offset from vlbcv into the last page of the buffer.
+         * We'll retrieve it in vlb_free() so that we can return the buffer
+         * to its original bucket.  We permute the offset to make it a bit
+         * more likely to detect corruption (regardlesss, corruption of the
+         * offset can never lead catastrophic failure).
+         */
+        *(size_t *)(mem + allocsz - PAGE_SIZE) = ~(size_t)(vlb_cpu2cache() - vlbcv);
     }
 
     return mem;
@@ -81,7 +86,7 @@ vlb_free(void *mem, size_t used)
 
     assert(IS_ALIGNED((uintptr_t)mem, PAGE_SIZE));
 
-    if (used > allocsz) {
+    if (used > allocsz - PAGE_SIZE) {
         munmap(mem, used);
         return;
     }
@@ -90,16 +95,26 @@ vlb_free(void *mem, size_t used)
         rc = madvise(mem + keepsz, used - keepsz, MADV_DONTNEED);
 
     if (!rc) {
-        struct vlb_cache *vlbc = vlb_cpu2cache();
+        struct vlb_cache *vlbc = vlbcv + ~(*(size_t *)(mem + allocsz - PAGE_SIZE));
 
-        spin_lock(&vlbc->lock);
-        if (vlbc->cnt * keepsz < VLB_CACHESZ_MAX / VLB_BPN_MAX) {
-            *(void **)mem = vlbc->head;
-            vlbc->head = mem;
-            vlbc->cnt++;
-            mem = NULL;
+        /* This assert exists to track down callers who clobbered the end of the
+         * buffer but didn't tell us about it.  The code will work correctly
+         * regardless, with a probability of returning the buffer to the wrong
+         * bucket if the corrupted offset goes undetected).  If corruption of
+         * the offset is detected we simply free the buffer.
+         */
+        assert(vlbc >= vlbcv && vlbc < vlbcv + NELEM(vlbcv));
+
+        if (vlbc >= vlbcv && vlbc < vlbcv + NELEM(vlbcv)) {
+            spin_lock(&vlbc->lock);
+            if (vlbc->cnt * keepsz < VLB_CACHESZ_MAX / VLB_BPN_MAX) {
+                *(void **)mem = vlbc->head;
+                vlbc->head = mem;
+                vlbc->cnt++;
+                mem = NULL;
+            }
+            spin_unlock(&vlbc->lock);
         }
-        spin_unlock(&vlbc->lock);
     }
 
     if (mem)

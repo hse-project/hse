@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
 #define MTF_MOCK_IMPL_cn
@@ -17,6 +17,7 @@
 #include <hse_util/slab.h>
 #include <hse_util/log2.h>
 #include <hse_util/string.h>
+#include <hse_util/xrand.h>
 #include <hse_util/vlb.h>
 
 #include <hse_util/perfc.h>
@@ -67,12 +68,16 @@ struct mclass_policy;
 void
 hse_log_reg_cn(void);
 
-/* [HSE_REVISIT] Plumb error return, and create a BUG_ON() for userspace...
- */
 merr_t
 cn_init(void)
 {
+    struct pscan *cur HSE_MAYBE_UNUSED;
     merr_t err;
+
+    /* If you trip this assert then likely you ignored the warning in pscan.h
+     * and you need to adjust cn_pscan_create() to accomodate your changes.
+     */
+    assert(offsetof(struct pscan, pt_buf) + sizeof(cur->pt_buf) == sizeof(*cur));
 
     err = wbti_init();
     if (err)
@@ -1477,29 +1482,31 @@ cn_work_submit(struct cn *cn, cn_work_fn *handler, struct cn_work *work)
 
 /**
  * cn_pscan_create() - allocate and initialize a pscan object
- *
- * Currently we allocate a 2MB buffer which we expect to come
- * from mmap.  Rarely will more than a few pages be touched.
  */
 static struct pscan *
 cn_pscan_create(void)
 {
     struct pscan *cur;
-    size_t        sz;
-    void *        mem;
+    size_t align, bufsz;
+    void *mem;
 
-    sz = sizeof(*cur) * 16 + HSE_KVS_KLEN_MAX + HSE_KVS_VLEN_MAX;
+    align = (__alignof(*cur) > SMP_CACHE_BYTES) ? __alignof(*cur) : SMP_CACHE_BYTES;
+    bufsz = HSE_KVS_KLEN_MAX + HSE_KVS_VLEN_MAX;
 
-    mem = vlb_alloc(sz);
+    mem = vlb_alloc(sizeof(*cur) + bufsz + align * 16);
     if (ev(!mem))
         return NULL;
 
-    /* Mitigate cacheline aliasing...
+    /* Mitigate cacheline aliasing by offsetting from mem by a random
+     * number of cache lines (because vlb_alloc() always returns a
+     * page-aligned buffer).
      */
-    cur = mem + __alignof(*cur) * ((get_cycles() >> 1) % 16);
+    cur = mem + align * (xrand64_tls() % 16);
 
-    memset(cur, 0, sizeof(*cur));
-    cur->bufsz = HSE_KVS_KLEN_MAX + HSE_KVS_VLEN_MAX;
+    /* Initialize all fields up to but not including pt_buf[].
+     */
+    memset(cur, 0, offsetof(struct pscan, pt_buf));
+    cur->bufsz = bufsz;
     cur->base = mem;
 
     return cur;
@@ -1508,10 +1515,17 @@ cn_pscan_create(void)
 static void
 cn_pscan_free(struct pscan *cur)
 {
-    /* TODO: Track how much of cur->buf[] we used and pass
-     * the correct total size used to vlb_free().
+    size_t used = (cur->buf - cur->base) + cur->bufsz;
+
+    /* [HSE_REVISIT] Track how much of cur->buf[] we used and pass the correct
+     * size used to vlb_free() (typically it's less than a page size).  Until
+     * then, we subtract a page size from the used size in order to avoid an
+     * munmap() call of one page in vlb_free().
      */
-    vlb_free(cur->base, HSE_KVS_VLEN_MAX);
+    assert(used < VLB_KEEPSZ_MAX + PAGE_SIZE &&
+           VLB_KEEPSZ_MAX + PAGE_SIZE < VLB_ALLOCSZ_MAX);
+
+    vlb_free(cur->base, used - PAGE_SIZE);
 }
 
 /*
@@ -1590,17 +1604,15 @@ cn_cursor_create(
      */
     do {
         err = cn_tree_cursor_create(cur, cn->cn_tree);
-        if (ev(err))
-            hse_elog(HSE_NOTICE "cn_cursor_create: @@e", err);
     } while (merr_errno(err) == EAGAIN && --attempts > 0);
 
-    if (!err && attempts != 5)
-        hse_log(HSE_NOTICE "cn_cursor_create: corrected");
-
-    if (attempts <= 0) {
+    if (ev(err)) {
+        hse_elog(HSE_ERR "%s: attempts %d: @@e", err, __func__, attempts);
         cn_pscan_free(cur);
-        return merr(ev(EAGAIN));
+        return merr(EAGAIN);
     }
+
+    ev(attempts < 5); /* cursor was successfully corrected */
 
     *cursorp = cur;
     return 0;
