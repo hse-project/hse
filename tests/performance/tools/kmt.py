@@ -1,21 +1,23 @@
+import os
 import shlex
+from typing import Mapping
 
 from tools import config
 from tools.base import BaseTest
 
 
 __KMT_KWARGS = [
-    "kbinsz",  # -B, -b
-    "check",  # -c
-    "keyfmt",  # -f
-    "recmax",  # -i
-    "vlenmax",  # -l
-    "kmt_properties",  # -o
-    "verify_reads",  # -R
-    "seed",  # -S
-    "swsecs",  # -T
-    "wpct",  # -w
-    "sync_ms",  # -y
+    "kbinsz",
+    "check",
+    "keyfmt",
+    "recmax",
+    "vlenmax",
+    "kmt_properties",
+    "verify_reads",
+    "seed",
+    "swsecs",
+    "wpct",
+    "sync_ms",
 ]
 
 
@@ -27,7 +29,7 @@ class KmtOptions:
         keyfmt: str = None,
         recmax: int = None,
         vlenmax: int = None,
-        kmt_properties=None,
+        kmt_properties: Mapping[str, str] = None,
         verify_reads: bool = None,
         seed: int = None,
         swsecs: int = None,
@@ -79,7 +81,7 @@ class KmtOptions:
 
 class KmtTest(BaseTest):
     @staticmethod
-    def __generate_args(options):
+    def __generate_args(options: KmtOptions):
         args = ["kmt"]
 
         if options.kbinsz is not None:
@@ -117,7 +119,7 @@ class KmtTest(BaseTest):
 
         return args
 
-    def __init__(self, name, options):
+    def __init__(self, name: str, options: KmtOptions):
         super().__init__(name, "kmt")
         self.options = options
         self.args = self.__generate_args(options)
@@ -133,6 +135,16 @@ class KmtTest(BaseTest):
         kmt_out_path = super()._run_command(self.args)
 
         self.__postprocess(kmt_out_path)
+
+        summary = self.get_summary()
+        print(summary)
+        print()
+
+        summary_path = os.path.join(self.log_dir, "summary.txt")
+
+        with open(summary_path, "w") as fd:
+            fd.write(summary)
+
         super()._save_report()
 
     def __postprocess(self, kmt_out_path):
@@ -228,3 +240,42 @@ class KmtTest(BaseTest):
             init_phase,
             test_phase,
         ]
+
+    def get_summary(self):
+        report = self.report
+
+        summary = ""
+
+        if "diskstats" in report:
+            total_bytes_discarded = report["diskstats"]["overall"].get(
+                "bytes_discarded", "Not recorded"
+            )
+            total_bytes_read = report["diskstats"]["overall"]["bytes_read"]
+            total_bytes_written = report["diskstats"]["overall"]["bytes_written"]
+        else:
+            total_bytes_read = "Not recorded"
+            total_bytes_written = "Not recorded"
+
+        summary += f"Bytes discarded:  {total_bytes_discarded}\n"
+        summary += f"Bytes read:       {total_bytes_read}\n"
+        summary += f"Bytes written:    {total_bytes_written}\n"
+        summary += "\n"
+        for phase in report["phases"]:
+            phase_name = phase["name"]
+            for op in phase["operations"]:
+                op_name = op["name"]
+                summary += "%s %ss per second:  %d\n" % (
+                    phase_name,
+                    op_name,
+                    op["throughput"],
+                )
+                summary += "%s %s latencies:    %s\n" % (
+                    phase_name,
+                    op_name,
+                    op["latency_us"],
+                )
+            summary += "\n"
+
+        summary = summary.rstrip()
+
+        return summary

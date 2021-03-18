@@ -19,12 +19,16 @@ def save_diskstats(tag):
     return out
 
 
-def parse_diskstats(diskstats_path):
+def parse_diskstats(diskstats_path, basename=None):
     #
     # https://www.kernel.org/doc/Documentation/ABI/testing/procfs-diskstats
     #
     devices = config.MONITOR_DEVICES
-    basenames = [os.path.basename(x) for x in devices]
+
+    if basename is None:
+        basenames = [os.path.basename(x) for x in devices]
+    else:
+        basenames = [basename]
 
     bytes_read = None
     bytes_written = None

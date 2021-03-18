@@ -43,7 +43,7 @@ def __get_list_option(args, arg_name, env_name):
 
 
 def is_device_monitoring_enabled():
-    return (MONITOR_DEVICES is not None and len(MONITOR_DEVICES) > 0)
+    return MONITOR_DEVICES is not None and len(MONITOR_DEVICES) > 0
 
 
 def is_reports_db_enabled():
@@ -139,16 +139,22 @@ def load():
     )
 
     REPORTS_MONGO_COLLECTION = __get_option(
-        args, "reports_mongo_collection", "HSE_TEST_REPORTS_MONGO_COLLECTION",
-        default=REPORTS_MONGO_COLLECTION
+        args,
+        "reports_mongo_collection",
+        "HSE_TEST_REPORTS_MONGO_COLLECTION",
+        default=REPORTS_MONGO_COLLECTION,
     )
     REPORTS_MONGO_DATABASE = __get_option(
-        args, "reports_mongo_database", "HSE_TEST_REPORTS_MONGO_DATABASE",
-        default=REPORTS_MONGO_DATABASE
+        args,
+        "reports_mongo_database",
+        "HSE_TEST_REPORTS_MONGO_DATABASE",
+        default=REPORTS_MONGO_DATABASE,
     )
     REPORTS_MONGO_URI = __get_option(
-        args, "reports_mongo_uri", "HSE_TEST_REPORTS_MONGO_URI",
-        default=REPORTS_MONGO_URI
+        args,
+        "reports_mongo_uri",
+        "HSE_TEST_REPORTS_MONGO_URI",
+        default=REPORTS_MONGO_URI,
     )
 
     REPORTS_MONGO_USERNAME = __get_option(

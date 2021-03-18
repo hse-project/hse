@@ -97,9 +97,11 @@ class BaseTest:
 
         save_mpool_info("AFTER")
 
-        self.report["overall"] = {}
-
         if is_device_monitoring_enabled:
+            self.report["diskstats"] = {}
+
+            overall = {}
+
             diskstats_after_path = save_diskstats("AFTER")
 
             d1 = parse_diskstats(diskstats_before_path)
@@ -107,7 +109,26 @@ class BaseTest:
 
             for key in ["bytes_read", "bytes_written", "bytes_discarded"]:
                 if key in d1 and d1[key] is not None:
-                    self.report["overall"][key] = d2[key] - d1[key]
+                    overall[key] = d2[key] - d1[key]
+
+            devices = []
+
+            for device in config.MONITOR_DEVICES:
+                basename = os.path.basename(device)
+
+                tmp = {"name": basename}
+
+                d1 = parse_diskstats(diskstats_before_path, basename=basename)
+                d2 = parse_diskstats(diskstats_after_path, basename=basename)
+
+                for key in ["bytes_read", "bytes_written", "bytes_discarded"]:
+                    if key in d1 and d1[key] is not None:
+                        tmp[key] = d2[key] - d1[key]
+
+                devices.append(tmp)
+
+            self.report["diskstats"]["overall"] = overall
+            self.report["diskstats"]["devices"] = devices
 
         self.report["start_timestamp_ms"] = start_timestamp_ms
         self.report["end_timestamp_ms"] = end_timestamp_ms

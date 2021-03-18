@@ -35,7 +35,7 @@ def spawn_vmstat():
 def spawn_iostat():
     devices = config.MONITOR_DEVICES
 
-    args = ["iostat", "-d", "-x", "-t", "-N"]
+    args = ["iostat", "-d", "-x", "-t"]
     args.extend(devices)
     args.append("1")
 
