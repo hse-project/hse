@@ -247,3 +247,33 @@ mapi_inject_check(u32 api, u64 *i)
         *i = urc.i;
     return rc;
 }
+
+void
+mapi_inject_list(
+    struct mapi_injection  *inject,
+    bool                    set)
+{
+    while (inject->api != -1) {
+
+        int api = inject->api;
+
+        assert(0 <= api && api < max_mapi_idx);
+
+        if (set) {
+            switch (inject->rc_cookie) {
+                case MAPI_RC_COOKIE_SCALAR:
+                    mapi_inject(api, inject->rc_scalar);
+                    break;
+                case MAPI_RC_COOKIE_PTR:
+                    mapi_inject_ptr(api, inject->rc_ptr);
+                    break;
+                default:
+                    assert(0); /* incorrectly initialized array */
+            }
+        } else {
+            mapi_inject_unset(api);
+        }
+
+        ++inject;
+    }
+}
