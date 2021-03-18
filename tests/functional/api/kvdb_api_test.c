@@ -1,178 +1,127 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <string.h>
+/* SPDX-License-Identifier: Apache-2.0 */
+/*
+ * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ */
+
+#include <hse_util/platform.h>
+#include <hse_util/compression_lz4.h>
+
+#include <hse_ut/framework.h>
+
 #include <errno.h>
-#include <hse/hse.h>
-#include <hse_ft/ft_framework.h>
 
 /* Globals */
 char *           MPOOL_NAME;
-const char *     KVS_NAME = "kvs_test";
 struct hse_kvdb *KVDB_HANDLE = NULL;
 
-/* Function Level */
 int
-do_nothing(void)
+test_collection_setup(struct mtf_test_info *info)
 {
-    return EXIT_SUCCESS;
-}
+    struct mtf_test_coll_info *coll_info = info->ti_coll;
+    hse_openlog("kvdb_api_test", 1);
 
-hse_err_t
-cleanup(void)
-{
-    hse_err_t rc;
-
-    if (KVDB_HANDLE != NULL) {
-        rc = hse_kvdb_close(KVDB_HANDLE);
-        if (rc)
-            return rc;
-
-        KVDB_HANDLE = NULL;
+    if (coll_info->tci_argc != 2) {
+        hse_log(HSE_ERR "Usage:  %s <mpool_name>", coll_info->tci_argv[0]);
+        return -1;
     }
 
-    return EXIT_SUCCESS;
+    MPOOL_NAME = coll_info->tci_argv[1];
+
+    hse_kvdb_init();
+
+    return 0;
 }
 
-/* Session Level */
-void
-before_all(struct ft_collection *clean_test)
-{
-    int rc;
-
-    init_test(clean_test, &do_nothing, &assert_errno, &cleanup);
-
-    rc = hse_kvdb_init();
-    if (rc) {
-        fprintf(stderr, "before_all: failed to initialize kvdb\n");
-        exit(1);
-    }
-}
-
-void
-after_all(void)
+int
+test_collection_teardown(struct mtf_test_info *info)
 {
     hse_kvdb_fini();
+    return 0;
 }
 
-/* KVDB API Testcases */
-hse_err_t
-kvdb_make_testcase(void)
-{
-    return hse_kvdb_make(MPOOL_NAME, NULL);
-}
+MTF_BEGIN_UTEST_COLLECTION_PREPOST(kvdb_api_test, test_collection_setup, test_collection_teardown);
 
-hse_err_t
-kvdb_make_testcase_no_mpool(void)
+MTF_DEFINE_UTEST(kvdb_api_test, kvdb_make_testcase)
 {
-    return hse_kvdb_make("fake_mpool", NULL);
-}
+    // TC: A KVDB with a valid name can be created on an existing MPOOL...
 
-hse_err_t
-kvdb_open_testcase_no_mpool(void)
-{
-    return hse_kvdb_open("fake_mpool", NULL, &KVDB_HANDLE) == 0 ? 0 : ENOENT;
-}
-
-hse_err_t
-kvdb_open_testcase(void)
-{
-    return hse_kvdb_open(MPOOL_NAME, NULL, &KVDB_HANDLE) == 0 ? 0 : ENOENT;
-}
-
-hse_err_t
-kvdb_valid_handle_testcase(void)
-{
-    hse_kvdb_open(MPOOL_NAME, NULL, &KVDB_HANDLE);
-    return KVDB_HANDLE == NULL ? ENOENT : EXIT_SUCCESS;
-}
-
-hse_err_t
-kvdb_close_testcase(void)
-{
     hse_err_t rc;
 
-    rc = hse_kvdb_open(MPOOL_NAME, NULL, &KVDB_HANDLE);
-    if (rc)
-        return rc;
+    rc = hse_kvdb_make(MPOOL_NAME, NULL);
 
-    rc = hse_kvdb_close(KVDB_HANDLE);
-    KVDB_HANDLE = NULL;
-    return rc;
-}
-
-hse_err_t
-kvdb_close_testcase_no_kvdb(void)
-{
-    return hse_kvdb_close(KVDB_HANDLE) == 0 ? 0 : EINVAL;
-}
-
-int
-main(int argc, char *argv[])
-{
-    struct ft_collection clean_test;
-    hse_err_t   err;
-    MPOOL_NAME = argv[1];
-
-    printf("------------------------\n");
-    printf("RUNNING TESTCASES\n");
-    printf("mpool = %s\n", MPOOL_NAME);
-    printf("------------------------\n");
-
-    before_all(&clean_test);
-
-    err = execute_testcase(
-        &clean_test,
-        "TC: A KVDB with a valid name can be created on an existing MPOOL...",
-        &kvdb_make_testcase,
-        EXIT_SUCCESS);
-
-    if (hse_err_to_errno(err) == EACCES) {
+    if (hse_err_to_errno(rc) == EACCES) {
         fprintf(stderr, "Invalid permissions");
         exit(1);
     }
 
-    execute_testcase(
-        &clean_test,
-        "TC: A non-existing KVDB cannot be opened...",
-        &kvdb_open_testcase_no_mpool,
-        ENOENT);
-
-    execute_testcase(
-        &clean_test,
-        "TC: A non-existing KVDB cannot be closed...",
-        &kvdb_close_testcase_no_kvdb,
-        EINVAL);
-
-    execute_testcase(
-        &clean_test,
-        "TC: A KVDB cannot be created on a non-existing MPOOL...",
-        &kvdb_make_testcase_no_mpool,
-        ENOENT);
-
-    execute_testcase(
-        &clean_test,
-        "TC: An existing KVDB which is open can be closed...",
-        &kvdb_close_testcase,
-        EXIT_SUCCESS);
-
-    execute_testcase(
-        &clean_test, "TC: An existing KVDB can be opened...", &kvdb_open_testcase, EXIT_SUCCESS);
-
-    execute_testcase(
-        &clean_test,
-        "TC: An opened KVDB returns a valid handle...",
-        &kvdb_valid_handle_testcase,
-        EXIT_SUCCESS);
-
-    after_all();
-
-    printf("\n------------------------\n");
-    printf("SUMMARY - kvdb_api_tests:\n");
-    printf("Passed: %d\n", clean_test.passed);
-    printf("Failed: %d\n", clean_test.failed);
-    printf("------------------------\n");
-    printf("------------------------\n");
-
-    return clean_test.failed > 0;
+    ASSERT_EQ(hse_err_to_errno(rc), EXIT_SUCCESS);
 }
+
+MTF_DEFINE_UTEST(kvdb_api_test, kvdb_open_testcase_no_mpool)
+{
+    // TC: A non-existing KVDB cannot be opened...
+
+    hse_err_t rc;
+
+    rc = hse_kvdb_open("fake_mpool", NULL, &KVDB_HANDLE);
+
+    ASSERT_EQ(hse_err_to_errno(rc), ENOENT);
+}
+
+MTF_DEFINE_UTEST(kvdb_api_test, kvdb_close_testcase_no_kvdb)
+{
+    // TC: A non-existing KVDB cannot be closed...
+
+    hse_err_t rc;
+
+    rc = hse_kvdb_close(KVDB_HANDLE);
+
+    ASSERT_EQ(hse_err_to_errno(rc), EINVAL);
+}
+
+MTF_DEFINE_UTEST(kvdb_api_test, kvdb_make_testcase_no_mpool)
+{
+    // TC: A KVDB cannot be created on a non-existing MPOOL...
+
+    hse_err_t rc;
+
+    rc = hse_kvdb_make("fake_mpool", NULL);
+
+    ASSERT_EQ(hse_err_to_errno(rc), ENOENT);
+}
+
+MTF_DEFINE_UTEST(kvdb_api_test, kvdb_close_testcase)
+{
+    // TC: An existing KVDB which is open can be closed...
+
+    hse_err_t rc;
+
+    rc = hse_kvdb_open(MPOOL_NAME, NULL, &KVDB_HANDLE);
+    if (hse_err_to_errno(rc))
+        exit(1);
+
+    rc = hse_kvdb_close(KVDB_HANDLE);
+    KVDB_HANDLE = NULL;
+
+    ASSERT_EQ(hse_err_to_errno(rc), EXIT_SUCCESS);
+}
+
+MTF_DEFINE_UTEST(kvdb_api_test, kvdb_open_testcase)
+{
+    // TC: An existing KVDB can be opened...
+
+    hse_err_t rc;
+
+    rc = hse_kvdb_open(MPOOL_NAME, NULL, &KVDB_HANDLE);
+
+    ASSERT_EQ(hse_err_to_errno(rc), EXIT_SUCCESS);
+}
+
+MTF_DEFINE_UTEST(kvdb_api_test, kvdb_valid_handle_testcase)
+{
+    // TC: An opened KVDB returns a valid handle...
+
+    ASSERT_NE(KVDB_HANDLE, NULL);
+}
+
+MTF_END_UTEST_COLLECTION(kvdb_api_test)

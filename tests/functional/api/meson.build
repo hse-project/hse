@@ -1,14 +1,16 @@
-common_test_c_args = []
-
-common_test_includes = [
-    test_framework_includes,
+common_test_c_args = [
+    '-DCOMPNAME="kvdb"',
 ]
+
+common_test_includes = []
 
 common_test_sources = []
 
 common_test_dependencies = [
     hse_dependencies,
     hse_dep,
+    hse_mock_dep,
+    hse_mock_repository_dep,
 ]
 
 tests = {
@@ -16,7 +18,7 @@ tests = {
         'args': [
             get_option('tests-kvdb')
         ]
-    }
+    },
 }
 
 foreach t, params : tests
