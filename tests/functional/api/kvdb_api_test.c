@@ -101,7 +101,7 @@ MTF_DEFINE_UTEST(kvdb_api_test, kvdb_close_testcase)
         char buf[128];
         hse_err_to_string(rc, buf, sizeof(buf), NULL);
         fprintf(stderr, "kvdb_close_testcase: %s", buf);
-    }        
+    }
 
     rc = hse_kvdb_close(KVDB_HANDLE);
     KVDB_HANDLE = NULL;
