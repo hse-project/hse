@@ -15,6 +15,7 @@
 #include <hse_util/barrier.h>
 #include <hse_util/seqno.h>
 #include <hse_util/hse_err.h>
+#include <hse_util/vlb.h>
 #include <hse_util/event_counter.h>
 
 #include <hse_ikvdb/c0snr_set.h>
@@ -85,49 +86,70 @@ struct c0snr_set_entry {
         void       *cse_next;
     };
 
-    atomic_t           cse_refcnt  HSE_ALIGNED(SMP_CACHE_BYTES);
-};
+    atomic_t                    cse_refcnt;
+} HSE_ALIGNED(SMP_CACHE_BYTES);
 
 #define KVMS_GEN_INVALID   (~0UL)
 #define priv_to_c0snr_set_entry(ptr) container_of(ptr, struct c0snr_set_entry, cse_c0snr)
 
 /**
  * struct c0snr_set_list
- * @act_lock:   lock protecting the list
- * @act_cache:  head of entry cache free list
- * @act_entryv: fixed-size cache of entry objects
+ * @act_lock:      lock protecting the list
+ * @act_cache:     head of entry cache free list
+ * @act_entryc:    number of entries allocated from act_entryv[]
+ * @act_entrymax:  max number of entries in act_entryv[]
+ * @act_mem:       base of memory allocation that contains self
+ * @act_memsz:     size of act_mem buffer
+ * @act_entryv:    fixed-size cache of entry objects
  */
 struct c0snr_set_list {
     spinlock_t              act_lock HSE_ALIGNED(SMP_CACHE_BYTES * 2);
     sem_t                   act_sema;
+    struct c0snr_set_entry *act_cache;
+    uint                    act_entryc;
+    uint                    act_entrymax;
 
     /* Abort handler can go away when LC is in place */
     c0snr_set_abort_func   *css_abort_func;
 
-    struct c0snr_set_entry  *act_cache;
-    struct c0snr_set_entry   act_entryv[];
+    void                   *act_mem;
+    size_t                  act_memsz;
+
+    struct c0snr_set_entry  act_entryv[];
 };
 
+/* c0snr_set_entry_alloc() performs a one-time initialization
+ * of the entry the first time it is allocated.  Subsequent
+ * allocations return the entry unperturbed from the state
+ * it was in when it was freed.
+ */
 static struct c0snr_set_entry *
-c0snr_set_entry_alloc(struct c0snr_set_entry **entry_listp)
+c0snr_set_entry_alloc(struct c0snr_set_list *csl)
 {
     struct c0snr_set_entry *entry;
 
-    entry = *entry_listp;
-    assert(atomic_read(&entry->cse_refcnt) == 0);
-    entry->cse_kvms_gen = KVMS_GEN_INVALID;
+    entry = csl->act_cache;
     if (entry) {
-        *entry_listp = entry->cse_next;
+        assert(atomic_read(&entry->cse_refcnt) == 0);
+        csl->act_cache = entry->cse_next;
+        return entry;
     }
 
-    return entry;
+    if (csl->act_entryc < csl->act_entrymax) {
+        entry = csl->act_entryv + csl->act_entryc++;
+        entry->cse_list = csl;
+        atomic_set(&entry->cse_refcnt, 0);
+        return entry;
+    }
+
+    return NULL;
 }
 
 static void
-c0snr_set_entry_free(struct c0snr_set_entry **entry_listp, struct c0snr_set_entry *entry)
+c0snr_set_entry_free(struct c0snr_set_list *csl, struct c0snr_set_entry *entry)
 {
-    entry->cse_next = *entry_listp;
-    *entry_listp = entry;
+    entry->cse_next = csl->act_cache;
+    csl->act_cache = entry;
 }
 
 static void
@@ -139,26 +161,29 @@ merr_t
 c0snr_set_list_create(u32 max_elts, u32 index, struct c0snr_set_list **tree)
 {
     struct c0snr_set_list *self;
-    size_t                   sz;
-    int                      i;
+    size_t sz;
+    void *mem;
 
-    sz = sizeof(*self);
-    sz += sizeof(self->act_entryv[0]) * max_elts;
+    sz = sizeof(*self) + sizeof(self->act_entryv[0]) * max_elts;
+    sz += __alignof(*self) * 8;
+    sz = roundup(sz, 4ul << 20);
 
-    self = alloc_aligned(sz, __alignof(*self));
-    if (ev(!self))
+    mem = vlb_alloc(sz);
+    if (ev(!mem))
         return merr(ENOMEM);
 
-    memset(self, 0, sz);
+    /* Mitigate cacheline aliasing by offsetting into mem some number of
+     * cache lines, then recompute max_elts based on the remaining space.
+     */
+    self = mem + __alignof(*self) * (index % 8);
+    max_elts = (sz - ((void *)self->act_entryv - mem)) / sizeof(self->act_entryv[0]);
 
-    for (i = 0; i < max_elts; ++i)
-        self->act_entryv[i].cse_next = self->act_entryv + i + 1;
-
-    self->act_entryv[i - 1].cse_next = NULL;
-    self->act_cache = self->act_entryv;
-
+    memset(self, 0, sizeof(*self));
     spin_lock_init(&self->act_lock);
     sem_init(&self->act_sema, 0, 4);
+    self->act_entrymax = max_elts;
+    self->act_mem = mem;
+    self->act_memsz = sz;
 
     *tree = self;
 
@@ -169,7 +194,7 @@ void
 c0snr_set_list_destroy(struct c0snr_set_list *self)
 {
     sem_destroy(&self->act_sema);
-    free_aligned(self);
+    vlb_free(self->act_mem, self->act_memsz);
 }
 
 merr_t
@@ -275,28 +300,24 @@ c0snr_set_get_c0snr(struct c0snr_set *handle, struct kvdb_ctxn *ctxn)
         spin_lock(&cslist->act_lock);
     }
 
-    entry = c0snr_set_entry_alloc(&cslist->act_cache);
-    if (ev(!entry)) {
-        spin_unlock(&cslist->act_lock);
-        if (sema)
-            sem_post(sema);
-        atomic_dec(active);
-        return NULL;
-    }
-
+    entry = c0snr_set_entry_alloc(cslist);
     spin_unlock(&cslist->act_lock);
 
     if (sema)
         sem_post(sema);
 
+    if (ev(!entry)) {
+        atomic_dec(active);
+        return NULL;
+    }
+
     entry->cse_ctxn = ctxn;
-    entry->cse_list = cslist;
     entry->cse_active = active;
+    entry->cse_kvms_gen = KVMS_GEN_INVALID;
+    entry->cse_c0snr = HSE_SQNREF_INVALID;
 
     assert(atomic_read(&entry->cse_refcnt) == 0);
     atomic_inc(&entry->cse_refcnt);
-
-    entry->cse_c0snr = HSE_SQNREF_INVALID;
 
     return &entry->cse_c0snr;
 }
@@ -368,7 +389,7 @@ c0snr_dropref(
 
     /* All the readers are done, free the entry */
     spin_lock(&tree->act_lock);
-    c0snr_set_entry_free(&tree->act_cache, entry);
+    c0snr_set_entry_free(tree, entry);
     spin_unlock(&tree->act_lock);
 
     atomic_dec(active);

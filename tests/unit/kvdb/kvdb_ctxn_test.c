@@ -96,10 +96,6 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, alloc, mapi_pre, mapi_post)
     err = c0snr_set_create(kvdb_ctxn_abort, &css);
     ASSERT_NE(0, err);
 
-    mapi_inject_once_ptr(mapi_idx_alloc_aligned, 2, NULL);
-    err = c0snr_set_create(kvdb_ctxn_abort, &css);
-    ASSERT_NE(0, err);
-
     err = c0snr_set_create(kvdb_ctxn_abort, &css);
     ASSERT_TRUE(err == 0);
 
