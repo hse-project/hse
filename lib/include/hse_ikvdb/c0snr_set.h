@@ -92,4 +92,11 @@ void
 c0snr_dropref(
     uintptr_t  *priv);
 
+/**
+ * c0snr_droprefv() - drop all references in the given vector of C0SNRs
+ * @refc:  length of refv[]
+ * @refv:  vector of references
+ */
+void c0snr_droprefv(int refc, uintptr_t **refv);
+
 #endif /* HSE_C0SNR_SET_H */

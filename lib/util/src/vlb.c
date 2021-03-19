@@ -54,7 +54,7 @@ vlb_alloc(size_t sz)
         spin_unlock(&vlbc->lock);
     }
 
-    if (!mem) {
+    if (ev(!mem)) {
         int flags = MAP_ANON | MAP_PRIVATE;
         int prot = PROT_READ | PROT_WRITE;
 
@@ -66,7 +66,7 @@ vlb_alloc(size_t sz)
          * We'll retrieve it in vlb_free() so that we can return the buffer
          * to its original bucket.  We permute the offset to make it a bit
          * more likely to detect corruption (regardlesss, corruption of the
-         * offset can never lead catastrophic failure).
+         * offset can never lead to catastrophic failure).
          */
         *(size_t *)(mem + allocsz - PAGE_SIZE) = ~(size_t)(vlb_cpu2cache() - vlbcv);
     }
@@ -117,7 +117,7 @@ vlb_free(void *mem, size_t used)
         }
     }
 
-    if (mem)
+    if (ev(mem))
         munmap(mem, allocsz);
 }
 
