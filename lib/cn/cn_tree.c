@@ -3373,7 +3373,6 @@ cn_comp_compact(struct cn_compaction_work *w)
             w->cw_outc,
             w->cw_outv,
             kcompact ? CN_MUT_KCOMPACT : CN_MUT_OTHER,
-            NULL,
             &w->cw_commitc,
             &context,
             w->cw_tagv);

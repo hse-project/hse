@@ -406,9 +406,7 @@ c0sk_ingest_worker(struct work_struct *work)
     struct c0sk_impl *     c0sk;
     u32                    iterc;
     int                    i;
-    int *                  mbc;
     struct kvset_mblocks **mbv;
-    u32 *                  cmtv;
     bool                   do_cn_ingest = false;
     u64                    ingestid;
 
@@ -419,9 +417,7 @@ c0sk_ingest_worker(struct work_struct *work)
     mblocks = ingest->c0iw_mblocks;
     iterc = ingest->c0iw_iterc;
     kvms = ingest->c0iw_c0kvms;
-    mbc = ingest->c0iw_mbc;
     mbv = ingest->c0iw_mbv;
-    cmtv = ingest->c0iw_cmtv;
 
     val_tailp = &val_head;
     val_prevp = NULL;
@@ -614,7 +610,6 @@ c0sk_ingest_worker(struct work_struct *work)
         if (bldrs[i] == 0)
             continue;
 
-        mbc[i] = 1;
         mbv[i] = &mblocks[i];
         err = kvset_builder_get_mblocks(bldrs[i], &mblocks[i]);
         if (ev(err))
@@ -650,15 +645,12 @@ exit_err:
     mutex_unlock(&c0sk->c0sk_kvms_mutex);
 
     if (do_cn_ingest) {
-        bool ingested;
-        u64  seqno_max;
 
         c0sk_ingest_rec_perfc(&c0sk->c0sk_pc_ingest, PERFC_DI_C0SKING_PREP, go);
 
         go = perfc_lat_start(&c0sk->c0sk_pc_ingest);
 
-        err = cn_ingestv(
-            c0sk->c0sk_cnv, mbv, mbc, cmtv, ingestid, HSE_KVS_COUNT_MAX, &ingested, &seqno_max);
+        err = cn_ingestv(c0sk->c0sk_cnv, mbv, ingestid, HSE_KVS_COUNT_MAX);
 
         c0sk_ingest_rec_perfc(&c0sk->c0sk_pc_ingest, PERFC_DI_C0SKING_FIN, go);
         if (ev(err))

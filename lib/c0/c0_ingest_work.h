@@ -51,9 +51,7 @@ struct c0_ingest_work {
     u32                         c0iw_coalescec;
     struct c0_ingest_work      *c0iw_next;
     struct c0_ingest_work     **c0iw_tailp;
-    int                         c0iw_mbc[HSE_KVS_COUNT_MAX];
     struct kvset_mblocks       *c0iw_mbv[HSE_KVS_COUNT_MAX];
-    u32                         c0iw_cmtv[HSE_KVS_COUNT_MAX];
 
     struct c0_usage c0iw_usage;
     u64             c0iw_tenqueued;

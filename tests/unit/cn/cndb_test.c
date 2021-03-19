@@ -953,7 +953,6 @@ MTF_DEFINE_UTEST(cndb_test, cndb_misc_test)
     merr_t                err;
     struct cn             cn = {};
     struct kvset_mblocks  mb = {};
-    int                   mbc = 1;
     struct cn *           cnv[1] = { &cn };
     struct kvset_mblocks *mbv[1] = { &mb };
     struct cndb           cndb = {};
@@ -963,7 +962,6 @@ MTF_DEFINE_UTEST(cndb_test, cndb_misc_test)
     u64                   seqno;
     struct kvset_meta     km = {};
     struct kvdb_health    health;
-    bool                  ingested;
     u64                   ingestid;
 
     cn.cn_cndb = &cndb;
@@ -981,10 +979,10 @@ MTF_DEFINE_UTEST(cndb_test, cndb_misc_test)
     mapi_inject(mapi_idx_mpool_mdc_append, 0);
     mapi_inject(mapi_idx_cndb_journal, 0);
     mapi_inject(mapi_idx_mpool_mdc_usage, 1);
-    err = cn_ingestv(cnv, mbv, &mbc, NULL, U64_MAX, 1, &ingested, &seqno);
+    err = cn_ingestv(cnv, mbv, U64_MAX, 1);
     ASSERT_EQ(1, err);
 
-    err = cn_ingestv(cnv, mbv, &mbc, NULL, U64_MAX, 1, &ingested, &seqno);
+    err = cn_ingestv(cnv, mbv, U64_MAX, 1);
     ASSERT_EQ(1, err);
 
     err = cndb_replay(&cndb, &seqno, &ingestid);

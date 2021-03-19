@@ -40,9 +40,7 @@ c0_ingest_work_reset(struct c0_ingest_work *c0iw)
     c0iw->c0iw_iterc = 0;
     c0iw->c0iw_coalescec = 0;
 
-    memset(c0iw->c0iw_mbc, 0, sizeof(c0iw->c0iw_mbc));
     memset(c0iw->c0iw_mbv, 0, sizeof(c0iw->c0iw_mbv));
-    memset(c0iw->c0iw_cmtv, 0, sizeof(c0iw->c0iw_cmtv));
     memset(c0iw->c0iw_coalscedkvms, 0, sizeof(c0iw->c0iw_coalscedkvms));
 }
 
