@@ -81,4 +81,4 @@ def save_report_to_db(report):
 
             print(f"Report saved to MongoDB with _id={inserted_id}")
     except pymongo.errors.PyMongoError as e:
-        print(f"WARNING: failed to save report to Mongo ({mongo_uri=}, {e=})")
+        print(f"WARNING: failed to save report to MongoDB ({mongo_uri=}, {e=})")

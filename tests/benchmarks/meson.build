@@ -1,5 +1,5 @@
-performance_needs = 'tests-kvdb bindings-python tools'
-performance_enabled = (get_option('bindings-python') and
+benchmarks_needs = 'bindings-python tests-kvdb tools'
+benchmarks_enabled = (get_option('bindings-python') and
                        get_option('tests-kvdb') != '' and
                        get_option('tools'))
 
@@ -8,13 +8,14 @@ tests = [
     'test_kmt_rw.py',
 ]
 
-nomalloc = environment({'MALLOC_PERTURB_': '0'})
+log_root = get_option('benchmarks-log-dir')
+if log_root == ''
+    log_root = meson.project_build_root() / 'benchmark-logs'
+endif
 
-log_root = meson.project_source_root() / 'logs' / 'performance'
-
-if not performance_enabled
-    warning(('HSE performance test suite disabled.'+
-             '  Requires config options: @0@').format(performance_needs))
+if not benchmarks_enabled
+    warning(('HSE benchmarks disabled.'+
+             '  Requires config options: @0@').format(benchmarks_needs))
 else
     foreach t : tests
         path = meson.current_source_dir() / t
@@ -22,10 +23,9 @@ else
 
         log_dir = log_root / testname
 
-        test(
+        benchmark(
             testname,
             python,
-            env: nomalloc,
             args: [
                 path,
                 '--kvdb',
@@ -33,8 +33,7 @@ else
                 '--log-dir',
                 log_dir,
             ],
-            is_parallel: false,
-            suite: ['performance'],
+            env: run_env,
             timeout: 60,
         )
     endforeach

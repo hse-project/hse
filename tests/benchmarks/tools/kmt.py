@@ -1,153 +1,45 @@
 import os
 import shlex
-from typing import Mapping
+from typing import List
 
 from tools import config
 from tools.base import BaseTest
 
 
-__KMT_KWARGS = [
-    "kbinsz",
-    "check",
-    "keyfmt",
-    "recmax",
-    "vlenmax",
-    "kmt_properties",
-    "verify_reads",
-    "seed",
-    "swsecs",
-    "wpct",
-    "sync_ms",
-]
-
-
-class KmtOptions:
-    def __init__(
-        self,
-        kbinsz: int = None,
-        check: bool = None,
-        keyfmt: str = None,
-        recmax: int = None,
-        vlenmax: int = None,
-        kmt_properties: Mapping[str, str] = None,
-        verify_reads: bool = None,
-        seed: int = None,
-        swsecs: int = None,
-        wpct: int = None,
-        sync_ms: int = None,
-    ):
-        self.kbinsz = kbinsz
-        self.check = check
-        self.keyfmt = keyfmt
-        self.recmax = recmax
-        self.vlenmax = vlenmax
-        if kmt_properties is None:
-            self.kmt_properties = {}
-        else:
-            self.kmt_properties = kmt_properties
-        self.verify_reads = verify_reads
-        self.seed = seed
-        self.swsecs = swsecs
-        self.wpct = wpct
-        self.sync_ms = sync_ms
-
-    def to_dict(self):
-        d = {}
-        if self.kbinsz is not None:
-            d["kbinsz"] = self.kbinsz
-        if self.check is not None:
-            d["check"] = self.check
-        if self.keyfmt is not None:
-            d["keyfmt"] = self.keyfmt
-        if self.recmax is not None:
-            d["recmax"] = self.recmax
-        if self.vlenmax is not None:
-            d["vlenmax"] = self.vlenmax
-        if self.kmt_properties:
-            d["kmt_properties"] = self.kmt_properties
-        if self.verify_reads:
-            d["verify_reads"] = self.verify_reads
-        if self.seed:
-            d["seed"] = self.seed
-        if self.swsecs:
-            d["swsecs"] = self.swsecs
-        if self.wpct:
-            d["wpct"] = self.wpct
-        if self.sync_ms:
-            d["sync_ms"] = self.sync_ms
-
-        return d
-
-
 class KmtTest(BaseTest):
-    @staticmethod
-    def __generate_args(options: KmtOptions):
-        args = ["kmt"]
-
-        if options.kbinsz is not None:
-            if options.kbinsz == 8:
-                args.append("-b")
-            else:
-                args.append("-B%d" % options.binsz)
-        if options.check is True:
-            args.append("-c")
-        if options.keyfmt is not None:
-            args.append("-f%s" % options.keyfmt)
-        if options.recmax is not None:
-            args.append("-i%d" % options.recmax)
-        if options.vlenmax is not None:
-            args.append("-l%d" % options.vlenmax)
-        if options.kmt_properties is not None:
-            for key, value in options.kmt_properties.items():
-                args.append("-o")
-                args.append("%s=%s" % (key, value))
-        if options.verify_reads is not None:
-            if options.verify_reads is False:
-                args.append("-R")
-        if options.seed is not None:
-            args.append("-S%d" % options.seed)
-        if options.swsecs is not None:
-            args.append("-t%d" % options.swsecs)
-        if options.wpct is not None:
-            args.append("-w%d" % options.wpct)
-        if options.sync_ms is not None:
-            args.append("-y%d" % options.sync_ms)
-
-        args.append("-s1")
-        args.append("-L")
-        args.append("%s/%s" % (config.KVDB_NAME, config.KVS_NAME))
-
-        return args
-
-    def __init__(self, name: str, options: KmtOptions):
+    def __init__(self, name: str, args: List[str]):
         super().__init__(name, "kmt")
-        self.options = options
-        self.args = self.__generate_args(options)
 
+        self.args = self.__fix_args(args)
+        self.kmt_out_path = None
         self.report["kmt"] = {
+            "args": self.args,
             "cmdline": shlex.join(self.args),
-            "options": self.options.to_dict(),
         }
+
+    @staticmethod
+    def __fix_args(args: List):
+        new_args = ["kmt"] + list(args)
+
+        if not any([arg.startswith('-L') for arg in args]):
+            new_args.append('-L')
+        if not any([arg.startswith('-s') for arg in args]):
+            new_args.append('-s1')
+
+        new_args.append("%s/%s" % (config.KVDB_NAME, config.KVS_NAME))
+
+        return new_args
 
     def execute(self):
         super()._init_storage()
 
-        kmt_out_path = super()._run_command(self.args)
+        self.kmt_out_path = super()._run_command(self.args)
 
-        self.__postprocess(kmt_out_path)
-
-        summary = self.get_summary()
-        print(summary)
-        print()
-
-        summary_path = os.path.join(self.log_dir, "summary.txt")
-
-        with open(summary_path, "w") as fd:
-            fd.write(summary)
-
+        self._postprocess()
+        self._save_summary()
         super()._save_report()
 
-    def __postprocess(self, kmt_out_path):
+    def _postprocess(self):
         init_phase = {
             "name": "init",
             "operations": [],
@@ -157,7 +49,7 @@ class KmtTest(BaseTest):
             "operations": [],
         }
 
-        with open(kmt_out_path) as fd:
+        with open(self.kmt_out_path) as fd:
             for line in fd:
                 if line.startswith("iclose"):
                     record = line.split()
@@ -241,7 +133,7 @@ class KmtTest(BaseTest):
             test_phase,
         ]
 
-    def get_summary(self):
+    def _save_summary(self):
         report = self.report
 
         summary = ""
@@ -253,6 +145,7 @@ class KmtTest(BaseTest):
             total_bytes_read = report["diskstats"]["overall"]["bytes_read"]
             total_bytes_written = report["diskstats"]["overall"]["bytes_written"]
         else:
+            total_bytes_discarded = "Not recorded"
             total_bytes_read = "Not recorded"
             total_bytes_written = "Not recorded"
 
@@ -278,4 +171,14 @@ class KmtTest(BaseTest):
 
         summary = summary.rstrip()
 
-        return summary
+        print(summary)
+        print()
+
+        # FIXME
+        print(os.environ)
+        print()
+
+        summary_path = os.path.join(self.log_dir, "summary.txt")
+
+        with open(summary_path, "w") as fd:
+            fd.write(summary)

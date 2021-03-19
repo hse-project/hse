@@ -10,8 +10,8 @@ def make_kvdb():
     kvs_name = config.KVS_NAME
 
     #
-    # Until mpool-kmod goes away, there is no way to drop and recreate a KVDB
-    # without being root.  Just drop and recreate the target KVS for now.
+    # Until the mpool kernel module goes away, there is no way to drop and
+    # recreate a KVDB without being root.  Just drop and recreate the KVS for now.
     #
 
     hse.Kvdb.init()
