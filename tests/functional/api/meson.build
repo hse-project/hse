@@ -2,15 +2,18 @@ common_test_c_args = [
     '-DCOMPNAME="kvdb"',
 ]
 
-common_test_includes = []
+common_test_includes = [
+    hse_include_directories,
+    test_framework_includes,
+    test_support_includes, #TODO: remove once test framework is independant of mocking
+    tools_includes,
+    get_option('mpool-include-dir'),
+]
 
 common_test_sources = []
 
 common_test_dependencies = [
-    hse_dependencies,
-    hse_dep,
-    hse_mock_dep,
-    hse_mock_repository_dep,
+    hse_static_dep,
 ]
 
 tests = {
@@ -60,22 +63,21 @@ foreach t, params : tests
 
     t_is_parallel = 'is_parallel' in params ? params['is_parallel'] : true
 
-    t_args = []
     if 'cases' in params
         foreach ident, args : params['cases']
             t_name = ident == 'default' ? t : '@0@[@1@]'.format(t, ident)
-            t_args += args
 
             test(
                 t_name,
                 t_exe,
-                args: t_args,
+                args: args,
                 env: t_env,
                 is_parallel: t_is_parallel,
                 suite: t_suites,
             )
         endforeach
     else
+        t_args = []
         if 'args' in params
             t_args += params['args']
         endif

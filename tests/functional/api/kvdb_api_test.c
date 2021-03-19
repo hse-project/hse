@@ -14,10 +14,8 @@ test_collection_setup(struct mtf_test_info *info)
 {
     hse_err_t                  rc;
     struct mtf_test_coll_info *coll_info = info->ti_coll;
-    hse_openlog("kvdb_api_test", 1);
 
     if (coll_info->tci_argc != 2) {
-        hse_log(HSE_ERR "Usage:  %s <mpool_name>", coll_info->tci_argv[0]);
         return -1;
     }
 
