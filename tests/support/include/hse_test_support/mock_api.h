@@ -12,10 +12,6 @@
 
 #include "mapi_idx.h"
 
-/*
- * Make setting and removing mocks less noisy.
- * See tests/mocks/repository/mock_mpool.c for examples.
- */
 #define MOCK_SET(group, func) mtfm_##group##func##_set(func)
 #define MOCK_UNSET(group, func) mtfm_##group##func##_set(0)
 
@@ -24,7 +20,7 @@
 #define MOCK_UNSET_FN(group, orig_func) mtfm_##group##_##orig_func##_set(0)
 
 /**
- * mapi_init() - initialize mapi
+ * mapi_init() - Initialize Mocking API (aka, mapi)
  *
  * Must be called before mapi can be used.  Sets the global %mapi_enabled
  * flag to true if successful.
@@ -158,6 +154,48 @@ bool
 mapi_inject_check_ptr(u32 api, void **ptr);
 
 extern bool mapi_enabled;
+
+struct mapi_injection {
+    int   api;
+    int   rc_cookie;
+    u64   rc_scalar;
+    void *rc_ptr;
+};
+/* A hack to make the initialization of struct mapi_injection arrays
+ * both readable and safe (ie, can detect misuse).  Users do this:
+ *
+ *    struct mapi_injection list[] = {
+ *        { mapi_idx_foo,  MAPI_RC_SCALAR, 100 },
+ *        { mapi_idx_bar,  MAPI_RC_PTR,    NULL },
+ *        { -1 },
+ *    };
+ *
+ * The above will result in rc_cookie indicating scalar or ptr.  If
+ * rc_cookie is invalid, the array was incorrectly initialized.
+ */
+#define MAPI_RC_COOKIE_SCALAR  0x835ab001
+#define MAPI_RC_COOKIE_PTR     0x835ab002
+#define MAPI_RC_SCALAR  MAPI_RC_COOKIE_SCALAR
+#define MAPI_RC_PTR     MAPI_RC_COOKIE_PTR, 0
+
+void
+mapi_inject_list(
+    struct mapi_injection  *injectv,
+    bool                    set);
+
+static inline void
+mapi_inject_list_set(
+    struct mapi_injection  *injectv)
+{
+    mapi_inject_list(injectv, true);
+}
+
+static inline void
+mapi_inject_list_unset(
+    struct mapi_injection  *injectv)
+{
+    mapi_inject_list(injectv, false);
+}
 
 #else
 

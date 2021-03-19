@@ -6,14 +6,7 @@
 #ifndef HSE_KVS_CN_TEST_MOCK_KBB_VBB_H
 #define HSE_KVS_CN_TEST_MOCK_KBB_VBB_H
 
-void
-mock_kbb_set(void);
-void
-mock_kbb_unset(void);
-
-void
-mock_vbb_set(void);
-void
-mock_vbb_unset(void);
+void mock_kbb_vbb_set(void);
+void mock_kbb_vbb_unset(void);
 
 #endif

@@ -644,16 +644,25 @@ _kvset_iter_seek(struct kv_iterator *kvi, const void *key, int len, bool *eof)
     return 0;
 }
 
+/* Prefer the mapi_inject_list method for mocking functions over the
+ * MOCK_SET/MOCK_UNSET macros if the mock simply needs to return a
+ * constant value.  The advantage of the mapi_inject_list approach is
+ * less code (no need to define a replacement function) and easier
+ * maintenance (will not break when the mocked function signature
+ * changes).
+ */
+static struct mapi_injection inject_list[] = {
+    { mapi_idx_kvset_kblk_start, MAPI_RC_SCALAR, 0},
+    { mapi_idx_kvset_get_scatter_score, MAPI_RC_SCALAR, 10},
+    { -1 }
+};
+
 void
 mock_kvset_set(void)
 {
     mock_mpool_set();
 
-    /* Allow repeated init() w/o intervening unset() */
-    mock_kvset_unset();
-
-    mapi_inject(mapi_idx_kvset_kblk_start, 0);
-    mapi_inject(mapi_idx_kvset_get_scatter_score, 10);
+    mapi_inject_list_set(inject_list);
 
     MOCK_SET(kvset, _kvset_create);
     MOCK_SET(kvset, _kvset_get_nth_vblock_len);
@@ -680,7 +689,7 @@ mock_kvset_set(void)
 void
 mock_kvset_unset(void)
 {
-    mapi_inject_clear();
+    mapi_inject_list_unset(inject_list);
 
     MOCK_UNSET(kvset, _kvset_create);
     MOCK_UNSET(kvset, _kvset_get_nth_vblock_len);

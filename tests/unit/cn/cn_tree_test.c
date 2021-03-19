@@ -151,12 +151,6 @@ _kvset_get_dgen(struct kvset *handle)
     return ((struct fake_kvset *)handle)->dgen;
 }
 
-static uint
-_kvset_get_compc(struct kvset *handle)
-{
-    return 0;
-}
-
 static u64
 _kvset_get_workid(struct kvset *handle)
 {
@@ -243,85 +237,87 @@ _kvset_iter_release(struct kv_iterator *h)
     mapi_safe_free(mk);
 }
 
-/*----------------------------------------------------------------
- * Injections
+/* Prefer the mapi_inject_list method for mocking functions over the
+ * MOCK_SET/MOCK_UNSET macros if the mock simply needs to return a
+ * constant value.  The advantage of the mapi_inject_list approach is
+ * less code (no need to define a replacement function) and easier
+ * maintenance (will not break when the mocked function signature
+ * changes).
  */
+struct mapi_injection inject_list[] = {
 
-struct injections {
-    u64 rc;
-    u32 api;
-};
+    /* kvset */
+    { mapi_idx_kvset_create, MAPI_RC_SCALAR, 0 },
+    { mapi_idx_kvset_put_ref, MAPI_RC_SCALAR, 0 },
+    { mapi_idx_kvset_get_ref, MAPI_RC_SCALAR, 0 },
+    { mapi_idx_kvset_log_d_records, MAPI_RC_SCALAR, 0 },
+    { mapi_idx_kvset_mark_mblocks_for_delete, MAPI_RC_SCALAR, 0 },
+    { mapi_idx_kvset_madvise_kblks, MAPI_RC_SCALAR, 0 },
+    { mapi_idx_kvset_madvise_kmaps, MAPI_RC_SCALAR, 0 },
+    { mapi_idx_kvset_madvise_vblks, MAPI_RC_SCALAR, 0 },
+    { mapi_idx_kvset_madvise_vmaps, MAPI_RC_SCALAR, 0 },
+    { mapi_idx_kvset_get_scatter_score, MAPI_RC_SCALAR, 0 },
+    { mapi_idx_kvset_get_compc, MAPI_RC_SCALAR, 0 },
+    { mapi_idx_kvset_ctime, MAPI_RC_SCALAR, 929523521341 },
+    { mapi_idx_kvset_kblk_start, MAPI_RC_SCALAR, KVSET_MISS_KEY_TOO_SMALL },
+    { mapi_idx_kvset_get_seqno_max, MAPI_RC_SCALAR, 1234 },
+    { mapi_idx_kvset_get_hlog, MAPI_RC_SCALAR, 0 },
+    { mapi_idx_kvset_get_vbsetv, MAPI_RC_SCALAR, 0 },
 
-struct injections injections[] = {
-
-    /* kvset: fake success */
-    { 0, mapi_idx_kvset_create },
-    { 0, mapi_idx_kvset_put_ref },
-    { 0, mapi_idx_kvset_get_ref },
-    { 0, mapi_idx_kvset_log_d_records },
-    { 0, mapi_idx_kvset_mark_mblocks_for_delete },
-    { 0, mapi_idx_kvset_madvise_kblks },
-    { 0, mapi_idx_kvset_madvise_kmaps },
-    { 0, mapi_idx_kvset_madvise_vblks },
-    { 0, mapi_idx_kvset_madvise_vmaps },
-    { 0, mapi_idx_kvset_get_scatter_score },
-
-    /* kvset: fake failure */
-    { 929523521341, mapi_idx_kvset_ctime },
-    { KVSET_MISS_KEY_TOO_SMALL, mapi_idx_kvset_kblk_start },
-    { 1234, mapi_idx_kvset_get_seqno_max },
-    { 0, mapi_idx_kvset_get_hlog },
-    { 0, mapi_idx_kvset_get_vbsetv },
-
-    /* cn: fake success */
-    { 0, mapi_idx_cn_kcompact },
-    { 0, mapi_idx_cn_spill },
-    { 0, mapi_idx_cn_mblocks_commit },
-    { 0, mapi_idx_cn_mblocks_destroy },
-    { 0, mapi_idx_cn_get_flags },
-    { 10, mapi_idx_cn_get_seqno_horizon },
-    { 0, mapi_idx_cn_get_cancel },
-    { 0, mapi_idx_cn_get_flags },
-    { 0, mapi_idx_cn_get_sched },
-    { 0, mapi_idx_cn_get_maint_wq },
-    { 0, mapi_idx_cn_inc_ingest_dgen },
+    /* cn */
+    { mapi_idx_cn_kcompact, MAPI_RC_SCALAR, 0 },
+    { mapi_idx_cn_spill, MAPI_RC_SCALAR, 0 },
+    { mapi_idx_cn_mblocks_commit, MAPI_RC_SCALAR, 0 },
+    { mapi_idx_cn_mblocks_destroy, MAPI_RC_SCALAR, 0 },
+    { mapi_idx_cn_get_flags, MAPI_RC_SCALAR, 0 },
+    { mapi_idx_cn_get_seqno_horizon, MAPI_RC_SCALAR, 10 },
+    { mapi_idx_cn_get_cancel, MAPI_RC_SCALAR, 0 },
+    { mapi_idx_cn_get_flags, MAPI_RC_SCALAR, 0 },
+    { mapi_idx_cn_get_sched, MAPI_RC_SCALAR, 0 },
+    { mapi_idx_cn_get_maint_wq, MAPI_RC_SCALAR, 0 },
+    { mapi_idx_cn_inc_ingest_dgen, MAPI_RC_SCALAR, 0 },
+    { mapi_idx_cn_mpool_dev_zone_alloc_unit_default, MAPI_RC_SCALAR, 32 << 20 },
 
     /* csched */
-    { 0, mapi_idx_csched_notify_ingest },
+    { mapi_idx_csched_notify_ingest, MAPI_RC_SCALAR, 0 },
 
-    /* cndb: fake success */
-    { 0, mapi_idx_cndb_txn_start },
-    { 0, mapi_idx_cndb_txn_txc },
-    { 0, mapi_idx_cndb_txn_txd },
-    { 0, mapi_idx_cndb_txn_meta },
-    { 0, mapi_idx_cndb_txn_ack_c },
-    { 0, mapi_idx_cndb_txn_ack_d },
-    { 0, mapi_idx_cndb_txn_nak },
+    /* cndb  */
+    { mapi_idx_cndb_txn_start, MAPI_RC_SCALAR, 0 },
+    { mapi_idx_cndb_txn_txc, MAPI_RC_SCALAR, 0 },
+    { mapi_idx_cndb_txn_txd, MAPI_RC_SCALAR, 0 },
+    { mapi_idx_cndb_txn_meta, MAPI_RC_SCALAR, 0 },
+    { mapi_idx_cndb_txn_ack_c, MAPI_RC_SCALAR, 0 },
+    { mapi_idx_cndb_txn_ack_d, MAPI_RC_SCALAR, 0 },
+    { mapi_idx_cndb_txn_nak, MAPI_RC_SCALAR, 0 },
 
-    { 0, mapi_idx_hlog_create },
-    { 0, mapi_idx_hlog_destroy },
-    { 0, mapi_idx_hlog_reset },
-    { 0, mapi_idx_hlog_data },
-    { 0, mapi_idx_hlog_union },
-    { 0, mapi_idx_hlog_precision },
-    { 0, mapi_idx_hlog_add },
-    { 0, mapi_idx_hlog_card },
+    /* hlog  */
+    { mapi_idx_hlog_create, MAPI_RC_SCALAR, 0 },
+    { mapi_idx_hlog_destroy, MAPI_RC_SCALAR, 0 },
+    { mapi_idx_hlog_reset, MAPI_RC_SCALAR, 0 },
+    { mapi_idx_hlog_data, MAPI_RC_SCALAR, 0 },
+    { mapi_idx_hlog_union, MAPI_RC_SCALAR, 0 },
+    { mapi_idx_hlog_precision, MAPI_RC_SCALAR, 0 },
+    { mapi_idx_hlog_add, MAPI_RC_SCALAR, 0 },
+    { mapi_idx_hlog_card, MAPI_RC_SCALAR, 0 },
 
-    { 0, mapi_idx_ikvdb_get_csched },
+    /* ikvdb */
+    { mapi_idx_ikvdb_get_csched, MAPI_RC_SCALAR, 0 },
 
     /* kvset mblock ids */
-    { 0xabc001, mapi_idx_kvset_get_nth_kblock_id },
-    { 0xabc002, mapi_idx_kvset_get_nth_vblock_id },
-    { 128 * 1024, mapi_idx_kvset_get_nth_vblock_len },
+    { mapi_idx_kvset_get_nth_kblock_id, MAPI_RC_SCALAR, 0xabc001 },
+    { mapi_idx_kvset_get_nth_vblock_id, MAPI_RC_SCALAR, 0xabc002 },
+    { mapi_idx_kvset_get_nth_vblock_len, MAPI_RC_SCALAR, 128 * 1024 },
 
     /* we need kvset_iter_create, but we should never
      * need the guts of an iterator b/c we mock
      * the actual compact/spill functions. */
-    { 0, mapi_idx_kvset_iter_set_stats },
-    { -1, mapi_idx_kvset_iter_seek },
-    { -1, mapi_idx_kvset_iter_next_key },
-    { -1, mapi_idx_kvset_iter_next_val },
-    { -1, mapi_idx_kvset_iter_next_vref },
+    { mapi_idx_kvset_iter_set_stats, MAPI_RC_SCALAR, 0 },
+    { mapi_idx_kvset_iter_seek, MAPI_RC_SCALAR, -1 },
+    { mapi_idx_kvset_iter_next_key, MAPI_RC_SCALAR, -1 },
+    { mapi_idx_kvset_iter_next_val, MAPI_RC_SCALAR, -1 },
+    { mapi_idx_kvset_iter_next_vref, MAPI_RC_SCALAR, -1 },
+
+    { -1 },
 };
 
 static int
@@ -341,17 +337,11 @@ postload(struct mtf_test_info *lcl_ti)
 static int
 test_setup(struct mtf_test_info *lcl_ti)
 {
-    int i;
-
-    for (i = 0; i < NELEM(injections); i++)
-        mapi_inject(injections[i].api, injections[i].rc);
+    mapi_inject_list_set(inject_list);
 
     MOCK_SET(kvset, _kvset_iter_create);
     MOCK_SET(kvset, _kvset_from_iter);
 
-    mapi_inject(mapi_idx_cn_mpool_dev_zone_alloc_unit_default, 32 << 20);
-
-    MOCK_SET(kvset, _kvset_get_compc);
     MOCK_SET(kvset, _kvset_get_max_key);
     MOCK_SET(kvset, _kvset_statsp);
     MOCK_SET(kvset, _kvset_stats);

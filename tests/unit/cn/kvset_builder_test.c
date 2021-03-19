@@ -49,8 +49,7 @@ pre(struct mtf_test_info *mtf)
     mocked_kvs_rp = kvs_rparams_defaults();
     MOCK_SET_FN(cn, cn_get_rp, mocked_cn_get_rp);
 
-    mock_kbb_set();
-    mock_vbb_set();
+    mock_kbb_vbb_set();
 
     return 0;
 }

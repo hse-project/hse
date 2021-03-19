@@ -37,59 +37,46 @@ _vbb_create(
     return 0;
 }
 
-/*----------------------------------------------------------------
- * Install/Remove kbb/vbb mocks
+/* Prefer the mapi_inject_list method for mocking functions over the
+ * MOCK_SET/MOCK_UNSET macros if the mock simply needs to return a
+ * constant value.  The advantage of the mapi_inject_list approach is
+ * less code (no need to define a replacement function) and easier
+ * maintenance (will not break when the mocked function signature
+ * changes).
  */
+static struct mapi_injection inject_list[] = {
+    /* kblock builder */
+    { mapi_idx_kbb_destroy, MAPI_RC_SCALAR, 0},
+    { mapi_idx_kbb_add_entry, MAPI_RC_SCALAR, 0},
+    { mapi_idx_kbb_add_entry, MAPI_RC_SCALAR, 0},
+    { mapi_idx_kbb_add_ptomb, MAPI_RC_SCALAR, 0},
+    { mapi_idx_kbb_finish, MAPI_RC_SCALAR, 0},
+    /* vblock builder */
+    { mapi_idx_vbb_destroy, MAPI_RC_SCALAR, 0},
+    { mapi_idx_vbb_add_entry, MAPI_RC_SCALAR, 0},
+    { mapi_idx_vbb_finish, MAPI_RC_SCALAR, 0},
+    /* required termination */
+    { -1 },
+};
 
 void
-mock_kbb_set(void)
+mock_kbb_vbb_set(void)
 {
     mock_mpool_set();
-
-    /* Allow repeated init() w/o intervening unset() */
-    mock_kbb_unset();
 
     MOCK_SET(kblock_builder, _kbb_create);
-
-    mapi_inject(mapi_idx_kbb_destroy, 0);
-    mapi_inject(mapi_idx_kbb_add_entry, 0);
-    mapi_inject(mapi_idx_kbb_add_entry, 0);
-    mapi_inject(mapi_idx_kbb_add_ptomb, 0);
-    mapi_inject(mapi_idx_kbb_finish, 0);
-}
-
-void
-mock_kbb_unset(void)
-{
-    MOCK_UNSET(kblock_builder, _kbb_create);
-
-    mapi_inject_unset(mapi_idx_kbb_destroy);
-    mapi_inject_unset(mapi_idx_kbb_add_entry);
-    mapi_inject_unset(mapi_idx_kbb_add_ptomb);
-    mapi_inject_unset(mapi_idx_kbb_finish);
-}
-
-void
-mock_vbb_set(void)
-{
-    mock_mpool_set();
-
-    /* Allow repeated init() w/o intervening unset() */
-    mock_vbb_unset();
-
     MOCK_SET(vblock_builder, _vbb_create);
 
-    mapi_inject(mapi_idx_vbb_destroy, 0);
-    mapi_inject(mapi_idx_vbb_add_entry, 0);
-    mapi_inject(mapi_idx_vbb_finish, 0);
+    mapi_inject_list_set(inject_list);
 }
 
 void
-mock_vbb_unset(void)
+mock_kbb_vbb_unset(void)
 {
+    mock_mpool_unset();
+
+    MOCK_UNSET(kblock_builder, _kbb_create);
     MOCK_UNSET(vblock_builder, _vbb_create);
 
-    mapi_inject_unset(mapi_idx_vbb_destroy);
-    mapi_inject_unset(mapi_idx_vbb_add_entry);
-    mapi_inject_unset(mapi_idx_vbb_finish);
+    mapi_inject_list_unset(inject_list);
 }

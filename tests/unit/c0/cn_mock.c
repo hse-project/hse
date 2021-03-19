@@ -103,6 +103,22 @@ mock_cn_best_ingest_count(struct cn *cn, unsigned avg_key_len)
     return mock_cn->ingest_count;
 }
 
+/* Prefer the mapi_inject_list method for mocking functions over the
+ * MOCK_SET/MOCK_UNSET macros if the mock simply needs to return a
+ * constant value.  The advantage of the mapi_inject_list approach is
+ * less code (no need to define a replacement function) and easier
+ * maintenance (will not break when the mocked function signature
+ * changes).
+ */
+struct mapi_injection inject_list[] = {
+    { mapi_idx_cn_disable_maint, MAPI_RC_SCALAR, 0},
+    { mapi_idx_cn_get_cnid, MAPI_RC_SCALAR, 1},
+    { mapi_idx_cn_get_rp, MAPI_RC_SCALAR, 0},
+    { mapi_idx_cn_disable_maint, MAPI_RC_SCALAR, 0},
+    { -1 }
+};
+
+
 merr_t
 create_mock_cn(
     struct cn **        cn,
@@ -122,12 +138,11 @@ create_mock_cn(
     MOCK_SET(cn, _cn_ingestv);
     MOCK_SET(cn, _cn_get_cparams);
 
+    mapi_inject_list_set(inject_list);
+
     mock_cn->cp->cp_fanout = 16;
     mock_cn->cp->cp_pfx_len = pfx_len;
-    mapi_inject(mapi_idx_cn_disable_maint, 0);
-    mapi_inject(mapi_idx_cn_get_cnid, 1);
-    mapi_inject(mapi_idx_cn_get_rp, 0);
-    mapi_inject(mapi_idx_cn_disable_maint, 0);
+
 
     mock_cn->integrity_check = INTEGRITY_CHECK;
     mock_cn->delay_merge = delay_merge;

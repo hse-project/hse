@@ -70,11 +70,6 @@ _kvset_builder_create(
     return 0;
 }
 
-static void
-_kvset_builder_set_agegroup(struct kvset_builder *bldr, enum hse_mclass_policy_age age)
-{
-}
-
 struct mock_kvdb {
     struct c0sk *ikdb_c0sk;
 };
@@ -87,29 +82,43 @@ _ikvdb_get_c0sk(struct ikvdb *kvdb, struct c0sk **out)
     *out = mkvdb->ikdb_c0sk;
 }
 
-void
-mocks_unset()
-{
-    mapi_inject_clear();
-}
+/* Prefer the mapi_inject_list method for mocking functions over the
+ * MOCK_SET/MOCK_UNSET macros if the mock simply needs to return a
+ * constant value.  The advantage of the mapi_inject_list approach is
+ * less code (no need to define a replacement function) and easier
+ * maintenance (will not break when the mocked function signature
+ * changes).
+ */
+static struct mapi_injection inject_list[] = {
+    { mapi_idx_kvset_builder_set_agegroup, MAPI_RC_SCALAR, 0},
+    { mapi_idx_kvset_builder_get_mblocks, MAPI_RC_SCALAR, 0},
+    { mapi_idx_kvset_builder_add_key, MAPI_RC_SCALAR, 0},
+    { mapi_idx_kvset_builder_add_val, MAPI_RC_SCALAR, 0},
+    { mapi_idx_kvset_builder_add_nonval, MAPI_RC_SCALAR, 0},
+    { mapi_idx_kvset_builder_add_vref, MAPI_RC_SCALAR, 0},
+    { mapi_idx_kvset_builder_destroy, MAPI_RC_SCALAR, 0},
+    { mapi_idx_kvset_mblocks_destroy, MAPI_RC_SCALAR, 0},
+    { -1 }
+};
 
 void
 mocks_set(struct mtf_test_info *info)
 {
-    /* Allow repeated test_collection_setup() w/o intervening unset() */
-    mocks_unset();
-
     MOCK_SET(ikvdb, _ikvdb_get_c0sk);
-    MOCK_SET(kvset_builder, _kvset_builder_create);
-    MOCK_SET(kvset_builder, _kvset_builder_set_agegroup);
 
-    mapi_inject(mapi_idx_kvset_builder_get_mblocks, 0);
-    mapi_inject(mapi_idx_kvset_builder_add_key, 0);
-    mapi_inject(mapi_idx_kvset_builder_add_val, 0);
-    mapi_inject(mapi_idx_kvset_builder_add_nonval, 0);
-    mapi_inject(mapi_idx_kvset_builder_add_vref, 0);
-    mapi_inject(mapi_idx_kvset_builder_destroy, 0);
-    mapi_inject(mapi_idx_kvset_mblocks_destroy, 0);
+    MOCK_SET(kvset_builder, _kvset_builder_create);
+
+    mapi_inject_list_set(inject_list);
+}
+
+void
+mocks_unset()
+{
+    MOCK_UNSET(ikvdb, _ikvdb_get_c0sk);
+
+    MOCK_UNSET(kvset_builder, _kvset_builder_create);
+
+    mapi_inject_list_unset(inject_list);
 }
 
 int
