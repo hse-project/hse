@@ -23,19 +23,8 @@
 #include <hse_ikvdb/limits.h>
 
 #include <syscall.h>
-#include <semaphore.h>
 
 struct c0snr_set {
-};
-
-/* The bucket mask is indexed by the number of active transactions
- * to obtain a bitmask used to constrain the number of buckets
- * available to c0snr_set_insert().  Keeping the number of
- * buckets reasonably constrained w.r.t the number of active ctxns
- * reduces the overhead required to maintain the horizon.
- */
-static const u8 c0snr_set_bkt_maskv[] = {
-    3, 3, 3, 3, 7, 7, 7, 7, 7, 7, 7, 15, 15, 15, 15, 15
 };
 
 /**
@@ -49,19 +38,12 @@ struct c0snr_set_bkt {
 /**
  * struct c0snr_set_impl -
  * @css_handle:         opaque handle for this struct
- * @css_active:         count of active c0snrs
  * @css_bktv:           active c0snr buckets
  */
 struct c0snr_set_impl {
-    struct c0snr_set        css_handle;
-    u8                      css_maskv[NELEM(c0snr_set_bkt_maskv)];
-
-    struct {
-        atomic_t css_active HSE_ALIGNED(SMP_CACHE_BYTES * 2);
-    } css_nodev[2];
-
-    struct c0snr_set_bkt css_bktv[] HSE_ALIGNED(SMP_CACHE_BYTES * 2);
-};
+    struct c0snr_set     css_handle;
+    struct c0snr_set_bkt css_bktv[16];
+} HSE_ALIGNED(SMP_CACHE_BYTES * 2);
 
 #define c0snr_set_h2r(handle) container_of(handle, struct c0snr_set_impl, css_handle)
 
@@ -71,22 +53,19 @@ struct c0snr_set_entry;
  * struct c0snr_set_entry -
  * @cse_list:           ptr to the c0snr_set_list object
  * @cse_ctxn:           handle to the transaction (if active)
- * @cse_active:         ptr to css_active (tracks number of active c0snrs)
  * @cse_kvms_gen:       last active kvms gen to use this c0snr
  * @cse_refcnt:         reference count (txn, kvms acquire refs)
  */
 struct c0snr_set_entry {
+    atomic_t                    cse_refcnt;
     struct c0snr_set_list      *cse_list;
     volatile struct kvdb_ctxn  *cse_ctxn;
-    atomic_t                   *cse_active;
     u64                         cse_kvms_gen;
 
     union {
         uintptr_t   cse_c0snr;
         void       *cse_next;
     };
-
-    atomic_t                    cse_refcnt;
 } HSE_ALIGNED(SMP_CACHE_BYTES);
 
 #define KVMS_GEN_INVALID   (~0UL)
@@ -95,16 +74,17 @@ struct c0snr_set_entry {
 /**
  * struct c0snr_set_list
  * @act_lock:      lock protecting the list
+ * @act_index:     index into css_bktv[]
  * @act_cache:     head of entry cache free list
  * @act_entryc:    number of entries allocated from act_entryv[]
  * @act_entrymax:  max number of entries in act_entryv[]
- * @act_mem:       base of memory allocation that contains self
- * @act_memsz:     size of act_mem buffer
  * @act_entryv:    fixed-size cache of entry objects
+ * @act_memsz:     size of act_mem buffer
+ * @act_mem:       base of memory allocation that contains self
  */
 struct c0snr_set_list {
-    spinlock_t              act_lock HSE_ALIGNED(SMP_CACHE_BYTES * 2);
-    sem_t                   act_sema;
+    spinlock_t              act_lock;
+    uint                    act_index;
     struct c0snr_set_entry *act_cache;
     uint                    act_entryc;
     uint                    act_entrymax;
@@ -112,8 +92,8 @@ struct c0snr_set_list {
     /* Abort handler can go away when LC is in place */
     c0snr_set_abort_func   *css_abort_func;
 
-    void                   *act_mem;
     size_t                  act_memsz;
+    void                   *act_mem;
 
     struct c0snr_set_entry  act_entryv[];
 };
@@ -180,7 +160,7 @@ c0snr_set_list_create(u32 max_elts, u32 index, struct c0snr_set_list **tree)
 
     memset(self, 0, sizeof(*self));
     spin_lock_init(&self->act_lock);
-    sem_init(&self->act_sema, 0, 4);
+    self->act_index = index;
     self->act_entrymax = max_elts;
     self->act_mem = mem;
     self->act_memsz = sz;
@@ -193,7 +173,6 @@ c0snr_set_list_create(u32 max_elts, u32 index, struct c0snr_set_list **tree)
 void
 c0snr_set_list_destroy(struct c0snr_set_list *self)
 {
-    sem_destroy(&self->act_sema);
     vlb_free(self->act_mem, self->act_memsz);
 }
 
@@ -205,20 +184,15 @@ c0snr_set_create(c0snr_set_abort_func *afunc, struct c0snr_set **handle)
     u32    max_elts = HSE_C0SNRSET_ELTS_MAX;
     u32    max_bkts;
     merr_t err = 0;
-    size_t sz;
     int    i;
 
-    max_bkts = NELEM(self->css_maskv);
+    max_bkts = NELEM(self->css_bktv);
 
-    sz = sizeof(*self);
-    sz += sizeof(self->css_bktv[0]) * max_bkts;
-
-    self = alloc_aligned(sz, __alignof(*self));
+    self = alloc_aligned(sizeof(*self), __alignof(*self));
     if (ev(!self))
         return merr(ENOMEM);
 
-    memset(self, 0, sz);
-    memcpy(self->css_maskv, c0snr_set_bkt_maskv, sizeof(self->css_maskv));
+    memset(self, 0, sizeof(*self));
 
     for (i = 0; i < max_bkts; ++i) {
         struct c0snr_set_bkt *bkt = self->css_bktv + i;
@@ -229,9 +203,6 @@ c0snr_set_create(c0snr_set_abort_func *afunc, struct c0snr_set **handle)
 
         bkt->csb_list->css_abort_func = afunc? afunc : c0snr_set_abort_fn;
     }
-
-    atomic_set(&self->css_nodev[0].css_active, 0);
-    atomic_set(&self->css_nodev[1].css_active, 0);
 
     *handle = &self->css_handle;
 
@@ -247,14 +218,14 @@ void
 c0snr_set_destroy(struct c0snr_set *handle)
 {
     struct c0snr_set_impl *self;
-    int                          i;
+    int i;
 
     if (ev(!handle))
         return;
 
     self = c0snr_set_h2r(handle);
 
-    for (i = 0; i < NELEM(c0snr_set_bkt_maskv); ++i) {
+    for (i = 0; i < NELEM(self->css_bktv); ++i) {
         struct c0snr_set_bkt *bkt = self->css_bktv + i;
 
         c0snr_set_list_destroy(bkt->csb_list);
@@ -270,9 +241,6 @@ c0snr_set_get_c0snr(struct c0snr_set *handle, struct kvdb_ctxn *ctxn)
     struct c0snr_set_entry *entry;
     struct c0snr_set_list  *cslist;
     struct c0snr_set_bkt   *bkt;
-    atomic_t               *active;
-    sem_t                  *sema;
-    uint                    idx;
 
     static __thread uint cpuid, nodeid, cnt;
 
@@ -281,38 +249,18 @@ c0snr_set_get_c0snr(struct c0snr_set *handle, struct kvdb_ctxn *ctxn)
             cpuid = nodeid = raw_smp_processor_id();
     }
 
-    active = &self->css_nodev[nodeid & 1].css_active;
-
-    idx = atomic_inc_return(active) / 2;
-    if (idx > NELEM(c0snr_set_bkt_maskv) - 1)
-        idx = NELEM(c0snr_set_bkt_maskv) - 1;
-
-    bkt = self->css_bktv + (cpuid & self->css_maskv[idx]);
+    bkt = self->css_bktv + (nodeid & 1) * (NELEM(self->css_bktv) / 2);
+    bkt += cpuid % (NELEM(self->css_bktv) / 2);
     cslist = bkt->csb_list;
-    sema = NULL;
 
-    if (!spin_trylock(&cslist->act_lock)) {
-        if (idx > 4) {
-            sema = &cslist->act_sema;
-            if (sem_wait(sema))
-                sema = NULL; /* Probably EINTR */
-        }
-        spin_lock(&cslist->act_lock);
-    }
-
+    spin_lock(&cslist->act_lock);
     entry = c0snr_set_entry_alloc(cslist);
     spin_unlock(&cslist->act_lock);
 
-    if (sema)
-        sem_post(sema);
-
-    if (ev(!entry)) {
-        atomic_dec(active);
+    if (ev(!entry))
         return NULL;
-    }
 
     entry->cse_ctxn = ctxn;
-    entry->cse_active = active;
     entry->cse_kvms_gen = KVMS_GEN_INVALID;
     entry->cse_c0snr = HSE_SQNREF_INVALID;
 
@@ -377,7 +325,6 @@ c0snr_dropref(
 {
     struct c0snr_set_entry *entry;
     struct c0snr_set_list  *tree;
-    atomic_t               *active;
 
     entry = priv_to_c0snr_set_entry(priv);
 
@@ -385,14 +332,61 @@ c0snr_dropref(
         return;
 
     tree = entry->cse_list;
-    active = entry->cse_active;
 
     /* All the readers are done, free the entry */
     spin_lock(&tree->act_lock);
     c0snr_set_entry_free(tree, entry);
     spin_unlock(&tree->act_lock);
+}
 
-    atomic_dec(active);
+void
+c0snr_droprefv(int refc, uintptr_t **refv)
+{
+    struct c0snr_set_impl *self;
+    int i;
+
+    struct bkt {
+        struct c0snr_set_entry **tailp;
+        struct c0snr_set_entry  *head;
+    } *bkt, bktv[NELEM(self->css_bktv)];
+
+    for (bkt = bktv; bkt < bktv + NELEM(bktv); ++bkt) {
+        bkt->tailp = &bkt->head;
+        *bkt->tailp = NULL;
+    }
+
+    for (i = 0; i < refc; ++i) {
+        if (refv[i]) {
+            struct c0snr_set_entry *entry;
+
+            entry = priv_to_c0snr_set_entry(refv[i]);
+
+            if (atomic_dec_return(&entry->cse_refcnt) > 0)
+                continue;
+
+            /* All the readers are done, append the entry to the
+             * appropriate list.  We'll return them all to their
+             * respective cache buckets en masse in order to
+             * reduce contention on the list locks.
+             */
+            bkt = bktv + entry->cse_list->act_index;
+            *bkt->tailp = entry;
+            bkt->tailp = (void *)&entry->cse_next;
+        }
+    }
+
+    for (bkt = bktv; bkt < bktv + NELEM(bktv); ++bkt) {
+        if (bkt->head) {
+            struct c0snr_set_list *csl;
+
+            csl = bkt->head->cse_list;
+
+            spin_lock(&csl->act_lock);
+            *bkt->tailp = csl->act_cache;
+            csl->act_cache = bkt->head;
+            spin_unlock(&csl->act_lock);
+        }
+    }
 }
 
 bool

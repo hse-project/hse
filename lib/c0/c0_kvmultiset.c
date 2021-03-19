@@ -978,12 +978,8 @@ c0kvms_destroy(struct c0_kvmultiset_impl *mset)
 
     c0_ingest_work_fini(mset->c0ms_ingest_work);
 
-    for (i = 0; i < c0snr_cnt; i++) {
-        uintptr_t *ptr = (uintptr_t *)mset->c0ms_c0snr_base[i];
+    c0snr_droprefv(c0snr_cnt, (uintptr_t **)mset->c0ms_c0snr_base);
 
-        if (ptr)
-            c0snr_dropref(ptr);
-    }
     atomic_sub(c0snr_cnt, &mset->c0ms_c0snr_cnt);
 
     assert(atomic_read(&mset->c0ms_c0snr_cnt) == 0);
