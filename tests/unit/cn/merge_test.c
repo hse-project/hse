@@ -1545,13 +1545,24 @@ test_collection_teardown(struct mtf_test_info *info)
 int
 test_prehook(struct mtf_test_info *info)
 {
+    /* Install the generic kvset builder mock. */
     mock_kvset_builder_set();
+
+    /* We want to override some functions from the generic mock using
+     * MOCK_SET. For each such function, we must use mapi_inject_unset()
+     * to remove generic mock or else the MOCK_SET will not take effect.
+     */
+    mapi_inject_unset(mapi_idx_kvset_builder_add_key);
+    mapi_inject_unset(mapi_idx_kvset_builder_add_val);
+    mapi_inject_unset(mapi_idx_kvset_builder_add_nonval);
+    mapi_inject_unset(mapi_idx_kvset_builder_add_vref);
 
     MOCK_SET(kvset_builder, _kvset_builder_add_key);
     MOCK_SET(kvset_builder, _kvset_builder_add_val);
     MOCK_SET(kvset_builder, _kvset_builder_add_nonval);
     MOCK_SET(kvset_builder, _kvset_builder_add_vref);
 
+    /* Install kvset iterator mocks */
     MOCK_SET(kvset, _kvset_iter_next_key);
     MOCK_SET(kvset, _kvset_iter_next_val);
     MOCK_SET(kvset, _kvset_iter_next_vref);

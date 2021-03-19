@@ -128,6 +128,45 @@ _hse_meminfo(ulong *freep, ulong *availp, uint shift)
 
 struct kvs_cparams cp;
 
+
+/* Prefer the mapi_inject_list method for mocking functions over the
+ * MOCK_SET/MOCK_UNSET macros if the mock simply needs to return a
+ * constant value.  The advantage of the mapi_inject_list approach is
+ * less code (no need to define a replacement function) and easier
+ * maintenance (will not break when the mocked function signature
+ * changes).
+ */
+struct mapi_injection inject_list[] = {
+    { mapi_idx_mpool_mdc_get_root, MAPI_RC_SCALAR, 0 },
+    { mapi_idx_mpool_mdc_open, MAPI_RC_SCALAR, 0 },
+    { mapi_idx_mpool_mdc_close, MAPI_RC_SCALAR, 0 },
+    { mapi_idx_mpool_mdc_append, MAPI_RC_SCALAR, 0 },
+    { mapi_idx_mpool_mdc_cstart, MAPI_RC_SCALAR, 0 },
+    { mapi_idx_mpool_mdc_cend, MAPI_RC_SCALAR, 0 },
+    { mapi_idx_mpool_mdc_usage, MAPI_RC_SCALAR, 0 },
+    { mapi_idx_mpool_mdc_rewind, MAPI_RC_SCALAR, 0 },
+    { mapi_idx_mpool_mdc_read, MAPI_RC_SCALAR, 0 },
+    { mapi_idx_mpool_mclass_get, MAPI_RC_SCALAR, ENOENT },
+    { mapi_idx_kvdb_log_replay, MAPI_RC_SCALAR, 0 },
+    { mapi_idx_kvdb_log_done, MAPI_RC_SCALAR, 0 },
+
+    { mapi_idx_cn_get_tree, MAPI_RC_SCALAR, 0 },
+
+    { mapi_idx_cndb_cn_cparams, MAPI_RC_PTR, &cp },
+    { mapi_idx_cndb_replay, MAPI_RC_SCALAR, 0 },
+    { mapi_idx_cndb_cn_make, MAPI_RC_SCALAR, 0 },
+
+    { mapi_idx_kvset_get_num_kblocks, MAPI_RC_SCALAR, 1 },
+    { mapi_idx_kvset_get_nth_kblock_id, MAPI_RC_SCALAR, 0x70310d },
+    { mapi_idx_kvset_get_num_vblocks, MAPI_RC_SCALAR, 1 },
+    { mapi_idx_kvset_get_nth_vblock_id, MAPI_RC_SCALAR, 0x70310e },
+
+    { mapi_idx_c0_get_pfx_len, MAPI_RC_SCALAR, 0 },
+
+    { -1 }
+};
+
+
 static int
 test_pre(struct mtf_test_info *ti)
 {
@@ -139,34 +178,9 @@ test_pre(struct mtf_test_info *ti)
     /* Mocks */
     mapi_inject_clear();
 
-    mapi_inject(mapi_idx_mpool_mdc_get_root, 0);
-    mapi_inject(mapi_idx_mpool_mdc_open, 0);
-    mapi_inject(mapi_idx_mpool_mdc_close, 0);
-    mapi_inject(mapi_idx_mpool_mdc_append, 0);
-    mapi_inject(mapi_idx_mpool_mdc_cstart, 0);
-    mapi_inject(mapi_idx_mpool_mdc_cend, 0);
-    mapi_inject(mapi_idx_mpool_mdc_usage, 0);
-    mapi_inject(mapi_idx_mpool_mdc_rewind, 0);
-    mapi_inject(mapi_idx_mpool_mdc_read, 0);
-    mapi_inject(mapi_idx_mpool_mclass_get, ENOENT);
-    mapi_inject(mapi_idx_kvdb_log_replay, 0);
-    mapi_inject(mapi_idx_kvdb_log_done, 0);
-
-    mapi_inject_ptr(mapi_idx_cndb_cn_cparams, &cp);
-
-    mapi_inject(mapi_idx_cn_get_tree, 0);
-
-    mapi_inject(mapi_idx_cndb_replay, 0);
-    mapi_inject(mapi_idx_cndb_cn_make, 0);
-
-    mapi_inject(mapi_idx_kvset_get_num_kblocks, 1);
-    mapi_inject(mapi_idx_kvset_get_nth_kblock_id, 0x70310d);
-    mapi_inject(mapi_idx_kvset_get_num_vblocks, 1);
-    mapi_inject(mapi_idx_kvset_get_nth_vblock_id, 0x70310e);
+    mapi_inject_list_set(inject_list);
 
     mock_c0cn_set();
-
-    mapi_inject(mapi_idx_c0_get_pfx_len, 0);
 
     MOCK_SET(ct_view, _cn_tree_view_create);
     MOCK_SET(ct_view, _cn_tree_view_destroy);

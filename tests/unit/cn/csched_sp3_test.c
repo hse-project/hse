@@ -338,6 +338,20 @@ cn_node_stats_get_mock(const struct cn_tree_node *tn, struct cn_node_stats *s)
     s->ns_scatter = 10;
 }
 
+/* Prefer the mapi_inject_list method for mocking functions over the
+ * MOCK_SET/MOCK_UNSET macros if the mock simply needs to return a
+ * constant value.  The advantage of the mapi_inject_list approach is
+ * less code (no need to define a replacement function) and easier
+ * maintenance (will not break when the mocked function signature
+ * changes).
+ */
+struct mapi_injection inject_list[] = {
+    { mapi_idx_cn_get_io_wq, MAPI_RC_PTR, NULL },
+    { mapi_idx_cn_ref_get, MAPI_RC_SCALAR, 0 },
+    { mapi_idx_cn_ref_put, MAPI_RC_SCALAR, 0 },
+    { -1 },
+};
+
 void
 mock_init(void)
 {
@@ -345,10 +359,7 @@ mock_init(void)
 
     mock_kvset_set();
 
-    mapi_inject_ptr(mapi_idx_cn_get_io_wq, NULL);
-
-    mapi_inject(mapi_idx_cn_ref_get, 0);
-    mapi_inject(mapi_idx_cn_ref_put, 0);
+    mapi_inject_list_set(inject_list);
 
     MOCK_SET_FN(csched_sp3_work, sp3_work, sp3_work_mock);
 

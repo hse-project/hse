@@ -47,34 +47,46 @@ struct kvs_cparams cp = {
 
 #define CN_OPEN_ARGS 0, ds, kk, cndb, cnid, rp, mp, kvs, h, flags
 
+/* Prefer the mapi_inject_list method for mocking functions over the
+ * MOCK_SET/MOCK_UNSET macros if the mock simply needs to return a
+ * constant value.  The advantage of the mapi_inject_list approach is
+ * less code (no need to define a replacement function) and easier
+ * maintenance (will not break when the mocked function signature
+ * changes).
+ */
+struct mapi_injection inject_list[] = {
+    { mapi_idx_ikvdb_get_csched, MAPI_RC_PTR, (void *)-1 },
+    { mapi_idx_ikvdb_kvdb_handle, MAPI_RC_PTR, (void *)-1 },
+    { mapi_idx_ikvdb_get_mclass_policy, MAPI_RC_PTR, (void *)5 },
+    { mapi_idx_kvdb_kvs_cparams, MAPI_RC_PTR, &cp },
+
+    { mapi_idx_mpool_params_get, MAPI_RC_SCALAR, 0 },
+    { mapi_idx_mpool_mclass_get, MAPI_RC_SCALAR, ENOENT },
+
+    { mapi_idx_kvdb_kvs_flags, MAPI_RC_SCALAR, 0 },
+
+    { mapi_idx_cndb_cn_instantiate, MAPI_RC_SCALAR, 0 },
+    { mapi_idx_cndb_getref, MAPI_RC_SCALAR, 0 },
+    { mapi_idx_cndb_putref, MAPI_RC_SCALAR, 0 },
+    { mapi_idx_cndb_cn_blob_get, MAPI_RC_SCALAR, 0 },
+    { mapi_idx_cndb_cn_blob_set, MAPI_RC_SCALAR, 0 },
+    { mapi_idx_cndb_cn_close, MAPI_RC_SCALAR, 0 },
+
+    { mapi_idx_cn_tree_set_initial_dgen, MAPI_RC_SCALAR, 0 },
+
+    { mapi_idx_csched_tree_add, MAPI_RC_SCALAR, 0 },
+    { mapi_idx_csched_tree_remove, MAPI_RC_SCALAR, 0 },
+    { mapi_idx_ikvdb_rdonly, MAPI_RC_SCALAR, 0 },
+    { mapi_idx_ikvdb_rdonly, MAPI_RC_SCALAR, 0 },
+
+    { -1 }
+};
+
 static void
 setup_mocks(void)
 {
     mapi_inject_clear();
-
-    /* mocks to get through cn_open and cn_close */
-    mapi_inject_ptr(mapi_idx_ikvdb_get_csched, (void *)-1);
-    mapi_inject_ptr(mapi_idx_ikvdb_kvdb_handle, (void *)-1);
-    mapi_inject_ptr(mapi_idx_ikvdb_get_mclass_policy, (void *)5);
-    mapi_inject_ptr(mapi_idx_kvdb_kvs_cparams, &cp);
-    mapi_inject(mapi_idx_mpool_params_get, 0);
-    mapi_inject(mapi_idx_mpool_mclass_get, ENOENT);
-
-    mapi_inject(mapi_idx_kvdb_kvs_flags, 0);
-
-    mapi_inject(mapi_idx_cndb_cn_instantiate, 0);
-    mapi_inject(mapi_idx_cndb_getref, 0);
-    mapi_inject(mapi_idx_cndb_putref, 0);
-    mapi_inject(mapi_idx_cndb_cn_blob_get, 0);
-    mapi_inject(mapi_idx_cndb_cn_blob_set, 0);
-    mapi_inject(mapi_idx_cndb_cn_close, 0);
-
-    mapi_inject(mapi_idx_cn_tree_set_initial_dgen, 0);
-
-    mapi_inject(mapi_idx_csched_tree_add, 0);
-    mapi_inject(mapi_idx_csched_tree_remove, 0);
-    mapi_inject(mapi_idx_ikvdb_rdonly, 0);
-    mapi_inject(mapi_idx_ikvdb_rdonly, 0);
+    mapi_inject_list_set(inject_list);
 }
 
 static int

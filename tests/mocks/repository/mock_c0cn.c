@@ -395,17 +395,6 @@ _cn_hash_get(const struct cn *arg)
     return (uintptr_t)arg;
 }
 
-static struct perfc_set *
-_cn_get_ingest_perfc(const struct cn *cn)
-{
-    return NULL;
-}
-
-static void
-_cn_disable_maint(struct cn *cn, bool onoff)
-{
-}
-
 static int
 cmp(const void *a_, const void *b_)
 {
@@ -542,11 +531,17 @@ _cn_cursor_active_kvsets(void *cursor, u32 *active, u32 *total)
     return 0;
 }
 
-/*****************************************************************
- * set/unset c0 mocks
+/* cN mocks
+ * --------
+ * Prefer the mapi_inject_list method for mocking functions over the
+ * MOCK_SET/MOCK_UNSET macros if the mock simply needs to return a
+ * constant value.  The advantage of the mapi_inject_list approach is
+ * less code (no need to define a replacement function) and easier
+ * maintenance (will not break when the mocked function signature
+ * changes).
  */
+static struct mapi_injection cn_inject_list[] = {
 
-struct mapi_injection cn_inject_list[] = {
     { mapi_idx_cn_make,              MAPI_RC_SCALAR, 0 },
     { mapi_idx_cn_ingestv,           MAPI_RC_SCALAR, 0 },
     { mapi_idx_cn_get_sfx_len,       MAPI_RC_SCALAR, 0 },
@@ -580,8 +575,6 @@ mock_cn_set()
     MOCK_SET(cn, _cn_ref_get);
     MOCK_SET(cn, _cn_ref_put);
     MOCK_SET(cn, _cn_hash_get);
-    MOCK_SET(cn, _cn_get_ingest_perfc);
-    MOCK_SET(cn, _cn_disable_maint);
 
     MOCK_SET(cn_cursor, _cn_cursor_create);
     MOCK_SET(cn_cursor, _cn_cursor_update);
@@ -604,8 +597,6 @@ mock_cn_unset()
     MOCK_UNSET(cn, _cn_ref_get);
     MOCK_UNSET(cn, _cn_ref_put);
     MOCK_UNSET(cn, _cn_hash_get);
-    MOCK_UNSET(cn, _cn_get_ingest_perfc);
-    MOCK_UNSET(cn, _cn_disable_maint);
 
     MOCK_UNSET(cn_cursor, _cn_cursor_create);
     MOCK_UNSET(cn_cursor, _cn_cursor_update);
@@ -615,10 +606,16 @@ mock_cn_unset()
     MOCK_UNSET(cn_cursor, _cn_cursor_active_kvsets);
 }
 
-/*****************************************************************
- * set/unset c0 mocks
+/* c0 mocks
+ * --------
+ * Prefer the mapi_inject_list method for mocking functions over the
+ * MOCK_SET/MOCK_UNSET macros if the mock simply needs to return a
+ * constant value.  The advantage of the mapi_inject_list approach is
+ * less code (no need to define a replacement function) and easier
+ * maintenance (will not break when the mocked function signature
+ * changes).
  */
-struct mapi_injection c0_inject_list[] = {
+static struct mapi_injection c0_inject_list[] = {
     { mapi_idx_c0_cursor_update,    MAPI_RC_SCALAR, 0 },
     { mapi_idx_c0_cursor_bind_txn,  MAPI_RC_SCALAR, 0 },
     { mapi_idx_c0_cursor_save,      MAPI_RC_SCALAR, 0 },
@@ -681,10 +678,16 @@ mock_c0cn_unset()
     mock_c0_unset();
 }
 
-/*****************************************************************
- * KVDB_LOG Mock
+/* kvdb_log mock
+ * -------------
+ * Prefer the mapi_inject_list method for mocking functions over the
+ * MOCK_SET/MOCK_UNSET macros if the mock simply needs to return a
+ * constant value.  The advantage of the mapi_inject_list approach is
+ * less code (no need to define a replacement function) and easier
+ * maintenance (will not break when the mocked function signature
+ * changes).
  */
-struct mapi_injection kvdb_log_inject_list[] = {
+static struct mapi_injection kvdb_log_inject_list[] = {
     { mapi_idx_kvdb_log_make,       MAPI_RC_SCALAR, 0 },
     { mapi_idx_kvdb_log_open,       MAPI_RC_SCALAR, 0 },
     { mapi_idx_kvdb_log_close,      MAPI_RC_SCALAR, 0 },
@@ -729,8 +732,14 @@ _cndb_cn_make(struct cndb *cndb, struct kvs_cparams *cp, u64 *cnid, char *name)
     return 0;
 }
 
-
-struct mapi_injection cndb_inject_list[] = {
+/* Prefer the mapi_inject_list method for mocking functions over the
+ * MOCK_SET/MOCK_UNSET macros if the mock simply needs to return a
+ * constant value.  The advantage of the mapi_inject_list approach is
+ * less code (no need to define a replacement function) and easier
+ * maintenance (will not break when the mocked function signature
+ * changes).
+ */
+static struct mapi_injection cndb_inject_list[] = {
     { mapi_idx_cndb_make,         MAPI_RC_SCALAR, 0 },
     { mapi_idx_cndb_replay,       MAPI_RC_SCALAR, 0 },
     { mapi_idx_cndb_cnv_get,      MAPI_RC_SCALAR, 0 },

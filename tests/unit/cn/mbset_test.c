@@ -53,12 +53,6 @@ _mpool_mblock_props_get(struct mpool *dsp, uint64_t objid, struct mblock_props *
 }
 
 static mpool_err_t
-_mpool_mblock_delete(struct mpool *dsp, uint64_t id)
-{
-    return 0;
-}
-
-static mpool_err_t
 _mpool_mcache_mmap(
     struct mpool *            dsp,
     size_t                    idc,
@@ -106,29 +100,31 @@ _mpool_mcache_mincore(
     return 0;
 }
 
+HSE_MAYBE_UNUSED
 static void
 mock_unset(void)
 {
     MOCK_UNSET(mpool, _mpool_mblock_props_get);
-    MOCK_UNSET(mpool, _mpool_mblock_delete);
 
     MOCK_UNSET(mpool, _mpool_mcache_mmap);
     MOCK_UNSET(mpool, _mpool_mcache_munmap);
     MOCK_UNSET(mpool, _mpool_mcache_mincore);
+
     mapi_inject_unset(mapi_idx_mpool_mcache_madvise);
+    mapi_inject_unset(mapi_idx_mpool_mblock_delete);
 }
 
 static void
 mock_set(void)
 {
-    mock_unset();
     MOCK_SET(mpool, _mpool_mblock_props_get);
-    MOCK_SET(mpool, _mpool_mblock_delete);
 
     MOCK_SET(mpool, _mpool_mcache_mmap);
     MOCK_SET(mpool, _mpool_mcache_munmap);
     MOCK_SET(mpool, _mpool_mcache_mincore);
+
     mapi_inject(mapi_idx_mpool_mcache_madvise, 0);
+    mapi_inject(mapi_idx_mpool_mblock_delete, 0);
 }
 
 static int
@@ -158,14 +154,19 @@ post(struct mtf_test_info *mtf)
 
 MTF_BEGIN_UTEST_COLLECTION_PREPOST(test, init, fini);
 
+struct t_callback_info {
+    uint invoked;
+    uint delete_error_detected;
+};
+
 static void
 t_callback(void *rock, bool mblock_delete_error)
 {
-    int *x = rock;
+    struct t_callback_info *info = rock;
 
-    x[0] += 1;
+    info->invoked++;
     if (mblock_delete_error)
-        x[1] += 1;
+        info->delete_error_detected++;
 }
 
 static merr_t
@@ -466,8 +467,10 @@ MTF_DEFINE_UTEST_PREPOST(test, t_mbset_callback, pre, post)
     struct mbset *mbs;
     u64 *         idv;
     uint          idc = 4;
-    uint          x[2];
-    uint          i, exp_del, exp_x1;
+    uint          i;
+    struct t_callback_info actual;
+    struct t_callback_info expect;
+    uint expect_mblock_delete_calls;
 
     idv = idv_alloc(idc);
     ASSERT_NE(idv, NULL);
@@ -484,26 +487,32 @@ MTF_DEFINE_UTEST_PREPOST(test, t_mbset_callback, pre, post)
      */
     for (i = 0; i < 3; i++) {
 
-        mapi_inject_unset(mapi_idx_mpool_mblock_delete);
+        mapi_inject(mapi_idx_mpool_mblock_delete, 0);
 
         err = mbset_create(ds, idc, idv, usz, ufn, 0, MBLOCKS_MAX, &mbs);
         ASSERT_EQ(err, 0);
 
         switch (i) {
             case 0:
-                exp_del = 0;
-                exp_x1 = 0;
+                expect.invoked = 1;
+                expect.delete_error_detected = 0;
+                expect_mblock_delete_calls = 0;
                 break;
             case 1:
                 mbset_set_delete_flag(mbs);
-                exp_del = idc;
-                exp_x1 = 0;
+                expect.invoked = 1;
+                expect.delete_error_detected = 0;
+                expect_mblock_delete_calls = idc; /* one for each mblock */
                 break;
             case 2:
+                mapi_inject_set(mapi_idx_mpool_mblock_delete,
+                    1, 2, 0,  /* calls 1 and 2 successful */
+                    3, 0, -1  /* calls 3 to forevery fail */
+                    );
                 mbset_set_delete_flag(mbs);
-                mapi_inject_once(mapi_idx_mpool_mblock_delete, 2, -1);
-                exp_del = 2; /* delete should only be called twice */
-                exp_x1 = 1;
+                expect.invoked = 1;
+                expect.delete_error_detected = 1;
+                expect_mblock_delete_calls = 3; /* two success calls to delete, one failed call */
                 break;
 
             default:
@@ -511,14 +520,19 @@ MTF_DEFINE_UTEST_PREPOST(test, t_mbset_callback, pre, post)
                 break;
         }
 
-        x[0] = x[1] = 0;
+        /* setup for callback */
+        actual.invoked = 0;
+        actual.delete_error_detected = 0;
 
-        mbset_set_callback(mbs, t_callback, x);
+        mbset_set_callback(mbs, t_callback, &actual);
+
+        /* drop the ref */
         mbset_put_ref(mbs);
 
-        ASSERT_EQ(x[0], 1);
-        ASSERT_EQ(x[1], exp_x1);
-        ASSERT_EQ(exp_del, mapi_calls(mapi_idx_mpool_mblock_delete));
+        /* verify callback activity */
+        ASSERT_EQ(expect.invoked, actual.invoked);
+        ASSERT_EQ(expect.delete_error_detected, actual.delete_error_detected);
+        ASSERT_EQ(expect_mblock_delete_calls, mapi_calls(mapi_idx_mpool_mblock_delete));
     }
 
     mapi_safe_free(idv);
