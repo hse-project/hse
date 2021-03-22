@@ -1,11 +1,11 @@
 import os
-import shlex
 import subprocess
 import time
 from contextlib import ExitStack
 
 from tools import config
 from tools.fixtures import make_kvdb
+from tools.helpers import shlex_join
 from tools.monitors import spawn_pidstat, spawn_vmstat, spawn_iostat
 from tools.report import (
     new_report,
@@ -23,7 +23,8 @@ class BaseTest:
         if not config.is_loaded():
             config.load()
 
-        self.log_dir = config.LOG_DIR
+        self.log_dir = os.path.join(config.LOG_DIR, test_name)
+        os.makedirs(self.log_dir, exist_ok=True)
 
         self.report = new_report()
         self.report["test_name"] = test_name
@@ -33,7 +34,7 @@ class BaseTest:
         make_kvdb()
 
     def _save_report(self):
-        save_report_as_json(self.report)
+        save_report_as_json(self.log_dir, self.report)
 
         if config.is_reports_db_enabled():
             save_report_to_db(self.report)
@@ -47,19 +48,21 @@ class BaseTest:
 
         is_device_monitoring_enabled = config.is_device_monitoring_enabled()
 
+        cmdline = shlex_join(args)
+
         with open(cmdline_path, "w") as fd:
-            fd.write(shlex.join(args))
+            fd.write(cmdline)
             fd.write("\n")
 
         with ExitStack() as stack:
-            print(shlex.join(args))
+            print(cmdline)
             print(f"Output will be written to {out_path}")
             print()
 
             if is_device_monitoring_enabled:
-                diskstats_before_path = save_diskstats("BEFORE")
+                diskstats_before_path = save_diskstats(self.log_dir, "BEFORE")
 
-            save_mpool_info("BEFORE")
+            save_mpool_info(self.log_dir, "BEFORE")
 
             fd = open(out_path, "w")
             stack.enter_context(fd)
@@ -67,23 +70,23 @@ class BaseTest:
             end_timestamp_ms = None
             start_timestamp_ms = int(time.time() * 1000)
 
-            vmstat_proc, vmstat_fd = spawn_vmstat()
+            vmstat_proc, vmstat_fd = spawn_vmstat(self.log_dir)
             stack.enter_context(vmstat_fd)
             stack.enter_context(vmstat_proc)
 
             if is_device_monitoring_enabled:
-                iostat_proc, iostat_fd = spawn_iostat()
+                iostat_proc, iostat_fd = spawn_iostat(self.log_dir)
                 stack.enter_context(iostat_fd)
                 stack.enter_context(iostat_proc)
 
             #
-            # now launch the main process
+            # now launching the main process
             #
             proc = subprocess.Popen(args, stdout=fd, stderr=subprocess.STDOUT)
             stack.enter_context(proc)
             pid = proc.pid
 
-            pidstat_proc, pidstat_fd = spawn_pidstat(pid)
+            pidstat_proc, pidstat_fd = spawn_pidstat(self.log_dir, pid)
             stack.enter_context(pidstat_fd)
             stack.enter_context(pidstat_proc)
 
@@ -95,14 +98,14 @@ class BaseTest:
 
         end_timestamp_ms = int(time.time() * 1000)
 
-        save_mpool_info("AFTER")
+        save_mpool_info(self.log_dir, "AFTER")
 
         if is_device_monitoring_enabled:
             self.report["diskstats"] = {}
 
             overall = {}
 
-            diskstats_after_path = save_diskstats("AFTER")
+            diskstats_after_path = save_diskstats(self.log_dir, "AFTER")
 
             d1 = parse_diskstats(diskstats_before_path)
             d2 = parse_diskstats(diskstats_after_path)

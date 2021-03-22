@@ -5,15 +5,15 @@ import subprocess
 from tools import config
 
 
-def save_mpool_info(tag):
+def save_mpool_info(dest_dir, tag):
     args = ["mpool", "list", "-Y", "-v", config.KVDB_NAME]
-    out = os.path.join(config.LOG_DIR, f"mpool_list.{tag}.out")
+    out = os.path.join(dest_dir, f"mpool_list.{tag}.out")
     with open(out, "w") as fd:
         subprocess.run(args, stdout=fd, stderr=subprocess.STDOUT, check=True)
 
 
-def save_diskstats(tag):
-    out = os.path.join(config.LOG_DIR, f"diskstats.{tag}.out")
+def save_diskstats(dest_dir, tag):
+    out = os.path.join(dest_dir, f"diskstats.{tag}.out")
     shutil.copy("/proc/diskstats", out)
     os.chmod(out, 0o664)
     return out

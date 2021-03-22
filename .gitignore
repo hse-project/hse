@@ -25,3 +25,4 @@ subprojects/*
 !scripts/build/
 .pytest_cache/
 *venv*/
+builddir

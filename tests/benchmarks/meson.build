@@ -8,11 +8,6 @@ tests = [
     'test_kmt_rw.py',
 ]
 
-log_root = get_option('benchmarks-log-dir')
-if log_root == ''
-    log_root = meson.project_build_root() / 'benchmark-logs'
-endif
-
 if not benchmarks_enabled
     warning(('HSE benchmarks disabled.'+
              '  Requires config options: @0@').format(benchmarks_needs))
@@ -21,8 +16,6 @@ else
         path = meson.current_source_dir() / t
         testname = fs.stem(path)
 
-        log_dir = log_root / testname
-
         benchmark(
             testname,
             python,
@@ -30,8 +23,6 @@ else
                 path,
                 '--kvdb',
                 get_option('tests-kvdb'),
-                '--log-dir',
-                log_dir,
             ],
             env: run_env,
             timeout: 60,

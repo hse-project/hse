@@ -70,7 +70,9 @@ def load():
     parser = argparse.ArgumentParser()
 
     parser.add_argument("--kvdb", type=str)
-    parser.add_argument("--log-dir", type=str)
+
+    grp = parser.add_mutually_exclusive_group()
+    grp.add_argument("--log-dir", type=str)
 
     parser.add_argument("--monitor-devices", nargs="+")
 
@@ -92,8 +94,8 @@ def load():
     if args.show_env_help:
         print("Environment variables:")
         print()
+        print("HSE_TEST_BENCHMARK_LOG_DIR")
         print("HSE_TEST_KVDB")
-        print("HSE_TEST_LOG_DIR")
         print()
         print("HSE_TEST_MONITOR_DEVICES              (list separated by spaces)")
         print()
@@ -118,15 +120,12 @@ def load():
         )
         print()
 
-    LOG_DIR = __get_option(args, "log_dir", "HSE_TEST_LOG_DIR")
+    LOG_DIR = __get_option(args, "log_dir", "HSE_TEST_BENCHMARK_LOG_DIR")
     if not LOG_DIR:
-        die = True
-        print("Log directory is required.")
-        print(
-            "Pass --log-dir on command line "
-            "or set the HSE_TEST_LOG_DIR environment variable."
-        )
-        print()
+        if "MESON_BUILD_ROOT" in os.environ:
+            LOG_DIR = os.path.join(os.environ["MESON_BUILD_ROOT"], "benchmark-logs")
+        else:
+            LOG_DIR = os.path.join(os.getcwd(), "benchmark-logs")
 
     if die:
         print("Quitting.")

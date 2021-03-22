@@ -24,8 +24,8 @@ def new_report():
     return report
 
 
-def save_report_as_json(report):
-    path = os.path.join(config.LOG_DIR, "report.json")
+def save_report_as_json(dest_dir, report):
+    path = os.path.join(dest_dir, "report.json")
 
     with open(path, "w") as fd:
         json.dump(report, fd, indent=4, sort_keys=True)
@@ -81,4 +81,6 @@ def save_report_to_db(report):
 
             print(f"Report saved to MongoDB with _id={inserted_id}")
     except pymongo.errors.PyMongoError as e:
-        print(f"WARNING: failed to save report to MongoDB ({mongo_uri=}, {e=})")
+        print(
+            f"WARNING: failed to save report to MongoDB (mongo_uri={mongo_uri}, e={e})"
+        )

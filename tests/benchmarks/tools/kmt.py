@@ -1,9 +1,9 @@
 import os
-import shlex
 from typing import List
 
 from tools import config
 from tools.base import BaseTest
+from tools.helpers import shlex_join
 
 
 class KmtTest(BaseTest):
@@ -14,17 +14,17 @@ class KmtTest(BaseTest):
         self.kmt_out_path = None
         self.report["kmt"] = {
             "args": self.args,
-            "cmdline": shlex.join(self.args),
+            "cmdline": shlex_join(self.args),
         }
 
     @staticmethod
     def __fix_args(args: List):
         new_args = ["kmt"] + list(args)
 
-        if not any([arg.startswith('-L') for arg in args]):
-            new_args.append('-L')
-        if not any([arg.startswith('-s') for arg in args]):
-            new_args.append('-s1')
+        if not any([arg.startswith("-L") for arg in args]):
+            new_args.append("-L")
+        if not any([arg.startswith("-s") for arg in args]):
+            new_args.append("-s1")
 
         new_args.append("%s/%s" % (config.KVDB_NAME, config.KVS_NAME))
 
@@ -172,10 +172,6 @@ class KmtTest(BaseTest):
         summary = summary.rstrip()
 
         print(summary)
-        print()
-
-        # FIXME
-        print(os.environ)
         print()
 
         summary_path = os.path.join(self.log_dir, "summary.txt")
