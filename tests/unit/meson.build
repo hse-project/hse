@@ -286,16 +286,14 @@ foreach c, tests : components
 
         t_is_parallel = 'is_parallel' in params ? params['is_parallel'] : true
 
-        t_args = []
         if 'cases' in params
             foreach ident, args : params['cases']
                 t_name = ident == 'default' ? t : '@0@[@1@]'.format(t, ident)
-                t_args += args
 
                 test(
                     t_name,
                     t_exe,
-                    args: t_args,
+                    args: args,
                     env: t_env,
                     is_parallel: t_is_parallel,
                     suite: t_suites,
@@ -303,6 +301,7 @@ foreach c, tests : components
                 )
             endforeach
         else
+            t_args = []
             if 'args' in params
                 t_args += params['args']
             endif
