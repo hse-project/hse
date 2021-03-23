@@ -5,7 +5,6 @@ common_test_c_args = [
 common_test_includes = [
     hse_include_directories,
     test_framework_includes,
-    test_support_includes, #TODO: remove once test framework is independant of mocking
     tools_includes,
     get_option('mpool-include-dir'),
 ]
