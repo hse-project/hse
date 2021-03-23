@@ -94,7 +94,7 @@ if get_option('buildtype') == 'release'
         '-DHSE_BUILD_RELEASE',
         language: 'c',
     )
-elif get_option('buildtype').startswith('debug')
+elif get_option('debug')
     log_pri_default = 7
 
     if get_option('buildtype') == 'debug'
