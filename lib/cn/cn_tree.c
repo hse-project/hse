@@ -3640,7 +3640,7 @@ cn_tree_fini(void)
     }
 }
 
-#if defined(HSE_UNIT_TEST_MODE) && HSE_UNIT_TEST_MODE == 1
+#if HSE_MOCKING
 #include "cn_tree_ut_impl.i"
 #include "cn_tree_compact_ut_impl.i"
 #include "cn_tree_create_ut_impl.i"
@@ -3648,4 +3648,4 @@ cn_tree_fini(void)
 #include "cn_tree_internal_ut_impl.i"
 #include "cn_tree_iter_ut_impl.i"
 #include "cn_tree_view_ut_impl.i"
-#endif /* HSE_UNIT_TEST_MODE */
+#endif /* HSE_MOCKING */

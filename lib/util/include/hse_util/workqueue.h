@@ -109,7 +109,7 @@ cancel_delayed_work(struct delayed_work *work);
 void
 delayed_work_timer_fn(unsigned long data);
 
-#if defined(HSE_UNIT_TEST_MODE) && HSE_UNIT_TEST_MODE == 1
+#if HSE_MOCKING
 #define MTF_STATIC
 
 /* MTF_MOCK */
@@ -118,10 +118,10 @@ queue_work_locked(struct workqueue_struct *wq, struct work_struct *work);
 
 #include "workqueue_ut.h"
 
-#else /* HSE_UNIT_TEST_MODE */
+#else /* HSE_MOCKING */
 
 #define MTF_STATIC static
 
-#endif /* HSE_UNIT_TEST_MODE */
+#endif /* HSE_MOCKING */
 
 #endif /* HSE_PLATFORM_WORKQUEUE_H */

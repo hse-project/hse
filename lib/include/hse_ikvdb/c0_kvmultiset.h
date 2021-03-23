@@ -429,8 +429,8 @@ c0kvms_init(void) HSE_COLD;
 void
 c0kvms_fini(void) HSE_COLD;
 
-#if defined(HSE_UNIT_TEST_MODE) && HSE_UNIT_TEST_MODE == 1
+#if HSE_MOCKING
 #include "c0_kvmultiset_ut.h"
-#endif /* HSE_UNIT_TEST_MODE */
+#endif /* HSE_MOCKING */
 
 #endif /* HSE_CORE_C0_KVMULTISET_H */

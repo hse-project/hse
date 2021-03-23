@@ -65,7 +65,7 @@ bloom_reader_mcache_lookup(
     struct kvs_ktuple *         kt,
     bool *                      hit);
 
-#if HSE_UNIT_TEST_MODE
+#if HSE_MOCKING
 /**
  * bloom_reader_filter_info() - Retrieve the characteristics of the bloom filter
  * @blm_rgn_desc:  region descriptor of kblock's Bloom filter region

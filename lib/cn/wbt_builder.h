@@ -118,8 +118,8 @@ wbb_inode_get_page(struct wbb *wbb);
 bool
 wbb_inode_has_space(struct wbb *wbb, uint inode_cnt);
 
-#if defined(HSE_UNIT_TEST_MODE) && HSE_UNIT_TEST_MODE == 1
+#if HSE_MOCKING
 #include "wbt_builder_ut.h"
-#endif /* HSE_UNIT_TEST_MODE */
+#endif /* HSE_MOCKING */
 
 #endif

@@ -118,6 +118,6 @@ csched_compact_status_get(struct csched *handle, struct hse_kvdb_compact_status 
         cs->cs_compact_status_get(cs, status);
 }
 
-#if defined(HSE_UNIT_TEST_MODE) && HSE_UNIT_TEST_MODE == 1
+#if HSE_MOCKING
 #include "csched_ut_impl.i"
-#endif /* HSE_UNIT_TEST_MODE */
+#endif /* HSE_MOCKING */

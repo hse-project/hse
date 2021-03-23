@@ -47,6 +47,6 @@ cn_kvdb_destroy(struct cn_kvdb *h)
         free(h2i(h));
 }
 
-#if defined(HSE_UNIT_TEST_MODE) && HSE_UNIT_TEST_MODE == 1
+#if HSE_MOCKING
 #include "cn_kvdb_ut_impl.i"
-#endif /* HSE_UNIT_TEST_MODE */
+#endif /* HSE_MOCKING */

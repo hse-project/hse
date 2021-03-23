@@ -15,8 +15,8 @@
 void
 backstop_log(const char *msg);
 
-#if defined(HSE_UNIT_TEST_MODE) && HSE_UNIT_TEST_MODE == 1
+#if HSE_MOCKING
 #include "logging_util_ut.h"
-#endif /* HSE_UNIT_TEST_MODE */
+#endif /* HSE_MOCKING */
 
 #endif /* HSE_LOGGING_UTIL_HEADER */

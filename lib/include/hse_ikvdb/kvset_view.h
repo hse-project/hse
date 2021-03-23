@@ -73,8 +73,8 @@ struct kvset_view {
     struct cn_node_loc node_loc;
 };
 
-#if defined(HSE_UNIT_TEST_MODE) && HSE_UNIT_TEST_MODE == 1
+#if HSE_MOCKING
 #include "kvset_view_ut.h"
-#endif /* HSE_UNIT_TEST_MODE */
+#endif /* HSE_MOCKING */
 
 #endif /* HSE_KVS_CN_KVSET_VIEW_H */

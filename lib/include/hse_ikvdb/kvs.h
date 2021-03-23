@@ -256,7 +256,7 @@ kvs_cursor_zone_alloc(void);
 void
 kvs_cursor_zone_free(void);
 
-#if defined(HSE_UNIT_TEST_MODE) && HSE_UNIT_TEST_MODE == 1
+#if HSE_MOCKING
 #include "kvs_ut.h"
 #endif
 

@@ -106,8 +106,8 @@ sts_job_init(struct sts_job *job, sts_job_fn *job_fn, sts_cancel_fn *cancel_fn, 
 void
 sts_job_submit(struct sts *s, struct sts_job *job);
 
-#if defined(HSE_UNIT_TEST_MODE) && HSE_UNIT_TEST_MODE == 1
+#if HSE_MOCKING
 #include "sched_sts_ut.h"
-#endif /* HSE_UNIT_TEST_MODE */
+#endif /* HSE_MOCKING */
 
 #endif

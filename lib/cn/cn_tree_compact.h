@@ -266,8 +266,8 @@ cn_node_comp_token_get(struct cn_tree_node *tn);
 void
 cn_node_comp_token_put(struct cn_tree_node *tn);
 
-#if defined(HSE_UNIT_TEST_MODE) && HSE_UNIT_TEST_MODE == 1
+#if HSE_MOCKING
 #include "cn_tree_compact_ut.h"
-#endif /* HSE_UNIT_TEST_MODE */
+#endif /* HSE_MOCKING */
 
 #endif

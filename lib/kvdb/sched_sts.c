@@ -25,10 +25,10 @@
 #include "sched_sts_perfc.h"
 
 /* [HSE_REVISIT] - Why is this at the top of the file? */
-#if defined(HSE_UNIT_TEST_MODE) && HSE_UNIT_TEST_MODE == 1
+#if HSE_MOCKING
 #include "sched_sts_ut_impl.i"
 #include "sched_sts_perfc_ut_impl.i"
-#endif /* HSE_UNIT_TEST_MODE */
+#endif /* HSE_MOCKING */
 
 /* Scheduler state */
 #define SS_RUN 0

@@ -135,8 +135,8 @@ kvdb_log_finished(union kvdb_mdu *mdp);
 merr_t
 kvdb_log_disp_set(union kvdb_mdu *mdp, enum kvdb_log_disp disp);
 
-#if defined(HSE_UNIT_TEST_MODE) && HSE_UNIT_TEST_MODE == 1
+#if HSE_MOCKING
 #include "kvdb_log_ut.h"
-#endif /* HSE_UNIT_TEST_MODE */
+#endif /* HSE_MOCKING */
 
 #endif

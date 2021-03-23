@@ -699,6 +699,6 @@ cndb_record_unpack(u32 cndb_version, struct cndb_hdr_omf *buf, union cndb_mtu **
 #define CNDB_LOGTX(err, cndb, txid, primark, fmt, ...) \
     CNDB_LOG(err, cndb, primark, "tx %lu" fmt, (ulong)txid, ##__VA_ARGS__)
 
-#if defined(HSE_UNIT_TEST_MODE) && HSE_UNIT_TEST_MODE == 1
+#if HSE_MOCKING
 #include "cndb_internal_ut.h"
-#endif /* HSE_UNIT_TEST_MODE */
+#endif /* HSE_MOCKING */

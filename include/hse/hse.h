@@ -1023,9 +1023,9 @@ hse_params_get(
 
 #pragma GCC visibility pop
 
-#if defined(HSE_UNIT_TEST_MODE) && HSE_UNIT_TEST_MODE == 1
+#if HSE_MOCKING
 #include "hse_ut.h"
-#endif /* HSE_UNIT_TEST_MODE */
+#endif /* HSE_MOCKING */
 
 #ifdef __cplusplus
 }

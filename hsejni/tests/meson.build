@@ -2,7 +2,7 @@ hsejni_parse_test = executable(
 	'hsejni_parse_test',
 	['hsejni_parse_test.c'],
 	c_args: [
-		'-DHSE_UNIT_TEST_MODE=1',
+		'-DHSE_MOCKING=1',
 		'-DCOMPNAME="hsejni"',
 	],
 	include_directories: [

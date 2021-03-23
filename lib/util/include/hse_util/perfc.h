@@ -961,8 +961,8 @@ perfc_ctrseti_path(struct perfc_set *set);
 extern void
 perfc_ctrseti_invalidate_handle(struct perfc_set *set);
 
-#if defined(HSE_UNIT_TEST_MODE) && HSE_UNIT_TEST_MODE == 1
+#if HSE_MOCKING
 #include "perfc_ut.h"
-#endif /* HSE_UNIT_TEST_MODE */
+#endif /* HSE_MOCKING */
 
 #endif /* HSE_PLATFORM_PERFC_H */

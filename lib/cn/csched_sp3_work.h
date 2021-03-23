@@ -84,8 +84,8 @@ sp3_work(
      (SP3_QTHREADS_LEAFBIG << (8 * SP3_QNUM_LEAFBIG)) |                                            \
      (SP3_QTHREADS_LSCAT << (8 * SP3_QNUM_LSCAT)) | (SP3_QTHREADS_SHARED << (8 * SP3_NUM_QUEUES)))
 
-#if defined(HSE_UNIT_TEST_MODE) && HSE_UNIT_TEST_MODE == 1
+#if HSE_MOCKING
 #include "csched_sp3_work_ut.h"
-#endif /* HSE_UNIT_TEST_MODE */
+#endif /* HSE_MOCKING */
 
 #endif

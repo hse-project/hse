@@ -651,7 +651,7 @@ MTF_DEFINE_UTEST(workqueue_test, destroy_test)
     free(workv);
 }
 
-#if defined(HSE_UNIT_TEST_MODE) && HSE_UNIT_TEST_MODE == 1
+#if HSE_MOCKING
 
 /* Curiously, relwithdebug build defines NDEBUG, grrr...
  */
@@ -751,7 +751,7 @@ MTF_DEFINE_UTEST(workqueue_test, flush_destroy)
         ASSERT_EQ(atomic_read(&counter2), tdmax);
     }
 }
-#endif /* HSE_UNIT_TEST_MODE */
+#endif /* HSE_MOCKING */
 
 static void *
 flush_party_main(void *arg)

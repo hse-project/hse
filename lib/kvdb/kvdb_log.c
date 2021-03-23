@@ -824,6 +824,6 @@ kvdb_log_done(struct kvdb_log *log, struct kvdb_log_tx *tx)
     return err;
 }
 
-#if defined(HSE_UNIT_TEST_MODE) && HSE_UNIT_TEST_MODE == 1
+#if HSE_MOCKING
 #include "kvdb_log_ut_impl.i"
-#endif /* HSE_UNIT_TEST_MODE */
+#endif /* HSE_MOCKING */

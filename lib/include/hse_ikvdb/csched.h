@@ -76,8 +76,8 @@ csched_compact_request(struct csched *handle, int flags);
 void
 csched_compact_status_get(struct csched *handle, struct hse_kvdb_compact_status *status);
 
-#if defined(HSE_UNIT_TEST_MODE) && HSE_UNIT_TEST_MODE == 1
+#if HSE_MOCKING
 #include "csched_ut.h"
-#endif /* HSE_UNIT_TEST_MODE */
+#endif /* HSE_MOCKING */
 
 #endif

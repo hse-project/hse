@@ -12,9 +12,9 @@
 #include <hse_ut/framework.h>
 #include <hse_ut/common.h>
 
-#if defined(HSE_UNIT_TEST_MODE) && HSE_UNIT_TEST_MODE == 1
+#if HSE_MOCKING
 #include <hse_test_support/allocation.h>
-#endif /* HSE_UNIT_TEST_MODE */
+#endif /* HSE_MOCKING */
 
 #include <hse_util/xrand.h>
 
@@ -53,7 +53,7 @@ MTF_DEFINE_UTEST(data_tree, tree_create_and_destroy)
     dt_destroy(tree);
 }
 
-#if defined(HSE_UNIT_TEST_MODE) && HSE_UNIT_TEST_MODE == 1
+#if HSE_MOCKING
 MTF_DEFINE_UTEST_PREPOST(
     data_tree,
     tree_alloc_error,
@@ -68,7 +68,7 @@ MTF_DEFINE_UTEST_PREPOST(
     tree = dt_create("data");
     ASSERT_EQ(tree, NULL);
 }
-#endif /* HSE_UNIT_TEST_MODE */
+#endif /* HSE_MOCKING */
 
 struct test_element {
     int num;

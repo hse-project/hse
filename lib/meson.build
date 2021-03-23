@@ -109,6 +109,9 @@ hse_static_dep = declare_dependency(
 
 if 'unit' in enabled_tests
     hse_mock_c_args = [
+        '-DHSE_MOCKING=1',
+        # only exists for generating mpool mocks
+        # remove when userspace mpool is merged
         '-DHSE_UNIT_TEST_MODE=1',
     ]
 
@@ -136,6 +139,7 @@ if 'unit' in enabled_tests
     hse_mock_dep = declare_dependency(
         link_with: hse_mock,
         version: meson.project_version(),
+        compile_args: hse_mock_c_args,
         sources: [
             version_h,
             mapi_idx_h,

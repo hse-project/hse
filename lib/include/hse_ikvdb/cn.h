@@ -246,8 +246,8 @@ cn_vma_mblock_max(struct cn *cn, enum mp_media_classp mclass);
 u64
 cn_mpool_dev_zone_alloc_unit_default(struct cn *cn, enum mp_media_classp mclass);
 
-#if defined(HSE_UNIT_TEST_MODE) && HSE_UNIT_TEST_MODE == 1
+#if HSE_MOCKING
 #include "cn_ut.h"
-#endif /* HSE_UNIT_TEST_MODE */
+#endif /* HSE_MOCKING */
 
 #endif

@@ -36,8 +36,8 @@
 void
 hse_meminfo(unsigned long *freep, unsigned long *availp, unsigned int shift);
 
-#if defined(HSE_UNIT_TEST_MODE) && HSE_UNIT_TEST_MODE == 1
+#if HSE_MOCKING
 #include "arch_ut.h"
-#endif /* HSE_UNIT_TEST_MODE */
+#endif /* HSE_MOCKING */
 
 #endif

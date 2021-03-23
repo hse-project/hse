@@ -8,7 +8,7 @@
 #include <hse/hse.h>
 
 #include <hse_util/logging.h>
-#ifdef HSE_UNIT_TEST_MODE
+#if HSE_MOCKING
 #include <hse_test_support/mock_api.h>
 #endif
 
@@ -381,7 +381,7 @@ run_tests_preamble(struct mtf_test_coll_info *tci)
 {
     struct mtf_test_info ti;
 
-#if HSE_UNIT_TEST_MODE
+#if HSE_MOCKING
     mapi_init();
 #endif
 
