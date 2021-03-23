@@ -3,7 +3,9 @@ _config_h_data = configuration_data({})
 _config_h = configure_file(
     input: '_config.h.in',
     output: '_config.h',
-    configuration: _config_h_data,
+    # remove copy and use configuration when _config.h becomes useful
+    copy: true,
+    # configuration: _config_h_data,
 )
 
 subdir('include')
