@@ -6,6 +6,10 @@
 #ifndef HSE_LIMITS_H
 #define HSE_LIMITS_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /** ...
  *
  * \ingroup HSE
@@ -33,5 +37,9 @@
 
 /* Max KVS name lengths */
 #define HSE_KVS_NAME_LEN_MAX 32
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

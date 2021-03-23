@@ -15,6 +15,10 @@
 
 #include <uuid/uuid.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* MTF_MOCK_DECL(hse_experimental) */
 
 #pragma GCC visibility push(default)
@@ -120,5 +124,9 @@ hse_params_err_exp(const struct hse_params *params, char *buf, size_t buf_sz);
 #if defined(HSE_UNIT_TEST_MODE) && HSE_UNIT_TEST_MODE == 1
 #include "hse_experimental_ut.h"
 #endif /* HSE_UNIT_TEST_MODE */
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

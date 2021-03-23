@@ -47,6 +47,10 @@
 #include <stdint.h>
 #include <stdlib.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /** @name Type Declarations / Shared Structures / Macros
  *        =====================================================
  * @{
@@ -1022,5 +1026,9 @@ hse_params_get(
 #if defined(HSE_UNIT_TEST_MODE) && HSE_UNIT_TEST_MODE == 1
 #include "hse_ut.h"
 #endif /* HSE_UNIT_TEST_MODE */
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif
