@@ -372,7 +372,7 @@ viewset_insert(struct viewset *handle, u64 *viewp, void **cookiep)
     return 0;
 }
 
-BullseyeCoverageSaveOff
+/* GCOV_EXCL_START */
 void
 viewset_remove(
     struct viewset *handle,
@@ -437,7 +437,7 @@ viewset_remove(
     *min_view_sn = self->vs_min_view_sn;
     *min_changed = *min_view_sn > entry_sn;
 }
-BullseyeCoverageRestore
+/* GCOV_EXCL_STOP */
 
 merr_t
 viewset_tree_create(u32 max_elts, u32 index, struct viewset_tree **tree)

@@ -116,7 +116,7 @@ key_disc_cmp(const struct key_disc *lhs, const struct key_disc *rhs)
     return 0;
 }
 
-BullseyeCoverageSaveOff
+/* GCOV_EXCL_START */
 
 #if __amd64__
 size_t
@@ -173,4 +173,4 @@ memlcpq(const void *s1, const void *s2, size_t len)
 #error memlcp() not implemented for this architecture
 #endif
 
-BullseyeCoverageRestore
+/* GCOV_EXCL_STOP */

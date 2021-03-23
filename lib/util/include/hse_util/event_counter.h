@@ -6,6 +6,8 @@
 #ifndef HSE_PLATFORM_ERROR_COUNTER_H
 #define HSE_PLATFORM_ERROR_COUNTER_H
 
+#include "_config.h"
+
 #include <hse_util/arch.h>
 #include <hse_util/compiler.h>
 #include <hse_util/logging.h>
@@ -222,7 +224,7 @@ extern struct dt_element_ops event_counter_ops;
         (e);                       \
     })
 
-#if _BullseyeCoverage
+#ifdef WITH_COVERAGE
 #define EV1(e) EV_PRI(e, HSE_ERR_VAL, HSE_MARK)
 #define EV2(e, pri, mark) EV_PRI(e, pri, mark)
 #else

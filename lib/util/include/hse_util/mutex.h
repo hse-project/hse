@@ -78,7 +78,7 @@ struct mutex {
 
 #define mutex_lock_nested(lock, subclass) mutex_lock((lock))
 
-BullseyeCoverageSaveOff
+/* GCOV_EXCL_START */
 
     static inline void
     mutex_init(struct mutex *mutex)
@@ -166,6 +166,6 @@ mutex_trylock(struct mutex *mutex)
     return !rc;
 }
 
-BullseyeCoverageRestore
+/* GCOV_EXCL_STOP */
 
 #endif /* HSE_PLATFORM_MUTEX_H */

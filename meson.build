@@ -548,3 +548,31 @@ if not meson.is_subproject()
 
     meson.add_dist_script('scripts' / 'release' / 'gen-version')
 endif
+
+gcovr = find_program('gcovr', required: get_option('b_coverage'))
+if gcovr.found() and get_option('b_coverage') and 'unit' in enabled_tests
+    reports = {
+        'text': [ '-o' ],
+        'html': [ '--html', '--html-details', '-o' ],
+        'json': [ '--json-pretty', '-o' ],
+        'xml': [ '--sonarqube' ],
+    }
+
+    foreach type, args : reports
+        custom_target(
+            'gcovr-@0@'.format(type),
+            command: [
+                'gcovr',
+                '-r',
+                '@SOURCE_ROOT@',
+                '@BUILD_ROOT@' / 'lib',
+                args,
+                '@OUTPUT@',
+                '-f',
+                '@SOURCE_ROOT@' / 'lib'
+            ],
+            depends: unit_test_exes,
+            output: 'coverage.@0@'.format(type)
+        )
+    endforeach
+endif

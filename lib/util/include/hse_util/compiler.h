@@ -22,23 +22,6 @@
 #define HSE_HOT           __attribute__((hot))
 #define HSE_COLD          __attribute__((cold))
 
-#ifndef _BullseyeCoverage
-#define _BullseyeCoverage 0
-#endif
-
-#if _BullseyeCoverage
-#define BullseyeCoverageSaveOff _Pragma("BullseyeCoverage save off")
-#define BullseyeCoverageRestore _Pragma("BullseyeCoverage restore")
-
-#ifndef _Static_assert
-#define _Static_assert(...)
-#endif
-
-#else
-#define BullseyeCoverageSaveOff
-#define BullseyeCoverageRestore
-#endif
-
 #if __amd64__
 static HSE_ALWAYS_INLINE void
 cpu_relax(void)

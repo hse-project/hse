@@ -301,7 +301,7 @@ perfc_ivl_destroy(const struct perfc_ivl *ivl);
 /* The rollup code is tested explicitly in perfc_test.c,
  * no need to test coverage at each call site.
  */
-BullseyeCoverageSaveOff
+/* GCOV_EXCL_START */
 
 #define PERFC_INC_RU(_pc, _cid, _rumax)       \
     do {                                      \
@@ -332,7 +332,7 @@ BullseyeCoverageSaveOff
         }                                                          \
     } while (0)
 
-BullseyeCoverageRestore
+/* GCOV_EXCL_STOP */
 
     /**
  * struct perfc_ivl - interval bounds map
@@ -593,7 +593,7 @@ perfc_dis_record_impl(struct perfc_dis *dis, u64 sample);
 
 /* [HSE_REVISIT] Add unit tests for all these predicates...
  */
-BullseyeCoverageSaveOff
+/* GCOV_EXCL_START */
 
 static HSE_ALWAYS_INLINE struct perfc_seti *
 PERFC_ISON(struct perfc_set *pcs)
@@ -869,7 +869,7 @@ perfc_sub(struct perfc_set *pcs, const u32 cidx, const u64 val)
     atomic64_add(val, &pcsi->pcs_ctrv[cidx].hdr.pch_val[i].pcv_vsub);
 }
 
-BullseyeCoverageRestore
+/* GCOV_EXCL_STOP */
 
 extern struct perfc_ivl *perfc_di_ivl;
 

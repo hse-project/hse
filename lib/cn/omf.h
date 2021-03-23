@@ -250,7 +250,7 @@ OMF_SETGET(struct wbt_lfe_omf, lfe_kmd, 16)
 
 /******** WB tree Version 3 ********/
 
-BullseyeCoverageSaveOff
+/* GCOV_EXCL_START */
 
 /* WB tree version 3 header */
 struct wbt3_hdr_omf {
@@ -304,7 +304,7 @@ struct wbt3_lfe_omf {
 OMF_SETGET(struct wbt3_lfe_omf, lfe3_koff, 16)
 OMF_SETGET(struct wbt3_lfe_omf, lfe3_kmd, 16)
 
-BullseyeCoverageRestore
+/* GCOV_EXCL_STOP */
 
 /*****************************************************************
  *

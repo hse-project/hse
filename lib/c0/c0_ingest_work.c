@@ -53,7 +53,7 @@ c0_ingest_work_fini(struct c0_ingest_work *w)
     assert(w->c0iw_magic == (uintptr_t)w);
     w->c0iw_magic = 0xdeadc0de;
 
-    BullseyeCoverageSaveOff
+    /* GCOV_EXCL_START */
 
         if (w->t0 > 0)
     {
@@ -90,7 +90,7 @@ c0_ingest_work_fini(struct c0_ingest_work *w)
             (ulong)(w->t7 - w->t0) / 1000);
     }
 
-    BullseyeCoverageRestore
+    /* GCOV_EXCL_STOP */
 
         bin_heap2_destroy(w->c0iw_minheap);
 }
