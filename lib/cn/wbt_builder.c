@@ -724,6 +724,6 @@ wbb_page_cnt_get(struct wbb *wbb)
     return wbb->used_pgc;
 }
 
-#if defined(HSE_UNIT_TEST_MODE) && HSE_UNIT_TEST_MODE == 1
+#if HSE_MOCKING
 #include "wbt_builder_ut_impl.i"
-#endif /* HSE_UNIT_TEST_MODE */
+#endif /* HSE_MOCKING */

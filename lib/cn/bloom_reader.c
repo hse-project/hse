@@ -72,7 +72,7 @@ bloom_reader_buffer_lookup(const struct bloom_desc *desc, const u8 *bitmap, stru
     return bf_lookup(kt->kt_hash, bitmap, desc->bd_n_hashes, desc->bd_rotl, desc->bd_bktmask);
 }
 
-#if HSE_UNIT_TEST_MODE
+#if HSE_MOCKING
 merr_t
 bloom_reader_filter_info(struct bloom_desc *desc, u32 *hash_cnt, u32 *modulus)
 {

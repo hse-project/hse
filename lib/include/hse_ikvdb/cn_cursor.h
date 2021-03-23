@@ -52,8 +52,8 @@ cn_cursor_destroy(void *cursor);
 merr_t
 cn_cursor_active_kvsets(void *cursor, u32 *active, u32 *total);
 
-#if defined(HSE_UNIT_TEST_MODE) && HSE_UNIT_TEST_MODE == 1
+#if HSE_MOCKING
 #include "cn_cursor_ut.h"
-#endif /* HSE_UNIT_TEST_MODE */
+#endif /* HSE_MOCKING */
 
 #endif

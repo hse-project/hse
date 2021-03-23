@@ -233,7 +233,7 @@ c0sk_putdel(
 struct cn *
 c0sk_get_cn(struct c0sk_impl *c0sk, u64 skidx);
 
-#if defined(HSE_UNIT_TEST_MODE) && HSE_UNIT_TEST_MODE == 1
+#if HSE_MOCKING
 #include "c0sk_internal_ut.h"
 #endif
 

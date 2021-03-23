@@ -11,9 +11,9 @@
 
 /* MTF_MOCK_DECL(alloc) */
 
-#if defined(HSE_UNIT_TEST_MODE) && HSE_UNIT_TEST_MODE == 1
+#if HSE_MOCKING
 #include <hse_test_support/allocation.h>
-#endif /* HSE_UNIT_TEST_MODE */
+#endif /* HSE_MOCKING */
 
 /**
  * alloc_aligned() - allocated aligned memory
@@ -32,9 +32,9 @@ free_aligned(const void *ptr);
 
 #define alloc_page_aligned(_sz) alloc_aligned((_sz), PAGE_SIZE)
 
-#if defined(HSE_UNIT_TEST_MODE) && HSE_UNIT_TEST_MODE == 1
+#if HSE_MOCKING
 #include "alloc_ut.h"
-#endif /* HSE_UNIT_TEST_MODE */
+#endif /* HSE_MOCKING */
 
 #include <hse_util/slab.h>
 

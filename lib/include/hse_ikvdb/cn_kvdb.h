@@ -33,8 +33,8 @@ cn_kvdb_create(struct cn_kvdb **h);
 void
 cn_kvdb_destroy(struct cn_kvdb *h);
 
-#if defined(HSE_UNIT_TEST_MODE) && HSE_UNIT_TEST_MODE == 1
+#if HSE_MOCKING
 #include "cn_kvdb_ut.h"
-#endif /* HSE_UNIT_TEST_MODE */
+#endif /* HSE_MOCKING */
 
 #endif

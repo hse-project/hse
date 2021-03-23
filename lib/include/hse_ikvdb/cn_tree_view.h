@@ -26,8 +26,8 @@ cn_tree_view_create(struct cn *cn, struct table **view_out);
 void
 cn_tree_view_destroy(struct table *view);
 
-#if defined(HSE_UNIT_TEST_MODE) && HSE_UNIT_TEST_MODE == 1
+#if HSE_MOCKING
 #include "cn_tree_view_ut.h"
-#endif /* HSE_UNIT_TEST_MODE */
+#endif /* HSE_MOCKING */
 
 #endif /* HSE_KVS_CN_CN_TREE_VIEW_H */

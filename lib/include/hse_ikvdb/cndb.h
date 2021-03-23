@@ -386,8 +386,8 @@ cndb_txn_ack_d(struct cndb *cndb, u64 txid, u64 tag, u64 cnid);
 merr_t
 cndb_txn_nak(struct cndb *cndb, u64 txid);
 
-#if defined(HSE_UNIT_TEST_MODE) && HSE_UNIT_TEST_MODE == 1
+#if HSE_MOCKING
 #include "cndb_ut.h"
-#endif /* HSE_UNIT_TEST_MODE */
+#endif /* HSE_MOCKING */
 
 #endif

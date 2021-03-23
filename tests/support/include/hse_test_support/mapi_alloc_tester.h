@@ -5,7 +5,7 @@
 #ifndef HSE_MAPI_MALLOC_TESTER_H
 #define HSE_MAPI_MALLOC_TESTER_H
 
-#if HSE_UNIT_TEST_MODE
+#if HSE_MOCKING
 
 struct mtf_test_info;
 

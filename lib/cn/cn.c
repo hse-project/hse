@@ -1757,8 +1757,8 @@ cn_vma_mblock_max(struct cn *cn, enum mp_media_classp mclass)
     return vma_size_max / mblocksz;
 }
 
-#if defined(HSE_UNIT_TEST_MODE) && HSE_UNIT_TEST_MODE == 1
+#if HSE_MOCKING
 #include "cn_ut_impl.i"
 #include "cn_cursor_ut_impl.i"
 #include "cn_mblocks_ut_impl.i"
-#endif /* HSE_UNIT_TEST_MODE */
+#endif /* HSE_MOCKING */

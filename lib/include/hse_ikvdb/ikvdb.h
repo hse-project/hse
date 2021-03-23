@@ -588,8 +588,8 @@ kvdb_kop_is_bind_txn(const struct hse_kvdb_opspec *os)
     return os && (os->kop_flags & HSE_KVDB_KOP_FLAG_BIND_TXN);
 }
 
-#if defined(HSE_UNIT_TEST_MODE) && HSE_UNIT_TEST_MODE == 1
+#if HSE_MOCKING
 #include "ikvdb_ut.h"
-#endif /* HSE_UNIT_TEST_MODE */
+#endif /* HSE_MOCKING */
 
 #endif

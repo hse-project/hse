@@ -691,6 +691,6 @@ kvdb_ctxn_locks_fini(void)
     kvdb_ctxn_entry_cache = NULL;
 }
 
-#if defined(HSE_UNIT_TEST_MODE) && HSE_UNIT_TEST_MODE == 1
+#if HSE_MOCKING
 #include "kvdb_keylock_ut_impl.i"
-#endif /* HSE_UNIT_TEST_MODE */
+#endif /* HSE_MOCKING */

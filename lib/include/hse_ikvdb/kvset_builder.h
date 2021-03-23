@@ -111,8 +111,8 @@ kvset_builder_set_agegroup(struct kvset_builder *self, enum hse_mclass_policy_ag
 void
 kvset_builder_set_merge_stats(struct kvset_builder *self, struct cn_merge_stats *stats);
 
-#if defined(HSE_UNIT_TEST_MODE) && HSE_UNIT_TEST_MODE == 1
+#if HSE_MOCKING
 #include "kvset_builder_ut.h"
-#endif /* HSE_UNIT_TEST_MODE */
+#endif /* HSE_MOCKING */
 
 #endif

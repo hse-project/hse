@@ -58,8 +58,8 @@ tbkt_rate_get(struct tbkt *self);
 void
 tbkt_adjust(struct tbkt *self, u64 burst, u64 rate);
 
-#if defined(HSE_UNIT_TEST_MODE) && HSE_UNIT_TEST_MODE == 1
+#if HSE_MOCKING
 #include "token_bucket_ut.h"
-#endif /* HSE_UNIT_TEST_MODE */
+#endif /* HSE_MOCKING */
 
 #endif

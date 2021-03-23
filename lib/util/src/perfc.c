@@ -1021,6 +1021,6 @@ perfc_dis_record_impl(struct perfc_dis *dis, u64 sample)
         perfc_latdis_record(dis, sample);
 }
 
-#if defined(HSE_UNIT_TEST_MODE) && HSE_UNIT_TEST_MODE == 1
+#if HSE_MOCKING
 #include "perfc_ut_impl.i"
-#endif /* HSE_UNIT_TEST_MODE */
+#endif /* HSE_MOCKING */

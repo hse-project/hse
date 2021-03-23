@@ -897,7 +897,7 @@ hse_err_to_errno(hse_err_t err)
 }
 
 /* Includes necessary files for mocking */
-#if defined(HSE_UNIT_TEST_MODE) && HSE_UNIT_TEST_MODE == 1
+#if HSE_MOCKING
 #include "hse_ut_impl.i"
 #include "mpool_ut_impl.i"
-#endif /* HSE_UNIT_TEST_MODE */
+#endif /* HSE_MOCKING */

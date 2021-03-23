@@ -6,8 +6,6 @@
 #ifndef HSE_CORE_HSE_TEST_MOCK_H
 #define HSE_CORE_HSE_TEST_MOCK_H
 
-#if HSE_UNIT_TEST_MODE
-
 #include <hse_util/inttypes.h>
 
 #include "mapi_idx.h"
@@ -197,13 +195,4 @@ mapi_inject_list_unset(
     mapi_inject_list(injectv, false);
 }
 
-#else
-
-/* mock_api.c is only built in unit test mode.
- */
-static inline void
-mapi_init(void)
-{
-}
-#endif /* HSE_UNIT_TEST_MODE */
 #endif /* HSE_CORE_HSE_TEST_MOCK_H */

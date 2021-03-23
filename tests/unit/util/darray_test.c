@@ -180,7 +180,7 @@ MTF_DEFINE_UTEST(darray, loc)
     darray_fini(&da);
 }
 
-#if defined(HSE_UNIT_TEST_MODE) && HSE_UNIT_TEST_MODE == 1
+#if HSE_MOCKING
 MTF_DEFINE_UTEST(darray, alloc_failure)
 {
     struct darray da = zero;
@@ -210,6 +210,6 @@ MTF_DEFINE_UTEST(darray, alloc_failure)
 
     darray_fini(&da);
 }
-#endif /* HSE_UNIT_TEST_MODE */
+#endif /* HSE_MOCKING */
 
 MTF_END_UTEST_COLLECTION(darray);

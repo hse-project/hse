@@ -44,8 +44,8 @@ cn_tree_cursor_destroy(struct pscan *cur);
 merr_t
 cn_tree_cursor_active_kvsets(struct pscan *cur, u32 *active, u32 *total);
 
-#if defined(HSE_UNIT_TEST_MODE) && HSE_UNIT_TEST_MODE == 1
+#if HSE_MOCKING
 #include "cn_tree_cursor_ut.h"
-#endif /* HSE_UNIT_TEST_MODE */
+#endif /* HSE_MOCKING */
 
 #endif

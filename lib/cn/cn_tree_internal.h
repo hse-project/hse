@@ -250,8 +250,8 @@ cn_comp_cancel_cb(struct sts_job *job);
 void
 cn_comp_slice_cb(struct sts_job *job);
 
-#if defined(HSE_UNIT_TEST_MODE) && HSE_UNIT_TEST_MODE == 1
+#if HSE_MOCKING
 #include "cn_tree_internal_ut.h"
-#endif /* HSE_UNIT_TEST_MODE */
+#endif /* HSE_MOCKING */
 
 #endif /* HSE_KVDB_CN_CN_TREE_INTERNAL_H */

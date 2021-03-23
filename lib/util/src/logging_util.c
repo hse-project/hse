@@ -20,6 +20,6 @@ backstop_log(const char *fmt)
     syslog(3, "%s: %s", __func__, fmt);
 }
 
-#if defined(HSE_UNIT_TEST_MODE) && HSE_UNIT_TEST_MODE == 1
+#if HSE_MOCKING
 #include "logging_util_ut_impl.i"
-#endif /* HSE_UNIT_TEST_MODE */
+#endif /* HSE_MOCKING */

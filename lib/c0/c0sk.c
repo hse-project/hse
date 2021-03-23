@@ -1728,6 +1728,6 @@ c0sk_get_cn(struct c0sk_impl *c0sk, u64 skidx)
     return c0sk->c0sk_cnv[skidx];
 }
 
-#if defined(HSE_UNIT_TEST_MODE) && HSE_UNIT_TEST_MODE == 1
+#if HSE_MOCKING
 #include "c0sk_ut_impl.i"
-#endif /* HSE_UNIT_TEST_MODE */
+#endif /* HSE_MOCKING */

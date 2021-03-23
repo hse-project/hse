@@ -5,7 +5,7 @@
 #ifndef HSE_UTEST_KERNSYM_H
 #define HSE_UTEST_KERNSYM_H
 
-#if defined(HSE_UNIT_TEST_MODE) && HSE_UNIT_TEST_MODE != 0
+#if defined(HSE_MOCKING) && HSE_MOCKING != 0
 #define HSE_UT_EXPORT_SYMBOL(_sym) EXPORT_SYMBOL(_sym)
 #else
 #define HSE_UT_EXPORT_SYMBOL(_sym)

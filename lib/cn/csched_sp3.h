@@ -47,8 +47,8 @@ struct sp3_tree {
     atomic64_t       spt_ingest_wlen;
 };
 
-#if defined(HSE_UNIT_TEST_MODE) && HSE_UNIT_TEST_MODE == 1
+#if HSE_MOCKING
 #include "csched_sp3_ut.h"
-#endif /* HSE_UNIT_TEST_MODE */
+#endif /* HSE_MOCKING */
 
 #endif

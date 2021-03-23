@@ -167,8 +167,8 @@ mbset_get_udata(struct mbset *self, uint blk_num)
     return (valid && self->mbs_udata_sz ? self->mbs_udata + self->mbs_udata_sz * blk_num : 0);
 }
 
-#if defined(HSE_UNIT_TEST_MODE) && HSE_UNIT_TEST_MODE == 1
+#if HSE_MOCKING
 #include "mbset_ut.h"
-#endif /* HSE_UNIT_TEST_MODE */
+#endif /* HSE_MOCKING */
 
 #endif

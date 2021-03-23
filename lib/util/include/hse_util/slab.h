@@ -72,8 +72,8 @@ hse_page_free(void *mem);
 
 #pragma GCC visibility pop
 
-#if HSE_UNIT_TEST_MODE
+#if HSE_MOCKING
 #include "slab_ut.h"
-#endif /* HSE_UNIT_TEST_MODE */
+#endif /* HSE_MOCKING */
 
 #endif /* HSE_PLATFORM_SLAB_H */

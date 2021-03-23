@@ -20,8 +20,8 @@ sts_perfc_alloc(const char *name, const char *ctrname, struct perfc_set *setp);
 void
 sts_perfc_free(struct perfc_set *set);
 
-#if defined(HSE_UNIT_TEST_MODE) && HSE_UNIT_TEST_MODE == 1
+#if HSE_MOCKING
 #include "sched_sts_perfc_ut.h"
-#endif /* HSE_UNIT_TEST_MODE */
+#endif /* HSE_MOCKING */
 
 #endif /* HSE_KVDB_STS_PERFC_H */

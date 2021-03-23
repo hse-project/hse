@@ -1248,6 +1248,6 @@ kbb_set_merge_stats(struct kblock_builder *bld, struct cn_merge_stats *stats)
     bld->mstats = stats;
 }
 
-#if defined(HSE_UNIT_TEST_MODE) && HSE_UNIT_TEST_MODE == 1
+#if HSE_MOCKING
 #include "kblock_builder_ut_impl.i"
-#endif /* HSE_UNIT_TEST_MODE */
+#endif /* HSE_MOCKING */

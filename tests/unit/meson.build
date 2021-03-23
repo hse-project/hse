@@ -1,5 +1,5 @@
 common_test_c_args = [
-    '-DHSE_UNIT_TEST_MODE=1',
+    '-DHSE_MOCKING=1',
     '-DCOMPNAME="kvdb"',
 ]
 

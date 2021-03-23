@@ -324,8 +324,8 @@ c0sk_get_first_c0kvms(struct c0sk *handle);
 struct c0_kvmultiset *
 c0sk_get_last_c0kvms(struct c0sk *handle);
 
-#if defined(HSE_UNIT_TEST_MODE) && HSE_UNIT_TEST_MODE == 1
+#if HSE_MOCKING
 #include "c0sk_ut.h"
-#endif /* HSE_UNIT_TEST_MODE */
+#endif /* HSE_MOCKING */
 
 #endif

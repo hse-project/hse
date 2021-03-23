@@ -73,8 +73,8 @@ cn_tree_preorder_walk(
     cn_tree_walk_callback_fn *callback,
     void *                    rock);
 
-#if defined(HSE_UNIT_TEST_MODE) && HSE_UNIT_TEST_MODE == 1
+#if HSE_MOCKING
 #include "cn_tree_iter_ut.h"
-#endif /* HSE_UNIT_TEST_MODE */
+#endif /* HSE_MOCKING */
 
 #endif

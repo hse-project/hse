@@ -3337,9 +3337,9 @@ cndb_cn_initializer(unsigned int fanout_bits, unsigned int pfx_len, u64 cnid)
     return cn;
 }
 
-#if defined(HSE_UNIT_TEST_MODE) && HSE_UNIT_TEST_MODE == 1
+#if HSE_MOCKING
 #include "cndb_ut.h"
 #include "cndb_ut_impl.i"
 #include "cndb_internal_ut.h"
 #include "cndb_internal_ut_impl.i"
-#endif /* HSE_UNIT_TEST_MODE */
+#endif /* HSE_MOCKING */

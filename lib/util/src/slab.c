@@ -417,7 +417,7 @@ kmc_chunk_destroy(struct kmc_chunk *chunk)
 static void
 kmc_slab_mprotect(struct kmc_slab *slab, int prot)
 {
-#if HSE_UNIT_TEST_MODE || USE_EFENCE
+#if HSE_MOCKING || USE_EFENCE
     size_t slabsz = KMC_SLAB_SZ;
     size_t sz;
 
@@ -1344,6 +1344,6 @@ hse_page_free(void *mem)
     kmem_cache_free(kmc.kmc_pagecache, mem);
 }
 
-#if HSE_UNIT_TEST_MODE
+#if HSE_MOCKING
 #include "slab_ut_impl.i"
 #endif

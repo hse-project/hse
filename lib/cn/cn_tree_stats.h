@@ -21,8 +21,8 @@ cn_tree_perfc_shape_report(
     struct perfc_set *inode,
     struct perfc_set *lnode);
 
-#if defined(HSE_UNIT_TEST_MODE) && HSE_UNIT_TEST_MODE == 1
+#if HSE_MOCKING
 #include "cn_tree_stats.h"
-#endif /* HSE_UNIT_TEST_MODE */
+#endif /* HSE_MOCKING */
 
 #endif

@@ -15,9 +15,9 @@
 
 #define MTF_MOCK_IMPL_kcompact
 #include "kcompact.h"
-#if defined(HSE_UNIT_TEST_MODE) && HSE_UNIT_TEST_MODE == 1
+#if HSE_MOCKING
 #include "kcompact_ut_impl.i"
-#endif /* HSE_UNIT_TEST_MODE */
+#endif /* HSE_MOCKING */
 
 #include "kvset.h"
 #include "cn_metrics.h"

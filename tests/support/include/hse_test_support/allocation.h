@@ -243,8 +243,8 @@ fail_nth_alloc_test_pre(struct mtf_test_info *ti);
 int
 fail_nth_alloc_test_post(struct mtf_test_info *ti);
 
-#if defined(HSE_UNIT_TEST_MODE) && HSE_UNIT_TEST_MODE == 1
+#if HSE_MOCKING
 #include "allocation_ut.h"
-#endif /* HSE_UNIT_TEST_MODE */
+#endif /* HSE_MOCKING */
 
 #endif

@@ -55,8 +55,8 @@ hlog_add(struct hlog *hlog, u64 hash);
 u64
 hlog_card(struct hlog *hlog);
 
-#if defined(HSE_UNIT_TEST_MODE) && HSE_UNIT_TEST_MODE == 1
+#if HSE_MOCKING
 #include "hlog_ut.h"
-#endif /* HSE_UNIT_TEST_MODE */
+#endif /* HSE_MOCKING */
 
 #endif

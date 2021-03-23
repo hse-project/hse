@@ -256,7 +256,7 @@ findPfxValue(struct bonsai_kv *kv, uintptr_t seqnoref)
 int
 test_collection_setup(struct mtf_test_info *info)
 {
-#if defined(HSE_UNIT_TEST_MODE) && HSE_UNIT_TEST_MODE == 1
+#if HSE_MOCKING
     fail_nth_alloc_test_pre(info);
 #endif
 
@@ -278,7 +278,7 @@ test_collection_teardown(struct mtf_test_info *info)
 int
 no_fail_pre(struct mtf_test_info *info)
 {
-#if defined(HSE_UNIT_TEST_MODE) && HSE_UNIT_TEST_MODE == 1
+#if HSE_MOCKING
     g_fail_nth_alloc_cnt = 0;
     g_fail_nth_alloc_limit = -1;
 #endif
@@ -291,7 +291,7 @@ no_fail_pre(struct mtf_test_info *info)
 int
 no_fail_post(struct mtf_test_info *info)
 {
-#if defined(HSE_UNIT_TEST_MODE) && HSE_UNIT_TEST_MODE == 1
+#if HSE_MOCKING
     g_fail_nth_alloc_cnt = 0;
     g_fail_nth_alloc_limit = -1;
 #endif
