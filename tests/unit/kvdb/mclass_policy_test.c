@@ -62,7 +62,7 @@ MTF_DEFINE_UTEST_PRE(mclass_policy_test, mclass_policy_default, general_pre)
         HSE_MPOLICY_MEDIA_CAPACITY;
 
     /*
-     * staging_min_capacity - only c1 and root use staging.
+     * staging_min_capacity - only root nodes use staging.
      */
     strcpy(dpolicies[3].mc_name, "staging_min_capacity");
     for (i = 0; i < HSE_MPOLICY_AGE_INTERNAL; i++)

@@ -53,7 +53,7 @@ struct mpool;
  * started in sp3_create.
  *
  * There are several external threads that interact with the scheduler:
- *    - Ingest threads, created in c0/c1.
+ *    - Ingest threads, created in c0
  *    - STS job threads, created in sts_create().
  *    - Open/Close threads (threads that call cn_open() and cn_close().
  *
@@ -78,7 +78,7 @@ struct mpool;
  *
  * We take some liberties in the computation of actual_kvdb_size:
  *    - We only count kblock and vblock capacities.
- *    - We do not count CNDB mlogs or c1 mlogs or any other mlogs.
+ *    - We do not count CNDB mlogs or any other mlogs.
  *    - We do not count mpool overhead.
  *
  * Let:

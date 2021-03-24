@@ -12,13 +12,9 @@
  * struct kvs_block - information about a mblock in a blk_list
  * @bk_blkid:  mblock id
  * @bk_handle: mblock handle
- * @bk_needs_commit:  valid only when part of c1 external vblock builder
- * @bk_valid:         valid only when part of c1 external vblock builder
  */
 struct kvs_block {
     u64  bk_blkid;
-    bool bk_needs_commit;
-    bool bk_valid;
 };
 
 struct blk_list {

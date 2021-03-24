@@ -79,7 +79,7 @@ MTF_DEFINE_UTEST(kvdb_log_test, empty_log_test)
 {
     struct kvdb_log *log;
     merr_t           err;
-    u64              oid1, oid2, oid3, oid4;
+    u64              oid1, oid2;
 
     load_log("empty.klog");
 
@@ -87,7 +87,7 @@ MTF_DEFINE_UTEST(kvdb_log_test, empty_log_test)
     ASSERT_EQ(0, err);
     ASSERT_TRUE(log);
 
-    err = kvdb_log_replay(log, &oid1, &oid2, &oid3, &oid4);
+    err = kvdb_log_replay(log, &oid1, &oid2);
     ASSERT_EQ(0, err);
 
     err = kvdb_log_close(log);

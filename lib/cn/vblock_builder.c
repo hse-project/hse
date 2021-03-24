@@ -164,11 +164,7 @@ _vblock_finish(struct vblock_builder *bld)
     uint   zfill_len;
 
     if (bld->blkid && bld->wbuf_off) {
-        /*
-         * c1 may issue media writes before the 1MB buffer
-         * gets full. The final write should not exceed
-         * the available space in the media.
-         */
+
         zfill_len = bld->wbuf_len - bld->wbuf_off;
         if (zfill_len > _vblock_unused_media_space(bld))
             zfill_len = _vblock_unused_media_space(bld);

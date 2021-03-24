@@ -26,7 +26,6 @@ struct kvdb_rparams;
 struct kvs_rparams;
 struct cursor_summary;
 struct kvset_builder;
-struct c1;
 struct csched;
 struct throttle_sensor;
 struct query_ctx;

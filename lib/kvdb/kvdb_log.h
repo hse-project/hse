@@ -36,8 +36,6 @@ struct kvdb_log {
     u64               kl_serial;
     u64               kl_cndb_oid1;
     u64               kl_cndb_oid2;
-    u64               kl_c1_oid1;
-    u64               kl_c1_oid2;
     bool              kl_rdonly;
 
     /* buffering MDC I/O -- NB: cannot mix reads and writes */
@@ -62,8 +60,6 @@ struct kvdb_mdc {
     u32             mdc_id;
     u64             mdc_new_oid1;
     u64             mdc_new_oid2;
-    u64             mdc_old_oid1;
-    u64             mdc_old_oid2;
 };
 
 union kvdb_mdu {
@@ -79,9 +75,7 @@ merr_t
 kvdb_log_replay(
     struct kvdb_log *log,
     u64 *            cndblog_oid1,
-    u64 *            cndblog_oid2,
-    u64 *            c1_oid1,
-    u64 *            c1_oid2);
+    u64 *            cndblog_oid2);
 
 /* MTF_MOCK */
 merr_t

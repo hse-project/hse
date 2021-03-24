@@ -162,7 +162,7 @@ struct cndb_ingest_replay {
  * @cndb_ing_rep: used to determine the id of the last successful ingest.
  *
  * The id of the last successful ingest (stored in cndb_ing_rep) is
- * passed to C1 at the end of cndb replay.
+ * passed to available at the end of cndb replay.
  * cndb_ing_rep is used only during cndb replay.
  */
 struct cndb {

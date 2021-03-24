@@ -93,21 +93,6 @@ MTF_DEFINE_UTEST(kvs_rparams, kvs_rparams_validate_basic)
     ASSERT_EQ(EINVAL, merr_errno(err));
     p.vblock_size_mb = 32;
 
-    p.c1_vblock_cap = 1025;
-    err = kvs_rparams_validate(&p);
-    ASSERT_EQ(EINVAL, merr_errno(err));
-    p.c1_vblock_cap = 256;
-
-    p.c1_vblock_size_mb = 33;
-    err = kvs_rparams_validate(&p);
-    ASSERT_EQ(EINVAL, merr_errno(err));
-    p.c1_vblock_size_mb = 32;
-
-    p.c1_vblock_size_mb = 0;
-    err = kvs_rparams_validate(&p);
-    ASSERT_EQ(EINVAL, merr_errno(err));
-    p.c1_vblock_size_mb = 32;
-
     /* NULL arg */
     err = kvs_rparams_validate(NULL);
     ASSERT_EQ(merr_errno(err), EINVAL);

@@ -1109,7 +1109,6 @@ cn_open(
     struct cn **        cn_out)
 {
     ulong       ksz, kcnt, kshift, vsz, vcnt, vshift;
-    ulong       mavail;
     const char *kszsuf, *vszsuf;
     merr_t      err;
     struct cn * cn;
@@ -1167,8 +1166,6 @@ cn_open(
     cn->cn_hash = key_hash64(kvs_name, strlen(kvs_name));
     cn->cn_mpool_params = mpool_params;
 
-    hse_meminfo(NULL, &mavail, 30);
-
     staging_absent = mpool_mclass_get(ds, MP_MED_STAGING, NULL);
     if (staging_absent) {
         if (strcmp(rp->mclass_policy, "capacity_only")) {
@@ -1179,16 +1176,8 @@ cn_open(
         }
     }
 
-    /* Reduce c1 vbuilder contribution for low memory configurations. */
-    if (mavail < 128)
-        rp->c1_vblock_cap = 4;
-
-    /* If this cn is capped disable c1 vbuilder to be space efficient.
-     */
-    if (cn_is_capped(cn)) {
+    if (cn_is_capped(cn))
         rp->kvs_cursor_ttl = rp->cn_capped_ttl;
-        rp->c1_vblock_cap = 0;
-    }
 
     /* Enable tree maintenance if we have a scheduler,
      * and if replay, diag and rdonly are all false.

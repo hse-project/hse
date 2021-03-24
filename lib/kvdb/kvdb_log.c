@@ -40,17 +40,15 @@ kvdb_log_mdx_dump(char *dir, union kvdb_mdu *mdp, size_t sz)
             break;
         case KVDB_LOG_TYPE_MDC:
             hse_log(
-                HSE_DEBUG "%s,%s(%lu): mdc disp %d id %d new oids "
-                          "(x%lx, x%lx) old oids (x%lx, x%lx)",
+                HSE_DEBUG "%s,%s(%lu): mdc disp %d id %d oids "
+                          "(x%lx, x%lx)",
                 __func__,
                 dir,
                 (ulong)sz,
                 mdp->c.mdc_disp,
                 mdp->c.mdc_id,
                 (ulong)mdp->c.mdc_new_oid1,
-                (ulong)mdp->c.mdc_new_oid2,
-                (ulong)mdp->c.mdc_old_oid1,
-                (ulong)mdp->c.mdc_old_oid2);
+                (ulong)mdp->c.mdc_new_oid2);
             break;
         default:
             hse_log(
@@ -85,8 +83,6 @@ kvdb_log_mdx_to_omf(struct kvdb_log_hdr2_omf *omf, union kvdb_mdu *mdp)
             omf_set_mdc_id((void *)omf, mdp->c.mdc_id);
             omf_set_mdc_new_oid1((void *)omf, mdp->c.mdc_new_oid1);
             omf_set_mdc_new_oid2((void *)omf, mdp->c.mdc_new_oid2);
-            omf_set_mdc_old_oid1((void *)omf, mdp->c.mdc_old_oid1);
-            omf_set_mdc_old_oid2((void *)omf, mdp->c.mdc_old_oid2);
             break;
         default:
             return 0;
@@ -176,9 +172,6 @@ kvdb_log_mdc_keep(struct kvdb_log *log, union kvdb_mdu *mdp)
         if (mdp->c.mdc_id == KVDB_LOG_MDC_ID_CNDB) {
             log->kl_cndb_oid1 = mdp->c.mdc_new_oid1;
             log->kl_cndb_oid2 = mdp->c.mdc_new_oid2;
-        } else if (mdp->c.mdc_id == KVDB_LOG_MDC_ID_C1) {
-            log->kl_c1_oid1 = mdp->c.mdc_new_oid1;
-            log->kl_c1_oid2 = mdp->c.mdc_new_oid2;
         }
         return 0;
     } else {
@@ -268,8 +261,6 @@ kvdb_log_omf_to_mdx(union kvdb_mdu *mdp, struct kvdb_log_hdr2_omf *omf, u32 seri
             mdp->c.mdc_id = omf_mdc_id((void *)omf);
             mdp->c.mdc_new_oid1 = omf_mdc_new_oid1((void *)omf);
             mdp->c.mdc_new_oid2 = omf_mdc_new_oid2((void *)omf);
-            mdp->c.mdc_old_oid1 = omf_mdc_old_oid1((void *)omf);
-            mdp->c.mdc_old_oid2 = omf_mdc_old_oid2((void *)omf);
             break;
         default:
             return merr(ev(EPROTO));
@@ -283,17 +274,13 @@ merr_t
 kvdb_log_replay(
     struct kvdb_log *log,
     u64 *            cndblog_oid1,
-    u64 *            cndblog_oid2,
-    u64 *            c1_oid1,
-    u64 *            c1_oid2)
+    u64 *            cndblog_oid2)
 {
     merr_t err;
     size_t len;
 
     *cndblog_oid1 = 0;
     *cndblog_oid2 = 0;
-    *c1_oid1 = 0;
-    *c1_oid2 = 0;
 
     err = mpool_mdc_rewind(log->kl_mdc);
     if (ev(err))
@@ -352,13 +339,11 @@ kvdb_log_replay(
 
     if (err)
         hse_elog(
-            HSE_ERR "%s: failed to read OIDs 0x%lx/0x%lx/0x%lx/0x%lx: @@e",
+            HSE_ERR "%s: failed to read OIDs 0x%lx 0x%lx: @@e",
             err,
             __func__,
             (ulong)log->kl_cndb_oid1,
-            (ulong)log->kl_cndb_oid2,
-            (ulong)log->kl_c1_oid1,
-            (ulong)log->kl_c1_oid1);
+            (ulong)log->kl_cndb_oid2);
 
 out:
     if (err) {
@@ -366,8 +351,6 @@ out:
     } else {
         *cndblog_oid1 = log->kl_cndb_oid1;
         *cndblog_oid2 = log->kl_cndb_oid2;
-        *c1_oid1 = log->kl_c1_oid1;
-        *c1_oid2 = log->kl_c1_oid2;
 
         /* [HSE_REVISIT] this keeps the log optimally small, but it isn't
          * strictly necessary.  To remove it, we must log the following
@@ -535,18 +518,6 @@ kvdb_log_rollover(struct kvdb_log *log)
         mdu.c.mdc_id = KVDB_LOG_MDC_ID_CNDB;
         mdu.c.mdc_new_oid1 = log->kl_cndb_oid1;
         mdu.c.mdc_new_oid2 = log->kl_cndb_oid2;
-        kvdb_log_mdx_to_omf((void *)log->kl_buf, &mdu);
-        err = mpool_mdc_append(log->kl_mdc, log->kl_buf, sz, false);
-        if (ev(err))
-            goto out;
-    }
-
-    if (log->kl_c1_oid1 && log->kl_c1_oid2) {
-        sz = sizeof(struct kvdb_log_mdc_omf);
-        memset(log->kl_buf, 0, sz);
-        mdu.c.mdc_id = KVDB_LOG_MDC_ID_C1;
-        mdu.c.mdc_new_oid1 = log->kl_c1_oid1;
-        mdu.c.mdc_new_oid2 = log->kl_c1_oid2;
         kvdb_log_mdx_to_omf((void *)log->kl_buf, &mdu);
         err = mpool_mdc_append(log->kl_mdc, log->kl_buf, sz, false);
         if (ev(err))
@@ -743,8 +714,6 @@ kvdb_log_mdc_create(
     mdp->c.mdc_id = mdcid;
     mdp->c.mdc_new_oid1 = oid1;
     mdp->c.mdc_new_oid2 = oid2;
-    mdp->c.mdc_old_oid1 = 0;
-    mdp->c.mdc_old_oid2 = 0;
 
     kvdb_log_mdx_to_omf((void *)log->kl_buf, mdp);
 
