@@ -756,7 +756,7 @@ c0kvms_cursor_destroy(struct c0_kvmultiset_cursor *cur)
 }
 
 struct c0_ingest_work *
-c0kvms_ingest_work_prepare(struct c0_kvmultiset *handle, void *c0)
+c0kvms_ingest_work_prepare(struct c0_kvmultiset *handle, struct c0sk_impl *c0sk)
 {
     struct c0_kvmultiset_impl *self = c0_kvmultiset_h2r(handle);
     struct element_source **   source;
@@ -768,7 +768,7 @@ c0kvms_ingest_work_prepare(struct c0_kvmultiset *handle, void *c0)
     assert(work);
 
     work->c0iw_c0kvms = handle;
-    work->c0iw_c0 = c0;
+    work->c0iw_c0sk = c0sk;
 
     source = work->c0iw_sourcev + HSE_C0_KVSET_ITER_MAX;
     iter = work->c0iw_iterv + HSE_C0_KVSET_ITER_MAX;

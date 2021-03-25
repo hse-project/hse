@@ -399,7 +399,7 @@ c0kvms_cursor_destroy(struct c0_kvmultiset_cursor *cursor);
  * Return: pointer to the c0_kvmultiset's embedded struct c0_ingest_work
  */
 struct c0_ingest_work *
-c0kvms_ingest_work_prepare(struct c0_kvmultiset *mset, void *c0);
+c0kvms_ingest_work_prepare(struct c0_kvmultiset *mset, struct c0sk_impl *c0sk);
 
 /**
  * c0kvms_c0snr_alloc() - alloc space to record a txn's c0snr

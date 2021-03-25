@@ -410,6 +410,7 @@ c0sk_ingest_worker(struct work_struct *work)
 
     ingest = container_of(work, struct c0_ingest_work, c0iw_work);
 
+    c0sk = ingest->c0iw_c0sk;
     minheap = ingest->c0iw_minheap;
     bldrs = ingest->c0iw_bldrs;
     mblocks = ingest->c0iw_mblocks;
@@ -421,7 +422,6 @@ c0sk_ingest_worker(struct work_struct *work)
     val_prevp = NULL;
     val_head = NULL;
 
-    c0sk = c0sk_h2r(ingest->c0iw_c0);
     debug = c0sk->c0sk_kvdb_rp->c0_debug & C0_DEBUG_INGSPILL;
     ingestid = CNDB_DFLT_INGESTID;
     err = 0;
