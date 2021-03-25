@@ -35,8 +35,6 @@ struct mpool;
 struct c0sk;
 struct cndb;
 struct kvdb_diag_kvs_list;
-struct c1;
-
 struct kvs;
 
 struct hse_kvdb_txn {
@@ -210,14 +208,6 @@ ikvdb_kvs_close(struct hse_kvs *kvs);
 /* MTF_MOCK */
 void
 ikvdb_get_c0sk(struct ikvdb *kvdb, struct c0sk **out);
-
-/**
- * ikvdb_get_c1() - get a handle to c1
- * @kvdb:       kvdb handle
- * @out:        c1 handle (output)
- */
-void
-ikvdb_get_c1(struct ikvdb *handle, struct c1 **out);
 
 /**
  * ikvdb_get_sched() - get a handle to the associated scheduler
@@ -482,29 +472,6 @@ ikvdb_compact_status_get(struct ikvdb *handle, struct hse_kvdb_compact_status *s
 /* MTF_MOCK */
 struct ikvdb *
 ikvdb_kvdb_handle(struct ikvdb_impl *self);
-
-/**
- * ikvdb_set_replaying() - Set c0sk replaying flag.
- * @ikdb: ikvdb handle
- */
-void
-ikvdb_set_replaying(struct ikvdb *ikdb);
-
-/**
- * ikvdb_unset_replaying()- Unset c0sk replaying flag.
- * @ikdb: ikvdb handle
- */
-void
-ikvdb_unset_replaying(struct ikvdb *ikdb);
-
-/**
- * ikvdb_diag_c1() - returns a pointer to kvdb's c1
- * @handle:         handle to access the opened KVDB
- * @ingestid:       latest ingest id
- * @c1:             (output) pointer to c1
- */
-merr_t
-ikvdb_diag_c1(struct ikvdb *handle, u64 ingestid, struct c1 **c1);
 
 /**
  * ikvdb_import() - import kvdb from files

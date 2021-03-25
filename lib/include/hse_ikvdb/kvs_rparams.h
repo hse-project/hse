@@ -71,16 +71,9 @@ struct kvs_rparams {
 
     unsigned long capped_evict_ttl;
 
-    unsigned long c1_vblock_cap;
-    unsigned long c1_vblock_size_mb;
-    unsigned long c1_vblock_cappct;
-
     unsigned long cn_io_threads;
     unsigned long cn_close_wait;
     unsigned long cn_diag_mode;
-
-    unsigned long vblock_asyncio;
-    unsigned long vblock_asyncio_ctxswi;
 
     unsigned long kv_print_config;
     unsigned long rdonly;

@@ -61,7 +61,6 @@ cn_mblocks_commit(
     u32                   num_lists,
     struct kvset_mblocks *list,
     enum cn_mutation      mutation,
-    u32 *                 vcommitted,
     u32 *                 n_committed,
     u64 *                 context,
     u64 *                 tags);

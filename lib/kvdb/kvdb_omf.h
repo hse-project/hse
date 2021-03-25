@@ -40,8 +40,8 @@ enum kvdb_log_disp {
 
 enum kvdb_log_mdc_id {
     KVDB_LOG_MDC_ID_CNDB = 0,
-    KVDB_LOG_MDC_ID_C1,
-    KVDB_LOG_MDC_ID_MAX = KVDB_LOG_MDC_ID_C1,
+    KVDB_LOG_MDC_ID_UNUSED = 1,
+    KVDB_LOG_MDC_ID_MAX = KVDB_LOG_MDC_ID_UNUSED,
 };
 
 /* hdr must contain 4 bytes TYPE at offset 0 and 4 bytes LEN at offset 3.
@@ -83,8 +83,6 @@ OMF_SETGET(struct kvdb_log_mdc_omf, mdc_disp, 32);
 OMF_SETGET(struct kvdb_log_mdc_omf, mdc_id, 32);
 OMF_SETGET(struct kvdb_log_mdc_omf, mdc_new_oid1, 64);
 OMF_SETGET(struct kvdb_log_mdc_omf, mdc_new_oid2, 64);
-OMF_SETGET(struct kvdb_log_mdc_omf, mdc_old_oid1, 64);
-OMF_SETGET(struct kvdb_log_mdc_omf, mdc_old_oid2, 64);
 
 /** struct kvdb_kvmeta_omf() -
  * @kvmt_klen:

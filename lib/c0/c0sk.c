@@ -85,9 +85,9 @@ c0sk_perfc_free(struct c0sk_impl *self)
  * structures. As c0 processes put and delete requests with varying key
  * values, its in memory size grows. At some point a threshold criteria is
  * reached (space and/or time) and the current contents of c0 will be migrated
- * to c1. Since the migration may take some time there may be several
+ * to cN. Since the migration may take some time there may be several
  * generations of c0 present at any one time, although a busy system should
- * have only N on average where N is the # of concurrent c0-to-c1 ingests that
+ * have only N on average where N is the # of concurrent c0-to-cN ingests that
  * can be in flight. The case of N=1 is expected to be normal.
  *
  * While the on-flash or on-disk portions of the LSM tree are handled via

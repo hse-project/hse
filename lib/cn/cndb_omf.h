@@ -291,8 +291,7 @@ OMF_GET_VER(struct cndb_tx_omf_v4, tx_nd, 32, v4);
  * @tx_id:    transaction id associated with this CN mutation.
  * @tx_seqno: KVDB sequence number at the time the transaction started.
  * @tx_ingestid: if different from CNDB_INVAL_INGESTID:
- *      - it is the ingest id of a CN ingest (provided by C1).
- *      - this transaction is a CN ingest with C1 enabled.
+ *      - it is the ingest id of a CN ingest
  *      When the transaction is not an ingest, the value is CNDB_INVAL_INGESTID.
  * @tx_nc:    number of kvsets created during the CN mutation.
  *            Also number of records CNDB_TYPE_TXC following this record

@@ -136,31 +136,19 @@ cn_pfx_probe(
  * cn_ingestv() - A vectored version of cn_ingest
  * @cn:
  * @mbv:
- *      The first vcommitted[i] vblocks of kvset mbv[i] are already committed.
- * @mbc:
- * @vcommitted: indicated in each kvset how many vblocks are already committed.
- *      Also these comitted vblocks ae not deleted by cndb replay [in the case
- *      this ingest is rolled back].
- *      Number of elements is ingestc.
  * @ingestid: passed by C1. Opaque to cndb. Stored in the cndb mdc. cndb replay
  *      returns to C1 the ingestid of the latest successful ingest.
  *      "latest" means the ingestid corresponding to the successful ingest
  *      with highest kvdb sequence number.
  * @ingestc:
- * @ingested:
- * @seqno_max_out:
  */
 /* MTF_MOCK */
 merr_t
 cn_ingestv(
     struct cn **           cn,
     struct kvset_mblocks **mbv,
-    int *                  mbc,
-    u32 *                  vcommitted,
     u64                    ingestid,
-    int                    ingestc,
-    bool *                 ingested_out,
-    u64 *                  seqno_max_out);
+    uint                   ingestc);
 
 /* MTF_MOCK */
 struct perfc_set *

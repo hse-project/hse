@@ -44,7 +44,7 @@ enum {
 /**
  * struct throttle_sensor - throttle sensor
  *
- * Modules that provide throttler input (e.g., c0, c1, and cn) should
+ * Modules that provide throttler input (e.g., c0 and cn) should
  * periodically update their respective sensors to indicate their workload.
  * Sensors should be set to a value between 0 and 2 * THROTTLE_SENSOR_SCALE.
  *

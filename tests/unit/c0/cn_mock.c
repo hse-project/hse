@@ -27,7 +27,7 @@ struct mock_cn {
 };
 
 merr_t
-_cn_ingest(struct cn *cn, struct kvset_mblocks *childv, unsigned int childc, u64 txid)
+_cn_ingest(struct cn *cn, struct kvset_mblocks *childv, u64 txid)
 {
     struct mock_cn *mock_cn = (struct mock_cn *)cn;
 
@@ -58,30 +58,18 @@ merr_t
 _cn_ingestv(
     struct cn **           cn,
     struct kvset_mblocks **mbv,
-    int *                  mbc,
-    u32 *                  vcommitted,
     u64                    ingestid,
-    int                    ingestc,
-    bool *                 ingested,
-    u64 *                  seqno)
+    uint                   ingestc)
 {
     int    i;
     merr_t err = 0;
 
     for (i = 0; !err && i < ingestc; i++) {
 
-        if (!cn[i] || !mbv[1] || !mbc[i])
+        if (!cn[i] || !mbv[1])
             continue;
 
-        err = _cn_ingest(cn[i], mbv[i], (uint)mbc[i], 0);
-    }
-
-    if (err) {
-        *ingested = false;
-        *seqno = 0;
-    } else {
-        *ingested = true;
-        *seqno = 10000;
+        err = _cn_ingest(cn[i], mbv[i], 0);
     }
 
     return err;

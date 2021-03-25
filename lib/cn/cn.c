@@ -358,8 +358,6 @@ cn_pfx_probe(
  * cn_commit_blks() - commit a set of mblocks
  * @ds:           dataset
  * @blks:         array of kvset_mblock structs
- * @skip:         skip this number of mblocks at the beginning of blks, they
- *                are already committed.
  * @n_committed:  (output) number of successfully committed mblocks by this
  *                function call.
  *
@@ -370,12 +368,12 @@ cn_pfx_probe(
  * indicating the underlying cause of failure.
  */
 static merr_t
-cn_commit_blks(struct mpool *ds, struct blk_list *blks, u32 skip, u32 *n_committed)
+cn_commit_blks(struct mpool *ds, struct blk_list *blks, u32 *n_committed)
 {
     merr_t err;
     u32    bx;
 
-    for (bx = skip; bx < blks->n_blks; ++bx) {
+    for (bx = 0; bx < blks->n_blks; ++bx) {
         err = commit_mblock(ds, &blks->blks[bx]);
         if (ev(err))
             return err;
@@ -393,7 +391,6 @@ cn_mblocks_commit(
     u32                   num_lists,
     struct kvset_mblocks *list,
     enum cn_mutation      mutation,
-    u32 *                 vcommitted,
     u32 *                 n_committed,
     u64 *                 context,
     u64 *                 tags)
@@ -413,10 +410,8 @@ cn_mblocks_commit(
         /*
          * If key compaction, all the vblocks are already committed
          * and all of them need to be kept on rollback.
-         * Else if vcommmited is NULL all the vblocks need to be
+         * Else all vblocks need to be
          * committed and none will be kept on rollback.
-         * Else the number of vblocks already committed and to keep
-         * on rollback is vcommitted[lx].
          */
         err = cndb_txn_txc(
             cndb,
@@ -424,22 +419,21 @@ cn_mblocks_commit(
             cnid,
             context,
             &list[lx],
-            (mutation == CN_MUT_KCOMPACT) ? list[lx].vblks.n_blks
-                                          : vcommitted ? vcommitted[lx] : 0);
+            (mutation == CN_MUT_KCOMPACT) ? list[lx].vblks.n_blks : 0);
         if (ev(err))
             return err;
         tags[lx] = *context;
     }
 
     for (lx = 0; lx < num_lists; lx++) {
-        err = cn_commit_blks(ds, &list[lx].kblks, 0, n_committed);
+        err = cn_commit_blks(ds, &list[lx].kblks, n_committed);
         if (ev(err))
             return err;
 
         if (mutation == CN_MUT_KCOMPACT)
             continue;
 
-        err = cn_commit_blks(ds, &list[lx].vblks, vcommitted ? vcommitted[lx] : 0, n_committed);
+        err = cn_commit_blks(ds, &list[lx].vblks, n_committed);
         if (ev(err))
             return err;
     }
@@ -572,22 +566,16 @@ cn_mb_est_alen(size_t full_captgt, size_t mb_alloc_unit, size_t wlen, uint flags
 /**
  * cn_ingest_prep()
  * @cn:
- * @childv:
- * @childc:
+ * @mblocks:
  * @txid:
  * @context:
- * @vcommitted: vblocks already committed.
- *      Can be NULL. If NULL, none of the vblocks are already committed.
- * @le_out:
  */
 static merr_t
 cn_ingest_prep(
     struct cn *           cn,
-    struct kvset_mblocks *childv,
-    unsigned int          childc,
+    struct kvset_mblocks *mblocks,
     u64                   txid,
     u64 *                 context,
-    u32 *                 vcommitted,
     struct kvset **       kvsetp)
 {
     struct kvset_meta km = {};
@@ -596,11 +584,8 @@ cn_ingest_prep(
     u32               commitc = 0;
     merr_t            err = 0;
 
-    /* Currently support only one child (this would need
-     * to change if we re-enable c0_spill).
-     */
-    if (!childv || childc != 1)
-        return merr(ev(EINVAL));
+    if (ev(!mblocks))
+        return merr(EINVAL);
 
     dgen = atomic64_read(&cn->cn_ingest_dgen) + 1;
 
@@ -610,27 +595,26 @@ cn_ingest_prep(
         cn->cn_cndb,
         cn->cn_cnid,
         txid,
-        childc,
-        childv,
+        1,
+        mblocks,
         CN_MUT_INGEST,
-        vcommitted,
         &commitc,
         context,
         &tag_throwaway);
     if (ev(err))
         goto done;
 
-    /* Lend childv[0] kblk and vblk lists to kvset_create().
+    /* Lend kblk and vblk lists to kvset_create().
      * Yes, the struct copy is a bit gross, but it works and
      * avoids unnecessary allocations of temporary lists.
      */
-    km.km_kblk_list = childv[0].kblks;
-    km.km_vblk_list = childv[0].vblks;
+    km.km_kblk_list = mblocks->kblks;
+    km.km_vblk_list = mblocks->vblks;
     km.km_dgen = dgen;
     km.km_node_level = 0;
     km.km_node_offset = 0;
 
-    km.km_vused = childv[0].bl_vused;
+    km.km_vused = mblocks->bl_vused;
     km.km_compc = 0;
     km.km_capped = cn_is_capped(cn);
     km.km_restored = false;
@@ -644,12 +628,11 @@ cn_ingest_prep(
      * no kblocks, there's nothing more to do.  CNDB recognizes this
      * and realizes that this is not a real kvset.
      */
-    if (childv[0].kblks.n_blks == 0) {
-        assert(childv[0].vblks.n_blks == 0);
+    if (mblocks->kblks.n_blks == 0) {
+        assert(mblocks->vblks.n_blks == 0);
         goto done;
     }
 
-    /* DO NOT LOG META WHEN childv[0].kblks.n_blks == 0 */
     err = cndb_txn_meta(cn->cn_cndb, txid, cn->cn_cnid, *context, &km);
     if (ev(err))
         goto done;
@@ -663,7 +646,7 @@ cn_ingest_prep(
 done:
     if (err) {
         /* Delete committed mblocks, abort those not yet committed. */
-        cn_mblocks_destroy(cn->cn_dataset, childc, childv, 0, commitc);
+        cn_mblocks_destroy(cn->cn_dataset, 1, mblocks, 0, commitc);
         *kvsetp = NULL;
     }
 
@@ -674,12 +657,8 @@ merr_t
 cn_ingestv(
     struct cn **           cn,
     struct kvset_mblocks **mbv,
-    int *                  mbc,
-    u32 *                  vcommitted,
     u64                    ingestid,
-    int                    ingestc,
-    bool *                 ingested_out,
-    u64 *                  seqno_max_out)
+    uint                   ingestc)
 {
     struct kvset **    kvsetv = NULL;
     struct cndb *      cndb = NULL;
@@ -690,7 +669,6 @@ cn_ingestv(
     uint   i, first, last, count, check;
     u64    context = 0; /* must be initialized to zero */
     u64    seqno_max = 0, seqno_min = U64_MAX;
-    uint   ext_vblk_count = 0;
     bool   log_ingest = false;
     u64    dgen = 0;
 
@@ -701,7 +679,7 @@ cn_ingestv(
     first = last = count = 0;
     for (i = 0; i < ingestc; i++) {
 
-        if (!cn[i] || !mbc[i] || !mbv[i])
+        if (!cn[i] || !mbv[i])
             continue;
 
         seqno_max = max_t(u64, seqno_max, mbv[i]->bl_seqno_max);
@@ -722,8 +700,6 @@ cn_ingestv(
     }
 
     if (!count) {
-        *ingested_out = false;
-        *seqno_max_out = seqno_max;
         err = 0;
         goto done;
     }
@@ -740,19 +716,14 @@ cn_ingestv(
 
     check = 0;
     for (i = first; i <= last; i++) {
-        u32 *vcp;
 
-        if (!cn[i] || !mbc[i] || !mbv[i])
+        if (!cn[i] || !mbv[i])
             continue;
 
         if (cn[i]->rp && !log_ingest)
             log_ingest = cn[i]->rp->cn_compaction_debug & 2;
 
-        vcp = (ingestid == CNDB_INVAL_INGESTID) ? NULL : &vcommitted[i];
-        if (vcp)
-            ext_vblk_count += *vcp;
-
-        err = cn_ingest_prep(cn[i], mbv[i], mbc[i], txid, &context, vcp, &kvsetv[i]);
+        err = cn_ingest_prep(cn[i], mbv[i], txid, &context, &kvsetv[i]);
         if (ev(err))
             goto done;
         check++;
@@ -769,7 +740,7 @@ cn_ingestv(
     check = 0;
     for (i = first; i <= last; i++) {
 
-        if (!cn[i] || !mbc[i] || !mbv[i])
+        if (!cn[i] || !mbv[i])
             continue;
 
         if (log_ingest) {
@@ -787,9 +758,6 @@ cn_ingestv(
     }
     assert(check == count);
 
-    *ingested_out = true;
-    *seqno_max_out = seqno_max;
-
     if (log_ingest) {
         hse_slog(
             HSE_NOTICE,
@@ -799,8 +767,7 @@ cn_ingestv(
             HSE_SLOG_FIELD("kvsets", "%lu", (ulong)kst.kst_kvsets),
             HSE_SLOG_FIELD("keys", "%lu", (ulong)kst.kst_keys),
             HSE_SLOG_FIELD("kblks", "%lu", (ulong)kst.kst_kblks),
-            HSE_SLOG_FIELD("vblks_int", "%lu", (ulong)kst.kst_vblks - ext_vblk_count),
-            HSE_SLOG_FIELD("vblks_ext", "%lu", (ulong)ext_vblk_count),
+            HSE_SLOG_FIELD("vblks", "%lu", (ulong)kst.kst_vblks),
             HSE_SLOG_FIELD("kalen", "%lu", (ulong)kst.kst_kalen),
             HSE_SLOG_FIELD("kwlen", "%lu", (ulong)kst.kst_kwlen),
             HSE_SLOG_FIELD("valen", "%lu", (ulong)kst.kst_valen),
@@ -1142,7 +1109,6 @@ cn_open(
     struct cn **        cn_out)
 {
     ulong       ksz, kcnt, kshift, vsz, vcnt, vshift;
-    ulong       mavail;
     const char *kszsuf, *vszsuf;
     merr_t      err;
     struct cn * cn;
@@ -1200,8 +1166,6 @@ cn_open(
     cn->cn_hash = key_hash64(kvs_name, strlen(kvs_name));
     cn->cn_mpool_params = mpool_params;
 
-    hse_meminfo(NULL, &mavail, 30);
-
     staging_absent = mpool_mclass_get(ds, MP_MED_STAGING, NULL);
     if (staging_absent) {
         if (strcmp(rp->mclass_policy, "capacity_only")) {
@@ -1212,16 +1176,8 @@ cn_open(
         }
     }
 
-    /* Reduce c1 vbuilder contribution for low memory configurations. */
-    if (mavail < 128)
-        rp->c1_vblock_cap = 4;
-
-    /* If this cn is capped disable c1 vbuilder to be space efficient.
-     */
-    if (cn_is_capped(cn)) {
+    if (cn_is_capped(cn))
         rp->kvs_cursor_ttl = rp->cn_capped_ttl;
-        rp->c1_vblock_cap = 0;
-    }
 
     /* Enable tree maintenance if we have a scheduler,
      * and if replay, diag and rdonly are all false.
@@ -1319,8 +1275,8 @@ cn_open(
      * shared io workers per kvdb instead of one set per cn tree.
      */
     cn->cn_io_wq = alloc_workqueue("cn_io", 0, cn->rp->cn_io_threads ?: 4);
-    if (!cn->cn_io_wq) {
-        err = merr(ev(ENOMEM));
+    if (ev(!cn->cn_io_wq)) {
+        err = merr(ENOMEM);
         goto err_exit;
     }
 
@@ -1367,7 +1323,7 @@ err_exit:
         cn_perfc_free(cn);
     free_aligned(cn);
 
-    return err ?: merr(ev(EBUG));
+    return ev(err) ?: merr(EBUG);
 }
 
 merr_t

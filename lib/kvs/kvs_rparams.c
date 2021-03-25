@@ -92,13 +92,6 @@ kvs_rparams_defaults(void)
 
         .capped_evict_ttl = 120,
 
-        .c1_vblock_cap = 96,
-        .c1_vblock_size_mb = 32,
-        .c1_vblock_cappct = 25,
-
-        .vblock_asyncio = 2048,
-        .vblock_asyncio_ctxswi = 1024,
-
         .rdonly = 0,
         .kv_print_config = 1,
 
@@ -178,13 +171,6 @@ static struct param_inst  kvs_rp_table[] = {
     KVS_PARAM_EXP(vblock_size_mb, "preferred vblock size (in MiB)"),
 
     KVS_PARAM_EXP(capped_evict_ttl, "capped vblock TTL (seconds)"),
-
-    KVS_PARAM_EXP(c1_vblock_cap, "Max. no. vblocks loaned from c1 per cN"),
-    KVS_PARAM_EXP(c1_vblock_size_mb, "preferred c1 vblock size (in MiB)"),
-    KVS_PARAM_EXP(c1_vblock_cappct, "Percent of under-utilized c1 vblocks."),
-
-    KVS_PARAM_EXP(vblock_asyncio, "max async io count per vblock"),
-    KVS_PARAM_EXP(vblock_asyncio_ctxswi, "Async IO context IO threshold."),
 
     KVS_PARAM_EXP(kv_print_config, "print kvs runtime params"),
     KVS_PARAM_EXP(rdonly, "open kvs in read-only mode"),
@@ -319,27 +305,6 @@ kvs_rparams_validate(struct kvs_rparams *params)
             (ulong)params->vblock_size_mb,
             (ulong)(VBLOCK_MIN_SIZE >> 20),
             (ulong)(VBLOCK_MAX_SIZE >> 20));
-        return merr(EINVAL);
-    }
-
-    if (params->c1_vblock_cap > 1024) {
-        hse_log(HSE_ERR "c1_vblock_cap must be less than 1024");
-        return merr(EINVAL);
-    }
-
-    sz = params->c1_vblock_size_mb << 20;
-    if (sz < VBLOCK_MIN_SIZE || sz > VBLOCK_MAX_SIZE) {
-        hse_log(
-            HSE_ERR "c1 vblock_size_mb(%lu) must be in the range "
-                    "[%lu, %lu]",
-            (ulong)params->c1_vblock_size_mb,
-            (ulong)(VBLOCK_MIN_SIZE >> 20),
-            (ulong)(VBLOCK_MAX_SIZE >> 20));
-        return merr(EINVAL);
-    }
-
-    if (!params->vblock_asyncio_ctxswi) {
-        hse_log(HSE_ERR "vblock asyncio context switch cannot be zero");
         return merr(EINVAL);
     }
 

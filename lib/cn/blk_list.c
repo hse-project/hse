@@ -16,18 +16,11 @@
 void
 abort_mblocks(struct mpool *dataset, struct blk_list *blks)
 {
-    u32 i;
-
     if (!blks)
         return;
 
-    for (i = 0; i < blks->n_blks; i++) {
-        /* skip committed mlocks that cannot be aborted */
-        if (!blks->blks[i].bk_needs_commit)
-            continue;
-
+    for (uint i = 0; i < blks->n_blks; i++)
         abort_mblock(dataset, &blks->blks[i]);
-    }
 }
 
 merr_t
@@ -90,7 +83,7 @@ blk_list_init(struct blk_list *blkl)
 }
 
 merr_t
-blk_list_append_ext(struct blk_list *blks, u64 blkid, bool valid, bool needs_commit)
+blk_list_append(struct blk_list *blks, u64 blkid)
 {
     assert(blks->n_blks <= blks->n_alloc);
 
@@ -118,17 +111,9 @@ blk_list_append_ext(struct blk_list *blks, u64 blkid, bool valid, bool needs_com
     }
 
     blks->blks[blks->n_blks].bk_blkid = blkid;
-    blks->blks[blks->n_blks].bk_needs_commit = needs_commit;
-    blks->blks[blks->n_blks].bk_valid = valid;
     blks->n_blks++;
 
     return 0;
-}
-
-merr_t
-blk_list_append(struct blk_list *blks, u64 blkid)
-{
-    return blk_list_append_ext(blks, blkid, true, true);
 }
 
 void

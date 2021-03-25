@@ -200,7 +200,7 @@ MTF_DEFINE_UTEST_PRE(cn_ingest_test, commit_delete, test_pre)
     n = 0;
     init_mblks(m, n_kvsets, &k, &v);
     context = 0;
-    err = cn_mblocks_commit(mock_ds, 0, 0, 0, n_kvsets, m, CN_MUT_OTHER, 0, &n, &context, tags);
+    err = cn_mblocks_commit(mock_ds, 0, 0, 0, n_kvsets, m, CN_MUT_OTHER, &n, &context, tags);
     ASSERT_EQ(err, 0);
     ASSERT_EQ(n, n_kvsets * (k + v));
     free_mblks(m, n_kvsets);
@@ -208,8 +208,7 @@ MTF_DEFINE_UTEST_PRE(cn_ingest_test, commit_delete, test_pre)
     n = 0;
     init_mblks(m, n_kvsets, &k, &v);
     context = 0;
-    err =
-        cn_mblocks_commit(mock_ds, 0, 0, 0, n_kvsets, m, CN_MUT_KCOMPACT, NULL, &n, &context, tags);
+    err = cn_mblocks_commit(mock_ds, 0, 0, 0, n_kvsets, m, CN_MUT_KCOMPACT, &n, &context, tags);
     ASSERT_EQ(err, 0);
     ASSERT_EQ(n, n_kvsets * k); /* kcompact ==> does not commit vblks */
     free_mblks(m, n_kvsets);
@@ -222,7 +221,7 @@ MTF_DEFINE_UTEST_PRE(cn_ingest_test, commit_delete, test_pre)
     n = 0;
     init_mblks(m, n_kvsets, &k, &v);
     context = 0;
-    err = cn_mblocks_commit(mock_ds, 0, 0, 0, n_kvsets, m, CN_MUT_OTHER, NULL, &n, &context, tags);
+    err = cn_mblocks_commit(mock_ds, 0, 0, 0, n_kvsets, m, CN_MUT_OTHER, &n, &context, tags);
     ASSERT_NE(err, 0);
     ASSERT_EQ(n, 0);
     free_mblks(m, n_kvsets);
@@ -230,8 +229,7 @@ MTF_DEFINE_UTEST_PRE(cn_ingest_test, commit_delete, test_pre)
     n = 0;
     init_mblks(m, n_kvsets, &k, &v);
     context = 0;
-    err =
-        cn_mblocks_commit(mock_ds, 0, 0, 0, n_kvsets, m, CN_MUT_KCOMPACT, NULL, &n, &context, tags);
+    err = cn_mblocks_commit(mock_ds, 0, 0, 0, n_kvsets, m, CN_MUT_KCOMPACT, &n, &context, tags);
     ASSERT_NE(err, 0);
     ASSERT_EQ(n, 0);
     free_mblks(m, n_kvsets);
@@ -270,9 +268,6 @@ MTF_DEFINE_UTEST_PRE(cn_ingest_test, worker, test_pre)
 
     struct cn *           cnv[1] = { &cn };
     struct kvset_mblocks *mbv[1] = { &m[0] };
-    int                   mbc[1];
-    bool                  ingested;
-    u64                   seqno;
     struct kvs_cparams    cp;
 
     rp = kvs_rparams_defaults();
@@ -288,8 +283,7 @@ MTF_DEFINE_UTEST_PRE(cn_ingest_test, worker, test_pre)
     ASSERT_EQ(err, 0);
 
     init_mblks(m, n_kvsets, &k, &v);
-    mbc[0] = n_kvsets;
-    err = cn_ingestv(cnv, mbv, mbc, NULL, U64_MAX, (int)NELEM(cnv), &ingested, &seqno);
+    err = cn_ingestv(cnv, mbv, U64_MAX, NELEM(cnv));
     ASSERT_EQ(err, 0);
     free_mblks(m, n_kvsets);
 
@@ -309,9 +303,6 @@ MTF_DEFINE_UTEST_PRE(cn_ingest_test, fail_cleanup, test_pre)
 
     struct cn *           cnv[1] = { &cn };
     struct kvset_mblocks *mbv[1] = { &m[0] };
-    int                   mbc[1] = { 1 };
-    bool                  ingested;
-    u64                   seqno;
 
     rp = kvs_rparams_defaults();
     cn.rp = &rp;
@@ -328,7 +319,7 @@ MTF_DEFINE_UTEST_PRE(cn_ingest_test, fail_cleanup, test_pre)
     /* kvset create failure */
     init_mblks(m, n_kvsets, &k, &v);
     mapi_inject(mapi_idx_kvset_create, merr(EBADF));
-    err = cn_ingestv(cnv, mbv, mbc, NULL, U64_MAX, NELEM(cnv), &ingested, &seqno);
+    err = cn_ingestv(cnv, mbv, U64_MAX, NELEM(cnv));
     ASSERT_EQ(merr_errno(err), EBADF);
     mapi_inject(mapi_idx_kvset_create, 0);
     free_mblks(m, n_kvsets);

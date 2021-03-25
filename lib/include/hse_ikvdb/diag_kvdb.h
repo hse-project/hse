@@ -15,7 +15,6 @@
 /* Opaque handles */
 struct kvdb;
 struct cndb;
-struct c1;
 
 struct diag_kvdb_kvs_list {
     unsigned long kdl_cnid;
@@ -67,14 +66,5 @@ diag_kvdb_close(struct hse_kvdb *handle);
  */
 merr_t
 diag_kvdb_get_cndb(struct hse_kvdb *kvdb, struct cndb **cndb);
-
-/**
- * diag_kvdb_get_c1() - obtain a pointer to c1
- * @kvdb:         handle obtained from diag_kvdb_open()
- * @ingestid:     latest ingest id
- * @c1:           (output) pointer to c1
- */
-merr_t
-diag_kvdb_get_c1(struct hse_kvdb *kvdb, u64 ingestid, struct c1 **c1);
 
 #endif

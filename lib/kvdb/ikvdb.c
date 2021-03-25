@@ -587,14 +587,10 @@ ikvdb_diag_open(
     if (ev(err))
         goto err_exit2;
 
-    u64 c1_oid1, c1_oid2; // Remove me...
-
     err = kvdb_log_replay(
         self->ikdb_log,
         &self->ikdb_cndb_oid1,
-        &self->ikdb_cndb_oid2,
-        &c1_oid1,
-        &c1_oid2);
+        &self->ikdb_cndb_oid2);
     if (ev(err))
         goto err_exit3;
 
@@ -976,14 +972,10 @@ ikvdb_open(
         goto err1;
     }
 
-    u64 c1_oid1, c1_oid2; // Remove me ...
-
     err = kvdb_log_replay(
         self->ikdb_log,
         &self->ikdb_cndb_oid1,
-        &self->ikdb_cndb_oid2,
-        &c1_oid1,
-        &c1_oid2);
+        &self->ikdb_cndb_oid2);
     if (err) {
         hse_elog(HSE_ERR "cannot open %s: @@e", err, mp_name);
         goto err1;

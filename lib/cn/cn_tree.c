@@ -849,7 +849,7 @@ cn_tree_samp_update_compact(struct cn_tree *tree, struct cn_tree_node *tn)
 }
 
 /* This function must be serialized with other cn_tree_samp_* functions.
- * It is used for ingest into root node (c0/c1 to cN) and for ingesting
+ * It is used for ingest from c0 into root node and for ingesting
  * into children after spill operations.
  */
 static void
@@ -3373,7 +3373,6 @@ cn_comp_compact(struct cn_compaction_work *w)
             w->cw_outc,
             w->cw_outv,
             kcompact ? CN_MUT_KCOMPACT : CN_MUT_OTHER,
-            NULL,
             &w->cw_commitc,
             &context,
             w->cw_tagv);

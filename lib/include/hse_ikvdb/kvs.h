@@ -221,7 +221,6 @@ struct ikvs {
     uint             ikv_sfx_len;
     uint             ikv_pfx_len;
     struct c0 *      ikv_c0;
-    struct c1 *      ikv_c1;
     struct cn *      ikv_cn;
     struct mpool *   ikv_ds;
     struct perfc_set ikv_pkvsl_pc; /* Public kvs interfaces Lat. */

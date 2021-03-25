@@ -24,7 +24,7 @@ struct cn_merge_stats;
 
 #define KVSET_BUILDER_FLAGS_NONE    (0)
 #define KVSET_BUILDER_FLAGS_SPARE   (1u << 0)
-#define KVSET_BUILDER_FLAGS_INGEST  (1u << 2) /* from c0 or c1, to cn root node */
+#define KVSET_BUILDER_FLAGS_INGEST  (1u << 2) /* from c0 to cn root node */
 
 /* MTF_MOCK_DECL(kvset_builder) */
 /* MTF_MOCK */

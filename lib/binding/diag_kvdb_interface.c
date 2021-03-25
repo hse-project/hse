@@ -58,7 +58,7 @@ diag_kvdb_open(
 
     kvdb_rparams_print(rparams);
 
-    /* Need write access in case c1 has data to replay into cN.
+    /* Need write access in case recovery data needs to be replayed into cN.
      * Need exclusive access to prevent multiple applications from
      * working on the same KVDB, which would cause corruption.
      */
