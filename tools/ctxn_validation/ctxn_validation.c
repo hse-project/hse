@@ -2,6 +2,8 @@
  * Copyright (C) 2015-2019,2021 Micron Technology, Inc.  All rights reserved.
  */
 
+#define _GNU_SOURCE
+
 #include <errno.h>
 #include <libgen.h>
 #include <pthread.h>
@@ -37,6 +39,8 @@ bool        commit = true;
 bool        mode_put = true;
 bool        mixed_sz = false;
 uint        seed;
+int         cpustart = -1;
+int         cpuskip = 1;
 
 struct hse_kvdb    *kvdb;
 struct hse_kvs     *kvs;
@@ -70,8 +74,9 @@ struct tdargs {
     ulong                   viter;
     struct hse_kvdb_txn    *txn;
     pthread_barrier_t      *barriers;
+    cpu_set_t               cpuset;
     struct stats            stats;
-};
+} HSE_ALIGNED(128);
 
 static void ctxn_validation_fini(void);
 
@@ -264,7 +269,7 @@ void
 ctxn_validation_basic_collision(void)
 {
     struct hse_kvdb_txn    *txn[jobsmax];
-    struct tdargs           tdargsv[jobsmax - 1];
+    struct tdargs          *tdargsv;
     pthread_barrier_t       barriers[4];
     struct hse_kvdb_opspec  os;
     int                     i;
@@ -273,7 +278,11 @@ ctxn_validation_basic_collision(void)
     char                    key[64];
     u32                     vtxn;
 
-    memset(tdargsv, 0, sizeof(tdargsv));
+    tdargsv = aligned_alloc(__alignof(*tdargsv), sizeof(*tdargsv) * jobsmax);
+    if (!tdargsv)
+        abort();
+
+    memset(tdargsv, 0, sizeof(*tdargsv) * jobsmax);
 
     if (keybase_random)
         keybase = xrand();
@@ -369,6 +378,8 @@ ctxn_validation_basic_collision(void)
 
     for (i = 0; i < jobsmax; i++)
         hse_kvdb_txn_free(kvdb, txn[i]);
+
+    free(tdargsv);
 }
 
 void
@@ -739,7 +750,15 @@ void *
 spawn_main(void *arg)
 {
     struct tdargs  *tdargs = arg;
-    int             i;
+    int rc, i;
+
+    rc = pthread_setaffinity_np(tdargs->tid, sizeof(tdargs->cpuset), &tdargs->cpuset);
+    if (rc) {
+        eprint("pthread_setaffinity_np: %s", strerror(rc));
+        exit(EX_OSERR);
+    }
+
+    pthread_barrier_wait(&tdargs->barriers[0]);
 
     xrand_init(tdargs->tidx ^ seed);
 
@@ -749,18 +768,39 @@ spawn_main(void *arg)
     if (tdargs->txn)
         hse_kvdb_txn_free(kvdb, tdargs->txn);
 
+    pthread_barrier_wait(&tdargs->barriers[1]);
+
     return NULL;
 }
 
 void
 spawn(spawn_cb_t *func)
 {
-    struct tdargs   tdargsv[jobsmax];
-    u64             rc;
-    int             i;
+    pthread_barrier_t barv[2];
+    cpu_set_t cpuset_orig;
+    cpu_set_t cpuset_avail;
+    struct tdargs *tdargsv;
+    int cpu_count, cpu, rc, i, j;
 
-    memset(tdargsv, 0, sizeof(tdargsv));
+    for (i = 0; i < NELEM(barv); ++i)
+        pthread_barrier_init(&barv[i], NULL, jobsmax);
+
+    tdargsv = aligned_alloc(__alignof(*tdargsv), sizeof(*tdargsv) * jobsmax);
+    if (!tdargsv)
+        abort();
+
+    memset(tdargsv, 0, sizeof(*tdargsv) * jobsmax);
     done = false;
+
+    rc = pthread_getaffinity_np(pthread_self(), sizeof(cpuset_orig), &cpuset_orig);
+    if (rc) {
+        eprint("pthread_getaffinity_np: %s", strerror(rc));
+        exit(EX_OSERR);
+    }
+
+    cpu_count = CPU_COUNT(&cpuset_orig);
+    cpuset_avail = cpuset_orig;
+    cpu = cpustart;
 
     for (i = 0; i < jobsmax; ++i) {
         struct tdargs *args = tdargsv + i;
@@ -768,12 +808,45 @@ spawn(spawn_cb_t *func)
         args->tidx = i;
         args->func = func;
         args->viter = (ulong)i << 48;
+        args->barriers = barv;
+        args->cpuset = cpuset_orig;
+
+        if (cpustart >= 0) {
+            if (CPU_COUNT(&cpuset_avail) == 0)
+                cpuset_avail = cpuset_orig;
+
+            cpu %= cpu_count;
+
+            while (1) {
+                for (j = 0; j < cpu_count; ++j) {
+                    if (CPU_ISSET(cpu, &cpuset_avail))
+                        break;
+
+                    cpu = (cpu + cpuskip) % cpu_count;
+                }
+
+                if (j < cpu_count) {
+                    CPU_CLR(cpu, &cpuset_avail);
+                    break;
+                }
+
+                /* If cpuskip is an even multiple of the remaining
+                 * available cpus then we increment cpu by one and
+                 * continue searching for an available cpu.
+                 */
+                cpu = (cpu + 1) % cpu_count;
+            }
+
+            CPU_ZERO(&args->cpuset);
+            CPU_SET(cpu, &args->cpuset);
+
+            cpu += cpuskip;
+        }
 
         rc = pthread_create(&args->tid, NULL, spawn_main, args);
         if (rc) {
-            eprint("only able to create %d of %lu jobs: %s",
-                   i, jobsmax, strerror(rc));
-            break;
+            eprint("unable to create more than %d jobs: %s", i, strerror(rc));
+            exit(EX_OSERR);
         }
     }
 
@@ -798,6 +871,11 @@ spawn(spawn_cb_t *func)
         stats.commits += args->stats.commits;
         stats.aborts += args->stats.aborts;
     }
+
+    for (i = 0; i < NELEM(barv); ++i)
+        pthread_barrier_destroy(&barv[i]);
+
+    free(tdargsv);
 }
 
 void
@@ -807,23 +885,27 @@ usage(void)
            progname);
     printf("usage: %s -h [-v]\n", progname);
 
+    printf("-a affine   affine each job to one logical cpu (requires {-p | -s}\n");
     printf("-c          run collision test\n");
-    printf("-h          print this help list\n");
     printf("-f fmt      specify printf format for key generation\n");
+    printf("-h          print this help list\n");
     printf("-i iters    specify max number of test iterations (excludes -t)\n");
     printf("-j jobs     specify max number of jobs\n");
     printf("-K keybase  specify a starting number for key generation\n");
     printf("-k keys     specify max number of keys PUT per transaction\n");
-    printf("-p mode     run perf test (pc:put+commit gc:get+commit\n");
-    printf("                           pa:put+abort ga:get+abort)\n");
+    printf("-p mode     run perf test in given mode {pc | gc | pa | ga}\n");
     printf("-r          reuse txn between iterations\n");
     printf("-S seed     specify srand seed\n");
     printf("-s          run stress test (stringent verification)\n");
     printf("-t secs     specify max run time in seconds (requires {-p | -s})\n");
     printf("-v          increase verbosity\n");
+    printf("affine  first[,skip]  specify first cpu and number of cpus to skip\n");
+    printf("mode    pc:put+commit, gc:get+commit, pa:put+abort, ga:get+abort\n");
     printf("\n");
 
     if (verbosity > 0) {
+        printf("Use -a1 to start first job on cpu 1, second job on cpu 2, ...\n");
+        printf("Use -a1,16 to start first job on cpu 1, second job on cpu 17, ...\n");
         printf("Use -vvv for tabular output\n");
     } else {
         printf("Use -hv for more detail\n");
@@ -858,7 +940,7 @@ main(int argc, char **argv)
         char   *errmsg, *end;
         int     c;
 
-        c = getopt(argc, argv, ":cf:hi:j:K:k:p:rS:st:Vvwm");
+        c = getopt(argc, argv, ":a:cf:hi:j:K:k:p:rS:st:Vvwm");
         if (-1 == c)
             break;
 
@@ -868,6 +950,16 @@ main(int argc, char **argv)
         ++given[c];
 
         switch (c) {
+        case 'a':
+            cpuskip = 1;
+            errmsg = "invalid cpu start";
+            cpustart = strtoul(optarg, &end, 0);
+            if (end && *end == ',') {
+                errmsg = "invalid cpu skip";
+                cpuskip = strtoul(end + 1, &end, 0);
+            }
+            break;
+
         case 'c':
             break;
 
@@ -1049,9 +1141,10 @@ main(int argc, char **argv)
 
         if (verbosity > 2) {
             printf(
-                "%u %lu %lu %lu %lu %lu %lu %lu %lu %lu %.2lf "
-                "%lu %.2lf %lu %lu %lu %lu %.3lf %.3lf %.3lf %.3lf\n",
-                seed, jobsmax, itermax, stats.puts_c0, stats.gets_c0,
+                "%u %lu %lu %lu %lu %lu %lu %lu %lu %lu %lu %.0lf "
+                "%lu %.0lf %lu %lu %lu %lu %.3lf %.3lf %.3lf %.3lf\n",
+                seed, jobsmax, secmax, secmax ? 0 : itermax,
+                stats.puts_c0, stats.gets_c0,
                 stats.puts_txn, stats.puts_fail, stats.gets_txn, stats.begin_fail,
                 stats.commits, (stats.commits * 1000000.0) / usecs,
                 stats.aborts, (stats.aborts * 1000000.0) / usecs,
@@ -1065,7 +1158,8 @@ main(int argc, char **argv)
         } else {
             printf("%12u  seed\n", seed);
             printf("%12lu  jobsmax\n", jobsmax);
-            printf("%12lu  itermax\n", itermax);
+            printf("%12lu  secmax\n", secmax);
+            printf("%12lu  itermax\n", secmax ? 0 : itermax);
             printf("%12lu  c0 puts\n", stats.puts_c0);
             printf("%12lu  c0 gets\n", stats.gets_c0);
             printf("%12lu  txn puts\n", stats.puts_txn);
@@ -1073,7 +1167,7 @@ main(int argc, char **argv)
             printf("%12lu  txn gets\n", stats.gets_txn);
             printf("%12lu  begin_fail\n", stats.begin_fail);
             printf("%12lu  commits\n", stats.commits);
-            printf("%12.2lf  commits/sec\n",
+            printf("%12.0lf  commits/sec\n",
                    (stats.commits * 1000000.0) / usecs);
             printf("%12lu  aborts\n", stats.aborts);
             printf("%12.0lf  aborts/sec\n",
