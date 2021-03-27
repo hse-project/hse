@@ -149,11 +149,15 @@ MTF_DEFINE_UTEST_PRE(cursor_api_test, cursor_valid_read_testcase, init_cursor)
         ASSERT_EQ(hse_err_to_errno(err), EXIT_SUCCESS);
 
         if (!eof) {
-            snprintf(expec_buff, sizeof(expec_buff), "test_key_%02d", (count)%100u); /* keep within limits */
+            snprintf(
+                expec_buff,
+                sizeof(expec_buff),
+                "test_key_%02d",
+                (count) % 100u); /* keep within limits */
             snprintf(read_buff, sizeof(read_buff), "%.*s", (int)cur_klen, (char *)cur_key);
             ASSERT_STREQ(expec_buff, read_buff);
 
-            snprintf(expec_buff, sizeof(expec_buff), "test_value_%02d", (count++)%100u);
+            snprintf(expec_buff, sizeof(expec_buff), "test_value_%02d", (count++) % 100u);
             snprintf(read_buff, sizeof(read_buff), "%.*s", (int)cur_vlen, (char *)cur_val);
             ASSERT_STREQ(expec_buff, read_buff);
         }
