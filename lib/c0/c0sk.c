@@ -1637,7 +1637,7 @@ c0sk_cursor_update(
  *
  */
 
-BullseyeCoverageSaveOff
+/* GCOV_EXCL_START */
 
 HSE_USED HSE_COLD
 void
@@ -1720,7 +1720,7 @@ c0sk_cursor_debug_val(struct c0_cursor *cur, uintptr_t seqnoref, struct bonsai_k
         c0sk_cursor_debug(cur);
 }
 
-BullseyeCoverageRestore
+/* GCOV_EXCL_STOP */
 
 struct cn *
 c0sk_get_cn(struct c0sk_impl *c0sk, u64 skidx)

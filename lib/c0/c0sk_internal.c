@@ -1106,7 +1106,7 @@ c0sk_ingest_tune(struct c0sk_impl *self, struct c0_usage *usage)
                 usage->u_keys);
 }
 
-BullseyeCoverageSaveOff
+/* GCOV_EXCL_START */
 
 merr_t
 c0sk_queue_ingest(struct c0sk_impl *self, struct c0_kvmultiset *old, struct c0_kvmultiset *new)
@@ -1215,7 +1215,7 @@ resign:
     return err;
 }
 
-BullseyeCoverageRestore
+/* GCOV_EXCL_STOP */
 
 /*
  * Flush the present kvmultiset (queue it for ingest).

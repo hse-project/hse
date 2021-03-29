@@ -23,7 +23,7 @@ event_sample_ts(struct event_timer *t, unsigned long t1, unsigned long t2)
     int           loop = 0;
 
     /* non-deterministic in tests -- do not count for coverage */
-    BullseyeCoverageSaveOff
+    /* GCOV_EXCL_START */
         /* prevent simultaneous updates */
         while (atomic64_cmpxchg(&t->busy, 0, 1))
     {
@@ -39,7 +39,7 @@ event_sample_ts(struct event_timer *t, unsigned long t1, unsigned long t2)
         atomic64_cmpxchg(&t->busy, 1, 0);
         return;
     }
-    BullseyeCoverageRestore
+    /* GCOV_EXCL_STOP */
 
         ++ t->n;
     d = t2 - t1;

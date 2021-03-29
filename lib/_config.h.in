@@ -7,3 +7,5 @@
 #define HSE__CONFIG_H
 
 #endif
+
+#mesondefine WITH_COVERAGE

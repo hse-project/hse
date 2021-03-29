@@ -669,7 +669,7 @@ c0kvms_cursor_create(
     return 0;
 }
 
-BullseyeCoverageSaveOff
+/* GCOV_EXCL_START */
 
 HSE_USED HSE_COLD
 static void
@@ -745,7 +745,7 @@ c0kvms_cursor_kvs_debug(struct c0_kvmultiset *handle, void *key, int klen)
     }
 }
 
-BullseyeCoverageRestore
+/* GCOV_EXCL_STOP */
 
 void
 c0kvms_cursor_destroy(struct c0_kvmultiset_cursor *cur)

@@ -14,7 +14,7 @@
 #include <time.h>
 #include <unistd.h>
 
-BullseyeCoverageSaveOff
+/* GCOV_EXCL_START */
 
 static HSE_ALWAYS_INLINE u64
 get_time_ns(void)
@@ -112,6 +112,6 @@ num_conf_cpus(void)
     return nprocs < 1 ? 1 : nprocs;
 }
 
-BullseyeCoverageRestore
+/* GCOV_EXCL_STOP */
 
 #endif

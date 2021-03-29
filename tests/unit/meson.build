@@ -245,6 +245,7 @@ components = {
     },
 }
 
+unit_test_exes = []
 foreach c, tests : components
     foreach t, params : tests
         t_sources = common_test_sources
@@ -276,6 +277,7 @@ foreach c, tests : components
             dependencies: t_dependencies,
             gnu_symbol_visibility: 'hidden',
         )
+        unit_test_exes += t_exe
 
         t_suites = ['unit', c]
         if 'suites' in params
