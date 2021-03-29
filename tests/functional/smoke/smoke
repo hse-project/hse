@@ -6,8 +6,6 @@ set -o pipefail
 
 CMD=${0##*/}
 
-export STOP_ON_TEST_FAIL=0
-export KEEP_KVDB=0
 export VERBOSE=1
 
 # set for each test
@@ -29,6 +27,9 @@ test_script_options=
 test_list=()
 test_args=()
 show_test_names=1
+stop_on_test_fail=0
+keep_kvdb=0
+test_fail_count=0
 
 exported_functions+=(err)
 
@@ -298,12 +299,13 @@ run_one_test () {
 
     if (( test_failed )); then
         touch $LOG_DIR/stat.failed
-        if (( STOP_ON_TEST_FAIL )); then
+        (( test_fail_count++ ))
+        if (( stop_on_test_fail )); then
             err "TEST FAILED"
         fi
     fi
 
-    if (( ! KEEP_KVDB )); then
+    if (( ! keep_kvdb )); then
         destroy_all_kvs
     fi
 
@@ -480,9 +482,9 @@ while getopts ":C:d:ghklLm:m:rsvV:x" option; do
         (r) action=show_report;;
 
         (d) LOG_TOPDIR=$OPTARG;;
-        (k) KEEP_KVDB=1;;
+        (k) keep_kvdb=1;;
         (m) mpool=$OPTARG;;
-        (s) STOP_ON_TEST_FAIL=1;;
+        (s) stop_on_test_fail=1;;
         (v) (( VERBOSE++ ));;
         (V) (( VERBOSE=OPTARG )); [[ "$VERBOSE" =~ ^[0-9]+$ ]] || err "Invalid verbosity value: $OPTARG";;
         (x) test_script_options="-x";;
@@ -590,5 +592,9 @@ for ((i = 0; i < count; i++)); do
     script=${script_list[$i]}
     run_one_test $i $count "$script"
 done
+
+if (( test_fail_count > 0 )); then
+    exit 1
+fi
 
 exit 0
