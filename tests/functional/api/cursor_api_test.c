@@ -90,10 +90,10 @@ MTF_BEGIN_UTEST_COLLECTION_PREPOST(
 
 MTF_DEFINE_UTEST(cursor_api_test, cursor_invalid_testcase)
 {
-    hse_err_t              err;
-    bool                   eof = false;
-    const void *           cur_key, *cur_val;
-    size_t                 cur_klen, cur_vlen;
+    hse_err_t   err;
+    bool        eof = false;
+    const void *cur_key, *cur_val;
+    size_t      cur_klen, cur_vlen;
 
     /* TC: A cursor cannot be created without a valid KVS */
     err = hse_kvs_cursor_create(NULL, NULL, NULL, 0, &cursor);
