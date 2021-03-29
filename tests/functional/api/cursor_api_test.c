@@ -41,7 +41,6 @@ test_collection_setup(struct mtf_test_info *lcl_ti)
 
         err = hse_kvs_put(kvs_handle, NULL, key, strlen(key), val, strlen(val));
         ASSERT_TRUE_RET(!err, -1);
-
     }
 
     return EXIT_SUCCESS;
@@ -50,8 +49,8 @@ test_collection_setup(struct mtf_test_info *lcl_ti)
 int
 test_collection_teardown(struct mtf_test_info *lcl_ti)
 {
-    hse_err_t   err;
-    char        key[16];
+    hse_err_t err;
+    char      key[16];
 
     for (int i = 0; i < key_value_pairs; i++) {
         snprintf(key, sizeof(key), "test_key_%02d", i);
@@ -92,8 +91,24 @@ MTF_DEFINE_UTEST(cursor_api_test, cursor_invalid_testcase)
     err = hse_kvs_cursor_create(NULL, NULL, NULL, 0, &cursor);
     ASSERT_EQ(hse_err_to_errno(err), EINVAL);
 
+    /* TC: A null cursor cannot be updated */
+    err = hse_kvs_cursor_update(NULL, NULL);
+    ASSERT_EQ(hse_err_to_errno(err), EINVAL);
+
     /* TC: A null cursor cannot be used to read a KVS */
-    err = hse_kvs_cursor_read(cursor, NULL, &cur_key, &cur_klen, &cur_val, &cur_vlen, &eof);
+    err = hse_kvs_cursor_read(NULL, NULL, &cur_key, &cur_klen, &cur_val, &cur_vlen, &eof);
+    ASSERT_EQ(hse_err_to_errno(err), EINVAL);
+
+    /* TC: A null cursor cannot be used to seek */
+    err = hse_kvs_cursor_seek(NULL, NULL, "search_key", strlen("search_key"), NULL, NULL);
+    ASSERT_EQ(hse_err_to_errno(err), EINVAL);
+
+    /* TC: A null cursor cannot be used to move to the closest match to key */
+    err = hse_kvs_cursor_seek_range(NULL, NULL, &cur_key, cur_klen, cur_val, cur_vlen, NULL, NULL);
+    ASSERT_EQ(hse_err_to_errno(err), EINVAL);
+
+    /* TC: A null cursor cannot be destroyed */
+    err = hse_kvs_cursor_destroy(NULL);
     ASSERT_EQ(hse_err_to_errno(err), EINVAL);
 }
 
