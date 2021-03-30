@@ -3,8 +3,6 @@
  * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
  */
 
-#define _GNU_SOURCE /* for asprintf() */
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/types.h>

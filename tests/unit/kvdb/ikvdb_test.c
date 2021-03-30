@@ -3,8 +3,6 @@
  * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
-#define _GNU_SOURCE /* nftw(3) */
-
 #include <ftw.h>
 #include <dirent.h>
 

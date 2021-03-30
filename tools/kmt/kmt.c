@@ -132,8 +132,6 @@
 #define XKMT
  */
 
-#define _GNU_SOURCE /* for pthread_setname_np() */
-
 #include <hse_util/arch.h>
 #include <hse_util/atomic.h>
 #include <hse_util/compiler.h>

@@ -1,4 +1,5 @@
 common_test_c_args = [
+    '-D_GNU_SOURCE=1',
     '-DCOMPNAME="kvdb"',
 ]
 

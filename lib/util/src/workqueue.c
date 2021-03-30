@@ -3,8 +3,6 @@
  * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
  */
 
-#define _GNU_SOURCE /* for pthread_setname_np() */
-
 #include <hse_util/assert.h>
 #include <hse_util/mutex.h>
 #include <hse_util/condvar.h>

@@ -13,8 +13,6 @@
  *      inserted by that thread.
  */
 
-#define _GNU_SOURCE /* for pthread_setname_np() */
-
 #include <endian.h>
 #include <errno.h>
 #include <getopt.h>

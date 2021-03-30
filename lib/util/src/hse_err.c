@@ -101,43 +101,18 @@ merr_file(merr_t err)
 size_t
 merr_strerror(merr_t err, char *buf, size_t buf_sz)
 {
-    int    errnum = merr_errno(err);
-    int    rc;
-    char  *errbuf;
-    size_t need_sz;
-
-    const size_t errbuf_sz = 1000;
+    char errbuf[1024], *errmsg;
+    int errnum = merr_errno(err);
 
     if (errnum == EBUG)
         return strlcpy(buf, "HSE software bug", buf_sz);
 
-    /* try to get the error into the caller's buffer */
-    rc = strerror_r(errnum, buf, buf_sz);
-    if (!rc)
-        return 1 + strlen(buf);
-
-    /* if it failed because the errno isn't valid ... */
-    if (rc == EINVAL)
-        return 1 + strlcpy(buf, "<invalid error code>", buf_sz);
-
-    /* the only other failure possible is that the buffer wasn't big enough */
-    assert(rc == ERANGE);
-
-    /* We temporarily allocate a large buffer, large enough that it is exceedingly
-     * unlikely that more space is needed. Then, we put the string into our temporary
-     * buffer with strerror_r, copy what fits into the callers buffer, free the
-     * temporary buffer, and return the size they needed. The glibc library doesn't
-     * support the C11 interface strerrorlen_s which makes doing anything better hard.
+    /* GNU strerror only modifies errbuf if errnum is invalid.
+     * It will only return NULL if errbuf is NULL.
      */
-    errbuf = malloc(errbuf_sz);
-    if (!errbuf)
-        return strlcpy(buf, "<error formating error message>", buf_sz);
+    errmsg = strerror_r(errnum, errbuf, sizeof(errbuf));
 
-    strerror_r(errnum, errbuf, errbuf_sz);
-    need_sz = 1 + strlcpy(buf, errbuf, buf_sz);
-    free(errbuf);
-
-    return need_sz;
+    return strlcpy(buf, errmsg, buf_sz) + 1;
 }
 
 char *

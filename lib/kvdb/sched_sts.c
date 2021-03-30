@@ -5,8 +5,6 @@
 
 #define MTF_MOCK_IMPL_sched_sts
 
-#define _GNU_SOURCE /* for pthread_setname_np() */
-
 #include <pthread.h>
 
 #include <hse_util/platform.h>

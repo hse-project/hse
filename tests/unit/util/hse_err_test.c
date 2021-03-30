@@ -26,14 +26,25 @@ MTF_BEGIN_UTEST_COLLECTION_PREPOST(hse_err_test, merr_test_pre, merr_test_post);
 MTF_DEFINE_UTEST(hse_err_test, merr_test_1)
 {
     char   errinfo[MERR_INFO_SZ];
-    char   errbuf[300];
+    char   errbuf[300], *errmsg;
     const char *file;
-    int    rval;
+    int    rval, i;
     merr_t err;
 
     rval = 0;
     err = merr(rval);
     ASSERT_EQ(err, 0);
+
+    for (i = 0; i < EHWPOISON; ++i) {
+        size_t sz1, sz2;
+
+        sz1 = merr_strerror(i, NULL, 0);
+        ASSERT_GT(sz1, 0);
+
+        sz2 = merr_strerror(i, errbuf, sizeof(errbuf));
+        ASSERT_EQ(sz1, sz2);
+        ASSERT_EQ(sz2, strlen(errbuf) + 1);
+    }
 
     (void)merr_strinfo(err, errinfo, sizeof(errinfo), 0);
     ASSERT_EQ(0, strcmp(errinfo, "success"));
@@ -45,8 +56,8 @@ MTF_DEFINE_UTEST(hse_err_test, merr_test_1)
     ASSERT_NE(NULL, strstr(_hse_merr_file, merr_file(err)));
 
     (void)merr_strinfo(err, errinfo, sizeof(errinfo), 0);
-    strerror_r(merr_errno(err), errbuf, sizeof(errbuf));
-    ASSERT_EQ(0, strcmp(strstr(errinfo, "I"), errbuf));
+    errmsg = strerror_r(merr_errno(err), errbuf, sizeof(errbuf));
+    ASSERT_EQ(0, strcmp(strstr(errinfo, "I"), errmsg));
 
     /* merr_pack() should only be called via merr(), but check
      * to see that it returns the correct diagnostic information

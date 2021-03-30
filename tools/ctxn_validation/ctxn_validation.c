@@ -2,8 +2,6 @@
  * Copyright (C) 2015-2019,2021 Micron Technology, Inc.  All rights reserved.
  */
 
-#define _GNU_SOURCE
-
 #include <errno.h>
 #include <libgen.h>
 #include <pthread.h>
@@ -1141,9 +1139,9 @@ main(int argc, char **argv)
 
         if (verbosity > 2) {
             printf(
-                "%u %lu %lu %lu %lu %lu %lu %lu %lu %lu %lu %.0lf "
-                "%lu %.0lf %lu %lu %lu %lu %.3lf %.3lf %.3lf %.3lf\n",
-                seed, jobsmax, secmax, secmax ? 0 : itermax,
+                "%4lu %lu %lu %lu %lu %lu %lu %9lu %lu %lu %.0lf "
+                "%9lu %8.0lf %7lu %6lu %lu %lu %.3lf %.3lf %.3lf %.3lf\n",
+                jobsmax, secmax, secmax ? 0 : itermax,
                 stats.puts_c0, stats.gets_c0,
                 stats.puts_txn, stats.puts_fail, stats.gets_txn, stats.begin_fail,
                 stats.commits, (stats.commits * 1000000.0) / usecs,
@@ -1156,7 +1154,6 @@ main(int argc, char **argv)
                 (stats.tclose - stats.tstop) / 1000000000.0,
                 (stats.tclose - stats.topen) / 1000000000.0);
         } else {
-            printf("%12u  seed\n", seed);
             printf("%12lu  jobsmax\n", jobsmax);
             printf("%12lu  secmax\n", secmax);
             printf("%12lu  itermax\n", secmax ? 0 : itermax);
