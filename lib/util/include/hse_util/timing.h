@@ -1,10 +1,12 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
 #ifndef HSE_PLATFORM_TIMING_H
 #define HSE_PLATFORM_TIMING_H
+
+#include "_config.h"
 
 #include <hse_util/base.h>
 #include <hse_util/inttypes.h>
@@ -69,9 +71,8 @@ raw_smp_processor_id(void)
 {
     uint64_t aux;
 
-#ifdef NVALGRIND
+#ifndef WITH_VALGRIND
     asm volatile("lsl %1,%0" : "=r"(aux) : "r"(__PER_CPU_SEG));
-
 #else
     uint64_t rax, rdx;
 

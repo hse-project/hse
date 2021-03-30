@@ -338,13 +338,6 @@ if get_option('tools')
     endif
 endif
 
-if not valgrind_dep.found()
-    add_project_arguments(
-        '-DNVALGRIND',
-        language: 'c',
-    )
-endif
-
 enabled_tests = []
 foreach t : get_option('tests')
     if t == 'all'
