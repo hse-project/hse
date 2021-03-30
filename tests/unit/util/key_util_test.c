@@ -141,7 +141,7 @@ MTF_DEFINE_UTEST_CP2(
     u16,
     idx2)
 {
-    static __thread bool inited;
+    static _Thread_local bool inited;
     u8 key[KI_DLEN_MAX + 7];
     size_t klen;
     struct key_immediate im0, im1;

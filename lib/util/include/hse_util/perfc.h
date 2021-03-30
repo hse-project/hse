@@ -305,7 +305,7 @@ perfc_ivl_destroy(const struct perfc_ivl *ivl);
 
 #define PERFC_INC_RU(_pc, _cid, _rumax)       \
     do {                                      \
-        static __thread struct {              \
+        static _Thread_local struct {              \
             u64 cnt;                          \
         } ru;                                 \
                                               \
@@ -317,7 +317,7 @@ perfc_ivl_destroy(const struct perfc_ivl *ivl);
 
 #define PERFC_INCADD_RU(_pc, _cidx1, _cidx2, _val2, _rumax)        \
     do {                                                           \
-        static __thread struct {                                   \
+        static _Thread_local struct {                                   \
             u64 cnt;                                               \
             u64 sum;                                               \
         } ru;                                                      \

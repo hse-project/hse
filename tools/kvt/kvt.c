@@ -367,7 +367,7 @@ kvt_test_main(void *arg);
 static int
 kvt_test_impl(struct tdargs *args, struct hse_kvdb_opspec *opspec, u_long rid);
 
-static __thread uint64_t xrand64_state[2];
+static _Thread_local uint64_t xrand64_state[2];
 
 static void
 xrand64_init(uint64_t seed)
@@ -415,10 +415,10 @@ tsi_delta(tsi_t *startp)
     return now.tv_sec * 1000000 + now.tv_nsec / 1000;
 }
 
-static __thread char    dmsg[256], emsg[256];
-static __thread int     dmsglen, emsglen;
-static __thread ssize_t dcc, ecc;
-static __thread u_int   job = UINT_MAX;
+static _Thread_local char    dmsg[256], emsg[256];
+static _Thread_local int     dmsglen, emsglen;
+static _Thread_local ssize_t dcc, ecc;
+static _Thread_local u_int   job = UINT_MAX;
 
 int
 dputc(int c)

@@ -270,12 +270,12 @@ struct option longopts[] = {
 char *
 strerror(int errnum)
 {
-	static __thread char tls_errbuf[128];
+    static _Thread_local char tls_errbuf[128];
 
-	if (!strerror_r(errnum, tls_errbuf, sizeof(tls_errbuf)))
-            snprintf(tls_errbuf, sizeof(tls_errbuf), "error %d", errnum);
+    if (!strerror_r(errnum, tls_errbuf, sizeof(tls_errbuf)))
+        snprintf(tls_errbuf, sizeof(tls_errbuf), "error %d", errnum);
 
-	return tls_errbuf;
+    return tls_errbuf;
 }
 
 

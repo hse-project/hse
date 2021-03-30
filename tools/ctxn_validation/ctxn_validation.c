@@ -78,7 +78,7 @@ struct tdargs {
 
 static void ctxn_validation_fini(void);
 
-static __thread uint64_t xrand_state[2];
+static _Thread_local uint64_t xrand_state[2];
 
 static void
 xrand_init(uint64_t seed)

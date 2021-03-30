@@ -242,7 +242,7 @@ c0snr_set_get_c0snr(struct c0snr_set *handle, struct kvdb_ctxn *ctxn)
     struct c0snr_set_list  *cslist;
     struct c0snr_set_bkt   *bkt;
 
-    static __thread uint cpuid, nodeid, cnt;
+    static _Thread_local uint cpuid, nodeid, cnt;
 
     if (cnt++ % 16 == 0) {
         if (( syscall(SYS_getcpu, &cpuid, &nodeid, NULL) ))

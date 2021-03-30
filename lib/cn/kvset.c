@@ -1375,7 +1375,7 @@ kvset_get_immediate_value(struct kvs_vtuple_ref *vref, struct kvs_buf *vbuf)
     return 0;
 }
 
-extern __thread char tls_vbuf[];
+extern _Thread_local char tls_vbuf[];
 extern const size_t tls_vbufsz;
 
 static merr_t

@@ -25,7 +25,7 @@ size_t        g_val_buf_size = 8192;
 pthread_key_t td_getbuf_key;
 pthread_key_t td_cursor_key;
 
-__thread struct hse_kvs_cursor *cursor = NULL;
+_Thread_local struct hse_kvs_cursor *cursor = NULL;
 
 static int
 jni_params_string_to_argv(char *p_list, char **argv, uint32_t max_args)
@@ -379,7 +379,7 @@ JNIEXPORT jint JNICALL
 JNIEXPORT jbyteArray JNICALL
 Java_org_micron_hse_API_get(JNIEnv *env, jobject jobj, jlong handle, jbyteArray key)
 {
-    static __thread jbyte *valBuf;
+    static _Thread_local jbyte *valBuf;
 
     jbyte *      keyA;
     unsigned int keyL;

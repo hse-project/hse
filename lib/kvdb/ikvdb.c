@@ -68,7 +68,7 @@
 /* tls_vbuf[] is a thread-local buffer used as a compression output buffer
  * by ikvdb_kvs_put() and for small direct reads by kvset_lookup_val().
  */
-__thread char tls_vbuf[32 * 1024] HSE_ALIGNED(PAGE_SIZE);
+_Thread_local char tls_vbuf[32 * 1024] HSE_ALIGNED(PAGE_SIZE);
 const size_t  tls_vbufsz = sizeof(tls_vbuf);
 
 struct perfc_set kvdb_pkvdbl_pc HSE_READ_MOSTLY;

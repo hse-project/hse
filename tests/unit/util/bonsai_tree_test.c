@@ -67,7 +67,7 @@ static size_t          key_size = 10;
 static size_t          val_size = 100;
 static pthread_mutex_t mtx;
 
-static __thread struct xrand xr;
+static _Thread_local struct xrand xr;
 
 static void
 bonsai_xrand_init(uint64_t seed64)

@@ -634,7 +634,7 @@ struct hse_kvdb_txn;
 struct hse_kvs *kvs;
 #endif /* XKMT */
 
-static __thread uint64_t xrand_state[2];
+static _Thread_local uint64_t xrand_state[2];
 
 static void
 xrand_init(uint64_t seed)
@@ -1072,7 +1072,7 @@ kvs_put_xkmt(
     const void *    val,
     size_t          val_len)
 {
-    static __thread struct kvnode *node;
+    static _Thread_local struct kvnode *node;
 
     struct bkt *   bkt;
     struct kvnode *dup;

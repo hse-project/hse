@@ -295,7 +295,7 @@ viewset_insert(struct viewset *handle, u64 *viewp, void **cookiep)
     uint                         idx;
     bool                         changed;
 
-    static __thread uint cpuid, nodeid, cnt;
+    static _Thread_local uint cpuid, nodeid, cnt;
 
     if (cnt++ % 16 == 0) {
         if (HSE_UNLIKELY( syscall(SYS_getcpu, &cpuid, &nodeid, NULL) ))
