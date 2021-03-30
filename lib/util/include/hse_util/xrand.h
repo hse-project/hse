@@ -6,7 +6,7 @@
 #ifndef HSE_XRAND_H
 #define HSE_XRAND_H
 
-#include <threads.h>
+#include "_config.h"
 
 #include <hse_util/inttypes.h>
 #include <hse_util/compiler.h>

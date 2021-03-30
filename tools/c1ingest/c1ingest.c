@@ -2,8 +2,6 @@
  * Copyright (C) 2017 Micron Technology, Inc.  All rights reserved.
  */
 
-#define _GNU_SOURCE /* for asprintf() */
-
 #include <assert.h>
 #include <getopt.h>
 #include <pthread.h>
@@ -14,12 +12,12 @@
 #include <sysexits.h>
 #include <sys/resource.h>
 #include <sys/time.h>
-#include <threads.h>
 
 #include <hse/hse.h>
 #include <hse/hse_version.h>
 
 #include <hse_util/atomic.h>
+#include <hse_util/compiler.h>
 #include <hse_util/hse_params_helper.h>
 #include <hse_util/inttypes.h>
 #include <hse_util/parse_num.h>

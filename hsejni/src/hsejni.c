@@ -2,6 +2,9 @@
 /*
  * Copyright (C) 2015-2017,2019 Micron Technology, Inc.  All rights reserved.
  */
+
+#include "_config.h"
+
 #include <jni.h>
 #include <hse_jni_util.h>
 #include <hsejni_internal.h>
@@ -17,7 +20,6 @@
 #include <ctype.h>
 #include <stdint.h>
 #include <string.h>
-#include <threads.h>
 #include <errno.h>
 
 struct hse_kvdb *kvdb_h;

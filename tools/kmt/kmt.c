@@ -174,7 +174,6 @@
 #include <sys/stat.h>
 #include <sys/ioctl.h>
 #include <sys/resource.h>
-#include <threads.h>
 
 extern void
 malloc_stats(void);

@@ -6,8 +6,9 @@
 #define MTF_MOCK_IMPL_ikvdb
 #define MTF_MOCK_IMPL_kvs
 
+#include "_config.h"
+
 #include <stdalign.h>
-#include <threads.h>
 
 #include <hse/hse.h>
 

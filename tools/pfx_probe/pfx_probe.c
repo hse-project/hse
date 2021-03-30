@@ -11,7 +11,6 @@
 #include <sys/resource.h>
 #include <sys/time.h>
 #include <sysexits.h>
-#include <threads.h>
 
 #include <hse/hse.h>
 

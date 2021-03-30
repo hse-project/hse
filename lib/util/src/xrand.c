@@ -3,7 +3,7 @@
  * Copyright (C) 2020 Micron Technology, Inc.  All rights reserved.
  */
 
-#include <threads.h>
+#include "_config.h"
 
 #include <hse_util/xrand.h>
 

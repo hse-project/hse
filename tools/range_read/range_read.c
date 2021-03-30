@@ -21,7 +21,6 @@
 #include <sys/stat.h>
 #include <sys/time.h>
 #include <sysexits.h>
-#include <threads.h>
 #include <unistd.h>
 
 #include <hse_util/arch.h>

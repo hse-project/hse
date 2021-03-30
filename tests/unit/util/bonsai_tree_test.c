@@ -6,7 +6,7 @@
 #define BONSAI_TREE_CLIENT_VERIFY
 #define BONSAI_TREE_CURSOR_HEAP
 
-#include <threads.h>
+#include "_config.h"
 
 #include <hse_util/compiler.h>
 #include <hse_util/string.h>

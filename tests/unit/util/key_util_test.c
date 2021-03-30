@@ -3,15 +3,17 @@
  * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
  */
 
-#include <threads.h>
+#include "_config.h"
+
 #include <stdlib.h>
 #include <string.h>
 
 #include <hse_ut/framework.h>
 #include <hse_test_support/allocation.h>
 
-#include <hse_util/minmax.h>
+#include <hse_util/compiler.h>
 #include <hse_util/key_util.h>
+#include <hse_util/minmax.h>
 
 MTF_BEGIN_UTEST_COLLECTION(key_util_test);
 

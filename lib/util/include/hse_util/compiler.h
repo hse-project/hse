@@ -6,6 +6,13 @@
 #ifndef HSE_PLATFORM_COMPILER_H
 #define HSE_PLATFORM_COMPILER_H
 
+/* Ubuntu 18.04 uses glibc 2.27, and threads.h only exists in glibc >= 2.28 */
+#if !__has_include(<threads.h>)
+#define thread_local _Thread_local
+#else
+#include <threads.h>
+#endif
+
 /* Optimization barrier */
 /* The "volatile" is due to gcc bugs */
 #define barrier() asm volatile("" : : : "memory")

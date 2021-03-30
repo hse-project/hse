@@ -138,7 +138,6 @@
 #include <sys/stat.h>
 #include <sys/ioctl.h>
 #include <sys/resource.h>
-#include <threads.h>
 
 #include <bsd/string.h>
 #include <curses.h>
@@ -147,6 +146,7 @@
 #include <hse/hse.h>
 #include <hse/hse_version.h>
 
+#include <hse_util/compiler.h>
 #include <hse_util/page.h>
 
 #include <xoroshiro/xoroshiro.h>

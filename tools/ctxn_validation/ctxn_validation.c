@@ -13,11 +13,11 @@
 #include <sys/resource.h>
 #include <sysexits.h>
 #include <signal.h>
-#include <threads.h>
 
 #include <hse/hse.h>
 #include <xoroshiro/xoroshiro.h>
 
+#include <hse_util/compiler.h>
 #include <hse_util/inttypes.h>
 #include <hse_util/minmax.h>
 #include <hse_util/hse_params_helper.h>

@@ -3,8 +3,9 @@
  * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
  */
 
+#include "_config.h"
+
 #include <stdalign.h>
-#include <threads.h>
 
 #include <hse_util/arch.h>
 #include <hse_util/alloc.h>
