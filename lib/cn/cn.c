@@ -887,7 +887,7 @@ cn_tstate_create(struct cn *cn)
     void *                 ptr;
     size_t                 sz;
 
-    impl = alloc_aligned(sizeof(*impl), __alignof(*impl));
+    impl = alloc_aligned(sizeof(*impl), _Alignof(*impl));
     if (ev(!impl))
         return merr(ENOMEM);
 
@@ -1140,7 +1140,7 @@ cn_open(
     if (!rp)
         sz += sizeof(*rp);
 
-    cn = alloc_aligned(sz, __alignof(*cn));
+    cn = alloc_aligned(sz, _Alignof(*cn));
     if (ev(!cn))
         return merr(ENOMEM);
 
@@ -1446,7 +1446,7 @@ cn_pscan_create(void)
     size_t align, bufsz;
     void *mem;
 
-    align = (__alignof(*cur) > SMP_CACHE_BYTES) ? __alignof(*cur) : SMP_CACHE_BYTES;
+    align = (_Alignof(*cur) > SMP_CACHE_BYTES) ? _Alignof(*cur) : SMP_CACHE_BYTES;
     bufsz = HSE_KVS_KLEN_MAX + HSE_KVS_VLEN_MAX;
 
     mem = vlb_alloc(sizeof(*cur) + bufsz + align * 16);

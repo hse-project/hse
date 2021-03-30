@@ -187,7 +187,7 @@ kvdb_ctxn_alloc(
 
     kvdb_ctxn_set = kvdb_ctxn_set_h2r(kcs_handle);
 
-    ctxn = alloc_aligned(sizeof(*ctxn), __alignof(*ctxn));
+    ctxn = alloc_aligned(sizeof(*ctxn), _Alignof(*ctxn));
     if (ev(!ctxn))
         return NULL;
 
@@ -941,7 +941,7 @@ kvdb_ctxn_set_create(struct kvdb_ctxn_set **handle_out, u64 txn_timeout_ms, u64 
 
     *handle_out = 0;
 
-    ktn = alloc_aligned(sizeof(*ktn), __alignof(*ktn));
+    ktn = alloc_aligned(sizeof(*ktn), _Alignof(*ktn));
     if (ev(!ktn))
         return merr(ENOMEM);
 

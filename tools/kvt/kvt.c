@@ -2002,7 +2002,7 @@ kvt_init(const char *keyfile, const char *keyfmt, u_long keymax, bool dump)
         status("loading...");
     }
 
-    tdargv = aligned_alloc(__alignof(*tdargv), ijobsmax * sizeof(*tdargv));
+    tdargv = aligned_alloc(_Alignof(*tdargv), ijobsmax * sizeof(*tdargv));
     if (!tdargv) {
         eprint(errno, "calloc tdargv %u %zu", ijobsmax, sizeof(*tdargv));
         return EX_OSERR;
@@ -2354,7 +2354,7 @@ kvt_init_main(void *arg)
             cc = vlenmin + (xrand64() % (vlenmax - vlenmin + 1));
 
             datasrc = workq.randbuf + (xrand64() % (workq.randbufsz - cc + 1));
-            datasrc = PTR_ALIGN(datasrc, __alignof(uint64_t));
+            datasrc = PTR_ALIGN(datasrc, _Alignof(uint64_t));
         } else {
             struct stat sb;
 
@@ -2552,7 +2552,7 @@ kvt_check(int check, bool dump)
     workq.tail = &workq.head;
     workq.running = true;
 
-    tdargv = aligned_alloc(__alignof(*tdargv), cjobs * sizeof(*tdargv));
+    tdargv = aligned_alloc(_Alignof(*tdargv), cjobs * sizeof(*tdargv));
     if (!tdargv) {
         eprint(errno, "calloc tdargv %u %zu", cjobs, sizeof(*tdargv));
         return EX_OSERR;
@@ -3149,7 +3149,7 @@ kvt_test(void)
     sigaddset(&sigmask_block, SIGALRM);
     pthread_sigmask(SIG_BLOCK, &sigmask_block, &sigmask_orig);
 
-    tdargv = aligned_alloc(__alignof(*tdargv), tjobsmax * sizeof(*tdargv));
+    tdargv = aligned_alloc(_Alignof(*tdargv), tjobsmax * sizeof(*tdargv));
     if (!tdargv) {
         eprint(errno, "calloc tdargv %u %zu", tjobsmax, sizeof(*tdargv));
         return EX_OSERR;

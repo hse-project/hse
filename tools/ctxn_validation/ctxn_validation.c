@@ -276,7 +276,7 @@ ctxn_validation_basic_collision(void)
     char                    key[64];
     u32                     vtxn;
 
-    tdargsv = aligned_alloc(__alignof(*tdargsv), sizeof(*tdargsv) * jobsmax);
+    tdargsv = aligned_alloc(_Alignof(*tdargsv), sizeof(*tdargsv) * jobsmax);
     if (!tdargsv)
         abort();
 
@@ -783,7 +783,7 @@ spawn(spawn_cb_t *func)
     for (i = 0; i < NELEM(barv); ++i)
         pthread_barrier_init(&barv[i], NULL, jobsmax);
 
-    tdargsv = aligned_alloc(__alignof(*tdargsv), sizeof(*tdargsv) * jobsmax);
+    tdargsv = aligned_alloc(_Alignof(*tdargsv), sizeof(*tdargsv) * jobsmax);
     if (!tdargsv)
         abort();
 

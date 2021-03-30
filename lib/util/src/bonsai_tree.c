@@ -417,7 +417,7 @@ bn_create(
     if (ev(!cheap || !cb || !tree))
         return merr(EINVAL);
 
-    r = cheap_memalign(cheap, __alignof(*r), sizeof(*r));
+    r = cheap_memalign(cheap, _Alignof(*r), sizeof(*r));
     if (ev(!r))
         return merr(ENOMEM);
 

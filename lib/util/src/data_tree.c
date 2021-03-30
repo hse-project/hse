@@ -489,7 +489,7 @@ dt_create(const char *name)
     if (strnlen(name, DT_PATH_ELEMENT_LEN) >= DT_PATH_ELEMENT_LEN)
         return NULL;
 
-    tree = alloc_aligned(sizeof(*tree), __alignof(*tree));
+    tree = alloc_aligned(sizeof(*tree), _Alignof(*tree));
     if (ev(!tree))
         return NULL;
 

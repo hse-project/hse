@@ -91,7 +91,7 @@ get_kst_sz(size_t klen)
 {
     klen += sizeof(struct key_stage_entry_leaf);
 
-    return roundup(klen, __alignof(struct key_stage_entry_leaf));
+    return roundup(klen, _Alignof(struct key_stage_entry_leaf));
 }
 
 static HSE_ALWAYS_INLINE uint

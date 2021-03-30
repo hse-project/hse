@@ -547,7 +547,7 @@ ikvdb_diag_open(
     /* [HSE_REVISIT] consider factoring out this code into ikvdb_cmn_open
      * and calling that from here and ikvdb_open.
      */
-    self = alloc_aligned(sizeof(*self), __alignof(*self));
+    self = alloc_aligned(sizeof(*self), _Alignof(*self));
     if (ev(!self))
         return merr(ENOMEM);
 
@@ -724,7 +724,7 @@ kvdb_kvs_create(void)
 {
     struct kvdb_kvs *kvs;
 
-    kvs = alloc_aligned(sizeof(*kvs), __alignof(*kvs));
+    kvs = alloc_aligned(sizeof(*kvs), _Alignof(*kvs));
     if (kvs) {
         memset(kvs, 0, sizeof(*kvs));
         kvs->kk_vcompmin = UINT_MAX;
@@ -877,7 +877,7 @@ ikvdb_open(
     int                 i;
     u64                 ingestid;
 
-    self = alloc_aligned(sizeof(*self), __alignof(*self));
+    self = alloc_aligned(sizeof(*self), _Alignof(*self));
     if (ev(!self)) {
         err = merr(ENOMEM);
         hse_elog(HSE_ERR "cannot open %s: @@e", err, mp_name);

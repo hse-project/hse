@@ -20,7 +20,7 @@
 #include <hse_util/log2.h>
 
 #ifndef ARCH_KMALLOC_MINALIGN
-#define ARCH_KMALLOC_MINALIGN __alignof__(unsigned long long)
+#define ARCH_KMALLOC_MINALIGN _Alignof(unsigned long long)
 #endif
 
 void *

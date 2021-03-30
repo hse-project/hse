@@ -868,7 +868,7 @@ kmem_cache_create(const char *name, size_t size, size_t align, ulong flags, void
     zone_sz = sizeof(*zone) + sizeof(zone->zone_pcpuv[0]) * pcpuc;
     zone_sz = ALIGN(zone_sz, SMP_CACHE_BYTES);
 
-    zone = alloc_aligned(zone_sz, __alignof(*zone));
+    zone = alloc_aligned(zone_sz, _Alignof(*zone));
     if (ev(!zone))
         return NULL;
 

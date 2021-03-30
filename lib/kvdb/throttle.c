@@ -110,7 +110,7 @@ throttle_init(struct throttle *self, struct kvdb_rparams *rp)
     int    i;
     merr_t err;
 
-    assert(IS_ALIGNED((uintptr_t)self, __alignof(*self)));
+    assert(IS_ALIGNED((uintptr_t)self, _Alignof(*self)));
 
     memset(self, 0, sizeof(*self));
     spin_lock_init(&self->thr_lock);

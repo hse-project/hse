@@ -1130,7 +1130,7 @@ c0kvms_init(void)
     if (atomic_inc_return(&c0kvms_init_ref) > 1)
         return 0;
 
-    c0kvms_cache = kmem_cache_create("c0kvms", sizeof(*kvms), __alignof(*kvms), 0, NULL);
+    c0kvms_cache = kmem_cache_create("c0kvms", sizeof(*kvms), _Alignof(*kvms), 0, NULL);
     if (ev(!c0kvms_cache)) {
         atomic_dec(&c0kvms_init_ref);
         return merr(ENOMEM);

@@ -503,7 +503,7 @@ c0kvs_create(
     if (ev(!cheap))
         return merr(ENOMEM);
 
-    set = cheap_memalign(cheap, __alignof(*set), sizeof(*set));
+    set = cheap_memalign(cheap, _Alignof(*set), sizeof(*set));
     if (ev(!set)) {
         cheap_destroy(cheap);
         return merr(ENOMEM);

@@ -56,7 +56,7 @@ keylock_create(u64 num_ents, keylock_cb_fn *cb_func, struct keylock **handle_out
     sz = sizeof(struct keylock_impl);              /* size of base structure elements */
     sz += num_ents * sizeof(struct keylock_entry); /* space for entries */
 
-    table = alloc_aligned(sz, __alignof(*table));
+    table = alloc_aligned(sz, _Alignof(*table));
     if (ev(!table))
         return merr(ENOMEM);
 

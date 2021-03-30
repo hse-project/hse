@@ -533,7 +533,7 @@ kvs_create(struct ikvs **ikvs_out, struct kvs_rparams *rp)
 
     *ikvs_out = NULL;
 
-    ikvs = alloc_aligned(sizeof(*ikvs), __alignof(*ikvs));
+    ikvs = alloc_aligned(sizeof(*ikvs), _Alignof(*ikvs));
     if (ev(!ikvs))
         return merr(ENOMEM);
 

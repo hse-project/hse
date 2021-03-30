@@ -28,7 +28,7 @@ bn_node_alloc_impl(struct bonsai_root *tree)
 
         slabsz = client->bc_slab_sz;
 
-        mem = cheap_memalign(client->bc_cheap, __alignof(struct bonsai_node), slabsz);
+        mem = cheap_memalign(client->bc_cheap, _Alignof(struct bonsai_node), slabsz);
         if (ev(!mem))
             return NULL;
 

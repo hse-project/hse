@@ -246,7 +246,7 @@ cn_node_size(void)
 
     sz = sizeof(*node) + sizeof(*node->tn_childv) * CN_FANOUT_MAX;
 
-    return ALIGN(sz, __alignof(*node));
+    return ALIGN(sz, _Alignof(*node));
 }
 
 static struct cn_tree_node *
@@ -371,7 +371,7 @@ cn_tree_create(
     if (ev(cp->cp_pfx_len > HSE_KVS_MAX_PFXLEN))
         return merr(EINVAL);
 
-    tree = alloc_aligned(sizeof(*tree), __alignof(*tree));
+    tree = alloc_aligned(sizeof(*tree), _Alignof(*tree));
     if (ev(!tree))
         return merr(ENOMEM);
 

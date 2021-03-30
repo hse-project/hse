@@ -148,7 +148,7 @@ viewset_create(struct viewset **handle, atomic64_t *kvdb_seqno_addr)
     sz = sizeof(*self);
     sz += sizeof(self->vs_bktv[0]) * max_bkts;
 
-    self = alloc_aligned(sz, __alignof(*self));
+    self = alloc_aligned(sz, _Alignof(*self));
     if (ev(!self))
         return merr(ENOMEM);
 
@@ -451,7 +451,7 @@ viewset_tree_create(u32 max_elts, u32 index, struct viewset_tree **tree)
     sz = sizeof(*self);
     sz += sizeof(self->act_entryv[0]) * max_elts;
 
-    self = alloc_aligned(sz, __alignof(*self));
+    self = alloc_aligned(sz, _Alignof(*self));
     if (ev(!self))
         return merr(ENOMEM);
 

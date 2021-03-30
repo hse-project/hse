@@ -3786,7 +3786,7 @@ kvset_init(void)
     kvset_iter_cache = cache;
 
     for (i = 0; i < NELEM(kvset_cache); ++i) {
-        size_t align = __alignof(struct kvset);
+        size_t align = _Alignof(struct kvset);
         char   name[32];
 
         snprintf(name, sizeof(name), "kvset%d", i);
