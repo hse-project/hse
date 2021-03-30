@@ -3,8 +3,6 @@
  * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
  */
 
-#define _GNU_SOURCE /* for ppoll() */
-
 #include <hse_util/platform.h>
 #include <hse_util/minmax.h>
 #include <hse_util/logging.h>

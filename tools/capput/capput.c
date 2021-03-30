@@ -29,8 +29,6 @@
  *
  */
 
-#define _GNU_SOURCE /* for pthread_setname_np() */
-
 #include <endian.h>
 #include <libgen.h>
 #include <pthread.h>

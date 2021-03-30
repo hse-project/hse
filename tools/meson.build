@@ -247,6 +247,7 @@ foreach t, params : tools
     t_sources = params['sources']
 
     t_c_args = [
+        '-D_GNU_SOURCE=1',
         '-DCOMPNAME="@0@"'.format(t),
     ]
     if 'c_args' in params

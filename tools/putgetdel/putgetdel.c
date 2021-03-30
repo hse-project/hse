@@ -2,8 +2,6 @@
  * Copyright (C) 2015 Micron Technology, Inc.  All rights reserved.
  */
 
-#define _GNU_SOURCE /* for asprintf() */
-
 #include <assert.h>
 #include <getopt.h>
 #include <pthread.h>

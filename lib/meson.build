@@ -33,6 +33,7 @@ hse_sources = [
 ]
 
 hse_c_args = [
+    '-D_GNU_SOURCE=1',
     '-DCOMPNAME="kvdb"',
     '-DCJSON_FROM_SUBPROJECT=@0@'.format(cJSON_from_subproject ? 1 : 0),
 ]

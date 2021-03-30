@@ -35,8 +35,6 @@
 
 #include "kvs_params.h"
 
-#include <syscall.h>
-
 /* "pkvsl" stands for Public KVS interface Latencies" */
 struct perfc_name kvs_pkvsl_perfc_op[] = {
     NE(PERFC_LT_PKVSL_KVS_PUT, 3, "kvs_put latency", "kvs_put_lat", 7),

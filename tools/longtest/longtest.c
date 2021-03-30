@@ -2,8 +2,6 @@
  * Copyright (C) 2015-2017,2021 Micron Technology, Inc.  All rights reserved.
  */
 
-#define _GNU_SOURCE /* for pthread_timedjoin_np() */
-
 #include <getopt.h>
 #include <math.h>
 #include <pthread.h>

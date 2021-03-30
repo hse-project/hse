@@ -3,8 +3,6 @@
  * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
-#define _GNU_SOURCE /* for pthread_getname_np() */
-
 #include <hse_util/platform.h>
 #include <hse_util/event_counter.h>
 #include <hse_util/alloc.h>

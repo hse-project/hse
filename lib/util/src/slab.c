@@ -32,9 +32,6 @@
  * memory overhead is well less than 0.8 percent.
  */
 
-#define _GNU_SOURCE /* for mremap() */
-#define _ISOC11_SOURCE
-
 #include <hse_util/arch.h>
 #include <hse_util/alloc.h>
 #include <hse_util/atomic.h>
@@ -1065,19 +1062,6 @@ kmem_cache_fini(void)
     destroy_workqueue(kmc.kmc_wq);
     mutex_destroy(&kmc.kmc_zone_lock);
 }
-
-#ifndef __USE_ISOC11
-static void *
-aligned_alloc(size_t align, size_t size)
-{
-    void *mem = NULL;
-
-    if (posix_memalign(&mem, align, size))
-        return NULL;
-
-    return mem;
-}
-#endif
 
 static u64
 kmc_test(int which, size_t size, size_t align, void *zone)
