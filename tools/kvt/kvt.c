@@ -111,9 +111,6 @@
  *    $ kvt -i128m,192 -T1h,333 -cv mp0
  *
  */
-#ifndef _GNU_SOURCE
-#define _GNU_SOURCE
-#endif
 
 #include <stdalign.h>
 #include <stdio.h>
