@@ -1,9 +1,7 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2017,2019 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2017,2019,2021 Micron Technology, Inc.  All rights reserved.
  */
-
-#include "_config.h"
 
 #include <jni.h>
 #include <hse_jni_util.h>
@@ -11,6 +9,7 @@
 
 #include <hse/hse.h>
 
+#include <hse_util/compiler.h>
 #include <hse_util/hse_params_helper.h>
 
 #define MAX_ARGS 32
