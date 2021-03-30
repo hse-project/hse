@@ -7,6 +7,8 @@
  * Exported API of the HSE struct ikvs
  */
 
+#include <stdalign.h>
+
 #include <hse/hse.h>
 #include <hse/kvdb_perfc.h>
 
@@ -533,7 +535,7 @@ kvs_create(struct ikvs **ikvs_out, struct kvs_rparams *rp)
 
     *ikvs_out = NULL;
 
-    ikvs = alloc_aligned(sizeof(*ikvs), _Alignof(*ikvs));
+    ikvs = alloc_aligned(sizeof(*ikvs), alignof(*ikvs));
     if (ev(!ikvs))
         return merr(ENOMEM);
 

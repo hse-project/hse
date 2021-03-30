@@ -3,6 +3,8 @@
  * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
  */
 
+#include <stdalign.h>
+
 #include <hse_util/platform.h>
 #include <hse_util/rmlock.h>
 
@@ -35,7 +37,7 @@ rmlock_init(struct rmlock *lock)
 
     sz = sizeof(*lock->rm_bktv) * RMLOCK_MAX;
 
-    lock->rm_bktv = alloc_aligned(sz, _Alignof(*lock->rm_bktv));
+    lock->rm_bktv = alloc_aligned(sz, alignof(*lock->rm_bktv));
     if (!lock->rm_bktv)
         return merr(ENOMEM);
 

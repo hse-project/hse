@@ -115,6 +115,7 @@
 #define _GNU_SOURCE
 #endif
 
+#include <stdalign.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdarg.h>
@@ -137,6 +138,7 @@
 #include <sys/stat.h>
 #include <sys/ioctl.h>
 #include <sys/resource.h>
+#include <threads.h>
 
 #include <bsd/string.h>
 #include <curses.h>
@@ -367,7 +369,7 @@ kvt_test_main(void *arg);
 static int
 kvt_test_impl(struct tdargs *args, struct hse_kvdb_opspec *opspec, u_long rid);
 
-static _Thread_local uint64_t xrand64_state[2];
+static thread_local uint64_t xrand64_state[2];
 
 static void
 xrand64_init(uint64_t seed)
@@ -415,10 +417,10 @@ tsi_delta(tsi_t *startp)
     return now.tv_sec * 1000000 + now.tv_nsec / 1000;
 }
 
-static _Thread_local char    dmsg[256], emsg[256];
-static _Thread_local int     dmsglen, emsglen;
-static _Thread_local ssize_t dcc, ecc;
-static _Thread_local u_int   job = UINT_MAX;
+static thread_local char    dmsg[256], emsg[256];
+static thread_local int     dmsglen, emsglen;
+static thread_local ssize_t dcc, ecc;
+static thread_local u_int   job = UINT_MAX;
 
 int
 dputc(int c)
@@ -2002,7 +2004,7 @@ kvt_init(const char *keyfile, const char *keyfmt, u_long keymax, bool dump)
         status("loading...");
     }
 
-    tdargv = aligned_alloc(_Alignof(*tdargv), ijobsmax * sizeof(*tdargv));
+    tdargv = aligned_alloc(alignof(*tdargv), ijobsmax * sizeof(*tdargv));
     if (!tdargv) {
         eprint(errno, "calloc tdargv %u %zu", ijobsmax, sizeof(*tdargv));
         return EX_OSERR;
@@ -2354,7 +2356,7 @@ kvt_init_main(void *arg)
             cc = vlenmin + (xrand64() % (vlenmax - vlenmin + 1));
 
             datasrc = workq.randbuf + (xrand64() % (workq.randbufsz - cc + 1));
-            datasrc = PTR_ALIGN(datasrc, _Alignof(uint64_t));
+            datasrc = PTR_ALIGN(datasrc, alignof(uint64_t));
         } else {
             struct stat sb;
 
@@ -2552,7 +2554,7 @@ kvt_check(int check, bool dump)
     workq.tail = &workq.head;
     workq.running = true;
 
-    tdargv = aligned_alloc(_Alignof(*tdargv), cjobs * sizeof(*tdargv));
+    tdargv = aligned_alloc(alignof(*tdargv), cjobs * sizeof(*tdargv));
     if (!tdargv) {
         eprint(errno, "calloc tdargv %u %zu", cjobs, sizeof(*tdargv));
         return EX_OSERR;
@@ -3149,7 +3151,7 @@ kvt_test(void)
     sigaddset(&sigmask_block, SIGALRM);
     pthread_sigmask(SIG_BLOCK, &sigmask_block, &sigmask_orig);
 
-    tdargv = aligned_alloc(_Alignof(*tdargv), tjobsmax * sizeof(*tdargv));
+    tdargv = aligned_alloc(alignof(*tdargv), tjobsmax * sizeof(*tdargv));
     if (!tdargv) {
         eprint(errno, "calloc tdargv %u %zu", tjobsmax, sizeof(*tdargv));
         return EX_OSERR;

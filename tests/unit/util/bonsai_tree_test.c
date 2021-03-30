@@ -6,6 +6,8 @@
 #define BONSAI_TREE_CLIENT_VERIFY
 #define BONSAI_TREE_CURSOR_HEAP
 
+#include <threads.h>
+
 #include <hse_util/compiler.h>
 #include <hse_util/string.h>
 #include <hse_util/alloc.h>
@@ -67,7 +69,7 @@ static size_t          key_size = 10;
 static size_t          val_size = 100;
 static pthread_mutex_t mtx;
 
-static _Thread_local struct xrand xr;
+static thread_local struct xrand xr;
 
 static void
 bonsai_xrand_init(uint64_t seed64)

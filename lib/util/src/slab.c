@@ -32,6 +32,8 @@
  * memory overhead is well less than 0.8 percent.
  */
 
+#include <stdalign.h>
+
 #include <hse_util/arch.h>
 #include <hse_util/alloc.h>
 #include <hse_util/atomic.h>
@@ -868,7 +870,7 @@ kmem_cache_create(const char *name, size_t size, size_t align, ulong flags, void
     zone_sz = sizeof(*zone) + sizeof(zone->zone_pcpuv[0]) * pcpuc;
     zone_sz = ALIGN(zone_sz, SMP_CACHE_BYTES);
 
-    zone = alloc_aligned(zone_sz, _Alignof(*zone));
+    zone = alloc_aligned(zone_sz, alignof(*zone));
     if (ev(!zone))
         return NULL;
 

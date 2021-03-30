@@ -3,6 +3,8 @@
  * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
  */
 
+#include <stdalign.h>
+
 #include <hse_util/platform.h>
 #include <hse_util/slab.h>
 #include <hse_util/spinlock.h>
@@ -489,7 +491,7 @@ dt_create(const char *name)
     if (strnlen(name, DT_PATH_ELEMENT_LEN) >= DT_PATH_ELEMENT_LEN)
         return NULL;
 
-    tree = alloc_aligned(sizeof(*tree), _Alignof(*tree));
+    tree = alloc_aligned(sizeof(*tree), alignof(*tree));
     if (ev(!tree))
         return NULL;
 

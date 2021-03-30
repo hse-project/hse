@@ -14,6 +14,7 @@
 #include <sysexits.h>
 #include <sys/resource.h>
 #include <sys/time.h>
+#include <threads.h>
 
 #include <hse/hse.h>
 #include <hse/hse_version.h>
@@ -294,7 +295,7 @@ struct option longopts[] = {
 char *
 strerror(int errnum)
 {
-    static _Thread_local char tls_errbuf[128];
+    static thread_local char tls_errbuf[128];
 
     if (!strerror_r(errnum, tls_errbuf, sizeof(tls_errbuf)))
         snprintf(tls_errbuf, sizeof(tls_errbuf), "error %d", errnum);

@@ -11,6 +11,7 @@
 #include <sys/resource.h>
 #include <sys/time.h>
 #include <sysexits.h>
+#include <threads.h>
 
 #include <hse/hse.h>
 
@@ -64,7 +65,7 @@ atomic64_t completed_puts;
 
 int err;
 
-static _Thread_local uint64_t xrand_state[2] HSE_ALIGNED(16);
+static thread_local uint64_t xrand_state[2] HSE_ALIGNED(16);
 
 static void
 xrand_init(uint64_t seed)

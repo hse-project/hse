@@ -3,13 +3,15 @@
  * Copyright (C) 2020 Micron Technology, Inc.  All rights reserved.
  */
 
+#include <threads.h>
+
 #include <hse_util/xrand.h>
 
 #include <hse_util/compiler.h>
 #include <hse_util/arch.h>
 
-_Thread_local struct xrand xrand_tls;
-_Thread_local u64          xrand_tls_seed;
+thread_local struct xrand xrand_tls;
+thread_local u64          xrand_tls_seed;
 
 void
 xrand_init(struct xrand *xr, u64 seed)

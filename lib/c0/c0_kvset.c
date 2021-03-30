@@ -3,6 +3,8 @@
  * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
+#include <stdalign.h>
+
 #include <hse_util/platform.h>
 #include <hse_util/event_counter.h>
 #include <hse_util/slab.h>
@@ -503,7 +505,7 @@ c0kvs_create(
     if (ev(!cheap))
         return merr(ENOMEM);
 
-    set = cheap_memalign(cheap, _Alignof(*set), sizeof(*set));
+    set = cheap_memalign(cheap, alignof(*set), sizeof(*set));
     if (ev(!set)) {
         cheap_destroy(cheap);
         return merr(ENOMEM);

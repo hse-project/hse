@@ -5,6 +5,8 @@
 
 #define MTF_MOCK_IMPL_alloc
 
+#include <stdalign.h>
+
 #include <hse_util/mutex.h>
 #include <hse_util/spinlock.h>
 #include <hse_util/timing.h>
@@ -20,7 +22,7 @@
 #include <hse_util/log2.h>
 
 #ifndef ARCH_KMALLOC_MINALIGN
-#define ARCH_KMALLOC_MINALIGN _Alignof(unsigned long long)
+#define ARCH_KMALLOC_MINALIGN alignof(unsigned long long)
 #endif
 
 void *

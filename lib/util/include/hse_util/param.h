@@ -6,15 +6,17 @@
 #ifndef HSE_UI_CLI_PARAM_H
 #define HSE_UI_CLI_PARAM_H
 
+#include <stdalign.h>
+
 #include <hse_util/hse_err.h>
 #include <hse_util/parser.h>
 
 /* MTF_MOCK_DECL(param) */
 
 #define PARAM_GET_INVALID(_type, _dst, _dstsz) \
-    ({ ((_dstsz) < sizeof(_type) || !(_dst) || (uintptr_t)(_dst) & (_Alignof(_type) - 1)); })
+    ({ ((_dstsz) < sizeof(_type) || !(_dst) || (uintptr_t)(_dst) & (alignof(_type) - 1)); })
 
-#define PARAM_SHOW_INVALID(_type, _val) ({ (!(_val) || (uintptr_t)val & (_Alignof(_type) - 1)); })
+#define PARAM_SHOW_INVALID(_type, _val) ({ (!(_val) || (uintptr_t)val & (alignof(_type) - 1)); })
 
 typedef merr_t
 param_get_t(const char *src, void *dst, size_t dstsz);

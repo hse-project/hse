@@ -6,6 +6,8 @@
 #ifndef HSE_PLATFORM_PERFC_H
 #define HSE_PLATFORM_PERFC_H
 
+#include <threads.h>
+
 #include <hse_util/arch.h>
 #include <hse_util/assert.h>
 #include <hse_util/atomic.h>
@@ -305,7 +307,7 @@ perfc_ivl_destroy(const struct perfc_ivl *ivl);
 
 #define PERFC_INC_RU(_pc, _cid, _rumax)       \
     do {                                      \
-        static _Thread_local struct {              \
+        static thread_local struct {              \
             u64 cnt;                          \
         } ru;                                 \
                                               \
@@ -317,7 +319,7 @@ perfc_ivl_destroy(const struct perfc_ivl *ivl);
 
 #define PERFC_INCADD_RU(_pc, _cidx1, _cidx2, _val2, _rumax)        \
     do {                                                           \
-        static _Thread_local struct {                                   \
+        static thread_local struct {                                   \
             u64 cnt;                                               \
             u64 sum;                                               \
         } ru;                                                      \

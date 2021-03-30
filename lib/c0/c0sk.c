@@ -3,6 +3,8 @@
  * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
+#include <stdalign.h>
+
 #include <hse_util/platform.h>
 #include <hse_util/hse_err.h>
 #include <hse_util/event_counter.h>
@@ -467,7 +469,7 @@ c0sk_open(
 
     assert(health);
 
-    c0sk = alloc_aligned(sizeof(*c0sk), _Alignof(*c0sk));
+    c0sk = alloc_aligned(sizeof(*c0sk), alignof(*c0sk));
     if (ev(!c0sk)) {
         err = merr(ENOMEM);
         goto errout;

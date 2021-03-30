@@ -21,6 +21,7 @@
 #include <sys/stat.h>
 #include <sys/time.h>
 #include <sysexits.h>
+#include <threads.h>
 #include <unistd.h>
 
 #include <hse_util/arch.h>
@@ -111,7 +112,7 @@ system_memory()
     return avail;
 }
 
-static _Thread_local uint64_t xrand64_state[2];
+static thread_local uint64_t xrand64_state[2];
 
 static void
 xrand64_init(uint64_t seed)
