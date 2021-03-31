@@ -22,7 +22,14 @@ tests = {
     'kvdb_api_test':{
         'args': [
             get_option('tests-kvdb')
-        ]
+        ],
+        'is_parallel': false,
+    },
+    'transaction_api_test':{
+        'args': [
+            get_option('tests-kvdb')
+        ],
+        'is_parallel': false,
     },
     'put_get_delete':{
         'args': [
