@@ -264,7 +264,6 @@ libmicrohttpd_dep = dependency(
     ],
 )
 m_dep = cc.find_library('m', required: true)
-valgrind_dep = dependency('valgrind', required: get_option('valgrind-support'))
 if get_option('tools')
     ncurses_dep = dependency('ncurses', required: true)
     HdrHistogram_c_dep = cc.find_library('hdr_histogram', required: false)

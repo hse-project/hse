@@ -7,6 +7,5 @@
 #define HSE__CONFIG_H
 
 #mesondefine WITH_COVERAGE
-#mesondefine WITH_VALGRIND
 
 #endif

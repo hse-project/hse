@@ -5,11 +5,6 @@ _config_h_data.set(
     get_option('b_coverage'),
     description: 'Building with coverage support',
 )
-_config_h_data.set(
-    'WITH_VALGRIND',
-    valgrind_dep.found(),
-    description: 'Building with valgrind support',
-)
 
 _config_h = configure_file(
     input: '_config.h.in',
