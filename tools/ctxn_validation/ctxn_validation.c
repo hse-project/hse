@@ -5,6 +5,7 @@
 #include <errno.h>
 #include <libgen.h>
 #include <pthread.h>
+#include <stdalign.h>
 #include <stdarg.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -16,6 +17,7 @@
 #include <hse/hse.h>
 #include <xoroshiro/xoroshiro.h>
 
+#include <hse_util/compiler.h>
 #include <hse_util/inttypes.h>
 #include <hse_util/minmax.h>
 #include <hse_util/hse_params_helper.h>
@@ -78,7 +80,7 @@ struct tdargs {
 
 static void ctxn_validation_fini(void);
 
-static __thread uint64_t xrand_state[2];
+static thread_local uint64_t xrand_state[2];
 
 static void
 xrand_init(uint64_t seed)
@@ -276,7 +278,7 @@ ctxn_validation_basic_collision(void)
     char                    key[64];
     u32                     vtxn;
 
-    tdargsv = aligned_alloc(__alignof(*tdargsv), sizeof(*tdargsv) * jobsmax);
+    tdargsv = aligned_alloc(alignof(*tdargsv), sizeof(*tdargsv) * jobsmax);
     if (!tdargsv)
         abort();
 
@@ -783,7 +785,7 @@ spawn(spawn_cb_t *func)
     for (i = 0; i < NELEM(barv); ++i)
         pthread_barrier_init(&barv[i], NULL, jobsmax);
 
-    tdargsv = aligned_alloc(__alignof(*tdargsv), sizeof(*tdargsv) * jobsmax);
+    tdargsv = aligned_alloc(alignof(*tdargsv), sizeof(*tdargsv) * jobsmax);
     if (!tdargsv)
         abort();
 

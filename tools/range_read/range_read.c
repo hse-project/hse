@@ -111,7 +111,7 @@ system_memory()
     return avail;
 }
 
-static __thread uint64_t xrand64_state[2];
+static thread_local uint64_t xrand64_state[2];
 
 static void
 xrand64_init(uint64_t seed)

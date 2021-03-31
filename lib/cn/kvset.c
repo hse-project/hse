@@ -3,6 +3,10 @@
  * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
  */
 
+#include "_config.h"
+
+#include <stdalign.h>
+
 #include <hse_util/hse_err.h>
 #include <hse_util/event_counter.h>
 #include <hse_util/alloc.h>
@@ -1375,7 +1379,7 @@ kvset_get_immediate_value(struct kvs_vtuple_ref *vref, struct kvs_buf *vbuf)
     return 0;
 }
 
-extern __thread char tls_vbuf[];
+extern thread_local char tls_vbuf[];
 extern const size_t tls_vbufsz;
 
 static merr_t
@@ -3786,7 +3790,7 @@ kvset_init(void)
     kvset_iter_cache = cache;
 
     for (i = 0; i < NELEM(kvset_cache); ++i) {
-        size_t align = __alignof(struct kvset);
+        size_t align = alignof(struct kvset);
         char   name[32];
 
         snprintf(name, sizeof(name), "kvset%d", i);

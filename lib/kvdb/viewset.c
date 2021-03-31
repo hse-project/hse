@@ -3,6 +3,10 @@
  * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
  */
 
+#include "_config.h"
+
+#include <stdalign.h>
+
 #include <hse_util/arch.h>
 #include <hse_util/alloc.h>
 #include <hse_util/slab.h>
@@ -148,7 +152,7 @@ viewset_create(struct viewset **handle, atomic64_t *kvdb_seqno_addr)
     sz = sizeof(*self);
     sz += sizeof(self->vs_bktv[0]) * max_bkts;
 
-    self = alloc_aligned(sz, __alignof(*self));
+    self = alloc_aligned(sz, alignof(*self));
     if (ev(!self))
         return merr(ENOMEM);
 
@@ -295,7 +299,7 @@ viewset_insert(struct viewset *handle, u64 *viewp, void **cookiep)
     uint                         idx;
     bool                         changed;
 
-    static __thread uint cpuid, nodeid, cnt;
+    static thread_local uint cpuid, nodeid, cnt;
 
     if (cnt++ % 16 == 0) {
         if (HSE_UNLIKELY( syscall(SYS_getcpu, &cpuid, &nodeid, NULL) ))
@@ -451,7 +455,7 @@ viewset_tree_create(u32 max_elts, u32 index, struct viewset_tree **tree)
     sz = sizeof(*self);
     sz += sizeof(self->act_entryv[0]) * max_elts;
 
-    self = alloc_aligned(sz, __alignof(*self));
+    self = alloc_aligned(sz, alignof(*self));
     if (ev(!self))
         return merr(ENOMEM);
 

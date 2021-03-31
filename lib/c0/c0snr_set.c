@@ -3,6 +3,10 @@
  * Copyright (C) 2021 Micron Technology, Inc.  All rights reserved.
  */
 
+#include "_config.h"
+
+#include <stdalign.h>
+
 #include <hse_util/arch.h>
 #include <hse_util/alloc.h>
 #include <hse_util/slab.h>
@@ -145,7 +149,7 @@ c0snr_set_list_create(u32 max_elts, u32 index, struct c0snr_set_list **tree)
     void *mem;
 
     sz = sizeof(*self) + sizeof(self->act_entryv[0]) * max_elts;
-    sz += __alignof(*self) * 8;
+    sz += alignof(*self) * 8;
     sz = roundup(sz, 4ul << 20);
 
     mem = vlb_alloc(sz);
@@ -155,7 +159,7 @@ c0snr_set_list_create(u32 max_elts, u32 index, struct c0snr_set_list **tree)
     /* Mitigate cacheline aliasing by offsetting into mem some number of
      * cache lines, then recompute max_elts based on the remaining space.
      */
-    self = mem + __alignof(*self) * (index % 8);
+    self = mem + alignof(*self) * (index % 8);
     max_elts = (sz - ((void *)self->act_entryv - mem)) / sizeof(self->act_entryv[0]);
 
     memset(self, 0, sizeof(*self));
@@ -188,7 +192,7 @@ c0snr_set_create(c0snr_set_abort_func *afunc, struct c0snr_set **handle)
 
     max_bkts = NELEM(self->css_bktv);
 
-    self = alloc_aligned(sizeof(*self), __alignof(*self));
+    self = alloc_aligned(sizeof(*self), alignof(*self));
     if (ev(!self))
         return merr(ENOMEM);
 
@@ -242,7 +246,7 @@ c0snr_set_get_c0snr(struct c0snr_set *handle, struct kvdb_ctxn *ctxn)
     struct c0snr_set_list  *cslist;
     struct c0snr_set_bkt   *bkt;
 
-    static __thread uint cpuid, nodeid, cnt;
+    static thread_local uint cpuid, nodeid, cnt;
 
     if (cnt++ % 16 == 0) {
         if (( syscall(SYS_getcpu, &cpuid, &nodeid, NULL) ))

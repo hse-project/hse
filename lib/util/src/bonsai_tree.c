@@ -3,6 +3,8 @@
  * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
  */
 
+#include <stdalign.h>
+
 #include <hse_util/event_counter.h>
 
 #include "bonsai_tree_pvt.h"
@@ -417,7 +419,7 @@ bn_create(
     if (ev(!cheap || !cb || !tree))
         return merr(EINVAL);
 
-    r = cheap_memalign(cheap, __alignof(*r), sizeof(*r));
+    r = cheap_memalign(cheap, alignof(*r), sizeof(*r));
     if (ev(!r))
         return merr(ENOMEM);
 

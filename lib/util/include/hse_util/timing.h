@@ -1,10 +1,12 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
 #ifndef HSE_PLATFORM_TIMING_H
 #define HSE_PLATFORM_TIMING_H
+
+#include "_config.h"
 
 #include <hse_util/base.h>
 #include <hse_util/inttypes.h>
@@ -60,23 +62,15 @@ get_cycles(void)
 #define GDT_ENTRY_PER_CPU 15
 #define __PER_CPU_SEG (GDT_ENTRY_PER_CPU * 8 + 3)
 
-/* valgrind doesn't grok lsl, so use rdtscp if valgrind is enabled.
- *
+/*
  * [HSE_REVISIT] Use RDPID if available (see __getcpu()).
  */
 static HSE_ALWAYS_INLINE unsigned int
 raw_smp_processor_id(void)
 {
-    uint64_t aux;
-
-#ifdef NVALGRIND
-    asm volatile("lsl %1,%0" : "=r"(aux) : "r"(__PER_CPU_SEG));
-
-#else
-    uint64_t rax, rdx;
+    uint64_t aux, rax, rdx;
 
     asm volatile("rdtscp" : "=a"(rax), "=d"(rdx), "=c"(aux) : :);
-#endif
 
     return aux & VGETCPU_CPU_MASK;
 }
@@ -86,7 +80,6 @@ raw_smp_processor_id(void)
 #endif
 
 #define smp_processor_id() raw_smp_processor_id()
-
 
 static inline unsigned int
 num_online_cpus(void)

@@ -3,6 +3,8 @@
  * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
  */
 
+#include <stdalign.h>
+
 #include <hse_util/atomic.h>
 #include <hse_util/hse_err.h>
 #include <hse_util/platform.h>
@@ -56,7 +58,7 @@ keylock_create(u64 num_ents, keylock_cb_fn *cb_func, struct keylock **handle_out
     sz = sizeof(struct keylock_impl);              /* size of base structure elements */
     sz += num_ents * sizeof(struct keylock_entry); /* space for entries */
 
-    table = alloc_aligned(sz, __alignof(*table));
+    table = alloc_aligned(sz, alignof(*table));
     if (ev(!table))
         return merr(ENOMEM);
 

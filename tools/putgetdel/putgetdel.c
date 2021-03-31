@@ -15,6 +15,7 @@
 #include <hse/hse.h>
 #include <hse/hse_version.h>
 
+#include <hse_util/compiler.h>
 #include <hse_util/hse_params_helper.h>
 #include <hse_util/inttypes.h>
 #include <tools/key_generation.h>
@@ -270,12 +271,12 @@ struct option longopts[] = {
 char *
 strerror(int errnum)
 {
-	static __thread char tls_errbuf[128];
+    static thread_local char tls_errbuf[128];
 
-	if (!strerror_r(errnum, tls_errbuf, sizeof(tls_errbuf)))
-            snprintf(tls_errbuf, sizeof(tls_errbuf), "error %d", errnum);
+    if (!strerror_r(errnum, tls_errbuf, sizeof(tls_errbuf)))
+        snprintf(tls_errbuf, sizeof(tls_errbuf), "error %d", errnum);
 
-	return tls_errbuf;
+    return tls_errbuf;
 }
 
 

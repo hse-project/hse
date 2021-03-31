@@ -1,13 +1,15 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2017,2019 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2017,2019,2021 Micron Technology, Inc.  All rights reserved.
  */
+
 #include <jni.h>
 #include <hse_jni_util.h>
 #include <hsejni_internal.h>
 
 #include <hse/hse.h>
 
+#include <hse_util/compiler.h>
 #include <hse_util/hse_params_helper.h>
 
 #define MAX_ARGS 32
@@ -25,7 +27,7 @@ size_t        g_val_buf_size = 8192;
 pthread_key_t td_getbuf_key;
 pthread_key_t td_cursor_key;
 
-__thread struct hse_kvs_cursor *cursor = NULL;
+thread_local struct hse_kvs_cursor *cursor = NULL;
 
 static int
 jni_params_string_to_argv(char *p_list, char **argv, uint32_t max_args)
@@ -379,7 +381,7 @@ JNIEXPORT jint JNICALL
 JNIEXPORT jbyteArray JNICALL
 Java_org_micron_hse_API_get(JNIEnv *env, jobject jobj, jlong handle, jbyteArray key)
 {
-    static __thread jbyte *valBuf;
+    static thread_local jbyte *valBuf;
 
     jbyte *      keyA;
     unsigned int keyL;

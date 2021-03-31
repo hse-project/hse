@@ -6,6 +6,10 @@
 #define MTF_MOCK_IMPL_ikvdb
 #define MTF_MOCK_IMPL_kvs
 
+#include "_config.h"
+
+#include <stdalign.h>
+
 #include <hse/hse.h>
 
 #include <hse_ikvdb/ikvdb.h>
@@ -68,7 +72,7 @@
 /* tls_vbuf[] is a thread-local buffer used as a compression output buffer
  * by ikvdb_kvs_put() and for small direct reads by kvset_lookup_val().
  */
-__thread char tls_vbuf[32 * 1024] HSE_ALIGNED(PAGE_SIZE);
+thread_local char tls_vbuf[32 * 1024] HSE_ALIGNED(PAGE_SIZE);
 const size_t  tls_vbufsz = sizeof(tls_vbuf);
 
 struct perfc_set kvdb_pkvdbl_pc HSE_READ_MOSTLY;
@@ -547,7 +551,7 @@ ikvdb_diag_open(
     /* [HSE_REVISIT] consider factoring out this code into ikvdb_cmn_open
      * and calling that from here and ikvdb_open.
      */
-    self = alloc_aligned(sizeof(*self), __alignof(*self));
+    self = alloc_aligned(sizeof(*self), alignof(*self));
     if (ev(!self))
         return merr(ENOMEM);
 
@@ -724,7 +728,7 @@ kvdb_kvs_create(void)
 {
     struct kvdb_kvs *kvs;
 
-    kvs = alloc_aligned(sizeof(*kvs), __alignof(*kvs));
+    kvs = alloc_aligned(sizeof(*kvs), alignof(*kvs));
     if (kvs) {
         memset(kvs, 0, sizeof(*kvs));
         kvs->kk_vcompmin = UINT_MAX;
@@ -877,7 +881,7 @@ ikvdb_open(
     int                 i;
     u64                 ingestid;
 
-    self = alloc_aligned(sizeof(*self), __alignof(*self));
+    self = alloc_aligned(sizeof(*self), alignof(*self));
     if (ev(!self)) {
         err = merr(ENOMEM);
         hse_elog(HSE_ERR "cannot open %s: @@e", err, mp_name);

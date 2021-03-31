@@ -2,8 +2,6 @@
  * Copyright (C) 2017 Micron Technology, Inc.  All rights reserved.
  */
 
-#define _GNU_SOURCE /* for asprintf() */
-
 #include <assert.h>
 #include <getopt.h>
 #include <pthread.h>
@@ -19,6 +17,7 @@
 #include <hse/hse_version.h>
 
 #include <hse_util/atomic.h>
+#include <hse_util/compiler.h>
 #include <hse_util/hse_params_helper.h>
 #include <hse_util/inttypes.h>
 #include <hse_util/parse_num.h>
@@ -294,7 +293,7 @@ struct option longopts[] = {
 char *
 strerror(int errnum)
 {
-    static __thread char tls_errbuf[128];
+    static thread_local char tls_errbuf[128];
 
     if (!strerror_r(errnum, tls_errbuf, sizeof(tls_errbuf)))
         snprintf(tls_errbuf, sizeof(tls_errbuf), "error %d", errnum);

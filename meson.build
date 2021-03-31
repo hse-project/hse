@@ -264,35 +264,14 @@ libmicrohttpd_dep = dependency(
     ],
 )
 m_dep = cc.find_library('m', required: true)
-valgrind_dep = dependency('valgrind', required: get_option('valgrind-support'))
 if get_option('tools')
     ncurses_dep = dependency('ncurses', required: true)
     HdrHistogram_c_dep = cc.find_library('hdr_histogram', required: false)
-    HdrHistogram_c_correct_version = false
-    if HdrHistogram_c_dep.found()
-        HdrHistogram_c_correct_version = cc.compiles(
-            '''
-            #include <stdbool.h>
-            #include <hdr/hdr_histogram.h>
-
-            int
-            main(void)
-            {
-                struct hdr_histogram* histogram;
-                bool x = hdr_record_value_atomic(histogram, 0);
-                return 0;
-            }
-            ''',
-            args: [
-                '-Werror',
-            ],
-            dependencies: [
-                HdrHistogram_c_dep,
-            ],
-        )
-    endif
     if (not HdrHistogram_c_dep.found()
-            or (HdrHistogram_c_dep.found() and not HdrHistogram_c_correct_version)
+            or (HdrHistogram_c_dep.found() and not cc.has_header_symbol(
+                'hdr/hdr_histogram.h',
+                'hdr_record_value_atomic',
+                dependencies: [HdrHistogram_c_dep]))
             or get_option('wrap_mode') == 'forcefallback'
             or 'HdrHistogram_c' in get_option('force_fallback_for'))
         HdrHistogram_c_options = cmake.subproject_options()
@@ -336,13 +315,6 @@ if get_option('tools')
             libbson_dep = mongo_c_driver_proj.dependency('bson_static')
         endif
     endif
-endif
-
-if not valgrind_dep.found()
-    add_project_arguments(
-        '-DNVALGRIND',
-        language: 'c',
-    )
 endif
 
 enabled_tests = []

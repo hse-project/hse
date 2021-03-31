@@ -3,6 +3,8 @@
  * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
+#include <stdalign.h>
+
 #include <hse_util/minmax.h>
 #include <hse_util/assert.h>
 #include <hse_util/inttypes.h>
@@ -110,7 +112,7 @@ throttle_init(struct throttle *self, struct kvdb_rparams *rp)
     int    i;
     merr_t err;
 
-    assert(IS_ALIGNED((uintptr_t)self, __alignof(*self)));
+    assert(IS_ALIGNED((uintptr_t)self, alignof(*self)));
 
     memset(self, 0, sizeof(*self));
     spin_lock_init(&self->thr_lock);

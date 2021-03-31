@@ -3,6 +3,8 @@
  * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
+#include <stdalign.h>
+
 #include <hse_util/event_counter.h>
 
 #include "bonsai_tree_pvt.h"
@@ -28,7 +30,7 @@ bn_node_alloc_impl(struct bonsai_root *tree)
 
         slabsz = client->bc_slab_sz;
 
-        mem = cheap_memalign(client->bc_cheap, __alignof(struct bonsai_node), slabsz);
+        mem = cheap_memalign(client->bc_cheap, alignof(struct bonsai_node), slabsz);
         if (ev(!mem))
             return NULL;
 

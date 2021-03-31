@@ -64,7 +64,7 @@ atomic64_t completed_puts;
 
 int err;
 
-static __thread uint64_t xrand_state[2] HSE_ALIGNED(16);
+static thread_local uint64_t xrand_state[2] HSE_ALIGNED(16);
 
 static void
 xrand_init(uint64_t seed)

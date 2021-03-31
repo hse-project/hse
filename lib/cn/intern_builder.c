@@ -3,6 +3,8 @@
  * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
+#include <stdalign.h>
+
 #include <hse/hse_limits.h>
 #include <hse_util/platform.h>
 #include <hse_util/slab.h>
@@ -64,9 +66,10 @@ struct intern_level {
  */
 #define IB_ENODEV_MAX       NELEM(((struct intern_builder *)0)->nodev)
 #define IB_ELEVELV_MAX      NELEM(((struct intern_builder *)0)->levelv)
-#define IB_ESBUFSZ_MAX      \
-    roundup(((8192 - sizeof(struct intern_builder) - 16) / IB_ELEVELV_MAX), \
-            __alignof(struct intern_key))
+#define IB_ESBUFSZ_MAX                                                  \
+    roundup(                                                            \
+        ((8192 - sizeof(struct intern_builder) - 16) / IB_ELEVELV_MAX), \
+        alignof(struct intern_key))
 
 /**
  * struct intern_buiilder -
@@ -244,7 +247,7 @@ ib_sbuf_key_add(struct intern_level *l, uint child_idx, struct key_obj *kobj)
     k->child_idx = child_idx;
     key_obj_copy(k->kdata, l->sbuf_sz - l->sbuf_used, &k->klen, kobj);
 
-    l->sbuf_used += sizeof(*k) + roundup(k->klen, __alignof(*k));
+    l->sbuf_used += sizeof(*k) + roundup(k->klen, alignof(*k));
 
     return 0;
 }
@@ -295,7 +298,7 @@ ib_node_publish(struct intern_level *ib, uint last_child)
         assert((void *)entry < sfxp);
 
         entry++;
-        k = (void *)k + sizeof(*k) + roundup(k->klen, __alignof(*k));
+        k = (void *)k + sizeof(*k) + roundup(k->klen, alignof(*k));
     }
 
     /* should have space for this last entry */

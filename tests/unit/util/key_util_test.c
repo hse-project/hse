@@ -3,14 +3,17 @@
  * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
  */
 
-#include <hse_ut/framework.h>
-#include <hse_test_support/allocation.h>
-
-#include <hse_util/minmax.h>
-#include <hse_util/key_util.h>
+#include "_config.h"
 
 #include <stdlib.h>
 #include <string.h>
+
+#include <hse_ut/framework.h>
+#include <hse_test_support/allocation.h>
+
+#include <hse_util/compiler.h>
+#include <hse_util/key_util.h>
+#include <hse_util/minmax.h>
 
 MTF_BEGIN_UTEST_COLLECTION(key_util_test);
 
@@ -141,7 +144,7 @@ MTF_DEFINE_UTEST_CP2(
     u16,
     idx2)
 {
-    static __thread bool inited;
+    static thread_local bool inited;
     u8 key[KI_DLEN_MAX + 7];
     size_t klen;
     struct key_immediate im0, im1;

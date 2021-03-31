@@ -2,8 +2,8 @@ _config_h_data = configuration_data()
 
 _config_h_data.set(
     'WITH_COVERAGE',
-     get_option('b_coverage'),
-     description : 'Set WITH_COVERAGE if coverage is enabled'
+    get_option('b_coverage'),
+    description: 'Building with coverage support',
 )
 
 _config_h = configure_file(

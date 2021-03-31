@@ -9,6 +9,8 @@
 #define MTF_MOCK_IMPL_cn_comp
 #define MTF_MOCK_IMPL_cn_internal
 
+#include <stdalign.h>
+
 #include <hse_util/platform.h>
 #include <hse_util/string.h>
 #include <hse_util/hse_err.h>
@@ -887,7 +889,7 @@ cn_tstate_create(struct cn *cn)
     void *                 ptr;
     size_t                 sz;
 
-    impl = alloc_aligned(sizeof(*impl), __alignof(*impl));
+    impl = alloc_aligned(sizeof(*impl), alignof(*impl));
     if (ev(!impl))
         return merr(ENOMEM);
 
@@ -1140,7 +1142,7 @@ cn_open(
     if (!rp)
         sz += sizeof(*rp);
 
-    cn = alloc_aligned(sz, __alignof(*cn));
+    cn = alloc_aligned(sz, alignof(*cn));
     if (ev(!cn))
         return merr(ENOMEM);
 
@@ -1446,7 +1448,7 @@ cn_pscan_create(void)
     size_t align, bufsz;
     void *mem;
 
-    align = (__alignof(*cur) > SMP_CACHE_BYTES) ? __alignof(*cur) : SMP_CACHE_BYTES;
+    align = (alignof(*cur) > SMP_CACHE_BYTES) ? alignof(*cur) : SMP_CACHE_BYTES;
     bufsz = HSE_KVS_KLEN_MAX + HSE_KVS_VLEN_MAX;
 
     mem = vlb_alloc(sizeof(*cur) + bufsz + align * 16);

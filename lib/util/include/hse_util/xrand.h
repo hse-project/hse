@@ -6,6 +6,8 @@
 #ifndef HSE_XRAND_H
 #define HSE_XRAND_H
 
+#include "_config.h"
+
 #include <hse_util/inttypes.h>
 #include <hse_util/compiler.h>
 
@@ -17,8 +19,8 @@ struct xrand {
     u64 xr_state[2];
 };
 
-extern __thread struct xrand    xrand_tls;
-extern __thread u64             xrand_tls_seed;
+extern thread_local struct xrand    xrand_tls;
+extern thread_local u64             xrand_tls_seed;
 
 /* Functions xrand_init() and xrand64() implement a standard PRNG API where
  * the user manages the PRNG state and initializes it with a seed value.
