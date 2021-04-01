@@ -1640,7 +1640,7 @@ ikvdb_throttle(struct ikvdb_impl *self, u64 bytes)
     }
 }
 
-static bool
+static inline bool
 is_write_allowed(
     struct ikvs *           kvs,
     struct hse_kvdb_opspec *os)
@@ -1648,25 +1648,19 @@ is_write_allowed(
     bool kvs_is_txn = kvs_txn_is_enabled(kvs);
     bool op_is_txn  = os && os->kop_txn;
 
-    if (ev(kvs_is_txn ^ op_is_txn)) {
-        hse_log(HSE_ERR "KVS and write must both be either transactional or non-transactional");
+    if (ev(kvs_is_txn ^ op_is_txn))
         return false;
-    }
 
     return true;
 }
 
-static bool
+static inline bool
 is_read_allowed(
     struct ikvs *           kvs,
     struct hse_kvdb_opspec *os)
 {
-    bool kvs_is_txn = kvs_txn_is_enabled(kvs);
-
-    if (ev(os && os->kop_txn && !kvs_is_txn)) {
-        hse_log(HSE_ERR "KVS is not transactional. Cannot read using a transaction");
+    if (os && os->kop_txn && !kvs_txn_is_enabled(kvs))
         return false;
-    }
 
     return true;
 }

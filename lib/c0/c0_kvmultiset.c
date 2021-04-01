@@ -931,6 +931,8 @@ errout:
     return 0;
 }
 
+/* HSE_REVISIT Remove this function once LC has been implemented.
+ */
 void
 c0kvms_abort_active(struct c0_kvmultiset *handle)
 {
@@ -938,7 +940,7 @@ c0kvms_abort_active(struct c0_kvmultiset *handle)
     uint c0snr_cnt;
     int i;
     int attempts = 5;
-    bool backoff = true;
+    bool backoff;
 
     do {
         backoff = false;
