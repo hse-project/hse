@@ -177,9 +177,20 @@ ctxn_validation_init_c0(void)
     u64         rc;
     size_t      klen;
     char        key[1024];
+    struct hse_kvdb_opspec  os;
+
+    HSE_KVDB_OPSPEC_INIT(&os);
 
     if (keybase_random)
         keybase = xrand();
+
+    os.kop_txn = hse_kvdb_txn_alloc(kvdb);
+    if (!os.kop_txn)
+        fatal(rc, "hse_kvdb_txn_alloc");
+
+    rc = hse_kvdb_txn_begin(kvdb, os.kop_txn);
+    if (rc)
+        fatal(rc, "hse_kvdb_txn_begin");
 
     /* First, load c0 with a bunch of unique k/v tuples (each key
      * and value are unique).
@@ -188,13 +199,18 @@ ctxn_validation_init_c0(void)
         klen = snprintf(key, sizeof(key), keybase_fmt, keybase + i);
 
         ++viter;
-        rc = hse_kvs_put(kvs, NULL, key, klen, &viter, sizeof(viter));
+        rc = hse_kvs_put(kvs, &os, key, klen, &viter, sizeof(viter));
         if (rc)
             fatal(rc, "kvdb_put c0");
 
         ++stats.puts_c0;
     }
 
+    rc = hse_kvdb_txn_commit(kvdb, os.kop_txn);
+    if (rc)
+        fatal(rc, "hse_kvdb_txn_commit");
+
+    hse_kvdb_txn_free(kvdb, os.kop_txn);
 }
 
 void *
@@ -521,11 +537,21 @@ ctxn_validation_stress(
                         tdargs->keybase + i);
 
         vcur = ++tdargs->viter;
-        rc = hse_kvs_put(kvs, NULL, key, klen, &vcur, sizeof(vcur));
+        rc = hse_kvs_put(kvs, &os, key, klen, &vcur, sizeof(vcur));
         if (rc)
             fatal(rc, "kvdb_put 1");
 
         ++stats->puts_c0;
+    }
+    hse_kvdb_txn_commit(kvdb, txn);
+    rc = hse_kvdb_txn_begin(kvdb, txn);
+    if (rc) {
+        ++stats->begin_fail;
+        if (hse_err_to_errno(rc) == ENOMEM) {
+            usleep(333 * 1000);
+            return;
+        }
+        fatal(rc, "hse_kvdb_txn_begin");
     }
 
     /* Next, load txn with the same set of unique keys from above,
@@ -662,11 +688,19 @@ ctxn_validation_basic(void)
                            "key_lg.%09lu", keybase);
 
     vcur = ++viter;
-    rc = hse_kvs_put(kvs, NULL, key, klen, &vcur, sizeof(vcur));
+    rc = hse_kvs_put(kvs, &os, key, klen, &vcur, sizeof(vcur));
     if (rc)
         fatal(rc, "kvdb_put 1");
 
+    rc = hse_kvdb_txn_commit(kvdb, os.kop_txn);
+    if (rc)
+        fatal(rc, "hse_kvdb_txn_commit");
+
     ++stats.puts_c0;
+
+    rc = hse_kvdb_txn_begin(kvdb, os.kop_txn);
+    if (rc)
+        fatal(rc, "hse_kvdb_txn_begin");
 
     vtxn = ++viter;
     rc = hse_kvs_put(kvs, &os, key, klen, &vtxn, sizeof(vtxn));

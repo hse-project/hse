@@ -2,7 +2,6 @@
 
 import sys
 from hse import Kvdb, Params
-from hse import experimental as hse_exp
 
 def add_keys(kvs, pfx, start, end):
     for k_id in range(start, end):
@@ -28,8 +27,8 @@ p.set(key="kvdb.dur_enable", value="0")
 p.set(key="kvs.pfx_len", value="2")
 
 kvdb = Kvdb.open(sys.argv[1], params=p)
-kvdb.kvs_make("kvs32", params=p)
-kvs = kvdb.kvs_open("kvs32", params=p)
+kvdb.kvs_make("kvs38", params=p)
+kvs = kvdb.kvs_open("kvs38", params=p)
 
 num_keys = 1000 * 1000
 

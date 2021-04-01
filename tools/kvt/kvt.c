@@ -1428,7 +1428,6 @@ main(int argc, char **argv)
 
     hse_params_create(&params);
     hse_params_set(params, "kvdb.perfc_enable", "0");
-    hse_params_set(params, "kvs.transactions_enable", "1");
     //hse_params_set(params, "kvs.value_compression", "lz4");
 
     for (i = 1; i < argc; ++i) {
@@ -1680,6 +1679,7 @@ kvt_create(
 
     /* Open the rids table and write the root record...
      */
+    hse_params_set(params, "kvs.transactions_enable", "0");
     err = hse_kvdb_kvs_open(kvdb, KVS_RIDS_NAME, params, &kvs_rids);
     if (err) {
         eprint(err, "unable to open kvs `%s'", KVS_RIDS_NAME);
@@ -1749,6 +1749,9 @@ kvt_open(struct hse_params *params, u_int kvs_listc, char **kvs_listv)
     size_t    sz;
 
     tsi_start(&tstart);
+
+    if (testtxn)
+        hse_params_set(params, "kvs.transactions_enable", "1");
 
     /* Open the rids table and read the root record...
      */
@@ -2245,9 +2248,35 @@ kvt_init(const char *keyfile, const char *keyfmt, u_long keymax, bool dump)
         hash0,
         hash1);
 
-    err = hse_kvs_put(kvs_rids, NULL, key, klen, val, vlen);
-    if (err)
-        eprint(err, "put root key=%s val=%s", key, val);
+    if (testtxn) {
+        struct hse_kvdb_opspec os;
+
+        HSE_KVDB_OPSPEC_INIT(&os);
+        os.kop_txn = hse_kvdb_txn_alloc(kvdb);
+        if (!os.kop_txn)
+            eprint(ENOMEM, "Could not allocate txn");
+
+        err = hse_kvdb_txn_begin(kvdb, os.kop_txn);
+        if (err)
+            eprint(err, "hse_kvdb_txn_begin");
+
+        err = hse_kvs_put(kvs_rids, &os, key, klen, val, vlen);
+        if (err)
+            eprint(err, "put root key=%s val=%s", key, val);
+
+        hse_kvdb_txn_commit(kvdb, os.kop_txn);
+        if (err)
+            eprint(err, "hse_kvdb_txn_commit");
+
+        hse_kvdb_txn_free(kvdb, os.kop_txn);
+        if (err)
+            eprint(err, "hse_kvdb_txn_free");
+    } else {
+        err = hse_kvs_put(kvs_rids, NULL, key, klen, val, vlen);
+        if (err)
+            eprint(err, "put root key=%s val=%s", key, val);
+    }
+
 
     err = hse_kvdb_sync(kvdb);
     if (err)
@@ -2283,6 +2312,7 @@ kvt_init_main(void *arg)
     hse_err_t      err;
     char *         databuf;
     u_long         flags;
+    struct hse_kvdb_opspec os;
 
     job = args->job;
     xrand64_init(args->seed);
@@ -2309,6 +2339,13 @@ kvt_init_main(void *arg)
     memset(databuf, 0, databufsz);
     work = NULL;
     err = 0;
+
+    if (testtxn) {
+        HSE_KVDB_OPSPEC_INIT(&os);
+        os.kop_txn = hse_kvdb_txn_alloc(kvdb);
+        if (!os.kop_txn)
+            eprint(ENOMEM, "Could not allocate txn");
+    }
 
     while (1) {
         uint64_t hashv[2] = { 0 };
@@ -2413,7 +2450,13 @@ kvt_init_main(void *arg)
         if (dryrun)
             continue;
 
-        err = hse_kvs_put(rid2data_kvs(datarid), NULL, key, klen, datasrc, cc);
+        if (testtxn) {
+            err = hse_kvdb_txn_begin(kvdb, os.kop_txn);
+            if (err)
+                eprint(err, "hse_kvdb_txn_begin");
+        }
+
+        err = hse_kvs_put(rid2data_kvs(datarid), testtxn ? &os : NULL, key, klen, datasrc, cc);
         if (err) {
             eprint(
                 err,
@@ -2430,7 +2473,7 @@ kvt_init_main(void *arg)
         /* Load all file name keys into the tombs table so that we can attempt
          * to detect duplicates during initial load.
          */
-        err = hse_kvs_put(kvs_tombs, NULL, work->fn, work->fnlen, fnrec, fnreclen);
+        err = hse_kvs_put(kvs_tombs, testtxn ? &os : NULL, work->fn, work->fnlen, fnrec, fnreclen);
         if (err) {
             eprint(
                 err,
@@ -2443,10 +2486,16 @@ kvt_init_main(void *arg)
             goto errout;
         }
 
-        err = hse_kvs_put(kvs_rids, NULL, key, klen, work->fn, work->fnlen);
+        err = hse_kvs_put(kvs_rids, testtxn ? &os : NULL, key, klen, work->fn, work->fnlen);
         if (err) {
             eprint(err, "put %s %lu key=%s val=%s", KVS_RIDS_NAME, rid, key, work->fn);
             goto errout;
+        }
+
+        if (testtxn) {
+            hse_kvdb_txn_commit(kvdb, os.kop_txn);
+            if (err)
+                eprint(err, "hse_kvdb_txn_commit");
         }
 
         if (args->dump) {
@@ -2466,6 +2515,12 @@ kvt_init_main(void *arg)
         murmur3_128(datasrc, cc, &hashv);
         args->hashv[0] += hashv[0];
         args->hashv[1] += hashv[1];
+    }
+
+    if (testtxn) {
+        hse_kvdb_txn_free(kvdb, os.kop_txn);
+        if (err)
+            eprint(err, "hse_kvdb_txn_free");
     }
 
 errout:

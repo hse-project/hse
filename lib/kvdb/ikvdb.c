@@ -1648,10 +1648,7 @@ is_write_allowed(
     bool kvs_is_txn = kvs_txn_is_enabled(kvs);
     bool op_is_txn  = os && os->kop_txn;
 
-    if (ev(kvs_is_txn ^ op_is_txn))
-        return false;
-
-    return true;
+    return kvs_is_txn ^ op_is_txn ? false : true;
 }
 
 static inline bool
@@ -1659,10 +1656,7 @@ is_read_allowed(
     struct ikvs *           kvs,
     struct hse_kvdb_opspec *os)
 {
-    if (os && os->kop_txn && !kvs_txn_is_enabled(kvs))
-        return false;
-
-    return true;
+    return os && os->kop_txn && !kvs_txn_is_enabled(kvs) ? false : true;
 }
 
 merr_t
