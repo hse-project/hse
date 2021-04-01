@@ -15,6 +15,7 @@ MODULE_DIR = pathlib.Path(__file__).parent.absolute()
 
 def new_report():
     report = {
+        "config": config.get_dict(),
         "hostname": socket.gethostname(),
         "git": get_git_info(MODULE_DIR),
         "uid": os.getuid(),
@@ -82,5 +83,6 @@ def save_report_to_db(report):
             print(f"Report saved to MongoDB with _id={inserted_id}")
     except pymongo.errors.PyMongoError as e:
         print(
-            f"WARNING: failed to save report to MongoDB (mongo_uri={mongo_uri}, e={e})"
+            f"WARNING: failed to save report to MongoDB "
+            f'(mongo_uri={mongo_uri}, e="{e}")'
         )

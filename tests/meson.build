@@ -4,6 +4,7 @@ add_test_setup(
     'default',
     env: run_env,
     is_default: true,
+    exclude_suites: ['ycsb'],
 )
 
 if 'unit' in enabled_tests
