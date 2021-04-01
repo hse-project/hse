@@ -55,7 +55,6 @@ struct opts {
     bool    do_vpdel;
     bool    binary;
     bool    do_txn;
-    bool    do_mixed;
     bool    ingest;
     u64     kstart;
     u32     errcnt;
@@ -245,7 +244,6 @@ enum opt_enum {
     opt_do_del	= 'd',
     opt_do_pdel	= 'D',
     opt_do_txn      = 'x',
-    opt_do_mixed    = 'm',
 
     opt_version	= 'V',
     opt_verbose	= 'v',
@@ -276,7 +274,6 @@ struct option longopts[] = {
     { "del",        no_argument,        NULL,  opt_do_del },
     { "pdel",       no_argument,        NULL,  opt_do_pdel },
     { "txn",        no_argument,        NULL,  opt_do_txn},
-    { "mixed",      no_argument,        NULL,  opt_do_mixed},
 
 
     { "verbose",    optional_argument,  NULL,  opt_verbose },
@@ -476,10 +473,6 @@ options_parse(
             opt->do_txn = true;
             break;
 
-        case opt_do_mixed:
-            opt->do_mixed = true;
-            break;
-
         case ':':
             syntax("missing argument for option '%s'",
                    argv[curind]);
@@ -515,9 +508,6 @@ options_parse(
     if (!ingest_mode && !opt->do_vput && !opt->do_vup &&
         !opt->do_vdel && !opt->do_vpdel)
         opt->do_vdel = true;
-
-    if (opt->do_mixed)
-        opt->do_txn = true;
 
     /* Below are few restrictions in the tool while running in
      * transaction mode and/or doing prefix deletes.
@@ -805,7 +795,7 @@ set_kv(
 }
 
 void
-test_put(struct thread_info *ti, uint salt, bool istxn, bool ismixed)
+test_put(struct thread_info *ti, uint salt, bool istxn)
 {
     hse_err_t err;
     u64       i, last_key;
@@ -841,9 +831,6 @@ test_put(struct thread_info *ti, uint salt, bool istxn, bool ismixed)
 
         if (opt.dryrun)
             continue;
-
-        if (ismixed)
-            istxn = (i % 2 == 0);
 
         if (istxn)
             hse_kvdb_txn_begin(ti->kvdb, txn);
@@ -890,8 +877,7 @@ void
 test_delete(
     struct thread_info *ti,
     bool                prefix,
-    bool                istxn,
-    bool                ismixed)
+    bool                istxn)
 {
     hse_err_t err;
     u64 i, last_key;
@@ -921,9 +907,6 @@ test_delete(
         if (opt.dryrun)
             continue;
 
-        if (ismixed)
-            istxn = (i % 2 == 0);
-
         if (istxn)
             hse_kvdb_txn_begin(ti->kvdb, txn);
 
@@ -951,7 +934,7 @@ test_delete(
 
 
 void
-test_put_verify(struct thread_info *ti, uint salt, bool istxn, bool ismixed)
+test_put_verify(struct thread_info *ti, uint salt, bool istxn)
 {
     u64 i, last_key;
     size_t get_vlen;
@@ -984,9 +967,6 @@ test_put_verify(struct thread_info *ti, uint salt, bool istxn, bool ismixed)
 
         if (opt.dryrun)
             continue;
-
-        if (ismixed)
-            istxn = (i % 2 == 0);
 
         get_vlen = (size_t)-1;
         err = hse_kvs_get(ti->kvs, NULL, ti->ref_key, ti->ref_klen,
@@ -1137,28 +1117,28 @@ thread_main(void *arg)
     salt = 0;
 
     if (opt.do_all || opt.do_put)
-        test_put(ti, salt, opt.do_txn, opt.do_mixed);
+        test_put(ti, salt, opt.do_txn);
 
     if (atomic64_read(&errors) < opt.errcnt && opt.do_vput)
-        test_put_verify(ti, salt, opt.do_txn, opt.do_mixed);
+        test_put_verify(ti, salt, opt.do_txn);
 
     salt = 1;
 
     if (atomic64_read(&errors) < opt.errcnt &&
         (opt.do_all || opt.do_up))
-        test_put(ti, salt, opt.do_txn, opt.do_mixed);
+        test_put(ti, salt, opt.do_txn);
 
     if (atomic64_read(&errors) < opt.errcnt && opt.do_vup)
-        test_put_verify(ti, salt, opt.do_txn, opt.do_mixed);
+        test_put_verify(ti, salt, opt.do_txn);
 
     if (atomic64_read(&errors) < opt.errcnt &&
         (opt.do_all || opt.do_del))
-        test_delete(ti, false, opt.do_txn, opt.do_mixed);
+        test_delete(ti, false, opt.do_txn);
     if (atomic64_read(&errors) < opt.errcnt && opt.do_vdel)
         test_delete_verify(ti);
 
     if (atomic64_read(&errors) < opt.errcnt && opt.do_pdel)
-        test_delete(ti, true, opt.do_txn, opt.do_mixed);
+        test_delete(ti, true, opt.do_txn);
 
     if (atomic64_read(&errors) < opt.errcnt && opt.do_vpdel)
         test_delete_verify(ti);
@@ -1437,6 +1417,10 @@ c1ingest_parse(int argc, char **argv)
 
     hse_params_create(&params);
 
+    /* You can perform non-txn reads on a txn kvs */
+    if (opt.do_txn)
+        hse_params_set(params, "kvs.enable_transactions", "1");
+
     err = hse_parse_cli(argc - last_arg, argv + last_arg,
                         &last_arg, 0, params);
     if (err)
@@ -1479,8 +1463,7 @@ main(int argc, char **argv)
         printf("Running in replay mode\n");
     else
         printf("Running in ingest mode, %s\n",
-               opt.do_mixed ? "Tx and non-Tx" :
-               (opt.do_txn ? "Tx" : "non-Tx"));
+               opt.do_txn ? "Tx" : "non-Tx");
 
     if (ingest_mode) {
         err = c1ingest_run(argc, argv);
