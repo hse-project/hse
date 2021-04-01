@@ -65,44 +65,45 @@ MTF_DEFINE_UTEST(transaction_api_test, transaction_invalid_testcase)
 MTF_DEFINE_UTEST(transaction_api_test, transaction_valid_testcase)
 {
     hse_err_t              err;
-    struct hse_kvdb_opspec opspec;
-
+    struct hse_kvdb_txn *txn;
+    
     /* TC: A transaction can be allocated */
-    opspec.kop_txn = hse_kvdb_txn_alloc(kvdb_handle);
-    ASSERT_NE(opspec.kop_txn, NULL);
+    txn = hse_kvdb_txn_alloc(kvdb_handle);
+    ASSERT_NE(txn, NULL);
 
     /* TC: A transaction that has not begun can be aborted */
-    err = hse_kvdb_txn_abort(kvdb_handle, opspec.kop_txn);
+    err = hse_kvdb_txn_abort(kvdb_handle, txn);
     ASSERT_EQ(err, 0);
 
-    hse_kvdb_txn_free(kvdb_handle, opspec.kop_txn);
+    hse_kvdb_txn_free(kvdb_handle, txn);
 }
 
 MTF_DEFINE_UTEST(transaction_api_test, transaction_ops_testcase)
 {
     int                    state;
     hse_err_t              err;
-    struct hse_kvdb_opspec opspec;
+    struct hse_kvdb_txn *txn;
 
-    opspec.kop_txn = hse_kvdb_txn_alloc(kvdb_handle);
+    txn = hse_kvdb_txn_alloc(kvdb_handle);
+    ASSERT_NE(txn, NULL);
 
     /* TC: An allocated transaction can begin */
-    err = hse_kvdb_txn_begin(kvdb_handle, opspec.kop_txn);
+    err = hse_kvdb_txn_begin(kvdb_handle, txn);
     ASSERT_EQ(err, 0);
 
-    /* TC: A transaction that has begun will return a state of 1 */
-    state = hse_kvdb_txn_get_state(kvdb_handle, opspec.kop_txn);
-    ASSERT_EQ(state, 1);
+    /* TC: A transaction that has begun will return a state of HSE_KVDB_TXN_ACTIVE */
+    state = hse_kvdb_txn_get_state(kvdb_handle, txn);
+    ASSERT_EQ(state, HSE_KVDB_TXN_ACTIVE);
 
     /* TC: A transaction that has begun can be aborted */
-    err = hse_kvdb_txn_abort(kvdb_handle, opspec.kop_txn);
+    err = hse_kvdb_txn_abort(kvdb_handle, txn);
     ASSERT_EQ(err, 0);
 
-    /* TC: An aborted transaction will return a state of 3 */
-    state = hse_kvdb_txn_get_state(kvdb_handle, opspec.kop_txn);
-    ASSERT_EQ(state, 3);
+    /* TC: An aborted transaction will return a state of HSE_KVDB_TXN_ABORTED */
+    state = hse_kvdb_txn_get_state(kvdb_handle, txn);
+    ASSERT_EQ(state, HSE_KVDB_TXN_ABORTED);
 
-    hse_kvdb_txn_free(kvdb_handle, opspec.kop_txn);
+    hse_kvdb_txn_free(kvdb_handle, txn);
 }
 
 MTF_DEFINE_UTEST(transaction_api_test, transaction_commit_testcase)
@@ -135,9 +136,9 @@ MTF_DEFINE_UTEST(transaction_api_test, transaction_commit_testcase)
     ASSERT_EQ(err, 0);
     ASSERT_TRUE(found);
 
-    /* TC: A committed transaction will return a state of 2 */
+    /* TC: A committed transaction will return a state of HSE_KVDB_TXN_COMMITTED */
     state = hse_kvdb_txn_get_state(kvdb_handle, opspec.kop_txn);
-    ASSERT_EQ(state, 2);
+    ASSERT_EQ(state, HSE_KVDB_TXN_COMMITTED);
 
     err = hse_kvs_delete(kvs_handle, NULL, "test_key", 8);
     ASSERT_EQ(err, 0);
