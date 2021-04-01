@@ -1107,8 +1107,9 @@ c0sk_ingest_tune(struct c0sk_impl *self, struct c0_usage *usage)
 /* GCOV_EXCL_START */
 
 merr_t
-c0sk_queue_ingest(struct c0sk_impl *self, struct c0_kvmultiset *old, struct c0_kvmultiset *new)
+c0sk_queue_ingest(struct c0sk_impl *self, struct c0_kvmultiset *old)
 {
+    struct c0_kvmultiset *new = NULL;
     struct mtx_node *   node;
     struct c0_usage     usage = { 0 };
 
@@ -1287,7 +1288,7 @@ c0sk_flush_current_multiset(struct c0sk_impl *self, u64 *genp)
         }
     }
 
-    err = c0sk_queue_ingest(self, old, NULL);
+    err = c0sk_queue_ingest(self, old);
 
     c0kvms_putref(old);
 
@@ -1395,7 +1396,7 @@ c0sk_putdel(
         if (merr_errno(err) != ENOMEM)
             break;
 
-        c0sk_queue_ingest(self, dst, NULL);
+        c0sk_queue_ingest(self, dst);
         c0kvms_putref(dst);
     }
 
