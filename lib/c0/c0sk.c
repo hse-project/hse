@@ -644,7 +644,7 @@ c0sk_flush(struct c0sk *handle)
     if (self->c0sk_kvdb_rp->read_only)
         return 0;
 
-    return c0sk_flush_current_multiset(self, NULL, NULL);
+    return c0sk_flush_current_multiset(self, NULL);
 }
 
 static void
@@ -691,7 +691,7 @@ c0sk_sync(struct c0sk *handle)
         return 0;
 
     self->c0sk_syncing = true;
-    err = c0sk_flush_current_multiset(self, NULL, &waiter.c0skw_gen);
+    err = c0sk_flush_current_multiset(self, &waiter.c0skw_gen);
     if (ev(err)) {
         self->c0sk_syncing = false;
         return merr_errno(err) == EAGAIN ? 0 : err;

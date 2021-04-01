@@ -1220,12 +1220,11 @@ resign:
  * For sync(), we need to know when this c0kvms has been ingested.
  */
 merr_t
-c0sk_flush_current_multiset(struct c0sk_impl *self, struct c0_kvmultiset *new, u64 *genp)
+c0sk_flush_current_multiset(struct c0sk_impl *self, u64 *genp)
 {
     struct c0_kvmultiset *old;
     merr_t                err;
 
-again:
     rcu_read_lock();
 
     old = c0sk_get_first_c0kvms(&self->c0sk_handle);
@@ -1247,7 +1246,7 @@ again:
          * the ingest rate is high.  If the ingest rate is low it simply
          * serves to limit the sync frequency to roughly dur_intvl_ms.
          */
-        if (!self->c0sk_closing && !new) {
+        if (!self->c0sk_closing) {
             long waitmax = self->c0sk_kvdb_rp->dur_intvl_ms / 2;
             long delay = min_t(long, waitmax / 10 + 1, 100);
 
@@ -1288,12 +1287,9 @@ again:
         }
     }
 
-    err = c0sk_queue_ingest(self, old, new);
+    err = c0sk_queue_ingest(self, old, NULL);
 
     c0kvms_putref(old);
-
-    if (new && merr_errno(err) == EAGAIN)
-        goto again;
 
     return ev(err);
 }

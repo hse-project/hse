@@ -178,12 +178,11 @@ c0sk_release_multiset(struct c0sk_impl *self, struct c0_kvmultiset *multiset);
 /**
  * flush_current_multiset() - enqueue current kvmultiset for ingest
  * @self:   struct c0sk owning the struct c0_kvmultiset
- * @new:    ptr to new kvms to replace the active kvms
  * @genp:   the gen count of the kvms enqueued for ingest is stored here
  *
  */
 merr_t
-c0sk_flush_current_multiset(struct c0sk_impl *self, struct c0_kvmultiset *new, u64 *genp);
+c0sk_flush_current_multiset(struct c0sk_impl *self, u64 *genp);
 
 /**
  * c0sk_merge_impl() - merge the 'from' kvms into the 'first' kvms
