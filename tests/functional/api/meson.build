@@ -10,7 +10,9 @@ common_test_includes = [
     get_option('mpool-include-dir'),
 ]
 
-common_test_sources = []
+common_test_sources = [
+    test_framework_sources,
+]
 
 common_test_dependencies = [
     hse_static_dep,
@@ -21,6 +23,12 @@ tests = {
         'args': [
             get_option('tests-kvdb')
         ]
+    },
+    'put_get_delete':{
+        'args': [
+            get_option('tests-kvdb')
+        ],
+        'is_parallel': false,
     },
 }
 
