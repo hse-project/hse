@@ -4,7 +4,7 @@
  */
 
 #include <hse_ut/framework.h>
-#include <errno.h>
+#include <hse_ut/fixtures.h>
 
 /* Globals */
 struct hse_kvdb *kvdb_handle = NULL;
@@ -13,23 +13,17 @@ struct hse_kvs * kvs_handle = NULL;
 int
 test_collection_setup(struct mtf_test_info *lcl_ti)
 {
-    hse_err_t                  err;
-    char *                     mpool_name;
-    struct mtf_test_coll_info *coll_info = lcl_ti->ti_coll;
+    int       rc;
+    hse_err_t err;
 
-    if (coll_info->tci_argc != 2)
-        return -1;
-
-    mpool_name = coll_info->tci_argv[1];
-
-    err = hse_kvdb_open(mpool_name, NULL, &kvdb_handle);
-    ASSERT_TRUE_RET(!err, -1);
+    rc = mtf_kvdb_setup(lcl_ti, NULL, &kvdb_handle, 0);
+    ASSERT_EQ_RET(rc, 0, -1);
 
     err = hse_kvdb_kvs_make(kvdb_handle, "kvs_test", NULL);
-    ASSERT_TRUE_RET((!err || hse_err_to_errno(err) == EEXIST), -1);
+    ASSERT_EQ_RET(err, 0, -1);
 
     err = hse_kvdb_kvs_open(kvdb_handle, "kvs_test", NULL, &kvs_handle);
-    ASSERT_TRUE_RET(!err, -1);
+    ASSERT_EQ_RET(err, 0, -1);
 
     return EXIT_SUCCESS;
 }
@@ -37,13 +31,14 @@ test_collection_setup(struct mtf_test_info *lcl_ti)
 int
 test_collection_teardown(struct mtf_test_info *lcl_ti)
 {
+    int       rc;
     hse_err_t err;
 
     err = hse_kvdb_kvs_close(kvs_handle);
     ASSERT_TRUE_RET(!err, -1);
 
-    err = hse_kvdb_close(kvdb_handle);
-    ASSERT_TRUE_RET(!err, -1);
+    rc = mtf_kvdb_teardown(lcl_ti);
+    ASSERT_EQ_RET(rc, 0, -1);
 
     return EXIT_SUCCESS;
 }
@@ -64,9 +59,9 @@ MTF_DEFINE_UTEST(transaction_api_test, transaction_invalid_testcase)
 
 MTF_DEFINE_UTEST(transaction_api_test, transaction_valid_testcase)
 {
-    hse_err_t              err;
+    hse_err_t            err;
     struct hse_kvdb_txn *txn;
-    
+
     /* TC: A transaction can be allocated */
     txn = hse_kvdb_txn_alloc(kvdb_handle);
     ASSERT_NE(txn, NULL);
@@ -80,8 +75,8 @@ MTF_DEFINE_UTEST(transaction_api_test, transaction_valid_testcase)
 
 MTF_DEFINE_UTEST(transaction_api_test, transaction_ops_testcase)
 {
-    int                    state;
-    hse_err_t              err;
+    int                  state;
+    hse_err_t            err;
     struct hse_kvdb_txn *txn;
 
     txn = hse_kvdb_txn_alloc(kvdb_handle);
