@@ -148,7 +148,7 @@ _c0sk_prefix_del(struct c0sk *self, u16 skidx, const struct kvs_ktuple *key, con
 struct c0_kvmultiset;
 
 merr_t
-_c0sk_flush(struct c0sk *self, struct c0_kvmultiset *new)
+_c0sk_flush(struct c0sk *self)
 {
     struct mock_c0sk *mock_c0sk = (struct mock_c0sk *)self;
     merr_t            err = 0;

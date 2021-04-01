@@ -202,16 +202,13 @@ c0sk_prefix_del(struct c0sk *self, u16 skidx, const struct kvs_ktuple *key, u64 
 /**
  * c0sk_flush() - Start ingest of existing c0sk data
  * @self:       Instance of struct c0sk to flush
- * @new:        Ptr to new kvms to install
  *
  * Start ingest of existing c0sk data, returns to caller without waiting
- * for ingest to complete.  If %new is nil, then a fresh empty kvms is
- * created and becomes the new active kvms.  Otherwise, %new becomes the
- * new active kvms.
+ * for ingest to complete.
  */
 /* MTF_MOCK */
 merr_t
-c0sk_flush(struct c0sk *self, struct c0_kvmultiset *new);
+c0sk_flush(struct c0sk *self);
 
 /**
  * c0sk_rparams() - Get a ptr to c0sk kvdb rparams

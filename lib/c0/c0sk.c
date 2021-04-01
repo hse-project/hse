@@ -240,7 +240,7 @@ c0sk_c0_deregister(struct c0sk *handle, u16 skidx)
         self->c0sk_cnv[skidx] = 0;
     }
 
-    return c0sk_flush(handle, NULL);
+    return c0sk_flush(handle);
 }
 
 merr_t
@@ -632,7 +632,7 @@ c0sk_rparams(struct c0sk *handle)
 }
 
 merr_t
-c0sk_flush(struct c0sk *handle, struct c0_kvmultiset *new)
+c0sk_flush(struct c0sk *handle)
 {
     struct c0sk_impl *self;
 
@@ -644,7 +644,7 @@ c0sk_flush(struct c0sk *handle, struct c0_kvmultiset *new)
     if (self->c0sk_kvdb_rp->read_only)
         return 0;
 
-    return c0sk_flush_current_multiset(self, new, NULL);
+    return c0sk_flush_current_multiset(self, NULL, NULL);
 }
 
 static void
