@@ -7,7 +7,7 @@ Kvdb.init()
 
 p = Params()
 p.set(key="kvdb.dur_enable", value="0")  # So sync forces an ingest
-p.set(key="kvs.enable_transactions", value="1")
+p.set(key="kvs.transactions_enable", value="1")
 
 kvdb = Kvdb.open(sys.argv[1], params=p)
 kvdb.kvs_make("kvs19", params=p)

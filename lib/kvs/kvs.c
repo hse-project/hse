@@ -288,7 +288,7 @@ bool
 kvs_txn_is_enabled(
     struct ikvs *kvs)
 {
-    return kvs->ikv_rp.enable_transactions;
+    return kvs->ikv_rp.transactions_enable;
 }
 
 merr_t

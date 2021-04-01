@@ -10,7 +10,7 @@ p = Params()
 p.set(key="kvdb.dur_enable", value="0")
 p.set(key="kvs.pfx_len", value="1")
 p.set(key="kvs.sfx_len", value="2")
-p.set(key="kvs.enable_transactions", value="1")
+p.set(key="kvs.transactions_enable", value="1")
 
 kvdb = Kvdb.open(sys.argv[1], params=p)
 kvdb.kvs_make("kvs33", params=p)

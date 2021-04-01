@@ -9,7 +9,7 @@ try:
     kvdb = hse.Kvdb.open(sys.argv[1])
     kvdb.kvs_make("kvs15")
     p = hse.Params()
-    p.set(key="kvs.enable_transactions", value="1")
+    p.set(key="kvs.transactions_enable", value="1")
     kvs = kvdb.kvs_open("kvs15", params=p)
 
     with kvdb.transaction() as txn:

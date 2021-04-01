@@ -76,7 +76,7 @@ kvs.close()
 
 # Test 3: Read keys across c0/cn, with key update.
 p.set(key="kvs.pfx_len", value="1")
-p.set(key="kvs.enable_transactions", value="1")
+p.set(key="kvs.transactions_enable", value="1")
 kvdb.kvs_make("kvs29-3", params=p)
 kvs = kvdb.kvs_open("kvs29-3", params=p)
 

@@ -249,7 +249,7 @@ MTF_DEFINE_UTEST_PRE(kvdb_test, kvdb_cursor_test, general_pre)
     rc = hse_kvdb_kvs_make(h, "kv1", 0);
     ASSERT_EQ(0, rc);
 
-    rc = hse_params_set(params, "kvs.enable_transactions", "1");
+    rc = hse_params_set(params, "kvs.transactions_enable", "1");
     ASSERT_EQ(0, rc);
     rc = hse_kvdb_kvs_open(h, "kv1", params, &kvs);
     ASSERT_EQ(0, rc);

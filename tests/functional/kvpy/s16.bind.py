@@ -10,7 +10,7 @@ try:
     kvdb.kvs_make("kvs16-1")
     kvdb.kvs_make("kvs16-2")
     p = hse.Params()
-    p.set(key="kvs.enable_transactions", value="1")
+    p.set(key="kvs.transactions_enable", value="1")
     kvs1 = kvdb.kvs_open("kvs16-1", params=p)
     kvs2 = kvdb.kvs_open("kvs16-2", params=p)
 

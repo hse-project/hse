@@ -1419,7 +1419,7 @@ c1ingest_parse(int argc, char **argv)
 
     /* You can perform non-txn reads on a txn kvs */
     if (opt.do_txn)
-        hse_params_set(params, "kvs.enable_transactions", "1");
+        hse_params_set(params, "kvs.transactions_enable", "1");
 
     err = hse_parse_cli(argc - last_arg, argv + last_arg,
                         &last_arg, 0, params);

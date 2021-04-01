@@ -3623,7 +3623,7 @@ spawn(struct km_impl *impl, void (*run)(struct km_inst *), uint runmax, time_t m
 
 #ifndef XKMT
     if (swaptxn && run == td_test)
-        hse_params_set(params, "kvs.enable_transactions", "1");
+        hse_params_set(params, "kvs.transactions_enable", "1");
 #endif
 
     err = km_open(impl);
@@ -3805,7 +3805,7 @@ spawn(struct km_impl *impl, void (*run)(struct km_inst *), uint runmax, time_t m
 
 #ifndef XKMT
     if (swaptxn)
-        hse_params_set(params, "kvs.enable_transactions", "0");
+        hse_params_set(params, "kvs.transactions_enable", "0");
 #endif
 
     if (verbosity > 1 || nerrs > 0 || mark > 0) {

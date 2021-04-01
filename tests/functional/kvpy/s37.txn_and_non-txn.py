@@ -11,12 +11,12 @@ kvdb = Kvdb.open(sys.argv[1], params=p)
 p.set(key="kvs.pfx_len", value="2")
 p.set(key="kvs.sfx_len", value="1")
 
-p.set(key="kvs.enable_transactions", value="0")
+p.set(key="kvs.transactions_enable", value="0")
 kvs_non_txn = "kvs37-non_txn"
 kvdb.kvs_make(kvs_non_txn, params=p)
 kvs = kvdb.kvs_open(kvs_non_txn, params=p)
 
-p.set(key="kvs.enable_transactions", value="1")
+p.set(key="kvs.transactions_enable", value="1")
 kvs_txn = "kvs37-txn"
 kvdb.kvs_make(kvs_txn, params=p)
 kvs_tx = kvdb.kvs_open(kvs_txn, params=p)
@@ -164,7 +164,7 @@ kvs_tx.close()
 # Part 3: Prefix deletes
 #
 
-p.set(key="kvs.enable_transactions", value="0")
+p.set(key="kvs.transactions_enable", value="0")
 kvs_non_txn = "kvs37-non_txn-2"
 kvdb.kvs_make(kvs_non_txn, params=p)
 kvs = kvdb.kvs_open(kvs_non_txn, params=p)
@@ -196,7 +196,7 @@ kvs.prefix_delete(b'aa')
 assert kvs.get(b'aa1') == None
 assert kvs.get(b'aa2') == None
 
-p.set(key="kvs.enable_transactions", value="1")
+p.set(key="kvs.transactions_enable", value="1")
 kvs_txn = "kvs37-txn-2"
 kvdb.kvs_make(kvs_txn, params=p)
 kvs_tx = kvdb.kvs_open(kvs_txn, params=p)

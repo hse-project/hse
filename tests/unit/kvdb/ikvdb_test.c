@@ -606,7 +606,7 @@ MTF_DEFINE_UTEST_PREPOST(ikvdb_test, txn_del_test, test_pre, test_post)
     err = ikvdb_kvs_make(h, kvs, NULL);
     ASSERT_EQ(0, err);
 
-    err = hse_params_set(params, "kvs.enable_transactions", "1");
+    err = hse_params_set(params, "kvs.transactions_enable", "1");
     err = ikvdb_kvs_open(h, kvs, params, 0, &kvs_h);
     ASSERT_EQ(0, err);
     ASSERT_NE(NULL, kvs_h);
@@ -725,7 +725,7 @@ MTF_DEFINE_UTEST_PREPOST(ikvdb_test, txn_put_test, test_pre, test_post)
     hse_params_create(&params);
 
     err = hse_params_set(params, "kvdb.c0_debug", "0x10");
-    err = hse_params_set(params, "kvs.enable_transactions", "1");
+    err = hse_params_set(params, "kvs.transactions_enable", "1");
     ASSERT_EQ(err, 0);
 
     err = ikvdb_open(mpool, ds, params, &h);
@@ -791,7 +791,7 @@ MTF_DEFINE_UTEST_PREPOST(ikvdb_test, aborted_txn_bind, test_pre, test_post)
     err = ikvdb_kvs_make(kvdb_h, kvs, NULL);
     ASSERT_EQ(0, err);
 
-    err = hse_params_set(params, "kvs.enable_transactions", "1");
+    err = hse_params_set(params, "kvs.transactions_enable", "1");
     ASSERT_EQ(0, err);
     err = ikvdb_kvs_open(kvdb_h, kvs, params, 0, &kvs_h);
     ASSERT_EQ(0, err);
@@ -1102,7 +1102,7 @@ MTF_DEFINE_UTEST_PREPOST(ikvdb_test, cursor_tx, test_pre_c0, test_post_c0)
     err = ikvdb_kvs_make(h, kvs, NULL);
     ASSERT_EQ(0, err);
 
-    err = hse_params_set(params, "kvs.enable_transactions", "1");
+    err = hse_params_set(params, "kvs.transactions_enable", "1");
     ASSERT_EQ(0, err);
     err = ikvdb_kvs_open(h, kvs, params, 0, &kvs_h);
     ASSERT_EQ(0, err);

@@ -149,7 +149,7 @@ main(
 	}
 
 	hse_params_create(&params);
-	hse_params_set(params, "kvs.enable_transactions", "1");
+	hse_params_set(params, "kvs.transactions_enable", "1");
 
 	kh_rparams(&argc, &argv, params);
 	if (argc != 2) {
