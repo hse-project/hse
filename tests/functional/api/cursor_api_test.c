@@ -137,14 +137,13 @@ MTF_DEFINE_UTEST_PREPOST(cursor_api_test, cursor_valid_testcase, open_kvs, destr
     /* TC: A populated KVS returns a valid cursor */
     ASSERT_NE(cursor_handle, NULL);
 
-    /* TC: A handle can be reused to create multiple cursors */
+    /* TC: A kvs handle can be reused to create multiple cursors */
     err = hse_kvs_cursor_create(kvs_handle, NULL, NULL, 0, &duplicate_cursor_handle);
     ASSERT_EQ(err, 0);
 
     /* TC: A cursor can be destroyed */
     err = hse_kvs_cursor_destroy(cursor_handle);
     ASSERT_EQ(err, 0);
-
     err = hse_kvs_cursor_destroy(duplicate_cursor_handle);
     ASSERT_EQ(err, 0);
 }
@@ -256,7 +255,7 @@ MTF_DEFINE_UTEST_PREPOST(cursor_api_test, cursor_seek_testcase, populate_kvs, de
 
 MTF_DEFINE_UTEST_PREPOST(cursor_api_test, cursor_multiple_testcase, populate_kvs, destroy_kvs)
 {
-    int                    count_1 = 0, count_2 = 0;
+    int                    count_1 = 0, count_2 = 0, n;
     bool                   eof = false;
     const void *           cur_key, *cur_val;
     size_t                 cur_klen, cur_vlen;
@@ -265,10 +264,9 @@ MTF_DEFINE_UTEST_PREPOST(cursor_api_test, cursor_multiple_testcase, populate_kvs
     struct hse_kvs_cursor *cursor;
     struct hse_kvs_cursor *duplicate_cursor;
 
+    /* TC: A KVS can have multiple cursors reading at different rates */
     err = hse_kvs_cursor_create(kvs_handle, NULL, NULL, 0, &cursor);
     ASSERT_EQ(err, 0);
-
-    /* TC: A KVS can have multiple cursors reading at different rates */
     err = hse_kvs_cursor_create(kvs_handle, NULL, NULL, 0, &duplicate_cursor);
     ASSERT_EQ(err, 0);
 
@@ -277,13 +275,15 @@ MTF_DEFINE_UTEST_PREPOST(cursor_api_test, cursor_multiple_testcase, populate_kvs
     ASSERT_EQ(err, 0);
     err = hse_kvs_cursor_read(cursor, NULL, &cur_key, &cur_klen, &cur_val, &cur_vlen, &eof);
     ASSERT_EQ(err, 0);
-    sprintf(buff_1, "%.*s", (int)cur_klen, (char *)cur_key);
+    n = snprintf(buff_1, sizeof(buff_1), "%.*s", (int)cur_klen, (char *)cur_key);
+    ASSERT_LT(n, sizeof(buff_1));
 
     /* Slow Cursor */
     err =
         hse_kvs_cursor_read(duplicate_cursor, NULL, &cur_key, &cur_klen, &cur_val, &cur_vlen, &eof);
     ASSERT_EQ(err, 0);
-    sprintf(buff_2, "%.*s", (int)cur_klen, (char *)cur_key);
+    n = snprintf(buff_2, sizeof(buff_2), "%.*s", (int)cur_klen, (char *)cur_key);
+    ASSERT_LT(n, sizeof(buff_2));
 
     ASSERT_STRNE(buff_1, buff_2);
 
