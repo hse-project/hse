@@ -53,7 +53,7 @@ destroy_kvs(struct mtf_test_info *lcl_ti)
     hse_err_t err;
 
     err = hse_kvdb_kvs_close(kvs_handle);
-    ASSERT_TRUE_RET(!err, -1);
+    ASSERT_EQ_RET(err, 0, -1);
 
     rc = mtf_kvdb_kvs_drop_all(kvdb_handle);
     ASSERT_EQ_RET(rc, 0, -1);
@@ -93,9 +93,9 @@ MTF_DEFINE_UTEST(transaction_api_test, transaction_valid_testcase)
 
 MTF_DEFINE_UTEST(transaction_api_test, transaction_ops_testcase)
 {
-    int                  state;
-    hse_err_t            err;
-    struct hse_kvdb_txn *txn;
+    hse_err_t               err;
+    struct hse_kvdb_txn *   txn;
+    enum hse_kvdb_txn_state state;
 
     txn = hse_kvdb_txn_alloc(kvdb_handle);
     ASSERT_NE(txn, NULL);
@@ -121,12 +121,12 @@ MTF_DEFINE_UTEST(transaction_api_test, transaction_ops_testcase)
 
 MTF_DEFINE_UTEST_PREPOST(transaction_api_test, transaction_commit_testcase, setup_kvs, destroy_kvs)
 {
-    int                    state;
-    bool                   found;
-    char                   vbuf[16];
-    size_t                 vlen;
-    hse_err_t              err;
-    struct hse_kvdb_opspec opspec;
+    bool                    found;
+    char                    vbuf[16];
+    size_t                  vlen;
+    hse_err_t               err;
+    struct hse_kvdb_opspec  opspec;
+    enum hse_kvdb_txn_state state;
 
     HSE_KVDB_OPSPEC_INIT(&opspec);
     opspec.kop_txn = hse_kvdb_txn_alloc(kvdb_handle);
