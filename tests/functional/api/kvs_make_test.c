@@ -152,43 +152,4 @@ MTF_DEFINE_UTEST_PREPOST(kvs_api_test, kvs_handle_testcase, kvs_create, kvs_dest
     ASSERT_EQ(found, false);
 }
 
-MTF_DEFINE_UTEST_PREPOST(kvs_api_test, kvs_put_get_delete_testcase, kvs_create, kvs_destroy)
-{
-    hse_err_t   err;
-    size_t      vlen;
-    char        vbuf[16];
-    bool        found;
-    const char *test_key = "test_key";
-    const char *test_value = "test_value";
-
-    /* TC: A KVS cannot put a NULL key */
-    err = hse_kvs_put(kvs_handle, NULL, NULL, 0, test_value, strlen(test_value));
-    ASSERT_EQ(hse_err_to_errno(err), EINVAL);
-
-    /* TC: A KVS can put a valid key value pair */
-    err = hse_kvs_put(kvs_handle, NULL, test_key, strlen(test_key), test_value, strlen(test_value));
-    ASSERT_EQ(err, 0);
-
-    /* TC: A KVS get with an existing key can be found and will return a correct value */
-    found = false;
-    err = hse_kvs_get(
-        kvs_handle, NULL, test_key, strlen(test_key), &found, vbuf, sizeof(vbuf), &vlen);
-    ASSERT_EQ(err, 0);
-    ASSERT_EQ(found, true);
-    if (vlen == strlen(test_value)) {
-        ASSERT_EQ(strncmp(vbuf, test_value, vlen), 0);
-    } else if (vlen < sizeof(vbuf)) {
-        ASSERT_NE(strcmp(vbuf, test_value), 0);
-    }
-
-    /* TC: A KVS can delete an existing key value pair */
-    found = false;
-    err = hse_kvs_delete(kvs_handle, NULL, test_key, strlen(test_key));
-    ASSERT_EQ(err, 0);
-    err = hse_kvs_get(
-        kvs_handle, NULL, test_key, strlen(test_key), &found, vbuf, sizeof(vbuf), &vlen);
-    ASSERT_EQ(err, 0);
-    ASSERT_EQ(found, false);
-}
-
 MTF_END_UTEST_COLLECTION(kvs_api_test)

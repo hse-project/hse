@@ -41,11 +41,12 @@ test_collection_teardown(struct mtf_test_info *lcl_ti)
 
 MTF_BEGIN_UTEST_COLLECTION_PREPOST(kvdb_api_test, test_collection_setup, test_collection_teardown);
 
-MTF_DEFINE_UTEST(kvdb_api_test, kvdb_make_testcase)
+/* [HSE_REVISIT] when libmpool is available, add a test to create a KVDB */
+MTF_DEFINE_UTEST(kvdb_api_test, kvdb_make_busy_testcase)
 {
     hse_err_t err;
 
-    /* TC: A KVDB instance with a valid name can be created on an existing MPOOL */
+    /* TC: Trying to create a KVDB on an alredy open KVDB returns EBUSY */
     err = hse_kvdb_make(mpool_name, NULL);
     ASSERT_EQ(hse_err_to_errno(err), EBUSY);
 }
