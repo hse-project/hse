@@ -13,17 +13,10 @@ struct hse_kvs * kvs_handle = NULL;
 int
 test_collection_setup(struct mtf_test_info *lcl_ti)
 {
-    int       rc;
-    hse_err_t err;
+    int rc;
 
     rc = mtf_kvdb_setup(lcl_ti, NULL, &kvdb_handle, 0);
     ASSERT_EQ_RET(rc, 0, -1);
-
-    err = hse_kvdb_kvs_make(kvdb_handle, "kvs_test", NULL);
-    ASSERT_EQ_RET(err, 0, -1);
-
-    err = hse_kvdb_kvs_open(kvdb_handle, "kvs_test", NULL, &kvs_handle);
-    ASSERT_EQ_RET(err, 0, -1);
 
     return EXIT_SUCCESS;
 }
@@ -31,13 +24,38 @@ test_collection_setup(struct mtf_test_info *lcl_ti)
 int
 test_collection_teardown(struct mtf_test_info *lcl_ti)
 {
+    int rc;
+
+    rc = mtf_kvdb_teardown(lcl_ti);
+    ASSERT_EQ_RET(rc, 0, -1);
+
+    return EXIT_SUCCESS;
+}
+
+int
+setup_kvs(struct mtf_test_info *lcl_ti)
+{
+    hse_err_t err;
+
+    err = hse_kvdb_kvs_make(kvdb_handle, "kvs_transaction_test", NULL);
+    ASSERT_EQ_RET(err, 0, -1);
+
+    err = hse_kvdb_kvs_open(kvdb_handle, "kvs_transaction_test", NULL, &kvs_handle);
+    ASSERT_EQ_RET(err, 0, -1);
+
+    return EXIT_SUCCESS;
+}
+
+int
+destroy_kvs(struct mtf_test_info *lcl_ti)
+{
     int       rc;
     hse_err_t err;
 
     err = hse_kvdb_kvs_close(kvs_handle);
     ASSERT_TRUE_RET(!err, -1);
 
-    rc = mtf_kvdb_teardown(lcl_ti);
+    rc = mtf_kvdb_kvs_drop_all(kvdb_handle);
     ASSERT_EQ_RET(rc, 0, -1);
 
     return EXIT_SUCCESS;
@@ -101,7 +119,7 @@ MTF_DEFINE_UTEST(transaction_api_test, transaction_ops_testcase)
     hse_kvdb_txn_free(kvdb_handle, txn);
 }
 
-MTF_DEFINE_UTEST(transaction_api_test, transaction_commit_testcase)
+MTF_DEFINE_UTEST_PREPOST(transaction_api_test, transaction_commit_testcase, setup_kvs, destroy_kvs)
 {
     int                    state;
     bool                   found;
@@ -135,15 +153,17 @@ MTF_DEFINE_UTEST(transaction_api_test, transaction_commit_testcase)
     state = hse_kvdb_txn_get_state(kvdb_handle, opspec.kop_txn);
     ASSERT_EQ(state, HSE_KVDB_TXN_COMMITTED);
 
-    err = hse_kvs_delete(kvs_handle, NULL, "test_key", 8);
-    ASSERT_EQ(err, 0);
     err = hse_kvdb_txn_abort(kvdb_handle, opspec.kop_txn);
     ASSERT_EQ(err, 0);
 
     hse_kvdb_txn_free(kvdb_handle, opspec.kop_txn);
 }
 
-MTF_DEFINE_UTEST(transaction_api_test, transaction_abort_commit_testcase)
+MTF_DEFINE_UTEST_PREPOST(
+    transaction_api_test,
+    transaction_abort_commit_testcase,
+    setup_kvs,
+    destroy_kvs)
 {
     bool                   found;
     char                   vbuf[16];
@@ -166,9 +186,6 @@ MTF_DEFINE_UTEST(transaction_api_test, transaction_abort_commit_testcase)
     err = hse_kvs_get(kvs_handle, NULL, "test_key", 8, &found, vbuf, sizeof(vbuf), &vlen);
     ASSERT_EQ(err, 0);
     ASSERT_FALSE(found);
-
-    err = hse_kvs_delete(kvs_handle, NULL, "test_key", 8);
-    ASSERT_EQ(err, 0);
 
     hse_kvdb_txn_free(kvdb_handle, opspec.kop_txn);
 }
