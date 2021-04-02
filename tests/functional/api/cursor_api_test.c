@@ -7,10 +7,10 @@
 #include <hse_ut/fixtures.h>
 
 /* Globals */
-struct hse_kvdb *      kvdb_handle = NULL;
-struct hse_kvs *       kvs_handle = NULL;
-const int              key_value_pairs = 5;
-const char *           kvs_name = "kvs_cursor_test";
+struct hse_kvdb *kvdb_handle = NULL;
+struct hse_kvs * kvs_handle = NULL;
+const int        key_value_pairs = 5;
+const char *     kvs_name = "kvs_cursor_test";
 
 int
 test_collection_setup(struct mtf_test_info *lcl_ti)
@@ -37,7 +37,7 @@ test_collection_teardown(struct mtf_test_info *lcl_ti)
 int
 open_kvs(struct mtf_test_info *lcl_ti)
 {
-    hse_err_t                  err;
+    hse_err_t err;
 
     err = hse_kvdb_kvs_make(kvdb_handle, kvs_name, NULL);
     ASSERT_EQ_RET(err, 0, -1);
@@ -45,15 +45,15 @@ open_kvs(struct mtf_test_info *lcl_ti)
     err = hse_kvdb_kvs_open(kvdb_handle, kvs_name, NULL, &kvs_handle);
     ASSERT_EQ_RET(err, 0, -1);
 
-    return EXIT_SUCCESS;    
+    return EXIT_SUCCESS;
 }
 
 int
 populate_kvs(struct mtf_test_info *lcl_ti)
 {
-    int n;
-    char                       key[16], val[16];
-    hse_err_t                  err;
+    int       n;
+    char      key[16], val[16];
+    hse_err_t err;
 
     open_kvs(lcl_ti);
 
@@ -68,22 +68,22 @@ populate_kvs(struct mtf_test_info *lcl_ti)
         ASSERT_EQ_RET(err, 0, -1);
     }
 
-    return EXIT_SUCCESS;    
+    return EXIT_SUCCESS;
 }
 
 int
 destroy_kvs(struct mtf_test_info *lcl_ti)
 {
     int       rc;
-    hse_err_t                  err;
+    hse_err_t err;
 
     err = hse_kvdb_kvs_close(kvs_handle);
-    ASSERT_TRUE_RET(!err, -1);
+    ASSERT_EQ_RET(err, 0, -1);
 
     rc = mtf_kvdb_kvs_drop_all(kvdb_handle);
     ASSERT_EQ_RET(rc, 0, -1);
 
-    return EXIT_SUCCESS;    
+    return EXIT_SUCCESS;
 }
 
 MTF_BEGIN_UTEST_COLLECTION_PREPOST(
@@ -93,11 +93,11 @@ MTF_BEGIN_UTEST_COLLECTION_PREPOST(
 
 MTF_DEFINE_UTEST(cursor_api_test, cursor_invalid_testcase)
 {
-    bool        eof = false;
-    const void *cur_key, *cur_val;
-    size_t      cur_klen, cur_vlen;
-    hse_err_t   err;
-    struct hse_kvs_cursor *cursor = NULL;
+    bool                   eof = false;
+    const void *           cur_key, *cur_val;
+    size_t                 cur_klen, cur_vlen;
+    hse_err_t              err;
+    struct hse_kvs_cursor *cursor;
 
     /* TC: A cursor cannot be created without a valid KVS */
     err = hse_kvs_cursor_create(NULL, NULL, NULL, 0, &cursor);
@@ -127,8 +127,8 @@ MTF_DEFINE_UTEST(cursor_api_test, cursor_invalid_testcase)
 MTF_DEFINE_UTEST_PREPOST(cursor_api_test, cursor_valid_testcase, open_kvs, destroy_kvs)
 {
     hse_err_t              err;
-    struct hse_kvs_cursor *cursor_handle = NULL;
-    struct hse_kvs_cursor *duplicate_cursor_handle = NULL;
+    struct hse_kvs_cursor *cursor_handle;
+    struct hse_kvs_cursor *duplicate_cursor_handle;
 
     /* TC: A cursor can be created */
     err = hse_kvs_cursor_create(kvs_handle, NULL, NULL, 0, &cursor_handle);
@@ -151,13 +151,13 @@ MTF_DEFINE_UTEST_PREPOST(cursor_api_test, cursor_valid_testcase, open_kvs, destr
 
 MTF_DEFINE_UTEST_PREPOST(cursor_api_test, cursor_read_testcase, populate_kvs, destroy_kvs)
 {
-    hse_err_t   err;
-    bool        eof = false;
-    const void *cur_key, *cur_val;
-    size_t      cur_klen, cur_vlen;
-    int         count = 0;
-    char        read_buff[16], expec_buff[16];
-    struct hse_kvs_cursor *cursor = NULL;
+    int                    count = 0, n;
+    bool                   eof = false;
+    const void *           cur_key, *cur_val;
+    size_t                 cur_klen, cur_vlen;
+    char                   read_buff[16], expec_buff[16];
+    hse_err_t              err;
+    struct hse_kvs_cursor *cursor;
 
     err = hse_kvs_cursor_create(kvs_handle, NULL, NULL, 0, &cursor);
     ASSERT_EQ(err, 0);
@@ -168,16 +168,22 @@ MTF_DEFINE_UTEST_PREPOST(cursor_api_test, cursor_read_testcase, populate_kvs, de
         ASSERT_EQ(err, 0);
 
         if (!eof) {
-            snprintf(
+            n = snprintf(
                 expec_buff,
                 sizeof(expec_buff),
                 "test_key_%02d",
                 (count) % 100u); /* keep within limits */
-            snprintf(read_buff, sizeof(read_buff), "%.*s", (int)cur_klen, (char *)cur_key);
+            ASSERT_LT(n, sizeof(expec_buff));
+
+            n = snprintf(read_buff, sizeof(read_buff), "%.*s", (int)cur_klen, (char *)cur_key);
+            ASSERT_LT(n, sizeof(read_buff));
             ASSERT_STREQ(expec_buff, read_buff);
 
-            snprintf(expec_buff, sizeof(expec_buff), "test_value_%02d", (count++) % 100u);
-            snprintf(read_buff, sizeof(read_buff), "%.*s", (int)cur_vlen, (char *)cur_val);
+            n = snprintf(expec_buff, sizeof(expec_buff), "test_value_%02d", (count++) % 100u);
+            ASSERT_LT(n, sizeof(expec_buff));
+
+            n = snprintf(read_buff, sizeof(read_buff), "%.*s", (int)cur_vlen, (char *)cur_val);
+            ASSERT_LT(n, sizeof(read_buff));
             ASSERT_STREQ(expec_buff, read_buff);
         }
     }
@@ -185,12 +191,12 @@ MTF_DEFINE_UTEST_PREPOST(cursor_api_test, cursor_read_testcase, populate_kvs, de
 
 MTF_DEFINE_UTEST_PREPOST(cursor_api_test, cursor_read_changes_testcase, populate_kvs, destroy_kvs)
 {
-    hse_err_t   err;
-    bool        eof = false;
-    const void *cur_key, *cur_val;
-    size_t      cur_klen, cur_vlen;
-    int         count = 0;
-    struct hse_kvs_cursor *cursor = NULL;
+    int                    count = 0;
+    bool                   eof = false;
+    const void *           cur_key, *cur_val;
+    size_t                 cur_klen, cur_vlen;
+    hse_err_t              err;
+    struct hse_kvs_cursor *cursor;
 
     err = hse_kvs_cursor_create(kvs_handle, NULL, NULL, 0, &cursor);
     ASSERT_EQ(err, 0);
@@ -212,13 +218,14 @@ MTF_DEFINE_UTEST_PREPOST(cursor_api_test, cursor_read_changes_testcase, populate
 
 MTF_DEFINE_UTEST_PREPOST(cursor_api_test, cursor_seek_testcase, populate_kvs, destroy_kvs)
 {
-    hse_err_t   err;
-    bool        eof = false;
-    const void *cur_key, *cur_val;
-    size_t      cur_klen, cur_vlen;
-    char        read_buff[16];
-    char *      search_key = "test_key_02";
-    struct hse_kvs_cursor *cursor = NULL;
+    int                    n;
+    bool                   eof = false;
+    const void *           cur_key, *cur_val;
+    size_t                 cur_klen, cur_vlen;
+    char                   read_buff[16];
+    char *                 search_key = "test_key_02";
+    hse_err_t              err;
+    struct hse_kvs_cursor *cursor;
 
     err = hse_kvs_cursor_create(kvs_handle, NULL, NULL, 0, &cursor);
     ASSERT_EQ(err, 0);
@@ -230,7 +237,8 @@ MTF_DEFINE_UTEST_PREPOST(cursor_api_test, cursor_seek_testcase, populate_kvs, de
     err = hse_kvs_cursor_read(cursor, NULL, &cur_key, &cur_klen, &cur_val, &cur_vlen, &eof);
     ASSERT_EQ(err, 0);
 
-    snprintf(read_buff, sizeof(read_buff), "%.*s", (int)cur_klen, (char *)cur_key);
+    n = snprintf(read_buff, sizeof(read_buff), "%.*s", (int)cur_klen, (char *)cur_key);
+    ASSERT_LT(n, sizeof(read_buff));
     ASSERT_STREQ(search_key, read_buff);
 
     /* TC: A cursor will be positioned at the first key if the specified key does not exist */
@@ -241,20 +249,21 @@ MTF_DEFINE_UTEST_PREPOST(cursor_api_test, cursor_seek_testcase, populate_kvs, de
     err = hse_kvs_cursor_read(cursor, NULL, &cur_key, &cur_klen, &cur_val, &cur_vlen, &eof);
     ASSERT_EQ(err, 0);
 
-    snprintf(read_buff, sizeof(read_buff), "%.*s", (int)cur_klen, (char *)cur_key);
+    n = snprintf(read_buff, sizeof(read_buff), "%.*s", (int)cur_klen, (char *)cur_key);
+    ASSERT_LT(n, sizeof(read_buff));
     ASSERT_STREQ("test_key_00", read_buff);
 }
 
 MTF_DEFINE_UTEST_PREPOST(cursor_api_test, cursor_multiple_testcase, populate_kvs, destroy_kvs)
 {
-    hse_err_t              err;
+    int                    count_1 = 0, count_2 = 0;
     bool                   eof = false;
     const void *           cur_key, *cur_val;
     size_t                 cur_klen, cur_vlen;
-    struct hse_kvs_cursor *duplicate_cursor;
     char                   buff_1[16], buff_2[16];
-    int                    count_1 = 0, count_2 = 0;
-    struct hse_kvs_cursor *cursor = NULL;
+    hse_err_t              err;
+    struct hse_kvs_cursor *cursor;
+    struct hse_kvs_cursor *duplicate_cursor;
 
     err = hse_kvs_cursor_create(kvs_handle, NULL, NULL, 0, &cursor);
     ASSERT_EQ(err, 0);
