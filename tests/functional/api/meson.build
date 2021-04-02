@@ -37,6 +37,12 @@ tests = {
         ],
         'is_parallel': false,
     },
+    'kvs_api_test':{
+        'args': [
+            get_option('tests-kvdb')
+        ],
+        'is_parallel': false,
+    }
 }
 
 foreach t, params : tests
