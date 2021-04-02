@@ -133,8 +133,10 @@ fatal(uint64_t err, const char *fmt, ...)
     vsnprintf(msg, sizeof(msg), fmt, ap);
     va_end(ap);
 
-    hse_err_to_string(err, errbuf, sizeof(errbuf), 0);
-    fprintf(stderr, "%s: %s: %s\n", progname, msg, errbuf);
+    if (err) {
+        hse_err_to_string(err, errbuf, sizeof(errbuf), 0);
+        fprintf(stderr, "%s: %s: %s\n", progname, msg, errbuf);
+    }
 
     exit(1);
 }
@@ -186,7 +188,7 @@ ctxn_validation_init_c0(void)
 
     os.kop_txn = hse_kvdb_txn_alloc(kvdb);
     if (!os.kop_txn)
-        fatal(rc, "hse_kvdb_txn_alloc");
+        fatal(ENOMEM, "hse_kvdb_txn_alloc");
 
     rc = hse_kvdb_txn_begin(kvdb, os.kop_txn);
     if (rc)
