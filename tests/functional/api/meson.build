@@ -37,7 +37,7 @@ tests = {
         ],
         'is_parallel': false,
     },
-    'kvs_api_test':{
+    'kvs_make_test':{
         'args': [
             get_option('tests-kvdb')
         ],
