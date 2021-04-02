@@ -1196,10 +1196,10 @@ kvs_cursor_read(struct hse_kvs_cursor *handle, struct kvs_kvtuple *kvt, bool *eo
     if (ev(cursor->kci_err))
         return cursor->kci_err;
 
+    cursor->kci_need_toss = 1;
     if (*eofp)
         return 0;
 
-    cursor->kci_need_toss = 1;
     *kvt = *cursor->kci_last;
     return 0;
 }

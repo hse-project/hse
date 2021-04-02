@@ -226,6 +226,7 @@ MTF_DEFINE_UTEST_PRE(kvdb_test, kvdb_cursor_test, general_pre)
     struct hse_kvs_cursor *cur;
     struct hse_kvdb_opspec os;
 
+    struct hse_params *params;
     const void *kbuf, *vbuf;
     size_t      klen, vlen;
     bool        eof;
@@ -240,6 +241,7 @@ MTF_DEFINE_UTEST_PRE(kvdb_test, kvdb_cursor_test, general_pre)
 
     HSE_KVDB_OPSPEC_INIT(&os);
 
+    hse_params_create(&params);
     rc = hse_kvdb_open("mp1", 0, &h);
     ASSERT_EQ(0, rc);
     ASSERT_NE(0, h);
@@ -247,16 +249,22 @@ MTF_DEFINE_UTEST_PRE(kvdb_test, kvdb_cursor_test, general_pre)
     rc = hse_kvdb_kvs_make(h, "kv1", 0);
     ASSERT_EQ(0, rc);
 
-    rc = hse_kvdb_kvs_open(h, "kv1", 0, &kvs);
+    rc = hse_params_set(params, "kvs.transactions_enable", "1");
+    ASSERT_EQ(0, rc);
+    rc = hse_kvdb_kvs_open(h, "kv1", params, &kvs);
     ASSERT_EQ(0, rc);
     ASSERT_NE(0, kvs);
-
-    rc = hse_kvs_put(kvs, 0, "key", 3, "val", 3);
-    ASSERT_EQ(0, rc);
 
     os.kop_flags = 0;
     os.kop_txn = hse_kvdb_txn_alloc(h);
     ASSERT_NE(0, os.kop_txn);
+
+    rc = hse_kvdb_txn_begin(h, os.kop_txn);
+    ASSERT_EQ(0, rc);
+    rc = hse_kvs_put(kvs, &os, "key", 3, "val", 3);
+    ASSERT_EQ(0, rc);
+    rc = hse_kvdb_txn_commit(h, os.kop_txn);
+    ASSERT_EQ(0, rc);
 
     rc = hse_kvdb_txn_begin(h, os.kop_txn);
     ASSERT_EQ(0, rc);

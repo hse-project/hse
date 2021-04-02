@@ -76,25 +76,31 @@ kvs.close()
 
 # Test 3: Read keys across c0/cn, with key update.
 p.set(key="kvs.pfx_len", value="1")
+p.set(key="kvs.transactions_enable", value="1")
 kvdb.kvs_make("kvs29-3", params=p)
 kvs = kvdb.kvs_open("kvs29-3", params=p)
 
-kvs.put(b"a1a", b"1")
-kvs.put(b"a1b", b"2")
-kvs.put(b"a1c", b"3")
+with kvdb.transaction() as txn:
+    kvs.put(b"a1a", b"1", txn=txn)
+    kvs.put(b"a1b", b"2", txn=txn)
+    kvs.put(b"a1c", b"3", txn=txn)
 kvdb.sync()
 
-kvs.put(b"a1b", b"4")
+with kvdb.transaction() as txn:
+    kvs.put(b"a1b", b"4", txn=txn)
 
-cursor = kvs.cursor()
+read_txn = kvdb.transaction()
+read_txn.begin()
+cursor = kvs.cursor(txn=read_txn, bind_txn=True)
 cursor.seek(b"a1b")
 kv = cursor.read()
 assert kv == (b"a1b", b"4")
 
-revcursor = kvs.cursor(reverse=True)
+revcursor = kvs.cursor(reverse=True, txn=read_txn, bind_txn=True)
 revcursor.seek(b"a1b")
 kv = revcursor.read()
 assert kv == (b"a1b", b"4")
+read_txn.abort()
 
 kvdb.sync()
 

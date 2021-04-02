@@ -733,12 +733,9 @@ kvdb_ctxn_put(
     if (ev(!kvdb_ctxn_trylock(ctxn)))
         return merr(EPROTO);
 
-    {
-        int x = seqnoref_to_state(ctxn->ctxn_seqref);
-        if (ev(x != KVDB_CTXN_ACTIVE)) {
-            err = merr(EPROTO);
-            goto errout;
-        }
+    if (ev(seqnoref_to_state(ctxn->ctxn_seqref) != KVDB_CTXN_ACTIVE)) {
+        err = merr(EPROTO);
+        goto errout;
     }
 
     if (!ctxn->ctxn_can_insert) {

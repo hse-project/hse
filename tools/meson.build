@@ -140,12 +140,6 @@ tools = {
             'kvs_helper.c',
         ),
     },
-    'pdel': {
-        'sources': files(
-            'pdel' / 'pdel.c',
-            'common.c',
-        ),
-    },
     'pfx_probe': {
         'sources': files(
             'pfx_probe' / 'pfx_probe.c',

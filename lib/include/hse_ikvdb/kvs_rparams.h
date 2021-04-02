@@ -30,6 +30,7 @@
 struct kvs_rparams {
     unsigned long kvs_debug;
     unsigned long kvs_cursor_ttl;
+    unsigned long transactions_enable;
 
     unsigned long cn_maint_delay;
     unsigned long cn_maint_disable;

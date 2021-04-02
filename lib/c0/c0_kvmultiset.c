@@ -931,6 +931,8 @@ errout:
     return 0;
 }
 
+/* HSE_REVISIT Remove this function once LC has been implemented.
+ */
 void
 c0kvms_abort_active(struct c0_kvmultiset *handle)
 {
@@ -938,9 +940,9 @@ c0kvms_abort_active(struct c0_kvmultiset *handle)
     uint c0snr_cnt;
     int i;
     int attempts = 5;
-    bool backoff = true;
+    bool backoff;
 
-    while (attempts-- && backoff) {
+    do {
         backoff = false;
         c0snr_cnt = atomic_read(&self->c0ms_c0snr_cnt);
         for (i = 0; i < c0snr_cnt; i++) {
@@ -954,7 +956,11 @@ c0kvms_abort_active(struct c0_kvmultiset *handle)
 
         if (backoff)
             sleep(1);
-    }
+
+    } while (--attempts && backoff);
+
+    if (!attempts)
+        hse_log(HSE_ERR "Back off attempts expired. Ingest may abort transactions");
 
     c0snr_cnt = atomic_read(&self->c0ms_c0snr_cnt);
     for (i = 0; i < c0snr_cnt; i++) {

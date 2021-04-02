@@ -63,6 +63,7 @@ cnt, *kv = hse_exp.kvs_prefix_probe(kvs, b"Abc")
 assert cnt == hse_exp.KvsPfxProbeCnt.MUL
 assert kv == [b"AbcX9", b"1"]
 
+'''
 txn = kvdb.transaction()
 txn.begin()
 kvs.delete(b"AbcX9", txn=txn)
@@ -70,6 +71,9 @@ cnt, *kv = hse_exp.kvs_prefix_probe(kvs, b"Abc", txn=txn)
 assert cnt == hse_exp.KvsPfxProbeCnt.MUL
 assert kv == [b"AbcX4", b"1"]
 txn.commit()
+'''
+
+kvs.delete(b"AbcX9")
 
 cnt, *kv = hse_exp.kvs_prefix_probe(kvs, b"Abc")
 assert cnt == hse_exp.KvsPfxProbeCnt.MUL

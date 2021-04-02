@@ -331,9 +331,14 @@ reader(void *arg)
 	pthread_setname_np(pthread_self(), __func__);
 
 	HSE_KVDB_OPSPEC_INIT(&os);
+	os.kop_txn = hse_kvdb_txn_alloc(targ->kvdb);
 
 	while (!killthreads) {
 		uint64_t last_safe_pfx = atomic64_read(&pfx) - 1;
+
+		rc = hse_kvdb_txn_begin(targ->kvdb, os.kop_txn);
+		if (rc)
+			fatal(rc, "Failed to begin txn");
 
 		/* [MU_REVISIT] Consider adding an option to replace
 		 * destroy-create-seek with an update to test positional
@@ -404,10 +409,17 @@ reader(void *arg)
 			}
 		}
 
+        /* Abort txn: This was a read-only txn */
+        rc = hse_kvdb_txn_abort(targ->kvdb, os.kop_txn);
+        if (rc)
+            fatal(rc, "Failed to abort txn");
+
 		atomic64_add(cnt % 1024, &ti->ops);
 
 		hse_kvs_cursor_destroy(c);
 	}
+
+    hse_kvdb_txn_free(targ->kvdb, os.kop_txn);
 }
 
 void
@@ -522,6 +534,7 @@ main(int argc, char **argv)
 	}
 
 	hse_params_create(&params);
+	hse_params_set(params, "kvs.transactions_enable", "1");
 
 	kh_rparams(&argc, &argv, params);
 	if (argc != 2) {
