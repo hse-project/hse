@@ -1980,7 +1980,7 @@ MTF_DEFINE_UTEST_PREPOST(c0sk_test, c0_cursor_robust, no_fail_pre, no_fail_post)
             if (random() % 100 < 5)
                 atomic64_inc(&seqno);
             if (j > 0 && j % 17977 == 0)
-                c0sk_flush(c0sk, NULL);
+                c0sk_flush(c0sk);
         }
     }
 
@@ -2161,7 +2161,7 @@ MTF_DEFINE_UTEST_PREPOST(c0sk_test, c0_cursor_eagain, no_fail_pre, no_fail_post)
         err = c0sk_put(c0sk, skidx, &kt, &vt, HSE_SQNREF_SINGLE);
         ASSERT_EQ(0, err);
 
-        c0sk_flush(c0sk, NULL);
+        c0sk_flush(c0sk);
         err = c0sk_cursor_update(cur, atomic64_fetch_add(1, &seqno), 0);
         if (err)
             ASSERT_EQ(EAGAIN, merr_errno(err));
@@ -2302,7 +2302,7 @@ MTF_DEFINE_UTEST_PREPOST(c0sk_test, c0_rcursor_robust, no_fail_pre, no_fail_post
             if (random() % 100 < 5)
                 atomic64_inc(&seqno);
             if (j > 0 && j % 17977 == 0)
-                c0sk_flush(c0sk, NULL);
+                c0sk_flush(c0sk);
         }
     }
 
@@ -2547,7 +2547,7 @@ MTF_DEFINE_UTEST_PREPOST(c0sk_test, c0_cursor_ptombs, no_fail_pre, no_fail_post)
         err = c0sk_put(mkvdb.ikdb_c0sk, skidx, &kt, &vt, HSE_SQNREF_SINGLE);
         ASSERT_EQ(0, err);
         if (i > 0 && i % 4000 == 0)
-            c0sk_flush(c0sk, NULL);
+            c0sk_flush(c0sk);
 
         if (i > 0 && i == 8765) {
             kvs_ktuple_init(&kt, kbuf, sizeof(kbuf[0]));

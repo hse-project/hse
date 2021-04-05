@@ -2454,7 +2454,7 @@ ikvdb_flush(struct ikvdb *handle)
     if (ev(self->ikdb_rdonly))
         return merr(EROFS);
 
-    return c0sk_flush(self->ikdb_c0sk, NULL);
+    return c0sk_flush(self->ikdb_c0sk);
 }
 
 u64

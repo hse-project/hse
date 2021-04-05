@@ -1367,7 +1367,7 @@ MTF_DEFINE_UTEST_PREPOST(ikvdb_test, cursor_tombspan, test_pre_c0, test_post_c0)
     kmin_len = sprintf(kbuf, "%06d", 0) + 1;
     kvs_ktuple_init(&kt, kbuf, kmin_len);
 
-    err = c0sk_flush_current_multiset(c0sk_h2r(c0sk), 0, &gen);
+    err = c0sk_flush_current_multiset(c0sk_h2r(c0sk), &gen);
     ASSERT_EQ(0, err);
 
     for (i = 0; i < LEN / 100; i++) {
@@ -1432,7 +1432,7 @@ MTF_DEFINE_UTEST_PREPOST(ikvdb_test, cursor_tombspan, test_pre_c0, test_post_c0)
         }
     }
 
-    err = c0sk_flush_current_multiset(c0sk_h2r(c0sk), 0, &gen);
+    err = c0sk_flush_current_multiset(c0sk_h2r(c0sk), &gen);
     ASSERT_EQ(0, err);
 
     for (i = 0; i < LEN / 100; i++) {

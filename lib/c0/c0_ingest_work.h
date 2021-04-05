@@ -39,7 +39,7 @@
  */
 struct c0_ingest_work {
     struct work_struct          c0iw_work;
-    void                       *c0iw_c0;
+    struct c0sk_impl           *c0iw_c0sk;
     struct bin_heap2           *c0iw_minheap;
     struct element_source      *c0iw_sourcev[HSE_C0_KVSET_ITER_MAX];
     struct c0_kvset_iterator    c0iw_iterv[HSE_C0_KVSET_ITER_MAX];
