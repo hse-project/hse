@@ -90,14 +90,14 @@ MTF_DEFINE_UTEST(put_get_delete, put_get)
 
 MTF_DEFINE_UTEST(put_get_delete, kvs_put_get_delete_testcase)
 {
-    hse_err_t   err;
-    char        vbuf[32];
-    size_t      vlen;
-    bool        found;
-    const char *test_key = "test_key";
-    const char *test_value = "test_value";
-    size_t      klen = strlen(test_key);
-    size_t      vallen = strlen(test_value);
+    hse_err_t  err;
+    char       vbuf[VAL_LEN_MAX];
+    size_t     vlen;
+    bool       found;
+    const char test_key[] = "test_key";
+    const char test_value[] = "test_value";
+    size_t     klen = sizeof(test_key) - 1;
+    size_t     vallen = sizeof(test_value) - 1;
 
     /* TC: A KVS cannot put a NULL key */
     err = hse_kvs_put(kvs, NULL, NULL, 0, test_value, vallen);
