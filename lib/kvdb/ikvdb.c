@@ -116,7 +116,7 @@ struct kvdb_ctxn_bkt {
  * @ikdb_log:           KVDB log handle
  * @ikdb_cndb:          CNDB handle
  * @ikdb_workqueue:
- * @ikdb_curcnt:        number of active cursors
+ * @ikdb_curcnt:        number of active cursors (lazily updated)
  * @ikdb_curcnt_max:    maximum number of active cursors
  * @ikdb_cur_ticket:    ticket lock ticket dispenser (serializes ikvdb_cur_list access)
  * @ikdb_cur_serving:   ticket lock "now serving" number
@@ -140,7 +140,7 @@ struct kvdb_ctxn_bkt {
  * the first field of %ikdb_health out of the first cache line.  Similarly,
  * the group of fields which contains %ikdb_seqno is heavily concurrently
  * accessed and heavily modified. Only add a new field to this group if it
- * will be accessed just before or after accessing %ikdb_curcnt or %ikdb_seqno.
+ * will be accessed just before or after accessing %ikdb_seqno.
  */
 struct ikvdb_impl {
     struct ikvdb          ikdb_handle;
@@ -410,6 +410,7 @@ static void
 ikvdb_maint_task(struct work_struct *work)
 {
     struct ikvdb_impl *self;
+    u64 curcnt_warn = 0;
     u64 maxdelay;
 
     self = container_of(work, struct ikvdb_impl, ikdb_maint_work);
@@ -419,6 +420,29 @@ ikvdb_maint_task(struct work_struct *work)
     while (!self->ikdb_work_stop) {
         u64 tstart = get_time_ns();
         uint i;
+
+        /* Lazily sample the active cursor count and update ikdb_curcnt if necessary.
+         * ikvdb_kvs_cursor_create() checks ikdb_curcnt to prevent the creation
+         * of excessive numbers of cursors.
+         */
+        if (1) {
+            uint64_t vadd = 0, vsub = 0, curcnt;
+
+            perfc_read(&kvdb_metrics_pc, PERFC_BA_KVDBMETRICS_CURCNT, &vadd, &vsub);
+
+            curcnt = (vadd > vsub) ? (vadd - vsub) : 0;
+
+            if (atomic_read(&self->ikdb_curcnt) != curcnt) {
+                atomic_set(&self->ikdb_curcnt, curcnt);
+
+                if (ev(curcnt > self->ikdb_curcnt_max && tstart > curcnt_warn)) {
+                    hse_log(HSE_WARNING "%s: active cursors (%lu) > max allowed (%u)",
+                            __func__, curcnt, self->ikdb_curcnt_max);
+
+                    curcnt_warn = tstart + NSEC_PER_SEC * 15;
+                }
+            }
+        }
 
         /* [HSE_REVISIT] move from big lock to using refcnts for
          * accessing KVSes in the kvs vector. Here and in all admin
@@ -2032,7 +2056,6 @@ ikvdb_kvs_cursor_create(
     struct hse_kvs_cursor *cur = 0;
     int                    reverse;
     merr_t                 err;
-    unsigned int           cursor_cnt;
     u64                    vseq, tstart;
     struct perfc_set *     pkvsl_pc;
 
@@ -2041,19 +2064,13 @@ ikvdb_kvs_cursor_create(
     if (ev(!is_read_allowed(kk->kk_ikvs, os)))
         return merr(EINVAL);
 
+    if (ev(atomic_read(&ikvdb->ikdb_curcnt) > ikvdb->ikdb_curcnt_max))
+        return merr(ECANCELED);
+
     pkvsl_pc = ikvs_perfc_pkvsl(kk->kk_ikvs);
     tstart = perfc_lat_start(pkvsl_pc);
 
     reverse = false;
-    cursor_cnt = atomic_read(&ikvdb->ikdb_curcnt);
-    if (ev(cursor_cnt >= ikvdb->ikdb_curcnt_max)) {
-        hse_log(
-            HSE_WARNING "Number of open cursors (%u) has exceeded "
-                        "the max allowed cursors (%u)",
-            cursor_cnt,
-            ikvdb->ikdb_curcnt_max);
-        return merr(ECANCELED);
-    }
 
     /*
      * There are 3 types of cursors:
@@ -2107,8 +2124,6 @@ ikvdb_kvs_cursor_create(
     /* if we have a transaction at all, use its view seqno... */
     cur->kc_seq = vseq;
     cur->kc_flags = os ? os->kop_flags : 0;
-    cur->kc_cursor_cnt = &ikvdb->ikdb_curcnt;
-    atomic_inc(cur->kc_cursor_cnt);
 
     cur->kc_kvs = kk;
     cur->kc_gen = 0;
@@ -2140,6 +2155,7 @@ ikvdb_kvs_cursor_create(
         ikvdb_kvs_cursor_destroy(cur);
         cur = 0;
     } else {
+        perfc_inc(&kvdb_metrics_pc, PERFC_BA_KVDBMETRICS_CURCNT);
         cur->kc_create_time = tstart;
     }
 
@@ -2401,7 +2417,6 @@ ikvdb_kvs_cursor_destroy(struct hse_kvs_cursor *cur)
     ctime = cur->kc_create_time;
 
     cursor_unbind_txn(cur);
-    atomic_dec(cur->kc_cursor_cnt);
 
     perfc_dec(&kvdb_metrics_pc, PERFC_BA_KVDBMETRICS_CURCNT);
 

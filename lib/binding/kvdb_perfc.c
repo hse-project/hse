@@ -85,7 +85,7 @@ struct perfc_name c0_metrics_perfc[] = {
 NE_CHECK(c0_metrics_perfc, PERFC_EN_C0METRICS, "c0_metrics_perfc table/enum mismatch");
 
 struct perfc_name kvdb_metrics_perfc[] = {
-    NE(PERFC_BA_KVDBMETRICS_CURCNT, 2, "Current kvdb cursor count", "curcnt"),
+    NE(PERFC_BA_KVDBMETRICS_CURCNT, 0, "Current kvdb cursor count", "curcnt"),
 
     NE(PERFC_BA_KVDBMETRICS_SEQNO, 3, "Current kvdb seqno", "c_seqno"),
     NE(PERFC_BA_KVDBMETRICS_CURHORIZON, 3, "Cursor kvdb horizon", "cur_horizon"),

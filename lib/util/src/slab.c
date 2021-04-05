@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
 #define MTF_MOCK_IMPL_slab
@@ -50,8 +50,6 @@
 #include <hse_util/page.h>
 #include <hse_util/slab.h>
 
-#include <syscall.h>
-
 #define MAX_NUMNODES 4
 
 /* KMC_SPC              number of slabs per chunk (power of 2)
@@ -60,14 +58,14 @@
  * KMC_CHUNK_MASK       mask used to obtain chunk base address
  * KMC_CHUNK_OFFSET     offset from chunk base to chunk header
  */
-#define KMC_SPC (32)
-#define KMC_SLAB_SZ (64 * 1024)
-#define KMC_CHUNK_SZ (KMC_SPC * KMC_SLAB_SZ)
-#define KMC_CHUNK_MASK (~(KMC_CHUNK_SZ - 1))
-#define KMC_CHUNK_OFFSET (KMC_CHUNK_SZ - sizeof(struct kmc_chunk))
+#define KMC_SPC             (8)
+#define KMC_SLAB_SZ         (256 * 1024)
+#define KMC_CHUNK_SZ        (KMC_SPC * KMC_SLAB_SZ)
+#define KMC_CHUNK_MASK      (~(KMC_CHUNK_SZ - 1))
+#define KMC_CHUNK_OFFSET    (KMC_CHUNK_SZ - sizeof(struct kmc_chunk))
 
-#define KMC_PCPU_MIN (1)
-#define KMC_PCPU_MAX (16)
+#define KMC_PCPU_MIN        (1)
+#define KMC_PCPU_MAX        (16)
 
 #define kmc_slab_first(_head)   list_first_entry_or_null((_head), struct kmc_slab, slab_entry)
 #define kmc_slab_last(_head)    list_last_entry_or_null((_head), struct kmc_slab, slab_entry)
@@ -117,8 +115,7 @@ struct kmc_slab {
     void *            slab_base;
     struct list_head  slab_zentry;
 
-    HSE_ALIGNED(SMP_CACHE_BYTES)
-    bool  slab_expired;
+    bool  slab_expired  HSE_ALIGNED(SMP_CACHE_BYTES);
     uint  slab_bmidx;
     uint  slab_imax;
     uint  slab_iused;
@@ -594,6 +591,18 @@ kmc_slab_ffs(struct kmc_slab *slab)
     return -1;
 }
 
+static HSE_ALWAYS_INLINE struct kmc_pcpu *
+kmc_cpu2cache(struct kmem_cache *zone, uint *nodep)
+{
+    uint cpu, core, n;
+
+    hse_getcpu(&cpu, nodep, &core);
+
+    n = zone->zone_pcpuc / 2;
+
+    return zone->zone_pcpuv + ((*nodep % 2) * n) + (core % n);
+}
+
 void *
 kmem_cache_alloc(struct kmem_cache *zone)
 {
@@ -601,15 +610,12 @@ kmem_cache_alloc(struct kmem_cache *zone)
     struct kmc_slab *slab;
     void *           mem;
     int              idx;
-    uint cpuid, nodeid;
+    uint node;
 
     assert(zone);
     assert(zone->zone_magic == zone);
 
-    /* TODO: Use cpu core ID here (rather than logical cpu ID) to improve
-     * the likelihood of obtaining NUMA-local memory.
-     */
-    pcpu = zone->zone_pcpuv + (raw_smp_processor_id() % zone->zone_pcpuc);
+    pcpu = kmc_cpu2cache(zone, &node);
 
     kmc_pcpu_lock(pcpu);
     while (1) {
@@ -626,14 +632,9 @@ kmem_cache_alloc(struct kmem_cache *zone)
         }
         kmc_pcpu_unlock(pcpu);
 
-        if (syscall(SYS_getcpu, &cpuid, &nodeid, NULL)) {
-            cpuid = raw_smp_processor_id();
-            nodeid = cpuid;
-        }
+        slab = kmc_slab_alloc(zone, node);
 
-        slab = kmc_slab_alloc(zone, nodeid);
-
-        pcpu = zone->zone_pcpuv + (cpuid % zone->zone_pcpuc);
+        pcpu = kmc_cpu2cache(zone, &node);
 
         kmc_pcpu_lock(pcpu);
         if (slab) {
@@ -868,7 +869,7 @@ kmem_cache_create(const char *name, size_t size, size_t align, ulong flags, void
 
     pcpuc = clamp_t(uint, num_conf_cpus(), KMC_PCPU_MIN, KMC_PCPU_MAX);
     zone_sz = sizeof(*zone) + sizeof(zone->zone_pcpuv[0]) * pcpuc;
-    zone_sz = ALIGN(zone_sz, SMP_CACHE_BYTES);
+    zone_sz = ALIGN(zone_sz, alignof(*zone));
 
     zone = alloc_aligned(zone_sz, alignof(*zone));
     if (ev(!zone))

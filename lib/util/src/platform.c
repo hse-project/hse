@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
 #define MTF_MOCK_IMPL_arch
@@ -22,6 +22,10 @@
 #include "logging_impl.h"
 #include "logging_util.h"
 #include "rest_dt.h"
+
+#include <syscall.h>
+
+struct hse_cputopo hse_cputopov[CPU_SETSIZE] HSE_READ_MOSTLY HSE_ALIGNED(SMP_CACHE_BYTES);
 
 rest_get_t kmc_rest_get;
 
@@ -87,6 +91,70 @@ hse_meminfo(ulong *freep, ulong *availp, uint shift)
     ev(1); /* monitor usage, don't call this function too often */
 }
 
+/**
+ * hse_cputopo_init() - build a cpu topology map
+ *
+ * This function builds a map of the cpu topology such that we can
+ * easily find a given CPU's core and node IDs by calling hse_getcpu();
+ */
+static void
+hse_cputopo_init(void)
+{
+    uint cpu, core, socket, node, cpumax, cpuconf;
+    int lineno, len, n;
+    char linebuf[1024];
+    FILE *fp;
+
+    for (cpu = 0; cpu < NELEM(hse_cputopov); ++cpu) {
+        hse_cputopov[cpu].core = cpu;
+        hse_cputopov[cpu].node = cpu % 2;
+    }
+
+    fp = popen("/bin/lscpu -p", "r");
+    if (!fp) {
+        hse_log_sync(HSE_WARNING "%s: unable to build cpu-to-coreid map: %d", __func__, errno);
+        return;
+    }
+
+    cpuconf = 0;
+    cpumax = 0;
+    lineno = 0;
+
+    while (fgets(linebuf, sizeof(linebuf), fp)) {
+        linebuf[sizeof(linebuf) - 1] = '\000';
+        ++lineno;
+
+        if (linebuf[0] == '#' || (len = strlen(linebuf)) < 2)
+            continue;
+
+        n = sscanf(linebuf, "%u,%u,%u,%u", &cpu, &core, &socket, &node);
+
+        if (n != 4) {
+            hse_log_sync(HSE_ERR "%s: unable to scan lscpu output: line %d, n %d, %s",
+                         __func__, lineno, n, linebuf);
+            continue;
+        }
+
+        cpuconf++;
+
+        if (ev(cpu >= NELEM(hse_cputopov)))
+            continue;
+
+        hse_cputopov[cpu].core = core;
+        hse_cputopov[cpu].node = node;
+
+        if (cpu > cpumax)
+            cpumax = cpu;
+    }
+
+    pclose(fp);
+
+    if (cpuconf > cpumax) {
+        hse_log_sync(HSE_INFO "%s: %u cpus detected, dynamic cpu sets required",
+                     __func__, cpuconf);
+    }
+}
+
 merr_t
 hse_platform_init(void)
 {
@@ -110,6 +178,8 @@ hse_platform_init(void)
     err = hse_logging_init();
     if (err)
         goto errout;
+
+    hse_cputopo_init();
 
     err = vlb_init();
     if (err)

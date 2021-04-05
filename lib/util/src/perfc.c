@@ -307,19 +307,33 @@ perfc_di_emit(struct perfc_dis *dis, struct yaml_context *yc)
     yaml_element_field(yc, "bkts", bktstr);
 }
 
-static HSE_ALWAYS_INLINE void
-_gather_values(struct perfc_ctr_hdr *hdr, u64 *vadd, u64 *vsub)
+static void
+perfc_read_hdr(struct perfc_ctr_hdr *hdr, u64 *vadd, u64 *vsub)
 {
-    struct perfc_val   *val = hdr->pch_val;
-    int                 i;
+    struct perfc_val *val = hdr->pch_val;
+    int i;
 
     *vadd = *vsub = 0;
 
+    /* Must skip by values-per-cpu due to how multiple per-cpu values
+     * from different counters are packed into cache lines.  E.g.,
+     * summing over val[i].pcv_vadd would go horribly awry...
+     */
     for (i = 0; i < PERFC_VALPERCNT; ++i) {
         *vadd += atomic64_read(&val->pcv_vadd);
         *vsub += atomic64_read(&val->pcv_vsub);
         val += PERFC_VALPERCPU;
     }
+}
+
+void
+perfc_read(struct perfc_set *pcs, const u32 cidx, u64 *vadd, u64 *vsub)
+{
+    struct perfc_seti *pcsi;
+
+    pcsi = perfc_ison(pcs, cidx);
+    if (pcsi)
+        perfc_read_hdr(&pcsi->pcs_ctrv[cidx].hdr, vadd, vsub);
 }
 
 static size_t
@@ -366,7 +380,7 @@ emit_handler_ctrset(struct dt_element *dte, struct yaml_context *yc)
 
         switch (ctr_hdr->pch_type) {
         case PERFC_TYPE_BA:
-            _gather_values(ctr_hdr, &vadd, &vsub);
+            perfc_read_hdr(ctr_hdr, &vadd, &vsub);
             vadd = vadd > vsub ? vadd - vsub : 0;
 
             u64_to_string(value, sizeof(value), vadd);
@@ -378,7 +392,7 @@ emit_handler_ctrset(struct dt_element *dte, struct yaml_context *yc)
             break;
 
         case PERFC_TYPE_SL:
-            _gather_values(ctr_hdr, &vadd, &vsub);
+            perfc_read_hdr(ctr_hdr, &vadd, &vsub);
 
             /* 'sum' and 'hitcnt' field names must match here and
              * for distribution counters

@@ -328,7 +328,7 @@ kvdb_ctxn_enable_inserts(struct kvdb_ctxn_impl *ctxn)
     priv = c0snr_set_get_c0snr(ctxn->ctxn_c0snr_set, &ctxn->ctxn_inner_handle);
     if (ev(!priv)) {
         kvdb_ctxn_locks_destroy(locks);
-        return merr(ENOMEM);
+        return merr(ECANCELED);
     }
 
     assert(*priv == HSE_SQNREF_INVALID);
@@ -734,7 +734,7 @@ kvdb_ctxn_put(
         return merr(EPROTO);
 
     if (ev(seqnoref_to_state(ctxn->ctxn_seqref) != KVDB_CTXN_ACTIVE)) {
-        err = merr(EPROTO);
+        err = merr(ECANCELED);
         goto errout;
     }
 
@@ -787,7 +787,7 @@ kvdb_ctxn_get(
         return merr(EPROTO);
 
     if (ev(seqnoref_to_state(ctxn->ctxn_seqref) != KVDB_CTXN_ACTIVE)) {
-        err = merr(EPROTO);
+        err = merr(ECANCELED);
         goto errout;
     }
 
@@ -814,7 +814,7 @@ kvdb_ctxn_del(struct kvdb_ctxn *handle, struct c0 *c0, const struct kvs_ktuple *
         return merr(EPROTO);
 
     if (ev(seqnoref_to_state(ctxn->ctxn_seqref) != KVDB_CTXN_ACTIVE)) {
-        err = merr(EPROTO);
+        err = merr(ECANCELED);
         goto errout;
     }
 

@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
 #include <hse_util/assert.h>
@@ -26,8 +26,8 @@
 
 #include "kvdb_keylock.h"
 
-#define KVDB_DLOCK_MAX 4 /* Must be power-of-2 */
-#define KVDB_LOCKS_SZ (16 * 1024 - SMP_CACHE_BYTES)
+#define KVDB_DLOCK_MAX      4 /* Must be power-of-2 */
+#define KVDB_LOCKS_SZ       (32 * 1024 - alignof(struct kvdb_ctxn_locks_impl))
 
 struct kvdb_keylock {
 };
@@ -41,8 +41,8 @@ struct kvdb_keylock {
  * @kd_mvs:     most recently expired minimum view seqno
  */
 struct kvdb_dlock {
-    struct mutex     kd_lock HSE_ALIGNED(SMP_CACHE_BYTES * 2);
-    struct list_head kd_list;
+    struct mutex     kd_lock  HSE_ALIGNED(SMP_CACHE_BYTES * 2);
+    struct list_head kd_list  HSE_ALIGNED(SMP_CACHE_BYTES);
     volatile u64     kd_mvs;
 };
 
@@ -109,7 +109,7 @@ struct kvdb_ctxn_locks_impl {
     volatile u64           ctxn_locks_end_seqno;
     uintptr_t              ctxn_locks_magic;
 
-    HSE_ALIGNED(SMP_CACHE_BYTES) struct rb_root ctxn_locks_tree;
+    struct rb_root ctxn_locks_tree  HSE_ALIGNED(SMP_CACHE_BYTES);
     u32 ctxn_locks_cnt;
     u32 ctxn_locks_entryc;
     u32 ctxn_locks_entrymax;
@@ -119,9 +119,9 @@ struct kvdb_ctxn_locks_impl {
 
 _Static_assert(sizeof(struct kvdb_ctxn_locks_impl) < KVDB_LOCKS_SZ, "KVDB_LOCKS_SZ too small");
 
-static struct kmem_cache *kvdb_ctxn_locks_cache;
-static struct kmem_cache *kvdb_ctxn_entry_cache;
-static atomic_t           kvdb_ctxn_locks_init_ref;
+static struct kmem_cache *kvdb_ctxn_locks_cache  HSE_READ_MOSTLY;
+static struct kmem_cache *kvdb_ctxn_entry_cache  HSE_READ_MOSTLY;
+static atomic_t           kvdb_ctxn_locks_init_ref  HSE_READ_MOSTLY;
 
 merr_t
 kvdb_keylock_create(struct kvdb_keylock **handle_out, u32 num_tables, u64 num_entries)
@@ -137,9 +137,9 @@ kvdb_keylock_create(struct kvdb_keylock **handle_out, u32 num_tables, u64 num_en
 
     sz = sizeof(*klock);
     sz += num_tables * sizeof(struct keylock *);
-    sz = ALIGN(sz, 1024);
+    sz = ALIGN(sz, alignof(*klock));
 
-    klock = alloc_aligned(sz, 1024);
+    klock = alloc_aligned(sz, alignof(*klock));
     if (ev(!klock))
         return merr(ENOMEM);
 
@@ -223,8 +223,11 @@ kvdb_keylock_list_lock(struct kvdb_keylock *handle, void **cookiep)
 {
     struct kvdb_keylock_impl *klock = kvdb_keylock_h2r(handle);
     struct kvdb_dlock *       dlock = klock->kl_dlockv;
+    uint cpu, node, core;
 
-    dlock += raw_smp_processor_id() % KVDB_DLOCK_MAX;
+    hse_getcpu(&cpu, &node, &core);
+
+    dlock += core % KVDB_DLOCK_MAX;
 
     mutex_lock(&dlock->kd_lock);
     *cookiep = dlock;
@@ -344,13 +347,16 @@ kvdb_keylock_expire(struct kvdb_keylock *handle, u64 min_view_sn)
     struct list_head             expired;
     u32                          mask;
     int                          idx;
+    uint cpu, node, core;
 
     klock = kvdb_keylock_h2r(handle);
+
+    hse_getcpu(&cpu, &node, &core);
 
     /* Start with the dlock onto which we most likely queued
      * a lock set.
      */
-    idx = raw_smp_processor_id() % KVDB_DLOCK_MAX;
+    idx = core % KVDB_DLOCK_MAX;
     mask = (1u << KVDB_DLOCK_MAX) - 1;
     INIT_LIST_HEAD(&expired);
 
@@ -590,14 +596,9 @@ static void
 kvdb_ctxn_locks_ctor(void *arg)
 {
     struct kvdb_ctxn_locks_impl *impl = arg;
-    size_t                       implsz;
 
-    implsz = offsetof(struct kvdb_ctxn_locks_impl, ctxn_locks_entryv);
-    implsz = ALIGN(implsz, 32);
-    assert(sizeof(*impl) >= implsz);
-
-    memset(impl, 0, implsz);
-    impl->ctxn_locks_entrymax = KVDB_LOCKS_SZ - implsz;
+    memset(impl, 0, sizeof(*impl));
+    impl->ctxn_locks_entrymax = KVDB_LOCKS_SZ - sizeof(*impl);
     impl->ctxn_locks_entrymax /= sizeof(impl->ctxn_locks_entryv[0]);
     impl->ctxn_locks_magic = ~(uintptr_t)impl;
 }
@@ -668,8 +669,8 @@ kvdb_ctxn_locks_init(void)
     if (atomic_inc_return(&kvdb_ctxn_locks_init_ref) > 1)
         return;
 
-    zone = kmem_cache_create(
-        "kvdb_ctxn_locks", KVDB_LOCKS_SZ, 0, SLAB_HWCACHE_ALIGN, kvdb_ctxn_locks_ctor);
+    zone = kmem_cache_create("kvdb_ctxn_locks", KVDB_LOCKS_SZ,
+                             alignof(struct kvdb_ctxn_locks_impl), 0, kvdb_ctxn_locks_ctor);
     kvdb_ctxn_locks_cache = zone;
     assert(zone); /* [HSE_REVISIT] */
 

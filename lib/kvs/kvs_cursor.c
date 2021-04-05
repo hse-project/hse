@@ -1,12 +1,13 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
 #include <hse/kvdb_perfc.h>
 
 #include <hse_util/platform.h>
 #include <hse_util/slab.h>
+#include <hse_util/vlb.h>
 #include <hse_util/string.h>
 #include <hse_util/fmt.h>
 
@@ -18,8 +19,6 @@
 #include <hse_ikvdb/kvdb_ctxn.h>
 #include <hse_ikvdb/tuple.h>
 #include <hse_ikvdb/cursor.h>
-
-#include <syscall.h>
 
 struct perfc_name kvs_cc_perfc_op[] = {
     NE(PERFC_BA_CC_RESTORE, 2, "Count of cursor restores", "c_restores"),
@@ -84,13 +83,41 @@ NE_CHECK(kvs_cd_perfc_op, PERFC_EN_CD, "cursor dist perfc ops table/enum mismatc
 
 struct curcache_entry {
     u64                     cc_ttl;
-    u64                     cc_cn_ttl;
-    u64                     cc_c0_ttl;
     struct kvs_cursor_impl *cc_next;
+};
+
+/**
+ * struct cache_bucket - a list of cursors per rb_node
+ * @node:     how we link into rb tree
+ * @next:     free bucket cache linkage
+ * @list:     list of cached cursors
+ * @oldest:   insertion time (ns) of oldest cursor on %list
+ * @cnt:      number of cursors on %list
+ * @freeme:   if %true, bucket must be freed via %free()
+ */
+struct curcache_bucket {
+    union {
+        struct rb_node          node;
+        struct curcache_bucket *next;
+    };
+    struct kvs_cursor_impl *list;
+    u64                     oldest;
+    int                     cnt;
+    bool                    freeme;
+};
+
+struct curcache {
+    struct mutex            cca_lock HSE_ALIGNED(SMP_CACHE_BYTES * 2);
+    struct rb_root          cca_root HSE_ALIGNED(SMP_CACHE_BYTES);
+    struct curcache_bucket *cca_cache;
+    uint                    cca_entryc;
+    uint                    cca_entrymax;
+    struct curcache_bucket *cca_entryv;
 };
 
 struct kvs_cursor_impl {
     struct hse_kvs_cursor   kci_handle;
+    uint64_t                kci_cca_key;
     struct curcache_entry   kci_cache;
     struct perfc_set *      kci_cc_pc;
     struct perfc_set *      kci_cd_pc;
@@ -119,16 +146,20 @@ struct kvs_cursor_impl {
     u32 kci_need_toss : 1;
     u32 kci_need_seek : 1;
     u32 kci_reverse : 1;
-    u32 kci_pfxlen : 8;
-    u32 kci_unused : 16;
 
+    u32    kci_pfxlen;
     u64    kci_pfxhash;
     merr_t kci_err; /* bad cursor, must destroy */
 
     char kci_prefix[];
 } HSE_ALIGNED(SMP_CACHE_BYTES);
 
-static struct kmem_cache *kvs_cursor_zone;
+static struct kmem_cache      *kvs_cursor_zone     HSE_READ_MOSTLY;
+static struct curcache_bucket *ikv_curcache_vlb    HSE_READ_MOSTLY;
+static size_t                  ikv_curcache_vlbsz  HSE_READ_MOSTLY;
+static uint64_t                ikv_curcache_preen_next;
+static uint                    ikv_curcache_preen_idx;
+static struct curcache         ikv_curcachev[32];
 
 void
 kvs_perfc_init(void)
@@ -180,7 +211,7 @@ enum { BIT_NONE = 0, BIT_C0 = 1, BIT_CN = 2, BIT_BOTH = 3 };
 
 #define cursor_h2r(h) container_of(h, struct kvs_cursor_impl, kci_handle)
 
-#define node2bucket(n) container_of(n, struct cache_bucket, node)
+#define node2bucket(n) container_of(n, struct curcache_bucket, node)
 
 /**
  * ikvs_cursor_bkt_alloc() - allocate a cursor cache node
@@ -188,20 +219,26 @@ enum { BIT_NONE = 0, BIT_C0 = 1, BIT_CN = 2, BIT_BOTH = 3 };
  *
  * Caller must hold the cursor cache lock.
  */
-static struct cache_bucket *
+static struct curcache_bucket *
 ikvs_cursor_bkt_alloc(struct curcache *cca)
 {
-    struct cache_bucket *bkt;
+    struct curcache_bucket *bkt;
 
-    bkt = cca->cca_bkt_head;
+    bkt = cca->cca_cache;
     if (bkt) {
-        cca->cca_bkt_head = *(void **)bkt;
-    } else {
-        bkt = calloc(1, sizeof(*bkt));
-        if (bkt)
-            bkt->freeme = true;
-        ev(1);
+        cca->cca_cache = bkt->next;
+        return bkt;
     }
+
+    if (cca->cca_entryc < cca->cca_entrymax) {
+        bkt = cca->cca_entryv + cca->cca_entryc++;
+        memset(bkt, 0, sizeof(*bkt));
+        return bkt;
+    }
+
+    bkt = calloc(1, sizeof(*bkt));
+    if (bkt)
+        bkt->freeme = true;
 
     return bkt;
 }
@@ -213,15 +250,14 @@ ikvs_cursor_bkt_alloc(struct curcache *cca)
  *
  * Caller must hold the cursor cache lock.
  */
-void
-ikvs_cursor_bkt_free(struct curcache *cca, struct cache_bucket *bkt)
+static void
+ikvs_cursor_bkt_free(struct curcache *cca, struct curcache_bucket *bkt)
 {
     if (bkt->freeme) {
         free(bkt);
-        ev(1);
     } else {
-        *(void **)bkt = cca->cca_bkt_head;
-        cca->cca_bkt_head = bkt;
+        bkt->next = cca->cca_cache;
+        cca->cca_cache = bkt;
     }
 }
 
@@ -243,7 +279,7 @@ ikvs_curcache_preen(
     node = rb_first(&cca->cca_root);
 
     for (; node; node = rb_next(node)) {
-        struct cache_bucket *    b = node2bucket(node);
+        struct curcache_bucket *b = node2bucket(node);
         struct kvs_cursor_impl **pp;
         u64                      oldest;
 
@@ -314,18 +350,22 @@ ikvs_curcache_preen(
 void
 ikvs_maint_task(struct ikvs *kvs, u64 now)
 {
-    uint cursors_retired = 0;
-    int  idx, i;
+    if (now >= ikv_curcache_preen_next) {
+        uint cursors_retired = 0;
+        int  idx, i;
 
-    /* Preen only a few cursor cache buckets per call...
-     */
-    for (i = 0; i < (NELEM(kvs->ikv_curcachev) / 4) + 1; ++i) {
-        idx = kvs->ikv_curcache_preenidx++ % NELEM(kvs->ikv_curcachev);
-        ikvs_curcache_preen(kvs->ikv_curcachev + idx, kvs, now, &cursors_retired);
+        /* Preen 1/5 of the cache every 100ms...
+         */
+        ikv_curcache_preen_next = now + NSEC_PER_SEC / 10;
+
+        for (i = 0; i < (NELEM(ikv_curcachev) / 5) + 1; ++i) {
+            idx = ikv_curcache_preen_idx++ % NELEM(ikv_curcachev);
+            ikvs_curcache_preen(ikv_curcachev + idx, kvs, now, &cursors_retired);
+        }
+
+        if (cursors_retired > 0)
+            perfc_add(&kvs->ikv_cc_pc, PERFC_BA_CC_RETIRE_KVS, cursors_retired);
     }
-
-    if (cursors_retired > 0)
-        perfc_add(&kvs->ikv_cc_pc, PERFC_BA_CC_RETIRE_KVS, cursors_retired);
 
     cn_periodic(kvs->ikv_cn, now);
 }
@@ -335,77 +375,81 @@ ikvs_maint_task(struct ikvs *kvs, u64 now)
  *
  * the rb_erase invalidates iteration, thus we loop on
  * the first entry, hoping this minimizes rebalancing
- *
- * NB: since reap is called during close, it is not a problem
- * to keep the tree locked at this point
  */
 void
 ikvs_cursor_reap(struct ikvs *kvs)
 {
+    struct rb_node *node, *next;
     struct curcache *cca;
-    struct rb_node * node;
-    int              i;
+    int i;
 
-    for (i = 0; i < NELEM(kvs->ikv_curcachev); ++i) {
-        cca = kvs->ikv_curcachev + i;
+    for (i = 0; i < NELEM(ikv_curcachev); ++i) {
+        cca = ikv_curcachev + i;
 
         mutex_lock(&cca->cca_lock);
         node = rb_first(&cca->cca_root);
 
         while (node) {
-            struct cache_bucket *b = node2bucket(node);
+            struct curcache_bucket *b = node2bucket(node);
 
-            while (b->list) {
-                struct kvs_cursor_impl *cur = b->list;
+            next = rb_next(node);
 
-                b->list = cur->kci_cache.cc_next;
-                ikvs_cursor_destroy(&cur->kci_handle);
+            if (b->list->kci_kvs == kvs) {
+                while (b->list) {
+                    struct kvs_cursor_impl *cur = b->list;
+
+                    b->list = cur->kci_cache.cc_next;
+                    ikvs_cursor_destroy(&cur->kci_handle);
+                }
+
+                rb_erase(node, &cca->cca_root);
+                ikvs_cursor_bkt_free(cca, b);
             }
 
-            rb_erase(node, &cca->cca_root);
-            ikvs_cursor_bkt_free(cca, b);
-
-            node = rb_first(&cca->cca_root);
+            node = next;
         }
         mutex_unlock(&cca->cca_lock);
     }
 }
 
-static struct curcache *
-ikvs_td2cca(struct ikvs *kvs, u64 pfxhash)
+static HSE_ALWAYS_INLINE struct curcache *
+ikvs_td2cca(struct ikvs *kvs, const bool save)
 {
-    uint cpuid, nodeid, i;
+    static thread_local uint tls_cca_idx;
 
-    if (( syscall(SYS_getcpu, &cpuid, &nodeid) ))
-        nodeid = raw_smp_processor_id();
+    if (save && !tls_cca_idx) {
+        static atomic_t g_cca_idx;
 
-    i = pthread_self() % (NELEM(kvs->ikv_curcachev) / 2);
-    i += (nodeid % 2) * (NELEM(kvs->ikv_curcachev) / 2);
+        tls_cca_idx = atomic_inc_return(&g_cca_idx) % NELEM(ikv_curcachev);
+    }
 
-    return kvs->ikv_curcachev + i;
+    return ikv_curcachev + tls_cca_idx;
 }
 
-static int
-ikvs_curcache_cmp(
-    const struct kvs_cursor_impl *cur,
-    const void *                  prefix,
-    size_t                        pfx_len,
-    bool                          reverse)
+/* ikvs_curcache_key() constructs a key for the cursor cache comparator
+ * such that we can compare both the kvs and cursor attributes (i.e.,
+ * reverse and/or has a prefix) in just one comparison.
+ */
+static HSE_ALWAYS_INLINE uint64_t
+ikvs_curcache_key(const uint64_t gen, const bool reverse, const bool prefix)
 {
-    if (reverse && !cur->kci_reverse)
-        return -1;
-    else if (!reverse && cur->kci_reverse)
-        return 1;
+    return (gen << 2) | ((uint)reverse << 1) | prefix;
+}
 
-    if (prefix && !cur->kci_prefix)
-        return -1;
-    else if (!prefix && cur->kci_prefix)
-        return 1;
+static HSE_ALWAYS_INLINE int
+ikvs_curcache_cmp(
+    const struct kvs_cursor_impl *old,
+    const uint64_t key,
+    const void *prefix,
+    const size_t pfxlen)
+{
+    if (key != old->kci_cca_key)
+        return (key < old->kci_cca_key) ? -1 : 1;
 
-    if (!prefix && !cur->kci_prefix)
+    if (!prefix)
         return 0;
 
-    return keycmp(prefix, pfx_len, cur->kci_prefix, cur->kci_pfxlen);
+    return keycmp(prefix, pfxlen, old->kci_prefix, old->kci_pfxlen);
 }
 
 static struct kvs_cursor_impl *
@@ -414,7 +458,7 @@ ikvs_curcache_insert(struct curcache *cca, struct kvs_cursor_impl *cur)
     struct rb_node **       link, *parent;
     struct rb_root *        root;
     struct kvs_cursor_impl *old;
-    struct cache_bucket *   b;
+    struct curcache_bucket *b;
     int                     rc;
 
     mutex_lock(&cca->cca_lock);
@@ -426,7 +470,7 @@ ikvs_curcache_insert(struct curcache *cca, struct kvs_cursor_impl *cur)
         parent = *link;
         old = node2bucket(parent)->list;
 
-        rc = ikvs_curcache_cmp(old, cur->kci_prefix, cur->kci_pfxlen, cur->kci_reverse);
+        rc = ikvs_curcache_cmp(old, cur->kci_cca_key, cur->kci_prefix, cur->kci_pfxlen);
         if (rc < 0)
             link = &(*link)->rb_left;
         else if (rc > 0)
@@ -465,23 +509,23 @@ ikvs_curcache_insert(struct curcache *cca, struct kvs_cursor_impl *cur)
 }
 
 static struct kvs_cursor_impl *
-ikvs_curcache_remove(struct curcache *cca, const void *prefix, size_t pfx_len, bool reverse)
+ikvs_curcache_remove(struct curcache *cca, uint64_t key, const void *prefix, size_t pfx_len)
 {
     struct rb_node *        node;
-    struct kvs_cursor_impl *cur;
-    struct cache_bucket *   b;
+    struct kvs_cursor_impl *old;
+    struct curcache_bucket *b;
     int                     rc;
 
     mutex_lock(&cca->cca_lock);
     node = cca->cca_root.rb_node;
-    cur = NULL;
+    old = NULL;
     b = 0;
 
     while (node) {
         b = node2bucket(node);
-        cur = b->list;
+        old = b->list;
 
-        rc = ikvs_curcache_cmp(cur, prefix, pfx_len, reverse);
+        rc = ikvs_curcache_cmp(old, key, prefix, pfx_len);
         if (rc < 0)
             node = node->rb_left;
         else if (rc > 0)
@@ -492,19 +536,19 @@ ikvs_curcache_remove(struct curcache *cca, const void *prefix, size_t pfx_len, b
 
     if (node) {
         assert(b);
-        b->list = cur->kci_cache.cc_next;
-        cur->kci_cache.cc_next = 0;
+        b->list = old->kci_cache.cc_next;
+        old->kci_cache.cc_next = 0;
         --b->cnt;
         if (b->list == 0) {
             rb_erase(node, &cca->cca_root);
             ikvs_cursor_bkt_free(cca, b);
         }
     } else {
-        cur = NULL;
+        old = NULL;
     }
     mutex_unlock(&cca->cca_lock);
 
-    return cur;
+    return old;
 }
 
 static void
@@ -528,18 +572,20 @@ ikvs_cursor_reset(struct kvs_cursor_impl *cursor)
         cursor->kci_cd_pc = &kvs->ikv_cd_pc;
 }
 
-__attribute__((__noinline__))
 static struct kvs_cursor_impl *
 ikvs_cursor_restore(struct ikvs *kvs, const void *prefix, size_t pfx_len, u64 pfxhash, bool reverse)
 {
     struct kvs_cursor_impl *cur;
     struct curcache *       cca;
     u64                     tstart;
+    uint64_t key;
 
     tstart = perfc_lat_startu(&kvs->ikv_cd_pc, PERFC_LT_CD_RESTORE);
 
-    cca = ikvs_td2cca(kvs, pfxhash);
-    cur = ikvs_curcache_remove(cca, prefix, pfx_len, reverse);
+    key = ikvs_curcache_key(kvs->ikv_gen, reverse, prefix);
+
+    cca = ikvs_td2cca(kvs, false);
+    cur = ikvs_curcache_remove(cca, key, prefix, pfx_len);
     if (!cur)
         return NULL;
 
@@ -659,9 +705,9 @@ ikvs_cursor_save(struct kvs_cursor_impl *cur)
      */
     tstart = perfc_lat_start(cd_pc);
     now = tstart ?: get_time_ns();
-    cur->kci_cache.cc_ttl = now + cur_age * 1048576;
+    cur->kci_cache.cc_ttl = now + cur_age * USEC_PER_SEC;
 
-    cca = ikvs_td2cca(kvs, cur->kci_pfxhash);
+    cca = ikvs_td2cca(kvs, true);
     cur = ikvs_curcache_insert(cca, cur);
 
     /*
@@ -710,6 +756,7 @@ ikvs_cursor_alloc(struct ikvs *kvs, const void *prefix, size_t pfx_len, bool rev
         return NULL;
 
     memset(cur, 0, sizeof(*cur));
+    cur->kci_cca_key = ikvs_curcache_key(kvs->ikv_gen, reverse, prefix);
     if (kvs->ikv_rp.kvs_debug & 16)
         cur->kci_cc_pc = &kvs->ikv_cc_pc;
     if (kvs->ikv_rp.kvs_debug & 32)
@@ -746,8 +793,8 @@ ikvs_cursor_free(struct hse_kvs_cursor *cursor)
         ikvs_cursor_save(cursor_h2r(cursor));
 }
 
-static __always_inline u64
-                       now(void)
+static HSE_ALWAYS_INLINE u64
+now(void)
 {
     struct timespec ts;
 
@@ -1322,25 +1369,57 @@ kvs_cursor_perfc_free(
 }
 
 merr_t
-kvs_cursor_zone_alloc(void)
+kvs_curcache_init(void)
 {
     struct kmem_cache *zone;
-    size_t             sz;
+    int nmax, n, i;
+    size_t sz;
 
     sz = sizeof(struct kvs_cursor_impl);
     sz += HSE_KVS_KLEN_MAX * 3; /* prefix, last key, limit */
 
-    zone = kmem_cache_create("cursor", sz, SMP_CACHE_BYTES, 0, NULL);
+    zone = kmem_cache_create("cursor", sz, alignof(struct kvs_cursor_impl), 0, NULL);
     if (ev(!zone))
         return merr(ENOMEM);
 
     kvs_cursor_zone = zone;
+
+    nmax = 1024;
+    n = NELEM(ikv_curcachev) * nmax;
+    sz = sizeof(*ikv_curcache_vlb) * n;
+
+    ikv_curcache_vlb = vlb_alloc(sz);
+    if (ev(!ikv_curcache_vlb)) {
+        kmem_cache_destroy(kvs_cursor_zone);
+        return merr(ENOMEM);
+    }
+
+    ikv_curcache_vlbsz = sz;
+
+    for (i = 0; i < NELEM(ikv_curcachev); ++i) {
+        struct curcache *cca = ikv_curcachev + i;
+
+        mutex_init(&cca->cca_lock);
+        cca->cca_root = RB_ROOT;
+        cca->cca_entrymax = nmax;
+        cca->cca_entryv = ikv_curcache_vlb + (nmax * i);
+    }
+
     return 0;
 }
 
 void
-kvs_cursor_zone_free(void)
+kvs_curcache_fini(void)
 {
+    int i;
+
+    for (i = 0; i < NELEM(ikv_curcachev); ++i) {
+        struct curcache *cca = ikv_curcachev + i;
+
+        mutex_destroy(&cca->cca_lock);
+    }
+
+    vlb_free(ikv_curcache_vlb, ikv_curcache_vlbsz);
+
     kmem_cache_destroy(kvs_cursor_zone);
-    kvs_cursor_zone = NULL;
 }

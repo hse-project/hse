@@ -26,8 +26,6 @@
 
 #include <hse_ikvdb/limits.h>
 
-#include <syscall.h>
-
 struct c0snr_set {
 };
 
@@ -46,7 +44,7 @@ struct c0snr_set_bkt {
  */
 struct c0snr_set_impl {
     struct c0snr_set     css_handle;
-    struct c0snr_set_bkt css_bktv[16];
+    struct c0snr_set_bkt css_bktv[14];
 } HSE_ALIGNED(SMP_CACHE_BYTES * 2);
 
 #define c0snr_set_h2r(handle) container_of(handle, struct c0snr_set_impl, css_handle)
@@ -70,36 +68,36 @@ struct c0snr_set_entry {
         uintptr_t   cse_c0snr;
         void       *cse_next;
     };
-} HSE_ALIGNED(SMP_CACHE_BYTES);
+};
 
 #define KVMS_GEN_INVALID   (~0UL)
 #define priv_to_c0snr_set_entry(ptr) container_of(ptr, struct c0snr_set_entry, cse_c0snr)
 
 /**
- * struct c0snr_set_list
+ * struct c0snr_set_list - c0 sequence number reference set list
  * @act_lock:      lock protecting the list
+ * @act_vlbsz:     size of act_vlb
+ * @act_vlb:       address of the very-large-buffer which contains the c0snr_set
  * @act_index:     index into css_bktv[]
  * @act_cache:     head of entry cache free list
  * @act_entryc:    number of entries allocated from act_entryv[]
  * @act_entrymax:  max number of entries in act_entryv[]
  * @act_entryv:    fixed-size cache of entry objects
- * @act_memsz:     size of act_mem buffer
- * @act_mem:       base of memory allocation that contains self
+ *
+ * Abort handler css_abort_func can go away when LC is in place.
  */
 struct c0snr_set_list {
     spinlock_t              act_lock;
-    uint                    act_index;
+    size_t                  act_vlbsz;
+    void                   *act_vlb;
+    c0snr_set_abort_func   *css_abort_func;
+
+    uint                    act_index HSE_ALIGNED(SMP_CACHE_BYTES * 2);
     struct c0snr_set_entry *act_cache;
     uint                    act_entryc;
     uint                    act_entrymax;
 
-    /* Abort handler can go away when LC is in place */
-    c0snr_set_abort_func   *css_abort_func;
-
-    size_t                  act_memsz;
-    void                   *act_mem;
-
-    struct c0snr_set_entry  act_entryv[];
+    struct c0snr_set_entry  act_entryv[] HSE_ALIGNED(SMP_CACHE_BYTES * 2);
 };
 
 /* c0snr_set_entry_alloc() performs a one-time initialization
@@ -146,28 +144,28 @@ c0snr_set_list_create(u32 max_elts, u32 index, struct c0snr_set_list **tree)
 {
     struct c0snr_set_list *self;
     size_t sz;
-    void *mem;
+    void *vlb;
 
     sz = sizeof(*self) + sizeof(self->act_entryv[0]) * max_elts;
     sz += alignof(*self) * 8;
     sz = roundup(sz, 4ul << 20);
 
-    mem = vlb_alloc(sz);
-    if (ev(!mem))
+    vlb = vlb_alloc(sz);
+    if (ev(!vlb))
         return merr(ENOMEM);
 
     /* Mitigate cacheline aliasing by offsetting into mem some number of
      * cache lines, then recompute max_elts based on the remaining space.
      */
-    self = mem + alignof(*self) * (index % 8);
-    max_elts = (sz - ((void *)self->act_entryv - mem)) / sizeof(self->act_entryv[0]);
+    self = vlb + __alignof(*self) * (index % 8);
+    max_elts = (sz - ((void *)self->act_entryv - vlb)) / sizeof(self->act_entryv[0]);
 
     memset(self, 0, sizeof(*self));
     spin_lock_init(&self->act_lock);
     self->act_index = index;
     self->act_entrymax = max_elts;
-    self->act_mem = mem;
-    self->act_memsz = sz;
+    self->act_vlb = vlb;
+    self->act_vlbsz = sz;
 
     *tree = self;
 
@@ -177,20 +175,19 @@ c0snr_set_list_create(u32 max_elts, u32 index, struct c0snr_set_list **tree)
 void
 c0snr_set_list_destroy(struct c0snr_set_list *self)
 {
-    vlb_free(self->act_mem, self->act_memsz);
+    vlb_free(self->act_vlb, self->act_vlbsz);
 }
 
 merr_t
 c0snr_set_create(c0snr_set_abort_func *afunc, struct c0snr_set **handle)
 {
     struct c0snr_set_impl *self;
-
-    u32    max_elts = HSE_C0SNRSET_ELTS_MAX;
-    u32    max_bkts;
+    u32 max_elts, max_bkts;
     merr_t err = 0;
-    int    i;
+    int i;
 
     max_bkts = NELEM(self->css_bktv);
+    max_elts = HSE_C0SNRSET_ELTS_MAX / max_bkts;
 
     self = alloc_aligned(sizeof(*self), alignof(*self));
     if (ev(!self))
@@ -245,16 +242,12 @@ c0snr_set_get_c0snr(struct c0snr_set *handle, struct kvdb_ctxn *ctxn)
     struct c0snr_set_entry *entry;
     struct c0snr_set_list  *cslist;
     struct c0snr_set_bkt   *bkt;
+    uint cpu, node, core;
 
-    static thread_local uint cpuid, nodeid, cnt;
+    hse_getcpu(&cpu, &node, &core);
 
-    if (cnt++ % 16 == 0) {
-        if (( syscall(SYS_getcpu, &cpuid, &nodeid, NULL) ))
-            cpuid = nodeid = raw_smp_processor_id();
-    }
-
-    bkt = self->css_bktv + (nodeid & 1) * (NELEM(self->css_bktv) / 2);
-    bkt += cpuid % (NELEM(self->css_bktv) / 2);
+    bkt = self->css_bktv + (node % 2) * (NELEM(self->css_bktv) / 2);
+    bkt += core % (NELEM(self->css_bktv) / 2);
     cslist = bkt->csb_list;
 
     spin_lock(&cslist->act_lock);
@@ -389,8 +382,10 @@ c0snr_droprefv(int refc, uintptr_t **refv)
             *bkt->tailp = csl->act_cache;
             csl->act_cache = bkt->head;
             spin_unlock(&csl->act_lock);
+            ev(1);
         }
     }
+    ev(1);
 }
 
 bool

@@ -534,11 +534,8 @@ done:
 static merr_t
 kvs_create(struct ikvs **ikvs_out, struct kvs_rparams *rp)
 {
-    struct cache_bucket *bkt;
-    struct ikvs *        ikvs;
-    size_t               sz;
-    int                  i, n;
-    int                  nmax;
+    static atomic64_t g_ikv_gen;
+    struct ikvs *ikvs;
 
     *ikvs_out = NULL;
 
@@ -547,34 +544,8 @@ kvs_create(struct ikvs **ikvs_out, struct kvs_rparams *rp)
         return merr(ENOMEM);
 
     memset(ikvs, 0, sizeof(*ikvs));
+    ikvs->ikv_gen = atomic64_inc_return(&g_ikv_gen);
     ikvs->ikv_rp = *rp;
-
-    nmax = 1024;
-    n = NELEM(ikvs->ikv_curcachev) * nmax;
-    sz = sizeof(*bkt) * n;
-
-    bkt = alloc_aligned(sz, PAGE_SIZE);
-    if (ev(!bkt)) {
-        free_aligned(ikvs);
-        return merr(ENOMEM);
-    }
-
-    memset(bkt, 0, sz);
-    ikvs->ikv_curcache_bktmem = bkt;
-
-    for (i = 0; i < NELEM(ikvs->ikv_curcachev); ++i) {
-        struct curcache *cca;
-        int              j;
-
-        cca = ikvs->ikv_curcachev + i;
-        mutex_init(&cca->cca_lock);
-        cca->cca_root = RB_ROOT;
-
-        for (j = 0; j < nmax; ++j) {
-            ikvs_cursor_bkt_free(cca, bkt);
-            ++bkt;
-        }
-    }
 
     *ikvs_out = ikvs;
 
@@ -584,17 +555,10 @@ kvs_create(struct ikvs **ikvs_out, struct kvs_rparams *rp)
 static void
 kvs_destroy(struct ikvs *kvs)
 {
-    int i;
-
     if (ev(!kvs)) {
         assert(kvs);
         return;
     }
-
-    for (i = 0; i < NELEM(kvs->ikv_curcachev); ++i)
-        mutex_destroy(&kvs->ikv_curcachev[i].cca_lock);
-
-    free_aligned(kvs->ikv_curcache_bktmem);
 
     free((void *)kvs->ikv_mpool_name);
     free((void *)kvs->ikv_kvs_name);
@@ -609,7 +573,7 @@ kvs_init(void)
     if (atomic_inc_return(&kvs_init_ref) > 1)
         return 0;
 
-    err = kvs_cursor_zone_alloc();
+    err = kvs_curcache_init();
     if (ev(err))
         atomic_dec(&kvs_init_ref);
 
@@ -622,5 +586,5 @@ kvs_fini(void)
     if (atomic_dec_return(&kvs_init_ref) > 0)
         return;
 
-    kvs_cursor_zone_free();
+    kvs_curcache_fini();
 }

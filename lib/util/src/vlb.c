@@ -6,8 +6,6 @@
 #include <hse_util/platform.h>
 #include <hse_util/vlb.h>
 
-#include <syscall.h>
-
 #define VLB_NODES_MAX       (4) /* max numa nodes */
 #define VLB_BPN_MAX         (4) /* max per-cpu buckets per node */
 
@@ -22,16 +20,11 @@ static struct vlb_cache vlbcv[VLB_NODES_MAX * VLB_BPN_MAX];
 static struct vlb_cache *
 vlb_cpu2cache(void)
 {
-    uint cpuid, nodeid;
+    uint cpuid, coreid, nodeid;
 
-    if (syscall(SYS_getcpu, &cpuid, &nodeid, NULL)) {
-        cpuid = raw_smp_processor_id();
-        nodeid = cpuid;
-    }
+    hse_getcpu(&cpuid, &nodeid, &coreid);
 
-    /* [HSE_REVISIT] Use core ID rather than cpuid.
-     */
-    return vlbcv + (((nodeid % VLB_NODES_MAX) * VLB_BPN_MAX) + (cpuid % VLB_BPN_MAX));
+    return vlbcv + (((nodeid % VLB_NODES_MAX) * VLB_BPN_MAX) + (coreid % VLB_BPN_MAX));
 }
 
 void *
