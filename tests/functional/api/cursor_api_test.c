@@ -20,7 +20,7 @@ test_collection_setup(struct mtf_test_info *lcl_ti)
     rc = mtf_kvdb_setup(lcl_ti, NULL, &kvdb_handle, 0);
     ASSERT_EQ_RET(rc, 0, -1);
 
-    return EXIT_SUCCESS;
+    return 0;
 }
 
 int
@@ -31,7 +31,7 @@ test_collection_teardown(struct mtf_test_info *lcl_ti)
     rc = mtf_kvdb_teardown(lcl_ti);
     ASSERT_EQ_RET(rc, 0, -1);
 
-    return EXIT_SUCCESS;
+    return 0;
 }
 
 int
@@ -45,7 +45,7 @@ open_kvs(struct mtf_test_info *lcl_ti)
     err = hse_kvdb_kvs_open(kvdb_handle, kvs_name, NULL, &kvs_handle);
     ASSERT_EQ_RET(err, 0, -1);
 
-    return EXIT_SUCCESS;
+    return 0;
 }
 
 int
@@ -68,7 +68,7 @@ populate_kvs(struct mtf_test_info *lcl_ti)
         ASSERT_EQ_RET(err, 0, -1);
     }
 
-    return EXIT_SUCCESS;
+    return 0;
 }
 
 int
@@ -83,7 +83,7 @@ destroy_kvs(struct mtf_test_info *lcl_ti)
     rc = mtf_kvdb_kvs_drop_all(kvdb_handle);
     ASSERT_EQ_RET(rc, 0, -1);
 
-    return EXIT_SUCCESS;
+    return 0;
 }
 
 MTF_BEGIN_UTEST_COLLECTION_PREPOST(
@@ -154,7 +154,7 @@ MTF_DEFINE_UTEST_PREPOST(cursor_api_test, cursor_read_testcase, populate_kvs, de
     bool                   eof = false;
     const void *           cur_key, *cur_val;
     size_t                 cur_klen, cur_vlen;
-    char                   read_buff[16], expec_buff[16];
+    char                   expec_buff[16];
     hse_err_t              err;
     struct hse_kvs_cursor *cursor;
 
@@ -163,27 +163,27 @@ MTF_DEFINE_UTEST_PREPOST(cursor_api_test, cursor_read_testcase, populate_kvs, de
 
     /* TC: A cursor can read key value pairs in a KVS, and returns the correct key value pairs */
     while (!eof) {
+        cur_key = cur_val = NULL;
+        cur_klen = cur_vlen = 0;
         err = hse_kvs_cursor_read(cursor, NULL, &cur_key, &cur_klen, &cur_val, &cur_vlen, &eof);
         ASSERT_EQ(err, 0);
 
         if (!eof) {
+            ASSERT_NE(cur_key, NULL);
+            ASSERT_NE(cur_val, NULL);
             n = snprintf(
                 expec_buff,
                 sizeof(expec_buff),
                 "test_key_%02d",
                 (count) % 100u); /* keep within limits */
             ASSERT_LT(n, sizeof(expec_buff));
-
-            n = snprintf(read_buff, sizeof(read_buff), "%.*s", (int)cur_klen, (char *)cur_key);
-            ASSERT_LT(n, sizeof(read_buff));
-            ASSERT_STREQ(expec_buff, read_buff);
+            ASSERT_EQ(cur_klen, strlen(expec_buff));
+            ASSERT_EQ(memcmp(expec_buff, cur_key, cur_klen), 0);
 
             n = snprintf(expec_buff, sizeof(expec_buff), "test_value_%02d", (count++) % 100u);
             ASSERT_LT(n, sizeof(expec_buff));
-
-            n = snprintf(read_buff, sizeof(read_buff), "%.*s", (int)cur_vlen, (char *)cur_val);
-            ASSERT_LT(n, sizeof(read_buff));
-            ASSERT_STREQ(expec_buff, read_buff);
+            ASSERT_EQ(cur_vlen, strlen(expec_buff));
+            ASSERT_EQ(memcmp(expec_buff, cur_val, cur_vlen), 0);
         }
     }
 }
@@ -217,11 +217,9 @@ MTF_DEFINE_UTEST_PREPOST(cursor_api_test, cursor_read_changes_testcase, populate
 
 MTF_DEFINE_UTEST_PREPOST(cursor_api_test, cursor_seek_testcase, populate_kvs, destroy_kvs)
 {
-    int                    n;
     bool                   eof = false;
     const void *           cur_key, *cur_val;
     size_t                 cur_klen, cur_vlen;
-    char                   read_buff[16];
     char *                 search_key = "test_key_02";
     hse_err_t              err;
     struct hse_kvs_cursor *cursor;
@@ -236,9 +234,8 @@ MTF_DEFINE_UTEST_PREPOST(cursor_api_test, cursor_seek_testcase, populate_kvs, de
     err = hse_kvs_cursor_read(cursor, NULL, &cur_key, &cur_klen, &cur_val, &cur_vlen, &eof);
     ASSERT_EQ(err, 0);
 
-    n = snprintf(read_buff, sizeof(read_buff), "%.*s", (int)cur_klen, (char *)cur_key);
-    ASSERT_LT(n, sizeof(read_buff));
-    ASSERT_STREQ(search_key, read_buff);
+    ASSERT_EQ(cur_klen, strlen(search_key));
+    ASSERT_EQ(memcmp(search_key, cur_key, cur_klen), 0);
 
     /* TC: A cursor will be positioned at the first key if the specified key does not exist */
     eof = false;
@@ -248,9 +245,8 @@ MTF_DEFINE_UTEST_PREPOST(cursor_api_test, cursor_seek_testcase, populate_kvs, de
     err = hse_kvs_cursor_read(cursor, NULL, &cur_key, &cur_klen, &cur_val, &cur_vlen, &eof);
     ASSERT_EQ(err, 0);
 
-    n = snprintf(read_buff, sizeof(read_buff), "%.*s", (int)cur_klen, (char *)cur_key);
-    ASSERT_LT(n, sizeof(read_buff));
-    ASSERT_STREQ("test_key_00", read_buff);
+    ASSERT_EQ(cur_klen, strlen("test_key_00"));
+    ASSERT_EQ(memcmp("test_key_00", cur_key, cur_klen), 0);
 }
 
 MTF_DEFINE_UTEST_PREPOST(cursor_api_test, cursor_multiple_testcase, populate_kvs, destroy_kvs)
