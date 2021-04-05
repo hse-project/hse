@@ -18,7 +18,7 @@ test_collection_setup(struct mtf_test_info *lcl_ti)
     rc = mtf_kvdb_setup(lcl_ti, NULL, &kvdb_handle, 0);
     ASSERT_EQ_RET(rc, 0, -1);
 
-    return EXIT_SUCCESS;
+    return 0;
 }
 
 int
@@ -29,21 +29,30 @@ test_collection_teardown(struct mtf_test_info *lcl_ti)
     rc = mtf_kvdb_teardown(lcl_ti);
     ASSERT_EQ_RET(rc, 0, -1);
 
-    return EXIT_SUCCESS;
+    return 0;
 }
 
 int
 setup_kvs(struct mtf_test_info *lcl_ti)
 {
     hse_err_t err;
+    struct hse_params *p;
+
+    err = hse_params_create(&p);
+    ASSERT_EQ_RET(err, 0, -1);
+
+    err = hse_params_set(p, "kvs.transactions_enable", "1");
+    ASSERT_EQ_RET(err, 0, -1);
 
     err = hse_kvdb_kvs_make(kvdb_handle, "kvs_transaction_test", NULL);
     ASSERT_EQ_RET(err, 0, -1);
 
-    err = hse_kvdb_kvs_open(kvdb_handle, "kvs_transaction_test", NULL, &kvs_handle);
+    err = hse_kvdb_kvs_open(kvdb_handle, "kvs_transaction_test", p, &kvs_handle);
     ASSERT_EQ_RET(err, 0, -1);
 
-    return EXIT_SUCCESS;
+    hse_params_destroy(p);
+
+    return 0;
 }
 
 int
@@ -58,7 +67,7 @@ destroy_kvs(struct mtf_test_info *lcl_ti)
     rc = mtf_kvdb_kvs_drop_all(kvdb_handle);
     ASSERT_EQ_RET(rc, 0, -1);
 
-    return EXIT_SUCCESS;
+    return 0;
 }
 
 MTF_BEGIN_UTEST_COLLECTION_PREPOST(
