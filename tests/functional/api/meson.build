@@ -31,12 +31,18 @@ tests = {
         ],
         'is_parallel': false,
     },
-    'put_get_delete':{
+    'kvs_put_get_delete_api_test':{
         'args': [
             get_option('tests-kvdb')
         ],
         'is_parallel': false,
     },
+    'kvs_lifecycle_test':{
+        'args': [
+            get_option('tests-kvdb')
+        ],
+        'is_parallel': false,
+    }
 }
 
 foreach t, params : tests
