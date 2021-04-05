@@ -62,9 +62,9 @@ kvs_destroy(struct mtf_test_info *lcl_ti)
     return 0;
 }
 
-MTF_BEGIN_UTEST_COLLECTION_PREPOST(kvs_api_test, test_collection_setup, test_collection_teardown);
+MTF_BEGIN_UTEST_COLLECTION_PREPOST(kvs_api, test_collection_setup, test_collection_teardown);
 
-MTF_DEFINE_UTEST(kvs_api_test, kvs_nonexisting_testcase)
+MTF_DEFINE_UTEST(kvs_api, kvs_nonexisting)
 {
     hse_err_t       err;
     struct hse_kvs *kvs_handle = NULL;
@@ -79,7 +79,7 @@ MTF_DEFINE_UTEST(kvs_api_test, kvs_nonexisting_testcase)
     ASSERT_EQ(hse_err_to_errno(err), EINVAL);
 }
 
-MTF_DEFINE_UTEST_PREPOST(kvs_api_test, kvs_invalid_testcase, kvs_create, kvs_destroy)
+MTF_DEFINE_UTEST_PREPOST(kvs_api, kvs_invalid, kvs_create, kvs_destroy)
 {
     hse_err_t err;
     char      buf[16];
@@ -134,7 +134,7 @@ MTF_DEFINE_UTEST_PREPOST(kvs_api_test, kvs_invalid_testcase, kvs_create, kvs_des
     }
 }
 
-MTF_DEFINE_UTEST_PREPOST(kvs_api_test, kvs_handle_testcase, kvs_create, kvs_destroy)
+MTF_DEFINE_UTEST_PREPOST(kvs_api, kvs_valid_handle, kvs_create, kvs_destroy)
 {
     hse_err_t err;
     size_t    vlen;
@@ -152,4 +152,4 @@ MTF_DEFINE_UTEST_PREPOST(kvs_api_test, kvs_handle_testcase, kvs_create, kvs_dest
     ASSERT_EQ(found, false);
 }
 
-MTF_END_UTEST_COLLECTION(kvs_api_test)
+MTF_END_UTEST_COLLECTION(kvs_api)

@@ -39,10 +39,10 @@ test_collection_teardown(struct mtf_test_info *lcl_ti)
     return 0;
 }
 
-MTF_BEGIN_UTEST_COLLECTION_PREPOST(kvdb_api_test, test_collection_setup, test_collection_teardown);
+MTF_BEGIN_UTEST_COLLECTION_PREPOST(kvdb_api, test_collection_setup, test_collection_teardown);
 
 /* [HSE_REVISIT] when libmpool is available, add a test to create a KVDB */
-MTF_DEFINE_UTEST(kvdb_api_test, kvdb_make_busy_testcase)
+MTF_DEFINE_UTEST(kvdb_api, kvdb_make_busy)
 {
     hse_err_t err;
 
@@ -51,7 +51,7 @@ MTF_DEFINE_UTEST(kvdb_api_test, kvdb_make_busy_testcase)
     ASSERT_EQ(hse_err_to_errno(err), EBUSY);
 }
 
-MTF_DEFINE_UTEST(kvdb_api_test, kvdb_make_no_mpool_testcase)
+MTF_DEFINE_UTEST(kvdb_api, kvdb_make_no_mpool)
 {
     hse_err_t err;
 
@@ -60,7 +60,7 @@ MTF_DEFINE_UTEST(kvdb_api_test, kvdb_make_no_mpool_testcase)
     ASSERT_EQ(hse_err_to_errno(err), ENOENT);
 }
 
-MTF_DEFINE_UTEST(kvdb_api_test, kvdb_handle_no_mpool_testcase)
+MTF_DEFINE_UTEST(kvdb_api, kvdb_handle_no_mpool)
 {
     hse_err_t        err;
     struct hse_kvdb *kvdb = NULL;
@@ -74,4 +74,4 @@ MTF_DEFINE_UTEST(kvdb_api_test, kvdb_handle_no_mpool_testcase)
     ASSERT_EQ(hse_err_to_errno(err), EINVAL);
 }
 
-MTF_END_UTEST_COLLECTION(kvdb_api_test)
+MTF_END_UTEST_COLLECTION(kvdb_api)

@@ -88,7 +88,7 @@ MTF_DEFINE_UTEST(put_get_delete, put_get)
     }
 }
 
-MTF_DEFINE_UTEST(put_get_delete, kvs_put_get_delete_testcase)
+MTF_DEFINE_UTEST(put_get_delete, kvs_put_get_delete)
 {
     hse_err_t  err;
     char       vbuf[VAL_LEN_MAX];
@@ -113,11 +113,7 @@ MTF_DEFINE_UTEST(put_get_delete, kvs_put_get_delete_testcase)
     ASSERT_EQ(err, 0);
     ASSERT_EQ(found, true);
     ASSERT_EQ(vlen, vallen);
-    if (vlen <= sizeof(vbuf)) {
-        ASSERT_EQ(memcmp(vbuf, test_value, vlen), 0);
-    } else {
-        ASSERT_NE(memcmp(vbuf, test_value, vlen), 0);
-    }
+    ASSERT_EQ(memcmp(vbuf, test_value, vlen), 0);
 
     /* TC: A KVS can delete an existing key value pair */
     found = false;
