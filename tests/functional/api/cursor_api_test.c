@@ -57,6 +57,8 @@ populate_kvs(struct mtf_test_info *lcl_ti)
 
     open_kvs(lcl_ti);
 
+    ASSERT_LT_RET(key_value_pairs, 100, -1);
+
     for (int i = 0; i < key_value_pairs; i++) {
         n = snprintf(key, sizeof(key), "test_key_%02d", i);
         ASSERT_LT_RET(n, sizeof(key), -1);
@@ -172,15 +174,12 @@ MTF_DEFINE_UTEST_PREPOST(cursor_api_test, cursor_read_testcase, populate_kvs, de
             ASSERT_NE(cur_key, NULL);
             ASSERT_NE(cur_val, NULL);
             n = snprintf(
-                expec_buff,
-                sizeof(expec_buff),
-                "test_key_%02d",
-                (count) % 100u); /* keep within limits */
+                expec_buff, sizeof(expec_buff), "test_key_%02d", (count)); /* keep within limits */
             ASSERT_LT(n, sizeof(expec_buff));
             ASSERT_EQ(cur_klen, strlen(expec_buff));
             ASSERT_EQ(memcmp(expec_buff, cur_key, cur_klen), 0);
 
-            n = snprintf(expec_buff, sizeof(expec_buff), "test_value_%02d", (count++) % 100u);
+            n = snprintf(expec_buff, sizeof(expec_buff), "test_value_%02d", (count++));
             ASSERT_LT(n, sizeof(expec_buff));
             ASSERT_EQ(cur_vlen, strlen(expec_buff));
             ASSERT_EQ(memcmp(expec_buff, cur_val, cur_vlen), 0);
