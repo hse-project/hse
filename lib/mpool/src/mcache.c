@@ -12,7 +12,7 @@
 #include <hse_util/event_counter.h>
 #include <hse_util/logging.h>
 
-#include "mpool.h"
+#include "mpool_internal.h"
 #include "mclass.h"
 #include "mblock_fset.h"
 #include "mblock_file.h"
@@ -182,7 +182,7 @@ mpool_mcache_getpages(
     char *addr;
     int   i;
 
-    if (!map || mbidx >= map->mbidc)
+    if (!map || mbidx >= map->mbidc || !addrv)
         return merr(EINVAL);
 
     addr = map->addrv[mbidx];
@@ -217,5 +217,3 @@ mpool_mcache_mincore(
 {
     return merr(ENOTSUP);
 }
-
-

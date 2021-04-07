@@ -80,12 +80,16 @@ mblock_fset_meta_get(struct mblock_fset *mbfsp, int fidx, char **maddr)
 }
 
 static merr_t
-mblock_fset_meta_mmap(struct mblock_fset *mbfsp, int fd, size_t sz, bool mlock)
+mblock_fset_meta_mmap(struct mblock_fset *mbfsp, int fd, size_t sz, int flags, bool mlock)
 {
-    int   prot;
+    int   prot, mode;
     char *addr;
 
-    prot = PROT_READ | PROT_WRITE;
+    mode = (flags & O_ACCMODE);
+    prot = (mode == O_RDWR ? (PROT_READ | PROT_WRITE) : 0);
+    prot |= (mode == O_RDONLY ? PROT_READ : 0);
+    prot |= (mode == O_WRONLY ? PROT_WRITE : 0);
+
     addr = mmap(NULL, sz, prot, MAP_SHARED, fd, 0);
     if (ev(addr == MAP_FAILED))
         return merr(errno);
@@ -121,7 +125,7 @@ mblock_fset_meta_unmap(struct mblock_fset *mbfsp, size_t sz)
 }
 
 static merr_t
-mblock_fset_meta_format(struct mblock_fset *mbfsp)
+mblock_fset_meta_format(struct mblock_fset *mbfsp, int flags)
 {
     struct mblock_metahdr mh = {};
 
@@ -132,7 +136,7 @@ mblock_fset_meta_format(struct mblock_fset *mbfsp)
 
     addr = mbfsp->maddr;
     if (!addr) {
-        err = mblock_fset_meta_mmap(mbfsp, mbfsp->metafd, len, false);
+        err = mblock_fset_meta_mmap(mbfsp, mbfsp->metafd, len, flags, false);
         if (ev(err))
             return err;
 
@@ -158,7 +162,7 @@ mblock_fset_meta_format(struct mblock_fset *mbfsp)
 }
 
 static merr_t
-mblock_fset_meta_load(struct mblock_fset *mbfsp)
+mblock_fset_meta_load(struct mblock_fset *mbfsp, int flags)
 {
     struct mblock_metahdr mh = {};
 
@@ -169,7 +173,7 @@ mblock_fset_meta_load(struct mblock_fset *mbfsp)
 
     addr = mbfsp->maddr;
     if (!addr) {
-        err = mblock_fset_meta_mmap(mbfsp, mbfsp->metafd, len, false);
+        err = mblock_fset_meta_mmap(mbfsp, mbfsp->metafd, len, flags, false);
         if (ev(err))
             return err;
 
@@ -233,12 +237,11 @@ mblock_fset_meta_open(struct mblock_fset *mbfsp, int flags)
 
     mbfsp->metafd = -1;
 
-    flags &= O_RDWR | O_CREAT;
+    flags &= (O_RDWR | O_RDONLY | O_WRONLY | O_CREAT);
     if (flags & O_CREAT) {
         flags |= O_EXCL;
         create = true;
     }
-    flags |= O_RDWR;
 
     snprintf(mbfsp->mname, sizeof(mbfsp->mname), "%s-%d", "mblock-meta", mclass_id(mbfsp->mc));
     dirfd = mclass_dirfd(mbfsp->mc);
@@ -270,9 +273,9 @@ mblock_fset_meta_open(struct mblock_fset *mbfsp, int flags)
     }
 
     if (create)
-        err = mblock_fset_meta_format(mbfsp);
+        err = mblock_fset_meta_format(mbfsp, flags);
     else
-        err = mblock_fset_meta_load(mbfsp);
+        err = mblock_fset_meta_load(mbfsp, flags);
     if (ev(err))
         goto errout;
 
@@ -330,7 +333,7 @@ mblock_fset_open(
     mbfsp->metasz = MBLOCK_FSET_HDRLEN +
         (mbfsp->fcnt * mblock_file_meta_len(mbfsp->fszmax, mblocksz));
 
-    err = mblock_fset_meta_mmap(mbfsp, mbfsp->metafd, mbfsp->metasz, true);
+    err = mblock_fset_meta_mmap(mbfsp, mbfsp->metafd, mbfsp->metasz, flags, true);
     if (ev(err))
         goto errout;
 

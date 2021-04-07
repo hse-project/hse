@@ -160,7 +160,6 @@ libyaml_dep = dependency(
     ],
 )
 thread_dep = dependency('threads', required: true)
-uuid_dep = dependency('uuid', version: '>=2.31.1', required: true)
 liburcu_bp_dep = dependency(
     'liburcu-bp',
     version: '>=0.10.1',

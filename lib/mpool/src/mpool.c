@@ -15,9 +15,8 @@
 
 #include <hse/hse.h>
 #include <mpool/mpool.h>
-#include <mpool/mpool_internal.h>
 
-#include "mpool.h"
+#include "mpool_internal.h"
 #include "mblock_fset.h"
 #include "mblock_file.h"
 #include "mdc.h"
@@ -121,15 +120,17 @@ mpool_open(const char *name, const struct hse_params *params, uint32_t flags, st
     merr_t        err;
     int           i;
 
-    *handle = NULL;
-
     if (ev(!name || !handle))
         return merr(EINVAL);
+
+    *handle = NULL;
 
     mp = calloc(1, sizeof(*mp));
     if (ev(!mp))
         return merr(ENOMEM);
 
+    if (flags & O_CREAT)
+        flags |= O_RDWR;
 
     for (i = MP_MED_BASE; i < MP_MED_COUNT; i++) {
         struct mclass_params mcp = {};
@@ -145,20 +146,33 @@ mpool_open(const char *name, const struct hse_params *params, uint32_t flags, st
         if (mcp.path[0] != '\0') {
             int flags2 = 0;
 
+            for (int j = i - 1; j >= 0; j--) {
+                if (mp->mc[j] && !strcmp(mcp.path, mclass_dpath(mp->mc[j]))) {
+                    err = merr(EINVAL);
+                    hse_log(HSE_ERR "%s: Duplicate storage path detected for mc %d and %d",
+                            __func__, i, j);
+                    goto errout;
+                }
+            }
+
             do {
                 err = mclass_open(mp, i, &mcp, flags | flags2, &mp->mc[i]);
                 if (err) {
-                    if (i != MP_MED_CAPACITY && merr_errno(err) == ENOENT && !(flags2 & O_CREAT)) {
-                        err = 0;
-                        if (flags & O_RDWR) {
-                            flags2 = O_CREAT;
-                            continue;
+                    if (i != MP_MED_CAPACITY && merr_errno(err) == ENOENT &&
+                        !(flags & O_CREAT) && !(flags2 & O_CREAT)) {
+                        /* Don't initialize new mclass for O_RDONLY open */
+                        if ((flags & O_ACCMODE) == O_RDONLY) {
+                            err = 0;
+                            break;
                         }
+
+                        flags2 = (O_CREAT | O_RDWR);
+                        continue;
                     }
 
                     if (err) {
-                        hse_log(HSE_ERR "%s: Storage path busy or malformed for mclass %d",
-                                __func__, i);
+                        hse_elog(HSE_ERR "%s: Cannot access storage path for mclass %d: @@e",
+                                 err, __func__, i);
                         goto errout;
                     }
                 }
@@ -168,17 +182,6 @@ mpool_open(const char *name, const struct hse_params *params, uint32_t flags, st
             err = merr(EINVAL);
             hse_log(HSE_ERR "%s: storage path not set for %s", __func__, name);
             goto errout;
-        }
-
-        for (int j = i - 1; j >= 0; j--) {
-            if (mp->mc[i] && mp->mc[j] &&
-                !strcmp(mclass_dpath(mp->mc[i]), mclass_dpath(mp->mc[j]))) {
-                err = merr(EINVAL);
-                hse_log(HSE_ERR "%s: Duplicate storage path detected for mc %d and %d",
-                        __func__, i, j);
-                i++; /* for cleanup */
-                goto errout;
-            }
         }
     }
 
@@ -230,12 +233,15 @@ mpool_close(struct mpool *mp)
 merr_t
 mpool_destroy(struct mpool *mp)
 {
-    int i;
+    merr_t err;
+    int    i;
 
     if (ev(!mp))
         return merr(EINVAL);
 
-    mpool_mdc_root_destroy(mp);
+    err = mpool_mdc_root_destroy(mp);
+    if (err)
+        return err;
 
     for (i = MP_MED_COUNT - 1; i >= MP_MED_BASE; i--) {
         if (mp->mc[i])
@@ -252,7 +258,7 @@ mpool_mclass_get(struct mpool *mp, enum mp_media_classp mclass, struct mpool_mcl
 {
     struct media_class *mc;
 
-    if (mclass >= MP_MED_COUNT)
+    if (!mp || mclass >= MP_MED_COUNT)
         return merr(EINVAL);
 
     mc = mp->mc[mclass];
@@ -269,6 +275,9 @@ merr_t
 mpool_props_get(struct mpool *mp, struct mpool_props *props)
 {
     int i;
+
+    if (!mp || !props)
+        return merr(EINVAL);
 
     memset(props, 0, sizeof(*props));
 
@@ -288,7 +297,9 @@ mpool_props_get(struct mpool *mp, struct mpool_props *props)
 struct media_class *
 mpool_mclass_handle(struct mpool *mp, enum mp_media_classp mclass)
 {
-    assert(mclass < MP_MED_COUNT);
+    if (!mp || mclass >= MP_MED_COUNT)
+        return NULL;
+
     return mp->mc[mclass];
 }
 
@@ -298,6 +309,6 @@ mpool_usage_get(struct mpool *mp, struct mpool_usage *usage)
     return 0;
 }
 
-#if defined(HSE_UNIT_TEST_MODE) && HSE_UNIT_TEST_MODE == 1
+#if HSE_MOCKING
 #include "mpool_ut_impl.i"
 #endif

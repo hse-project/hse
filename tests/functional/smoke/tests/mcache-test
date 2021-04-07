@@ -1,0 +1,7 @@
+#!/usr/bin/bash
+
+
+#doc: quick kvdb/cn performance test using kmt (60s, 50% writes)
+seconds=60
+
+cmd mpiotest -T $seconds kvdb.capdir=${HSE_STORAGE_PATH}

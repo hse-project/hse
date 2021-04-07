@@ -85,7 +85,7 @@ main(int argc, char *argv[])
     hse_err_t                          err;
     struct deviceprofile_stat       rd, wr;
     struct mpool *                  ds;
-    int                             flags = O_EXCL | O_RDWR;
+    int                             flags = O_RDWR;
     const char *                    program, *mpname;
     int                             mclass, wpct, thrds;
     u64                             bsize, mblks_per_thrd, mblksize;

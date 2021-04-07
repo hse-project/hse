@@ -940,7 +940,7 @@ int main(int argc, char **argv)
 		char *errmsg = NULL;
 		int c;
 
-		c = getopt(argc, argv, ":bDdhi:j:L:l:o:rS:t:T:vx");
+		c = getopt(argc, argv, ":Ddhi:j:L:l:o:rS:t:T:v");
 		if (-1 == c)
 			break;
 
@@ -949,10 +949,6 @@ int main(int argc, char **argv)
 		errno = 0;
 
 		switch (c) {
-		case 'b':
-			oflags |= O_NONBLOCK;
-			break;
-
 		case 'D':
 		case 'd':
 			++debug;
@@ -1005,10 +1001,6 @@ int main(int argc, char **argv)
 
 		case 'v':
 			++verbosity;
-			break;
-
-		case 'x':
-			oflags |= O_EXCL;
 			break;
 
 		case ':':
@@ -1084,7 +1076,7 @@ int main(int argc, char **argv)
 
 	mpname = strdup(argv[0]);
 
-	err = mpool_open(mpname, hparams, oflags | O_CREAT, &mp);
+	err = mpool_open(mpname, hparams, oflags, &mp);
 	if (err) {
 		merr_strinfo(err, errbuf, sizeof(errbuf), NULL);
 		eprint("mpool_open(%s): %s\n", mpname, errbuf);
@@ -1200,7 +1192,7 @@ int main(int argc, char **argv)
 		}
 	}
 
-	mpool_destroy(mp);
+	mpool_close(mp);
 
     hse_params_destroy(hparams);
     hse_kvdb_fini();
@@ -1211,7 +1203,7 @@ int main(int argc, char **argv)
 	return 0;
 
 err_exit:
-	mpool_destroy(mp);
+	mpool_close(mp);
     hse_params_destroy(hparams);
     hse_kvdb_fini();
 	free(mpname);

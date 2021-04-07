@@ -23,4 +23,7 @@ mpool_mdc_root_init(struct mpool *mp);
 merr_t
 mpool_mdc_root_destroy(struct mpool *mp);
 
+merr_t
+mpool_mdc_sync(struct mpool_mdc *mdc);
+
 #endif /* MPOOL_MDC_H */

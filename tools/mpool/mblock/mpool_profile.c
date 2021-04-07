@@ -276,7 +276,7 @@ profile_mpool(
     double              *score)
 {
     merr_t              mp_err;
-    int                 flags = O_EXCL | O_RDWR;
+    int                 flags = O_RDWR;
     struct mpool       *mp;
     u64                 block_sz = MP_PROF_BLOCK_SIZE;
     u32                 mblocks_per_thread = MP_PROF_MBLOCKS_PER_THREAD;
@@ -315,7 +315,7 @@ get_mpool_info(
 {
     merr_t                    mp_err;
     struct mpool             *mp;
-    int                       flags = O_EXCL | O_RDWR;
+    int                       flags = O_RDWR;
     struct mpool_props        props;
     enum mp_media_classp      mc;
     struct mpool_mclass_props mc_props;

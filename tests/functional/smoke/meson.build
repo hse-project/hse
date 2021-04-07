@@ -33,6 +33,7 @@ suites = {
             'putget2',
             'longtestcn',
             'longtestcn2',
+            'mdc-test',
             'key-imm-disc',
             'kvt-simple',
             'txn1',
@@ -43,14 +44,17 @@ suites = {
             'longtest-sync',
             'kvs-max',
             'omf_encoder_perf',
+            'mcache-test',
             'kvt-logreplay',
             'kmt1',
+            'kmt-mpool',
             'kvt-isolation',
             'bonsai-insdel',
             'large-values1',
             'cursor_test2',
             'probe-test',
             'kvt-compression',
+
 
             # These tests disabled until WAL is back:
             #

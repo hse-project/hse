@@ -9,7 +9,7 @@
 #ifndef MPOOL_H
 #define MPOOL_H
 
-#include <mpool/mpool_internal.h>
+#include <mpool/mpool_structs.h>
 
 struct mpool;            /* opaque mpool handle */
 struct mpool_mdc;        /* opaque MDC (metadata container) handle */
@@ -449,8 +449,8 @@ mpool_mcache_mmap(
 int64_t
 mpool_mcache_munmap(struct mpool_mcache_map *map);
 
-#if defined(HSE_UNIT_TEST_MODE) && HSE_UNIT_TEST_MODE == 1
+#if HSE_MOCKING
 #include "mpool_ut.h"
-#endif /* HSE_UNIT_TEST_MODE */
+#endif /* HSE_MOCKING */
 
 #endif /* MPOOL_H */

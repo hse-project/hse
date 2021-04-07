@@ -3,8 +3,8 @@
  * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
  */
 
-#ifndef MPOOL_INTERNAL_H
-#define MPOOL_INTERNAL_H
+#ifndef MPOOL_STRUCTS_H
+#define MPOOL_STRUCTS_H
 
 #include <stdint.h>
 #include <stdbool.h>
@@ -86,4 +86,4 @@ struct mblock_props {
     uint32_t mpr_mclassp; /* enum mp_media_classp */
 };
 
-#endif /* MPOOL_INTERNAL_H */
+#endif /* MPOOL_STRUCTS_H */

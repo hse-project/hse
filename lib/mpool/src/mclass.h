@@ -10,7 +10,7 @@
 
 #include <hse_util/hse_err.h>
 
-#include <mpool/mpool_internal.h>
+#include <mpool/mpool_structs.h>
 
 #define MCLASS_MAX (1 << 2) /* 2-bit for mclass-id */
 

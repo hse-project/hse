@@ -11,7 +11,7 @@
 #include <hse_util/event_counter.h>
 #include <hse_util/logging.h>
 
-#include "mpool.h"
+#include "mpool_internal.h"
 #include "mclass.h"
 #include "mblock_fset.h"
 #include "mblock_file.h"
@@ -41,7 +41,7 @@ mpool_mblock_alloc(
     if (!err && props) {
         props->mpr_objid = *mbid;
         props->mpr_alloc_cap = mclass_mblocksz(mc);
-        props->mpr_optimal_wrsz = 128 << 10;
+        props->mpr_optimal_wrsz = MBLOCK_OPT_WRITE_SZ;
         props->mpr_mclassp = mclass;
         props->mpr_write_len = 0;
     }

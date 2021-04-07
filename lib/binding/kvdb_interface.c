@@ -122,7 +122,7 @@ hse_kvdb_make(const char *kvdb_name, const struct hse_params *params)
     if (ev(err))
         return merr_to_hse_err(err);
 
-    err = mpool_open(kvdb_name, params, O_RDWR | O_CREAT, &ds);
+    err = mpool_open(kvdb_name, params, O_CREAT, &ds);
     if (ev(err))
         return merr_to_hse_err(err);
 
@@ -257,7 +257,7 @@ hse_kvdb_open(const char *kvdb_name, const struct hse_params *params, struct hse
         char   sock[PATH_MAX];
         size_t n;
 
-        n = snprintf(sock, sizeof(sock), "%s/%s.sock", getenv("HSE_REST_SOCK_PATH"), kvdb_name);
+        n = snprintf(sock, sizeof(sock), "%s", getenv("HSE_REST_SOCK_PATH"));
 
         if (n >= sizeof(sock)) {
             hse_log(

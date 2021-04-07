@@ -548,7 +548,7 @@ perf_seq_writes(const char *mpname, const struct hse_params *params)
     if (ret == -1)
         return merr(EINVAL);
 
-    err = mpool_open(mpname, params, O_CREAT, &mp);
+    err = mpool_open(mpname, params, O_RDWR, &mp);
     if (err) {
         fprintf(stderr, "Cannot open mpool %s\n", mpname);
         return err;
@@ -787,7 +787,7 @@ free_tresp:
 free_targ:
     free(targ);
 free_wr_arg:
-    (void)mpool_destroy(mp);
+    mpool_close(mp);
     free(wr_arg);
 
     return err;

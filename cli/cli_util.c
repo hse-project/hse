@@ -27,7 +27,7 @@ rest_kvs_list(struct yaml_context *yc, const char *kvdb)
 
     snprintf(url, sizeof(url), "mpool/%s", kvdb);
 
-    snprintf(sock, sizeof(sock), "%s/%s.sock", getenv("HSE_REST_SOCK_PATH"), kvdb);
+    snprintf(sock, sizeof(sock), "%s", getenv("HSE_REST_SOCK_PATH"));
 
     buf = calloc(1, bufsz);
     if (!buf)
@@ -150,7 +150,7 @@ rest_kvdb_comp(const char *kvdb, const char *policy)
 
     snprintf(url, sizeof(url), "mpool/%s/compact/request?policy=%s", kvdb, policy);
 
-    snprintf(sock, sizeof(sock), "%s/%s.sock", getenv("HSE_REST_SOCK_PATH"), kvdb);
+    snprintf(sock, sizeof(sock), "%s", getenv("HSE_REST_SOCK_PATH"));
 
     buf = calloc(1, bufsz);
     if (!buf)
@@ -171,7 +171,7 @@ rest_kvdb_status(const char *kvdb, size_t bufsz, char *buf)
 
     snprintf(url, sizeof(url), "mpool/%s/compact/status", kvdb);
 
-    snprintf(sock, sizeof(sock), "%s/%s.sock", getenv("HSE_REST_SOCK_PATH"), kvdb);
+    snprintf(sock, sizeof(sock), "%s", getenv("HSE_REST_SOCK_PATH"));
 
     err = merr_to_hse_err(curl_get(url, sock, buf, bufsz));
     if (err)
@@ -189,7 +189,7 @@ rest_kvdb_params(const char *kvdb, size_t bufsz, char *buf)
 
     snprintf(url, sizeof(url), "data/config/kvdb/%s", kvdb);
 
-    snprintf(sock, sizeof(sock), "%s/%s.sock", getenv("HSE_REST_SOCK_PATH"), kvdb);
+    snprintf(sock, sizeof(sock), "%s", getenv("HSE_REST_SOCK_PATH"));
 
     err = merr_to_hse_err(curl_get(url, sock, buf, bufsz));
     if (err)

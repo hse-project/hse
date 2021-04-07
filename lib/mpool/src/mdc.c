@@ -9,7 +9,8 @@
 #include <hse_util/hse_err.h>
 #include <hse_util/logging.h>
 
-#include "mpool.h"
+#include "mpool_internal.h"
+#include "mclass.h"
 #include "mdc.h"
 #include "mdc_file.h"
 
@@ -44,7 +45,7 @@ mpool_mdc_alloc(
     uint64_t            id[2];
     int                 i, dirfd, flags, mode;
 
-    if (ev(!mp || mclass >= MP_MED_COUNT || capacity < MDC_LOGHDR_LEN))
+    if (ev(!mp || mclass >= MP_MED_COUNT || capacity < MDC_LOGHDR_LEN || !logid1 || !logid2))
         return merr(EINVAL);
 
     mc = mpool_mclass_handle(mp, mclass);
@@ -146,7 +147,7 @@ mpool_mdc_open(struct mpool *mp, uint64_t logid1, uint64_t logid2, struct mpool_
     merr_t         err, err1, err2;
     uint64_t       gen1, gen2;
 
-    if (ev(!mp || !handle || logid1 == logid2))
+    if (ev(!mp || !handle || !logids_valid(logid1, logid2)))
         return merr(EINVAL);
 
     mdc = calloc(1, sizeof(*mdc));
@@ -337,7 +338,7 @@ mdc_exists(struct mpool *mp, uint64_t logid1, uint64_t logid2, bool *exist)
     int                 dirfd;
     merr_t              err;
 
-    if (!mp || logid1 == logid2 || !exist)
+    if (!mp || !exist || !logids_valid(logid1, logid2))
         return merr(EINVAL);
 
     mcid = logid_mcid(logid1);
@@ -397,7 +398,7 @@ mpool_mdc_root_destroy(struct mpool *mp)
 }
 
 merr_t
-mpool_mdc_sync2(struct mpool_mdc *mdc)
+mpool_mdc_sync(struct mpool_mdc *mdc)
 {
     merr_t err;
 

@@ -16,6 +16,7 @@
 #define MDC_LOGHDR_VERSION ((u32)1)
 #define MDC_LOGHDR_LEN     (4096)
 #define MDC_RA_BYTES       (128 << 10)
+#define MDC_EXTEND_FACTOR  (8)
 
 struct mpool_mdc;
 struct mdc_file;
@@ -47,9 +48,6 @@ mdc_file_open(struct mpool_mdc *mdc, uint64_t logid, uint64_t *gen, struct mdc_f
 
 merr_t
 mdc_file_close(struct mdc_file *mfp);
-
-merr_t
-mdc_file_empty(struct mdc_file *mfp, bool *empty);
 
 merr_t
 mdc_file_erase(struct mdc_file *mfp, uint64_t newgen);
@@ -100,15 +98,12 @@ logid_fid(uint64_t logid)
 }
 
 static inline bool
-logid_valid(uint64_t logid)
-{
-    return logid != 0; /* TODO: add more validations */
-}
-
-static inline bool
 logids_valid(uint64_t logid1, uint64_t logid2)
 {
-    return (logid_valid(logid1) && logid_valid(logid2));
+    return (logid1 != logid2 &&
+            logid_magic(logid1) == logid_magic(logid2) &&
+            logid_fid(logid1) + 1 == logid_fid(logid2) &&
+            logid_mcid(logid1) == logid_mcid(logid2));
 }
 
 static inline void

@@ -519,17 +519,16 @@ mblock_file_meta_log(struct mblock_file *mbfp, uint64_t *mbidv, int mbidc, bool 
 
     addr += MBLOCK_FILE_META_HDRLEN;
     addr += (block * MBLOCK_FILE_META_OIDLEN);
-
     mbomf = (struct mblock_oid_omf *)addr;
+
+    mutex_lock(&mbfp->meta_lock);
     omfid = omf_mblk_id(mbomf);
     omfwlen = omf_mblk_wlen(mbomf);
 
     if (!omf_isvalid(*mbidv, omfid, wlen, omfwlen, delete)) {
-        assert(0);
-        return merr(EBUG);
+        mutex_unlock(&mbfp->meta_lock);
+        return merr(EINVAL);
     }
-
-    mutex_lock(&mbfp->meta_lock);
 
     omf_set_mblk_id(mbomf, delete ? 0 : *mbidv);
     omf_set_mblk_wlen(mbomf, delete ? 0 : wlen);
@@ -537,7 +536,6 @@ mblock_file_meta_log(struct mblock_file *mbfp, uint64_t *mbidv, int mbidc, bool 
     rc = msync((void *)((unsigned long)addr & PAGE_MASK), PAGE_SIZE, MS_SYNC);
     if (ev(rc < 0))
         err = merr(errno);
-
     mutex_unlock(&mbfp->meta_lock);
 
     return err;
@@ -568,10 +566,7 @@ mblock_file_open(
     if (ev(!mbfsp || !mc || !meta_addr || !handle || !params))
         return merr(EINVAL);
 
-    if (flags == 0 || !(flags & (O_RDWR | O_RDONLY | O_WRONLY)))
-        flags |= O_RDWR;
-
-    flags &= O_RDWR | O_RDONLY | O_WRONLY | O_CREAT;
+    flags &= (O_RDWR | O_RDONLY | O_WRONLY | O_CREAT);
     if (flags & O_CREAT) {
         create = true;
         flags |= O_EXCL;
@@ -637,11 +632,14 @@ mblock_file_open(
     mbfp->fd = fd;
 
     /* ftruncate to the maximum size to make it a sparse file */
-    rc = ftruncate(fd, mbfp->fszmax);
-    if (rc < 0) {
-        err = merr(errno);
-        hse_elog(HSE_ERR "%s: Truncating data file failed, file name %s: @@e", err, __func__, name);
-        goto err_exit;
+    if ((flags & O_ACCMODE) != O_RDONLY) {
+        rc = ftruncate(fd, mbfp->fszmax);
+        if (rc < 0) {
+            err = merr(errno);
+            hse_elog(HSE_ERR
+                     "%s: Truncating data file failed, file name %s: @@e", err, __func__, name);
+            goto err_exit;
+        }
     }
 
     mbfp->io = io_sync_ops;
@@ -779,6 +777,7 @@ mblock_file_meta_validate(struct mblock_file *mbfp, uint64_t *mbidv, int mbidc, 
     uint32_t block, wlen, omfwlen;
     char    *addr;
     uint64_t omfid;
+    merr_t   err = 0;
 
     if (ev(!mbfp || !mbidv))
         return merr(EINVAL);
@@ -799,15 +798,13 @@ mblock_file_meta_validate(struct mblock_file *mbfp, uint64_t *mbidv, int mbidc, 
     omfwlen = omf_mblk_wlen(mbomf);
 
     if (!omf_isvalid(*mbidv, omfid, wlen, omfwlen, exists)) {
-        if (ev(exists && *mbidv != omfid)) {
-            assert(uniquifier(omfid) > uniquifier(*mbidv));
-            return merr(ENOENT);
-        }
-        assert(0);
-        return merr(EBUG);
+        if (exists && *mbidv != omfid)
+            err = (omfid != 0) ? merr(ENOENT) : 0;
+        else
+            err = merr(EINVAL);
     }
 
-    return 0;
+    return err;
 }
 
 merr_t
@@ -824,13 +821,17 @@ mblock_file_find(struct mblock_file *mbfp, uint64_t *mbidv, int mbidc, uint32_t 
 
     block = block_id(*mbidv);
 
+    mutex_lock(&mbfp->meta_lock);
     err = mblock_rgn_find(&mbfp->rgnmap, block + 1);
-    if (err && merr_errno(err) != ENOENT)
+    if (err && merr_errno(err) != ENOENT) {
+        mutex_unlock(&mbfp->meta_lock);
         return err;
+    }
 
     err2 = mblock_file_meta_validate(mbfp, mbidv, mbidc, !err);
     if (!err2 && wlen)
         *wlen = atomic_read(mbfp->wlenv + block);
+    mutex_unlock(&mbfp->meta_lock);
 
     return err2 ? : err;
 }
@@ -871,6 +872,13 @@ mblock_file_abort(struct mblock_file *mbfp, uint64_t *mbidv, int mbidc)
         return merr(ENOTSUP);
 
     block = block_id(*mbidv);
+    err = mblock_rgn_find(&mbfp->rgnmap, block + 1);
+    if (err)
+        return err;
+
+    err = mblock_file_meta_validate(mbfp, mbidv, mbidc, false);
+    if (err)
+        return err;
 
     atomic_set(mbfp->wlenv + block, 0);
 
@@ -897,6 +905,9 @@ mblock_file_delete(struct mblock_file *mbfp, uint64_t *mbidv, int mbidc)
         return merr(ENOTSUP);
 
     block = block_id(*mbidv);
+    err = mblock_rgn_find(&mbfp->rgnmap, block + 1);
+    if (err)
+        return err;
 
     /* First log the delete */
     err = mblock_file_meta_log(mbfp, mbidv, mbidc, delete);
@@ -941,9 +952,11 @@ mblock_file_read(
     int                 iovc,
     off_t               off)
 {
-    off_t  roff, eoff;
-    size_t len = 0, mblocksz;
-    merr_t err;
+    uint32_t  block;
+    off_t     roff, eoff;
+    size_t    len = 0, mblocksz, wlen;
+    merr_t    err;
+    atomic_t *wlenp;
 
     if (ev(!mbfp || !iov))
         return merr(EINVAL);
@@ -951,17 +964,24 @@ mblock_file_read(
     if (iovc == 0)
         return 0;
 
-    err = mblock_rgn_find(&mbfp->rgnmap, block_id(mbid) + 1);
+    if (ev(!PAGE_ALIGNED(off)))
+        return merr(EINVAL);
+
+    block = block_id(mbid);
+    err = mblock_rgn_find(&mbfp->rgnmap, block + 1);
     if (err)
         return err;
 
+    wlenp = mbfp->wlenv + block;
+    wlen = atomic_read(wlenp);
+
     mblocksz = mbfp->mblocksz;
     roff = block_off(mbid, mblocksz);
-    eoff = roff + mblocksz - 1;
+    eoff = roff + wlen - 1;
     roff += off;
 
     len = iov_len_get(iov, iovc);
-    if (roff + len - 1 > eoff)
+    if (!PAGE_ALIGNED(len) || (roff + len - 1 > eoff))
         return merr(EINVAL);
 
     return mbfp->io.read(mbfp->fd, roff, iov, iovc, 0);
@@ -974,6 +994,7 @@ mblock_file_write(
     const struct iovec *iov,
     int                 iovc)
 {
+    uint32_t  block;
     size_t    len, mblocksz;
     off_t     woff, eoff, off;
     merr_t    err;
@@ -985,12 +1006,14 @@ mblock_file_write(
     if (iovc == 0)
         return 0;
 
-    err = mblock_rgn_find(&mbfp->rgnmap, block_id(mbid) + 1);
+    block = block_id(mbid);
+    err = mblock_rgn_find(&mbfp->rgnmap, block + 1);
     if (err)
         return err;
 
-    wlenp = mbfp->wlenv + block_id(mbid);
+    wlenp = mbfp->wlenv + block;
     off = atomic_read(wlenp);
+    assert(PAGE_ALIGNED(off));
 
     mblocksz = mbfp->mblocksz;
     woff = block_off(mbid, mblocksz);
@@ -998,7 +1021,7 @@ mblock_file_write(
     woff += off;
 
     len = iov_len_get(iov, iovc);
-    if (woff + len - 1 > eoff)
+    if (!PAGE_ALIGNED(len) || (woff + len - 1 > eoff))
         return merr(EINVAL);
 
     err = mbfp->io.write(mbfp->fd, woff, iov, iovc, 0);

@@ -137,6 +137,60 @@ components = {
         'kvs_rparams_test': {},
         'kvs_cursor_test': {},
     },
+    'mpool': {
+        'mpool_test': {
+            'sources': [
+                files(
+                    'mpool' / 'common.c',
+                ),
+            ],
+            'include_directories': [
+                mpool_internal_includes,
+            ],
+            'args': [
+                meson.current_build_dir(),
+            ],
+        },
+        'mblock_test': {
+            'sources': [
+                files(
+                    'mpool' / 'common.c',
+                ),
+            ],
+            'include_directories': [
+                mpool_internal_includes,
+            ],
+            'args': [
+                meson.current_build_dir(),
+            ],
+        },
+        'mdc_test': {
+            'sources': [
+                files(
+                    'mpool' / 'common.c',
+                ),
+            ],
+            'include_directories': [
+                mpool_internal_includes,
+            ],
+            'args': [
+                meson.current_build_dir(),
+            ],
+        },
+        'mcache_test': {
+            'sources': [
+                files(
+                    'mpool' / 'common.c',
+                ),
+            ],
+            'include_directories': [
+                mpool_internal_includes,
+            ],
+            'args': [
+                meson.current_build_dir(),
+            ],
+        },
+    },
     'util': {
         'allocation_test': {},
         'atomic_test': {

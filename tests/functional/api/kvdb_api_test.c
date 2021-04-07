@@ -54,7 +54,6 @@ MTF_DEFINE_UTEST(kvdb_api, kvdb_make_busy)
 MTF_DEFINE_UTEST(kvdb_api, kvdb_close)
 {
     hse_err_t        err;
-    struct hse_kvdb *kvdb = NULL;
 
     /* TC: hse_kvdb_close(NULL) --> EINVAL */
     err = hse_kvdb_close(NULL);

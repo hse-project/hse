@@ -66,12 +66,7 @@ hse_dependencies = [
     m_dep,
     thread_dep,
     rbtree_dep,
-    uuid_dep,
     crc32c_dep,
-]
-
-hse_public_dependencies = [
-    uuid_dep,
 ]
 
 hse = both_libraries(
@@ -82,7 +77,7 @@ hse = both_libraries(
     dependencies: hse_dependencies,
     version: meson.project_version(),
     install: true,
-    #gnu_symbol_visibility: 'hidden', # Commented for testing libmpool
+    gnu_symbol_visibility: 'hidden',
 )
 
 hse_variables = {
@@ -99,7 +94,6 @@ hse_dep = declare_dependency(
     include_directories: [
         public_includes,
     ],
-    dependencies: hse_public_dependencies,
     variables: hse_variables,
 )
 
@@ -112,16 +106,12 @@ hse_static_dep = declare_dependency(
     include_directories: [
         public_includes,
     ],
-    dependencies: hse_public_dependencies,
     variables: hse_variables,
 )
 
 if 'unit' in enabled_tests
     hse_mock_c_args = [
         '-DHSE_MOCKING=1',
-        # only exists for generating mpool mocks
-        # remove when userspace mpool is merged
-        '-DHSE_UNIT_TEST_MODE=1',
     ]
 
     hse_mock_include_directories = [
@@ -159,7 +149,6 @@ if 'unit' in enabled_tests
             hse_include_directories,
             hse_mock_include_directories,
         ],
-        dependencies: hse_public_dependencies,
     )
 endif
 
@@ -170,7 +159,6 @@ pkg.generate(
     name: meson.project_name(),
     version: meson.project_version(),
     url: 'https://github.com/hse-project/hse',
-    requires: hse_public_dependencies,
     subdirs: [
         '@0@-@1@'.format(meson.project_name(), hse_major_version),
     ],

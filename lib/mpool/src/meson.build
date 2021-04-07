@@ -10,3 +10,5 @@ mpool_sources = files(
     'mdc.c',
     'mdc_file.c',
 )
+
+mpool_internal_includes = include_directories('.')

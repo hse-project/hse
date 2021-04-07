@@ -32,6 +32,7 @@ struct mdc_file {
     off_t  woff;
     off_t  roff;
     size_t size;
+    size_t maxsz;
 
     struct io_ops  io;
     char          *addr;
@@ -348,6 +349,9 @@ mdc_file_open(struct mpool_mdc *mdc, uint64_t logid, uint64_t *gen, struct mdc_f
     if (ev(err))
         goto err_exit1;
 
+    /* Automatic extension upto MDC_EXTEND_FACTOR x the original capacity */
+    mfp->maxsz = MDC_EXTEND_FACTOR * mfp->size;
+
     mfp->mdc = mdc;
     mfp->logid = logid;
     mfp->fd = fd;
@@ -392,28 +396,6 @@ mdc_file_close(struct mdc_file *mfp)
     close(mfp->fd);
 
     free(mfp);
-
-    return 0;
-}
-
-merr_t
-mdc_file_empty(struct mdc_file *mfp, bool *empty)
-{
-    char  *addr;
-    merr_t err;
-    size_t recsz;
-
-    if (ev(!mfp || !empty))
-        return merr(EINVAL);
-
-    *empty = false;
-    addr = mfp->addr + MDC_LOGHDR_LEN;
-
-    err = logrec_validate(addr, &recsz);
-    if (err && recsz == 0) {
-        assert(merr_errno(err) == ENOMSG);
-        *empty = true;
-    }
 
     return 0;
 }
@@ -609,6 +591,14 @@ mdc_file_extend(struct mdc_file *mfp, size_t minsz)
 {
     merr_t err;
     int    rc;
+    size_t sz;
+
+    sz = 2 * mfp->size;
+    if (sz < minsz)
+        sz = 2 * minsz;
+
+    if (sz > mfp->maxsz)
+        return 0; /* Do nothing */
 
     err = mdc_file_sync(mfp);
     if (ev(err))
@@ -618,9 +608,7 @@ mdc_file_extend(struct mdc_file *mfp, size_t minsz)
     if (ev(err))
         return err;
 
-    mfp->size *= 2;
-    if (mfp->size < minsz)
-        mfp->size = 2 * minsz;
+    mfp->size = sz;
 
     rc = ftruncate(mfp->fd, mfp->size);
     if (ev(rc < 0))
@@ -698,6 +686,9 @@ mdc_file_append(struct mdc_file *mfp, void *data, size_t len, bool sync)
         if (ev(err))
             return err;
     }
+
+    if (ev((mfp->woff + tlen) > mfp->size))
+        return merr(EFBIG);
 
     if (len >= PAGE_SIZE)
         err = mdc_file_append_sys(mfp, data, len);
