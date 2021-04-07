@@ -6,8 +6,6 @@ option('tests', type: 'array', choices: ['all', 'unit', 'functional'], value: ['
     description: 'Build and enable tests')
 option('tests-kvdb', type: 'string', value: 'testkvdb',
     description: 'KVDB the tests will use')
-option('benchmarks-log-dir', type: 'string', value: '',
-    description: 'Location to save benchmark logs and artifacts')
 option('ycsb', type: 'boolean', value: false,
     description: 'Build JNI bridge artifacts')
 option('tools', type: 'boolean', value: true,
