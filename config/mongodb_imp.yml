@@ -8,4 +8,5 @@ kvs.MainKvs:
   pfx_len: 10
 
 kvs.UniqIdxKvs:
+  cn_cursor_vra: 0
   pfx_len: 25

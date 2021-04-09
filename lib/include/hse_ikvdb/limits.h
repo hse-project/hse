@@ -33,8 +33,12 @@
 #define HSE_C0_MAINT_THREADS_DFLT (5)
 #define HSE_C0_MAINT_THREADS_MAX (32)
 
-#define HSE_VIEWSET_ELTS_MAX (1000)
-#define HSE_C0SNRSET_ELTS_MAX (1000 * 1000)
+/* The defines for the max number of entries in the viewset and snr
+ * caches are totals for the entire cache.  Any given thread will
+ * likely be able to access only a fraction of the total.
+ */
+#define HSE_VIEWSET_ELTS_MAX        (128ul << 10)
+#define HSE_C0SNRSET_ELTS_MAX       (32ul << 20)
 
 /* We use the c0kvms ptomb c0kvs cheap to store the c0kvms-priv and
  * c0 ingest-work buffers.  We desire to size the priv buffer such

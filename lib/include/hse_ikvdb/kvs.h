@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
 #ifndef HSE_KVS_IKVS_H
@@ -52,7 +52,6 @@ struct hse_kvs_cursor {
     volatile bool          kc_on_list;
     unsigned int           kc_flags;
     merr_t                 kc_err;
-    atomic_t *             kc_cursor_cnt;
     struct kc_filter       kc_filter;
     void                  *kc_viewcookie;
 };
@@ -195,29 +194,8 @@ kvs_cursor_perfc_free(struct perfc_set *pcs_cc, struct perfc_set *pcs_cd);
 void
 kvs_cursor_perfc_alloc(const char *dbname, struct perfc_set *pcs_cc, struct perfc_set *pcs_cd);
 
-/**
- * struct cache_bucket - a list of cursors per rb_node
- * @node:     how we link into rb tree
- * @list:     list of cached cursors
- * @oldest:   insertion time (ns) of oldest cursor on %list
- * @cnt:      number of cursors on %list
- * @freeme:   if %true, bucket must be freed via %free()
- */
-struct cache_bucket {
-    struct rb_node          node;
-    struct kvs_cursor_impl *list;
-    u64                     oldest;
-    int                     cnt;
-    bool                    freeme;
-};
-
-struct curcache {
-    struct mutex         cca_lock;
-    struct rb_root       cca_root;
-    struct cache_bucket *cca_bkt_head;
-} HSE_ALIGNED(SMP_CACHE_BYTES * 2);
-
 struct ikvs {
+    uint64_t         ikv_gen;
     uint             ikv_sfx_len;
     uint             ikv_pfx_len;
     struct c0 *      ikv_c0;
@@ -231,32 +209,19 @@ struct ikvs {
 
     const char *ikv_kvs_name;
     const char *ikv_mpool_name;
-    struct cache_bucket *ikv_curcache_bktmem;
-
-    /* The width of the cursor cache divided by two should
-     * yield a prime in order for ikvs_td2cca() to work well.
-     */
-    uint            ikv_curcache_preenidx;
-    struct curcache ikv_curcachev[14];
 };
+
+bool
+kvs_txn_is_enabled(struct ikvs *kvs);
 
 void
 ikvs_cursor_reap(struct ikvs *kvs);
 
 void
-ikvs_cursor_bkt_free(struct curcache *cca, struct cache_bucket *bkt);
-
-void
 kvs_cursor_perfc_fini(void);
 
-merr_t
-kvs_cursor_zone_alloc(void);
-
-void
-kvs_cursor_zone_free(void);
-
-bool
-kvs_txn_is_enabled(struct ikvs *kvs);
+merr_t kvs_curcache_init(void);
+void kvs_curcache_fini(void);
 
 #if HSE_MOCKING
 #include "kvs_ut.h"

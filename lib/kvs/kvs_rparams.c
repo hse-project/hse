@@ -63,7 +63,7 @@ kvs_rparams_defaults(void)
         .cn_capped_ttl = 9000,
         .cn_capped_vra = 512 * 1024,
 
-        .cn_cursor_vra = 8 * 1024,
+        .cn_cursor_vra = 0,
         .cn_cursor_kra = 0,
         .cn_cursor_seq = 0,
 

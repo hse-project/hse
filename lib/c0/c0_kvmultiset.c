@@ -50,7 +50,6 @@
  * @c0ms_c0snr_cur:      current offset into c0snr memory pool
  * @c0ms_c0snr_max:      max elements in c0snr memory pool
  * @c0ms_c0snr_base:     base of c0snr memory pool dedicated
- * @c0ms_c0snr_cnt:      count of distinct c0snrs (txns) in kvms
  * @c0ms_resetsz:       size used by fully set up c0kvms
  * @c0ms_sets:          vector of c0 kvset pointers
  */
@@ -62,7 +61,7 @@ struct c0_kvmultiset_impl {
     u64                  c0ms_ingest_delay;
     u64                  c0ms_ctime;
 
-    HSE_ALIGNED(SMP_CACHE_BYTES) atomic_t c0ms_ingesting;
+    atomic_t                 c0ms_ingesting HSE_ALIGNED(SMP_CACHE_BYTES);
     bool                     c0ms_ingested;
     bool                     c0ms_finalized;
     size_t                   c0ms_txn_thresh_lo;
@@ -71,18 +70,14 @@ struct c0_kvmultiset_impl {
     struct workqueue_struct *c0ms_wq;
     struct work_struct       c0ms_destroy_work;
 
-    HSE_ALIGNED(SMP_CACHE_BYTES) atomic_t c0ms_refcnt;
+    atomic_t c0ms_refcnt  HSE_ALIGNED(SMP_CACHE_BYTES);
+    size_t c0ms_used  HSE_ALIGNED(SMP_CACHE_BYTES * 2);
 
-    HSE_ALIGNED(SMP_CACHE_BYTES) atomic_t c0ms_c0snr_cur;
+    atomic64_t c0ms_c0snr_cur  HSE_ALIGNED(SMP_CACHE_BYTES * 2);
+    size_t     c0ms_c0snr_max  HSE_ALIGNED(SMP_CACHE_BYTES);
+    uintptr_t *c0ms_c0snr_base;
 
-    size_t              c0ms_c0snr_max;
-    uintptr_t          *c0ms_c0snr_base;
-
-    HSE_ALIGNED(SMP_CACHE_BYTES) atomic_t c0ms_c0snr_cnt;
-
-    HSE_ALIGNED(SMP_CACHE_BYTES) size_t c0ms_used;
-
-    HSE_ALIGNED(SMP_CACHE_BYTES) u32 c0ms_num_sets;
+    u32              c0ms_num_sets;
     u32              c0ms_resetsz;
     struct c0_kvset *c0ms_sets[HSE_C0_INGEST_WIDTH_MAX];
 };
@@ -568,13 +563,15 @@ c0kvms_cursor_update(struct c0_kvmultiset_cursor *cur, void *key, u32 klen, u32 
 
     int i;
 
-    /* HSE_REVISIT: if ingested, should release asap and track in cn */
+    /* HSE_REVISIT: if ingested, should release asap and track in cn.
+     */
+    if (c0kvms_is_ingested(cur->c0mc_kvms)) {
+        static atomic_t cnt;
 
-    if (c0kvms_is_ingested(cur->c0mc_kvms))
-        hse_log(
-            HSE_ERR "c0kvms_cursor_update: "
-                    "holding ref of ingested kvms %p",
-            cur->c0mc_kvms);
+        if (atomic_fetch_add(1, &cnt) % 1024 == 0)
+            hse_log(HSE_WARNING "%s: thread %lx holding ref on ingested kvms %p (%u)",
+                    __func__, pthread_self(), cur->c0mc_kvms, atomic_read(&cnt));
+    }
 
     /*
      * c0_kvsets can become non-empty, or be extended past eof.
@@ -850,7 +847,6 @@ c0kvms_create(
     atomic_set(&kvms->c0ms_refcnt, 1); /* birth reference */
     atomic_set(&kvms->c0ms_ingesting, 0);
 
-    atomic_set(&kvms->c0ms_c0snr_cnt, 0);
     kvms->c0ms_c0snr_max = HSE_C0KVMS_C0SNR_MAX;
 
     kvms->c0ms_ingest_delay = ingest_delay;
@@ -937,45 +933,53 @@ void
 c0kvms_abort_active(struct c0_kvmultiset *handle)
 {
     struct c0_kvmultiset_impl *self = c0_kvmultiset_h2r(handle);
-    uint c0snr_cnt;
-    int i;
-    int attempts = 5;
-    bool backoff;
+    uint64_t c0snr_cnt;
+    int attempts, n, i;
+    long delay_us;
+
+    delay_us = 100;
+    attempts = (USEC_PER_SEC * 5) / delay_us;
+    n = i = 0;
 
     do {
-        backoff = false;
-        c0snr_cnt = atomic_read(&self->c0ms_c0snr_cnt);
-        for (i = 0; i < c0snr_cnt; i++) {
+        c0snr_cnt = atomic64_read(&self->c0ms_c0snr_cur);
+        if (c0snr_cnt > self->c0ms_c0snr_max)
+            c0snr_cnt = self->c0ms_c0snr_max;
+
+        for (; i < c0snr_cnt; ++i) {
             uintptr_t *ptr = (uintptr_t *)self->c0ms_c0snr_base[i];
 
             if (ptr && c0snr_txn_is_active(ptr)) {
-                backoff = true;
+                usleep(delay_us);
                 break;
             }
         }
+    } while (i < c0snr_cnt && --attempts > 0);
 
-        if (backoff)
-            sleep(1);
+    c0snr_cnt = atomic64_read(&self->c0ms_c0snr_cur);
+    if (c0snr_cnt > self->c0ms_c0snr_max)
+        c0snr_cnt = self->c0ms_c0snr_max;
 
-    } while (--attempts && backoff);
-
-    if (!attempts)
-        hse_log(HSE_ERR "Back off attempts expired. Ingest may abort transactions");
-
-    c0snr_cnt = atomic_read(&self->c0ms_c0snr_cnt);
-    for (i = 0; i < c0snr_cnt; i++) {
+    /* Abort all remaining active transactions...
+     */
+    for (; i < c0snr_cnt; ++i) {
         uintptr_t *ptr = (uintptr_t *)self->c0ms_c0snr_base[i];
 
-        if (ptr)
+        if (ptr && c0snr_txn_is_active(ptr)) {
             c0snr_abort(ptr);
+            ++n;
+        }
     }
+
+    if (n > 0)
+        hse_log(HSE_WARNING "%s: aborted %d active transactions...", __func__, n);
 }
 
 static void
 c0kvms_destroy(struct c0_kvmultiset_impl *mset)
 {
+    uint64_t c0snr_cnt;
     int i;
-    int c0snr_cnt = atomic_read(&mset->c0ms_c0snr_cnt);
 
     assert(atomic_read(&mset->c0ms_refcnt) == 0);
 
@@ -986,11 +990,11 @@ c0kvms_destroy(struct c0_kvmultiset_impl *mset)
 
     c0_ingest_work_fini(mset->c0ms_ingest_work);
 
+    c0snr_cnt = atomic64_read(&mset->c0ms_c0snr_cur);
+    if (c0snr_cnt > mset->c0ms_c0snr_max)
+        c0snr_cnt = mset->c0ms_c0snr_max;
+
     c0snr_droprefv(c0snr_cnt, (uintptr_t **)mset->c0ms_c0snr_base);
-
-    atomic_sub(c0snr_cnt, &mset->c0ms_c0snr_cnt);
-
-    assert(atomic_read(&mset->c0ms_c0snr_cnt) == 0);
 
     for (i = 0; i < mset->c0ms_num_sets; ++i)
         c0kvs_destroy(mset->c0ms_sets[i]);
@@ -1021,9 +1025,7 @@ c0kvms_reset(struct c0_kvmultiset *handle)
     atomic_set(&self->c0ms_refcnt, 1); /* birth reference */
     atomic_set(&self->c0ms_ingesting, 0);
 
-    assert(atomic_read(&self->c0ms_c0snr_cnt) == 0);
-    atomic_set(&self->c0ms_c0snr_cnt, 0);
-    atomic_set(&self->c0ms_c0snr_cur, 0);
+    atomic64_set(&self->c0ms_c0snr_cur, 0);
 
     self->c0ms_finalized = false;
     self->c0ms_ingested = false;
@@ -1109,14 +1111,12 @@ c0kvms_c0snr_alloc(struct c0_kvmultiset *handle)
     uint                        cur;
     uintptr_t                  *entry;
 
-    assert(self->c0ms_c0snr_base);
-
-    cur = atomic_fetch_add(1, &self->c0ms_c0snr_cur);
+    cur = atomic64_fetch_add(1, &self->c0ms_c0snr_cur);
 
     if (ev(cur >= self->c0ms_c0snr_max))
         return NULL;
 
-    atomic_inc(&self->c0ms_c0snr_cnt);
+    assert(self->c0ms_c0snr_base);
     entry = self->c0ms_c0snr_base + cur;
 
     return entry;

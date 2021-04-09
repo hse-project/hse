@@ -15,7 +15,7 @@ hse_mock_repository = static_library(
     'hse-mock-repository',
     mock_repository_sources,
     c_args: [
-        '-DHSE_MOCKING=1',
+        '-D_GNU_SOURCE=1',
         '-DCOMPNAME="kvdb"',
     ],
     include_directories: [

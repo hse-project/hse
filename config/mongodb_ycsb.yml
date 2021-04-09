@@ -5,6 +5,7 @@ api_version: 1
 
 kvs.MainKvs:
   value_compression: lz4
+  cn_cursor_vra: 0
   pfx_len: 9
 
 kvs.UniqIdxKvs:

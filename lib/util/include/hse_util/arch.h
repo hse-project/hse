@@ -1,12 +1,15 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
 #ifndef HSE_PLATFORM_ARCH_H
 #define HSE_PLATFORM_ARCH_H
 
 #include <hse_util/page.h>
+#include <hse_util/timing.h>
+
+#include <sched.h>
 
 /* MTF_MOCK_DECL(arch) */
 
@@ -35,6 +38,37 @@
 /* MTF_MOCK */
 void
 hse_meminfo(unsigned long *freep, unsigned long *availp, unsigned int shift);
+
+
+struct hse_cputopo {
+    uint32_t core : 20;
+    uint32_t node : 12;
+};
+
+#define hse_cpu2core(_cpuid)    (hse_cputopov[(_cpuid)].core)
+#define hse_cpu2node(_cpuid)    (hse_cputopov[(_cpuid)].node)
+
+extern struct hse_cputopo *hse_cputopov;
+
+/**
+ * hse_getcpu() - get calling thread's current cpu, node, and core ID
+ * @cpu:   returns calling thread's virtual cpu ID
+ * @core:  returns calling thread's physical core ID
+ * @node:  returns calling thread's physical node ID
+ *
+ * Similar in function to Linux's getcpu() system call, but also returns
+ * the core ID.
+ */
+static HSE_ALWAYS_INLINE void
+hse_getcpu(uint *cpu, uint *node, uint *core)
+{
+    uint cpuid = raw_smp_processor_id();
+
+    *cpu = cpuid;
+    *node = hse_cpu2node(cpuid);
+    *core = hse_cpu2core(cpuid);
+}
+
 
 #if HSE_MOCKING
 #include "arch_ut.h"

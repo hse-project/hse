@@ -804,13 +804,13 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, put_get_del, mapi_pre, mapi_post)
     ASSERT_EQ(KVDB_CTXN_COMMITTED, state);
 
     err = kvdb_ctxn_put(handle, c0, &kt, &vt);
-    ASSERT_EQ(EPROTO, merr_errno(err));
+    ASSERT_EQ(ECANCELED, merr_errno(err));
 
     err = kvdb_ctxn_get(handle, c0, cN, &kt, NULL, NULL);
-    ASSERT_EQ(EPROTO, merr_errno(err));
+    ASSERT_EQ(ECANCELED, merr_errno(err));
 
     err = kvdb_ctxn_del(handle, c0, &kt);
-    ASSERT_EQ(EPROTO, merr_errno(err));
+    ASSERT_EQ(ECANCELED, merr_errno(err));
 
     kvdb_ctxn_free(handle);
     kvdb_ctxn_set_destroy(kvdb_ctxn_set);

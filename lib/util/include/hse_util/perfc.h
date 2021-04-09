@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
 #ifndef HSE_PLATFORM_PERFC_H
@@ -305,38 +305,50 @@ perfc_ivl_destroy(const struct perfc_ivl *ivl);
  */
 /* GCOV_EXCL_START */
 
-#define PERFC_INC_RU(_pc, _cid, _rumax)       \
-    do {                                      \
-        static thread_local struct {              \
-            u64 cnt;                          \
-        } ru;                                 \
-                                              \
-        if (HSE_UNLIKELY(++ru.cnt >= (_rumax))) { \
-            perfc_add((_pc), (_cid), ru.cnt); \
-            ru.cnt = 0;                       \
-        }                                     \
+#define PERFC_INC_RU(_pc, _cid, _rumax)                 \
+    do {                                                \
+        static thread_local struct {                    \
+            u64 cnt;                                    \
+        } ru;                                           \
+                                                        \
+        if (HSE_UNLIKELY(++ru.cnt >= (_rumax))) {       \
+            perfc_add((_pc), (_cid), ru.cnt);           \
+            ru.cnt = 0;                                 \
+        }                                               \
     } while (0)
 
-#define PERFC_INCADD_RU(_pc, _cidx1, _cidx2, _val2, _rumax)        \
-    do {                                                           \
-        static thread_local struct {                                   \
-            u64 cnt;                                               \
-            u64 sum;                                               \
-        } ru;                                                      \
-                                                                   \
-        ru.cnt += 1;                                               \
-        ru.sum += (_val2);                                         \
-                                                                   \
-        if (HSE_UNLIKELY(ru.cnt >= (_rumax))) {                        \
-            perfc_add2((_pc), (_cidx1), ru.cnt, (_cidx2), ru.sum); \
-            ru.cnt = 0;                                            \
-            ru.sum = 0;                                            \
-        }                                                          \
+#define PERFC_INCADD_RU(_pc, _cidx1, _cidx2, _val2, _rumax)             \
+    do {                                                                \
+        static thread_local struct {                                    \
+            u64 cnt;                                                    \
+            u64 sum;                                                    \
+        } ru;                                                           \
+                                                                        \
+        ru.cnt += 1;                                                    \
+        ru.sum += (_val2);                                              \
+                                                                        \
+        if (HSE_UNLIKELY(ru.cnt >= (_rumax))) {                         \
+            perfc_add2((_pc), (_cidx1), ru.cnt, (_cidx2), ru.sum);      \
+            ru.cnt = 0;                                                 \
+            ru.sum = 0;                                                 \
+        }                                                               \
+    } while (0)
+
+#define PERFC_DEC_RU(_pc, _cid, _rumax)                 \
+    do {                                                \
+        static thread_local struct {                    \
+            u64 cnt;                                    \
+        } ru;                                           \
+                                                        \
+        if (HSE_UNLIKELY(++ru.cnt >= (_rumax))) {       \
+            perfc_sub((_pc), (_cid), ru.cnt);           \
+            ru.cnt = 0;                                 \
+        }                                               \
     } while (0)
 
 /* GCOV_EXCL_STOP */
 
-    /**
+/**
  * struct perfc_ivl - interval bounds map
  * @ivl_cnt:    length of ivl_bound[] vector
  * @ivl_map:    used to map ipow2(val) to the nearest bound[]
@@ -589,6 +601,21 @@ perfc_lat_record_impl(struct perfc_dis *dis, u64 sample);
  */
 void
 perfc_dis_record_impl(struct perfc_dis *dis, u64 sample);
+
+/**
+ * perfc_read() - return sum totals of all operations made to a counter
+ * @pcs:    perfc counter set handle
+ * @cidx:   counter index
+ * @vadd:   sum of all perfc_inc() and perfc_add() calls
+ * @sub:    sum of all perfc_dec() and perfc_sub() calls
+ *
+ * Reading a perf counter that is actively being updated may return
+ * results in %vadd and/or %vsub that are lower than expected.
+ * However, results are eventually consistent.
+ */
+void
+perfc_read(struct perfc_set *pcs, const u32 cidx, u64 *vadd, u64 *vsub);
+
 
 #define perfc_rec_lat perfc_lat_record
 #define perfc_rec_sample perfc_dis_record
