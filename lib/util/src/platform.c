@@ -166,7 +166,6 @@ hse_cputopo_rest_get(
 static merr_t
 hse_cputopo_init(void)
 {
-    const char *cpu_node_fmt = "/sys/devices/system/node/has_cpu";
     uint vcpu_online, core0_count, vcpu, nodemin, nodemax, nodeX;
     size_t align, setszmax, setsz, sz;
     int setcntmax, setcnt, rc, n, i;
@@ -228,14 +227,13 @@ hse_cputopo_init(void)
 
     hse_cputopoc = setcnt;
 
-    /* Here we probe sysfs to find the min/max nodes that have CPUs..
+    /* Here we probe sysfs to find the min/max nodes that have CPUs.
      * If the probe fails and/or sysfs isn't available then we'll
      * probe for nodes using the setaffinity/getcpu method (below).
      */
-    snprintf(file, sizeof(file), cpu_node_fmt);
     nodemax = nodeX = 0;
 
-    n = hse_scanfile(file, "%u%ms", &nodemin, &bufptr);
+    n = hse_scanfile("/sys/devices/system/node/has_cpu", "%u%ms", &nodemin, &bufptr);
     if (n < 1) {
         nodemin = UINT_MAX;
     } else {

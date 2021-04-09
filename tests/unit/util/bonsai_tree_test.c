@@ -190,13 +190,17 @@ init_tree(struct bonsai_root **tree, enum bonsai_alloc_mode allocm)
 
     *tree = NULL;
 
-    cheap = cheap_create(16, 1024 * MB);
-    if (!cheap)
-        return;
+    while (1) {
+        cheap = cheap_create(16, 1024 * MB);
+        if (cheap)
+            break;
+
+        usleep(USEC_PER_SEC);
+    }
 
     err = bn_create(cheap, 32 * 1024, bonsai_client_insert_callback, NULL, tree);
     if (err)
-        hse_log(HSE_ERR "Bonsai tree create failed");
+        abort();
 }
 
 /*
