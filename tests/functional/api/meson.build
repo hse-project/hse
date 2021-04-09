@@ -42,6 +42,12 @@ tests = {
             get_option('tests-kvdb')
         ],
         'is_parallel': false,
+    },
+    'cursor_api_test':{
+        'args': [
+            get_option('tests-kvdb')
+        ],
+        'is_parallel': false,
     }
 }
 
