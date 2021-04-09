@@ -47,9 +47,7 @@
 #include <fcntl.h>
 #include <sys/file.h>
 
-extern merr_t
-hse_platform_init(void);
-extern void
-hse_platform_fini(void);
+extern merr_t hse_platform_init(void);
+extern void hse_platform_fini(void);
 
 #endif /* HSE_PLATFORM_PLATFORM_H */

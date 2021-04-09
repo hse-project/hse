@@ -40,21 +40,24 @@ void
 hse_meminfo(unsigned long *freep, unsigned long *availp, unsigned int shift);
 
 
-#define hse_cpu2core(_cpuid)    (hse_cputopov[(_cpuid) % CPU_SETSIZE].core)
-#define hse_cpu2node(_cpuid)    (hse_cputopov[(_cpuid) % CPU_SETSIZE].node)
-
 struct hse_cputopo {
-    uint16_t core : 12;
-    uint16_t node : 4;
+    uint32_t core : 20;
+    uint32_t node : 12;
 };
 
-extern struct hse_cputopo hse_cputopov[];
+#define hse_cpu2core(_cpuid)    (hse_cputopov[(_cpuid)].core)
+#define hse_cpu2node(_cpuid)    (hse_cputopov[(_cpuid)].node)
+
+extern struct hse_cputopo *hse_cputopov;
 
 /**
  * hse_getcpu() - get calling thread's current cpu, node, and core ID
+ * @cpu:   returns calling thread's virtual cpu ID
+ * @core:  returns calling thread's physical core ID
+ * @node:  returns calling thread's physical node ID
  *
- * Similar in function to Linux's getcpu() system call,
- * but also returns the core ID.
+ * Similar in function to Linux's getcpu() system call, but also returns
+ * the core ID.
  */
 static HSE_ALWAYS_INLINE void
 hse_getcpu(uint *cpu, uint *node, uint *core)

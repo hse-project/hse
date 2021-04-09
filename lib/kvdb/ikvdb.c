@@ -418,29 +418,26 @@ ikvdb_maint_task(struct work_struct *work)
     maxdelay = 10000; /* 10ms initial delay time */
 
     while (!self->ikdb_work_stop) {
+        uint64_t vadd = 0, vsub = 0, curcnt;
         u64 tstart = get_time_ns();
         uint i;
 
         /* Lazily sample the active cursor count and update ikdb_curcnt if necessary.
          * ikvdb_kvs_cursor_create() checks ikdb_curcnt to prevent the creation
-         * of excessive numbers of cursors.
+         * of an excessive number of cursors.
          */
-        if (1) {
-            uint64_t vadd = 0, vsub = 0, curcnt;
+        perfc_read(&kvdb_metrics_pc, PERFC_BA_KVDBMETRICS_CURCNT, &vadd, &vsub);
 
-            perfc_read(&kvdb_metrics_pc, PERFC_BA_KVDBMETRICS_CURCNT, &vadd, &vsub);
+        curcnt = (vadd > vsub) ? (vadd - vsub) : 0;
 
-            curcnt = (vadd > vsub) ? (vadd - vsub) : 0;
+        if (atomic_read(&self->ikdb_curcnt) != curcnt) {
+            atomic_set(&self->ikdb_curcnt, curcnt);
 
-            if (atomic_read(&self->ikdb_curcnt) != curcnt) {
-                atomic_set(&self->ikdb_curcnt, curcnt);
+            if (ev(curcnt > self->ikdb_curcnt_max && tstart > curcnt_warn)) {
+                hse_log(HSE_WARNING "%s: active cursors (%lu) > max allowed (%u)",
+                        __func__, curcnt, self->ikdb_curcnt_max);
 
-                if (ev(curcnt > self->ikdb_curcnt_max && tstart > curcnt_warn)) {
-                    hse_log(HSE_WARNING "%s: active cursors (%lu) > max allowed (%u)",
-                            __func__, curcnt, self->ikdb_curcnt_max);
-
-                    curcnt_warn = tstart + NSEC_PER_SEC * 15;
-                }
+                curcnt_warn = tstart + NSEC_PER_SEC * 15;
             }
         }
 

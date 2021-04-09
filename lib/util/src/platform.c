@@ -11,6 +11,8 @@
 #include <hse_util/perfc.h>
 #include <hse_util/timer.h>
 #include <hse_util/vlb.h>
+#include <hse_util/log2.h>
+#include <hse_util/hash.h>
 #include <hse_util/hse_log_fmt.h>
 
 #include <hse/hse_version.h>
@@ -24,8 +26,10 @@
 #include "rest_dt.h"
 
 #include <syscall.h>
+#include <sys/sysinfo.h>
 
-struct hse_cputopo hse_cputopov[CPU_SETSIZE] HSE_READ_MOSTLY HSE_ALIGNED(SMP_CACHE_BYTES);
+struct hse_cputopo *hse_cputopov HSE_READ_MOSTLY;
+uint hse_cputopoc HSE_READ_MOSTLY;
 
 rest_get_t kmc_rest_get;
 
@@ -92,84 +96,273 @@ hse_meminfo(ulong *freep, ulong *availp, uint shift)
 }
 
 /**
- * hse_cputopo_init() - build a cpu topology map
+ * hse_scanfile() - extract parameters from a file
+ * @file:  name of file to read
+ * @fmt:   format for vfscanf
  *
- * This function builds a map of the cpu topology such that we can
- * easily find a given CPU's core and node IDs by calling hse_getcpu();
+ * Return: Number of items converted, or EOF if file couldn't be
+ * opened and/or there was a matching failure.  Sets errno if
+ * there was an error.
  */
-static void
-hse_cputopo_init(void)
+static int
+hse_scanfile(const char *file, const char *fmt, ...)
 {
-    uint cpu, core, socket, node, cpumax, cpuconf;
-    int lineno, len, n;
-    char linebuf[1024];
+    int saved = 0, n = EOF;
+    va_list ap;
     FILE *fp;
 
-    for (cpu = 0; cpu < NELEM(hse_cputopov); ++cpu) {
-        hse_cputopov[cpu].core = cpu;
-        hse_cputopov[cpu].node = cpu % 2;
+    if (!file || !fmt) {
+        errno = EINVAL;
+        return EOF;
     }
 
-    fp = popen("/bin/lscpu -p", "r");
-    if (!fp) {
-        hse_log_sync(HSE_WARNING "%s: unable to build cpu-to-coreid map: %d", __func__, errno);
-        return;
+    fp = fopen(file, "r");
+    if (fp) {
+        va_start(ap, fmt);
+        n = vfscanf(fp, fmt, ap);
+        if (n == EOF)
+            saved = errno;
+        va_end(ap);
+
+        fclose(fp);
     }
 
-    cpuconf = 0;
-    cpumax = 0;
-    lineno = 0;
+    if (saved)
+        errno = saved;
 
-    while (fgets(linebuf, sizeof(linebuf), fp)) {
-        linebuf[sizeof(linebuf) - 1] = '\000';
-        ++lineno;
+    return n;
+}
 
-        if (linebuf[0] == '#' || (len = strlen(linebuf)) < 2)
-            continue;
+static merr_t
+hse_cputopo_rest_get(
+    const char *      path,
+    struct conn_info *info,
+    const char *      url,
+    struct kv_iter *  iter,
+    void *            context)
+{
+    char buf[128];
+    int n, i;
 
-        n = sscanf(linebuf, "%u,%u,%u,%u", &cpu, &core, &socket, &node);
+    n = snprintf(buf, sizeof(buf), "%4s %4s %4s\n",
+                 "vCPU", "CORE", "NODE");
+    rest_write_safe(info->resp_fd, buf, n);
 
-        if (n != 4) {
-            hse_log_sync(HSE_ERR "%s: unable to scan lscpu output: line %d, n %d, %s",
-                         __func__, lineno, n, linebuf);
-            continue;
+    for (i = 0; i < hse_cputopoc; ++i) {
+        n = snprintf(buf, sizeof(buf), "%4u %4u %4u\n",
+                     i, hse_cpu2core(i), hse_cpu2node(i));
+        rest_write_safe(info->resp_fd, buf, n);
+    }
+
+    return 0;
+}
+
+/**
+ * hse_cputopo_init() - build a CPU topology map
+ *
+ * This function builds a map of the CPU topology such that we can get the
+ * calling thread's current CPU, node, and core IDs by calling hse_getcpu().
+ */
+static merr_t
+hse_cputopo_init(void)
+{
+    const char *cpu_node_fmt = "/sys/devices/system/node/has_cpu";
+    uint vcpu_online, core0_count, vcpu, nodemin, nodemax, nodeX;
+    size_t align, setszmax, setsz, sz;
+    int setcntmax, setcnt, rc, n, i;
+    cpu_set_t *omask, *nmask;
+    bool restore = false;
+    char *bufptr = NULL;
+    char file[128];
+    u64 tstart;
+    merr_t err;
+
+    tstart = get_time_ns();
+
+    setcntmax = 1 << 20; /* max bits in struct hse_cputopo.core */
+    nodemax = 1 << 16; /* max bits in struct hse_cputoopo.node */
+
+    setcnt = roundup(get_nprocs_conf(), 64);
+    if (setcnt > setcntmax)
+        return merr(EINVAL);
+
+    setszmax = CPU_ALLOC_SIZE(setcntmax);
+
+    omask = CPU_ALLOC(setcntmax);
+    nmask = CPU_ALLOC(setcntmax);
+    if (!omask || !nmask) {
+        CPU_FREE(omask);
+        CPU_FREE(nmask);
+        return merr(ENOMEM);
+    }
+
+    CPU_ZERO_S(setszmax, omask);
+    CPU_ZERO_S(setszmax, nmask);
+
+    /* sysfs may not be available, so we leverage getaffinity which will fail
+     * until we give it a set size large enough for all possible configured
+     * CPUs known to the kernel.  This approach allows us to construct a
+     * sufficiently and minimally sized hse_cputopov[] such that no bounds
+     * checking is required when indexing by any "possible" vCPU ID.
+     */
+    while (1) {
+        setsz = CPU_ALLOC_SIZE(setcnt);
+
+        rc = pthread_getaffinity_np(pthread_self(), setsz, omask);
+        if (!rc)
+            break;
+
+        if ((setcnt *= 2) >= setcntmax)
+            return merr(EINVAL);
+    }
+
+    sz = sizeof(*hse_cputopov) * setcnt;
+    align = SMP_CACHE_BYTES * 2;
+
+    hse_cputopov = aligned_alloc(align, roundup(sz, align));
+    if (!hse_cputopov) {
+        CPU_FREE(omask);
+        CPU_FREE(nmask);
+        return merr(ENOMEM);
+    }
+
+    hse_cputopoc = setcnt;
+
+    /* Here we probe sysfs to find the min/max nodes that have CPUs..
+     * If the probe fails and/or sysfs isn't available then we'll
+     * probe for nodes using the setaffinity/getcpu method (below).
+     */
+    snprintf(file, sizeof(file), cpu_node_fmt);
+    nodemax = nodeX = 0;
+
+    n = hse_scanfile(file, "%u%ms", &nodemin, &bufptr);
+    if (n < 1) {
+        nodemin = UINT_MAX;
+    } else {
+        nodemax = nodeX = nodemin;
+
+        if (n > 1) {
+            char *comma = strrchr(bufptr, ',');
+            char *dash = strrchr(bufptr, '-');
+            char *p;
+
+            p = (dash > comma) ? dash : comma;
+            if (p)
+                nodemax = strtoul(p + 1, NULL, 0);
+
+            free(bufptr);
+        }
+    }
+
+    /* Finally, we probe for all possible CPUs (including those not
+     * indicated in the original affinity mask).
+     */
+    vcpu = raw_smp_processor_id();
+    vcpu_online = core0_count = 0;
+
+    for (i = 0; i < setcnt; ++i) {
+        const char *cpu_core_fmt = "/sys/devices/system/cpu/cpu%u/topology/core_id";
+        uint cpuid, nodeid, coreid;
+
+        CPU_CLR_S(vcpu, setsz, nmask);
+        vcpu = (vcpu + 1) % setcnt;
+
+        hse_cputopov[vcpu].core = vcpu;
+
+        for (nodeid = nodemin; nodeid <= nodemax; ++nodeid) {
+            const char *cpu_node_fmt = "/sys/devices/system/cpu/cpu%u/node%u";
+
+            snprintf(file, sizeof(file), cpu_node_fmt, vcpu, nodeX);
+
+            if (0 == access(file, X_OK)) {
+                hse_cputopov[vcpu].node = nodeX;
+                ev(1);
+                break;
+            }
+
+            nodeX = (nodeX + 1) % (nodemax + 1);
+            ev(1);
         }
 
-        cpuconf++;
+        if (ev(nodeid > nodemax)) {
+            CPU_SET_S(vcpu, setsz, nmask);
 
-        if (ev(cpu >= NELEM(hse_cputopov)))
-            continue;
+            rc = pthread_setaffinity_np(pthread_self(), setsz, nmask);
+            if (ev(rc))
+                continue; /* cpu offline or inaccessible */
 
-        hse_cputopov[cpu].core = core;
-        hse_cputopov[cpu].node = node;
+            if (0 == syscall(SYS_getcpu, &cpuid, &nodeid, NULL)) {
+                hse_cputopov[cpuid].core = cpuid;
+                hse_cputopov[cpuid].node = nodeid;
+                ev(cpuid != vcpu);
+            }
 
-        if (cpu > cpumax)
-            cpumax = cpu;
+            restore = true;
+        }
+
+        /* Core ID is architecture and platform dependent.  It is not
+         * the logical core as is typically shown by 'lscpu -p'.  If
+         * sysfs isn't configured then scanfile will fail and we'll
+         * fall back to using the CPU ID for the core ID.
+         */
+        snprintf(file, sizeof(file), cpu_core_fmt, vcpu);
+
+        n = hse_scanfile(file, "%u", &coreid);
+        if (n == 1) {
+            hse_cputopov[vcpu].core = coreid;
+            core0_count += (coreid == 0);
+        }
+
+        ++vcpu_online;
     }
 
-    pclose(fp);
-
-    if (cpuconf > cpumax) {
-        hse_log_sync(HSE_INFO "%s: %u cpus detected, dynamic cpu sets required",
-                     __func__, cpuconf);
+    if (restore) {
+        rc = pthread_setaffinity_np(pthread_self(), setsz, omask);
+        if (rc) {
+            err = merr(rc); /* this should never happen */
+            hse_elog(HSE_WARNING "%s: unable to restore affinity mask: @@e", err, __func__);
+        }
     }
+
+    /* If all the vCPUs are on core zero then we might be running in a VM.
+     * In this case, use the vCPU ID as the core ID so that our algorithms
+     * that map cores to buckets distribute the work over all buckets.
+     */
+    if (vcpu_online > 2 && vcpu_online == core0_count) {
+        for (i = 0; i < setcnt; ++i) {
+            hse_cputopov[i].core = i;
+        }
+    }
+
+    hse_log(HSE_NOTICE "%s: online cpus %u, cpu nodes %u-%u, core0 cpus %u, %lu us",
+            __func__, vcpu_online, nodemin, nodemax, core0_count,
+            (get_time_ns() - tstart) / 1000);
+
+    CPU_FREE(omask);
+    CPU_FREE(nmask);
+
+    return 0;
+}
+
+static void
+hse_cputopo_fini(void)
+{
+    free(hse_cputopov);
 }
 
 merr_t
 hse_platform_init(void)
 {
+    char *basename = NULL, *name = NULL;
     struct merr_info info;
-
-    char * basename = NULL, *name = NULL;
     merr_t err;
 
+    /* We only need the name pointer, the error is superfluous */
+    hse_program_name(&name, &basename);
+
     if (PAGE_SIZE != getpagesize()) {
-        fprintf(
-            stderr,
-            "Compile-time PAGE_SIZE (%lu)"
-            " != Run-time getpagesize (%d)",
-            PAGE_SIZE,
-            getpagesize());
+        fprintf(stderr, "%s: Compile-time PAGE_SIZE (%lu) != Run-time getpagesize (%d)",
+                __func__, PAGE_SIZE, getpagesize());
 
         err = merr(EINVAL);
         goto errout;
@@ -179,15 +372,17 @@ hse_platform_init(void)
     if (err)
         goto errout;
 
-    hse_cputopo_init();
+    dt_init();
+    hse_logging_post_init();
+    hse_log_reg_platform();
+
+    err = hse_cputopo_init();
+    if (err)
+        goto errout;
 
     err = vlb_init();
     if (err)
         goto errout;
-
-    dt_init();
-    hse_logging_post_init();
-    hse_log_reg_platform();
 
     err = hse_timer_init();
     if (err)
@@ -203,23 +398,19 @@ hse_platform_init(void)
 
     rest_init();
     rest_url_register(0, 0, rest_dt_get, rest_dt_put, "data"); /* for dt */
+    rest_url_register(0, 0, hse_cputopo_rest_get, NULL, "cputopo");
     rest_url_register(0, 0, kmc_rest_get, NULL, "kmc");
 
-    /* We only need the name pointer, the error is superfluous */
-    hse_program_name(&name, &basename);
     hse_log_sync(HSE_NOTICE "%s: version %s, image %s",
-        HSE_UTIL_DESC, hse_version, name ?: "unknown");
-    free(name);
-
-    return 0;
+                 HSE_UTIL_DESC, hse_version, name ?: __func__);
 
 errout:
-    fprintf(
-        stderr,
-        "%s, version %s: init failed: %s\n",
-        HSE_UTIL_DESC,
-        hse_version,
-        merr_info(err, &info));
+    if (err) {
+        fprintf(stderr, "%s: version %s, image %s: init failed: %s\n",
+                HSE_UTIL_DESC, hse_version, name ?: __func__, merr_info(err, &info));
+    }
+
+    free(name);
 
     return err;
 }
@@ -231,8 +422,9 @@ hse_platform_fini(void)
     kmem_cache_fini();
     perfc_shutdown();
     hse_timer_fini();
-    dt_fini();
     vlb_fini();
+    hse_cputopo_fini();
+    dt_fini();
     hse_logging_fini();
 }
 

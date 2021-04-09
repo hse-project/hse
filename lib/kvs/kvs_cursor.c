@@ -20,11 +20,14 @@
 #include <hse_ikvdb/tuple.h>
 #include <hse_ikvdb/cursor.h>
 
+/* [HSE_REVISIT] CC_RETIRE_KVS is now a kvdb perf counter and so should move
+ * away from here...
+ */
 struct perfc_name kvs_cc_perfc_op[] = {
-    NE(PERFC_BA_CC_RESTORE, 2, "Count of cursor restores", "c_restores"),
     NE(PERFC_BA_CC_ALLOC, 2, "Count of cursor allocations", "c_allocations"),
+    NE(PERFC_BA_CC_RESTORE, 2, "Count of cursor restores", "c_restores"),
+    NE(PERFC_BA_CC_RETIRE_KVS, 2, "Count of cursor retires due to age", "c_ret_kvs"),
 
-    NE(PERFC_BA_CC_RETIRE_KVS, 3, "Count of cursor retires due to age", "c_ret_kvs"),
     NE(PERFC_BA_CC_SAVE, 3, "Count of cursor saves", "c_saves"),
     NE(PERFC_BA_CC_SAVE_DESTROY, 3, "Count of cursor restore failures", "c_rest_fails"),
     NE(PERFC_BA_CC_EAGAIN_C0, 3, "Count of c0 EAGAIN's", "c_c0_eagain"),
@@ -35,7 +38,7 @@ struct perfc_name kvs_cc_perfc_op[] = {
     NE(PERFC_BA_CC_INIT_UPDATE_CN, 3, "Count of cN cursor init/updates", "c_cN_initup"),
     NE(PERFC_BA_CC_UPDATED_C0, 3, "Count of c0 cursor updates", "c_c0up"),
     NE(PERFC_BA_CC_UPDATED_CN, 3, "Count of cN cursor updates", "c_cNup"),
-    NE(PERFC_BA_CC_DESTROY, 3, "Count of cursor destroys", "c_destroys"),
+    NE(PERFC_BA_CC_DESTROY, 0, "Count of cursor destroys", "c_destroys"),
     NE(PERFC_BA_CC_UPDATE, 3, "Count of cursor updates", "c_updates"),
     NE(PERFC_BA_CC_SEEK, 3, "Count of cursor seeks", "c_seeks"),
     NE(PERFC_BA_CC_SEEK_READ, 3, "Count of cursor replenishes", "c_replenish"),
@@ -93,7 +96,6 @@ struct curcache_entry {
  * @list:     list of cached cursors
  * @oldest:   insertion time (ns) of oldest cursor on %list
  * @cnt:      number of cursors on %list
- * @freeme:   if %true, bucket must be freed via %free()
  */
 struct curcache_bucket {
     union {
@@ -103,7 +105,6 @@ struct curcache_bucket {
     struct kvs_cursor_impl *list;
     u64                     oldest;
     int                     cnt;
-    bool                    freeme;
 };
 
 struct curcache {
@@ -159,7 +160,7 @@ static struct curcache_bucket *ikv_curcache_vlb    HSE_READ_MOSTLY;
 static size_t                  ikv_curcache_vlbsz  HSE_READ_MOSTLY;
 static uint64_t                ikv_curcache_preen_next;
 static uint                    ikv_curcache_preen_idx;
-static struct curcache         ikv_curcachev[32];
+static struct curcache         ikv_curcachev[23];
 
 void
 kvs_perfc_init(void)
@@ -233,12 +234,7 @@ ikvs_cursor_bkt_alloc(struct curcache *cca)
     if (cca->cca_entryc < cca->cca_entrymax) {
         bkt = cca->cca_entryv + cca->cca_entryc++;
         memset(bkt, 0, sizeof(*bkt));
-        return bkt;
     }
-
-    bkt = calloc(1, sizeof(*bkt));
-    if (bkt)
-        bkt->freeme = true;
 
     return bkt;
 }
@@ -253,12 +249,8 @@ ikvs_cursor_bkt_alloc(struct curcache *cca)
 static void
 ikvs_cursor_bkt_free(struct curcache *cca, struct curcache_bucket *bkt)
 {
-    if (bkt->freeme) {
-        free(bkt);
-    } else {
-        bkt->next = cca->cca_cache;
-        cca->cca_cache = bkt;
-    }
+    bkt->next = cca->cca_cache;
+    cca->cca_cache = bkt;
 }
 
 static void
@@ -737,7 +729,7 @@ ikvs_cursor_alloc(struct ikvs *kvs, const void *prefix, size_t pfx_len, bool rev
 
     cur = ikvs_cursor_restore(kvs, prefix, pfx_len, pfxhash, reverse);
     if (cur) {
-        perfc_inc(cur->kci_cc_pc, PERFC_BA_CC_RESTORE);
+        perfc_inc(&kvs->ikv_cc_pc, PERFC_BA_CC_RESTORE);
 
         /*
          * A cached cursor's state must be reset.
@@ -779,7 +771,7 @@ ikvs_cursor_alloc(struct ikvs *kvs, const void *prefix, size_t pfx_len, bool rev
     if (reverse)
         memset(cur->kci_prefix + pfx_len, 0xFF, HSE_KVS_KLEN_MAX - pfx_len);
 
-    perfc_inc(cur->kci_cc_pc, PERFC_BA_CC_ALLOC);
+    perfc_inc(&kvs->ikv_cc_pc, PERFC_BA_CC_ALLOC);
 
     return &cur->kci_handle;
 }
