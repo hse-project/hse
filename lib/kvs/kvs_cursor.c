@@ -162,29 +162,6 @@ static uint64_t                ikv_curcache_preen_next;
 static uint                    ikv_curcache_preen_idx;
 static struct curcache         ikv_curcachev[23];
 
-void
-kvs_perfc_init(void)
-{
-    struct perfc_ivl *ivl;
-    int               i;
-    u64               boundv[PERFC_IVL_MAX];
-    merr_t            err;
-
-    /* Allocate interval instance for the distribution counters (pow2). */
-    for (i = 0; i < PERFC_IVL_MAX; i++)
-        boundv[i] = 1 << i;
-
-    err = perfc_ivl_create(PERFC_IVL_MAX, boundv, &ivl);
-    if (err) {
-        hse_elog(HSE_WARNING "cursor perfc, unable to allocate pow2 ivl: @@e", err);
-        return;
-    }
-
-    kvs_cd_perfc_op[PERFC_DI_CD_READPERSEEK].pcn_ivl = ivl;
-    kvs_cd_perfc_op[PERFC_DI_CD_ACTIVEKVSETS_CN].pcn_ivl = ivl;
-    kvs_cd_perfc_op[PERFC_DI_CD_TOMBSPERPROBE].pcn_ivl = ivl;
-}
-
 /*-  Cursor Support  --------------------------------------------------*/
 
 /*
@@ -1321,22 +1298,6 @@ kvs_cursor_seek(
 #undef bit_on
 
 void
-kvs_cursor_perfc_fini(void)
-{
-    const struct perfc_ivl *ivl;
-
-    ivl = kvs_cd_perfc_op[PERFC_DI_CD_READPERSEEK].pcn_ivl;
-    if (ev(!ivl))
-        return;
-
-    kvs_cd_perfc_op[PERFC_DI_CD_READPERSEEK].pcn_ivl = 0;
-    kvs_cd_perfc_op[PERFC_DI_CD_TOMBSPERPROBE].pcn_ivl = 0;
-    kvs_cd_perfc_op[PERFC_DI_CD_ACTIVEKVSETS_CN].pcn_ivl = 0;
-
-    perfc_ivl_destroy(ivl);
-}
-
-void
 kvs_cursor_perfc_alloc(
         const char *dbname,
         struct perfc_set *pcs_cc,
@@ -1358,6 +1319,45 @@ kvs_cursor_perfc_free(
 {
     perfc_ctrseti_free(pcs_cc);
     perfc_ctrseti_free(pcs_cd);
+}
+
+void
+kvs_cursor_perfc_init(void)
+{
+    struct perfc_ivl *ivl;
+    int               i;
+    u64               boundv[PERFC_IVL_MAX];
+    merr_t            err;
+
+    /* Allocate interval instance for the distribution counters (pow2). */
+    for (i = 0; i < PERFC_IVL_MAX; i++)
+        boundv[i] = 1 << i;
+
+    err = perfc_ivl_create(PERFC_IVL_MAX, boundv, &ivl);
+    if (err) {
+        hse_elog(HSE_WARNING "cursor perfc, unable to allocate pow2 ivl: @@e", err);
+        return;
+    }
+
+    kvs_cd_perfc_op[PERFC_DI_CD_READPERSEEK].pcn_ivl = ivl;
+    kvs_cd_perfc_op[PERFC_DI_CD_ACTIVEKVSETS_CN].pcn_ivl = ivl;
+    kvs_cd_perfc_op[PERFC_DI_CD_TOMBSPERPROBE].pcn_ivl = ivl;
+}
+
+void
+kvs_cursor_perfc_fini(void)
+{
+    const struct perfc_ivl *ivl;
+
+    ivl = kvs_cd_perfc_op[PERFC_DI_CD_READPERSEEK].pcn_ivl;
+    if (ev(!ivl))
+        return;
+
+    kvs_cd_perfc_op[PERFC_DI_CD_READPERSEEK].pcn_ivl = 0;
+    kvs_cd_perfc_op[PERFC_DI_CD_TOMBSPERPROBE].pcn_ivl = 0;
+    kvs_cd_perfc_op[PERFC_DI_CD_ACTIVEKVSETS_CN].pcn_ivl = 0;
+
+    perfc_ivl_destroy(ivl);
 }
 
 merr_t

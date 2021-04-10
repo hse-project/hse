@@ -28,7 +28,6 @@ struct hse_kvdb_opspec;
 struct kvdb_ctxn;
 struct kvdb_kvs;
 struct cndb;
-struct ikvs;
 struct ikvdb;
 struct ikvdb_impl;
 struct mpool;
@@ -56,6 +55,26 @@ struct hse_kvs_cursor {
     void                  *kc_viewcookie;
 };
 
+struct ikvs {
+    uint64_t         ikv_gen;
+    uint             ikv_sfx_len;
+    uint             ikv_pfx_len;
+    struct c0 *      ikv_c0;
+    struct cn *      ikv_cn;
+    struct mpool *   ikv_ds;
+    struct perfc_set ikv_pkvsl_pc; /* Public kvs interfaces Lat. */
+    struct perfc_set ikv_cc_pc;
+    struct perfc_set ikv_cd_pc;
+
+    struct kvs_rparams ikv_rp;
+
+    const char *ikv_kvs_name;
+    const char *ikv_mpool_name;
+};
+
+
+/* kvs interfaces...
+ */
 merr_t
 kvs_open(
     struct ikvdb *      kvdb,
@@ -68,12 +87,54 @@ kvs_open(
     struct cn_kvdb *    cn_kvdb,
     uint                kvs_oflags);
 
-struct mpool *
-kvs_ds_get(struct ikvs *ikvs);
-
 merr_t
 kvs_close(struct ikvs *ikvs);
 
+struct cn *
+kvs_cn(struct ikvs *ikvs);
+
+bool
+kvs_txn_is_enabled(struct ikvs *kvs);
+
+struct mpool *
+kvs_ds_get(struct ikvs *ikvs);
+
+void kvs_perfc_init(void) HSE_COLD;
+void kvs_perfc_fini(void) HSE_COLD;
+
+merr_t kvs_init(void) HSE_COLD;
+void kvs_fini(void) HSE_COLD;
+
+
+/* kvs_cursor interfaces...
+ */
+merr_t
+kvs_cursor_seek(
+    struct hse_kvs_cursor *cursor,
+    const void *           key,
+    u32                    len,
+    const void *           limit,
+    u32                    limit_len,
+    struct kvs_ktuple *    kt);
+
+merr_t
+kvs_cursor_read(struct hse_kvs_cursor *cursor, struct kvs_kvtuple *kvt, bool *eof);
+
+void
+kvs_cursor_perfc_alloc(const char *dbname, struct perfc_set *pcs_cc, struct perfc_set *pcs_cd);
+
+void
+kvs_cursor_perfc_free(struct perfc_set *pcs_cc, struct perfc_set *pcs_cd);
+
+void kvs_cursor_perfc_init(void) HSE_COLD;
+void kvs_cursor_perfc_fini(void) HSE_COLD;
+
+merr_t kvs_curcache_init(void) HSE_COLD;
+void kvs_curcache_fini(void) HSE_COLD;
+
+
+/* ikvs interfaces...
+ */
 struct perfc_set *
 ikvs_perfc_pkvsl(struct ikvs *ikvs);
 
@@ -131,26 +192,15 @@ ikvs_cursor_bind_txn(struct hse_kvs_cursor *handle, struct kvdb_ctxn *ctxn);
 void
 ikvs_cursor_destroy(struct hse_kvs_cursor *cursor);
 
-merr_t
-kvs_cursor_seek(
-    struct hse_kvs_cursor *cursor,
-    const void *           key,
-    u32                    len,
-    const void *           limit,
-    u32                    limit_len,
-    struct kvs_ktuple *    kt);
+void
+ikvs_cursor_reap(struct ikvs *kvs);
 
 merr_t
 ikvs_cursor_update(struct hse_kvs_cursor *cursor, u64 seqno);
 
-merr_t
-kvs_cursor_read(struct hse_kvs_cursor *cursor, struct kvs_kvtuple *kvt, bool *eof);
 
-void
-kvs_perfc_register(void *pc);
-
-struct cn *
-kvs_cn(struct ikvs *ikvs);
+/* kvdb_kvs interfaces...
+ */
 
 /* MTF_MOCK */
 struct ikvdb_impl *
@@ -175,53 +225,6 @@ kvdb_kvs_name(struct kvdb_kvs *kk);
 /* MTF_MOCK */
 void
 kvdb_kvs_set_ikvs(struct kvdb_kvs *kk, struct ikvs *ikvs);
-
-void
-kvs_perfc_init(void);
-
-void
-kvs_perfc_fini(void);
-
-merr_t
-kvs_init(void);
-
-void
-kvs_fini(void);
-
-void
-kvs_cursor_perfc_free(struct perfc_set *pcs_cc, struct perfc_set *pcs_cd);
-
-void
-kvs_cursor_perfc_alloc(const char *dbname, struct perfc_set *pcs_cc, struct perfc_set *pcs_cd);
-
-struct ikvs {
-    uint64_t         ikv_gen;
-    uint             ikv_sfx_len;
-    uint             ikv_pfx_len;
-    struct c0 *      ikv_c0;
-    struct cn *      ikv_cn;
-    struct mpool *   ikv_ds;
-    struct perfc_set ikv_pkvsl_pc; /* Public kvs interfaces Lat. */
-    struct perfc_set ikv_cc_pc;
-    struct perfc_set ikv_cd_pc;
-
-    struct kvs_rparams ikv_rp;
-
-    const char *ikv_kvs_name;
-    const char *ikv_mpool_name;
-};
-
-bool
-kvs_txn_is_enabled(struct ikvs *kvs);
-
-void
-ikvs_cursor_reap(struct ikvs *kvs);
-
-void
-kvs_cursor_perfc_fini(void);
-
-merr_t kvs_curcache_init(void);
-void kvs_curcache_fini(void);
 
 #if HSE_MOCKING
 #include "kvs_ut.h"
