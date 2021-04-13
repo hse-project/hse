@@ -15,6 +15,7 @@
 #include <hse_util/fmt.h>
 #include <hse_util/event_counter.h>
 #include <hse_util/bloom_filter.h>
+#include <hse_util/hse_params_helper.h>
 
 #include <mpool/mpool.h>
 
@@ -733,7 +734,7 @@ eread_mblock(struct mpool *ds, struct blk *blk)
 }
 
 void
-eread_ds(int argc, char **argv)
+eread_ds(int argc, char **argv, struct hse_params *params)
 {
     struct mpool *ds;
     struct blk *  blk;
@@ -779,8 +780,7 @@ eread_ds(int argc, char **argv)
 
     /* O_EXCL not required since mblocks are immutable by definition
      * and we are reading them directly. */
-    /* TODO: fix this */
-    err = merr_to_hse_err(mpool_open(mpname, NULL, O_RDONLY, &ds));
+    err = merr_to_hse_err(mpool_open(mpname, params, O_RDONLY, &ds));
     if (err)
         fatal(err, "mpool_open");
 
@@ -999,10 +999,22 @@ main(int argc, char **argv)
 {
     struct kblock_hdr_omf *kblk;
     struct blk *           blk;
-    int                    i, c, nk, nv;
+    struct hse_params     *params;
+    int                    i, c, nk, nv, next_arg = 0;
+    hse_err_t              err;
 
     progname = strrchr(argv[0], '/');
     progname = progname ? progname + 1 : argv[0];
+
+    err = hse_kvdb_init();
+    if (err)
+        return -1;
+
+    err = hse_params_create(&params);
+    if (err) {
+        hse_kvdb_fini();
+        return -1;
+    }
 
     while (-1 != (c = getopt(argc, argv, ":b:hK:mo:prV:vw:x"))) {
         char *endptr = NULL;
@@ -1077,6 +1089,10 @@ main(int argc, char **argv)
     argc -= optind;
     argv += optind;
 
+    hse_parse_cli(argc, argv, &next_arg, 0, params);
+    argc -= next_arg;
+    argv += next_arg;
+
     /* showing values implies showing keys */
     if (opt.vlen && !opt.klen)
         opt.klen = opt.vlen;
@@ -1109,11 +1125,13 @@ main(int argc, char **argv)
             syntax("insufficient arguments for mandatory parameters");
             exit(EX_USAGE);
         }
-        eread_ds(argc, argv);
+        eread_ds(argc, argv, params);
     }
 
     if (opt.write) {
         ewrite_files(opt.write);
+        hse_params_destroy(params);
+        hse_kvdb_fini();
         return 0;
     }
 
@@ -1143,6 +1161,9 @@ main(int argc, char **argv)
         printf("ptombs\n");
         print_wbt(off2addr(kblk, omf_kbh_pt_hoff(kblk)), kblk, true);
     }
+
+    hse_params_destroy(params);
+    hse_kvdb_fini();
 
     return 0;
 }

@@ -913,12 +913,16 @@ main(int argc, char **argv)
         return -1;
 
     herr = hse_params_create(&params);
-    if (herr)
+    if (herr) {
+        hse_kvdb_fini();
         return -1;
+    }
 
     herr = hse_parse_cli(argc - last_arg, argv + last_arg, &last_arg, 0, params);
     if (herr) {
         usage();
+        hse_params_destroy(params);
+        hse_kvdb_fini();
         return -1;
     }
 
@@ -928,6 +932,8 @@ main(int argc, char **argv)
         perf_seq_reads(mpname, params);
 
     hse_params_destroy(params);
+
+    hse_kvdb_fini();
 
     return 0;
 }

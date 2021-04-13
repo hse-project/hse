@@ -7,6 +7,8 @@
 #include <hse_util/page.h>
 #include <hse_util/workqueue.h>
 
+#include <hse/hse.h>
+#include <hse_util/hse_params_helper.h>
 #include <mpool/mpool.h>
 
 #include <math.h>
@@ -269,11 +271,12 @@ perform_profile_run(
 
 int
 profile_mpool(
-    const char          *mpname,
-    enum mp_media_classp mc,
-    u64                  mblock_sz,
-    u32                  thread_cnt,
-    double              *score)
+    const char              *mpname,
+    enum mp_media_classp     mc,
+    u64                      mblock_sz,
+    const struct hse_params *params,
+    u32                      thread_cnt,
+    double                  *score)
 {
     merr_t              mp_err;
     int                 flags = O_RDWR;
@@ -283,8 +286,7 @@ profile_mpool(
     char                errbuf[160];
     int                 rc;
 
-    /* TODO: fix this */
-    mp_err = mpool_open(mpname, NULL, flags, &mp);
+    mp_err = mpool_open(mpname, params, flags, &mp);
     if (mp_err) {
         merr_strerror(mp_err, errbuf, sizeof(errbuf));
         fprintf(stderr, "error from mpool_open() : %s\n", errbuf);
@@ -300,7 +302,6 @@ profile_mpool(
 
 struct mp_media_class_info {
     u64 exists;
-    u64 total_space;
     u64 mblock_sz;
 };
 
@@ -310,8 +311,9 @@ struct mpool_info {
 
 int
 get_mpool_info(
-    const char        *mpname,
-    struct mpool_info *info)
+    const char              *mpname,
+    const struct hse_params *params,
+    struct mpool_info       *info)
 {
     merr_t                    mp_err;
     struct mpool             *mp;
@@ -321,8 +323,7 @@ get_mpool_info(
     struct mpool_mclass_props mc_props;
     char                      errbuf[160];
 
-    /* TODO: fix this */
-    mp_err = mpool_open(mpname, NULL, flags, &mp);
+    mp_err = mpool_open(mpname, params, flags, &mp);
     if (mp_err) {
         merr_strerror(mp_err, errbuf, sizeof(errbuf));
         fprintf(stderr, "error from mpool_open() : %s\n", errbuf);
@@ -348,11 +349,9 @@ get_mpool_info(
         }
 
         info->mc_info[MP_MED_STAGING].exists = 0;
-        info->mc_info[MP_MED_STAGING].total_space = 0;
     }
     else {
         info->mc_info[MP_MED_STAGING].exists = 1;
-        info->mc_info[MP_MED_STAGING].total_space = mc_props.mc_total;
         info->mc_info[MP_MED_STAGING].mblock_sz = props.mp_mblocksz[MP_MED_STAGING] * MiB;
     }
 
@@ -366,7 +365,6 @@ get_mpool_info(
     }
 
     info->mc_info[MP_MED_CAPACITY].exists = 1;
-    info->mc_info[MP_MED_CAPACITY].total_space = mc_props.mc_total;
     info->mc_info[MP_MED_CAPACITY].mblock_sz = props.mp_mblocksz[MP_MED_CAPACITY] * MiB;
 
     mpool_close(mp);
@@ -385,14 +383,16 @@ usage(const char *program)
 
 int
 handle_options(
-    int          argc,
-    char        *argv[],
-    int         *verbose,
-    const char **mpname)
+    int                 argc,
+    char               *argv[],
+    int                *verbose,
+    const char        **mpname,
+    struct hse_params  *params)
 {
     const char  options[] = "hv";
     const char *program;
-    int         lcl_verbose = 0;
+    int         lcl_verbose = 0, next_arg = 0;
+    hse_err_t   err;
 
     program = strrchr(argv[0], '/');
     program = program ? program + 1 : argv[0];
@@ -422,8 +422,18 @@ handle_options(
 
     argc -= optind;
     argv += optind;
-    if (argc > 1) {
-        fprintf(stderr, "Extraneous arguments detected\n");
+
+    err = hse_parse_cli(argc, argv, &next_arg, 0, params);
+    if (err) {
+        fprintf(stderr, "Error parsing arguments\n");
+        return -1;
+    }
+
+    argc -= next_arg;
+    argv += next_arg;
+
+    if (argc == 0 || argc > 1) {
+        fprintf(stderr, "Extraneous or insufficient arguments detected\n");
         usage(program);
 
         return -1;
@@ -447,18 +457,34 @@ main(int argc, char *argv[])
     double               scores[num_thread_counts];
     double               avg_score;
     enum mp_media_classp mc;
-    u64                  max_thrds = thread_counts[num_thread_counts - 1];
     u64                  mblock_sz;
-    u64                  max_space_needed;
     const char          *result;
+    struct hse_params   *params;
+    hse_err_t            err;
 
-    rc = handle_options(argc, argv, &verbose, &mpname);
-    if (rc)
+    err = hse_kvdb_init();
+    if (err)
         return -1;
 
-    rc = get_mpool_info(mpname, &info);
-    if (rc)
+    err = hse_params_create(&params);
+    if (err) {
+        hse_kvdb_fini();
         return -1;
+    }
+
+    rc = handle_options(argc, argv, &verbose, &mpname, params);
+    if (rc) {
+        hse_params_destroy(params);
+        hse_kvdb_fini();
+        return -1;
+    }
+
+    rc = get_mpool_info(mpname, params, &info);
+    if (rc) {
+        hse_params_destroy(params);
+        hse_kvdb_fini();
+        return -1;
+    }
 
     if (info.mc_info[MP_MED_STAGING].exists != 0)
         mc = MP_MED_STAGING;
@@ -466,21 +492,8 @@ main(int argc, char *argv[])
         mc = MP_MED_CAPACITY;
     mblock_sz = info.mc_info[mc].mblock_sz;
 
-    max_space_needed = max_thrds * MP_SPARE_MBLOCKS_PER_THREAD * mblock_sz;
-
-    if (info.mc_info[mc].total_space < max_space_needed) {
-        char *mclass_name = (mc == MP_MED_STAGING) ? "STAGING" : "CAPACITY";
-        u32 space_needed_mb = 1 + (max_space_needed / MiB);
-
-        fprintf(stderr,
-                "%s media class present but insufficient space available. The\n"
-                "profiling test needs %u MiB of free space to characterize mpool\n"
-                "performance.", mclass_name, space_needed_mb);
-        return -1;
-    }
-
     for (int i = 0; i < num_thread_counts; ++i)
-        profile_mpool(mpname, mc, mblock_sz, thread_counts[i], &scores[i]);
+        profile_mpool(mpname, mc, mblock_sz, params, thread_counts[i], &scores[i]);
 
     avg_score = 0;
     for (int i = 0; i < num_thread_counts; ++i)
@@ -495,8 +508,11 @@ main(int argc, char *argv[])
         result = "default";
 
     printf("%s\n", result);
-    if (!verbose)
+    if (!verbose) {
+        hse_params_destroy(params);
+        hse_kvdb_fini();
         return 0;
+    }
 
     printf("\n");
     printf("The performance profile of mpool %s suggests a setting of \"%s\" for the\n",
@@ -513,6 +529,9 @@ main(int argc, char *argv[])
     printf("Running HSE with an improper setting for throttle_init_policy (e.g., \"medium\"\n");
     printf("for a slow mpool) will likely cause durability settings to not be honored and\n");
     printf("search data structures to become unbalanced until the throttling catches up.\n");
+
+    hse_params_destroy(params);
+    hse_kvdb_fini();
 
     return 0;
 }

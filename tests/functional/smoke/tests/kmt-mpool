@@ -4,6 +4,6 @@
 #doc: quick kvdb/cn performance test using kmt (60s, 50% writes)
 seconds=30
 
-cmd kmt -i128 -t$seconds -bcDR -s1 -w50 -osecsz=4k -j$(nproc) $mp kvdb.capdir=${HSE_STORAGE_PATH}
-cmd kmt -i128 -t$seconds -bcDR -s1 -w20 -osecsz=1m -j$(nproc) $mp kvdb.capdir=${HSE_STORAGE_PATH}
-cmd kmt -i128 -t$seconds -bcDR -s1 -w5 -osecsz=32m -j$(nproc) $mp kvdb.capdir=${HSE_STORAGE_PATH}
+cmd kmt -i128 -t$seconds -bcDR -s1 -w50 -osecsz=4k -j$(nproc) $mp kvdb.storage_path=${HSE_STORAGE_PATH}
+cmd kmt -i128 -t$seconds -bcDR -s1 -w20 -osecsz=1m -j$(nproc) $mp kvdb.storage_path=${HSE_STORAGE_PATH}
+cmd kmt -i128 -t$seconds -bcDR -s1 -w5 -osecsz=32m -j$(nproc) $mp kvdb.storage_path=${HSE_STORAGE_PATH}

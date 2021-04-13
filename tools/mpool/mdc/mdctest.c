@@ -1298,12 +1298,17 @@ main(int argc, char **argv)
         return -1;
 
     herr = hse_params_create(&params);
-    if (herr)
+    if (herr) {
+        hse_kvdb_fini();
         return -1;
+    }
 
     herr = hse_parse_cli(argc, argv, &next_arg, 0, params);
-    if (herr)
+    if (herr) {
+        hse_params_destroy(params);
+        hse_kvdb_fini();
         return -1;
+    }
 
     /* Test 1 */
     tests++;
@@ -1351,6 +1356,8 @@ main(int argc, char **argv)
     fprintf(stdout, "MDC correctness tests: %d/%d passed\n", tests - failed, tests);
 
     hse_params_destroy(params);
+
+    hse_kvdb_fini();
 
     return 0;
 }

@@ -11,6 +11,7 @@
 #include <hse_ikvdb/ikvdb.h>
 
 #include <hse/hse.h>
+#include <hse_util/hse_params_helper.h>
 
 #include <mpool/mpool.h>
 
@@ -112,12 +113,13 @@ usage(void)
 int
 main(int argc, char **argv)
 {
-    struct mpool_mdc *mdc;
-    char *            wpath;
-    FILE *            fp;
-    hse_err_t            err;
-    int               ignore;
-    int               c;
+    struct mpool_mdc  *mdc;
+    char *             wpath;
+    FILE *             fp;
+    hse_err_t          err;
+    struct hse_params *params;
+    int                ignore;
+    int                c, next_arg = 0;
 
     u64 oid1 = 0, oid2 = 0;
 
@@ -132,6 +134,12 @@ main(int argc, char **argv)
 
     wpath = 0;
     ignore = 0;
+
+    err = hse_params_create(&params);
+    if (err) {
+        hse_kvdb_fini();
+        return -1;
+    }
 
     while ((c = getopt(argc, argv, ":hiw:")) != -1) {
         switch (c) {
@@ -164,6 +172,10 @@ main(int argc, char **argv)
     argc -= optind;
     argv += optind;
 
+    hse_parse_cli(argc, argv, &next_arg, 0, params);
+    argc -= next_arg;
+    argv += next_arg;
+
     if (argc != 2 && argc != 4) {
         syntax("expected 2 or 4 positional parameters, %d given", argc);
         exit(EX_USAGE);
@@ -192,8 +204,7 @@ main(int argc, char **argv)
      * immutable (i.e., they could be modified by another application
      * if we didn't have exclusive access).
      */
-    /* TODO: fix this */
-    err = merr_to_hse_err(mpool_open(argv[0], NULL, O_RDONLY, &ds));
+    err = merr_to_hse_err(mpool_open(argv[0], params, O_RDONLY, &ds));
     if (err)
         fatal("mpool_open", err);
 
@@ -220,6 +231,7 @@ fini:
     if (err)
         fatal("mpool_mdc_read", err);
 
+    hse_params_destroy(params);
     hse_fini();
 
     return 0;

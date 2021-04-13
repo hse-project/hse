@@ -11,6 +11,7 @@
 #include <hse_util/assert.h>
 #include <hse_util/log2.h>
 #include <hse_util/logging.h>
+#include <hse_util/hse_params_helper.h>
 
 #include <hse_ikvdb/limits.h>
 #include <hse_ikvdb/ikvdb.h>
@@ -90,11 +91,11 @@ usage(void)
 
 /* get a pointer to cndb */
 void
-open_kvdb_and_cndb(struct tool_info *ti)
+open_kvdb_and_cndb(struct tool_info *ti, const struct hse_params *params)
 {
     u64 rc;
 
-    rc = diag_kvdb_open(ti->mp, 0, &ti->kvdbh);
+    rc = diag_kvdb_open(ti->mp, params, &ti->kvdbh);
     if (rc)
         fatal("diag_kvdb_open", rc);
 
@@ -564,13 +565,18 @@ replay_log(struct tool_info *ti)
 int
 main(int argc, char **argv)
 {
-    hse_err_t           err;
-    int              c;
+    hse_err_t        err;
+    int              c, next_arg = 0;
     struct tool_info ti = { 0 };
+    struct hse_params *params;
 
     err = hse_init();
     if (err)
         fatal("kvdb_init", err);
+
+    err = hse_params_create(&params);
+    if (err)
+        fatal("hse_params_create", err);
 
     progname = basename(argv[0]);
     hse_logging_control.mlc_cur_pri = HSE_DEBUG;
@@ -615,6 +621,13 @@ main(int argc, char **argv)
     argc -= optind;
     argv += optind;
 
+    err = hse_parse_cli(argc, argv, &next_arg, 0, params);
+    if (err)
+        fatal("hse_parse_cli", err);
+
+    argc -= next_arg;
+    argv += next_arg;
+
     /* Output: if wpath was provided, write raw data to file instead of
      * formatting to stdout
      */
@@ -642,7 +655,7 @@ main(int argc, char **argv)
 
         ti.mp = argv[0];
 
-        open_kvdb_and_cndb(&ti);
+        open_kvdb_and_cndb(&ti, params);
     }
 
     ti.bufsz = BUF_SZ;
@@ -669,6 +682,7 @@ done:
     if (err)
         fatal("mpool_mdc_read", err);
 
+    hse_params_destroy(params);
     hse_fini();
 
     return status;

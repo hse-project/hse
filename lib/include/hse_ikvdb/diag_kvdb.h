@@ -34,7 +34,7 @@ diag_kvdb_kvslist(struct hse_kvdb *kvdb, struct diag_kvdb_kvs_list *list, int le
 /**
  * diag_kvdb_open() - open a kvdb for diagnostic purposes.
  * @kvdb_name:      kvdb name
- * @rparams:        fixed configuration parameters
+ * @params:         fixed configuration parameters
  * @kvdb:           (output) handle to access the opened KVDB
  *
  * kvdb is opened with minimal processing. The kvdb root metadata is recovered.
@@ -44,9 +44,9 @@ diag_kvdb_kvslist(struct hse_kvdb *kvdb, struct diag_kvdb_kvs_list *list, int le
  */
 merr_t
 diag_kvdb_open(
-    const char *         kvdb_name,
-    struct kvdb_rparams *rparams,
-    struct hse_kvdb **   kvdb);
+    const char *             kvdb_name,
+    const struct hse_params *params,
+    struct hse_kvdb        **kvdb);
 
 /**
  * diag_kvdb_close() - close a kvdb opened for diagnostic purposes

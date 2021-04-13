@@ -8,6 +8,7 @@
 #include <hse_util/string.h>
 #include <hse_util/log2.h>
 #include <hse_util/logging.h>
+#include <hse_util/hse_params_helper.h>
 
 #include <mpool/mpool.h>
 
@@ -302,15 +303,15 @@ main(int argc, char **argv)
     struct mpool *      ds;
     struct cndb *       cndb;
     struct entity       ent;
-    struct kvdb_rparams rp; /* for cndb_entries */
     struct hse_kvdb *   kvdbh;
+    struct hse_params  *params;
     bool                verbose = false;
     bool                help = false;
     hse_err_t           err;
     char                errbuf[300];
     char                c;
     uint64_t            rc = 0;
-    int                 kvscnt = 0;
+    int                 kvscnt = 0, next_arg = 0;
     u64                 seqno;
     u64                 ingestv;
 
@@ -349,20 +350,36 @@ main(int argc, char **argv)
      * Since this is a workaround until cndb can grow itself, it isn't
      * listed in the help message either.
      */
-    rp = kvdb_rparams_defaults();
-
-    err = merr_to_hse_err(kvdb_rparams_parse(argc - optind, argv + optind, &rp, &optind));
+    err = hse_params_create(&params);
     if (err)
-        return usage(false);
+        fatal(
+            "failed to create params: %s", hse_err_to_string(err, errbuf, sizeof(errbuf), NULL));
 
-    if (optind + 1 > argc)
+    argc -= optind;
+    argv += optind;
+
+    err = hse_parse_cli(argc, argv, &next_arg, 0, params);
+    if (err) {
+        hse_params_destroy(params);
+        hse_kvdb_fini();
         return usage(false);
+    }
+
+    argc -= next_arg;
+    argv += next_arg;
+
+    optind = 0;
+    if (optind + 1 > argc) {
+        hse_params_destroy(params);
+        hse_kvdb_fini();
+        return usage(false);
+    }
 
     mpool = argv[optind++];
 
     kc_print_reg(verbose, (void *)print_line);
 
-    rc = merr_to_hse_err(diag_kvdb_open(mpool, &rp, &kvdbh));
+    rc = merr_to_hse_err(diag_kvdb_open(mpool, params, &kvdbh));
     if (rc)
         fatal("cannot open kvdb %s: %s", mpool, hse_err_to_string(rc, errbuf, sizeof(errbuf), 0));
 
@@ -425,6 +442,7 @@ out:
 
     diag_kvdb_close(kvdbh);
 
+    hse_params_destroy(params);
     hse_fini();
 
     return rc;
