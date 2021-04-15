@@ -12,6 +12,8 @@
 #include <hse_util/rest_api.h>
 #include <hse_util/timing.h>
 #include <hse_util/parse_num.h>
+#include <hse_util/param.h>
+#include <hse_util/string.h>
 
 #include <hse/hse.h>
 
@@ -60,15 +62,145 @@ rest_kvs_list(struct yaml_context *yc, const char *kvdb)
     return 0;
 }
 
+static int
+rest_storage_stats_list(
+    struct yaml_context          *yc,
+    const char                   *kvdb,
+    struct hse_kvdb_storage_info *info)
+{
+    char      sock[PATH_MAX], url[PATH_MAX];
+    char *    buf;
+    size_t    bufsz = 32 * 1024;
+    int       i;
+    hse_err_t err;
+
+    struct {
+        const char *key;
+        u64        *val;
+        char       *strval;
+    } items[] = {
+        { "total:", &info->total, NULL },
+        { "available:", &info->available, NULL },
+        { "allocated:", &info->allocated, NULL },
+        { "used:", &info->used, NULL },
+        { "capacity_path:", NULL, info->capacity_path },
+        { "staging_path:", NULL, info->staging_path },
+    };
+
+    snprintf(url, sizeof(url), "mpool/%s/storage_stats", kvdb);
+    snprintf(sock, sizeof(sock), "%s", getenv("HSE_REST_SOCK_PATH"));
+
+    buf = calloc(1, bufsz);
+    if (!buf)
+        return ENOMEM;
+
+    err = merr_to_hse_err(curl_get(url, sock, buf, bufsz));
+    if (err) {
+        free(buf);
+        return hse_err_to_errno(err);
+    }
+
+    for (i = 0; i < NELEM(items); i++) {
+        char *p, *end;
+        u64   v;
+
+        p = strstr(buf, items[i].key);
+        if (!p) {
+            free(buf);
+            return EINVAL;
+        }
+
+        p += strlen(items[i].key);
+        p += strspn(p, " ");
+
+        if (items[i].val) {
+            err = merr_to_hse_err(parse_u64_range(p, &end, 0, UINT64_MAX, &v));
+            if (err) {
+                free(buf);
+                return err;
+            }
+
+            if (*end != '\0' && *end != '\n') {
+                free(buf);
+                return EINVAL;
+            }
+
+            *items[i].val = v;
+        } else if (items[i].strval) {
+            size_t len;
+
+            end = p;
+
+            while (*end != '\n' && *end != '\0')
+                end++;
+            len = end - p;
+
+            strncpy(items[i].strval, p, len);
+            items[i].strval[len] = '\0';
+        }
+    }
+
+    free(buf);
+
+    return 0;
+}
+
+static void
+space_to_string(u64 spc, char *buf, size_t bufsz)
+{
+    const char  suffixtab[] = "\0KMGTPEZY";
+    double      space = spc;
+    const char *stp;
+
+    stp = suffixtab;
+    while (space >= 1024) {
+        space /= 1024;
+        ++stp;
+    }
+
+    snprintf(buf, bufsz, "%4.2lf%c", space, *stp);
+}
+
+static void
+emit_storage_info(struct yaml_context *yc, struct hse_kvdb_storage_info *info)
+{
+    char value[32];
+
+    space_to_string(info->total, value, sizeof(value));
+    yaml_element_field(yc, "total_space", value);
+    snprintf(value, sizeof(value), "%lu", info->total);
+    yaml_element_field(yc, "total_space_bytes", value);
+
+    space_to_string(info->available, value, sizeof(value));
+    yaml_element_field(yc, "avail_space", value);
+    snprintf(value, sizeof(value), "%lu", info->available);
+    yaml_element_field(yc, "avail_space_bytes", value);
+
+    space_to_string(info->allocated, value, sizeof(value));
+    yaml_element_field(yc, "allocated_space", value);
+    snprintf(value, sizeof(value), "%lu", info->allocated);
+    yaml_element_field(yc, "allocated_space_bytes", value);
+
+    space_to_string(info->used, value, sizeof(value));
+    yaml_element_field(yc, "used_space", value);
+    snprintf(value, sizeof(value), "%lu", info->used);
+    yaml_element_field(yc, "used_space_bytes", value);
+
+    yaml_element_field(yc, "capacity_path", info->capacity_path);
+    yaml_element_field(yc, "staging_path", info->staging_path);
+}
+
 static hse_err_t
 kvdb_list_props(const char *kvdb, struct hse_params *params, struct yaml_context *yc)
 {
-    struct hse_kvdb *hdl;
-    unsigned int     kvs_cnt;
-    char **          kvs_list;
-    hse_err_t        err;
-    char             path[129];
-    int              i;
+    struct hse_kvdb              *hdl;
+    struct hse_kvdb_storage_info  info = {};
+
+    unsigned int kvs_cnt;
+    char **      kvs_list;
+    hse_err_t    err;
+    char         path[129];
+    int          i;
 
     err = hse_kvdb_open(kvdb, params, &hdl);
     if (err && hse_err_to_errno(err) != EBUSY && hse_err_to_errno(err) != ENODATA)
@@ -78,11 +210,23 @@ kvdb_list_props(const char *kvdb, struct hse_params *params, struct yaml_context
     yaml_start_element(yc, "name", kvdb);
 
     if (err) {
-        yaml_start_element_type(yc, "kvslist");
-        err = rest_kvs_list(yc, kvdb);
-        yaml_end_element_type(yc);
+        err = rest_storage_stats_list(yc, kvdb, &info);
+        if (!err) {
+            emit_storage_info(yc, &info);
+
+            yaml_start_element_type(yc, "kvslist");
+            err = rest_kvs_list(yc, kvdb);
+            yaml_end_element_type(yc);
+        }
         goto exit;
     }
+
+    err = hse_kvdb_storage_info_get(hdl, &info);
+    if (err) {
+        hse_kvdb_close(hdl);
+        goto exit;
+    }
+    emit_storage_info(yc, &info);
 
     err = hse_kvdb_get_names(hdl, &kvs_cnt, &kvs_list);
     if (err) {

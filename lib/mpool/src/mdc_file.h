@@ -65,7 +65,7 @@ merr_t
 mdc_file_rewind(struct mdc_file *mfp);
 
 merr_t
-mdc_file_usage(struct mdc_file *mfp, size_t *usage);
+mdc_file_stats(struct mdc_file *mfp, uint64_t *allocated, uint64_t *used);
 
 merr_t
 mdc_file_read(struct mdc_file *mfp, void *data, size_t len, size_t *rdlen, bool verify);

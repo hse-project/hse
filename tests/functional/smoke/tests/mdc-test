@@ -1,5 +1,7 @@
 #!/usr/bin/bash
 
+#tdoc: mdc data integrity and perf tests
+
 cmd mdctest kvdb.storage_path=${HSE_STORAGE_PATH}
 
 cmd mdcperf -r 64 -c $((32 * 1024 *1024)) -v kvdb.storage_path=${HSE_STORAGE_PATH}

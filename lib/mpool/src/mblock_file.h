@@ -65,6 +65,12 @@ struct mblock_file_params {
     int    fileid;
 };
 
+struct mblock_file_stats {
+    uint64_t allocated;
+    uint64_t used;
+    uint32_t mbcnt;
+};
+
 static __always_inline inline int
 file_id(uint64_t mbid)
 {
@@ -201,5 +207,8 @@ merr_t
 mblock_file_unmap(
     struct mblock_file *mbfp,
     uint64_t            mbid);
+
+merr_t
+mblock_file_stats_get(struct mblock_file *mbfp, struct mblock_file_stats *stats);
 
 #endif /* MPOOL_MBLOCK_FILE_H */

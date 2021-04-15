@@ -86,6 +86,9 @@ kvdb_log_open(struct mpool *ds, struct kvdb_log **handle, int mode);
 merr_t
 kvdb_log_close(struct kvdb_log *log);
 
+merr_t
+kvdb_log_usage(struct kvdb_log *log, uint64_t *allocated, uint64_t *used);
+
 /*----------------------------------------------------------------
  * Quasi-external kvdb_log API - probably not best to call directly
  *

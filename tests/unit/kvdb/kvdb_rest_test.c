@@ -146,7 +146,7 @@ struct mapi_injection inject_list[] = {
     { mapi_idx_mpool_mdc_usage, MAPI_RC_SCALAR, 0 },
     { mapi_idx_mpool_mdc_rewind, MAPI_RC_SCALAR, 0 },
     { mapi_idx_mpool_mdc_read, MAPI_RC_SCALAR, 0 },
-    { mapi_idx_mpool_mclass_get, MAPI_RC_SCALAR, ENOENT },
+    { mapi_idx_mpool_mclass_props_get, MAPI_RC_SCALAR, ENOENT },
     { mapi_idx_kvdb_log_replay, MAPI_RC_SCALAR, 0 },
     { mapi_idx_kvdb_log_done, MAPI_RC_SCALAR, 0 },
 

@@ -230,6 +230,9 @@ ikvdb_get_csched(struct ikvdb *handle);
 struct mclass_policy *
 ikvdb_get_mclass_policy(struct ikvdb *handle, const char *name);
 
+merr_t
+ikvdb_storage_info_get(struct ikvdb *handle, struct hse_kvdb_storage_info *info);
+
 /**
  * ikvdb_kvs_get_cn() - retrieve a pointer to the cn
  * @kvs:     kvs handle

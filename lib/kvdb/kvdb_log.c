@@ -464,6 +464,12 @@ kvdb_log_close(struct kvdb_log *log)
     return 0;
 }
 
+merr_t
+kvdb_log_usage(struct kvdb_log *log, uint64_t *allocated, uint64_t *used)
+{
+    return mpool_mdc_usage(log->kl_mdc, allocated, used);
+}
+
 /* PRIVATE */
 merr_t
 kvdb_log_rollover(struct kvdb_log *log)
@@ -653,7 +659,7 @@ kvdb_log_journal(struct kvdb_log *log, void *buf, size_t sz)
 
     sz += sizeof(struct kvdb_log_hdr2_omf);
 
-    err = mpool_mdc_usage(log->kl_mdc, &usage);
+    err = mpool_mdc_usage(log->kl_mdc, NULL, &usage);
     if (ev(err))
         goto out;
 
@@ -662,7 +668,7 @@ kvdb_log_journal(struct kvdb_log *log, void *buf, size_t sz)
         if (ev(err))
             goto out;
 
-        err = mpool_mdc_usage(log->kl_mdc, &usage);
+        err = mpool_mdc_usage(log->kl_mdc, NULL, &usage);
         if (ev(err))
             goto out;
 

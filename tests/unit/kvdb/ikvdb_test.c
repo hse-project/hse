@@ -65,7 +65,7 @@ test_pre(struct mtf_test_info *ti)
 
     mapi_inject(mapi_idx_cndb_cn_drop, 0);
     mapi_inject(mapi_idx_c0_get_pfx_len, 0);
-    mapi_inject(mapi_idx_mpool_mclass_get, ENOENT);
+    mapi_inject(mapi_idx_mpool_mclass_props_get, ENOENT);
 
     return 0;
 }

@@ -129,7 +129,7 @@ hse_kvdb_make(const char *kvdb_name, const struct hse_params *params)
     for (int i = 0; i < MP_MED_COUNT; i++) {
         struct mpool_mclass_props mcprops;
 
-        err = mpool_mclass_get(ds, i, &mcprops);
+        err = mpool_mclass_props_get(ds, i, &mcprops);
         if (merr_errno(err) == ENOENT)
             continue;
         else if (err)
@@ -236,7 +236,7 @@ hse_kvdb_open(const char *kvdb_name, const struct hse_params *params, struct hse
     for (int i = 0; i < MP_MED_COUNT; i++) {
         struct mpool_mclass_props mcprops;
 
-        err = mpool_mclass_get(mp, i, &mcprops);
+        err = mpool_mclass_props_get(mp, i, &mcprops);
         if (merr_errno(err) == ENOENT)
             continue;
         else if (err)
@@ -406,6 +406,15 @@ hse_kvdb_kvs_close(struct hse_kvs *handle)
     ev(err);
 
     return merr_to_hse_err(err);
+}
+
+hse_err_t
+hse_kvdb_storage_info_get(struct hse_kvdb *kvdb, struct hse_kvdb_storage_info *info)
+{
+    if (HSE_UNLIKELY(!kvdb || !info))
+        return merr_to_hse_err(merr(EINVAL));
+
+    return merr_to_hse_err(ikvdb_storage_info_get((struct ikvdb *)kvdb, info));
 }
 
 hse_err_t

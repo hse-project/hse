@@ -151,7 +151,7 @@ cndb_alloc(struct mpool *ds, u64 *captgt, u64 *oid1_out, u64 *oid2_out)
     else
         capacity = CNDB_CAPTGT_DEFAULT;
 
-    staging_absent = mpool_mclass_get(ds, MP_MED_STAGING, NULL);
+    staging_absent = mpool_mclass_props_get(ds, MP_MED_STAGING, NULL);
     if (staging_absent)
         mclassp = MP_MED_CAPACITY;
 
@@ -2764,7 +2764,7 @@ cndb_accept(struct cndb *cndb, void *data, size_t sz)
         goto errout;
     }
 
-    err = mpool_mdc_usage(cndb->cndb_mdc, &usage);
+    err = mpool_mdc_usage(cndb->cndb_mdc, NULL, &usage);
     if (err) {
         CNDB_LOG(err, cndb, HSE_ERR, " statistics unavailable");
         goto errout;
@@ -2790,7 +2790,7 @@ cndb_accept(struct cndb *cndb, void *data, size_t sz)
             goto errout;
         }
 
-        err = mpool_mdc_usage(cndb->cndb_mdc, &usage);
+        err = mpool_mdc_usage(cndb->cndb_mdc, NULL, &usage);
         if (err) {
             CNDB_LOG(err, cndb, HSE_ERR, " statistics unavailable");
             goto errout;
@@ -2938,6 +2938,12 @@ cndb_close(struct cndb *cndb)
     free(cndb);
 
     return err;
+}
+
+merr_t
+cndb_usage(struct cndb *cndb, uint64_t *allocated, uint64_t *used)
+{
+    return mpool_mdc_usage(cndb->cndb_mdc, allocated, used);
 }
 
 struct kvs_cparams *

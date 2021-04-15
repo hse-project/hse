@@ -103,4 +103,7 @@ mblock_fset_unmap(
     struct mblock_fset *mbfsp,
     uint64_t            mbid);
 
+merr_t
+mblock_fset_stats_get(struct mblock_fset *mbfsp, struct mpool_mclass_stats *stats);
+
 #endif /* MPOOL_MBLOCK_FSET_H */

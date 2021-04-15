@@ -1187,7 +1187,7 @@ cn_open(
     /* Compute hash of kvs name, but don't let it be 0. */
     cn->cn_hash = 1 | key_hash64(kvs_name, strlen(kvs_name));
 
-    staging_absent = mpool_mclass_get(ds, MP_MED_STAGING, NULL);
+    staging_absent = mpool_mclass_props_get(ds, MP_MED_STAGING, NULL);
     if (staging_absent) {
         if (strcmp(rp->mclass_policy, "capacity_only")) {
             hse_log(

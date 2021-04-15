@@ -42,6 +42,7 @@
  */
 
 #include <hse/hse_limits.h>
+#include <linux/limits.h>
 
 #include <stdbool.h>
 #include <stdint.h>
@@ -1029,6 +1030,31 @@ hse_params_get(
     char                       *buf,
     size_t                      buf_len,
     size_t                     *param_len);
+
+
+/**
+ * struct hse_kvdb_storage_info - storage info for a kvdb
+ */
+struct hse_kvdb_storage_info {
+    uint64_t total;         /**< total space in the file-system containing this kvdb */
+    uint64_t available;     /**< available space in the file-system containing this kvdb */
+    uint64_t allocated;     /**< allocated storage space for a kvdb */
+    uint64_t used;          /**< used storage space for a kvdb */
+    char     capacity_path[PATH_MAX]; /**< capacity media class path */
+    char     staging_path[PATH_MAX];  /**< staging media class path */
+};
+
+/**
+ * Get storage config and stats
+ *
+ * Obtain the storage paths, allocated and used space for a specified kvdb.
+ *
+ * @param kvdb: KVDB handle from hse_kvdb_open()
+ * @param info: [out] KVDB storage config and stats
+ * @return The function's error status
+ */
+hse_err_t
+hse_kvdb_storage_info_get(struct hse_kvdb *kvdb, struct hse_kvdb_storage_info *info);
 
 /**@}*/
 

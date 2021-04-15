@@ -16,12 +16,15 @@ MTF_BEGIN_UTEST_COLLECTION_PREPOST(mpool_test, mpool_test_pre, mpool_test_post)
 
 MTF_DEFINE_UTEST(mpool_test, mpool_ocd_test)
 {
-    char staging_path[PATH_MAX];
-    struct mpool *mp, *mp1;
-    merr_t        err;
-    int           rc, entry;
-    DIR          *dirp;
-    struct dirent *d;
+    struct mpool *mp,  *mp1;
+    struct mpool_stats  stats = {};
+    struct mpool_props  mprops = {};
+    struct dirent      *d;
+
+    char    staging_path[PATH_MAX];
+    merr_t  err;
+    int     rc, entry;
+    DIR    *dirp;
 
     err = mpool_open(NULL, NULL, 0, &mp);
     ASSERT_EQ(EINVAL, merr_errno(err));
@@ -52,6 +55,31 @@ MTF_DEFINE_UTEST(mpool_test, mpool_ocd_test)
 
     err = mpool_open("mp1", NULL, O_RDWR, &mp);
     ASSERT_EQ(0, err);
+
+    err = mpool_props_get(NULL, &mprops);
+    ASSERT_EQ(EINVAL, merr_errno(err));
+
+    err = mpool_props_get(mp, NULL);
+    ASSERT_EQ(EINVAL, merr_errno(err));
+
+    err = mpool_props_get(mp, &mprops);
+    ASSERT_EQ(0, merr_errno(err));
+    ASSERT_EQ(32, mprops.mp_mblocksz[MP_MED_CAPACITY]);
+    ASSERT_EQ(30, mprops.mp_vma_size_max);
+
+    err = mpool_stats_get(NULL, &stats);
+    ASSERT_EQ(EINVAL, merr_errno(err));
+
+    err = mpool_stats_get(mp, NULL);
+    ASSERT_EQ(EINVAL, merr_errno(err));
+
+    err = mpool_stats_get(mp, &stats);
+    ASSERT_EQ(0, err);
+    ASSERT_LT(stats.mps_allocated, (64 << 20L));
+    ASSERT_LT(stats.mps_used, (64 << 20L));
+    ASSERT_EQ(0, stats.mps_mblock_cnt);
+    ASSERT_EQ(0, strncmp(storage_path, stats.mps_path[MP_MED_CAPACITY], strlen(storage_path)));
+    ASSERT_EQ(0, strlen(stats.mps_path[MP_MED_STAGING]));
 
     err = mpool_destroy(NULL);
     ASSERT_EQ(EINVAL, merr_errno(err));
@@ -104,6 +132,14 @@ MTF_DEFINE_UTEST(mpool_test, mpool_ocd_test)
     err = mpool_open("mp1", NULL, O_RDWR, &mp);
     ASSERT_EQ(0, merr_errno(err));
 
+    err = mpool_stats_get(mp, &stats);
+    ASSERT_EQ(0, err);
+    ASSERT_LT(stats.mps_allocated, (64 << 20L) * 2); /* 2 media classes */
+    ASSERT_LT(stats.mps_used, (64 << 20L) * 2);
+    ASSERT_EQ(0, stats.mps_mblock_cnt);
+    ASSERT_EQ(0, strncmp(storage_path, stats.mps_path[MP_MED_CAPACITY], strlen(storage_path)));
+    ASSERT_EQ(0, strncmp(staging_path, stats.mps_path[MP_MED_STAGING], strlen(staging_path)));
+
     entry = 0;
     while ((d = readdir(dirp)) != NULL && entry < 3)
         entry++;
@@ -125,7 +161,7 @@ MTF_DEFINE_UTEST(mpool_test, mclass_test)
 {
     struct mpool             *mp;
     struct mpool_mclass_props props = {};
-    struct mpool_props        mprops = {};
+    struct mpool_mclass_stats stats = {};
     struct media_class       *mc;
     merr_t                    err;
     int                       mcid, fd, i, rc;
@@ -136,32 +172,40 @@ MTF_DEFINE_UTEST(mpool_test, mclass_test)
     err = mpool_open("mp1", NULL, O_CREAT, &mp);
     ASSERT_EQ(0, err);
 
-    err = mpool_mclass_get(NULL, MP_MED_CAPACITY, &props);
+    err = mpool_mclass_props_get(NULL, MP_MED_CAPACITY, &props);
     ASSERT_EQ(EINVAL, merr_errno(err));
 
-    err = mpool_mclass_get(mp, MP_MED_CAPACITY, NULL);
+    err = mpool_mclass_props_get(mp, MP_MED_CAPACITY, NULL);
     ASSERT_EQ(0, err);
 
-    err = mpool_mclass_get(mp, MP_MED_COUNT, &props);
+    err = mpool_mclass_props_get(mp, MP_MED_COUNT, &props);
     ASSERT_EQ(EINVAL, merr_errno(err));
 
-    err = mpool_mclass_get(mp, MP_MED_STAGING, &props);
+    err = mpool_mclass_props_get(mp, MP_MED_STAGING, &props);
     ASSERT_EQ(ENOENT, merr_errno(err));
 
-    err = mpool_mclass_get(mp, MP_MED_CAPACITY, &props);
+    err = mpool_mclass_props_get(mp, MP_MED_CAPACITY, &props);
     ASSERT_EQ(0, merr_errno(err));
     ASSERT_EQ(32, props.mc_mblocksz);
 
-    err = mpool_props_get(NULL, &mprops);
+    err = mpool_mclass_stats_get(NULL, MP_MED_CAPACITY, &stats);
     ASSERT_EQ(EINVAL, merr_errno(err));
 
-    err = mpool_props_get(mp, NULL);
+    err = mpool_mclass_stats_get(mp, MP_MED_COUNT, &stats);
     ASSERT_EQ(EINVAL, merr_errno(err));
 
-    err = mpool_props_get(mp, &mprops);
+    err = mpool_mclass_stats_get(mp, MP_MED_STAGING, &stats);
+    ASSERT_EQ(ENOENT, merr_errno(err));
+
+    err = mpool_mclass_stats_get(mp, MP_MED_CAPACITY, NULL);
     ASSERT_EQ(0, merr_errno(err));
-    ASSERT_EQ(32, mprops.mp_mblocksz[MP_MED_CAPACITY]);
-    ASSERT_EQ(30, mprops.mp_vma_size_max);
+
+    err = mpool_mclass_stats_get(mp, MP_MED_CAPACITY, &stats);
+    ASSERT_EQ(0, merr_errno(err));
+    ASSERT_LT(stats.mcs_allocated, (64 << 20L));
+    ASSERT_LT(stats.mcs_used, (64 << 20L));
+    ASSERT_EQ(0, stats.mcs_mblock_cnt);
+    ASSERT_EQ(0, strncmp(storage_path, stats.mcs_path, strlen(storage_path)));
 
     mc = mpool_mclass_handle(NULL, MP_MED_CAPACITY);
     ASSERT_EQ(NULL, mc);
@@ -196,6 +240,12 @@ MTF_DEFINE_UTEST(mpool_test, mclass_test)
         ASSERT_EQ(i + 1, mclass_to_mcid(i));
         ASSERT_EQ(i, mcid_to_mclass(i + 1));
     }
+
+    err = mclass_stats_get(NULL, &stats);
+    ASSERT_EQ(EINVAL, merr_errno(err));
+
+    err = mclass_stats_get(mc, NULL);
+    ASSERT_EQ(EINVAL, merr_errno(err));
 
     ASSERT_EQ(MCID_INVALID, mclass_to_mcid(i));
     ASSERT_EQ(MP_MED_INVALID, mcid_to_mclass(i + 1));

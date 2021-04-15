@@ -254,7 +254,10 @@ mpool_destroy(struct mpool *mp)
 }
 
 merr_t
-mpool_mclass_get(struct mpool *mp, enum mp_media_classp mclass, struct mpool_mclass_props *props)
+mpool_mclass_props_get(
+    struct mpool              *mp,
+    enum mp_media_classp       mclass,
+    struct mpool_mclass_props *props)
 {
     struct media_class *mc;
 
@@ -272,6 +275,33 @@ mpool_mclass_get(struct mpool *mp, enum mp_media_classp mclass, struct mpool_mcl
 }
 
 merr_t
+mpool_mclass_stats_get(
+    struct mpool              *mp,
+    enum mp_media_classp       mclass,
+    struct mpool_mclass_stats *stats)
+{
+    struct media_class *mc;
+
+    if (!mp || mclass >= MP_MED_COUNT)
+        return merr(EINVAL);
+
+    mc = mp->mc[mclass];
+    if (!mc)
+        return merr(ENOENT);
+
+    if (stats) {
+        merr_t err;
+
+        memset(stats, 0, sizeof(*stats));
+        err = mclass_stats_get(mc, stats);
+        if (ev(err))
+            return err;
+    }
+
+    return 0;
+}
+
+merr_t
 mpool_props_get(struct mpool *mp, struct mpool_props *props)
 {
     int i;
@@ -282,14 +312,66 @@ mpool_props_get(struct mpool *mp, struct mpool_props *props)
     memset(props, 0, sizeof(*props));
 
     for (i = MP_MED_BASE; i < MP_MED_COUNT; i++) {
-        struct media_class *mc;
+        struct mpool_mclass_props mcp;
+        merr_t err;
 
-        mc = mp->mc[i];
-        if (mc)
-            props->mp_mblocksz[i] = mclass_mblocksz(mc) >> 20;
+        err = mpool_mclass_props_get(mp, i, &mcp);
+        if (err) {
+            if (merr_errno(err) == ENOENT)
+                continue;
+            return err;
+        }
+
+        props->mp_mblocksz[i] = mcp.mc_mblocksz;
     }
 
     props->mp_vma_size_max = 30;
+
+    return 0;
+}
+
+merr_t
+mpool_stats_get(struct mpool *mp, struct mpool_stats *stats)
+{
+    uint64_t fsid[MP_MED_COUNT] = {};
+
+    if (!mp || !stats)
+        return merr(EINVAL);
+
+    memset(stats, 0, sizeof(*stats));
+
+    for (int i = MP_MED_BASE; i < MP_MED_COUNT; i++) {
+        struct mpool_mclass_stats mcs = {};
+        merr_t err;
+        bool   uniqfs = true;
+
+        err = mpool_mclass_stats_get(mp, i, &mcs);
+        if (err) {
+            if (merr_errno(err) == ENOENT)
+                continue;
+            return err;
+        }
+
+        stats->mps_allocated += mcs.mcs_allocated;
+        stats->mps_used += mcs.mcs_used;
+        stats->mps_mblock_cnt += mcs.mcs_mblock_cnt;
+
+        strlcpy(stats->mps_path[i], mcs.mcs_path, sizeof(stats->mps_path[i]));
+
+        fsid[i] = mcs.mcs_fsid;
+
+        for (int j = i; j >= MP_MED_BASE; j--) {
+            if (j > MP_MED_BASE && fsid[j - 1] == mcs.mcs_fsid) {
+                uniqfs = false;
+                break;
+            }
+        }
+
+        if (uniqfs) {
+            stats->mps_total += mcs.mcs_total;
+            stats->mps_available += mcs.mcs_available;
+        }
+    }
 
     return 0;
 }
@@ -301,12 +383,6 @@ mpool_mclass_handle(struct mpool *mp, enum mp_media_classp mclass)
         return NULL;
 
     return mp->mc[mclass];
-}
-
-merr_t
-mpool_usage_get(struct mpool *mp, struct mpool_usage *usage)
-{
-    return 0;
 }
 
 #if HSE_MOCKING

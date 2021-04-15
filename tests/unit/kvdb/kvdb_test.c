@@ -65,7 +65,7 @@ general_pre(struct mtf_test_info *ti)
 
     mapi_inject(mapi_idx_c0_get_pfx_len, 0);
 
-    mapi_inject(mapi_idx_mpool_mclass_get, ENOENT);
+    mapi_inject(mapi_idx_mpool_mclass_props_get, ENOENT);
 
     return 0;
 }
@@ -297,6 +297,8 @@ MTF_DEFINE_UTEST_PRE(kvdb_test, kvdb_cursor_test, general_pre)
 
     rc = hse_kvs_cursor_destroy(cur);
     ASSERT_EQ(0, rc);
+
+    hse_params_destroy(params);
 
     rc = hse_kvdb_close(h);
     ASSERT_EQ(0, rc);

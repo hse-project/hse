@@ -339,12 +339,12 @@ get_mpool_info(
     }
 
     mc = MP_MED_STAGING;
-    mp_err = mpool_mclass_get(mp, mc, &mc_props);
+    mp_err = mpool_mclass_props_get(mp, mc, &mc_props);
     if (mp_err) {
         if (merr_errno(mp_err) != ENOENT) {
             mpool_close(mp);
             merr_strerror(mp_err, errbuf, sizeof(errbuf));
-            fprintf(stderr, "error from mpool_mclass_get() for STAGING: %s\n", errbuf);
+            fprintf(stderr, "error from mpool_mclass_props_get() for STAGING: %s\n", errbuf);
             return -1;
         }
 
@@ -356,10 +356,10 @@ get_mpool_info(
     }
 
     mc = MP_MED_CAPACITY;
-    mp_err = mpool_mclass_get(mp, mc, &mc_props);
+    mp_err = mpool_mclass_props_get(mp, mc, &mc_props);
     if (mp_err) { /* there must be an MP_MED_CAPACITY media class */
         merr_strerror(mp_err, errbuf, sizeof(errbuf));
-        fprintf(stderr, "error from mpool_mclass_get() for CAPACITY : %s\n", errbuf);
+        fprintf(stderr, "error from mpool_mclass_props_get() for CAPACITY : %s\n", errbuf);
         mpool_close(mp);
         return -1;
     }

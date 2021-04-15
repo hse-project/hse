@@ -138,13 +138,13 @@ MTF_DEFINE_UTEST(mdc_test, mdc_abc)
     err = mpool_mdc_open(mp, logid1, logid2, &mdc);
     ASSERT_EQ(0, err);
 
-    err = mpool_mdc_usage(NULL, &usage);
+    err = mpool_mdc_usage(NULL, NULL, &usage);
     ASSERT_EQ(EINVAL, merr_errno(err));
 
-    err = mpool_mdc_usage(mdc, NULL);
+    err = mpool_mdc_usage(mdc, NULL, NULL);
     ASSERT_EQ(EINVAL, merr_errno(err));
 
-    err = mpool_mdc_usage(mdc, &usage);
+    err = mpool_mdc_usage(mdc, NULL, &usage);
     ASSERT_EQ(0, err);
     ASSERT_EQ(MDC_LOGHDR_LEN, usage);
 
@@ -322,6 +322,7 @@ MTF_DEFINE_UTEST(mdc_test, mdc_io_basic)
     ASSERT_EQ(0, err);
 
     free(buf);
+    free(rdbuf);
 }
 
 static void
@@ -374,12 +375,12 @@ mdc_rw_test(
         sync = false;
 
         if (!err) {
-            ASSERT_EQ(0, mpool_mdc_usage(mdc, &usage));
+            ASSERT_EQ(0, mpool_mdc_usage(mdc, NULL, &usage));
             ASSERT_NE(0, usage);
 
             rectot = rectot + 1;
         } else if (merr_errno(err) == EFBIG) {
-            ASSERT_EQ(0, mpool_mdc_usage(mdc, &usage));
+            ASSERT_EQ(0, mpool_mdc_usage(mdc, NULL, &usage));
             ASSERT_GE(usage, bufsz - 64);
             break;
         }
@@ -398,10 +399,9 @@ mdc_rw_test(
     while (1) {
         err = mpool_mdc_read(mdc, rdbuf, reclen, &rdlen);
         if (!err) {
-            if (rdlen == 0) {
-                free(rdbuf);
+            if (rdlen == 0)
                 break;
-            }
+
             if (rdlen == reclen) {
                 if (memcmp(rdbuf, buf + start, reclen)) {
                     ASSERT_TRUE(0);
@@ -422,6 +422,8 @@ mdc_rw_test(
     ASSERT_EQ(reccnt, rectot);
 
     ASSERT_EQ(0, mpool_mdc_close(mdc));
+
+    free(rdbuf);
 }
 
 MTF_DEFINE_UTEST(mdc_test, mdc_io_advanced)

@@ -179,6 +179,40 @@ rest_kvdb_compact_status_get(
 
     return 0;
 }
+
+static merr_t
+rest_kvdb_storage_stats_get(
+    const char *      path,
+    struct conn_info *info,
+    const char *      url,
+    struct kv_iter *  iter,
+    void *            context)
+{
+    struct ikvdb *               ikvdb = context;
+    struct hse_kvdb_storage_info stinfo = {};
+    size_t                       b, bufoff;
+    char *                       buf = info->buf;
+    size_t                       bufsz = info->buf_sz;
+    merr_t                       err;
+
+    err = ikvdb_storage_info_get(ikvdb, &stinfo);
+    if (err)
+        return err;
+
+    bufoff = 0;
+    b = snprintf_append(buf, bufsz, &bufoff, "total: %lu\n", stinfo.total);
+    b += snprintf_append(buf, bufsz, &bufoff, "available: %lu\n", stinfo.available);
+    b += snprintf_append(buf, bufsz, &bufoff, "allocated: %lu\n", stinfo.allocated);
+    b += snprintf_append(buf, bufsz, &bufoff, "used: %lu\n", stinfo.used);
+    b += snprintf_append(buf, bufsz, &bufoff, "capacity_path: %s\n", stinfo.capacity_path);
+    b += snprintf_append(buf, bufsz, &bufoff, "staging_path: %s\n", stinfo.staging_path);
+
+    if (write(info->resp_fd, buf, b) != b)
+        return merr(EIO);
+
+    return 0;
+}
+
 merr_t
 kvdb_rest_register(const char *kvdb_name, void *kvdb)
 {
@@ -188,7 +222,11 @@ kvdb_rest_register(const char *kvdb_name, void *kvdb)
         return merr(ev(EINVAL));
 
     status = rest_url_register(kvdb, URL_FLAG_EXACT, rest_kvdb_get, 0, "mpool/%s", kvdb_name);
+    if (ev(status) && !err)
+        err = status;
 
+    status = rest_url_register(kvdb, URL_FLAG_EXACT, rest_kvdb_storage_stats_get,
+                               0, "mpool/%s/storage_stats", kvdb_name);
     if (ev(status) && !err)
         err = status;
 
@@ -199,6 +237,7 @@ kvdb_rest_register(const char *kvdb_name, void *kvdb)
         rest_kvdb_compact_request,
         "mpool/%s/compact",
         kvdb_name);
+
     return err;
 }
 

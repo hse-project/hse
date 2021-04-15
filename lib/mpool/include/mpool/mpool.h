@@ -59,7 +59,7 @@ int64_t
 mpool_destroy(struct mpool *mp);
 
 /**
- * mpool_mclass_get() - get properties of the specified media class
+ * mpool_mclass_props_get() - get properties of the specified media class
  * @mp:      mpool descriptor
  * @mclass:  input media mclass
  * @props:   media class props (output)
@@ -69,15 +69,26 @@ mpool_destroy(struct mpool *mp);
  */
 /* MTF_MOCK */
 int64_t
-mpool_mclass_get(struct mpool *mp, enum mp_media_classp mclass, struct mpool_mclass_props *props);
+mpool_mclass_props_get(
+    struct mpool              *mp,
+    enum mp_media_classp       mclass,
+    struct mpool_mclass_props *props);
 
 /**
- * mpool_usage_get() - Get mpool usage
- * @mp:    mpool handle
- * @usage: mpool usage (output)
+ * mpool_mclass_stats_get() - get storage stats of the specified media class
+ * @mp:      mpool descriptor
+ * @mclass:  input media mclass
+ * @stats:   media class storage stats (output)
+ *
+ * Returns: 0 for success
+ *          non-zero(err): mpool_errno(err) == ENOENT if the specified mclass is not present
  */
+/* MTF_MOCK */
 int64_t
-mpool_usage_get(struct mpool *mp, struct mpool_usage *usage);
+mpool_mclass_stats_get(
+    struct mpool              *mp,
+    enum mp_media_classp       mclass,
+    struct mpool_mclass_stats *stats);
 
 /**
  * mpool_props_get() - get mpool properties
@@ -87,6 +98,14 @@ mpool_usage_get(struct mpool *mp, struct mpool_usage *usage);
 /* MTF_MOCK */
 int64_t
 mpool_props_get(struct mpool *mp, struct mpool_props *props);
+
+/**
+ * mpool_stats_get() - Get mpool storage stats
+ * @mp:    mpool handle
+ * @stats: mpool stats (output)
+ */
+int64_t
+mpool_stats_get(struct mpool *mp, struct mpool_stats *stats);
 
 /*
  * Mpool Data Manager APIs
@@ -225,13 +244,14 @@ int64_t
 mpool_mdc_cend(struct mpool_mdc *mdc);
 
 /**
- * mpool_mdc_usage() - Return estimate of active mlog usage
+ * mpool_mdc_usage() - Return mdc statistics
  * @mdc:   MDC handle
- * @usage: Number of bytes used (includes overhead)
+ * @allocated: Number of bytes allocated
+ * @used:  Number of bytest used (includes overhead)
  */
 /* MTF_MOCK */
 int64_t
-mpool_mdc_usage(struct mpool_mdc *mdc, size_t *usage);
+mpool_mdc_usage(struct mpool_mdc *mdc, uint64_t *allocated, uint64_t *used);
 
 /******************************** MBLOCK APIs ************************************/
 

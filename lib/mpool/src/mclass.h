@@ -103,4 +103,8 @@ mclass_mblocksz(struct media_class *mc);
 
 void
 mclass_mblocksz_set(struct media_class *mc, size_t mblocksz);
+
+merr_t
+mclass_stats_get(struct media_class *mc, struct mpool_mclass_stats *stats);
+
 #endif /* MPOOL_MCLASS_H */

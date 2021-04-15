@@ -55,6 +55,10 @@ mpool_test_pre(struct mtf_test_info *info)
     if (rc)
         return errno;
 
+    rc = unsetenv("HSE_STAGING_PATH");
+    if (rc)
+        return errno;
+
     return 0;
 }
 

@@ -515,12 +515,24 @@ mdc_file_rewind(struct mdc_file *mfp)
 }
 
 merr_t
-mdc_file_usage(struct mdc_file *mfp, size_t *usage)
+mdc_file_stats(struct mdc_file *mfp, uint64_t *allocated, uint64_t *used)
 {
-    if (ev(!mfp || !usage))
+    if (ev(!mfp))
         return merr(EINVAL);
 
-    *usage = mfp->woff;
+    if (allocated) {
+        struct stat sbuf = {};
+        int rc;
+
+        rc = fstat(mfp->fd, &sbuf);
+        if (rc < 0)
+            return merr(errno);
+
+        *allocated = 512 * sbuf.st_blocks;
+    }
+
+    if (used)
+        *used = mfp->woff;
 
     return 0;
 }

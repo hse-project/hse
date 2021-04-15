@@ -8,6 +8,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/mman.h>
+#include <sys/statvfs.h>
 #include <fcntl.h>
 #include <ftw.h>
 
@@ -373,6 +374,24 @@ errout:
     return err;
 }
 
+static merr_t
+mblock_fset_meta_usage(struct mblock_fset *mbfsp, uint64_t *allocated)
+{
+    struct stat sbuf = {};
+    int rc;
+
+    if (!mbfsp || !allocated)
+        return merr(EINVAL);
+
+    rc = fstat(mbfsp->metafd, &sbuf);
+    if (rc < 0)
+        return merr(errno);
+
+    *allocated = 512 * sbuf.st_blocks;
+
+    return 0;
+}
+
 void
 mblock_fset_close(struct mblock_fset *mbfsp)
 {
@@ -604,4 +623,44 @@ mblock_fset_unmap(
     mbfp = mbfsp->filev[file_index(mbid)];
 
     return mblock_file_unmap(mbfp, mbid);
+}
+
+merr_t
+mblock_fset_stats_get(struct mblock_fset *mbfsp, struct mpool_mclass_stats *stats)
+{
+    struct statvfs sbuf = {};
+    uint64_t       allocated = 0;
+    int            i, rc;
+    merr_t         err;
+
+    if (!mbfsp || !stats)
+        return merr(EINVAL);
+
+    for (i = 0; i < mbfsp->fcnt; i++) {
+        struct mblock_file_stats fst = {};
+
+        err = mblock_file_stats_get(mbfsp->filev[i], &fst);
+        if (ev(err))
+            return err;
+
+        stats->mcs_allocated += fst.allocated;
+        stats->mcs_used += fst.used;
+        stats->mcs_mblock_cnt += fst.mbcnt;
+    }
+
+    err = mblock_fset_meta_usage(mbfsp, &allocated);
+    if (err)
+        return err;
+    stats->mcs_allocated += allocated;
+    stats->mcs_used += allocated;
+
+    rc = fstatvfs(mbfsp->metafd, &sbuf);
+    if (rc < 0)
+        return merr(errno);
+
+    stats->mcs_total = sbuf.f_blocks * sbuf.f_frsize;
+    stats->mcs_available = sbuf.f_bavail * sbuf.f_bsize;
+    stats->mcs_fsid = sbuf.f_fsid;
+
+    return 0;
 }

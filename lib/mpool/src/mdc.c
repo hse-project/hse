@@ -489,21 +489,35 @@ mpool_mdc_append(struct mpool_mdc *mdc, void *data, size_t len, bool sync)
 }
 
 merr_t
-mpool_mdc_usage(struct mpool_mdc *mdc, size_t *usage)
+mpool_mdc_usage(struct mpool_mdc *mdc, uint64_t *allocated, uint64_t *used)
 {
-    merr_t err;
+    merr_t   err;
+    uint64_t alloc1, alloc2;
 
-    if (!mdc || !usage)
+    if (!mdc || (!allocated && !used))
         return merr(EINVAL);
 
     mutex_lock(&mdc->lock);
 
-    err = mdc_file_usage(mdc->mfpa, usage);
-    if (err)
-        hse_elog(
-            HSE_ERR "%s: mdc %p usage failed, mdc file %p: @@e", err, __func__, mdc, mdc->mfpa);
+    err = mdc_file_stats(mdc->mfp1,
+                         allocated ? &alloc1 : NULL,
+                         mdc->mfp1 == mdc->mfpa ? used : NULL);
+    if (err) {
+        hse_elog(HSE_ERR "%s: mdc %p file %p stats failed: @@e", err, __func__, mdc, mdc->mfp1);
+        goto errout;
+    }
 
+    err = mdc_file_stats(mdc->mfp2,
+                         allocated ? &alloc2 : NULL,
+                         mdc->mfp2 == mdc->mfpa ? used : NULL);
+    if (err)
+        hse_elog(HSE_ERR "%s: mdc %p file %p stats failed: @@e", err, __func__, mdc, mdc->mfp2);
+
+errout:
     mutex_unlock(&mdc->lock);
+
+    if (!err && allocated)
+        *allocated = alloc1 + alloc2;
 
     return err;
 }

@@ -222,7 +222,7 @@ ml_writer(void *arg)
         goto free_buf;
     }
 
-    err = mpool_mdc_usage(mdc, &used);
+    err = mpool_mdc_usage(mdc, NULL, &used);
     if (err) {
         fprintf(
             stderr,
@@ -318,7 +318,7 @@ ml_reader(void *arg)
         return resp;
     }
 
-    err = mpool_mdc_usage(mdc, &used);
+    err = mpool_mdc_usage(mdc, NULL, &used);
     if (err) {
         fprintf(
             stderr,
@@ -445,7 +445,7 @@ ml_verify(void *arg)
         return resp;
     }
 
-    err = mpool_mdc_usage(mdc, &used);
+    err = mpool_mdc_usage(mdc, NULL, &used);
     if (err) {
         fprintf(
             stderr,

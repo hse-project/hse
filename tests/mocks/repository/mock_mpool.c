@@ -169,7 +169,10 @@ _mpool_props_get(struct mpool *mp, struct mpool_props *props)
 }
 
 merr_t
-_mpool_mclass_get(struct mpool *mp, enum mp_media_classp mclass, struct mpool_mclass_props *props)
+_mpool_mclass_props_get(
+    struct mpool              *mp,
+    enum mp_media_classp       mclass,
+    struct mpool_mclass_props *props)
 {
     if (mclass >= MP_MED_COUNT)
         return merr(EINVAL);
@@ -743,7 +746,7 @@ mock_mpool_set(void)
     MOCK_SET(mpool, _mpool_mdc_rewind);
     MOCK_SET(mpool, _mpool_mdc_read);
     MOCK_SET(mpool, _mpool_props_get);
-    MOCK_SET(mpool, _mpool_mclass_get);
+    MOCK_SET(mpool, _mpool_mclass_props_get);
 
     mapi_inject(mapi_idx_mpool_mdc_rootid_get, 0);
 }
@@ -760,7 +763,7 @@ mock_mpool_unset(void)
     MOCK_UNSET(mpool, _mpool_mblock_read);
     MOCK_UNSET(mpool, _mpool_mblock_write);
     MOCK_UNSET(mpool, _mpool_props_get);
-    MOCK_UNSET(mpool, _mpool_mclass_get);
+    MOCK_UNSET(mpool, _mpool_mclass_props_get);
 
     MOCK_UNSET(mpool, _mpool_mcache_mmap);
     MOCK_UNSET(mpool, _mpool_mcache_munmap);

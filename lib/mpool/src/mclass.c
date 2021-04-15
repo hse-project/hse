@@ -248,3 +248,21 @@ mcid_to_mclass(enum mclass_id mcid)
 
     return MP_MED_INVALID;
 }
+
+merr_t
+mclass_stats_get(struct media_class *mc, struct mpool_mclass_stats *stats)
+{
+    merr_t err;
+
+    if (!mc || !stats)
+        return merr(EINVAL);
+
+    err = mblock_fset_stats_get(mc->mbfsp, stats);
+    if (ev(err))
+        return err;
+
+    strlcpy(stats->mcs_path, mclass_dpath(mc), sizeof(stats->mcs_path));
+
+    return 0;
+}
+

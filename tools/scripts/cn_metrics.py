@@ -109,7 +109,7 @@ def main() -> int:
 
     opt = get_args()
 
-    sock = f"/var/run/mpool/{opt.mpool}/{opt.mpool}.sock"
+    sock = os.getenv('HSE_REST_SOCK_PATH')
     url = f"http://localhost/mpool/{opt.mpool}/kvs/{opt.kvs}/cn/tree"
 
     if opt.refresh:

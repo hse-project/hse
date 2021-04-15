@@ -1,7 +1,7 @@
 #!/usr/bin/bash
 
+#tdoc: mcache data integrity test
 
-#doc: quick kvdb/cn performance test using kmt (60s, 50% writes)
 seconds=60
 
 cmd mpiotest -T $seconds $mp kvdb.storage_path=${HSE_STORAGE_PATH}

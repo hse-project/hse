@@ -1524,6 +1524,46 @@ ikvdb_kvs_close(struct hse_kvs *handle)
     return err;
 }
 
+merr_t
+ikvdb_storage_info_get(struct ikvdb *handle, struct hse_kvdb_storage_info *info)
+{
+    struct ikvdb_impl  *self = ikvdb_h2r(handle);
+    struct mpool       *mp;
+    struct mpool_stats  stats = {};
+    merr_t              err;
+    uint64_t            allocated, used;
+
+    mp = ikvdb_mpool_get(handle);
+    err = mpool_stats_get(mp, &stats);
+    if (ev(err))
+        return err;
+
+    info->total = stats.mps_total;
+    info->available = stats.mps_available;
+
+    info->allocated = stats.mps_allocated;
+    info->used = stats.mps_used;
+
+    /* Get allocated and used space for kvdb metadata */
+    err = kvdb_log_usage(self->ikdb_log, &allocated, &used);
+    if (ev(err))
+        return err;
+    info->allocated += allocated;
+    info->used += used;
+
+    err = cndb_usage(self->ikdb_cndb, &allocated, &used);
+    if (ev(err))
+        return err;
+    info->allocated += allocated;
+    info->used += used;
+
+    strlcpy(info->capacity_path, stats.mps_path[MP_MED_CAPACITY], sizeof(info->capacity_path));
+
+    strlcpy(info->staging_path, stats.mps_path[MP_MED_STAGING], sizeof(info->staging_path));
+
+    return 0;
+}
+
 /* PRIVATE */
 struct cn *
 ikvdb_kvs_get_cn(struct hse_kvs *kvs)
