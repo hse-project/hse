@@ -1,10 +1,9 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2021 Micron Technology, Inc.  All rights reserved.
  */
 
 #include <crc32c/crc32c.h>
-#include <hse_util/event_counter.h>
 #include <hse_util/hse_err.h>
 
 #include "omf.h"
@@ -25,7 +24,7 @@ omf_mdc_loghdr_pack_htole(struct mdc_loghdr *lh, char *outbuf)
 
     lhomf = (struct mdc_loghdr_omf *)outbuf;
 
-    if (ev(lh->vers != MDC_LOGHDR_VERSION))
+    if (lh->vers != MDC_LOGHDR_VERSION)
         return merr(EINVAL);
 
     omf_set_lh_vers(lhomf, lh->vers);
@@ -40,7 +39,7 @@ omf_mdc_loghdr_pack_htole(struct mdc_loghdr *lh, char *outbuf)
 }
 
 merr_t
-omf_mdc_loghdr_unpack_letoh(struct mdc_loghdr *lh, const char *inbuf)
+omf_mdc_loghdr_unpack_letoh(const char *inbuf, struct mdc_loghdr *lh)
 {
     struct mdc_loghdr_omf *lhomf;
     uint32_t               crc;
@@ -67,7 +66,7 @@ omf_mdc_loghdr_len(void)
 }
 
 void
-omf_mdc_rechdr_unpack_letoh(struct mdc_rechdr *rh, const char *inbuf)
+omf_mdc_rechdr_unpack_letoh(const char *inbuf, struct mdc_rechdr *rh)
 {
     struct mdc_rechdr_omf *rhomf;
 
@@ -101,7 +100,7 @@ omf_mblock_metahdr_pack_htole(struct mblock_metahdr *mh, char *outbuf)
 }
 
 void
-omf_mblock_metahdr_unpack_letoh(struct mblock_metahdr *mh, const char *inbuf)
+omf_mblock_metahdr_unpack_letoh(const char *inbuf, struct mblock_metahdr *mh)
 {
     struct mblock_metahdr_omf *mhomf;
 
@@ -131,7 +130,7 @@ omf_mblock_filehdr_pack_htole(struct mblock_filehdr *fh, char *outbuf)
 }
 
 void
-omf_mblock_filehdr_unpack_letoh(struct mblock_filehdr *fh, const char *inbuf)
+omf_mblock_filehdr_unpack_letoh(const char *inbuf, struct mblock_filehdr *fh)
 {
     struct mblock_filehdr_omf *fhomf;
 

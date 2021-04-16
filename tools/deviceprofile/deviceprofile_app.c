@@ -112,13 +112,13 @@ main(int argc, char *argv[])
         return -1;
     }
 
-    err = hse_kvdb_init();
+    err = hse_init();
     if (err)
         return -1;
 
     err = hse_params_create(&params);
     if (err) {
-        hse_kvdb_fini();
+        hse_fini();
         return -1;
     }
 
@@ -218,7 +218,7 @@ main(int argc, char *argv[])
 
 err_exit:
     hse_params_destroy(params);
-    hse_kvdb_fini();
+    hse_fini();
 
     return err;
 }

@@ -813,7 +813,7 @@ _kblock_make_header(
 }
 
 size_t
-kbb_estimate_alen(struct cn *cn, size_t wlen, enum mp_media_classp mclass)
+kbb_estimate_alen(struct cn *cn, size_t wlen, enum mpool_mclass mclass)
 {
     u64 zonealloc_unit;
 
@@ -855,7 +855,7 @@ kblock_finish(struct kblock_builder *bld, struct wbb *ptree)
     u64    tstart = 0;
     u64    kblocksz;
 
-    enum mp_media_classp mclass;
+    enum mpool_mclass mclass;
 
     /* Allocate kblock hdr */
     if (!kblk->kblk_hdr) {

@@ -33,7 +33,7 @@ struct deviceprofile_stat {
 hse_err_t
 deviceprofile_calibrate_create(
     struct mpool *                   ds,
-    enum mp_media_classp             mclass,
+    enum mpool_mclass                mclass,
     u32                              mblk_size,
     u32                              sample_size,
     int                              threads,

@@ -121,9 +121,6 @@ get_tree_shape () {
 for full_kvs in "${kvslist[@]}"; do
     IFS=/ read -r mp kv <<<"$full_kvs"
 
-    mpool list "$mp" > "$TMP"/mpool-list ||
-        err "Command failed: mpool list $mp"
-
     if [[ -n "$out" ]]; then
         f=$out.$mp.$kv.txt
         (( quiet )) || echo "$f"

@@ -361,7 +361,7 @@ main(int argc, char **argv)
     err = hse_parse_cli(argc, argv, &next_arg, 0, params);
     if (err) {
         hse_params_destroy(params);
-        hse_kvdb_fini();
+        hse_fini();
         return usage(false);
     }
 
@@ -371,7 +371,7 @@ main(int argc, char **argv)
     optind = 0;
     if (optind + 1 > argc) {
         hse_params_destroy(params);
-        hse_kvdb_fini();
+        hse_fini();
         return usage(false);
     }
 

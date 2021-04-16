@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2021 Micron Technology, Inc.  All rights reserved.
  */
 
 #include <hse_ut/framework.h>
@@ -70,7 +70,7 @@ MTF_DEFINE_UTEST(mblock_test, mblock_abc)
     err = mpool_mblock_alloc(mp, MP_MED_CAPACITY, &mbid, &props);
     ASSERT_EQ(0, err);
     ASSERT_EQ(props.mpr_objid, mbid);
-    ASSERT_EQ(props.mpr_mclassp, MP_MED_CAPACITY);
+    ASSERT_EQ(props.mpr_mclass, MP_MED_CAPACITY);
     ASSERT_EQ(props.mpr_write_len, 0);
 
     err = mpool_stats_get(mp, &stats);
@@ -106,7 +106,7 @@ MTF_DEFINE_UTEST(mblock_test, mblock_abc)
     err = mpool_mblock_props_get(mp, mbid, &props);
     ASSERT_EQ(0, err);
     ASSERT_EQ(props.mpr_objid, mbid);
-    ASSERT_EQ(props.mpr_mclassp, MP_MED_CAPACITY);
+    ASSERT_EQ(props.mpr_mclass, MP_MED_CAPACITY);
     ASSERT_EQ(props.mpr_write_len, 0);
 
     err = mpool_stats_get(mp, &stats);
@@ -153,13 +153,13 @@ MTF_DEFINE_UTEST(mblock_test, mblock_abc)
     err = mpool_mblock_alloc(mp, MP_MED_STAGING, &mbid, &props);
     ASSERT_EQ(0, err);
     ASSERT_EQ(props.mpr_objid, mbid);
-    ASSERT_EQ(props.mpr_mclassp, MP_MED_STAGING);
+    ASSERT_EQ(props.mpr_mclass, MP_MED_STAGING);
     ASSERT_EQ(props.mpr_write_len, 0);
 
     err = mpool_mblock_props_get(mp, mbid, &props);
     ASSERT_EQ(0, err);
     ASSERT_EQ(props.mpr_objid, mbid);
-    ASSERT_EQ(props.mpr_mclassp, MP_MED_STAGING);
+    ASSERT_EQ(props.mpr_mclass, MP_MED_STAGING);
     ASSERT_EQ(props.mpr_write_len, 0);
 
     /* deleting an uncommitted mblock returns EINVAL */
@@ -172,7 +172,7 @@ MTF_DEFINE_UTEST(mblock_test, mblock_abc)
     err = mpool_mblock_props_get(mp, mbid, &props);
     ASSERT_EQ(0, err);
     ASSERT_EQ(props.mpr_objid, mbid);
-    ASSERT_EQ(props.mpr_mclassp, MP_MED_STAGING);
+    ASSERT_EQ(props.mpr_mclass, MP_MED_STAGING);
     ASSERT_EQ(props.mpr_write_len, 0);
 
     err = mpool_mblock_delete(mp, mbid);
@@ -244,7 +244,7 @@ MTF_DEFINE_UTEST(mblock_test, mblock_abc)
 
     err = mpool_mblock_props_get(mp, mbid1, &props);
     ASSERT_EQ(0, err);
-    ASSERT_EQ(MP_MED_STAGING, props.mpr_mclassp);
+    ASSERT_EQ(MP_MED_STAGING, props.mpr_mclass);
 
     err = mpool_stats_get(mp, &stats);
     ASSERT_EQ(0, err);
@@ -420,7 +420,7 @@ MTF_DEFINE_UTEST(mblock_test, mblock_io)
     err = mpool_mblock_props_get(mp, mbid, &props);
     ASSERT_EQ(0, err);
     ASSERT_EQ(props.mpr_objid, mbid);
-    ASSERT_EQ(props.mpr_mclassp, MP_MED_CAPACITY);
+    ASSERT_EQ(props.mpr_mclass, MP_MED_CAPACITY);
     ASSERT_EQ(props.mpr_write_len, wlen);
 
     err = mblock_rw(mp, mbid, buf, mbsz + PAGE_SIZE, 0, !write);

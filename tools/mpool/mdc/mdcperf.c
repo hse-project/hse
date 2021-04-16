@@ -1,52 +1,24 @@
-// SPDX-License-Identifier: MIT
+/* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
 /**
- * This file implements tests that are to be run in the mpft (MPool
- * Functional Test) framework.
+ * Description:
+ * In the specified kvdb, create an MDC and then write records of specified size
+ * until the specified total bytes have been written.
  *
- * Available tests:
- * * perf_seq_writes - test performance of mlog writes
- *   - required parameters:
- *     - mpool (mp)
- *   - options:
- *     - record size (rs), default: 32B
- *     - total size (ts), default: all available space in mpool
- *     - thread count (threads), default: 1
- *     - sync, default: false
- *     - verify, default: false
- *     - pattern, default: 0x0123456789abcdef
+ * The number of writes is determined by dividing total space by the record size.
+ * The writes will be evenly distributed across the specified number of threads.
  *
- *     Description: In the specified mpool create an MDC
- *       and then write records of size <rs> until <ts> bytes have been
- *       written.
+ * If verify is set to true, then, after the performance measurement, the data
+ * written to the mdc will be read back and compared to the expected pattern.
  *
- *       If total size (ts) is not given on the command line, the amount
- *       of space available in the mpool is determined and used for total space.
+ * e.g: mdcperf -c $(1024*1024) -r 1024 -v kvdb1
  *
- *       The number of writes is determined by dividing total space by the
- *       record size. The writes will be evenly distributed across the
- *       specified number of threads.
- *
- *       If verify is set to true, then, after the performance measurement,
- *       the data written to the mlog will be read back and compared to the
- *       expected pattern. A custom pattern can be specified by the
- *       <pattern> parameter:
- *
- *       e.g: #./mpft mlog.perf.seq_writes mp=mp1 ts=1M
- *                  rs=1K pattern=0123456789abcdef verify=true
- *
- *       This command line will result in 1024 records of 1024B being
- *       written. The writes will have the pattern '0x0123456789abcdef'
- *       and the contents will be verified at the end of the run.
- *
- * * perf_seq_reads
- *   - parameters and options are the same as for perf_seq_writes
- *
- *     Description: perf_seq_reads follows the same steps as perf_seq_writes,
- *       but adds a loop reading back all of the records.
+ * This command line will result in 1024 records of 1024B being written. The writes
+ * will have the default pattern and the contents will be verified at the end of
+ * the run.
  */
 
 #include <stdio.h>
@@ -908,13 +880,13 @@ main(int argc, char **argv)
         return 0;
     }
 
-    herr = hse_kvdb_init();
+    herr = hse_init();
     if (herr)
         return -1;
 
     herr = hse_params_create(&params);
     if (herr) {
-        hse_kvdb_fini();
+        hse_fini();
         return -1;
     }
 
@@ -922,7 +894,7 @@ main(int argc, char **argv)
     if (herr) {
         usage();
         hse_params_destroy(params);
-        hse_kvdb_fini();
+        hse_fini();
         return -1;
     }
 
@@ -933,7 +905,7 @@ main(int argc, char **argv)
 
     hse_params_destroy(params);
 
-    hse_kvdb_fini();
+    hse_fini();
 
     return 0;
 }

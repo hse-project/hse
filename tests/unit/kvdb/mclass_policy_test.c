@@ -86,7 +86,7 @@ MTF_DEFINE_UTEST_PRE(mclass_policy_test, mclass_policy_default, general_pre)
             for (k = 0; k < HSE_MPOLICY_MEDIA_CNT; k++)
                 for (l = 0; l < 4; l++) {
                     enum hse_mclass_policy_media hse_mtype;
-                    enum mp_media_classp         mpool_mtype;
+                    enum mpool_mclass            mpool_mtype;
 
                     hse_mtype = policies[l].mc_table[i][j][k];
 
@@ -121,7 +121,7 @@ MTF_DEFINE_UTEST_PRE(mclass_policy_test, mclass_policy_default, general_pre)
         for (j = 0; j < HSE_MPOLICY_DTYPE_CNT; j++)
             for (k = 0; k < HSE_MPOLICY_MEDIA_CNT; k++) {
                 enum hse_mclass_policy_media hse_mtype;
-                enum mp_media_classp         mpool_mtype;
+                enum mpool_mclass            mpool_mtype;
 
                 hse_mtype = policies[4].mc_table[i][j][k];
 

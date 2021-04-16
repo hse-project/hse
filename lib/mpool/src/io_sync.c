@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2021 Micron Technology, Inc.  All rights reserved.
  */
 
 #define _LARGEFILE64_SOURCE
@@ -23,7 +23,6 @@
 #error "Neither __IOV_MAX nor IOV_MAX is defined"
 #endif
 
-#include <hse_util/event_counter.h>
 #include <hse_util/minmax.h>
 
 #include "io.h"
@@ -59,7 +58,7 @@ io_sync_read(int fd, off_t off, const struct iovec *iov, int iovcnt, int flags)
 
         /* Pass flags to preadv2(). Not available on fc25. */
         cc = preadv(fd, curiov, cnt, off);
-        if (ev(cc != len))
+        if (cc != len)
             return merr((cc == -1) ? errno : EIO);
 
         off += cc;
@@ -91,7 +90,7 @@ io_sync_write(int fd, off_t off, const struct iovec *iov, int iovcnt, int flags)
 
         /* Pass flags to pwritev2(). Not available on fc25. */
         cc = pwritev(fd, curiov, cnt, off);
-        if (ev(cc != len))
+        if (cc != len)
             return merr((cc == -1) ? errno : EIO);
 
         off += cc;

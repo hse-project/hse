@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2021 Micron Technology, Inc.  All rights reserved.
  */
 
 #define MTF_MOCK_IMPL_mpool
@@ -9,7 +9,6 @@
 #include <fcntl.h>
 
 #include <hse_util/logging.h>
-#include <hse_util/event_counter.h>
 #include <hse_util/hse_err.h>
 #include <hse_util/string.h>
 
@@ -26,8 +25,8 @@
 /**
  * struct mpool - mpool handle
  *
- * @mc:       media class handles
- * @name:     mpool/kvdb name
+ * @mc:   media class handles
+ * @name: mpool/kvdb name
  */
 struct mpool {
     struct media_class *mc[MP_MED_COUNT];
@@ -35,6 +34,9 @@ struct mpool {
     char name[64];
 };
 
+/*
+ * TODO: The below param parsing logic will go away with config updates.
+ */
 enum param_key_index {
     PARAM_PATH     = 0,
     PARAM_ENV_PATH = 1,
@@ -54,7 +56,7 @@ static const char *param_key[PARAM_MAX][MP_MED_COUNT] =
 };
 
 static merr_t
-mclass_params_init(enum mp_media_classp mclass, struct mclass_params *mcp)
+mclass_params_init(enum mpool_mclass mclass, struct mclass_params *mcp)
 {
     char *path;
 
@@ -77,7 +79,7 @@ mclass_params_init(enum mp_media_classp mclass, struct mclass_params *mcp)
 static merr_t
 hse_to_mclass_params(
     const struct hse_params *params,
-    enum mp_media_classp     mclass,
+    enum mpool_mclass        mclass,
     struct mclass_params    *mcp)
 {
     char buf[PATH_MAX];
@@ -120,13 +122,13 @@ mpool_open(const char *name, const struct hse_params *params, uint32_t flags, st
     merr_t        err;
     int           i;
 
-    if (ev(!name || !handle))
+    if (!name || !handle)
         return merr(EINVAL);
 
     *handle = NULL;
 
     mp = calloc(1, sizeof(*mp));
-    if (ev(!mp))
+    if (!mp)
         return merr(ENOMEM);
 
     if (flags & O_CREAT)
@@ -188,7 +190,7 @@ mpool_open(const char *name, const struct hse_params *params, uint32_t flags, st
     strlcpy(mp->name, name, sizeof(mp->name));
 
     err = mpool_mdc_root_init(mp);
-    if (ev(err))
+    if (err)
         goto errout;
 
     *handle = mp;
@@ -214,14 +216,13 @@ mpool_close(struct mpool *mp)
     merr_t err = 0;
     int    i;
 
-    if (ev(!mp))
+    if (!mp)
         return merr(EINVAL);
 
     for (i = MP_MED_COUNT - 1; i >= MP_MED_BASE; i--) {
         if (mp->mc[i]) {
             err = mclass_close(mp->mc[i]);
-            if (err)
-                hse_log(HSE_ERR "%s: Closing mclass id %d failed", __func__, i);
+            ev(err);
         }
     }
 
@@ -236,7 +237,7 @@ mpool_destroy(struct mpool *mp)
     merr_t err;
     int    i;
 
-    if (ev(!mp))
+    if (!mp)
         return merr(EINVAL);
 
     err = mpool_mdc_root_destroy(mp);
@@ -256,7 +257,7 @@ mpool_destroy(struct mpool *mp)
 merr_t
 mpool_mclass_props_get(
     struct mpool              *mp,
-    enum mp_media_classp       mclass,
+    enum mpool_mclass          mclass,
     struct mpool_mclass_props *props)
 {
     struct media_class *mc;
@@ -269,7 +270,7 @@ mpool_mclass_props_get(
         return merr(ENOENT);
 
     if (props)
-        props->mc_mblocksz = mclass_mblocksz(mc) >> 20;
+        props->mc_mblocksz = mclass_mblocksz_get(mc) >> 20;
 
     return 0;
 }
@@ -277,7 +278,7 @@ mpool_mclass_props_get(
 merr_t
 mpool_mclass_stats_get(
     struct mpool              *mp,
-    enum mp_media_classp       mclass,
+    enum mpool_mclass          mclass,
     struct mpool_mclass_stats *stats)
 {
     struct media_class *mc;
@@ -294,7 +295,7 @@ mpool_mclass_stats_get(
 
         memset(stats, 0, sizeof(*stats));
         err = mclass_stats_get(mc, stats);
-        if (ev(err))
+        if (err)
             return err;
     }
 
@@ -313,7 +314,7 @@ mpool_props_get(struct mpool *mp, struct mpool_props *props)
 
     for (i = MP_MED_BASE; i < MP_MED_COUNT; i++) {
         struct mpool_mclass_props mcp;
-        merr_t err;
+        merr_t                    err;
 
         err = mpool_mclass_props_get(mp, i, &mcp);
         if (err) {
@@ -342,8 +343,8 @@ mpool_stats_get(struct mpool *mp, struct mpool_stats *stats)
 
     for (int i = MP_MED_BASE; i < MP_MED_COUNT; i++) {
         struct mpool_mclass_stats mcs = {};
-        merr_t err;
-        bool   uniqfs = true;
+        merr_t                    err;
+        bool                      uniqfs = true;
 
         err = mpool_mclass_stats_get(mp, i, &mcs);
         if (err) {
@@ -377,7 +378,7 @@ mpool_stats_get(struct mpool *mp, struct mpool_stats *stats)
 }
 
 struct media_class *
-mpool_mclass_handle(struct mpool *mp, enum mp_media_classp mclass)
+mpool_mclass_handle(struct mpool *mp, enum mpool_mclass mclass)
 {
     if (!mp || mclass >= MP_MED_COUNT)
         return NULL;

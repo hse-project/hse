@@ -1,5 +1,6 @@
+/* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2020 Micron Technology, Inc. All rights reserved.
+ * Copyright (C) 2020-2021 Micron Technology, Inc. All rights reserved.
  */
 
 #include <hse_util/platform.h>
@@ -32,7 +33,7 @@
 struct mp_profile_work {
     struct work_struct    work_elem;
     struct mpool         *mp;
-    enum mp_media_classp  mc;
+    enum mpool_mclass     mc;
     int                   tid;
     u32                   mblock_cnt;
     u64                   mblock_sz;
@@ -73,7 +74,7 @@ profile_worker(
 {
     struct mp_profile_work *work;
     struct mpool           *mp;
-    enum mp_media_classp    mc;
+    enum mpool_mclass       mc;
     u32                     mblock_cnt;
     u64                     mblock_sz;
     u64                     block_sz;
@@ -156,7 +157,7 @@ profile_worker(
 int
 perform_profile_run(
     struct mpool        *mp,
-    enum mp_media_classp mc,
+    enum mpool_mclass    mc,
     u32                  thread_cnt,
     u32                  mblocks_per_thread,
     u64                  mblock_sz,
@@ -272,13 +273,13 @@ perform_profile_run(
 int
 profile_mpool(
     const char              *mpname,
-    enum mp_media_classp     mc,
+    enum mpool_mclass        mc,
     u64                      mblock_sz,
     const struct hse_params *params,
     u32                      thread_cnt,
     double                  *score)
 {
-    merr_t              mp_err;
+    merr_t              err;
     int                 flags = O_RDWR;
     struct mpool       *mp;
     u64                 block_sz = MP_PROF_BLOCK_SIZE;
@@ -286,9 +287,9 @@ profile_mpool(
     char                errbuf[160];
     int                 rc;
 
-    mp_err = mpool_open(mpname, params, flags, &mp);
-    if (mp_err) {
-        merr_strerror(mp_err, errbuf, sizeof(errbuf));
+    err = mpool_open(mpname, params, flags, &mp);
+    if (err) {
+        merr_strerror(err, errbuf, sizeof(errbuf));
         fprintf(stderr, "error from mpool_open() : %s\n", errbuf);
         return -1;
     }
@@ -302,6 +303,8 @@ profile_mpool(
 
 struct mp_media_class_info {
     u64 exists;
+    u64 total_space;
+    u64 avail_space;
     u64 mblock_sz;
 };
 
@@ -315,56 +318,62 @@ get_mpool_info(
     const struct hse_params *params,
     struct mpool_info       *info)
 {
-    merr_t                    mp_err;
+    merr_t                    err;
     struct mpool             *mp;
     int                       flags = O_RDWR;
     struct mpool_props        props;
-    enum mp_media_classp      mc;
-    struct mpool_mclass_props mc_props;
+    enum mpool_mclass         mc;
+    struct mpool_mclass_stats mc_stats = {};
     char                      errbuf[160];
 
-    mp_err = mpool_open(mpname, params, flags, &mp);
-    if (mp_err) {
-        merr_strerror(mp_err, errbuf, sizeof(errbuf));
+    err = mpool_open(mpname, params, flags, &mp);
+    if (err) {
+        merr_strerror(err, errbuf, sizeof(errbuf));
         fprintf(stderr, "error from mpool_open() : %s\n", errbuf);
         return -1;
     }
 
-    mp_err = mpool_props_get(mp, &props);
-    if (mp_err) {
+    err = mpool_props_get(mp, &props);
+    if (err) {
         mpool_close(mp);
-        merr_strerror(mp_err, errbuf, sizeof(errbuf));
+        merr_strerror(err, errbuf, sizeof(errbuf));
         fprintf(stderr, "error from mpool_props_get() : %s\n", errbuf);
         return -1;
     }
 
     mc = MP_MED_STAGING;
-    mp_err = mpool_mclass_props_get(mp, mc, &mc_props);
-    if (mp_err) {
-        if (merr_errno(mp_err) != ENOENT) {
+    err = mpool_mclass_stats_get(mp, mc, &mc_stats);
+    if (err) {
+        if (merr_errno(err) != ENOENT) {
             mpool_close(mp);
-            merr_strerror(mp_err, errbuf, sizeof(errbuf));
+            merr_strerror(err, errbuf, sizeof(errbuf));
             fprintf(stderr, "error from mpool_mclass_props_get() for STAGING: %s\n", errbuf);
             return -1;
         }
 
         info->mc_info[MP_MED_STAGING].exists = 0;
+        info->mc_info[MP_MED_STAGING].total_space = 0;
+        info->mc_info[MP_MED_STAGING].avail_space = 0;
     }
     else {
         info->mc_info[MP_MED_STAGING].exists = 1;
+        info->mc_info[MP_MED_STAGING].total_space = mc_stats.mcs_total;
+        info->mc_info[MP_MED_STAGING].avail_space = mc_stats.mcs_available;
         info->mc_info[MP_MED_STAGING].mblock_sz = props.mp_mblocksz[MP_MED_STAGING] * MiB;
     }
 
     mc = MP_MED_CAPACITY;
-    mp_err = mpool_mclass_props_get(mp, mc, &mc_props);
-    if (mp_err) { /* there must be an MP_MED_CAPACITY media class */
-        merr_strerror(mp_err, errbuf, sizeof(errbuf));
+    err = mpool_mclass_stats_get(mp, mc, &mc_stats);
+    if (err) { /* there must be an MP_MED_CAPACITY media class */
+        merr_strerror(err, errbuf, sizeof(errbuf));
         fprintf(stderr, "error from mpool_mclass_props_get() for CAPACITY : %s\n", errbuf);
         mpool_close(mp);
         return -1;
     }
 
     info->mc_info[MP_MED_CAPACITY].exists = 1;
+    info->mc_info[MP_MED_CAPACITY].total_space = mc_stats.mcs_total;
+    info->mc_info[MP_MED_CAPACITY].avail_space = mc_stats.mcs_available;
     info->mc_info[MP_MED_CAPACITY].mblock_sz = props.mp_mblocksz[MP_MED_CAPACITY] * MiB;
 
     mpool_close(mp);
@@ -456,33 +465,35 @@ main(int argc, char *argv[])
     const int            num_thread_counts = sizeof(thread_counts)/sizeof(int);
     double               scores[num_thread_counts];
     double               avg_score;
-    enum mp_media_classp mc;
+    enum mpool_mclass    mc;
+    u64                  max_thrds = thread_counts[num_thread_counts - 1];
     u64                  mblock_sz;
+    u64                  max_space_needed;
     const char          *result;
     struct hse_params   *params;
     hse_err_t            err;
 
-    err = hse_kvdb_init();
+    err = hse_init();
     if (err)
         return -1;
 
     err = hse_params_create(&params);
     if (err) {
-        hse_kvdb_fini();
+        hse_fini();
         return -1;
     }
 
     rc = handle_options(argc, argv, &verbose, &mpname, params);
     if (rc) {
         hse_params_destroy(params);
-        hse_kvdb_fini();
+        hse_fini();
         return -1;
     }
 
     rc = get_mpool_info(mpname, params, &info);
     if (rc) {
         hse_params_destroy(params);
-        hse_kvdb_fini();
+        hse_fini();
         return -1;
     }
 
@@ -491,6 +502,19 @@ main(int argc, char *argv[])
     else
         mc = MP_MED_CAPACITY;
     mblock_sz = info.mc_info[mc].mblock_sz;
+
+    max_space_needed = max_thrds * MP_SPARE_MBLOCKS_PER_THREAD * mblock_sz;
+
+    if (info.mc_info[mc].avail_space < max_space_needed) {
+        char *mclass_name = (mc == MP_MED_STAGING) ? "STAGING" : "CAPACITY";
+        u32 space_needed_mb = 1 + (max_space_needed / MiB);
+
+        fprintf(stderr,
+                "%s media class present but insufficient space available. The\n"
+                "profiling test needs %u MiB of free space to characterize mpool\n"
+                "performance.", mclass_name, space_needed_mb);
+        return -1;
+    }
 
     for (int i = 0; i < num_thread_counts; ++i)
         profile_mpool(mpname, mc, mblock_sz, params, thread_counts[i], &scores[i]);
@@ -510,7 +534,7 @@ main(int argc, char *argv[])
     printf("%s\n", result);
     if (!verbose) {
         hse_params_destroy(params);
-        hse_kvdb_fini();
+        hse_fini();
         return 0;
     }
 
@@ -531,7 +555,7 @@ main(int argc, char *argv[])
     printf("search data structures to become unbalanced until the throttling catches up.\n");
 
     hse_params_destroy(params);
-    hse_kvdb_fini();
+    hse_fini();
 
     return 0;
 }

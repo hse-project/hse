@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2021 Micron Technology, Inc.  All rights reserved.
  */
 
 #include <hse_ut/framework.h>
@@ -216,24 +216,43 @@ MTF_DEFINE_UTEST(mpool_test, mclass_test)
     mc = mpool_mclass_handle(mp, MP_MED_CAPACITY);
     ASSERT_NE(NULL, mc);
 
+    mcid = mclass_id(NULL);
+    ASSERT_EQ(mcid, MCID_INVALID);
+
     mcid = mclass_id(mc);
     ASSERT_EQ(mcid, MP_MED_CAPACITY + 1);
 
+    fd = mclass_dirfd(NULL);
+    ASSERT_EQ(fd, -1);
+
     fd = mclass_dirfd(mc);
     ASSERT_GT(fd, 0);
+
+    pathp = mclass_dpath(NULL);
+    ASSERT_EQ(pathp, NULL);
 
     pathp = mclass_dpath(mc);
     rc = strcmp(pathp, storage_path);
     ASSERT_EQ(0, rc);
 
+    fsetp = mclass_fset(NULL);
+    ASSERT_EQ(fsetp, NULL);
+
     fsetp = mclass_fset(mc);
     ASSERT_NE(fsetp, NULL);
 
-    mbsz = mclass_mblocksz(mc);
+    mbsz = mclass_mblocksz_get(NULL);
+    ASSERT_EQ(mbsz, 0);
+
+    mbsz = mclass_mblocksz_get(mc);
+    ASSERT_EQ(32 << 20, mbsz);
+
+    mclass_mblocksz_set(NULL, 64 << 20);
+    mbsz = mclass_mblocksz_get(mc);
     ASSERT_EQ(32 << 20, mbsz);
 
     mclass_mblocksz_set(mc, 64 << 20);
-    mbsz = mclass_mblocksz(mc);
+    mbsz = mclass_mblocksz_get(mc);
     ASSERT_EQ(64 << 20, mbsz);
 
     for (i = MP_MED_BASE; i < MP_MED_COUNT; i++) {

@@ -35,7 +35,7 @@
 #include "vblock_builder_internal.h"
 
 size_t
-vbb_estimate_alen(struct cn *cn, size_t wlen, enum mp_media_classp mclass)
+vbb_estimate_alen(struct cn *cn, size_t wlen, enum mpool_mclass mclass)
 {
     u64 zonealloc_unit;
 
@@ -54,7 +54,7 @@ _vblock_start(struct vblock_builder *bld)
     uint                   allocs = 0;
     struct cn_merge_stats *stats = bld->mstats;
     struct kvs_rparams *   rp;
-    enum mp_media_classp   mclass;
+    enum mpool_mclass      mclass;
     struct mclass_policy * mpolicy = cn_get_mclass_policy(bld->cn);
     struct perfc_set *     mclass_pc = cn_pc_mclass_get(bld->cn);
 

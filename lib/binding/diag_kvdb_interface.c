@@ -30,7 +30,7 @@ diag_kvdb_open(
 {
     merr_t              err;
     struct ikvdb *      ikvdb;
-    struct mpool *      kvdb_ds;
+    struct mpool *      mp;
     struct kvdb_rparams rparams;
 
     if (ev(!mpool_name || !handle))
@@ -63,11 +63,11 @@ diag_kvdb_open(
      * Need exclusive access to prevent multiple applications from
      * working on the same KVDB, which would cause corruption.
      */
-    err = mpool_open(mpool_name, params, O_RDWR, &kvdb_ds);
+    err = mpool_open(mpool_name, params, O_RDWR, &mp);
     if (ev(err))
         return err;
 
-    err = ikvdb_diag_open(mpool_name, kvdb_ds, &rparams, &ikvdb);
+    err = ikvdb_diag_open(mpool_name, mp, &rparams, &ikvdb);
     if (ev(err))
         goto close_ds;
 
@@ -76,7 +76,7 @@ diag_kvdb_open(
     return 0UL;
 
 close_ds:
-    mpool_close(kvdb_ds);
+    mpool_close(mp);
 
     return err;
 }

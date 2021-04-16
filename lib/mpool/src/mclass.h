@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2021 Micron Technology, Inc.  All rights reserved.
  */
 
 #ifndef MPOOL_MCLASS_H
@@ -18,12 +18,23 @@ struct media_class;
 struct mblock_fset;
 struct mpool;
 
+/**
+ * enum mclass_id - media class ID
+ */
 enum mclass_id {
     MCID_INVALID = 0,
     MCID_CAPACITY = 1,
     MCID_STAGING = 2,
 };
 
+/**
+ * struct mclass_params - media class params passed at mclass open
+ *
+ * @fszmax:   max file size
+ * @mblocksz: mblock size
+ * @filecnt:  number of files in an mclass fileset
+ * @path:     mclass storage path
+ */
 struct mclass_params {
     size_t  fszmax;
     size_t  mblocksz;
@@ -38,13 +49,12 @@ struct mclass_params {
  * @mclass: media class
  * @params: mclass params
  * @flags:  open flags
- *
- * @handle(output): mclass handle
+ * @handle: mclass handle (output)
  */
 merr_t
 mclass_open(
     struct mpool         *mp,
-    enum mp_media_classp  mclass,
+    enum mpool_mclass     mclass,
     struct mclass_params *params,
     int                   flags,
     struct media_class  **handle);
@@ -89,21 +99,53 @@ mclass_dpath(struct media_class *mc);
 int
 mclass_dirfd(struct media_class *mc);
 
+/**
+ * mclass_fset() - get mblock fileset handle
+ *
+ * @mc: mclass handle
+ */
 struct mblock_fset *
 mclass_fset(struct media_class *mc);
 
+/**
+ * mclass_to_mcid() - convert mclass to mclass ID
+ *
+ * @mclass: media class
+ */
 enum mclass_id
-mclass_to_mcid(enum mp_media_classp mclass);
+mclass_to_mcid(enum mpool_mclass mclass);
 
-enum mp_media_classp
+/**
+ * mcid_to_mclass() - convert mclass ID to mclass
+ *
+ * @mcid: media class ID
+ */
+enum mpool_mclass
 mcid_to_mclass(enum mclass_id mcid);
 
+/**
+ * mclass_mblocksz_get() - get mblock size
+ *
+ * @mc: mclass handle
+ */
 size_t
-mclass_mblocksz(struct media_class *mc);
+mclass_mblocksz_get(struct media_class *mc);
 
+/**
+ * mclass_mblocksz_set() - set mblock size
+ *
+ * @mc:       mclass handle
+ * @mblocksz: mblock size
+ */
 void
 mclass_mblocksz_set(struct media_class *mc, size_t mblocksz);
 
+/**
+ * mclass_stats_get() - get media class stats
+ *
+ * @mc:    mclass handle
+ * @stats: mclass stats (output)
+ */
 merr_t
 mclass_stats_get(struct media_class *mc, struct mpool_mclass_stats *stats);
 

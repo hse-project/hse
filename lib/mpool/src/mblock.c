@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2021 Micron Technology, Inc.  All rights reserved.
  */
 
 #include <unistd.h>
@@ -21,7 +21,7 @@ struct mpool;
 merr_t
 mpool_mblock_alloc(
     struct mpool        *mp,
-    enum mp_media_classp mclass,
+    enum mpool_mclass    mclass,
     uint64_t            *mbid,
     struct mblock_props *props)
 {
@@ -29,20 +29,20 @@ mpool_mblock_alloc(
 
     merr_t err;
 
-    if (ev(!mp || !mbid || mclass >= MP_MED_COUNT))
+    if (!mp || !mbid || mclass >= MP_MED_COUNT)
         return merr(EINVAL);
 
     mc = mpool_mclass_handle(mp, mclass);
-    if (!mc)
+    if (ev(!mc))
         return merr(ENOENT);
 
     err = mblock_fset_alloc(mclass_fset(mc), 1, mbid);
 
     if (!err && props) {
         props->mpr_objid = *mbid;
-        props->mpr_alloc_cap = mclass_mblocksz(mc);
+        props->mpr_alloc_cap = mclass_mblocksz_get(mc);
         props->mpr_optimal_wrsz = MBLOCK_OPT_WRITE_SZ;
-        props->mpr_mclassp = mclass;
+        props->mpr_mclass = mclass;
         props->mpr_write_len = 0;
     }
 
@@ -52,10 +52,10 @@ mpool_mblock_alloc(
 merr_t
 mpool_mblock_commit(struct mpool *mp, uint64_t mbid)
 {
-    struct media_class  *mc;
-    enum mp_media_classp mclass;
+    struct media_class *mc;
+    enum mpool_mclass   mclass;
 
-    if (ev(!mp))
+    if (!mp)
         return merr(EINVAL);
 
     mclass = mcid_to_mclass(mclassid(mbid));
@@ -69,10 +69,10 @@ mpool_mblock_commit(struct mpool *mp, uint64_t mbid)
 merr_t
 mpool_mblock_abort(struct mpool *mp, uint64_t mbid)
 {
-    struct media_class  *mc;
-    enum mp_media_classp mclass;
+    struct media_class *mc;
+    enum mpool_mclass   mclass;
 
-    if (ev(!mp))
+    if (!mp)
         return merr(EINVAL);
 
     mclass = mcid_to_mclass(mclassid(mbid));
@@ -86,10 +86,10 @@ mpool_mblock_abort(struct mpool *mp, uint64_t mbid)
 merr_t
 mpool_mblock_delete(struct mpool *mp, uint64_t mbid)
 {
-    struct media_class  *mc;
-    enum mp_media_classp mclass;
+    struct media_class *mc;
+    enum mpool_mclass   mclass;
 
-    if (ev(!mp))
+    if (!mp)
         return merr(EINVAL);
 
     mclass = mcid_to_mclass(mclassid(mbid));
@@ -103,8 +103,8 @@ mpool_mblock_delete(struct mpool *mp, uint64_t mbid)
 merr_t
 mpool_mblock_props_get(struct mpool *mp, uint64_t mbid, struct mblock_props *props)
 {
-    struct media_class  *mc;
-    enum mp_media_classp mclass;
+    struct media_class *mc;
+    enum mpool_mclass   mclass;
 
     uint32_t wlen;
     merr_t   err;
@@ -114,29 +114,28 @@ mpool_mblock_props_get(struct mpool *mp, uint64_t mbid, struct mblock_props *pro
 
     mclass = mcid_to_mclass(mclassid(mbid));
     mc = mpool_mclass_handle(mp, mclass);
-    if (!mc)
+    if (ev(!mc))
         return merr(ENOENT);
 
     err = mblock_fset_find(mclass_fset(mc), &mbid, 1, props ? &wlen : NULL);
-
     if (!err && props) {
         props->mpr_objid = mbid;
-        props->mpr_alloc_cap = mclass_mblocksz(mc);
+        props->mpr_alloc_cap = mclass_mblocksz_get(mc);
         props->mpr_optimal_wrsz = MBLOCK_OPT_WRITE_SZ;
-        props->mpr_mclassp = mclass;
+        props->mpr_mclass = mclass;
         props->mpr_write_len = wlen;
     }
 
-    return err;
+    return ev(err);
 }
 
 merr_t
 mpool_mblock_write(struct mpool *mp, uint64_t mbid, const struct iovec *iov, int iovc)
 {
-    struct media_class  *mc;
-    enum mp_media_classp mclass;
+    struct media_class *mc;
+    enum mpool_mclass   mclass;
 
-    if (ev(!mp || !iov))
+    if (!mp || !iov)
         return merr(EINVAL);
 
     mclass = mcid_to_mclass(mclassid(mbid));
@@ -150,10 +149,10 @@ mpool_mblock_write(struct mpool *mp, uint64_t mbid, const struct iovec *iov, int
 merr_t
 mpool_mblock_read(struct mpool *mp, uint64_t mbid, const struct iovec *iov, int iovc, off_t off)
 {
-    struct media_class  *mc;
-    enum mp_media_classp mclass;
+    struct media_class *mc;
+    enum mpool_mclass   mclass;
 
-    if (ev(!mp || !iov))
+    if (!mp || !iov)
         return merr(EINVAL);
 
     mclass = mcid_to_mclass(mclassid(mbid));

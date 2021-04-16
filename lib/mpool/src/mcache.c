@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2021 Micron Technology, Inc.  All rights reserved.
  */
 
 #include <unistd.h>
@@ -9,7 +9,6 @@
 #include <sys/stat.h>
 #include <sys/mman.h>
 
-#include <hse_util/event_counter.h>
 #include <hse_util/logging.h>
 
 #include "mpool_internal.h"
@@ -19,11 +18,20 @@
 
 struct mpool;
 
+/**
+ * struct mpool_mcache_map - Mcache map handle
+ *
+ * @mp: mpool handle
+ * @mbidc: count of mblocks in mbidv
+ * @mbidv: vector of mblock ids
+ * @addrv: mapped address for mblocks in mbidv
+ * @wlenv: write lengths for mblocks in mbidv
+ */
 struct mpool_mcache_map {
     struct mpool *mp;
     size_t mbidc;
-    void **addrv;
     uint64_t *mbidv;
+    void **addrv;
     uint32_t *wlenv;
 };
 
@@ -57,9 +65,9 @@ mpool_mcache_mmap(
     map->wlenv = (void *)(map->mbidv + mbidc);
 
     for (i = 0; i < mbidc; i++) {
-        enum mp_media_classp mclass;
-        char                *addr;
-        uint32_t             wlen;
+        enum mpool_mclass  mclass;
+        char              *addr;
+        uint32_t           wlen;
 
         mclass = mcid_to_mclass(mclassid(mbidv[i]));
         mc = mpool_mclass_handle(mp, mclass);
@@ -69,7 +77,7 @@ mpool_mcache_mmap(
         }
 
         err = mblock_fset_map_getbase(mclass_fset(mc), mbidv[i], &addr, &wlen);
-        if (ev(err))
+        if (err)
             goto errout;
 
         map->addrv[i] = addr;
@@ -98,9 +106,9 @@ mpool_mcache_munmap(struct mpool_mcache_map *map)
         return merr(EINVAL);
 
     for (i = 0; i < map->mbidc; i++) {
-        enum mp_media_classp mclass;
-        uint64_t             mbid;
-        merr_t               err;
+        enum mpool_mclass mclass;
+        uint64_t          mbid;
+        merr_t            err;
 
         mbid = map->mbidv[i];
 

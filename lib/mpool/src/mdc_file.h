@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2021 Micron Technology, Inc.  All rights reserved.
  */
 
 #ifndef MPOOL_MDC_FILE_H
@@ -21,6 +21,15 @@
 struct mpool_mdc;
 struct mdc_file;
 
+/**
+ * struct mdc_loghdr - MDC file header
+ *
+ * @vers:  MDC file version
+ * @magic: MDC file magic
+ * @gen:   generation
+ * @rsvd:  reserved
+ * @crc:   header CRC
+ */
 struct mdc_loghdr {
     uint32_t vers;
     uint32_t magic;
@@ -29,49 +38,16 @@ struct mdc_loghdr {
     uint32_t crc;
 };
 
+/**
+ * struct mdc_rechdr - MDC record header
+ *
+ * @size: record length
+ * @crc:  record CRC
+ */
 struct mdc_rechdr {
     uint64_t size;
     uint32_t crc;
 };
-
-merr_t
-mdc_file_create(int dirfd, uint64_t logid, int flags, int mode, size_t capacity);
-
-merr_t
-mdc_file_destroy(int dirfd, uint64_t logid);
-
-merr_t
-mdc_file_commit(int dirfd, uint64_t logid);
-
-merr_t
-mdc_file_open(struct mpool_mdc *mdc, uint64_t logid, uint64_t *gen, struct mdc_file **handle);
-
-merr_t
-mdc_file_close(struct mdc_file *mfp);
-
-merr_t
-mdc_file_erase(struct mdc_file *mfp, uint64_t newgen);
-
-merr_t
-mdc_file_gen(struct mdc_file *mfp, uint64_t *gen);
-
-merr_t
-mdc_file_exists(int dirfd, uint64_t logid1, uint64_t logid2, bool *exist);
-
-merr_t
-mdc_file_sync(struct mdc_file *mfp);
-
-merr_t
-mdc_file_rewind(struct mdc_file *mfp);
-
-merr_t
-mdc_file_stats(struct mdc_file *mfp, uint64_t *allocated, uint64_t *used);
-
-merr_t
-mdc_file_read(struct mdc_file *mfp, void *data, size_t len, size_t *rdlen, bool verify);
-
-merr_t
-mdc_file_append(struct mdc_file *mfp, void *data, size_t len, bool sync);
 
 static inline uint64_t
 logid_make(u8 fid, enum mclass_id mcid, uint32_t magic)
@@ -111,5 +87,133 @@ mdc_filename_gen(char *buf, size_t buflen, uint64_t logid)
 {
     snprintf(buf, buflen, "%s-%lx", "mdc", logid);
 }
+
+/**
+ * mdc_file_create() - create an MDC file
+ *
+ * @dirfd:    directory fd
+ * @logid:    MDC file id
+ * @flags:    file creation flags
+ * @mode:     file creation mode
+ * @capacity: capacity (bytes)
+ */
+merr_t
+mdc_file_create(int dirfd, uint64_t logid, int flags, int mode, size_t capacity);
+
+/**
+ * mdc_file_destroy() - destroy an MDC file
+ *
+ * @dirfd: directory fd
+ * @logid: MDC file id
+ */
+merr_t
+mdc_file_destroy(int dirfd, uint64_t logid);
+
+/**
+ * mdc_file_commit() - commit an MDC file
+ *
+ * @dirfd: directory fd
+ * @logid: MDC file id
+ */
+merr_t
+mdc_file_commit(int dirfd, uint64_t logid);
+
+/**
+ * mdc_file_open() - open an MDC file
+ *
+ * @mdc:    mdc handle
+ * @logid:  MDC file id
+ * @gen:    MDC file gen (output)
+ * @handle: MDC file handle (output)
+ */
+merr_t
+mdc_file_open(struct mpool_mdc *mdc, uint64_t logid, uint64_t *gen, struct mdc_file **handle);
+
+/**
+ * mdc_file_close() - close an MDC file
+ *
+ * @mfp: mdc file handle
+ */
+merr_t
+mdc_file_close(struct mdc_file *mfp);
+
+/**
+ * mdc_file_erase() - erase an MDC file
+ *
+ * @mfp:    mdc file handle
+ * @newgen: new mdc file generation
+ */
+merr_t
+mdc_file_erase(struct mdc_file *mfp, uint64_t newgen);
+
+/**
+ * mdc_file_gen() - retrieve gen of an mdc file
+ *
+ * @mfp: mdc file handle
+ * @gen: mdc file generation (output)
+ */
+merr_t
+mdc_file_gen(struct mdc_file *mfp, uint64_t *gen);
+
+/**
+ * mdc_file_exists() - check whether an MDC file exists
+ *
+ * @dirfd:  directory fd
+ * @logid1: logid 1
+ * @logid2: logid 2
+ * @exist:  whether MDC file exists? (output)
+ */
+merr_t
+mdc_file_exists(int dirfd, uint64_t logid1, uint64_t logid2, bool *exist);
+
+/**
+ * mdc_file_sync() - sync an MDC file
+ *
+ * @mfp: mdc file handle
+ */
+merr_t
+mdc_file_sync(struct mdc_file *mfp);
+
+/**
+ * mdc_file_rewind() - rewind an MDC file
+ *
+ * @mfp: mdc file handle
+ */
+merr_t
+mdc_file_rewind(struct mdc_file *mfp);
+
+/**
+ * mdc_file_stats() - get stats of an MDC file
+ *
+ * @mfp:       mdc file handle
+ * @allocated: allocated space in bytes (output)
+ * @used:      used space in bytes (output)
+ *
+ */
+merr_t
+mdc_file_stats(struct mdc_file *mfp, uint64_t *allocated, uint64_t *used);
+
+/**
+ * mdc_file_read() - read an MDC file
+ *
+ * @mfp:    mdc file handle
+ * @data:   buffer
+ * @len:    buffer length
+ * @verify: enable/disable CRC verification during read
+ * @rdlen:  read length (output)
+ */
+merr_t
+mdc_file_read(struct mdc_file *mfp, void *data, size_t len, bool verify, size_t *rdlen);
+
+/**
+ * mdc_file_append() - append an MDC file
+ *
+ * @mfp:  mdc file handle
+ * @data: buffer
+ * @len:  buffer length
+ * @sync: sync or async append
+ */
+merr_t
+mdc_file_append(struct mdc_file *mfp, void *data, size_t len, bool sync);
 
 #endif /* MPOOL_MDC_FILE_H */

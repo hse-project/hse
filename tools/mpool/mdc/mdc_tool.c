@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
 /*
@@ -137,7 +137,7 @@ main(int argc, char **argv)
 
     err = hse_params_create(&params);
     if (err) {
-        hse_kvdb_fini();
+        hse_fini();
         return -1;
     }
 

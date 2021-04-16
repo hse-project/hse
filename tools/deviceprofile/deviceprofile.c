@@ -38,7 +38,7 @@ struct deviceprofile_calibrate_work {
 
 struct deviceprofile_calibrate {
     struct mpool *                       dp_ds;
-    enum mp_media_classp                 dp_mclass;
+    enum mpool_mclass                    dp_mclass;
     int                                  dp_threads;
     u32                                  dp_mblksize;
     u64                                  dp_samplesize;
@@ -226,7 +226,7 @@ deviceprofile_calibrate_sample(
 hse_err_t
 deviceprofile_calibrate_create(
     struct mpool *                   ds,
-    enum mp_media_classp             mclass,
+    enum mpool_mclass                mclass,
     u32                              mblk_size,
     u32                              mblks_per_thread,
     int                              threads,

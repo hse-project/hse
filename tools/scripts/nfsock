@@ -35,7 +35,6 @@ Convert NF data tree from YAML to a more readable form.
 """)
     argparser.add_argument("mpool", nargs='?', help="name of mpool (eg, mp1)" )
     argparser.add_argument( "-h",   dest="help", help="show help", action="store_true")
-    argparser.add_argument( "-l",   dest="list", help="list valid mpool/mpool paths", action="store_true")
     argparser.add_argument( "-d",   dest="describe", help="show descriptions (for perf counters)", action="store_true")
     argparser.add_argument( "-p",   dest="perfc",    help="show perf counters only", action="store_true")
     argparser.add_argument( "-e",   dest="event",    help="show event counters only", action="store_true")
@@ -245,32 +244,12 @@ def main(args):
         op.config = False
         pass
 
-    if op.list:
-        try:
-            sp_cmd = ["sudo", "find", "/var/run/mpool/", "-name", "*.sock"]
-            sp_out = sp.check_output(sp_cmd)
-        except sp.CalledProcessError:
-            fatal("\n".join(["ERROR: Command failed: "+ " ".join(sp_cmd)]))
-            pass
-        sp_text = sp_out.decode('utf-8').rstrip()
-        if op.raw:
-            print(sp_text)
-        else:
-            for sock_path in sp_text.split('\n'):
-                dirs = sock_path.split('/')
-                if len(dirs) > 4:
-                    print(dirs[3]+'/'+dirs[4])
-                    pass
-                pass
-            pass
-        return 0
-
     mpool = vars(op).get("mpool",False)
     if not mpool:
         fatal("Must specify mpool, use -h for help")
         pass
 
-    sock = "/var/run/mpool/" + mpool + "/" + mpool + ".sock"
+    sock = os.getenv('HSE_REST_SOCK_PATH')
     url = "http://localhost/data"
 
     curl_cmd = ['curl', '-s', '--noproxy', 'localhost', '--unix-socket', sock, url]
@@ -278,10 +257,7 @@ def main(args):
         buf = sp.check_output(curl_cmd)
     except sp.CalledProcessError:
         fatal("\n".join(["ERROR: Curl command failed.",
-                         "  "+ " ".join(curl_cmd),
-                         "Try either of following to get a list of mpools and datasets:",
-                         "  nf mpool list -v",
-                         "  find /var/run/mpool/ -name '*.sock'"]))
+                         "  "+ " ".join(curl_cmd)]))
         pass
 
     if op.raw:

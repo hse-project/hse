@@ -243,11 +243,12 @@ hse_kvdb_make(const char *kvdb_name, const struct hse_params *params);
  * It is an error to call this function on a KVDB that is open. This function is not
  * thread safe.
  *
- * @param kvdb:     KVDB handle from hse_kvdb_open()
+ * @param kvdb_name: KVDB name
+ * @param params: Fixed configuration parameters
  * @return The function's error status
  */
 hse_err_t
-hse_kvdb_drop(struct hse_kvdb *kvdb);
+hse_kvdb_drop(const char *kvdb_name, const struct hse_params *params);
 
 /**
  * Open an HSE KVDB for use by the application

@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2021 Micron Technology, Inc.  All rights reserved.
  */
 
 #include <unistd.h>
@@ -47,6 +47,9 @@ struct mblock_rgn {
 
 /**
  * struct mblock_rgnmap -
+ *
+ * @rm_lock: lock protecting the region map
+ * @rm_root: root of the region map rbtree
  */
 struct mblock_rgnmap {
     struct mutex    rm_lock;
@@ -56,6 +59,12 @@ struct mblock_rgnmap {
 };
 
 
+/**
+ * struct mblock_mmap -
+ *
+ * @addr: base address of the mmap chunk
+ * @ref:  ref. count on the mapped chunk
+ */
 struct mblock_mmap {
     char   *addr;
     int64_t ref HSE_ALIGNED(SMP_CACHE_BYTES);
@@ -64,16 +73,31 @@ struct mblock_mmap {
 /**
  * struct mblock_file - mblock file handle (one per file)
  *
- * @mbfsp: reference to the fileset handle
- * @smap:  space map
- * @mmap:  mblock map
+ * @rgnmap: region map for block management
+ *
+ * @mbfsp: mblock fileset handle
  * @io:    io handle for sync/async rw ops
  *
- * fszmax: maximum file size (2TiB with 16-bit block offset and 32MiB mblocks)
+ * @fszmax:   max. file size
+ * @mblocksz: mblock size
+ * @mcid:     media class id of this mblock file
+ * @fileid:   mblock file identifier
+ * @fd:       file descriptor
  *
- * fd:   file handle
- * name: file name
+ * @wlenv:    vector of write lengths, one slot for each mblock
  *
+ * @uniq_lock: lock to protect uniquifier
+ * @uniq:      uniquifier used in mblock id
+ *
+ * @meta_lock: lock to protect metadata updates
+ * @meta_addr: start of the metadata region for this data file
+ *
+ * @mmap_lock: lock protecting mmapv
+ * @mmapc:     number of mapped chunks
+ * @mmapv:     vector of mapped chunks
+ *
+ * @wlen:      total write length for this file
+ * @mbcnt:     count of allocated mblocks
  */
 struct mblock_file {
     struct mblock_rgnmap rgnmap;
@@ -102,7 +126,6 @@ struct mblock_file {
     int mmapc;
     struct mblock_mmap *mmapv;
 
-    /* Stats */
     HSE_ALIGNED(SMP_CACHE_BYTES)
     atomic64_t wlen;
     atomic_t   mbcnt;
@@ -114,6 +137,9 @@ mblock_file_unmapall(struct mblock_file *mbfp);
 
 static int
 mblock_mmap_cshift(size_t mblocksz);
+
+static merr_t
+mblock_file_insert(struct mblock_file *mbfp, uint64_t mbid);
 
 /**
  * Region map interfaces.
@@ -129,7 +155,7 @@ mblock_rgnmap_init(struct mblock_file *mbfp, const char *name)
     uint32_t rmax;
 
     rmcache = kmem_cache_create(name, sizeof(*rgn), alignof(*rgn), 0, NULL);
-    if (ev(!rmcache))
+    if (!rmcache)
         return merr(ENOMEM);
 
     rgnmap = &mbfp->rgnmap;
@@ -214,7 +240,7 @@ mblock_rgn_insert(struct mblock_rgnmap *rgnmap, uint32_t key)
             break; /* Found overlapping node */
     };
 
-    if (!node) {
+    if (ev(!node)) {
         err = merr(ENOENT);
         goto exit;
     }
@@ -260,7 +286,7 @@ mblock_rgn_insert(struct mblock_rgnmap *rgnmap, uint32_t key)
 
         /* Allocate new node and link it at parent */
         rgn = kmem_cache_alloc(rgnmap->rm_cache);
-        if (ev(!rgn)) {
+        if (!rgn) {
             err = merr(ENOMEM);
             goto exit;
         }
@@ -430,7 +456,7 @@ mblock_file_meta_format(struct mblock_file *mbfp, struct mblock_filehdr *fh)
     omf_mblock_filehdr_pack_htole(fh, addr);
 
     rc = msync((void *)((unsigned long)addr & PAGE_MASK), PAGE_SIZE, MS_SYNC);
-    if (ev(rc < 0))
+    if (rc < 0)
         return merr(errno);
 
     return 0;
@@ -447,7 +473,7 @@ mblock_file_meta_load(struct mblock_file *mbfp)
     mbfp->uniq = 0;
 
     /* Validate per-file header */
-    omf_mblock_filehdr_unpack_letoh(&fh, addr);
+    omf_mblock_filehdr_unpack_letoh(addr, &fh);
     if (fh.fileid != mbfp->fileid)
         return merr(EBADMSG);
 
@@ -470,7 +496,7 @@ mblock_file_meta_load(struct mblock_file *mbfp)
             mblkc++; /* Debug */
 
             err = mblock_file_insert(mbfp, mbid);
-            if (ev(err))
+            if (err)
                 return merr(EBADMSG);
 
             wlen = omf_mblk_wlen(mbomf);
@@ -516,7 +542,7 @@ mblock_file_meta_log(struct mblock_file *mbfp, uint64_t *mbidv, int mbidc, bool 
     merr_t   err = 0;
     uint64_t omfid;
 
-    if (ev(!mbfp || !mbidv))
+    if (!mbfp || !mbidv)
         return merr(EINVAL);
 
     if (mbidc > 1)
@@ -544,7 +570,7 @@ mblock_file_meta_log(struct mblock_file *mbfp, uint64_t *mbidv, int mbidc, bool 
     omf_set_mblk_wlen(mbomf, delete ? 0 : wlen);
 
     rc = msync((void *)((unsigned long)addr & PAGE_MASK), PAGE_SIZE, MS_SYNC);
-    if (ev(rc < 0))
+    if (rc < 0)
         err = merr(errno);
     mutex_unlock(&mbfp->meta_lock);
 
@@ -573,7 +599,7 @@ mblock_file_open(
     bool   create = false;
     size_t sz, mblocksz, fszmax;
 
-    if (ev(!mbfsp || !mc || !meta_addr || !handle || !params))
+    if (!mbfsp || !mc || !meta_addr || !handle || !params)
         return merr(EINVAL);
 
     flags &= (O_RDWR | O_RDONLY | O_WRONLY | O_CREAT);
@@ -601,7 +627,7 @@ mblock_file_open(
 
     sz = sizeof(*mbfp) + mmapc * sizeof(*mbfp->mmapv) + wlenc * sizeof(*mbfp->wlenv);
     mbfp = calloc(1, sz);
-    if (ev(!mbfp))
+    if (!mbfp)
         return merr(ENOMEM);
 
     mbfp->fd = -1;
@@ -614,7 +640,7 @@ mblock_file_open(
     mbfp->fszmax = fszmax;
     snprintf(rname, sizeof(rname), "%s-%d-%d", "rgnmap", mcid, fileid);
     err = mblock_rgnmap_init(mbfp, rname);
-    if (ev(err)) {
+    if (err) {
         free(mbfp);
         return err;
     }
@@ -629,14 +655,12 @@ mblock_file_open(
     } else {
         err = mblock_file_meta_load(mbfp);
     }
-    if (ev(err))
+    if (err)
         goto err_exit;
 
     fd = openat(dirfd, name, flags | O_DIRECT | O_SYNC, S_IRUSR | S_IWUSR);
     if (fd < 0) {
         err = merr(errno);
-        hse_elog(
-            HSE_ERR "%s: open/create data file failed, file name %s: @@e", err, __func__, name);
         goto err_exit;
     }
     mbfp->fd = fd;
@@ -646,8 +670,6 @@ mblock_file_open(
         rc = ftruncate(fd, mbfp->fszmax);
         if (rc < 0) {
             err = merr(errno);
-            hse_elog(HSE_ERR
-                     "%s: Truncating data file failed, file name %s: @@e", err, __func__, name);
             goto err_exit;
         }
     }
@@ -744,10 +766,10 @@ mblock_file_alloc(struct mblock_file *mbfp, int mbidc, uint64_t *mbidv)
     uint32_t block, uniq;
     merr_t   err;
 
-    if (ev(!mbfp || !mbidv))
+    if (!mbfp || !mbidv)
         return merr(EINVAL);
 
-    if (ev(mbidc > 1))
+    if (mbidc > 1)
         return merr(ENOTSUP);
 
     block = mblock_rgn_alloc(&mbfp->rgnmap);
@@ -755,7 +777,7 @@ mblock_file_alloc(struct mblock_file *mbfp, int mbidc, uint64_t *mbidv)
         return merr(ENOSPC);
 
     err = mblock_uniq_gen(mbfp, &uniq);
-    if (ev(err)) {
+    if (err) {
         mblock_rgn_free(&mbfp->rgnmap, block);
         return err;
     }
@@ -790,7 +812,7 @@ mblock_file_meta_validate(struct mblock_file *mbfp, uint64_t *mbidv, int mbidc, 
     uint64_t omfid;
     merr_t   err = 0;
 
-    if (ev(!mbfp || !mbidv))
+    if (!mbfp || !mbidv)
         return merr(EINVAL);
 
     if (mbidc > 1)
@@ -824,10 +846,10 @@ mblock_file_find(struct mblock_file *mbfp, uint64_t *mbidv, int mbidc, uint32_t 
     uint32_t block;
     merr_t   err, err2;
 
-    if (ev(!mbfp || !mbidv))
+    if (!mbfp || !mbidv)
         return merr(EINVAL);
 
-    if (ev(mbidc > 1))
+    if (mbidc > 1)
         return merr(ENOTSUP);
 
     block = block_id(*mbidv);
@@ -854,10 +876,10 @@ mblock_file_commit(struct mblock_file *mbfp, uint64_t *mbidv, int mbidc)
     bool     delete = false;
     uint32_t block;
 
-    if (ev(!mbfp || !mbidv))
+    if (!mbfp || !mbidv)
         return merr(EINVAL);
 
-    if (ev(mbidc > 1))
+    if (mbidc > 1)
         return merr(ENOTSUP);
 
     block = block_id(*mbidv);
@@ -867,7 +889,7 @@ mblock_file_commit(struct mblock_file *mbfp, uint64_t *mbidv, int mbidc)
         return err;
 
     err = mblock_file_meta_log(mbfp, mbidv, mbidc, delete);
-    if (ev(err))
+    if (err)
         return err;
 
     atomic64_add(atomic_read(mbfp->wlenv + block), &mbfp->wlen);
@@ -881,10 +903,10 @@ mblock_file_abort(struct mblock_file *mbfp, uint64_t *mbidv, int mbidc)
     uint32_t block;
     merr_t   err;
 
-    if (ev(!mbfp || !mbidv))
+    if (!mbfp || !mbidv)
         return merr(EINVAL);
 
-    if (ev(mbidc > 1))
+    if (mbidc > 1)
         return merr(ENOTSUP);
 
     block = block_id(*mbidv);
@@ -897,7 +919,7 @@ mblock_file_abort(struct mblock_file *mbfp, uint64_t *mbidv, int mbidc)
         return err;
 
     err = mblock_rgn_free(&mbfp->rgnmap, block + 1);
-    if (ev(err))
+    if (err)
         return err;
 
     atomic_set(mbfp->wlenv + block, 0);
@@ -915,10 +937,10 @@ mblock_file_delete(struct mblock_file *mbfp, uint64_t *mbidv, int mbidc)
     int      rc;
     bool delete = true;
 
-    if (ev(!mbfp || !mbidv))
+    if (!mbfp || !mbidv)
         return merr(EINVAL);
 
-    if (ev(mbidc > 1))
+    if (mbidc > 1)
         return merr(ENOTSUP);
 
     block = block_id(*mbidv);
@@ -928,7 +950,7 @@ mblock_file_delete(struct mblock_file *mbfp, uint64_t *mbidv, int mbidc)
 
     /* First log the delete */
     err = mblock_file_meta_log(mbfp, mbidv, mbidc, delete);
-    if (ev(err))
+    if (err)
         return err;
 
     mblocksz = mbfp->mblocksz;
@@ -941,7 +963,7 @@ mblock_file_delete(struct mblock_file *mbfp, uint64_t *mbidv, int mbidc)
     ev(rc);
 
     err = mblock_rgn_free(&mbfp->rgnmap, block + 1);
-    if (ev(err))
+    if (err)
         return err;
 
     atomic64_sub(atomic_read(mbfp->wlenv + block), &mbfp->wlen);
@@ -977,13 +999,13 @@ mblock_file_read(
     merr_t    err;
     atomic_t *wlenp;
 
-    if (ev(!mbfp || !iov))
+    if (!mbfp || !iov)
         return merr(EINVAL);
 
     if (iovc == 0)
         return 0;
 
-    if (ev(!PAGE_ALIGNED(off)))
+    if (!PAGE_ALIGNED(off))
         return merr(EINVAL);
 
     block = block_id(mbid);
@@ -1019,7 +1041,7 @@ mblock_file_write(
     merr_t    err;
     atomic_t *wlenp;
 
-    if (ev(!mbfp || !iov))
+    if (!mbfp || !iov)
         return merr(EINVAL);
 
     if (iovc == 0)

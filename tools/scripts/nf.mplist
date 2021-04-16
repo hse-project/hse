@@ -30,10 +30,9 @@ syntax () {
 
 help ()
 {
-    echo "$CMD: list mpools and kvses"
+    echo "$CMD: list kvses"
     echo "Options:"
     echo "    -h, -?   // help"
-    echo "    -m       // list mpools"
     echo "    -k       // list kvses"
     echo "    -s       // use space separator"
     exit 0
@@ -48,7 +47,6 @@ while (( $# > 0 )); do
     case "$1" in
         (-\?|-h) help;;
         (-a) list_all=1; shift;;
-        (-m) list+=(mpool); shift;;
         (-k) list+=(kvs); shift;;
         (-s) space=1; shift;;
         (*)  syntax || syntax "Invalid arguments: '$1'";;
@@ -57,15 +55,12 @@ done
 
 TMP=$(mktemp -d /tmp/${CMD}.XXXXXX)
 
-mpool list -v > $TMP/mpools ||
-    err "Cannot list mpools: mpool list -v"
-
-hse1 kvdb list -v > $TMP/kvses ||
-    err "Cannot list mpools: hse1 kvdb list -v"
+hse1 kvdb list -v kvdb1 > $TMP/kvses ||
+    err "Cannot list kvdbs: hse1 kvdb list -v kvdb1"
 
 
 if (( list_all )); then
-    list=(mpool kvs)
+    list=(kvs)
 fi
 
 set +u
@@ -76,15 +71,11 @@ if (( ${#list[@]} > 1 )); then
     show_prefix=1
 else
     show_prefix=0
-fi   
+fi
 
 
 for p in "${list[@]}"; do
     case "$p" in
-        (mpool)
-            s='/^mpools:/{flag=1;next} /^[^- ]/{flag=0;next} /^- name:/{printf "%s%s\n", prefix,$3}'
-            f=$TMP/mpools
-            ;;
         (kvs)
             s='/^  kvslist:/{flag=1;next} /^    [^- ]/{flag=0;next} /^    - /{printf "%s%s\n", prefix,$2}'
             f=$TMP/kvses

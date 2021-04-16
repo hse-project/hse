@@ -142,7 +142,7 @@ merr_t
 cndb_alloc(struct mpool *ds, u64 *captgt, u64 *oid1_out, u64 *oid2_out)
 {
     merr_t               err;
-    enum mp_media_classp mclassp = MP_MED_STAGING;
+    enum mpool_mclass    mclass = MP_MED_STAGING;
     u64                  staging_absent;
     size_t               capacity;
 
@@ -153,9 +153,9 @@ cndb_alloc(struct mpool *ds, u64 *captgt, u64 *oid1_out, u64 *oid2_out)
 
     staging_absent = mpool_mclass_props_get(ds, MP_MED_STAGING, NULL);
     if (staging_absent)
-        mclassp = MP_MED_CAPACITY;
+        mclass = MP_MED_CAPACITY;
 
-    err = mpool_mdc_alloc(ds, CNDB_MAGIC, capacity, mclassp, oid1_out, oid2_out);
+    err = mpool_mdc_alloc(ds, CNDB_MAGIC, capacity, mclass, oid1_out, oid2_out);
     if (ev(err)) {
         hse_elog(
             HSE_ERR "%s: cannot allocate cNDB MDC (%lld): @@e",

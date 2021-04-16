@@ -345,6 +345,9 @@ main(int argc, char **argv)
         poll(0, 0, comp);
 
         do_close(kvdb, 0);
+        hse_params_destroy(params);
+        hse_fini();
+
         return 0;
     }
 

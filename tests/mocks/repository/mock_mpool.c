@@ -76,7 +76,7 @@ get_mblock(u64 id, struct mocked_mblock **mb)
 static merr_t
 _mpool_mblock_alloc(
     struct mpool *       mp,
-    enum mp_media_classp mclassp,
+    enum mpool_mclass    mclass,
     uint64_t *           handle,
     struct mblock_props *props)
 {
@@ -171,7 +171,7 @@ _mpool_props_get(struct mpool *mp, struct mpool_props *props)
 merr_t
 _mpool_mclass_props_get(
     struct mpool              *mp,
-    enum mp_media_classp       mclass,
+    enum mpool_mclass          mclass,
     struct mpool_mclass_props *props)
 {
     if (mclass >= MP_MED_COUNT)

@@ -298,8 +298,6 @@ MTF_DEFINE_UTEST_PRE(kvdb_test, kvdb_cursor_test, general_pre)
     rc = hse_kvs_cursor_destroy(cur);
     ASSERT_EQ(0, rc);
 
-    hse_params_destroy(params);
-
     rc = hse_kvdb_close(h);
     ASSERT_EQ(0, rc);
 

@@ -75,7 +75,7 @@ mclass_policy_init_from_string(struct mclass_policy *policy, const char *key, co
  * @datatype: data type (see hse_mclass_policy_dtype)
  * @iteration: number of tries. Retries happen on alloc failures.
  */
-enum mp_media_classp
+enum mpool_mclass
 mclass_policy_get_type(struct mclass_policy *policy, u8 agegroup, u8 datatype, u8 iteration);
 
 /*

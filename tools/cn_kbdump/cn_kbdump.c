@@ -1006,13 +1006,13 @@ main(int argc, char **argv)
     progname = strrchr(argv[0], '/');
     progname = progname ? progname + 1 : argv[0];
 
-    err = hse_kvdb_init();
+    err = hse_init();
     if (err)
         return -1;
 
     err = hse_params_create(&params);
     if (err) {
-        hse_kvdb_fini();
+        hse_fini();
         return -1;
     }
 
@@ -1131,7 +1131,7 @@ main(int argc, char **argv)
     if (opt.write) {
         ewrite_files(opt.write);
         hse_params_destroy(params);
-        hse_kvdb_fini();
+        hse_fini();
         return 0;
     }
 
@@ -1163,7 +1163,7 @@ main(int argc, char **argv)
     }
 
     hse_params_destroy(params);
-    hse_kvdb_fini();
+    hse_fini();
 
     return 0;
 }

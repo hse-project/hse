@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
 #include <stdio.h>
@@ -53,8 +53,7 @@ mdc_correctness_simple(const char *mpool, const struct hse_params *params)
 
     struct mpool *    mp;
     struct mpool_mdc *mdc;
-
-    enum mp_media_classp mclass;
+    enum mpool_mclass mclass;
 
     if (mpool[0] == 0) {
         fprintf(stderr, "%s.%d: mpool (mp=<mpool>) must be specified\n", __func__, __LINE__);
@@ -194,8 +193,7 @@ mdc_correctness_mp_release(const char *mpool, const struct hse_params *params)
 
     struct mpool *    mp;
     struct mpool_mdc *mdc;
-
-    enum mp_media_classp mclass;
+    enum mpool_mclass mclass;
 
     if (mpool[0] == 0) {
         fprintf(stderr, "%s.%d: mpool (mp=<mpool>) must be specified\n", __func__, __LINE__);
@@ -364,8 +362,7 @@ mdc_correctness_multi_reader_single_app(const char *mpool, const struct hse_para
 
     struct mpool *    mp;
     struct mpool_mdc *mdc[2];
-
-    enum mp_media_classp mclass;
+    enum mpool_mclass mclass;
 
     if (mpool[0] == 0) {
         fprintf(stderr, "%s.%d: mpool (mp=<mpool>) must be specified\n", __func__, __LINE__);
@@ -670,8 +667,7 @@ mdc_correctness_reader_then_writer(const char *mpool, const struct hse_params *p
 
     struct mpool *    mp;
     struct mpool_mdc *mdc;
-
-    enum mp_media_classp mclass;
+    enum mpool_mclass mclass;
 
     if (mpool[0] == 0) {
         fprintf(stderr, "%s.%d: mpool (mp=<mpool>) must be specified\n", __func__, __LINE__);
@@ -911,8 +907,7 @@ mdc_correctness_writer_then_reader(const char *mpool, const struct hse_params *p
 
     struct mpool *    mp;
     struct mpool_mdc *mdc[2];
-
-    enum mp_media_classp mclass;
+    enum mpool_mclass mclass;
 
     if (mpool[0] == 0) {
         fprintf(stderr, "%s.%d: mpool (mp=<mpool>) must be specified\n", __func__, __LINE__);
@@ -1106,8 +1101,7 @@ mdc_correctness_multi_mdc(const char *mpool, const struct hse_params *params)
 
     struct mpool *    mp;
     struct mpool_mdc *mdc[4];
-
-    enum mp_media_classp mclass;
+    enum mpool_mclass mclass;
 
     if (mpool[0] == 0) {
         fprintf(stderr, "%s.%d: mpool (mp=<mpool>) must be specified\n", __func__, __LINE__);
@@ -1293,20 +1287,20 @@ main(int argc, char **argv)
 
     const char *name = "mdctest";
 
-    herr = hse_kvdb_init();
+    herr = hse_init();
     if (herr)
         return -1;
 
     herr = hse_params_create(&params);
     if (herr) {
-        hse_kvdb_fini();
+        hse_fini();
         return -1;
     }
 
     herr = hse_parse_cli(argc, argv, &next_arg, 0, params);
     if (herr) {
         hse_params_destroy(params);
-        hse_kvdb_fini();
+        hse_fini();
         return -1;
     }
 
@@ -1356,8 +1350,7 @@ main(int argc, char **argv)
     fprintf(stdout, "MDC correctness tests: %d/%d passed\n", tests - failed, tests);
 
     hse_params_destroy(params);
-
-    hse_kvdb_fini();
+    hse_fini();
 
     return 0;
 }

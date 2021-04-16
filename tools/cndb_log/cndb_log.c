@@ -666,6 +666,7 @@ main(int argc, char **argv)
     }
 
     if (check) {
+        free(ti.cndb->cndb_cbuf);
         ti.cndb->cndb_cbuf = ti.buf;
         ti.cndb->cndb_cbufsz = ti.bufsz;
 

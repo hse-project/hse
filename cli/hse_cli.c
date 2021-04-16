@@ -686,7 +686,6 @@ static int
 cli_hse_kvdb_destroy_impl(struct cli *cli, const char *cfile, const char *kvdb_name)
 {
     struct hse_params *hp = 0;
-    struct hse_kvdb *  db = 0;
     hse_err_t          herr = 0;
     int                rc = 0;
 
@@ -697,14 +696,7 @@ cli_hse_kvdb_destroy_impl(struct cli *cli, const char *cfile, const char *kvdb_n
     if (!hp)
         return EX_USAGE;
 
-    herr = hse_kvdb_open(kvdb_name, hp, &db);
-    if (herr) {
-        if (hse_err_to_errno(herr) != ENOENT)
-            print_hse_err(cli, "hse_kvdb_open", herr);
-        goto done;
-    }
-
-    herr = hse_kvdb_drop(db);
+    herr = hse_kvdb_drop(kvdb_name, hp);
     if (herr) {
         if (hse_err_to_errno(herr) != ENOENT)
             print_hse_err(cli, "hse_kvdb_drop", herr);

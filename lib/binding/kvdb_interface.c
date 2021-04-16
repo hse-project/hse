@@ -103,7 +103,7 @@ hse_err_t
 hse_kvdb_make(const char *kvdb_name, const struct hse_params *params)
 {
     struct kvdb_cparams dbparams;
-    struct mpool *      ds;
+    struct mpool *      mp;
     merr_t              err;
     u64                 oid1, oid2;
     u64                 tstart;
@@ -122,14 +122,14 @@ hse_kvdb_make(const char *kvdb_name, const struct hse_params *params)
     if (ev(err))
         return merr_to_hse_err(err);
 
-    err = mpool_open(kvdb_name, params, O_CREAT, &ds);
+    err = mpool_open(kvdb_name, params, O_CREAT, &mp);
     if (ev(err))
         return merr_to_hse_err(err);
 
     for (int i = 0; i < MP_MED_COUNT; i++) {
         struct mpool_mclass_props mcprops;
 
-        err = mpool_mclass_props_get(ds, i, &mcprops);
+        err = mpool_mclass_props_get(mp, i, &mcprops);
         if (merr_errno(err) == ENOENT)
             continue;
         else if (err)
@@ -140,11 +140,11 @@ hse_kvdb_make(const char *kvdb_name, const struct hse_params *params)
             goto errout;
     }
 
-    err = mpool_mdc_rootid_get(ds, &oid1, &oid2);
+    err = mpool_mdc_rootid_get(mp, &oid1, &oid2);
     if (ev(err))
         goto errout;
 
-    err = ikvdb_make(ds, oid1, oid2, &dbparams, MPOOL_ROOT_LOG_CAP);
+    err = ikvdb_make(mp, oid1, oid2, &dbparams, MPOOL_ROOT_LOG_CAP);
     if (ev(err))
         goto errout;
 
@@ -152,30 +152,31 @@ hse_kvdb_make(const char *kvdb_name, const struct hse_params *params)
 
 errout:
     if (err)
-        mpool_destroy(ds);
+        mpool_destroy(mp);
     else
-        mpool_close(ds);
+        mpool_close(mp);
 
     return merr_to_hse_err(err);
 }
 
 hse_err_t
-hse_kvdb_drop(struct hse_kvdb *handle)
+hse_kvdb_drop(const char *kvdb_name, const struct hse_params *params)
 {
-    struct ikvdb *ikvdb;
     struct mpool *mp;
-    merr_t err;
+    merr_t        err;
 
-    ikvdb = (struct ikvdb *)handle;
-    mp = ikvdb_mpool_get(ikvdb);
+    if (HSE_UNLIKELY(!kvdb_name))
+        return merr_to_hse_err(merr(EINVAL));
 
-    err = ikvdb_drop(ikvdb);
+    err = mpool_open(kvdb_name, params, O_RDWR, &mp);
     if (ev(err))
         return merr_to_hse_err(err);
 
-    err = ikvdb_close(ikvdb);
-    if (ev(err))
+    err = ikvdb_drop(kvdb_name, params, mp);
+    if (ev(err)) {
+        mpool_close(mp);
         return merr_to_hse_err(err);
+    }
 
     err = mpool_destroy(mp);
     if (ev(err))

@@ -1,21 +1,17 @@
-// SPDX-License-Identifier: MIT
+/* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 /*
- * This test tool exercises mpool and mcache via the mpctl library
- * interfaces.
- *
- * Setup:
- *    $ cd ~/mpool/builds/debug/stage/bin
+ * This test tool exercises mpool and mcache.
  *
  * Examples:
- *    Given an mpool named "mp1":
+ *    Given an kvdb named "kvdb1":
  *
- *    $ sudo mpiotest mp1
- *    $ sudo mpiotest -vv -j48 mp1 128k
- *    $ sudo mpiotest -vv -j48 mp1 1m 128m
- *    $ sudo mpiotest -v -j48 -i777 -l 8192 -o gpverify=0,rdverify=0 mp1 32m
+ *    $ sudo mpiotest kvdb1
+ *    $ sudo mpiotest -vv -j48 kvdb1 128k
+ *    $ sudo mpiotest -vv -j48 kvdb1 1m 128m
+ *    $ sudo mpiotest -v -j48 -i777 -l 8192 -o gpverify=0,rdverify=0 kvdb1 32m
  */
 
 #include <stdio.h>
@@ -1043,13 +1039,13 @@ main(int argc, char **argv)
     seed = time(NULL);
     oflags = O_RDWR;
 
-    herr = hse_kvdb_init();
+    herr = hse_init();
     if (herr)
         exit(1);
 
     herr = hse_params_create(&hparams);
     if (herr) {
-        hse_kvdb_fini();
+        hse_fini();
         exit(1);
     }
 
@@ -1153,7 +1149,7 @@ main(int argc, char **argv)
     herr = hse_parse_cli(argc, argv, &next_arg, 0, hparams);
     if (herr) {
         hse_params_destroy(hparams);
-        hse_kvdb_fini();
+        hse_fini();
         exit(1);
     }
 
@@ -1192,7 +1188,7 @@ main(int argc, char **argv)
         eprint("mpool_open(%s): %s\n", mpname, errbuf);
         free(mpname);
         hse_params_destroy(hparams);
-        hse_kvdb_fini();
+        hse_fini();
         exit(1);
     }
 
@@ -1298,7 +1294,7 @@ main(int argc, char **argv)
     mpool_close(mp);
 
     hse_params_destroy(hparams);
-    hse_kvdb_fini();
+    hse_fini();
 
     free(testv);
     free(mpname);
@@ -1308,7 +1304,7 @@ main(int argc, char **argv)
 err_exit:
     mpool_close(mp);
     hse_params_destroy(hparams);
-    hse_kvdb_fini();
+    hse_fini();
     free(testv);
     free(mpname);
     exit(1);

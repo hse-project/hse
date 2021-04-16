@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2021 Micron Technology, Inc.  All rights reserved.
  */
 
 #ifndef MPOOL_STRUCTS_H
@@ -15,12 +15,12 @@
 #define MPOOL_ROOT_LOG_CAP (8 * 1024 * 1024)
 
 /**
- * mp_media_classp = Media classes
+ * mpool_mclass = Media classes
  *
  * @MP_MED_CAPACITY: Primary data storage, cold data, or similar.
  * @MP_MED_STAGING:  Initial data ingest, hot data storage, or similar.
  */
-enum mp_media_classp {
+enum mpool_mclass {
     MP_MED_CAPACITY = 0,
     MP_MED_STAGING = 1,
 };
@@ -31,6 +31,7 @@ enum mp_media_classp {
 
 /**
  * struct mpool_props -
+ *
  * @mp_vma_size_max:    max VMA map size (log2)
  * @mp_mblocksz:        mblock size by media class (MiB)
  */
@@ -41,11 +42,11 @@ struct mpool_props {
 
 /**
  * struct mpool_stats - aggregated mpool stats across all configured media classes
- * @mps_total:     total space in the file-system containing data directories
- * @mps_available: available space in the file-system containing data directories
+ *
+ * @mps_total:     total space in the filesystem(s) containing mclass data directories
+ * @mps_available: available space in the filesystem(s) containing mclass data directories
  * @mps_allocated: allocated capacity
  * @mps_used:      used capacity
- *
  * @mps_mblock_cnt: number of active mblocks
  * @mps_path:       storage path
  */
@@ -69,10 +70,13 @@ struct mpool_mclass_props {
 
 /**
  * struct mpool_mclass_stats - stats for a specific media class
+ *
+ * @mcs_total:      total space in the filesystem containing this mclass data directory
+ * @mcs_available:  available space in the filesystem containing this mclass data directory
  * @mcs_allocated:  allocated capacity
  * @mcs_used:       used capacity
+ * @mcs_fsid:       fsid of the FS hosting this data directory
  * @mcs_mblock_cnt: number of active mblocks
- * @mcs_fsid:       fsid of the FS hosting the data directory
  * @mcs_path:       media class storage path
  */
 struct mpool_mclass_stats {
@@ -92,14 +96,14 @@ struct mpool_mclass_stats {
  * @mpr_alloc_cap:    allocated capacity in bytes
  * @mpr_write_len:    written user-data in bytes
  * @mpr_optimal_wrsz: optimal write size(in bytes) for all but the last incremental mblock write
- * @mpr_mclassp:      media class
+ * @mpr_mclass:       media class
  */
 struct mblock_props {
     uint64_t mpr_objid;
     uint32_t mpr_alloc_cap;
     uint32_t mpr_write_len;
     uint32_t mpr_optimal_wrsz;
-    uint32_t mpr_mclassp; /* enum mp_media_classp */
+    uint32_t mpr_mclass;
 };
 
 #endif /* MPOOL_STRUCTS_H */

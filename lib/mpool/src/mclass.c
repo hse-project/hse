@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2021 Micron Technology, Inc.  All rights reserved.
  */
 
 #include <unistd.h>
@@ -19,12 +19,14 @@
 #include "mblock_fset.h"
 
 /**
- * struct media_class - represents a mclass instance
+ * struct media_class - mclass instance
  *
- * @dirp:  mclass directory stream
- * @mbfsp: mblock fileset handle
- * @mcid:  mclass ID (persisted in mblock/mdc metadata)
- * @dpath: mclass directory path
+ * @dirp:     mclass directory stream
+ * @mbfsp:    mblock fileset handle
+ * @mblocksz: mblock size configured for this mclass
+ * @mcid:     mclass ID (persisted in mblock/mdc metadata)
+ * @lockfd:   fd of the lock file
+ * @dpath:    mclass directory path
  */
 struct media_class {
     DIR                *dirp;
@@ -81,10 +83,10 @@ mclass_lockfile_rel(int dirfd, int lockfd)
 merr_t
 mclass_open(
     struct mpool         *mp,
-    enum mp_media_classp  mclass,
+    enum mpool_mclass     mclass,
     struct mclass_params *params,
     int                   flags,
-    struct media_class **handle)
+    struct media_class  **handle)
 {
     struct media_class *mc;
 
@@ -92,7 +94,7 @@ mclass_open(
     int    lockfd = -1;
     merr_t err;
 
-    if (ev(!mp || !params || !handle || mclass >= MP_MED_COUNT))
+    if (!mp || !params || !handle || mclass >= MP_MED_COUNT)
         return merr(EINVAL);
 
     dirp = opendir(params->path);
@@ -104,14 +106,14 @@ mclass_open(
 
     if (mclass == MP_MED_CAPACITY) {
         err = mclass_lockfile_acq(dirfd(dirp), &lockfd);
-        if (ev(err)) {
+        if (err) {
             closedir(dirp);
             return err;
         }
     }
 
     mc = calloc(1, sizeof(*mc));
-    if (ev(!mc)) {
+    if (!mc) {
         err = merr(ENOMEM);
         goto err_exit2;
     }
@@ -148,7 +150,7 @@ err_exit2:
 merr_t
 mclass_close(struct media_class *mc)
 {
-    if (ev(!mc))
+    if (!mc)
         return merr(EINVAL);
 
     mblock_fset_close(mc->mbfsp);
@@ -182,41 +184,59 @@ mclass_destroy(struct media_class *mc)
 int
 mclass_id(struct media_class *mc)
 {
+    if (!mc)
+        return MCID_INVALID;
+
     return mc->mcid;
 }
 
 int
 mclass_dirfd(struct media_class *mc)
 {
+    if (!mc)
+        return -1;
+
     return dirfd(mc->dirp);
 }
 
 const char *
 mclass_dpath(struct media_class *mc)
 {
+    if (!mc)
+        return NULL;
+
     return mc->dpath;
 }
 
 struct mblock_fset *
 mclass_fset(struct media_class *mc)
 {
+    if (!mc)
+        return NULL;
+
     return mc->mbfsp;
 }
 
 size_t
-mclass_mblocksz(struct media_class *mc)
+mclass_mblocksz_get(struct media_class *mc)
 {
+    if (!mc)
+        return 0;
+
     return mc->mblocksz;
 }
 
 void
 mclass_mblocksz_set(struct media_class *mc, size_t mblocksz)
 {
+    if (ev(!mc))
+        return;
+
     mc->mblocksz = mblocksz;
 }
 
 enum mclass_id
-mclass_to_mcid(enum mp_media_classp mclass)
+mclass_to_mcid(enum mpool_mclass mclass)
 {
     switch (mclass) {
         case MP_MED_CAPACITY:
@@ -232,7 +252,7 @@ mclass_to_mcid(enum mp_media_classp mclass)
     return MCID_INVALID;
 }
 
-enum mp_media_classp
+enum mpool_mclass
 mcid_to_mclass(enum mclass_id mcid)
 {
     switch (mcid) {
@@ -258,7 +278,7 @@ mclass_stats_get(struct media_class *mc, struct mpool_mclass_stats *stats)
         return merr(EINVAL);
 
     err = mblock_fset_stats_get(mc->mbfsp, stats);
-    if (ev(err))
+    if (err)
         return err;
 
     strlcpy(stats->mcs_path, mclass_dpath(mc), sizeof(stats->mcs_path));

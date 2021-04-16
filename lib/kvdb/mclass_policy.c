@@ -243,7 +243,7 @@ mclass_policy_init_from_string(struct mclass_policy *policy, const char *key, co
             }
 }
 
-enum mp_media_classp
+enum mpool_mclass
 mclass_policy_get_type(struct mclass_policy *policy, u8 age, u8 dtype, u8 retries)
 {
     enum hse_mclass_policy_media mtype = HSE_MPOLICY_MEDIA_INVALID;
