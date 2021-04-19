@@ -61,10 +61,10 @@ kh_init(
 {
 	int                   rc;
 
-	rc = hse_kvdb_init();
+	rc = hse_init();
 	if (rc) {
 		hse_params_destroy(params);
-		fatal(rc, "hse_kvdb_init failed");
+		fatal(rc, "hse_init failed");
 	}
 
 	rc = hse_kvdb_open(mpool, params, &test.kvdb);
@@ -107,7 +107,7 @@ kh_fini(void)
 
 	hse_kvdb_close(test.kvdb);
 
-	hse_kvdb_fini();
+	hse_fini();
 }
 
 void

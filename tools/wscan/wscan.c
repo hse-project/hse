@@ -148,7 +148,7 @@ main(int argc, char **argv)
     if (opt_params)
         rp_usage();
 
-    err = hse_kvdb_init();
+    err = hse_init();
     if (err)
         fatal(err, "failed to initialize kvdb");
 
@@ -424,7 +424,7 @@ error:
 
     hse_params_destroy(params);
 
-    hse_kvdb_fini();
+    hse_fini();
 
     return 0;
 }

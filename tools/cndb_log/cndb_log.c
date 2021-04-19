@@ -567,7 +567,7 @@ main(int argc, char **argv)
     int              c;
     struct tool_info ti = { 0 };
 
-    err = hse_kvdb_init();
+    err = hse_init();
     if (err)
         fatal("kvdb_init", err);
 
@@ -668,7 +668,7 @@ done:
     if (err)
         fatal("mpool_mdc_read", err);
 
-    hse_kvdb_fini();
+    hse_fini();
 
     return status;
 }

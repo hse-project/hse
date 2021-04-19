@@ -4,7 +4,7 @@ import sys
 from hse import Kvdb, Params, KvdbException
 from hse import experimental as hse_exp
 
-Kvdb.init()
+init()
 
 p = Params()
 kvdb = Kvdb.open(sys.argv[1], params=p)
@@ -220,4 +220,4 @@ except KvdbException:
 kvs.close()
 kvs_tx.close()
 kvdb.close()
-Kvdb.fini()
+fini()

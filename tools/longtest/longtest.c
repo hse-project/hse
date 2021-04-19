@@ -2097,7 +2097,7 @@ main(int argc, char **argv)
 	if (opt.version || opt.help)
 		goto done;
 
-	err = hse_kvdb_init();
+	err = hse_init();
 	if (err) {
 		fprintf(stderr, "failed to initialize kvdb\n");
 		goto done;
@@ -2211,7 +2211,7 @@ done:
 
 	hse_params_destroy(opt.params);
 
-	hse_kvdb_fini();
+	hse_fini();
 
 	return err;
 }

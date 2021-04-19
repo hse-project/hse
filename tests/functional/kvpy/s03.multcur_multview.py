@@ -4,7 +4,7 @@ import sys
 import hse
 
 
-hse.Kvdb.init()
+hse.init()
 
 try:
     kvdb = hse.Kvdb.open(sys.argv[1])
@@ -58,4 +58,4 @@ finally:
         kvdb.kvs_drop("kvs3")
         kvdb.close()
 
-hse.Kvdb.fini()
+hse.fini()

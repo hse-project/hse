@@ -151,7 +151,7 @@ main(int argc, char **argv)
     mpname = argv[0];
     kvsname = argv[1];
 
-    rc = hse_kvdb_init();
+    rc = hse_init();
     if (rc)
         fatal(rc, "failed to initialize kvdb");
 
@@ -199,7 +199,7 @@ main(int argc, char **argv)
         exit(1);
     }
 
-    hse_kvdb_fini();
+    hse_fini();
 
     return 0;
 }

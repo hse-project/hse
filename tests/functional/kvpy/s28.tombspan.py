@@ -12,7 +12,7 @@ def check_keys(cursor: Cursor, expected: List[bytes]):
         assert x == y
 
 
-Kvdb.init()
+init()
 
 kvdb = Kvdb.open(sys.argv[1])
 kvdb.kvs_make("kvs28")
@@ -64,4 +64,4 @@ cursor.destroy()
 
 kvs.close()
 kvdb.close()
-Kvdb.fini()
+fini()

@@ -47,9 +47,9 @@ main(int argc, char **argv)
     init = false;
     open = false;
 
-    err = hse_kvdb_init();
+    err = hse_init();
     if (err) {
-        report_error("hse_kvdb_init", err);
+        report_error("hse_init", err);
         goto error;
     }
 
@@ -105,7 +105,7 @@ main(int argc, char **argv)
     }
 
     if (init)
-        hse_kvdb_fini();
+        hse_fini();
 
     return (err || err2) ? 1 : 0;
 }

@@ -1450,7 +1450,7 @@ main(int argc, char **argv)
     progname = strrchr(argv[0], '/');
     progname = progname ? progname + 1 : argv[0];
 
-    err = hse_kvdb_init();
+    err = hse_init();
     if (err)
         return err;
 
@@ -1484,7 +1484,7 @@ main(int argc, char **argv)
     hse_kvdb_close(kvdb);
     hse_params_destroy(params);
 
-    hse_kvdb_fini();
+    hse_fini();
 
     return err;
 }

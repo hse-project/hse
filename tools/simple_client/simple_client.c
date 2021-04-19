@@ -235,13 +235,13 @@ main(int argc, char **argv)
 		printf("count %u\n", kmax);
 	}
 
-	rc = hse_kvdb_init();
+	rc = hse_init();
 	if (rc)
 		fatal(rc, "failed to initalize kvdb");
 
 	simple_client(mp_name, kvs_name, read, write, verbose);
 
-	hse_kvdb_fini();
+	hse_fini();
 
 	return 0;
 }

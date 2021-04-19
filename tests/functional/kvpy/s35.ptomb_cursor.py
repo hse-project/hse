@@ -38,7 +38,7 @@ def verify(kvs: Kvs, pfx: str, cnt: int):
         assert sum(1 for _ in rc.items()) == cnt
 
 
-Kvdb.init()
+init()
 
 p = Params()
 p.set(key="kvdb.dur_enable", value="0")  # So sync forces an ingest
@@ -101,4 +101,4 @@ verify(kvs=kvs, pfx="DDDD", cnt=nkeys)
 
 kvs.close()
 kvdb.close()
-Kvdb.fini()
+fini()

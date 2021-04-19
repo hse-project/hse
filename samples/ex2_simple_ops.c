@@ -46,7 +46,7 @@ main(int argc, char **argv)
     mpool_name = argv[1];
     kvs_name = argv[2];
 
-    rc = hse_kvdb_init();
+    rc = hse_init();
     if (rc) {
         printf("failed to initialize kvdb");
         exit(1);
@@ -91,7 +91,7 @@ main(int argc, char **argv)
 
     hse_kvdb_close(kvdb);
 
-    hse_kvdb_fini();
+    hse_fini();
 
     return 0;
 }

@@ -4,7 +4,7 @@ import sys
 from hse import Kvdb, Params
 from hse import experimental as hse_exp
 
-Kvdb.init()
+init()
 
 p = Params()
 p.set(key="kvdb.dur_enable", value="0")
@@ -56,4 +56,4 @@ assert kv == [b"AbcXX", b"45"]
 
 kvs.close()
 kvdb.close()
-Kvdb.fini()
+fini()

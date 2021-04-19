@@ -59,7 +59,7 @@ main(int argc, char **argv)
     kvs_name1 = argv[2];
     kvs_name2 = argv[3];
 
-    rc = hse_kvdb_init();
+    rc = hse_init();
     if (rc) {
         printf("Failed to initialize kvdb");
         exit(1);
@@ -133,7 +133,7 @@ main(int argc, char **argv)
     hse_kvdb_txn_free(kvdb, os.kop_txn);
 
     hse_kvdb_close(kvdb);
-    hse_kvdb_fini();
+    hse_fini();
 
     return 0;
 }
