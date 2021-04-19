@@ -10,6 +10,8 @@
 
 #include <pthread.h>
 #include <sys/prctl.h>
+#include <sys/time.h>
+#include <sys/resource.h>
 
 static volatile bool timer_running;
 static struct list_head timer_list;
@@ -180,7 +182,19 @@ static void
 timer_jclock_cb(struct work_struct *work)
 {
     struct timer_list recalibrate, *first;
-    sigset_t          set;
+    sigset_t set;
+
+    /* Attempt to increase this thread's scheduling priority to ensure
+     * more accurate timekeeping and dispatch of expired timers.
+     */
+    if (__linux__) {
+        int prio;
+
+        errno = 0;
+        prio = getpriority(PRIO_PROCESS, 0);
+        if (!(prio == -1 && errno))
+            setpriority(PRIO_PROCESS, 0, prio - 1);
+    }
 
     sigfillset(&set);
     pthread_sigmask(SIG_BLOCK, &set, 0);
@@ -307,7 +321,12 @@ hse_timer_init(void)
      */
     timer_calibrate(10000);
 
-    timer_wq = alloc_workqueue("timer_wq", 0, 2);
+    /* We need three threads:
+     *   1) one for the jclock
+     *   2) one to dispatch expired timers
+     *   3) one to prune the cursor cache
+     */
+    timer_wq = alloc_workqueue("timer_wq", 0, 3);
     if (!timer_wq) {
         hse_log(HSE_ERR "%s: alloc_workqueue failed", __func__);
         return merr(ENOMEM);

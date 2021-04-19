@@ -42,7 +42,7 @@ kvs_rparams_defaults(void)
 {
     struct kvs_rparams k = {
         .kvs_debug = 0,
-        .kvs_cursor_ttl = 1000,
+        .kvs_cursor_ttl = 1500,
         .transactions_enable = 0,
 
         .cn_maint_disable = 0,

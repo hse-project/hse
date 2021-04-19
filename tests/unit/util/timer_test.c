@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
 #include <sys/time.h>
@@ -171,45 +171,6 @@ MTF_DEFINE_UTEST(timer_test, timer_test_delete)
 
     ASSERT_EQ(cb.tdispatch, 0);
     ASSERT_EQ(cb.value, 0);
-}
-
-void
-timer_test_order_cb(unsigned long data)
-{
-    struct cb *cb = (void *)data;
-
-    cb->tdispatch = get_time_ns() / 1000;
-    cb->value = data;
-}
-
-/* Test that timer callbacks are called in order added.
- */
-MTF_DEFINE_UTEST(timer_test, timer_test_order)
-{
-    struct cb cbv[1000];
-    ulong     tprev;
-    int       rc;
-    int       i;
-
-    for (i = 0; i < 1000; ++i)
-        cb_init(cbv + i, timer_test_order_cb, (ulong)(cbv + i), i);
-
-    for (i = 0; i < 1000; ++i)
-        add_timer(&cbv[i].timer);
-
-    tprev = 0;
-    for (i = 0; i < 1000; ++i) {
-        while (cbv[i].value != (ulong)(cbv + i))
-            usleep(10000);
-
-        ASSERT_GE(cbv[i].tdispatch, tprev);
-        tprev = cbv[i].tdispatch;
-    }
-
-    for (i = 0; i < 1000; ++i) {
-        rc = del_timer(&cbv[i].timer);
-        ASSERT_EQ(0, rc);
-    }
 }
 
 void

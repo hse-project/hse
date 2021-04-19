@@ -430,8 +430,8 @@ hse_kvs_put(
     ev(err);
 
     if (!err)
-        PERFC_INCADD_RU(
-            &kvdb_pc, PERFC_RA_KVDBOP_KVS_PUT, PERFC_BA_KVDBOP_KVS_PUTB, key_len + val_len, 128);
+        PERFC_INCADD_RU(&kvdb_pc, PERFC_RA_KVDBOP_KVS_PUT,
+                        PERFC_RA_KVDBOP_KVS_PUTB, key_len + val_len);
 
     return merr_to_hse_err(err);
 }
@@ -491,8 +491,8 @@ hse_kvs_get(
     if (ev(res == FOUND_MULTIPLE))
         return merr_to_hse_err(merr(EPROTO));
 
-    PERFC_INCADD_RU(
-        &kvdb_pc, PERFC_RA_KVDBOP_KVS_GET, PERFC_BA_KVDBOP_KVS_GETB, *found ? *val_len : 0, 128);
+    PERFC_INCADD_RU(&kvdb_pc, PERFC_RA_KVDBOP_KVS_GET,
+                    PERFC_RA_KVDBOP_KVS_GETB, *found ? *val_len : 0);
 
     return 0;
 }
@@ -523,8 +523,8 @@ hse_kvs_delete(struct hse_kvs *handle, struct hse_kvdb_opspec *os, const void *k
     ev(err);
 
     if (!err)
-        PERFC_INCADD_RU(
-            &kvdb_pc, PERFC_RA_KVDBOP_KVS_DEL, PERFC_BA_KVDBOP_KVS_DELB, key_len, 128);
+        PERFC_INCADD_RU(&kvdb_pc, PERFC_RA_KVDBOP_KVS_DEL,
+                        PERFC_RA_KVDBOP_KVS_DELB, key_len);
 
     return merr_to_hse_err(err);
 }
@@ -555,8 +555,8 @@ hse_kvs_prefix_delete(
     ev(err);
 
     if (!err)
-        PERFC_INCADD_RU(
-            &kvdb_pc, PERFC_RA_KVDBOP_KVS_PFX_DEL, PERFC_BA_KVDBOP_KVS_PFX_DELB, key_len, 128);
+        PERFC_INCADD_RU(&kvdb_pc, PERFC_RA_KVDBOP_KVS_PFX_DEL,
+                        PERFC_RA_KVDBOP_KVS_PFX_DELB, key_len);
 
     return merr_to_hse_err(err);
 }
@@ -604,7 +604,7 @@ hse_kvdb_flush(struct hse_kvdb *handle)
 struct hse_kvdb_txn *
 hse_kvdb_txn_alloc(struct hse_kvdb *handle)
 {
-    PERFC_INC_RU(&kvdb_pc, PERFC_RA_KVDBOP_KVDB_TXN_ALLOC, 128);
+    PERFC_INC_RU(&kvdb_pc, PERFC_RA_KVDBOP_KVDB_TXN_ALLOC);
 
     return ikvdb_txn_alloc((struct ikvdb *)handle);
 }
@@ -612,7 +612,7 @@ hse_kvdb_txn_alloc(struct hse_kvdb *handle)
 void
 hse_kvdb_txn_free(struct hse_kvdb *handle, struct hse_kvdb_txn *txn)
 {
-    PERFC_INC_RU(&kvdb_pc, PERFC_RA_KVDBOP_KVDB_TXN_FREE, 128);
+    PERFC_INC_RU(&kvdb_pc, PERFC_RA_KVDBOP_KVDB_TXN_FREE);
 
     ikvdb_txn_free((struct ikvdb *)handle, txn);
 }
@@ -627,7 +627,7 @@ hse_kvdb_txn_begin(struct hse_kvdb *handle, struct hse_kvdb_txn *txn)
         return merr_to_hse_err(merr(EINVAL));
 
     tstart = kvdb_lat_startu(PERFC_LT_PKVDBL_KVDB_TXN_BEGIN);
-    PERFC_INC_RU(&kvdb_pc, PERFC_RA_KVDBOP_KVDB_TXN_BEGIN, 128);
+    PERFC_INC_RU(&kvdb_pc, PERFC_RA_KVDBOP_KVDB_TXN_BEGIN);
 
     err = ikvdb_txn_begin((struct ikvdb *)handle, txn);
     ev(err);
@@ -644,7 +644,7 @@ hse_kvdb_txn_commit(struct hse_kvdb *handle, struct hse_kvdb_txn *txn)
     u64    tstart;
 
     tstart = kvdb_lat_startu(PERFC_LT_PKVDBL_KVDB_TXN_COMMIT);
-    PERFC_INC_RU(&kvdb_pc, PERFC_RA_KVDBOP_KVDB_TXN_COMMIT, 128);
+    PERFC_INC_RU(&kvdb_pc, PERFC_RA_KVDBOP_KVDB_TXN_COMMIT);
 
     err = ikvdb_txn_commit((struct ikvdb *)handle, txn);
     ev(err);
@@ -661,7 +661,7 @@ hse_kvdb_txn_abort(struct hse_kvdb *handle, struct hse_kvdb_txn *txn)
     u64    tstart;
 
     tstart = kvdb_lat_startu(PERFC_LT_PKVDBL_KVDB_TXN_ABORT);
-    PERFC_INC_RU(&kvdb_pc, PERFC_RA_KVDBOP_KVDB_TXN_ABORT, 128);
+    PERFC_INC_RU(&kvdb_pc, PERFC_RA_KVDBOP_KVDB_TXN_ABORT);
 
     err = ikvdb_txn_abort((struct ikvdb *)handle, txn);
     ev(err);
@@ -719,7 +719,7 @@ hse_kvs_cursor_create(
     if (os && HSE_UNLIKELY(((os->kop_opaque >> 16) != 0xb0de) || ((os->kop_opaque & 0x0000ffff) != 1)))
         return merr_to_hse_err(merr(EINVAL));
 
-    PERFC_INC_RU(&kvdb_pc, PERFC_RA_KVDBOP_KVS_CURSOR_CREATE, 128);
+    PERFC_INC_RU(&kvdb_pc, PERFC_RA_KVDBOP_KVS_CURSOR_CREATE);
 
     err = ikvdb_kvs_cursor_create(handle, os, prefix, pfx_len, cursor);
     ev(err);
@@ -738,7 +738,7 @@ hse_kvs_cursor_update(struct hse_kvs_cursor *cursor, struct hse_kvdb_opspec *os)
     if (os && HSE_UNLIKELY(((os->kop_opaque >> 16) != 0xb0de) || ((os->kop_opaque & 0x0000ffff) != 1)))
         return merr_to_hse_err(merr(EINVAL));
 
-    PERFC_INC_RU(&kvdb_pc, PERFC_RA_KVDBOP_KVS_CURSOR_UPDATE, 128);
+    PERFC_INC_RU(&kvdb_pc, PERFC_RA_KVDBOP_KVS_CURSOR_UPDATE);
 
     err = ikvdb_kvs_cursor_update(cursor, os);
     ev(err);
@@ -764,7 +764,7 @@ hse_kvs_cursor_seek(
     if (os && HSE_UNLIKELY(((os->kop_opaque >> 16) != 0xb0de) || ((os->kop_opaque & 0x0000ffff) != 1)))
         return merr_to_hse_err(merr(EINVAL));
 
-    PERFC_INC_RU(&kvdb_pc, PERFC_RA_KVDBOP_KVS_CURSOR_SEEK, 128);
+    PERFC_INC_RU(&kvdb_pc, PERFC_RA_KVDBOP_KVS_CURSOR_SEEK);
 
     kt.kt_len = 0;
     err = ikvdb_kvs_cursor_seek(cursor, os, key, len, 0, 0, found ? &kt : 0);
@@ -798,7 +798,7 @@ hse_kvs_cursor_seek_range(
     if (os && HSE_UNLIKELY(((os->kop_opaque >> 16) != 0xb0de) || ((os->kop_opaque & 0x0000ffff) != 1)))
         return merr_to_hse_err(merr(EINVAL));
 
-    PERFC_INC_RU(&kvdb_pc, PERFC_RA_KVDBOP_KVS_CURSOR_SEEK, 128);
+    PERFC_INC_RU(&kvdb_pc, PERFC_RA_KVDBOP_KVS_CURSOR_SEEK);
 
     kt.kt_len = 0;
     err = ikvdb_kvs_cursor_seek(cursor, os, key, key_len, limit, limit_len, found ? &kt : 0);
@@ -834,12 +834,8 @@ hse_kvs_cursor_read(
     ev(err);
 
     if (!err && !*eof) {
-        PERFC_INCADD_RU(
-            &kvdb_pc,
-            PERFC_RA_KVDBOP_KVS_CURSOR_READ,
-            PERFC_BA_KVDBOP_KVS_GETB,
-            *klen + *vlen,
-            128);
+        PERFC_INCADD_RU(&kvdb_pc, PERFC_RA_KVDBOP_KVS_CURSOR_READ,
+                        PERFC_RA_KVDBOP_KVS_GETB, *klen + *vlen);
     }
 
     return merr_to_hse_err(err);
@@ -853,7 +849,7 @@ hse_kvs_cursor_destroy(struct hse_kvs_cursor *cursor)
     if (HSE_UNLIKELY(!cursor))
         return merr_to_hse_err(merr(EINVAL));
 
-    PERFC_INC_RU(&kvdb_pc, PERFC_RA_KVDBOP_KVS_CURSOR_DESTROY, 128);
+    PERFC_INC_RU(&kvdb_pc, PERFC_RA_KVDBOP_KVS_CURSOR_DESTROY);
 
     err = ikvdb_kvs_cursor_destroy(cursor);
     ev(err);

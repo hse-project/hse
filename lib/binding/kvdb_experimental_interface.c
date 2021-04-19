@@ -168,7 +168,7 @@ hse_kvs_prefix_probe_exp(
             break;
     }
 
-    PERFC_INCADD_RU(&kvdb_pc, PERFC_RA_KVDBOP_KVS_PFXPROBE, PERFC_BA_KVDBOP_KVS_GETB, sum, 128);
+    PERFC_INCADD_RU(&kvdb_pc, PERFC_RA_KVDBOP_KVS_PFXPROBE, PERFC_RA_KVDBOP_KVS_GETB, sum);
 
     return 0UL;
 }

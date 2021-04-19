@@ -10,6 +10,8 @@
 
 #include <hse_util/keycmp.h>
 #include <hse_util/table.h>
+#include <hse_util/spinlock.h>
+
 #include <hse_ikvdb/kvs.h>
 #include <hse_ikvdb/cn.h>
 #include <hse_ikvdb/cn_cursor.h>
@@ -57,41 +59,53 @@ c0_data_vlen(struct c0_data *d)
     return d->xlen & 0xfffffffful;
 }
 
-struct mock_cn {
-    char            tripwire[PAGE_SIZE * 3];
-    struct c0_data *data;
-    struct cndb *   cndb;
-    atomic_t        refcnt;
-} HSE_ALIGNED(PAGE_SIZE);
-
 struct c0 {
 };
 
 #define mock_c0_h2r(h) container_of(h, struct mock_c0, handle)
 
+struct mock_c0;
+struct mock_cn;
+
+struct mock_c0_cursor {
+    char tripwire[PAGE_SIZE * 7]; /* must be first field */
+    struct mock_c0 *c0;
+    void *cc_next;
+};
+
 struct mock_c0 {
-    char            tripwire[PAGE_SIZE * 3];
+    char            tripwire[PAGE_SIZE * 7]; /* must be first field */
     struct c0       handle;
     struct c0_data  data[KEY_CNT];
     struct c0sk    *c0_c0sk;
     u64             hash;
     u32             index;
-} HSE_ALIGNED(PAGE_SIZE);
 
-struct c0_cursor {
-    char tripwire[PAGE_SIZE * 3];
-    int  junk;
+    spinlock_t             cc_lock;
+    struct mock_c0_cursor *cc_head;
 };
 
-struct cn_cursor {
-    char            tripwire[PAGE_SIZE * 3];
+struct mock_cn_cursor {
+    char            tripwire[PAGE_SIZE * 7]; /* must be first field! */
     char            prefix[KEY_LEN];
     struct c0_data *data;
     u64             seqno;
     int             pfx_len;
     int             i;
     bool            eof;
+    struct mock_cn *cn;
+    void           *cc_next;
 };
+
+struct mock_cn {
+    char            tripwire[PAGE_SIZE * 7]; /* must be first field */
+    struct c0_data *data;
+    struct cndb *   cndb;
+    atomic_t        refcnt;
+
+    spinlock_t             cc_lock;
+    struct mock_cn_cursor *cc_head;
+} HSE_ALIGNED(PAGE_SIZE);
 
 static atomic_t mocked_c0_open_count;
 static struct kvs_rparams mocked_kvs_rparams;
@@ -129,6 +143,9 @@ _c0_open(struct ikvdb *kvdb, struct kvs_rparams *rp, struct cn *cn, struct mpool
         mn->data = m0->data; /* inform mock_cn of the data */
     }
 
+    spin_lock_init(&m0->cc_lock);
+    m0->cc_head = NULL;
+
     *h = &m0->handle;
 
     return 0;
@@ -138,6 +155,12 @@ static merr_t
 _c0_close(struct c0 *h)
 {
     struct mock_c0 *c0 = mock_c0_h2r(h);
+    struct mock_c0_cursor *cur;
+
+    while ((cur = c0->cc_head)) {
+        c0->cc_head = cur->cc_next;
+        munmap(cur, sizeof(*cur));
+    }
 
     if (munmap(c0, sizeof(c0)))
         return merr(errno);
@@ -171,29 +194,45 @@ _c0_cursor_create(
     struct cursor_summary *summary,
     struct c0_cursor **    c0cur)
 {
-    struct c0_cursor *cur;
+    struct mock_c0 *c0 = mock_c0_h2r(handle);
+    struct mock_c0_cursor *cur;
 
-    cur = mmap(NULL, sizeof(*cur), PROT_READ | PROT_WRITE, MAP_ANON | MAP_PRIVATE, -1, 0);
-    if (cur == MAP_FAILED)
-        return merr(ENOMEM);
+    spin_lock(&c0->cc_lock);
+    cur = c0->cc_head;
+    if (cur)
+        c0->cc_head = cur->cc_next;
+    spin_unlock(&c0->cc_lock);
 
-    memset(cur->tripwire, 0xaa, sizeof(cur->tripwire));
+    if (!cur) {
+        cur = mmap(NULL, sizeof(*cur), PROT_READ | PROT_WRITE, MAP_ANON | MAP_PRIVATE, -1, 0);
+        if (cur == MAP_FAILED)
+            return merr(ENOMEM);
 
-    /* Make the tripwire pages inaccessible to catch errant
-     * unmocked accesses dead in their tracks.
-     */
-    if (mprotect(cur->tripwire, sizeof(cur->tripwire), PROT_NONE))
-        return merr(errno);
+        memset(cur->tripwire, 0xaa, sizeof(cur->tripwire));
 
+        /* Make the tripwire pages inaccessible to catch errant
+         * unmocked accesses dead in their tracks.
+         */
+        if (mprotect(cur->tripwire, sizeof(cur->tripwire), PROT_NONE))
+            return merr(errno);
+    }
+
+    cur->c0 = c0;
     *c0cur = (void *)cur;
 
     return 0;
 }
 
 static merr_t
-_c0_cursor_destroy(struct c0_cursor *cur)
+_c0_cursor_destroy(struct c0_cursor *arg)
 {
-    munmap(cur, sizeof(*cur));
+    struct mock_c0_cursor *cur = (void *)arg;
+    struct mock_c0 *c0 = cur->c0;
+
+    spin_lock(&c0->cc_lock);
+    cur->cc_next = c0->cc_head;
+    c0->cc_head = cur;
+    spin_unlock(&c0->cc_lock);
 
     return 0;
 }
@@ -356,6 +395,9 @@ _cn_open(
     if (mprotect(cn, sizeof(cn->tripwire), PROT_NONE))
         return merr(errno);
 
+    spin_lock_init(&cn->cc_lock);
+    cn->cc_head = NULL;
+
     cn->cndb = cndb;
     *out = (void *)cn;
 
@@ -366,6 +408,12 @@ static merr_t
 _cn_close(struct cn *h)
 {
     struct mock_cn *cn = (void *)h;
+    struct mock_cn_cursor *cur;
+
+    while ((cur = cn->cc_head)) {
+        cn->cc_head = cur->cc_next;
+        munmap(cur, sizeof(*cur));
+    }
 
     if (munmap(cn, sizeof(*cn)))
         return merr(errno);
@@ -415,25 +463,34 @@ _cn_cursor_create(
     void **                cursorp)
 {
     struct mock_cn *  mn = (void *)cn;
-    struct cn_cursor *cur;
+    struct mock_cn_cursor *cur;
 
-    cur = mmap(NULL, sizeof(*cur), PROT_READ | PROT_WRITE, MAP_ANON | MAP_PRIVATE, -1, 0);
-    if (cur == MAP_FAILED)
-        return merr(ENOMEM);
+    spin_lock(&mn->cc_lock);
+    cur = mn->cc_head;
+    if (cur)
+        mn->cc_head = cur->cc_next;
+    spin_unlock(&mn->cc_lock);
 
-    memset(cur->tripwire, 0xaa, sizeof(cur->tripwire));
+    if (!cur) {
+        cur = mmap(NULL, sizeof(*cur), PROT_READ | PROT_WRITE, MAP_ANON | MAP_PRIVATE, -1, 0);
+        if (cur == MAP_FAILED)
+            return merr(ENOMEM);
 
-    /* Make the tripwire pages inaccessible to catch errant
-     * unmocked accesses dead in their tracks.
-     */
-    if (mprotect(cur, sizeof(cur->tripwire), PROT_NONE))
-        return merr(errno);
+        memset(cur->tripwire, 0xaa, sizeof(cur->tripwire));
+
+        /* Make the tripwire pages inaccessible to catch errant
+         * unmocked accesses dead in their tracks.
+         */
+        if (mprotect(cur, sizeof(cur->tripwire), PROT_NONE))
+            return merr(errno);
+    }
 
     memcpy(cur->prefix, prefix, pfx_len);
     cur->pfx_len = pfx_len;
     cur->seqno = seqno;
     cur->i = 0;
     cur->data = mn->data;
+    cur->cn = mn;
 
     if (mn->data)
         qsort(mn->data, KEY_CNT, sizeof(struct c0_data), cmp);
@@ -445,10 +502,22 @@ _cn_cursor_create(
     return 0;
 }
 
+static void
+_cn_cursor_destroy(void *arg)
+{
+    struct mock_cn_cursor *cur = arg;
+    struct mock_cn *cn = cur->cn;
+
+    spin_lock(&cn->cc_lock);
+    cur->cc_next = cn->cc_head;
+    cn->cc_head = cur;
+    spin_unlock(&cn->cc_lock);
+}
+
 static merr_t
 _cn_cursor_update(void *handle, u64 seqno, bool *updated)
 {
-    struct cn_cursor *cur = handle;
+    struct mock_cn_cursor *cur = handle;
 
     if (updated)
         *updated = false;
@@ -460,7 +529,7 @@ _cn_cursor_update(void *handle, u64 seqno, bool *updated)
 static merr_t
 _cn_cursor_read(void *handle, struct kvs_kvtuple *kvt, bool *eof)
 {
-    struct cn_cursor *cur = handle;
+    struct mock_cn_cursor *cur = handle;
 
     while (cur->i < KEY_CNT) {
         struct c0_data *d = &cur->data[cur->i];
@@ -492,7 +561,7 @@ _cn_cursor_seek(
     struct kc_filter * filter,
     struct kvs_ktuple *kt)
 {
-    struct cn_cursor *cur = (struct cn_cursor *)cursor;
+    struct mock_cn_cursor *cur = cursor;
 
     if (!cur->data)
         goto missed;
@@ -514,12 +583,6 @@ missed:
         kt->kt_len = 0;
 
     return 0;
-}
-
-static void
-_cn_cursor_destroy(void *cur)
-{
-    munmap(cur, sizeof(struct cn_cursor));
 }
 
 merr_t

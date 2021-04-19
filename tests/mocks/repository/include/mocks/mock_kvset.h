@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
 #ifndef HSE_KVS_CN_TEST_MOCK_KVSET_H
@@ -22,7 +22,7 @@
  * @ids[]: initd by mock_make_kvi
  */
 struct mock_kvset {
-    char                    tripwire[PAGE_SIZE * 3];
+    char                    tripwire[PAGE_SIZE * 7];
     struct kvset_list_entry entry;
     struct kvset_stats      stats;
     size_t                  alloc_sz;
@@ -59,12 +59,10 @@ struct nkv_tab {
 
 struct mock_kv_iterator {
     struct kv_iterator kvi;
-    char               tripwire[PAGE_SIZE * 3];
+    char               tripwire[1024]; /* not an mprotect enforced tripwire */
     struct mock_kvset *kvset;
     int                src;
     int                nextkey;
-    void *             base;
-    size_t             sz;
 };
 
 void

@@ -16,6 +16,8 @@
 #include <hse_util/hse_err.h>
 #include <hse_util/data_tree.h>
 
+/* clang-format off */
+
 /* MTF_MOCK_DECL(perfc) */
 
 /* PERFC_VALPERCNT          max per-cpu values per counter
@@ -32,8 +34,7 @@
   ((PERFC_VALPERCNT * SMP_CACHE_BYTES * 2) / ((PERFC_IVL_MAX + 1) * sizeof(struct perfc_bkt)))
 
 #define PERFC_PCT_SCALE     (128)
-
-struct perfc_ivl;
+#define PERFC_CTRS_MAX      (64)
 
 enum perfc_type {
     PERFC_TYPE_INVAL,
@@ -43,6 +44,55 @@ enum perfc_type {
     PERFC_TYPE_LT, /* Get the distribution of a latency */
     PERFC_TYPE_SL, /* Simple latency, cumulative average */
 };
+
+
+#define PERFC_CTR_IDX_PREFIX  "PERFC_"
+#define PERFC_CTR_IDX_END     "PERFC_EN_"
+#define PERCF_CTR_TYPE_LEN    2
+#define PERFC_CTR_TYPE_BA     "BA"
+#define PERFC_CTR_TYPE_RA     "RA"
+#define PERFC_CTR_TYPE_DI     "DI"
+#define PERFC_CTR_TYPE_LT     "LT"
+#define PERFC_CTR_TYPE_SL     "SL"
+
+enum perfc_ctr_flags {
+    PCC_FLAGS_ENABLED   = 0x1,
+    PCC_FLAGS_WRITEABLE = 0x2,
+    PCC_FLAGS_ALLOCATED = 0x4
+};
+
+#define PCC_FLAGS_ALL   (PCC_FLAGS_ENABLED | PCC_FLAGS_WRITEABLE | PCC_FLAGS_ALLOCATED)
+
+#define NE0(_name, _pri, _desc, _hdr) \
+    [_name] = {                       \
+        .pcn_name = #_name,           \
+        .pcn_desc = (_desc),          \
+        .pcn_hdr = (_hdr),            \
+        .pcn_flags = PCC_FLAGS_ALL,   \
+        .pcn_prio = (_pri),           \
+        .pcn_samplepct = 100,         \
+    }
+
+#define NE1(_name, _pri, _desc, _hdr, _pct) \
+    [_name] = {                             \
+        .pcn_name = #_name,                 \
+        .pcn_desc = (_desc),                \
+        .pcn_hdr = (_hdr),                  \
+        .pcn_flags = PCC_FLAGS_ALL,         \
+        .pcn_prio = (_pri),                 \
+        .pcn_samplepct = (_pct),            \
+    }
+
+#define EV_GET_NEMACRO(_0, _1, NAME, ...) NAME
+#define NE(_name, _pri, _desc, _hdr, ...) \
+    EV_GET_NEMACRO(_0, ##__VA_ARGS__, NE1, NE0)(_name, _pri, _desc, _hdr, ##__VA_ARGS__)
+
+#define NE_CHECK(_arr, _max, _msg) \
+    _Static_assert((NELEM((_arr)) == (_max) && NELEM((_arr)) < PERFC_CTRS_MAX), _msg)
+
+/* clang-format on */
+
+struct perfc_ivl;
 
 /**
  * perfc_init() - Initialize the perfc subsystem
@@ -305,48 +355,64 @@ perfc_ivl_destroy(const struct perfc_ivl *ivl);
  */
 /* GCOV_EXCL_START */
 
-#define PERFC_INC_RU(_pc, _cid, _rumax)                 \
+#ifdef HSE_BUILD_RELEASE
+#define PERFC_RU_MAX        (128)
+
+#define PERFC_INC_RU(_pc, _cid)                         \
     do {                                                \
         static thread_local struct {                    \
             u64 cnt;                                    \
         } ru;                                           \
                                                         \
-        if (HSE_UNLIKELY(++ru.cnt >= (_rumax))) {       \
+        if (HSE_UNLIKELY(++ru.cnt >= PERFC_RU_MAX)) {   \
             perfc_add((_pc), (_cid), ru.cnt);           \
             ru.cnt = 0;                                 \
         }                                               \
     } while (0)
 
-#define PERFC_INCADD_RU(_pc, _cidx1, _cidx2, _val2, _rumax)             \
+#define PERFC_INCADD_RU(_pc, _cidx1, _cidx2, _val2)                     \
     do {                                                                \
         static thread_local struct {                                    \
             u64 cnt;                                                    \
             u64 sum;                                                    \
         } ru;                                                           \
                                                                         \
-        ru.cnt += 1;                                                    \
         ru.sum += (_val2);                                              \
                                                                         \
-        if (HSE_UNLIKELY(ru.cnt >= (_rumax))) {                         \
+        if (HSE_UNLIKELY(++ru.cnt >= PERFC_RU_MAX)) {                   \
             perfc_add2((_pc), (_cidx1), ru.cnt, (_cidx2), ru.sum);      \
             ru.cnt = 0;                                                 \
             ru.sum = 0;                                                 \
         }                                                               \
     } while (0)
 
-#define PERFC_DEC_RU(_pc, _cid, _rumax)                 \
+#define PERFC_DEC_RU(_pc, _cid)                         \
     do {                                                \
         static thread_local struct {                    \
             u64 cnt;                                    \
         } ru;                                           \
                                                         \
-        if (HSE_UNLIKELY(++ru.cnt >= (_rumax))) {       \
+        if (HSE_UNLIKELY(++ru.cnt >= PERFC_RU_MAX)) {   \
             perfc_sub((_pc), (_cid), ru.cnt);           \
             ru.cnt = 0;                                 \
         }                                               \
     } while (0)
 
+#else
+
+#define PERFC_INC_RU(_pc, _cid) \
+    perfc_inc((_pc), (_cid))
+
+#define PERFC_INCADD_RU(_pc, _cidx1, _cidx2, _val2) \
+    perfc_add2((_pc), (_cidx1), 1, (_cidx2), (_val2))
+
+#define PERFC_DEC_RU(_pc, _cid) \
+    perfc_dec((_pc), (_cid))
+#endif
+
 /* GCOV_EXCL_STOP */
+
+/* clang-format on */
 
 /**
  * struct perfc_ivl - interval bounds map
@@ -532,51 +598,6 @@ struct perfc_seti {
     union perfc_ctru         pcs_ctrv[];
 };
 
-#define PERFC_CTR_IDX_PREFIX "PERFC_"
-#define PERFC_CTR_IDX_END "PERFC_EN_"
-#define PERCF_CTR_TYPE_LEN 2
-#define PERFC_CTR_TYPE_BA "BA"
-#define PERFC_CTR_TYPE_RA "RA"
-#define PERFC_CTR_TYPE_DI "DI"
-#define PERFC_CTR_TYPE_LT "LT"
-#define PERFC_CTR_TYPE_SL "SL"
-
-enum perfc_ctr_flags {
-    PCC_FLAGS_ENABLED = 0x1,
-    PCC_FLAGS_WRITEABLE = 0x2,
-    PCC_FLAGS_ALLOCATED = 0x4
-};
-
-#define PCC_FLAGS_ALL (PCC_FLAGS_ENABLED | PCC_FLAGS_WRITEABLE | PCC_FLAGS_ALLOCATED)
-
-#define NE0(_name, _pri, _desc, _hdr) \
-    [_name] = {                       \
-        .pcn_name = #_name,           \
-        .pcn_desc = (_desc),          \
-        .pcn_hdr = (_hdr),            \
-        .pcn_flags = PCC_FLAGS_ALL,   \
-        .pcn_prio = (_pri),           \
-        .pcn_samplepct = 100,         \
-    }
-
-#define NE1(_name, _pri, _desc, _hdr, _pct) \
-    [_name] = {                             \
-        .pcn_name = #_name,                 \
-        .pcn_desc = (_desc),                \
-        .pcn_hdr = (_hdr),                  \
-        .pcn_flags = PCC_FLAGS_ALL,         \
-        .pcn_prio = (_pri),                 \
-        .pcn_samplepct = (_pct),            \
-    }
-
-#define EV_GET_NEMACRO(_0, _1, NAME, ...) NAME
-#define NE(_name, _pri, _desc, _hdr, ...) \
-    EV_GET_NEMACRO(_0, ##__VA_ARGS__, NE1, NE0)(_name, _pri, _desc, _hdr, ##__VA_ARGS__)
-
-#define PERFC_CTRS_MAX 64
-#define NE_CHECK(_arr, _max, _msg) \
-    _Static_assert((NELEM((_arr)) == (_max) && NELEM((_arr)) < PERFC_CTRS_MAX), _msg)
-
 extern u32 perfc_verbosity;
 
 /**
@@ -717,19 +738,13 @@ static HSE_ALWAYS_INLINE void
 perfc_lat_record(struct perfc_set *pcs, const u32 cidx, const u64 start)
 {
     struct perfc_seti *pcsi;
-    struct perfc_dis * dis;
 
     if (!start)
         return;
 
     pcsi = perfc_ison(pcs, cidx);
-    if (!pcsi)
-        return;
-
-    dis = &pcsi->pcs_ctrv[cidx].dis;
-    __builtin_prefetch(&dis->pdi_pct);
-
-    perfc_lat_record_impl(dis, start);
+    if (pcsi)
+        perfc_lat_record_impl(&pcsi->pcs_ctrv[cidx].dis, start);
 }
 
 /**
@@ -769,15 +784,10 @@ static HSE_ALWAYS_INLINE void
 perfc_dis_record(struct perfc_set *pcs, const u32 cidx, const u64 val)
 {
     struct perfc_seti *pcsi;
-    struct perfc_dis * dis;
 
     pcsi = perfc_ison(pcs, cidx);
-    if (pcsi) {
-        dis = &pcsi->pcs_ctrv[cidx].dis;
-        __builtin_prefetch(&dis->pdi_pct);
-
-        perfc_dis_record_impl(dis, val);
-    }
+    if (pcsi)
+        perfc_dis_record_impl(&pcsi->pcs_ctrv[cidx].dis, val);
 }
 
 /**
