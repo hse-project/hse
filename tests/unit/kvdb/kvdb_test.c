@@ -301,6 +301,8 @@ MTF_DEFINE_UTEST_PRE(kvdb_test, kvdb_cursor_test, general_pre)
     rc = hse_kvdb_close(h);
     ASSERT_EQ(0, rc);
 
+    hse_params_destroy(params);
+
     MOCK_UNSET(arch, _hse_meminfo);
 }
 

@@ -588,15 +588,9 @@ MTF_DEFINE_UTEST_PREPOST(cn_cursor, root_4kvsets, pre, post)
     err = cn_close(cn);
     ASSERT_EQ(err, 0);
 
-#if 0
     for (int i = 0; i < NELEM(make); ++i) {
-        struct mock_kv_iterator *iter = itv[i]->kvi_context;
-        struct kvdata *          d = iter->kvset->iter_data;
-
-        free(d);
         kvset_iter_release(itv[i]);
     }
-#endif
 
     dummy_ikvdb_destroy(kk.kk_parent);
     free(cndb.cndb_workv);

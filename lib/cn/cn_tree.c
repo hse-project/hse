@@ -2657,9 +2657,8 @@ cn_tree_cursor_seek(
     struct kc_filter * filter,
     struct kvs_ktuple *kt)
 {
-    int               i;
-    int               first;
-    struct perfc_set *pc = cn_pc_capped_get(cur->cn);
+    struct perfc_set *pc;
+    int first, i;
 
     /* A cursor in error cannot be used. */
     if (ev(cur->merr))
@@ -2712,18 +2711,24 @@ cn_tree_cursor_seek(
             first = first < 0 ? i : first;
     }
 
-    if (first >= 0) {
-        u32 depth = cur->iterc - first;
-
-        perfc_set(pc, PERFC_BA_CNCAPPED_DEPTH, (depth * 10000) / cur->iterc);
-    }
-
     /*
      * If we have a problem here, the cursor becomes invalid,
      * and cannot be reused.  Only recovery is to destroy it.
      */
     cur->merr = bin_heap2_prepare(cur->bh, cur->iterc, cur->esrcv);
-    perfc_set(pc, PERFC_BA_CNCAPPED_ACTIVE, (10000 * bin_heap2_width(cur->bh)) / cur->iterc);
+    if (cur->merr)
+        return cur->merr;
+
+    pc = cn_pc_capped_get(cur->cn);
+    if (pc) {
+        if (first >= 0) {
+            u32 depth = cur->iterc - first;
+
+            perfc_set(pc, PERFC_BA_CNCAPPED_DEPTH, (depth * 10000) / cur->iterc);
+        }
+
+        perfc_set(pc, PERFC_BA_CNCAPPED_ACTIVE, (10000 * bin_heap2_width(cur->bh)) / cur->iterc);
+    }
 
     /*
      * If asked for what we found, return the key here.
@@ -2744,7 +2749,7 @@ cn_tree_cursor_seek(
         }
     }
 
-    return cur->merr;
+    return 0;
 }
 
 /*----------------------------------------------------------------

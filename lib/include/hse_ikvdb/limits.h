@@ -49,6 +49,26 @@
  */
 #define HSE_C0KVMS_C0SNR_MAX min(((HSE_C0_CCACHE_TRIMSZ - (128ul * 1024)) / 8), 1280ul * 1024)
 
+/* Limit the footprint of the cursor cache to the lesser of 10%
+ * of available memory or 32GB.  The cursor cache is shared by
+ * all open kvdbs within a single process.
+ */
+#define HSE_CURCACHE_SZ_PCT         (10)
+#define HSE_CURCACHE_SZ_MIN         (2ul << 30)
+#define HSE_CURCACHE_SZ_MAX         (32ul << 30)
+
+/* Limit the footprint of active cursors within a kvdb
+ * to the lesser of 10% of available memory or 32GB.
+ */
+#define HSE_CURACTIVE_SZ_PCT        (10)
+#define HSE_CURACTIVE_SZ_MIN        (2ul << 30)
+#define HSE_CURACTIVE_SZ_MAX        (32ul << 30)
+
+/* A cursor's footprint is at least 2MB, not including iterators
+ * (see struct c0_cursor and struct pscan).
+ */
+#define HSE_CURSOR_SZ_MIN           ((HSE_KVS_KLEN_MAX + HSE_KVS_VLEN_MAX) * 2)
+
 /* Using any size other than 32MB will likely cause problems
  * due to the way space is allocated to wbtree internal nodes.
  */

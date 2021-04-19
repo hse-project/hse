@@ -175,18 +175,18 @@ mock_make_vblocks(struct kv_iterator **kvi, struct kvs_rparams *rp, int nv)
     merr_t            err;
     int               i;
     struct kvs_block  local_kblock, *ds;
+    struct nkv_tab    nkv;
+    struct kvdata    *kvdata;
 
-    /* [HSE_REVISIT]
-     *
-     * The games being played with what ds is versus how it is used are
-     * unsafe. This code used to be:
-     *
-     *   ds = calloc(nv ?: 1, sizeof(*ds));
-     *
-     * which (rightfully) caused complaints from valgrind and could cause
-     * transient failures.
-     */
-    ds = calloc(8192 + nv, sizeof(*ds));
+    nkv.nkeys = nv + 1;
+    nkv.key1 = 1;
+    nkv.be = KVDATA_INT_KEY;
+    nkv.dgen = nv + 1;
+    nkv.val1 = (nv + 1) * 100;
+    nkv.vmix = VMX_S32;
+    kvdata = _make_data(&nkv);
+
+    ds = calloc(nv + 1, sizeof(*ds));
     if (!ds)
         return merr(ENOMEM);
 
@@ -206,10 +206,13 @@ mock_make_vblocks(struct kv_iterator **kvi, struct kvs_rparams *rp, int nv)
     km.km_vblk_list.n_alloc = nv;
     km.km_vblk_list.blks = ds;
 
-    err = _make_common(kvi, 0, (struct mpool *)ds, rp, &km);
+    err = _make_common(kvi, 0, (struct mpool *)kvdata, rp, &km);
     if (err)
-        free(ds);
-    return err;
+        free(kvdata);
+
+    free(ds);
+
+    return 0;
 }
 
 /* ------------------------------------------------------------
@@ -224,6 +227,7 @@ _kvset_create(struct cn_tree *tree, u64 tag, struct kvset_meta *km, struct kvset
     int                i, j;
 
     alloc_sz = sizeof(*mk) + (sizeof(u64) * (km->km_kblk_list.n_blks + km->km_vblk_list.n_blks));
+    alloc_sz = ALIGN(alloc_sz, PAGE_SIZE);
 
     mk = mmap(NULL, alloc_sz, PROT_READ | PROT_WRITE, MAP_ANON | MAP_PRIVATE, -1, 0);
     if (mk == MAP_FAILED)
@@ -400,9 +404,7 @@ static void
 _kvset_iter_release(struct kv_iterator *kvi)
 {
     if (kvi) {
-        struct mock_kv_iterator *iter = kvi->kvi_context;
-
-        munmap(iter->base, iter->sz);
+        free(kvi->kvi_context);
     }
 }
 
@@ -420,33 +422,16 @@ _kvset_iter_create(
     struct kv_iterator **    handle)
 {
     struct mock_kv_iterator *iter;
-    size_t                   itersz, kvisz;
-    void *                   base;
 
-    itersz = sizeof(*iter) * 2;
-    kvisz = sizeof(iter->kvi);
+    iter = calloc(1, sizeof(*iter));
+    if (!iter)
+        return merr(ENOMEM);
 
-    base = mmap(NULL, itersz, PROT_READ | PROT_WRITE, MAP_ANON | MAP_PRIVATE, -1, 0);
-    if (base == MAP_FAILED)
-        return merr(errno);
-
-    memset(base, 0xaa, itersz);
-
-    iter = (base + PAGE_SIZE) - kvisz;
-
-    /* Make the tripwire pages inaccessible to catch errant
-     * unmocked accesses dead in their tracks.
-     */
-    if (mprotect(iter->tripwire, sizeof(iter->tripwire), PROT_NONE))
-        return merr(errno);
-
+    memset(iter->tripwire, 0xaa, sizeof(iter->tripwire));
     iter->kvset = (struct mock_kvset *)kvset;
     iter->src = 0;
     iter->nextkey = 0;
-    iter->base = base;
-    iter->sz = itersz;
 
-    memset(&iter->kvi, 0, sizeof(iter->kvi));
     iter->kvi.kvi_ops = &mock_kvset_ops;
     iter->kvi.kvi_context = iter;
     iter->kvi.kvi_eof = false;

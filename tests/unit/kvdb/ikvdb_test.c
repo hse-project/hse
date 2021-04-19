@@ -5,6 +5,7 @@
 
 #include <ftw.h>
 #include <dirent.h>
+#include <sys/sysinfo.h>
 
 #include <hse_ut/framework.h>
 #include <hse_test_support/mock_api.h>
@@ -63,9 +64,7 @@ test_pre(struct mtf_test_info *ti)
     mapi_inject(mapi_idx_cn_get_sfx_len, 0);
 
     mapi_inject(mapi_idx_cndb_cn_drop, 0);
-
     mapi_inject(mapi_idx_c0_get_pfx_len, 0);
-
     mapi_inject(mapi_idx_mpool_mclass_get, ENOENT);
 
     return 0;
@@ -82,7 +81,9 @@ test_post(struct mtf_test_info *ti)
     mapi_inject_unset(mapi_idx_cn_get_ingest_perfc);
     mapi_inject_unset(mapi_idx_cn_get_sfx_len);
 
+    mapi_inject(mapi_idx_cndb_cn_drop, 0);
     mapi_inject_unset(mapi_idx_c0_get_pfx_len);
+    mapi_inject(mapi_idx_mpool_mclass_get, ENOENT);
 
     return 0;
 }
@@ -96,6 +97,12 @@ test_pre_c0(struct mtf_test_info *ti)
     mock_cndb_set();
     mock_cn_set();
 
+    kvs_cp = kvs_cparams_defaults();
+    mapi_inject_ptr(mapi_idx_cndb_cn_cparams, &kvs_cp);
+
+    mapi_inject(mapi_idx_cn_get_ingest_perfc, 0);
+    mapi_inject(mapi_idx_cndb_cn_drop, 0);
+
     return 0;
 }
 
@@ -104,6 +111,9 @@ test_post_c0(struct mtf_test_info *ti)
 {
     mock_kvdb_log_unset();
     mock_cn_unset();
+
+    mapi_inject_unset(mapi_idx_cn_get_ingest_perfc);
+    mapi_inject(mapi_idx_cndb_cn_drop, 0);
 
     return 0;
 }
@@ -1482,9 +1492,12 @@ MTF_DEFINE_UTEST_PREPOST(ikvdb_test, cursor_tombspan, test_pre_c0, test_post_c0)
 #endif
 
 struct cursor_info {
-    pthread_t       td;
-    uint            tid;
+    const char     *keyfmt;
+    uint            pfxmod;
     struct hse_kvs *kvs;
+    uint64_t        ttl;
+    uint            tid;
+    pthread_t       td;
 };
 
 void *
@@ -1499,12 +1512,13 @@ parallel_cursors(void *info)
     int                    i;
     merr_t                 err;
 
-    for (i = 0; i < 10000; ++i) {
-        u32  r = generate_random_u32(100, 1000);
+    for (i = 0; i < 100000; ++i) {
+        u32  r = generate_random_u32(0, 10000);
         bool eof = true;
 
         /* create different prefixes each time */
-        sprintf(buf, "%d", r);
+        sprintf(buf, ci->keyfmt, r % ci->pfxmod, r);
+
         err = ikvdb_kvs_cursor_create(ci->kvs, 0, buf, 3, &c);
         VERIFY_EQ_RET(err, 0, 0);
 
@@ -1529,7 +1543,7 @@ parallel_cursors(void *info)
         /* Let half the threads exit, thereby leaving the cursor
          * cache with lots of cursors that should soon expire...
          */
-        if (ci->tid < 64)
+        if (jclock_ns > ci->ttl)
             break;
     }
 
@@ -1540,15 +1554,17 @@ MTF_DEFINE_UTEST_PREPOST(ikvdb_test, cursor_cache, test_pre_c0, test_post_c0)
 {
     struct kvs_rparams kvs_rp = kvs_rparams_defaults();
     struct ikvdb *     h = NULL;
-    struct hse_kvs *   kvs_h = NULL;
+    struct hse_kvs    *kvs_h[3];
     const char *       mpool = "mpool";
-    const char *       kvs = "kvs";
     struct mpool *     ds = (struct mpool *)-1;
     struct hse_params *params;
-    const int          num_threads = 128;
+    const int          num_threads = get_nprocs() * 3;
     struct cursor_info info[num_threads];
     merr_t             err;
-    int                i, rc;
+    int                rc, i, j;
+    char               namebuf[NELEM(kvs_h)][32];
+    const char        *keyfmt = "%03d%d";
+    const uint         pfxmod = 256;
 
     hse_params_create(&params);
 
@@ -1559,37 +1575,55 @@ MTF_DEFINE_UTEST_PREPOST(ikvdb_test, cursor_cache, test_pre_c0, test_post_c0)
     ASSERT_EQ(0, err);
     ASSERT_NE(NULL, h);
 
-    err = ikvdb_kvs_make(h, kvs, NULL);
-    ASSERT_EQ(0, err);
+    for (i = 0; i < NELEM(kvs_h); ++i) {
+        snprintf(namebuf[i], sizeof(namebuf[i]), "kvs%d", i);
+
+        err = ikvdb_kvs_make(h, namebuf[i], NULL);
+        ASSERT_EQ(0, err);
+    }
+
 
     kvs_rp.kvs_debug = 0;
-again:
-    err = ikvdb_kvs_open(h, kvs, 0, 0, &kvs_h);
-    ASSERT_EQ(0, err);
-    ASSERT_NE(NULL, kvs_h);
+
+  again:
+    for (i = 0; i < NELEM(kvs_h); ++i) {
+        err = ikvdb_kvs_open(h, namebuf[i], 0, 0, &kvs_h[i]);
+        ASSERT_EQ(0, err);
+        ASSERT_NE(NULL, kvs_h[i]);
+    }
 
     /*
-     * seed the c0kvms with 900 keys, "100" .. "999"
+     * Seed the c0kvms with 10,000 keys such that there are 512
+     * unique prefixes each with 10 unique keys.
      * each key has at least 3 bytes, so prefixes work
      * and get enough variation that some will age more than others
      * and the rb-tree in the cache sees sufficient churn
      */
-    for (i = 100; i < 1000; ++i) {
+    for (i = 0; i < 10000; ++i) {
         struct kvs_ktuple kt;
         struct kvs_vtuple vt;
-        char              buf[32];
+        char buf[32];
+        int n;
 
-        sprintf(buf, "%d", i);
-        kvs_ktuple_init(&kt, buf, strlen(buf));
-        kvs_vtuple_init(&vt, buf, strlen(buf));
+        n = snprintf(buf, sizeof(buf), keyfmt, i % pfxmod, i);
+        ASSERT_GT(n, 0);
 
-        err = ikvdb_kvs_put(kvs_h, 0, &kt, &vt);
-        ASSERT_EQ(err, 0);
+        kvs_ktuple_init(&kt, buf, n);
+        kvs_vtuple_init(&vt, buf, n);
+
+        for (j = 0; j < NELEM(kvs_h); ++j) {
+            err = ikvdb_kvs_put(kvs_h[j], 0, &kt, &vt);
+            ASSERT_EQ(err, 0);
+        }
     }
 
     for (i = 0; i < num_threads; ++i) {
-        info[i].tid = i;
-        info[i].kvs = kvs_h;
+        info[i].keyfmt = keyfmt;
+        info[i].pfxmod = pfxmod;
+        info[i].kvs = kvs_h[i % NELEM(kvs_h)];
+        info[i].ttl = jclock_ns + NSEC_PER_SEC;
+        if (i >= num_threads / 2)
+            info[i].ttl += NSEC_PER_SEC * (23 + (i % 8));
 
         rc = pthread_create(&info[i].td, 0, parallel_cursors, &info[i]);
         ASSERT_EQ(0, rc);
@@ -1600,8 +1634,10 @@ again:
         ASSERT_EQ(0, rc);
     }
 
-    err = ikvdb_kvs_close(kvs_h);
-    ASSERT_EQ(err, 0);
+    for (i = 0; i < NELEM(kvs_h); ++i) {
+        err = ikvdb_kvs_close(kvs_h[i]);
+        ASSERT_EQ(err, 0);
+    }
 
     if (kvs_rp.kvs_debug == 0) {
         kvs_rp.kvs_debug = -1;
@@ -1665,6 +1701,9 @@ MTF_DEFINE_UTEST_PREPOST(ikvdb_test, cursor_2, test_pre_c0, test_post_c0)
         ASSERT_EQ(i, i);
         ASSERT_NE(i, 0);
     }
+
+    err = ikvdb_close(h);
+    ASSERT_EQ(err, 0);
 
     hse_params_destroy(params);
 }
@@ -1754,7 +1793,7 @@ parallel_kvs_open(void *arg)
 
 MTF_DEFINE_UTEST_PREPOST(ikvdb_test, kvdb_parallel_kvs_opens, test_pre, test_post)
 {
-    const int          num_threads = 100;
+    const int          num_threads = get_nprocs() * 2;
     atomic_t           num_opens;
     int                i;
     merr_t             err;
@@ -1820,7 +1859,7 @@ parallel_kvs_make(void *info)
 
 MTF_DEFINE_UTEST_PREPOST(ikvdb_test, kvdb_parallel_kvs_makes, test_pre, test_post)
 {
-    const int          num_threads = 100;
+    const int          num_threads = get_nprocs() * 2;
     int                i;
     merr_t             err;
     pthread_t          t[num_threads];

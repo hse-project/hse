@@ -82,15 +82,6 @@ kvs_create(struct ikvs **kvs, struct kvs_rparams *rp);
 static void
 kvs_destroy(struct ikvs *kvs);
 
-void
-kvs_perfc_init(void);
-
-void
-kvs_perfc_fini(void)
-{
-    kvs_cursor_perfc_fini();
-}
-
 static void
 kvs_perfc_alloc(const char *mp_name, const char *kvs_name, struct ikvs *kvs)
 {
@@ -563,6 +554,18 @@ kvs_destroy(struct ikvs *kvs)
     free((void *)kvs->ikv_mpool_name);
     free((void *)kvs->ikv_kvs_name);
     free_aligned(kvs);
+}
+
+void
+kvs_perfc_init(void)
+{
+    kvs_cursor_perfc_init();
+}
+
+void
+kvs_perfc_fini(void)
+{
+    kvs_cursor_perfc_fini();
 }
 
 merr_t

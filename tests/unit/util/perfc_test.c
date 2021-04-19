@@ -317,32 +317,6 @@ MTF_DEFINE_UTEST(perfc, ctrset_path)
     perfc_ctrseti_free(&set);
 }
 
-static u64
-perfc_value(struct perfc_set *pcs, u32 cidx)
-{
-    struct perfc_ctr_hdr *hdr;
-    struct perfc_seti    *pcsi;
-    struct perfc_val     *val;
-    u64                   vadd;
-    u64                   vsub;
-    int                   i;
-
-    pcsi = perfc_ison(pcs, cidx);
-    hdr = &pcsi->pcs_ctrv[cidx].hdr;
-    assert(hdr->pch_type == PERFC_TYPE_BA);
-
-    val = hdr->pch_val;
-    vadd = vsub = 0;
-
-    for (i = 0; i < PERFC_VALPERCNT; ++i) {
-        vadd += atomic64_read(&val->pcv_vadd);
-        vsub += atomic64_read(&val->pcv_vsub);
-        val += PERFC_VALPERCPU;
-    }
-
-    return vadd - vsub;
-}
-
 MTF_DEFINE_UTEST(perfc, perfc_rollup)
 {
     enum perfc_rollup_sidx {
@@ -358,29 +332,50 @@ MTF_DEFINE_UTEST(perfc, perfc_rollup)
     };
 
     struct perfc_set perfc_rollup_pc;
-    merr_t           err;
-    u64              sum;
-    u64              val;
-    int              i;
+    uint64_t vadd, vsub, val, sum, i;
+    merr_t err;
 
     err = perfc_ctrseti_alloc(
         COMPNAME, "rollup", perfc_rollup_op, PERFC_EN_RUTEST, "set", &perfc_rollup_pc);
     ASSERT_EQ(err, 0);
 
     for (i = 0, sum = 0; i < 1024 * 1024; ++i, sum += i) {
-        PERFC_INC_RU(&perfc_rollup_pc, PERFC_BA_RUTEST_INC, 17);
+        PERFC_INC_RU(&perfc_rollup_pc, PERFC_BA_RUTEST_INC);
 
-        PERFC_INCADD_RU(&perfc_rollup_pc, PERFC_BA_RUTEST_INC2, PERFC_BA_RUTEST_ADD2, i, 1024);
+        PERFC_INCADD_RU(&perfc_rollup_pc, PERFC_BA_RUTEST_INC2, PERFC_BA_RUTEST_ADD2, i);
     }
 
-    val = perfc_value(&perfc_rollup_pc, PERFC_BA_RUTEST_INC);
-    ASSERT_GE(val, i - 17);
+#ifdef PERFC_RU_MAX
+    vadd = vsub = 0;
+    perfc_read(&perfc_rollup_pc, PERFC_BA_RUTEST_INC, &vadd, &vsub);
+    val = vadd - vsub;
+    ASSERT_GE(val, i - PERFC_RU_MAX);
 
-    val = perfc_value(&perfc_rollup_pc, PERFC_BA_RUTEST_INC2);
-    ASSERT_GE(val, i - 1024);
+    vadd = vsub = 0;
+    perfc_read(&perfc_rollup_pc, PERFC_BA_RUTEST_INC2, &vadd, &vsub);
+    val = vadd - vsub;
+    ASSERT_GE(val, i - PERFC_RU_MAX);
 
-    val = perfc_value(&perfc_rollup_pc, PERFC_BA_RUTEST_ADD2);
+    vadd = vsub = 0;
+    perfc_read(&perfc_rollup_pc, PERFC_BA_RUTEST_ADD2, &vadd, &vsub);
+    val = vadd - vsub;
+    ASSERT_GE(val, sum - i - PERFC_RU_MAX);
+#else
+    vadd = vsub = 0;
+    perfc_read(&perfc_rollup_pc, PERFC_BA_RUTEST_INC, &vadd, &vsub);
+    val = vadd - vsub;
+    ASSERT_GE(val, i);
+
+    vadd = vsub = 0;
+    perfc_read(&perfc_rollup_pc, PERFC_BA_RUTEST_INC2, &vadd, &vsub);
+    val = vadd - vsub;
+    ASSERT_GE(val, i);
+
+    vadd = vsub = 0;
+    perfc_read(&perfc_rollup_pc, PERFC_BA_RUTEST_ADD2, &vadd, &vsub);
+    val = vadd - vsub;
     ASSERT_GE(val, sum - i);
+#endif
 
     perfc_ctrseti_free(&perfc_rollup_pc);
 }

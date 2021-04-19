@@ -26,8 +26,6 @@ struct query_ctx;
 struct cn_cache;
 enum cn_action;
 
-extern struct perfc_set kvdb_metrics_pc;
-
 struct cn_tstate_omf;
 typedef merr_t
 cn_tstate_prepare_t(struct cn_tstate_omf *omf, void *arg);

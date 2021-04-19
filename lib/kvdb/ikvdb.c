@@ -898,7 +898,7 @@ ikvdb_open(
     struct kvdb_rparams rp;
     u64                 seqno = 0; /* required by unit test */
     ulong               mavail;
-    size_t              n;
+    size_t              sz, n;
     int                 i;
     u64                 ingestid;
 
@@ -939,8 +939,8 @@ ikvdb_open(
 
     rp = self->ikdb_rp;
 
-    hse_meminfo(NULL, &mavail, 30);
-    if (rp.low_mem || mavail < 32)
+    hse_meminfo(NULL, &mavail, 0);
+    if (rp.low_mem || (mavail >> 30) < 32)
         ikvdb_low_mem_adjust(self);
 
     kvdb_rparams_print(&rp);
@@ -967,10 +967,13 @@ ikvdb_open(
         }
     }
 
-    /* Set max number of cursors per kvdb such that max memory used by
-     * cursors is limited to about 10% of system memory.
+    /* Set max number of active cursors per kvdb such that max
+     * memory use is limited to about 10% of system memory.
      */
-    self->ikdb_curcnt_max = (((mavail << 30) * 10) / 100) >> 20;
+    sz = (mavail * HSE_CURACTIVE_SZ_PCT) / 100;
+    sz = clamp_t(size_t, sz, HSE_CURACTIVE_SZ_MIN, HSE_CURACTIVE_SZ_MAX);
+    self->ikdb_curcnt_max = sz / HSE_CURSOR_SZ_MIN;
+
     atomic_set(&self->ikdb_curcnt, 0);
 
     err = viewset_create(&self->ikdb_txn_viewset, &self->ikdb_seqno);
