@@ -547,7 +547,7 @@ main(int argc, char **argv)
     opt.bnfmt = BN_HUMAN;
     process_options(argc, argv);
 
-    rc = hse_kvdb_init();
+    rc = hse_init();
     if (rc) {
         errmsg = "kvdb_init";
         goto done;
@@ -626,7 +626,7 @@ done:
 
     hse_params_destroy(params);
 
-    hse_kvdb_fini();
+    hse_fini();
 
     return 0;
 }

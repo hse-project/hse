@@ -193,7 +193,7 @@ main(int argc, char **argv)
     mp_name = argv[optind++];
     kvs_name = argv[optind++];
 
-    rc = hse_kvdb_init();
+    rc = hse_init();
     if (rc) {
         err_print("Failed to initialize kvdb: %s\n", hse_err_to_string(rc, ebuf, sizeof(ebuf), 0));
         exit(1);
@@ -215,7 +215,7 @@ main(int argc, char **argv)
         rc = put_files_as_kv(kvdb, kvs, argc - optind, &argv[optind]);
 
     hse_kvdb_close(kvdb);
-    hse_kvdb_fini();
+    hse_fini();
 
     return rc;
 }

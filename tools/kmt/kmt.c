@@ -4667,7 +4667,7 @@ main(int argc, char **argv)
         exit(EX_USAGE);
     }
 #else
-    err = hse_kvdb_init();
+    err = hse_init();
     if (err) {
         hse_err_to_string(err, errbuf, sizeof(errbuf), NULL);
         eprint("%s: failed to initialize kvdb: %s\n", __func__, errbuf);
@@ -4837,7 +4837,7 @@ sigint:
 
 #ifndef XKMT
     hse_params_destroy(params);
-    hse_kvdb_fini();
+    hse_fini();
 #endif
 
     return 0;

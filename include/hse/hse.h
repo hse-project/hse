@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
 /** @file hse.h
@@ -138,17 +138,17 @@ struct hse_kvdb_opspec {
  */
 
 /**
- * Initialize the HSE KVDB subsystem
+ * Initialize the HSE subsystem
  *
  * This function initializes a range of different internal HSE structures. It must be
  * called before any other HSE functions are used. It is not thread safe and is
  * idempotent.
  */
 hse_err_t
-hse_kvdb_init(void);
+hse_init(void);
 
 /**
- * Shutdown the HSE KVDB subsystem
+ * Shutdown the HSE subsystem
  *
  * This function cleanly finalizes a range of different internal HSE structures. It
  * should be called prior to application exit and is not thread safe. After it is
@@ -156,7 +156,7 @@ hse_kvdb_init(void);
  * undefined behavior. This function is not thread safe.
  */
 void
-hse_kvdb_fini(void);
+hse_fini(void);
 
 /**
  * Returns a string representing the HSE KVDB libary version

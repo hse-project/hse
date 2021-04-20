@@ -20,7 +20,7 @@ def verify_keys(kvs, pfx, start, end):
             assert k_id < end
             k_id = k_id + 1
 
-Kvdb.init()
+init()
 
 p = Params()
 p.set(key="kvdb.dur_enable", value="0")
@@ -57,4 +57,4 @@ verify_keys(kvs=kvs, pfx='AD', start=0, end=2*num_keys)
 
 kvs.close()
 kvdb.close()
-Kvdb.fini()
+fini()

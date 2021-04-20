@@ -10,7 +10,7 @@ This script tests the following (forward cursors only):
 import sys
 from hse import Kvdb, Params
 
-Kvdb.init()
+init()
 
 kvdb = Kvdb.open(sys.argv[1])
 kvdb.kvs_make("kvs17")
@@ -147,4 +147,4 @@ txn1.commit()
 
 kvs.close()
 kvdb.close()
-Kvdb.fini()
+fini()

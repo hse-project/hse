@@ -332,7 +332,7 @@ main(int argc, char **argv)
     if (help)
         return usage(verbose);
 
-    err = hse_kvdb_init();
+    err = hse_init();
     if (err)
         fatal(
             "failed to initialize kvdb: %s", hse_err_to_string(err, errbuf, sizeof(errbuf), NULL));
@@ -420,7 +420,7 @@ out:
 
     diag_kvdb_close(kvdbh);
 
-    hse_kvdb_fini();
+    hse_fini();
 
     return rc;
 }

@@ -140,7 +140,7 @@ main(int argc, char **argv)
     if (help == 2)
         rp_usage();
 
-    rc = hse_kvdb_init();
+    rc = hse_init();
     if (rc)
         fatal(rc, "failed to initialize kvdb");
 
@@ -220,7 +220,7 @@ main(int argc, char **argv)
 
     hse_params_destroy(params);
 
-    hse_kvdb_fini();
+    hse_fini();
 
     return rc;
 }

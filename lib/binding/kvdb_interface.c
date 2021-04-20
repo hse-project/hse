@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
 #define MTF_MOCK_IMPL_hse
@@ -41,7 +41,7 @@ kvdb_lat_record(const u32 cidx, const u64 start)
 }
 
 /* Accessing hse_initialized is not thread safe, but it is only used
- * in hse_kvdb_init() and hse_kvdb_fini(), which must be serialized
+ * in hse_init() and hse_fini(), which must be serialized
  * with all other HSE APIs.
  */
 static bool hse_initialized = false;
@@ -65,7 +65,7 @@ hse_kvdb_version_sha(void)
 }
 
 hse_err_t
-hse_kvdb_init(void)
+hse_init(void)
 {
     merr_t err;
 
@@ -91,7 +91,7 @@ hse_kvdb_init(void)
 }
 
 void
-hse_kvdb_fini(void)
+hse_fini(void)
 {
     if (!hse_initialized)
         return;

@@ -316,7 +316,7 @@ inner_attr_show(struct mtf_test_coll_info *tci, const char *attr_name, char *buf
         char *verbose, *logpri;                                                    \
         int   c, rc;                                                               \
                                                                                    \
-        rc = hse_kvdb_init();                                                      \
+        rc = hse_init();                                                      \
         if (rc)                                                                    \
             return rc;                                                             \
                                                                                    \
@@ -365,7 +365,7 @@ inner_attr_show(struct mtf_test_coll_info *tci, const char *attr_name, char *buf
                                                                                    \
         rc = run_tests(&_mtf_##coll_name##_tci);                                   \
                                                                                    \
-        hse_kvdb_fini();                                                           \
+        hse_fini();                                                           \
                                                                                    \
         return rc;                                                                 \
     }

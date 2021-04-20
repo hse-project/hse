@@ -191,7 +191,7 @@ int verbosity;
 /**
  * cmd_tree_set_paths() - walk comand tree to set paths
  *
- * Set @cmd_path of each @cli_cmd in the command tree. 
+ * Set @cmd_path of each @cli_cmd in the command tree.
  */
 static int
 cmd_tree_set_path_recurse(struct cli_cmd *self, int argc_max, int argc, const char **argv)
@@ -529,7 +529,7 @@ print_hse_params_err(struct cli *cli, const char *api, const struct hse_params *
 }
 
 /**
- * cli_hse_init() -- call hse_kvdb_init() if it hasn't already been called
+ * cli_hse_init() -- call hse_init() if it hasn't already been called
  */
 static int
 cli_hse_init(struct cli *cli)
@@ -539,9 +539,9 @@ cli_hse_init(struct cli *cli)
     if (cli->hse_init)
         return 0;
 
-    err = hse_kvdb_init();
+    err = hse_init();
     if (err) {
-        print_hse_err(cli, "hse_kvdb_init", err);
+        print_hse_err(cli, "hse_init", err);
         return -1;
     }
 
@@ -550,13 +550,13 @@ cli_hse_init(struct cli *cli)
 }
 
 /**
- * cli_hse_init() -- call hse_kvdb_fini() if hse_kvdb_init() has been called
+ * cli_hse_init() -- call hse_fini() if hse_init() has been called
  */
 static void
 cli_hse_fini(struct cli *cli)
 {
     if (cli->hse_init)
-        hse_kvdb_fini();
+        hse_fini();
     cli->hse_init = false;
 }
 

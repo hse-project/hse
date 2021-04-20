@@ -135,12 +135,12 @@ Java_org_micron_hse_API_init(JNIEnv *env, jobject jobj, jlong valBufSize)
     int      rc;
     uint64_t hse_rc;
 
-    hse_rc = hse_kvdb_init();
+    hse_rc = hse_init();
     if (hse_rc) {
         char buf[1024];
 
         hse_err_to_string(hse_rc, buf, 1024, 0);
-        syslog(LOG_ERR, "(HSE JNI) %s: hse_kvdb_init: %s", __func__, buf);
+        syslog(LOG_ERR, "(HSE JNI) %s: hse_init: %s", __func__, buf);
     }
 
     if (valBufSize > g_val_buf_size)
@@ -166,7 +166,7 @@ Java_org_micron_hse_API_init(JNIEnv *env, jobject jobj, jlong valBufSize)
 JNIEXPORT void JNICALL
 Java_org_micron_hse_API_fini(JNIEnv *env, jobject jobj)
 {
-    hse_kvdb_fini();
+    hse_fini();
 }
 
 JNIEXPORT void JNICALL

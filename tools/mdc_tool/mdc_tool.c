@@ -123,7 +123,7 @@ main(int argc, char **argv)
 
     struct mpool *ds;
 
-    err = hse_kvdb_init();
+    err = hse_init();
     if (err)
         fatal("kvdb_init", err);
 
@@ -219,7 +219,7 @@ fini:
     if (err)
         fatal("mpool_mdc_read", err);
 
-    hse_kvdb_fini();
+    hse_fini();
 
     return 0;
 }

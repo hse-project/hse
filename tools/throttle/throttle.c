@@ -970,7 +970,7 @@ main(int argc, char **argv)
     progname = strrchr(argv[0], '/');
     progname = progname ? progname + 1 : argv[0];
 
-    err = hse_kvdb_init();
+    err = hse_init();
     if (err)
         quit("failed to initialize kvdb");
 
@@ -1208,7 +1208,7 @@ main(int argc, char **argv)
     hse_params_destroy(params);
     destroy_key_generator(key_gen);
 
-    hse_kvdb_fini();
+    hse_fini();
 
     return errors == 0 ? 0 : -1;
 }

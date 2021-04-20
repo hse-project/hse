@@ -3,7 +3,7 @@
 import sys
 from hse import Kvdb, Params
 
-Kvdb.init()
+init()
 
 kvdb = Kvdb.open(sys.argv[1])
 kvdb.kvs_make("kvs22")
@@ -34,4 +34,4 @@ with kvdb.transaction() as txn:
 
 kvs.close()
 kvdb.close()
-Kvdb.fini()
+fini()

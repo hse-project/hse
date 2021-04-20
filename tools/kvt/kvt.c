@@ -1420,7 +1420,7 @@ main(int argc, char **argv)
     tsi_start(&tstart);
     status("initializing hse...");
 
-    err = hse_kvdb_init();
+    err = hse_init();
     if (err) {
         eprint(err, "hse_kvb_init");
         exit(EX_OSERR);
@@ -1490,7 +1490,7 @@ errout:
     dprint(1, "closed kvdb %s in %.3lf seconds", mpname, tsi_delta(&tstart) / 1000000.0);
 
     free(kvs_inodesv);
-    hse_kvdb_fini();
+    hse_fini();
     ridlock_fini();
     free(params);
 

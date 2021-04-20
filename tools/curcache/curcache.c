@@ -289,13 +289,13 @@ main(int argc, char **argv)
     if (!parts[0] || !parts[1])
         usage(prog);
 
-    err = hse_kvdb_init();
+    err = hse_init();
     if (err)
         die(err, "failed to initialize kvdb");
 
     stress(parts[0], parts[1]);
 
-    hse_kvdb_fini();
+    hse_fini();
 
     return 0;
 }

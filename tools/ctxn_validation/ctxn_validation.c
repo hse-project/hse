@@ -961,7 +961,7 @@ main(int argc, char **argv)
     progname = strrchr(argv[0], '/');
     progname = progname ? progname + 1 : argv[0];
 
-    err = hse_kvdb_init();
+    err = hse_init();
     if (err) {
         eprint("failed to initialize kvdb\n");
         exit(EX_OSERR);
@@ -1229,7 +1229,7 @@ main(int argc, char **argv)
 
     hse_params_destroy(params);
 
-    hse_kvdb_fini();
+    hse_fini();
 
     if (secmax == 0) {
         if (commit) {

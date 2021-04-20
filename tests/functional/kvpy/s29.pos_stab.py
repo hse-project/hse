@@ -3,7 +3,7 @@
 import sys
 from hse import Kvdb, Params
 
-Kvdb.init()
+init()
 
 p = Params()
 p.set(key="kvdb.dur_enable", value="0")  # So sync forces an ingest
@@ -123,4 +123,4 @@ revcursor.destroy()
 
 kvs.close()
 kvdb.close()
-Kvdb.fini()
+fini()

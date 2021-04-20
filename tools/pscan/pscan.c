@@ -288,7 +288,7 @@ main(int argc, char **argv)
 
     HSE_KVDB_OPSPEC_INIT(&opspec);
 
-    err = hse_kvdb_init();
+    err = hse_init();
     if (err)
         fatal(err, "failed to initialize kvdb");
 
@@ -470,7 +470,7 @@ main(int argc, char **argv)
 
     hse_params_destroy(params);
 
-    hse_kvdb_fini();
+    hse_fini();
 
     return 0;
 }

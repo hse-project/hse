@@ -338,9 +338,9 @@ main(int argc, char **argv)
     argc -= 3;
     argv += 3;
 
-    herr = hse_kvdb_init();
+    herr = hse_init();
     if (herr) {
-        herr_print(herr, "hse_kvdb_init() failed: ");
+        herr_print(herr, "hse_init() failed: ");
         exit(EX_OSERR);
     }
 
@@ -371,7 +371,7 @@ main(int argc, char **argv)
 
     hse_params_destroy(params);
 
-    hse_kvdb_fini();
+    hse_fini();
 
     return 0;
 }

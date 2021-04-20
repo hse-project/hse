@@ -14,7 +14,7 @@ def make_kvdb():
     # recreate a KVDB without being root.  Just drop and recreate the KVS for now.
     #
 
-    hse.Kvdb.init()
+    hse.init()
 
     try:
         try:
@@ -35,4 +35,4 @@ def make_kvdb():
         finally:
             kvdb.close()
     finally:
-        hse.Kvdb.fini()
+        hse.fini()

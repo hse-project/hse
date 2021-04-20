@@ -3,7 +3,7 @@
 import sys
 from hse import Kvdb, Params
 
-Kvdb.init()
+init()
 
 kvdb = Kvdb.open(sys.argv[1])
 kvdb.kvs_make("kvs26")
@@ -59,4 +59,4 @@ txcursor.destroy()
 
 kvs.close()
 kvdb.close()
-Kvdb.fini()
+fini()
