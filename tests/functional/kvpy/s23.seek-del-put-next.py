@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 import sys
-from hse import Kvdb
+from hse import init, fini, Kvdb
 
 init()
 

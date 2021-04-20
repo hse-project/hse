@@ -2,8 +2,7 @@
 
 import sys
 from typing import List
-from hse import Kvdb
-from hse import Cursor, Params
+from hse import init, fini, Kvdb, Cursor, Params
 
 
 def check_keys(cursor: Cursor, expected: List[bytes]):

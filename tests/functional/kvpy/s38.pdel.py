@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 import sys
-from hse import Kvdb, Params
+from hse import init, fini, Kvdb, Params
 
 def add_keys(kvs, pfx, start, end):
     for k_id in range(start, end):
