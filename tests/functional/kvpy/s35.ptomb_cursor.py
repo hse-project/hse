@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 import sys
-from hse import Kvdb, Params, Kvs
+from hse import init, fini, Kvdb, Params, Kvs
 
 
 def verify(kvs: Kvs, pfx: str, cnt: int):

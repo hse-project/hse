@@ -8,7 +8,7 @@ This script tests the following (forward cursors only):
 """
 
 import sys
-from hse import Kvdb, Params
+from hse import init, fini, Kvdb, Params
 
 init()
 

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 import sys
-from hse import Kvdb, Params
+from hse import init, fini, Kvdb, Params
 from hse import experimental as hse_exp
 
 init()
