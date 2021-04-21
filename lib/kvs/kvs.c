@@ -290,13 +290,12 @@ ikvs_put(
     const struct kvs_vtuple *vt,
     u64                      seqno)
 {
-    struct perfc_set *pkvsl_pc = ikvs_perfc_pkvsl(kvs);
-
-    struct c0 *c0 = kvs->ikv_c0;
-    size_t     sfx_len;
-    size_t     hashlen;
-    u64        tstart;
-    merr_t     err;
+    struct perfc_set   *pkvsl_pc = ikvs_perfc_pkvsl(kvs);
+    struct c0 *         c0 = kvs->ikv_c0;
+    size_t              sfx_len;
+    size_t              hashlen;
+    u64                 tstart;
+    merr_t              err;
 
     tstart = perfc_lat_start(pkvsl_pc);
 
@@ -373,7 +372,11 @@ ikvs_get(
 }
 
 merr_t
-ikvs_del(struct ikvs *kvs, struct hse_kvdb_opspec *os, struct kvs_ktuple *kt, u64 seqno)
+ikvs_del(
+    struct ikvs *           kvs,
+    struct hse_kvdb_opspec *os,
+    struct kvs_ktuple *     kt,
+    u64                     seqno)
 {
     struct perfc_set *pkvsl_pc = ikvs_perfc_pkvsl(kvs);
     struct kvdb_ctxn *ctxn = 0;
@@ -416,7 +419,11 @@ ikvs_del(struct ikvs *kvs, struct hse_kvdb_opspec *os, struct kvs_ktuple *kt, u6
 }
 
 merr_t
-ikvs_prefix_del(struct ikvs *kvs, struct hse_kvdb_opspec *os, struct kvs_ktuple *kt, u64 seqno)
+ikvs_prefix_del(
+    struct ikvs *           kvs,
+    struct hse_kvdb_opspec *os,
+    struct kvs_ktuple *     kt,
+    u64                     seqno)
 {
     struct perfc_set *pkvsl_pc = ikvs_perfc_pkvsl(kvs);
     struct kvdb_ctxn *ctxn = 0;

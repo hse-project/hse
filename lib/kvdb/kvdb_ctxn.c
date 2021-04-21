@@ -804,7 +804,10 @@ errout:
 }
 
 merr_t
-kvdb_ctxn_del(struct kvdb_ctxn *handle, struct c0 *c0, const struct kvs_ktuple *kt)
+kvdb_ctxn_del(
+    struct kvdb_ctxn *       handle,
+    struct c0 *              c0,
+    const struct kvs_ktuple *kt)
 {
     struct kvdb_ctxn_impl *ctxn = kvdb_ctxn_h2r(handle);
     merr_t                 err = 0;

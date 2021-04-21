@@ -1830,7 +1830,10 @@ ikvdb_kvs_get(
 }
 
 merr_t
-ikvdb_kvs_del(struct hse_kvs *handle, struct hse_kvdb_opspec *os, struct kvs_ktuple *kt)
+ikvdb_kvs_del(
+    struct hse_kvs*         handle,
+    struct hse_kvdb_opspec *os,
+    struct kvs_ktuple *     kt)
 {
     struct kvdb_kvs *  kk = (struct kvdb_kvs *)handle;
     struct ikvdb_impl *parent;

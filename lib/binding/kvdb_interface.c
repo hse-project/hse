@@ -501,7 +501,11 @@ hse_kvs_get(
  * hse_kvs_delete() - remove the supplied key and associated value from the KVS
  */
 hse_err_t
-hse_kvs_delete(struct hse_kvs *handle, struct hse_kvdb_opspec *os, const void *key, size_t key_len)
+hse_kvs_delete(
+    struct hse_kvs *        handle,
+    struct hse_kvdb_opspec *os,
+    const void *            key,
+    size_t                  key_len)
 {
     merr_t            err = 0;
     struct kvs_ktuple kt;

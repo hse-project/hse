@@ -114,7 +114,10 @@ kvdb_ctxn_get(
     struct kvs_buf *         vbuf);
 
 merr_t
-kvdb_ctxn_del(struct kvdb_ctxn *txn, struct c0 *c0, const struct kvs_ktuple *kt);
+kvdb_ctxn_del(
+    struct kvdb_ctxn *       txn,
+    struct c0 *              c0,
+    const struct kvs_ktuple *kt);
 
 merr_t
 kvdb_ctxn_pfx_probe(

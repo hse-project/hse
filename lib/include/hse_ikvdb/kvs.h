@@ -156,7 +156,11 @@ ikvs_get(
     struct kvs_buf *        vbuf);
 
 merr_t
-ikvs_del(struct ikvs *ikvs, struct hse_kvdb_opspec *os, struct kvs_ktuple *key, u64 seqno);
+ikvs_del(
+    struct ikvs *           ikvs,
+    struct hse_kvdb_opspec *os,
+    struct kvs_ktuple *     key,
+    u64                     seqno);
 
 merr_t
 ikvs_pfx_probe(
@@ -169,7 +173,11 @@ ikvs_pfx_probe(
     struct kvs_buf *        vbuf);
 
 merr_t
-ikvs_prefix_del(struct ikvs *ikvs, struct hse_kvdb_opspec *os, struct kvs_ktuple *key, u64 seqno);
+ikvs_prefix_del(
+    struct ikvs *           ikvs,
+    struct hse_kvdb_opspec *os,
+    struct kvs_ktuple *     key,
+    u64                     seqno);
 
 u16
 ikvs_index(struct ikvs *ikvs);
