@@ -717,7 +717,6 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, put_get_del, mapi_pre, mapi_post)
     enum key_lookup_res     res;
     struct kvs_buf          vbuf = {};
     struct c0              *c0 = NULL; /* c0 is mocked */
-    struct cn              *cN = NULL; /* c0 is mocked */
     atomic64_t              kvdb_seq;
 
     err = kvdb_keylock_create(&klock, 16, 65536);
@@ -755,7 +754,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, put_get_del, mapi_pre, mapi_post)
     err = kvdb_ctxn_put(handle, c0, &kt, &vt);
     ASSERT_NE(0, err);
 
-    err = kvdb_ctxn_get(handle, c0, cN, &kt, NULL, NULL);
+    err = kvdb_ctxn_get(handle, c0, &kt, NULL, NULL);
     ASSERT_NE(0, err);
 
     err = kvdb_ctxn_del(handle, c0, &kt);
@@ -779,7 +778,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, put_get_del, mapi_pre, mapi_post)
 
     kvs_buf_init(&vbuf, &buf, sizeof(buf));
 
-    err = kvdb_ctxn_get(handle, c0, cN, &kt, &res, &vbuf);
+    err = kvdb_ctxn_get(handle, c0, &kt, &res, &vbuf);
     ASSERT_EQ(err, 0);
     ASSERT_EQ(res, FOUND_VAL);
 
@@ -794,7 +793,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, put_get_del, mapi_pre, mapi_post)
     ASSERT_EQ(0, err);
 
     /* [HSE_REVISIT] Fix gets. */
-    /* err = kvdb_ctxn_get(handle, c0, cN, &kt, &res, &vbuf); */
+    /* err = kvdb_ctxn_get(handle, c0, &kt, &res, &vbuf); */
     /* ASSERT_EQ(err, 0); */
     /* ASSERT_EQ(res, FOUND_TMB); */
 
@@ -806,7 +805,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, put_get_del, mapi_pre, mapi_post)
     err = kvdb_ctxn_put(handle, c0, &kt, &vt);
     ASSERT_EQ(ECANCELED, merr_errno(err));
 
-    err = kvdb_ctxn_get(handle, c0, cN, &kt, NULL, NULL);
+    err = kvdb_ctxn_get(handle, c0, &kt, NULL, NULL);
     ASSERT_EQ(ECANCELED, merr_errno(err));
 
     err = kvdb_ctxn_del(handle, c0, &kt);
@@ -885,20 +884,20 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, put_get_pdel, mapi_pre, mapi_post)
 
     kvs_buf_init(&vbuf, &buf, sizeof(buf));
 
-    /* err = kvdb_ctxn_get(handle, c0, cN, &kt, &res, &vbuf); */
+    /* err = kvdb_ctxn_get(handle, c0, &kt, &res, &vbuf); */
     /* ASSERT_EQ(err, 0); */
     /* ASSERT_EQ(res, FOUND_VAL); */
 
     err = kvdb_ctxn_prefix_del(handle, c0, &pkt);
     ASSERT_EQ(0, err);
 
-    /* err = kvdb_ctxn_get(handle, c0, cN, &kt, &res, &vbuf); */
+    /* err = kvdb_ctxn_get(handle, c0, &kt, &res, &vbuf); */
     /* ASSERT_EQ(err, 0); */
     /* ASSERT_EQ(res, FOUND_VAL); */
 
     /* /\* same pfx, different key. Expect FOUND_PTMB *\/ */
     /* key[1] = 3; */
-    /* err = kvdb_ctxn_get(handle, c0, cN, &kt, &res, &vbuf); */
+    /* err = kvdb_ctxn_get(handle, c0, &kt, &res, &vbuf); */
     /* ASSERT_EQ(err, 0); */
     /* ASSERT_EQ(res, FOUND_PTMB); */
 
@@ -1348,7 +1347,6 @@ parallel_ctxn_helper(void *arg)
     struct kvs_vtuple         vt;
     char                      kbuf[16], vbuf[16];
     struct c0 *               c0 = NULL; /* c0 is mocked */
-    struct cn *               cN = NULL; /* cN is mocked */
     enum key_lookup_res       res;
     struct kvs_buf            valbuf = {};
 
@@ -1363,7 +1361,7 @@ parallel_ctxn_helper(void *arg)
         kvs_ktuple_init(&kt, kbuf, 1 + strlen(kbuf));
 
         kvdb_ctxn_put(ctxn, c0, &kt, &vt);
-        kvdb_ctxn_get(ctxn, c0, cN, &kt, &res, &valbuf);
+        kvdb_ctxn_get(ctxn, c0, &kt, &res, &valbuf);
         kvdb_ctxn_del(ctxn, c0, &kt);
     }
 

@@ -354,7 +354,7 @@ ikvs_get(
     if (!ctxn)
         err = c0_get(c0, kt, seqno, 0, res, vbuf);
     else
-        err = kvdb_ctxn_get(ctxn, c0, cn, kt, res, vbuf);
+        err = kvdb_ctxn_get(ctxn, c0, kt, res, vbuf);
 
     if (!err && *res == NOT_FOUND) {
         if (ctxn) {
@@ -490,7 +490,7 @@ ikvs_pfx_probe(
     if (!ctxn)
         err = c0_pfx_probe(c0, kt, seqno, 0, res, &qctx, kbuf, vbuf);
     else
-        err = kvdb_ctxn_pfx_probe(ctxn, c0, cn, kt, res, &qctx, kbuf, vbuf);
+        err = kvdb_ctxn_pfx_probe(ctxn, c0, kt, res, &qctx, kbuf, vbuf);
 
     if (*res == FOUND_PTMB || qctx.seen > 1)
         goto done;

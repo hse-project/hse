@@ -108,7 +108,6 @@ merr_t
 kvdb_ctxn_get(
     struct kvdb_ctxn *       txn,
     struct c0 *              c0,
-    struct cn *              cn,
     const struct kvs_ktuple *kt,
     enum key_lookup_res *    res,
     struct kvs_buf *         vbuf);
@@ -123,7 +122,6 @@ merr_t
 kvdb_ctxn_pfx_probe(
     struct kvdb_ctxn *       handle,
     struct c0 *              c0,
-    struct cn *              cn,
     const struct kvs_ktuple *kt,
     enum key_lookup_res *    res,
     struct query_ctx *       qctx,

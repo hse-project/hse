@@ -746,7 +746,7 @@ kvdb_ctxn_put(
 
     /* Always use the full key's hash (even when kvs is suffixed) for
      * maximum entropy.  We factor the c0 hash (i.e., the hash of the
-     * cn kvs name) into the hash to avoid collisions of identical keys
+     * kvs name) into the hash to avoid collisions of identical keys
      * being put into different kvs via independent transactions.
      */
     hash = key_hash64_seed(kt->kt_data, kt->kt_len, c0_hash_get(c0));
@@ -773,7 +773,6 @@ merr_t
 kvdb_ctxn_get(
     struct kvdb_ctxn *       handle,
     struct c0 *              c0,
-    struct cn *              cn,
     const struct kvs_ktuple *kt,
     enum key_lookup_res *    res,
     struct kvs_buf *         vbuf)
@@ -852,7 +851,6 @@ merr_t
 kvdb_ctxn_pfx_probe(
     struct kvdb_ctxn *       handle,
     struct c0 *              c0,
-    struct cn *              cn,
     const struct kvs_ktuple *kt,
     enum key_lookup_res *    res,
     struct query_ctx *       qctx,
