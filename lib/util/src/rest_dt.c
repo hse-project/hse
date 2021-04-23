@@ -132,8 +132,7 @@ rest_dt_get(
         return merr(ev(ENOENT));
 
     pathsz = strlen(path) + 2;
-    bufsz = 1048576 + pathsz;
-    bufsz = ALIGN(bufsz, 1048576 * 2);
+    bufsz = ALIGN(pathsz, 4ul << 20);
 
     buf = malloc(bufsz);
     if (!buf)
@@ -142,15 +141,15 @@ rest_dt_get(
     sprintf(buf, "/%s", path);
 
     yc.yaml_indent = 0;
-    yc.yaml_offset = 0;
-    yc.yaml_emit = NULL;
-    yc.yaml_buf_sz = bufsz - ALIGN(pathsz, 8);
-    yc.yaml_buf = buf + ALIGN(pathsz, 8);
+    yc.yaml_offset = pathsz;
+    yc.yaml_emit = yaml_realloc_buf;
+    yc.yaml_buf_sz = bufsz;
+    yc.yaml_buf = buf;
 
     if (dt_iterate_cmd(tree, DT_OP_EMIT, buf, &dip, 0, fld, val) > 0)
-        rest_write_safe(info->resp_fd, yc.yaml_buf, yc.yaml_offset);
+        rest_write_safe(info->resp_fd, yc.yaml_buf + pathsz, yc.yaml_offset - pathsz);
 
-    free(buf);
+    free(yc.yaml_buf);
 
     return 0;
 }
