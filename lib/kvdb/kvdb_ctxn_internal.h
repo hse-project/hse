@@ -43,9 +43,9 @@ struct kvdb_ctxn_impl {
     u8                      ctxn_cursors_max;
     u16                     ctxn_commit_abort_pct;
     uintptr_t               ctxn_seqref;
+    u64                     ctxn_view_seqno;
     struct kvdb_keylock *   ctxn_kvdb_keylock;
     struct kvdb_ctxn_locks *ctxn_locks_handle;
-    u64                     ctxn_view_seqno;
     struct kvdb_ctxn_bind * ctxn_bind;
 
     struct viewset       *ctxn_viewset HSE_ALIGNED(SMP_CACHE_BYTES);
