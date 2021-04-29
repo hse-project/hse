@@ -82,8 +82,8 @@ struct c0_kvmultiset_impl {
     struct c0_kvset *c0ms_sets[HSE_C0_INGEST_WIDTH_MAX];
 };
 
+static struct kmem_cache *c0kvms_cache  HSE_READ_MOSTLY;
 static atomic64_t         c0kvms_gen = ATOMIC_INIT(0);
-static struct kmem_cache *c0kvms_cache;
 static atomic_t           c0kvms_init_ref;
 
 void
@@ -1138,7 +1138,7 @@ c0kvms_init(void)
     if (atomic_inc_return(&c0kvms_init_ref) > 1)
         return 0;
 
-    c0kvms_cache = kmem_cache_create("c0kvms", sizeof(*kvms), alignof(*kvms), 0, NULL);
+    c0kvms_cache = kmem_cache_create("c0kvms", sizeof(*kvms), alignof(*kvms), SLAB_PACKED, NULL);
     if (ev(!c0kvms_cache)) {
         atomic_dec(&c0kvms_init_ref);
         return merr(ENOMEM);

@@ -247,9 +247,12 @@ struct kmem_cache {
     uint                zone_isize;
     uint                zone_ialign;
     int                 zone_delay;
+    bool                zone_packed;
     void              (*zone_ctor)(void *);
     void               *zone_magic;
     struct list_head    zone_entry;
+    ulong               zone_flags;
+    int                 zone_packedv[KMC_NODES_MAX];
     struct delayed_work zone_dwork;
 
     spinlock_t          zone_lock  HSE_ALIGNED(SMP_CACHE_BYTES * 2);
@@ -309,8 +312,7 @@ kmc_chunk_create(uint cpuid, bool tryhuge)
         return NULL;
 
     rc = pthread_setaffinity_np(pthread_self(), sizeof(nmask), &nmask);
-    if (rc)
-        return NULL;
+    ev(rc); /* oh well, better to keep going... */
 
     chunksz = KMC_CHUNK_SZ;
     hugesz = 2 * 1024 * 1024;
@@ -570,14 +572,26 @@ kmem_cache_alloc_impl(struct kmem_cache *zone, uint cpuid)
 {
     struct kmc_pcpu *pcpu;
     struct kmc_slab *slab;
+    uint nodeid, coreid;
     void *mem;
 
     assert(zone);
     assert(zone->zone_magic == zone);
 
+    nodeid = hse_cpu2node(cpuid);
+    coreid = hse_cpu2core(cpuid);
+
+    if (HSE_UNLIKELY(zone->zone_packed)) {
+        if (hse_cpu2core(zone->zone_packedv[nodeid]) != coreid) {
+            cpuid = zone->zone_packedv[nodeid];
+            nodeid = hse_cpu2node(cpuid);
+            coreid = hse_cpu2core(cpuid);
+        }
+    }
+
     pcpu = zone->zone_pcpuv;
-    pcpu += (hse_cpu2node(cpuid) % KMC_NODES_MAX) * KMC_PCPU_MAX;
-    pcpu += (hse_cpu2core(cpuid) % KMC_PCPU_MAX);
+    pcpu += (nodeid % KMC_NODES_MAX) * KMC_PCPU_MAX;
+    pcpu += (coreid % KMC_PCPU_MAX);
 
     kmc_pcpu_lock(pcpu);
     while (1) {
@@ -820,7 +834,6 @@ struct kmem_cache *
 kmem_cache_create(const char *name, size_t size, size_t align, ulong flags, void (*ctor)(void *))
 {
     struct kmem_cache *zone;
-
     size_t slab_sz, iasz;
     ulong delay;
     uint i;
@@ -856,10 +869,34 @@ kmem_cache_create(const char *name, size_t size, size_t align, ulong flags, void
     zone->zone_imax = KMC_SLAB_SZ / iasz;
     zone->zone_isize = size;
     zone->zone_ialign = align;
+    zone->zone_packed = !!(flags & SLAB_PACKED);
+    zone->zone_flags = flags;
     zone->zone_ctor = ctor;
     INIT_LIST_HEAD(&zone->zone_slabs);
     zone->zone_delay = 15000;
     zone->zone_magic = zone;
+
+    if (zone->zone_packed) {
+        uint cpumax, cpuid, j;
+        cpu_set_t omask;
+
+        pthread_getaffinity_np(pthread_self(), sizeof(omask), &omask);
+        CPU_CLR(0, &omask); /* stay clear of cpu 0 */
+
+        cpumax = get_nprocs_conf();
+        cpuid = get_cycles();
+
+        for (i = 0; i < NELEM(zone->zone_packedv); ++i) {
+            for (j = 0; j < cpumax; ++j) {
+                cpuid = (cpuid + 7) % cpumax;
+
+                if (CPU_ISSET(cpuid, &omask) && hse_cpu2node(cpuid) == i) {
+                    zone->zone_packedv[i] = cpuid;
+                    break;
+                }
+            }
+        }
+    }
 
     kmc_zone_lock_init(zone);
     strlcpy(zone->zone_name, name, sizeof(zone->zone_name));
@@ -867,8 +904,10 @@ kmem_cache_create(const char *name, size_t size, size_t align, ulong flags, void
     /* Huge-page based zones use the upper half nodes.
      */
     zone->zone_nodev = kmc.kmc_nodev;
-    if (iasz > PAGE_SIZE / 4)
+    if (iasz > (PAGE_SIZE / 4) || (flags & SLAB_HUGE)) {
         zone->zone_nodev += KMC_NODES_MAX;
+        zone->zone_flags |= SLAB_HUGE;
+    }
 
     for (i = 0; i < NELEM(zone->zone_pcpuv); ++i) {
         struct kmc_pcpu *pcpu = zone->zone_pcpuv + i;
@@ -1217,14 +1256,14 @@ kmc_addrv_cmp(const void *lhs, const void *rhs)
 static int
 kmc_snprintf(struct kmem_cache *zone, char *buf, size_t bufsz, const char *fmt)
 {
-    struct list_head *head;
-    struct kmc_slab *slab;
-
     ulong nempty, nchunks, nhuge;
     int addrmax, addrc, cc, i;
+    struct list_head *head;
+    struct kmc_slab *slab;
     ulong zalloc, zfree;
     ulong salloc, sfree;
     ulong iused, itotal;
+    char flagsbuf[128];
     void **addrv;
 
     addrmax = 1024;
@@ -1279,6 +1318,11 @@ kmc_snprintf(struct kmem_cache *zone, char *buf, size_t bufsz, const char *fmt)
         }
     }
 
+    snprintf(flagsbuf, sizeof(flagsbuf), "%s%s%s",
+             (zone->zone_flags & SLAB_HUGE) ? " huge" : "",
+             (zone->zone_flags & SLAB_PACKED) ? " packed" : "",
+             (zone->zone_flags & SLAB_HWCACHE_ALIGN) ? " hwalign" : "");
+
     cc = snprintf(
         buf, bufsz, fmt,
         zone->zone_name,
@@ -1295,7 +1339,8 @@ kmc_snprintf(struct kmem_cache *zone, char *buf, size_t bufsz, const char *fmt)
         itotal,
         iused,
         zalloc,
-        zfree);
+        zfree,
+        flagsbuf);
 
     return cc;
 }
@@ -1319,7 +1364,7 @@ kmc_rest_get_vmstat(
     snprintf(
         buf, sizeof(buf),
         "%-20s %6s %4s %5s %7s %6s %6s %6s"
-        " %6s %7s %6s %8s %8s %13s %13s\n",
+        " %6s %7s %6s %8s %8s %13s %13s %s\n",
         "NAME",
         "CHUNKS",
         "HUGE",
@@ -1334,12 +1379,13 @@ kmc_rest_get_vmstat(
         "ITOTAL",
         "IUSED",
         "IALLOC",
-        "IFREE");
+        "IFREE",
+        "FLAGS...");
 
     rest_write_safe(info->resp_fd, buf, strlen(buf));
 
     fmt = "%-20.20s %6lu %4lu %5u %7u %6lu %6lu %6lu"
-          " %6u %7u %6u %8lu %8lu %13lu %13lu\n";
+        " %6u %7u %6u %8lu %8lu %13lu %13lu %s\n";
 
     mutex_lock(&kmc.kmc_lock);
     kmc_zone_foreach(zone, next, &kmc.kmc_zones) {

@@ -3611,7 +3611,7 @@ cn_tree_init(void)
         bkt->max = 8;
     }
 
-    cache = kmem_cache_create("cntreenode", cn_node_size(), SMP_CACHE_BYTES, 0, NULL);
+    cache = kmem_cache_create("cntreenode", cn_node_size(), SMP_CACHE_BYTES, SLAB_PACKED, NULL);
     if (ev(!cache)) {
         atomic_dec(&cn_tree_init_ref);
         return merr(ENOMEM);

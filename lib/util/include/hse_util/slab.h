@@ -10,7 +10,30 @@
 
 #include <hse_util/hse_err.h>
 
-#define SLAB_HWCACHE_ALIGN 0x00002000ul
+/* clang-format off */
+
+/*
+ * kmem_cache_create flags
+ *
+ * SLAB_HWCACHE_ALIGN   Use L1D cache line item alignment
+ * SLAB_PACKED          Allocate items from minimally sized working set
+ * SLAB_HUGE            Try to use huge pages regardless of item size
+ *
+ * SLAB_PACKED always allocates items from the same per-cpu cache (one
+ * cache per NUMA node), which improves the chances that subsequently
+ * allocated items all come from the same page (or minmimal set of pages).
+ * It comes at the cost of increased contention on the cache lock, so
+ * should be avoided if alloc/free frequency is expected to be high.
+ *
+ * By default, caches with aligned item sizes greater than (PAGE_SIZE / 4)
+ * use huge pages if possible.  Use SLAB_HUGE to force use of huge pages
+ * regardless of item size.
+ */
+#define SLAB_HWCACHE_ALIGN      (0x00002000ul)
+#define SLAB_PACKED             (0x00010000ul)
+#define SLAB_HUGE               (0x00020000ul)
+
+/* clang-format on */
 
 static HSE_ALWAYS_INLINE void *
 malloc_array(size_t n, size_t size)
