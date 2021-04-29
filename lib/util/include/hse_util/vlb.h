@@ -19,9 +19,9 @@
  * callers of vlb_alloc(), but more work needs to be done to improve
  * the situation.
  */
+#define VLB_CACHESZ_MAX     (4ul << 30) /* per NUMA node */
 #define VLB_ALLOCSZ_MAX     (4ul << 20)
-#define VLB_CACHESZ_MAX     (2ul << 30)
-#define VLB_KEEPSZ_MAX      (1ul << 20)
+#define VLB_KEEPSZ_MAX      (2ul << 20)
 
 /* If you trip this assert than you are probably experimenting with value
  * lengths larger than 1MiB, in which case it's ok to remove this assert.

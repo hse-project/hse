@@ -26,8 +26,11 @@
 
 #include "kvdb_keylock.h"
 
-#define KVDB_DLOCK_MAX      4 /* Must be power-of-2 */
-#define KVDB_LOCKS_SZ       (32 * 1024 - alignof(struct kvdb_ctxn_locks_impl))
+/* clang-format off */
+
+#define KVDB_DLOCK_MAX              (4) /* Must be power-of-2 */
+#define CTXN_LOCKS_IMPL_CACHE_SZ    (PAGE_SIZE - SMP_CACHE_BYTES * 2)
+#define CTXN_LOCKS_SLAB_CACHE_SZ    (16 * 1024 - SMP_CACHE_BYTES * 2)
 
 struct kvdb_keylock {
 };
@@ -43,7 +46,7 @@ struct kvdb_keylock {
 struct kvdb_dlock {
     struct mutex     kd_lock  HSE_ALIGNED(SMP_CACHE_BYTES * 2);
     struct list_head kd_list  HSE_ALIGNED(SMP_CACHE_BYTES);
-    volatile u64     kd_mvs;
+    volatile u64     kd_mvs   HSE_ALIGNED(SMP_CACHE_BYTES);
 };
 
 /**
@@ -74,54 +77,76 @@ struct kvdb_ctxn_locks {
     container_of(handle, struct kvdb_ctxn_locks_impl, ctxn_locks_handle)
 
 /**
- * struct ctxn_locks_tree_entry -
- * @lte_node:
+ * struct ctxn_locks_entry -
+ * @lte_next:       next entry in ctxn_locks_entries list
  * @lte_hash:
  * @lte_tindex:     index into kl_keylock[]
  * @lte_inherited:
- * @lte_kfree:      node not from entryv[], must be freed via free
+ * @lte_node:       rb tree linkage in ctxn_locks_treev[]
  */
-struct ctxn_locks_tree_entry {
-    struct rb_node lte_node;
-    u64            lte_hash : 48;
-    u64            lte_tindex : 10;
-    u64            lte_inherited : 1;
-    u64            lte_kfree : 1;
+struct ctxn_locks_entry {
+    void           *lte_next;
+    u64             lte_hash : 48;
+    u64             lte_tindex : 10;
+    u64             lte_inherited : 1;
+    struct rb_node  lte_node;
 };
 
 #define LTE_TINDEX_MAX (1u << 10)
 
 /**
+ * @cls_entryc:     current number of entries from entryv[] in use
+ * @cls_entrymax:   max number of entries in entryv[]
+ * @cls_next:       ptr to next slab in list
+ * @cls_entryv:     small entry cache
+ */
+struct ctxn_locks_slab {
+    uint                     cls_entryc;
+    uint                     cls_entrymax;
+    struct ctxn_locks_slab  *cls_next;
+    struct ctxn_locks_entry  cls_entryv[];
+};
+
+/**
  * struct kvdb_ctxn_locks - container for all the write locks of a transaction.
  * @ctxn_locks_handle:       handle for kvdb_ctxn_locks struct
  * @ctxn_locks_link:         element to link onto the deferred_locks list
- * @ctxn_locks_magic:        used to detect use-after-free
  * @ctxn_locks_end_seqno:    end seqno of the transaction
- * @ctxn_locks_tree:         root of RB tree containing write locks
+ * @ctxn_locks_magic:        used to detect use-after-free
  * @ctxn_locks_cnt:          number of write locks in this container
- * @ctxn_locks_entryc:       current number of entries from entryv[] in use
- * @ctxn_locks_entrymax:     max number of entries in entryv[]
- * @ctxn_locks_entryv:       small entry cache
+ * @ctxn_locks_entries:      linked list of all entries sorted by slab
+ * @ctxn_locks_slab:         entry slab from which to alloc new entries
+ * @ctxn_locks_treev:        root of RB tree containing write locks
+ * @ctxn_locks_slab0:        slab embedded into ctxn_locks allocation
+ *
+ * All entries in all RB trees are on a singly-linked list (ctxn_locks_entries)
+ * sorted by slab such that we can simple walk the list to free all the entries
+ * (vs walking each RB tree which would likely thrash the TLB).
  */
 struct kvdb_ctxn_locks_impl {
-    struct kvdb_ctxn_locks ctxn_locks_handle;
-    struct list_head       ctxn_locks_link;
-    volatile u64           ctxn_locks_end_seqno;
-    uintptr_t              ctxn_locks_magic;
+    struct kvdb_ctxn_locks   ctxn_locks_handle;
+    struct list_head         ctxn_locks_link;
+    volatile u64             ctxn_locks_end_seqno;
+    uintptr_t                ctxn_locks_magic;
 
-    struct rb_root ctxn_locks_tree  HSE_ALIGNED(SMP_CACHE_BYTES);
-    u32 ctxn_locks_cnt;
-    u32 ctxn_locks_entryc;
-    u32 ctxn_locks_entrymax;
-
-    struct ctxn_locks_tree_entry ctxn_locks_entryv[];
+    struct rb_root           ctxn_locks_treev[16];
+    u32                      ctxn_locks_cnt;
+    struct ctxn_locks_entry *ctxn_locks_entries;
+    struct ctxn_locks_slab  *ctxn_locks_slab;
+    struct ctxn_locks_slab   ctxn_locks_slab0[];
 };
 
-_Static_assert(sizeof(struct kvdb_ctxn_locks_impl) < KVDB_LOCKS_SZ, "KVDB_LOCKS_SZ too small");
+static_assert(sizeof(struct kvdb_ctxn_locks_impl) < CTXN_LOCKS_IMPL_CACHE_SZ / 16,
+              "CTXN_LOCKS_IMPL_CACHE_SZ too small");
 
-static struct kmem_cache *kvdb_ctxn_locks_cache  HSE_READ_MOSTLY;
-static struct kmem_cache *kvdb_ctxn_entry_cache  HSE_READ_MOSTLY;
-static atomic_t           kvdb_ctxn_locks_init_ref  HSE_READ_MOSTLY;
+static_assert(sizeof(struct ctxn_locks_slab) < CTXN_LOCKS_IMPL_CACHE_SZ / 16,
+              "CTXN_LOCKS_SLAB_CACHE_SZ too small");
+
+static struct kmem_cache *ctxn_locks_impl_cache  HSE_READ_MOSTLY;
+static struct kmem_cache *ctxn_locks_slab_cache  HSE_READ_MOSTLY;
+static atomic_t ctxn_locks_init_ref  HSE_READ_MOSTLY;
+
+/* clang-format on */
 
 merr_t
 kvdb_keylock_create(struct kvdb_keylock **handle_out, u32 num_tables, u64 num_entries)
@@ -199,6 +224,7 @@ kvdb_keylock_destroy(struct kvdb_keylock *handle)
             locks = &curr->ctxn_locks_handle;
             kvdb_keylock_release_locks(handle, locks);
             kvdb_ctxn_locks_destroy(locks);
+            ev(1);
         }
 
         mutex_destroy(&dlock->kd_lock);
@@ -288,48 +314,47 @@ kvdb_keylock_insert_locks(struct kvdb_ctxn_locks *handle, u64 end_seqno, void *c
 void
 kvdb_keylock_prune_own_locks(struct kvdb_keylock *kl_handle, struct kvdb_ctxn_locks *locks_handle)
 {
-    struct kvdb_keylock_impl *    klock;
-    struct kvdb_ctxn_locks_impl * locks;
-    struct ctxn_locks_tree_entry *entry;
-    struct ctxn_locks_tree_entry *next;
-    struct rb_root *              tree;
-    void *                        freeme;
-    u64                           cnt;
+    struct kvdb_ctxn_locks_impl *locks = kvdb_ctxn_locks_h2r(locks_handle);
+    struct keylock **keylockv = kvdb_keylock_h2r(kl_handle)->kl_keylock;
+    struct ctxn_locks_entry *inherited, *entry;
+    int64_t cnt;
+    int i;
 
-    klock = kvdb_keylock_h2r(kl_handle);
-    locks = kvdb_ctxn_locks_h2r(locks_handle);
-
-    tree = &locks->ctxn_locks_tree;
     cnt = locks->ctxn_locks_cnt;
-    freeme = NULL;
+    inherited = NULL;
 
-    rbtree_postorder_for_each_entry_safe(entry, next, tree, lte_node)
-    {
-        u32 idx = entry->lte_tindex;
+    while (( entry = locks->ctxn_locks_entries )) {
+        locks->ctxn_locks_entries = entry->lte_next;
 
-        if (entry->lte_inherited)
+        if (entry->lte_inherited) {
+            entry->lte_next = inherited;
+            inherited = entry;
             continue;
-
-        keylock_unlock(
-            klock->kl_keylock[idx], entry->lte_hash, (struct keylock_cb_rock *)locks_handle);
-
-        rb_erase(&entry->lte_node, tree);
-
-        if (entry->lte_kfree) {
-            *(void **)entry = freeme;
-            freeme = entry;
         }
 
-        assert(cnt > 0);
+        keylock_unlock(keylockv[entry->lte_tindex], entry->lte_hash,
+                       (struct keylock_cb_rock *)locks_handle);
         cnt--;
     }
 
-    while (freeme) {
-        entry = freeme;
-        freeme = *(void **)entry;
-        kmem_cache_free(kvdb_ctxn_entry_cache, entry);
+    assert(cnt >= 0);
+
+    if (cnt == 0) {
+        struct ctxn_locks_slab *slab;
+
+        while ((slab = locks->ctxn_locks_slab) && slab->cls_next) {
+            locks->ctxn_locks_slab = slab->cls_next;
+            kmem_cache_free(ctxn_locks_slab_cache, slab);
+        }
+
+        assert(slab->cls_entrymax > 0);
+        slab->cls_entryc = 0;
+
+        for (i = 0; i < NELEM(locks->ctxn_locks_treev); ++i)
+            locks->ctxn_locks_treev[i] = RB_ROOT;
     }
 
+    locks->ctxn_locks_entries = inherited;
     locks->ctxn_locks_cnt = cnt;
 }
 
@@ -345,9 +370,7 @@ kvdb_keylock_expire(struct kvdb_keylock *handle, u64 min_view_sn)
     struct kvdb_ctxn_locks_impl *curr, *tmp;
     struct kvdb_keylock_impl *   klock;
     struct list_head             expired;
-    u32                          mask;
-    int                          idx;
-    uint cpu, node, core;
+    uint mask, cpu, node, core, idx;
 
     klock = kvdb_keylock_h2r(handle);
 
@@ -422,47 +445,36 @@ kvdb_keylock_expire(struct kvdb_keylock *handle, u64 min_view_sn)
 void
 kvdb_keylock_release_locks(struct kvdb_keylock *kl_handle, struct kvdb_ctxn_locks *locks_handle)
 {
-    struct kvdb_keylock_impl *    klock;
-    struct kvdb_ctxn_locks_impl * locks;
-    struct ctxn_locks_tree_entry *entry;
-    struct ctxn_locks_tree_entry *next;
-    struct rb_root *              tree;
-    void *                        freeme;
+    struct kvdb_ctxn_locks_impl *locks = kvdb_ctxn_locks_h2r(locks_handle);
+    struct keylock **keylockv = kvdb_keylock_h2r(kl_handle)->kl_keylock;
+    struct ctxn_locks_entry *entry;
+    struct ctxn_locks_slab *slab;
+    int64_t cnt;
+    int i;
 
-    int cnt HSE_MAYBE_UNUSED;
-
-    klock = kvdb_keylock_h2r(kl_handle);
-    locks = kvdb_ctxn_locks_h2r(locks_handle);
-
-    tree = &locks->ctxn_locks_tree;
     cnt = locks->ctxn_locks_cnt;
-    freeme = NULL;
 
-    rbtree_postorder_for_each_entry_safe(entry, next, tree, lte_node)
-    {
-        u32 idx = entry->lte_tindex;
+    while (( entry = locks->ctxn_locks_entries )) {
+        locks->ctxn_locks_entries = entry->lte_next;
 
-        assert(cnt-- > 0);
-
-        keylock_unlock(
-            klock->kl_keylock[idx], entry->lte_hash, (struct keylock_cb_rock *)locks_handle);
-
-        if (entry->lte_kfree) {
-            *(void **)entry = freeme;
-            freeme = entry;
-        }
-    }
-
-    while (freeme) {
-        entry = freeme;
-        freeme = *(void **)entry;
-        kmem_cache_free(kvdb_ctxn_entry_cache, entry);
+        keylock_unlock(keylockv[entry->lte_tindex], entry->lte_hash,
+                       (struct keylock_cb_rock *)locks_handle);
+        cnt--;
     }
 
     assert(cnt == 0);
     locks->ctxn_locks_cnt = 0;
-    locks->ctxn_locks_entryc = 0;
-    locks->ctxn_locks_tree = RB_ROOT;
+
+    while ((slab = locks->ctxn_locks_slab) && slab->cls_next) {
+        locks->ctxn_locks_slab = slab->cls_next;
+        kmem_cache_free(ctxn_locks_slab_cache, slab);
+    }
+
+    for (i = 0; i < NELEM(locks->ctxn_locks_treev); ++i)
+        locks->ctxn_locks_treev[i] = RB_ROOT;
+
+    assert(slab->cls_entrymax > 0);
+    slab->cls_entryc = 0;
 }
 
 /**
@@ -481,54 +493,44 @@ kvdb_keylock_lock(
     u64                     hash,
     u64                     start_seq)
 {
-    struct kvdb_keylock_impl *    klock;
-    struct kvdb_ctxn_locks_impl * ctxn_locks;
-    struct rb_node **             link;
-    struct rb_node *              parent;
-    struct ctxn_locks_tree_entry *entry;
-    merr_t                        err;
-    u32                           tindex;
-    u32                           entryc;
-    bool                          inherited;
+    struct kvdb_ctxn_locks_impl *locks = kvdb_ctxn_locks_h2r(hlocks);
+    struct kvdb_keylock_impl *klock = kvdb_keylock_h2r(hklock);
+    struct ctxn_locks_entry *entry;
+    struct ctxn_locks_slab *slab;
+    struct rb_node **link, *parent;
+    struct keylock *keylock;
+    struct rb_root *tree;
+    bool inherited;
+    u32 tindex;
+    merr_t err;
 
     assert(hash);
 
-    klock = kvdb_keylock_h2r(hklock);
-    ctxn_locks = kvdb_ctxn_locks_h2r(hlocks);
-
     hash = (hash << 16) >> 16;
     tindex = hash % klock->kl_num_tables;
+    keylock = klock->kl_keylock[tindex];
 
-    link = &ctxn_locks->ctxn_locks_tree.rb_node;
+    tree = locks->ctxn_locks_treev + (tindex % NELEM(locks->ctxn_locks_treev));
+    link = &tree->rb_node;
     parent = NULL;
     entry = NULL;
 
-    /* [HSE_REVISIT] The write lock container is currently an RB tree. A
-     * hash table might be better.
+    /* Traverse the write lock container to check if the lock exists.
      */
-
-    /* Traverse the write lock container to check if the lock exists. */
     while (*link) {
         parent = *link;
-        entry = rb_entry(parent, struct ctxn_locks_tree_entry, lte_node);
+        entry = rb_entry(parent, typeof(*entry), lte_node);
 
-        if (hash < entry->lte_hash)
-            link = &(*link)->rb_left;
-        else if (hash > entry->lte_hash)
-            link = &(*link)->rb_right;
-        else
+        if (HSE_UNLIKELY( hash == entry->lte_hash ))
             break;
+
+        link = (hash < entry->lte_hash) ? &parent->rb_left : &parent->rb_right;
     }
 
     /* The lock was previously acquired by this transaction. */
     if (*link) {
-        assert(
-            keylock_lock(
-                klock->kl_keylock[tindex],
-                hash,
-                start_seq,
-                (struct keylock_cb_rock *)hlocks,
-                &inherited) == 0);
+        assert(keylock_lock(keylock, hash, start_seq,
+                            (struct keylock_cb_rock *)hlocks, &inherited) == 0);
         assert(entry->lte_hash == hash);
         assert(inherited == false);
 
@@ -540,90 +542,87 @@ kvdb_keylock_lock(
      * The transaction has exceeded the limit on the max number of locks
      * it can acquire.
      */
-    if (ev(ctxn_locks->ctxn_locks_cnt > klock->kl_entries_per_txn))
+    if (ev(locks->ctxn_locks_cnt > klock->kl_entries_per_txn))
         return merr(E2BIG);
 
     /* Pre-allocate space for the entry since if we inherit ownership we
      * cannot fail.  We first try to allocate from the ctxn_locks entry
      * cache, and fall back on kmalloc if the cache is empty.
      */
-    entryc = ctxn_locks->ctxn_locks_entryc;
+    slab = locks->ctxn_locks_slab;
 
-    if (HSE_LIKELY(entryc < ctxn_locks->ctxn_locks_entrymax)) {
-        entry = ctxn_locks->ctxn_locks_entryv + entryc;
-        ctxn_locks->ctxn_locks_entryc++;
-        entry->lte_kfree = false;
-    } else {
-        entry = kmem_cache_alloc(kvdb_ctxn_entry_cache);
-        if (ev(!entry))
+    if (HSE_UNLIKELY(slab->cls_entryc >= slab->cls_entrymax)) {
+        slab = kmem_cache_alloc(ctxn_locks_slab_cache);
+        if (ev(!slab))
             return merr(ENOMEM);
 
-        entry->lte_kfree = true;
+        memset(slab, 0, sizeof(*slab));
+        slab->cls_entrymax = CTXN_LOCKS_SLAB_CACHE_SZ - sizeof(*slab);
+        slab->cls_entrymax /= sizeof(slab->cls_entryv[0]);
+        slab->cls_next = locks->ctxn_locks_slab;
+        locks->ctxn_locks_slab = slab;
     }
+
+    entry = slab->cls_entryv + slab->cls_entryc++;
 
     /* Attempt to acquire the lock since it wasn't found in the
      * transaction's container of write locks.
      */
-    err = keylock_lock(
-        klock->kl_keylock[tindex], hash, start_seq, (struct keylock_cb_rock *)hlocks, &inherited);
+    err = keylock_lock(keylock, hash, start_seq, (struct keylock_cb_rock *)hlocks, &inherited);
     if (!err) {
-        perfc_inc(&klock->kl_perfc_set, PERFC_RA_CTXNOP_LOCK_DONE);
+        locks->ctxn_locks_cnt++;
+        entry->lte_next = locks->ctxn_locks_entries;
+        locks->ctxn_locks_entries = entry;
 
-        /* The lock was acquired in this attempt. Add it to the
-         * container of write locks.
-         */
         entry->lte_hash = hash;
         entry->lte_tindex = tindex;
         entry->lte_inherited = inherited;
 
+        /* The lock was acquired in this attempt. Add it to the
+         * container of write locks.
+         */
         rb_link_node(&entry->lte_node, parent, link);
-        rb_insert_color(&entry->lte_node, &ctxn_locks->ctxn_locks_tree);
+        rb_insert_color(&entry->lte_node, tree);
 
-        ctxn_locks->ctxn_locks_cnt++;
     } else {
-        perfc_inc(&klock->kl_perfc_set, PERFC_RA_CTXNOP_LOCK_FAILED);
+        perfc_inc(&klock->kl_perfc_set, PERFC_RA_CTXNOP_LOCKFAIL);
 
-        if (entry->lte_kfree)
-            kmem_cache_free(kvdb_ctxn_entry_cache, entry);
-        else
-            ctxn_locks->ctxn_locks_entryc--;
+        slab->cls_entryc--;
     }
 
     return err;
-}
-
-static void
-kvdb_ctxn_locks_ctor(void *arg)
-{
-    struct kvdb_ctxn_locks_impl *impl = arg;
-
-    memset(impl, 0, sizeof(*impl));
-    impl->ctxn_locks_entrymax = KVDB_LOCKS_SZ - sizeof(*impl);
-    impl->ctxn_locks_entrymax /= sizeof(impl->ctxn_locks_entryv[0]);
-    impl->ctxn_locks_magic = ~(uintptr_t)impl;
 }
 
 merr_t
 kvdb_ctxn_locks_create(struct kvdb_ctxn_locks **locksp)
 {
     struct kvdb_ctxn_locks_impl *impl;
+    struct ctxn_locks_slab *slab;
+    size_t sz;
+    int i;
 
-    impl = kmem_cache_alloc(kvdb_ctxn_locks_cache);
+    impl = kmem_cache_alloc(ctxn_locks_impl_cache);
     if (ev(!impl)) {
         *locksp = NULL;
         return merr(ENOMEM);
     }
 
-    assert(impl->ctxn_locks_magic == ~(uintptr_t)impl);
+    sz = sizeof(*impl) + sizeof(*slab);
 
-    /* impl is initialized by kvdb_ctxn_locks_ctor().
-     */
-    impl->ctxn_locks_magic = (uintptr_t)impl;
+    memset(impl, 0, sz);
     impl->ctxn_locks_end_seqno = U64_MAX;
-    impl->ctxn_locks_tree = RB_ROOT;
-    impl->ctxn_locks_entryc = 0;
+    impl->ctxn_locks_magic = (uintptr_t)impl;
+
+    for (i = 0; i < NELEM(impl->ctxn_locks_treev); ++i)
+        impl->ctxn_locks_treev[i] = RB_ROOT;
+
+    slab = impl->ctxn_locks_slab0;
+    slab->cls_entrymax = CTXN_LOCKS_IMPL_CACHE_SZ - sz;
+    slab->cls_entrymax /= sizeof(slab->cls_entryv[0]);
+    impl->ctxn_locks_slab = slab;
 
     *locksp = &impl->ctxn_locks_handle;
+
     return 0;
 }
 
@@ -636,10 +635,11 @@ kvdb_ctxn_locks_destroy(struct kvdb_ctxn_locks *handle)
 
     assert(impl->ctxn_locks_magic == (uintptr_t)impl);
     assert(impl->ctxn_locks_cnt == 0);
+    assert(impl->ctxn_locks_slab->cls_next == NULL);
 
     impl->ctxn_locks_magic = ~(uintptr_t)impl;
 
-    kmem_cache_free(kvdb_ctxn_locks_cache, impl);
+    kmem_cache_free(ctxn_locks_impl_cache, impl);
 }
 
 u64
@@ -663,33 +663,31 @@ kvdb_ctxn_locks_end_seqno(struct kvdb_ctxn_locks *handle)
 void
 kvdb_ctxn_locks_init(void)
 {
-    struct ctxn_locks_tree_entry *entry;
-    struct kmem_cache *           zone;
+    struct kmem_cache *zone;
 
-    if (atomic_inc_return(&kvdb_ctxn_locks_init_ref) > 1)
+    if (atomic_inc_return(&ctxn_locks_init_ref) > 1)
         return;
 
-    zone = kmem_cache_create("kvdb_ctxn_locks", KVDB_LOCKS_SZ,
-                             alignof(struct kvdb_ctxn_locks_impl), 0, kvdb_ctxn_locks_ctor);
-    kvdb_ctxn_locks_cache = zone;
+    zone = kmem_cache_create("ctxn_locks_impl", CTXN_LOCKS_IMPL_CACHE_SZ, 0, 0, NULL);
+    ctxn_locks_impl_cache = zone;
     assert(zone); /* [HSE_REVISIT] */
 
-    zone = kmem_cache_create("kvdb_ctxn_entry", sizeof(*entry), 0, 0, NULL);
-    kvdb_ctxn_entry_cache = zone;
+    zone = kmem_cache_create("ctxn_locks_slab", CTXN_LOCKS_SLAB_CACHE_SZ, 0, 0, NULL);
+    ctxn_locks_slab_cache = zone;
     assert(zone); /* [HSE_REVISIT] */
 }
 
 void
 kvdb_ctxn_locks_fini(void)
 {
-    if (atomic_dec_return(&kvdb_ctxn_locks_init_ref) > 0)
+    if (atomic_dec_return(&ctxn_locks_init_ref) > 0)
         return;
 
-    kmem_cache_destroy(kvdb_ctxn_locks_cache);
-    kvdb_ctxn_locks_cache = NULL;
+    kmem_cache_destroy(ctxn_locks_impl_cache);
+    ctxn_locks_impl_cache = NULL;
 
-    kmem_cache_destroy(kvdb_ctxn_entry_cache);
-    kvdb_ctxn_entry_cache = NULL;
+    kmem_cache_destroy(ctxn_locks_slab_cache);
+    ctxn_locks_slab_cache = NULL;
 }
 
 #if HSE_MOCKING

@@ -102,7 +102,7 @@ struct kvset_cache {
     size_t             sz;
 };
 
-static struct kvset_cache kvset_cache[3] HSE_READ_MOSTLY;
+static struct kvset_cache kvset_cache[4] HSE_READ_MOSTLY;
 static struct kmem_cache *kvset_iter_cache HSE_READ_MOSTLY;
 static atomic_t           kvset_init_ref;
 
@@ -476,13 +476,15 @@ kvset_create2(
          sizeof(ks->ks_vbsetv[0]) * vbsetc + sizeof(ks->ks_vblk2mbs[0]) * n_vblks);
 
     if (ev(alloc_len > kvset_cache[0].sz))
-        ks = alloc_aligned(alloc_len, SMP_CACHE_BYTES);
+        ks = alloc_aligned(alloc_len, alignof(*ks));
     else if (alloc_len > kvset_cache[1].sz)
         ks = kmem_cache_alloc(kvset_cache[0].cache);
     else if (alloc_len > kvset_cache[2].sz)
         ks = kmem_cache_alloc(kvset_cache[1].cache);
-    else
+    else if (alloc_len > kvset_cache[3].sz)
         ks = kmem_cache_alloc(kvset_cache[2].cache);
+    else
+        ks = kmem_cache_alloc(kvset_cache[3].cache);
 
     if (ev(!ks))
         return merr(ENOMEM);
@@ -1044,8 +1046,10 @@ _kvset_destroy(struct kvset *ks)
         kmem_cache_free(kvset_cache[0].cache, ks);
     else if (ks->ks_kvset_sz > kvset_cache[2].sz)
         kmem_cache_free(kvset_cache[1].cache, ks);
-    else
+    else if (ks->ks_kvset_sz > kvset_cache[3].sz)
         kmem_cache_free(kvset_cache[2].cache, ks);
+    else
+        kmem_cache_free(kvset_cache[3].cache, ks);
 }
 
 static int
@@ -3793,11 +3797,11 @@ kvset_init(void)
         size_t align = alignof(struct kvset);
         char   name[32];
 
-        snprintf(name, sizeof(name), "kvset%d", i);
-
         sz = (4096 << (NELEM(kvset_cache) - (i + 1))) - align;
 
-        cache = kmem_cache_create(name, sz, align, 0, NULL);
+        snprintf(name, sizeof(name), "kvset%zuk", (sz + 1023) / 1024);
+
+        cache = kmem_cache_create(name, sz, align, SLAB_PACKED, NULL);
         if (ev(!cache))
             break;
 
