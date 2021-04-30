@@ -6,6 +6,12 @@ _config_h_data.set(
     description: 'Building with coverage support',
 )
 
+_config_h_data.set(
+    'WITH_CJSON_FROM_SUBPROJECT',
+    cJSON_from_subproject,
+    description: 'Building with cJSON from subprojects',
+)
+
 _config_h = configure_file(
     input: '_config.h.in',
     output: '_config.h',
@@ -39,7 +45,6 @@ hse_sources = [
 hse_c_args = [
     '-D_GNU_SOURCE=1',
     '-DCOMPNAME="kvdb"',
-    '-DCJSON_FROM_SUBPROJECT=@0@'.format(cJSON_from_subproject ? 1 : 0),
 ]
 
 hse_include_directories = [

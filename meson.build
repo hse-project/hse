@@ -228,6 +228,7 @@ endif
 if get_option('use-system-cjson')
     message('For best results, HSE should be built against a static cjson==1.7.14')
     cJSON_dep = dependency('libcjson', version: '>=1.7.14', required: true)
+    cJSON_from_subproject = false
 else
     cJSON_options = cmake.subproject_options()
     cJSON_options.add_cmake_defines({
