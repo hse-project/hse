@@ -277,8 +277,16 @@ mblock_fset_meta_open(struct mblock_fset *mbfsp, int flags)
 
         rc = fallocate(fd, 0, 0, sz);
         if (rc < 0) {
-            err = merr(rc);
-            goto errout;
+            if (errno != EOPNOTSUPP) {
+                err = merr(errno);
+                goto errout;
+            }
+
+            rc = ftruncate(fd, sz);
+            if (rc < 0) {
+                err = merr(errno);
+                goto errout;
+            }
         }
     }
 

@@ -267,8 +267,16 @@ MTF_DEFINE_UTEST(mblock_test, mblock_abc)
     err = mpool_mblock_alloc(mp, MP_MED_STAGING, &mbid, &props);
     ASSERT_EQ(ENOENT, merr_errno(err));
 
+    err = mpool_close(mp);
+    ASSERT_EQ(0, err);
+
+    setenv("HSE_STAGING_PATH", (const char *)staging_path, 1);
+    err = mpool_open("mp1", NULL, O_RDWR, &mp);
+    ASSERT_EQ(0, merr_errno(err));
+
     err = mpool_destroy(mp);
     ASSERT_EQ(0, err);
+    unsetenv("HSE_STAGING_PATH");
 }
 
 static merr_t

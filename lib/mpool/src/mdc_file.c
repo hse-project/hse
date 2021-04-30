@@ -435,8 +435,18 @@ mdc_file_erase(struct mdc_file *mfp, uint64_t newgen)
             FALLOC_FL_PUNCH_HOLE | FALLOC_FL_KEEP_SIZE,
             MDC_LOGHDR_LEN,
             mfp->size - MDC_LOGHDR_LEN);
-        if (rc < 0)
-            return merr(errno);
+        if (rc < 0) {
+            if (errno != EOPNOTSUPP)
+                return merr(errno);
+
+            rc = ftruncate(mfp->fd, MDC_LOGHDR_LEN);
+            if (rc < 0)
+                return merr(errno);
+
+            rc = ftruncate(mfp->fd, mfp->size);
+            if (rc < 0)
+                return merr(errno);
+        }
     }
 
     rc = fsync(mfp->fd);

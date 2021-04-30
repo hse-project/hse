@@ -973,16 +973,22 @@ mblock_file_delete(struct mblock_file *mbfp, uint64_t *mbidv, int mbidc)
     return 0;
 }
 
-static size_t
-iov_len_get(const struct iovec *iov, int iovc)
+static merr_t
+iov_len_get(const struct iovec *iov, int iovc, size_t *tlen)
 {
     size_t len = 0;
     int    i;
 
-    for (i = 0; i < iovc; i++)
-        len += iov[i].iov_len;
+    for (i = 0; i < iovc; i++) {
+        if (!PAGE_ALIGNED(iov[i].iov_base))
+            return merr(EINVAL);
 
-    return len;
+        len += iov[i].iov_len;
+    }
+
+    *tlen = len;
+
+    return 0;
 }
 
 merr_t
@@ -1021,7 +1027,10 @@ mblock_file_read(
     eoff = roff + wlen - 1;
     roff += off;
 
-    len = iov_len_get(iov, iovc);
+    err = iov_len_get(iov, iovc, &len);
+    if (err)
+        return err;
+
     if (!PAGE_ALIGNED(len) || (roff + len - 1 > eoff))
         return merr(EINVAL);
 
@@ -1036,7 +1045,7 @@ mblock_file_write(
     int                 iovc)
 {
     uint32_t  block;
-    size_t    len, mblocksz;
+    size_t    len = 0, mblocksz;
     off_t     woff, eoff, off;
     merr_t    err;
     atomic_t *wlenp;
@@ -1061,7 +1070,10 @@ mblock_file_write(
     eoff = woff + mblocksz - 1;
     woff += off;
 
-    len = iov_len_get(iov, iovc);
+    err = iov_len_get(iov, iovc, &len);
+    if (err)
+        return err;
+
     if (!PAGE_ALIGNED(len) || (woff + len - 1 > eoff))
         return merr(EINVAL);
 
