@@ -107,7 +107,7 @@ c0_put(struct c0 *handle, const struct kvs_ktuple *kt, const struct kvs_vtuple *
 }
 
 merr_t
-c0_del(struct c0 *handle, struct kvs_ktuple *kt, u64 seqno)
+c0_del(struct c0 *handle, const struct kvs_ktuple *kt, u64 seqno)
 {
     struct c0_impl *self = c0_h2r(handle);
 
@@ -116,7 +116,7 @@ c0_del(struct c0 *handle, struct kvs_ktuple *kt, u64 seqno)
 }
 
 merr_t
-c0_prefix_del(struct c0 *handle, struct kvs_ktuple *kt, u64 seqno)
+c0_prefix_del(struct c0 *handle, const struct kvs_ktuple *kt, u64 seqno)
 {
     struct c0_impl *self = c0_h2r(handle);
 

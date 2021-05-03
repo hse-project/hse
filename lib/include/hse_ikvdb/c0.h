@@ -150,7 +150,7 @@ c0_get(
  */
 /* MTF_MOCK */
 merr_t
-c0_del(struct c0 *self, struct kvs_ktuple *key, u64 seqno);
+c0_del(struct c0 *self, const struct kvs_ktuple *key, u64 seqno);
 
 merr_t
 c0_pfx_probe(
@@ -173,7 +173,7 @@ c0_pfx_probe(
  */
 /* MTF_MOCK */
 merr_t
-c0_prefix_del(struct c0 *self, struct kvs_ktuple *key, u64 seqno);
+c0_prefix_del(struct c0 *self, const struct kvs_ktuple *key, u64 seqno);
 
 /**
  * c0_sync() - force ingest of existing c0 data and waits until ingest complete
