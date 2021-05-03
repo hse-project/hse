@@ -1182,8 +1182,10 @@ cn_open(
     cn->cn_cnid = cnid;
     cn->cn_cflags = kvdb_kvs_flags(kvs);
     cn->cn_kvdb_health = health;
-    cn->cn_hash = key_hash64(kvs_name, strlen(kvs_name));
     cn->cn_mpool_params = mpool_params;
+
+    /* Compute hash of kvs name, but don't let it be 0. */
+    cn->cn_hash = 1 | key_hash64(kvs_name, strlen(kvs_name));
 
     staging_absent = mpool_mclass_get(ds, MP_MED_STAGING, NULL);
     if (staging_absent) {

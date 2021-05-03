@@ -90,39 +90,25 @@ kvdb_ctxn_lock_inherit(
     struct keylock_cb_rock * old_rock,
     struct keylock_cb_rock **new_rock);
 
+/* Lock a txn for reading (e.g., get, prefix probe)  */
 merr_t
-kvdb_ctxn_put(
-    struct kvdb_ctxn *       txn,
-    struct c0 *              c0,
-    const struct kvs_ktuple *kt,
-    const struct kvs_vtuple *vt);
+kvdb_ctxn_trylock_read(
+    struct kvdb_ctxn   *handle,
+    u64                *view_seqno,
+    uintptr_t          *seqref);
 
+/* Lock a txn for reading (e.g., put, delete)  */
 merr_t
-kvdb_ctxn_get(
-    struct kvdb_ctxn *       txn,
-    struct c0 *              c0,
-    const struct kvs_ktuple *kt,
-    enum key_lookup_res *    res,
-    struct kvs_buf *         vbuf);
+kvdb_ctxn_trylock_write(
+    struct kvdb_ctxn           *handle,
+    const struct kvs_ktuple    *kt,
+    u64                         keylock_seed,
+    uintptr_t                  *seqref);
 
-merr_t
-kvdb_ctxn_del(
-    struct kvdb_ctxn *       txn,
-    struct c0 *              c0,
-    const struct kvs_ktuple *kt);
-
-merr_t
-kvdb_ctxn_pfx_probe(
-    struct kvdb_ctxn *       handle,
-    struct c0 *              c0,
-    const struct kvs_ktuple *kt,
-    enum key_lookup_res *    res,
-    struct query_ctx *       qctx,
-    struct kvs_buf *         kbuf,
-    struct kvs_buf *         vbuf);
-
-merr_t
-kvdb_ctxn_prefix_del(struct kvdb_ctxn *txn, struct c0 *c0, const struct kvs_ktuple *kt);
+/* Unlock */
+void
+kvdb_ctxn_unlock(
+    struct kvdb_ctxn *handle);
 
 /* -- c0 cursor w/ txn support ------------ */
 
