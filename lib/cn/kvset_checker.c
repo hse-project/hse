@@ -191,8 +191,8 @@ kc_loc_check(struct kb_info *kb, struct key_obj *kobj, u64 *hash_out)
 
     u32 off = kb->offset;
     u32 level = kb->level;
-    u32 fanbits = ilog2(kb->cp->cp_fanout);
-    u32 fanmask = kb->cp->cp_fanout - 1;
+    u32 fanbits = ilog2(kb->cp->fanout);
+    u32 fanmask = kb->cp->fanout - 1;
     u8 *mapv = kb->khmapv;
 
     u8   key[HSE_KVS_KLEN_MAX];
@@ -201,15 +201,15 @@ kc_loc_check(struct kb_info *kb, struct key_obj *kobj, u64 *hash_out)
     key_obj_copy(key, sizeof(key), &klen, kobj);
 
     pfxhash = fullhash = 0;
-    if (klen >= kb->cp->cp_pfx_len + kb->cp->cp_sfx_len) {
-        hashlen = klen - kb->cp->cp_sfx_len;
+    if (klen >= kb->cp->pfx_len + kb->cp->sfx_len) {
+        hashlen = klen - kb->cp->sfx_len;
         fullhash = hse_hash64(key, hashlen);
         *hash_out = fullhash;
     }
     pfxhash = fullhash;
 
-    if (kb->cp->cp_pfx_len && kb->cp->cp_pfx_len <= klen) {
-        hashlen = kb->cp->cp_pfx_len;
+    if (kb->cp->pfx_len && kb->cp->pfx_len <= klen) {
+        hashlen = kb->cp->pfx_len;
         pfxhash = hse_hash64(key, hashlen);
     }
 
@@ -217,14 +217,14 @@ kc_loc_check(struct kb_info *kb, struct key_obj *kobj, u64 *hash_out)
      * of the hash lead up the right nodes to the root node.
      */
     for (i = level - 1; i >= 0; i--) {
-        u64 *hash = i >= kb->cp->cp_pfx_pivot ? &fullhash : &pfxhash;
+        u64 *hash = i >= kb->cp->pfx_pivot ? &fullhash : &pfxhash;
         u32  shift = CN_KHASHMAP_SHIFT * i;
         u32  idx = (*hash >> shift) % CN_TSTATE_KHM_SZ;
         u32  cnum = off & fanmask;
 
         assert(*hash);
 
-        if (mapv[idx] % kb->cp->cp_fanout != cnum) {
+        if (mapv[idx] % kb->cp->fanout != cnum) {
             err = true;
             lfe_err(kb, "hash: key cannot reach node %u,%u", i + 1, off);
         }

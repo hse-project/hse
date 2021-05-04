@@ -1,0 +1,17 @@
+{
+  "kvdb": {
+    "kvs": {
+      "MainKvs": {
+        "value_compression": "none",
+        "pfx_len": 9
+      },
+      "UniqIdxKvs": {
+        "cn_cursor_vra": 0,
+        "pfx_len": 5
+      },
+      "StdIdxKvs": {
+        "pfx_len": 0
+      }
+    }
+  }
+}

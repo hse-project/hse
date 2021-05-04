@@ -47,7 +47,7 @@ c0sk_fini(void);
  * c0sk_open() - create a structured key c0sk (c0sk)
  * @kvdb_rp:    default kvdb rparams for c0sk
  * @mp_dataset  used for ingest
- * @kvdb_name   kvdb name
+ * @kvdb_home   kvdb home
  * @health:     reference to the container kvdb's health struct
  * @c0sk:       (out) c0sk handle
  *
@@ -58,7 +58,7 @@ merr_t
 c0sk_open(
     struct kvdb_rparams *kvdb_rp,
     struct mpool *       mp_dataset,
-    const char *         kvdb_name,
+    const char *         kvdb_home,
     struct kvdb_health * health,
     struct csched *      csched,
     atomic64_t *         kvdb_seq,

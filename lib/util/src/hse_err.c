@@ -112,7 +112,7 @@ merr_strerror(merr_t err, char *buf, size_t buf_sz)
      */
     errmsg = strerror_r(errnum, errbuf, sizeof(errbuf));
 
-    return strlcpy(buf, errmsg, buf_sz) + 1;
+    return strlcpy(buf, errmsg, buf_sz);
 }
 
 char *

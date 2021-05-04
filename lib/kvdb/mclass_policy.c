@@ -1,83 +1,21 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2021 Micron Technology, Inc.  All rights reserved.
  */
 
 #include <hse_util/assert.h>
 #include <hse_util/string.h>
+#include <hse_util/base.h>
+#include <hse_util/inttypes.h>
 
 #include <mpool/mpool.h>
 
 #include <hse_ikvdb/mclass_policy.h>
 
-/* clang-format off */
-static const char * default_mclass_policies = \
-    "api_version: 1\n"
-    "mclass_policies:\n"
-    "  capacity_only:\n"
-    "    sync:\n"
-    "      keys: [ capacity ]\n"
-    "      values: [ capacity ]\n"
-    "    root:\n"
-    "      keys: [ capacity ]\n"
-    "      values: [ capacity ]\n"
-    "    internal:\n"
-    "      keys: [ capacity ]\n"
-    "      values: [ capacity ]\n"
-    "    leaf:\n"
-    "      keys: [ capacity ]\n"
-    "      values: [ capacity ]\n"
-    "  staging_only:\n"
-    "    sync:\n"
-    "      keys: [ staging ]\n"
-    "      values: [ staging ]\n"
-    "    root:\n"
-    "      keys: [ staging ]\n"
-    "      values: [ staging ]\n"
-    "    internal:\n"
-    "      keys: [ staging ]\n"
-    "      values: [ staging ]\n"
-    "    leaf:\n"
-    "      keys: [ staging ]\n"
-    "      values: [ staging ]\n"
-    "  staging_max_capacity:\n"
-    "    sync:\n"
-    "      keys: [ staging ]\n"
-    "      values: [ staging ]\n"
-    "    root:\n"
-    "      keys: [ staging ]\n"
-    "      values: [ staging ]\n"
-    "    internal:\n"
-    "      keys: [ staging ]\n"
-    "      values: [ staging ]\n"
-    "    leaf:\n"
-    "      keys: [ staging ]\n"
-    "      values: [ capacity ]\n"
-    "  staging_min_capacity:\n"
-    "    sync:\n"
-    "      keys: [ staging ]\n"
-    "      values: [ staging ]\n"
-    "    root:\n"
-    "      keys: [ staging ]\n"
-    "      values: [ staging ]\n"
-    "    internal:\n"
-    "      keys: [ capacity ]\n"
-    "      values: [ capacity ]\n"
-    "    leaf:\n"
-    "      keys: [ capacity ]\n"
-    "      values: [ capacity ]";
-/* clang-format on */
-
 const char *mclass_policy_names[] = { "capacity_only",
                                       "staging_only",
                                       "staging_max_capacity",
                                       "staging_min_capacity" };
-
-const char *
-mclass_policy_get_default_policies()
-{
-    return default_mclass_policies;
-}
 
 const char **
 mclass_policy_get_default_policy_names()
@@ -117,27 +55,6 @@ static const unsigned int mclass_policy_nentries[] = { NELEM(agegroups),
                                                        NELEM(dtypes),
                                                        NELEM(mclasses) };
 
-static const struct mclass_policy mclass_policy_default =
-    { .mc_name = "default_policy",
-      .mc_table = {
-          {
-              { HSE_MPOLICY_MEDIA_STAGING, HSE_MPOLICY_MEDIA_INVALID },
-              { HSE_MPOLICY_MEDIA_STAGING, HSE_MPOLICY_MEDIA_INVALID },
-          },
-          {
-              { HSE_MPOLICY_MEDIA_STAGING, HSE_MPOLICY_MEDIA_INVALID },
-              { HSE_MPOLICY_MEDIA_STAGING, HSE_MPOLICY_MEDIA_INVALID },
-          },
-          {
-              { HSE_MPOLICY_MEDIA_STAGING, HSE_MPOLICY_MEDIA_INVALID },
-              { HSE_MPOLICY_MEDIA_STAGING, HSE_MPOLICY_MEDIA_INVALID },
-          },
-          {
-              { HSE_MPOLICY_MEDIA_STAGING, HSE_MPOLICY_MEDIA_INVALID },
-              { HSE_MPOLICY_MEDIA_CAPACITY, HSE_MPOLICY_MEDIA_INVALID },
-          },
-      } };
-
 unsigned int
 mclass_policy_get_num_fields()
 {
@@ -161,86 +78,6 @@ mclass_policy_get_num_map_entries(int index)
         return mclass_policy_nentries[index];
 
     return 0;
-}
-
-void
-mclass_policy_init_from_string(struct mclass_policy *policy, const char *key, const char *value)
-{
-    int                         i, mclass = HSE_MPOLICY_MEDIA_INVALID, idx[3];
-    const int                   n = NELEM(idx);
-    const char *                iter = value, *start = value, *split;
-    const struct mclass_policy *dflt = &mclass_policy_default;
-
-    /* Initialize all entries to invalid. */
-    for (idx[0] = 0; idx[0] < HSE_MPOLICY_AGE_CNT; idx[0]++)
-        for (idx[1] = 0; idx[1] < HSE_MPOLICY_DTYPE_CNT; idx[1]++)
-            for (idx[2] = 0; idx[2] < HSE_MPOLICY_MEDIA_CNT; idx[2]++)
-                policy->mc_table[idx[0]][idx[1]][idx[2]] = HSE_MPOLICY_MEDIA_INVALID;
-
-    /* A policy name may contain . as well */
-    split = strchr(key, '.');
-    strlcpy(policy->mc_name, split ? split + 1 : key, sizeof(policy->mc_name));
-
-    /*
-     * Parse media class policy values of the form:
-     * agegroup.dtype.preference=mclass; ..<entries>.. ;agegroup.dtype.pref=mclass
-     */
-    i = 0;
-    idx[0] = idx[1] = idx[2] = 0;
-
-    while (*iter != '\0') {
-        if (*iter == '.' || *iter == '=') {
-            if (i < n) {
-                char *end = NULL;
-                long  temp = strtol(start, &end, 10);
-
-                errno = 0;
-
-                if (end != start && errno != ERANGE && temp >= 0) {
-                    if (i == 0 && temp < HSE_MPOLICY_AGE_CNT) {
-                        idx[0] = (int)temp;
-                    } else if (i == 1 && temp < HSE_MPOLICY_DTYPE_CNT) {
-                        idx[1] = (int)temp;
-                    } else if (i == 2 && temp < HSE_MPOLICY_MEDIA_CNT) {
-                        idx[2] = (int)temp;
-                    }
-                }
-                start = iter + 1;
-                i++;
-            }
-
-        } else if (*iter == ';' || *(iter + 1) == '\0') {
-            if (i == n) {
-                char *end = NULL;
-                long  temp = strtol(start, &end, 10);
-
-                errno = 0;
-
-                if (end != start && errno != ERANGE && temp >= 0) {
-                    if (temp < HSE_MPOLICY_MEDIA_CNT) {
-                        mclass = (int)temp;
-                        policy->mc_table[idx[0]][idx[1]][idx[2]] = mclass;
-                    }
-                }
-            }
-
-            i = 0;
-            start = iter + 1;
-        }
-
-        iter++;
-    }
-
-    /*
-     * If any <agegroup,datatype> value is uninitialized, use the default
-     * policy to fill in the missing values (default is staging_capacity_nofallback)
-     */
-    for (idx[0] = 0; idx[0] < HSE_MPOLICY_AGE_CNT; idx[0]++)
-        for (idx[1] = 0; idx[1] < HSE_MPOLICY_DTYPE_CNT; idx[1]++)
-            if (policy->mc_table[idx[0]][idx[1]][0] == HSE_MPOLICY_MEDIA_INVALID) {
-                policy->mc_table[idx[0]][idx[1]][0] = dflt->mc_table[idx[0]][idx[1]][0];
-                policy->mc_table[idx[0]][idx[1]][1] = dflt->mc_table[idx[0]][idx[1]][1];
-            }
 }
 
 enum mpool_mclass

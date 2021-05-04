@@ -39,7 +39,17 @@ node_size=32
 (( vlen = 100 ))
 (( nkeys = 2 * size / (klen + vlen) ))
 
-rp="kvs.cn_close_wait=1 kvdb.csched_debug_mask=0x30 kvs.cn_node_size_lo=32 kvs.cn_node_size_hi=32 kvdb.csched_rspill_params=0x01ff kvdb.csched_ispill_params=0x01ff kvdb.csched_leaf_comp_params=0x0001ff kvdb.csched_qthreads=0x080808"
+oparms=(
+    kvdb-oparms
+    csched_debug_mask=0x30
+    csched_rspill_params=0x01ff
+    csched_ispill_params=0x01ff
+    csched_leaf_comp_params=0x0001ff
+    csched_qthreads=0x080808
+    kvs-oparms
+    cn_close_wait=1
+    cn_node_size_lo=32
+    cn_node_size_hi=32)
 
 for fanout in 2 4 8 16; do
 
@@ -50,12 +60,12 @@ for fanout in 2 4 8 16; do
         (16) lvl=2;;
     esac
 
-    kvs=$(new_kvs $mp kvs.pfx_len=4 kvs.fanout=$fanout) || err
+    kvs=$(new_kvs $mp pfx_len=4 fanout=$fanout) || err
 
 
-    cmd kmt -j32 -f 'xxxx%016lx' -l$vlen:$vlen -s1 -i$nkeys $mp/$kvs $rp
+    cmd kmt -j32 -f 'xxxx%016lx' -l$vlen:$vlen -s1 -i$nkeys $mp $kvs $oparms
                                                                                       
-    cmd putbin -n 5000 $mp $kvs $rp
+    cmd putbin -n 5000 $mp $kvs $oparms
 
     cmd cn_metrics $mp $kvs
 

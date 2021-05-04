@@ -35,9 +35,6 @@ extern "C" {
 /* Max key prefix length */
 #define HSE_KVS_MAX_PFXLEN 32
 
-/* Max KVDB name lengths */
-#define HSE_KVDB_NAME_LEN_MAX 32
-
 /* Max KVS name lengths */
 #define HSE_KVS_NAME_LEN_MAX 32
 

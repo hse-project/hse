@@ -1,12 +1,13 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2021 Micron Technology, Inc.  All rights reserved.
  */
 
 #include <hse_ut/framework.h>
 
+#include <hse_ikvdb/argv.h>
 #include <hse_ikvdb/mclass_policy.h>
-#include <hse_ikvdb/hse_params_internal.h>
+#include <hse_ikvdb/kvdb_rparams.h>
 #include <mpool/mpool.h>
 
 /*
@@ -24,14 +25,10 @@ MTF_DEFINE_UTEST_PRE(mclass_policy_test, mclass_policy_default, general_pre)
 {
     int                  i, j, k, l;
     merr_t               err;
-    struct mclass_policy policies[HSE_MPOLICY_COUNT], pol_small[2];
+    struct kvdb_rparams  params = kvdb_rparams_defaults();
     struct mclass_policy dpolicies[4];
-    struct hse_params *  params;
-    const char *         test_policy = "api_version: 1\n"
-                              "mclass_policies:\n"
-                              "  test_only:\n"
-                              "    internal:\n"
-                              "      values: [ capacity ]\n";
+    const char * const   paramv[] = { "mclass_policies=[{\"name\": \"test_only\", \"config\": "
+                       "{\"internal\": {\"values\": [\"capacity\"]}}}]" };
 
     /* Capacity only media class policy, use capacity for all combinations */
     strcpy(dpolicies[0].mc_name, "capacity_only");
@@ -77,8 +74,8 @@ MTF_DEFINE_UTEST_PRE(mclass_policy_test, mclass_policy_default, general_pre)
             dpolicies[3].mc_table[i][j][1] = HSE_MPOLICY_MEDIA_INVALID;
         }
 
-    hse_params_to_mclass_policies(NULL, NULL, 0);
-    hse_params_to_mclass_policies(NULL, policies, sizeof(policies) / sizeof(policies[0]));
+    err = argv_deserialize_to_kvdb_rparams(NELEM(paramv), paramv, &params);
+    ASSERT_EQ(0, err);
 
     /* Validate that the parsed policies match the hardcoded matrices for the default policies. */
     for (i = 0; i < HSE_MPOLICY_AGE_CNT; i++)
@@ -88,12 +85,12 @@ MTF_DEFINE_UTEST_PRE(mclass_policy_test, mclass_policy_default, general_pre)
                     enum hse_mclass_policy_media hse_mtype;
                     enum mpool_mclass            mpool_mtype;
 
-                    hse_mtype = policies[l].mc_table[i][j][k];
+                    hse_mtype = params.mclass_policies[l].mc_table[i][j][k];
 
                     ASSERT_EQ(hse_mtype, dpolicies[l].mc_table[i][j][k]);
-                    ASSERT_EQ(strcmp(policies[l].mc_name, dpolicies[l].mc_name), 0);
+                    ASSERT_EQ(strcmp(params.mclass_policies[l].mc_name, dpolicies[l].mc_name), 0);
 
-                    mpool_mtype = mclass_policy_get_type(&policies[l], i, j, k);
+                    mpool_mtype = mclass_policy_get_type(&params.mclass_policies[l], i, j, k);
                     if (hse_mtype == HSE_MPOLICY_MEDIA_INVALID)
                         ASSERT_EQ(mpool_mtype, MP_MED_INVALID);
                     else if (hse_mtype == HSE_MPOLICY_MEDIA_STAGING)
@@ -102,20 +99,14 @@ MTF_DEFINE_UTEST_PRE(mclass_policy_test, mclass_policy_default, general_pre)
                         ASSERT_EQ(mpool_mtype, MP_MED_CAPACITY);
                 }
 
-    /* Test that this doesn't cause a crash because the number of entries is too small
-     * to accommodate all four default policies */
-    hse_params_to_mclass_policies(NULL, pol_small, sizeof(pol_small) / sizeof(pol_small[0]));
-
     /*
      * Initialize hse params from a test policy that specifies only <internal, leaf>
      * and validate that the remaining entries are populated from the default template
      * i.e. staging_capacity_nofallback
      */
-    err = hse_params_create(&params);
+    err = argv_deserialize_to_kvdb_rparams(NELEM(paramv), paramv, &params);
     ASSERT_EQ(err, 0);
-    hse_params_from_string(params, test_policy);
-    hse_params_to_mclass_policies(params, policies, sizeof(policies) / sizeof(policies[0]));
-    ASSERT_EQ(strcmp(policies[4].mc_name, "test_only"), 0);
+    ASSERT_EQ(strcmp(params.mclass_policies[4].mc_name, "test_only"), 0);
 
     for (i = 0; i < HSE_MPOLICY_AGE_CNT; i++)
         for (j = 0; j < HSE_MPOLICY_DTYPE_CNT; j++)
@@ -123,7 +114,7 @@ MTF_DEFINE_UTEST_PRE(mclass_policy_test, mclass_policy_default, general_pre)
                 enum hse_mclass_policy_media hse_mtype;
                 enum mpool_mclass            mpool_mtype;
 
-                hse_mtype = policies[4].mc_table[i][j][k];
+                hse_mtype = params.mclass_policies[4].mc_table[i][j][k];
 
                 if (!((i == HSE_MPOLICY_AGE_INTERNAL) && (j == HSE_MPOLICY_DTYPE_VALUE))) {
                     /* Media type should match staging_capacity_nofallback */
@@ -136,7 +127,7 @@ MTF_DEFINE_UTEST_PRE(mclass_policy_test, mclass_policy_default, general_pre)
                     ASSERT_EQ(hse_mtype, HSE_MPOLICY_MEDIA_INVALID);
                 }
 
-                mpool_mtype = mclass_policy_get_type(&policies[4], i, j, k);
+                mpool_mtype = mclass_policy_get_type(&params.mclass_policies[4], i, j, k);
                 if (hse_mtype == HSE_MPOLICY_MEDIA_INVALID)
                     ASSERT_EQ(mpool_mtype, MP_MED_INVALID);
                 else if (hse_mtype == HSE_MPOLICY_MEDIA_STAGING)
@@ -144,8 +135,91 @@ MTF_DEFINE_UTEST_PRE(mclass_policy_test, mclass_policy_default, general_pre)
                 else
                     ASSERT_EQ(mpool_mtype, MP_MED_CAPACITY);
             }
+}
 
-    hse_params_destroy(params);
+MTF_DEFINE_UTEST(mclass_policy_test, overwrite_default_policy)
+{
+    const char *  const paramv[] = { "mclass_policies=[{\"name\": \"staging_only\", \"config\": "
+                       "{\"internal\": {\"values\": [\"capacity\"]}}}]" };
+    struct kvdb_rparams params = kvdb_rparams_defaults();
+    merr_t              err;
+
+    err = argv_deserialize_to_kvdb_rparams(NELEM(paramv), paramv, &params);
+    ASSERT_NE(err, 0);
+}
+
+MTF_DEFINE_UTEST(mclass_policy_test, incorrect_schema)
+{
+    struct kvdb_rparams params = kvdb_rparams_defaults();
+    merr_t              err;
+
+    const char * const paramv_policy_unknown_key[] = {
+        "mclass_policies=[{\"name\": \"staging_only\", \"hello\": \"world\", \"config\": "
+        "{\"internal\": {\"values\": [\"capacity\"]}}}]"
+    };
+    const char * const paramv_age_unknown_key[] = {
+        "mclass_policies=[{\"name\": \"staging_only\", \"config\": {\"hello\": \"world\", "
+        "\"internal\": {\"values\": [\"capacity\"]}}}]"
+    };
+    const char * const paramv_dtype_unknown_key[] = {
+        "mclass_policies=[{\"name\": \"staging_only\", \"config\": {\"internal\": {\"hello\": "
+        "\"world\", \"values\": [\"capacity\"]}}}]"
+    };
+
+    err = argv_deserialize_to_kvdb_rparams(
+        NELEM(paramv_policy_unknown_key), paramv_policy_unknown_key, &params);
+    ASSERT_NE(err, 0);
+    err = argv_deserialize_to_kvdb_rparams(
+        NELEM(paramv_age_unknown_key), paramv_age_unknown_key, &params);
+    ASSERT_NE(err, 0);
+    err = argv_deserialize_to_kvdb_rparams(
+        NELEM(paramv_dtype_unknown_key), paramv_dtype_unknown_key, &params);
+    ASSERT_NE(err, 0);
+
+    const char * const paramv_mclass_policies_schema[] = { "mclass_policies={}" };
+    const char * const paramv_policy_name_schema[] = {
+        "mclass_policies=[{\"name\": [], \"config\": {\"internal\": {\"values\": [\"capacity\"]}}}]"
+    };
+    const char * const paramv_policy_config_schema[] = {
+        "mclass_policies=[{\"name\": \"test_only\", \"config\": []}]"
+    };
+    const char * const paramv_age_schema[] = {
+        "mclass_policies=[{\"name\": \"test_only\", \"config\": {\"internal\": []}}]"
+    };
+    const char * const paramv_dtype_schema1[] = {
+        "mclass_policies=[{\"name\": \"test_only\", \"config\": {\"internal\": {\"values\": {}}}}]"
+    };
+    const char * const paramv_dtype_schema2[] = { "mclass_policies=[{\"name\": \"test_only\", \"config\": "
+                                     "{\"internal\": {\"values\": [2, 1]}}}]" };
+    const char * const paramv_dtype_schema3[] = {
+        "mclass_policies[{\"name\": \"test_only\", \"config\": {\"internal\": {\"values\": []}}}]"
+    };
+    const char * const paramv_dtype_schema4[] = { "mclass_policies=[{\"name\": \"test_only\", \"config\": "
+                                     "{\"internal\": {\"values\": [\"test\"]}}}]" };
+
+    err = argv_deserialize_to_kvdb_rparams(
+        NELEM(paramv_mclass_policies_schema), paramv_mclass_policies_schema, &params);
+    ASSERT_NE(err, 0);
+    err = argv_deserialize_to_kvdb_rparams(
+        NELEM(paramv_policy_name_schema), paramv_policy_name_schema, &params);
+    ASSERT_NE(err, 0);
+    err = argv_deserialize_to_kvdb_rparams(
+        NELEM(paramv_policy_config_schema), paramv_policy_config_schema, &params);
+    ASSERT_NE(err, 0);
+    err = argv_deserialize_to_kvdb_rparams(NELEM(paramv_age_schema), paramv_age_schema, &params);
+    ASSERT_NE(err, 0);
+    err = argv_deserialize_to_kvdb_rparams(
+        NELEM(paramv_dtype_schema1), paramv_dtype_schema1, &params);
+    ASSERT_NE(err, 0);
+    err = argv_deserialize_to_kvdb_rparams(
+        NELEM(paramv_dtype_schema2), paramv_dtype_schema2, &params);
+    ASSERT_NE(err, 0);
+    err = argv_deserialize_to_kvdb_rparams(
+        NELEM(paramv_dtype_schema3), paramv_dtype_schema3, &params);
+    ASSERT_NE(err, 0);
+    err = argv_deserialize_to_kvdb_rparams(
+        NELEM(paramv_dtype_schema4), paramv_dtype_schema4, &params);
+    ASSERT_NE(err, 0);
 }
 
 MTF_END_UTEST_COLLECTION(mclass_policy_test);

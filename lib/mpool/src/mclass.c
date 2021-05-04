@@ -8,11 +8,15 @@
 #include <hse_util/string.h>
 #include <hse_util/event_counter.h>
 #include <hse_util/logging.h>
+#include <hse_util/workqueue.h>
+#include <mpool/mpool_structs.h>
 
 #include "mclass.h"
 #include "mdc.h"
 #include "mdc_file.h"
 #include "mblock_fset.h"
+
+#define MCLASS_FILES_MAX   (MBLOCK_FSET_FILES_MAX)
 
 /**
  * struct media_class - mclass instance
@@ -21,72 +25,26 @@
  * @mbfsp:    mblock fileset handle
  * @mblocksz: mblock size configured for this mclass
  * @mcid:     mclass ID (persisted in mblock/mdc metadata)
- * @lockfd:   fd of the lock file
  * @dpath:    mclass directory path
  */
 struct media_class {
-    DIR                *dirp;
+    DIR *               dirp;
     struct mblock_fset *mbfsp;
     size_t              mblocksz;
     enum mclass_id      mcid;
-    int                 lockfd;
-    char               *dpath;
+    char *              dpath;
 };
-
-static merr_t
-mclass_lockfile_acq(int dirfd, int *lockfd)
-{
-    int    fd, rc;
-    merr_t err;
-
-    fd = openat(dirfd, ".lockfile", O_CREAT | O_EXCL | O_SYNC, S_IRUSR | S_IWUSR);
-    if (fd < 0) {
-        if (errno != EEXIST)
-            return merr(errno);
-
-        /*
-         * Try to reopen file O_RDWR and acquire exclusive lock.
-         * If the lock acquisition succeeds, then it's likely
-         * that the prior instance crashed.
-         */
-        fd = openat(dirfd, ".lockfile", O_RDWR);
-        if (fd < 0)
-            return merr(errno);
-    }
-
-    rc = flock(fd, LOCK_EX | LOCK_NB);
-    if (rc) {
-        err = (errno == EWOULDBLOCK) ? merr(EBUSY) : merr(errno);
-        close(fd);
-        return err;
-    }
-
-    *lockfd = fd;
-
-    return 0;
-}
-
-static void
-mclass_lockfile_rel(int dirfd, int lockfd)
-{
-    if (lockfd != -1) {
-        flock(lockfd, LOCK_UN);
-        close(lockfd);
-    }
-    unlinkat(dirfd, ".lockfile", 0);
-}
 
 merr_t
 mclass_open(
-    enum mpool_mclass     mclass,
-    struct mclass_params *params,
-    int                   flags,
-    struct media_class  **handle)
+    enum mpool_mclass           mclass,
+    const struct mclass_params *params,
+    int                         flags,
+    struct media_class **       handle)
 {
     struct media_class *mc;
-    DIR   *dirp;
-    int    lockfd = -1;
-    merr_t err;
+    DIR *               dirp;
+    merr_t              err;
 
     if (!params || !handle || mclass >= MP_MED_COUNT)
         return merr(EINVAL);
@@ -98,14 +56,6 @@ mclass_open(
         return err;
     }
 
-    if (mclass == MP_MED_CAPACITY) {
-        err = mclass_lockfile_acq(dirfd(dirp), &lockfd);
-        if (err) {
-            closedir(dirp);
-            return err;
-        }
-    }
-
     mc = calloc(1, sizeof(*mc));
     if (!mc) {
         err = merr(ENOMEM);
@@ -114,17 +64,16 @@ mclass_open(
 
     mc->dirp = dirp;
     mc->mcid = mclass_to_mcid(mclass);
-    mc->lockfd = lockfd;
 
     mc->mblocksz = powerof2(params->mblocksz) ? params->mblocksz : MBLOCK_SIZE_BYTES;
 
     mc->dpath = realpath(params->path, NULL);
     if (!mc->dpath) {
         err = merr(errno);
-        goto err_exit2;
+        goto err_exit1;
     }
 
-    err = mblock_fset_open(mc, params->filecnt, params->fszmax, flags, &mc->mbfsp);
+    err = mblock_fset_open(mc, params->filecnt, params->fmaxsz, flags, &mc->mbfsp);
     if (err) {
         hse_elog(HSE_ERR "%s: Opening data files failed, mclass %d: @@e", err, __func__, mclass);
         goto err_exit1;
@@ -139,8 +88,6 @@ err_exit1:
     free(mc);
 
 err_exit2:
-    if (mclass == MP_MED_CAPACITY)
-        mclass_lockfile_rel(dirfd(dirp), lockfd);
     closedir(dirp);
 
     return err;
@@ -153,53 +100,155 @@ mclass_close(struct media_class *mc)
         return merr(EINVAL);
 
     mblock_fset_close(mc->mbfsp);
-
-    if (mcid_to_mclass(mc->mcid) == MP_MED_CAPACITY)
-        mclass_lockfile_rel(dirfd(mc->dirp), mc->lockfd);
-
     closedir(mc->dirp);
-
     free(mc->dpath);
     free(mc);
 
     return 0;
 }
 
+static struct workqueue_struct *mpdwq;
+static int pathc_per_thr, pathidx, filecnt;
+
+static struct mp_destroy_work {
+    struct work_struct work;
+    char             **path;
+    int                pathc;
+    int                curpc;
+} **mpdw;
+
+static void
+remove_path(struct work_struct *work)
+{
+    struct mp_destroy_work *mpdw;
+
+    mpdw = container_of(work, struct mp_destroy_work, work);
+
+    for (int i = 0; i < mpdw->pathc; i++)
+        remove(mpdw->path[i]);
+}
+
 static int
-mdc_removecb(const char *path, const struct stat *sb, int typeflag, struct FTW *ftwbuf)
+mclass_removecb(const char *path, const struct stat *sb, int typeflag, struct FTW *ftwbuf)
 {
     if (typeflag == FTW_D && ftwbuf->level > 0)
         return FTW_SKIP_SUBTREE;
 
-    if (strstr(path, MDC_FILE_PFX))
-        remove(path);
+    if (strstr(path, MBLOCK_FILE_PFX) || strstr(path, MDC_FILE_PFX)) {
+        struct mp_destroy_work *w;
+
+        if (!mpdwq) {
+            remove(path);
+            return FTW_CONTINUE;
+        }
+
+        w = mpdw[pathidx / pathc_per_thr];
+
+        if (ev(w->pathc == 0)) {
+            remove(path);
+            return FTW_CONTINUE;
+        }
+
+        strlcpy(w->path[pathidx++ % pathc_per_thr], path, PATH_MAX);
+        if (++w->curpc == w->pathc) {
+            INIT_WORK(&w->work, remove_path);
+
+            if (!queue_work(mpdwq, &w->work)) {
+                for (int i = 0; i < w->pathc; i++)
+                    remove(w->path[i]);
+            }
+        }
+    }
 
     return FTW_CONTINUE;
 }
 
-void
-mclass_mdcs_remove(struct media_class *mc)
+static int
+mclass_filecnt_get(const char *path, const struct stat *sb, int typeflag, struct FTW *ftwbuf)
 {
-    nftw(mc->dpath, mdc_removecb, MDC_FILES_MAX, FTW_PHYS | FTW_ACTIONRETVAL);
+    if (typeflag == FTW_D && ftwbuf->level > 0)
+        return FTW_SKIP_SUBTREE;
+
+    if (strstr(path, MBLOCK_FILE_PFX) || strstr(path, MDC_FILE_PFX))
+        filecnt++;
+
+    return FTW_CONTINUE;
 }
 
-void
-mclass_destroy(struct media_class *mc, struct workqueue_struct *wq)
+static void
+mclass_destroy_setup(uint8_t filecnt, struct workqueue_struct *wq)
 {
-    if (!mc)
+    size_t worksz, sz;
+    int    pathc, workc, fcnt;
+
+    workc = MP_DESTROY_THREADS;
+    pathc = filecnt / workc;
+    if (filecnt % workc)
+        pathc++;
+
+    worksz = sizeof(*mpdw) + pathc * (sizeof((*mpdw)->path) + PATH_MAX);
+    sz = workc * (sizeof(mpdw) + worksz);
+    mpdw = calloc(1, sz);
+    if (ev(!mpdw))
         return;
 
-    mblock_fset_remove(mc->mbfsp, wq);
+    pathidx = 0;
+    mpdwq = wq;
+    pathc_per_thr = pathc;
+    fcnt = 0;
 
-    if (mcid_to_mclass(mc->mcid) == MP_MED_CAPACITY)
-        mclass_lockfile_rel(dirfd(mc->dirp), mc->lockfd);
+    for (int i = 0; i < workc; i++) {
+        struct mp_destroy_work *w;
+        char                   *p;
 
-    mclass_mdcs_remove(mc);
+        w = (struct mp_destroy_work *)((char *)(mpdw + workc) + (i * worksz));
+        mpdw[i] = w;
 
-    closedir(mc->dirp);
+        w->path = (char **)(w + 1);
+        p = (char *)(w->path + pathc);
 
-    free(mc->dpath);
-    free(mc);
+        for (int j = 0; j < pathc; j++)
+            w->path[j] = p + j * PATH_MAX;
+
+        w->pathc = pathc;
+        if (fcnt + pathc > filecnt) {
+            w->pathc = filecnt - fcnt;
+            break;
+        }
+        fcnt += pathc;
+    }
+}
+
+static void
+mclass_destroy_teardown(void)
+{
+    flush_workqueue(mpdwq);
+    mpdwq = NULL;
+    free(mpdw);
+    mpdw = NULL;
+}
+
+int
+mclass_destroy(const char *path, struct workqueue_struct *wq)
+{
+    if (access(path, F_OK) == -1)
+        return 0;
+
+    /* Determine file count */
+    filecnt = 0;
+    nftw(path, mclass_filecnt_get, MCLASS_FILES_MAX, FTW_PHYS | FTW_ACTIONRETVAL);
+    if (filecnt == 0)
+        return 0;
+
+    if (wq)
+        mclass_destroy_setup(filecnt, wq);
+
+    nftw(path, mclass_removecb, MCLASS_FILES_MAX, FTW_PHYS | FTW_ACTIONRETVAL);
+
+    if (wq)
+        mclass_destroy_teardown();
+
+    return filecnt;
 }
 
 int
@@ -245,14 +294,14 @@ enum mclass_id
 mclass_to_mcid(enum mpool_mclass mclass)
 {
     switch (mclass) {
-      case MP_MED_CAPACITY:
-          return MCID_CAPACITY;
+        case MP_MED_CAPACITY:
+            return MCID_CAPACITY;
 
-      case MP_MED_STAGING:
-          return MCID_STAGING;
+        case MP_MED_STAGING:
+            return MCID_STAGING;
 
-      default:
-          break;
+        default:
+            break;
     }
 
     return MCID_INVALID;
@@ -262,14 +311,14 @@ enum mpool_mclass
 mcid_to_mclass(enum mclass_id mcid)
 {
     switch (mcid) {
-      case MCID_CAPACITY:
-          return MP_MED_CAPACITY;
+        case MCID_CAPACITY:
+            return MP_MED_CAPACITY;
 
-      case MCID_STAGING:
-          return MP_MED_STAGING;
+        case MCID_STAGING:
+            return MP_MED_STAGING;
 
-      default:
-          break;
+        default:
+            break;
     }
 
     return MP_MED_INVALID;

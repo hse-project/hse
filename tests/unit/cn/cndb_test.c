@@ -365,7 +365,7 @@ MTF_DEFINE_UTEST_PREPOST(cndb_test, cndb_txc_bitmap, test_pre, test_post)
 
     mapi_inject(mapi_idx_mpool_mdc_usage, 0);
 
-    cndb_init(&cndb, NULL, false, 0, CNDB_ENTRIES, 0, 0, &health);
+    cndb_init(&cndb, NULL, false, 0, CNDB_ENTRIES, 0, 0, &health, 0);
     cndb.cndb_captgt = CNDB_CAPTGT_DEFAULT;
     cndb.cndb_high_water = CNDB_HIGH_WATER(&cndb);
 
@@ -449,9 +449,9 @@ MTF_DEFINE_UTEST_PREPOST(cndb_test, cndb_cnv_add_test, test_pre, test_post)
     merr_t      err;
 
     struct kvs_cparams cp = {
-        .cp_fanout = 1 << 1,
-        .cp_pfx_len = 2,
-        .cp_pfx_pivot = 0,
+        .fanout = 1 << 1,
+        .pfx_len = 2,
+        .pfx_pivot = 0,
     };
 
     cndb.cndb_kvdb_health = &mock_health;
@@ -858,8 +858,8 @@ MTF_DEFINE_UTEST_PREPOST(cndb_test, cndb_cn_make_updates_cnv, test_pre, test_pos
     u32  getflags;
     char getname[CNDB_CN_NAME_MAX];
 
-    cp.cp_fanout = 4;
-    cp.cp_pfx_len = 6;
+    cp.fanout = 4;
+    cp.pfx_len = 6;
 
     err = cndb_alloc(ds, 0, &oid1, &oid2);
     ASSERT_EQ(0, err);
@@ -867,7 +867,7 @@ MTF_DEFINE_UTEST_PREPOST(cndb_test, cndb_cn_make_updates_cnv, test_pre, test_pos
     err = cndb_make(ds, 0, oid1, oid2);
     ASSERT_EQ(0, err);
 
-    err = cndb_open(ds, false, 0, 0, 0, 0, &mock_health, &c);
+    err = cndb_open(ds, false, 0, 0, 0, 0, &mock_health, NULL, &c);
     ASSERT_EQ(0, err);
 
     c->cndb_high_water = 16384;
@@ -882,8 +882,8 @@ MTF_DEFINE_UTEST_PREPOST(cndb_test, cndb_cn_make_updates_cnv, test_pre, test_pos
 
     err = cndb_cnv_get(c, cnid, &cn);
     ASSERT_EQ(0, err);
-    ASSERT_EQ(2, ilog2(cn->cn_cp.cp_fanout));
-    ASSERT_EQ(6, cn->cn_cp.cp_pfx_len);
+    ASSERT_EQ(2, ilog2(cn->cn_cp.fanout));
+    ASSERT_EQ(6, cn->cn_cp.pfx_len);
 
     err = cndb_cn_info_idx(c, 42, NULL, NULL, NULL, NULL, 0);
     ASSERT_EQ(ESTALE, merr_errno(err));
@@ -899,8 +899,8 @@ MTF_DEFINE_UTEST_PREPOST(cndb_test, cndb_cn_make_updates_cnv, test_pre, test_pos
     ASSERT_EQ(0, err);
     ASSERT_EQ(cnid, getcnid);
     ASSERT_EQ(0, getflags);
-    ASSERT_EQ(2, ilog2(icp->cp_fanout));
-    ASSERT_EQ(6, icp->cp_pfx_len);
+    ASSERT_EQ(2, ilog2(icp->fanout));
+    ASSERT_EQ(6, icp->pfx_len);
     ASSERT_EQ(0, strcmp(getname, "sabotage"));
 
     cndb_close(c);
@@ -914,10 +914,10 @@ MTF_DEFINE_UTEST_PREPOST(cndb_test, cndb_open_test, test_pre, test_post)
     struct cndb * c;
 
     mapi_inject_once_ptr(mapi_idx_malloc, 1, NULL);
-    err = cndb_open(ds, false, 0, 0, 0, 0, &mock_health, &c);
+    err = cndb_open(ds, false, 0, 0, 0, 0, &mock_health, NULL, &c);
     ASSERT_EQ(merr_errno(err), ENOMEM);
 
-    err = cndb_open(ds, false, 0, 0, 0, 0, &mock_health, &c);
+    err = cndb_open(ds, false, 0, 0, 0, 0, &mock_health, NULL, &c);
     ASSERT_EQ(err, 0);
 
     err = cndb_close(c);
@@ -928,7 +928,7 @@ MTF_DEFINE_UTEST_PREPOST(cndb_test, cndb_open_test, test_pre, test_post)
     err = cndb_make(ds, 0, oid1, oid2);
     ASSERT_EQ(merr_errno(err), EBUG);
 
-    err = cndb_open(ds, false, 0, 0, 0, 0, &mock_health, &c);
+    err = cndb_open(ds, false, 0, 0, 0, 0, &mock_health, NULL, &c);
     ASSERT_EQ(merr_errno(err), EBUG);
     mapi_inject(mapi_idx_mpool_mdc_open, 0);
 
@@ -1030,7 +1030,7 @@ MTF_DEFINE_UTEST(cndb_test, cndb_compaction_test)
     mapi_inject(mapi_idx_mpool_mdc_append, 0);
     mapi_inject(mapi_idx_mpool_mdc_usage, 0);
 
-    err = cndb_open(ds, false, 0, 100, 11, 101, &health, &cndb);
+    err = cndb_open(ds, false, 0, 100, 11, 101, &health, NULL, &cndb);
     ASSERT_EQ(0, err);
 
     cndb->cndb_high_water = 1000;

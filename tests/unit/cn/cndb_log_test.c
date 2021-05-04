@@ -106,7 +106,7 @@ MTF_DEFINE_UTEST(cndb_log_test, rollforward)
 
     load_log("missing_ackds.cndblog");
 
-    err = cndb_open(mock_ds, CNDB_OPEN_RDWR, 0, 2, 0, 0, &mock_health, &mock_cndb);
+    err = cndb_open(mock_ds, CNDB_OPEN_RDWR, 0, 2, 0, 0, &mock_health, NULL, &mock_cndb);
     ASSERT_EQ(0, err);
 
     err = mpm_mdc_set_getlen(mock_cndb->cndb_mdc, getlen);
@@ -127,7 +127,7 @@ MTF_DEFINE_UTEST(cndb_log_test, rollforward)
     err = cndb_close(mock_cndb);
     ASSERT_EQ(0, err);
 
-    err = cndb_open(mock_ds, CNDB_OPEN_RDONLY, 0, 2, 0, 0, &mock_health, &mock_cndb);
+    err = cndb_open(mock_ds, CNDB_OPEN_RDONLY, 0, 2, 0, 0, &mock_health, NULL, &mock_cndb);
     ASSERT_EQ(0, err);
 
     err = mpm_mdc_set_getlen(mock_cndb->cndb_mdc, getlen);
@@ -158,7 +158,7 @@ MTF_DEFINE_UTEST(cndb_log_test, rollbackward)
 
     load_log("missing_ackc.cndblog");
 
-    err = cndb_open(mock_ds, CNDB_OPEN_RDWR, 0, 3, 0, 0, &mock_health, &mock_cndb);
+    err = cndb_open(mock_ds, CNDB_OPEN_RDWR, 0, 3, 0, 0, &mock_health, NULL, &mock_cndb);
     ASSERT_EQ(0, err);
 
     err = mpm_mdc_set_getlen(mock_cndb->cndb_mdc, getlen);
@@ -178,7 +178,7 @@ MTF_DEFINE_UTEST(cndb_log_test, rollbackward)
     err = cndb_close(mock_cndb);
     ASSERT_EQ(0, err);
 
-    err = cndb_open(mock_ds, CNDB_OPEN_RDONLY, 0, 2, 0, 0, &mock_health, &mock_cndb);
+    err = cndb_open(mock_ds, CNDB_OPEN_RDONLY, 0, 2, 0, 0, &mock_health, NULL, &mock_cndb);
     ASSERT_EQ(0, err);
 
     err = mpm_mdc_set_getlen(mock_cndb->cndb_mdc, getlen);
@@ -207,7 +207,7 @@ MTF_DEFINE_UTEST(cndb_log_test, wrongingestid)
 
     load_log("wrongingestid.cndblog");
 
-    err = cndb_open(mock_ds, CNDB_OPEN_RDWR, 0, 2, 0, 0, &mock_health, &mock_cndb);
+    err = cndb_open(mock_ds, CNDB_OPEN_RDWR, 0, 2, 0, 0, &mock_health, NULL, &mock_cndb);
     ASSERT_EQ(0, err);
 
     err = mpm_mdc_set_getlen(mock_cndb->cndb_mdc, getlen);
@@ -248,7 +248,7 @@ MTF_DEFINE_UTEST(cndb_log_test, simpledrop)
 
     load_log("simpledrop.cndblog");
 
-    err = cndb_open(mock_ds, CNDB_OPEN_RDWR, 0, 2, 0, 0, &mock_health, &mock_cndb);
+    err = cndb_open(mock_ds, CNDB_OPEN_RDWR, 0, 2, 0, 0, &mock_health, NULL, &mock_cndb);
     ASSERT_EQ(0, err);
 
     err = mpm_mdc_set_getlen(mock_cndb->cndb_mdc, getlen);
@@ -305,7 +305,7 @@ MTF_DEFINE_UTEST(cndb_log_test, simpledrop2)
 
     load_log("simpledrop.cndblog");
 
-    err = cndb_open(mock_ds, CNDB_OPEN_RDWR, 0, 2, 0, 0, &mock_health, &mock_cndb);
+    err = cndb_open(mock_ds, CNDB_OPEN_RDWR, 0, 2, 0, 0, &mock_health, NULL, &mock_cndb);
     ASSERT_EQ(0, err);
 
     err = mpm_mdc_set_getlen(mock_cndb->cndb_mdc, getlen);
@@ -353,7 +353,7 @@ MTF_DEFINE_UTEST(cndb_log_test, simpledrop_recovery)
 
     load_log("simpledrop_recovery.cndblog");
 
-    err = cndb_open(mock_ds, CNDB_OPEN_RDWR, 0, 0, 0, 0, &mock_health, &mock_cndb);
+    err = cndb_open(mock_ds, CNDB_OPEN_RDWR, 0, 0, 0, 0, &mock_health, NULL, &mock_cndb);
     ASSERT_EQ(0, err);
 
     err = mpm_mdc_set_getlen(mock_cndb->cndb_mdc, getlen);
@@ -392,7 +392,7 @@ MTF_DEFINE_UTEST(cndb_log_test, info_v9_test)
 
     load_log("putbin_v9.cndblog");
 
-    err = cndb_open(mock_ds, CNDB_OPEN_RDWR, 0, 0, 0, 0, &mock_health, &mock_cndb);
+    err = cndb_open(mock_ds, CNDB_OPEN_RDWR, 0, 0, 0, 0, &mock_health, NULL, &mock_cndb);
     ASSERT_EQ(0, err);
 
     err = mpm_mdc_set_getlen(mock_cndb->cndb_mdc, getlen);
@@ -428,7 +428,7 @@ MTF_DEFINE_UTEST(cndb_log_test, info_v11_test)
 
     load_log("putbin_v11.cndblog");
 
-    err = cndb_open(mock_ds, CNDB_OPEN_RDWR, 0, 0, 0, 0, &mock_health, &mock_cndb);
+    err = cndb_open(mock_ds, CNDB_OPEN_RDWR, 0, 0, 0, 0, &mock_health, NULL, &mock_cndb);
     ASSERT_EQ(0, err);
 
     err = mpm_mdc_set_getlen(mock_cndb->cndb_mdc, getlen);

@@ -30,7 +30,15 @@ hsejni = library(
     dependencies: [
         hse_dep,
         thread_dep,
+        libhse_cli_dep,
     ],
     version: meson.project_version(),
     install: true,
+)
+
+hsejni_dep = declare_dependency(
+    link_with: hsejni,
+    include_directories: [
+        hsejni_includes,
+    ],
 )

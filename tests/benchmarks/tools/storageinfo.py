@@ -6,7 +6,7 @@ from tools import config
 
 
 def save_mpool_info(dest_dir, tag: str):
-    args = ["mpool", "list", "-Y", "-v", config.KVDB_NAME]
+    args = ["mpool", "list", "-Y", "-v", config.KVDB_HOME]
     out = os.path.join(dest_dir, f"mpool_list.{tag}.out")
     with open(out, "w") as fd:
         subprocess.run(args, stdout=fd, stderr=subprocess.STDOUT, check=True)

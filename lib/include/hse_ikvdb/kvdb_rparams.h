@@ -6,10 +6,24 @@
 #ifndef HSE_KVDB_RPARAMS_H
 #define HSE_KVDB_RPARAMS_H
 
-#include <hse_ikvdb/throttle.h>
-
+#include <assert.h>
+#include <limits.h>
 #include <stddef.h>
 #include <stdint.h>
+
+#include <hse_ikvdb/mclass_policy.h>
+#include <hse_ikvdb/throttle.h>
+#include <hse_util/hse_err.h>
+#include <hse_util/logging.h>
+#include <hse_util/compiler.h>
+
+#include <mpool/mpool_structs.h>
+
+/*
+ * Steps to add a new KVDB parameter:
+ * 1. Add a new struct element to struct kvdb_params.
+ * 2. Add a new entry to pspecs[].
+ */
 
 /**
  * struct kvdb_rparams -
@@ -17,7 +31,7 @@
  * @throttle_disable: disable put/del throttling
  * @perfc_enable:     perf counter verbosity
  * @c0_diag_mode:     disable c0 spill
- * @c0_debug:         c0 debug flags (see rparam_debug_flags.h)
+ * @c0_debug:         c0 debug flags (see param_debug_flags.h)
  * @log_lvl:          log level for hse_log.
  * @log_squelch_ns:   log squelch window in nsec
  * @keylock_tables:   number of keylock hash tables
@@ -32,9 +46,6 @@
  * To improve cacheline utilization, group frequently accessed fields
  * towards the beginning of this structure, and rarely accesssed
  * fields towards the end.
- *
- * [HSE_REVISIT] The KVDB PARAM macros in kvdb_params.c expect these fields
- * to be fixed-width types, so we should update them when convenient...
  */
 struct kvdb_rparams {
     uint8_t  read_only;
@@ -52,138 +63,71 @@ struct kvdb_rparams {
     uint32_t txn_ingest_width;
     uint64_t txn_timeout;
 
-    unsigned int  csched_policy;
-    unsigned long csched_debug_mask;
-    unsigned long csched_node_len_max;
-    unsigned long csched_qthreads;
-    unsigned long csched_samp_max;
-    unsigned long csched_lo_th_pct;
-    unsigned long csched_hi_th_pct;
-    unsigned long csched_leaf_pct;
-    unsigned long csched_vb_scatter_pct;
-    unsigned long csched_rspill_params;
-    unsigned long csched_ispill_params;
-    unsigned long csched_leaf_comp_params;
-    unsigned long csched_leaf_len_params;
-    unsigned long csched_node_min_ttl;
+    uint32_t csched_policy;
+    uint64_t csched_debug_mask;
+    uint64_t csched_node_len_max;
+    uint64_t csched_qthreads;
+    uint64_t csched_samp_max;
+    uint64_t csched_lo_th_pct;
+    uint64_t csched_hi_th_pct;
+    uint64_t csched_leaf_pct;
+    uint64_t csched_vb_scatter_pct;
+    uint64_t csched_rspill_params;
+    uint64_t csched_ispill_params;
+    uint64_t csched_leaf_comp_params;
+    uint64_t csched_leaf_len_params;
+    uint64_t csched_node_min_ttl;
 
-    unsigned long dur_enable;
-    unsigned long dur_intvl_ms;
-    unsigned long dur_buf_sz;
-    unsigned long dur_delay_pct;
-    unsigned long dur_throttle_enable;
-    unsigned long dur_throttle_lo_th;
-    unsigned long dur_throttle_hi_th;
+    uint64_t dur_enable;
+    uint64_t dur_intvl_ms;
+    uint64_t dur_buf_sz;
+    uint64_t dur_delay_pct;
+    uint64_t dur_throttle_enable;
+    uint64_t dur_throttle_lo_th;
+    uint64_t dur_throttle_hi_th;
 
-    unsigned long throttle_update_ns;
-    unsigned int  throttle_relax;
-    unsigned int  throttle_debug;
-    unsigned int  throttle_debug_intvl_s;
-    unsigned long throttle_c0_hi_th;
-    unsigned long throttle_sleep_min_ns;
-    unsigned long throttle_burst;
-    unsigned long throttle_rate;
-    char          throttle_init_policy[THROTTLE_INIT_POLICY_NAME_LEN_MAX];
+    uint64_t throttle_update_ns;
+    uint32_t throttle_relax;
+    uint32_t throttle_debug;
+    uint32_t throttle_debug_intvl_s;
+    uint64_t throttle_c0_hi_th;
+    uint64_t throttle_sleep_min_ns;
+    uint64_t throttle_burst;
+    uint64_t throttle_rate;
+    char     throttle_init_policy[THROTTLE_INIT_POLICY_NAME_LEN_MAX];
 
     /* The following fields are typically only accessed by kvdb open
      * and hence are extremely cold.
      */
-    unsigned long log_squelch_ns;
-    unsigned long txn_wkth_delay;
-    unsigned int  log_lvl;
-    unsigned int  cndb_entries;
-    unsigned int  c0_maint_threads;
-    unsigned int  c0_ingest_threads;
-    unsigned int  c0_mutex_pool_sz;
+    uint64_t log_squelch_ns;
+    uint64_t txn_wkth_delay;
+    uint32_t log_lvl;
+    uint32_t cndb_entries;
+    uint32_t cndb_debug;
+    uint32_t c0_maint_threads;
+    uint32_t c0_ingest_threads;
+    uint32_t c0_mutex_pool_sz;
 
-    unsigned int  keylock_entries;
-    unsigned int  keylock_tables;
-    unsigned int  low_mem;
-    unsigned int  excl;
+    uint32_t keylock_entries;
+    uint32_t keylock_tables;
+    uint32_t low_mem;
 
-    unsigned int rpmagic;
+    struct mclass_policy mclass_policies[HSE_MPOLICY_COUNT];
+
+    struct mpool_rparams storage;
+
+    struct {
+        char path[PATH_MAX];
+    } socket;
 };
 
-void
-kvdb_rparams_table_reset(void);
+const struct param_spec *
+kvdb_rparams_pspecs_get(size_t *pspecs_sz) HSE_RETURNS_NONNULL;
 
-struct param_inst *
-kvdb_rparams_table(void);
-
-/**
- * kvdb_rparams_parse() -
- * @argc: Number of argv elements
- * @argv: Vector of argument strings
- * @params: Structure to be populated
- * @next_arg: An index into the the argv elements, will be set to first arg
- *            in list that is not a param
- *
- * Parse the parameters in argv and populate the structure 'params'
- * accordingly
- */
-merr_t
-kvdb_rparams_parse(int argc, char **argv, struct kvdb_rparams *params, int *next_arg);
-
-void
-kvdb_rparams_free(struct kvdb_rparams *rparams);
-
-/**
- * kvdb_rparams_help() -
- * @buf: Buffer to be filled with the help message
- * @buf_len: Length of buf
- * @rparams: pointer to a kvdb_rparams struct that holds the custom default
- *           values. If this arg is NULL, system
- *           defaults(kvdb_rparams_defaults) will be used
- *
- * Fills buf with a help string
- *
- * Return: a pointer to the buffer buf
- */
-char *
-kvdb_rparams_help(char *buf, size_t buf_len, struct kvdb_rparams *rparams);
-
-/**
- * kvdb_rparams_validate() -
- * @params:
- *
- * Check if the parameters are valid
- */
-merr_t
-kvdb_rparams_validate(struct kvdb_rparams *params);
-
-/**
- * kvdb_rparams_print() -
- * @rp:
- *
- * Prints all parameter values to the log
- */
-void
-kvdb_rparams_print(struct kvdb_rparams *rp);
-
-/**
- * kvdb_rparams_defaults() -
- *
- * Returns a kvdb_rparams structure set to default values
- */
 struct kvdb_rparams
-kvdb_rparams_defaults(void);
+kvdb_rparams_defaults() HSE_CONST;
 
-/**
- * kvdb_get_num_rparams() - get total number of runtime parameters
- */
-u32
-kvdb_get_num_rparams(void);
+merr_t
+kvdb_rparams_resolve(struct kvdb_rparams *params, const char *home);
 
-/**
- * kvdb_rparams_diff() - invokes callback for non-default values
- * @rp: rparams to compare against
- * @arg: optional callback argument
- * @callback: invoked as callback(key, value, arg) for non-default values
- */
-void
-kvdb_rparams_diff(
-    struct kvdb_rparams *rp,
-    void *               arg,
-    void (*callback)(const char *, const char *, void *));
-
-#endif /* HSE_KVDB_RPARAMS_H */
+#endif /* HSE_KVDB_PARAMS_H */

@@ -39,7 +39,7 @@ usage(char *prog)
 int
 main(int argc, char **argv)
 {
-    char *mpool_name;
+    char *kvdb_home;
     char *kvs_name1, *kvs_name2;
 
     struct hse_kvdb *      kvdb;
@@ -55,7 +55,7 @@ main(int argc, char **argv)
     if (argc != 4)
         return usage(argv[0]);
 
-    mpool_name = argv[1];
+    kvdb_home = argv[1];
     kvs_name1 = argv[2];
     kvs_name2 = argv[3];
 
@@ -68,13 +68,13 @@ main(int argc, char **argv)
     HSE_KVDB_OPSPEC_INIT(&os);
 
     /* Open the KVDB and the KVS instances in it */
-    rc = hse_kvdb_open(mpool_name, NULL, &kvdb);
+    rc = hse_kvdb_open(kvdb_home, 0, NULL, &kvdb);
     if (rc) {
         printf("Cannot open kvdb: %s\n", hse_err_to_string(rc, errbuf, sizeof(errbuf), 0));
         exit(1);
     }
 
-    rc = hse_kvdb_kvs_open(kvdb, kvs_name1, NULL, &kvs1);
+    rc = hse_kvdb_kvs_open(kvdb, kvs_name1, 0, NULL, &kvs1);
     if (rc) {
         printf("Cannot open kvs %s: %s\n",
                kvs_name1,
@@ -82,7 +82,7 @@ main(int argc, char **argv)
         exit(1);
     }
 
-    rc = hse_kvdb_kvs_open(kvdb, kvs_name2, NULL, &kvs2);
+    rc = hse_kvdb_kvs_open(kvdb, kvs_name2, 0, NULL, &kvs2);
     if (rc) {
         printf("Cannot open kvs %s: %s\n",
                kvs_name2,

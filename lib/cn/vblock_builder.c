@@ -79,7 +79,7 @@ _vblock_start(struct vblock_builder *bld)
 
     rp = cn_get_rp(bld->cn);
 
-    if (mbprop.mpr_alloc_cap != (rp->vblock_size_mb << 20)) {
+    if (mbprop.mpr_alloc_cap != rp->vblock_size) {
         mpool_mblock_abort(bld->ds, blkid);
         assert(0);
         return merr(ev(EBUG));
@@ -203,7 +203,7 @@ vbb_create(
     bld->pc = pc;
     bld->ds = cn_get_dataset(cn);
     bld->vgroup = vgroup;
-    bld->max_size = rp->vblock_size_mb << 20;
+    bld->max_size = rp->vblock_size;
     bld->agegroup = HSE_MPOLICY_AGE_LEAF;
 
     bld->wbuf = alloc_page_aligned(WBUF_LEN_MAX);

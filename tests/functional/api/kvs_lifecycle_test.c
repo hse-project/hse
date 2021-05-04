@@ -16,7 +16,7 @@ test_collection_setup(struct mtf_test_info *lcl_ti)
 {
     int rc;
 
-    rc = mtf_kvdb_setup(lcl_ti, NULL, &kvdb_handle, 0);
+    rc = mtf_kvdb_setup(lcl_ti, &kvdb_handle, 0);
     ASSERT_EQ_RET(rc, 0, -1);
 
     return 0;
@@ -38,10 +38,10 @@ kvs_create(struct mtf_test_info *lcl_ti)
 {
     hse_err_t err;
 
-    err = hse_kvdb_kvs_make(kvdb_handle, "new_kvs", NULL);
+    err = hse_kvdb_kvs_make(kvdb_handle, "new_kvs", 0, NULL);
     ASSERT_EQ_RET(err, 0, -1);
 
-    err = hse_kvdb_kvs_open(kvdb_handle, "new_kvs", NULL, &kvs_handle);
+    err = hse_kvdb_kvs_open(kvdb_handle, "new_kvs", 0, NULL, &kvs_handle);
     ASSERT_EQ_RET(err, 0, -1);
 
     return 0;
@@ -70,7 +70,7 @@ MTF_DEFINE_UTEST(kvs_api, kvs_nonexisting)
     struct hse_kvs *kvs_handle = NULL;
 
     /* TC: A non-existing KVS cannot be opened */
-    err = hse_kvdb_kvs_open(kvdb_handle, "non_existing_kvs", NULL, &kvs_handle);
+    err = hse_kvdb_kvs_open(kvdb_handle, "non_existing_kvs", 0, NULL, &kvs_handle);
     ASSERT_EQ(hse_err_to_errno(err), ENOENT);
     ASSERT_EQ(kvs_handle, NULL);
 
@@ -87,19 +87,19 @@ MTF_DEFINE_UTEST_PREPOST(kvs_api, kvs_invalid, kvs_create, kvs_destroy)
     char      kvs_buf[HSE_KVS_NAME_LEN_MAX + 1];
     int       n;
     /* TC: A KVS cannot be created with special characters in the name */
-    err = hse_kvdb_kvs_make(kvdb_handle, "kvdb/example", NULL);
+    err = hse_kvdb_kvs_make(kvdb_handle, "kvdb/example", 0, NULL);
     ASSERT_EQ(hse_err_to_errno(err), EINVAL);
 
     /* TC: A KVS cannot be created with no characters in the name */
-    err = hse_kvdb_kvs_make(kvdb_handle, "", NULL);
+    err = hse_kvdb_kvs_make(kvdb_handle, "", 0, NULL);
     ASSERT_EQ(hse_err_to_errno(err), EINVAL);
 
     /* TC: A KVS cannot be created with NULL value */
-    err = hse_kvdb_kvs_make(kvdb_handle, NULL, NULL);
+    err = hse_kvdb_kvs_make(kvdb_handle, NULL, 0, NULL);
     ASSERT_EQ(hse_err_to_errno(err), EINVAL);
 
     /* TC: A KVS cannot be created with binary characters  */
-    err = hse_kvdb_kvs_make(kvdb_handle, bad_name, NULL);
+    err = hse_kvdb_kvs_make(kvdb_handle, bad_name, 0, NULL);
     ASSERT_EQ(hse_err_to_errno(err), EINVAL);
 
     /* TC: A KVS can be created with less than defined max length of 32 characters in the name */
@@ -108,24 +108,24 @@ MTF_DEFINE_UTEST_PREPOST(kvs_api, kvs_invalid, kvs_create, kvs_destroy)
         kvs_buf[i] = 'a' + (i % 26);
     }
     kvs_buf[HSE_KVS_NAME_LEN_MAX - 1] = '\000';
-    err = hse_kvdb_kvs_make(kvdb_handle, kvs_buf, NULL);
+    err = hse_kvdb_kvs_make(kvdb_handle, kvs_buf, 0, NULL);
     ASSERT_EQ(err, 0);
 
     /* TC: A KVS cannot be created with more than defined max length of 32 characters in the name */
     kvs_buf[HSE_KVS_NAME_LEN_MAX - 1] = 'x';
     kvs_buf[HSE_KVS_NAME_LEN_MAX] = '\000';
-    err = hse_kvdb_kvs_make(kvdb_handle, kvs_buf, NULL);
+    err = hse_kvdb_kvs_make(kvdb_handle, kvs_buf, 0, NULL);
     ASSERT_EQ(hse_err_to_errno(err), ENAMETOOLONG);
 
     /* TC: Two KVS cannot have same name */
-    err = hse_kvdb_kvs_make(kvdb_handle, "new_kvs", NULL);
+    err = hse_kvdb_kvs_make(kvdb_handle, "new_kvs", 0, NULL);
     ASSERT_EQ(hse_err_to_errno(err), EEXIST);
 
     /* TC: KVDB cannot have more than 256 KVS */
     for (int i = 2; i <= HSE_KVS_COUNT_MAX; i++) {
         n = snprintf(buf, sizeof(buf), "%s_%d", "new_kvs", i);
         ASSERT_LT(n, sizeof(buf));
-        err = hse_kvdb_kvs_make(kvdb_handle, buf, NULL);
+        err = hse_kvdb_kvs_make(kvdb_handle, buf, 0, NULL);
         if (i < HSE_KVS_COUNT_MAX) {
             ASSERT_EQ(err, 0);
         } else {
@@ -142,7 +142,7 @@ MTF_DEFINE_UTEST_PREPOST(kvs_api, kvs_valid_handle, kvs_create, kvs_destroy)
     bool      found;
 
     /* TC: A handle cannot be reused until closed */
-    err = hse_kvdb_kvs_open(kvdb_handle, "new_kvs", NULL, &kvs_handle);
+    err = hse_kvdb_kvs_open(kvdb_handle, "new_kvs", 0, NULL, &kvs_handle);
     ASSERT_EQ(hse_err_to_errno(err), EBUSY);
 
     /* TC: A KVS cannot get a non-existing key value pair */

@@ -1,28 +1,31 @@
 #!/usr/bin/env python3
+
+from contextlib import ExitStack
 import hse
 
-import util
+from utility import lifecycle
 
 
 hse.init()
 
 try:
-    p = hse.Params()
-    p.set(key="kvdb.dur_enable", value="0")  # So sync forces an ingest
+    with ExitStack() as stack:
+        kvdb_ctx = lifecycle.KvdbContext().rparams("dur_enable=0")
+        kvdb = stack.enter_context(kvdb_ctx)
+        kvs_ctx = lifecycle.KvsContext(kvdb, "ingested_key")
+        kvs = stack.enter_context(kvs_ctx)
 
-    with util.create_kvdb(util.get_kvdb_name(), p) as kvdb:
-        with util.create_kvs(kvdb, "ingested_key", p) as kvs:
-            kvs.put(b"a", b"1")
+        kvs.put(b"a", b"1")
 
-            cursor = kvs.cursor()
-            kvdb.sync()
+        cursor = kvs.cursor()
+        kvdb.sync()
 
-            kv = cursor.read()
-            assert kv == (b"a", b"1")
+        kv = cursor.read()
+        assert kv == (b"a", b"1")
 
-            cursor.read()
-            assert cursor.eof
+        cursor.read()
+        assert cursor.eof
 
-            cursor.destroy()
+        cursor.destroy()
 finally:
     hse.fini()

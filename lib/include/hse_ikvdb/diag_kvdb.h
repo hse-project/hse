@@ -1,14 +1,12 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
 #ifndef HSE_KVDB_DIAG_H
 #define HSE_KVDB_DIAG_H
 
 #include <hse/hse.h>
-
-#include <hse_ikvdb/kvdb_rparams.h>
 
 /* Opaque handles */
 struct kvdb;
@@ -33,8 +31,7 @@ diag_kvdb_kvslist(struct hse_kvdb *kvdb, struct diag_kvdb_kvs_list *list, int le
 
 /**
  * diag_kvdb_open() - open a kvdb for diagnostic purposes.
- * @kvdb_name:      kvdb name
- * @params:         fixed configuration parameters
+ * @kvdb_home:      kvdb home
  * @kvdb:           (output) handle to access the opened KVDB
  *
  * kvdb is opened with minimal processing. The kvdb root metadata is recovered.
@@ -44,9 +41,10 @@ diag_kvdb_kvslist(struct hse_kvdb *kvdb, struct diag_kvdb_kvs_list *list, int le
  */
 merr_t
 diag_kvdb_open(
-    const char *             kvdb_name,
-    const struct hse_params *params,
-    struct hse_kvdb        **kvdb);
+    const char *       kvdb_home,
+    size_t             paramc,
+    const char *const *paramv,
+    struct hse_kvdb ** kvdb);
 
 /**
  * diag_kvdb_close() - close a kvdb opened for diagnostic purposes

@@ -17,7 +17,8 @@
 #include <hse_util/arch.h>
 #include <hse_util/compiler.h>
 
-#include "common.h"
+#include <cli/param.h>
+
 #include "kvs_helper.h"
 
 int errcnt = 0;
@@ -171,10 +172,15 @@ main(
 	int       argc,
 	char    **argv)
 {
-	struct hse_params  *params;
+	struct parm_groups *pg = NULL;
+	struct svec         db_oparms = {};
+	struct svec         kv_cparms = {};
+	struct svec         kv_oparms = {};
+
 	const char         *mpool, *kvs;
 	char                c;
 	int                 i;
+	int                 rc;
 
 	progname = basename(argv[0]);
 
@@ -212,18 +218,40 @@ main(
 		}
 	}
 
-	hse_params_create(&params);
-
-	kh_rparams(&argc, &argv, params);
-	if (argc != 3) {
-		syntax("Incorrect number of arguments");
+	if (argc - optind < 2) {
+		syntax("missing required parameters");
 		exit(EX_USAGE);
 	}
 
-	mpool = argv[0];
-	kvs   = argv[1];
+	mpool = argv[optind++];
+	kvs   = argv[optind++];
 
-	kh_init(mpool, params);
+	rc = pg_create(&pg, PG_KVDB_OPEN, PG_KVS_OPEN, PG_KVS_CREATE, NULL);
+	if (rc)
+		fatal(rc, "pg_create");
+
+	rc = pg_parse_argv(pg, argc, argv, &optind);
+	switch (rc) {
+	case 0:
+		if (optind < argc)
+			fatal(0, "unknown parameter: %s", argv[optind]);
+		break;
+	case EINVAL:
+		fatal(0, "missing group name (e.g. %s) before parameter %s\n",
+			PG_KVDB_OPEN, argv[optind]);
+		break;
+	default:
+		fatal(rc, "error processing parameter %s\n", argv[optind]);
+		break;
+	}
+
+	rc = rc ?: svec_append_pg(&db_oparms, pg, PG_KVDB_OPEN, NULL);
+	rc = rc ?: svec_append_pg(&kv_cparms, pg, PG_KVS_CREATE, NULL);
+	rc = rc ?: svec_append_pg(&kv_oparms, pg, PG_KVS_OPEN, NULL);
+	if (rc)
+		fatal(rc, "svec_append_pg failed");
+
+	kh_init(mpool, &db_oparms);
 
 	g_ti = malloc(sizeof(*g_ti) * opts.nthread);
 	if (!g_ti)
@@ -236,13 +264,16 @@ main(
 		g_ti[i].start = i * stride;
 		g_ti[i].end   = g_ti[i].start + stride;
 		g_ti[i].end  += last ? (opts.count % opts.nthread) : 0;
-		kh_register(kvs, 0, params, &do_work, &g_ti[i]);
+		kh_register_kvs(kvs, 0, &kv_cparms, &kv_oparms, &do_work, &g_ti[i]);
 	}
 
 	kh_wait();
 	kh_fini();
 
-	hse_params_destroy(params);
+	svec_reset(&db_oparms);
+	svec_reset(&kv_cparms);
+	svec_reset(&kv_oparms);
+	pg_destroy(pg);
 
 	free(g_ti);
 

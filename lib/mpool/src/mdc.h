@@ -9,7 +9,8 @@
 #include <hse_util/mutex.h>
 #include <hse_util/hse_err.h>
 
-#define MDC_FILES_MAX  10
+#define MDC_FILES_MAX        10
+#define MDC_NAME_LENGTH_MAX  128
 
 struct mpool;
 struct mpool_mdc;
@@ -21,14 +22,6 @@ struct mpool_mdc;
  */
 struct media_class *
 mdc_mclass_get(struct mpool_mdc *mdc);
-
-/**
- * mpool_mdc_root_init() - initialize the root MDC
- *
- * @mp: mpool handle
- */
-merr_t
-mpool_mdc_root_init(struct mpool *mp);
 
 /**
  * mpool_mdc_sync() - sync the root MDC

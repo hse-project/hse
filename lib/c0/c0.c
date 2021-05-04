@@ -198,8 +198,8 @@ c0_open(
     }
 
     assert(cn);
-    new_c0->c0_pfx_len = cp->cp_pfx_len;
-    new_c0->c0_sfx_len = cp->cp_sfx_len;
+    new_c0->c0_pfx_len = cp->pfx_len;
+    new_c0->c0_sfx_len = cp->sfx_len;
     new_c0->c0_cn = cn;
     new_c0->c0_rp = rp;
 

@@ -2,10 +2,16 @@
 
 #tdoc: mdc data integrity and perf tests
 
-cmd mdctest kvdb.storage_path=${HSE_STORAGE_PATH}
+storage=$mp/capacity/smoke-mdc-test
 
-cmd mdcperf -r 64 -c $((32 * 1024 *1024)) -v kvdb.storage_path=${HSE_STORAGE_PATH}
-cmd mdcperf -r 64 -c $((8 * 1024 * 1024)) -v -s kvdb.storage_path=${HSE_STORAGE_PATH}
+cmd rm -fr $storage
+cmd mkdir $storage
 
-cmd mdcperf -r 4096 -c $((1024 * 1024 * 1024)) -v kvdb.storage_path=${HSE_STORAGE_PATH}
-cmd mdcperf -r 4096 -c $((256 * 1024 * 1024)) -v -s kvdb.storage_path=${HSE_STORAGE_PATH}
+cmd mdctest $storage
+
+cmd mdcperf -r 64   -c $((  32 * 1024 * 1024)) -v    $storage
+cmd mdcperf -r 64   -c $((   8 * 1024 * 1024)) -v -s $storage
+cmd mdcperf -r 4096 -c $((1024 * 1024 * 1024)) -v    $storage
+cmd mdcperf -r 4096 -c $(( 256 * 1024 * 1024)) -v -s $storage
+
+cmd rm -fr $storage

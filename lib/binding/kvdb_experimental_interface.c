@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
 #include <hse/hse.h>
@@ -10,8 +10,8 @@
 #include <hse_util/logging.h>
 
 #include <hse_ikvdb/ikvdb.h>
-#include <hse_ikvdb/hse_params_internal.h>
 #include <hse_ikvdb/kvdb_perfc.h>
+#include <hse_ikvdb/config.h>
 
 uint64_t
 hse_kvs_prefix_probe_exp(

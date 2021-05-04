@@ -7,9 +7,9 @@
 #include <hse_util/alloc.h>
 #include <hse_util/page.h>
 #include <hse_util/workqueue.h>
+#include <hse_util/string.h>
 
 #include <hse/hse.h>
-#include <hse_util/hse_params_helper.h>
 #include <mpool/mpool.h>
 
 #include <math.h>
@@ -87,7 +87,7 @@ profile_worker(struct work_struct *arg)
 
     work = container_of(arg, struct mp_profile_work, work_elem);
 
-    buf = alloc_aligned(PAGE_SIZE, work->block_sz);
+    buf = alloc_aligned(work->block_sz, PAGE_SIZE);
     if (!buf) {
         fprintf(stderr, "alloc_aligned() failed for %lu bytes, page aligned\n", work->block_sz);
         work->err = ENOMEM;
@@ -267,22 +267,30 @@ perform_profile_run(
 
 int
 profile_mpool(
-    const char              *mpname,
-    enum mpool_mclass        mc,
-    u64                      mblock_sz,
-    const struct hse_params *params,
-    u32                      thread_cnt,
-    double                  *score)
+    const char       *cappath,
+    const char       *stgpath,
+    enum mpool_mclass mc,
+    u64               mblock_sz,
+    u32               thread_cnt,
+    double           *score)
 {
+    struct mpool *mp;
+    struct mpool_rparams params = {0};
+
     merr_t        err;
     int           flags = O_RDWR;
-    struct mpool *mp;
     u64           block_sz = MP_PROF_BLOCK_SIZE;
     u32           mblocks_per_thread = MP_PROF_MBLOCKS_PER_THREAD;
     char          errbuf[160];
     int           rc;
 
-    err = mpool_open(mpname, params, flags, &mp);
+    strlcpy(params.mclass[MP_MED_CAPACITY].path, cappath,
+            sizeof(params.mclass[MP_MED_CAPACITY].path));
+    if (stgpath)
+        strlcpy(params.mclass[MP_MED_STAGING].path, stgpath,
+                sizeof(params.mclass[MP_MED_STAGING].path));
+
+    err = mpool_open(NULL, &params, flags, &mp);
     if (err) {
         merr_strerror(err, errbuf, sizeof(errbuf));
         fprintf(stderr, "error from mpool_open() : %s\n", errbuf);
@@ -308,17 +316,24 @@ struct mpool_info {
 };
 
 int
-get_mpool_info(const char *mpname, const struct hse_params *params, struct mpool_info *info)
+get_mpool_info(const char *cappath, const char *stgpath, struct mpool_info *info)
 {
     merr_t                    err;
     struct mpool             *mp;
     int                       flags = O_RDWR;
     struct mpool_props        props;
+    struct mpool_rparams params = {0};
     enum mpool_mclass         mc;
     struct mpool_mclass_stats mc_stats = {};
     char                      errbuf[160];
 
-    err = mpool_open(mpname, params, flags, &mp);
+    strlcpy(params.mclass[MP_MED_CAPACITY].path, cappath,
+            sizeof(params.mclass[MP_MED_CAPACITY].path));
+    if (stgpath)
+        strlcpy(params.mclass[MP_MED_STAGING].path, stgpath,
+                sizeof(params.mclass[MP_MED_STAGING].path));
+
+    err = mpool_open(NULL, &params, flags, &mp);
     if (err) {
         merr_strerror(err, errbuf, sizeof(errbuf));
         fprintf(stderr, "error from mpool_open() : %s\n", errbuf);
@@ -375,19 +390,18 @@ get_mpool_info(const char *mpname, const struct hse_params *params, struct mpool
 static void
 usage(const char *program)
 {
-    printf("usage: %s [options] <mpool name>\n", program);
+    printf("usage: %s [options] <capacity_path> [staging_path]\n", program);
 
     printf(" -h\tThis help text\n");
     printf(" -v\tMake the output more explanatory\n");
 }
 
 int
-handle_options(int argc, char *argv[], int *verbose, const char **mpname, struct hse_params *params)
+handle_options(int argc, char *argv[], int *verbose, const char **cappath, const char **stgpath)
 {
     const char  options[] = "hv";
     const char *program;
-    int         lcl_verbose = 0, next_arg = 0;
-    hse_err_t   err;
+    int         lcl_verbose = 0;
 
     program = strrchr(argv[0], '/');
     program = program ? program + 1 : argv[0];
@@ -418,24 +432,17 @@ handle_options(int argc, char *argv[], int *verbose, const char **mpname, struct
     argc -= optind;
     argv += optind;
 
-    err = hse_parse_cli(argc, argv, &next_arg, 0, params);
-    if (err) {
-        fprintf(stderr, "Error parsing arguments\n");
-        return -1;
-    }
-
-    argc -= next_arg;
-    argv += next_arg;
-
-    if (argc == 0 || argc > 1) {
-        fprintf(stderr, "Extraneous or insufficient arguments detected\n");
+    if (argc == 0 || argc > 2) {
+        fprintf(stderr, "Insufficient or extraneous arguments detected\n");
         usage(program);
 
         return -1;
     }
 
     *verbose = lcl_verbose;
-    *mpname = argv[0];
+    *cappath = argv[0];
+    if (argc == 2)
+        *stgpath = argv[1];
 
     return 0;
 }
@@ -443,7 +450,9 @@ handle_options(int argc, char *argv[], int *verbose, const char **mpname, struct
 int
 main(int argc, char *argv[])
 {
-    const char        *mpname;
+    struct mpool_cparams cparams = {0};
+    struct mpool_dparams dparams = {0};
+    const char        *cappath, *stgpath = NULL;
     struct mpool_info  info;
     int                verbose;
     int                rc;
@@ -455,33 +464,35 @@ main(int argc, char *argv[])
     u64                max_thrds = thread_counts[num_thread_counts - 1];
     u64                mblock_sz;
     u64                max_space_needed;
-    const char        *result;
-    struct hse_params *params;
+    const char        *result = "default";
     hse_err_t          err;
 
     err = hse_init();
     if (err)
         return -1;
 
-    err = hse_params_create(&params);
+    rc = handle_options(argc, argv, &verbose, &cappath, &stgpath);
+    if (rc) {
+        hse_fini();
+        return -1;
+    }
+
+    strlcpy(cparams.mclass[MP_MED_CAPACITY].path, cappath,
+            sizeof(cparams.mclass[MP_MED_CAPACITY].path));
+    if (stgpath)
+        strlcpy(cparams.mclass[MP_MED_STAGING].path, stgpath,
+                sizeof(cparams.mclass[MP_MED_STAGING].path));
+
+    err = mpool_create(NULL, &cparams);
     if (err) {
+        fprintf(stderr, "mpool creation at path %s failed\n", cappath);
         hse_fini();
         return -1;
     }
 
-    rc = handle_options(argc, argv, &verbose, &mpname, params);
-    if (rc) {
-        hse_params_destroy(params);
-        hse_fini();
-        return -1;
-    }
-
-    rc = get_mpool_info(mpname, params, &info);
-    if (rc) {
-        hse_params_destroy(params);
-        hse_fini();
-        return -1;
-    }
+    rc = get_mpool_info(cappath, stgpath, &info);
+    if (rc)
+        goto err_exit;
 
     if (info.mc_info[MP_MED_STAGING].exists != 0)
         mc = MP_MED_STAGING;
@@ -502,11 +513,12 @@ main(int argc, char *argv[])
             "performance.",
             mclass_name,
             space_needed_mb);
-        return -1;
+        rc = -1;
+        goto err_exit;
     }
 
     for (int i = 0; i < num_thread_counts; ++i)
-        profile_mpool(mpname, mc, mblock_sz, params, thread_counts[i], &scores[i]);
+        profile_mpool(cappath, stgpath, mc, mblock_sz, thread_counts[i], &scores[i]);
 
     avg_score = 0;
     for (int i = 0; i < num_thread_counts; ++i)
@@ -521,16 +533,29 @@ main(int argc, char *argv[])
         result = "default";
 
     printf("%s\n", result);
-    if (!verbose) {
-        hse_params_destroy(params);
+
+err_exit:
+    strlcpy(dparams.mclass[MP_MED_CAPACITY].path, cappath,
+            sizeof(dparams.mclass[MP_MED_CAPACITY].path));
+    if (stgpath)
+        strlcpy(dparams.mclass[MP_MED_STAGING].path, stgpath,
+                sizeof(dparams.mclass[MP_MED_STAGING].path));
+    err = mpool_destroy(NULL, &dparams);
+    if (err) {
+        fprintf(stderr, "mpool destroy at path %s failed\n", cappath);
         hse_fini();
-        return 0;
+        return -1;
+    }
+
+    if (!verbose || rc) {
+        hse_fini();
+        return rc ? -1 : 0;
     }
 
     printf("\n");
     printf(
         "The performance profile of mpool %s suggests a setting of \"%s\" for the\n",
-        mpname,
+        cappath,
         result);
     printf("kvdb.throttle_init_policy configuration parameter. If you are using the YAML\n");
     printf("config file mechanism this would look like:\n");
@@ -545,7 +570,6 @@ main(int argc, char *argv[])
     printf("for a slow mpool) will likely cause durability settings to not be honored and\n");
     printf("search data structures to become unbalanced until the throttling catches up.\n");
 
-    hse_params_destroy(params);
     hse_fini();
 
     return 0;

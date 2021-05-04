@@ -1,6 +1,6 @@
 common_test_c_args = [
-    '-D_GNU_SOURCE=1',
-    '-DCOMPNAME="kvdb"',
+    # '-D_GNU_SOURCE=1',
+    # '-DCOMPNAME="kvdb"',
 ]
 
 common_test_includes = [
@@ -20,37 +20,45 @@ common_test_dependencies = [
 tests = {
     'kvdb_api_test':{
         'args': [
-            get_option('tests-kvdb')
+            '--home',
+            tests_dir / 'kvdb_api_test',
         ],
-        'is_parallel': false,
     },
     'transaction_api_test':{
         'args': [
-            get_option('tests-kvdb')
+            '--home',
+            tests_dir / 'transaction_api_test',
         ],
-        'is_parallel': false,
     },
     'kvs_put_get_delete_api_test':{
         'args': [
-            get_option('tests-kvdb')
+            '--home',
+            tests_dir / 'kvs_put_get_delete_api_test',
         ],
-        'is_parallel': false,
     },
     'kvs_lifecycle_test':{
         'args': [
-            get_option('tests-kvdb')
+            '--home',
+            tests_dir / 'kvs_lifecycle_test',
         ],
-        'is_parallel': false,
     },
     'cursor_api_test':{
         'args': [
-            get_option('tests-kvdb')
+            '--home',
+            tests_dir / 'cursor_api_test',
         ],
-        'is_parallel': false,
     }
 }
 
 foreach t, params : tests
+    home_dir = tests_dir / t
+    if not fs.exists(home_dir)
+        run_command(
+            'mkdir',
+            home_dir,
+        )
+    endif
+
     t_sources = common_test_sources
     t_sources += '@0@.c'.format(t)
     if 'sources' in params
@@ -100,6 +108,7 @@ foreach t, params : tests
                 env: t_env,
                 is_parallel: t_is_parallel,
                 suite: t_suites,
+                timeout: 300,
             )
         endforeach
     else
@@ -115,6 +124,7 @@ foreach t, params : tests
             env: t_env,
             is_parallel: t_is_parallel,
             suite: t_suites,
+            timeout: 300,
         )
     endif
 endforeach

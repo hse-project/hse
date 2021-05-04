@@ -66,7 +66,7 @@ class YcsbTest(BaseTest):
         config.check_ycsb_installed()
 
         self.compact = compact
-        self.compact_args = [config.HSE_EXECUTABLE, "kvdb", "compact", config.KVDB_NAME]
+        self.compact_args = [config.HSE_EXECUTABLE, "--home", config.KVDB_HOME, "kvdb", "compact"]
         self.cwd = config.YCSB_HOME
 
         self.ycsb_executable_path = os.path.join(config.YCSB_HOME, "bin", "ycsb")
@@ -165,7 +165,7 @@ class YcsbTest(BaseTest):
         if ("threadcount" not in properties) and ("-threads" not in args):
             new_args.extend(["-threads", str(config.AVAILABLE_CPUS)])
 
-        new_args.extend(["-p", "hse.mpool_name=%s" % config.KVDB_NAME])
+        new_args.extend(["-p", "hse.kvdb_home=%s" % config.KVDB_HOME])
 
         info = YcsbCommandInfo(new_args, properties, workload_name, dest_dir)
 

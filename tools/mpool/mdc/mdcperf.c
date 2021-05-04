@@ -27,7 +27,6 @@
 #include <hse_util/atomic.h>
 #include <hse_util/platform.h>
 #include <hse_util/parse_num.h>
-#include <hse_util/hse_params_helper.h>
 #include <hse_util/string.h>
 
 #include <hse/hse.h>
@@ -661,7 +660,7 @@ ml_verify(void *arg)
 }
 
 static merr_t
-perf_seq_writes(const char *mpname, const struct hse_params *params)
+perf_seq_writes(const char *path)
 {
     merr_t err = 0;
     u32    tc;
@@ -677,6 +676,7 @@ perf_seq_writes(const char *mpname, const struct hse_params *params)
     double perf;
     int    ret;
 
+    struct mpool_rparams params = {0};
     struct ml_writer_resp *wr_resp;
     struct ml_writer_args *wr_arg;
     struct ml_reader_resp *rd_resp;
@@ -696,9 +696,12 @@ perf_seq_writes(const char *mpname, const struct hse_params *params)
     if (ret == -1)
         return merr(EINVAL);
 
-    err = mpool_open(mpname, params, O_RDWR, &mp);
+    strlcpy(params.mclass[MP_MED_CAPACITY].path, path,
+            sizeof(params.mclass[MP_MED_CAPACITY].path));
+    /* 2. Open the mpool */
+    err = mpool_open(NULL, &params, O_RDWR, &mp);
     if (err) {
-        fprintf(stderr, "Cannot open mpool %s\n", mpname);
+        fprintf(stderr, "Cannot open mpool %s\n", path);
         return err;
     }
 
@@ -942,9 +945,9 @@ free_wr_arg:
 }
 
 merr_t
-perf_seq_reads(const char *mpname, const struct hse_params *params)
+perf_seq_reads(const char *path)
 {
-    return perf_seq_writes(mpname, params);
+    return perf_seq_writes(path);
 }
 
 struct option longopts[] = {
@@ -969,7 +972,7 @@ options_defaults_set(void)
 static void
 usage(void)
 {
-    printf("usage: %s [options] [param=value ...]\n", progname);
+    printf("usage: %s [options] <storage_path>\n", progname);
     printf("Options:\n"
            "  -r, --recsz       record size\n"
            "  -c, --cap         MDC capacity\n"
@@ -1038,17 +1041,17 @@ options_parse(int argc, char **argv, int *last_arg)
 int
 main(int argc, char **argv)
 {
+    struct mpool_cparams cparams = {0};
+    struct mpool_dparams dparams = {0};
     uint64_t           herr;
-    struct hse_params *params;
     int                last_arg;
-
-    const char *mpname = "mdcperf";
+    merr_t             err;
+    const char        *path;
 
     progname = strrchr(argv[0], '/');
     progname = progname ? progname + 1 : argv[0];
 
     options_defaults_set();
-
     options_parse(argc, argv, &last_arg);
 
     if (opt.help) {
@@ -1056,30 +1059,45 @@ main(int argc, char **argv)
         return 0;
     }
 
+    if (argc - last_arg != 1) {
+        fprintf(stderr, "storage path is a required parameter\n");
+        usage();
+        return -1;
+    }
+
     herr = hse_init();
     if (herr)
         return -1;
 
-    herr = hse_params_create(&params);
-    if (herr) {
+    path = argv[last_arg];
+    if (access(path, F_OK) == -1) {
+        fprintf(stderr, "storage path %s doesn't exist\n", path);
         hse_fini();
         return -1;
     }
 
-    herr = hse_parse_cli(argc - last_arg, argv + last_arg, &last_arg, 0, params);
-    if (herr) {
-        usage();
-        hse_params_destroy(params);
+    strlcpy(cparams.mclass[MP_MED_CAPACITY].path, path,
+            sizeof(cparams.mclass[MP_MED_CAPACITY].path));
+    err = mpool_create(NULL, &cparams);
+    if (err) {
+        fprintf(stderr, "mpool creation at path %s failed\n", path);
         hse_fini();
         return -1;
     }
 
     if (opt.mode == 1)
-        perf_seq_writes(mpname, params);
+        perf_seq_writes(path);
     else
-        perf_seq_reads(mpname, params);
+        perf_seq_reads(path);
 
-    hse_params_destroy(params);
+    strlcpy(dparams.mclass[MP_MED_CAPACITY].path, path,
+            sizeof(dparams.mclass[MP_MED_CAPACITY].path));
+    err = mpool_destroy(NULL, &dparams);
+    if (err) {
+        fprintf(stderr, "mpool destroy at path %s failed\n", path);
+        hse_fini();
+        return -1;
+    }
 
     hse_fini();
 

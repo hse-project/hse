@@ -34,8 +34,6 @@
 #include <hse_ikvdb/kvdb_health.h>
 #include <hse_ikvdb/cursor.h>
 
-#include "kvs_params.h"
-
 /* "pkvsl" stands for Public KVS interface Latencies" */
 struct perfc_name kvs_pkvsl_perfc_op[] = {
     NE(PERFC_LT_PKVSL_KVS_PUT, 3, "kvs_put latency", "kvs_put_lat", 7),
@@ -82,14 +80,14 @@ static void
 kvs_destroy(struct ikvs *kvs);
 
 static void
-kvs_perfc_alloc(const char *kvdb_name, const char *kvs_name, struct ikvs *kvs)
+kvs_perfc_alloc(const char *kvdb_home, const char *kvs_name, struct ikvs *kvs)
 {
     char   dbname_buf[DT_PATH_COMP_ELEMENT_LEN];
     size_t n;
 
     dbname_buf[0] = 0;
 
-    n = strlcpy(dbname_buf, kvdb_name, sizeof(dbname_buf));
+    n = strlcpy(dbname_buf, kvdb_home, sizeof(dbname_buf));
     if (ev(n >= sizeof(dbname_buf)))
         return;
     n = strlcat(dbname_buf, IKVDB_SUB_NAME_SEP, sizeof(dbname_buf));
@@ -142,7 +140,7 @@ merr_t
 kvs_open(
     struct ikvdb *      kvdb,
     struct kvdb_kvs *   kvs,
-    const char *        kvdb_name,
+    const char *        kvdb_home,
     struct mpool *      ds,
     struct cndb *       cndb,
     struct lc *         lc,
@@ -168,7 +166,7 @@ kvs_open(
      */
 
     ikvs->ikv_cnid = cnid;
-    ikvs->ikv_mpool_name = strdup(kvdb_name);
+    ikvs->ikv_mpool_name = strdup(kvdb_home);
     ikvs->ikv_kvs_name = strdup(kvs_name);
     ikvs->ikv_lc = lc;
 
@@ -187,7 +185,7 @@ kvs_open(
         cndb,
         cnid,
         &ikvs->ikv_rp,
-        kvdb_name,
+        kvdb_home,
         kvs_name,
         health,
         flags,
@@ -206,12 +204,7 @@ kvs_open(
     if (ev(err))
         goto err_exit;
 
-    err = kvs_rparams_add_to_dt(kvdb_name, kvs_name, &ikvs->ikv_rp);
-    if (ev(err))
-        hse_log(HSE_WARNING "Unable to add run-time parameters"
-                            " to data tree");
-
-    kvs_perfc_alloc(kvdb_name, kvs_name, ikvs);
+    kvs_perfc_alloc(kvdb_home, kvs_name, ikvs);
 
     kvdb_kvs_set_ikvs(kvs, ikvs);
 
@@ -268,10 +261,6 @@ kvs_close(struct ikvs *ikvs)
         hse_elog(HSE_ERR "%s: cn_close @@e", err, __func__);
 
     kvs_perfc_free(ikvs);
-
-    err = kvs_rparams_remove_from_dt(ikvs->ikv_mpool_name, ikvs->ikv_kvs_name);
-    if (err)
-        hse_elog(HSE_ERR "%s: kvs_rparams_remove_from_dt @@e", err, __func__);
 
     kvs_destroy(ikvs);
 

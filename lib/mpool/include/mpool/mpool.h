@@ -10,10 +10,11 @@
 
 #include <hse_util/hse_err.h>
 
+#define MPOOL_CAPACITY_MCLASS_DEFAULT_PATH "capacity"
+
 struct mpool;            /* opaque mpool handle */
 struct mpool_mdc;        /* opaque MDC (metadata container) handle */
 struct mpool_mcache_map; /* opaque mcache map handle */
-struct hse_params;
 
 /* MTF_MOCK_DECL(mpool) */
 
@@ -24,30 +25,33 @@ struct hse_params;
 /**
  * mpool_create() - Create an mpool
  *
- * @name:   mpool name
- * @params: hse params
+ * @name:   kvdb home
+ * @params: mpool cparams
  */
 /* MTF_MOCK */
 merr_t
-mpool_create(const char *name, const struct hse_params *params);
+mpool_create(const char *home, const struct mpool_cparams *params);
 
 /**
  * mpool_mclass_add() - Add a media class to the mpool
  *
- * @name:   mpool name
+ * @name:   kvdb home
  * @mclass  mclass id
- * @params: hse params
+ * @params: mpool cparams
  */
 merr_t
-mpool_mclass_add(const char *name, enum mpool_mclass mclass, const struct hse_params *params);
+mpool_mclass_add(
+    const char *                home,
+    enum mpool_mclass           mclass,
+    const struct mpool_cparams *params);
 
 /**
  * mpool_open() - Open an mpool
  *
- * @name:    mpool name
- * @params: hse params
- * @flags:   open flags
- * @handle:  mpool handle (output)
+ * @home: mpool home
+ * @params: mpool rparams
+ * @flags:  open flags
+ * @mp:     mpool handle (output)
  *
  * Flags are limited to a subset of flags allowed by open(2):
  * O_CREAT, O_RDONLY, O_WRONLY, and O_RDWR.
@@ -55,10 +59,10 @@ mpool_mclass_add(const char *name, enum mpool_mclass mclass, const struct hse_pa
 /* MTF_MOCK */
 merr_t
 mpool_open(
-    const char              *name,
-    const struct hse_params *params,
-    uint32_t                 flags,
-    struct mpool           **handle);
+    const char                 *home,
+    const struct mpool_rparams *params,
+    uint32_t                    flags,
+    struct mpool              **handle);
 
 /**
  * mpool_close() - Close an mpool
@@ -73,11 +77,11 @@ mpool_close(struct mpool *mp);
  * mpool_destroy() - Destroy an mpool
  *
  * @name:   mpool name
- * @params: hse params
+ * @params: mpool dparams
  */
 /* MTF_MOCK */
 merr_t
-mpool_destroy(const char *name, const struct hse_params *params);
+mpool_destroy(const char *name, const struct mpool_dparams *params);
 
 /**
  * mpool_mclass_props_get() - get properties of the specified media class
@@ -92,7 +96,7 @@ mpool_destroy(const char *name, const struct hse_params *params);
 /* MTF_MOCK */
 merr_t
 mpool_mclass_props_get(
-    struct mpool              *mp,
+    struct mpool *             mp,
     enum mpool_mclass          mclass,
     struct mpool_mclass_props *props);
 
@@ -109,7 +113,7 @@ mpool_mclass_props_get(
 /* MTF_MOCK */
 merr_t
 mpool_mclass_stats_get(
-    struct mpool              *mp,
+    struct mpool *             mp,
     enum mpool_mclass          mclass,
     struct mpool_mclass_stats *stats);
 
@@ -151,12 +155,12 @@ mpool_stats_get(struct mpool *mp, struct mpool_stats *stats);
 /* MTF_MOCK */
 merr_t
 mpool_mdc_alloc(
-    struct mpool     *mp,
+    struct mpool *    mp,
     uint32_t          magic,
     size_t            capacity,
     enum mpool_mclass mclass,
-    uint64_t         *logid1,
-    uint64_t         *logid2);
+    uint64_t *        logid1,
+    uint64_t *        logid2);
 
 /**
  * mpool_mdc_commit() - Commit an MDC
@@ -193,13 +197,45 @@ mpool_mdc_delete(struct mpool *mp, uint64_t logid1, uint64_t logid2);
 /**
  * mpool_mdc_rootid_get() - Retrieve mpool root MDC OIDs
  *
- * @mp:     mpool handle
  * @logid1: logid 1
  * @logid2: logid 2
  */
 /* MTF_MOCK */
 merr_t
-mpool_mdc_rootid_get(struct mpool *mp, uint64_t *logid1, uint64_t *logid2);
+mpool_mdc_rootid_get(uint64_t *logid1, uint64_t *logid2);
+
+
+/**
+ * mpool_mdc_root_open() - Open root MDC
+ *
+ * @home:   kvdb home
+ * @logid1: logid 1
+ * @logid2: logid 2
+ * @handle: MDC handle (output)
+ */
+/* MTF_MOCK */
+merr_t
+mpool_mdc_root_open(const char *home, uint64_t logid1, uint64_t logid2, struct mpool_mdc **handle);
+
+/**
+ * mpool_mdc_root_create() - initialize the root MDC
+ *
+ * @home: kvdb home
+ */
+/* MTF_MOCK */
+merr_t
+mpool_mdc_root_create(const char *home);
+
+/**
+ * mpool_mdc_root_destroy() - Destroy root MDC
+ *
+ * @home:   kvdb home
+ * @logid1: logid 1
+ * @logid2: logid 2
+ */
+/* MTF_MOCK */
+merr_t
+mpool_mdc_root_destroy(const char *home, uint64_t logid1, uint64_t logid2);
 
 /**
  * mpool_mdc_open() - Open MDC by OIDs
@@ -302,9 +338,9 @@ mpool_mdc_usage(struct mpool_mdc *mdc, uint64_t *allocated, uint64_t *used);
 /* MTF_MOCK */
 merr_t
 mpool_mblock_alloc(
-    struct mpool        *mp,
+    struct mpool *       mp,
     enum mpool_mclass    mclass,
-    uint64_t            *mbid,
+    uint64_t *           mbid,
     struct mblock_props *props);
 
 /**
@@ -451,7 +487,7 @@ mpool_mcache_getpages(
     const uint32_t           pagec,
     const uint32_t           mbidx,
     const off_t              offsetv[],
-    void                    *pagev[]);
+    void *                   pagev[]);
 
 /**
  * mpool_mcache_mmap() - Create an mcache map
@@ -501,9 +537,9 @@ mpool_mcache_purge(struct mpool_mcache_map *map, const struct mpool *mp);
 merr_t
 mpool_mcache_mincore(
     struct mpool_mcache_map *map,
-    const struct mpool      *mp,
-    size_t                  *rssp,
-    size_t                  *vssp);
+    const struct mpool *     mp,
+    size_t *                 rssp,
+    size_t *                 vssp);
 
 #if HSE_MOCKING
 #include "mpool_ut.h"

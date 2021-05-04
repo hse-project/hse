@@ -1144,7 +1144,7 @@ sp3_process_workitem(struct sp3 *sp, struct cn_compaction_work *w)
     if (w->cw_action == CN_ACTION_SPILL) {
 
         struct sp3_node *spn;
-        uint             fanout = w->cw_tree->ct_cp->cp_fanout;
+        uint             fanout = w->cw_tree->ct_cp->fanout;
         uint             i;
 
         for (i = 0; i < fanout; i++) {

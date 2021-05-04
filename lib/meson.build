@@ -12,14 +12,23 @@ _config_h_data.set(
     description: 'Building with cJSON from subprojects',
 )
 
+_config_h_data.set(
+    'HSE_CONF_EXTENDED',
+    get_option('hse-conf-extended'),
+    description: '[TESTING PURPOSES ONLY] Allow cparams and dparams to exist in hse.conf'
+)
+
 _config_h = configure_file(
     input: '_config.h.in',
     output: '_config.h',
     configuration: _config_h_data,
 )
 
+component_root_includes = include_directories('.')
+
 subdir('include')
 subdir('binding')
+subdir('config')
 subdir('kvs')
 subdir('util')
 subdir('c0')
@@ -27,14 +36,14 @@ subdir('lc')
 subdir('cn')
 subdir('kvdb')
 subdir('mpool')
-
-component_root_includes = include_directories('.')
+subdir('pidfile')
 
 hse_sources = [
     _config_h,
     binding_sources,
     c0_sources,
     lc_sources,
+    config_sources,
     cn_sources,
     kvdb_sources,
     kvs_sources,
@@ -72,6 +81,7 @@ hse_dependencies = [
     thread_dep,
     rbtree_dep,
     crc32c_dep,
+    libhse_pidfile_dep,
 ]
 
 hse = both_libraries(

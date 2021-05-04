@@ -99,14 +99,21 @@ components = {
         },
         'wbt_test': {},
     },
+    'config': {
+        'argv_test': {},
+        'config_test': {
+            'args': [
+                meson.current_source_dir() / 'config',
+            ],
+        },
+    },
     'framework': {
         'mock_test': {},
     },
     'kvdb': {
         'ctxn_perfc_test': {},
-        'hse_params_test': {},
+        'home_test': {},
         'ikvdb_test': {},
-        'kvdb_cparams_test': {},
         'kvdb_ctxn_test': {},
         'kvdb_keylock_test': {},
         'kvdb_log_test': {
@@ -125,71 +132,62 @@ components = {
         },
         'throttle_test': {},
         'viewset_test': {},
-        'wp_test': {
-            'args': [
-                meson.project_source_root() / 'config',
-            ],
-        },
-    },
-    'kvs': {
-        'kvs_cparams_test': {},
-        'kvs_rparams_test': {},
-        'kvs_cursor_test': {},
     },
     'mpool': {
         'mpool_test': {
             'sources': [
-                files(
-                    'mpool' / 'common.c',
-                ),
+                files('mpool' / 'common.c'),
             ],
             'include_directories': [
                 mpool_internal_includes,
             ],
             'args': [
-                meson.current_build_dir(),
+                '--home',
+                tests_dir / 'mpool_test',
             ],
+            'requires_home': true,
         },
         'mblock_test': {
             'sources': [
-                files(
-                    'mpool' / 'common.c',
-                ),
+                files('mpool' / 'common.c'),
             ],
             'include_directories': [
                 mpool_internal_includes,
             ],
             'args': [
-                meson.current_build_dir(),
+                '--home',
+                tests_dir / 'mblock_test',
             ],
+            'requires_home': true,
         },
         'mdc_test': {
             'sources': [
-                files(
-                    'mpool' / 'common.c',
-                ),
+                files('mpool' / 'common.c'),
             ],
             'include_directories': [
                 mpool_internal_includes,
             ],
             'args': [
-                meson.current_build_dir(),
+                '--home',
+                tests_dir / 'mdc_test',
             ],
+            'requires_home': true,
         },
         'mcache_test': {
             'sources': [
-                files(
-                    'mpool' / 'common.c',
-                ),
+                files('mpool' / 'common.c'),
             ],
             'include_directories': [
                 mpool_internal_includes,
             ],
             'args': [
-                meson.current_build_dir(),
+                '--home',
+                tests_dir / 'mcache_test',
             ],
+            'requires_home': true,
         },
     },
+    'kvs': {},
     'util': {
         'allocation_test': {},
         'atomic_test': {
@@ -225,7 +223,6 @@ components = {
             ],
         },
         'compression_test': {},
-        'config_test': {},
         'darray_test': {},
         'data_tree_test': {
             'sources': [
@@ -268,9 +265,7 @@ components = {
         # buffer could have been reused.
         # 'logging_test': {},
         'mtx_pool_test': {},
-        'param_test': {},
         'parse_num_test': {},
-        'parser_test': {},
         'perfc_test': {},
         'printbuf_test': {},
         'program_name_test': {},
@@ -312,6 +307,17 @@ components = {
 unit_test_exes = []
 foreach c, tests : components
     foreach t, params : tests
+        if 'requires_home' in params and params['requires_home']
+            home_dir = tests_dir / t
+            if not fs.exists(home_dir)
+                run_command(
+                    'mkdir',
+                    home_dir,
+                    check: true,
+                )
+            endif
+        endif
+
         t_sources = common_test_sources
         t_sources += c / '@0@.c'.format(t)
         if 'sources' in params

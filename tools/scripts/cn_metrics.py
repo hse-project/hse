@@ -74,7 +74,7 @@ def cmd_parser_setup() -> argparse.ArgumentParser:
     )
     p.add_argument("-y", "--yaml", help="output in yaml", action="store_true")
 
-    p.add_argument("mpool", help="mpool name")
+    p.add_argument("kvdb_home", help="kvdb home dir")
     p.add_argument("kvs", help="kvs name")
 
     return p
@@ -110,8 +110,11 @@ def main() -> int:
 
     opt = get_args()
 
-    sock = os.getenv('HSE_REST_SOCK_PATH')
-    url = f"http://localhost/mpool/{opt.mpool}/kvs/{opt.kvs}/cn/tree"
+    if not opt.kvdb_home or not opt.kvs:
+        cmd_help()
+
+    sock = os.path.join(opt.kvdb_home, 'hse.sock')
+    url = f"http://localhost/kvdb/kvs/{opt.kvs}/cn/tree"
 
     if opt.refresh:
         sp.call("clear")

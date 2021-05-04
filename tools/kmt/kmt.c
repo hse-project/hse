@@ -229,7 +229,7 @@ struct hse_kvdb_opspec {
 #include <hse/hse.h>
 #endif
 
-#include <hse_util/hse_params_helper.h>
+#include <tools/parm_groups.h>
 
 #if !defined(__USE_ISOC11) || defined(USE_EFENCE)
 #define aligned_alloc(_align, _size) memalign((_align), (_size))
@@ -249,6 +249,7 @@ extern void *memalign(size_t, size_t) __attribute_malloc__ __wur;
 
 const char *   cf_dir = "/var/tmp";
 char           chk_path[PATH_MAX];
+char           kvdb_home_realpath[PATH_MAX];
 uint64_t       chk_recmax = 192 * 1024 * 1024;
 struct timeval tv_init;
 const char *   progname;
@@ -296,12 +297,15 @@ int            oom_score_adj = -500;
 uint           c0putval = UINT_MAX;
 bool           kvdb_mode = false;
 bool           latency = false;
-const char *   config;
 bool           sync_enabled = false;
 ulong          sync_timeout_ms = 0;
 int            mclass = MP_MED_CAPACITY;
 
-struct hse_params *params;
+struct parm_groups *pg;
+struct svec         db_oparms;
+struct svec         kv_oparms_notxn;
+struct svec         kv_oparms_txn;
+bool                kvs_txn;
 
 struct suftab {
     const char *list;   /* list of suffix characters */
@@ -624,7 +628,6 @@ RB_GENERATE(node_tree, kvnode, entry, node_cmp);
 struct hse_kvs {
     const char *mpname;
     const char *kvsname;
-    const char *kvs_cfg;
 };
 
 struct hse_kvdb;
@@ -969,7 +972,7 @@ hse_err_to_string(u64 err, char *buf, size_t bufsz, void *dumb)
 #define hse_kvs_delete    kvs_delete_xkmt
 
 int
-kvdb_open_xkmt(const char *mp_name, struct hse_params *params, struct hse_kvdb **kvdb_handle)
+kvdb_open_xkmt(const char *mp_name, size_t pc, const char *const *pv, struct hse_kvdb **kvdb_handle)
 {
     if (!kvs) {
         kvs = aligned_alloc(PAGE_SIZE, sizeof(*kvs));
@@ -991,7 +994,8 @@ int
 kvdb_kvs_open_xkmt(
     struct hse_kvdb *  kvdb_handle,
     const char *       kvs_name,
-    struct hse_params *params,
+    size_t parmc,
+    const char *const *parmv,
     struct hse_kvs **  kvs_out)
 {
     struct hse_kvs *k = (struct hse_kvs *)kvdb_handle;
@@ -2398,15 +2402,16 @@ km_open_kvs(struct km_impl *impl)
     struct hse_kvdb *kvdb;
     struct hse_kvs * kvs;
     u64              rc;
+    struct svec *    kv_oparms = kvs_txn ? &kv_oparms_txn : &kv_oparms_notxn;
 
     if (impl->kvdb || impl->kvs)
         return 0;
 
-    rc = hse_kvdb_open(impl->mpname, params, &kvdb);
+    rc = hse_kvdb_open(impl->mpname, db_oparms.strc, db_oparms.strv, &kvdb);
     if (rc)
         return rc;
 
-    rc = hse_kvdb_kvs_open(kvdb, impl->kvsname, params, &kvs);
+    rc = hse_kvdb_kvs_open(kvdb, impl->kvsname, kv_oparms->strc, kv_oparms->strv, &kvs);
     if (rc) {
         hse_kvdb_close(kvdb);
         return rc;
@@ -2439,6 +2444,7 @@ hse_err_t
 km_open_ds(struct km_impl *impl)
 {
     struct mpool *ds = NULL;
+    struct mpool_rparams params = {0};
     merr_t err;
 
     if (impl->ds)
@@ -2449,7 +2455,14 @@ km_open_ds(struct km_impl *impl)
         return EINVAL;
     }
 
-    err = mpool_open(impl->mpname, params, O_RDWR, &ds);
+    for (int i = 0; i < MP_MED_COUNT; i++) {
+        if (mclass == i) {
+            strlcpy(params.mclass[i].path, impl->mpname, sizeof(params.mclass[i].path));
+            break;
+        }
+    }
+
+    err = mpool_open(impl->mpname, &params, O_RDWR, &ds);
     if (err)
         return merr_to_hse_err(err);
 
@@ -3640,10 +3653,7 @@ spawn(struct km_impl *impl, void (*run)(struct km_inst *), uint runmax, time_t m
     if (verbosity > 1 || nerrs > 0 || mark > 0)
         status(impl, instv, &tv_start, &tv_prev, 0);
 
-#ifndef XKMT
-    if (swaptxn && run == td_test)
-        hse_params_set(params, "kvs.transactions_enable", "1");
-#endif
+    kvs_txn = swaptxn && run == td_test;
 
     err = km_open(impl);
     if (err) {
@@ -3817,11 +3827,6 @@ spawn(struct km_impl *impl, void (*run)(struct km_inst *), uint runmax, time_t m
     }
 
     km_close(impl);
-
-#ifndef XKMT
-    if (swaptxn)
-        hse_params_set(params, "kvs.transactions_enable", "0");
-#endif
 
     if (verbosity > 1 || nerrs > 0 || mark > 0) {
         for (i = 0; i < impl->tdmax; ++i)
@@ -4075,20 +4080,6 @@ prop_decode(const char *list, const char *sep, const char *valid)
     return rc;
 }
 
-struct kvselp {
-    const char *str[3]; /* string from column n of kvs_rparams_help */
-    int         len[3];
-};
-
-int
-kvselp_cmp(const void *lhs, const void *rhs)
-{
-    const struct kvselp *l = lhs;
-    const struct kvselp *r = rhs;
-
-    return strcmp(l->str[1], r->str[1]);
-}
-
 void
 oom_score_adj_set(int adj)
 {
@@ -4108,64 +4099,8 @@ oom_score_adj_set(int adj)
 }
 
 void
-rparams_print(char *krh)
-{
-    while (krh) {
-        struct kvselp tbl[128], *t = tbl;
-        int           nlenmax = 1;
-        int           vlenmax = 1;
-        int           len, i;
-
-        /* Sort the kvs parameter help by parameter name, eliminate
-         * line noise, and print in name/value order.
-         */
-        while (krh) {
-            static const char *const sepv[] = { " |", " |", " |", "" };
-            char *                   line;
-
-            line = strsep(&krh, "\n");
-
-            for (i = 0; line; ++i) {
-                line += strspn(line, sepv[i]);
-                t->str[i] = strsep(&line, sepv[i + 1]);
-                t->len[i] = strlen(t->str[i]);
-            }
-
-            if (i > 2) {
-                len = t->len[0] + t->len[1];
-                if (len > nlenmax)
-                    nlenmax = len;
-                if (t->len[0] > vlenmax)
-                    vlenmax = t->len[0];
-                ++t;
-            }
-        }
-
-        qsort(tbl + 1, t - tbl - 1, sizeof(tbl[0]), kvselp_cmp);
-
-        tbl->str[0] = "VALUE";
-        tbl->str[1] = "NAME";
-        tbl->str[2] = "DESCRIPTION";
-
-        t->str[0] = NULL;
-
-        for (t = tbl; t->str[0]; ++t) {
-            printf(
-                "  %-*s  %*s  %s\n",
-                nlenmax - t->len[0],
-                t->str[1],
-                t->len[0],
-                t->str[0],
-                t->str[2]);
-        }
-        printf("\n");
-    }
-}
-void
 usage(struct km_impl *impl)
 {
-    char buf[8192];
-
     printf("usage: %s [options] <device> [kvs_param=value ...]\n", progname);
     printf("usage: %s -h [-v]\n", progname);
 
@@ -4174,7 +4109,6 @@ usage(struct km_impl *impl)
     printf("-C cfdir    config file directory\n");
     printf("-c          verify/check testbed\n");
     printf("-D          destroy testbed\n");
-    printf("-F config   specify config file\n");
     printf("-f keyfmt   specify key format for snprintf\n");
     printf("-H          suppress headers\n");
     printf("-h          print this help list\n");
@@ -4239,14 +4173,6 @@ usage(struct km_impl *impl)
     printf("  sync_ms     %10lu  milliseconds between syncs\n", sync_timeout_ms);
     printf("  mclass      %10d  media class in mpool mode - 0: cap, 1: stg \n", mclass);
     printf("\n");
-
-    printf("KVDB PARAMETERS:\n");
-
-    rparams_print(hse_generate_help(buf, sizeof(buf), "kvdb_rparams"));
-
-    printf("KVS PARAMETERS:\n");
-
-    rparams_print(hse_generate_help(buf, sizeof(buf), "kvs_rparams"));
 
     printf("SIZEOF:\n");
     printf("  pthread_spinlock_t:   %zu\n", sizeof(pthread_spinlock_t));
@@ -4317,7 +4243,7 @@ main(int argc, char **argv)
     while (1) {
         char *errmsg, *end;
 
-        c = getopt(argc, argv, ":B:bC:cDd:F:f:Hhi:j:KkLl:Mm:Oo:p:RS:s:T:t:vW:w:xy:");
+        c = getopt(argc, argv, ":B:bC:cDd:f:Hhi:j:KkLl:Mm:Oo:p:RS:s:T:t:vW:w:xy:");
         if (-1 == c)
             break;
 
@@ -4357,10 +4283,6 @@ main(int argc, char **argv)
 
         case 'D':
             destroy = true;
-            break;
-
-        case 'F':
-            config = optarg;
             break;
 
         case 'f':
@@ -4485,7 +4407,7 @@ main(int argc, char **argv)
             exit(EX_USAGE);
 
         default:
-            eprint("option -%c ignored\n", c);
+            eprint("option -%c ignored", c);
             break;
         }
 
@@ -4498,65 +4420,87 @@ main(int argc, char **argv)
         }
     }
 
-    argc -= optind;
-    argv += optind;
-
 #ifdef XKMT
-    mpname = strdup(argv[0] ?: progname);
-    if (!mpname)
-        mpname = "dunno";
-
+    mpname = strdup(progname);
+    if (!mpname) {
+        syntax("strdup(%s) failed", argv[0]);
+        exit(EX_OSERR);
+    }
 #else
-    hse_params_create(&params);
-
-    hse_params_set(params, "kvdb.perfc_enable", "0");
-
-    if (config) {
-        rc = hse_params_from_file(params, config);
-        if (rc) {
-            eprint("unable to parse config file\n");
-            exit(EX_OSERR);
-        }
+    if (argc - optind < 1) {
+        syntax("insufficient arguments for mandatory parameters");
+        exit(EX_USAGE);
     }
 
-    if (argc > 0) {
-        if (hse_parse_cli(argc - 1, argv + 1, &optind, 0, params)) {
-            syntax("unable to parse parameters");
+    mpname = strdup(argv[optind++]);
+
+    if (0 == strncmp(mpname, "/dev/", 5)) {
+        impl = &km_impl_dev;
+    } else if (0 == strncmp(mpname, "mongodb://", 10)) {
+        impl = &km_impl_mongo;
+        mongo = 1;
+
+        kvsname = strchr(mpname + strlen("mongodb://"), '/');
+        if (kvsname)
+            *kvsname++ = '\000';
+
+        if (!kvsname || !strlen(kvsname)) {
+            syntax("%s does not specify target database", mpname);
+            exit(EX_USAGE);
+        }
+    } else if (0 == strncmp(mpname, "mpool:", 6)) {
+        impl = &km_impl_ds;
+        impl->mpname = mpname + 6;
+    } else {
+        if (argc - optind < 1) {
+            syntax("missing kvs name");
+            exit(EX_USAGE);
+        }
+
+        kvsname = argv[optind++];
+
+        rc = pg_create(&pg, PG_KVDB_OPEN, PG_KVS_OPEN, NULL);
+        if (rc) {
+            eprint("pg_create failed");
             exit(EX_OSERR);
         }
 
-        mpname = strdup(argv[0]);
-        if (!mpname) {
-            syntax("strdup(%s) failed", argv[0]);
-            exit(EX_OSERR);
-        }
-
-        if (0 == strncmp(mpname, "/dev/", 5)) {
-            impl = &km_impl_dev;
-        } else if (0 == strncmp(mpname, "mongodb://", 10)) {
-            impl = &km_impl_mongo;
-            mongo = 1;
-
-            kvsname = strchr(mpname + strlen("mongodb://"), '/');
-            if (kvsname)
-                *kvsname++ = '\000';
-
-            if (!kvsname || !strlen(kvsname)) {
-                syntax("%s does not specify target database", mpname);
+        rc = pg_parse_argv(pg, argc, argv, &optind);
+        switch (rc) {
+            case 0:
+                if (optind < argc) {
+                    eprint("unknown parameter: %s", argv[optind]);
+                    exit(EX_USAGE);
+                }
+                break;
+            case EINVAL:
+                eprint("missing group name (e.g. %s) before parameter %s\n",
+                    PG_KVDB_OPEN, argv[optind]);
                 exit(EX_USAGE);
-            }
-        } else {
-            kvsname = strchr(mpname, '/');
-            if (kvsname)
-                *kvsname++ = '\000';
+                break;
+            default:
+                eprint("error processing parameter %s\n", argv[optind]);
+                exit(EX_OSERR);
+                break;
+        }
 
-            if (!kvsname)
-                impl = &km_impl_ds;
+        rc = rc ?: svec_append_pg(&db_oparms, pg, "perfc_enable=0", PG_KVDB_OPEN, NULL);
+        rc = rc ?: svec_append_pg(&kv_oparms_txn, pg, PG_KVS_OPEN, "transactions_enable=1", NULL);
+        rc = rc ?: svec_append_pg(&kv_oparms_notxn, pg, PG_KVS_OPEN, "transactions_enable=0", NULL);
+        if (rc) {
+            eprint("svec_apppend_pg failed: %d", rc);
+            exit(EX_OSERR);
         }
     }
 #endif
 
-    impl->mpname = mpname;
+    if (optind < argc) {
+        syntax("extraneous argument: %s", argv[optind]);
+        exit(EX_USAGE);
+    }
+
+    if (!impl->mpname)
+        impl->mpname = mpname;
     impl->kvsname = kvsname;
     impl->tdmax = tdmax;
 
@@ -4672,11 +4616,6 @@ main(int argc, char **argv)
 
     if (!(init || test || check || destroy)) {
         syntax("one or more of -i, -t, -c, -D is required");
-        exit(EX_USAGE);
-    }
-
-    if (argc < 1) {
-        syntax("insufficient arguments for mandatory parameters");
         exit(EX_USAGE);
     }
 
@@ -4855,8 +4794,13 @@ sigint:
     if (mongo)
         mongoc_cleanup();
 
+    svec_reset(&db_oparms);
+    svec_reset(&kv_oparms_notxn);
+    svec_reset(&kv_oparms_txn);
+
+    pg_destroy(pg);
+
 #ifndef XKMT
-    hse_params_destroy(params);
     hse_fini();
 #endif
 

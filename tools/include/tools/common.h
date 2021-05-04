@@ -1,6 +1,8 @@
 /*
  * Copyright (C) 2015-2017 Micron Technology, Inc. All rights reserved.
  */
+#ifndef HSE_TOOLS_COMMON
+#define HSE_TOOLS_COMMON
 
 /*
  * common functions for kvs tools
@@ -8,17 +10,8 @@
 
 #include <sys/types.h>
 
-/*
- * error reporting
- *
- * warn returns 1, useful when returned an error status
- * fatal does not return
- * rp_usage does not return
- */
-
-int warn(int err, char *fmt, ...);
-void fatal(int err, char *fmt, ...);
-void rp_usage(void);
+void warn(uint64_t err, char *fmt, ...);
+void fatal(uint64_t err, char *fmt, ...);
 
 /*
  * key/value formatting
@@ -43,11 +36,11 @@ int   fmt_data(char *out, char *in);
  */
 
 struct app_opts {
-	int lineno;
-	int kmax;
-	int vmax;
-	int hexonly;
-	int zero;
+    int lineno;
+    int kmax;
+    int vmax;
+    int hexonly;
+    int zero;
 };
 extern struct app_opts Opts;
 
@@ -55,7 +48,9 @@ extern struct app_opts Opts;
  * key/value display
  */
 void show(const void *key, size_t klen,
-	  const void *val, size_t vlen, int showlen);
+    const void *val, size_t vlen, int showlen);
 
 void show_hex(const void *key, size_t klen,
-	      const void *val, size_t vlen, int showlen);
+    const void *val, size_t vlen, int showlen);
+
+#endif

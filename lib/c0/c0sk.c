@@ -41,13 +41,12 @@ void
 c0sk_perfc_alloc(struct c0sk_impl *self)
 {
     if (perfc_ctrseti_alloc(
-            COMPNAME, self->c0sk_kvdbname, c0sk_perfc_op, PERFC_EN_C0SKOP, "set",
-            &self->c0sk_pc_op))
+            COMPNAME, self->c0sk_kvdbhome, c0sk_perfc_op, PERFC_EN_C0SKOP, "set", &self->c0sk_pc_op))
         hse_log(HSE_ERR "cannot alloc c0sk op perf counters");
 
     if (perfc_ctrseti_alloc(
             COMPNAME,
-            self->c0sk_kvdbname,
+            self->c0sk_kvdbhome,
             c0sk_perfc_ingest,
             PERFC_EN_C0SKING,
             "set",
@@ -474,7 +473,7 @@ merr_t
 c0sk_open(
     struct kvdb_rparams *kvdb_rp,
     struct mpool *       mp_dataset,
-    const char *         kvdb_name,
+    const char *         mp_name,
     struct kvdb_health * health,
     struct csched *      csched,
     atomic64_t *         kvdb_seq,
@@ -502,7 +501,7 @@ c0sk_open(
 
     c0sk->c0sk_kvdb_seq = kvdb_seq;
 
-    strlcpy(c0sk->c0sk_kvdbname, kvdb_name, sizeof(c0sk->c0sk_kvdbname));
+    strlcpy(c0sk->c0sk_kvdbhome, mp_name, sizeof(c0sk->c0sk_kvdbhome));
 
     CDS_INIT_LIST_HEAD(&c0sk->c0sk_kvmultisets);
     INIT_LIST_HEAD(&c0sk->c0sk_sync_waiters);
@@ -556,11 +555,11 @@ c0sk_open(
 
     *c0skp = &c0sk->c0sk_handle;
 
-    hse_log(HSE_INFO "c0sk_open(%s) complete", kvdb_name);
+    hse_log(HSE_INFO "c0sk_open(%s) complete", mp_name);
 
 errout:
     if (err) {
-        hse_elog(HSE_ERR "c0sk_open(%s) failed: @@e", err, kvdb_name);
+        hse_elog(HSE_ERR "c0sk_open(%s) failed: @@e", err, mp_name);
 
         if (c0sk) {
             destroy_workqueue(c0sk->c0sk_wq_ingest);

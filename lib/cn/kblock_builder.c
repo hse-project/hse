@@ -533,7 +533,7 @@ kblock_add_entry(
     *added = false;
 
     if (kblk->rp->cn_bloom_create) {
-        size_t tree_sfx_len = kblk->cp->cp_sfx_len;
+        size_t tree_sfx_len = kblk->cp->sfx_len;
 
         /* Ensure we have enough pages reserved for bloom filters. */
         if (kblk->num_keys + 1 > kblk->blm_elt_cap) {
@@ -938,7 +938,7 @@ kblock_finish(struct kblock_builder *bld, struct wbb *ptree)
     for (i = 0; i < iov_cnt; i++)
         wlen += iov[i].iov_len;
 
-    kblocksz = (bld->rp->kblock_size_mb << 20);
+    kblocksz = bld->rp->kblock_size;
     if (wlen > kblocksz) {
         hse_log(HSE_DEBUG "wlen %lu kblocksz %lu", wlen, kblocksz);
         assert(wlen <= kblocksz);
@@ -1039,7 +1039,7 @@ kbb_create(struct kblock_builder **builder_out, struct cn *cn, struct perfc_set 
     if (ev(err))
         goto err_exit1;
 
-    kb_size = bld->rp->kblock_size_mb << 20;
+    kb_size = bld->rp->kblock_size;
 
     err = kblock_init(&bld->curr, bld->cp, bld->rp, bld->pc, kb_size);
     if (ev(err))
@@ -1193,7 +1193,7 @@ kbb_finish(struct kblock_builder *bld, struct blk_list *kblks, u64 seqno_min, u6
      */
     if (!kblock_is_empty(&bld->curr)) {
         struct wbb *pt = 0;
-        u64         kbsize = (bld->rp->kblock_size_mb << 20);
+        u64         kbsize = bld->rp->kblock_size;
         u64         ptsize = (wbb_page_cnt_get(bld->ptree)) * PAGE_SIZE;
         u64         kbused =
             (KBLOCK_HDR_PAGES + HLOG_PGC + bld->curr.blm_pgc + wbb_page_cnt_get(bld->curr.wbtree)) *

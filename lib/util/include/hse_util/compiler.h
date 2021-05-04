@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
 #ifndef HSE_PLATFORM_COMPILER_H
@@ -17,17 +17,21 @@
 /* The "volatile" is due to gcc bugs */
 #define barrier() asm volatile("" : : : "memory")
 
-#define HSE_LIKELY(x)     __builtin_expect(!!(x), 1)
-#define HSE_UNLIKELY(x)   __builtin_expect(!!(x), 0)
-#define HSE_ALWAYS_INLINE inline __attribute__((always_inline))
-#define HSE_PRINTF(a, b)  __attribute__((format(printf, a, b)))
-#define HSE_PACKED        __attribute__((packed))
-#define HSE_ALIGNED(SIZE) __attribute__((aligned(SIZE)))
-#define HSE_READ_MOSTLY   __attribute__((section(".read_mostly")))
-#define HSE_MAYBE_UNUSED  __attribute__((unused))
-#define HSE_USED          __attribute__((used))
-#define HSE_HOT           __attribute__((hot))
-#define HSE_COLD          __attribute__((cold))
+#define HSE_LIKELY(x)       __builtin_expect(!!(x), 1)
+#define HSE_UNLIKELY(x)     __builtin_expect(!!(x), 0)
+#define HSE_ALWAYS_INLINE   inline __attribute__((always_inline))
+#define HSE_PRINTF(a, b)    __attribute__((format(printf, a, b)))
+#define HSE_PACKED          __attribute__((packed))
+#define HSE_ALIGNED(SIZE)   __attribute__((aligned(SIZE)))
+#define HSE_READ_MOSTLY     __attribute__((section(".read_mostly")))
+#define HSE_MAYBE_UNUSED    __attribute__((unused))
+#define HSE_USED            __attribute__((used))
+#define HSE_HOT             __attribute__((hot))
+#define HSE_COLD            __attribute__((cold))
+#define HSE_RETURNS_NONNULL __attribute__((returns_nonnull))
+#define HSE_CONST           __attribute__((const))
+#define HSE_PURE            __attribute__((pure))
+#define HSE_SENTINEL        __attribute__((sentinel))
 
 #if __amd64__
 static HSE_ALWAYS_INLINE void

@@ -30,18 +30,18 @@ enum mclass_id {
 };
 
 /**
- * struct mclass_params - media class params passed at mclass open
+ * struct mclass_params - mclass params
  *
- * @fszmax:   max file size
+ * @fmaxsz:   max file size
  * @mblocksz: mblock size
  * @filecnt:  number of files in an mclass fileset
- * @path:     mclass storage path
+ * @path:     storage path
  */
 struct mclass_params {
-    size_t fszmax;
-    size_t mblocksz;
-    u8     filecnt;
-    char   path[PATH_MAX];
+    size_t  fmaxsz;
+    size_t  mblocksz;
+    uint8_t filecnt;
+    char    path[PATH_MAX];
 };
 
 /**
@@ -54,10 +54,10 @@ struct mclass_params {
  */
 merr_t
 mclass_open(
-    enum mpool_mclass     mclass,
-    struct mclass_params *params,
-    int                   flags,
-    struct media_class  **handle);
+    enum mpool_mclass           mclass,
+    const struct mclass_params *params,
+    int                         flags,
+    struct media_class **       handle);
 
 /**
  * mclass_close() - close an mclass
@@ -70,10 +70,11 @@ mclass_close(struct media_class *mc);
 /**
  * mclass_destroy() - destroy an mclass
  *
- * @mc: mclass handle
+ * @path: mclass path
+ * @wq:   destroy wq
  */
-void
-mclass_destroy(struct media_class *mc, struct workqueue_struct *wq);
+int
+mclass_destroy(const char *path, struct workqueue_struct *wq);
 
 /**
  * mclass_id() - get mclass id

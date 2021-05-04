@@ -157,38 +157,31 @@ void
 stress(char *mp, char *kv)
 {
     struct hse_kvs *   kvs = NULL;
-    struct hse_params *params;
     pthread_t          t[nthreads];
     pthread_t          mt;
     struct cursor_info info;
     int                err;
     int                i, rc;
 
-    hse_params_create(&params);
-
-    err = hse_kvdb_open(mp, params, &kvdb);
+    err = hse_kvdb_open(mp, 0, NULL, &kvdb);
     if (err) {
-        hse_params_destroy(params);
         die(err, "cannot open kvdb");
     }
 
     /* ingest after a delay of 10ms */
     /* rp.cn_diag_mode = (0x2112L << 48) | 10*1000; */
 
-    err = hse_kvdb_kvs_open(kvdb, kv, params, &kvs);
+    err = hse_kvdb_kvs_open(kvdb, kv, 0, NULL, &kvs);
     if (err && err != ENOENT) {
-        hse_params_destroy(params);
         die(err, "cannot open kvs");
     }
     if (err) {
-        err = hse_kvdb_kvs_make(kvdb, kv, 0);
+        err = hse_kvdb_kvs_make(kvdb, kv, 0, NULL);
         if (err) {
-            hse_params_destroy(params);
             die(err, "cannot make kvs");
         }
-        err = hse_kvdb_kvs_open(kvdb, kv, params, &kvs);
+        err = hse_kvdb_kvs_open(kvdb, kv, 0, NULL, &kvs);
         if (err) {
-            hse_params_destroy(params);
             die(err, "cannot open kvs");
         }
     }
@@ -196,14 +189,13 @@ stress(char *mp, char *kv)
     info.kvs = kvs;
 
     /*
-	 * seed the c0kvms with 900 keys, "100" .. "999"
-	 * each key has at least 3 bytes, so prefixes work
-	 * and get enough variation that some will age more than others
-	 * and the rb-tree in the cache sees sufficient churn
-	 */
+     * seed the c0kvms with 900 keys, "100" .. "999"
+     * each key has at least 3 bytes, so prefixes work
+     * and get enough variation that some will age more than others
+     * and the rb-tree in the cache sees sufficient churn
+     */
     rc = pthread_create(&mt, 0, maker, kvs);
     if (rc) {
-        hse_params_destroy(params);
         die(rc, "cannot create maker thread");
     }
     poll(0, 0, 1);
@@ -218,7 +210,6 @@ stress(char *mp, char *kv)
     for (i = 0; i < nthreads; ++i) {
         rc = pthread_create(t + i, 0, parallel_cursors, &info);
         if (rc) {
-            hse_params_destroy(params);
             die(rc, "cannot create thread");
         }
     }
@@ -226,7 +217,6 @@ stress(char *mp, char *kv)
     for (i = 0; i < nthreads; ++i) {
         rc = pthread_join(t[i], 0);
         if (rc) {
-            hse_params_destroy(params);
             die(rc, "cannot join thread");
         }
     }
@@ -234,11 +224,8 @@ stress(char *mp, char *kv)
 
     err = hse_kvdb_close(kvdb);
     if (err) {
-        hse_params_destroy(params);
         die(err, "cannot close kvdb");
     }
-
-    hse_params_destroy(params);
 }
 
 void

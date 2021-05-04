@@ -73,14 +73,6 @@ void
 mblock_fset_close(struct mblock_fset *mbfsp);
 
 /**
- * mblock_fset_remove() - remove an mblock fileset
- *
- * @mbfsp: mblock fileset handle
- */
-void
-mblock_fset_remove(struct mblock_fset *mbfsp, struct workqueue_struct *wq);
-
-/**
  * mblock_fset_alloc() - allocate object from an mblock fileset
  *
  * @mbfsp: mblock fileset handle

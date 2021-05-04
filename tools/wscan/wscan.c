@@ -23,10 +23,10 @@
 
 #include <hse_util/event_timer.h>
 #include <hse_util/fmt.h>
-#include <hse_util/hse_params_helper.h>
 #include <hse_util/inttypes.h>
 
 #include <tools/common.h>
+#include <tools/parm_groups.h>
 
 void
 showkey(const void *key, size_t klen)
@@ -51,22 +51,18 @@ mk_val(char *buf, u64 val)
 }
 
 void
-usage(const char *prog, bool params)
+usage(const char *prog)
 {
     fprintf(
         stderr,
         "usage: %s [options] [kvdb kvs] [param=value ...]\n"
         "-0    disable c0 seeding -- requires cn has prev run\n"
-        "-C    list tunable parameters\n"
         "-g    get the key just put using hse_kvs_get\n"
         "-i n  do $n iterations between cursors\n"
         "-s n  start with $n\n"
         "-U    update cursor (vs restart it)\n"
         "-v n  set verbosity to $n\n",
         prog);
-
-    if (params)
-        rp_usage();
 
     exit(1);
 }
@@ -85,8 +81,10 @@ main(int argc, char **argv)
     static char kbuf[HSE_KVS_KLEN_MAX];
     static char vbuf[HSE_KVS_VLEN_MAX];
 
-    struct hse_params *    params;
     const char *           mpname, *dsname, *kvname, *prog;
+    struct parm_groups *   pg = NULL;
+    struct svec            db_oparm = {};
+    struct svec            kv_oparm = {};
     struct hse_kvdb_opspec opspec;
     struct hse_kvs_cursor *cur;
     struct hse_kvdb *      h;
@@ -95,8 +93,8 @@ main(int argc, char **argv)
     u64                    incr = 100000;
     int                    update, c0, get;
     int                    c;
-    int                    err;
-    unsigned               opt_params = 0;
+    int                    rc;
+    hse_err_t              err;
     unsigned               opt_help = 0;
 
     EVENT_TIMER(tb);
@@ -116,11 +114,12 @@ main(int argc, char **argv)
     c0 = 1;
     get = 0;
 
-    while ((c = getopt(argc, argv, "?CU0gi:s:")) != -1) {
+    rc = pg_create(&pg, PG_KVDB_OPEN, PG_KVS_OPEN, NULL);
+    if (rc)
+        fatal(rc, "pg_create");
+
+    while ((c = getopt(argc, argv, "?U0gi:s:")) != -1) {
         switch (c) {
-            case 'C':
-                opt_params++;
-                break;
             case 'U':
                 update = 1;
                 break;
@@ -144,52 +143,56 @@ main(int argc, char **argv)
     }
 
     if (opt_help)
-        usage(prog, opt_params);
-    if (opt_params)
-        rp_usage();
+        usage(prog);
+
+    if (argc - optind < 3)
+        fatal(0, "missing required parameters");
+
+    mpname = argv[optind++];
+    dsname = argv[optind++];
+    kvname = argv[optind++];
+
+    rc = pg_parse_argv(pg, argc, argv, &optind);
+    switch (rc) {
+        case 0:
+            if (optind < argc)
+                fatal(0, "unknown parameter: %s", argv[optind]);
+            break;
+        case EINVAL:
+            fatal(0, "missing group name (e.g. %s) before parameter %s\n",
+                PG_KVDB_OPEN, argv[optind]);
+            break;
+        default:
+            fatal(rc, "error processing parameter %s\n", argv[optind]);
+            break;
+    }
+
+    rc = rc ?: svec_append_pg(&db_oparm, pg, "perfc_enable=0", PG_KVDB_OPEN, NULL);
+    rc = rc ?: svec_append_pg(&kv_oparm, pg, "cn_mcache_wbt=0", "cn_bloom_lookup=0",
+        PG_KVS_OPEN, NULL);
+    if (rc)
+        fatal(rc, "svec_apppend_pg failed");
+
+    /* ==================================================
+     * MAIN: Everything else is preamble to get to here.
+     * This is the stuff you really wanted to see.
+     */
+
+    HSE_KVDB_OPSPEC_INIT(&opspec);
 
     err = hse_init();
     if (err)
         fatal(err, "failed to initialize kvdb");
 
-    hse_params_create(&params);
-
-    hse_params_set(params, "kvdb.perfc_enable", "0");
-    hse_params_set(params, "kvdb.read_only", "0");
-
-    hse_params_set(params, "kvs.cn_mcache_wbt", "0");
-    hse_params_set(params, "kvs.cn_bloom_lookup", "0");
-
-    err = hse_parse_cli(argc - optind, argv + optind, &optind, 0, params);
-    if (err)
-        rp_usage();
-
-    argc -= optind;
-    argv += optind;
-
-    if (argc < 3)
-        usage(prog, false);
-
-    mpname = argv[0];
-    dsname = argv[1];
-    kvname = argv[2];
-
-    /* ==================================================
-	 * MAIN: Everything else is preamble to get to here.
-	 * This is the stuff you really wanted to see.
-	 */
-
-    HSE_KVDB_OPSPEC_INIT(&opspec);
-
-    err = hse_kvdb_open(mpname, params, &h);
+    err = hse_kvdb_open(mpname, db_oparm.strc, db_oparm.strv, &h);
     if (err)
         fatal(err, "cannot open %s/%s", mpname, dsname);
 
-    err = hse_kvdb_kvs_open(h, kvname, params, &kvs);
+    err = hse_kvdb_kvs_open(h, kvname, kv_oparm.strc, kv_oparm.strv, &kvs);
     if (err)
         fatal(err, "cannot open %s/%s/%s", mpname, dsname, kvname);
 
-    /* MU_REVISIT: bypass bug where c0sk params not plumbed thru */
+    /* MU_REVISIT: bypass bug where c0sk config not plumbed thru */
     err = hse_kvdb_sync(h);
     if (err)
         fatal(err, "cannot flush");
@@ -197,16 +200,15 @@ main(int argc, char **argv)
     if (err)
         fatal(err, "cannot flush");
 
-    /*
-	// loop:
-	// create cursor
-	// put keys
-	// read cursor -- not newly added keys
-	// close cursor
-	// goto loop
-	// should show a problem in spill
-	// need a signal handler to exit loop cleanly on ctl-c
-	*/
+    // loop:
+    //   create cursor
+    //   put keys
+    //   read cursor -- not newly added keys
+    //   close cursor
+    //   goto loop
+    //
+    // should show a problem in spill
+    // need a signal handler to exit loop cleanly on ctl-c
 
     u64              key = start;
     u64              end = start + incr;
@@ -399,7 +401,7 @@ main(int argc, char **argv)
 
     if (errmsg) {
         if (err)
-            printf("ERROR: %s: %d\n", errmsg, err);
+            printf("ERROR: %s: %ld\n", errmsg, err);
         else
             printf("ERROR: %s\n", errmsg);
     }
@@ -422,7 +424,9 @@ error:
     if (err)
         fatal(err, errmsg);
 
-    hse_params_destroy(params);
+    pg_destroy(pg);
+    svec_reset(&db_oparm);
+    svec_reset(&kv_oparm);
 
     hse_fini();
 

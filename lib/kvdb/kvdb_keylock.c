@@ -8,6 +8,7 @@
 #include <hse_util/alloc.h>
 #include <hse_util/atomic.h>
 #include <hse_util/spinlock.h>
+#include <hse_util/mutex.h>
 #include <hse_util/compiler.h>
 #include <hse_util/slab.h>
 #include <hse_util/keylock.h>

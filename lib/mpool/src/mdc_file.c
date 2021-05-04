@@ -48,7 +48,7 @@ struct mdc_file {
 
     struct io_ops io;
     char         *addr;
-    char          name[32];
+    char          name[MDC_NAME_LENGTH_MAX];
 };
 
 static void
@@ -167,13 +167,10 @@ logrec_validate(char *addr, size_t *recsz)
 }
 
 merr_t
-mdc_file_create(int dirfd, uint64_t logid, int flags, int mode, size_t capacity)
+mdc_file_create(int dirfd, const char *name, int flags, int mode, size_t capacity)
 {
     int    fd, rc;
     merr_t err = 0;
-    char   name[32];
-
-    mdc_filename_gen(name, sizeof(name), logid);
 
     fd = openat(dirfd, name, flags, mode);
     if (fd < 0) {
@@ -184,7 +181,7 @@ mdc_file_create(int dirfd, uint64_t logid, int flags, int mode, size_t capacity)
     rc = ftruncate(fd, capacity);
     if (rc == -1) {
         err = merr(errno);
-        mdc_file_destroy(dirfd, logid);
+        mdc_file_destroy(dirfd, name);
     }
 
     close(fd);
@@ -193,12 +190,9 @@ mdc_file_create(int dirfd, uint64_t logid, int flags, int mode, size_t capacity)
 }
 
 merr_t
-mdc_file_destroy(int dirfd, uint64_t logid)
+mdc_file_destroy(int dirfd, const char *name)
 {
-    char name[32];
     int  rc;
-
-    mdc_filename_gen(name, sizeof(name), logid);
 
     rc = unlinkat(dirfd, name, 0);
     if (rc == -1)
@@ -209,14 +203,11 @@ mdc_file_destroy(int dirfd, uint64_t logid)
 
 /* At commit, the log header of both MDC files are initialized. */
 merr_t
-mdc_file_commit(int dirfd, uint64_t logid)
+mdc_file_commit(int dirfd, const char *name)
 {
     struct mdc_loghdr lh;
-    char              name[32];
     merr_t            err = 0;
     int               fd;
-
-    mdc_filename_gen(name, sizeof(name), logid);
 
     fd = openat(dirfd, name, O_RDWR);
     if (fd < 0) {
@@ -225,7 +216,6 @@ mdc_file_commit(int dirfd, uint64_t logid)
     }
 
     err = loghdr_update_byfd(fd, &lh, 0);
-
     close(fd);
 
     return err;
@@ -339,18 +329,20 @@ mdc_file_size(int fd, size_t *size)
 }
 
 merr_t
-mdc_file_open(struct mpool_mdc *mdc, uint64_t logid, uint64_t *gen, struct mdc_file **handle)
+mdc_file_open(
+    struct mpool_mdc *mdc,
+    int               dirfd,
+    const char       *name,
+    uint64_t          logid,
+    uint64_t         *gen,
+    struct mdc_file **handle)
 {
     struct mdc_file *mfp;
-    int    fd, dirfd;
+    int    fd;
     merr_t err;
-    char   name[32];
 
     if (!mdc)
         return merr(EINVAL);
-
-    mdc_filename_gen(name, sizeof(name), logid);
-    dirfd = mclass_dirfd(mdc_mclass_get(mdc));
 
     fd = openat(dirfd, name, O_RDWR);
     if (fd < 0) {
@@ -476,16 +468,14 @@ mdc_file_gen(struct mdc_file *mfp, uint64_t *gen)
 }
 
 merr_t
-mdc_file_exists(int dirfd, uint64_t logid1, uint64_t logid2, bool *exist)
+mdc_file_exists(int dirfd, const char *name1, const char *name2, bool *exist)
 {
-    char   name[32];
     int    rc;
     merr_t err;
 
     *exist = false;
 
-    mdc_filename_gen(name, sizeof(name), logid1);
-    rc = faccessat(dirfd, name, F_OK, 0);
+    rc = faccessat(dirfd, name1, F_OK, 0);
     if (rc == -1) {
         err = merr(errno);
         if (merr_errno(err) == ENOENT)
@@ -493,8 +483,7 @@ mdc_file_exists(int dirfd, uint64_t logid1, uint64_t logid2, bool *exist)
         return err;
     }
 
-    mdc_filename_gen(name, sizeof(name), logid2);
-    rc = faccessat(dirfd, name, F_OK, 0);
+    rc = faccessat(dirfd, name2, F_OK, 0);
     if (rc == -1) {
         err = merr(errno);
         if (merr_errno(err) == ENOENT)

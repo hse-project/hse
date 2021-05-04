@@ -18,6 +18,8 @@
 
 #include <math.h>
 #include <time.h>
+#include <sysexits.h>
+#include <getopt.h>
 
 /*
  * These values must remain 5 bytes long. They form part of the public API of
@@ -309,7 +311,7 @@ inner_attr_show(struct mtf_test_coll_info *tci, const char *attr_name, char *buf
     return cnt;
 }
 
-const char *artifact_root;
+const char *home;
 
 #define MTF_END_UTEST_COLLECTION(coll_name)                                                        \
                                                                                                    \
@@ -322,11 +324,11 @@ const char *artifact_root;
         if (rc)                                                                                    \
             return rc;                                                                             \
                                                                                                    \
-        logpri = getenv("HSE_TEST_LOGPRI");                                                          \
+        logpri = getenv("HSE_TEST_LOGPRI");                                                        \
         if (logpri)                                                                                \
             hse_logging_control.mlc_cur_pri = atoi(logpri);                                        \
                                                                                                    \
-        verbose = getenv("HSE_TEST_VERBOSE");                                                        \
+        verbose = getenv("HSE_TEST_VERBOSE");                                                      \
         if (verbose)                                                                               \
             hse_openlog(argv[0], atoi(verbose));                                                   \
                                                                                                    \
@@ -337,7 +339,7 @@ const char *artifact_root;
             { "logpri", required_argument, NULL, 'd' },                                            \
             { "help", no_argument, NULL, 'h' },                                                    \
             { "one", required_argument, NULL, '1' },                                               \
-            { "artifact-root", required_argument, NULL, 'a' },                                     \
+            { "home", required_argument, NULL, 'C' },                                     \
             { 0, 0, 0, 0 },                                                                        \
         };                                                                                         \
                                                                                                    \
@@ -345,7 +347,7 @@ const char *artifact_root;
             switch (c) {                                                                           \
                 case 'h':                                                                          \
                     printf(                                                                        \
-                        "usage: %s [-v] [-d logpri] [-1 testname] [-a artifact-root]\n", argv[0]); \
+                        "usage: %s [-v] [-d logpri] [-1 testname] [-C home]\n", argv[0]); \
                     printf("usage: %s -h\n", argv[0]);                                             \
                     exit(0);                                                                       \
                                                                                                    \
@@ -361,8 +363,8 @@ const char *artifact_root;
                     _mtf_##coll_name##_tci.tci_named = optarg;                                     \
                     break;                                                                         \
                                                                                                    \
-                case 'a':                                                                          \
-                    artifact_root = optarg;                                                        \
+                case 'C':                                                                          \
+                    home = optarg;                                                        \
                     break;                                                                         \
                                                                                                    \
                 case ':':                                                                          \
@@ -376,8 +378,6 @@ const char *artifact_root;
                     break;                                                                         \
             }                                                                                      \
         }                                                                                          \
-        if (getenv("HSE_TEST_ARTIFACT_ROOT"))                                                      \
-            artifact_root = getenv("HSE_TEST_ARTIFACT_ROOT");                                      \
                                                                                                    \
         _mtf_##coll_name##_tci.tci_argc = argc;                                                    \
         _mtf_##coll_name##_tci.tci_argv = argv;                                                    \

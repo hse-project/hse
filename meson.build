@@ -178,7 +178,7 @@ cJSON_dep = dependency(
 )
 libbsd_dep = dependency(
     'libbsd',
-    version: '>=0.8.7',
+    version: '>=0.9.0',
     required: true,
     fallback: ['libbsd', 'libbsd_dep'],
     default_options: [
@@ -385,11 +385,6 @@ if get_option('bindings-python')
     hse_python = subproject(
         'hse-python',
         required: true,
-        default_options: [
-            'buildtype=release',
-            'warning_level=0',
-            'tests=false',
-        ],
     )
 
     hse_python_extension_modules = hse_python.get_variable('extension_modules')
@@ -409,10 +404,6 @@ if get_option('bindings-python')
         env: run_env,
     )
 else
-    if enabled_tests.length() > 0 or get_option('tools')
-        message('tests and tools will use the system HSE Python bindings')
-    endif
-
     hse_python_depends = []
 endif
 

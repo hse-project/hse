@@ -68,9 +68,8 @@ public class API {
 
 	public native void fini() throws HSEGenException;
 
-	public native void open(short dbType, String mpoolName, String kvsName,
-            String hseParamsList, String configPath)
-				throws HSEGenException;
+	public native void open(short dbType, String kvdbHome, String kvsName,
+                                String hseConfig) throws HSEGenException;
 
 	public native int close(long handle) throws HSEGenException;
 

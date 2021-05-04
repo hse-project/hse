@@ -4,13 +4,11 @@
  */
 
 #include <sys/statvfs.h>
-#include <ftw.h>
 
 #include <hse_util/event_counter.h>
 #include <hse_util/logging.h>
 #include <hse_util/page.h>
 #include <hse_util/string.h>
-#include <hse_util/workqueue.h>
 
 #include "omf.h"
 #include "mclass.h"
@@ -224,12 +222,6 @@ mblock_fset_meta_close(struct mblock_fset *mbfsp)
 }
 
 static void
-mblock_fset_meta_remove(int dirfd, const char *name)
-{
-    unlinkat(dirfd, name, 0);
-}
-
-static void
 mblock_fset_free(struct mblock_fset *mbfsp)
 {
     free(mbfsp->filev);
@@ -246,11 +238,8 @@ mblock_fset_meta_open(struct mblock_fset *mbfsp, int flags)
 
     mbfsp->metafd = -1;
 
-    flags &= (O_RDWR | O_RDONLY | O_WRONLY | O_CREAT);
-    if (flags & O_CREAT) {
-        flags |= O_EXCL;
+    if (flags & O_CREAT)
         create = true;
-    }
 
     snprintf(mbfsp->mname, sizeof(mbfsp->mname), "%s-%d", "mblock-meta", mclass_id(mbfsp->mc));
     dirfd = mclass_dirfd(mbfsp->mc);
@@ -282,21 +271,16 @@ mblock_fset_meta_open(struct mblock_fset *mbfsp, int flags)
                 goto errout;
             }
         }
-    }
-
-    if (create)
-        err = mblock_fset_meta_format(mbfsp, flags);
-    else
+    } else {
         err = mblock_fset_meta_load(mbfsp, flags);
-    if (err)
-        goto errout;
+        if (err)
+            goto errout;
+    }
 
     return 0;
 
 errout:
     mblock_fset_meta_close(mbfsp);
-    if (create)
-        mblock_fset_meta_remove(dirfd, mbfsp->mname);
 
     return err;
 }
@@ -325,6 +309,10 @@ mblock_fset_open(
     mbfsp->mc = mc;
     mbfsp->fcnt = fcnt ?: MBLOCK_FSET_FILES_DEFAULT;
     mbfsp->fszmax = fszmax ?: MBLOCK_FILE_SIZE_MAX;
+
+    flags &= (O_RDWR | O_RDONLY | O_WRONLY | O_CREAT);
+    if (flags & O_CREAT)
+        flags |= O_EXCL;
 
     err = mblock_fset_meta_open(mbfsp, flags);
     if (err) {
@@ -373,14 +361,22 @@ mblock_fset_open(
 
     atomic64_set(&mbfsp->fidx, 0);
 
+    /*
+     * Write the mblock metadata header at the end of fset create. This is to
+     * detect partial fset create during reopen.
+     */
+    if (flags & O_CREAT) {
+        err = mblock_fset_meta_format(mbfsp, flags);
+        if (err)
+            goto errout;
+    }
+
     *handle = mbfsp;
 
     return 0;
 
 errout:
-    if (flags & O_CREAT)
-        mblock_fset_remove(mbfsp, NULL); /* Remove data and meta files */
-    else
+    if (!(flags & O_CREAT))
         mblock_fset_close(mbfsp);
 
     return err;
@@ -423,140 +419,6 @@ mblock_fset_close(struct mblock_fset *mbfsp)
 
     free(mbfsp->filev);
     free(mbfsp);
-}
-
-static struct workqueue_struct *mpdwq;
-static int                      pathc_per_thr, pathidx;
-
-static struct mp_destroy_work {
-    struct work_struct work;
-    char             **path;
-    int                pathc;
-    int                curpc;
-} **mpdw;
-
-static void
-remove_path(struct work_struct *work)
-{
-    struct mp_destroy_work *mpdw;
-
-    mpdw = container_of(work, struct mp_destroy_work, work);
-
-    for (int i = 0; i < mpdw->pathc; i++)
-        remove(mpdw->path[i]);
-}
-
-static int
-mblock_fset_removecb(const char *path, const struct stat *sb, int typeflag, struct FTW *ftwbuf)
-{
-    if (typeflag == FTW_D && ftwbuf->level > 0)
-        return FTW_SKIP_SUBTREE;
-
-    if (strstr(path, MBLOCK_DATA_FILE_PFX)) {
-        struct mp_destroy_work *w;
-
-        if (!mpdwq) {
-            remove(path);
-            return FTW_CONTINUE;
-        }
-
-        w = mpdw[pathidx / pathc_per_thr];
-
-        if (ev(w->pathc == 0)) {
-            remove(path);
-            return FTW_CONTINUE;
-        }
-
-        strlcpy(w->path[pathidx++ % pathc_per_thr], path, PATH_MAX);
-        if (++w->curpc == w->pathc) {
-            INIT_WORK(&w->work, remove_path);
-
-            if (!queue_work(mpdwq, &w->work)) {
-                for (int i = 0; i < w->pathc; i++)
-                    remove(w->path[i]);
-            }
-        }
-    }
-
-    return FTW_CONTINUE;
-}
-
-static void
-mbfs_destroy_setup(uint8_t filecnt, struct workqueue_struct *wq)
-{
-    size_t worksz, sz;
-    int    pathc, workc, fcnt;
-
-    workc = MP_DESTROY_THREADS;
-    pathc = filecnt / workc;
-    if (filecnt % workc)
-        pathc++;
-
-    worksz = sizeof(*mpdw) + pathc * (sizeof((*mpdw)->path) + PATH_MAX);
-    sz = workc * (sizeof(mpdw) + worksz);
-    mpdw = calloc(1, sz);
-    if (ev(!mpdw))
-        return;
-
-    pathidx = 0;
-    mpdwq = wq;
-    pathc_per_thr = pathc;
-    fcnt = 0;
-
-    for (int i = 0; i < workc; i++) {
-        struct mp_destroy_work *w;
-        char                   *p;
-
-        w = (struct mp_destroy_work *)((char *)(mpdw + workc) + (i * worksz));
-        mpdw[i] = w;
-
-        w->path = (char **)(w + 1);
-        p = (char *)(w->path + pathc);
-
-        for (int j = 0; j < pathc; j++)
-            w->path[j] = p + j * PATH_MAX;
-
-        w->pathc = pathc;
-        if (fcnt + pathc > filecnt) {
-            w->pathc = filecnt - fcnt;
-            break;
-        }
-        fcnt += pathc;
-    }
-}
-
-static void
-mbfs_destroy_teardown(void)
-{
-    flush_workqueue(mpdwq);
-    mpdwq = NULL;
-    free(mpdw);
-    mpdw = NULL;
-}
-
-void
-mblock_fset_remove(struct mblock_fset *mbfsp, struct workqueue_struct *wq)
-{
-    const char *dpath;
-    char        name[32];
-    int         dirfd;
-    uint8_t     filecnt = mbfsp->fcnt;
-
-    dirfd = mclass_dirfd(mbfsp->mc);
-    dpath = mclass_dpath(mbfsp->mc);
-    strlcpy(name, mbfsp->mname, sizeof(name));
-
-    mblock_fset_close(mbfsp);
-
-    if (wq)
-        mbfs_destroy_setup(filecnt, wq);
-
-    nftw(dpath, mblock_fset_removecb, MBLOCK_FSET_FILES_MAX, FTW_PHYS | FTW_ACTIONRETVAL);
-
-    mblock_fset_meta_remove(dirfd, name);
-
-    if (wq)
-        mbfs_destroy_teardown();
 }
 
 merr_t

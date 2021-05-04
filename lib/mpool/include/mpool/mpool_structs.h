@@ -8,8 +8,9 @@
 
 #include <hse_util/inttypes.h>
 
-#define MPOOL_ROOT_LOG_CAP (8 * 1024 * 1024)
-#define MDC_ROOT_MAGIC     (0xFACE0FFF)
+#define MPOOL_ROOT_LOG_CAP     (8 * 1024 * 1024)
+#define MDC_ROOT_MAGIC         (0xFACE0FFF)
+#define MDC_ROOT_FILE_NAME     "hse.meta"
 
 /**
  * mpool_mclass = Media classes
@@ -25,6 +26,46 @@ enum mpool_mclass {
 #define MP_MED_BASE    MP_MED_CAPACITY
 #define MP_MED_COUNT   (MP_MED_STAGING + 1)
 #define MP_MED_INVALID U8_MAX
+
+
+/**
+ * struct mpool_cparams - mpool create params
+ *
+ * @fmaxsz:   max file size
+ * @mblocksz: mblock size
+ * @filecnt:  number of files in an mclass fileset
+ * @path:     storage path
+ */
+struct mpool_cparams {
+    struct {
+        size_t  fmaxsz;
+        size_t  mblocksz;
+        uint8_t filecnt;
+        char    path[PATH_MAX];
+    } mclass[MP_MED_COUNT];
+};
+
+/**
+ * struct mpool_rparams - mpool run params
+ *
+ * @path: storage path
+ */
+struct mpool_rparams {
+    struct {
+        char path[PATH_MAX];
+    } mclass[MP_MED_COUNT];
+};
+
+/**
+ * struct mpool_dparams - mpool destroy params
+ *
+ * @path: storage path
+ */
+struct mpool_dparams {
+    struct {
+        char path[PATH_MAX];
+    } mclass[MP_MED_COUNT];
+};
 
 /**
  * struct mpool_props -

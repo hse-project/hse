@@ -427,6 +427,16 @@ _mpool_mdc_open(
     return 0;
 }
 
+static merr_t
+_mpool_mdc_root_open(
+    const char        *home,
+    uint64_t           oid1,
+    uint64_t           oid2,
+    struct mpool_mdc **mdc)
+{
+    return _mpool_mdc_open(NULL, oid1, oid2, mdc);
+}
+
 merr_t
 mpm_mdc_set_getlen(struct mpool_mdc *mdc, size_t (*getlen)(void *, size_t))
 {
@@ -737,6 +747,7 @@ mock_mpool_set(void)
     MOCK_SET(mpool, _mpool_mcache_getpages);
 
     MOCK_SET(mpool, _mpool_mdc_open);
+    MOCK_SET(mpool, _mpool_mdc_root_open);
     MOCK_SET(mpool, _mpool_mdc_close);
     MOCK_SET(mpool, _mpool_mdc_cstart);
     MOCK_SET(mpool, _mpool_mdc_cend);
@@ -769,7 +780,7 @@ mock_mpool_unset(void)
     MOCK_UNSET(mpool, _mpool_mcache_getbase);
     MOCK_UNSET(mpool, _mpool_mcache_getpages);
 
-    MOCK_UNSET(mpool, _mpool_mdc_open);
+    MOCK_UNSET(mpool, _mpool_mdc_root_open);
     MOCK_UNSET(mpool, _mpool_mdc_close);
     MOCK_UNSET(mpool, _mpool_mdc_cstart);
     MOCK_UNSET(mpool, _mpool_mdc_cend);

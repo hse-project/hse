@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
 #include <rbtree/rbtree.h>
@@ -253,6 +253,8 @@ MTF_DEFINE_UTEST(perfc, enable_counters)
     perfc_ctrseti_free(&set);
 }
 
+/* [HSE_TODO]: Data tree disabled during config refactor */
+#if 0
 MTF_DEFINE_UTEST(perfc, perfc_verbosity_set_test)
 {
     struct perfc_name           ctrnames = { 0 };
@@ -297,6 +299,7 @@ MTF_DEFINE_UTEST(perfc, perfc_verbosity_set_test)
 
     perfc_ctrseti_free(&set);
 }
+#endif
 
 MTF_DEFINE_UTEST(perfc, ctrset_path)
 {

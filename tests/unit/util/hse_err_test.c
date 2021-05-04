@@ -43,7 +43,7 @@ MTF_DEFINE_UTEST(hse_err_test, merr_test_1)
 
         sz2 = merr_strerror(i, errbuf, sizeof(errbuf));
         ASSERT_EQ(sz1, sz2);
-        ASSERT_EQ(sz2, strlen(errbuf) + 1);
+        ASSERT_EQ(sz2, strlen(errbuf));
     }
 
     (void)merr_strinfo(err, errinfo, sizeof(errinfo), 0);

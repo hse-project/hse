@@ -587,11 +587,8 @@ mblock_file_open(
     if (!mbfsp || !mc || !meta_addr || !handle || !params)
         return merr(EINVAL);
 
-    flags &= (O_RDWR | O_RDONLY | O_WRONLY | O_CREAT);
-    if (flags & O_CREAT) {
+    if (flags & O_CREAT)
         create = true;
-        flags |= O_EXCL;
-    }
 
     mblocksz = params->mblocksz;
     fszmax = params->fszmax;

@@ -18,20 +18,17 @@ key-imm-disc
 droptomb2
 putget2
 omf_encoder_perf
-mcache-test
 prefix-basic
 probe-test
 longtestcn
 longtest-sync
 longtestcn2
-mdc-test
 longtest-sync-cursor
 prefix-tree-shape1
 kvt-simple
 txn1
 longtestkvmax
 kmt1
-kmt-mpool
 large-values1
 kvt-isolation
 kvt-logreplay
@@ -39,6 +36,13 @@ cursor_test2
 kvt-compression
 kvs-max
 
+# These mpool tests needs to be integrated with the smoke
+# framework post config refactor work:
+#
+#   mcache-test
+#   mdc-test
+#   kmt-mpool
+#
 # These tests disabled until WAL is back:
 #
 #   kvt-logreplay

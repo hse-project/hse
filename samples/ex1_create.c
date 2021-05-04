@@ -28,7 +28,7 @@ main(int argc, char **argv)
 {
     struct hse_kvdb *kvdb;
 
-    char       *kvdb_name;
+    char       *kvdb_home;
     char      **kvs_list;
     int         kvs_cnt;
     hse_err_t   err, err2;
@@ -40,7 +40,7 @@ main(int argc, char **argv)
         exit(1);
     }
 
-    kvdb_name = argv[1];
+    kvdb_home = argv[1];
     kvs_list = &argv[2];
     kvs_cnt = argc - 2;
 
@@ -55,7 +55,7 @@ main(int argc, char **argv)
 
     init = true;
 
-    err = hse_kvdb_make(kvdb_name, NULL);
+    err = hse_kvdb_make(kvdb_home, 0, NULL);
     switch (hse_err_to_errno(err)) {
 
         case 0:
@@ -68,7 +68,7 @@ main(int argc, char **argv)
             break;
 
         case ENODATA:
-            printf("No such mpool: %s\n", kvdb_name);
+            printf("No such mpool: %s\n", kvdb_home);
             goto error;
 
         default:
@@ -76,7 +76,7 @@ main(int argc, char **argv)
             goto error;
     }
 
-    err = hse_kvdb_open(kvdb_name, NULL, &kvdb);
+    err = hse_kvdb_open(kvdb_home, 0, NULL, &kvdb);
     if (err) {
         report_error("hse_kvdb_open", err);
         goto error;
@@ -85,7 +85,7 @@ main(int argc, char **argv)
     open = true;
 
     for (int i = 0; i < kvs_cnt; i++) {
-        err = hse_kvdb_kvs_make(kvdb, kvs_list[i], NULL);
+        err = hse_kvdb_kvs_make(kvdb, kvs_list[i], 0, NULL);
         if (err) {
             report_error("hse_kvdb_kvs_make", err);
             goto error;

@@ -15,7 +15,7 @@
 #define MDC_LOGHDR_LEN     (4096)
 #define MDC_RA_BYTES       (128 << 10)
 #define MDC_EXTEND_FACTOR  (8)
-#define MDC_FILE_PFX       "mdc"
+#define MDC_FILE_PFX       "mdc-"
 
 struct mpool_mdc;
 struct mdc_file;
@@ -85,49 +85,60 @@ logids_valid(uint64_t logid1, uint64_t logid2)
 static inline void
 mdc_filename_gen(char *buf, size_t buflen, uint64_t logid)
 {
-    snprintf(buf, buflen, "%s-%lx", MDC_FILE_PFX, logid);
+    if (logid_magic(logid) == MDC_ROOT_MAGIC)
+        snprintf(buf, buflen, "%s-%d", MDC_ROOT_FILE_NAME, logid_fid(logid));
+    else
+        snprintf(buf, buflen, "%s%lx", MDC_FILE_PFX, logid);
 }
 
 /**
  * mdc_file_create() - create an MDC file
  *
  * @dirfd:    directory fd
- * @logid:    MDC file id
+ * @name:     MDC file name
  * @flags:    file creation flags
  * @mode:     file creation mode
  * @capacity: capacity (bytes)
  */
 merr_t
-mdc_file_create(int dirfd, uint64_t logid, int flags, int mode, size_t capacity);
+mdc_file_create(int dirfd, const char *name, int flags, int mode, size_t capacity);
 
 /**
  * mdc_file_destroy() - destroy an MDC file
  *
  * @dirfd: directory fd
- * @logid: MDC file id
+ * @name: MDC file name
  */
 merr_t
-mdc_file_destroy(int dirfd, uint64_t logid);
+mdc_file_destroy(int dirfd, const char *name);
 
 /**
  * mdc_file_commit() - commit an MDC file
  *
  * @dirfd: directory fd
- * @logid: MDC file id
+ * @name: MDC file name
  */
 merr_t
-mdc_file_commit(int dirfd, uint64_t logid);
+mdc_file_commit(int dirfd, const char *name);
 
 /**
  * mdc_file_open() - open an MDC file
  *
  * @mdc:    mdc handle
+ * @dirfd:  directory fd
+ * @name:   MDC file name
  * @logid:  MDC file id
  * @gen:    MDC file gen (output)
  * @handle: MDC file handle (output)
  */
 merr_t
-mdc_file_open(struct mpool_mdc *mdc, uint64_t logid, uint64_t *gen, struct mdc_file **handle);
+mdc_file_open(
+    struct mpool_mdc *mdc,
+    int               dirfd,
+    const char       *name,
+    uint64_t          logid,
+    uint64_t         *gen,
+    struct mdc_file **handle);
 
 /**
  * mdc_file_close() - close an MDC file
@@ -159,12 +170,12 @@ mdc_file_gen(struct mdc_file *mfp, uint64_t *gen);
  * mdc_file_exists() - check whether an MDC file exists
  *
  * @dirfd:  directory fd
- * @logid1: logid 1
- * @logid2: logid 2
+ * @name1:  MDC file name 1
+ * @name2:  MDC file name 2
  * @exist:  whether MDC file exists? (output)
  */
 merr_t
-mdc_file_exists(int dirfd, uint64_t logid1, uint64_t logid2, bool *exist);
+mdc_file_exists(int dirfd, const char *name1, const char *name2, bool *exist);
 
 /**
  * mdc_file_sync() - sync an MDC file

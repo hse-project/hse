@@ -272,10 +272,10 @@ MTF_DEFINE_UTEST_PRE(cn_ingest_test, worker, test_pre)
     cn.cn_dataset = mock_ds;
     atomic64_set(&cn.cn_ingest_dgen, 41);
 
-    cp.cp_fanout = 4;
-    cp.cp_pfx_len = 0;
-    cp.cp_pfx_pivot = 0;
-    cp.cp_sfx_len = 0;
+    cp.fanout = 4;
+    cp.pfx_len = 0;
+    cp.pfx_pivot = 0;
+    cp.sfx_len = 0;
     err = cn_tree_create(&cn.cn_tree, NULL, 0, &cp, &mock_health, &rp);
     ASSERT_EQ(err, 0);
 
@@ -306,10 +306,10 @@ MTF_DEFINE_UTEST_PRE(cn_ingest_test, fail_cleanup, test_pre)
     cn.cn_dataset = mock_ds;
     atomic64_set(&cn.cn_ingest_dgen, 41);
 
-    cp.cp_fanout = 4;
-    cp.cp_pfx_len = 0;
-    cp.cp_pfx_pivot = 0;
-    cp.cp_sfx_len = 0;
+    cp.fanout = 4;
+    cp.pfx_len = 0;
+    cp.pfx_pivot = 0;
+    cp.sfx_len = 0;
     err = cn_tree_create(&cn.cn_tree, NULL, 0, &cp, &mock_health, &rp);
     ASSERT_EQ(err, 0);
 

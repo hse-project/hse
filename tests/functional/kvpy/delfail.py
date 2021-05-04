@@ -1,30 +1,34 @@
 #!/usr/bin/env python3
+
+from contextlib import ExitStack
 import hse
 
-import util
+from utility import lifecycle
 
 
 hse.init()
 
 try:
-    p = hse.Params()
+    with ExitStack() as stack:
+        kvdb_ctx = lifecycle.KvdbContext()
+        kvdb = stack.enter_context(kvdb_ctx)
+        kvs_ctx = lifecycle.KvsContext(kvdb, "delfail")
+        kvs = stack.enter_context(kvs_ctx)
 
-    with util.create_kvdb(util.get_kvdb_name(), p) as kvdb:
-        with util.create_kvs(kvdb, "delfail", p) as kvs:
-            kvs.put(b"a", b"1")
-            kvs.put(b"b", b"2")
-            kvs.put(b"c", b"3")
+        kvs.put(b"a", b"1")
+        kvs.put(b"b", b"2")
+        kvs.put(b"c", b"3")
 
-            kvdb.sync()
+        kvdb.sync()
 
-            kvs.delete(b"c")
+        kvs.delete(b"c")
 
-            with kvs.cursor() as cur:
-                kv = cur.read()
-                assert kv == (b"a", b"1")
-                kv = cur.read()
-                assert kv == (b"b", b"2")
-                cur.read()
-                assert cur.eof
+        with kvs.cursor() as cur:
+            kv = cur.read()
+            assert kv == (b"a", b"1")
+            kv = cur.read()
+            assert kv == (b"b", b"2")
+            cur.read()
+            assert cur.eof
 finally:
     hse.fini()

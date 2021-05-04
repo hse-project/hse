@@ -19,7 +19,7 @@
 #include <hse_util/minmax.h>
 #include <hse_util/page.h>
 #include <hse_util/hse_err.h>
-#include <hse_util/hse_params_helper.h>
+#include <hse_util/string.h>
 
 #include <hse/hse.h>
 
@@ -223,14 +223,14 @@ stats_print(struct stats *stats, const char *header, int idx)
 /* Initialize runtime parameters for the given test.
  */
 void
-test_init(struct test *testv, int idx, ulong iter, const char *mpname, struct mpool *mp)
+test_init(struct test *testv, int idx, ulong iter, const char *path, struct mpool *mp)
 {
     struct test *t = testv + idx;
 
     memset(t, 0, sizeof(*t));
     t->t_idx = idx;
     t->t_iter = iter;
-    t->t_mpname = mpname;
+    t->t_mpname = path;
     t->t_mp = mp;
 
     t->t_wbufsz = wbufsz;
@@ -915,7 +915,7 @@ prop_decode(const char *list, const char *sep, const char *valid)
 void
 usage(void)
 {
-    printf("usage: %s [options] <mpool> \n", progname);
+    printf("usage: %s [options] <storage_path> \n", progname);
 
     printf("-b           open mpool non-blocking\n");
     printf("-d           increase debug verbosity\n");
@@ -935,7 +935,7 @@ usage(void)
     printf("-v           increase verbosity\n");
     printf("-x           open exclusive\n");
     printf("props  comma separated list of properties\n");
-    printf("mpool  the mpool name (e.g., mp1)\n");
+    printf("storage_path  storage path for mpool to use\n");
     printf("\n");
     printf("DESCRIPTION:\n");
     printf("    TODO...\n");
@@ -964,16 +964,16 @@ usage(void)
     printf("\n");
 
     printf("EXAMPLES:\n");
-    printf("    mpiotest mp1\n");
+    printf("    mpiotest <storage_path>\n");
 
-    printf("    mpiotest -vv -j7 -o rdverify=0,mcmaxpages=8765 mp1\n");
+    printf("    mpiotest -vv -j7 -o rdverify=0,mcmaxpages=8765 <storage_path>\n");
 
     printf("    mpiotest -vv -j7"
            " -o rdverify=0,mcverify=33,mcmaxmblocks=3,mcmaxpages=4321"
-           " mp1\n");
+           " <storage_path>\n");
 
     printf("    mpiotest -v -j7"
-           " -o rdverify=0,mcverify=0 mp1\n");
+           " -o rdverify=0,mcverify=0 <storage_path>\n");
 
     printf("\n");
 }
@@ -981,14 +981,16 @@ usage(void)
 int
 main(int argc, char **argv)
 {
+    struct mpool_cparams cparams = {0};
+    struct mpool_rparams rparams = {0};
+    struct mpool_dparams dparams = {0};
     struct stats       stats;
     struct test       *testv = NULL;
     struct mpool      *mp;
     struct mpool_props props;
-    struct hse_params *hparams;
     sigset_t           sigmask_block;
     sigset_t           sigmask_old;
-    char              *mpname;
+    char              *path;
 
     merr_t   err;
     uint64_t herr;
@@ -1000,7 +1002,7 @@ main(int argc, char **argv)
     ssize_t  cc;
     char    *end;
     FILE    *fp;
-    int      fd, rc, i, given[256] = { 0 }, next_arg = 0;
+    int      fd, rc, i, given[256] = { 0 };
 
     progname = strrchr(argv[0], '/');
     progname = (progname ? progname + 1 : argv[0]);
@@ -1011,12 +1013,6 @@ main(int argc, char **argv)
     herr = hse_init();
     if (herr)
         exit(1);
-
-    herr = hse_params_create(&hparams);
-    if (herr) {
-        hse_fini();
-        exit(1);
-    }
 
     while (1) {
         char *errmsg = NULL;
@@ -1115,23 +1111,8 @@ main(int argc, char **argv)
     argc -= optind;
     argv += optind;
 
-    herr = hse_parse_cli(argc, argv, &next_arg, 0, hparams);
-    if (herr) {
-        hse_params_destroy(hparams);
-        hse_fini();
-        exit(1);
-    }
-
-    argc -= next_arg;
-    argv += next_arg;
-
-    if (argc < 1) {
+    if (argc != 1) {
         syntax("insufficient arguments for mandatory parameters");
-        exit(EX_USAGE);
-    }
-
-    if (argc > 3) {
-        syntax("extraneous arguments detected");
         exit(EX_USAGE);
     }
 
@@ -1149,22 +1130,30 @@ main(int argc, char **argv)
         rows -= 1;
     }
 
-    mpname = strdup(argv[0]);
+    path = strdup(argv[0]);
+    strlcpy(cparams.mclass[MP_MED_CAPACITY].path, path,
+            sizeof(cparams.mclass[MP_MED_CAPACITY].path));
+    err = mpool_create(NULL, &cparams);
+    if (err) {
+        fprintf(stderr, "mpool creation at path %s failed\n", path);
+        free(path);
+        hse_fini();
+        return -1;
+    }
 
-    err = mpool_open(mpname, hparams, oflags, &mp);
+    strlcpy(rparams.mclass[MP_MED_CAPACITY].path, path,
+            sizeof(rparams.mclass[MP_MED_CAPACITY].path));
+    err = mpool_open(NULL, &rparams, oflags, &mp);
     if (err) {
         merr_strinfo(err, errbuf, sizeof(errbuf), NULL);
-        eprint("mpool_open(%s): %s\n", mpname, errbuf);
-        free(mpname);
-        hse_params_destroy(hparams);
-        hse_fini();
-        exit(1);
+        eprint("mpool_open(%s): %s\n", path, errbuf);
+        goto err_exit;
     }
 
     err = mpool_props_get(mp, &props);
     if (err) {
         merr_strinfo(err, errbuf, sizeof(errbuf), NULL);
-        eprint("mpool_props_get(%s): %s\n", mpname, errbuf);
+        eprint("mpool_props_get(%s): %s\n", path, errbuf);
         goto err_exit;
     }
     wbufsz = props.mp_mblocksz[MP_MED_CAPACITY] << 20;
@@ -1174,17 +1163,21 @@ main(int argc, char **argv)
     fd = open(infile, O_RDONLY);
     if (-1 == fd) {
         eprint("open(%s): %s\n", infile, strerror(errno));
+        err = merr(errno);
         goto err_exit;
     }
 
     rc = posix_memalign((void **)&wbuf, PAGE_SIZE, limit);
-    if (rc || !wbuf)
+    if (rc || !wbuf) {
+        err = merr(errno);
         goto err_exit;
+    }
 
     for (lwcc = 0; lwcc < limit; lwcc += cc) {
         cc = read(fd, wbuf + lwcc, limit - lwcc);
         if (cc < 1) {
             eprint("read(%s): cc=%ld limit=%zu: %s\n", infile, cc, limit, strerror(errno));
+            err = merr(errno);
             goto err_exit;
         }
     }
@@ -1194,9 +1187,8 @@ main(int argc, char **argv)
     testv = calloc(td_max, sizeof(*testv));
     if (!testv) {
         eprint("calloc(testv): out of memory\n");
-        mpool_close(mp);
-        free(mpname);
-        exit(EX_OSERR);
+        err = merr(ENOMEM);
+        goto err_exit;
     }
 
     memset(&stats, 0, sizeof(stats));
@@ -1217,13 +1209,15 @@ main(int argc, char **argv)
     while (iter++ < iter_max && !sigint && !sigalrm) {
         sigprocmask(SIG_BLOCK, &sigmask_block, &sigmask_old);
 
-        if (global_err != 0)
+        if (global_err != 0) {
+            err = global_err;
             goto err_exit;
+        }
 
         td_run = td_max;
 
         for (i = 0; i < td_max; ++i) {
-            test_init(testv, i, iter, mpname, mp);
+            test_init(testv, i, iter, path, mp);
 
             rc = pthread_create(&testv[i].t_td, NULL, test_start, &testv[i]);
             if (rc) {
@@ -1253,28 +1247,28 @@ main(int argc, char **argv)
             stats_print(&stats, "total", -1);
 
         if (stats.mbreaderr || stats.mbreadcmperr || stats.getpagescmperr) {
-            mpool_close(mp);
-            free(testv);
-            free(mpname);
-            exit(EX_SOFTWARE);
+            err = merr(EBUG);
+            goto err_exit;
         }
     }
 
-    mpool_close(mp);
-
-    hse_params_destroy(hparams);
-    hse_fini();
-
-    free(testv);
-    free(mpname);
-
-    return 0;
-
 err_exit:
     mpool_close(mp);
-    hse_params_destroy(hparams);
-    hse_fini();
     free(testv);
-    free(mpname);
-    exit(1);
+
+    if (!err) {
+        strlcpy(dparams.mclass[MP_MED_CAPACITY].path, path,
+                sizeof(dparams.mclass[MP_MED_CAPACITY].path));
+        err = mpool_destroy(NULL, &dparams);
+        if (err)
+            fprintf(stderr, "mpool destroy at path %s failed\n", path);
+    }
+
+    free(path);
+    hse_fini();
+
+    if (err)
+        exit(1);
+
+    return 0;
 }

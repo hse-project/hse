@@ -6,16 +6,16 @@ setup () {
     kvs=$(new_kvs $mp) || err
 
     # first 6 kvsets have keys 0..999
-    cmd putgetdel $mp $kvs -p -s   0 -c 100 kvs.cn_maint_disable=1
-    cmd putgetdel $mp $kvs -p -s 100 -c 100 kvs.cn_maint_disable=1
-    cmd putgetdel $mp $kvs -p -s 200 -c 200 kvs.cn_maint_disable=1
-    cmd putgetdel $mp $kvs -p -s 400 -c 200 kvs.cn_maint_disable=1
-    cmd putgetdel $mp $kvs -p -s 600 -c 200 kvs.cn_maint_disable=1
-    cmd putgetdel $mp $kvs -p -s 800 -c 200 kvs.cn_maint_disable=1
+    cmd putgetdel $mp $kvs -p -s   0 -c 100 kvs-oparms cn_maint_disable=1
+    cmd putgetdel $mp $kvs -p -s 100 -c 100 kvs-oparms cn_maint_disable=1
+    cmd putgetdel $mp $kvs -p -s 200 -c 200 kvs-oparms cn_maint_disable=1
+    cmd putgetdel $mp $kvs -p -s 400 -c 200 kvs-oparms cn_maint_disable=1
+    cmd putgetdel $mp $kvs -p -s 600 -c 200 kvs-oparms cn_maint_disable=1
+    cmd putgetdel $mp $kvs -p -s 800 -c 200 kvs-oparms cn_maint_disable=1
     # next kvset: update 0..199
-    cmd putgetdel $mp $kvs -u -s   0 -c 200 kvs.cn_maint_disable=1
+    cmd putgetdel $mp $kvs -u -s   0 -c 200 kvs-oparms cn_maint_disable=1
     # next kvset: delete 100.299
-    cmd putgetdel $mp $kvs -d -s 100 -c 200  kvs.cn_maint_disable=1
+    cmd putgetdel $mp $kvs -d -s 100 -c 200  kvs-oparms cn_maint_disable=1
     # Final state:
     #   Updated:   0..99
     #   Deleted: 100..299
@@ -24,11 +24,11 @@ setup () {
     
 verify_keys () {
     # verify the three ranges before compaction
-    cmd putgetdel $mp $kvs -U -s   0 -c 100  kvs.cn_maint_disable=1
-    cmd putgetdel $mp $kvs -D -s 100 -c 200  kvs.cn_maint_disable=1
-    cmd putgetdel $mp $kvs -P -s 300 -c 700  kvs.cn_maint_disable=1
+    cmd putgetdel $mp $kvs -U -s   0 -c 100  kvs-oparms cn_maint_disable=1
+    cmd putgetdel $mp $kvs -D -s 100 -c 200  kvs-oparms cn_maint_disable=1
+    cmd putgetdel $mp $kvs -P -s 300 -c 700  kvs-oparms cn_maint_disable=1
     # prove putgetdel is actually verifying by asking it to verify 0..1000 and expecting failure
-    cmd --exp-err-status putgetdel $mp $kvs -P -s 0 -c 1000  kvs.cn_maint_disable=1
+    cmd --exp-err-status putgetdel $mp $kvs -P -s 0 -c 1000  kvs-oparms cn_maint_disable=1
 }
 
 verify_shape_before () {
@@ -58,7 +58,7 @@ verify_shape_after_k_compact () {
 # spill
 setup
 verify_shape_before
-cmd putbin $mp $kvs -n 100 kvs.cn_close_wait=1 kvs.cn_compaction_debug=-1
+cmd putbin $mp $kvs -n 100 kvs-oparms cn_close_wait=1 cn_compaction_debug=-1
 verify_shape_after_spill
 
 
@@ -70,16 +70,16 @@ exit 0
 # k_compact
 setup
 verify_shape_before
-cmd putbin $mp $kvs -n 100 kvs.cn_close_wait=1 kvs.cn_compaction_debug=-1 \
-    kvs.cn_compact_limit=100 kvs.cn_compact_spill=100 kvs.cn_compact_only=2
+cmd putbin $mp $kvs -n 100 kvs-oparms cn_close_wait=1 cn_compaction_debug=-1 \
+    cn_compact_limit=100 cn_compact_spill=100 cn_compact_only=2
 verify_shape_after_k_compact
 
 
 # kv_compact
 setup
 verify_shape_before
-cmd putbin $mp $kvs -n 100 kvs.cn_close_wait=1 kvs.cn_compaction_debug=-1 \
-    kvs.cn_compact_limit=100 kvs.cn_compact_spill=100 kvs.cn_compact_only=2 \
-    kvs.cn_compact_waste=0
+cmd putbin $mp $kvs -n 100 kvs-oparms cn_close_wait=1 cn_compaction_debug=-1 \
+    cn_compact_limit=100 cn_compact_spill=100 cn_compact_only=2 \
+    cn_compact_waste=0
 verify_shape_after_kv_compact
 

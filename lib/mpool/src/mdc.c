@@ -3,6 +3,8 @@
  * Copyright (C) 2021 Micron Technology, Inc.  All rights reserved.
  */
 
+#include <dirent.h>
+
 #include <hse_util/event_counter.h>
 #include <hse_util/hse_err.h>
 #include <hse_util/logging.h>
@@ -19,59 +21,45 @@
  * mfp1: mdc file pointer 1
  * mfp2: mdc file pointer 2
  * mfpa: active mdc file handle (either mfp1 or mfp2)
- * mc:   media class handle
- * mp    mpool handle
  */
 struct mpool_mdc {
     struct mutex     lock;
     struct mdc_file *mfp1;
     struct mdc_file *mfp2;
     struct mdc_file *mfpa;
-
-    struct media_class *mc;
-    struct mpool       *mp;
 };
 
-struct media_class *
-mdc_mclass_get(struct mpool_mdc *mdc)
-{
-    return mdc->mc;
-}
+/* Forward declarations */
+static merr_t
+mdc_root_exists(const char *home, uint64_t logid1, uint64_t logid2, bool *exist);
 
-merr_t
-mpool_mdc_alloc(
-    struct mpool     *mp,
+static merr_t
+mdc_alloc_impl(
+    int               dirfd,
+    int               mcid,
     uint32_t          magic,
     size_t            capacity,
-    enum mpool_mclass mclass,
     uint64_t         *logid1,
     uint64_t         *logid2)
 {
-    struct media_class *mc;
-    enum mclass_id      mcid;
-    merr_t              err;
-    uint64_t            id[2];
-    int                 i, dirfd, flags, mode;
+    merr_t   err;
+    uint64_t id[2];
+    int      flags, mode;
 
-    if (!mp || mclass >= MP_MED_COUNT || capacity < MDC_LOGHDR_LEN || !logid1 || !logid2)
-        return merr(EINVAL);
-
-    mc = mpool_mclass_handle(mp, mclass);
-    if (ev(!mc))
-        return merr(ENOENT);
-
-    dirfd = mclass_dirfd(mc);
     flags = O_RDWR | O_CREAT | O_EXCL;
     mode = S_IRUSR | S_IWUSR;
 
-    mcid = mclass_to_mcid(mclass);
-    for (i = 0; i < 2; i++) {
-        id[i] = logid_make(i, mcid, magic);
+    for (int i = 0; i < 2; i++) {
+        char name[MDC_NAME_LENGTH_MAX];
 
-        err = mdc_file_create(dirfd, id[i], flags, mode, capacity);
+        id[i] = logid_make(i, mcid, magic);
+        mdc_filename_gen(name, sizeof(name), id[i]);
+        err = mdc_file_create(dirfd, name, flags, mode, capacity);
         if (err) {
-            if (i != 0)
-                mdc_file_destroy(dirfd, id[0]);
+            if (i != 0) {
+                mdc_filename_gen(name, sizeof(name), id[0]);
+                mdc_file_destroy(dirfd, name);
+            }
             return err;
         }
     }
@@ -83,28 +71,72 @@ mpool_mdc_alloc(
 }
 
 merr_t
-mpool_mdc_commit(struct mpool *mp, uint64_t logid1, uint64_t logid2)
+mpool_mdc_alloc(
+    struct mpool     *mp,
+    uint32_t          magic,
+    size_t            capacity,
+    enum mpool_mclass mclass,
+    uint64_t         *logid1,
+    uint64_t         *logid2)
 {
-    struct media_class *mc;
-    enum mclass_id      mcid;
-    merr_t              err;
-    int                 dirfd, i;
-    uint64_t            id[] = { logid1, logid2 };
+    enum mclass_id mcid;
+    int dirfd;
+    merr_t err;
 
-    if (!mp || !logids_valid(logid1, logid2))
+    if (!mp || mclass >= MP_MED_COUNT || capacity < MDC_LOGHDR_LEN || !logid1 || !logid2)
         return merr(EINVAL);
 
-    mcid = logid_mcid(logid1);
-    mc = mpool_mclass_handle(mp, mcid_to_mclass(mcid));
-    if (!mc)
-        return merr(ENOENT);
-    dirfd = mclass_dirfd(mc);
+    err = mpool_mclass_dirfd(mp, mclass, &dirfd);
+    if (err)
+        return err;
 
-    for (i = 0; i < 2; i++) {
-        err = mdc_file_commit(dirfd, id[i]);
+    mcid = mclass_to_mcid(mclass);
+
+    return mdc_alloc_impl(dirfd, mcid, magic, capacity, logid1, logid2);
+}
+
+static merr_t
+mdc_root_alloc(
+    const char *home,
+    uint32_t    magic,
+    size_t      capacity,
+    uint64_t   *logid1,
+    uint64_t   *logid2)
+{
+    DIR   *dirp;
+    int    fd;
+    merr_t err;
+
+    if (!home || capacity < MDC_LOGHDR_LEN || !logid1 || !logid2)
+        return merr(EINVAL);
+
+    dirp = opendir(home);
+    if (!dirp)
+        return merr(errno);
+    fd = dirfd(dirp);
+
+    err = mdc_alloc_impl(fd, MCID_INVALID, magic, capacity, logid1, logid2);
+    closedir(dirp);
+
+    return err ?: 0;
+}
+
+static merr_t
+mdc_commit_impl(int dirfd, uint64_t logid1, uint64_t logid2)
+{
+    uint64_t id[] = { logid1, logid2 };
+
+    for (int i = 0; i < 2; i++) {
+        char name[MDC_NAME_LENGTH_MAX];
+        merr_t err;
+
+        mdc_filename_gen(name, sizeof(name), id[i]);
+        err = mdc_file_commit(dirfd, name);
         if (err) {
-            while (i >= 0)
-                mdc_file_destroy(dirfd, id[i--]);
+            while (i >= 0) {
+                mdc_filename_gen(name, sizeof(name), id[i--]);
+                mdc_file_destroy(dirfd, name);
+            }
             return merr(err);
         }
     }
@@ -113,25 +145,63 @@ mpool_mdc_commit(struct mpool *mp, uint64_t logid1, uint64_t logid2)
 }
 
 merr_t
+mpool_mdc_commit(struct mpool *mp, uint64_t logid1, uint64_t logid2)
+{
+    merr_t   err;
+    int      dirfd, mcid;
+
+    if (!mp || !logids_valid(logid1, logid2))
+        return merr(EINVAL);
+
+    mcid = logid_mcid(logid1);
+    err = mpool_mclass_dirfd(mp, mcid_to_mclass(mcid), &dirfd);
+    if (err)
+        return err;
+
+    return mdc_commit_impl(dirfd, logid1, logid2);
+}
+
+static merr_t
+mdc_root_commit(const char *home, uint64_t logid1, uint64_t logid2)
+{
+    merr_t err;
+    DIR   *dirp;
+    int    fd;
+
+    if (!home || !logids_valid(logid1, logid2))
+        return merr(EINVAL);
+
+    dirp = opendir(home);
+    if (!dirp)
+        return merr(errno);
+    fd = dirfd(dirp);
+
+    err = mdc_commit_impl(fd, logid1, logid2);
+    closedir(dirp);
+
+    return err ?: 0;
+}
+
+merr_t
 mpool_mdc_delete(struct mpool *mp, uint64_t logid1, uint64_t logid2)
 {
-    struct media_class *mc;
-    enum mclass_id      mcid;
     merr_t              err, rval = 0;
-    int                 dirfd, i;
+    int                 dirfd, mcid;
     uint64_t            id[] = { logid1, logid2 };
 
     if (!mp || !logids_valid(logid1, logid2))
         return merr(EINVAL);
 
     mcid = logid_mcid(logid1);
-    mc = mpool_mclass_handle(mp, mcid_to_mclass(mcid));
-    if (!mc)
-        return merr(ENOENT);
-    dirfd = mclass_dirfd(mc);
+    err = mpool_mclass_dirfd(mp, mcid_to_mclass(mcid), &dirfd);
+    if (err)
+        return err;
 
-    for (i = 0; i < 2; i++) {
-        err = mdc_file_destroy(dirfd, id[i]);
+    for (int i = 0; i < 2; i++) {
+        char name[MDC_NAME_LENGTH_MAX];
+
+        mdc_filename_gen(name, sizeof(name), id[i]);
+        err = mdc_file_destroy(dirfd, name);
         if (err)
             rval = err;
     }
@@ -145,32 +215,24 @@ mpool_mdc_abort(struct mpool *mp, uint64_t logid1, uint64_t logid2)
     return mpool_mdc_delete(mp, logid1, logid2);
 }
 
-merr_t
-mpool_mdc_open(struct mpool *mp, uint64_t logid1, uint64_t logid2, struct mpool_mdc **handle)
+static merr_t
+mdc_open_impl(int dirfd, uint64_t logid1, uint64_t logid2, struct mpool_mdc **handle)
 {
     struct mdc_file  *mfp[2] = {};
     struct mpool_mdc *mdc;
-    enum mclass_id mcid;
     merr_t         err, err1, err2;
     uint64_t       gen1, gen2;
-
-    if (!mp || !handle || !logids_valid(logid1, logid2))
-        return merr(EINVAL);
+    char           name[2][MDC_NAME_LENGTH_MAX];
 
     mdc = calloc(1, sizeof(*mdc));
     if (!mdc)
         return merr(ENOMEM);
 
-    mdc->mp = mp;
-    mcid = logid_mcid(logid1);
-    mdc->mc = mpool_mclass_handle(mp, mcid_to_mclass(mcid));
-    if (!mdc->mc) {
-        free(mdc);
-        return merr(ENOENT);
-    }
+    mdc_filename_gen(name[0], sizeof(name[0]), logid1);
+    err1 = mdc_file_open(mdc, dirfd, name[0], logid1, &gen1, &mfp[0]);
 
-    err1 = mdc_file_open(mdc, logid1, &gen1, &mfp[0]);
-    err2 = mdc_file_open(mdc, logid2, &gen2, &mfp[1]);
+    mdc_filename_gen(name[1], sizeof(name[1]), logid2);
+    err2 = mdc_file_open(mdc, dirfd, name[1], logid2, &gen2, &mfp[1]);
 
     err = err1 ? err1 : err2;
 
@@ -234,6 +296,57 @@ mpool_mdc_open(struct mpool *mp, uint64_t logid1, uint64_t logid2, struct mpool_
         free(mdc);
 
     return err;
+}
+
+merr_t
+mpool_mdc_open(struct mpool *mp, uint64_t logid1, uint64_t logid2, struct mpool_mdc **handle)
+{
+    enum mclass_id mcid;
+    merr_t err;
+    int dirfd;
+
+    if (!mp || !handle || !logids_valid(logid1, logid2))
+        return merr(EINVAL);
+
+    mcid = logid_mcid(logid1);
+    err = mpool_mclass_dirfd(mp, mcid_to_mclass(mcid), &dirfd);
+    if (err)
+        return err;
+
+    return mdc_open_impl(dirfd, logid1, logid2, handle);
+}
+
+merr_t
+mpool_mdc_root_open(const char *home, uint64_t logid1, uint64_t logid2, struct mpool_mdc **handle)
+{
+    merr_t err;
+    DIR   *dirp;
+    int    fd;
+    bool exist = false;
+
+    if (!home || !handle || !logids_valid(logid1, logid2))
+        return merr(EINVAL);
+
+    dirp = opendir(home);
+    if (!dirp)
+        return merr(errno);
+    fd = dirfd(dirp);
+
+    err = mdc_root_exists(home, logid1, logid2, &exist);
+    if (err)
+        goto exit;
+
+    if (!err & !exist) {
+        err = merr(ENOENT);
+        goto exit;
+    }
+
+    err = mdc_open_impl(fd, logid1, logid2, handle);
+
+exit:
+    closedir(dirp);
+
+    return err ?: 0;
 }
 
 merr_t
@@ -325,65 +438,115 @@ mpool_mdc_cend(struct mpool_mdc *mdc)
 }
 
 merr_t
-mpool_mdc_rootid_get(struct mpool *mp, uint64_t *logid1, uint64_t *logid2)
+mpool_mdc_rootid_get(uint64_t *logid1, uint64_t *logid2)
 {
     if (!logid1 || !logid2)
         return merr(EINVAL);
 
-    *logid1 = logid_make(0, MCID_CAPACITY, MDC_ROOT_MAGIC);
-    *logid2 = logid_make(1, MCID_CAPACITY, MDC_ROOT_MAGIC);
+    *logid1 = logid_make(0, MCID_INVALID, MDC_ROOT_MAGIC);
+    *logid2 = logid_make(1, MCID_INVALID, MDC_ROOT_MAGIC);
 
     return 0;
 }
 
 static merr_t
-mdc_exists(struct mpool *mp, uint64_t logid1, uint64_t logid2, bool *exist)
+mdc_exists_impl(int dirfd, uint64_t logid1, uint64_t logid2, bool *exist)
 {
-    struct media_class *mc;
-    enum mclass_id      mcid;
-    int                 dirfd;
-    merr_t              err;
+    char name[2][MDC_NAME_LENGTH_MAX];
+    merr_t err;
 
-    if (!mp || !exist || !logids_valid(logid1, logid2))
-        return merr(EINVAL);
+    mdc_filename_gen(name[0], sizeof(name[0]), logid1);
+    mdc_filename_gen(name[1], sizeof(name[1]), logid2);
 
-    mcid = logid_mcid(logid1);
-    mc = mpool_mclass_handle(mp, mcid_to_mclass(mcid));
-    if (!mc)
-        return merr(ENOENT);
-    dirfd = mclass_dirfd(mc);
-
-    err = mdc_file_exists(dirfd, logid1, logid2, exist);
+    err = mdc_file_exists(dirfd, name[0], name[1], exist);
     if (err)
         return err;
 
     return 0;
 }
 
+static merr_t
+mdc_root_exists(const char *home, uint64_t logid1, uint64_t logid2, bool *exist)
+{
+    DIR *dirp;
+    int fd;
+    merr_t err;
+
+    if (!home || !exist || !logids_valid(logid1, logid2))
+        return merr(EINVAL);
+
+    dirp = opendir(home);
+    if (!dirp)
+        return merr(errno);
+    fd = dirfd(dirp);
+
+    err = mdc_exists_impl(fd, logid1, logid2, exist);
+    closedir(dirp);
+
+    return err ?: 0;
+}
+
 merr_t
-mpool_mdc_root_init(struct mpool *mp)
+mpool_mdc_root_destroy(const char *home, uint64_t logid1, uint64_t logid2)
+{
+    DIR *dirp;
+    int fd;
+    merr_t err, rval = 0;
+    uint64_t id[] = { logid1, logid2 };
+
+    if (!home || !logids_valid(logid1, logid2))
+        return merr(EINVAL);
+
+    dirp = opendir(home);
+    if (!dirp)
+        return merr(errno);
+    fd = dirfd(dirp);
+
+    for (int i = 0; i < 2; i++) {
+        char name[MDC_NAME_LENGTH_MAX];
+
+        mdc_filename_gen(name, sizeof(name), id[i]);
+        err = mdc_file_destroy(fd, name);
+        if (err)
+            rval = err;
+    }
+    closedir(dirp);
+
+    return rval;
+}
+
+static merr_t
+mdc_root_abort(const char *home, uint64_t logid1, uint64_t logid2)
+{
+    return mpool_mdc_root_destroy(home, logid1, logid2);
+}
+
+merr_t
+mpool_mdc_root_create(const char *home)
 {
     uint64_t id[2];
     merr_t   err;
     bool     exist;
 
-    err = mpool_mdc_rootid_get(mp, &id[0], &id[1]);
+    err = mpool_mdc_rootid_get(&id[0], &id[1]);
     if (err)
         return err;
 
-    err = mdc_exists(mp, id[0], id[1], &exist);
+    err = mdc_root_exists(home, id[0], id[1], &exist);
     if (!err && !exist) {
-        err = mpool_mdc_alloc(
-            mp, MDC_ROOT_MAGIC, MPOOL_ROOT_LOG_CAP, MP_MED_CAPACITY, &id[0], &id[1]);
+        err = mdc_root_alloc(home, MDC_ROOT_MAGIC, MPOOL_ROOT_LOG_CAP, &id[0], &id[1]);
         if (err)
             return err;
 
-        err = mpool_mdc_commit(mp, id[0], id[1]);
+        err = mdc_root_commit(home, id[0], id[1]);
         if (err) {
-            mpool_mdc_abort(mp, id[0], id[1]);
+            mdc_root_abort(home, id[0], id[1]);
             return err;
         }
     }
+
+    if (!err && exist)
+        err = merr(EEXIST);
 
     return err;
 }

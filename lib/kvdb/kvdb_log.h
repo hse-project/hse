@@ -42,7 +42,7 @@ struct kvdb_mclass {
 
 struct kvdb_log {
     struct mpool_mdc *kl_mdc; /* our MDC */
-    struct mpool *    kl_ds;  /* dataset operating upon */
+    struct mpool *    kl_mp;  /* mpool operating upon */
     struct table *    kl_work;
     struct table *    kl_work_old;
     u64               kl_captgt;
@@ -83,14 +83,11 @@ struct kvdb_log_tx;
 
 /* MTF_MOCK */
 merr_t
-kvdb_log_replay(
-    struct kvdb_log *log,
-    u64 *            cndblog_oid1,
-    u64 *            cndblog_oid2);
+kvdb_log_replay(struct kvdb_log *log);
 
 /* MTF_MOCK */
 merr_t
-kvdb_log_open(struct mpool *ds, struct kvdb_log **handle, int mode);
+kvdb_log_open(const char *kvdb_home, struct mpool *mpool, int mode, struct kvdb_log **handle);
 
 /* MTF_MOCK */
 merr_t
@@ -108,7 +105,7 @@ kvdb_log_usage(struct kvdb_log *log, uint64_t *allocated, uint64_t *used);
 
 /* MTF_MOCK */
 merr_t
-kvdb_log_make(struct kvdb_log *log, u64 captgt, const char *mcpathv[MP_MED_COUNT]);
+kvdb_log_make(struct kvdb_log *log, u64 captgt, const struct kvdb_cparams *params);
 
 /* MTF_MOCK */
 merr_t
@@ -134,6 +131,18 @@ kvdb_log_abort(struct kvdb_log *log, struct kvdb_log_tx *tx);
 /* MTF_MOCK */
 merr_t
 kvdb_log_done(struct kvdb_log *log, struct kvdb_log_tx *tx);
+
+/* MTF_MOCK */
+void
+kvdb_log_cndboid_get(struct kvdb_log *log, u64 *cndb_oid1, u64 *cndb_oid2);
+
+/* MTF_MOCK */
+merr_t
+kvdb_log_deserialize_to_kvdb_rparams(const char *kvdb_home, struct kvdb_rparams *params);
+
+/* MTF_MOCK */
+merr_t
+kvdb_log_deserialize_to_kvdb_dparams(const char *kvdb_home, struct kvdb_dparams *params);
 
 /* PRIVATE */
 bool

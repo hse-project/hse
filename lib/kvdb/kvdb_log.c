@@ -19,6 +19,9 @@
 
 #include <hse_ikvdb/ikvdb.h>
 #include <hse_ikvdb/limits.h>
+#include <hse_ikvdb/kvdb_cparams.h>
+#include <hse_ikvdb/kvdb_rparams.h>
+#include <hse_ikvdb/kvdb_dparams.h>
 
 #include <mpool/mpool.h>
 
@@ -235,7 +238,7 @@ kvdb_log_rollback_oids(struct kvdb_log *log, union kvdb_mdu *mdp)
 {
     merr_t err;
 
-    err = mpool_mdc_delete(log->kl_ds, mdp->c.mdc_new_oid1, mdp->c.mdc_new_oid2);
+    err = mpool_mdc_delete(log->kl_mp, mdp->c.mdc_new_oid1, mdp->c.mdc_new_oid2);
 
     /* If the mdc is already destroyed, report success */
     if (merr_errno(err) == ENOENT)
@@ -322,17 +325,21 @@ kvdb_log_hdr_type(void *buf)
     return omf_hdr_type(buf);
 }
 
+void
+kvdb_log_cndboid_get(struct kvdb_log *log, u64 *cndb_oid1, u64 *cndb_oid2)
+{
+    if (!log || !cndb_oid1 || !cndb_oid2)
+        return;
+
+    *cndb_oid1 = log->kl_cndb_oid1;
+    *cndb_oid2 = log->kl_cndb_oid2;
+}
+
 merr_t
-kvdb_log_replay(
-    struct kvdb_log *log,
-    u64 *            cndblog_oid1,
-    u64 *            cndblog_oid2)
+kvdb_log_replay(struct kvdb_log *log)
 {
     merr_t err;
     size_t len;
-
-    *cndblog_oid1 = 0;
-    *cndblog_oid2 = 0;
 
     err = mpool_mdc_rewind(log->kl_mdc);
     if (ev(err))
@@ -418,9 +425,6 @@ out:
     if (err) {
         hse_elog(HSE_ERR "Error reading kvdb MDC at offset %lu: @@e", err, (ulong)log->kl_serial);
     } else {
-        *cndblog_oid1 = log->kl_cndb_oid1;
-        *cndblog_oid2 = log->kl_cndb_oid2;
-
         /* [HSE_REVISIT] this keeps the log optimally small, but it isn't
          * strictly necessary.  To remove it, we must log the following
          * disposition records in kvdb_log_compact():
@@ -438,7 +442,7 @@ out:
 }
 
 merr_t
-kvdb_log_make(struct kvdb_log *log, u64 captgt, const char *mcpathv[MP_MED_COUNT])
+kvdb_log_make(struct kvdb_log *log, u64 captgt, const struct kvdb_cparams *params)
 {
     merr_t                   err;
     struct kvdb_log_ver4_omf ver = {};
@@ -460,7 +464,7 @@ kvdb_log_make(struct kvdb_log *log, u64 captgt, const char *mcpathv[MP_MED_COUNT
     log->kl_captgt = captgt;
     log->kl_highwater = KVDB_LOG_HIGH_WATER(log);
 
-    if (!mcpathv)
+    if (!params)
         return 0;
 
     mcomf = calloc(1, sizeof(*mcomf) + PATH_MAX);
@@ -469,6 +473,7 @@ kvdb_log_make(struct kvdb_log *log, u64 captgt, const char *mcpathv[MP_MED_COUNT
 
     for (enum mpool_mclass mc = MP_MED_BASE; mc < MP_MED_COUNT; mc++) {
         struct kvdb_mclass *mclass;
+        const char *path;
         uint pathlen;
         size_t mcsz;
 
@@ -476,10 +481,11 @@ kvdb_log_make(struct kvdb_log *log, u64 captgt, const char *mcpathv[MP_MED_COUNT
 
         mclass->mc_pathlen = 0;
 
-        if (!mcpathv[mc] || mcpathv[mc][0] == '\0')
+        path = params->storage.mclass[mc].path;
+        if (path[0] == '\0')
             continue;
 
-        pathlen = strlen(mcpathv[mc]) + 1;
+        pathlen = strlen(path) + 1;
         mcsz = sizeof(*mcomf) + pathlen;
 
         omf_set_hdr_type(&mcomf->hdr, KVDB_LOG_TYPE_MCLASS);
@@ -489,7 +495,7 @@ kvdb_log_make(struct kvdb_log *log, u64 captgt, const char *mcpathv[MP_MED_COUNT
         omf_set_mc_rsvd1(mcomf, 0);
         omf_set_mc_rsvd2(mcomf, 0);
         omf_set_mc_rsvd3(mcomf, 0);
-        memcpy(mcomf->mc_path, mcpathv[mc], pathlen);
+        memcpy(mcomf->mc_path, path, pathlen);
 
         err = mpool_mdc_append(log->kl_mdc, mcomf, mcsz, true);
         if (ev(err)) {
@@ -498,7 +504,7 @@ kvdb_log_make(struct kvdb_log *log, u64 captgt, const char *mcpathv[MP_MED_COUNT
         }
 
         mclass->mc_pathlen = pathlen;
-        strlcpy(mclass->mc_path, mcpathv[mc], sizeof(mclass->mc_path));
+        strlcpy(mclass->mc_path, path, sizeof(mclass->mc_path));
     }
 
     free(mcomf);
@@ -507,7 +513,7 @@ kvdb_log_make(struct kvdb_log *log, u64 captgt, const char *mcpathv[MP_MED_COUNT
 }
 
 merr_t
-kvdb_log_open(struct mpool *ds, struct kvdb_log **handle, int mode)
+kvdb_log_open(const char *kvdb_home, struct mpool *mp, int mode, struct kvdb_log **handle)
 {
     struct kvdb_log *log;
     merr_t           err;
@@ -534,14 +540,14 @@ kvdb_log_open(struct mpool *ds, struct kvdb_log **handle, int mode)
         return merr(ev(ENOMEM));
     }
 
-    log->kl_ds = ds;
+    log->kl_mp = mp;
     log->kl_rdonly = (mode == O_RDONLY);
 
-    err = mpool_mdc_rootid_get(ds, &oid1, &oid2);
+    err = mpool_mdc_rootid_get(&oid1, &oid2);
     if (ev(err))
         goto err_exit;
 
-    err = mpool_mdc_open(log->kl_ds, oid1, oid2, &log->kl_mdc);
+    err = mpool_mdc_root_open(kvdb_home, oid1, oid2, &log->kl_mdc);
     if (ev(err))
         goto err_exit;
 
@@ -575,6 +581,58 @@ kvdb_log_close(struct kvdb_log *log)
     free(log);
 
     return 0;
+}
+
+merr_t
+kvdb_log_deserialize_to_kvdb_rparams(const char *kvdb_home, struct kvdb_rparams *params)
+{
+    struct kvdb_log *log;
+    merr_t err;
+
+    err = kvdb_log_open(kvdb_home, NULL, O_RDONLY, &log);
+    if (err)
+        return err;
+
+    err = kvdb_log_replay(log);
+    if (err) {
+        kvdb_log_close(log);
+        return err;
+    }
+
+    /* Populate storage paths */
+    for (enum mpool_mclass mc = MP_MED_BASE; mc < MP_MED_COUNT; mc++) {
+        if (log->kl_mc[mc].mc_path[0] != '\0')
+            strlcpy(params->storage.mclass[mc].path, log->kl_mc[mc].mc_path,
+                    sizeof(params->storage.mclass[mc].path));
+    }
+
+    return kvdb_log_close(log);
+}
+
+merr_t
+kvdb_log_deserialize_to_kvdb_dparams(const char *kvdb_home, struct kvdb_dparams *params)
+{
+    struct kvdb_log *log;
+    merr_t err;
+
+    err = kvdb_log_open(kvdb_home, NULL, O_RDONLY, &log);
+    if (err)
+        return err;
+
+    err = kvdb_log_replay(log);
+    if (err) {
+        kvdb_log_close(log);
+        return err;
+    }
+
+    /* Populate storage paths */
+    for (enum mpool_mclass mc = MP_MED_BASE; mc < MP_MED_COUNT; mc++) {
+        if (log->kl_mc[mc].mc_path[0] != '\0')
+            strlcpy(params->storage.mclass[mc].path, log->kl_mc[mc].mc_path,
+                    sizeof(params->storage.mclass[mc].path));
+    }
+
+    return kvdb_log_close(log);
 }
 
 merr_t

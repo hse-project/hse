@@ -126,10 +126,10 @@ cndb_info2omf(int hdr_type, const struct cndb_cn *cn, struct cndb_info_omf *inf)
     memset(inf, 0, sizeof(*inf));
 
     cndb_set_hdr(&inf->hdr, hdr_type, sz);
-    omf_set_cninfo_fanout_bits(inf, ilog2(cn->cn_cp.cp_fanout));
-    omf_set_cninfo_prefix_len(inf, cn->cn_cp.cp_pfx_len);
-    omf_set_cninfo_sfx_len(inf, cn->cn_cp.cp_sfx_len);
-    omf_set_cninfo_prefix_pivot(inf, cn->cn_cp.cp_pfx_pivot);
+    omf_set_cninfo_fanout_bits(inf, ilog2(cn->cn_cp.fanout));
+    omf_set_cninfo_prefix_len(inf, cn->cn_cp.pfx_len);
+    omf_set_cninfo_sfx_len(inf, cn->cn_cp.sfx_len);
+    omf_set_cninfo_prefix_pivot(inf, cn->cn_cp.pfx_pivot);
 
     omf_set_cninfo_flags(inf, cn->cn_flags);
     omf_set_cninfo_metasz(inf, sz - sizeof(*inf));
@@ -141,9 +141,9 @@ cndb_info2omf(int hdr_type, const struct cndb_cn *cn, struct cndb_info_omf *inf)
 merr_t
 cndb_alloc(struct mpool *ds, u64 *captgt, u64 *oid1_out, u64 *oid2_out)
 {
-    merr_t               err;
-    enum mpool_mclass    mclass;
-    size_t               capacity;
+    merr_t            err;
+    enum mpool_mclass mclass;
+    size_t            capacity;
 
     if (captgt && *captgt)
         capacity = *captgt;
@@ -156,11 +156,7 @@ cndb_alloc(struct mpool *ds, u64 *captgt, u64 *oid1_out, u64 *oid2_out)
 
     err = mpool_mdc_alloc(ds, CNDB_MAGIC, capacity, mclass, oid1_out, oid2_out);
     if (ev(err)) {
-        hse_elog(
-            HSE_ERR "%s: cannot allocate cNDB MDC (%zu): @@e",
-            err,
-            __func__,
-            capacity);
+        hse_elog(HSE_ERR "%s: cannot allocate cNDB MDC (%zu): @@e", err, __func__, capacity);
         return err;
     }
 
@@ -245,7 +241,8 @@ cndb_init(
     size_t              cndb_entries,
     u64                 oid1,
     u64                 oid2,
-    struct kvdb_health *health)
+    struct kvdb_health *health,
+    struct kvdb_rparams *rp)
 {
     size_t sz;
     size_t entries = cndb_entries ?: CNDB_ENTRIES;
@@ -255,6 +252,7 @@ cndb_init(
     cndb->cndb_oid1 = oid1;
     cndb->cndb_oid2 = oid2;
     cndb->cndb_ikvdb_seqno = ikvdb_seqno;
+    cndb->cndb_rp = rp;
 
     sz = entries * sizeof(void *);
 
@@ -291,7 +289,6 @@ cndb_init(
     cndb->cndb_min_entries = entries;
     cndb->cndb_entries = entries;
     cndb->cndb_entries_high_water = (entries / 4) * 3;
-    /* [HSE_REVISIT] consider making cndb_workc_margin an rparam */
     cndb->cndb_workc_margin = CNDB_WORKC_MARGIN_DEFAULT;
     cndb->cndb_ds = ds;
     cndb->cndb_rdonly = rdonly;
@@ -314,6 +311,7 @@ cndb_open(
     u64                 oid1,
     u64                 oid2,
     struct kvdb_health *health,
+    struct kvdb_rparams *rp,
     struct cndb **      cndb_out)
 {
     struct cndb *cndb = NULL;
@@ -326,7 +324,7 @@ cndb_open(
         return err;
     }
 
-    err = cndb_init(cndb, ds, rdonly, ikvdb_seqno, cndb_entries, oid1, oid2, health);
+    err = cndb_init(cndb, ds, rdonly, ikvdb_seqno, cndb_entries, oid1, oid2, health, rp);
     if (err) {
         CNDB_LOG(err, cndb, HSE_ERR, " initialization failed");
         goto errout;
@@ -698,13 +696,13 @@ cndb_cnv_blob_set(struct cndb *cndb, struct cndb_cn *cn, size_t metasz, void *me
 /* PRIVATE */
 merr_t
 cndb_cnv_add(
-    struct cndb *       cndb,
-    u32                 flags,
-    struct kvs_cparams *cp,
-    u64                 cnid,
-    const char *        name,
-    size_t              metasz,
-    void *              meta)
+    struct cndb *             cndb,
+    u32                       flags,
+    const struct kvs_cparams *cp,
+    u64                       cnid,
+    const char *              name,
+    size_t                    metasz,
+    void *                    meta)
 {
     struct cndb_cn *cn = NULL;
     int             i;
@@ -801,10 +799,10 @@ cndb_import_md(struct cndb *cndb, struct cndb_hdr_omf *buf, union cndb_mtu **mtu
     if (typ == CNDB_TYPE_INFO) {
         struct cndb_info * mti = &lmtu->i;
         struct kvs_cparams cp = {
-            .cp_fanout = 1 << mti->mti_fanout_bits,
-            .cp_pfx_len = mti->mti_prefix_len,
-            .cp_sfx_len = mti->mti_sfx_len,
-            .cp_pfx_pivot = mti->mti_prefix_pivot,
+            .fanout = 1 << mti->mti_fanout_bits,
+            .pfx_len = mti->mti_prefix_len,
+            .sfx_len = mti->mti_sfx_len,
+            .pfx_pivot = mti->mti_prefix_pivot,
         };
 
         err = cndb_cnv_add(
@@ -1178,23 +1176,12 @@ cndb_blkdel(struct cndb *cndb, union cndb_mtu *mtu, u64 txid)
             continue;
         }
 
-        CNDB_LOGTX(
-            0,
-            cndb,
-            txid,
-            HSE_NOTICE,
-            " delete block %lx",
-            (ulong)blks.blks[bx].bk_blkid);
+        CNDB_LOGTX(0, cndb, txid, HSE_NOTICE, " delete block %lx", (ulong)blks.blks[bx].bk_blkid);
 
         err = delete_mblock(cndb->cndb_ds, &blks.blks[bx]);
         if (err) {
             CNDB_LOGTX(
-                err,
-                cndb,
-                txid,
-                HSE_ERR,
-                "block %lx delete failed",
-                (ulong)blks.blks[bx].bk_blkid);
+                err, cndb, txid, HSE_ERR, "block %lx delete failed", (ulong)blks.blks[bx].bk_blkid);
             goto done;
         }
     }
@@ -2957,28 +2944,28 @@ cndb_cn_cparams(struct cndb *cndb, u64 cnid)
 }
 
 merr_t
-cndb_cn_make2(struct cndb *cndb, struct kvs_cparams *cparams, u64 *cnid_out, const char *name)
+cndb_cn_make2(struct cndb *cndb, const struct kvs_cparams *cparams, u64 *cnid_out, const char *name)
 {
     merr_t               err;
     struct cndb_info_omf info = {};
     u32                  fanout_bits = 0;
     u32                  flags = 0;
 
-    if (cparams->cp_fanout < 2 || cparams->cp_fanout > 16) {
+    if (cparams->fanout < 2 || cparams->fanout > 16) {
         err = merr(EINVAL);
-        CNDB_LOG(err, cndb, HSE_ERR, " cp_fanout");
+        CNDB_LOG(err, cndb, HSE_ERR, " fanout");
         goto done;
     }
-    fanout_bits = ilog2(cparams->cp_fanout);
+    fanout_bits = ilog2(cparams->fanout);
 
     cndb_set_hdr(&info.hdr, CNDB_TYPE_INFO, sizeof(info));
     omf_set_cninfo_fanout_bits(&info, fanout_bits);
-    omf_set_cninfo_prefix_len(&info, cparams->cp_pfx_len);
-    omf_set_cninfo_sfx_len(&info, cparams->cp_sfx_len);
-    omf_set_cninfo_prefix_pivot(&info, cparams->cp_pfx_pivot);
+    omf_set_cninfo_prefix_len(&info, cparams->pfx_len);
+    omf_set_cninfo_sfx_len(&info, cparams->sfx_len);
+    omf_set_cninfo_prefix_pivot(&info, cparams->pfx_pivot);
     omf_set_cninfo_name(&info, (unsigned char *)name, strlen(name));
 
-    if (cparams->cp_kvs_ext01)
+    if (cparams->kvs_ext01)
         flags |= CN_CFLAG_CAPPED;
 
     omf_set_cninfo_flags(&info, flags);
@@ -3002,7 +2989,7 @@ done:
 }
 
 merr_t
-cndb_cn_make(struct cndb *cndb, struct kvs_cparams *cparams, u64 *cnid_out, char *name)
+cndb_cn_make(struct cndb *cndb, const struct kvs_cparams *cparams, u64 *cnid_out, char *name)
 {
     merr_t err;
 
@@ -3181,7 +3168,7 @@ cndb_txn_txc(
     err = cndb_journal_adopt(cndb, (void **)&txc, sz);
     ev(err, HSE_ERR);
 
-  out:
+out:
     if (txc != txcbuf)
         free(txc);
 
@@ -3229,7 +3216,7 @@ cndb_txn_txd(struct cndb *cndb, u64 txid, u64 cnid, u64 tag, int n_oids, u64 *oi
     err = cndb_journal_adopt(cndb, (void **)&txd, sz);
     ev(err, HSE_ERR);
 
-  out:
+out:
     if (txd != txdbuf)
         free(txd);
 
@@ -3323,8 +3310,8 @@ cndb_cn_initializer(unsigned int fanout_bits, unsigned int pfx_len, u64 cnid)
 {
     struct cndb_cn cn = {};
 
-    cn.cn_cp.cp_fanout = 1 << fanout_bits;
-    cn.cn_cp.cp_pfx_len = 1 << fanout_bits;
+    cn.cn_cp.fanout = 1 << fanout_bits;
+    cn.cn_cp.pfx_len = 1 << fanout_bits;
     cn.cn_cnid = cnid;
 
     return cn;

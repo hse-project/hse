@@ -776,7 +776,7 @@ sp3_work(
 
     lchildc = 0;
     ichildc = 0;
-    for (i = 0; i < tn->tn_tree->ct_cp->cp_fanout; i++) {
+    for (i = 0; i < tn->tn_tree->ct_cp->fanout; i++) {
         if (tn->tn_childv[i]) {
             if (cn_node_isleaf(tn->tn_childv[i]))
                 lchildc++;
@@ -794,7 +794,7 @@ sp3_work(
     w->cw_ds = tn->tn_tree->ds;
     w->cw_rp = tn->tn_tree->rp;
     w->cw_cp = tn->tn_tree->ct_cp;
-    w->cw_pfx_len = tn->tn_tree->ct_cp->cp_pfx_len;
+    w->cw_pfx_len = tn->tn_tree->ct_cp->pfx_len;
 
     w->cw_kvset_cnt = n_kvsets;
     w->cw_mark = mark;

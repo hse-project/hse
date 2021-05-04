@@ -11,14 +11,14 @@
 #include <hse_util/minmax.h>
 #include <hse_util/page.h>
 
-#include "common.h"
-
 #include <mpool/mpool.h>
 #include <mblock_file.h>
 #include <mblock_fset.h>
 #include <mpool_internal.h>
 
-MTF_BEGIN_UTEST_COLLECTION_PREPOST(mcache_test, mpool_test_pre, mpool_test_post)
+#include "common.h"
+
+MTF_BEGIN_UTEST_COLLECTION_PRE(mcache_test, mpool_collection_pre)
 
 static merr_t
 mblock_write(struct mpool *mp, uint64_t mbid, void *buf, size_t len)
@@ -62,22 +62,21 @@ mblock_write(struct mpool *mp, uint64_t mbid, void *buf, size_t len)
     return err;
 }
 
-MTF_DEFINE_UTEST(mcache_test, mcache_api)
+MTF_DEFINE_UTEST_PREPOST(mcache_test, mcache_api, mpool_test_pre, mpool_test_post)
 {
     struct mpool            *mp;
     struct mpool_mcache_map *map;
 
-    char     staging_path[PATH_MAX];
     uint64_t mbidv[32];
     merr_t   err;
     int      rc, i;
     size_t   bufsz;
     char    *buf, *addr;
 
-    err = mpool_create("mp1", NULL);
+    err = mpool_create(home, &tcparams);
     ASSERT_EQ(0, err);
 
-    err = mpool_open("mp1", NULL, O_RDWR, &mp);
+    err = mpool_open(home, &trparams, O_RDWR, &mp);
     ASSERT_EQ(0, err);
 
     bufsz = 32 * PAGE_SIZE;
@@ -183,17 +182,12 @@ MTF_DEFINE_UTEST(mcache_test, mcache_api)
     err = mpool_close(mp);
     ASSERT_EQ(0, err);
 
-    strlcpy(staging_path, storage_path, sizeof(staging_path));
-    strlcat(staging_path, "/staging", sizeof(staging_path) - strlen(staging_path));
-    setenv("HSE_STAGING_PATH", (const char *)staging_path, 1);
+    setup_mclass(MP_MED_STAGING);
 
-    rc = mkdir(staging_path, S_IRWXU | S_IRWXG | S_IROTH | S_IWOTH);
-    ASSERT_EQ(0, rc);
-
-    err = mpool_mclass_add("mp1", MP_MED_STAGING, NULL);
+    err = mpool_mclass_add(home, MP_MED_STAGING, &tcparams);
     ASSERT_EQ(0, merr_errno(err));
 
-    err = mpool_open("mp1", NULL, O_RDWR, &mp);
+    err = mpool_open(home, &trparams, O_RDWR, &mp);
     ASSERT_EQ(0, merr_errno(err));
 
     for (i = 0; i < 32; i++) {
@@ -252,13 +246,12 @@ MTF_DEFINE_UTEST(mcache_test, mcache_api)
 
     err = mpool_close(mp);
     ASSERT_EQ(0, err);
-    mpool_destroy("mp1", NULL);
+    mpool_destroy(home, &tdparams);
 
     free(buf);
-    unsetenv("HSE_STAGING_PATH");
 }
 
-MTF_DEFINE_UTEST(mcache_test, mcache_invalid_args)
+MTF_DEFINE_UTEST_PREPOST(mcache_test, mcache_invalid_args, mpool_test_pre, mpool_test_post)
 {
     struct mpool       *mp;
     struct mblock_fset *mbfsp;
@@ -269,12 +262,10 @@ MTF_DEFINE_UTEST(mcache_test, mcache_invalid_args)
     uint64_t mbid;
     merr_t   err;
 
-    setenv("HSE_STORAGE_PATH", (const char *)storage_path, 1);
-
-    err = mpool_create("mp1", NULL);
+    err = mpool_create(home, &tcparams);
     ASSERT_EQ(0, err);
 
-    err = mpool_open("mp1", NULL, O_RDWR, &mp);
+    err = mpool_open(home, &trparams, O_RDWR, &mp);
     ASSERT_EQ(0, err);
 
     err = mpool_mblock_alloc(mp, MP_MED_CAPACITY, &mbid, NULL);
@@ -309,7 +300,7 @@ MTF_DEFINE_UTEST(mcache_test, mcache_invalid_args)
 
     err = mpool_close(mp);
     ASSERT_EQ(0, err);
-    mpool_destroy("mp1", NULL);
+    mpool_destroy(home, &tdparams);
 }
 
 MTF_END_UTEST_COLLECTION(mcache_test);

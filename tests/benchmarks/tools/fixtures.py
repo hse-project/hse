@@ -6,7 +6,7 @@ from tools import config
 
 
 def make_kvdb():
-    kvdb_name = config.KVDB_NAME
+    kvdb_home = config.KVDB_HOME
     kvs_name = config.KVS_NAME
 
     #
@@ -18,14 +18,14 @@ def make_kvdb():
 
     try:
         try:
-            hse.Kvdb.make(kvdb_name)
+            hse.Kvdb.make(kvdb_home)
         except hse.KvdbException as e:
             if e.returncode == errno.EEXIST:
                 pass
             else:
                 raise e
 
-        kvdb = hse.Kvdb.open(kvdb_name)
+        kvdb = hse.Kvdb.open(kvdb_home)
 
         try:
             for old_name in kvdb.names:

@@ -1,51 +1,56 @@
 #!/usr/bin/env python3
+
+from contextlib import ExitStack
 import hse
 from hse import experimental as hse_exp
 
-import util
+from utility import lifecycle
 
 
 hse.init()
 
 try:
-    p = hse.Params()
-    p.set(key="kvdb.dur_enable", value="0")
-    p.set(key="kvs.pfx_len", value="1")
-    p.set(key="kvs.sfx_len", value="2")
-    p.set(key="kvs.transactions_enable", value="1")
+    with ExitStack() as stack:
+        kvdb_ctx = lifecycle.KvdbContext().rparams("dur_enable=0")
+        kvdb = stack.enter_context(kvdb_ctx)
+        kvs_ctx = (
+            lifecycle.KvsContext(kvdb, "sfx_test_txn")
+            .cparams("pfx_len=1", "sfx_len=2")
+            .rparams("transactions_enable=1")
+        )
 
-    with util.create_kvdb(util.get_kvdb_name(), p) as kvdb:
-        with util.create_kvs(kvdb, "sfx_test_txn", p) as kvs:
-            with kvdb.transaction() as txn:
-                kvs.put(b"AbcXX", b"1", txn=txn)
-                kvs.put(b"AbdXX", b"1", txn=txn)
-                kvs.put(b"AbdXX", b"2", txn=txn)
+        kvs = stack.enter_context(kvs_ctx)
 
-            txn = kvdb.transaction()
-            txn.begin()
+        with kvdb.transaction() as txn:
+            kvs.put(b"AbcXX", b"1", txn=txn)
+            kvs.put(b"AbdXX", b"1", txn=txn)
+            kvs.put(b"AbdXX", b"2", txn=txn)
 
-            kvdb.flush()
-            with kvdb.transaction() as t:
-                kvs.put(b"AbcXY", b"2", txn=t)
+        txn = kvdb.transaction()
+        txn.begin()
 
-            cnt, *kv = hse_exp.kvs_prefix_probe(kvs, b"Abc", txn=txn)
-            assert cnt == hse_exp.KvsPfxProbeCnt.ONE
-            assert kv == [b"AbcXX", b"1"]
+        kvdb.flush()
+        with kvdb.transaction() as t:
+            kvs.put(b"AbcXY", b"2", txn=t)
 
-            kvdb.flush()
-            kvs.put(b"AbcXZ", b"3", txn=txn)
-            cnt, *kv = hse_exp.kvs_prefix_probe(kvs, b"Abc", txn=txn)  # inside txn
+        cnt, *kv = hse_exp.kvs_prefix_probe(kvs, b"Abc", txn=txn)
+        assert cnt == hse_exp.KvsPfxProbeCnt.ONE
+        assert kv == [b"AbcXX", b"1"]
+
+        kvdb.flush()
+        kvs.put(b"AbcXZ", b"3", txn=txn)
+        cnt, *kv = hse_exp.kvs_prefix_probe(kvs, b"Abc", txn=txn)  # inside txn
+        assert cnt == hse_exp.KvsPfxProbeCnt.MUL
+        assert kv == [b"AbcXZ", b"3"]
+        with kvdb.transaction() as t:
+            cnt, *kv = hse_exp.kvs_prefix_probe(kvs, b"Abc", txn=t)  # outside txn
             assert cnt == hse_exp.KvsPfxProbeCnt.MUL
-            assert kv == [b"AbcXZ", b"3"]
-            with kvdb.transaction() as t:
-                cnt, *kv = hse_exp.kvs_prefix_probe(kvs, b"Abc", txn=t)  # outside txn
-                assert cnt == hse_exp.KvsPfxProbeCnt.MUL
-                assert kv == [b"AbcXY", b"2"]
+            assert kv == [b"AbcXY", b"2"]
 
-            txn.commit()
+        txn.commit()
 
-            cnt, *kv = hse_exp.kvs_prefix_probe(kvs, b"Abc")
-            assert cnt == hse_exp.KvsPfxProbeCnt.MUL
-            assert kv == [b"AbcXZ", b"3"]
+        cnt, *kv = hse_exp.kvs_prefix_probe(kvs, b"Abc")
+        assert cnt == hse_exp.KvsPfxProbeCnt.MUL
+        assert kv == [b"AbcXZ", b"3"]
 finally:
     hse.fini()

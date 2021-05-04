@@ -7,7 +7,6 @@
 #define HSE_KVDB_CN_OMF_H
 
 #include <hse_util/omf.h>
-#include <hse_util/inttypes.h>
 
 /*****************************************************************
  *

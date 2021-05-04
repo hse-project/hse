@@ -1,13 +1,14 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2020-2021 Micron Technology, Inc.  All rights reserved.
  */
+
+#include <stddef.h>
+#include <string.h>
 
 #include <hse_ikvdb/vcomp_params.h>
 #include <hse_ikvdb/kvs_rparams.h>
 
-#include <hse_util/inttypes.h>
-#include <hse_util/compiler.h>
 #include <hse_util/compression_lz4.h>
 
 static
@@ -23,20 +24,6 @@ vcomp_param_match(
      */
     return (len < sizeof(rp->value_compression))
         && (!strcmp(check, rp->value_compression));
-}
-
-bool
-vcomp_param_valid(const struct kvs_rparams *rp)
-{
-    const char *check[] = {
-        VCOMP_PARAM_NONE,
-        VCOMP_PARAM_LZ4,
-    };
-
-    for (int i = 0; i < NELEM(check); i++)
-        if (vcomp_param_match(rp, check[i]))
-            return true;
-    return false;
 }
 
 struct compress_ops *

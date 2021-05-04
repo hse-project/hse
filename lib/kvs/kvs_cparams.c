@@ -1,184 +1,127 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
-#include <hse_util/logging.h>
-#include <hse_util/platform.h>
-#include <hse_util/config.h>
-#include <hse_util/param.h>
-#include <hse_util/event_counter.h>
+#include <limits.h>
+#include <stddef.h>
 
 #include <hse/hse_limits.h>
-
 #include <hse_ikvdb/limits.h>
+#include <hse_ikvdb/param.h>
 #include <hse_ikvdb/kvs_cparams.h>
 
-/* Unlike rparams, cparams API is not thread safe. There should always be at
- * most one thread using it.
- */
-
-#define CPARAMS_MAGIC 0x73766b5043ul /* ascii CPkvs */
-
-static struct kvs_cparams kvs_cp_ref;
-static struct param_inst  kvs_cp_table[] = {
-    PARAM_INST_U32_EXP(kvs_cp_ref.cp_fanout, "fanout", "cN tree fanout"),
-    PARAM_INST_U32(kvs_cp_ref.cp_pfx_len, "pfx_len", "Key prefix length"),
-    PARAM_INST_U32_EXP(
-        kvs_cp_ref.cp_pfx_pivot,
-        "pfx_pivot",
-        "first level to spill with full hash (0=root)"),
-    PARAM_INST_U32_EXP(kvs_cp_ref.cp_kvs_ext01, "kvs_ext01", "kvs_ext01"),
-    PARAM_INST_U32(kvs_cp_ref.cp_sfx_len, "sfx_len", "Key suffix length"),
-    PARAM_INST_END
+static const struct param_spec pspecs[] = {
+    {
+        .ps_name = "fanout",
+        .ps_description = "cN tree fanout",
+        .ps_flags = PARAM_FLAG_EXPERIMENTAL | PARAM_FLAG_CREATE_ONLY,
+        .ps_type = PARAM_TYPE_U32,
+        .ps_offset = offsetof(struct kvs_cparams, fanout),
+        .ps_size = sizeof(((struct kvs_cparams *) 0)->fanout),
+        .ps_convert = param_default_converter,
+        .ps_validate = param_default_validator,
+        .ps_default_value = {
+            .as_uscalar = CN_FANOUT_MAX,
+        },
+        .ps_bounds = {
+            .as_uscalar = {
+                .ps_min = CN_FANOUT_MIN,
+                .ps_max = CN_FANOUT_MAX,
+            },
+        },
+    },
+    {
+        .ps_name = "pfx_len",
+        .ps_description = "Key prefix length",
+        .ps_flags = PARAM_FLAG_CREATE_ONLY,
+        .ps_type = PARAM_TYPE_U32,
+        .ps_offset = offsetof(struct kvs_cparams, pfx_len),
+        .ps_size = sizeof(((struct kvs_cparams *) 0)->pfx_len),
+        .ps_convert = param_default_converter,
+        .ps_validate = param_default_validator,
+        .ps_default_value = {
+            .as_uscalar = 0,
+        },
+        .ps_bounds = {
+            .as_uscalar = {
+                .ps_min = 0,
+                .ps_max = HSE_KVS_MAX_PFXLEN,
+            },
+        },
+    },
+    {
+        .ps_name = "pfx_pivot",
+        .ps_description = "First level to spill with full hash, only applies when pfx_len > 0 (0=root)",
+        .ps_flags = PARAM_FLAG_EXPERIMENTAL | PARAM_FLAG_CREATE_ONLY,
+        .ps_type = PARAM_TYPE_U32,
+        .ps_offset = offsetof(struct kvs_cparams, pfx_pivot),
+        .ps_size = sizeof(((struct kvs_cparams *) 0)->pfx_pivot),
+        .ps_convert = param_default_converter,
+        .ps_validate = param_default_validator,
+        .ps_default_value = {
+            .as_uscalar = 2,
+        },
+        .ps_bounds = {
+            .as_uscalar = {
+                .ps_min = 0,
+                .ps_max = UINT32_MAX,
+            },
+        },
+    },
+    {
+        .ps_name = "kvs_ext01",
+        .ps_description = "kvs_ext01",
+        .ps_flags = PARAM_FLAG_EXPERIMENTAL | PARAM_FLAG_CREATE_ONLY,
+        .ps_type = PARAM_TYPE_U32,
+        .ps_offset = offsetof(struct kvs_cparams, kvs_ext01),
+        .ps_size = sizeof(((struct kvs_cparams *) 0)->kvs_ext01),
+        .ps_convert = param_default_converter,
+        .ps_validate = param_default_validator,
+        .ps_default_value = {
+            .as_uscalar = 0,
+        },
+        .ps_bounds = {
+            .as_uscalar = {
+                .ps_min = 0,
+                .ps_max = UINT32_MAX,
+            },
+        },
+    },
+    {
+        .ps_name = "sfx_len",
+        .ps_description = "Key suffix length",
+        .ps_flags = PARAM_FLAG_CREATE_ONLY,
+        .ps_type = PARAM_TYPE_U32,
+        .ps_offset = offsetof(struct kvs_cparams, sfx_len),
+        .ps_size = sizeof(((struct kvs_cparams *) 0)->sfx_len),
+        .ps_convert = param_default_converter,
+        .ps_validate = param_default_validator,
+        .ps_default_value = {
+            .as_uscalar = 0,
+        },
+        .ps_bounds = {
+            .as_uscalar = {
+                .ps_min = 0,
+                .ps_max = UINT32_MAX,
+            }
+        }
+    }
 };
 
-void
-kvs_cparams_table_reset(void)
+const struct param_spec *
+kvs_cparams_pspecs_get(size_t *pspecs_sz)
 {
-    kvs_cp_ref = kvs_cparams_defaults();
-}
-
-struct param_inst *
-kvs_cparams_table(void)
-{
-    return kvs_cp_table;
+    if (pspecs_sz)
+        *pspecs_sz = NELEM(pspecs);
+    return pspecs;
 }
 
 struct kvs_cparams
-kvs_cparams_defaults(void)
+kvs_cparams_defaults()
 {
-    struct kvs_cparams params = { .cp_fanout = 16,
-                                  .cp_pfx_len = 0,
-                                  .cp_pfx_pivot = 2, /* only used when pfx_len > 0 */
-                                  .cp_kvs_ext01 = 0,
-                                  .cp_cpmagic = CPARAMS_MAGIC };
-
+    struct kvs_cparams params;
+    const union params p = { .as_kvs_cp = &params };
+    param_default_populate(pspecs, NELEM(pspecs), p);
     return params;
-}
-
-static void
-get_param_name(int index, char *buf, size_t buf_len)
-{
-    char *key;
-    int   len;
-
-    key = kvs_cp_table[index].pi_type.param_token;
-    len = strcspn(key, "=");
-
-    if (len > buf_len) {
-        buf[0] = '\0';
-        return;
-    }
-
-    strncpy(buf, key, len);
-    buf[len] = '\0';
-}
-
-char *
-kvs_cparams_help(char *buf, size_t buf_sz, struct kvs_cparams *cparams)
-{
-    struct kvs_cparams def;
-    int                n = NELEM(kvs_cp_table) - 1; /* skip PARAM_INST_END */
-
-    if (!cparams) {
-        /* Caller did not provide the default values to be printed.
-         * Use system defaults. */
-        def = kvs_cparams_defaults();
-        cparams = &def;
-    }
-
-    return params_help(buf, buf_sz, cparams, kvs_cp_table, n, &kvs_cp_ref);
-}
-
-void
-kvs_cparams_print(struct kvs_cparams *cparams)
-{
-    int n = NELEM(kvs_cp_table) - 1; /* skip PARAM_INST_END */
-
-    if (ev(!cparams))
-        return;
-
-    params_print(kvs_cp_table, n, "kvs_cparams", cparams, &kvs_cp_ref);
-}
-
-int
-kvs_cparams_validate(struct kvs_cparams *cparams)
-{
-    bool valid_fanout;
-
-    if (ev(!cparams))
-        return EINVAL;
-
-    if (cparams->cp_cpmagic != CPARAMS_MAGIC) {
-        hse_log(HSE_ERR "KVS create-time parameters not properly "
-                        "initialized (use kvs_cparams_defaults())");
-        return EINVAL;
-    }
-
-    /* Validate fanout */
-    valid_fanout = cparams->cp_fanout >= CN_FANOUT_MIN && cparams->cp_fanout <= CN_FANOUT_MAX &&
-                   (cparams->cp_fanout & (cparams->cp_fanout - 1)) == 0;
-
-    if (!valid_fanout) {
-        hse_log(
-            HSE_ERR "Invalid KVS fanout (%u),"
-                    " must be power of 2 between %u and %u inclusive.",
-            cparams->cp_fanout,
-            CN_FANOUT_MIN,
-            CN_FANOUT_MAX);
-        return EINVAL;
-    }
-
-    /* Validate key prefix length */
-    if (cparams->cp_pfx_len > HSE_KVS_MAX_PFXLEN) {
-        hse_log(
-            HSE_ERR "Invalid KVS prefix length (%u),"
-                    " cannot be greater than %u",
-            cparams->cp_pfx_len,
-            HSE_KVS_MAX_PFXLEN);
-        return EINVAL;
-    }
-
-    return 0;
-}
-
-int
-kvs_cparams_parse(int argc, char **argv, struct kvs_cparams *params, int *next_arg)
-{
-    merr_t err;
-
-    kvs_cp_ref = *params;
-    err = process_params(argc, argv, kvs_cp_table, next_arg, 0);
-    if (!ev(err)) {
-        *params = kvs_cp_ref;
-        return 0;
-    }
-
-    return merr_errno(err);
-}
-
-void
-kvs_cparams_diff(
-    struct kvs_cparams *cp,
-    void *              arg,
-    void (*callback)(const char *, const char *, void *))
-{
-    int                i;
-    int                num_elems = NELEM(kvs_cp_table) - 1;
-    struct kvs_cparams def = kvs_cparams_defaults();
-
-    for (i = 0; i < num_elems; i++) {
-        char   valstr[DT_PATH_ELEMENT_LEN];
-        char   param_name[DT_PATH_ELEMENT_LEN];
-        size_t n = kvs_cp_table[i].pi_type.param_size;
-        size_t offset = kvs_cp_table[i].pi_value - (void *)&kvs_cp_ref;
-
-        if (bcmp((void *)&def + offset, (void *)cp + offset, n)) {
-            get_param_name(i, param_name, sizeof(param_name));
-            kvs_cp_table[i].pi_type.param_val_to_str(
-                valstr, sizeof(valstr), (void *)cp + offset, 1);
-            callback(param_name, valstr, arg);
-        }
-    }
 }

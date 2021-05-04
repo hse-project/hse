@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
 #include <hse_util/platform.h>
@@ -546,7 +546,6 @@ dt_init(void)
     INIT_LIST_HEAD(&dt_tree_list);
     dt_data_tree = dt_create("data");
     event_counter_init();
-    config_init();
 }
 
 void

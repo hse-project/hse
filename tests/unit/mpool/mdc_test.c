@@ -3,6 +3,8 @@
  * Copyright (C) 2021 Micron Technology, Inc.  All rights reserved.
  */
 
+#include <fcntl.h>
+
 #include <hse_ut/framework.h>
 #include <hse_test_support/mock_api.h>
 #include <hse_test_support/random_buffer.h>
@@ -10,31 +12,29 @@
 #include <hse_util/hse_err.h>
 #include <hse_util/minmax.h>
 
-#include "common.h"
-
 #include <mpool/mpool.h>
 #include <mdc.h>
 #include <mdc_file.h>
 
-#define MDC_TEST_CAP   (1 << 20)
+#include "common.h"
+
+#define MDC_TEST_CAP (1 << 20)
 #define MDC_TEST_MAGIC (0xabbaabba)
 
-MTF_BEGIN_UTEST_COLLECTION_PREPOST(mdc_test, mpool_test_pre, mpool_test_post)
+MTF_BEGIN_UTEST_COLLECTION_PRE(mdc_test, mpool_collection_pre)
 
-MTF_DEFINE_UTEST(mdc_test, mdc_abc)
+MTF_DEFINE_UTEST_PREPOST(mdc_test, mdc_abc, mpool_test_pre, mpool_test_post)
 {
-    char              staging_path[PATH_MAX];
     struct mpool     *mp;
     struct mpool_mdc *mdc;
     uint64_t          logid1, logid2, logid3, logid4;
     merr_t            err;
     size_t            usage;
-    int               rc;
 
-    err = mpool_create("mp1", NULL);
+    err = mpool_create(home, &tcparams);
     ASSERT_EQ(0, err);
 
-    err = mpool_open("mp1", NULL, O_RDWR, &mp);
+    err = mpool_open(home, &trparams, O_RDWR, &mp);
     ASSERT_EQ(0, err);
 
     err = mpool_mdc_alloc(NULL, MDC_TEST_MAGIC, MDC_TEST_CAP, MP_MED_CAPACITY, &logid1, &logid2);
@@ -160,13 +160,13 @@ MTF_DEFINE_UTEST(mdc_test, mdc_abc)
     err = mpool_mdc_delete(mp, logid1, logid2);
     ASSERT_EQ(ENOENT, merr_errno(err));
 
-    err = mpool_mdc_rootid_get(mp, NULL, &logid2);
+    err = mpool_mdc_rootid_get(NULL, &logid2);
     ASSERT_EQ(EINVAL, merr_errno(err));
 
-    err = mpool_mdc_rootid_get(mp, &logid1, NULL);
+    err = mpool_mdc_rootid_get(&logid1, NULL);
     ASSERT_EQ(EINVAL, merr_errno(err));
 
-    err = mpool_mdc_rootid_get(mp, &logid1, &logid2);
+    err = mpool_mdc_rootid_get(&logid1, &logid2);
     ASSERT_EQ(0, err);
     ASSERT_NE(0, logid1);
     ASSERT_NE(0, logid2);
@@ -174,17 +174,13 @@ MTF_DEFINE_UTEST(mdc_test, mdc_abc)
     err = mpool_close(mp);
     ASSERT_EQ(0, err);
 
-    strlcpy(staging_path, storage_path, sizeof(staging_path));
-    strlcat(staging_path, "/staging", sizeof(staging_path) - strlen(staging_path));
-    setenv("HSE_STAGING_PATH", (const char *)staging_path, 1);
+    setup_mclass(MP_MED_STAGING);
 
-    rc = mkdir(staging_path, S_IRWXU | S_IRWXG | S_IROTH | S_IWOTH);
-    ASSERT_EQ(0, rc);
-
-    err = mpool_mclass_add("mp1", MP_MED_STAGING, NULL);
+    err = mpool_mclass_add(home, MP_MED_STAGING, &tcparams);
     ASSERT_EQ(0, merr_errno(err));
 
-    err = mpool_open("mp1", NULL, O_RDWR, &mp);
+    err = mpool_open(home, &trparams, O_RDWR, &mp);
+    printf("%s:%d\n", merr_file(err), merr_lineno(err));
     ASSERT_EQ(0, merr_errno(err));
 
     err = mpool_mdc_alloc(mp, MDC_TEST_MAGIC, MDC_TEST_CAP, MP_MED_CAPACITY, &logid1, &logid2);
@@ -214,12 +210,10 @@ MTF_DEFINE_UTEST(mdc_test, mdc_abc)
 
     err = mpool_close(mp);
     ASSERT_EQ(0, err);
-    mpool_destroy("mp1", NULL);
-
-    unsetenv("HSE_STAGING_PATH");
+    mpool_destroy(home, &tdparams);
 }
 
-MTF_DEFINE_UTEST(mdc_test, mdc_io_basic)
+MTF_DEFINE_UTEST_PREPOST(mdc_test, mdc_io_basic, mpool_test_pre, mpool_test_post)
 {
     struct mpool     *mp;
     struct mpool_mdc *mdc;
@@ -230,12 +224,10 @@ MTF_DEFINE_UTEST(mdc_test, mdc_io_basic)
     char    *buf, *rdbuf;
     size_t   bufsz = 16 << 10, rdlen;
 
-    setenv("HSE_STORAGE_PATH", (const char *)storage_path, 1);
-
-    err = mpool_create("mp1", NULL);
+    err = mpool_create(home, &tcparams);
     ASSERT_EQ(0, err);
 
-    err = mpool_open("mp1", NULL, O_RDWR, &mp);
+    err = mpool_open(home, &trparams, O_RDWR, &mp);
     ASSERT_EQ(0, err);
 
     err = mpool_mdc_alloc(mp, MDC_TEST_MAGIC, MDC_TEST_CAP, MP_MED_CAPACITY, &logid1, &logid2);
@@ -331,7 +323,7 @@ MTF_DEFINE_UTEST(mdc_test, mdc_io_basic)
 
     err = mpool_close(mp);
     ASSERT_EQ(0, err);
-    mpool_destroy("mp1", NULL);
+    mpool_destroy(home, &tdparams);
 
     free(buf);
     free(rdbuf);
@@ -437,7 +429,7 @@ mdc_rw_test(
     free(rdbuf);
 }
 
-MTF_DEFINE_UTEST(mdc_test, mdc_io_advanced)
+MTF_DEFINE_UTEST_PREPOST(mdc_test, mdc_io_advanced, mpool_test_pre, mpool_test_post)
 {
     struct mpool *mp;
 
@@ -446,12 +438,10 @@ MTF_DEFINE_UTEST(mdc_test, mdc_io_advanced)
     size_t   bufsz = 128 << 10;
     uint64_t logid1, logid2;
 
-    setenv("HSE_STORAGE_PATH", (const char *)storage_path, 1);
-
-    err = mpool_create("mp1", NULL);
+    err = mpool_create(home, &tcparams);
     ASSERT_EQ(0, err);
 
-    err = mpool_open("mp1", NULL, O_RDWR, &mp);
+    err = mpool_open(home, &trparams, O_RDWR, &mp);
     ASSERT_EQ(0, err);
 
     err = mpool_mdc_alloc(mp, MDC_TEST_MAGIC, 16 * 1024, MP_MED_CAPACITY, &logid1, &logid2);
@@ -481,12 +471,13 @@ MTF_DEFINE_UTEST(mdc_test, mdc_io_advanced)
 
     err = mpool_close(mp);
     ASSERT_EQ(0, err);
-    mpool_destroy("mp1", NULL);
+
+    mpool_destroy(home, &tdparams);
 
     free(buf);
 }
 
-MTF_DEFINE_UTEST(mdc_test, mdc_io_overlap)
+MTF_DEFINE_UTEST_PREPOST(mdc_test, mdc_io_overlap, mpool_test_pre, mpool_test_post)
 {
     struct mpool     *mp;
     struct mpool_mdc *mdc;
@@ -496,12 +487,10 @@ MTF_DEFINE_UTEST(mdc_test, mdc_io_overlap)
     char    *buf, *rdbuf;
     size_t   bufsz = 128 << 10, wdlen, rdlen, reclen, wdcnt, wdstart;
 
-    setenv("HSE_STORAGE_PATH", (const char *)storage_path, 1);
-
-    err = mpool_create("mp1", NULL);
+    err = mpool_create(home, &tcparams);
     ASSERT_EQ(0, err);
 
-    err = mpool_open("mp1", NULL, O_RDWR, &mp);
+    err = mpool_open(home, &trparams, O_RDWR, &mp);
     ASSERT_EQ(0, err);
 
     err = mpool_mdc_alloc(mp, MDC_TEST_MAGIC, 16 * 1024, MP_MED_CAPACITY, &logid1, &logid2);
@@ -569,13 +558,14 @@ MTF_DEFINE_UTEST(mdc_test, mdc_io_overlap)
 
     err = mpool_close(mp);
     ASSERT_EQ(0, err);
-    mpool_destroy("mp1", NULL);
+
+    mpool_destroy(home, &tdparams);
 
     free(buf);
     free(rdbuf);
 }
 
-MTF_DEFINE_UTEST(mdc_test, mdc_io_reopen)
+MTF_DEFINE_UTEST_PREPOST(mdc_test, mdc_io_reopen, mpool_test_pre, mpool_test_post)
 {
     struct mpool     *mp;
     struct mpool_mdc *mdc;
@@ -585,12 +575,10 @@ MTF_DEFINE_UTEST(mdc_test, mdc_io_reopen)
     char    *buf, *rdbuf;
     size_t   bufsz = 128 << 10, wdlen, rdlen, reclen, wdcnt, wdstart;
 
-    setenv("HSE_STORAGE_PATH", (const char *)storage_path, 1);
-
-    err = mpool_create("mp1", NULL);
+    err = mpool_create(home, &tcparams);
     ASSERT_EQ(0, err);
 
-    err = mpool_open("mp1", NULL, O_RDWR, &mp);
+    err = mpool_open(home, &trparams, O_RDWR, &mp);
     ASSERT_EQ(0, err);
 
     err = mpool_mdc_alloc(mp, MDC_TEST_MAGIC, 16 * 1024, MP_MED_CAPACITY, &logid1, &logid2);
@@ -664,7 +652,8 @@ MTF_DEFINE_UTEST(mdc_test, mdc_io_reopen)
 
     err = mpool_close(mp);
     ASSERT_EQ(0, err);
-    mpool_destroy("mp1", NULL);
+
+    mpool_destroy(home, &tdparams);
 
     free(buf);
     free(rdbuf);

@@ -1,13 +1,15 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2021 Micron Technology, Inc.  All rights reserved.
  */
 
 #ifndef HSE_MCLASS_POLICY_H
 #define HSE_MCLASS_POLICY_H
 
+#include <hse_util/compiler.h>
 #include <hse_util/hse_err.h>
-#include <hse/hse_experimental.h>
+
+#define HSE_MPOLICY_DEFAULT_NAME "default_policy"
 
 enum hse_mclass_policy_age {
     HSE_MPOLICY_AGE_SYNC,
@@ -42,31 +44,16 @@ struct mclass_policy {
 };
 
 /**
- * mclass_policy_get_default_policies() - returns YAML string for default media class policies
- */
-const char *
-mclass_policy_get_default_policies();
-
-/**
  * mclass_policy_get_default_policy_names() - returns default policy names
  */
 const char **
-mclass_policy_get_default_policy_names();
+mclass_policy_get_default_policy_names() HSE_RETURNS_NONNULL;
 
 /**
  * mclass_policy_get_num_default_policies() - number of default policies
  */
 int
 mclass_policy_get_num_default_policies();
-
-/**
- * mclass_policy_init_from_string() - initializes a media class policy from an HSE param
- * @policy: (out) media class policy
- * @key:    key portion of the HSE param
- * @value:  value portion of the HSE param
- */
-void
-mclass_policy_init_from_string(struct mclass_policy *policy, const char *key, const char *value);
 
 /**
  * mclass_policy_get_type() - get the media type to use for the

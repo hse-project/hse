@@ -12,7 +12,6 @@
 #include <hse/hse.h>
 
 #include <hse_util/inttypes.h>
-#include <hse_util/hse_params_helper.h>
 
 #include "deviceprofile.h"
 
@@ -91,10 +90,9 @@ main(int argc, char *argv[])
     struct mpool *                  ds;
     int                             flags = O_RDWR;
     const char *                    program, *mpname;
-    int                             mclass, wpct, thrds, next_arg = 0;
+    int                             mclass, wpct, thrds;
     u64                             bsize, mblks_per_thrd, mblksize;
     struct mpool_props              props;
-    struct hse_params              *params;
 
     program = strrchr(argv[0], '/');
     program = program ? program + 1 : argv[0];
@@ -115,12 +113,6 @@ main(int argc, char *argv[])
     err = hse_init();
     if (err)
         return -1;
-
-    err = hse_params_create(&params);
-    if (err) {
-        hse_fini();
-        return -1;
-    }
 
     for (;;) {
         char c, *end;
@@ -160,10 +152,6 @@ main(int argc, char *argv[])
     argc -= optind;
     argv += optind;
 
-    hse_parse_cli(argc, argv, &next_arg, 0, params);
-    argc -= next_arg;
-    argv += next_arg;
-
     if (argc != 1) {
         fprintf(stderr, "Invalid or extraneous arguments\n");
         usage(program);
@@ -185,7 +173,7 @@ main(int argc, char *argv[])
         goto err_exit;
     }
 
-    err = mpool_open(mpname, params, flags, &ds);
+    err = mpool_open(mpname, NULL, flags, &ds);
     if (err) {
         fprintf(stderr, "mpool_open error %ld\n", err);
         goto err_exit;
@@ -217,7 +205,6 @@ main(int argc, char *argv[])
     mpool_close(ds);
 
 err_exit:
-    hse_params_destroy(params);
     hse_fini();
 
     return err;

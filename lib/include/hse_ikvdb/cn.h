@@ -34,7 +34,7 @@ enum mpool_mclass;
 
 /* MTF_MOCK */
 merr_t
-cn_make(struct mpool *ds, struct kvs_cparams *cp, struct kvdb_health *health);
+cn_make(struct mpool *ds, const struct kvs_cparams *cp, struct kvdb_health *health);
 
 /* MTF_MOCK */
 merr_t
@@ -45,7 +45,7 @@ cn_open(
     struct cndb *       cndb,
     u64                 cnid,
     struct kvs_rparams *rp,
-    const char *        kvdb_name,
+    const char *        kvdb_home,
     const char *        kvs_name,
     struct kvdb_health *health,
     uint                flags,
@@ -57,7 +57,7 @@ cn_close(struct cn *cn);
 
 /* MTF_MOCK */
 u32
-cn_cp2cflags(struct kvs_cparams *cp);
+cn_cp2cflags(const struct kvs_cparams *cp);
 
 /* MTF_MOCK */
 bool

@@ -12,8 +12,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <sysexits.h>
 
 #include <hse/hse.h>
+
+#include <cli/param.h>
 
 #include "kvs_helper.h"
 
@@ -75,25 +78,58 @@ txget(void *arg)
 int
 main(int argc, char **argv)
 {
-	struct hse_params *params;
+	struct parm_groups *pg = NULL;
+	struct svec         kvdb_oparms = {};
+	struct svec         kvs_cparms = {};
+	struct svec         kvs_oparms = {};
 	const char *mpool;
+	int rc = 0;
 
-	hse_params_create(&params);
-	hse_params_set(params, "kvs.transactions_enable", "1");
+	rc = pg_create(&pg, PG_KVDB_OPEN, PG_KVS_OPEN, PG_KVS_CREATE, NULL);
+	if (rc)
+		fatal(rc, "pg_create");
 
-	kh_rparams(&argc, &argv, params);
-	if (argc != 1) {
-		hse_params_destroy(params);
-		fatal(EINVAL, "usage: %s [options] <kvdb> [rparams]",
-		      basename(argv[0]));
+	if (argc - optind < 1) {
+		fprintf(stderr, "missing required parameters\n");
+		exit(EX_USAGE);
 	}
 
-	mpool = argv[0];
+	mpool = argv[optind++];
 
-	kh_init(mpool, params);
+	rc = pg_create(&pg, PG_KVDB_OPEN, PG_KVS_OPEN, PG_KVS_CREATE, NULL);
+	if (rc)
+		fatal(rc, "pg_create");
 
-	kh_register("kvs1", 0, params, &txget, 0);
-	kh_register("kvs1", 0, params, &put, 0);
+	rc = pg_parse_argv(pg, argc, argv, &optind);
+	switch (rc) {
+	case 0:
+		if (optind < argc)
+			fatal(0, "unknown parameter: %s", argv[optind]);
+		break;
+	case EINVAL:
+		fatal(0, "missing group name (e.g. %s) before parameter %s\n",
+			PG_KVDB_OPEN, argv[optind]);
+		break;
+	default:
+		fatal(rc, "error processing parameter %s\n", argv[optind]);
+		break;
+	}
+
+	if (optind < argc) {
+		fprintf(stderr, "extraneous argument: %s", argv[optind]);
+		exit(EX_USAGE);
+	}
+
+	rc = pg_set_parms(pg, PG_KVS_OPEN, "transactions_enable=1", NULL);
+	if (rc) {
+		fprintf(stderr, "pg_set_parms failed");
+		exit(EX_USAGE);
+	}
+
+	kh_init(mpool, &kvdb_oparms);
+
+	kh_register_kvs("kvs1", 0, &kvs_cparms, &kvs_oparms, &txget, 0);
+	kh_register_kvs("kvs1", 0, &kvs_cparms, &kvs_oparms, &put, 0);
 
 	sleep(10);
 	killthreads = true;
@@ -101,7 +137,7 @@ main(int argc, char **argv)
 
 	kh_fini();
 
-	hse_params_destroy(params);
+	pg_destroy(pg);
 
 	return err;
 }

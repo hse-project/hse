@@ -249,7 +249,7 @@ def main(args):
         fatal("Must specify mpool, use -h for help")
         pass
 
-    sock = os.getenv('HSE_REST_SOCK_PATH')
+    sock = os.path.join(mpool, 'hse.sock')
     url = "http://localhost/data"
 
     curl_cmd = ['curl', '-s', '--noproxy', 'localhost', '--unix-socket', sock, url]

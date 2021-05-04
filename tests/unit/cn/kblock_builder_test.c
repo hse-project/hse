@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
 #include <hse_ut/framework.h>
@@ -8,6 +8,7 @@
 
 #include <hse_util/hse_err.h>
 #include <hse_util/logging.h>
+#include <hse_util/storage.h>
 
 #include <hse/hse_limits.h>
 
@@ -27,15 +28,15 @@
 
 const struct kvs_rparams mocked_rp_default = {
     .cn_bloom_create = 1,
-    .kblock_size_mb = 32,
-    .vblock_size_mb = 32,
+    .kblock_size = 32 * MB,
+    .vblock_size = 32 *MB,
 };
 
 const struct kvs_cparams mocked_cp_default = {
-    .cp_fanout = 16,
-    .cp_pfx_len = 0,
-    .cp_pfx_pivot = 0,
-    .cp_sfx_len = 0,
+    .fanout = 16,
+    .pfx_len = 0,
+    .pfx_pivot = 0,
+    .sfx_len = 0,
 };
 
 struct mclass_policy mocked_mpolicy = {

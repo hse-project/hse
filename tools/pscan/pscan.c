@@ -10,9 +10,11 @@
 
 #define USE_EVENT_TIMER
 
+#include <errno.h>
 #include <getopt.h>
 #include <libgen.h>
 #include <pthread.h>
+#include <signal.h>
 #include <stdarg.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -25,17 +27,21 @@
 #include <xxhash.h>
 #include <hse_util/event_timer.h>
 #include <hse_util/fmt.h>
-#include <hse_util/hse_params_helper.h>
 #include <hse_util/inttypes.h>
 #include <hse_util/timing.h>
 
 #include <tools/common.h>
+#include <tools/parm_groups.h>
 
 const char * progname;
 int          verbosity;
 bool         headers = true;
 bool         uniq = false;
 sig_atomic_t sigint;
+
+struct parm_groups *pg;
+struct svec          db_oparm;
+struct svec          kv_oparm;
 
 /**
  * struct shr - Data shared between pthreads...
@@ -86,9 +92,6 @@ usage()
         "-v       increase verbosity\n"
         "-x       output in hexadecimal\n",
         progname);
-
-    if (verbosity > 0)
-        rp_usage();
 
     exit(0);
 }
@@ -164,7 +167,7 @@ int
 main(int argc, char **argv)
 {
     char                   kbuf[1024], pbuf[128], sbuf[128];
-    struct hse_params *    params;
+    struct parm_groups *pg = NULL;
     const char *           mpname, *kvname;
     char *                 prefix, *seek;
     struct hse_kvdb_opspec opspec;
@@ -193,6 +196,8 @@ main(int argc, char **argv)
     EVENT_INIT(tr);
     EVENT_INIT(td);
 
+    HSE_KVDB_OPSPEC_INIT(&opspec);
+
     progname = basename(argv[0]);
     countem = deletem = stats = false;
     showlen = seeklen = pfxlen = 0;
@@ -204,6 +209,10 @@ main(int argc, char **argv)
     Opts.kmax = HSE_KVS_KLEN_MAX;
     Opts.vmax = HSE_KVS_VLEN_MAX;
     Opts.hexonly = 0;
+
+    rc = pg_create(&pg, PG_KVDB_OPEN, PG_KVS_OPEN, NULL);
+    if (rc)
+        fatal(rc, "pg_create");
 
     while ((c = getopt(argc, argv, ":CcDHhi:k:lm:p:rs:t:uV:vx")) != -1) {
         char *end = NULL;
@@ -286,35 +295,34 @@ main(int argc, char **argv)
     if (opt_help)
         usage();
 
-    HSE_KVDB_OPSPEC_INIT(&opspec);
-
-    err = hse_init();
-    if (err)
-        fatal(err, "failed to initialize kvdb");
-
-    /* Set default KVDB and KVS rparams */
-    hse_params_create(&params);
-
-    /* Allow user to over-ride */
-    err = hse_parse_cli(argc - optind, argv + optind, &optind, 0, params);
-    if (err)
-        fatal(err, "invalid parameter (use -C for more info)");
-
-    argc -= optind;
-    argv += optind;
-
-    if (argc < 2) {
+    if (argc - optind < 2) {
         syntax("insufficient arguments for mandatory parameters");
         exit(EX_USAGE);
     }
 
-    if (argc > 2) {
-        syntax("extraneous argument: %s", argv[argc - 1]);
-        exit(EX_USAGE);
+    mpname = argv[optind++];
+    kvname = argv[optind++];
+
+    /* get hse parms from command line */
+    rc = pg_parse_argv(pg, argc, argv, &optind);
+    switch (rc) {
+        case 0:
+            if (optind < argc)
+                fatal(0, "unknown parameter: %s", argv[optind]);
+            break;
+        case EINVAL:
+            fatal(0, "missing group name (e.g. %s) before parameter %s\n",
+                PG_KVDB_OPEN, argv[optind]);
+            break;
+        default:
+            fatal(rc, "error processing parameter %s\n", argv[optind]);
+            break;
     }
 
-    mpname = argv[0];
-    kvname = argv[1];
+    rc = rc ?: svec_append_pg(&db_oparm, pg, PG_KVDB_OPEN, NULL);
+    rc = rc ?: svec_append_pg(&kv_oparm, pg, PG_KVS_OPEN, NULL);
+    if (rc)
+        fatal(rc, "svec_apppend_pg failed");
 
     if (deletem && isatty(fileno(stdin))) {
         printf("WARNING!! This will delete all keys from this kvs.\n");
@@ -332,12 +340,16 @@ main(int argc, char **argv)
     prefix = pbuf;
     seek = sbuf;
 
-    err = hse_kvdb_open(mpname, params, &kvdb_h);
+    err = hse_init();
+    if (err)
+        fatal(err, "failed to initialize kvdb");
+
+    err = hse_kvdb_open(mpname, db_oparm.strc, db_oparm.strv, &kvdb_h);
     if (err)
         fatal(err, "cannot open kvdb %s", mpname);
 
     EVENT_START(to);
-    err = hse_kvdb_kvs_open(kvdb_h, kvname, params, &kvs_h);
+    err = hse_kvdb_kvs_open(kvdb_h, kvname, kv_oparm.strc, kv_oparm.strv, &kvs_h);
     EVENT_SAMPLE(to);
     if (err)
         fatal(err, "cannot open kvs %s/%s", mpname, kvname);
@@ -468,7 +480,9 @@ main(int argc, char **argv)
     if (err)
         warn(err, "hse_kvdb_close");
 
-    hse_params_destroy(params);
+    pg_destroy(pg);
+    svec_reset(&db_oparm);
+    svec_reset(&kv_oparm);
 
     hse_fini();
 

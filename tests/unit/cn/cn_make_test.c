@@ -52,7 +52,7 @@ MTF_DEFINE_UTEST_PREPOST(cn_make_test, cn_make1, pre, post)
 
     cp = kvs_cparams_defaults();
     for (i = 0; i < 100; i++) {
-        cp.cp_fanout = i;
+        cp.fanout = i;
         switch (i) {
             case 2:
             case 4:

@@ -2,38 +2,44 @@ subdir('kvpy')
 subdir('smoke')
 subdir('api')
 
-functional_needs = ['bindings-python', 'tests-kvdb', 'tools']
-
-if not (get_option('bindings-python') and
-           get_option('tests-kvdb') != '' and
-           get_option('tools'))
-    warning(('HSE functional test suite short and long disabled.'+
-         '  Requires config options: @0@').format(', '.join(functional_needs)))
+if not get_option('bindings-python')
+    warning('Some functional tests have been disabled because the Python bindings are disabled')
     subdir_done()
 endif
 
 tests = {
     'kvs_compare_full_and_pfx': {
         'suites': ['short'],
+        'depends': hse_python_depends,
     },
     'kvs_scan_deleted_keys': {
         'suites': ['short'],
+        'depends': hse_python_depends,
     },
     'kvs_scan_empty_kvs': {
         'suites': ['short'],
+        'depends': hse_python_depends,
     },
-    'kvs_compression_same_mpool': {
-    'suites': ['short'],
-    },
-    'longtest_cursor_variable_prefix': {
-    'suites': ['long'],
+    'kvs_compressed_values_take_less_space': {
+        'suites': ['short'],
+        'depends': hse_python_depends,
     },
     'kvs_scan_a_billion': {
         'suites': ['long'],
+        'depends': hse_python_depends,
     },
 }
 
 foreach t, params : tests
+    home_dir = tests_dir / t
+    if not fs.exists(home_dir)
+        run_command(
+            'mkdir',
+            home_dir,
+            check: true,
+        )
+    endif
+
     t_suites = ['functional']
 
     if 'suites' in params
@@ -45,12 +51,12 @@ foreach t, params : tests
         python,
         args: [
             '@0@.py'.format(t),
-            get_option('tests-kvdb'),
+            '--home',
+            home_dir,
         ],
-        depends: hse_python_depends,
         workdir: meson.current_source_dir(),
-        timeout: 3600,
-        is_parallel: false,
+        depends: params.get('depends', []),
         suite: t_suites,
+        timeout: 3600,
     )
 endforeach

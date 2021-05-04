@@ -24,9 +24,9 @@
 #include <hse/hse.h>
 
 #include <hse_util/event_timer.h>
-#include <hse_util/hse_params_helper.h>
 
 #include <tools/common.h>
+#include <tools/parm_groups.h>
 
 enum Actions { PUT = 0, GET = 1, DEL = 2 };
 
@@ -46,8 +46,8 @@ struct Action {
 struct info {
     pthread_t tid;
     int       joined;
-    void *    kvs;
-    void *    kvdb;
+    struct hse_kvs *kvs;
+    struct hse_kvdb *kvdb;
     char *    buf;
     int       paws;
     int       niter;
@@ -72,7 +72,7 @@ run(void *p)
     struct info *   ti = p;
     uint32_t *      seq = ti->key;
     uint32_t *      uniq = ti->val + sizeof(*seq);
-    void *          h = ti->kvs;
+    struct hse_kvs *h = ti->kvs;
     char *          test = tab[ti->action].name;
     unsigned        i;
     bool            found;
@@ -165,51 +165,52 @@ int
 do_open(
     const char *       mpname,
     const char *       kvname,
-    struct hse_params *params,
+    struct parm_groups * pg,
     struct hse_kvdb ** kvdb,
-    void **            h)
+    struct hse_kvs **  kvs)
 {
     int rc;
 
-    rc = hse_kvdb_open(mpname, params, kvdb);
+    struct svec sv = {};
+
+    rc = svec_append_pg(&sv, pg, "perfc_enable=0", PG_KVDB_OPEN, NULL);
+    if (rc)
+        fatal(rc, "svec_append_pg");
+
+    rc = hse_kvdb_open(mpname, sv.strc, sv.strv, kvdb);
     if (rc)
         fatal(rc, "cannot open kvdb %s", mpname);
 
-    rc = hse_kvdb_kvs_open(*kvdb, kvname, params, (struct hse_kvs **)h);
+    svec_reset(&sv);
+
+    rc = svec_append_pg(&sv, pg, PG_KVS_OPEN, NULL);
+    if (rc)
+        fatal(rc, "svec_append_pg");
+
+    rc = hse_kvdb_kvs_open(*kvdb, kvname, sv.strc, sv.strv, kvs);
     if (rc)
         fatal(rc, "cannot open kvs %s/%s", mpname, kvname);
+
+    svec_reset(&sv);
 
     return 0;
 }
 
 void
-do_close(void *h, bool sync)
+do_close(struct hse_kvdb *kvdb, bool sync)
 {
     int rc;
 
     if (sync) {
-        rc = hse_kvdb_sync(h);
+        rc = hse_kvdb_sync(kvdb);
         if (rc)
             fatal(rc, "cannot sync");
         return;
     }
 
-    rc = hse_kvdb_close(h);
+    rc = hse_kvdb_close(kvdb);
     if (rc)
-        fatal(rc, "cannot close kvdb/kvs");
-}
-
-void
-do_params(int *argc, char ***argv, struct hse_params *params)
-{
-    int idx = optind;
-
-    if (hse_parse_cli(*argc - idx, *argv + idx, &idx, 0, params))
-        rp_usage();
-
-    *argc -= idx;
-    *argv += idx;
-    optind = 0;
+        fatal(rc, "cannot close kvdb");
 }
 
 void
@@ -218,9 +219,9 @@ usage(char *prog)
     fprintf(
         stderr,
         "usage: %s [options] kvdb kvs [param=value ...]\n"
-        "-C    list tunable parameters\n"
         "-c n  do count $n operations per iteration, default 1000\n"
         "-D    delete puts\n"
+        "-h    print help\n"
         "-i n  repeat for $n iterations; default 1\n"
         "-L n  length of values is $n; default keylen\n"
         "-l n  length of keys and values is $n; default 4\n"
@@ -233,27 +234,27 @@ usage(char *prog)
         "-X    exit with sync instead of close\n",
         prog);
 
-    exit(1);
+    exit(0);
 }
 
 int
 main(int argc, char **argv)
 {
-    struct hse_params *params;
     char *             mpname, *prog;
+    struct parm_groups  *pg = NULL;
     const char *       kvname;
     unsigned char      data[4096];
     struct hse_kvdb *  kvdb;
-    void *             h;
+    struct hse_kvs *   kvs;
     struct info *      info;
-    int                tc;
+    int                c, tc;
     int                rc;
-    int                i, c;
     unsigned           action, endian, iter, paws, comp;
     unsigned           cnt, start, klen, vlen;
-    unsigned           opt_params = 0;
-    unsigned           opt_help = 0;
     unsigned           opt_sync = 0;
+
+    //foo_test(argc, argv);
+    //exit(0);
 
     prog = basename(argv[0]);
     klen = 4;
@@ -267,16 +268,19 @@ main(int argc, char **argv)
     action = PUT;
     endian = BIG_ENDIAN;
 
-    while ((c = getopt(argc, argv, "?VDCXen:p:t:i:l:L:c:s:o:")) != -1) {
+    rc = pg_create(&pg, PG_KVDB_OPEN, PG_KVS_OPEN, NULL);
+    if (rc)
+        fatal(rc, "pg_create");
+
+    opterr = 0;
+
+    while ((c = getopt(argc, argv, "?hVDCXen:p:t:i:l:L:c:s:o:")) != -1) {
         switch (c) {
             case 'V':
                 action = GET;
                 break;
             case 'D':
                 action = DEL;
-                break;
-            case 'C':
-                opt_params++;
                 break;
             case 'X':
                 opt_sync++;
@@ -308,46 +312,53 @@ main(int argc, char **argv)
             case 's':
                 start = (unsigned)strtoul(optarg, 0, 0);
                 break;
+            case 'h':
+                usage(prog);
+                break;
             case '?': /* fallthru */
             default:
-                opt_help++;
+                fatal(0, "invalid option: -%c\nuse -h for help\n", c);
                 break;
         }
     }
 
-    if (opt_help)
-        usage(prog);
-    if (opt_params)
-        rp_usage();
+    if (argc - optind < 2)
+        fatal(0, "missing required parameter\nuse -h for help");
+
+    mpname = argv[optind++];
+    kvname = argv[optind++];
+
+    rc = pg_parse_argv(pg, argc, argv, &optind);
+    switch (rc) {
+        case 0:
+            if (optind < argc)
+                fatal(0, "unknown parameter: %s", argv[optind]);
+            break;
+        case EINVAL:
+            fatal(0, "missing group name (e.g. %s) before parameter %s\n",
+                PG_KVDB_OPEN, argv[optind]);
+            break;
+        default:
+            fatal(rc, "error processing parameter %s\n", argv[optind]);
+            break;
+    }
 
     rc = hse_init();
     if (rc)
         fatal(rc, "failed to initialize kvdb");
 
-    hse_params_create(&params);
-
-    do_params(&argc, &argv, params);
-
-    if (argc != 2)
-        usage(prog);
-
-    mpname = argv[0];
-    kvname = argv[1];
-
-    /*
-	 * putbin makes an easy vehicle for compression cycles
-	 * short-circuit here
-	 */
+    /* putbin makes an easy vehicle for compression cycles
+     * short-circuit here
+     */
     if (comp) {
-        do_open(mpname, kvname, params, &kvdb, &h);
+        do_open(mpname, kvname, pg, &kvdb, &kvs);
 
         /* wait a while -- compaction happens during this interval */
         poll(0, 0, comp);
 
         do_close(kvdb, 0);
-        hse_params_destroy(params);
+        pg_destroy(pg);
         hse_fini();
-
         return 0;
     }
 
@@ -355,11 +366,10 @@ main(int argc, char **argv)
     if (!info)
         fatal(0, "cannot alloc thread info");
 
-    /*
-	 * keys and values share the same data buffer,
-	 * which is modified to hold the sequence number;
-	 * this makes for easier visual verification
-	 */
+    /* keys and values share the same data buffer,
+     * which is modified to hold the sequence number;
+     * this makes for easier visual verification
+     */
     for (c = 0; c < sizeof(data); ++c)
         data[c] = c & 0xff;
 
@@ -379,7 +389,7 @@ main(int argc, char **argv)
         info[c].val = buf;
     }
 
-    for (i = 0; i < iter; ++i) {
+    for (int i = 0; i < iter; ++i) {
         struct info *ti;
         unsigned     stride = cnt / (tc ?: 1);
         int          rc;
@@ -394,12 +404,12 @@ main(int argc, char **argv)
             tc);
 
         if (i == 0 || !opt_sync)
-            do_open(mpname, kvname, params, &kvdb, &h);
+            do_open(mpname, kvname, pg, &kvdb, &kvs);
 
         for (c = 0; c < tc; ++c) {
             ti = &info[c];
             ti->kvdb = kvdb;
-            ti->kvs = h;
+            ti->kvs = kvs;
             ti->joined = 1;
             ti->paws = paws;
             ti->start = start + stride * c;
@@ -459,9 +469,9 @@ main(int argc, char **argv)
         free(info[c].key);
     free(info);
 
-    hse_params_destroy(params);
-
     hse_fini();
+
+    pg_destroy(pg);
 
     return rc;
 }

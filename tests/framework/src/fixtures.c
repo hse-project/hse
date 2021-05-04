@@ -10,6 +10,8 @@
 #include <stdio.h>
 #include <errno.h>
 
+extern const char *home;
+
 static struct hse_kvdb *mtf_kvdb_handle;
 
 void
@@ -90,7 +92,6 @@ mtf_kvdb_kvs_drop_all(
 int
 mtf_kvdb_setupv(
     struct mtf_test_info   *lcl_ti,
-    const char             *kvdb_name,
     struct hse_kvdb       **kvdb_out,
     va_list                 ap)
 {
@@ -118,19 +119,15 @@ mtf_kvdb_setupv(
         goto fail;
     }
 
-    /* If caller provided kvdb name, use it.  Otherwise, check command-line args. */
-    if (!kvdb_name) {
-        struct mtf_test_coll_info *ci = lcl_ti->ti_coll;
-        if (ci->tci_argc != 2) {
-            mtf_print_err("Missing KVDB name (should be first argument on command line).\n");
-            goto fail;
-        }
-        kvdb_name = ci->tci_argv[1];
+    err = hse_kvdb_make(home, 0, NULL);
+    if (err) {
+        mtf_print_errinfo(err, "Cannot make KVDB '%s'\n", home);
+        goto fail;
     }
 
-    err = hse_kvdb_open(kvdb_name, NULL, &mtf_kvdb_handle);
+    err = hse_kvdb_open(home, 0, NULL, &mtf_kvdb_handle);
     if (err) {
-        mtf_print_errinfo(err, "Cannot open KVDB '%s'\n", kvdb_name);
+        mtf_print_errinfo(err, "Cannot open KVDB '%s'\n", home);
         goto fail;
     }
 
@@ -143,6 +140,7 @@ mtf_kvdb_setupv(
   fail:
     if (mtf_kvdb_handle) {
         hse_kvdb_close(mtf_kvdb_handle);
+        hse_kvdb_drop(home, 0, NULL);
         mtf_kvdb_handle = 0;
     }
 
@@ -152,7 +150,6 @@ mtf_kvdb_setupv(
 int
 mtf_kvdb_setup(
     struct mtf_test_info   *lcl_ti,
-    const char             *kvdb_name,
     struct hse_kvdb       **kvdb,
     ...)
 {
@@ -160,7 +157,7 @@ mtf_kvdb_setup(
     va_list ap;
 
     va_start(ap, kvdb);
-    rc = mtf_kvdb_setupv(lcl_ti, kvdb_name, kvdb, ap);
+    rc = mtf_kvdb_setupv(lcl_ti, kvdb, ap);
     va_end(ap);
 
     return rc;
@@ -179,8 +176,11 @@ mtf_kvdb_teardown(
         if (err) {
             mtf_print_errinfo(err, "%s: hse_kvdb_close failed\n", __func__);
         }
+        err = hse_kvdb_drop(home, 0, NULL);
+        if (err) {
+            mtf_print_errinfo(err, "%s: hse_kvdb_drop failed\n", __func__);
+        }
     }
 
     return (rc || err) ? -1 : 0;
 }
-

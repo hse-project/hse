@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2021 Micron Technology, Inc.  All rights reserved.
  */
 
 #ifndef HSE_VCOMP_PARAMS_H
@@ -16,9 +16,6 @@
 
 struct kvs_rparams;
 struct compress_ops;
-
-bool
-vcomp_param_valid(const struct kvs_rparams *rp);
 
 struct compress_ops *
 vcomp_compress_ops(const struct kvs_rparams *rp);

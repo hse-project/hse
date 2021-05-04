@@ -12,15 +12,16 @@
 #include <hse_util/rest_api.h>
 #include <hse_util/rest_client.h>
 
-#include <hse_ikvdb/kvdb_rparams.h>
+#include <hse_ikvdb/kvs_cparams.h>
 #include <hse_ikvdb/cn_node_loc.h>
 #include <hse_ikvdb/cn_tree_view.h>
 #include <hse_ikvdb/ikvdb.h>
+#include <hse_ikvdb/argv.h>
 
-#define MP "kvdb_rest_mp"
+#define MP   "kvdb_rest_mp"
 #define SOCK "/tmp/" MP ".rest"
 
-#define KVS "kvdb_rest_kvs"
+#define KVS  "kvdb_rest_kvs"
 #define KVS1 KVS "1"
 #define KVS2 KVS "2"
 #define KVS3 KVS "3"
@@ -30,9 +31,8 @@
 #include <cn/kvset.h>
 #include <cn/cn_metrics.h>
 
-struct hse_params *params;
-struct ikvdb *     store;
-char               sock[PATH_MAX];
+struct ikvdb *store;
+char          sock[PATH_MAX];
 
 static int
 set_sock(struct mtf_test_info *ti)
@@ -126,8 +126,7 @@ _hse_meminfo(ulong *freep, ulong *availp, uint shift)
         *availp = 32;
 }
 
-struct kvs_cparams cp;
-
+struct kvs_cparams kp;
 
 /* Prefer the mapi_inject_list method for mocking functions over the
  * MOCK_SET/MOCK_UNSET macros if the mock simply needs to return a
@@ -138,6 +137,7 @@ struct kvs_cparams cp;
  */
 struct mapi_injection inject_list[] = {
     { mapi_idx_mpool_mdc_rootid_get, MAPI_RC_SCALAR, 0 },
+    { mapi_idx_mpool_mdc_root_open, MAPI_RC_SCALAR, 0 },
     { mapi_idx_mpool_mdc_open, MAPI_RC_SCALAR, 0 },
     { mapi_idx_mpool_mdc_close, MAPI_RC_SCALAR, 0 },
     { mapi_idx_mpool_mdc_append, MAPI_RC_SCALAR, 0 },
@@ -152,7 +152,7 @@ struct mapi_injection inject_list[] = {
 
     { mapi_idx_cn_get_tree, MAPI_RC_SCALAR, 0 },
 
-    { mapi_idx_cndb_cn_cparams, MAPI_RC_PTR, &cp },
+    { mapi_idx_cndb_cn_cparams, MAPI_RC_PTR, &kp },
     { mapi_idx_cndb_replay, MAPI_RC_SCALAR, 0 },
     { mapi_idx_cndb_cn_make, MAPI_RC_SCALAR, 0 },
 
@@ -166,14 +166,17 @@ struct mapi_injection inject_list[] = {
     { -1 }
 };
 
-
 static int
 test_pre(struct mtf_test_info *ti)
 {
-    merr_t          err = 0;
-    struct mpool *  ds = (struct mpool *)-1;
-    struct hse_kvs *kvs1 = 0;
-    struct hse_kvs *kvs2 = 0;
+    merr_t              err = 0;
+    struct mpool *      ds = (struct mpool *)-1;
+    struct hse_kvs *    kvs1 = 0;
+    struct hse_kvs *    kvs2 = 0;
+    struct kvdb_rparams params = kvdb_rparams_defaults();
+    struct kvs_rparams  kvs_rp = kvs_rparams_defaults();
+    struct kvs_cparams  kvs_cp = kvs_cparams_defaults();
+    const char * const  paramv[] = { "dur_enable=0" };
 
     /* Mocks */
     mapi_inject_clear();
@@ -194,20 +197,16 @@ test_pre(struct mtf_test_info *ti)
 
     rest_server_start(sock);
 
-    hse_params_create(&params);
+    err = argv_deserialize_to_kvdb_rparams(NELEM(paramv), paramv, &params);
+    err = ikvdb_open(MP, &params, NULL, ds, NULL, &store);
+    err = ikvdb_kvs_make(store, KVS1, &kvs_cp);
+    err = ikvdb_kvs_make(store, KVS2, &kvs_cp);
+    err = ikvdb_kvs_make(store, KVS3, &kvs_cp);
 
-    err = hse_params_set(params, "kvdb.dur_enable", "0");
+    err = ikvdb_kvs_open(store, KVS1, &kvs_rp, 0, &kvs1);
     assert(err == 0);
 
-    err = ikvdb_open(MP, ds, params, &store);
-    err = ikvdb_kvs_make(store, KVS1, 0);
-    err = ikvdb_kvs_make(store, KVS2, 0);
-    err = ikvdb_kvs_make(store, KVS3, 0);
-
-    err = ikvdb_kvs_open(store, KVS1, 0, 0, &kvs1);
-    assert(err == 0);
-
-    err = ikvdb_kvs_open(store, KVS2, 0, 0, &kvs2);
+    err = ikvdb_kvs_open(store, KVS2, &kvs_rp, 0, &kvs2);
     assert(err == 0);
 
     return err;
@@ -224,8 +223,6 @@ test_post(struct mtf_test_info *ti)
 
     ikvdb_close(store);
     store = 0;
-
-    hse_params_destroy(params);
 
     MOCK_UNSET(platform, _hse_meminfo);
 
@@ -249,7 +246,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_rest, kvs_list_test, test_pre, test_post)
     };
     merr_t err;
 
-    snprintf(path, sizeof(path), "mpool/%s", MP);
+    snprintf(path, sizeof(path), "kvdb");
 
     yaml_start_element_type(&yc, "kvs_list");
     yaml_element_list(&yc, KVS1);
@@ -286,33 +283,33 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_rest, cn_metrics, test_pre, test_post)
     yaml_end_element_type(&yc); /* info */
 
     /* kvs in open state */
-    snprintf(path, sizeof(path), "mpool/%s/kvs/%s/cn/tree", MP, KVS1);
+    snprintf(path, sizeof(path), "kvdb/kvs/%s/cn/tree", KVS1);
     memset(buf, 0, sizeof(buf));
     err = curl_get(path, sock, buf, sizeof(buf));
     ASSERT_EQ(0, err);
 
     /* unopened kvs */
-    snprintf(path, sizeof(path), "mpool/%s/kvs/%s/cn/tree", MP, KVS3);
+    snprintf(path, sizeof(path), "kvdb/kvs/%s/cn/tree", KVS3);
     memset(buf, 0, sizeof(buf));
     err = curl_get(path, sock, buf, sizeof(buf));
     ASSERT_EQ(0, err);
     ASSERT_STREQ(unopened, buf);
 
     /* invalid arg */
-    snprintf(path, sizeof(path), "mpool/%s/kvs/%s/cn/tree?arg", MP, KVS1);
+    snprintf(path, sizeof(path), "kvdb/kvs/%s/cn/tree?arg", KVS1);
     memset(buf, 0, sizeof(buf));
     err = curl_get(path, sock, buf, sizeof(buf));
     ASSERT_EQ(0, buf[0]);
     ASSERT_EQ(0, err);
 
-    snprintf(path, sizeof(path), "mpool/%s/kvs/%s/cn/tree?arg=val", MP, KVS1);
+    snprintf(path, sizeof(path), "kvdb/kvs/%s/cn/tree?arg=val", KVS1);
     memset(buf, 0, sizeof(buf));
     err = curl_get(path, sock, buf, sizeof(buf));
     ASSERT_EQ(0, buf[0]);
     ASSERT_EQ(0, err);
 
     /* too many args */
-    snprintf(path, sizeof(path), "mpool/%s/kvs/%s/cn/tree?kblist&arg1=val1&arg2=val2", MP, KVS1);
+    snprintf(path, sizeof(path), "kvdb/kvs/%s/cn/tree?kblist&arg1=val1&arg2=val2", KVS1);
     memset(buf, 0, sizeof(buf));
     err = curl_get(path, sock, buf, sizeof(buf));
     ASSERT_EQ(0, buf[0]);
@@ -326,7 +323,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_rest, cn_tree_view_create_failure, test_pre, test_
     merr_t err;
 
     mapi_inject(mapi_idx_cn_tree_view_create, merr(EBUG));
-    snprintf(path, sizeof(path), "mpool/%s/kvs/%s/cn/tree", MP, KVS1);
+    snprintf(path, sizeof(path), "kvdb/kvs/%s/cn/tree", KVS1);
 
     err = curl_get(path, sock, buf, sizeof(buf));
 
@@ -346,11 +343,11 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_rest, unexact_paths, test_pre, test_post)
     char   path[128];
     merr_t err;
 
-    snprintf(path, sizeof(path), "mpool/%s/kvs/%s", MP, KVS1);
+    snprintf(path, sizeof(path), "kvdb/kvs/%s", KVS1);
     err = curl_get(path, sock, NULL, 0);
     ASSERT_NE(0, err);
 
-    snprintf(path, sizeof(path), "mpool/%s/kkk", MP);
+    snprintf(path, sizeof(path), "kvdb/kkk");
     err = curl_get(path, sock, NULL, 0);
     ASSERT_NE(0, err);
 }
@@ -413,7 +410,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_rest, print_tree_test, test_pre, test_post)
 
     ct_view_do_nothing = false;
 
-    snprintf(path, sizeof(path), "mpool/%s/kvs/%s/cn/tree?list_blkid=true", MP, KVS1);
+    snprintf(path, sizeof(path), "kvdb/kvs/%s/cn/tree?list_blkid=true", KVS1);
 
     err = curl_get(path, sock, buf, sizeof(buf));
     ASSERT_EQ(0, err);
@@ -493,7 +490,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_rest, empty_root_test, test_pre, test_post)
     ct_view_two_level = true;
     ct_view_do_nothing = false;
 
-    snprintf(path, sizeof(path), "mpool/%s/kvs/%s/cn/tree?list_blkid=true", MP, KVS2);
+    snprintf(path, sizeof(path), "kvdb/kvs/%s/cn/tree?list_blkid=true", KVS2);
 
     err = curl_get(path, sock, buf, sizeof(buf));
     ASSERT_EQ(0, err);
@@ -590,14 +587,14 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_rest, list_without_blkids, test_pre, test_post)
 
     MOCK_SET(kvset_view, _kvset_get_dgen);
 
-    snprintf(path, sizeof(path), "mpool/%s/kvs/%s/cn/tree?list_blkid=false", MP, KVS2);
+    snprintf(path, sizeof(path), "kvdb/kvs/%s/cn/tree?list_blkid=false", KVS2);
 
     err = curl_get(path, sock, buf, sizeof(buf));
     ASSERT_EQ(0, err);
     ASSERT_STREQ(exp, buf);
 
     count = 0;
-    snprintf(path, sizeof(path), "mpool/%s/kvs/%s/cn/tree", MP, KVS2);
+    snprintf(path, sizeof(path), "kvdb/kvs/%s/cn/tree", KVS2);
 
     err = curl_get(path, sock, buf, sizeof(buf));
     ASSERT_EQ(0, err);
@@ -662,7 +659,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_rest, t_curperf, test_pre, test_post)
         bool        expect_success = testcases[i].success;
         bool        success;
 
-        n = snprintf(request, sizeof(request), "mpool/%s/kvs/%s/curperf%s", MP, KVS1, query);
+        n = snprintf(request, sizeof(request), "kvdb/kvs/%s/curperf%s", KVS1, query);
 
         ASSERT_LT(n, sizeof(request));
 
@@ -695,7 +692,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_rest, kvdb_compact_test, test_pre, test_post)
     merr_t err;
 
     /* Put request */
-    snprintf(path, sizeof(path), "mpool/%s/compact/request", MP);
+    snprintf(path, sizeof(path), "kvdb/compact/request");
 
     err = curl_put(path, sock, 0, 0, buf, sizeof(buf));
     ASSERT_EQ(0, err);
@@ -703,18 +700,18 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_rest, kvdb_compact_test, test_pre, test_post)
     err = curl_put(path, sock, 0, 0, buf, sizeof(buf));
     ASSERT_EQ(0, err);
 
-    snprintf(path, sizeof(path), "mpool/%s/compact/cancel", MP);
+    snprintf(path, sizeof(path), "kvdb/compact/cancel");
 
     err = curl_put(path, sock, 0, 0, buf, sizeof(buf));
     ASSERT_EQ(0, err);
 
-    snprintf(path, sizeof(path), "mpool/%s/compact/bob", MP);
+    snprintf(path, sizeof(path), "kvdb/compact/bob");
 
     err = curl_put(path, sock, 0, 0, buf, sizeof(buf));
     ASSERT_EQ(0, err);
 
     /* Get status */
-    snprintf(path, sizeof(path), "mpool/%s/compact/status", MP);
+    snprintf(path, sizeof(path), "kvdb/compact/status");
     err = curl_get(path, sock, buf, sizeof(buf));
     ASSERT_EQ(0, err);
 }

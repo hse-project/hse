@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
 #include <hse_ut/framework.h>
@@ -476,7 +476,7 @@ fill_exact(struct mtf_test_info *lcl_ti, struct vblock_builder *vbb, uint space,
 {
     merr_t err = 0;
     uint   vlen_max = HSE_KVS_VLEN_MAX;
-    uint   avail = (kvsrp.vblock_size_mb << 20) - PAGE_SIZE - space;
+    uint   avail = kvsrp.vblock_size - PAGE_SIZE - space;
     uint   vlen;
 
     while (avail > 0) {
@@ -499,7 +499,7 @@ run_test_case(struct mtf_test_info *lcl_ti, enum test_case tc, size_t n_vblocks)
 {
     struct vblock_builder *vbb = 0;
 
-    const size_t mblock_size = kvsrp.vblock_size_mb << 20;
+    const size_t mblock_size = kvsrp.vblock_size;
     const size_t vblock_hdr_size = PAGE_SIZE;
     const size_t avail_mblock_size = mblock_size - vblock_hdr_size;
     const size_t vlen = 50 * 1000;

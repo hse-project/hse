@@ -4,8 +4,6 @@
 aloha
 version
 
-c1-correctness
-coalesce
 compaction
 cursor_test1
 cursor_test2

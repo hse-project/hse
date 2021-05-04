@@ -27,14 +27,12 @@ mtf_kvdb_kvs_drop_all(
 int
 mtf_kvdb_setupv(
     struct mtf_test_info   *lcl_ti,
-    const char             *kvdb_name,
     struct hse_kvdb       **kvdb_out,
     va_list                 ap);
 
 int
 mtf_kvdb_setup(
     struct mtf_test_info   *lcl_ti,
-    const char             *kvdb_name,
     struct hse_kvdb       **kvdb,
     ...);
 

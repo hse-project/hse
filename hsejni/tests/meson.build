@@ -10,7 +10,9 @@ hsejni_parse_test = executable(
 	dependencies: [
 		hse_mock_dep,
 		hsejni_dep,
+		libhse_cli_dep,
 		cJSON_dep,
+		libbsd_dep,
 	],
 )
 

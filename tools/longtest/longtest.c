@@ -15,12 +15,12 @@
 #include <hse/hse_version.h>
 
 #include <hse_util/atomic.h>
-#include <hse_util/hse_params_helper.h>
 #include <hse_util/inttypes.h>
 #include <hse_util/parse_num.h>
 
-#include "rsgen.h"
+#include <tools/parm_groups.h>
 
+#include "rsgen.h"
 
 /*
  * Test Goals
@@ -194,7 +194,6 @@ enum phase {
 };
 
 struct opts {
-	struct hse_params *params;
 
 	const char  *mpool;
 	const char  *kvs;
@@ -229,6 +228,10 @@ struct opts {
 	bool log_stdout;
 	bool interactive;
 };
+
+struct parm_groups *pg;
+struct svec         db_oparms;
+struct svec         kv_oparms;
 
 /* per-thread state */
 struct tstate {
@@ -356,10 +359,6 @@ opts_set_default(
 {
 	memset(opt, 0, sizeof(*opt));
 
-	hse_params_create(&opt->params);
-
-	hse_params_set(opt->params, "kvdb.perfc_enable", "0");
-
 	opt->keys = 32*1000*1000;
 	opt->test_threads = 32;
 	opt->seed = 0;
@@ -445,8 +444,7 @@ void
 opts_parse(
 	int argc,
 	char **argv,
-	struct opts *opt,
-	int *last_arg)
+	struct opts *opt)
 {
 	int done;
 
@@ -600,20 +598,6 @@ opts_parse(
 		printf("HSE KVDB Lib:   %s\n", hse_kvdb_version_string());
 		printf("HSE KVDB Tools: %s\n", hse_version);
 	}
-
-	*last_arg = optind;
-}
-
-void
-rparam_usage(void)
-{
-	char buf[8192];
-
-	printf("\nTunable kvdb params:\n%s\n",
-	       hse_generate_help(buf, sizeof(buf), "kvdb_rparams"));
-
-	printf("\nTunable kvs params:\n%s\n",
-	       hse_generate_help(buf, sizeof(buf), "kvs_rparams"));
 }
 
 static void
@@ -693,8 +677,6 @@ usage(void)
 	       "    DEL_REM  = 1 << 8\n"
 	       "    VER_VREM = 1 << 9\n"
 	       "\n");
-
-	rparam_usage();
 }
 
 static void
@@ -842,25 +824,24 @@ xkvdb_kvs_open(
 	struct test        *t,
 	unsigned int       *idxv,
 	const char         *mp,
-	const char         *kvs,
-	struct hse_params  *params)
+	const char         *kvs)
 {
 	struct hse_kvdb    *kvdb_h;
 	struct hse_kvs     *kvs_h;
-	u64                 rc;
+	u64                 err;
 
 	if (opt.dryrun)
 		return 0;
 
-	rc = hse_kvdb_open(mp, params, &kvdb_h);
-	if (rc) {
+	err = hse_kvdb_open(mp, db_oparms.strc, db_oparms.strv, &kvdb_h);
+	if (err) {
 		fprintf(stderr, "%s: Unable to open kvdb %s",
 			progname, mp);
 		exit(1);
 	}
 
-	rc = hse_kvdb_kvs_open(kvdb_h, kvs, params, &kvs_h);
-	if (rc) {
+	err = hse_kvdb_kvs_open(kvdb_h, kvs, kv_oparms.strc, kv_oparms.strv, &kvs_h);
+	if (err) {
 		fprintf(stderr, "%s: Unable to open kvs %s",
 			progname, mp);
 		exit(1);
@@ -869,7 +850,7 @@ xkvdb_kvs_open(
 	t->kvdb_h = kvdb_h;
 	t->kvs_h = kvs_h;
 
-	return rc;
+	return err;
 }
 
 u64
@@ -2030,7 +2011,7 @@ test_run(
 	u64             last_report = 0;
 	unsigned int    idxv;
 
-	rc = xkvdb_kvs_open(&test, &idxv, opt.mpool, opt.kvs, opt.params);
+	rc = xkvdb_kvs_open(&test, &idxv, opt.mpool, opt.kvs);
 	if (rc) {
 		fprintf(stderr, "%s: kvs_open(%s,%s) failed\n",
 			progname, opt.mpool, opt.kvs);
@@ -2083,7 +2064,6 @@ test_run(
 int
 main(int argc, char **argv)
 {
-	int     last_arg;
 	int     err = 0;
 	int     i;
 
@@ -2092,35 +2072,22 @@ main(int argc, char **argv)
 	progname = progname ? progname + 1 : argv[0];
 
 	opts_set_default(&opt);
-	opts_parse(argc, argv, &opt, &last_arg);
+	opts_parse(argc, argv, &opt);
 
 	if (opt.version || opt.help)
 		goto done;
 
-	err = hse_init();
+	err = pg_create(&pg, PG_KVDB_OPEN, PG_KVS_OPEN, NULL);
 	if (err) {
-		fprintf(stderr, "failed to initialize kvdb\n");
+		fprintf(stderr, "pg_create: rc %d\n", err);
 		goto done;
 	}
 
-	err = hse_parse_cli(argc - last_arg, argv + last_arg,
-			    &last_arg, 0, opt.params);
-	if (err)
-		syntax("Error in hse_params_parse: %d", err);
+	if (argc - optind < 2)
+		syntax("Missing required parameters");
 
-	if (last_arg + 2 == argc) {
-		opt.mpool = argv[last_arg++];
-		opt.kvs   = argv[last_arg++];
-	} else {
-		if (last_arg + 2 < argc)
-			syntax("Unrecognized command-line arguments: "
-			       "%s %s %s %s ...",
-			       argv[last_arg],
-			       argv[last_arg+1],
-			       argv[last_arg+2]);
-		else
-			syntax("Need mpool, kvdb and kvs names");
-	}
+	opt.mpool = argv[optind++];
+	opt.kvs   = argv[optind++];
 
 	if (opt.interactive && opt.test_threads != 1)
 		syntax("Interactive mode only supported with one thread");
@@ -2175,6 +2142,32 @@ main(int argc, char **argv)
 	if (!opt.mpool || !opt.kvs)
 		syntax("Must indicate mpool and kvs");
 
+	err = pg_parse_argv(pg, argc, argv, &optind);
+	switch (err) {
+		case 0:
+			if (optind < argc) {
+				fprintf(stderr, "unknown parameter: %s", argv[optind]);
+				exit(EX_USAGE);
+			}
+			break;
+		case EINVAL:
+			fprintf(stderr, "missing group name (e.g. %s) before parameter %s\n",
+				PG_KVDB_OPEN, argv[optind]);
+			exit(EX_USAGE);
+			break;
+		default:
+			fprintf(stderr, "error processing parameter %s\n", argv[optind]);
+			exit(EX_OSERR);
+			break;
+	}
+
+	err = err ?: svec_append_pg(&db_oparms, pg, PG_KVDB_OPEN, NULL);
+	err = err ?: svec_append_pg(&kv_oparms, pg, PG_KVS_OPEN, NULL);
+	if (err) {
+		fprintf(stderr, "svec_apppend_pg failed: %d\n", err);
+		exit(EX_OSERR);
+	}
+
 	if (!opt.seed)
 		opt.seed = (u32)gtod_usec();
 
@@ -2193,6 +2186,12 @@ main(int argc, char **argv)
 			goto done;
 	}
 
+	err = hse_init();
+	if (err) {
+		fprintf(stderr, "failed to initialize kvdb\n");
+		goto done;
+	}
+
 	err = test_run();
 	if (err)
 		goto done;
@@ -2209,7 +2208,9 @@ main(int argc, char **argv)
 done:
 	test_fini();
 
-	hse_params_destroy(opt.params);
+	pg_destroy(pg);
+	svec_reset(&db_oparms);
+	svec_reset(&kv_oparms);
 
 	hse_fini();
 

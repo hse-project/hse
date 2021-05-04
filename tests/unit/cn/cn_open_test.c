@@ -41,7 +41,7 @@ const char *       kvs;
 struct kvdb_health health, *h;
 uint               flags;
 struct kvs_cparams cp = {
-    .cp_fanout = 16,
+    .fanout = 16,
 };
 
 #define CN_OPEN_ARGS 0, ds, kk, cndb, cnid, rp, mp, kvs, h, flags

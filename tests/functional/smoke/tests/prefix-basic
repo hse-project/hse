@@ -17,7 +17,7 @@ typeset -i i
 i=1
 while (( i <= pfxmax )) ; do
     pfx=$(printf "x%04d" $i)
-    cmd kmt -j7 -f "${pfx}_%lu" -i $((100 * i)) $mp/$kvs
+    cmd kmt -j7 -f "${pfx}_%lu" -i $((100 * i)) $mp $kvs
     total+=$((100 * i))
     i=i+1
 done

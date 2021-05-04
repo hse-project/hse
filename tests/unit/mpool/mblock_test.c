@@ -10,29 +10,36 @@
 #include <hse_util/minmax.h>
 #include <hse_util/page.h>
 
-#include "common.h"
-
 #include <mpool/mpool.h>
 #include <mblock_file.h>
 #include <mblock_fset.h>
 #include <mpool_internal.h>
 
-MTF_BEGIN_UTEST_COLLECTION_PREPOST(mblock_test, mpool_test_pre, mpool_test_post)
+#include <stdlib.h>
+#include <libgen.h>
+#include <limits.h>
+#include <fcntl.h>
+#include <sys/stat.h>
+#include <ftw.h>
 
-MTF_DEFINE_UTEST(mblock_test, mblock_abc)
+#include <bsd/string.h>
+
+#include "common.h"
+
+MTF_BEGIN_UTEST_COLLECTION_PRE(mblock_test, mpool_collection_pre)
+
+MTF_DEFINE_UTEST_PREPOST(mblock_test, mblock_abc, mpool_test_pre, mpool_test_post)
 {
-    char                staging_path[PATH_MAX];
     struct mpool       *mp;
     struct mblock_props props = {};
     struct mpool_stats  stats = {};
-    uint64_t            mbid, mbid1;
-    merr_t              err;
-    int                 rc;
+    uint64_t      mbid, mbid1;
+    merr_t        err;
 
-    err = mpool_create("mp1", NULL);
+    err = mpool_create(home, &tcparams);
     ASSERT_EQ(0, err);
 
-    err = mpool_open("mp1", NULL, O_RDWR, &mp);
+    err = mpool_open(home, &trparams, O_RDWR, &mp);
     ASSERT_EQ(0, err);
 
     err = mpool_mblock_alloc(NULL, MP_MED_CAPACITY, &mbid, NULL);
@@ -82,7 +89,7 @@ MTF_DEFINE_UTEST(mblock_test, mblock_abc)
     ASSERT_LT(stats.mps_allocated, 64 << 20);
     ASSERT_LT(stats.mps_used, 64 << 20);
     ASSERT_EQ(1, stats.mps_mblock_cnt);
-    ASSERT_EQ(0, strncmp(storage_path, stats.mps_path[MP_MED_CAPACITY], strlen(storage_path)));
+    ASSERT_EQ(0, strncmp(capacity_path, stats.mps_path[MP_MED_CAPACITY], sizeof(capacity_path)));
 
     err = mpool_mblock_commit(NULL, mbid);
     ASSERT_EQ(EINVAL, merr_errno(err));
@@ -118,7 +125,7 @@ MTF_DEFINE_UTEST(mblock_test, mblock_abc)
     ASSERT_LT(stats.mps_allocated, 64 << 20);
     ASSERT_LT(stats.mps_used, 64 << 20);
     ASSERT_EQ(1, stats.mps_mblock_cnt);
-    ASSERT_EQ(0, strncmp(storage_path, stats.mps_path[MP_MED_CAPACITY], strlen(storage_path)));
+    ASSERT_EQ(0, strncmp(capacity_path, stats.mps_path[MP_MED_CAPACITY], sizeof(capacity_path)));
 
     err = mpool_mblock_delete(NULL, mbid);
     ASSERT_EQ(EINVAL, merr_errno(err));
@@ -144,17 +151,12 @@ MTF_DEFINE_UTEST(mblock_test, mblock_abc)
     err = mpool_close(mp);
     ASSERT_EQ(0, err);
 
-    strlcpy(staging_path, storage_path, sizeof(staging_path));
-    strlcat(staging_path, "/staging", sizeof(staging_path) - strlen(staging_path));
-    setenv("HSE_STAGING_PATH", (const char *)staging_path, 1);
+    setup_mclass(MP_MED_STAGING);
 
-    rc = mkdir(staging_path, S_IRWXU | S_IRWXG | S_IROTH | S_IWOTH);
-    ASSERT_EQ(0, rc);
-
-    err = mpool_mclass_add("mp1", MP_MED_STAGING, NULL);
+    err = mpool_mclass_add(home, MP_MED_STAGING, &tcparams);
     ASSERT_EQ(0, merr_errno(err));
 
-    err = mpool_open("mp1", NULL, O_RDWR, &mp);
+    err = mpool_open(home, &trparams, O_RDWR, &mp);
     ASSERT_EQ(0, merr_errno(err));
 
     err = mpool_mblock_alloc(mp, MP_MED_STAGING, &mbid, &props);
@@ -258,8 +260,8 @@ MTF_DEFINE_UTEST(mblock_test, mblock_abc)
     ASSERT_LT(stats.mps_allocated, 68 << 20);
     ASSERT_LT(stats.mps_used, 68 << 20);
     ASSERT_EQ(1, stats.mps_mblock_cnt);
-    ASSERT_EQ(0, strncmp(storage_path, stats.mps_path[MP_MED_CAPACITY], strlen(storage_path)));
-    ASSERT_EQ(0, strncmp(staging_path, stats.mps_path[MP_MED_STAGING], strlen(staging_path)));
+    ASSERT_EQ(0, strncmp(capacity_path, stats.mps_path[MP_MED_CAPACITY], sizeof(capacity_path)));
+    ASSERT_EQ(0, strncmp(staging_path, stats.mps_path[MP_MED_STAGING], sizeof(staging_path)));
 
     err = mpool_mblock_delete(mp, mbid1);
     ASSERT_EQ(0, err);
@@ -267,8 +269,9 @@ MTF_DEFINE_UTEST(mblock_test, mblock_abc)
     err = mpool_close(mp);
     ASSERT_EQ(0, err);
 
-    unsetenv("HSE_STAGING_PATH");
-    err = mpool_open("mp1", NULL, O_RDWR, &mp);
+    unset_mclass(MP_MED_STAGING);
+
+    err = mpool_open(home, &trparams, O_RDWR, &mp);
     ASSERT_EQ(0, merr_errno(err));
 
     err = mpool_mblock_alloc(mp, MP_MED_STAGING, &mbid, &props);
@@ -277,14 +280,13 @@ MTF_DEFINE_UTEST(mblock_test, mblock_abc)
     err = mpool_close(mp);
     ASSERT_EQ(0, err);
 
-    setenv("HSE_STAGING_PATH", (const char *)staging_path, 1);
-    err = mpool_open("mp1", NULL, O_RDWR, &mp);
+    err = mpool_open(home, &trparams, O_RDWR, &mp);
     ASSERT_EQ(0, merr_errno(err));
 
     err = mpool_close(mp);
     ASSERT_EQ(0, err);
-    mpool_destroy("mp1", NULL);
-    unsetenv("HSE_STAGING_PATH");
+
+    mpool_destroy(home, &tdparams);
 }
 
 static merr_t
@@ -350,7 +352,7 @@ mblock_rw(struct mpool *mp, uint64_t mbid, void *buf, size_t len, u64 boff, bool
     return err;
 }
 
-MTF_DEFINE_UTEST(mblock_test, mblock_io)
+MTF_DEFINE_UTEST_PREPOST(mblock_test, mblock_io, mpool_test_pre, mpool_test_post)
 {
     struct mpool       *mp;
     struct mblock_props props = {};
@@ -363,12 +365,10 @@ MTF_DEFINE_UTEST(mblock_test, mblock_io)
     bool     write = true;
     size_t   mbsz = 32 << 20, wlen;
 
-    setenv("HSE_STORAGE_PATH", (const char *)storage_path, 1);
-
-    err = mpool_create("mp1", NULL);
+    err = mpool_create(home, &tcparams);
     ASSERT_EQ(0, err);
 
-    err = mpool_open("mp1", NULL, O_RDWR, &mp);
+    err = mpool_open(home, &trparams, O_RDWR, &mp);
     ASSERT_EQ(0, err);
 
     err = mpool_mblock_alloc(mp, MP_MED_CAPACITY, &mbid, NULL);
@@ -422,7 +422,7 @@ MTF_DEFINE_UTEST(mblock_test, mblock_io)
     ASSERT_LT(stats.mps_allocated, 64 << 20);
     ASSERT_LT(stats.mps_used, 64 << 20);
     ASSERT_EQ(1, stats.mps_mblock_cnt);
-    ASSERT_EQ(0, strncmp(storage_path, stats.mps_path[MP_MED_CAPACITY], strlen(storage_path)));
+    ASSERT_EQ(0, strncmp(capacity_path, stats.mps_path[MP_MED_CAPACITY], sizeof(capacity_path)));
 
     /* Reading from an uncommitted mblock is allowed. */
     err = mblock_rw(mp, mbid, buf, wlen, 0, !write);
@@ -500,13 +500,14 @@ MTF_DEFINE_UTEST(mblock_test, mblock_io)
 
     err = mpool_close(mp);
     ASSERT_EQ(0, err);
-    mpool_destroy("mp1", NULL);
+
+    mpool_destroy(home, &tdparams);
 
     free(buf);
     free(bufx);
 }
 
-MTF_DEFINE_UTEST(mblock_test, mblock_invalid_args)
+MTF_DEFINE_UTEST_PREPOST(mblock_test, mblock_invalid_args, mpool_test_pre, mpool_test_post)
 {
     struct mpool              *mp;
     struct mpool_mclass_stats  stats = {};
@@ -521,12 +522,10 @@ MTF_DEFINE_UTEST(mblock_test, mblock_invalid_args)
     uint64_t mbid, bad_mbid = 0xffffffff;
     merr_t   err;
 
-    setenv("HSE_STORAGE_PATH", (const char *)storage_path, 1);
-
-    err = mpool_create("mp1", NULL);
+    err = mpool_create(home, &tcparams);
     ASSERT_EQ(0, err);
 
-    err = mpool_open("mp1", NULL, O_RDWR, &mp);
+    err = mpool_open(home, &trparams, O_RDWR, &mp);
     ASSERT_EQ(0, err);
 
     err = mpool_mblock_alloc(mp, MP_MED_CAPACITY, &mbid, NULL);
@@ -705,7 +704,8 @@ MTF_DEFINE_UTEST(mblock_test, mblock_invalid_args)
 
     err = mpool_close(mp);
     ASSERT_EQ(0, err);
-    mpool_destroy("mp1", NULL);
+
+    mpool_destroy(home, &tdparams);
 }
 
 MTF_END_UTEST_COLLECTION(mblock_test);

@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
 #ifndef HSE_KVDB_EXPERIMENTAL_API_H
@@ -59,19 +59,6 @@ hse_kvs_prefix_probe_exp(
     void *                      valbuf,
     size_t                      valbuf_sz,
     size_t *                    val_len);
-
-/**
- * Retrieve the last error message
- *
- * This function is not thread safe.
- *
- * @param params: Configuration parameters
- * @param buf:    Output buffer
- * @param buf_sz: Size of buffer
- * @return A pointer to the provided buffer.
- */
-char *
-hse_params_err_exp(const struct hse_params *params, char *buf, size_t buf_sz);
 
 #pragma GCC visibility pop
 

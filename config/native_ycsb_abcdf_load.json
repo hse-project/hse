@@ -1,0 +1,9 @@
+{
+  "kvdb": {
+    "kvs": {
+      "default": {
+        "pfx_len": 7
+      }
+    }
+  }
+}

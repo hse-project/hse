@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
 /*
@@ -15,7 +15,6 @@
 #include <hse_util/fmt.h>
 #include <hse_util/event_counter.h>
 #include <hse_util/bloom_filter.h>
-#include <hse_util/hse_params_helper.h>
 
 #include <mpool/mpool.h>
 
@@ -23,12 +22,16 @@
 
 #include <hse_ikvdb/limits.h>
 #include <hse_ikvdb/omf_kmd.h>
+#include <hse_ikvdb/config.h>
+
+#include <cli/param.h>
 
 #include <cn/omf.h>
 #include <cn/wbt_internal.h>
 
 #include <libgen.h>
 #include <sysexits.h>
+#include <stdio.h>
 
 #define ERROR_BUF_SIZE 256
 
@@ -43,6 +46,7 @@ struct {
     int   mmap;
     int   style;
     char *write;
+    const char *storage_path;
 } opt;
 
 struct blk {
@@ -734,25 +738,29 @@ eread_mblock(struct mpool *ds, struct blk *blk)
 }
 
 void
-eread_ds(int argc, char **argv, struct hse_params *params)
+eread_ds(int argc, char **argv)
 {
+    struct mpool_rparams params = {0};
     struct mpool *ds;
     struct blk *  blk;
-    char *        mpname, *junk;
+    char *        mpname;
     char **       kbids, **vbids;
     int           i, nk, nv;
     hse_err_t     err;
 
-    mpname = argv[0];
-
-    argc -= 2;
-    argv += 2;
-
-    strtol(*argv, &junk, 0);
-    if (junk[0] != 0) {
-        argc--;
-        argv++;
+    if (!opt.storage_path) {
+        syntax("must set storage_path");
+        exit(EX_USAGE);
     }
+
+    if (argc < 2) {
+        syntax("missing kvdb and kblock/vblock ids");
+        exit(EX_USAGE);
+    }
+
+    mpname = argv[0];
+    argc -= 1;
+    argv += 1;
 
     /*
      * The arguments here follow the presentation:
@@ -778,9 +786,10 @@ eread_ds(int argc, char **argv, struct hse_params *params)
         vbids = argv + 1;
     }
 
-    /* O_EXCL not required since mblocks are immutable by definition
-     * and we are reading them directly. */
-    err = merr_to_hse_err(mpool_open(mpname, params, O_RDONLY, &ds));
+    strlcpy(params.mclass[MP_MED_CAPACITY].path, opt.storage_path,
+            sizeof(params.mclass[MP_MED_CAPACITY].path));
+
+    err = merr_to_hse_err(mpool_open(mpname, &params, O_RDONLY, &ds));
     if (err)
         fatal(err, "mpool_open");
 
@@ -900,6 +909,11 @@ eread_mmap(int argc, char **argv)
 {
     int i;
 
+    if (argc < 1) {
+        syntax("missing file name(s)");
+        exit(EX_USAGE);
+    }
+
     for (i = 0; i < argc; ++i) {
         struct blk tmp = {};
 
@@ -927,6 +941,11 @@ eread_files(int argc, char **argv)
      *  V2.0x00104110.gz
      */
     int i;
+
+    if (argc < 1) {
+        syntax("missing file name(s)");
+        exit(EX_USAGE);
+    }
 
     for (i = 0; i < argc; ++i) {
 
@@ -973,25 +992,28 @@ ewrite_files(char *dirname)
 void
 usage(void)
 {
-    static const char usage1[] = "usage: %s [options] mpool kvdb kbid ... [/ vbid ...]\n";
-    static const char usage2[] = "usage: %s -r [options] file ...\n";
-    static const char usage3[] = "usage: %s -m [options] file ...\n";
+    static const char usage1[] = "usage: %s [options] -s path kbid ... [/ vbid ...]\n";
+    static const char usage2[] = "usage: %s [options] -r file ...\n";
+    static const char usage3[] = "usage: %s [options] -m file ...\n";
 
     printf(usage1, progname);
     printf(usage2, progname);
     printf(usage3, progname);
 
-    printf("-b bktsz  bloom block/bucket size\n"
-           "-h        print this help list\n"
-           "-K N      show keys and values, limit to first (last) N bytes\n"
-           "-m        read mblock data from mmap path\n"
-           "-o STYLE  outut format (0=default, 1=one value per line)\n"
-           "-r        read mblock data from named files\n"
-           "-V N      limit values to first (last) N bytes, implies -K\n"
-           "-v        show wbt node headers and all values\n"
-           "-w dir    write raw mblocks into $dir\n"
-           "-x        show binary data in hex form\n"
-           "-p        show binary data in percent-encoded form\n");
+    printf("options:\n"
+        "  -b bktsz  bloom block/bucket size\n"
+        "  -h        print this help list\n"
+        "  -K N      show keys and values, limit to first (last) N bytes\n"
+        "  -o STYLE  outut format (0=default, 1=one value per line)\n"
+        "  -V N      limit values to first (last) N bytes, implies -K\n"
+        "  -v        show wbt node headers and all values\n"
+        "  -w dir    write raw mblocks into $dir\n"
+        "  -x        show binary data in hex form\n"
+        "  -p        show binary data in percent-encoded form\n");
+    printf("modes:\n"
+        "  -m        read mblocks from mmap path\n"
+        "  -r        read mblocks from named files\n"
+        "  -s path   read mblocks from mpool media class at path\n");
 }
 
 int
@@ -999,24 +1021,14 @@ main(int argc, char **argv)
 {
     struct kblock_hdr_omf *kblk;
     struct blk *           blk;
-    struct hse_params     *params;
-    int                    i, c, nk, nv, next_arg = 0;
+    int                    i, c, nk, nv;
     hse_err_t              err;
+    int                    modes = 0;
 
     progname = strrchr(argv[0], '/');
     progname = progname ? progname + 1 : argv[0];
 
-    err = hse_init();
-    if (err)
-        return -1;
-
-    err = hse_params_create(&params);
-    if (err) {
-        hse_fini();
-        return -1;
-    }
-
-    while (-1 != (c = getopt(argc, argv, ":b:hK:mo:prV:vw:x"))) {
+    while (-1 != (c = getopt(argc, argv, ":b:hK:mo:prs:V:vw:x"))) {
         char *endptr = NULL;
 
         errno = 0;
@@ -1045,6 +1057,12 @@ main(int argc, char **argv)
 
             case 'r':
                 opt.read = 1;
+                modes++;
+                break;
+
+            case 's':
+                opt.storage_path = optarg;
+                modes++;
                 break;
 
             case 'V':
@@ -1057,6 +1075,7 @@ main(int argc, char **argv)
 
             case 'w':
                 opt.write = optarg;
+                modes++;
                 break;
 
             case 'x':
@@ -1086,53 +1105,42 @@ main(int argc, char **argv)
         }
     }
 
-    argc -= optind;
-    argv += optind;
-
-    hse_parse_cli(argc, argv, &next_arg, 0, params);
-    argc -= next_arg;
-    argv += next_arg;
+    if (modes == 0) {
+        syntax("must specify -r, -m or -s");
+        exit(EX_USAGE);
+    }
+    if (modes > 1) {
+        syntax("options -r, -m and -s are mutually exclusive");
+        exit(EX_USAGE);
+    }
 
     /* showing values implies showing keys */
     if (opt.vlen && !opt.klen)
         opt.klen = opt.vlen;
 
-    if (opt.read && opt.mmap) {
-        syntax("options -r and -m are mutually exclusive");
-        exit(EX_USAGE);
-    }
-
     ktab = table_create(0, sizeof(struct blk), true);
     vtab = table_create(0, sizeof(struct blk), true);
-
     if (!ktab || !vtab)
         fatal(ENOMEM, "cannot alloc blk vectors");
 
+    argc -= optind;
+    argv += optind;
+
+    err = hse_init();
+    if (err)
+        return -1;
+
     if (opt.read) {
-        if (argc < 1) {
-            syntax("insufficient arguments for mandatory parameters");
-            exit(EX_USAGE);
-        }
         eread_files(argc, argv);
     } else if (opt.mmap) {
-        if (argc < 1) {
-            syntax("insufficient arguments for mandatory parameters");
-            exit(EX_USAGE);
-        }
         eread_mmap(argc, argv);
     } else {
-        if (argc < 3) {
-            syntax("insufficient arguments for mandatory parameters");
-            exit(EX_USAGE);
-        }
-        eread_ds(argc, argv, params);
+        eread_ds(argc, argv);
     }
 
     if (opt.write) {
         ewrite_files(opt.write);
-        hse_params_destroy(params);
-        hse_fini();
-        return 0;
+        goto done;
     }
 
     /* interpret the data */
@@ -1162,7 +1170,7 @@ main(int argc, char **argv)
         print_wbt(off2addr(kblk, omf_kbh_pt_hoff(kblk)), kblk, true);
     }
 
-    hse_params_destroy(params);
+  done:
     hse_fini();
 
     return 0;

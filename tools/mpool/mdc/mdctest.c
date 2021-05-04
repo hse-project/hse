@@ -8,7 +8,7 @@
 #include <hse_util/hse_err.h>
 #include <hse_util/page.h>
 #include <hse_util/page.h>
-#include <hse_util/hse_params_helper.h>
+#include <hse_util/string.h>
 
 #include <hse/hse.h>
 
@@ -41,8 +41,9 @@
  */
 
 merr_t
-mdc_correctness_simple(const char *mpool, const struct hse_params *params)
+mdc_correctness_simple(const char *path)
 {
+    struct mpool_rparams params = {0};
     merr_t err = 0, original_err = 0;
     char   errbuf[ERROR_BUFFER_SIZE];
     u64    oid[2];
@@ -51,13 +52,10 @@ mdc_correctness_simple(const char *mpool, const struct hse_params *params)
     struct mpool_mdc *mdc;
     enum mpool_mclass mclass;
 
-    if (mpool[0] == 0) {
-        fprintf(stderr, "%s.%d: mpool (mp=<mpool>) must be specified\n", __func__, __LINE__);
-        return merr(EINVAL);
-    }
-
+    strlcpy(params.mclass[MP_MED_CAPACITY].path, path,
+            sizeof(params.mclass[MP_MED_CAPACITY].path));
     /* 2. Open the mpool */
-    err = mpool_open(mpool, params, O_RDWR, &mp);
+    err = mpool_open(NULL, &params, O_RDWR, &mp);
     if (err) {
         original_err = err;
         merr_strinfo(err, errbuf, ERROR_BUFFER_SIZE, NULL);
@@ -181,8 +179,9 @@ close_mp:
  */
 
 merr_t
-mdc_correctness_mp_release(const char *mpool, const struct hse_params *params)
+mdc_correctness_mp_release(const char *path)
 {
+    struct mpool_rparams params = {0};
     merr_t err = 0, original_err = 0;
     char   errbuf[ERROR_BUFFER_SIZE];
     u64    oid[2];
@@ -191,13 +190,10 @@ mdc_correctness_mp_release(const char *mpool, const struct hse_params *params)
     struct mpool_mdc *mdc;
     enum mpool_mclass mclass;
 
-    if (mpool[0] == 0) {
-        fprintf(stderr, "%s.%d: mpool (mp=<mpool>) must be specified\n", __func__, __LINE__);
-        return merr(EINVAL);
-    }
-
+    strlcpy(params.mclass[MP_MED_CAPACITY].path, path,
+            sizeof(params.mclass[MP_MED_CAPACITY].path));
     /* 2. Open the mpool */
-    err = mpool_open(mpool, params, O_RDWR, &mp);
+    err = mpool_open(NULL, &params, O_RDWR, &mp);
     if (err) {
         original_err = err;
         merr_strinfo(err, errbuf, ERROR_BUFFER_SIZE, NULL);
@@ -253,7 +249,7 @@ mdc_correctness_mp_release(const char *mpool, const struct hse_params *params)
     }
 
     /* 7. Open the mpool */
-    err = mpool_open(mpool, params, O_RDWR, &mp);
+    err = mpool_open(NULL, &params, O_RDWR, &mp);
     if (err) {
         original_err = err;
         merr_strinfo(err, errbuf, ERROR_BUFFER_SIZE, NULL);
@@ -346,8 +342,9 @@ verify_buf(char *buf_in, size_t buf_len, char val)
 }
 
 merr_t
-mdc_correctness_multi_reader_single_app(const char *mpool, const struct hse_params *params)
+mdc_correctness_multi_reader_single_app(const char *path)
 {
+    struct mpool_rparams params = {0};
     merr_t err = 0, original_err = 0;
     int    i, rc;
     char   errbuf[ERROR_BUFFER_SIZE];
@@ -360,13 +357,10 @@ mdc_correctness_multi_reader_single_app(const char *mpool, const struct hse_para
     struct mpool_mdc *mdc[2];
     enum mpool_mclass mclass;
 
-    if (mpool[0] == 0) {
-        fprintf(stderr, "%s.%d: mpool (mp=<mpool>) must be specified\n", __func__, __LINE__);
-        return merr(EINVAL);
-    }
-
+    strlcpy(params.mclass[MP_MED_CAPACITY].path, path,
+            sizeof(params.mclass[MP_MED_CAPACITY].path));
     /* 2. Open the mpool RDWR */
-    err = mpool_open(mpool, params, O_RDWR, &mp);
+    err = mpool_open(NULL, &params, O_RDWR, &mp);
     if (err) {
         original_err = err;
         merr_strinfo(err, errbuf, ERROR_BUFFER_SIZE, NULL);
@@ -651,8 +645,9 @@ close_mp:
  */
 
 merr_t
-mdc_correctness_reader_then_writer(const char *mpool, const struct hse_params *params)
+mdc_correctness_reader_then_writer(const char *path)
 {
+    struct mpool_rparams params = {0};
     merr_t err = 0, original_err = 0;
     int    i, rc;
     char   errbuf[ERROR_BUFFER_SIZE];
@@ -665,13 +660,10 @@ mdc_correctness_reader_then_writer(const char *mpool, const struct hse_params *p
     struct mpool_mdc *mdc;
     enum mpool_mclass mclass;
 
-    if (mpool[0] == 0) {
-        fprintf(stderr, "%s.%d: mpool (mp=<mpool>) must be specified\n", __func__, __LINE__);
-        return merr(EINVAL);
-    }
-
+    strlcpy(params.mclass[MP_MED_CAPACITY].path, path,
+            sizeof(params.mclass[MP_MED_CAPACITY].path));
     /* 2. Open the mpool RDWR */
-    err = mpool_open(mpool, params, O_RDWR, &mp);
+    err = mpool_open(NULL, &params, O_RDWR, &mp);
     if (err) {
         original_err = err;
         merr_strinfo(err, errbuf, ERROR_BUFFER_SIZE, NULL);
@@ -891,8 +883,9 @@ close_mp:
  */
 
 merr_t
-mdc_correctness_writer_then_reader(const char *mpool, const struct hse_params *params)
+mdc_correctness_writer_then_reader(const char *path)
 {
+    struct mpool_rparams params = {0};
     merr_t err = 0, original_err = 0;
     int    i, rc;
     char   errbuf[ERROR_BUFFER_SIZE];
@@ -905,13 +898,10 @@ mdc_correctness_writer_then_reader(const char *mpool, const struct hse_params *p
     struct mpool_mdc *mdc[2];
     enum mpool_mclass mclass;
 
-    if (mpool[0] == 0) {
-        fprintf(stderr, "%s.%d: mpool (mp=<mpool>) must be specified\n", __func__, __LINE__);
-        return merr(EINVAL);
-    }
-
+    strlcpy(params.mclass[MP_MED_CAPACITY].path, path,
+            sizeof(params.mclass[MP_MED_CAPACITY].path));
     /* 2. Open the mpool RDWR */
-    err = mpool_open(mpool, params, O_RDWR, &mp);
+    err = mpool_open(NULL, &params, O_RDWR, &mp);
     if (err) {
         original_err = err;
         merr_strinfo(err, errbuf, ERROR_BUFFER_SIZE, NULL);
@@ -1082,8 +1072,9 @@ close_mp:
  */
 
 merr_t
-mdc_correctness_multi_mdc(const char *mpool, const struct hse_params *params)
+mdc_correctness_multi_mdc(const char *path)
 {
+    struct mpool_rparams params = {0};
     merr_t err = 0, original_err = 0;
     int    i, j, rc;
     char   errbuf[ERROR_BUFFER_SIZE];
@@ -1099,19 +1090,16 @@ mdc_correctness_multi_mdc(const char *mpool, const struct hse_params *params)
     struct mpool_mdc *mdc[4];
     enum mpool_mclass mclass;
 
-    if (mpool[0] == 0) {
-        fprintf(stderr, "%s.%d: mpool (mp=<mpool>) must be specified\n", __func__, __LINE__);
-        return merr(EINVAL);
-    }
-
     oid = calloc(mdc_cnt, sizeof(*oid));
     if (!oid) {
         perror("oid calloc");
         return merr(ENOMEM);
     }
 
+    strlcpy(params.mclass[MP_MED_CAPACITY].path, path,
+            sizeof(params.mclass[MP_MED_CAPACITY].path));
     /* 2. Open the mpool RDWR */
-    err = mpool_open(mpool, params, O_RDWR, &mp);
+    err = mpool_open(NULL, &params, O_RDWR, &mp);
     if (err) {
         original_err = err;
         merr_strinfo(err, errbuf, ERROR_BUFFER_SIZE, NULL);
@@ -1275,69 +1263,80 @@ freeoid:
 int
 main(int argc, char **argv)
 {
-    merr_t             err;
-    uint64_t           herr;
-    struct hse_params *params;
-    int                tests = 0, failed = 0;
-    int                next_arg = 0;
+    struct mpool_cparams cparams = {0};
+    struct mpool_dparams dparams = {0};
+    merr_t   err;
+    uint64_t herr;
+    int      tests = 0, failed = 0;
+    const char *path, *progname;
 
-    const char *name = "mdctest";
+    progname = strrchr(argv[0], '/');
+    progname = progname ? progname + 1 : argv[0];
 
     herr = hse_init();
     if (herr)
         return -1;
 
-    herr = hse_params_create(&params);
-    if (herr) {
+    if (argc != 2) {
+        fprintf(stderr, "Usage: %s <storage_path>\n", progname);
         hse_fini();
         return -1;
     }
 
-    herr = hse_parse_cli(argc, argv, &next_arg, 0, params);
-    if (herr) {
-        hse_params_destroy(params);
+    path = argv[1];
+    if (access(path, F_OK) == -1) {
+        fprintf(stderr, "storage path %s doesn't exist\n", path);
+        hse_fini();
+        return -1;
+    }
+
+    strlcpy(cparams.mclass[MP_MED_CAPACITY].path, path,
+            sizeof(cparams.mclass[MP_MED_CAPACITY].path));
+    err = mpool_create(NULL, &cparams);
+    if (err) {
+        fprintf(stderr, "mpool creation at path %s failed\n", path);
         hse_fini();
         return -1;
     }
 
     /* Test 1 */
     tests++;
-    err = mdc_correctness_simple(name, params);
+    err = mdc_correctness_simple(path);
     if (err) {
         failed++;
         fprintf(stderr, "MDC test-%d failed\n", tests);
     }
 
     tests++;
-    err = mdc_correctness_mp_release(name, params);
+    err = mdc_correctness_mp_release(path);
     if (err) {
         failed++;
         fprintf(stderr, "MDC test-%d failed\n", tests);
     }
 
     tests++;
-    err = mdc_correctness_multi_reader_single_app(name, params);
+    err = mdc_correctness_multi_reader_single_app(path);
     if (err) {
         failed++;
         fprintf(stderr, "MDC test-%d failed\n", tests);
     }
 
     tests++;
-    err = mdc_correctness_reader_then_writer(name, params);
+    err = mdc_correctness_reader_then_writer(path);
     if (err) {
         failed++;
         fprintf(stderr, "MDC test-%d failed\n", tests);
     }
 
     tests++;
-    err = mdc_correctness_writer_then_reader(name, params);
+    err = mdc_correctness_writer_then_reader(path);
     if (err) {
         failed++;
         fprintf(stderr, "MDC test-%d failed\n", tests);
     }
 
     tests++;
-    err = mdc_correctness_multi_mdc(name, params);
+    err = mdc_correctness_multi_mdc(path);
     if (err) {
         failed++;
         fprintf(stderr, "MDC test-%d failed\n", tests);
@@ -1345,7 +1344,15 @@ main(int argc, char **argv)
 
     fprintf(stdout, "MDC correctness tests: %d/%d passed\n", tests - failed, tests);
 
-    hse_params_destroy(params);
+    strlcpy(dparams.mclass[MP_MED_CAPACITY].path, path,
+            sizeof(dparams.mclass[MP_MED_CAPACITY].path));
+    err = mpool_destroy(NULL, &dparams);
+    if (err) {
+        fprintf(stderr, "mpool destroy at path %s failed\n", path);
+        hse_fini();
+        return -1;
+    }
+
     hse_fini();
 
     return 0;

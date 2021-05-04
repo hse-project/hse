@@ -1,8 +1,8 @@
 [wrap-file]
-directory = libbsd-0.8.7
+directory = libbsd-0.9.0
 
-source_url = https://libbsd.freedesktop.org/releases/libbsd-0.8.7.tar.xz
-source_filename = libbsd-0.8.7.tar.xz
-source_hash = f548f10e5af5a08b1e22889ce84315b1ebe41505b015c9596bad03fd13a12b31
+source_url = https://libbsd.freedesktop.org/releases/libbsd-0.9.0.tar.xz
+source_filename = libbsd-0.9.0.tar.xz
+source_hash = 8a469afd1bab340992cf99e1e6b7ae4f4c54882d663d8a2c5ea52250617afb01
 
 patch_directory=libbsd

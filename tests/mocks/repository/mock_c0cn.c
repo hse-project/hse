@@ -813,14 +813,16 @@ mock_c0cn_unset()
  * changes).
  */
 static struct mapi_injection kvdb_log_inject_list[] = {
-    { mapi_idx_kvdb_log_make,       MAPI_RC_SCALAR, 0 },
-    { mapi_idx_kvdb_log_open,       MAPI_RC_SCALAR, 0 },
-    { mapi_idx_kvdb_log_close,      MAPI_RC_SCALAR, 0 },
-    { mapi_idx_kvdb_log_rollover,   MAPI_RC_SCALAR, 0 },
-    { mapi_idx_kvdb_log_done,       MAPI_RC_SCALAR, 0 },
-    { mapi_idx_kvdb_log_abort,      MAPI_RC_SCALAR, 0 },
-    { mapi_idx_kvdb_log_mdc_create, MAPI_RC_SCALAR, 0 },
-    { mapi_idx_kvdb_log_replay,     MAPI_RC_SCALAR, 0 },
+    { mapi_idx_kvdb_log_make,                        MAPI_RC_SCALAR, 0 },
+    { mapi_idx_kvdb_log_open,                        MAPI_RC_SCALAR, 0 },
+    { mapi_idx_kvdb_log_close,                       MAPI_RC_SCALAR, 0 },
+    { mapi_idx_kvdb_log_rollover,                    MAPI_RC_SCALAR, 0 },
+    { mapi_idx_kvdb_log_done,                        MAPI_RC_SCALAR, 0 },
+    { mapi_idx_kvdb_log_abort,                       MAPI_RC_SCALAR, 0 },
+    { mapi_idx_kvdb_log_mdc_create,                  MAPI_RC_SCALAR, 0 },
+    { mapi_idx_kvdb_log_replay,                      MAPI_RC_SCALAR, 0 },
+    { mapi_idx_kvdb_log_deserialize_to_kvdb_rparams, MAPI_RC_SCALAR, 0 },
+    { mapi_idx_kvdb_log_deserialize_to_kvdb_dparams, MAPI_RC_SCALAR, 0 },
     { -1 },
 };
 
@@ -851,7 +853,7 @@ _cndb_alloc(struct mpool *ds, u64 *captgt, u64 *oid1, u64 *oid2)
 }
 
 static merr_t
-_cndb_cn_make(struct cndb *cndb, struct kvs_cparams *cp, u64 *cnid, char *name)
+_cndb_cn_make(struct cndb *cndb, const struct kvs_cparams *cp, u64 *cnid, char *name)
 {
     *cnid = ++cndb_id_mocked;
     return 0;

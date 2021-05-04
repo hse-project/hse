@@ -517,8 +517,8 @@ kvset_create2(
     ks->ks_tag = tag;
     ks->ks_cnid = cn_tree_get_cnid(tree);
     ks->ks_cndb = cn_tree_get_cndb(tree);
-    ks->ks_pfx_len = cp->cp_pfx_len;
-    ks->ks_sfx_len = cp->cp_sfx_len;
+    ks->ks_pfx_len = cp->pfx_len;
+    ks->ks_sfx_len = cp->sfx_len;
     ks->ks_node_level = km->km_node_level;
     ks->ks_vminlvl = min_t(u16, rp->cn_mcache_vminlvl, U16_MAX);
     ks->ks_vmin = rp->cn_mcache_vmin;
@@ -2478,7 +2478,7 @@ kvset_iter_enable_mblock_read_cmn(struct kvset_iterator *iter, struct kblk_reade
     uint  kb_max_sz;
 
     /* compute appropriate node buffer size */
-    kb_max_sz = iter->ks->ks_rp->kblock_size_mb << 20;
+    kb_max_sz = iter->ks->ks_rp->kblock_size;
     if (kb_max_sz > VLB_ALLOCSZ_MAX / 2)
         kb_max_sz = VLB_ALLOCSZ_MAX / 2;
 
@@ -2566,7 +2566,7 @@ kvset_iter_enable_mblock_read(struct kvset_iterator *iter)
      */
     vr_buf_sz = max_t(uint, PAGE_SIZE, ra_size);
 
-    vb_max_sz = iter->ks->ks_rp->vblock_size_mb << 20;
+    vb_max_sz = iter->ks->ks_rp->vblock_size;
     if (vb_max_sz > VLB_ALLOCSZ_MAX / 2)
         vb_max_sz = VLB_ALLOCSZ_MAX / 2;
 

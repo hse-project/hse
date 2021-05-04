@@ -2,20 +2,26 @@
 
 # add a KVS to the KVDB
 # fanout=16 for a smaller pivot level
-kvs=$(new_kvs $mp kvs.fanout=16 kvs.pfx_len=8 kvs.sfx_len=8) || err
+kvs=$(new_kvs $mp fanout=16 pfx_len=8 sfx_len=8) || err
 
 p=10000
 c=1000
 s=10
 threads=96
 
+oparms=(
+    kvs-oparms
+    cn_node_size_hi=128
+    cn_node_size_lo=128
+    csched_samp_max=100)
+
 # Use probe
-cmd pfx_probe $mp $kvs -p$p -c$c -s$s -j$threads kvs.cn_node_size_hi=128 kvs.cn_node_size_lo=128 kvdb.csched_samp_max=100
+cmd pfx_probe $mp $kvs -p$p -c$c -s$s -j$threads "${oparms[@]}"
 
 # Use cursors; skip load
-cmd pfx_probe $mp $kvs -p$p -c$c -s$s -j$threads -v -x -d15 kvs.cn_node_size_hi=128 kvs.cn_node_size_lo=128 kvdb.csched_samp_max=100
+cmd pfx_probe $mp $kvs -p$p -c$c -s$s -j$threads -v -x -d15 "${oparms[@]}"
 
 # Use gets; skip load
-cmd pfx_probe $mp $kvs -p$p -c$c -s$s -j$threads -v -g -d15 kvs.cn_node_size_hi=128 kvs.cn_node_size_lo=128 kvdb.csched_samp_max=100
+cmd pfx_probe $mp $kvs -p$p -c$c -s$s -j$threads -v -g -d15 "${oparms[@]}"
 
 

@@ -7,7 +7,8 @@
 #include <hse/hse.h>
 #include <hse/hse_experimental.h>
 
-void fatal(int err, char *fmt, ...);
+#include "tools/common.h"
+#include "tools/parm_groups.h"
 
 typedef void kh_func(void *);
 
@@ -18,16 +19,10 @@ struct thread_arg {
 	uint64_t seed;
 };
 
-void
-kh_rparams(
-	int                   *argc,
-	char                ***argv,
-	struct hse_params     *params);
-
 struct hse_kvdb *
 kh_init(
-	const char           *mpool,
-	struct hse_params    *params);
+	const char           *kvdb_home,
+	struct svec          *kvdb_oparms);
 
 void
 kh_fini(void);
@@ -43,25 +38,19 @@ void
 kh_wait_all(void);
 
 int
-kh_register(
+kh_register_kvs(
 	const char           *kvs,
 	enum kh_flags         flags,
-	struct hse_params    *params,
+	struct svec          *kvs_cparms,
+	struct svec          *kvs_oparms,
 	kh_func              *func,
 	void                 *arg);
 
 int
-kh_register_multiple(
-	int           kvs_cnt,
-	const char  **kvs_vec,
-	int           num_threads,
-	void        **argv,
-	kh_func      *func);
-
-struct hse_kvs *
-kh_get_kvs(
-	const char           *name,
-	struct hse_params    *params);
+kh_register(
+	enum kh_flags         flags,
+	kh_func              *func,
+	void                 *arg);
 
 /* cursor helper functions */
 struct hse_kvs_cursor *

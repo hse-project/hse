@@ -14,9 +14,10 @@
 #include <hse_ikvdb/cn.h>
 
 struct mpool;
-struct cndb;        /* CNDB handle */
-struct cndb_tx_hdl; /* CNDB TX handle */
+struct cndb;
+struct cndb_tx_hdl;
 struct kvset_meta;
+struct kvdb_rparams;
 
 /* Invalid ingest id. */
 #define CNDB_INVAL_INGESTID U64_MAX
@@ -91,6 +92,7 @@ cndb_open(
     u64                 oid1,
     u64                 oid2,
     struct kvdb_health *health,
+    struct kvdb_rparams *rp,
     struct cndb **      cndb_out);
 
 /**
@@ -266,7 +268,7 @@ cndb_usage(struct cndb *cndb, uint64_t *allocated, uint64_t *used);
  */
 /* MTF_MOCK */
 merr_t
-cndb_cn_make(struct cndb *cndb, struct kvs_cparams *cparams, u64 *cnid_out, char *name);
+cndb_cn_make(struct cndb *cndb, const struct kvs_cparams *cparams, u64 *cnid_out, char *name);
 
 /**
  * cndb_cn_cparams() - Get a pointer to the cn cparams

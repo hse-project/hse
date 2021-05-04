@@ -29,50 +29,46 @@
 #include <hse/hse.h>
 
 #include <hse_util/fmt.h>
-#include <hse_util/hse_params_helper.h>
 
 #include <tools/common.h>
+#include <tools/parm_groups.h>
 
 enum Actions { PUT = 0, GET = 1, DEL = 2, VFY = 3 };
 
+struct parm_groups *pg;
+
 int
 do_open(
-    const char *       mpname,
-    const char *       kvname,
-    struct hse_kvdb ** kvdb,
-    struct hse_kvs **  kvs,
-    struct hse_params *params)
+    const char *      mpname,
+    const char *      kvname,
+    struct hse_kvdb **kvdb,
+    struct hse_kvs ** kvs)
 {
+    int rc;
     uint64_t err;
+    struct svec sv = {};
 
-    err = hse_kvdb_open(mpname, params, kvdb);
+    rc = svec_append_pg(&sv, pg, PG_KVDB_OPEN, NULL);
+    if (rc)
+        fatal(rc, "svec_append_pg");
+
+    err = hse_kvdb_open(mpname, sv.strc, sv.strv, kvdb);
     if (err)
         fatal(err, "cannot open kvdb %s", mpname);
 
-    err = hse_kvdb_kvs_open(*kvdb, kvname, params, kvs);
+    svec_reset(&sv);
+
+    rc = svec_append_pg(&sv, pg, PG_KVS_OPEN, NULL);
+    if (rc)
+        fatal(rc, "svec_append_pg");
+
+    err = hse_kvdb_kvs_open(*kvdb, kvname, sv.strc, sv.strv, kvs);
     if (err)
         fatal(err, "cannot open kvs %s/%s", mpname, kvname);
 
+    svec_reset(&sv);
+
     return 0;
-}
-
-void
-do_params(int *argc, char ***argv, struct hse_params *params)
-{
-    int idx = optind;
-
-    hse_params_set(params, "kvdb.perfc_enable", "0");
-
-    hse_params_set(params, "kvs.kv_print_config", "0");
-    hse_params_set(params, "kvs.cn_bloom_create", "0");
-    hse_params_set(params, "kvs.cn_bloom_lookup", "0");
-
-    if (hse_parse_cli(*argc - idx, *argv + idx, &idx, 0, params))
-        rp_usage();
-
-    *argc -= idx;
-    *argv += idx;
-    optind = 0;
 }
 
 void
@@ -94,19 +90,24 @@ usage(char *prog)
 int
 main(int argc, char **argv)
 {
-    static char        buf[(HSE_KVS_KLEN_MAX + HSE_KVS_VLEN_MAX) * 3];
-    struct hse_params *params;
-    char *             mpname, *prog;
-    const char *       kvsname;
-    struct hse_kvdb *  kvdb;
-    struct hse_kvs *   h;
-    int                rc, c, help;
-    bool               fnd;
-    enum Actions       action;
+    static char      buf[(HSE_KVS_KLEN_MAX + HSE_KVS_VLEN_MAX) * 3];
+    struct parm_groups *pg = NULL;
+    char *           mpname, *prog;
+    const char *     kvsname;
+    struct hse_kvdb *kvdb;
+    struct hse_kvs * kvs;
+    hse_err_t        err;
+    int              c, rc, help;
+    bool             fnd;
+    enum Actions     action;
 
     prog = basename(argv[0]);
     help = 0;
     action = PUT;
+
+    rc = pg_create(&pg, PG_KVDB_OPEN, PG_KVS_OPEN, NULL);
+    if (rc)
+        fatal(rc, "pg_create");
 
     while ((c = getopt(argc, argv, "?PGDVCz")) != -1) {
         switch (c) {
@@ -137,26 +138,36 @@ main(int argc, char **argv)
 
     if (help == 1)
         usage(prog);
-    if (help == 2)
-        rp_usage();
 
-    rc = hse_init();
-    if (rc)
-        fatal(rc, "failed to initialize kvdb");
+    if (argc - optind < 2)
+        fatal(0, "missing required params: kvdb and kvs");
 
-    hse_params_create(&params);
+    mpname = argv[optind++];
+    kvsname = argv[optind++];
 
-    do_params(&argc, &argv, params);
+    /* get hse parms from command line */
+    rc = pg_parse_argv(pg, argc, argv, &optind);
+    switch (rc) {
+        case 0:
+            if (optind < argc)
+                fatal(0, "unknown parameter: %s", argv[optind]);
+            break;
+        case EINVAL:
+            fatal(0, "missing group name (e.g. %s) before parameter %s\n",
+                PG_KVDB_OPEN, argv[optind]);
+            break;
+        default:
+            fatal(rc, "error processing parameter %s\n", argv[optind]);
+            break;
+    }
 
-    if (argc != 3)
-        usage(prog);
+    err = hse_init();
+    if (err)
+        fatal(err, "failed to initialize kvdb");
 
-    mpname = argv[0];
-    kvsname = argv[1];
+    do_open(mpname, kvsname, &kvdb, &kvs);
 
-    do_open(mpname, kvsname, &kvdb, &h, params);
-
-    rc = 0;
+    err = 0;
     while (fgets(buf, sizeof(buf), stdin) != NULL) {
         static char kbuf[HSE_KVS_KLEN_MAX];
         static char vbuf[HSE_KVS_VLEN_MAX];
@@ -193,16 +204,16 @@ main(int argc, char **argv)
 
         switch (action) {
             case PUT:
-                rc = hse_kvs_put(h, 0, kbuf, klen, vbuf, vlen);
+                err = hse_kvs_put(kvs, 0, kbuf, klen, vbuf, vlen);
                 break;
             case DEL:
-                rc = hse_kvs_delete(h, 0, kbuf, klen);
+                err = hse_kvs_delete(kvs, 0, kbuf, klen);
                 break;
             case GET:
             case VFY:
                 glen = sizeof(gbuf);
-                rc = hse_kvs_get(h, 0, kbuf, klen, &fnd, gbuf, glen, &glen);
-                if (rc)
+                err = hse_kvs_get(kvs, 0, kbuf, klen, &fnd, gbuf, glen, &glen);
+                if (err)
                     break;
                 if (!fnd)
                     warn(ENOENT, "cannot find key %s", key);
@@ -210,17 +221,15 @@ main(int argc, char **argv)
                     show(kbuf, klen, gbuf, glen, 0);
                 else if (glen != vlen || memcmp(vbuf, gbuf, vlen)) {
                     fmt_pe(obuf, sizeof(gbuf), gbuf, glen);
-                    warn(EIO, "wanted %d/%s, got %d/%s", vlen, val, glen, obuf);
+                    warn(EIO, "wanted %d/%s, got %ld/%s", vlen, val, glen, obuf);
                 }
                 break;
         }
     }
 
     hse_kvdb_close(kvdb);
-
-    hse_params_destroy(params);
-
+    pg_destroy(pg);
     hse_fini();
 
-    return rc;
+    return err ? 1 : 0;
 }

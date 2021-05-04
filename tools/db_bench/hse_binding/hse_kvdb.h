@@ -19,7 +19,7 @@ namespace leveldb {
 
 class HseKvdb {
  public:
-  static Status Open(const std::string& kvdb_name, HseKvdb** kvdbptr);
+  static Status Open(const std::string& kvdb_home, HseKvdb** kvdbptr);
 
   static void FiniLibrary();
   static void InitLibrary();
@@ -38,10 +38,10 @@ class HseKvdb {
   Status Compact();
 
  private:
-  std::string kvdb_name_;
+  std::string kvdb_home_;
   hse_kvdb* kvdb_handle_;
 
-  HseKvdb(const std::string& kvdb_name);
+  HseKvdb(const std::string& kvdb_home);
 };
 
 }  // namespace leveldb

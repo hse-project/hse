@@ -141,7 +141,7 @@ new_tree(uint fanout)
 
     tt = ttv + ttc;
 
-    cp.cp_fanout = fanout, cp.cp_pfx_len = pfx_len,
+    cp.fanout = fanout, cp.pfx_len = pfx_len,
 
     err = cn_tree_create(&tt->tree, NULL, 0, &cp, &health, kvs_rp);
     if (err)
@@ -311,7 +311,7 @@ sp3_work_mock(
     w->cw_node = tn;
     w->cw_ds = tn->tn_tree->ds;
     w->cw_rp = tn->tn_tree->rp;
-    w->cw_pfx_len = tn->tn_tree->ct_cp->cp_pfx_len;
+    w->cw_pfx_len = tn->tn_tree->ct_cp->pfx_len;
 
     hse_log(
         HSE_DEBUG "%s(cnid=%lu loc=(%u,%u), action=%s",

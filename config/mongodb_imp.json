@@ -1,0 +1,13 @@
+{
+	"kvdb": {
+		"kvs": {
+			"MainKvs": {
+				"value_compression": "lz4",
+				"pfx_len": 9
+			},
+			"UniqIdxKvs": {
+				"pfx_len": 10
+			}
+		}
+	}
+}
