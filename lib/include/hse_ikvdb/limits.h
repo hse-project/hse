@@ -62,10 +62,10 @@
 #define HSE_CURACTIVE_SZ_MIN        (2ul << 30)
 #define HSE_CURACTIVE_SZ_MAX        (32ul << 30)
 
-/* A cursor's footprint is at least 2MB, not including iterators
- * (see struct c0_cursor and struct pscan).
+/* A cursor's footprint is at least 1MB, not including iterators
+ * (see struct kvs_cursor).
  */
-#define HSE_CURSOR_SZ_MIN           ((HSE_KVS_KLEN_MAX + HSE_KVS_VLEN_MAX) * 2)
+#define HSE_CURSOR_SZ_MIN           (HSE_KVS_KLEN_MAX + HSE_KVS_VLEN_MAX)
 
 /* Using any size other than 32MB will likely cause problems
  * due to the way space is allocated to wbtree internal nodes.

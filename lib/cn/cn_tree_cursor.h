@@ -29,12 +29,11 @@ cn_tree_cursor_seek(
     struct pscan *     cur,
     const void *       key,
     u32                len,
-    struct kc_filter * filter,
-    struct kvs_ktuple *kt);
+    struct kc_filter * filter);
 
 /* MTF_MOCK */
 merr_t
-cn_tree_cursor_read(struct pscan *cur, struct kvs_kvtuple *kvt, bool *eof);
+cn_tree_cursor_read(struct pscan *cur, struct kvs_cursor_element *elem, bool *eof);
 
 /* MTF_MOCK */
 void

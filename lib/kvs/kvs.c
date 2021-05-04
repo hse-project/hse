@@ -29,7 +29,6 @@
 #include <hse_ikvdb/kvs.h>
 #include <hse_ikvdb/limits.h>
 #include <hse_ikvdb/key_hash.h>
-#include <hse_ikvdb/cn_cursor.h>
 #include <hse_ikvdb/kvdb_ctxn.h>
 #include <hse_ikvdb/tuple.h>
 #include <hse_ikvdb/kvdb_health.h>
@@ -106,6 +105,17 @@ kvs_perfc_alloc(const char *mp_name, const char *kvs_name, struct ikvs *kvs)
     if (perfc_ctrseti_alloc(
             COMPNAME, dbname_buf, kvs_pkvsl_perfc_op, PERFC_EN_PKVSL, "set", &kvs->ikv_pkvsl_pc))
         hse_log(HSE_ERR "cannot alloc kvs perf counters");
+}
+
+/**
+ * ikvs_maint_task() - periodic maintenance on ikvs
+ *
+ * Currently, this function is called with the ikdb_lock held, ugh...
+ */
+void
+ikvs_maint_task(struct ikvs *kvs, u64 now)
+{
+    cn_periodic(kvs->ikv_cn, now);
 }
 
 static void

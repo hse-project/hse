@@ -27,7 +27,6 @@
 #include <hse/hse_limits.h>
 
 #include <hse_ikvdb/cn.h>
-#include <hse_ikvdb/cn_cursor.h>
 #include <hse_ikvdb/cndb.h>
 #include <hse_ikvdb/cursor.h>
 #include <hse_ikvdb/kvset_builder.h>
@@ -51,6 +50,7 @@
 #include "cn_tree_compact.h"
 #include "cn_tree_stats.h"
 #include "cn_mblocks.h"
+#include "cn_cursor.h"
 
 #include "omf.h"
 #include "kvset.h"
@@ -62,7 +62,6 @@
 #include "intern_builder.h"
 #include "bloom_reader.h"
 #include "cn_perfc.h"
-#include "pscan.h"
 
 struct tbkt;
 struct mclass_policy;
@@ -76,7 +75,7 @@ cn_init(void)
     struct pscan *cur HSE_MAYBE_UNUSED;
     merr_t err;
 
-    /* If you trip this assert then likely you ignored the warning in pscan.h
+    /* If you trip this assert then likely you ignored the warning in cn_cursor.h
      * and you need to adjust cn_pscan_create() to accomodate your changes.
      */
     assert(offsetof(struct pscan, pt_buf) + sizeof(cur->pt_buf) == sizeof(*cur));
@@ -1445,13 +1444,12 @@ static struct pscan *
 cn_pscan_create(void)
 {
     struct pscan *cur;
-    size_t align, bufsz;
+    size_t align;
     void *mem;
 
     align = (alignof(*cur) > SMP_CACHE_BYTES) ? alignof(*cur) : SMP_CACHE_BYTES;
-    bufsz = HSE_KVS_KLEN_MAX + HSE_KVS_VLEN_MAX;
 
-    mem = vlb_alloc(sizeof(*cur) + bufsz + align * 16);
+    mem = vlb_alloc(sizeof(*cur) + align * 16);
     if (ev(!mem))
         return NULL;
 
@@ -1464,7 +1462,6 @@ cn_pscan_create(void)
     /* Initialize all fields up to but not including pt_buf[].
      */
     memset(cur, 0, offsetof(struct pscan, pt_buf));
-    cur->bufsz = bufsz;
     cur->base = mem;
 
     return cur;
@@ -1473,11 +1470,9 @@ cn_pscan_create(void)
 static void
 cn_pscan_free(struct pscan *cur)
 {
-    size_t used = (cur->buf - cur->base) + cur->bufsz;
+    size_t used = (char *)(cur + 1) - cur->base;
 
-    /* [HSE_REVISIT] Track how much of cur->buf[] we used and pass the correct
-     * size used to vlb_free() (typically it's less than a page size).  Until
-     * then, we subtract a page size from the used size in order to avoid an
+    /* Subtract a page size from the used size in order to avoid an
      * munmap() call of one page in vlb_free().
      */
     assert(used < VLB_KEEPSZ_MAX + PAGE_SIZE &&
@@ -1523,8 +1518,6 @@ cn_cursor_create(
     cur = cn_pscan_create();
     if (ev(!cur))
         return merr(ENOMEM);
-
-    assert(cur->bufsz >= HSE_KVS_KLEN_MAX + HSE_KVS_VLEN_MAX);
 
     /*
      * The pfxhash MUST be calculated on the configured tree pfx_len,
@@ -1577,9 +1570,8 @@ cn_cursor_create(
 }
 
 merr_t
-cn_cursor_update(void *cursor, u64 seqno, bool *updated)
+cn_cursor_update(struct pscan *cur, u64 seqno, bool *updated)
 {
-    struct pscan *cur = cursor;
     u64           dgen = atomic64_read(&cur->cn->cn_ingest_dgen);
     int           attempts = 5;
     merr_t        err;
@@ -1608,7 +1600,7 @@ cn_cursor_update(void *cursor, u64 seqno, bool *updated)
 
     if (err && merr_errno(err) != EAGAIN) {
         hse_elog(HSE_ERR "%s: update failed (%p %lu): @@e",
-                 err, __func__, cursor, seqno);
+                 err, __func__, cur, seqno);
         cur->merr = err;
     }
 
@@ -1617,26 +1609,49 @@ cn_cursor_update(void *cursor, u64 seqno, bool *updated)
 
 merr_t
 cn_cursor_seek(
-    void *             cursor,
+    struct pscan *     cursor,
     const void *       key,
     u32                len,
-    struct kc_filter * filter,
-    struct kvs_ktuple *kt)
+    struct kc_filter * filter)
 {
-    return cn_tree_cursor_seek(cursor, key, len, filter, kt);
+    return cn_tree_cursor_seek(cursor, key, len, filter);
 }
 
 merr_t
-cn_cursor_read(void *cursor, struct kvs_kvtuple *kvt, bool *eof)
+cn_cursor_read(struct pscan *cursor, struct kvs_cursor_element *elem,  bool *eof)
 {
-    return cn_tree_cursor_read(cursor, kvt, eof);
+    return cn_tree_cursor_read(cursor, elem, eof);
+}
+
+static bool
+cncur_next(struct element_source *es, void **element) {
+    struct pscan *cncur = container_of(es, struct pscan, es);
+    bool eof;
+    merr_t err;
+
+    err = cn_cursor_read(cncur, &cncur->elem, &eof);
+    if (ev(err) || eof)
+        return false;
+
+    cncur->elem.kce_source = KCE_SOURCE_CN;
+    *element = &cncur->elem;
+    return true;
+}
+
+struct element_source *
+cn_cursor_es_make(struct pscan *cncur) {
+	cncur->es = es_make(cncur_next, 0, 0);
+	return &cncur->es;
+}
+
+struct element_source *
+cn_cursor_es_get(struct pscan *cncur) {
+	return &cncur->es;
 }
 
 void
-cn_cursor_destroy(void *cursor)
+cn_cursor_destroy(struct pscan *cur)
 {
-    struct pscan *cur = cursor;
-
     cn_tree_cursor_destroy(cur);
     free(cur->iterv);
     free(cur->esrcv);
@@ -1644,7 +1659,7 @@ cn_cursor_destroy(void *cursor)
 }
 
 merr_t
-cn_cursor_active_kvsets(void *cursor, u32 *active, u32 *total)
+cn_cursor_active_kvsets(struct pscan *cursor, u32 *active, u32 *total)
 {
     return cn_tree_cursor_active_kvsets(cursor, active, total);
 }

@@ -334,7 +334,7 @@ c0kvms_cursor_skip_pfx(struct c0_kvmultiset_cursor *cur, struct bonsai_kv *pt_bk
  * Update this @mset for iteration via a c0_cursor.
  */
 bool
-c0kvms_cursor_update(struct c0_kvmultiset_cursor *cursor, void *seek, u32 seeklen, u32 ct_pfx_len);
+c0kvms_cursor_update(struct c0_kvmultiset_cursor *cursor, const void *seek, u32 seeklen, u32 ct_pfx_len);
 
 /**
  * c0kvms_cursor_get_source() - get the element source for this cursor

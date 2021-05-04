@@ -2130,7 +2130,7 @@ ikvdb_kvs_cursor_create(
     err = cursor_view_acquire(cur);
     if (!err) {
         u64 ts = perfc_lat_start(pkvsl_pc);
-        err = ikvs_cursor_init(cur);
+        err = kvs_cursor_init(cur);
         perfc_lat_record(pkvsl_pc, PERFC_LT_PKVSL_KVS_CURSOR_INIT, ts);
         if (!err) {
             if (bind) {
@@ -2143,6 +2143,8 @@ ikvdb_kvs_cursor_create(
                 /* New cursor view is established. Now wait on ongoing commits. */
                 kvdb_ctxn_set_wait_commits(ikvdb->ikdb_ctxn_set);
             }
+
+            err = kvs_cursor_prepare(cur);
         }
 
         cursor_view_release(cur);

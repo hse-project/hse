@@ -50,6 +50,8 @@
 #include <hse_ikvdb/csched.h>
 #include <hse_ikvdb/kvs_rparams.h>
 
+#include <cn/cn_cursor.h>
+
 #include "cn_tree.h"
 #include "cn_tree_compact.h"
 #include "cn_tree_create.h"
@@ -65,7 +67,6 @@
 #include "blk_list.h"
 #include "kv_iterator.h"
 #include "wbt_reader.h"
-#include "pscan.h"
 #include "spill.h"
 #include "kcompact.h"
 #include "kblock_builder.h"
@@ -2456,7 +2457,7 @@ drop_dups(struct pscan *cur, struct cn_kv_item *item)
  * rc == 0 : itempfx == cursor's pfx
  */
 static int
-cur_item_cmp(struct pscan *cur, struct cn_kv_item *item)
+cur_item_pfx_cmp(struct pscan *cur, struct cn_kv_item *item)
 {
     int            rc;
     struct key_obj ko_pfx;
@@ -2490,20 +2491,19 @@ cur_item_cmp(struct pscan *cur, struct cn_kv_item *item)
  * Returns 0 on success.  Errors may be retried unless @*eof is true.
  */
 merr_t
-cn_tree_cursor_read(struct pscan *cur, struct kvs_kvtuple *kvt, bool *eof)
+cn_tree_cursor_read(struct pscan *cur, struct kvs_cursor_element *elem, bool *eof)
 {
     struct cn_kv_item   item, *popme;
     u64                 seq;
     bool                end;
     bool                is_tomb;
     const void *        vdata;
-    void               *keycopy;
     uint                vlen;
     uint                complen;
-    uint                klen;
     int                 rc;
     struct kv_iterator *kv_iter = 0;
     struct key_obj      filter_ko = { 0 };
+    uint                nkeys_before_pfx_dbg HSE_MAYBE_UNUSED;
 
     if (ev(cur->merr))
         return cur->merr;
@@ -2515,6 +2515,8 @@ cn_tree_cursor_read(struct pscan *cur, struct kvs_kvtuple *kvt, bool *eof)
 
     if (HSE_UNLIKELY(cur->filter))
         key2kobj(&filter_ko, cur->filter->kcf_maxkey, cur->filter->kcf_maxklen);
+
+    nkeys_before_pfx_dbg = 0;
 
     do {
 
@@ -2531,8 +2533,12 @@ cn_tree_cursor_read(struct pscan *cur, struct kvs_kvtuple *kvt, bool *eof)
 
         bin_heap2_pop(cur->bh, (void **)&popme);
 
-        rc = cur_item_cmp(cur, &item);
+        rc = cur_item_pfx_cmp(cur, &item);
         if (rc > 0) {
+            /* [HSE_REVISIT] cursor seek should seek to max(cursor_pfx, seek_key) to avoid
+             * this code path.
+             */
+            ++nkeys_before_pfx_dbg;
             end = true;
             continue;
         } else if (rc < 0) {
@@ -2610,32 +2616,14 @@ cn_tree_cursor_read(struct pscan *cur, struct kvs_kvtuple *kvt, bool *eof)
 
     assert(!HSE_CORE_IS_TOMB(vdata));
 
-    /* copyout before drop dups! */
-    keycopy = key_obj_copy(cur->buf, cur->bufsz, &klen, &item.kobj);
-    kvs_ktuple_init_nohash(&kvt->kvt_key, keycopy, klen);
-
-    kvs_vtuple_init(&kvt->kvt_value, cur->buf + kvt->kvt_key.kt_len, vlen);
-
-    if (complen) {
-        extern struct compress_ops compress_lz4_ops;
-        uint len_check;
-
-        cur->merr = compress_lz4_ops.cop_decompress(vdata, complen,
-            kvt->kvt_value.vt_data, vlen, &len_check);
-        if (ev(cur->merr))
-            return cur->merr;
-        if (ev(len_check != vlen)) {
-            assert(0);
-            cur->merr = merr(EBUG);
-            return cur->merr;
-        }
-
-    } else if (vlen > 0) {
-        memcpy(kvt->kvt_value.vt_data, vdata, vlen);
-    }
+    /* set output */
+    elem->kce_kobj = item.kobj;
+    kvs_vtuple_init(&elem->kce_vt, (void *)vdata, vlen);
+    elem->kce_complen = complen;
+    elem->kce_is_ptomb = false;
 
     cur->stats.ms_keys_out++;
-    cur->stats.ms_key_bytes_out += kvt->kvt_key.kt_len;
+    cur->stats.ms_key_bytes_out += key_obj_len(&item.kobj);
     cur->stats.ms_val_bytes_out += vlen;
 
     drop_dups(cur, &item);
@@ -2654,8 +2642,7 @@ cn_tree_cursor_seek(
     struct pscan *     cur,
     const void *       key,
     u32                len,
-    struct kc_filter * filter,
-    struct kvs_ktuple *kt)
+    struct kc_filter * filter)
 {
     struct perfc_set *pc;
     int first, i;
@@ -2669,8 +2656,6 @@ cn_tree_cursor_seek(
     /* No place to seek to on an empty list */
     if (cur->iterc == 0) {
         cur->eof = 1;
-        if (kt)
-            kt->kt_len = 0;
         return 0;
     }
 
@@ -2728,26 +2713,6 @@ cn_tree_cursor_seek(
         }
 
         perfc_set(pc, PERFC_BA_CNCAPPED_ACTIVE, (10000 * bin_heap2_width(cur->bh)) / cur->iterc);
-    }
-
-    /*
-     * If asked for what we found, return the key here.
-     * NOTE: is not necessarily the next key to be returned
-     * via cursor read because this code does not filter
-     * tombstones, but cursor read does.
-     */
-    if (kt) {
-        struct cn_kv_item  item = {};
-        struct cn_kv_item *i = &item;
-
-        kt->kt_len = 0;
-        if (bin_heap2_peek(cur->bh, (void **)&i)) {
-            void *keycopy;
-            uint len;
-
-            keycopy = key_obj_copy(cur->buf, cur->bufsz, &len, &i->kobj);
-            kvs_ktuple_init_nohash(kt, keycopy, len);
-        }
     }
 
     return 0;

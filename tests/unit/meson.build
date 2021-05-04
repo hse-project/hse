@@ -131,6 +131,7 @@ components = {
     'kvs': {
         'kvs_cparams_test': {},
         'kvs_rparams_test': {},
+        'kvs_cursor_test': {},
     },
     'util': {
         'allocation_test': {},

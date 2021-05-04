@@ -88,10 +88,8 @@ try:
 
             txn1.begin()
             kvs.put(b"e", b"5", txn=txn1)
-            print('hello')
             cursor.update(txn=txn1, bind_txn=True)
             kv = cursor.read()
-            print(kv)
             assert kv == (b"e", b"5")
 
             cursor.seek(b"d")
