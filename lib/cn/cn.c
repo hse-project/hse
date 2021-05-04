@@ -1505,7 +1505,7 @@ cn_cursor_create(
     const void *           prefix,
     u32                    pfx_len,
     struct cursor_summary *summary,
-    void **                cursorp)
+    struct cn_cursor **    cursorp)
 {
     int           ct_pfx_len = cn->cp->cp_pfx_len;
     int           attempts = 5;

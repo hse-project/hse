@@ -10,6 +10,7 @@
 
 #include <hse_ikvdb/limits.h>
 #include <hse_ikvdb/c0.h>
+#include <hse_ikvdb/lc.h>
 #include <hse_ikvdb/c0sk.h>
 #include <hse_ikvdb/c0_kvmultiset.h>
 #include <hse_ikvdb/c0snr_set.h>
@@ -128,10 +129,39 @@ test_collection_teardown(struct mtf_test_info *info)
     return 0;
 }
 
+static void
+_lc_ingest_window_get(struct lc *handle, atomic64_t *seqno_addr, u64 *view, u64 *horizon)
+{
+    /* Everything is in the cn ingest's view */
+    *view = UINT64_MAX;
+    *horizon = 0;
+}
+
+static void
+_lc_ingest_iterv_init(
+    struct lc *             handle,
+    struct lc_ingest_iter * iterv,
+    struct element_source **srcv,
+    u64                     view_seq,
+    u64                     horizon_seq,
+    uint *                  iter_cnt)
+{
+    *iter_cnt = 0; /* Zero LC iterators */
+}
+
 int
 no_fail_pre(struct mtf_test_info *info)
 {
     mocks_set(info);
+
+    mapi_inject(mapi_idx_lc_ingest_seqno_set, 0);
+    mapi_inject(mapi_idx_lc_builder_create, 0);
+    mapi_inject(mapi_idx_lc_builder_destroy, 0);
+    mapi_inject(mapi_idx_lc_builder_add, 0);
+    mapi_inject(mapi_idx_lc_builder_finish, 0);
+
+    MOCK_SET(lc, _lc_ingest_window_get);
+    MOCK_SET(lc, _lc_ingest_iterv_init);
 
     kvdb_health_clear(&mock_health, KVDB_HEALTH_FLAG_NOMEM);
 

@@ -141,7 +141,7 @@ static u8 kbuf[HSE_KVS_KLEN_MAX];
 
 static void
 cn_cursor_read_internal(struct mtf_test_info *lcl_ti,
-                        void *cur,
+                        struct cn_cursor * cur,
                         struct kvs_kvtuple *kvt,
                         bool *eof)
 {
@@ -161,7 +161,7 @@ cn_cursor_read_internal(struct mtf_test_info *lcl_ti,
 }
 
 static void
-verify(struct mtf_test_info *lcl_ti, void *cur, struct nkv_tab *vtab, int vc, int keep)
+verify(struct mtf_test_info *lcl_ti, struct cn_cursor *cur, struct nkv_tab *vtab, int vc, int keep)
 {
     bool   eof;
     int    vi, nk;
@@ -215,7 +215,7 @@ verify_cursor(
     int                   vc)
 {
     struct cursor_summary sum;
-    void *                cur;
+    struct cn_cursor *    cur;
     merr_t                err;
 
     /* make seqno so large there is never any filtering */
@@ -238,7 +238,7 @@ verify_seek(
     int                   vc)
 {
     struct cursor_summary sum;
-    void *                cur;
+    struct cn_cursor *    cur;
     merr_t                err;
 
     err = cn_cursor_create(cn, seqno, false, pfx, pfx_len, &sum, &cur);
@@ -264,7 +264,7 @@ verify_seek_eof(
     int                   vc)
 {
     struct cursor_summary sum;
-    void *cur;
+    struct cn_cursor *    cur;
     merr_t err;
 
     err = cn_cursor_create(cn, seqno, false, pfx, pfx_len, &sum, &cur);
@@ -370,7 +370,7 @@ MTF_DEFINE_UTEST_PREPOST(cn_cursor, repeat_update, pre, post)
     struct mock_kvset * mk;
     struct mpool *      ds = (void *)-1;
     struct kv_iterator *itv[1];
-    void                 *cur;
+    struct cn_cursor     *cur;
     merr_t         err;
     struct cndb    cndb;
     struct cndb_cn cndbcn = cndb_cn_initializer(3, 0, 0);
@@ -967,7 +967,7 @@ MTF_DEFINE_UTEST_PREPOST(cn_cursor, capped_update, pre, post)
     struct mock_kvset *   mk;
     struct mpool *        ds = (void *)-1;
     struct kv_iterator *  itv[5];
-    void *                cur;
+    struct cn_cursor *    cur;
     merr_t                err;
     struct cndb           cndb;
     struct cndb_cn        cndbcn = cndb_cn_initializer(3, 0, 0);
@@ -1117,7 +1117,7 @@ MTF_DEFINE_UTEST_PREPOST(cn_cursor, capped_update_errors, pre, post)
     struct mock_kvset *   mk;
     struct mpool *        ds = (void *)-1;
     struct kv_iterator *  itv[5];
-    void *                cur;
+    struct cn_cursor *    cur;
     merr_t                err;
     struct cndb           cndb;
     struct cndb_cn        cndbcn = cndb_cn_initializer(3, 0, 0);

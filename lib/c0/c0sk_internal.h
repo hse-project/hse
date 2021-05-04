@@ -10,6 +10,7 @@
 
 #include <hse_util/arch.h>
 #include <hse_util/mtx_pool.h>
+#include <hse_util/perfc.h>
 
 #include <mpool/mpool.h>
 
@@ -72,6 +73,7 @@ struct c0sk_impl {
     struct kvdb_health *     c0sk_kvdb_health;
     struct csched *          c0sk_csched;
     struct throttle_sensor * c0sk_sensor;
+    struct lc *              c0sk_lc;
     struct cn *              c0sk_cnv[HSE_KVS_COUNT_MAX];
 
     HSE_ALIGNED(SMP_CACHE_BYTES) struct mutex c0sk_kvms_mutex;

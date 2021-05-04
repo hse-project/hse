@@ -495,7 +495,7 @@ _cn_cursor_create(
     const void *           prefix,
     u32                    pfx_len,
     struct cursor_summary *summary,
-    void **                cursorp)
+    struct cn_cursor **    cursorp)
 {
     struct mock_cn *  mn = (void *)cn;
     struct mock_cn_cursor *cur;
@@ -532,7 +532,7 @@ _cn_cursor_create(
     else
         cur->i = KEY_CNT;
 
-    *cursorp = cur;
+    *cursorp = (void *)cur;
 
     return 0;
 }

@@ -8,6 +8,7 @@ recmax=$((4 * threads))
 kvs1=$(new_kvs $mp) || err
 kvs2=$(new_kvs $mp) || err
 kvs3=$(new_kvs $mp) || err
+kvs4=$(new_kvs $mp) || err
 
 cmd kmt -i $recmax -t10 -c -j$threads -w50 $mp/$kvs1
 cmd kmt -t10 -cD -j$threads -w50 $mp/$kvs1 kvs.cn_verify=1
@@ -17,3 +18,6 @@ cmd kmt -i4m -t15 -cD -bl0 -j$threads -w50 $mp/$kvs2 kvs.c0_debug=1 kvs.cn_verif
 
 # hammer on c0 update
 cmd kmt -i448 -t15 -cD -j$threads -w50 -b $mp/$kvs3 kvs.c0_debug=1
+
+# test LC by sync-ing every 100ms and using txns
+cmd kmt -i $recmax -s1 -T15 -c -j$threads -w50 -y100 $mp/$kvs4

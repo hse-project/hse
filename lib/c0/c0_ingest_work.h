@@ -16,6 +16,7 @@
 #include <hse_ikvdb/c0_kvmultiset.h>
 #include <hse_ikvdb/c0_kvset_iterator.h>
 #include <hse_ikvdb/sched_sts.h>
+#include <hse_ikvdb/lc.h>
 
 /**
  * struct c0_ingest_work - description of ingest work to be performed
@@ -37,16 +38,17 @@
  * [HSE_REVISIT]
  */
 struct c0_ingest_work {
-    struct work_struct          c0iw_work;
-    struct c0sk_impl           *c0iw_c0sk;
-    struct bin_heap2           *c0iw_minheap;
-    struct element_source      *c0iw_sourcev[HSE_C0_KVSET_ITER_MAX];
-    struct c0_kvset_iterator    c0iw_iterv[HSE_C0_KVSET_ITER_MAX];
-    struct kvset_builder       *c0iw_bldrs[HSE_KVS_COUNT_MAX];
-    struct kvset_mblocks        c0iw_mblocks[HSE_KVS_COUNT_MAX];
-    struct c0_kvmultiset       *c0iw_c0kvms;
-    u32                         c0iw_iterc;
-    struct kvset_mblocks       *c0iw_mbv[HSE_KVS_COUNT_MAX];
+    struct work_struct       c0iw_work;
+    struct c0sk_impl *       c0iw_c0sk;
+    struct bin_heap2 *       c0iw_minheap;
+    struct element_source *  c0iw_sourcev[HSE_C0_KVSET_ITER_MAX];
+    struct c0_kvset_iterator c0iw_iterv[HSE_C0_KVSET_ITER_MAX];
+    struct lc_ingest_iter    c0iw_lc_iterv[LC_SOURCE_CNT_MAX];
+    struct kvset_builder *   c0iw_bldrs[HSE_KVS_COUNT_MAX];
+    struct kvset_mblocks     c0iw_mblocks[HSE_KVS_COUNT_MAX];
+    struct c0_kvmultiset *   c0iw_c0kvms;
+    u32                      c0iw_iterc;
+    struct kvset_mblocks *   c0iw_mbv[HSE_KVS_COUNT_MAX];
 
     struct c0_usage c0iw_usage;
     u64             c0iw_tenqueued;
@@ -56,6 +58,10 @@ struct c0_ingest_work {
      */
     u64 t0, t3, t4, t5, t6, t7, t8, t9;
     u64 gencur, gen;
+
+    /* Establishing view for ingest */
+    u64 c0iw_ingest_view_seqno;
+    u64 c0iw_ingest_horizon_seqno;
 
     /* c0iw_magic is last field to verify it didn't get clobbered
      * by c0kvs_reset().
@@ -68,8 +74,5 @@ c0_ingest_work_init(struct c0_ingest_work *c0iw);
 
 void
 c0_ingest_work_fini(struct c0_ingest_work *c0iw);
-
-void
-c0_ingest_work_reset(struct c0_ingest_work *c0iw);
 
 #endif

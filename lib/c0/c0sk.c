@@ -627,6 +627,28 @@ c0sk_close(struct c0sk *handle)
 }
 
 void
+c0sk_lc_set(struct c0sk *handle, struct lc *lc)
+{
+    if (handle)
+        c0sk_h2r(handle)->c0sk_lc = lc;
+}
+
+struct lc *
+c0sk_lc_get(struct c0sk *handle)
+{
+    if (handle)
+        return c0sk_h2r(handle)->c0sk_lc;
+
+    return NULL;
+}
+
+atomic64_t *
+c0sk_seqno_addr_get(struct c0sk *handle)
+{
+    return handle ? c0sk_h2r(handle)->c0sk_kvdb_seq : 0;
+}
+
+void
 c0sk_throttle_sensor(struct c0sk *handle, struct throttle_sensor *sensor)
 {
     if (handle)

@@ -214,10 +214,8 @@ struct bonsai_kv {
     struct bonsai_kv *      bkv_prev;
     struct bonsai_kv *      bkv_next;
     struct bonsai_val      *bkv_freevals;
-    union {
-        struct element_source *bkv_es;
-        struct bonsai_kv      *bkv_free;
-    };
+    struct element_source  *bkv_es;
+    struct bonsai_kv       *bkv_free;
     char                    bkv_keybuf[];
 };
 
@@ -515,6 +513,9 @@ bn_skiptombs_GE(struct bonsai_root *tree, const struct bonsai_skey *skey, struct
 
 bool
 bn_find_pfx_GT(struct bonsai_root *tree, const struct bonsai_skey *skey, struct bonsai_kv **kv);
+
+bool
+bn_find_pfx_LT(struct bonsai_root *tree, const struct bonsai_skey *skey, struct bonsai_kv **kv);
 
 /**
  * bn_findLE() - Searches for a given key in the node

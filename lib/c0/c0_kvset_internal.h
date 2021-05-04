@@ -61,4 +61,18 @@ struct c0_kvset_impl {
     u32 c0s_keyvals;
 };
 
+merr_t
+c0kvs_pfx_probe_cmn(
+    struct bonsai_root      *root,
+    u16                      skidx,
+    const struct kvs_ktuple *key,
+    u32                      sfx_len,
+    u64                      view_seqno,
+    uintptr_t                seqnoref,
+    enum key_lookup_res *    res,
+    struct query_ctx *       qctx,
+    struct kvs_buf *         kbuf,
+    struct kvs_buf *         vbuf,
+    u64                      pt_seq);
+
 #endif

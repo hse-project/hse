@@ -1,6 +1,8 @@
 tests = [
     'abort-destroy',
     'basic',
+    'basic_lc',
+    'basic_lc_cursors',
     'bind',
     'bind_commited',
     'bug.c0cn_dup_keys',

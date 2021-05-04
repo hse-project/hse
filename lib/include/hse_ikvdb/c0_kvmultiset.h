@@ -66,13 +66,6 @@ void
 c0kvms_seqno_set(struct c0_kvmultiset *handle, uint64_t kvdb_seq);
 
 /**
- * c0kvms_reset() - reset the struct c0_kvmultiset to its original state
- * @mset: struct c0_kvset to reset
- */
-void
-c0kvms_reset(struct c0_kvmultiset *handle);
-
-/**
  * c0kvms_getref() - obtain a ref against a struct c0_kvmultiset
  * @mset: struct c0_kvset to obtain a ref against
  */
@@ -264,9 +257,6 @@ c0kvms_avail(struct c0_kvmultiset *mset);
 
 bool
 c0kvms_should_ingest(struct c0_kvmultiset *handle);
-
-void
-c0kvms_abort_active(struct c0_kvmultiset *handle);
 
 /**
  * c0kvms_width() - obtain the number of contained struct c0_kvset's

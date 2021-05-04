@@ -814,6 +814,7 @@ kvdb_ctxn_cursor_bind(struct kvdb_ctxn *handle)
     if (!bind) {
         struct kvdb_ctxn_bind *old = 0;
 
+        /* HSE_REVISIT Consider using a cache for this */
         bind = calloc(1, sizeof(*bind));
         if (!bind)
             return 0;

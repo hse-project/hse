@@ -260,7 +260,7 @@ MTF_DEFINE_UTEST_PREPOST(c0_kvmultiset_test, ingest_sk, no_fail_pre, no_fail_pos
     bin_heap2_prepare(
         bh,
         c0skwork->c0iw_iterc,
-        c0skwork->c0iw_sourcev + HSE_C0_KVSET_ITER_MAX - c0skwork->c0iw_iterc);
+        c0skwork->c0iw_sourcev);
 
     while (bin_heap2_pop(bh, (void *)&bkv)) {
         struct kvs_ktuple  kt;

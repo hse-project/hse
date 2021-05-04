@@ -28,6 +28,7 @@
 #include <hse_ikvdb/c0.h>
 #include <hse_ikvdb/c0sk.h>
 #include <hse_ikvdb/c0sk_perfc.h>
+#include <hse_ikvdb/lc.h>
 #include <hse_ikvdb/cn.h>
 #include <hse_ikvdb/cn_kvdb.h>
 #include <hse_ikvdb/cn_perfc.h>
@@ -68,7 +69,7 @@
  * by ikvdb_kvs_put() and for small direct reads by kvset_lookup_val().
  */
 thread_local char tls_vbuf[32 * 1024] HSE_ALIGNED(PAGE_SIZE);
-const size_t  tls_vbufsz = sizeof(tls_vbuf);
+const size_t      tls_vbufsz = sizeof(tls_vbuf);
 
 struct perfc_set kvdb_pkvdbl_pc HSE_READ_MOSTLY;
 struct perfc_set kvdb_pc        HSE_READ_MOSTLY;
@@ -92,9 +93,9 @@ struct ikvdb {
 /* Simple fixed-size stack for caching ctxn objects.
  */
 struct kvdb_ctxn_bkt {
-    spinlock_t        kcb_lock HSE_ALIGNED(SMP_CACHE_BYTES * 2);
-    uint              kcb_ctxnc;
-    struct kvdb_ctxn *kcb_ctxnv[15];
+    spinlock_t kcb_lock HSE_ALIGNED(SMP_CACHE_BYTES * 2);
+    uint                kcb_ctxnc;
+    struct kvdb_ctxn *  kcb_ctxnv[15];
 };
 
 /**
@@ -142,10 +143,11 @@ struct ikvdb_impl {
     bool                  ikdb_rdonly;
     bool                  ikdb_work_stop;
     struct kvdb_ctxn_set *ikdb_ctxn_set;
-    struct c0snr_set     *ikdb_c0snr_set;
+    struct c0snr_set *    ikdb_c0snr_set;
     struct perfc_set      ikdb_ctxn_op;
     struct kvdb_keylock * ikdb_keylock;
     struct c0sk *         ikdb_c0sk;
+    struct lc *           ikdb_lc;
     struct kvdb_health    ikdb_health;
 
     struct throttle ikdb_throttle;
@@ -156,26 +158,26 @@ struct ikvdb_impl {
     struct kvdb_log *        ikdb_log;
     struct cndb *            ikdb_cndb;
     struct workqueue_struct *ikdb_workqueue;
-    struct viewset          *ikdb_txn_viewset;
-    struct viewset          *ikdb_cur_viewset;
+    struct viewset *         ikdb_txn_viewset;
+    struct viewset *         ikdb_cur_viewset;
 
     struct tbkt ikdb_tb HSE_ALIGNED(SMP_CACHE_BYTES * 2);
 
     u64 ikdb_tb_burst;
     u64 ikdb_tb_rate;
 
-    u64          ikdb_tb_dbg;
-    u64          ikdb_tb_dbg_next;
-    atomic64_t   ikdb_tb_dbg_ops;
-    atomic64_t   ikdb_tb_dbg_bytes;
-    atomic64_t   ikdb_tb_dbg_sleep_ns;
+    u64        ikdb_tb_dbg;
+    u64        ikdb_tb_dbg_next;
+    atomic64_t ikdb_tb_dbg_ops;
+    atomic64_t ikdb_tb_dbg_bytes;
+    atomic64_t ikdb_tb_dbg_sleep_ns;
 
     atomic_t ikdb_curcnt HSE_ALIGNED(SMP_CACHE_BYTES * 2);
-    u32      ikdb_curcnt_max;
+    u32                  ikdb_curcnt_max;
 
-    atomic64_t           ikdb_seqno HSE_ALIGNED(SMP_CACHE_BYTES * 2);
-    struct kvdb_rparams  ikdb_rp HSE_ALIGNED(SMP_CACHE_BYTES * 2);
-    struct kvdb_ctxn_bkt ikdb_ctxn_cache[KVDB_CTXN_BKT_MAX];
+    atomic64_t ikdb_seqno       HSE_ALIGNED(SMP_CACHE_BYTES * 2);
+    struct kvdb_rparams ikdb_rp HSE_ALIGNED(SMP_CACHE_BYTES * 2);
+    struct kvdb_ctxn_bkt        ikdb_ctxn_cache[KVDB_CTXN_BKT_MAX];
 
     /* Put the mostly cold data at end of the structure to improve
      * the density of the hotter data.
@@ -304,13 +306,8 @@ out:
     return err;
 }
 
-static inline
-void
-ikvdb_tb_configure(
-    struct ikvdb_impl  *self,
-    u64                 burst,
-    u64                 rate,
-    bool                initialize)
+static inline void
+ikvdb_tb_configure(struct ikvdb_impl *self, u64 burst, u64 rate, bool initialize)
 {
     if (initialize)
         tbkt_init(&self->ikdb_tb, burst, rate);
@@ -318,8 +315,7 @@ ikvdb_tb_configure(
         tbkt_adjust(&self->ikdb_tb, burst, rate);
 }
 
-static
-void
+static void
 ikvdb_rate_limit_set(struct ikvdb_impl *self, u64 rate)
 {
     u64 burst = rate / 2;
@@ -330,7 +326,7 @@ ikvdb_rate_limit_set(struct ikvdb_impl *self, u64 rate)
     /* debug: manual control: get burst and rate from rparams  */
     if (HSE_UNLIKELY(self->ikdb_tb_dbg & THROTTLE_DEBUG_TB_MANUAL)) {
         burst = self->ikdb_rp.throttle_burst;
-        rate  = self->ikdb_rp.throttle_rate;
+        rate = self->ikdb_rp.throttle_rate;
     }
 
     if (burst != self->ikdb_tb_burst || rate != self->ikdb_tb_rate) {
@@ -346,17 +342,18 @@ ikvdb_rate_limit_set(struct ikvdb_impl *self, u64 rate)
         if (now > self->ikdb_tb_dbg_next) {
 
             /* periodic debug output */
-            long dbg_ops      = atomic64_read(&self->ikdb_tb_dbg_ops);
-            long dbg_bytes    = atomic64_read(&self->ikdb_tb_dbg_bytes);
+            long dbg_ops = atomic64_read(&self->ikdb_tb_dbg_ops);
+            long dbg_bytes = atomic64_read(&self->ikdb_tb_dbg_bytes);
             long dbg_sleep_ns = atomic64_read(&self->ikdb_tb_dbg_sleep_ns);
 
             hse_log(
-                HSE_NOTICE
-                " tbkt_debug: manual %d shunt %d ops %8ld  bytes %10ld"
-                " sleep_ns %12ld burst %10lu rate %10lu raw %10lu",
+                HSE_NOTICE " tbkt_debug: manual %d shunt %d ops %8ld  bytes %10ld"
+                           " sleep_ns %12ld burst %10lu rate %10lu raw %10lu",
                 (bool)(self->ikdb_tb_dbg & THROTTLE_DEBUG_TB_MANUAL),
                 (bool)(self->ikdb_tb_dbg & THROTTLE_DEBUG_TB_SHUNT),
-                dbg_ops, dbg_bytes, dbg_sleep_ns,
+                dbg_ops,
+                dbg_bytes,
+                dbg_sleep_ns,
                 self->ikdb_tb_burst,
                 self->ikdb_tb_rate,
                 throttle_delay(&self->ikdb_throttle));
@@ -384,7 +381,7 @@ ikvdb_throttle_task(struct work_struct *work)
 
         if (tstart > throttle_update_prev + self->ikdb_rp.throttle_update_ns) {
 
-            uint raw  = throttle_update(&self->ikdb_throttle);
+            uint raw = throttle_update(&self->ikdb_throttle);
             u64  rate = throttle_raw_to_rate(raw);
 
             ikvdb_rate_limit_set(self, rate);
@@ -405,8 +402,8 @@ static void
 ikvdb_maint_task(struct work_struct *work)
 {
     struct ikvdb_impl *self;
-    u64 curcnt_warn = 0;
-    u64 maxdelay;
+    u64                curcnt_warn = 0;
+    u64                maxdelay;
 
     self = container_of(work, struct ikvdb_impl, ikdb_maint_work);
 
@@ -414,8 +411,8 @@ ikvdb_maint_task(struct work_struct *work)
 
     while (!self->ikdb_work_stop) {
         uint64_t vadd = 0, vsub = 0, curcnt;
-        u64 tstart = get_time_ns();
-        uint i;
+        u64      tstart = get_time_ns();
+        uint     i;
 
         /* Lazily sample the active cursor count and update ikdb_curcnt if necessary.
          * ikvdb_kvs_cursor_create() checks ikdb_curcnt to prevent the creation
@@ -429,8 +426,11 @@ ikvdb_maint_task(struct work_struct *work)
             atomic_set(&self->ikdb_curcnt, curcnt);
 
             if (ev(curcnt > self->ikdb_curcnt_max && tstart > curcnt_warn)) {
-                hse_log(HSE_WARNING "%s: active cursors (%lu) > max allowed (%u)",
-                        __func__, curcnt, self->ikdb_curcnt_max);
+                hse_log(
+                    HSE_WARNING "%s: active cursors (%lu) > max allowed (%u)",
+                    __func__,
+                    curcnt,
+                    self->ikdb_curcnt_max);
 
                 curcnt_warn = tstart + NSEC_PER_SEC * 15;
             }
@@ -607,10 +607,7 @@ ikvdb_diag_open(
     if (ev(err))
         goto err_exit2;
 
-    err = kvdb_log_replay(
-        self->ikdb_log,
-        &self->ikdb_cndb_oid1,
-        &self->ikdb_cndb_oid2);
+    err = kvdb_log_replay(self->ikdb_log, &self->ikdb_cndb_oid1, &self->ikdb_cndb_oid2);
     if (ev(err))
         goto err_exit3;
 
@@ -939,7 +936,7 @@ ikvdb_open(
     throttle_init_params(&self->ikdb_throttle, &self->ikdb_rp);
 
     self->ikdb_tb_burst = self->ikdb_rp.throttle_burst;
-    self->ikdb_tb_rate  = self->ikdb_rp.throttle_rate;
+    self->ikdb_tb_rate = self->ikdb_rp.throttle_rate;
 
     ikvdb_tb_configure(self, self->ikdb_tb_burst, self->ikdb_tb_rate, true);
 
@@ -990,10 +987,7 @@ ikvdb_open(
         goto err1;
     }
 
-    err = kvdb_log_replay(
-        self->ikdb_log,
-        &self->ikdb_cndb_oid1,
-        &self->ikdb_cndb_oid2);
+    err = kvdb_log_replay(self->ikdb_log, &self->ikdb_cndb_oid1, &self->ikdb_cndb_oid2);
     if (err) {
         hse_elog(HSE_ERR "cannot open %s: @@e", err, mp_name);
         goto err1;
@@ -1026,6 +1020,14 @@ ikvdb_open(
         goto err1;
     }
 
+    err = lc_create(&self->ikdb_lc, self->ikdb_ctxn_set);
+    if (ev(err)) {
+        hse_elog(HSE_ERR "failed to create lc: @@e", err);
+        goto err1;
+    }
+
+    lc_ingest_seqno_set(self->ikdb_lc, atomic64_read(&self->ikdb_seqno)); 
+
     err = c0sk_open(
         &self->ikdb_rp,
         ds,
@@ -1038,6 +1040,8 @@ ikvdb_open(
         hse_elog(HSE_ERR "cannot open %s: @@e", err, mp_name);
         goto err1;
     }
+
+    c0sk_lc_set(self->ikdb_c0sk, self->ikdb_lc);
 
     *handle = &self->ikdb_handle;
 
@@ -1064,6 +1068,7 @@ ikvdb_open(
 
 err1:
     c0sk_close(self->ikdb_c0sk);
+    lc_destroy(self->ikdb_lc);
     self->ikdb_work_stop = true;
     destroy_workqueue(self->ikdb_workqueue);
     cn_kvdb_destroy(self->ikdb_cn_kvdb);
@@ -1469,6 +1474,7 @@ ikvdb_kvs_open(
         self->ikdb_mpname,
         self->ikdb_ds,
         self->ikdb_cndb,
+        self->ikdb_lc,
         &rp,
         &self->ikdb_health,
         self->ikdb_cn_kvdb,
@@ -1591,6 +1597,12 @@ ikvdb_close(struct ikvdb *handle)
             ret = ret ?: err;
     }
 
+    /* Destroy LC only after c0sk has been destroyed. This ensures that the Garbage collector is
+     * not running.
+     */
+    lc_destroy(self->ikdb_lc);
+    self->ikdb_lc = NULL;
+
     cn_kvdb_destroy(self->ikdb_cn_kvdb);
 
     err = kvdb_rparams_remove_from_dt(self->ikdb_mpname);
@@ -1638,8 +1650,7 @@ ikvdb_close(struct ikvdb *handle)
     return ret;
 }
 
-static
-void
+static void
 ikvdb_throttle(struct ikvdb_impl *self, u64 bytes)
 {
     u64 sleep_ns;
@@ -1655,20 +1666,16 @@ ikvdb_throttle(struct ikvdb_impl *self, u64 bytes)
 }
 
 static inline bool
-is_write_allowed(
-    struct ikvs *           kvs,
-    struct hse_kvdb_opspec *os)
+is_write_allowed(struct ikvs *kvs, struct hse_kvdb_opspec *os)
 {
     bool kvs_is_txn = kvs_txn_is_enabled(kvs);
-    bool op_is_txn  = os && os->kop_txn;
+    bool op_is_txn = os && os->kop_txn;
 
     return kvs_is_txn ^ op_is_txn ? false : true;
 }
 
 static inline bool
-is_read_allowed(
-    struct ikvs *           kvs,
-    struct hse_kvdb_opspec *os)
+is_read_allowed(struct ikvs *kvs, struct hse_kvdb_opspec *os)
 {
     return os && os->kop_txn && !kvs_txn_is_enabled(kvs) ? false : true;
 }
@@ -1820,10 +1827,7 @@ ikvdb_kvs_get(
 }
 
 merr_t
-ikvdb_kvs_del(
-    struct hse_kvs*         handle,
-    struct hse_kvdb_opspec *os,
-    struct kvs_ktuple *     kt)
+ikvdb_kvs_del(struct hse_kvs *handle, struct hse_kvdb_opspec *os, struct kvs_ktuple *kt)
 {
     struct kvdb_kvs *  kk = (struct kvdb_kvs *)handle;
     struct ikvdb_impl *parent;
@@ -1971,36 +1975,11 @@ cursor_view_acquire(struct hse_kvs_cursor *cursor)
     if (cursor->kc_seq != HSE_SQNREF_UNDEFINED)
         return 0;
 
-    err = viewset_insert(cursor->kc_kvs->kk_viewset, &cursor->kc_seq,
-                         &cursor->kc_viewcookie);
+    err = viewset_insert(cursor->kc_kvs->kk_viewset, &cursor->kc_seq, &cursor->kc_viewcookie);
     if (!err)
         cursor->kc_on_list = true;
 
     return err;
-}
-
-static merr_t
-cursor_bind_txn(struct hse_kvs_cursor *cursor, struct kvdb_ctxn *ctxn)
-{
-    merr_t err;
-
-    if (ev(cursor->kc_err))
-        return merr(cursor->kc_err);
-
-    assert(!cursor->kc_bind);
-
-    cursor->kc_bind = kvdb_ctxn_cursor_bind(ctxn);
-    if (!cursor->kc_bind)
-        return merr(ev(ECANCELED));
-
-    err = kvs_cursor_bind_txn(cursor, ctxn);
-    if (ev(err)) {
-        kvdb_ctxn_cursor_unbind(cursor->kc_bind);
-        cursor->kc_bind = 0;
-        return err;
-    }
-
-    return 0;
 }
 
 static merr_t
@@ -2045,11 +2024,11 @@ ikvdb_kvs_cursor_create(
     struct kvdb_kvs *      kk = (struct kvdb_kvs *)handle;
     struct ikvdb_impl *    ikvdb = kk->kk_parent;
     struct kvdb_ctxn *     ctxn = 0;
-    struct kvdb_ctxn *     bind = 0;
+    bool                   bind = false;
     struct hse_kvs_cursor *cur = 0;
     int                    reverse;
     merr_t                 err;
-    u64                    vseq, tstart;
+    u64                    ts, vseq, tstart;
     struct perfc_set *     pkvsl_pc;
 
     *cursorp = NULL;
@@ -2079,15 +2058,13 @@ ikvdb_kvs_cursor_create(
      * These types are distinguished here.
      */
 
-    if (os) {
-        reverse = kvdb_kop_is_reverse(os);
-        if (os->kop_txn)
-            ctxn = kvdb_ctxn_h2h(os->kop_txn);
-        if (kvdb_kop_is_bind_txn(os)) {
-            bind = ctxn;
-            if (ev(!bind))
-                return merr(EINVAL);
-        }
+    reverse = kvdb_kop_is_reverse(os);
+    if (kvdb_kop_is_txn(os))
+        ctxn = kvdb_ctxn_h2h(os->kop_txn);
+    if (kvdb_kop_is_bind_txn(os)) {
+        bind = true;
+        if (ev(!ctxn))
+            return merr(EINVAL);
     }
 
     vseq = HSE_SQNREF_UNDEFINED;
@@ -2120,43 +2097,43 @@ ikvdb_kvs_cursor_create(
 
     cur->kc_kvs = kk;
     cur->kc_gen = 0;
-    cur->kc_bind = 0;
+    cur->kc_ctxn = ctxn;
+    cur->kc_bind = bind ? kvdb_ctxn_cursor_bind(ctxn) : NULL;
 
     /* Temporarily lock a view until this cursor gets refs on cn kvsets. */
     err = cursor_view_acquire(cur);
-    if (!err) {
-        u64 ts = perfc_lat_start(pkvsl_pc);
-        err = kvs_cursor_init(cur);
-        perfc_lat_record(pkvsl_pc, PERFC_LT_PKVSL_KVS_CURSOR_INIT, ts);
-        if (!err) {
-            if (bind) {
-                /*
-                 * No need to wait for ongoing commits. A transaction waited when its view was
-                 * being established i.e. at the time of transaction begin.
-                 */
-                err = cursor_bind_txn(cur, bind);
-            } else {
-                /* New cursor view is established. Now wait on ongoing commits. */
-                kvdb_ctxn_set_wait_commits(ikvdb->ikdb_ctxn_set);
-            }
+    if (ev(err))
+        goto out;
 
-            err = kvs_cursor_prepare(cur);
-        }
+    ts = perfc_lat_start(pkvsl_pc);
+    err = kvs_cursor_init(cur, ctxn);
+    perfc_lat_record(pkvsl_pc, PERFC_LT_PKVSL_KVS_CURSOR_INIT, ts);
+    if (ev(err))
+        goto out;
 
-        cursor_view_release(cur);
-    }
+    cursor_view_release(cur); /* release the view that was locked */
 
-    if (ev(err)) {
-        ikvdb_kvs_cursor_destroy(cur);
-        cur = 0;
-    } else {
-        perfc_inc(&kvdb_metrics_pc, PERFC_BA_KVDBMETRICS_CURCNT);
-        cur->kc_create_time = tstart;
-    }
+    /* If this is a bound cursor, the txn waited when its view was being established
+     * at txn begin. Need not wait for commits here. Wait for ongoing commits to finish
+     * only if this is not a bound cursor.
+     */
+    if (!bind)
+        kvdb_ctxn_set_wait_commits(ikvdb->ikdb_ctxn_set);
+
+    err = kvs_cursor_prepare(cur);
+    if (ev(err))
+        goto out;
+
+    perfc_inc(&kvdb_metrics_pc, PERFC_BA_KVDBMETRICS_CURCNT);
+    cur->kc_create_time = tstart;
 
     perfc_lat_record(pkvsl_pc, PERFC_LT_PKVSL_KVS_CURSOR_CREATE, tstart);
 
     *cursorp = cur;
+
+out:
+    if (err)
+        ikvdb_kvs_cursor_destroy(cur);
 
     return err;
 }
@@ -2166,7 +2143,7 @@ ikvdb_kvs_cursor_update(struct hse_kvs_cursor *cur, struct hse_kvdb_opspec *os)
 {
     struct kvdb_ctxn_bind *bound;
     struct kvdb_ctxn *     ctxn;
-    struct kvdb_ctxn *     bind = 0;
+    bool                   bind = false;
     u64                    seqno;
     merr_t                 err;
     u64                    tstart;
@@ -2231,42 +2208,42 @@ ikvdb_kvs_cursor_update(struct hse_kvs_cursor *cur, struct hse_kvdb_opspec *os)
                 seqno = cur->kc_seq;
                 cursor_unbind_txn(cur);
                 cur->kc_seq = seqno;
-                bind = ctxn;
+                bind = !!ctxn;
             }
         } else if (ctxn) {
             return ev(merr(EINVAL));
         }
-    } else if (ctxn) {
-        if (kvdb_kop_is_bind_txn(os))
-            bind = ctxn;
+    } else if (ctxn && kvdb_kop_is_bind_txn(os)) {
+        bind = true;
     }
 
     /* Temporarily reserve seqno until this cursor gets refs on
      * cn kvsets.
      */
+    cur->kc_ctxn = ctxn;
+    cur->kc_bind = bind ? kvdb_ctxn_cursor_bind(ctxn) : NULL;
     err = cursor_view_acquire(cur);
-    if (!err) {
-        cur->kc_err = kvs_cursor_update(cur, cur->kc_seq);
-        if (!ev(cur->kc_err)) {
-            if (bind) {
-                /*
-                 * No need to wait for ongoing commits. A transaction waited when its view was
-                 * being established i.e. at the time of transaction begin.
-                 */
-                cur->kc_err = cursor_bind_txn(cur, bind);
-            } else {
-                /* New cursor view is established. Now wait on ongoing commits. */
-                kvdb_ctxn_set_wait_commits(cur->kc_kvs->kk_parent->ikdb_ctxn_set);
-            }
-        }
+    if (ev(err))
+        return err;
 
-        cursor_view_release(cur);
-    }
+    cur->kc_err = kvs_cursor_update(cur, bind ? cur->kc_bind->b_ctxn : 0, cur->kc_seq);
+    if (ev(cur->kc_err))
+        goto out;
+
+    cursor_view_release(cur);
+
+    /* If this is a bound cursor, the txn waited when its view was being established
+     * at txn begin. Need not wait for commits here. Wait for ongoing commits to finish
+     * only if this is not a bound cursor.
+     */
+    if (!bind)
+        kvdb_ctxn_set_wait_commits(cur->kc_kvs->kk_parent->ikdb_ctxn_set);
 
     cur->kc_flags = os ? os->kop_flags : 0;
 
     perfc_lat_record(cur->kc_pkvsl_pc, PERFC_LT_PKVSL_KVS_CURSOR_UPDATE, tstart);
 
+out:
     /* Since the update code doesn't currently allow retrying, change the error code
      * if it's an EAGAIN. Wherever possible, the code retries the cursor update call
      * internally.
@@ -2297,7 +2274,7 @@ cursor_refresh(struct hse_kvs_cursor *cur)
     }
 
     if (up)
-        err = kvs_cursor_update(cur, cur->kc_seq);
+        err = kvs_cursor_update(cur, cur->kc_bind ? cur->kc_bind->b_ctxn : 0, cur->kc_seq);
 
     return ev(err);
 }
@@ -2320,11 +2297,14 @@ ikvdb_kvs_cursor_seek(
     if (ev(kvdb_kop_is_txn(os)))
         return merr(EINVAL);
 
+    if (ev(limit && (cur->kc_flags & HSE_KVDB_KOP_FLAG_REVERSE)))
+        return merr(EINVAL);
+
     if (ev(cur->kc_err)) {
         if (ev(merr_errno(cur->kc_err) != EAGAIN))
             return cur->kc_err;
 
-        cur->kc_err = kvs_cursor_update(cur, cur->kc_seq);
+        cur->kc_err = kvs_cursor_update(cur, cur->kc_bind ? cur->kc_bind->b_ctxn : 0, cur->kc_seq);
         if (ev(cur->kc_err))
             return cur->kc_err;
     }
@@ -2366,7 +2346,7 @@ ikvdb_kvs_cursor_read(
         if (ev(merr_errno(cur->kc_err) != EAGAIN))
             return cur->kc_err;
 
-        cur->kc_err = kvs_cursor_update(cur, cur->kc_seq);
+        cur->kc_err = kvs_cursor_update(cur, cur->kc_bind ? cur->kc_bind->b_ctxn : 0, cur->kc_seq);
         if (ev(cur->kc_err))
             return cur->kc_err;
     }
@@ -2479,7 +2459,7 @@ ikvdb_horizon(struct ikvdb *handle)
 
     horizon = min_t(u64, b, c);
 
-    if (HSE_UNLIKELY( perfc_ison(&kvdb_metrics_pc, PERFC_BA_KVDBMETRICS_SEQNO) )) {
+    if (HSE_UNLIKELY(perfc_ison(&kvdb_metrics_pc, PERFC_BA_KVDBMETRICS_SEQNO))) {
         u64 a;
 
         /* Must read a after b and c to test assertions. */
@@ -2737,8 +2717,15 @@ ikvdb_init(void)
     if (err)
         goto errout;
 
+    err = lc_init();
+    if (err) {
+        c0_fini();
+        goto errout;
+    }
+
     err = cn_init();
     if (err) {
+        lc_fini();
         c0_fini();
         goto errout;
     }
@@ -2758,6 +2745,7 @@ void
 ikvdb_fini(void)
 {
     cn_fini();
+    lc_fini();
     c0_fini();
     kvs_fini();
     kvdb_perfc_finish();
@@ -2873,7 +2861,7 @@ ikvdb_kvs_import(struct work_struct *work)
  * KVDB_DUMP_VER1
  * KVDB_DUMP_CUR_VER - dump version understood by this binary
  */
-#define KVDB_DUMP_VER1 1
+#define KVDB_DUMP_VER1    1
 #define KVDB_DUMP_CUR_VER KVDB_DUMP_VER1
 
 /**

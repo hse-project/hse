@@ -17,6 +17,8 @@ enum bonsai_match_type {
     B_MATCH_EQ = 0,
     B_MATCH_GE = 1,
     B_MATCH_LE = 2,
+    B_MATCH_GT = 3,
+    B_MATCH_LT = 4,
 };
 
 struct bonsai_slab *

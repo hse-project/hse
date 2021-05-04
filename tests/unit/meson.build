@@ -36,6 +36,9 @@ components = {
             ],
         },
     },
+    'lc': {
+        'lc_test': {},
+    },
     'cn': {
         'blk_list_test': {},
         'bloom_reader_test': {

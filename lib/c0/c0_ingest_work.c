@@ -30,17 +30,6 @@ c0_ingest_work_init(struct c0_ingest_work *c0iw)
 }
 
 void
-c0_ingest_work_reset(struct c0_ingest_work *c0iw)
-{
-    assert(c0iw->c0iw_magic == (uintptr_t)c0iw);
-
-    bin_heap2_reset(c0iw->c0iw_minheap);
-    c0iw->c0iw_iterc = 0;
-
-    memset(c0iw->c0iw_mbv, 0, sizeof(c0iw->c0iw_mbv));
-}
-
-void
 c0_ingest_work_fini(struct c0_ingest_work *w)
 {
     if (!w)

@@ -33,6 +33,7 @@ struct ikvdb_impl;
 struct mpool;
 struct kvs_cparams;
 struct kvs_rparams;
+struct lc;
 struct cn;
 struct cn_kvdb;
 
@@ -45,6 +46,7 @@ struct hse_kvs_cursor {
     struct perfc_set *     kc_pkvsl_pc;
     struct kvdb_kvs *      kc_kvs;
     struct kvdb_ctxn_bind *kc_bind;
+    struct kvdb_ctxn      *kc_ctxn;
     u64                    kc_gen;
     u64                    kc_seq;
     u64                    kc_create_time;
@@ -52,7 +54,7 @@ struct hse_kvs_cursor {
     unsigned int           kc_flags;
     merr_t                 kc_err;
     struct kc_filter       kc_filter;
-    void                  *kc_viewcookie;
+    void *                 kc_viewcookie;
 };
 
 struct ikvs {
@@ -62,6 +64,7 @@ struct ikvs {
     uint             ikv_pfx_len;
     struct c0 *      ikv_c0;
     struct cn *      ikv_cn;
+    struct lc *      ikv_lc;
     struct perfc_set ikv_pkvsl_pc; /* Public kvs interfaces Lat. */
     struct perfc_set ikv_cc_pc;
     struct perfc_set ikv_cd_pc;
@@ -81,6 +84,7 @@ kvs_open(
     const char *        mp_name,
     struct mpool *      ds,
     struct cndb *       cndb,
+    struct lc *         lc,
     struct kvs_rparams *rp,
     struct kvdb_health *health,
     struct cn_kvdb *    cn_kvdb,
@@ -98,12 +102,15 @@ kvs_cnid(const struct ikvs *ikvs);
 bool
 kvs_txn_is_enabled(struct ikvs *kvs);
 
-void kvs_perfc_init(void) HSE_COLD;
-void kvs_perfc_fini(void) HSE_COLD;
+void
+kvs_perfc_init(void) HSE_COLD;
+void
+kvs_perfc_fini(void) HSE_COLD;
 
-merr_t kvs_init(void) HSE_COLD;
-void kvs_fini(void) HSE_COLD;
-
+merr_t
+kvs_init(void) HSE_COLD;
+void
+kvs_fini(void) HSE_COLD;
 
 /* kvs_cursor interfaces...
  */
@@ -125,12 +132,15 @@ kvs_cursor_perfc_alloc(const char *dbname, struct perfc_set *pcs_cc, struct perf
 void
 kvs_cursor_perfc_free(struct perfc_set *pcs_cc, struct perfc_set *pcs_cd);
 
-void kvs_cursor_perfc_init(void) HSE_COLD;
-void kvs_cursor_perfc_fini(void) HSE_COLD;
+void
+kvs_cursor_perfc_init(void) HSE_COLD;
+void
+kvs_cursor_perfc_fini(void) HSE_COLD;
 
-merr_t kvs_curcache_init(void) HSE_COLD;
-void kvs_curcache_fini(void) HSE_COLD;
-
+merr_t
+kvs_curcache_init(void) HSE_COLD;
+void
+kvs_curcache_fini(void) HSE_COLD;
 
 /* ikvs interfaces...
  */
@@ -180,7 +190,7 @@ void
 kvs_cursor_free(struct hse_kvs_cursor *cursor);
 
 merr_t
-kvs_cursor_init(struct hse_kvs_cursor *cursor);
+kvs_cursor_init(struct hse_kvs_cursor *cursor, struct kvdb_ctxn *ctxn);
 
 merr_t
 kvs_cursor_prepare(struct hse_kvs_cursor *cursor);
@@ -195,8 +205,7 @@ void
 kvs_cursor_reap(struct ikvs *kvs);
 
 merr_t
-kvs_cursor_update(struct hse_kvs_cursor *cursor, u64 seqno);
-
+kvs_cursor_update(struct hse_kvs_cursor *cursor, struct kvdb_ctxn *ctxn, u64 seqno);
 
 /* kvdb_kvs interfaces...
  */

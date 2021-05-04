@@ -303,6 +303,12 @@ key_obj_ncmp(const struct key_obj *ko1, const struct key_obj *ko2, uint cmplen)
     return (minlen < cmplen) ? klen1 - klen2 : 0;
 }
 
+/*
+ * Return value:
+ *   0            : ko1 is equal to ko2.
+ *   negative int : ko1 is "less than" than ko2.
+ *   positive int : ko1 is "greater than" ko2.
+ */
 static HSE_ALWAYS_INLINE int
 key_obj_cmp(const struct key_obj *ko1, const struct key_obj *ko2)
 {
@@ -312,8 +318,8 @@ key_obj_cmp(const struct key_obj *ko1, const struct key_obj *ko2)
 /*
  * Return value:
  *   0            : ko_pfx is a prefix of ko_key.
- *   negative int : ko_pfx is "less than" than ko_key
- *   positive int : ko_pfx is "greater than" ko_key
+ *   negative int : ko_pfx is "less than" than ko_key.
+ *   positive int : ko_pfx is "greater than" ko_key.
  */
 static inline int
 key_obj_cmp_prefix(const struct key_obj *ko_pfx, const struct key_obj *ko_key)
@@ -336,6 +342,31 @@ key2kobj(struct key_obj *kobj, const void *kdata, size_t klen)
     kobj->ko_sfx_len = klen;
 
     return kobj;
+}
+
+/*
+ * Return value:
+ *   0            : ko1 is equal ko2.
+ *   negative int : ko1 is "less than" than ko2.
+ *   positive int : ko1 is "greater than" ko2.
+ *
+ * Simplified comparator function when both operands have most likely been created
+ * using key2kobj().
+ */
+static HSE_ALWAYS_INLINE int
+key_obj_cmp_spl(const struct key_obj *ko1, const struct key_obj *ko2)
+{
+    if (HSE_LIKELY(!ko1->ko_pfx_len && !ko2->ko_pfx_len)) {
+        uint len1 = ko1->ko_sfx_len;
+        uint len2 = ko2->ko_sfx_len;
+        uint len = min_t(uint, len1, len2);
+        int  rc;
+
+        rc = memcmp(ko1->ko_sfx, ko2->ko_sfx, len);
+        return rc == 0 ? len1 - len2 : rc;
+    }
+
+    return key_obj_ncmp(ko1, ko2, UINT_MAX);
 }
 
 #endif
