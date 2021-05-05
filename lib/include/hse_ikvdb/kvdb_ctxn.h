@@ -133,9 +133,6 @@ kvdb_ctxn_prefix_del(struct kvdb_ctxn *txn, struct c0 *c0, const struct kvs_ktup
 
 /* -- c0 cursor w/ txn support ------------ */
 
-struct c0_kvmultiset *
-kvdb_ctxn_get_kvms(struct kvdb_ctxn *txn);
-
 uintptr_t
 kvdb_ctxn_get_seqnoref(struct kvdb_ctxn *txn);
 

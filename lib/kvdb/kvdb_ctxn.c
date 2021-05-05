@@ -224,7 +224,7 @@ kvdb_ctxn_alloc(
     return &ctxn->ctxn_inner_handle;
 }
 
-void
+static void
 kvdb_ctxn_set_remove(struct kvdb_ctxn_set *handle, struct kvdb_ctxn_impl *ctxn)
 {
     struct kvdb_ctxn_set_impl *kvdb_ctxn_set = kvdb_ctxn_set_h2r(handle);
@@ -378,7 +378,7 @@ errout:
     return err;
 }
 
-void
+static void
 kvdb_ctxn_deactivate(struct kvdb_ctxn_impl *ctxn)
 {
     u32   min_changed = 0;
