@@ -1256,8 +1256,7 @@ kvset_ptomb_lookup(
 
         struct kvs_ktuple pfx;
 
-        pfx.kt_data = kt->kt_data;
-        pfx.kt_len = ks->ks_pfx_len;
+        kvs_ktuple_init_nohash(&pfx, kt->kt_data, ks->ks_pfx_len);
 
         err = wbtr_read_vref(
             &ks->ks_kblks[last].kb_kblk_desc,
@@ -2949,8 +2948,7 @@ kvset_iter_seek(struct kv_iterator *handle, const void *key, s32 len, bool *eof)
     int                    start, pt_start;
     struct wbti *          wbti, *pti;
 
-    kt.kt_data = key;
-    kt.kt_len = len;
+    kvs_ktuple_init_nohash(&kt, key, len);
 
     /* If key lies beyond the kvset range in the direction of the cursor,
      * mark iterator as eof. Do this only for cursor seeks, not cursor
@@ -2987,9 +2985,9 @@ kvset_iter_seek(struct kv_iterator *handle, const void *key, s32 len, bool *eof)
     iter->pti_meta.eof = true;
     pt_start = kvset_pt_start(ks);
     if (pt_start >= 0) {
-        struct kvs_ktuple kt_pfx = {
-            .kt_data = key, .kt_len = ks->ks_pfx_len,
-        };
+        struct kvs_ktuple kt_pfx;
+
+        kvs_ktuple_init_nohash(&kt_pfx, key, ks->ks_pfx_len);
 
         if (kt_pfx.kt_len > abs(kt.kt_len))
             kt_pfx.kt_len = abs(kt.kt_len);

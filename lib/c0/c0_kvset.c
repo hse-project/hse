@@ -44,22 +44,10 @@ c0kvs_destroy_impl(struct c0_kvset_impl *set);
 static atomic_t c0kvs_ingesting = ATOMIC_INIT(0);
 
 /**
- * struct c0kvs_cbkt - cheap cache bucket
+ * struct c0kvs_ccache - cache of initialized cheap-based c0kvs objects
  * @cb_lock:    bucket lock
  * @cb_head:    cheap cache list head
  * @cb_size:    current size of cache (bytes)
- * @cb_max:     max size of cache (bytes)
- */
-struct c0kvs_cbkt {
-    spinlock_t            cb_lock;
-    struct c0_kvset_impl *cb_head;
-    size_t                cb_size;
-    size_t                cb_max;
-} HSE_ALIGNED(SMP_CACHE_BYTES);
-
-/**
- * struct c0kvs_ccache - cache of initialized cheap-based c0kvs objects
- * @cc_cbktv:   vector of cache buckets
  * @cc_init:    set to %true if initialized
  *
  * Creating and destroying cheap-backed c0kvsets is relatively expensive,
@@ -69,41 +57,30 @@ struct c0kvs_cbkt {
  * create/destroy operation.
  */
 struct c0kvs_ccache {
-    struct c0kvs_cbkt cc_bktv[8];
-    bool              cc_init;
+    spinlock_t  cc_lock HSE_ALIGNED(SMP_CACHE_BYTES * 2);
+    void       *cc_head HSE_ALIGNED(SMP_CACHE_BYTES);
+    size_t      cc_size;
+    bool        cc_init;
 };
 
 static struct c0kvs_ccache c0kvs_ccache;
 static atomic_t            c0kvs_init_ref;
 
-#define C0KVS_CBKT_MAX NELEM(c0kvs_ccache.cc_bktv)
-
 static struct c0_kvset_impl *
 c0kvs_ccache_alloc(size_t sz)
 {
-    struct c0_kvset_impl *set = NULL;
-    struct c0kvs_cbkt *   bkt;
-    uint                  idx;
-    int                   i;
+    struct c0kvs_ccache *cc = &c0kvs_ccache;
+    struct c0_kvset_impl *set;
 
-    idx = raw_smp_processor_id() / 4;
+    spin_lock(&cc->cc_lock);
+    set = cc->cc_head;
+    if (set) {
+        cc->cc_size -= HSE_C0_CHEAP_SZ_MAX;
+        cc->cc_head = set->c0s_next;
 
-    for (i = 0; i < C0KVS_CBKT_MAX + 1; ++i, ++idx) {
-        bkt = c0kvs_ccache.cc_bktv + (idx % C0KVS_CBKT_MAX);
-
-        spin_lock(&bkt->cb_lock);
-        set = bkt->cb_head;
-        if (set) {
-            bkt->cb_size -= HSE_C0_CCACHE_TRIMSZ;
-            bkt->cb_head = set->c0s_next;
-
-            set->c0s_alloc_sz = sz;
-        }
-        spin_unlock(&bkt->cb_lock);
-
-        if (set)
-            break;
+        set->c0s_alloc_sz = sz;
     }
+    spin_unlock(&cc->cc_lock);
 
     return set;
 }
@@ -111,32 +88,21 @@ c0kvs_ccache_alloc(size_t sz)
 static void
 c0kvs_ccache_free(struct c0_kvset_impl *set)
 {
-    struct c0kvs_cbkt *bkt;
-    uint               idx;
-    int                i;
+    struct c0kvs_ccache *cc = &c0kvs_ccache;
 
     c0kvs_reset(&set->c0s_handle, 0);
-    cheap_trim(set->c0s_cheap, HSE_C0_CCACHE_TRIMSZ);
 
-    idx = raw_smp_processor_id() / 4;
-
-    for (i = 0; i < C0KVS_CBKT_MAX + 1; ++i, ++idx) {
-        bkt = c0kvs_ccache.cc_bktv + (idx % C0KVS_CBKT_MAX);
-
-        spin_lock(&bkt->cb_lock);
-        if (bkt->cb_size + HSE_C0_CCACHE_TRIMSZ < bkt->cb_max) {
-            bkt->cb_size += HSE_C0_CCACHE_TRIMSZ;
-            set->c0s_next = bkt->cb_head;
-            bkt->cb_head = set;
-            set = NULL;
-        }
-        spin_unlock(&bkt->cb_lock);
-
-        if (!set)
-            return;
+    spin_lock(&cc->cc_lock);
+    if (cc->cc_size + HSE_C0_CHEAP_SZ_MAX < HSE_C0_CCACHE_SZ_MAX) {
+        cc->cc_size += HSE_C0_CHEAP_SZ_MAX;;
+        set->c0s_next = cc->cc_head;
+        cc->cc_head = set;
+        set = NULL;
     }
+    spin_unlock(&cc->cc_lock);
 
-    c0kvs_destroy_impl(set);
+    if (set)
+        c0kvs_destroy_impl(set);
 }
 
 /**
@@ -163,14 +129,14 @@ c0kvs_ior_stats(
     const void *          new_key,
     u32                   new_key_len,
     const void *          new_value,
-    u32                   new_value_len)
+    u32                   new_value_len,
+    uint                  height,
+    uint                  keyvals)
 {
     if (IS_IOR_INS(code)) {
         /* first insert for this key ... */
-        ++c0kvs->c0s_num_keys;
-        if (!HSE_CORE_IS_TOMB(new_value))
-            ++c0kvs->c0s_num_entries;
-        else
+        ++c0kvs->c0s_num_entries;
+        if (HSE_CORE_IS_TOMB(new_value))
             ++c0kvs->c0s_num_tombstones;
         c0kvs->c0s_total_key_bytes += new_key_len;
         c0kvs->c0s_total_value_bytes += new_value_len;
@@ -200,6 +166,12 @@ c0kvs_ior_stats(
             ++c0kvs->c0s_num_tombstones;
         c0kvs->c0s_total_value_bytes += new_value_len;
     }
+
+    if (height > c0kvs->c0s_height)
+        c0kvs->c0s_height = height;
+
+    if (keyvals > c0kvs->c0s_keyvals)
+        c0kvs->c0s_keyvals = keyvals;
 }
 
 /*
@@ -240,14 +212,14 @@ c0kvs_seqno_set(struct c0_kvset_impl *c0kvs, struct bonsai_val *bv)
      * different values for the same key. In other words, the view will
      * have changed.
      */
-    seq = bv->bv_valuep == HSE_CORE_TOMB_PFX ? atomic64_add_return(1, sref) : atomic64_read(sref);
+    seq = bv->bv_value == HSE_CORE_TOMB_PFX ? atomic64_add_return(1, sref) : atomic64_read(sref);
 
     /* If KVMS seqno is valid, use it. */
     if (HSE_UNLIKELY(atomic64_read(c0kvs->c0s_kvms_seqno) != HSE_SQNREF_INVALID)) {
         sref = c0kvs->c0s_kvms_seqno;
 
         seq =
-            bv->bv_valuep == HSE_CORE_TOMB_PFX ? atomic64_add_return(1, sref) : atomic64_read(sref);
+            bv->bv_value == HSE_CORE_TOMB_PFX ? atomic64_add_return(1, sref) : atomic64_read(sref);
     }
 
     bv->bv_seqnoref = HSE_ORDNL_TO_SQNREF(seq);
@@ -274,7 +246,8 @@ c0kvs_ior_cb(
     enum bonsai_ior_code *code,
     struct bonsai_kv *    kv,
     struct bonsai_val *   new_val,
-    struct bonsai_val **  old_val)
+    struct bonsai_val **  old_val,
+    uint                  height)
 {
     struct c0_kvset_impl *c0kvs;
     struct bonsai_val *   old;
@@ -292,9 +265,6 @@ c0kvs_ior_cb(
     c0kvs = c0_kvset_h2r(cli_rock);
     klen = key_imm_klen(&kv->bkv_key_imm);
 
-    seqnoref = IS_IOR_INS(*code) ? kv->bkv_values->bv_seqnoref : new_val->bv_seqnoref;
-    state = seqnoref_to_seqno(seqnoref, &seqno);
-
     if (IS_IOR_INS(*code)) {
         struct bonsai_val *val;
 
@@ -302,12 +272,17 @@ c0kvs_ior_cb(
 
         val = kv->bkv_values;
         n_vlen = bonsai_val_vlen(val);
-        n_val = (n_vlen == 0) ? val->bv_valuep : val->bv_value;
+        n_val = val->bv_value;
+
+        seqnoref = kv->bkv_values->bv_seqnoref;
+        state = seqnoref_to_seqno(seqnoref, &seqno);
 
         if (state == HSE_SQNREF_STATE_SINGLE)
             seqno = c0kvs_seqno_set(c0kvs, val);
 
-        c0kvs_ior_stats(c0kvs, *code, NULL, 0, NULL, 0, kv->bkv_key, klen, n_val, n_vlen);
+        assert(kv->bkv_valcnt == 1);
+        c0kvs_ior_stats(c0kvs, *code, NULL, 0, NULL, 0,
+                        kv->bkv_key, klen, n_val, n_vlen, height, 1);
 
         return;
     }
@@ -319,6 +294,9 @@ c0kvs_ior_cb(
     SET_IOR_ADD(*code);
 
     assert(kv->bkv_values);
+
+    seqnoref = new_val->bv_seqnoref;
+    state = seqnoref_to_seqno(seqnoref, &seqno);
 
     /* The seqno must be assigned before the while loop that follows.
      * This allows replacements in the value list and thus prevents
@@ -367,13 +345,16 @@ c0kvs_ior_cb(
     if (IS_IOR_REP(*code)) {
         /* in this case we'll just replace the old list element */
         new_val->bv_next = old->bv_next;
+        *old_val = old;
     } else if (HSE_SQNREF_ORDNL_P(seqnoref)) {
         /* slot the new element just in front of the next older one */
         new_val->bv_next = old;
+        kv->bkv_valcnt++;
     } else {
         /* rewind & slot the new element at the front of the list */
         prevp = &kv->bkv_values;
         new_val->bv_next = *prevp;
+        kv->bkv_valcnt++;
     }
 
     /* Publish the new value node.  New readers will see the new node,
@@ -387,19 +368,14 @@ c0kvs_ior_cb(
 
     if (old) {
         o_vlen = bonsai_val_vlen(old);
-        o_val = (o_vlen == 0) ? old->bv_valuep : old->bv_value;
+        o_val = old->bv_value;
     }
 
     n_vlen = bonsai_val_vlen(new_val);
-    n_val = (n_vlen == 0) ? new_val->bv_valuep : new_val->bv_value;
+    n_val = new_val->bv_value;
 
-    c0kvs_ior_stats(
-        c0kvs, *code, kv->bkv_key, klen, o_val, o_vlen, kv->bkv_key, klen, n_val, n_vlen);
-
-    if (IS_IOR_REP(*code))
-        *old_val = old;
-
-    return;
+    c0kvs_ior_stats(c0kvs, *code, kv->bkv_key, klen, o_val, o_vlen,
+                    kv->bkv_key, klen, n_val, n_vlen, height, kv->bkv_valcnt);
 }
 
 /**
@@ -410,15 +386,13 @@ c0kvs_ior_cb(
  * @seqnoref:
  */
 struct bonsai_val *
-c0kvs_findval(struct c0_kvset *handle, struct bonsai_kv *kv, u64 view_seqno, uintptr_t seqnoref)
+c0kvs_findval(struct bonsai_kv *kv, u64 view_seqno, uintptr_t seqnoref)
 {
     struct bonsai_val *val_ge, *val;
     u64                diff_ge, diff;
-    u32                nvals;
 
     diff_ge = ULONG_MAX;
     val_ge = NULL;
-    nvals = 0;
 
     for (val = kv->bkv_values; val; val = rcu_dereference(val->bv_next)) {
         diff = seqnoref_ext_diff(view_seqno, val->bv_seqnoref);
@@ -426,8 +400,6 @@ c0kvs_findval(struct c0_kvset *handle, struct bonsai_kv *kv, u64 view_seqno, uin
             diff_ge = diff;
             val_ge = val;
         }
-
-        ++nvals;
 
         if (!seqnoref) {
             if (diff_ge == 0)
@@ -447,14 +419,6 @@ c0kvs_findval(struct c0_kvset *handle, struct bonsai_kv *kv, u64 view_seqno, uin
         }
     }
 
-    /* [HSE_REVISIT] Read perf is severely impacted when the value list
-     * grows too long (e.g., a high put rate with Zipfian distribution).
-     * OTOH, tiny ingests wreak havoc on cn and cause the oplog kvs to
-     * grow spectacularly long (and with severe mblock fragmentation).
-     */
-    if (nvals > 2048 && handle)
-        atomic_inc((c0_kvset_h2r(handle))->c0s_ingesting);
-
     return val_ge;
 }
 
@@ -471,7 +435,7 @@ c0kvs_findpfxval(struct bonsai_kv *kv, uintptr_t seqnoref)
 
     val = kv->bkv_values;
     while (val) {
-        if (val->bv_valuep == HSE_CORE_TOMB_PFX) {
+        if (val->bv_value == HSE_CORE_TOMB_PFX) {
             if ((val->bv_seqnoref == seqnoref) || seqnoref_ge(seqnoref, val->bv_seqnoref))
                 break;
         }
@@ -593,7 +557,8 @@ c0kvs_reset(struct c0_kvset *handle, size_t sz)
     set->c0s_num_tombstones = 0;
     set->c0s_total_key_bytes = 0;
     set->c0s_total_value_bytes = 0;
-    set->c0s_num_keys = 0;
+    set->c0s_height = 0;
+    set->c0s_keyvals = 0;
 }
 
 void
@@ -634,21 +599,12 @@ c0kvs_putdel(
     struct c0_kvset_impl *self,
     struct bonsai_skey *  skey,
     struct bonsai_sval *  sval,
-    size_t                sz,
-    bool                  tomb)
+    size_t                sz)
 {
     merr_t err;
-    u64    avail;
-
-    sz += HSE_C0_BNODE_SLAB_SZ + PAGE_SIZE;
 
     c0kvs_lock(self);
-    avail = c0kvs_avail(&self->c0s_handle);
-
-    if (HSE_LIKELY(sz < avail))
-        err = bn_insert_or_replace(self->c0s_broot, skey, sval, tomb);
-    else
-        err = (sz > self->c0s_alloc_sz) ? merr(EFBIG) : merr(ENOMEM);
+    err = bn_insert_or_replace(self->c0s_broot, skey, sval);
     c0kvs_unlock(self);
 
     /* Callers putting keys into the active kvms must hold the
@@ -666,18 +622,20 @@ merr_t
 c0kvs_put(
     struct c0_kvset *        handle,
     u16                      skidx,
-    const struct kvs_ktuple *key,
-    const struct kvs_vtuple *value,
+    const struct kvs_ktuple *kt,
+    const struct kvs_vtuple *vt,
     uintptr_t                seqnoref)
 {
     struct c0_kvset_impl *self = c0_kvset_h2r(handle);
     struct bonsai_skey    skey;
     struct bonsai_sval    sval;
 
-    bn_skey_init(key->kt_data, key->kt_len, skidx, &skey);
-    bn_sval_init(value->vt_data, value->vt_xlen, seqnoref, &sval);
+    assert(kt->kt_flags == 0);
 
-    return c0kvs_putdel(self, &skey, &sval, key->kt_len + kvs_vtuple_vlen(value), false);
+    bn_skey_init(kt->kt_data, kt->kt_len, kt->kt_flags, skidx, &skey);
+    bn_sval_init(vt->vt_data, vt->vt_xlen, seqnoref, &sval);
+
+    return c0kvs_putdel(self, &skey, &sval, kt->kt_len + kvs_vtuple_vlen(vt));
 }
 
 merr_t
@@ -687,10 +645,10 @@ c0kvs_del(struct c0_kvset *handle, u16 skidx, const struct kvs_ktuple *key, uint
     struct bonsai_skey    skey;
     struct bonsai_sval    sval;
 
-    bn_skey_init(key->kt_data, key->kt_len, skidx, &skey);
+    bn_skey_init(key->kt_data, key->kt_len, 0, skidx, &skey);
     bn_sval_init(HSE_CORE_TOMB_REG, 0, seqnoref, &sval);
 
-    return c0kvs_putdel(self, &skey, &sval, key->kt_len, true);
+    return c0kvs_putdel(self, &skey, &sval, key->kt_len);
 }
 
 merr_t
@@ -704,10 +662,10 @@ c0kvs_prefix_del(
     struct bonsai_skey    skey;
     struct bonsai_sval    sval;
 
-    bn_skey_init(key->kt_data, key->kt_len, skidx, &skey);
+    bn_skey_init(key->kt_data, key->kt_len, 0, skidx, &skey);
     bn_sval_init(HSE_CORE_TOMB_PFX, 0, seqnoref, &sval);
 
-    return c0kvs_putdel(self, &skey, &sval, key->kt_len, false);
+    return c0kvs_putdel(self, &skey, &sval, key->kt_len);
 }
 
 void
@@ -732,6 +690,20 @@ c0kvs_get_element_count(struct c0_kvset *handle)
     struct c0_kvset_impl *self = c0_kvset_h2r(handle);
 
     return self->c0s_num_entries + self->c0s_num_tombstones;
+}
+
+u64
+c0kvs_get_element_count2(struct c0_kvset *handle, uint *heightp, uint *keyvalsp)
+{
+    struct c0_kvset_impl *self = c0_kvset_h2r(handle);
+    u64 cnt;
+
+    cnt = self->c0s_num_entries + self->c0s_num_tombstones;
+
+    *heightp = self->c0s_height;
+    *keyvalsp = self->c0s_keyvals;
+
+    return cnt;
 }
 
 void
@@ -786,20 +758,21 @@ c0kvs_get_excl(
     *res = NOT_FOUND;
 
     self = c0_kvset_h2r(handle);
-    bn_skey_init(key->kt_data, key->kt_len, skidx, &skey);
+
+    bn_skey_init(key->kt_data, key->kt_len, 0, skidx, &skey);
     kv = NULL;
 
     found = bn_find(self->c0s_broot, &skey, &kv);
     if (!found)
         return 0;
 
-    val = c0kvs_findval(handle, kv, view_seqno, seqnoref);
+    val = c0kvs_findval(kv, view_seqno, seqnoref);
     if (!val)
         return 0;
 
     *oseqnoref = val->bv_seqnoref;
 
-    if (HSE_CORE_IS_TOMB(val->bv_valuep)) {
+    if (HSE_CORE_IS_TOMB(val->bv_value)) {
         *res = FOUND_TMB;
         return 0;
     }
@@ -874,7 +847,7 @@ c0kvs_pfx_probe_excl(
     u64                   val_seq;
     merr_t                err = 0;
 
-    bn_skey_init(key->kt_data, key->kt_len, skidx, &skey);
+    bn_skey_init(key->kt_data, key->kt_len, 0, skidx, &skey);
 
     found = bn_findGE(root, &skey, &kv);
     if (!found) {
@@ -908,12 +881,12 @@ c0kvs_pfx_probe_excl(
         if (qctx_tomb_seen(qctx, kv->bkv_key + klen - sfx_len, sfx_len))
             continue;
 
-        val = c0kvs_findval(handle, kv, view_seqno, seqnoref);
+        val = c0kvs_findval(kv, view_seqno, seqnoref);
         if (!val)
             continue;
 
         /* add to tomblist if a tombstone was encountered */
-        if (HSE_CORE_IS_TOMB(val->bv_valuep)) {
+        if (HSE_CORE_IS_TOMB(val->bv_value)) {
             err = qctx_tomb_insert(qctx, kv->bkv_key + klen - sfx_len, sfx_len);
             if (ev(err))
                 break;
@@ -1012,7 +985,7 @@ c0kvs_prefix_get_excl(
     *oseqnoref = HSE_ORDNL_TO_SQNREF(0);
 
     self = c0_kvset_h2r(handle);
-    bn_skey_init(key->kt_data, pfx_len, skidx, &skey);
+    bn_skey_init(key->kt_data, pfx_len, 0, skidx, &skey);
     kv = NULL;
 
     found = bn_find(self->c0s_broot, &skey, &kv);
@@ -1021,7 +994,7 @@ c0kvs_prefix_get_excl(
 
         val = c0kvs_findpfxval(kv, view_seqnoref);
         if (val) {
-            assert(val->bv_valuep == HSE_CORE_TOMB_PFX);
+            assert(val->bv_value == HSE_CORE_TOMB_PFX);
             *oseqnoref = val->bv_seqnoref;
         }
     }
@@ -1069,7 +1042,7 @@ c0kvs_debug(struct c0_kvset *handle, void *key, int klen)
     char   disp[256];
     size_t max = sizeof(disp);
 
-    printf("%p nkey %d ntomb %d\n", self, self->c0s_num_keys, self->c0s_num_tombstones);
+    printf("%p nentries %d ntomb %d\n", self, self->c0s_num_entries, self->c0s_num_tombstones);
 
     rcu_read_lock();
     end = &self->c0s_broot->br_kv;
@@ -1085,7 +1058,7 @@ c0kvs_debug(struct c0_kvset *handle, void *key, int klen)
 
         for (v = kv->bkv_values; v; v = rcu_dereference(v->bv_next)) {
             u64   seqno = HSE_SQNREF_TO_ORDNL(v->bv_seqnoref);
-            char *label = HSE_CORE_IS_TOMB(v->bv_valuep) ? "tomb" : "len";
+            char *label = HSE_CORE_IS_TOMB(v->bv_value) ? "tomb" : "len";
 
             printf("%sseqnoref %p seqno %lu %s %u",
                    comma, (void *)v->bv_seqnoref,
@@ -1101,49 +1074,34 @@ c0kvs_debug(struct c0_kvset *handle, void *key, int klen)
 void
 c0kvs_reinit(size_t cb_max)
 {
+    struct c0kvs_ccache *cc = &c0kvs_ccache;
     struct c0_kvset_impl *head, *next;
-    struct c0kvs_cbkt *   bkt;
-    int                   i;
 
-    if (!c0kvs_ccache.cc_init)
+    if (!cc->cc_init)
         return;
 
-    cb_max = cb_max / C0KVS_CBKT_MAX;
+    spin_lock(&cc->cc_lock);
+    head = cc->cc_head;
+    cc->cc_head = NULL;
+    cc->cc_size = 0;
+    spin_unlock(&cc->cc_lock);
 
-    for (i = 0; i < C0KVS_CBKT_MAX; ++i) {
-        bkt = c0kvs_ccache.cc_bktv + i;
-
-        spin_lock(&bkt->cb_lock);
-        bkt->cb_max = cb_max;
-        head = bkt->cb_head;
-        bkt->cb_head = NULL;
-        bkt->cb_size = 0;
-        spin_unlock(&bkt->cb_lock);
-
-        for (; head; head = next) {
-            next = head->c0s_next;
-            c0kvs_destroy_impl(head);
-        }
+    for (; head; head = next) {
+        next = head->c0s_next;
+        c0kvs_destroy_impl(head);
     }
 }
 
 void
 c0kvs_init(void)
 {
-    struct c0kvs_cbkt *bkt;
-    int                i;
+    struct c0kvs_ccache *cc = &c0kvs_ccache;
 
     if (atomic_inc_return(&c0kvs_init_ref) > 1)
         return;
 
-    for (i = 0; i < C0KVS_CBKT_MAX; ++i) {
-        bkt = c0kvs_ccache.cc_bktv + i;
-
-        spin_lock_init(&bkt->cb_lock);
-        bkt->cb_max = HSE_C0_CCACHE_SZ_MAX / C0KVS_CBKT_MAX;
-    }
-
-    c0kvs_ccache.cc_init = true;
+    spin_lock_init(&cc->cc_lock);
+    cc->cc_init = true;
 }
 
 void

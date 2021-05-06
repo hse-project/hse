@@ -200,11 +200,12 @@ MTF_DEFINE_UTEST_PREPOST(c0_kvset_test, basic_put_get_fail, no_fail_pre, no_fail
     size_t            avail;
     uintptr_t         seqnoref;
     char *            bigly;
+    void             *mem;
     int               n;
 
-    /* Allocate smallest possible kvs.
+    /* Allocate largest possible kvs.
      */
-    err = c0kvs_create(0, 0, 0, &kvs);
+    err = c0kvs_create(HSE_C0_CHEAP_SZ_MAX, 0, 0, &kvs);
     ASSERT_NE(NULL, kvs);
 
     atomic_set(&ingesting, 0);
@@ -225,36 +226,41 @@ MTF_DEFINE_UTEST_PREPOST(c0_kvset_test, basic_put_get_fail, no_fail_pre, no_fail
     seqnoref = HSE_ORDNL_TO_SQNREF(0);
 
     err = c0kvs_put(kvs, 0, &kt, &vt, seqnoref);
-    ASSERT_EQ(EFBIG, merr_errno(err));
+    ASSERT_EQ(ENOMEM, merr_errno(err));
+
+    /* Use up most of the available space from the cheap..
+     */
+    mem = c0kvs_alloc(kvs, 8, avail - HSE_KVS_KLEN_MAX);
+    ASSERT_NE(NULL, mem);
 
     /* Try to put an excessively large key
      */
     kvs_ktuple_init(&kt, bigly, strlen(bigly));
     kvs_vtuple_init(&vt, "val", 3);
-    kt.kt_len = avail;
+    kt.kt_len = HSE_KVS_KLEN_MAX;
 
     err = c0kvs_put(kvs, 0, &kt, &vt, seqnoref);
-    ASSERT_EQ(EFBIG, merr_errno(err));
+    ASSERT_EQ(ENOMEM, merr_errno(err));
 
     /* Try to delete an excessively large key
      */
     kvs_ktuple_init(&kt, bigly, strlen(bigly));
-    kt.kt_len = avail;
+    kt.kt_len = HSE_KVS_KLEN_MAX;
 
     err = c0kvs_del(kvs, 0, &kt, seqnoref);
-    ASSERT_EQ(EFBIG, merr_errno(err));
+    ASSERT_EQ(ENOMEM, merr_errno(err));
 
     /* Try to prefix delete an excessively large key
      */
     kvs_ktuple_init(&kt, bigly, strlen(bigly));
-    kt.kt_len = avail;
+    kt.kt_len = HSE_KVS_KLEN_MAX;
 
     err = c0kvs_prefix_del(kvs, 0, &kt, seqnoref);
-    ASSERT_EQ(EFBIG, merr_errno(err));
+    ASSERT_EQ(ENOMEM, merr_errno(err));
 
     ASSERT_EQ(0, atomic_read(&ingesting));
 
-    /* Fill up the kvs (no longer triggers the ingesting flag).
+    /* Fill up the kvs.
      * We use a key that is larger than the value in an attempt
      * to ensure that a delete after a failed put will fail for
      * the same reason.
@@ -270,6 +276,8 @@ MTF_DEFINE_UTEST_PREPOST(c0_kvset_test, basic_put_get_fail, no_fail_pre, no_fail
         err = c0kvs_put(kvs, 0, &kt, &vt, seqnoref);
         err2 = merr_errno(err);
         if (ENOMEM == err2) {
+            ASSERT_EQ(0, atomic_read(&ingesting));
+
             err = c0kvs_del(kvs, 0, &kt, seqnoref);
             ASSERT_EQ(err2, merr_errno(err));
 
@@ -690,7 +698,7 @@ MTF_DEFINE_UTEST_PREPOST(c0_kvset_test, advanced_repeated_put, no_fail_pre, no_f
     val = bkv->bkv_values;
     ASSERT_NE(0, val);
 
-    if (HSE_CORE_IS_TOMB(val->bv_valuep))
+    if (HSE_CORE_IS_TOMB(val->bv_value))
         tr_tombs++;
     else
         tr_val_bytes += bonsai_val_vlen(val);
@@ -717,7 +725,7 @@ MTF_DEFINE_UTEST_PREPOST(c0_kvset_test, advanced_repeated_put, no_fail_pre, no_f
         tr_keys++;
         tr_key_bytes += key_len;
 
-        if (HSE_CORE_IS_TOMB(val->bv_valuep))
+        if (HSE_CORE_IS_TOMB(val->bv_value))
             tr_tombs++;
         else
             tr_val_bytes += bonsai_val_vlen(val);
@@ -1062,13 +1070,13 @@ MTF_DEFINE_UTEST_PREPOST(c0_kvset_test, finalize, no_fail_pre, no_fail_post)
         err = c0kvs_del(kvs, 0, &kt, iseqno);
     }
 
-    /* If assert() is enabled then c0kvs_del() will quietly succeed.
+    /* If assert() is disabled then c0kvs_del() will quietly succeed.
      * Otherwise, the assert will fire and the we'll jump back to a
      * context in which err contains its initial value.
      */
 #ifdef NDEBUG
     ASSERT_EQ(0, sigabrt_cnt);
-    ASSERT_EQ(0, err);
+    ASSERT_EQ(EROFS, err);
 #else
     ASSERT_EQ(1, sigabrt_cnt);
     ASSERT_EQ(ENOTSUP, merr_errno(err));
@@ -1085,13 +1093,13 @@ MTF_DEFINE_UTEST_PREPOST(c0_kvset_test, finalize, no_fail_pre, no_fail_post)
         err = c0kvs_put(kvs, 0, &kt, &vt, iseqno);
     }
 
-    /* If assert() is enabled then c0kvs_put() will quietly succeed.
+    /* If assert() is disable then c0kvs_put() will quietly succeed.
      * Otherwise, the assert will fire and the we'll jump back to a
      * context in which err contains its initial value.
      */
 #ifdef NDEBUG
     ASSERT_EQ(0, sigabrt_cnt);
-    ASSERT_EQ(0, err);
+    ASSERT_EQ(EROFS, err);
 #else
     ASSERT_EQ(2, sigabrt_cnt);
     ASSERT_EQ(ENOTSUP, merr_errno(err));

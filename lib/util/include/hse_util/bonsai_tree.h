@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
 /*
@@ -19,43 +19,56 @@
 #include <hse_util/slist.h>
 #include <hse_util/rcu.h>
 
-#define BONSAI_TREE_BALANCE_THRESHOLD 4
+/* clang-format off */
+
+/* If the caller is managing the k/v memory and can ensure
+ * it will outlive the bonsai tree then this flag hints
+ * that the bonsai tree need not copy the data.
+ */
+#define HSE_BTF_MANAGED     (0x0001)
+
+#define BONSAI_TREE_BALANCE_THRESHOLD   (2)
 
 enum bonsai_ior_code {
-    B_IOR_INSERTED = 1,
-    B_IOR_REPLACED = 2,
-    B_IOR_ADDED_VALUE = 3,
-    B_IOR_REP_OR_ADD = 4,
+    B_IOR_INVALID       = 0,
+    B_IOR_INSERTED      = 1,
+    B_IOR_REPLACED      = 2,
+    B_IOR_ADDED_VALUE   = 3,
+    B_IOR_REP_OR_ADD    = 4,
 };
 
-#define IS_IOR_INS(_c) ((_c) == B_IOR_INSERTED)
-#define IS_IOR_REP(_c) ((_c) == B_IOR_REPLACED)
-#define IS_IOR_ADD(_c) ((_c) == B_IOR_ADDED_VALUE)
-#define IS_IOR_REPORADD(_c) ((_c) == B_IOR_REP_OR_ADD)
+#define IS_IOR_INS(_c)          ((_c) == B_IOR_INSERTED)
+#define IS_IOR_REP(_c)          ((_c) == B_IOR_REPLACED)
+#define IS_IOR_ADD(_c)          ((_c) == B_IOR_ADDED_VALUE)
+#define IS_IOR_REPORADD(_c)     ((_c) == B_IOR_REP_OR_ADD)
 
-#define SET_IOR_INS(_c) ((_c) = B_IOR_INSERTED)
-#define SET_IOR_REP(_c) ((_c) = B_IOR_REPLACED)
-#define SET_IOR_ADD(_c) ((_c) = B_IOR_ADDED_VALUE)
-#define SET_IOR_REPORADD(_c) ((_c) = B_IOR_REP_OR_ADD)
+#define SET_IOR_INS(_c)         ((_c) = B_IOR_INSERTED)
+#define SET_IOR_REP(_c)         ((_c) = B_IOR_REPLACED)
+#define SET_IOR_ADD(_c)         ((_c) = B_IOR_ADDED_VALUE)
+#define SET_IOR_REPORADD(_c)    ((_c) = B_IOR_REP_OR_ADD)
+
+/* clang-format off */
 
 /**
  * struct bonsai_skey - input key argument
- * @key:
- * @key_imm:
+ * @bsk_key_imm:
+ * @bsk_key:
+ * @bsk_flags:
  */
 struct bonsai_skey {
-    const void *         bsk_key;
-    struct key_immediate bsk_key_imm;
+    struct key_immediate  bsk_key_imm;
+    const void           *bsk_key;
+    u32                   bsk_flags;
 };
 
 /**
  * struct bonsai_val - bonsai tree value node
- * @bv_next:      ptr to next value in list
- * @bv_free:      ptr to next value in free list
  * @bv_seqnoref:  sequence number reference
+ * @bv_next:      ptr to next value in list
+ * @bv_value:     ptr to value data
  * @bv_xlen:      opaque encoded value length
- * @bv_valuep:    ptr to value
- * @bv_value:     value data
+ * @bv_free:      ptr to next value in free list *bkv_freevalsp
+ * @bv_valbuf:    value data (zero length if caller managed)
  *
  * A bonsai_val includes the value data and may be on both the bnkv_values
  * list and the free list at the same time.
@@ -65,12 +78,12 @@ struct bonsai_skey {
  * functions to decode it.
  */
 struct bonsai_val {
-    struct bonsai_val *bv_next;
-    struct bonsai_val *bv_free;
     uintptr_t          bv_seqnoref;
+    struct bonsai_val *bv_next;
+    void              *bv_value;
     u64                bv_xlen;
-    void              *bv_valuep;
-    char               bv_value[];
+    struct bonsai_val *bv_free;
+    char               bv_valbuf[];
 };
 
 /**
@@ -153,34 +166,53 @@ bonsai_sval_vlen(const struct bonsai_sval *bsv)
 /**
  * struct bonsai_kv - bonsai tree key/value node
  * @bkv_key_imm:
- * @bkv_flags:
- * @bkv_refcnt:
- * @bkv_values:
+ * @bkv_key:        ptr to key
+ * @bkv_flags:      BKV_FLAG_*
+ * @bkv_valcnt:     length of bkv_values list
+ * @bkv_values:     list of values
  * @bkv_prev:
  * @bkv_next:
  * @bkv_es:
- * @bkv_key:
+ * @bkv_keybuf:     key data (zero length if caller managed)
  *
  * A bonsai_kv includes the key and a list of bonsai_val objects.
  */
 struct bonsai_kv {
-    struct key_immediate   bkv_key_imm;
-    u16                    bkv_flags;
-    struct bonsai_val *    bkv_values;
-    struct bonsai_kv *     bkv_prev;
-    struct bonsai_kv *     bkv_next;
-    struct element_source *bkv_es;
-    char                   bkv_key[];
+    struct key_immediate    bkv_key_imm;
+    char                   *bkv_key;
+    u16                     bkv_flags;
+    u32                     bkv_valcnt;
+    struct bonsai_val *     bkv_values;
+    struct bonsai_kv *      bkv_prev;
+    struct bonsai_kv *      bkv_next;
+    struct element_source  *bkv_es;
+    char                    bkv_keybuf[];
 };
+
+/* HSE_BNF_VISIBLE    node might be visible to RCU readers
+ * HSE_BNF_UNLINKED   node was unlinked from tree
+ *
+ * Bonsai tree nodes are marked "visible" when the are created and inserted
+ * into the tree.  The are then marked "unlinked" when they are removed from
+ * the tree.  Nodes that are marked both "visible" and "unlinked" may be
+ * garbage collected.  The GC should find all nodes marked "visible" and
+ * "unlinked", clear the "visible" flag, then after the end of the current
+ * grace period may free or reclaim all node that are marked "unlinked"
+ * and are not marked "visible".
+ */
+#define HSE_BNF_VISIBLE     (0x0001)
+#define HSE_BNF_UNLINKED    (0x0002)
 
 /**
  * There is one such structure for each node in the tree.
  *
  * struct bonsai_node - structure representing interal nodes of tree
+ * @bn_key_imm: cache of first KI_DLEN_MAX bytes of bn_kv->bkv_key[]
  * @bn_left:    bonsai tree child node linkage
  * @bn_right:   bonsai tree child node linkage
- * @bn_key_imm: cache of first KI_DLEN_MAX bytes of bn_kv->bkv_key[]
  * @bn_height:  height of the node.
+ * @bn_flags:   item state flags (HSE_BNF_*)
+ * @bn_nodeid:  node ID within slab (used to locate slab header)
  * @bn_kv:      ptr to a key/value node (contains full key)
  *
  * The %bn_kv, and %bn_key_imm fields are set during node initialization and
@@ -192,14 +224,48 @@ struct bonsai_kv {
  * be caused by tree update operations).
  */
 struct bonsai_node {
+    struct key_immediate  bn_key_imm;
     struct bonsai_node   *bn_left;
     struct bonsai_node   *bn_right;
-    struct key_immediate  bn_key_imm;
-    s32                   bn_height;
+    s16                   bn_height;
+    u16                   bn_flags;
+    u16                   bn_nodeid;
     struct bonsai_kv     *bn_kv;
 } HSE_ALIGNED(64);
 
 _Static_assert(sizeof(struct bonsai_node) == 64, "bonsai node too large");
+
+/* struct bonsai_slab -
+ * @bs_entryc:    next entry from bs_entryv[] to allocate
+ * @bs_next:      linkage for garbage collection
+ * @bs_entryv:    fixed size bonsai node heap
+ */
+struct bonsai_slab {
+    uint                    bs_entryc;
+    struct bonsai_slab     *bs_next;
+    struct bonsai_node      bs_entryv[] HSE_ALIGNED(SMP_CACHE_BYTES);
+};
+
+static_assert(sizeof(struct bonsai_slab) == sizeof(struct bonsai_node),
+              "bonsai_slab must be same size as bonsai_node");
+
+/* struct bonsai_slabinfo -
+ * @bsi_slab:   current slab from which to allocate entries
+ * @bsi_empty:  list of slabs that can be garbage collected
+ * @bsi_nodes:  total count of node entry allocations
+ */
+struct bonsai_slabinfo {
+    struct bonsai_slab *bsi_slab;
+    struct bonsai_slab *bsi_empty;
+    uint                bsi_nodes;
+};
+
+static HSE_ALWAYS_INLINE
+struct bonsai_slab *
+bn_node2slab(struct bonsai_node *node)
+{
+    return (void *)(node - node->bn_nodeid);
+}
 
 /**
  * @bonsai_ior_cb: callback for insert or replace
@@ -214,51 +280,50 @@ _Static_assert(sizeof(struct bonsai_node) == 64, "bonsai node too large");
  * This callback is invoked during insert or replace and is implemented by
  * the client.
  */
-typedef void (*bonsai_ior_cb)(
+typedef void bonsai_ior_cb(
     void *                rock,
     enum bonsai_ior_code *code,
     struct bonsai_kv *    kv,
     struct bonsai_val *   val,
-    struct bonsai_val **  old_val);
-
-/**
- * struct - bonsai_client - abstracted client instance
- * @bc_cheap:       ptr to cheap
- * @bc_iorcb:       client's callback for insert or replace
- * @bc_rock:        owner private ptr
- * @bc_slab_sz:     node slab size (bytes)
- * @bc_slab_cur:    ptr to next free node in node slab
- * @bc_slab_end:    ptr to end of node slab
- *
- * Stores client specific callback and opaque parameters.
- */
-struct bonsai_client {
-    struct cheap   *bc_cheap;
-    bonsai_ior_cb   bc_iorcb;
-    void           *bc_rock;
-    size_t          bc_slab_sz;
-
-    HSE_ALIGNED(SMP_CACHE_BYTES)
-    struct bonsai_node *bc_slab_cur;
-    struct bonsai_node *bc_slab_end;
-};
+    struct bonsai_val **  old_val,
+    uint                  height);
 
 /**
  * struct bonsai_root - bonsai tree parameters
- * @br_root:      pointer to the root of bonsai_tree
- * @br_bounds:    indicates bounds are established and lcp
- * @br_client:    bonsai client instance
- * @br_stack:     used by bn_ior_impl() to eliminate recursion
- * @br_kv:        a circular k/v list, next=head, prev=tail
- *
- * There is one bonsai_root for each bonsai tree.
+ * @br_oom:         indicates out of memory condition
+ * @br_bounds:      indicates bounds are established and lcp
+ * @bc_slabsz:      node slab size (bytes)
+ * @br_root:        pointer to the root of bonsai_tree
+ * @br_cheap:       ptr to cheap
+ * @br_iorcb:       client's callback for insert or replace
+ * @br_iorcb_arg:   opaque arg for br_iorcb()
+ * @br_kv:          a circular k/v list, next=head, prev=tail
+ * @br_key_alloc:   total number of keys ever allocated
+ * @br_val_alloc:   total number of values ever allocated
+ * @br_height:      tree current max height
+ * @br_freevals:    list of values to be garbage collected
+ * @br_freekeys:    list of keys to be garbage collected
+ * @br_slabinfov:   vector of per-skix node slabs
+ * @br_oomslab:     embedded slab for out-of-memory recovery
  */
 struct bonsai_root {
-    struct bonsai_node  *br_root;
-    atomic_t             br_bounds;
-    struct bonsai_client br_client;
-    uintptr_t            br_stack[40];
-    struct bonsai_kv     br_kv;
+    struct bonsai_slab     *br_oom;
+    atomic_t                br_bounds;
+    uint                    br_slabsz;
+    struct bonsai_node     *br_root;
+    struct cheap           *br_cheap;
+    bonsai_ior_cb          *br_ior_cb;
+    void                   *br_ior_cbarg;
+
+    struct bonsai_kv        br_kv HSE_ALIGNED(SMP_CACHE_BYTES * 2);
+
+    uint                    br_key_alloc HSE_ALIGNED(SMP_CACHE_BYTES * 2);
+    uint                    br_val_alloc;
+    uint                    br_height;
+    struct bonsai_val      *br_freevals;
+    struct bonsai_kv       *br_freekeys;
+    struct bonsai_slabinfo  br_slabinfov[8];
+    struct bonsai_slab      br_oomslab[];
 };
 
 /**
@@ -275,8 +340,8 @@ merr_t
 bn_create(
     struct cheap        *cheap,
     size_t               slabsz,
-    bonsai_ior_cb        cb,
-    void *               rock,
+    bonsai_ior_cb       *cb,
+    void                *cbarg,
     struct bonsai_root **tree);
 
 /**
@@ -300,7 +365,6 @@ bn_destroy(struct bonsai_root *tree);
  * @tree: bonsai tree instance
  * @skey: bonsai_skey instance containing the key and its related info
  * @sval: bonsai_sval instance containing the value and its related info
- * @is_tomb: is the value a regular tombstone
  *
  * For multiple values support, the client specified callback
  * (bonsai_ior_cb) is invoked with the following:
@@ -319,8 +383,7 @@ merr_t
 bn_insert_or_replace(
     struct bonsai_root *      tree,
     const struct bonsai_skey *skey,
-    const struct bonsai_sval *sval,
-    const bool                is_tomb);
+    const struct bonsai_sval *sval);
 
 /**
  * bn_find() - Searches for a given key in the node
@@ -429,10 +492,11 @@ bn_finalize(struct bonsai_root *tree);
  * @skey:
  */
 static inline void
-bn_skey_init(const void *key, s32 klen, u16 index, struct bonsai_skey *skey)
+bn_skey_init(const void *key, s32 klen, u32 flags, u16 index, struct bonsai_skey *skey)
 {
-    skey->bsk_key = key;
     key_immediate_init(key, klen, index, &skey->bsk_key_imm);
+    skey->bsk_key = key;
+    skey->bsk_flags = flags;
 }
 
 /**

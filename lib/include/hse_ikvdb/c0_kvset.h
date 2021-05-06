@@ -314,7 +314,7 @@ struct bonsai_val;
 struct bonsai_kv;
 
 struct bonsai_val *
-c0kvs_findval(struct c0_kvset *handle, struct bonsai_kv *kv, u64 view_seqno, uintptr_t seqnoref);
+c0kvs_findval(struct bonsai_kv *kv, u64 view_seqno, uintptr_t seqnoref);
 
 /**
  * c0kvs_get_content_metrics() - retrieve metrics for the struct c0_kvset
@@ -350,6 +350,9 @@ c0kvs_get_content_metrics(
  */
 u64
 c0kvs_get_element_count(struct c0_kvset *set);
+
+u64
+c0kvs_get_element_count2(struct c0_kvset *set, uint *heightp, uint *keyvalsp);
 
 void
 c0kvs_usage(struct c0_kvset *handle, struct c0_usage *usage);

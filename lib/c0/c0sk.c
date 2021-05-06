@@ -861,7 +861,8 @@ c0sk_cursor_trim(struct c0_cursor *cur)
         for (; this; this = next, ++j) {
             next = MSCUR_NEXT(this);
 
-            if (this->c0mc_kvms == last) {
+            //if (this->c0mc_kvms == last) {
+            if (c0kvms_gen_read(this->c0mc_kvms) <= lastgen) {
                 MSCUR_SET_NEXT(this, 0);
                 this = next;
                 break;
@@ -901,7 +902,7 @@ c0sk_cursor_trim(struct c0_cursor *cur)
     if (cur->c0cur_active)
         return;
 
-/* If the cursor list is empty, drop all kvms references so the
+    /* If the cursor list is empty, drop all kvms references so the
      * cursor init that follows doesn't get additional references (which
      * would cause a leak).
      */
@@ -1257,12 +1258,11 @@ c0sk_cursor_seek(
 
     if (kt) {
         static struct bonsai_kv zero = {};
-        struct bonsai_kv *      kv;
+        struct bonsai_kv *kv;
 
         kv = valid ? bkv : &zero;
 
-        kt->kt_data = kv->bkv_key;
-        kt->kt_len = key_imm_klen(&kv->bkv_key_imm);
+        kvs_ktuple_init_nohash(kt, kv->bkv_key, key_imm_klen(&kv->bkv_key_imm));
 
         /* remember this for updates, which need implicit seek */
         memcpy(cur->c0cur_buf, kt->kt_data, kt->kt_len);
@@ -1282,8 +1282,8 @@ copy_kv(void *buf, size_t bufsz, struct kvs_kvtuple *kvt, struct bonsai_kv *bkv,
     memcpy(buf, bkv->bkv_key, klen);
     kvs_ktuple_init_nohash(&kvt->kvt_key, buf, klen);
 
-    if (HSE_CORE_IS_TOMB(val->bv_valuep)) {
-        kvs_vtuple_init(&kvt->kvt_value, val->bv_valuep, val->bv_xlen);
+    if (HSE_CORE_IS_TOMB(val->bv_value)) {
+        kvs_vtuple_init(&kvt->kvt_value, val->bv_value, val->bv_xlen);
         return 0;
     }
 
@@ -1397,14 +1397,14 @@ c0sk_cursor_read(struct c0_cursor *cur, struct kvs_kvtuple *kvt, bool *eof)
             break;
         }
 
-        val = c0kvs_findval(NULL, bkv, cur->c0cur_seqno, seqnoref);
+        val = c0kvs_findval(bkv, cur->c0cur_seqno, seqnoref);
         if (!val) {
             if (cur->c0cur_debug)
                 c0sk_cursor_debug_val(cur, seqnoref, bkv);
             continue;
         }
 
-        assert(!HSE_CORE_IS_PTOMB(val->bv_valuep) || is_ptomb);
+        assert(!HSE_CORE_IS_PTOMB(val->bv_value) || is_ptomb);
 
         if (cur->c0cur_ptomb_key) {
             if (keycmp_prefix(
@@ -1423,7 +1423,7 @@ c0sk_cursor_read(struct c0_cursor *cur, struct kvs_kvtuple *kvt, bool *eof)
         /* If ptomb, move iterators past prefix for all KVMS older than
          * current.
          */
-        if (HSE_CORE_IS_PTOMB(val->bv_valuep)) {
+        if (HSE_CORE_IS_PTOMB(val->bv_value)) {
             /* store ptomb w/ largest seqno visible to this cursor
              */
             c0sk_cursor_skip_pfx(cur, bkv);
@@ -1460,8 +1460,8 @@ c0sk_cursor_read(struct c0_cursor *cur, struct kvs_kvtuple *kvt, bool *eof)
              * stop dropping dups, since this ptomb might hide
              * other keys.
              */
-            dupv = c0kvs_findval(NULL, dup, cur->c0cur_seqno, seqnoref);
-            if (dupv && HSE_CORE_IS_PTOMB(dupv->bv_valuep) && !HSE_CORE_IS_PTOMB(val->bv_valuep))
+            dupv = c0kvs_findval(dup, cur->c0cur_seqno, seqnoref);
+            if (dupv && HSE_CORE_IS_PTOMB(dupv->bv_value) && !HSE_CORE_IS_PTOMB(val->bv_value))
                 break;
 
             /* Dups within a KVMS means one of them is a ptomb and
@@ -1547,8 +1547,9 @@ c0sk_cursor_update(
     struct c0_kvmultiset *       kvms = NULL;
     struct c0_kvmultiset_cursor *active, *p;
     struct c0sk_impl *           c0sk;
-    int                          cnt, nact;
+    int retries = 2, cnt, nact;
 
+  retry:
     if (flags_out)
         *flags_out = (seqno != cur->c0cur_seqno) ? CURSOR_FLAG_SEQNO_CHANGE : 0;
 
@@ -1629,6 +1630,17 @@ c0sk_cursor_update(
             ;
 
         ev(cnt >= 0, HSE_WARNING);
+
+        /* We should have a new c0cur_active kvms at this point, which means
+         * we can now trim the previous c0cur_active if it has been ingested.
+         */
+        if (active && c0kvms_is_ingested(active->c0mc_kvms)) {
+            if (retries-- > 0)
+                goto retry;
+
+            hse_log(HSE_WARNING "%s: cursor %p holding ref on ingested kvms %p",
+                    __func__, cur, active->c0mc_kvms);
+        }
     }
 
     return cur->c0cur_merr;

@@ -59,11 +59,8 @@ struct c0_ingest_work {
 
     /* Debug stats produced by c0_ingest_worker().
      */
-    u64 t0, t3, t4, t5, t6, t7;
-    u64 taddkey;
-    u64 taddval;
-    u64 gen;
-    u64 gencur;
+    u64 t0, t3, t4, t5, t6, t7, t8, t9;
+    u64 gencur, gen;
 
     /* c0iw_magic is last field to verify it didn't get clobbered
      * by c0kvs_reset().

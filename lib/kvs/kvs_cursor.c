@@ -417,18 +417,18 @@ ikvs_curcache_insert(struct curcache_bucket *bkt, struct kvs_cursor_impl *cur)
     mutex_lock(&bkt->cb_lock);
     link = &bkt->cb_root.rb_node;
     parent = NULL;
+    entry = NULL;
 
     while (*link) {
         parent = *link;
         entry = rb_entry(parent, typeof(*entry), ce_rbnode);
 
         rc = ikvs_curcache_cmp(entry, key, prefix, pfxlen);
-        if (rc < 0)
-            link = &parent->rb_left;
-        else if (rc > 0)
-            link = &parent->rb_right;
-        else
+
+        if (rc == 0)
             break;
+
+        link = (rc < 0) ? &parent->rb_left : &parent->rb_right;
     }
 
     if (*link) {
@@ -441,7 +441,7 @@ ikvs_curcache_insert(struct curcache_bucket *bkt, struct kvs_cursor_impl *cur)
         while (1) {
             struct kvs_cursor_impl *old = *pp;
 
-            if (!old || cur->kci_item.ci_ttl > old->kci_item.ci_ttl) {
+            if (!old || cur->kci_item.ci_ttl < old->kci_item.ci_ttl) {
                 cur->kci_item.ci_next = old;
                 bkt->cb_active++;
                 *pp = cur;

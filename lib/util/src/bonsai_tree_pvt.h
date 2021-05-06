@@ -25,54 +25,55 @@ enum bonsai_match_type {
 };
 
 /**
- * bn_node_alloc() -
+ * bn_node_alloc() - allocate and initialize a node plus key and value
  * @tree:    bonsai tree instance
- * @key_imm:
- * @key:
+ * @skey:
  * @sval:
  *
- * Return:
+ * Return: new node at height 1 with nil left/right child ptrs
  */
 struct bonsai_node *
-bn_node_alloc(
-    struct bonsai_root *        tree,
-    const struct key_immediate *key_imm,
-    const void *                key,
-    const struct bonsai_sval *  sval);
+bn_kvnode_alloc(
+    struct bonsai_root       *tree,
+    const struct bonsai_skey *skey,
+    const struct bonsai_sval *sval);
 
 /**
- * bn_val_alloc() -
- * @tree:    bonsai tree instance
+ * bn_val_alloc() - allocate and initialize a value
+ * @tree:       bonsai tree instance
  * @sval:
+ * @deepcopy:   value must be copied into bonsai tree if true
  *
  * Return:
  */
 struct bonsai_val *
-bn_val_alloc(struct bonsai_root *tree, const struct bonsai_sval *sval);
+bn_val_alloc(struct bonsai_root *tree, const struct bonsai_sval *sval, bool deepcopy);
 
 /**
- * bn_node_dup() -
+ * bn_node_dup() - allocate and initialize a new node copied from src
  * @tree: bonsai tree instance
- * @node: bonsai_node to be dup'ed
+ * @src:  bonsai_node to be dup'ed
  *
- * Return: new bonsai_node (duplicated from 'node')
+ * Return: new node (duplicated from 'node') at height of src node
  */
 struct bonsai_node *
-bn_node_dup(struct bonsai_root *tree, struct bonsai_node *node);
+bn_node_dup(struct bonsai_root *tree, struct bonsai_node *src);
 
 /**
- * bn_node_dup_ext() -
+ * bn_node_dup_ext() - allocate and initialize a new node copied from src
  * @tree:  bonsai tree instance
  * @node:  bonsai_node to be dup'ed
  * @left:  left child
  * @right: right child
  *
- * Return: new bonsai_node (duplicated from 'node')
+ * Similar to bn_node_dup() but installs new left and right children.
+ *
+ * Return: new node (duplicated from 'node') at max height of left/right
  */
 struct bonsai_node *
 bn_node_dup_ext(
     struct bonsai_root *tree,
-    struct bonsai_node *node,
+    struct bonsai_node *src,
     struct bonsai_node *left,
     struct bonsai_node *right);
 
@@ -104,7 +105,7 @@ bn_balance_tree(
  *
  * Return:
  */
-static inline int
+static HSE_ALWAYS_INLINE int
 bn_height_max(int a, int b)
 {
     return (a > b) ? a : b;
@@ -117,14 +118,9 @@ bn_height_max(int a, int b)
  * Return:
  */
 static HSE_ALWAYS_INLINE int
-bn_height_get(struct bonsai_node *node)
+bn_height_get(const struct bonsai_node *node)
 {
-    if (!node)
-        return 0;
-
-    assert(node->bn_height >= 0);
-
-    return node->bn_height;
+    return node ? node->bn_height : 0;
 }
 
 /**

@@ -294,7 +294,7 @@ c0sk_builder_add(
 
             seqnoref_to_seqno(val->bv_seqnoref, &seqno);
 
-            rc = seq_prev_cmp(val->bv_valuep, seqno, seqno_prev, pt_seqno_prev);
+            rc = seq_prev_cmp(val->bv_value, seqno, seqno_prev, pt_seqno_prev);
             if (rc > 0) {
                 *tailp = val->bv_free;
                 val->bv_free = *prevp;
@@ -307,7 +307,7 @@ c0sk_builder_add(
 
             prevp = tailp;
             tailp = &val->bv_free;
-            if (HSE_CORE_IS_PTOMB(val->bv_valuep))
+            if (HSE_CORE_IS_PTOMB(val->bv_value))
                 pt_seqno_prev = seqno;
             else
                 seqno_prev = seqno;
@@ -328,14 +328,14 @@ c0sk_builder_add(
 
         seqnoref_to_seqno(val->bv_seqnoref, &seqno);
 
-        rc = seq_prev_cmp(val->bv_valuep, seqno, seqno_prev, pt_seqno_prev);
+        rc = seq_prev_cmp(val->bv_value, seqno, seqno_prev, pt_seqno_prev);
 
         if (rc == 0)
             continue; /* dup */
 
         assert(val == head || rc <= 0);
 
-        if (HSE_CORE_IS_PTOMB(val->bv_valuep))
+        if (HSE_CORE_IS_PTOMB(val->bv_value))
             pt_seqno_prev = seqno;
         else
             seqno_prev = seqno;
@@ -343,7 +343,7 @@ c0sk_builder_add(
         err = kvset_builder_add_val(
             bldr,
             seqno,
-            bonsai_val_vlen(val) ? val->bv_value : val->bv_valuep,
+            val->bv_value,
             bonsai_val_ulen(val),
             bonsai_val_clen(val));
 
@@ -526,7 +526,7 @@ c0sk_ingest_worker(struct work_struct *work)
             state = seqnoref_to_seqno(val->bv_seqnoref, &seqno);
             assert(state == HSE_SQNREF_STATE_DEFINED || state == HSE_SQNREF_STATE_ABORTED);
 
-            rc = seq_prev_cmp(val->bv_valuep, seqno, seqno_prev, pt_seqno_prev);
+            rc = seq_prev_cmp(val->bv_value, seqno, seqno_prev, pt_seqno_prev);
 
             if (state != HSE_SQNREF_STATE_DEFINED || rc == 0)
                 continue;
@@ -535,7 +535,7 @@ c0sk_ingest_worker(struct work_struct *work)
 
             have_val = true;
 
-            assert(!HSE_CORE_IS_PTOMB(val->bv_valuep) || (bkv->bkv_flags & BKV_FLAG_PTOMB));
+            assert(!HSE_CORE_IS_PTOMB(val->bv_value) || (bkv->bkv_flags & BKV_FLAG_PTOMB));
 
             /* Insert value as penultimate if seqno is out-of-order.
              */
@@ -563,7 +563,7 @@ c0sk_ingest_worker(struct work_struct *work)
             *val_tailp = val;
             val_tailp = &val->bv_free;
 
-            if (HSE_CORE_IS_PTOMB(val->bv_valuep))
+            if (HSE_CORE_IS_PTOMB(val->bv_value))
                 pt_seqno_prev = seqno;
             else
                 seqno_prev = seqno;
@@ -633,6 +633,9 @@ exit_err:
         }
     }
 
+    if (debug)
+        ingest->t6 = get_time_ns();
+
     mutex_lock(&c0sk->c0sk_kvms_mutex);
     while (1) {
         if (kvms == c0sk_get_last_c0kvms(&c0sk->c0sk_handle))
@@ -641,6 +644,9 @@ exit_err:
         cv_wait(&c0sk->c0sk_kvms_cv, &c0sk->c0sk_kvms_mutex);
     }
     mutex_unlock(&c0sk->c0sk_kvms_mutex);
+
+    if (debug)
+        ingest->t7 = get_time_ns();
 
     if (do_cn_ingest) {
 
@@ -656,7 +662,7 @@ exit_err:
     }
 
     if (debug)
-        ingest->t6 = get_time_ns();
+        ingest->t8 = get_time_ns();
 
     if (ev(err))
         hse_elog(HSE_ERR "c0 ingest failed on %p: @@e", err, kvms);
@@ -672,7 +678,7 @@ exit_err:
     }
 
     if (debug) {
-        ingest->t7 = get_time_ns();
+        ingest->t9 = get_time_ns();
 
         ingest->gen = c0kvms_gen_read(kvms);
         ingest->gencur = c0kvms_gen_current(kvms);
@@ -1310,13 +1316,12 @@ c0sk_putdel(
     const struct kvs_vtuple *vt,
     uintptr_t                seqnoref)
 {
-    merr_t err;
     bool is_txn = (seqnoref != HSE_SQNREF_SINGLE);
+    merr_t err;
 
     while (1) {
         struct c0_kvmultiset   *dst;
         struct c0_kvset        *kvs;
-        bool                    first_entry = false;
         uintptr_t              *entry = NULL;
         uintptr_t              *priv = (uintptr_t *)seqnoref;
         u64                     dst_gen;
@@ -1328,7 +1333,7 @@ c0sk_putdel(
             return merr(EINVAL);
         }
 
-        if (ev(c0kvms_should_ingest(dst))) {
+        if (c0kvms_should_ingest(dst)) {
             err = merr(ENOMEM);
             goto unlock;
         }
@@ -1337,9 +1342,8 @@ c0sk_putdel(
             u64 curr_gen = c0snr_get_cgen(priv);
 
             dst_gen = c0kvms_gen_read(dst);
-            first_entry = (curr_gen != dst_gen);
 
-            if (first_entry) {
+            if (curr_gen != dst_gen) {
                 /* This is the first put for the given txn.
                  * Although C0SNRs can be reused as transactions abort/commit, a C0SNR
                  * within a KVMS is associated with at most one transaction.
@@ -1372,8 +1376,7 @@ c0sk_putdel(
 
         assert(!c0kvms_is_finalized(dst)); /* See c0kvs_putdel() */
 
-        if (first_entry) {
-            assert(entry);
+        if (entry) {
             if (!err) {
                 /*
                  * Acquire a ref on the C0SNR. This prevents it from being
