@@ -581,9 +581,8 @@ c0kvs_alloc(struct c0_kvset *handle, size_t align, size_t sz)
 static merr_t
 c0kvs_putdel(
     struct c0_kvset_impl *self,
-    struct bonsai_skey *  skey,
-    struct bonsai_sval *  sval,
-    size_t                sz)
+    struct bonsai_skey   *skey,
+    struct bonsai_sval   *sval)
 {
     merr_t err;
 
@@ -614,12 +613,10 @@ c0kvs_put(
     struct bonsai_skey    skey;
     struct bonsai_sval    sval;
 
-    assert(kt->kt_flags == 0);
-
     bn_skey_init(kt->kt_data, kt->kt_len, kt->kt_flags, skidx, &skey);
     bn_sval_init(vt->vt_data, vt->vt_xlen, seqnoref, &sval);
 
-    return c0kvs_putdel(self, &skey, &sval, kt->kt_len + kvs_vtuple_vlen(vt));
+    return c0kvs_putdel(self, &skey, &sval);
 }
 
 merr_t
@@ -632,7 +629,7 @@ c0kvs_del(struct c0_kvset *handle, u16 skidx, const struct kvs_ktuple *key, uint
     bn_skey_init(key->kt_data, key->kt_len, 0, skidx, &skey);
     bn_sval_init(HSE_CORE_TOMB_REG, 0, seqnoref, &sval);
 
-    return c0kvs_putdel(self, &skey, &sval, key->kt_len);
+    return c0kvs_putdel(self, &skey, &sval);
 }
 
 merr_t
@@ -649,7 +646,7 @@ c0kvs_prefix_del(
     bn_skey_init(key->kt_data, key->kt_len, 0, skidx, &skey);
     bn_sval_init(HSE_CORE_TOMB_PFX, 0, seqnoref, &sval);
 
-    return c0kvs_putdel(self, &skey, &sval, key->kt_len);
+    return c0kvs_putdel(self, &skey, &sval);
 }
 
 void

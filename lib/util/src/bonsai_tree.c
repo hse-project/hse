@@ -134,6 +134,11 @@ bn_ior_impl(
     key_imm = &skey->bsk_key_imm;
     key = skey->bsk_key;
 
+    /* [HSE_REVISIT] For the time being no flags should be set.  If flags
+     * is set it's likely the caller didn't initialize the ktuple correctly.
+     */
+    assert(skey->bsk_flags == 0);
+
     if (HSE_UNLIKELY( tree->br_height >= NELEM(stack) - BONSAI_TREE_BALANCE_THRESHOLD )) {
         assert(tree->br_height < NELEM(stack) - BONSAI_TREE_BALANCE_THRESHOLD);
         return NULL; /* shouldn't happen */
