@@ -138,7 +138,6 @@ bn_kv_init(
     memset(kv, 0, sizeof(*kv));
     kv->bkv_key_imm = skey->bsk_key_imm;
     kv->bkv_key = (void *)skey->bsk_key; // [HSE_REVISIT] Constness...
-    kv->bkv_valcnt = 1;
 
     if (sz > sizeof(*kv)) {
         memcpy(kv->bkv_keybuf, skey->bsk_key, sz - sizeof(*kv));

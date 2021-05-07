@@ -168,8 +168,8 @@ bonsai_sval_vlen(const struct bonsai_sval *bsv)
  * @bkv_key_imm:
  * @bkv_key:        ptr to key
  * @bkv_flags:      BKV_FLAG_*
- * @bkv_valcnt:     length of bkv_values list
- * @bkv_values:     list of values
+ * @bkv_valcnt:     user-managed length of bkv_values list
+ * @bkv_values:     user-managed list of values
  * @bkv_prev:
  * @bkv_next:
  * @bkv_es:

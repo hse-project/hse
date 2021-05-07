@@ -274,9 +274,8 @@ c0kvs_ior_cb(
         if (state == HSE_SQNREF_STATE_SINGLE)
             seqno = c0kvs_seqno_set(c0kvs, val);
 
-        assert(kv->bkv_valcnt == 1);
         c0kvs_ior_stats(c0kvs, *code, NULL, 0, NULL, 0,
-                        kv->bkv_key, klen, n_val, n_vlen, height, 1);
+                        kv->bkv_key, klen, n_val, n_vlen, height, ++kv->bkv_valcnt);
 
         return;
     }

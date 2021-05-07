@@ -17,7 +17,7 @@
 static void
 bn_summary(struct bonsai_root *tree)
 {
-#ifdef NDEBUG
+#ifndef NDEBUG
     int nodes = 0, n = 0, i;
     const char *comma = "";
     char buf[256];
