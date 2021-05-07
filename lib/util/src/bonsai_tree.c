@@ -17,6 +17,7 @@
 static void
 bn_summary(struct bonsai_root *tree)
 {
+#ifdef NDEBUG
     int nodes = 0, n = 0, i;
     const char *comma = "";
     char buf[256];
@@ -42,6 +43,7 @@ bn_summary(struct bonsai_root *tree)
             tree->br_height, nodes,
             tree->br_key_alloc, tree->br_val_alloc,
             (double)nodes / tree->br_key_alloc, buf);
+#endif
 }
 
 static struct bonsai_node *
@@ -500,10 +502,8 @@ bn_reset_impl(struct bonsai_root *tree)
 void
 bn_reset(struct bonsai_root *tree)
 {
-#ifndef NDEBUG
     if (tree->br_oom || tree->br_height > 22)
         bn_summary(tree);
-#endif
 
     bn_reset_impl(tree);
 
