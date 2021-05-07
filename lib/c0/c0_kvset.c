@@ -37,12 +37,6 @@ _Static_assert(HSE_C0_CHEAP_SZ_MAX >= HSE_C0_CHEAP_SZ_DFLT, "max c0 cheap size t
 static void
 c0kvs_destroy_impl(struct c0_kvset_impl *set);
 
-/* c0kvs_ingesting provides a sane default for c0s_ingesting, primarily
- * for unit tests.  It is overridden via c0kvs_ingesting_init() in
- * normal use.
- */
-static atomic_t c0kvs_ingesting = ATOMIC_INIT(0);
-
 /**
  * struct c0kvs_ccache - cache of initialized cheap-based c0kvs objects
  * @cb_lock:    bucket lock
@@ -94,7 +88,7 @@ c0kvs_ccache_free(struct c0_kvset_impl *set)
 
     spin_lock(&cc->cc_lock);
     if (cc->cc_size + HSE_C0_CHEAP_SZ_MAX < HSE_C0_CCACHE_SZ_MAX) {
-        cc->cc_size += HSE_C0_CHEAP_SZ_MAX;;
+        cc->cc_size += HSE_C0_CHEAP_SZ_MAX;
         set->c0s_next = cc->cc_head;
         cc->cc_head = set;
         set = NULL;
@@ -477,7 +471,6 @@ c0kvs_create(
 
     set->c0s_alloc_sz = alloc_sz;
     set->c0s_cheap = cheap;
-    set->c0s_ingesting = &c0kvs_ingesting;
     atomic_set(&set->c0s_finalized, 0);
     mutex_init(&set->c0s_mutex);
 
@@ -552,21 +545,12 @@ c0kvs_reset(struct c0_kvset *handle, size_t sz)
     bn_reset(set->c0s_broot);
 
     atomic_set(&set->c0s_finalized, 0);
-    set->c0s_ingesting = &c0kvs_ingesting;
     set->c0s_num_entries = 0;
     set->c0s_num_tombstones = 0;
     set->c0s_total_key_bytes = 0;
     set->c0s_total_value_bytes = 0;
     set->c0s_height = 0;
     set->c0s_keyvals = 0;
-}
-
-void
-c0kvs_ingesting_init(struct c0_kvset *handle, atomic_t *ingesting)
-{
-    struct c0_kvset_impl *self = c0_kvset_h2r(handle);
-
-    self->c0s_ingesting = ingesting;
 }
 
 static HSE_ALWAYS_INLINE void

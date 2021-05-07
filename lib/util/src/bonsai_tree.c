@@ -132,7 +132,7 @@ bn_ior_impl(
     key_imm = &skey->bsk_key_imm;
     key = skey->bsk_key;
 
-    if (HSE_UNLIKELY( tree->br_height >= NELEM(stack) - BONSAI_TREE_BALANCE_THRESHOLD)) {
+    if (HSE_UNLIKELY( tree->br_height >= NELEM(stack) - BONSAI_TREE_BALANCE_THRESHOLD )) {
         assert(tree->br_height < NELEM(stack) - BONSAI_TREE_BALANCE_THRESHOLD);
         return NULL; /* shouldn't happen */
     }
@@ -183,9 +183,10 @@ bn_ior_impl(
         return NULL;
 
     /* Failure up to this point is safe in that the tree will not have been
-     * modified.  It's not clear, however, if failure during rebalancing
-     * could yield a corrupted tree.  To be safe, the caller must ensure
-     * that there is sufficient memory for about (maxdepth * 3) nodes.
+     * modified.  However, failure to allocate a node during rebalancing does
+     * leave the tree corrupted.  We now have in place an emergency slab
+     * (i.e., tree->br_oom) that should be sufficiently large to complete
+     * any rebalance operation, after which we disallow subsequent inserts.
      */
     while (node && n-- > 0) {
         struct bonsai_node *prev;
@@ -201,8 +202,6 @@ bn_ior_impl(
             node = bn_balance_tree(tree, prev, prev->bn_left, node, key_imm, key, B_UPDATE_R);
         else
             node = bn_balance_tree(tree, prev, node, prev->bn_right, key_imm, key, B_UPDATE_L);
-
-        assert(!node || node->bn_flags == HSE_BNF_VISIBLE);
     }
 
     return node;
@@ -501,8 +500,10 @@ bn_reset_impl(struct bonsai_root *tree)
 void
 bn_reset(struct bonsai_root *tree)
 {
+#ifndef NDEBUG
     if (tree->br_oom || tree->br_height > 22)
         bn_summary(tree);
+#endif
 
     bn_reset_impl(tree);
 
@@ -583,15 +584,10 @@ bn_destroy(struct bonsai_root *tree)
     if (!tree)
         return;
 
-    rcu_assign_pointer(tree->br_root, NULL);
-
-    if (tree->br_cheap)
-        return;
-
     bn_reset(tree);
 
-
-    free(tree);
+    if (!tree->br_cheap)
+        free(tree);
 }
 
 void

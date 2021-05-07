@@ -200,7 +200,6 @@ bn_kvnode_alloc(
 
     node = bn_node_make(tree, NULL, NULL, kv, &skey->bsk_key_imm);
     if (node) {
-        //bn_height_update(node);
         node->bn_height = 1;
         return node;
     }
@@ -214,13 +213,13 @@ bn_kvnode_alloc(
 struct bonsai_node *
 bn_node_dup(struct bonsai_root *tree, struct bonsai_node *src)
 {
-    struct bonsai_node *newnode;
+    struct bonsai_node *node;
 
-    newnode = bn_node_make(tree, src->bn_left, src->bn_right, src->bn_kv, &src->bn_key_imm);
-    if (newnode)
-        newnode->bn_height = src->bn_height;
+    node = bn_node_make(tree, src->bn_left, src->bn_right, src->bn_kv, &src->bn_key_imm);
+    if (node)
+        node->bn_height = src->bn_height;
 
-    return newnode;
+    return node;
 }
 
 struct bonsai_node *

@@ -124,9 +124,6 @@ c0kvs_reset(struct c0_kvset *set, size_t sz);
 void *
 c0kvs_alloc(struct c0_kvset *handle, size_t align, size_t sz);
 
-void
-c0kvs_ingesting_init(struct c0_kvset *handle, atomic_t *ingesting);
-
 /**
  * c0kvs_put() - insert a key/value pair into the struct c0_kvset
  * @set:   Struct c0_kvset to insert the key/value into

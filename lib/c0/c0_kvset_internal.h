@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
 #ifndef HSE_CORE_C0_KVSET_INTERNAL_H
@@ -17,7 +17,6 @@
  * @c0s_broot:             bonsai tree instance
  * @c0s_alloc_sz:          client requested cursor heap size
  * @c0s_reset_sz:          size of cheap used by fully setup c0kkvs
- * @c0s_ingesting:         kvset ready-for or currently-is ingesting
  * @c0s_finalized:         kvset is frozen and undergoing c0 ingest
  * @c0s_next:              cheap cache linkage
  * @c0s_kvdb_seqno:        pointer to kvdb seqno
@@ -45,7 +44,6 @@ struct c0_kvset_impl {
     struct bonsai_root   *c0s_broot;
     u32                   c0s_alloc_sz;
     u32                   c0s_reset_sz;
-    atomic_t             *c0s_ingesting;
     atomic_t              c0s_finalized;
     struct c0_kvset_impl *c0s_next;
 

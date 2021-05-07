@@ -195,7 +195,6 @@ MTF_DEFINE_UTEST_PREPOST(c0_kvset_test, basic_put_get_fail, no_fail_pre, no_fail
     struct c0_kvset * kvs;
     struct kvs_ktuple kt;
     struct kvs_vtuple vt;
-    atomic_t          ingesting;
     merr_t            err, err2;
     size_t            avail;
     uintptr_t         seqnoref;
@@ -207,9 +206,6 @@ MTF_DEFINE_UTEST_PREPOST(c0_kvset_test, basic_put_get_fail, no_fail_pre, no_fail
      */
     err = c0kvs_create(HSE_C0_CHEAP_SZ_MAX, 0, 0, &kvs);
     ASSERT_NE(NULL, kvs);
-
-    atomic_set(&ingesting, 0);
-    c0kvs_ingesting_init(kvs, &ingesting);
 
     avail = c0kvs_avail(kvs) + 1;
     bigly = malloc(avail);
@@ -258,8 +254,6 @@ MTF_DEFINE_UTEST_PREPOST(c0_kvset_test, basic_put_get_fail, no_fail_pre, no_fail
     err = c0kvs_prefix_del(kvs, 0, &kt, seqnoref);
     ASSERT_EQ(ENOMEM, merr_errno(err));
 
-    ASSERT_EQ(0, atomic_read(&ingesting));
-
     /* Fill up the kvs.
      * We use a key that is larger than the value in an attempt
      * to ensure that a delete after a failed put will fail for
@@ -276,8 +270,6 @@ MTF_DEFINE_UTEST_PREPOST(c0_kvset_test, basic_put_get_fail, no_fail_pre, no_fail
         err = c0kvs_put(kvs, 0, &kt, &vt, seqnoref);
         err2 = merr_errno(err);
         if (ENOMEM == err2) {
-            ASSERT_EQ(0, atomic_read(&ingesting));
-
             err = c0kvs_del(kvs, 0, &kt, seqnoref);
             ASSERT_EQ(err2, merr_errno(err));
 
@@ -287,7 +279,6 @@ MTF_DEFINE_UTEST_PREPOST(c0_kvset_test, basic_put_get_fail, no_fail_pre, no_fail
         }
 
         ASSERT_EQ(0, err);
-        ASSERT_EQ(0, atomic_read(&ingesting));
 
         key[0]++;
     }
@@ -1002,15 +993,11 @@ MTF_DEFINE_UTEST_PREPOST(c0_kvset_test, finalize, no_fail_pre, no_fail_post)
     struct kvs_vtuple   vt;
     struct kvs_buf      vb;
     enum key_lookup_res res;
-    atomic_t            ingesting;
     int                 i;
     uintptr_t           iseqno, oseqno;
 
     err = c0kvs_create(HSE_C0_CHEAP_SZ_DFLT, 0, 0, &kvs);
     ASSERT_NE((struct c0_kvset *)0, kvs);
-
-    atomic_set(&ingesting, 0);
-    c0kvs_ingesting_init(kvs, &ingesting);
 
     kvs_ktuple_init(&kt, kbuf, 0);
     kvs_vtuple_init(&vt, vbuf, sizeof(vbuf));
@@ -1032,7 +1019,6 @@ MTF_DEFINE_UTEST_PREPOST(c0_kvset_test, finalize, no_fail_pre, no_fail_post)
         ASSERT_EQ(0, err);
     }
 
-    atomic_inc(&ingesting);
     c0kvs_finalize(kvs);
 
     for (i = 9; i >= 0; --i) {
@@ -1076,7 +1062,7 @@ MTF_DEFINE_UTEST_PREPOST(c0_kvset_test, finalize, no_fail_pre, no_fail_post)
      */
 #ifdef NDEBUG
     ASSERT_EQ(0, sigabrt_cnt);
-    ASSERT_EQ(EROFS, err);
+    ASSERT_EQ(EROFS, merr_errno(err));
 #else
     ASSERT_EQ(1, sigabrt_cnt);
     ASSERT_EQ(ENOTSUP, merr_errno(err));
@@ -1099,7 +1085,7 @@ MTF_DEFINE_UTEST_PREPOST(c0_kvset_test, finalize, no_fail_pre, no_fail_post)
      */
 #ifdef NDEBUG
     ASSERT_EQ(0, sigabrt_cnt);
-    ASSERT_EQ(EROFS, err);
+    ASSERT_EQ(EROFS, merr_errno(err));
 #else
     ASSERT_EQ(2, sigabrt_cnt);
     ASSERT_EQ(ENOTSUP, merr_errno(err));
@@ -1125,16 +1111,12 @@ MTF_DEFINE_UTEST_PREPOST(c0_kvset_test, iterator, no_fail_pre, no_fail_post)
     merr_t            err;
     char              kbuf, vbuf;
     uintptr_t         iseqno;
-    atomic_t          ingesting;
     bool              found;
     int               i;
     char              c;
 
     err = c0kvs_create(HSE_C0_CHEAP_SZ_DFLT, 0, 0, &kvs);
     ASSERT_NE(NULL, kvs);
-
-    atomic_set(&ingesting, 0);
-    c0kvs_ingesting_init(kvs, &ingesting);
 
     iseqno = HSE_ORDNL_TO_SQNREF(0);
 
@@ -1153,7 +1135,6 @@ MTF_DEFINE_UTEST_PREPOST(c0_kvset_test, iterator, no_fail_pre, no_fail_post)
 
     synchronize_rcu();
 
-    atomic_inc(&ingesting);
     c0kvs_finalize(kvs);
 
     /* Test forward iteration over the finalized cb_kv list.

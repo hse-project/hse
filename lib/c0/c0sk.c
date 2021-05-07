@@ -861,7 +861,6 @@ c0sk_cursor_trim(struct c0_cursor *cur)
         for (; this; this = next, ++j) {
             next = MSCUR_NEXT(this);
 
-            //if (this->c0mc_kvms == last) {
             if (c0kvms_gen_read(this->c0mc_kvms) <= lastgen) {
                 MSCUR_SET_NEXT(this, 0);
                 this = next;
@@ -1633,6 +1632,9 @@ c0sk_cursor_update(
 
         /* We should have a new c0cur_active kvms at this point, which means
          * we can now trim the previous c0cur_active if it has been ingested.
+         *
+         * [HSE_REVISIT] We could eliminate this retry if we could add the
+         * new kvms first then prune the ingested ones, feasible???
          */
         if (active && c0kvms_is_ingested(active->c0mc_kvms)) {
             if (retries-- > 0)

@@ -323,14 +323,14 @@ c0kvms_should_ingest(struct c0_kvmultiset *handle)
 
     r = xrand64_tls();
 
-    if (HSE_LIKELY( r % scaler < (97 * scaler) / 100) )
+    if (HSE_LIKELY( (r % scaler) < (97 * scaler) / 100) )
         return false;
 
     /* Only 3% of callers reach this point to sample a random
      * half of the available c0 kvsets and return true if any
      * of the following are true:
      *
-     * 1) The number of values for any key exceeds 3072
+     * 1) The number of values for any key exceeds 4096
      * 2) The height of any bonsai tree is greater than 24
      * 3) The average number of values for all keys exceeds 2048
      * 4) The average height of all trees exceeds 21 (more like
@@ -876,8 +876,6 @@ c0kvms_create(
             goto errout;
         }
 
-        c0kvs_ingesting_init(kvms->c0ms_sets[i], &kvms->c0ms_ingesting);
-
         ++kvms->c0ms_num_sets;
         sz = alloc_sz;
     }
@@ -1046,7 +1044,6 @@ c0kvms_reset(struct c0_kvmultiset *handle)
         struct c0_kvset *c0kvs = self->c0ms_sets[i];
 
         c0kvs_reset(c0kvs, resetsz);
-        c0kvs_ingesting_init(c0kvs, &self->c0ms_ingesting);
         resetsz = 0;
     }
 
