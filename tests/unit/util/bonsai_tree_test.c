@@ -43,6 +43,7 @@
 #define ALLOC_LEN_MAX 1344
 
 enum bonsai_alloc_mode {
+    HSE_ALLOC_MALLOC = 0,
     HSE_ALLOC_CURSOR = 1,
 };
 
@@ -98,7 +99,8 @@ bonsai_client_insert_callback(
     enum bonsai_ior_code *code,
     struct bonsai_kv *    kv,
     struct bonsai_val *   new_val,
-    struct bonsai_val **  old_val)
+    struct bonsai_val **  old_val,
+    uint                  height)
 {
     struct bonsai_val * old;
     struct bonsai_val **prevp;
@@ -249,7 +251,7 @@ findPfxValue(struct bonsai_kv *kv, uintptr_t seqnoref)
 
     val = kv->bkv_values;
     while (val) {
-        if (val->bv_valuep == HSE_CORE_TOMB_PFX) {
+        if (val->bv_value == HSE_CORE_TOMB_PFX) {
             if ((val->bv_seqnoref == seqnoref) || seqnoref_ge(seqnoref, val->bv_seqnoref))
                 break;
         }
@@ -352,11 +354,11 @@ bonsai_client_producer(void *arg)
 
             *val = *key;
 
-            bn_skey_init(key, key_size, 0, &skey);
+            bn_skey_init(key, key_size, 0, 0, &skey);
             bn_sval_init(val, val_size, HSE_ORDNL_TO_SQNREF(*val), &sval);
 
             pthread_mutex_lock(&mtx);
-            err = bn_insert_or_replace(broot, &skey, &sval, false);
+            err = bn_insert_or_replace(broot, &skey, &sval);
             if (merr_errno(err) == 0) {
                 __sync_synchronize();
                 key_current = i;
@@ -439,11 +441,11 @@ bonsai_client_lcp_test(void *arg)
 
         key[KI_DLEN_MAX + 26] = 'a' + i;
 
-        bn_skey_init(key, KI_DLEN_MAX + 27, tid, &skey);
+        bn_skey_init(key, KI_DLEN_MAX + 27, 0, tid, &skey);
         bn_sval_init(&val, sizeof(val), HSE_ORDNL_TO_SQNREF(val), &sval);
 
         pthread_mutex_lock(&mtx);
-        err = bn_insert_or_replace(broot, &skey, &sval, false);
+        err = bn_insert_or_replace(broot, &skey, &sval);
         pthread_mutex_unlock(&mtx);
 
         key[KI_DLEN_MAX + 26] = 'a';
@@ -474,7 +476,7 @@ bonsai_client_lcp_test(void *arg)
 
         key[KI_DLEN_MAX + 26] = 'a' + i;
 
-        bn_skey_init(key, KI_DLEN_MAX + 27, tid, &skey);
+        bn_skey_init(key, KI_DLEN_MAX + 27, 0, tid, &skey);
         ki = &skey.bsk_key_imm;
 
         rcu_read_lock();
@@ -489,7 +491,7 @@ bonsai_client_lcp_test(void *arg)
 
         if (lcp > 0) {
             assert(key_immediate_cmp(ki, &kv->bkv_key_imm) == S32_MIN);
-            assert(memcmp(kv->bkv_key, &kv->bkv_key, lcp) == 0);
+            assert(memcmp(key, kv->bkv_key, lcp) == 0);
         }
         rcu_read_unlock();
     }
@@ -499,7 +501,7 @@ bonsai_client_lcp_test(void *arg)
         struct bonsai_kv * kv = NULL;
         bool               found HSE_MAYBE_UNUSED;
 
-        bn_skey_init(key, i, tid, &skey);
+        bn_skey_init(key, i, 0, tid, &skey);
 
         rcu_read_lock();
         found = bn_find(broot, &skey, &kv);
@@ -512,7 +514,7 @@ bonsai_client_lcp_test(void *arg)
         struct bonsai_kv * kv = NULL;
         bool               found HSE_MAYBE_UNUSED;
 
-        bn_skey_init(key, i, tid, &skey);
+        bn_skey_init(key, i, 0, tid, &skey);
 
         rcu_read_lock();
         found = bn_find(broot, &skey, &kv);
@@ -549,7 +551,7 @@ bonsai_client_consumer(void *arg)
 
         for (i = 1; i <= key_last; i++) {
             *key = htobe32(i);
-            bn_skey_init(key, key_size, 0, &skey);
+            bn_skey_init(key, key_size, 0, 0, &skey);
 
             rcu_read_lock();
             found = bn_find(broot, &skey, &kv);
@@ -661,7 +663,7 @@ bonsai_client_multithread_test(void)
 
     for (i = 1; i < key_current; i++) {
         *key = htobe32(i);
-        bn_skey_init(key, key_size, 0, &skey);
+        bn_skey_init(key, key_size, 0, 0, &skey);
 
         found = bn_find(broot, &skey, &kv);
 
@@ -763,9 +765,13 @@ bonsai_client_singlethread_test(enum bonsai_alloc_mode allocm)
     struct bonsai_sval   sval = { 0 };
     struct bonsai_kv *   kv = NULL;
 
-    cheap = cheap_create(16, 64 * MB);
-    if (!cheap)
-        return -1;
+    cheap = NULL;
+
+    if (allocm == HSE_ALLOC_CURSOR) {
+        cheap = cheap_create(16, 64 * MB);
+        if (!cheap)
+            return -1;
+    }
 
     err = bn_create(cheap, 32 * 1024, bonsai_client_insert_callback, NULL, &broot);
     if (err) {
@@ -778,12 +784,10 @@ bonsai_client_singlethread_test(enum bonsai_alloc_mode allocm)
     i = 0;
     do {
         for (; i < sizeof(a) / sizeof(long); i++) {
-            /* Initialize Key */
-            bn_skey_init(&a[i], sizeof(a[i]), 0, &skey);
-            /* Initialize Value */
+            bn_skey_init(&a[i], sizeof(a[i]), 0, 0, &skey);
             bn_sval_init(&a[i], sizeof(a[i]), HSE_ORDNL_TO_SQNREF(a[i]), &sval);
 
-            err = bn_insert_or_replace(broot, &skey, &sval, false);
+            err = bn_insert_or_replace(broot, &skey, &sval);
             if (merr_errno(err) == EEXIST)
                 err = 0;
 
@@ -800,7 +804,7 @@ bonsai_client_singlethread_test(enum bonsai_alloc_mode allocm)
         u64                val;
 
         /* Initialize Key */
-        bn_skey_init(&a[i], sizeof(a[i]), 0, &skey);
+        bn_skey_init(&a[i], sizeof(a[i]), 0, 0, &skey);
 
         rcu_read_lock();
         found = bn_find(broot, &skey, &kv);
@@ -816,7 +820,7 @@ bonsai_client_singlethread_test(enum bonsai_alloc_mode allocm)
         rcu_read_unlock();
     }
 
-    bn_skey_init(&tmpkey, tmpkey_len, 0, &skey);
+    bn_skey_init(&tmpkey, tmpkey_len, 0, 0, &skey);
 
     rcu_read_lock();
     found = bn_find(broot, &skey, &kv);
@@ -846,6 +850,7 @@ MTF_BEGIN_UTEST_COLLECTION_PREPOST(
 
 MTF_DEFINE_UTEST_PREPOST(bonsai_tree_test, basic_single_threaded, no_fail_pre, no_fail_post)
 {
+    ASSERT_EQ(0, bonsai_client_singlethread_test(HSE_ALLOC_MALLOC));
     ASSERT_EQ(0, bonsai_client_singlethread_test(HSE_ALLOC_CURSOR));
 }
 
@@ -1050,6 +1055,7 @@ MTF_DEFINE_UTEST_PREPOST(bonsai_tree_test, malloc_failure_test, no_fail_pre, no_
     num_consumers = 0;
     num_producers = 1;
 
+    ASSERT_EQ(0, bonsai_client_singlethread_test(HSE_ALLOC_MALLOC));
     ASSERT_EQ(0, bonsai_client_singlethread_test(HSE_ALLOC_CURSOR));
     ASSERT_EQ(0, bonsai_client_multithread_test());
 }
@@ -1094,13 +1100,13 @@ bonsai_weight_test(enum bonsai_alloc_mode allocm, struct mtf_test_info *lcl_ti)
             u8 key[maxlen];
 
             memset(key, list[i], j);
-            bn_skey_init(&key, j, 0, &skey);
+            bn_skey_init(&key, j, 0, 0, &skey);
 
             seqno = HSE_ORDNL_TO_SQNREF(3);
             bn_sval_init(key, j, seqno, &sval);
 
             rcu_read_lock();
-            err = bn_insert_or_replace(tree, &skey, &sval, false);
+            err = bn_insert_or_replace(tree, &skey, &sval);
             rcu_read_unlock();
 
             ASSERT_EQ(0, err);
@@ -1115,7 +1121,7 @@ bonsai_weight_test(enum bonsai_alloc_mode allocm, struct mtf_test_info *lcl_ti)
 
             seqno = HSE_ORDNL_TO_SQNREF(3);
 
-            bn_skey_init(&key, j, 0, &skey);
+            bn_skey_init(&key, j, 0, 0, &skey);
 
             rcu_read_lock();
             (void)bn_find(tree, &skey, &kv);
@@ -1160,11 +1166,11 @@ bonsai_basic_test(enum bonsai_alloc_mode allocm, struct mtf_test_info *lcl_ti)
         op_seqno = 3;
         seqnoref = HSE_ORDNL_TO_SQNREF(op_seqno);
 
-        bn_skey_init(&key, sizeof(key), 234, &skey);
+        bn_skey_init(&key, sizeof(key), 0, 234, &skey);
         bn_sval_init(&key, sizeof(key), seqnoref, &sval);
 
         rcu_read_lock();
-        err = bn_insert_or_replace(tree, &skey, &sval, false);
+        err = bn_insert_or_replace(tree, &skey, &sval);
         rcu_read_unlock();
 
         ASSERT_EQ(0, err);
@@ -1174,7 +1180,7 @@ bonsai_basic_test(enum bonsai_alloc_mode allocm, struct mtf_test_info *lcl_ti)
         sval.bsv_seqnoref = seqnoref;
 
         rcu_read_lock();
-        err = bn_insert_or_replace(tree, &skey, &sval, false);
+        err = bn_insert_or_replace(tree, &skey, &sval);
         rcu_read_unlock();
 
         op_seqno = 2;
@@ -1182,7 +1188,7 @@ bonsai_basic_test(enum bonsai_alloc_mode allocm, struct mtf_test_info *lcl_ti)
         sval.bsv_seqnoref = seqnoref;
 
         rcu_read_lock();
-        err = bn_insert_or_replace(tree, &skey, &sval, false);
+        err = bn_insert_or_replace(tree, &skey, &sval);
         rcu_read_unlock();
     }
 
@@ -1194,7 +1200,7 @@ bonsai_basic_test(enum bonsai_alloc_mode allocm, struct mtf_test_info *lcl_ti)
         key = i % 2 ? i : -i;
         v = NULL;
         op_seqno = 1;
-        bn_skey_init(&key, sizeof(key), 234, &skey);
+        bn_skey_init(&key, sizeof(key), 0, 234, &skey);
 
         rcu_read_lock();
         found = bn_find(tree, &skey, &kv);
@@ -1258,11 +1264,11 @@ bonsai_update_test(enum bonsai_alloc_mode allocm, struct mtf_test_info *lcl_ti)
         seqnoref = HSE_ORDNL_TO_SQNREF(op_seqno);
         ++value;
 
-        bn_skey_init(&key, sizeof(key), 23, &skey);
+        bn_skey_init(&key, sizeof(key), 0, 23, &skey);
         bn_sval_init(&value, sizeof(value), seqnoref, &sval);
 
         rcu_read_lock();
-        err = bn_insert_or_replace(tree, &skey, &sval, false);
+        err = bn_insert_or_replace(tree, &skey, &sval);
         rcu_read_unlock();
 
         ASSERT_EQ(0, err);
@@ -1324,11 +1330,11 @@ bonsai_original_test(enum bonsai_alloc_mode allocm, struct mtf_test_info *lcl_ti
             key |= 0x6100000000000000;
 
         keys[i] = key;
-        bn_skey_init(&keys[i], sizeof(keys[i]), bonsai_xrand() % 256, &skeys[i]);
+        bn_skey_init(&keys[i], sizeof(keys[i]), 0, bonsai_xrand() % 256, &skeys[i]);
         bn_sval_init(&keys[i], sizeof(keys[i]), seqnoref, &sval);
 
         rcu_read_lock();
-        err = bn_insert_or_replace(tree, &skeys[i], &sval, false);
+        err = bn_insert_or_replace(tree, &skeys[i], &sval);
         rcu_read_unlock();
 
         ASSERT_EQ(0, err);
@@ -1351,7 +1357,7 @@ again:
         /* Assumes no two keys are consecutive */
         sid = key_immediate_index(&skeys[i].bsk_key_imm);
         key = decrement_key(key0, numeric);
-        bn_skey_init(&key, sizeof(key), sid, &skey);
+        bn_skey_init(&key, sizeof(key), 0, sid, &skey);
 
         rcu_read_lock();
         found = bn_find(tree, &skey, &kv);
@@ -1368,14 +1374,14 @@ again:
 
         kv = NULL;
         key = increment_key(key0, numeric);
-        bn_skey_init(&key, sizeof(key), sid, &skey);
+        bn_skey_init(&key, sizeof(key), 0, sid, &skey);
         found = bn_find(tree, &skey, &kv);
         ASSERT_NE(true, found);
         ASSERT_EQ(NULL, kv);
 
         kv = NULL;
         key = decrement_key(key0, numeric);
-        bn_skey_init(&key, sizeof(key), sid, &skey);
+        bn_skey_init(&key, sizeof(key), 0, sid, &skey);
         found = bn_find(tree, &skey, &kv);
         ASSERT_NE(true, found);
         ASSERT_EQ(NULL, kv);
@@ -1391,7 +1397,7 @@ again:
 
         kv = NULL;
         key = increment_key(key0, numeric);
-        bn_skey_init(&key, sizeof(key), sid, &skey);
+        bn_skey_init(&key, sizeof(key), 0, sid, &skey);
 
         found = bn_findGE(tree, &skey, &kv);
         if (!found) {
@@ -1414,7 +1420,7 @@ again:
 
         kv = NULL;
         key = decrement_key(key0, numeric);
-        bn_skey_init(&key, sizeof(key), sid, &skey);
+        bn_skey_init(&key, sizeof(key), 0, sid, &skey);
 
         found = bn_findLE(tree, &skey, &kv);
         if (!found) {
@@ -1442,21 +1448,25 @@ again:
 
 MTF_DEFINE_UTEST_PREPOST(bonsai_tree_test, weight, no_fail_pre, no_fail_post)
 {
+    bonsai_weight_test(HSE_ALLOC_MALLOC, lcl_ti);
     bonsai_weight_test(HSE_ALLOC_CURSOR, lcl_ti);
 }
 
 MTF_DEFINE_UTEST_PREPOST(bonsai_tree_test, basic, no_fail_pre, no_fail_post)
 {
+    bonsai_basic_test(HSE_ALLOC_MALLOC, lcl_ti);
     bonsai_basic_test(HSE_ALLOC_CURSOR, lcl_ti);
 }
 
 MTF_DEFINE_UTEST_PREPOST(bonsai_tree_test, update, no_fail_pre, no_fail_post)
 {
+    bonsai_update_test(HSE_ALLOC_MALLOC, lcl_ti);
     bonsai_update_test(HSE_ALLOC_CURSOR, lcl_ti);
 }
 
 MTF_DEFINE_UTEST_PREPOST(bonsai_tree_test, original, no_fail_pre, no_fail_post)
 {
+    bonsai_original_test(HSE_ALLOC_MALLOC, lcl_ti);
     bonsai_original_test(HSE_ALLOC_CURSOR, lcl_ti);
 }
 
@@ -1491,7 +1501,7 @@ again:
         rand_num = (i << 16) | (bonsai_xrand() & 0xffff);
         key = rand_num | 0x6100000000000000;
         keys[i] = key;
-        bn_skey_init(&key, sizeof(key), 143, &skey);
+        bn_skey_init(&key, sizeof(key), 0, 143, &skey);
         ord_vals[i] = (rand_num >> 2) + MAX_VALUES_PER_KEY;
 
         for (j = 1; j <= MAX_VALUES_PER_KEY; j++) {
@@ -1508,19 +1518,19 @@ again:
             if (op_seqno % 200 == 0) {
                 sval.bsv_val = HSE_CORE_TOMB_REG;
 
-                err = bn_insert_or_replace(tree, &skey, &sval, true);
+                err = bn_insert_or_replace(tree, &skey, &sval);
                 ASSERT_EQ(0, err);
             } else if (op_seqno % 500 == 0) {
                 sval.bsv_val = HSE_CORE_TOMB_PFX;
 
-                err = bn_insert_or_replace(tree, &skey, &sval, false);
+                err = bn_insert_or_replace(tree, &skey, &sval);
                 ASSERT_EQ(0, err);
             } else {
                 value = key - op_seqno;
                 sval.bsv_val = (void *)&value;
                 sval.bsv_xlen = sizeof(value);
 
-                err = bn_insert_or_replace(tree, &skey, &sval, false);
+                err = bn_insert_or_replace(tree, &skey, &sval);
                 ASSERT_EQ(0, err);
             }
             rcu_read_unlock();
@@ -1530,7 +1540,7 @@ again:
     for (i = 0; i < LEN; ++i) {
 
         key = keys[i];
-        bn_skey_init(&key, sizeof(key), 143, &skey);
+        bn_skey_init(&key, sizeof(key), 0, 143, &skey);
 
         for (j = MAX_VALUES_PER_KEY; j >= 1; j--) {
             if (j % 2)
@@ -1552,12 +1562,12 @@ again:
             ASSERT_NE(NULL, pval);
 
             if (op_seqno % 200 == 0) {
-                ASSERT_EQ(HSE_CORE_TOMB_REG, pval->bv_valuep);
+                ASSERT_EQ(HSE_CORE_TOMB_REG, pval->bv_value);
                 ASSERT_EQ(0, bonsai_val_vlen(pval));
             } else if (op_seqno % 500 == 0) {
                 uintptr_t lcl_seqnoref;
 
-                ASSERT_EQ(HSE_CORE_TOMB_PFX, pval->bv_valuep);
+                ASSERT_EQ(HSE_CORE_TOMB_PFX, pval->bv_value);
                 ASSERT_EQ(0, bonsai_val_vlen(pval));
 
                 lcl_seqnoref = HSE_ORDNL_TO_SQNREF(op_seqno + 2);

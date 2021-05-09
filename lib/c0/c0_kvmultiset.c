@@ -14,6 +14,7 @@
 #include <hse_util/fmt.h>
 #include <hse_util/rcu.h>
 #include <hse_util/seqno.h>
+#include <hse_util/xrand.h>
 
 #include <hse_ikvdb/cn.h>
 #include <hse_ikvdb/c0_kvmultiset.h>
@@ -79,7 +80,12 @@ struct c0_kvmultiset_impl {
 
     u32              c0ms_num_sets;
     u32              c0ms_resetsz;
-    struct c0_kvset *c0ms_sets[HSE_C0_INGEST_WIDTH_MAX];
+
+    /* The size of c0ms_sets[] must accomodate at least (2x + 1)
+     * c0 kvsets for correct functioning of c0kvms_should_ingest()
+     * and c0kvms_get_hashed_c0kvset().
+     */
+    struct c0_kvset *c0ms_sets[HSE_C0_INGEST_WIDTH_MAX * 2 + 1];
 };
 
 static struct kmem_cache *c0kvms_cache  HSE_READ_MOSTLY;
@@ -107,12 +113,11 @@ struct c0_kvset *
 c0kvms_get_hashed_c0kvset(struct c0_kvmultiset *handle, u64 hash)
 {
     struct c0_kvmultiset_impl *self = c0_kvmultiset_h2r(handle);
-    u32                        set_idx;
+    uint idx;
 
-    /* skip ptomb c0kvset - c0ms_sets[0] */
-    set_idx = 1 + (hash % (self->c0ms_num_sets - 1));
+    idx = hash % (HSE_C0_INGEST_WIDTH_MAX * 2);
 
-    return self->c0ms_sets[set_idx];
+    return self->c0ms_sets[idx + 1]; /* skip ptomb c0kvset at index zero */
 }
 
 struct c0_kvset *
@@ -309,38 +314,59 @@ bool
 c0kvms_should_ingest(struct c0_kvmultiset *handle)
 {
     struct c0_kvmultiset_impl *self = c0_kvmultiset_h2r(handle);
-    int                        width, cnt, n;
-    uint                       r;
+    const uint scaler = 1u << 20;
+    uint sum_keyvals, sum_height;
+    uint ndiv, n, r;
 
     if (atomic_read(&self->c0ms_ingesting) > 0)
         return true;
 
-    r = get_cycles() >> 1;
+    r = xrand64_tls();
 
-    if (r % 64 > 2)
+    if (HSE_LIKELY( (r % scaler) < (97 * scaler) / 100) )
         return false;
 
-    /* Sample half of the available c0 kvsets, and return true
-     * if the average number of entries exceeds the threshold
-     * or there isn't enough space to accommodate a large value.
-     * This helps keeps the bonsai trees from growing too deep.
+    /* Only 3% of callers reach this point to sample a random
+     * half of the available c0 kvsets and return true if any
+     * of the following are true:
+     *
+     * 1) The number of values for any key exceeds 4096
+     * 2) The height of any bonsai tree is greater than 24
+     * 3) The average number of values for all keys exceeds 2048
+     * 4) The average height of all trees exceeds 21 (more like
+     *    19 if you take into account the bonsai balance slop).
      */
-    assert(self->c0ms_num_sets > 1);
-    width = self->c0ms_num_sets;
-    n = width / 2;
-    r %= (width - n);
+    sum_keyvals = sum_height = ndiv = 0;
 
-    cnt = (HSE_C0KVMS_C0SNR_MAX / width) * n;
-    cnt = (cnt * 768) / 1024; /* 75% */
+    /* r may safely range from 0 to (WIDTH_MAX * 2) (see c0kvms_create()).
+     */
+    r = (r % HSE_C0_INGEST_WIDTH_MAX) + 1; /* skip ptomb c0kvset at index zero */
+    n = self->c0ms_num_sets / 2;
 
-    while (n-- > 0 && cnt >= 0) {
-        if (c0kvs_avail(self->c0ms_sets[r]) < HSE_KVS_KLEN_MAX + HSE_KVS_VLEN_MAX)
-            return true;
+    while (n-- > 0) {
+        uint height, keyvals, cnt;
 
-        cnt -= c0kvs_get_element_count(self->c0ms_sets[r++]);
+        cnt = c0kvs_get_element_count2(self->c0ms_sets[r++], &height, &keyvals);
+        if (cnt > 0) {
+            if (ev(keyvals > 4096 || height > 24))
+                return true;
+
+            sum_keyvals += keyvals;
+            sum_height += height;
+
+            ndiv++;
+        }
     }
 
-    return (cnt < 0);
+    if (ndiv > 1) {
+        if (ev((sum_keyvals / ndiv) > 2048))
+            return true;
+
+        if (ev((sum_height / ndiv) > 21))
+            return true;
+    }
+
+    return false;
 }
 
 u32
@@ -560,18 +586,7 @@ c0kvms_cursor_update(struct c0_kvmultiset_cursor *cur, void *key, u32 klen, u32 
     int                        num = self->c0ms_num_sets;
     bool                       rev = cur->c0mc_reverse;
     bool                       added = false;
-
     int i;
-
-    /* HSE_REVISIT: if ingested, should release asap and track in cn.
-     */
-    if (c0kvms_is_ingested(cur->c0mc_kvms)) {
-        static atomic_t cnt;
-
-        if (atomic_fetch_add(1, &cnt) % 1024 == 0)
-            hse_log(HSE_WARNING "%s: thread %lx holding ref on ingested kvms %p (%u)",
-                    __func__, pthread_self(), cur->c0mc_kvms, atomic_read(&cnt));
-    }
 
     /*
      * c0_kvsets can become non-empty, or be extended past eof.
@@ -817,26 +832,11 @@ c0kvms_create(
     merr_t                     err;
     size_t                     kvms_sz, sz;
     size_t                     c0snr_sz, iw_sz;
-    int                        i;
-    u32                        max_sets;
+    int                        i, j;
 
     *multiset = NULL;
 
-    max_sets = (PAGE_SIZE - sizeof(*kvms)) / sizeof(void *);
-    max_sets = min_t(s32, max_sets, HSE_C0_INGEST_WIDTH_MAX);
-
-    /* Constrain the aggregate ingest buffer size to 4GB.
-     */
-    if (num_sets * alloc_sz > (4ul << 30))
-        num_sets = (4ul << 30) / alloc_sz;
-    num_sets = min_t(u32, num_sets, max_sets - 1);
-    num_sets = max_t(u32, num_sets, 2);
-
-    /* Ensure the total number of sets is even so that the modulus
-     * used by c0kvms_get_hashed_c0kvset() is never a power of two.
-     */
-    num_sets = (num_sets + 1) & ~1u;
-    assert(num_sets > 1 && num_sets <= max_sets);
+    num_sets = clamp_t(u32, num_sets, HSE_C0_INGEST_WIDTH_MIN, HSE_C0_INGEST_WIDTH_MAX);
 
     kvms = kmem_cache_alloc(c0kvms_cache);
     if (ev(!kvms))
@@ -871,15 +871,23 @@ c0kvms_create(
     for (i = 0; i < num_sets; ++i) {
         err = c0kvs_create(sz, kvdb_seq, &kvms->c0ms_seqno, &kvms->c0ms_sets[i]);
         if (ev(err)) {
-            if (i > 1)
+            if (i > num_sets / 2)
                 break;
             goto errout;
         }
 
-        c0kvs_ingesting_init(kvms->c0ms_sets[i], &kvms->c0ms_ingesting);
-
         ++kvms->c0ms_num_sets;
         sz = alloc_sz;
+    }
+
+    /* Copy existing c0kvs pointers to the remainder of the slots so that
+     * we can use a power-of-two modulus in c0kvms_get_hashed_c0kvset and
+     * completely avoid use of a modulus in c0kvms_should_ingest().
+     */
+    assert(NELEM(kvms->c0ms_sets) > HSE_C0_INGEST_WIDTH_MAX);
+
+    for (j = 1; i < NELEM(kvms->c0ms_sets); ++i, ++j) {
+        kvms->c0ms_sets[i] = kvms->c0ms_sets[j];
     }
 
     /* define thresholds for transactions to merge/flush */
@@ -1036,7 +1044,6 @@ c0kvms_reset(struct c0_kvmultiset *handle)
         struct c0_kvset *c0kvs = self->c0ms_sets[i];
 
         c0kvs_reset(c0kvs, resetsz);
-        c0kvs_ingesting_init(c0kvs, &self->c0ms_ingesting);
         resetsz = 0;
     }
 

@@ -124,9 +124,6 @@ c0kvs_reset(struct c0_kvset *set, size_t sz);
 void *
 c0kvs_alloc(struct c0_kvset *handle, size_t align, size_t sz);
 
-void
-c0kvs_ingesting_init(struct c0_kvset *handle, atomic_t *ingesting);
-
 /**
  * c0kvs_put() - insert a key/value pair into the struct c0_kvset
  * @set:   Struct c0_kvset to insert the key/value into
@@ -314,7 +311,7 @@ struct bonsai_val;
 struct bonsai_kv;
 
 struct bonsai_val *
-c0kvs_findval(struct c0_kvset *handle, struct bonsai_kv *kv, u64 view_seqno, uintptr_t seqnoref);
+c0kvs_findval(struct bonsai_kv *kv, u64 view_seqno, uintptr_t seqnoref);
 
 /**
  * c0kvs_get_content_metrics() - retrieve metrics for the struct c0_kvset
@@ -350,6 +347,9 @@ c0kvs_get_content_metrics(
  */
 u64
 c0kvs_get_element_count(struct c0_kvset *set);
+
+u64
+c0kvs_get_element_count2(struct c0_kvset *set, uint *heightp, uint *keyvalsp);
 
 void
 c0kvs_usage(struct c0_kvset *handle, struct c0_usage *usage);

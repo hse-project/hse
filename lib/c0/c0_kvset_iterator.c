@@ -178,7 +178,7 @@ c0_kvset_iterator_seek(
     bool found;
 
     assert(iter->c0it_flags & C0_KVSET_ITER_FLAG_INDEX);
-    bn_skey_init(seek, seeklen, iter->c0it_index, &skey);
+    bn_skey_init(seek, seeklen, 0, iter->c0it_index, &skey);
 
     rcu_read_lock();
 
@@ -191,8 +191,7 @@ c0_kvset_iterator_seek(
         kv = &iter->c0it_root->br_kv;
 
     if (kt) {
-        kt->kt_len = key_imm_klen(&kv->bkv_key_imm);
-        kt->kt_data = kv->bkv_key;
+        kvs_ktuple_init_nohash(kt, kv->bkv_key, key_imm_klen(&kv->bkv_key_imm));
     }
 
     if (!(iter->c0it_flags & C0_KVSET_ITER_FLAG_REVERSE))
@@ -223,7 +222,7 @@ c0_kvset_iterator_skip_pfx(
         return;
 
     assert(iter->c0it_flags & C0_KVSET_ITER_FLAG_INDEX);
-    bn_skey_init(pfx, pfx_len, iter->c0it_index, &skey);
+    bn_skey_init(pfx, pfx_len, 0, iter->c0it_index, &skey);
 
     rcu_read_lock();
 
@@ -232,8 +231,7 @@ c0_kvset_iterator_skip_pfx(
         kv = &iter->c0it_root->br_kv;
 
     if (kt) {
-        kt->kt_len = key_imm_klen(&kv->bkv_key_imm);
-        kt->kt_data = kv->bkv_key;
+        kvs_ktuple_init_nohash(kt, kv->bkv_key, key_imm_klen(&kv->bkv_key_imm));
     }
 
     iter->c0it_next = kv;

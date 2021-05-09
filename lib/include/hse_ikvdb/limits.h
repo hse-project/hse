@@ -6,32 +6,33 @@
 #ifndef HSE_IKVS_LIMITS_H
 #define HSE_IKVS_LIMITS_H
 
-#define HSE_C0_CHEAP_SZ_MIN (1024 * 1024 * 8ul)
-#define HSE_C0_CHEAP_SZ_DFLT (1024 * 1024 * 8ul)
-#define HSE_C0_CHEAP_SZ_MAX (1024 * 1024 * 256ul)
-#define HSE_C0_CCACHE_SZ_MAX (1024 * 1024 * 1024 * 16ul)
-#define HSE_C0_CCACHE_TRIMSZ (HSE_C0_CHEAP_SZ_MIN * 4)
+/* clang-format off */
 
-#define HSE_C0_BNODE_SLAB_SZ (PAGE_SIZE * 4)
+#define HSE_C0_CHEAP_SZ_MIN         (16ul << 20)
+#define HSE_C0_CHEAP_SZ_DFLT        (16ul << 20)
+#define HSE_C0_CHEAP_SZ_MAX         (64ul << 20)
+#define HSE_C0_CCACHE_SZ_MAX        (4ul << 30)
+
+#define HSE_C0_BNODE_SLAB_SZ        (PAGE_SIZE * 4)
 
 /* HSE_C0_INGEST_WIDTH_DYN limits the max width of a normal, dynamically
  * sized kvms, whereas HSE_C0_INGEST_WIDTH_MAX limits the max width of
  * fixed size kvms (fixed either by rparams or via boosting, see
  * c0sk_ingest_tune() for details).
  */
-#define HSE_C0_INGEST_WIDTH_MIN     (8)
-#define HSE_C0_INGEST_WIDTH_DFLT    (8)
+#define HSE_C0_INGEST_WIDTH_MIN     (16)
+#define HSE_C0_INGEST_WIDTH_DFLT    (16)
 #define HSE_C0_INGEST_WIDTH_DYN     (20)
-#define HSE_C0_INGEST_WIDTH_MAX     (HSE_C0_INGEST_WIDTH_DYN + 12)
+#define HSE_C0_INGEST_WIDTH_MAX     (32)
 
-#define HSE_C0_INGEST_DELAY_DFLT (0)
-#define HSE_C0_INGEST_SZ_MAX (2048) /* MiB */
+#define HSE_C0_INGEST_DELAY_DFLT    (0)
+#define HSE_C0_INGEST_SZ_MAX        (2048) /* MiB */
 
-#define HSE_C0_INGEST_THREADS_DFLT (3)
-#define HSE_C0_INGEST_THREADS_MAX (8)
+#define HSE_C0_INGEST_THREADS_DFLT  (3)
+#define HSE_C0_INGEST_THREADS_MAX   (8)
 
-#define HSE_C0_MAINT_THREADS_DFLT (5)
-#define HSE_C0_MAINT_THREADS_MAX (32)
+#define HSE_C0_MAINT_THREADS_DFLT   (5)
+#define HSE_C0_MAINT_THREADS_MAX    (32)
 
 /* The defines for the max number of entries in the viewset and snr
  * caches are totals for the entire cache.  Any given thread will
@@ -47,7 +48,7 @@
  * ingest-work buffer, sizeof(uintptr_t) for the priv buffer entry
  * size, and limit it to about 1 million entries.
  */
-#define HSE_C0KVMS_C0SNR_MAX min(((HSE_C0_CCACHE_TRIMSZ - (128ul * 1024)) / 8), 1280ul * 1024)
+#define HSE_C0KVMS_C0SNR_MAX        (1536ul * 1024)
 
 /* Limit the footprint of the cursor cache to the lesser of 10%
  * of available memory or 32GB.  The cursor cache is shared by
@@ -72,24 +73,26 @@
 /* Using any size other than 32MB will likely cause problems
  * due to the way space is allocated to wbtree internal nodes.
  */
-#define KBLOCK_MIN_SIZE (32 * 1024 * 1024)
-#define KBLOCK_MAX_SIZE (32 * 1024 * 1024)
+#define KBLOCK_MIN_SIZE             (32ul << 20)
+#define KBLOCK_MAX_SIZE             (32ul << 20)
 
 /*
  * Maximum supported vblock size.
  */
-#define VBLOCK_MIN_SIZE (32 * 1024 * 1024)
-#define VBLOCK_MAX_SIZE (32 * 1024 * 1024)
+#define VBLOCK_MIN_SIZE             (32ul << 20)
+#define VBLOCK_MAX_SIZE             (32ul << 20)
 
 /*
  * Min and max fanouts.
  */
-#define CN_FANOUT_BITS_MIN (1)
-#define CN_FANOUT_BITS_MAX (4)
+#define CN_FANOUT_BITS_MIN          (1)
+#define CN_FANOUT_BITS_MAX          (4)
 
-#define CN_FANOUT_MIN (1 << CN_FANOUT_BITS_MIN)
-#define CN_FANOUT_MAX (1 << CN_FANOUT_BITS_MAX)
+#define CN_FANOUT_MIN               (1 << CN_FANOUT_BITS_MIN)
+#define CN_FANOUT_MAX               (1 << CN_FANOUT_BITS_MAX)
 
-#define CN_SMALL_VALUE_THRESHOLD (8)
+#define CN_SMALL_VALUE_THRESHOLD    (8)
+
+/* clang-format on */
 
 #endif

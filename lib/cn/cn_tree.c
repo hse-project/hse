@@ -2497,6 +2497,7 @@ cn_tree_cursor_read(struct pscan *cur, struct kvs_kvtuple *kvt, bool *eof)
     bool                end;
     bool                is_tomb;
     const void *        vdata;
+    void               *keycopy;
     uint                vlen;
     uint                complen;
     uint                klen;
@@ -2610,9 +2611,8 @@ cn_tree_cursor_read(struct pscan *cur, struct kvs_kvtuple *kvt, bool *eof)
     assert(!HSE_CORE_IS_TOMB(vdata));
 
     /* copyout before drop dups! */
-    kvt->kvt_key.kt_data = key_obj_copy(cur->buf, cur->bufsz, &klen, &item.kobj);
-    kvt->kvt_key.kt_len = klen;
-    // what about kt_hash ??? */
+    keycopy = key_obj_copy(cur->buf, cur->bufsz, &klen, &item.kobj);
+    kvs_ktuple_init_nohash(&kvt->kvt_key, keycopy, klen);
 
     kvs_vtuple_init(&kvt->kvt_value, cur->buf + kvt->kvt_key.kt_len, vlen);
 
@@ -2742,10 +2742,11 @@ cn_tree_cursor_seek(
 
         kt->kt_len = 0;
         if (bin_heap2_peek(cur->bh, (void **)&i)) {
+            void *keycopy;
             uint len;
 
-            kt->kt_data = key_obj_copy(cur->buf, cur->bufsz, &len, &i->kobj);
-            kt->kt_len = len;
+            keycopy = key_obj_copy(cur->buf, cur->bufsz, &len, &i->kobj);
+            kvs_ktuple_init_nohash(kt, keycopy, len);
         }
     }
 

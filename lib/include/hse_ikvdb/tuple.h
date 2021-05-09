@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
 #ifndef HSE_CORE_TUPLE_H
@@ -14,14 +14,15 @@
 #include <hse_ikvdb/key_hash.h>
 #include <hse_ikvdb/omf_kmd.h>
 
+/* clang-format off */
+
 /*-  Key/Value Tuple  -------------------------------------------------------*/
 
 /* tombstone value */
-#define HSE_CORE_TOMB_REG ((void *)~0x1UL)
-#define HSE_CORE_TOMB_PFX ((void *)~0UL)
-#define HSE_CORE_IS_TOMB(ptr) (((uintptr_t)(ptr) & ~0x1UL) == ~0x1UL)
-
-#define HSE_CORE_IS_PTOMB(ptr) (((uintptr_t)(ptr) & ~0x0UL) == ~0x0UL)
+#define HSE_CORE_TOMB_REG       ((void *)~0x1UL)
+#define HSE_CORE_TOMB_PFX       ((void *)~0UL)
+#define HSE_CORE_IS_TOMB(ptr)   (((uintptr_t)(ptr) & ~0x1UL) == ~0x1UL)
+#define HSE_CORE_IS_PTOMB(ptr)  (((uintptr_t)(ptr) & ~0x0UL) == ~0x0UL)
 
 enum key_lookup_res {
     NOT_FOUND = 1,
@@ -31,10 +32,13 @@ enum key_lookup_res {
     FOUND_MULTIPLE = 5,
 };
 
+/* clang-format on */
+
 struct kvs_ktuple {
     u64         kt_hash;
     const void *kt_data;
     s32         kt_len;
+    u32         kt_flags;
 };
 
 /**
@@ -85,6 +89,7 @@ kvs_ktuple_init(struct kvs_ktuple *kt, const void *key, s32 key_len)
     kt->kt_data = key;
     kt->kt_len = key_len;
     kt->kt_hash = key_hash64(kt->kt_data, kt->kt_len);
+    kt->kt_flags = 0;
 }
 
 static inline void
@@ -93,6 +98,7 @@ kvs_ktuple_init_nohash(struct kvs_ktuple *kt, const void *key, s32 key_len)
     kt->kt_data = key;
     kt->kt_len = key_len;
     kt->kt_hash = 0;
+    kt->kt_flags = 0;
 }
 
 /**

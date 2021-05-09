@@ -82,7 +82,7 @@ MTF_DEFINE_UTEST_PREPOST(c0_kvmultiset_test, basic, no_fail_pre, no_fail_post)
     ASSERT_NE((struct c0_kvset *)0, p);
 
     rc = c0kvms_width(kvms);
-    ASSERT_EQ(rc, 2);
+    ASSERT_GT(rc, 1);
 
     c0kvms_putref(kvms);
 }
@@ -287,7 +287,7 @@ MTF_DEFINE_UTEST_PREPOST(c0_kvmultiset_test, ingest_sk, no_fail_pre, no_fail_pos
 
         val = bkv->bkv_values;
         while (val) {
-            if (val->bv_valuep != HSE_CORE_TOMB_PFX)
+            if (val->bv_value != HSE_CORE_TOMB_PFX)
                 break;
             val = val->bv_next;
         }
@@ -301,7 +301,7 @@ MTF_DEFINE_UTEST_PREPOST(c0_kvmultiset_test, ingest_sk, no_fail_pre, no_fail_pos
         kt.kt_len = key_imm_klen(&bkv->bkv_key_imm);
         skidx = key_immediate_index(&bkv->bkv_key_imm);
 
-        kvs_vtuple_init(&vt, bonsai_val_vlen(val) ? val->bv_value : val->bv_valuep, val->bv_xlen);
+        kvs_vtuple_init(&vt, val->bv_value, val->bv_xlen);
 
         keyb_out += kt.kt_len;
         valb_out += kvs_vtuple_vlen(&vt);
