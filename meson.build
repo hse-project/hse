@@ -300,6 +300,7 @@ if get_option('tools')
             'ENABLE_BSON': not libbson_dep.found() or mongo_c_driver_force_fallback ? 'ON' : 'OFF',
             'ENABLE_STATIC': 'ON',
             'ENABLE_AUTOMATIC_INIT_AND_CLEANUP': false,
+            'BUILD_VERSION': '1.17.3',
         })
         mongo_c_driver_options.set_override_option('werror', 'false')
         mongo_c_driver_options.set_override_option('warning_level', '0')
