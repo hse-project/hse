@@ -309,65 +309,84 @@ inner_attr_show(struct mtf_test_coll_info *tci, const char *attr_name, char *buf
     return cnt;
 }
 
-#define MTF_END_UTEST_COLLECTION(coll_name)                                        \
-                                                                                   \
-    int main(int argc, char **argv)                                                \
-    {                                                                              \
-        char *verbose, *logpri;                                                    \
-        int   c, rc;                                                               \
-                                                                                   \
-        rc = hse_init();                                                      \
-        if (rc)                                                                    \
-            return rc;                                                             \
-                                                                                   \
-        logpri = getenv("HSE_UT_LOGPRI");                                          \
-        if (logpri)                                                                \
-            hse_logging_control.mlc_cur_pri = atoi(logpri);                        \
-                                                                                   \
-        verbose = getenv("HSE_UT_VERBOSE");                                        \
-        if (verbose)                                                               \
-            hse_openlog(argv[0], atoi(verbose));                                   \
-                                                                                   \
-        _mtf_##coll_name##_tci.tci_named = 0;                                      \
-        while (-1 != (c = getopt(argc, argv, "+:1:d:hv"))) {                       \
-            switch (c) {                                                           \
-                case 'h':                                                          \
-                    printf("usage: %s [-v] [-d logpri] [-1 testname]\n", argv[0]); \
-                    printf("usage: %s -h\n", argv[0]);                             \
-                    exit(0);                                                       \
-                                                                                   \
-                case 'd':                                                          \
-                    hse_logging_control.mlc_cur_pri = atoi(optarg);                \
-                    break;                                                         \
-                                                                                   \
-                case 'v':                                                          \
-                    hse_openlog(argv[0], 1);                                       \
-                    break;                                                         \
-                                                                                   \
-                case '1':                                                          \
-                    _mtf_##coll_name##_tci.tci_named = optarg;                     \
-                    break;                                                         \
-                                                                                   \
-                case ':':                                                          \
-                    printf(                                                        \
-                        "invalid argument for option '-%c',"                       \
-                        " use -h for help\n",                                      \
-                        optopt);                                                   \
-                    exit(64); /* EX_USAGE */                                       \
-                                                                                   \
-                default: /* silently ignore all other errors */                    \
-                    break;                                                         \
-            }                                                                      \
-        }                                                                          \
-                                                                                   \
-        _mtf_##coll_name##_tci.tci_argc = argc;                                    \
-        _mtf_##coll_name##_tci.tci_argv = argv;                                    \
-                                                                                   \
-        rc = run_tests(&_mtf_##coll_name##_tci);                                   \
-                                                                                   \
-        hse_fini();                                                           \
-                                                                                   \
-        return rc;                                                                 \
+const char *artifact_root;
+
+#define MTF_END_UTEST_COLLECTION(coll_name)                                                        \
+                                                                                                   \
+    int main(int argc, char **argv)                                                                \
+    {                                                                                              \
+        char *verbose, *logpri;                                                                    \
+        int   c, rc;                                                                               \
+                                                                                                   \
+        rc = hse_init();                                                                           \
+        if (rc)                                                                                    \
+            return rc;                                                                             \
+                                                                                                   \
+        logpri = getenv("HSE_TEST_LOGPRI");                                                          \
+        if (logpri)                                                                                \
+            hse_logging_control.mlc_cur_pri = atoi(logpri);                                        \
+                                                                                                   \
+        verbose = getenv("HSE_TEST_VERBOSE");                                                        \
+        if (verbose)                                                                               \
+            hse_openlog(argv[0], atoi(verbose));                                                   \
+                                                                                                   \
+        _mtf_##coll_name##_tci.tci_named = 0;                                                      \
+                                                                                                   \
+        static const struct option long_options[] = {                                              \
+            { "verbose", no_argument, NULL, 'v' },                                                 \
+            { "logpri", required_argument, NULL, 'd' },                                            \
+            { "help", no_argument, NULL, 'h' },                                                    \
+            { "one", required_argument, NULL, '1' },                                               \
+            { "artifact-root", required_argument, NULL, 'a' },                                     \
+            { 0, 0, 0, 0 },                                                                        \
+        };                                                                                         \
+                                                                                                   \
+        while (-1 != (c = getopt_long(argc, argv, "+:1:d:hva:", long_options, NULL))) {            \
+            switch (c) {                                                                           \
+                case 'h':                                                                          \
+                    printf(                                                                        \
+                        "usage: %s [-v] [-d logpri] [-1 testname] [-a artifact-root]\n", argv[0]); \
+                    printf("usage: %s -h\n", argv[0]);                                             \
+                    exit(0);                                                                       \
+                                                                                                   \
+                case 'd':                                                                          \
+                    hse_logging_control.mlc_cur_pri = atoi(optarg);                                \
+                    break;                                                                         \
+                                                                                                   \
+                case 'v':                                                                          \
+                    hse_openlog(argv[0], 1);                                                       \
+                    break;                                                                         \
+                                                                                                   \
+                case '1':                                                                          \
+                    _mtf_##coll_name##_tci.tci_named = optarg;                                     \
+                    break;                                                                         \
+                                                                                                   \
+                case 'a':                                                                          \
+                    artifact_root = optarg;                                                        \
+                    break;                                                                         \
+                                                                                                   \
+                case ':':                                                                          \
+                    printf(                                                                        \
+                        "invalid argument for option '-%c',"                                       \
+                        " use -h for help\n",                                                      \
+                        optopt);                                                                   \
+                    exit(EX_USAGE);                                                                \
+                                                                                                   \
+                default: /* silently ignore all other errors */                                    \
+                    break;                                                                         \
+            }                                                                                      \
+        }                                                                                          \
+        if (getenv("HSE_TEST_ARTIFACT_ROOT"))                                                      \
+            artifact_root = getenv("HSE_TEST_ARTIFACT_ROOT");                                      \
+                                                                                                   \
+        _mtf_##coll_name##_tci.tci_argc = argc;                                                    \
+        _mtf_##coll_name##_tci.tci_argv = argv;                                                    \
+                                                                                                   \
+        rc = run_tests(&_mtf_##coll_name##_tci);                                                   \
+                                                                                                   \
+        hse_fini();                                                                                \
+                                                                                                   \
+        return rc;                                                                                 \
     }
 
 /* ------------------------------------------------------------------------- */
