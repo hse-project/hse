@@ -337,6 +337,10 @@ executable_paths = []
 library_paths = []
 
 if 'unit' in enabled_tests
+    find_program(
+        'gawk',
+        required: true,
+    )
     mapi_idx_generate = find_program(
         'scripts' / 'build' / 'mapi_idx_generate',
         required: true,
