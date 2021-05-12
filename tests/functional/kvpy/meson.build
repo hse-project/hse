@@ -1,3 +1,5 @@
+kvpy_needs = ['bindings-python', 'tests-kvdb']
+
 tests = [
     's00.basic',
     's01.bug.wrong_view_value',
@@ -40,17 +42,22 @@ tests = [
     's38.pdel',
 ]
 
-foreach t : tests
-    test(
-        t,
-        python,
-        args: [
-            '@0@.py'.format(t),
-            get_option('tests-kvdb'),
-        ],
-        depends: hse_python_depends,
-        workdir: meson.current_source_dir(),
-        is_parallel: false,
-        suite: ['functional', 'kvpy'],
-    )
-endforeach
+if not (get_option('bindings-python') and get_option('tests-kvdb') != '')
+    warning(('HSE kvpy test suite disabled.'+
+             '  Requires config options: bindings-python tests-kvdb'))
+else
+    foreach t : tests
+        test(
+            t,
+            python,
+            args: [
+                '@0@.py'.format(t),
+                '--kvdb-name', get_option('tests-kvdb'),
+            ],
+            depends: hse_python_depends,
+            workdir: meson.current_source_dir(),
+            is_parallel: false,
+            suite: ['functional', 'kvpy'],
+        )
+    endforeach
+endif

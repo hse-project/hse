@@ -1,22 +1,21 @@
 #!/usr/bin/env python3
+import hse
 
-import sys
-from hse import init, fini, Kvdb, Params
+import util
 
-init()
 
-kvdb = Kvdb.open(sys.argv[1])
-kvdb.kvs_make("kvs24")
-p = Params()
-p.set(key="kvs.transactions_enable", value="1")
-kvs = kvdb.kvs_open("kvs24", params=p)
+hse.init()
 
-txn = kvdb.transaction()
-txn.begin()
-cursor = kvs.cursor(txn=txn, bind_txn=True)
-txn.abort()
-cursor.destroy()
+try:
+    p = hse.Params()
+    p.set(key="kvs.transactions_enable", value="1")
 
-kvs.close()
-kvdb.close()
-fini()
+    with util.create_kvdb(util.get_kvdb_name(), p) as kvdb:
+        with util.create_kvs(kvdb, "abort_destroy", p) as kvs:
+            txn = kvdb.transaction()
+            txn.begin()
+            cursor = kvs.cursor(txn=txn, bind_txn=True)
+            txn.abort()
+            cursor.destroy()
+finally:
+    hse.fini()

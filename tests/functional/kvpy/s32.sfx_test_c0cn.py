@@ -1,59 +1,57 @@
 #!/usr/bin/env python3
-
-import sys
-from hse import init, fini, Kvdb, Params
+import hse
 from hse import experimental as hse_exp
 
-init()
+import util
 
-p = Params()
-p.set(key="kvdb.dur_enable", value="0")
-p.set(key="kvs.pfx_len", value="1")
-p.set(key="kvs.sfx_len", value="2")
 
-kvdb = Kvdb.open(sys.argv[1], params=p)
-kvdb.kvs_make("kvs32", params=p)
-kvs = kvdb.kvs_open("kvs32", params=p)
+hse.init()
 
-kvs.put(b"AbaXX", b"42")
-kvs.put(b"AbcXX", b"42")
-kvs.put(b"AbdXX", b"42")
-kvdb.sync()
+try:
+    p = hse.Params()
+    p.set(key="kvdb.dur_enable", value="0")
+    p.set(key="kvs.pfx_len", value="1")
+    p.set(key="kvs.sfx_len", value="2")
 
-cnt, *kv = hse_exp.kvs_prefix_probe(kvs, b"Abc")
-assert cnt == hse_exp.KvsPfxProbeCnt.ONE
-assert kv == [b"AbcXX", b"42"]
+    with util.create_kvdb(util.get_kvdb_name(), p) as kvdb:
+        with util.create_kvs(kvdb, "sfx_test_c0cn", p) as kvs:
+            kvs.put(b"AbaXX", b"42")
+            kvs.put(b"AbcXX", b"42")
+            kvs.put(b"AbdXX", b"42")
+            kvdb.sync()
 
-kvs.put(b"AbcXY", b"42")  # second (multiple) in c0
-cnt, *_ = hse_exp.kvs_prefix_probe(kvs, b"Abc")
-assert cnt == hse_exp.KvsPfxProbeCnt.MUL
+            cnt, *kv = hse_exp.kvs_prefix_probe(kvs, b"Abc")
+            assert cnt == hse_exp.KvsPfxProbeCnt.ONE
+            assert kv == [b"AbcXX", b"42"]
 
-kvs.prefix_delete(b"A")
-cnt, *_ = hse_exp.kvs_prefix_probe(kvs, b"Abc")
-assert cnt == hse_exp.KvsPfxProbeCnt.ZERO
-kvdb.sync()
-cnt, *_ = hse_exp.kvs_prefix_probe(kvs, b"Abc")
-assert cnt == hse_exp.KvsPfxProbeCnt.ZERO
+            kvs.put(b"AbcXY", b"42")  # second (multiple) in c0
+            cnt, *_ = hse_exp.kvs_prefix_probe(kvs, b"Abc")
+            assert cnt == hse_exp.KvsPfxProbeCnt.MUL
 
-kvs.put(b"AbcXX", b"44")
-cnt, *kv = hse_exp.kvs_prefix_probe(kvs, b"Abc")
-assert cnt == hse_exp.KvsPfxProbeCnt.ONE
-assert kv == [b"AbcXX", b"44"]
-kvdb.sync()
-cnt, *kv = hse_exp.kvs_prefix_probe(kvs, b"Abc")
-assert cnt == hse_exp.KvsPfxProbeCnt.ONE
-assert kv == [b"AbcXX", b"44"]
+            kvs.prefix_delete(b"A")
+            cnt, *_ = hse_exp.kvs_prefix_probe(kvs, b"Abc")
+            assert cnt == hse_exp.KvsPfxProbeCnt.ZERO
+            kvdb.sync()
+            cnt, *_ = hse_exp.kvs_prefix_probe(kvs, b"Abc")
+            assert cnt == hse_exp.KvsPfxProbeCnt.ZERO
 
-# duplicate in c0 and cn
-kvs.put(b"AbcXX", b"45")
-cnt, *kv = hse_exp.kvs_prefix_probe(kvs, b"Abc")
-assert cnt == hse_exp.KvsPfxProbeCnt.ONE
-assert kv == [b"AbcXX", b"45"]
-kvdb.sync()
-cnt, *kv = hse_exp.kvs_prefix_probe(kvs, b"Abc")
-assert cnt == hse_exp.KvsPfxProbeCnt.ONE
-assert kv == [b"AbcXX", b"45"]
+            kvs.put(b"AbcXX", b"44")
+            cnt, *kv = hse_exp.kvs_prefix_probe(kvs, b"Abc")
+            assert cnt == hse_exp.KvsPfxProbeCnt.ONE
+            assert kv == [b"AbcXX", b"44"]
+            kvdb.sync()
+            cnt, *kv = hse_exp.kvs_prefix_probe(kvs, b"Abc")
+            assert cnt == hse_exp.KvsPfxProbeCnt.ONE
+            assert kv == [b"AbcXX", b"44"]
 
-kvs.close()
-kvdb.close()
-fini()
+            # duplicate in c0 and cn
+            kvs.put(b"AbcXX", b"45")
+            cnt, *kv = hse_exp.kvs_prefix_probe(kvs, b"Abc")
+            assert cnt == hse_exp.KvsPfxProbeCnt.ONE
+            assert kv == [b"AbcXX", b"45"]
+            kvdb.sync()
+            cnt, *kv = hse_exp.kvs_prefix_probe(kvs, b"Abc")
+            assert cnt == hse_exp.KvsPfxProbeCnt.ONE
+            assert kv == [b"AbcXX", b"45"]
+finally:
+    hse.fini()

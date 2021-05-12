@@ -1,30 +1,30 @@
 #!/usr/bin/env python3
+import hse
 
-import sys
-from hse import init, fini, Kvdb
+import util
 
-init()
 
-kvdb = Kvdb.open(sys.argv[1])
-kvdb.kvs_make("kvs23")
-kvs = kvdb.kvs_open("kvs23")
+hse.init()
 
-kvs.put(b"a", b"1")
-kvs.put(b"b", b"2")
-kvs.put(b"c", b"3")
+try:
+    p = hse.Params()
 
-cursor = kvs.cursor()
-cursor.seek(b"a")
+    with util.create_kvdb(util.get_kvdb_name(), p) as kvdb:
+        with util.create_kvs(kvdb, "seek_del_put_next", p) as kvs:
+            kvs.put(b"a", b"1")
+            kvs.put(b"b", b"2")
+            kvs.put(b"c", b"3")
 
-kvs.delete(b"a")
-kvs.put(b"a", b"11")
+            cursor = kvs.cursor()
+            cursor.seek(b"a")
 
-cursor.update()
-kv = cursor.read()
-assert kv == (b"a", b"11")
+            kvs.delete(b"a")
+            kvs.put(b"a", b"11")
 
-cursor.destroy()
+            cursor.update()
+            kv = cursor.read()
+            assert kv == (b"a", b"11")
 
-kvs.close()
-kvdb.close()
-fini()
+            cursor.destroy()
+finally:
+    hse.fini()

@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
+import hse
 
-import sys
-from hse import init, fini, Kvdb, Params, Kvs
+import util
 
 
-def verify(kvs: Kvs, pfx: str, cnt: int):
+def verify(kvs: hse.Kvs, pfx: str, cnt: int):
     # [HSE_REVISIT] Getting all keys is too slow/freezes
     get_cnt = 100
     if cnt < get_cnt:
@@ -13,7 +13,7 @@ def verify(kvs: Kvs, pfx: str, cnt: int):
     for i in range(get_cnt):
         k = "{}-{:028}".format(pfx, i)
         val = kvs.get(k.encode())
-        assert val != None
+        assert val is not None
         assert val.decode() == k
 
     with kvs.cursor(pfx.encode()) as c:
@@ -38,67 +38,63 @@ def verify(kvs: Kvs, pfx: str, cnt: int):
         assert sum(1 for _ in rc.items()) == cnt
 
 
-init()
+hse.init()
 
-p = Params()
-p.set(key="kvdb.dur_enable", value="0")  # So sync forces an ingest
-p.set(key="kvs.pfx_len", value="4")
-p.set(key="kvs.cn_maint_disable", value="1")
+try:
+    p = hse.Params()
+    p.set(key="kvdb.dur_enable", value="0")  # So sync forces an ingest
+    p.set(key="kvs.pfx_len", value="4")
+    p.set(key="kvs.cn_maint_disable", value="1")
 
-# Test 1: Update after seek. Seek can be to an existing key or non-existent key
-kvdb = Kvdb.open(sys.argv[1], params=p)
-kvdb.kvs_make("kvs35", params=p)
-kvs = kvdb.kvs_open("kvs35", params=p)
+    with util.create_kvdb(util.get_kvdb_name(), p) as kvdb:
+        with util.create_kvs(kvdb, "ptomb_cursor", p) as kvs:
+            # Test 1: Update after seek. Seek can be to an existing key or non-existent key
+            kvs.put(b"AAAA1", b"1")
+            kvdb.sync()
+            kvs.prefix_delete(b"AAAA")  # kvset with only ptomb
 
-kvs.put(b"AAAA1", b"1")
-kvdb.sync()
-kvs.prefix_delete(b"AAAA")  # kvset with only ptomb
+            verify(kvs=kvs, pfx="AAAA", cnt=0)
+            assert kvs.get(b"AAAA1") is None
 
-verify(kvs=kvs, pfx="AAAA", cnt=0)
-assert kvs.get(b"AAAA1") == None
+            kvdb.sync()
+            verify(kvs=kvs, pfx="AAAA", cnt=0)
+            assert kvs.get(b"AAAA1") is None
 
-kvdb.sync()
-verify(kvs=kvs, pfx="AAAA", cnt=0)
-assert kvs.get(b"AAAA1") == None
+            c = kvs.cursor(b"AAAA")
+            c.seek(b"AAAA1")
+            c.destroy()
 
-c = kvs.cursor(b"AAAA")
-c.seek(b"AAAA1")
-c.destroy()
+            # This combination of number of keys and key length fills up almost the
+            # entire wbtree (main).
+            nkeys = 1767013
+            nptombs = 10
 
+            # Kvset with all ptombs < keys
+            for i in range(nkeys):
+                k = "CCCC-{:028}".format(i)
+                kvs.put(k.encode(), k.encode())
 
-# This combination of number of keys and key length fills up almost the
-# entire wbtree (main).
-nkeys = 1767013
-nptombs = 10
+            for i in range(nptombs):
+                pfx = f"BBB{i}"
+                kvs.prefix_delete(pfx.encode())
 
-# Kvset with all ptombs < keys
-for i in range(nkeys):
-    k = "CCCC-{:028}".format(i)
-    kvs.put(k.encode(), k.encode())
+            verify(kvs=kvs, pfx="CCCC", cnt=nkeys)
+            kvdb.sync()
 
-for i in range(nptombs):
-    pfx = f"BBB{i}"
-    kvs.prefix_delete(pfx.encode())
+            verify(kvs=kvs, pfx="CCCC", cnt=nkeys)
 
-verify(kvs=kvs, pfx="CCCC", cnt=nkeys)
-kvdb.sync()
+            # Kvset with all ptombs > keys
+            for i in range(nkeys):
+                k = "DDDD-{:028}".format(i)
+                kvs.put(k.encode(), k.encode())
 
-verify(kvs=kvs, pfx="CCCC", cnt=nkeys)
+            for i in range(nptombs):
+                pfx = f"EEE{i}"
+                kvs.prefix_delete(pfx.encode())
 
-# Kvset with all ptombs > keys
-for i in range(nkeys):
-    k = "DDDD-{:028}".format(i)
-    kvs.put(k.encode(), k.encode())
+            verify(kvs=kvs, pfx="DDDD", cnt=nkeys)
+            kvdb.sync()
 
-for i in range(nptombs):
-    pfx = f"EEE{i}"
-    kvs.prefix_delete(pfx.encode())
-
-verify(kvs=kvs, pfx="DDDD", cnt=nkeys)
-kvdb.sync()
-
-verify(kvs=kvs, pfx="DDDD", cnt=nkeys)
-
-kvs.close()
-kvdb.close()
-fini()
+            verify(kvs=kvs, pfx="DDDD", cnt=nkeys)
+finally:
+    hse.fini()

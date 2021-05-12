@@ -1,12 +1,14 @@
 #!/usr/bin/env python3
+import hse
 
-import sys
-from hse import init, fini, Kvdb, Params
+import util
+
 
 def add_keys(kvs, pfx, start, end):
     for k_id in range(start, end):
         key = f'{pfx}-{k_id:0>10}'
         kvs.put(key.encode(), b'val')
+
 
 def verify_keys(kvs, pfx, start, end):
     with kvs.cursor(filt=pfx.encode()) as cur:
@@ -20,41 +22,39 @@ def verify_keys(kvs, pfx, start, end):
             assert k_id < end
             k_id = k_id + 1
 
-init()
 
-p = Params()
-p.set(key="kvdb.dur_enable", value="0")
-p.set(key="kvs.pfx_len", value="2")
+hse.init()
 
-kvdb = Kvdb.open(sys.argv[1], params=p)
-kvdb.kvs_make("kvs38", params=p)
-kvs = kvdb.kvs_open("kvs38", params=p)
+try:
+    p = hse.Params()
+    p.set(key="kvdb.dur_enable", value="0")
+    p.set(key="kvs.pfx_len", value="2")
 
-num_keys = 1000 * 1000
+    with util.create_kvdb(util.get_kvdb_name(), p) as kvdb:
+        with util.create_kvs(kvdb, "pdel", p) as kvs:
+            num_keys = 1000 * 1000
 
-kvs.prefix_delete(b'AA')
+            kvs.prefix_delete(b'AA')
 
-add_keys(kvs=kvs, pfx='AA', start=0, end=num_keys)
-add_keys(kvs=kvs, pfx='AB', start=0, end=num_keys)
-add_keys(kvs=kvs, pfx='AC', start=0, end=num_keys)
-add_keys(kvs=kvs, pfx='AD', start=0, end=num_keys)
+            add_keys(kvs=kvs, pfx='AA', start=0, end=num_keys)
+            add_keys(kvs=kvs, pfx='AB', start=0, end=num_keys)
+            add_keys(kvs=kvs, pfx='AC', start=0, end=num_keys)
+            add_keys(kvs=kvs, pfx='AD', start=0, end=num_keys)
 
-kvdb.sync()
+            kvdb.sync()
 
-kvs.prefix_delete(b'AB')
+            kvs.prefix_delete(b'AB')
 
-add_keys(kvs=kvs, pfx='AA', start=num_keys, end=2*num_keys)
-add_keys(kvs=kvs, pfx='AB', start=num_keys, end=2*num_keys)
-add_keys(kvs=kvs, pfx='AC', start=num_keys, end=2*num_keys)
-add_keys(kvs=kvs, pfx='AD', start=num_keys, end=2*num_keys)
+            add_keys(kvs=kvs, pfx='AA', start=num_keys, end=2*num_keys)
+            add_keys(kvs=kvs, pfx='AB', start=num_keys, end=2*num_keys)
+            add_keys(kvs=kvs, pfx='AC', start=num_keys, end=2*num_keys)
+            add_keys(kvs=kvs, pfx='AD', start=num_keys, end=2*num_keys)
 
-kvs.prefix_delete(b'AC')
+            kvs.prefix_delete(b'AC')
 
-verify_keys(kvs=kvs, pfx='AA', start=0, end=2*num_keys)
-verify_keys(kvs=kvs, pfx='AB', start=num_keys, end=2*num_keys)
-verify_keys(kvs=kvs, pfx='AC', start=0, end=0)
-verify_keys(kvs=kvs, pfx='AD', start=0, end=2*num_keys)
-
-kvs.close()
-kvdb.close()
-fini()
+            verify_keys(kvs=kvs, pfx='AA', start=0, end=2*num_keys)
+            verify_keys(kvs=kvs, pfx='AB', start=num_keys, end=2*num_keys)
+            verify_keys(kvs=kvs, pfx='AC', start=0, end=0)
+            verify_keys(kvs=kvs, pfx='AD', start=0, end=2*num_keys)
+finally:
+    hse.fini()

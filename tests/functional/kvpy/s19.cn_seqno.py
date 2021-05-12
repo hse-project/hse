@@ -1,38 +1,36 @@
 #!/usr/bin/env python3
+import hse
 
-import sys
-from hse import init, fini, Kvdb, Params
+import util
 
-init()
 
-p = Params()
-p.set(key="kvdb.dur_enable", value="0")  # So sync forces an ingest
-p.set(key="kvs.transactions_enable", value="1")
+hse.init()
 
-kvdb = Kvdb.open(sys.argv[1], params=p)
-kvdb.kvs_make("kvs19", params=p)
-kvs = kvdb.kvs_open("kvs19", params=p)
+try:
+    p = hse.Params()
+    p.set(key="kvdb.dur_enable", value="0")  # So sync forces an ingest
+    p.set(key="kvs.transactions_enable", value="1")
 
-txn = kvdb.transaction()
-txn.begin()
+    with util.create_kvdb(util.get_kvdb_name(), p) as kvdb:
+        with util.create_kvs(kvdb, "cn_seqno", p) as kvs:
+            txn = kvdb.transaction()
+            txn.begin()
 
-with kvdb.transaction() as t:
-    kvs.put(b"a", b"1", txn=t)
+            with kvdb.transaction() as t:
+                kvs.put(b"a", b"1", txn=t)
 
-kvdb.sync()
+            kvdb.sync()
 
-txcursor = kvs.cursor(txn=txn, bind_txn=True)
-txcursor.read()
-assert txcursor.eof
+            txcursor = kvs.cursor(txn=txn, bind_txn=True)
+            txcursor.read()
+            assert txcursor.eof
 
-txn.abort()
-txcursor.seek(b"0")
-kv = txcursor.read()
-assert not txcursor.eof
-assert kv == (b"a", b"1")
+            txn.abort()
+            txcursor.seek(b"0")
+            kv = txcursor.read()
+            assert not txcursor.eof
+            assert kv == (b"a", b"1")
 
-txcursor.destroy()
-
-kvs.close()
-kvdb.close()
-fini()
+            txcursor.destroy()
+finally:
+    hse.fini()

@@ -1,39 +1,31 @@
 #!/usr/bin/env python3
-
-import sys
 import hse
-from hse import Params
+
+import util
 
 
 hse.init()
 
 try:
-    kvdb = hse.Kvdb.open(sys.argv[1])
-    kvdb.kvs_make("kvs5")
-    p = Params()
+    p = hse.Params()
     p.set(key="kvs.transactions_enable", value="1")
-    kvs = kvdb.kvs_open("kvs5", params=p)
 
-    with kvdb.transaction() as txn:
-        kvs.put(b"0x000000012b0204", b"key1", txn=txn)
+    with util.create_kvdb(util.get_kvdb_name(), p) as kvdb:
+        with util.create_kvs(kvdb, "bug_skidx_not_in_c0_kvset", p) as kvs:
+            with kvdb.transaction() as txn:
+                kvs.put(b"0x000000012b0204", b"key1", txn=txn)
 
-    with kvdb.transaction() as txn:
-        kvs.put(b"0x000000012b0404", b"key2", txn=txn)
+            with kvdb.transaction() as txn:
+                kvs.put(b"0x000000012b0404", b"key2", txn=txn)
 
-    with kvdb.transaction() as txn:
-        kvs.put(b"0x000000012b0604", b"key3", txn=txn)
+            with kvdb.transaction() as txn:
+                kvs.put(b"0x000000012b0604", b"key3", txn=txn)
 
-    with kvdb.transaction() as txn:
-        with kvs.cursor(bind_txn=True, txn=txn) as cur:
-            cur.seek(b"0x000000012b0404")
-            _, value = cur.read()
+            with kvdb.transaction() as txn:
+                with kvs.cursor(bind_txn=True, txn=txn) as cur:
+                    cur.seek(b"0x000000012b0404")
+                    _, value = cur.read()
 
-        assert value == b"key2"
+                assert value == b"key2"
 finally:
-    if kvs:
-        kvs.close()
-    if kvdb:
-        kvdb.kvs_drop("kvs5")
-        kvdb.close()
-
-hse.fini()
+    hse.fini()

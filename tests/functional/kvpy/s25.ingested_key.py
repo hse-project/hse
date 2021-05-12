@@ -1,30 +1,28 @@
 #!/usr/bin/env python3
+import hse
 
-import sys
-from hse import init, fini, Kvdb, Params
+import util
 
-init()
 
-p = Params()
-p.set(key="kvdb.dur_enable", value="0")  # So sync forces an ingest
+hse.init()
 
-kvdb = Kvdb.open(sys.argv[1], params=p)
-kvdb.kvs_make("kvs25", params=p)
-kvs = kvdb.kvs_open("kvs25", params=p)
+try:
+    p = hse.Params()
+    p.set(key="kvdb.dur_enable", value="0")  # So sync forces an ingest
 
-kvs.put(b"a", b"1")
+    with util.create_kvdb(util.get_kvdb_name(), p) as kvdb:
+        with util.create_kvs(kvdb, "ingested_key", p) as kvs:
+            kvs.put(b"a", b"1")
 
-cursor = kvs.cursor()
-kvdb.sync()
+            cursor = kvs.cursor()
+            kvdb.sync()
 
-kv = cursor.read()
-assert kv == (b"a", b"1")
+            kv = cursor.read()
+            assert kv == (b"a", b"1")
 
-cursor.read()
-assert cursor.eof
+            cursor.read()
+            assert cursor.eof
 
-cursor.destroy()
-
-kvs.close()
-kvdb.close()
-fini()
+            cursor.destroy()
+finally:
+    hse.fini()
