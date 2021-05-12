@@ -172,7 +172,7 @@ verify(struct mtf_test_info *lcl_ti, void *cur, struct nkv_tab *vtab, int vc, in
     val = vc ? vtab[0].val1 : 0;
 
     while (1) {
-        struct kvs_kvtuple kvt;
+        struct kvs_kvtuple kvt = {0};
         const int *        ip;
 
         cn_cursor_read_internal(lcl_ti, cur, &kvt, &eof);
