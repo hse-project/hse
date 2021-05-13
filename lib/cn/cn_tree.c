@@ -1823,7 +1823,7 @@ err_exit:
 /*----------------------------------------------------------------
  * SECTION: Prefix Scans
  *
- * Ideally, this code would live in pscan.c, but the create function
+ * Ideally, this code would live in cn_cursor.c, but the create function
  * deeply understands the cn_tree traversal and locking models.
  */
 
@@ -1894,7 +1894,7 @@ kvstart_put_ref(void *arg)
 }
 
 merr_t
-cn_tree_cursor_active_kvsets(struct pscan *cur, u32 *active, u32 *total)
+cn_tree_cursor_active_kvsets(struct cn_cursor *cur, u32 *active, u32 *total)
 {
     *active = bin_heap2_width(cur->bh);
     *total = cur->iterc;
@@ -1902,7 +1902,7 @@ cn_tree_cursor_active_kvsets(struct pscan *cur, u32 *active, u32 *total)
 }
 
 merr_t
-cn_tree_cursor_create(struct pscan *cur, struct cn_tree *tree)
+cn_tree_cursor_create(struct cn_cursor *cur, struct cn_tree *tree)
 {
     u64                      tdgenv[32];
     struct workqueue_struct *vra_wq;
@@ -2159,7 +2159,7 @@ errout:
 }
 
 static merr_t
-cn_tree_capped_cursor_update(struct pscan *cur, struct cn_tree *tree)
+cn_tree_capped_cursor_update(struct cn_cursor *cur, struct cn_tree *tree)
 {
     struct workqueue_struct *vra_wq;
     struct cn_tree_node *    node;
@@ -2379,7 +2379,7 @@ errout:
 }
 
 merr_t
-cn_tree_cursor_update(struct pscan *cur, struct cn_tree *tree)
+cn_tree_cursor_update(struct cn_cursor *cur, struct cn_tree *tree)
 {
     if (cur->pt_set) {
         uint len;
@@ -2387,7 +2387,7 @@ cn_tree_cursor_update(struct pscan *cur, struct cn_tree *tree)
         /* Cached ptomb should survive even if the underlying kvset
          * resources are released (deferred deletes).
          */
-        key_obj_copy(cur->pt_buf, sizeof(cur->pt_buf), &len, &cur->pt_kobj);
+        key_obj_copy(cur->pt_buf, HSE_KVS_MAX_PFXLEN, &len, &cur->pt_kobj);
         assert(len == cur->ct_pfx_len);
         key2kobj(&cur->pt_kobj, cur->pt_buf, cur->ct_pfx_len);
     }
@@ -2412,7 +2412,7 @@ cn_tree_cursor_update(struct pscan *cur, struct cn_tree *tree)
  * rather it just releases most of the resources associated with it.
  */
 void
-cn_tree_cursor_destroy(struct pscan *cur)
+cn_tree_cursor_destroy(struct cn_cursor *cur)
 {
     kvset_iterv_release(cur->iterc, cur->iterv, cn_get_maint_wq(cur->cn));
     bin_heap2_destroy(cur->bh);
@@ -2430,7 +2430,7 @@ cn_tree_cursor_destroy(struct pscan *cur)
 
 /* Call drop_dups() only if item is regular tomb, and not a ptomb. */
 static void
-drop_dups(struct pscan *cur, struct cn_kv_item *item)
+drop_dups(struct cn_cursor *cur, struct cn_kv_item *item)
 {
     struct cn_kv_item *dup;
 
@@ -2457,7 +2457,7 @@ drop_dups(struct pscan *cur, struct cn_kv_item *item)
  * rc == 0 : itempfx == cursor's pfx
  */
 static int
-cur_item_pfx_cmp(struct pscan *cur, struct cn_kv_item *item)
+cur_item_pfx_cmp(struct cn_cursor *cur, struct cn_kv_item *item)
 {
     int            rc;
     struct key_obj ko_pfx;
@@ -2491,7 +2491,7 @@ cur_item_pfx_cmp(struct pscan *cur, struct cn_kv_item *item)
  * Returns 0 on success.  Errors may be retried unless @*eof is true.
  */
 merr_t
-cn_tree_cursor_read(struct pscan *cur, struct kvs_cursor_element *elem, bool *eof)
+cn_tree_cursor_read(struct cn_cursor *cur, struct kvs_cursor_element *elem, bool *eof)
 {
     struct cn_kv_item   item, *popme;
     u64                 seq;
@@ -2639,7 +2639,7 @@ cn_tree_cursor_read(struct pscan *cur, struct kvs_cursor_element *elem, bool *eo
  */
 merr_t
 cn_tree_cursor_seek(
-    struct pscan *     cur,
+    struct cn_cursor * cur,
     const void *       key,
     u32                len,
     struct kc_filter * filter)

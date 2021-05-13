@@ -236,6 +236,30 @@ c0sk_c0_deregister(struct c0sk *handle, u16 skidx)
     return c0sk_flush(handle);
 }
 
+static struct kmem_cache *c0_cursor_cache;
+
+merr_t
+c0sk_init(void)
+{
+    struct kmem_cache *cache;
+
+    cache = kmem_cache_create("c0_cursor", sizeof(struct c0_cursor),
+                              alignof(struct c0_cursor), SLAB_PACKED, NULL);
+    if (ev(!cache))
+        return merr(ENOMEM);
+
+    c0_cursor_cache = cache;
+
+    return 0;
+}
+
+void
+c0sk_fini(void)
+{
+    kmem_cache_destroy(c0_cursor_cache);
+    c0_cursor_cache = NULL;
+}
+
 merr_t
 c0sk_put(
     struct c0sk *            handle,
@@ -1080,12 +1104,9 @@ c0sk_cursor_create(
     struct c0_cursor *cur;
     merr_t            err;
 
-    cur = malloc(sizeof(*cur));
+    cur = kmem_cache_zalloc(c0_cursor_cache);
     if (ev(!cur))
         return merr(ENOMEM);
-
-    /* zero the minimal amount necessary */
-    memset(cur, 0, sizeof(*cur));
 
     cur->c0cur_summary = summary;
     cur->c0cur_prefix = prefix;
@@ -1105,14 +1126,14 @@ c0sk_cursor_create(
     err = bin_heap2_create(
         HSE_C0_KVSET_CURSOR_MAX, reverse ? bn_kv_cmp_rev : bn_kv_cmp, &cur->c0cur_bh);
     if (ev(err)) {
-        free(cur);
+        kmem_cache_free(c0_cursor_cache, cur);
         return err;
     }
 
     err = c0sk_cursor_discover(cur);
     if (ev(err)) {
         bin_heap2_destroy(cur->c0cur_bh);
-        free(cur);
+        kmem_cache_free(c0_cursor_cache, cur);
         return err;
     }
 
@@ -1219,7 +1240,8 @@ c0sk_cursor_destroy(struct c0_cursor *cur)
         next = MSCUR_NEXT(p);
         free_aligned(p);
     }
-    free(cur);
+
+    kmem_cache_free(c0_cursor_cache, cur);
     return 0;
 }
 

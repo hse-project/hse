@@ -119,6 +119,7 @@ struct c0_cursor {
 
 int
 _cursor_debug_fmt(char *buf, int bufsz, const void *p, int len);
+
 int
 _cursor_debug_fmt_hex(char *buf, int bufsz, const void *p, int len);
 

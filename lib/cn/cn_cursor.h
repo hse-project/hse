@@ -23,7 +23,7 @@ struct kvs_kvtuple;
 struct cursor_summary;
 
 /**
- * struct pscan - allocated prefix scan context, including output buffer
+ * struct cn_cursor - allocated prefix scan context, including output buffer
  * @bh:         how to merge iterators
  * @iterc:      number of kvsets referenced
  * @itermax:    max elements in iterv[] and esrcv[]
@@ -45,13 +45,12 @@ struct cursor_summary;
  * @pt_set:     if the ptomb in pt_kobj, if there is one, is relevant.
  * @stats:      metrics for this scan; exists lifetime of cursor
  * @filter:
- * @base:       base memory address of pscan allocation
  * @pt_kobj:    ptomb key obj (key in kblk OR pt_buf[] right after cur update)
  * @pt_seq:     ptomb's seqno
  * @pt_ptbuf:   buffer for ptomb at cursor update
  * @buf:        where to store current key + value
  */
-struct pscan {
+struct cn_cursor {
     struct bin_heap2 *      bh;
     struct element_source   es;
     struct kvs_cursor_element elem;
@@ -78,16 +77,11 @@ struct pscan {
 
     struct cn_merge_stats stats;
     struct kc_filter *    filter;
-    char *                base;
 
     struct key_obj pt_kobj;
     u64            pt_seq;
 
-    /* WARNING: cn_pscan_create() initializes all the above fields
-     * up to but not including pt_buf[].  Use caution if you feel
-     * you must move pt_buf[] or add additional fields after it.
-     */
-    unsigned char  pt_buf[HSE_KVS_MAX_PFXLEN];
+    unsigned char  pt_buf[];
 };
 
 /* MTF_MOCK */
@@ -103,35 +97,35 @@ cn_cursor_create(
 
 /* MTF_MOCK */
 merr_t
-cn_cursor_update(struct pscan *cursor, u64 seqno, bool *updated);
+cn_cursor_update(struct cn_cursor *cursor, u64 seqno, bool *updated);
 
 /* MTF_MOCK */
 merr_t
 cn_cursor_seek(
-    struct pscan *     cursor,
+    struct cn_cursor * cursor,
     const void *       prefix,
     u32                len,
     struct kc_filter * filter);
 
 /* MTF_MOCK */
 merr_t
-cn_cursor_read(struct pscan *cursor, struct kvs_cursor_element *elem, bool *eof);
+cn_cursor_read(struct cn_cursor *cursor, struct kvs_cursor_element *elem, bool *eof);
 
 /* MTF_MOCK */
 void
-cn_cursor_destroy(struct pscan *cursor);
+cn_cursor_destroy(struct cn_cursor *cursor);
 
 /* MTF_MOCK */
 merr_t
-cn_cursor_active_kvsets(struct pscan *cursor, u32 *active, u32 *total);
+cn_cursor_active_kvsets(struct cn_cursor *cursor, u32 *active, u32 *total);
 
 /* MTF_MOCK */
 struct element_source *
-cn_cursor_es_make(struct pscan *cncur);
+cn_cursor_es_make(struct cn_cursor *cncur);
 
 /* MTF_MOCK */
 struct element_source *
-cn_cursor_es_get(struct pscan *cncur);
+cn_cursor_es_get(struct cn_cursor *cncur);
 
 #if HSE_MOCKING
 #include "cn_cursor_ut.h"

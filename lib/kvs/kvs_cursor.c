@@ -170,8 +170,8 @@ struct kvs_cursor_impl {
     u64    kci_pfxhash;
     merr_t kci_err; /* bad cursor, must destroy */
 
-    u8  *kci_buf;
     u8  *kci_prefix;
+    u8   kci_buf[];
 } HSE_ALIGNED(SMP_CACHE_BYTES);
 
 static size_t kvs_cursor_impl_alloc_sz HSE_READ_MOSTLY;
@@ -754,7 +754,6 @@ ikvs_cursor_alloc(struct ikvs *kvs, const void *prefix, size_t pfx_len, bool rev
     cur->kci_pfxhash = pfxhash;
 
     /* Point buffer-pointers to the right memory regions */
-    cur->kci_buf = (void *)(cur + 1);
     cur->kci_prefix = cur->kci_buf + HSE_KVS_KLEN_MAX + HSE_KVS_VLEN_MAX;
     cur->kci_last_kbuf = cur->kci_prefix + HSE_KVS_MAX_PFXLEN;
     cur->kci_limit = cur->kci_last_kbuf + HSE_KVS_KLEN_MAX;

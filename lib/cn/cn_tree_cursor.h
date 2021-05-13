@@ -11,37 +11,37 @@
 #include <hse_util/inttypes.h>
 #include <hse_util/hse_err.h>
 
-struct pscan;
+struct cn_cursor;
 struct cn_tree;
 struct kvs_ktuple;
 
 /* MTF_MOCK */
 merr_t
-cn_tree_cursor_create(struct pscan *cur, struct cn_tree *tree);
+cn_tree_cursor_create(struct cn_cursor *cur, struct cn_tree *tree);
 
 /* MTF_MOCK */
 merr_t
-cn_tree_cursor_update(struct pscan *cur, struct cn_tree *tree);
+cn_tree_cursor_update(struct cn_cursor *cur, struct cn_tree *tree);
 
 /* MTF_MOCK */
 merr_t
 cn_tree_cursor_seek(
-    struct pscan *     cur,
+    struct cn_cursor * cur,
     const void *       key,
     u32                len,
     struct kc_filter * filter);
 
 /* MTF_MOCK */
 merr_t
-cn_tree_cursor_read(struct pscan *cur, struct kvs_cursor_element *elem, bool *eof);
+cn_tree_cursor_read(struct cn_cursor *cur, struct kvs_cursor_element *elem, bool *eof);
 
 /* MTF_MOCK */
 void
-cn_tree_cursor_destroy(struct pscan *cur);
+cn_tree_cursor_destroy(struct cn_cursor *cur);
 
 /* MTF_MOCK */
 merr_t
-cn_tree_cursor_active_kvsets(struct pscan *cur, u32 *active, u32 *total);
+cn_tree_cursor_active_kvsets(struct cn_cursor *cur, u32 *active, u32 *total);
 
 #if HSE_MOCKING
 #include "cn_tree_cursor_ut.h"

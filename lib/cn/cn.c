@@ -66,46 +66,60 @@
 struct tbkt;
 struct mclass_policy;
 
+static struct kmem_cache *cn_cursor_cache;
+
 void
 hse_log_reg_cn(void);
 
 merr_t
 cn_init(void)
 {
-    struct pscan *cur HSE_MAYBE_UNUSED;
+    struct kmem_cache *cache;
+    uint               sz;
     merr_t err;
-
-    /* If you trip this assert then likely you ignored the warning in cn_cursor.h
-     * and you need to adjust cn_pscan_create() to accomodate your changes.
-     */
-    assert(offsetof(struct pscan, pt_buf) + sizeof(cur->pt_buf) == sizeof(*cur));
 
     err = wbti_init();
     if (err)
         return err;
 
     err = ib_init();
-    if (err) {
-        wbti_fini();
-        return err;
-    }
+    if (err)
+        goto wbti_cleanup;
 
     err = cn_tree_init();
-    if (err) {
-        ib_fini();
-        wbti_fini();
-        return err;
-    }
+    if (err)
+        goto ib_cleanup;
 
     kvset_init();
     hse_log_reg_cn();
 
+    sz = sizeof(struct cn_cursor) + HSE_KVS_MAX_PFXLEN;
+    cache = kmem_cache_create("cn_cursor", sz, alignof(struct cn_cursor), SLAB_PACKED, NULL);
+    if (ev(!cache)) {
+        err = merr(ENOMEM);
+        goto kvset_cleanup;
+    }
+
+    cn_cursor_cache = cache;
     return 0;
+
+kvset_cleanup:
+    kvset_fini();
+    cn_tree_fini();
+ib_cleanup:
+    ib_fini();
+wbti_cleanup:
+    wbti_fini();
+
+    return err;
 }
 
 void
 cn_fini(void)
 {
+    kmem_cache_destroy(cn_cursor_cache);
+    cn_cursor_cache = NULL;
+
     kvset_fini();
     cn_tree_fini();
     ib_fini();
@@ -1438,47 +1452,24 @@ cn_work_submit(struct cn *cn, cn_work_fn *handler, struct cn_work *work)
 }
 
 /**
- * cn_pscan_create() - allocate and initialize a pscan object
+ * cn_cursor_alloc() - allocate and initialize a cn_cursor object
  */
-static struct pscan *
-cn_pscan_create(void)
+static struct cn_cursor *
+cn_cursor_alloc(void)
 {
-    struct pscan *cur;
-    size_t align;
-    void *mem;
+    struct cn_cursor *cur;
 
-    align = (alignof(*cur) > SMP_CACHE_BYTES) ? alignof(*cur) : SMP_CACHE_BYTES;
-
-    mem = vlb_alloc(sizeof(*cur) + align * 16);
-    if (ev(!mem))
+    cur = kmem_cache_zalloc(cn_cursor_cache);
+    if (ev(!cur))
         return NULL;
-
-    /* Mitigate cacheline aliasing by offsetting from mem by a random
-     * number of cache lines (because vlb_alloc() always returns a
-     * page-aligned buffer).
-     */
-    cur = mem + align * (xrand64_tls() % 16);
-
-    /* Initialize all fields up to but not including pt_buf[].
-     */
-    memset(cur, 0, offsetof(struct pscan, pt_buf));
-    cur->base = mem;
 
     return cur;
 }
 
 static void
-cn_pscan_free(struct pscan *cur)
+cn_cursor_free(struct cn_cursor *cur)
 {
-    size_t used = (char *)(cur + 1) - cur->base;
-
-    /* Subtract a page size from the used size in order to avoid an
-     * munmap() call of one page in vlb_free().
-     */
-    assert(used < VLB_KEEPSZ_MAX + PAGE_SIZE &&
-           VLB_KEEPSZ_MAX + PAGE_SIZE < VLB_ALLOCSZ_MAX);
-
-    vlb_free(cur->base, used - PAGE_SIZE);
+    kmem_cache_free(cn_cursor_cache, cur);
 }
 
 /*
@@ -1512,10 +1503,11 @@ cn_cursor_create(
 {
     int           ct_pfx_len = cn->cp->cp_pfx_len;
     int           attempts = 5;
-    struct pscan *cur;
     merr_t        err;
 
-    cur = cn_pscan_create();
+    struct cn_cursor *cur;
+
+    cur = cn_cursor_alloc();
     if (ev(!cur))
         return merr(ENOMEM);
 
@@ -1559,7 +1551,7 @@ cn_cursor_create(
 
     if (ev(err)) {
         hse_elog(HSE_ERR "%s: attempts %d: @@e", err, __func__, attempts);
-        cn_pscan_free(cur);
+        cn_cursor_free(cur);
         return merr(EAGAIN);
     }
 
@@ -1570,7 +1562,7 @@ cn_cursor_create(
 }
 
 merr_t
-cn_cursor_update(struct pscan *cur, u64 seqno, bool *updated)
+cn_cursor_update(struct cn_cursor *cur, u64 seqno, bool *updated)
 {
     u64           dgen = atomic64_read(&cur->cn->cn_ingest_dgen);
     int           attempts = 5;
@@ -1609,7 +1601,7 @@ cn_cursor_update(struct pscan *cur, u64 seqno, bool *updated)
 
 merr_t
 cn_cursor_seek(
-    struct pscan *     cursor,
+    struct cn_cursor * cursor,
     const void *       key,
     u32                len,
     struct kc_filter * filter)
@@ -1618,14 +1610,14 @@ cn_cursor_seek(
 }
 
 merr_t
-cn_cursor_read(struct pscan *cursor, struct kvs_cursor_element *elem,  bool *eof)
+cn_cursor_read(struct cn_cursor *cursor, struct kvs_cursor_element *elem,  bool *eof)
 {
     return cn_tree_cursor_read(cursor, elem, eof);
 }
 
 static bool
 cncur_next(struct element_source *es, void **element) {
-    struct pscan *cncur = container_of(es, struct pscan, es);
+    struct cn_cursor *cncur = container_of(es, struct cn_cursor, es);
     bool eof;
     merr_t err;
 
@@ -1639,27 +1631,27 @@ cncur_next(struct element_source *es, void **element) {
 }
 
 struct element_source *
-cn_cursor_es_make(struct pscan *cncur) {
+cn_cursor_es_make(struct cn_cursor *cncur) {
 	cncur->es = es_make(cncur_next, 0, 0);
 	return &cncur->es;
 }
 
 struct element_source *
-cn_cursor_es_get(struct pscan *cncur) {
+cn_cursor_es_get(struct cn_cursor *cncur) {
 	return &cncur->es;
 }
 
 void
-cn_cursor_destroy(struct pscan *cur)
+cn_cursor_destroy(struct cn_cursor *cur)
 {
     cn_tree_cursor_destroy(cur);
     free(cur->iterv);
     free(cur->esrcv);
-    cn_pscan_free(cur);
+    cn_cursor_free(cur);
 }
 
 merr_t
-cn_cursor_active_kvsets(struct pscan *cursor, u32 *active, u32 *total)
+cn_cursor_active_kvsets(struct cn_cursor *cursor, u32 *active, u32 *total)
 {
     return cn_tree_cursor_active_kvsets(cursor, active, total);
 }

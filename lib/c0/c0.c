@@ -62,6 +62,7 @@ merr_t
 c0_init(void)
 {
     rcu_init();
+    c0sk_init();
     c0kvs_init();
     c0kvms_init();
     kvdb_ctxn_locks_init();
@@ -74,6 +75,7 @@ c0_fini(void)
 {
     /* [HSE_REVISIT] */
 
+    c0sk_fini();
     c0kvs_fini();
     c0kvms_fini();
     kvdb_ctxn_locks_fini();

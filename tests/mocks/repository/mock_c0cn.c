@@ -539,7 +539,7 @@ _cn_cursor_create(
 }
 
 static void
-_cn_cursor_destroy(struct pscan *cursor)
+_cn_cursor_destroy(struct cn_cursor *cursor)
 {
     struct mock_cn_cursor *cur = (void *)cursor;
     struct mock_cn *cn = cur->cn;
@@ -551,7 +551,7 @@ _cn_cursor_destroy(struct pscan *cursor)
 }
 
 static merr_t
-_cn_cursor_update(struct pscan *cursor, u64 seqno, bool *updated)
+_cn_cursor_update(struct cn_cursor *cursor, u64 seqno, bool *updated)
 {
     struct mock_cn_cursor *cur = (void *)cursor;
 
@@ -563,7 +563,7 @@ _cn_cursor_update(struct pscan *cursor, u64 seqno, bool *updated)
 }
 
 static merr_t
-_cn_cursor_read(struct pscan *cursor, struct kvs_cursor_element *elem, bool *eof)
+_cn_cursor_read(struct cn_cursor *cursor, struct kvs_cursor_element *elem, bool *eof)
 {
     struct mock_cn_cursor *cur = (void *)cursor;
 
@@ -589,7 +589,7 @@ _cn_cursor_read(struct pscan *cursor, struct kvs_cursor_element *elem, bool *eof
 
 static merr_t
 _cn_cursor_seek(
-    struct pscan *     cursor,
+    struct cn_cursor * cursor,
     const void *       key,
     u32                len,
     struct kc_filter * filter)
@@ -626,7 +626,7 @@ cncur_next(struct element_source *es, void **element) {
 }
 
 struct element_source *
-_cn_cursor_es_make(struct pscan *cncur) {
+_cn_cursor_es_make(struct cn_cursor *cncur) {
     struct mock_cn_cursor *cur = (void *)cncur;
 
 	cur->es = es_make(cncur_next, 0, 0);
@@ -634,14 +634,14 @@ _cn_cursor_es_make(struct pscan *cncur) {
 }
 
 struct element_source *
-_cn_cursor_es_get(struct pscan *cncur) {
+_cn_cursor_es_get(struct cn_cursor *cncur) {
     struct mock_cn_cursor *cur = (void *)cncur;
 
 	return &cur->es;
 }
 
 merr_t
-_cn_cursor_active_kvsets(struct pscan *cursor, u32 *active, u32 *total)
+_cn_cursor_active_kvsets(struct cn_cursor *cursor, u32 *active, u32 *total)
 {
     *active = 0;
     *total = 0;
