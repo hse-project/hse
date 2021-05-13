@@ -52,7 +52,7 @@ void insert_key(struct mtf_test_info *lcl_ti, char *key)
     kvs_ktuple_init(&kt, key, strlen(key));
     kvs_vtuple_init(&vt, key, strlen(key));
 
-    err = ikvs_put(kvs, NULL, &kt, &vt, 1);
+    err = kvs_put(kvs, NULL, &kt, &vt, 1);
     ASSERT_EQ(0, err);
 }
 
@@ -90,7 +90,7 @@ create_cursor(
     struct hse_kvs_cursor *cur;
     merr_t err;
 
-    cur = ikvs_cursor_alloc(kvs, pfx, strlen(pfx), reverse);
+    cur = kvs_cursor_alloc(kvs, pfx, strlen(pfx), reverse);
     ASSERT_NE(NULL, cur);
 
     err = kvs_cursor_init(cur);
@@ -181,7 +181,7 @@ MTF_DEFINE_UTEST_PREPOST(kvs_cursor_test, basic_test, test_pre, test_post)
     expect_key(lcl_ti, &kt, buf);
     check_keys(start, 10 - start);
 
-    ikvs_cursor_destroy(cur);
+    kvs_cursor_destroy(cur);
 }
 
 MTF_END_UTEST_COLLECTION(kvs_cursor_test);

@@ -342,7 +342,7 @@ ikvs_curcache_prune_impl(
 
     while (( old = evicted )) {
         evicted = old->kci_item.ci_next;
-        ikvs_cursor_destroy(&old->kci_handle);
+        kvs_cursor_destroy(&old->kci_handle);
         ++ndestroyed;
     }
 
@@ -543,7 +543,7 @@ ikvs_curcache_remove(struct curcache_bucket *bkt, uint64_t key, const void *pref
  * cursors bound to the given kvs.
  */
 void
-ikvs_cursor_reap(struct ikvs *kvs)
+kvs_cursor_reap(struct ikvs *kvs)
 {
     ikvs_curcache_prune(kvs);
 
@@ -596,7 +596,7 @@ ikvs_cursor_restore(struct ikvs *kvs, const void *prefix, size_t pfx_len, u64 pf
         err = c0_cursor_restore(c0cur);
         if (ev(err)) {
             perfc_inc(&kvs->ikv_cc_pc, PERFC_RA_CC_RESTFAIL);
-            ikvs_cursor_destroy(&cur->kci_handle);
+            kvs_cursor_destroy(&cur->kci_handle);
             return NULL;
         }
     }
@@ -710,7 +710,7 @@ ikvs_cursor_save(struct kvs_cursor_impl *cur)
 
     if (cur) {
         perfc_inc(&kvs->ikv_cc_pc, PERFC_RA_CC_SAVEFAIL);
-        ikvs_cursor_destroy(&cur->kci_handle);
+        kvs_cursor_destroy(&cur->kci_handle);
     } else {
         perfc_lat_record(&kvs->ikv_cd_pc, PERFC_LT_CD_SAVE, tstart);
         PERFC_INC_RU(&kvs->ikv_cc_pc, PERFC_RA_CC_SAVE);
@@ -718,7 +718,7 @@ ikvs_cursor_save(struct kvs_cursor_impl *cur)
 }
 
 struct hse_kvs_cursor *
-ikvs_cursor_alloc(struct ikvs *kvs, const void *prefix, size_t pfx_len, bool reverse)
+kvs_cursor_alloc(struct ikvs *kvs, const void *prefix, size_t pfx_len, bool reverse)
 {
     struct kvs_cursor_impl *cur;
     u64                     pfxhash;
@@ -775,10 +775,10 @@ ikvs_cursor_alloc(struct ikvs *kvs, const void *prefix, size_t pfx_len, bool rev
 }
 
 void
-ikvs_cursor_free(struct hse_kvs_cursor *cursor)
+kvs_cursor_free(struct hse_kvs_cursor *cursor)
 {
     if (cursor->kc_err)
-        ikvs_cursor_destroy(cursor);
+        kvs_cursor_destroy(cursor);
     else
         ikvs_cursor_save(cursor_h2r(cursor));
 }
@@ -972,7 +972,7 @@ error:
 }
 
 merr_t
-ikvs_cursor_bind_txn(struct hse_kvs_cursor *handle, struct kvdb_ctxn *ctxn)
+kvs_cursor_bind_txn(struct hse_kvs_cursor *handle, struct kvdb_ctxn *ctxn)
 {
     struct kvs_cursor_impl *cursor = (void *)handle;
 
@@ -985,7 +985,7 @@ ikvs_cursor_bind_txn(struct hse_kvs_cursor *handle, struct kvdb_ctxn *ctxn)
 }
 
 void
-ikvs_cursor_destroy(struct hse_kvs_cursor *handle)
+kvs_cursor_destroy(struct hse_kvs_cursor *handle)
 {
     struct kvs_cursor_impl *cursor = (void *)handle;
 
@@ -1001,7 +1001,7 @@ ikvs_cursor_destroy(struct hse_kvs_cursor *handle)
 }
 
 merr_t
-ikvs_cursor_update(struct hse_kvs_cursor *handle, u64 seqno)
+kvs_cursor_update(struct hse_kvs_cursor *handle, u64 seqno)
 {
     struct kvs_cursor_impl *cursor = (void *)handle;
     struct kvdb_ctxn_bind * bind = handle->kc_bind;
@@ -1072,7 +1072,7 @@ ikvs_cursor_update(struct hse_kvs_cursor *handle, u64 seqno)
 }
 
 static void
-drop_prefixes(struct kvs_cursor_impl *cursor, struct key_obj *pt_kobj)
+ikvs_cursor_prefixes_drop(struct kvs_cursor_impl *cursor, struct key_obj *pt_kobj)
 {
     bool eof = false;
 
@@ -1096,7 +1096,7 @@ drop_prefixes(struct kvs_cursor_impl *cursor, struct key_obj *pt_kobj)
 }
 
 merr_t
-cursor_replenish(struct kvs_cursor_impl *cursor)
+ikvs_cursor_replenish(struct kvs_cursor_impl *cursor)
 {
     bool is_ptomb, is_tomb;
     merr_t err = 0;
@@ -1126,7 +1126,7 @@ cursor_replenish(struct kvs_cursor_impl *cursor)
             struct key_obj pt_kobj;
 
             pt_kobj = cursor->kci_last_kobj;
-            drop_prefixes(cursor, &pt_kobj);
+            ikvs_cursor_prefixes_drop(cursor, &pt_kobj);
         } else {
             bool drop_dup;
 
@@ -1153,7 +1153,7 @@ out:
 }
 
 static merr_t
-cursor_seek(struct kvs_cursor_impl *cursor, const void *key, size_t klen)
+ikvs_cursor_seek(struct kvs_cursor_impl *cursor, const void *key, size_t klen)
 {
     struct hse_kvs_cursor *handle = &cursor->kci_handle;
     merr_t err = 0;
@@ -1180,7 +1180,7 @@ out:
 }
 
 static merr_t
-copy_kv(struct kvs_cursor_impl *cursor, struct kvs_kvtuple *kvt)
+ikvs_cursor_kv_copy(struct kvs_cursor_impl *cursor, struct kvs_kvtuple *kvt)
 {
     struct kvs_vtuple *vt = &cursor->kci_elem_last.kce_vt;
     uint               clen = cursor->kci_elem_last.kce_complen;
@@ -1251,7 +1251,7 @@ kvs_cursor_read(struct hse_kvs_cursor *handle, struct kvs_kvtuple *kvt, bool *eo
 
             key2kobj(&ko, cursor->kci_last_kbuf, cursor->kci_last_klen);
             if (toss && !key_obj_cmp(&ko, cursor->kci_last)) {
-                cursor->kci_err = cursor_replenish(cursor);
+                cursor->kci_err = ikvs_cursor_replenish(cursor);
                 if (ev(cursor->kci_err))
                     return cursor->kci_err;
             }
@@ -1261,7 +1261,7 @@ kvs_cursor_read(struct hse_kvs_cursor *handle, struct kvs_kvtuple *kvt, bool *eo
         /* Detect a [seek,update,read] order of operations and SKIP replenish in that case */
         /* [HSE_REVISIT] There may be a better way to do this... */
         if (cursor->kci_need_toss || !cursor->kci_last) {
-            cursor->kci_err = cursor_replenish(cursor);
+            cursor->kci_err = ikvs_cursor_replenish(cursor);
             if (ev(cursor->kci_err))
                 return cursor->kci_err;
         }
@@ -1272,7 +1272,7 @@ kvs_cursor_read(struct hse_kvs_cursor *handle, struct kvs_kvtuple *kvt, bool *eo
     if (*eofp)
         return 0;
 
-    cursor->kci_err = copy_kv(cursor, kvt);
+    cursor->kci_err = ikvs_cursor_kv_copy(cursor, kvt);
     return cursor->kci_err;
 }
 
@@ -1316,12 +1316,12 @@ kvs_cursor_seek(
         len = cursor->kci_reverse ? HSE_KVS_KLEN_MAX : cursor->kci_pfxlen;
     }
 
-    cursor->kci_err = cursor_seek(cursor, key, len);
+    cursor->kci_err = ikvs_cursor_seek(cursor, key, len);
     if (ev(cursor->kci_err))
         return cursor->kci_err;
 
     /* Peek at the next key and optionally copy into kt */
-    cursor_replenish(cursor);
+    ikvs_cursor_replenish(cursor);
     if (kt && !cursor->kci_eof)
         kt->kt_data = key_obj_copy(cursor->kci_buf, HSE_KVS_KLEN_MAX,
                                    (uint *)&kt->kt_len, cursor->kci_last);
