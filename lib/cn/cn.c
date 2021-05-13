@@ -90,7 +90,10 @@ cn_init(void)
     if (err)
         goto ib_cleanup;
 
-    kvset_init();
+    err = kvset_init();
+    if (err)
+        goto cn_tree_cleanup;
+
     hse_log_reg_cn();
 
     sz = sizeof(struct cn_cursor) + HSE_KVS_MAX_PFXLEN;
@@ -105,9 +108,13 @@ cn_init(void)
 
 kvset_cleanup:
     kvset_fini();
+
+cn_tree_cleanup:
     cn_tree_fini();
+
 ib_cleanup:
     ib_fini();
+
 wbti_cleanup:
     wbti_fini();
 

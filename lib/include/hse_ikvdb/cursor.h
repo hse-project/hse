@@ -74,7 +74,7 @@ enum kvs_bh_source{
  * struct kvs_cursor_element - Binheap element. Common to both c0 and cn.
  *
  * @kce_vt:       Value
- * @kce_kobj:     Key (as a structy key_obj)
+ * @kce_kobj:     Key (as a struct key_obj)
  * @kce_source:   Source of kv-tuple
  * @kce_complen:  Length of compressed value. Zero if not compressed.
  * @kce_is_ptomb: Whether or not kv-tuple is a ptomb
