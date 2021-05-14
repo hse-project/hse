@@ -38,7 +38,6 @@
  * @c0ms_gen:           kvms unique generation count
  * @c0ms_seqno:
  * @c0ms_rsvd_sn:       reserved at kvms activation for txn flush and ingestid
- * @c0ms_ingest_delay:  Max ingest coalesce wait time (seconds)
  * @c0ms_ingesting:     kvms is being ingested (no longer active)
  * @c0ms_ingested:
  * @c0ms_finalized:     kvms guaranteed to be frozen (no more updates)
@@ -59,7 +58,6 @@ struct c0_kvmultiset_impl {
     u64                  c0ms_gen;
     atomic64_t           c0ms_seqno;
     u64                  c0ms_rsvd_sn;
-    u64                  c0ms_ingest_delay;
     u64                  c0ms_ctime;
 
     atomic_t                 c0ms_ingesting HSE_ALIGNED(SMP_CACHE_BYTES);
@@ -166,22 +164,6 @@ c0kvms_is_ingested(struct c0_kvmultiset *handle)
     struct c0_kvmultiset_impl *self = c0_kvmultiset_h2r(handle);
 
     return self->c0ms_ingested;
-}
-
-void
-c0kvms_ingest_delay_set(struct c0_kvmultiset *handle, u64 delay)
-{
-    struct c0_kvmultiset_impl *self = c0_kvmultiset_h2r(handle);
-
-    self->c0ms_ingest_delay = delay;
-}
-
-u64
-c0kvms_ingest_delay_get(struct c0_kvmultiset *handle)
-{
-    struct c0_kvmultiset_impl *self = c0_kvmultiset_h2r(handle);
-
-    return self->c0ms_ingest_delay;
 }
 
 u64
@@ -824,7 +806,6 @@ merr_t
 c0kvms_create(
     u32                    num_sets,
     size_t                 alloc_sz,
-    u64                    ingest_delay,
     atomic64_t *           kvdb_seq,
     struct c0_kvmultiset **multiset)
 {
@@ -849,7 +830,6 @@ c0kvms_create(
 
     kvms->c0ms_c0snr_max = HSE_C0KVMS_C0SNR_MAX;
 
-    kvms->c0ms_ingest_delay = ingest_delay;
     kvms->c0ms_rsvd_sn = HSE_SQNREF_INVALID;
     kvms->c0ms_ctime = get_time_ns();
 

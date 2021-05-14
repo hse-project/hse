@@ -42,7 +42,6 @@ struct c0_kvmultiset {
  * c0kvms_create() - allocate/initialize a struct c0_kvmultiset
  * @num_sets:        Max number of c0_kvsets to create
  * @alloc_sz:        Maximum cheap or malloc allocation size
- * @ingest_delay:    Max ingest coalesce wait time (in seconds)
  * @kvdb_seq:        ptr to kvdb seqno. Used only by non-txn KVMS.
  * @multiset:        Returned struct c0_kvset (on success)
  *
@@ -60,7 +59,6 @@ merr_t
 c0kvms_create(
     u32                    num_sets,
     size_t                 alloc_sz,
-    u64                    ingest_delay,
     atomic64_t *           kvdb_seq,
     struct c0_kvmultiset **multiset);
 
@@ -165,23 +163,6 @@ c0kvms_finalize(struct c0_kvmultiset *mset, struct workqueue_struct *wq);
 /* MTF_MOCK */
 bool
 c0kvms_is_finalized(struct c0_kvmultiset *mset);
-
-/**
- * c0kvms_ingest_delay_set() - set ingest delay
- * @mset:   struct c0_kvmultiset
- * @delay:  delay in seconds
- */
-void
-c0kvms_ingest_delay_set(struct c0_kvmultiset *mset, u64 delay);
-
-/**
- * c0kvms_ingest_delay_get() - get ingest delay
- * @mset:   struct c0_kvmultiset
- *
- * Return: delay in seconds
- */
-u64
-c0kvms_ingest_delay_get(struct c0_kvmultiset *mset);
 
 /**
  * c0kvms_rsvd_sn_get() - get reserved seqno

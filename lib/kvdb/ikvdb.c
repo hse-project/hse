@@ -859,9 +859,6 @@ ikvdb_low_mem_adjust(struct ikvdb_impl *self)
     if (rp->c0_ingest_width == dflt.c0_ingest_width)
         rp->c0_ingest_width = HSE_C0_INGEST_WIDTH_DFLT;
 
-    if (rp->c0_ingest_delay == dflt.c0_ingest_delay)
-        rp->c0_ingest_delay = 0;
-
     if (rp->c0_coalesce_sz == dflt.c0_coalesce_sz)
         rp->c0_coalesce_sz = (rp->c0_heap_sz * rp->c0_ingest_width) >> 20;
 

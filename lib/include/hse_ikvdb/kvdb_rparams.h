@@ -46,7 +46,6 @@ struct kvdb_rparams {
 
     uint64_t c0_heap_cache_sz_max;
     uint64_t c0_heap_sz;
-    uint32_t c0_ingest_delay;
     uint32_t c0_ingest_width;
     uint64_t c0_coalesce_sz;
 

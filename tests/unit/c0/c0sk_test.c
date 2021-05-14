@@ -230,7 +230,7 @@ MTF_DEFINE_UTEST_PREPOST(c0sk_test, ingest, no_fail_pre, no_fail_post)
 
     self = c0sk_h2r(mkvdb.ikdb_c0sk);
 
-    err = c0kvms_create(1, 0, 0, &seqno, &kvms);
+    err = c0kvms_create(1, 0, &seqno, &kvms);
     ASSERT_EQ(0, err);
     ASSERT_NE(NULL, kvms);
 
@@ -297,7 +297,7 @@ MTF_DEFINE_UTEST_PREPOST(c0sk_test, ingest_debug, no_fail_pre, no_fail_post)
 
     self = c0sk_h2r(mkvdb.ikdb_c0sk);
 
-    err = c0kvms_create(1, 0, 0, &seqno, &kvms);
+    err = c0kvms_create(1, 0, &seqno, &kvms);
     ASSERT_EQ(0, err);
     ASSERT_NE(NULL, kvms);
 
@@ -420,7 +420,7 @@ MTF_DEFINE_UTEST_PREPOST(c0sk_test, t_sync, no_fail_pre, no_fail_post)
 
     self = c0sk_h2r(mkvdb.ikdb_c0sk);
 
-    err = c0kvms_create(1, 0, 0, &seqno, &kvms);
+    err = c0kvms_create(1, 0, &seqno, &kvms);
     ASSERT_EQ(0, err);
     ASSERT_NE(NULL, kvms);
 
@@ -620,7 +620,7 @@ MTF_DEFINE_UTEST_PREPOST(c0sk_test, ingest_fail, no_fail_pre, no_fail_post)
 
     self = c0sk_h2r(mkvdb.ikdb_c0sk);
 
-    err = c0kvms_create(1, 0, 0, &seqno, &kvms);
+    err = c0kvms_create(1, 0, &seqno, &kvms);
     ASSERT_EQ(0, err);
     ASSERT_NE(NULL, kvms);
 
@@ -677,7 +677,7 @@ MTF_DEFINE_UTEST_PREPOST(c0sk_test, open_test, no_fail_pre, no_fail_post)
     self = c0sk_h2r(mkvdb.ikdb_c0sk);
 
     for (i = 0; i < num_kvs; i++) {
-        err = c0kvms_create(1, 0, 0, &seqno, &kvms[i]);
+        err = c0kvms_create(1, 0, &seqno, &kvms[i]);
         ASSERT_EQ(0, err);
         ASSERT_NE(NULL, kvms[i]);
 
@@ -744,7 +744,7 @@ MTF_DEFINE_UTEST_PREPOST(c0sk_test, serial_put1, no_fail_pre, no_fail_post)
         err = c0sk_c0_register(mkvdb.ikdb_c0sk, mock_cn, &skidx[i]);
         ASSERT_EQ(0, err);
 
-        err = c0kvms_create(1, 0, 0, &seqno, &kvms[i]);
+        err = c0kvms_create(1, 0, &seqno, &kvms[i]);
         ASSERT_EQ(0, err);
         ASSERT_NE(NULL, kvms[i]);
 
@@ -829,7 +829,7 @@ MTF_DEFINE_UTEST_PREPOST(c0sk_test, serial_put2, no_fail_pre, no_fail_post)
         err = c0sk_c0_register(mkvdb.ikdb_c0sk, mock_cn, &skidx[i]);
         ASSERT_EQ(0, err);
 
-        err = c0kvms_create(1, 0, 0, &seqno, &kvms[i]);
+        err = c0kvms_create(1, 0, &seqno, &kvms[i]);
         ASSERT_EQ(0, err);
         ASSERT_NE(NULL, kvms[i]);
 
@@ -990,7 +990,7 @@ MTF_DEFINE_UTEST_PREPOST(c0sk_test, ctxn_put, no_fail_ctxn_pre, no_fail_post)
     self = c0sk_h2r(mkvdb.ikdb_c0sk);
 
     for (i = 0; i < num_kvs; i++) {
-        err = c0kvms_create(1, 0, 0, &seqno, &kvms[i]);
+        err = c0kvms_create(1, 0, &seqno, &kvms[i]);
         ASSERT_EQ(0, err);
         ASSERT_NE(NULL, kvms[i]);
 
@@ -1180,7 +1180,7 @@ MTF_DEFINE_UTEST_PREPOST(c0sk_test, parallel_put1, no_fail_pre, no_fail_post)
         err = c0sk_c0_register(mkvdb.ikdb_c0sk, mock_cn, &skidx[i]);
         ASSERT_EQ(0, err);
 
-        err = c0kvms_create(1, 0, 0, &seqno, &kvms[i]);
+        err = c0kvms_create(1, 0, &seqno, &kvms[i]);
         ASSERT_EQ(0, err);
         ASSERT_NE(NULL, kvms[i]);
 
@@ -1267,7 +1267,7 @@ MTF_DEFINE_UTEST_PREPOST(c0sk_test, parallel_put2, no_fail_pre, no_fail_post)
         err = c0sk_c0_register(mkvdb.ikdb_c0sk, mock_cn, &skidx[i]);
         ASSERT_EQ(0, err);
 
-        err = c0kvms_create(1, 0, 0, &seqno, &kvms[i]);
+        err = c0kvms_create(1, 0, &seqno, &kvms[i]);
         ASSERT_EQ(0, err);
         ASSERT_NE(NULL, kvms[i]);
 
@@ -1354,7 +1354,7 @@ MTF_DEFINE_UTEST_PREPOST(c0sk_test, parallel_put3, no_fail_pre, no_fail_post)
         err = c0sk_c0_register(mkvdb.ikdb_c0sk, mock_cn, &skidx[i]);
         ASSERT_EQ(0, err);
 
-        err = c0kvms_create(1, 0, 0, &seqno, &kvms[i]);
+        err = c0kvms_create(1, 0, &seqno, &kvms[i]);
         ASSERT_EQ(0, err);
         ASSERT_NE(NULL, kvms[i]);
 
@@ -1457,7 +1457,7 @@ MTF_DEFINE_UTEST_PREPOST(c0sk_test, parallel_ctxn_put, no_fail_ctxn_pre, no_fail
         err = c0sk_c0_register(mkvdb.ikdb_c0sk, mock_cn, &skidx[i]);
         ASSERT_EQ(0, err);
 
-        err = c0kvms_create(1, 0, 0, &seqno, &kvms[i]);
+        err = c0kvms_create(1, 0, &seqno, &kvms[i]);
         ASSERT_EQ(0, err);
         ASSERT_NE(NULL, kvms[i]);
 
@@ -1559,7 +1559,7 @@ MTF_DEFINE_UTEST_PREPOST(c0sk_test, parallel_put_cheap, no_fail_pre, no_fail_pos
         err = c0sk_c0_register(mkvdb.ikdb_c0sk, mock_cn, &skidx[i]);
         ASSERT_EQ(0, err);
 
-        err = c0kvms_create(1, 0, 0, &seqno, &kvms[i]);
+        err = c0kvms_create(1, 0, &seqno, &kvms[i]);
         ASSERT_EQ(0, err);
         ASSERT_NE(NULL, kvms[i]);
 
@@ -1695,7 +1695,7 @@ MTF_DEFINE_UTEST_PREPOST(c0sk_test, parallel_get_put, no_fail_pre, no_fail_post)
         err = c0sk_c0_register(mkvdb.ikdb_c0sk, mock_cn, &skidx[i]);
         ASSERT_EQ(0, err);
 
-        err = c0kvms_create(1, 0, 0, &seqno, &kvms[i]);
+        err = c0kvms_create(1, 0, &seqno, &kvms[i]);
         ASSERT_EQ(0, err);
         ASSERT_NE(NULL, kvms[i]);
 
@@ -1792,7 +1792,7 @@ MTF_DEFINE_UTEST_PREPOST(c0sk_test, c0sk_get_test, no_fail_pre, no_fail_post)
 
     self = c0sk_h2r(mkvdb.ikdb_c0sk);
 
-    err = c0kvms_create(1, 0, 0, &seqno, &kvms);
+    err = c0kvms_create(1, 0, &seqno, &kvms);
     ASSERT_EQ(0, err);
     ASSERT_NE(NULL, kvms);
 
@@ -1942,7 +1942,7 @@ MTF_DEFINE_UTEST_PREPOST(c0sk_test, c0_cursor_robust, no_fail_pre, no_fail_post)
     _ikvdb_get_c0sk((struct ikvdb *)&mkvdb, &c0sk);
     ASSERT_EQ(c0sk, mkvdb.ikdb_c0sk);
 
-    err = c0kvms_create(1, 0, 0, &seqno, &kvms);
+    err = c0kvms_create(1, 0, &seqno, &kvms);
     ASSERT_EQ(0, err);
     ASSERT_NE(NULL, kvms);
 
@@ -2130,7 +2130,7 @@ MTF_DEFINE_UTEST_PREPOST(c0sk_test, c0_cursor_eagain, no_fail_pre, no_fail_post)
     _ikvdb_get_c0sk((struct ikvdb *)&mkvdb, &c0sk);
     ASSERT_EQ(c0sk, mkvdb.ikdb_c0sk);
 
-    err = c0kvms_create(1, 0, 0, &seqno, &kvms);
+    err = c0kvms_create(1, 0, &seqno, &kvms);
     ASSERT_EQ(0, err);
     ASSERT_NE(NULL, kvms);
 
@@ -2263,7 +2263,7 @@ MTF_DEFINE_UTEST_PREPOST(c0sk_test, c0_rcursor_robust, no_fail_pre, no_fail_post
     _ikvdb_get_c0sk((struct ikvdb *)&mkvdb, &c0sk);
     ASSERT_EQ(c0sk, mkvdb.ikdb_c0sk);
 
-    err = c0kvms_create(1, 0, 0, &seqno, &kvms);
+    err = c0kvms_create(1, 0, &seqno, &kvms);
     ASSERT_EQ(0, err);
     ASSERT_NE(NULL, kvms);
 
@@ -2516,7 +2516,7 @@ MTF_DEFINE_UTEST_PREPOST(c0sk_test, c0_cursor_ptombs, no_fail_pre, no_fail_post)
     _ikvdb_get_c0sk((struct ikvdb *)&mkvdb, &c0sk);
     ASSERT_EQ(c0sk, mkvdb.ikdb_c0sk);
 
-    err = c0kvms_create(1, 0, 0, &seqno, &kvms);
+    err = c0kvms_create(1, 0, &seqno, &kvms);
     ASSERT_EQ(0, err);
     ASSERT_NE(NULL, kvms);
 

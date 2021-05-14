@@ -57,7 +57,6 @@ kvdb_rparams_defaults(void)
         .c0_heap_sz = 0,
         .c0_debug = 0,
         .c0_diag_mode = 0,
-        .c0_ingest_delay = HSE_C0_INGEST_DELAY_DFLT,
         .c0_ingest_width = 0,
         .c0_mutex_pool_sz = 7,
         .c0_coalesce_sz = 128,
@@ -131,7 +130,6 @@ static struct param_inst   kvdb_rp_table[] = {
     KVDB_PARAM_EXP(c0_heap_sz, "max c0 cheap size (bytes)"),
     KVDB_PARAM_U8_EXP(c0_debug, "c0 debug flags"),
     KVDB_PARAM_U8_EXP(c0_diag_mode, "disable c0 spill"),
-    KVDB_PARAM_U32_EXP(c0_ingest_delay, "max c0 ingest coalesce delay (seconds)"),
     KVDB_PARAM_U32_EXP(c0_ingest_width, "fix c0 kvms width (min 2), zero for dynamic width"),
     KVDB_PARAM_EXP(c0_coalesce_sz, "max c0 ingest coalesce size (MiB)"),
 

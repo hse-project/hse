@@ -78,9 +78,6 @@ struct c0sk_impl {
     s32                  c0sk_kvmultisets_cnt;
     size_t               c0sk_kvmultisets_sz;
     struct cds_list_head c0sk_kvmultisets;
-    void *               c0sk_coalesce_head;
-    s32                  c0sk_coalesce_cnt;
-    size_t               c0sk_coalesce_sz;
     struct cv            c0sk_kvms_cv;
 
     struct list_head   c0sk_rcu_pending;
