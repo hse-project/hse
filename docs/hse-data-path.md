@@ -85,9 +85,9 @@ Operations described in this document:
 
 The put path is shown here.  Deletes follow a parallel path that merge in c0sk_putdel.
 
-    +--------------------+                              +--------------------+
-    |  API:hse_kvs_put() |                              |  API:hse_kvs_put() |
-    +--------------------+                              +--------------------+
+    +--------------------+                              +-----------------------+
+    |  API:hse_kvs_put() |                              |  API:hse_kvs_delete() |
+    +--------------------+                              +-----------------------+
         |                                                   |
         V                                                   V
     +------------------------+                          [ Parallel path for deletes ]

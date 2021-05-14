@@ -317,7 +317,10 @@ ikvdb_kvs_get(
  */
 /* MTF_MOCK */
 merr_t
-ikvdb_kvs_del(struct hse_kvs *kvs, struct hse_kvdb_opspec *opspec, struct kvs_ktuple *kt);
+ikvdb_kvs_del(
+    struct hse_kvs *        kvs,
+    struct hse_kvdb_opspec *opspec,
+    struct kvs_ktuple *     kt);
 
 /* MTF_MOCK */
 merr_t

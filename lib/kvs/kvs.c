@@ -290,13 +290,12 @@ ikvs_put(
     const struct kvs_vtuple *vt,
     u64                      seqno)
 {
-    struct perfc_set *pkvsl_pc = ikvs_perfc_pkvsl(kvs);
-
-    struct c0 *c0 = kvs->ikv_c0;
-    size_t     sfx_len;
-    size_t     hashlen;
-    u64        tstart;
-    merr_t     err;
+    struct perfc_set   *pkvsl_pc = ikvs_perfc_pkvsl(kvs);
+    struct c0 *         c0 = kvs->ikv_c0;
+    size_t              sfx_len;
+    size_t              hashlen;
+    u64                 tstart;
+    merr_t              err;
 
     tstart = perfc_lat_start(pkvsl_pc);
 
@@ -355,7 +354,7 @@ ikvs_get(
     if (!ctxn)
         err = c0_get(c0, kt, seqno, 0, res, vbuf);
     else
-        err = kvdb_ctxn_get(ctxn, c0, cn, kt, res, vbuf);
+        err = kvdb_ctxn_get(ctxn, c0, kt, res, vbuf);
 
     if (!err && *res == NOT_FOUND) {
         if (ctxn) {
@@ -373,7 +372,11 @@ ikvs_get(
 }
 
 merr_t
-ikvs_del(struct ikvs *kvs, struct hse_kvdb_opspec *os, struct kvs_ktuple *kt, u64 seqno)
+ikvs_del(
+    struct ikvs *           kvs,
+    struct hse_kvdb_opspec *os,
+    struct kvs_ktuple *     kt,
+    u64                     seqno)
 {
     struct perfc_set *pkvsl_pc = ikvs_perfc_pkvsl(kvs);
     struct kvdb_ctxn *ctxn = 0;
@@ -416,7 +419,11 @@ ikvs_del(struct ikvs *kvs, struct hse_kvdb_opspec *os, struct kvs_ktuple *kt, u6
 }
 
 merr_t
-ikvs_prefix_del(struct ikvs *kvs, struct hse_kvdb_opspec *os, struct kvs_ktuple *kt, u64 seqno)
+ikvs_prefix_del(
+    struct ikvs *           kvs,
+    struct hse_kvdb_opspec *os,
+    struct kvs_ktuple *     kt,
+    u64                     seqno)
 {
     struct perfc_set *pkvsl_pc = ikvs_perfc_pkvsl(kvs);
     struct kvdb_ctxn *ctxn = 0;
@@ -483,7 +490,7 @@ ikvs_pfx_probe(
     if (!ctxn)
         err = c0_pfx_probe(c0, kt, seqno, 0, res, &qctx, kbuf, vbuf);
     else
-        err = kvdb_ctxn_pfx_probe(ctxn, c0, cn, kt, res, &qctx, kbuf, vbuf);
+        err = kvdb_ctxn_pfx_probe(ctxn, c0, kt, res, &qctx, kbuf, vbuf);
 
     if (*res == FOUND_PTMB || qctx.seen > 1)
         goto done;
