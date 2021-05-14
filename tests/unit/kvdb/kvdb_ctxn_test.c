@@ -71,20 +71,12 @@ MTF_BEGIN_UTEST_COLLECTION(kvdb_ctxn_test)
 MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, alloc, mapi_pre, mapi_post)
 {
     struct kvdb_ctxn *      handle;
-    struct viewset         *acs;
+    struct viewset         *vs;
     struct c0snr_set       *css;
     merr_t                  err;
     atomic64_t              kvdb_seq;
 
-    mapi_inject_once_ptr(mapi_idx_alloc_aligned, 1, NULL);
-    err = viewset_create(&acs, &kvdb_seq);
-    ASSERT_NE(0, err);
-
-    mapi_inject_once_ptr(mapi_idx_alloc_aligned, 2, NULL);
-    err = viewset_create(&acs, &kvdb_seq);
-    ASSERT_NE(0, err);
-
-    err = viewset_create(&acs, &kvdb_seq);
+    err = viewset_create(&vs, &kvdb_seq);
     ASSERT_TRUE(err == 0);
 
     mapi_calls_clear(mapi_idx_malloc);
@@ -107,7 +99,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, alloc, mapi_pre, mapi_post)
     err = kvdb_ctxn_set_create(&kvdb_ctxn_set, tn_timeout, tn_delay);
     ASSERT_EQ(err, 0);
 
-    handle = kvdb_ctxn_alloc(NULL, &kvdb_seq, kvdb_ctxn_set, acs, css, NULL);
+    handle = kvdb_ctxn_alloc(NULL, &kvdb_seq, kvdb_ctxn_set, vs, css, NULL);
     ASSERT_NE(0, handle);
     ASSERT_EQ(2, mapi_calls(mapi_idx_malloc));
     ASSERT_EQ(0, mapi_calls(mapi_idx_free));
@@ -120,19 +112,18 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, alloc, mapi_pre, mapi_post)
     c0snr_set_destroy(css);
     c0snr_set_destroy(NULL);
 
-    viewset_destroy(acs);
-    viewset_destroy(NULL);
+    viewset_destroy(vs);
 }
 
 MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, alloc_fail, mapi_pre, mapi_post)
 {
     struct kvdb_ctxn   *handle;
-    struct viewset     *acs;
+    struct viewset     *vs;
     struct c0snr_set   *css;
     merr_t              err;
     atomic64_t          kvdb_seq;
 
-    err = viewset_create(&acs, &kvdb_seq);
+    err = viewset_create(&vs, &kvdb_seq);
     ASSERT_TRUE(err == 0);
 
     err = kvdb_ctxn_set_create(&kvdb_ctxn_set, tn_timeout, tn_delay);
@@ -142,7 +133,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, alloc_fail, mapi_pre, mapi_post)
     ASSERT_TRUE(err == 0);
 
     mapi_inject_ptr(mapi_idx_malloc, 0);
-    handle = kvdb_ctxn_alloc(NULL, &kvdb_seq, kvdb_ctxn_set, acs, css, NULL);
+    handle = kvdb_ctxn_alloc(NULL, &kvdb_seq, kvdb_ctxn_set, vs, css, NULL);
     ASSERT_EQ(NULL, handle);
 
     kvdb_ctxn_free(0);
@@ -150,13 +141,13 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, alloc_fail, mapi_pre, mapi_post)
 
     c0snr_set_destroy(css);
 
-    viewset_destroy(acs);
+    viewset_destroy(vs);
 }
 
 MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, begin, mapi_pre, mapi_post)
 {
     struct kvdb_ctxn       *handle;
-    struct viewset         *acs;
+    struct viewset         *vs;
     struct c0snr_set       *css;
     struct kvdb_ctxn_impl  *ctxn;
     atomic64_t              kvdb_seq;
@@ -173,7 +164,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, begin, mapi_pre, mapi_post)
     err = kvdb_ctxn_set_create(&kvdb_ctxn_set, tn_timeout, tn_delay);
     ASSERT_EQ(err, 0);
 
-    err = viewset_create(&acs, &kvdb_seq);
+    err = viewset_create(&vs, &kvdb_seq);
     ASSERT_TRUE(err == 0);
 
     err = c0snr_set_create(kvdb_ctxn_abort, &css);
@@ -185,7 +176,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, begin, mapi_pre, mapi_post)
     ASSERT_EQ(0, err);
     ASSERT_NE(NULL, c0);
 
-    handle = kvdb_ctxn_alloc(NULL, &kvdb_seq, kvdb_ctxn_set, acs, css, NULL);
+    handle = kvdb_ctxn_alloc(NULL, &kvdb_seq, kvdb_ctxn_set, vs, css, NULL);
     ASSERT_NE(0, handle);
 
     ctxn = kvdb_ctxn_h2r(handle);
@@ -212,7 +203,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, begin, mapi_pre, mapi_post)
 
     ASSERT_EQ(initial_seq + 2, atomic64_read(&kvdb_seq));
     ASSERT_EQ(atomic64_read(&kvdb_seq) - 1, ctxn->ctxn_view_seqno);
-    ASSERT_LE(viewset_horizon(acs), initial_seq + 4);
+    ASSERT_LE(viewset_horizon(vs), initial_seq + 4);
     ASSERT_TRUE(HSE_SQNREF_INDIRECT_P(ctxn->ctxn_seqref));
     tmp_seqnoref = HSE_SQNREF_TO_SQNREF(ctxn->ctxn_seqref);
     ASSERT_TRUE(HSE_SQNREF_UNDEF_P(tmp_seqnoref));
@@ -225,13 +216,13 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, begin, mapi_pre, mapi_post)
 
     c0snr_set_destroy(css);
 
-    viewset_destroy(acs);
+    viewset_destroy(vs);
 }
 
 MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, basic_commit, mapi_pre, mapi_post)
 {
     struct kvdb_ctxn       *handle;
-    struct viewset         *acs;
+    struct viewset         *vs;
     struct c0snr_set       *css;
     struct kvdb_keylock    *klock;
     struct kvdb_ctxn_impl  *ctxn;
@@ -253,12 +244,12 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, basic_commit, mapi_pre, mapi_post)
 
     atomic64_set(&kvdb_seq, initial_seq);
 
-    err = viewset_create(&acs, &kvdb_seq);
+    err = viewset_create(&vs, &kvdb_seq);
     ASSERT_TRUE(err == 0);
 
     err = kvdb_ctxn_set_create(&kvdb_ctxn_set, tn_timeout, tn_delay);
     ASSERT_EQ(err, 0);
-    ASSERT_LE(viewset_horizon(acs), initial_seq);
+    ASSERT_LE(viewset_horizon(vs), initial_seq);
 
     err = c0snr_set_create(kvdb_ctxn_abort, &css);
     ASSERT_TRUE(err == 0);
@@ -269,7 +260,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, basic_commit, mapi_pre, mapi_post)
     ASSERT_EQ(0, err);
     ASSERT_NE(NULL, c0);
 
-    handle = kvdb_ctxn_alloc(klock, &kvdb_seq, kvdb_ctxn_set, acs, css, NULL);
+    handle = kvdb_ctxn_alloc(klock, &kvdb_seq, kvdb_ctxn_set, vs, css, NULL);
     ASSERT_NE(NULL, handle);
 
     ctxn = kvdb_ctxn_h2r(handle);
@@ -280,7 +271,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, basic_commit, mapi_pre, mapi_post)
 
     err = kvdb_ctxn_put(handle, c0, &kt, &vt);
     ASSERT_EQ(0, err);
-    ASSERT_LE(viewset_horizon(acs), initial_seq + 1);
+    ASSERT_LE(viewset_horizon(vs), initial_seq + 1);
 
     err = kvdb_ctxn_commit(handle);
     ASSERT_EQ(0, err);
@@ -298,7 +289,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, basic_commit, mapi_pre, mapi_post)
 
     c0snr_set_destroy(css);
 
-    viewset_destroy(acs);
+    viewset_destroy(vs);
     kvdb_keylock_destroy(klock);
 }
 
@@ -307,7 +298,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, basic_commit, mapi_pre, mapi_post)
 MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, basic_commit_twice, mapi_pre, mapi_post)
 {
     struct kvdb_ctxn       *handle;
-    struct viewset         *acs;
+    struct viewset         *vs;
     struct c0snr_set       *css;
     struct kvdb_keylock    *klock;
     struct c0              *c0 = NULL; /* c0 is mocked */
@@ -321,7 +312,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, basic_commit_twice, mapi_pre, mapi_post
 
     atomic64_set(&kvdb_seq, initial_seq);
 
-    err = viewset_create(&acs, &kvdb_seq);
+    err = viewset_create(&vs, &kvdb_seq);
     ASSERT_TRUE(err == 0);
 
     err = kvdb_ctxn_set_create(&kvdb_ctxn_set, tn_timeout, tn_delay);
@@ -336,7 +327,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, basic_commit_twice, mapi_pre, mapi_post
     ASSERT_EQ(0, err);
     ASSERT_NE(NULL, c0);
 
-    handle = kvdb_ctxn_alloc(NULL, &kvdb_seq, kvdb_ctxn_set, acs, css, NULL);
+    handle = kvdb_ctxn_alloc(NULL, &kvdb_seq, kvdb_ctxn_set, vs, css, NULL);
     ASSERT_NE(NULL, handle);
 
     err = kvdb_ctxn_begin(handle);
@@ -353,7 +344,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, basic_commit_twice, mapi_pre, mapi_post
 
     c0snr_set_destroy(css);
 
-    viewset_destroy(acs);
+    viewset_destroy(vs);
     kvdb_keylock_destroy(klock);
 }
 
@@ -363,7 +354,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, basic_commit_proto, mapi_pre, mapi_post
 {
     atomic64_t              kvdb_seq;
     struct kvdb_ctxn       *handle;
-    struct viewset         *acs;
+    struct viewset         *vs;
     struct c0snr_set       *css;
     struct kvdb_keylock    *klock;
     struct c0              *c0 = NULL; /* c0 is mocked */
@@ -376,7 +367,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, basic_commit_proto, mapi_pre, mapi_post
 
     atomic64_set(&kvdb_seq, initial_seq);
 
-    err = viewset_create(&acs, &kvdb_seq);
+    err = viewset_create(&vs, &kvdb_seq);
     ASSERT_TRUE(err == 0);
 
     err = kvdb_ctxn_set_create(&kvdb_ctxn_set, tn_timeout, tn_delay);
@@ -391,7 +382,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, basic_commit_proto, mapi_pre, mapi_post
     ASSERT_EQ(0, err);
     ASSERT_NE(NULL, c0);
 
-    handle = kvdb_ctxn_alloc(NULL, &kvdb_seq, kvdb_ctxn_set, acs, css, NULL);
+    handle = kvdb_ctxn_alloc(NULL, &kvdb_seq, kvdb_ctxn_set, vs, css, NULL);
     ASSERT_NE(NULL, handle);
 
     err = kvdb_ctxn_commit(handle);
@@ -408,14 +399,14 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, basic_commit_proto, mapi_pre, mapi_post
 
     c0snr_set_destroy(css);
 
-    viewset_destroy(acs);
+    viewset_destroy(vs);
     kvdb_keylock_destroy(klock);
 }
 
 MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, basic_commit_seqno, mapi_pre, mapi_post)
 {
     struct kvdb_ctxn       *handle;
-    struct viewset         *acs;
+    struct viewset         *vs;
     struct c0snr_set       *css;
     struct kvdb_keylock    *klock;
     const u64               initial_seq = 117UL;
@@ -436,12 +427,11 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, basic_commit_seqno, mapi_pre, mapi_post
 
     atomic64_set(&kvdb_seq, initial_seq);
 
-    err = viewset_create(&acs, &kvdb_seq);
+    err = viewset_create(&vs, &kvdb_seq);
     ASSERT_TRUE(err == 0);
 
     err = kvdb_ctxn_set_create(&kvdb_ctxn_set, tn_timeout, tn_delay);
     ASSERT_EQ(err, 0);
-    ASSERT_LE(viewset_horizon(acs), initial_seq);
 
     err = c0snr_set_create(kvdb_ctxn_abort, &css);
     ASSERT_TRUE(err == 0);
@@ -452,7 +442,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, basic_commit_seqno, mapi_pre, mapi_post
     ASSERT_EQ(0, err);
     ASSERT_NE(NULL, c0);
 
-    handle = kvdb_ctxn_alloc(NULL, &kvdb_seq, kvdb_ctxn_set, acs, css, NULL);
+    handle = kvdb_ctxn_alloc(NULL, &kvdb_seq, kvdb_ctxn_set, vs, css, NULL);
     ASSERT_NE(NULL, handle);
 
     err = kvdb_ctxn_begin(handle);
@@ -468,14 +458,14 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, basic_commit_seqno, mapi_pre, mapi_post
     kvdb_ctxn_set_destroy(kvdb_ctxn_set);
     c0snr_set_destroy(css);
 
-    viewset_destroy(acs);
+    viewset_destroy(vs);
     kvdb_keylock_destroy(klock);
 }
 
 MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, basic_abort, mapi_pre, mapi_post)
 {
     struct kvdb_ctxn       *handle;
-    struct viewset         *acs;
+    struct viewset         *vs;
     struct c0snr_set       *css;
     struct kvdb_ctxn_impl  *ctxn;
     struct c0              *c0 = NULL; /* c0 is mocked */
@@ -485,7 +475,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, basic_abort, mapi_pre, mapi_post)
 
     atomic64_set(&kvdb_seq, initial_seq);
 
-    err = viewset_create(&acs, &kvdb_seq);
+    err = viewset_create(&vs, &kvdb_seq);
     ASSERT_TRUE(err == 0);
 
     err = kvdb_ctxn_set_create(&kvdb_ctxn_set, tn_timeout, tn_delay);
@@ -500,7 +490,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, basic_abort, mapi_pre, mapi_post)
     ASSERT_EQ(0, err);
     ASSERT_NE(NULL, c0);
 
-    handle = kvdb_ctxn_alloc(NULL, &kvdb_seq, kvdb_ctxn_set, acs, css, NULL);
+    handle = kvdb_ctxn_alloc(NULL, &kvdb_seq, kvdb_ctxn_set, vs, css, NULL);
     ASSERT_NE(NULL, handle);
 
     ctxn = kvdb_ctxn_h2r(handle);
@@ -519,7 +509,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, basic_abort, mapi_pre, mapi_post)
     kvdb_ctxn_set_destroy(kvdb_ctxn_set);
     c0snr_set_destroy(css);
 
-    viewset_destroy(acs);
+    viewset_destroy(vs);
 }
 
 /* "abort" can be called from any state.
@@ -527,7 +517,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, basic_abort, mapi_pre, mapi_post)
 MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, basic_abort_twice, mapi_pre, mapi_post)
 {
     struct kvdb_ctxn   *handle;
-    struct viewset     *acs;
+    struct viewset     *vs;
     struct c0snr_set   *css;
     struct c0              *c0 = NULL; /* c0 is mocked */
     merr_t              err;
@@ -536,7 +526,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, basic_abort_twice, mapi_pre, mapi_post)
 
     atomic64_set(&kvdb_seq, initial_seq);
 
-    err = viewset_create(&acs, &kvdb_seq);
+    err = viewset_create(&vs, &kvdb_seq);
     ASSERT_TRUE(err == 0);
 
     err = kvdb_ctxn_set_create(&kvdb_ctxn_set, tn_timeout, tn_delay);
@@ -551,7 +541,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, basic_abort_twice, mapi_pre, mapi_post)
     ASSERT_EQ(0, err);
     ASSERT_NE(NULL, c0);
 
-    handle = kvdb_ctxn_alloc(NULL, &kvdb_seq, kvdb_ctxn_set, acs, css, NULL);
+    handle = kvdb_ctxn_alloc(NULL, &kvdb_seq, kvdb_ctxn_set, vs, css, NULL);
     ASSERT_NE(NULL, handle);
 
     kvdb_ctxn_abort(handle);
@@ -570,13 +560,13 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, basic_abort_twice, mapi_pre, mapi_post)
     kvdb_ctxn_set_destroy(kvdb_ctxn_set);
     c0snr_set_destroy(css);
 
-    viewset_destroy(acs);
+    viewset_destroy(vs);
 }
 
 MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, get_view_seqno, mapi_pre, mapi_post)
 {
     struct kvdb_ctxn       *handle;
-    struct viewset         *acs;
+    struct viewset         *vs;
     struct c0snr_set       *css;
     struct kvdb_keylock    *klock;
     struct c0              *c0 = NULL; /* c0 is mocked */
@@ -591,7 +581,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, get_view_seqno, mapi_pre, mapi_post)
 
     atomic64_set(&kvdb_seq, initial_seq);
 
-    err = viewset_create(&acs, &kvdb_seq);
+    err = viewset_create(&vs, &kvdb_seq);
     ASSERT_TRUE(err == 0);
 
     err = kvdb_ctxn_set_create(&kvdb_ctxn_set, tn_timeout, tn_delay);
@@ -606,7 +596,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, get_view_seqno, mapi_pre, mapi_post)
     ASSERT_EQ(0, err);
     ASSERT_NE(NULL, c0);
 
-    handle = kvdb_ctxn_alloc(klock, &kvdb_seq, kvdb_ctxn_set, acs, css, NULL);
+    handle = kvdb_ctxn_alloc(klock, &kvdb_seq, kvdb_ctxn_set, vs, css, NULL);
     ASSERT_NE(NULL, handle);
 
     err = kvdb_ctxn_begin(handle);
@@ -630,14 +620,14 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, get_view_seqno, mapi_pre, mapi_post)
     kvdb_ctxn_set_destroy(kvdb_ctxn_set);
     c0snr_set_destroy(css);
 
-    viewset_destroy(acs);
+    viewset_destroy(vs);
     kvdb_keylock_destroy(klock);
 }
 
 MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, get_state, mapi_pre, mapi_post)
 {
     struct kvdb_ctxn       *handle;
-    struct viewset         *acs;
+    struct viewset         *vs;
     struct c0snr_set       *css;
     struct kvdb_keylock    *klock;
     struct c0              *c0 = NULL; /* c0 is mocked */
@@ -652,7 +642,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, get_state, mapi_pre, mapi_post)
 
     atomic64_set(&kvdb_seq, initial_seq);
 
-    err = viewset_create(&acs, &kvdb_seq);
+    err = viewset_create(&vs, &kvdb_seq);
     ASSERT_TRUE(err == 0);
 
     err = kvdb_ctxn_set_create(&kvdb_ctxn_set, tn_timeout, tn_delay);
@@ -667,7 +657,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, get_state, mapi_pre, mapi_post)
     ASSERT_EQ(0, err);
     ASSERT_NE(NULL, c0);
 
-    handle = kvdb_ctxn_alloc(klock, &kvdb_seq, kvdb_ctxn_set, acs, css, NULL);
+    handle = kvdb_ctxn_alloc(klock, &kvdb_seq, kvdb_ctxn_set, vs, css, NULL);
     ASSERT_NE(NULL, handle);
 
     state = kvdb_ctxn_get_state(handle);
@@ -696,7 +686,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, get_state, mapi_pre, mapi_post)
 
     c0snr_set_destroy(css);
 
-    viewset_destroy(acs);
+    viewset_destroy(vs);
     kvdb_keylock_destroy(klock);
 }
 
@@ -705,7 +695,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, get_state, mapi_pre, mapi_post)
 MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, put_get_del, mapi_pre, mapi_post)
 {
     struct kvdb_ctxn       *handle;
-    struct viewset         *acs;
+    struct viewset         *vs;
     struct c0snr_set       *css;
     struct kvdb_keylock    *klock;
     enum kvdb_ctxn_state    state;
@@ -730,7 +720,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, put_get_del, mapi_pre, mapi_post)
 
     atomic64_set(&kvdb_seq, initial_value);
 
-    err = viewset_create(&acs, &kvdb_seq);
+    err = viewset_create(&vs, &kvdb_seq);
     ASSERT_TRUE(err == 0);
 
     err = kvdb_ctxn_set_create(&kvdb_ctxn_set, tn_timeout, tn_delay);
@@ -745,7 +735,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, put_get_del, mapi_pre, mapi_post)
     ASSERT_EQ(0, err);
     ASSERT_NE(NULL, c0);
 
-    handle = kvdb_ctxn_alloc(klock, &kvdb_seq, kvdb_ctxn_set, acs, css, NULL);
+    handle = kvdb_ctxn_alloc(klock, &kvdb_seq, kvdb_ctxn_set, vs, css, NULL);
     ASSERT_NE(NULL, handle);
 
     state = kvdb_ctxn_get_state(handle);
@@ -816,7 +806,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, put_get_del, mapi_pre, mapi_post)
 
     c0snr_set_destroy(css);
 
-    viewset_destroy(acs);
+    viewset_destroy(vs);
     kvdb_keylock_destroy(klock);
 }
 
@@ -825,7 +815,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, put_get_del, mapi_pre, mapi_post)
 MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, put_get_pdel, mapi_pre, mapi_post)
 {
     struct kvdb_ctxn       *handle;
-    struct viewset         *acs;
+    struct viewset         *vs;
     struct c0snr_set       *css;
     struct kvdb_keylock    *klock;
     enum kvdb_ctxn_state    state;
@@ -852,7 +842,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, put_get_pdel, mapi_pre, mapi_post)
 
     atomic64_set(&kvdb_seq, initial_value);
 
-    err = viewset_create(&acs, &kvdb_seq);
+    err = viewset_create(&vs, &kvdb_seq);
     ASSERT_TRUE(err == 0);
 
     err = kvdb_ctxn_set_create(&kvdb_ctxn_set, tn_timeout, tn_delay);
@@ -867,7 +857,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, put_get_pdel, mapi_pre, mapi_post)
     ASSERT_EQ(0, err);
     ASSERT_NE(NULL, c0);
 
-    handle = kvdb_ctxn_alloc(klock, &kvdb_seq, kvdb_ctxn_set, acs, css, NULL);
+    handle = kvdb_ctxn_alloc(klock, &kvdb_seq, kvdb_ctxn_set, vs, css, NULL);
     ASSERT_NE(NULL, handle);
 
     state = kvdb_ctxn_get_state(handle);
@@ -911,7 +901,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, put_get_pdel, mapi_pre, mapi_post)
 
     c0snr_set_destroy(css);
 
-    viewset_destroy(acs);
+    viewset_destroy(vs);
     kvdb_keylock_destroy(klock);
 }
 
@@ -921,7 +911,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, txn_timeout, mapi_pre, mapi_post)
     int                     i;
     const int               num_txns = 32;
     enum kvdb_ctxn_state    state;
-    struct viewset         *acs;
+    struct viewset         *vs;
     struct c0snr_set       *css;
     struct kvdb_ctxn_impl  *ctxn;
     struct kvdb_keylock    *klock;
@@ -942,7 +932,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, txn_timeout, mapi_pre, mapi_post)
 
     atomic64_set(&kvdb_seq, initial_value);
 
-    err = viewset_create(&acs, &kvdb_seq);
+    err = viewset_create(&vs, &kvdb_seq);
     ASSERT_TRUE(err == 0);
 
     err = kvdb_ctxn_set_create(&kvdb_ctxn_set, delay_ms, delay_ms / 5);
@@ -958,7 +948,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, txn_timeout, mapi_pre, mapi_post)
     ASSERT_NE(NULL, c0);
 
     for (i = 0; i < num_txns; i++) {
-        handles[i] = kvdb_ctxn_alloc(klock, &kvdb_seq, kvdb_ctxn_set, acs, css, NULL);
+        handles[i] = kvdb_ctxn_alloc(klock, &kvdb_seq, kvdb_ctxn_set, vs, css, NULL);
 
         sprintf(kbuf, "-%03d-", i);
         kvs_ktuple_init(&kt, kbuf, 1 + strlen(kbuf));
@@ -992,7 +982,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, txn_timeout, mapi_pre, mapi_post)
     kvdb_ctxn_set_destroy(kvdb_ctxn_set);
     c0snr_set_destroy(css);
 
-    viewset_destroy(acs);
+    viewset_destroy(vs);
     kvdb_keylock_destroy(klock);
 }
 
@@ -1001,7 +991,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, txn_cleanup, mapi_pre, mapi_post)
     merr_t                  err;
     int                     i;
     const int               num_txns = 5;
-    struct viewset         *acs;
+    struct viewset         *vs;
     struct c0snr_set       *css;
     struct kvdb_keylock    *klock;
     struct kvdb_ctxn       *handles[num_txns];
@@ -1022,7 +1012,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, txn_cleanup, mapi_pre, mapi_post)
 
     atomic64_set(&kvdb_seq, initial_value);
 
-    err = viewset_create(&acs, &kvdb_seq);
+    err = viewset_create(&vs, &kvdb_seq);
     ASSERT_TRUE(err == 0);
 
     err = kvdb_ctxn_set_create(&kvdb_ctxn_set, tn_timeout, tn_delay);
@@ -1038,7 +1028,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, txn_cleanup, mapi_pre, mapi_post)
     ASSERT_NE(NULL, c0);
 
     for (i = 0; i < num_txns; i++) {
-        handles[i] = kvdb_ctxn_alloc(klock, &kvdb_seq, kvdb_ctxn_set, acs, css, NULL);
+        handles[i] = kvdb_ctxn_alloc(klock, &kvdb_seq, kvdb_ctxn_set, vs, css, NULL);
         err = kvdb_ctxn_begin(handles[i]);
         ASSERT_EQ(err, 0);
         err = kvdb_ctxn_put(handles[i], c0, &kt, &vt);
@@ -1051,7 +1041,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, txn_cleanup, mapi_pre, mapi_post)
     kvdb_ctxn_set_destroy(kvdb_ctxn_set);
     c0snr_set_destroy(css);
 
-    viewset_destroy(acs);
+    viewset_destroy(vs);
     kvdb_keylock_destroy(klock);
 }
 
@@ -1060,7 +1050,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, txn_cleanup, mapi_pre, mapi_post)
  */
 MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, txn_hash, mapi_pre, mapi_post)
 {
-    struct viewset         *acs;
+    struct viewset         *vs;
     struct c0snr_set       *css;
     struct kvdb_keylock    *klock;
     struct kvdb_ctxn       *ctxn;
@@ -1080,7 +1070,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, txn_hash, mapi_pre, mapi_post)
 
     atomic64_set(&kvdb_seq, time(NULL));
 
-    err = viewset_create(&acs, &kvdb_seq);
+    err = viewset_create(&vs, &kvdb_seq);
     ASSERT_TRUE(err == 0);
 
     err = kvdb_ctxn_set_create(&kvdb_ctxn_set, tn_timeout, tn_delay);
@@ -1095,7 +1085,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, txn_hash, mapi_pre, mapi_post)
     ASSERT_EQ(0, err);
     ASSERT_NE(NULL, c0);
 
-    ctxn = kvdb_ctxn_alloc(klock, &kvdb_seq, kvdb_ctxn_set, acs, css, NULL);
+    ctxn = kvdb_ctxn_alloc(klock, &kvdb_seq, kvdb_ctxn_set, vs, css, NULL);
     ASSERT_NE(NULL, ctxn);
 
     err = kvdb_ctxn_begin(ctxn);
@@ -1134,7 +1124,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, txn_hash, mapi_pre, mapi_post)
 
     kvdb_ctxn_set_destroy(kvdb_ctxn_set);
     c0snr_set_destroy(css);
-    viewset_destroy(acs);
+    viewset_destroy(vs);
     kvdb_keylock_destroy(klock);
 }
 
@@ -1143,7 +1133,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, txn_hash, mapi_pre, mapi_post)
  */
 MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, txn_independence, mapi_pre, mapi_post)
 {
-    struct viewset         *acs;
+    struct viewset         *vs;
     struct c0snr_set       *css;
     struct kvdb_keylock    *klock;
     struct kvdb_ctxn       *ctxn1, *ctxn2;
@@ -1170,7 +1160,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, txn_independence, mapi_pre, mapi_post)
 
     atomic64_set(&kvdb_seq, time(NULL));
 
-    err = viewset_create(&acs, &kvdb_seq);
+    err = viewset_create(&vs, &kvdb_seq);
     ASSERT_TRUE(err == 0);
 
     err = kvdb_ctxn_set_create(&kvdb_ctxn_set, tn_timeout, tn_delay);
@@ -1179,13 +1169,13 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, txn_independence, mapi_pre, mapi_post)
     err = c0snr_set_create(kvdb_ctxn_abort, &css);
     ASSERT_TRUE(err == 0);
 
-    ctxn1 = kvdb_ctxn_alloc(klock, &kvdb_seq, kvdb_ctxn_set, acs, css, NULL);
+    ctxn1 = kvdb_ctxn_alloc(klock, &kvdb_seq, kvdb_ctxn_set, vs, css, NULL);
     ASSERT_NE(NULL, ctxn1);
 
     err = kvdb_ctxn_begin(ctxn1);
     ASSERT_EQ(err, 0);
 
-    ctxn2 = kvdb_ctxn_alloc(klock, &kvdb_seq, kvdb_ctxn_set, acs, css, NULL);
+    ctxn2 = kvdb_ctxn_alloc(klock, &kvdb_seq, kvdb_ctxn_set, vs, css, NULL);
     ASSERT_NE(NULL, ctxn2);
 
     err = kvdb_ctxn_begin(ctxn2);
@@ -1220,7 +1210,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, txn_independence, mapi_pre, mapi_post)
 
     kvdb_ctxn_set_destroy(kvdb_ctxn_set);
     c0snr_set_destroy(css);
-    viewset_destroy(acs);
+    viewset_destroy(vs);
     kvdb_keylock_destroy(klock);
 
     c0_close(c0b);
@@ -1247,7 +1237,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, txn_seq, mapi_pre, mapi_post)
     merr_t                  err;
     int                     i;
     const int               num_txns = 256;
-    struct viewset         *acs;
+    struct viewset         *vs;
     struct c0snr_set       *css;
     struct kvdb_keylock    *klock;
     struct kvdb_ctxn       *handles[num_txns];
@@ -1270,7 +1260,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, txn_seq, mapi_pre, mapi_post)
 
     atomic64_set(&kvdb_seq, initial_value);
 
-    err = viewset_create(&acs, &kvdb_seq);
+    err = viewset_create(&vs, &kvdb_seq);
     ASSERT_TRUE(err == 0);
 
     delay_us = 3000;
@@ -1284,11 +1274,11 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, txn_seq, mapi_pre, mapi_post)
     ASSERT_EQ(0, err);
     ASSERT_NE(NULL, c0);
 
-    horizon = viewset_horizon(acs);
+    horizon = viewset_horizon(vs);
     ASSERT_EQ(horizon, initial_value);
 
     for (i = 0; i < num_txns; i++) {
-        handles[i] = kvdb_ctxn_alloc(klock, &kvdb_seq, kvdb_ctxn_set, acs, css, NULL);
+        handles[i] = kvdb_ctxn_alloc(klock, &kvdb_seq, kvdb_ctxn_set, vs, css, NULL);
 
         err = kvdb_ctxn_begin(handles[i]);
         ASSERT_EQ(err, 0);
@@ -1297,7 +1287,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, txn_seq, mapi_pre, mapi_post)
         ASSERT_EQ(err, 0);
     }
 
-    curr_seq = viewset_horizon(acs);
+    curr_seq = viewset_horizon(vs);
     ASSERT_EQ(horizon, curr_seq);
 
     for (i = 0; i < num_txns; i++) {
@@ -1306,7 +1296,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, txn_seq, mapi_pre, mapi_post)
         else
             kvdb_ctxn_abort(handles[i]);
 
-        curr_seq = viewset_horizon(acs);
+        curr_seq = viewset_horizon(vs);
         ASSERT_LE(horizon, curr_seq);
         ASSERT_LE(curr_seq, atomic64_read(&kvdb_seq));
 
@@ -1316,13 +1306,13 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, txn_seq, mapi_pre, mapi_post)
     for (i = 0; i < num_txns / 3; i += 3)
         kvdb_ctxn_free(handles[i]);
 
-    horizon = viewset_horizon(acs);
+    horizon = viewset_horizon(vs);
     ASSERT_EQ(horizon, atomic64_read(&kvdb_seq));
 
     kvdb_ctxn_set_destroy(kvdb_ctxn_set);
     c0snr_set_destroy(css);
 
-    viewset_destroy(acs);
+    viewset_destroy(vs);
     kvdb_keylock_destroy(klock);
 }
 
@@ -1385,7 +1375,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, multiple_ctxn_commit, mapi_pre, mapi_po
     merr_t                  err;
     int                     i, rc;
     const int               num_txns = 32;
-    struct viewset         *acs;
+    struct viewset         *vs;
     struct c0snr_set       *css;
     struct kvdb_keylock    *klock;
     struct c0              *c0 = NULL; /* c0 is mocked */
@@ -1402,7 +1392,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, multiple_ctxn_commit, mapi_pre, mapi_po
 
     atomic64_set(&kvdb_seq, initial_value);
 
-    err = viewset_create(&acs, &kvdb_seq);
+    err = viewset_create(&vs, &kvdb_seq);
     ASSERT_TRUE(err == 0);
 
     err = kvdb_ctxn_set_create(&kvdb_ctxn_set, tn_timeout, tn_delay);
@@ -1416,7 +1406,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, multiple_ctxn_commit, mapi_pre, mapi_po
     ASSERT_NE(NULL, c0);
 
     for (i = 0; i < num_txns; i++) {
-        handles[i] = kvdb_ctxn_alloc(klock, &kvdb_seq, kvdb_ctxn_set, acs, css, NULL);
+        handles[i] = kvdb_ctxn_alloc(klock, &kvdb_seq, kvdb_ctxn_set, vs, css, NULL);
         err = kvdb_ctxn_begin(handles[i]);
         ASSERT_EQ(err, 0);
     }
@@ -1439,7 +1429,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, multiple_ctxn_commit, mapi_pre, mapi_po
     kvdb_ctxn_set_destroy(kvdb_ctxn_set);
     c0snr_set_destroy(css);
 
-    viewset_destroy(acs);
+    viewset_destroy(vs);
     kvdb_keylock_destroy(klock);
 }
 

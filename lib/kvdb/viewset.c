@@ -439,10 +439,18 @@ viewset_remove(
     u64                          min_sn;
     bool                         changed;
 
+    assert(handle);
+    assert(cookie);
+    assert(min_changed);
+    assert(min_view_sn);
+
     entry = cookie;
     entry_sn = entry->ace_view_sn;
     bkt = entry->ace_bkt;
     tree = bkt->acb_tree;
+
+    assert(&self->vs_bktv[0] <= entry->ace_bkt);
+    assert(entry->ace_bkt < &self->vs_bktv[VIEWSET_BKT_MAX]);
 
     treelock_lock(tree);
     changed = list_is_first(&entry->ace_link, &tree->act_head);
