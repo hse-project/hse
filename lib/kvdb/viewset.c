@@ -22,7 +22,6 @@
 #include <hse_util/event_counter.h>
 
 #include "viewset.h"
-#include "viewset_internal.h"
 
 #include <hse_ikvdb/limits.h>
 
@@ -120,6 +119,37 @@ struct viewset_tree {
     uint                  act_entrymax;
     struct viewset_entry  act_entryv[];
 };
+
+static merr_t
+viewset_tree_create(u32 max_elts, u32 index, struct viewset_tree **tree)
+{
+    struct viewset_tree *self;
+    size_t sz;
+
+    assert(max_elts > 0);
+
+    sz = sizeof(*self);
+    sz += sizeof(self->act_entryv[0]) * max_elts;
+
+    self = alloc_aligned(sz, alignof(*self));
+    if (ev(!self))
+        return merr(ENOMEM);
+
+    memset(self, 0, sizeof(*self));
+    treelock_init(self);
+    INIT_LIST_HEAD(&self->act_head);
+    self->act_entrymax = max_elts;
+
+    *tree = self;
+
+    return 0;
+}
+
+static void
+viewset_tree_destroy(struct viewset_tree *self)
+{
+    free_aligned(self);
+}
 
 static struct viewset_entry *
 viewset_entry_alloc(struct viewset_tree *tree)
@@ -457,33 +487,3 @@ viewset_remove(
 }
 /* GCOV_EXCL_STOP */
 
-merr_t
-viewset_tree_create(u32 max_elts, u32 index, struct viewset_tree **tree)
-{
-    struct viewset_tree *self;
-    size_t sz;
-
-    assert(max_elts > 0);
-
-    sz = sizeof(*self);
-    sz += sizeof(self->act_entryv[0]) * max_elts;
-
-    self = alloc_aligned(sz, alignof(*self));
-    if (ev(!self))
-        return merr(ENOMEM);
-
-    memset(self, 0, sizeof(*self));
-    treelock_init(self);
-    INIT_LIST_HEAD(&self->act_head);
-    self->act_entrymax = max_elts;
-
-    *tree = self;
-
-    return 0;
-}
-
-void
-viewset_tree_destroy(struct viewset_tree *self)
-{
-    free_aligned(self);
-}
