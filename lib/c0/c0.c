@@ -23,7 +23,8 @@
 #include <hse_ikvdb/cn.h>
 #include <hse_ikvdb/c0_kvset.h>
 #include <hse_ikvdb/c0_kvmultiset.h>
-#include <hse_ikvdb/kvdb_ctxn.h>
+
+#include <kvdb/kvdb_keylock.h>
 
 #include "c0_cursor.h"
 

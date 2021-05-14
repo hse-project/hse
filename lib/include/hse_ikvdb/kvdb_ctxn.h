@@ -12,20 +12,13 @@
 #include <hse_util/keylock.h>
 
 struct c0;
-struct cn;
-struct ikvs;
-struct mutex;
-struct hse_kvs_cursor;
 struct kvs_ktuple;
-struct kvs_vtuple;
 struct kvs_buf;
 struct kvdb_keylock;
 struct kvdb_ctxn_set;
 struct viewset;
 struct c0snr_set;
 struct query_ctx;
-
-enum key_lookup_res;
 
 enum kvdb_ctxn_state {
     KVDB_CTXN_ACTIVE = 11,
@@ -34,11 +27,11 @@ enum kvdb_ctxn_state {
     KVDB_CTXN_INVALID = 14,
 };
 
-#define kvdb_ctxn_h2h(handle) container_of(handle, struct kvdb_ctxn, ctxn_handle)
-
 struct kvdb_ctxn {
     struct hse_kvdb_txn ctxn_handle;
 };
+
+#define kvdb_ctxn_h2h(handle) container_of(handle, struct kvdb_ctxn, ctxn_handle)
 
 /**
  * struct kvdb_ctxn_bind - used to bind cursors and transactions
@@ -141,12 +134,6 @@ kvdb_ctxn_cursor_bind(struct kvdb_ctxn *txn);
 
 void
 kvdb_ctxn_cursor_unbind(struct kvdb_ctxn_bind *bind);
-
-void
-kvdb_ctxn_locks_fini(void);
-
-void
-kvdb_ctxn_locks_init(void);
 
 /* -- list of allocated transactions -- */
 merr_t
