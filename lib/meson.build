@@ -48,7 +48,7 @@ hse_include_directories = [
 ]
 
 hse_dependencies = [
-    # Add xxhash and lz4 first avoid potential inclusions from other
+    # Add xxhash, lz4, and cJSON first to avoid potential inclusions from other
     # dependencies shadowing ours. xxhash must come before lz4 so we avoid
     # including xxhash.h from the lz4 source tree.
     xxhash_dep,

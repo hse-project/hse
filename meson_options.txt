@@ -20,6 +20,8 @@ option('use-system-lz4', type: 'boolean', value: false,
     description: 'Build against the system lz4 package')
 option('use-system-xxhash', type: 'boolean', value: false,
     description: 'Build against the system xxhash package')
+option('use-system-cjson', type: 'boolean', value: false,
+    description: 'Build against the system cJSON package')
 option('bindings-python', type: 'boolean', value: true,
     description: 'Build Python bindings for use in tests and tools')
 option('mpool-include-dir', type: 'string', value: '/usr/include/mpool',
