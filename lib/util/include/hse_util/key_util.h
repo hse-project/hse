@@ -71,8 +71,16 @@ key_immediate_cmp_full(const struct key_immediate *imm0, const struct key_immedi
 static HSE_ALWAYS_INLINE s32
 key_immediate_cmp(const struct key_immediate *imm0, const struct key_immediate *imm1)
 {
+    /* The first comparison includes the skidx.
+     */
     if (imm0->ki_data[0] != imm1->ki_data[0])
         return (imm0->ki_data[0] < imm1->ki_data[0]) ? -1 : 1;
+
+    if (imm0->ki_data[1] != imm1->ki_data[1])
+        return (imm0->ki_data[1] < imm1->ki_data[1]) ? -1 : 1;
+
+    if (imm0->ki_data[2] != imm1->ki_data[2])
+        return (imm0->ki_data[2] < imm1->ki_data[2]) ? -1 : 1;
 
     return key_immediate_cmp_full(imm0, imm1);
 }

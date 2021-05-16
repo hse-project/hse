@@ -13,8 +13,6 @@
 #define HSE_C0_CHEAP_SZ_MAX         (64ul << 20)
 #define HSE_C0_CCACHE_SZ_MAX        (4ul << 30)
 
-#define HSE_C0_BNODE_SLAB_SZ        (PAGE_SIZE * 4)
-
 /* HSE_C0_INGEST_WIDTH_DYN limits the max width of a normal, dynamically
  * sized kvms, whereas HSE_C0_INGEST_WIDTH_MAX limits the max width of
  * fixed size kvms (fixed either by rparams or via boosting, see

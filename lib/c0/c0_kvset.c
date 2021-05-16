@@ -264,11 +264,11 @@ c0kvs_ior_cb(
 
         assert(new_val == NULL);
 
-        val = kv->bkv_values;
+        val = rcu_dereference(kv->bkv_values);
         n_vlen = bonsai_val_vlen(val);
         n_val = val->bv_value;
 
-        seqnoref = kv->bkv_values->bv_seqnoref;
+        seqnoref = val->bv_seqnoref;
         state = seqnoref_to_seqno(seqnoref, &seqno);
 
         if (state == HSE_SQNREF_STATE_SINGLE)
@@ -286,8 +286,6 @@ c0kvs_ior_cb(
     prevp = &kv->bkv_values;
     SET_IOR_ADD(*code);
 
-    assert(kv->bkv_values);
-
     seqnoref = new_val->bv_seqnoref;
     state = seqnoref_to_seqno(seqnoref, &seqno);
 
@@ -301,7 +299,8 @@ c0kvs_ior_cb(
         seqnoref = new_val->bv_seqnoref;
     }
 
-    old = kv->bkv_values;
+    old = rcu_dereference(kv->bkv_values);
+    assert(old);
 
     /*
      * The new value belongs to an active transaction or has a well defined
@@ -332,12 +331,12 @@ c0kvs_ior_cb(
             break;
 
         prevp = &old->bv_next;
-        old = old->bv_next;
+        old = rcu_dereference(old->bv_next);
     }
 
     if (IS_IOR_REP(*code)) {
         /* in this case we'll just replace the old list element */
-        new_val->bv_next = old->bv_next;
+        new_val->bv_next = rcu_dereference(old->bv_next);
         *old_val = old;
     } else if (HSE_SQNREF_ORDNL_P(seqnoref)) {
         /* slot the new element just in front of the next older one */
@@ -387,7 +386,7 @@ c0kvs_findval(struct bonsai_kv *kv, u64 view_seqno, uintptr_t seqnoref)
     diff_ge = ULONG_MAX;
     val_ge = NULL;
 
-    for (val = kv->bkv_values; val; val = rcu_dereference(val->bv_next)) {
+    for (val = rcu_dereference(kv->bkv_values); val; val = rcu_dereference(val->bv_next)) {
         diff = seqnoref_ext_diff(view_seqno, val->bv_seqnoref);
         if (diff < diff_ge) {
             diff_ge = diff;
@@ -426,13 +425,11 @@ c0kvs_findpfxval(struct bonsai_kv *kv, uintptr_t seqnoref)
 {
     struct bonsai_val *val;
 
-    val = kv->bkv_values;
-    while (val) {
+    for (val = rcu_dereference(kv->bkv_values); val; val = rcu_dereference(val->bv_next)) {
         if (val->bv_value == HSE_CORE_TOMB_PFX) {
             if ((val->bv_seqnoref == seqnoref) || seqnoref_ge(seqnoref, val->bv_seqnoref))
                 break;
         }
-        val = rcu_dereference(val->bv_next);
     }
 
     return val;
@@ -473,7 +470,7 @@ c0kvs_create(
     atomic_set(&set->c0s_finalized, 0);
     mutex_init(&set->c0s_mutex);
 
-    err = bn_create(cheap, HSE_C0_BNODE_SLAB_SZ, c0kvs_ior_cb, set, &set->c0s_broot);
+    err = bn_create(cheap, c0kvs_ior_cb, set, &set->c0s_broot);
     if (ev(err)) {
         c0kvs_destroy_impl(set);
         return err;
@@ -844,7 +841,7 @@ c0kvs_pfx_probe_excl(
     assert(kv);
 
     /* found a key with the requested pfx */
-    for (; kv != &root->br_kv; kv = rcu_dereference(kv->bkv_next)) {
+    for (; kv != &root->br_kv; kv = kv->bkv_next) {
         u32 klen = key_imm_klen(&kv->bkv_key_imm);
 
         if (keycmp_prefix(key->kt_data, key->kt_len, kv->bkv_key, klen))
@@ -1025,9 +1022,9 @@ c0kvs_debug(struct c0_kvset *handle, void *key, int klen)
     printf("%p nentries %d ntomb %d\n", self, self->c0s_num_entries, self->c0s_num_tombstones);
 
     rcu_read_lock();
-    end = &self->c0s_broot->br_kv;
+    end = &rcu_dereference(self->c0s_broot)->br_kv;
 
-    for (kv = end->bkv_next; kv != end; kv = rcu_dereference(kv->bkv_next)) {
+    for (kv = rcu_dereference(end->bkv_next); kv != end; kv = rcu_dereference(kv->bkv_next)) {
         char *comma = "";
 
         if (klen && memcmp(key, kv->bkv_key, klen) != 0)
@@ -1036,7 +1033,7 @@ c0kvs_debug(struct c0_kvset *handle, void *key, int klen)
         fmt_hex(disp, max, kv->bkv_key, key_imm_klen(&kv->bkv_key_imm));
         printf("\t%s: ", disp);
 
-        for (v = kv->bkv_values; v; v = rcu_dereference(v->bv_next)) {
+        for (v = rcu_dereference(kv->bkv_values); v; v = rcu_dereference(v->bv_next)) {
             u64   seqno = HSE_SQNREF_TO_ORDNL(v->bv_seqnoref);
             char *label = HSE_CORE_IS_TOMB(v->bv_value) ? "tomb" : "len";
 

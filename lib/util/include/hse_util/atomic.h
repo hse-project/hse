@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
 #ifndef HSE_PLATFORM_ATOMIC_H
@@ -436,6 +436,12 @@ static inline void *
 atomic_ptr_exchange(void **p, void *val)
 {
     return (void *)__atomic_exchange_n(p, val, __ATOMIC_RELAXED);
+}
+
+static inline void
+atomic64_set_rel(atomic64_t *v, long i)
+{
+    __atomic_store_n(&v->counter, i, __ATOMIC_RELEASE);
 }
 
 /* Atomically reads the value of @v.

@@ -7,13 +7,253 @@
 
 #include "bonsai_tree_pvt.h"
 
-static void *
-bn_alloc(struct bonsai_root *tree, size_t sz)
-{
-    if (tree->br_cheap)
-        return cheap_malloc(tree->br_cheap, sz);
+static struct bonsai_slab *noslab = (void *)-1;
 
-    return malloc(sz);
+uint
+bn_gc_reclaim(struct bonsai_root *tree, struct bonsai_slab *slab)
+{
+    uint nreclaimed = 0, i;
+    uint32_t rcugen;
+
+    rcugen = atomic_read_acq(&tree->br_gc_gendone);
+
+    /* Don't bother scanning if the rcu generation hasn't changed
+     * since the last time we tried...
+     */
+    if (slab->bs_rcugen >= rcugen)
+        return 0;
+
+    slab->bs_rcugen = rcugen;
+
+    for (i = slab->bs_entryc; i < HSE_BT_NODESPERSLAB; ++i) {
+        struct bonsai_node *node = slab->bs_entryv + i;
+
+        if (node->bn_rcugen < rcugen) {
+            node->bn_rcugen = UINT32_MAX;
+            node->bn_left = slab->bs_rnodes;
+            slab->bs_rnodes = node;
+            ++nreclaimed;
+            continue;
+        }
+    }
+
+    return nreclaimed;
+}
+
+static void
+bn_gc_sched_rcu_cb(struct rcu_head *arg)
+{
+    struct bonsai_root *tree = container_of(arg, typeof(*tree), br_gc_sched_rcu);
+    struct bonsai_slab *slab, *next, *activeq, *old;
+    uint32_t rcugen_max = UINT32_MAX - 1024;
+    uint64_t tstart, tstop;
+    uint32_t rcugen;
+    bool reschedule;
+
+    tstart = get_time_ns();
+    tree->br_gc_latsum_gp += tstart - tree->br_gc_latstart;
+
+    rcugen = atomic_read(&tree->br_gc_genstart);
+    if (rcugen >= rcugen_max) {
+
+        /* [HSE_REVISIT] The 32 bit rcu generation counter cannot overflow
+         * for c0, but maybe for LC (in a few years of steady inserts).
+         */
+        assert(rcugen < rcugen_max);
+        abort();
+    }
+
+    atomic_set_rel(&tree->br_gc_gendone, rcugen);
+
+    /* There are likely many other rcu callbacks waiting to run on this
+     * (probably one and only) rcu callback thread so we want to finish
+     * as fast as possible.  We'll scan all the slabs on the ready
+     * queue and only one from the active or empty queue.
+     */
+    next = tree->br_gc_readyq;
+    if (next == noslab)
+        next = NULL;
+
+    activeq = tree->br_gc_activeq;
+    if (!activeq) {
+        tree->br_gc_activeq = tree->br_gc_emptyq;
+        tree->br_gc_emptyq = NULL;
+    }
+
+    if (activeq) {
+        tree->br_gc_activeq = activeq->bs_next;
+        activeq->bs_next = NULL;
+    }
+
+  next:
+    while (( slab = next )) {
+        struct bonsai_slabinfo *slabinfo = slab->bs_slabinfo;
+
+        next = slab->bs_next;
+
+        slabinfo->bsi_rnodec += slab->bs_rnodec;
+        slabinfo->bsi_nodec += slab->bs_nodec;
+        slab->bs_rnodec = 0;
+        slab->bs_nodec = 0;
+
+        /* If we reclaimed a sufficient number of nodes we'll return this slab
+         * to the slabinfo free queue for reuse.  The slabinfo free queue is
+         * effectively a lock-free stack, but there is no ABA problem as this
+         * is the only site at which a push can occur.
+         */
+        if (bn_gc_reclaim(tree, slab) > 0) {
+            while (1) {
+                old = rcu_dereference(slabinfo->bsi_freeq);
+                slab->bs_next = old;
+
+                if (old == rcu_cmpxchg_pointer(&slabinfo->bsi_freeq, old, slab))
+                    break;
+            }
+            continue;
+        }
+
+        /* This slab is empty so put it on the empty queue and rescan it
+         * later when maybe it will have some nodes that can be reclaimed.
+         */
+        slab->bs_next = tree->br_gc_emptyq;
+        tree->br_gc_emptyq = slab;
+    }
+
+    if (activeq) {
+        next = activeq;
+        activeq = NULL;
+        goto next;
+    }
+
+    tstop = get_time_ns();
+    tree->br_gc_latsum_gc += tstop - tstart;
+
+    /* Reschedule the callback if there are pending requests.
+     */
+    spin_lock(&tree->br_gc_lock);
+    tree->br_gc_readyq = tree->br_gc_waitq;
+
+    reschedule = tree->br_gc_readyq;
+    if (reschedule) {
+        tree->br_gc_waitq = NULL;
+
+        atomic_inc_acq(&tree->br_gc_genstart);
+        tree->br_gc_latstart = tstop;
+    }
+    spin_unlock(&tree->br_gc_lock);
+
+    if (reschedule)
+        call_rcu(&tree->br_gc_sched_rcu, bn_gc_sched_rcu_cb);
+}
+
+static void
+bn_gc_sched_rcu(struct bonsai_root *tree, struct bonsai_slab *slab)
+{
+    struct bonsai_kv *freekeys = NULL;
+    bool scheduled;
+
+    spin_lock(&tree->br_gc_lock);
+    if (slab != noslab) {
+        slab->bs_next = tree->br_gc_waitq;
+        tree->br_gc_waitq = slab;
+    }
+
+    /* Schedule an rcu callback if one isn't already scheduled.
+     */
+    scheduled = tree->br_gc_readyq;
+    if (!scheduled) {
+        tree->br_gc_readyq = slab;
+        if (slab != noslab) {
+            tree->br_gc_waitq = NULL;
+        } else {
+            assert(!tree->br_gc_waitq);
+        }
+
+        if (!tree->br_cheap) {
+            freekeys = tree->br_gc_freekeys;
+            tree->br_gc_freekeys = tree->br_freekeys;
+            tree->br_freekeys = NULL;
+        }
+
+        atomic_inc_acq(&tree->br_gc_genstart);
+        tree->br_gc_latstart = get_time_ns();
+    }
+    spin_unlock(&tree->br_gc_lock);
+
+    if (!scheduled)
+        call_rcu(&tree->br_gc_sched_rcu, bn_gc_sched_rcu_cb);
+
+    /* Free the list of keys that are no longer visible...
+     */
+    if (freekeys)
+        bn_kv_free(freekeys);
+}
+
+static struct bonsai_slab *
+bn_gc_sched(struct bonsai_root *tree, struct bonsai_slab *slab)
+{
+    struct bonsai_slabinfo *slabinfo;
+
+    if (bn_gc_reclaim(tree, slab) > 0)
+        return slab;
+
+    bn_gc_sched_rcu(tree, slab);
+
+    /* Try to pop a slab off the free queue (i.e., the free queue is a list
+     * of slabs that contain nodes reclaimed by the gc).
+     */
+    slabinfo = slab->bs_slabinfo;
+
+    while (( slab = rcu_dereference(slabinfo->bsi_freeq) )) {
+        if (slab == rcu_cmpxchg_pointer(&slabinfo->bsi_freeq, slab, slab->bs_next)) {
+            slabinfo->bsi_slab = slab;
+            break;
+        }
+    }
+
+    return slab;
+}
+
+struct bonsai_slab *
+bn_slab_init(struct bonsai_slab *slab, struct bonsai_slabinfo *slabinfo, bool canfree)
+{
+    memset(slab, 0, sizeof(*slab));
+    slab->bs_entryc = HSE_BT_NODESPERSLAB;
+    slab->bs_canfree = canfree;
+    slab->bs_slabinfo = slabinfo;
+    slab->bs_magic = slab;
+
+    slabinfo->bsi_slab = slab;
+    slabinfo->bsi_slabc++;
+
+    return slab;
+}
+
+static struct bonsai_slab *
+bn_slab_alloc(struct bonsai_root *tree, struct bonsai_slabinfo *slabinfo)
+{
+    struct bonsai_slab *slab;
+    bool canfree;
+
+    if (tree->br_cheap) {
+        slab = cheap_memalign(tree->br_cheap, alignof(*slab), HSE_BT_SLABSZ);
+        canfree = false;
+    } else {
+        slab = aligned_alloc(alignof(*slab), HSE_BT_SLABSZ);
+        canfree = true;
+    }
+
+    return slab ? bn_slab_init(slab, slabinfo, canfree) : NULL;
+}
+
+void
+bn_slab_free(struct bonsai_slab *slab)
+{
+    if (slab && slab->bs_canfree) {
+        assert(slab->bs_magic == slab);
+        slab->bs_magic = (void *)0xbadcafe3badcafe1;
+        free(slab);
+    }
 }
 
 static struct bonsai_node *
@@ -23,64 +263,91 @@ bn_node_alloc_impl(struct bonsai_root *tree, uint skidx)
     struct bonsai_slab *slab;
     struct bonsai_node *node;
 
-    slabinfo = tree->br_slabinfov + (skidx % NELEM(tree->br_slabinfov));
+    slabinfo = tree->br_slabinfov + skidx;
     slab = slabinfo->bsi_slab;
 
-    if (!slab || slab->bs_entryc == 0) {
-        if (slab && slab != tree->br_oomslab) {
-            slab->bs_next = slabinfo->bsi_empty;
-            slabinfo->bsi_empty = slab;
-            slabinfo->bsi_slab = NULL;
+    while (1) {
+        node = slab->bs_rnodes;
+        if (node) {
+            slab->bs_rnodes = node->bn_left;
+            slab->bs_rnodec++;
 
-            /* [HSE_REVISIT] Initiate garbage collection... */
+            return node;
         }
 
-        /* Allocate and initialize a new slab...
+        if (slab->bs_entryc > 0)
+            break;
+
+        slab = bn_gc_sched(tree, slab);
+        if (slab)
+            continue;
+
+        slab = bn_slab_alloc(tree, slabinfo);
+        if (slab)
+            break;
+
+        /* If the current slab is the root slab it means we've been
+         * here before and we're unable to allocate memory for a new
+         * node.  This should never happen, but if it does we can't
+         * fail the node allocation request because that would corrupt
+         * the tree if we're in the middle of a rebalance operation.
          */
-        if (tree->br_cheap)
-            slab = cheap_memalign(tree->br_cheap, alignof(*slab), tree->br_slabsz);
-        else
-            slab = aligned_alloc(alignof(*slab), tree->br_slabsz);
-
-        if (HSE_UNLIKELY( !slab )) {
-            slab = tree->br_oom;
-            if (slab) {
-                if (slab->bs_entryc == 0) {
-
-                    /* The oom slab is empty meaning we didn't size it large
-                     * enough to handle a rebalance.  We can't continue without
-                     * risking a corrupted tree.
-                     */
-                    assert(slab->bs_entryc > 0);
-                    abort();
-                }
-
-                /* All per-skidx slabs can share the oom slab.
-                 */
-                slabinfo->bsi_slab = slab;
-                goto alloc;
-            }
-
-            tree->br_oom = tree->br_oomslab;
-            slab = tree->br_oom;
+        if (slabinfo->bsi_slab == tree->br_rootslab->bsi_slab) {
+            assert(slabinfo != tree->br_rootslab);
+            abort();
         }
 
-        slab->bs_entryc = tree->br_slabsz / sizeof(struct bonsai_node) - 1;
-        slab->bs_next = NULL;
+        /* Set bounds to prevent inserts into the tree after this one
+         * completes.  There should be plenty of free nodes in the root
+         * slab to complete a rebalance operation, so we share the root
+         * slab with current skidx so that it always has a valid slab.
+         */
+        atomic_set(&tree->br_bounds, -1);
 
+        slab = tree->br_rootslab->bsi_slab;
         slabinfo->bsi_slab = slab;
+        bn_gc_reclaim(tree, slab);
     }
 
-    /* Allocate a new node from the slab, set node ID such that bn_node2slab()
-     * can efficiently find the slab header.
+    slab->bs_nodec++;
+
+    /* Brand new slabs tend to collect a lot of garbage on their
+     * maiden voyage.  A few judiciously initiated reclaims help
+     * to improve their per-page spatial density of active nodes.
      */
-  alloc:
-    node = slab->bs_entryv + --slab->bs_entryc;
-    node->bn_nodeid = node - slab->bs_entryv + 1;
+    if (slab->bs_entryc % 64 == 0) {
+        if (bn_gc_reclaim(tree, slab) < 8)
+            bn_gc_sched_rcu(tree, noslab);
+    }
 
-    slabinfo->bsi_nodes++;
+    return slab->bs_entryv + --slab->bs_entryc;
+}
 
-    return node;
+static struct bonsai_node *
+bn_node_alloc(struct bonsai_root *tree, int height, uint skidx)
+{
+    /* Allocate the lowest nodes in the tree from the root slab such that
+     * all the nodes in the first eight or nine levels of the tree typically
+     * reside within the same three or four pages, leaving ample free space
+     * to satisfy OOM allocations.
+     */
+    if (tree->br_height - height < 5)
+        return bn_node_alloc_impl(tree, NELEM(tree->br_slabinfov) - 1);
+
+    /* Otherwise allocate from a per-skidx slab to try and improve the
+     * spatial density of nodes that share a common skidx (i.e, nodes
+     * that are clustered in a subtree based on skidx).
+     */
+    return bn_node_alloc_impl(tree, skidx % (NELEM(tree->br_slabinfov) - 1));
+}
+
+static void *
+bn_alloc(struct bonsai_root *tree, size_t sz)
+{
+    if (tree->br_cheap)
+        return cheap_malloc(tree->br_cheap, sz);
+
+    return malloc(sz);
 }
 
 struct bonsai_val *
@@ -100,6 +367,7 @@ bn_val_alloc(struct bonsai_root *tree, const struct bonsai_sval *sval, bool mana
 
     tree->br_val_alloc++;
 
+    memset(v, 0, sizeof(*v));
     v->bv_seqnoref = sval->bsv_seqnoref;
     v->bv_next = NULL;
     v->bv_value = sval->bsv_val;
@@ -112,6 +380,29 @@ bn_val_alloc(struct bonsai_root *tree, const struct bonsai_sval *sval, bool mana
     }
 
     return v;
+}
+
+void
+bn_kv_free(struct bonsai_kv *freekeys)
+{
+    while (freekeys) {
+        struct bonsai_kv *kv = freekeys;
+        struct bonsai_val *val;
+
+        freekeys = kv->bkv_next;
+
+        while (( val = kv->bkv_values )) {
+            kv->bkv_values = val->bv_next;
+            free(val);
+        }
+
+        while (( val = kv->bkv_freevals )) {
+            kv->bkv_freevals = val->bv_free;
+            free(val);
+        }
+
+        free(kv);
+    }
 }
 
 static merr_t
@@ -149,7 +440,6 @@ bn_kv_init(
     if (!kv->bkv_values) {
         kv->bkv_next = tree->br_freekeys;
         tree->br_freekeys = kv;
-        kv->bkv_valcnt = 0;
         return merr(ENOMEM);
     }
 
@@ -165,18 +455,20 @@ bn_node_make(
     struct bonsai_root *        tree,
     struct bonsai_node *        left,
     struct bonsai_node *        right,
+    int                         height,
     struct bonsai_kv *          kv,
     const struct key_immediate *ki)
 {
     struct bonsai_node *node;
 
-    node = bn_node_alloc_impl(tree, key_immediate_index(ki));
+    node = bn_node_alloc(tree, height, key_immediate_index(ki));
     if (node) {
+        memset(node, 0, sizeof(*node));
         node->bn_key_imm = *ki;
         node->bn_left = left;
         node->bn_right = right;
-        node->bn_height = bn_height_max(bn_height_get(left), bn_height_get(right));
-        node->bn_flags = HSE_BNF_VISIBLE;
+        node->bn_height = height;
+        node->bn_rcugen = UINT32_MAX;
         node->bn_kv = kv;
     }
 
@@ -197,28 +489,19 @@ bn_kvnode_alloc(
     if (err)
         return NULL;
 
-    node = bn_node_make(tree, NULL, NULL, kv, &skey->bsk_key_imm);
-    if (node) {
-        node->bn_height = 1;
-        return node;
+    node = bn_node_make(tree, NULL, NULL, 1, kv, &skey->bsk_key_imm);
+    if (!node) {
+        kv->bkv_next = tree->br_freekeys;
+        tree->br_freekeys = kv;
     }
 
-    kv->bkv_next = tree->br_freekeys;
-    tree->br_freekeys = kv;
-
-    return NULL;
+    return node;
 }
 
 struct bonsai_node *
 bn_node_dup(struct bonsai_root *tree, struct bonsai_node *src)
 {
-    struct bonsai_node *node;
-
-    node = bn_node_make(tree, src->bn_left, src->bn_right, src->bn_kv, &src->bn_key_imm);
-    if (node)
-        node->bn_height = src->bn_height;
-
-    return node;
+    return bn_node_make(tree, src->bn_left, src->bn_right, src->bn_height, src->bn_kv, &src->bn_key_imm);
 }
 
 struct bonsai_node *
@@ -228,5 +511,7 @@ bn_node_dup_ext(
     struct bonsai_node *left,
     struct bonsai_node *right)
 {
-    return bn_node_make(tree, left, right, src->bn_kv, &src->bn_key_imm);
+    uint height = bn_height_max(bn_height_get(left), bn_height_get(right));
+
+    return bn_node_make(tree, left, right, height, src->bn_kv, &src->bn_key_imm);
 }
