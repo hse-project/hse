@@ -166,12 +166,12 @@ mclass_close(struct media_class *mc)
 }
 
 void
-mclass_destroy(struct media_class *mc)
+mclass_destroy(struct media_class *mc, struct workqueue_struct *wq)
 {
     if (!mc)
         return;
 
-    mblock_fset_remove(mc->mbfsp);
+    mblock_fset_remove(mc->mbfsp, wq);
 
     if (mcid_to_mclass(mc->mcid) == MP_MED_CAPACITY)
         mclass_lockfile_rel(dirfd(mc->dirp), mc->lockfd);

@@ -11,6 +11,7 @@
 #include <hse_util/logging.h>
 #include <hse_util/hse_err.h>
 #include <hse_util/string.h>
+#include <hse_util/workqueue.h>
 
 #include <hse/hse.h>
 #include <mpool/mpool.h>
@@ -200,7 +201,7 @@ mpool_open(const char *name, const struct hse_params *params, uint32_t flags, st
 errout:
     while (i-- > MP_MED_BASE) {
         if (flags & O_CREAT)
-            mclass_destroy(mp->mc[i]);
+            mclass_destroy(mp->mc[i], NULL);
         else
             mclass_close(mp->mc[i]);
     }
@@ -234,8 +235,9 @@ mpool_close(struct mpool *mp)
 merr_t
 mpool_destroy(struct mpool *mp)
 {
-    merr_t err;
-    int    i;
+    struct workqueue_struct *mpdwq;
+    merr_t                   err;
+    int                      i;
 
     if (!mp)
         return merr(EINVAL);
@@ -244,11 +246,15 @@ mpool_destroy(struct mpool *mp)
     if (err)
         return err;
 
+    mpdwq = alloc_workqueue("mp_destroy", 0, MP_DESTROY_THREADS);
+    ev(!mpdwq);
+
     for (i = MP_MED_COUNT - 1; i >= MP_MED_BASE; i--) {
         if (mp->mc[i])
-            mclass_destroy(mp->mc[i]);
+            mclass_destroy(mp->mc[i], mpdwq);
     }
 
+    destroy_workqueue(mpdwq);
     free(mp);
 
     return 0;

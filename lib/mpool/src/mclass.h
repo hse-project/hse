@@ -13,10 +13,12 @@
 #include <mpool/mpool_structs.h>
 
 #define MCLASS_MAX (1 << 2) /* 2-bit for mclass-id */
+#define MP_DESTROY_THREADS 8
 
 struct media_class;
 struct mblock_fset;
 struct mpool;
+struct workqueue_struct;
 
 /**
  * enum mclass_id - media class ID
@@ -73,7 +75,7 @@ mclass_close(struct media_class *mc);
  * @mc: mclass handle
  */
 void
-mclass_destroy(struct media_class *mc);
+mclass_destroy(struct media_class *mc, struct workqueue_struct *wq);
 
 /**
  * mclass_id() - get mclass id

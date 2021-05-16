@@ -16,6 +16,7 @@
 #include <hse_util/logging.h>
 #include <hse_util/page.h>
 #include <hse_util/string.h>
+#include <hse_util/workqueue.h>
 
 #include "omf.h"
 #include "mclass.h"
@@ -384,7 +385,7 @@ mblock_fset_open(
 
 errout:
     if (flags & O_CREAT)
-        mblock_fset_remove(mbfsp); /* Remove data and meta files */
+        mblock_fset_remove(mbfsp, NULL); /* Remove data and meta files */
     else
         mblock_fset_close(mbfsp);
 
@@ -430,24 +431,123 @@ mblock_fset_close(struct mblock_fset *mbfsp)
     free(mbfsp);
 }
 
+
+static struct workqueue_struct *mpdwq;
+static int pathc_per_thr, idx;
+
+static struct mp_destroy_work {
+    struct work_struct   work;
+    char               **path;
+    int                  pathc;
+    int                  curpc;
+} **mpdw;
+
+static void
+remove_path(struct work_struct *work)
+{
+    struct mp_destroy_work *mpdw;
+
+    mpdw = container_of(work, struct mp_destroy_work, work);
+
+    for (int i = 0; i < mpdw->pathc; i++)
+        remove(mpdw->path[i]);
+}
+
 static int
 mblock_fset_removecb(const char *path, const struct stat *sb, int typeflag, struct FTW *ftwbuf)
 {
     if (typeflag == FTW_D && ftwbuf->level > 0)
         return FTW_SKIP_SUBTREE;
 
-    if (strstr(path, MBLOCK_DATA_FILE_PFX))
-        remove(path);
+    if (strstr(path, MBLOCK_DATA_FILE_PFX)) {
+        struct mp_destroy_work *w;
+
+        if (!mpdwq) {
+            remove(path);
+            return FTW_CONTINUE;
+        }
+
+        w = mpdw[idx / pathc_per_thr];
+
+        if (ev(w->pathc == 0)) {
+            remove(path);
+            return FTW_CONTINUE;
+        }
+
+        strlcpy(w->path[idx++ % pathc_per_thr], path, PATH_MAX);
+        if (++w->curpc == w->pathc) {
+            INIT_WORK(&w->work, remove_path);
+
+            if (!queue_work(mpdwq, &w->work)) {
+                for (int i = 0; i < w->pathc; i++)
+                    remove(w->path[i]);
+            }
+        }
+    }
 
     return FTW_CONTINUE;
 }
 
+static void
+mbfs_destroy_setup(uint8_t filecnt, struct workqueue_struct *wq)
+{
+    size_t worksz, sz;
+    int    pathc, workc, fcnt;
+
+    workc = MP_DESTROY_THREADS;
+    pathc = filecnt / workc;
+    if (filecnt % workc)
+        pathc++;
+
+    worksz = sizeof(*mpdw) + pathc * (sizeof((*mpdw)->path) + PATH_MAX);
+    sz = workc * (sizeof(mpdw) + worksz);
+    mpdw = calloc(1, sz);
+    if (ev(!mpdw))
+        return;
+
+    idx = 0;
+    mpdwq = wq;
+    pathc_per_thr = pathc;
+    fcnt = 0;
+
+    for (int i = 0; i < workc; i++) {
+        struct mp_destroy_work *w;
+        char                   *p;
+
+        w = (struct mp_destroy_work *)((char *)(mpdw + workc) + (i * worksz));
+        mpdw[i] = w;
+
+        w->path = (char **)(w + 1);
+        p = (char *)(w->path + pathc);
+
+        for (int j = 0; j < pathc; j++)
+            w->path[j] = p + j * PATH_MAX;
+
+        w->pathc = pathc;
+        if (fcnt + pathc > filecnt) {
+            w->pathc = filecnt - fcnt;
+            break;
+        }
+        fcnt += pathc;
+    }
+}
+
+static void
+mbfs_destroy_teardown(void)
+{
+    flush_workqueue(mpdwq);
+    mpdwq = NULL;
+    free(mpdw);
+    mpdw = NULL;
+}
+
 void
-mblock_fset_remove(struct mblock_fset *mbfsp)
+mblock_fset_remove(struct mblock_fset *mbfsp, struct workqueue_struct *wq)
 {
     const char *dpath;
     char        name[32];
     int         dirfd;
+    uint8_t     filecnt = mbfsp->fcnt;
 
     dirfd = mclass_dirfd(mbfsp->mc);
     dpath = mclass_dpath(mbfsp->mc);
@@ -455,9 +555,15 @@ mblock_fset_remove(struct mblock_fset *mbfsp)
 
     mblock_fset_close(mbfsp);
 
+    if (wq)
+        mbfs_destroy_setup(filecnt, wq);
+
     nftw(dpath, mblock_fset_removecb, MBLOCK_FSET_FILES_MAX, FTW_PHYS | FTW_ACTIONRETVAL);
 
     mblock_fset_meta_remove(dirfd, name);
+
+    if (wq)
+        mbfs_destroy_teardown();
 }
 
 merr_t
