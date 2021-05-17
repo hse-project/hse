@@ -15,7 +15,7 @@ bn_gc_reclaim(struct bonsai_root *tree, struct bonsai_slab *slab)
     uint nreclaimed = 0, i;
     uint32_t rcugen;
 
-    rcugen = atomic_read_acq(&tree->br_gc_gendone);
+    rcugen = atomic_read_acq(&tree->br_gc_rcugen_done);
 
     /* Don't bother scanning if the rcu generation hasn't changed
      * since the last time we tried...
@@ -29,7 +29,7 @@ bn_gc_reclaim(struct bonsai_root *tree, struct bonsai_slab *slab)
         struct bonsai_node *node = slab->bs_entryv + i;
 
         if (node->bn_rcugen < rcugen) {
-            node->bn_rcugen = UINT32_MAX;
+            node->bn_rcugen = HSE_BN_RCUGEN_FREE;
             node->bn_left = slab->bs_rnodes;
             slab->bs_rnodes = node;
             ++nreclaimed;
@@ -45,7 +45,6 @@ bn_gc_sched_rcu_cb(struct rcu_head *arg)
 {
     struct bonsai_root *tree = container_of(arg, typeof(*tree), br_gc_sched_rcu);
     struct bonsai_slab *slab, *next, *activeq, *old;
-    uint32_t rcugen_max = UINT32_MAX - 1024;
     uint64_t tstart, tstop;
     uint32_t rcugen;
     bool reschedule;
@@ -53,27 +52,23 @@ bn_gc_sched_rcu_cb(struct rcu_head *arg)
     tstart = get_time_ns();
     tree->br_gc_latsum_gp += tstart - tree->br_gc_latstart;
 
-    rcugen = atomic_read(&tree->br_gc_genstart);
-    if (rcugen >= rcugen_max) {
+    rcugen = atomic_read(&tree->br_gc_rcugen_start);
 
-        /* [HSE_REVISIT] The 32 bit rcu generation counter cannot overflow
-         * for c0, but maybe for LC (in a few years of steady inserts).
-         */
-        assert(rcugen < rcugen_max);
+    /* [HSE_REVISIT] The 32 bit rcu generation counter cannot overflow for c0,
+     * but maybe for LC (after a few years of non-stop rcu callbacks).
+     */
+    if (rcugen >= HSE_BN_RCUGEN_MAX) {
+        assert(rcugen < HSE_BN_RCUGEN_MAX);
         abort();
     }
 
-    atomic_set_rel(&tree->br_gc_gendone, rcugen);
+    atomic_set_rel(&tree->br_gc_rcugen_done, rcugen);
 
     /* There are likely many other rcu callbacks waiting to run on this
      * (probably one and only) rcu callback thread so we want to finish
      * as fast as possible.  We'll scan all the slabs on the ready
      * queue and only one from the active or empty queue.
      */
-    next = tree->br_gc_readyq;
-    if (next == noslab)
-        next = NULL;
-
     activeq = tree->br_gc_activeq;
     if (!activeq) {
         tree->br_gc_activeq = tree->br_gc_emptyq;
@@ -83,6 +78,12 @@ bn_gc_sched_rcu_cb(struct rcu_head *arg)
     if (activeq) {
         tree->br_gc_activeq = activeq->bs_next;
         activeq->bs_next = NULL;
+    }
+
+    next = tree->br_gc_readyq;
+    if (next == noslab) {
+        next = activeq;
+        activeq = NULL;
     }
 
   next:
@@ -102,6 +103,7 @@ bn_gc_sched_rcu_cb(struct rcu_head *arg)
          * is the only site at which a push can occur.
          */
         if (bn_gc_reclaim(tree, slab) > 0) {
+
             while (1) {
                 old = rcu_dereference(slabinfo->bsi_freeq);
                 slab->bs_next = old;
@@ -109,6 +111,7 @@ bn_gc_sched_rcu_cb(struct rcu_head *arg)
                 if (old == rcu_cmpxchg_pointer(&slabinfo->bsi_freeq, old, slab))
                     break;
             }
+
             continue;
         }
 
@@ -137,7 +140,7 @@ bn_gc_sched_rcu_cb(struct rcu_head *arg)
     if (reschedule) {
         tree->br_gc_waitq = NULL;
 
-        atomic_inc_acq(&tree->br_gc_genstart);
+        atomic_inc_acq(&tree->br_gc_rcugen_start);
         tree->br_gc_latstart = tstop;
     }
     spin_unlock(&tree->br_gc_lock);
@@ -175,7 +178,7 @@ bn_gc_sched_rcu(struct bonsai_root *tree, struct bonsai_slab *slab)
             tree->br_freekeys = NULL;
         }
 
-        atomic_inc_acq(&tree->br_gc_genstart);
+        atomic_inc_acq(&tree->br_gc_rcugen_start);
         tree->br_gc_latstart = get_time_ns();
     }
     spin_unlock(&tree->br_gc_lock);
@@ -468,7 +471,7 @@ bn_node_make(
         node->bn_left = left;
         node->bn_right = right;
         node->bn_height = height;
-        node->bn_rcugen = UINT32_MAX;
+        node->bn_rcugen = HSE_BN_RCUGEN_ACTIVE;
         node->bn_kv = kv;
     }
 

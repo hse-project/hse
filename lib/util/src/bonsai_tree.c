@@ -25,10 +25,10 @@ bn_summary(struct bonsai_root *tree)
     if (++bn_summary_calls_tls % 8 || !tree->br_root)
         return;
 
-    n = snprintf(buf, sizeof(buf), "[%u %lu %3lu]",
-                 atomic_read(&tree->br_gc_gendone),
-                 (tree->br_gc_latsum_gp / 1000000) / atomic_read(&tree->br_gc_gendone),
-                 (tree->br_gc_latsum_gc / 1000) / atomic_read(&tree->br_gc_gendone));
+    n = snprintf(buf, sizeof(buf), "(%u %lu %3lu)",
+                 atomic_read(&tree->br_gc_rcugen_done),
+                 (tree->br_gc_latsum_gp / 1000000) / atomic_read(&tree->br_gc_rcugen_done),
+                 (tree->br_gc_latsum_gc / 1000) / atomic_read(&tree->br_gc_rcugen_done));
 
     for (i = 0; i < NELEM(tree->br_slabinfov) && n < sizeof(buf); ++i) {
         slabinfo = tree->br_slabinfov + i;
@@ -48,7 +48,7 @@ bn_summary(struct bonsai_root *tree)
         slabc += slabinfo->bsi_slabc;
     }
 
-    hse_log(HSE_NOTICE "%s: %2d %2d  keys %5u  vals %5u  nodes %6u,%u,%u  %.2lf  %s",
+    hse_log(HSE_NOTICE "%s: %2d %2d  keys %u  vals %u  nodes %u,%u,%u  %.2lf  %s",
             __func__, tree->br_height, atomic_read(&tree->br_bounds),
             tree->br_key_alloc, tree->br_val_alloc,
             nodec, rnodec, slabc,
@@ -212,8 +212,8 @@ bn_ior_impl(
         right = (stack[n] & BN_IOR_RIGHT);
         prev = (void *)(stack[n] & ~BN_IOR_MASK);
 
-        assert(node->bn_rcugen == UINT32_MAX);
-        assert(prev->bn_rcugen == UINT32_MAX);
+        assert(node->bn_rcugen == HSE_BN_RCUGEN_ACTIVE);
+        assert(prev->bn_rcugen == HSE_BN_RCUGEN_ACTIVE);
 
         if (right)
             node = bn_balance_tree(tree, prev, prev->bn_left, node, key_imm, key, B_UPDATE_R);
@@ -565,8 +565,8 @@ bn_reset(struct bonsai_root *tree)
     tree->br_kv.bkv_next = &tree->br_kv;
 
     spin_lock_init(&tree->br_gc_lock);
-    atomic_set(&tree->br_gc_genstart, 1);
-    atomic_set(&tree->br_gc_gendone, 1);
+    atomic_set(&tree->br_gc_rcugen_start, 1);
+    atomic_set(&tree->br_gc_rcugen_done, 1);
 
     for (int i = 0; i < NELEM(tree->br_slabinfov); ++i) {
         struct bonsai_slabinfo *slabinfo = tree->br_slabinfov + i;
@@ -647,7 +647,7 @@ bn_traverse_impl(struct bonsai_node *node)
     if (!node)
         return;
 
-    assert(node->bn_rcugen == UINT32_MAX);
+    assert(node->bn_rcugen == HSE_BN_RCUGEN_ACTIVE);
 
     bn_traverse_impl(rcu_dereference(node->bn_left));
     bn_traverse_impl(rcu_dereference(node->bn_right));

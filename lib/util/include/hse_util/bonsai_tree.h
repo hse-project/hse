@@ -22,11 +22,28 @@
 
 /* clang-format off */
 
+/* Bonsai tree static config params...
+ */
 #define HSE_BT_BALANCE_THRESHOLD    (2)
 #define HSE_BT_HEIGHT_MAX           (32)
 #define HSE_BT_SLABSZ               (PAGE_SIZE * 8)
 #define HSE_BT_NODESPERSLAB \
     ((HSE_BT_SLABSZ - sizeof(struct bonsai_slab)) / sizeof(struct bonsai_node))
+
+/* Bonsai node RCU generation count special values...
+ *
+ * The RCU generation count is a monotonically increasing integer which marks
+ * the grace period epoch.  When a bonsai node is rotated out of the tree we
+ * set its rcugen to the current epoch so that it can be freed/reclaimed in
+ * the next epoch when it is no longer visible to any RCU reader.
+ *
+ * HSE_BN_RCUGEN_ACTIVE             node is live and possibly visible
+ * HSE_BN_RCUGEN_FREE               node has been reclaimed and is free for reuse
+ * HSE_BN_RCUGEN_MAX                value at which to begin rollover mitigation
+ */
+#define HSE_BN_RCUGEN_ACTIVE        (UINT32_MAX)
+#define HSE_BN_RCUGEN_FREE          (UINT32_MAX - 1)
+#define HSE_BN_RCUGEN_MAX           (UINT32_MAX - 1024)
 
 /* If the caller is managing the k/v memory and can ensure
  * it will outlive the bonsai tree then this flag hints
@@ -287,29 +304,29 @@ typedef void bonsai_ior_cb(
 
 /**
  * struct bonsai_root - bonsai tree parameters
- * @br_bounds:        indicates bounds are established and lcp
- * @br_height:        tree current max height
- * @br_root:          pointer to the root of bonsai_tree
- * @br_cheap:         ptr to cheap
- * @br_iorcb:         client's callback for insert or replace
- * @br_iorcb_arg:     opaque arg for br_iorcb()
- * @br_rootslab:      contains nodes low in tree and OOM nodes
- * @br_slabbase:      ptr to base of slabs embedded in bonsai_root
- * @br_key_alloc:     total number of keys ever allocated
- * @br_val_alloc:     total number of values ever allocated
- * @br_freekeys:      list of keys to be garbage collected
- * @br_kv:            a circular k/v list, next=head, prev=tail
- * @br_gc_lock:       protects gc queues between user and rcu callback
- * @br_gc_waitq:      list of slabs waiting to get on ready queue
- * @br_gc_readyq:     list of slabs waiting on rcu callback
- * @br_gc_genstart:   next rcu grace period generation
- * @br_gc_gendone:    last rcu grace period generation
- * @br_gc_activeq:    list of slabs undergoing gc
- * @br_gc_emptyq:     list of empty slabs undergoing gc
- * @br_gc_freekeys:   list of key undergoing gc
- * @br_gc_sched:      rcu callback list node
- * @br_slabinfov:     vector of per-skidx slab headers
- * @br_data:          storage for embedded slabs
+ * @br_bounds:          indicates bounds are established and lcp
+ * @br_height:          tree current max height
+ * @br_root:            pointer to the root of bonsai_tree
+ * @br_cheap:           ptr to cheap (or nil for malloc backed tree)
+ * @br_iorcb:           client's callback for insert or replace
+ * @br_iorcb_arg:       opaque arg for br_iorcb()
+ * @br_rootslab:        contains nodes low in tree and OOM nodes
+ * @br_slabbase:        ptr to base of slabs embedded in bonsai_root
+ * @br_key_alloc:       total number of keys ever allocated
+ * @br_val_alloc:       total number of values ever allocated
+ * @br_freekeys:        list of keys to be garbage collected
+ * @br_kv:              a circular k/v list, next=head, prev=tail
+ * @br_gc_lock:         protects gc queues between user and rcu callback
+ * @br_gc_waitq:        list of slabs waiting to get on ready queue
+ * @br_gc_readyq:       list of slabs waiting on rcu callback
+ * @br_gc_rcugen_start: next rcu grace period generation
+ * @br_gc_rcugen_done:  last rcu grace period generation
+ * @br_gc_activeq:      list of slabs undergoing gc
+ * @br_gc_emptyq:       list of empty slabs undergoing gc
+ * @br_gc_freekeys:     list of key undergoing gc
+ * @br_gc_sched:        rcu callback list node
+ * @br_slabinfov:       vector of per-skidx slab headers
+ * @br_data:            storage for embedded slabs
  */
 struct bonsai_root {
     atomic_t                br_bounds HSE_ALIGNED(SMP_CACHE_BYTES * 2);
@@ -334,9 +351,9 @@ struct bonsai_root {
     struct bonsai_slab     *br_gc_waitq;
 
     struct bonsai_slab     *br_gc_readyq HSE_ALIGNED(SMP_CACHE_BYTES);
-    atomic_t                br_gc_genstart;
+    atomic_t                br_gc_rcugen_start;
 
-    atomic_t                br_gc_gendone HSE_ALIGNED(SMP_CACHE_BYTES);
+    atomic_t                br_gc_rcugen_done HSE_ALIGNED(SMP_CACHE_BYTES);
     struct bonsai_slab     *br_gc_activeq;
     struct bonsai_slab     *br_gc_emptyq;
     struct bonsai_kv       *br_gc_freekeys;
