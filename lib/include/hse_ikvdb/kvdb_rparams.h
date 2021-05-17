@@ -50,7 +50,6 @@ struct kvdb_rparams {
     uint64_t c0_coalesce_sz;
 
     uint64_t txn_heap_sz;
-    uint32_t txn_ingest_delay;
     uint32_t txn_ingest_width;
     uint64_t txn_timeout;
 

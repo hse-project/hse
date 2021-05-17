@@ -62,7 +62,6 @@ kvdb_rparams_defaults(void)
         .c0_coalesce_sz = 128,
 
         .txn_heap_sz = HSE_C0_CHEAP_SZ_MAX,
-        .txn_ingest_delay = HSE_C0_INGEST_DELAY_DFLT,
         .txn_ingest_width = HSE_C0_INGEST_WIDTH_DFLT,
         .txn_timeout = 1000 * 60 * 5,
         .txn_commit_abort_pct = 0,
@@ -134,7 +133,6 @@ static struct param_inst   kvdb_rp_table[] = {
     KVDB_PARAM_EXP(c0_coalesce_sz, "max c0 ingest coalesce size (MiB)"),
 
     KVDB_PARAM_EXP(txn_heap_sz, "max txn cheap size (bytes)"),
-    KVDB_PARAM_U32_EXP(txn_ingest_delay, "max ingest coalesce delay (seconds)"),
     KVDB_PARAM_U32_EXP(txn_ingest_width, "number of txn trees in parallel"),
     KVDB_PARAM_EXP(txn_timeout, "transaction timeout (ms)"),
     KVDB_PARAM_U16_EXP(txn_commit_abort_pct, "pct of commits to abort ((pct * 16384) / 100)"),
