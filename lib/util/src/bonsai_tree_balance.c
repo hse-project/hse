@@ -18,7 +18,7 @@ bn_single_left_rotate(
         if (!left)
             return NULL;
 
-        node->bn_left->bn_flags |= HSE_BNF_UNLINKED;
+        node->bn_left->bn_rcugen = atomic_read(&tree->br_gc_rcugen_start);
     }
 
     node->bn_left = left->bn_right;
@@ -43,7 +43,7 @@ bn_single_right_rotate(
         if (!right)
             return NULL;
 
-        node->bn_right->bn_flags |= HSE_BNF_UNLINKED;
+        node->bn_right->bn_rcugen = atomic_read(&tree->br_gc_rcugen_start);
     }
 
     node->bn_right = right->bn_left;
@@ -66,11 +66,11 @@ bn_double_left_rotate(struct bonsai_root *tree, struct bonsai_node *node)
 
     newleft = bn_single_right_rotate(tree, left, NULL);
     if (!newleft) {
-        left->bn_flags |= HSE_BNF_UNLINKED;
+        left->bn_rcugen = atomic_read(&tree->br_gc_rcugen_start);
         return NULL;
     }
 
-    node->bn_left->bn_flags |= HSE_BNF_UNLINKED;
+    node->bn_left->bn_rcugen = atomic_read(&tree->br_gc_rcugen_start);
     node->bn_left = newleft;
 
     out = bn_single_left_rotate(tree, node, newleft);
@@ -89,11 +89,11 @@ bn_double_right_rotate(struct bonsai_root *tree, struct bonsai_node *node)
 
     newright = bn_single_left_rotate(tree, right, NULL);
     if (!newright) {
-        right->bn_flags |= HSE_BNF_UNLINKED;
+        right->bn_rcugen = atomic_read(&tree->br_gc_rcugen_start);
         return NULL;
     }
 
-    node->bn_right->bn_flags |= HSE_BNF_UNLINKED;
+    node->bn_right->bn_rcugen = atomic_read(&tree->br_gc_rcugen_start);
     node->bn_right = newright;
 
     out = bn_single_right_rotate(tree, node, newright);
@@ -194,13 +194,13 @@ bn_update_path(
 static HSE_ALWAYS_INLINE bool
 bn_need_left_balance(int lh, int rh)
 {
-    return (lh - rh) >= BONSAI_TREE_BALANCE_THRESHOLD;
+    return (lh - rh) >= HSE_BT_BALANCE_THRESHOLD;
 }
 
 static HSE_ALWAYS_INLINE bool
 bn_need_right_balance(int lh, int rh)
 {
-    return (rh - lh) >= BONSAI_TREE_BALANCE_THRESHOLD;
+    return (rh - lh) >= HSE_BT_BALANCE_THRESHOLD;
 }
 
 struct bonsai_node *

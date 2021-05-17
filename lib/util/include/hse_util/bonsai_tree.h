@@ -13,6 +13,7 @@
 
 #include <hse_util/arch.h>
 #include <hse_util/atomic.h>
+#include <hse_util/spinlock.h>
 #include <hse_util/key_util.h>
 #include <hse_util/cursor_heap.h>
 #include <hse_util/hse_err.h>
@@ -21,13 +22,34 @@
 
 /* clang-format off */
 
+/* Bonsai tree static config params...
+ */
+#define HSE_BT_BALANCE_THRESHOLD    (2)
+#define HSE_BT_HEIGHT_MAX           (32)
+#define HSE_BT_SLABSZ               (PAGE_SIZE * 8)
+#define HSE_BT_NODESPERSLAB \
+    ((HSE_BT_SLABSZ - sizeof(struct bonsai_slab)) / sizeof(struct bonsai_node))
+
+/* Bonsai node RCU generation count special values...
+ *
+ * The RCU generation count is a monotonically increasing integer which marks
+ * the grace period epoch.  When a bonsai node is rotated out of the tree we
+ * set its rcugen to the current epoch so that it can be freed/reclaimed in
+ * the next epoch when it is no longer visible to any RCU reader.
+ *
+ * HSE_BN_RCUGEN_ACTIVE             node is live and possibly visible
+ * HSE_BN_RCUGEN_FREE               node has been reclaimed and is free for reuse
+ * HSE_BN_RCUGEN_MAX                value at which to begin rollover mitigation
+ */
+#define HSE_BN_RCUGEN_ACTIVE        (UINT32_MAX)
+#define HSE_BN_RCUGEN_FREE          (UINT32_MAX - 1)
+#define HSE_BN_RCUGEN_MAX           (UINT32_MAX - 1024)
+
 /* If the caller is managing the k/v memory and can ensure
  * it will outlive the bonsai tree then this flag hints
  * that the bonsai tree need not copy the data.
  */
-#define HSE_BTF_MANAGED     (0x0001)
-
-#define BONSAI_TREE_BALANCE_THRESHOLD   (2)
+#define HSE_BTF_MANAGED             (0x0001)
 
 enum bonsai_ior_code {
     B_IOR_INVALID       = 0,
@@ -46,8 +68,6 @@ enum bonsai_ior_code {
 #define SET_IOR_REP(_c)         ((_c) = B_IOR_REPLACED)
 #define SET_IOR_ADD(_c)         ((_c) = B_IOR_ADDED_VALUE)
 #define SET_IOR_REPORADD(_c)    ((_c) = B_IOR_REP_OR_ADD)
-
-/* clang-format off */
 
 /**
  * struct bonsai_skey - input key argument
@@ -186,33 +206,19 @@ struct bonsai_kv {
     struct bonsai_kv *      bkv_prev;
     struct bonsai_kv *      bkv_next;
     struct element_source  *bkv_es;
+    struct bonsai_val      *bkv_freevals;
     char                    bkv_keybuf[];
 };
-
-/* HSE_BNF_VISIBLE    node might be visible to RCU readers
- * HSE_BNF_UNLINKED   node was unlinked from tree
- *
- * Bonsai tree nodes are marked "visible" when the are created and inserted
- * into the tree.  The are then marked "unlinked" when they are removed from
- * the tree.  Nodes that are marked both "visible" and "unlinked" may be
- * garbage collected.  The GC should find all nodes marked "visible" and
- * "unlinked", clear the "visible" flag, then after the end of the current
- * grace period may free or reclaim all node that are marked "unlinked"
- * and are not marked "visible".
- */
-#define HSE_BNF_VISIBLE     (0x0001)
-#define HSE_BNF_UNLINKED    (0x0002)
 
 /**
  * There is one such structure for each node in the tree.
  *
  * struct bonsai_node - structure representing interal nodes of tree
  * @bn_key_imm: cache of first KI_DLEN_MAX bytes of bn_kv->bkv_key[]
+ * @bn_height:  height of the node.
+ * @bn_rcugen:  rcu grace period gen when can be reclaimed
  * @bn_left:    bonsai tree child node linkage
  * @bn_right:   bonsai tree child node linkage
- * @bn_height:  height of the node.
- * @bn_flags:   item state flags (HSE_BNF_*)
- * @bn_nodeid:  node ID within slab (used to locate slab header)
  * @bn_kv:      ptr to a key/value node (contains full key)
  *
  * The %bn_kv, and %bn_key_imm fields are set during node initialization and
@@ -225,47 +231,55 @@ struct bonsai_kv {
  */
 struct bonsai_node {
     struct key_immediate  bn_key_imm;
+    int32_t               bn_height;
+    uint32_t              bn_rcugen;
     struct bonsai_node   *bn_left;
     struct bonsai_node   *bn_right;
-    s16                   bn_height;
-    u16                   bn_flags;
-    u16                   bn_nodeid;
     struct bonsai_kv     *bn_kv;
 } HSE_ALIGNED(64);
 
 _Static_assert(sizeof(struct bonsai_node) == 64, "bonsai node too large");
 
 /* struct bonsai_slab -
+ * @bs_rnodes:    list of reclaimed nodes
+ * @bs_rnodec:    number of reclaimed node allocations
  * @bs_entryc:    next entry from bs_entryv[] to allocate
- * @bs_next:      linkage for garbage collection
+ * @bs_nodec:     number of node allocations from entryv
+ * @bs_canfree:   ok to free via free()
+ * @bs_next:      linkage for various gc lists
+ * @bs_slabinfo   ptr to owning slabinfo record
+ * @bs_rcugen     rcu gen of last reclaim attempt
  * @bs_entryv:    fixed size bonsai node heap
  */
 struct bonsai_slab {
-    uint                    bs_entryc;
+    struct bonsai_node     *bs_rnodes;
+    uint32_t                bs_rnodec;
+    uint32_t                bs_nodec;
+    uint32_t                bs_entryc;
+    uint8_t                 bs_canfree;
     struct bonsai_slab     *bs_next;
-    struct bonsai_node      bs_entryv[] HSE_ALIGNED(SMP_CACHE_BYTES);
+    struct bonsai_slabinfo *bs_slabinfo;
+    uint64_t                bs_rcugen;
+    void                   *bs_magic;
+    struct bonsai_node      bs_entryv[];
 };
-
-static_assert(sizeof(struct bonsai_slab) == sizeof(struct bonsai_node),
-              "bonsai_slab must be same size as bonsai_node");
 
 /* struct bonsai_slabinfo -
- * @bsi_slab:   current slab from which to allocate entries
- * @bsi_empty:  list of slabs that can be garbage collected
- * @bsi_nodes:  total count of node entry allocations
+ * @bsi_slab:     current slab from which to allocate entries
+ * @bsi_freeq:    list of slabs that have reclaimed nodes
+ * @bsi_rnodec:   count of recycled node allocations
+ * @bsi_nodec:    count of node entry allocations
+ * @bsi_slabc:    count of slab allocations
+ * @bsi_slab0:    initial slab (embedded)
  */
 struct bonsai_slabinfo {
-    struct bonsai_slab *bsi_slab;
-    struct bonsai_slab *bsi_empty;
-    uint                bsi_nodes;
+    struct bonsai_slab *bsi_slab HSE_ALIGNED(SMP_CACHE_BYTES);
+    struct bonsai_slab *bsi_freeq;
+    uint                bsi_rnodec;
+    uint                bsi_nodec;
+    uint                bsi_slabc;
+    struct bonsai_slab *bsi_slab0;
 };
-
-static HSE_ALWAYS_INLINE
-struct bonsai_slab *
-bn_node2slab(struct bonsai_node *node)
-{
-    return (void *)(node - node->bn_nodeid);
-}
 
 /**
  * @bonsai_ior_cb: callback for insert or replace
@@ -290,46 +304,82 @@ typedef void bonsai_ior_cb(
 
 /**
  * struct bonsai_root - bonsai tree parameters
- * @br_oom:         indicates out of memory condition
- * @br_bounds:      indicates bounds are established and lcp
- * @bc_slabsz:      node slab size (bytes)
- * @br_root:        pointer to the root of bonsai_tree
- * @br_cheap:       ptr to cheap
- * @br_iorcb:       client's callback for insert or replace
- * @br_iorcb_arg:   opaque arg for br_iorcb()
- * @br_kv:          a circular k/v list, next=head, prev=tail
- * @br_key_alloc:   total number of keys ever allocated
- * @br_val_alloc:   total number of values ever allocated
- * @br_height:      tree current max height
- * @br_freevals:    list of values to be garbage collected
- * @br_freekeys:    list of keys to be garbage collected
- * @br_slabinfov:   vector of per-skix node slabs
- * @br_oomslab:     embedded slab for out-of-memory recovery
+ * @br_bounds:          indicates bounds are established and lcp
+ * @br_height:          tree current max height
+ * @br_root:            pointer to the root of bonsai_tree
+ * @br_cheap:           ptr to cheap (or nil for malloc backed tree)
+ * @br_iorcb:           client's callback for insert or replace
+ * @br_iorcb_arg:       opaque arg for br_iorcb()
+ * @br_rootslab:        contains nodes low in tree and OOM nodes
+ * @br_slabbase:        ptr to base of slabs embedded in bonsai_root
+ * @br_key_alloc:       total number of keys ever allocated
+ * @br_val_alloc:       total number of values ever allocated
+ * @br_freekeys:        list of keys to be garbage collected
+ * @br_kv:              a circular k/v list, next=head, prev=tail
+ * @br_gc_lock:         protects gc queues between user and rcu callback
+ * @br_gc_waitq:        list of slabs waiting to get on ready queue
+ * @br_gc_readyq:       list of slabs waiting on rcu callback
+ * @br_gc_rcugen_start: next rcu grace period generation
+ * @br_gc_rcugen_done:  last rcu grace period generation
+ * @br_gc_activeq:      list of slabs undergoing gc
+ * @br_gc_emptyq:       list of empty slabs undergoing gc
+ * @br_gc_freekeys:     list of key undergoing gc
+ * @br_gc_sched:        rcu callback list node
+ * @br_slabinfov:       vector of per-skidx slab headers
+ * @br_data:            storage for embedded slabs
  */
 struct bonsai_root {
-    struct bonsai_slab     *br_oom;
-    atomic_t                br_bounds;
-    uint                    br_slabsz;
+    atomic_t                br_bounds HSE_ALIGNED(SMP_CACHE_BYTES * 2);
     struct bonsai_node     *br_root;
     struct cheap           *br_cheap;
     bonsai_ior_cb          *br_ior_cb;
     void                   *br_ior_cbarg;
+    struct bonsai_slabinfo *br_rootslab;
+    void                   *br_slabbase;
+    void                   *br_magic;
 
-    struct bonsai_kv        br_kv HSE_ALIGNED(SMP_CACHE_BYTES * 2);
-
-    uint                    br_key_alloc HSE_ALIGNED(SMP_CACHE_BYTES * 2);
+    /* Everything from here to the end of the structure is bzero'd
+     * by bn_reset().
+     */
+    int                     br_height HSE_ALIGNED(SMP_CACHE_BYTES);
+    uint                    br_key_alloc;
     uint                    br_val_alloc;
-    uint                    br_height;
-    struct bonsai_val      *br_freevals;
     struct bonsai_kv       *br_freekeys;
-    struct bonsai_slabinfo  br_slabinfov[8];
-    struct bonsai_slab      br_oomslab[];
+
+
+    spinlock_t              br_gc_lock HSE_ALIGNED(SMP_CACHE_BYTES);
+    struct bonsai_slab     *br_gc_waitq;
+
+    struct bonsai_slab     *br_gc_readyq HSE_ALIGNED(SMP_CACHE_BYTES);
+    atomic_t                br_gc_rcugen_start;
+
+    atomic_t                br_gc_rcugen_done HSE_ALIGNED(SMP_CACHE_BYTES);
+    struct bonsai_slab     *br_gc_activeq;
+    struct bonsai_slab     *br_gc_emptyq;
+    struct bonsai_kv       *br_gc_freekeys;
+
+    uint64_t                br_gc_latstart  HSE_ALIGNED(SMP_CACHE_BYTES);
+    uint64_t                br_gc_latsum_gp;
+    uint64_t                br_gc_latsum_gc;
+    struct rcu_head         br_gc_sched_rcu;
+
+    /* There are eight per-skidx slabs and one additional "rootslab".
+     * The root slab is used to satisfy node allocation requests for
+     * nodes low in the tree and node allocation requests that would
+     * otherwise fail because we're unable to allocate a new slab.
+     */
+    struct bonsai_slabinfo  br_slabinfov[8 + 1];
+
+    /* br_kv must be last as it contains a flexible array member.
+     */
+    struct bonsai_kv        br_kv;
 };
+
+/* clang-format off */
 
 /**
  * bn_create() - Initialize tree and client info.
  * @cheap:     memory allocator
- * @slabsz:    slab size to be used for bonsai nodes
  * @cb:        insert or replace callback
  * @rock:      per-tree rock entity for client
  * @tree:      bonsai tree instance (output parameter)
@@ -339,7 +389,6 @@ struct bonsai_root {
 merr_t
 bn_create(
     struct cheap        *cheap,
-    size_t               slabsz,
     bonsai_ior_cb       *cb,
     void                *cbarg,
     struct bonsai_root **tree);

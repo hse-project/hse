@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
 #ifndef HSE_BONSAI_TREE_PVT_H
@@ -24,6 +24,13 @@ enum bonsai_match_type {
     B_MATCH_LE = 2,
 };
 
+struct bonsai_slab *
+bn_slab_init(struct bonsai_slab *slab, struct bonsai_slabinfo *slabinfo, bool canfree);
+
+void bn_slab_free(struct bonsai_slab *slab);
+
+uint bn_gc_reclaim(struct bonsai_root *tree, struct bonsai_slab *slab);
+
 /**
  * bn_node_alloc() - allocate and initialize a node plus key and value
  * @tree:    bonsai tree instance
@@ -37,6 +44,8 @@ bn_kvnode_alloc(
     struct bonsai_root       *tree,
     const struct bonsai_skey *skey,
     const struct bonsai_sval *sval);
+
+void bn_kv_free(struct bonsai_kv *freekeys);
 
 /**
  * bn_val_alloc() - allocate and initialize a value

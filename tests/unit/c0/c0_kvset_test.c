@@ -1062,7 +1062,7 @@ MTF_DEFINE_UTEST_PREPOST(c0_kvset_test, finalize, no_fail_pre, no_fail_post)
      */
 #ifdef NDEBUG
     ASSERT_EQ(0, sigabrt_cnt);
-    ASSERT_EQ(EROFS, merr_errno(err));
+    ASSERT_EQ(ENOMEM, merr_errno(err));
 #else
     ASSERT_EQ(1, sigabrt_cnt);
     ASSERT_EQ(ENOTSUP, merr_errno(err));
@@ -1079,13 +1079,13 @@ MTF_DEFINE_UTEST_PREPOST(c0_kvset_test, finalize, no_fail_pre, no_fail_post)
         err = c0kvs_put(kvs, 0, &kt, &vt, iseqno);
     }
 
-    /* If assert() is disable then c0kvs_put() will quietly succeed.
+    /* If assert() is disabled then c0kvs_put() will quietly succeed.
      * Otherwise, the assert will fire and the we'll jump back to a
      * context in which err contains its initial value.
      */
 #ifdef NDEBUG
     ASSERT_EQ(0, sigabrt_cnt);
-    ASSERT_EQ(EROFS, merr_errno(err));
+    ASSERT_EQ(ENOMEM, merr_errno(err));
 #else
     ASSERT_EQ(2, sigabrt_cnt);
     ASSERT_EQ(ENOTSUP, merr_errno(err));

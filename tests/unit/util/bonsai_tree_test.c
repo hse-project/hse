@@ -1,10 +1,7 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
-
-#define BONSAI_TREE_CLIENT_VERIFY
-#define BONSAI_TREE_CURSOR_HEAP
 
 #include "_config.h"
 
@@ -25,6 +22,8 @@
 #include <util/src/bonsai_tree_pvt.h>
 
 #include <hse_util/xrand.h>
+
+#define BONSAI_TREE_CLIENT_VERIFY
 
 #if defined(LIBURCU_QSBR) || defined(LIBURCU_BP)
 #define BONSAI_RCU_REGISTER()
@@ -64,7 +63,7 @@ static int             stop_consumer_threads;
 static unsigned int    key_current = 1;
 static int             num_consumers = 4;
 static int             num_producers = 4;
-static int             runtime_insecs = 7;
+static int             runtime_insecs = 5;
 static int             random_number;
 static size_t          key_size = 10;
 static size_t          val_size = 100;
@@ -107,20 +106,26 @@ bonsai_client_insert_callback(
 
     uintptr_t seqnoref;
 
-    if (IS_IOR_INS(*code) || !new_val)
-        /* Do only the stats */
-        return;
+    assert(rcu_read_ongoing());
+
+    if (IS_IOR_INS(*code)) {
+            assert(new_val == NULL);
+            kv->bkv_valcnt++;
+            return;
+    }
 
     assert(IS_IOR_REPORADD(*code));
+    assert(new_val);
 
     /* Search for an existing value with the given seqnoref */
     prevp = &kv->bkv_values;
     SET_IOR_ADD(*code);
+
     seqnoref = new_val->bv_seqnoref;
 
-    assert(kv->bkv_values);
+    old = rcu_dereference(kv->bkv_values);
+    assert(old);
 
-    old = kv->bkv_values;
     while (old) {
         if (seqnoref == old->bv_seqnoref) {
             SET_IOR_REP(*code);
@@ -131,19 +136,22 @@ bonsai_client_insert_callback(
             break;
 
         prevp = &old->bv_next;
-        old = old->bv_next;
+        old = rcu_dereference(old->bv_next);
     }
 
     if (IS_IOR_REP(*code)) {
         /* in this case we'll just replace the old list element */
-        new_val->bv_next = old->bv_next;
+        new_val->bv_next = rcu_dereference(old->bv_next);
+        *old_val = old;
     } else if (HSE_SQNREF_ORDNL_P(seqnoref)) {
         /* slot the new element just in front of the next older one */
         new_val->bv_next = old;
+        kv->bkv_valcnt++;
     } else {
         /* rewind & slot the new element at the front of the list */
         prevp = &kv->bkv_values;
         new_val->bv_next = *prevp;
+        kv->bkv_valcnt++;
     }
 
     /* Publish the new value node.  New readers will see the new node,
@@ -151,11 +159,6 @@ bonsai_client_insert_callback(
      * the end of the current grace period.
      */
     rcu_assign_pointer(*prevp, new_val);
-
-    /* Do the stats here */
-
-    if (IS_IOR_REP(*code))
-        *old_val = old;
 }
 
 static int
@@ -190,17 +193,20 @@ init_tree(struct bonsai_root **tree, enum bonsai_alloc_mode allocm)
 {
     merr_t err;
 
+    cheap = NULL;
     *tree = NULL;
 
-    while (1) {
-        cheap = cheap_create(16, 1024 * MB);
-        if (cheap)
-            break;
+    if (allocm == HSE_ALLOC_CURSOR) {
+        while (1) {
+            cheap = cheap_create(16, 1024 * MB);
+            if (cheap)
+                break;
 
-        usleep(USEC_PER_SEC);
+            usleep(USEC_PER_SEC);
+        }
     }
 
-    err = bn_create(cheap, 32 * 1024, bonsai_client_insert_callback, NULL, tree);
+    err = bn_create(cheap, bonsai_client_insert_callback, NULL, tree);
     if (err)
         abort();
 }
@@ -218,7 +224,7 @@ findValue(struct bonsai_kv *kv, u64 view_seqno, uintptr_t seqnoref)
     diff_ge = ULONG_MAX;
     val_ge = NULL;
 
-    for (val = kv->bkv_values; val; val = val->bv_next) {
+    for (val = rcu_dereference(kv->bkv_values); val; val = rcu_dereference(val->bv_next)) {
         diff = seqnoref_ext_diff(view_seqno, val->bv_seqnoref);
         if (diff < diff_ge) {
             diff_ge = diff;
@@ -255,7 +261,7 @@ findPfxValue(struct bonsai_kv *kv, uintptr_t seqnoref)
             if ((val->bv_seqnoref == seqnoref) || seqnoref_ge(seqnoref, val->bv_seqnoref))
                 break;
         }
-        val = val->bv_next;
+        val = rcu_dereference(val->bv_next);
     }
 
     return val;
@@ -312,6 +318,8 @@ bonsai_client_wait_for_test_completion(void)
 {
     u_long stop = get_time_ns() + (runtime_insecs * NSEC_PER_SEC);
 
+    usleep(runtime_insecs * USEC_PER_SEC);
+
     while (get_time_ns() < stop)
         usleep(1000);
 }
@@ -358,17 +366,21 @@ bonsai_client_producer(void *arg)
             bn_sval_init(val, val_size, HSE_ORDNL_TO_SQNREF(*val), &sval);
 
             pthread_mutex_lock(&mtx);
+
+            rcu_read_lock();
             err = bn_insert_or_replace(broot, &skey, &sval);
+            rcu_read_unlock();
+
             if (merr_errno(err) == 0) {
                 __sync_synchronize();
                 key_current = i;
             }
             pthread_mutex_unlock(&mtx);
 
-            if (merr_errno(err) == EEXIST)
-                err = 0;
-            else if (err)
+            if (err) {
+                assert(merr_errno(err) != EEXIST);
                 break;
+            }
 
             if (stop_producer_threads)
                 break;
@@ -388,10 +400,8 @@ exit:
 
     BONSAI_RCU_UNREGISTER();
 
-    if (key)
-        free(key);
-    if (val)
-        free(val);
+    free(key);
+    free(val);
 
     pthread_exit((void *)(long)merr_errno(err));
 }
@@ -445,7 +455,9 @@ bonsai_client_lcp_test(void *arg)
         bn_sval_init(&val, sizeof(val), HSE_ORDNL_TO_SQNREF(val), &sval);
 
         pthread_mutex_lock(&mtx);
+        rcu_read_lock();
         err = bn_insert_or_replace(broot, &skey, &sval);
+        rcu_read_unlock();
         pthread_mutex_unlock(&mtx);
 
         key[KI_DLEN_MAX + 26] = 'a';
@@ -484,7 +496,7 @@ bonsai_client_lcp_test(void *arg)
         assert(found);
 
         v = rcu_dereference(kv->bkv_values);
-        memcpy((char *)&val, v->bv_value, sizeof(val));
+        memcpy(&val, v->bv_value, sizeof(val));
         assert(val == ((u64)i << 32 | tid));
 
         key[KI_DLEN_MAX + 26] = 'a';
@@ -583,7 +595,7 @@ exit:
 }
 
 static int
-bonsai_client_multithread_test(void)
+bonsai_client_multithread_test(enum bonsai_alloc_mode allocm)
 {
     pthread_t *consumer_tids;
     pthread_t *producer_tids;
@@ -605,11 +617,15 @@ bonsai_client_multithread_test(void)
     }
 #endif
 
-    cheap = cheap_create(16, 1 * GB);
-    if (!cheap)
-        return -1;
+    cheap = NULL;
 
-    err = bn_create(cheap, 128 * 1024, bonsai_client_insert_callback, NULL, &broot);
+    if (allocm == HSE_ALLOC_CURSOR) {
+        cheap = cheap_create(16, 1 * GB);
+        if (!cheap)
+            return -1;
+    }
+
+    err = bn_create(cheap, bonsai_client_insert_callback, NULL, &broot);
     if (err) {
         hse_log(HSE_ERR "Bonsai tree create failed");
         return err;
@@ -624,6 +640,8 @@ bonsai_client_multithread_test(void)
     producer_tids = malloc(num_producers * sizeof(*producer_tids));
     assert(producer_tids);
 
+    /* Create an rcu callback thread for each cpu.
+     */
     rc = create_all_cpu_call_rcu_data(0);
     assert(rc == 0);
 
@@ -718,15 +736,12 @@ bonsai_client_multithread_test(void)
     rcu_read_unlock();
 #endif
 
-    rcu_barrier();
-
 #ifdef BONSAI_TREE_DEBUG
     hse_log(HSE_INFO "Tree height %d", bn_height_get(broot.br_root));
 #endif
 
     bn_destroy(broot);
-
-    rcu_barrier();
+    broot = NULL;
 
     free_all_cpu_call_rcu_data();
 
@@ -773,26 +788,25 @@ bonsai_client_singlethread_test(enum bonsai_alloc_mode allocm)
             return -1;
     }
 
-    err = bn_create(cheap, 32 * 1024, bonsai_client_insert_callback, NULL, &broot);
+    err = bn_create(cheap, bonsai_client_insert_callback, NULL, &broot);
     if (err) {
         hse_log(HSE_ERR "Bonsai tree create failed");
         return err;
     }
 
-    bn_reset(broot);
-
     i = 0;
     do {
-        for (; i < sizeof(a) / sizeof(long); i++) {
+        for (; i < NELEM(a); i++) {
             bn_skey_init(&a[i], sizeof(a[i]), 0, 0, &skey);
             bn_sval_init(&a[i], sizeof(a[i]), HSE_ORDNL_TO_SQNREF(a[i]), &sval);
 
+            rcu_read_lock();
             err = bn_insert_or_replace(broot, &skey, &sval);
-            if (merr_errno(err) == EEXIST)
-                err = 0;
+            rcu_read_unlock();
 
             if (err) {
                 hse_log(HSE_ERR "Inserting %ld result %d", a[i], merr_errno(err));
+                assert(merr_errno(err) != EEXIST);
                 break;
             }
         }
@@ -809,12 +823,13 @@ bonsai_client_singlethread_test(enum bonsai_alloc_mode allocm)
         rcu_read_lock();
         found = bn_find(broot, &skey, &kv);
         if (!found) {
-            hse_log(HSE_ERR "Finding %ld result %d", a[i], found);
             rcu_read_unlock();
+            hse_log(HSE_ERR "Finding %ld result %d", a[i], found);
             break;
         }
-        v = kv->bkv_values;
-        memcpy((char *)&val, v->bv_value, sizeof(val));
+
+        v = rcu_dereference(kv->bkv_values);
+        memcpy(&val, v->bv_value, sizeof(val));
         assert(a[i] == val);
 
         rcu_read_unlock();
@@ -824,16 +839,13 @@ bonsai_client_singlethread_test(enum bonsai_alloc_mode allocm)
 
     rcu_read_lock();
     found = bn_find(broot, &skey, &kv);
-    rcu_read_unlock();
     assert(found == false);
 
-    rcu_read_lock();
     bn_traverse(broot);
     rcu_read_unlock();
-    rcu_barrier();
 
     bn_destroy(broot);
-    rcu_barrier();
+    broot = NULL;
 
     cheap_destroy(cheap);
     cheap = NULL;
@@ -848,33 +860,95 @@ MTF_BEGIN_UTEST_COLLECTION_PREPOST(
     test_collection_setup,
     test_collection_teardown);
 
-MTF_DEFINE_UTEST_PREPOST(bonsai_tree_test, basic_single_threaded, no_fail_pre, no_fail_post)
-{
-    ASSERT_EQ(0, bonsai_client_singlethread_test(HSE_ALLOC_MALLOC));
-    ASSERT_EQ(0, bonsai_client_singlethread_test(HSE_ALLOC_CURSOR));
-}
-
 MTF_DEFINE_UTEST(bonsai_tree_test, misc)
 {
     merr_t err;
 
-    err = bn_create(NULL, 1 * MB, NULL, NULL, &broot);
+    err = bn_create(NULL, NULL, NULL, &broot);
     ASSERT_NE(err, 0);
 
-    err = bn_create(NULL, 1 * MB, bonsai_client_insert_callback, NULL, NULL);
+    err = bn_create(NULL, bonsai_client_insert_callback, NULL, NULL);
     ASSERT_NE(err, 0);
 
     cheap = cheap_create(16, 4 * MB);
     ASSERT_NE(cheap, NULL);
 
-    err = bn_create(cheap, 1 * MB, bonsai_client_insert_callback, NULL, &broot);
+    err = bn_create(cheap, bonsai_client_insert_callback, NULL, &broot);
     ASSERT_EQ(err, 0);
 
     bn_destroy(broot);
+    broot = NULL;
+
     bn_destroy(NULL);
 
     cheap_destroy(cheap);
     cheap = NULL;
+}
+
+MTF_DEFINE_UTEST_PREPOST(bonsai_tree_test, short_tree, no_fail_pre, no_fail_post)
+{
+    const int maxvals = 12345;
+    const int maxkeys = 32;
+    struct bonsai_skey skey;
+    struct bonsai_sval sval;
+    uintptr_t seqno;
+    merr_t err;
+    int i;
+
+    err = bn_create(NULL, bonsai_client_insert_callback, NULL, &broot);
+    ASSERT_EQ(err, 0);
+
+    /* Load the first four to six levels of the tree such that each key
+     * has many values.
+     */
+    for (i = 0; i < maxvals; ++i) {
+        uint64_t key = i % maxkeys;
+        uint64_t val = i;
+
+        bn_skey_init(&key, sizeof(key), 0, 0, &skey);
+
+        seqno = HSE_ORDNL_TO_SQNREF(i);
+        bn_sval_init(&val, sizeof(val), seqno, &sval);
+
+        rcu_read_lock();
+        err = bn_insert_or_replace(broot, &skey, &sval);
+        rcu_read_unlock();
+
+        ASSERT_EQ(0, err);
+    }
+
+    /* Check that the values from the last 16 inserts are what we expect.
+     */
+    for (i = maxvals - maxkeys; i < maxvals; ++i) {
+        struct bonsai_kv *kv = NULL;
+        struct bonsai_val* v;
+        uint64_t key = i % maxkeys;
+        uint64_t val = i;
+        bool b;
+
+        bn_skey_init(&key, sizeof(key), 0, 0, &skey);
+        seqno = HSE_ORDNL_TO_SQNREF(i);
+
+        b = bn_find(broot, &skey, &kv);
+        ASSERT_NE(false, b);
+
+        v = rcu_dereference(kv->bkv_values);
+
+        ASSERT_NE(NULL, v);
+        ASSERT_EQ(seqno, v->bv_seqnoref);
+        ASSERT_EQ(sizeof(val), bonsai_val_vlen(v));
+
+        ASSERT_EQ(0, memcmp(&val, v->bv_value, sizeof(val)));
+    }
+
+    bn_destroy(broot);
+    broot = NULL;
+}
+
+MTF_DEFINE_UTEST_PREPOST(bonsai_tree_test, basic_single_threaded, no_fail_pre, no_fail_post)
+{
+    ASSERT_EQ(0, bonsai_client_singlethread_test(HSE_ALLOC_MALLOC));
+    ASSERT_EQ(0, bonsai_client_singlethread_test(HSE_ALLOC_CURSOR));
 }
 
 MTF_DEFINE_UTEST_PREPOST(bonsai_tree_test, producer_test, no_fail_pre, no_fail_post)
@@ -885,8 +959,15 @@ MTF_DEFINE_UTEST_PREPOST(bonsai_tree_test, producer_test, no_fail_pre, no_fail_p
     stop_consumer_threads = 0;
     num_consumers = 0;
     num_producers = 1;
+    ASSERT_EQ(0, bonsai_client_multithread_test(HSE_ALLOC_MALLOC));
 
-    ASSERT_EQ(0, bonsai_client_multithread_test());
+    key_begin = 1;
+    key_current = 0;
+    stop_producer_threads = 0;
+    stop_consumer_threads = 0;
+    num_consumers = 0;
+    num_producers = 1;
+    ASSERT_EQ(0, bonsai_client_multithread_test(HSE_ALLOC_CURSOR));
 
 #ifdef BONSAI_TREE_DEBUG
     hse_log(
@@ -914,7 +995,7 @@ MTF_DEFINE_UTEST_PREPOST(bonsai_tree_test, lcp_test, no_fail_pre, no_fail_post)
     cheap = cheap_create(16, 64 * MB);
     ASSERT_NE(cheap, NULL);
 
-    err = bn_create(cheap, 32 * 1024, bonsai_client_insert_callback, NULL, &broot);
+    err = bn_create(cheap, bonsai_client_insert_callback, NULL, &broot);
     ASSERT_EQ(err, 0);
 
     rc = pthread_mutex_init(&mtx, NULL);
@@ -922,9 +1003,6 @@ MTF_DEFINE_UTEST_PREPOST(bonsai_tree_test, lcp_test, no_fail_pre, no_fail_post)
 
     producer_tids = malloc(num_skidx * sizeof(*producer_tids));
     ASSERT_NE(producer_tids, NULL);
-
-    rc = create_all_cpu_call_rcu_data(0);
-    ASSERT_EQ(rc, 0);
 
     stop_producer_threads = 0;
 
@@ -951,17 +1029,14 @@ MTF_DEFINE_UTEST_PREPOST(bonsai_tree_test, lcp_test, no_fail_pre, no_fail_post)
         ASSERT_EQ(rc, 0);
     }
 
-    rcu_barrier();
-
     bn_destroy(broot);
-
-    rcu_barrier();
+    broot = NULL;
 
     cheap_destroy(cheap);
     cheap = cheap_create(16, 64 * MB);
     ASSERT_NE(cheap, NULL);
 
-    err = bn_create(cheap, 32 * 1024, bonsai_client_insert_callback, NULL, &broot);
+    err = bn_create(cheap, bonsai_client_insert_callback, NULL, &broot);
     ASSERT_EQ(err, 0);
 
     stop_producer_threads = 0;
@@ -985,13 +1060,8 @@ MTF_DEFINE_UTEST_PREPOST(bonsai_tree_test, lcp_test, no_fail_pre, no_fail_post)
     rc = pthread_join(producer_tids[0], &ret);
     ASSERT_EQ(rc, 0);
 
-    rcu_barrier();
-
     bn_destroy(broot);
-
-    rcu_barrier();
-
-    free_all_cpu_call_rcu_data();
+    broot = NULL;
 
     cheap_destroy(cheap);
     cheap = NULL;
@@ -1009,8 +1079,15 @@ MTF_DEFINE_UTEST_PREPOST(bonsai_tree_test, producer_manyconsumer_test, no_fail_p
     stop_consumer_threads = 0;
     num_consumers = 32;
     num_producers = 1;
+    ASSERT_EQ(0, bonsai_client_multithread_test(HSE_ALLOC_MALLOC));
 
-    ASSERT_EQ(0, bonsai_client_multithread_test());
+    key_begin = 1;
+    key_current = 0;
+    stop_producer_threads = 0;
+    stop_consumer_threads = 0;
+    num_consumers = 32;
+    num_producers = 1;
+    ASSERT_EQ(0, bonsai_client_multithread_test(HSE_ALLOC_CURSOR));
 }
 
 MTF_DEFINE_UTEST_PREPOST(
@@ -1025,8 +1102,15 @@ MTF_DEFINE_UTEST_PREPOST(
     stop_consumer_threads = 0;
     num_consumers = 32;
     num_producers = 8;
+    ASSERT_EQ(0, bonsai_client_multithread_test(HSE_ALLOC_MALLOC));
 
-    ASSERT_EQ(0, bonsai_client_multithread_test());
+    key_begin = 1;
+    key_current = 0;
+    stop_producer_threads = 0;
+    stop_consumer_threads = 0;
+    num_consumers = 32;
+    num_producers = 8;
+    ASSERT_EQ(0, bonsai_client_multithread_test(HSE_ALLOC_CURSOR));
 }
 
 MTF_DEFINE_UTEST_PREPOST(bonsai_tree_test, random_key_test, no_fail_pre, no_fail_post)
@@ -1034,30 +1118,22 @@ MTF_DEFINE_UTEST_PREPOST(bonsai_tree_test, random_key_test, no_fail_pre, no_fail
     key_begin = 1;
     key_current = 0;
     random_number = 1;
-    runtime_insecs = 7;
+    runtime_insecs = 4;
     stop_producer_threads = 0;
     stop_consumer_threads = 0;
     num_consumers = 0;
     num_producers = 1;
+    ASSERT_EQ(0, bonsai_client_multithread_test(HSE_ALLOC_MALLOC));
 
-    ASSERT_EQ(0, bonsai_client_multithread_test());
-}
-
-MTF_DEFINE_UTEST_PREPOST(bonsai_tree_test, malloc_failure_test, no_fail_pre, no_fail_post)
-{
     key_begin = 1;
     key_current = 0;
     random_number = 1;
-    induce_alloc_failure = 1; /* XXX: This needs to be mocked */
+    runtime_insecs = 5;
     stop_producer_threads = 0;
     stop_consumer_threads = 0;
-    runtime_insecs = 7;
     num_consumers = 0;
     num_producers = 1;
-
-    ASSERT_EQ(0, bonsai_client_singlethread_test(HSE_ALLOC_MALLOC));
-    ASSERT_EQ(0, bonsai_client_singlethread_test(HSE_ALLOC_CURSOR));
-    ASSERT_EQ(0, bonsai_client_multithread_test());
+    ASSERT_EQ(0, bonsai_client_multithread_test(HSE_ALLOC_CURSOR));
 }
 
 MTF_DEFINE_UTEST_PREPOST(bonsai_tree_test, odd_key_size_test, no_fail_pre, no_fail_post)
@@ -1071,8 +1147,65 @@ MTF_DEFINE_UTEST_PREPOST(bonsai_tree_test, odd_key_size_test, no_fail_pre, no_fa
     random_number = 0;
     num_consumers = 0;
     num_producers = 1;
+    ASSERT_EQ(0, bonsai_client_multithread_test(HSE_ALLOC_MALLOC));
 
-    ASSERT_EQ(0, bonsai_client_multithread_test());
+    key_begin = 1;
+    key_current = 0;
+    induce_alloc_failure = 0;
+    stop_producer_threads = 0;
+    stop_consumer_threads = 0;
+    key_size = 7;
+    random_number = 0;
+    num_consumers = 0;
+    num_producers = 1;
+    ASSERT_EQ(0, bonsai_client_multithread_test(HSE_ALLOC_CURSOR));
+}
+
+MTF_DEFINE_UTEST_PREPOST(bonsai_tree_test, malloc_failure_test, no_fail_pre, no_fail_post)
+{
+    key_begin = 1;
+    key_current = 0;
+    random_number = 1;
+    induce_alloc_failure = 1; /* XXX: This needs to be mocked */
+    stop_producer_threads = 0;
+    stop_consumer_threads = 0;
+    runtime_insecs = 4;
+    num_consumers = 0;
+    num_producers = 1;
+    ASSERT_EQ(0, bonsai_client_singlethread_test(HSE_ALLOC_MALLOC));
+
+    key_begin = 1;
+    key_current = 0;
+    random_number = 1;
+    induce_alloc_failure = 1; /* XXX: This needs to be mocked */
+    stop_producer_threads = 0;
+    stop_consumer_threads = 0;
+    runtime_insecs = 5;
+    num_consumers = 0;
+    num_producers = 1;
+    ASSERT_EQ(0, bonsai_client_singlethread_test(HSE_ALLOC_CURSOR));
+
+    key_begin = 1;
+    key_current = 0;
+    random_number = 1;
+    induce_alloc_failure = 1; /* XXX: This needs to be mocked */
+    stop_producer_threads = 0;
+    stop_consumer_threads = 0;
+    runtime_insecs = 4;
+    num_consumers = 0;
+    num_producers = 1;
+    ASSERT_EQ(0, bonsai_client_multithread_test(HSE_ALLOC_MALLOC));
+
+    key_begin = 1;
+    key_current = 0;
+    random_number = 1;
+    induce_alloc_failure = 1; /* XXX: This needs to be mocked */
+    stop_producer_threads = 0;
+    stop_consumer_threads = 0;
+    runtime_insecs = 5;
+    num_consumers = 0;
+    num_producers = 1;
+    ASSERT_EQ(0, bonsai_client_multithread_test(HSE_ALLOC_CURSOR));
 }
 
 /* Test the key weight algorithms by creating keys of identical bytes
@@ -1116,6 +1249,7 @@ bonsai_weight_test(enum bonsai_alloc_mode allocm, struct mtf_test_info *lcl_ti)
     for (i = 0; i < NELEM(list); ++i) {
         for (j = 1; j < maxlen; ++j) {
             u8 key[maxlen];
+            bool b;
 
             memset(key, list[i], j);
 
@@ -1124,7 +1258,9 @@ bonsai_weight_test(enum bonsai_alloc_mode allocm, struct mtf_test_info *lcl_ti)
             bn_skey_init(&key, j, 0, 0, &skey);
 
             rcu_read_lock();
-            (void)bn_find(tree, &skey, &kv);
+            b = bn_find(tree, &skey, &kv);
+            ASSERT_NE(b, false);
+
             v = kv->bkv_values;
 
             ASSERT_NE(NULL, v);
@@ -1136,6 +1272,8 @@ bonsai_weight_test(enum bonsai_alloc_mode allocm, struct mtf_test_info *lcl_ti)
     }
 
     bn_destroy(tree);
+    broot = NULL;
+
     cheap_destroy(cheap);
     cheap = NULL;
 }
@@ -1230,6 +1368,8 @@ bonsai_basic_test(enum bonsai_alloc_mode allocm, struct mtf_test_info *lcl_ti)
     }
 
     bn_destroy(tree);
+    broot = NULL;
+
     cheap_destroy(cheap);
     cheap = NULL;
 }
@@ -1298,6 +1438,8 @@ bonsai_update_test(enum bonsai_alloc_mode allocm, struct mtf_test_info *lcl_ti)
     }
 
     bn_destroy(tree);
+    broot = NULL;
+
     cheap_destroy(cheap);
     cheap = NULL;
 }
@@ -1442,6 +1584,8 @@ again:
     }
 
     bn_destroy(tree);
+    broot = NULL;
+
     cheap_destroy(cheap);
     cheap = NULL;
 }
@@ -1659,6 +1803,8 @@ again:
     }
 
     bn_destroy(tree);
+    broot = NULL;
+
     cheap_destroy(cheap);
     cheap = NULL;
 
