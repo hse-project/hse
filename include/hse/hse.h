@@ -42,11 +42,11 @@
  */
 
 #include <hse/hse_limits.h>
-#include <linux/limits.h>
 
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdlib.h>
+#include <limits.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -1037,12 +1037,12 @@ hse_params_get(
  * struct hse_kvdb_storage_info - storage info for a kvdb
  */
 struct hse_kvdb_storage_info {
-    uint64_t total;         /**< total space in the file-system containing this kvdb */
-    uint64_t available;     /**< available space in the file-system containing this kvdb */
-    uint64_t allocated;     /**< allocated storage space for a kvdb */
-    uint64_t used;          /**< used storage space for a kvdb */
-    char     capacity_path[PATH_MAX]; /**< capacity media class path */
-    char     staging_path[PATH_MAX];  /**< staging media class path */
+    uint64_t total_bytes;      /**< total space in the file-system containing this kvdb */
+    uint64_t available_bytes;  /**< available space in the file-system containing this kvdb */
+    uint64_t allocated_bytes;  /**< allocated storage space for a kvdb */
+    uint64_t used_bytes;       /**< used storage space for a kvdb */
+    char     capacity_path[PATH_MAX];  /**< capacity media class path */
+    char     staging_path[PATH_MAX];   /**< staging media class path */
 };
 
 /**

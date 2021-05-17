@@ -135,8 +135,6 @@ tools = {
     },
     'mdcperf': {
         'sources': files(
-            'mpool' / 'mdc' / 'common.c',
-            'mpool' / 'mdc' / 'thread.c',
             'mpool' / 'mdc' / 'mdcperf.c',
         ),
     },

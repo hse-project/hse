@@ -97,8 +97,10 @@ deviceprofile_calibrate_worker(struct work_struct *arg)
         err = mpool_mblock_alloc(
             work->dp_calibrate->dp_ds, work->dp_calibrate->dp_mclass, &handle, &mbprop);
         if (err) {
+            struct merr_info info;
+
             fprintf(stderr, "mpool_mblock_alloc() failed: %s\n",
-                    strerror(merr_errno(err)));
+                    merr_info(err, &info));
             work->dp_err = err;
             break;
         }
@@ -111,8 +113,10 @@ deviceprofile_calibrate_worker(struct work_struct *arg)
 
             err = mpool_mblock_write(work->dp_calibrate->dp_ds, handle, &iov, 1);
             if (err) {
+                struct merr_info info;
+
                 fprintf(stderr, "mpool_mblock_write() failed: %s\n",
-                        strerror(merr_errno(err)));
+                        merr_info(err, &info));
                 work->dp_err = err;
                 break;
             }
@@ -128,8 +132,10 @@ deviceprofile_calibrate_worker(struct work_struct *arg)
 
         err2 = mpool_mblock_abort(work->dp_calibrate->dp_ds, handle);
         if (err2) {
+            struct merr_info info;
+
             fprintf(stderr, "mpool_mblock_write() failed: %s\n",
-                    strerror(merr_errno(err)));
+                    merr_info(err2, &info));
             work->dp_err = (err == 0) ? err2 : err;
             break;
         }

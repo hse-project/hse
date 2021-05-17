@@ -1538,24 +1538,24 @@ ikvdb_storage_info_get(struct ikvdb *handle, struct hse_kvdb_storage_info *info)
     if (ev(err))
         return err;
 
-    info->total = stats.mps_total;
-    info->available = stats.mps_available;
+    info->total_bytes = stats.mps_total;
+    info->available_bytes = stats.mps_available;
 
-    info->allocated = stats.mps_allocated;
-    info->used = stats.mps_used;
+    info->allocated_bytes = stats.mps_allocated;
+    info->used_bytes = stats.mps_used;
 
     /* Get allocated and used space for kvdb metadata */
     err = kvdb_log_usage(self->ikdb_log, &allocated, &used);
     if (ev(err))
         return err;
-    info->allocated += allocated;
-    info->used += used;
+    info->allocated_bytes += allocated;
+    info->used_bytes += used;
 
     err = cndb_usage(self->ikdb_cndb, &allocated, &used);
     if (ev(err))
         return err;
-    info->allocated += allocated;
-    info->used += used;
+    info->allocated_bytes += allocated;
+    info->used_bytes += used;
 
     strlcpy(info->capacity_path, stats.mps_path[MP_MED_CAPACITY], sizeof(info->capacity_path));
 

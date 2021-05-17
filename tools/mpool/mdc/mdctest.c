@@ -16,8 +16,6 @@
 
 #include <mpool/mpool.h>
 
-#include "common.h"
-
 #define BUF_SIZE 1024
 #define BUF_CNT  512
 

@@ -79,10 +79,10 @@ rest_storage_stats_list(
         u64        *val;
         char       *strval;
     } items[] = {
-        { "total:", &info->total, NULL },
-        { "available:", &info->available, NULL },
-        { "allocated:", &info->allocated, NULL },
-        { "used:", &info->used, NULL },
+        { "total:", &info->total_bytes, NULL },
+        { "available:", &info->available_bytes, NULL },
+        { "allocated:", &info->allocated_bytes, NULL },
+        { "used:", &info->used_bytes, NULL },
         { "capacity_path:", NULL, info->capacity_path },
         { "staging_path:", NULL, info->staging_path },
     };
@@ -133,9 +133,13 @@ rest_storage_stats_list(
 
             while (*end != '\n' && *end != '\0')
                 end++;
+
+            if (end - buf + 1 > bufsz)
+                return EINVAL;
+
             len = end - p;
 
-            strncpy(items[i].strval, p, len);
+            strlcpy(items[i].strval, p, PATH_MAX);
             items[i].strval[len] = '\0';
         }
     }
@@ -166,24 +170,24 @@ emit_storage_info(struct yaml_context *yc, struct hse_kvdb_storage_info *info)
 {
     char value[32];
 
-    space_to_string(info->total, value, sizeof(value));
+    space_to_string(info->total_bytes, value, sizeof(value));
     yaml_element_field(yc, "total_space", value);
-    snprintf(value, sizeof(value), "%lu", info->total);
+    snprintf(value, sizeof(value), "%lu", info->total_bytes);
     yaml_element_field(yc, "total_space_bytes", value);
 
-    space_to_string(info->available, value, sizeof(value));
+    space_to_string(info->available_bytes, value, sizeof(value));
     yaml_element_field(yc, "avail_space", value);
-    snprintf(value, sizeof(value), "%lu", info->available);
+    snprintf(value, sizeof(value), "%lu", info->available_bytes);
     yaml_element_field(yc, "avail_space_bytes", value);
 
-    space_to_string(info->allocated, value, sizeof(value));
+    space_to_string(info->allocated_bytes, value, sizeof(value));
     yaml_element_field(yc, "allocated_space", value);
-    snprintf(value, sizeof(value), "%lu", info->allocated);
+    snprintf(value, sizeof(value), "%lu", info->allocated_bytes);
     yaml_element_field(yc, "allocated_space_bytes", value);
 
-    space_to_string(info->used, value, sizeof(value));
+    space_to_string(info->used_bytes, value, sizeof(value));
     yaml_element_field(yc, "used_space", value);
-    snprintf(value, sizeof(value), "%lu", info->used);
+    snprintf(value, sizeof(value), "%lu", info->used_bytes);
     yaml_element_field(yc, "used_space_bytes", value);
 
     yaml_element_field(yc, "capacity_path", info->capacity_path);

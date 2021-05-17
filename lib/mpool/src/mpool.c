@@ -319,7 +319,7 @@ mpool_props_get(struct mpool *mp, struct mpool_props *props)
     memset(props, 0, sizeof(*props));
 
     for (i = MP_MED_BASE; i < MP_MED_COUNT; i++) {
-        struct mpool_mclass_props mcp;
+        struct mpool_mclass_props mcp = {};
         merr_t                    err;
 
         err = mpool_mclass_props_get(mp, i, &mcp);

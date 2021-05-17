@@ -200,10 +200,10 @@ rest_kvdb_storage_stats_get(
         return err;
 
     bufoff = 0;
-    b = snprintf_append(buf, bufsz, &bufoff, "total: %lu\n", stinfo.total);
-    b += snprintf_append(buf, bufsz, &bufoff, "available: %lu\n", stinfo.available);
-    b += snprintf_append(buf, bufsz, &bufoff, "allocated: %lu\n", stinfo.allocated);
-    b += snprintf_append(buf, bufsz, &bufoff, "used: %lu\n", stinfo.used);
+    b = snprintf_append(buf, bufsz, &bufoff, "total: %lu\n", stinfo.total_bytes);
+    b += snprintf_append(buf, bufsz, &bufoff, "available: %lu\n", stinfo.available_bytes);
+    b += snprintf_append(buf, bufsz, &bufoff, "allocated: %lu\n", stinfo.allocated_bytes);
+    b += snprintf_append(buf, bufsz, &bufoff, "used: %lu\n", stinfo.used_bytes);
     b += snprintf_append(buf, bufsz, &bufoff, "capacity_path: %s\n", stinfo.capacity_path);
     b += snprintf_append(buf, bufsz, &bufoff, "staging_path: %s\n", stinfo.staging_path);
 

@@ -22,20 +22,21 @@
  */
 
 #include <stdio.h>
+#include <stdlib.h>
+#include <stdint.h>
 #include <pthread.h>
 #include <unistd.h>
 #include <getopt.h>
 
 #include <hse_util/hse_err.h>
+#include <hse_util/atomic.h>
 #include <hse_util/platform.h>
 #include <hse_util/parse_num.h>
 #include <hse_util/hse_params_helper.h>
+#include <hse_util/string.h>
 
 #include <hse/hse.h>
 #include <mpool/mpool.h>
-
-#include "common.h"
-#include "thread.h"
 
 struct oid_pair {
     u64 oid[2];
@@ -52,6 +53,8 @@ static struct options {
 } opt;
 
 const char *progname = NULL;
+u8 *pattern;
+u32 pattern_len;
 
 #define MIN_SECTOR_SIZE  512
 #define SECTOR_OVERHEAD  0
@@ -60,6 +63,103 @@ const char *progname = NULL;
 #define USABLE_SECT_SIZE (MIN_SECTOR_SIZE - SECTOR_OVERHEAD - RECORD_OVERHEAD)
 
 #define MAX_PATTERN_SIZE 256
+
+static u8
+c_to_n(u8 c)
+{
+    u8 n = 255;
+
+    if ((c >= '0') && ('9' >= c))
+        n = c - '0';
+
+    if ((c >= 'a') && ('f' >= c))
+        n = c - 'a' + 0xa;
+
+    if ((c >= 'A') && ('F' >= c))
+        n = c - 'A' + 0xa;
+
+    return n;
+}
+
+static int
+pattern_base(char *base)
+{
+    int i;
+
+    if (!base)
+        pattern_len = 16;
+    else
+        pattern_len = strlen(base);
+
+    pattern = malloc(pattern_len);
+    if (pattern == NULL)
+        return -1;
+
+    if (!base) { /* No pattern given, so make one up */
+        for (i = 0; i < pattern_len; i++)
+            pattern[i] = i % 256;
+    } else {
+        for (i = 0; i < pattern_len; i++) {
+            pattern[i] = c_to_n(base[i]);
+
+            if (pattern[i] == 255) {
+                free(pattern);
+                pattern = NULL;
+                return -1;
+            }
+        }
+    }
+
+    return 0;
+}
+
+static void
+pattern_fill(char *buf, u32 buf_sz)
+{
+    u32 remaining = buf_sz;
+    u32 idx;
+
+    while (remaining > 0) {
+        idx = buf_sz - remaining;
+        buf[idx] = pattern[idx % pattern_len];
+        remaining--;
+    }
+}
+
+static int
+pattern_compare(char *buf, u32 buf_sz)
+{
+    u32 remaining = buf_sz;
+    u32 idx;
+
+    while (remaining > 0) {
+        idx = buf_sz - remaining;
+
+        if (buf[idx] != pattern[idx % pattern_len])
+            return -1;
+
+        remaining--;
+    }
+    return 0;
+}
+
+enum thread_state { NOT_STARTED, STARTED };
+
+typedef void *(thread_func_t)(void *arg);
+
+struct thread_args {
+    int              instance;
+    pthread_mutex_t *start_mutex;
+    pthread_cond_t * start_line;
+    atomic_t *       start_cnt;
+    void *           arg;
+};
+
+struct thread_resp {
+    int    instance;
+    merr_t err;
+    void * resp;
+};
 
 static u32
 calc_record_count(u64 total_size, u32 record_size)
@@ -83,6 +183,87 @@ calc_record_count(u64 total_size, u32 record_size)
     record_cnt = (total_size - sector_overhead - LOG_OVERHEAD) / real_record_size;
 
     return record_cnt;
+}
+
+static volatile enum thread_state thread_state = NOT_STARTED;
+
+static void
+thread_wait_for_start(struct thread_args *targs)
+{
+
+    /* Wait for starting flag */
+    pthread_mutex_lock(targs->start_mutex);
+    atomic_dec(targs->start_cnt);
+    while (thread_state == NOT_STARTED)
+        pthread_cond_wait(targs->start_line, targs->start_mutex);
+    pthread_mutex_unlock(targs->start_mutex);
+}
+
+static merr_t
+thread_create(
+    int                 thread_cnt,
+    thread_func_t       func,
+    struct thread_args *targs,
+    struct thread_resp *tresp)
+{
+    pthread_t *     thread;
+    pthread_attr_t *attr;
+    pthread_cond_t  start_line = PTHREAD_COND_INITIALIZER;
+    pthread_mutex_t start_mutex = PTHREAD_MUTEX_INITIALIZER;
+    atomic_t        start_cnt;
+    int             still_to_start;
+    int             i, rc;
+
+    if (!targs || !tresp) {
+        fprintf(stderr, "%s: targs and/or tresp not passed in\n", __func__);
+        return merr(EINVAL);
+    }
+
+    /* Prep thread(s) */
+    thread = calloc(thread_cnt, sizeof(*thread));
+    attr = calloc(thread_cnt, sizeof(*attr));
+    if (!thread || !attr) {
+        fprintf(stderr, "%s: Unable to allocate memory for thread data\n", __func__);
+        return merr(ENOMEM);
+    }
+
+    atomic_set(&start_cnt, thread_cnt);
+
+    for (i = 0; i < thread_cnt; i++) {
+
+        pthread_attr_init(&attr[i]);
+
+        targs[i].instance = i;
+        targs[i].start_mutex = &start_mutex;
+        targs[i].start_line = &start_line;
+        targs[i].start_cnt = &start_cnt;
+
+        rc = pthread_create(&thread[i], &attr[i], func, (void *)&targs[i]);
+        if (rc != 0) {
+            fprintf(stderr, "%s pthread_create failed\n", __func__);
+            return merr(rc);
+        }
+    }
+
+    while ((still_to_start = atomic_read(&start_cnt)) != 0)
+        ;
+
+    pthread_mutex_lock(&start_mutex);
+    thread_state = STARTED;
+    pthread_cond_broadcast(&start_line);
+    pthread_mutex_unlock(&start_mutex);
+
+    for (i = 0; i < thread_cnt; i++) {
+        pthread_join(thread[i], (void **)&tresp[i].resp);
+
+        pthread_attr_destroy(&attr[i]);
+    }
+    thread_state = NOT_STARTED;
+
+    free(attr);
+    free(thread);
+
+    return 0;
 }
 
 static unsigned int mclass = MP_MED_CAPACITY;
