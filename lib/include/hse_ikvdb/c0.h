@@ -233,8 +233,7 @@ c0_cursor_seek(
     struct c0_cursor * c0cur,
     const void *       prefix,
     size_t             pfx_len,
-    struct kc_filter * filter,
-    struct kvs_ktuple *kt);
+    struct kc_filter * filter);
 
 /**
  * c0_cursor_read() - read key/value at current position
@@ -244,7 +243,7 @@ c0_cursor_seek(
  */
 /* MTF_MOCK */
 merr_t
-c0_cursor_read(struct c0_cursor *c0cur, struct kvs_kvtuple *kvt, bool *eof);
+c0_cursor_read(struct c0_cursor *c0cur, struct kvs_cursor_element *elem, bool *eof);
 
 /**
  * c0_cursor_update() - update existing iterators over c0
@@ -266,6 +265,14 @@ c0_cursor_update(
 /* MTF_MOCK */
 merr_t
 c0_cursor_destroy(struct c0_cursor *c0cur);
+
+/* MTF_MOCK */
+struct element_source *
+c0_cursor_es_make(struct c0_cursor *c0cur);
+
+/* MTF_MOCK */
+struct element_source *
+c0_cursor_es_get(struct c0_cursor *c0cur);
 
 #if HSE_MOCKING
 #include "c0_ut.h"

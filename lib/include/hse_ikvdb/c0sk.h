@@ -24,6 +24,7 @@ struct cn;
 struct mpool;
 struct kvdb_rparams;
 struct kvs_rparams;
+struct kvs_cursor_element;
 struct cursor_summary;
 struct kvset_builder;
 struct csched;
@@ -278,15 +279,14 @@ c0sk_cursor_seek(
     struct c0_cursor * cur,
     const void *       prefix,
     size_t             pfx_len,
-    struct kc_filter * filter,
-    struct kvs_ktuple *kt);
+    struct kc_filter * filter);
 
 /**
  * c0sk_cursor_read() - read key/value at current position
  * @c0cur:      The existing cursor.
  */
 merr_t
-c0sk_cursor_read(struct c0_cursor *cur, struct kvs_kvtuple *kvt, bool *eof);
+c0sk_cursor_read(struct c0_cursor *cur, struct kvs_cursor_element *elem, bool *eof);
 
 /**
  * c0sk_cursor_update() - update existing iterators over c0

@@ -29,7 +29,6 @@
 #include <hse_ikvdb/kvs.h>
 #include <hse_ikvdb/limits.h>
 #include <hse_ikvdb/key_hash.h>
-#include <hse_ikvdb/cn_cursor.h>
 #include <hse_ikvdb/kvdb_ctxn.h>
 #include <hse_ikvdb/tuple.h>
 #include <hse_ikvdb/kvdb_health.h>
@@ -106,6 +105,17 @@ kvs_perfc_alloc(const char *mp_name, const char *kvs_name, struct ikvs *kvs)
     if (perfc_ctrseti_alloc(
             COMPNAME, dbname_buf, kvs_pkvsl_perfc_op, PERFC_EN_PKVSL, "set", &kvs->ikv_pkvsl_pc))
         hse_log(HSE_ERR "cannot alloc kvs perf counters");
+}
+
+/**
+ * ikvs_maint_task() - periodic maintenance on ikvs
+ *
+ * Currently, this function is called with the ikdb_lock held, ugh...
+ */
+void
+kvs_maint_task(struct ikvs *kvs, u64 now)
+{
+    cn_periodic(kvs->ikv_cn, now);
 }
 
 static void
@@ -245,7 +255,7 @@ kvs_close(struct ikvs *ikvs)
 
     cn_disable_maint(ikvs->ikv_cn, true);
 
-    ikvs_cursor_reap(ikvs);
+    kvs_cursor_reap(ikvs);
 
     err = c0_close(ikvs->ikv_c0);
     if (err)
@@ -267,7 +277,7 @@ kvs_close(struct ikvs *ikvs)
 }
 
 struct perfc_set *
-ikvs_perfc_pkvsl(struct ikvs *ikvs)
+kvs_perfc_pkvsl(struct ikvs *ikvs)
 {
     if (ikvs->ikv_rp.kvs_debug & 2)
         return &ikvs->ikv_pkvsl_pc;
@@ -283,19 +293,20 @@ kvs_txn_is_enabled(
 }
 
 merr_t
-ikvs_put(
+kvs_put(
     struct ikvs *            kvs,
     struct hse_kvdb_opspec * os,
     struct kvs_ktuple *      kt,
     const struct kvs_vtuple *vt,
     u64                      seqno)
 {
-    struct perfc_set   *pkvsl_pc = ikvs_perfc_pkvsl(kvs);
-    struct c0 *         c0 = kvs->ikv_c0;
-    size_t              sfx_len;
-    size_t              hashlen;
-    u64                 tstart;
-    merr_t              err;
+    struct perfc_set *pkvsl_pc = kvs_perfc_pkvsl(kvs);
+
+    struct c0 *c0 = kvs->ikv_c0;
+    size_t     sfx_len;
+    size_t     hashlen;
+    u64        tstart;
+    merr_t     err;
 
     tstart = perfc_lat_start(pkvsl_pc);
 
@@ -328,7 +339,7 @@ ikvs_put(
 }
 
 merr_t
-ikvs_get(
+kvs_get(
     struct ikvs *           kvs,
     struct hse_kvdb_opspec *os,
     struct kvs_ktuple *     kt,
@@ -336,7 +347,7 @@ ikvs_get(
     enum key_lookup_res *   res,
     struct kvs_buf *        vbuf)
 {
-    struct perfc_set *pkvsl_pc = ikvs_perfc_pkvsl(kvs);
+    struct perfc_set *pkvsl_pc = kvs_perfc_pkvsl(kvs);
     struct c0 *       c0 = kvs->ikv_c0;
     struct cn *       cn = kvs->ikv_cn;
     struct kvdb_ctxn *ctxn;
@@ -372,13 +383,9 @@ ikvs_get(
 }
 
 merr_t
-ikvs_del(
-    struct ikvs *           kvs,
-    struct hse_kvdb_opspec *os,
-    struct kvs_ktuple *     kt,
-    u64                     seqno)
+kvs_del(struct ikvs *kvs, struct hse_kvdb_opspec *os, struct kvs_ktuple *kt, u64 seqno)
 {
-    struct perfc_set *pkvsl_pc = ikvs_perfc_pkvsl(kvs);
+    struct perfc_set *pkvsl_pc = kvs_perfc_pkvsl(kvs);
     struct kvdb_ctxn *ctxn = 0;
     struct c0 *       c0 = kvs->ikv_c0;
     size_t            sfx_len;
@@ -419,13 +426,9 @@ ikvs_del(
 }
 
 merr_t
-ikvs_prefix_del(
-    struct ikvs *           kvs,
-    struct hse_kvdb_opspec *os,
-    struct kvs_ktuple *     kt,
-    u64                     seqno)
+kvs_prefix_del(struct ikvs *kvs, struct hse_kvdb_opspec *os, struct kvs_ktuple *kt, u64 seqno)
 {
-    struct perfc_set *pkvsl_pc = ikvs_perfc_pkvsl(kvs);
+    struct perfc_set *pkvsl_pc = kvs_perfc_pkvsl(kvs);
     struct kvdb_ctxn *ctxn = 0;
     u64               tstart;
     merr_t            err;
@@ -451,7 +454,7 @@ ikvs_prefix_del(
 /*-  Prefix Probe -----------------------------------------------------*/
 
 merr_t
-ikvs_pfx_probe(
+kvs_pfx_probe(
     struct ikvs *           kvs,
     struct hse_kvdb_opspec *os,
     struct kvs_ktuple *     kt,
@@ -460,7 +463,7 @@ ikvs_pfx_probe(
     struct kvs_buf *        kbuf,
     struct kvs_buf *        vbuf)
 {
-    struct perfc_set *pkvsl_pc = ikvs_perfc_pkvsl(kvs);
+    struct perfc_set *pkvsl_pc = kvs_perfc_pkvsl(kvs);
     struct c0 *       c0 = kvs->ikv_c0;
     struct cn *       cn = kvs->ikv_cn;
     struct kvdb_ctxn *ctxn;

@@ -25,6 +25,8 @@
 #include <hse_ikvdb/c0_kvmultiset.h>
 #include <hse_ikvdb/kvdb_ctxn.h>
 
+#include "c0_cursor.h"
+
 struct rcu_head;
 struct cursor_summary;
 
@@ -60,6 +62,7 @@ merr_t
 c0_init(void)
 {
     rcu_init();
+    c0sk_init();
     c0kvs_init();
     c0kvms_init();
     kvdb_ctxn_locks_init();
@@ -72,6 +75,7 @@ c0_fini(void)
 {
     /* [HSE_REVISIT] */
 
+    c0sk_fini();
     c0kvs_fini();
     c0kvms_fini();
     kvdb_ctxn_locks_fini();
@@ -283,22 +287,47 @@ c0_cursor_seek(
     struct c0_cursor * c0cur,
     const void *       seek,
     size_t             seeklen,
-    struct kc_filter * filter,
-    struct kvs_ktuple *kt)
+    struct kc_filter * filter)
 {
     merr_t err;
 
-    err = c0sk_cursor_seek(c0cur, seek, seeklen, filter, kt);
+    err = c0sk_cursor_seek(c0cur, seek, seeklen, filter);
     return ev(err);
 }
 
 merr_t
-c0_cursor_read(struct c0_cursor *c0cur, struct kvs_kvtuple *kvt, bool *eof)
+c0_cursor_read(struct c0_cursor *c0cur, struct kvs_cursor_element *elem, bool *eof)
 {
     merr_t err;
 
-    err = c0sk_cursor_read(c0cur, kvt, eof);
+    err = c0sk_cursor_read(c0cur, elem, eof);
     return ev(err);
+}
+
+static bool
+c0cur_next(struct element_source *es, void **element) {
+    struct c0_cursor *c0cur = container_of(es, struct c0_cursor, c0cur_es);
+    bool eof;
+    merr_t err;
+
+    err = c0_cursor_read(c0cur, &c0cur->c0cur_elem, &eof);
+    if (ev(err) || eof)
+        return false;
+
+    c0cur->c0cur_elem.kce_source = KCE_SOURCE_C0;
+    *element = &c0cur->c0cur_elem;
+    return true;
+}
+
+struct element_source *
+c0_cursor_es_make(struct c0_cursor *c0cur) {
+	c0cur->c0cur_es = es_make(c0cur_next, 0, 0);
+	return &c0cur->c0cur_es;
+}
+
+struct element_source *
+c0_cursor_es_get(struct c0_cursor *c0cur) {
+	return &c0cur->c0cur_es;
 }
 
 merr_t

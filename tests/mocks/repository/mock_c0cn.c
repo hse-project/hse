@@ -14,7 +14,7 @@
 
 #include <hse_ikvdb/kvs.h>
 #include <hse_ikvdb/cn.h>
-#include <hse_ikvdb/cn_cursor.h>
+#include <cn/cn_cursor.h>
 #include <hse_ikvdb/c0.h>
 #include <hse_ikvdb/cndb.h>
 #include <hse_ikvdb/kvdb_health.h>
@@ -70,6 +70,8 @@ struct mock_cn;
 struct mock_c0_cursor {
     char tripwire[PAGE_SIZE * 7]; /* must be first field */
     struct mock_c0 *c0;
+    struct element_source c0cur_es;
+    struct kvs_cursor_element c0cur_elem;
     void *cc_next;
 };
 
@@ -88,6 +90,8 @@ struct mock_c0 {
 struct mock_cn_cursor {
     char            tripwire[PAGE_SIZE * 7]; /* must be first field! */
     char            prefix[KEY_LEN];
+    struct element_source es;
+    struct kvs_cursor_element elem;
     struct c0_data *data;
     u64             seqno;
     int             pfx_len;
@@ -238,7 +242,7 @@ _c0_cursor_destroy(struct c0_cursor *arg)
 }
 
 static merr_t
-_c0_cursor_read(struct c0_cursor *cur, struct kvs_kvtuple *kvt, bool *eof)
+_c0_cursor_read(struct c0_cursor *cur, struct kvs_cursor_element *elem, bool *eof)
 {
     *eof = true;
     return 0;
@@ -249,12 +253,44 @@ _c0_cursor_seek(
     struct c0_cursor * cur,
     const void *       prefix,
     size_t             pfx_len,
-    struct kc_filter * filter,
-    struct kvs_ktuple *kt)
+    struct kc_filter * filter)
 {
-    if (kt)
-        kt->kt_len = 0;
     return 0;
+}
+
+/* Make sure this is in sync with the function in c0.c */
+static bool
+c0cur_next(struct element_source *es, void **element) {
+    struct mock_c0_cursor *c0cur = container_of(es, struct mock_c0_cursor, c0cur_es);
+    bool eof;
+    merr_t err;
+
+    err = _c0_cursor_read((void *)c0cur, &c0cur->c0cur_elem, &eof);
+    if (ev(err) || eof)
+        return false;
+
+    c0cur->c0cur_elem.kce_source = KCE_SOURCE_C0;
+    *element = &c0cur->c0cur_elem;
+    return true;
+}
+
+struct element_source *
+_c0_cursor_es_make(
+    struct c0_cursor * c0cur)
+{
+    struct mock_c0_cursor *cur = (void *)c0cur;
+
+	cur->c0cur_es = es_make(c0cur_next, 0, 0);
+    return &cur->c0cur_es;
+}
+
+struct element_source *
+_c0_cursor_es_get(
+    struct c0_cursor * c0cur)
+{
+    struct mock_c0_cursor *cur = (void *)c0cur;
+
+    return &cur->c0cur_es;
 }
 
 static merr_t
@@ -503,9 +539,9 @@ _cn_cursor_create(
 }
 
 static void
-_cn_cursor_destroy(void *arg)
+_cn_cursor_destroy(struct cn_cursor *cursor)
 {
-    struct mock_cn_cursor *cur = arg;
+    struct mock_cn_cursor *cur = (void *)cursor;
     struct mock_cn *cn = cur->cn;
 
     spin_lock(&cn->cc_lock);
@@ -515,9 +551,9 @@ _cn_cursor_destroy(void *arg)
 }
 
 static merr_t
-_cn_cursor_update(void *handle, u64 seqno, bool *updated)
+_cn_cursor_update(struct cn_cursor *cursor, u64 seqno, bool *updated)
 {
-    struct mock_cn_cursor *cur = handle;
+    struct mock_cn_cursor *cur = (void *)cursor;
 
     if (updated)
         *updated = false;
@@ -527,9 +563,9 @@ _cn_cursor_update(void *handle, u64 seqno, bool *updated)
 }
 
 static merr_t
-_cn_cursor_read(void *handle, struct kvs_kvtuple *kvt, bool *eof)
+_cn_cursor_read(struct cn_cursor *cursor, struct kvs_cursor_element *elem, bool *eof)
 {
-    struct mock_cn_cursor *cur = handle;
+    struct mock_cn_cursor *cur = (void *)cursor;
 
     while (cur->i < KEY_CNT) {
         struct c0_data *d = &cur->data[cur->i];
@@ -539,10 +575,8 @@ _cn_cursor_read(void *handle, struct kvs_kvtuple *kvt, bool *eof)
             if (cur->pfx_len && memcmp(d->key, cur->prefix, cur->pfx_len))
                 continue;
 
-            kvt->kvt_key.kt_data = d->key;
-            kvt->kvt_key.kt_len = d->klen;
-            kvt->kvt_value.vt_data = d->val;
-            kvt->kvt_value.vt_xlen = d->xlen;
+            key2kobj(&elem->kce_kobj, d->key, d->klen);
+            kvs_vtuple_init(&elem->kce_vt, (void *)d->val, d->xlen);
             *eof = false;
 
             return 0;
@@ -555,13 +589,12 @@ _cn_cursor_read(void *handle, struct kvs_kvtuple *kvt, bool *eof)
 
 static merr_t
 _cn_cursor_seek(
-    void *             cursor,
+    struct cn_cursor * cursor,
     const void *       key,
     u32                len,
-    struct kc_filter * filter,
-    struct kvs_ktuple *kt)
+    struct kc_filter * filter)
 {
-    struct mock_cn_cursor *cur = cursor;
+    struct mock_cn_cursor *cur = (void *)cursor;
 
     if (!cur->data)
         goto missed;
@@ -569,24 +602,46 @@ _cn_cursor_seek(
     for (cur->i = 0; cur->i < KEY_CNT; ++cur->i) {
         struct c0_data *d = &cur->data[cur->i];
 
-        if (keycmp(key, len, d->key, d->klen) <= 0) {
-            if (kt) {
-                kt->kt_data = d->key;
-                kt->kt_len = d->klen;
-            }
+        if (keycmp(key, len, d->key, d->klen) <= 0)
             return 0;
-        }
     }
 
 missed:
-    if (kt)
-        kt->kt_len = 0;
-
     return 0;
 }
 
+static bool
+cncur_next(struct element_source *es, void **element) {
+    struct mock_cn_cursor *cncur = container_of(es, struct mock_cn_cursor, es);
+    bool eof;
+    merr_t err;
+
+    err = cn_cursor_read((void *)cncur, &cncur->elem, &eof);
+    if (ev(err) || eof)
+        return false;
+
+    cncur->elem.kce_source = KCE_SOURCE_CN;
+    *element = &cncur->elem;
+    return true;
+}
+
+struct element_source *
+_cn_cursor_es_make(struct cn_cursor *cncur) {
+    struct mock_cn_cursor *cur = (void *)cncur;
+
+	cur->es = es_make(cncur_next, 0, 0);
+	return &cur->es;
+}
+
+struct element_source *
+_cn_cursor_es_get(struct cn_cursor *cncur) {
+    struct mock_cn_cursor *cur = (void *)cncur;
+
+	return &cur->es;
+}
+
 merr_t
-_cn_cursor_active_kvsets(void *cursor, u32 *active, u32 *total)
+_cn_cursor_active_kvsets(struct cn_cursor *cursor, u32 *active, u32 *total)
 {
     *active = 0;
     *total = 0;
@@ -643,6 +698,8 @@ mock_cn_set()
     MOCK_SET(cn_cursor, _cn_cursor_update);
     MOCK_SET(cn_cursor, _cn_cursor_read);
     MOCK_SET(cn_cursor, _cn_cursor_seek);
+    MOCK_SET(cn_cursor, _cn_cursor_es_make);
+    MOCK_SET(cn_cursor, _cn_cursor_es_get);
     MOCK_SET(cn_cursor, _cn_cursor_destroy);
     MOCK_SET(cn_cursor, _cn_cursor_active_kvsets);
 }
@@ -665,6 +722,8 @@ mock_cn_unset()
     MOCK_UNSET(cn_cursor, _cn_cursor_update);
     MOCK_UNSET(cn_cursor, _cn_cursor_read);
     MOCK_UNSET(cn_cursor, _cn_cursor_seek);
+    MOCK_UNSET(cn_cursor, _cn_cursor_es_make);
+    MOCK_UNSET(cn_cursor, _cn_cursor_es_get);
     MOCK_UNSET(cn_cursor, _cn_cursor_destroy);
     MOCK_UNSET(cn_cursor, _cn_cursor_active_kvsets);
 }
@@ -702,6 +761,8 @@ mock_c0_set()
     MOCK_SET(c0, _c0_cursor_create);
     MOCK_SET(c0, _c0_cursor_read);
     MOCK_SET(c0, _c0_cursor_seek);
+    MOCK_SET(c0, _c0_cursor_es_make);
+    MOCK_SET(c0, _c0_cursor_es_get);
     MOCK_SET(c0, _c0_cursor_destroy);
 }
 
@@ -720,6 +781,8 @@ mock_c0_unset()
     MOCK_UNSET(c0, _c0_prefix_del);
     MOCK_UNSET(c0, _c0_cursor_create);
     MOCK_UNSET(c0, _c0_cursor_seek);
+    MOCK_UNSET(c0, _c0_cursor_es_make);
+    MOCK_UNSET(c0, _c0_cursor_es_get);
     MOCK_UNSET(c0, _c0_cursor_read);
     MOCK_UNSET(c0, _c0_cursor_destroy);
 }

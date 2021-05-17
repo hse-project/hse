@@ -559,7 +559,7 @@ c0kvms_cursor_discover(struct c0_kvmultiset_cursor *cur, struct c0_kvmultiset_im
 }
 
 bool
-c0kvms_cursor_update(struct c0_kvmultiset_cursor *cur, void *key, u32 klen, u32 ct_pfx_len)
+c0kvms_cursor_update(struct c0_kvmultiset_cursor *cur, const void *key, u32 klen, u32 ct_pfx_len)
 {
     struct c0_kvmultiset_impl *self = c0_kvmultiset_h2r(cur->c0mc_kvms);
     struct c0_kvset_iterator * iter;

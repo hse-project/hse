@@ -47,6 +47,10 @@ atomic_t ctxn_locks[MAX_TXNS];
 uintptr_t c0snr[MAX_TXNS];
 
 struct kvdb_rparams kvdb_rp;
+u8 c0sk_test_kdata[32];
+uint c0sk_test_klen;
+
+#define KOBJ2KEY(_kobjptr) key_obj_copy(c0sk_test_kdata, sizeof(c0sk_test_kdata), &c0sk_test_klen, (_kobjptr))
 
 int
 test_collection_setup(struct mtf_test_info *info)
@@ -1871,7 +1875,6 @@ MTF_DEFINE_UTEST_PREPOST(c0sk_test, c0_cursor_robust, no_fail_pre, no_fail_post)
     struct mock_kvdb      mkvdb;
     struct kvs_ktuple     kt;
     struct kvs_vtuple     vt;
-    struct kvs_kvtuple    kvt;
     struct c0sk *         c0sk;
     struct c0_kvmultiset *kvms;
     struct cn *           cn;
@@ -2000,8 +2003,11 @@ MTF_DEFINE_UTEST_PREPOST(c0sk_test, c0_cursor_robust, no_fail_pre, no_fail_post)
         int last = -1;
 
         for (eof = false; !eof;) {
-            err = c0sk_cursor_read(cur[i], &kvt, &eof);
+            struct kvs_cursor_element elem;
+
+            err = c0sk_cursor_read(cur[i], &elem, &eof);
             ASSERT_EQ(0, err);
+
             if (cnt < want)
                 ASSERT_FALSE(eof);
             else
@@ -2010,7 +2016,7 @@ MTF_DEFINE_UTEST_PREPOST(c0sk_test, c0_cursor_robust, no_fail_pre, no_fail_post)
             if (!eof) {
                 int n;
 
-                n = atoi(kvt.kvt_key.kt_data);
+                n = atoi(KOBJ2KEY(&elem.kce_kobj));
                 ASSERT_LT(last, n);
                 last = n;
                 ++cnt;
@@ -2024,38 +2030,39 @@ MTF_DEFINE_UTEST_PREPOST(c0sk_test, c0_cursor_robust, no_fail_pre, no_fail_post)
     ASSERT_EQ(0, err);
 
     seek[0] = 0;
-    err = c0sk_cursor_seek(cur[0], seek, 0, 0, &kt);
+    err = c0sk_cursor_seek(cur[0], seek, 0, 0);
     ASSERT_EQ(0, err);
-    ASSERT_EQ(0, atoi(kt.kt_data));
 
     for (i = 0; i < nkeys; ++i) {
-        err = c0sk_cursor_read(cur[0], &kvt, &eof);
+        struct kvs_cursor_element elem;
+
+        err = c0sk_cursor_read(cur[0], &elem, &eof);
         ASSERT_EQ(0, err);
         ASSERT_FALSE(eof);
 
-        ASSERT_EQ(i, atoi(kvt.kvt_key.kt_data));
+        ASSERT_EQ(i, atoi(KOBJ2KEY(&elem.kce_kobj)));
     }
 
-    err = c0sk_cursor_read(cur[0], &kvt, &eof);
+    struct kvs_cursor_element elem;
+
+    err = c0sk_cursor_read(cur[0], &elem, &eof);
     ASSERT_EQ(0, err);
     ASSERT_TRUE(eof);
 
     /* seek before first key */
     seek[0] = 0;
-    err = c0sk_cursor_seek(cur[0], seek, 0, 0, &kt);
+    err = c0sk_cursor_seek(cur[0], seek, 0, 0);
     ASSERT_EQ(0, err);
-    ASSERT_EQ(0, atoi(kt.kt_data));
 
-    err = c0sk_cursor_read(cur[0], &kvt, &eof);
+    err = c0sk_cursor_read(cur[0], &elem, &eof);
     ASSERT_EQ(0, err);
     ASSERT_FALSE(eof);
-    ASSERT_EQ(0, atoi(kvt.kvt_key.kt_data));
+    ASSERT_EQ(0, atoi(KOBJ2KEY(&elem.kce_kobj)));
 
     /* seek after last key */
     seeklen = sprintf(seek, "%05d", 999999);
-    err = c0sk_cursor_seek(cur[0], seek, seeklen + 1, 0, &kt);
+    err = c0sk_cursor_seek(cur[0], seek, seeklen + 1, 0);
     ASSERT_EQ(0, err);
-    ASSERT_EQ(0, kt.kt_len);
 
     /* now test seek on all cursors */
     for (i = 0; i < 100; ++i) {
@@ -2066,12 +2073,18 @@ MTF_DEFINE_UTEST_PREPOST(c0sk_test, c0_cursor_robust, no_fail_pre, no_fail_post)
         j = random() % (nkeys - 1);
         len = sprintf(seek, "%05d", j);
         for (k = 0; k < 5; ++k) {
+            const char kdata[32];
+            uint klen;
             int x;
 
-            err = c0sk_cursor_seek(cur[k], seek, len + 1, 0, &kt);
+            err = c0sk_cursor_seek(cur[k], seek, len + 1, 0);
             ASSERT_EQ(0, err);
 
-            x = atoi(kt.kt_data);
+            err = c0sk_cursor_read(cur[k], &elem, &eof);
+            ASSERT_EQ(0, err);
+
+            key_obj_copy((void *)kdata, sizeof(kdata), &klen, &elem.kce_kobj);
+            x = atoi(kdata);
             ASSERT_GE(x, j);
         }
     }
@@ -2189,7 +2202,6 @@ MTF_DEFINE_UTEST_PREPOST(c0sk_test, c0_rcursor_robust, no_fail_pre, no_fail_post
     struct mock_kvdb      mkvdb;
     struct kvs_ktuple     kt;
     struct kvs_vtuple     vt;
-    struct kvs_kvtuple    kvt;
     struct c0sk *         c0sk;
     struct c0_kvmultiset *kvms;
     struct cn *           cn;
@@ -2202,6 +2214,8 @@ MTF_DEFINE_UTEST_PREPOST(c0sk_test, c0_rcursor_robust, no_fail_pre, no_fail_post
     bool                  eof;
     atomic64_t            seqno;
     u8                    pfx[HSE_KVS_KLEN_MAX];
+
+    struct kvs_cursor_element elem;
 
     memset(pfx, 0xFF, HSE_KVS_KLEN_MAX);
 
@@ -2322,7 +2336,9 @@ MTF_DEFINE_UTEST_PREPOST(c0sk_test, c0_rcursor_robust, no_fail_pre, no_fail_post
         int last = 200000;
 
         for (eof = false; !eof;) {
-            err = c0sk_cursor_read(cur[i], &kvt, &eof);
+            struct kvs_cursor_element elem;
+
+            err = c0sk_cursor_read(cur[i], &elem, &eof);
             ASSERT_EQ(0, err);
             if (cnt < want)
                 ASSERT_FALSE(eof);
@@ -2332,7 +2348,7 @@ MTF_DEFINE_UTEST_PREPOST(c0sk_test, c0_rcursor_robust, no_fail_pre, no_fail_post
             if (!eof) {
                 int n;
 
-                n = atoi(kvt.kvt_key.kt_data);
+                n = atoi(KOBJ2KEY(&elem.kce_kobj));
                 ASSERT_GT(last, n);
                 last = n;
                 ++cnt;
@@ -2347,40 +2363,37 @@ MTF_DEFINE_UTEST_PREPOST(c0sk_test, c0_rcursor_robust, no_fail_pre, no_fail_post
 
     /* seek to the first key */
     seeklen = sprintf(seek, "%05d", 99999);
-    err = c0sk_cursor_seek(cur[0], seek, seeklen + 1, 0, &kt);
+    err = c0sk_cursor_seek(cur[0], seek, seeklen + 1, 0);
     ASSERT_EQ(0, err);
-    ASSERT_EQ(99999, atoi(kt.kt_data));
 
     for (i = 0; i < nkeys; ++i) {
-        err = c0sk_cursor_read(cur[0], &kvt, &eof);
+        err = c0sk_cursor_read(cur[0], &elem, &eof);
         ASSERT_EQ(0, err);
         ASSERT_FALSE(eof);
 
-        ASSERT_EQ(nkeys - 1 - i, atoi(kvt.kvt_key.kt_data));
+        ASSERT_EQ(nkeys - 1 - i, atoi(KOBJ2KEY(&elem.kce_kobj)));
     }
 
-    err = c0sk_cursor_read(cur[0], &kvt, &eof);
+    err = c0sk_cursor_read(cur[0], &elem, &eof);
     ASSERT_EQ(0, err);
     ASSERT_TRUE(eof);
 
     /* seek to first element <= 999999 */
     seeklen = sprintf(seek, "%05d", 999999);
-    err = c0sk_cursor_seek(cur[0], seek, seeklen + 1, 0, &kt);
+    err = c0sk_cursor_seek(cur[0], seek, seeklen + 1, 0);
     ASSERT_EQ(0, err);
-    ASSERT_EQ(99999, atoi(kt.kt_data));
 
-    err = c0sk_cursor_read(cur[0], &kvt, &eof);
+    err = c0sk_cursor_read(cur[0], &elem, &eof);
     ASSERT_EQ(0, err);
     ASSERT_FALSE(eof);
-    ASSERT_EQ(99999, atoi(kvt.kvt_key.kt_data));
+    ASSERT_EQ(99999, atoi(KOBJ2KEY(&elem.kce_kobj)));
 
     /* seek to first element <= smallest key */
     seek[0] = 0;
-    err = c0sk_cursor_seek(cur[0], seek, 0, 0, &kt);
+    err = c0sk_cursor_seek(cur[0], seek, 0, 0);
     ASSERT_EQ(0, err);
-    ASSERT_EQ(0, kt.kt_len);
 
-    err = c0sk_cursor_read(cur[0], &kvt, &eof);
+    err = c0sk_cursor_read(cur[0], &elem, &eof);
     ASSERT_EQ(0, err);
     ASSERT_TRUE(eof);
 
@@ -2393,12 +2406,18 @@ MTF_DEFINE_UTEST_PREPOST(c0sk_test, c0_rcursor_robust, no_fail_pre, no_fail_post
         j = random() % (nkeys - 1);
         len = sprintf(seek, "%05d", j);
         for (k = 0; k < 5; ++k) {
+            const char kdata[32];
+            uint klen;
             int x;
 
-            err = c0sk_cursor_seek(cur[k], seek, len + 1, 0, &kt);
+            err = c0sk_cursor_seek(cur[k], seek, len + 1, 0);
             ASSERT_EQ(0, err);
 
-            x = atoi(kt.kt_data);
+            err = c0sk_cursor_read(cur[k], &elem, &eof);
+            ASSERT_EQ(0, err);
+
+            key_obj_copy((void *)kdata, sizeof(kdata), &klen, &elem.kce_kobj);
+            x = atoi(kdata);
             ASSERT_LE(x, j);
         }
     }
@@ -2478,7 +2497,6 @@ MTF_DEFINE_UTEST_PREPOST(c0sk_test, c0_cursor_ptombs, no_fail_pre, no_fail_post)
     struct mock_kvdb      mkvdb;
     struct kvs_ktuple     kt;
     struct kvs_vtuple     vt;
-    struct kvs_kvtuple    kvt;
     struct c0sk *         c0sk;
     struct c0_kvmultiset *kvms;
     struct cn *           cn;
@@ -2493,6 +2511,8 @@ MTF_DEFINE_UTEST_PREPOST(c0sk_test, c0_cursor_ptombs, no_fail_pre, no_fail_post)
     uint                  cnt, expcnt;
     int                   i;
     atomic64_t            seqno;
+
+    struct kvs_cursor_element elem;
 
     kvdb_rp = kvdb_rparams_defaults();
     kvs_rp = kvs_rparams_defaults();
@@ -2566,17 +2586,17 @@ MTF_DEFINE_UTEST_PREPOST(c0sk_test, c0_cursor_ptombs, no_fail_pre, no_fail_post)
     }
 
     /* expect ptomb (meant for cn )*/
-    err = c0sk_cursor_read(cur, &kvt, &eof);
+    err = c0sk_cursor_read(cur, &elem, &eof);
     ASSERT_EQ(0, err);
     ASSERT_EQ(false, eof);
-    ASSERT_TRUE(HSE_CORE_IS_PTOMB(kvt.kvt_value.vt_data));
+    ASSERT_TRUE(HSE_CORE_IS_PTOMB(elem.kce_vt.vt_data));
 
     /* expect eof */
-    err = c0sk_cursor_read(cur, &kvt, &eof);
+    err = c0sk_cursor_read(cur, &elem, &eof);
     ASSERT_EQ(0, err);
     ASSERT_EQ(true, eof);
 
-    err = c0sk_cursor_seek(cur, NULL, 0, NULL, NULL);
+    err = c0sk_cursor_seek(cur, NULL, 0, NULL);
     ASSERT_EQ(0, err);
 
     /* use a tree prefix length of sizeof(kbuf[0]) */
@@ -2589,7 +2609,7 @@ MTF_DEFINE_UTEST_PREPOST(c0sk_test, c0_cursor_ptombs, no_fail_pre, no_fail_post)
     cnt = 0;
     expcnt = tot_keys - 8765;
     do {
-        err = c0sk_cursor_read(cur, &kvt, &eof);
+        err = c0sk_cursor_read(cur, &elem, &eof);
         ASSERT_EQ(0, err);
         if (cnt < expcnt)
             ASSERT_FALSE(eof);
@@ -2597,7 +2617,7 @@ MTF_DEFINE_UTEST_PREPOST(c0sk_test, c0_cursor_ptombs, no_fail_pre, no_fail_post)
             ASSERT_TRUE(eof);
 
         if (!eof) {
-            uint *res = kvt.kvt_value.vt_data;
+            uint *res = elem.kce_vt.vt_data;
 
             if (cnt == 0)
                 ASSERT_EQ(true, HSE_CORE_IS_PTOMB(res));
@@ -2616,7 +2636,7 @@ MTF_DEFINE_UTEST_PREPOST(c0sk_test, c0_cursor_ptombs, no_fail_pre, no_fail_post)
     err = c0sk_prefix_del(mkvdb.ikdb_c0sk, skidx, &kt, HSE_SQNREF_SINGLE);
     ASSERT_EQ(0, err);
 
-    err = c0sk_cursor_seek(cur, NULL, 0, NULL, NULL);
+    err = c0sk_cursor_seek(cur, NULL, 0, NULL);
     ASSERT_EQ(0, err);
 
     flags = 0;
@@ -2625,17 +2645,17 @@ MTF_DEFINE_UTEST_PREPOST(c0sk_test, c0_cursor_ptombs, no_fail_pre, no_fail_post)
     ASSERT_EQ(0, err);
     ASSERT_TRUE(flags & CURSOR_FLAG_SEQNO_CHANGE);
 
-    err = c0sk_cursor_seek(cur, NULL, 0, NULL, NULL);
+    err = c0sk_cursor_seek(cur, NULL, 0, NULL);
     ASSERT_EQ(0, err);
 
     /* expect ptomb (meant for cn )*/
-    err = c0sk_cursor_read(cur, &kvt, &eof);
+    err = c0sk_cursor_read(cur, &elem, &eof);
     ASSERT_EQ(0, err);
     ASSERT_EQ(false, eof);
-    ASSERT_TRUE(HSE_CORE_IS_PTOMB(kvt.kvt_value.vt_data));
+    ASSERT_TRUE(HSE_CORE_IS_PTOMB(elem.kce_vt.vt_data));
 
     /* expect eof */
-    err = c0sk_cursor_read(cur, &kvt, &eof);
+    err = c0sk_cursor_read(cur, &elem, &eof);
     ASSERT_EQ(0, err);
     ASSERT_EQ(true, eof);
 

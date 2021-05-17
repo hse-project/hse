@@ -136,10 +136,10 @@ void kvs_curcache_fini(void) HSE_COLD;
 /* ikvs interfaces...
  */
 struct perfc_set *
-ikvs_perfc_pkvsl(struct ikvs *ikvs);
+kvs_perfc_pkvsl(struct ikvs *ikvs);
 
 merr_t
-ikvs_put(
+kvs_put(
     struct ikvs *            ikvs,
     struct hse_kvdb_opspec * os,
     struct kvs_ktuple *      kt,
@@ -147,7 +147,7 @@ ikvs_put(
     u64                      seqno);
 
 merr_t
-ikvs_get(
+kvs_get(
     struct ikvs *           ikvs,
     struct hse_kvdb_opspec *os,
     struct kvs_ktuple *     key,
@@ -156,14 +156,10 @@ ikvs_get(
     struct kvs_buf *        vbuf);
 
 merr_t
-ikvs_del(
-    struct ikvs *           ikvs,
-    struct hse_kvdb_opspec *os,
-    struct kvs_ktuple *     key,
-    u64                     seqno);
+kvs_del(struct ikvs *ikvs, struct hse_kvdb_opspec *os, struct kvs_ktuple *key, u64 seqno);
 
 merr_t
-ikvs_pfx_probe(
+kvs_pfx_probe(
     struct ikvs *           kvs,
     struct hse_kvdb_opspec *os,
     struct kvs_ktuple *     kt,
@@ -173,38 +169,34 @@ ikvs_pfx_probe(
     struct kvs_buf *        vbuf);
 
 merr_t
-ikvs_prefix_del(
-    struct ikvs *           ikvs,
-    struct hse_kvdb_opspec *os,
-    struct kvs_ktuple *     key,
-    u64                     seqno);
-
-u16
-ikvs_index(struct ikvs *ikvs);
+kvs_prefix_del(struct ikvs *ikvs, struct hse_kvdb_opspec *os, struct kvs_ktuple *key, u64 seqno);
 
 void
-ikvs_maint_task(struct ikvs *ikvs, u64 now);
+kvs_maint_task(struct ikvs *ikvs, u64 now);
 
 struct hse_kvs_cursor *
-ikvs_cursor_alloc(struct ikvs *ikvs, const void *prefix, size_t pfx_len, bool reverse);
+kvs_cursor_alloc(struct ikvs *ikvs, const void *prefix, size_t pfx_len, bool reverse);
 
 void
-ikvs_cursor_free(struct hse_kvs_cursor *cursor);
+kvs_cursor_free(struct hse_kvs_cursor *cursor);
 
 merr_t
-ikvs_cursor_init(struct hse_kvs_cursor *cursor);
+kvs_cursor_init(struct hse_kvs_cursor *cursor);
 
 merr_t
-ikvs_cursor_bind_txn(struct hse_kvs_cursor *handle, struct kvdb_ctxn *ctxn);
+kvs_cursor_prepare(struct hse_kvs_cursor *cursor);
+
+merr_t
+kvs_cursor_bind_txn(struct hse_kvs_cursor *handle, struct kvdb_ctxn *ctxn);
 
 void
-ikvs_cursor_destroy(struct hse_kvs_cursor *cursor);
+kvs_cursor_destroy(struct hse_kvs_cursor *cursor);
 
 void
-ikvs_cursor_reap(struct ikvs *kvs);
+kvs_cursor_reap(struct ikvs *kvs);
 
 merr_t
-ikvs_cursor_update(struct hse_kvs_cursor *cursor, u64 seqno);
+kvs_cursor_update(struct hse_kvs_cursor *cursor, u64 seqno);
 
 
 /* kvdb_kvs interfaces...

@@ -21,9 +21,11 @@
 
 #include <hse_ut/framework.h>
 #include <hse_util/slab.h>
+
+#include <kvdb/kvdb_kvs.h>
+
 #include <hse_ikvdb/kvs.h>
 #include <hse_ikvdb/cn.h>
-#include <hse_ikvdb/cn_cursor.h>
 #include <hse_ikvdb/cursor.h>
 #include <hse_ikvdb/kvdb_health.h>
 #include <mpool/mpool.h>
@@ -34,8 +36,7 @@
 #include <cn/cn_tree.h>
 #include <cn/cn_tree_create.h>
 #include <cn/cn_tree_cursor.h>
-#include <kvdb/kvdb_kvs.h>
-#include <cn/pscan.h>
+#include <cn/cn_cursor.h>
 #include <cn/kvset.h>
 
 #include <mocks/mock_mpool.h>
@@ -135,10 +136,32 @@ dummy_ikvdb_destroy(void *p)
 
 #define ITV_INIT(itv, i, make) ASSERT_EQ(0, mock_make_kvi(&itv[i], i, &rp, &make[i]))
 
+static u8 kbuf[HSE_KVS_KLEN_MAX];
+
+static void
+cn_cursor_read_internal(struct mtf_test_info *lcl_ti,
+                        void *cur,
+                        struct kvs_kvtuple *kvt,
+                        bool *eof)
+{
+    struct kvs_cursor_element elem;
+    uint klen;
+    merr_t err;
+
+    err = cn_cursor_read(cur, &elem, eof);
+    ASSERT_EQ(err, 0);
+
+    if (*eof)
+        return;
+
+    key_obj_copy(kbuf, sizeof(kbuf), &klen, &elem.kce_kobj);
+    kvs_ktuple_init(&kvt->kvt_key, kbuf, klen);
+    kvt->kvt_value = elem.kce_vt;
+}
+
 static void
 verify(struct mtf_test_info *lcl_ti, void *cur, struct nkv_tab *vtab, int vc, int keep)
 {
-    merr_t err;
     bool   eof;
     int    vi, nk;
     int    key, val;
@@ -149,12 +172,10 @@ verify(struct mtf_test_info *lcl_ti, void *cur, struct nkv_tab *vtab, int vc, in
     val = vc ? vtab[0].val1 : 0;
 
     while (1) {
-        struct kvs_kvtuple kvt;
+        struct kvs_kvtuple kvt = {0};
         const int *        ip;
 
-        err = cn_cursor_read(cur, &kvt, &eof);
-        ASSERT_EQ(err, 0);
-
+        cn_cursor_read_internal(lcl_ti, cur, &kvt, &eof);
         if (eof)
             break;
 
@@ -223,7 +244,7 @@ verify_seek(
     ASSERT_EQ(err, 0);
     ASSERT_NE(cur, NULL);
 
-    err = cn_cursor_seek(cur, seek, seeklen, 0, 0);
+    err = cn_cursor_seek(cur, seek, seeklen, 0);
     ASSERT_EQ(err, 0);
 
     verify(lcl_ti, cur, vtab, vc, 0);
@@ -253,7 +274,7 @@ verify_seek_eof(
     verify(lcl_ti, cur, vtab, vc, 1);
 
     /* verify asserted we hit eof - so now seek */
-    err = cn_cursor_seek(cur, seek, seeklen, 0, 0);
+    err = cn_cursor_seek(cur, seek, seeklen, 0);
     ASSERT_EQ(err, 0);
 
     verify(lcl_ti, cur, vtab, vc, 0);
@@ -1017,16 +1038,14 @@ MTF_DEFINE_UTEST_PREPOST(cn_cursor, capped_update, pre, post)
 
     int count;
 
-    err = cn_cursor_seek(cur, 0, 0, 0, 0);
+    err = cn_cursor_seek(cur, 0, 0, 0);
     ASSERT_EQ(0, err);
 
     for (count = 0;;) {
         struct kvs_kvtuple kvt;
         bool               eof;
 
-        err = cn_cursor_read(cur, &kvt, &eof);
-        ASSERT_EQ(err, 0);
-
+        cn_cursor_read_internal(lcl_ti, cur, &kvt, &eof);
         if (eof)
             break;
 
@@ -1052,16 +1071,14 @@ MTF_DEFINE_UTEST_PREPOST(cn_cursor, capped_update, pre, post)
     MOCK_SET(kvset, _kvset_maxkey);
     MOCK_SET(kvset, _kvset_minkey);
 
-    err = cn_cursor_seek(cur, 0, 0, &filter, 0);
+    err = cn_cursor_seek(cur, 0, 0, &filter);
     ASSERT_EQ(0, err);
 
     for (count = 0;;) {
         struct kvs_kvtuple kvt;
         bool               eof;
 
-        err = cn_cursor_read(cur, &kvt, &eof);
-        ASSERT_EQ(err, 0);
-
+        cn_cursor_read_internal(lcl_ti, cur, &kvt, &eof);
         if (eof)
             break;
 

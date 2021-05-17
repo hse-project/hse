@@ -450,7 +450,7 @@ ikvdb_maint_task(struct work_struct *work)
             struct kvdb_kvs *kvs = self->ikdb_kvs_vec[i];
 
             if (kvs && kvs->kk_ikvs)
-                ikvs_maint_task(kvs->kk_ikvs, tstart);
+                kvs_maint_task(kvs->kk_ikvs, tstart);
         }
         mutex_unlock(&self->ikdb_lock);
 
@@ -1736,7 +1736,7 @@ ikvdb_kvs_put(
 
     put_seqno = kvdb_kop_is_txn(os) ? 0 : HSE_SQNREF_SINGLE;
 
-    err = ikvs_put(kk->kk_ikvs, os, kt, vt, put_seqno);
+    err = kvs_put(kk->kk_ikvs, os, kt, vt, put_seqno);
 
     if (vbuf && vbuf != tls_vbuf)
         vlb_free(vbuf, (vbufsz > VLB_ALLOCSZ_MAX) ? vbufsz : clen);
@@ -1785,7 +1785,7 @@ ikvdb_kvs_pfx_probe(
         kvdb_ctxn_set_wait_commits(p->ikdb_ctxn_set);
     }
 
-    return ikvs_pfx_probe(kk->kk_ikvs, os, kt, view_seqno, res, kbuf, vbuf);
+    return kvs_pfx_probe(kk->kk_ikvs, os, kt, view_seqno, res, kbuf, vbuf);
 }
 
 merr_t
@@ -1820,7 +1820,7 @@ ikvdb_kvs_get(
         kvdb_ctxn_set_wait_commits(p->ikdb_ctxn_set);
     }
 
-    return ikvs_get(kk->kk_ikvs, os, kt, view_seqno, res, vbuf);
+    return kvs_get(kk->kk_ikvs, os, kt, view_seqno, res, vbuf);
 }
 
 merr_t
@@ -1852,7 +1852,7 @@ ikvdb_kvs_del(
 
     del_seqno = kvdb_kop_is_txn(os) ? 0 : HSE_SQNREF_SINGLE;
 
-    err = ikvs_del(kk->kk_ikvs, os, kt, del_seqno);
+    err = kvs_del(kk->kk_ikvs, os, kt, del_seqno);
     if (ev(err))
         return err;
 
@@ -1898,7 +1898,7 @@ ikvdb_kvs_prefix_delete(
      * Insert prefix tombstone with a higher seqno. Use a higher sequence
      * number to allow newer mutations (after prefix) to be distinguished.
      */
-    err = ikvs_prefix_del(kk->kk_ikvs, os, kt, pdel_seqno);
+    err = kvs_prefix_del(kk->kk_ikvs, os, kt, pdel_seqno);
     if (ev(err))
         return err;
 
@@ -1997,7 +1997,7 @@ cursor_bind_txn(struct hse_kvs_cursor *cursor, struct kvdb_ctxn *ctxn)
     if (!cursor->kc_bind)
         return merr(ev(ECANCELED));
 
-    err = ikvs_cursor_bind_txn(cursor, ctxn);
+    err = kvs_cursor_bind_txn(cursor, ctxn);
     if (ev(err)) {
         kvdb_ctxn_cursor_unbind(cursor->kc_bind);
         cursor->kc_bind = 0;
@@ -2064,7 +2064,7 @@ ikvdb_kvs_cursor_create(
     if (ev(atomic_read(&ikvdb->ikdb_curcnt) > ikvdb->ikdb_curcnt_max))
         return merr(ECANCELED);
 
-    pkvsl_pc = ikvs_perfc_pkvsl(kk->kk_ikvs);
+    pkvsl_pc = kvs_perfc_pkvsl(kk->kk_ikvs);
     tstart = perfc_lat_start(pkvsl_pc);
 
     reverse = false;
@@ -2112,7 +2112,7 @@ ikvdb_kvs_cursor_create(
      *  - initialize cursor
      * The failure path must unregister the cursor from kk_cursors.
      */
-    cur = ikvs_cursor_alloc(kk->kk_ikvs, prefix, pfx_len, reverse);
+    cur = kvs_cursor_alloc(kk->kk_ikvs, prefix, pfx_len, reverse);
     if (ev(!cur))
         return merr(ENOMEM);
 
@@ -2130,7 +2130,7 @@ ikvdb_kvs_cursor_create(
     err = cursor_view_acquire(cur);
     if (!err) {
         u64 ts = perfc_lat_start(pkvsl_pc);
-        err = ikvs_cursor_init(cur);
+        err = kvs_cursor_init(cur);
         perfc_lat_record(pkvsl_pc, PERFC_LT_PKVSL_KVS_CURSOR_INIT, ts);
         if (!err) {
             if (bind) {
@@ -2143,6 +2143,8 @@ ikvdb_kvs_cursor_create(
                 /* New cursor view is established. Now wait on ongoing commits. */
                 kvdb_ctxn_set_wait_commits(ikvdb->ikdb_ctxn_set);
             }
+
+            err = kvs_cursor_prepare(cur);
         }
 
         cursor_view_release(cur);
@@ -2248,7 +2250,7 @@ ikvdb_kvs_cursor_update(struct hse_kvs_cursor *cur, struct hse_kvdb_opspec *os)
      */
     err = cursor_view_acquire(cur);
     if (!err) {
-        cur->kc_err = ikvs_cursor_update(cur, cur->kc_seq);
+        cur->kc_err = kvs_cursor_update(cur, cur->kc_seq);
         if (!ev(cur->kc_err)) {
             if (bind) {
                 /*
@@ -2299,7 +2301,7 @@ cursor_refresh(struct hse_kvs_cursor *cur)
     }
 
     if (up)
-        err = ikvs_cursor_update(cur, cur->kc_seq);
+        err = kvs_cursor_update(cur, cur->kc_seq);
 
     return ev(err);
 }
@@ -2326,7 +2328,7 @@ ikvdb_kvs_cursor_seek(
         if (ev(merr_errno(cur->kc_err) != EAGAIN))
             return cur->kc_err;
 
-        cur->kc_err = ikvs_cursor_update(cur, cur->kc_seq);
+        cur->kc_err = kvs_cursor_update(cur, cur->kc_seq);
         if (ev(cur->kc_err))
             return cur->kc_err;
     }
@@ -2368,7 +2370,7 @@ ikvdb_kvs_cursor_read(
         if (ev(merr_errno(cur->kc_err) != EAGAIN))
             return cur->kc_err;
 
-        cur->kc_err = ikvs_cursor_update(cur, cur->kc_seq);
+        cur->kc_err = kvs_cursor_update(cur, cur->kc_seq);
         if (ev(cur->kc_err))
             return cur->kc_err;
     }
@@ -2417,7 +2419,7 @@ ikvdb_kvs_cursor_destroy(struct hse_kvs_cursor *cur)
 
     perfc_dec(&kvdb_metrics_pc, PERFC_BA_KVDBMETRICS_CURCNT);
 
-    ikvs_cursor_free(cur);
+    kvs_cursor_free(cur);
 
     perfc_lat_record(pkvsl_pc, PERFC_LT_PKVSL_KVS_CURSOR_DESTROY, tstart);
     perfc_lat_record(pkvsl_pc, PERFC_LT_PKVSL_KVS_CURSOR_FULL, ctime);

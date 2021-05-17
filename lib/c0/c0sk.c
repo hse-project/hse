@@ -16,7 +16,6 @@
 #include <hse_util/table.h>
 #include <hse_util/string.h>
 #include <hse_util/fmt.h>
-#include <hse_util/compression_lz4.h>
 
 #include <hse_util/rcu.h>
 #include <hse_util/cds_list.h>
@@ -38,12 +37,6 @@
 
 #include "c0sk_internal.h"
 #include "c0_cursor.h"
-
-/* A cursor k/v buffer must be able to hold both a full size key and full size value.
- * The value follows the key and starts on an 8-byte alignment after the key.
- */
-#define C0_CURSOR_BUFSZ     (HSE_KVS_KLEN_MAX + HSE_KVS_VLEN_MAX + 8)
-
 
 void
 c0sk_perfc_alloc(struct c0sk_impl *self)
@@ -241,6 +234,30 @@ c0sk_c0_deregister(struct c0sk *handle, u16 skidx)
     }
 
     return c0sk_flush(handle);
+}
+
+static struct kmem_cache *c0_cursor_cache;
+
+merr_t
+c0sk_init(void)
+{
+    struct kmem_cache *cache;
+
+    cache = kmem_cache_create("c0_cursor", sizeof(struct c0_cursor),
+                              alignof(struct c0_cursor), SLAB_PACKED, NULL);
+    if (ev(!cache))
+        return merr(ENOMEM);
+
+    c0_cursor_cache = cache;
+
+    return 0;
+}
+
+void
+c0sk_fini(void)
+{
+    kmem_cache_destroy(c0_cursor_cache);
+    c0_cursor_cache = NULL;
 }
 
 merr_t
@@ -1087,12 +1104,9 @@ c0sk_cursor_create(
     struct c0_cursor *cur;
     merr_t            err;
 
-    cur = malloc(sizeof(*cur) + C0_CURSOR_BUFSZ);
+    cur = kmem_cache_zalloc(c0_cursor_cache);
     if (ev(!cur))
         return merr(ENOMEM);
-
-    /* zero the minimal amount necessary */
-    memset(cur, 0, sizeof(*cur));
 
     cur->c0cur_summary = summary;
     cur->c0cur_prefix = prefix;
@@ -1112,14 +1126,14 @@ c0sk_cursor_create(
     err = bin_heap2_create(
         HSE_C0_KVSET_CURSOR_MAX, reverse ? bn_kv_cmp_rev : bn_kv_cmp, &cur->c0cur_bh);
     if (ev(err)) {
-        free(cur);
+        kmem_cache_free(c0_cursor_cache, cur);
         return err;
     }
 
     err = c0sk_cursor_discover(cur);
     if (ev(err)) {
         bin_heap2_destroy(cur->c0cur_bh);
-        free(cur);
+        kmem_cache_free(c0_cursor_cache, cur);
         return err;
     }
 
@@ -1132,8 +1146,8 @@ c0sk_cursor_add_kvms(struct c0_cursor *cur, struct c0_kvmultiset *kvms)
 {
     struct c0_kvmultiset_cursor *c0mc;
 
-    void *key = cur->c0cur_buf;
-    int   klen = cur->c0cur_keylen;
+    const void *key = cur->c0cur_last_key;
+    int         klen = cur->c0cur_keylen;
 
     c0mc = c0sk_cursor_new_c0mc(cur, kvms);
     if (!c0mc)
@@ -1226,7 +1240,8 @@ c0sk_cursor_destroy(struct c0_cursor *cur)
         next = MSCUR_NEXT(p);
         free_aligned(p);
     }
-    free(cur);
+
+    kmem_cache_free(c0_cursor_cache, cur);
     return 0;
 }
 
@@ -1235,12 +1250,9 @@ c0sk_cursor_seek(
     struct c0_cursor * cur,
     const void *       seek,
     size_t             seeklen,
-    struct kc_filter * filter,
-    struct kvs_ktuple *kt)
+    struct kc_filter * filter)
 {
     struct c0_kvmultiset_cursor *this;
-    void *bkv;
-    bool  valid;
 
     if (ev((cur->c0cur_state & C0CUR_STATE_NEED_INIT) && c0sk_cursor_init(cur)))
         return cur->c0cur_merr;
@@ -1251,59 +1263,7 @@ c0sk_cursor_seek(
         c0kvms_cursor_seek(this, seek, seeklen, cur->c0cur_ct_pfx_len);
 
     c0sk_cursor_prepare(cur);
-
-    valid = bin_heap2_peek(cur->c0cur_bh, &bkv);
-
-    if (kt) {
-        static struct bonsai_kv zero = {};
-        struct bonsai_kv *kv;
-
-        kv = valid ? bkv : &zero;
-
-        kvs_ktuple_init_nohash(kt, kv->bkv_key, key_imm_klen(&kv->bkv_key_imm));
-
-        /* remember this for updates, which need implicit seek */
-        memcpy(cur->c0cur_buf, kt->kt_data, kt->kt_len);
-        cur->c0cur_keylen = kt->kt_len;
-    }
     return 0;
-}
-
-static merr_t
-copy_kv(void *buf, size_t bufsz, struct kvs_kvtuple *kvt, struct bonsai_kv *bkv, struct bonsai_val *val)
-{
-    struct key_immediate *imm = &bkv->bkv_key_imm;
-    u32 klen = key_imm_klen(imm);
-    uint clen, ulen, outlen;
-    merr_t err;
-
-    memcpy(buf, bkv->bkv_key, klen);
-    kvs_ktuple_init_nohash(&kvt->kvt_key, buf, klen);
-
-    if (HSE_CORE_IS_TOMB(val->bv_value)) {
-        kvs_vtuple_init(&kvt->kvt_value, val->bv_value, val->bv_xlen);
-        return 0;
-    }
-
-    bufsz -= roundup(klen, 8);
-    buf += roundup(klen, 8);
-
-    clen = bonsai_val_clen(val);
-    ulen = bonsai_val_ulen(val);
-
-    if (clen > 0) {
-        err = compress_lz4_ops.cop_decompress(val->bv_value, clen, buf, bufsz, &outlen);
-
-        if (!err && outlen != ulen)
-            err = merr(EBUG);
-    } else {
-        memcpy(buf, val->bv_value, ulen);
-        err = 0;
-    }
-
-    kvs_vtuple_init(&kvt->kvt_value, buf, ulen);
-
-    return err;
 }
 
 static merr_t
@@ -1342,21 +1302,21 @@ c0sk_cursor_skip_pfx(struct c0_cursor *cur, struct bonsai_kv *bkv)
  *         according to seqnos.
  */
 merr_t
-c0sk_cursor_read(struct c0_cursor *cur, struct kvs_kvtuple *kvt, bool *eof)
+c0sk_cursor_read(struct c0_cursor *cur, struct kvs_cursor_element *elem, bool *eof)
 {
     struct bonsai_kv *bkv, *dup;
     uintptr_t         seqnoref;
     merr_t err;
 
     if (cur->c0cur_state != C0CUR_STATE_READY) {
-        char * last = cur->c0cur_buf;
-        int    len = cur->c0cur_keylen;
+        const void * last = cur->c0cur_last_key;
+        int          len = cur->c0cur_keylen;
 
         if (cur->c0cur_state & C0CUR_STATE_NEED_INIT)
             if (c0sk_cursor_init(cur))
                 return ev(cur->c0cur_merr);
         if (cur->c0cur_state & C0CUR_STATE_NEED_SEEK) {
-            err = c0sk_cursor_seek(cur, last, len, 0, 0);
+            err = c0sk_cursor_seek(cur, last, len, 0);
             if (ev(err))
                 return err;
         }
@@ -1492,11 +1452,22 @@ c0sk_cursor_read(struct c0_cursor *cur, struct kvs_kvtuple *kvt, bool *eof)
          * affecting the present cursor key/value.
          */
 
-        err = copy_kv(cur->c0cur_buf, C0_CURSOR_BUFSZ, kvt, bkv, val);
-        if (err)
-            return err;
+        key2kobj(&elem->kce_kobj, bkv->bkv_key, key_imm_klen(&bkv->bkv_key_imm));
 
-        cur->c0cur_keylen = kvt->kvt_key.kt_len;
+        elem->kce_is_ptomb = false;
+        elem->kce_complen = 0;
+
+        if (HSE_CORE_IS_TOMB(val->bv_value)) {
+            kvs_vtuple_init(&elem->kce_vt, val->bv_value, val->bv_xlen);
+            if (HSE_CORE_IS_PTOMB(val->bv_value))
+                elem->kce_is_ptomb = true;
+        } else {
+            kvs_vtuple_init(&elem->kce_vt, val->bv_value, bonsai_val_ulen(val));
+            elem->kce_complen = bonsai_val_clen(val);
+        }
+
+        cur->c0cur_last_key = bkv->bkv_key;
+        cur->c0cur_keylen = key_obj_len(&elem->kce_kobj);
         *eof = false;
         return 0;
     }
@@ -1515,7 +1486,7 @@ c0sk_cursor_update_active(struct c0_cursor *cur)
         return;
 
     /* only need to update bin heap if new underlying sources */
-    if (c0kvms_cursor_update(active, cur->c0cur_buf, cur->c0cur_keylen, cur->c0cur_ct_pfx_len)) {
+    if (c0kvms_cursor_update(active, cur->c0cur_last_key, cur->c0cur_keylen, cur->c0cur_ct_pfx_len)) {
         /*
          * added a new source to active->c0mc_es
          * which might have the best new value
@@ -1665,7 +1636,6 @@ c0sk_cursor_debug_base(
 {
     struct cursor_summary summary;
     struct c0_cursor *    cur;
-    struct kvs_kvtuple    kvt;
 
     bool   eof;
     merr_t err;
@@ -1689,15 +1659,18 @@ c0sk_cursor_debug_base(
     }
 
     cur->c0cur_debug = 1;
-    while (!c0sk_cursor_read(cur, &kvt, &eof) && !eof) {
-        struct kvs_ktuple *kt = &kvt.kvt_key;
-        struct kvs_vtuple *vt = &kvt.kvt_value;
+    struct kvs_cursor_element elem;
+    while (!c0sk_cursor_read(cur, &elem, &eof) && !eof) {
+        struct kvs_vtuple *vt = &elem.kce_vt;
+        uint               klen;
+        char               kdata[64];
         char               kbuf[64];
         char               vbuf[128];
 
-        fmt_hex(kbuf, sizeof(kbuf), kt->kt_data, kt->kt_len);
+        key_obj_copy(kdata, sizeof(kdata), &klen, &elem.kce_kobj);
+        fmt_hex(kbuf, sizeof(kbuf), kdata, klen);
         fmt_hex(vbuf, sizeof(vbuf), vt->vt_data, kvs_vtuple_vlen(vt));
-        printf("%3d, %s = %s, %u\n", kt->kt_len, kbuf, vbuf, kvs_vtuple_vlen(vt));
+        printf("%3d, %s = %s, %u\n", klen, kbuf, vbuf, kvs_vtuple_vlen(vt));
     }
     cur->c0cur_debug = 0;
 

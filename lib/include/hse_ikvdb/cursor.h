@@ -63,4 +63,28 @@ cursor_summary_add_dgen(struct cursor_summary *sum, u64 dgen)
         sum->dgen[sum->n_dgen++ & 3] = dgen;
 }
 
+/* KVS cursor binheap */
+
+enum kvs_bh_source{
+	KCE_SOURCE_C0 = 0,
+	KCE_SOURCE_CN = 1,
+};
+
+/**
+ * struct kvs_cursor_element - Binheap element. Common to both c0 and cn.
+ *
+ * @kce_vt:       Value
+ * @kce_kobj:     Key (as a struct key_obj)
+ * @kce_source:   Source of kv-tuple
+ * @kce_complen:  Length of compressed value. Zero if not compressed.
+ * @kce_is_ptomb: Whether or not kv-tuple is a ptomb
+ */
+struct kvs_cursor_element {
+	struct kvs_vtuple  kce_vt;
+	struct key_obj     kce_kobj;
+	enum kvs_bh_source kce_source;
+    uint               kce_complen;
+    bool               kce_is_ptomb;
+};
+
 #endif

@@ -21,6 +21,8 @@
 /* tombstone value */
 #define HSE_CORE_TOMB_REG       ((void *)~0x1UL)
 #define HSE_CORE_TOMB_PFX       ((void *)~0UL)
+
+/* Note that HSE_CORE_IS_TOMB() will be true for both a reg tomb as well as a ptomb */
 #define HSE_CORE_IS_TOMB(ptr)   (((uintptr_t)(ptr) & ~0x1UL) == ~0x1UL)
 #define HSE_CORE_IS_PTOMB(ptr)  (((uintptr_t)(ptr) & ~0x0UL) == ~0x0UL)
 

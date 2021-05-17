@@ -9,6 +9,7 @@
 #include <hse/hse_limits.h>
 
 #include <hse_ikvdb/c0_kvset_iterator.h>
+#include <hse_ikvdb/cursor.h>
 
 #define HSE_C0_KVSET_CURSOR_MAX 64
 
@@ -73,12 +74,13 @@ enum c0cur_state {
  * @c0cur_ptomb_klen:   cached ptomb's keylen
  * @c0cur_ptomb_seq:    cached ptomb's seqno
  * @c0cur_ptomb_es:     cached ptomb's element source
- * @c0cur_buf:      the key/value buffer
  */
 struct c0_cursor {
+    struct element_source        c0cur_es;
     struct bin_heap2 *           c0cur_bh;
     struct c0sk *                c0cur_c0sk;
     struct cursor_summary *      c0cur_summary;
+    struct kvs_cursor_element    c0cur_elem;
     u64                          c0cur_seqno;
     u64                          c0cur_act_gen;
     u64                          c0cur_inv_gen;
@@ -90,6 +92,7 @@ struct c0_cursor {
     int                          c0cur_skidx;
     u32                          c0cur_ct_pfx_len;
     int                          c0cur_pfx_len;
+    const void                  *c0cur_last_key;
     int                          c0cur_keylen;
     int                          c0cur_cnt;
     const void *                 c0cur_prefix;
@@ -102,7 +105,6 @@ struct c0_cursor {
     u64                          c0cur_ptomb_seq;
     struct element_source *      c0cur_ptomb_es;
     struct kc_filter *           c0cur_filter;
-    char                         c0cur_buf[];
 };
 
 /**
@@ -117,6 +119,7 @@ struct c0_cursor {
 
 int
 _cursor_debug_fmt(char *buf, int bufsz, const void *p, int len);
+
 int
 _cursor_debug_fmt_hex(char *buf, int bufsz, const void *p, int len);
 
