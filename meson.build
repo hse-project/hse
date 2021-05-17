@@ -177,23 +177,6 @@ cJSON_dep = dependency(
     version: '>=1.7.14',
     required: get_option('wrap_mode') == 'nofallback',
 )
-if (not cJSON_dep.found()
-        or get_option('wrap_mode') == 'forcefallback'
-        or 'cJSON' in get_option('force_fallback_for'))
-    cJSON_options = cmake.subproject_options()
-    cJSON_options.add_cmake_defines({
-        'CMAKE_C_FLAGS': '-fPIC',
-        'BUILD_SHARED_LIBS': false,
-        'BUILD_SHARED_AND_STATIC_LIBS': false,
-    })
-    cJSON_options.set_override_option('werror', 'false')
-    cJSON_options.set_override_option('warning_level', '0')
-    cJSON_proj = cmake.subproject('cJSON', options: cJSON_options)
-    cJSON_dep = cJSON_proj.dependency('cjson')
-    cJSON_from_subproject = true
-else
-    cJSON_from_subproject = false
-endif
 libbsd_dep = dependency(
     'libbsd',
     version: '>=0.8.7',
@@ -242,6 +225,23 @@ else
         ],
     )
     xxhash_dep = xxhash.get_variable('xxhash_dep')
+endif
+if get_option('use-system-cjson')
+    message('For best results, HSE should be built against a static cjson==1.7.14')
+    cJSON_dep = dependency('libcjson', version: '>=1.7.14', required: true)
+else
+    cJSON_options = cmake.subproject_options()
+    cJSON_options.add_cmake_defines({
+        'CMAKE_C_FLAGS': '-fPIC',
+        'BUILD_SHARED_LIBS': false,
+        'BUILD_SHARED_AND_STATIC_LIBS': false,
+        'ENABLE_HIDDEN_SYMBOLS': true,
+    })
+    cJSON_options.set_override_option('werror', 'false')
+    cJSON_options.set_override_option('warning_level', '0')
+    cJSON_proj = cmake.subproject('cJSON', options: cJSON_options)
+    cJSON_dep = cJSON_proj.dependency('cjson')
+    cJSON_from_subproject = true
 endif
 if get_option('mpool-lib-dir') == ''
     mpool_dep = cc.find_library('mpool', required: true)
