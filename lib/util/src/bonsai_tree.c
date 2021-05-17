@@ -50,7 +50,7 @@ bn_summary(struct bonsai_root *tree)
 
     hse_log(HSE_NOTICE "%s: %2d %2d  keys %u  vals %u  nodes %u,%u,%u  %.2lf  %s",
             __func__, tree->br_height, atomic_read(&tree->br_bounds),
-            tree->br_key_alloc, tree->br_val_alloc,
+            tree->br_key_alloc, tree->br_key_alloc + tree->br_val_alloc,
             nodec, rnodec, slabc,
             (double)(nodec + rnodec) / tree->br_key_alloc, buf);
 #endif
