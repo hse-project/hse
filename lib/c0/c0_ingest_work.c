@@ -18,7 +18,6 @@ c0_ingest_work_init(struct c0_ingest_work *c0iw)
 
     memset(c0iw, 0, sizeof(*c0iw));
     c0iw->c0iw_magic = (uintptr_t)c0iw;
-    c0iw->c0iw_tailp = &c0iw->c0iw_next;
 
     err = bin_heap2_create(HSE_C0_KVSET_ITER_MAX, bn_kv_cmp, &minheap);
     if (ev(err))
@@ -35,13 +34,9 @@ c0_ingest_work_reset(struct c0_ingest_work *c0iw)
     assert(c0iw->c0iw_magic == (uintptr_t)c0iw);
 
     bin_heap2_reset(c0iw->c0iw_minheap);
-    c0iw->c0iw_tailp = &c0iw->c0iw_next;
-    *c0iw->c0iw_tailp = NULL;
     c0iw->c0iw_iterc = 0;
-    c0iw->c0iw_coalescec = 0;
 
     memset(c0iw->c0iw_mbv, 0, sizeof(c0iw->c0iw_mbv));
-    memset(c0iw->c0iw_coalscedkvms, 0, sizeof(c0iw->c0iw_coalscedkvms));
 }
 
 void

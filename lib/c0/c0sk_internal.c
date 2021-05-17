@@ -476,11 +476,7 @@ c0sk_ingest_worker(struct work_struct *work)
     if (ingestid == HSE_SQNREF_INVALID)
         ingestid = CNDB_DFLT_INGESTID;
 
-    /* Due to how sourcev[] is constructed by c0sk_coalesce(), the bin
-     * heap returns identicals keys in order of youngest to oldest
-     * disambiguated by skidx.
-     *
-     * [HSE_REVISIT]
+    /* [HSE_REVISIT]
      *   Get the ikvdb horizon sequence number and use it to discard
      *   values that need not be ingested.
      *
@@ -697,137 +693,11 @@ exit_err:
 static void
 c0sk_ingest_worker_start(struct c0sk_impl *self, struct c0_ingest_work *ingest)
 {
-    struct c0_ingest_work *next;
 
-    while (ingest) {
-        next = ingest->c0iw_next;
+    ingest->c0iw_tenqueued = get_time_ns();
+    INIT_WORK(&ingest->c0iw_work, c0sk_ingest_worker);
+    queue_work(self->c0sk_wq_ingest, &ingest->c0iw_work);
 
-        ingest->c0iw_tenqueued = get_time_ns();
-        INIT_WORK(&ingest->c0iw_work, c0sk_ingest_worker);
-        queue_work(self->c0sk_wq_ingest, &ingest->c0iw_work);
-
-        ingest = next;
-    }
-}
-
-/**
- * c0sk_coalesce() - combine several small kvms into one large ingest
- * @self:       ptr to c0sk
- * @kvms:       ptr to kvms to coalesce
- *
- * c0sk_coalesce() attempts to aggregate multiple kvms into a single ingest
- * work buffer in effort to avoid small cn ingest operations.  This is
- * accomplished by delaying a given kvms and then combining subsequently
- * generated kvms to the kvms that was originally delayed.  Eventually
- * the originally delayed kvms becomes full, its guard timer expires, or
- * a kvms arrives that must not be delayed.  At this point, the entire
- * batch of delayed kvms must be spilled (i.e., sent off the c0 ingest
- * worker to be persisted and delivered to cn), thereby allowing the
- * coalescing mechanism to restart with the arrival of the next kvms.
- *
- * Each kvms has an ingest delay parameter which dictates the maximum
- * amount of time a finalized kvms may stay in the coalesing state before
- * it must be persisted.  kvms that are full or "synced" have a delay
- * of zero so that they will be spilled immediately.
- */
-static void
-c0sk_coalesce(struct c0sk_impl *self, struct c0_kvmultiset *kvms)
-{
-    struct c0_ingest_work *new, *old;
-    u64 delay;
-    u64 used;
-    u64 hwm;
-
-    new = c0kvms_ingest_work_prepare(kvms, self);
-    used = c0kvms_used_get(kvms);
-    hwm = self->c0sk_kvdb_rp->c0_coalesce_sz * 1024 * 1024;
-    hwm = (hwm * 80) / 100;
-
-    if (!hwm || self->c0sk_closing)
-        delay = 0;
-    else
-        delay = c0kvms_ingest_delay_get(kvms);
-
-    old = self->c0sk_coalesce_head;
-    if (old) {
-        u32 oiterc = old->c0iw_iterc;
-        u32 niterc = new->c0iw_iterc;
-
-        if (oiterc + niterc < HSE_C0_KVSET_ITER_MAX) {
-            struct c0_kvset_iterator *iterv;
-            struct element_source **  sourcev;
-
-            memcpy(
-                old->c0iw_sourcev + HSE_C0_KVSET_ITER_MAX - (oiterc + niterc),
-                new->c0iw_sourcev + HSE_C0_KVSET_ITER_MAX - niterc,
-                sizeof(*sourcev) * niterc);
-
-            memcpy(
-                old->c0iw_iterv + HSE_C0_KVSET_ITER_MAX - (oiterc + niterc),
-                new->c0iw_iterv + HSE_C0_KVSET_ITER_MAX - niterc,
-                sizeof(*iterv) * niterc);
-
-            old->c0iw_iterc += niterc;
-            assert(old->c0iw_iterc < HSE_C0_KVSET_ITER_MAX);
-
-            new->c0iw_iterc = 0;
-            *old->c0iw_tailp = new;
-            old->c0iw_tailp = new->c0iw_tailp;
-
-            old->c0iw_coalscedkvms[old->c0iw_coalescec] = kvms;
-            old->c0iw_coalescec++;
-
-            self->c0sk_coalesce_sz += used;
-            self->c0sk_coalesce_cnt += 1;
-
-            /* [HSE_REVISIT] For now, don't let coalesce list
-             * get too big (size and length).
-             */
-            if (self->c0sk_coalesce_sz >= hwm || self->c0sk_coalesce_cnt > 16)
-                delay = 0;
-
-            if (old->c0iw_iterc >= HSE_C0_KVSET_ITER_MAX * 75 / 100)
-                delay = 0;
-
-            if (delay > 0)
-                return;
-
-            hse_log(
-                HSE_DEBUG "c0sk_coalesce c0sk_coalesce_sz %ld "
-                          "hwm %ld c0sk_coalesce_cnt %ld "
-                          "c0iw_iterc %ld iter_max %d",
-                (long)self->c0sk_coalesce_sz,
-                (long)hwm,
-                (long)self->c0sk_coalesce_cnt,
-                (long)old->c0iw_iterc,
-                HSE_C0_KVSET_ITER_MAX);
-
-            new = NULL;
-        }
-
-        assert(!old || old->c0iw_iterc < HSE_C0_KVSET_ITER_MAX);
-        c0sk_ingest_worker_start(self, old);
-        self->c0sk_coalesce_head = NULL;
-        self->c0sk_coalesce_sz = 0;
-        self->c0sk_coalesce_cnt = 0;
-    } else {
-        new->c0iw_coalscedkvms[0] = kvms;
-        new->c0iw_coalescec = 1;
-    }
-
-    if (delay > 0 && used < hwm) {
-        self->c0sk_coalesce_head = new;
-        self->c0sk_coalesce_sz = used;
-        self->c0sk_coalesce_cnt = 1;
-        return;
-    }
-
-    assert(!new || new->c0iw_iterc < HSE_C0_KVSET_ITER_MAX);
-    c0sk_ingest_worker_start(self, new);
-
-    assert(!self->c0sk_coalesce_head);
-    assert(self->c0sk_coalesce_sz == 0);
-    assert(self->c0sk_coalesce_cnt == 0);
 }
 
 /**
@@ -873,13 +743,17 @@ c0sk_rcu_sync_cb(struct work_struct *work)
     synchronize_rcu();
 
     list_for_each_entry_safe (kvms, next, &pending, c0ms_rcu) {
+        struct c0_ingest_work *w;
+
         if (c0kvms_is_finalized(kvms)) {
             list_add_tail(&kvms->c0ms_rcu, &done);
             continue;
         }
 
         c0kvms_finalize(kvms, self->c0sk_wq_maint);
-        c0sk_coalesce(self, kvms);
+
+        w = c0kvms_ingest_work_prepare(kvms, self);
+        c0sk_ingest_worker_start(self, w);
     }
 
     mutex_lock(&self->c0sk_kvms_mutex);
@@ -1186,7 +1060,6 @@ genchk:
         err = c0kvms_create(
             self->c0sk_ingest_width,
             self->c0sk_cheap_sz,
-            self->c0sk_kvdb_rp->c0_ingest_delay,
             self->c0sk_kvdb_seq,
             &new);
 
@@ -1245,7 +1118,6 @@ c0sk_flush_current_multiset(struct c0sk_impl *self, u64 *genp)
 
     if (genp) {
         *genp = c0kvms_gen_read(old);
-        c0kvms_ingest_delay_set(old, 0);
 
         /* Caller intends to wait on this flush to be persisted.  To ameliorate
          * the generation of small kvsets we linger around a bit in hopes of

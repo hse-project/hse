@@ -71,7 +71,7 @@ MTF_DEFINE_UTEST_PREPOST(c0_kvmultiset_test, basic, no_fail_pre, no_fail_post)
     merr_t                err;
     u32                   rc;
 
-    err = c0kvms_create(1, HSE_C0_CHEAP_SZ_DFLT, 0, 0, &kvms);
+    err = c0kvms_create(1, HSE_C0_CHEAP_SZ_DFLT, 0, &kvms);
     ASSERT_EQ(0, err);
     ASSERT_NE((struct c0_kvmultiset *)0, kvms);
 
@@ -96,7 +96,7 @@ MTF_DEFINE_UTEST_PREPOST(c0_kvmultiset_test, basic_create, no_fail_pre, no_fail_
 
     const int WIDTH = 8;
 
-    err = c0kvms_create(WIDTH, HSE_C0_CHEAP_SZ_DFLT, 0, 0, &kvms);
+    err = c0kvms_create(WIDTH, HSE_C0_CHEAP_SZ_DFLT, 0, &kvms);
     ASSERT_EQ(0, err);
     ASSERT_NE((struct c0_kvmultiset *)0, kvms);
 
@@ -118,7 +118,7 @@ MTF_DEFINE_UTEST_PREPOST(c0_kvmultiset_test, limit_create, no_fail_pre, no_fail_
 
     const int WIDTH = -1;
 
-    err = c0kvms_create(WIDTH, HSE_C0_CHEAP_SZ_DFLT, 0, 0, &kvms);
+    err = c0kvms_create(WIDTH, HSE_C0_CHEAP_SZ_DFLT, 0, &kvms);
     ASSERT_EQ(0, err);
     ASSERT_NE((struct c0_kvmultiset *)0, kvms);
 
@@ -137,7 +137,7 @@ MTF_DEFINE_UTEST_PREPOST(c0_kvmultiset_test, create_insert_check, no_fail_pre, n
 
     ASSERT_LT(WIDTH, 256);
 
-    err = c0kvms_create(WIDTH, HSE_C0_CHEAP_SZ_DFLT, 0, 0, &kvms);
+    err = c0kvms_create(WIDTH, HSE_C0_CHEAP_SZ_DFLT, 0, &kvms);
     ASSERT_EQ(0, err);
     ASSERT_NE((struct c0_kvmultiset *)0, kvms);
 
@@ -224,7 +224,7 @@ MTF_DEFINE_UTEST_PREPOST(c0_kvmultiset_test, ingest_sk, no_fail_pre, no_fail_pos
 
     ASSERT_LT(WIDTH, 200);
 
-    err = c0kvms_create(WIDTH, HSE_C0_CHEAP_SZ_DFLT, 0, 0, &kvms);
+    err = c0kvms_create(WIDTH, HSE_C0_CHEAP_SZ_DFLT, 0, &kvms);
     ASSERT_EQ(0, err);
     ASSERT_NE((struct c0_kvmultiset *)NULL, kvms);
 

@@ -526,7 +526,6 @@ c0sk_open(
     err = c0kvms_create(
         c0sk->c0sk_ingest_width,
         kvdb_rp->c0_heap_sz,
-        kvdb_rp->c0_ingest_delay,
         c0sk->c0sk_kvdb_seq,
         &c0kvms);
     if (ev(err))

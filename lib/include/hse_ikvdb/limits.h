@@ -23,7 +23,6 @@
 #define HSE_C0_INGEST_WIDTH_DYN     (20)
 #define HSE_C0_INGEST_WIDTH_MAX     (32)
 
-#define HSE_C0_INGEST_DELAY_DFLT    (0)
 #define HSE_C0_INGEST_SZ_MAX        (2048) /* MiB */
 
 #define HSE_C0_INGEST_THREADS_DFLT  (3)
