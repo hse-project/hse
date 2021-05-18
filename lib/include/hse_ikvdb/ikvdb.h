@@ -40,41 +40,6 @@ struct kvs;
 struct hse_kvdb_txn {
 };
 
-/**
- * struct kvdb_bak_work
- * @bak_work:
- * @bak_kvs:
- * @bak_fname: data file name
- * @bak_cur: cursor for export
- * @bak_fcnt: number of dumped data files for this kvs
- * @bak_kvcnt: number of k-v pairs in this kvs
- * @bak_err:
- */
-struct kvdb_bak_work {
-    struct work_struct     bak_work;
-    struct hse_kvs *       bak_kvs;
-    char                   bak_fname[PATH_MAX];
-    struct hse_kvs_cursor *bak_cur;
-    int                    bak_fcnt;
-    u64                    bak_kvcnt;
-    merr_t                 bak_err;
-};
-
-/**
- * struct kvs_import
- * @kvsi_params: kvs create time parameters
- * @kvsi_name: kvs name
- * @kvsi_kvcnt: number of k-v pairs in this kvs
- * @kvsi_fcnt: number of data files dumped drung kvdb export
- */
-struct kvs_import {
-    struct hse_params *kvsi_params;
-    char               kvsi_name[HSE_KVS_NAME_LEN_MAX];
-    u64                kvsi_kvcnt;
-    u64                kvsi_fcnt;
-    struct hse_kvs *   kvsi_kvs;
-};
-
 #define IKVDB_SUB_NAME_SEP ":"
 #define HSE_KVDB_DESC "Heterogeneous-memory Storage Engine KVDB"
 
@@ -487,31 +452,6 @@ ikvdb_compact_status_get(struct ikvdb *handle, struct hse_kvdb_compact_status *s
 /* MTF_MOCK */
 struct ikvdb *
 ikvdb_kvdb_handle(struct ikvdb_impl *self);
-
-/**
- * ikvdb_import() - import kvdb from files
- * @handle: kvdb handle
- * @path:
- */
-merr_t
-ikvdb_import(struct ikvdb *handle, const char *path);
-
-/**
- * ikvdb_export() - export kvdb into files
- * @handle: kvdb handle
- * @cparams: kvdb create time parameters
- * @path: export destination directory
- */
-merr_t
-ikvdb_export(struct ikvdb *handle, struct kvdb_cparams *cparams, const char *path);
-
-/**
- * ikvdb_import_kvdb_cparams() - import kvdb meta data from TOC file
- * @path:
- * @kvdb_cparams:
- */
-merr_t
-ikvdb_import_kvdb_cparams(const char *path, struct kvdb_cparams *kvdb_cparams);
 
 /**
  * ikvdb_kvs_query_tree() - get cn tree shape and write to fd
