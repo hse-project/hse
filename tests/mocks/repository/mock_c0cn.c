@@ -364,7 +364,7 @@ _cn_get(
 }
 
 static merr_t
-_c0_del(struct c0 *handle, struct kvs_ktuple *kt, const uintptr_t seqno)
+_c0_del(struct c0 *handle, const struct kvs_ktuple *kt, const uintptr_t seqno)
 {
     struct mock_c0 *m0 = mock_c0_h2r(handle);
     int             i;
@@ -383,7 +383,7 @@ _c0_del(struct c0 *handle, struct kvs_ktuple *kt, const uintptr_t seqno)
 }
 
 static merr_t
-_c0_prefix_del(struct c0 *handle, struct kvs_ktuple *kt, u64 seqno)
+_c0_prefix_del(struct c0 *handle, const struct kvs_ktuple *kt, u64 seqno)
 {
     struct mock_c0 *m0 = mock_c0_h2r(handle);
     int             i;

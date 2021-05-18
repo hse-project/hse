@@ -87,7 +87,4 @@ seqnoref_to_state(uintptr_t seqnoref)
     return KVDB_CTXN_ACTIVE;
 }
 
-void
-kvdb_ctxn_deactivate(struct kvdb_ctxn_impl *ctxn);
-
 #endif

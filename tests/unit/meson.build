@@ -122,6 +122,7 @@ components = {
             },
         },
         'throttle_test': {},
+        'viewset_test': {},
         'wp_test': {
             'args': [
                 meson.project_source_root() / 'config',

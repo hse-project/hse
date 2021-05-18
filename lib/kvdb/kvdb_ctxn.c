@@ -224,7 +224,7 @@ kvdb_ctxn_alloc(
     return &ctxn->ctxn_inner_handle;
 }
 
-void
+static void
 kvdb_ctxn_set_remove(struct kvdb_ctxn_set *handle, struct kvdb_ctxn_impl *ctxn)
 {
     struct kvdb_ctxn_set_impl *kvdb_ctxn_set = kvdb_ctxn_set_h2r(handle);
@@ -378,7 +378,7 @@ errout:
     return err;
 }
 
-void
+static void
 kvdb_ctxn_deactivate(struct kvdb_ctxn_impl *ctxn)
 {
     u32   min_changed = 0;
@@ -839,7 +839,7 @@ kvdb_ctxn_del(
     if (ctxn->ctxn_bind)
         kvdb_ctxn_bind_invalidate(ctxn->ctxn_bind);
 
-    err = c0_del(c0, (struct kvs_ktuple *)kt, ctxn->ctxn_seqref);
+    err = c0_del(c0, kt, ctxn->ctxn_seqref);
 
   errout:
     kvdb_ctxn_unlock(ctxn);
@@ -925,7 +925,7 @@ kvdb_ctxn_prefix_del(struct kvdb_ctxn *handle, struct c0 *c0, const struct kvs_k
     if (ctxn->ctxn_bind)
         kvdb_ctxn_bind_invalidate(ctxn->ctxn_bind);
 
-    err = c0_prefix_del(c0, (struct kvs_ktuple *)kt, ctxn->ctxn_seqref);
+    err = c0_prefix_del(c0, kt, ctxn->ctxn_seqref);
 
 errout:
     kvdb_ctxn_unlock(ctxn);

@@ -14,14 +14,12 @@
 #include <hse_util/rcu.h>
 
 #include <hse_ikvdb/limits.h>
-#include <pthread.h>
-
-#include <tools/key_generation.h>
 #include <hse_ikvdb/tuple.h>
-#include <hse_test_support/random_buffer.h>
+#include <hse_ikvdb/kvdb_ctxn.h>
 
-#include <kvdb/kvdb_ctxn_internal.h>
 #include <kvdb/kvdb_keylock.h>
+
+#include <pthread.h>
 
 #define MOCK_SET(group, func) mtfm_##group##func##_set(func)
 

@@ -12,6 +12,7 @@ struct mutex;
 struct kvdb_keylock;
 struct kvdb_ctxn;
 struct kvdb_ctxn_locks;
+struct perfc_set;
 
 /* MTF_MOCK_DECL(kvdb_keylock) */
 
@@ -40,6 +41,13 @@ kvdb_keylock_lock(
     u64                     hash,
     u64                     start_seq);
 
+void
+kvdb_ctxn_locks_fini(void);
+
+void
+kvdb_ctxn_locks_init(void);
+
+/* MTF_MOCK */
 u64
 kvdb_ctxn_locks_count(struct kvdb_ctxn_locks *ctxn_locks_handle);
 
