@@ -755,7 +755,7 @@ kvs_cursor_alloc(struct ikvs *kvs, const void *prefix, size_t pfx_len, bool reve
 
     /* Point buffer-pointers to the right memory regions */
     cur->kci_prefix = cur->kci_buf + HSE_KVS_KLEN_MAX + HSE_KVS_VLEN_MAX;
-    cur->kci_last_kbuf = cur->kci_prefix + HSE_KVS_MAX_PFXLEN;
+    cur->kci_last_kbuf = cur->kci_prefix + HSE_KVS_KLEN_MAX;
     cur->kci_limit = cur->kci_last_kbuf + HSE_KVS_KLEN_MAX;
 
     if (prefix)
@@ -1412,7 +1412,7 @@ kvs_curcache_init(void)
 
     sz  = sizeof(*kci);
     sz += (HSE_KVS_KLEN_MAX + HSE_KVS_VLEN_MAX); /* For kci_buf */
-    sz += HSE_KVS_MAX_PFXLEN + (HSE_KVS_KLEN_MAX * 2); /* For prefix, last_key and limit */
+    sz += (HSE_KVS_KLEN_MAX * 3); /* For prefix, last_key and limit */
     kvs_cursor_impl_alloc_sz = sz;
 
     ikvs_curcachec = clamp_t(uint, (get_nprocs() / 2), 16, 48);
