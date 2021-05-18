@@ -59,7 +59,6 @@ kvdb_rparams_defaults(void)
         .c0_diag_mode = 0,
         .c0_ingest_width = 0,
         .c0_mutex_pool_sz = 7,
-        .c0_coalesce_sz = 128,
 
         .txn_heap_sz = HSE_C0_CHEAP_SZ_MAX,
         .txn_ingest_width = HSE_C0_INGEST_WIDTH_DFLT,
@@ -130,7 +129,6 @@ static struct param_inst   kvdb_rp_table[] = {
     KVDB_PARAM_U8_EXP(c0_debug, "c0 debug flags"),
     KVDB_PARAM_U8_EXP(c0_diag_mode, "disable c0 spill"),
     KVDB_PARAM_U32_EXP(c0_ingest_width, "fix c0 kvms width (min 2), zero for dynamic width"),
-    KVDB_PARAM_EXP(c0_coalesce_sz, "max c0 ingest coalesce size (MiB)"),
 
     KVDB_PARAM_EXP(txn_heap_sz, "max txn cheap size (bytes)"),
     KVDB_PARAM_U32_EXP(txn_ingest_width, "number of txn trees in parallel"),

@@ -69,6 +69,5 @@ struct kvset_builder {
     u8  last_ptomb[HSE_KVS_MAX_PFXLEN];
     u32 last_ptlen;
     u64 last_ptseq;
-    u32 vblk_baseidx;
 };
 #endif
