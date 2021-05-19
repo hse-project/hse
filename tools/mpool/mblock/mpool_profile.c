@@ -31,15 +31,15 @@
 #define MAX_EXPECTED_LAT_NS (10L * 1000L * 1000L * 1000L)
 
 struct mp_profile_work {
-    struct work_struct    work_elem;
-    struct mpool         *mp;
-    enum mpool_mclass     mc;
-    int                   tid;
-    u32                   mblock_cnt;
-    u64                   mblock_sz;
-    u64                   block_sz;
-    merr_t                err;
-    u64                  *samples;
+    struct work_struct work_elem;
+    struct mpool      *mp;
+    enum mpool_mclass  mc;
+    int                tid;
+    u32                mblock_cnt;
+    u64                mblock_sz;
+    u64                block_sz;
+    merr_t             err;
+    u64               *samples;
 };
 
 struct mp_prof_stat {
@@ -48,29 +48,25 @@ struct mp_prof_stat {
 };
 
 double
-score_prof_stat(
-    struct mp_prof_stat *mp_ps)
+score_prof_stat(struct mp_prof_stat *mp_ps)
 {
     double mean_us = mp_ps->latmean / 1000.0;
     double sigma_us = mp_ps->latsigma / 1000.0;
     double sigma2mean = sigma_us / mean_us;
 
-    if ((mean_us < 3000.0 && sigma2mean < 1.5) ||
-        (mean_us < 6000.0 && sigma2mean < 1.2))
+    if ((mean_us < 3000.0 && sigma2mean < 1.5) || (mean_us < 6000.0 && sigma2mean < 1.2))
         return 0.0;
-    else if ((mean_us <  6000.0 && sigma2mean < 1.5) ||
-             (mean_us <  8000.0 && sigma2mean < 1.2) ||
-             (mean_us < 10000.0 && sigma2mean < 1.0) ||
-             (mean_us < 12000.0 && sigma2mean < 0.7) ||
-             (mean_us < 15000.0 && sigma2mean < 0.5))
+    else if (
+        (mean_us < 6000.0 && sigma2mean < 1.5) || (mean_us < 8000.0 && sigma2mean < 1.2) ||
+        (mean_us < 10000.0 && sigma2mean < 1.0) || (mean_us < 12000.0 && sigma2mean < 0.7) ||
+        (mean_us < 15000.0 && sigma2mean < 0.5))
         return 1.0;
     else
         return 2.0;
 }
 
 void
-profile_worker(
-    struct work_struct *arg)
+profile_worker(struct work_struct *arg)
 {
     struct mp_profile_work *work;
     struct mpool           *mp;
@@ -99,12 +95,12 @@ profile_worker(
         return;
     }
 
-    mp         = work->mp;
-    mc         = work->mc;
+    mp = work->mp;
+    mc = work->mc;
     mblock_cnt = work->mblock_cnt;
-    mblock_sz  = work->mblock_sz;
-    block_sz   = work->block_sz;
-    samples    = work->samples;
+    mblock_sz = work->mblock_sz;
+    block_sz = work->block_sz;
+    samples = work->samples;
 
     sample_idx = 0;
     num_blocks = mblock_sz / block_sz;
@@ -156,13 +152,13 @@ profile_worker(
 
 int
 perform_profile_run(
-    struct mpool        *mp,
-    enum mpool_mclass    mc,
-    u32                  thread_cnt,
-    u32                  mblocks_per_thread,
-    u64                  mblock_sz,
-    u64                  block_sz,
-    double              *score)
+    struct mpool     *mp,
+    enum mpool_mclass mc,
+    u32               thread_cnt,
+    u32               mblocks_per_thread,
+    u64               mblock_sz,
+    u64               block_sz,
+    double           *score)
 {
     struct workqueue_struct *workqueue;
     struct mp_profile_work  *work_specs;
@@ -176,7 +172,7 @@ perform_profile_run(
     double                   sigma;
     char                     errbuf[160];
 
-     workqueue = alloc_workqueue("mpool_profiling_wq", 0, thread_cnt);
+    workqueue = alloc_workqueue("mpool_profiling_wq", 0, thread_cnt);
     if (!workqueue)
         return ENOMEM;
 
@@ -188,13 +184,13 @@ perform_profile_run(
 
     /* prepare the per-thread data */
     for (i = 0; i < thread_cnt; ++i) {
-        work_specs[i].mp         = mp;
-        work_specs[i].mc         = mc;
-        work_specs[i].tid        = i;
+        work_specs[i].mp = mp;
+        work_specs[i].mc = mc;
+        work_specs[i].tid = i;
         work_specs[i].mblock_cnt = mblocks_per_thread;
-        work_specs[i].mblock_sz  = mblock_sz;
-        work_specs[i].block_sz   = block_sz;
-        work_specs[i].err        = 0;
+        work_specs[i].mblock_sz = mblock_sz;
+        work_specs[i].block_sz = block_sz;
+        work_specs[i].err = 0;
 
         work_specs[i].samples = malloc(samples_per_thread * sizeof(double));
         if (!work_specs[i].samples) {
@@ -224,8 +220,7 @@ perform_profile_run(
         if (work_specs[i].err) {
             error_seen = 1;
             merr_strerror(work_specs[i].err, errbuf, sizeof(errbuf));
-            fprintf(stderr, "thread %d experienced mpool error : %s\n",
-                    i, errbuf);
+            fprintf(stderr, "thread %d experienced mpool error : %s\n", i, errbuf);
         }
     }
 
@@ -256,7 +251,7 @@ perform_profile_run(
     }
     sigma = sqrt(var_sum / (double)(thread_cnt * samples_per_thread));
 
-    stats.latmean  = mean;
+    stats.latmean = mean;
     stats.latsigma = sigma;
 
     *score = score_prof_stat(&stats);
@@ -279,13 +274,13 @@ profile_mpool(
     u32                      thread_cnt,
     double                  *score)
 {
-    merr_t              err;
-    int                 flags = O_RDWR;
-    struct mpool       *mp;
-    u64                 block_sz = MP_PROF_BLOCK_SIZE;
-    u32                 mblocks_per_thread = MP_PROF_MBLOCKS_PER_THREAD;
-    char                errbuf[160];
-    int                 rc;
+    merr_t        err;
+    int           flags = O_RDWR;
+    struct mpool *mp;
+    u64           block_sz = MP_PROF_BLOCK_SIZE;
+    u32           mblocks_per_thread = MP_PROF_MBLOCKS_PER_THREAD;
+    char          errbuf[160];
+    int           rc;
 
     err = mpool_open(mpname, params, flags, &mp);
     if (err) {
@@ -313,10 +308,7 @@ struct mpool_info {
 };
 
 int
-get_mpool_info(
-    const char              *mpname,
-    const struct hse_params *params,
-    struct mpool_info       *info)
+get_mpool_info(const char *mpname, const struct hse_params *params, struct mpool_info *info)
 {
     merr_t                    err;
     struct mpool             *mp;
@@ -354,8 +346,7 @@ get_mpool_info(
         info->mc_info[MP_MED_STAGING].exists = 0;
         info->mc_info[MP_MED_STAGING].total_space = 0;
         info->mc_info[MP_MED_STAGING].avail_space = 0;
-    }
-    else {
+    } else {
         info->mc_info[MP_MED_STAGING].exists = 1;
         info->mc_info[MP_MED_STAGING].total_space = mc_stats.mcs_total;
         info->mc_info[MP_MED_STAGING].avail_space = mc_stats.mcs_available;
@@ -391,12 +382,7 @@ usage(const char *program)
 }
 
 int
-handle_options(
-    int                 argc,
-    char               *argv[],
-    int                *verbose,
-    const char        **mpname,
-    struct hse_params  *params)
+handle_options(int argc, char *argv[], int *verbose, const char **mpname, struct hse_params *params)
 {
     const char  options[] = "hv";
     const char *program;
@@ -419,13 +405,13 @@ handle_options(
             break;
 
         switch (c) {
-          case 'h':
-              usage(program);
-              exit(0);
+            case 'h':
+                usage(program);
+                exit(0);
 
-          case 'v':
-              lcl_verbose = 1;
-              break;
+            case 'v':
+                lcl_verbose = 1;
+                break;
         }
     }
 
@@ -448,7 +434,7 @@ handle_options(
         return -1;
     }
 
-    *verbose  = lcl_verbose;
+    *verbose = lcl_verbose;
     *mpname = argv[0];
 
     return 0;
@@ -457,21 +443,21 @@ handle_options(
 int
 main(int argc, char *argv[])
 {
-    const char          *mpname;
-    struct mpool_info    info;
-    int                  verbose;
-    int                  rc;
-    int                  thread_counts[] = { 16, 20, 24, 32, 40, 48 };
-    const int            num_thread_counts = sizeof(thread_counts)/sizeof(int);
-    double               scores[num_thread_counts];
-    double               avg_score;
-    enum mpool_mclass    mc;
-    u64                  max_thrds = thread_counts[num_thread_counts - 1];
-    u64                  mblock_sz;
-    u64                  max_space_needed;
-    const char          *result;
-    struct hse_params   *params;
-    hse_err_t            err;
+    const char        *mpname;
+    struct mpool_info  info;
+    int                verbose;
+    int                rc;
+    int                thread_counts[] = { 16, 20, 24, 32, 40, 48 };
+    const int          num_thread_counts = sizeof(thread_counts) / sizeof(int);
+    double             scores[num_thread_counts];
+    double             avg_score;
+    enum mpool_mclass  mc;
+    u64                max_thrds = thread_counts[num_thread_counts - 1];
+    u64                mblock_sz;
+    u64                max_space_needed;
+    const char        *result;
+    struct hse_params *params;
+    hse_err_t          err;
 
     err = hse_init();
     if (err)
@@ -507,12 +493,15 @@ main(int argc, char *argv[])
 
     if (info.mc_info[mc].avail_space < max_space_needed) {
         char *mclass_name = (mc == MP_MED_STAGING) ? "STAGING" : "CAPACITY";
-        u32 space_needed_mb = 1 + (max_space_needed / MiB);
+        u32   space_needed_mb = 1 + (max_space_needed / MiB);
 
-        fprintf(stderr,
-                "%s media class present but insufficient space available. The\n"
-                "profiling test needs %u MiB of free space to characterize mpool\n"
-                "performance.", mclass_name, space_needed_mb);
+        fprintf(
+            stderr,
+            "%s media class present but insufficient space available. The\n"
+            "profiling test needs %u MiB of free space to characterize mpool\n"
+            "performance.",
+            mclass_name,
+            space_needed_mb);
         return -1;
     }
 
@@ -539,8 +528,10 @@ main(int argc, char *argv[])
     }
 
     printf("\n");
-    printf("The performance profile of mpool %s suggests a setting of \"%s\" for the\n",
-           mpname, result);
+    printf(
+        "The performance profile of mpool %s suggests a setting of \"%s\" for the\n",
+        mpname,
+        result);
     printf("kvdb.throttle_init_policy configuration parameter. If you are using the YAML\n");
     printf("config file mechanism this would look like:\n");
     printf("\n");

@@ -29,18 +29,14 @@ struct mpool;
  */
 struct mpool_mcache_map {
     struct mpool *mp;
-    size_t mbidc;
-    uint64_t *mbidv;
-    void **addrv;
-    uint32_t *wlenv;
+    size_t        mbidc;
+    uint64_t     *mbidv;
+    void        **addrv;
+    uint32_t     *wlenv;
 };
 
 merr_t
-mpool_mcache_mmap(
-    struct mpool             *mp,
-    size_t                    mbidc,
-    uint64_t                 *mbidv,
-    struct mpool_mcache_map **mapp)
+mpool_mcache_mmap(struct mpool *mp, size_t mbidc, uint64_t *mbidv, struct mpool_mcache_map **mapp)
 {
     struct mpool_mcache_map *map;
     struct media_class      *mc;
@@ -65,9 +61,9 @@ mpool_mcache_mmap(
     map->wlenv = (void *)(map->mbidv + mbidc);
 
     for (i = 0; i < mbidc; i++) {
-        enum mpool_mclass  mclass;
-        char              *addr;
-        uint32_t           wlen;
+        enum mpool_mclass mclass;
+        char             *addr;
+        uint32_t          wlen;
 
         mclass = mcid_to_mclass(mclassid(mbidv[i]));
         mc = mpool_mclass_handle(mp, mclass);
@@ -100,7 +96,7 @@ merr_t
 mpool_mcache_munmap(struct mpool_mcache_map *map)
 {
     struct media_class *mc;
-    int i;
+    int                 i;
 
     if (!map)
         return merr(EINVAL);

@@ -83,7 +83,7 @@ mblock_fset_meta_get(struct mblock_fset *mbfsp, int fidx, char **maddr)
     off_t off;
 
     off = MBLOCK_FSET_HDRLEN +
-        (fidx * mblock_file_meta_len(mbfsp->fszmax, mclass_mblocksz_get(mbfsp->mc)));
+          (fidx * mblock_file_meta_len(mbfsp->fszmax, mclass_mblocksz_get(mbfsp->mc)));
 
     *maddr = mbfsp->maddr + off;
 }
@@ -274,7 +274,7 @@ mblock_fset_meta_open(struct mblock_fset *mbfsp, int flags)
 
         assert(mbfsp->fcnt != 0);
         sz = MBLOCK_FSET_HDRLEN +
-            (mbfsp->fcnt * mblock_file_meta_len(mbfsp->fszmax, mclass_mblocksz_get(mbfsp->mc)));
+             (mbfsp->fcnt * mblock_file_meta_len(mbfsp->fszmax, mclass_mblocksz_get(mbfsp->mc)));
 
         rc = fallocate(fd, 0, 0, sz);
         if (rc < 0) {
@@ -316,8 +316,8 @@ mblock_fset_open(
     int                  flags,
     struct mblock_fset **handle)
 {
-    struct mblock_fset        *mbfsp;
-    struct mblock_file_params  fparams;
+    struct mblock_fset       *mbfsp;
+    struct mblock_file_params fparams;
 
     size_t sz, mblocksz;
     merr_t err;
@@ -332,7 +332,7 @@ mblock_fset_open(
 
     mbfsp->mc = mc;
     mbfsp->fcnt = fcnt ?: MBLOCK_FSET_FILES_DEFAULT;
-    mbfsp->fszmax = fszmax ? : MBLOCK_FILE_SIZE_MAX;
+    mbfsp->fszmax = fszmax ?: MBLOCK_FILE_SIZE_MAX;
 
     err = mblock_fset_meta_open(mbfsp, flags);
     if (err) {
@@ -341,16 +341,18 @@ mblock_fset_open(
     }
 
     mblocksz = mclass_mblocksz_get(mbfsp->mc);
-    if ((mbfsp->fszmax < mblocksz) ||
-        ((1ULL << MBID_BLOCK_BITS) * mblocksz < mbfsp->fszmax)) {
+    if ((mbfsp->fszmax < mblocksz) || ((1ULL << MBID_BLOCK_BITS) * mblocksz < mbfsp->fszmax)) {
         err = merr(EINVAL);
-        hse_log(HSE_ERR "%s: Invalid mblock parameters filesz %lu mblocksz %lu",
-                __func__, mbfsp->fszmax, mblocksz);
+        hse_log(
+            HSE_ERR "%s: Invalid mblock parameters filesz %lu mblocksz %lu",
+            __func__,
+            mbfsp->fszmax,
+            mblocksz);
         goto errout;
     }
 
-    mbfsp->metasz = MBLOCK_FSET_HDRLEN +
-        (mbfsp->fcnt * mblock_file_meta_len(mbfsp->fszmax, mblocksz));
+    mbfsp->metasz =
+        MBLOCK_FSET_HDRLEN + (mbfsp->fcnt * mblock_file_meta_len(mbfsp->fszmax, mblocksz));
 
     err = mblock_fset_meta_mmap(mbfsp, mbfsp->metafd, mbfsp->metasz, flags, true);
     if (err)
@@ -396,7 +398,7 @@ static merr_t
 mblock_fset_meta_usage(struct mblock_fset *mbfsp, uint64_t *allocated)
 {
     struct stat sbuf = {};
-    int rc;
+    int         rc;
 
     if (!mbfsp || !allocated)
         return merr(EINVAL);
@@ -431,15 +433,14 @@ mblock_fset_close(struct mblock_fset *mbfsp)
     free(mbfsp);
 }
 
-
 static struct workqueue_struct *mpdwq;
-static int pathc_per_thr, idx;
+static int                      pathc_per_thr, idx;
 
 static struct mp_destroy_work {
-    struct work_struct   work;
-    char               **path;
-    int                  pathc;
-    int                  curpc;
+    struct work_struct work;
+    char             **path;
+    int                pathc;
+    int                curpc;
 } **mpdw;
 
 static void
@@ -601,8 +602,8 @@ merr_t
 mblock_fset_commit(struct mblock_fset *mbfsp, uint64_t *mbidv, int mbidc)
 {
     struct mblock_file *mbfp;
-    merr_t err;
-    int    rc;
+    merr_t              err;
+    int                 rc;
 
     if (!mbfsp || !mbidv || file_id(*mbidv) > mbfsp->fcnt)
         return merr(EINVAL);
@@ -643,8 +644,8 @@ merr_t
 mblock_fset_delete(struct mblock_fset *mbfsp, uint64_t *mbidv, int mbidc)
 {
     struct mblock_file *mbfp;
-    merr_t err;
-    int    rc;
+    merr_t              err;
+    int                 rc;
 
     if (!mbfsp || !mbidv || file_id(*mbidv) > mbfsp->fcnt)
         return merr(EINVAL);
@@ -682,11 +683,7 @@ mblock_fset_find(struct mblock_fset *mbfsp, uint64_t *mbidv, int mbidc, uint32_t
 }
 
 merr_t
-mblock_fset_write(
-    struct mblock_fset *mbfsp,
-    uint64_t            mbid,
-    const struct iovec *iov,
-    int                 iovc)
+mblock_fset_write(struct mblock_fset *mbfsp, uint64_t mbid, const struct iovec *iov, int iovc)
 {
     struct mblock_file *mbfp;
 
@@ -717,11 +714,7 @@ mblock_fset_read(
 }
 
 merr_t
-mblock_fset_map_getbase(
-    struct mblock_fset *mbfsp,
-    uint64_t            mbid,
-    char              **addr_out,
-    uint32_t           *wlen)
+mblock_fset_map_getbase(struct mblock_fset *mbfsp, uint64_t mbid, char **addr_out, uint32_t *wlen)
 {
     struct mblock_file *mbfp;
 
@@ -734,9 +727,7 @@ mblock_fset_map_getbase(
 }
 
 merr_t
-mblock_fset_unmap(
-    struct mblock_fset *mbfsp,
-    uint64_t            mbid)
+mblock_fset_unmap(struct mblock_fset *mbfsp, uint64_t mbid)
 {
     struct mblock_file *mbfp;
 

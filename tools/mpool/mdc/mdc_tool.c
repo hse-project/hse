@@ -114,8 +114,8 @@ int
 main(int argc, char **argv)
 {
     struct mpool_mdc  *mdc;
-    char *             wpath;
-    FILE *             fp;
+    char              *wpath;
+    FILE              *fp;
     hse_err_t          err;
     struct hse_params *params;
     int                ignore;

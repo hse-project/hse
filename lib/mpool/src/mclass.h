@@ -12,7 +12,7 @@
 
 #include <mpool/mpool_structs.h>
 
-#define MCLASS_MAX (1 << 2) /* 2-bit for mclass-id */
+#define MCLASS_MAX         (1 << 2) /* 2-bit for mclass-id */
 #define MP_DESTROY_THREADS 8
 
 struct media_class;
@@ -38,10 +38,10 @@ enum mclass_id {
  * @path:     mclass storage path
  */
 struct mclass_params {
-    size_t  fszmax;
-    size_t  mblocksz;
-    u8      filecnt;
-    char    path[PATH_MAX];
+    size_t fszmax;
+    size_t mblocksz;
+    u8     filecnt;
+    char   path[PATH_MAX];
 };
 
 /**

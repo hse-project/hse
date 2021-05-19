@@ -53,9 +53,9 @@ struct mdc_file {
     size_t size;
     size_t maxsz;
 
-    struct io_ops  io;
-    char          *addr;
-    char           name[32];
+    struct io_ops io;
+    char         *addr;
+    char          name[32];
 };
 
 static void
@@ -544,7 +544,7 @@ mdc_file_stats(struct mdc_file *mfp, uint64_t *allocated, uint64_t *used)
 
     if (allocated) {
         struct stat sbuf = {};
-        int rc;
+        int         rc;
 
         rc = fstat(mfp->fd, &sbuf);
         if (rc < 0)

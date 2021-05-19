@@ -130,12 +130,12 @@ mpool_stats_get(struct mpool *mp, struct mpool_stats *stats);
 /* MTF_MOCK */
 merr_t
 mpool_mdc_alloc(
-    struct mpool        *mp,
-    uint32_t             magic,
-    size_t               capacity,
-    enum mpool_mclass    mclass,
-    uint64_t            *logid1,
-    uint64_t            *logid2);
+    struct mpool     *mp,
+    uint32_t          magic,
+    size_t            capacity,
+    enum mpool_mclass mclass,
+    uint64_t         *logid1,
+    uint64_t         *logid2);
 
 /**
  * mpool_mdc_commit() - Commit an MDC
@@ -444,11 +444,7 @@ mpool_mcache_getpages(
  */
 /* MTF_MOCK */
 merr_t
-mpool_mcache_mmap(
-    struct mpool             *mp,
-    size_t                    mbidc,
-    uint64_t                 *mbidv,
-    struct mpool_mcache_map **mapp);
+mpool_mcache_mmap(struct mpool *mp, size_t mbidc, uint64_t *mbidv, struct mpool_mcache_map **mapp);
 
 /**
  * mpool_mcache_munmap() - munmap an mcache mmap

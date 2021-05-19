@@ -20,13 +20,13 @@ MTF_BEGIN_UTEST_COLLECTION_PREPOST(mblock_test, mpool_test_pre, mpool_test_post)
 
 MTF_DEFINE_UTEST(mblock_test, mblock_abc)
 {
-    char staging_path[PATH_MAX];
-    struct mpool *mp;
+    char                staging_path[PATH_MAX];
+    struct mpool       *mp;
     struct mblock_props props = {};
     struct mpool_stats  stats = {};
-    uint64_t      mbid, mbid1;
-    merr_t        err;
-    int           rc;
+    uint64_t            mbid, mbid1;
+    merr_t              err;
+    int                 rc;
 
     err = mpool_open("mp1", NULL, O_CREAT, &mp);
     ASSERT_EQ(0, err);
@@ -205,8 +205,8 @@ MTF_DEFINE_UTEST(mblock_test, mblock_abc)
     ASSERT_EQ(0, err);
     ASSERT_NE(mbid, mbid1);
     ASSERT_EQ(mbid & MBID_BLOCK_MASK, mbid1 & MBID_BLOCK_MASK);
-    ASSERT_NE((mbid & MBID_UNIQ_MASK) >> MBID_UNIQ_SHIFT,
-               (mbid1 & MBID_UNIQ_MASK) >> MBID_UNIQ_SHIFT);
+    ASSERT_NE(
+        (mbid & MBID_UNIQ_MASK) >> MBID_UNIQ_SHIFT, (mbid1 & MBID_UNIQ_MASK) >> MBID_UNIQ_SHIFT);
 
     /* This cannot be detected, unfortunately... */
     err = mpool_mblock_props_get(mp, mbid, &props);
@@ -233,8 +233,8 @@ MTF_DEFINE_UTEST(mblock_test, mblock_abc)
     ASSERT_EQ(0, err);
     ASSERT_NE(mbid, mbid1);
     ASSERT_EQ(mbid & MBID_BLOCK_MASK, mbid1 & MBID_BLOCK_MASK);
-    ASSERT_NE((mbid & MBID_UNIQ_MASK) >> MBID_UNIQ_SHIFT,
-               (mbid1 & MBID_UNIQ_MASK) >> MBID_UNIQ_SHIFT);
+    ASSERT_NE(
+        (mbid & MBID_UNIQ_MASK) >> MBID_UNIQ_SHIFT, (mbid1 & MBID_UNIQ_MASK) >> MBID_UNIQ_SHIFT);
 
     err = mpool_mblock_commit(mp, mbid1);
     ASSERT_EQ(0, err);
@@ -280,13 +280,7 @@ MTF_DEFINE_UTEST(mblock_test, mblock_abc)
 }
 
 static merr_t
-mblock_rw(
-    struct mpool *mp,
-    uint64_t      mbid,
-    void         *buf,
-    size_t        len,
-    u64           boff,
-    bool          is_write)
+mblock_rw(struct mpool *mp, uint64_t mbid, void *buf, size_t len, u64 boff, bool is_write)
 {
     struct iovec *iov;
     int           iovc;
@@ -329,7 +323,7 @@ mblock_rw(
         size_t curlen = min_t(size_t, left, PAGE_SIZE);
 
         iov[i].iov_base = pos;
-        iov[i].iov_len  = curlen;
+        iov[i].iov_len = curlen;
 
         left -= curlen;
         pos += PAGE_SIZE;
@@ -350,9 +344,9 @@ mblock_rw(
 
 MTF_DEFINE_UTEST(mblock_test, mblock_io)
 {
-    struct mpool        *mp;
-    struct mblock_props  props = {};
-    struct mpool_stats   stats = {};
+    struct mpool       *mp;
+    struct mblock_props props = {};
+    struct mpool_stats  stats = {};
 
     uint64_t mbid;
     merr_t   err;
@@ -374,7 +368,7 @@ MTF_DEFINE_UTEST(mblock_test, mblock_io)
 
     /* Get a non-aligned buffer that is bigger than we need */
     bufx = badbuf = malloc(2 * mbsz);
-    if ((ulong)badbuf & (PAGE_SIZE - 1))  /* make sure badbuf not aligned */
+    if ((ulong)badbuf & (PAGE_SIZE - 1)) /* make sure badbuf not aligned */
         badbuf = (void *)((ulong)badbuf + 32);
 
     /* Writes with bogus length should fail */
@@ -501,14 +495,14 @@ MTF_DEFINE_UTEST(mblock_test, mblock_io)
 
 MTF_DEFINE_UTEST(mblock_test, mblock_invalid_args)
 {
-    struct mpool *mp;
-    struct mpool_mclass_stats stats = {};
-    struct mblock_fset *mbfsp;
-    struct media_class *mc;
+    struct mpool              *mp;
+    struct mpool_mclass_stats  stats = {};
+    struct mblock_fset        *mbfsp;
+    struct media_class        *mc;
     struct mblock_file_params *params = (struct mblock_file_params *)0x1234;
-    struct mblock_file *mbfp = (struct mblock_file *)0x1234;
-    struct mblock_file_stats mbstats = {};
-    struct iovec *iov = (struct iovec *)0x1234;
+    struct mblock_file        *mbfp = (struct mblock_file *)0x1234;
+    struct mblock_file_stats   mbstats = {};
+    struct iovec              *iov = (struct iovec *)0x1234;
 
     char    *addr = (char *)0x1234;
     uint64_t mbid, bad_mbid = 0xffffffff;

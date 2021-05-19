@@ -152,8 +152,11 @@ mpool_open(const char *name, const struct hse_params *params, uint32_t flags, st
             for (int j = i - 1; j >= 0; j--) {
                 if (mp->mc[j] && !strcmp(mcp.path, mclass_dpath(mp->mc[j]))) {
                     err = merr(EINVAL);
-                    hse_log(HSE_ERR "%s: Duplicate storage path detected for mc %d and %d",
-                            __func__, i, j);
+                    hse_log(
+                        HSE_ERR "%s: Duplicate storage path detected for mc %d and %d",
+                        __func__,
+                        i,
+                        j);
                     goto errout;
                 }
             }
@@ -161,8 +164,8 @@ mpool_open(const char *name, const struct hse_params *params, uint32_t flags, st
             do {
                 err = mclass_open(mp, i, &mcp, flags | flags2, &mp->mc[i]);
                 if (err) {
-                    if (i != MP_MED_CAPACITY && merr_errno(err) == ENOENT &&
-                        !(flags & O_CREAT) && !(flags2 & O_CREAT)) {
+                    if (i != MP_MED_CAPACITY && merr_errno(err) == ENOENT && !(flags & O_CREAT) &&
+                        !(flags2 & O_CREAT)) {
                         /* Don't initialize new mclass for O_RDONLY open */
                         if ((flags & O_ACCMODE) == O_RDONLY) {
                             err = 0;
@@ -174,8 +177,11 @@ mpool_open(const char *name, const struct hse_params *params, uint32_t flags, st
                     }
 
                     if (err) {
-                        hse_elog(HSE_ERR "%s: Cannot access storage path for mclass %d: @@e",
-                                 err, __func__, i);
+                        hse_elog(
+                            HSE_ERR "%s: Cannot access storage path for mclass %d: @@e",
+                            err,
+                            __func__,
+                            i);
                         goto errout;
                     }
                 }
@@ -261,10 +267,7 @@ mpool_destroy(struct mpool *mp)
 }
 
 merr_t
-mpool_mclass_props_get(
-    struct mpool              *mp,
-    enum mpool_mclass          mclass,
-    struct mpool_mclass_props *props)
+mpool_mclass_props_get(struct mpool *mp, enum mpool_mclass mclass, struct mpool_mclass_props *props)
 {
     struct media_class *mc;
 
@@ -282,10 +285,7 @@ mpool_mclass_props_get(
 }
 
 merr_t
-mpool_mclass_stats_get(
-    struct mpool              *mp,
-    enum mpool_mclass          mclass,
-    struct mpool_mclass_stats *stats)
+mpool_mclass_stats_get(struct mpool *mp, enum mpool_mclass mclass, struct mpool_mclass_stats *stats)
 {
     struct media_class *mc;
 

@@ -285,4 +285,3 @@ mclass_stats_get(struct media_class *mc, struct mpool_mclass_stats *stats)
 
     return 0;
 }
-

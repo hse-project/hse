@@ -53,8 +53,8 @@ static struct options {
 } opt;
 
 const char *progname = NULL;
-u8 *pattern;
-u32 pattern_len;
+u8         *pattern;
+u32         pattern_len;
 
 #define MIN_SECTOR_SIZE  512
 #define SECTOR_OVERHEAD  0
@@ -150,15 +150,15 @@ typedef void *(thread_func_t)(void *arg);
 struct thread_args {
     int              instance;
     pthread_mutex_t *start_mutex;
-    pthread_cond_t * start_line;
-    atomic_t *       start_cnt;
-    void *           arg;
+    pthread_cond_t  *start_line;
+    atomic_t        *start_cnt;
+    void            *arg;
 };
 
 struct thread_resp {
     int    instance;
     merr_t err;
-    void * resp;
+    void  *resp;
 };
 
 static u32
@@ -206,7 +206,7 @@ thread_create(
     struct thread_args *targs,
     struct thread_resp *tresp)
 {
-    pthread_t *     thread;
+    pthread_t      *thread;
     pthread_attr_t *attr;
     pthread_cond_t  start_line = PTHREAD_COND_INITIALIZER;
     pthread_mutex_t start_mutex = PTHREAD_MUTEX_INITIALIZER;
@@ -269,7 +269,7 @@ thread_create(
 static unsigned int mclass = MP_MED_CAPACITY;
 
 struct ml_writer_args {
-    struct mpool *  mp;
+    struct mpool   *mp;
     u32             rs; /* write size in bytes */
     u32             wc; /* write count */
     struct oid_pair oid;
@@ -286,15 +286,15 @@ ml_writer(void *arg)
 {
     merr_t err;
     int    i;
-    char * buf;
+    char  *buf;
     u32    usec;
     char   err_str[256];
     long   written = 0;
 
-    struct thread_args *   targs = (struct thread_args *)arg;
+    struct thread_args    *targs = (struct thread_args *)arg;
     struct ml_writer_args *args = (struct ml_writer_args *)targs->arg;
     struct ml_writer_resp *resp;
-    struct mpool_mdc *     mdc;
+    struct mpool_mdc      *mdc;
     struct timeval         start_tv, stop_tv;
     int                    id = targs->instance;
     size_t                 used;
@@ -407,7 +407,7 @@ close_mdc:
 }
 
 struct ml_reader_args {
-    struct mpool *  mp;
+    struct mpool   *mp;
     u32             rs; /* read size in bytes */
     u32             rc; /* read count */
     struct oid_pair oid;
@@ -424,15 +424,15 @@ ml_reader(void *arg)
 {
     merr_t err;
     int    i;
-    char * buf;
+    char  *buf;
     u32    usec;
     char   err_str[256];
     size_t bytes_read = 0;
 
-    struct thread_args *   targs = (struct thread_args *)arg;
+    struct thread_args    *targs = (struct thread_args *)arg;
     struct ml_reader_args *args = (struct ml_reader_args *)targs->arg;
     struct ml_reader_resp *resp;
-    struct mpool_mdc *     mdc;
+    struct mpool_mdc      *mdc;
     struct timeval         start_tv, stop_tv;
     int                    id = targs->instance;
     size_t                 used;
@@ -533,7 +533,7 @@ ml_reader(void *arg)
 }
 
 struct ml_verify_args {
-    struct mpool *  mp;
+    struct mpool   *mp;
     u32             rs; /* read size in bytes */
     u32             rc; /* read count */
     struct oid_pair oid;
@@ -550,16 +550,16 @@ ml_verify(void *arg)
 {
     merr_t err;
     int    i;
-    char * buf;
+    char  *buf;
     u32    usec;
     char   err_str[256];
     size_t bytes_read = 0;
     int    ret;
 
-    struct thread_args *   targs = (struct thread_args *)arg;
+    struct thread_args    *targs = (struct thread_args *)arg;
     struct ml_verify_args *args = (struct ml_verify_args *)targs->arg;
     struct ml_verify_resp *resp;
-    struct mpool_mdc *     mdc;
+    struct mpool_mdc      *mdc;
     struct timeval         start_tv, stop_tv;
     int                    id = targs->instance;
     size_t                 used;
@@ -688,10 +688,10 @@ perf_seq_writes(const char *mpname, const struct hse_params *params)
     struct ml_reader_args *rd_arg;
     struct ml_verify_resp *v_resp;
     struct ml_verify_args *v_arg;
-    struct thread_args *   targ;
-    struct thread_resp *   tresp;
-    struct mpool *         mp;
-    struct oid_pair *      oid;
+    struct thread_args    *targ;
+    struct thread_resp    *tresp;
+    struct mpool          *mp;
+    struct oid_pair       *oid;
     uint64_t               capacity;
 
     mclass = MP_MED_CAPACITY;

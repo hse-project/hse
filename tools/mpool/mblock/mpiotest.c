@@ -80,7 +80,7 @@ struct test {
     size_t        t_wbufsz;    /* Base of random data buffer */
     size_t        t_wandermax; /* Max offset into wbuf */
     size_t        t_wobblemax; /* Max wcc variability */
-    const char *  t_mpname;
+    const char   *t_mpname;
     struct stats  t_stats;
     struct mpool *t_mp;
 };
@@ -271,10 +271,10 @@ test_init(struct test *testv, int idx, ulong iter, const char *mpname, struct mp
 int
 verify_page_vec(
     struct minfo *minfo,
-    void **       pagev,
-    uint *        objnumv,
-    off_t *       offsetv,
-    uint64_t *    mbidv,
+    void        **pagev,
+    uint         *objnumv,
+    off_t        *offsetv,
+    uint64_t     *mbidv,
     int           pagec,
     struct stats *stats)
 {
@@ -322,20 +322,20 @@ verify_with_mcache(
     size_t        wcc,
     size_t        wobble,
     struct stats *stats,
-    struct test * test,
+    struct test  *test,
     size_t        rss,
     size_t        vss)
 {
     uint     objnumv[mcmaxpages];
     off_t    offsetv[mcmaxpages];
-    void *   pagev[mcmaxpages];
+    void    *pagev[mcmaxpages];
     uint64_t mbidv[mcmaxmblocks];
     int      mbidc;
     int      pagec;
     int      i;
     merr_t   err;
     char     errbuf[64];
-    char *   buf = NULL;
+    char    *buf = NULL;
     int      fail = 0;
 
     /* Select a handful of mblock IDs from recent history.
@@ -433,21 +433,21 @@ test_start(void *arg)
 {
     struct minfo *minfov;
     struct stats *stats;
-    struct test * test;
+    struct test  *test;
     struct iovec *iov;
     struct mpool *mp;
     merr_t        err = 0;
 
     size_t wander, wobble, wcc;
     char   errbuf[64];
-    char * rbuf;
+    char  *rbuf;
     int    rloops;
     int    wloops;
     int    rc;
 
-    uint *    objnumv;
-    size_t *  offsetv;
-    void *    pagev;
+    uint     *objnumv;
+    size_t   *offsetv;
+    void     *pagev;
     uint64_t *mbidv;
 
     test = arg;
@@ -507,7 +507,7 @@ test_start(void *arg)
 
     for (wloops = 0; wloops < mballoc_max; ++wloops) {
         struct mblock_props props;
-        struct minfo *      minfo;
+        struct minfo       *minfo;
         uint64_t            objid;
         size_t              rss, vss;
 
@@ -1013,13 +1013,13 @@ int
 main(int argc, char **argv)
 {
     struct stats       stats;
-    struct test *      testv = NULL;
-    struct mpool *     mp;
+    struct test       *testv = NULL;
+    struct mpool      *mp;
     struct mpool_props props;
     struct hse_params *hparams;
     sigset_t           sigmask_block;
     sigset_t           sigmask_old;
-    char *             mpname;
+    char              *mpname;
 
     merr_t   err;
     uint64_t herr;
@@ -1029,8 +1029,8 @@ main(int argc, char **argv)
     ulong    iter;
     size_t   lwcc;
     ssize_t  cc;
-    char *   end;
-    FILE *   fp;
+    char    *end;
+    FILE    *fp;
     int      fd, rc, i, given[256] = { 0 }, next_arg = 0;
 
     progname = strrchr(argv[0], '/');

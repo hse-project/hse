@@ -52,12 +52,11 @@ struct mblock_rgn {
  * @rm_root: root of the region map rbtree
  */
 struct mblock_rgnmap {
-    struct mutex    rm_lock;
-    struct rb_root  rm_root;
+    struct mutex   rm_lock;
+    struct rb_root rm_root;
 
     struct kmem_cache *rm_cache HSE_ALIGNED(SMP_CACHE_BYTES);
 };
-
 
 /**
  * struct mblock_mmap -
@@ -111,19 +110,19 @@ struct mblock_file {
     int            fileid;
     int            fd;
 
-    atomic_t      *wlenv;
+    atomic_t *wlenv;
 
     HSE_ALIGNED(SMP_CACHE_BYTES)
     struct mutex uniq_lock;
-    uint32_t uniq;
+    uint32_t     uniq;
 
     HSE_ALIGNED(SMP_CACHE_BYTES)
     struct mutex meta_lock;
-    char *meta_addr;
+    char        *meta_addr;
 
     HSE_ALIGNED(SMP_CACHE_BYTES)
-    struct mutex mmap_lock;
-    int mmapc;
+    struct mutex        mmap_lock;
+    int                 mmapc;
     struct mblock_mmap *mmapv;
 
     HSE_ALIGNED(SMP_CACHE_BYTES)
@@ -466,7 +465,7 @@ static merr_t
 mblock_file_meta_load(struct mblock_file *mbfp)
 {
     struct mblock_filehdr fh = {};
-    char *                addr, *bound;
+    char                 *addr, *bound;
     size_t                mblkc = 0;
 
     addr = mbfp->meta_addr;
@@ -526,9 +525,7 @@ mblock_file_meta_load(struct mblock_file *mbfp)
 static inline bool
 omf_isvalid(uint64_t mbid, uint64_t omfid, uint32_t wlen, uint32_t omfwlen, bool exists)
 {
-    return (exists && mbid == omfid && wlen == omfwlen) ||
-       (!exists && 0 == omfid && 0 == omfwlen);
-
+    return (exists && mbid == omfid && wlen == omfwlen) || (!exists && 0 == omfid && 0 == omfwlen);
 }
 
 static merr_t
@@ -583,12 +580,12 @@ mblock_file_meta_log(struct mblock_file *mbfp, uint64_t *mbidv, int mbidc, bool 
 
 merr_t
 mblock_file_open(
-    struct mblock_fset         *mbfsp,
-    struct media_class         *mc,
-    struct mblock_file_params  *params,
-    int                         flags,
-    char                       *meta_addr,
-    struct mblock_file        **handle)
+    struct mblock_fset        *mbfsp,
+    struct media_class        *mc,
+    struct mblock_file_params *params,
+    int                        flags,
+    char                      *meta_addr,
+    struct mblock_file       **handle)
 {
     struct mblock_file *mbfp;
     enum mclass_id      mcid;
@@ -807,10 +804,10 @@ static merr_t
 mblock_file_meta_validate(struct mblock_file *mbfp, uint64_t *mbidv, int mbidc, bool exists)
 {
     struct mblock_oid_omf *mbomf;
-    uint32_t block, wlen, omfwlen;
-    char    *addr;
-    uint64_t omfid;
-    merr_t   err = 0;
+    uint32_t               block, wlen, omfwlen;
+    char                  *addr;
+    uint64_t               omfid;
+    merr_t                 err = 0;
 
     if (!mbfp || !mbidv)
         return merr(EINVAL);
@@ -866,14 +863,14 @@ mblock_file_find(struct mblock_file *mbfp, uint64_t *mbidv, int mbidc, uint32_t 
         *wlen = atomic_read(mbfp->wlenv + block);
     mutex_unlock(&mbfp->meta_lock);
 
-    return err2 ? : err;
+    return err2 ?: err;
 }
 
 merr_t
 mblock_file_commit(struct mblock_file *mbfp, uint64_t *mbidv, int mbidc)
 {
-    merr_t   err;
-    bool     delete = false;
+    merr_t err;
+    bool delete = false;
     uint32_t block;
 
     if (!mbfp || !mbidv)
@@ -1038,11 +1035,7 @@ mblock_file_read(
 }
 
 merr_t
-mblock_file_write(
-    struct mblock_file *mbfp,
-    uint64_t            mbid,
-    const struct iovec *iov,
-    int                 iovc)
+mblock_file_write(struct mblock_file *mbfp, uint64_t mbid, const struct iovec *iov, int iovc)
 {
     uint32_t  block;
     size_t    len = 0, mblocksz;
@@ -1121,18 +1114,14 @@ chunk_off(uint64_t mbid, size_t mblocksz)
 }
 
 merr_t
-mblock_file_map_getbase(
-    struct mblock_file *mbfp,
-    uint64_t            mbid,
-    char              **addr_out,
-    uint32_t           *wlen)
+mblock_file_map_getbase(struct mblock_file *mbfp, uint64_t mbid, char **addr_out, uint32_t *wlen)
 {
     struct mblock_mmap *map;
-    char *addr;
-    int   cidx, rc;
-    off_t soff, off;
-    size_t mblocksz;
-    merr_t err = 0;
+    char               *addr;
+    int                 cidx, rc;
+    off_t               soff, off;
+    size_t              mblocksz;
+    merr_t              err = 0;
 
     if (!mbfp || !addr_out)
         return merr(EINVAL);
@@ -1183,15 +1172,13 @@ exit:
 }
 
 merr_t
-mblock_file_unmap(
-    struct mblock_file *mbfp,
-    uint64_t            mbid)
+mblock_file_unmap(struct mblock_file *mbfp, uint64_t mbid)
 {
     struct mblock_mmap *map;
-    char  *addr;
-    int    cidx;
-    size_t mblocksz;
-    merr_t err = 0;
+    char               *addr;
+    int                 cidx;
+    size_t              mblocksz;
+    merr_t              err = 0;
 
     if (!mbfp)
         return merr(EINVAL);
@@ -1204,7 +1191,7 @@ mblock_file_unmap(
     addr = map->addr;
     assert(addr);
     if (--map->ref == 0) {
-        int    rc;
+        int rc;
 
         rc = madvise(addr, mblock_mmap_csize(mblocksz), MADV_DONTNEED);
         ev(rc);
@@ -1224,7 +1211,7 @@ static void
 mblock_file_unmapall(struct mblock_file *mbfp)
 {
     struct mblock_mmap *map;
-    int i;
+    int                 i;
 
     if (!mbfp)
         return;
@@ -1239,8 +1226,13 @@ mblock_file_unmapall(struct mblock_file *mbfp)
         if (addr) {
             int rc;
 
-            hse_log(HSE_WARNING "%s: Leaked map mcid %d fileid %d chunk-id %d ref %lu",
-                    __func__, mbfp->mcid, mbfp->fileid, i, map->ref);
+            hse_log(
+                HSE_WARNING "%s: Leaked map mcid %d fileid %d chunk-id %d ref %lu",
+                __func__,
+                mbfp->mcid,
+                mbfp->fileid,
+                i,
+                map->ref);
 
             rc = munmap(addr, mblock_mmap_csize(mbfp->mblocksz));
             ev(rc);
@@ -1256,7 +1248,7 @@ merr_t
 mblock_file_stats_get(struct mblock_file *mbfp, struct mblock_file_stats *stats)
 {
     struct stat sbuf = {};
-    int rc;
+    int         rc;
 
     if (!mbfp || !stats)
         return merr(EINVAL);

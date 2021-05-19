@@ -202,7 +202,11 @@ mpool_mdc_open(struct mpool *mp, uint64_t logid1, uint64_t logid2, struct mpool_
             if (err)
                 hse_elog(
                     HSE_ERR "%s: mdc file1 logid %lu erase failed, gen (%lu, %lu): @@e",
-                    err, __func__, logid1, gen1, gen2);
+                    err,
+                    __func__,
+                    logid1,
+                    gen1,
+                    gen2);
         } else {
             mdc->mfpa = mfp[0];
 
@@ -210,7 +214,11 @@ mpool_mdc_open(struct mpool *mp, uint64_t logid1, uint64_t logid2, struct mpool_
             if (err)
                 hse_elog(
                     HSE_ERR "%s: mdc file2 logid %lu erase failed, gen (%lu, %lu): @@e",
-                    err, __func__, logid2, gen1, gen2);
+                    err,
+                    __func__,
+                    logid2,
+                    gen1,
+                    gen2);
         }
     }
 
@@ -491,13 +499,11 @@ mpool_mdc_usage(struct mpool_mdc *mdc, uint64_t *allocated, uint64_t *used)
 
     mutex_lock(&mdc->lock);
 
-    err = mdc_file_stats(mdc->mfp1,
-                         allocated ? &alloc1 : NULL,
-                         mdc->mfp1 == mdc->mfpa ? used : NULL);
+    err =
+        mdc_file_stats(mdc->mfp1, allocated ? &alloc1 : NULL, mdc->mfp1 == mdc->mfpa ? used : NULL);
     if (!err) {
-        err = mdc_file_stats(mdc->mfp2,
-                             allocated ? &alloc2 : NULL,
-                             mdc->mfp2 == mdc->mfpa ? used : NULL);
+        err = mdc_file_stats(
+            mdc->mfp2, allocated ? &alloc2 : NULL, mdc->mfp2 == mdc->mfpa ? used : NULL);
     }
 
     mutex_unlock(&mdc->lock);

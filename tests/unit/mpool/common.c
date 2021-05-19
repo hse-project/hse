@@ -20,20 +20,18 @@ mpool_test_pre(struct mtf_test_info *info)
 {
     struct mtf_test_coll_info *tcinfo = info->ti_coll;
 
-    char   *pos;
-    size_t  len, n;
-    int     rc;
+    char  *pos;
+    size_t len, n;
+    int    rc;
 
     if (tcinfo->tci_argc > 1) {
         n = strlcpy(storage_path, tcinfo->tci_argv[1], sizeof(storage_path));
         if (n >= sizeof(storage_path)) {
-            hse_log(HSE_ERR "Storage path malformed for test collection %s",
-                    tcinfo->tci_coll_name);
+            hse_log(HSE_ERR "Storage path malformed for test collection %s", tcinfo->tci_coll_name);
             return EINVAL;
         }
     } else {
-        hse_log(HSE_ERR "No storage path configured for test collection %s",
-                tcinfo->tci_coll_name);
+        hse_log(HSE_ERR "No storage path configured for test collection %s", tcinfo->tci_coll_name);
         return EINVAL;
     }
 

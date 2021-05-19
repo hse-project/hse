@@ -124,12 +124,12 @@ mclassid(uint64_t mbid)
  */
 merr_t
 mblock_file_open(
-    struct mblock_fset         *mbfsp,
-    struct media_class         *mc,
-    struct mblock_file_params  *params,
-    int                         flags,
-    char                       *meta_addr,
-    struct mblock_file        **handle);
+    struct mblock_fset        *mbfsp,
+    struct media_class        *mc,
+    struct mblock_file_params *params,
+    int                        flags,
+    char                      *meta_addr,
+    struct mblock_file       **handle);
 
 /**
  * mblock_file_close() - close an mblock file
@@ -205,11 +205,7 @@ mblock_file_read(
  * @iovc:   iov count
  */
 merr_t
-mblock_file_write(
-    struct mblock_file *mbfp,
-    uint64_t            mbid,
-    const struct iovec *iov,
-    int                 iovc);
+mblock_file_write(struct mblock_file *mbfp, uint64_t mbid, const struct iovec *iov, int iovc);
 
 /**
  * mblock_file_find() - test mblock's existence and return write length.
@@ -221,7 +217,6 @@ mblock_file_write(
  */
 merr_t
 mblock_file_find(struct mblock_file *mbfp, uint64_t *mbidv, int mbidc, uint32_t *wlen);
-
 
 /**
  * mblock_file_meta_len() - return meta length to track objects in an mblock file
@@ -241,11 +236,7 @@ mblock_file_meta_len(size_t fszmax, size_t mblocksz);
  * @wlen:     write length (output)
  */
 merr_t
-mblock_file_map_getbase(
-    struct mblock_file *mbfp,
-    uint64_t            mbid,
-    char              **addr_out,
-    uint32_t           *wlen);
+mblock_file_map_getbase(struct mblock_file *mbfp, uint64_t mbid, char **addr_out, uint32_t *wlen);
 
 /**
  * mblock_file_unmap() - unmap the given mblock id
@@ -254,9 +245,7 @@ mblock_file_map_getbase(
  * @mbid:   mblock id
  */
 merr_t
-mblock_file_unmap(
-    struct mblock_file *mbfp,
-    uint64_t            mbid);
+mblock_file_unmap(struct mblock_file *mbfp, uint64_t mbid);
 
 /**
  * mblock_file_stats_get() - get mblock file stats

@@ -20,11 +20,7 @@
 MTF_BEGIN_UTEST_COLLECTION_PREPOST(mcache_test, mpool_test_pre, mpool_test_post)
 
 static merr_t
-mblock_write(
-    struct mpool *mp,
-    uint64_t      mbid,
-    void         *buf,
-    size_t        len)
+mblock_write(struct mpool *mp, uint64_t mbid, void *buf, size_t len)
 {
     struct iovec *iov;
     int           iovc;
@@ -49,7 +45,7 @@ mblock_write(
         size_t curlen = min_t(size_t, left, PAGE_SIZE);
 
         iov[i].iov_base = pos;
-        iov[i].iov_len  = curlen;
+        iov[i].iov_len = curlen;
 
         left -= curlen;
         pos += PAGE_SIZE;
@@ -145,7 +141,7 @@ MTF_DEFINE_UTEST(mcache_test, mcache_api)
         for (j = 0; j <= i; j++) {
             ASSERT_NE(NULL, addrv[j]);
             if (j > 0)
-                ASSERT_EQ(addrv[j-1] + PAGE_SIZE, addrv[j]);
+                ASSERT_EQ(addrv[j - 1] + PAGE_SIZE, addrv[j]);
         }
 
         rc = memcmp(addr, buf, PAGE_SIZE * (i + 1));
@@ -168,7 +164,7 @@ MTF_DEFINE_UTEST(mcache_test, mcache_api)
     ASSERT_EQ(EINVAL, merr_errno(err));
 
     for (i = 0; i < 32; i++) {
-        err = mpool_mcache_madvise(map, i, 0, (i+ 1) * PAGE_SIZE, MADV_DONTNEED);
+        err = mpool_mcache_madvise(map, i, 0, (i + 1) * PAGE_SIZE, MADV_DONTNEED);
         ASSERT_EQ(0, err);
     }
 
@@ -231,7 +227,7 @@ MTF_DEFINE_UTEST(mcache_test, mcache_api)
         for (j = 0; j <= i; j++) {
             ASSERT_NE(NULL, addrv[j]);
             if (j > 0)
-                ASSERT_EQ(addrv[j-1] + PAGE_SIZE, addrv[j]);
+                ASSERT_EQ(addrv[j - 1] + PAGE_SIZE, addrv[j]);
         }
 
         rc = memcmp(addr, buf, PAGE_SIZE * (i + 1));
@@ -239,7 +235,7 @@ MTF_DEFINE_UTEST(mcache_test, mcache_api)
     }
 
     for (i = 0; i < 32; i++) {
-        err = mpool_mcache_madvise(map, i, 0, (i+ 1) * PAGE_SIZE, MADV_DONTNEED);
+        err = mpool_mcache_madvise(map, i, 0, (i + 1) * PAGE_SIZE, MADV_DONTNEED);
         ASSERT_EQ(0, err);
     }
 
@@ -260,7 +256,7 @@ MTF_DEFINE_UTEST(mcache_test, mcache_api)
 
 MTF_DEFINE_UTEST(mcache_test, mcache_invalid_args)
 {
-    struct mpool *mp;
+    struct mpool       *mp;
     struct mblock_fset *mbfsp;
     struct media_class *mc;
     struct mblock_file *mbfp = (struct mblock_file *)0x1234;
@@ -297,7 +293,7 @@ MTF_DEFINE_UTEST(mcache_test, mcache_invalid_args)
     err = mblock_file_map_getbase(mbfp, mbid, NULL, NULL);
     ASSERT_EQ(EINVAL, merr_errno(err));
 
-    err= mblock_file_unmap(NULL, mbid);
+    err = mblock_file_unmap(NULL, mbid);
     ASSERT_EQ(EINVAL, merr_errno(err));
 
     err = mpool_mblock_abort(mp, mbid);

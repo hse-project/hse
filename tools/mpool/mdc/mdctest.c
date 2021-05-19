@@ -49,7 +49,7 @@ mdc_correctness_simple(const char *mpool, const struct hse_params *params)
     char   errbuf[ERROR_BUFFER_SIZE];
     u64    oid[2];
 
-    struct mpool *    mp;
+    struct mpool     *mp;
     struct mpool_mdc *mdc;
     enum mpool_mclass mclass;
 
@@ -189,7 +189,7 @@ mdc_correctness_mp_release(const char *mpool, const struct hse_params *params)
     char   errbuf[ERROR_BUFFER_SIZE];
     u64    oid[2];
 
-    struct mpool *    mp;
+    struct mpool     *mp;
     struct mpool_mdc *mdc;
     enum mpool_mclass mclass;
 
@@ -333,7 +333,7 @@ verify_buf(char *buf_in, size_t buf_len, char val)
 {
     char  buf[buf_len];
     pid_t pid = getpid();
-    u8 *  p, *p1;
+    u8   *p, *p1;
 
     memset(buf, val, buf_len);
 
@@ -358,7 +358,7 @@ mdc_correctness_multi_reader_single_app(const char *mpool, const struct hse_para
     char   largebuf[PAGE_SIZE], largebuf_in[PAGE_SIZE];
     size_t read_len;
 
-    struct mpool *    mp;
+    struct mpool     *mp;
     struct mpool_mdc *mdc[2];
     enum mpool_mclass mclass;
 
@@ -406,7 +406,7 @@ mdc_correctness_multi_reader_single_app(const char *mpool, const struct hse_para
 
     /* 5. Write pattern to MDC */
     for (i = 0; i < BUF_CNT; i++) {
-        char * bufp = buf;
+        char  *bufp = buf;
         size_t sz = BUF_SIZE;
         bool   sync = false;
 
@@ -439,7 +439,7 @@ mdc_correctness_multi_reader_single_app(const char *mpool, const struct hse_para
         }
 
         for (i = 0; i < BUF_CNT; i++) {
-            char * bufp = buf;
+            char  *bufp = buf;
             size_t sz = BUF_SIZE;
             bool   sync = false;
 
@@ -498,7 +498,7 @@ mdc_correctness_multi_reader_single_app(const char *mpool, const struct hse_para
 
     /* 9. Read/Verify pattern via mdc[0] */
     for (i = 0; i < BUF_CNT; i++) {
-        char * bufp = buf_in;
+        char  *bufp = buf_in;
         size_t sz = BUF_SIZE;
 
         if (i % 8 == 0) {
@@ -564,7 +564,7 @@ mdc_correctness_multi_reader_single_app(const char *mpool, const struct hse_para
 
     /* 13. Read/Verify pattern via mdc[1] */
     for (i = 0; i < BUF_CNT; i++) {
-        char * bufp = buf_in;
+        char  *bufp = buf_in;
         size_t sz = BUF_SIZE;
 
         if (i % 8 == 0) {
@@ -663,7 +663,7 @@ mdc_correctness_reader_then_writer(const char *mpool, const struct hse_params *p
     char   largebuf[PAGE_SIZE], largebuf_in[PAGE_SIZE];
     size_t read_len;
 
-    struct mpool *    mp;
+    struct mpool     *mp;
     struct mpool_mdc *mdc;
     enum mpool_mclass mclass;
 
@@ -711,7 +711,7 @@ mdc_correctness_reader_then_writer(const char *mpool, const struct hse_params *p
 
     /* 5. Write pattern to MDC */
     for (i = 0; i < BUF_CNT; i++) {
-        char * bufp = buf;
+        char  *bufp = buf;
         size_t sz = BUF_SIZE;
         bool   sync = false;
 
@@ -743,7 +743,7 @@ mdc_correctness_reader_then_writer(const char *mpool, const struct hse_params *p
         }
 
         for (i = 0; i < BUF_CNT; i++) {
-            char * bufp = buf;
+            char  *bufp = buf;
             size_t sz = BUF_SIZE;
             bool   sync = false;
 
@@ -803,7 +803,7 @@ mdc_correctness_reader_then_writer(const char *mpool, const struct hse_params *p
 
     /* 9. Read/Verify pattern via mdc */
     for (i = 0; i < BUF_CNT; i++) {
-        char * bufp = buf_in;
+        char  *bufp = buf_in;
         size_t sz = BUF_SIZE;
 
         if (i < 32) {
@@ -903,7 +903,7 @@ mdc_correctness_writer_then_reader(const char *mpool, const struct hse_params *p
     char   largebuf[PAGE_SIZE], largebuf_in[PAGE_SIZE];
     size_t read_len;
 
-    struct mpool *    mp;
+    struct mpool     *mp;
     struct mpool_mdc *mdc[2];
     enum mpool_mclass mclass;
 
@@ -951,7 +951,7 @@ mdc_correctness_writer_then_reader(const char *mpool, const struct hse_params *p
 
     /* 5. Write pattern to MDC (handle: mdc[0]) */
     for (i = 0; i < BUF_CNT; i++) {
-        char * bufp = buf;
+        char  *bufp = buf;
         size_t sz = BUF_SIZE;
         bool   sync = false;
 
@@ -1002,7 +1002,7 @@ mdc_correctness_writer_then_reader(const char *mpool, const struct hse_params *p
 
     /* 9. Read/Verify pattern via mdc[1] */
     for (i = 0; i < BUF_CNT; i++) {
-        char * bufp = buf_in;
+        char  *bufp = buf_in;
         size_t sz = BUF_SIZE;
 
         if (i % 8 == 0) {
@@ -1097,7 +1097,7 @@ mdc_correctness_multi_mdc(const char *mpool, const struct hse_params *params)
         u64 oid[2];
     } * oid;
 
-    struct mpool *    mp;
+    struct mpool     *mp;
     struct mpool_mdc *mdc[4];
     enum mpool_mclass mclass;
 

@@ -76,10 +76,9 @@ logid_fid(uint64_t logid)
 static inline bool
 logids_valid(uint64_t logid1, uint64_t logid2)
 {
-    return (logid1 != logid2 &&
-            logid_magic(logid1) == logid_magic(logid2) &&
-            logid_fid(logid1) + 1 == logid_fid(logid2) &&
-            logid_mcid(logid1) == logid_mcid(logid2));
+    return (
+        logid1 != logid2 && logid_magic(logid1) == logid_magic(logid2) &&
+        logid_fid(logid1) + 1 == logid_fid(logid2) && logid_mcid(logid1) == logid_mcid(logid2));
 }
 
 static inline void

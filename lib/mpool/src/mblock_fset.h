@@ -125,11 +125,7 @@ mblock_fset_delete(struct mblock_fset *mbfsp, uint64_t *mbidv, int mbidc);
  * @iovc:  iovec cnt
  */
 merr_t
-mblock_fset_write(
-    struct mblock_fset *mbfsp,
-    uint64_t            mbid,
-    const struct iovec *iov,
-    int                 iovc);
+mblock_fset_write(struct mblock_fset *mbfsp, uint64_t mbid, const struct iovec *iov, int iovc);
 
 /**
  * mblock_fset_read() - read an mblock
@@ -168,11 +164,7 @@ mblock_fset_find(struct mblock_fset *mbfsp, uint64_t *mbidv, int mbidc, uint32_t
  * @wlen:     write length of the specifid mblock (output)
  */
 merr_t
-mblock_fset_map_getbase(
-    struct mblock_fset *mbfsp,
-    uint64_t            mbid,
-    char              **addr_out,
-    uint32_t           *wlen);
+mblock_fset_map_getbase(struct mblock_fset *mbfsp, uint64_t mbid, char **addr_out, uint32_t *wlen);
 
 /**
  * mblock_fset_unmap() - unmap the specified mblock
@@ -181,9 +173,7 @@ mblock_fset_map_getbase(
  * @mbid:  mblock id
  */
 merr_t
-mblock_fset_unmap(
-    struct mblock_fset *mbfsp,
-    uint64_t            mbid);
+mblock_fset_unmap(struct mblock_fset *mbfsp, uint64_t mbid);
 
 /**
  * mblock_fset_stats_get() - retrieve stats of an mblock fileset

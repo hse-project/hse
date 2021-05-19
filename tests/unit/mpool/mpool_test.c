@@ -16,15 +16,15 @@ MTF_BEGIN_UTEST_COLLECTION_PREPOST(mpool_test, mpool_test_pre, mpool_test_post)
 
 MTF_DEFINE_UTEST(mpool_test, mpool_ocd_test)
 {
-    struct mpool *mp,  *mp1;
-    struct mpool_stats  stats = {};
-    struct mpool_props  mprops = {};
-    struct dirent      *d;
+    struct mpool      *mp, *mp1;
+    struct mpool_stats stats = {};
+    struct mpool_props mprops = {};
+    struct dirent     *d;
 
-    char    staging_path[PATH_MAX];
-    merr_t  err;
-    int     rc, entry;
-    DIR    *dirp;
+    char   staging_path[PATH_MAX];
+    merr_t err;
+    int    rc, entry;
+    DIR   *dirp;
 
     err = mpool_open(NULL, NULL, 0, &mp);
     ASSERT_EQ(EINVAL, merr_errno(err));

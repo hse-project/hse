@@ -16,7 +16,7 @@
 #include <mdc.h>
 #include <mdc_file.h>
 
-#define MDC_TEST_CAP (1 << 20)
+#define MDC_TEST_CAP   (1 << 20)
 #define MDC_TEST_MAGIC (0xabbaabba)
 
 MTF_BEGIN_UTEST_COLLECTION_PREPOST(mdc_test, mpool_test_pre, mpool_test_post)
@@ -129,7 +129,7 @@ MTF_DEFINE_UTEST(mdc_test, mdc_abc)
     err = mpool_mdc_cend(mdc);
     ASSERT_EQ(0, err);
 
-    err= mpool_mdc_close(NULL);
+    err = mpool_mdc_close(NULL);
     ASSERT_EQ(EINVAL, merr_errno(err));
 
     err = mpool_mdc_close(mdc);
@@ -290,7 +290,7 @@ MTF_DEFINE_UTEST(mdc_test, mdc_io_basic)
     ASSERT_EQ(0, err);
     memset(rdbuf, 0, bufsz);
 
-    err = mpool_mdc_read(mdc, rdbuf, iter/2, &rdlen);
+    err = mpool_mdc_read(mdc, rdbuf, iter / 2, &rdlen);
     ASSERT_EQ(EOVERFLOW, merr_errno(err));
     ASSERT_EQ(iter, rdlen);
 
@@ -333,16 +333,16 @@ mdc_rw_test(
     uint64_t              logid2,
     char                 *buf,
     size_t                bufsz,
-	bool                  large)
+    bool                  large)
 {
     struct mpool_mdc *mdc;
 
-    merr_t  err;
-    char   *rdbuf;
-    size_t  rdlen, reclen, rectot, reccnt, usage;
-    off_t   start;
-    bool	sync;
-    u16	    reopen_freq, sync_freq;
+    merr_t err;
+    char  *rdbuf;
+    size_t rdlen, reclen, rectot, reccnt, usage;
+    off_t  start;
+    bool   sync;
+    u16    reopen_freq, sync_freq;
 
     if (large) {
         reclen = 4 * 1024;
@@ -394,7 +394,7 @@ mdc_rw_test(
     start = 0;
 
     rdbuf = calloc(reclen, sizeof(char));
-    ASSERT_FALSE((char *)NULL ==  rdbuf);
+    ASSERT_FALSE((char *)NULL == rdbuf);
 
     while (1) {
         err = mpool_mdc_read(mdc, rdbuf, reclen, &rdlen);
@@ -411,8 +411,7 @@ mdc_rw_test(
                     memset(rdbuf, 0, reclen);
                 }
             } else {
-                hse_log(HSE_ERR "Failure rdlen %lu reclen %lu start %lu",
-                        rdlen, reclen, start);
+                hse_log(HSE_ERR "Failure rdlen %lu reclen %lu start %lu", rdlen, reclen, start);
                 ASSERT_TRUE(0);
             }
         }
@@ -496,8 +495,8 @@ MTF_DEFINE_UTEST(mdc_test, mdc_io_overlap)
 
     ASSERT_EQ(0, mpool_mdc_open(mp, logid1, logid2, &mdc));
 
-    wdlen  = bufsz / 2;
-    wdcnt  = 0;
+    wdlen = bufsz / 2;
+    wdcnt = 0;
     reclen = 128;
 
     rdbuf = calloc(reclen, sizeof(char));
@@ -516,7 +515,7 @@ MTF_DEFINE_UTEST(mdc_test, mdc_io_overlap)
             int rc;
             int rdstart;
 
-            rdcnt   = wdcnt - 51;
+            rdcnt = wdcnt - 51;
             rdstart = rdcnt * reclen;
 
             while (rdcnt < wdcnt) {
@@ -527,22 +526,22 @@ MTF_DEFINE_UTEST(mdc_test, mdc_io_overlap)
                 rc = memcmp(rdbuf, buf + rdstart, reclen);
                 ASSERT_EQ(0, rc);
 
-                rdcnt   = rdcnt + 1;
+                rdcnt = rdcnt + 1;
                 rdstart = rdstart + reclen;
                 memset(rdbuf, 0, reclen);
-			}
-		}
-		wdcnt = wdcnt + 1;
-	}
+            }
+        }
+        wdcnt = wdcnt + 1;
+    }
 
     ASSERT_EQ(0, mpool_mdc_close(mdc));
-	ASSERT_EQ(0, err);
+    ASSERT_EQ(0, err);
 
     ASSERT_EQ(0, mpool_mdc_open(mp, logid1, logid2, &mdc));
-	ASSERT_EQ(0, err);
+    ASSERT_EQ(0, err);
 
     ASSERT_EQ(0, mpool_mdc_close(mdc));
-	ASSERT_EQ(0, err);
+    ASSERT_EQ(0, err);
 
     err = mpool_mdc_delete(mp, logid1, logid2);
     ASSERT_EQ(0, err);
@@ -551,7 +550,7 @@ MTF_DEFINE_UTEST(mdc_test, mdc_io_overlap)
     ASSERT_EQ(0, err);
 
     free(buf);
-	free(rdbuf);
+    free(rdbuf);
 }
 
 MTF_DEFINE_UTEST(mdc_test, mdc_io_reopen)
@@ -580,8 +579,8 @@ MTF_DEFINE_UTEST(mdc_test, mdc_io_reopen)
 
     ASSERT_EQ(0, mpool_mdc_open(mp, logid1, logid2, &mdc));
 
-    wdlen  = bufsz / 2;
-    wdcnt  = 0;
+    wdlen = bufsz / 2;
+    wdcnt = 0;
     reclen = 128;
 
     rdbuf = calloc(reclen, sizeof(char));
@@ -617,7 +616,7 @@ MTF_DEFINE_UTEST(mdc_test, mdc_io_reopen)
                 rc = memcmp(rdbuf, buf + rdstart, reclen);
                 ASSERT_EQ(0, rc);
 
-                rdcnt   = rdcnt + 1;
+                rdcnt = rdcnt + 1;
                 rdstart = rdstart + reclen;
                 memset(rdbuf, 0, reclen);
             }
