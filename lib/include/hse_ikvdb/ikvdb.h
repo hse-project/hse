@@ -300,7 +300,7 @@ ikvdb_kvs_put(
     unsigned int             flags,
     struct hse_kvdb_txn *    txn,
     struct kvs_ktuple *      kt,
-    const struct kvs_vtuple *vt);
+    struct kvs_vtuple       *vt);
 
 /**
  * ikvdb_kvs_get() - search for the given key within the KVS. HSE allocates

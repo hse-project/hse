@@ -73,6 +73,7 @@
 #include <bsd/libutil.h>
 
 #include "kvdb_rest.h"
+#include "wal.h"
 
 /* tls_vbuf[] is a thread-local buffer used as a compression output buffer
  * by ikvdb_kvs_put() and for small direct reads by kvset_lookup_val().
@@ -1759,10 +1760,11 @@ ikvdb_kvs_put(
     const unsigned int         flags,
     struct hse_kvdb_txn *const txn,
     struct kvs_ktuple *        kt,
-    const struct kvs_vtuple *  vt)
+    struct kvs_vtuple *        vt)
 {
     struct kvdb_kvs *  kk = (struct kvdb_kvs *)handle;
     struct ikvdb_impl *parent;
+    struct kvs_ktuple  ktbuf;
     struct kvs_vtuple  vtbuf;
     u64                put_seqno;
     merr_t             err;
@@ -1785,6 +1787,12 @@ ikvdb_kvs_put(
         &parent->ikdb_health, KVDB_HEALTH_FLAG_ALL & ~KVDB_HEALTH_FLAG_DELBLKFAIL);
     if (ev(err))
         return err;
+
+    ktbuf = *kt;
+    vtbuf = *vt;
+
+    kt = &ktbuf;
+    vt = &vtbuf;
 
     vlen = kvs_vtuple_vlen(vt);
     clen = kvs_vtuple_clen(vt);
@@ -1809,8 +1817,7 @@ ikvdb_kvs_put(
             err = kk->kk_vcompress(vt->vt_data, vlen, vbuf, vbufsz, &clen);
 
             if (!err && clen < vlen) {
-                kvs_vtuple_cinit(&vtbuf, vbuf, vlen, clen);
-                vt = &vtbuf;
+                kvs_vtuple_cinit(vt, vbuf, vlen, clen);
                 vlen = clen;
             }
         }
@@ -1818,11 +1825,15 @@ ikvdb_kvs_put(
 
     put_seqno = txn ? 0 : HSE_SQNREF_SINGLE;
 
-    err = kvs_put(kk->kk_ikvs, txn, kt, vt, put_seqno);
+    err = wal_put(kk->kk_ikvs, NULL, kt, vt, put_seqno);
 
     if (vbuf && vbuf != tls_vbuf)
         vlb_free(vbuf, (vbufsz > VLB_ALLOCSZ_MAX) ? vbufsz : clen);
 
+    if (err)
+        return err;
+
+    err = kvs_put(kk->kk_ikvs, txn, kt, vt, put_seqno);
     if (err) {
         ev(merr_errno(err) != ECANCELED);
         return err;
@@ -2673,6 +2684,13 @@ ikvdb_init(void)
     merr_t err;
 
     kvdb_perfc_initialize();
+
+    err = wal_init();
+    if (err) {
+        kvdb_perfc_finish();
+        return err;
+    }
+
     kvs_init();
 
     err = c0_init();
@@ -2719,6 +2737,7 @@ ikvdb_fini(void)
     lc_fini();
     c0_fini();
     kvs_fini();
+    wal_fini();
     kvdb_perfc_finish();
 }
 
