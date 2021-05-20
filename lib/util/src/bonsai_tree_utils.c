@@ -403,7 +403,12 @@ bn_kv_free(struct bonsai_kv *freekeys)
          */
         eval = (void *)kv + kv->bkv_voffset;
 
-        freekeys = kv->bkv_next;
+        freekeys = kv->bkv_free;
+
+        /* Torch the key ptr in case someone tries to use it
+         * after it's been freed...
+         */
+        kv->bkv_key = (void *)0xbadcafe5badcafe5;
 
         while (( val = kv->bkv_values )) {
             kv->bkv_values = val->bv_next;
@@ -510,7 +515,7 @@ bn_kvnode_alloc(
 
     node = bn_node_make(tree, NULL, NULL, 1, kv, &skey->bsk_key_imm);
     if (!node) {
-        kv->bkv_next = tree->br_freekeys;
+        kv->bkv_free = tree->br_freekeys;
         tree->br_freekeys = kv;
     }
 

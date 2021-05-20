@@ -888,7 +888,7 @@ MTF_DEFINE_UTEST(bonsai_tree_test, misc)
 MTF_DEFINE_UTEST_PREPOST(bonsai_tree_test, short_tree, no_fail_pre, no_fail_post)
 {
     const int maxvals = 12345;
-    const int maxkeys = 32;
+    const int maxkeys = 64;
     struct bonsai_skey skey;
     struct bonsai_sval sval;
     uintptr_t seqno;
@@ -898,7 +898,7 @@ MTF_DEFINE_UTEST_PREPOST(bonsai_tree_test, short_tree, no_fail_pre, no_fail_post
     err = bn_create(NULL, bonsai_client_insert_callback, NULL, &broot);
     ASSERT_EQ(err, 0);
 
-    /* Load the first four to six levels of the tree such that each key
+    /* Load the first six or so levels of the tree such that each key
      * has many values.
      */
     for (i = 0; i < maxvals; ++i) {
@@ -943,6 +943,117 @@ MTF_DEFINE_UTEST_PREPOST(bonsai_tree_test, short_tree, no_fail_pre, no_fail_post
 
     bn_destroy(broot);
     broot = NULL;
+}
+
+MTF_DEFINE_UTEST_PREPOST(bonsai_tree_test, randinsdel, no_fail_pre, no_fail_post)
+{
+    uint ninserted = 0, ndeleted = 0;
+    struct bonsai_root *tree;
+    struct bonsai_skey skey;
+    struct bonsai_sval sval;
+    uintptr_t seqno;
+    size_t intreec;
+    bool *intreev;
+    merr_t err;
+    uint i, j;
+    bool b;
+
+    intreec = 1024 * 1024 + 1;
+
+    intreev = calloc(intreec, sizeof(*intreev));
+    ASSERT_NE(NULL, intreev);
+
+    err = bn_create(NULL, bonsai_client_insert_callback, NULL, &tree);
+    ASSERT_EQ(err, 0);
+
+    for (i = 1; i < intreec; i *= 2) {
+        uint itermax = max_t(uint, i * 5, 128 * 1024);
+        uint maxkeys = i;
+        uint64_t tstart;
+
+        tstart = get_time_ns();
+
+        /* Randomly insert/delete keys...
+         */
+        for (j = 0; j < itermax; ++j) {
+            uint64_t key = xrand64_tls() % maxkeys;
+
+            bn_skey_init(&key, sizeof(key), 0, 0, &skey);
+
+            rcu_read_lock();
+            if (intreev[key]) {
+                err = bn_delete(tree, &skey);
+                ASSERT_EQ(0, err);
+
+                intreev[key] = false;
+                ++ndeleted;
+            } else {
+                uint64_t val = key;
+
+                seqno = HSE_ORDNL_TO_SQNREF(i);
+                bn_sval_init(&val, sizeof(val), seqno, &sval);
+
+                err = bn_insert_or_replace(tree, &skey, &sval);
+                ASSERT_EQ(0, err);
+
+                intreev[key] = true;
+                ++ninserted;
+            }
+
+            /* Double-check intreev[key] roughly 3% of the time...
+             */
+            if (xrand64_tls() % (1u << 20) < (3 * (1u << 20) / 100)) {
+                struct bonsai_kv *kv = NULL;
+                uint64_t val = key;
+
+                b = bn_find(tree, &skey, &kv);
+                ASSERT_EQ(intreev[key], b);
+                if (b)
+                    ASSERT_EQ(val, *(uint64_t *)kv->bkv_values->bv_value);
+            }
+            rcu_read_unlock();
+        }
+
+        tstart = get_time_ns() - tstart;
+
+        rcu_read_lock();
+        bn_traverse(tree);
+        rcu_read_unlock();
+
+        hse_log(HSE_NOTICE "%s: %7u: height %2u %2u, ins %6u, del %6u, %lu ns/insdel\n",
+                __func__, maxkeys, tree->br_height,
+                tree->br_root ? tree->br_root->bn_height : 0,
+                ninserted, ndeleted, tstart / itermax);
+
+        /* Remove all the keys that we think are in the tree...
+         */
+        for (j = 0; j < maxkeys; ++j) {
+            uint64_t key = j;
+
+            if (!intreev[key])
+                continue;
+
+            bn_skey_init(&key, sizeof(key), 0, 0, &skey);
+
+            rcu_read_lock();
+            err = bn_delete(tree, &skey);
+            ASSERT_EQ(0, err);
+
+            intreev[key] = false;
+            rcu_read_unlock();
+        }
+
+        /* Tree should be empty...
+         */
+        rcu_read_lock();
+        ASSERT_EQ(NULL, rcu_dereference(tree->br_root));
+        ASSERT_EQ(&tree->br_kv, rcu_dereference(tree->br_kv.bkv_next));
+        ASSERT_EQ(&tree->br_kv, rcu_dereference(tree->br_kv.bkv_prev));
+        rcu_read_unlock();
+    }
+
+    bn_destroy(tree);
+    free(intreev);
 }
 
 MTF_DEFINE_UTEST_PREPOST(bonsai_tree_test, basic_single_threaded, no_fail_pre, no_fail_post)

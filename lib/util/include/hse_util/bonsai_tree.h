@@ -87,7 +87,7 @@ struct bonsai_skey {
  * @bv_next:      ptr to next value in list
  * @bv_value:     ptr to value data
  * @bv_xlen:      opaque encoded value length
- * @bv_free:      ptr to next value in free list *bkv_freevalsp
+ * @bv_free:      ptr to next value in free list bkv_freevals
  * @bv_valbuf:    value data (zero length if caller managed)
  *
  * A bonsai_val includes the value data and may be on both the bnkv_values
@@ -210,6 +210,7 @@ struct bonsai_kv {
     struct bonsai_kv *      bkv_next;
     struct element_source  *bkv_es;
     struct bonsai_val      *bkv_freevals;
+    struct bonsai_kv       *bkv_free;
     char                    bkv_keybuf[];
 };
 
@@ -436,6 +437,14 @@ bn_insert_or_replace(
     struct bonsai_root *      tree,
     const struct bonsai_skey *skey,
     const struct bonsai_sval *sval);
+
+/**
+ * bn_delete() - remove and delete the given key from the tree
+ * @tree: bonsai tree instance
+ * @skey: bonsai_skey instance containing the key and its related info
+ */
+merr_t
+bn_delete(struct bonsai_root *tree, const struct bonsai_skey *skey);
 
 /**
  * bn_find() - Searches for a given key in the node

@@ -87,18 +87,19 @@ bn_node_dup_ext(
     struct bonsai_node *right);
 
 /**
- * bn_balance_tree() -
+ * bn_balance() - balance subtree given by %node
  * @tree:    bonsai tree instance
- * @node:
+ * @node:    root of the subtree to balance
  * @left:    left child
  * @right:   right child
  * @key_imm: key immediate
  * @key:
  *
- * Return:
+ * Return: %node if balancing not needed, otherwise a new balanced
+ * subtree root node that is not yet visible to rcu readers
  */
 struct bonsai_node *
-bn_balance_tree(
+bn_balance(
     struct bonsai_root *        tree,
     struct bonsai_node *        node,
     struct bonsai_node *        left,

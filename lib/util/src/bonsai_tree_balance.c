@@ -14,6 +14,11 @@ bn_single_left_rotate(
     struct bonsai_node *left = newleft;
 
     if (!left) {
+        if (!node->bn_left) {
+            bn_height_update(node);
+            return node;
+        }
+
         left = bn_node_dup(tree, node->bn_left);
         if (!left)
             return NULL;
@@ -39,6 +44,11 @@ bn_single_right_rotate(
     struct bonsai_node *right = newright;
 
     if (!right) {
+        if (!node->bn_right) {
+            bn_height_update(node);
+            return node;
+        }
+
         right = bn_node_dup(tree, node->bn_right);
         if (!right)
             return NULL;
@@ -120,8 +130,10 @@ bn_balance_left(
         return node;
 
     res = key_full_cmp(key_imm, key, &left->bn_key_imm, left->bn_kv->bkv_key);
-
-    assert(res != 0);
+    if (res == 0) {
+        bn_height_update(newnode);
+        return newnode;
+    }
 
     if (res < 0)
         out = bn_single_left_rotate(tree, newnode, NULL);
@@ -150,8 +162,10 @@ bn_balance_right(
         return node;
 
     res = key_full_cmp(key_imm, key, &right->bn_key_imm, right->bn_kv->bkv_key);
-
-    assert(res != 0);
+    if (res == 0) {
+        bn_height_update(newnode);
+        return newnode;
+    }
 
     if (res > 0)
         out = bn_single_right_rotate(tree, newnode, NULL);
@@ -204,7 +218,7 @@ bn_need_right_balance(int lh, int rh)
 }
 
 struct bonsai_node *
-bn_balance_tree(
+bn_balance(
     struct bonsai_root *        tree,
     struct bonsai_node *        parent,
     struct bonsai_node *        left,
@@ -213,8 +227,7 @@ bn_balance_tree(
     const void *                key,
     enum bonsai_update_lr       lr)
 {
-    int lh;
-    int rh;
+    int lh, rh;
 
     lh = bn_height_get(left);
     rh = bn_height_get(right);
