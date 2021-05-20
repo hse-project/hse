@@ -216,9 +216,9 @@ bn_ior_impl(
         assert(prev->bn_rcugen == HSE_BN_RCUGEN_ACTIVE);
 
         if (right)
-            node = bn_balance(tree, prev, prev->bn_left, node, key_imm, key, B_UPDATE_R);
+            node = bn_balance(tree, prev, prev->bn_left, node);
         else
-            node = bn_balance(tree, prev, node, prev->bn_right, key_imm, key, B_UPDATE_L);
+            node = bn_balance(tree, prev, node, prev->bn_right);
     }
 
     return node;
@@ -390,9 +390,9 @@ bn_delete_impl(
         assert(parent->bn_rcugen == HSE_BN_RCUGEN_ACTIVE);
 
         if (right)
-            node = bn_balance(tree, parent, parent->bn_left, node, key_imm, key, B_UPDATE_R);
+            node = bn_balance(tree, parent, parent->bn_left, node);
         else
-            node = bn_balance(tree, parent, node, parent->bn_right, key_imm, key, B_UPDATE_L);
+            node = bn_balance(tree, parent, node, parent->bn_right);
     }
 
     assert(node);

@@ -13,11 +13,6 @@
 #include <hse_util/bonsai_tree.h>
 #include <hse_util/assert.h>
 
-enum bonsai_update_lr {
-    B_UPDATE_L = 0,
-    B_UPDATE_R = 1,
-};
-
 enum bonsai_match_type {
     B_MATCH_EQ = 0,
     B_MATCH_GE = 1,
@@ -92,21 +87,16 @@ bn_node_dup_ext(
  * @node:    root of the subtree to balance
  * @left:    left child
  * @right:   right child
- * @key_imm: key immediate
- * @key:
  *
  * Return: %node if balancing not needed, otherwise a new balanced
  * subtree root node that is not yet visible to rcu readers
  */
 struct bonsai_node *
 bn_balance(
-    struct bonsai_root *        tree,
-    struct bonsai_node *        node,
-    struct bonsai_node *        left,
-    struct bonsai_node *        right,
-    const struct key_immediate *key_imm,
-    const void *                key,
-    enum bonsai_update_lr       lr);
+    struct bonsai_root *tree,
+    struct bonsai_node *node,
+    struct bonsai_node *left,
+    struct bonsai_node *right);
 
 /**
  * bn_height_max() -
