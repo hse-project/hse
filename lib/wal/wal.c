@@ -17,7 +17,7 @@
 #include <hse_ikvdb/key_hash.h>
 #include <hse_ikvdb/tuple.h>
 
-#include "wal.h"
+#include <hse_ikvdb/wal.h>
 
 /* clang-format off */
 
@@ -31,7 +31,7 @@
 #define WAL_BUFALLOCSZ_MAX \
     (ALIGN(WAL_BUFSZ_MAX + sizeof(struct wal_rec) + HSE_KVS_KLEN_MAX + HSE_KVS_VLEN_MAX, 2ul << 20))
 
-struct wal {
+struct wal_buffer {
     atomic64_t  w_offset HSE_ALIGNED(SMP_CACHE_BYTES * 2);
     char       *w_buf    HSE_ALIGNED(SMP_CACHE_BYTES);
 };
@@ -46,7 +46,7 @@ struct wal_rec {
 
 /* clang-format on */
 
-static struct wal walv[WAL_NODE_MAX * WAL_BPN_MAX];
+static struct wal_buffer walv[WAL_NODE_MAX * WAL_BPN_MAX];
 
 merr_t
 wal_put(
@@ -59,7 +59,7 @@ wal_put(
     const size_t kvalign = alignof(uint64_t);
     uint cpuid, nodeid, coreid;
     struct wal_rec *rec;
-    struct wal *wal;
+    struct wal_buffer *wal;
     uint64_t offset, len;
     size_t klen, vlen;
     char *data;
@@ -104,7 +104,7 @@ wal_init(void)
     uint i, j;
 
     for (i = 0; i < get_nprocs_conf(); ++i) {
-        struct wal *wal;
+        struct wal_buffer *wal;
 
         wal = walv + (hse_cpu2node(i) % WAL_NODE_MAX) * WAL_BPN_MAX;
         if (wal->w_buf)
@@ -132,9 +132,8 @@ wal_fini(void)
     uint i;
 
     for (i = 0; i < WAL_NODE_MAX * WAL_BPN_MAX; ++i) {
-        struct wal *wal = walv + i;
+        struct wal_buffer *wal = walv + i;
 
         vlb_free(wal->w_buf, WAL_BUFALLOCSZ_MAX);
     }
 }
-

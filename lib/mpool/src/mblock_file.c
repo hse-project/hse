@@ -1018,7 +1018,7 @@ mblock_file_read(
     if (!PAGE_ALIGNED(len) || (roff + len - 1 > eoff))
         return merr(EINVAL);
 
-    return mbfp->io.read(mbfp->fd, roff, iov, iovc, 0);
+    return mbfp->io.read(mbfp->fd, roff, iov, iovc, 0, NULL);
 }
 
 merr_t

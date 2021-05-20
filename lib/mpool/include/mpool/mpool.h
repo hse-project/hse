@@ -15,6 +15,7 @@
 struct mpool;            /* opaque mpool handle */
 struct mpool_mdc;        /* opaque MDC (metadata container) handle */
 struct mpool_mcache_map; /* opaque mcache map handle */
+struct mpool_file;       /* opaque mpool file handle */
 
 /* MTF_MOCK_DECL(mpool) */
 
@@ -540,6 +541,90 @@ mpool_mcache_mincore(
     const struct mpool *     mp,
     size_t *                 rssp,
     size_t *                 vssp);
+
+/**
+ * An mpool_file is a simple wrapper around mpool to manage files in a specified
+ * mpool and media class.
+ */
+
+/**
+ * mpool_file_create() - Create a file in the specified mpool and mclass
+ *
+ * @mp:       mpool handle
+ * @mclass:   which mclass the file belongs to
+ * @name:     name of the file
+ * @capacity: file's capacity
+ * @sparse:   does it need to be a sparse file
+ *
+ * Return: %0 on success, merr_t on failure
+ */
+merr_t
+mpool_file_create(
+    struct mpool      *mp,
+    enum mpool_mclass  mclass,
+    const char        *name,
+    size_t             capacity,
+    bool               sparse);
+
+/**
+ * mpool_file_open() - Open a file in the specified mpool and mclass
+ *
+ * @mp:     mpool handle
+ * @mclass: which mclass the file belongs to
+ * @name:   name of the file
+ * @flags:  open(2) flags
+ * @handle: mpool file handle (output)
+ *
+ * Return: %0 on success, merr_t on failure
+ */
+merr_t
+mpool_file_open(
+    struct mpool       *mp,
+    enum mpool_mclass   mclass,
+    const char         *name,
+    int                 flags,
+    struct mpool_file **handle);
+
+/**
+ * mpool_file_close() - Close an mpool file
+ *
+ * @file: mpool file handle
+ */
+merr_t
+mpool_file_close(struct mpool_file *file);
+
+/**
+ * mpool_file_destroy() - Destroy an mpool file
+ *
+ * @mp:     mpool handle
+ * @mclass: media class
+ * @name:   file name
+ */
+merr_t
+mpool_file_destroy(struct mpool *mp, enum mpool_mclass mclass, const char *name);
+
+/**
+ * mpool_file_read() - Read an mpool file
+ *
+ * @file:   mpool file handle
+ * @offset: read offset
+ * @buf:    read buffer
+ * @buflen: buffer len
+ * @rdlen:  bytes read (output)
+ */
+merr_t
+mpool_file_read(struct mpool_file *file, off_t offset, char *buf, size_t buflen, size_t *rdlen);
+
+/**
+ * mpool_file_write() - Write an mpool file
+ *
+ * @file:   mpool file handle
+ * @offset: write offset
+ * @buf:    write buffer
+ * @buflen: buffer len
+ */
+merr_t
+mpool_file_write(struct mpool_file *file, off_t offset, const char *buf, size_t buflen);
 
 #if HSE_MOCKING
 #include "mpool_ut.h"

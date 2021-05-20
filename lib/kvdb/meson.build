@@ -15,7 +15,6 @@ kvdb_sources = files(
     'sched_sts_perfc.c',
     'throttle.c',
     'viewset.c',
-    'wal.c',
 )
 
 kvdb_includes = include_directories('.')

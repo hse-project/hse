@@ -5,6 +5,10 @@
 #ifndef HSE_WAL_H
 #define HSE_WAL_H
 
+struct wal {
+    struct mpool *mp;
+};
+
 merr_t
 wal_put(
     struct ikvs *kvs,
@@ -16,4 +20,4 @@ wal_put(
 merr_t wal_init(void) HSE_COLD;
 void wal_fini(void) HSE_COLD;
 
-#endif
+#endif /* HSE_WAL_H */

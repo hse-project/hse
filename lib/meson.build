@@ -38,6 +38,7 @@ subdir('c0')
 subdir('lc')
 subdir('cn')
 subdir('kvdb')
+subdir('wal')
 subdir('mpool')
 subdir('pidfile')
 
@@ -50,6 +51,7 @@ hse_sources = [
     cn_sources,
     kvdb_sources,
     kvs_sources,
+    wal_sources,
     mpool_sources,
     util_sources,
 ]
