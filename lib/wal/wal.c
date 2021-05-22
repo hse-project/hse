@@ -4,52 +4,43 @@
  */
 
 #include <stdalign.h>
-#include <sys/sysinfo.h>
 
 #include <hse_util/platform.h>
-#include <hse_util/vlb.h>
 #include <hse_util/bonsai_tree.h>
 
-#include <hse/hse.h>
-
-#include <hse_ikvdb/kvs.h>
+#include <hse_ikvdb/ikvdb.h>
+#include <hse_ikvdb/cn.h>
 #include <hse_ikvdb/limits.h>
 #include <hse_ikvdb/key_hash.h>
-#include <hse_ikvdb/tuple.h>
 
-#include <hse_ikvdb/wal.h>
+#include <mpool/mpool.h>
 
-/* clang-format off */
+#include "wal.h"
+#include "wal_buffer.h"
+#include "wal_omf.h"
+#include "wal_mdc.h"
 
-/* Until we have some synchronization in place we need to make bufsz
- * large enough to accomodate several outstanding c0kvms buffers.
+
+struct wal {
+    struct mpool      *mp;
+    struct wal_buffer *wbuf;
+    struct wal_mdc    *mdc;
+
+    uint64_t rdgen;
+    uint32_t version;
+    uint32_t dur_intvl;
+    uint32_t dur_sz;
+
+    atomic64_t rid HSE_ALIGNED(SMP_CACHE_BYTES);
+};
+
+
+/*
+ * WAL data plane
  */
-#define WAL_BUFSZ_MAX       (16ul << 30)
-#define WAL_NODE_MAX        (4)
-#define WAL_BPN_MAX         (1)
-
-#define WAL_BUFALLOCSZ_MAX \
-    (ALIGN(WAL_BUFSZ_MAX + sizeof(struct wal_rec) + HSE_KVS_KLEN_MAX + HSE_KVS_VLEN_MAX, 2ul << 20))
-
-struct wal_buffer {
-    atomic64_t  w_offset HSE_ALIGNED(SMP_CACHE_BYTES * 2);
-    char       *w_buf    HSE_ALIGNED(SMP_CACHE_BYTES);
-};
-
-struct wal_rec {
-    uint64_t    r_seqno;
-    uint64_t    r_txid;
-    int32_t     r_klen;
-    uint64_t    r_vxlen;
-    char        r_data[] HSE_ALIGNED(alignof(uint64_t));
-};
-
-/* clang-format on */
-
-static struct wal_buffer walv[WAL_NODE_MAX * WAL_BPN_MAX];
-
 merr_t
 wal_put(
+    struct wal *wal,
     struct ikvs *kvs,
     struct hse_kvdb_opspec *os,
     struct kvs_ktuple *kt,
@@ -57,83 +48,183 @@ wal_put(
     u64 seqno)
 {
     const size_t kvalign = alignof(uint64_t);
-    uint cpuid, nodeid, coreid;
-    struct wal_rec *rec;
-    struct wal_buffer *wal;
-    uint64_t offset, len;
-    size_t klen, vlen;
-    char *data;
+    struct wal_rec_omf *rec;
+    uint64_t len, rid, cnid;
+    size_t klen, vlen, rlen, kvlen;
+    char *kvdata;
 
     klen = kt->kt_len;
     vlen = kvs_vtuple_vlen(vt);
-    len = sizeof(*rec) + ALIGN(klen, kvalign) + ALIGN(vlen, kvalign);
+    rlen = wal_rec_len();
+    kvlen = ALIGN(klen, kvalign) + ALIGN(vlen, kvalign);
+    len = rlen + kvlen;
 
-    hse_getcpu(&cpuid, &nodeid, &coreid);
+    rec = wal_buffer_alloc(wal->wbuf, len);
+    cnid = cn_get_cnid(kvs_cn(kvs));
+    rid = atomic64_inc_return(&wal->rid);
 
-    wal = walv;
-    wal += (nodeid % WAL_NODE_MAX) * WAL_BPN_MAX;
-    wal += (coreid % WAL_BPN_MAX);
+    wal_rechdr_pack(WAL_RT_NONTX, rid, kvlen, (char *)rec);
+    wal_rec_pack(WAL_OP_PUT, cnid, 0, seqno, klen, vt->vt_xlen, (char *)rec);
 
-    offset = atomic64_fetch_add(len, &wal->w_offset);
-    offset %= WAL_BUFSZ_MAX;
-
-    rec = (void *)(wal->w_buf + offset);
-
-    rec->r_seqno = seqno;
-    rec->r_txid = 0;
-    rec->r_klen = klen;
-    rec->r_vxlen = vt->vt_xlen;
-
-    data = rec->r_data;
-    memcpy(data, kt->kt_data, klen);
-    kt->kt_data = data;
+    kvdata = (char *)rec + rlen;
+    memcpy(kvdata, kt->kt_data, klen);
+    kt->kt_data = kvdata;
     kt->kt_flags = HSE_BTF_MANAGED;
 
     if (vlen > 0) {
-        data = PTR_ALIGN(data + klen, kvalign);
-        memcpy(data, vt->vt_data, vlen);
-        vt->vt_data = data;
+        kvdata = PTR_ALIGN(kvdata + klen, kvalign);
+        memcpy(kvdata, vt->vt_data, vlen);
+        vt->vt_data = kvdata;
     }
 
+    wal_rechdr_crc_pack((char *)rec, len);
+
     return 0;
+}
+
+/*
+ * WAL control plane
+ */
+
+merr_t
+wal_create(struct mpool *mp, uint64_t *mdcid1, uint64_t *mdcid2)
+{
+    struct wal_mdc *mdc;
+    merr_t err;
+
+    err = wal_mdc_create(mp, MP_MED_CAPACITY, WAL_MDC_CAPACITY, mdcid1, mdcid2);
+    if (err)
+        return err;
+
+    err = wal_mdc_open(mp, *mdcid1, *mdcid2, &mdc);
+    if (err) {
+        wal_mdc_destroy(mp, *mdcid1, *mdcid2);
+        return err;
+    }
+
+    err = wal_mdc_format(mdc, WAL_VERSION, WAL_DUR_INTVL_MS, WAL_DUR_SZ_BYTES);
+
+    wal_mdc_close(mdc);
+
+    if (err)
+        wal_mdc_destroy(mp, *mdcid1, *mdcid2);
+
+    return err;
 }
 
 merr_t
-wal_init(void)
+wal_destroy(struct mpool *mp, uint64_t oid1, uint64_t oid2)
 {
-    uint i, j;
+    return wal_mdc_destroy(mp, oid1, oid2);
+}
 
-    for (i = 0; i < get_nprocs_conf(); ++i) {
-        struct wal_buffer *wal;
+merr_t
+wal_open(struct mpool *mp, bool rdonly, uint64_t mdcid1, uint64_t mdcid2, struct wal **wal_out)
+{
+    struct wal *wal;
+    struct wal_buffer *wbuf;
+    struct wal_mdc *mdc;
+    merr_t err;
 
-        wal = walv + (hse_cpu2node(i) % WAL_NODE_MAX) * WAL_BPN_MAX;
-        if (wal->w_buf)
-            continue;
+    if (!mp || !wal_out)
+        return merr(EINVAL);
 
-        for (j = 0; j < WAL_BPN_MAX; ++j, ++wal) {
-            atomic64_set(&wal->w_offset, 0);
+    wal = calloc(1, sizeof(*wal));
+    if (!wal)
+        return merr(ENOMEM);
 
-            wal->w_buf = vlb_alloc(WAL_BUFALLOCSZ_MAX);
-            if (!wal->w_buf) {
-                while (i-- > 0)
-                    vlb_free(walv[i].w_buf, WAL_BUFALLOCSZ_MAX);
-
-                return merr(ENOMEM);
-            }
-        }
+    wbuf = wal_buffer_create();
+    if (!wbuf) {
+        free(wal);
+        return merr(ENOMEM);
     }
 
+    err = wal_mdc_open(mp, mdcid1, mdcid2, &mdc);
+    if (err)
+        goto errout;
+
+    wal->rdgen = 0;
+    wal->version = WAL_VERSION;
+    wal->dur_intvl = WAL_DUR_INTVL_MS;
+    wal->dur_sz = WAL_DUR_SZ_BYTES;
+    atomic64_set(&wal->rid, 0);
+
+    wal->mp = mp;
+    wal->wbuf = wbuf;
+    wal->mdc = mdc;
+
+    err = wal_mdc_replay(mdc, wal);
+    if (err) {
+        wal_mdc_close(mdc);
+        goto errout;
+    }
+
+    *wal_out = wal;
+
     return 0;
+
+errout:
+    wal_buffer_destroy(wbuf);
+    free(wal);
+
+    return err;
+}
+
+merr_t
+wal_close(struct wal *wal)
+{
+    merr_t err;
+
+    if (!wal)
+        return 0;
+
+    err = wal_mdc_close(wal->mdc);
+    ev(err);
+
+    wal_buffer_destroy(wal->wbuf);
+    free(wal);
+
+    return err;
+}
+
+/*
+ * get/set interfaces for struct wal fields
+ */
+void
+wal_dur_params_get(struct wal *wal, uint32_t *dur_intvl, uint32_t *dur_sz)
+{
+    *dur_intvl = wal->dur_intvl;
+    *dur_sz = wal->dur_sz;
 }
 
 void
-wal_fini(void)
+wal_dur_params_set(struct wal *wal, uint32_t dur_intvl, uint32_t dur_sz)
 {
-    uint i;
-
-    for (i = 0; i < WAL_NODE_MAX * WAL_BPN_MAX; ++i) {
-        struct wal_buffer *wal = walv + i;
-
-        vlb_free(wal->w_buf, WAL_BUFALLOCSZ_MAX);
-    }
+    wal->dur_intvl = dur_intvl;
+    wal->dur_sz = dur_sz;
 }
+
+uint64_t
+wal_reclaim_dgen_get(struct wal *wal)
+{
+    return wal->rdgen;
+}
+
+void
+wal_reclaim_dgen_set(struct wal *wal, uint64_t rdgen)
+{
+    wal->rdgen = rdgen;
+}
+
+uint32_t
+wal_version_get(struct wal *wal)
+{
+    return wal->version;
+}
+
+void
+wal_version_set(struct wal *wal, uint32_t version)
+{
+    wal->version = version;
+}
+

@@ -160,6 +160,7 @@ struct ikvdb_impl {
 
     struct throttle ikdb_throttle;
 
+    struct wal              *ikdb_wal;
     struct csched *          ikdb_csched;
     struct cn_kvdb *         ikdb_cn_kvdb;
     struct mpool *           ikdb_mp;
@@ -200,6 +201,8 @@ struct ikvdb_impl {
 
     u64            ikdb_cndb_oid1;
     u64            ikdb_cndb_oid2;
+    u64            ikdb_wal_oid1;
+    u64            ikdb_wal_oid2;
     char           ikdb_home[PATH_MAX];
     struct pidfh * ikdb_pidfh;
     struct config *ikdb_config;
@@ -262,6 +265,35 @@ validate_kvs_name(const char *name)
     return 0;
 }
 
+static merr_t
+ikvdb_wal_make(struct mpool *mp, struct kvdb_log *log, struct kvdb_log_tx **tx)
+{
+    uint64_t mdcid1, mdcid2;
+    merr_t err;
+
+    err = wal_create(mp, &mdcid1, &mdcid2);
+    if (err)
+        return err;
+
+    err = kvdb_log_mdc_create(log, KVDB_LOG_MDC_ID_WAL, mdcid1, mdcid2, tx);
+    if (err) {
+        wal_destroy(mp, mdcid1, mdcid2);
+        return err;
+    }
+
+    err = kvdb_log_done(log, *tx);
+    if (err)
+        goto errout;
+
+    return 0;
+
+errout:
+    wal_destroy(mp, mdcid1, mdcid2);
+    kvdb_log_abort(log, *tx);
+
+    return err;
+}
+
 merr_t
 ikvdb_log_deserialize_to_kvdb_rparams(const char *kvdb_home, struct kvdb_rparams *params)
 {
@@ -319,6 +351,8 @@ ikvdb_create(const char *kvdb_home, struct mpool *mp, struct kvdb_cparams *param
     err = kvdb_log_done(log, tx);
     if (ev(err))
         goto out;
+
+    err = ikvdb_wal_make(mp, log, &tx);
 
 out:
     /* Failed ikvdb_create() indicates that the caller or operator should
@@ -1020,9 +1054,17 @@ ikvdb_open(
         hse_elog(HSE_ERR "cannot open %s: @@e", err, kvdb_home);
         goto err1;
     }
-    kvdb_log_cndboid_get(self->ikdb_log, &self->ikdb_cndb_oid1, &self->ikdb_cndb_oid2);
 
+    kvdb_log_cndboid_get(self->ikdb_log, &self->ikdb_cndb_oid1, &self->ikdb_cndb_oid2);
     err = ikvdb_cndb_open(self, &seqno, &ingestid);
+    if (err) {
+        hse_elog(HSE_ERR "cannot open %s: @@e", err, kvdb_home);
+        goto err1;
+    }
+
+    kvdb_log_waloid_get(self->ikdb_log, &self->ikdb_wal_oid1, &self->ikdb_wal_oid2);
+    err = wal_open(mp, self->ikdb_rdonly, self->ikdb_wal_oid1, self->ikdb_wal_oid2,
+                   &self->ikdb_wal);
     if (err) {
         hse_elog(HSE_ERR "cannot open %s: @@e", err, kvdb_home);
         goto err1;
@@ -1106,6 +1148,7 @@ err1:
         kvdb_kvs_destroy(self->ikdb_kvs_vec[i]);
     c0snr_set_destroy(self->ikdb_c0snr_set);
     kvdb_ctxn_set_destroy(self->ikdb_ctxn_set);
+    wal_close(self->ikdb_wal);
     cndb_close(self->ikdb_cndb);
     kvdb_log_close(self->ikdb_log);
     kvdb_keylock_destroy(self->ikdb_keylock);
@@ -1698,6 +1741,8 @@ ikvdb_close(struct ikvdb *handle)
     if (ev(err))
         ret = ret ?: err;
 
+    wal_close(self->ikdb_wal);
+
     mutex_unlock(&self->ikdb_lock);
 
     ikvdb_txn_fini(self);
@@ -1825,7 +1870,7 @@ ikvdb_kvs_put(
 
     put_seqno = txn ? 0 : HSE_SQNREF_SINGLE;
 
-    err = wal_put(kk->kk_ikvs, NULL, kt, vt, put_seqno);
+    err = wal_put(parent->ikdb_wal, kk->kk_ikvs, NULL, kt, vt, put_seqno);
 
     if (vbuf && vbuf != tls_vbuf)
         vlb_free(vbuf, (vbufsz > VLB_ALLOCSZ_MAX) ? vbufsz : clen);
@@ -2685,12 +2730,6 @@ ikvdb_init(void)
 
     kvdb_perfc_initialize();
 
-    err = wal_init();
-    if (err) {
-        kvdb_perfc_finish();
-        return err;
-    }
-
     kvs_init();
 
     err = c0_init();
@@ -2737,7 +2776,6 @@ ikvdb_fini(void)
     lc_fini();
     c0_fini();
     kvs_fini();
-    wal_fini();
     kvdb_perfc_finish();
 }
 

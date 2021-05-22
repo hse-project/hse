@@ -41,8 +41,8 @@ enum kvdb_log_disp {
 
 enum kvdb_log_mdc_id {
     KVDB_LOG_MDC_ID_CNDB = 0,
-    KVDB_LOG_MDC_ID_UNUSED = 1,
-    KVDB_LOG_MDC_ID_MAX = KVDB_LOG_MDC_ID_UNUSED,
+    KVDB_LOG_MDC_ID_WAL = 1,
+    KVDB_LOG_MDC_ID_MAX = KVDB_LOG_MDC_ID_WAL,
 };
 
 /* hdr must contain 4 bytes TYPE at offset 0 and 4 bytes LEN at offset 3.

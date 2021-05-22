@@ -9,7 +9,6 @@
 #include "wal_file.h"
 
 struct wal_file {
-    struct wal        *wal;
     struct mpool_file *mpf;
 
     uint64_t dgen;
@@ -22,7 +21,7 @@ struct wal_file {
 
 merr_t
 wal_file_create(
-    struct wal        *wal,
+    struct mpool      *mp,
     enum mpool_mclass  mclass,
     size_t             capacity,
     uint64_t           dgen,
@@ -31,12 +30,12 @@ wal_file_create(
     merr_t err;
     char name[PATH_MAX];
 
-    if (!wal)
+    if (!mp)
         return merr(EINVAL);
 
     snprintf(name, sizeof(name), "%s-%lu-%d", "wal", dgen, fileid);
 
-    err = mpool_file_create(wal->mp, mclass, name, capacity, true);
+    err = mpool_file_create(mp, mclass, name, capacity, true);
     if (err)
         return err;
 
@@ -44,21 +43,21 @@ wal_file_create(
 }
 
 merr_t
-wal_file_destroy(struct wal *wal, enum mpool_mclass mclass, uint64_t dgen, int fileid)
+wal_file_destroy(struct mpool *mp, enum mpool_mclass mclass, uint64_t dgen, int fileid)
 {
     char name[PATH_MAX];
 
-    if (!wal)
+    if (!mp)
         return merr(EINVAL);
 
     snprintf(name, sizeof(name), "%s-%lu-%d", "wal", dgen, fileid);
 
-    return mpool_file_destroy(wal->mp, mclass, name);
+    return mpool_file_destroy(mp, mclass, name);
 }
 
 merr_t
 wal_file_open(
-    struct wal        *wal,
+    struct mpool      *mp,
     enum mpool_mclass  mclass,
     uint64_t           dgen,
     int                fileid,
@@ -69,12 +68,12 @@ wal_file_open(
     merr_t err;
     char name[PATH_MAX];
 
-    if (!wal)
+    if (!mp)
         return merr(EINVAL);
 
     snprintf(name, sizeof(name), "%s-%lu-%d", "wal", dgen, fileid);
 
-    err = mpool_file_open(wal->mp, mclass, name, O_RDWR, &file);
+    err = mpool_file_open(mp, mclass, name, O_RDWR, &file);
     if (err)
         return err;
 
@@ -84,7 +83,6 @@ wal_file_open(
         return merr(ENOMEM);
     }
 
-    walf->wal = wal;
     walf->mpf = file;
     walf->dgen = dgen;
     walf->fileid = fileid;

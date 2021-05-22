@@ -314,6 +314,14 @@ merr_t
 mpool_mdc_cend(struct mpool_mdc *mdc);
 
 /**
+ * mpool_mdc_sync() - Sync the specified MDC
+ *
+ * @mdc: MDC handle
+ */
+merr_t
+mpool_mdc_sync(struct mpool_mdc *mdc);
+
+/**
  * mpool_mdc_usage() - Return mdc statistics
  *
  * @mdc:       MDC handle

@@ -15,18 +15,18 @@ struct wal_file;
 
 merr_t
 wal_file_create(
-    struct wal        *wal,
+    struct mpool      *mp,
     enum mpool_mclass  mclass,
     size_t             capacity,
     uint64_t           dgen,
     int                fileid);
 
 merr_t
-wal_file_destroy(struct wal *wal, enum mpool_mclass mclass, uint64_t dgen, int fileid);
+wal_file_destroy(struct mpool *mp, enum mpool_mclass mclass, uint64_t dgen, int fileid);
 
 merr_t
 wal_file_open(
-    struct wal        *wal,
+    struct mpool      *mp,
     enum mpool_mclass  mclass,
     uint64_t           dgen,
     int                fileid,

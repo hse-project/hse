@@ -203,6 +203,9 @@ kvdb_log_mdc_keep(struct kvdb_log *log, union kvdb_mdu *mdp)
         if (mdp->c.mdc_id == KVDB_LOG_MDC_ID_CNDB) {
             log->kl_cndb_oid1 = mdp->c.mdc_new_oid1;
             log->kl_cndb_oid2 = mdp->c.mdc_new_oid2;
+        } else if (mdp->c.mdc_id == KVDB_LOG_MDC_ID_WAL) {
+            log->kl_wal_oid1 = mdp->c.mdc_new_oid1;
+            log->kl_wal_oid2 = mdp->c.mdc_new_oid2;
         }
         return 0;
     } else {
@@ -335,6 +338,16 @@ kvdb_log_cndboid_get(struct kvdb_log *log, u64 *cndb_oid1, u64 *cndb_oid2)
     *cndb_oid2 = log->kl_cndb_oid2;
 }
 
+void
+kvdb_log_waloid_get(struct kvdb_log *log, u64 *wal_oid1, u64 *wal_oid2)
+{
+    if (!log || !wal_oid1 || !wal_oid2)
+        return;
+
+    *wal_oid1 = log->kl_wal_oid1;
+    *wal_oid2 = log->kl_wal_oid2;
+}
+
 merr_t
 kvdb_log_replay(struct kvdb_log *log)
 {
@@ -411,15 +424,15 @@ kvdb_log_replay(struct kvdb_log *log)
     if (!log->kl_cndb_oid1 || !log->kl_cndb_oid2)
         err = merr(ev(EIDRM));
 
-    /* [HSE_REVISIT] WAL is optional for now */
-
     if (err)
         hse_elog(
-            HSE_ERR "%s: failed to read OIDs 0x%lx 0x%lx: @@e",
+            HSE_ERR "%s: failed to read OIDs cNDB 0x%lx/0x%lx WAL 0x%lx/0x%lx: @@e",
             err,
             __func__,
             (ulong)log->kl_cndb_oid1,
-            (ulong)log->kl_cndb_oid2);
+            (ulong)log->kl_cndb_oid2,
+            (ulong)log->kl_wal_oid1,
+            (ulong)log->kl_wal_oid2);
 
 out:
     if (err) {
@@ -711,6 +724,18 @@ kvdb_log_rollover(struct kvdb_log *log)
         mdu.c.mdc_id = KVDB_LOG_MDC_ID_CNDB;
         mdu.c.mdc_new_oid1 = log->kl_cndb_oid1;
         mdu.c.mdc_new_oid2 = log->kl_cndb_oid2;
+        kvdb_log_mdx_to_omf((void *)log->kl_buf, &mdu);
+        err = mpool_mdc_append(log->kl_mdc, log->kl_buf, sz, false);
+        if (ev(err))
+            goto out;
+    }
+
+    if (log->kl_wal_oid1 && log->kl_wal_oid2) {
+        sz = sizeof(struct kvdb_log_mdc_omf);
+        memset(log->kl_buf, 0, sz);
+        mdu.c.mdc_id = KVDB_LOG_MDC_ID_WAL;
+        mdu.c.mdc_new_oid1 = log->kl_wal_oid1;
+        mdu.c.mdc_new_oid2 = log->kl_wal_oid2;
         kvdb_log_mdx_to_omf((void *)log->kl_buf, &mdu);
         err = mpool_mdc_append(log->kl_mdc, log->kl_buf, sz, false);
         if (ev(err))

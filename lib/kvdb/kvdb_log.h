@@ -50,6 +50,8 @@ struct kvdb_log {
     u64               kl_serial;
     u64               kl_cndb_oid1;
     u64               kl_cndb_oid2;
+    u64               kl_wal_oid1;
+    u64               kl_wal_oid2;
     bool              kl_rdonly;
 
     struct kvdb_mclass kl_mc[MP_MED_COUNT];
@@ -135,6 +137,10 @@ kvdb_log_done(struct kvdb_log *log, struct kvdb_log_tx *tx);
 /* MTF_MOCK */
 void
 kvdb_log_cndboid_get(struct kvdb_log *log, u64 *cndb_oid1, u64 *cndb_oid2);
+
+/* MTF_MOCK */
+void
+kvdb_log_waloid_get(struct kvdb_log *log, u64 *wal_oid1, u64 *wal_oid2);
 
 /* MTF_MOCK */
 merr_t
