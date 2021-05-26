@@ -353,23 +353,9 @@ bn_alloc(struct bonsai_root *tree, size_t sz)
     return malloc(sz);
 }
 
-struct bonsai_val *
-bn_val_alloc(struct bonsai_root *tree, const struct bonsai_sval *sval, bool managed)
+static struct bonsai_val *
+bn_val_init(struct bonsai_val *v, const struct bonsai_sval *sval, size_t sz)
 {
-    struct bonsai_val *v;
-    size_t sz;
-
-    sz = sizeof(*v);
-
-    if (!managed)
-        sz += bonsai_sval_vlen(sval);
-
-    v = bn_alloc(tree, sz);
-    if (!v)
-        return NULL;
-
-    tree->br_val_alloc++;
-
     memset(v, 0, sizeof(*v));
     v->bv_seqnoref = sval->bsv_seqnoref;
     v->bv_next = NULL;
@@ -385,23 +371,55 @@ bn_val_alloc(struct bonsai_root *tree, const struct bonsai_sval *sval, bool mana
     return v;
 }
 
+struct bonsai_val *
+bn_val_alloc(struct bonsai_root *tree, const struct bonsai_sval *sval, bool managed)
+{
+    struct bonsai_val *v;
+    size_t sz;
+
+    sz = sizeof(*v);
+
+    if (!managed)
+        sz += bonsai_sval_vlen(sval);
+
+    v = bn_alloc(tree, sz);
+    if (v) {
+        v = bn_val_init(v, sval, sz);
+        tree->br_val_alloc++;
+    }
+
+    return v;
+}
+
 void
 bn_kv_free(struct bonsai_kv *freekeys)
 {
     while (freekeys) {
         struct bonsai_kv *kv = freekeys;
-        struct bonsai_val *val;
+        struct bonsai_val *val, *eval;
 
-        freekeys = kv->bkv_next;
+        /* The kv and initial val are allocated in one chunk,
+         * must avoid freeing the embedded value.
+         */
+        eval = (void *)kv + kv->bkv_voffset;
+
+        freekeys = kv->bkv_free;
+
+        /* Torch the key ptr in case someone tries to use it
+         * after it's been freed...
+         */
+        kv->bkv_key = (void *)0xbadcafe5badcafe5;
 
         while (( val = kv->bkv_values )) {
             kv->bkv_values = val->bv_next;
-            free(val);
+            if (val != eval)
+                free(val);
         }
 
         while (( val = kv->bkv_freevals )) {
             kv->bkv_freevals = val->bv_free;
-            free(val);
+            if (val != eval)
+                free(val);
         }
 
         free(kv);
@@ -415,36 +433,39 @@ bn_kv_init(
     const struct bonsai_sval  *sval,
     struct bonsai_kv         **kv_out)
 {
+    struct bonsai_val *v;
     struct bonsai_kv *kv;
+    size_t ksz, vsz;
     bool managed;
-    size_t sz;
+    u16 voffset;
 
-    sz = sizeof(*kv);
+    ksz = sizeof(*kv);
+    vsz = sizeof(*v);
 
     managed = skey->bsk_flags & HSE_BTF_MANAGED;
-    if (!managed)
-        sz += key_imm_klen(&skey->bsk_key_imm);
+    if (!managed) {
+        ksz += key_imm_klen(&skey->bsk_key_imm);
+        vsz += bonsai_sval_vlen(sval);
+    }
 
-    kv = bn_alloc(tree, sz);
+    voffset = roundup(ksz, sizeof(uintptr_t));
+
+    kv = bn_alloc(tree, voffset + vsz);
     if (!kv)
         return merr(ENOMEM);
 
     memset(kv, 0, sizeof(*kv));
     kv->bkv_key_imm = skey->bsk_key_imm;
     kv->bkv_key = (void *)skey->bsk_key; // [HSE_REVISIT] Constness...
+    kv->bkv_voffset = voffset;
 
-    if (sz > sizeof(*kv)) {
-        memcpy(kv->bkv_keybuf, skey->bsk_key, sz - sizeof(*kv));
+    if (ksz > sizeof(*kv)) {
+        memcpy(kv->bkv_keybuf, skey->bsk_key, ksz - sizeof(*kv));
         kv->bkv_key = kv->bkv_keybuf;
     }
 
-    kv->bkv_values = bn_val_alloc(tree, sval, managed);
-
-    if (!kv->bkv_values) {
-        kv->bkv_next = tree->br_freekeys;
-        tree->br_freekeys = kv;
-        return merr(ENOMEM);
-    }
+    v = (void *)kv + voffset;
+    kv->bkv_values = bn_val_init(v, sval, vsz);
 
     tree->br_key_alloc++;
 
@@ -494,7 +515,7 @@ bn_kvnode_alloc(
 
     node = bn_node_make(tree, NULL, NULL, 1, kv, &skey->bsk_key_imm);
     if (!node) {
-        kv->bkv_next = tree->br_freekeys;
+        kv->bkv_free = tree->br_freekeys;
         tree->br_freekeys = kv;
     }
 

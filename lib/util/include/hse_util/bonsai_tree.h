@@ -87,7 +87,7 @@ struct bonsai_skey {
  * @bv_next:      ptr to next value in list
  * @bv_value:     ptr to value data
  * @bv_xlen:      opaque encoded value length
- * @bv_free:      ptr to next value in free list *bkv_freevalsp
+ * @bv_free:      ptr to next value in free list bkv_freevals
  * @bv_valbuf:    value data (zero length if caller managed)
  *
  * A bonsai_val includes the value data and may be on both the bnkv_values
@@ -188,25 +188,29 @@ bonsai_sval_vlen(const struct bonsai_sval *bsv)
  * @bkv_key_imm:
  * @bkv_key:        ptr to key
  * @bkv_flags:      BKV_FLAG_*
+ * @bkv_voffset:    offset to embedded bonsai_val
  * @bkv_valcnt:     user-managed length of bkv_values list
  * @bkv_values:     user-managed list of values
  * @bkv_prev:
  * @bkv_next:
  * @bkv_es:
- * @bkv_keybuf:     key data (zero length if caller managed)
+ * @bkv_keybuf:     key data (zero length if caller-managed)
  *
  * A bonsai_kv includes the key and a list of bonsai_val objects.
+ * The bonsai_kv and initial bonsai_val are allocated in one chunk.
  */
 struct bonsai_kv {
     struct key_immediate    bkv_key_imm;
     char                   *bkv_key;
     u16                     bkv_flags;
+    u16                     bkv_voffset;
     u32                     bkv_valcnt;
     struct bonsai_val *     bkv_values;
     struct bonsai_kv *      bkv_prev;
     struct bonsai_kv *      bkv_next;
     struct element_source  *bkv_es;
     struct bonsai_val      *bkv_freevals;
+    struct bonsai_kv       *bkv_free;
     char                    bkv_keybuf[];
 };
 
@@ -433,6 +437,14 @@ bn_insert_or_replace(
     struct bonsai_root *      tree,
     const struct bonsai_skey *skey,
     const struct bonsai_sval *sval);
+
+/**
+ * bn_delete() - remove and delete the given key from the tree
+ * @tree: bonsai tree instance
+ * @skey: bonsai_skey instance containing the key and its related info
+ */
+merr_t
+bn_delete(struct bonsai_root *tree, const struct bonsai_skey *skey);
 
 /**
  * bn_find() - Searches for a given key in the node

@@ -67,11 +67,7 @@ MTF_DEFINE_UTEST_PREPOST(c0_kvset_test, basic, no_fail_pre, no_fail_post)
     ASSERT_EQ(0, err);
     ASSERT_NE((struct c0_kvset *)0, kvs);
 
-    synchronize_rcu();
-    rcu_barrier();
-
     c0kvs_destroy(kvs);
-
     c0kvs_destroy(NULL);
 }
 
@@ -184,9 +180,6 @@ MTF_DEFINE_UTEST_PREPOST(c0_kvset_test, basic_put_get, no_fail_pre, no_fail_post
         }
     }
 
-    synchronize_rcu();
-    rcu_barrier();
-
     c0kvs_destroy(kvs);
 }
 
@@ -195,7 +188,7 @@ MTF_DEFINE_UTEST_PREPOST(c0_kvset_test, basic_put_get_fail, no_fail_pre, no_fail
     struct c0_kvset * kvs;
     struct kvs_ktuple kt;
     struct kvs_vtuple vt;
-    merr_t            err, err2;
+    merr_t            err;
     size_t            avail;
     uintptr_t         seqnoref;
     char *            bigly;
@@ -255,36 +248,22 @@ MTF_DEFINE_UTEST_PREPOST(c0_kvset_test, basic_put_get_fail, no_fail_pre, no_fail
     ASSERT_EQ(ENOMEM, merr_errno(err));
 
     /* Fill up the kvs.
-     * We use a key that is larger than the value in an attempt
-     * to ensure that a delete after a failed put will fail for
-     * the same reason.
      */
-    u64 key[8] = { 0 };
-
-    key[0] = get_cycles();
+    u64 key = get_cycles();
 
     while (1) {
-        kvs_ktuple_init(&kt, key, sizeof(key));
-        kvs_vtuple_init(&vt, key, sizeof(key[0]));
+        kvs_ktuple_init(&kt, &key, sizeof(key));
+        kvs_vtuple_init(&vt, &key, sizeof(key));
 
         err = c0kvs_put(kvs, 0, &kt, &vt, seqnoref);
-        err2 = merr_errno(err);
-        if (ENOMEM == err2) {
-            err = c0kvs_del(kvs, 0, &kt, seqnoref);
-            ASSERT_EQ(err2, merr_errno(err));
 
-            err = c0kvs_prefix_del(kvs, 0, &kt, seqnoref);
-            ASSERT_EQ(err2, merr_errno(err));
+        if (ENOMEM == merr_errno(err))
             break;
-        }
 
         ASSERT_EQ(0, err);
 
-        key[0]++;
+        key++;
     }
-
-    synchronize_rcu();
-    rcu_barrier();
 
     c0kvs_destroy(kvs);
     free(bigly);
@@ -406,9 +385,6 @@ MTF_DEFINE_UTEST_PREPOST(c0_kvset_test, basic_repeated_put, no_fail_pre, no_fail
     ASSERT_EQ(err, 0);
     ASSERT_EQ(res, FOUND_TMB);
     ASSERT_EQ(HSE_SQNREF_TO_ORDNL(oseqnoref), view_seqno);
-
-    synchronize_rcu();
-    rcu_barrier();
 
     c0kvs_destroy(kvs);
 }
@@ -566,9 +542,6 @@ MTF_DEFINE_UTEST_PREPOST(c0_kvset_test, ctxn_put, no_fail_pre, no_fail_post)
         err = c0kvs_put(kvs, 0, &kt, &vt, iseqnoref);
         ASSERT_EQ(0, err);
     }
-
-    synchronize_rcu();
-    rcu_barrier();
 
     c0kvs_destroy(kvs);
 }
@@ -729,10 +702,7 @@ MTF_DEFINE_UTEST_PREPOST(c0_kvset_test, advanced_repeated_put, no_fail_pre, no_f
     ASSERT_EQ(tr_tombs, num_tombs);
     ASSERT_EQ(tr_key_bytes, key_bytes);
     ASSERT_EQ(tr_val_bytes, val_bytes);
-*/
-
-    synchronize_rcu();
-    rcu_barrier();
+    */
 
     c0kvs_destroy(kvs);
 }
@@ -877,9 +847,6 @@ MTF_DEFINE_UTEST_PREPOST(c0_kvset_test, basic_put_get_del, no_fail_pre, no_fail_
         }
     }
 
-    synchronize_rcu();
-    rcu_barrier();
-
     c0kvs_destroy(kvs);
 }
 
@@ -947,9 +914,6 @@ MTF_DEFINE_UTEST_PREPOST(c0_kvset_test, get_content_metrics, no_fail_pre, no_fai
     ASSERT_EQ(delete_count, num_tombstones);
     ASSERT_EQ(sizeof(kbuf) * initial_insert_count, total_key_bytes);
     ASSERT_EQ(3 * (initial_insert_count - delete_count), total_value_bytes);
-
-    synchronize_rcu();
-    rcu_barrier();
 
     c0kvs_destroy(kvs);
 }
@@ -1093,9 +1057,6 @@ MTF_DEFINE_UTEST_PREPOST(c0_kvset_test, finalize, no_fail_pre, no_fail_post)
 
     signal(SIGABRT, SIG_DFL);
 
-    synchronize_rcu();
-    rcu_barrier();
-
     c0kvs_destroy(kvs);
 }
 
@@ -1178,9 +1139,6 @@ MTF_DEFINE_UTEST_PREPOST(c0_kvset_test, iterator, no_fail_pre, no_fail_post)
         found = source->es_get_next(source, (void *)&bkv);
         ASSERT_EQ(false, found);
     }
-
-    synchronize_rcu();
-    rcu_barrier();
 
     c0kvs_destroy(kvs);
 }

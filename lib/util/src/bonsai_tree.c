@@ -50,7 +50,7 @@ bn_summary(struct bonsai_root *tree)
 
     hse_log(HSE_NOTICE "%s: %2d %2d  keys %u  vals %u  nodes %u,%u,%u  %.2lf  %s",
             __func__, tree->br_height, atomic_read(&tree->br_bounds),
-            tree->br_key_alloc, tree->br_val_alloc,
+            tree->br_key_alloc, tree->br_key_alloc + tree->br_val_alloc,
             nodec, rnodec, slabc,
             (double)(nodec + rnodec) / tree->br_key_alloc, buf);
 #endif
@@ -216,12 +216,192 @@ bn_ior_impl(
         assert(prev->bn_rcugen == HSE_BN_RCUGEN_ACTIVE);
 
         if (right)
-            node = bn_balance_tree(tree, prev, prev->bn_left, node, key_imm, key, B_UPDATE_R);
+            node = bn_balance(tree, prev, prev->bn_left, node);
         else
-            node = bn_balance_tree(tree, prev, node, prev->bn_right, key_imm, key, B_UPDATE_L);
+            node = bn_balance(tree, prev, node, prev->bn_right);
     }
 
     return node;
+}
+
+static merr_t
+bn_delete_impl(
+    struct bonsai_root       *tree,
+    const struct bonsai_skey *skey,
+    struct bonsai_node       *dnode,
+    struct bonsai_node      **newrootp)
+{
+    const struct key_immediate *key_imm;
+    uintptr_t stack[HSE_BT_HEIGHT_MAX];
+    struct bonsai_node *node, *parent;
+    struct bonsai_node *dnparentdup;
+    struct bonsai_kv *kv;
+    const void *key;
+    bool right;
+    int n = 0;
+    s32 res;
+
+    if (HSE_UNLIKELY( tree->br_height >= NELEM(stack) - HSE_BT_BALANCE_THRESHOLD )) {
+        assert(tree->br_height < NELEM(stack) - HSE_BT_BALANCE_THRESHOLD);
+        return merr(EINVAL); /* shouldn't happen */
+    }
+
+    key_imm = &skey->bsk_key_imm;
+    key = skey->bsk_key;
+
+    /* Find the node to delete, keeping track of all nodes visited and which way
+     * (left or right) we went...
+     */
+    while (dnode) {
+        res = key_full_cmp(key_imm, key, &dnode->bn_key_imm, dnode->bn_kv->bkv_key);
+
+        if (HSE_UNLIKELY(res == 0))
+            break;
+
+        if (res < 0) {
+            stack[n++] = (uintptr_t)dnode;
+            dnode = dnode->bn_left;
+        } else {
+            stack[n++] = (uintptr_t)dnode | BN_IOR_RIGHT;
+            dnode = dnode->bn_right;
+        }
+    }
+
+    if (!dnode)
+        return merr(ENOENT);
+
+    /* Half the nodes in the tree are either leaves or have only one child,
+     * so check for them first...
+     */
+    if (!dnode->bn_left || !dnode->bn_right) {
+        struct bonsai_node *dnchild = dnode->bn_left ?: dnode->bn_right;
+
+        /* At this point the node to be deleted has at most one child.
+         * If the deleted node is at the root of the tree then its
+         * child becomes the new root.
+         */
+        if (n == 0) {
+            kv = dnode->bn_kv;
+            rcu_assign_pointer(kv->bkv_next->bkv_prev, kv->bkv_prev);
+            rcu_assign_pointer(kv->bkv_prev->bkv_next, kv->bkv_next);
+
+            dnode->bn_rcugen = atomic_read(&tree->br_gc_rcugen_start);
+
+            tree->br_height = bn_height_get(dnchild);
+            *newrootp = dnchild;
+
+            return 0;
+        }
+
+        /* Otherwise dup the deleted node's parent so as to eliminate the
+         * deleted node and preserve the deleted node's left or right child.
+         * As an optimization, if dnode has no children then we can simply
+         * update it in place and avoid having to duplicate its parent.
+         */
+        parent = (void *)(stack[--n] & ~BN_IOR_MASK);
+        right = (stack[n] & BN_IOR_RIGHT);
+
+        if (right) {
+            if (dnchild) {
+                dnparentdup = bn_node_dup_ext(tree, parent, parent->bn_left, dnchild);
+                parent->bn_rcugen = atomic_read(&tree->br_gc_rcugen_start);
+            } else {
+                rcu_assign_pointer(parent->bn_right, NULL);
+                dnparentdup = parent;
+            }
+        } else {
+            if (dnchild) {
+                dnparentdup = bn_node_dup_ext(tree, parent, dnchild, parent->bn_right);
+                parent->bn_rcugen = atomic_read(&tree->br_gc_rcugen_start);
+            } else {
+                rcu_assign_pointer(parent->bn_left, NULL);
+                dnparentdup = parent;
+            }
+        }
+    }
+    else {
+        struct bonsai_node *snode = dnode->bn_right;
+
+        /* To delete an interior node we must replace it with its successor node,
+         * which should be a leaf down the left side of this branch (but sometimes
+         * has a right child).  Here we push the dnode on the stack to use as a
+         * sentinel in the loop to rebuild the path to the deleted node.
+         */
+        stack[n++] = (uintptr_t)dnode;
+
+        while (snode->bn_left) {
+            stack[n++] = (uintptr_t)snode;
+            snode = snode->bn_left;
+        }
+
+        assert(n < NELEM(stack));
+
+        node = snode->bn_right;
+
+        /* Build a new path from the successor back to but not including
+         * the deleted node, eliminating the successor node but pulling
+         * up its right child.
+         *
+         * We don't call bn_balance() here because it might update
+         * in place prematurely leaving the tree in a state where the
+         * successor node is temporily invisible.
+         */
+        while (dnode != ((parent = (void *)stack[--n]))) {
+            node = bn_node_dup_ext(tree, parent, node, parent->bn_right);
+            bn_height_update(node);
+
+            parent->bn_rcugen = atomic_read(&tree->br_gc_rcugen_start);
+        }
+
+        /* Dup the successor node to replace (and hence eliminate) the
+         * deleted node from the new path.
+         */
+        dnparentdup = bn_node_dup_ext(tree, snode, dnode->bn_left, node);
+    }
+
+    assert(dnparentdup);
+
+    /* Remove the deleted node's key from the list of sorted keys.  Outside
+     * callers who wish to traverse this list must do so under the rcu read
+     * lock (unless the tree has been finalized).
+     */
+    kv = dnode->bn_kv;
+    rcu_assign_pointer(kv->bkv_next->bkv_prev, kv->bkv_prev);
+    rcu_assign_pointer(kv->bkv_prev->bkv_next, kv->bkv_next);
+
+    /* Make the the deleted node and it's key available for garbage
+     * collection in the next rcu epoch.
+     */
+    dnode->bn_rcugen = atomic_read(&tree->br_gc_rcugen_start);
+    dnode->bn_kv->bkv_free = tree->br_freekeys;
+    tree->br_freekeys = dnode->bn_kv;
+
+    key_imm = &dnode->bn_kv->bkv_key_imm;
+    key = dnode->bn_kv->bkv_key;
+
+    bn_height_update(dnparentdup);
+    node = dnparentdup;
+
+    while (node && n-- > 0) {
+        right = (stack[n] & BN_IOR_RIGHT);
+        parent = (void *)(stack[n] & ~BN_IOR_MASK);
+
+        assert(node->bn_rcugen == HSE_BN_RCUGEN_ACTIVE);
+        assert(parent->bn_rcugen == HSE_BN_RCUGEN_ACTIVE);
+
+        if (right)
+            node = bn_balance(tree, parent, parent->bn_left, node);
+        else
+            node = bn_balance(tree, parent, node, parent->bn_right);
+    }
+
+    assert(node);
+
+    tree->br_height = node->bn_height;
+
+    *newrootp = node;
+
+    return 0;
 }
 
 static inline struct bonsai_kv *
@@ -374,7 +554,7 @@ bn_insert_or_replace(
     struct bonsai_node *oldroot;
     struct bonsai_node *newroot;
 
-    /* Reject attempts to modify the tree if has been finalized
+    /* Reject attempts to modify the tree if it has been finalized
      * (bounds > 0) or is out of memory (bounds < 0).
      */
     if (atomic_read(&tree->br_bounds))
@@ -382,12 +562,42 @@ bn_insert_or_replace(
 
     oldroot = tree->br_root;
 
-    /* [HSE_REVISIT] Need to revisit, newroot could be nil once we add
-     * the capability to remove nodes.
-     */
     newroot = bn_ior_impl(tree, oldroot, skey, sval, &tree->br_kv);
     if (!newroot)
         return merr(ENOMEM);
+
+    if (newroot != oldroot) {
+        assert(oldroot == tree->br_root);
+
+        tree->br_height = newroot->bn_height;
+        bn_gc_reclaim(tree, tree->br_rootslab->bsi_slab);
+
+        rcu_assign_pointer(tree->br_root, newroot);
+    }
+
+    return 0;
+}
+
+merr_t
+bn_delete(
+    struct bonsai_root       *tree,
+    const struct bonsai_skey *skey)
+{
+    struct bonsai_node *oldroot;
+    struct bonsai_node *newroot;
+    merr_t err = 0;
+
+    /* Reject attempts to modify the tree if it has been finalized
+     * (bounds > 0) or is out of memory (bounds < 0).
+     */
+    if (atomic_read(&tree->br_bounds))
+        return merr(ENOMEM);
+
+    oldroot = tree->br_root;
+
+    err = bn_delete_impl(tree, skey, oldroot, &newroot);
+    if (err)
+        return err;
 
     if (newroot != oldroot) {
         assert(oldroot == tree->br_root);
