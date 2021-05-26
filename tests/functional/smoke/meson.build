@@ -46,6 +46,7 @@ suites = {
             'kvt-logreplay',
             'kmt1',
             'kvt-isolation',
+            'bonsai-insdel',
             'large-values1',
             'cursor_test2',
             'probe-test',

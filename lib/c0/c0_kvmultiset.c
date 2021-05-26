@@ -308,15 +308,14 @@ c0kvms_should_ingest(struct c0_kvmultiset *handle)
     if (HSE_LIKELY( (r % scaler) < (97 * scaler) / 100) )
         return false;
 
-    /* Only 3% of callers reach this point to sample a random
-     * half of the available c0 kvsets and return true if any
-     * of the following are true:
+    /* Only 3% of callers reach this point to sample a random half
+     * of the available c0 kvsets and return true if any of the
+     * following are true:
      *
      * 1) The number of values for any key exceeds 4096
      * 2) The height of any bonsai tree is greater than 24
      * 3) The average number of values for all keys exceeds 2048
-     * 4) The average height of all trees exceeds 21 (more like
-     *    19 if you take into account the bonsai balance slop).
+     * 4) The average height of all trees exceeds 22.
      */
     sum_keyvals = sum_height = ndiv = 0;
 
@@ -340,13 +339,11 @@ c0kvms_should_ingest(struct c0_kvmultiset *handle)
         }
     }
 
-    if (ndiv > 1) {
-        if (ev((sum_keyvals / ndiv) > 2048))
-            return true;
+    if (ev((sum_keyvals / 2048) > ndiv))
+        return true;
 
-        if (ev((sum_height / ndiv) > 21))
-            return true;
-    }
+    if (ev((sum_height / 22) > ndiv))
+        return true;
 
     return false;
 }

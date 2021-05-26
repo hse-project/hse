@@ -155,7 +155,12 @@ components = {
                 'MALLOC_PERTURB_': '0',
             },
         },
-        'bonsai_tree_test': {},
+        'bonsai_tree_test': {
+            'cases': {
+                'cheap': ['-c'],
+                'malloc': ['-m'],
+            },
+         },
         'cheap_test': {
             'sources': [
                 files(

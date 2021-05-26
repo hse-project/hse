@@ -82,6 +82,37 @@ bn_node_dup_ext(
     struct bonsai_node *right);
 
 /**
+ * bn_node_rcufree() - mark a node for delayed free
+ * @tree:    bonsai tree instance
+ * @dnode:   node to delay free
+ *
+ * %dnode will remain intact and visible until end of next rcu epoch
+ * after which it can be reclaimed.  Typically called shortly after
+ * duplicating a node with bn_node_dup() or bn_node_dup_ext().
+ */
+static HSE_ALWAYS_INLINE void
+bn_node_rcufree(struct bonsai_root *tree, struct bonsai_node *dnode)
+{
+    dnode->bn_rcugen = atomic_read(&tree->br_gc_rcugen_start);
+}
+
+/**
+ * bn_kv_rcufree() - mark a kv for delayed free
+ * @tree:    bonsai tree instance
+ * @dkv:     kv to delay free
+ *
+ * %dkv will remain intact and visible until end of next rcu epoch
+ * after which it can be reclaimed.
+ */
+static HSE_ALWAYS_INLINE void
+bn_kv_rcufree(struct bonsai_root *tree, struct bonsai_kv *dkv)
+{
+    dkv->bkv_free = tree->br_vfkeys;
+    tree->br_vfkeys = dkv;
+}
+
+
+/**
  * bn_balance() - balance subtree given by %node
  * @tree:    bonsai tree instance
  * @node:    root of the subtree to balance

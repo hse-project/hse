@@ -108,6 +108,15 @@ tools = {
             'kvck' / 'kvck.c',
         ),
     },
+    'bnt': {
+        'sources': files(
+            'bnt' / 'bnt.c',
+            '3rdparty' / 'src' / 'murmur3.c',
+        ),
+        'dependencies': [
+            ncurses_dep,
+        ]
+    },
     'kvt': {
         'sources': files(
             'kvt' / 'kvt.c',

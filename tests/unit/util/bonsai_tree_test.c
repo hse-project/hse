@@ -23,6 +23,8 @@
 
 #include <hse_util/xrand.h>
 
+#include <sysexits.h>
+
 #define BONSAI_TREE_CLIENT_VERIFY
 
 #if defined(LIBURCU_QSBR) || defined(LIBURCU_BP)
@@ -48,6 +50,8 @@ enum bonsai_alloc_mode {
 
 static struct cheap *cheap;
 
+static enum bonsai_alloc_mode allocm = HSE_ALLOC_CURSOR;
+
 /* [HSE_REVISIT] Need to replace these constants, macros. */
 #define HSE_CORE_TOMB_REG ((void *)~0x1UL)
 #define HSE_CORE_TOMB_PFX ((void *)~0UL)
@@ -63,7 +67,7 @@ static int             stop_consumer_threads;
 static unsigned int    key_current = 1;
 static int             num_consumers = 4;
 static int             num_producers = 4;
-static int             runtime_insecs = 5;
+static int             runtime_insecs = 10;
 static int             random_number;
 static size_t          key_size = 10;
 static size_t          val_size = 100;
@@ -270,6 +274,9 @@ findPfxValue(struct bonsai_kv *kv, uintptr_t seqnoref)
 int
 test_collection_setup(struct mtf_test_info *info)
 {
+    struct mtf_test_coll_info *tci = info->ti_coll;
+    int c;
+
 #if HSE_MOCKING
     fail_nth_alloc_test_pre(info);
 #endif
@@ -277,6 +284,32 @@ test_collection_setup(struct mtf_test_info *info)
     bonsai_xrand_init(0);
 
     BONSAI_RCU_REGISTER();
+
+    optind = 1;
+
+    while (-1 != (c = getopt(tci->tci_argc, tci->tci_argv, ":cm"))) {
+        switch (c) {
+        case 'c':
+            allocm = HSE_ALLOC_CURSOR;
+            break;
+
+        case 'm':
+            allocm = HSE_ALLOC_MALLOC;
+            break;
+
+        case '?':
+            fprintf(stderr, "%s: invalid option -%c\n", tci->tci_argv[0], optopt);
+            exit(EX_USAGE);
+
+        case ':':
+            fprintf(stderr, "%s: option -%c requires a parameter\n", tci->tci_argv[0], optopt);
+            exit(EX_USAGE);
+
+        default:
+            fprintf(stderr, "%s: option '-%c' ignored\n", tci->tci_argv[0], c);
+            break;
+        }
+    }
 
     return 0;
 }
@@ -945,7 +978,7 @@ MTF_DEFINE_UTEST_PREPOST(bonsai_tree_test, short_tree, no_fail_pre, no_fail_post
     broot = NULL;
 }
 
-MTF_DEFINE_UTEST_PREPOST(bonsai_tree_test, randinsdel, no_fail_pre, no_fail_post)
+MTF_DEFINE_UTEST_PREPOST(bonsai_tree_test, insdel, no_fail_pre, no_fail_post)
 {
     uint ninserted = 0, ndeleted = 0;
     struct bonsai_root *tree;
@@ -958,13 +991,12 @@ MTF_DEFINE_UTEST_PREPOST(bonsai_tree_test, randinsdel, no_fail_pre, no_fail_post
     uint i, j;
     bool b;
 
-    intreec = 1024 * 1024 + 1;
+    init_tree(&tree, allocm);
+
+    intreec = 128 * 1024 + 1;
 
     intreev = calloc(intreec, sizeof(*intreev));
     ASSERT_NE(NULL, intreev);
-
-    err = bn_create(NULL, bonsai_client_insert_callback, NULL, &tree);
-    ASSERT_EQ(err, 0);
 
     for (i = 1; i < intreec; i *= 2) {
         uint itermax = max_t(uint, i * 5, 128 * 1024);
@@ -1054,12 +1086,14 @@ MTF_DEFINE_UTEST_PREPOST(bonsai_tree_test, randinsdel, no_fail_pre, no_fail_post
 
     bn_destroy(tree);
     free(intreev);
+
+    cheap_destroy(cheap);
+    cheap = NULL;
 }
 
 MTF_DEFINE_UTEST_PREPOST(bonsai_tree_test, basic_single_threaded, no_fail_pre, no_fail_post)
 {
-    ASSERT_EQ(0, bonsai_client_singlethread_test(HSE_ALLOC_MALLOC));
-    ASSERT_EQ(0, bonsai_client_singlethread_test(HSE_ALLOC_CURSOR));
+    ASSERT_EQ(0, bonsai_client_singlethread_test(allocm));
 }
 
 MTF_DEFINE_UTEST_PREPOST(bonsai_tree_test, producer_test, no_fail_pre, no_fail_post)
@@ -1070,15 +1104,7 @@ MTF_DEFINE_UTEST_PREPOST(bonsai_tree_test, producer_test, no_fail_pre, no_fail_p
     stop_consumer_threads = 0;
     num_consumers = 0;
     num_producers = 1;
-    ASSERT_EQ(0, bonsai_client_multithread_test(HSE_ALLOC_MALLOC));
-
-    key_begin = 1;
-    key_current = 0;
-    stop_producer_threads = 0;
-    stop_consumer_threads = 0;
-    num_consumers = 0;
-    num_producers = 1;
-    ASSERT_EQ(0, bonsai_client_multithread_test(HSE_ALLOC_CURSOR));
+    ASSERT_EQ(0, bonsai_client_multithread_test(allocm));
 
 #ifdef BONSAI_TREE_DEBUG
     hse_log(
@@ -1190,15 +1216,7 @@ MTF_DEFINE_UTEST_PREPOST(bonsai_tree_test, producer_manyconsumer_test, no_fail_p
     stop_consumer_threads = 0;
     num_consumers = 32;
     num_producers = 1;
-    ASSERT_EQ(0, bonsai_client_multithread_test(HSE_ALLOC_MALLOC));
-
-    key_begin = 1;
-    key_current = 0;
-    stop_producer_threads = 0;
-    stop_consumer_threads = 0;
-    num_consumers = 32;
-    num_producers = 1;
-    ASSERT_EQ(0, bonsai_client_multithread_test(HSE_ALLOC_CURSOR));
+    ASSERT_EQ(0, bonsai_client_multithread_test(allocm));
 }
 
 MTF_DEFINE_UTEST_PREPOST(
@@ -1213,15 +1231,8 @@ MTF_DEFINE_UTEST_PREPOST(
     stop_consumer_threads = 0;
     num_consumers = 32;
     num_producers = 8;
-    ASSERT_EQ(0, bonsai_client_multithread_test(HSE_ALLOC_MALLOC));
-
-    key_begin = 1;
-    key_current = 0;
-    stop_producer_threads = 0;
-    stop_consumer_threads = 0;
-    num_consumers = 32;
-    num_producers = 8;
-    ASSERT_EQ(0, bonsai_client_multithread_test(HSE_ALLOC_CURSOR));
+    runtime_insecs = 30;
+    ASSERT_EQ(0, bonsai_client_multithread_test(allocm));
 }
 
 MTF_DEFINE_UTEST_PREPOST(bonsai_tree_test, random_key_test, no_fail_pre, no_fail_post)
@@ -1229,22 +1240,12 @@ MTF_DEFINE_UTEST_PREPOST(bonsai_tree_test, random_key_test, no_fail_pre, no_fail
     key_begin = 1;
     key_current = 0;
     random_number = 1;
-    runtime_insecs = 4;
     stop_producer_threads = 0;
     stop_consumer_threads = 0;
     num_consumers = 0;
     num_producers = 1;
-    ASSERT_EQ(0, bonsai_client_multithread_test(HSE_ALLOC_MALLOC));
-
-    key_begin = 1;
-    key_current = 0;
-    random_number = 1;
-    runtime_insecs = 5;
-    stop_producer_threads = 0;
-    stop_consumer_threads = 0;
-    num_consumers = 0;
-    num_producers = 1;
-    ASSERT_EQ(0, bonsai_client_multithread_test(HSE_ALLOC_CURSOR));
+    runtime_insecs = 10;
+    ASSERT_EQ(0, bonsai_client_multithread_test(allocm));
 }
 
 MTF_DEFINE_UTEST_PREPOST(bonsai_tree_test, odd_key_size_test, no_fail_pre, no_fail_post)
@@ -1258,65 +1259,8 @@ MTF_DEFINE_UTEST_PREPOST(bonsai_tree_test, odd_key_size_test, no_fail_pre, no_fa
     random_number = 0;
     num_consumers = 0;
     num_producers = 1;
-    ASSERT_EQ(0, bonsai_client_multithread_test(HSE_ALLOC_MALLOC));
-
-    key_begin = 1;
-    key_current = 0;
-    induce_alloc_failure = 0;
-    stop_producer_threads = 0;
-    stop_consumer_threads = 0;
-    key_size = 7;
-    random_number = 0;
-    num_consumers = 0;
-    num_producers = 1;
-    ASSERT_EQ(0, bonsai_client_multithread_test(HSE_ALLOC_CURSOR));
-}
-
-MTF_DEFINE_UTEST_PREPOST(bonsai_tree_test, malloc_failure_test, no_fail_pre, no_fail_post)
-{
-    key_begin = 1;
-    key_current = 0;
-    random_number = 1;
-    induce_alloc_failure = 1; /* XXX: This needs to be mocked */
-    stop_producer_threads = 0;
-    stop_consumer_threads = 0;
-    runtime_insecs = 4;
-    num_consumers = 0;
-    num_producers = 1;
-    ASSERT_EQ(0, bonsai_client_singlethread_test(HSE_ALLOC_MALLOC));
-
-    key_begin = 1;
-    key_current = 0;
-    random_number = 1;
-    induce_alloc_failure = 1; /* XXX: This needs to be mocked */
-    stop_producer_threads = 0;
-    stop_consumer_threads = 0;
-    runtime_insecs = 5;
-    num_consumers = 0;
-    num_producers = 1;
-    ASSERT_EQ(0, bonsai_client_singlethread_test(HSE_ALLOC_CURSOR));
-
-    key_begin = 1;
-    key_current = 0;
-    random_number = 1;
-    induce_alloc_failure = 1; /* XXX: This needs to be mocked */
-    stop_producer_threads = 0;
-    stop_consumer_threads = 0;
-    runtime_insecs = 4;
-    num_consumers = 0;
-    num_producers = 1;
-    ASSERT_EQ(0, bonsai_client_multithread_test(HSE_ALLOC_MALLOC));
-
-    key_begin = 1;
-    key_current = 0;
-    random_number = 1;
-    induce_alloc_failure = 1; /* XXX: This needs to be mocked */
-    stop_producer_threads = 0;
-    stop_consumer_threads = 0;
-    runtime_insecs = 5;
-    num_consumers = 0;
-    num_producers = 1;
-    ASSERT_EQ(0, bonsai_client_multithread_test(HSE_ALLOC_CURSOR));
+    runtime_insecs = 10;
+    ASSERT_EQ(0, bonsai_client_multithread_test(allocm));
 }
 
 /* Test the key weight algorithms by creating keys of identical bytes

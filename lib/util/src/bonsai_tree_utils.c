@@ -5,6 +5,7 @@
 
 #include <stdalign.h>
 
+#include <hse_util/event_counter.h>
 #include "bonsai_tree_pvt.h"
 
 static struct bonsai_slab *noslab = (void *)-1;
@@ -44,10 +45,11 @@ static void
 bn_gc_sched_rcu_cb(struct rcu_head *arg)
 {
     struct bonsai_root *tree = container_of(arg, typeof(*tree), br_gc_sched_rcu);
-    struct bonsai_slab *slab, *next, *activeq, *old;
+    struct bonsai_slab *slab, *next;
     uint64_t tstart, tstop;
     uint32_t rcugen;
-    bool reschedule;
+    bool scheduled;
+    int i;
 
     tstart = get_time_ns();
     tree->br_gc_latsum_gp += tstart - tree->br_gc_latstart;
@@ -66,27 +68,24 @@ bn_gc_sched_rcu_cb(struct rcu_head *arg)
 
     /* There are likely many other rcu callbacks waiting to run on this
      * (probably one and only) rcu callback thread so we want to finish
-     * as fast as possible.  We'll scan all the slabs on the ready
-     * queue and only one from the active or empty queue.
+     * as fast as possible.  Unfortunately, we must rescan a large
+     * number of low quality slabs from the hold queue in an attempt
+     * to prevent rampant allocation of new slabs.
      */
-    activeq = tree->br_gc_activeq;
-    if (!activeq) {
-        tree->br_gc_activeq = tree->br_gc_emptyq;
-        tree->br_gc_emptyq = NULL;
+    next = (tree->br_gc_readyq == noslab) ? NULL : tree->br_gc_readyq;
+
+    for (i = 0; i < (tree->br_gc_holdqc / 4) + 1; ++i) {
+        slab = list_first_entry_or_null(&tree->br_gc_holdq, typeof(*slab), bs_entry);
+        if (!slab)
+            break;
+
+        list_del(&slab->bs_entry);
+        slab->bs_next = next;
+        next = slab;
     }
 
-    if (activeq) {
-        tree->br_gc_activeq = activeq->bs_next;
-        activeq->bs_next = NULL;
-    }
+    tree->br_gc_holdqc -= i;
 
-    next = tree->br_gc_readyq;
-    if (next == noslab) {
-        next = activeq;
-        activeq = NULL;
-    }
-
-  next:
     while (( slab = next )) {
         struct bonsai_slabinfo *slabinfo = slab->bs_slabinfo;
 
@@ -97,35 +96,26 @@ bn_gc_sched_rcu_cb(struct rcu_head *arg)
         slab->bs_rnodec = 0;
         slab->bs_nodec = 0;
 
-        /* If we reclaimed a sufficient number of nodes we'll return this slab
-         * to the slabinfo free queue for reuse.  The slabinfo free queue is
-         * effectively a lock-free stack, but there is no ABA problem as this
-         * is the only site at which a push can occur.
+        if (slab->bs_vfkeys) {
+            slab->bs_vfkeys->bkv_next = tree->br_gc_vfkeys;
+            tree->br_gc_vfkeys = slab->bs_vfkeys;
+            slab->bs_vfkeys = NULL;
+        }
+
+        /* If we reclaim a sufficient number of nodes we return the
+         * slab to the slabinfo free queue for reuse.  Otherwise,
+         * we put it on the hold queue and we'll rescan it later.
          */
         if (bn_gc_reclaim(tree, slab) > 0) {
-
-            while (1) {
-                old = rcu_dereference(slabinfo->bsi_freeq);
-                slab->bs_next = old;
-
-                if (old == rcu_cmpxchg_pointer(&slabinfo->bsi_freeq, old, slab))
-                    break;
-            }
+            spin_lock(&slabinfo->bsi_lock);
+            list_add_tail(&slab->bs_entry, &slabinfo->bsi_freeq);
+            spin_unlock(&slabinfo->bsi_lock);
 
             continue;
         }
 
-        /* This slab is empty so put it on the empty queue and rescan it
-         * later when maybe it will have some nodes that can be reclaimed.
-         */
-        slab->bs_next = tree->br_gc_emptyq;
-        tree->br_gc_emptyq = slab;
-    }
-
-    if (activeq) {
-        next = activeq;
-        activeq = NULL;
-        goto next;
+        list_add_tail(&slab->bs_entry, &tree->br_gc_holdq);
+        tree->br_gc_holdqc++;
     }
 
     tstop = get_time_ns();
@@ -134,68 +124,83 @@ bn_gc_sched_rcu_cb(struct rcu_head *arg)
     /* Reschedule the callback if there are pending requests.
      */
     spin_lock(&tree->br_gc_lock);
+    if (tree->br_gc_vfkeys && !tree->br_rfkeys) {
+        tree->br_rfkeys = tree->br_gc_vfkeys;
+        tree->br_gc_vfkeys = NULL;
+    }
+
     tree->br_gc_readyq = tree->br_gc_waitq;
 
-    reschedule = tree->br_gc_readyq;
-    if (reschedule) {
+    scheduled = tree->br_gc_readyq;
+    if (scheduled) {
         tree->br_gc_waitq = NULL;
+        scheduled = true;
 
         atomic_inc_acq(&tree->br_gc_rcugen_start);
         tree->br_gc_latstart = tstop;
     }
     spin_unlock(&tree->br_gc_lock);
 
-    if (reschedule)
+    if (scheduled)
         call_rcu(&tree->br_gc_sched_rcu, bn_gc_sched_rcu_cb);
 }
 
 static void
-bn_gc_sched_rcu(struct bonsai_root *tree, struct bonsai_slab *slab)
+bn_gc_sched_rcu_noslab(struct bonsai_root *tree)
 {
-    struct bonsai_kv *freekeys = NULL;
     bool scheduled;
 
     spin_lock(&tree->br_gc_lock);
-    if (slab != noslab) {
-        slab->bs_next = tree->br_gc_waitq;
-        tree->br_gc_waitq = slab;
-    }
-
-    /* Schedule an rcu callback if one isn't already scheduled.
-     */
-    scheduled = tree->br_gc_readyq;
-    if (!scheduled) {
-        tree->br_gc_readyq = slab;
-        if (slab != noslab) {
-            tree->br_gc_waitq = NULL;
-        } else {
-            assert(!tree->br_gc_waitq);
-        }
-
-        if (!tree->br_cheap) {
-            freekeys = tree->br_gc_freekeys;
-            tree->br_gc_freekeys = tree->br_freekeys;
-            tree->br_freekeys = NULL;
-        }
+    scheduled = !tree->br_gc_readyq;
+    if (scheduled) {
+        tree->br_gc_readyq = noslab;
 
         atomic_inc_acq(&tree->br_gc_rcugen_start);
         tree->br_gc_latstart = get_time_ns();
     }
     spin_unlock(&tree->br_gc_lock);
 
-    if (!scheduled)
+    if (scheduled)
         call_rcu(&tree->br_gc_sched_rcu, bn_gc_sched_rcu_cb);
+}
 
-    /* Free the list of keys that are no longer visible...
+static void
+bn_gc_sched_rcu(struct bonsai_root *tree, struct bonsai_slab *slab)
+{
+    bool scheduled;
+
+    spin_lock(&tree->br_gc_lock);
+    slab->bs_next = tree->br_gc_waitq;
+    tree->br_gc_waitq = slab;
+
+    if (!tree->br_cheap) {
+        if (tree->br_vfkeys) {
+            assert(!slab->bs_vfkeys);
+            slab->bs_vfkeys = tree->br_vfkeys;
+            tree->br_vfkeys = NULL;
+        }
+    }
+
+    /* Schedule an rcu callback if one isn't already scheduled.
      */
-    if (freekeys)
-        bn_kv_free(freekeys);
+    scheduled = !tree->br_gc_readyq;
+    if (scheduled) {
+        tree->br_gc_readyq = tree->br_gc_waitq;
+        tree->br_gc_waitq = NULL;
+
+        atomic_inc_acq(&tree->br_gc_rcugen_start);
+        tree->br_gc_latstart = get_time_ns();
+    }
+    spin_unlock(&tree->br_gc_lock);
+
+    if (scheduled)
+        call_rcu(&tree->br_gc_sched_rcu, bn_gc_sched_rcu_cb);
 }
 
 static struct bonsai_slab *
 bn_gc_sched(struct bonsai_root *tree, struct bonsai_slab *slab)
 {
-    struct bonsai_slabinfo *slabinfo;
+    struct bonsai_slabinfo *slabinfo = slab->bs_slabinfo;
 
     if (bn_gc_reclaim(tree, slab) > 0)
         return slab;
@@ -205,14 +210,13 @@ bn_gc_sched(struct bonsai_root *tree, struct bonsai_slab *slab)
     /* Try to pop a slab off the free queue (i.e., the free queue is a list
      * of slabs that contain nodes reclaimed by the gc).
      */
-    slabinfo = slab->bs_slabinfo;
-
-    while (( slab = rcu_dereference(slabinfo->bsi_freeq) )) {
-        if (slab == rcu_cmpxchg_pointer(&slabinfo->bsi_freeq, slab, slab->bs_next)) {
-            slabinfo->bsi_slab = slab;
-            break;
-        }
+    spin_lock(&slabinfo->bsi_lock);
+    slab = list_first_entry_or_null(&slabinfo->bsi_freeq, typeof(*slab), bs_entry);
+    if (slab) {
+        list_del(&slab->bs_entry);
+        slabinfo->bsi_slab = slab;
     }
+    spin_unlock(&slabinfo->bsi_lock);
 
     return slab;
 }
@@ -224,7 +228,6 @@ bn_slab_init(struct bonsai_slab *slab, struct bonsai_slabinfo *slabinfo, bool ca
     slab->bs_entryc = HSE_BT_NODESPERSLAB;
     slab->bs_canfree = canfree;
     slab->bs_slabinfo = slabinfo;
-    slab->bs_magic = slab;
 
     slabinfo->bsi_slab = slab;
     slabinfo->bsi_slabc++;
@@ -252,10 +255,11 @@ bn_slab_alloc(struct bonsai_root *tree, struct bonsai_slabinfo *slabinfo)
 void
 bn_slab_free(struct bonsai_slab *slab)
 {
-    if (slab && slab->bs_canfree) {
-        assert(slab->bs_magic == slab);
-        slab->bs_magic = (void *)0xbadcafe3badcafe1;
-        free(slab);
+    if (slab) {
+        bn_kv_free(slab->bs_vfkeys);
+
+        if (slab->bs_canfree)
+            free(slab);
     }
 }
 
@@ -289,27 +293,31 @@ bn_node_alloc_impl(struct bonsai_root *tree, uint skidx)
         if (slab)
             break;
 
-        /* If the current slab is the root slab it means we've been
+        /* If the current slab is the OOM slab it means we've been
          * here before and we're unable to allocate memory for a new
          * node.  This should never happen, but if it does we can't
          * fail the node allocation request because that would corrupt
          * the tree if we're in the middle of a rebalance operation.
          */
-        if (slabinfo->bsi_slab == tree->br_rootslab->bsi_slab) {
-            assert(slabinfo != tree->br_rootslab);
-            abort();
+        if (tree->br_oomslab) {
+            if (slabinfo->bsi_slab == tree->br_oomslab->bsi_slab) {
+                assert(slabinfo->bsi_slab != tree->br_oomslab->bsi_slab);
+                abort();
+            }
+        }
+        else {
+            tree->br_oomslab = tree->br_rootslab + 1;
+
+            /* Set bounds to prevent inserts into the tree after this one
+             * completes.  There should be plenty of free nodes in the root
+             * slab to complete a rebalance operation, so we share the root
+             * slab with current skidx so that it always has a valid slab.
+             */
+            atomic_set(&tree->br_bounds, -1);
         }
 
-        /* Set bounds to prevent inserts into the tree after this one
-         * completes.  There should be plenty of free nodes in the root
-         * slab to complete a rebalance operation, so we share the root
-         * slab with current skidx so that it always has a valid slab.
-         */
-        atomic_set(&tree->br_bounds, -1);
-
-        slab = tree->br_rootslab->bsi_slab;
+        slab = tree->br_oomslab->bsi_slab;
         slabinfo->bsi_slab = slab;
-        bn_gc_reclaim(tree, slab);
     }
 
     slab->bs_nodec++;
@@ -320,7 +328,7 @@ bn_node_alloc_impl(struct bonsai_root *tree, uint skidx)
      */
     if (slab->bs_entryc % 64 == 0) {
         if (bn_gc_reclaim(tree, slab) < 8)
-            bn_gc_sched_rcu(tree, noslab);
+            bn_gc_sched_rcu_noslab(tree);
     }
 
     return slab->bs_entryv + --slab->bs_entryc;
@@ -335,13 +343,13 @@ bn_node_alloc(struct bonsai_root *tree, int height, uint skidx)
      * to satisfy OOM allocations.
      */
     if (tree->br_height - height < 5)
-        return bn_node_alloc_impl(tree, NELEM(tree->br_slabinfov) - 1);
+        return bn_node_alloc_impl(tree, NELEM(tree->br_slabinfov) - 2);
 
     /* Otherwise allocate from a per-skidx slab to try and improve the
      * spatial density of nodes that share a common skidx (i.e, nodes
      * that are clustered in a subtree based on skidx).
      */
-    return bn_node_alloc_impl(tree, skidx % (NELEM(tree->br_slabinfov) - 1));
+    return bn_node_alloc_impl(tree, skidx % (NELEM(tree->br_slabinfov) - 2));
 }
 
 static void *
@@ -391,43 +399,48 @@ bn_val_alloc(struct bonsai_root *tree, const struct bonsai_sval *sval, bool mana
     return v;
 }
 
-void
-bn_kv_free(struct bonsai_kv *freekeys)
+static void
+bn_kv_free_vals(struct bonsai_kv *kv)
 {
-    while (freekeys) {
-        struct bonsai_kv *kv = freekeys;
-        struct bonsai_val *val, *eval;
+    struct bonsai_val *val, *embedded;
 
-        /* The kv and initial val are allocated in one chunk,
-         * must avoid freeing the embedded value.
-         */
-        eval = (void *)kv + kv->bkv_voffset;
+    /* The kv and initial val are allocated in one contiguous chunk
+     * of memory, so we must prevent freeing the embedded value.
+     */
+    embedded = (void *)kv + kv->bkv_voffset;
 
-        freekeys = kv->bkv_free;
+    while (( val = kv->bkv_values )) {
+        kv->bkv_values = val->bv_next;
+        if (val != embedded)
+            free(val);
+    }
+
+    while (( val = kv->bkv_freevals )) {
+        kv->bkv_freevals = val->bv_free;
+        if (val != embedded)
+            free(val);
+    }
+}
+
+void
+bn_kv_free(struct bonsai_kv *kvlist)
+{
+    struct bonsai_kv *kv;
+
+    while (( kv = kvlist )) {
+        kvlist = kv->bkv_free;
 
         /* Torch the key ptr in case someone tries to use it
          * after it's been freed...
          */
         kv->bkv_key = (void *)0xbadcafe5badcafe5;
-
-        while (( val = kv->bkv_values )) {
-            kv->bkv_values = val->bv_next;
-            if (val != eval)
-                free(val);
-        }
-
-        while (( val = kv->bkv_freevals )) {
-            kv->bkv_freevals = val->bv_free;
-            if (val != eval)
-                free(val);
-        }
-
+        bn_kv_free_vals(kv);
         free(kv);
     }
 }
 
 static merr_t
-bn_kv_init(
+bn_kv_alloc(
     struct bonsai_root        *tree,
     const struct bonsai_skey  *skey,
     const struct bonsai_sval  *sval,
@@ -505,21 +518,14 @@ bn_kvnode_alloc(
     const struct bonsai_skey *skey,
     const struct bonsai_sval *sval)
 {
-    struct bonsai_node *node;
     struct bonsai_kv *kv = NULL;
     merr_t err;
 
-    err = bn_kv_init(tree, skey, sval, &kv);
+    err = bn_kv_alloc(tree, skey, sval, &kv);
     if (err)
         return NULL;
 
-    node = bn_node_make(tree, NULL, NULL, 1, kv, &skey->bsk_key_imm);
-    if (!node) {
-        kv->bkv_free = tree->br_freekeys;
-        tree->br_freekeys = kv;
-    }
-
-    return node;
+    return bn_node_make(tree, NULL, NULL, 1, kv, &skey->bsk_key_imm);
 }
 
 struct bonsai_node *
