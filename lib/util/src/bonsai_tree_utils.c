@@ -366,10 +366,8 @@ bn_val_init(struct bonsai_val *v, const struct bonsai_sval *sval, size_t sz)
 {
     memset(v, 0, sizeof(*v));
     v->bv_seqnoref = sval->bsv_seqnoref;
-    v->bv_next = NULL;
     v->bv_value = sval->bsv_val;
     v->bv_xlen = sval->bsv_xlen;
-    v->bv_free = NULL;
 
     if (sz > sizeof(*v)) {
         memcpy(v->bv_valbuf, sval->bsv_val, sz - sizeof(*v));

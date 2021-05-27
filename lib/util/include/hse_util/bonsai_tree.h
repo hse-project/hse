@@ -86,6 +86,7 @@ struct bonsai_skey {
  * @bv_next:      ptr to next value in list
  * @bv_value:     ptr to value data
  * @bv_xlen:      opaque encoded value length
+ * @bv_priv:      user-managed ptr
  * @bv_free:      ptr to next value in free list bkv_freevals
  * @bv_valbuf:    value data (zero length if caller managed)
  *
@@ -101,6 +102,7 @@ struct bonsai_val {
     struct bonsai_val *bv_next;
     void              *bv_value;
     u64                bv_xlen;
+    struct bonsai_val *bv_priv;
     struct bonsai_val *bv_free;
     char               bv_valbuf[];
 };
@@ -647,6 +649,25 @@ bn_kv_cmp_rev(const void *lhs, const void *rhs)
     }
 
     return key_inner_cmp(r_key, r_klen, l_key, l_klen);
+}
+
+/**
+ * bn_val_rcufree() - free given value in next rcu epoch
+ * @kv:     ptr to bonsai key/value object which contains %dval
+ * @dval:   value to be delay freed
+ *
+ * In reality, dval must remain visible for the life of the kv
+ * since cursors and ingest might use it long after dropping
+ * the rcu read lock.
+ *
+ * Caller must hold the bonsai tree mutex or be operating in
+ * a single threaded environment.
+ */
+static HSE_ALWAYS_INLINE void
+bn_val_rcufree(struct bonsai_kv *kv, struct bonsai_val *dval)
+{
+    dval->bv_free = kv->bkv_freevals;
+    kv->bkv_freevals = dval;
 }
 
 #endif /* HSE_BONSAI_TREE_H */

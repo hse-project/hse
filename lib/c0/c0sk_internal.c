@@ -290,23 +290,23 @@ c0sk_builder_add(
         for (val = head; val; val = next) {
             int rc;
 
-            next = val->bv_free;
+            next = val->bv_priv;
 
             seqnoref_to_seqno(val->bv_seqnoref, &seqno);
 
             rc = seq_prev_cmp(val->bv_value, seqno, seqno_prev, pt_seqno_prev);
             if (rc > 0) {
-                *tailp = val->bv_free;
-                val->bv_free = *prevp;
+                *tailp = val->bv_priv;
+                val->bv_priv = *prevp;
                 *prevp = val;
-                prevp = &val->bv_free;
+                prevp = &val->bv_priv;
 
                 ++unsorted;
                 continue;
             }
 
             prevp = tailp;
-            tailp = &val->bv_free;
+            tailp = &val->bv_priv;
             if (HSE_CORE_IS_PTOMB(val->bv_value))
                 pt_seqno_prev = seqno;
             else
@@ -320,11 +320,8 @@ c0sk_builder_add(
     seqno_prev = U64_MAX;
     pt_seqno_prev = U64_MAX;
 
-    for (val = head; val; val = next) {
+    for (val = head; val; val = val->bv_priv) {
         int rc;
-
-        next = val->bv_free;
-        val->bv_free = NULL;
 
         seqnoref_to_seqno(val->bv_seqnoref, &seqno);
 
@@ -545,9 +542,9 @@ c0sk_ingest_worker(struct work_struct *work)
                  * last non-ptomb instead of always inserting
                  * at previous position.
                  */
-                val->bv_free = *val_prevp;
+                val->bv_priv = *val_prevp;
                 *val_prevp = val;
-                val_prevp = &val->bv_free;
+                val_prevp = &val->bv_priv;
 
                 ++unsorted;
                 continue;
@@ -557,7 +554,7 @@ c0sk_ingest_worker(struct work_struct *work)
              */
             val_prevp = val_tailp;
             *val_tailp = val;
-            val_tailp = &val->bv_free;
+            val_tailp = &val->bv_priv;
 
             if (HSE_CORE_IS_PTOMB(val->bv_value))
                 pt_seqno_prev = seqno;
@@ -593,8 +590,6 @@ c0sk_ingest_worker(struct work_struct *work)
         err = c0sk_builder_add(bldr, kvms, bkv_prev, val_head, unsorted);
         if (ev(err))
             goto health_err;
-
-        val_head = NULL;
     }
 
     if (debug)
@@ -620,15 +615,6 @@ health_err:
         kvdb_health_error(c0sk->c0sk_kvdb_health, err);
 
 exit_err:
-    if (err) {
-        *val_tailp = NULL;
-
-        while ((val = val_head)) {
-            val_head = val->bv_free;
-            val->bv_free = NULL;
-        }
-    }
-
     if (debug)
         ingest->t6 = get_time_ns();
 

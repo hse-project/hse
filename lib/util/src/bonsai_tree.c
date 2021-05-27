@@ -80,10 +80,8 @@ bn_ior_replace(
     /* oldv must remain visible for the life of the kv since cursors
      * might use it long after dropping the rcu read lock.
      */
-    if (oldv) {
-        oldv->bv_free = node->bn_kv->bkv_freevals;
-        node->bn_kv->bkv_freevals = oldv;
-    }
+    if (oldv)
+        bn_val_rcufree(node->bn_kv, oldv);
 
     return tree->br_root;
 }
