@@ -1328,6 +1328,8 @@ cli_hse_kvs_create(struct cli_cmd *self, struct cli *cli)
     if (cli_hook(cli, self, &spec))
         return 0;
 
+    kvs = cli_next_arg(cli);
+
     while (-1 != (c = cli_getopt(cli))) {
         switch (c) {
             case 'h':
@@ -1341,9 +1343,7 @@ cli_hse_kvs_create(struct cli_cmd *self, struct cli *cli)
         }
     }
 
-    kvdb_arg = cli_next_arg(cli);
-
-    if (!kvdb_arg || help) {
+    if (!kvs || help) {
         cmd_print_help(self, help_style_usage, help ? stdout : stderr);
         return help ? 0 : EX_USAGE;
     }
