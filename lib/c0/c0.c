@@ -99,30 +99,30 @@ c0_get_sfx_len(struct c0 *handle)
 }
 
 merr_t
-c0_put(struct c0 *handle, const struct kvs_ktuple *kt, const struct kvs_vtuple *vt, u64 seqno)
+c0_put(struct c0 *handle, struct kvs_ktuple *kt, const struct kvs_vtuple *vt, uintptr_t seqnoref)
 {
     struct c0_impl *self = c0_h2r(handle);
 
     assert(self->c0_index < HSE_KVS_COUNT_MAX);
-    return c0sk_put(self->c0_c0sk, self->c0_index, kt, vt, seqno);
+    return c0sk_put(self->c0_c0sk, self->c0_index, kt, vt, seqnoref);
 }
 
 merr_t
-c0_del(struct c0 *handle, const struct kvs_ktuple *kt, u64 seqno)
+c0_del(struct c0 *handle, struct kvs_ktuple *kt, uintptr_t seqnoref)
 {
     struct c0_impl *self = c0_h2r(handle);
 
     assert(self->c0_index < HSE_KVS_COUNT_MAX);
-    return c0sk_del(self->c0_c0sk, self->c0_index, kt, seqno);
+    return c0sk_del(self->c0_c0sk, self->c0_index, kt, seqnoref);
 }
 
 merr_t
-c0_prefix_del(struct c0 *handle, const struct kvs_ktuple *kt, u64 seqno)
+c0_prefix_del(struct c0 *handle, struct kvs_ktuple *kt, uintptr_t seqnoref)
 {
     struct c0_impl *self = c0_h2r(handle);
 
     assert(self->c0_index < HSE_KVS_COUNT_MAX);
-    return c0sk_prefix_del(self->c0_c0sk, self->c0_index, kt, seqno);
+    return c0sk_prefix_del(self->c0_c0sk, self->c0_index, kt, seqnoref);
 }
 
 /*

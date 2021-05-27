@@ -3,15 +3,18 @@
  * Copyright (C) 2021 Micron Technology, Inc.  All rights reserved.
  */
 
-#include <stdalign.h>
+#define MTF_MOCK_IMPL_wal
 
+#include <hse_util/hse_err.h>
 #include <hse_util/platform.h>
 #include <hse_util/bonsai_tree.h>
+#include <hse_util/event_counter.h>
 
 #include <hse_ikvdb/ikvdb.h>
-#include <hse_ikvdb/cn.h>
+#include <hse_ikvdb/kvs.h>
 #include <hse_ikvdb/limits.h>
 #include <hse_ikvdb/key_hash.h>
+#include <hse_ikvdb/kvdb_ctxn.h>
 
 #include <mpool/mpool.h>
 
@@ -38,6 +41,7 @@ struct wal {
 /*
  * WAL data plane
  */
+
 merr_t
 wal_put(
     struct wal *wal,
@@ -45,13 +49,14 @@ wal_put(
     struct hse_kvdb_opspec *os,
     struct kvs_ktuple *kt,
     struct kvs_vtuple *vt,
-    u64 seqno)
+    struct wal_record *recout)
 {
     const size_t kvalign = alignof(uint64_t);
     struct wal_rec_omf *rec;
-    uint64_t len, rid, cnid;
-    size_t klen, vlen, rlen, kvlen;
+    uint64_t rid, txid = 0;
+    size_t klen, vlen, rlen, kvlen, len;
     char *kvdata;
+    uint rtype = WAL_RT_NONTX, op = WAL_OP_PUT;
 
     klen = kt->kt_len;
     vlen = kvs_vtuple_vlen(vt);
@@ -60,11 +65,18 @@ wal_put(
     len = rlen + kvlen;
 
     rec = wal_buffer_alloc(wal->wbuf, len);
-    cnid = cn_get_cnid(kvs_cn(kvs));
     rid = atomic64_inc_return(&wal->rid);
+    if (kvdb_kop_is_txn(os)) {
+        merr_t err;
 
-    wal_rechdr_pack(WAL_RT_NONTX, rid, kvlen, (char *)rec);
-    wal_rec_pack(WAL_OP_PUT, cnid, 0, seqno, klen, vt->vt_xlen, (char *)rec);
+        err = kvdb_ctxn_get_view_seqno(kvdb_ctxn_h2h(os->kop_txn), &txid);
+        if (err)
+            return err;
+        rtype = WAL_RT_TX;
+    }
+
+    wal_rechdr_pack(rtype, rid, kvlen, rec);
+    wal_rec_pack(op, kvs->ikv_cnid, txid, klen, vt->vt_xlen, rec);
 
     kvdata = (char *)rec + rlen;
     memcpy(kvdata, kt->kt_data, klen);
@@ -77,9 +89,120 @@ wal_put(
         vt->vt_data = kvdata;
     }
 
-    wal_rechdr_crc_pack((char *)rec, len);
+    recout->recbuf = rec;
+    recout->len = len;
 
     return 0;
+}
+
+static merr_t
+wal_del_impl(
+    struct wal *wal,
+    struct ikvs *kvs,
+    struct hse_kvdb_opspec *os,
+    struct kvs_ktuple *kt,
+    bool prefix,
+    struct wal_record *recout)
+{
+    const size_t kalign = alignof(uint64_t);
+    struct wal_rec_omf *rec;
+    uint64_t rid, txid = 0;
+    size_t klen, rlen, kalen, len;
+    char *kdata;
+    uint rtype = WAL_RT_NONTX, op = prefix ? WAL_OP_PDEL : WAL_OP_DEL;
+
+    rlen = wal_rec_len();
+    klen = kt->kt_len;
+    kalen = ALIGN(klen, kalign);
+    len = rlen + kalen;
+
+    rec = wal_buffer_alloc(wal->wbuf, len);
+    rid = atomic64_inc_return(&wal->rid);
+    if (kvdb_kop_is_txn(os)) {
+        merr_t err;
+
+        err = kvdb_ctxn_get_view_seqno(kvdb_ctxn_h2h(os->kop_txn), &txid);
+        if (err)
+            return err;
+        rtype = WAL_RT_TX;
+    }
+
+    wal_rechdr_pack(rtype, rid, kalen, rec);
+    wal_rec_pack(op, kvs->ikv_cnid, txid, klen, 0, rec);
+
+    kdata = (char *)rec + rlen;
+    memcpy(kdata, kt->kt_data, klen);
+    kt->kt_data = kdata;
+    kt->kt_flags = HSE_BTF_MANAGED;
+
+    recout->recbuf = rec;
+    recout->len = len;
+
+    return 0;
+}
+
+merr_t
+wal_del(
+    struct wal *wal,
+    struct ikvs *kvs,
+    struct hse_kvdb_opspec *os,
+    struct kvs_ktuple *kt,
+    struct wal_record *recout)
+{
+    return wal_del_impl(wal, kvs, os, kt, false, recout);
+}
+
+merr_t
+wal_del_pfx(
+    struct wal *wal,
+    struct ikvs *kvs,
+    struct hse_kvdb_opspec *os,
+    struct kvs_ktuple *kt,
+    struct wal_record *recout)
+{
+    return wal_del_impl(wal, kvs, os, kt, true, recout);
+}
+
+static merr_t
+wal_txn(struct wal *wal, uint rtype, uint64_t txid, uint64_t seqno)
+{
+    struct wal_txnrec_omf *rec;
+    uint64_t rid;
+    size_t rlen;
+
+    rlen = wal_txn_rec_len();
+    rec = wal_buffer_alloc(wal->wbuf, rlen);
+    rid = atomic64_inc_return(&wal->rid);
+
+    wal_txn_rechdr_pack(rtype, rid, rec);
+    wal_txn_rec_pack(txid, seqno, rec);
+    wal_txn_rechdr_crc_pack(rec, rlen);
+
+    return 0;
+}
+
+merr_t
+wal_txn_begin(struct wal *wal, uint64_t txid)
+{
+    return wal_txn(wal, WAL_RT_TXBEGIN, txid, 0);
+}
+
+merr_t
+wal_txn_abort(struct wal *wal, uint64_t txid)
+{
+    return wal_txn(wal, WAL_RT_TXABORT, txid, 0);
+}
+
+merr_t
+wal_txn_commit(struct wal *wal, uint64_t txid, uint64_t seqno)
+{
+    return wal_txn(wal, WAL_RT_TXCOMMIT, txid, seqno);
+}
+
+void
+wal_op_finish(struct wal *wal, struct wal_record *rec, uint64_t seqno, uint64_t dgen)
+{
+    wal_rec_finish(rec, seqno, dgen);
 }
 
 /*
@@ -129,7 +252,7 @@ wal_open(struct mpool *mp, bool rdonly, uint64_t mdcid1, uint64_t mdcid2, struct
     if (!mp || !wal_out)
         return merr(EINVAL);
 
-    wal = calloc(1, sizeof(*wal));
+    wal = aligned_alloc(alignof(*wal) * 2, sizeof(*wal));
     if (!wal)
         return merr(ENOMEM);
 
@@ -227,4 +350,8 @@ wal_version_set(struct wal *wal, uint32_t version)
 {
     wal->version = version;
 }
+
+#if HSE_MOCKING
+#include "wal_ut_impl.i"
+#endif /* HSE_MOCKING */
 

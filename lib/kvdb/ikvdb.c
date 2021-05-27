@@ -1811,7 +1811,8 @@ ikvdb_kvs_put(
     struct ikvdb_impl *parent;
     struct kvs_ktuple  ktbuf;
     struct kvs_vtuple  vtbuf;
-    u64                put_seqno;
+    struct wal_record  rec;
+    uint64_t           seqnoref;
     merr_t             err;
     uint               vlen, clen;
     size_t             vbufsz;
@@ -1868,9 +1869,9 @@ ikvdb_kvs_put(
         }
     }
 
-    put_seqno = txn ? 0 : HSE_SQNREF_SINGLE;
+    seqnoref = txn ? 0 : HSE_SQNREF_SINGLE;
 
-    err = wal_put(parent->ikdb_wal, kk->kk_ikvs, NULL, kt, vt, put_seqno);
+    err = wal_put(parent->ikdb_wal, kk->kk_ikvs, NULL, kt, vt, &rec);
 
     if (vbuf && vbuf != tls_vbuf)
         vlb_free(vbuf, (vbufsz > VLB_ALLOCSZ_MAX) ? vbufsz : clen);
@@ -1878,11 +1879,13 @@ ikvdb_kvs_put(
     if (err)
         return err;
 
-    err = kvs_put(kk->kk_ikvs, txn, kt, vt, put_seqno);
+    err = kvs_put(kk->kk_ikvs, txn, kt, vt, seqnoref);
     if (err) {
         ev(merr_errno(err) != ECANCELED);
         return err;
     }
+
+    wal_op_finish(parent->ikdb_wal, &rec, kt->kt_seqno, kt->kt_dgen);
 
     if (!(flags & HSE_FLAG_PUT_PRIORITY || parent->ikdb_rp.throttle_disable))
         ikvdb_throttle(parent, kt->kt_len + (clen ? clen : vlen));
@@ -1972,7 +1975,8 @@ ikvdb_kvs_del(
 {
     struct kvdb_kvs *  kk = (struct kvdb_kvs *)handle;
     struct ikvdb_impl *parent;
-    u64                del_seqno;
+    struct wal_record  rec;
+    u64                seqnoref;
     merr_t             err;
 
     if (ev(!handle))
@@ -1991,11 +1995,17 @@ ikvdb_kvs_del(
     if (ev(err))
         return err;
 
-    del_seqno = txn ? 0 : HSE_SQNREF_SINGLE;
+    seqnoref = txn ? 0 : HSE_SQNREF_SINGLE;
 
-    err = kvs_del(kk->kk_ikvs, txn, kt, del_seqno);
+    err = wal_del(parent->ikdb_wal, kk->kk_ikvs, NULL, kt, &rec);
+    if (err)
+        return err;
+
+    err = kvs_del(kk->kk_ikvs, txn, kt, seqnoref);
     if (ev(err))
         return err;
+
+    wal_op_finish(parent->ikdb_wal, &rec, kt->kt_seqno, kt->kt_dgen);
 
     return 0;
 }
@@ -2010,9 +2020,10 @@ ikvdb_kvs_prefix_delete(
 {
     struct kvdb_kvs *  kk = (struct kvdb_kvs *)handle;
     struct ikvdb_impl *parent;
+    struct wal_record  rec;
     merr_t             err;
     u32                ct_pfx_len;
-    u64                pdel_seqno;
+    u64                seqnoref;
 
     if (ev(!handle))
         return merr(EINVAL);
@@ -2033,16 +2044,22 @@ ikvdb_kvs_prefix_delete(
     if (ev(kt->kt_len == 0))
         return merr(ENOENT);
 
-    pdel_seqno = txn ? 0 : HSE_SQNREF_SINGLE;
+    seqnoref = txn ? 0 : HSE_SQNREF_SINGLE;
+
+    err = wal_del_pfx(parent->ikdb_wal, kk->kk_ikvs, NULL, kt, &rec);
+    if (err)
+        return err;
 
     /* Prefix tombstone deletes all current keys with a matching prefix -
      * those with a sequence number up to but excluding the current seqno.
      * Insert prefix tombstone with a higher seqno. Use a higher sequence
      * number to allow newer mutations (after prefix) to be distinguished.
      */
-    err = kvs_prefix_del(kk->kk_ikvs, txn, kt, pdel_seqno);
+    err = kvs_prefix_del(kk->kk_ikvs, txn, kt, seqnoref);
     if (ev(err))
         return err;
+
+    wal_op_finish(parent->ikdb_wal, &rec, kt->kt_seqno, kt->kt_dgen);
 
     return 0;
 }
@@ -2566,15 +2583,19 @@ merr_t
 ikvdb_txn_begin(struct ikvdb *handle, struct hse_kvdb_txn *txn)
 {
     struct ikvdb_impl *self = ikvdb_h2r(handle);
+    struct kvdb_ctxn  *ctxn = kvdb_ctxn_h2h(txn);
     merr_t             err;
 
     perfc_inc(&self->ikdb_ctxn_op, PERFC_BA_CTXNOP_ACTIVE);
     perfc_inc(&self->ikdb_ctxn_op, PERFC_RA_CTXNOP_BEGIN);
 
-    err = kvdb_ctxn_begin(kvdb_ctxn_h2h(txn));
+    err = kvdb_ctxn_begin(ctxn);
 
     if (ev(err))
         perfc_dec(&self->ikdb_ctxn_op, PERFC_BA_CTXNOP_ACTIVE);
+
+    if (!err)
+        err = wal_txn_begin(self->ikdb_wal, kvdb_ctxn_txnid_get(ctxn));
 
     return err;
 }
@@ -2583,16 +2604,22 @@ merr_t
 ikvdb_txn_commit(struct ikvdb *handle, struct hse_kvdb_txn *txn)
 {
     struct ikvdb_impl *self = ikvdb_h2r(handle);
+    struct kvdb_ctxn  *ctxn = kvdb_ctxn_h2h(txn);
     merr_t             err;
     u64                lstart;
 
     lstart = perfc_lat_startu(&self->ikdb_ctxn_op, PERFC_LT_CTXNOP_COMMIT);
     perfc_inc(&self->ikdb_ctxn_op, PERFC_RA_CTXNOP_COMMIT);
 
-    err = kvdb_ctxn_commit(kvdb_ctxn_h2h(txn));
+    err = kvdb_ctxn_commit(ctxn);
 
     perfc_dec(&self->ikdb_ctxn_op, PERFC_BA_CTXNOP_ACTIVE);
     perfc_lat_record(&self->ikdb_ctxn_op, PERFC_LT_CTXNOP_COMMIT, lstart);
+
+    if (!err) {
+        u64 seqno = HSE_SQNREF_TO_ORDNL(kvdb_ctxn_get_seqnoref(ctxn));
+        err = wal_txn_commit(self->ikdb_wal, kvdb_ctxn_txnid_get(ctxn), seqno);
+    }
 
     return err;
 }
@@ -2601,12 +2628,15 @@ merr_t
 ikvdb_txn_abort(struct ikvdb *handle, struct hse_kvdb_txn *txn)
 {
     struct ikvdb_impl *self = ikvdb_h2r(handle);
+    struct kvdb_ctxn  *ctxn = kvdb_ctxn_h2h(txn);
 
     perfc_inc(&self->ikdb_ctxn_op, PERFC_RA_CTXNOP_ABORT);
 
-    kvdb_ctxn_abort(kvdb_ctxn_h2h(txn));
+    kvdb_ctxn_abort(ctxn);
 
     perfc_dec(&self->ikdb_ctxn_op, PERFC_BA_CTXNOP_ACTIVE);
+
+    wal_txn_abort(self->ikdb_wal, kvdb_ctxn_txnid_get(ctxn));
 
     return 0;
 }

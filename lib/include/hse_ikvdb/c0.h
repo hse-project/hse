@@ -111,13 +111,13 @@ c0_get_sfx_len(struct c0 *c0);
  * @self:      Instance of struct c0 into which to insert
  * @key:       Key for insertion
  * @value:     Value for insertion
- * @seqno:     Seqno for insertion
+ * @seqnoref:  seqnoref for insertion
  *
  * Return: [HSE_REVISIT]
  */
 /* MTF_MOCK */
 merr_t
-c0_put(struct c0 *self, const struct kvs_ktuple *key, const struct kvs_vtuple *value, u64 seqno);
+c0_put(struct c0 *self, struct kvs_ktuple *key, const struct kvs_vtuple *value, uintptr_t seqnoref);
 
 /**
  * c0_get() - retrieve the value associated with the given key,
@@ -144,13 +144,13 @@ c0_get(
  * c0_del() - delete any value associated with the given key
  * @self:      Instance of struct c0 from which to delete
  * @key:       Key to delete
- * @seqno:     Seqno to use for deletion
+ * @seqnoref:  seqnoref for deletion
  *
  * Return: [HSE_REVISIT]
  */
 /* MTF_MOCK */
 merr_t
-c0_del(struct c0 *self, const struct kvs_ktuple *key, u64 seqno);
+c0_del(struct c0 *self, struct kvs_ktuple *key, uintptr_t seqnoref);
 
 merr_t
 c0_pfx_probe(
@@ -167,13 +167,13 @@ c0_pfx_probe(
  * c0_prefix_del() - delete any value with the prefix key
  * @self:      Instance of struct c0 from which to delete
  * @key:       prefix key to delete
- * @seqno:     seqno to use for prefix delete
+ * @seqnoref:  seqnoref for prefix delete
  *
  * Return: [HSE_REVISIT]
  */
 /* MTF_MOCK */
 merr_t
-c0_prefix_del(struct c0 *self, const struct kvs_ktuple *key, u64 seqno);
+c0_prefix_del(struct c0 *self, struct kvs_ktuple *key, uintptr_t seqnoref);
 
 /**
  * c0_sync() - force ingest of existing c0 data and waits until ingest complete

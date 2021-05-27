@@ -147,7 +147,7 @@ c0sk_get_mhandle(struct c0sk *self);
  * @skidx:     Structured key index
  * @key:       Key for insertion
  * @value:     Value for insertion
- * @seq:       Sequence number for insertion
+ * @seqnoref:  seqnoref for insertion
  *
  * Return: [HSE_REVISIT]
  */
@@ -156,9 +156,9 @@ merr_t
 c0sk_put(
     struct c0sk *            self,
     u16                      skidx,
-    const struct kvs_ktuple *key,
+    struct kvs_ktuple       *key,
     const struct kvs_vtuple *value,
-    u64                      seq);
+    uintptr_t                seqnoref);
 
 /**
  * c0sk_get() - retrieve the value associated with the given key
@@ -190,13 +190,13 @@ c0sk_get(
  * @self:       Instance of struct c0sk from which to delete
  * @skidx:      Structured key index
  * @key:        Key to delete
- * @seq:        Sequence number for insertion
+ * @seqnoref:   seqnoref for deletion
  *
  * Return: [HSE_REVISIT]
  */
 /* MTF_MOCK */
 merr_t
-c0sk_del(struct c0sk *self, u16 skidx, const struct kvs_ktuple *key, u64 seq);
+c0sk_del(struct c0sk *self, u16 skidx, struct kvs_ktuple *key, uintptr_t seqnoref);
 
 merr_t
 c0sk_pfx_probe(
@@ -217,13 +217,13 @@ c0sk_pfx_probe(
  * @self:      Instance of struct c0sk from which to delete
  * @skidx:     Structured key index
  * @key:       Prefix key to delete
- * @seq:       Sequence number for insertion
+ * @seqnoref:  seqnoref for prefix delete
  *
  * Return: [HSE_REVISIT]
  */
 /* MTF_MOCK */
 merr_t
-c0sk_prefix_del(struct c0sk *self, u16 skidx, const struct kvs_ktuple *key, u64 seq);
+c0sk_prefix_del(struct c0sk *self, u16 skidx, struct kvs_ktuple *key, uintptr_t seqnoref);
 
 /**
  * c0sk_rparams() - Get a ptr to c0sk kvdb rparams

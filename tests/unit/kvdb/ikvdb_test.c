@@ -57,6 +57,7 @@ test_pre(struct mtf_test_info *ti)
 
     mock_kvdb_log_set();
     mock_cndb_set();
+    mock_wal_set();
     mock_c0cn_set();
 
     g_kvs_cp = kvs_cparams_defaults();
@@ -79,6 +80,7 @@ test_post(struct mtf_test_info *ti)
 {
     mock_kvdb_log_unset();
     mock_c0cn_unset();
+    mock_wal_unset();
 
     mapi_inject_unset(mapi_idx_cn_get_rp);
     mapi_inject_unset(mapi_idx_cn_get_cnid);
@@ -99,6 +101,7 @@ test_pre_c0(struct mtf_test_info *ti)
 
     mock_kvdb_log_set();
     mock_cndb_set();
+    mock_wal_set();
     mock_cn_set();
 
     g_kvs_cp = kvs_cparams_defaults();
@@ -115,6 +118,7 @@ test_post_c0(struct mtf_test_info *ti)
 {
     mock_kvdb_log_unset();
     mock_cn_unset();
+    mock_wal_unset();
 
     mapi_inject_unset(mapi_idx_cn_get_ingest_perfc);
     mapi_inject(mapi_idx_cndb_cn_drop, 0);

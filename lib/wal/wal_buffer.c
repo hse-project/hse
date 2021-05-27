@@ -3,7 +3,6 @@
  * Copyright (C) 2021 Micron Technology, Inc.  All rights reserved.
  */
 
-#include <stdalign.h>
 #include <sys/sysinfo.h>
 
 #include <hse_util/platform.h>
@@ -58,6 +57,7 @@ wal_buffer_create(void)
                 while (i-- > 0)
                     vlb_free(wbuf[i].w_buf, WAL_BUFALLOCSZ_MAX);
 
+                free(wbuf);
                 return NULL;
             }
         }
@@ -76,6 +76,8 @@ wal_buffer_destroy(struct wal_buffer *wbuf)
 
         vlb_free(wb->w_buf, WAL_BUFALLOCSZ_MAX);
     }
+
+    free(wbuf);
 }
 
 void *

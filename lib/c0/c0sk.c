@@ -263,9 +263,9 @@ merr_t
 c0sk_put(
     struct c0sk *            handle,
     u16                      skidx,
-    const struct kvs_ktuple *kt,
+    struct kvs_ktuple       *kt,
     const struct kvs_vtuple *vt,
-    u64                      seqno)
+    uintptr_t                seqnoref)
 {
     struct c0sk_impl *self = c0sk_h2r(handle);
     u64               start;
@@ -273,7 +273,7 @@ c0sk_put(
 
     start = perfc_lat_startu(&self->c0sk_pc_op, PERFC_LT_C0SKOP_PUT);
 
-    err = c0sk_putdel(self, skidx, C0SK_OP_PUT, kt, vt, seqno);
+    err = c0sk_putdel(self, skidx, C0SK_OP_PUT, kt, vt, seqnoref);
 
     if (start > 0) {
         perfc_lat_record(&self->c0sk_pc_op, PERFC_LT_C0SKOP_PUT, start);
@@ -284,7 +284,7 @@ c0sk_put(
 }
 
 merr_t
-c0sk_del(struct c0sk *handle, u16 skidx, const struct kvs_ktuple *kt, u64 seqno)
+c0sk_del(struct c0sk *handle, u16 skidx, struct kvs_ktuple *kt, uintptr_t seqnoref)
 {
     struct c0sk_impl *self = c0sk_h2r(handle);
     u64               start;
@@ -292,7 +292,7 @@ c0sk_del(struct c0sk *handle, u16 skidx, const struct kvs_ktuple *kt, u64 seqno)
 
     start = perfc_lat_startu(&self->c0sk_pc_op, PERFC_LT_C0SKOP_DEL);
 
-    err = c0sk_putdel(self, skidx, C0SK_OP_DEL, kt, NULL, seqno);
+    err = c0sk_putdel(self, skidx, C0SK_OP_DEL, kt, NULL, seqnoref);
 
     if (start > 0) {
         perfc_lat_record(&self->c0sk_pc_op, PERFC_LT_C0SKOP_DEL, start);
@@ -303,11 +303,11 @@ c0sk_del(struct c0sk *handle, u16 skidx, const struct kvs_ktuple *kt, u64 seqno)
 }
 
 merr_t
-c0sk_prefix_del(struct c0sk *handle, u16 skidx, const struct kvs_ktuple *kt, u64 seqno)
+c0sk_prefix_del(struct c0sk *handle, u16 skidx, struct kvs_ktuple *kt, uintptr_t seqnoref)
 {
     struct c0sk_impl *self = c0sk_h2r(handle);
 
-    return c0sk_putdel(self, skidx, C0SK_OP_PREFIX_DEL, kt, NULL, seqno);
+    return c0sk_putdel(self, skidx, C0SK_OP_PREFIX_DEL, kt, NULL, seqnoref);
 }
 
 /*

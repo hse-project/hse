@@ -31,4 +31,9 @@ mock_c0cn_set(void);
 void
 mock_c0cn_unset(void);
 
+void
+mock_wal_set(void);
+void
+mock_wal_unset(void);
+
 #endif

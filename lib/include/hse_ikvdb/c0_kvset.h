@@ -143,7 +143,7 @@ merr_t
 c0kvs_put(
     struct c0_kvset *        set,
     u16                      skidx,
-    const struct kvs_ktuple *key,
+    struct kvs_ktuple       *key,
     const struct kvs_vtuple *value,
     uintptr_t                seqnoref);
 
@@ -161,7 +161,7 @@ c0kvs_put(
  * Return: [HSE_REVISIT]
  */
 merr_t
-c0kvs_del(struct c0_kvset *set, u16 skidx, const struct kvs_ktuple *key, const uintptr_t seqno);
+c0kvs_del(struct c0_kvset *set, u16 skidx, struct kvs_ktuple *key, const uintptr_t seqno);
 
 /**
  * c0kvs_prefix_del() - delete the key/value pair matching the given key
@@ -178,7 +178,7 @@ merr_t
 c0kvs_prefix_del(
     struct c0_kvset *        set,
     u16                      skidx,
-    const struct kvs_ktuple *key,
+    struct kvs_ktuple       *key,
     const uintptr_t          seqno);
 
 /**

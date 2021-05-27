@@ -1301,7 +1301,7 @@ c0sk_putdel(
     struct c0sk_impl *       self,
     u32                      skidx,
     enum c0sk_op             op,
-    const struct kvs_ktuple *kt,
+    struct kvs_ktuple       *kt,
     const struct kvs_vtuple *vt,
     uintptr_t                seqnoref)
 {
@@ -1327,10 +1327,9 @@ c0sk_putdel(
             goto unlock;
         }
 
+        dst_gen = c0kvms_gen_read(dst);
         if (is_txn) {
             u64 curr_gen = c0snr_get_cgen(priv);
-
-            dst_gen = c0kvms_gen_read(dst);
 
             if (curr_gen != dst_gen) {
                 /* This is the first put for the given txn.
@@ -1385,8 +1384,11 @@ c0sk_putdel(
 
         rcu_read_unlock();
 
-        if (merr_errno(err) != ENOMEM)
+        if (merr_errno(err) != ENOMEM) {
+            if (!err)
+                kt->kt_dgen = dst_gen;
             break;
+        }
 
         c0sk_queue_ingest(self, dst);
         c0kvms_putref(dst);

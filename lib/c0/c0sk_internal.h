@@ -228,7 +228,7 @@ c0sk_putdel(
     struct c0sk_impl *       self,
     u32                      skidx,
     enum c0sk_op             op,
-    const struct kvs_ktuple *kt,
+    struct kvs_ktuple       *kt,
     const struct kvs_vtuple *vt,
     uintptr_t                seqnoref);
 

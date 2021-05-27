@@ -3,6 +3,8 @@
  * Copyright (C) 2021 Micron Technology, Inc.  All rights reserved.
  */
 
+#include <hse_util/event_counter.h>
+#include <hse_util/page.h>
 #include <hse_util/platform.h>
 
 #include <mpool/mpool.h>
@@ -115,6 +117,7 @@ wal_mdchdr_pack(enum wal_rec_type rtype, char *outbuf)
     struct wal_mdchdr_omf *homf = (struct wal_mdchdr_omf *)outbuf;
 
     omf_set_mh_rtype(homf, rtype);
+    omf_set_mh_rsvd(homf, 0);
 }
 
 static inline enum wal_rec_type

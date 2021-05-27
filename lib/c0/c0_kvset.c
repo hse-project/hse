@@ -598,48 +598,69 @@ merr_t
 c0kvs_put(
     struct c0_kvset *        handle,
     u16                      skidx,
-    const struct kvs_ktuple *kt,
+    struct kvs_ktuple       *kt,
     const struct kvs_vtuple *vt,
     uintptr_t                seqnoref)
 {
     struct c0_kvset_impl *self = c0_kvset_h2r(handle);
     struct bonsai_skey    skey;
     struct bonsai_sval    sval;
+    merr_t err;
 
     bn_skey_init(kt->kt_data, kt->kt_len, kt->kt_flags, skidx, &skey);
     bn_sval_init(vt->vt_data, vt->vt_xlen, seqnoref, &sval);
 
-    return c0kvs_putdel(self, &skey, &sval);
+    err = c0kvs_putdel(self, &skey, &sval);
+    if (err)
+        return err;
+
+    kt->kt_seqno = HSE_SQNREF_TO_ORDNL(sval.bsv_seqnoref);
+
+    return 0;
 }
 
 merr_t
-c0kvs_del(struct c0_kvset *handle, u16 skidx, const struct kvs_ktuple *key, uintptr_t seqnoref)
+c0kvs_del(struct c0_kvset *handle, u16 skidx, struct kvs_ktuple *key, uintptr_t seqnoref)
 {
     struct c0_kvset_impl *self = c0_kvset_h2r(handle);
     struct bonsai_skey    skey;
     struct bonsai_sval    sval;
+    merr_t err;
 
     bn_skey_init(key->kt_data, key->kt_len, 0, skidx, &skey);
     bn_sval_init(HSE_CORE_TOMB_REG, 0, seqnoref, &sval);
 
-    return c0kvs_putdel(self, &skey, &sval);
+    err = c0kvs_putdel(self, &skey, &sval);
+    if (err)
+        return err;
+
+    key->kt_seqno = HSE_SQNREF_TO_ORDNL(sval.bsv_seqnoref);
+
+    return 0;
 }
 
 merr_t
 c0kvs_prefix_del(
     struct c0_kvset *        handle,
     u16                      skidx,
-    const struct kvs_ktuple *key,
+    struct kvs_ktuple       *key,
     uintptr_t                seqnoref)
 {
     struct c0_kvset_impl *self = c0_kvset_h2r(handle);
     struct bonsai_skey    skey;
     struct bonsai_sval    sval;
+    merr_t err;
 
     bn_skey_init(key->kt_data, key->kt_len, 0, skidx, &skey);
     bn_sval_init(HSE_CORE_TOMB_PFX, 0, seqnoref, &sval);
 
-    return c0kvs_putdel(self, &skey, &sval);
+    err = c0kvs_putdel(self, &skey, &sval);
+    if(err)
+        return err;
+
+    key->kt_seqno = HSE_SQNREF_TO_ORDNL(sval.bsv_seqnoref);
+
+    return 0;
 }
 
 void

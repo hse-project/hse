@@ -16,18 +16,30 @@ struct wal;
 struct kvdb_log;
 struct kvdb_log_tx;
 
+/* MTF_MOCK_DECL(wal) */
+
+struct wal_record {
+    void   *recbuf;
+    size_t  len;
+};
+
+/* MTF_MOCK */
 merr_t
 wal_create(struct mpool *mp, uint64_t *mdcid1, uint64_t *mdcid2);
 
+/* MTF_MOCK */
 merr_t
 wal_destroy(struct mpool *mp, uint64_t mdcid1, uint64_t mdcid2);
 
+/* MTF_MOCK */
 merr_t
 wal_open(struct mpool *mp, bool rdonly, uint64_t mdcid1, uint64_t mdcid2, struct wal **wal_out);
 
+/* MTF_MOCK */
 merr_t
 wal_close(struct wal *wal);
 
+/* MTF_MOCK */
 merr_t
 wal_put(
     struct wal *wal,
@@ -35,6 +47,43 @@ wal_put(
     struct hse_kvdb_opspec *os,
     struct kvs_ktuple *kt,
     struct kvs_vtuple *vt,
-    u64 seqno);
+    struct wal_record *recout);
+
+/* MTF_MOCK */
+merr_t
+wal_del(
+    struct wal *wal,
+    struct ikvs *kvs,
+    struct hse_kvdb_opspec *os,
+    struct kvs_ktuple *kt,
+    struct wal_record *recout);
+
+/* MTF_MOCK */
+merr_t
+wal_del_pfx(
+    struct wal *wal,
+    struct ikvs *kvs,
+    struct hse_kvdb_opspec *os,
+    struct kvs_ktuple *kt,
+    struct wal_record *recout);
+
+/* MTF_MOCK */
+merr_t
+wal_txn_begin(struct wal *wal, uint64_t txid);
+
+/* MTF_MOCK */
+merr_t
+wal_txn_abort(struct wal *wal, uint64_t txid);
+
+/* MTF_MOCK */
+merr_t
+wal_txn_commit(struct wal *wal, uint64_t txid, uint64_t seqno);
+
+void
+wal_op_finish(struct wal *wal, struct wal_record *rec, uint64_t seqno, uint64_t dgen);
+
+#if HSE_MOCKING
+#include "wal_ut.h"
+#endif /* HSE_MOCKING */
 
 #endif /* HSE_WAL_H */
