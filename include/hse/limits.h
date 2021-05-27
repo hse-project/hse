@@ -10,17 +10,17 @@
 extern "C" {
 #endif
 
-/** ...
- *
- * \ingroup HSE
+/** @addtogroup LIMITS Limits
+ * @{
  */
 
-/* Global Limits */
 
-/* Maximum number of KVS's contained within one KVDB */
+/** @brief  Maximum number of KVS's contained within one KVDB.
+ */
 #define HSE_KVS_COUNT_MAX (256)
 
-/*
+/** @brief Maximum key length.
+ *
  * A common requirement for key length for the software above HSE KVDB is 1024.
  * Combined with a discriminant and (potentially) a chunk key, this pushes us to
  * 1030 bytes keys. Looking at the packing for the on-media format for data, we
@@ -29,14 +29,16 @@ extern "C" {
  */
 #define HSE_KVS_KEY_LEN_MAX 1344
 
-/* Max value length is 1MiB */
+/** @brief Max value length is 1MiB */
 #define HSE_KVS_VALUE_LEN_MAX (1024 * 1024)
 
-/* Max key prefix length */
+/** @brief Max key prefix length */
 #define HSE_KVS_PFX_LEN_MAX 32
 
-/* Max KVS name lengths */
+/** @brief Max KVS name lengths */
 #define HSE_KVS_NAME_LEN_MAX 32
+
+/** @} LIMITS */
 
 #ifdef __cplusplus
 }
