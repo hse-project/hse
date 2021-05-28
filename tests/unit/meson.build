@@ -307,7 +307,7 @@ foreach c, tests : components
                     env: t_env,
                     is_parallel: t_is_parallel,
                     suite: t_suites,
-                    timeout: 90,
+                    timeout: 300,
                 )
             endforeach
         else
