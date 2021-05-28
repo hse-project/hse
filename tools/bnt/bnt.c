@@ -46,12 +46,14 @@
 #include <xoroshiro/xoroshiro.h>
 #include <3rdparty/murmur3.h>
 
+/* clang-format off */
+
 #ifndef __aligned
-#define __aligned(_sz) __attribute__((__aligned__(_sz)))
+#define __aligned(_sz)      __attribute__((__aligned__(_sz)))
 #endif
 
-#define __read_mostly __attribute__((__section__(".read_mostly")))
-#define __unused      __attribute__((__unused__))
+#define __read_mostly       __attribute__((__section__(".read_mostly")))
+#define __unused            __attribute__((__unused__))
 
 #ifndef timespecsub
 /* From FreeBSD */
@@ -112,7 +114,6 @@ struct tdargs {
     uint64_t     seed;
     u_int        job;
     bool         full;
-    bool         dump;
 };
 
 const u_char u64tostrtab[] __aligned(64) =
@@ -130,9 +131,10 @@ struct kvtree {
 
 struct kvrec {
     u_int          kvr_lock;
-    u_int          kvr_keyid;
+    u_int          kvr_keylen;
+    uint64_t       kvr_keyid;
     struct kvtree *kvr_tree;
-    char           kvr_keybuf[48];
+    char           kvr_keybuf[40];
 };
 
 sig_atomic_t sigint         __read_mostly;
@@ -151,12 +153,7 @@ u_long updateprob           __read_mostly;
 pthread_barrier_t bnt_barrier;
 uint64_t hash0, hash1;
 
-int killsig;
-u_long killsecs = ULONG_MAX;
 u_long testsecs = 60;
-size_t vlenmax = 127;
-size_t vlenmin;
-size_t vrunlen;
 
 u_int tjobsmax, cjobsmax;
 
@@ -165,10 +162,8 @@ char *tgs_clrtoeol;
 int verbosity;
 u_long mark;
 
-bool headers;
 bool dryrun;
 bool human;
-bool force;
 
 static bonsai_ior_cb bnt_ior_cb;
 
@@ -472,9 +467,6 @@ sigint_isr(int sig)
 void
 sigalrm_isr(int sig)
 {
-    if (killsig && killsecs <= testsecs && !sigint)
-        kill(getpid(), killsig);
-
     ++sigalrm;
 }
 
@@ -507,9 +499,16 @@ static int
 keyid2key(void *buf, size_t bufsz, uint64_t keyid, u_int base)
 {
     if (base < 2) {
-        assert(0);
-        *(uint64_t *)buf = keyid;
-        return sizeof(keyid);
+        uint8_t *buf8 = buf;
+
+        while (keyid >= 256) {
+            *buf8++ = keyid;
+            keyid /= 256;
+        }
+
+        *buf8++ = keyid;
+
+        return buf8 - (uint8_t *)buf;
     }
 
     return u64tostr(buf, bufsz, keyid, base);
@@ -586,6 +585,7 @@ int
 kvrec_init(void)
 {
     size_t sz;
+    u_int rid;
 
     sz = roundup(sizeof(*kvrecv) * kvrecc, PAGE_SIZE);
 
@@ -597,16 +597,22 @@ kvrec_init(void)
 
     status("initializing %u kv recs...", kvrecc);
 
-    for (u_int rid = 0; rid < kvrecc; ++rid) {
+    for (rid = 0; rid < kvrecc; ++rid) {
         struct kvrec *kvr = kvrecv + rid;
         int n;
 
         kvr->kvr_lock = 0;
-        kvr->kvr_keyid = rid;
+        kvr->kvr_keyid = (UINT64_MAX << kvrecc_shift) | rid;
         kvr->kvr_tree = NULL;
 
         n = keyid2key(kvr->kvr_keybuf, sizeof(kvr->kvr_keybuf), kvr->kvr_keyid, keybase);
-        assert(n < sizeof(kvr->kvr_keybuf));
+        if (n >= sizeof(kvr->kvr_keybuf)) {
+            eprint(errno, "keyid %lx for rid %u exceeds sizeof keybuf %zu",
+                   kvr->kvr_keyid, rid, sizeof(kvr->kvr_keybuf));
+            return EX_SOFTWARE;
+        }
+
+        kvr->kvr_keylen = n;
     }
 
     status("\n");
@@ -721,8 +727,6 @@ prop_decode(const char *list, const char *sep, const char *valid)
                 kvtreec = 1;
         } else if (0 == strcmp(name, "updateprob")) {
             updateprob = prob_decode(value, &end);
-        } else if (0 == strcmp(name, "vrunlen")) {
-            vrunlen = cvt_strtoul(value, &end, &suftab_iec);
         } else {
             eprint(0, "%s property '%s' ignored\n", valid ? "unhandled" : "invalid", name);
             continue;
@@ -753,10 +757,7 @@ usage(void)
     printf("-h        show this help list\n");
     printf("-i kmax   limit initial load to at most kmax keys\n");
     printf("-j jobs   specify max number worker threads (default: %u)\n", tjobsmax);
-    printf("-K ksig   kill test workers at end of test (test mode only)\n");
     printf("-k kfmt   specify key generator snprintf format\n");
-    printf("-l vlen   specify min/max value length during load (default: %lu,%lu)\n",
-           vlenmin, vlenmax);
     printf("-m mark   show test status every mark seconds\n");
     printf("-n        dry run\n");
     printf("-o props  set one or more %s properties\n", progname);
@@ -766,9 +767,7 @@ usage(void)
     printf("-V        show version\n");
     printf("-v        increase verbosity\n");
     printf("file  use '-' for stdin\n");
-    printf("ksig  sig[,min[,max]] specify signal and min/max time range\n");
     printf("name  name of an HSE config or runtime parameter\n");
-    printf("vlen  random value length between [vlenmin,]vlenmax\n");
 
     if (verbosity == 0) {
         printf("\nuse -hv for detailed help\n");
@@ -779,19 +778,13 @@ usage(void)
     printf("  kvtreec      specify number of bonsai trees (default: %u)\n", kvtreec);
     printf("  updateprob   probability to update a key (default: %.3lf)\n",
            (double)updateprob / ULONG_MAX);
-    printf("  vrunlen      generated ascii value run length (default: %zu)\n", vrunlen);
-
-    printf("\nEXAMPLES:\n");
-
-    printf("\nsee comments at top of kvt.c for more detailed examples\n");
 }
 
 int
 main(int argc, char **argv)
 {
     char area[64], *areap = area;
-    bool help, version, dump;
-    u_long killmin, killmax;
+    bool help, version;
     char *keyfmt = NULL;
     u_long keymax;
     hse_err_t err;
@@ -801,14 +794,13 @@ main(int argc, char **argv)
     progname = strrchr(argv[0], '/');
     progname = progname ? progname + 1 : argv[0];
 
-    version = dump = help = false;
-    headers = human = true;
+    version = help = false;
+    human = true;
 
     setvbuf(stdout, NULL, _IONBF, 0);
     xrand64_init(0);
     strtou64_init();
 
-    killmin = killmax = ULONG_MAX;
     keymax = ULONG_MAX;
 
     updateprob = ULONG_MAX / 100 * 5;
@@ -822,7 +814,7 @@ main(int argc, char **argv)
         uint64_t seed;
         int      c;
 
-        c = getopt(argc, argv, ":b:DFhi:j:K:k:l:m:no:pS:t:Vv");
+        c = getopt(argc, argv, ":b:hi:j:k:m:no:pS:t:Vv");
         if (-1 == c)
             break;
 
@@ -837,18 +829,6 @@ main(int argc, char **argv)
                 keybase = NELEM(u64tostrtab) - 1;
                 eprint(0, "%s, using %u", errmsg, keybase);
             }
-            break;
-
-        case 'D':
-            dump = true;
-            break;
-
-        case 'F':
-            force = true;
-            break;
-
-        case 'H':
-            headers = false;
             break;
 
         case 'h':
@@ -888,42 +868,8 @@ main(int argc, char **argv)
             }
             break;
 
-        case 'K':
-            errmsg = "invalid kill signal";
-            killsig = cvt_strtoul(optarg, &end, NULL);
-            if (!errno && (killsig < 1 || killsig >= 31))
-                errno = EINVAL;
-            if (!errno && end && *end && strchr(",:", *end)) {
-                errmsg = "invalid kill time";
-                killmin = cvt_strtoul(end + 1, &end, &suftab_time_t);
-                killmax = killmin;
-                if (!errno && killmin < 1)
-                    errno = EINVAL;
-                if (!errno && end && *end && strchr(",:", *end)) {
-                    errmsg = "invalid kill time range";
-                    killmax = cvt_strtoul(end + 1, &end, &suftab_time_t);
-                    if (!errno && killmax < killmin)
-                        errno = EINVAL;
-                }
-            }
-            break;
-
         case 'k':
             keyfmt = optarg;
-            break;
-
-        case 'l':
-            errmsg = "invalid max file length";
-            vlenmax = cvt_strtoul(optarg, &end, &suftab_iec);
-            vlenmin = vlenmax;
-            if (!errno) {
-                if (end && *end && strchr(",:", *end)) {
-                    errmsg = "invalid min file length";
-                    vlenmax = cvt_strtoul(end + 1, &end, &suftab_iec);
-                }
-                if (vlenmax < vlenmin || vlenmax > HSE_KVS_VLEN_MAX)
-                    errno = ERANGE;
-            }
             break;
 
         case 'm':
@@ -1037,12 +983,6 @@ main(int argc, char **argv)
             eprint(EINVAL, "key format yields key longer than %u bytes", HSE_KVS_KLEN_MAX);
             return EX_USAGE;
         }
-    }
-
-    if (killsig) {
-        if (killmin == ULONG_MAX)
-            killmin = killmax = testsecs;
-        killsecs = killmin + xrand64() % (killmax - killmin + 1);
     }
 
     if (help) {
@@ -1185,7 +1125,7 @@ bnt_test(void)
     }
 
     memset(&itv, 0, sizeof(itv));
-    itv.it_value.tv_sec = (killsecs < testsecs) ? killsecs : testsecs;
+    itv.it_value.tv_sec = testsecs;
     rc = setitimer(ITIMER_REAL, &itv, NULL);
     if (rc) {
         eprint(errno, "setitimer");
@@ -1307,7 +1247,6 @@ bnt_test_main(void *arg)
         struct kvrec *kvr;
         u_long cycles;
         u_int rid;
-        int n;
 
         rid = xrand64() % kvrecc;
 
@@ -1315,17 +1254,18 @@ bnt_test_main(void *arg)
         if (!kvr)
             continue;
 
-        bn_skey_init(kvr->kvr_keybuf, strlen(kvr->kvr_keybuf), 0, rid2skidx(rid), &skey);
+        bn_skey_init(kvr->kvr_keybuf, kvr->kvr_keylen, 0, rid2skidx(rid), &skey);
 
         cycles = __builtin_ia32_rdtsc();
         kvt = kvr->kvr_tree;
 
         if (dryrun || xrand64() >= updateprob) {
             struct bonsai_kv *kv = NULL;
-            uint64_t val = rid;
+            size_t ulen, clen;
             bool found;
 
-            /* Search the tree holding only the rcu read lock.
+            /* Search the tree while holding the rcu read lock but not
+             * the tree lock.
              */
             if (kvt) {
                 rcu_read_lock();
@@ -1333,7 +1273,11 @@ bnt_test_main(void *arg)
                 if (!found)
                     abort();
 
-                if (val != *(uint64_t *)kv->bkv_values->bv_value)
+                clen = bonsai_val_ulen(kv->bkv_values);
+                ulen = bonsai_val_ulen(kv->bkv_values);
+                if (clen != ulen)
+                    abort();
+                if (0 != memcmp(&kvr->kvr_keyid, kv->bkv_values->bv_value, ulen))
                     abort();
                 rcu_read_unlock();
 
@@ -1352,17 +1296,17 @@ bnt_test_main(void *arg)
             ++kvt->kvt_deletes;
             kvtree_unlock(kvt);
 
+            /* Generate a new key ID for next insert...
+             */
             kvr->kvr_keyid = (xrand64() << kvrecc_shift) | rid;
-            n = keyid2key(kvr->kvr_keybuf, sizeof(kvr->kvr_keybuf), kvr->kvr_keyid, keybase);
-            assert(n < sizeof(kvr->kvr_keybuf));
+            kvr->kvr_keylen = keyid2key(kvr->kvr_keybuf, sizeof(kvr->kvr_keybuf),
+                                        kvr->kvr_keyid, keybase);
 
             ++args->stats.deletes;
             kvt = NULL;
         }
         else {
-            uint64_t val = rid;
-
-            bn_sval_init(&val, sizeof(val), 0, &sval);
+            bn_sval_init(&kvr->kvr_keyid, sizeof(kvr->kvr_keyid), 0, &sval);
 
             kvt = kvtreev + (xrand64() % kvtreec);
 
@@ -1562,6 +1506,7 @@ bnt_check_main(void *arg)
     for (; rid < ridmax && !sigint; ++rid) {
         struct bonsai_skey skey;
         struct kvrec *kvr;
+        size_t ulen, clen;
         u_long cycles;
 
         kvr = kvrec_trylock(rid);
@@ -1572,17 +1517,20 @@ bnt_check_main(void *arg)
 
         if (kvr->kvr_tree) {
             struct bonsai_kv *kv = NULL;
-            uint64_t val = rid;
             bool found;
 
-            bn_skey_init(kvr->kvr_keybuf, strlen(kvr->kvr_keybuf), 0, rid2skidx(rid), &skey);
+            bn_skey_init(kvr->kvr_keybuf, kvr->kvr_keylen, 0, rid2skidx(rid), &skey);
 
             rcu_read_lock();
             found = bn_find(kvr->kvr_tree->kvt_root, &skey, &kv);
             if (!found)
                 abort();
 
-            if (val != *(uint64_t *)kv->bkv_values->bv_value)
+            clen = bonsai_val_ulen(kv->bkv_values);
+            ulen = bonsai_val_ulen(kv->bkv_values);
+            if (clen != ulen)
+                abort();
+            if (0 != memcmp(&kvr->kvr_keyid, kv->bkv_values->bv_value, ulen))
                 abort();
             rcu_read_unlock();
 
@@ -1604,3 +1552,5 @@ bnt_check_main(void *arg)
 
     pthread_exit(NULL);
 }
+
+/* clang-format on */
