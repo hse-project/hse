@@ -21,6 +21,51 @@
  */
 #define HSE_RA_PAGES_MAX ((128 * 1024) / PAGE_SIZE)
 
+/* GCOV_EXCL_START */
+
+#if __amd64__
+
+#include <x86intrin.h>
+
+#define VGETCPU_CPU_MASK    (0xfff)
+
+static HSE_ALWAYS_INLINE uint64_t
+get_cycles(void)
+{
+    return __rdtsc();
+}
+
+static HSE_ALWAYS_INLINE uint
+raw_smp_processor_id(void)
+{
+    uint aux;
+
+    __rdtscp(&aux);
+
+    return aux & VGETCPU_CPU_MASK;
+}
+
+#else
+
+static HSE_ALWAYS_INLINE uint64_t
+get_cycles(void)
+{
+    struct timespec ts;
+
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+
+    return (uint64_t)ts.tv_sec * 1000000000ULL + ts.tv_nsec;
+}
+
+static HSE_ALWAYS_INLINE uint
+raw_smp_processor_id(void)
+{
+    return sched_getcpu();
+}
+
+#endif
+
+
 /**
  * hse_meminfo() - Get current system-wide memory usage
  * @freep:    ptr to return bytes of free memory
@@ -69,6 +114,10 @@ hse_getcpu(uint *cpu, uint *node, uint *core)
     *core = hse_cpu2core(cpuid);
 }
 
+size_t memlcp(const void *s1, const void *s2, size_t len);
+size_t memlcpq(const void *s1, const void *s2, size_t len);
+
+/* GCOV_EXCL_STOP */
 
 #if HSE_MOCKING
 #include "arch_ut.h"

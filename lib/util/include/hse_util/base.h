@@ -10,15 +10,6 @@
  * Other hse_util header files should include this file.
  */
 
-/* In RHEL8, failure to #define _DEFAULT_SOURCE 1 results in a dizzying
- * range of missing macros and/or prototypes.  Some examples:
- * htole*() (and lots of other byte swapping functions), usleep(),
- * uint, ulong, isascii(), and probably more.
- *
- * [HSE_REVISIT] The above comment seems highly suspicious
- */
-#define _DEFAULT_SOURCE 1
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>

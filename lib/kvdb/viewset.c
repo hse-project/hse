@@ -25,7 +25,6 @@
 
 #include <hse_ikvdb/limits.h>
 
-#include <syscall.h>
 #include <semaphore.h>
 
 #define viewlock_t              spinlock_t

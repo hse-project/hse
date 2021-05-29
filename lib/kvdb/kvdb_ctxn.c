@@ -4,7 +4,9 @@
  */
 
 #include <stdalign.h>
+#include <sys/sysinfo.h>
 
+#include <hse_util/arch.h>
 #include <hse_util/assert.h>
 #include <hse_util/alloc.h>
 #include <hse_util/atomic.h>
@@ -14,9 +16,8 @@
 #include <hse_util/seqno.h>
 #include <hse_util/keylock.h>
 #include <hse_util/page.h>
-#include <hse_util/delay.h>
-#include <hse_util/event_counter.h>
 #include <hse_util/xrand.h>
+#include <hse_util/event_counter.h>
 
 #include <hse_ikvdb/kvs.h>
 #include <hse_ikvdb/kvdb_ctxn.h>
@@ -950,7 +951,7 @@ kvdb_ctxn_set_create(struct kvdb_ctxn_set **handle_out, u64 txn_timeout_ms, u64 
     /* Limit the number of threads allowed to busy-wait
      * indefinitely in kvdb_ctxn_set_wait_commits().
      */
-    limit = clamp_t(int, num_online_cpus() / 8, 1, 8);
+    limit = clamp_t(int, get_nprocs() / 8, 1, 8);
 
     rc = sem_init(&ktn->ktn_tseqno_sema, 0, limit);
     if (ev(rc)) {

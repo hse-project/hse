@@ -1,5 +1,6 @@
 util_sources = files(
     'alloc.c',
+    'arch.c',
     'bin_heap.c',
     'bloom_filter.c',
     'bonsai_tree_balance.c',

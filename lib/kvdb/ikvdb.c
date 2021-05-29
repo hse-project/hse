@@ -67,8 +67,6 @@
 #include "kvdb_rest.h"
 #include "kvdb_params.h"
 
-#include <syscall.h>
-
 /* tls_vbuf[] is a thread-local buffer used as a compression output buffer
  * by ikvdb_kvs_put() and for small direct reads by kvset_lookup_val().
  */

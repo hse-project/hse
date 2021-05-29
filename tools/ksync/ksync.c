@@ -14,7 +14,7 @@
 
 #include <hse_util/hse_params_helper.h>
 #include <hse_util/inttypes.h>
-#include <hse_util/timing.h>
+#include <hse_util/arch.h>
 
 const char *progname, *mp_name, *kvs_name;
 ulong       kwrite, kflush, ksync, ktxn;
