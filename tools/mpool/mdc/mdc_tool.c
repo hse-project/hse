@@ -7,20 +7,20 @@
  * mdc_tool - dump or manipulate an MDC or file
  */
 
-#include <hse_ikvdb/limits.h>
-#include <hse_ikvdb/ikvdb.h>
+#include <sysexits.h>
+#include <libgen.h>
+
+#include <hse_util/hse_params_helper.h>
 
 #include <hse/hse.h>
-#include <hse_util/hse_params_helper.h>
+#include <hse_ikvdb/limits.h>
+#include <hse_ikvdb/ikvdb.h>
 
 #include <mpool/mpool.h>
 
 #include "kvdb/kvdb_log.h"
 #include "kvdb/kvdb_kvs.h"
 #include "cn/cndb_omf.h"
-
-#include <sysexits.h>
-#include <libgen.h>
 
 #define ERROR_BUF_SIZE 256
 

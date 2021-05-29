@@ -2461,7 +2461,7 @@ km_open_ds(struct km_impl *impl)
 hse_err_t
 km_close_ds(struct km_impl *impl)
 {
-    mpool_err_t err;
+    merr_t err;
     void *ds;
 
     if (stayopen)

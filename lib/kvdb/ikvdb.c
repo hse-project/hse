@@ -1525,7 +1525,12 @@ ikvdb_kvs_close(struct hse_kvs *handle)
 }
 
 merr_t
-ikvdb_storage_info_get(struct ikvdb *handle, struct hse_kvdb_storage_info *info)
+ikvdb_storage_info_get(
+    struct ikvdb                 *handle,
+    struct hse_kvdb_storage_info *info,
+    char                         *cappath,
+    char                         *stgpath,
+    size_t                        pathlen)
 {
     struct ikvdb_impl  *self = ikvdb_h2r(handle);
     struct mpool       *mp;
@@ -1557,9 +1562,10 @@ ikvdb_storage_info_get(struct ikvdb *handle, struct hse_kvdb_storage_info *info)
     info->allocated_bytes += allocated;
     info->used_bytes += used;
 
-    strlcpy(info->capacity_path, stats.mps_path[MP_MED_CAPACITY], sizeof(info->capacity_path));
-
-    strlcpy(info->staging_path, stats.mps_path[MP_MED_STAGING], sizeof(info->staging_path));
+    if (cappath)
+        strlcpy(cappath, stats.mps_path[MP_MED_CAPACITY], pathlen);
+    if (stgpath)
+        strlcpy(stgpath, stats.mps_path[MP_MED_STAGING], pathlen);
 
     return 0;
 }

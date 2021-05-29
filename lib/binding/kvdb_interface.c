@@ -178,9 +178,7 @@ hse_kvdb_drop(const char *kvdb_name, const struct hse_params *params)
         return merr_to_hse_err(err);
     }
 
-    err = mpool_destroy(mp);
-    if (ev(err))
-        return merr_to_hse_err(err);
+    mpool_destroy(mp);
 
     return 0;
 }
@@ -415,7 +413,7 @@ hse_kvdb_storage_info_get(struct hse_kvdb *kvdb, struct hse_kvdb_storage_info *i
     if (HSE_UNLIKELY(!kvdb || !info))
         return merr_to_hse_err(merr(EINVAL));
 
-    return merr_to_hse_err(ikvdb_storage_info_get((struct ikvdb *)kvdb, info));
+    return merr_to_hse_err(ikvdb_storage_info_get((struct ikvdb *)kvdb, info, NULL, NULL, 0));
 }
 
 hse_err_t

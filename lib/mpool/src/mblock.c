@@ -3,11 +3,6 @@
  * Copyright (C) 2021 Micron Technology, Inc.  All rights reserved.
  */
 
-#include <unistd.h>
-#include <stdlib.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-
 #include <hse_util/event_counter.h>
 #include <hse_util/logging.h>
 
@@ -105,7 +100,6 @@ mpool_mblock_props_get(struct mpool *mp, uint64_t mbid, struct mblock_props *pro
 {
     struct media_class *mc;
     enum mpool_mclass   mclass;
-
     uint32_t wlen;
     merr_t   err;
 

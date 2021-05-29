@@ -6,8 +6,6 @@
 #ifndef MPOOL_MDC_FILE_H
 #define MPOOL_MDC_FILE_H
 
-#include <stdio.h>
-
 #include <hse_util/hse_err.h>
 
 #include "mclass.h"
@@ -42,10 +40,12 @@ struct mdc_loghdr {
  * struct mdc_rechdr - MDC record header
  *
  * @size: record length
+ * @rsvd: reserved
  * @crc:  record CRC
  */
 struct mdc_rechdr {
     uint64_t size;
+    uint32_t rsvd;
     uint32_t crc;
 };
 

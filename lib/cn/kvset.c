@@ -968,10 +968,8 @@ cleanup_kblocks(struct kvset *ks)
     /* unmap */
     mapc = (ks->ks_st.kst_kblks + mblock_max - 1) / mblock_max;
     for (i = 0; i < mapc; i++) {
-        if (ks->ks_kmapv[i]) {
-            err = mpool_mcache_munmap(ks->ks_kmapv[i]);
-            ev(err);
-        }
+        if (ks->ks_kmapv[i])
+            mpool_mcache_munmap(ks->ks_kmapv[i]);
     }
 
     /* Stop deleting mblocks on the fist sign of trouble and let CNDB

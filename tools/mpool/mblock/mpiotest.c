@@ -14,24 +14,7 @@
  *    $ sudo mpiotest -v -j48 -i777 -l 8192 -o gpverify=0,rdverify=0 kvdb1 32m
  */
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <stdint.h>
-#include <stdbool.h>
-#include <stdarg.h>
-#include <unistd.h>
-#include <malloc.h>
-#include <errno.h>
-#include <string.h>
-#include <ctype.h>
 #include <sysexits.h>
-#include <pthread.h>
-#include <sys/types.h>
-#include <sys/param.h>
-#include <sys/file.h>
-#include <sys/mman.h>
-#include <sys/uio.h>
-#include <signal.h>
 
 #include <hse_util/minmax.h>
 #include <hse_util/page.h>
@@ -756,21 +739,7 @@ test_start(void *arg)
         }
 
         if (minfo->map) {
-            err = mpool_mcache_munmap(minfo->map);
-            if (err) {
-                merr_strinfo(err, errbuf, sizeof(errbuf), NULL);
-                eprint(
-                    "%3d, %8d %8d %8zu %8zu %16lx"
-                    " mpool_mcache_destroy failed: %s\n",
-                    test->t_idx,
-                    rloops,
-                    wloops,
-                    wander,
-                    wobble,
-                    minfo->objid,
-                    errbuf);
-            }
-
+            mpool_mcache_munmap(minfo->map);
             minfo->map = NULL;
             ++stats->mapdestroy;
         }

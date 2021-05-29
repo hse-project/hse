@@ -10,11 +10,15 @@
 
 #include "mblock_file.h"
 
-#define MBLOCK_METAHDR_VERSION 1
-#define MBLOCK_METAHDR_MAGIC   0xffaaccee
+/* clang-format off */
 
-#define MBLOCK_FSET_FILES_MAX     (1 << MBID_FILEID_BITS)
-#define MBLOCK_FSET_FILES_DEFAULT 32
+#define MBLOCK_METAHDR_VERSION     1
+#define MBLOCK_METAHDR_MAGIC       0xffaaccee
+
+#define MBLOCK_FSET_FILES_MAX      (1 << MBID_FILEID_BITS)
+#define MBLOCK_FSET_FILES_DEFAULT  32
+
+/* clang-format on */
 
 struct mblock_file;
 struct mblock_fset;
@@ -23,20 +27,20 @@ struct mblock_fset;
  * struct mblock_metahdr - mblock meta header
  * stored at offset 0 in the metadata file which is one per media class
  *
- * @vers:      header version
- * @magic:     header magic
- * @fszmax_gb: max file size in GB
- * @mblksz_mb: mblock size in MB
- * @mcid:      mclass ID
- * @fcnt:      no. of data files per mclass
- * @blkbits:   no. of bits to track blocks allocated per file
- * @mcbits:    no. of bits to track media class
+ * @vers:       header version
+ * @magic:      header magic
+ * @fszmax_gb:  max file size in GB
+ * @mblksz_sec: mblock size in 512B sectors
+ * @mcid:       mclass ID
+ * @fcnt:       no. of data files per mclass
+ * @blkbits:    no. of bits to track blocks allocated per file
+ * @mcbits:     no. of bits to track media class
  */
 struct mblock_metahdr {
     uint32_t vers;
     uint32_t magic;
     uint32_t fszmax_gb;
-    uint16_t mblksz_mb;
+    uint32_t mblksz_sec;
     uint8_t  mcid;
     uint8_t  fcnt;
     uint8_t  blkbits;

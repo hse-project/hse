@@ -6,6 +6,8 @@
 #ifndef HSE_PARAMS_HELPER_H
 #define HSE_PARAMS_HELPER_H
 
+#include <hse_util/inttypes.h>
+
 struct hse_params;
 
 #pragma GCC visibility push(default)

@@ -155,8 +155,7 @@ read_blooms(struct mtf_test_info *lcl_ti, char *kblock_file)
      */
     ASSERT_LT((fpc * 1000) / cnt, 25); /* < 2.5% */
 
-    err = mpool_mcache_munmap(blkdesc.map);
-    ASSERT_EQ(0, err);
+    mpool_mcache_munmap(blkdesc.map);
 
     free(blm_pages);
 }

@@ -3,8 +3,6 @@
  * Copyright (C) 2021 Micron Technology, Inc.  All rights reserved.
  */
 
-#define _LARGEFILE64_SOURCE
-
 #ifndef IOV_MAX
 #include <sys/uio.h>
 
@@ -42,7 +40,6 @@ merr_t
 io_sync_read(int fd, off_t off, const struct iovec *iov, int iovcnt, int flags)
 {
     const struct iovec *curiov;
-
     int left;
 
     curiov = iov;
@@ -74,7 +71,6 @@ merr_t
 io_sync_write(int fd, off_t off, const struct iovec *iov, int iovcnt, int flags)
 {
     const struct iovec *curiov;
-
     int left;
 
     curiov = iov;

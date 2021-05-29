@@ -29,8 +29,8 @@ omf_mdc_loghdr_pack_htole(struct mdc_loghdr *lh, char *outbuf)
 
     omf_set_lh_vers(lhomf, lh->vers);
     omf_set_lh_magic(lhomf, lh->magic);
-    omf_set_lh_rsvd(lhomf, lh->rsvd);
     omf_set_lh_gen(lhomf, lh->gen);
+    omf_set_lh_rsvd(lhomf, lh->rsvd);
 
     lh->crc = omf_loghdr_crc_get(lhomf);
     omf_set_lh_crc(lhomf, lh->crc);
@@ -53,8 +53,8 @@ omf_mdc_loghdr_unpack_letoh(const char *inbuf, struct mdc_loghdr *lh)
 
     lh->vers = omf_lh_vers(lhomf);
     lh->magic = omf_lh_magic(lhomf);
-    lh->rsvd = omf_lh_rsvd(lhomf);
     lh->gen = omf_lh_gen(lhomf);
+    lh->rsvd = omf_lh_rsvd(lhomf);
 
     return 0;
 }
@@ -73,6 +73,7 @@ omf_mdc_rechdr_unpack_letoh(const char *inbuf, struct mdc_rechdr *rh)
     rhomf = (struct mdc_rechdr_omf *)inbuf;
 
     rh->crc = omf_rh_crc(rhomf);
+    rh->rsvd = omf_rh_rsvd(rhomf);
     rh->size = omf_rh_size(rhomf);
 }
 
@@ -92,7 +93,7 @@ omf_mblock_metahdr_pack_htole(struct mblock_metahdr *mh, char *outbuf)
     omf_set_mh_vers(mhomf, mh->vers);
     omf_set_mh_magic(mhomf, mh->magic);
     omf_set_mh_fszmax_gb(mhomf, mh->fszmax_gb);
-    omf_set_mh_mblksz_mb(mhomf, mh->mblksz_mb);
+    omf_set_mh_mblksz_sec(mhomf, mh->mblksz_sec);
     omf_set_mh_mcid(mhomf, mh->mcid);
     omf_set_mh_fcnt(mhomf, mh->fcnt);
     omf_set_mh_blkbits(mhomf, mh->blkbits);
@@ -109,7 +110,7 @@ omf_mblock_metahdr_unpack_letoh(const char *inbuf, struct mblock_metahdr *mh)
     mh->vers = omf_mh_vers(mhomf);
     mh->magic = omf_mh_magic(mhomf);
     mh->fszmax_gb = omf_mh_fszmax_gb(mhomf);
-    mh->mblksz_mb = omf_mh_mblksz_mb(mhomf);
+    mh->mblksz_sec = omf_mh_mblksz_sec(mhomf);
     mh->mcid = omf_mh_mcid(mhomf);
     mh->fcnt = omf_mh_fcnt(mhomf);
     mh->blkbits = omf_mh_blkbits(mhomf);

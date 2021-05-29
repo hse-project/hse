@@ -55,7 +55,7 @@ mpool_close(struct mpool *mp);
  * @mp: mpool handle
  */
 /* MTF_MOCK */
-merr_t
+void
 mpool_destroy(struct mpool *mp);
 
 /**
@@ -452,7 +452,7 @@ mpool_mcache_mmap(struct mpool *mp, size_t mbidc, uint64_t *mbidv, struct mpool_
  * @map:
  */
 /* MTF_MOCK */
-merr_t
+void
 mpool_mcache_munmap(struct mpool_mcache_map *map);
 
 /**

@@ -21,11 +21,6 @@
  * the run.
  */
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <stdint.h>
-#include <pthread.h>
-#include <unistd.h>
 #include <getopt.h>
 
 #include <hse_util/hse_err.h>

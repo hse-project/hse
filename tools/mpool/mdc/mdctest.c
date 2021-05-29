@@ -3,13 +3,11 @@
  * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
-#include <stdio.h>
-#include <string.h>
-#include <sys/time.h>
-
 #include <hse_util/platform.h>
 #include <hse_util/parse_num.h>
 #include <hse_util/hse_err.h>
+#include <hse_util/page.h>
+#include <hse_util/page.h>
 #include <hse_util/hse_params_helper.h>
 
 #include <hse/hse.h>
@@ -1305,42 +1303,42 @@ main(int argc, char **argv)
     /* Test 1 */
     tests++;
     err = mdc_correctness_simple(name, params);
-    if (ev(err)) {
+    if (err) {
         failed++;
         fprintf(stderr, "MDC test-%d failed\n", tests);
     }
 
     tests++;
     err = mdc_correctness_mp_release(name, params);
-    if (ev(err)) {
+    if (err) {
         failed++;
         fprintf(stderr, "MDC test-%d failed\n", tests);
     }
 
     tests++;
     err = mdc_correctness_multi_reader_single_app(name, params);
-    if (ev(err)) {
+    if (err) {
         failed++;
         fprintf(stderr, "MDC test-%d failed\n", tests);
     }
 
     tests++;
     err = mdc_correctness_reader_then_writer(name, params);
-    if (ev(err)) {
+    if (err) {
         failed++;
         fprintf(stderr, "MDC test-%d failed\n", tests);
     }
 
     tests++;
     err = mdc_correctness_writer_then_reader(name, params);
-    if (ev(err)) {
+    if (err) {
         failed++;
         fprintf(stderr, "MDC test-%d failed\n", tests);
     }
 
     tests++;
     err = mdc_correctness_multi_mdc(name, params);
-    if (ev(err)) {
+    if (err) {
         failed++;
         fprintf(stderr, "MDC test-%d failed\n", tests);
     }

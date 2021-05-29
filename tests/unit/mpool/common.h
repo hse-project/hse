@@ -3,9 +3,6 @@
  * Copyright (C) 2021 Micron Technology, Inc.  All rights reserved.
  */
 
-#include <sys/stat.h>
-#include <sys/types.h>
-#include <fcntl.h>
 #include <dirent.h>
 #include <ftw.h>
 

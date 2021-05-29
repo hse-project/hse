@@ -3,13 +3,7 @@
  * Copyright (C) 2021 Micron Technology, Inc.  All rights reserved.
  */
 
-#include <unistd.h>
-#include <stdlib.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <sys/mman.h>
 #include <sys/statvfs.h>
-#include <fcntl.h>
 #include <ftw.h>
 
 #include <hse_util/event_counter.h>
@@ -23,7 +17,13 @@
 #include "mblock_fset.h"
 #include "mblock_file.h"
 
-#define MBLOCK_FSET_HDRLEN (4096)
+/* clang-format off */
+
+#define MBLOCK_FSET_HDR_LEN    (4096)
+#define MBLOCK_FSET_NAME_LEN   (32)
+#define GB_SHIFT               (30)
+
+/* clang-format on */
 
 /**
  * struct mblock_fset - mblock fileset instance
@@ -53,7 +53,7 @@ struct mblock_fset {
     size_t metasz;
     int    metafd;
     bool   mlock;
-    char   mname[32];
+    char   mname[MBLOCK_FSET_NAME_LEN];
 };
 
 static void
@@ -61,8 +61,8 @@ mblock_metahdr_init(struct mblock_fset *mbfsp, struct mblock_metahdr *mh)
 {
     mh->vers = MBLOCK_METAHDR_VERSION;
     mh->magic = MBLOCK_METAHDR_MAGIC;
-    mh->fszmax_gb = mbfsp->fszmax >> 30;
-    mh->mblksz_mb = mclass_mblocksz_get(mbfsp->mc) >> 20;
+    mh->fszmax_gb = mbfsp->fszmax >> GB_SHIFT;
+    mh->mblksz_sec = mclass_mblocksz_get(mbfsp->mc) >> SECTOR_SHIFT;
     mh->mcid = mclass_id(mbfsp->mc);
     mh->fcnt = mbfsp->fcnt;
     mh->blkbits = MBID_BLOCK_BITS;
@@ -82,7 +82,7 @@ mblock_fset_meta_get(struct mblock_fset *mbfsp, int fidx, char **maddr)
 {
     off_t off;
 
-    off = MBLOCK_FSET_HDRLEN +
+    off = MBLOCK_FSET_HDR_LEN +
           (fidx * mblock_file_meta_len(mbfsp->fszmax, mclass_mblocksz_get(mbfsp->mc)));
 
     *maddr = mbfsp->maddr + off;
@@ -139,9 +139,8 @@ static merr_t
 mblock_fset_meta_format(struct mblock_fset *mbfsp, int flags)
 {
     struct mblock_metahdr mh = {};
-
     char  *addr;
-    int    rc, len = MBLOCK_FSET_HDRLEN;
+    int    rc, len = MBLOCK_FSET_HDR_LEN;
     merr_t err = 0;
     bool   unmap = false;
 
@@ -159,11 +158,11 @@ mblock_fset_meta_format(struct mblock_fset *mbfsp, int flags)
     omf_mblock_metahdr_pack_htole(&mh, addr);
 
     rc = msync(addr, len, MS_SYNC);
-    if (rc < 0)
+    if (rc == -1)
         err = merr(errno);
 
     rc = fsync(mbfsp->metafd);
-    if (rc < 0)
+    if (rc == -1)
         err = merr(errno);
 
     if (unmap)
@@ -176,11 +175,10 @@ static merr_t
 mblock_fset_meta_load(struct mblock_fset *mbfsp, int flags)
 {
     struct mblock_metahdr mh = {};
-
     bool   valid, unmap = false;
     char  *addr;
     merr_t err = 0;
-    int    len = MBLOCK_FSET_HDRLEN;
+    int    len = MBLOCK_FSET_HDR_LEN;
 
     addr = mbfsp->maddr;
     if (!addr) {
@@ -200,8 +198,8 @@ mblock_fset_meta_load(struct mblock_fset *mbfsp, int flags)
 
     if (!err) {
         mbfsp->fcnt = mh.fcnt;
-        mbfsp->fszmax = (uint64_t)mh.fszmax_gb << 30;
-        mclass_mblocksz_set(mbfsp->mc, (size_t)mh.mblksz_mb << 20);
+        mbfsp->fszmax = (uint64_t)mh.fszmax_gb << GB_SHIFT;
+        mclass_mblocksz_set(mbfsp->mc, (size_t)mh.mblksz_sec << SECTOR_SHIFT);
     }
 
     if (unmap)
@@ -258,7 +256,7 @@ mblock_fset_meta_open(struct mblock_fset *mbfsp, int flags)
     dirfd = mclass_dirfd(mbfsp->mc);
 
     rc = faccessat(dirfd, mbfsp->mname, F_OK, 0);
-    if (rc < 0 && errno == ENOENT && !create)
+    if (rc == -1 && errno == ENOENT && !create)
         return merr(ENOENT);
     if (rc == 0 && create)
         return merr(EEXIST);
@@ -273,18 +271,13 @@ mblock_fset_meta_open(struct mblock_fset *mbfsp, int flags)
         size_t sz;
 
         assert(mbfsp->fcnt != 0);
-        sz = MBLOCK_FSET_HDRLEN +
+        sz = MBLOCK_FSET_HDR_LEN +
              (mbfsp->fcnt * mblock_file_meta_len(mbfsp->fszmax, mclass_mblocksz_get(mbfsp->mc)));
 
-        rc = fallocate(fd, 0, 0, sz);
-        if (rc < 0) {
-            if (errno != EOPNOTSUPP) {
-                err = merr(errno);
-                goto errout;
-            }
-
+        rc = posix_fallocate(fd, 0, sz);
+        if (ev(rc)) {
             rc = ftruncate(fd, sz);
-            if (rc < 0) {
+            if (rc == -1) {
                 err = merr(errno);
                 goto errout;
             }
@@ -318,7 +311,6 @@ mblock_fset_open(
 {
     struct mblock_fset       *mbfsp;
     struct mblock_file_params fparams;
-
     size_t sz, mblocksz;
     merr_t err;
     int    i;
@@ -352,7 +344,7 @@ mblock_fset_open(
     }
 
     mbfsp->metasz =
-        MBLOCK_FSET_HDRLEN + (mbfsp->fcnt * mblock_file_meta_len(mbfsp->fszmax, mblocksz));
+        MBLOCK_FSET_HDR_LEN + (mbfsp->fcnt * mblock_file_meta_len(mbfsp->fszmax, mblocksz));
 
     err = mblock_fset_meta_mmap(mbfsp, mbfsp->metafd, mbfsp->metasz, flags, true);
     if (err)
@@ -404,7 +396,7 @@ mblock_fset_meta_usage(struct mblock_fset *mbfsp, uint64_t *allocated)
         return merr(EINVAL);
 
     rc = fstat(mbfsp->metafd, &sbuf);
-    if (rc < 0)
+    if (rc == -1)
         return merr(errno);
 
     *allocated = 512 * sbuf.st_blocks;
@@ -434,7 +426,7 @@ mblock_fset_close(struct mblock_fset *mbfsp)
 }
 
 static struct workqueue_struct *mpdwq;
-static int                      pathc_per_thr, idx;
+static int                      pathc_per_thr, pathidx;
 
 static struct mp_destroy_work {
     struct work_struct work;
@@ -468,14 +460,14 @@ mblock_fset_removecb(const char *path, const struct stat *sb, int typeflag, stru
             return FTW_CONTINUE;
         }
 
-        w = mpdw[idx / pathc_per_thr];
+        w = mpdw[pathidx / pathc_per_thr];
 
         if (ev(w->pathc == 0)) {
             remove(path);
             return FTW_CONTINUE;
         }
 
-        strlcpy(w->path[idx++ % pathc_per_thr], path, PATH_MAX);
+        strlcpy(w->path[pathidx++ % pathc_per_thr], path, PATH_MAX);
         if (++w->curpc == w->pathc) {
             INIT_WORK(&w->work, remove_path);
 
@@ -506,7 +498,7 @@ mbfs_destroy_setup(uint8_t filecnt, struct workqueue_struct *wq)
     if (ev(!mpdw))
         return;
 
-    idx = 0;
+    pathidx = 0;
     mpdwq = wq;
     pathc_per_thr = pathc;
     fcnt = 0;
@@ -571,7 +563,6 @@ merr_t
 mblock_fset_alloc(struct mblock_fset *mbfsp, int mbidc, uint64_t *mbidv)
 {
     struct mblock_file *mbfp;
-
     merr_t err;
     int    fidx;
     int    retries;
@@ -593,7 +584,7 @@ mblock_fset_alloc(struct mblock_fset *mbfsp, int mbidc, uint64_t *mbidv)
         err = mblock_file_alloc(mbfp, mbidc, mbidv);
         if (merr_errno(err) != ENOSPC)
             break;
-    } while (retries--);
+    } while (retries-- > 0);
 
     return err;
 }
@@ -618,7 +609,7 @@ mblock_fset_commit(struct mblock_fset *mbfsp, uint64_t *mbidv, int mbidc)
         return err;
 
     rc = fsync(mbfsp->metafd);
-    if (rc < 0)
+    if (rc == -1)
         return merr(errno);
 
     return 0;
@@ -660,7 +651,7 @@ mblock_fset_delete(struct mblock_fset *mbfsp, uint64_t *mbidv, int mbidc)
         return err;
 
     rc = fsync(mbfsp->metafd);
-    if (rc < 0)
+    if (rc == -1)
         return merr(errno);
 
     return 0;
@@ -769,7 +760,7 @@ mblock_fset_stats_get(struct mblock_fset *mbfsp, struct mpool_mclass_stats *stat
     stats->mcs_used += allocated;
 
     rc = fstatvfs(mbfsp->metafd, &sbuf);
-    if (rc < 0)
+    if (rc == -1)
         return merr(errno);
 
     stats->mcs_total = sbuf.f_blocks * sbuf.f_frsize;

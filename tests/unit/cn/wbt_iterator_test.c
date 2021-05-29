@@ -183,8 +183,7 @@ load_kblock(
     err = kbr_read_wbt_region_desc_mem(wbt_hdr, desc);
     ASSERT_EQ_RET(err, 0, -1);
 
-    err = mpool_mcache_munmap(kblk_desc->map);
-    ASSERT_EQ_RET(err, 0, -1);
+    mpool_mcache_munmap(kblk_desc->map);
 
     return 0;
 }

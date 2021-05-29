@@ -3,12 +3,6 @@
  * Copyright (C) 2021 Micron Technology, Inc.  All rights reserved.
  */
 
-#include <unistd.h>
-#include <stdlib.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <sys/file.h>
-#include <fcntl.h>
 #include <ftw.h>
 
 #include <hse_util/string.h>
@@ -34,7 +28,7 @@ struct media_class {
     size_t              mblocksz;
     enum mclass_id      mcid;
     int                 lockfd;
-    char                dpath[PATH_MAX];
+    char               *dpath;
 };
 
 static merr_t
@@ -89,7 +83,6 @@ mclass_open(
     struct media_class  **handle)
 {
     struct media_class *mc;
-
     DIR   *dirp;
     int    lockfd = -1;
     merr_t err;
@@ -124,7 +117,11 @@ mclass_open(
 
     mc->mblocksz = powerof2(params->mblocksz) ? params->mblocksz : MBLOCK_SIZE_BYTES;
 
-    strlcpy(mc->dpath, params->path, sizeof(mc->dpath));
+    mc->dpath = realpath(params->path, NULL);
+    if (!mc->dpath) {
+        err = merr(errno);
+        goto err_exit2;
+    }
 
     err = mblock_fset_open(mc, params->filecnt, params->fszmax, flags, &mc->mbfsp);
     if (err) {
@@ -137,6 +134,7 @@ mclass_open(
     return 0;
 
 err_exit1:
+    free(mc->dpath);
     free(mc);
 
 err_exit2:
@@ -160,6 +158,7 @@ mclass_close(struct media_class *mc)
 
     closedir(mc->dirp);
 
+    free(mc->dpath);
     free(mc);
 
     return 0;
@@ -178,52 +177,38 @@ mclass_destroy(struct media_class *mc, struct workqueue_struct *wq)
 
     closedir(mc->dirp);
 
+    free(mc->dpath);
     free(mc);
 }
 
 int
 mclass_id(struct media_class *mc)
 {
-    if (!mc)
-        return MCID_INVALID;
-
-    return mc->mcid;
+    return mc ? mc->mcid : MCID_INVALID;
 }
 
 int
 mclass_dirfd(struct media_class *mc)
 {
-    if (!mc)
-        return -1;
-
-    return dirfd(mc->dirp);
+    return mc ? dirfd(mc->dirp) : -1;
 }
 
 const char *
 mclass_dpath(struct media_class *mc)
 {
-    if (!mc)
-        return NULL;
-
-    return mc->dpath;
+    return mc ? mc->dpath : NULL;
 }
 
 struct mblock_fset *
 mclass_fset(struct media_class *mc)
 {
-    if (!mc)
-        return NULL;
-
-    return mc->mbfsp;
+    return mc ? mc->mbfsp : NULL;
 }
 
 size_t
 mclass_mblocksz_get(struct media_class *mc)
 {
-    if (!mc)
-        return 0;
-
-    return mc->mblocksz;
+    return mc ? mc->mblocksz : 0;
 }
 
 void
@@ -239,14 +224,14 @@ enum mclass_id
 mclass_to_mcid(enum mpool_mclass mclass)
 {
     switch (mclass) {
-        case MP_MED_CAPACITY:
-            return MCID_CAPACITY;
+      case MP_MED_CAPACITY:
+          return MCID_CAPACITY;
 
-        case MP_MED_STAGING:
-            return MCID_STAGING;
+      case MP_MED_STAGING:
+          return MCID_STAGING;
 
-        default:
-            break;
+      default:
+          break;
     }
 
     return MCID_INVALID;
@@ -256,14 +241,14 @@ enum mpool_mclass
 mcid_to_mclass(enum mclass_id mcid)
 {
     switch (mcid) {
-        case MCID_CAPACITY:
-            return MP_MED_CAPACITY;
+      case MCID_CAPACITY:
+          return MP_MED_CAPACITY;
 
-        case MCID_STAGING:
-            return MP_MED_STAGING;
+      case MCID_STAGING:
+          return MP_MED_STAGING;
 
-        default:
-            break;
+      default:
+          break;
     }
 
     return MP_MED_INVALID;

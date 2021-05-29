@@ -9,8 +9,6 @@
 #include <hse_util/mutex.h>
 #include <hse_util/hse_err.h>
 
-#define MDC_ROOT_MAGIC (0xFACE0FFF)
-
 struct mpool;
 struct mpool_mdc;
 

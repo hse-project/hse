@@ -75,11 +75,10 @@ _mpool_mcache_mmap(
     return 0;
 }
 
-static int64_t
+static void
 _mpool_mcache_munmap(struct mpool_mcache_map *map)
 {
     mapi_safe_free(map);
-    return 0;
 }
 
 static int64_t

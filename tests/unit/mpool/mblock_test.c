@@ -8,6 +8,7 @@
 
 #include <hse_util/hse_err.h>
 #include <hse_util/minmax.h>
+#include <hse_util/page.h>
 
 #include "common.h"
 
@@ -248,8 +249,8 @@ MTF_DEFINE_UTEST(mblock_test, mblock_abc)
 
     err = mpool_stats_get(mp, &stats);
     ASSERT_EQ(0, err);
-    ASSERT_LT(stats.mps_allocated, 64 << 20);
-    ASSERT_LT(stats.mps_used, 64 << 20);
+    ASSERT_LT(stats.mps_allocated, 68 << 20);
+    ASSERT_LT(stats.mps_used, 68 << 20);
     ASSERT_EQ(1, stats.mps_mblock_cnt);
     ASSERT_EQ(0, strncmp(storage_path, stats.mps_path[MP_MED_CAPACITY], strlen(storage_path)));
     ASSERT_EQ(0, strncmp(staging_path, stats.mps_path[MP_MED_STAGING], strlen(staging_path)));
@@ -274,8 +275,7 @@ MTF_DEFINE_UTEST(mblock_test, mblock_abc)
     err = mpool_open("mp1", NULL, O_RDWR, &mp);
     ASSERT_EQ(0, merr_errno(err));
 
-    err = mpool_destroy(mp);
-    ASSERT_EQ(0, err);
+    mpool_destroy(mp);
     unsetenv("HSE_STAGING_PATH");
 }
 
@@ -486,8 +486,7 @@ MTF_DEFINE_UTEST(mblock_test, mblock_io)
     err = mpool_mblock_delete(mp, mbid);
     ASSERT_EQ(EINVAL, merr_errno(err));
 
-    err = mpool_destroy(mp);
-    ASSERT_EQ(0, err);
+    mpool_destroy(mp);
 
     free(buf);
     free(bufx);
@@ -686,8 +685,7 @@ MTF_DEFINE_UTEST(mblock_test, mblock_invalid_args)
     err = mpool_mblock_abort(mp, mbid);
     ASSERT_EQ(0, err);
 
-    err = mpool_destroy(mp);
-    ASSERT_EQ(0, err);
+    mpool_destroy(mp);
 }
 
 MTF_END_UTEST_COLLECTION(mblock_test);

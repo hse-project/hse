@@ -277,21 +277,19 @@ _mpool_mcache_mmap(
     return 0;
 }
 
-static merr_t
+static void
 _mpool_mcache_munmap(struct mpool_mcache_map *handle)
 {
     merr_t             err;
     struct mocked_map *map = NULL;
 
     err = get_mocked_map(handle, &map);
-    VERIFY_EQ_RET(err, 0, err);
+    VERIFY_EQ(err, 0);
 
     free(map->mbidv);
     map->mbidv = 0;
     map->mbidc = 0;
     map->mapped = 0;
-
-    return 0;
 }
 
 static void *

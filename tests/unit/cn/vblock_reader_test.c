@@ -86,8 +86,7 @@ MTF_DEFINE_UTEST_PRE(vblock_reader_test, t_vbr_desc_read, pre)
     ASSERT_EQ(1, atomic_read(&vblk_desc.vbd_vgidx));
     ASSERT_EQ(argv[0], 0xdeadbeefdeadbeef);
 
-    err = mpool_mcache_munmap(map);
-    ASSERT_EQ(0, err);
+    mpool_mcache_munmap(map);
 }
 
 MTF_DEFINE_UTEST_PRE(vblock_reader_test, t_vbr_desc_update, pre)
@@ -140,8 +139,7 @@ MTF_DEFINE_UTEST_PRE(vblock_reader_test, t_vbr_desc_update, pre)
     ASSERT_EQ(argv[0], vblk_desc.vbd_vgroup);
     ASSERT_NE(argv[1], vblk_desc.vbd_vgroup);
 
-    err = mpool_mcache_munmap(map);
-    ASSERT_EQ(0, err);
+    mpool_mcache_munmap(map);
 }
 
 MTF_DEFINE_UTEST_PRE(vblock_reader_test, t_vbr_desc_read_errors, pre)
@@ -176,8 +174,7 @@ MTF_DEFINE_UTEST_PRE(vblock_reader_test, t_vbr_desc_read_errors, pre)
     ASSERT_NE(err, 0);
     mapi_inject_unset(mapi_idx_mpool_mcache_getbase);
 
-    err = mpool_mcache_munmap(map);
-    ASSERT_EQ(0, err);
+    mpool_mcache_munmap(map);
 }
 
 MTF_DEFINE_UTEST_PRE(vblock_reader_test, t_detect_bad_magic, pre)
@@ -208,8 +205,7 @@ MTF_DEFINE_UTEST_PRE(vblock_reader_test, t_detect_bad_magic, pre)
     err = vbr_desc_read(ds, map, 0, NULL, NULL, &props, &vblk_desc);
     ASSERT_EQ(EINVAL, merr_errno(err));
 
-    err = mpool_mcache_munmap(map);
-    ASSERT_EQ(0, err);
+    mpool_mcache_munmap(map);
 }
 
 MTF_DEFINE_UTEST_PRE(vblock_reader_test, t_detect_bad_version, pre)
@@ -242,8 +238,7 @@ MTF_DEFINE_UTEST_PRE(vblock_reader_test, t_detect_bad_version, pre)
     err = vbr_desc_read(ds, map, 0, &vgroups, argv, &props, &vblk_desc);
     ASSERT_EQ(EINVAL, merr_errno(err));
 
-    err = mpool_mcache_munmap(map);
-    ASSERT_EQ(0, err);
+    mpool_mcache_munmap(map);
 }
 
 MTF_DEFINE_UTEST_PRE(vblock_reader_test, t_detect_version1, pre)
@@ -276,8 +271,7 @@ MTF_DEFINE_UTEST_PRE(vblock_reader_test, t_detect_version1, pre)
     err = vbr_desc_read(ds, map, 0, &vgroups, argv, &props, &vblk_desc);
     ASSERT_EQ(0, err);
 
-    err = mpool_mcache_munmap(map);
-    ASSERT_EQ(0, err);
+    mpool_mcache_munmap(map);
 }
 
 MTF_DEFINE_UTEST_PRE(vblock_reader_test, t_vbr_value, pre)
@@ -329,8 +323,7 @@ MTF_DEFINE_UTEST_PRE(vblock_reader_test, t_vbr_value, pre)
     val = vbr_value(&vblk_desc, vboff, vlen);
     ASSERT_NE(val, NULL);
 
-    err = mpool_mcache_munmap(map);
-    ASSERT_EQ(0, err);
+    mpool_mcache_munmap(map);
 
     mapi_safe_free(vblk);
 }
@@ -413,8 +406,7 @@ MTF_DEFINE_UTEST_PRE(vblock_reader_test, t_vbr_read_ahead, pre)
     mapi_inject_once(mapi_idx_mpool_mcache_madvise, 1, 123);
     vbr_readahead(&vblk_desc, 200, 10, 0, ra_len, 1, rahv, NULL);
 
-    err = mpool_mcache_munmap(map);
-    ASSERT_EQ(0, err);
+    mpool_mcache_munmap(map);
 
     mapi_safe_free(vblk);
 }
@@ -490,8 +482,7 @@ MTF_DEFINE_UTEST_PRE(vblock_reader_test, t_vbr_madvise_async, pre)
     destroy_workqueue(vbr_wq);
     ASSERT_EQ(0, atomic_read(&vblk_desc.vbd_refcnt));
 
-    err = mpool_mcache_munmap(map);
-    ASSERT_EQ(0, err);
+    mpool_mcache_munmap(map);
 
     mapi_safe_free(vblk);
 }

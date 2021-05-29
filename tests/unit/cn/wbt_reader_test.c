@@ -129,8 +129,7 @@ t_wbtr_read_vref_helper(struct mtf_test_info *lcl_ti, const char *kblock_image_f
     ASSERT_EQ(nkeys, cnt);
     wbti_destroy(wbti);
 
-    err = mpool_mcache_munmap(blkdesc.map);
-    ASSERT_EQ(err, 0);
+    mpool_mcache_munmap(blkdesc.map);
 }
 
 MTF_BEGIN_UTEST_COLLECTION_PREPOST(

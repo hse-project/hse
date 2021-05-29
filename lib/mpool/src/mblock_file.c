@@ -3,13 +3,6 @@
  * Copyright (C) 2021 Micron Technology, Inc.  All rights reserved.
  */
 
-#include <unistd.h>
-#include <stdlib.h>
-#include <stdalign.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <sys/mman.h>
-#include <fcntl.h>
 #include <ftw.h>
 
 #include <rbtree/rbtree.h>
@@ -21,17 +14,18 @@
 #include <hse_util/event_counter.h>
 #include <hse_util/minmax.h>
 #include <hse_util/log2.h>
+#include <hse_util/page.h>
 
 #include "mblock_file.h"
 #include "io.h"
 #include "omf.h"
 #include "mclass.h"
 
-#define MBLOCK_FILE_META_HDRLEN (4096)
+/* clang-format off */
 
-#define MBLOCK_FILE_UNIQ_DELTA (1024)
-
-#define MBLOCK_MMAP_CHUNK_MAX (1024)
+#define MBLOCK_FILE_META_HDRLEN    (4096)
+#define MBLOCK_FILE_UNIQ_DELTA     (1024)
+#define MBLOCK_MMAP_CHUNK_MAX      (1024)
 
 /**
  * struct mblock_rgn -
@@ -112,23 +106,21 @@ struct mblock_file {
 
     atomic_t *wlenv;
 
-    HSE_ALIGNED(SMP_CACHE_BYTES)
-    struct mutex uniq_lock;
+    struct mutex uniq_lock HSE_ALIGNED(SMP_CACHE_BYTES);
     uint32_t     uniq;
 
-    HSE_ALIGNED(SMP_CACHE_BYTES)
-    struct mutex meta_lock;
+    struct mutex meta_lock HSE_ALIGNED(SMP_CACHE_BYTES);
     char        *meta_addr;
 
-    HSE_ALIGNED(SMP_CACHE_BYTES)
-    struct mutex        mmap_lock;
+    struct mutex        mmap_lock HSE_ALIGNED(SMP_CACHE_BYTES);
     int                 mmapc;
     struct mblock_mmap *mmapv;
 
-    HSE_ALIGNED(SMP_CACHE_BYTES)
-    atomic64_t wlen;
+    atomic64_t wlen HSE_ALIGNED(SMP_CACHE_BYTES);
     atomic_t   mbcnt;
 };
+
+/* clang-format on */
 
 /* Forward declarations */
 static void
@@ -150,7 +142,6 @@ mblock_rgnmap_init(struct mblock_file *mbfp, const char *name)
     struct kmem_cache    *rmcache = NULL;
     struct mblock_rgnmap *rgnmap;
     struct mblock_rgn    *rgn;
-
     uint32_t rmax;
 
     rmcache = kmem_cache_create(name, sizeof(*rgn), alignof(*rgn), 0, NULL);
@@ -220,7 +211,6 @@ mblock_rgn_insert(struct mblock_rgnmap *rgnmap, uint32_t key)
     struct mblock_rgn *this, *to_free = NULL;
     struct rb_root *root;
     struct rb_node *node, **new, *parent;
-
     uint32_t start, end;
     merr_t   err = 0;
 
@@ -313,7 +303,6 @@ mblock_rgn_free(struct mblock_rgnmap *rgnmap, uint32_t key)
     struct rb_node **new, *parent;
     struct rb_node *nxtprv;
     struct rb_root *root;
-
     merr_t err = 0;
 
     assert(rgnmap && key > 0);
@@ -416,19 +405,19 @@ mblock_rgn_find(struct mblock_rgnmap *rgnmap, uint32_t key)
  * Mblock file meta interfaces.
  */
 
-static __always_inline uint32_t
+static HSE_ALWAYS_INLINE uint32_t
 block_id(uint64_t mbid)
 {
     return mbid & MBID_BLOCK_MASK;
 }
 
-static __always_inline uint64_t
+static HSE_ALWAYS_INLINE uint64_t
 block_off(uint64_t mbid, size_t mblocksz)
 {
     return ((uint64_t)block_id(mbid)) << ilog2(mblocksz);
 }
 
-static uint32_t
+static HSE_ALWAYS_INLINE uint32_t
 uniquifier(uint64_t mbid)
 {
     return (mbid & MBID_UNIQ_MASK) >> MBID_UNIQ_SHIFT;
@@ -455,7 +444,7 @@ mblock_file_meta_format(struct mblock_file *mbfp, struct mblock_filehdr *fh)
     omf_mblock_filehdr_pack_htole(fh, addr);
 
     rc = msync((void *)((unsigned long)addr & PAGE_MASK), PAGE_SIZE, MS_SYNC);
-    if (rc < 0)
+    if (rc == -1)
         return merr(errno);
 
     return 0;
@@ -532,7 +521,6 @@ static merr_t
 mblock_file_meta_log(struct mblock_file *mbfp, uint64_t *mbidv, int mbidc, bool delete)
 {
     struct mblock_oid_omf *mbomf;
-
     uint32_t block, wlen, omfwlen;
     char    *addr;
     int      rc;
@@ -565,9 +553,10 @@ mblock_file_meta_log(struct mblock_file *mbfp, uint64_t *mbidv, int mbidc, bool 
 
     omf_set_mblk_id(mbomf, delete ? 0 : *mbidv);
     omf_set_mblk_wlen(mbomf, delete ? 0 : wlen);
+    omf_set_mblk_rsvd(mbomf, 0);
 
     rc = msync((void *)((unsigned long)addr & PAGE_MASK), PAGE_SIZE, MS_SYNC);
-    if (rc < 0)
+    if (rc == -1)
         err = merr(errno);
     mutex_unlock(&mbfp->meta_lock);
 
@@ -589,7 +578,6 @@ mblock_file_open(
 {
     struct mblock_file *mbfp;
     enum mclass_id      mcid;
-
     int    fd, rc, dirfd, mmapc, wlenc, fileid;
     merr_t err = 0;
     char   name[32], rname[32];
@@ -614,7 +602,7 @@ mblock_file_open(
     snprintf(name, sizeof(name), "%s-%d-%d", MBLOCK_DATA_FILE_PFX, mcid, fileid);
 
     rc = faccessat(dirfd, name, F_OK, 0);
-    if (rc < 0 && errno == ENOENT && !create)
+    if (rc == -1 && errno == ENOENT && !create)
         return merr(ENOENT);
     if (rc == 0 && create)
         return merr(EEXIST);
@@ -665,7 +653,7 @@ mblock_file_open(
     /* ftruncate to the maximum size to make it a sparse file */
     if ((flags & O_ACCMODE) != O_RDONLY) {
         rc = ftruncate(fd, mbfp->fszmax);
-        if (rc < 0) {
+        if (rc == -1) {
             err = merr(errno);
             goto err_exit;
         }
@@ -973,15 +961,17 @@ mblock_file_delete(struct mblock_file *mbfp, uint64_t *mbidv, int mbidc)
 static merr_t
 iov_len_get(const struct iovec *iov, int iovc, size_t *tlen)
 {
+    uintptr_t align = 0;
     size_t len = 0;
     int    i;
 
     for (i = 0; i < iovc; i++) {
-        if (!PAGE_ALIGNED(iov[i].iov_base))
-            return merr(EINVAL);
-
+        align |= (uintptr_t)iov[i].iov_base;
         len += iov[i].iov_len;
     }
+
+    if (!PAGE_ALIGNED(align))
+        return merr(EINVAL);
 
     *tlen = len;
 
@@ -1077,37 +1067,37 @@ mblock_file_write(struct mblock_file *mbfp, uint64_t mbid, const struct iovec *i
     return err;
 }
 
-static __always_inline size_t
+static HSE_ALWAYS_INLINE size_t
 mblock_mmap_csize(size_t mblocksz)
 {
     return mblocksz * MBLOCK_MMAP_CHUNK_MAX;
 }
 
-static __always_inline uint64_t
+static HSE_ALWAYS_INLINE uint64_t
 mblock_mmap_cmask(size_t mblocksz)
 {
     return ~(mblock_mmap_csize(mblocksz) - 1);
 }
 
-static __always_inline int
+static HSE_ALWAYS_INLINE int
 mblock_mmap_cshift(size_t mblocksz)
 {
     return ilog2(mblock_mmap_csize(mblocksz));
 }
 
-static __always_inline uint32_t
+static HSE_ALWAYS_INLINE uint32_t
 chunk_idx(uint64_t mbid, size_t mblocksz)
 {
     return block_off(mbid, mblocksz) >> mblock_mmap_cshift(mblocksz);
 }
 
-static __always_inline uint64_t
+static HSE_ALWAYS_INLINE uint64_t
 chunk_start_off(uint64_t mbid, size_t mblocksz)
 {
     return block_off(mbid, mblocksz) & mblock_mmap_cmask(mblocksz);
 }
 
-static __always_inline uint64_t
+static HSE_ALWAYS_INLINE uint64_t
 chunk_off(uint64_t mbid, size_t mblocksz)
 {
     return block_off(mbid, mblocksz) ^ chunk_start_off(mbid, mblocksz);
@@ -1247,14 +1237,14 @@ mblock_file_unmapall(struct mblock_file *mbfp)
 merr_t
 mblock_file_stats_get(struct mblock_file *mbfp, struct mblock_file_stats *stats)
 {
-    struct stat sbuf = {};
+    struct stat sbuf;
     int         rc;
 
     if (!mbfp || !stats)
         return merr(EINVAL);
 
     rc = fstat(mbfp->fd, &sbuf);
-    if (rc < 0)
+    if (rc == -1)
         return merr(errno);
     stats->allocated = 512 * sbuf.st_blocks;
 

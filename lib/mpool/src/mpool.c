@@ -5,9 +5,6 @@
 
 #define MTF_MOCK_IMPL_mpool
 
-#include <stdlib.h>
-#include <fcntl.h>
-
 #include <hse_util/logging.h>
 #include <hse_util/hse_err.h>
 #include <hse_util/string.h>
@@ -20,8 +17,6 @@
 #include "mblock_fset.h"
 #include "mblock_file.h"
 #include "mdc.h"
-
-#define UUID_STRLEN 36
 
 /**
  * struct mpool - mpool handle
@@ -122,6 +117,7 @@ mpool_open(const char *name, const struct hse_params *params, uint32_t flags, st
     struct mpool *mp;
     merr_t        err;
     int           i;
+    char         *path = NULL;
 
     if (!name || !handle)
         return merr(EINVAL);
@@ -149,9 +145,16 @@ mpool_open(const char *name, const struct hse_params *params, uint32_t flags, st
         if (mcp.path[0] != '\0') {
             int flags2 = 0;
 
+            path = realpath(mcp.path, NULL);
+            if (!path) {
+                err = merr(errno);
+                goto errout;
+            }
+
             for (int j = i - 1; j >= 0; j--) {
-                if (mp->mc[j] && !strcmp(mcp.path, mclass_dpath(mp->mc[j]))) {
+                if (mp->mc[j] && !strcmp(path, mclass_dpath(mp->mc[j]))) {
                     err = merr(EINVAL);
+                    free(path);
                     hse_log(
                         HSE_ERR "%s: Duplicate storage path detected for mc %d and %d",
                         __func__,
@@ -177,6 +180,7 @@ mpool_open(const char *name, const struct hse_params *params, uint32_t flags, st
                     }
 
                     if (err) {
+                        free(path);
                         hse_elog(
                             HSE_ERR "%s: Cannot access storage path for mclass %d: @@e",
                             err,
@@ -187,6 +191,7 @@ mpool_open(const char *name, const struct hse_params *params, uint32_t flags, st
                 }
                 break;
             } while (true);
+            free(path);
         } else if (i == MP_MED_CAPACITY) {
             err = merr(EINVAL);
             hse_log(HSE_ERR "%s: storage path not set for %s", __func__, name);
@@ -238,19 +243,16 @@ mpool_close(struct mpool *mp)
     return err;
 }
 
-merr_t
+void
 mpool_destroy(struct mpool *mp)
 {
     struct workqueue_struct *mpdwq;
-    merr_t                   err;
     int                      i;
 
     if (!mp)
-        return merr(EINVAL);
+        return;
 
-    err = mpool_mdc_root_destroy(mp);
-    if (err)
-        return err;
+    mpool_mdc_root_destroy(mp);
 
     mpdwq = alloc_workqueue("mp_destroy", 0, MP_DESTROY_THREADS);
     ev(!mpdwq);
@@ -262,8 +264,6 @@ mpool_destroy(struct mpool *mp)
 
     destroy_workqueue(mpdwq);
     free(mp);
-
-    return 0;
 }
 
 merr_t

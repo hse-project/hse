@@ -6,13 +6,10 @@
 #ifndef MPOOL_STRUCTS_H
 #define MPOOL_STRUCTS_H
 
-#include <stdint.h>
-#include <stdbool.h>
-#include <sys/uio.h>
-#include <sys/types.h>
-#include <linux/limits.h>
+#include <hse_util/inttypes.h>
 
 #define MPOOL_ROOT_LOG_CAP (8 * 1024 * 1024)
+#define MDC_ROOT_MAGIC     (0xFACE0FFF)
 
 /**
  * mpool_mclass = Media classes

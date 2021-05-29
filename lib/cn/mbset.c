@@ -180,14 +180,11 @@ _mbset_map(struct mbset *self, uint flags)
 static void
 _mbset_unmap(struct mbset *self)
 {
-    merr_t err;
     uint   i;
 
     for (i = 0; i < self->mbs_mapc; i++) {
-        if (self->mbs_mapv[i]) {
-            err = mpool_mcache_munmap(self->mbs_mapv[i]);
-            ev(err);
-        }
+        if (self->mbs_mapv[i])
+            mpool_mcache_munmap(self->mbs_mapv[i]);
     }
 }
 

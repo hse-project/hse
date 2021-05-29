@@ -1041,14 +1041,13 @@ struct hse_kvdb_storage_info {
     uint64_t available_bytes;  /**< available space in the file-system containing this kvdb */
     uint64_t allocated_bytes;  /**< allocated storage space for a kvdb */
     uint64_t used_bytes;       /**< used storage space for a kvdb */
-    char     capacity_path[PATH_MAX];  /**< capacity media class path */
-    char     staging_path[PATH_MAX];   /**< staging media class path */
 };
 
 /**
  * Get storage config and stats
  *
  * Obtain the storage paths, allocated and used space for a specified kvdb.
+ * This function is thread safe.
  *
  * @param kvdb: KVDB handle from hse_kvdb_open()
  * @param info: [out] KVDB storage config and stats

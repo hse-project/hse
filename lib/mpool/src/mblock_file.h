@@ -10,18 +10,20 @@
 
 #include "mclass.h"
 
-#define MBID_FILEID_BITS (8)
-#define MBID_MCID_BITS   (2)
-#define MBID_BLOCK_BITS  (16)
+/* clang-format off */
 
-#define MBLOCK_SIZE_MB    (32)
-#define MBLOCK_SIZE_BYTES (MBLOCK_SIZE_MB << 20)
-#define MBLOCK_SIZE_SHIFT (25)
+#define MBID_FILEID_BITS       (8)
+#define MBID_MCID_BITS         (2)
+#define MBID_BLOCK_BITS        (16)
 
-#define MBLOCK_DATA_FILE_PFX "mblock-data"
-#define MBLOCK_OPT_WRITE_SZ  (128 << 10)
+#define MBLOCK_SIZE_MB         (32)
+#define MBLOCK_SIZE_BYTES      (MBLOCK_SIZE_MB << 20)
+#define MBLOCK_SIZE_SHIFT      (25)
 
-#define MBLOCK_FILE_SIZE_MAX ((1ULL << MBID_BLOCK_BITS) << MBLOCK_SIZE_SHIFT)
+#define MBLOCK_DATA_FILE_PFX   "mblock-data"
+#define MBLOCK_OPT_WRITE_SZ    (128 << 10)
+
+#define MBLOCK_FILE_SIZE_MAX   ((1ULL << MBID_BLOCK_BITS) << MBLOCK_SIZE_SHIFT)
 
 /**
  * Mblock ID in-memory layout
@@ -45,6 +47,8 @@
 #define MBID_MCID_MASK   (0x0000000000c00000)
 #define MBID_RSVD_MASK   (0x00000000003f0000)
 #define MBID_BLOCK_MASK  (0x000000000000ffff)
+
+/* clang-format on */
 
 struct mblock_mmap;
 struct mblock_rgnmap;
@@ -93,19 +97,19 @@ struct mblock_file_stats {
     uint32_t mbcnt;
 };
 
-static __always_inline inline int
+static HSE_ALWAYS_INLINE int
 file_id(uint64_t mbid)
 {
     return (mbid & MBID_FILEID_MASK) >> MBID_FILEID_SHIFT;
 }
 
-static __always_inline int
+static HSE_ALWAYS_INLINE int
 file_index(uint64_t mbid)
 {
     return file_id(mbid) - 1;
 }
 
-static __always_inline enum mclass_id
+static HSE_ALWAYS_INLINE enum mclass_id
 mclassid(uint64_t mbid)
 {
     return (mbid & MBID_MCID_MASK) >> MBID_MCID_SHIFT;

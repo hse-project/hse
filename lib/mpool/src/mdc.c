@@ -3,8 +3,6 @@
  * Copyright (C) 2021 Micron Technology, Inc.  All rights reserved.
  */
 
-#include <fcntl.h>
-
 #include <hse_util/event_counter.h>
 #include <hse_util/hse_err.h>
 #include <hse_util/logging.h>
@@ -152,7 +150,6 @@ mpool_mdc_open(struct mpool *mp, uint64_t logid1, uint64_t logid2, struct mpool_
 {
     struct mdc_file  *mfp[2] = {};
     struct mpool_mdc *mdc;
-
     enum mclass_id mcid;
     merr_t         err, err1, err2;
     uint64_t       gen1, gen2;
@@ -229,10 +226,8 @@ mpool_mdc_open(struct mpool *mp, uint64_t logid1, uint64_t logid2, struct mpool_
 
         *handle = mdc;
     } else {
-        if (mfp[0])
-            err1 = mdc_file_close(mfp[0]);
-        if (mfp[1])
-            err2 = mdc_file_close(mfp[1]);
+        mdc_file_close(mfp[0]);
+        mdc_file_close(mfp[1]);
     }
 
     if (err)

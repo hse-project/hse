@@ -3,13 +3,8 @@
  * Copyright (C) 2021 Micron Technology, Inc.  All rights reserved.
  */
 
-#include <unistd.h>
-#include <stdlib.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <sys/mman.h>
-
 #include <hse_util/logging.h>
+#include <hse_util/page.h>
 
 #include "mpool_internal.h"
 #include "mclass.h"
@@ -40,7 +35,6 @@ mpool_mcache_mmap(struct mpool *mp, size_t mbidc, uint64_t *mbidv, struct mpool_
 {
     struct mpool_mcache_map *map;
     struct media_class      *mc;
-
     size_t sz;
     merr_t err = 0;
     int    i;
@@ -92,14 +86,14 @@ errout:
     return err;
 }
 
-merr_t
+void
 mpool_mcache_munmap(struct mpool_mcache_map *map)
 {
     struct media_class *mc;
     int                 i;
 
     if (!map)
-        return merr(EINVAL);
+        return;
 
     for (i = 0; i < map->mbidc; i++) {
         enum mpool_mclass mclass;
@@ -113,13 +107,11 @@ mpool_mcache_munmap(struct mpool_mcache_map *map)
         assert(mc);
 
         err = mblock_fset_unmap(mclass_fset(mc), mbid);
-        if (err)
-            return err;
+        if (ev(err))
+            hse_log(HSE_ERR "%s: Unable to unmap mblock %lu, map %p", __func__, mbid, map);
     }
 
     free(map);
-
-    return 0;
 }
 
 merr_t
@@ -149,7 +141,7 @@ mpool_mcache_madvise(struct mpool_mcache_map *map, uint mbidx, off_t off, size_t
         int   rc;
 
         addr = map->addrv[mbidx];
-        if (!addr || addr == MAP_FAILED)
+        if (!addr)
             return merr(EINVAL);
 
         rc = madvise(addr + off, len, advice);
@@ -169,7 +161,7 @@ mpool_mcache_madvise(struct mpool_mcache_map *map, uint mbidx, off_t off, size_t
 void *
 mpool_mcache_getbase(struct mpool_mcache_map *map, const uint mbidx)
 {
-    if (!map || map->addrv[mbidx] == MAP_FAILED || mbidx >= map->mbidc)
+    if (!map || mbidx >= map->mbidc)
         return NULL;
 
     return map->addrv[mbidx];
@@ -190,7 +182,7 @@ mpool_mcache_getpages(
         return merr(EINVAL);
 
     addr = map->addrv[mbidx];
-    if (!addr || addr == MAP_FAILED)
+    if (!addr)
         return merr(EINVAL);
 
     for (i = 0; i < pagec; i++) {

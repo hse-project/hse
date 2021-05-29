@@ -9,6 +9,7 @@
 
 #include <hse_util/hse_err.h>
 #include <hse_util/minmax.h>
+#include <hse_util/page.h>
 
 #include "common.h"
 
@@ -168,11 +169,8 @@ MTF_DEFINE_UTEST(mcache_test, mcache_api)
         ASSERT_EQ(0, err);
     }
 
-    err = mpool_mcache_munmap(NULL);
-    ASSERT_EQ(EINVAL, merr_errno(err));
-
-    err = mpool_mcache_munmap(map);
-    ASSERT_EQ(0, err);
+    mpool_mcache_munmap(NULL);
+    mpool_mcache_munmap(map);
 
     for (i = 0; i < 32; i++) {
         err = mpool_mblock_delete(mp, mbidv[i]);
@@ -239,16 +237,14 @@ MTF_DEFINE_UTEST(mcache_test, mcache_api)
         ASSERT_EQ(0, err);
     }
 
-    err = mpool_mcache_munmap(map);
-    ASSERT_EQ(0, err);
+    mpool_mcache_munmap(map);
 
     for (i = 0; i < 32; i++) {
         err = mpool_mblock_delete(mp, mbidv[i]);
         ASSERT_EQ(0, err);
     }
 
-    err = mpool_destroy(mp);
-    ASSERT_EQ(0, err);
+    mpool_destroy(mp);
 
     free(buf);
     unsetenv("HSE_STAGING_PATH");
@@ -299,8 +295,7 @@ MTF_DEFINE_UTEST(mcache_test, mcache_invalid_args)
     err = mpool_mblock_abort(mp, mbid);
     ASSERT_EQ(0, err);
 
-    err = mpool_destroy(mp);
-    ASSERT_EQ(0, err);
+    mpool_destroy(mp);
 }
 
 MTF_END_UTEST_COLLECTION(mcache_test);
