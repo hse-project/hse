@@ -3,14 +3,17 @@
  * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
-#include <hse/kvdb_perfc.h>
-
 #include <hse_util/platform.h>
 #include <hse_util/slab.h>
+#include <hse_util/page.h>
 #include <hse_util/vlb.h>
 #include <hse_util/string.h>
 #include <hse_util/fmt.h>
+#include <hse_util/keycmp.h>
+#include <hse_util/logging.h>
 #include <hse_util/compression_lz4.h>
+
+#include <hse/kvdb_perfc.h>
 
 #include <hse_ikvdb/c0.h>
 #include <hse_ikvdb/cn.h>
@@ -19,8 +22,6 @@
 #include <hse_ikvdb/kvdb_ctxn.h>
 #include <hse_ikvdb/tuple.h>
 #include <hse_ikvdb/cursor.h>
-
-#include <sys/sysinfo.h>
 
 #include <c0/c0_cursor.h>
 #include <cn/cn_cursor.h>

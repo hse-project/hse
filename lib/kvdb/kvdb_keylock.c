@@ -3,6 +3,7 @@
  * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
+#include <hse_util/platform.h>
 #include <hse_util/assert.h>
 #include <hse_util/alloc.h>
 #include <hse_util/atomic.h>
@@ -10,10 +11,10 @@
 #include <hse_util/compiler.h>
 #include <hse_util/slab.h>
 #include <hse_util/keylock.h>
-#include <hse_util/platform.h>
 #include <hse_util/rcu.h>
 #include <hse_util/page.h>
 #include <hse_util/cursor_heap.h>
+#include <hse_util/event_counter.h>
 
 #include <hse/kvdb_perfc.h>
 

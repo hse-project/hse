@@ -10,6 +10,7 @@
 
 #include <hse_util/mutex.h>
 #include <hse_util/rmlock.h>
+#include <hse_util/spinlock.h>
 #include <hse_util/list.h>
 
 #include <hse/hse_limits.h>

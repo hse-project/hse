@@ -3,13 +3,12 @@
  * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
-#include <stdalign.h>
-
 #include <hse_util/platform.h>
 #include <hse_util/event_counter.h>
 #include <hse_util/slab.h>
 #include <hse_util/log2.h>
 #include <hse_util/fmt.h>
+#include <hse_util/keycmp.h>
 #include <hse_util/compression_lz4.h>
 
 #include <hse_ikvdb/limits.h>

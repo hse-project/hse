@@ -5,9 +5,11 @@
 
 #include <hse_util/inttypes.h>
 #include <hse_util/hse_err.h>
+#include <hse_util/slab.h>
+#include <hse_util/event_counter.h>
+
 #include "cndb_internal.h"
 #include <hse_ikvdb/cndb.h>
-#include <hse_util/slab.h>
 
 /********************************************************************
  *

@@ -3,14 +3,13 @@
  * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
  */
 
-#include <hse_util/timer.h>
-
 #include <hse_util/platform.h>
 #include <hse_util/workqueue.h>
+#include <hse_util/spinlock.h>
+#include <hse_util/logging.h>
+#include <hse_util/timer.h>
 
-#include <pthread.h>
 #include <sys/prctl.h>
-#include <sys/time.h>
 #include <sys/resource.h>
 
 static volatile bool timer_running;

@@ -7,10 +7,12 @@
 
 #include <hse_util/platform.h>
 #include <hse_util/event_counter.h>
+#include <hse_util/parse_num.h>
 #include <hse_util/hse_err.h>
-#include <hse_util/param.h>
+#include <hse_util/minmax.h>
 #include <hse_util/slab.h>
 #include <hse_util/string.h>
+#include <hse_util/param.h>
 
 #include <getopt.h>
 #include <pwd.h>

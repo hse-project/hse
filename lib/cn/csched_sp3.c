@@ -6,6 +6,7 @@
 #define MTF_MOCK_IMPL_csched_sp3
 
 #include <hse_util/platform.h>
+#include <hse_util/alloc.h>
 #include <hse_util/slab.h>
 #include <hse_util/string.h>
 

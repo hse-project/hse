@@ -4,6 +4,9 @@
  */
 
 #include <hse_util/platform.h>
+#include <hse_util/page.h>
+#include <hse_util/spinlock.h>
+#include <hse_util/event_counter.h>
 #include <hse_util/vlb.h>
 
 #define VLB_NODES_MAX       (4) /* max numa nodes */

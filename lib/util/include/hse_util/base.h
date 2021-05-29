@@ -14,14 +14,29 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <stdbool.h>
+#include <stdalign.h>
+#include <stdarg.h>
 #include <strings.h>
 #include <unistd.h>
 #include <string.h>
 #include <ctype.h>
 #include <errno.h>
+#include <assert.h>
+#include <time.h>
+#include <fcntl.h>
+#include <sched.h>
+#include <pthread.h>
+#include <sys/types.h>
 #include <sys/param.h>
+#include <sys/time.h>
 #include <sys/uio.h>
+#include <sys/stat.h>
+#include <sys/file.h>
+
+#if __linux__
+#include <sys/sysinfo.h>
 #include <linux/fs.h>
+#endif
 
 #define container_of(ptr, type, member)                \
     ({                                                 \

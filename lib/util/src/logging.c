@@ -8,6 +8,7 @@
 #include <hse_util/config.h>
 #include <hse_util/param.h>
 #include <hse_util/string.h>
+#include <hse_util/delay.h>
 
 #include <hse/hse_version.h>
 
@@ -29,8 +30,6 @@
  * used through the storage engine's source code, and does not impair the
  * readability of the source code.
  */
-
-#include <stdarg.h>
 
 /**
  * struct priority_name - A table mapping priorities to their enum values

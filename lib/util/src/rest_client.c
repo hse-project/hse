@@ -4,6 +4,8 @@
  */
 
 #include <hse_util/platform.h>
+#include <hse_util/minmax.h>
+#include <hse_util/logging.h>
 #include <hse_util/rest_client.h>
 
 struct resp_buf {

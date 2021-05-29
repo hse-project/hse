@@ -3,8 +3,6 @@
  * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
-#include <stdalign.h>
-
 #include <hse_util/platform.h>
 #include <hse_util/hse_err.h>
 #include <hse_util/event_counter.h>
@@ -16,6 +14,7 @@
 #include <hse_util/table.h>
 #include <hse_util/string.h>
 #include <hse_util/fmt.h>
+#include <hse_util/keycmp.h>
 
 #include <hse_util/rcu.h>
 #include <hse_util/cds_list.h>

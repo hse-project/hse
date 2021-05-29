@@ -13,9 +13,6 @@
 #include <hse_util/assert.h>
 #include <hse_util/compiler.h>
 
-#include <time.h>
-#include <unistd.h>
-
 static HSE_ALWAYS_INLINE u64
 get_time_ns(void)
 {

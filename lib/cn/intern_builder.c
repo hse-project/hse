@@ -3,11 +3,11 @@
  * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
-#include <stdalign.h>
-
 #include <hse/hse_limits.h>
+
 #include <hse_util/platform.h>
 #include <hse_util/slab.h>
+#include <hse_util/page.h>
 #include <hse_util/event_counter.h>
 #include <hse_util/key_util.h>
 

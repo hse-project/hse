@@ -8,9 +8,21 @@
 
 #include "_config.h"
 
-#include <stdalign.h>
-
 #include <hse/hse.h>
+
+#include <hse_util/platform.h>
+#include <hse_util/event_counter.h>
+#include <hse_util/string.h>
+#include <hse_util/page.h>
+#include <hse_util/seqno.h>
+#include <hse_util/darray.h>
+#include <hse_util/rest_api.h>
+#include <hse_util/log2.h>
+#include <hse_util/atomic.h>
+#include <hse_util/vlb.h>
+#include <hse_util/compression_lz4.h>
+#include <hse_util/token_bucket.h>
+#include <hse_util/xrand.h>
 
 #include <hse_ikvdb/ikvdb.h>
 #include <hse_ikvdb/kvdb_health.h>
@@ -44,19 +56,6 @@
 #include "kvdb_keylock.h"
 
 #include <mpool/mpool.h>
-
-#include <hse_util/platform.h>
-#include <hse_util/event_counter.h>
-#include <hse_util/string.h>
-#include <hse_util/seqno.h>
-#include <hse_util/darray.h>
-#include <hse_util/rest_api.h>
-#include <hse_util/log2.h>
-#include <hse_util/atomic.h>
-#include <hse_util/vlb.h>
-#include <hse_util/compression_lz4.h>
-#include <hse_util/token_bucket.h>
-#include <hse_util/xrand.h>
 
 #include <xxhash.h>
 #if CJSON_FROM_SUBPROJECT == 1

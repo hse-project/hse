@@ -6,10 +6,11 @@
 #ifndef HSE_CN_KV_ITERATOR_H
 #define HSE_CN_KV_ITERATOR_H
 
-#include <hse_ikvdb/tuple.h>
-
 #include <hse_util/inttypes.h>
 #include <hse_util/hse_err.h>
+#include <hse_util/bin_heap.h>
+
+#include <hse_ikvdb/tuple.h>
 
 /*
  *  The struct kv_iterator_ops definition specifies a generic interface for

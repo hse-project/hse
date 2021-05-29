@@ -3,13 +3,15 @@
  * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
  */
 
-#include <stdalign.h>
-
+#include <hse_util/platform.h>
+#include <hse_util/alloc.h>
+#include <hse_util/slab.h>
 #include <hse_util/atomic.h>
 #include <hse_util/hse_err.h>
-#include <hse_util/platform.h>
 #include <hse_util/hash.h>
-#include <hse_util/slab.h>
+#include <hse_util/minmax.h>
+#include <hse_util/mutex.h>
+#include <hse_util/event_counter.h>
 #include <hse_util/keylock.h>
 
 struct keylock {

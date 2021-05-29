@@ -6,6 +6,7 @@
 #include <hse_util/platform.h>
 #include <hse_util/slab.h>
 #include <hse_util/page.h>
+#include <hse_util/event_counter.h>
 #include <hse_util/table.h>
 
 struct table *

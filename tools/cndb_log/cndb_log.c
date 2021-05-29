@@ -10,6 +10,7 @@
 #include <hse_util/slab.h>
 #include <hse_util/assert.h>
 #include <hse_util/log2.h>
+#include <hse_util/logging.h>
 
 #include <hse_ikvdb/limits.h>
 #include <hse_ikvdb/ikvdb.h>

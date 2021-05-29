@@ -8,6 +8,7 @@
 #include <hse_test_support/mapi_alloc_tester.h>
 
 #include <hse_util/hse_err.h>
+#include <hse_util/delay.h>
 
 #include <hse_ikvdb/kvdb_rparams.h>
 #include <hse_ikvdb/kvs_rparams.h>

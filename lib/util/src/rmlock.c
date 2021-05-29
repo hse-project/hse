@@ -3,11 +3,9 @@
  * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
  */
 
-#include <stdalign.h>
-#include <sys/sysinfo.h>
-
 #include <hse_util/platform.h>
-#include <hse_util/arch.h>
+#include <hse_util/alloc.h>
+#include <hse_util/minmax.h>
 #include <hse_util/rmlock.h>
 
 #define RMLOCK_MAX      (128)

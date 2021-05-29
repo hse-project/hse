@@ -8,6 +8,7 @@
 #include <hse_ut/conditions.h>
 #include <hse_test_support/mock_api.h>
 
+#include <hse_util/page.h>
 #include <hse_util/keycmp.h>
 #include <hse_util/table.h>
 #include <hse_util/spinlock.h>

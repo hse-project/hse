@@ -7,6 +7,7 @@
 #define HSE_IKVDB_STS_H
 
 #include <hse_util/platform.h>
+#include <hse_util/list.h>
 
 /* MTF_MOCK_DECL(sched_sts) */
 

@@ -5,13 +5,14 @@
 
 #define MTF_MOCK_IMPL_sched_sts
 
-#include <pthread.h>
-
 #include <hse_util/platform.h>
+#include <hse_util/alloc.h>
 #include <hse_util/slab.h>
 #include <hse_util/condvar.h>
 #include <hse_util/mutex.h>
 #include <hse_util/perfc.h>
+#include <hse_util/delay.h>
+#include <hse_util/logging.h>
 
 #include <hse_ikvdb/ikvdb.h>
 #include <hse_ikvdb/sched_sts.h>

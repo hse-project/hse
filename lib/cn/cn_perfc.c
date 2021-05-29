@@ -4,6 +4,8 @@
  */
 
 #include <hse_util/platform.h>
+#include <hse_util/logging.h>
+
 #include <hse_ikvdb/mclass_policy.h>
 
 #include <mpool/mpool.h>

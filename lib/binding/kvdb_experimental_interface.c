@@ -8,11 +8,12 @@
 #include <hse/hse.h>
 #include <hse/hse_experimental.h>
 
+#include <hse_util/platform.h>
+#include <hse_util/logging.h>
+
 #include <hse_ikvdb/ikvdb.h>
 #include <hse_ikvdb/hse_params_internal.h>
 #include <hse_ikvdb/kvdb_perfc.h>
-
-#include <hse_util/platform.h>
 
 uint64_t
 hse_kvdb_export_exp(struct hse_kvdb *handle, struct hse_params *params, const char *path)

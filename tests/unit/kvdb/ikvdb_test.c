@@ -12,6 +12,7 @@
 #include <hse_test_support/random_buffer.h>
 
 #include <hse_util/hse_err.h>
+#include <hse_util/delay.h>
 
 #include <hse_ikvdb/kvs.h>
 #include <hse_ikvdb/ikvdb.h>

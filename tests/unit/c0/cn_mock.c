@@ -3,14 +3,13 @@
  * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
  */
 
-#include <assert.h>
-
-#include <hse_ikvdb/cn.h>
-#include <hse_ikvdb/c0_kvmultiset.h>
-
 #include <hse_test_support/random_buffer.h>
 
 #include <hse_util/platform.h>
+#include <hse_util/event_counter.h>
+
+#include <hse_ikvdb/cn.h>
+#include <hse_ikvdb/c0_kvmultiset.h>
 
 #include "cn_mock.h"
 

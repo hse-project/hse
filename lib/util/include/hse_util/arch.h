@@ -6,10 +6,7 @@
 #ifndef HSE_PLATFORM_ARCH_H
 #define HSE_PLATFORM_ARCH_H
 
-#include <hse_util/page.h>
 #include <hse_util/timing.h>
-
-#include <sched.h>
 
 /* MTF_MOCK_DECL(arch) */
 

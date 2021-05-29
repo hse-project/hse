@@ -9,6 +9,7 @@
 #include <hse_util/platform.h>
 #include <hse_util/param.h>
 #include <hse_util/string.h>
+#include <hse_util/event_counter.h>
 #include <hse_util/hse_params_helper.h>
 
 #include <hse_ikvdb/wp.h>
