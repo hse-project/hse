@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
 #ifndef HSE_PLATFORM_BASE_H
@@ -15,6 +15,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <stdalign.h>
+#include <stddef.h>
 #include <stdarg.h>
 #include <strings.h>
 #include <unistd.h>
@@ -44,14 +45,12 @@
         (type *)((char *)_p - offsetof(type, member)); \
     })
 
-#ifndef offsetof
-#define offsetof(type, member) ((size_t) & ((type *)0)->member)
-#endif
+/* clang-format off */
 
-#define HSE_UTIL_DESC "Heterogeneous-memory Storage Engine Utilities"
+#define HSE_UTIL_DESC   "Heterogeneous-memory Storage Engine Utilities"
+#define STR_SAFE(_str)  ((_str) ?: "")
+#define NELEM(_arr)     (sizeof(_arr) / sizeof((_arr)[0]))
 
-#define NELEM(_x) (sizeof(_x) / sizeof((_x)[0]))
-
-#define STR_SAFE(_s) ((_s) ?: "")
+/* clang-format on */
 
 #endif

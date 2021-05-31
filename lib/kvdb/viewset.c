@@ -5,9 +5,7 @@
 
 #include "_config.h"
 
-#include <stdalign.h>
-
-#include <hse_util/arch.h>
+#include <hse_util/platform.h>
 #include <hse_util/alloc.h>
 #include <hse_util/slab.h>
 #include <hse_util/minmax.h>

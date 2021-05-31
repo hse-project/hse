@@ -7,7 +7,7 @@
 #define HSE_PLATFORM_ALLOC_H
 
 #include <hse_util/base.h>
-#include <hse_util/inttypes.h>
+#include <hse_util/page.h>
 
 /* MTF_MOCK_DECL(alloc) */
 
@@ -35,7 +35,5 @@ free_aligned(const void *ptr);
 #if HSE_MOCKING
 #include "alloc_ut.h"
 #endif /* HSE_MOCKING */
-
-#include <hse_util/slab.h>
 
 #endif

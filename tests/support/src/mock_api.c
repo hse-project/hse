@@ -7,11 +7,11 @@
 #include <hse_test_support/mock_api.h>
 #include <hse_test_support/allocation.h>
 
+#include <hse_util/platform.h>
 #include <hse_util/inttypes.h>
 #include <hse_util/assert.h>
 #include <hse_util/atomic.h>
 #include <hse_util/compiler.h>
-#include <hse_util/arch.h>
 
 union rc {
     u64   i;

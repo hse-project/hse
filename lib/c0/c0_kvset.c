@@ -454,7 +454,7 @@ c0kvs_create(
     if (set)
         goto created;
 
-    cheap = cheap_create(sizeof(void *) * 2, HSE_C0_CHEAP_SZ_MAX);
+    cheap = cheap_create(_Alignof(max_align_t), HSE_C0_CHEAP_SZ_MAX);
     if (ev(!cheap))
         return merr(ENOMEM);
 

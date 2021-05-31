@@ -3,7 +3,7 @@
  * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
-#define MTF_MOCK_IMPL_arch
+#define MTF_MOCK_IMPL_platform
 
 #include <hse_util/platform.h>
 #include <hse_util/page.h>
@@ -427,5 +427,5 @@ hse_platform_fini(void)
 }
 
 #if HSE_MOCKING
-#include "arch_ut_impl.i"
-#endif /* HSE_MOCKING */
+#include "platform_ut_impl.i"
+#endif

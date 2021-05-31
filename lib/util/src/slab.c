@@ -26,10 +26,7 @@
  * are then allocated directly from slabs (e.g., via kmem_cache_alloc()).
  */
 
-#include <stdalign.h>
-#include <sys/sysinfo.h>
-
-#include <hse_util/arch.h>
+#include <hse_util/platform.h>
 #include <hse_util/alloc.h>
 #include <hse_util/vlb.h>
 #include <hse_util/atomic.h>
@@ -849,7 +846,7 @@ kmem_cache_create(const char *name, size_t size, size_t align, ulong flags, void
     if (ctor)
         return NULL;
 
-    align = max_t(size_t, align, sizeof(void *) * 2);
+    align = max_t(size_t, align, _Alignof(max_align_t));
 
     if (flags & SLAB_HWCACHE_ALIGN)
         align = ALIGN(align, SMP_CACHE_BYTES);
