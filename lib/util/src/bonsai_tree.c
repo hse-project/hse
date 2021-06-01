@@ -12,33 +12,29 @@
 
 #define BN_INSERT_FLAG_RIGHT    (0x01u)
 
-static void
-bn_summary(struct bonsai_root *tree)
+int
+bn_summary(struct bonsai_root *tree, char *buf, size_t bufsz)
 {
-#ifndef NDEBUG
-    static thread_local uint bn_summary_calls_tls;
-    int nodec = 0, rnodec = 0, slabc = 0, n, i;
-    struct bonsai_slabinfo *slabinfo;
-    struct bonsai_slab *slab;
-    char buf[256];
+    ulong rnodec = 0, nodec = 0;
+    int slabc = 0, n = 0, i;
+    char sibuf[256];
 
-    if (++bn_summary_calls_tls % 8 || !tree->br_root)
-        return;
+    if (!tree)
+        return 0;
 
-    n = snprintf(buf, sizeof(buf), "(%u %lu %3lu)",
-                 atomic_read(&tree->br_gc_rcugen_done),
-                 (tree->br_gc_latsum_gp / 1000000) / atomic_read(&tree->br_gc_rcugen_done),
-                 (tree->br_gc_latsum_gc / 1000) / atomic_read(&tree->br_gc_rcugen_done));
+    for (i = 0; i < NELEM(tree->br_slabinfov); ++i) {
+        struct bonsai_slabinfo *slabinfo = tree->br_slabinfov + i;
+        struct bonsai_slab *slab;
 
-    for (i = 0; i < NELEM(tree->br_slabinfov) && n < sizeof(buf); ++i) {
-        slabinfo = tree->br_slabinfov + i;
         slab = slabinfo->bsi_slab;
+        if (!slab)
+            return 0;
 
         slabinfo->bsi_rnodec += slab->bs_rnodec;
         slabinfo->bsi_nodec += slab->bs_nodec;
 
-        if (slabinfo->bsi_nodec > 0) {
-            n += snprintf(buf + n, sizeof(buf) - n, "  %u,%u,%u,%u",
+        if (slabinfo->bsi_nodec > 0 && n < sizeof(sibuf)) {
+            n += snprintf(sibuf + n, sizeof(sibuf) - n, "  %u,%lu,%lu,%u",
                           i, slabinfo->bsi_nodec, slabinfo->bsi_rnodec,
                           slabinfo->bsi_slabc);
         }
@@ -48,20 +44,27 @@ bn_summary(struct bonsai_root *tree)
         slabc += slabinfo->bsi_slabc;
     }
 
-    hse_log(HSE_NOTICE "%s: %2d %2d  keys %u  vals %u  nodes %u,%u,%u  %.2lf  %s",
-            __func__, tree->br_height, atomic_read(&tree->br_bounds),
-            tree->br_key_alloc, tree->br_key_alloc + tree->br_val_alloc,
-            nodec, rnodec, slabc,
-            (double)(nodec + rnodec) / tree->br_key_alloc, buf);
-#endif
+    if (nodec < 1)
+        return 0;
+
+    return snprintf(
+        buf, bufsz, "%2d %2d  keys %lu  vals %lu  nodes %lu,%lu,%u  %.2lf  (%u %lu %3lu) %s",
+        tree->br_height, atomic_read(&tree->br_bounds),
+        tree->br_key_alloc, tree->br_key_alloc + tree->br_val_alloc,
+        nodec, rnodec, slabc,
+        (double)(nodec + rnodec) / tree->br_key_alloc,
+        atomic_read(&tree->br_gc_rcugen_done),
+        (tree->br_gc_latsum_gp / 1000000) / atomic_read(&tree->br_gc_rcugen_done),
+        (tree->br_gc_latsum_gc / 1000) / atomic_read(&tree->br_gc_rcugen_done),
+        sibuf);
 }
 
 static struct bonsai_node *
 bn_ior_replace(
     struct bonsai_root *      tree,
-    struct bonsai_node *      node,
     const struct bonsai_skey *skey,
-    const struct bonsai_sval *sval)
+    const struct bonsai_sval *sval,
+    struct bonsai_node       *node)
 {
     struct bonsai_val *oldv = NULL, *v;
     enum bonsai_ior_code code;
@@ -77,20 +80,18 @@ bn_ior_replace(
     /* oldv must remain visible for the life of the kv since cursors
      * might use it long after dropping the rcu read lock.
      */
-    if (oldv) {
-        oldv->bv_free = node->bn_kv->bkv_freevals;
-        node->bn_kv->bkv_freevals = oldv;
-    }
+    if (oldv)
+        bn_val_rcufree(node->bn_kv, oldv);
 
-    return node;
+    return tree->br_root;
 }
 
 static struct bonsai_node *
 bn_ior_insert(
     struct bonsai_root         *tree,
-    struct bonsai_kv           *parent,
     const struct bonsai_skey   *skey,
     const struct bonsai_sval   *sval,
+    struct bonsai_kv           *kvlist,
     u32                         flags)
 {
     struct bonsai_node *node;
@@ -101,11 +102,11 @@ bn_ior_insert(
         return NULL;
 
     if (flags & BN_INSERT_FLAG_RIGHT) {
-        node->bn_kv->bkv_next = parent->bkv_next;
-        node->bn_kv->bkv_prev = parent;
+        node->bn_kv->bkv_next = kvlist->bkv_next;
+        node->bn_kv->bkv_prev = kvlist;
     } else {
-        node->bn_kv->bkv_next = parent;
-        node->bn_kv->bkv_prev = parent->bkv_prev;
+        node->bn_kv->bkv_next = kvlist;
+        node->bn_kv->bkv_prev = kvlist->bkv_prev;
     }
 
     rcu_assign_pointer(node->bn_kv->bkv_next->bkv_prev, node->bn_kv);
@@ -130,30 +131,21 @@ _Static_assert(BN_IOR_RIGHT > 0 && BN_IOR_RIGHT < BN_IOR_MASK,
 static struct bonsai_node *
 bn_ior_impl(
     struct bonsai_root         *tree,
-    struct bonsai_node         *node,
     const struct bonsai_skey   *skey,
-    const struct bonsai_sval   *sval,
-    struct bonsai_kv           *parent)
+    const struct bonsai_sval   *sval)
 {
     const struct key_immediate *key_imm;
-    uintptr_t stack[HSE_BT_HEIGHT_MAX];
+    struct bonsai_node *node;
+    struct bonsai_kv *kvlist;
+    uintptr_t stack[48];
     const void *key;
-    u32 flags = 0;
+    u32 flags;
     int n = 0;
     s32 res;
 
     key_imm = &skey->bsk_key_imm;
     key = skey->bsk_key;
-
-    /* [HSE_REVISIT] For the time being no flags should be set.  If flags
-     * is set it's likely the caller didn't initialize the ktuple correctly.
-     */
-    assert(skey->bsk_flags == 0);
-
-    if (HSE_UNLIKELY( tree->br_height >= NELEM(stack) - HSE_BT_BALANCE_THRESHOLD )) {
-        assert(tree->br_height < NELEM(stack) - HSE_BT_BALANCE_THRESHOLD);
-        return NULL; /* shouldn't happen */
-    }
+    node = tree->br_root;
 
     /* Find the position to insert or node to replace, keeping track
      * of all nodes visited and which way (left or right) we went...
@@ -173,29 +165,23 @@ bn_ior_impl(
         }
     }
 
-    if (HSE_UNLIKELY( n > NELEM(stack) )) {
-        assert(n < NELEM(stack));
-        abort(); /* should never ever happen */
-    }
+    assert(n < NELEM(stack)); /* should never ever fail */
+
+    if (node)
+        return bn_ior_replace(tree, skey, sval, node);
 
     if (n > 0) {
-        struct bonsai_node *prev;
-
-        if (n > tree->br_height)
-            tree->br_height = n;
+        struct bonsai_node *parent;
 
         flags = (stack[n - 1] & BN_IOR_MASK);
-        prev = (void *)(stack[n - 1] & ~BN_IOR_MASK);
-        parent = prev->bn_kv;
+        parent = (void *)(stack[n - 1] & ~BN_IOR_MASK);
+        kvlist = parent->bn_kv;
+    } else {
+        kvlist = &tree->br_kv;
+        flags = 0;
     }
 
-    if (node) {
-        node = bn_ior_replace(tree, node, skey, sval);
-
-        return node ? tree->br_root : NULL;
-    }
-
-    node = bn_ior_insert(tree, parent, skey, sval, flags);
+    node = bn_ior_insert(tree, skey, sval, kvlist, flags);
     if (!node)
         return NULL;
 
@@ -205,21 +191,24 @@ bn_ior_impl(
      * should be sufficiently large to complete any rebalance operation,
      * after which we disallow subsequent inserts.
      */
-    while (node && n-- > 0) {
-        struct bonsai_node *prev;
+    while (n-- > 0) {
+        struct bonsai_node *parent;
         bool right;
 
         right = (stack[n] & BN_IOR_RIGHT);
-        prev = (void *)(stack[n] & ~BN_IOR_MASK);
+        parent = (void *)(stack[n] & ~BN_IOR_MASK);
 
         assert(node->bn_rcugen == HSE_BN_RCUGEN_ACTIVE);
-        assert(prev->bn_rcugen == HSE_BN_RCUGEN_ACTIVE);
+        assert(parent->bn_rcugen == HSE_BN_RCUGEN_ACTIVE);
 
         if (right)
-            node = bn_balance(tree, prev, prev->bn_left, node);
+            node = bn_balance(tree, parent, parent->bn_left, node);
         else
-            node = bn_balance(tree, prev, node, prev->bn_right);
+            node = bn_balance(tree, parent, node, parent->bn_right);
     }
+
+    if (tree->br_height != node->bn_height)
+        tree->br_height = node->bn_height;
 
     return node;
 }
@@ -228,29 +217,23 @@ static merr_t
 bn_delete_impl(
     struct bonsai_root       *tree,
     const struct bonsai_skey *skey,
-    struct bonsai_node       *dnode,
     struct bonsai_node      **newrootp)
 {
     const struct key_immediate *key_imm;
-    uintptr_t stack[HSE_BT_HEIGHT_MAX];
+    struct bonsai_node *dnode, *dnparentdup;
     struct bonsai_node *node, *parent;
-    struct bonsai_node *dnparentdup;
-    struct bonsai_kv *kv;
+    uintptr_t stack[48];
     const void *key;
     bool right;
     int n = 0;
     s32 res;
 
-    if (HSE_UNLIKELY( tree->br_height >= NELEM(stack) - HSE_BT_BALANCE_THRESHOLD )) {
-        assert(tree->br_height < NELEM(stack) - HSE_BT_BALANCE_THRESHOLD);
-        return merr(EINVAL); /* shouldn't happen */
-    }
-
     key_imm = &skey->bsk_key_imm;
     key = skey->bsk_key;
+    dnode = tree->br_root;
 
     /* Find the node to delete, keeping track of all nodes visited and which way
-     * (left or right) we went...
+     * we went (i.e., left or right).
      */
     while (dnode) {
         res = key_full_cmp(key_imm, key, &dnode->bn_key_imm, dnode->bn_kv->bkv_key);
@@ -267,8 +250,23 @@ bn_delete_impl(
         }
     }
 
+    assert(n < NELEM(stack)); /* should never ever fail */
+
     if (!dnode)
         return merr(ENOENT);
+
+    /* Make the deleted node and its kv node available for garbage collection
+     * in the next rcu epoch.
+     */
+    bn_node_rcufree(tree, dnode);
+    bn_kv_rcufree(tree, dnode->bn_kv);
+
+    /* Remove the deleted node's kv node from the list of sorted keys.  Outside
+     * callers who wish to traverse this list must do so under the rcu read
+     * lock (unless the tree has been finalized).
+     */
+    rcu_assign_pointer(dnode->bn_kv->bkv_next->bkv_prev, dnode->bn_kv->bkv_prev);
+    rcu_assign_pointer(dnode->bn_kv->bkv_prev->bkv_next, dnode->bn_kv->bkv_next);
 
     /* Half the nodes in the tree are either leaves or have only one child,
      * so check for them first...
@@ -281,12 +279,6 @@ bn_delete_impl(
          * child becomes the new root.
          */
         if (n == 0) {
-            kv = dnode->bn_kv;
-            rcu_assign_pointer(kv->bkv_next->bkv_prev, kv->bkv_prev);
-            rcu_assign_pointer(kv->bkv_prev->bkv_next, kv->bkv_next);
-
-            dnode->bn_rcugen = atomic_read(&tree->br_gc_rcugen_start);
-
             tree->br_height = bn_height_get(dnchild);
             *newrootp = dnchild;
 
@@ -304,7 +296,7 @@ bn_delete_impl(
         if (right) {
             if (dnchild) {
                 dnparentdup = bn_node_dup_ext(tree, parent, parent->bn_left, dnchild);
-                parent->bn_rcugen = atomic_read(&tree->br_gc_rcugen_start);
+                bn_node_rcufree(tree, parent);
             } else {
                 rcu_assign_pointer(parent->bn_right, NULL);
                 dnparentdup = parent;
@@ -312,7 +304,7 @@ bn_delete_impl(
         } else {
             if (dnchild) {
                 dnparentdup = bn_node_dup_ext(tree, parent, dnchild, parent->bn_right);
-                parent->bn_rcugen = atomic_read(&tree->br_gc_rcugen_start);
+                bn_node_rcufree(tree, parent);
             } else {
                 rcu_assign_pointer(parent->bn_left, NULL);
                 dnparentdup = parent;
@@ -343,14 +335,14 @@ bn_delete_impl(
          * up its right child.
          *
          * We don't call bn_balance() here because it might update
-         * in place prematurely leaving the tree in a state where the
-         * successor node is temporily invisible.
+         * in place prematurely leaving the tree in a state where
+         * the successor node is temporily invisible.
          */
         while (dnode != ((parent = (void *)stack[--n]))) {
             node = bn_node_dup_ext(tree, parent, node, parent->bn_right);
             bn_height_update(node);
 
-            parent->bn_rcugen = atomic_read(&tree->br_gc_rcugen_start);
+            bn_node_rcufree(tree, parent);
         }
 
         /* Dup the successor node to replace (and hence eliminate) the
@@ -361,28 +353,10 @@ bn_delete_impl(
 
     assert(dnparentdup);
 
-    /* Remove the deleted node's key from the list of sorted keys.  Outside
-     * callers who wish to traverse this list must do so under the rcu read
-     * lock (unless the tree has been finalized).
-     */
-    kv = dnode->bn_kv;
-    rcu_assign_pointer(kv->bkv_next->bkv_prev, kv->bkv_prev);
-    rcu_assign_pointer(kv->bkv_prev->bkv_next, kv->bkv_next);
-
-    /* Make the the deleted node and it's key available for garbage
-     * collection in the next rcu epoch.
-     */
-    dnode->bn_rcugen = atomic_read(&tree->br_gc_rcugen_start);
-    dnode->bn_kv->bkv_free = tree->br_freekeys;
-    tree->br_freekeys = dnode->bn_kv;
-
-    key_imm = &dnode->bn_kv->bkv_key_imm;
-    key = dnode->bn_kv->bkv_key;
-
     bn_height_update(dnparentdup);
     node = dnparentdup;
 
-    while (node && n-- > 0) {
+    while (n-- > 0) {
         right = (stack[n] & BN_IOR_RIGHT);
         parent = (void *)(stack[n] & ~BN_IOR_MASK);
 
@@ -394,8 +368,6 @@ bn_delete_impl(
         else
             node = bn_balance(tree, parent, node, parent->bn_right);
     }
-
-    assert(node);
 
     tree->br_height = node->bn_height;
 
@@ -551,7 +523,6 @@ bn_insert_or_replace(
     const struct bonsai_skey *skey,
     const struct bonsai_sval *sval)
 {
-    struct bonsai_node *oldroot;
     struct bonsai_node *newroot;
 
     /* Reject attempts to modify the tree if it has been finalized
@@ -560,20 +531,12 @@ bn_insert_or_replace(
     if (atomic_read(&tree->br_bounds))
         return merr(ENOMEM);
 
-    oldroot = tree->br_root;
-
-    newroot = bn_ior_impl(tree, oldroot, skey, sval, &tree->br_kv);
+    newroot = bn_ior_impl(tree, skey, sval);
     if (!newroot)
         return merr(ENOMEM);
 
-    if (newroot != oldroot) {
-        assert(oldroot == tree->br_root);
-
-        tree->br_height = newroot->bn_height;
-        bn_gc_reclaim(tree, tree->br_rootslab->bsi_slab);
-
+    if (newroot != tree->br_root)
         rcu_assign_pointer(tree->br_root, newroot);
-    }
 
     return 0;
 }
@@ -583,9 +546,8 @@ bn_delete(
     struct bonsai_root       *tree,
     const struct bonsai_skey *skey)
 {
-    struct bonsai_node *oldroot;
     struct bonsai_node *newroot;
-    merr_t err = 0;
+    merr_t err;
 
     /* Reject attempts to modify the tree if it has been finalized
      * (bounds > 0) or is out of memory (bounds < 0).
@@ -593,18 +555,27 @@ bn_delete(
     if (atomic_read(&tree->br_bounds))
         return merr(ENOMEM);
 
-    oldroot = tree->br_root;
-
-    err = bn_delete_impl(tree, skey, oldroot, &newroot);
+    err = bn_delete_impl(tree, skey, &newroot);
     if (err)
         return err;
 
-    if (newroot != oldroot) {
-        assert(oldroot == tree->br_root);
-
-        bn_gc_reclaim(tree, tree->br_rootslab->bsi_slab);
-
+    if (newroot != tree->br_root)
         rcu_assign_pointer(tree->br_root, newroot);
+
+    /* Amortize key-garbage removal over multiple delete calls.  br_rfkeys
+     * is the head of a list of lists, where bkv_next points to the next
+     * list and bkv_free points to the next key in a given list.
+     */
+    if (tree->br_rfkeys) {
+        struct bonsai_kv *kvlist;
+
+        spin_lock(&tree->br_gc_lock);
+        kvlist = tree->br_rfkeys;
+        if (kvlist)
+            tree->br_rfkeys = kvlist->bkv_next;
+        spin_unlock(&tree->br_gc_lock);
+
+        bn_kv_free(kvlist);
     }
 
     return 0;
@@ -709,47 +680,50 @@ bn_finalize(struct bonsai_root *tree)
 static void
 bn_reset_impl(struct bonsai_root *tree)
 {
-    struct bonsai_slab *slab;
+    struct bonsai_slab *slab, *next;
     struct bonsai_kv *kv;
 
-    if (!tree->br_root || tree->br_cheap)
+    if (!tree || tree->br_cheap || !tree->br_rootslab)
         return;
 
-    bn_kv_free(tree->br_gc_freekeys);
-    bn_kv_free(tree->br_freekeys);
+    bn_kv_free(tree->br_vfkeys);
 
-    /* Terminate the list of keys so that we can call bn_kv_free().
-     */
-    if ((kv = rcu_dereference(tree->br_kv.bkv_next)) != &tree->br_kv) {
-        rcu_dereference(tree->br_kv.bkv_prev)->bkv_next = NULL;
+    while (( kv = tree->br_rfkeys )) {
+        tree->br_rfkeys = kv->bkv_next;
         bn_kv_free(kv);
     }
 
-    /* All slabs we allocated must be on one of these lists.  Freeing
-     * all the slabs destroys all the nodes in the tree without ever
-     * having to actually walk the tree.
+    while (( kv = tree->br_gc_vfkeys )) {
+        tree->br_gc_vfkeys = kv->bkv_next;
+        bn_kv_free(kv);
+    }
+
+    tree->br_kv.bkv_prev->bkv_next = NULL;
+
+    while (( kv = tree->br_kv.bkv_next )) {
+        tree->br_kv.bkv_next = kv->bkv_next;
+        bn_kv_free(kv);
+    }
+
+    /* All slabs allocated must be on one of the wait, hold, or free
+     * queues.  Freeing all the slabs destroys all the nodes in the
+     * tree without having to actually walk the tree.
      */
-    struct bonsai_slab *slabv[] = {
-        tree->br_gc_waitq, tree->br_gc_activeq, tree->br_gc_emptyq
-    };
+    while (( slab = tree->br_gc_waitq )) {
+        tree->br_gc_waitq = slab->bs_next;
+        bn_slab_free(slab);
+    }
 
     assert(!tree->br_gc_readyq);
 
-    for (int i = 0; i < NELEM(slabv); ++i) {
-        while (( slab = slabv[i] )) {
-            slabv[i] = slab->bs_next;
-            bn_slab_free(slab);
-        }
-    }
+    list_for_each_entry_safe(slab, next, &tree->br_gc_holdq, bs_entry)
+        bn_slab_free(slab);
 
     for (int i = 0; i < NELEM(tree->br_slabinfov); ++i) {
         struct bonsai_slabinfo *slabinfo = tree->br_slabinfov + i;
 
-        while (( slab = slabinfo->bsi_freeq )) {
-            slabinfo->bsi_freeq = slab->bs_next;
-
+        list_for_each_entry_safe(slab, next, &slabinfo->bsi_freeq, bs_entry)
             bn_slab_free(slab);
-        }
 
         bn_slab_free(slabinfo->bsi_slab);
     }
@@ -758,14 +732,23 @@ bn_reset_impl(struct bonsai_root *tree)
 void
 bn_reset(struct bonsai_root *tree)
 {
-    assert(tree->br_magic == tree);
+    assert(tree->br_magic == (uint)(uintptr_t)tree);
 
     /* Wait for all rcu callbacks to complete.
      */
     while (rcu_dereference(tree->br_gc_readyq))
         rcu_barrier();
 
-    bn_summary(tree);
+#ifndef NDEBUG
+    static thread_local uint bn_summary_calls_tls;
+    char buf[384];
+
+    if ((tree->br_oomslab || bn_summary_calls_tls++ % 8 == 0) &&
+        bn_summary(tree, buf, sizeof(buf)) > 0) {
+
+        hse_log(HSE_NOTICE "%s: %s", __func__, buf);
+    }
+#endif
 
     bn_reset_impl(tree);
 
@@ -777,15 +760,22 @@ bn_reset(struct bonsai_root *tree)
     spin_lock_init(&tree->br_gc_lock);
     atomic_set(&tree->br_gc_rcugen_start, 1);
     atomic_set(&tree->br_gc_rcugen_done, 1);
+    INIT_LIST_HEAD(&tree->br_gc_holdq);
 
     for (int i = 0; i < NELEM(tree->br_slabinfov); ++i) {
         struct bonsai_slabinfo *slabinfo = tree->br_slabinfov + i;
+
+        spin_lock_init(&slabinfo->bsi_lock);
+        INIT_LIST_HEAD(&slabinfo->bsi_freeq);
 
         /* All slabinfo records must have a valid slab at all times.
          */
         slabinfo->bsi_slab0 = tree->br_slabbase + HSE_BT_SLABSZ * i;
         bn_slab_init(slabinfo->bsi_slab0, slabinfo, false);
     }
+
+    tree->br_rootslab = tree->br_slabinfov + NELEM(tree->br_slabinfov) - 2;
+    tree->br_oomslab = NULL;
 
     atomic_set_rel(&tree->br_bounds, 0);
 
@@ -825,8 +815,7 @@ bn_create(
     r->br_ior_cbarg = cbarg;
     r->br_slabbase = (r + 1);
     r->br_slabbase = PTR_ALIGN(r->br_slabbase, PAGE_SIZE);
-    r->br_rootslab = r->br_slabinfov + NELEM(r->br_slabinfov) - 1;
-    r->br_magic = r;
+    r->br_magic = (uint)(uintptr_t)r;
 
     bn_reset(r);
 
@@ -843,8 +832,8 @@ bn_destroy(struct bonsai_root *tree)
 
     bn_reset(tree);
 
-    assert(tree->br_magic == tree);
-    tree->br_magic = (void *)0xbadcafe3badcafe1;
+    assert(tree->br_magic == (uint)(uintptr_t)tree);
+    tree->br_magic = 0xbadcafe3;
 
     if (!tree->br_cheap)
         free(tree);

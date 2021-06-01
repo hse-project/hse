@@ -22,7 +22,7 @@ bn_single_left_rotate(
 
         left = bn_node_dup(tree, node->bn_left);
 
-        node->bn_left->bn_rcugen = atomic_read(&tree->br_gc_rcugen_start);
+        bn_node_rcufree(tree, node->bn_left);
     }
 
     node->bn_left = left->bn_right;
@@ -50,7 +50,7 @@ bn_single_right_rotate(
 
         right = bn_node_dup(tree, node->bn_right);
 
-        node->bn_right->bn_rcugen = atomic_read(&tree->br_gc_rcugen_start);
+        bn_node_rcufree(tree, node->bn_right);
     }
 
     node->bn_right = right->bn_left;
@@ -71,7 +71,7 @@ bn_double_left_rotate(struct bonsai_root *tree, struct bonsai_node *node)
 
     newleft = bn_single_right_rotate(tree, left, NULL);
 
-    node->bn_left->bn_rcugen = atomic_read(&tree->br_gc_rcugen_start);
+    bn_node_rcufree(tree, node->bn_left);
     node->bn_left = newleft;
 
     return bn_single_left_rotate(tree, node, newleft);
@@ -86,7 +86,7 @@ bn_double_right_rotate(struct bonsai_root *tree, struct bonsai_node *node)
 
     newright = bn_single_left_rotate(tree, right, NULL);
 
-    node->bn_right->bn_rcugen = atomic_read(&tree->br_gc_rcugen_start);
+    bn_node_rcufree(tree, node->bn_right);
     node->bn_right = newright;
 
     return bn_single_right_rotate(tree, node, newright);

@@ -155,7 +155,12 @@ components = {
                 'MALLOC_PERTURB_': '0',
             },
         },
-        'bonsai_tree_test': {},
+        'bonsai_tree_test': {
+            'cases': {
+                'cheap': ['-c'],
+                'malloc': ['-m'],
+            },
+         },
         'cheap_test': {
             'sources': [
                 files(
@@ -302,7 +307,7 @@ foreach c, tests : components
                     env: t_env,
                     is_parallel: t_is_parallel,
                     suite: t_suites,
-                    timeout: 90,
+                    timeout: 300,
                 )
             endforeach
         else
