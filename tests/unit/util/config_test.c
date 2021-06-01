@@ -3,8 +3,6 @@
  * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
  */
 
-#include <sys/time.h>
-
 #include <hse_ut/framework.h>
 
 #include <hse_util/slab.h>

@@ -8,6 +8,4 @@
 
 #include <hse_util/base.h>
 
-#include <assert.h>
-
 #endif

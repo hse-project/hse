@@ -6,8 +6,7 @@
 #ifndef HSE_PLATFORM_TIME_H
 #define HSE_PLATFORM_TIME_H
 
-#include <time.h>
-#include <sys/time.h>
+#include <hse_util/base.h>
 
 #define MSEC_PER_SEC (1000L)
 #define USEC_PER_SEC (1000000L)

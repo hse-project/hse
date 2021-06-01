@@ -21,9 +21,6 @@
 #include <mocks/mock_kvset.h>
 #include <mocks/mock_kvset_builder.h>
 
-#include <assert.h>
-#include <stdlib.h>
-
 /*
  * The functions with leading underscores are the mocked variants.
  *

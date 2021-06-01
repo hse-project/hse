@@ -6,8 +6,6 @@
 #ifndef HSE_PLATFORM_ERROR_COUNTER_H
 #define HSE_PLATFORM_ERROR_COUNTER_H
 
-#include "_config.h"
-
 #include <hse_util/arch.h>
 #include <hse_util/compiler.h>
 #include <hse_util/logging.h>

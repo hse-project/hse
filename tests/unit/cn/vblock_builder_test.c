@@ -24,9 +24,6 @@
 
 #include <mocks/mock_mpool.h>
 
-#include <assert.h>
-#include <stdlib.h>
-
 struct kvs_rparams kvsrp;
 int                salt;
 void *             workbuf;

@@ -17,9 +17,6 @@
 
 #include <mocks/mock_mpool.h>
 
-#include <assert.h>
-#include <stdlib.h>
-
 struct workqueue_struct *vbr_wq;
 
 int

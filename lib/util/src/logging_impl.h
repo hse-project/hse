@@ -14,9 +14,6 @@
 #include <hse_util/json.h>
 #include <hse_util/hse_err.h>
 
-#include <stdarg.h>
-#include <stdbool.h>
-
 #define HSE_LOGGING_VER "1"
 
 /**

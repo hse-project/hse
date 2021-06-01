@@ -112,34 +112,6 @@
  *
  */
 
-#include <stdalign.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <stdarg.h>
-#include <unistd.h>
-#include <signal.h>
-#include <string.h>
-#include <errno.h>
-#include <assert.h>
-#include <getopt.h>
-#include <ctype.h>
-#include <sysexits.h>
-#include <pthread.h>
-#include <math.h>
-#include <sys/types.h>
-#include <sys/param.h>
-#include <sys/file.h>
-#include <sys/time.h>
-#include <sys/mman.h>
-#include <sys/poll.h>
-#include <sys/stat.h>
-#include <sys/ioctl.h>
-#include <sys/resource.h>
-
-#include <bsd/string.h>
-#include <curses.h>
-#include <term.h>
-
 #include <hse/hse.h>
 #include <hse/hse_version.h>
 
@@ -149,8 +121,19 @@
 #include <xoroshiro/xoroshiro.h>
 #include <3rdparty/murmur3.h>
 
+#include <signal.h>
+#include <getopt.h>
+#include <sysexits.h>
+#include <math.h>
+#include <sys/poll.h>
+#include <sys/ioctl.h>
+#include <sys/resource.h>
+
+#include <bsd/string.h>
+#include <curses.h>
+#include <term.h>
+
 #define SCALEPOW2 (1ul << 32)
-#define NELEM(_v) (sizeof(_v) / sizeof((_v)[0]))
 
 /* Base table names.  Note that both the inodes and data table
  * have their index appended to the base name.

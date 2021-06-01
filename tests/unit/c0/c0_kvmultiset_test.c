@@ -23,10 +23,6 @@
 
 #include <c0/c0_ingest_work.h>
 
-#include <assert.h>
-#include <stdlib.h>
-#include <unistd.h>
-
 int
 test_collection_setup(struct mtf_test_info *info)
 {

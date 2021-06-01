@@ -3,10 +3,6 @@
  * Copyright (C) 2021 Micron Technology, Inc.  All rights reserved.
  */
 
-#include "_config.h"
-
-#include <stdalign.h>
-
 #include <hse_util/arch.h>
 #include <hse_util/alloc.h>
 #include <hse_util/slab.h>

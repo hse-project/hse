@@ -9,8 +9,6 @@
 #include <hse_util/atomic.h>
 #include <hse_util/mtx_pool.h>
 
-#include <pthread.h>
-
 static int
 mtx_pool_test_pre(struct mtf_test_info *ti)
 {

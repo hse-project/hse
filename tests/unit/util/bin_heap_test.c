@@ -3,20 +3,12 @@
  * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
  */
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <unistd.h>
-
 #include <hse_ut/framework.h>
 #include <hse_test_support/mock_api.h>
-#include <hse_util/xrand.h>
-
-#include <hse_util/platform.h>
 
 #include <hse_util/logging.h>
-
+#include <hse_util/xrand.h>
 #include <hse_util/bin_heap.h>
-
 #include <hse_util/element_source.h>
 
 #include "sample_element_source.h"

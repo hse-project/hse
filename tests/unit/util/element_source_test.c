@@ -3,10 +3,6 @@
  * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
  */
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <unistd.h>
-
 #include <hse_util/alloc.h>
 #include <hse_util/slab.h>
 

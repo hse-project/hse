@@ -67,9 +67,6 @@
 #include <hse_util/assert.h>
 #include <hse_util/compiler.h>
 
-#include <pthread.h>
-#include <assert.h>
-
 struct mutex {
     pthread_mutex_t pth_mutex;
 };

@@ -6,8 +6,8 @@
 #ifndef HSE_PLATFORM_PAGE_H
 #define HSE_PLATFORM_PAGE_H
 
-#include <unistd.h>
-#include <sys/mman.h>
+#include <hse_util/base.h>
+#include <hse_util/mman.h>
 
 #define PAGE_SHIFT 12
 #define PAGE_SIZE (1UL << PAGE_SHIFT)

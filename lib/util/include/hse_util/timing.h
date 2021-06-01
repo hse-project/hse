@@ -6,9 +6,6 @@
 #ifndef HSE_PLATFORM_TIMING_H
 #define HSE_PLATFORM_TIMING_H
 
-#include "_config.h"
-
-#include <hse_util/base.h>
 #include <hse_util/inttypes.h>
 #include <hse_util/assert.h>
 #include <hse_util/compiler.h>

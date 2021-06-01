@@ -6,8 +6,6 @@
 #ifndef HSE_UI_CLI_PARAM_H
 #define HSE_UI_CLI_PARAM_H
 
-#include <stdalign.h>
-
 #include <hse_util/hse_err.h>
 #include <hse_util/parser.h>
 

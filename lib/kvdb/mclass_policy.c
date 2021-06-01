@@ -3,10 +3,9 @@
  * Copyright (C) 2020 Micron Technology, Inc.  All rights reserved.
  */
 
-#include <stdlib.h>
-#include <hse_util/string.h>
 #include <hse_util/assert.h>
-#include <hse_util/base.h>
+#include <hse_util/string.h>
+
 #include <mpool/mpool.h>
 
 #include <hse_ikvdb/mclass_policy.h>

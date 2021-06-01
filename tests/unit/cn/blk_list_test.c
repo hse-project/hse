@@ -17,10 +17,6 @@
 
 #include <cn/blk_list.h>
 
-#include <assert.h>
-#include <stdlib.h>
-#include <string.h>
-
 struct mpool *ds = (struct mpool *)0xface;
 
 #define BLK_ID 0x1234

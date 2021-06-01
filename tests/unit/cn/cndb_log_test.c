@@ -22,9 +22,6 @@
 #include <mocks/mock_kvset.h>
 #include <mocks/mock_mpool.h>
 
-#include <assert.h>
-#include <stdlib.h>
-
 char data_path[PATH_MAX / 2];
 
 /*

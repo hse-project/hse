@@ -14,11 +14,8 @@
  * work in the kernel.
  */
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <pthread.h>
-#include <string.h>
+#include <hse_util/base.h>
+
 #include <hse_ut/common.h>
 
 #define MTEST_ALIGN 128

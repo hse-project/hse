@@ -23,9 +23,6 @@
 
 #include <mocks/mock_mpool.h>
 
-#include <assert.h>
-#include <stdlib.h>
-
 int
 test_collection_setup(struct mtf_test_info *info)
 {

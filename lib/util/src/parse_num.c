@@ -5,8 +5,6 @@
 
 #include <hse_util/parse_num.h>
 
-#include <stdlib.h>
-
 merr_t
 parse_s64_range(const char *str, char **caller_endptr, s64 min_accept, s64 max_accept, s64 *result)
 {

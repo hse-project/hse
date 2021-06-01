@@ -22,10 +22,6 @@
 
 #include <c0/c0_kvset_internal.h>
 
-#include <assert.h>
-#include <stdlib.h>
-#include <unistd.h>
-
 MTF_BEGIN_UTEST_COLLECTION(c0_kvset_iterator_test);
 
 MTF_DEFINE_UTEST(c0_kvset_iterator_test, basic_construction)

@@ -3,9 +3,6 @@
  * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
-#include <stdalign.h>
-#include <sys/sysinfo.h>
-
 #include <hse_util/arch.h>
 #include <hse_util/assert.h>
 #include <hse_util/alloc.h>

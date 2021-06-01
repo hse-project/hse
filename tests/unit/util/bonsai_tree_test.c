@@ -3,25 +3,21 @@
  * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
-#include "_config.h"
-
 #include <hse_util/compiler.h>
 #include <hse_util/string.h>
 #include <hse_util/alloc.h>
 #include <hse_util/hse_err.h>
 #include <hse_util/cursor_heap.h>
 #include <hse_util/atomic.h>
-#include <hse_ut/framework.h>
 #include <hse_util/logging.h>
-
-#include <hse_util/bonsai_tree.h>
-#include <hse_util/platform.h>
+#include <hse_util/xrand.h>
 #include <hse_util/keycmp.h>
 #include <hse_util/seqno.h>
+#include <hse_util/bonsai_tree.h>
 
 #include <util/src/bonsai_tree_pvt.h>
 
-#include <hse_util/xrand.h>
+#include <hse_ut/framework.h>
 
 #include <sysexits.h>
 

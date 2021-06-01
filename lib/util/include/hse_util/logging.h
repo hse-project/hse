@@ -13,7 +13,6 @@
 #include <hse_util/timing.h>
 
 #include <syslog.h>
-#include <stdarg.h>
 
 #define HSE_MARK "[HSE] "
 

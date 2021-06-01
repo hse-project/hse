@@ -28,9 +28,6 @@
 
 #include <mocks/mock_mpool.h>
 
-#include <assert.h>
-#include <stdlib.h>
-
 const struct kvs_rparams mocked_rp_default = {
     .cn_bloom_create = 1,
     .kblock_size_mb = 32,

@@ -6,8 +6,6 @@
 #ifndef HSE_PLATFORM_PERFC_H
 #define HSE_PLATFORM_PERFC_H
 
-#include "_config.h"
-
 #include <hse_util/arch.h>
 #include <hse_util/assert.h>
 #include <hse_util/atomic.h>

@@ -25,9 +25,6 @@
 #include <hse_util/logging.h>
 #include <hse_util/string.h>
 
-#include <unistd.h>
-#include <sys/types.h>
-
 static HSE_ALWAYS_INLINE u64
 kvdb_lat_startu(const u32 cidx)
 {

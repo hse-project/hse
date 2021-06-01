@@ -6,10 +6,7 @@
 #ifndef THREAD_TESTER_H
 #define THREAD_TESTER_H
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <pthread.h>
+#include <hse_util/base.h>
 
 #define MAX_THREADS 32
 

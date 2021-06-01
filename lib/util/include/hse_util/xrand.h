@@ -6,14 +6,10 @@
 #ifndef HSE_XRAND_H
 #define HSE_XRAND_H
 
-#include "_config.h"
-
 #include <hse_util/inttypes.h>
 #include <hse_util/compiler.h>
 
 #include <xoroshiro/xoroshiro.h>
-
-#include <pthread.h>
 
 struct xrand {
     u64 xr_state[2];

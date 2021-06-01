@@ -33,10 +33,6 @@
 #include <c0/c0sk_internal.h>
 #include <c0/c0_cursor.h>
 
-#include <assert.h>
-#include <stdlib.h>
-#include <unistd.h>
-
 static struct kvdb_health    mock_health;
 static struct cursor_summary summary;
 struct csched *              csched;

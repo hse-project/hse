@@ -6,7 +6,6 @@
 #ifndef HSE_PLATFORM_SEQNO_H
 #define HSE_PLATFORM_SEQNO_H
 
-#include <hse_util/bug.h>
 #include <hse_util/assert.h>
 #include <hse_util/inttypes.h>
 

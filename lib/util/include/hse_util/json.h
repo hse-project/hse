@@ -6,7 +6,7 @@
 #ifndef HSE_PLATFORM_JSON_H
 #define HSE_PLATFORM_JSON_H
 
-#include <hse_util/printbuf.h>
+#include <hse_util/inttypes.h>
 
 /**
  * Note that a string is considered valid JSON as long as special characters
