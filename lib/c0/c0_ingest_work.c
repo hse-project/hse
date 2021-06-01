@@ -3,10 +3,11 @@
  * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
  */
 
-#include "c0_ingest_work.h"
-
 #include <hse_util/platform.h>
+#include <hse_util/logging.h>
 #include <hse_util/bonsai_tree.h>
+
+#include "c0_ingest_work.h"
 
 merr_t
 c0_ingest_work_init(struct c0_ingest_work *c0iw)

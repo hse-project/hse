@@ -5,7 +5,8 @@
 
 #include <hse_util/platform.h>
 #include <hse_util/slab.h>
-
+#include <hse_util/page.h>
+#include <hse_util/minmax.h>
 #include <hse_util/mtx_pool.h>
 
 struct mtx_node {
@@ -48,7 +49,7 @@ mtx_pool_destroy(struct mtx_pool *pool)
 {
     int i;
 
-    if (ev(!pool))
+    if (!pool)
         return;
 
     for (i = 0; i < pool->sp_nodec; ++i) {

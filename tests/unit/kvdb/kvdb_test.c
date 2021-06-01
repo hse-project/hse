@@ -237,7 +237,7 @@ MTF_DEFINE_UTEST_PRE(kvdb_test, kvdb_cursor_test, general_pre)
      * c0, cn and cndb are mocked away, so these calls do nothing.
      */
 
-    MOCK_SET(arch, _hse_meminfo);
+    MOCK_SET(platform, _hse_meminfo);
 
     HSE_KVDB_OPSPEC_INIT(&os);
 
@@ -303,7 +303,7 @@ MTF_DEFINE_UTEST_PRE(kvdb_test, kvdb_cursor_test, general_pre)
 
     hse_params_destroy(params);
 
-    MOCK_UNSET(arch, _hse_meminfo);
+    MOCK_UNSET(platform, _hse_meminfo);
 }
 
 mpool_err_t

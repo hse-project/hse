@@ -3,10 +3,11 @@
  * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
  */
 
-#include <hse_util/inttypes.h>
 #include <hse_util/platform.h>
+#include <hse_util/inttypes.h>
 #include <hse_util/string.h>
 #include <hse_util/log2.h>
+#include <hse_util/logging.h>
 
 #include <mpool/mpool.h>
 

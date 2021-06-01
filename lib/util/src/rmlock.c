@@ -3,9 +3,9 @@
  * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
  */
 
-#include <stdalign.h>
-
 #include <hse_util/platform.h>
+#include <hse_util/alloc.h>
+#include <hse_util/minmax.h>
 #include <hse_util/rmlock.h>
 
 #define RMLOCK_MAX      (128)
@@ -31,7 +31,7 @@ rmlock_init(struct rmlock *lock)
 
     atomic_set(&lock->rm_writer, 0);
 
-    lock->rm_bktmax = min_t(u32, num_conf_cpus(), RMLOCK_MAX);
+    lock->rm_bktmax = min_t(u32, get_nprocs_conf(), RMLOCK_MAX);
     if (lock->rm_bktmax < 2)
         lock->rm_bktmax = RMLOCK_MAX;
 

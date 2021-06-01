@@ -3,16 +3,17 @@
  * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
  */
 
+#define MTF_MOCK_IMPL_cndb
+#define MTF_MOCK_IMPL_cndb_internal
+
 #include <hse_util/platform.h>
+#include <hse_util/alloc.h>
 #include <hse_util/slab.h>
 #include <hse_util/logging.h>
 #include <hse_util/minmax.h>
 #include <hse_util/string.h>
 #include <hse_util/log2.h>
 #include <hse_util/atomic.h>
-
-#define MTF_MOCK_IMPL_cndb
-#define MTF_MOCK_IMPL_cndb_internal
 
 #include <hse/hse.h>
 
@@ -26,8 +27,6 @@
 #include "cndb_omf.h"
 #include "cndb_internal.h"
 #include "kvset.h"
-
-#include <stdlib.h>
 
 /* PRIVATE */
 void

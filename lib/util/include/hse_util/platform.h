@@ -6,48 +6,64 @@
 #ifndef HSE_PLATFORM_PLATFORM_H
 #define HSE_PLATFORM_PLATFORM_H
 
-/* include this first */
 #include <hse_util/base.h>
-
-/* the rest in alphabetic order */
-#include <hse_util/alloc.h>
 #include <hse_util/arch.h>
-#include <hse_util/assert.h>
-#include <hse_util/atomic.h>
-#include <hse_util/barrier.h>
-#include <hse_util/bin_heap.h>
-#include <hse_util/byteorder.h>
-#include <hse_util/byteorder.h>
-#include <hse_util/compiler.h>
-#include <hse_util/condvar.h>
-#include <hse_util/cursor_heap.h>
-#include <hse_util/delay.h>
-#include <hse_util/delay.h>
 #include <hse_util/hse_err.h>
-#include <hse_util/inttypes.h>
-#include <hse_util/inttypes.h>
-#include <hse_util/keycmp.h>
-#include <hse_util/list.h>
-#include <hse_util/logging.h>
-#include <hse_util/minmax.h>
-#include <hse_util/mutex.h>
-#include <hse_util/page.h>
-#include <hse_util/parse_num.h>
-#include <hse_util/printbuf.h>
-#include <hse_util/rwsem.h>
-#include <hse_util/spinlock.h>
-#include <hse_util/time.h>
-#include <hse_util/timing.h>
-#include <hse_util/uuid.h>
-#include <hse_util/workqueue.h>
 
-/* For open/close/read/write */
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <fcntl.h>
-#include <sys/file.h>
+/* MTF_MOCK_DECL(platform) */
+
+/**
+ * hse_meminfo() - Get current system-wide memory usage
+ * @freep:    ptr to return bytes of free memory
+ * @availp:   ptr to return bytes of available memory
+ * @shift:    shift results by %shift bits
+ *
+ * %hse_meminfo() returns current free and available memory
+ * sizes obtained from /proc/meminfo in userland and si_meminfo()
+ * in the kernel.  The resulting sizes are in bytes, but the
+ * caller can supply a non-zero %shift argment to obtain results
+ * in different units (e.g., for MiB shift=20, for GiB shift=30).
+ *
+ * %freep and/or %availp may be NULL.
+ */
+/* MTF_MOCK */
+void
+hse_meminfo(unsigned long *freep, unsigned long *availp, unsigned int shift);
+
+struct hse_cputopo {
+    uint32_t core : 20;
+    uint32_t node : 12;
+};
+
+#define hse_cpu2core(_cpuid)    (hse_cputopov[(_cpuid)].core)
+#define hse_cpu2node(_cpuid)    (hse_cputopov[(_cpuid)].node)
+
+extern struct hse_cputopo *hse_cputopov;
+
+/**
+ * hse_getcpu() - get calling thread's current cpu, node, and core ID
+ * @cpu:   returns calling thread's virtual cpu ID
+ * @core:  returns calling thread's physical core ID
+ * @node:  returns calling thread's physical node ID
+ *
+ * Similar in function to Linux's getcpu() system call, but also returns
+ * the core ID.
+ */
+static HSE_ALWAYS_INLINE void
+hse_getcpu(uint *cpu, uint *node, uint *core)
+{
+    uint cpuid = raw_smp_processor_id();
+
+    *cpu = cpuid;
+    *node = hse_cpu2node(cpuid);
+    *core = hse_cpu2core(cpuid);
+}
 
 extern merr_t hse_platform_init(void);
 extern void hse_platform_fini(void);
+
+#if HSE_MOCKING
+#include "platform_ut.h"
+#endif
 
 #endif /* HSE_PLATFORM_PLATFORM_H */

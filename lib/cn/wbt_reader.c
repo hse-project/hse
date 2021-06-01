@@ -7,6 +7,8 @@
 #include <hse_util/alloc.h>
 #include <hse_util/slab.h>
 #include <hse_util/mman.h>
+#include <hse_util/atomic.h>
+#include <hse_util/event_counter.h>
 
 #include <hse/hse_limits.h>
 

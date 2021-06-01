@@ -3,13 +3,12 @@
  * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
-#include <stdalign.h>
-
 #include <hse_util/platform.h>
 #include <hse_util/event_counter.h>
 #include <hse_util/slab.h>
 #include <hse_util/log2.h>
 #include <hse_util/fmt.h>
+#include <hse_util/keycmp.h>
 #include <hse_util/compression_lz4.h>
 
 #include <hse_ikvdb/limits.h>
@@ -455,7 +454,7 @@ c0kvs_create(
     if (set)
         goto created;
 
-    cheap = cheap_create(sizeof(void *) * 2, HSE_C0_CHEAP_SZ_MAX);
+    cheap = cheap_create(_Alignof(max_align_t), HSE_C0_CHEAP_SZ_MAX);
     if (ev(!cheap))
         return merr(ENOMEM);
 

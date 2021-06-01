@@ -10,6 +10,7 @@
 
 #include <hse_util/alloc.h>
 #include <hse_util/slab.h>
+#include <hse_util/keycmp.h>
 
 #include <hse_ikvdb/limits.h>
 

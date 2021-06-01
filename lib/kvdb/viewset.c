@@ -5,9 +5,7 @@
 
 #include "_config.h"
 
-#include <stdalign.h>
-
-#include <hse_util/arch.h>
+#include <hse_util/platform.h>
 #include <hse_util/alloc.h>
 #include <hse_util/slab.h>
 #include <hse_util/minmax.h>
@@ -25,7 +23,6 @@
 
 #include <hse_ikvdb/limits.h>
 
-#include <syscall.h>
 #include <semaphore.h>
 
 #define viewlock_t              spinlock_t

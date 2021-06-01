@@ -4,17 +4,19 @@
  */
 
 #define MTF_MOCK_IMPL_kvset_builder
+
+#include <hse_util/platform.h>
+#include <hse_util/alloc.h>
+#include <hse_util/slab.h>
+#include <hse_util/event_counter.h>
+#include <hse_util/bonsai_tree.h>
+
 #include <hse_ikvdb/kvset_builder.h>
 #include <hse_ikvdb/key_hash.h>
 #include <hse_ikvdb/limits.h>
 #include <hse_ikvdb/cn.h>
 
 #include <hse/hse_limits.h>
-
-#include <hse_util/platform.h>
-#include <hse_util/event_counter.h>
-#include <hse_util/slab.h>
-#include <hse_util/bonsai_tree.h>
 
 #include "kcompact.h"
 #include "spill.h"

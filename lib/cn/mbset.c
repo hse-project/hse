@@ -5,6 +5,8 @@
 
 #include <hse_util/alloc.h>
 #include <hse_util/slab.h>
+#include <hse_util/minmax.h>
+#include <hse_util/event_counter.h>
 
 #define MTF_MOCK_IMPL_mbset
 

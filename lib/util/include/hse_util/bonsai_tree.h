@@ -12,6 +12,7 @@
 #define HSE_BONSAI_TREE_H
 
 #include <hse_util/arch.h>
+#include <hse_util/page.h>
 #include <hse_util/atomic.h>
 #include <hse_util/spinlock.h>
 #include <hse_util/key_util.h>

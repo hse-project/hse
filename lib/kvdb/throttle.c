@@ -3,14 +3,13 @@
  * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
-#include <stdalign.h>
-
 #include <hse_util/minmax.h>
 #include <hse_util/assert.h>
 #include <hse_util/inttypes.h>
 #include <hse_util/logging.h>
 #include <hse_util/delay.h>
 #include <hse_util/perfc.h>
+#include <hse_util/page.h>
 
 #include <hse_ikvdb/throttle.h>
 #include <hse_ikvdb/throttle_perfc.h>

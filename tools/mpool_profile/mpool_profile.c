@@ -3,10 +3,12 @@
  */
 
 #include <hse_util/platform.h>
+#include <hse_util/alloc.h>
+#include <hse_util/page.h>
+#include <hse_util/workqueue.h>
 
 #include <mpool/mpool.h>
 
-#include <stdio.h>
 #include <math.h>
 
 #define KiB (1024UL)

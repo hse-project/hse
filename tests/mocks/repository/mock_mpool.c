@@ -6,11 +6,13 @@
 #include "framework_external.h"
 
 #include <hse_ut/conditions.h>
+
 #include <hse_util/logging.h>
 #include <hse_util/event_counter.h>
 #include <hse_util/alloc.h>
 #include <hse_util/slab.h>
 #include <hse_util/page.h>
+#include <hse_util/minmax.h>
 
 #include <hse_ikvdb/limits.h>
 

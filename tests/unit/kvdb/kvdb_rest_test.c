@@ -187,7 +187,7 @@ test_pre(struct mtf_test_info *ti)
     ct_view_do_nothing = true;
 
     MOCK_SET(kvset_view, _kvset_get_metrics);
-    MOCK_SET(arch, _hse_meminfo);
+    MOCK_SET(platform, _hse_meminfo);
 
     /* Rest */
     rest_init();
@@ -227,7 +227,7 @@ test_post(struct mtf_test_info *ti)
 
     hse_params_destroy(params);
 
-    MOCK_UNSET(arch, _hse_meminfo);
+    MOCK_UNSET(platform, _hse_meminfo);
 
     return 0;
 }

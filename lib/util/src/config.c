@@ -9,6 +9,7 @@
 #include <hse_util/slab.h>
 #include <hse_util/string.h>
 #include <hse_util/logging.h>
+#include <hse_util/parse_num.h>
 #include <hse_util/data_tree.h>
 #include <hse_util/config.h>
 

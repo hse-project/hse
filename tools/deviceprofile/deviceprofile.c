@@ -10,6 +10,7 @@
 #endif
 
 #include <hse_util/alloc.h>
+#include <hse_util/page.h>
 #include <hse_util/inttypes.h>
 #include <hse_util/log2.h>
 #include <hse_util/timing.h>

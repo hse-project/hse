@@ -23,7 +23,7 @@ MTF_MODULE_UNDER_TEST(hse_platform);
 
 MTF_BEGIN_UTEST_COLLECTION_PREPOST(list, list_test_pre, list_test_post);
 
-MTF_DEFINE_UTEST(list, splice)
+MTF_DEFINE_UTEST(list, list_splice_test)
 {
     struct list_head  list1;
     struct list_head  list2;

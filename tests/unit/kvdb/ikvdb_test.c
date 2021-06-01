@@ -12,6 +12,7 @@
 #include <hse_test_support/random_buffer.h>
 
 #include <hse_util/hse_err.h>
+#include <hse_util/delay.h>
 
 #include <hse_ikvdb/kvs.h>
 #include <hse_ikvdb/ikvdb.h>
@@ -168,14 +169,14 @@ release_deferred(struct c0sk *c0sk)
 static int
 collection_pre(struct mtf_test_info *t1)
 {
-    MOCK_SET(arch, _hse_meminfo);
+    MOCK_SET(platform, _hse_meminfo);
     return 0;
 }
 
 static int
 collection_post(struct mtf_test_info *t1)
 {
-    MOCK_UNSET(arch, _hse_meminfo);
+    MOCK_UNSET(platform, _hse_meminfo);
     return 0;
 }
 

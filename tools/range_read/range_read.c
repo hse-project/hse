@@ -6,29 +6,18 @@
  * DB is the product of number of prefixes and suffixes.
  */
 
-#include <endian.h>
-#include <errno.h>
-#include <getopt.h>
-#include <libgen.h>
-#include <malloc.h>
-#include <pthread.h>
-#include <stdarg.h>
-#include <stdbool.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <sys/resource.h>
-#include <sys/stat.h>
-#include <sys/time.h>
-#include <sysexits.h>
-#include <unistd.h>
-
-#include <hse_util/arch.h>
+#include <hse_util/platform.h>
 #include <hse_util/atomic.h>
 #include <hse_util/compiler.h>
 #include <hse_util/inttypes.h>
 #include <hse_util/timing.h>
 #include <xoroshiro/xoroshiro.h>
+
+#include <endian.h>
+#include <getopt.h>
+#include <libgen.h>
+#include <sysexits.h>
+#include <sys/resource.h>
 
 #include "common.h"
 #include "kvs_helper.h"

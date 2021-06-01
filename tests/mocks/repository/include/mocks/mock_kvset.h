@@ -6,6 +6,8 @@
 #ifndef HSE_KVS_CN_TEST_MOCK_KVSET_H
 #define HSE_KVS_CN_TEST_MOCK_KVSET_H
 
+#include <hse_util/page.h>
+
 #include <arpa/inet.h> /* ntohl, htonl */
 
 #include <cn/kv_iterator.h>

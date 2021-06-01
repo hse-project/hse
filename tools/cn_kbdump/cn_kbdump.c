@@ -8,10 +8,12 @@
  */
 
 #include <hse_util/platform.h>
+#include <hse_util/page.h>
+#include <hse_util/minmax.h>
 #include <hse_util/table.h>
-
 #include <hse_util/string.h>
 #include <hse_util/fmt.h>
+#include <hse_util/event_counter.h>
 #include <hse_util/bloom_filter.h>
 
 #include <mpool/mpool.h>

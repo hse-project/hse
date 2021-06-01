@@ -5,6 +5,7 @@
 
 #include <hse_util/platform.h>
 #include <hse_util/hse_err.h>
+#include <hse_util/logging.h>
 
 #include <hse_ikvdb/c0sk_perfc.h>
 #include <hse_ikvdb/ikvdb.h>

@@ -4,6 +4,7 @@
  */
 
 #include <hse_util/platform.h>
+#include <hse_util/page.h>
 #include <hse_util/vlb.h>
 
 #include <hse_ut/framework.h>

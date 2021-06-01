@@ -8,6 +8,7 @@
 
 #include <hse_util/platform.h>
 #include <hse_util/slab.h>
+#include <hse_util/page.h>
 
 #include <mpool/mpool.h>
 

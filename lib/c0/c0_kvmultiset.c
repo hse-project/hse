@@ -5,8 +5,6 @@
 
 #define MTF_MOCK_IMPL_c0kvms
 
-#include <stdalign.h>
-
 #include <hse_util/platform.h>
 #include <hse_util/slab.h>
 #include <hse_util/condvar.h>
@@ -15,6 +13,7 @@
 #include <hse_util/rcu.h>
 #include <hse_util/seqno.h>
 #include <hse_util/xrand.h>
+#include <hse_util/keycmp.h>
 
 #include <hse_ikvdb/cn.h>
 #include <hse_ikvdb/c0_kvmultiset.h>

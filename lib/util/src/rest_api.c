@@ -7,10 +7,13 @@
 #include <hse_util/minmax.h>
 #include <hse_util/logging.h>
 #include <hse_util/hse_err.h>
+#include <hse_util/delay.h>
+#include <hse_util/workqueue.h>
 #include <hse_util/event_counter.h>
 
 #include <hse_util/rest_api.h>
 #include <hse_util/spinlock.h>
+#include <hse_util/mutex.h>
 #include <hse_util/string.h>
 #include <hse_util/version.h>
 #include <hse_util/table.h>

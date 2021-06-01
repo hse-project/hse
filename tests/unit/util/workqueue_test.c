@@ -3,13 +3,10 @@
  * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
  */
 
-#include <unistd.h>
-
 #include <hse_ut/framework.h>
 
 #include <hse_util/platform.h>
-
-#include <pthread.h>
+#include <hse_util/workqueue.h>
 
 int verbose = 0;
 

@@ -21,6 +21,7 @@
 
 #include <hse_ut/framework.h>
 #include <hse_util/slab.h>
+#include <hse_util/page.h>
 
 #include <kvdb/kvdb_kvs.h>
 

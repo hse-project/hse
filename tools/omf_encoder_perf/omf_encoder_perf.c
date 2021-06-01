@@ -6,6 +6,7 @@
 #include <hse_util/platform.h>
 #include <hse_util/slab.h>
 #include <hse_util/xrand.h>
+#include <hse_util/timing.h>
 
 #include <hse_ikvdb/omf_kmd.h>
 #include <hse_ikvdb/limits.h>
