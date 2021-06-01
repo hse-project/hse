@@ -21,9 +21,6 @@
 #include <hse_util/logging.h>
 #include <hse_util/string.h>
 
-#include <unistd.h>
-#include <sys/types.h>
-
 merr_t
 diag_kvdb_open(
     const char *         mpool_name,

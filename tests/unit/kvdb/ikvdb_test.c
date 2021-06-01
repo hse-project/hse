@@ -5,7 +5,6 @@
 
 #include <ftw.h>
 #include <dirent.h>
-#include <sys/sysinfo.h>
 
 #include <hse_ut/framework.h>
 #include <hse_test_support/mock_api.h>

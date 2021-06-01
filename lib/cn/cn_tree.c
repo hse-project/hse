@@ -11,8 +11,6 @@
 #define MTF_MOCK_IMPL_cn_tree_iter
 #define MTF_MOCK_IMPL_ct_view
 
-#include <stdalign.h>
-
 #include <hse_util/alloc.h>
 #include <hse_util/event_counter.h>
 #include <hse_util/page.h>

@@ -3,8 +3,6 @@
  * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
-#include <assert.h>
-
 #include <hse_ikvdb/c0sk.h>
 #include <hse_test_support/random_buffer.h>
 

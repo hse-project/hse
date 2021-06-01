@@ -28,8 +28,6 @@
 #include <hse_util/assert.h>
 #include <hse_util/logging.h>
 
-#include <pthread.h>
-
 struct rw_semaphore {
     pthread_rwlock_t rwsemlock;
 };

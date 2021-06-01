@@ -3,8 +3,6 @@
  * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
  */
 
-#include <string.h>
-
 #include <hse_util/page.h>
 #include <hse_util/cursor_heap.h>
 #include <hse_util/xrand.h>

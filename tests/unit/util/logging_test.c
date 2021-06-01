@@ -3,9 +3,6 @@
  * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
  */
 
-#include <stdio.h>
-#include <stdlib.h>
-
 #include <hse_util/logging.h>
 #include <hse_util/hse_err.h>
 #include <hse_util/slab.h>
@@ -16,7 +13,6 @@
 #include "../src/logging_impl.h"
 
 #include <mocks/mock_log.h>
-#include <stddef.h>
 
 #define MAX_NV_PAIRS 50
 #define MAX_NV_SIZE 100

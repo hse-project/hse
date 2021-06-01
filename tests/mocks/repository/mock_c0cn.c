@@ -23,8 +23,6 @@
 #include <kvdb/kvdb_log.h>
 #include <mocks/mock_kvset_builder.h>
 
-#include <stdlib.h>
-
 /* ------------------------------------------------------------
  * Mocked c0/cn
  *

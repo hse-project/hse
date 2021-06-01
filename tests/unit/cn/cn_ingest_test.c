@@ -25,10 +25,6 @@
 #include <cn/cn_mblocks.h>
 #include <cn/kvset.h>
 
-#include <assert.h>
-#include <stdlib.h>
-#include <string.h>
-
 static struct mpool *mock_ds = (void *)-1;
 
 static struct kvdb_health mock_health;

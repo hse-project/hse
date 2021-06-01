@@ -6,11 +6,9 @@
 #define MTF_MOCK_IMPL_ikvdb
 #define MTF_MOCK_IMPL_kvs
 
-#include "_config.h"
-
 #include <hse/hse.h>
 
-#include <hse_util/platform.h>
+#include <hse_util/hse_err.h>
 #include <hse_util/event_counter.h>
 #include <hse_util/string.h>
 #include <hse_util/page.h>

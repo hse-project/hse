@@ -3,9 +3,6 @@
  * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
  */
 
-#include "_config.h"
-
-#include <hse_util/platform.h>
 #include <hse_util/hse_err.h>
 #include <hse_util/event_counter.h>
 #include <hse_util/alloc.h>

@@ -23,8 +23,6 @@
 
 #include <mocks/mock_mpool.h>
 
-#include <stdlib.h>
-
 /*
  * Reference Tree API
  */

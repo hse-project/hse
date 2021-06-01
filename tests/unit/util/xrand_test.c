@@ -8,9 +8,6 @@
 
 #include <hse_ut/framework.h>
 
-#include <stdlib.h>
-#include <pthread.h>
-
 
 int compare_u64(const void *ptr_a, const void *ptr_b)
 {

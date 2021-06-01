@@ -9,7 +9,6 @@
 #include <hse_util/list.h>
 #include <hse_util/yaml.h>
 #include <hse_util/inttypes.h>
-#include <hse_util/bug.h>
 
 #include <rbtree/rbtree.h>
 

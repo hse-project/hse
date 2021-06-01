@@ -10,8 +10,6 @@
 
 #include <hse_ikvdb/kvdb_rparams.h>
 
-#include <stdbool.h>
-
 /* Opaque handles */
 struct kvdb;
 struct cndb;

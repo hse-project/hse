@@ -6,8 +6,7 @@
 #ifndef HSE_PLATFORM_SPINLOCK_H
 #define HSE_PLATFORM_SPINLOCK_H
 
-#include <pthread.h>
-#include <assert.h>
+#include <hse_util/assert.h>
 
 typedef struct {
     pthread_spinlock_t lock;

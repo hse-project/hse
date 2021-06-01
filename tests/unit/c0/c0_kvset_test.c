@@ -21,10 +21,6 @@
 #include <hse_ikvdb/c0_kvset.h>
 #include <hse_ikvdb/c0_kvset_iterator.h>
 
-#include <assert.h>
-#include <stdlib.h>
-#include <unistd.h>
-
 int
 test_collection_setup(struct mtf_test_info *info)
 {

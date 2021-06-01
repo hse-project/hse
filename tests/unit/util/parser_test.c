@@ -3,8 +3,6 @@
  * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
  */
 
-#include <errno.h>
-
 #include <hse_util/hse_err.h>
 #include <hse_util/parser.h>
 #include <hse_util/alloc.h>

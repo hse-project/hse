@@ -11,22 +11,18 @@
 #include <hse_util/perfc.h>
 #include <hse_util/timer.h>
 #include <hse_util/vlb.h>
-#include <hse_util/log2.h>
-#include <hse_util/hash.h>
 #include <hse_util/hse_log_fmt.h>
-
-#include <hse/hse_version.h>
-
 #include <hse_util/program_name.h>
 #include <hse_util/rest_api.h>
 #include <hse_util/slab.h>
+
+#include <hse/hse_version.h>
 
 #include "logging_impl.h"
 #include "logging_util.h"
 #include "rest_dt.h"
 
 #include <syscall.h>
-#include <sys/sysinfo.h>
 
 struct hse_cputopo *hse_cputopov HSE_READ_MOSTLY;
 uint hse_cputopoc HSE_READ_MOSTLY;

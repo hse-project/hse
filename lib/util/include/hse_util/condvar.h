@@ -20,8 +20,6 @@
 #include <hse_util/compiler.h>
 #include <hse_util/mutex.h>
 
-#include <pthread.h>
-
 struct cv {
     long           cv_waiters;
     pthread_cond_t cv_waitq;

@@ -3,11 +3,6 @@
  * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
  */
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <dirent.h>
-#include <sys/stat.h>
-
 #include <hse_ut/framework.h>
 #include <hse_test_support/mock_api.h>
 #include <mocks/mock_kvset_builder.h>
@@ -35,6 +30,8 @@
 #include <cn/omf.h>
 
 #include <yaml.h>
+
+#include <dirent.h>
 
 #define my_assert(condition)                                                        \
     do {                                                                            \

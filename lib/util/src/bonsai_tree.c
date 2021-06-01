@@ -3,8 +3,6 @@
  * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
-#include <stdalign.h>
-
 #include <hse_util/log2.h>
 #include <hse_util/logging.h>
 

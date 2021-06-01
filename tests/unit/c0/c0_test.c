@@ -24,10 +24,6 @@
 #include <tools/key_generation.h>
 #include <hse_test_support/random_buffer.h>
 
-#include <assert.h>
-#include <stdlib.h>
-#include <unistd.h>
-
 struct c0sk *ikvdb_get_c0sk_gv_c0sk = 0;
 
 void

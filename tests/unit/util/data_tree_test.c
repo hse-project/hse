@@ -3,12 +3,6 @@
  * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
  */
 
-#include <stdio.h>
-#include <stdint.h>
-#include <stdlib.h>
-#include <sys/time.h>
-#include <unistd.h>
-
 #include <hse_ut/framework.h>
 #include <hse_ut/common.h>
 

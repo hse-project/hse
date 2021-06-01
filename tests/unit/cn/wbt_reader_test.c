@@ -16,8 +16,6 @@
 
 #include <mocks/mock_mpool.h>
 
-#include <stdlib.h>
-
 char data_path[PATH_MAX];
 
 char *kblock_files[] = {

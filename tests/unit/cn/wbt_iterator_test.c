@@ -22,8 +22,6 @@
 
 #include <mocks/mock_mpool.h>
 
-#include <stdlib.h>
-
 char data_path[PATH_MAX / 2];
 
 struct test_kblock {

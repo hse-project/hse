@@ -23,8 +23,6 @@
 #include "kvdb_rest.h"
 #include "kvdb_kvs.h"
 
-#include <stdarg.h>
-
 /* yaml2fd():
  * Write each line to fd instead of building up yaml formatted data in a
  * buffer. yaml_buf needs to be large enough for one line of yaml

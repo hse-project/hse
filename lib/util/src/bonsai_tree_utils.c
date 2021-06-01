@@ -3,9 +3,6 @@
  * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
-#include <stdalign.h>
-
-#include <hse_util/event_counter.h>
 #include "bonsai_tree_pvt.h"
 
 static struct bonsai_slab *noslab = (void *)-1;

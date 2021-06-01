@@ -9,9 +9,6 @@
 #define MTF_MOCK_IMPL_cn_comp
 #define MTF_MOCK_IMPL_cn_internal
 
-#include <stdalign.h>
-
-#include <hse_util/platform.h>
 #include <hse_util/string.h>
 #include <hse_util/hse_err.h>
 #include <hse_util/event_counter.h>

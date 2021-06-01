@@ -3,11 +3,6 @@
  * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
  */
 
-#include "_config.h"
-
-#include <stdlib.h>
-#include <string.h>
-
 #include <hse_ut/framework.h>
 #include <hse_test_support/allocation.h>
 

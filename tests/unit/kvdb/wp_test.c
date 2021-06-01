@@ -3,11 +3,6 @@
  * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
  */
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <sys/types.h>
-#include <dirent.h>
-
 #include <hse_ut/framework.h>
 #include <hse_ut/common.h>
 
@@ -16,6 +11,8 @@
 
 #include <hse_ikvdb/wp.h>
 #include <hse_ikvdb/mclass_policy.h>
+
+#include <dirent.h>
 
 #define BUF_SZ 512
 
