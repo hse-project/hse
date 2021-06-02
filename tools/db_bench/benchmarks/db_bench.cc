@@ -2,24 +2,20 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file. See the AUTHORS file for names of contributors.
 
-#include <sys/types.h>
-
 #include <atomic>
 #include <cstdio>
 #include <cstdlib>
+#include <sys/time.h>
+#include <sys/types.h>
+#include <thread>
 
-#include "leveldb/cache.h"
-#include "leveldb/comparator.h"
-#include "leveldb/db.h"
-#include "leveldb/env.h"
-#include "leveldb/filter_policy.h"
-#include "leveldb/write_batch.h"
 #include "port/port.h"
-#include "util/crc32c.h"
 #include "util/histogram.h"
 #include "util/mutexlock.h"
 #include "util/random.h"
 #include "util/testutil.h"
+
+#include "hse_binding/hse_kvdb.h"
 
 // Comma-separated list of operations to run in the specified order
 //   Actual benchmarks:
@@ -38,7 +34,6 @@
 //      seekrandom    -- N random seeks
 //      seekordered   -- N ordered seeks
 //      open          -- cost of opening a DB
-//      crc32c        -- repeated crc32c of 4K of data
 //   Meta operations:
 //      compact     -- Compact the entire DB
 //      stats       -- Print DB stats
@@ -57,10 +52,7 @@ static const char* FLAGS_benchmarks =
     "readrandom,"
     "readseq,"
     "readreverse,"
-    "fill100K,"
-    "crc32c,"
-    "snappycomp,"
-    "snappyuncomp,";
+    "fill100K,";
 
 // Number of key/values to place in database
 static int FLAGS_num = 1000000;
@@ -81,32 +73,6 @@ static double FLAGS_compression_ratio = 0.5;
 // Print histogram of operation timings
 static bool FLAGS_histogram = false;
 
-// Count the number of string comparisons performed
-static bool FLAGS_comparisons = false;
-
-// Number of bytes to buffer in memtable before compacting
-// (initialized to default value by "main")
-static int FLAGS_write_buffer_size = 0;
-
-// Number of bytes written to each file.
-// (initialized to default value by "main")
-static int FLAGS_max_file_size = 0;
-
-// Approximate size of user data packed per block (before compression.
-// (initialized to default value by "main")
-static int FLAGS_block_size = 0;
-
-// Number of bytes to use as a cache of uncompressed data.
-// Negative means use default settings.
-static int FLAGS_cache_size = -1;
-
-// Maximum number of files to keep open at the same time (use default if == 0)
-static int FLAGS_open_files = 0;
-
-// Bloom filter bits per key.
-// Negative means use default settings.
-static int FLAGS_bloom_bits = -1;
-
 // Common key prefix length.
 static int FLAGS_key_prefix = 0;
 
@@ -115,43 +81,37 @@ static int FLAGS_key_prefix = 0;
 // benchmark will fail.
 static bool FLAGS_use_existing_db = false;
 
-// If true, reuse existing log/MANIFEST files when re-opening a database.
-static bool FLAGS_reuse_logs = false;
-
 // Use the db with the following name.
 static const char* FLAGS_db = nullptr;
+
+// HSE properties
+char mpool_name[32] = "mp1";
+char kvs_name[32] = "kvs1";
 
 namespace leveldb {
 
 namespace {
-leveldb::Env* g_env = nullptr;
-
-class CountComparator : public Comparator {
+// Functions copied from leveldb/util/env_posix.cc
+class LocalEnv {
  public:
-  CountComparator(const Comparator* wrapped) : wrapped_(wrapped) {}
-  ~CountComparator() override {}
-  int Compare(const Slice& a, const Slice& b) const override {
-    count_.fetch_add(1, std::memory_order_relaxed);
-    return wrapped_->Compare(a, b);
-  }
-  const char* Name() const override { return wrapped_->Name(); }
-  void FindShortestSeparator(std::string* start,
-                             const Slice& limit) const override {
-    wrapped_->FindShortestSeparator(start, limit);
+  uint64_t NowMicros() {
+    static constexpr uint64_t kUsecondsPerSecond = 1000000;
+    struct ::timeval tv;
+    ::gettimeofday(&tv, nullptr);
+    return static_cast<uint64_t>(tv.tv_sec) * kUsecondsPerSecond + tv.tv_usec;
   }
 
-  void FindShortSuccessor(std::string* key) const override {
-    return wrapped_->FindShortSuccessor(key);
+  void StartThread(void (*thread_main)(void* thread_main_arg),
+                   void* thread_main_arg) {
+    // copied from leveldb/util/env_posix.cc
+    std::thread new_thread(thread_main, thread_main_arg);
+    new_thread.detach();
   }
-
-  size_t comparisons() const { return count_.load(std::memory_order_relaxed); }
-
-  void reset() { count_.store(0, std::memory_order_relaxed); }
-
- private:
-  mutable std::atomic<size_t> count_{0};
-  const Comparator* const wrapped_;
 };
+}  // namespace
+
+namespace {
+LocalEnv* g_env = nullptr;
 
 // Helper for quickly generating random data.
 class RandomGenerator {
@@ -368,16 +328,12 @@ struct ThreadState {
 
 class Benchmark {
  private:
-  Cache* cache_;
-  const FilterPolicy* filter_policy_;
-  DB* db_;
+  HseKvdb* kvdb_;
+  HseKvs* kvs_;
   int num_;
   int value_size_;
   int entries_per_batch_;
-  WriteOptions write_options_;
   int reads_;
-  int heap_counter_;
-  CountComparator count_comparator_;
   int total_thread_count_;
 
   void PrintHeader() {
@@ -411,20 +367,11 @@ class Benchmark {
         stdout,
         "WARNING: Assertions are enabled; benchmarks unnecessarily slow\n");
 #endif
-
-    // See if snappy is working by attempting to compress a compressible string
-    const char text[] = "yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy";
-    std::string compressed;
-    if (!port::Snappy_Compress(text, sizeof(text), &compressed)) {
-      std::fprintf(stdout, "WARNING: Snappy compression is not enabled\n");
-    } else if (compressed.size() >= sizeof(text)) {
-      std::fprintf(stdout, "WARNING: Snappy compression is not effective\n");
-    }
   }
 
   void PrintEnvironment() {
-    std::fprintf(stderr, "LevelDB:    version %d.%d\n", kMajorVersion,
-                 kMinorVersion);
+    std::fprintf(stderr, "HSE:        version %s\n",
+                 kvdb_->VersionString().c_str());
 
 #if defined(__linux)
     time_t now = time(nullptr);
@@ -460,35 +407,21 @@ class Benchmark {
 
  public:
   Benchmark()
-      : cache_(FLAGS_cache_size >= 0 ? NewLRUCache(FLAGS_cache_size) : nullptr),
-        filter_policy_(FLAGS_bloom_bits >= 0
-                           ? NewBloomFilterPolicy(FLAGS_bloom_bits)
-                           : nullptr),
-        db_(nullptr),
+      : kvdb_(nullptr),
+        kvs_(nullptr),
         num_(FLAGS_num),
         value_size_(FLAGS_value_size),
         entries_per_batch_(1),
         reads_(FLAGS_reads < 0 ? FLAGS_num : FLAGS_reads),
-        heap_counter_(0),
-        count_comparator_(BytewiseComparator()),
         total_thread_count_(0) {
-    std::vector<std::string> files;
-    g_env->GetChildren(FLAGS_db, &files);
-    for (size_t i = 0; i < files.size(); i++) {
-      if (Slice(files[i]).starts_with("heap-")) {
-        g_env->RemoveFile(std::string(FLAGS_db) + "/" + files[i]);
-      }
-    }
     if (!FLAGS_use_existing_db) {
-      DestroyDB(FLAGS_db, Options());
+      Open();
+      ResetKvs();
+      Close();
     }
   }
 
-  ~Benchmark() {
-    delete db_;
-    delete cache_;
-    delete filter_policy_;
-  }
+  ~Benchmark() {}
 
   void Run() {
     PrintHeader();
@@ -511,7 +444,6 @@ class Benchmark {
       reads_ = (FLAGS_reads < 0 ? FLAGS_num : FLAGS_reads);
       value_size_ = FLAGS_value_size;
       entries_per_batch_ = 1;
-      write_options_ = WriteOptions();
 
       void (Benchmark::*method)(ThreadState*) = nullptr;
       bool fresh_db = false;
@@ -525,9 +457,7 @@ class Benchmark {
         fresh_db = true;
         method = &Benchmark::WriteSeq;
       } else if (name == Slice("fillbatch")) {
-        fresh_db = true;
-        entries_per_batch_ = 1000;
-        method = &Benchmark::WriteSeq;
+        std::fprintf(stderr, "batch interface not supported\n");
       } else if (name == Slice("fillrandom")) {
         fresh_db = true;
         method = &Benchmark::WriteRandom;
@@ -535,10 +465,7 @@ class Benchmark {
         fresh_db = false;
         method = &Benchmark::WriteRandom;
       } else if (name == Slice("fillsync")) {
-        fresh_db = true;
-        num_ /= 1000;
-        write_options_.sync = true;
-        method = &Benchmark::WriteRandom;
+        std::fprintf(stderr, "sync write interface not supported\n");
       } else if (name == Slice("fill100K")) {
         fresh_db = true;
         num_ /= 1000;
@@ -570,18 +497,10 @@ class Benchmark {
         method = &Benchmark::ReadWhileWriting;
       } else if (name == Slice("compact")) {
         method = &Benchmark::Compact;
-      } else if (name == Slice("crc32c")) {
-        method = &Benchmark::Crc32c;
-      } else if (name == Slice("snappycomp")) {
-        method = &Benchmark::SnappyCompress;
-      } else if (name == Slice("snappyuncomp")) {
-        method = &Benchmark::SnappyUncompress;
       } else if (name == Slice("heapprofile")) {
-        HeapProfile();
+        std::fprintf(stderr, "heap profiling not supported\n");
       } else if (name == Slice("stats")) {
-        PrintStats("leveldb.stats");
-      } else if (name == Slice("sstables")) {
-        PrintStats("leveldb.sstables");
+        std::fprintf(stderr, "stats not supported\n");
       } else {
         if (!name.empty()) {  // No error message for empty name
           std::fprintf(stderr, "unknown benchmark '%s'\n",
@@ -595,10 +514,7 @@ class Benchmark {
                        name.ToString().c_str());
           method = nullptr;
         } else {
-          delete db_;
-          db_ = nullptr;
-          DestroyDB(FLAGS_db, Options());
-          Open();
+          ResetKvs();
         }
       }
 
@@ -606,6 +522,8 @@ class Benchmark {
         RunBenchmark(num_threads, name, method);
       }
     }
+
+    Close();
   }
 
  private:
@@ -678,11 +596,6 @@ class Benchmark {
       arg[0].thread->stats.Merge(arg[i].thread->stats);
     }
     arg[0].thread->stats.Report(name);
-    if (FLAGS_comparisons) {
-      fprintf(stdout, "Comparisons: %zu\n", count_comparator_.comparisons());
-      count_comparator_.reset();
-      fflush(stdout);
-    }
 
     for (int i = 0; i < n; i++) {
       delete arg[i].thread;
@@ -690,97 +603,30 @@ class Benchmark {
     delete[] arg;
   }
 
-  void Crc32c(ThreadState* thread) {
-    // Checksum about 500MB of data total
-    const int size = 4096;
-    const char* label = "(4K per op)";
-    std::string data(size, 'x');
-    int64_t bytes = 0;
-    uint32_t crc = 0;
-    while (bytes < 500 * 1048576) {
-      crc = crc32c::Value(data.data(), size);
-      thread->stats.FinishedSingleOp();
-      bytes += size;
-    }
-    // Print so result is not dead
-    std::fprintf(stderr, "... crc=0x%x\r", static_cast<unsigned int>(crc));
-
-    thread->stats.AddBytes(bytes);
-    thread->stats.AddMessage(label);
-  }
-
-  void SnappyCompress(ThreadState* thread) {
-    RandomGenerator gen;
-    Slice input = gen.Generate(Options().block_size);
-    int64_t bytes = 0;
-    int64_t produced = 0;
-    bool ok = true;
-    std::string compressed;
-    while (ok && bytes < 1024 * 1048576) {  // Compress 1G
-      ok = port::Snappy_Compress(input.data(), input.size(), &compressed);
-      produced += compressed.size();
-      bytes += input.size();
-      thread->stats.FinishedSingleOp();
-    }
-
-    if (!ok) {
-      thread->stats.AddMessage("(snappy failure)");
-    } else {
-      char buf[100];
-      std::snprintf(buf, sizeof(buf), "(output: %.1f%%)",
-                    (produced * 100.0) / bytes);
-      thread->stats.AddMessage(buf);
-      thread->stats.AddBytes(bytes);
-    }
-  }
-
-  void SnappyUncompress(ThreadState* thread) {
-    RandomGenerator gen;
-    Slice input = gen.Generate(Options().block_size);
-    std::string compressed;
-    bool ok = port::Snappy_Compress(input.data(), input.size(), &compressed);
-    int64_t bytes = 0;
-    char* uncompressed = new char[input.size()];
-    while (ok && bytes < 1024 * 1048576) {  // Compress 1G
-      ok = port::Snappy_Uncompress(compressed.data(), compressed.size(),
-                                   uncompressed);
-      bytes += input.size();
-      thread->stats.FinishedSingleOp();
-    }
-    delete[] uncompressed;
-
-    if (!ok) {
-      thread->stats.AddMessage("(snappy failure)");
-    } else {
-      thread->stats.AddBytes(bytes);
-    }
-  }
-
   void Open() {
-    assert(db_ == nullptr);
-    Options options;
-    options.env = g_env;
-    options.create_if_missing = !FLAGS_use_existing_db;
-    options.block_cache = cache_;
-    options.write_buffer_size = FLAGS_write_buffer_size;
-    options.max_file_size = FLAGS_max_file_size;
-    options.block_size = FLAGS_block_size;
-    if (FLAGS_comparisons) {
-      options.comparator = &count_comparator_;
-    }
-    options.max_open_files = FLAGS_open_files;
-    options.filter_policy = filter_policy_;
-    options.reuse_logs = FLAGS_reuse_logs;
-    Status s = DB::Open(options, FLAGS_db, &db_);
+    assert(kvdb_ == nullptr);
+    assert(kvs_ == nullptr);
+
+    Status s = HseKvdb::Open(mpool_name, &kvdb_);
     if (!s.ok()) {
-      std::fprintf(stderr, "open error: %s\n", s.ToString().c_str());
+      std::fprintf(stderr, "open kvdb error: %s\n", s.ToString().c_str());
+      std::exit(1);
+    }
+
+    s = kvdb_->OpenKvs(kvs_name, &kvs_, value_size_);
+    if (!s.ok()) {
+      std::fprintf(stderr, "open kvs error: %s\n", s.ToString().c_str());
+      s = kvdb_->Close();
+      if (!s.ok()) {
+        std::fprintf(stderr, "close kvdb error: %s\n", s.ToString().c_str());
+      }
       std::exit(1);
     }
   }
 
   void OpenBench(ThreadState* thread) {
     for (int i = 0; i < num_; i++) {
-      delete db_;
+      Close();
       Open();
       thread->stats.FinishedSingleOp();
     }
@@ -798,20 +644,15 @@ class Benchmark {
     }
 
     RandomGenerator gen;
-    WriteBatch batch;
     Status s;
     int64_t bytes = 0;
     KeyBuffer key;
-    for (int i = 0; i < num_; i += entries_per_batch_) {
-      batch.Clear();
-      for (int j = 0; j < entries_per_batch_; j++) {
-        const int k = seq ? i + j : thread->rand.Uniform(FLAGS_num);
-        key.Set(k);
-        batch.Put(key.slice(), gen.Generate(value_size_));
-        bytes += value_size_ + key.slice().size();
-        thread->stats.FinishedSingleOp();
-      }
-      s = db_->Write(write_options_, &batch);
+    for (int i = 0; i < num_; i += 1) {
+      const int k = seq ? i : thread->rand.Uniform(FLAGS_num);
+      key.Set(k);
+      s = kvs_->Put(key.slice(), gen.Generate(value_size_));
+      bytes += value_size_ + key.slice().size();
+      thread->stats.FinishedSingleOp();
       if (!s.ok()) {
         std::fprintf(stderr, "put error: %s\n", s.ToString().c_str());
         std::exit(1);
@@ -820,41 +661,37 @@ class Benchmark {
     thread->stats.AddBytes(bytes);
   }
 
-  void ReadSequential(ThreadState* thread) {
-    Iterator* iter = db_->NewIterator(ReadOptions());
-    int i = 0;
-    int64_t bytes = 0;
-    for (iter->SeekToFirst(); i < reads_ && iter->Valid(); iter->Next()) {
-      bytes += iter->key().size() + iter->value().size();
-      thread->stats.FinishedSingleOp();
-      ++i;
-    }
-    delete iter;
-    thread->stats.AddBytes(bytes);
-  }
+  void ReadSequential(ThreadState* thread) { DoCursorScan(thread, false); }
 
-  void ReadReverse(ThreadState* thread) {
-    Iterator* iter = db_->NewIterator(ReadOptions());
+  void ReadReverse(ThreadState* thread) { DoCursorScan(thread, true); }
+
+  void DoCursorScan(ThreadState* thread, bool reverse) {
+    HseKvsCursor* cursor = kvs_->NewCursor(reverse);
     int i = 0;
     int64_t bytes = 0;
-    for (iter->SeekToLast(); i < reads_ && iter->Valid(); iter->Prev()) {
-      bytes += iter->key().size() + iter->value().size();
+
+    do {
+      cursor->Read();
+      if (!cursor->Valid()) {
+        break;
+      }
+      bytes += cursor->key().size() + cursor->value().size();
       thread->stats.FinishedSingleOp();
       ++i;
-    }
-    delete iter;
+    } while (i < reads_);
+
+    delete cursor;
     thread->stats.AddBytes(bytes);
   }
 
   void ReadRandom(ThreadState* thread) {
-    ReadOptions options;
     std::string value;
     int found = 0;
     KeyBuffer key;
     for (int i = 0; i < reads_; i++) {
       const int k = thread->rand.Uniform(FLAGS_num);
       key.Set(k);
-      if (db_->Get(options, key.slice(), &value).ok()) {
+      if (kvs_->Get(key.slice(), &value).ok()) {
         found++;
       }
       thread->stats.FinishedSingleOp();
@@ -865,63 +702,61 @@ class Benchmark {
   }
 
   void ReadMissing(ThreadState* thread) {
-    ReadOptions options;
     std::string value;
     KeyBuffer key;
     for (int i = 0; i < reads_; i++) {
       const int k = thread->rand.Uniform(FLAGS_num);
       key.Set(k);
       Slice s = Slice(key.slice().data(), key.slice().size() - 1);
-      db_->Get(options, s, &value);
+      kvs_->Get(s, &value);
       thread->stats.FinishedSingleOp();
     }
   }
 
   void ReadHot(ThreadState* thread) {
-    ReadOptions options;
     std::string value;
     const int range = (FLAGS_num + 99) / 100;
     KeyBuffer key;
     for (int i = 0; i < reads_; i++) {
       const int k = thread->rand.Uniform(range);
       key.Set(k);
-      db_->Get(options, key.slice(), &value);
+      kvs_->Get(key.slice(), &value);
       thread->stats.FinishedSingleOp();
     }
   }
 
   void SeekRandom(ThreadState* thread) {
-    ReadOptions options;
     int found = 0;
     KeyBuffer key;
+    HseKvsCursor* cursor = kvs_->NewCursor();
     for (int i = 0; i < reads_; i++) {
-      Iterator* iter = db_->NewIterator(options);
       const int k = thread->rand.Uniform(FLAGS_num);
       key.Set(k);
-      iter->Seek(key.slice());
-      if (iter->Valid() && iter->key() == key.slice()) found++;
-      delete iter;
+      cursor->Seek(key.slice());
+      cursor->Read();
+      if (cursor->Valid() && cursor->key() == key.slice()) found++;
       thread->stats.FinishedSingleOp();
     }
+    delete cursor;
     char msg[100];
     snprintf(msg, sizeof(msg), "(%d of %d found)", found, num_);
     thread->stats.AddMessage(msg);
   }
 
   void SeekOrdered(ThreadState* thread) {
-    ReadOptions options;
-    Iterator* iter = db_->NewIterator(options);
     int found = 0;
     int k = 0;
     KeyBuffer key;
+    HseKvsCursor* cursor = kvs_->NewCursor();
     for (int i = 0; i < reads_; i++) {
       k = (k + (thread->rand.Uniform(100))) % FLAGS_num;
       key.Set(k);
-      iter->Seek(key.slice());
-      if (iter->Valid() && iter->key() == key.slice()) found++;
+      cursor->Seek(key.slice());
+      cursor->Read();
+      if (cursor->Valid() && cursor->key() == key.slice()) found++;
       thread->stats.FinishedSingleOp();
     }
-    delete iter;
+    delete cursor;
     char msg[100];
     std::snprintf(msg, sizeof(msg), "(%d of %d found)", found, num_);
     thread->stats.AddMessage(msg);
@@ -929,18 +764,13 @@ class Benchmark {
 
   void DoDelete(ThreadState* thread, bool seq) {
     RandomGenerator gen;
-    WriteBatch batch;
     Status s;
     KeyBuffer key;
-    for (int i = 0; i < num_; i += entries_per_batch_) {
-      batch.Clear();
-      for (int j = 0; j < entries_per_batch_; j++) {
-        const int k = seq ? i + j : (thread->rand.Uniform(FLAGS_num));
-        key.Set(k);
-        batch.Delete(key.slice());
-        thread->stats.FinishedSingleOp();
-      }
-      s = db_->Write(write_options_, &batch);
+    for (int i = 0; i < num_; i += 1) {
+      const int k = seq ? i : (thread->rand.Uniform(FLAGS_num));
+      key.Set(k);
+      s = kvs_->Delete(key.slice());
+      thread->stats.FinishedSingleOp();
       if (!s.ok()) {
         std::fprintf(stderr, "del error: %s\n", s.ToString().c_str());
         std::exit(1);
@@ -970,8 +800,7 @@ class Benchmark {
 
         const int k = thread->rand.Uniform(FLAGS_num);
         key.Set(k);
-        Status s =
-            db_->Put(write_options_, key.slice(), gen.Generate(value_size_));
+        Status s = kvs_->Put(key.slice(), gen.Generate(value_size_));
         if (!s.ok()) {
           std::fprintf(stderr, "put error: %s\n", s.ToString().c_str());
           std::exit(1);
@@ -983,47 +812,57 @@ class Benchmark {
     }
   }
 
-  void Compact(ThreadState* thread) { db_->CompactRange(nullptr, nullptr); }
+  void Compact(ThreadState* thread) { kvdb_->Compact(); }
 
-  void PrintStats(const char* key) {
-    std::string stats;
-    if (!db_->GetProperty(key, &stats)) {
-      stats = "(failed)";
-    }
-    std::fprintf(stdout, "\n%s\n", stats.c_str());
-  }
+  void Close() {
+    bool should_exit = false;
+    Status s;
 
-  static void WriteToFile(void* arg, const char* buf, int n) {
-    reinterpret_cast<WritableFile*>(arg)->Append(Slice(buf, n));
-  }
-
-  void HeapProfile() {
-    char fname[100];
-    std::snprintf(fname, sizeof(fname), "%s/heap-%04d", FLAGS_db,
-                  ++heap_counter_);
-    WritableFile* file;
-    Status s = g_env->NewWritableFile(fname, &file);
+    s = kvs_->Close();
     if (!s.ok()) {
-      std::fprintf(stderr, "%s\n", s.ToString().c_str());
-      return;
+      std::fprintf(stderr, "close kvs error: %s\n", s.ToString().c_str());
+      should_exit = true;
     }
-    bool ok = port::GetHeapProfile(WriteToFile, file);
-    delete file;
-    if (!ok) {
-      std::fprintf(stderr, "heap profiling not supported\n");
-      g_env->RemoveFile(fname);
+
+    delete kvs_;
+    kvs_ = nullptr;
+
+    s = kvdb_->Close();
+    if (!s.ok()) {
+      std::fprintf(stderr, "close kvs error: %s\n", s.ToString().c_str());
+      should_exit = true;
     }
+
+    delete kvdb_;
+    kvdb_ = nullptr;
+
+    if (should_exit) {
+      std::exit(1);
+    }
+  }
+
+  void ResetKvs() {
+    if (kvs_ != nullptr) {
+      kvs_->Close();
+      delete kvs_;
+      kvs_ = nullptr;
+
+      kvdb_->DropKvs(kvs_name);
+      kvdb_->MakeKvs(kvs_name);
+      kvdb_->Close();
+      delete kvdb_;
+      kvdb_ = nullptr;
+    }
+
+    Open();
   }
 };
 
 }  // namespace leveldb
 
 int main(int argc, char** argv) {
-  FLAGS_write_buffer_size = leveldb::Options().write_buffer_size;
-  FLAGS_max_file_size = leveldb::Options().max_file_size;
-  FLAGS_block_size = leveldb::Options().block_size;
-  FLAGS_open_files = leveldb::Options().max_open_files;
-  std::string default_db_path;
+  leveldb::HseKvdb::InitLibrary();
+  leveldb::LocalEnv main_env;
 
   for (int i = 1; i < argc; i++) {
     double d;
@@ -1036,15 +875,9 @@ int main(int argc, char** argv) {
     } else if (sscanf(argv[i], "--histogram=%d%c", &n, &junk) == 1 &&
                (n == 0 || n == 1)) {
       FLAGS_histogram = n;
-    } else if (sscanf(argv[i], "--comparisons=%d%c", &n, &junk) == 1 &&
-               (n == 0 || n == 1)) {
-      FLAGS_comparisons = n;
     } else if (sscanf(argv[i], "--use_existing_db=%d%c", &n, &junk) == 1 &&
                (n == 0 || n == 1)) {
       FLAGS_use_existing_db = n;
-    } else if (sscanf(argv[i], "--reuse_logs=%d%c", &n, &junk) == 1 &&
-               (n == 0 || n == 1)) {
-      FLAGS_reuse_logs = n;
     } else if (sscanf(argv[i], "--num=%d%c", &n, &junk) == 1) {
       FLAGS_num = n;
     } else if (sscanf(argv[i], "--reads=%d%c", &n, &junk) == 1) {
@@ -1053,38 +886,40 @@ int main(int argc, char** argv) {
       FLAGS_threads = n;
     } else if (sscanf(argv[i], "--value_size=%d%c", &n, &junk) == 1) {
       FLAGS_value_size = n;
-    } else if (sscanf(argv[i], "--write_buffer_size=%d%c", &n, &junk) == 1) {
-      FLAGS_write_buffer_size = n;
-    } else if (sscanf(argv[i], "--max_file_size=%d%c", &n, &junk) == 1) {
-      FLAGS_max_file_size = n;
-    } else if (sscanf(argv[i], "--block_size=%d%c", &n, &junk) == 1) {
-      FLAGS_block_size = n;
     } else if (sscanf(argv[i], "--key_prefix=%d%c", &n, &junk) == 1) {
       FLAGS_key_prefix = n;
-    } else if (sscanf(argv[i], "--cache_size=%d%c", &n, &junk) == 1) {
-      FLAGS_cache_size = n;
-    } else if (sscanf(argv[i], "--bloom_bits=%d%c", &n, &junk) == 1) {
-      FLAGS_bloom_bits = n;
-    } else if (sscanf(argv[i], "--open_files=%d%c", &n, &junk) == 1) {
-      FLAGS_open_files = n;
     } else if (strncmp(argv[i], "--db=", 5) == 0) {
       FLAGS_db = argv[i] + 5;
+
+      char tmp[sizeof(mpool_name) + sizeof(kvs_name)];
+      strncpy(tmp, FLAGS_db, sizeof(tmp));
+
+      size_t path_len = strlen(tmp);
+      char* sep = strchr(tmp, '/');
+      size_t mp_name_len = sep == nullptr ? 0 : (sep - tmp);
+      size_t kvs_name_len = sep == nullptr ? 0 : (path_len - mp_name_len - 1);
+
+      if (mp_name_len == 0 || mp_name_len >= path_len - 1 ||
+          mp_name_len > sizeof(mpool_name) - 1 || kvs_name_len == 0 ||
+          kvs_name_len > sizeof(kvs_name) - 1) {
+        std::fprintf(stderr, "Invalid KVS path '%s'\n", FLAGS_db);
+        std::exit(1);
+      }
+
+      *sep = '\0';
+
+      strncpy(mpool_name, tmp, sizeof(mpool_name));
+      strncpy(kvs_name, sep + 1, sizeof(kvs_name));
     } else {
       std::fprintf(stderr, "Invalid flag '%s'\n", argv[i]);
       std::exit(1);
     }
   }
 
-  leveldb::g_env = leveldb::Env::Default();
-
-  // Choose a location for the test database if none given with --db=<path>
-  if (FLAGS_db == nullptr) {
-    leveldb::g_env->GetTestDirectory(&default_db_path);
-    default_db_path += "/dbbench";
-    FLAGS_db = default_db_path.c_str();
-  }
+  leveldb::g_env = &main_env;
 
   leveldb::Benchmark benchmark;
   benchmark.Run();
+  leveldb::HseKvdb::FiniLibrary();
   return 0;
 }

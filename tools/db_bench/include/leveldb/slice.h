@@ -20,7 +20,8 @@
 #include <cstring>
 #include <string>
 
-#include "leveldb/export.h"
+// leveldb/export.h is unavailable, so define this as nothing
+#define LEVELDB_EXPORT
 
 namespace leveldb {
 

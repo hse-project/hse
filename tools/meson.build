@@ -1,4 +1,5 @@
 subdir('3rdparty')
+subdir('db_bench')
 subdir('scripts')
 
 tools = {

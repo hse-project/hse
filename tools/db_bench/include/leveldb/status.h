@@ -16,8 +16,10 @@
 #include <algorithm>
 #include <string>
 
-#include "leveldb/export.h"
 #include "leveldb/slice.h"
+
+// leveldb/export.h is unavailable, so define this as nothing
+#define LEVELDB_EXPORT
 
 namespace leveldb {
 

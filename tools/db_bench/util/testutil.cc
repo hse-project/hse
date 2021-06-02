@@ -19,18 +19,6 @@ Slice RandomString(Random* rnd, int len, std::string* dst) {
   return Slice(*dst);
 }
 
-std::string RandomKey(Random* rnd, int len) {
-  // Make sure to generate a wide variety of characters so we
-  // test the boundary conditions for short-key optimizations.
-  static const char kTestChars[] = {'\0', '\1', 'a',    'b',    'c',
-                                    'd',  'e',  '\xfd', '\xfe', '\xff'};
-  std::string result;
-  for (int i = 0; i < len; i++) {
-    result += kTestChars[rnd->Uniform(sizeof(kTestChars))];
-  }
-  return result;
-}
-
 Slice CompressibleString(Random* rnd, double compressed_fraction, size_t len,
                          std::string* dst) {
   int raw = static_cast<int>(len * compressed_fraction);
