@@ -6,18 +6,6 @@
 #include <hse_ut/framework.h>
 #include <hse_ut/common.h>
 
-#if HSE_MOCKING
-#include <hse_test_support/allocation.h>
-#endif /* HSE_MOCKING */
-
-#include <hse_util/xrand.h>
-
-#include <hse_util/slab.h>
-#include <hse_util/inttypes.h>
-#include <hse_util/hse_err.h>
-#include <hse_util/logging.h>
-#include <hse_util/printbuf.h>
-
 #include <hse_util/data_tree.h>
 
 #include "multithreaded_tester.h"
@@ -47,22 +35,14 @@ MTF_DEFINE_UTEST(data_tree, tree_create_and_destroy)
     dt_destroy(tree);
 }
 
-#if HSE_MOCKING
-MTF_DEFINE_UTEST_PREPOST(
-    data_tree,
-    tree_alloc_error,
-    fail_nth_alloc_test_pre,
-    fail_nth_alloc_test_post)
+MTF_DEFINE_UTEST(data_tree, tree_alloc_error)
 {
     struct dt_tree *tree;
 
-    g_fail_nth_alloc_cnt = 0;
-    g_fail_nth_alloc_limit = 0;
-
+    mapi_inject_once_ptr(mapi_idx_malloc, 1, NULL);
     tree = dt_create("data");
     ASSERT_EQ(tree, NULL);
 }
-#endif /* HSE_MOCKING */
 
 struct test_element {
     int num;

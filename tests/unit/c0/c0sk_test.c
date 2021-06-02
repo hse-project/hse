@@ -4,12 +4,8 @@
  */
 
 #include <hse_ut/framework.h>
-#include <hse_test_support/allocation.h>
 
 #include <hse_util/logging.h>
-#include <hse_util/alloc.h>
-#include <hse_util/slab.h>
-#include <hse_util/page.h>
 #include <hse_util/seqno.h>
 
 #include <hse_ikvdb/limits.h>
@@ -52,7 +48,6 @@ int
 test_collection_setup(struct mtf_test_info *info)
 {
     hse_log_set_verbose(true);
-    fail_nth_alloc_test_pre(info);
     kvdb_rp = kvdb_rparams_defaults();
     csched_create(csched_policy_noop, NULL, &kvdb_rp, "mp_name", &mock_health, &csched);
     return 0;
@@ -136,9 +131,6 @@ test_collection_teardown(struct mtf_test_info *info)
 int
 no_fail_pre(struct mtf_test_info *info)
 {
-    g_fail_nth_alloc_cnt = 0;
-    g_fail_nth_alloc_limit = -1;
-
     mocks_set(info);
 
     kvdb_health_clear(&mock_health, KVDB_HEALTH_FLAG_NOMEM);
@@ -149,8 +141,6 @@ no_fail_pre(struct mtf_test_info *info)
 int
 no_fail_post(struct mtf_test_info *info)
 {
-    g_fail_nth_alloc_cnt = 0;
-    g_fail_nth_alloc_limit = -1;
     MOCK_UNSET(c0sk_internal, _c0sk_release_multiset);
 
     return 0;
@@ -160,9 +150,6 @@ int
 no_fail_ctxn_pre(struct mtf_test_info *info)
 {
     int i;
-
-    g_fail_nth_alloc_cnt = 0;
-    g_fail_nth_alloc_limit = -1;
 
     mocks_set(info);
 
@@ -690,13 +677,12 @@ MTF_DEFINE_UTEST_PREPOST(c0sk_test, open_test, no_fail_pre, no_fail_post)
     err = c0sk_close(mkvdb.ikdb_c0sk);
     ASSERT_EQ(0, err);
 
-    g_fail_nth_alloc_limit = 1;
-    g_fail_nth_alloc_cnt = 0;
-    mkvdb.ikdb_c0sk = 0;
+    mapi_inject_once_ptr(mapi_idx_malloc, 1, NULL);
+    mkvdb.ikdb_c0sk = NULL;
 
     err = c0sk_open(&kvdb_rp, 0, "mock_mp", &mock_health, csched, &seqno, &mkvdb.ikdb_c0sk);
     ASSERT_EQ(ENOMEM, merr_errno(err));
-    ASSERT_EQ((struct c0sk *)0, mkvdb.ikdb_c0sk);
+    ASSERT_EQ(NULL, mkvdb.ikdb_c0sk);
 
     destroy_mock_cn(mock_cn);
 }

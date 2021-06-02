@@ -19,15 +19,15 @@ union rc {
 };
 
 struct mocked_api {
-    u64      start1;
-    u64      stop1;
-    union rc rc1;
+    volatile u64 start1 HSE_ALIGNED(SMP_CACHE_BYTES * 2);
+    u64          stop1;
+    union rc     rc1;
 
-    u64      start2;
-    u64      stop2;
-    union rc rc2;
+    volatile u64 start2;
+    u64          stop2;
+    union rc     rc2;
 
-    HSE_ALIGNED(SMP_CACHE_BYTES) atomic64_t calls;
+    atomic64_t calls HSE_ALIGNED(SMP_CACHE_BYTES);
 };
 
 /*
@@ -66,6 +66,7 @@ mapi_init(void)
      * and coupling of the tested code with the testing code.
      */
     mock_ptrs[mapi_idx_calloc] = mock_ptrs[mapi_idx_malloc];
+    mock_ptrs[mapi_idx_aligned_alloc] = mock_ptrs[mapi_idx_malloc];
     mock_ptrs[mapi_idx_kmem_cache_alloc] = mock_ptrs[mapi_idx_malloc];
     mock_ptrs[mapi_idx_kmem_cache_zalloc] = mock_ptrs[mapi_idx_malloc];
 
@@ -142,7 +143,7 @@ mapi_inject_set(u32 api, u32 start1, u32 stop1, u64 rc1, u32 start2, u32 stop2, 
     m->start2 = start2;
     m->stop2 = stop2;
     m->rc2.i = rc2;
-    atomic64_set(&m->calls, 0);
+    atomic64_set_rel(&m->calls, 0);
 }
 
 void
@@ -160,7 +161,7 @@ mapi_inject_set_ptr(u32 api, u32 start1, u32 stop1, void *rc1, u32 start2, u32 s
     m->start2 = start2;
     m->stop2 = stop2;
     m->rc2.ptr = rc2;
-    atomic64_set(&m->calls, 0);
+    atomic64_set_rel(&m->calls, 0);
 }
 
 void
@@ -171,7 +172,7 @@ mapi_inject_unset(u32 api)
     if (valid_api(api)) {
         m = mock_ptrs[api];
         m->start1 = m->start2 = 0;
-        atomic64_set(&m->calls, 0);
+        atomic64_set_rel(&m->calls, 0);
     }
 }
 

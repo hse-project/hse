@@ -46,7 +46,7 @@ struct c0_kvmultiset {
  * @multiset:        Returned struct c0_kvset (on success)
  *
  * Passing HSE_C0KVS_ALLOC_MALLOC tells the implementation to use
- * kmalloc/malloc to allocate space to hold the key/value pairs, while
+ * malloc to allocate space to hold the key/value pairs, while
  * HSE_C0KVS_ALLOC_CURSOR causes the cursor heap allocator to be used.
  *
  * c0kvms is a reference counted object born with a reference count of 1.

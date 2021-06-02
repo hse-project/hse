@@ -108,7 +108,7 @@ match_strlcpy(char *dest, const substring_t *source, size_t size);
  * match_strdup(): - create a null-terminated copy of a substring_t
  * @substr: substring_t to be duplicated
  *
- * Using malloc/kmalloc, allocates a buffer, makes a null-terminated copy of
+ * Using malloc, allocates a buffer, makes a null-terminated copy of
  * the &substring_t in that buffer, and returns the buffer. Null is returned
  * in the event of an allocation failure.
  */

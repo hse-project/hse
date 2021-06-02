@@ -573,15 +573,6 @@ MTF_DEFINE_UTEST_PREPOST(ikvdb_test, ikvdb_kvs_destroy_test, test_pre, test_post
     hse_params_destroy(params);
 }
 
-MTF_DEFINE_UTEST(ikvdb_test, kvs_ds_get_test)
-{
-    struct mpool *ds;
-    struct ikvs * ikv = NULL;
-
-    ds = kvs_ds_get(ikv);
-    ASSERT_EQ(NULL, ds);
-}
-
 MTF_DEFINE_UTEST_PREPOST(ikvdb_test, txn_del_test, test_pre, test_post)
 {
     struct ikvdb *         h = NULL;

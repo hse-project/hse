@@ -490,7 +490,7 @@ dt_create(const char *name)
     if (strnlen(name, DT_PATH_ELEMENT_LEN) >= DT_PATH_ELEMENT_LEN)
         return NULL;
 
-    tree = alloc_aligned(sizeof(*tree), alignof(*tree));
+    tree = aligned_alloc(alignof(*tree), sizeof(*tree));
     if (ev(!tree))
         return NULL;
 
@@ -528,7 +528,7 @@ dt_destroy(struct dt_tree *tree)
     dt_unregister_tree(tree);
     dt_unlock(tree);
 
-    free_aligned(tree);
+    free(tree);
 }
 
 void

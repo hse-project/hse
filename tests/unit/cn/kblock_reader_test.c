@@ -4,11 +4,8 @@
  */
 
 #include <hse_ut/framework.h>
-#include <hse_test_support/allocation.h>
 
 #include <hse_util/logging.h>
-#include <hse_util/alloc.h>
-#include <hse_util/slab.h>
 #include <hse_util/page.h>
 #include <hse_util/bloom_filter.h>
 
@@ -27,7 +24,6 @@ int
 test_collection_setup(struct mtf_test_info *info)
 {
     hse_openlog("kblock_reader_test", 1);
-    fail_nth_alloc_test_pre(info);
     return 0;
 }
 
@@ -41,8 +37,6 @@ test_collection_teardown(struct mtf_test_info *info)
 int
 pre(struct mtf_test_info *info)
 {
-    g_fail_nth_alloc_cnt = 0;
-    g_fail_nth_alloc_limit = -1;
     mock_mpool_set();
     return 0;
 }
@@ -594,8 +588,7 @@ MTF_DEFINE_UTEST_PRE(kblock_reader_test, basic_kblock_error_test, pre)
     ASSERT_TRUE(blm_pages != 0);
     kbr_free_blm_pages(&blkdesc, BLOOM_LOOKUP_BUFFER, blm_pages);
 
-    g_fail_nth_alloc_cnt = 0;
-    g_fail_nth_alloc_limit = 0;
+    mapi_inject_once_ptr(mapi_idx_malloc, 1, NULL);
     blm_pages = NULL;
     err = kbr_read_blm_pages(&blkdesc, BLOOM_LOOKUP_BUFFER, &blm_desc, &blm_pages);
     ASSERT_EQ(merr_errno(err), ENOMEM);

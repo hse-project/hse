@@ -6,13 +6,9 @@
 #include <hse_ut/framework.h>
 
 #include <hse_util/logging.h>
-#include <hse_util/alloc.h>
-#include <hse_util/slab.h>
-#include <hse_util/page.h>
 #include <hse_util/bin_heap.h>
 #include <hse_util/keycmp.h>
 #include <hse_util/seqno.h>
-#include <hse_util/rcu.h>
 #include <hse_util/bonsai_tree.h>
 
 #include <hse_test_support/random_buffer.h>
@@ -26,8 +22,6 @@
 int
 test_collection_setup(struct mtf_test_info *info)
 {
-    fail_nth_alloc_test_pre(info);
-
     return 0;
 }
 
@@ -40,18 +34,12 @@ test_collection_teardown(struct mtf_test_info *info)
 int
 no_fail_pre(struct mtf_test_info *info)
 {
-    g_fail_nth_alloc_cnt = 0;
-    g_fail_nth_alloc_limit = -1;
-
     return 0;
 }
 
 int
 no_fail_post(struct mtf_test_info *info)
 {
-    g_fail_nth_alloc_cnt = 0;
-    g_fail_nth_alloc_limit = -1;
-
     return 0;
 }
 

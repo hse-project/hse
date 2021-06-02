@@ -165,7 +165,7 @@ kvs_open(
      * dt entries fails.
      */
 
-    ikvs->ikv_ds = ds;
+    ikvs->ikv_cnid = cnid;
     ikvs->ikv_mpool_name = strdup(mp_name);
     ikvs->ikv_kvs_name = strdup(kvs_name);
 
@@ -192,7 +192,7 @@ kvs_open(
     if (ev(err))
         goto err_exit;
 
-    err = c0_open(kvdb, &ikvs->ikv_rp, ikvs->ikv_cn, ikvs->ikv_ds, &ikvs->ikv_c0);
+    err = c0_open(kvdb, &ikvs->ikv_rp, ikvs->ikv_cn, ds, &ikvs->ikv_c0);
     if (ev(err))
         goto err_exit;
 
@@ -226,16 +226,16 @@ err_exit:
     return err;
 }
 
-struct mpool *
-kvs_ds_get(struct ikvs *ikvs)
-{
-    return ikvs ? ikvs->ikv_ds : NULL;
-}
-
 struct cn *
 kvs_cn(struct ikvs *ikvs)
 {
     return ikvs ? ikvs->ikv_cn : 0;
+}
+
+uint64_t
+kvs_cnid(const struct ikvs *ikvs)
+{
+    return ikvs->ikv_cnid;
 }
 
 /*
@@ -539,7 +539,7 @@ kvs_create(struct ikvs **ikvs_out, struct kvs_rparams *rp)
 
     *ikvs_out = NULL;
 
-    ikvs = alloc_aligned(sizeof(*ikvs), alignof(*ikvs));
+    ikvs = aligned_alloc(alignof(*ikvs), sizeof(*ikvs));
     if (ev(!ikvs))
         return merr(ENOMEM);
 
@@ -562,7 +562,7 @@ kvs_destroy(struct ikvs *kvs)
 
     free((void *)kvs->ikv_mpool_name);
     free((void *)kvs->ikv_kvs_name);
-    free_aligned(kvs);
+    free(kvs);
 }
 
 void

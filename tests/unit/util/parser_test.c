@@ -5,8 +5,6 @@
 
 #include <hse_util/hse_err.h>
 #include <hse_util/parser.h>
-#include <hse_util/alloc.h>
-#include <hse_util/slab.h>
 
 #include "../src/parser_internal.h"
 
@@ -452,11 +450,7 @@ MTF_DEFINE_UTEST(parser_test, match_token_test)
     ASSERT_EQ(s_val, 14);
 }
 
-MTF_DEFINE_UTEST_PREPOST(
-    parser_test,
-    match_number_test,
-    fail_nth_alloc_test_pre,
-    fail_nth_alloc_test_post)
+MTF_DEFINE_UTEST(parser_test, match_number_test)
 {
     int         rv;
     int         result;
@@ -476,27 +470,19 @@ MTF_DEFINE_UTEST_PREPOST(
     substr.from = source;
     substr.to = source + strlen(source);
 
-    g_fail_nth_alloc_cnt = 0;
-    g_fail_nth_free_cnt = 0;
-    g_fail_nth_alloc_limit = 0;
+    mapi_inject_once_ptr(mapi_idx_malloc, 1, NULL);
+    mapi_inject_once_ptr(mapi_idx_free, 1, NULL);
     rv = match_number(&substr, &result, 0);
     ASSERT_EQ(rv, -ENOMEM);
-    ASSERT_EQ(g_fail_nth_alloc_cnt, 1);
-    ASSERT_EQ(g_fail_nth_free_cnt, 0);
+    ASSERT_EQ(1, mapi_calls(mapi_idx_malloc));
+    ASSERT_EQ(0, mapi_calls(mapi_idx_free));
+    mapi_inject_clear();
 
-    g_fail_nth_alloc_cnt = 0;
-    g_fail_nth_free_cnt = 0;
-    g_fail_nth_alloc_limit = 1;
     rv = match_number(&substr, &result, 0);
     ASSERT_EQ(rv, 0);
     ASSERT_EQ(result, 42);
-    ASSERT_EQ(g_fail_nth_alloc_cnt, 1);
-    ASSERT_EQ(g_fail_nth_free_cnt, 1);
-
-    /* turn off allocation failures/tracking */
-    g_fail_nth_alloc_cnt = 0;
-    g_fail_nth_free_cnt = 0;
-    g_fail_nth_alloc_limit = -1;
+    ASSERT_EQ(1, mapi_calls(mapi_idx_malloc));
+    ASSERT_EQ(1, mapi_calls(mapi_idx_free));
 
     substr.from = pos_dec;
     substr.to = pos_dec + strlen(pos_dec);
@@ -540,10 +526,8 @@ MTF_DEFINE_UTEST_PREPOST(
     ASSERT_EQ(rv, 0);
     ASSERT_EQ(result, -161);
 
-    /* turn on allocation failures/tracking while checking error paths */
-    g_fail_nth_alloc_cnt = 0;
-    g_fail_nth_free_cnt = 0;
-    g_fail_nth_alloc_limit = 100;
+    /* Count subsequent calls to malloc/free */
+    mapi_inject_clear();
 
     substr.from = pos_hex;
     substr.to = pos_hex + strlen(pos_hex);
@@ -580,7 +564,10 @@ MTF_DEFINE_UTEST_PREPOST(
     rv = match_number(&substr, &result, 0);
     ASSERT_EQ(rv, -EINVAL);
 
-    ASSERT_EQ(g_fail_nth_alloc_cnt, g_fail_nth_free_cnt);
+    ASSERT_GE(mapi_calls(mapi_idx_malloc), 7);
+    ASSERT_EQ(mapi_calls(mapi_idx_malloc), mapi_calls(mapi_idx_free));
+
+    mapi_inject_clear();
 }
 
 MTF_DEFINE_UTEST(parser_test, match_int_octal_hex_test)
@@ -642,11 +629,7 @@ MTF_DEFINE_UTEST(parser_test, match_int_octal_hex_test)
     ASSERT_EQ(rv, -EINVAL);
 }
 
-MTF_DEFINE_UTEST_PREPOST(
-    parser_test,
-    match_copy_dup_test,
-    fail_nth_alloc_test_pre,
-    fail_nth_alloc_test_post)
+MTF_DEFINE_UTEST(parser_test, match_copy_dup_test)
 {
     int         rv;
     substring_t substr;
@@ -658,11 +641,6 @@ MTF_DEFINE_UTEST_PREPOST(
     source_len = strlen(source);
     substr.from = source;
     substr.to = source + source_len;
-
-    /* turn off allocation failures/tracking */
-    g_fail_nth_alloc_cnt = 0;
-    g_fail_nth_free_cnt = 0;
-    g_fail_nth_alloc_limit = -1;
 
     memset(buffer, 0, sizeof(buffer));
     rv = match_strlcpy(buffer, &substr, sizeof(buffer));
@@ -685,25 +663,17 @@ MTF_DEFINE_UTEST_PREPOST(
     ASSERT_EQ(buffer[0], 'h');
     ASSERT_EQ(buffer[1], 0);
 
-    /* turn on allocation failures/tracking while checking error paths */
-    g_fail_nth_alloc_cnt = 0;
-    g_fail_nth_free_cnt = 0;
-    g_fail_nth_alloc_limit = 0;
-
+    mapi_inject_once_ptr(mapi_idx_malloc, 1, NULL);
+    mapi_inject_once_ptr(mapi_idx_free, 1, NULL);
     p = match_strdup(&substr);
     ASSERT_EQ(p, NULL);
-
-    g_fail_nth_alloc_cnt = 0;
-    g_fail_nth_free_cnt = 0;
-    g_fail_nth_alloc_limit = 1;
 
     p = match_strdup(&substr);
     ASSERT_NE(p, NULL);
     ASSERT_EQ(strcmp(p, source), 0);
-    ASSERT_EQ(g_fail_nth_alloc_cnt, 1);
-    ASSERT_EQ(g_fail_nth_free_cnt, 0);
+    ASSERT_EQ(mapi_calls(mapi_idx_malloc), 2);
+    ASSERT_EQ(mapi_calls(mapi_idx_free), 0);
     free(p);
-    ASSERT_EQ(g_fail_nth_free_cnt, 1);
 }
 
 MTF_END_UTEST_COLLECTION(parser_test)

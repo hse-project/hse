@@ -5,7 +5,6 @@
 
 #include <hse_util/compiler.h>
 #include <hse_util/string.h>
-#include <hse_util/alloc.h>
 #include <hse_util/hse_err.h>
 #include <hse_util/cursor_heap.h>
 #include <hse_util/atomic.h>
@@ -273,10 +272,6 @@ test_collection_setup(struct mtf_test_info *info)
     struct mtf_test_coll_info *tci = info->ti_coll;
     int c;
 
-#if HSE_MOCKING
-    fail_nth_alloc_test_pre(info);
-#endif
-
     bonsai_xrand_init(0);
 
     BONSAI_RCU_REGISTER();
@@ -321,11 +316,6 @@ test_collection_teardown(struct mtf_test_info *info)
 int
 no_fail_pre(struct mtf_test_info *info)
 {
-#if HSE_MOCKING
-    g_fail_nth_alloc_cnt = 0;
-    g_fail_nth_alloc_limit = -1;
-#endif
-
     bonsai_xrand_init(0);
 
     return 0;
@@ -334,11 +324,6 @@ no_fail_pre(struct mtf_test_info *info)
 int
 no_fail_post(struct mtf_test_info *info)
 {
-#if HSE_MOCKING
-    g_fail_nth_alloc_cnt = 0;
-    g_fail_nth_alloc_limit = -1;
-#endif
-
     return 0;
 }
 

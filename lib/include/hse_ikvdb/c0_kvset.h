@@ -66,7 +66,7 @@ c0kvs_fini(void);
  * @handlep:    Returned struct c0_kvset (on success)
  *
  * Passing HSE_C0KVS_ALLOC_MALLOC tells the implementation to use
- * kmalloc/malloc to allocate space to hold the key/value pairs, while
+ * malloc to allocate space to hold the key/value pairs, while
  * HSE_C0KVS_ALLOC_CURSOR causes the cursor heap allocator to be used.
  *
  * Return: 0 on success, <0 otherwise
