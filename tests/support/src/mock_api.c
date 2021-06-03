@@ -18,13 +18,13 @@ union rc {
 };
 
 struct mocked_api {
-    volatile u64 start1 HSE_ALIGNED(SMP_CACHE_BYTES * 2);
-    u64          stop1;
-    union rc     rc1;
+    u64     start1 HSE_ALIGNED(SMP_CACHE_BYTES * 2);
+    u64     stop1;
+    union rc rc1;
 
-    volatile u64 start2;
-    u64          stop2;
-    union rc     rc2;
+    u64     start2;
+    u64     stop2;
+    union rc rc2;
 
     atomic64_t calls HSE_ALIGNED(SMP_CACHE_BYTES);
 };
@@ -90,10 +90,10 @@ valid_api(u32 api)
 }
 
 /* [HSE_REVISIT] The mapi_safe_* functions are no longer required.  In
- * the past test programs would include allocation.h in order to access
+ * the past, test programs would include allocation.h in order to access
  * the malloc/free mocking control variables, but that had the unfortunate
  * effect of mocking all malloc/free calls within the test program itself.
- * Those variables and their usage has been replaced by mapi_inject()
+ * Those variables and their usage have been replaced by mapi_inject()
  * and hence test programs no longer need to include allocation.h and
  * can now call malloc/free directly.
  */
