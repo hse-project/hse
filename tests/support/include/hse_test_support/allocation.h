@@ -6,9 +6,7 @@
 #ifndef HSE_UTEST_UTIL_ALLOCATION_H
 #define HSE_UTEST_UTIL_ALLOCATION_H
 
-#include <hse_util/inttypes.h>
-
-#include <hse_ut/common.h>
+#include <stddef.h>
 
 /* MTF_MOCK_DECL(allocation) */
 

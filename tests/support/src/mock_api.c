@@ -5,9 +5,8 @@
 
 #include <hse_ut/conditions.h>
 #include <hse_test_support/mock_api.h>
-#include <hse_test_support/allocation.h>
 
-#include <hse_util/platform.h>
+#include <hse_util/arch.h>
 #include <hse_util/inttypes.h>
 #include <hse_util/assert.h>
 #include <hse_util/atomic.h>
@@ -90,22 +89,34 @@ valid_api(u32 api)
     return api < max_mapi_idx;
 }
 
+/* [HSE_REVISIT] The mapi_safe_* functions are no longer required.  In
+ * the past test programs would include allocation.h in order to access
+ * the malloc/free mocking control variables, but that had the unfortunate
+ * effect of mocking all malloc/free calls within the test program itself.
+ * Those variables and their usage has been replaced by mapi_inject()
+ * and hence test programs no longer need to include allocation.h and
+ * can now call malloc/free directly.
+ */
+#ifdef TESTS_MOCKS_ALLOCATION_UT_H
+#error "Do not include hse_util/alloc.h nor hse_test_support/allocation.h"
+#endif
+
 void *
 mapi_safe_calloc(size_t nmemb, size_t size)
 {
-    return (mtfm_allocation_calloc_getreal())(nmemb, size);
+    return calloc(nmemb, size);
 }
 
 void *
 mapi_safe_malloc(size_t size)
 {
-    return (mtfm_allocation_malloc_getreal())(size);
+    return malloc(size);
 }
 
 void
 mapi_safe_free(void *mem)
 {
-    return (mtfm_allocation_free_getreal())(mem);
+    free(mem);
 }
 
 u64

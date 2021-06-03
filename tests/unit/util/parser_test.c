@@ -9,7 +9,6 @@
 #include "../src/parser_internal.h"
 
 #include <hse_ut/framework.h>
-#include <hse_test_support/allocation.h>
 
 MTF_MODULE_UNDER_TEST(hse_platform);
 

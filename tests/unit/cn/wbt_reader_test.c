@@ -4,10 +4,9 @@
  */
 
 #include <hse_ut/framework.h>
+
+#include <hse_util/inttypes.h>
 #include <hse_util/logging.h>
-#include <hse_util/alloc.h>
-#include <hse_util/slab.h>
-#include <hse_util/page.h>
 
 #include <cn/omf.h>
 #include <cn/wbt_reader.h>

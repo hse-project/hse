@@ -4,10 +4,9 @@
  */
 
 #include <hse_ut/framework.h>
-#include <hse_test_support/allocation.h>
 
-#include <hse_util/platform.h>
-#include <hse_util/slab.h>
+#include <hse_util/hse_err.h>
+#include <hse_util/inttypes.h>
 
 #include <hse_ikvdb/kvset_builder.h>
 #include <hse_ikvdb/kvs_rparams.h>

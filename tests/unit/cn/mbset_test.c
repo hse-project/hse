@@ -4,11 +4,10 @@
  */
 
 #include <hse_ut/framework.h>
-#include <hse_test_support/allocation.h>
 
-#include <hse_util/platform.h>
-#include <hse_util/slab.h>
-#include <hse_util/page.h>
+#include <hse_util/hse_err.h>
+#include <hse_util/inttypes.h>
+#include <hse_util/mman.h>
 
 #include <mpool/mpool.h>
 

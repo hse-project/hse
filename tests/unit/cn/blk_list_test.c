@@ -7,9 +7,7 @@
 #include <hse_ut/framework.h>
 #include <hse_test_support/mock_api.h>
 
-#include <hse_util/alloc.h>
-#include <hse_util/slab.h>
-#include <hse_util/perfc.h>
+#include <hse_util/inttypes.h>
 
 #include <hse_ikvdb/cn.h>
 #include <hse_ikvdb/kvset_builder.h>

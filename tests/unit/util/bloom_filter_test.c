@@ -5,12 +5,12 @@
 
 #include <hse_ut/framework.h>
 
-#include <hse_util/bloom_filter.h>
-#include <hse_util/bitmap.h>
 #include <hse_util/hse_err.h>
+#include <hse_util/inttypes.h>
 #include <hse_util/hash.h>
 #include <hse_util/page.h>
-#include <hse_util/alloc.h>
+#include <hse_util/bitmap.h>
+#include <hse_util/bloom_filter.h>
 
 MTF_BEGIN_UTEST_COLLECTION(bloom_filter_basic);
 
@@ -103,7 +103,7 @@ MTF_DEFINE_UTEST(bloom_filter_basic, BasicInsert)
         desc = bf_compute_bithash_est(prob);
 
         sz = ALIGN(n_elts * desc.bhd_bits_per_elt, PAGE_SIZE);
-        bits = alloc_aligned(sz, PAGE_SIZE);
+        bits = aligned_alloc(PAGE_SIZE, sz);
         memset(bits, 0, sz);
         ASSERT_NE(NULL, bits);
 
@@ -134,7 +134,7 @@ MTF_DEFINE_UTEST(bloom_filter_basic, BasicInsert)
 
         ASSERT_LE(fpc, (prob * n_elts) / 1000000);
 
-        free_aligned(bits);
+        free(bits);
     }
 }
 

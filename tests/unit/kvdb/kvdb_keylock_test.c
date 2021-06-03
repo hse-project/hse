@@ -6,20 +6,15 @@
 #include <hse_ut/framework.h>
 #include <hse_test_support/mock_api.h>
 
-#include <hse_util/platform.h>
 #include <hse_util/hse_err.h>
-#include <hse_util/alloc.h>
-#include <hse_util/slab.h>
+#include <hse_util/atomic.h>
 #include <hse_util/keylock.h>
-#include <hse_util/rcu.h>
 
 #include <hse_ikvdb/limits.h>
 #include <hse_ikvdb/tuple.h>
 #include <hse_ikvdb/kvdb_ctxn.h>
 
 #include <kvdb/kvdb_keylock.h>
-
-#include <pthread.h>
 
 #define MOCK_SET(group, func) mtfm_##group##func##_set(func)
 
@@ -403,7 +398,6 @@ parallel_ctxn_helper(void *arg)
     }
 
     kvdb_keylock_expire(klock_handle, view_seqno);
-    rcu_barrier();
 
     return 0;
 }
