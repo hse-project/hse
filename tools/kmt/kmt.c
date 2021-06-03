@@ -331,9 +331,7 @@ struct suftab suftab_time_t = { "smhdwyc",
                                     60 * 60 * 24 * 365 * 100ul,
                                 } };
 
-sig_atomic_t sigusr2;
-sig_atomic_t sigalrm;
-sig_atomic_t sigint;
+sig_atomic_t sigusr1, sigusr2, sigalrm, sigint;
 
 enum km_op {
     OP_NULL = 0,
@@ -1210,6 +1208,12 @@ RETSIGTYPE
 sigalrm_isr(int sig)
 {
     ++sigalrm;
+}
+
+RETSIGTYPE
+sigusr1_isr(int sig)
+{
+    ++sigusr1;
 }
 
 RETSIGTYPE
@@ -2434,7 +2438,7 @@ hse_err_t
 km_open_ds(struct km_impl *impl)
 {
     struct mpool *ds = NULL;
-    hse_err_t        err;
+    mpool_err_t err;
 
     if (impl->ds)
         return 0;
@@ -2444,9 +2448,9 @@ km_open_ds(struct km_impl *impl)
         return EINVAL;
     }
 
-    err = merr_to_hse_err(mpool_open(impl->mpname, O_RDWR, &ds, NULL));
+    err = mpool_open(impl->mpname, O_RDWR, &ds, NULL);
     if (err)
-        return err;
+        return merr_to_hse_err(err);
 
     impl->ds = ds;
 
@@ -2456,6 +2460,7 @@ km_open_ds(struct km_impl *impl)
 hse_err_t
 km_close_ds(struct km_impl *impl)
 {
+    mpool_err_t err;
     void *ds;
 
     if (stayopen)
@@ -2464,7 +2469,11 @@ km_close_ds(struct km_impl *impl)
     ds = impl->ds;
     impl->ds = NULL;
 
-    return merr_to_hse_err(mpool_close(ds));
+    err = mpool_close(ds);
+    if (err)
+        return merr_to_hse_err(err);
+
+    return 0;
 }
 
 hse_err_t
@@ -3541,32 +3550,41 @@ print_latency(struct km_impl *impl, const char *mode)
 void *
 periodic_sync(void *arg)
 {
-    uint64_t       before_total_us;
-    uint64_t       after_total_us;
-    uint64_t       diff_total_us;
-    hse_err_t      err;
-
+    struct timespec timeout = {
+        .tv_sec = (sync_timeout_ms * 1000000) / 1000000,
+        .tv_nsec = (sync_timeout_ms * 1000000) % 1000000
+    };
     struct km_impl *impl = arg;
+    sigset_t sigmask;
+    hse_err_t err;
+    uint64_t ns;
+    int rc;
 
-    while (true) {
-        before_total_us = get_time_ns() / 1000;
+    /* spawn() will send this thread a SIGUSR1 which will knock
+     * it out of ppoll() (if necessary) and then cause it to exit.
+     */
+    pthread_sigmask(SIG_BLOCK, NULL, &sigmask);
+    sigdelset(&sigmask, SIGUSR1);
+
+    while (!sigusr1) {
+        rc = ppoll(NULL, 0, &timeout, &sigmask);
+        if (rc)
+            continue;
+
+        ns = get_time_ns();
         err = hse_kvdb_sync(impl->kvdb);
-        after_total_us = get_time_ns() / 1000;
+        ns = get_time_ns() - ns;
 
         if (err) {
             char errbuf[128];
 
             hse_err_to_string(err, errbuf, sizeof(errbuf), NULL);
             eprint("%s: failed to sync kvdb: %s\n", __func__, errbuf);
-        } else {
-            diff_total_us = after_total_us - before_total_us;
-
-            atomic64_inc(&impl->km_sync_latency.km_sync_iterations);
-            atomic64_add(diff_total_us, &impl->km_sync_latency.km_total_sync_latency_us);
+            continue;
         }
 
-        /* Because usleep is a cancellation point, pthread_cancel will end the thread */
-        usleep(sync_timeout_ms * 1000);
+        atomic64_inc(&impl->km_sync_latency.km_sync_iterations);
+        atomic64_add(ns / 1000, &impl->km_sync_latency.km_total_sync_latency_us);
     }
 
     pthread_exit(NULL);
@@ -3582,11 +3600,11 @@ spawn(struct km_impl *impl, void (*run)(struct km_inst *), uint runmax, time_t m
     struct timespec  timeout;
     sig_atomic_t     osigusr2;
     struct pollfd    fds;
-    hse_err_t           err;
+    char errbuf[128];
+    hse_err_t err;
 
 #ifndef XKMT
     pthread_t        sync_thread;
-    char             errbuf[128];
 #endif
 
     sigset_t sigmask_block;
@@ -3628,7 +3646,8 @@ spawn(struct km_impl *impl, void (*run)(struct km_inst *), uint runmax, time_t m
 
     err = km_open(impl);
     if (err) {
-        eprint("%s: km_open failed: %lx\n", __func__, err);
+        hse_err_to_string(err, errbuf, sizeof(errbuf), NULL);
+        eprint("%s: km_open failed: %s\n", __func__, errbuf);
         exit(EX_NOINPUT);
     }
 
@@ -3775,12 +3794,7 @@ spawn(struct km_impl *impl, void (*run)(struct km_inst *), uint runmax, time_t m
 
 #ifndef XKMT
     if (testmode && sync_enabled) {
-        rc = pthread_cancel(sync_thread);
-        if (rc) {
-            eprint("%s: pthread_cancel failed for sync thread: %s\n",
-                   __func__, strerror_r(rc, errbuf, sizeof(errbuf)));
-            ++nerrs;
-        }
+        pthread_kill(sync_thread, SIGUSR1);
         pthread_join(sync_thread, NULL);
     }
 #endif
@@ -4758,6 +4772,7 @@ main(int argc, char **argv)
     km_lor.range = impl->recmax - km_lor.span + 1;
 
     signal_reliable(SIGALRM, sigalrm_isr);
+    signal_reliable(SIGUSR1, sigusr1_isr);
     signal_reliable(SIGINT, sigint_isr);
     signal_reliable(SIGHUP, SIG_IGN);
 
