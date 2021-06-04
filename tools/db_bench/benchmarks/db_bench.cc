@@ -891,12 +891,9 @@ int main(int argc, char** argv) {
     } else if (strncmp(argv[i], "--db=", 5) == 0) {
       FLAGS_db = argv[i] + 5;
 
-      char tmp[sizeof(mpool_name) + sizeof(kvs_name)];
-      strncpy(tmp, FLAGS_db, sizeof(tmp));
-
-      size_t path_len = strlen(tmp);
-      char* sep = strchr(tmp, '/');
-      size_t mp_name_len = sep == nullptr ? 0 : (sep - tmp);
+      size_t path_len = strlen(FLAGS_db);
+      const char* sep = strchr(FLAGS_db, '/');
+      size_t mp_name_len = sep == nullptr ? 0 : (sep - FLAGS_db);
       size_t kvs_name_len = sep == nullptr ? 0 : (path_len - mp_name_len - 1);
 
       if (mp_name_len == 0 || mp_name_len >= path_len - 1 ||
@@ -906,10 +903,8 @@ int main(int argc, char** argv) {
         std::exit(1);
       }
 
-      *sep = '\0';
-
-      strncpy(mpool_name, tmp, sizeof(mpool_name));
-      strncpy(kvs_name, sep + 1, sizeof(kvs_name));
+      strncpy(mpool_name, FLAGS_db, mp_name_len);
+      strncpy(kvs_name, sep + 1, kvs_name_len);
     } else {
       std::fprintf(stderr, "Invalid flag '%s'\n", argv[i]);
       std::exit(1);
