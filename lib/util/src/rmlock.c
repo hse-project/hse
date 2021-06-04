@@ -37,7 +37,7 @@ rmlock_init(struct rmlock *lock)
 
     sz = sizeof(*lock->rm_bktv) * RMLOCK_MAX;
 
-    lock->rm_bktv = alloc_aligned(sz, alignof(*lock->rm_bktv));
+    lock->rm_bktv = aligned_alloc(alignof(*lock->rm_bktv), sz);
     if (!lock->rm_bktv)
         return merr(ENOMEM);
 
@@ -68,7 +68,7 @@ void
 rmlock_destroy(struct rmlock *lock)
 {
     if (lock)
-        free_aligned(lock->rm_bktv);
+        free(lock->rm_bktv);
 }
 
 void

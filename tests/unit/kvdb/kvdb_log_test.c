@@ -4,10 +4,8 @@
  */
 
 #include <hse_ut/framework.h>
+
 #include <hse_util/logging.h>
-#include <hse_util/alloc.h>
-#include <hse_util/slab.h>
-#include <hse_util/page.h>
 
 #include <hse/hse.h>
 

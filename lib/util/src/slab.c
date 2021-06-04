@@ -857,7 +857,7 @@ kmem_cache_create(const char *name, size_t size, size_t align, ulong flags, void
     if (iasz > slab_sz / 2)
         return NULL;
 
-    zone = alloc_aligned(sizeof(*zone), alignof(*zone));
+    zone = aligned_alloc(alignof(*zone), sizeof(*zone));
     if (ev(!zone))
         return NULL;
 
@@ -967,7 +967,7 @@ kmem_cache_destroy(struct kmem_cache *zone)
     }
 
     zone->zone_magic = (void *)0xdeadbeef;
-    free_aligned(zone);
+    free(zone);
 }
 
 unsigned int

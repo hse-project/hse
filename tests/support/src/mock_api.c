@@ -5,9 +5,8 @@
 
 #include <hse_ut/conditions.h>
 #include <hse_test_support/mock_api.h>
-#include <hse_test_support/allocation.h>
 
-#include <hse_util/platform.h>
+#include <hse_util/arch.h>
 #include <hse_util/inttypes.h>
 #include <hse_util/assert.h>
 #include <hse_util/atomic.h>
@@ -19,15 +18,15 @@ union rc {
 };
 
 struct mocked_api {
-    u64      start1;
-    u64      stop1;
+    u64     start1 HSE_ALIGNED(SMP_CACHE_BYTES * 2);
+    u64     stop1;
     union rc rc1;
 
-    u64      start2;
-    u64      stop2;
+    u64     start2;
+    u64     stop2;
     union rc rc2;
 
-    HSE_ALIGNED(SMP_CACHE_BYTES) atomic64_t calls;
+    atomic64_t calls HSE_ALIGNED(SMP_CACHE_BYTES);
 };
 
 /*
@@ -66,6 +65,7 @@ mapi_init(void)
      * and coupling of the tested code with the testing code.
      */
     mock_ptrs[mapi_idx_calloc] = mock_ptrs[mapi_idx_malloc];
+    mock_ptrs[mapi_idx_aligned_alloc] = mock_ptrs[mapi_idx_malloc];
     mock_ptrs[mapi_idx_kmem_cache_alloc] = mock_ptrs[mapi_idx_malloc];
     mock_ptrs[mapi_idx_kmem_cache_zalloc] = mock_ptrs[mapi_idx_malloc];
 
@@ -89,22 +89,34 @@ valid_api(u32 api)
     return api < max_mapi_idx;
 }
 
+/* [HSE_REVISIT] The mapi_safe_* functions are no longer required.  In
+ * the past, test programs would include allocation.h in order to access
+ * the malloc/free mocking control variables, but that had the unfortunate
+ * effect of mocking all malloc/free calls within the test program itself.
+ * Those variables and their usage have been replaced by mapi_inject()
+ * and hence test programs no longer need to include allocation.h and
+ * can now call malloc/free directly.
+ */
+#ifdef TESTS_MOCKS_ALLOCATION_UT_H
+#error "Do not include hse_util/alloc.h nor hse_test_support/allocation.h"
+#endif
+
 void *
 mapi_safe_calloc(size_t nmemb, size_t size)
 {
-    return (mtfm_allocation_calloc_getreal())(nmemb, size);
+    return calloc(nmemb, size);
 }
 
 void *
 mapi_safe_malloc(size_t size)
 {
-    return (mtfm_allocation_malloc_getreal())(size);
+    return malloc(size);
 }
 
 void
 mapi_safe_free(void *mem)
 {
-    return (mtfm_allocation_free_getreal())(mem);
+    free(mem);
 }
 
 u64
@@ -142,7 +154,7 @@ mapi_inject_set(u32 api, u32 start1, u32 stop1, u64 rc1, u32 start2, u32 stop2, 
     m->start2 = start2;
     m->stop2 = stop2;
     m->rc2.i = rc2;
-    atomic64_set(&m->calls, 0);
+    atomic64_set_rel(&m->calls, 0);
 }
 
 void
@@ -160,7 +172,7 @@ mapi_inject_set_ptr(u32 api, u32 start1, u32 stop1, void *rc1, u32 start2, u32 s
     m->start2 = start2;
     m->stop2 = stop2;
     m->rc2.ptr = rc2;
-    atomic64_set(&m->calls, 0);
+    atomic64_set_rel(&m->calls, 0);
 }
 
 void
@@ -171,7 +183,7 @@ mapi_inject_unset(u32 api)
     if (valid_api(api)) {
         m = mock_ptrs[api];
         m->start1 = m->start2 = 0;
-        atomic64_set(&m->calls, 0);
+        atomic64_set_rel(&m->calls, 0);
     }
 }
 

@@ -4,13 +4,9 @@
  */
 
 #include <hse_ut/framework.h>
-#include <hse_test_support/allocation.h>
 
 #include <hse_util/logging.h>
-#include <hse_util/alloc.h>
-#include <hse_util/slab.h>
 #include <hse_util/page.h>
-#include <hse_util/workqueue.h>
 
 #include <cn/vblock_reader.h>
 #include <cn/omf.h>
@@ -23,7 +19,6 @@ int
 test_collection_setup(struct mtf_test_info *info)
 {
     hse_openlog("vblock_reader_test", 1);
-    fail_nth_alloc_test_pre(info);
     return 0;
 }
 
@@ -37,8 +32,6 @@ test_collection_teardown(struct mtf_test_info *info)
 int
 pre(struct mtf_test_info *info)
 {
-    g_fail_nth_alloc_cnt = 0;
-    g_fail_nth_alloc_limit = -1;
     mock_mpool_set();
     return 0;
 }

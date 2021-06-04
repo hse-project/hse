@@ -56,12 +56,12 @@ struct hse_kvs_cursor {
 };
 
 struct ikvs {
-    uint64_t         ikv_gen;
+    uint64_t         ikv_gen HSE_ALIGNED(SMP_CACHE_BYTES * 2);
+    uint64_t         ikv_cnid;
     uint             ikv_sfx_len;
     uint             ikv_pfx_len;
     struct c0 *      ikv_c0;
     struct cn *      ikv_cn;
-    struct mpool *   ikv_ds;
     struct perfc_set ikv_pkvsl_pc; /* Public kvs interfaces Lat. */
     struct perfc_set ikv_cc_pc;
     struct perfc_set ikv_cd_pc;
@@ -71,7 +71,6 @@ struct ikvs {
     const char *ikv_kvs_name;
     const char *ikv_mpool_name;
 };
-
 
 /* kvs interfaces...
  */
@@ -93,11 +92,11 @@ kvs_close(struct ikvs *ikvs);
 struct cn *
 kvs_cn(struct ikvs *ikvs);
 
+uint64_t
+kvs_cnid(const struct ikvs *ikvs);
+
 bool
 kvs_txn_is_enabled(struct ikvs *kvs);
-
-struct mpool *
-kvs_ds_get(struct ikvs *ikvs);
 
 void kvs_perfc_init(void) HSE_COLD;
 void kvs_perfc_fini(void) HSE_COLD;

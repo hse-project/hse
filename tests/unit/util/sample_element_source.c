@@ -5,9 +5,10 @@
 
 #include "sample_element_source.h"
 
-#include <hse_util/alloc.h>
+#include <hse_util/hse_err.h>
+#include <hse_util/inttypes.h>
 #include <hse_util/assert.h>
-#include <hse_util/slab.h>
+
 #include <hse_test_support/random_buffer.h>
 
 struct sample_es {

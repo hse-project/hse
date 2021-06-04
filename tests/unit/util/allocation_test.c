@@ -6,7 +6,7 @@
 #include <hse_ut/framework.h>
 #include <hse_test_support/allocation.h>
 
-#include <hse_util/alloc.h>
+#include <hse_util/inttypes.h>
 #include <hse_util/slab.h>
 #include <hse_util/timing.h>
 #include <hse_util/minmax.h>

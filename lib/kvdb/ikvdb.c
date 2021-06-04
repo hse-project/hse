@@ -567,7 +567,7 @@ ikvdb_diag_open(
     /* [HSE_REVISIT] consider factoring out this code into ikvdb_cmn_open
      * and calling that from here and ikvdb_open.
      */
-    self = alloc_aligned(sizeof(*self), alignof(*self));
+    self = aligned_alloc(alignof(*self), sizeof(*self));
     if (ev(!self))
         return merr(ENOMEM);
 
@@ -641,7 +641,7 @@ err_exit1:
 
 err_exit0:
     ikvdb_txn_fini(self);
-    free_aligned(self);
+    free(self);
     *handle = NULL;
 
     return err;
@@ -675,12 +675,13 @@ ikvdb_diag_close(struct ikvdb *handle)
     kvdb_keylock_destroy(self->ikdb_keylock);
     mutex_destroy(&self->ikdb_lock);
 
-    free_aligned(self);
+    free(self);
 
     return ret;
 }
 
-/** ikvdb_rest_register() - install rest handlers for KVSes and the kvs list
+/**
+ * ikvdb_rest_register() - install rest handlers for KVSes and the kvs list
  * @self:       self
  * @handle:     ikvdb handle
  */
@@ -706,7 +707,8 @@ ikvdb_rest_register(struct ikvdb_impl *self, struct ikvdb *handle)
         hse_elog(HSE_WARNING "%s REST registration failed: @@e", err, self->ikdb_mpname);
 }
 
-/** ikvdb_maint_start() - start maintenance work queue
+/**
+ * ikvdb_maint_start() - start maintenance work queue
  * @self:       self
  */
 static merr_t
@@ -744,7 +746,7 @@ kvdb_kvs_create(void)
 {
     struct kvdb_kvs *kvs;
 
-    kvs = alloc_aligned(sizeof(*kvs), alignof(*kvs));
+    kvs = aligned_alloc(alignof(*kvs), sizeof(*kvs));
     if (kvs) {
         memset(kvs, 0, sizeof(*kvs));
         kvs->kk_vcompmin = UINT_MAX;
@@ -760,11 +762,12 @@ kvdb_kvs_destroy(struct kvdb_kvs *kvs)
     if (kvs) {
         assert(atomic_read(&kvs->kk_refcnt) == 0);
         memset(kvs, -1, sizeof(*kvs));
-        free_aligned(kvs);
+        free(kvs);
     }
 }
 
-/** ikvdb_cndb_open() - instantiate multi-kvs metadata
+/**
+ * ikvdb_cndb_open() - instantiate multi-kvs metadata
  * @self:       self
  * @seqno:      sequence number (output)
  * @ingestid:   ingest id (output)
@@ -821,7 +824,8 @@ err_exit:
     return err;
 }
 
-/** ikvdb_low_mem_adjust() - configure for constrained memory environment
+/**
+ * ikvdb_low_mem_adjust() - configure for constrained memory environment
  * @self:       self
  */
 static void
@@ -888,7 +892,7 @@ ikvdb_open(
     int                 i;
     u64                 ingestid;
 
-    self = alloc_aligned(sizeof(*self), alignof(*self));
+    self = aligned_alloc(alignof(*self), sizeof(*self));
     if (ev(!self)) {
         err = merr(ENOMEM);
         hse_elog(HSE_ERR "cannot open %s: @@e", err, mp_name);
@@ -1079,7 +1083,7 @@ err2:
     ikvdb_txn_fini(self);
     mutex_destroy(&self->ikdb_lock);
     hse_params_free(self->ikdb_profile);
-    free_aligned(self);
+    free(self);
     *handle = NULL;
 
     return err;
@@ -1629,7 +1633,7 @@ ikvdb_close(struct ikvdb *handle)
 
     hse_params_free(self->ikdb_profile);
 
-    free_aligned(self);
+    free(self);
 
     return ret;
 }
@@ -2762,10 +2766,11 @@ ikvdb_fini(void)
 #define KVDB_EXPORT_FSIZE_MAX 0x100000000LL /* 4GB */
 
 /**
- * ikvdb_kvs_import: import k-v pairs from file
- *                   for each k-v pair, we import keylen, vlen, key and
- *                   value from the file
+ * ikvdb_kvs_import() - import k-v pairs from file
  * @work:
+ *
+ * For each k-v pair, we import keylen, vlen, key and
+ * value from the file.
  */
 static void
 ikvdb_kvs_import(struct work_struct *work)
@@ -2864,20 +2869,21 @@ ikvdb_kvs_import(struct work_struct *work)
     bak->bak_err = err;
 }
 
-/**
+/*
+ * KVDB_DUMP_VER1
  * KVDB_DUMP_CUR_VER - dump version understood by this binary
- * @KVDB_DUMP_VER1:
  */
 #define KVDB_DUMP_VER1 1
 #define KVDB_DUMP_CUR_VER KVDB_DUMP_VER1
 
 /**
  * ikvdb_import_toc() - import kvdb/kvs meta data from TOC file
- *                     TOC is in JSON format
  * @path: where the dump files are
  * @kvdb_cparams: kvdb create time parameters
  * @kvscnt: number of kvs in this kvdb
  * @kvsi: import meta data into kvsi structs
+ *
+ * TOC is in JSON format.
  *
  * An example of a TOC file in JSON format
  * {
@@ -3218,10 +3224,11 @@ errout:
 }
 
 /**
- * ikvdb_kvs_export(): worker function for exporting a kvs into
- *                     one or multiple data files, each data file
- *                     has a 4GB size limit
- * @work
+ * ikvdb_kvs_export() - export a kvs into one or more files
+ * @work:
+ *
+ * Worker function for exporting a kvs into one or multiple data files,
+ * each data file has a 4GB size limit.
  */
 static void
 ikvdb_kvs_export(struct work_struct *work)

@@ -4,10 +4,8 @@
  */
 
 #include <hse_ut/framework.h>
-#include <hse_test_support/allocation.h>
 #include <hse_test_support/mock_api.h>
 
-#include <hse_util/slab.h>
 #include <hse_util/hse_err.h>
 #include <hse_util/log2.h>
 
@@ -59,7 +57,6 @@ test_pre(struct mtf_test_info *ti)
 
     mock_mpool_set();
 
-    fail_flag_alloc_test_pre(ti);
     mapi_inject(mapi_idx_mpool_mdc_alloc, 0);
     mapi_inject(mapi_idx_mpool_mdc_commit, 0);
     mapi_inject(mapi_idx_mpool_mdc_delete, 0);
@@ -82,7 +79,6 @@ test_post(struct mtf_test_info *ti)
     mapi_inject_unset(mapi_idx_mpool_mdc_open);
     mapi_inject_unset(mapi_idx_mpool_mdc_close);
     mapi_inject_unset(mapi_idx_mpool_mdc_append);
-    fail_flag_alloc_test_post(ti);
 
     return 0;
 }
@@ -460,10 +456,8 @@ MTF_DEFINE_UTEST_PREPOST(cndb_test, cndb_cnv_add_test, test_pre, test_post)
 
     cndb.cndb_kvdb_health = &mock_health;
 
-    g_fail_flag = 1;
-
+    mapi_inject_once_ptr(mapi_idx_malloc, 1, NULL);
     err = cndb_cnv_add(&cndb, 0, &cp, 3, "", 0, NULL);
-    g_fail_flag = 0;
     ASSERT_EQ(ENOMEM, merr_errno(err));
     ASSERT_EQ(0, cndb.cndb_cnc);
 
@@ -651,10 +645,9 @@ MTF_DEFINE_UTEST_PREPOST(cndb_test, cndb_tagalloc_test, test_pre, test_post)
     ASSERT_EQ(EMLINK, merr_errno(err));
 
     cndb.cndb_tagc = 0;
-    g_fail_flag = 1;
+    mapi_inject_once_ptr(mapi_idx_malloc, 1, NULL);
     err = cndb_tagalloc(&cndb, &txc, &tx, true);
     ASSERT_EQ(ENOMEM, merr_errno(err));
-    g_fail_flag = 0;
 
     txc.mtc_tag = 2;
     txm.mtm_tag = txc.mtc_tag;
@@ -706,10 +699,9 @@ MTF_DEFINE_UTEST_PREPOST(cndb_test, import_md_test, test_pre, test_post)
     free(cndb.cndb_tagv);
     free(cndb.cndb_keepv);
 
-    g_fail_flag = 1;
+    mapi_inject_once_ptr(mapi_idx_malloc, 1, NULL);
     cndb_set_hdr(&inf.hdr, CNDB_TYPE_INFO, sizeof(inf));
     err = cndb_import_md(&cndb, &inf.hdr, &mtu);
-    g_fail_flag = 0;
     ASSERT_EQ(ENOMEM, merr_errno(err));
     ASSERT_EQ(0, cndb.cndb_workc);
     ASSERT_EQ(0, cndb.cndb_keepc);
@@ -728,11 +720,10 @@ MTF_DEFINE_UTEST_PREPOST(cndb_test, import_md_test, test_pre, test_post)
     free(cndb.cndb_keepv);
     free(mtu);
 
-    g_fail_flag = 1;
+    mapi_inject_once_ptr(mapi_idx_malloc, 1, NULL);
     cndb.cndb_workc = 0;
     cndb_set_hdr(&tx.hdr, CNDB_TYPE_TX, sizeof(tx));
     err = cndb_import_md(&cndb, &tx.hdr, &mtu);
-    g_fail_flag = 0;
     ASSERT_EQ(ENOMEM, merr_errno(err));
     ASSERT_EQ(0, cndb.cndb_workc);
     ASSERT_EQ(0, cndb.cndb_keepc);
@@ -800,10 +791,9 @@ MTF_DEFINE_UTEST_PREPOST(cndb_test, cndb_blkdel_test, test_pre, test_post)
     mapi_inject_unset(mapi_idx_mpool_mblock_delete);
     mapi_inject_unset(mapi_idx_mpool_mblock_abort);
 
-    g_fail_flag = 1;
+    mapi_inject_once_ptr(mapi_idx_malloc, 1, NULL);
     err = cndb_blkdel(&cndb, (void *)db, TXID_2);
     ASSERT_EQ(ENOMEM, merr_errno(err));
-    g_fail_flag = 0;
 }
 
 MTF_DEFINE_UTEST_PREPOST(cndb_test, cndb_make_test, test_pre, test_post)
@@ -924,10 +914,9 @@ MTF_DEFINE_UTEST_PREPOST(cndb_test, cndb_open_test, test_pre, test_post)
     u64           oid1 = 0, oid2 = 0;
     struct cndb * c;
 
-    g_fail_flag = 1;
+    mapi_inject_once_ptr(mapi_idx_malloc, 1, NULL);
     err = cndb_open(ds, false, 0, 0, 0, 0, &mock_health, &c);
     ASSERT_EQ(merr_errno(err), ENOMEM);
-    g_fail_flag = 0;
 
     err = cndb_open(ds, false, 0, 0, 0, 0, &mock_health, &c);
     ASSERT_EQ(err, 0);
@@ -1314,12 +1303,11 @@ MTF_DEFINE_UTEST_PREPOST(cndb_test, cndb_record_unpack_test, test_pre, test_post
     ASSERT_EQ(merr_errno(err), EPROTO);
     free(mtu);
 
-    g_fail_flag = 1;
+    mapi_inject_once_ptr(mapi_idx_malloc, 1, NULL);
     cndb_set_hdr(&ver.hdr, CNDB_TYPE_VERSION, sizeof(ver.hdr));
     err = cndb_record_unpack(CNDB_VERSION5, &(ver.hdr), &mtu);
     ASSERT_EQ(merr_errno(err), ENOMEM);
     ASSERT_EQ(mtu, NULL);
-    g_fail_flag = 0;
 }
 
 MTF_END_UTEST_COLLECTION(cndb_test)

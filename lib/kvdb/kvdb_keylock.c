@@ -547,8 +547,7 @@ kvdb_keylock_lock(
         return merr(E2BIG);
 
     /* Pre-allocate space for the entry since if we inherit ownership we
-     * cannot fail.  We first try to allocate from the ctxn_locks entry
-     * cache, and fall back on kmalloc if the cache is empty.
+     * cannot fail.
      */
     slab = locks->ctxn_locks_slab;
 

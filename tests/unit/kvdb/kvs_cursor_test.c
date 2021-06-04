@@ -8,18 +8,11 @@
 
 #include <hse/hse.h>
 
-#include <hse_util/hse_err.h>
-#include <hse_util/alloc.h>
-#include <hse_util/slab.h>
-#include <hse_util/seqno.h>
-#include <hse_util/keylock.h>
-
 #include <hse_ikvdb/c0.h>
 #include <hse_ikvdb/c0sk.h>
 #include <hse_ikvdb/c0_kvset.h>
 #include <hse_ikvdb/kvdb_ctxn.h>
 #include <hse_ikvdb/limits.h>
-#include <pthread.h>
 
 #include <tools/key_generation.h>
 #include <hse_ikvdb/tuple.h>

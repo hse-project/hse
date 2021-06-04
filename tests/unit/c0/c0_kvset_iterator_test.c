@@ -4,16 +4,11 @@
  */
 
 #include <hse_ut/framework.h>
-#include <hse_test_support/allocation.h>
 
-#include <hse_util/platform.h>
-#include <hse_util/logging.h>
-#include <hse_util/alloc.h>
-#include <hse_util/slab.h>
-#include <hse_util/page.h>
+#include <hse_util/hse_err.h>
+#include <hse_util/inttypes.h>
 #include <hse_util/seqno.h>
 #include <hse_util/keycmp.h>
-#include <hse_util/bonsai_tree.h>
 
 #include <hse_test_support/random_buffer.h>
 #include <hse_ikvdb/limits.h>

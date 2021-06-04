@@ -267,6 +267,7 @@ uint8_t strtou64tab[256] __read_mostly;
 
 struct hse_kvdb *kvdb __read_mostly;
 sig_atomic_t sigint   __read_mostly;
+sig_atomic_t sigusr1  __read_mostly;
 sig_atomic_t sigalrm  __read_mostly;
 size_t ridlockc       __read_mostly;
 u_int *ridlockv       __read_mostly;
@@ -724,6 +725,12 @@ sigint_isr(int sig)
 }
 
 void
+sigusr1_isr(int sig)
+{
+    ++sigusr1;
+}
+
+void
 sigalrm_isr(int sig)
 {
     if (killsig && killsecs <= testsecs && !sigint)
@@ -935,7 +942,7 @@ prop_decode(const char *list, const char *sep, const char *valid)
         } else if (0 == strcmp(name, "vrunlen")) {
             vrunlen = cvt_strtoul(value, &end, &suftab_iec);
         } else {
-            eprint(0, "%s property '%s' ignored\n", valid ? "unhandled" : "invalid", name);
+            eprint(0, "%s property '%s' ignored", valid ? "unhandled" : "invalid", name);
             continue;
         }
 
@@ -956,41 +963,31 @@ prop_decode(const char *list, const char *sep, const char *valid)
 void *
 periodic_sync(void *arg)
 {
-    struct timeval tv_before;
-    struct timeval tv_after;
-    uint64_t       before_total_us;
-    uint64_t       after_total_us;
-    uint64_t       diff_total_us;
-    hse_err_t      err = 0;
+    struct timespec timeout = {
+        .tv_sec = (sync_timeout_ms * 1000000) / 1000000,
+        .tv_nsec = (sync_timeout_ms * 1000000) % 1000000
+    };
+    sigset_t sigmask;
+    hse_err_t err;
+    int rc;
 
-    while (true) {
-        gettimeofday(&tv_before, NULL);
+    /* spawn() will send this thread a SIGUSR1 which will knock
+     * it out of ppoll() (if necessary) and then cause it to exit.
+     */
+    pthread_sigmask(SIG_BLOCK, NULL, &sigmask);
+    sigdelset(&sigmask, SIGUSR1);
+
+    while (!sigusr1) {
+        rc = ppoll(NULL, 0, &timeout, &sigmask);
+        if (rc)
+            continue;
+
         err = hse_kvdb_sync(kvdb);
-        gettimeofday(&tv_after, NULL);
-        if (err) {
-            char * buf = NULL;
-            size_t need_len = 0;
-
-            hse_err_to_string(err, NULL, 0, &need_len);
-            buf = malloc(sizeof(char) * need_len);
-            hse_err_to_string(err, buf, need_len, NULL);
-            fprintf(stderr, "failed to sync kvdb: %s", buf);
-            if (buf)
-                free(buf);
-        } else {
-            before_total_us = tv_before.tv_sec * 1000000 + tv_before.tv_usec;
-            after_total_us = tv_after.tv_sec * 1000000 + tv_after.tv_usec;
-            diff_total_us = after_total_us - before_total_us;
-
-            if (verbosity > 0)
-                status("time (us) to sync kvdb: %lu", diff_total_us);
-        }
-
-        /* Because usleep is a cancellation point, pthread_cancel will end the thread */
-        usleep(sync_timeout_ms * 1000);
+        if (err)
+            eprint(err, "%s: failed to sync kvdb", __func__);
     }
 
-    return NULL;
+    pthread_exit(NULL);
 }
 
 void
@@ -1443,7 +1440,7 @@ main(int argc, char **argv)
     rsignal(SIGHUP, sigint_isr);
     rsignal(SIGINT, sigint_isr);
     rsignal(SIGTERM, sigint_isr);
-    rsignal(SIGUSR1, sigint_isr);
+    rsignal(SIGUSR1, sigusr1_isr);
     rsignal(SIGUSR2, sigint_isr);
 
     rc = kvt_create(mpname, params, keyfile, keyfmt, keymax, &dump);
@@ -1930,7 +1927,7 @@ kvt_init(const char *keyfile, const char *keyfmt, u_long keymax, bool dump)
 
         randbuf = aligned_alloc(4096, randbufsz);
         if (!randbuf) {
-            eprint(errno, "malloc randbuf %zu\n", randbufsz);
+            eprint(errno, "malloc randbuf %zu", randbufsz);
             return EX_OSERR;
         }
 
@@ -2003,6 +2000,7 @@ kvt_init(const char *keyfile, const char *keyfmt, u_long keymax, bool dump)
 
     sigemptyset(&sigmask_block);
     sigaddset(&sigmask_block, SIGINT);
+    sigaddset(&sigmask_block, SIGUSR1);
     sigaddset(&sigmask_block, SIGTERM);
     sigaddset(&sigmask_block, SIGALRM);
     pthread_sigmask(SIG_BLOCK, &sigmask_block, &sigmask_orig);
@@ -2012,12 +2010,7 @@ kvt_init(const char *keyfile, const char *keyfmt, u_long keymax, bool dump)
     if (sync_enabled) {
         rc = pthread_create(&sync_thread, NULL, periodic_sync, NULL);
         if (rc) {
-            char buf[256];
-            fprintf(
-                stderr,
-                "%s: pthread_create failed for sync thread: %s\n",
-                __func__,
-                strerror_r(rc, buf, 256));
+            eprint(rc, "%s: pthread_create failed for sync thread:", __func__);
         }
     }
 
@@ -2163,15 +2156,7 @@ kvt_init(const char *keyfile, const char *keyfmt, u_long keymax, bool dump)
     pthread_mutex_unlock(&workq.mtx);
 
     if (sync_enabled) {
-        rc = pthread_cancel(sync_thread);
-        if (rc) {
-            char buf[256];
-            fprintf(
-                stderr,
-                "%s: pthread_cancel failed for sync thread: %s\n",
-                __func__,
-                strerror_r(rc, buf, 256));
-        }
+        pthread_kill(sync_thread, SIGUSR1);
         pthread_join(sync_thread, NULL);
     }
 

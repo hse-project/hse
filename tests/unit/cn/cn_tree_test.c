@@ -4,11 +4,8 @@
  */
 
 #include <hse_ut/framework.h>
-#include <hse_test_support/allocation.h>
 
-#include <hse_util/alloc.h>
-#include <hse_util/slab.h>
-#include <hse_util/platform.h>
+#include <hse_util/hse_err.h>
 
 #include <hse/hse_limits.h>
 
