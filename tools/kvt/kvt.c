@@ -112,47 +112,64 @@
  *
  */
 
-#include <hse/hse.h>
-#include <hse/hse_version.h>
-
-#include <hse_util/compiler.h>
-#include <hse_util/page.h>
-
-#include <xoroshiro/xoroshiro.h>
-#include <3rdparty/murmur3.h>
-
+#include <stdio.h>
+#include <stdlib.h>
+#include <stdint.h>
+#include <stdalign.h>
+#include <unistd.h>
+#include <assert.h>
+#include <ctype.h>
+#include <errno.h>
 #include <signal.h>
 #include <getopt.h>
 #include <sysexits.h>
 #include <math.h>
+#include <pthread.h>
+#include <sys/types.h>
+#include <sys/param.h>
+#include <sys/time.h>
+#include <sys/file.h>
+#include <sys/stat.h>
 #include <sys/poll.h>
-#include <sys/ioctl.h>
 #include <sys/resource.h>
 
 #include <bsd/string.h>
 #include <curses.h>
 #include <term.h>
 
-#define SCALEPOW2 (1ul << 32)
+#include <hse/hse.h>
+#include <hse/hse_version.h>
+
+#include <xoroshiro/xoroshiro.h>
+#include <3rdparty/murmur3.h>
+
+/* clang-format off */
+
+#define NELEM(_arr)         (sizeof(_arr) / sizeof((_arr)[0]))
+#define SCALEPOW2           (1ul << 32)
 
 /* Base table names.  Note that both the inodes and data table
  * have their index appended to the base name.
  */
-#define KVS_RIDS_NAME   "rids"
-#define KVS_TOMBS_NAME  "tombs"
-#define KVS_INODES_NAME "inodes"
-#define KVS_DATA_NAME   "data"
+#define KVS_RIDS_NAME       "rids"
+#define KVS_TOMBS_NAME      "tombs"
+#define KVS_INODES_NAME     "inodes"
+#define KVS_DATA_NAME       "data"
 
 /* inodes table record flags
  */
-#define KF_ENTOMBED 0x0001
+#define KF_ENTOMBED         (0x0001)
 
-#ifndef __aligned
-#define __aligned(_sz) __attribute__((__aligned__(_sz)))
+#ifndef thread_local
+#define thread_local        _Thread_local
 #endif
 
-#define __read_mostly __attribute__((__section__(".read_mostly")))
-#define __unused      __attribute__((__unused__))
+#ifndef __aligned
+#define __aligned(_sz)      __attribute__((__aligned__(_sz)))
+#endif
+
+#define __read_mostly       __attribute__((__section__(".read_mostly")))
+#define __unused            __attribute__((__unused__))
 
 #ifndef timespecsub
 /* From FreeBSD */
@@ -181,20 +198,19 @@ struct suftab suftab_iec = {
 
 /* kilo, mega, giga, ...
  */
-struct suftab suftab_si = { "kmgtpezy", { 1e3, 1e6, 1e9, 1e12, 1e15, 1e18, 1e21, 1e24 } };
+struct suftab suftab_si = {
+    "kmgtpezy",
+    { 1e3, 1e6, 1e9, 1e12, 1e15, 1e18, 1e21, 1e24 }
+};
 
 /* seconds, minutes, hours, days, weeks, years, centuries.
  */
-struct suftab suftab_time_t = { "smhdwyc",
-                                {
-                                    1,
-                                    60,
-                                    60 * 60,
-                                    60 * 60 * 24,
-                                    60 * 60 * 24 * 7,
-                                    60 * 60 * 24 * 365,
-                                    60 * 60 * 24 * 365 * 100ul,
-                                } };
+struct suftab suftab_time_t = {
+    "smhdwyc",
+    { 1, 60, 3600, 86400, 86400 * 7, 84600 * 365, 86400 * 365 * 100ul, }
+};
+
+/* clang-format on */
 
 typedef struct timespec tsi_t;
 
@@ -238,25 +254,25 @@ struct work {
 };
 
 struct workq {
-    u_long rid; /* updated atomically */
+    u_long rid __aligned(64 * 2); /* updated atomically */
 
-    __aligned(64) bool running;
+    bool   running __aligned(64);
     u_int  lwm;
     u_int  hwm;
     char * randbuf;
     size_t randbufsz;
 
-    __aligned(64) pthread_mutex_t mtx;
+    pthread_mutex_t mtx __aligned(64);
     struct work * head;
     struct work **tail;
     struct work * free;
     u_int         cnt;
 
-    __aligned(64) u_long p_waits;
+    u_long         p_waits __aligned(64);
     u_long         p_wakeups;
     pthread_cond_t p_cv; /* producer */
 
-    __aligned(64) u_long c_waits;
+    u_long         c_waits __aligned(64);
     u_long         c_wakeups;
     pthread_cond_t c_cv; /* consumer */
 };
@@ -793,27 +809,25 @@ ridlock_fini(void)
 bool
 ridlock_trylock(u_long rid)
 {
-    if (ridlockv) {
-        u_int *bkt = ridlockv + (rid % ridlockc);
-        u_int  exp = 0;
+    if (!ridlockv)
+        return true;
 
-        return __atomic_compare_exchange_n(bkt, &exp, 1, false, __ATOMIC_SEQ_CST, __ATOMIC_RELAXED);
-    }
+    u_int *bkt = ridlockv + (rid % ridlockc);
+    u_int  exp = 0;
 
-    return true;
+    return __atomic_compare_exchange_n(bkt, &exp, 1, false, __ATOMIC_SEQ_CST, __ATOMIC_RELAXED);
 }
 
 void
 ridlock_unlock(u_long rid)
 {
-    if (ridlockv) {
-        u_int *bkt = ridlockv + (rid % ridlockc);
-        u_int  exp = 1;
-        bool b __unused;
+    if (!ridlockv)
+        return;
 
-        b = __atomic_compare_exchange_n(bkt, &exp, 0, false, __ATOMIC_SEQ_CST, __ATOMIC_RELAXED);
-        assert(b);
-    }
+    u_int *bkt = ridlockv + (rid % ridlockc);
+    u_int  exp = 1;
+
+    __atomic_compare_exchange_n(bkt, &exp, 0, false, __ATOMIC_SEQ_CST, __ATOMIC_RELAXED);
 }
 
 int
@@ -2359,7 +2373,7 @@ kvt_init_main(void *arg)
             cc = vlenmin + (xrand64() % (vlenmax - vlenmin + 1));
 
             datasrc = workq.randbuf + (xrand64() % (workq.randbufsz - cc + 1));
-            datasrc = PTR_ALIGN(datasrc, alignof(uint64_t));
+            datasrc = (char *)roundup((uintptr_t)datasrc, alignof(uint64_t));
         } else {
             struct stat sb;
 
@@ -3158,7 +3172,6 @@ kvt_test(void)
         rsignal(SIGHUP, SIG_DFL);
         rsignal(SIGINT, SIG_DFL);
         rsignal(SIGTERM, SIG_DFL);
-        rsignal(SIGUSR1, SIG_DFL);
         rsignal(SIGUSR2, SIG_DFL);
     } else {
         rc = ridlock_init(tjobsmax * 16);
