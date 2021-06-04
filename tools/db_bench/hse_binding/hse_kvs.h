@@ -1,3 +1,9 @@
+// SPDX-License-Identifier: BSD-3-Clause
+//
+// Copyright (C) 2021 Micron Technology, Inc.
+//
+// This code is derived from and modifies the LevelDB project.
+
 #ifndef STORAGE_LEVELDB_HSE_BINDING_HSE_KVS_H_
 #define STORAGE_LEVELDB_HSE_BINDING_HSE_KVS_H_
 

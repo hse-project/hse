@@ -1,3 +1,9 @@
+// SPDX-License-Identifier: BSD-3-Clause
+//
+// Copyright (C) 2021 Micron Technology, Inc.
+//
+// This code is derived from and modifies the LevelDB project.
+//
 // Copyright (c) 2011 The LevelDB Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file. See the AUTHORS file for names of contributors.

@@ -1,3 +1,9 @@
+// SPDX-License-Identifier: BSD-3-Clause
+//
+// Copyright (C) 2021 Micron Technology, Inc.
+//
+// This code is derived from and modifies the LevelDB project.
+
 #include "hse_binding/hse_kvdb.h"
 
 #include <chrono>
