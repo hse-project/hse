@@ -32,6 +32,13 @@ enum wal_op {
     WAL_OP_PDEL = 502,
 };
 
+enum wal_flags {
+    WAL_FLAGS_BORG = (1 << 0),
+    WAL_FLAGS_MORG = (1 << 1),
+    WAL_FLAGS_EORG = (1 << 2),
+    WAL_FLAGS_ERROR = (1 << 3),
+};
+
 
 /*
  * WAL MDC OMF
@@ -104,16 +111,20 @@ OMF_SETGET(struct wal_filehdr_omf, fh_cksum, 32);
 
 struct wal_rechdr_omf {
     __le32 rh_cksum;
+    __le32 rh_flags;
+    __le64 rh_dgen;
     __le32 rh_type;
+    __le32 rh_len;
     __le64 rh_rid;
-    __le64 rh_len;
 } HSE_PACKED;
 
 /* Define set/get methods for wal_rechdr_omf */
 OMF_SETGET(struct wal_rechdr_omf, rh_cksum, 32);
+OMF_SETGET(struct wal_rechdr_omf, rh_flags, 32);
+OMF_SETGET(struct wal_rechdr_omf, rh_dgen, 64);
 OMF_SETGET(struct wal_rechdr_omf, rh_type, 32);
+OMF_SETGET(struct wal_rechdr_omf, rh_len, 32);
 OMF_SETGET(struct wal_rechdr_omf, rh_rid, 64);
-OMF_SETGET(struct wal_rechdr_omf, rh_len, 64);
 
 
 struct wal_rec_omf {
@@ -122,7 +133,6 @@ struct wal_rec_omf {
     __le32                r_klen;
     __le64                r_cnid;
     __le64                r_txid;
-    __le64                r_dgen;
     __le64                r_seqno;
     __le64                r_vxlen;
     __u8                  r_data[0];
@@ -133,7 +143,6 @@ OMF_SETGET(struct wal_rec_omf, r_op, 32);
 OMF_SETGET(struct wal_rec_omf, r_klen, 32);
 OMF_SETGET(struct wal_rec_omf, r_cnid, 64);
 OMF_SETGET(struct wal_rec_omf, r_txid, 64);
-OMF_SETGET(struct wal_rec_omf, r_dgen, 64);
 OMF_SETGET(struct wal_rec_omf, r_seqno, 64);
 OMF_SETGET(struct wal_rec_omf, r_vxlen, 64);
 
@@ -150,6 +159,12 @@ OMF_SETGET(struct wal_txnrec_omf, tr_seqno, 64);
 
 
 /* WAL OMF interfaces */
+
+static inline bool
+wal_rectype_txn(enum wal_rec_type rtype)
+{
+    return rtype == WAL_RT_TXBEGIN || rtype == WAL_RT_TXCOMMIT || rtype == WAL_RT_TXABORT;
+}
 
 void
 wal_rechdr_pack(enum wal_rec_type rtype, u64 rid, size_t kvlen, void *outbuf);

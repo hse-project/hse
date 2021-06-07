@@ -9,12 +9,18 @@
 struct wal_buffer;
 
 struct wal_buffer *
-wal_buffer_create(void);
+wal_buffer_create(struct wal *wal);
 
 void
 wal_buffer_destroy(struct wal_buffer *wbuf);
 
 void *
 wal_buffer_alloc(struct wal_buffer *wbuf, size_t len);
+
+uint
+wal_active_buf_cnt(void);
+
+merr_t
+wal_buffer_flush(struct wal_buffer *wbuf, struct workqueue_struct *wq);
 
 #endif /* WAL_BUFFER_H */

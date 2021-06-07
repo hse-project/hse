@@ -12,6 +12,9 @@
 #define WAL_MDC_CAPACITY   (1 << 30)
 #define WAL_MDC_MAGIC      (0xabcdabcd)
 
+#define MSEC_TO_NSEC(x)    ((x) * 1000UL * 1000)
+#define NSEC_TO_MSEC(x)    ((x) / MSEC_TO_NSEC(1))
+
 struct wal;
 struct mpool;
 

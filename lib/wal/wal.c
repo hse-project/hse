@@ -23,20 +23,94 @@
 #include "wal_omf.h"
 #include "wal_mdc.h"
 
-
 struct wal {
     struct mpool      *mp;
     struct wal_buffer *wbuf;
     struct wal_mdc    *mdc;
+    struct workqueue_struct *flush_wq;
 
+    pthread_t timer_tid;
     uint64_t rdgen;
     uint32_t version;
-    uint32_t dur_intvl;
-    uint32_t dur_sz;
+    uint32_t dintvl_ms;
+    uint32_t dsize_bytes;
+
+    atomic64_t error;
+    atomic_t closing;
 
     atomic64_t rid HSE_ALIGNED(SMP_CACHE_BYTES);
+
+    volatile u64 reqtime HSE_ALIGNED(SMP_CACHE_BYTES);
 };
 
+
+static inline void
+wal_reqtime_set(struct wal *wal)
+{
+    if (wal && wal->reqtime == 0)
+        wal->reqtime = jclock_ns;
+}
+
+static inline void
+wal_reqtime_reset(struct wal *wal)
+{
+    if (wal)
+        wal->reqtime = 0;
+}
+
+static inline u64
+wal_reqtime_get(struct wal *wal)
+{
+     return wal ? wal->reqtime : 0;
+}
+
+static void*
+wal_timer(void *rock)
+{
+    struct wal *wal = rock;
+    struct timespec req = {0};
+    u64 dintvl_ns = MSEC_TO_NSEC(wal->dintvl_ms);
+
+    pthread_setname_np(pthread_self(), "wal_timer");
+
+    while (true) {
+        u64 start, now, lag, reqtime, one_ms = MSEC_TO_NSEC(1);
+
+        if (atomic_read(&wal->closing) != 0 || atomic64_read(&wal->error) != 0)
+            break;
+
+        req.tv_nsec = one_ms;
+
+        reqtime = wal_reqtime_get(wal);
+        start = reqtime ?: get_time_ns();
+
+        if (reqtime != 0) { /* Call flush only if there are mutations */
+            merr_t err;
+
+            wal_reqtime_reset(wal);
+            err = wal_buffer_flush(wal->wbuf, wal->flush_wq);
+            if (err) {
+                atomic64_set(&wal->error, err);
+                break;
+            }
+        }
+
+        now = get_time_ns();
+        lag = now - start;
+        if (lag < dintvl_ns) {
+            u64 sleep_ns = dintvl_ns - lag;
+
+            sleep_ns = max_t(u64, sleep_ns, one_ms);
+            req.tv_nsec = sleep_ns;
+            nanosleep(&req, 0);
+            continue;
+        }
+
+        nanosleep(&req, 0);
+    }
+
+    return 0;
+}
 
 /*
  * WAL data plane
@@ -63,6 +137,8 @@ wal_put(
     rlen = wal_rec_len();
     kvlen = ALIGN(klen, kvalign) + ALIGN(vlen, kvalign);
     len = rlen + kvlen;
+
+    wal_reqtime_set(wal);
 
     rec = wal_buffer_alloc(wal->wbuf, len);
     rid = atomic64_inc_return(&wal->rid);
@@ -110,6 +186,8 @@ wal_del_impl(
     size_t klen, rlen, kalen, len;
     char *kdata;
     uint rtype = WAL_RT_NONTX, op = prefix ? WAL_OP_PDEL : WAL_OP_DEL;
+
+    wal_reqtime_set(wal);
 
     rlen = wal_rec_len();
     klen = kt->kt_len;
@@ -248,6 +326,7 @@ wal_open(struct mpool *mp, bool rdonly, uint64_t mdcid1, uint64_t mdcid2, struct
     struct wal_buffer *wbuf;
     struct wal_mdc *mdc;
     merr_t err;
+    int rc;
 
     if (!mp || !wal_out)
         return merr(EINVAL);
@@ -256,24 +335,19 @@ wal_open(struct mpool *mp, bool rdonly, uint64_t mdcid1, uint64_t mdcid2, struct
     if (!wal)
         return merr(ENOMEM);
 
-    wbuf = wal_buffer_create();
-    if (!wbuf) {
-        free(wal);
-        return merr(ENOMEM);
-    }
-
     err = wal_mdc_open(mp, mdcid1, mdcid2, &mdc);
     if (err)
         goto errout;
 
     wal->rdgen = 0;
     wal->version = WAL_VERSION;
-    wal->dur_intvl = WAL_DUR_INTVL_MS;
-    wal->dur_sz = WAL_DUR_SZ_BYTES;
+    wal->dintvl_ms = WAL_DUR_INTVL_MS;
+    wal->dsize_bytes = WAL_DUR_SZ_BYTES;
     atomic64_set(&wal->rid, 0);
+    atomic64_set(&wal->error, 0);
+    atomic_set(&wal->closing, 0);
 
     wal->mp = mp;
-    wal->wbuf = wbuf;
     wal->mdc = mdc;
 
     err = wal_mdc_replay(mdc, wal);
@@ -282,12 +356,27 @@ wal_open(struct mpool *mp, bool rdonly, uint64_t mdcid1, uint64_t mdcid2, struct
         goto errout;
     }
 
+    wbuf = wal_buffer_create(wal);
+    if (!wbuf) {
+        free(wal);
+        return merr(ENOMEM);
+    }
+    wal->wbuf = wbuf;
+
+    wal->flush_wq = alloc_workqueue("wal_flush_wq", 0, wal_active_buf_cnt());
+    if (!wal->flush_wq)
+        goto errout;
+
+    rc = pthread_create(&wal->timer_tid, NULL, wal_timer, wal);
+    if (rc)
+        goto errout;
+
     *wal_out = wal;
 
     return 0;
 
 errout:
-    wal_buffer_destroy(wbuf);
+    destroy_workqueue(wal->flush_wq);
     free(wal);
 
     return err;
@@ -304,7 +393,12 @@ wal_close(struct wal *wal)
     err = wal_mdc_close(wal->mdc);
     ev(err);
 
+    destroy_workqueue(wal->flush_wq);
+    atomic_set(&wal->closing, 1);
+    pthread_join(wal->timer_tid, 0);
+
     wal_buffer_destroy(wal->wbuf);
+
     free(wal);
 
     return err;
@@ -314,17 +408,17 @@ wal_close(struct wal *wal)
  * get/set interfaces for struct wal fields
  */
 void
-wal_dur_params_get(struct wal *wal, uint32_t *dur_intvl, uint32_t *dur_sz)
+wal_dur_params_get(struct wal *wal, uint32_t *dintvl_ms, uint32_t *dsize_bytes)
 {
-    *dur_intvl = wal->dur_intvl;
-    *dur_sz = wal->dur_sz;
+    *dintvl_ms = wal->dintvl_ms;
+    *dsize_bytes = wal->dsize_bytes;
 }
 
 void
-wal_dur_params_set(struct wal *wal, uint32_t dur_intvl, uint32_t dur_sz)
+wal_dur_params_set(struct wal *wal, uint32_t dintvl_ms, uint32_t dsize_bytes)
 {
-    wal->dur_intvl = dur_intvl;
-    wal->dur_sz = dur_sz;
+    wal->dintvl_ms = dintvl_ms;
+    wal->dsize_bytes = dsize_bytes;
 }
 
 uint64_t
@@ -354,4 +448,3 @@ wal_version_set(struct wal *wal, uint32_t version)
 #if HSE_MOCKING
 #include "wal_ut_impl.i"
 #endif /* HSE_MOCKING */
-
