@@ -755,6 +755,7 @@ c0kvms_ingest_work_prepare(struct c0_kvmultiset *handle, struct c0sk_impl *c0sk)
     struct c0_kvset_iterator * iter;
     struct c0_ingest_work *    work;
     int                        i;
+    uint                       flags;
 
     work = self->c0ms_ingest_work;
     assert(work);
@@ -765,13 +766,10 @@ c0kvms_ingest_work_prepare(struct c0_kvmultiset *handle, struct c0sk_impl *c0sk)
     source = work->c0iw_sourcev;
     iter = work->c0iw_iterv;
 
+    flags = C0_KVSET_ITER_FLAG_PTOMB;
     for (i = 0; i < self->c0ms_num_sets; i++) {
-        uint flags = 0;
-
-        if (i == 0)
-            flags |= C0_KVSET_ITER_FLAG_PTOMB;
-
         c0kvs_iterator_init(self->c0ms_sets[i], iter, flags, 0);
+        flags = 0;
 
         if (c0_kvset_iterator_empty(iter))
             continue;
@@ -797,6 +795,14 @@ c0kvms_seqno_set(struct c0_kvmultiset *handle, uint64_t kvdb_seq)
     struct c0_kvmultiset_impl *self = c0_kvmultiset_h2r(handle);
 
     atomic64_set(&self->c0ms_seqno, kvdb_seq);
+}
+
+u64
+c0kvms_seqno_get(struct c0_kvmultiset *handle)
+{
+    struct c0_kvmultiset_impl *self = c0_kvmultiset_h2r(handle);
+
+    return atomic64_read(&self->c0ms_seqno);
 }
 
 merr_t

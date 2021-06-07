@@ -105,7 +105,6 @@ kvdb_ctxn_trylock_write(
     u64                         keylock_seed,
     uintptr_t                  *seqref);
 
-/* Unlock */
 void
 kvdb_ctxn_unlock(
     struct kvdb_ctxn *handle);

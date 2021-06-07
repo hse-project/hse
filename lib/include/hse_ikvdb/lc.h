@@ -12,10 +12,14 @@
 
 #include <lc/bonsai_iter.h>
 
+/* Max number of bonsai trees in LC - includes one ptomb tree. */
 #define LC_SOURCE_CNT_MAX 2
 
 struct lc {
 };
+
+struct lc_builder;
+struct lc_cursor;
 
 /* MTF_MOCK_DECL(lc) */
 
@@ -24,10 +28,7 @@ struct cursor_summary;
 struct kc_filter;
 struct kvs_buf;
 struct kvs_ktuple;
-struct bonsai_skey;
-struct bonsai_sval;
 struct bonsai_kv;
-struct lc_cursor;
 struct query_ctx;
 struct kvs_cursor_element;
 enum key_lookup_res;
@@ -39,8 +40,6 @@ lc_create(struct lc **handle, struct kvdb_ctxn_set *ctxn_set);
 /* MTF_MOCK */
 merr_t
 lc_destroy(struct lc *lc);
-
-struct lc_builder;
 
 /* MTF_MOCK */
 merr_t
@@ -96,16 +95,13 @@ void
 lc_ingest_seqno_set(struct lc *handle, u64 seq);
 
 /**
- * lc_ingest_window_get() - Get the min and max seqnos that may be ingested
+ * lc_ingest_seqno_get() - Get the min_seqno that may be ingested to cn
  *
- * @handle:     Handle to the LC object
- * @seqno_addr: KVDB seqno address
- * @view:       (output) view seqno, i.e. upper bound
- * @horizon:    (output) horizon seqno, i.e. lower bound
+ * @handle:    LC handle
  */
 /* MTF_MOCK */
-void
-lc_ingest_window_get(struct lc *handle, atomic64_t *seqno_addr, u64 *view, u64 *horizon);
+u64
+lc_ingest_seqno_get(struct lc *handle);
 
 /**
  * lc_cursor_create() - Creates a new cursor object to iterate over LC
@@ -139,7 +135,7 @@ lc_cursor_create(
 merr_t
 lc_cursor_destroy(struct lc_cursor *lccur);
 
-/* MTF_MOCK */
+/* This is an internal function, but lc_test.c uses it to avoid creating a binheap to test LC. */
 void
 lc_cursor_read(struct lc_cursor *lccur, struct kvs_cursor_element *elem, bool *eof);
 

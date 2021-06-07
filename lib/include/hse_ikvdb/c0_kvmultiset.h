@@ -65,6 +65,9 @@ c0kvms_create(
 void
 c0kvms_seqno_set(struct c0_kvmultiset *handle, uint64_t kvdb_seq);
 
+u64
+c0kvms_seqno_get(struct c0_kvmultiset *handle);
+
 /**
  * c0kvms_getref() - obtain a ref against a struct c0_kvmultiset
  * @mset: struct c0_kvset to obtain a ref against
@@ -98,6 +101,9 @@ c0kvms_gen_read(struct c0_kvmultiset *mset);
 
 u64
 c0kvms_gen_current(struct c0_kvmultiset *mset);
+
+u64
+c0kvms_ingest_seqno_get(struct c0_kvmultiset *handle);
 
 /**
  * c0kvms_gen_update() - update the kvms generation count

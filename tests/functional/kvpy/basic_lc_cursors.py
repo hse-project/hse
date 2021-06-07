@@ -1,4 +1,9 @@
 #!/usr/bin/env python3
+'''
+A basic test fo lc cursors
+There's uncommitted data in two transactions and while the transactions are live, sync
+is called. This moves the data to LC. Then cursors are used to read data from LC.
+'''
 from contextlib import ExitStack
 
 import hse

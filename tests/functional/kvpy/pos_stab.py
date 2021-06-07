@@ -37,6 +37,7 @@ try:
 
             kv = cursor.read()
             assert kv == (b"d", b"4")
+            cursor.destroy()
             kvs.close()
 
             # Test 2: Read keys across c0/cn

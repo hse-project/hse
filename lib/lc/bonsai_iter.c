@@ -121,7 +121,7 @@ get_next(struct bonsai_iter *iter)
     return bkv;
 }
 
-bool
+static bool
 bonsai_iter_next(struct element_source *es, void **element)
 {
     struct bonsai_iter *       iter = container_of(es, struct bonsai_iter, bi_es);
@@ -138,6 +138,9 @@ bonsai_iter_next(struct element_source *es, void **element)
      */
     rcu_read_lock();
     do {
+        enum hse_seqno_state state;
+        u64 seqno;
+
         iter->bi_kv = bkv = get_next(iter);
         if (!bkv) {
             es->es_eof = true;
@@ -145,19 +148,20 @@ bonsai_iter_next(struct element_source *es, void **element)
             return false;
         }
 
+        val = c0kvs_findval(bkv, iter->bi_seq_view, iter->bi_seqref);
+        if (!val)
+            continue;
+
         /* val will be non-NULL when there's a value with
          *   (1) an ordinal seqno less than the cursor's view seqno, or
          *   (2) a seqref that matches the txn's seqref
          *
          * If val is set (non-NULL), check if seqno is larger than the horizon.
          */
-        val = c0kvs_findval(bkv, iter->bi_seq_view, iter->bi_seqref);
-        if (val && HSE_SQNREF_ORDNL_P(val->bv_seqnoref)) {
-            u64 seq = HSE_SQNREF_TO_ORDNL(val->bv_seqnoref);
+        state = seqnoref_to_seqno(val->bv_seqnoref, &seqno);
+        if (state == HSE_SQNREF_STATE_DEFINED && seqno <= iter->bi_seq_horizon)
+            val = 0;
 
-            if (seq <= iter->bi_seq_horizon)
-                val = 0;
-        }
     } while (!val);
     rcu_read_unlock();
 

@@ -60,8 +60,8 @@ struct c0_ingest_work {
     u64 gencur, gen;
 
     /* Establishing view for ingest */
-    u64 c0iw_ingest_view_seqno;
-    u64 c0iw_ingest_horizon_seqno;
+    u64 c0iw_ingest_max_seqno;
+    u64 c0iw_ingest_min_seqno;
 
     /* c0iw_magic is last field to verify it didn't get clobbered
      * by c0kvs_reset().

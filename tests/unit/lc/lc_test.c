@@ -445,7 +445,7 @@ MTF_DEFINE_UTEST_PREPOST(lc_test, cursor_fwd_ptomb, test_pre, test_post)
      * output the ptomb followed by the "found" key.
      */
 
-    /* Read one key key by seeking to an existing key */
+    /* Read one key by seeking to an existing key */
     _lc_cursor_seek(cur, "ab20", strlen("ab20"), 0);
 
     _lc_cursor_read(cur, &e, &eof);
@@ -453,7 +453,7 @@ MTF_DEFINE_UTEST_PREPOST(lc_test, cursor_fwd_ptomb, test_pre, test_post)
     _lc_cursor_read(cur, &e, &eof);
     check_kv(lcl_ti, &e, eof, "ab30", "val6");
 
-    /* Read one key key by seeking to a non-existent key */
+    /* Read one key by seeking to a non-existent key */
     _lc_cursor_seek(cur, "ab19", strlen("ab19"), 0);
 
     _lc_cursor_read(cur, &e, &eof);
@@ -523,7 +523,7 @@ MTF_DEFINE_UTEST_PREPOST(lc_test, cursor_rev_ptomb, test_pre, test_post)
      * output the ptomb followed by the "found" key.
      */
 
-    /* Read one key key by seeking to an existing key */
+    /* Read one key by seeking to an existing key */
     _lc_cursor_seek(cur, "ab20", strlen("ab20"), 0);
 
     _lc_cursor_read(cur, &e, &eof);
@@ -531,7 +531,7 @@ MTF_DEFINE_UTEST_PREPOST(lc_test, cursor_rev_ptomb, test_pre, test_post)
     _lc_cursor_read(cur, &e, &eof);
     check_kv(lcl_ti, &e, eof, "ab20", "val6");
 
-    /* Read one key key by seeking to a non-existent key */
+    /* Read one key by seeking to a non-existent key */
     _lc_cursor_seek(cur, "ab21", strlen("ab21"), 0);
 
     _lc_cursor_read(cur, &e, &eof);
@@ -600,12 +600,12 @@ MTF_DEFINE_UTEST_PREPOST(lc_test, cursor_horizon, test_pre, test_post)
     _lc_cursor_read(cur, &e, &eof);
     ASSERT_EQ(true, eof);
 
-    /* Read one key key by seeking to an existing key */
+    /* Read one key by seeking to an existing key */
     _lc_cursor_seek(cur, "bb20", strlen("bb20"), 0);
     _lc_cursor_read(cur, &e, &eof);
     check_kv(lcl_ti, &e, eof, "bb20", "val");
 
-    /* Read one key key by seeking to a non-existent key */
+    /* Read one key by seeking to a non-existent key */
     _lc_cursor_seek(cur, "ab20", strlen("ab20"), 0);
     _lc_cursor_read(cur, &e, &eof);
     check_kv(lcl_ti, &e, eof, "bb20", "val");
@@ -631,12 +631,12 @@ MTF_DEFINE_UTEST_PREPOST(lc_test, cursor_horizon, test_pre, test_post)
     _lc_cursor_read(cur, &e, &eof);
     ASSERT_EQ(true, eof);
 
-    /* Read one key key by seeking to an existing key */
+    /* Read one key by seeking to an existing key */
     _lc_cursor_seek(cur, "bb30", strlen("bb30"), 0);
     _lc_cursor_read(cur, &e, &eof);
     check_kv(lcl_ti, &e, eof, "bb30", "val");
 
-    /* Read one key key by seeking to a non-existent key */
+    /* Read one key by seeking to a non-existent key */
     _lc_cursor_seek(cur, "cb30", strlen("cb30"), 0);
     _lc_cursor_read(cur, &e, &eof);
     check_kv(lcl_ti, &e, eof, "bb30", "val");

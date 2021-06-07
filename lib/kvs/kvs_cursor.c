@@ -168,7 +168,6 @@ struct kvs_cursor_impl {
     u32 kci_need_toss : 1;
     u32 kci_need_seek : 1;
     u32 kci_reverse : 1;
-    u32 kci_txn_kvs : 1;
 
     u32    kci_pfxlen;
     u64    kci_pfxhash;
@@ -317,7 +316,7 @@ ikvs_curcache_prune_impl(
         if (kvs && kvs != entry->ce_list->kci_kvs)
             continue;
 
-        while ((old = entry->ce_list)) {
+        while (NULL != (old = entry->ce_list)) {
             if (old->kci_item.ci_ttl > now)
                 break;
 
@@ -342,7 +341,7 @@ ikvs_curcache_prune_impl(
     bkt->cb_active -= nretired;
     mutex_unlock(&bkt->cb_lock);
 
-    while ((old = evicted)) {
+    while (NULL != (old = evicted)) {
         evicted = old->kci_item.ci_next;
         kvs_cursor_destroy(&old->kci_handle);
         ++ndestroyed;
@@ -823,8 +822,6 @@ kvs_cursor_init(struct hse_kvs_cursor *cursor, struct kvdb_ctxn *ctxn)
         cur->kci_summary.created = now();
     }
 
-    cur->kci_txn_kvs = kvs_txn_is_enabled(kvs);
-
     /* Create/Update c0 cursor */
     if (!cur->kci_c0cur) {
 
@@ -856,27 +853,25 @@ kvs_cursor_init(struct hse_kvs_cursor *cursor, struct kvdb_ctxn *ctxn)
 
     assert(cur->kci_c0cur);
 
-    if (cur->kci_txn_kvs) {
-        if (!cur->kci_lccur) {
-            u16       skidx = c0_index(c0);
-            s32       tree_pfxlen = c0_get_pfx_len(c0);
-            uintptr_t seqnoref = ctxn ? kvdb_ctxn_get_seqnoref(ctxn) : 0;
+    if (!cur->kci_lccur) {
+        u16       skidx = c0_index(c0);
+        s32       tree_pfxlen = c0_get_pfx_len(c0);
+        uintptr_t seqnoref = ctxn ? kvdb_ctxn_get_seqnoref(ctxn) : 0;
 
-            err = lc_cursor_create(
-                lc,
-                skidx,
-                seqno,
-                seqnoref,
-                reverse,
-                prefix,
-                pfxlen,
-                tree_pfxlen,
-                summary,
-                &cur->kci_lccur);
-        } else {
-            err = lc_cursor_update(cur->kci_lccur, prefix, pfxlen, seqno);
-            cur->kci_need_seek = 1;
-        }
+        err = lc_cursor_create(
+            lc,
+            skidx,
+            seqno,
+            seqnoref,
+            reverse,
+            prefix,
+            pfxlen,
+            tree_pfxlen,
+            summary,
+            &cur->kci_lccur);
+    } else {
+        err = lc_cursor_update(cur->kci_lccur, prefix, pfxlen, seqno);
+        cur->kci_need_seek = 1;
     }
 
     if (ev(err))
@@ -941,8 +936,7 @@ kvs_cursor_prepare(struct hse_kvs_cursor *cursor)
     int                     cnt = 0;
 
     cur->kci_esrcv[cnt++] = c0_cursor_es_make(cur->kci_c0cur);
-    if (cur->kci_txn_kvs)
-        cur->kci_esrcv[cnt++] = lc_cursor_es_make(cur->kci_lccur);
+    cur->kci_esrcv[cnt++] = lc_cursor_es_make(cur->kci_lccur);
     cur->kci_esrcv[cnt++] = cn_cursor_es_make(cur->kci_cncur);
 
     cmp = cur->kci_reverse ? kvs_cursor_cmp_rev : kvs_cursor_cmp;
@@ -1034,11 +1028,10 @@ kvs_cursor_update(struct hse_kvs_cursor *handle, struct kvdb_ctxn *ctxn, u64 seq
         perfc_inc(cursor->kci_cc_pc, PERFC_BA_CC_UPDATED_C0);
 
     /* Update lc cursor */
-    if (cursor->kci_txn_kvs) {
-        cursor->kci_err = lc_cursor_update(cursor->kci_lccur, cursor->kci_last_kbuf, cursor->kci_last_klen, seqno);
-        if (ev(cursor->kci_err))
-            return cursor->kci_err;
-    }
+    cursor->kci_err = lc_cursor_update(
+        cursor->kci_lccur, cursor->kci_last_kbuf, cursor->kci_last_klen, seqno);
+    if (ev(cursor->kci_err))
+        return cursor->kci_err;
 
     /* Update cn cursor */
     tstart = perfc_lat_startu(cursor->kci_cd_pc, PERFC_LT_CD_UPDATE_CN);
@@ -1156,11 +1149,9 @@ ikvs_cursor_seek(struct kvs_cursor_impl *cursor, const void *key, size_t klen)
     if (ev(err))
         goto out;
 
-    if (cursor->kci_txn_kvs) {
-        err = lc_cursor_seek(cursor->kci_lccur, key, klen, filt);
-        if (ev(err))
-            goto out;
-    }
+    err = lc_cursor_seek(cursor->kci_lccur, key, klen, filt);
+    if (ev(err))
+        goto out;
 
     err = cn_cursor_seek(cursor->kci_cncur, key, klen, filt);
     if (ev(err))
@@ -1168,8 +1159,7 @@ ikvs_cursor_seek(struct kvs_cursor_impl *cursor, const void *key, size_t klen)
 
     cnt = 0;
     cursor->kci_esrcv[cnt++] = c0_cursor_es_get(cursor->kci_c0cur);
-    if (cursor->kci_txn_kvs)
-        cursor->kci_esrcv[cnt++] = lc_cursor_es_get(cursor->kci_lccur);
+    cursor->kci_esrcv[cnt++] = lc_cursor_es_get(cursor->kci_lccur);
     cursor->kci_esrcv[cnt++] = cn_cursor_es_get(cursor->kci_cncur);
 
     err = bin_heap2_prepare(cursor->kci_bh, cnt, cursor->kci_esrcv);

@@ -515,53 +515,45 @@ kvs_pfx_probe(
 
     if (ctxn) {
         /* Lock txn for read operation while we query c0.  seqnoref is invalid
-         * ater lock is released. */
+         * after lock is released.
+         */
         err = kvdb_ctxn_trylock_read(ctxn, &seqno, &seqnoref);
         if (ev(err))
             return err;
     }
 
     err = c0_pfx_probe(c0, kt, seqno, seqnoref, res, &qctx, kbuf, vbuf);
-    if (!err && (*res == FOUND_PTMB || qctx.seen > 1)) {
-        /* pfx probe successful */
-        if (ctxn)
-            kvdb_ctxn_unlock(ctxn);
-        goto done;
-    }
+    if (err || *res == FOUND_TMB || *res == FOUND_PTMB || qctx.seen > 1)
+        goto exit;
 
-    if (!err && (*res == FOUND_VAL || *res == NOT_FOUND)) {
-        err = lc_pfx_probe(
-            lc,
-            kt,
-            c0_index(c0),
-            seqno,
-            seqnoref,
-            c0_get_pfx_len(c0),
-            c0_get_sfx_len(c0),
-            res,
-            &qctx,
-            kbuf,
-            vbuf);
-        if (!err && (*res == FOUND_PTMB || qctx.seen > 1)) {
-            /* pfx probe successful */
-            if (ctxn)
-                kvdb_ctxn_unlock(ctxn);
-            goto done;
-        }
-    }
+    err = lc_pfx_probe(
+        lc,
+        kt,
+        c0_index(c0),
+        seqno,
+        seqnoref,
+        c0_get_pfx_len(c0),
+        c0_get_sfx_len(c0),
+        res,
+        &qctx,
+        kbuf,
+        vbuf);
+    if (err || *res == FOUND_TMB || *res == FOUND_PTMB || qctx.seen > 1)
+        goto exit;
 
+    err = cn_pfx_probe(cn, kt, seqno, res, &qctx, kbuf, vbuf);
+    if (err || *res == FOUND_TMB || *res == FOUND_PTMB || qctx.seen > 1)
+        goto exit;
+
+    qctx_te_mem_reset();
+
+exit:
     if (ctxn)
         kvdb_ctxn_unlock(ctxn);
-
-    if (!err && (*res == FOUND_VAL || *res == NOT_FOUND))
-        err = cn_pfx_probe(cn, kt, seqno, res, &qctx, kbuf, vbuf);
 
     if (ev(err))
         return err;
 
-    qctx_te_mem_reset();
-
-done:
     perfc_rec_sample(&kvs->ikv_cd_pc, PERFC_DI_CD_TOMBSPERPROBE, qctx.ntombs);
 
     switch (qctx.seen) {

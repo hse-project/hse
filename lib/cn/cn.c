@@ -687,7 +687,7 @@ cn_ingestv(
     u64    txid = 0;
     uint   i, first, last, count, check;
     u64    context = 0; /* must be initialized to zero */
-    u64    seqno_max = 0, seqno_min = U64_MAX;
+    u64    seqno_max = 0;
     bool   log_ingest = false;
     u64    dgen = 0;
 
@@ -702,13 +702,6 @@ cn_ingestv(
             continue;
 
         seqno_max = max_t(u64, seqno_max, mbv[i]->bl_seqno_max);
-        seqno_min = min_t(u64, seqno_min, mbv[i]->bl_seqno_min);
-
-        if (ev(seqno_min > seqno_max)) {
-            err = merr(EINVAL);
-            goto done;
-        }
-
         cndb = cn[i]->cn_cndb;
 
         if (!count)

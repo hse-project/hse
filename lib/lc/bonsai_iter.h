@@ -54,10 +54,6 @@ void
 bonsai_iter_seek(struct bonsai_iter *iter, const void *key, size_t klen);
 
 /* MTF_MOCK */
-bool
-bonsai_iter_next(struct element_source *es, void **element);
-
-/* MTF_MOCK */
 struct element_source *
 bonsai_iter_es_make(struct bonsai_iter *iter);
 

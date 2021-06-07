@@ -1,4 +1,12 @@
 #!/usr/bin/env python3
+
+'''
+This test checks basic ingest and get operation in LC.
+It creates 2 active transactions, inserts keys in them and calls sync (ingest)
+It then checks whether a point get reads the correct uncommitted kv-tuples from LC.
+It also checks if the right values are read if a txn is committed or aborted.
+'''
+
 from contextlib import ExitStack
 
 import hse
