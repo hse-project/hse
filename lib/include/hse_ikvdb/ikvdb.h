@@ -77,15 +77,6 @@ merr_t
 ikvdb_make(struct mpool *mp, u64 oid1, u64 oid2, struct kvdb_cparams *params, u64 captgt);
 
 /**
- * ikvdb_drop() - Drop a given KVDB
- * @kvdb_name: kvdb name
- * @params:    fixed configuration parameters
- * @mp:        mpool handle
- */
-merr_t
-ikvdb_drop(const char *kvdb_name, const struct hse_params *params, struct mpool *mp);
-
-/**
  * ikvdb_diag_cndb() - returns a pointer to kvdb's cndb
  * @handle:         handle to access the opened KVDB
  * @cndb:           (output) pointer to cndb

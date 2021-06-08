@@ -81,8 +81,10 @@ MTF_DEFINE_UTEST(mpool_test, mpool_ocd_test)
     ASSERT_EQ(0, strncmp(storage_path, stats.mps_path[MP_MED_CAPACITY], strlen(storage_path)));
     ASSERT_EQ(0, strlen(stats.mps_path[MP_MED_STAGING]));
 
-    mpool_destroy(NULL);
-    mpool_destroy(mp);
+    err = mpool_close(mp);
+    ASSERT_EQ(0, err);
+    mpool_destroy(NULL, NULL);
+    mpool_destroy("mp1", NULL);
 
     unsetenv("HSE_STORAGE_PATH");
     err = mpool_open("mp1", NULL, O_CREAT, &mp);
@@ -147,7 +149,9 @@ MTF_DEFINE_UTEST(mpool_test, mpool_ocd_test)
     err = mpool_open("mp1", NULL, O_RDWR, &mp1);
     ASSERT_EQ(EBUSY, merr_errno(err));
 
-    mpool_destroy(mp);
+    err = mpool_close(mp);
+    ASSERT_EQ(0, err);
+    mpool_destroy("mp1", NULL);
 
     unsetenv("HSE_STAGING_PATH");
     setenv("HSE_STORAGE_PATH", (const char *)storage_path, 1);
@@ -265,7 +269,9 @@ MTF_DEFINE_UTEST(mpool_test, mclass_test)
     ASSERT_EQ(MCID_INVALID, mclass_to_mcid(i));
     ASSERT_EQ(MP_MED_INVALID, mcid_to_mclass(i + 1));
 
-    mpool_destroy(mp);
+    err = mpool_close(mp);
+    ASSERT_EQ(0, err);
+    mpool_destroy("mp1", NULL);
 }
 
 MTF_END_UTEST_COLLECTION(mpool_test);

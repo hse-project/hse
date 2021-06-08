@@ -206,7 +206,9 @@ MTF_DEFINE_UTEST(mdc_test, mdc_abc)
     err = mpool_mdc_delete(mp, logid3, logid4);
     ASSERT_EQ(0, err);
 
-    mpool_destroy(mp);
+    err = mpool_close(mp);
+    ASSERT_EQ(0, err);
+    mpool_destroy("mp1", NULL);
 
     unsetenv("HSE_STAGING_PATH");
 }
@@ -317,7 +319,9 @@ MTF_DEFINE_UTEST(mdc_test, mdc_io_basic)
     err = mpool_mdc_delete(mp, logid1, logid2);
     ASSERT_EQ(0, err);
 
-    mpool_destroy(mp);
+    err = mpool_close(mp);
+    ASSERT_EQ(0, err);
+    mpool_destroy("mp1", NULL);
 
     free(buf);
     free(rdbuf);
@@ -461,7 +465,9 @@ MTF_DEFINE_UTEST(mdc_test, mdc_io_advanced)
     err = mpool_mdc_delete(mp, logid1, logid2);
     ASSERT_EQ(0, err);
 
-    mpool_destroy(mp);
+    err = mpool_close(mp);
+    ASSERT_EQ(0, err);
+    mpool_destroy("mp1", NULL);
 
     free(buf);
 }
@@ -543,7 +549,9 @@ MTF_DEFINE_UTEST(mdc_test, mdc_io_overlap)
     err = mpool_mdc_delete(mp, logid1, logid2);
     ASSERT_EQ(0, err);
 
-    mpool_destroy(mp);
+    err = mpool_close(mp);
+    ASSERT_EQ(0, err);
+    mpool_destroy("mp1", NULL);
 
     free(buf);
     free(rdbuf);
@@ -632,7 +640,9 @@ MTF_DEFINE_UTEST(mdc_test, mdc_io_reopen)
     err = mpool_mdc_delete(mp, logid1, logid2);
     ASSERT_EQ(0, err);
 
-    mpool_destroy(mp);
+    err = mpool_close(mp);
+    ASSERT_EQ(0, err);
+    mpool_destroy("mp1", NULL);
 
     free(buf);
     free(rdbuf);

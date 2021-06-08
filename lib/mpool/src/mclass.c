@@ -10,6 +10,8 @@
 #include <hse_util/logging.h>
 
 #include "mclass.h"
+#include "mdc.h"
+#include "mdc_file.h"
 #include "mblock_fset.h"
 
 /**
@@ -164,6 +166,24 @@ mclass_close(struct media_class *mc)
     return 0;
 }
 
+static int
+mdc_removecb(const char *path, const struct stat *sb, int typeflag, struct FTW *ftwbuf)
+{
+    if (typeflag == FTW_D && ftwbuf->level > 0)
+        return FTW_SKIP_SUBTREE;
+
+    if (strstr(path, MDC_FILE_PFX))
+        remove(path);
+
+    return FTW_CONTINUE;
+}
+
+void
+mclass_mdcs_remove(struct media_class *mc)
+{
+    nftw(mc->dpath, mdc_removecb, MDC_FILES_MAX, FTW_PHYS | FTW_ACTIONRETVAL);
+}
+
 void
 mclass_destroy(struct media_class *mc, struct workqueue_struct *wq)
 {
@@ -174,6 +194,8 @@ mclass_destroy(struct media_class *mc, struct workqueue_struct *wq)
 
     if (mcid_to_mclass(mc->mcid) == MP_MED_CAPACITY)
         mclass_lockfile_rel(dirfd(mc->dirp), mc->lockfd);
+
+    mclass_mdcs_remove(mc);
 
     closedir(mc->dirp);
 

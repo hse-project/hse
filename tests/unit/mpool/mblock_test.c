@@ -275,7 +275,9 @@ MTF_DEFINE_UTEST(mblock_test, mblock_abc)
     err = mpool_open("mp1", NULL, O_RDWR, &mp);
     ASSERT_EQ(0, merr_errno(err));
 
-    mpool_destroy(mp);
+    err = mpool_close(mp);
+    ASSERT_EQ(0, err);
+    mpool_destroy("mp1", NULL);
     unsetenv("HSE_STAGING_PATH");
 }
 
@@ -486,7 +488,9 @@ MTF_DEFINE_UTEST(mblock_test, mblock_io)
     err = mpool_mblock_delete(mp, mbid);
     ASSERT_EQ(EINVAL, merr_errno(err));
 
-    mpool_destroy(mp);
+    err = mpool_close(mp);
+    ASSERT_EQ(0, err);
+    mpool_destroy("mp1", NULL);
 
     free(buf);
     free(bufx);
@@ -685,7 +689,9 @@ MTF_DEFINE_UTEST(mblock_test, mblock_invalid_args)
     err = mpool_mblock_abort(mp, mbid);
     ASSERT_EQ(0, err);
 
-    mpool_destroy(mp);
+    err = mpool_close(mp);
+    ASSERT_EQ(0, err);
+    mpool_destroy("mp1", NULL);
 }
 
 MTF_END_UTEST_COLLECTION(mblock_test);

@@ -244,7 +244,9 @@ MTF_DEFINE_UTEST(mcache_test, mcache_api)
         ASSERT_EQ(0, err);
     }
 
-    mpool_destroy(mp);
+    err = mpool_close(mp);
+    ASSERT_EQ(0, err);
+    mpool_destroy("mp1", NULL);
 
     free(buf);
     unsetenv("HSE_STAGING_PATH");
@@ -295,7 +297,9 @@ MTF_DEFINE_UTEST(mcache_test, mcache_invalid_args)
     err = mpool_mblock_abort(mp, mbid);
     ASSERT_EQ(0, err);
 
-    mpool_destroy(mp);
+    err = mpool_close(mp);
+    ASSERT_EQ(0, err);
+    mpool_destroy("mp1", NULL);
 }
 
 MTF_END_UTEST_COLLECTION(mcache_test);

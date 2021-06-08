@@ -389,23 +389,6 @@ mpool_mdc_root_init(struct mpool *mp)
 }
 
 merr_t
-mpool_mdc_root_destroy(struct mpool *mp)
-{
-    uint64_t id[2];
-    merr_t   err;
-
-    err = mpool_mdc_rootid_get(mp, &id[0], &id[1]);
-    if (err)
-        return err;
-
-    err = mpool_mdc_delete(mp, id[0], id[1]);
-    if (err)
-        return err;
-
-    return 0;
-}
-
-merr_t
 mpool_mdc_sync(struct mpool_mdc *mdc)
 {
     merr_t err;

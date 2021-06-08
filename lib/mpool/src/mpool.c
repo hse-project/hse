@@ -243,16 +243,20 @@ mpool_close(struct mpool *mp)
     return err;
 }
 
-void
-mpool_destroy(struct mpool *mp)
+merr_t
+mpool_destroy(const char *name, const struct hse_params *params)
 {
+    struct mpool *mp;
     struct workqueue_struct *mpdwq;
-    int                      i;
+    int i;
+    merr_t err;
 
-    if (!mp)
-        return;
+    if (!name)
+        return merr(EINVAL);
 
-    mpool_mdc_root_destroy(mp);
+    err = mpool_open(name, params, O_RDWR, &mp);
+    if (err)
+        return err;
 
     mpdwq = alloc_workqueue("mp_destroy", 0, MP_DESTROY_THREADS);
     ev(!mpdwq);
@@ -264,6 +268,8 @@ mpool_destroy(struct mpool *mp)
 
     destroy_workqueue(mpdwq);
     free(mp);
+
+    return 0;
 }
 
 merr_t

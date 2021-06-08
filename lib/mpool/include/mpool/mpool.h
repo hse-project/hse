@@ -24,7 +24,7 @@ struct hse_params;
 /**
  * mpool_open() - Open an mpool
  *
- * @mpname: mpool name
+ * @name:   mpool name
  * @params: hse params
  * @flags:  open flags
  * @mp:     mpool handle (output)
@@ -52,11 +52,12 @@ mpool_close(struct mpool *mp);
 /**
  * mpool_destroy() - Destroy an mpool
  *
- * @mp: mpool handle
+ * @name:   mpool name
+ * @params: hse params
  */
 /* MTF_MOCK */
-void
-mpool_destroy(struct mpool *mp);
+merr_t
+mpool_destroy(const char *name, const struct hse_params *params);
 
 /**
  * mpool_mclass_props_get() - get properties of the specified media class

@@ -15,6 +15,7 @@
 #define MDC_LOGHDR_LEN     (4096)
 #define MDC_RA_BYTES       (128 << 10)
 #define MDC_EXTEND_FACTOR  (8)
+#define MDC_FILE_PFX       "mdc"
 
 struct mpool_mdc;
 struct mdc_file;
@@ -84,7 +85,7 @@ logids_valid(uint64_t logid1, uint64_t logid2)
 static inline void
 mdc_filename_gen(char *buf, size_t buflen, uint64_t logid)
 {
-    snprintf(buf, buflen, "%s-%lx", "mdc", logid);
+    snprintf(buf, buflen, "%s-%lx", MDC_FILE_PFX, logid);
 }
 
 /**

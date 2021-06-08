@@ -152,7 +152,7 @@ hse_kvdb_make(const char *kvdb_name, const struct hse_params *params)
 
 errout:
     if (err)
-        mpool_destroy(mp);
+        mpool_destroy(kvdb_name, params);
     else
         mpool_close(mp);
 
@@ -162,25 +162,10 @@ errout:
 hse_err_t
 hse_kvdb_drop(const char *kvdb_name, const struct hse_params *params)
 {
-    struct mpool *mp;
-    merr_t        err;
-
     if (HSE_UNLIKELY(!kvdb_name))
         return merr_to_hse_err(merr(EINVAL));
 
-    err = mpool_open(kvdb_name, params, O_RDWR, &mp);
-    if (ev(err))
-        return merr_to_hse_err(err);
-
-    err = ikvdb_drop(kvdb_name, params, mp);
-    if (ev(err)) {
-        mpool_close(mp);
-        return merr_to_hse_err(err);
-    }
-
-    mpool_destroy(mp);
-
-    return 0;
+    return mpool_destroy(kvdb_name, params);
 }
 
 static merr_t

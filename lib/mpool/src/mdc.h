@@ -9,6 +9,8 @@
 #include <hse_util/mutex.h>
 #include <hse_util/hse_err.h>
 
+#define MDC_FILES_MAX  10
+
 struct mpool;
 struct mpool_mdc;
 
@@ -27,14 +29,6 @@ mdc_mclass_get(struct mpool_mdc *mdc);
  */
 merr_t
 mpool_mdc_root_init(struct mpool *mp);
-
-/**
- * mpool_mdc_root_destroy() - destroy the root MDC
- *
- * @mp: mpool handle
- */
-merr_t
-mpool_mdc_root_destroy(struct mpool *mp);
 
 /**
  * mpool_mdc_sync() - sync the root MDC
