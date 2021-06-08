@@ -1,6 +1,6 @@
 project(
     'hse',
-    ['c', 'java'],
+    ['c', 'cpp', 'java'],
     version: '1.10.0',
     license: [
         'Apache-2.0',
