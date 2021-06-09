@@ -52,11 +52,16 @@ static const char *param_key[PARAM_MAX][MP_MED_COUNT] =
 };
 
 static merr_t
-mclass_params_init(enum mpool_mclass mclass, struct mclass_params *mcp)
+mclass_params_init(
+    enum mpool_mclass     mclass,
+    const char           *mcpath,
+    struct mclass_params *mcp)
 {
-    char *path;
+    const char *path = mcpath;
 
-    path = getenv(param_key[PARAM_ENV_PATH][mclass]);
+    if (!path)
+        path = getenv(param_key[PARAM_ENV_PATH][mclass]);
+
     if (path) {
         size_t n;
 
@@ -111,13 +116,152 @@ hse_to_mclass_params(
     return 0;
 }
 
+static merr_t
+mpool_mclass_open(
+    struct mpool         *mp,
+    enum mpool_mclass     mclass,
+    struct mclass_params *mcp,
+    uint32_t              flags,
+    struct media_class  **mc)
+{
+    merr_t err;
+    char  *path = NULL;
+
+    if (!mp || !mcp || !mc)
+        return merr(EINVAL);
+
+    if (mcp->path[0] == '\0') {
+        if (mclass == MP_MED_CAPACITY) {
+            hse_log(HSE_ERR "%s: storage path not set for %s", __func__, mp->name);
+            return merr(EINVAL);
+        }
+        return 0;
+    }
+
+    path = realpath(mcp->path, NULL);
+    if (!path)
+        return merr(errno);
+
+    for (int i = mclass - 1; i >= 0; i--) {
+        if (mp->mc[i] && !strcmp(path, mclass_dpath(mp->mc[i]))) {
+            free(path);
+            hse_log(
+                HSE_ERR "%s: Duplicate storage path detected for mc %d and %d",
+                __func__,
+                mclass,
+                i);
+            return merr(EINVAL);
+        }
+    }
+
+    err = mclass_open(mclass, mcp, flags, mc);
+    if (err) {
+        free(path);
+        hse_elog(
+            HSE_ERR "%s: Cannot access storage path for mclass %d: @@e",
+            err,
+            __func__,
+            mclass);
+        return err;
+    }
+
+    free(path);
+
+    return 0;
+}
+
+/* TODO: Pass mpool create time parameters in the new API */
 merr_t
-mpool_open(const char *name, const struct hse_params *params, uint32_t flags, struct mpool **handle)
+mpool_mclass_add(const char *name, enum mpool_mclass mclass, const struct hse_params *params)
+{
+    struct media_class  *mc;
+    struct mclass_params mcp = {};
+    merr_t err = 0;
+    int flags = 0;
+
+    if (!name)
+        return merr(EINVAL);
+
+    err = mclass_params_init(mclass, NULL, &mcp);
+    if (err)
+        return err;
+
+    err = hse_to_mclass_params(params, mclass, &mcp);
+    if (err)
+        return err;
+
+    if (mcp.path[0] == '\0')
+        return merr(EINVAL);
+
+    flags |= (O_CREAT | O_RDWR);
+    err = mclass_open(mclass, &mcp, flags, &mc);
+    if (!err)
+        mclass_close(mc);
+
+    return err;
+}
+
+merr_t
+mpool_create(const char *name, const struct hse_params *params)
 {
     struct mpool *mp;
-    merr_t        err;
-    int           i;
-    char         *path = NULL;
+    merr_t err;
+    int    i, flags = 0;
+
+    if (!name)
+        return merr(EINVAL);
+
+    mp = calloc(1, sizeof(*mp));
+    if (!mp)
+        return merr(ENOMEM);
+    strlcpy(mp->name, name, sizeof(mp->name));
+
+    flags |= (O_CREAT | O_RDWR);
+    for (i = MP_MED_BASE; i < MP_MED_COUNT; i++) {
+        struct mclass_params mcp = {};
+
+        err = mclass_params_init(i, NULL, &mcp);
+        if (err)
+            goto errout;
+
+        err = hse_to_mclass_params(params, i, &mcp);
+        if (err)
+            goto errout;
+
+        err = mpool_mclass_open(mp, i, &mcp, flags, &mp->mc[i]);
+        if (err)
+            goto errout;
+    }
+
+    err = mpool_mdc_root_init(mp);
+    if (err)
+        goto errout;
+
+    mpool_close(mp);
+
+    return 0;
+
+errout:
+    while (i-- > MP_MED_BASE)
+        mclass_destroy(mp->mc[i], NULL);
+    free(mp);
+
+    return err;
+}
+
+/*
+ * TODO: Pass vector of mclass paths instead of hse_params
+ */
+merr_t
+mpool_open(
+    const char              *name,
+    const struct hse_params *params,
+    uint32_t                 flags,
+    struct mpool           **handle)
+{
+    struct mpool *mp;
+    merr_t err;
+    int    i;
 
     if (!name || !handle)
         return merr(EINVAL);
@@ -127,79 +271,25 @@ mpool_open(const char *name, const struct hse_params *params, uint32_t flags, st
     mp = calloc(1, sizeof(*mp));
     if (!mp)
         return merr(ENOMEM);
-
-    if (flags & O_CREAT)
-        flags |= O_RDWR;
+    strlcpy(mp->name, name, sizeof(mp->name));
 
     for (i = MP_MED_BASE; i < MP_MED_COUNT; i++) {
         struct mclass_params mcp = {};
 
-        err = mclass_params_init(i, &mcp);
+        /* TODO: Pass the mclass path parameter to init */
+        err = mclass_params_init(i, NULL, &mcp);
         if (err)
             goto errout;
 
+        /* TODO: This call can be removed in the new open API */
         err = hse_to_mclass_params(params, i, &mcp);
         if (err)
             goto errout;
 
-        if (mcp.path[0] != '\0') {
-            int flags2 = 0;
-
-            path = realpath(mcp.path, NULL);
-            if (!path) {
-                err = merr(errno);
-                goto errout;
-            }
-
-            for (int j = i - 1; j >= 0; j--) {
-                if (mp->mc[j] && !strcmp(path, mclass_dpath(mp->mc[j]))) {
-                    err = merr(EINVAL);
-                    free(path);
-                    hse_log(
-                        HSE_ERR "%s: Duplicate storage path detected for mc %d and %d",
-                        __func__,
-                        i,
-                        j);
-                    goto errout;
-                }
-            }
-
-            do {
-                err = mclass_open(mp, i, &mcp, flags | flags2, &mp->mc[i]);
-                if (err) {
-                    if (i != MP_MED_CAPACITY && merr_errno(err) == ENOENT && !(flags & O_CREAT) &&
-                        !(flags2 & O_CREAT)) {
-                        /* Don't initialize new mclass for O_RDONLY open */
-                        if ((flags & O_ACCMODE) == O_RDONLY) {
-                            err = 0;
-                            break;
-                        }
-
-                        flags2 = (O_CREAT | O_RDWR);
-                        continue;
-                    }
-
-                    if (err) {
-                        free(path);
-                        hse_elog(
-                            HSE_ERR "%s: Cannot access storage path for mclass %d: @@e",
-                            err,
-                            __func__,
-                            i);
-                        goto errout;
-                    }
-                }
-                break;
-            } while (true);
-            free(path);
-        } else if (i == MP_MED_CAPACITY) {
-            err = merr(EINVAL);
-            hse_log(HSE_ERR "%s: storage path not set for %s", __func__, name);
+        err = mpool_mclass_open(mp, i, &mcp, flags, &mp->mc[i]);
+        if (err)
             goto errout;
-        }
     }
-
-    strlcpy(mp->name, name, sizeof(mp->name));
 
     err = mpool_mdc_root_init(mp);
     if (err)
@@ -210,12 +300,8 @@ mpool_open(const char *name, const struct hse_params *params, uint32_t flags, st
     return 0;
 
 errout:
-    while (i-- > MP_MED_BASE) {
-        if (flags & O_CREAT)
-            mclass_destroy(mp->mc[i], NULL);
-        else
-            mclass_close(mp->mc[i]);
-    }
+    while (i-- > MP_MED_BASE)
+        mclass_close(mp->mc[i]);
 
     free(mp);
 

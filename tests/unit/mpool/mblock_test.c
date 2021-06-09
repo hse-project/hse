@@ -29,7 +29,10 @@ MTF_DEFINE_UTEST(mblock_test, mblock_abc)
     merr_t              err;
     int                 rc;
 
-    err = mpool_open("mp1", NULL, O_CREAT, &mp);
+    err = mpool_create("mp1", NULL);
+    ASSERT_EQ(0, err);
+
+    err = mpool_open("mp1", NULL, O_RDWR, &mp);
     ASSERT_EQ(0, err);
 
     err = mpool_mblock_alloc(NULL, MP_MED_CAPACITY, &mbid, NULL);
@@ -147,6 +150,9 @@ MTF_DEFINE_UTEST(mblock_test, mblock_abc)
 
     rc = mkdir(staging_path, S_IRWXU | S_IRWXG | S_IROTH | S_IWOTH);
     ASSERT_EQ(0, rc);
+
+    err = mpool_mclass_add("mp1", MP_MED_STAGING, NULL);
+    ASSERT_EQ(0, merr_errno(err));
 
     err = mpool_open("mp1", NULL, O_RDWR, &mp);
     ASSERT_EQ(0, merr_errno(err));
@@ -358,7 +364,11 @@ MTF_DEFINE_UTEST(mblock_test, mblock_io)
     size_t   mbsz = 32 << 20, wlen;
 
     setenv("HSE_STORAGE_PATH", (const char *)storage_path, 1);
-    err = mpool_open("mp1", NULL, O_CREAT, &mp);
+
+    err = mpool_create("mp1", NULL);
+    ASSERT_EQ(0, err);
+
+    err = mpool_open("mp1", NULL, O_RDWR, &mp);
     ASSERT_EQ(0, err);
 
     err = mpool_mblock_alloc(mp, MP_MED_CAPACITY, &mbid, NULL);
@@ -512,7 +522,11 @@ MTF_DEFINE_UTEST(mblock_test, mblock_invalid_args)
     merr_t   err;
 
     setenv("HSE_STORAGE_PATH", (const char *)storage_path, 1);
-    err = mpool_open("mp1", NULL, O_CREAT, &mp);
+
+    err = mpool_create("mp1", NULL);
+    ASSERT_EQ(0, err);
+
+    err = mpool_open("mp1", NULL, O_RDWR, &mp);
     ASSERT_EQ(0, err);
 
     err = mpool_mblock_alloc(mp, MP_MED_CAPACITY, &mbid, NULL);

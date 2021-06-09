@@ -22,12 +22,32 @@ struct hse_params;
  */
 
 /**
- * mpool_open() - Open an mpool
+ * mpool_create() - Create an mpool
  *
  * @name:   mpool name
  * @params: hse params
- * @flags:  open flags
- * @mp:     mpool handle (output)
+ */
+/* MTF_MOCK */
+merr_t
+mpool_create(const char *name, const struct hse_params *params);
+
+/**
+ * mpool_mclass_add() - Add a media class to the mpool
+ *
+ * @name:   mpool name
+ * @mclass  mclass id
+ * @params: hse params
+ */
+merr_t
+mpool_mclass_add(const char *name, enum mpool_mclass mclass, const struct hse_params *params);
+
+/**
+ * mpool_open() - Open an mpool
+ *
+ * @name:    mpool name
+ * @params: hse params
+ * @flags:   open flags
+ * @handle:  mpool handle (output)
  *
  * Flags are limited to a subset of flags allowed by open(2):
  * O_CREAT, O_RDONLY, O_WRONLY, and O_RDWR.

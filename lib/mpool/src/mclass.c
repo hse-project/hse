@@ -78,7 +78,6 @@ mclass_lockfile_rel(int dirfd, int lockfd)
 
 merr_t
 mclass_open(
-    struct mpool         *mp,
     enum mpool_mclass     mclass,
     struct mclass_params *params,
     int                   flags,
@@ -89,7 +88,7 @@ mclass_open(
     int    lockfd = -1;
     merr_t err;
 
-    if (!mp || !params || !handle || mclass >= MP_MED_COUNT)
+    if (!params || !handle || mclass >= MP_MED_COUNT)
         return merr(EINVAL);
 
     dirp = opendir(params->path);

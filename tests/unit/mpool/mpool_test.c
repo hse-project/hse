@@ -35,7 +35,10 @@ MTF_DEFINE_UTEST(mpool_test, mpool_ocd_test)
     err = mpool_open("mp1", NULL, 0, &mp);
     ASSERT_EQ(ENOENT, merr_errno(err));
 
-    err = mpool_open("mp1", NULL, O_CREAT, &mp);
+    err = mpool_create("mp1", NULL);
+    ASSERT_EQ(0, err);
+
+    err = mpool_open("mp1", NULL, O_RDWR, &mp);
     ASSERT_EQ(0, err);
 
     err = mpool_close(NULL);
@@ -44,7 +47,7 @@ MTF_DEFINE_UTEST(mpool_test, mpool_ocd_test)
     err = mpool_close(mp);
     ASSERT_EQ(0, err);
 
-    err = mpool_open("mp1", NULL, O_CREAT, &mp);
+    err = mpool_create("mp1", NULL);
     ASSERT_EQ(EEXIST, merr_errno(err));
 
     err = mpool_open("mp1", NULL, O_RDONLY, &mp);
@@ -84,19 +87,22 @@ MTF_DEFINE_UTEST(mpool_test, mpool_ocd_test)
     err = mpool_close(mp);
     ASSERT_EQ(0, err);
     mpool_destroy(NULL, NULL);
-    mpool_destroy("mp1", NULL);
 
     unsetenv("HSE_STORAGE_PATH");
-    err = mpool_open("mp1", NULL, O_CREAT, &mp);
+    err = mpool_open("mp1", NULL, O_RDWR, &mp);
     ASSERT_EQ(EINVAL, merr_errno(err));
 
     setenv("HSE_STORAGE_PATH", (const char *)storage_path, 1);
     setenv("HSE_STAGING_PATH", (const char *)storage_path, 1);
-    err = mpool_open("mp1", NULL, O_CREAT, &mp);
+    err = mpool_open("mp1", NULL, O_RDWR, &mp);
     ASSERT_EQ(EINVAL, merr_errno(err));
     unsetenv("HSE_STAGING_PATH");
+    mpool_destroy("mp1", NULL);
 
-    err = mpool_open("mp1", NULL, O_CREAT, &mp);
+    err = mpool_create("mp1", NULL);
+    ASSERT_EQ(0, err);
+
+    err = mpool_open("mp1", NULL, O_RDWR, &mp);
     ASSERT_EQ(0, err);
 
     err = mpool_close(mp);
@@ -106,14 +112,14 @@ MTF_DEFINE_UTEST(mpool_test, mpool_ocd_test)
     strlcat(staging_path, "/staging", sizeof(staging_path) - strlen(staging_path));
     setenv("HSE_STAGING_PATH", (const char *)staging_path, 1);
 
-    err = mpool_open("mp1", NULL, O_RDWR, &mp);
+    err = mpool_mclass_add("mp1", MP_MED_STAGING, NULL);
     ASSERT_EQ(ENOENT, merr_errno(err));
 
     rc = mkdir(staging_path, S_IRWXU | S_IRWXG | S_IROTH | S_IWOTH);
     ASSERT_EQ(0, rc);
 
-    err = mpool_open("mp1", NULL, O_RDONLY, &mp);
-    ASSERT_EQ(0, merr_errno(err));
+    err = mpool_open("mp1", NULL, O_RDWR, &mp);
+    ASSERT_EQ(ENOENT, merr_errno(err));
 
     dirp = opendir(staging_path);
     ASSERT_NE(dirp, NULL);
@@ -125,8 +131,8 @@ MTF_DEFINE_UTEST(mpool_test, mpool_ocd_test)
 
     rewinddir(dirp);
 
-    err = mpool_close(mp);
-    ASSERT_EQ(0, err);
+    err = mpool_mclass_add("mp1", MP_MED_STAGING, NULL);
+    ASSERT_EQ(0, merr_errno(err));
 
     err = mpool_open("mp1", NULL, O_RDWR, &mp);
     ASSERT_EQ(0, merr_errno(err));
@@ -169,7 +175,10 @@ MTF_DEFINE_UTEST(mpool_test, mclass_test)
     size_t                    mbsz;
     struct mblock_fset       *fsetp;
 
-    err = mpool_open("mp1", NULL, O_CREAT, &mp);
+    err = mpool_create("mp1", NULL);
+    ASSERT_EQ(0, err);
+
+    err = mpool_open("mp1", NULL, O_RDWR, &mp);
     ASSERT_EQ(0, err);
 
     err = mpool_mclass_props_get(NULL, MP_MED_CAPACITY, &props);

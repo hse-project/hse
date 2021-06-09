@@ -122,9 +122,13 @@ hse_kvdb_make(const char *kvdb_name, const struct hse_params *params)
     if (ev(err))
         return merr_to_hse_err(err);
 
-    err = mpool_open(kvdb_name, params, O_CREAT, &mp);
+    err = mpool_create(kvdb_name, params);
     if (ev(err))
         return merr_to_hse_err(err);
+
+    err = mpool_open(kvdb_name, params, O_RDWR, &mp);
+    if (ev(err))
+        goto errout;
 
     for (int i = 0; i < MP_MED_COUNT; i++) {
         struct mpool_mclass_props mcprops;

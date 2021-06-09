@@ -47,7 +47,6 @@ struct mclass_params {
 /**
  * mclass_open() - open the specified mclass
  *
- * @mp:     mpool handle
  * @mclass: media class
  * @params: mclass params
  * @flags:  open flags
@@ -55,7 +54,6 @@ struct mclass_params {
  */
 merr_t
 mclass_open(
-    struct mpool         *mp,
     enum mpool_mclass     mclass,
     struct mclass_params *params,
     int                   flags,
