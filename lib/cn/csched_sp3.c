@@ -1300,12 +1300,14 @@ sp3_prune_trees(struct sp3 *sp)
             sp3_log_samp_one_tree(tree);
             sp3_log_samp_overall(sp);
 
+#if 0
 #ifdef HSE_BUILD_DEBUG
             assert(sp->samp.i_alen >= tree->ct_samp.i_alen);
             assert(sp->samp.r_alen >= tree->ct_samp.r_alen);
             assert(sp->samp.r_wlen >= tree->ct_samp.r_wlen);
             assert(sp->samp.l_alen >= tree->ct_samp.l_alen);
             assert(sp->samp.l_good >= tree->ct_samp.l_good);
+#endif
 #endif
 
             if (sp->samp.i_alen >= tree->ct_samp.i_alen)

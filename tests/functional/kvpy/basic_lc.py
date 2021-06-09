@@ -35,6 +35,7 @@ def run_test(kvdb, kvs):
     # Get from C0
     with kvdb.transaction() as t5:
         val = kvs.get(b"ab3", txn=t5)
+        print(val)
         assert val == b"val3"
 
     # Get from LC

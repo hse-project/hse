@@ -147,7 +147,7 @@ _pfx_probe(
 		bool eof;
 
 		/* cursor over the hard prefix */
-		c = kh_cursor_create(kvs, 0, pfx, 2*sizeof(uint64_t));
+		c = kh_cursor_create(kvs, 0, pfx, sizeof(uint64_t));
 
 		/* seek to soft prefix */
 		kh_cursor_seek(c, pfx, pfxlen);
@@ -173,16 +173,26 @@ done:
 	} else if (opts.use_gets) {
 		bool found;
 		char key[3 * sizeof(uint64_t)] = {0};
+        uint64_t *s;
 
 		memcpy(key, pfx, pfxlen);
+        s = (uint64_t *)(key + pfxlen);
 
 		pc = HSE_KVS_PFX_FOUND_ZERO;
 		rc = hse_kvs_get(kvs, 0, key, sizeof(key), &found,
 				 vbuf, vbufsz, &vlen);
-		if (found)
-			pc = HSE_KVS_PFX_FOUND_ONE;
 		if (rc)
 			fatal(rc, "get failure");
+		if (found)
+			pc = HSE_KVS_PFX_FOUND_ONE;
+
+        *s = htobe64(1);
+		rc = hse_kvs_get(kvs, 0, key, sizeof(key), &found,
+				 vbuf, vbufsz, &vlen);
+		if (rc)
+			fatal(rc, "get failure");
+		if (found)
+			pc = HSE_KVS_PFX_FOUND_MUL;
 	} else {
 
 		rc = hse_kvs_prefix_probe_exp(kvs, 0, pfx, pfxlen, &pc,
@@ -233,15 +243,15 @@ reader(void *arg)
 		if (pfx % 5 == 0 && pc != HSE_KVS_PFX_FOUND_ZERO) {
 			killthreads = true;
 			err = 1;
-			printf("pfx %lu expected %d matches %d\n", pfx, 0, pc);
+			printf("pfx %lu expected %d found %d\n", pfx, 0, pc);
 		} else if (pfx % 5 == 1 && pc != HSE_KVS_PFX_FOUND_ONE) {
 			killthreads = true;
 			err = 1;
-			printf("pfx %lu expected %d matches %d\n", pfx, 1, pc);
+			printf("pfx %lu expected %d found %d\n", pfx, 1, pc);
 		} else if (pfx % 5 > 1 && pc != HSE_KVS_PFX_FOUND_MUL) {
 			killthreads = true;
 			err = 1;
-			printf("pfx %lu expected %d matches %d\n", pfx, 2, pc);
+			printf("pfx %lu expected %d found %d\n", pfx, 2, pc);
 		}
 	}
 }

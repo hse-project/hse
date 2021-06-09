@@ -39,10 +39,11 @@
  */
 struct c0_ingest_work {
     struct work_struct       c0iw_work;
-    struct c0sk_impl *       c0iw_c0sk;
+    struct c0sk *            c0iw_c0sk;
     struct bin_heap2 *       c0iw_minheap;
     struct element_source *  c0iw_sourcev[HSE_C0_KVSET_ITER_MAX];
     struct c0_kvset_iterator c0iw_iterv[HSE_C0_KVSET_ITER_MAX];
+    struct element_source *  c0iw_last_kvms_esrc;
     struct lc_ingest_iter    c0iw_lc_iterv[LC_SOURCE_CNT_MAX];
     struct kvset_builder *   c0iw_bldrs[HSE_KVS_COUNT_MAX];
     struct kvset_mblocks     c0iw_mblocks[HSE_KVS_COUNT_MAX];

@@ -407,7 +407,7 @@ c0kvms_cursor_skip_pfx(struct c0_kvmultiset_cursor *cur, struct bonsai_kv *pt_bk
     s64                       rc;
 
     /* skip pfx only if KVMS is strictly older than current. */
-    rc = bin_heap2_age_cmp(0, pt_es, &cur->c0mc_es);
+    rc = bin_heap2_age_cmp(pt_es, &cur->c0mc_es);
     if (rc >= 0)
         return 0; /* nothing to update */
 
@@ -748,7 +748,7 @@ c0kvms_cursor_destroy(struct c0_kvmultiset_cursor *cur)
 }
 
 struct c0_ingest_work *
-c0kvms_ingest_work_prepare(struct c0_kvmultiset *handle, struct c0sk_impl *c0sk)
+c0kvms_ingest_work_prepare(struct c0_kvmultiset *handle, struct c0sk *c0sk)
 {
     struct c0_kvmultiset_impl *self = c0_kvmultiset_h2r(handle);
     struct element_source **   source;
@@ -785,6 +785,7 @@ c0kvms_ingest_work_prepare(struct c0_kvmultiset *handle, struct c0sk_impl *c0sk)
     }
 
     work->c0iw_iterc = iter - work->c0iw_iterv;
+    work->c0iw_last_kvms_esrc = work->c0iw_iterc ? work->c0iw_sourcev[work->c0iw_iterc - 1] : NULL;
 
     return work;
 }

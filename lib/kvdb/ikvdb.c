@@ -1020,7 +1020,7 @@ ikvdb_open(
         goto err1;
     }
 
-    err = lc_create(&self->ikdb_lc, self->ikdb_ctxn_set);
+    err = lc_create(&self->ikdb_lc);
     if (ev(err)) {
         hse_elog(HSE_ERR "failed to create lc: @@e", err);
         goto err1;

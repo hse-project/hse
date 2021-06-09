@@ -636,10 +636,7 @@ c0sk_lc_set(struct c0sk *handle, struct lc *lc)
 struct lc *
 c0sk_lc_get(struct c0sk *handle)
 {
-    if (handle)
-        return c0sk_h2r(handle)->c0sk_lc;
-
-    return NULL;
+    return handle ? c0sk_h2r(handle)->c0sk_lc : NULL;
 }
 
 atomic64_t *

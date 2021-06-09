@@ -33,7 +33,7 @@ test_pre(struct mtf_test_info *ti)
 {
     merr_t err;
 
-    err = lc_create(&lc, (void *)-1);
+    err = lc_create(&lc);
     assert(err == 0);
 
     lc_ingest_seqno_set(lc, 0);

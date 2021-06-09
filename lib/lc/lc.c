@@ -2,9 +2,11 @@
 /*
  * Copyright (C) 2021 Micron Technology, Inc.  All rights reserved.
  *
- * Late Commit (LC) sits between c0 and cn. The ingest thread is responsible for adding kv-tuples
- * to LC. It establishes a view seqno upfront and only considers ingesting kv-tuples to cn if they
- * have a seqno less than this view seqno.
+ * Late Commit (LC) is a layer that sits between c0 and cn. It's primary purpose is to hold
+ * uncommitted transactions until they are committed and ready for ingest into cn.
+ *
+ * The ingest thread is responsible for adding kv-tuples to LC. It establishes a view seqno upfront
+ * and only considers ingesting kv-tuples to cn if they have a seqno less than this view seqno.
  *
  * A kv-tuples is added to LC in one of these cases:
  *   1. The kv-tuple belongs to an active txn.
@@ -20,7 +22,7 @@
  * Since bonsai nodes may be deleted, cursor operations need to be careful about walking the tree
  * and lists. This is done by using a combination of rcu semantics and tracking of a horizon seqno.
  *
- * All quesries - point gets, prefix probe and cursors will have to look at LC as well.
+ * All queries - point gets, prefix probe and cursors - will have to look at LC as well.
  *
  * Definitions
  * -----------
@@ -34,22 +36,30 @@
  * an ingest batch list. This is a refcounted object used to track the lc horizon. There must always
  * be at least one ingest batch object on the list.
  *
+ * Cursors
+ * -------
  * Everytime a cursor is created, it bumps the refcount on the first object in the ingest batch
  * list. The cursor also fetches the seqno of this ingest batch and sets it as its cursor horizon.
  *
+ * The cursor will skip keys that have a seqno newer than the view or older than its horizon. This
+ * ensures that as long as this cursor is not destroyed or updated, the kv-tuples in its view won't
+ * be garbage collected.
+ *
+ * If the view seqno is larger than the horizon, the cursor is empty (at eof).
+ *
  * Garbage Collection and Cursors
  * ------------------------------
- * The lc_gc_worker_start() function enqueues a garbage collector job on the ingest workqueue.
- * The garbage collector worker thread walks the ingest batch list and finds the oldest ingest
+ * The lc_gc_worker_start() function enqueues a garbage collector job on a GC workqueue. The
+ * garbage collector worker thread walks the ingest batch list and finds the oldest ingest
  * batch on the list with a non-zero refcount. The seqno of this ingest batch is the lc horizon.
  *
  * The garbage collector walks the bonsai trees in an rcu read lock and marks values for deletion
  * only if their seqnos are older than the horizon. The actual delete happens after the ongoing rcu
  * grace period.
  *
- * A cursor read acquires an rcu read lock and repeatedly reads the next key. It doesn't release
- * the rcu read lock until it finds a kv-tuple with a seqno larger than the horizon. This way there
- * is no fear of the ndoe getting deleted from under the cursor.
+ * A cursor read acquires an rcu read lock and reads through the bonsai keys until it finds a
+ * kv-tuple with a seqno larger than the horizon. This node is safe from garbage collection making
+ * it safe for the operation to release its rcu read lock.
  *
  * A cursor seek acquires an rcu read lock and then seeks each bonsai tree iterator to the desired
  * key. This key may not be in the cursor's view. The subsequent bin heap prepare performs a cursor
@@ -74,6 +84,7 @@
 #include <hse_util/compression_lz4.h>
 #include <hse_util/rmlock.h>
 #include <hse_util/bin_heap.h>
+#include <hse_util/bkv_collection.h>
 
 #include <c0/c0_kvset_internal.h>
 
@@ -94,9 +105,18 @@ struct ingest_batch {
 };
 
 /**
+ * struct lc_gc - LC's Garbage collector object
+ *
+ * @lgc_dwork: Delayed work struct used for scheduling GC work
+ */
+struct lc_gc {
+    struct delayed_work lgc_dwork;
+    u64                 lgc_last_horizon_incl;
+};
+
+/**
  * struct lc_impl - Private representation of LC
  * @lc_handle:        lc handle
- * @lc_kvdb_ctxn_set: kvdb's ctxn set
  * @lc_mutex:         mutex protecting updates to the bonsai trees
  * @lc_nsrc:          number of bonsai trees
  * @lc_broot:         array of bonsai tree roots
@@ -106,15 +126,18 @@ struct ingest_batch {
  */
 struct lc_impl {
     struct lc             lc_handle;
-    struct kvdb_ctxn_set *lc_kvdb_ctxn_set;
     struct mutex          lc_mutex;
     uint                  lc_nsrc;
+    atomic_t              lc_closing;
 
-    struct bonsai_root *lc_broot[LC_SOURCE_CNT_MAX];
-    struct lc_gc *      lc_gc;
+    struct bonsai_root *     lc_broot[LC_SOURCE_CNT_MAX];
+    struct lc_gc             lc_gc;
+    struct workqueue_struct *lc_gc_wq;
+    unsigned long            lc_gc_delay_ms;
 
     struct rmlock        lc_ib_rmlock;
     struct ingest_batch *lc_ib_head;
+    atomic_t             lc_ib_len;
 };
 
 #define lc_h2r(HANDLE) container_of(HANDLE, struct lc_impl, lc_handle)
@@ -129,7 +152,7 @@ lc_ingest_seqno_set(struct lc *handle, u64 seq)
     if (ev(!handle))
         return;
 
-    ib = alloc_aligned(sizeof(*ib), alignof(*ib));
+    ib = malloc(sizeof(*ib));
     if (!ib)
         return;
 
@@ -143,6 +166,8 @@ lc_ingest_seqno_set(struct lc *handle, u64 seq)
     ib->ib_next = self->lc_ib_head;
     self->lc_ib_head = ib;
     rmlock_wunlock(&self->lc_ib_rmlock);
+
+    atomic_inc(&self->lc_ib_len);
 }
 
 static u64
@@ -170,12 +195,23 @@ lc_ingest_seqno_get(struct lc *handle)
 {
     struct lc_impl *self = lc_h2r(handle);
 
-    /* [HSE_REVISIT] This should be done by c0sk_ingest_worker - the caller.
-     */
-    kvdb_ctxn_set_wait_commits(self->lc_kvdb_ctxn_set);
     return lc_ib_head_seqno(self);
 }
 
+static void
+lc_wlock(struct lc_impl *self)
+{
+    mutex_lock(&self->lc_mutex);
+}
+
+static void
+lc_wunlock(struct lc_impl *self)
+{
+    mutex_unlock(&self->lc_mutex);
+}
+
+/* Cursor horizon management
+ */
 static u64
 lc_horizon_register(struct lc_impl *self, void **cookie)
 {
@@ -299,19 +335,10 @@ lc_ior_cb(
 }
 
 static void
-lc_wlock(struct lc_impl *self)
-{
-    mutex_lock(&self->lc_mutex);
-}
-
-static void
-lc_wunlock(struct lc_impl *self)
-{
-    mutex_unlock(&self->lc_mutex);
-}
+lc_gc_worker_start(struct lc_impl *self);
 
 merr_t
-lc_create(struct lc **handle, struct kvdb_ctxn_set *ctxn_set)
+lc_create(struct lc **handle)
 {
     struct lc_impl *self;
     merr_t          err;
@@ -326,22 +353,40 @@ lc_create(struct lc **handle, struct kvdb_ctxn_set *ctxn_set)
 
     for (i = 0; i < self->lc_nsrc; i++) {
         err = bn_create(NULL, lc_ior_cb, NULL, &self->lc_broot[i]);
-        if (ev(err)) {
-            lc_destroy(&self->lc_handle);
-            return err;
-        }
+        if (ev(err))
+            goto err_exit;
     }
 
-    self->lc_kvdb_ctxn_set = ctxn_set;
+    self->lc_gc_delay_ms = 1000;
+    self->lc_gc_wq = alloc_workqueue("lc_gc", 0, 1);
+    if (ev(!self->lc_gc_wq)) {
+        err = merr(ENOMEM);
+        goto err_exit;
+    }
+
     rmlock_init(&self->lc_ib_rmlock);
     mutex_init(&self->lc_mutex);
+
+    atomic_set(&self->lc_closing, 0);
+    lc_gc_worker_start(self);
+
     *handle = lc_r2h(self);
     return 0;
+
+err_exit:
+    for (i = 0; i < self->lc_nsrc; i++) {
+        if (self->lc_broot[i])
+            bn_destroy(self->lc_broot[i]);
+    }
+
+    free(self);
+
+    return err;
 }
 
 /* lc_destroy() must be called after destroying the GC workqueue
  */
-merr_t
+void
 lc_destroy(struct lc *handle)
 {
     struct lc_impl *     self;
@@ -349,9 +394,16 @@ lc_destroy(struct lc *handle)
     int                  i;
 
     if (!handle)
-        return 0;
+        return;
 
     self = lc_h2r(handle);
+
+    atomic_set(&self->lc_closing, 1);
+    while (!cancel_delayed_work(&self->lc_gc.lgc_dwork))
+        usleep(1000);
+    flush_workqueue(self->lc_gc_wq);
+    destroy_workqueue(self->lc_gc_wq);
+
     mutex_destroy(&self->lc_mutex);
 
     for (i = 0; i < self->lc_nsrc; i++) {
@@ -366,125 +418,91 @@ lc_destroy(struct lc *handle)
      */
     while ((ib = self->lc_ib_head)) {
         self->lc_ib_head = ib->ib_next;
-        free_aligned(ib);
+        free(ib);
     }
 
     free(self);
-
-    return 0;
 }
 
+/* Initial number of entries in lc_builder
+ */
 #define LC_BUILDER_CNT (1UL << 20)
 
-struct lc_builder_entry {
-    struct bonsai_kv * bkv;
-    struct bonsai_val *vlist;
+struct lc_builder {
 };
 
-struct lc_builder {
-    uint                     lcb_cnt;
-    size_t                   lcb_cnt_max;
-    struct lc_impl *         lcb_lc;
-    struct lc_builder_entry *lcb_entry;
-};
+static merr_t
+lc_builder_cb(void *rock, struct bonsai_kv *bkv, struct bonsai_val *vlist)
+{
+    struct lc_impl *   lc = rock;
+    u16                skidx = key_immediate_index(&bkv->bkv_key_imm);
+    uint               klen = key_imm_klen(&bkv->bkv_key_imm);
+    struct bonsai_skey skey;
+    struct bonsai_val *val = vlist;
+    merr_t             err;
+
+    bn_skey_init(bkv->bkv_key, klen, 0, skidx, &skey);
+
+    assert(val); /* There should be at least one value */
+
+    while (val) {
+        struct bonsai_root *root;
+        struct bonsai_sval  sval;
+
+        bn_sval_init(val->bv_value, val->bv_xlen, val->bv_seqnoref, &sval);
+        root = sval.bsv_val == HSE_CORE_TOMB_PFX ? lc->lc_broot[0] : lc->lc_broot[1];
+
+        err = bn_insert_or_replace(root, &skey, &sval);
+        if (ev(err))
+            return err;
+
+        val = val->bv_priv;
+    }
+
+    return err;
+}
 
 merr_t
 lc_builder_create(struct lc *lc, struct lc_builder **builder)
 {
-    struct lc_builder *lcb;
-    size_t             max_cnt = LC_BUILDER_CNT;
-    size_t             sz;
+    struct bkv_collection *bldr;
+    struct lc_impl *self = lc_h2r(lc);
+    merr_t                 err;
 
-    /* [HSE_REVISIT] Maybe use kmem_cache here. Or add lc_builder as a member of lc and reuse the
-     * same one (since there's only ever one thread writing to LC).
-     */
-    lcb = malloc(sizeof(*lcb));
-    if (ev(!lcb))
-        return merr(ENOMEM);
+    err = bkv_collection_create(&bldr, LC_BUILDER_CNT, &lc_builder_cb, self);
 
-    sz = (max_cnt * sizeof(*lcb->lcb_entry));
-    lcb->lcb_entry = malloc(sz);
-    if (ev(!lcb->lcb_entry)) {
-        free(lcb);
-        return merr(ENOMEM);
-    }
-
-    lcb->lcb_cnt_max = max_cnt;
-    lcb->lcb_cnt = 0;
-    lcb->lcb_lc = lc_h2r(lc);
-
-    *builder = lcb;
-    return 0;
+    *builder = (void *)bldr;
+    return err;
 }
 
 void
 lc_builder_destroy(struct lc_builder *lcb)
 {
-    free(lcb->lcb_entry);
-    free(lcb);
+    struct bkv_collection *bkvc = (struct bkv_collection *)lcb;
+
+    bkv_collection_destroy(bkvc);
 }
 
 merr_t
-lc_builder_add(struct lc_builder *bldr, struct bonsai_kv *bkv, struct bonsai_val *val_list)
+lc_builder_add(struct lc_builder *lcb, struct bonsai_kv *bkv, struct bonsai_val *val_list)
 {
-    struct lc_builder_entry *entry;
-
-    if (HSE_UNLIKELY(bldr->lcb_cnt >= bldr->lcb_cnt_max)) {
-        size_t newsz;
-
-        bldr->lcb_cnt_max += LC_BUILDER_CNT;
-        newsz = bldr->lcb_cnt_max * sizeof(*bldr->lcb_entry);
-        bldr->lcb_entry = realloc(bldr->lcb_entry, newsz);
-        if (ev(!bldr->lcb_entry))
-            return merr(ENOMEM);
-    }
-
-    entry = &bldr->lcb_entry[bldr->lcb_cnt++];
-    entry->bkv = bkv;
-    entry->vlist = val_list;
-
-    return 0;
+    return bkv_collection_add((struct bkv_collection *)lcb, bkv, val_list);
 }
 
 merr_t
-lc_builder_finish(struct lc_builder *bldr)
+lc_builder_finish(struct lc_builder *lcb)
 {
-    struct lc_impl *lc = bldr->lcb_lc;
-    int             i;
-    merr_t          err = 0;
+    struct bkv_collection *bkvc = (struct bkv_collection *)lcb;
+    struct lc_impl *       self = bkv_collection_rock_get(bkvc);
+    merr_t                 err;
 
-    lc_wlock(lc);
+    lc_wlock(self);
     rcu_read_lock();
-    for (i = 0; i < bldr->lcb_cnt; i++) {
-        struct lc_builder_entry *e = &bldr->lcb_entry[i];
-        struct bonsai_kv *       bkv = e->bkv;
-        struct bonsai_val *      val = e->vlist;
-        u16                      skidx = key_immediate_index(&bkv->bkv_key_imm);
-        uint                     klen = key_imm_klen(&bkv->bkv_key_imm);
-        struct bonsai_skey       skey;
 
-        bn_skey_init(bkv->bkv_key, klen, 0, skidx, &skey);
+    err = bkv_collection_finish((struct bkv_collection *)lcb);
 
-        assert(val); /* There should be at least one value */
-
-        while (val) {
-            struct bonsai_root *root;
-            struct bonsai_sval  sval;
-
-            bn_sval_init(val->bv_value, val->bv_xlen, val->bv_seqnoref, &sval);
-            root = sval.bsv_val == HSE_CORE_TOMB_PFX ? lc->lc_broot[0] : lc->lc_broot[1];
-
-            err = bn_insert_or_replace(root, &skey, &sval);
-            if (ev(err))
-                goto exit;
-
-            val = val->bv_priv;
-        }
-    }
-
-exit:
     rcu_read_unlock();
-    lc_wunlock(lc);
+    lc_wunlock(self);
 
     return err;
 }
@@ -629,18 +647,15 @@ lc_get(
 
     val_seq = HSE_SQNREF_TO_ORDNL(seqref);
 
-    if (*res == NOT_FOUND)
-        goto exit;
-
-    if (ptomb_seq > val_seq) {
+    if (ptomb_seq > val_seq)
         *res = FOUND_PTMB;
+
+    if (*res == FOUND_TMB || *res == FOUND_PTMB)
         vbuf->b_len = 0;
-        goto exit;
-    }
 
-    err = copy_val(vbuf, val);
+    if (*res == FOUND_VAL)
+        err = copy_val(vbuf, val);
 
-exit:
     rcu_read_unlock();
 
     return err;
@@ -760,7 +775,7 @@ lc_cursor_create(
     cur->lcc_tree_pfxlen = tree_pfxlen;
     cur->lcc_lc = self;
 
-    cur->lcc_seq_view = seqno; /* For a bound cursor, this is the ctxn's view seqno */
+    cur->lcc_seq_view = seqno;
     cur->lcc_seq_horizon = lc_horizon_register(self, &cur->lcc_ib_cookie);
     cur->lcc_seqnoref = seqnoref;
     if (cur->lcc_seq_view < cur->lcc_seq_horizon) {
@@ -1038,19 +1053,12 @@ lc_ingest_iterv_init(
     *iter_cnt = self->lc_nsrc;
     for (i = 0; i < self->lc_nsrc; i++) {
         struct bonsai_ingest_iter *iter = &iterv[i].lcing_iter;
-        struct bonsai_root *       root = rcu_dereference(self->lc_broot[i]);
 
-        srcv[i] = bonsai_ingest_iter_init(iter, root, view_seq, horizon_seq);
+        srcv[i] = bonsai_ingest_iter_init(iter, &self->lc_broot[i], view_seq, horizon_seq);
     }
 }
 
 /* Garbage Collection */
-struct lc_gc {
-    struct work_struct lgc_work;
-    struct lc_impl *   lgc_lc;
-    merr_t             lgc_err;
-};
-
 static u64
 lc_gc_horizon(struct lc_impl *self)
 {
@@ -1060,7 +1068,7 @@ lc_gc_horizon(struct lc_impl *self)
     void *               lock;
 
     rmlock_rlock(&self->lc_ib_rmlock, &lock);
-    if (!self->lc_ib_head || !self->lc_ib_head->ib_next) {
+    if (!self->lc_ib_head) {
         rmlock_runlock(lock);
         return 0;
     }
@@ -1080,7 +1088,8 @@ lc_gc_horizon(struct lc_impl *self)
             assert(!horizon || horizon > ib->ib_seqno);
             horizon = horizon ?: ib->ib_seqno;
             *prevp = next;
-            free_aligned(ib);
+            free(ib);
+            atomic_dec(&self->lc_ib_len);
             continue;
         }
 
@@ -1094,20 +1103,38 @@ lc_gc_horizon(struct lc_impl *self)
 static void
 lc_gc_worker(struct work_struct *work)
 {
-    struct lc_gc *     gc = container_of(work, struct lc_gc, lgc_work);
-    struct lc_impl *   lc = gc->lgc_lc;
+    struct lc_gc *     gc = container_of(work, struct lc_gc, lgc_dwork.work);
+    struct lc_impl *   lc = container_of(gc, struct lc_impl, lc_gc);
     int                i;
-    u64                horizon;
+    u64                horizon_incl;
     struct bonsai_val *val;
 
-    horizon = lc_gc_horizon(lc);
-    if (!horizon)
-        return; /* Nothing to do. */
+    if (atomic_read(&lc->lc_closing))
+        goto exit;
+
+    /* Note that the horizon_incl returned here is an inclusive lower bound for entries that
+     * must NOT be garbage collected. See 'keepval' below.
+     */
+    horizon_incl = lc_gc_horizon(lc);
+    if (!horizon_incl)
+        goto exit; /* Nothing to do. */
+
+    if (horizon_incl == gc->lgc_last_horizon_incl)
+        goto exit;
+
+    hse_log(
+        HSE_DEBUG "LC GC: Horizon %lu Last %lu Head %lu ListLen %u",
+        horizon_incl,
+        gc->lgc_last_horizon_incl,
+        lc_ib_head_seqno(lc),
+        atomic_read(&lc->lc_ib_len));
+
+    gc->lgc_last_horizon_incl = horizon_incl;
 
     lc_wlock(lc);
     rcu_read_lock();
     for (i = 0; i < lc->lc_nsrc; i++) {
-        struct bonsai_root *root = lc->lc_broot[i];
+        struct bonsai_root *root = rcu_dereference(lc->lc_broot[i]);
         struct bonsai_kv *  bkv = &root->br_kv;
 
         while (1) {
@@ -1128,10 +1155,10 @@ lc_gc_worker(struct work_struct *work)
                 state = seqnoref_to_seqno(seqnoref, &seqno);
 
                 /* Keep val if it's either
-                 *  1. from an aborted txn, or
-                 *  2. has a seqno newer than the horizon.
+                 *  1. from an active txn, or
+                 *  2. has a seqno >= horizon_incl.
                  */
-                keepval = (state == HSE_SQNREF_STATE_DEFINED && seqno > horizon) ||
+                keepval = (state == HSE_SQNREF_STATE_DEFINED && seqno >= horizon_incl) ||
                           (state == HSE_SQNREF_STATE_UNDEFINED);
                 if (keepval) {
                     if (deleted)
@@ -1142,6 +1169,9 @@ lc_gc_worker(struct work_struct *work)
                     continue;
                 }
 
+                /* [HSE_REVISIT] If this value is accessed by another thread after we drop the
+                 * c0snr ref, it may see a garbage seqno for the val
+                 */
                 if (HSE_SQNREF_INDIRECT_P(seqnoref))
                     c0snr_dropref_lc((uintptr_t *)seqnoref);
 
@@ -1172,27 +1202,18 @@ lc_gc_worker(struct work_struct *work)
     rcu_read_unlock();
     lc_wunlock(lc);
 
-    free(gc);
+exit:
+    if (!atomic_read(&lc->lc_closing))
+        queue_delayed_work(lc->lc_gc_wq, &gc->lgc_dwork, msecs_to_jiffies(lc->lc_gc_delay_ms));
 }
 
-void
-lc_gc_worker_start(struct lc *handle, struct workqueue_struct *wq)
+static void
+lc_gc_worker_start(struct lc_impl *self)
 {
-    struct lc_impl *self;
-    struct lc_gc *  gc;
+    struct lc_gc *gc = &self->lc_gc;
 
-    if (!handle)
-        return;
-
-    self = lc_h2r(handle);
-
-    gc = calloc(1, sizeof(*gc));
-    if (!gc)
-        return;
-
-    gc->lgc_lc = self;
-    INIT_WORK(&gc->lgc_work, lc_gc_worker);
-    queue_work(wq, &gc->lgc_work);
+    INIT_DELAYED_WORK(&gc->lgc_dwork, lc_gc_worker);
+    queue_delayed_work(self->lc_gc_wq, &gc->lgc_dwork, msecs_to_jiffies(self->lc_gc_delay_ms));
 }
 
 /* Init/Fini */

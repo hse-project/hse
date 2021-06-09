@@ -139,7 +139,7 @@ bonsai_iter_next(struct element_source *es, void **element)
     rcu_read_lock();
     do {
         enum hse_seqno_state state;
-        u64 seqno;
+        u64                  seqno;
 
         iter->bi_kv = bkv = get_next(iter);
         if (!bkv) {
@@ -160,7 +160,7 @@ bonsai_iter_next(struct element_source *es, void **element)
          */
         state = seqnoref_to_seqno(val->bv_seqnoref, &seqno);
         if (state == HSE_SQNREF_STATE_DEFINED && seqno <= iter->bi_seq_horizon)
-            val = 0;
+            val = NULL;
 
     } while (!val);
     rcu_read_unlock();
@@ -191,29 +191,33 @@ bonsai_ingest_iter_next(struct element_source *es, void **element)
     struct bonsai_ingest_iter *iter = container_of(es, struct bonsai_ingest_iter, bii_es);
 
     rcu_read_lock();
+    if (!iter->bii_kv)
+        iter->bii_kv = &rcu_dereference(*iter->bii_root)->br_kv;
 
     while (!es->es_eof) {
         struct bonsai_kv * bkv;
         struct bonsai_val *val;
 
         iter->bii_kv = bkv = rcu_dereference(iter->bii_kv->bkv_next);
-        if (bkv == &iter->bii_root->br_kv)
+        if (bkv == &rcu_dereference(*iter->bii_root)->br_kv)
             break;
 
-        /* bkv is valid if any val has either:
-         *  1. a non-aborted seqnoref
-         *  2. an ordinal seqno such that view > seqno > horizon
+        /* Similar to a a cursor read, this function should return only when the bkv is "valid"
+         * or the iteration has eached eof. A bkv is valid if it lies in the ingest's view i.e.
+         * horizon <= seqno <= view.
+         *
+         * But we can go a step further and treat entries from aborted and active txns as invalid
+         * (invalid for ingest). This will save some work for the ingest thread.
          */
         for (val = rcu_dereference(bkv->bkv_values); val; val = rcu_dereference(val->bv_next)) {
             u64                  seqno;
             enum hse_seqno_state state;
 
             state = seqnoref_to_seqno(val->bv_seqnoref, &seqno);
-            if (state == HSE_SQNREF_STATE_ABORTED)
+            if (state != HSE_SQNREF_STATE_DEFINED)
                 continue;
 
-            if (state == HSE_SQNREF_STATE_DEFINED &&
-                (seqno < iter->bii_horizon_seq || seqno > iter->bii_view_seq))
+            if (seqno < iter->bii_horizon_seq || seqno > iter->bii_view_seq)
                 continue;
 
             bkv->bkv_es = es;
@@ -231,15 +235,15 @@ bonsai_ingest_iter_next(struct element_source *es, void **element)
 struct element_source *
 bonsai_ingest_iter_init(
     struct bonsai_ingest_iter *iter,
-    struct bonsai_root *       root,
+    struct bonsai_root **      root,
     u64                        view_seq,
     u64                        horizon_seq)
 {
     iter->bii_view_seq = view_seq;
     iter->bii_horizon_seq = horizon_seq;
     iter->bii_root = root;
-    iter->bii_kv = &root->br_kv;
     iter->bii_es = es_make(bonsai_ingest_iter_next, 0, 0);
+    iter->bii_kv = NULL;
 
     return &iter->bii_es;
 }

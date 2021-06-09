@@ -7,6 +7,7 @@
 
 #include <hse_ikvdb/kvs.h>
 #include <hse_ikvdb/c0.h>
+#include <hse_ikvdb/lc.h>
 
 #include <hse_util/seqno.h>
 
@@ -15,6 +16,7 @@
 #include <mocks/mock_c0cn.h>
 
 static struct ikvs *kvs;
+static struct lc *lc;
 
 static int
 test_pre(struct mtf_test_info *lcl_ti)
@@ -26,7 +28,12 @@ test_pre(struct mtf_test_info *lcl_ti)
 
     mock_c0cn_set();
 
-    err = kvs_open(dummy, &kvdb_kvs, "mp_test", dummy, dummy, dummy, &rp, dummy, dummy, 0);
+    err = lc_create(&lc);
+    ASSERT_EQ_RET(0, err, -1);
+
+    lc_ingest_seqno_set(lc, 1);
+
+    err = kvs_open(dummy, &kvdb_kvs, "mp_test", dummy, dummy, lc, &rp, dummy, dummy, 0);
     ASSERT_EQ_RET(0, err, -1);
 
     kvs = kvdb_kvs.kk_ikvs;
@@ -36,6 +43,8 @@ test_pre(struct mtf_test_info *lcl_ti)
 static int
 test_post(struct mtf_test_info *ti)
 {
+    lc_destroy(lc);
+
     kvs_close(kvs);
 
     mock_c0cn_unset();

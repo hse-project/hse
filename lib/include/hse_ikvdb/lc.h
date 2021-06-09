@@ -23,7 +23,6 @@ struct lc_cursor;
 
 /* MTF_MOCK_DECL(lc) */
 
-struct kvdb_ctxn_set;
 struct cursor_summary;
 struct kc_filter;
 struct kvs_buf;
@@ -35,10 +34,10 @@ enum key_lookup_res;
 
 /* MTF_MOCK */
 merr_t
-lc_create(struct lc **handle, struct kvdb_ctxn_set *ctxn_set);
+lc_create(struct lc **handle);
 
 /* MTF_MOCK */
-merr_t
+void
 lc_destroy(struct lc *lc);
 
 /* MTF_MOCK */
@@ -51,11 +50,11 @@ lc_builder_destroy(struct lc_builder *lcb);
 
 /* MTF_MOCK */
 merr_t
-lc_builder_add(struct lc_builder *bldr, struct bonsai_kv *kv, struct bonsai_val *val_list);
+lc_builder_add(struct lc_builder *lcb, struct bonsai_kv *kv, struct bonsai_val *val_list);
 
 /* MTF_MOCK */
 merr_t
-lc_builder_finish(struct lc_builder *bldr);
+lc_builder_finish(struct lc_builder *lcb);
 
 /* MTF_MOCK */
 merr_t
@@ -178,16 +177,6 @@ lc_ingest_iterv_init(
     u64                     view_seq,
     u64                     horizon_seq,
     uint *                  iter_cnt);
-
-/**
- * lc_gc_worker_start() - Enqueue Garbage collection work on the specified workqueue
- *
- * @handle: Handle to the LC object
- * @wq:     Workqueue on which Garbage collection would be queued
- */
-/* MTF_MOCK */
-void
-lc_gc_worker_start(struct lc *handle, struct workqueue_struct *wq);
 
 /* MTF_MOCK */
 merr_t

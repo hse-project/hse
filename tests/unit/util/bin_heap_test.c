@@ -893,7 +893,7 @@ MTF_DEFINE_UTEST(bin_heap_test, bin_heap2_age_cmp_test)
     e1.es_sort = 10;
     e2.es_sort = 12;
 
-    rc = bin_heap2_age_cmp(0, &e1, &e2);
+    rc = bin_heap2_age_cmp(&e1, &e2);
     ASSERT_EQ(-2, rc);
 }
 
