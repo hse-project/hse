@@ -36,4 +36,7 @@ wal_version_get(struct wal *wal);
 void
 wal_version_set(struct wal *wal, uint32_t version);
 
+struct mpool *
+wal_mpool_get(struct wal *wal);
+
 #endif /* WAL_INTERNAL_H */

@@ -23,17 +23,22 @@ struct mpool_file {
     char   name[PATH_MAX];
 };
 
+
 merr_t
-mpool_file_create(
+mpool_file_open(
     struct mpool       *mp,
     enum mpool_mclass   mclass,
     const char         *name,
+    int                 flags,
     size_t              capacity,
-    bool                sparse)
+    bool                sparse,
+    struct mpool_file **handle)
 {
+    struct mpool_file  *mfp;
     struct media_class *mc;
-    int    dirfd, rc, fd, flags;
-    merr_t err = 0;
+    int    dirfd, fd, rc;
+    merr_t err;
+    bool create = false;
 
     if (!mp || !name || mclass > MP_MED_COUNT)
         return merr(EINVAL);
@@ -42,33 +47,68 @@ mpool_file_create(
     if (!mc)
         return merr(ENOENT);
 
-    flags = O_CREAT | O_EXCL | O_RDWR;
-
     dirfd = mclass_dirfd(mc);
+    rc = faccessat(dirfd, name, F_OK, 0);
+    if (rc == -1 && errno == ENOENT) {
+        create = true;
+        rc = 0;
+    }
+
+    flags &= (O_RDWR | O_RDONLY | O_WRONLY | O_CREAT);
+    if (create)
+        flags |= (O_CREAT | O_EXCL);
+
     fd = openat(dirfd, name, flags, S_IRUSR | S_IWUSR);
     if (fd < 0) {
         err = merr(errno);
         return err;
     }
 
-    if (!sparse) {
-        rc = fallocate(fd, 0, 0, capacity);
-        ev(rc);
+    if (create) {
+        if (!sparse) {
+            rc = posix_fallocate(fd, 0, capacity);
+            ev(rc);
+        }
+        if (sparse || rc < 0) {
+            rc = ftruncate(fd, capacity);
+            ev(rc);
+        }
     }
 
-    /* TODO: handle file-systems that do not support prealloc */
-    if (sparse || rc < 0)
-        rc = ftruncate(fd, capacity);
+    mfp = calloc(1, sizeof(*mfp));
+    if (!mfp) {
+        err = merr(ENOMEM);
+        goto errout;
+    }
 
-    if (rc < 0)
-        err = merr(errno);
+    mfp->mp = mp;
+    mfp->mc = mc;
+    mfp->fd = fd;
+    mfp->io = io_sync_ops;
+    strlcpy(mfp->name, name, sizeof(mfp->name));
 
+    *handle = mfp;
+
+    return 0;
+
+errout:
     close(fd);
-
-    if (err)
+    if (create)
         unlinkat(dirfd, name, 0);
 
     return err;
+}
+
+merr_t
+mpool_file_close(struct mpool_file *file)
+{
+    if (!file)
+        return merr(EINVAL);
+
+    close(file->fd);
+    free(file);
+
+    return 0;
 }
 
 merr_t
@@ -88,63 +128,6 @@ mpool_file_destroy(struct mpool *mp, enum mpool_mclass mclass, const char *name)
     rc = unlinkat(dirfd, name, 0);
     if (rc < 0)
         return merr(errno);
-
-    return 0;
-}
-
-
-merr_t
-mpool_file_open(
-    struct mpool       *mp,
-    enum mpool_mclass   mclass,
-    const char         *name,
-    int                 flags,
-    struct mpool_file **handle)
-{
-    struct mpool_file  *mfp;
-    struct media_class *mc;
-    int    dirfd, fd;
-    merr_t err;
-
-    if (!mp || !name || mclass > MP_MED_COUNT)
-        return merr(EINVAL);
-
-    mc = mpool_mclass_handle(mp, mclass);
-    if (!mc)
-        return merr(ENOENT);
-
-    dirfd = mclass_dirfd(mc);
-    fd = openat(dirfd, name, flags, S_IRUSR | S_IWUSR);
-    if (fd < 0) {
-        err = merr(errno);
-        return err;
-    }
-
-    mfp = calloc(1, sizeof(*mfp));
-    if (!mfp) {
-        close(fd);
-        return merr(ENOMEM);
-    }
-
-    mfp->mp = mp;
-    mfp->mc = mc;
-    mfp->fd = fd;
-    mfp->io = io_sync_ops;
-    strlcpy(mfp->name, name, sizeof(mfp->name));
-
-    *handle = mfp;
-
-    return 0;
-}
-
-merr_t
-mpool_file_close(struct mpool_file *file)
-{
-    if (!file)
-        return merr(EINVAL);
-
-    close(file->fd);
-    free(file);
 
     return 0;
 }
@@ -183,6 +166,18 @@ mpool_file_write(struct mpool_file *file, off_t offset, const char *buf, size_t 
     err = file->io.write(file->fd, offset, (const struct iovec *)&iov, 1, 0);
     if (err)
         return err;
+
+    return 0;
+}
+
+merr_t
+mpool_file_sync(struct mpool_file *file)
+{
+    int rc;
+
+    rc = fsync(file->fd);
+    if (rc)
+        return merr(errno);
 
     return 0;
 }

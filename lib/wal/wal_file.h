@@ -13,16 +13,6 @@
 struct wal;
 struct wal_file;
 
-merr_t
-wal_file_create(
-    struct mpool      *mp,
-    enum mpool_mclass  mclass,
-    size_t             capacity,
-    uint64_t           dgen,
-    int                fileid);
-
-merr_t
-wal_file_destroy(struct mpool *mp, enum mpool_mclass mclass, uint64_t dgen, int fileid);
 
 merr_t
 wal_file_open(
@@ -30,10 +20,20 @@ wal_file_open(
     enum mpool_mclass  mclass,
     uint64_t           dgen,
     int                fileid,
+    size_t             capacity,
     struct wal_file  **handle);
 
 merr_t
 wal_file_close(struct wal_file *walf);
+
+void
+wal_file_get(struct wal_file *walf);
+
+void
+wal_file_put(struct wal_file *walf);
+
+merr_t
+wal_file_destroy(struct mpool *mp, enum mpool_mclass mclass, uint64_t dgen, int fileid);
 
 merr_t
 wal_file_read(struct wal_file *walf, char *buf, size_t buflen);

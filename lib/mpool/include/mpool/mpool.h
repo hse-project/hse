@@ -556,25 +556,6 @@ mpool_mcache_mincore(
  */
 
 /**
- * mpool_file_create() - Create a file in the specified mpool and mclass
- *
- * @mp:       mpool handle
- * @mclass:   which mclass the file belongs to
- * @name:     name of the file
- * @capacity: file's capacity
- * @sparse:   does it need to be a sparse file
- *
- * Return: %0 on success, merr_t on failure
- */
-merr_t
-mpool_file_create(
-    struct mpool      *mp,
-    enum mpool_mclass  mclass,
-    const char        *name,
-    size_t             capacity,
-    bool               sparse);
-
-/**
  * mpool_file_open() - Open a file in the specified mpool and mclass
  *
  * @mp:     mpool handle
@@ -591,6 +572,8 @@ mpool_file_open(
     enum mpool_mclass   mclass,
     const char         *name,
     int                 flags,
+    size_t              capacity,
+    bool                sparse,
     struct mpool_file **handle);
 
 /**
@@ -633,6 +616,14 @@ mpool_file_read(struct mpool_file *file, off_t offset, char *buf, size_t buflen,
  */
 merr_t
 mpool_file_write(struct mpool_file *file, off_t offset, const char *buf, size_t buflen);
+
+/**
+ * mpool_file_sync() - Sync mpool file
+ *
+ * @file:   mpool file handle
+ */
+merr_t
+mpool_file_sync(struct mpool_file *file);
 
 #if HSE_MOCKING
 #include "mpool_ut.h"

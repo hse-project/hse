@@ -16,44 +16,11 @@ struct wal_file {
     off_t    woff;
 
     int      fileid;
-    char     name[PATH_MAX];
+    char     name[64];
+
+    atomic_t ref;
 };
 
-merr_t
-wal_file_create(
-    struct mpool      *mp,
-    enum mpool_mclass  mclass,
-    size_t             capacity,
-    uint64_t           dgen,
-    int                fileid)
-{
-    merr_t err;
-    char name[PATH_MAX];
-
-    if (!mp)
-        return merr(EINVAL);
-
-    snprintf(name, sizeof(name), "%s-%lu-%d", "wal", dgen, fileid);
-
-    err = mpool_file_create(mp, mclass, name, capacity, true);
-    if (err)
-        return err;
-
-    return 0;
-}
-
-merr_t
-wal_file_destroy(struct mpool *mp, enum mpool_mclass mclass, uint64_t dgen, int fileid)
-{
-    char name[PATH_MAX];
-
-    if (!mp)
-        return merr(EINVAL);
-
-    snprintf(name, sizeof(name), "%s-%lu-%d", "wal", dgen, fileid);
-
-    return mpool_file_destroy(mp, mclass, name);
-}
 
 merr_t
 wal_file_open(
@@ -61,6 +28,7 @@ wal_file_open(
     enum mpool_mclass  mclass,
     uint64_t           dgen,
     int                fileid,
+    size_t             capacity,
     struct wal_file  **handle)
 {
     struct wal_file   *walf;
@@ -73,7 +41,7 @@ wal_file_open(
 
     snprintf(name, sizeof(name), "%s-%lu-%d", "wal", dgen, fileid);
 
-    err = mpool_file_open(mp, mclass, name, O_RDWR, &file);
+    err = mpool_file_open(mp, mclass, name, O_RDWR, capacity, true, &file);
     if (err)
         return err;
 
@@ -89,6 +57,10 @@ wal_file_open(
     walf->roff = 0;
     walf->woff = 0;
 
+    atomic_set(&walf->ref, 1);
+
+    *handle = walf;
+
     return 0;
 }
 
@@ -100,6 +72,9 @@ wal_file_close(struct wal_file *walf)
     if (!walf)
         return merr(EINVAL);
 
+    if (atomic_dec_return(&walf->ref) > 0)
+        return 0;
+
     err = mpool_file_close(walf->mpf);
     if (err)
         return err;
@@ -107,6 +82,31 @@ wal_file_close(struct wal_file *walf)
     free(walf);
 
     return 0;
+}
+
+void
+wal_file_get(struct wal_file *walf)
+{
+    atomic_inc(&walf->ref);
+}
+
+void
+wal_file_put(struct wal_file *walf)
+{
+    wal_file_close(walf);
+}
+
+merr_t
+wal_file_destroy(struct mpool *mp, enum mpool_mclass mclass, uint64_t dgen, int fileid)
+{
+    char name[PATH_MAX];
+
+    if (!mp)
+        return merr(EINVAL);
+
+    snprintf(name, sizeof(name), "%s-%lu-%d", "wal", dgen, fileid);
+
+    return mpool_file_destroy(mp, mclass, name);
 }
 
 merr_t
@@ -136,6 +136,10 @@ wal_file_write(struct wal_file *walf, const char *buf, size_t buflen)
         return merr(EINVAL);
 
     err = mpool_file_write(walf->mpf, walf->woff, buf, buflen);
+    if (err)
+        return err;
+
+    err = mpool_file_sync(walf->mpf);
     if (err)
         return err;
 

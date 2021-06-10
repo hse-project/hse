@@ -25,9 +25,8 @@
 
 struct wal {
     struct mpool      *mp;
-    struct wal_buffer *wbuf;
+    struct wal_bufset *wbs;
     struct wal_mdc    *mdc;
-    struct workqueue_struct *flush_wq;
 
     pthread_t timer_tid;
     uint64_t rdgen;
@@ -88,7 +87,7 @@ wal_timer(void *rock)
             merr_t err;
 
             wal_reqtime_reset(wal);
-            err = wal_buffer_flush(wal->wbuf, wal->flush_wq);
+            err = wal_bufset_flush(wal->wbs);
             if (err) {
                 atomic64_set(&wal->error, err);
                 break;
@@ -140,7 +139,7 @@ wal_put(
 
     wal_reqtime_set(wal);
 
-    rec = wal_buffer_alloc(wal->wbuf, len);
+    rec = wal_bufset_alloc(wal->wbs, len);
     rid = atomic64_inc_return(&wal->rid);
     if (kvdb_kop_is_txn(os)) {
         merr_t err;
@@ -194,7 +193,7 @@ wal_del_impl(
     kalen = ALIGN(klen, kalign);
     len = rlen + kalen;
 
-    rec = wal_buffer_alloc(wal->wbuf, len);
+    rec = wal_bufset_alloc(wal->wbs, len);
     rid = atomic64_inc_return(&wal->rid);
     if (kvdb_kop_is_txn(os)) {
         merr_t err;
@@ -249,7 +248,7 @@ wal_txn(struct wal *wal, uint rtype, uint64_t txid, uint64_t seqno)
     size_t rlen;
 
     rlen = wal_txn_rec_len();
-    rec = wal_buffer_alloc(wal->wbuf, rlen);
+    rec = wal_bufset_alloc(wal->wbs, rlen);
     rid = atomic64_inc_return(&wal->rid);
 
     wal_txn_rechdr_pack(rtype, rid, rec);
@@ -323,7 +322,7 @@ merr_t
 wal_open(struct mpool *mp, bool rdonly, uint64_t mdcid1, uint64_t mdcid2, struct wal **wal_out)
 {
     struct wal *wal;
-    struct wal_buffer *wbuf;
+    struct wal_bufset *wbs;
     struct wal_mdc *mdc;
     merr_t err;
     int rc;
@@ -356,16 +355,12 @@ wal_open(struct mpool *mp, bool rdonly, uint64_t mdcid1, uint64_t mdcid2, struct
         goto errout;
     }
 
-    wbuf = wal_buffer_create(wal);
-    if (!wbuf) {
+    wbs = wal_bufset_open(wal);
+    if (!wbs) {
         free(wal);
         return merr(ENOMEM);
     }
-    wal->wbuf = wbuf;
-
-    wal->flush_wq = alloc_workqueue("wal_flush_wq", 0, wal_active_buf_cnt());
-    if (!wal->flush_wq)
-        goto errout;
+    wal->wbs = wbs;
 
     rc = pthread_create(&wal->timer_tid, NULL, wal_timer, wal);
     if (rc)
@@ -376,7 +371,6 @@ wal_open(struct mpool *mp, bool rdonly, uint64_t mdcid1, uint64_t mdcid2, struct
     return 0;
 
 errout:
-    destroy_workqueue(wal->flush_wq);
     free(wal);
 
     return err;
@@ -393,11 +387,10 @@ wal_close(struct wal *wal)
     err = wal_mdc_close(wal->mdc);
     ev(err);
 
-    destroy_workqueue(wal->flush_wq);
     atomic_set(&wal->closing, 1);
     pthread_join(wal->timer_tid, 0);
 
-    wal_buffer_destroy(wal->wbuf);
+    wal_bufset_close(wal->wbs);
 
     free(wal);
 
@@ -443,6 +436,12 @@ void
 wal_version_set(struct wal *wal, uint32_t version)
 {
     wal->version = version;
+}
+
+struct mpool *
+wal_mpool_get(struct wal *wal)
+{
+    return wal->mp;
 }
 
 #if HSE_MOCKING
