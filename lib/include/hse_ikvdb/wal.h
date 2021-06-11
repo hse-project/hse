@@ -21,6 +21,7 @@ struct kvdb_log_tx;
 struct wal_record {
     void   *recbuf;
     size_t  len;
+    u64     offset;
 };
 
 /* MTF_MOCK */
@@ -80,7 +81,10 @@ merr_t
 wal_txn_commit(struct wal *wal, uint64_t txid, uint64_t seqno);
 
 void
-wal_op_finish(struct wal *wal, struct wal_record *rec, uint64_t seqno, uint64_t dgen);
+wal_op_finish(struct wal *wal, struct wal_record *rec, uint64_t seqno, uint64_t gen);
+
+void
+wal_cningest_cb(struct wal *wal, u64 seqno, u64 gen);
 
 #if HSE_MOCKING
 #include "wal_ut.h"

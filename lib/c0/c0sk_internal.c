@@ -391,6 +391,21 @@ c0sk_ingest_rec_perfc(struct perfc_set *perfc, u32 sidx, u64 cycles)
     perfc_rec_sample(perfc, sidx, cycles);
 }
 
+static void
+c0sk_cn_ingest_cb(
+    struct c0sk_impl *c0sk,
+    u64               seqno,
+    u64               gen)
+{
+    struct ikvdb *ikdb;
+
+    if (!c0sk->c0sk_cb || !c0sk->c0sk_cb->kc_cn_ingest_cb)
+        return;
+
+    ikdb = c0sk->c0sk_cb->kc_cbarg;
+    c0sk->c0sk_cb->kc_cn_ingest_cb(ikdb, seqno, gen);
+}
+
 /* Initial number of entries in cn ingest's bkv_collection.
  */
 #define CN_INGEST_BKV_CNT (4UL << 20)
@@ -750,7 +765,7 @@ exit_err:
 
         go = perfc_lat_start(&c0sk->c0sk_pc_ingest);
 
-        err = cn_ingestv(c0sk->c0sk_cnv, mbv, ingestid, HSE_KVS_COUNT_MAX, &cn_min, &cn_max);
+        err = cn_ingestv(c0sk->c0sk_cnv, mbv, HSE_KVS_COUNT_MAX, kvms_gen, &cn_min, &cn_max);
 
         c0sk_ingest_rec_perfc(&c0sk->c0sk_pc_ingest, PERFC_DI_C0SKING_FIN, go);
         if (ev(err))
@@ -768,6 +783,8 @@ exit_err:
             assert(!cn_min || cn_min >= min_seq);
             assert(!cn_max || cn_max <= max_seq);
         }
+
+        c0sk_cn_ingest_cb(c0sk, seqno_max, kvms_gen);
     }
 
     if (debug)
@@ -792,7 +809,7 @@ exit_err:
     if (debug) {
         ingest->t10 = get_time_ns();
 
-        ingest->gen = c0kvms_gen_read(kvms);
+        ingest->gen = kvms_gen;
         ingest->gencur = c0kvms_gen_current(kvms);
     }
 
@@ -1313,7 +1330,7 @@ c0sk_putdel(
         struct c0_kvset *     kvs;
         uintptr_t *           entry = NULL;
         uintptr_t *           priv = (uintptr_t *)seqnoref;
-        u64                   dst_gen;
+        u64                   dst_gen = 0;
 
         rcu_read_lock();
         dst = c0sk_get_first_c0kvms(&self->c0sk_handle);

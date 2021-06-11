@@ -961,6 +961,12 @@ c0kvms_gen_update(struct c0_kvmultiset *handle)
     return self->c0ms_gen;
 }
 
+void
+c0kvms_gen_init(u64 gen)
+{
+    atomic64_set(&c0kvms_gen, gen);
+}
+
 u64
 c0kvms_gen_read(struct c0_kvmultiset *handle)
 {

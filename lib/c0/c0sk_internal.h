@@ -70,6 +70,7 @@ struct c0sk_impl {
     struct workqueue_struct *c0sk_wq_maint;
     struct mtx_pool *        c0sk_mtx_pool;
     struct kvdb_health *     c0sk_kvdb_health;
+    struct kvdb_callback    *c0sk_cb;
     struct csched *          c0sk_csched;
     struct throttle_sensor * c0sk_sensor;
     struct lc *              c0sk_lc;

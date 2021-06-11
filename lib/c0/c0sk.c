@@ -477,6 +477,7 @@ c0sk_open(
     struct kvdb_health * health,
     struct csched *      csched,
     atomic64_t *         kvdb_seq,
+    u64                  gen,
     struct c0sk **       c0skp)
 {
     struct c0_kvmultiset *c0kvms;
@@ -539,6 +540,9 @@ c0sk_open(
 
     if (kvdb_rp->c0_ingest_width == 0)
         c0sk->c0sk_ingest_width = c0sk->c0sk_ingest_width_max / 2;
+
+    if (gen > 0)
+        c0kvms_gen_init(gen);
 
     err = c0kvms_create(c0sk->c0sk_ingest_width, kvdb_rp->c0_heap_sz, c0sk->c0sk_kvdb_seq, &c0kvms);
     if (ev(err))
@@ -1681,6 +1685,14 @@ struct cn *
 c0sk_get_cn(struct c0sk_impl *c0sk, u64 skidx)
 {
     return c0sk->c0sk_cnv[skidx];
+}
+
+void
+c0sk_install_callback(struct c0sk *handle, struct kvdb_callback *cb)
+{
+    struct c0sk_impl *self = c0sk_h2r(handle);
+
+    self->c0sk_cb = cb;
 }
 
 #if HSE_MOCKING

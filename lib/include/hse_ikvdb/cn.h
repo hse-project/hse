@@ -147,8 +147,8 @@ merr_t
 cn_ingestv(
     struct cn **           cn,
     struct kvset_mblocks **mbv,
-    u64                    ingestid,
     uint                   ingestc,
+    u64                    ingestid,
     u64                   *min_seqno_out,
     u64                   *max_seqno_out);
 

@@ -37,7 +37,7 @@ wal_mdc_create(
     *mdcid1 = 0;
     *mdcid2 = 0;
 
-    err = mpool_mdc_alloc(mp, WAL_MDC_MAGIC, capacity, mclass, mdcid1, mdcid2);
+    err = mpool_mdc_alloc(mp, WAL_MAGIC, capacity, mclass, mdcid1, mdcid2);
     if (err)
         return err;
 
@@ -136,7 +136,7 @@ wal_mdc_version_write_impl(struct wal_mdc *mdc, uint32_t version, bool sync)
 
     wal_mdchdr_pack(WAL_RT_VERSION, (char *)&vomf);
     omf_set_ver_version(&vomf, version);
-    omf_set_ver_magic(&vomf, WAL_MDC_MAGIC);
+    omf_set_ver_magic(&vomf, WAL_MAGIC);
 
     err = mpool_mdc_append(mdc->mp_mdc, &vomf, sizeof(vomf), sync);
     if (err)
@@ -168,7 +168,7 @@ wal_mdc_version_unpack(const char *buf, struct wal *wal)
     version = omf_ver_version(vomf);
     wal_version_set(wal, version);
 
-    if (WAL_MDC_MAGIC != omf_ver_magic(vomf))
+    if (WAL_MAGIC != omf_ver_magic(vomf))
         return merr(EBADMSG);
 
     return 0;
@@ -227,18 +227,18 @@ merr_t
 wal_mdc_reclaim_write(struct wal_mdc *mdc, struct wal *wal, bool sync)
 {
     struct wal_reclaim_omf romf;
-    uint64_t rdgen;
+    uint64_t rgen;
     merr_t err;
 
     if (!mdc || !wal)
         return merr(EINVAL);
 
-    rdgen = wal_reclaim_dgen_get(wal);
-    if (rdgen == 0)
+    rgen = wal_reclaim_gen_get(wal);
+    if (rgen == 0)
         return 0;
 
     wal_mdchdr_pack(WAL_RT_RECLAIM, (char *)&romf);
-    omf_set_rcm_dgen(&romf, rdgen);
+    omf_set_rcm_gen(&romf, rgen);
 
     err = mpool_mdc_append(mdc->mp_mdc, &romf, sizeof(romf), sync);
     if (err)
@@ -251,15 +251,15 @@ static merr_t
 wal_mdc_reclaim_unpack(const char *buf, struct wal *wal)
 {
     struct wal_reclaim_omf *romf;
-    uint64_t rdgen;
+    uint64_t rgen;
 
     if (!buf || !wal)
         return merr(EINVAL);
 
     romf = (struct wal_reclaim_omf *)buf;
 
-    rdgen = omf_rcm_dgen(romf);
-    wal_reclaim_dgen_set(wal, rdgen);
+    rgen = omf_rcm_gen(romf);
+    wal_reclaim_gen_set(wal, rgen);
 
     return 0;
 }

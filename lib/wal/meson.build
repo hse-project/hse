@@ -4,6 +4,7 @@ wal_sources = files(
     'wal_file.c',
     'wal_mdc.c',
     'wal_buffer.c',
+    'wal_io.c',
 )
 
 wal_includes = include_directories('.')

@@ -12,10 +12,11 @@
 void
 wal_rechdr_pack(enum wal_rec_type rtype, u64 rid, size_t kvlen, void *outbuf)
 {
-    struct wal_rechdr_omf *rhomf = (struct wal_rechdr_omf *)outbuf;
+    struct wal_rechdr_omf *rhomf = outbuf;
 
+    atomic64_set((atomic64_t *)&rhomf->rh_off, 0);
     omf_set_rh_flags(rhomf, WAL_FLAGS_MORG);
-    omf_set_rh_dgen(rhomf, 0);
+    omf_set_rh_gen(rhomf, 0);
     omf_set_rh_type(rhomf, rtype);
     omf_set_rh_len(rhomf, wal_rec_len() + kvlen - wal_rechdr_len());
     omf_set_rh_rid(rhomf, rid);
@@ -32,17 +33,16 @@ wal_rechdr_crc_pack(void *recbuf, size_t len)
 {
     struct wal_rechdr_omf *rhomf = (struct wal_rechdr_omf *)recbuf;
     uint crc;
-    u8 crclen = sizeof(crc);
+    uint ignore = offsetof(struct wal_rechdr_omf, rh_cksum) + sizeof(rhomf->rh_cksum);
 
-    crc = crc32c(0, recbuf + crclen, len - crclen);
-
-    atomic_set((atomic_t *)&rhomf->rh_cksum, cpu_to_le32(crc));
+    crc = crc32c(0, recbuf + ignore, len - ignore);
+    omf_set_rh_cksum(rhomf, crc);
 }
 
 void
 wal_rec_pack(enum wal_op op, u64 cnid, u64 txid, uint klen, size_t vxlen, void *outbuf)
 {
-    struct wal_rec_omf *romf = (struct wal_rec_omf *)outbuf;
+    struct wal_rec_omf *romf = outbuf;
 
     omf_set_r_op(romf, op);
     omf_set_r_klen(romf, klen);
@@ -59,40 +59,44 @@ wal_rec_len(void)
 }
 
 void
-wal_rec_finish(struct wal_record *rec, u64 seqno, u64 dgen)
+wal_rec_finish(struct wal_record *rec, u64 seqno, u64 gen)
 {
     char *recbuf = rec->recbuf;
     struct wal_rec_omf *romf = (struct wal_rec_omf *)recbuf;
     struct wal_rechdr_omf *rhomf = (struct wal_rechdr_omf *)recbuf;
 
-    omf_set_rh_dgen(rhomf, dgen);
+    omf_set_rh_gen(rhomf, gen);
     omf_set_r_seqno(romf, seqno);
-
     wal_rechdr_crc_pack(recbuf, rec->len);
+
+    atomic64_set((atomic64_t *)&rhomf->rh_off, rec->offset);
 }
 
 void
 wal_txn_rechdr_pack(enum wal_rec_type rtype, u64 rid, void *outbuf)
 {
-    struct wal_rechdr_omf *rhomf = (struct wal_rechdr_omf *)outbuf;
+    struct wal_rechdr_omf *rhomf = outbuf;
 
     omf_set_rh_flags(rhomf, WAL_FLAGS_MORG);
-    omf_set_rh_dgen(rhomf, 0);
+    omf_set_rh_gen(rhomf, 0);
     omf_set_rh_type(rhomf, rtype);
     omf_set_rh_rid(rhomf, rid);
     omf_set_rh_len(rhomf, wal_txn_rec_len() - wal_rechdr_len());
 }
 
 void
-wal_txn_rechdr_crc_pack(void *recbuf, size_t len)
+wal_txn_rechdr_finish(void *recbuf, size_t len, u64 offset)
 {
+    struct wal_rechdr_omf *rhomf = (struct wal_rechdr_omf *)recbuf;
+
     wal_rechdr_crc_pack(recbuf, len);
+    atomic64_set((atomic64_t *)&rhomf->rh_off, offset);
 }
 
 void
 wal_txn_rec_pack(u64 txid, u64 seqno, void *outbuf)
 {
-    struct wal_txnrec_omf *tromf = (struct wal_txnrec_omf *)outbuf;
+    struct wal_txnrec_omf *tromf = outbuf;
 
     omf_set_tr_txid(tromf, txid);
     omf_set_tr_seqno(tromf, seqno);
@@ -102,4 +106,26 @@ uint
 wal_txn_rec_len(void)
 {
     return sizeof(struct wal_txnrec_omf);
+}
+
+void
+wal_filehdr_pack(u32 magic, u32 version, bool close, struct wal_minmax_info *info, void *outbuf)
+{
+    struct wal_filehdr_omf *fhomf = outbuf;
+    uint crc;
+    uint ignore = sizeof(fhomf->fh_cksum);
+    uint len = sizeof(*fhomf);
+
+    omf_set_fh_magic(fhomf, magic);
+    omf_set_fh_version(fhomf, version);
+    omf_set_fh_close(fhomf, close ? 1 : 0);
+    omf_set_fh_mingen(fhomf, info->min_gen);
+    omf_set_fh_maxgen(fhomf, info->max_gen);
+    omf_set_fh_minseqno(fhomf, info->min_seqno);
+    omf_set_fh_maxseqno(fhomf, info->max_seqno);
+    omf_set_fh_mintxid(fhomf, info->min_txid);
+    omf_set_fh_maxtxid(fhomf, info->max_txid);
+
+    crc = crc32c(0, outbuf + ignore, len - ignore);
+    omf_set_fh_cksum(fhomf, crc);
 }

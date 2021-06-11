@@ -20,21 +20,24 @@
 
 #include "wal.h"
 #include "wal_buffer.h"
+#include "wal_file.h"
 #include "wal_omf.h"
 #include "wal_mdc.h"
 
 struct wal {
-    struct mpool      *mp;
-    struct wal_bufset *wbs;
-    struct wal_mdc    *mdc;
+    struct mpool       *mp;
+    struct wal_bufset  *wbs;
+    struct wal_fileset *wfset;
+    struct wal_mdc     *mdc;
 
     pthread_t timer_tid;
-    uint64_t rdgen;
+    uint64_t rgen;
     uint32_t version;
     uint32_t dintvl_ms;
     uint32_t dsize_bytes;
 
     atomic64_t error;
+    atomic64_t ingestgen;
     atomic_t closing;
 
     atomic64_t rid HSE_ALIGNED(SMP_CACHE_BYTES);
@@ -126,7 +129,7 @@ wal_put(
 {
     const size_t kvalign = alignof(uint64_t);
     struct wal_rec_omf *rec;
-    uint64_t rid, txid = 0;
+    uint64_t rid, txid = 0, offset;
     size_t klen, vlen, rlen, kvlen, len;
     char *kvdata;
     uint rtype = WAL_RT_NONTX, op = WAL_OP_PUT;
@@ -139,7 +142,7 @@ wal_put(
 
     wal_reqtime_set(wal);
 
-    rec = wal_bufset_alloc(wal->wbs, len);
+    rec = wal_bufset_alloc(wal->wbs, len, &offset);
     rid = atomic64_inc_return(&wal->rid);
     if (kvdb_kop_is_txn(os)) {
         merr_t err;
@@ -166,6 +169,7 @@ wal_put(
 
     recout->recbuf = rec;
     recout->len = len;
+    recout->offset = offset;
 
     return 0;
 }
@@ -181,7 +185,7 @@ wal_del_impl(
 {
     const size_t kalign = alignof(uint64_t);
     struct wal_rec_omf *rec;
-    uint64_t rid, txid = 0;
+    uint64_t rid, txid = 0, offset;
     size_t klen, rlen, kalen, len;
     char *kdata;
     uint rtype = WAL_RT_NONTX, op = prefix ? WAL_OP_PDEL : WAL_OP_DEL;
@@ -193,7 +197,7 @@ wal_del_impl(
     kalen = ALIGN(klen, kalign);
     len = rlen + kalen;
 
-    rec = wal_bufset_alloc(wal->wbs, len);
+    rec = wal_bufset_alloc(wal->wbs, len, &offset);
     rid = atomic64_inc_return(&wal->rid);
     if (kvdb_kop_is_txn(os)) {
         merr_t err;
@@ -214,6 +218,7 @@ wal_del_impl(
 
     recout->recbuf = rec;
     recout->len = len;
+    recout->offset = offset;
 
     return 0;
 }
@@ -244,16 +249,16 @@ static merr_t
 wal_txn(struct wal *wal, uint rtype, uint64_t txid, uint64_t seqno)
 {
     struct wal_txnrec_omf *rec;
-    uint64_t rid;
+    uint64_t rid, offset;
     size_t rlen;
 
     rlen = wal_txn_rec_len();
-    rec = wal_bufset_alloc(wal->wbs, rlen);
+    rec = wal_bufset_alloc(wal->wbs, rlen, &offset);
     rid = atomic64_inc_return(&wal->rid);
 
     wal_txn_rechdr_pack(rtype, rid, rec);
     wal_txn_rec_pack(txid, seqno, rec);
-    wal_txn_rechdr_crc_pack(rec, rlen);
+    wal_txn_rechdr_finish(rec, rlen, offset);
 
     return 0;
 }
@@ -277,9 +282,9 @@ wal_txn_commit(struct wal *wal, uint64_t txid, uint64_t seqno)
 }
 
 void
-wal_op_finish(struct wal *wal, struct wal_record *rec, uint64_t seqno, uint64_t dgen)
+wal_op_finish(struct wal *wal, struct wal_record *rec, uint64_t seqno, uint64_t gen)
 {
-    wal_rec_finish(rec, seqno, dgen);
+    wal_rec_finish(rec, seqno, gen);
 }
 
 /*
@@ -321,9 +326,10 @@ wal_destroy(struct mpool *mp, uint64_t oid1, uint64_t oid2)
 merr_t
 wal_open(struct mpool *mp, bool rdonly, uint64_t mdcid1, uint64_t mdcid2, struct wal **wal_out)
 {
-    struct wal *wal;
-    struct wal_bufset *wbs;
-    struct wal_mdc *mdc;
+    struct wal         *wal;
+    struct wal_bufset  *wbs;
+    struct wal_fileset *wfset;
+    struct wal_mdc     *mdc;
     merr_t err;
     int rc;
 
@@ -338,27 +344,33 @@ wal_open(struct mpool *mp, bool rdonly, uint64_t mdcid1, uint64_t mdcid2, struct
     if (err)
         goto errout;
 
-    wal->rdgen = 0;
+    wal->rgen = 0;
     wal->version = WAL_VERSION;
     wal->dintvl_ms = WAL_DUR_INTVL_MS;
     wal->dsize_bytes = WAL_DUR_SZ_BYTES;
     atomic64_set(&wal->rid, 0);
     atomic64_set(&wal->error, 0);
+    atomic64_set(&wal->ingestgen, 0);
     atomic_set(&wal->closing, 0);
 
     wal->mp = mp;
     wal->mdc = mdc;
 
     err = wal_mdc_replay(mdc, wal);
-    if (err) {
-        wal_mdc_close(mdc);
+    if (err)
+        goto errout;
+
+    wfset = wal_fileset_open(mp, MP_MED_CAPACITY, WAL_FILE_SIZE, WAL_MAGIC, WAL_VERSION);
+    if (!wfset) {
+        err = merr(ENOMEM);
         goto errout;
     }
+    wal->wfset = wfset;
 
-    wbs = wal_bufset_open(wal);
+    wbs = wal_bufset_open(wfset, &wal->ingestgen);
     if (!wbs) {
-        free(wal);
-        return merr(ENOMEM);
+        err = merr(ENOMEM);
+        goto errout;
     }
     wal->wbs = wbs;
 
@@ -371,7 +383,7 @@ wal_open(struct mpool *mp, bool rdonly, uint64_t mdcid1, uint64_t mdcid2, struct
     return 0;
 
 errout:
-    free(wal);
+    wal_close(wal);
 
     return err;
 }
@@ -379,22 +391,26 @@ errout:
 merr_t
 wal_close(struct wal *wal)
 {
-    merr_t err;
-
     if (!wal)
         return 0;
-
-    err = wal_mdc_close(wal->mdc);
-    ev(err);
 
     atomic_set(&wal->closing, 1);
     pthread_join(wal->timer_tid, 0);
 
     wal_bufset_close(wal->wbs);
+    wal_fileset_close(wal->wfset, atomic64_read(&wal->ingestgen));
+    wal_mdc_close(wal->mdc);
 
     free(wal);
 
-    return err;
+    return 0;
+}
+
+void
+wal_cningest_cb(struct wal *wal, u64 seqno, u64 gen)
+{
+    atomic64_set(&wal->ingestgen, gen);
+    wal_fileset_reclaim(wal->wfset, seqno, gen, false);
 }
 
 /*
@@ -415,15 +431,15 @@ wal_dur_params_set(struct wal *wal, uint32_t dintvl_ms, uint32_t dsize_bytes)
 }
 
 uint64_t
-wal_reclaim_dgen_get(struct wal *wal)
+wal_reclaim_gen_get(struct wal *wal)
 {
-    return wal->rdgen;
+    return wal->rgen;
 }
 
 void
-wal_reclaim_dgen_set(struct wal *wal, uint64_t rdgen)
+wal_reclaim_gen_set(struct wal *wal, uint64_t rgen)
 {
-    wal->rdgen = rdgen;
+    wal->rgen = rgen;
 }
 
 uint32_t
@@ -436,12 +452,6 @@ void
 wal_version_set(struct wal *wal, uint32_t version)
 {
     wal->version = version;
-}
-
-struct mpool *
-wal_mpool_get(struct wal *wal)
-{
-    return wal->mp;
 }
 
 #if HSE_MOCKING

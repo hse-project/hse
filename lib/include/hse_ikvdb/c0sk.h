@@ -31,6 +31,7 @@ struct csched;
 struct throttle_sensor;
 struct query_ctx;
 struct kvdb_ctxn_set;
+struct kvdb_callback;
 
 merr_t
 c0sk_init(void);
@@ -63,6 +64,7 @@ c0sk_open(
     struct kvdb_health * health,
     struct csched *      csched,
     atomic64_t *         kvdb_seq,
+    u64                  gen,
     struct c0sk **       c0sk);
 
 /**
@@ -326,6 +328,9 @@ c0sk_get_first_c0kvms(struct c0sk *handle);
 
 struct c0_kvmultiset *
 c0sk_get_last_c0kvms(struct c0sk *handle);
+
+void
+c0sk_install_callback(struct c0sk *handle, struct kvdb_callback *cb);
 
 #if HSE_MOCKING
 #include "c0sk_ut.h"

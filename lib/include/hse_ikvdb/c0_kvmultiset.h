@@ -117,6 +117,9 @@ c0kvms_ingest_seqno_get(struct c0_kvmultiset *handle);
 u64
 c0kvms_gen_update(struct c0_kvmultiset *mset);
 
+void
+c0kvms_gen_init(u64 dgen);
+
 struct c0_kvset *
 c0kvms_ptomb_c0kvset_get(struct c0_kvmultiset *handle);
 

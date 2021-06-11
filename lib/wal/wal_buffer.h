@@ -6,16 +6,17 @@
 #ifndef WAL_BUFFER_H
 #define WAL_BUFFER_H
 
+struct wal_fileset;
 struct wal_bufset;
 
 struct wal_bufset *
-wal_bufset_open(struct wal *wal);
+wal_bufset_open(struct wal_fileset *wfset, atomic64_t *ingestgen);
 
 void
 wal_bufset_close(struct wal_bufset *wbs);
 
 void *
-wal_bufset_alloc(struct wal_bufset *wbs, size_t len);
+wal_bufset_alloc(struct wal_bufset *wbs, size_t len, u64 *offout);
 
 merr_t
 wal_bufset_flush(struct wal_bufset *wbs);

@@ -516,13 +516,10 @@ ikvdb_log_deserialize_to_kvdb_dparams(const char *kvdb_home, struct kvdb_dparams
  */
 struct kvdb_callback {
     struct ikvdb *kc_cbarg;
-    void (*kc_cn_ingest_callback)(
+    void (*kc_cn_ingest_cb)(
         struct ikvdb *ikdb,
         unsigned long seqno,
-        unsigned long status,
-        unsigned long cnid,
-        const void *  key,
-        unsigned int  key_len);
+        unsigned long dgen);
 };
 
 #if HSE_MOCKING

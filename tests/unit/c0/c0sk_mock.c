@@ -18,6 +18,7 @@ _c0sk_open(
     struct kvdb_health * health,
     struct csched *      csched,
     atomic64_t *         kvdb_seq,
+    u64                  gen,
     struct c0sk **       c0sk)
 {
     return 0;

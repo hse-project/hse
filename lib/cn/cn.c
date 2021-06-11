@@ -676,8 +676,8 @@ merr_t
 cn_ingestv(
     struct cn **           cn,
     struct kvset_mblocks **mbv,
-    u64                    ingestid,
     uint                   ingestc,
+    u64                    ingestid,
     u64                   *min_seqno_out,
     u64                   *max_seqno_out)
 {
@@ -721,6 +721,7 @@ cn_ingestv(
     }
 
     if (!count) {
+        *seqno_max_out = seqno_max;
         err = 0;
         goto done;
     }
@@ -783,6 +784,8 @@ cn_ingestv(
         check++;
     }
     assert(check == count);
+
+    *seqno_max_out = seqno_max;
 
     if (log_ingest) {
         hse_slog(

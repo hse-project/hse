@@ -161,6 +161,7 @@ struct ikvdb_impl {
     struct throttle ikdb_throttle;
 
     struct wal              *ikdb_wal;
+    struct kvdb_callback     ikdb_wal_cb;
     struct csched *          ikdb_csched;
     struct cn_kvdb *         ikdb_cn_kvdb;
     struct mpool *           ikdb_mp;
@@ -944,6 +945,34 @@ ikvdb_low_mem_adjust(struct ikvdb_impl *self)
     c0kvs_reinit(kp->c0_heap_cache_sz_max);
 }
 
+static void
+ikvdb_wal_cningest_cb(
+    struct ikvdb *ikdb,
+    unsigned long seqno,
+    unsigned long gen)
+{
+    struct ikvdb_impl *self = ikvdb_h2r(ikdb);
+
+    if (self->ikdb_wal)
+        wal_cningest_cb(self->ikdb_wal, seqno, gen);
+}
+
+static void
+ikvdb_wal_install_callback(struct ikvdb_impl *self)
+{
+    struct kvdb_callback *cb = &self->ikdb_wal_cb;
+
+    if (!self->ikdb_wal) {
+        c0sk_install_callback(self->ikdb_c0sk, NULL);
+        return;
+    }
+
+    cb->kc_cbarg = &self->ikdb_handle;
+    cb->kc_cn_ingest_cb = ikvdb_wal_cningest_cb;
+
+    c0sk_install_callback(self->ikdb_c0sk, cb);
+}
+
 merr_t
 ikvdb_open(
     const char *               kvdb_home,
@@ -959,7 +988,7 @@ ikvdb_open(
     ulong              mavail;
     size_t             sz, n;
     int                i;
-    u64                ingestid;
+    u64                ingestid, gen = 0;
 
     assert(kvdb_home);
     assert(params);
@@ -1062,6 +1091,8 @@ ikvdb_open(
         goto err1;
     }
 
+    atomic64_set(&self->ikdb_seqno, seqno);
+
     kvdb_log_waloid_get(self->ikdb_log, &self->ikdb_wal_oid1, &self->ikdb_wal_oid2);
     err = wal_open(mp, self->ikdb_rdonly, self->ikdb_wal_oid1, self->ikdb_wal_oid2,
                    &self->ikdb_wal);
@@ -1069,8 +1100,6 @@ ikvdb_open(
         hse_elog(HSE_ERR "cannot open %s: @@e", err, kvdb_home);
         goto err1;
     }
-
-    atomic64_set(&self->ikdb_seqno, seqno);
 
     err = kvdb_ctxn_set_create(
         &self->ikdb_ctxn_set, self->ikdb_rp.txn_timeout, self->ikdb_rp.txn_wkth_delay);
@@ -1099,6 +1128,9 @@ ikvdb_open(
 
     lc_ingest_seqno_set(self->ikdb_lc, atomic64_read(&self->ikdb_seqno));
 
+    if (ingestid != CNDB_INVAL_INGESTID && ingestid != CNDB_DFLT_INGESTID && ingestid > 0)
+        gen = ingestid;
+
     err = c0sk_open(
         &self->ikdb_rp,
         mp,
@@ -1106,6 +1138,7 @@ ikvdb_open(
         &self->ikdb_health,
         self->ikdb_csched,
         &self->ikdb_seqno,
+        gen,
         &self->ikdb_c0sk);
     if (err) {
         hse_elog(HSE_ERR "cannot open %s: @@e", err, kvdb_home);
@@ -1124,6 +1157,8 @@ ikvdb_open(
             goto err1;
         }
     }
+
+    ikvdb_wal_install_callback(self);
 
     ikvdb_perfc_alloc(self);
     kvdb_keylock_perfc_init(self->ikdb_keylock, &self->ikdb_ctxn_op);
@@ -1510,6 +1545,8 @@ ikvdb_kvs_open(
         goto out_immediate;
 
     params->rdonly = self->ikdb_rp.read_only; /* inherit from kvdb */
+
+    ikvdb_wal_install_callback(self);
 
     mutex_lock(&self->ikdb_lock);
 
