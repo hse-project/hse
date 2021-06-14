@@ -1300,6 +1300,9 @@ sp3_prune_trees(struct sp3 *sp)
             sp3_log_samp_one_tree(tree);
             sp3_log_samp_overall(sp);
 
+            /* [HSE_REVISIT]
+             * Uncomment these asserts after fixing NFSE-3736.
+             */
 #if 0
 #ifdef HSE_BUILD_DEBUG
             assert(sp->samp.i_alen >= tree->ct_samp.i_alen);

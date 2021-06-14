@@ -17,17 +17,17 @@
 
 void
 bonsai_iter_init(
-    struct bonsai_iter *iter,
-    struct bonsai_root *root,
-    int                 skidx,
-    u64                 view_seq,
-    u64                 horizon_seq,
-    uintptr_t           seqnoref,
-    bool                reverse,
-    bool                ptomb_tree)
+    struct bonsai_iter * iter,
+    struct bonsai_root **root,
+    int                  skidx,
+    u64                  view_seq,
+    u64                  horizon_seq,
+    uintptr_t            seqnoref,
+    bool                 reverse,
+    bool                 ptomb_tree)
 {
     iter->bi_root = root;
-    iter->bi_kv = &root->br_kv;
+    iter->bi_kv = NULL; /* Set at first read */
     iter->bi_index = skidx;
     iter->bi_seq_view = view_seq;
     iter->bi_seq_horizon = horizon_seq;
@@ -52,9 +52,10 @@ bonsai_iter_update(struct bonsai_iter *iter, u64 view_seq, u64 horizon_seq)
 void
 bonsai_iter_seek(struct bonsai_iter *iter, const void *key, size_t klen)
 {
-    struct bonsai_skey skey;
-    struct bonsai_kv * kv = NULL;
-    bool               found;
+    struct bonsai_skey  skey;
+    struct bonsai_kv *  kv = NULL;
+    struct bonsai_root *root;
+    bool                found;
 
     assert(rcu_read_ongoing());
 
@@ -62,56 +63,61 @@ bonsai_iter_seek(struct bonsai_iter *iter, const void *key, size_t klen)
      * will position it correctly at the desired key.
      */
     bn_skey_init(key, klen, 0, iter->bi_index, &skey);
+    root = rcu_dereference(*iter->bi_root);
     if (iter->bi_reverse) {
-        found = bn_findLE(iter->bi_root, &skey, &kv);
+        found = bn_findLE(root, &skey, &kv);
         if (kv)
             kv = rcu_dereference(kv->bkv_next); /* unget */
     } else {
-        found = bn_findGE(iter->bi_root, &skey, &kv);
+        found = bn_findGE(root, &skey, &kv);
         if (kv)
             kv = rcu_dereference(kv->bkv_prev); /* unget */
     }
 
     iter->bi_es.es_eof = !found;
-    iter->bi_kv = found ? kv : &iter->bi_root->br_kv;
+    iter->bi_kv = found ? kv : &root->br_kv;
 }
 
 void
 bonsai_iter_position(struct bonsai_iter *iter, const void *key, size_t klen)
 {
-    struct bonsai_skey skey;
-    struct bonsai_kv * kv = NULL;
-    bool               found;
+    struct bonsai_skey  skey;
+    struct bonsai_kv *  kv = NULL;
+    struct bonsai_root *root;
+    bool                found;
 
     assert(rcu_read_ongoing());
 
     bn_skey_init(key, klen, 0, iter->bi_index, &skey);
-    found = bn_findGE(iter->bi_root, &skey, &kv);
+    root = rcu_dereference(*iter->bi_root);
+    found = bn_findGE(root, &skey, &kv);
     if (kv)
         kv = rcu_dereference(kv->bkv_prev); /* unget */
 
     iter->bi_es.es_eof = !found;
-    iter->bi_kv = found ? kv : &iter->bi_root->br_kv;
+    iter->bi_kv = found ? kv : &root->br_kv;
 }
 
 static struct bonsai_kv *
 get_next(struct bonsai_iter *iter)
 {
-    struct bonsai_kv *bkv;
+    struct bonsai_kv *  bkv;
+    struct bonsai_root *root;
 
     if (!iter->bi_kv)
         return NULL;
 
+    root = rcu_dereference(*iter->bi_root);
     if (iter->bi_reverse) {
         bkv = rcu_dereference(iter->bi_kv->bkv_prev);
-        if (bkv == &iter->bi_root->br_kv ||
+        if (bkv == &root->br_kv ||
             key_immediate_index(&bkv->bkv_key_imm) < iter->bi_index) {
 
             return NULL;
         }
     } else {
         bkv = rcu_dereference(iter->bi_kv->bkv_next);
-        if (bkv == &iter->bi_root->br_kv ||
+        if (bkv == &root->br_kv ||
             key_immediate_index(&bkv->bkv_key_imm) > iter->bi_index) {
 
             return NULL;
@@ -137,6 +143,13 @@ bonsai_iter_next(struct element_source *es, void **element)
      * cursor read call.
      */
     rcu_read_lock();
+
+    if (!iter->bi_kv) {
+        struct bonsai_root *root = rcu_dereference(*iter->bi_root);
+
+        iter->bi_kv = &root->br_kv;
+    }
+
     do {
         enum hse_seqno_state state;
         u64                  seqno;

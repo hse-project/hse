@@ -71,14 +71,17 @@ bkv_collection_add(struct bkv_collection *bkvc, struct bonsai_kv *bkv, struct bo
     struct bkv_collection_entry *entry;
 
     if (HSE_UNLIKELY(bkvc->bkvcol_cnt >= bkvc->bkvcol_cnt_max)) {
+        void * mem;
         size_t newsz;
 
         bkvc->bkvcol_cnt_max += bkvc->bkvcol_cnt_initial;
         newsz = bkvc->bkvcol_cnt_max * sizeof(*bkvc->bkvcol_entry);
 
-        bkvc->bkvcol_entry = realloc(bkvc->bkvcol_entry, newsz);
-        if (ev(!bkvc->bkvcol_entry))
+        mem = realloc(bkvc->bkvcol_entry, newsz);
+        if (ev(!mem))
             return merr(ENOMEM);
+
+        bkvc->bkvcol_entry = mem;
     }
 
     entry = &bkvc->bkvcol_entry[bkvc->bkvcol_cnt++];

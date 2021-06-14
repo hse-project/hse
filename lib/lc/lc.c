@@ -2,7 +2,7 @@
 /*
  * Copyright (C) 2021 Micron Technology, Inc.  All rights reserved.
  *
- * Late Commit (LC) is a layer that sits between c0 and cn. It's primary purpose is to hold
+ * Late Commit (LC) is a layer that sits between c0 and cn. Its primary purpose is to hold
  * uncommitted transactions until they are committed and ready for ingest into cn.
  *
  * The ingest thread is responsible for adding kv-tuples to LC. It establishes a view seqno upfront
@@ -125,10 +125,10 @@ struct lc_gc {
  * @lc_ib_head:       ingest batch list
  */
 struct lc_impl {
-    struct lc             lc_handle;
-    struct mutex          lc_mutex;
-    uint                  lc_nsrc;
-    atomic_t              lc_closing;
+    struct lc    lc_handle;
+    struct mutex lc_mutex;
+    uint         lc_nsrc;
+    atomic_t     lc_closing;
 
     struct bonsai_root *     lc_broot[LC_SOURCE_CNT_MAX];
     struct lc_gc             lc_gc;
@@ -247,9 +247,9 @@ lc_ior_cb(
     struct bonsai_val **  old_val,
     uint                  height)
 {
-    struct bonsai_val *  old;
-    struct bonsai_val ** prevp;
-    enum hse_seqno_state state;
+    struct bonsai_val *        old;
+    struct bonsai_val **       prevp;
+    enum hse_seqno_state state HSE_MAYBE_UNUSED;
 
     uintptr_t seqnoref;
     u64       seqno = 0;
@@ -450,7 +450,8 @@ lc_builder_cb(void *rock, struct bonsai_kv *bkv, struct bonsai_val *vlist)
         struct bonsai_sval  sval;
 
         bn_sval_init(val->bv_value, val->bv_xlen, val->bv_seqnoref, &sval);
-        root = sval.bsv_val == HSE_CORE_TOMB_PFX ? lc->lc_broot[0] : lc->lc_broot[1];
+        root = sval.bsv_val == HSE_CORE_TOMB_PFX ? rcu_dereference(lc->lc_broot[0])
+                                                 : rcu_dereference(lc->lc_broot[1]);
 
         err = bn_insert_or_replace(root, &skey, &sval);
         if (ev(err))
@@ -466,12 +467,12 @@ merr_t
 lc_builder_create(struct lc *lc, struct lc_builder **builder)
 {
     struct bkv_collection *bldr;
-    struct lc_impl *self = lc_h2r(lc);
+    struct lc_impl *       self = lc_h2r(lc);
     merr_t                 err;
 
     err = bkv_collection_create(&bldr, LC_BUILDER_CNT, &lc_builder_cb, self);
 
-    *builder = (void *)bldr;
+    *builder = (struct lc_builder *)bldr;
     return err;
 }
 
@@ -513,7 +514,7 @@ lc_get_pfx(struct lc_impl *self, struct bonsai_skey *skey, u64 view_seqno, uintp
     struct bonsai_val * val;
     struct bonsai_kv *  kv = NULL;
     bool                found;
-    struct bonsai_root *root = self->lc_broot[0];
+    struct bonsai_root *root = rcu_dereference(self->lc_broot[0]);
     uintptr_t           view_seqnoref;
 
     *oseqnoref = HSE_ORDNL_TO_SQNREF(0);
@@ -543,7 +544,7 @@ lc_get_main(
     struct bonsai_val * val;
     struct bonsai_kv *  kv = NULL;
     bool                found;
-    struct bonsai_root *root = self->lc_broot[1];
+    struct bonsai_root *root = rcu_dereference(self->lc_broot[1]);
 
     assert(rcu_read_ongoing());
 
@@ -697,7 +698,7 @@ lc_pfx_probe(
         pt_seq = HSE_SQNREF_TO_ORDNL(pt_seqref);
     }
 
-    root = self->lc_broot[1];
+    root = rcu_dereference(self->lc_broot[1]);
     err = c0kvs_pfx_probe_cmn(
         root, skidx, kt, sfxlen, view_seqno, seqnoref, res, qctx, kbuf, vbuf, pt_seq);
 
@@ -800,7 +801,7 @@ lc_cursor_create(
 
         bonsai_iter_init(
             &cur->lcc_it[i],
-            self->lc_broot[i],
+            &self->lc_broot[i],
             cur->lcc_skidx,
             cur->lcc_seq_view,
             cur->lcc_seq_horizon,

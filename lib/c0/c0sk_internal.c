@@ -300,9 +300,9 @@ c0sk_cningest_cb(void *rock, struct bonsai_kv *bkv, struct bonsai_val *vlist)
     assert(vlist);
 
     for (val = vlist; val; val = val->bv_priv) {
-        enum hse_seqno_state state;
-        int                  rc;
-        u64                  seqno = 0;
+        enum hse_seqno_state state HSE_MAYBE_UNUSED;
+        int                        rc;
+        u64                        seqno = 0;
 
         state = seqnoref_to_seqno(val->bv_seqnoref, &seqno);
         assert(state == HSE_SQNREF_STATE_DEFINED);
@@ -357,8 +357,8 @@ c0sk_bkv_sort_vals(struct bonsai_kv *bkv, struct bonsai_val **val_head, u32 unso
         unsorted = 0;
 
         for (val = *val_head; val; val = next) {
-            enum hse_seqno_state state;
-            int                  rc;
+            enum hse_seqno_state state HSE_MAYBE_UNUSED;
+            int                        rc;
 
             next = val->bv_priv;
             state = seqnoref_to_seqno(val->bv_seqnoref, &seqno);
@@ -425,7 +425,7 @@ c0sk_ingest_lc_iters_append(struct c0_ingest_work *work)
 
 /* Initial number of entries in cn ingest's bkv_collection.
  */
-#define CN_INGEST_KVCNT 4UL << 20
+#define CN_INGEST_BKV_CNT (4UL << 20)
 
 /**
  * c0sk_ingest_worker() - Ingest worker thread
@@ -567,7 +567,7 @@ c0sk_ingest_worker(struct work_struct *work)
 
     /* [HSE_REVISIT] Cache and reuse builders across ingests.
      */
-    err = bkv_collection_create(&cnbldr, CN_INGEST_KVCNT, &c0sk_cningest_cb, ingest);
+    err = bkv_collection_create(&cnbldr, CN_INGEST_BKV_CNT, &c0sk_cningest_cb, ingest);
     if (ev(err))
         goto exit_err;
 

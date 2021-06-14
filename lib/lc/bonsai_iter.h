@@ -16,7 +16,7 @@
 
 struct bonsai_iter {
     struct element_source     bi_es;
-    struct bonsai_root *      bi_root;
+    struct bonsai_root **     bi_root;
     struct bonsai_kv *        bi_kv;
     struct kvs_cursor_element bi_elem;
     u64                       bi_seq_view;
@@ -32,14 +32,14 @@ struct bonsai_iter {
 /* MTF_MOCK */
 void
 bonsai_iter_init(
-    struct bonsai_iter *iter,
-    struct bonsai_root *root,
-    int                 skidx,
-    u64                 view_seq,
-    u64                 horizon_seq,
-    uintptr_t           seqnoref,
-    bool                reverse,
-    bool                ptomb_tree);
+    struct bonsai_iter * iter,
+    struct bonsai_root **root,
+    int                  skidx,
+    u64                  view_seq,
+    u64                  horizon_seq,
+    uintptr_t            seqnoref,
+    bool                 reverse,
+    bool                 ptomb_tree);
 
 /* MTF_MOCK */
 void

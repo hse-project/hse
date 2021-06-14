@@ -29,12 +29,12 @@ test_collection_teardown(struct mtf_test_info *info)
 }
 
 static int
-test_pre(struct mtf_test_info *ti)
+test_pre(struct mtf_test_info *lcl_ti)
 {
     merr_t err;
 
     err = lc_create(&lc);
-    assert(err == 0);
+    ASSERT_EQ_RET(0, err, -1);
 
     lc_ingest_seqno_set(lc, 0);
 
