@@ -10,10 +10,12 @@
 #include <hse_util/element_source.h>
 #include <hse_util/bonsai_tree.h>
 
-#define HSE_C0_KVSET_ITER_MAX (HSE_C0_INGEST_WIDTH_MAX * 3)
+#include <hse_ikvdb/lc.h>
+
+#define HSE_C0_KVSET_ITER_MAX (HSE_C0_INGEST_WIDTH_MAX + LC_SOURCE_CNT_MAX)
 
 /**
- * c0_kvset_iterator - c0kvs ingest context (used for in order traversal)
+ * c0_kvset_iterator - c0kvs iterator (used for in order traversal)
  * @c0it_handle:     Handle to the iterator
  * @c0it_root:       Root of cbtree (for seek)
  * @c0it_next:       Next element for foward traversal
@@ -35,8 +37,8 @@ struct c0_kvset_iterator {
 };
 
 #define C0_KVSET_ITER_FLAG_REVERSE 0x0001
-#define C0_KVSET_ITER_FLAG_PTOMB 0x0002
-#define C0_KVSET_ITER_FLAG_INDEX 0x0004
+#define C0_KVSET_ITER_FLAG_PTOMB   0x0002
+#define C0_KVSET_ITER_FLAG_INDEX   0x0004
 
 struct kvs_ktuple;
 

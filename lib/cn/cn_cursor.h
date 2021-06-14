@@ -93,7 +93,7 @@ cn_cursor_create(
     const void *           prefix,
     u32                    len,
     struct cursor_summary *summary,
-    void **                cursorp);
+    struct cn_cursor **    cursorp);
 
 /* MTF_MOCK */
 merr_t

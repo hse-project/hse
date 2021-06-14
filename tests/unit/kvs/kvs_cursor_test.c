@@ -7,6 +7,7 @@
 
 #include <hse_ikvdb/kvs.h>
 #include <hse_ikvdb/c0.h>
+#include <hse_ikvdb/lc.h>
 
 #include <hse_util/seqno.h>
 
@@ -15,18 +16,24 @@
 #include <mocks/mock_c0cn.h>
 
 static struct ikvs *kvs;
+static struct lc *lc;
 
 static int
 test_pre(struct mtf_test_info *lcl_ti)
 {
-    merr_t err;
-    void *dummy = (void *)-1;
+    merr_t             err;
+    void *             dummy = (void *)-1;
     struct kvs_rparams rp = kvs_rparams_defaults();
-    struct kvdb_kvs kvdb_kvs;
+    struct kvdb_kvs    kvdb_kvs;
 
     mock_c0cn_set();
 
-    err = kvs_open(dummy, &kvdb_kvs, "mp_test", dummy, dummy, &rp, dummy, dummy, 0);
+    err = lc_create(&lc);
+    ASSERT_EQ_RET(0, err, -1);
+
+    lc_ingest_seqno_set(lc, 1);
+
+    err = kvs_open(dummy, &kvdb_kvs, "mp_test", dummy, dummy, lc, &rp, dummy, dummy, 0);
     ASSERT_EQ_RET(0, err, -1);
 
     kvs = kvdb_kvs.kk_ikvs;
@@ -36,6 +43,8 @@ test_pre(struct mtf_test_info *lcl_ti)
 static int
 test_post(struct mtf_test_info *ti)
 {
+    lc_destroy(lc);
+
     kvs_close(kvs);
 
     mock_c0cn_unset();
@@ -43,7 +52,8 @@ test_post(struct mtf_test_info *ti)
     return 0;
 }
 
-void insert_key(struct mtf_test_info *lcl_ti, char *key)
+void
+insert_key(struct mtf_test_info *lcl_ti, char *key)
 {
     struct kvs_ktuple kt;
     struct kvs_vtuple vt;
@@ -57,22 +67,19 @@ void insert_key(struct mtf_test_info *lcl_ti, char *key)
 }
 
 char *
-construct_key(
-        char *buf,
-        uint  buf_sz,
-        char *pfx,
-        int   idx)
+construct_key(char *buf, uint buf_sz, char *pfx, int idx)
 {
-        snprintf(buf, buf_sz, "%s-%02d", pfx, idx);
-        return buf;
+    snprintf(buf, buf_sz, "%s-%02d", pfx, idx);
+    return buf;
 }
 
-void insert_key_multiple(struct mtf_test_info *lcl_ti, char *pfx, uint nkeys)
+void
+insert_key_multiple(struct mtf_test_info *lcl_ti, char *pfx, uint nkeys)
 {
     int i;
 
     for (i = 0; i < nkeys; i++) {
-        char              buf[20];
+        char buf[20];
 
         construct_key(buf, sizeof(buf), pfx, i);
         insert_key(lcl_ti, buf);
@@ -81,19 +88,19 @@ void insert_key_multiple(struct mtf_test_info *lcl_ti, char *pfx, uint nkeys)
 
 void
 create_cursor(
-        struct mtf_test_info *lcl_ti,
-        char *pfx,
-        uint nkeys,
-        bool reverse,
-        struct hse_kvs_cursor **cur_out)
+    struct mtf_test_info *  lcl_ti,
+    char *                  pfx,
+    uint                    nkeys,
+    bool                    reverse,
+    struct hse_kvs_cursor **cur_out)
 {
     struct hse_kvs_cursor *cur;
-    merr_t err;
+    merr_t                 err;
 
     cur = kvs_cursor_alloc(kvs, pfx, strlen(pfx), reverse);
     ASSERT_NE(NULL, cur);
 
-    err = kvs_cursor_init(cur);
+    err = kvs_cursor_init(cur, NULL);
     ASSERT_EQ(0, err);
 
     err = kvs_cursor_prepare(cur);
@@ -103,10 +110,7 @@ create_cursor(
 }
 
 void
-expect_key(
-        struct mtf_test_info *lcl_ti,
-        struct kvs_ktuple *kt_found,
-        char *expected)
+expect_key(struct mtf_test_info *lcl_ti, struct kvs_ktuple *kt_found, char *expected)
 {
     int rc;
 
@@ -115,10 +119,7 @@ expect_key(
 }
 
 void
-expect_pfx(
-        struct mtf_test_info *lcl_ti,
-        struct kvs_ktuple *kt_found,
-        char *pfx)
+expect_pfx(struct mtf_test_info *lcl_ti, struct kvs_ktuple *kt_found, char *pfx)
 {
     int rc;
 
@@ -136,21 +137,22 @@ MTF_DEFINE_UTEST_PREPOST(kvs_cursor_test, basic_test, test_pre, test_post)
     insert_key_multiple(lcl_ti, "ab", 10);
     insert_key_multiple(lcl_ti, "pq", 10);
     insert_key(lcl_ti, "this is a key");
-    
+
     /* Verify phase */
     struct hse_kvs_cursor *cur;
 
     create_cursor(lcl_ti, "pq", 2, false, &cur);
 
-    void check_keys(int start, int cnt) {
+    void check_keys(int start, int cnt)
+    {
         int i;
         int c = 0;
 
         for (i = start;; i++) {
             struct kvs_kvtuple kvt;
-            char buf[20];
-            bool eof;
-            merr_t err;
+            char               buf[20];
+            bool               eof;
+            merr_t             err;
 
             err = kvs_cursor_read(cur, &kvt, &eof);
             ASSERT_EQ(0, err);
@@ -169,9 +171,9 @@ MTF_DEFINE_UTEST_PREPOST(kvs_cursor_test, basic_test, test_pre, test_post)
 
     check_keys(0, 10);
 
-    char buf[20];
+    char      buf[20];
     const int start = 3;
-    construct_key(buf, sizeof(buf), "pq" , start);
+    construct_key(buf, sizeof(buf), "pq", start);
     struct kvs_ktuple kt;
 
     err = kvs_cursor_seek(cur, buf, strlen(buf), NULL, 0, &kt);

@@ -21,7 +21,7 @@
 struct c0;
 struct cn;
 struct c0_kvmultiset_cursor;
-struct c0sk_impl;
+struct c0sk;
 struct c0_kvmultiset_impl;
 
 /**
@@ -65,12 +65,8 @@ c0kvms_create(
 void
 c0kvms_seqno_set(struct c0_kvmultiset *handle, uint64_t kvdb_seq);
 
-/**
- * c0kvms_reset() - reset the struct c0_kvmultiset to its original state
- * @mset: struct c0_kvset to reset
- */
-void
-c0kvms_reset(struct c0_kvmultiset *handle);
+u64
+c0kvms_seqno_get(struct c0_kvmultiset *handle);
 
 /**
  * c0kvms_getref() - obtain a ref against a struct c0_kvmultiset
@@ -105,6 +101,9 @@ c0kvms_gen_read(struct c0_kvmultiset *mset);
 
 u64
 c0kvms_gen_current(struct c0_kvmultiset *mset);
+
+u64
+c0kvms_ingest_seqno_get(struct c0_kvmultiset *handle);
 
 /**
  * c0kvms_gen_update() - update the kvms generation count
@@ -265,9 +264,6 @@ c0kvms_avail(struct c0_kvmultiset *mset);
 bool
 c0kvms_should_ingest(struct c0_kvmultiset *handle);
 
-void
-c0kvms_abort_active(struct c0_kvmultiset *handle);
-
 /**
  * c0kvms_width() - obtain the number of contained struct c0_kvset's
  * @mset:     Struct c0_kvmultiset to query
@@ -380,7 +376,7 @@ c0kvms_cursor_destroy(struct c0_kvmultiset_cursor *cursor);
  * Return: pointer to the c0_kvmultiset's embedded struct c0_ingest_work
  */
 struct c0_ingest_work *
-c0kvms_ingest_work_prepare(struct c0_kvmultiset *mset, struct c0sk_impl *c0sk);
+c0kvms_ingest_work_prepare(struct c0_kvmultiset *mset, struct c0sk *c0sk);
 
 /**
  * c0kvms_c0snr_alloc() - alloc space to record a txn's c0snr

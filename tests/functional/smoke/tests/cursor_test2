@@ -17,7 +17,7 @@ cmd kvck $mp
 nthread=32
 duration=20 # seconds
 range=10
-cmd range_read $mp $kvs -e -b$range -j$nthread -v$vlen -p$npfx -s$nsfx -d$duration
-cmd range_read $mp $kvs -e -b$range -j$nthread -v$vlen -p$npfx -s$nsfx -d$duration
+cmd range_read $mp $kvs -e -b$range -j$nthread -v$vlen -p$npfx -s$nsfx -d$duration -V
+cmd range_read $mp $kvs -e -b$range -j$nthread -v$vlen -p$npfx -s$nsfx -d$duration -V
 
 

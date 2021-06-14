@@ -375,10 +375,10 @@ bn_delete_impl(
 }
 
 static inline struct bonsai_kv *
-bn_find_next_pfx(struct bonsai_root *tree, const struct bonsai_skey *skey)
+bn_find_next_pfx(struct bonsai_root *tree, const struct bonsai_skey *skey, enum bonsai_match_type mtype)
 {
     struct bonsai_node *        node;
-    struct bonsai_node *        mnode;
+    struct bonsai_node *        node_gt, *node_lt;
     const struct key_immediate *ki;
     const void *                key;
 
@@ -394,7 +394,7 @@ bn_find_next_pfx(struct bonsai_root *tree, const struct bonsai_skey *skey)
     skidx = key_immediate_index(ki);
 
     node = rcu_dereference(tree->br_root);
-    mnode = NULL;
+    node_gt = node_lt = NULL;
 
     while (node) {
         u32 node_skidx = key_immediate_index(&node->bn_kv->bkv_key_imm);
@@ -404,14 +404,21 @@ bn_find_next_pfx(struct bonsai_root *tree, const struct bonsai_skey *skey)
             res = key_inner_cmp(key, klen, node->bn_kv->bkv_key, klen);
 
         if (res < 0) {
-            mnode = node;
+            node_gt = node;
             node = rcu_dereference(node->bn_left);
         } else {
+            node_lt = node;
             node = rcu_dereference(node->bn_right);
         }
     }
 
-    return mnode ? mnode->bn_kv : NULL;
+    if (mtype == B_MATCH_GT)
+        return node_gt ? node_gt->bn_kv : NULL;
+
+    if (mtype == B_MATCH_LT)
+        return node_lt ? node_lt->bn_kv : NULL;
+
+    return NULL;
 }
 
 static inline struct bonsai_kv *
@@ -634,7 +641,23 @@ bn_find_pfx_GT(struct bonsai_root *tree, const struct bonsai_skey *skey, struct 
 
     assert(kv);
 
-    lkv = bn_find_next_pfx(tree, skey);
+    lkv = bn_find_next_pfx(tree, skey, B_MATCH_GT);
+    if (lkv) {
+        *kv = lkv;
+        return true;
+    }
+
+    return false;
+}
+
+bool
+bn_find_pfx_LT(struct bonsai_root *tree, const struct bonsai_skey *skey, struct bonsai_kv **kv)
+{
+    struct bonsai_kv *lkv;
+
+    assert(kv);
+
+    lkv = bn_find_next_pfx(tree, skey, B_MATCH_LT);
     if (lkv) {
         *kv = lkv;
         return true;

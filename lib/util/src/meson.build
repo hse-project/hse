@@ -2,6 +2,7 @@ util_sources = files(
     'alloc.c',
     'arch.c',
     'bin_heap.c',
+    'bkv_collection.c',
     'bloom_filter.c',
     'bonsai_tree_balance.c',
     'bonsai_tree.c',

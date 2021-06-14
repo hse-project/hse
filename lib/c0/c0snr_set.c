@@ -52,21 +52,21 @@ struct c0snr_set_entry;
  * @cse_list:           ptr to the c0snr_set_list object
  * @cse_ctxn:           handle to the transaction (if active)
  * @cse_kvms_gen:       last active kvms gen to use this c0snr
- * @cse_refcnt:         reference count (txn, kvms acquire refs)
+ * @cse_refcnt:         reference count (txn, kvms and lc acquire refs)
  */
 struct c0snr_set_entry {
-    atomic_t                    cse_refcnt;
-    struct c0snr_set_list      *cse_list;
-    volatile struct kvdb_ctxn  *cse_ctxn;
-    u64                         cse_kvms_gen;
+    atomic_t                   cse_refcnt;
+    struct c0snr_set_list *    cse_list;
+    volatile struct kvdb_ctxn *cse_ctxn;
+    u64                        cse_kvms_gen;
 
     union {
-        uintptr_t   cse_c0snr;
-        void       *cse_next;
+        uintptr_t cse_c0snr;
+        void *    cse_next;
     };
 };
 
-#define KVMS_GEN_INVALID   (~0UL)
+#define KVMS_GEN_INVALID             (~0UL)
 #define priv_to_c0snr_set_entry(ptr) container_of(ptr, struct c0snr_set_entry, cse_c0snr)
 
 /**
@@ -83,17 +83,17 @@ struct c0snr_set_entry {
  * Abort handler css_abort_func can go away when LC is in place.
  */
 struct c0snr_set_list {
-    spinlock_t              act_lock;
-    size_t                  act_vlbsz;
-    void                   *act_vlb;
-    c0snr_set_abort_func   *css_abort_func;
+    spinlock_t            act_lock;
+    size_t                act_vlbsz;
+    void *                act_vlb;
+    c0snr_set_abort_func *css_abort_func;
 
-    uint                    act_index HSE_ALIGNED(SMP_CACHE_BYTES * 2);
+    uint act_index          HSE_ALIGNED(SMP_CACHE_BYTES * 2);
     struct c0snr_set_entry *act_cache;
     uint                    act_entryc;
     uint                    act_entrymax;
 
-    struct c0snr_set_entry  act_entryv[] HSE_ALIGNED(SMP_CACHE_BYTES * 2);
+    struct c0snr_set_entry act_entryv[] HSE_ALIGNED(SMP_CACHE_BYTES * 2);
 };
 
 /* c0snr_set_entry_alloc() performs a one-time initialization
@@ -139,8 +139,8 @@ merr_t
 c0snr_set_list_create(u32 max_elts, u32 index, struct c0snr_set_list **tree)
 {
     struct c0snr_set_list *self;
-    size_t sz;
-    void *vlb;
+    size_t                 sz;
+    void *                 vlb;
 
     sz = sizeof(*self) + sizeof(self->act_entryv[0]) * max_elts;
     sz += alignof(*self) * 8;
@@ -178,9 +178,9 @@ merr_t
 c0snr_set_create(c0snr_set_abort_func *afunc, struct c0snr_set **handle)
 {
     struct c0snr_set_impl *self;
-    u32 max_elts, max_bkts;
-    merr_t err = 0;
-    int i;
+    u32                    max_elts, max_bkts;
+    merr_t                 err = 0;
+    int                    i;
 
     max_bkts = NELEM(self->css_bktv);
     max_elts = HSE_C0SNRSET_ELTS_MAX / max_bkts;
@@ -198,7 +198,7 @@ c0snr_set_create(c0snr_set_abort_func *afunc, struct c0snr_set **handle)
         if (ev(err))
             break;
 
-        bkt->csb_list->css_abort_func = afunc? afunc : c0snr_set_abort_fn;
+        bkt->csb_list->css_abort_func = afunc ? afunc : c0snr_set_abort_fn;
     }
 
     *handle = &self->css_handle;
@@ -215,7 +215,7 @@ void
 c0snr_set_destroy(struct c0snr_set *handle)
 {
     struct c0snr_set_impl *self;
-    int i;
+    int                    i;
 
     if (ev(!handle))
         return;
@@ -234,11 +234,11 @@ c0snr_set_destroy(struct c0snr_set *handle)
 void *
 c0snr_set_get_c0snr(struct c0snr_set *handle, struct kvdb_ctxn *ctxn)
 {
-    struct c0snr_set_impl  *self = c0snr_set_h2r(handle);
+    struct c0snr_set_impl * self = c0snr_set_h2r(handle);
     struct c0snr_set_entry *entry;
-    struct c0snr_set_list  *cslist;
-    struct c0snr_set_bkt   *bkt;
-    uint cpu, node, core;
+    struct c0snr_set_list * cslist;
+    struct c0snr_set_bkt *  bkt;
+    uint                    cpu, node, core;
 
     hse_getcpu(&cpu, &node, &core);
 
@@ -264,8 +264,7 @@ c0snr_set_get_c0snr(struct c0snr_set *handle, struct kvdb_ctxn *ctxn)
 }
 
 void
-c0snr_clear_txn(
-    uintptr_t  *priv)
+c0snr_clear_txn(uintptr_t *priv)
 {
     struct c0snr_set_entry *entry;
 
@@ -283,10 +282,9 @@ c0snr_clear_txn(
 }
 
 u64
-c0snr_get_cgen(
-    uintptr_t          *priv)
+c0snr_get_cgen(uintptr_t *priv)
 {
-    struct c0snr_set_entry  *entry;
+    struct c0snr_set_entry *entry;
 
     entry = priv_to_c0snr_set_entry(priv);
 
@@ -294,11 +292,27 @@ c0snr_get_cgen(
 }
 
 void
-c0snr_getref(
-    uintptr_t          *priv,
-    u64                 c0ms_gen)
+c0snr_getref_lc(uintptr_t *priv)
 {
-    struct c0snr_set_entry  *entry;
+    struct c0snr_set_entry *entry;
+
+    entry = priv_to_c0snr_set_entry(priv);
+    atomic_inc(&entry->cse_refcnt);
+}
+
+void
+c0snr_dropref_lc(uintptr_t *priv)
+{
+    struct c0snr_set_entry *entry;
+
+    entry = priv_to_c0snr_set_entry(priv);
+    atomic_dec(&entry->cse_refcnt);
+}
+
+void
+c0snr_getref(uintptr_t *priv, u64 c0ms_gen)
+{
+    struct c0snr_set_entry *entry;
 
     entry = priv_to_c0snr_set_entry(priv);
 
@@ -313,11 +327,10 @@ c0snr_getref(
 }
 
 void
-c0snr_dropref(
-    uintptr_t          *priv)
+c0snr_dropref(uintptr_t *priv)
 {
     struct c0snr_set_entry *entry;
-    struct c0snr_set_list  *tree;
+    struct c0snr_set_list * tree;
 
     entry = priv_to_c0snr_set_entry(priv);
 
@@ -336,12 +349,12 @@ void
 c0snr_droprefv(int refc, uintptr_t **refv)
 {
     struct c0snr_set_impl *self;
-    int i;
+    int                    i;
 
     struct bkt {
         struct c0snr_set_entry **tailp;
-        struct c0snr_set_entry  *head;
-    } *bkt, bktv[NELEM(self->css_bktv)];
+        struct c0snr_set_entry * head;
+    } * bkt, bktv[NELEM(self->css_bktv)];
 
     for (bkt = bktv; bkt < bktv + NELEM(bktv); ++bkt) {
         bkt->tailp = &bkt->head;
@@ -385,31 +398,11 @@ c0snr_droprefv(int refc, uintptr_t **refv)
 }
 
 bool
-c0snr_txn_is_active(
-    uintptr_t  *priv)
+c0snr_txn_is_active(uintptr_t *priv)
 {
-    struct c0snr_set_entry         *entry;
+    struct c0snr_set_entry *entry;
 
     entry = priv_to_c0snr_set_entry(priv);
     return entry->cse_ctxn ? true : false;
 }
 
-void
-c0snr_abort(
-    uintptr_t  *priv)
-{
-    struct c0snr_set_entry         *entry;
-
-    entry = priv_to_c0snr_set_entry(priv);
-
-    /*
-     * Attempt to abort the transaction that allocated this c0snr.
-     * Multiple threads may attempt to abort or commit but only one will
-     * acquire the transaction lock, run to completion and clear cse_ctxn.
-     */
-    while (entry->cse_ctxn) {
-        entry->cse_list->css_abort_func((struct kvdb_ctxn *)entry->cse_ctxn);
-
-        cpu_relax();
-    }
-}

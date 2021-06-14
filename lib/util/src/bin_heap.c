@@ -385,9 +385,15 @@ bin_heap2_prepare_list(struct bin_heap2 *bh, u32 width, struct element_source *e
     return 0;
 }
 
-/* compare the sort number of the two sources. Smaller is newer */
+/* Binheap source age comparator.
+ *
+ * Returns:
+ *   < 0 : es1 < es2
+ *   > 0 : es1 > es2
+ *  == 0 : es1 == es2
+ */
 s64
-bin_heap2_age_cmp(struct bin_heap2 *bh, struct element_source *es1, struct element_source *es2)
+bin_heap2_age_cmp(struct element_source *es1, struct element_source *es2)
 {
     return es1->es_sort - es2->es_sort;
 }

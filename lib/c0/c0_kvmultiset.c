@@ -15,6 +15,8 @@
 #include <hse_util/xrand.h>
 #include <hse_util/keycmp.h>
 
+#include <hse_ikvdb/lc.h>
+#include <hse_ikvdb/c0sk.h>
 #include <hse_ikvdb/cn.h>
 #include <hse_ikvdb/c0_kvmultiset.h>
 #include <hse_ikvdb/c0_kvset.h>
@@ -59,7 +61,7 @@ struct c0_kvmultiset_impl {
     u64                  c0ms_rsvd_sn;
     u64                  c0ms_ctime;
 
-    atomic_t                 c0ms_ingesting HSE_ALIGNED(SMP_CACHE_BYTES);
+    atomic_t c0ms_ingesting  HSE_ALIGNED(SMP_CACHE_BYTES);
     bool                     c0ms_ingested;
     bool                     c0ms_finalized;
     size_t                   c0ms_txn_thresh_lo;
@@ -68,15 +70,15 @@ struct c0_kvmultiset_impl {
     struct workqueue_struct *c0ms_wq;
     struct work_struct       c0ms_destroy_work;
 
-    atomic_t c0ms_refcnt  HSE_ALIGNED(SMP_CACHE_BYTES);
-    size_t c0ms_used  HSE_ALIGNED(SMP_CACHE_BYTES * 2);
+    atomic_t c0ms_refcnt HSE_ALIGNED(SMP_CACHE_BYTES);
+    size_t c0ms_used     HSE_ALIGNED(SMP_CACHE_BYTES * 2);
 
-    atomic64_t c0ms_c0snr_cur  HSE_ALIGNED(SMP_CACHE_BYTES * 2);
-    size_t     c0ms_c0snr_max  HSE_ALIGNED(SMP_CACHE_BYTES);
-    uintptr_t *c0ms_c0snr_base;
+    atomic64_t c0ms_c0snr_cur HSE_ALIGNED(SMP_CACHE_BYTES * 2);
+    size_t c0ms_c0snr_max     HSE_ALIGNED(SMP_CACHE_BYTES);
+    uintptr_t *               c0ms_c0snr_base;
 
-    u32              c0ms_num_sets;
-    u32              c0ms_resetsz;
+    u32 c0ms_num_sets;
+    u32 c0ms_resetsz;
 
     /* The size of c0ms_sets[] must accomodate at least (2x + 1)
      * c0 kvsets for correct functioning of c0kvms_should_ingest()
@@ -85,9 +87,9 @@ struct c0_kvmultiset_impl {
     struct c0_kvset *c0ms_sets[HSE_C0_INGEST_WIDTH_MAX * 2 + 1];
 };
 
-static struct kmem_cache *c0kvms_cache  HSE_READ_MOSTLY;
-static atomic64_t         c0kvms_gen = ATOMIC_INIT(0);
-static atomic_t           c0kvms_init_ref;
+static struct kmem_cache *c0kvms_cache HSE_READ_MOSTLY;
+static atomic64_t                      c0kvms_gen = ATOMIC_INIT(0);
+static atomic_t                        c0kvms_init_ref;
 
 void
 c0kvms_thresholds_get(struct c0_kvmultiset *handle, size_t *thresh_lo, size_t *thresh_hi)
@@ -110,7 +112,7 @@ struct c0_kvset *
 c0kvms_get_hashed_c0kvset(struct c0_kvmultiset *handle, u64 hash)
 {
     struct c0_kvmultiset_impl *self = c0_kvmultiset_h2r(handle);
-    uint idx;
+    uint                       idx;
 
     idx = hash % (HSE_C0_INGEST_WIDTH_MAX * 2);
 
@@ -295,16 +297,16 @@ bool
 c0kvms_should_ingest(struct c0_kvmultiset *handle)
 {
     struct c0_kvmultiset_impl *self = c0_kvmultiset_h2r(handle);
-    const uint scaler = 1u << 20;
-    uint sum_keyvals, sum_height;
-    uint ndiv, n, r;
+    const uint                 scaler = 1u << 20;
+    uint                       sum_keyvals, sum_height;
+    uint                       ndiv, n, r;
 
     if (atomic_read(&self->c0ms_ingesting) > 0)
         return true;
 
     r = xrand64_tls();
 
-    if (HSE_LIKELY( (r % scaler) < (97 * scaler) / 100) )
+    if (HSE_LIKELY((r % scaler) < (97 * scaler) / 100))
         return false;
 
     /* Only 3% of callers reach this point to sample a random half
@@ -405,7 +407,7 @@ c0kvms_cursor_skip_pfx(struct c0_kvmultiset_cursor *cur, struct bonsai_kv *pt_bk
     s64                       rc;
 
     /* skip pfx only if KVMS is strictly older than current. */
-    rc = bin_heap2_age_cmp(0, pt_es, &cur->c0mc_es);
+    rc = bin_heap2_age_cmp(pt_es, &cur->c0mc_es);
     if (rc >= 0)
         return 0; /* nothing to update */
 
@@ -461,7 +463,8 @@ c0kvms_pfx_probe_rcu(
 
     c0kvs = c0kvms_get_hashed_c0kvset(handle, kt->kt_hash);
 
-    err = c0kvs_pfx_probe_rcu(c0kvs, skidx, kt, sfx_len, view_seqno, seqref, res, qctx, kbuf, vbuf, pt_seqno);
+    err = c0kvs_pfx_probe_rcu(
+        c0kvs, skidx, kt, sfx_len, view_seqno, seqref, res, qctx, kbuf, vbuf, pt_seqno);
     return ev(err);
 }
 
@@ -484,7 +487,8 @@ c0kvms_pfx_probe_excl(
 
     c0kvs = c0kvms_get_hashed_c0kvset(handle, kt->kt_hash);
 
-    err = c0kvs_pfx_probe_excl(c0kvs, skidx, kt, sfx_len, view_seqno, seqref, res, qctx, kbuf, vbuf, pt_seqno);
+    err = c0kvs_pfx_probe_excl(
+        c0kvs, skidx, kt, sfx_len, view_seqno, seqref, res, qctx, kbuf, vbuf, pt_seqno);
     return ev(err);
 }
 
@@ -564,7 +568,7 @@ c0kvms_cursor_update(struct c0_kvmultiset_cursor *cur, const void *key, u32 klen
     int                        num = self->c0ms_num_sets;
     bool                       rev = cur->c0mc_reverse;
     bool                       added = false;
-    int i;
+    int                        i;
 
     /*
      * c0_kvsets can become non-empty, or be extended past eof.
@@ -663,8 +667,7 @@ c0kvms_cursor_create(
 
 /* GCOV_EXCL_START */
 
-HSE_USED HSE_COLD
-static void
+HSE_USED HSE_COLD static void
 c0kvms_cursor_debug(struct c0_kvmultiset *handle, int skidx)
 {
     struct c0_kvmultiset_cursor cur;
@@ -722,8 +725,7 @@ c0kvms_cursor_debug(struct c0_kvmultiset *handle, int skidx)
     c0kvms_cursor_destroy(&cur);
 }
 
-HSE_USED HSE_COLD
-void
+HSE_USED HSE_COLD void
 c0kvms_cursor_kvs_debug(struct c0_kvmultiset *handle, void *key, int klen)
 {
     struct c0_kvmultiset_impl *self = c0_kvmultiset_h2r(handle);
@@ -746,13 +748,14 @@ c0kvms_cursor_destroy(struct c0_kvmultiset_cursor *cur)
 }
 
 struct c0_ingest_work *
-c0kvms_ingest_work_prepare(struct c0_kvmultiset *handle, struct c0sk_impl *c0sk)
+c0kvms_ingest_work_prepare(struct c0_kvmultiset *handle, struct c0sk *c0sk)
 {
     struct c0_kvmultiset_impl *self = c0_kvmultiset_h2r(handle);
     struct element_source **   source;
     struct c0_kvset_iterator * iter;
     struct c0_ingest_work *    work;
     int                        i;
+    uint                       flags;
 
     work = self->c0ms_ingest_work;
     assert(work);
@@ -760,32 +763,29 @@ c0kvms_ingest_work_prepare(struct c0_kvmultiset *handle, struct c0sk_impl *c0sk)
     work->c0iw_c0kvms = handle;
     work->c0iw_c0sk = c0sk;
 
-    source = work->c0iw_sourcev + HSE_C0_KVSET_ITER_MAX;
-    iter = work->c0iw_iterv + HSE_C0_KVSET_ITER_MAX;
+    source = work->c0iw_sourcev;
+    iter = work->c0iw_iterv;
 
-    /* lay kvsets backwards so ptomb c0kvset is at the first position. */
-    for (i = self->c0ms_num_sets - 1; i >= 0; --i) {
-        uint flags = 0;
+    flags = C0_KVSET_ITER_FLAG_PTOMB;
+    for (i = 0; i < self->c0ms_num_sets; i++) {
+        c0kvs_iterator_init(self->c0ms_sets[i], iter, flags, 0);
+        flags = 0;
 
-        if (i == 0)
-            flags |= C0_KVSET_ITER_FLAG_PTOMB;
-
-        c0kvs_iterator_init(self->c0ms_sets[i], iter - 1, flags, 0);
-
-        if (c0_kvset_iterator_empty(iter - 1))
+        if (c0_kvset_iterator_empty(iter))
             continue;
-
-        --source;
-        --iter;
 
         /* The c0_kvset_iterator element sources have no lifetime
          * independent of the iterators themselves. They merely
          * serve as interfaces to the iterators.
          */
         *source = c0_kvset_iterator_get_es(iter);
+
+        source++;
+        iter++;
     }
 
-    work->c0iw_iterc = HSE_C0_KVSET_ITER_MAX - (iter - work->c0iw_iterv);
+    work->c0iw_iterc = iter - work->c0iw_iterv;
+    work->c0iw_last_kvms_esrc = work->c0iw_iterc ? work->c0iw_sourcev[work->c0iw_iterc - 1] : NULL;
 
     return work;
 }
@@ -798,12 +798,16 @@ c0kvms_seqno_set(struct c0_kvmultiset *handle, uint64_t kvdb_seq)
     atomic64_set(&self->c0ms_seqno, kvdb_seq);
 }
 
+u64
+c0kvms_seqno_get(struct c0_kvmultiset *handle)
+{
+    struct c0_kvmultiset_impl *self = c0_kvmultiset_h2r(handle);
+
+    return atomic64_read(&self->c0ms_seqno);
+}
+
 merr_t
-c0kvms_create(
-    u32                    num_sets,
-    size_t                 alloc_sz,
-    atomic64_t *           kvdb_seq,
-    struct c0_kvmultiset **multiset)
+c0kvms_create(u32 num_sets, size_t alloc_sz, atomic64_t *kvdb_seq, struct c0_kvmultiset **multiset)
 {
     struct c0_kvmultiset_impl *kvms;
     merr_t                     err;
@@ -911,59 +915,11 @@ errout:
     return 0;
 }
 
-/* HSE_REVISIT Remove this function once LC has been implemented.
- */
-void
-c0kvms_abort_active(struct c0_kvmultiset *handle)
-{
-    struct c0_kvmultiset_impl *self = c0_kvmultiset_h2r(handle);
-    uint64_t c0snr_cnt;
-    int attempts, n, i;
-    long delay_us;
-
-    delay_us = 100;
-    attempts = (USEC_PER_SEC * 5) / delay_us;
-    n = i = 0;
-
-    do {
-        c0snr_cnt = atomic64_read(&self->c0ms_c0snr_cur);
-        if (c0snr_cnt > self->c0ms_c0snr_max)
-            c0snr_cnt = self->c0ms_c0snr_max;
-
-        for (; i < c0snr_cnt; ++i) {
-            uintptr_t *ptr = (uintptr_t *)self->c0ms_c0snr_base[i];
-
-            if (ptr && c0snr_txn_is_active(ptr)) {
-                usleep(delay_us);
-                break;
-            }
-        }
-    } while (i < c0snr_cnt && --attempts > 0);
-
-    c0snr_cnt = atomic64_read(&self->c0ms_c0snr_cur);
-    if (c0snr_cnt > self->c0ms_c0snr_max)
-        c0snr_cnt = self->c0ms_c0snr_max;
-
-    /* Abort all remaining active transactions...
-     */
-    for (; i < c0snr_cnt; ++i) {
-        uintptr_t *ptr = (uintptr_t *)self->c0ms_c0snr_base[i];
-
-        if (ptr && c0snr_txn_is_active(ptr)) {
-            c0snr_abort(ptr);
-            ++n;
-        }
-    }
-
-    if (n > 0)
-        hse_log(HSE_WARNING "%s: aborted %d active transactions...", __func__, n);
-}
-
 static void
 c0kvms_destroy(struct c0_kvmultiset_impl *mset)
 {
     uint64_t c0snr_cnt;
-    int i;
+    int      i;
 
     assert(atomic_read(&mset->c0ms_refcnt) == 0);
 
@@ -999,34 +955,6 @@ c0kvms_destroy_cb(struct work_struct *w)
 }
 
 void
-c0kvms_reset(struct c0_kvmultiset *handle)
-{
-    struct c0_kvmultiset_impl *self = c0_kvmultiset_h2r(handle);
-    size_t                     resetsz;
-    int                        i;
-
-    assert(atomic_read(&self->c0ms_refcnt) == 1);
-    atomic_set(&self->c0ms_refcnt, 1); /* birth reference */
-    atomic_set(&self->c0ms_ingesting, 0);
-
-    atomic64_set(&self->c0ms_c0snr_cur, 0);
-
-    self->c0ms_finalized = false;
-    self->c0ms_ingested = false;
-
-    resetsz = self->c0ms_resetsz;
-
-    for (i = 0; i < self->c0ms_num_sets; ++i) {
-        struct c0_kvset *c0kvs = self->c0ms_sets[i];
-
-        c0kvs_reset(c0kvs, resetsz);
-        resetsz = 0;
-    }
-
-    c0_ingest_work_reset(self->c0ms_ingest_work);
-}
-
-void
 c0kvms_getref(struct c0_kvmultiset *handle)
 {
     struct c0_kvmultiset_impl *self = c0_kvmultiset_h2r(handle);
@@ -1051,7 +979,7 @@ c0kvms_putref(struct c0_kvmultiset *handle)
     if (atomic_dec_return(&self->c0ms_refcnt) > 0)
         return;
 
-     assert(atomic_read(&self->c0ms_refcnt) == 0);
+    assert(atomic_read(&self->c0ms_refcnt) == 0);
 
     if (self->c0ms_wq) {
         INIT_WORK(&self->c0ms_destroy_work, c0kvms_destroy_cb);
@@ -1090,9 +1018,9 @@ c0kvms_gen_current(struct c0_kvmultiset *handle)
 uintptr_t *
 c0kvms_c0snr_alloc(struct c0_kvmultiset *handle)
 {
-    struct c0_kvmultiset_impl  *self = c0_kvmultiset_h2r(handle);
-    uint                        cur;
-    uintptr_t                  *entry;
+    struct c0_kvmultiset_impl *self = c0_kvmultiset_h2r(handle);
+    uint                       cur;
+    uintptr_t *                entry;
 
     cur = atomic64_fetch_add(1, &self->c0ms_c0snr_cur);
 

@@ -7,6 +7,7 @@
 #define HSE_KVS_CURSOR_H
 
 #include <hse_util/inttypes.h>
+#include <hse_ikvdb/tuple.h>
 
 /**
  * per-cursor diagnostic summary
@@ -65,9 +66,10 @@ cursor_summary_add_dgen(struct cursor_summary *sum, u64 dgen)
 
 /* KVS cursor binheap */
 
-enum kvs_bh_source{
-	KCE_SOURCE_C0 = 0,
-	KCE_SOURCE_CN = 1,
+enum kvs_bh_source {
+    KCE_SOURCE_C0 = 0,
+    KCE_SOURCE_LC = 1,
+    KCE_SOURCE_CN = 2,
 };
 
 /**
@@ -80,11 +82,62 @@ enum kvs_bh_source{
  * @kce_is_ptomb: Whether or not kv-tuple is a ptomb
  */
 struct kvs_cursor_element {
-	struct kvs_vtuple  kce_vt;
-	struct key_obj     kce_kobj;
-	enum kvs_bh_source kce_source;
+    struct kvs_vtuple  kce_vt;
+    struct key_obj     kce_kobj;
+    enum kvs_bh_source kce_source;
+    uintptr_t          kce_seqnoref;
     uint               kce_complen;
     bool               kce_is_ptomb;
 };
+
+static inline int
+kvs_cursor_cmp(const void *a_blob, const void *b_blob)
+{
+    const struct kvs_cursor_element *a = a_blob;
+    const struct kvs_cursor_element *b = b_blob;
+
+    return key_obj_cmp(&a->kce_kobj, &b->kce_kobj);
+}
+
+/*
+ * Max heap comparator with a caveat: A ptomb sorts before all keys w/ matching
+ * prefix.
+ *
+ * Returns:
+ *   < 0 : a_blob > b_blob
+ *   > 0 : a_blob < b_blob
+ *  == 0 : a_blob == b_blob
+ */
+static inline int
+kvs_cursor_cmp_rev(const void *a_blob, const void *b_blob)
+{
+    const struct kvs_cursor_element *a = a_blob;
+    const struct kvs_cursor_element *b = b_blob;
+    size_t                           a_klen = key_obj_len(&a->kce_kobj);
+    size_t                           b_klen = key_obj_len(&b->kce_kobj);
+    int                              rc;
+
+    if (!(a->kce_is_ptomb ^ b->kce_is_ptomb)) {
+        rc = key_obj_cmp(&a->kce_kobj, &b->kce_kobj);
+        return -rc;
+    }
+
+    /* Exactly one of a and b is a ptomb. */
+    if (a->kce_is_ptomb && a_klen <= b_klen) {
+        assert(a->kce_source != KCE_SOURCE_CN);
+        rc = key_obj_ncmp(&a->kce_kobj, &b->kce_kobj, a_klen);
+        if (rc == 0)
+            return -1; /* a wins */
+    } else if (b->kce_is_ptomb && b_klen <= a_klen) {
+        assert(b->kce_source != KCE_SOURCE_CN);
+        rc = key_obj_ncmp(&a->kce_kobj, &b->kce_kobj, b_klen);
+        if (rc == 0)
+            return 1; /* b wins */
+    }
+
+    /* Non-ptomb key is shorter than ptomb. Full key compare. */
+    rc = key_obj_cmp(&a->kce_kobj, &b->kce_kobj);
+    return -rc;
+}
 
 #endif

@@ -111,7 +111,7 @@ seqnoref_ext_diff(u64 seq0, uintptr_t sqnref1)
 }
 
 /**
- * seqnoref_ext_diff() - compute difference of two ordered ordinal values
+ * seqnoref_diff() - compute difference of two ordered ordinal values
  * @sqnref0:    valid seqnoref (the minuend)
  * @sqnref1:    valid seqnoref (the subtrahend)
  *

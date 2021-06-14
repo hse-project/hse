@@ -59,7 +59,7 @@ def create_kvs(kvdb: hse.Kvdb, kvs_name: str, params: hse.Params):
         yield kvs
     finally:
         kvs.close()
-        kvdb.kvs_drop(kvs_name)
+        # kvdb.kvs_drop(kvs_name)
 
 
 @contextmanager

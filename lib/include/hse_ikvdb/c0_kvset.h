@@ -265,7 +265,6 @@ c0kvs_pfx_probe_excl(
     struct kvs_buf *         vbuf,
     u64                      pt_seq);
 
-
 /**
  * c0kvs_prefix_get_rcu() - given a key, retrieve a value from a struct c0_kvset
  * @handle:    Struct c0_kvset to search
@@ -312,6 +311,9 @@ struct bonsai_kv;
 
 struct bonsai_val *
 c0kvs_findval(struct bonsai_kv *kv, u64 view_seqno, uintptr_t seqnoref);
+
+struct bonsai_val *
+c0kvs_findpfxval(struct bonsai_kv *kv, uintptr_t seqnoref);
 
 /**
  * c0kvs_get_content_metrics() - retrieve metrics for the struct c0_kvset

@@ -47,21 +47,10 @@ c0snr_set_get_c0snr(struct c0snr_set *handle, struct kvdb_ctxn *txn);
  *
  */
 void
-c0snr_clear_txn(
-    uintptr_t  *priv);
-
-/**
- * c0snr_abort() - abort the transaction that allocated this C0SNR
- * @priv:    c0snr
- *
- */
-void
-c0snr_abort(
-    uintptr_t  *priv);
+c0snr_clear_txn(uintptr_t *priv);
 
 bool
-c0snr_txn_is_active(
-    uintptr_t  *priv);
+c0snr_txn_is_active(uintptr_t *priv);
 
 /**
  * c0snr_getref() - get a reference to the C0SNR during a put
@@ -70,9 +59,10 @@ c0snr_txn_is_active(
  *
  */
 void
-c0snr_getref(
-    uintptr_t  *priv,
-    u64         c0ms_gen);
+c0snr_getref(uintptr_t *priv, u64 c0ms_gen);
+
+void
+c0snr_getref_lc(uintptr_t *priv);
 
 /**
  * c0snr_getref() - get KVMS generation of last put that used this C0SNR
@@ -80,8 +70,7 @@ c0snr_getref(
  *
  */
 u64
-c0snr_get_cgen(
-    uintptr_t  *priv);
+c0snr_get_cgen(uintptr_t *priv);
 
 /**
  * c0snr_dropref() - drop the reference to this C0SNR
@@ -89,14 +78,17 @@ c0snr_get_cgen(
  *
  */
 void
-c0snr_dropref(
-    uintptr_t  *priv);
+c0snr_dropref(uintptr_t *priv);
+
+void
+c0snr_dropref_lc(uintptr_t *priv);
 
 /**
  * c0snr_droprefv() - drop all references in the given vector of C0SNRs
  * @refc:  length of refv[]
  * @refv:  vector of references
  */
-void c0snr_droprefv(int refc, uintptr_t **refv);
+void
+c0snr_droprefv(int refc, uintptr_t **refv);
 
 #endif /* HSE_C0SNR_SET_H */

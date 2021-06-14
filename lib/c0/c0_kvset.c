@@ -414,18 +414,18 @@ c0kvs_findval(struct bonsai_kv *kv, u64 view_seqno, uintptr_t seqnoref)
 }
 
 /**
- * c0kvs_findpfxval() - Method to check whether a prefix tombstone exists in
- *                      the values list.
+ * c0kvs_findpfxval() - Method to check whether there is a ptomb with the view specified by
+ *                      %seqnoref. Call this only on a ptomb bonsai tree.
  * @kv:        bonsai_kv instance of the bonsai node matching a searched key
  * @seqnoref:
  */
-static struct bonsai_val *
+struct bonsai_val *
 c0kvs_findpfxval(struct bonsai_kv *kv, uintptr_t seqnoref)
 {
     struct bonsai_val *val;
 
     for (val = rcu_dereference(kv->bkv_values); val; val = rcu_dereference(val->bv_next)) {
-        if (val->bv_value == HSE_CORE_TOMB_PFX) {
+        if (HSE_LIKELY(val->bv_value == HSE_CORE_TOMB_PFX)) {
             if ((val->bv_seqnoref == seqnoref) || seqnoref_ge(seqnoref, val->bv_seqnoref))
                 break;
         }
@@ -801,8 +801,8 @@ c0kvs_get_rcu(
 }
 
 merr_t
-c0kvs_pfx_probe_excl(
-    struct c0_kvset *        handle,
+c0kvs_pfx_probe_cmn(
+    struct bonsai_root      *root,
     u16                      skidx,
     const struct kvs_ktuple *key,
     u32                      sfx_len,
@@ -814,8 +814,6 @@ c0kvs_pfx_probe_excl(
     struct kvs_buf *         vbuf,
     u64                      pt_seq)
 {
-    struct c0_kvset_impl *self = c0_kvset_h2r(handle);
-    struct bonsai_root *  root = self->c0s_broot;
     struct bonsai_skey    skey;
     struct bonsai_kv *    kv;
     struct bonsai_val *   val;
@@ -917,6 +915,28 @@ c0kvs_pfx_probe_excl(
 
     return err;
 }
+
+merr_t
+c0kvs_pfx_probe_excl(
+    struct c0_kvset *        handle,
+    u16                      skidx,
+    const struct kvs_ktuple *key,
+    u32                      sfx_len,
+    u64                      view_seqno,
+    uintptr_t                seqnoref,
+    enum key_lookup_res *    res,
+    struct query_ctx *       qctx,
+    struct kvs_buf *         kbuf,
+    struct kvs_buf *         vbuf,
+    u64                      pt_seq)
+{
+    struct c0_kvset_impl *self = c0_kvset_h2r(handle);
+    struct bonsai_root *  root = self->c0s_broot;
+
+    return c0kvs_pfx_probe_cmn(root, skidx, key, sfx_len, view_seqno, seqnoref,
+                               res, qctx, kbuf, vbuf, pt_seq);
+}
+
 
 merr_t
 c0kvs_pfx_probe_rcu(

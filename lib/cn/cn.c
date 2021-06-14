@@ -687,7 +687,7 @@ cn_ingestv(
     u64    txid = 0;
     uint   i, first, last, count, check;
     u64    context = 0; /* must be initialized to zero */
-    u64    seqno_max = 0, seqno_min = U64_MAX;
+    u64    seqno_max = 0, seqno_min = UINT64_MAX;
     bool   log_ingest = false;
     u64    dgen = 0;
 
@@ -1182,8 +1182,10 @@ cn_open(
     cn->cn_cnid = cnid;
     cn->cn_cflags = kvdb_kvs_flags(kvs);
     cn->cn_kvdb_health = health;
-    cn->cn_hash = key_hash64(kvs_name, strlen(kvs_name));
     cn->cn_mpool_params = mpool_params;
+
+    /* Compute hash of kvs name, but don't let it be 0. */
+    cn->cn_hash = 1 | key_hash64(kvs_name, strlen(kvs_name));
 
     staging_absent = mpool_mclass_get(ds, MP_MED_STAGING, NULL);
     if (staging_absent) {
@@ -1503,7 +1505,7 @@ cn_cursor_create(
     const void *           prefix,
     u32                    pfx_len,
     struct cursor_summary *summary,
-    void **                cursorp)
+    struct cn_cursor **    cursorp)
 {
     int           ct_pfx_len = cn->cp->cp_pfx_len;
     int           attempts = 5;

@@ -16,6 +16,7 @@
 
 #include <hse_ikvdb/c0_kvmultiset.h>
 #include <hse_ikvdb/c0_kvset.h>
+#include <hse_ikvdb/lc.h>
 
 #include <c0/c0_ingest_work.h>
 
@@ -34,6 +35,7 @@ test_collection_teardown(struct mtf_test_info *info)
 int
 no_fail_pre(struct mtf_test_info *info)
 {
+    mapi_inject(mapi_idx_lc_ingest_seqno_get, 0);
     return 0;
 }
 
@@ -260,7 +262,7 @@ MTF_DEFINE_UTEST_PREPOST(c0_kvmultiset_test, ingest_sk, no_fail_pre, no_fail_pos
     bin_heap2_prepare(
         bh,
         c0skwork->c0iw_iterc,
-        c0skwork->c0iw_sourcev + HSE_C0_KVSET_ITER_MAX - c0skwork->c0iw_iterc);
+        c0skwork->c0iw_sourcev);
 
     while (bin_heap2_pop(bh, (void *)&bkv)) {
         struct kvs_ktuple  kt;

@@ -16,6 +16,7 @@
 #include <hse/kvdb_perfc.h>
 
 #include <hse_ikvdb/c0.h>
+#include <hse_ikvdb/lc.h>
 #include <hse_ikvdb/cn.h>
 #include <hse_ikvdb/kvs.h>
 #include <hse_ikvdb/limits.h>
@@ -136,7 +137,7 @@ struct curcache_bucket {
     struct curcache_entry   cb_entryv[] HSE_ALIGNED(SMP_CACHE_BYTES);
 };
 
-#define KVS_CURSOR_SOURCES_CNT 2
+#define KVS_CURSOR_SOURCES_CNT 3
 
 struct kvs_cursor_impl {
     struct hse_kvs_cursor   kci_handle;
@@ -145,7 +146,8 @@ struct kvs_cursor_impl {
     struct perfc_set *      kci_cd_pc;
     struct ikvs *           kci_kvs;
     struct c0_cursor *      kci_c0cur;
-    void *                  kci_cncur;
+    struct lc_cursor *      kci_lccur;
+    struct cn_cursor *      kci_cncur;
     struct element_source * kci_esrcv[KVS_CURSOR_SOURCES_CNT];
     struct bin_heap2 *      kci_bh;
     struct cursor_summary   kci_summary;
@@ -250,8 +252,7 @@ ikvs_curcache_entry_free(struct curcache_bucket *bkt, struct curcache_entry *ent
     bkt->cb_free = entry;
 }
 
-static HSE_ALWAYS_INLINE
-struct curcache_bucket *
+static HSE_ALWAYS_INLINE struct curcache_bucket *
 ikvs_curcache_idx2bkt(uint idx)
 {
     size_t offset;
@@ -264,13 +265,12 @@ ikvs_curcache_idx2bkt(uint idx)
     return ikvs_curcachev + offset;
 }
 
-static HSE_ALWAYS_INLINE
-struct curcache_bucket *
+static HSE_ALWAYS_INLINE struct curcache_bucket *
 ikvs_curcache_td2bkt(void)
 {
     static thread_local struct curcache_bucket *tls_cc_bkt;
 
-    if (HSE_UNLIKELY( !tls_cc_bkt )) {
+    if (HSE_UNLIKELY(!tls_cc_bkt)) {
         static atomic_t g_cc_idx;
 
         tls_cc_bkt = ikvs_curcache_idx2bkt(atomic_inc_return(&g_cc_idx));
@@ -290,15 +290,15 @@ ikvs_curcache_td2bkt(void)
 static void
 ikvs_curcache_prune_impl(
     struct curcache_bucket *bkt,
-    struct ikvs *kvs,
-    u64 now,
-    uint *retiredp,
-    uint *evictedp)
+    struct ikvs *           kvs,
+    u64                     now,
+    uint *                  retiredp,
+    uint *                  evictedp)
 {
     struct kvs_cursor_impl *evicted, *old;
-    struct rb_node *node;
-    uint ndestroyed = 0;
-    uint nretired = 0;
+    struct rb_node *        node;
+    uint                    ndestroyed = 0;
+    uint                    nretired = 0;
 
     mutex_lock(&bkt->cb_lock);
     node = rb_first(&bkt->cb_root);
@@ -316,7 +316,7 @@ ikvs_curcache_prune_impl(
         if (kvs && kvs != entry->ce_list->kci_kvs)
             continue;
 
-        while (( old = entry->ce_list )) {
+        while (NULL != (old = entry->ce_list)) {
             if (old->kci_item.ci_ttl > now)
                 break;
 
@@ -341,7 +341,7 @@ ikvs_curcache_prune_impl(
     bkt->cb_active -= nretired;
     mutex_unlock(&bkt->cb_lock);
 
-    while (( old = evicted )) {
+    while (NULL != (old = evicted)) {
         evicted = old->kci_item.ci_next;
         kvs_cursor_destroy(&old->kci_handle);
         ++ndestroyed;
@@ -410,11 +410,11 @@ static struct kvs_cursor_impl *
 ikvs_curcache_insert(struct curcache_bucket *bkt, struct kvs_cursor_impl *cur)
 {
     struct curcache_entry *entry;
-    struct rb_node **link, *parent;
-    uint64_t key;
-    size_t pfxlen;
-    void *prefix;
-    int rc;
+    struct rb_node **      link, *parent;
+    uint64_t               key;
+    size_t                 pfxlen;
+    void *                 prefix;
+    int                    rc;
 
     key = cur->kci_item.ci_key;
     prefix = cur->kci_prefix;
@@ -474,8 +474,7 @@ ikvs_curcache_insert(struct curcache_bucket *bkt, struct kvs_cursor_impl *cur)
         }
 
         cur = NULL;
-    }
-    else {
+    } else {
         entry = ikvs_curcache_entry_alloc(bkt);
         if (entry) {
             entry->ce_oldkey = cur->kci_item.ci_key;
@@ -500,9 +499,9 @@ static struct kvs_cursor_impl *
 ikvs_curcache_remove(struct curcache_bucket *bkt, uint64_t key, const void *prefix, size_t pfx_len)
 {
     struct kvs_cursor_impl *old;
-    struct curcache_entry *entry;
-    struct rb_node *node;
-    int rc;
+    struct curcache_entry * entry;
+    struct rb_node *        node;
+    int                     rc;
 
     mutex_lock(&bkt->cb_lock);
     node = bkt->cb_root.rb_node;
@@ -578,7 +577,7 @@ static struct kvs_cursor_impl *
 ikvs_cursor_restore(struct ikvs *kvs, const void *prefix, size_t pfx_len, u64 pfxhash, bool reverse)
 {
     struct kvs_cursor_impl *cur;
-    uint64_t key, tstart;
+    uint64_t                key, tstart;
 
     tstart = perfc_lat_startl(&kvs->ikv_cd_pc, PERFC_LT_CD_RESTORE);
 
@@ -697,7 +696,7 @@ static void
 ikvs_cursor_save(struct kvs_cursor_impl *cur)
 {
     struct ikvs *kvs = cur->kci_kvs;
-    u64 tstart;
+    u64          tstart;
 
     if ((kvs->ikv_rp.kvs_debug & 64)) {
         cursor_summary_log(cur);
@@ -794,68 +793,23 @@ now(void)
     return ts.tv_sec * 1000000000ULL + ts.tv_nsec;
 }
 
-static int
-kvs_cursor_cmp(const void *a_blob, const void *b_blob)
-{
-    const struct kvs_cursor_element *a = a_blob;
-    const struct kvs_cursor_element *b = b_blob;
-
-    return key_obj_cmp(&a->kce_kobj, &b->kce_kobj);
-}
-
-/*
- * Max heap comparator with a caveat: A ptomb sorts before all keys w/ matching
- * prefix.
- *
- * Returns:
- *   < 0 : a_blob > b_blob
- *   > 0 : a_blob < b_blob
- *  == 0 : a_blob == b_blob
- */
-static int
-kvs_cursor_cmp_rev(const void *a_blob, const void *b_blob)
-{
-    const struct kvs_cursor_element *a = a_blob;
-    const struct kvs_cursor_element *b = b_blob;
-    size_t a_klen = key_obj_len(&a->kce_kobj);
-    size_t b_klen = key_obj_len(&b->kce_kobj);
-    int rc;
-
-    if (!(a->kce_is_ptomb ^ b->kce_is_ptomb)) {
-        rc = key_obj_cmp(&a->kce_kobj, &b->kce_kobj);
-        return -rc;
-    }
-
-    /* Exactly one of a and b is a ptomb. */
-    if (a->kce_is_ptomb && a_klen <= b_klen) {
-        assert(a->kce_source == KCE_SOURCE_C0);
-        rc = key_obj_ncmp(&a->kce_kobj, &b->kce_kobj, a_klen);
-        if (rc == 0)
-            return -1; /* a wins */
-    } else if (b->kce_is_ptomb && b_klen <= a_klen) {
-        assert(b->kce_source == KCE_SOURCE_C0);
-        rc = key_obj_ncmp(&a->kce_kobj, &b->kce_kobj, b_klen);
-        if (rc == 0)
-            return 1; /* b wins */
-    }
-
-    /* Non-ptomb key is shorter than ptomb. Full key compare. */
-    rc = key_obj_cmp(&a->kce_kobj, &b->kce_kobj);
-    return -rc;
-}
-
 merr_t
-kvs_cursor_init(struct hse_kvs_cursor *cursor)
+kvs_cursor_init(struct hse_kvs_cursor *cursor, struct kvdb_ctxn *ctxn)
 {
     struct kvs_cursor_impl *cur = cursor_h2r(cursor);
     struct ikvs *           kvs = cur->kci_kvs;
     void *                  c0 = kvs->ikv_c0;
+    void *                  lc = kvs->ikv_lc;
     void *                  cn = kvs->ikv_cn;
     u64                     seqno = cursor->kc_seq;
     merr_t                  err = 0;
     u32                     flags;
     bool                    updated;
     u64                     tstart;
+    struct cursor_summary * summary = &cur->kci_summary;
+    bool                    reverse = cur->kci_reverse;
+    const void *            prefix = cur->kci_prefix;
+    size_t                  pfxlen = cur->kci_pfxlen;
 
     /* no context: update must seek to beginning */
     cur->kci_last = 0;
@@ -868,31 +822,27 @@ kvs_cursor_init(struct hse_kvs_cursor *cursor)
         cur->kci_summary.created = now();
     }
 
-    assert((!!cur->kci_c0cur ^ !!cur->kci_cncur) == 0);
-
     /* Create/Update c0 cursor */
     if (!cur->kci_c0cur) {
-        perfc_inc(cur->kci_cc_pc, PERFC_BA_CC_INIT_CREATE_C0);
 
+        assert(!cur->kci_cncur);
+
+        /* Create c0 cursor */
+        perfc_inc(cur->kci_cc_pc, PERFC_BA_CC_INIT_CREATE_C0);
         tstart = perfc_lat_startu(cur->kci_cd_pc, PERFC_LT_CD_CREATE_C0);
-        err = c0_cursor_create(
-            c0,
-            seqno,
-            cur->kci_reverse,
-            cur->kci_prefix,
-            cur->kci_pfxlen,
-            &cur->kci_summary,
-            &cur->kci_c0cur);
+        err = c0_cursor_create(c0, seqno, reverse, prefix, pfxlen, summary, &cur->kci_c0cur);
         perfc_lat_record(cur->kci_cd_pc, PERFC_LT_CD_CREATE_C0, tstart);
     } else {
+        assert(cur->kci_cncur);
+
+        /* Update c0 cursor */
+        cur->kci_need_seek = 1;
         tstart = perfc_lat_startu(cur->kci_cd_pc, PERFC_LT_CD_UPDATE_C0);
         err = c0_cursor_update(cur->kci_c0cur, seqno, &flags);
         perfc_lat_record(cur->kci_cd_pc, PERFC_LT_CD_UPDATE_C0, tstart);
 
         if (flags & CURSOR_FLAG_SEQNO_CHANGE)
             perfc_inc(cur->kci_cc_pc, PERFC_BA_CC_INIT_UPDATE_C0);
-
-        cur->kci_need_seek = 1;
     }
 
     if (ev(err)) {
@@ -901,49 +851,76 @@ kvs_cursor_init(struct hse_kvs_cursor *cursor)
         goto error;
     }
 
-    /* Create/Update cn cursor */
-    if (!cur->kci_cncur) {
-        perfc_inc(cur->kci_cc_pc, PERFC_BA_CC_INIT_CREATE_CN);
+    assert(cur->kci_c0cur);
 
-        tstart = perfc_lat_startu(cur->kci_cd_pc, PERFC_LT_CD_CREATE_CN);
-        err = cn_cursor_create(
-            cn,
+    if (!cur->kci_lccur) {
+        u16       skidx = c0_index(c0);
+        s32       tree_pfxlen = c0_get_pfx_len(c0);
+        uintptr_t seqnoref = ctxn ? kvdb_ctxn_get_seqnoref(ctxn) : 0;
+
+        err = lc_cursor_create(
+            lc,
+            skidx,
             seqno,
-            cur->kci_reverse,
-            cur->kci_prefix,
-            cur->kci_pfxlen,
-            &cur->kci_summary,
-            &cur->kci_cncur);
+            seqnoref,
+            reverse,
+            prefix,
+            pfxlen,
+            tree_pfxlen,
+            summary,
+            &cur->kci_lccur);
+    } else {
+        err = lc_cursor_update(cur->kci_lccur, prefix, pfxlen, seqno);
+        cur->kci_need_seek = 1;
+    }
+
+    if (ev(err))
+        goto error;
+
+    if (!cur->kci_cncur) {
+        /* Create cn cursor */
+        perfc_inc(cur->kci_cc_pc, PERFC_BA_CC_INIT_CREATE_CN);
+        tstart = perfc_lat_startu(cur->kci_cd_pc, PERFC_LT_CD_CREATE_CN);
+        err = cn_cursor_create(cn, seqno, reverse, prefix, pfxlen, summary, &cur->kci_cncur);
         perfc_lat_record(cur->kci_cd_pc, PERFC_LT_CD_CREATE_CN, tstart);
     } else {
+        /* Update cn cursor */
+        cur->kci_need_seek = 1;
         tstart = perfc_lat_startu(cur->kci_cd_pc, PERFC_LT_CD_UPDATE_CN);
         err = cn_cursor_update(cur->kci_cncur, seqno, &updated);
         perfc_lat_record(cur->kci_cd_pc, PERFC_LT_CD_UPDATE_CN, tstart);
 
         if (updated)
             perfc_inc(cur->kci_cc_pc, PERFC_BA_CC_INIT_UPDATE_CN);
-        cur->kci_need_seek = 1;
     }
 
-    if (ev(merr_errno(err) == EAGAIN))
-        perfc_inc(cur->kci_cc_pc, PERFC_BA_CC_EAGAIN_CN);
+    if (ev(err)) {
+        if (ev(merr_errno(err) == EAGAIN))
+            perfc_inc(cur->kci_cc_pc, PERFC_BA_CC_EAGAIN_CN);
+        goto error;
+    }
 
-    if (!err) {
+    assert(cur->kci_cncur);
+
+    {
         u32 active, total;
 
         cn_cursor_active_kvsets(cur->kci_cncur, &active, &total);
         perfc_rec_sample(cur->kci_cd_pc, PERFC_DI_CD_ACTIVEKVSETS_CN, active);
+    }
 
-        cur->kci_need_toss = 0;
-        if (cur->kci_need_seek) {
-            memcpy(cur->kci_last_kbuf, cur->kci_prefix, cur->kci_pfxlen);
-            cur->kci_last_klen = cur->kci_pfxlen;
-            if (cur->kci_reverse) {
-                cur->kci_last_klen = HSE_KVS_KLEN_MAX;
-                memset(cur->kci_last_kbuf + cur->kci_pfxlen, 0xFF, HSE_KVS_KLEN_MAX - cur->kci_pfxlen);
-            }
+    cur->kci_need_toss = 0;
+    if (cur->kci_need_seek) {
+        memcpy(cur->kci_last_kbuf, cur->kci_prefix, cur->kci_pfxlen);
+        cur->kci_last_klen = cur->kci_pfxlen;
+        if (cur->kci_reverse) {
+            cur->kci_last_klen = HSE_KVS_KLEN_MAX;
+            memset(cur->kci_last_kbuf + cur->kci_pfxlen, 0xFF, HSE_KVS_KLEN_MAX - cur->kci_pfxlen);
         }
     }
+
+    if (cursor->kc_bind)
+        c0_cursor_bind_txn(cur->kci_c0cur, ctxn);
 
 error:
     cursor->kc_err = err;
@@ -954,18 +931,20 @@ merr_t
 kvs_cursor_prepare(struct hse_kvs_cursor *cursor)
 {
     struct kvs_cursor_impl *cur = cursor_h2r(cursor);
-    bin_heap2_compare_fn   *cmp;
-    merr_t err;
+    bin_heap2_compare_fn *  cmp;
+    merr_t                  err;
+    int                     cnt = 0;
 
-    cur->kci_esrcv[0] = c0_cursor_es_make(cur->kci_c0cur);
-    cur->kci_esrcv[1] = cn_cursor_es_make(cur->kci_cncur);
+    cur->kci_esrcv[cnt++] = c0_cursor_es_make(cur->kci_c0cur);
+    cur->kci_esrcv[cnt++] = lc_cursor_es_make(cur->kci_lccur);
+    cur->kci_esrcv[cnt++] = cn_cursor_es_make(cur->kci_cncur);
 
     cmp = cur->kci_reverse ? kvs_cursor_cmp_rev : kvs_cursor_cmp;
     err = bin_heap2_create(KVS_CURSOR_SOURCES_CNT, cmp, &cur->kci_bh);
     if (ev(err))
-	    goto error;
+        goto error;
 
-    err = bin_heap2_prepare(cur->kci_bh, NELEM(cur->kci_esrcv), cur->kci_esrcv);
+    err = bin_heap2_prepare(cur->kci_bh, cnt, cur->kci_esrcv);
 
 error:
     cursor->kc_err = err;
@@ -994,15 +973,17 @@ kvs_cursor_destroy(struct hse_kvs_cursor *handle)
         kvdb_ctxn_cursor_unbind(handle->kc_bind);
     if (cursor->kci_c0cur)
         c0_cursor_destroy(cursor->kci_c0cur);
-
+    if (cursor->kci_lccur)
+        lc_cursor_destroy(cursor->kci_lccur);
     if (cursor->kci_cncur)
         cn_cursor_destroy(cursor->kci_cncur);
 
+    bin_heap2_destroy(cursor->kci_bh);
     vlb_free(cursor, kvs_cursor_impl_alloc_sz);
 }
 
 merr_t
-kvs_cursor_update(struct hse_kvs_cursor *handle, u64 seqno)
+kvs_cursor_update(struct hse_kvs_cursor *handle, struct kvdb_ctxn *ctxn, u64 seqno)
 {
     struct kvs_cursor_impl *cursor = (void *)handle;
     struct kvdb_ctxn_bind * bind = handle->kc_bind;
@@ -1024,7 +1005,8 @@ kvs_cursor_update(struct hse_kvs_cursor *handle, u64 seqno)
 
     /* Copy out last key that was read */
     if (cursor->kci_last) {
-        key_obj_copy(cursor->kci_last_kbuf, HSE_KVS_KLEN_MAX, &cursor->kci_last_klen, cursor->kci_last);
+        key_obj_copy(
+            cursor->kci_last_kbuf, HSE_KVS_KLEN_MAX, &cursor->kci_last_klen, cursor->kci_last);
     } else {
         cursor->kci_need_toss = 0;
         cursor->kci_last_klen = cursor->kci_reverse ? HSE_KVS_KLEN_MAX : cursor->kci_pfxlen;
@@ -1044,6 +1026,12 @@ kvs_cursor_update(struct hse_kvs_cursor *handle, u64 seqno)
 
     if (flags & CURSOR_FLAG_SEQNO_CHANGE)
         perfc_inc(cursor->kci_cc_pc, PERFC_BA_CC_UPDATED_C0);
+
+    /* Update lc cursor */
+    cursor->kci_err = lc_cursor_update(
+        cursor->kci_lccur, cursor->kci_last_kbuf, cursor->kci_last_klen, seqno);
+    if (ev(cursor->kci_err))
+        return cursor->kci_err;
 
     /* Update cn cursor */
     tstart = perfc_lat_startu(cursor->kci_cd_pc, PERFC_LT_CD_UPDATE_CN);
@@ -1069,6 +1057,9 @@ kvs_cursor_update(struct hse_kvs_cursor *handle, u64 seqno)
     /* Seek will re-prepare the binheap. */
     cursor->kci_need_seek = 1;
 
+    if (handle->kc_bind)
+        c0_cursor_bind_txn(cursor->kci_c0cur, ctxn);
+
     return 0;
 }
 
@@ -1076,16 +1067,17 @@ static void
 ikvs_cursor_prefixes_drop(struct kvs_cursor_impl *cursor, struct key_obj *pt_kobj)
 {
     bool eof = false;
+    int  pt_src = cursor->kci_elem_last.kce_source;
 
     while (!eof) {
         struct kvs_cursor_element *item;
-        int rc;
+        int                        rc;
 
         eof = !bin_heap2_peek(cursor->kci_bh, (void **)&item);
         if (eof)
             return;
 
-        if (item->kce_source == KCE_SOURCE_C0)
+        if (item->kce_source == pt_src)
             return;
 
         rc = key_obj_cmp_prefix(pt_kobj, &item->kce_kobj);
@@ -1099,8 +1091,8 @@ ikvs_cursor_prefixes_drop(struct kvs_cursor_impl *cursor, struct key_obj *pt_kob
 merr_t
 ikvs_cursor_replenish(struct kvs_cursor_impl *cursor)
 {
-    bool is_ptomb, is_tomb;
-    merr_t err = 0;
+    bool                       is_ptomb, is_tomb;
+    merr_t                     err = 0;
     struct kvs_cursor_element *item, *popme;
 
     if (cursor->kci_eof)
@@ -1129,23 +1121,13 @@ ikvs_cursor_replenish(struct kvs_cursor_impl *cursor)
             pt_kobj = cursor->kci_last_kobj;
             ikvs_cursor_prefixes_drop(cursor, &pt_kobj);
         } else {
-            bool drop_dup;
-
             /* drop dups */
-            do {
-                bool eof;
+            while (bin_heap2_peek(cursor->kci_bh, (void **)&item)) {
+                if (key_obj_cmp(&item->kce_kobj, cursor->kci_last))
+                    break; /* not a dup */
 
-                drop_dup = false;
-
-                eof = !bin_heap2_peek(cursor->kci_bh, (void **)&item);
-                if (eof)
-                    break;
-
-                if (!key_obj_cmp(&item->kce_kobj, cursor->kci_last)) {
-                    bin_heap2_pop(cursor->kci_bh, (void **)&popme);
-                    drop_dup = true;
-                }
-            } while (drop_dup);
+                bin_heap2_pop(cursor->kci_bh, (void **)&popme);
+            }
         }
     } while (is_ptomb || is_tomb);
 
@@ -1157,24 +1139,30 @@ static merr_t
 ikvs_cursor_seek(struct kvs_cursor_impl *cursor, const void *key, size_t klen)
 {
     struct hse_kvs_cursor *handle = &cursor->kci_handle;
-    merr_t err = 0;
+    struct kc_filter *     filt = handle->kc_filter.kcf_maxkey ? &handle->kc_filter : 0;
+    merr_t                 err = 0;
+    int                    cnt;
 
     cursor->kci_eof = 0;
 
-    err = c0_cursor_seek(cursor->kci_c0cur, key, klen,
-                         handle->kc_filter.kcf_maxkey ? &handle->kc_filter : 0);
+    err = c0_cursor_seek(cursor->kci_c0cur, key, klen, filt);
     if (ev(err))
         goto out;
 
-    err = cn_cursor_seek(cursor->kci_cncur, key, klen,
-                         handle->kc_filter.kcf_maxkey ? &handle->kc_filter : 0);
+    err = lc_cursor_seek(cursor->kci_lccur, key, klen, filt);
     if (ev(err))
         goto out;
 
-    cursor->kci_esrcv[0] = c0_cursor_es_get(cursor->kci_c0cur);
-    cursor->kci_esrcv[1] = cn_cursor_es_get(cursor->kci_cncur);
+    err = cn_cursor_seek(cursor->kci_cncur, key, klen, filt);
+    if (ev(err))
+        goto out;
 
-    err = bin_heap2_prepare(cursor->kci_bh, NELEM(cursor->kci_esrcv), cursor->kci_esrcv);
+    cnt = 0;
+    cursor->kci_esrcv[cnt++] = c0_cursor_es_get(cursor->kci_c0cur);
+    cursor->kci_esrcv[cnt++] = lc_cursor_es_get(cursor->kci_lccur);
+    cursor->kci_esrcv[cnt++] = cn_cursor_es_get(cursor->kci_cncur);
+
+    err = bin_heap2_prepare(cursor->kci_bh, cnt, cursor->kci_esrcv);
 
 out:
     return err;
@@ -1185,11 +1173,11 @@ ikvs_cursor_kv_copy(struct kvs_cursor_impl *cursor, struct kvs_kvtuple *kvt)
 {
     struct kvs_vtuple *vt = &cursor->kci_elem_last.kce_vt;
     uint               clen = cursor->kci_elem_last.kce_complen;
-    void              *vbuf = cursor->kci_buf + HSE_KVS_KLEN_MAX;
+    void *             vbuf = cursor->kci_buf + HSE_KVS_KLEN_MAX;
     merr_t             err = 0;
 
-    kvt->kvt_key.kt_data = key_obj_copy(cursor->kci_buf, HSE_KVS_KLEN_MAX,
-                                        (uint *)&kvt->kvt_key.kt_len, cursor->kci_last);
+    kvt->kvt_key.kt_data = key_obj_copy(
+        cursor->kci_buf, HSE_KVS_KLEN_MAX, (uint *)&kvt->kvt_key.kt_len, cursor->kci_last);
 
     if (clen) {
         uint outlen;
@@ -1222,11 +1210,10 @@ kvs_cursor_read(struct hse_kvs_cursor *handle, struct kvs_kvtuple *kvt, bool *eo
 
     if (cursor->kci_need_seek) {
         struct kvs_ktuple key = { 0 };
-        bool toss = cursor->kci_need_toss;
+        bool              toss = cursor->kci_need_toss;
 
-        cursor->kci_err = kvs_cursor_seek(&cursor->kci_handle,
-                                           cursor->kci_last_kbuf,
-                                           cursor->kci_last_klen, 0, 0, &key);
+        cursor->kci_err = kvs_cursor_seek(
+            &cursor->kci_handle, cursor->kci_last_kbuf, cursor->kci_last_klen, 0, 0, &key);
 
         if (ev(cursor->kci_err))
             return cursor->kci_err;
@@ -1286,7 +1273,7 @@ kvs_cursor_seek(
     u32                    limit_len,
     struct kvs_ktuple *    kt)
 {
-    struct kvs_cursor_impl * cursor = (void *)handle;
+    struct kvs_cursor_impl *cursor = (void *)handle;
 
     if (ev(cursor->kci_err)) {
         if (ev(merr_errno(cursor->kci_err) != EAGAIN))
@@ -1324,8 +1311,8 @@ kvs_cursor_seek(
     /* Peek at the next key and optionally copy into kt */
     ikvs_cursor_replenish(cursor);
     if (kt && !cursor->kci_eof)
-        kt->kt_data = key_obj_copy(cursor->kci_buf, HSE_KVS_KLEN_MAX,
-                                   (uint *)&kt->kt_len, cursor->kci_last);
+        kt->kt_data =
+            key_obj_copy(cursor->kci_buf, HSE_KVS_KLEN_MAX, (uint *)&kt->kt_len, cursor->kci_last);
     cursor->kci_need_toss = 0;
     cursor->kci_need_seek = 0;
 
@@ -1339,24 +1326,17 @@ kvs_cursor_seek(
 }
 
 void
-kvs_cursor_perfc_alloc(
-        const char *dbname,
-        struct perfc_set *pcs_cc,
-        struct perfc_set *pcs_cd)
+kvs_cursor_perfc_alloc(const char *dbname, struct perfc_set *pcs_cc, struct perfc_set *pcs_cd)
 {
-    if (perfc_ctrseti_alloc(
-            COMPNAME, dbname, kvs_cc_perfc_op, PERFC_EN_CC, "set", pcs_cc))
+    if (perfc_ctrseti_alloc(COMPNAME, dbname, kvs_cc_perfc_op, PERFC_EN_CC, "set", pcs_cc))
         hse_log(HSE_ERR "cannot alloc kvs perf counters");
 
-    if (perfc_ctrseti_alloc(
-            COMPNAME, dbname, kvs_cd_perfc_op, PERFC_EN_CD, "set", pcs_cd))
+    if (perfc_ctrseti_alloc(COMPNAME, dbname, kvs_cd_perfc_op, PERFC_EN_CD, "set", pcs_cd))
         hse_log(HSE_ERR "cannot alloc kvs perf counters");
 }
 
 void
-kvs_cursor_perfc_free(
-        struct perfc_set *pcs_cc,
-        struct perfc_set *pcs_cd)
+kvs_cursor_perfc_free(struct perfc_set *pcs_cc, struct perfc_set *pcs_cd)
 {
     perfc_ctrseti_free(pcs_cc);
     perfc_ctrseti_free(pcs_cd);
@@ -1405,15 +1385,15 @@ merr_t
 kvs_curcache_init(void)
 {
     struct kvs_cursor_impl *kci HSE_MAYBE_UNUSED;
-    uint nperbkt, i;
-    ulong mavail;
-    size_t sz;
+    uint                        nperbkt, i;
+    ulong                       mavail;
+    size_t                      sz;
 
     assert(!ikvs_curcachev);
 
-    sz  = sizeof(*kci);
+    sz = sizeof(*kci);
     sz += (HSE_KVS_KLEN_MAX + HSE_KVS_VLEN_MAX); /* For kci_buf */
-    sz += (HSE_KVS_KLEN_MAX * 3); /* For prefix, last_key and limit */
+    sz += (HSE_KVS_KLEN_MAX * 3);                /* For prefix, last_key and limit */
     kvs_cursor_impl_alloc_sz = sz;
 
     ikvs_curcachec = clamp_t(uint, (get_nprocs() / 2), 16, 48);
@@ -1458,8 +1438,12 @@ kvs_curcache_init(void)
         bkt->cb_root = RB_ROOT;
     }
 
-    hse_log(HSE_NOTICE "%s: bktsz %zu, bktc %u, nperbkt %u",
-            __func__, ikvs_curcachesz, ikvs_curcachec, nperbkt);
+    hse_log(
+        HSE_NOTICE "%s: bktsz %zu, bktc %u, nperbkt %u",
+        __func__,
+        ikvs_curcachesz,
+        ikvs_curcachec,
+        nperbkt);
 
     setup_timer(&ikvs_curcache_timer, ikvs_curcache_timer_cb, 0);
     add_timer(&ikvs_curcache_timer);
@@ -1471,7 +1455,7 @@ void
 kvs_curcache_fini(void)
 {
     uint entryc = 0, entrymax = 0, bktc = 0;
-    int i;
+    int  i;
 
     assert(ikvs_curcachev);
 
@@ -1495,10 +1479,15 @@ kvs_curcache_fini(void)
     }
 
     if (bktc > 0) {
-        hse_log(HSE_NOTICE
-                "%s: bucket utilization %.1lf%% (%u/%u), entry utilization %.1lf%% (%u/%u)",
-                __func__, (bktc * 100.0) / ikvs_curcachec, bktc, ikvs_curcachec,
-                (entryc * 100.0) / entrymax, entryc, entrymax);
+        hse_log(
+            HSE_NOTICE "%s: bucket utilization %.1lf%% (%u/%u), entry utilization %.1lf%% (%u/%u)",
+            __func__,
+            (bktc * 100.0) / ikvs_curcachec,
+            bktc,
+            ikvs_curcachec,
+            (entryc * 100.0) / entrymax,
+            entryc,
+            entrymax);
     }
 
     vlb_free(ikvs_curcachev, ikvs_curcachesz * ikvs_curcachec);

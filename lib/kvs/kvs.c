@@ -24,6 +24,7 @@
 #include <hse_util/table.h>
 
 #include <hse_ikvdb/c0.h>
+#include <hse_ikvdb/lc.h>
 #include <hse_ikvdb/cn.h>
 #include <hse_ikvdb/kvs.h>
 #include <hse_ikvdb/limits.h>
@@ -72,7 +73,7 @@ struct mpool;
 
 /*-  Key Value Store  -------------------------------------------------------*/
 
-static atomic_t           kvs_init_ref;
+static atomic_t kvs_init_ref;
 
 static merr_t
 kvs_create(struct ikvs **kvs, struct kvs_rparams *rp);
@@ -144,6 +145,7 @@ kvs_open(
     const char *        mp_name,
     struct mpool *      ds,
     struct cndb *       cndb,
+    struct lc *         lc,
     struct kvs_rparams *rp,
     struct kvdb_health *health,
     struct cn_kvdb *    cn_kvdb,
@@ -168,6 +170,7 @@ kvs_open(
     ikvs->ikv_cnid = cnid;
     ikvs->ikv_mpool_name = strdup(mp_name);
     ikvs->ikv_kvs_name = strdup(kvs_name);
+    ikvs->ikv_lc = lc;
 
     if (!ikvs->ikv_mpool_name || !ikvs->ikv_kvs_name) {
         err = merr(ev(ENOMEM));
@@ -285,8 +288,7 @@ kvs_perfc_pkvsl(struct ikvs *ikvs)
 }
 
 bool
-kvs_txn_is_enabled(
-    struct ikvs *kvs)
+kvs_txn_is_enabled(struct ikvs *kvs)
 {
     return kvs->ikv_rp.transactions_enable;
 }
@@ -299,93 +301,8 @@ kvs_put(
     const struct kvs_vtuple *vt,
     u64                      seqno)
 {
+    struct kvdb_ctxn *ctxn = (os && os->kop_txn) ? kvdb_ctxn_h2h(os->kop_txn) : 0;
     struct perfc_set *pkvsl_pc = kvs_perfc_pkvsl(kvs);
-
-    struct c0 *c0 = kvs->ikv_c0;
-    size_t     sfx_len;
-    size_t     hashlen;
-    u64        tstart;
-    merr_t     err;
-
-    tstart = perfc_lat_start(pkvsl_pc);
-
-    sfx_len = kvs->ikv_sfx_len;
-    hashlen = kt->kt_len - sfx_len;
-    kt->kt_hash = key_hash64(kt->kt_data, hashlen);
-
-    /* Assert that either
-     *  1. This is NOT a suffixed tree, OR
-     *  2. keylen is at least pfx_len + sfx_len
-     */
-    if (ev(sfx_len && kt->kt_len < sfx_len + kvs->ikv_pfx_len)) {
-        hse_log(
-            HSE_ERR "%s is a suffixed kvs. Keys must be at least "
-                    "pfx_len(%u) + sfx_len(%u) bytes long.",
-            kvs->ikv_kvs_name,
-            kvs->ikv_pfx_len,
-            kvs->ikv_sfx_len);
-        return merr(EINVAL);
-    }
-
-    if (HSE_UNLIKELY(os && os->kop_txn))
-        err = kvdb_ctxn_put(kvdb_ctxn_h2h(os->kop_txn), c0, kt, vt);
-    else
-        err = c0_put(c0, kt, vt, seqno);
-
-    perfc_lat_record(pkvsl_pc, PERFC_LT_PKVSL_KVS_PUT, tstart);
-
-    return err;
-}
-
-merr_t
-kvs_get(
-    struct ikvs *           kvs,
-    struct hse_kvdb_opspec *os,
-    struct kvs_ktuple *     kt,
-    u64                     seqno,
-    enum key_lookup_res *   res,
-    struct kvs_buf *        vbuf)
-{
-    struct perfc_set *pkvsl_pc = kvs_perfc_pkvsl(kvs);
-    struct c0 *       c0 = kvs->ikv_c0;
-    struct cn *       cn = kvs->ikv_cn;
-    struct kvdb_ctxn *ctxn;
-    size_t            hashlen;
-    u64               tstart;
-    merr_t            err;
-
-    tstart = perfc_lat_start(pkvsl_pc);
-
-    hashlen = kt->kt_len - kvs->ikv_sfx_len;
-    kt->kt_hash = key_hash64(kt->kt_data, hashlen);
-
-    ctxn = (os && os->kop_txn) ? kvdb_ctxn_h2h(os->kop_txn) : 0;
-
-    if (!ctxn)
-        err = c0_get(c0, kt, seqno, 0, res, vbuf);
-    else
-        err = kvdb_ctxn_get(ctxn, c0, kt, res, vbuf);
-
-    if (!err && *res == NOT_FOUND) {
-        if (ctxn) {
-            err = kvdb_ctxn_get_view_seqno(ctxn, &seqno);
-            if (ev(err))
-                return err;
-        }
-
-        err = cn_get(cn, kt, seqno, res, vbuf);
-    }
-
-    perfc_lat_record(pkvsl_pc, PERFC_LT_PKVSL_KVS_GET, tstart);
-
-    return err;
-}
-
-merr_t
-kvs_del(struct ikvs *kvs, struct hse_kvdb_opspec *os, struct kvs_ktuple *kt, u64 seqno)
-{
-    struct perfc_set *pkvsl_pc = kvs_perfc_pkvsl(kvs);
-    struct kvdb_ctxn *ctxn = 0;
     struct c0 *       c0 = kvs->ikv_c0;
     size_t            sfx_len;
     size_t            hashlen;
@@ -411,13 +328,114 @@ kvs_del(struct ikvs *kvs, struct hse_kvdb_opspec *os, struct kvs_ktuple *kt, u64
             kvs->ikv_sfx_len);
         return merr(EINVAL);
     }
-    if (os && os->kop_txn)
-        ctxn = kvdb_ctxn_h2h(os->kop_txn);
 
-    if (!ctxn)
-        err = c0_del(c0, kt, seqno);
-    else
-        err = kvdb_ctxn_del(ctxn, c0, kt);
+    if (ctxn) {
+        /* Lock txn for write operation while we query c0. */
+        err = kvdb_ctxn_trylock_write(ctxn, kt, c0_hash_get(c0), &seqno);
+        if (ev(err))
+            return err;
+    }
+
+    err = c0_put(c0, kt, vt, seqno);
+
+    if (ctxn)
+        kvdb_ctxn_unlock(ctxn);
+
+    perfc_lat_record(pkvsl_pc, PERFC_LT_PKVSL_KVS_PUT, tstart);
+
+    return err;
+}
+
+merr_t
+kvs_get(
+    struct ikvs *           kvs,
+    struct hse_kvdb_opspec *os,
+    struct kvs_ktuple *     kt,
+    u64                     seqno,
+    enum key_lookup_res *   res,
+    struct kvs_buf *        vbuf)
+{
+    struct kvdb_ctxn *ctxn = (os && os->kop_txn) ? kvdb_ctxn_h2h(os->kop_txn) : 0;
+    struct perfc_set *pkvsl_pc = kvs_perfc_pkvsl(kvs);
+    struct c0 *       c0 = kvs->ikv_c0;
+    struct lc *       lc = kvs->ikv_lc;
+    struct cn *       cn = kvs->ikv_cn;
+    uintptr_t         seqnoref = 0;
+    size_t            hashlen;
+    u64               tstart;
+    merr_t            err;
+
+    tstart = perfc_lat_start(pkvsl_pc);
+
+    hashlen = kt->kt_len - kvs->ikv_sfx_len;
+    kt->kt_hash = key_hash64(kt->kt_data, hashlen);
+
+    if (ctxn) {
+        /* Lock txn for read operation while we query c0.  seqnoref is invalid
+         * ater lock is released. */
+        err = kvdb_ctxn_trylock_read(ctxn, &seqno, &seqnoref);
+        if (ev(err))
+            return err;
+    }
+
+    err = c0_get(c0, kt, seqno, seqnoref, res, vbuf);
+
+    if (!err && *res == NOT_FOUND)
+        err = lc_get(lc, c0_index(c0), kvs->ikv_pfx_len, kt, seqno, seqnoref, res, vbuf);
+
+    if (ctxn)
+        kvdb_ctxn_unlock(ctxn);
+
+    if (!err && *res == NOT_FOUND)
+        err = cn_get(cn, kt, seqno, res, vbuf);
+
+    perfc_lat_record(pkvsl_pc, PERFC_LT_PKVSL_KVS_GET, tstart);
+
+    return err;
+}
+
+merr_t
+kvs_del(struct ikvs *kvs, struct hse_kvdb_opspec *os, struct kvs_ktuple *kt, u64 seqno)
+{
+    struct perfc_set *pkvsl_pc = kvs_perfc_pkvsl(kvs);
+    struct kvdb_ctxn *ctxn = (os && os->kop_txn) ? kvdb_ctxn_h2h(os->kop_txn) : 0;
+    struct c0 *       c0 = kvs->ikv_c0;
+    size_t            sfx_len;
+    size_t            hashlen;
+    u64               tstart;
+    merr_t            err;
+
+    tstart = perfc_lat_start(pkvsl_pc);
+
+    sfx_len = kvs->ikv_sfx_len;
+    hashlen = kt->kt_len - sfx_len;
+    kt->kt_hash = key_hash64(kt->kt_data, hashlen);
+
+    /* Assert that either
+     *  1. This is NOT a suffixed tree, OR
+     *  2. keylen is at least pfx_len + sfx_len
+     */
+    if (ev(sfx_len && kt->kt_len < sfx_len + kvs->ikv_pfx_len)) {
+        hse_log(
+            HSE_ERR "%s is a suffixed kvs. Keys must be at least "
+                    "pfx_len(%u) + sfx_len(%u) bytes long.",
+            kvs->ikv_kvs_name,
+            kvs->ikv_pfx_len,
+            kvs->ikv_sfx_len);
+        return merr(EINVAL);
+    }
+
+    if (ctxn) {
+        /* Lock txn for write operation while we query c0. */
+        err = kvdb_ctxn_trylock_write(ctxn, kt, c0_hash_get(c0), &seqno);
+        if (ev(err))
+            return err;
+    }
+
+    err = c0_del(c0, kt, seqno);
+
+    if (ctxn)
+        kvdb_ctxn_unlock(ctxn);
 
     perfc_lat_record(pkvsl_pc, PERFC_LT_PKVSL_KVS_DEL, tstart);
 
@@ -428,7 +446,8 @@ merr_t
 kvs_prefix_del(struct ikvs *kvs, struct hse_kvdb_opspec *os, struct kvs_ktuple *kt, u64 seqno)
 {
     struct perfc_set *pkvsl_pc = kvs_perfc_pkvsl(kvs);
-    struct kvdb_ctxn *ctxn = 0;
+    struct kvdb_ctxn *ctxn = (os && os->kop_txn) ? kvdb_ctxn_h2h(os->kop_txn) : 0;
+    struct c0 *       c0 = kvs->ikv_c0;
     u64               tstart;
     merr_t            err;
 
@@ -437,20 +456,24 @@ kvs_prefix_del(struct ikvs *kvs, struct hse_kvdb_opspec *os, struct kvs_ktuple *
     if (!kt->kt_hash)
         kt->kt_hash = key_hash64(kt->kt_data, kt->kt_len);
 
-    if (os && os->kop_txn)
-        ctxn = kvdb_ctxn_h2h(os->kop_txn);
+    if (ctxn) {
+        /* Lock txn for write operation while we query c0.  We don't detect
+         * write collisions for prefix deletes, so pass 0 for keylock seed.
+         */
+        err = kvdb_ctxn_trylock_write(ctxn, kt, 0, &seqno);
+        if (ev(err))
+            return err;
+    }
 
-    if (!ctxn)
-        err = c0_prefix_del(kvs->ikv_c0, kt, seqno);
-    else
-        err = kvdb_ctxn_prefix_del(ctxn, kvs->ikv_c0, kt);
+    err = c0_prefix_del(c0, kt, seqno);
+
+    if (ctxn)
+        kvdb_ctxn_unlock(ctxn);
 
     perfc_lat_record(pkvsl_pc, PERFC_LT_PKVSL_KVS_PFX_DEL, tstart);
 
     return ev(err);
 }
-
-/*-  Prefix Probe -----------------------------------------------------*/
 
 merr_t
 kvs_pfx_probe(
@@ -463,9 +486,11 @@ kvs_pfx_probe(
     struct kvs_buf *        vbuf)
 {
     struct perfc_set *pkvsl_pc = kvs_perfc_pkvsl(kvs);
+    struct kvdb_ctxn *ctxn = (os && os->kop_txn) ? kvdb_ctxn_h2h(os->kop_txn) : 0;
     struct c0 *       c0 = kvs->ikv_c0;
+    struct lc *       lc = kvs->ikv_lc;
     struct cn *       cn = kvs->ikv_cn;
-    struct kvdb_ctxn *ctxn;
+    uintptr_t         seqnoref = 0;
     struct query_ctx  qctx;
     u64               tstart;
     merr_t            err;
@@ -488,31 +513,47 @@ kvs_pfx_probe(
     if (!kt->kt_hash)
         kt->kt_hash = key_hash64(kt->kt_data, kt->kt_len);
 
-    ctxn = (os && os->kop_txn) ? kvdb_ctxn_h2h(os->kop_txn) : 0;
-    if (!ctxn)
-        err = c0_pfx_probe(c0, kt, seqno, 0, res, &qctx, kbuf, vbuf);
-    else
-        err = kvdb_ctxn_pfx_probe(ctxn, c0, kt, res, &qctx, kbuf, vbuf);
-
-    if (*res == FOUND_PTMB || qctx.seen > 1)
-        goto done;
-
-    if (!err && (*res == FOUND_VAL || *res == NOT_FOUND)) {
-        if (ctxn) {
-            err = kvdb_ctxn_get_view_seqno(ctxn, &seqno);
-            if (ev(err))
-                return err;
-        }
-
-        err = cn_pfx_probe(cn, kt, seqno, res, &qctx, kbuf, vbuf);
+    if (ctxn) {
+        /* Lock txn for read operation while we query c0.  seqnoref is invalid
+         * after lock is released.
+         */
+        err = kvdb_ctxn_trylock_read(ctxn, &seqno, &seqnoref);
+        if (ev(err))
+            return err;
     }
+
+    err = c0_pfx_probe(c0, kt, seqno, seqnoref, res, &qctx, kbuf, vbuf);
+    if (err || *res == FOUND_TMB || *res == FOUND_PTMB || qctx.seen > 1)
+        goto exit;
+
+    err = lc_pfx_probe(
+        lc,
+        kt,
+        c0_index(c0),
+        seqno,
+        seqnoref,
+        c0_get_pfx_len(c0),
+        c0_get_sfx_len(c0),
+        res,
+        &qctx,
+        kbuf,
+        vbuf);
+    if (err || *res == FOUND_TMB || *res == FOUND_PTMB || qctx.seen > 1)
+        goto exit;
+
+    err = cn_pfx_probe(cn, kt, seqno, res, &qctx, kbuf, vbuf);
+    if (err || *res == FOUND_TMB || *res == FOUND_PTMB || qctx.seen > 1)
+        goto exit;
+
+    qctx_te_mem_reset();
+
+exit:
+    if (ctxn)
+        kvdb_ctxn_unlock(ctxn);
 
     if (ev(err))
         return err;
 
-    qctx_te_mem_reset();
-
-done:
     perfc_rec_sample(&kvs->ikv_cd_pc, PERFC_DI_CD_TOMBSPERPROBE, qctx.ntombs);
 
     switch (qctx.seen) {
@@ -535,7 +576,7 @@ static merr_t
 kvs_create(struct ikvs **ikvs_out, struct kvs_rparams *rp)
 {
     static atomic64_t g_ikv_gen;
-    struct ikvs *ikvs;
+    struct ikvs *     ikvs;
 
     *ikvs_out = NULL;
 

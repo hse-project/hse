@@ -135,6 +135,6 @@ merr_t
 bin_heap2_replace_src(struct bin_heap2 *bh, struct element_source *es);
 
 s64
-bin_heap2_age_cmp(struct bin_heap2 *bh, struct element_source *es1, struct element_source *es2);
+bin_heap2_age_cmp(struct element_source *es1, struct element_source *es2);
 
 #endif

@@ -74,6 +74,18 @@ c0sk_open(
 merr_t
 c0sk_close(struct c0sk *self);
 
+/* MTF_MOCK */
+void
+c0sk_lc_set(struct c0sk *self, struct lc *lc);
+
+/* MTF_MOCK */
+struct lc *
+c0sk_lc_get(struct c0sk *self);
+
+/* MTF_MOCK */
+atomic64_t *
+c0sk_seqno_addr_get(struct c0sk *handle);
+
 /**
  * c0sk_throttle_sensor() - configure c0sk with a throttle sensor
  * @handle: c0sk handle

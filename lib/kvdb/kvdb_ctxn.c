@@ -100,13 +100,13 @@ kvdb_ctxn_bind_cancel(struct kvdb_ctxn_bind *bind, bool preserve)
 }
 
 static HSE_ALWAYS_INLINE bool
-kvdb_ctxn_trylock(struct kvdb_ctxn_impl *ctxn)
+ctxn_trylock(struct kvdb_ctxn_impl *ctxn)
 {
     return atomic_cmpxchg(&ctxn->ctxn_lock, 0, 1) == 0;
 }
 
 static HSE_ALWAYS_INLINE void
-kvdb_ctxn_unlock(struct kvdb_ctxn_impl *ctxn)
+ctxn_unlock(struct kvdb_ctxn_impl *ctxn)
 {
     int old HSE_MAYBE_UNUSED;
 
@@ -346,7 +346,7 @@ kvdb_ctxn_begin(struct kvdb_ctxn *handle)
     enum kvdb_ctxn_state   state;
     merr_t                 err;
 
-    if (ev(!kvdb_ctxn_trylock(ctxn)))
+    if (ev(!ctxn_trylock(ctxn)))
         return merr(EPROTO);
 
     state = seqnoref_to_state(ctxn->ctxn_seqref);
@@ -371,7 +371,7 @@ kvdb_ctxn_begin(struct kvdb_ctxn *handle)
     ctxn->ctxn_seqref = HSE_SQNREF_UNDEFINED;
 
 errout:
-    kvdb_ctxn_unlock(ctxn);
+    ctxn_unlock(ctxn);
 
     return err;
 }
@@ -461,7 +461,7 @@ kvdb_ctxn_abort(struct kvdb_ctxn *handle)
     struct kvdb_ctxn_impl *ctxn = kvdb_ctxn_h2r(handle);
     enum kvdb_ctxn_state   state;
 
-    if (ev(!kvdb_ctxn_trylock(ctxn)))
+    if (ev(!ctxn_trylock(ctxn)))
         return;
 
     state = seqnoref_to_state(ctxn->ctxn_seqref);
@@ -469,7 +469,7 @@ kvdb_ctxn_abort(struct kvdb_ctxn *handle)
     if (state == KVDB_CTXN_ACTIVE)
         kvdb_ctxn_abort_inner(ctxn);
 
-    kvdb_ctxn_unlock(ctxn);
+    ctxn_unlock(ctxn);
 }
 
 merr_t
@@ -485,12 +485,12 @@ kvdb_ctxn_commit(struct kvdb_ctxn *handle)
     u64                     commit_sn;
     u64                     head;
 
-    if (ev(!kvdb_ctxn_trylock(ctxn)))
+    if (ev(!ctxn_trylock(ctxn)))
         return merr(EPROTO);
 
     state = seqnoref_to_state(ctxn->ctxn_seqref);
     if (ev(state != KVDB_CTXN_ACTIVE)) {
-        kvdb_ctxn_unlock(ctxn);
+        ctxn_unlock(ctxn);
         return merr(EINVAL);
     }
 
@@ -502,7 +502,7 @@ kvdb_ctxn_commit(struct kvdb_ctxn *handle)
     if (ctxn->ctxn_commit_abort_pct) {
         if (ev((xrand64_tls() % 16384) < ctxn->ctxn_commit_abort_pct)) {
             kvdb_ctxn_abort_inner(ctxn);
-            kvdb_ctxn_unlock(ctxn);
+            ctxn_unlock(ctxn);
             return merr(ECANCELED);
         }
     }
@@ -523,7 +523,7 @@ kvdb_ctxn_commit(struct kvdb_ctxn *handle)
 
         ctxn->ctxn_seqref = HSE_ORDNL_TO_SQNREF(ctxn->ctxn_view_seqno);
         kvdb_ctxn_deactivate(ctxn);
-        kvdb_ctxn_unlock(ctxn);
+        ctxn_unlock(ctxn);
 
         return 0;
     }
@@ -636,7 +636,7 @@ kvdb_ctxn_commit(struct kvdb_ctxn *handle)
 
     kvdb_ctxn_deactivate(ctxn);
 
-    kvdb_ctxn_unlock(ctxn);
+    ctxn_unlock(ctxn);
 
     return 0;
 }
@@ -715,220 +715,6 @@ kvdb_ctxn_lock_inherit(
      * be U64_MAX and hence can never be inherited/transferred.
      */
     return (start_seq > kvdb_ctxn_locks_end_seqno(old_locks));
-}
-
-merr_t
-kvdb_ctxn_put(
-    struct kvdb_ctxn *       handle,
-    struct c0 *              c0,
-    const struct kvs_ktuple *kt,
-    const struct kvs_vtuple *vt)
-{
-    struct kvdb_ctxn_impl *ctxn = kvdb_ctxn_h2r(handle);
-    merr_t                 err = 0;
-    u64                    hash;
-
-    if (ev(!kvdb_ctxn_trylock(ctxn)))
-        return merr(EPROTO);
-
-    if (ev(seqnoref_to_state(ctxn->ctxn_seqref) != KVDB_CTXN_ACTIVE)) {
-        err = merr(ECANCELED);
-        goto errout;
-    }
-
-    if (!ctxn->ctxn_can_insert) {
-        err = kvdb_ctxn_enable_inserts(ctxn);
-        if (ev(err))
-            goto errout;
-    }
-
-    /* Always use the full key's hash (even when kvs is suffixed) for
-     * maximum entropy.  We factor the c0 hash (i.e., the hash of the
-     * kvs name) into the hash to avoid collisions of identical keys
-     * being put into different kvs via independent transactions.
-     */
-    hash = key_hash64_seed(kt->kt_data, kt->kt_len, c0_hash_get(c0));
-
-    err = kvdb_keylock_lock(
-        ctxn->ctxn_kvdb_keylock, ctxn->ctxn_locks_handle, hash, ctxn->ctxn_view_seqno);
-    if (err) {
-        ev(merr_errno(err) != ECANCELED);
-        goto errout;
-    }
-
-    if (ctxn->ctxn_bind)
-        kvdb_ctxn_bind_invalidate(ctxn->ctxn_bind);
-
-    err = c0_put(c0, kt, vt, ctxn->ctxn_seqref);
-
-errout:
-    kvdb_ctxn_unlock(ctxn);
-
-    return err;
-}
-
-merr_t
-kvdb_ctxn_get(
-    struct kvdb_ctxn *       handle,
-    struct c0 *              c0,
-    const struct kvs_ktuple *kt,
-    enum key_lookup_res *    res,
-    struct kvs_buf *         vbuf)
-{
-    struct kvdb_ctxn_impl *ctxn = kvdb_ctxn_h2r(handle);
-    merr_t                 err;
-    u64                    view_seqno;
-    uintptr_t              seqnoref;
-
-    if (ev(!kvdb_ctxn_trylock(ctxn)))
-        return merr(EPROTO);
-
-    if (ev(seqnoref_to_state(ctxn->ctxn_seqref) != KVDB_CTXN_ACTIVE)) {
-        err = merr(ECANCELED);
-        goto errout;
-    }
-
-    view_seqno = ctxn->ctxn_view_seqno;
-    seqnoref = ctxn->ctxn_seqref;
-
-    /* look in the c0 container */
-    err = c0_get(c0, kt, view_seqno, seqnoref, res, vbuf);
-
-errout:
-    kvdb_ctxn_unlock(ctxn);
-
-    return err;
-}
-
-merr_t
-kvdb_ctxn_del(
-    struct kvdb_ctxn *       handle,
-    struct c0 *              c0,
-    const struct kvs_ktuple *kt)
-{
-    struct kvdb_ctxn_impl *ctxn = kvdb_ctxn_h2r(handle);
-    merr_t                 err = 0;
-    u64                    hash;
-
-    if (ev(!kvdb_ctxn_trylock(ctxn)))
-        return merr(EPROTO);
-
-    if (ev(seqnoref_to_state(ctxn->ctxn_seqref) != KVDB_CTXN_ACTIVE)) {
-        err = merr(ECANCELED);
-        goto errout;
-    }
-
-    if (!ctxn->ctxn_can_insert) {
-        err = kvdb_ctxn_enable_inserts(ctxn);
-        if (ev(err))
-            goto errout;
-    }
-
-    /* Always use the full key's hash (even when kvs is suffixed) for
-     * maximum entropy.
-     */
-    hash = key_hash64_seed(kt->kt_data, kt->kt_len, c0_hash_get(c0));
-
-    err = kvdb_keylock_lock(
-        ctxn->ctxn_kvdb_keylock, ctxn->ctxn_locks_handle, hash, ctxn->ctxn_view_seqno);
-    if (ev(err))
-        goto errout;
-
-    if (ctxn->ctxn_bind)
-        kvdb_ctxn_bind_invalidate(ctxn->ctxn_bind);
-
-    err = c0_del(c0, kt, ctxn->ctxn_seqref);
-
-  errout:
-    kvdb_ctxn_unlock(ctxn);
-
-    return err;
-}
-
-merr_t
-kvdb_ctxn_pfx_probe(
-    struct kvdb_ctxn *       handle,
-    struct c0 *              c0,
-    const struct kvs_ktuple *kt,
-    enum key_lookup_res *    res,
-    struct query_ctx *       qctx,
-    struct kvs_buf *         kbuf,
-    struct kvs_buf *         vbuf)
-{
-    struct kvdb_ctxn_impl *ctxn = kvdb_ctxn_h2r(handle);
-
-    if (ev(!kvdb_ctxn_trylock(ctxn)))
-        return merr(EPROTO);
-
-    if (!ctxn->ctxn_can_insert)
-        goto skip_txkvms;
-
-#if 0
-    /* Check txn's local mutations */
-    err = c0kvms_pfx_probe_excl(ctxn->ctxn_kvms, c0_index(c0), kt,
-                                c0_get_sfx_len(c0),
-                                ctxn->ctxn_view_seqno, ctxn->ctxn_seqref,
-                                res, qctx, kbuf, vbuf, 0);
-    if (ev(err)) {
-        kvdb_ctxn_unlock(ctxn);
-        return err;
-    }
-
-    if (qctx->seen > 1) {
-        kvdb_ctxn_unlock(ctxn);
-        return 0;
-    }
-
-    if (HSE_LIKELY(c0_get_pfx_len(c0) && kt->kt_len >= c0_get_pfx_len(c0))) {
-        /* Check if txn contains ptomb for query pfx */
-        pt_c0kvs = c0kvms_ptomb_c0kvset_get(ctxn->ctxn_kvms);
-        c0kvs_prefix_get_excl(
-            pt_c0kvs, c0_index(c0), kt, ctxn->ctxn_view_seqno, c0_get_pfx_len(c0), &pt_seqref);
-        if (pt_seqref != HSE_ORDNL_TO_SQNREF(0)) {
-            kvdb_ctxn_unlock(ctxn);
-            return 0; /* found a ptomb. Do not proceed. */
-        }
-    }
-#endif
-
-skip_txkvms:
-    /* Look through rest of c0 for pfx */
-    c0_pfx_probe(c0, kt, ctxn->ctxn_view_seqno, ctxn->ctxn_seqref, res, qctx, kbuf, vbuf);
-
-    kvdb_ctxn_unlock(ctxn);
-
-    return 0;
-}
-
-merr_t
-kvdb_ctxn_prefix_del(struct kvdb_ctxn *handle, struct c0 *c0, const struct kvs_ktuple *kt)
-{
-    struct kvdb_ctxn_impl  *ctxn = kvdb_ctxn_h2r(handle);
-    merr_t                  err;
-
-    if (ev(!kvdb_ctxn_trylock(ctxn)))
-        return merr(EPROTO);
-
-    if (ev(seqnoref_to_state(ctxn->ctxn_seqref) != KVDB_CTXN_ACTIVE)) {
-        err = merr(EPROTO);
-        goto errout;
-    }
-
-    if (!ctxn->ctxn_can_insert) {
-        err = kvdb_ctxn_enable_inserts(ctxn);
-        if (ev(err))
-            goto errout;
-    }
-
-    if (ctxn->ctxn_bind)
-        kvdb_ctxn_bind_invalidate(ctxn->ctxn_bind);
-
-    err = c0_prefix_del(c0, kt, ctxn->ctxn_seqref);
-
-errout:
-    kvdb_ctxn_unlock(ctxn);
-
-    return ev(err);
 }
 
 merr_t
@@ -1028,6 +814,7 @@ kvdb_ctxn_cursor_bind(struct kvdb_ctxn *handle)
     if (!bind) {
         struct kvdb_ctxn_bind *old = 0;
 
+        /* HSE_REVISIT Consider using a cache for this */
         bind = calloc(1, sizeof(*bind));
         if (!bind)
             return 0;
@@ -1055,4 +842,95 @@ kvdb_ctxn_cursor_unbind(struct kvdb_ctxn_bind *bind)
 {
     if (bind)
         kvdb_ctxn_bind_putref(bind);
+}
+
+merr_t
+kvdb_ctxn_trylock_read(
+    struct kvdb_ctxn   *handle,
+    u64                *view_seqno,
+    uintptr_t          *seqref)
+{
+    merr_t                  err = 0;
+    struct kvdb_ctxn_impl  *ctxn;
+
+    assert(handle);
+
+    ctxn = kvdb_ctxn_h2r(handle);
+
+    if (ev(!ctxn_trylock(ctxn)))
+        return merr(EPROTO);
+
+    if (ev(seqnoref_to_state(ctxn->ctxn_seqref) != KVDB_CTXN_ACTIVE)) {
+        err = merr(ECANCELED);
+        goto errout;
+    }
+
+    *view_seqno = ctxn->ctxn_view_seqno;
+    *seqref = ctxn->ctxn_seqref;
+
+  errout:
+    if (err)
+        ctxn_unlock(ctxn);
+
+    return err;
+}
+
+merr_t
+kvdb_ctxn_trylock_write(
+    struct kvdb_ctxn           *handle,
+    const struct kvs_ktuple    *kt,
+    u64                         keylock_seed,
+    uintptr_t                  *seqref)
+{
+    merr_t                  err = 0;
+    struct kvdb_ctxn_impl  *ctxn;
+    u64                     hash;
+
+    assert(handle);
+
+    ctxn = kvdb_ctxn_h2r(handle);
+
+    if (ev(!ctxn_trylock(ctxn)))
+        return merr(EPROTO);
+
+    if (ev(seqnoref_to_state(ctxn->ctxn_seqref) != KVDB_CTXN_ACTIVE)) {
+        err = merr(ECANCELED);
+        goto errout;
+    }
+
+    if (!ctxn->ctxn_can_insert) {
+        err = kvdb_ctxn_enable_inserts(ctxn);
+        if (ev(err))
+            goto errout;
+    }
+
+    if (keylock_seed) {
+        hash = key_hash64_seed(kt->kt_data, kt->kt_len, keylock_seed);
+        err = kvdb_keylock_lock(
+            ctxn->ctxn_kvdb_keylock, ctxn->ctxn_locks_handle, hash, ctxn->ctxn_view_seqno);
+
+        if (err) {
+            ev(merr_errno(err) != ECANCELED);
+            goto errout;
+        }
+    }
+
+    if (ctxn->ctxn_bind)
+        kvdb_ctxn_bind_invalidate(ctxn->ctxn_bind);
+
+    *seqref = ctxn->ctxn_seqref;
+
+  errout:
+    if (err)
+        ctxn_unlock(ctxn);
+
+    return err;
+}
+
+
+void
+kvdb_ctxn_unlock(struct kvdb_ctxn *handle)
+{
+    assert(handle);
+    ctxn_unlock(kvdb_ctxn_h2r(handle));
 }

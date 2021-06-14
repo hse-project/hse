@@ -17,6 +17,7 @@ subdir('binding')
 subdir('kvs')
 subdir('util')
 subdir('c0')
+subdir('lc')
 subdir('cn')
 subdir('kvdb')
 
@@ -26,6 +27,7 @@ hse_sources = [
     _config_h,
     binding_sources,
     c0_sources,
+    lc_sources,
     cn_sources,
     kvdb_sources,
     kvs_sources,
