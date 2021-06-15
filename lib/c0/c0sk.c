@@ -242,8 +242,8 @@ c0sk_init(void)
 {
     struct kmem_cache *cache;
 
-    cache = kmem_cache_create("c0_cursor", sizeof(struct c0_cursor),
-                              alignof(struct c0_cursor), SLAB_PACKED, NULL);
+    cache = kmem_cache_create(
+        "c0_cursor", sizeof(struct c0_cursor), alignof(struct c0_cursor), SLAB_PACKED, NULL);
     if (ev(!cache))
         return merr(ENOMEM);
 
@@ -432,7 +432,8 @@ c0sk_pfx_probe(
             pfx_seq = HSE_SQNREF_TO_ORDNL(ptomb_seqref);
         }
 
-        err = c0kvms_pfx_probe_rcu(c0kvms, skidx, kt, sfx_len, view_seq, seqref, res, qctx, kbuf, vbuf, pfx_seq);
+        err = c0kvms_pfx_probe_rcu(
+            c0kvms, skidx, kt, sfx_len, view_seq, seqref, res, qctx, kbuf, vbuf, pfx_seq);
         if (ev(err))
             break;
 
@@ -539,11 +540,7 @@ c0sk_open(
     if (kvdb_rp->c0_ingest_width == 0)
         c0sk->c0sk_ingest_width = c0sk->c0sk_ingest_width_max / 2;
 
-    err = c0kvms_create(
-        c0sk->c0sk_ingest_width,
-        kvdb_rp->c0_heap_sz,
-        c0sk->c0sk_kvdb_seq,
-        &c0kvms);
+    err = c0kvms_create(c0sk->c0sk_ingest_width, kvdb_rp->c0_heap_sz, c0sk->c0sk_kvdb_seq, &c0kvms);
     if (ev(err))
         goto errout;
 
@@ -629,8 +626,14 @@ c0sk_close(struct c0sk *handle)
 void
 c0sk_lc_set(struct c0sk *handle, struct lc *lc)
 {
-    if (handle)
-        c0sk_h2r(handle)->c0sk_lc = lc;
+    struct c0sk_impl *self;
+
+    if (!handle)
+        return;
+
+    self = c0sk_h2r(handle);
+    self->c0sk_lc = lc;
+    atomic64_set(&self->c0sk_ingest_min, lc_ingest_seqno_get(lc));
 }
 
 struct lc *
@@ -639,10 +642,15 @@ c0sk_lc_get(struct c0sk *handle)
     return handle ? c0sk_h2r(handle)->c0sk_lc : NULL;
 }
 
-atomic64_t *
-c0sk_seqno_addr_get(struct c0sk *handle)
+u64
+c0sk_ingest_order_register(struct c0sk *handle)
 {
-    return handle ? c0sk_h2r(handle)->c0sk_kvdb_seq : 0;
+    struct c0sk_impl *self;
+
+    assert(handle);
+    self = c0sk_h2r(handle);
+
+    return atomic64_fetch_add(1, &self->c0sk_ingest_order_curr);
 }
 
 void
@@ -776,7 +784,7 @@ c0sk_sync(struct c0sk *handle)
 static void
 c0sk_cursor_debug_val(struct c0_cursor *cur, uintptr_t seqnoref, struct bonsai_kv *bkv);
 
-#define MSCUR_NEXT(_p) es2mscur(((_p)->c0mc_es.es_next_src))
+#define MSCUR_NEXT(_p)         es2mscur(((_p)->c0mc_es.es_next_src))
 #define MSCUR_SET_NEXT(_p, _q) ((_p)->c0mc_es.es_next_src = (void *)(_q))
 
 /*
@@ -1264,11 +1272,7 @@ c0sk_cursor_destroy(struct c0_cursor *cur)
 }
 
 merr_t
-c0sk_cursor_seek(
-    struct c0_cursor * cur,
-    const void *       seek,
-    size_t             seeklen,
-    struct kc_filter * filter)
+c0sk_cursor_seek(struct c0_cursor *cur, const void *seek, size_t seeklen, struct kc_filter *filter)
 {
     struct c0_kvmultiset_cursor *this;
 
@@ -1324,11 +1328,11 @@ c0sk_cursor_read(struct c0_cursor *cur, struct kvs_cursor_element *elem, bool *e
 {
     struct bonsai_kv *bkv, *dup;
     uintptr_t         seqnoref;
-    merr_t err;
+    merr_t            err;
 
     if (cur->c0cur_state != C0CUR_STATE_READY) {
-        const void * last = cur->c0cur_last_key;
-        int          len = cur->c0cur_keylen;
+        const void *last = cur->c0cur_last_key;
+        int         len = cur->c0cur_keylen;
 
         if (cur->c0cur_state & C0CUR_STATE_NEED_INIT)
             if (c0sk_cursor_init(cur))
@@ -1344,7 +1348,7 @@ c0sk_cursor_read(struct c0_cursor *cur, struct kvs_cursor_element *elem, bool *e
 
     while (bin_heap2_pop(cur->c0cur_bh, (void **)&bkv)) {
         struct key_immediate *imm = &bkv->bkv_key_imm;
-        struct bonsai_val    *val;
+        struct bonsai_val *   val;
         u32                   klen = key_imm_klen(imm);
         bool                  is_ptomb = bkv->bkv_flags & BKV_FLAG_PTOMB;
 
@@ -1366,9 +1370,8 @@ c0sk_cursor_read(struct c0_cursor *cur, struct kvs_cursor_element *elem, bool *e
 
         if (cur->c0cur_filter &&
             keycmp(
-                bkv->bkv_key, klen,
-                cur->c0cur_filter->kcf_maxkey,
-                cur->c0cur_filter->kcf_maxklen) > 0) {
+                bkv->bkv_key, klen, cur->c0cur_filter->kcf_maxkey, cur->c0cur_filter->kcf_maxklen) >
+                0) {
             /* eof */
             break;
         }
@@ -1383,8 +1386,8 @@ c0sk_cursor_read(struct c0_cursor *cur, struct kvs_cursor_element *elem, bool *e
         assert(!HSE_CORE_IS_PTOMB(val->bv_value) || is_ptomb);
 
         if (cur->c0cur_ptomb_key) {
-            if (keycmp_prefix(
-                    cur->c0cur_ptomb_key, cur->c0cur_ct_pfx_len, bkv->bkv_key, klen) == 0) {
+            if (keycmp_prefix(cur->c0cur_ptomb_key, cur->c0cur_ct_pfx_len, bkv->bkv_key, klen) ==
+                0) {
                 /* If this val is from txn kvms, do not compare
                  * seqnos.
                  */
@@ -1504,7 +1507,8 @@ c0sk_cursor_update_active(struct c0_cursor *cur)
         return;
 
     /* only need to update bin heap if new underlying sources */
-    if (c0kvms_cursor_update(active, cur->c0cur_last_key, cur->c0cur_keylen, cur->c0cur_ct_pfx_len)) {
+    if (c0kvms_cursor_update(
+            active, cur->c0cur_last_key, cur->c0cur_keylen, cur->c0cur_ct_pfx_len)) {
         /*
          * added a new source to active->c0mc_es
          * which might have the best new value
@@ -1525,18 +1529,15 @@ c0sk_cursor_update_active(struct c0_cursor *cur)
  * address this possibility as an edge case.
  */
 merr_t
-c0sk_cursor_update(
-    struct c0_cursor *       cur,
-    u64                      seqno,
-    u32 *                    flags_out)
+c0sk_cursor_update(struct c0_cursor *cur, u64 seqno, u32 *flags_out)
 {
     struct c0_kvmultiset *new[HSE_C0_KVSET_CURSOR_MAX];
     struct c0_kvmultiset *       kvms = NULL;
     struct c0_kvmultiset_cursor *active, *p;
     struct c0sk_impl *           c0sk;
-    int retries = 2, cnt, nact;
+    int                          retries = 2, cnt, nact;
 
-  retry:
+retry:
     if (flags_out)
         *flags_out = (seqno != cur->c0cur_seqno) ? CURSOR_FLAG_SEQNO_CHANGE : 0;
 
@@ -1628,8 +1629,11 @@ c0sk_cursor_update(
             if (retries-- > 0)
                 goto retry;
 
-            hse_log(HSE_WARNING "%s: cursor %p holding ref on ingested kvms %p",
-                    __func__, cur, active->c0mc_kvms);
+            hse_log(
+                HSE_WARNING "%s: cursor %p holding ref on ingested kvms %p",
+                __func__,
+                cur,
+                active->c0mc_kvms);
         }
     }
 
@@ -1643,14 +1647,8 @@ c0sk_cursor_update(
 
 /* GCOV_EXCL_START */
 
-HSE_USED HSE_COLD
-void
-c0sk_cursor_debug_base(
-    struct c0sk *handle,
-    u64          seqno,
-    const void  *prefix,
-    int          pfx_len,
-    int          skidx)
+HSE_USED HSE_COLD void
+c0sk_cursor_debug_base(struct c0sk *handle, u64 seqno, const void *prefix, int pfx_len, int skidx)
 {
     struct cursor_summary summary;
     struct c0_cursor *    cur;
@@ -1699,16 +1697,14 @@ c0sk_cursor_debug_base(
         return;
 }
 
-HSE_USED HSE_COLD
-void
+HSE_USED HSE_COLD void
 c0sk_cursor_debug(struct c0_cursor *cur)
 {
     c0sk_cursor_debug_base(
         cur->c0cur_c0sk, cur->c0cur_seqno, cur->c0cur_prefix, cur->c0cur_pfx_len, cur->c0cur_skidx);
 }
 
-HSE_USED HSE_COLD
-static void
+HSE_USED HSE_COLD static void
 c0sk_cursor_debug_val(struct c0_cursor *cur, uintptr_t seqnoref, struct bonsai_kv *bkv)
 {
     char buf[256];

@@ -5,6 +5,10 @@
 
 #include <hse_util/event_counter.h>
 #include <hse_util/bkv_collection.h>
+#include <hse_util/vlb.h>
+#include <hse_util/slab.h>
+
+static struct kmem_cache *bkv_collection_cache;
 
 struct bkv_collection_entry {
     struct bonsai_kv * bkv;
@@ -31,14 +35,14 @@ bkv_collection_create(
     size_t                 alloc_cnt = cnt;
     size_t                 sz;
 
-    bkvc = malloc(sizeof(*bkvc));
+    bkvc = kmem_cache_alloc(bkv_collection_cache);
     if (ev(!bkvc))
         return merr(ENOMEM);
 
     sz = (alloc_cnt * sizeof(*bkvc->bkvcol_entry));
-    bkvc->bkvcol_entry = malloc(sz);
+    bkvc->bkvcol_entry = vlb_alloc(sz);
     if (ev(!bkvc->bkvcol_entry)) {
-        free(bkvc);
+        kmem_cache_free(bkv_collection_cache, bkvc);
         return merr(ENOMEM);
     }
 
@@ -55,14 +59,14 @@ bkv_collection_create(
 void
 bkv_collection_destroy(struct bkv_collection *bkvc)
 {
-    free(bkvc->bkvcol_entry);
-    free(bkvc);
+    vlb_free(bkvc->bkvcol_entry, bkvc->bkvcol_cnt * sizeof(*bkvc->bkvcol_entry));
+    kmem_cache_free(bkv_collection_cache, bkvc);
 }
 
-void
-bkv_collection_reset(struct bkv_collection *bkvc)
+size_t
+bkv_collection_count(struct bkv_collection *bkvc)
 {
-    bkvc->bkvcol_cnt = 0;
+    return bkvc->bkvcol_cnt;
 }
 
 merr_t
@@ -72,15 +76,18 @@ bkv_collection_add(struct bkv_collection *bkvc, struct bonsai_kv *bkv, struct bo
 
     if (HSE_UNLIKELY(bkvc->bkvcol_cnt >= bkvc->bkvcol_cnt_max)) {
         void * mem;
-        size_t newsz;
+        size_t newsz, oldsz;
 
+        oldsz = bkvc->bkvcol_cnt_max * sizeof(*bkvc->bkvcol_entry);
         bkvc->bkvcol_cnt_max += bkvc->bkvcol_cnt_initial;
         newsz = bkvc->bkvcol_cnt_max * sizeof(*bkvc->bkvcol_entry);
 
-        mem = realloc(bkvc->bkvcol_entry, newsz);
+        mem = vlb_alloc(newsz);
         if (ev(!mem))
             return merr(ENOMEM);
 
+        memcpy(mem, bkvc->bkvcol_entry, oldsz);
+        vlb_free(bkvc->bkvcol_entry, oldsz);
         bkvc->bkvcol_entry = mem;
     }
 
@@ -117,3 +124,28 @@ bkv_collection_finish(struct bkv_collection *bkvc)
 
     return err;
 }
+
+/* Init/Fini
+ */
+merr_t
+bkv_collection_init(void)
+{
+    bkv_collection_cache = kmem_cache_create(
+        "bkv_collection",
+        sizeof(struct bkv_collection),
+        alignof(struct bkv_collection),
+        SLAB_PACKED,
+        NULL);
+
+    if (!bkv_collection_cache)
+        return merr(ENOMEM);
+
+    return 0;
+}
+
+void
+bkv_collection_fini(void)
+{
+    kmem_cache_destroy(bkv_collection_cache);
+}
+

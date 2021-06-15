@@ -21,7 +21,7 @@ struct c0_kvmultiset;
 struct csched;
 
 #define TOMBSPAN_INVALIDATE_COUNT 256
-#define c0sk_h2r(handle) container_of(handle, struct c0sk_impl, c0sk_handle)
+#define c0sk_h2r(handle)          container_of(handle, struct c0sk_impl, c0sk_handle)
 
 struct c0sk {
 };
@@ -80,6 +80,11 @@ struct c0sk_impl {
     s32                  c0sk_kvmultisets_cnt;
     size_t               c0sk_kvmultisets_sz;
     struct cds_list_head c0sk_kvmultisets;
+    atomic64_t           c0sk_ingest_order_curr;
+    atomic64_t           c0sk_ingest_order_next;
+    atomic64_t           c0sk_ingest_min;
+    atomic_t             c0sk_ingest_serialized_cnt;
+    atomic_t             c0sk_ingest_parallel_cnt;
     struct cv            c0sk_kvms_cv;
 
     struct list_head   c0sk_rcu_pending;
@@ -99,9 +104,9 @@ struct c0sk_impl {
     int      c0sk_nslpmin;
     u64      c0sk_release_gen;
 
-    atomic64_t *          c0sk_kvdb_seq;
-    bool                  c0sk_closing;
-    bool                  c0sk_syncing;
+    atomic64_t *c0sk_kvdb_seq;
+    bool        c0sk_closing;
+    bool        c0sk_syncing;
 
     HSE_ALIGNED(SMP_CACHE_BYTES) atomic64_t c0sk_c0ing_bldrs;
 

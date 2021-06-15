@@ -107,7 +107,8 @@ struct ingest_batch {
 /**
  * struct lc_gc - LC's Garbage collector object
  *
- * @lgc_dwork: Delayed work struct used for scheduling GC work
+ * @lgc_dwork:             Delayed work struct used for scheduling GC work
+ * @lgc_last_horizon_incl: Last seen horizon
  */
 struct lc_gc {
     struct delayed_work lgc_dwork;
@@ -487,6 +488,8 @@ lc_builder_destroy(struct lc_builder *lcb)
 merr_t
 lc_builder_add(struct lc_builder *lcb, struct bonsai_kv *bkv, struct bonsai_val *val_list)
 {
+    bkv->bkv_flags |= BKV_FLAG_FROM_LC;
+
     return bkv_collection_add((struct bkv_collection *)lcb, bkv, val_list);
 }
 
@@ -496,6 +499,10 @@ lc_builder_finish(struct lc_builder *lcb)
     struct bkv_collection *bkvc = (struct bkv_collection *)lcb;
     struct lc_impl *       self = bkv_collection_rock_get(bkvc);
     merr_t                 err;
+    size_t                 nentries = bkv_collection_count(bkvc);
+
+    if (!nentries)
+        return 0; /* Nothing to do */
 
     lc_wlock(self);
     rcu_read_lock();
@@ -1040,8 +1047,6 @@ lc_ingest_iterv_init(
     struct lc *             handle,
     struct lc_ingest_iter * iterv,
     struct element_source **srcv,
-    u64                     view_seq,
-    u64                     horizon_seq,
     uint *                  iter_cnt)
 {
     struct lc_impl *self;
@@ -1055,7 +1060,28 @@ lc_ingest_iterv_init(
     for (i = 0; i < self->lc_nsrc; i++) {
         struct bonsai_ingest_iter *iter = &iterv[i].lcing_iter;
 
-        srcv[i] = bonsai_ingest_iter_init(iter, &self->lc_broot[i], view_seq, horizon_seq);
+        srcv[i] = bonsai_ingest_iter_init(iter, &self->lc_broot[i]);
+    }
+}
+
+void
+lc_ingest_iterv_seqno_set(
+    struct lc *            handle,
+    struct lc_ingest_iter *iterv,
+    u64                    min_seqno,
+    u64                    max_seqno)
+{
+    struct lc_impl *self;
+    int             i;
+
+    if (!handle)
+        return;
+
+    self = lc_h2r(handle);
+    for (i = 0; i < self->lc_nsrc; i++) {
+        struct bonsai_ingest_iter *iter = &iterv[i].lcing_iter;
+
+        bonsai_ingest_iter_seqno_set(iter, min_seqno, max_seqno);
     }
 }
 

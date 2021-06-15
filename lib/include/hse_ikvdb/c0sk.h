@@ -83,8 +83,8 @@ struct lc *
 c0sk_lc_get(struct c0sk *self);
 
 /* MTF_MOCK */
-atomic64_t *
-c0sk_seqno_addr_get(struct c0sk *handle);
+u64
+c0sk_ingest_order_register(struct c0sk *self);
 
 /**
  * c0sk_throttle_sensor() - configure c0sk with a throttle sensor

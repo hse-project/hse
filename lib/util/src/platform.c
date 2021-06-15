@@ -15,6 +15,7 @@
 #include <hse_util/program_name.h>
 #include <hse_util/rest_api.h>
 #include <hse_util/slab.h>
+#include <hse_util/bkv_collection.h>
 
 #include <hse/hse_version.h>
 
@@ -390,6 +391,10 @@ hse_platform_init(void)
     if (err)
         goto errout;
 
+    err = bkv_collection_init();
+    if (err)
+        goto errout;
+
     rest_init();
     rest_url_register(0, 0, rest_dt_get, rest_dt_put, "data"); /* for dt */
     rest_url_register(0, 0, hse_cputopo_rest_get, NULL, "cputopo");
@@ -412,6 +417,7 @@ errout:
 void
 hse_platform_fini(void)
 {
+    bkv_collection_fini();
     rest_destroy();
     kmem_cache_fini();
     perfc_shutdown();

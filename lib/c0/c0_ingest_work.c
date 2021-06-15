@@ -51,9 +51,9 @@ c0_ingest_work_fini(struct c0_ingest_work *w)
         hse_log(
             HSE_WARNING "c0_ingest: gen %lu/%lu width %u/%u "
                         "keys %lu tombs %lu keykb %lu valkb %lu "
-                        "rcu %lu queue %lu bhprep %lu "
-                        "build %lu c0ingest %lu "
-                        "finwait %lu cningest %lu destroy %lu total %lu",
+                        "rcu %lu queue %lu bhprep+bldrs %lu "
+                        "merge_loop %lu lc_finish %lu "
+                        "cn_finish %lu bldr_destroy %lu serialize_wait %lu ingestv %lu total %lu",
             (ulong)w->gen,
             (ulong)w->gencur,
             w->c0iw_usage.u_count,
@@ -67,10 +67,11 @@ c0_ingest_work_fini(struct c0_ingest_work *w)
             (ulong)(w->t3 - w->t0) / 1000,
             (ulong)(w->t4 - w->t3) / 1000,
             (ulong)(w->t5 - w->t4) / 1000,
+            (ulong)(w->t6 - w->t5) / 1000,
             (ulong)(w->t7 - w->t6) / 1000,
             (ulong)(w->t8 - w->t7) / 1000,
             (ulong)(w->t9 - w->t8) / 1000,
-            (ulong)(w->t9 - w->t0) / 1000);
+            (ulong)(w->t10 - w->t0) / 1000);
     }
 
     /* GCOV_EXCL_STOP */

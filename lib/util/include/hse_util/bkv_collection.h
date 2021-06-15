@@ -22,13 +22,19 @@ bkv_collection_create(struct bkv_collection **collection, size_t cnt, bkv_collec
 void
 bkv_collection_destroy(struct bkv_collection *bkvc);
 
-void
-bkv_collection_reset(struct bkv_collection *bkvc);
+size_t
+bkv_collection_count(struct bkv_collection *bkvc);
 
 merr_t
 bkv_collection_add(struct bkv_collection *bkvc, struct bonsai_kv *bkv, struct bonsai_val *val_list);
 
 merr_t
 bkv_collection_finish(struct bkv_collection *bkvc);
+
+merr_t
+bkv_collection_init(void);
+
+void
+bkv_collection_fini(void);
 
 #endif

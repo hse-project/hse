@@ -762,6 +762,7 @@ c0kvms_ingest_work_prepare(struct c0_kvmultiset *handle, struct c0sk *c0sk)
 
     work->c0iw_c0kvms = handle;
     work->c0iw_c0sk = c0sk;
+    work->c0iw_ingest_order = c0sk_ingest_order_register(c0sk);
 
     source = work->c0iw_sourcev;
     iter = work->c0iw_iterv;

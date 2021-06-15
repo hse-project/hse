@@ -220,7 +220,7 @@ bonsai_ingest_iter_next(struct element_source *es, void **element)
          * horizon <= seqno <= view.
          *
          * But we can go a step further and treat entries from aborted and active txns as invalid
-         * (invalid for ingest). This will save some work for the ingest thread.
+         * (invalid for ingest) too. This will save some work for the ingest thread.
          */
         for (val = rcu_dereference(bkv->bkv_values); val; val = rcu_dereference(val->bv_next)) {
             u64                  seqno;
@@ -230,7 +230,7 @@ bonsai_ingest_iter_next(struct element_source *es, void **element)
             if (state != HSE_SQNREF_STATE_DEFINED)
                 continue;
 
-            if (seqno < iter->bii_horizon_seq || seqno > iter->bii_view_seq)
+            if (seqno < iter->bii_min_seqno || seqno > iter->bii_max_seqno)
                 continue;
 
             bkv->bkv_es = es;
@@ -248,17 +248,23 @@ bonsai_ingest_iter_next(struct element_source *es, void **element)
 struct element_source *
 bonsai_ingest_iter_init(
     struct bonsai_ingest_iter *iter,
-    struct bonsai_root **      root,
-    u64                        view_seq,
-    u64                        horizon_seq)
+    struct bonsai_root **      root)
 {
-    iter->bii_view_seq = view_seq;
-    iter->bii_horizon_seq = horizon_seq;
     iter->bii_root = root;
     iter->bii_es = es_make(bonsai_ingest_iter_next, 0, 0);
     iter->bii_kv = NULL;
 
     return &iter->bii_es;
+}
+
+void
+bonsai_ingest_iter_seqno_set(
+    struct bonsai_ingest_iter *iter,
+    u64                        min_seqno,
+    u64                        max_seqno)
+{
+    iter->bii_min_seqno = min_seqno;
+    iter->bii_max_seqno = max_seqno;
 }
 
 #if HSE_MOCKING
