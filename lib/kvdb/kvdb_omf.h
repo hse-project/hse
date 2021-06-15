@@ -10,7 +10,7 @@
 
 #include <hse/hse_limits.h>
 
-#define KVDB_OMF_REC_MAX PAGE_SIZE
+#define KVDB_OMF_REC_MAX (PAGE_SIZE * 2)
 
 enum {
     KVDB_LOG_MAGIC = 0xcafe2112,
@@ -19,6 +19,7 @@ enum {
 
     KVDB_LOG_TYPE_VERSION = 1,
     KVDB_LOG_TYPE_MDC = 2,
+    KVDB_LOG_TYPE_MCLASS = 3,
 };
 
 /* disposition
@@ -72,6 +73,16 @@ struct kvdb_log_mdc_omf {
     __le64                   mdc_old_oid2;
 } HSE_PACKED;
 
+struct kvdb_log_mclass_omf {
+    struct kvdb_log_hdr2_omf hdr;
+    __le32 mc_id;
+    __le32 mc_pathlen;
+    __le64 mc_rsvd1;
+    __le64 mc_rsvd2;
+    __le64 mc_rsvd3;
+    u8     mc_path[];
+} HSE_PACKED;
+
 OMF_SETGET(struct kvdb_log_hdr2_omf, hdr_type, 32);
 OMF_SETGET(struct kvdb_log_hdr2_omf, hdr_len, 32);
 
@@ -84,6 +95,13 @@ OMF_SETGET(struct kvdb_log_mdc_omf, mdc_id, 32);
 OMF_SETGET(struct kvdb_log_mdc_omf, mdc_new_oid1, 64);
 OMF_SETGET(struct kvdb_log_mdc_omf, mdc_new_oid2, 64);
 
+OMF_SETGET(struct kvdb_log_mclass_omf, mc_id, 32);
+OMF_SETGET(struct kvdb_log_mclass_omf, mc_pathlen, 32);
+OMF_SETGET(struct kvdb_log_mclass_omf, mc_rsvd1, 64);
+OMF_SETGET(struct kvdb_log_mclass_omf, mc_rsvd2, 64);
+OMF_SETGET(struct kvdb_log_mclass_omf, mc_rsvd3, 64);
+
+
 /** struct kvdb_kvmeta_omf() -
  * @kvmt_klen:
  * @kvmt_vlen:
@@ -95,4 +113,5 @@ struct kvdb_kvmeta_omf {
 
 OMF_SETGET(struct kvdb_kvmeta_omf, kvmt_klen, 64);
 OMF_SETGET(struct kvdb_kvmeta_omf, kvmt_vlen, 64);
+
 #endif /* HSE_KVDB_KVDB_OMF_H */

@@ -60,6 +60,34 @@ kvdb_log_mdx_dump(char *dir, union kvdb_mdu *mdp, size_t sz)
     }
 }
 
+void
+kvdb_log_mclass_dump(char *dir, struct kvdb_mclass *mclass, size_t sz)
+{
+    hse_log(HSE_DEBUG "%s,%s(%lu): mclass %d pathlen %d path %s",
+            __func__, dir, sz, mclass->mc_id - 1, mclass->mc_pathlen, mclass->mc_path);
+}
+
+size_t
+kvdb_log_mclass_to_omf(struct kvdb_mclass *mclass, struct kvdb_log_mclass_omf *omf)
+{
+    size_t sz;
+
+    sz = sizeof(*omf) + mclass->mc_pathlen;
+    memset(omf, 0, sz);
+    omf_set_hdr_type(&omf->hdr, mclass->mc_hdr.mdh_type);
+    omf_set_hdr_len(&omf->hdr, KVDB_LOG_OMF_LEN(sz));
+    omf_set_mc_id(omf, mclass->mc_id);
+    omf_set_mc_pathlen(omf, mclass->mc_pathlen);
+    omf_set_mc_rsvd1(omf, 0);
+    omf_set_mc_rsvd2(omf, 0);
+    omf_set_mc_rsvd3(omf, 0);
+    memcpy(omf->mc_path, mclass->mc_path, mclass->mc_pathlen);
+
+    kvdb_log_mclass_dump("write", mclass, sz);
+
+    return sz;
+}
+
 /* PRIVATE */
 size_t
 kvdb_log_mdx_to_omf(struct kvdb_log_hdr2_omf *omf, union kvdb_mdu *mdp)
@@ -242,6 +270,24 @@ kvdb_log_rollforward(struct kvdb_log *log, union kvdb_mdu *mdp)
 }
 
 merr_t
+kvdb_log_omf_to_mclass(struct kvdb_log_mclass_omf *omf, struct kvdb_mclass *mclass, u32 serial)
+{
+    size_t sz = omf_hdr_len(&omf->hdr) + sizeof(omf->hdr);
+
+    memset(mclass, 0, sizeof(*mclass));
+    mclass->mc_hdr.mdh_type = omf_hdr_type(&omf->hdr);
+    mclass->mc_hdr.mdh_serial = serial;
+
+    mclass->mc_id = omf_mc_id(omf);
+    mclass->mc_pathlen = omf_mc_pathlen(omf);
+    memcpy(mclass->mc_path, omf->mc_path, mclass->mc_pathlen);
+
+    kvdb_log_mclass_dump("read", mclass, sz);
+
+    return 0;
+}
+
+merr_t
 kvdb_log_omf_to_mdx(union kvdb_mdu *mdp, struct kvdb_log_hdr2_omf *omf, u32 serial)
 {
     size_t sz = omf_hdr_len(omf) + sizeof(*omf);
@@ -268,6 +314,12 @@ kvdb_log_omf_to_mdx(union kvdb_mdu *mdp, struct kvdb_log_hdr2_omf *omf, u32 seri
 
     kvdb_log_mdx_dump("read", mdp, sz);
     return 0;
+}
+
+uint
+kvdb_log_hdr_type(void *buf)
+{
+    return omf_hdr_type(buf);
 }
 
 merr_t
@@ -310,18 +362,35 @@ kvdb_log_replay(
     while (!err) {
         union kvdb_mdu *mdp;
         size_t          len;
+        void           *buf = log->kl_buf;
+        enum mpool_mclass mc;
 
-        err = mpool_mdc_read(log->kl_mdc, log->kl_buf, sizeof(log->kl_buf), &len);
+        err = mpool_mdc_read(log->kl_mdc, buf, sizeof(log->kl_buf), &len);
         if (len == 0 || ev(err))
             break;
 
-        mdp = table_append(log->kl_work);
-        if (!mdp)
-            goto out;
+        switch (kvdb_log_hdr_type(buf)) {
+            case KVDB_LOG_TYPE_MCLASS:
+                mc = omf_mc_id(buf) - 1;
+                err = kvdb_log_omf_to_mclass(buf, &log->kl_mc[mc], log->kl_serial++);
+                if (err)
+                    goto out;
+                break;
 
-        err = kvdb_log_omf_to_mdx(mdp, (void *)log->kl_buf, log->kl_serial++);
-        if (ev(err))
-            goto out;
+            case KVDB_LOG_TYPE_MDC:
+                mdp = table_append(log->kl_work);
+                if (!mdp)
+                    goto out;
+
+                err = kvdb_log_omf_to_mdx(mdp, buf, log->kl_serial++);
+                if (ev(err))
+                    goto out;
+                break;
+
+            default:
+                err = merr(EPROTO);
+                goto out;
+        }
     }
 
     if (ev(err && merr_errno(err) != ENOMSG))
@@ -369,10 +438,11 @@ out:
 }
 
 merr_t
-kvdb_log_make(struct kvdb_log *log, u64 captgt)
+kvdb_log_make(struct kvdb_log *log, u64 captgt, const char *mcpathv[MP_MED_COUNT])
 {
     merr_t                   err;
     struct kvdb_log_ver4_omf ver = {};
+    struct kvdb_log_mclass_omf *mcomf = NULL;
 
     if (!log)
         return merr(ev(EINVAL));
@@ -389,6 +459,49 @@ kvdb_log_make(struct kvdb_log *log, u64 captgt)
 
     log->kl_captgt = captgt;
     log->kl_highwater = KVDB_LOG_HIGH_WATER(log);
+
+    if (!mcpathv)
+        return 0;
+
+    mcomf = calloc(1, sizeof(*mcomf) + PATH_MAX);
+    if (!mcomf)
+        return merr(ENOMEM);
+
+    for (enum mpool_mclass mc = MP_MED_BASE; mc < MP_MED_COUNT; mc++) {
+        struct kvdb_mclass *mclass;
+        uint pathlen;
+        size_t mcsz;
+
+        mclass = &log->kl_mc[mc];
+
+        mclass->mc_pathlen = 0;
+
+        if (!mcpathv[mc] || mcpathv[mc][0] == '\0')
+            continue;
+
+        pathlen = strlen(mcpathv[mc]) + 1;
+        mcsz = sizeof(*mcomf) + pathlen;
+
+        omf_set_hdr_type(&mcomf->hdr, KVDB_LOG_TYPE_MCLASS);
+        omf_set_hdr_len(&mcomf->hdr, KVDB_LOG_OMF_LEN(mcsz));
+        omf_set_mc_id(mcomf, mc + 1);
+        omf_set_mc_pathlen(mcomf, pathlen);
+        omf_set_mc_rsvd1(mcomf, 0);
+        omf_set_mc_rsvd2(mcomf, 0);
+        omf_set_mc_rsvd3(mcomf, 0);
+        memcpy(mcomf->mc_path, mcpathv[mc], pathlen);
+
+        err = mpool_mdc_append(log->kl_mdc, mcomf, mcsz, true);
+        if (ev(err)) {
+            free(mcomf);
+            return err;
+        }
+
+        mclass->mc_pathlen = pathlen;
+        strlcpy(mclass->mc_path, mcpathv[mc], sizeof(mclass->mc_path));
+    }
+
+    free(mcomf);
 
     return 0;
 }
@@ -514,6 +627,22 @@ kvdb_log_rollover(struct kvdb_log *log)
     err = mpool_mdc_append(log->kl_mdc, log->kl_buf, sz, false);
     if (ev(err))
         goto out;
+
+    for (enum mpool_mclass mc = MP_MED_BASE; mc < MP_MED_COUNT; mc++) {
+        struct kvdb_mclass *mclass;
+
+        mclass = &log->kl_mc[mc];
+        if (mclass->mc_pathlen  == 0)
+            continue;
+
+        sz = sizeof(struct kvdb_log_mclass_omf) + mclass->mc_pathlen;
+        memset(log->kl_buf, 0, sz);
+        kvdb_log_mclass_to_omf(mclass, (void *)log->kl_buf);
+
+        err = mpool_mdc_append(log->kl_mdc, log->kl_buf, sz, false);
+        if (ev(err))
+            goto out;
+    }
 
     if (log->kl_cndb_oid1 && log->kl_cndb_oid2) {
         sz = sizeof(struct kvdb_log_mdc_omf);

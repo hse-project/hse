@@ -26,10 +26,10 @@
  */
 struct kvdb_cparams {
     size_t        dur_capacity;
-    u32           storage_fmaxsz;
-    u16           storage_mbsz;
-    u8            storage_fcnt;
-    char          storage_path[PATH_MAX];
+    u32           capacity_fmaxsz;
+    u16           capacity_mbsz;
+    u8            capacity_fcnt;
+    char          capacity_path[PATH_MAX];
     u32           staging_fmaxsz;
     u16           staging_mbsz;
     u8            staging_fcnt;

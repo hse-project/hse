@@ -267,6 +267,7 @@ ikvdb_make(
     u64                 cndb_o1, cndb_o2;
     u64                 cndb_captgt;
     struct kvdb_log_tx *tx = NULL;
+    const char *mcpathv[MP_MED_COUNT] = {0};
 
     cndb_o1 = 0;
     cndb_o2 = 0;
@@ -275,7 +276,15 @@ ikvdb_make(
     if (ev(err))
         goto out;
 
-    err = kvdb_log_make(log, captgt);
+    if (cparams) {
+        if (cparams->capacity_path[0] != '\0')
+            mcpathv[MP_MED_CAPACITY] = cparams->capacity_path;
+
+        if (cparams->staging_path[0] != '\0')
+            mcpathv[MP_MED_STAGING] = cparams->staging_path;
+    }
+
+    err = kvdb_log_make(log, captgt, mcpathv);
     if (ev(err))
         goto out;
 

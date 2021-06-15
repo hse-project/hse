@@ -15,6 +15,7 @@
 #include <hse_util/event_counter.h>
 
 #include <hse/hse.h>
+#include <mpool/mpool_structs.h>
 
 #include <hse_ikvdb/../../kvdb/kvdb_omf.h>
 
@@ -26,6 +27,18 @@
 struct kvdb_kvs;
 struct mpool;
 struct mpool_mdc;
+
+struct kvdb_mdh {
+    u32 mdh_type;
+    u32 mdh_serial; /* order in which records appeared in log */
+};
+
+struct kvdb_mclass {
+    struct kvdb_mdh mc_hdr;
+    u32             mc_id;
+    u32             mc_pathlen;
+    char            mc_path[PATH_MAX];
+};
 
 struct kvdb_log {
     struct mpool_mdc *kl_mdc; /* our MDC */
@@ -39,13 +52,10 @@ struct kvdb_log {
     u64               kl_cndb_oid2;
     bool              kl_rdonly;
 
+    struct kvdb_mclass kl_mc[MP_MED_COUNT];
+
     /* buffering MDC I/O -- NB: cannot mix reads and writes */
     unsigned char kl_buf[KVDB_OMF_REC_MAX];
-};
-
-struct kvdb_mdh {
-    u32 mdh_type;
-    u32 mdh_serial; /* order in which records appeared in log */
 };
 
 struct kvdb_mdv {
@@ -98,7 +108,7 @@ kvdb_log_usage(struct kvdb_log *log, uint64_t *allocated, uint64_t *used);
 
 /* MTF_MOCK */
 merr_t
-kvdb_log_make(struct kvdb_log *log, u64 captgt);
+kvdb_log_make(struct kvdb_log *log, u64 captgt, const char *mcpathv[MP_MED_COUNT]);
 
 /* MTF_MOCK */
 merr_t
