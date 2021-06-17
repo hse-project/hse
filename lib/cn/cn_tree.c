@@ -2578,8 +2578,7 @@ cn_tree_cursor_read(struct cn_cursor *cur, struct kvs_cursor_element *elem, bool
 
         if (HSE_CORE_IS_PTOMB(vdata) &&
             (!cur->pt_set || key_obj_cmp(&cur->pt_kobj, &item.kobj) != 0)) {
-            /* only store ptomb w/ highest seqno (less than cur's
-             * seqno)
+            /* only store ptomb w/ highest seqno (less than cur's seqno)
              * i.e. first occurrence of this ptomb
              */
             assert(cur->ct_pfx_len > 0);
@@ -2618,7 +2617,8 @@ cn_tree_cursor_read(struct cn_cursor *cur, struct kvs_cursor_element *elem, bool
     elem->kce_kobj = item.kobj;
     kvs_vtuple_init(&elem->kce_vt, (void *)vdata, vlen);
     elem->kce_complen = complen;
-    elem->kce_is_ptomb = false;
+    elem->kce_is_ptomb = false; /* cn never returns a ptomb */
+    elem->kce_seqnoref = HSE_ORDNL_TO_SQNREF(seq);
 
     cur->stats.ms_keys_out++;
     cur->stats.ms_key_bytes_out += key_obj_len(&item.kobj);

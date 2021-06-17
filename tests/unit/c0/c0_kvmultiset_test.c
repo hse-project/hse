@@ -37,6 +37,8 @@ no_fail_pre(struct mtf_test_info *info)
 {
     mapi_inject(mapi_idx_c0sk_ingest_order_register, 0);
     mapi_inject(mapi_idx_lc_ingest_seqno_get, 0);
+    mapi_inject(mapi_idx_c0sk_min_seqno_get, 0);
+    mapi_inject(mapi_idx_c0sk_min_seqno_set, 0);
     return 0;
 }
 
@@ -259,11 +261,8 @@ MTF_DEFINE_UTEST_PREPOST(c0_kvmultiset_test, ingest_sk, no_fail_pre, no_fail_pos
 
     c0skwork = c0kvms_ingest_work_prepare(kvms, NULL);
 
-    bin_heap2_create(c0skwork->c0iw_iterc, bn_kv_cmp, &bh);
-    bin_heap2_prepare(
-        bh,
-        c0skwork->c0iw_iterc,
-        c0skwork->c0iw_sourcev);
+    bin_heap2_create(c0skwork->c0iw_kvms_iterc, bn_kv_cmp, &bh);
+    bin_heap2_prepare(bh, c0skwork->c0iw_kvms_iterc, c0skwork->c0iw_kvms_sourcev);
 
     while (bin_heap2_pop(bh, (void *)&bkv)) {
         struct kvs_ktuple  kt;

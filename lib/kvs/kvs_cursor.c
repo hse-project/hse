@@ -159,6 +159,7 @@ struct kvs_cursor_impl {
     void *             kci_limit;
 
     struct kvs_cursor_element  kci_elem_last;
+    struct kvs_cursor_element  kci_ptomb;
     struct key_obj             kci_last_kobj;
     struct key_obj *           kci_last;
     u8 *                       kci_last_kbuf;
@@ -168,6 +169,7 @@ struct kvs_cursor_impl {
     u32 kci_need_toss : 1;
     u32 kci_need_seek : 1;
     u32 kci_reverse : 1;
+    u32 kci_ptomb_set : 1;
 
     u32    kci_pfxlen;
     u64    kci_pfxhash;
@@ -561,6 +563,7 @@ ikvs_cursor_reset(struct kvs_cursor_impl *cursor)
     cursor->kci_need_seek = 0;
     cursor->kci_need_toss = 1;
     cursor->kci_eof = 0;
+    cursor->kci_ptomb_set = 0;
 
     cursor->kci_cc_pc = NULL;
     cursor->kci_cd_pc = NULL;
@@ -587,18 +590,6 @@ ikvs_cursor_restore(struct ikvs *kvs, const void *prefix, size_t pfx_len, u64 pf
     if (!cur) {
         PERFC_INC_RU(&kvs->ikv_cc_pc, PERFC_RA_CC_MISS);
         return NULL;
-    }
-
-    if (cur->kci_c0cur) {
-        struct c0_cursor *c0cur = cur->kci_c0cur;
-        merr_t            err;
-
-        err = c0_cursor_restore(c0cur);
-        if (ev(err)) {
-            perfc_inc(&kvs->ikv_cc_pc, PERFC_RA_CC_RESTFAIL);
-            kvs_cursor_destroy(&cur->kci_handle);
-            return NULL;
-        }
     }
 
     perfc_lat_record(&kvs->ikv_cd_pc, PERFC_LT_CD_RESTORE, tstart);
@@ -1028,8 +1019,8 @@ kvs_cursor_update(struct hse_kvs_cursor *handle, struct kvdb_ctxn *ctxn, u64 seq
         perfc_inc(cursor->kci_cc_pc, PERFC_BA_CC_UPDATED_C0);
 
     /* Update lc cursor */
-    cursor->kci_err = lc_cursor_update(
-        cursor->kci_lccur, cursor->kci_last_kbuf, cursor->kci_last_klen, seqno);
+    cursor->kci_err =
+        lc_cursor_update(cursor->kci_lccur, cursor->kci_last_kbuf, cursor->kci_last_klen, seqno);
     if (ev(cursor->kci_err))
         return cursor->kci_err;
 
@@ -1063,29 +1054,34 @@ kvs_cursor_update(struct hse_kvs_cursor *handle, struct kvdb_ctxn *ctxn, u64 seq
     return 0;
 }
 
-static void
-ikvs_cursor_prefixes_drop(struct kvs_cursor_impl *cursor, struct key_obj *pt_kobj)
+static bool
+ikvs_cursor_should_drop(struct kvs_cursor_element *item, struct kvs_cursor_element *pt)
 {
-    bool eof = false;
-    int  pt_src = cursor->kci_elem_last.kce_source;
+    u64                  pt_seqno = 0, elem_seqno = 0;
+    enum hse_seqno_state pt_state, elem_state;
 
-    while (!eof) {
-        struct kvs_cursor_element *item;
-        int                        rc;
+    pt_state = seqnoref_to_seqno(pt->kce_seqnoref, &pt_seqno);
+    elem_state = seqnoref_to_seqno(item->kce_seqnoref, &elem_seqno);
 
-        eof = !bin_heap2_peek(cursor->kci_bh, (void **)&item);
-        if (eof)
-            return;
+    if (pt_state == HSE_SQNREF_STATE_UNDEFINED) {
+        if (elem_state == HSE_SQNREF_STATE_UNDEFINED) {
+            /* If item and pt are from active txns, they must belong to the same txn. */
+            assert(pt->kce_seqnoref == item->kce_seqnoref);
+            return false;
+        }
 
-        if (item->kce_source == pt_src)
-            return;
+        /* item is in defined state and ptomb is from txn, skip item */
 
-        rc = key_obj_cmp_prefix(pt_kobj, &item->kce_kobj);
-        if (rc)
-            return; /* prefix mismatch */
+    } else {
+        assert(pt_state == HSE_SQNREF_STATE_DEFINED);
+        if (elem_state == HSE_SQNREF_STATE_UNDEFINED)
+            return false;
 
-        bin_heap2_pop(cursor->kci_bh, (void **)&item);
+        if (pt_seqno <= elem_seqno)
+            return false;
     }
+
+    return true;
 }
 
 merr_t
@@ -1115,11 +1111,23 @@ ikvs_cursor_replenish(struct kvs_cursor_impl *cursor)
         /* discard current kv-tuple */
         bin_heap2_pop(cursor->kci_bh, (void **)&popme);
 
-        if (is_ptomb) {
-            struct key_obj pt_kobj;
+        if (cursor->kci_ptomb_set) {
+            int rc;
 
-            pt_kobj = cursor->kci_last_kobj;
-            ikvs_cursor_prefixes_drop(cursor, &pt_kobj);
+            rc = key_obj_cmp_prefix(&cursor->kci_ptomb.kce_kobj, &cursor->kci_last_kobj);
+            if (rc == 0) {
+                if (ikvs_cursor_should_drop(&cursor->kci_elem_last, &cursor->kci_ptomb)) {
+                    is_tomb = true;
+                    continue;
+                }
+            } else {
+                cursor->kci_ptomb_set = 0;
+            }
+        }
+
+        if (is_ptomb) {
+            cursor->kci_ptomb = cursor->kci_elem_last;
+            cursor->kci_ptomb_set = 1;
         } else {
             /* drop dups */
             while (bin_heap2_peek(cursor->kci_bh, (void **)&item)) {
@@ -1317,6 +1325,15 @@ kvs_cursor_seek(
     cursor->kci_need_seek = 0;
 
     if (cursor->kci_eof || ev(cursor->kci_err)) {
+        /* If this seek caused the cursor to land on eof, store this key so the cursor remains positionally stable
+         */
+        if (cursor->kci_eof) {
+            cursor->kci_last_klen = len;
+            memcpy(cursor->kci_last_kbuf, key, len);
+            key2kobj(&cursor->kci_last_kobj, cursor->kci_last_kbuf, cursor->kci_last_klen);
+            cursor->kci_last = &cursor->kci_last_kobj;
+        }
+
         if (kt)
             kt->kt_len = 0;
         return cursor->kci_err;

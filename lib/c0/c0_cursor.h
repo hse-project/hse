@@ -37,8 +37,7 @@ struct c0_kvmultiset_cursor {
 enum c0cur_state {
     C0CUR_STATE_READY = 0x00,
     C0CUR_STATE_NEED_INIT = 0x01,
-    C0CUR_STATE_NEED_SEEK = 0x02,
-    C0CUR_STATE_NEED_DISC = 0x04,
+    C0CUR_STATE_NEED_DISC = 0x02,
     C0CUR_STATE_NEED_ALL = C0CUR_STATE_NEED_DISC | C0CUR_STATE_NEED_INIT,
 };
 
@@ -92,8 +91,6 @@ struct c0_cursor {
     int                          c0cur_skidx;
     u32                          c0cur_ct_pfx_len;
     int                          c0cur_pfx_len;
-    const void                  *c0cur_last_key;
-    int                          c0cur_keylen;
     int                          c0cur_cnt;
     const void *                 c0cur_prefix;
     struct kvdb_ctxn *           c0cur_ctxn;

@@ -60,7 +60,7 @@ bonsai_iter_es_make(struct bonsai_iter *iter);
 /* Iterator for ingesting - a simpler iterator than the cursor's */
 struct bonsai_ingest_iter {
     struct element_source bii_es;
-    struct bonsai_root ** bii_root;
+    struct bonsai_root ** bii_rootp;
     struct bonsai_kv *    bii_kv;
     u64                   bii_min_seqno;
     u64                   bii_max_seqno;
@@ -69,13 +69,9 @@ struct bonsai_ingest_iter {
 struct element_source *
 bonsai_ingest_iter_init(
     struct bonsai_ingest_iter *iter,
-    struct bonsai_root **      root);
-
-void
-bonsai_ingest_iter_seqno_set(
-    struct bonsai_ingest_iter *iter,
     u64                        min_seqno,
-    u64                        max_seqno);
+    u64                        max_seqno,
+    struct bonsai_root **      rootp);
 
 #if HSE_MOCKING
 #include "bonsai_iter_ut.h"

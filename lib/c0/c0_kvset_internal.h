@@ -73,6 +73,7 @@ c0kvs_pfx_probe_cmn(
     struct query_ctx *       qctx,
     struct kvs_buf *         kbuf,
     struct kvs_buf *         vbuf,
-    u64                      pt_seq);
+    u64                      pt_seq,
+    u64                      max_seq);
 
 #endif

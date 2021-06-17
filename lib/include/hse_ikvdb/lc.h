@@ -159,11 +159,14 @@ struct lc_ingest_iter {
 };
 
 /**
- * lc_ingest_iterv_init() - Initialize iterators for LC
+ * lc_ingest_iterv_init() - Initialize iterators for LC so it returns a bkv only if it has at
+ *                          least one value with an ordinal seqno in the range [%min_seq, %max_seq]
  *
  * @lc:          Handle to the LC object
  * @iterv:       Vector of iterators
  * @srcv:        Vector of element sources
+ * @min_seq:     Min seqno of the ingest's view
+ * @max_seq:     Max seqno of the ingest's view
  * @iter_cnt:    (output) Number of iterators initialized
  */
 /* MTF_MOCK */
@@ -172,15 +175,9 @@ lc_ingest_iterv_init(
     struct lc *             lc,
     struct lc_ingest_iter * iterv,
     struct element_source **srcv,
+    u64                     min_seq,
+    u64                     max_seq,
     uint *                  iter_cnt);
-
-/* MTF_MOCK */
-void
-lc_ingest_iterv_seqno_set(
-    struct lc *            handle,
-    struct lc_ingest_iter *iterv,
-    u64                    min_seqno,
-    u64                    max_seqno);
 
 /* MTF_MOCK */
 merr_t

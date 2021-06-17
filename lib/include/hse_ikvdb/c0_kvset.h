@@ -285,6 +285,7 @@ c0kvs_prefix_get_rcu(
     u16                      skidx,
     const struct kvs_ktuple *key,
     u64                      view_seqno,
+    uintptr_t                seqnoref,
     u32                      pfx_len,
     uintptr_t *              oseqnoref);
 
@@ -294,6 +295,7 @@ c0kvs_prefix_get_excl(
     u16                      skidx,
     const struct kvs_ktuple *key,
     u64                      view_seqno,
+    uintptr_t                seqnoref,
     u32                      pfx_len,
     uintptr_t *              oseqnoref);
 
@@ -311,9 +313,6 @@ struct bonsai_kv;
 
 struct bonsai_val *
 c0kvs_findval(struct bonsai_kv *kv, u64 view_seqno, uintptr_t seqnoref);
-
-struct bonsai_val *
-c0kvs_findpfxval(struct bonsai_kv *kv, uintptr_t seqnoref);
 
 /**
  * c0kvs_get_content_metrics() - retrieve metrics for the struct c0_kvset

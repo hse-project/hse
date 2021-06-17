@@ -3,6 +3,8 @@
  * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
+#define MTF_MOCK_IMPL_kvdb_ctxn
+
 #include <hse_util/arch.h>
 #include <hse_util/assert.h>
 #include <hse_util/alloc.h>
@@ -934,3 +936,7 @@ kvdb_ctxn_unlock(struct kvdb_ctxn *handle)
     assert(handle);
     ctxn_unlock(kvdb_ctxn_h2r(handle));
 }
+
+#if HSE_MOCKING
+#include "kvdb_ctxn_ut_impl.i"
+#endif /* HSE_MOCKING */

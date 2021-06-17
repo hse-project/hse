@@ -120,6 +120,7 @@ struct lc_gc {
  * @lc_handle:        lc handle
  * @lc_mutex:         mutex protecting updates to the bonsai trees
  * @lc_nsrc:          number of bonsai trees
+ * @lc_closing:       if true, lc is being destroyed as part of close.
  * @lc_broot:         array of bonsai tree roots
  * @lc_gc:            lc's garbage collector
  * @lc_ib_rmlock:     reader/writer lock for the ingest batch list
@@ -255,12 +256,16 @@ lc_ior_cb(
     uintptr_t seqnoref;
     u64       seqno = 0;
 
+    kv->bkv_flags |= BKV_FLAG_FROM_LC;
+
     if (IS_IOR_INS(*code)) {
         struct bonsai_val *val;
 
         assert(new_val == NULL);
 
         val = rcu_dereference(kv->bkv_values);
+        if (HSE_CORE_IS_PTOMB(val->bv_value))
+            kv->bkv_flags |= BKV_FLAG_PTOMB;
 
         seqnoref = val->bv_seqnoref;
         state = seqnoref_to_seqno(seqnoref, &seqno);
@@ -273,6 +278,9 @@ lc_ior_cb(
         assert(state != HSE_SQNREF_STATE_SINGLE);
         return;
     }
+
+    if (HSE_CORE_IS_PTOMB(new_val->bv_value))
+        kv->bkv_flags |= BKV_FLAG_PTOMB;
 
     assert(IS_IOR_REPORADD(*code));
 
@@ -365,10 +373,10 @@ lc_create(struct lc **handle)
         goto err_exit;
     }
 
+    atomic_set(&self->lc_closing, 0);
     rmlock_init(&self->lc_ib_rmlock);
     mutex_init(&self->lc_mutex);
 
-    atomic_set(&self->lc_closing, 0);
     lc_gc_worker_start(self);
 
     *handle = lc_r2h(self);
@@ -399,10 +407,9 @@ lc_destroy(struct lc *handle)
 
     self = lc_h2r(handle);
 
-    atomic_set(&self->lc_closing, 1);
-    while (!cancel_delayed_work(&self->lc_gc.lgc_dwork))
-        usleep(1000);
-    flush_workqueue(self->lc_gc_wq);
+    atomic_set(&self->lc_closing, 1);            /* Don't enqueue more gc threads */
+    cancel_delayed_work(&self->lc_gc.lgc_dwork); /* Cancel any delayed work that may be enqueued */
+    flush_workqueue(self->lc_gc_wq);             /* Wait for any ongoing GC worker to finish */
     destroy_workqueue(self->lc_gc_wq);
 
     mutex_destroy(&self->lc_mutex);
@@ -488,8 +495,6 @@ lc_builder_destroy(struct lc_builder *lcb)
 merr_t
 lc_builder_add(struct lc_builder *lcb, struct bonsai_kv *bkv, struct bonsai_val *val_list)
 {
-    bkv->bkv_flags |= BKV_FLAG_FROM_LC;
-
     return bkv_collection_add((struct bkv_collection *)lcb, bkv, val_list);
 }
 
@@ -499,15 +504,14 @@ lc_builder_finish(struct lc_builder *lcb)
     struct bkv_collection *bkvc = (struct bkv_collection *)lcb;
     struct lc_impl *       self = bkv_collection_rock_get(bkvc);
     merr_t                 err;
-    size_t                 nentries = bkv_collection_count(bkvc);
 
-    if (!nentries)
+    if (!bkv_collection_count(bkvc))
         return 0; /* Nothing to do */
 
     lc_wlock(self);
     rcu_read_lock();
 
-    err = bkv_collection_finish((struct bkv_collection *)lcb);
+    err = bkv_collection_apply(bkvc);
 
     rcu_read_unlock();
     lc_wunlock(self);
@@ -516,13 +520,17 @@ lc_builder_finish(struct lc_builder *lcb)
 }
 
 static void
-lc_get_pfx(struct lc_impl *self, struct bonsai_skey *skey, u64 view_seqno, uintptr_t *oseqnoref)
+lc_get_pfx(
+    struct lc_impl *    self,
+    struct bonsai_skey *skey,
+    u64                 view_seqno,
+    uintptr_t           seqnoref,
+    uintptr_t *         oseqnoref)
 {
     struct bonsai_val * val;
     struct bonsai_kv *  kv = NULL;
     bool                found;
     struct bonsai_root *root = rcu_dereference(self->lc_broot[0]);
-    uintptr_t           view_seqnoref;
 
     *oseqnoref = HSE_ORDNL_TO_SQNREF(0);
 
@@ -530,10 +538,9 @@ lc_get_pfx(struct lc_impl *self, struct bonsai_skey *skey, u64 view_seqno, uintp
     if (!found)
         return;
 
-    view_seqnoref = HSE_ORDNL_TO_SQNREF(view_seqno);
-    val = c0kvs_findpfxval(kv, view_seqnoref);
+    val = c0kvs_findval(kv, view_seqno, seqnoref);
     if (val) {
-        assert(val->bv_value == HSE_CORE_TOMB_PFX);
+        assert(HSE_CORE_IS_PTOMB(val->bv_value));
         *oseqnoref = val->bv_seqnoref;
     }
 }
@@ -571,12 +578,7 @@ lc_get_main(
     *val_out = val;
     *oseqnoref = val->bv_seqnoref;
 
-    if (HSE_CORE_IS_TOMB(val->bv_value)) {
-        *res = FOUND_TMB;
-        return;
-    }
-
-    *res = FOUND_VAL;
+    *res = HSE_CORE_IS_TOMB(val->bv_value) ? FOUND_TMB : FOUND_VAL;
 }
 
 static merr_t
@@ -615,6 +617,24 @@ copy_val(struct kvs_buf *vbuf, struct bonsai_val *val)
     return 0;
 }
 
+static u64
+get_seqno(uintptr_t seqnoref)
+{
+    enum hse_seqno_state state;
+    u64                  seq;
+
+    state = seqnoref_to_seqno(seqnoref, &seq);
+    assert(state == HSE_SQNREF_STATE_UNDEFINED || state == HSE_SQNREF_STATE_DEFINED);
+
+    /* The seqnoref passed in is from c0kvs_findval() which returns an undefined seqnoref only if
+     * it matches the current transaction.
+     */
+    if (state == HSE_SQNREF_STATE_UNDEFINED)
+        seq = UINT64_MAX;
+
+    return seq;
+}
+
 merr_t
 lc_get(
     struct lc *              handle,
@@ -630,43 +650,53 @@ lc_get(
     struct bonsai_val *val = NULL;
     struct bonsai_skey skey;
     merr_t             err = 0;
-    u64                ptomb_seq, val_seq;
-    uintptr_t          seqref = 0;
+    u64                pt_seq, val_seq;
+    uintptr_t          oseqnoref = 0;
 
     assert(handle);
 
     self = lc_h2r(handle);
 
     bn_skey_init(kt->kt_data, kt->kt_len, 0, skidx, &skey);
-    val_seq = ptomb_seq = 0;
+    val_seq = pt_seq = 0;
 
     rcu_read_lock();
     if (pfxlen && pfxlen <= kt->kt_len) {
         struct bonsai_skey pfx_skey;
 
-        seqref = 0;
-
         bn_skey_init(kt->kt_data, pfxlen, 0, skidx, &pfx_skey);
-        lc_get_pfx(self, &pfx_skey, view_seqno, &seqref);
-        ptomb_seq = HSE_SQNREF_TO_ORDNL(seqref);
+        lc_get_pfx(self, &pfx_skey, view_seqno, seqnoref, &oseqnoref);
+        pt_seq = get_seqno(oseqnoref);
     }
 
-    lc_get_main(self, &skey, view_seqno, seqnoref, res, &val, &seqref);
+    lc_get_main(self, &skey, view_seqno, seqnoref, res, &val, &oseqnoref);
+    if (val)
+        val_seq = get_seqno(oseqnoref);
 
-    val_seq = HSE_SQNREF_TO_ORDNL(seqref);
-
-    if (ptomb_seq > val_seq)
+    /* Return value only if it has not yet been ingested */
+    if (pt_seq > val_seq) {
         *res = FOUND_PTMB;
-
-    if (*res == FOUND_TMB || *res == FOUND_PTMB)
         vbuf->b_len = 0;
 
-    if (*res == FOUND_VAL)
+        if (pt_seq < lc_ib_head_seqno(self))
+            goto not_found;
+    } else {
+        if (val_seq < lc_ib_head_seqno(self))
+            goto not_found;
+    }
+
+    if (*res == FOUND_TMB)
+        vbuf->b_len = 0;
+    else if (*res == FOUND_VAL)
         err = copy_val(vbuf, val);
 
     rcu_read_unlock();
-
     return err;
+
+not_found:
+    rcu_read_unlock();
+    *res = NOT_FOUND;
+    return 0;
 }
 
 merr_t
@@ -686,8 +716,7 @@ lc_pfx_probe(
     struct lc_impl *    self;
     struct bonsai_root *root;
     merr_t              err;
-    u64                 pt_seq = 0;
-    uintptr_t           pt_seqref = 0;
+    u64                 ingested_seq, pt_seq = 0;
 
     assert(handle);
 
@@ -698,18 +727,20 @@ lc_pfx_probe(
     rcu_read_lock();
     if (pfxlen && pfxlen <= kt->kt_len) {
         struct bonsai_skey pfx_skey;
+        uintptr_t          pt_seqref;
 
         bn_skey_init(kt->kt_data, pfxlen, 0, skidx, &pfx_skey);
-        lc_get_pfx(self, &pfx_skey, view_seqno, &pt_seqref);
+        lc_get_pfx(self, &pfx_skey, view_seqno, seqnoref, &pt_seqref);
 
-        pt_seq = HSE_SQNREF_TO_ORDNL(pt_seqref);
+        pt_seq = get_seqno(pt_seqref);
     }
 
     root = rcu_dereference(self->lc_broot[1]);
+    ingested_seq = lc_ib_head_seqno(self);
     err = c0kvs_pfx_probe_cmn(
-        root, skidx, kt, sfxlen, view_seqno, seqnoref, res, qctx, kbuf, vbuf, pt_seq);
+        root, skidx, kt, sfxlen, view_seqno, seqnoref, res, qctx, kbuf, vbuf, pt_seq, ingested_seq);
 
-    if (pt_seq)
+    if (pt_seq && pt_seq >= ingested_seq)
         *res = FOUND_PTMB;
 
     rcu_read_unlock();
@@ -894,6 +925,9 @@ lc_cursor_read(struct lc_cursor *cur, struct kvs_cursor_element *lc_elem, bool *
         if (cur->lcc_ptomb_set) {
             int rc = key_obj_cmp_prefix(&cur->lcc_ptomb, &elem->kce_kobj);
             if (rc == 0) {
+                enum hse_seqno_state state;
+                u64                  seqno;
+
                 /* Note that c0kvs_findval() will return a value only if either
                  *   1. it has a concrete seqno or
                  *   2. it belongs to this cursor's bound txn.
@@ -901,19 +935,13 @@ lc_cursor_read(struct lc_cursor *cur, struct kvs_cursor_element *lc_elem, bool *
                  * i.e. it should never be the case that elem and ptomb belong to separate
                  * active transactions.
                  */
-                if (elem->kce_seqnoref != cur->lcc_seqnoref) {
-                    u64 seq = HSE_SQNREF_TO_ORDNL(elem->kce_seqnoref);
-
-                    assert(seqnoref_to_seqno(elem->kce_seqnoref, NULL) == HSE_SQNREF_STATE_DEFINED);
-
-                    if (seq < cur->lcc_ptomb_seq) {
-                        bin_heap2_pop(cur->lcc_bh, (void **)&elem);
-                        continue;
-                    }
-                } else {
-                    /* This kv-tuple belongs to the bound txn. Fallthrough. */
+                state = seqnoref_to_seqno(elem->kce_seqnoref, &seqno);
+                if (state == HSE_SQNREF_STATE_DEFINED && seqno < cur->lcc_ptomb_seq) {
+                    bin_heap2_pop(cur->lcc_bh, (void **)&elem);
+                    continue;
                 }
 
+                assert(state != HSE_SQNREF_STATE_ABORTED);
             } else {
                 cur->lcc_ptomb_set = 0;
             }
@@ -927,14 +955,16 @@ lc_cursor_read(struct lc_cursor *cur, struct kvs_cursor_element *lc_elem, bool *
 
         /* Just get the first occurrence of a ptomb */
         if (is_ptomb && !cur->lcc_ptomb_set) {
+            enum hse_seqno_state state;
+            u64                  seqno;
+
             cur->lcc_ptomb = lc_elem->kce_kobj;
             cur->lcc_ptomb_set = 1;
-            /* If ptomb belongs to bound txn, set its seqno to that of the
-             * cursor (which in turn is the bound txn's seqno).
+            /* If ptomb belongs to bound txn, set its seqno to that of the cursor (which in turn
+             * is the bound txn's seqno) plus one - to include the entire view of the cursor.
              */
-            cur->lcc_ptomb_seq = (cur->lcc_seqnoref == lc_elem->kce_seqnoref)
-                                     ? cur->lcc_seq_view
-                                     : HSE_SQNREF_TO_ORDNL(lc_elem->kce_seqnoref);
+            state = seqnoref_to_seqno(elem->kce_seqnoref, &seqno);
+            cur->lcc_ptomb_seq = state == HSE_SQNREF_STATE_DEFINED ? seqno : cur->lcc_seq_view + 1;
         } else if (cur->lcc_lc->lc_nsrc > 2) {
             /* If LC has a single bonsai tree (excluding the ptomb tree), There should never be
              * any dups. Process dups only when we have more than one non-ptomb bonsai tree.
@@ -1047,6 +1077,8 @@ lc_ingest_iterv_init(
     struct lc *             handle,
     struct lc_ingest_iter * iterv,
     struct element_source **srcv,
+    u64                     min_seq,
+    u64                     max_seq,
     uint *                  iter_cnt)
 {
     struct lc_impl *self;
@@ -1060,28 +1092,7 @@ lc_ingest_iterv_init(
     for (i = 0; i < self->lc_nsrc; i++) {
         struct bonsai_ingest_iter *iter = &iterv[i].lcing_iter;
 
-        srcv[i] = bonsai_ingest_iter_init(iter, &self->lc_broot[i]);
-    }
-}
-
-void
-lc_ingest_iterv_seqno_set(
-    struct lc *            handle,
-    struct lc_ingest_iter *iterv,
-    u64                    min_seqno,
-    u64                    max_seqno)
-{
-    struct lc_impl *self;
-    int             i;
-
-    if (!handle)
-        return;
-
-    self = lc_h2r(handle);
-    for (i = 0; i < self->lc_nsrc; i++) {
-        struct bonsai_ingest_iter *iter = &iterv[i].lcing_iter;
-
-        bonsai_ingest_iter_seqno_set(iter, min_seqno, max_seqno);
+        srcv[i] = bonsai_ingest_iter_init(iter, min_seq, max_seq, &self->lc_broot[i]);
     }
 }
 
@@ -1130,13 +1141,12 @@ lc_gc_horizon(struct lc_impl *self)
 static void
 lc_gc_worker(struct work_struct *work)
 {
-    struct lc_gc *     gc = container_of(work, struct lc_gc, lgc_dwork.work);
-    struct lc_impl *   lc = container_of(gc, struct lc_impl, lc_gc);
-    int                i;
-    u64                horizon_incl;
-    struct bonsai_val *val;
+    struct lc_gc *  gc = container_of(work, struct lc_gc, lgc_dwork.work);
+    struct lc_impl *lc = container_of(gc, struct lc_impl, lc_gc);
+    int             i;
+    u64             horizon_incl;
 
-    if (atomic_read(&lc->lc_closing))
+    if (HSE_UNLIKELY(atomic_read(&lc->lc_closing)))
         goto exit;
 
     /* Note that the horizon_incl returned here is an inclusive lower bound for entries that
@@ -1165,8 +1175,8 @@ lc_gc_worker(struct work_struct *work)
         struct bonsai_kv *  bkv = &root->br_kv;
 
         while (1) {
-            struct bonsai_val **prevp;
-            bool                deleted = false;
+            struct bonsai_val *val, **prevp;
+            bool               deleted = false;
 
             bkv = rcu_dereference(bkv->bkv_next);
             if (bkv == &root->br_kv)
@@ -1176,14 +1186,13 @@ lc_gc_worker(struct work_struct *work)
             for (val = rcu_dereference(bkv->bkv_values); val; val = rcu_dereference(val->bv_next)) {
                 u64                  seqno;
                 enum hse_seqno_state state;
-                uintptr_t            seqnoref = val->bv_seqnoref;
                 bool                 keepval;
 
-                state = seqnoref_to_seqno(seqnoref, &seqno);
+                state = seqnoref_to_seqno(val->bv_seqnoref, &seqno);
 
                 /* Keep val if it's either
-                 *  1. from an active txn, or
-                 *  2. has a seqno >= horizon_incl.
+                 *   1. from an active txn, or
+                 *   2. has a seqno >= horizon_incl.
                  */
                 keepval = (state == HSE_SQNREF_STATE_DEFINED && seqno >= horizon_incl) ||
                           (state == HSE_SQNREF_STATE_UNDEFINED);
@@ -1199,8 +1208,8 @@ lc_gc_worker(struct work_struct *work)
                 /* [HSE_REVISIT] If this value is accessed by another thread after we drop the
                  * c0snr ref, it may see a garbage seqno for the val
                  */
-                if (HSE_SQNREF_INDIRECT_P(seqnoref))
-                    c0snr_dropref_lc((uintptr_t *)seqnoref);
+                if (HSE_SQNREF_INDIRECT_P(val->bv_seqnoref))
+                    c0snr_dropref_lc((uintptr_t *)val->bv_seqnoref);
 
                 /* Mark value for deletion */
                 deleted = true;

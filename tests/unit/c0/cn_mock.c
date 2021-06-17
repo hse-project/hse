@@ -58,7 +58,9 @@ _cn_ingestv(
     struct cn **           cn,
     struct kvset_mblocks **mbv,
     u64                    ingestid,
-    uint                   ingestc)
+    uint                   ingestc,
+    u64                   *min_seqno_out,
+    u64                   *max_seqno_out)
 {
     int    i;
     merr_t err = 0;
