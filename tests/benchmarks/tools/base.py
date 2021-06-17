@@ -97,7 +97,7 @@ class BaseTest:
             summary += f"{phase_name} run time:  {run_time_s}s\n"
 
             for op in phase["operations"]:
-                op_name = op["name"]
+                op_name = op["name"] if "name" in op else None
                 if "throughput" in op:
                     summary += "%s %s(s) per second:  %d\n" % (
                         phase_name,
@@ -112,9 +112,7 @@ class BaseTest:
                     )
 
             if "diskstats" in phase:
-                summary += (
-                    f"{phase_name} diskstats:  {phase['diskstats']['overall']}\n"
-                )
+                summary += f"{phase_name} diskstats:  {phase['diskstats']['overall']}\n"
 
             summary += "\n"
 
@@ -226,7 +224,7 @@ class BaseTest:
             start_timestamp_ms,
             end_timestamp_ms,
             out_path=out_path,
-            diskstats=diskstats_report["delta"],
+            diskstats=diskstats_report["delta"] if diskstats_report else None,
         )
 
         return completed_info
