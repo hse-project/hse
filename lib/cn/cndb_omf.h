@@ -306,10 +306,11 @@ OMF_GET_VER(struct cndb_tx_omf_v4, tx_nd, 32, v4);
 struct cndb_tx_omf {
     struct cndb_hdr_omf hdr;
     __le64              tx_id;
-    __le64              tx_seqno;
-    __le64              tx_ingestid;
     __le32              tx_nc;
     __le32              tx_nd;
+    __le64              tx_seqno;
+    __le64              tx_ingestid;
+    __le64              tx_txhorizon;
 } HSE_PACKED;
 
 #define CNDB_TXF_KEEPV 1 /* For field txc_flags in CNDB_VERSION4 */
@@ -545,6 +546,7 @@ OMF_SETGET(struct cndb_tx_omf, tx_nc, 32);
 OMF_SETGET(struct cndb_tx_omf, tx_nd, 32);
 OMF_SETGET(struct cndb_tx_omf, tx_seqno, 64);
 OMF_SETGET(struct cndb_tx_omf, tx_ingestid, 64);
+OMF_SETGET(struct cndb_tx_omf, tx_txhorizon, 64);
 
 OMF_SETGET(struct cndb_txc_omf, txc_cnid, 64);
 OMF_SETGET(struct cndb_txc_omf, txc_id, 64);

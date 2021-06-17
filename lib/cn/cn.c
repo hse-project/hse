@@ -678,6 +678,7 @@ cn_ingestv(
     struct kvset_mblocks **mbv,
     uint                   ingestc,
     u64                    ingestid,
+    u64                    txhorizon,
     u64                   *min_seqno_out,
     u64                   *max_seqno_out)
 {
@@ -721,7 +722,6 @@ cn_ingestv(
     }
 
     if (!count) {
-        *seqno_max_out = seqno_max;
         err = 0;
         goto done;
     }
@@ -737,7 +737,7 @@ cn_ingestv(
         goto done;
     }
 
-    err = cndb_txn_start(cndb, &txid, ingestid, count, 0, seqno_max);
+    err = cndb_txn_start(cndb, &txid, count, 0, seqno_max, ingestid, txhorizon);
     if (ev(err))
         goto done;
 
@@ -784,8 +784,6 @@ cn_ingestv(
         check++;
     }
     assert(check == count);
-
-    *seqno_max_out = seqno_max;
 
     if (log_ingest) {
         hse_slog(

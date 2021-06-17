@@ -422,6 +422,7 @@ omf_cndb_tx_unpack_v4(void *omf, u32 ver, union cndb_mtu *mtu, u32 *plen)
     mtx->mtx_nd = omf_tx_nd_v4(tx_omf);
     mtx->mtx_seqno = omf_tx_seqno_v4(tx_omf);
     mtx->mtx_ingestid = CNDB_INVAL_INGESTID;
+    mtx->mtx_txhorizon = CNDB_INVAL_HORIZON;
 
     return 0;
 }
@@ -465,6 +466,7 @@ omf_cndb_tx_unpack(void *omf, u32 ver, union cndb_mtu *mtu, u32 *plen)
     mtx->mtx_nd = omf_tx_nd(tx_omf);
     mtx->mtx_seqno = omf_tx_seqno(tx_omf);
     mtx->mtx_ingestid = omf_tx_ingestid(tx_omf);
+    mtx->mtx_txhorizon = omf_tx_txhorizon(tx_omf);
 
     return 0;
 }

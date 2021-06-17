@@ -181,13 +181,14 @@ print_tx(struct tool_info *ti, union cndb_mtu *mtu)
 
     printf("%04x: ", fileoff);
     printf(
-        "%-6s %lu seq %lu ingestid %lu nc %u nd %u ",
+        "%-6s %lu nc %u nd %u seq %lu ingestid %lu txhorizon %lu ",
         "tx",
         mtx->mtx_id,
+        mtx->mtx_nc,
+        mtx->mtx_nd,
         mtx->mtx_seqno,
         mtx->mtx_ingestid,
-        mtx->mtx_nc,
-        mtx->mtx_nd);
+        mtx->mtx_txhorizon);
     printf("\n");
 }
 

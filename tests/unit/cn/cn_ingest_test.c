@@ -280,7 +280,7 @@ MTF_DEFINE_UTEST_PRE(cn_ingest_test, worker, test_pre)
     ASSERT_EQ(err, 0);
 
     init_mblks(m, n_kvsets, &k, &v);
-    err = cn_ingestv(cnv, mbv, U64_MAX, NELEM(cnv), NULL, NULL);
+    err = cn_ingestv(cnv, mbv, NELEM(cnv), U64_MAX, U64_MAX, NULL);
     ASSERT_EQ(err, 0);
     free_mblks(m, n_kvsets);
 
@@ -316,7 +316,7 @@ MTF_DEFINE_UTEST_PRE(cn_ingest_test, fail_cleanup, test_pre)
     /* kvset create failure */
     init_mblks(m, n_kvsets, &k, &v);
     mapi_inject(mapi_idx_kvset_create, merr(EBADF));
-    err = cn_ingestv(cnv, mbv, U64_MAX, NELEM(cnv), NULL, NULL);
+    err = cn_ingestv(cnv, mbv, NELEM(cnv), U64_MAX, U64_MAX, NULL);
     ASSERT_EQ(merr_errno(err), EBADF);
     mapi_inject(mapi_idx_kvset_create, 0);
     free_mblks(m, n_kvsets);

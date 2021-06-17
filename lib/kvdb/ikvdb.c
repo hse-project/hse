@@ -949,12 +949,13 @@ static void
 ikvdb_wal_cningest_cb(
     struct ikvdb *ikdb,
     unsigned long seqno,
-    unsigned long gen)
+    unsigned long gen,
+    unsigned long txhorizon)
 {
     struct ikvdb_impl *self = ikvdb_h2r(ikdb);
 
     if (self->ikdb_wal)
-        wal_cningest_cb(self->ikdb_wal, seqno, gen);
+        wal_cningest_cb(self->ikdb_wal, seqno, gen, txhorizon);
 }
 
 static void
@@ -968,7 +969,7 @@ ikvdb_wal_install_callback(struct ikvdb_impl *self)
     }
 
     cb->kc_cbarg = &self->ikdb_handle;
-    cb->kc_cn_ingest_cb = ikvdb_wal_cningest_cb;
+    cb->kc_cningest_cb = ikvdb_wal_cningest_cb;
 
     c0sk_install_callback(self->ikdb_c0sk, cb);
 }
@@ -1053,6 +1054,7 @@ ikvdb_open(
     self->ikdb_curcnt_max = sz / HSE_CURSOR_SZ_MIN;
 
     atomic_set(&self->ikdb_curcnt, 0);
+    atomic64_set(&self->ikdb_seqno, 1);
 
     err = viewset_create(&self->ikdb_txn_viewset, &self->ikdb_seqno);
     if (err) {
@@ -2548,6 +2550,15 @@ ikvdb_horizon(struct ikvdb *handle)
 
     return horizon;
 }
+
+u64
+ikvdb_txn_horizon(struct ikvdb *handle)
+{
+    struct ikvdb_impl *self = ikvdb_h2r(handle);
+
+    return viewset_horizon(self->ikdb_txn_viewset);
+}
+
 
 static HSE_ALWAYS_INLINE struct kvdb_ctxn_bkt *
 ikvdb_txn_tid2bkt(struct ikvdb_impl *self)

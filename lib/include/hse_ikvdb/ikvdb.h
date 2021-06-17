@@ -367,6 +367,13 @@ u64
 ikvdb_horizon(struct ikvdb *store);
 
 /**
+ * ikvdb_txn_horizon() - return an upper bound on the smallest view sequence
+ *                   number in use by any currently active transaction.
+ */
+u64
+ikvdb_txn_horizon(struct ikvdb *store);
+
+/**
  * ikvdb_txn_alloc() - allocate space for a transaction
  */
 struct hse_kvdb_txn *
@@ -510,16 +517,17 @@ ikvdb_log_deserialize_to_kvdb_dparams(const char *kvdb_home, struct kvdb_dparams
  */
 
 /**
- * struct kvdb_callback       - Providing callbacks for cN ingest.
- * @kc_cbarg:                   opaque subscriber specific argument
- * @kc_cn_ingest_callback:      supplies cN ingest status
+ * struct kvdb_callback - Providing callbacks for cN ingest.
+ * @kc_cbarg:       opaque subscriber specific argument
+ * @kc_cningest_cb: supplies cN ingest status
  */
 struct kvdb_callback {
     struct ikvdb *kc_cbarg;
-    void (*kc_cn_ingest_cb)(
+    void (*kc_cningest_cb)(
         struct ikvdb *ikdb,
         unsigned long seqno,
-        unsigned long dgen);
+        unsigned long dgen,
+        unsigned long txhorizon);
 };
 
 #if HSE_MOCKING

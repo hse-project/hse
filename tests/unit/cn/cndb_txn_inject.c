@@ -133,7 +133,7 @@ write_ingest(struct kvs_info *ki, bool wrongingestid)
      * If wrong ingest id is requested, keep passing the same ingest id
      * at each successive ingest.
      */
-    cndb_txn_start(ki->cndb, &txid, wrongingestid ? 33 : ingestid++, nc, 0, 0);
+    cndb_txn_start(ki->cndb, &txid, nc, 0, 0, wrongingestid ? 33 : ingestid++, 0);
 
     for (i = 0, tag = 0; i < nc; i++) {
         u64 mblkid[2]; /* 1 kb, 1 vb */
@@ -169,7 +169,7 @@ write_spill(struct kvs_info *ki)
     int                  otagc = tagc;
     u64                  mblkid[5];
 
-    cndb_txn_start(ki->cndb, &txid, CNDB_INVAL_INGESTID, c, d, 0);
+    cndb_txn_start(ki->cndb, &txid, c, d, 0, CNDB_INVAL_INGESTID, 0);
 
     for (i = 0, tag = 0; i < c; i++) {
         u64 mblkid[2];
@@ -225,7 +225,7 @@ write_kc(struct kvs_info *ki)
     u64                  tag;
     int                  otagc = tagc;
 
-    cndb_txn_start(ki->cndb, &txid, CNDB_INVAL_INGESTID, c, d, 0);
+    cndb_txn_start(ki->cndb, &txid, c, d, 0, CNDB_INVAL_INGESTID, 0);
 
     for (i = 0, tag = 0; i < c; i++) {
         u64 mblkid[5];

@@ -37,7 +37,9 @@ struct wal {
     uint32_t dsize_bytes;
 
     atomic64_t error;
+    atomic64_t ingestseq;
     atomic64_t ingestgen;
+    atomic64_t txhorizon;
     atomic_t closing;
 
     atomic64_t rid HSE_ALIGNED(SMP_CACHE_BYTES);
@@ -397,7 +399,8 @@ wal_close(struct wal *wal)
     pthread_join(wal->timer_tid, 0);
 
     wal_bufset_close(wal->wbs);
-    wal_fileset_close(wal->wfset, atomic64_read(&wal->ingestgen));
+    wal_fileset_close(wal->wfset, atomic64_read(&wal->ingestseq),
+                      atomic64_read(&wal->ingestgen), atomic64_read(&wal->txhorizon));
     wal_mdc_close(wal->mdc);
 
     free(wal);
@@ -406,10 +409,12 @@ wal_close(struct wal *wal)
 }
 
 void
-wal_cningest_cb(struct wal *wal, u64 seqno, u64 gen)
+wal_cningest_cb(struct wal *wal, u64 seqno, u64 gen, u64 txhorizon)
 {
+    atomic64_set(&wal->ingestseq, seqno);
     atomic64_set(&wal->ingestgen, gen);
-    wal_fileset_reclaim(wal->wfset, seqno, gen, false);
+    atomic64_set(&wal->txhorizon, txhorizon);
+    wal_fileset_reclaim(wal->wfset, seqno, gen, txhorizon, false);
 }
 
 /*

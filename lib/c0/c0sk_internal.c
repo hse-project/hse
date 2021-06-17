@@ -392,18 +392,32 @@ c0sk_ingest_rec_perfc(struct perfc_set *perfc, u32 sidx, u64 cycles)
 }
 
 static void
-c0sk_cn_ingest_cb(
+c0sk_cningest_walcb(
     struct c0sk_impl *c0sk,
     u64               seqno,
-    u64               gen)
+    u64               gen,
+    u64               txhorizon)
 {
-    struct ikvdb *ikdb;
+    struct ikvdb *ikvdb;
 
-    if (!c0sk->c0sk_cb || !c0sk->c0sk_cb->kc_cn_ingest_cb)
+    if (!c0sk->c0sk_cb || !c0sk->c0sk_cb->kc_cningest_cb)
         return;
 
-    ikdb = c0sk->c0sk_cb->kc_cbarg;
-    c0sk->c0sk_cb->kc_cn_ingest_cb(ikdb, seqno, gen);
+    ikvdb = c0sk->c0sk_cb->kc_cbarg;
+    c0sk->c0sk_cb->kc_cningest_cb(ikvdb, seqno, gen, txhorizon);
+}
+
+static u64
+c0sk_txn_horizon_get(struct c0sk_impl *c0sk)
+{
+    struct ikvdb *ikvdb;
+
+    if (!c0sk->c0sk_cb)
+        return CNDB_INVAL_HORIZON;
+
+    ikvdb = c0sk->c0sk_cb->kc_cbarg;
+
+    return ikvdb_txn_horizon(ikvdb);
 }
 
 /* Initial number of entries in cn ingest's bkv_collection.
@@ -604,7 +618,7 @@ c0sk_ingest_worker(struct work_struct *work)
     struct bkv_collection *cn_list[2] = { 0 };
     struct lc_builder *    lc_list = { 0 };
     u64                    kvms_gen = c0kvms_gen_read(kvms);
-    u64                    ingestid = c0kvms_rsvd_sn_get(kvms);
+    u64                    txhorizon = c0sk_txn_horizon_get(c0sk);
     int                    i;
     u64                    go = 0;
     bool                   released = false;
@@ -616,7 +630,6 @@ c0sk_ingest_worker(struct work_struct *work)
     u64 min_seq = ingest->c0iw_ingest_min_seqno;
     u64 max_seq = ingest->c0iw_ingest_max_seqno;
 
-    ingestid = HSE_SQNREF_INVALID ? CNDB_DFLT_INGESTID : ingestid;
     assert(min_seq >= lc_ingest_seqno_get(lc));
 
     kvms_minheap = ingest->c0iw_kvms_minheap;
@@ -765,7 +778,8 @@ exit_err:
 
         go = perfc_lat_start(&c0sk->c0sk_pc_ingest);
 
-        err = cn_ingestv(c0sk->c0sk_cnv, mbv, HSE_KVS_COUNT_MAX, kvms_gen, &cn_min, &cn_max);
+        err = cn_ingestv(c0sk->c0sk_cnv, mbv, HSE_KVS_COUNT_MAX, kvms_gen,
+                         txhorizon, &cn_min, &cn_max);
 
         c0sk_ingest_rec_perfc(&c0sk->c0sk_pc_ingest, PERFC_DI_C0SKING_FIN, go);
         if (ev(err))
@@ -784,7 +798,7 @@ exit_err:
             assert(!cn_max || cn_max <= max_seq);
         }
 
-        c0sk_cn_ingest_cb(c0sk, seqno_max, kvms_gen);
+        c0sk_cningest_walcb(c0sk, max_seq, kvms_gen, txhorizon);
     }
 
     if (debug)

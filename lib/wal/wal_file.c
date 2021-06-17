@@ -7,6 +7,7 @@
 #include <hse_util/mutex.h>
 #include <hse_util/list.h>
 #include <hse_util/page.h>
+#include <hse_util/logging.h>
 
 #include "wal.h"
 #include "wal_file.h"
@@ -71,7 +72,7 @@ wal_file_minmax_update(struct wal_file *wfile, struct wal_minmax_info *info)
 }
 
 merr_t
-wal_fileset_reclaim(struct wal_fileset *wfset, u64 seqno, u64 gen, bool closing)
+wal_fileset_reclaim(struct wal_fileset *wfset, u64 seqno, u64 gen, u64 txhorizon, bool closing)
 {
     struct wal_file *cur, *next;
     struct list_head reclaim;
@@ -80,10 +81,10 @@ wal_fileset_reclaim(struct wal_fileset *wfset, u64 seqno, u64 gen, bool closing)
 
     mutex_lock(&wfset->lock);
     list_for_each_entry_safe(cur, next, &wfset->complete, link) {
-        if (cur->gen > gen) {
-            if (!closing) {
-                break;
-            } else {
+        struct wal_minmax_info *info = &cur->info;
+
+        if (info->max_gen > gen) {
+            if (closing) {
                 /* TODO: Seems like this cannot happen during graceful close.
                  * If it does happen, do not destroy the file.
                  */
@@ -91,16 +92,28 @@ wal_fileset_reclaim(struct wal_fileset *wfset, u64 seqno, u64 gen, bool closing)
                 wal_file_put(cur);
                 continue;
             }
+            break;
         }
 
-        list_del_init(&cur->link);
-        list_add_tail(&cur->link, &reclaim);
+        if (info->max_seqno <= seqno && info->max_txid < txhorizon) {
+            assert(info->max_gen <= gen);
+            list_del_init(&cur->link);
+            list_add_tail(&cur->link, &reclaim);
+        }
     }
     mutex_unlock(&wfset->lock);
 
     list_for_each_entry_safe(cur, next, &reclaim, link) {
         u64 gen = cur->gen;
         int fileid = cur->fileid;
+        struct wal_minmax_info *info = &cur->info;
+
+        hse_log(HSE_NOTICE
+                "Reclaiming gen %lu [%lu, %lu] seqno %lu [%lu, %lu] txid %lu [%lu, %lu]",
+                gen, info->min_gen, info->max_gen,
+                seqno, info->min_seqno, info->max_seqno,
+                txhorizon, info->min_txid, info->max_txid);
+
 
         list_del(&cur->link);
         assert(atomic64_read(&cur->ref) == 1);
@@ -139,14 +152,14 @@ wal_fileset_open(struct mpool *mp, enum mpool_mclass mclass, size_t capacity, u3
 }
 
 void
-wal_fileset_close(struct wal_fileset *wfset, u64 ingestgen)
+wal_fileset_close(struct wal_fileset *wfset, u64 ingestseq, u64 ingestgen, u64 txhorizon)
 {
     if (!wfset)
         return;
 
     list_splice_tail(&wfset->active, &wfset->complete);
     INIT_LIST_HEAD(&wfset->active);
-    wal_fileset_reclaim(wfset, 0, ingestgen, true);
+    wal_fileset_reclaim(wfset, ingestseq, ingestgen, txhorizon, true);
 
     mutex_destroy(&wfset->lock);
     free(wfset);

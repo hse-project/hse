@@ -18,7 +18,7 @@ struct wal_fileset *
 wal_fileset_open(struct mpool *mp, enum mpool_mclass mclass, size_t capacity, u32 magic, u32 vers);
 
 void
-wal_fileset_close(struct wal_fileset *wfset, u64 ingestgen);
+wal_fileset_close(struct wal_fileset *wfset, u64 ingestseq, u64 ingestgen, u64 txhorizon);
 
 merr_t
 wal_file_open(struct wal_fileset *wfset, uint64_t gen, int fileid, struct wal_file **handle);
@@ -45,7 +45,7 @@ void
 wal_file_minmax_update(struct wal_file *wfile, struct wal_minmax_info *info);
 
 merr_t
-wal_fileset_reclaim(struct wal_fileset *wfset, u64 gen, u64 seqno, bool closing);
+wal_fileset_reclaim(struct wal_fileset *wfset, u64 seqno, u64 gen, u64 txhorizon, bool closing);
 
 merr_t
 wal_file_complete(struct wal_fileset *wfset, struct wal_file *wfile);

@@ -149,6 +149,7 @@ cn_ingestv(
     struct kvset_mblocks **mbv,
     uint                   ingestc,
     u64                    ingestid,
+    u64                    txhorizon,
     u64                   *min_seqno_out,
     u64                   *max_seqno_out);
 

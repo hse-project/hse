@@ -238,10 +238,11 @@ struct cndb_info {
 struct cndb_tx {
     struct cndb_hdr hdr;
     u64             mtx_id;
-    u64             mtx_seqno;
-    u64             mtx_ingestid;
     u32             mtx_nc;
     u32             mtx_nd;
+    u64             mtx_seqno;
+    u64             mtx_ingestid;
+    u64             mtx_txhorizon;
 };
 
 /**

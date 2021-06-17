@@ -84,7 +84,7 @@ void
 wal_op_finish(struct wal *wal, struct wal_record *rec, uint64_t seqno, uint64_t gen);
 
 void
-wal_cningest_cb(struct wal *wal, u64 seqno, u64 gen);
+wal_cningest_cb(struct wal *wal, u64 seqno, u64 gen, u64 txhorizon);
 
 #if HSE_MOCKING
 #include "wal_ut.h"
