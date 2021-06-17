@@ -577,7 +577,9 @@ c0sk_ingest_worker(struct work_struct *work)
      */
     max_seqno = ingest->c0iw_ingest_max_seqno = c0kvms_seqno_get(ingest->c0iw_c0kvms);
     min_seqno = ingest->c0iw_ingest_min_seqno = atomic64_read(&c0sk->c0sk_ingest_min);
+#ifndef HSE_MOCKING
     assert(min_seqno != 0);
+#endif
 
     if (debug)
         hse_log(
