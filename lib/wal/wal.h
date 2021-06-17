@@ -13,8 +13,8 @@
 #define WAL_MAGIC          (0xabcdabcd)
 #define WAL_FILE_SIZE      (512ul << 20)
 
-#define MSEC_TO_NSEC(x)    ((x) * 1000UL * 1000)
-#define NSEC_TO_MSEC(x)    ((x) / MSEC_TO_NSEC(1))
+#define MSEC_TO_NSEC(_ms)  (NSEC_PER_SEC / MSEC_PER_SEC * (_ms))
+#define NSEC_TO_MSEC(_ns)  ((_ns) / (NSEC_PER_SEC / MSEC_PER_SEC))
 
 struct wal_minmax_info {
     u64 min_seqno;

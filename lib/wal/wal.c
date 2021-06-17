@@ -49,69 +49,68 @@ struct wal {
 static inline void
 wal_reqtime_set(struct wal *wal)
 {
-    if (wal && wal->reqtime == 0)
+    if (wal->reqtime == 0)
         wal->reqtime = jclock_ns;
 }
 
 static inline void
 wal_reqtime_reset(struct wal *wal)
 {
-    if (wal)
-        wal->reqtime = 0;
+    wal->reqtime = 0;
 }
 
 static inline u64
 wal_reqtime_get(struct wal *wal)
 {
-     return wal ? wal->reqtime : 0;
+    return wal->reqtime;
 }
 
-static void*
+static void *
 wal_timer(void *rock)
 {
     struct wal *wal = rock;
     struct timespec req = {0};
-    u64 dintvl_ns = MSEC_TO_NSEC(wal->dintvl_ms);
+    long dintvl_ns;
 
     pthread_setname_np(pthread_self(), "wal_timer");
 
+    /* tv_nsec must not fall outside the range [0,999999999].
+     */
+    dintvl_ns = clamp_t(long, MSEC_TO_NSEC(wal->dintvl_ms),
+                        MSEC_TO_NSEC(10), MSEC_TO_NSEC(1000) - 1);
+    dintvl_ns = max_t(long, dintvl_ns - (long)timer_slack, 1);
+
     while (true) {
-        u64 start, now, lag, reqtime, one_ms = MSEC_TO_NSEC(1);
+        u64 reqtime, lag;
 
         if (atomic_read(&wal->closing) != 0 || atomic64_read(&wal->error) != 0)
             break;
 
-        req.tv_nsec = one_ms;
-
         reqtime = wal_reqtime_get(wal);
-        start = reqtime ?: get_time_ns();
+        req.tv_nsec = dintvl_ns;
 
-        if (reqtime != 0) { /* Call flush only if there are mutations */
+        if (reqtime > 0) { /* Call flush if there might be mutations */
             merr_t err;
 
             wal_reqtime_reset(wal);
+
             err = wal_bufset_flush(wal->wbs);
             if (err) {
                 atomic64_set(&wal->error, err);
                 break;
             }
-        }
 
-        now = get_time_ns();
-        lag = now - start;
-        if (lag < dintvl_ns) {
-            u64 sleep_ns = dintvl_ns - lag;
+            lag = get_time_ns() - reqtime;
+            if (lag >= req.tv_nsec)
+                continue;
 
-            sleep_ns = max_t(u64, sleep_ns, one_ms);
-            req.tv_nsec = sleep_ns;
-            nanosleep(&req, 0);
-            continue;
+            req.tv_nsec -= lag;
         }
 
         nanosleep(&req, 0);
     }
 
-    return 0;
+    pthread_exit(NULL);
 }
 
 /*
