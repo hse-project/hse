@@ -184,6 +184,7 @@ bonsai_sval_vlen(const struct bonsai_sval *bsv)
 
 #define BKV_FLAG_PTOMB 0x01
 #define BKV_FLAG_TOMB_HEAD 0x02
+#define BKV_FLAG_FROM_LC 0x04
 
 /**
  * struct bonsai_kv - bonsai tree key/value node

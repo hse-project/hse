@@ -57,12 +57,13 @@ struct c0_ingest_work {
 
     /* Debug stats produced by c0_ingest_worker().
      */
-    u64 t0, t3, t4, t5, t6, t7, t8, t9;
+    u64 t0, t3, t4, t5, t6, t7, t8, t9, t10;
     u64 gencur, gen;
 
     /* Establishing view for ingest */
     u64 c0iw_ingest_max_seqno;
     u64 c0iw_ingest_min_seqno;
+    u64 c0iw_ingest_order;
 
     /* c0iw_magic is last field to verify it didn't get clobbered
      * by c0kvs_reset().

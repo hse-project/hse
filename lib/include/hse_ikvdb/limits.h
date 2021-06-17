@@ -25,8 +25,8 @@
 
 #define HSE_C0_INGEST_SZ_MAX        (2048) /* MiB */
 
-#define HSE_C0_INGEST_THREADS_DFLT  (1)
-#define HSE_C0_INGEST_THREADS_MAX   (1)
+#define HSE_C0_INGEST_THREADS_DFLT  (3)
+#define HSE_C0_INGEST_THREADS_MAX   (5)
 
 #define HSE_C0_MAINT_THREADS_DFLT   (5)
 #define HSE_C0_MAINT_THREADS_MAX    (32)

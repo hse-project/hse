@@ -164,8 +164,6 @@ struct lc_ingest_iter {
  * @lc:          Handle to the LC object
  * @iterv:       Vector of iterators
  * @srcv:        Vector of element sources
- * @view_seq:    View seqno for the ingest; i.e. upper bound
- * @horizon_seq: Horizon seqno for the ingest; i.e. lower bound
  * @iter_cnt:    (output) Number of iterators initialized
  */
 /* MTF_MOCK */
@@ -174,9 +172,15 @@ lc_ingest_iterv_init(
     struct lc *             lc,
     struct lc_ingest_iter * iterv,
     struct element_source **srcv,
-    u64                     view_seq,
-    u64                     horizon_seq,
     uint *                  iter_cnt);
+
+/* MTF_MOCK */
+void
+lc_ingest_iterv_seqno_set(
+    struct lc *            handle,
+    struct lc_ingest_iter *iterv,
+    u64                    min_seqno,
+    u64                    max_seqno);
 
 /* MTF_MOCK */
 merr_t

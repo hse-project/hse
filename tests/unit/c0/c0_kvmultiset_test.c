@@ -35,6 +35,7 @@ test_collection_teardown(struct mtf_test_info *info)
 int
 no_fail_pre(struct mtf_test_info *info)
 {
+    mapi_inject(mapi_idx_c0sk_ingest_order_register, 0);
     mapi_inject(mapi_idx_lc_ingest_seqno_get, 0);
     return 0;
 }

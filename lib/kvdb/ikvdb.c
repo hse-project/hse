@@ -21,6 +21,7 @@
 #include <hse_util/compression_lz4.h>
 #include <hse_util/token_bucket.h>
 #include <hse_util/xrand.h>
+#include <hse_util/bkv_collection.h>
 
 #include <hse_ikvdb/ikvdb.h>
 #include <hse_ikvdb/kvdb_health.h>
@@ -2730,6 +2731,14 @@ ikvdb_init(void)
         goto errout;
     }
 
+    err = bkv_collection_init();
+    if (err) {
+        cn_fini();
+        lc_fini();
+        c0_fini();
+        goto errout;
+    }
+
 errout:
     if (err) {
         kvs_fini();
@@ -2744,6 +2753,7 @@ errout:
 void
 ikvdb_fini(void)
 {
+    bkv_collection_fini();
     cn_fini();
     lc_fini();
     c0_fini();
