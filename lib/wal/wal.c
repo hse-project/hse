@@ -284,8 +284,15 @@ wal_txn_commit(struct wal *wal, uint64_t txid, uint64_t seqno)
 }
 
 void
-wal_op_finish(struct wal *wal, struct wal_record *rec, uint64_t seqno, uint64_t gen)
+wal_op_finish(struct wal *wal, struct wal_record *rec, uint64_t seqno, uint64_t gen, int rc)
 {
+    if (rc) {
+        if (rc == EAGAIN || rc == ECANCELED)
+            rec->offset = U64_MAX - 1; /* recoverable error */
+        else
+            rec->offset = U64_MAX; /* non-recoverable error */
+    }
+
     wal_rec_finish(rec, seqno, gen);
 }
 

@@ -94,21 +94,37 @@ restart:
     start_foff = foff;
 
     while (foff < coff) {
-        bool txmeta, txcom, nontx;
+        bool txmeta, txcom, nontx, skiprec = false;
         u32 rtype;
-        u64 seqno;
+        u64 seqno, recoff;
 
         buf = wb->wb_buf + (foff % WAL_BUFSZ_MAX);
         rhdr = (void *)buf;
 
-        while (le64_to_cpu(atomic64_read((atomic64_t *)&rhdr->rh_off)) != foff)
+        while ((recoff = le64_to_cpu(atomic64_read((atomic64_t *)&rhdr->rh_off))) != foff) {
+            if (recoff >= U64_MAX - 1) {
+                if (recoff == U64_MAX - 1) {
+                    skiprec = true;
+                } else {
+                    err = ENODATA;
+                    goto exit;
+                }
+                break;
+            }
             cpu_relax();
+        }
 
         /* Set the BOR flag in the first record */
         if (prev_foff == foff) {
             flags = omf_rh_flags(rhdr);
             flags |= WAL_FLAGS_BORG;
             omf_set_rh_flags(rhdr, flags);
+        }
+
+        if (skiprec) { /* go to next record */
+            prev_foff = foff;
+            foff += (rhlen + omf_rh_len(rhdr));
+            continue;
         }
 
         rtype = omf_rh_type(rhdr);
@@ -167,7 +183,7 @@ restart:
     buf = wb->wb_buf + (start_foff % WAL_BUFSZ_MAX);
     err = wal_io_enqueue(wb->wb_io, buf, foff - start_foff, cgen, &info);
     if (err)
-        atomic64_set(&wb->wb_bs->wbs_err, err);
+        goto exit;
 
     if (foff < coff)
         goto restart;
@@ -181,6 +197,9 @@ restart:
                 atomic64_read(wb->wb_bs->wbs_ingestgen));
 #endif
 
+exit:
+    if (err)
+        atomic64_set(&wb->wb_bs->wbs_err, err);
     atomic_set(&wb->wb_flushing, 0);
 }
 
@@ -315,6 +334,7 @@ wal_bufset_flush(struct wal_bufset *wbs)
 {
     struct workqueue_struct *wq;
     uint i;
+    merr_t err;
 
     if (!wbs)
         return merr(EINVAL);
@@ -328,6 +348,9 @@ wal_bufset_flush(struct wal_bufset *wbs)
             queue_work(wq, &wb->wb_fwork);
     }
     flush_workqueue(wq);
+
+    if ((err = atomic64_read(&wbs->wbs_err)))
+        return err;
 
     return 0;
 }

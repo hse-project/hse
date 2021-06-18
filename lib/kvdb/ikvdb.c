@@ -1921,18 +1921,17 @@ ikvdb_kvs_put(
     if (err)
         return err;
 
-    err = kvs_put(kk->kk_ikvs, txn, kt, vt, seqnoref);
-    if (err) {
+    err = kvs_put(kk->kk_ikvs, os, kt, vt, seqnoref);
+    if (!err) {
+        if (!(flags & HSE_FLAG_PUT_PRIORITY || parent->ikdb_rp.throttle_disable))
+            ikvdb_throttle(parent, kt->kt_len + (clen ? clen : vlen));
+    } else {
         ev(merr_errno(err) != ECANCELED);
-        return err;
     }
 
-    wal_op_finish(parent->ikdb_wal, &rec, kt->kt_seqno, kt->kt_dgen);
+    wal_op_finish(parent->ikdb_wal, &rec, kt->kt_seqno, kt->kt_dgen, merr_errno(err));
 
-    if (!(flags & HSE_FLAG_PUT_PRIORITY || parent->ikdb_rp.throttle_disable))
-        ikvdb_throttle(parent, kt->kt_len + (clen ? clen : vlen));
-
-    return 0;
+    return err;
 }
 
 merr_t
@@ -2044,12 +2043,10 @@ ikvdb_kvs_del(
         return err;
 
     err = kvs_del(kk->kk_ikvs, txn, kt, seqnoref);
-    if (ev(err))
-        return err;
 
-    wal_op_finish(parent->ikdb_wal, &rec, kt->kt_seqno, kt->kt_dgen);
+    wal_op_finish(parent->ikdb_wal, &rec, kt->kt_seqno, kt->kt_dgen, merr_errno(err));
 
-    return 0;
+    return err;
 }
 
 merr_t
@@ -2098,12 +2095,10 @@ ikvdb_kvs_prefix_delete(
      * number to allow newer mutations (after prefix) to be distinguished.
      */
     err = kvs_prefix_del(kk->kk_ikvs, txn, kt, seqnoref);
-    if (ev(err))
-        return err;
 
-    wal_op_finish(parent->ikdb_wal, &rec, kt->kt_seqno, kt->kt_dgen);
+    wal_op_finish(parent->ikdb_wal, &rec, kt->kt_seqno, kt->kt_dgen, merr_errno(err));
 
-    return 0;
+    return err;
 }
 
 /*-  IKVDB Cursors --------------------------------------------------*/

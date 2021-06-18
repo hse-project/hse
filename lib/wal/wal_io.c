@@ -136,7 +136,7 @@ wal_io_worker(struct work_struct *work)
 
             err = wal_io_submit(iow);
             if (err)
-                atomic64_set(&io->io_err, err);
+                atomic64_set(&io->io_err, err); /* TODO: tie it to wal->error */
 
             list_del(&iow->iow_list);
             kmem_cache_free(iowcache, iow);

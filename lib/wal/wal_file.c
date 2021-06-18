@@ -341,8 +341,6 @@ wal_file_write_impl(struct wal_file *wfile, const char *buf, size_t len, off_t o
     if (err)
         return err;
 
-    wfile->woff += len;
-
     return 0;
 }
 
