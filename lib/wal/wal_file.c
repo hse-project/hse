@@ -108,12 +108,13 @@ wal_fileset_reclaim(struct wal_fileset *wfset, u64 seqno, u64 gen, u64 txhorizon
         int fileid = cur->fileid;
         struct wal_minmax_info *info = &cur->info;
 
+#ifndef NDEBUG
         hse_log(HSE_NOTICE
                 "Reclaiming gen %lu [%lu, %lu] seqno %lu [%lu, %lu] txid %lu [%lu, %lu]",
                 gen, info->min_gen, info->max_gen,
                 seqno, info->min_seqno, info->max_seqno,
                 txhorizon, info->min_txid, info->max_txid);
-
+#endif
 
         list_del(&cur->link);
         assert(atomic64_read(&cur->ref) == 1);

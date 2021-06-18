@@ -12,6 +12,9 @@
 #include <hse_ikvdb/kvs.h>
 #include <hse_ikvdb/tuple.h>
 
+#define HSE_WAL_DUR_MS_DFLT    (100)
+#define HSE_WAL_DUR_BYTES_DFLT (35 << 20)
+
 struct wal;
 struct kvdb_log;
 struct kvdb_log_tx;
@@ -26,7 +29,7 @@ struct wal_record {
 
 /* MTF_MOCK */
 merr_t
-wal_create(struct mpool *mp, uint64_t *mdcid1, uint64_t *mdcid2);
+wal_create(struct mpool *mp, struct kvdb_cparams *cp, uint64_t *mdcid1, uint64_t *mdcid2);
 
 /* MTF_MOCK */
 merr_t
@@ -34,7 +37,12 @@ wal_destroy(struct mpool *mp, uint64_t mdcid1, uint64_t mdcid2);
 
 /* MTF_MOCK */
 merr_t
-wal_open(struct mpool *mp, bool rdonly, uint64_t mdcid1, uint64_t mdcid2, struct wal **wal_out);
+wal_open(
+    struct mpool        *mp,
+    struct kvdb_rparams *rp,
+    uint64_t             mdcid1,
+    uint64_t             mdcid2,
+    struct wal         **wal_out);
 
 /* MTF_MOCK */
 merr_t

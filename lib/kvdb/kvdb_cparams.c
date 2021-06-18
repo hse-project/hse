@@ -14,25 +14,45 @@
 #include <hse_ikvdb/home.h>
 #include <hse_ikvdb/kvdb_cparams.h>
 #include <hse_ikvdb/param.h>
+#include <hse_ikvdb/wal.h>
 #include <hse_util/storage.h>
 
 static const struct param_spec pspecs[] = {
 	{
-        .ps_name = "dur_capacity",
-        .ps_description = "durability capacity in MiB",
-        .ps_flags = PARAM_FLAG_EXPERIMENTAL | PARAM_FLAG_CREATE_ONLY,
-        .ps_type = PARAM_TYPE_U64,
-        .ps_offset = offsetof(struct kvdb_cparams, dur_capacity),
-        .ps_size = sizeof(((struct kvdb_cparams *) 0)->dur_capacity),
+        .ps_name = "dur_lag_ms",
+        .ps_description = "durability lag in ms",
+        .ps_flags = PARAM_FLAG_CREATE_ONLY,
+        .ps_type = PARAM_TYPE_U32,
+        .ps_offset = offsetof(struct kvdb_cparams, dur_lag_ms),
+        .ps_size = sizeof(((struct kvdb_cparams *) 0)->dur_lag_ms),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
         .ps_default_value = {
-            .as_uscalar = 6144 * MB, /* 6 GiB */
+            .as_uscalar = HSE_WAL_DUR_MS_DFLT,
         },
         .ps_bounds = {
             .as_uscalar = {
-                .ps_min = 0,
-                .ps_max = UINT64_MAX,
+                .ps_min = 25,
+                .ps_max = 1000,
+            },
+        },
+    },
+	{
+        .ps_name = "dur_buf_sz",
+        .ps_description = "durability buffer size in bytes",
+        .ps_flags = PARAM_FLAG_EXPERIMENTAL | PARAM_FLAG_CREATE_ONLY,
+        .ps_type = PARAM_TYPE_U32,
+        .ps_offset = offsetof(struct kvdb_cparams, dur_buf_sz),
+        .ps_size = sizeof(((struct kvdb_cparams *) 0)->dur_buf_sz),
+        .ps_convert = param_default_converter,
+        .ps_validate = param_default_validator,
+        .ps_default_value = {
+            .as_uscalar = HSE_WAL_DUR_BYTES_DFLT,
+        },
+        .ps_bounds = {
+            .as_uscalar = {
+                .ps_min = 8 << 20,
+                .ps_max = 64 << 20,
             },
         },
     },

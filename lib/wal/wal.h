@@ -7,8 +7,12 @@
 
 #include <hse_ikvdb/wal.h>
 
-#define WAL_DUR_INTVL_MS   (100)
-#define WAL_DUR_SZ_BYTES   (100 << 20)
+#define WAL_DUR_MS_MAX     (1000 - 1)
+#define WAL_DUR_MS_MIN     (10)
+
+#define WAL_DUR_BYTES_MAX  (100 << 20)
+#define WAL_DUR_BYTES_MIN  (16 << 20)
+
 #define WAL_MDC_CAPACITY   (1 << 30)
 #define WAL_MAGIC          (0xabcdabcd)
 #define WAL_FILE_SIZE      (512ul << 20)
@@ -29,10 +33,10 @@ struct wal;
 struct mpool;
 
 void
-wal_dur_params_get(struct wal *wal, uint32_t *dur_intvl, uint32_t *dur_sz);
+wal_dur_params_get(struct wal *wal, uint32_t *dur_ms, uint32_t *dur_bytes);
 
 void
-wal_dur_params_set(struct wal *wal, uint32_t dur_intvl, uint32_t dur_sz);
+wal_dur_params_set(struct wal *wal, uint32_t dur_ms, uint32_t dur_bytes);
 
 uint64_t
 wal_reclaim_gen_get(struct wal *wal);

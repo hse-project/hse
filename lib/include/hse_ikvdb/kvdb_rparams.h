@@ -78,13 +78,13 @@ struct kvdb_rparams {
     uint64_t csched_leaf_len_params;
     uint64_t csched_node_min_ttl;
 
-    uint64_t dur_enable;
-    uint64_t dur_intvl_ms;
-    uint64_t dur_buf_sz;
-    uint64_t dur_delay_pct;
-    uint64_t dur_throttle_enable;
-    uint64_t dur_throttle_lo_th;
-    uint64_t dur_throttle_hi_th;
+    uint32_t dur_enable;
+    uint32_t dur_lag_ms;
+    uint32_t dur_buf_sz;
+    uint32_t dur_delay_pct;
+    uint32_t dur_throttle_enable;
+    uint32_t dur_throttle_lo_th;
+    uint32_t dur_throttle_hi_th;
 
     uint64_t throttle_update_ns;
     uint32_t throttle_relax;
@@ -125,7 +125,7 @@ const struct param_spec *
 kvdb_rparams_pspecs_get(size_t *pspecs_sz) HSE_RETURNS_NONNULL;
 
 struct kvdb_rparams
-kvdb_rparams_defaults() HSE_CONST;
+kvdb_rparams_defaults(void) HSE_CONST;
 
 merr_t
 kvdb_rparams_resolve(struct kvdb_rparams *params, const char *home);

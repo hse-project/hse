@@ -13,7 +13,8 @@
 #include <mpool/mpool_structs.h>
 
 struct kvdb_cparams {
-    size_t dur_capacity;
+    uint32_t dur_lag_ms;
+    size_t dur_buf_sz;
     struct mpool_cparams storage;
 };
 

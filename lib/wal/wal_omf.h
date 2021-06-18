@@ -68,13 +68,13 @@ OMF_SETGET(struct wal_version_omf, ver_magic, 32);
 
 struct wal_config_omf {
     struct wal_mdchdr_omf cfg_hdr;
-    __le32 cfg_dintvl;
-    __le32 cfg_dsize;
+    __le32 cfg_durms;
+    __le32 cfg_durbytes;
 } HSE_PACKED;
 
 /* Define set/get methods for wal_config_omf */
-OMF_SETGET(struct wal_config_omf, cfg_dintvl, 32);
-OMF_SETGET(struct wal_config_omf, cfg_dsize, 32);
+OMF_SETGET(struct wal_config_omf, cfg_durms, 32);
+OMF_SETGET(struct wal_config_omf, cfg_durbytes, 32);
 
 
 struct wal_reclaim_omf {

@@ -876,14 +876,14 @@ static const struct param_spec pspecs[] = {
     {
         .ps_name = "dur_enable",
         .ps_description = "0: disable durability, 1:enable durability",
-        .ps_flags = PARAM_FLAG_EXPERIMENTAL,
-        .ps_type = PARAM_TYPE_U64,
+        .ps_flags = 0,
+        .ps_type = PARAM_TYPE_U32,
         .ps_offset = offsetof(struct kvdb_rparams, dur_enable),
         .ps_size = sizeof(((struct kvdb_rparams *) 0)->dur_enable),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
         .ps_default_value = {
-            .as_uscalar = 0,
+            .as_uscalar = 1,
         },
         .ps_bounds = {
             .as_uscalar = {
@@ -893,21 +893,21 @@ static const struct param_spec pspecs[] = {
         },
     },
     {
-        .ps_name = "dur_intvl_ms",
+        .ps_name = "dur_lag_ms",
         .ps_description = "durability lag in ms",
         .ps_flags = 0,
-        .ps_type = PARAM_TYPE_U64,
-        .ps_offset = offsetof(struct kvdb_rparams, dur_intvl_ms),
-        .ps_size = sizeof(((struct kvdb_rparams *) 0)->dur_intvl_ms),
+        .ps_type = PARAM_TYPE_U32,
+        .ps_offset = offsetof(struct kvdb_rparams, dur_lag_ms),
+        .ps_size = sizeof(((struct kvdb_rparams *) 0)->dur_lag_ms),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
         .ps_default_value = {
-            .as_uscalar = 500,
+            .as_uscalar = 0,
         },
         .ps_bounds = {
             .as_uscalar = {
                 .ps_min = 0,
-                .ps_max = UINT64_MAX,
+                .ps_max = 1000,
             },
         },
     },
@@ -915,18 +915,18 @@ static const struct param_spec pspecs[] = {
         .ps_name = "dur_buf_sz",
         .ps_description = "durability buffer size in bytes",
         .ps_flags = PARAM_FLAG_EXPERIMENTAL,
-        .ps_type = PARAM_TYPE_U64,
+        .ps_type = PARAM_TYPE_U32,
         .ps_offset = offsetof(struct kvdb_rparams, dur_buf_sz),
         .ps_size = sizeof(((struct kvdb_rparams *) 0)->dur_buf_sz),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
         .ps_default_value = {
-            .as_uscalar = 36700160, /* 35 MiB */
+            .as_uscalar = 0,
         },
         .ps_bounds = {
             .as_uscalar = {
                 .ps_min = 0,
-                .ps_max = UINT64_MAX,
+                .ps_max = 64 << 20,
             },
         },
     },
@@ -934,7 +934,7 @@ static const struct param_spec pspecs[] = {
         .ps_name = "dur_delay_pct",
         .ps_description = "durability delay percent",
         .ps_flags = PARAM_FLAG_EXPERIMENTAL,
-        .ps_type = PARAM_TYPE_U64,
+        .ps_type = PARAM_TYPE_U32,
         .ps_offset = offsetof(struct kvdb_rparams, dur_delay_pct),
         .ps_size = sizeof(((struct kvdb_rparams *) 0)->dur_delay_pct),
         .ps_convert = param_default_converter,
@@ -953,7 +953,7 @@ static const struct param_spec pspecs[] = {
         .ps_name = "dur_throttle_lo_th",
         .ps_description = "low watermark for throttling in percentage",
         .ps_flags = PARAM_FLAG_EXPERIMENTAL,
-        .ps_type = PARAM_TYPE_U64,
+        .ps_type = PARAM_TYPE_U32,
         .ps_offset = offsetof(struct kvdb_rparams, dur_throttle_lo_th),
         .ps_size = sizeof(((struct kvdb_rparams *) 0)->dur_throttle_lo_th),
         .ps_convert = param_default_converter,
@@ -964,7 +964,7 @@ static const struct param_spec pspecs[] = {
         .ps_bounds = {
             .as_uscalar = {
                 .ps_min = 0,
-                .ps_max = UINT64_MAX,
+                .ps_max = 100,
             },
         },
     },
@@ -972,7 +972,7 @@ static const struct param_spec pspecs[] = {
         .ps_name = "dur_throttle_hi_th",
         .ps_description = "high watermark for throttling in percentage",
         .ps_flags = PARAM_FLAG_EXPERIMENTAL,
-        .ps_type = PARAM_TYPE_U64,
+        .ps_type = PARAM_TYPE_U32,
         .ps_offset = offsetof(struct kvdb_rparams, dur_throttle_hi_th),
         .ps_size = sizeof(((struct kvdb_rparams *) 0)->dur_throttle_hi_th),
         .ps_convert = param_default_converter,
@@ -983,7 +983,7 @@ static const struct param_spec pspecs[] = {
         .ps_bounds = {
             .as_uscalar = {
                 .ps_min = 0,
-                .ps_max = UINT64_MAX,
+                .ps_max = 200,
             },
         },
     },
@@ -991,7 +991,7 @@ static const struct param_spec pspecs[] = {
         .ps_name = "dur_throttle_enable",
         .ps_description = "enable durablity throttling",
         .ps_flags = PARAM_FLAG_EXPERIMENTAL,
-        .ps_type = PARAM_TYPE_U64,
+        .ps_type = PARAM_TYPE_U32,
         .ps_offset = offsetof(struct kvdb_rparams, dur_throttle_enable),
         .ps_size = sizeof(((struct kvdb_rparams *) 0)->dur_throttle_enable),
         .ps_convert = param_default_converter,
@@ -1002,7 +1002,7 @@ static const struct param_spec pspecs[] = {
         .ps_bounds = {
             .as_uscalar = {
                 .ps_min = 0,
-                .ps_max = UINT64_MAX,
+                .ps_max = 1,
             },
         },
     },

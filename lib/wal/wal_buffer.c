@@ -174,10 +174,12 @@ restart:
 
     assert(foff == coff);
 
+#ifndef NDEBUG
     if (atomic64_inc_return(&wb->wb_flushreq) % 1536 == 0)
-        hse_log(HSE_ERR "Flush stats: coff %lu foff %lu doff %lu igen %lu",
+        hse_log(HSE_NOTICE "Flush stats: coff %lu foff %lu doff %lu igen %lu",
                 atomic64_read(&wb->wb_offset), foff, atomic64_read(&wb->wb_doff),
                 atomic64_read(wb->wb_bs->wbs_ingestgen));
+#endif
 
     atomic_set(&wb->wb_flushing, 0);
 }

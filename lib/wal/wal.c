@@ -15,6 +15,7 @@
 #include <hse_ikvdb/limits.h>
 #include <hse_ikvdb/key_hash.h>
 #include <hse_ikvdb/kvdb_ctxn.h>
+#include <hse_ikvdb/kvdb_rparams.h>
 
 #include <mpool/mpool.h>
 
@@ -33,8 +34,8 @@ struct wal {
     pthread_t timer_tid;
     uint64_t rgen;
     uint32_t version;
-    uint32_t dintvl_ms;
-    uint32_t dsize_bytes;
+    uint32_t dur_ms;
+    uint32_t dur_bytes;
 
     atomic64_t error;
     atomic64_t ingestseq;
@@ -72,15 +73,14 @@ wal_timer(void *rock)
 {
     struct wal *wal = rock;
     struct timespec req = {0};
-    long dintvl_ns;
+    long dur_ns;
 
     pthread_setname_np(pthread_self(), "wal_timer");
 
     /* tv_nsec must not fall outside the range [0,999999999].
      */
-    dintvl_ns = clamp_t(long, MSEC_TO_NSEC(wal->dintvl_ms),
-                        MSEC_TO_NSEC(10), MSEC_TO_NSEC(1000) - 1);
-    dintvl_ns = max_t(long, dintvl_ns - (long)timer_slack, 1);
+    dur_ns = MSEC_TO_NSEC(wal->dur_ms);
+    dur_ns = max_t(long, dur_ns - (long)timer_slack, 1);
 
     while (true) {
         u64 reqtime, lag;
@@ -89,7 +89,7 @@ wal_timer(void *rock)
             break;
 
         reqtime = wal_reqtime_get(wal);
-        req.tv_nsec = dintvl_ns;
+        req.tv_nsec = dur_ns;
 
         if (reqtime > 0) { /* Call flush if there might be mutations */
             merr_t err;
@@ -293,10 +293,11 @@ wal_op_finish(struct wal *wal, struct wal_record *rec, uint64_t seqno, uint64_t 
  */
 
 merr_t
-wal_create(struct mpool *mp, uint64_t *mdcid1, uint64_t *mdcid2)
+wal_create(struct mpool *mp, struct kvdb_cparams *cp, uint64_t *mdcid1, uint64_t *mdcid2)
 {
     struct wal_mdc *mdc;
     merr_t err;
+    u32 dur_ms, dur_bytes;
 
     err = wal_mdc_create(mp, MP_MED_CAPACITY, WAL_MDC_CAPACITY, mdcid1, mdcid2);
     if (err)
@@ -308,7 +309,13 @@ wal_create(struct mpool *mp, uint64_t *mdcid1, uint64_t *mdcid2)
         return err;
     }
 
-    err = wal_mdc_format(mdc, WAL_VERSION, WAL_DUR_INTVL_MS, WAL_DUR_SZ_BYTES);
+    dur_ms = cp->dur_lag_ms;
+    dur_ms = clamp_t(long, dur_ms, WAL_DUR_MS_MIN, WAL_DUR_MS_MAX);
+
+    dur_bytes = cp->dur_buf_sz;
+    dur_bytes = clamp_t(long, dur_bytes, WAL_DUR_BYTES_MIN, WAL_DUR_BYTES_MAX);
+
+    err = wal_mdc_format(mdc, WAL_VERSION, dur_ms, dur_bytes);
 
     wal_mdc_close(mdc);
 
@@ -325,7 +332,12 @@ wal_destroy(struct mpool *mp, uint64_t oid1, uint64_t oid2)
 }
 
 merr_t
-wal_open(struct mpool *mp, bool rdonly, uint64_t mdcid1, uint64_t mdcid2, struct wal **wal_out)
+wal_open(
+    struct mpool        *mp,
+    struct kvdb_rparams *rp,
+    uint64_t             mdcid1,
+    uint64_t             mdcid2,
+    struct wal         **wal_out)
 {
     struct wal         *wal;
     struct wal_bufset  *wbs;
@@ -337,6 +349,9 @@ wal_open(struct mpool *mp, bool rdonly, uint64_t mdcid1, uint64_t mdcid2, struct
     if (!mp || !wal_out)
         return merr(EINVAL);
 
+    if (!rp->dur_enable)
+        return 0;
+
     wal = aligned_alloc(alignof(*wal) * 2, sizeof(*wal));
     if (!wal)
         return merr(ENOMEM);
@@ -347,8 +362,6 @@ wal_open(struct mpool *mp, bool rdonly, uint64_t mdcid1, uint64_t mdcid2, struct
 
     wal->rgen = 0;
     wal->version = WAL_VERSION;
-    wal->dintvl_ms = WAL_DUR_INTVL_MS;
-    wal->dsize_bytes = WAL_DUR_SZ_BYTES;
     atomic64_set(&wal->rid, 0);
     atomic64_set(&wal->error, 0);
     atomic64_set(&wal->ingestgen, 0);
@@ -360,6 +373,17 @@ wal_open(struct mpool *mp, bool rdonly, uint64_t mdcid1, uint64_t mdcid2, struct
     err = wal_mdc_replay(mdc, wal);
     if (err)
         goto errout;
+
+    /* Override persisted params if changed at run-time */
+    if (rp->dur_lag_ms != 0) {
+        wal->dur_ms = rp->dur_lag_ms;
+        wal->dur_ms = clamp_t(long, wal->dur_ms, WAL_DUR_MS_MIN, WAL_DUR_MS_MAX);
+    }
+
+    if (rp->dur_buf_sz != 0) {
+        wal->dur_bytes = rp->dur_buf_sz;
+        wal->dur_bytes = clamp_t(long, wal->dur_bytes, WAL_DUR_BYTES_MIN, WAL_DUR_BYTES_MAX);
+    }
 
     wfset = wal_fileset_open(mp, MP_MED_CAPACITY, WAL_FILE_SIZE, WAL_MAGIC, WAL_VERSION);
     if (!wfset) {
@@ -421,17 +445,17 @@ wal_cningest_cb(struct wal *wal, u64 seqno, u64 gen, u64 txhorizon)
  * get/set interfaces for struct wal fields
  */
 void
-wal_dur_params_get(struct wal *wal, uint32_t *dintvl_ms, uint32_t *dsize_bytes)
+wal_dur_params_get(struct wal *wal, uint32_t *dur_ms, uint32_t *dur_bytes)
 {
-    *dintvl_ms = wal->dintvl_ms;
-    *dsize_bytes = wal->dsize_bytes;
+    *dur_ms = wal->dur_ms;
+    *dur_bytes = wal->dur_bytes;
 }
 
 void
-wal_dur_params_set(struct wal *wal, uint32_t dintvl_ms, uint32_t dsize_bytes)
+wal_dur_params_set(struct wal *wal, uint32_t dur_ms, uint32_t dur_bytes)
 {
-    wal->dintvl_ms = dintvl_ms;
-    wal->dsize_bytes = dsize_bytes;
+    wal->dur_ms = dur_ms;
+    wal->dur_bytes = dur_bytes;
 }
 
 uint64_t

@@ -1271,10 +1271,10 @@ c0sk_flush_current_multiset(struct c0sk_impl *self, u64 *genp)
          * the generation of small kvsets we linger around a bit in hopes of
          * piggybacking upon a naturally occuring flush.  This works well if
          * the ingest rate is high.  If the ingest rate is low it simply
-         * serves to limit the sync frequency to roughly dur_intvl_ms.
+         * serves to limit the sync frequency to roughly dur_lag_ms.
          */
         if (!self->c0sk_closing) {
-            long waitmax = self->c0sk_kvdb_rp->dur_intvl_ms / 2;
+            long waitmax = self->c0sk_kvdb_rp->dur_lag_ms / 2;
             long delay = min_t(long, waitmax / 10 + 1, 100);
 
 #if 0

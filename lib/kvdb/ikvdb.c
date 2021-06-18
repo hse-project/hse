@@ -267,12 +267,16 @@ validate_kvs_name(const char *name)
 }
 
 static merr_t
-ikvdb_wal_make(struct mpool *mp, struct kvdb_log *log, struct kvdb_log_tx **tx)
+ikvdb_wal_make(
+    struct mpool        *mp,
+    struct kvdb_cparams *cp,
+    struct kvdb_log     *log,
+    struct kvdb_log_tx **tx)
 {
     uint64_t mdcid1, mdcid2;
     merr_t err;
 
-    err = wal_create(mp, &mdcid1, &mdcid2);
+    err = wal_create(mp, cp, &mdcid1, &mdcid2);
     if (err)
         return err;
 
@@ -353,7 +357,7 @@ ikvdb_create(const char *kvdb_home, struct mpool *mp, struct kvdb_cparams *param
     if (ev(err))
         goto out;
 
-    err = ikvdb_wal_make(mp, log, &tx);
+    err = ikvdb_wal_make(mp, params, log, &tx);
 
 out:
     /* Failed ikvdb_create() indicates that the caller or operator should
@@ -1096,8 +1100,7 @@ ikvdb_open(
     atomic64_set(&self->ikdb_seqno, seqno);
 
     kvdb_log_waloid_get(self->ikdb_log, &self->ikdb_wal_oid1, &self->ikdb_wal_oid2);
-    err = wal_open(mp, self->ikdb_rdonly, self->ikdb_wal_oid1, self->ikdb_wal_oid2,
-                   &self->ikdb_wal);
+    err = wal_open(mp, &self->ikdb_rp, self->ikdb_wal_oid1, self->ikdb_wal_oid2, &self->ikdb_wal);
     if (err) {
         hse_elog(HSE_ERR "cannot open %s: @@e", err, kvdb_home);
         goto err1;
