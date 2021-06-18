@@ -18,6 +18,10 @@ tests = {
         'suite': 'ycsb',
         'timeout': 0,
     },
+    'test_dbbench.py': {
+        'suite': 'dbbench',
+        'timeout': 0,
+    },
 }
 
 if not benchmarks_enabled
