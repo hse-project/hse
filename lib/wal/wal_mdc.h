@@ -19,7 +19,7 @@ wal_mdc_create(
     uint64_t         *mdcid1,
     uint64_t         *mdcid2);
 
-merr_t
+void
 wal_mdc_destroy(struct mpool *mp, uint64_t mdcid1, uint64_t mdcid2);
 
 merr_t

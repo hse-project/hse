@@ -3,9 +3,9 @@
  * Copyright (C) 2021 Micron Technology, Inc.  All rights reserved.
  */
 
+#include <hse_util/logging.h>
 #include <hse_util/event_counter.h>
 #include <hse_util/page.h>
-#include <hse_util/platform.h>
 
 #include <mpool/mpool.h>
 
@@ -48,13 +48,14 @@ wal_mdc_create(
     return 0;
 }
 
-merr_t
+void
 wal_mdc_destroy(struct mpool *mp, uint64_t mdcid1, uint64_t mdcid2)
 {
-    if (!mp)
-        return merr(EINVAL);
+    merr_t err;
 
-    return mpool_mdc_delete(mp, mdcid1, mdcid2);
+    err = mpool_mdc_delete(mp, mdcid1, mdcid2);
+    if (err)
+        hse_elog(HSE_WARNING "%s: delete mdc %lx %lx failed: @@e", err, __func__, mdcid1, mdcid2);
 }
 
 merr_t

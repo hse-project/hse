@@ -32,7 +32,7 @@ merr_t
 wal_create(struct mpool *mp, struct kvdb_cparams *cp, uint64_t *mdcid1, uint64_t *mdcid2);
 
 /* MTF_MOCK */
-merr_t
+void
 wal_destroy(struct mpool *mp, uint64_t mdcid1, uint64_t mdcid2);
 
 /* MTF_MOCK */
@@ -45,7 +45,7 @@ wal_open(
     struct wal         **wal_out);
 
 /* MTF_MOCK */
-merr_t
+void
 wal_close(struct wal *wal);
 
 /* MTF_MOCK */

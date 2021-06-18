@@ -6,7 +6,6 @@
 #define MTF_MOCK_IMPL_wal
 
 #include <hse_util/hse_err.h>
-#include <hse_util/platform.h>
 #include <hse_util/bonsai_tree.h>
 #include <hse_util/event_counter.h>
 
@@ -31,21 +30,23 @@ struct wal {
     struct wal_fileset *wfset;
     struct wal_mdc     *mdc;
 
-    pthread_t timer_tid;
     uint64_t rgen;
     uint32_t version;
     uint32_t dur_ms;
     uint32_t dur_bytes;
 
-    atomic64_t error;
     atomic64_t ingestseq;
     atomic64_t ingestgen;
     atomic64_t txhorizon;
-    atomic_t closing;
 
     atomic64_t rid HSE_ALIGNED(SMP_CACHE_BYTES);
 
     volatile u64 reqtime HSE_ALIGNED(SMP_CACHE_BYTES);
+
+    pthread_t timer_tid;
+    bool timer_tid_valid;
+    atomic_t closing;
+    atomic64_t error;
 };
 
 
@@ -77,10 +78,10 @@ wal_timer(void *rock)
 
     pthread_setname_np(pthread_self(), "wal_timer");
 
-    /* tv_nsec must not fall outside the range [0,999999999].
+    /* dur_ns must not fall outside the range defined by nanosleep(3).
      */
     dur_ns = MSEC_TO_NSEC(wal->dur_ms);
-    dur_ns = max_t(long, dur_ns - (long)timer_slack, 1);
+    dur_ns = clamp_t(long, dur_ns - (long)timer_slack, 1, 999999999);
 
     while (true) {
         u64 reqtime, lag;
@@ -325,10 +326,10 @@ wal_create(struct mpool *mp, struct kvdb_cparams *cp, uint64_t *mdcid1, uint64_t
     return err;
 }
 
-merr_t
+void
 wal_destroy(struct mpool *mp, uint64_t oid1, uint64_t oid2)
 {
-    return wal_mdc_destroy(mp, oid1, oid2);
+    wal_mdc_destroy(mp, oid1, oid2);
 }
 
 merr_t
@@ -346,7 +347,7 @@ wal_open(
     merr_t err;
     int rc;
 
-    if (!mp || !wal_out)
+    if (!mp || !rp || !wal_out)
         return merr(EINVAL);
 
     if (!rp->dur_enable)
@@ -400,9 +401,12 @@ wal_open(
     wal->wbs = wbs;
 
     rc = pthread_create(&wal->timer_tid, NULL, wal_timer, wal);
-    if (rc)
+    if (rc) {
+        err = merr(rc);
         goto errout;
+    }
 
+    wal->timer_tid_valid = true;
     *wal_out = wal;
 
     return 0;
@@ -413,14 +417,16 @@ errout:
     return err;
 }
 
-merr_t
+void
 wal_close(struct wal *wal)
 {
     if (!wal)
-        return 0;
+        return;
 
-    atomic_set(&wal->closing, 1);
-    pthread_join(wal->timer_tid, 0);
+    atomic_inc(&wal->closing);
+
+    if (wal->timer_tid_valid)
+        pthread_join(wal->timer_tid, 0);
 
     wal_bufset_close(wal->wbs);
     wal_fileset_close(wal->wfset, atomic64_read(&wal->ingestseq),
@@ -428,8 +434,6 @@ wal_close(struct wal *wal)
     wal_mdc_close(wal->mdc);
 
     free(wal);
-
-    return 0;
 }
 
 void
