@@ -20,7 +20,13 @@ tests = {
         'suites': ['short'],
     },
     'kvs_scan_empty_kvs': {
-        'suites': ['short'],   
+        'suites': ['short'],
+    },
+    'kvs_compression_same_mpool': {
+    'suites': ['short'],
+    },
+    'longtest_cursor_variable_prefix': {
+    'suites': ['long'],
     },
     'kvs_scan_a_billion': {
         'suites': ['long'],
