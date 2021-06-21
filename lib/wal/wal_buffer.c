@@ -334,7 +334,6 @@ wal_bufset_flush(struct wal_bufset *wbs)
 {
     struct workqueue_struct *wq;
     uint i;
-    merr_t err;
 
     if (!wbs)
         return merr(EINVAL);
@@ -349,8 +348,5 @@ wal_bufset_flush(struct wal_bufset *wbs)
     }
     flush_workqueue(wq);
 
-    if ((err = atomic64_read(&wbs->wbs_err)))
-        return err;
-
-    return 0;
+    return atomic64_read(&wbs->wbs_err);
 }

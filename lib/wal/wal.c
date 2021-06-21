@@ -24,16 +24,13 @@
 #include "wal_omf.h"
 #include "wal_mdc.h"
 
+/* clang-format off */
+
 struct wal {
-    struct mpool       *mp;
+    struct mpool       *mp HSE_ALIGNED(SMP_CACHE_BYTES * 2);
     struct wal_bufset  *wbs;
     struct wal_fileset *wfset;
     struct wal_mdc     *mdc;
-
-    uint64_t rgen;
-    uint32_t version;
-    uint32_t dur_ms;
-    uint32_t dur_bytes;
 
     atomic64_t ingestseq;
     atomic64_t ingestgen;
@@ -41,39 +38,24 @@ struct wal {
 
     atomic64_t rid HSE_ALIGNED(SMP_CACHE_BYTES);
 
-    volatile u64 reqtime HSE_ALIGNED(SMP_CACHE_BYTES);
-
-    pthread_t timer_tid;
-    bool timer_tid_valid;
-    atomic_t closing;
+    atomic_t   closing HSE_ALIGNED(SMP_CACHE_BYTES);
     atomic64_t error;
+    bool       timer_tid_valid;
+    pthread_t  timer_tid;
+    uint32_t   dur_ms;
+    uint32_t   dur_bytes;
+    uint32_t   version;
+    uint64_t   rgen;
 };
 
-
-static inline void
-wal_reqtime_set(struct wal *wal)
-{
-    if (wal->reqtime == 0)
-        wal->reqtime = jclock_ns;
-}
-
-static inline void
-wal_reqtime_reset(struct wal *wal)
-{
-    wal->reqtime = 0;
-}
-
-static inline u64
-wal_reqtime_get(struct wal *wal)
-{
-    return wal->reqtime;
-}
+/* clang-format on */
 
 static void *
 wal_timer(void *rock)
 {
     struct wal *wal = rock;
     struct timespec req = {0};
+    u64 rid_last = 0;
     long dur_ns;
 
     pthread_setname_np(pthread_self(), "wal_timer");
@@ -84,18 +66,18 @@ wal_timer(void *rock)
     dur_ns = clamp_t(long, dur_ns - (long)timer_slack, 1, 999999999);
 
     while (true) {
-        u64 reqtime, lag;
+        u64 tstart, rid, lag;
+        merr_t err;
 
         if (atomic_read(&wal->closing) != 0 || atomic64_read(&wal->error) != 0)
             break;
 
-        reqtime = wal_reqtime_get(wal);
+        tstart = get_time_ns();
         req.tv_nsec = dur_ns;
 
-        if (reqtime > 0) { /* Call flush if there might be mutations */
-            merr_t err;
-
-            wal_reqtime_reset(wal);
+        rid = atomic64_read(&wal->rid);
+        if (rid != rid_last) {
+            rid_last = rid;
 
             err = wal_bufset_flush(wal->wbs);
             if (err) {
@@ -103,7 +85,7 @@ wal_timer(void *rock)
                 break;
             }
 
-            lag = get_time_ns() - reqtime;
+            lag = get_time_ns() - tstart;
             if (lag >= req.tv_nsec)
                 continue;
 
@@ -141,8 +123,6 @@ wal_put(
     rlen = wal_rec_len();
     kvlen = ALIGN(klen, kvalign) + ALIGN(vlen, kvalign);
     len = rlen + kvlen;
-
-    wal_reqtime_set(wal);
 
     rec = wal_bufset_alloc(wal->wbs, len, &offset);
     rid = atomic64_inc_return(&wal->rid);
@@ -191,8 +171,6 @@ wal_del_impl(
     size_t klen, rlen, kalen, len;
     char *kdata;
     uint rtype = WAL_RT_NONTX, op = prefix ? WAL_OP_PDEL : WAL_OP_DEL;
-
-    wal_reqtime_set(wal);
 
     rlen = wal_rec_len();
     klen = kt->kt_len;
@@ -360,7 +338,7 @@ wal_open(
     if (!rp->dur_enable)
         return 0;
 
-    wal = aligned_alloc(alignof(*wal) * 2, sizeof(*wal));
+    wal = aligned_alloc(alignof(*wal), sizeof(*wal));
     if (!wal)
         return merr(ENOMEM);
 
