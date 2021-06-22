@@ -316,11 +316,17 @@ wal_bufset_alloc(struct wal_bufset *wbs, size_t len, u64 *offout)
     wb += (coreid % WAL_BPN_MAX);
 
     offset = atomic64_fetch_add(len, &wb->wb_offset);
-    doff = atomic64_read(&wb->wb_doff);
-    assert(offset >= doff);
-    if (offset > doff && offset - doff >= WAL_BUFSZ_MAX) {
-        assert(0); /* TODO: needs to be handled to avoid corruption */
-        return NULL;
+
+    while (1) {
+        doff = atomic64_read(&wb->wb_doff);
+        if (offset < doff)
+            return NULL;
+
+        if (offset - doff < WAL_BUFSZ_MAX * 119 / 128)
+            break;
+
+        usleep(331);
+        ev(1);
     }
 
     *offout = offset;

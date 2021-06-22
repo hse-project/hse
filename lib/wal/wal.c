@@ -116,7 +116,7 @@ wal_put(
     uint64_t rid, txid = 0, offset;
     size_t klen, vlen, rlen, kvlen, len;
     char *kvdata;
-    uint rtype = WAL_RT_NONTX, op = WAL_OP_PUT;
+    uint rtype = WAL_RT_NONTX;
 
     klen = kt->kt_len;
     vlen = kvs_vtuple_vlen(vt);
@@ -125,18 +125,22 @@ wal_put(
     len = rlen + kvlen;
 
     rec = wal_bufset_alloc(wal->wbs, len, &offset);
+    if (!rec)
+        return merr(ENOMEM);
+
     rid = atomic64_inc_return(&wal->rid);
-    if (kvdb_kop_is_txn(os)) {
+
+    rtype = kvdb_kop_is_txn(os) ? WAL_RT_TX : WAL_RT_NONTX;
+    if (rtype == WAL_RT_TX) {
         merr_t err;
 
         err = kvdb_ctxn_get_view_seqno(kvdb_ctxn_h2h(os->kop_txn), &txid);
         if (err)
             return err;
-        rtype = WAL_RT_TX;
     }
 
     wal_rechdr_pack(rtype, rid, kvlen, rec);
-    wal_rec_pack(op, kvs->ikv_cnid, txid, klen, vt->vt_xlen, rec);
+    wal_rec_pack(WAL_OP_PUT, kvs->ikv_cnid, txid, klen, vt->vt_xlen, rec);
 
     kvdata = (char *)rec + rlen;
     memcpy(kvdata, kt->kt_data, klen);
@@ -170,7 +174,7 @@ wal_del_impl(
     uint64_t rid, txid = 0, offset;
     size_t klen, rlen, kalen, len;
     char *kdata;
-    uint rtype = WAL_RT_NONTX, op = prefix ? WAL_OP_PDEL : WAL_OP_DEL;
+    uint rtype;
 
     rlen = wal_rec_len();
     klen = kt->kt_len;
@@ -178,18 +182,22 @@ wal_del_impl(
     len = rlen + kalen;
 
     rec = wal_bufset_alloc(wal->wbs, len, &offset);
+    if (!rec)
+        return merr(ENOMEM);
+
     rid = atomic64_inc_return(&wal->rid);
-    if (kvdb_kop_is_txn(os)) {
+
+    rtype = kvdb_kop_is_txn(os) ? WAL_RT_TX : WAL_RT_NONTX;
+    if (rtype == WAL_RT_TX) {
         merr_t err;
 
         err = kvdb_ctxn_get_view_seqno(kvdb_ctxn_h2h(os->kop_txn), &txid);
         if (err)
             return err;
-        rtype = WAL_RT_TX;
     }
 
     wal_rechdr_pack(rtype, rid, kalen, rec);
-    wal_rec_pack(op, kvs->ikv_cnid, txid, klen, 0, rec);
+    wal_rec_pack(prefix ? WAL_OP_PDEL : WAL_OP_DEL, kvs->ikv_cnid, txid, klen, 0, rec);
 
     kdata = (char *)rec + rlen;
     memcpy(kdata, kt->kt_data, klen);
@@ -234,6 +242,9 @@ wal_txn(struct wal *wal, uint rtype, uint64_t txid, uint64_t seqno)
 
     rlen = wal_txn_rec_len();
     rec = wal_bufset_alloc(wal->wbs, rlen, &offset);
+    if (!rec)
+        return merr(ENOMEM);
+
     rid = atomic64_inc_return(&wal->rid);
 
     wal_txn_rechdr_pack(rtype, rid, rec);
