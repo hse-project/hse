@@ -113,7 +113,7 @@ wal_put(
 {
     const size_t kvalign = alignof(uint64_t);
     struct wal_rec_omf *rec;
-    uint64_t rid, txid = 0, offset;
+    uint64_t rid, txid = 0;
     size_t klen, vlen, rlen, kvlen, len;
     char *kvdata;
     uint rtype = WAL_RT_NONTX;
@@ -124,9 +124,12 @@ wal_put(
     kvlen = ALIGN(klen, kvalign) + ALIGN(vlen, kvalign);
     len = rlen + kvlen;
 
-    rec = wal_bufset_alloc(wal->wbs, len, &offset);
+    rec = wal_bufset_alloc(wal->wbs, len, &recout->offset, &recout->wbidx);
     if (!rec)
         return merr(ENOMEM);
+
+    recout->recbuf = rec;
+    recout->len = len;
 
     rid = atomic64_inc_return(&wal->rid);
 
@@ -135,8 +138,10 @@ wal_put(
         merr_t err;
 
         err = kvdb_ctxn_get_view_seqno(kvdb_ctxn_h2h(os->kop_txn), &txid);
-        if (err)
+        if (err) {
+            wal_bufset_finish(wal->wbs, recout->wbidx, len, 0);
             return err;
+        }
     }
 
     wal_rechdr_pack(rtype, rid, kvlen, rec);
@@ -153,10 +158,6 @@ wal_put(
         vt->vt_data = kvdata;
     }
 
-    recout->recbuf = rec;
-    recout->len = len;
-    recout->offset = offset;
-
     return 0;
 }
 
@@ -171,7 +172,7 @@ wal_del_impl(
 {
     const size_t kalign = alignof(uint64_t);
     struct wal_rec_omf *rec;
-    uint64_t rid, txid = 0, offset;
+    uint64_t rid, txid = 0;
     size_t klen, rlen, kalen, len;
     char *kdata;
     uint rtype;
@@ -181,9 +182,12 @@ wal_del_impl(
     kalen = ALIGN(klen, kalign);
     len = rlen + kalen;
 
-    rec = wal_bufset_alloc(wal->wbs, len, &offset);
+    rec = wal_bufset_alloc(wal->wbs, len, &recout->offset, &recout->wbidx);
     if (!rec)
         return merr(ENOMEM);
+
+    recout->recbuf = rec;
+    recout->len = len;
 
     rid = atomic64_inc_return(&wal->rid);
 
@@ -192,8 +196,10 @@ wal_del_impl(
         merr_t err;
 
         err = kvdb_ctxn_get_view_seqno(kvdb_ctxn_h2h(os->kop_txn), &txid);
-        if (err)
+        if (err) {
+            wal_bufset_finish(wal->wbs, recout->wbidx, len, 0);
             return err;
+        }
     }
 
     wal_rechdr_pack(rtype, rid, kalen, rec);
@@ -203,10 +209,6 @@ wal_del_impl(
     memcpy(kdata, kt->kt_data, klen);
     kt->kt_data = kdata;
     kt->kt_flags = HSE_BTF_MANAGED;
-
-    recout->recbuf = rec;
-    recout->len = len;
-    recout->offset = offset;
 
     return 0;
 }
@@ -241,7 +243,7 @@ wal_txn(struct wal *wal, uint rtype, uint64_t txid, uint64_t seqno)
     size_t rlen;
 
     rlen = wal_txn_rec_len();
-    rec = wal_bufset_alloc(wal->wbs, rlen, &offset);
+    rec = wal_bufset_alloc(wal->wbs, rlen, &offset, NULL);
     if (!rec)
         return merr(ENOMEM);
 
@@ -282,6 +284,7 @@ wal_op_finish(struct wal *wal, struct wal_record *rec, uint64_t seqno, uint64_t 
             rec->offset = U64_MAX; /* non-recoverable error */
     }
 
+    wal_bufset_finish(wal->wbs, rec->wbidx, rec->len, gen);
     wal_rec_finish(rec, seqno, gen);
 }
 
@@ -438,6 +441,8 @@ wal_cningest_cb(struct wal *wal, u64 seqno, u64 gen, u64 txhorizon)
     atomic64_set(&wal->ingestseq, seqno);
     atomic64_set(&wal->ingestgen, gen);
     atomic64_set(&wal->txhorizon, txhorizon);
+
+    wal_bufset_reclaim(wal->wbs, gen);
     wal_fileset_reclaim(wal->wfset, seqno, gen, txhorizon, false);
 }
 

@@ -23,8 +23,9 @@ struct kvdb_log_tx;
 
 struct wal_record {
     void   *recbuf;
-    size_t  len;
     u64     offset;
+    uint    wbidx;
+    size_t  len;
 };
 
 /* MTF_MOCK */
