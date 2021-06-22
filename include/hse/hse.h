@@ -156,35 +156,6 @@ void
 hse_fini(void);
 
 /**
- * Returns a string representing the HSE KVDB libary version
- *
- * The version string starts with a numeric sequence (e.g., 1.7.0) and then, depending
- * on the type of build may have additional information appended. This function is
- * thread safe.
- */
-const char *
-hse_kvdb_version_string(void);
-
-/**
- * A string representing the HSE KVDB libary version tag
- *
- * The version tag starts with a sequence (e.g., r1.9.0) and then, depending
- * on the type of build may have additional information appended. This function is
- * thread safe.
- */
-const char *
-hse_kvdb_version_tag(void);
-
-/**
- * A string representing the HSE KVDB library version commit hash
- *
- * The version commit hash is a git commit hash
- * (e.g., b55fe07774d7cbc1492d7b8a47dc2c194cd3e24a). This function is thread safe.
- */
-const char *
-hse_kvdb_version_sha(void);
-
-/**
  * Return an hse_err_t value's string representation
  *
  * The hse_err_t scalar value "err" is decoded into a string representation giving more

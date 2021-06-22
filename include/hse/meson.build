@@ -7,6 +7,9 @@ version_data = configuration_data({
     ),
     'build_tag': build_tag,
     'build_sha': build_sha,
+    'major_version': hse_major_version,
+    'minor_version': hse_minor_version,
+    'patch_version': hse_patch_version,
 })
 
 version_h = configure_file(

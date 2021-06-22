@@ -595,8 +595,7 @@ opts_parse(
 	if (opt->help)
 		usage();
 	else if (opt->version) {
-		printf("HSE KVDB Lib:   %s\n", hse_kvdb_version_string());
-		printf("HSE KVDB Tools: %s\n", hse_version);
+		printf("HSE KVDB Lib:   %s\n", HSE_VERSION_STRING);
 	}
 }
 

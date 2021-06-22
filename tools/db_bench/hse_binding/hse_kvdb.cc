@@ -8,6 +8,7 @@
 
 #include <chrono>
 #include <hse/hse.h>
+#include <hse/hse_version.h>
 #include <thread>
 
 #include "leveldb/slice.h"
@@ -27,7 +28,7 @@ void HseKvdb::InitLibrary() { hse_init(); }
 void HseKvdb::FiniLibrary() { hse_fini(); }
 
 std::string HseKvdb::VersionString() {
-  return std::string(hse_kvdb_version_string());
+  return std::string(HSE_VERSION_STRING);
 }
 
 Status HseKvdb::Open(const std::string& kvdb_home, HseKvdb** kvdbptr) {

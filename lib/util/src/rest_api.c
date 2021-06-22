@@ -15,8 +15,9 @@
 #include <hse_util/spinlock.h>
 #include <hse_util/mutex.h>
 #include <hse_util/string.h>
-#include <hse_util/version.h>
 #include <hse_util/table.h>
+
+#include <hse/hse_version.h>
 
 #include <sys/socket.h>
 #include <sys/un.h>
@@ -801,22 +802,18 @@ webserver_response(
     udesc = get_url_desc(path);
     if (!udesc) {
         size_t bytes;
-        int    sz = get_hse_version(NULL, 0) + 1;
 
         http_status = MHD_HTTP_NOT_FOUND;
 
         /* REST API version */
         if (strcmp(method, MHD_HTTP_METHOD_GET) == 0 && strcasecmp(path, "version") == 0) {
-            char version[sz];
-
-            get_hse_version(version, sz);
             bytes = snprintf(
                 session->buf,
                 sizeof(session->buf),
                 "HSE REST API Version %d.%d %s\n",
                 REST_VERSION_MAJOR,
                 REST_VERSION_MINOR,
-                version);
+                HSE_VERSION_STRING);
 
             http_status = MHD_HTTP_OK;
             if (write(write_fd, session->buf, bytes) != bytes)
