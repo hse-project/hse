@@ -663,7 +663,7 @@ mdc_file_append_sys(struct mdc_file *mfp, void *data, size_t len)
     iov[1].iov_base = data;
     iov[1].iov_len = len;
 
-    err = mfp->io.write(mfp->fd, mfp->woff, (const struct iovec *)&iov, 2, 0);
+    err = mfp->io.write(mfp->fd, mfp->woff, (const struct iovec *)&iov, 2, 0, NULL);
     if (err)
         return err;
 

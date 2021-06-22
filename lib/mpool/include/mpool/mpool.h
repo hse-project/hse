@@ -613,9 +613,15 @@ mpool_file_read(struct mpool_file *file, off_t offset, char *buf, size_t buflen,
  * @offset: write offset
  * @buf:    write buffer
  * @buflen: buffer len
+ * @wrlen:  bytes written (output)
  */
 merr_t
-mpool_file_write(struct mpool_file *file, off_t offset, const char *buf, size_t buflen);
+mpool_file_write(
+    struct mpool_file *file,
+    off_t              offset,
+    const char        *buf,
+    size_t             buflen,
+    size_t            *wrlen);
 
 /**
  * mpool_file_sync() - Sync mpool file

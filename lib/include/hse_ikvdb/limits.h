@@ -10,7 +10,7 @@
 
 #define HSE_C0_CHEAP_SZ_MIN         (16ul << 20)
 #define HSE_C0_CHEAP_SZ_DFLT        (16ul << 20)
-#define HSE_C0_CHEAP_SZ_MAX         (64ul << 20)
+#define HSE_C0_CHEAP_SZ_MAX         (32ul << 20)
 #define HSE_C0_CCACHE_SZ_MAX        (4ul << 30)
 
 /* HSE_C0_INGEST_WIDTH_DYN limits the max width of a normal, dynamically

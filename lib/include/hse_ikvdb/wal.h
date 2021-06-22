@@ -43,6 +43,7 @@ wal_open(
     struct kvdb_rparams *rp,
     uint64_t             mdcid1,
     uint64_t             mdcid2,
+    struct kvdb_health  *health,
     struct wal         **wal_out);
 
 /* MTF_MOCK */
@@ -94,6 +95,9 @@ wal_op_finish(struct wal *wal, struct wal_record *rec, uint64_t seqno, uint64_t 
 
 void
 wal_cningest_cb(struct wal *wal, u64 seqno, u64 gen, u64 txhorizon);
+
+merr_t
+wal_sync(struct wal *wal);
 
 #if HSE_MOCKING
 #include "wal_ut.h"

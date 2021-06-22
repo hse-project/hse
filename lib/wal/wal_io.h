@@ -8,12 +8,17 @@
 
 struct wal_io;
 struct wal_fileset;
+struct wal_iocb;
 
 merr_t
 wal_io_enqueue(struct wal_io *io, const char *buf, u64 len, u64 gen, struct wal_minmax_info *info);
 
 struct wal_io *
-wal_io_create(struct wal_fileset *wfset, uint index, atomic64_t *doff);
+wal_io_create(
+    struct wal_fileset *wfset,
+    uint                index,
+    atomic64_t         *doff,
+    struct wal_iocb    *iocb);
 
 void
 wal_io_destroy(struct wal_io *io);

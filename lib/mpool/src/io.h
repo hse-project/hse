@@ -17,7 +17,8 @@
 struct io_ops {
     merr_t
         (*read)(int fd, off_t off, const struct iovec *iov, int iovcnt, int flags, size_t *rdlen);
-    merr_t (*write)(int fd, off_t off, const struct iovec *iov, int iovcnt, int flags);
+    merr_t
+        (*write)(int fd, off_t off, const struct iovec *iov, int iovcnt, int flags, size_t *wrlen);
 };
 
 /* sync backend */

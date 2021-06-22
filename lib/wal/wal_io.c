@@ -45,6 +45,7 @@ struct wal_io {
 
     struct wal_fileset *io_wfset;
     struct wal_file    *io_wfile;
+    struct wal_iocb    *io_cb;
     atomic64_t          io_err;
     uint                io_index;
     struct work_struct  io_work;
@@ -91,6 +92,7 @@ wal_io_submit(struct wal_io_work *iow)
     if (!err) {
         wal_file_minmax_update(wfile, &iow->iow_info);
         atomic64_add(buflen, io->io_doff);
+        io->io_cb->iocb(io->io_cb->cbarg, err);
     }
 
     if (io->io_wfile)
@@ -135,8 +137,10 @@ wal_io_worker(struct work_struct *work)
             assert(iow->iow_index == io->io_index);
 
             err = wal_io_submit(iow);
-            if (err)
-                atomic64_set(&io->io_err, err); /* TODO: tie it to wal->error */
+            if (err) {
+                atomic64_set(&io->io_err, err);
+                io->io_cb->iocb(io->io_cb->cbarg, err); /* Notify sync waiters */
+            }
 
             list_del(&iow->iow_list);
             kmem_cache_free(iowcache, iow);
@@ -149,6 +153,10 @@ merr_t
 wal_io_enqueue(struct wal_io *io, const char *buf, u64 len, u64 gen, struct wal_minmax_info *info)
 {
     struct wal_io_work *iow;
+    merr_t err;
+
+    if ((err = atomic64_read(&io->io_err)))
+        return err;
 
     iow = kmem_cache_alloc(iowcache);
     if (!iow)
@@ -182,7 +190,8 @@ struct wal_io *
 wal_io_create(
     struct wal_fileset *wfset,
     uint                index,
-    atomic64_t         *doff)
+    atomic64_t         *doff,
+    struct wal_iocb    *iocb)
 {
     struct wal_io *io;
     size_t sz;
@@ -205,6 +214,7 @@ wal_io_create(
     io->io_doff = doff;
     io->io_index = index;
     io->io_wfset = wfset;
+    io->io_cb = iocb;
 
     INIT_WORK(&io->io_work, wal_io_worker);
     queue_work(iowq, &io->io_work);

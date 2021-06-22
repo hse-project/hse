@@ -1100,7 +1100,8 @@ ikvdb_open(
     atomic64_set(&self->ikdb_seqno, seqno);
 
     kvdb_log_waloid_get(self->ikdb_log, &self->ikdb_wal_oid1, &self->ikdb_wal_oid2);
-    err = wal_open(mp, &self->ikdb_rp, self->ikdb_wal_oid1, self->ikdb_wal_oid2, &self->ikdb_wal);
+    err = wal_open(mp, &self->ikdb_rp, self->ikdb_wal_oid1, self->ikdb_wal_oid2,
+                   &self->ikdb_health, &self->ikdb_wal);
     if (err) {
         hse_elog(HSE_ERR "cannot open %s: @@e", err, kvdb_home);
         goto err1;
@@ -2515,6 +2516,9 @@ ikvdb_sync(struct ikvdb *handle, const unsigned int flags)
 
     if (ev(self->ikdb_rdonly))
         return merr(EROFS);
+
+    if (self->ikdb_wal)
+        return wal_sync(self->ikdb_wal);
 
     return c0sk_sync(self->ikdb_c0sk, flags);
 }

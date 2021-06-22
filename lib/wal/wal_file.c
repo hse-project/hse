@@ -169,7 +169,7 @@ wal_fileset_close(struct wal_fileset *wfset, u64 ingestseq, u64 ingestgen, u64 t
 static merr_t
 wal_file_format(struct wal_file *wfile, u32 magic, u32 version)
 {
-    char buf[PAGE_SIZE] = {};
+    char buf[PAGE_SIZE] = {0};
 
     wal_filehdr_pack(magic, version, false, &wfile->info, buf);
 
@@ -187,7 +187,7 @@ wal_file_open(
     struct mpool_file *mpf;
     merr_t err;
     char name[PATH_MAX];
-    bool sparse = true, added = false;
+    bool sparse = false, added = false;
 
     if (!wfset)
         return merr(EINVAL);
@@ -254,13 +254,13 @@ wal_file_close(struct wal_file *wfile)
 merr_t
 wal_file_complete(struct wal_fileset *wfset, struct wal_file *wfile)
 {
-    struct wal_filehdr_omf fhomf;
+    char buf[PAGE_SIZE] = {0};
     struct wal_file *cur, *next;
     bool added = false;
     merr_t err;
 
-    wal_filehdr_pack(wfset->magic, wfset->version, true, &wfile->info, &fhomf);
-    err = wal_file_pwrite(wfile, (const char *)&fhomf, sizeof(fhomf), 0);
+    wal_filehdr_pack(wfset->magic, wfset->version, true, &wfile->info, buf);
+    err = wal_file_pwrite(wfile, (const char *)buf, sizeof(buf), 0);
     if (err)
         return err;
 
@@ -311,16 +311,26 @@ merr_t
 wal_file_read(struct wal_file *wfile, char *buf, size_t len)
 {
     merr_t err;
-    size_t rdlen;
+    off_t off;
+    size_t len_copy = len;
 
     if (!wfile)
         return merr(EINVAL);
 
-    err = mpool_file_read(wfile->mpf, wfile->roff, buf, len, &rdlen);
-    if (err)
-        return err;
+    off = wfile->roff;
+    while (len > 0) {
+        size_t cc;
 
-    wfile->roff += rdlen;
+        err = mpool_file_read(wfile->mpf, off, buf, len, &cc);
+        if (err)
+            return err;
+
+        buf += cc;
+        off += cc;
+        len -= cc;
+    }
+
+    wfile->roff += len_copy;
 
     return 0;
 }
@@ -333,9 +343,17 @@ wal_file_write_impl(struct wal_file *wfile, const char *buf, size_t len, off_t o
     if (!wfile)
         return merr(EINVAL);
 
-    err = mpool_file_write(wfile->mpf, off, buf, len);
-    if (err)
-        return err;
+    while (len > 0) {
+        size_t cc;
+
+        err = mpool_file_write(wfile->mpf, off, buf, len, &cc);
+        if (err)
+            return err;
+
+        buf += cc;
+        off += cc;
+        len -= cc;
+    }
 
     err = mpool_file_sync(wfile->mpf);
     if (err)
@@ -363,4 +381,3 @@ wal_file_pwrite(struct wal_file *wfile, const char *buf, size_t len, off_t off)
 {
     return wal_file_write_impl(wfile, buf, len, off);
 }
-

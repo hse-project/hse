@@ -9,9 +9,10 @@
 struct wal_fileset;
 struct wal_bufset;
 struct wal_buffer;
+struct wal_iocb;
 
 struct wal_bufset *
-wal_bufset_open(struct wal_fileset *wfset, atomic64_t *ingestgen);
+wal_bufset_open(struct wal_fileset *wfset, atomic64_t *ingestgen, struct wal_iocb *iocb);
 
 void
 wal_bufset_close(struct wal_bufset *wbs);
@@ -26,6 +27,12 @@ void
 wal_bufset_reclaim(struct wal_bufset *wbs, uint64_t gen);
 
 merr_t
-wal_bufset_flush(struct wal_bufset *wbs);
+wal_bufset_flush(struct wal_bufset *wbs, u64 *flushb);
+
+int
+wal_bufset_durcnt(struct wal_bufset *wbs, int offc, u64 *offv);
+
+int
+wal_bufset_curoff(struct wal_bufset *wbs, int offc, u64 *offv);
 
 #endif /* WAL_BUFFER_H */
