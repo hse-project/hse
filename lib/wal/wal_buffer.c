@@ -17,6 +17,7 @@
 #include "wal_file.h"
 #include "wal_io.h"
 
+/* clang-format off */
 
 /* Until we have some synchronization in place we need to make bufsz
  * large enough to accomodate several outstanding c0kvms buffers.
@@ -30,20 +31,19 @@
 
 
 struct wal_buffer {
-    atomic64_t wb_doff;
+    atomic64_t wb_offset HSE_ALIGNED(SMP_CACHE_BYTES * 2);
+
+    atomic64_t wb_doff HSE_ALIGNED(SMP_CACHE_BYTES);
     atomic64_t wb_foff;
-    atomic64_t wb_flushreq;
+    char      *wb_buf;
     atomic_t   wb_flushing;
+    atomic64_t wb_flushreq;
 
     struct work_struct  wb_fwork HSE_ALIGNED(SMP_CACHE_BYTES);
     struct wal_bufset  *wb_bs;
     struct wal_io      *wb_io;
     uint                wb_index;
-
-    atomic64_t wb_offset HSE_ALIGNED(SMP_CACHE_BYTES * 2);
-    char *wb_buf HSE_ALIGNED(SMP_CACHE_BYTES);
-} HSE_ALIGNED(SMP_CACHE_BYTES);
-
+};
 
 struct wal_bufset {
     struct workqueue_struct *wbs_flushwq;
@@ -51,9 +51,11 @@ struct wal_bufset {
     atomic64_t *wbs_ingestgen;
     atomic64_t  wbs_err;
 
-    uint wbs_bufc;
-    struct wal_buffer *wbs_bufv;
+    uint              wbs_bufc;
+    struct wal_buffer wbs_bufv[];
 };
+
+/* clang-format on */
 
 /*
  * Flush worker routine - for a specific buffer
@@ -216,18 +218,13 @@ wal_bufset_open(struct wal_fileset *wfset, atomic64_t *ingestgen)
     uint threads;
     merr_t err;
 
-    wbs = calloc(1, sizeof(*wbs));
+    sz = sizeof(*wbs) + sizeof(*wbs->wbs_bufv) * WAL_NODE_MAX * WAL_BPN_MAX;
+
+    wbs = aligned_alloc(alignof(*wbs), sz);
     if (!wbs)
         return NULL;
 
-    sz = sizeof(*wbs->wbs_bufv) * WAL_NODE_MAX * WAL_BPN_MAX;
-    wbs->wbs_bufv = aligned_alloc(alignof(*wbs->wbs_bufv), sz);
-    if (!wbs->wbs_bufv) {
-        free(wbs);
-        return NULL;
-    }
-    memset(wbs->wbs_bufv, 0, sz);
-
+    memset(wbs, 0, sz);
     atomic64_set(&wbs->wbs_err, 0);
     wbs->wbs_ingestgen = ingestgen;
 
@@ -253,6 +250,7 @@ wal_bufset_open(struct wal_fileset *wfset, atomic64_t *ingestgen)
             wb->wb_buf = vlb_alloc(WAL_BUFALLOCSZ_MAX);
             if (!wb->wb_buf)
                 goto errout;
+
             wbs->wbs_bufc++;
         }
     }
@@ -296,9 +294,8 @@ wal_bufset_close(struct wal_bufset *wbs)
 
         vlb_free(wb->wb_buf, WAL_BUFALLOCSZ_MAX);
     }
-    wal_io_fini();
 
-    free(wbs->wbs_bufv);
+    wal_io_fini();
     free(wbs);
 }
 
