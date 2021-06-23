@@ -38,19 +38,19 @@ struct wal {
 
     atomic64_t rid HSE_ALIGNED(SMP_CACHE_BYTES);
 
-    struct list_head sync_waiters HSE_ALIGNED(SMP_CACHE_BYTES);
-    struct mutex     sync_mutex;
+    struct mutex     sync_mutex HSE_ALIGNED(SMP_CACHE_BYTES);
+    struct list_head sync_waiters;
     struct cv        sync_cv;
-    bool             sync_pending;
 
     struct mutex timer_mutex HSE_ALIGNED(SMP_CACHE_BYTES);
+    bool         sync_pending;
     struct cv    timer_cv;
 
-    atomic_t   closing HSE_ALIGNED(SMP_CACHE_BYTES);
-    atomic64_t error;
+    atomic64_t error HSE_ALIGNED(SMP_CACHE_BYTES);
+    atomic_t   closing;
     bool       timer_tid_valid;
-    pthread_t  timer_tid;
     bool       sync_notify_tid_valid;
+    pthread_t  timer_tid;
     pthread_t  sync_notify_tid;
     uint32_t   dur_ms;
     uint32_t   dur_bytes;
@@ -62,10 +62,10 @@ struct wal {
 
 struct wal_sync_waiter {
     struct list_head ws_link;
-    struct cv        ws_cv;
     merr_t           ws_err;
     int              ws_bufcnt;
     uint64_t         ws_offv[WAL_BUF_MAX];
+    struct cv        ws_cv;
 };
 
 /* clang-format on */
@@ -81,25 +81,16 @@ wal_timer(void *rock)
     u64 rid_last = 0;
     long dur_ns;
     bool closing = false;
+    merr_t err;
 
     pthread_setname_np(pthread_self(), "wal_timer");
 
     dur_ns = MSEC_TO_NSEC(wal->dur_ms) - (long)timer_slack;
 
-    while (true) {
+    while (!closing && !atomic64_read(&wal->error)) {
         u64 tstart, rid, lag, sleep_ns, flushb;
-        merr_t err;
 
-        if ((err = atomic64_read(&wal->error) != 0)) {
-            kvdb_health_error(wal->health, err);
-            break;
-        }
-
-        if (atomic_read(&wal->closing) != 0) {
-            if (closing)
-                break;
-            closing = true; /* One final pass to drain pending dirty data */
-        }
+        closing = !!atomic_read(&wal->closing);
 
         tstart = get_time_ns();
         sleep_ns = dur_ns;
@@ -127,11 +118,17 @@ wal_timer(void *rock)
         }
 
         mutex_lock(&wal->timer_mutex);
-        if (!wal->sync_pending && sleep_ns > 0)
+        if (wal->sync_pending)
+            closing = false;
+        else if (!closing && sleep_ns > 0)
             cv_timedwait(&wal->timer_cv, &wal->timer_mutex, NSEC_TO_MSEC(sleep_ns));
         wal->sync_pending = false;
         mutex_unlock(&wal->timer_mutex);
     }
+
+    err = atomic64_read(&wal->error);
+    if (err)
+        kvdb_health_error(wal->health, err);
 
     pthread_exit(NULL);
 }
@@ -140,21 +137,18 @@ static void *
 wal_sync_notifier(void *rock)
 {
     struct wal *wal = rock;
+    bool closing = false;
+    merr_t err;
 
     pthread_setname_np(pthread_self(), "wal_sync_notifier");
 
-    while (true) {
+    while (!closing) {
         struct wal_sync_waiter *swait;
-        merr_t err;
-        bool closing;
-
-        closing = !!atomic_read(&wal->closing);
-        if ((err = atomic64_read(&wal->error))) {
-            kvdb_health_error(wal->health, err);
-            break;
-        }
 
         mutex_lock(&wal->sync_mutex);
+        err = atomic64_read(&wal->error);
+        closing = !!atomic_read(&wal->closing);
+
         list_for_each_entry(swait, &wal->sync_waiters, ws_link) {
             if (err ||
                 swait->ws_bufcnt <= wal_bufset_durcnt(wal->wbs, swait->ws_bufcnt, swait->ws_offv)) {
@@ -163,13 +157,15 @@ wal_sync_notifier(void *rock)
             }
         }
 
-        if (!err && !closing)
+        closing = (closing || err) && list_empty(&wal->sync_waiters);
+        if (!closing)
             cv_timedwait(&wal->sync_cv, &wal->sync_mutex, wal->dur_ms);
         mutex_unlock(&wal->sync_mutex);
-
-        if (closing && list_empty(&wal->sync_waiters))
-            break;
     }
+
+    err = atomic64_read(&wal->error);
+    if (err)
+        kvdb_health_error(wal->health, err);
 
     pthread_exit(NULL);
 }
@@ -569,8 +565,13 @@ wal_close(struct wal *wal)
 
     atomic_inc(&wal->closing);
 
-    if (wal->timer_tid_valid)
+    if (wal->timer_tid_valid) {
+        mutex_lock(&wal->timer_mutex);
+        cv_signal(&wal->timer_cv);
+        mutex_unlock(&wal->timer_mutex);
+
         pthread_join(wal->timer_tid, 0);
+    }
 
     wal_bufset_close(wal->wbs);
     wal_fileset_close(wal->wfset, atomic64_read(&wal->ingestseq),
@@ -578,8 +579,13 @@ wal_close(struct wal *wal)
     wal_mdc_close(wal->mdc);
 
     /* Ensure that the notify thread exits after all pending IOs are drained */
-    if (wal->sync_notify_tid_valid)
+    if (wal->sync_notify_tid_valid) {
+        mutex_lock(&wal->sync_mutex);
+        cv_signal(&wal->sync_cv);
+        mutex_unlock(&wal->sync_mutex);
+
         pthread_join(wal->sync_notify_tid, 0);
+    }
 
     cv_destroy(&wal->sync_cv);
     mutex_destroy(&wal->sync_mutex);

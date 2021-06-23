@@ -8,30 +8,34 @@
 #include <hse_ikvdb/wal.h>
 #include <hse_ikvdb/limits.h>
 
-#define WAL_DUR_MS_MAX         (1000)
-#define WAL_DUR_MS_MIN         (10)
+/* clang-format off */
 
-#define WAL_DUR_BYTES_MAX      (100 << 20)
-#define WAL_DUR_BYTES_MIN      (16 << 20)
+#define WAL_DUR_MS_MAX          (1000)
+#define WAL_DUR_MS_MIN          (10)
 
-#define WAL_MDC_CAPACITY       (1 << 30)
-#define WAL_MAGIC              (0xabcdabcd)
-#define WAL_FILE_SIZE_BYTES    (((HSE_C0_INGEST_SZ_MAX * 4) / 10) << 20)
+#define WAL_DUR_BYTES_MAX       (100 << 20)
+#define WAL_DUR_BYTES_MIN       (16 << 20)
 
-#define MSEC_TO_NSEC(_ms)      (NSEC_PER_SEC / MSEC_PER_SEC * (_ms))
-#define NSEC_TO_MSEC(_ns)      ((_ns) / (NSEC_PER_SEC / MSEC_PER_SEC))
+#define WAL_MDC_CAPACITY        (1 << 30)
+#define WAL_MAGIC               (0xabcdabcd)
+#define WAL_FILE_SIZE_BYTES     (((HSE_C0_INGEST_SZ_MAX * 4) / 10) << 20)
 
-#define WAL_NODE_MAX           (4)
-#define WAL_BPN_MAX            (2)
-#define WAL_BUF_MAX            (WAL_NODE_MAX * WAL_BPN_MAX)
+#define MSEC_TO_NSEC(_ms)       (NSEC_PER_SEC / MSEC_PER_SEC * (_ms))
+#define NSEC_TO_MSEC(_ns)       ((_ns) / (NSEC_PER_SEC / MSEC_PER_SEC))
+
+#define WAL_NODE_MAX            (4)
+#define WAL_BPN_MAX             (2)
+#define WAL_BUF_MAX             (WAL_NODE_MAX * WAL_BPN_MAX)
+
+/* clang-format on */
 
 struct wal_minmax_info {
-    u64 min_seqno;
-    u64 max_seqno;
-    u64 min_gen;
-    u64 max_gen;
-    u64 min_txid;
-    u64 max_txid;
+    uint64_t min_seqno;
+    uint64_t max_seqno;
+    uint64_t min_gen;
+    uint64_t max_gen;
+    uint64_t min_txid;
+    uint64_t max_txid;
 };
 
 struct wal_iocb {
