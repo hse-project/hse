@@ -93,7 +93,7 @@ do_things(void *arg)
 			int retries = 5;
 
 			do {
-				err = hse_kvs_cursor_create(targ->kvs, 0, 0, 0,
+				err = hse_kvs_cursor_create(targ->kvs, 0, NULL, 0, 0,
 						       &cursorv[i]);
 				if (hse_err_to_errno(err) == EAGAIN)
 					nanosleep(&pause, 0);
@@ -107,23 +107,20 @@ do_things(void *arg)
 	}
 
 	if (opts.load) {
-		struct hse_kvdb_opspec os;
-
-		HSE_KVDB_OPSPEC_INIT(&os);
-		os.kop_txn = hse_kvdb_txn_alloc(targ->kvdb);
-		hse_kvdb_txn_begin(targ->kvdb, os.kop_txn);
+		struct hse_kvdb_txn *txn = hse_kvdb_txn_alloc(targ->kvdb);
+		hse_kvdb_txn_begin(targ->kvdb, txn);
 		i = ti->start;
 		for (i = ti->start; i < ti->end; i++) {
 			*key = htobe64(i); /* key */
-			err = hse_kvs_put(targ->kvs, &os, kbuf, sizeof(kbuf),
+			err = hse_kvs_put(targ->kvs, 0, txn, kbuf, sizeof(kbuf),
 				     vbuf, sizeof(vbuf));
 			if (err)
 				fatal(err, "Put failed");
 
 			atomic64_inc(&ti->puts);
 		}
-		hse_kvdb_txn_commit(targ->kvdb, os.kop_txn);
-		hse_kvdb_txn_free(targ->kvdb, os.kop_txn);
+		hse_kvdb_txn_commit(targ->kvdb, txn);
+		hse_kvdb_txn_free(targ->kvdb, txn);
 	}
 
 	if (opts.verify) {
@@ -136,7 +133,7 @@ do_things(void *arg)
 			int retries = 5;
 
 			do {
-				err = hse_kvs_cursor_update(cursorv[i], 0);
+				err = hse_kvs_cursor_update(cursorv[i], 0, NULL);
 				if (hse_err_to_errno(err) == EAGAIN)
 					nanosleep(&pause, 0);
 			} while (hse_err_to_errno(err) == EAGAIN && retries-- > 0);

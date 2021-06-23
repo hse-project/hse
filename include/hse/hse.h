@@ -95,35 +95,7 @@ struct hse_kvs;
 struct hse_kvs_cursor;
 struct hse_kvdb_txn;
 
-/**
- * @typedef hse_kvdb_opspec
- * @brief Structure and flag definitions that allow customization of entry
- *        point behavior.
- *
- * This structure may evolve as the HSE API grows. Failure to use the macro
- * HSE_KVDB_OPSPEC_INIT() to initialize an hse_kvdb_opspec will cause calls using it to
- * fail. Once init'd the programmer can freely manipulate the kop_flags and kop_txn
- * fields. Modifying kop_opaque or relying in any way on its structure will result in
- * undefined behavior.
- */
-
-struct hse_kvdb_opspec {
-    unsigned int         kop_opaque; /**< opaque data */
-    unsigned int         kop_flags;  /**< opspec flags */
-    struct hse_kvdb_txn *kop_txn;    /**< transaction context */
-};
-
-#define HSE_KVDB_OPSPEC_INIT(os)       \
-    do {                               \
-        (os)->kop_opaque = 0xb0de0001; \
-        (os)->kop_flags = 0x00000000;  \
-        (os)->kop_txn = NULL;          \
-    } while (0)
-
-#define HSE_KVDB_KOP_FLAG_REVERSE     0x01 /**< reverse cursor */
-#define HSE_KVDB_KOP_FLAG_BIND_TXN    0x02 /**< cursor bound to transaction */
-#define HSE_KVDB_KOP_FLAG_STATIC_VIEW 0x04 /**< bound cursor's view is static */
-#define HSE_KVDB_KOP_FLAG_PRIORITY    0x08 /**< op won't be throttled @see, hse_kvs_put */
+#define HSE_FLAG_NONE 0
 
 /**@}*/
 
@@ -270,9 +242,9 @@ hse_kvdb_close(struct hse_kvdb *kvdb);
  *     }
  *     hse_kvdb_free_names(namev);
  *
- * @param kvdb:     KVDB handle from hse_kvdb_open()
- * @param count:    [out] Number of KVSs in the KVDB.
- * @param kvs_list: [out] Vector of KVSs. Allocated by the function
+ * @param kvdb: KVDB handle from hse_kvdb_open()
+ * @param[out] count: Number of KVSs in the KVDB.
+ * @param[out] kvs_list: Vector of KVSs. Allocated by the function
  * @return The function's error status
  *
  */
@@ -285,7 +257,7 @@ hse_kvdb_get_names(struct hse_kvdb *kvdb, unsigned int *count, char ***kvs_list)
  *
  * This function is thread safe.
  *
- * @param kvdb:     KVDB handle from hse_kvdb_open()
+ * @param kvdb: KVDB handle from hse_kvdb_open()
  * @param kvs_list: Vector of KVS names that hse_kvdb_get_names() output
  */
 void
@@ -299,10 +271,10 @@ hse_kvdb_free_names(struct hse_kvdb *kvdb, char **kvs_list);
  * An error will result if there is already a KVS with the given name. This function is not
  * thread safe.
  *
- * @param kvdb:     KVDB handle from hse_kvdb_open()
+ * @param kvdb: KVDB handle from hse_kvdb_open()
  * @param kvs_name: KVS name
- * @param paramc:   Number of configuration parameters in \p paramv
- * @param paramv:   List of parameters in key=value format
+ * @param paramc: Number of configuration parameters in \p paramv
+ * @param paramv: List of parameters in key=value format
  * @return The function's error status
  */
 /* MTF_MOCK */
@@ -319,7 +291,7 @@ hse_kvdb_kvs_make(
  * It is an error to call this function on a KVS that is open. This function is not
  * thread safe.
  *
- * @param kvdb:     KVDB handle from hse_kvdb_open()
+ * @param kvdb: KVDB handle from hse_kvdb_open()
  * @param kvs_name: KVS name
  * @return The function's error status
  */
@@ -331,11 +303,11 @@ hse_kvdb_kvs_drop(struct hse_kvdb *kvdb, const char *kvs_name);
  *
  * This function is not thread safe.
  *
- * @param kvdb:     KVDB handle from hse_kvdb_open()
+ * @param kvdb: KVDB handle from hse_kvdb_open()
  * @param kvs_name: KVS name
- * @param paramc:   Number of configuration parameters in \p paramv
- * @param paramv:   List of parameters in key=value format
- * @param kvs_out:  [out] handle to access the opened KVS
+ * @param paramc: Number of configuration parameters in \p paramv
+ * @param paramv: List of parameters in key=value format
+ * @param[out] kvs_out: Handle to access the opened KVS
  * @return The function's error status
  */
 hse_err_t
@@ -365,6 +337,11 @@ hse_kvdb_kvs_close(struct hse_kvs *kvs);
  * @{
  */
 
+/* Flags for put operation */
+
+/* Operation will not be throttled */
+#define HSE_FLAG_PUT_PRIORITY (1 << 0)
+
 /**
  * Put a KV pair into KVS
  *
@@ -376,29 +353,31 @@ hse_kvdb_kvs_close(struct hse_kvs *kvs);
  * The HSE KVDB attempts to maintain reasonable QoS and for high-throughput clients this
  * results in very short sleep's being inserted into the put path. For some kinds of
  * data (e.g., control metadata) the client may wish to not experience that delay. For
- * relatively low data rate uses, the caller can set the HSE_KVDB_KOP_FLAG_PRIORITY flag
- * for an hse_kvs_put() opspec. Care should be taken when doing so to ensure that the
+ * relatively low data rate uses, the caller can set the HSE_FLAG_PUT_PRIORITY flag
+ * for an hse_kvs_put(). Care should be taken when doing so to ensure that the
  * system does not become overrun. As a rough approximation, doing 1M priority puts per
  * second marked as PRIORITY is likely an issue. On the other hand, doing 1K small puts
  * per second marked as PRIORITY is almost certainly fine.
  *
- * @param kvs:     KVS handle from hse_kvdb_kvs_open()
- * @param opspec:  Specification for put operation
- * @param key:     Key to put into kvs
+ * @param kvs: KVS handle from hse_kvdb_kvs_open()
+ * @param flags: Flags for operation specialization
+ * @param txn: Transaction context
+ * @param key: Key to put into kvs
  * @param key_len: Length of key
- * @param val:     Value associated with key
+ * @param val: Value associated with key
  * @param val_len: Length of value
  * @return The function's error status
  */
 /* MTF_MOCK */
 hse_err_t
 hse_kvs_put(
-    struct hse_kvs *        kvs,
-    struct hse_kvdb_opspec *opspec,
-    const void *            key,
-    size_t                  key_len,
-    const void *            val,
-    size_t                  val_len);
+    struct hse_kvs *     kvs,
+    unsigned int         flags,
+    struct hse_kvdb_txn *txn,
+    const void *         key,
+    size_t               key_len,
+    const void *         val,
+    size_t               val_len);
 
 /**
  * Retrieve the value for a given key from KVS
@@ -409,27 +388,29 @@ hse_kvs_put(
  * information on how gets within transactions are handled. This function is thread
  * safe.
  *
- * @param kvs:     KVS handle from hse_kvdb_kvs_open()
- * @param opspec:  Specification for get operation
- * @param key:     Key to get from kvs
+ * @param kvs: KVS handle from hse_kvdb_kvs_open()
+ * @param flags: Flags for operation specialization
+ * @param txn: Transaction context
+ * @param key: Key to get from kvs
  * @param key_len: Length of key
- * @param found:   [out] Whether or not key was found
- * @param buf:     Buffer into which the value associated with key will be copied
+ * @param[out] found: Whether or not key was found
+ * @param[out] buf: Buffer into which the value associated with key will be copied
  * @param buf_len: Length of buffer
- * @param val_len: [out] Actual length of value if key was found
+ * @param[out] val_len: [out] Actual length of value if key was found
  * @return The function's error status
  */
 /* MTF_MOCK */
 hse_err_t
 hse_kvs_get(
-    struct hse_kvs *        kvs,
-    struct hse_kvdb_opspec *opspec,
-    const void *            key,
-    size_t                  key_len,
-    bool *                  found,
-    void *                  buf,
-    size_t                  buf_len,
-    size_t *                val_len);
+    struct hse_kvs *     kvs,
+    unsigned int         flags,
+    struct hse_kvdb_txn *txn,
+    const void *         key,
+    size_t               key_len,
+    bool *               found,
+    void *               buf,
+    size_t               buf_len,
+    size_t *             val_len);
 
 /**
  * Delete the key and its associated value from KVS
@@ -438,19 +419,21 @@ hse_kvs_get(
  * transactions for information on how deletes within transactions are handled. This
  * function is thread safe.
  *
- * @param kvs:     KVS handle from hse_kvdb_kvs_open()
- * @param opspec:  Specification for delete operation
- * @param key:     Key to be deleted from kvs
+ * @param kvs: KVS handle from hse_kvdb_kvs_open()
+ * @param flags: Flags for operation specialization
+ * @param txn: Transaction context (optional)
+ * @param key: Key to be deleted from kvs
  * @param key_len: Length of key
  * @return The function's error status
  */
 /* MTF_MOCK */
 hse_err_t
 hse_kvs_delete(
-    struct hse_kvs *        kvs,
-    struct hse_kvdb_opspec *opspec,
-    const void *            key,
-    size_t                  key_len);
+    struct hse_kvs *     kvs,
+    unsigned int         flags,
+    struct hse_kvdb_txn *txn,
+    const void *         key,
+    size_t               key_len);
 
 /**
  * Delete all KV pairs matching the key prefix from a KVS storing multi-segment keys
@@ -467,21 +450,23 @@ hse_kvs_delete(
  * treated as though they were issued serially at the beginning of the transaction
  * regardless of the actual order these commands appeared in.
  *
- * @param kvs:         KVS handle from hse_kvdb_kvs_open()
- * @param opspec:      KVDB op struct
- * @param filt:        Filter for keys to delete
- * @param filt_len:    Filter length
- * @param kvs_pfx_len: [out] If specified, this will be set to the KVS's prefix length
+ * @param kvs: KVS handle from hse_kvdb_kvs_open()
+ * @param flags: Flags for operation specialization
+ * @param txn: Transaction context (optional)
+ * @param filt: Filter for keys to delete
+ * @param filt_len: Filter length
+ * @param[out] kvs_pfx_len: If specified, this will be set to the KVS's prefix length
  * @return The function's error status
  */
 /* MTF_MOCK */
 hse_err_t
 hse_kvs_prefix_delete(
-    struct hse_kvs *        kvs,
-    struct hse_kvdb_opspec *opspec,
-    const void *            filt,
-    size_t                  filt_len,
-    size_t *                kvs_pfx_len);
+    struct hse_kvs *     kvs,
+    unsigned int         flags,
+    struct hse_kvdb_txn *txn,
+    const void *         filt,
+    size_t               filt_len,
+    size_t *             kvs_pfx_len);
 
 /**@}*/
 
@@ -563,7 +548,7 @@ hse_kvdb_txn_alloc(struct hse_kvdb *kvdb);
  * prior to being freed. This function is thread safe with different transactions.
  *
  * @param kvdb: KVDB handle from hse_kvdb_open()
- * @param txn:  KVDB transaction handle
+ * @param txn: KVDB transaction handle
  */
 /* MTF_MOCK */
 void
@@ -576,7 +561,7 @@ hse_kvdb_txn_free(struct hse_kvdb *kvdb, struct hse_kvdb_txn *txn);
  * function is thread safe with different transactions.
  *
  * @param kvdb: KVDB handle from hse_kvdb_open()
- * @param txn:  KVDB transaction handle from hse_kvdb_txn_alloc()
+ * @param txn: KVDB transaction handle from hse_kvdb_txn_alloc()
  * @return The function's error status
  */
 /* MTF_MOCK */
@@ -590,7 +575,7 @@ hse_kvdb_txn_begin(struct hse_kvdb *kvdb, struct hse_kvdb_txn *txn);
  * function is thread safe with different transactions.
  *
  * @param kvdb: KVDB handle from hse_kvdb_open()
- * @param txn:  KVDB transaction handle from hse_kvdb_txn_alloc()
+ * @param txn: KVDB transaction handle from hse_kvdb_txn_alloc()
  * @return The function's error status
  */
 /* MTF_MOCK */
@@ -604,7 +589,7 @@ hse_kvdb_txn_commit(struct hse_kvdb *kvdb, struct hse_kvdb_txn *txn);
  * function is thread safe with different transactions.
  *
  * @param kvdb: KVDB handle from hse_kvdb_open()
- * @param txn:  KVDB transaction handle from hse_kvdb_txn_alloc()
+ * @param txn: KVDB transaction handle from hse_kvdb_txn_alloc()
  * @return The function's error status
  */
 /* MTF_MOCK */
@@ -617,7 +602,7 @@ hse_kvdb_txn_abort(struct hse_kvdb *kvdb, struct hse_kvdb_txn *txn);
  * This function is thread safe with different transactions.
  *
  * @param kvdb: KVDB handle from hse_kvdb_open()
- * @param txn:  KVDB transaction handle from hse_kvdb_txn_alloc()
+ * @param txn: KVDB transaction handle from hse_kvdb_txn_alloc()
  * @return The transaction's state
  */
 /* MTF_MOCK */
@@ -636,11 +621,20 @@ hse_kvdb_txn_get_state(struct hse_kvdb *kvdb, struct hse_kvdb_txn *txn);
  * https://github.com/hse-project/hse/wiki
  */
 
+/* Flags for cursor usage */
+
+/* Move the cursor in reverse */
+#define HSE_FLAG_CURSOR_REVERSE (1 << 0)
+/* Bind the cursor to a transaction */
+#define HSE_FLAG_CURSOR_BIND_TXN (1 << 1)
+/* Bound cursor's view is static */
+#define HSE_FLAG_CURSOR_STATIC_VIEW (1 << 2)
+
 /**
  * Creates a cursor used to iterate over a KVS
  *
  * When cursors are created they are by default forward iterating. If the caller of
- * hse_kvs_cursor_create() passes a reference to an initialized opspec with bit flag
+ * hse_kvs_cursor_create() passes a flags parameter with the bit flag
  * HSE_KVDB_KOP_FLAG_REVERSE set, then a backwards (reverse sort order) iterating cursor
  * is created. A cursor's direction is determined when it is created and is immutable.
  *
@@ -651,23 +645,20 @@ hse_kvdb_txn_get_state(struct hse_kvdb *kvdb, struct hse_kvdb_txn *txn);
  * transaction's ephemeral snapshot but cannot see any of the mutations made by its
  * associated transaction. A cursor of type (3) is like type (2) but it always can see
  * the mutations made by the transaction. Calling hse_kvs_cursor_update() on a cursor of
- * types (2) and (3) without changing the hse_kvdb_opspec fields is a no-op. This
+ * types (2) and (3) without changing the transaction or flags parameters is a no-op. This
  * function is thread safe.
  *
- * The hse_kvdb_opspec referent shapes the type and behavior of the cursor created. The
- * flag fields within kop_flags are independent. Passing a NULL for the opspec is the
- * same as passing an initialized but otherwise unmodified opspec.
+ * The flags and transactions parameters shape the type and behavior of the cursor created. The
+ * flag fields within kop_flags are independent.
  *
  *   - To create a cursor of type (1):
- *       - Pass either a NULL for opspec, or
- *       - Pass an initialized opspec with kop_txn == NULL
+ *       - Pass a NULL as txn
  *
  *   - To create a cursor of type (2):
- *       - Pass an initialized opspec with kop_txn == <target txn>
+ *       - Pass a non-NULL txn
  *
  *   - To create a cursor of type (3):
- *       - Pass an initialized opspec with kop_txn == <target txn> and
- *         a kop_flags value with position HSE_KVDB_KOP_FLAG_BIND_TXN set
+ *       - Pass a non-NULL txn and a flags value with position HSE_FLAG_CURSOR_BIND_TXN set
  *
  * The primary utility of the prefix filter mechanism is to maximize the efficiency of
  * cursor iteration on a KVS with multi-segment keys. For that use case, the caller
@@ -678,7 +669,7 @@ hse_kvdb_txn_get_state(struct hse_kvdb *kvdb, struct hse_kvdb_txn *txn);
  *
  * When a transaction associated with a cursor of type (3) commits or aborts, the state
  * of the cursor becomes unbound, i.e., it becomes of type (1). What can be seen through
- * the cursor depends on whether it was created with the HSE_KVDB_KOP_FLAG_STATIC_VIEW
+ * the cursor depends on whether it was created with the HSE_FLAG_CURSOR_STATIC_VIEW
  * flag set.
  *
  * If it was set, then the cursor retains the snapshot view of the transaction (for both
@@ -687,18 +678,20 @@ hse_kvdb_txn_get_state(struct hse_kvdb *kvdb, struct hse_kvdb_txn *txn);
  * the mutations of the transaction, if any. Note that this will make any other
  * mutations that occurred during the lifespan of the transaction visible as well.
  *
- * @param kvs:      KVS to iterate over, handle from hse_kvdb_kvs_open()
- * @param opspec:   Optional flags, optional txn
- * @param filt:     Optional: iteration limited to keys matching this prefix filter
- * @param filt_len: Optional: length of filter
- * @param cursor:   [out] Cursor handle
+ * @param kvs: KVS to iterate over, handle from hse_kvdb_kvs_open()
+ * @param flags: Flags for operation specialization
+ * @param txn: Transaction context (optional)
+ * @param filt: Iteration limited to keys matching this prefix filter (optional)
+ * @param filt_len: Length of filter (optional)
+ * @param[out] cursor: Cursor handle
  * @return The function's error status
  */
 /* MTF_MOCK */
 hse_err_t
 hse_kvs_cursor_create(
     struct hse_kvs *        kvs,
-    struct hse_kvdb_opspec *opspec,
+    unsigned int            flags,
+    struct hse_kvdb_txn *   txn,
     const void *            filt,
     size_t                  filt_len,
     struct hse_kvs_cursor **cursor);
@@ -708,20 +701,22 @@ hse_kvs_cursor_create(
  *
  * This operation serves to either move the snapshot view forward for a type (1) cursor,
  * or to transition between being a type (1), type (2), and type (3) cursor.  That
- * includes toggling the state of the HSE_KVDB_KOP_FLAG_STATIC_VIEW flag.  For example,
+ * includes toggling the state of the HSE_FLAG_CURSOR_STATIC_VIEW flag.  For example,
  * to "un-bind" a cursor from a transaction the caller may either NULL out the kop_txn
- * field or clear the HSE_KVDB_KOP_FLAG_BIND_TXN flag. This function is thread safe
+ * field or clear the HSE_FLAG_CURSOR_BIND_TXN flag. This function is thread safe
  * across disparate cursors.
- * If the opspec is not NULL, the fields of the opspec structure that need to remain
- * unchanged must be set to their original values (as set at hse_kvs_cursor_create()).
+ *
+ * The flags and txn parameters must be unchanged and set to their original values
+ * (as set at hse_kvs_cursor_create()).
  *
  * @param cursor: Cursor handle from hse_kvs_cursor_create()
- * @param opspec: Optional flags, optional txn
+ * @param flags: Flags for operation specialization
+ * @param txn: Transaction context (optional)
  * @return The function's error status
  */
 /* MTF_MOCK */
 hse_err_t
-hse_kvs_cursor_update(struct hse_kvs_cursor *cursor, struct hse_kvdb_opspec *opspec);
+hse_kvs_cursor_update(struct hse_kvs_cursor *cursor, unsigned int flags, struct hse_kvdb_txn *txn);
 
 /**
  * Move the cursor to point at the key/value pair at or closest to "key"
@@ -730,23 +725,23 @@ hse_kvs_cursor_update(struct hse_kvs_cursor *cursor, struct hse_kvdb_opspec *ops
  * must be non-NULL for that functionality to work. This function is thread safe across
  * disparate cursors.
  *
- * @param cursor:    Cursor handle from hse_kvs_cursor_create()
- * @param opspec:    Ignored; must be zero
- * @param key:       Key to find
- * @param key_len:   Length of key
- * @param found:     Optional: If non-NULL, referent point to next key in sequence
- * @param found_len: Optional: If "found" is non-NULL: referent is length of "found" key
+ * @param cursor: Cursor handle from hse_kvs_cursor_create()
+ * @param flags: Flags for operation specialization
+ * @param key: Key to find
+ * @param key_len: Length of key
+ * @param found: If non-NULL, referent point to next key in sequence (optional)
+ * @param found_len: If "found" is non-NULL, referent is length of "found" key
  * @return The function's error status
  */
 /* MTF_MOCK */
 hse_err_t
 hse_kvs_cursor_seek(
-    struct hse_kvs_cursor * cursor,
-    struct hse_kvdb_opspec *opspec,
-    const void *            key,
-    size_t                  key_len,
-    const void **           found,
-    size_t *                found_len);
+    struct hse_kvs_cursor *cursor,
+    unsigned int           flags,
+    const void *           key,
+    size_t                 key_len,
+    const void **          found,
+    size_t *               found_len);
 
 /**
  * Move the cursor to the closest match to key, gated by the given filter
@@ -759,27 +754,27 @@ hse_kvs_cursor_seek(
  *
  * Note: this is only supported for forward cursors.
  *
- * @param cursor:       Cursor handle from hse_kvs_cursor_create()
- * @param opspec:       Unused
- * @param filt_min:     Filter minimum
+ * @param cursor: Cursor handle from hse_kvs_cursor_create()
+ * @param flags: Flags for operation specialization
+ * @param filt_min: Filter minimum
  * @param filt_min_len: Length of filter minimum
- * @param filt_max:     Filter maximum
+ * @param filt_max: Filter maximum
  * @param filt_max_len: Length of filter maximum
- * @param found:        [out] Optional, if non-NULL, referent points to next key in sequence
- * @param found_len:    [out] Optional, if non-NULL: referent is length of "found" key
+ * @param[out] found: If non-NULL, referent points to next key in sequence (optional)
+ * @param[out] found_len: If non-NULL, referent is length of "found" key (optional)
  * @return The function's error status
  */
 /* MTF_MOCK */
 hse_err_t
 hse_kvs_cursor_seek_range(
-    struct hse_kvs_cursor * cursor,
-    struct hse_kvdb_opspec *opspec,
-    const void *            filt_min,
-    size_t                  filt_min_len,
-    const void *            filt_max,
-    size_t                  filt_max_len,
-    const void **           found,
-    size_t *                found_len);
+    struct hse_kvs_cursor *cursor,
+    unsigned int           flags,
+    const void *           filt_min,
+    size_t                 filt_min_len,
+    const void *           filt_max,
+    size_t                 filt_max_len,
+    const void **          found,
+    size_t *               found_len);
 
 /**
  * Iteratively access the elements pointed to by the cursor
@@ -789,24 +784,24 @@ hse_kvs_cursor_seek_range(
  * cursor. This function is thread safe across disparate cursors.
  *
  * @param cursor:  Cursor handle from hse_kvs_cursor_create()
- * @param opspec:  Ignored; may be zero
- * @param key:     [out] Next key in sequence
- * @param key_len: [out] Length of key
- * @param val:     [out] Next value in sequence
- * @param val_len: [out] Length of value
- * @param eof:     [out] If true, no more key/value pairs in sequence
+ * @param flags: Flags for operation specialization=
+ * @param[out] key: Next key in sequence
+ * @param[out] key_len: Length of key
+ * @param[out] val: Next value in sequence
+ * @param[out] val_len: Length of value
+ * @param[out] eof: If true, no more key/value pairs in sequence
  * @return The function's error status
  */
 /* MTF_MOCK */
 hse_err_t
 hse_kvs_cursor_read(
-    struct hse_kvs_cursor * cursor,
-    struct hse_kvdb_opspec *opspec,
-    const void **           key,
-    size_t *                key_len,
-    const void **           val,
-    size_t *                val_len,
-    bool *                  eof);
+    struct hse_kvs_cursor *cursor,
+    unsigned int           flags,
+    const void **          key,
+    size_t *               key_len,
+    const void **          val,
+    size_t *               val_len,
+    bool *                 eof);
 
 /**
  * Destroy cursor

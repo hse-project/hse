@@ -128,38 +128,37 @@ MTF_DEFINE_UTEST_PREPOST(transaction_api_test, transaction_commit_testcase, setu
     char                    vbuf[16];
     size_t                  vlen;
     hse_err_t               err;
-    struct hse_kvdb_opspec  opspec;
+    struct hse_kvdb_txn    *txn;
     enum hse_kvdb_txn_state state;
 
-    HSE_KVDB_OPSPEC_INIT(&opspec);
-    opspec.kop_txn = hse_kvdb_txn_alloc(kvdb_handle);
+    txn = hse_kvdb_txn_alloc(kvdb_handle);
 
     /* TC: A transaction that has not begun cannot be committed */
-    err = hse_kvdb_txn_commit(kvdb_handle, opspec.kop_txn);
+    err = hse_kvdb_txn_commit(kvdb_handle, txn);
     ASSERT_EQ(hse_err_to_errno(err), EINVAL);
 
     /* TC: A transaction that has begun can be committed */
-    err = hse_kvdb_txn_begin(kvdb_handle, opspec.kop_txn);
+    err = hse_kvdb_txn_begin(kvdb_handle, txn);
     ASSERT_EQ(err, 0);
-    err = hse_kvs_put(kvs_handle, &opspec, "test_key", 8, "test_value", 10);
+    err = hse_kvs_put(kvs_handle, 0, txn, "test_key", 8, "test_value", 10);
     ASSERT_EQ(err, 0);
 
-    err = hse_kvdb_txn_commit(kvdb_handle, opspec.kop_txn);
+    err = hse_kvdb_txn_commit(kvdb_handle, txn);
     ASSERT_EQ(err, 0);
 
     /* TC: A committed transaction will have visible changes */
-    err = hse_kvs_get(kvs_handle, NULL, "test_key", 8, &found, vbuf, sizeof(vbuf), &vlen);
+    err = hse_kvs_get(kvs_handle, 0, NULL, "test_key", 8, &found, vbuf, sizeof(vbuf), &vlen);
     ASSERT_EQ(err, 0);
     ASSERT_TRUE(found);
 
     /* TC: A committed transaction will return a state of HSE_KVDB_TXN_COMMITTED */
-    state = hse_kvdb_txn_get_state(kvdb_handle, opspec.kop_txn);
+    state = hse_kvdb_txn_get_state(kvdb_handle, txn);
     ASSERT_EQ(state, HSE_KVDB_TXN_COMMITTED);
 
-    err = hse_kvdb_txn_abort(kvdb_handle, opspec.kop_txn);
+    err = hse_kvdb_txn_abort(kvdb_handle, txn);
     ASSERT_EQ(err, 0);
 
-    hse_kvdb_txn_free(kvdb_handle, opspec.kop_txn);
+    hse_kvdb_txn_free(kvdb_handle, txn);
 }
 
 MTF_DEFINE_UTEST_PREPOST(
@@ -168,29 +167,28 @@ MTF_DEFINE_UTEST_PREPOST(
     setup_kvs,
     destroy_kvs)
 {
-    bool                   found;
-    char                   vbuf[16];
-    size_t                 vlen;
-    hse_err_t              err;
-    struct hse_kvdb_opspec opspec;
+    bool                found;
+    char                vbuf[16];
+    size_t              vlen;
+    hse_err_t           err;
+    struct hse_kvdb_txn *txn;
 
-    HSE_KVDB_OPSPEC_INIT(&opspec);
-    opspec.kop_txn = hse_kvdb_txn_alloc(kvdb_handle);
+    txn = hse_kvdb_txn_alloc(kvdb_handle);
 
     /* TC: An aborted transaction will not persist any changes */
-    err = hse_kvdb_txn_begin(kvdb_handle, opspec.kop_txn);
+    err = hse_kvdb_txn_begin(kvdb_handle, txn);
     ASSERT_EQ(err, 0);
-    err = hse_kvs_put(kvs_handle, &opspec, "test_key", 8, "test_value", 10);
-    ASSERT_EQ(err, 0);
-
-    err = hse_kvdb_txn_abort(kvdb_handle, opspec.kop_txn);
+    err = hse_kvs_put(kvs_handle, 0, txn, "test_key", 8, "test_value", 10);
     ASSERT_EQ(err, 0);
 
-    err = hse_kvs_get(kvs_handle, NULL, "test_key", 8, &found, vbuf, sizeof(vbuf), &vlen);
+    err = hse_kvdb_txn_abort(kvdb_handle, txn);
+    ASSERT_EQ(err, 0);
+
+    err = hse_kvs_get(kvs_handle, 0, NULL, "test_key", 8, &found, vbuf, sizeof(vbuf), &vlen);
     ASSERT_EQ(err, 0);
     ASSERT_FALSE(found);
 
-    hse_kvdb_txn_free(kvdb_handle, opspec.kop_txn);
+    hse_kvdb_txn_free(kvdb_handle, txn);
 }
 
 MTF_END_UTEST_COLLECTION(transaction_api_test)

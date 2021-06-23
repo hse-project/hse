@@ -29,14 +29,14 @@ try:
         kvs.put(b"c", b"3", txn=txn1)
 
         # Read 2 keys using a cursor. Leave cursor pointing to 'c'
-        cursor = kvs.cursor(txn=txn1, bind_txn=True)
+        cursor = kvs.cursor(txn=txn1, flags=hse.CursorFlag.BIND_TXN)
         kv = cursor.read()
         assert kv == (b"a", b"1")
         kv = cursor.read()
         assert kv == (b"b", b"2")
 
         kvs.put(b"d", b"4", txn=txn1)
-        cursor.update(txn=txn1, bind_txn=True)
+        cursor.update(txn=txn1, flags=hse.CursorFlag.BIND_TXN)
         kv = cursor.read()
         assert kv == (b"c", b"3")
         kv = cursor.read()
@@ -50,7 +50,7 @@ try:
             kvs.put(b"b", b"22", txn=txn)
             kvs.put(b"d", b"44", txn=txn)
 
-            txcursor = kvs.cursor(txn=txn, bind_txn=True)
+            txcursor = kvs.cursor(txn=txn, flags=hse.CursorFlag.BIND_TXN)
             kv = txcursor.read()
             assert kv == (b"a", b"11")
             kv = txcursor.read()
@@ -91,7 +91,7 @@ try:
 
         txn1.begin()
         kvs.put(b"e", b"5", txn=txn1)
-        cursor.update(txn=txn1, bind_txn=True)
+        cursor.update(txn=txn1, flags=hse.CursorFlag.BIND_TXN)
         kv = cursor.read()
         assert kv == (b"e", b"5")
 
@@ -110,7 +110,7 @@ try:
 
         # Count keys in kvs
         txn1.begin()
-        with kvs.cursor(txn=txn1, bind_txn=True) as c:
+        with kvs.cursor(txn=txn1, flags=hse.CursorFlag.BIND_TXN) as c:
             cnt = 0
             c.read()
             while not c.eof:
@@ -126,7 +126,7 @@ try:
         kvs.put(b"r", b"1", txn=txn1)
         kvs.put(b"t", b"1", txn=txn1)
 
-        cursor = kvs.cursor(txn=txn1, bind_txn=True)
+        cursor = kvs.cursor(txn=txn1, flags=hse.CursorFlag.BIND_TXN)
         cursor.seek(b"q")
         kv = cursor.read()
         assert kv == (b"q", b"1")
@@ -136,7 +136,7 @@ try:
 
         txn1.begin()
         kvs.put(b"s", b"1", txn=txn1)
-        cursor.update(txn=txn1, bind_txn=True)
+        cursor.update(txn=txn1, flags=hse.CursorFlag.BIND_TXN)
         kv = cursor.read()
         assert kv == (b"s", b"1")
         kv = cursor.read()

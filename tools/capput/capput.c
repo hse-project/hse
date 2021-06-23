@@ -105,16 +105,12 @@ pdel(void *arg)
 {
 	struct thread_arg *targ = arg;
 	struct hse_kvdb_txn    *txn = hse_kvdb_txn_alloc(targ->kvdb);
-	struct hse_kvdb_opspec  os;
 	int rc;
 
 	if (!txn)
 		fatal(ENOMEM, "Failed to allocate resources for txn");
 
 	pthread_setname_np(pthread_self(), __func__);
-
-	HSE_KVDB_OPSPEC_INIT(&os);
-	os.kop_txn = txn;
 
 	while (!killthreads) {
 		char      key[sizeof(uint64_t)];
@@ -137,7 +133,7 @@ pdel(void *arg)
 		*p = htobe64(last_del + 1);
 
 		hse_kvdb_txn_begin(targ->kvdb, txn);
-		rc = hse_kvs_prefix_delete(targ->kvs, &os,
+		rc = hse_kvs_prefix_delete(targ->kvs, 0, txn,
 				       key, sizeof(*p),
 				       &kvs_plen);
 		if (rc) {
@@ -161,7 +157,6 @@ txput(void *arg)
 	struct thread_arg *targ = arg;
 	struct thread_info *ti = targ->arg;
 	struct hse_kvdb_txn    *txn;
-	struct hse_kvdb_opspec  os;
 	uint64_t *p = 0; /* prefix */
 	uint64_t *s = 0; /* suffix */
 	int rc;
@@ -183,9 +178,6 @@ txput(void *arg)
 	if (!txn)
 		fatal(ENOMEM, "Failed to allocate resources for txn");
 
-	HSE_KVDB_OPSPEC_INIT(&os);
-	os.kop_txn = txn;
-
 	added = 0;
 	while (!exit_puts) {
 		*p = htobe64(atomic64_read(&pfx));       /* prefix */
@@ -195,7 +187,7 @@ txput(void *arg)
 		if (rc)
 			fatal(rc, "Failed to begin txn");
 
-		rc = hse_kvs_put(targ->kvs, &os, key, sizeof(key),
+		rc = hse_kvs_put(targ->kvs, 0, txn, key, sizeof(key),
 			     val, sizeof(val));
 		if (rc)
 			fatal(rc, "Failed to put key");
@@ -320,7 +312,7 @@ reader(void *arg)
 {
 	struct thread_arg  *targ = arg;
 	struct thread_info *ti = targ->arg;
-	struct hse_kvdb_opspec  os;
+	struct hse_kvdb_txn *txn;
 	struct hse_kvs_cursor  *c;
 	uint32_t            cnt;
 	bool                eof = false;
@@ -332,13 +324,12 @@ reader(void *arg)
 
 	pthread_setname_np(pthread_self(), __func__);
 
-	HSE_KVDB_OPSPEC_INIT(&os);
-	os.kop_txn = hse_kvdb_txn_alloc(targ->kvdb);
+	txn = hse_kvdb_txn_alloc(targ->kvdb);
 
 	while (!killthreads) {
 		uint64_t last_safe_pfx = atomic64_read(&pfx) - 1;
 
-		rc = hse_kvdb_txn_begin(targ->kvdb, os.kop_txn);
+		rc = hse_kvdb_txn_begin(targ->kvdb, txn);
 		if (rc)
 			fatal(rc, "Failed to begin txn");
 
@@ -346,14 +337,14 @@ reader(void *arg)
 		 * destroy-create-seek with an update to test positional
 		 * stability
 		 */
-		rc = hse_kvs_cursor_create(targ->kvs, &os, NULL, 0, &c);
+		rc = hse_kvs_cursor_create(targ->kvs, 0, txn, NULL, 0, &c);
 		if (rc)
 			fatal(rc, "hse_kvs_cursor_create failure");
 
 		if (klast[0]) {
 			klen = 0;
 
-			rc = hse_kvs_cursor_seek(c, NULL, klast, sizeof(klast),
+			rc = hse_kvs_cursor_seek(c, 0, klast, sizeof(klast),
 					&key, &klen);
 			if (rc)
 				fatal(rc, "hse_kvs_cursor_seek failure");
@@ -370,7 +361,7 @@ reader(void *arg)
 				      last_del);
 			}
 
-			rc = hse_kvs_cursor_read(c, NULL, &key, &klen,
+			rc = hse_kvs_cursor_read(c, 0, &key, &klen,
 					     &val, &vlen, &eof);
 			if (rc)
 				fatal(rc, "Failed to read from the cursor");
@@ -380,7 +371,7 @@ reader(void *arg)
 		cnt = 0;
 
 		while (cnt < opts.batch) {
-			rc = hse_kvs_cursor_read(c, NULL, &key, &klen,
+			rc = hse_kvs_cursor_read(c, 0, &key, &klen,
 					     &val, &vlen, &eof);
 			if (rc)
 				fatal(rc, "Failed to read from the cursor");
@@ -412,7 +403,7 @@ reader(void *arg)
 		}
 
         /* Abort txn: This was a read-only txn */
-        rc = hse_kvdb_txn_abort(targ->kvdb, os.kop_txn);
+        rc = hse_kvdb_txn_abort(targ->kvdb, txn);
         if (rc)
             fatal(rc, "Failed to abort txn");
 
@@ -421,7 +412,7 @@ reader(void *arg)
 		hse_kvs_cursor_destroy(c);
 	}
 
-    hse_kvdb_txn_free(targ->kvdb, os.kop_txn);
+    hse_kvdb_txn_free(targ->kvdb, txn);
 }
 
 void

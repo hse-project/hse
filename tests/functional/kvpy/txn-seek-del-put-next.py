@@ -23,7 +23,7 @@ try:
             kvs.put(b"c", b"3", txn=txn)
 
         with kvdb.transaction() as txn:
-            txcursor = kvs.cursor(txn=txn, bind_txn=True)
+            txcursor = kvs.cursor(txn=txn, flags=hse.CursorFlag.BIND_TXN)
             txcursor.seek(b"a")
             kvs.delete(b"a", txn=txn)
 
@@ -31,7 +31,7 @@ try:
             kvs.put(b"a", b"11", txn=txn)
 
         with kvdb.transaction() as txn:
-            txcursor.update(bind_txn=True, txn=txn)
+            txcursor.update(flags=hse.CursorFlag.BIND_TXN, txn=txn)
             txcursor.seek(b"a")
             kv = txcursor.read()
             assert kv == (b"a", b"11")

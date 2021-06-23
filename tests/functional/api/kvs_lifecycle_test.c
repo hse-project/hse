@@ -147,7 +147,7 @@ MTF_DEFINE_UTEST_PREPOST(kvs_api, kvs_valid_handle, kvs_create, kvs_destroy)
 
     /* TC: A KVS cannot get a non-existing key value pair */
     err = hse_kvs_get(
-        kvs_handle, NULL, "test_key", strlen("test_key"), &found, vbuf, sizeof(vbuf), &vlen);
+        kvs_handle, 0, NULL, "test_key", strlen("test_key"), &found, vbuf, sizeof(vbuf), &vlen);
     ASSERT_EQ(err, 0);
     ASSERT_EQ(found, false);
 }

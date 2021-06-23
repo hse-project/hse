@@ -297,7 +297,8 @@ ikvdb_mpool_get(struct ikvdb *kvdb);
 merr_t
 ikvdb_kvs_put(
     struct hse_kvs *         kvs,
-    struct hse_kvdb_opspec * opspec,
+    unsigned int             flags,
+    struct hse_kvdb_txn *    txn,
     struct kvs_ktuple *      kt,
     const struct kvs_vtuple *vt);
 
@@ -307,11 +308,12 @@ ikvdb_kvs_put(
  */
 merr_t
 ikvdb_kvs_get(
-    struct hse_kvs *        kvs,
-    struct hse_kvdb_opspec *opspec,
-    struct kvs_ktuple *     kt,
-    enum key_lookup_res *   res,
-    struct kvs_buf *        vbuf);
+    struct hse_kvs *     kvs,
+    unsigned int         flags,
+    struct hse_kvdb_txn *txn,
+    struct kvs_ktuple *  kt,
+    enum key_lookup_res *res,
+    struct kvs_buf *     vbuf);
 
 /**
  * ikvdb_kvs_del() - remove the supplied key and associated value from the KVS
@@ -319,17 +321,22 @@ ikvdb_kvs_get(
  */
 /* MTF_MOCK */
 merr_t
-ikvdb_kvs_del(struct hse_kvs *kvs, struct hse_kvdb_opspec *opspec, struct kvs_ktuple *kt);
+ikvdb_kvs_del(
+    struct hse_kvs *     kvs,
+    unsigned int         flags,
+    struct hse_kvdb_txn *txn,
+    struct kvs_ktuple *  kt);
 
 /* MTF_MOCK */
 merr_t
 ikvdb_kvs_pfx_probe(
-    struct hse_kvs *        handle,
-    struct hse_kvdb_opspec *os,
-    struct kvs_ktuple *     kt,
-    enum key_lookup_res *   res,
-    struct kvs_buf *        kbuf,
-    struct kvs_buf *        vbuf);
+    struct hse_kvs *     handle,
+    unsigned int         flags,
+    struct hse_kvdb_txn *txn,
+    struct kvs_ktuple *  kt,
+    enum key_lookup_res *res,
+    struct kvs_buf *     kbuf,
+    struct kvs_buf *     vbuf);
 
 /**
  * ikvdb_kvs_prefix_delete() - remove all key/value pairs with the given prefix
@@ -339,10 +346,11 @@ ikvdb_kvs_pfx_probe(
 /* MTF_MOCK */
 merr_t
 ikvdb_kvs_prefix_delete(
-    struct hse_kvs *        kvs,
-    struct hse_kvdb_opspec *opspec,
-    struct kvs_ktuple *     kt,
-    size_t *                kvs_pfx_len);
+    struct hse_kvs *     kvs,
+    unsigned int         flags,
+    struct hse_kvdb_txn *txn,
+    struct kvs_ktuple *  kt,
+    size_t *             kvs_pfx_len);
 
 /**
  * ikvdb_sync() - flush data in all of the KVSes to stable media.
@@ -411,7 +419,8 @@ ikvdb_txn_state(struct ikvdb *kvdb, struct hse_kvdb_txn *txn);
 merr_t
 ikvdb_kvs_cursor_create(
     struct hse_kvs *        kvs,
-    struct hse_kvdb_opspec *opspec,
+    unsigned int            flags,
+    struct hse_kvdb_txn *   txn,
     const void *            prefix,
     size_t                  pfx_len,
     struct hse_kvs_cursor **cursor);
@@ -420,7 +429,10 @@ ikvdb_kvs_cursor_create(
  * ikvdb_kvs_cursor_update() - incorporate updates since cursor created
  */
 merr_t
-ikvdb_kvs_cursor_update(struct hse_kvs_cursor *cursor, struct hse_kvdb_opspec *opspec);
+ikvdb_kvs_cursor_update(
+    struct hse_kvs_cursor *cursor,
+    unsigned int           flags,
+    struct hse_kvdb_txn *  txn);
 
 /**
  * ikvdb_kvs_cursor_seek() - move the cursor to the closet match to @key.
@@ -428,13 +440,13 @@ ikvdb_kvs_cursor_update(struct hse_kvs_cursor *cursor, struct hse_kvdb_opspec *o
  */
 merr_t
 ikvdb_kvs_cursor_seek(
-    struct hse_kvs_cursor * cursor,
-    struct hse_kvdb_opspec *opspec,
-    const void *            key,
-    size_t                  key_len,
-    const void *            limit,
-    size_t                  limit_len,
-    struct kvs_ktuple *     kt);
+    struct hse_kvs_cursor *cursor,
+    unsigned int           flags,
+    const void *           key,
+    size_t                 key_len,
+    const void *           limit,
+    size_t                 limit_len,
+    struct kvs_ktuple *    kt);
 
 /**
  * ikvdb_kvs_cursor_read() - iteratively access the elements pointed to by
@@ -442,13 +454,13 @@ ikvdb_kvs_cursor_seek(
  */
 merr_t
 ikvdb_kvs_cursor_read(
-    struct hse_kvs_cursor * cursor,
-    struct hse_kvdb_opspec *opspec,
-    const void **           key,
-    size_t *                key_len,
-    const void **           val,
-    size_t *                val_len,
-    bool *                  eof);
+    struct hse_kvs_cursor *cursor,
+    unsigned int           flags,
+    const void **          key,
+    size_t *               key_len,
+    const void **          val,
+    size_t *               val_len,
+    bool *                 eof);
 
 /**
  * ikvdb_kvs_cursor_destroy() - allow the caller to indicate that is is done
@@ -520,32 +532,6 @@ struct kvdb_callback {
         const void *  key,
         unsigned int  key_len);
 };
-
-/* [HSE_REVISIT] - this stuff all needs to be ripped out */
-
-static HSE_ALWAYS_INLINE bool
-kvdb_kop_is_priority(const struct hse_kvdb_opspec *os)
-{
-    return os && (os->kop_flags & HSE_KVDB_KOP_FLAG_PRIORITY);
-}
-
-static HSE_ALWAYS_INLINE bool
-kvdb_kop_is_txn(const struct hse_kvdb_opspec *os)
-{
-    return os && os->kop_txn;
-}
-
-static HSE_ALWAYS_INLINE bool
-kvdb_kop_is_reverse(const struct hse_kvdb_opspec *os)
-{
-    return os && (os->kop_flags & HSE_KVDB_KOP_FLAG_REVERSE);
-}
-
-static HSE_ALWAYS_INLINE bool
-kvdb_kop_is_bind_txn(const struct hse_kvdb_opspec *os)
-{
-    return os && (os->kop_flags & HSE_KVDB_KOP_FLAG_BIND_TXN);
-}
 
 #if HSE_MOCKING
 #include "ikvdb_ut.h"

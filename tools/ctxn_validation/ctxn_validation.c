@@ -182,18 +182,16 @@ ctxn_validation_init_c0(void)
     u64         rc;
     size_t      klen;
     char        key[1024];
-    struct hse_kvdb_opspec  os;
-
-    HSE_KVDB_OPSPEC_INIT(&os);
+    struct hse_kvdb_txn *txn;
 
     if (keybase_random)
         keybase = xrand();
 
-    os.kop_txn = hse_kvdb_txn_alloc(kvdb);
-    if (!os.kop_txn)
+    txn = hse_kvdb_txn_alloc(kvdb);
+    if (!txn)
         fatal(ENOMEM, "hse_kvdb_txn_alloc");
 
-    rc = hse_kvdb_txn_begin(kvdb, os.kop_txn);
+    rc = hse_kvdb_txn_begin(kvdb, txn);
     if (rc)
         fatal(rc, "hse_kvdb_txn_begin");
 
@@ -204,18 +202,18 @@ ctxn_validation_init_c0(void)
         klen = snprintf(key, sizeof(key), keybase_fmt, keybase + i);
 
         ++viter;
-        rc = hse_kvs_put(kvs, &os, key, klen, &viter, sizeof(viter));
+        rc = hse_kvs_put(kvs, 0, txn, key, klen, &viter, sizeof(viter));
         if (rc)
             fatal(rc, "kvdb_put c0");
 
         ++stats.puts_c0;
     }
 
-    rc = hse_kvdb_txn_commit(kvdb, os.kop_txn);
+    rc = hse_kvdb_txn_commit(kvdb, txn);
     if (rc)
         fatal(rc, "hse_kvdb_txn_commit");
 
-    hse_kvdb_txn_free(kvdb, os.kop_txn);
+    hse_kvdb_txn_free(kvdb, txn);
 }
 
 void *
@@ -225,16 +223,11 @@ basic_collision_main(void *arg)
     struct hse_kvdb_txn    *txn = tdargs->txn;
     pthread_barrier_t      *barriers = tdargs->barriers;
     struct stats           *stats = &tdargs->stats;
-    struct hse_kvdb_opspec  os;
     int                     i;
     u64                     rc;
     size_t                  klen;
     char                    key[256];
     u32                     vtxn;
-
-    HSE_KVDB_OPSPEC_INIT(&os);
-    os.kop_txn = txn;
-    os.kop_flags = 0;
 
     rc = hse_kvdb_txn_begin(kvdb, txn);
     if (rc)
@@ -246,7 +239,7 @@ basic_collision_main(void *arg)
     for (i = 0; i < keymax; ++i) {
         klen = snprintf(key, sizeof(key), keybase_fmt, keybase + i);
 
-        rc = hse_kvs_put(kvs, &os, key, klen, &vtxn, sizeof(vtxn));
+        rc = hse_kvs_put(kvs, 0, txn, key, klen, &vtxn, sizeof(vtxn));
         if (!rc)
             fatal(EINVAL, "hse_kvs_put 1");
 
@@ -262,7 +255,7 @@ basic_collision_main(void *arg)
     for (i = 0; i < keymax; ++i) {
         klen = snprintf(key, sizeof(key), keybase_fmt, keybase + i);
 
-        rc = hse_kvs_put(kvs, &os, key, klen, &vtxn, sizeof(vtxn));
+        rc = hse_kvs_put(kvs, 0, txn, key, klen, &vtxn, sizeof(vtxn));
         if (!rc)
             fatal(EINVAL, "hse_kvs_put 2");
 
@@ -292,7 +285,6 @@ ctxn_validation_basic_collision(void)
     struct hse_kvdb_txn    *txn[jobsmax];
     struct tdargs          *tdargsv;
     pthread_barrier_t       barriers[4];
-    struct hse_kvdb_opspec  os;
     int                     i;
     u64                     rc;
     size_t                  klen;
@@ -319,10 +311,6 @@ ctxn_validation_basic_collision(void)
     for (i = 0; i < 4; i++)
         pthread_barrier_init(&barriers[i], NULL, jobsmax);
 
-    HSE_KVDB_OPSPEC_INIT(&os);
-    os.kop_txn = txn[0];
-    os.kop_flags = 0;
-
     rc = hse_kvdb_txn_begin(kvdb, txn[0]);
     if (rc)
         fatal(rc, "hse_kvdb_txn_begin");
@@ -332,7 +320,7 @@ ctxn_validation_basic_collision(void)
         klen = snprintf(key, sizeof(key), keybase_fmt, keybase + i);
 
         vtxn = ++viter;
-        rc = hse_kvs_put(kvs, &os, key, klen, &vtxn, sizeof(vtxn));
+        rc = hse_kvs_put(kvs, 0, txn[0], key, klen, &vtxn, sizeof(vtxn));
         if (rc)
             fatal(rc, "hse_kvs_put 3");
 
@@ -380,15 +368,11 @@ ctxn_validation_basic_collision(void)
     if (rc)
         fatal(rc, "hse_kvdb_txn_begin");
 
-    HSE_KVDB_OPSPEC_INIT(&os);
-    os.kop_txn = txn[1];
-    os.kop_flags = 0;
-
     for (i = 0; i < keymax; ++i) {
         klen = snprintf(key, sizeof(key), keybase_fmt, keybase + i);
 
         vtxn = ++viter;
-        rc = hse_kvs_put(kvs, &os, key, klen, &vtxn, sizeof(vtxn));
+        rc = hse_kvs_put(kvs, 0, txn[1], key, klen, &vtxn, sizeof(vtxn));
         if (rc)
             fatal(rc, "kvdb_put");
 
@@ -408,7 +392,6 @@ ctxn_validation_perf(
     struct tdargs *tdargs)
 {
     struct stats           *stats = &tdargs->stats;
-    struct hse_kvdb_opspec  os;
     struct hse_kvdb_txn    *txn;
     int                     i;
     u64                     rc;
@@ -425,10 +408,6 @@ ctxn_validation_perf(
             fatal(ENOMEM, "hse_kvdb_txn_alloc");
         tdargs->txn = txn;
     }
-
-    HSE_KVDB_OPSPEC_INIT(&os);
-    os.kop_txn = txn;
-    os.kop_flags = 0;
 
     rc = hse_kvdb_txn_begin(kvdb, txn);
     if (rc) {
@@ -456,14 +435,14 @@ ctxn_validation_perf(
                         tdargs->keybase + i);
 
         if (mode_put) {
-            rc = hse_kvs_put(kvs, &os, key, klen, &vtxn,
+            rc = hse_kvs_put(kvs, 0, txn, key, klen, &vtxn,
                              sizeof(vtxn));
             if (rc)
                 stats->puts_fail++;
 
             stats->puts_txn++;
         } else {
-            rc = hse_kvs_get(kvs, &os, key, klen, &found, &vtxn,
+            rc = hse_kvs_get(kvs, 0, txn, key, klen, &found, &vtxn,
                              sizeof(vtxn), &vtxnlen);
             if (rc)
                 fatal(rc, "kvdb_txn_get");
@@ -498,7 +477,6 @@ ctxn_validation_stress(
 {
     struct stats           *stats = &tdargs->stats;
     struct hse_kvdb_txn    *txn;
-    struct hse_kvdb_opspec  os;
 
     size_t      klen, vlen, vcurlen, vtxnlen;
     u64         val, vcur, vtxn;
@@ -514,10 +492,6 @@ ctxn_validation_stress(
             fatal(ENOMEM, "hse_kvdb_txn_alloc");
         tdargs->txn = txn;
     }
-
-    HSE_KVDB_OPSPEC_INIT(&os);
-    os.kop_txn = txn;
-    os.kop_flags = 0;
 
     rc = hse_kvdb_txn_begin(kvdb, txn);
     if (rc) {
@@ -542,7 +516,7 @@ ctxn_validation_stress(
                         tdargs->keybase + i);
 
         vcur = ++tdargs->viter;
-        rc = hse_kvs_put(kvs, &os, key, klen, &vcur, sizeof(vcur));
+        rc = hse_kvs_put(kvs, 0, txn, key, klen, &vcur, sizeof(vcur));
         if (rc)
             fatal(rc, "kvdb_put 1");
 
@@ -567,7 +541,7 @@ ctxn_validation_stress(
                         tdargs->keybase + i);
 
         vtxn = ++tdargs->viter;
-        rc = hse_kvs_put(kvs, &os, key, klen, &vtxn, sizeof(vtxn));
+        rc = hse_kvs_put(kvs, 0, txn, key, klen, &vtxn, sizeof(vtxn));
         if (rc == ECANCELED) {
             hse_kvdb_txn_abort(kvdb, txn);
 
@@ -588,7 +562,7 @@ ctxn_validation_stress(
         vcurlen = vtxnlen = 0;
         vcur = vtxn = 0;
 
-        rc = hse_kvs_get(kvs, NULL, key, klen, &found,
+        rc = hse_kvs_get(kvs, 0, NULL, key, klen, &found,
                          &vcur, sizeof(vcur), &vcurlen);
         if (rc)
             fatal(rc, "kvdb_getco 1");
@@ -598,7 +572,7 @@ ctxn_validation_stress(
 
         ++stats->gets_c0;
 
-        rc = hse_kvs_get(kvs, &os, key, klen, &found,
+        rc = hse_kvs_get(kvs, 0, txn, key, klen, &found,
                          &vtxn, sizeof(vtxn), &vtxnlen);
         if (rc)
             fatal(rc, "kvdb_getco 2");
@@ -637,7 +611,7 @@ ctxn_validation_stress(
         vlen = 0;
         val = 0;
 
-        rc = hse_kvs_get(kvs, NULL, key, klen, &found,
+        rc = hse_kvs_get(kvs, 0, NULL, key, klen, &found,
                          &val, sizeof(val), &vlen);
         if (rc)
             fatal(rc, "kvdb_getco 3");
@@ -663,7 +637,6 @@ void
 ctxn_validation_basic(void)
 {
     struct hse_kvdb_txn    *txn;
-    struct hse_kvdb_opspec  os;
 
     size_t      klen, klen_lg = 0, vlen, vcurlen, vtxnlen;
     char        key[64], key_lg[64];
@@ -679,11 +652,7 @@ ctxn_validation_basic(void)
     if (!txn)
         fatal(ENOMEM, "hse_kvdb_txn_alloc");
 
-    HSE_KVDB_OPSPEC_INIT(&os);
-    os.kop_txn = txn;
-    os.kop_flags = 0;
-
-    rc = hse_kvdb_txn_begin(kvdb, os.kop_txn);
+    rc = hse_kvdb_txn_begin(kvdb, txn);
     if (rc)
         fatal(rc, "hse_kvdb_txn_begin");
 
@@ -693,22 +662,22 @@ ctxn_validation_basic(void)
                            "key_lg.%09lu", keybase);
 
     vcur = ++viter;
-    rc = hse_kvs_put(kvs, &os, key, klen, &vcur, sizeof(vcur));
+    rc = hse_kvs_put(kvs, 0, txn, key, klen, &vcur, sizeof(vcur));
     if (rc)
         fatal(rc, "kvdb_put 1");
 
-    rc = hse_kvdb_txn_commit(kvdb, os.kop_txn);
+    rc = hse_kvdb_txn_commit(kvdb, txn);
     if (rc)
         fatal(rc, "hse_kvdb_txn_commit");
 
     ++stats.puts_c0;
 
-    rc = hse_kvdb_txn_begin(kvdb, os.kop_txn);
+    rc = hse_kvdb_txn_begin(kvdb, txn);
     if (rc)
         fatal(rc, "hse_kvdb_txn_begin");
 
     vtxn = ++viter;
-    rc = hse_kvs_put(kvs, &os, key, klen, &vtxn, sizeof(vtxn));
+    rc = hse_kvs_put(kvs, 0, txn, key, klen, &vtxn, sizeof(vtxn));
     if (rc)
         fatal(rc, "kvdb_put 2");
 
@@ -717,7 +686,7 @@ ctxn_validation_basic(void)
     if (mixed_sz) {
         char    val_lg[237];
 
-        rc = hse_kvs_put(kvs, &os, key_lg, klen_lg,
+        rc = hse_kvs_put(kvs, 0, txn, key_lg, klen_lg,
                          &val_lg, sizeof(val_lg));
         if (rc)
             fatal(rc, "kvdb_put large");
@@ -726,7 +695,7 @@ ctxn_validation_basic(void)
     vcurlen = vtxnlen = 0;
     vcur = vtxn = 0;
 
-    rc = hse_kvs_get(kvs, NULL, key, klen, &found,
+    rc = hse_kvs_get(kvs, 0, NULL, key, klen, &found,
                      &vcur, sizeof(vcur), &vcurlen);
     if (rc)
         fatal(rc, "kvdb_getco 1");
@@ -736,7 +705,7 @@ ctxn_validation_basic(void)
     if (!found)
         fatal(ENOENT, "kvdb_getco 1 not found");
 
-    rc = hse_kvs_get(kvs, &os, key, klen, &found,
+    rc = hse_kvs_get(kvs, 0, txn, key, klen, &found,
                      &vtxn, sizeof(vtxn), &vtxnlen);
     if (rc)
         fatal(rc, "kvdb_getco 2");
@@ -757,7 +726,7 @@ ctxn_validation_basic(void)
     if (vtxn != viter)
         fatal(EINVAL, "isolation error (vtxn)");
 
-    rc = hse_kvdb_txn_commit(kvdb, os.kop_txn);
+    rc = hse_kvdb_txn_commit(kvdb, txn);
     if (rc)
         fatal(rc, "hse_kvdb_txn_commit");
 
@@ -766,7 +735,7 @@ ctxn_validation_basic(void)
     vlen = 0;
     val = 0;
 
-    rc = hse_kvs_get(kvs, NULL, key, klen, &found,
+    rc = hse_kvs_get(kvs, 0, NULL, key, klen, &found,
                      &val, sizeof(val), &vlen);
     if (rc)
         fatal(rc, "kvdb_getco 3");

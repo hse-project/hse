@@ -18,8 +18,10 @@ try:
 
         cursor_txn = kvdb.transaction()
         cursor_txn.begin()
-        holder = kvs.cursor(bind_txn=True, txn=cursor_txn)
-        rholder = kvs.cursor(reverse=True, bind_txn=True, txn=cursor_txn)
+        holder = kvs.cursor(flags=hse.CursorFlag.BIND_TXN, txn=cursor_txn)
+        rholder = kvs.cursor(
+            flags=hse.CursorFlag.REVERSE | hse.CursorFlag.BIND_TXN, txn=cursor_txn
+        )
 
         txn = kvdb.transaction()
         exp_list: List[str] = []
@@ -43,9 +45,11 @@ try:
         cursor_txn.abort()
         cursor_txn = kvdb.transaction()
         cursor_txn.begin()
-        holder.update(bind_txn=True, txn=cursor_txn)
+        holder.update(flags=hse.CursorFlag.BIND_TXN, txn=cursor_txn)
         holder.seek(b"0")
-        rholder.update(reverse=True, bind_txn=True, txn=cursor_txn)
+        rholder.update(
+            flags=hse.CursorFlag.REVERSE | hse.CursorFlag.BIND_TXN, txn=cursor_txn
+        )
         rholder.seek(None)
 
         holder_values = [v.decode() for _, v in holder.items() if v]

@@ -40,9 +40,11 @@ try:
         txn3.begin()
 
         # Create a bound cursor over each txn
-        cursor1 = kvs.cursor(txn=txn1, bind_txn=True)
-        cursor2 = kvs.cursor(txn=txn2, bind_txn=True)
-        cursor3 = kvs.cursor(txn=txn3, bind_txn=True, static_view=True)
+        cursor1 = kvs.cursor(txn=txn1, flags=hse.CursorFlag.BIND_TXN)
+        cursor2 = kvs.cursor(txn=txn2, flags=hse.CursorFlag.BIND_TXN)
+        cursor3 = kvs.cursor(
+            txn=txn3, flags=hse.CursorFlag.BIND_TXN | hse.CursorFlag.STATIC_VIEW
+        )
 
         # Add a few keys to each txn
         kvs.put(b"b1", b"21", txn=txn1)

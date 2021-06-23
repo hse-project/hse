@@ -261,10 +261,11 @@ kh_register_multiple(
 /* cursor helper functions */
 struct hse_kvs_cursor *
 kh_cursor_create(
-	struct hse_kvs           *kvs,
-	struct hse_kvdb_opspec   *os,
-	void                 *pfx,
-	size_t                pfxlen)
+	struct hse_kvs *     kvs,
+	unsigned int         flags,
+	struct hse_kvdb_txn *txn,
+	void *               pfx,
+	size_t               pfxlen)
 {
 	struct hse_kvs_cursor *cur;
 	hse_err_t              err;
@@ -274,7 +275,7 @@ retry:
 	if (attempts-- == 0)
 		fatal(err, "cursor create failed");
 
-	err = hse_kvs_cursor_create(kvs, os, pfx, pfxlen, &cur);
+	err = hse_kvs_cursor_create(kvs, flags, txn, pfx, pfxlen, &cur);
 	if (err) {
 		if (hse_err_to_errno(err) == EAGAIN) {
 			usleep(10*1000);
@@ -289,12 +290,13 @@ retry:
 
 void
 kh_cursor_update(
-	struct hse_kvs_cursor    *cur,
-	struct hse_kvdb_opspec   *os)
+	struct hse_kvs_cursor *cur,
+	unsigned int           flags,
+	struct hse_kvdb_txn *  txn)
 {
 	hse_err_t err;
 
-	err = hse_kvs_cursor_update(cur, os);
+	err = hse_kvs_cursor_update(cur, flags, txn);
 	if (err)
 		fatal(err, "cursor update failed");
 }

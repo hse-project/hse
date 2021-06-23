@@ -32,8 +32,6 @@
 
 const char *progname;
 
-struct hse_kvdb_opspec opspec;
-
 void
 fatal(hse_err_t err, char *fmt, ...)
 {
@@ -97,8 +95,6 @@ main(int argc, char **argv)
     alen = 1000;
     every = 153;
     rdm = 0;
-
-    HSE_KVDB_OPSPEC_INIT(&opspec);
 
     while ((c = getopt(argc, argv, ":a:c:e:hl:o:r:s:")) != -1) {
         switch (c) {
@@ -188,7 +184,7 @@ main(int argc, char **argv)
         vlen = keylen;
         val = data;
 
-        rc = hse_kvs_put(kvs, &opspec, key, klen, val, vlen);
+        rc = hse_kvs_put(kvs, 0, NULL, key, klen, val, vlen);
         if (rc)
             fatal(rc, "hse_kvs_put");
     }

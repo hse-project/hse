@@ -16,7 +16,8 @@
 uint64_t
 hse_kvs_prefix_probe_exp(
     struct hse_kvs *            handle,
-    struct hse_kvdb_opspec *    os,
+    const unsigned int          flags,
+    struct hse_kvdb_txn *const  txn,
     const void *                pfx,
     size_t                      pfx_len,
     enum hse_kvs_pfx_probe_cnt *found,
@@ -33,7 +34,7 @@ hse_kvs_prefix_probe_exp(
     merr_t              err = 0;
     u64 sum             HSE_MAYBE_UNUSED;
 
-    if (!handle || !pfx || !pfx_len || !found || !val_len)
+    if (!handle || !pfx || !pfx_len || !found || !val_len || flags != HSE_FLAG_NONE)
         err = merr(EINVAL);
     else if (!valbuf && valbuf_sz > 0)
         err = merr(EINVAL);
@@ -57,7 +58,7 @@ hse_kvs_prefix_probe_exp(
     kvs_buf_init(&kbuf, keybuf, keybuf_sz);
     kvs_buf_init(&vbuf, valbuf, valbuf_sz);
 
-    err = ikvdb_kvs_pfx_probe(handle, os, &kt, &res, &kbuf, &vbuf);
+    err = ikvdb_kvs_pfx_probe(handle, flags, txn, &kt, &res, &kbuf, &vbuf);
     if (ev(err))
         return err;
 

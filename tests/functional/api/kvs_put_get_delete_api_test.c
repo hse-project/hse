@@ -83,7 +83,7 @@ MTF_DEFINE_UTEST(put_get_delete, put_get)
         rc = make_tuple(lcl_ti, &tup, prefix, i);
         ASSERT_EQ(rc, 0);
 
-        err = hse_kvs_put(kvs, NULL, tup.key, tup.klen, tup.putval, tup.vlen);
+        err = hse_kvs_put(kvs, 0, NULL, tup.key, tup.klen, tup.putval, tup.vlen);
         ASSERT_EQ(err, 0);
     }
 }
@@ -100,16 +100,16 @@ MTF_DEFINE_UTEST(put_get_delete, kvs_put_get_delete)
     size_t     vallen = sizeof(test_value) - 1;
 
     /* TC: A KVS cannot put a NULL key */
-    err = hse_kvs_put(kvs, NULL, NULL, 0, test_value, vallen);
+    err = hse_kvs_put(kvs, 0, NULL, NULL, 0, test_value, vallen);
     ASSERT_EQ(hse_err_to_errno(err), EINVAL);
 
     /* TC: A KVS can put a valid key value pair */
-    err = hse_kvs_put(kvs, NULL, test_key, klen, test_value, vallen);
+    err = hse_kvs_put(kvs, 0, NULL, test_key, klen, test_value, vallen);
     ASSERT_EQ(err, 0);
 
     /* TC: A KVS get with an existing key can be found and will return a correct value */
     found = false;
-    err = hse_kvs_get(kvs, NULL, test_key, klen, &found, vbuf, sizeof(vbuf), &vlen);
+    err = hse_kvs_get(kvs, 0, NULL, test_key, klen, &found, vbuf, sizeof(vbuf), &vlen);
     ASSERT_EQ(err, 0);
     ASSERT_EQ(found, true);
     ASSERT_EQ(vlen, vallen);
@@ -117,9 +117,9 @@ MTF_DEFINE_UTEST(put_get_delete, kvs_put_get_delete)
 
     /* TC: A KVS can delete an existing key value pair */
     found = false;
-    err = hse_kvs_delete(kvs, NULL, test_key, klen);
+    err = hse_kvs_delete(kvs, 0, NULL, test_key, klen);
     ASSERT_EQ(err, 0);
-    err = hse_kvs_get(kvs, NULL, test_key, klen, &found, vbuf, sizeof(vbuf), &vlen);
+    err = hse_kvs_get(kvs, 0, NULL, test_key, klen, &found, vbuf, sizeof(vbuf), &vlen);
     ASSERT_EQ(err, 0);
     ASSERT_EQ(found, false);
 }

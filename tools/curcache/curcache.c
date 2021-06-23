@@ -80,7 +80,7 @@ parallel_cursors(void *info)
 
         /* create different prefixes each time */
         sprintf(buf, "%d", r);
-        err = hse_kvs_cursor_create(ci->kvs, 0, buf, 3, &c);
+        err = hse_kvs_cursor_create(ci->kvs, 0, NULL, buf, 3, &c);
         if (err)
             return tdie(err, "cannot create cursor iter %d", i);
 
@@ -132,7 +132,7 @@ maker(void *h)
             char buf[32];
             int  len = sprintf(buf, "%d", i);
 
-            err = hse_kvs_put(kvs, 0, buf, len, buf, len);
+            err = hse_kvs_put(kvs, 0, NULL, buf, len, buf, len);
             if (err)
                 tdie(err, "cannot put");
         }

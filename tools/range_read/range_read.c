@@ -153,7 +153,7 @@ loader(void *arg)
 
             *s = htobe64(j);
 
-            rc = hse_kvs_put(targ->kvs, 0, key, sizeof(key),
+            rc = hse_kvs_put(targ->kvs, 0, NULL, key, sizeof(key),
                              val, opts.vlen);
             if (rc)
                 fatal(rc, "Put failed");
@@ -204,13 +204,10 @@ point_get(
     nread = 0;
     opcnt = 0;
     while (!stopthreads) {
-        struct hse_kvdb_opspec os;
         uint64_t           pfx, sfx;
         int                i, inc = 1;
         bool               found;
         u64                start, end;
-
-        HSE_KVDB_OPSPEC_INIT(&os);
 
         rand_key(&pfx, &sfx);
 
@@ -219,7 +216,7 @@ point_get(
         for (i = 0; i < opts.range && sfx < opts.nsfx; i++, sfx += inc) {
 
             *s = htobe64(sfx);
-            hse_kvs_get(targ->kvs, &os, kbuf, sizeof(kbuf), &found, vbuf, opts.vlen, &vlen);
+            hse_kvs_get(targ->kvs, 0, NULL, kbuf, sizeof(kbuf), &found, vbuf, opts.vlen, &vlen);
             if (!found)
                 fatal(ENOKEY, "Key not found\n");
 
@@ -270,20 +267,17 @@ cursor(
     nread = 0;
     opcnt = 0;
     while (!stopthreads) {
-        struct hse_kvdb_opspec os;
         struct hse_kvs_cursor *c;
         uint64_t           pfx, sfx;
         int                i, inc = 1;
         u64                start;
-
-        HSE_KVDB_OPSPEC_INIT(&os);
 
         rand_key(&pfx, &sfx);
         *p = htobe64(pfx);
         *s = htobe64(sfx);
 
         start = get_time_ns();
-        c = kh_cursor_create(targ->kvs, &os, kbuf, sizeof(*p));
+        c = kh_cursor_create(targ->kvs, 0, NULL, kbuf, sizeof(*p));
         kh_cursor_seek(c, kbuf, sizeof(kbuf));
 
         /* read the range of keys */

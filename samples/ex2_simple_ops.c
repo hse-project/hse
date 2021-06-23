@@ -65,28 +65,28 @@ main(int argc, char **argv)
     /* Error handling is elided for clarity */
 
     /* 1. Put a few keys and verify that hse_kvs_get() can find them */
-    rc = hse_kvs_put(kvs, NULL, "k1", 2, "val1", 4);
-    rc = hse_kvs_put(kvs, NULL, "k2", 2, "val2", 4);
-    rc = hse_kvs_put(kvs, NULL, "k3", 2, "val3", 4);
-    rc = hse_kvs_put(kvs, NULL, "k4", 2, NULL, 0);
+    rc = hse_kvs_put(kvs, 0, NULL, "k1", 2, "val1", 4);
+    rc = hse_kvs_put(kvs, 0, NULL, "k2", 2, "val2", 4);
+    rc = hse_kvs_put(kvs, 0, NULL, "k3", 2, "val3", 4);
+    rc = hse_kvs_put(kvs, 0, NULL, "k4", 2, NULL, 0);
 
-    hse_kvs_get(kvs, NULL, "k1", 2, &found, vbuf, sizeof(vbuf), &vlen);
+    hse_kvs_get(kvs, 0, NULL, "k1", 2, &found, vbuf, sizeof(vbuf), &vlen);
     printf("k1 found = %s\n", found ? "true" : "false");
 
-    hse_kvs_get(kvs, NULL, "k2", 2, &found, vbuf, sizeof(vbuf), &vlen);
+    hse_kvs_get(kvs, 0, NULL, "k2", 2, &found, vbuf, sizeof(vbuf), &vlen);
     printf("k2 found = %s\n", found ? "true" : "false");
 
-    hse_kvs_get(kvs, NULL, "k3", 2, &found, vbuf, sizeof(vbuf), &vlen);
+    hse_kvs_get(kvs, 0, NULL, "k3", 2, &found, vbuf, sizeof(vbuf), &vlen);
     printf("k3 found = %s\n", found ? "true" : "false");
 
-    hse_kvs_get(kvs, NULL, "k4", 2, &found, vbuf, sizeof(vbuf), &vlen);
+    hse_kvs_get(kvs, 0, NULL, "k4", 2, &found, vbuf, sizeof(vbuf), &vlen);
     printf("k4 found = %s, length was %lu bytes\n", found ? "true" : "false", vlen);
 
     /* 2. Delete a key and ensure that it cannot be found by hse_kvs_get() */
-    rc = hse_kvs_delete(kvs, NULL, "k1", 2);
+    rc = hse_kvs_delete(kvs, 0, NULL, "k1", 2);
     printf("k1 deleted\n");
 
-    rc = hse_kvs_get(kvs, NULL, "k1", 2, &found, vbuf, sizeof(vbuf), &vlen);
+    rc = hse_kvs_get(kvs, 0, NULL, "k1", 2, &found, vbuf, sizeof(vbuf), &vlen);
     printf("k1 found = %s\n", found ? "true" : "false");
 
     hse_kvdb_close(kvdb);

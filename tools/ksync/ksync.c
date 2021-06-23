@@ -113,7 +113,7 @@ stuff(void)
                 vlen = vlenmin;
                 vlen += get_cycles() % (vlenmax - vlenmin + 1);
 
-                herr = hse_kvs_put(kvs, NULL, &key, klen, val, vlen);
+                herr = hse_kvs_put(kvs, 0, NULL, &key, klen, val, vlen);
                 if (herr) {
                     herr_print(herr, "hse_kvs_put() failed: ");
                     break;
@@ -145,7 +145,7 @@ stuff(void)
                 vlen = vlenmin;
                 vlen += get_cycles() % (vlenmax - vlenmin + 1);
 
-                herr = hse_kvs_put(kvs, NULL, &key, klen, val, vlen);
+                herr = hse_kvs_put(kvs, 0, NULL, &key, klen, val, vlen);
                 if (herr) {
                     herr_print(herr, "hse_kvs_put() failed: ");
                     break;
@@ -169,7 +169,6 @@ stuff(void)
 
     if (ktxn > 0) {
         struct hse_kvdb_txn *  txn;
-        struct hse_kvdb_opspec os;
 
         gettimeofday(&tstart, NULL);
 
@@ -177,11 +176,8 @@ stuff(void)
         if (!txn)
             abort();
 
-        os.kop_txn = txn;
-        os.kop_flags = 0;
-
         for (i = 0; i < ktxn; ++i) {
-            herr = hse_kvdb_txn_begin(kvdb, os.kop_txn);
+            herr = hse_kvdb_txn_begin(kvdb, txn);
             if (herr) {
                 herr_print(herr, "hse_kvdb_txn_begin() failed: ");
                 abort();
@@ -193,14 +189,14 @@ stuff(void)
                 vlen = vlenmin;
                 vlen += get_cycles() % (vlenmax - vlenmin + 1);
 
-                herr = hse_kvs_put(kvs, &os, &key, klen, val, vlen);
+                herr = hse_kvs_put(kvs, 0, txn, &key, klen, val, vlen);
                 if (herr) {
                     herr_print(herr, "hse_kvs_put() failed: ");
                     break;
                 }
             }
 
-            herr = hse_kvdb_txn_commit(kvdb, os.kop_txn);
+            herr = hse_kvdb_txn_commit(kvdb, txn);
             if (herr) {
                 herr_print(herr, "hse_kvdb_txn_commit() failed: ");
                 break;

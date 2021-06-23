@@ -41,7 +41,7 @@ Status HseKvs::Close() {
 Status HseKvs::Put(const Slice& key, const Slice& value) {
   hse_err_t err;
 
-  err = hse_kvs_put(kvs_handle_, NULL, key.data(), key.size(), value.data(),
+  err = hse_kvs_put(kvs_handle_, 0, NULL, key.data(), key.size(), value.data(),
                     value.size());
   if (err) {
     char msg[MSG_SIZE];
@@ -67,7 +67,7 @@ Status HseKvs::GetInPlace(const Slice& key, void* dest, size_t dest_size,
   hse_err_t err;
   bool found;
 
-  err = hse_kvs_get(kvs_handle_, NULL, key.data(), key.size(), &found,
+  err = hse_kvs_get(kvs_handle_, 0, NULL, key.data(), key.size(), &found,
                     get_buffer_, get_buffer_size_, value_size);
 
   if (err) {
@@ -85,7 +85,7 @@ Status HseKvs::GetInPlace(const Slice& key, void* dest, size_t dest_size,
 Status HseKvs::Delete(const Slice& key) {
   hse_err_t err;
 
-  err = hse_kvs_delete(kvs_handle_, NULL, key.data(), key.size());
+  err = hse_kvs_delete(kvs_handle_, 0, NULL, key.data(), key.size());
 
   if (err) {
     char msg[MSG_SIZE];
@@ -97,15 +97,14 @@ Status HseKvs::Delete(const Slice& key) {
 
 HseKvsCursor* HseKvs::NewCursor(bool reverse) {
   hse_kvs_cursor* kvs_cursor_handle;
-  hse_kvdb_opspec os;
+  unsigned int flags = 0;
   hse_err_t err;
 
-  HSE_KVDB_OPSPEC_INIT(&os);
   if (reverse) {
-    os.kop_flags |= HSE_KVDB_KOP_FLAG_REVERSE;
+    flags |= HSE_FLAG_CURSOR_REVERSE;
   }
 
-  err = hse_kvs_cursor_create(kvs_handle_, &os, NULL, 0, &kvs_cursor_handle);
+  err = hse_kvs_cursor_create(kvs_handle_, flags, NULL, NULL, 0, &kvs_cursor_handle);
   if (err) {
     char msg[MSG_SIZE];
     hse_err_to_string(err, msg, sizeof(msg), NULL);

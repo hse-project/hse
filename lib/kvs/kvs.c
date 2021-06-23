@@ -284,13 +284,13 @@ kvs_txn_is_enabled(struct ikvs *kvs)
 
 merr_t
 kvs_put(
-    struct ikvs *            kvs,
-    struct hse_kvdb_opspec * os,
-    struct kvs_ktuple *      kt,
-    const struct kvs_vtuple *vt,
-    u64                      seqno)
+    struct ikvs *              kvs,
+    struct hse_kvdb_txn *const txn,
+    struct kvs_ktuple *        kt,
+    const struct kvs_vtuple *  vt,
+    u64                        seqno)
 {
-    struct kvdb_ctxn *ctxn = (os && os->kop_txn) ? kvdb_ctxn_h2h(os->kop_txn) : 0;
+    struct kvdb_ctxn *ctxn = txn ? kvdb_ctxn_h2h(txn) : 0;
     struct perfc_set *pkvsl_pc = kvs_perfc_pkvsl(kvs);
     struct c0 *       c0 = kvs->ikv_c0;
     size_t            sfx_len;
@@ -337,14 +337,14 @@ kvs_put(
 
 merr_t
 kvs_get(
-    struct ikvs *           kvs,
-    struct hse_kvdb_opspec *os,
-    struct kvs_ktuple *     kt,
-    u64                     seqno,
-    enum key_lookup_res *   res,
-    struct kvs_buf *        vbuf)
+    struct ikvs *              kvs,
+    struct hse_kvdb_txn *const txn,
+    struct kvs_ktuple *        kt,
+    u64                        seqno,
+    enum key_lookup_res *      res,
+    struct kvs_buf *           vbuf)
 {
-    struct kvdb_ctxn *ctxn = (os && os->kop_txn) ? kvdb_ctxn_h2h(os->kop_txn) : 0;
+    struct kvdb_ctxn *ctxn = txn ? kvdb_ctxn_h2h(txn) : 0;
     struct perfc_set *pkvsl_pc = kvs_perfc_pkvsl(kvs);
     struct c0 *       c0 = kvs->ikv_c0;
     struct lc *       lc = kvs->ikv_lc;
@@ -384,10 +384,10 @@ kvs_get(
 }
 
 merr_t
-kvs_del(struct ikvs *kvs, struct hse_kvdb_opspec *os, struct kvs_ktuple *kt, u64 seqno)
+kvs_del(struct ikvs *kvs, struct hse_kvdb_txn *const txn, struct kvs_ktuple *kt, u64 seqno)
 {
     struct perfc_set *pkvsl_pc = kvs_perfc_pkvsl(kvs);
-    struct kvdb_ctxn *ctxn = (os && os->kop_txn) ? kvdb_ctxn_h2h(os->kop_txn) : 0;
+    struct kvdb_ctxn *ctxn = txn ? kvdb_ctxn_h2h(txn) : 0;
     struct c0 *       c0 = kvs->ikv_c0;
     size_t            sfx_len;
     size_t            hashlen;
@@ -432,10 +432,10 @@ kvs_del(struct ikvs *kvs, struct hse_kvdb_opspec *os, struct kvs_ktuple *kt, u64
 }
 
 merr_t
-kvs_prefix_del(struct ikvs *kvs, struct hse_kvdb_opspec *os, struct kvs_ktuple *kt, u64 seqno)
+kvs_prefix_del(struct ikvs *kvs, struct hse_kvdb_txn *const txn, struct kvs_ktuple *kt, u64 seqno)
 {
     struct perfc_set *pkvsl_pc = kvs_perfc_pkvsl(kvs);
-    struct kvdb_ctxn *ctxn = (os && os->kop_txn) ? kvdb_ctxn_h2h(os->kop_txn) : 0;
+    struct kvdb_ctxn *ctxn = txn ? kvdb_ctxn_h2h(txn) : 0;
     struct c0 *       c0 = kvs->ikv_c0;
     u64               tstart;
     merr_t            err;
@@ -466,16 +466,16 @@ kvs_prefix_del(struct ikvs *kvs, struct hse_kvdb_opspec *os, struct kvs_ktuple *
 
 merr_t
 kvs_pfx_probe(
-    struct ikvs *           kvs,
-    struct hse_kvdb_opspec *os,
-    struct kvs_ktuple *     kt,
-    u64                     seqno,
-    enum key_lookup_res *   res,
-    struct kvs_buf *        kbuf,
-    struct kvs_buf *        vbuf)
+    struct ikvs *              kvs,
+    struct hse_kvdb_txn *const txn,
+    struct kvs_ktuple *        kt,
+    u64                        seqno,
+    enum key_lookup_res *      res,
+    struct kvs_buf *           kbuf,
+    struct kvs_buf *           vbuf)
 {
     struct perfc_set *pkvsl_pc = kvs_perfc_pkvsl(kvs);
-    struct kvdb_ctxn *ctxn = (os && os->kop_txn) ? kvdb_ctxn_h2h(os->kop_txn) : 0;
+    struct kvdb_ctxn *ctxn = txn ? kvdb_ctxn_h2h(txn) : 0;
     struct c0 *       c0 = kvs->ikv_c0;
     struct lc *       lc = kvs->ikv_lc;
     struct cn *       cn = kvs->ikv_cn;

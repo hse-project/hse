@@ -723,7 +723,7 @@ cursor_test_set_params(struct cursor_test *ct, const struct cursor_test_params *
 static merr_t
 cursor_test_execute(struct cursor_test *ct, struct hse_kvs *kvs)
 {
-    struct hse_kvdb_opspec ops = {};
+    unsigned int flags = 0;
     struct hse_kvs_cursor *cur = 0;
     merr_t                 err = 0;
 
@@ -733,15 +733,13 @@ cursor_test_execute(struct cursor_test *ct, struct hse_kvs *kvs)
     u64   dt;
     ulong i;
 
-    HSE_KVDB_OPSPEC_INIT(&ops);
-
     if (p->ctp_reverse)
-        ops.kop_flags |= HSE_KVDB_KOP_FLAG_REVERSE;
+        flags |= HSE_FLAG_CURSOR_REVERSE;
 
     /* Create cursor */
     {
         dt = r->ctr_start = get_time_ns();
-        err = hse_kvs_cursor_create(kvs, &ops, p->ctp_pkey, p->ctp_pkey_len, &cur);
+        err = hse_kvs_cursor_create(kvs, flags, NULL, p->ctp_pkey, p->ctp_pkey_len, &cur);
         dt = get_time_ns() - dt;
         if (err) {
             cursor_test_set_err(ct, err, "hse_kvs_cursor_create failed");
@@ -755,7 +753,7 @@ cursor_test_execute(struct cursor_test *ct, struct hse_kvs *kvs)
         dt = 0;
         if (p->ctp_skey && p->ctp_skey_len > 0) {
             dt = get_time_ns();
-            err = hse_kvs_cursor_seek(cur, &ops, p->ctp_skey, p->ctp_skey_len, 0, 0);
+            err = hse_kvs_cursor_seek(cur, 0, p->ctp_skey, p->ctp_skey_len, 0, 0);
             dt = get_time_ns() - dt;
             if (err) {
                 cursor_test_set_err(ct, err, "hse_kvs_cursor_seek failed");

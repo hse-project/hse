@@ -869,7 +869,7 @@ xkvs_put(
 	if (opt.dryrun)
 		return 0UL;
 
-	return hse_kvs_put(t->kvs_h, 0, key, klen, val, vlen);
+	return hse_kvs_put(t->kvs_h, 0, NULL, key, klen, val, vlen);
 }
 
 u64
@@ -887,7 +887,7 @@ xkvs_get(
 		return 0UL;
 
 	*vlen = MAX_VMAX; /* assign here so valgrind knows it's initialized */
-	return hse_kvs_get(t->kvs_h, 0, key, klen, found,
+	return hse_kvs_get(t->kvs_h, 0, NULL, key, klen, found,
 			   val, *vlen, vlen);
 }
 
@@ -897,7 +897,7 @@ xkvs_del(
 	void         *key,
 	size_t        klen)
 {
-	return opt.dryrun ? 0UL : hse_kvs_delete(t->kvs_h, 0, key, klen);
+	return opt.dryrun ? 0UL : hse_kvs_delete(t->kvs_h, 0, NULL, key, klen);
 }
 
 u64
@@ -906,7 +906,7 @@ xkvs_prefix_delete(
 	void         *key,
 	size_t        klen)
 {
-	return opt.dryrun ? 0UL : hse_kvs_prefix_delete(t->kvs_h, 0,
+	return opt.dryrun ? 0UL : hse_kvs_prefix_delete(t->kvs_h, 0, NULL,
 							key, klen, 0);
 }
 
@@ -923,7 +923,7 @@ xkvdb_scan_begin(
 	if (opt.dryrun)
 		return 0UL;
 	else
-		return hse_kvs_cursor_create(t->kvs_h, 0, pfxkey, pfxlen,
+		return hse_kvs_cursor_create(t->kvs_h, 0, NULL, pfxkey, pfxlen,
 					     (struct hse_kvs_cursor **)cur);
 }
 

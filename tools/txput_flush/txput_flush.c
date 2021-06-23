@@ -38,7 +38,6 @@ txput(void *arg)
 {
 	struct thread_arg *targ = arg;
 	struct hse_kvdb_txn    *txn = hse_kvdb_txn_alloc(targ->kvdb);
-	struct hse_kvdb_opspec  os;
 	uint idx;
 	uint64_t  vidx;
 	int rc;
@@ -48,18 +47,15 @@ txput(void *arg)
 	uint *v = (uint *)val;
 	uint *k = (uint *)key;
 
-	HSE_KVDB_OPSPEC_INIT(&os);
-
 	idx = *(uint *)targ->arg;
 	*k = htonl(idx);
 	memset(key + sizeof(*k), 0xaf, sizeof(key) - sizeof(*k));
-	os.kop_txn = txn;
 
 	vidx = 0;
 	while (!killthreads) {
 		hse_kvdb_txn_begin(targ->kvdb, txn);
 		*v = htonl(vidx++);
-		rc = hse_kvs_put(targ->kvs, &os, key, sizeof(key),
+		rc = hse_kvs_put(targ->kvs, 0, txn, key, sizeof(key),
 			     val, sizeof(val));
 		if (rc) {
 			err = 1;

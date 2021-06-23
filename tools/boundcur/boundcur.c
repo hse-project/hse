@@ -46,7 +46,8 @@ do_work(void *arg)
 {
 	struct thread_arg  *targ = arg;
 	struct thread_info *ti = targ->arg;
-	struct hse_kvdb_opspec  os;
+	struct hse_kvdb_txn *txn;
+	unsigned int flags = 0;
 	int                 i;
 	char                val[VLEN];
 	char                key[sizeof(uint64_t)];
@@ -58,17 +59,15 @@ do_work(void *arg)
 	bool                eof = false;
 	int                 attempts = 5;
 
-    HSE_KVDB_OPSPEC_INIT(&os);
-
-	os.kop_txn   = hse_kvdb_txn_alloc(targ->kvdb);
+	txn = hse_kvdb_txn_alloc(targ->kvdb);
 
 	memset(val, 0xfe, sizeof(val));
 
-	hse_kvdb_txn_begin(targ->kvdb, os.kop_txn);
+	hse_kvdb_txn_begin(targ->kvdb, txn);
 	for (i = ti->start; i < ti->end; i++) {
 		*k = htobe64(i);
 
-		rc = hse_kvs_put(targ->kvs, &os, key, sizeof(key),
+		rc = hse_kvs_put(targ->kvs, 0, txn, key, sizeof(key),
 			     val, sizeof(val));
 		if (rc)
 			fatal(rc, "Failed to put key");
@@ -76,22 +75,22 @@ do_work(void *arg)
 
 	if (opts.reverse) {
 		*k = htobe64(ti->end - 1);
-		os.kop_flags = HSE_KVDB_KOP_FLAG_REVERSE |
-			       HSE_KVDB_KOP_FLAG_BIND_TXN;
+		flags = HSE_FLAG_CURSOR_REVERSE |
+			       HSE_FLAG_CURSOR_BIND_TXN;
 	} else {
 		*k = htobe64(ti->start);
-		os.kop_flags = HSE_KVDB_KOP_FLAG_BIND_TXN;
+		flags = HSE_FLAG_CURSOR_BIND_TXN;
 	}
 
 	do {
-		rc = hse_kvs_cursor_create(targ->kvs, &os, 0, 0, &c);
+		rc = hse_kvs_cursor_create(targ->kvs, flags, txn, 0, 0, &c);
 	} while (rc == EAGAIN);
 
 	if (rc)
 		fatal(rc, "Failed to create cursor");
 
-	hse_kvdb_txn_commit(targ->kvdb, os.kop_txn);
-	hse_kvdb_txn_free(targ->kvdb, os.kop_txn);
+	hse_kvdb_txn_commit(targ->kvdb, txn);
+	hse_kvdb_txn_free(targ->kvdb, txn);
 
 	cnt = 0;
 

@@ -686,7 +686,7 @@ test_put_impl(
         if (opt.dryrun)
             continue;
 
-        err = hse_kvs_put(kvs_h[idx], NULL,
+        err = hse_kvs_put(kvs_h[idx], 0, NULL,
                           (char *)ti->ref_key,
                           ti->ref_klen,
                           (char *)ti->ref_val,

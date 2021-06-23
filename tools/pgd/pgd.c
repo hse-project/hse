@@ -204,15 +204,15 @@ main(int argc, char **argv)
 
         switch (action) {
             case PUT:
-                err = hse_kvs_put(kvs, 0, kbuf, klen, vbuf, vlen);
+                err = hse_kvs_put(kvs, 0, NULL, kbuf, klen, vbuf, vlen);
                 break;
             case DEL:
-                err = hse_kvs_delete(kvs, 0, kbuf, klen);
+                err = hse_kvs_delete(kvs, 0, NULL, kbuf, klen);
                 break;
             case GET:
             case VFY:
                 glen = sizeof(gbuf);
-                err = hse_kvs_get(kvs, 0, kbuf, klen, &fnd, gbuf, glen, &glen);
+                err = hse_kvs_get(kvs, 0, NULL, kbuf, klen, &fnd, gbuf, glen, &glen);
                 if (err)
                     break;
                 if (!fnd)

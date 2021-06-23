@@ -87,10 +87,10 @@ extract_kv_to_files(struct hse_kvs *kvs, int file_cnt, char **files)
             exit(1);
         }
 
-        hse_kvs_cursor_create(kvs, NULL, pfx, strlen(pfx), &cur);
+        hse_kvs_cursor_create(kvs, 0, NULL, pfx, strlen(pfx), &cur);
 
         do {
-            hse_kvs_cursor_read(cur, NULL, &key, &klen, &val, &vlen, &eof);
+            hse_kvs_cursor_read(cur, 0, &key, &klen, &val, &vlen, &eof);
             if (!eof)
               data_found = true;
 
@@ -139,7 +139,7 @@ put_files_as_kv(struct hse_kvdb *kvdb, struct hse_kvs *kvs, int kv_cnt, char **k
 
             snprintf(key_chunk, sizeof(key_chunk), "%s|%08x", (char *)keys[i], chunk_nr);
 
-            rc = hse_kvs_put(kvs, NULL, key_chunk, strlen(key_chunk), val, len);
+            rc = hse_kvs_put(kvs, 0, NULL, key_chunk, strlen(key_chunk), val, len);
 
             chunk_nr++;
 

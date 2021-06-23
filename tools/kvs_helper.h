@@ -55,15 +55,17 @@ kh_register(
 /* cursor helper functions */
 struct hse_kvs_cursor *
 kh_cursor_create(
-	struct hse_kvs           *kvs,
-	struct hse_kvdb_opspec   *os,
-	void                 *pfx,
-	size_t                pfxlen);
+	struct hse_kvs *     kvs,
+	unsigned int         flags,
+	struct hse_kvdb_txn *txn,
+	void *               pfx,
+	size_t               pfxlen);
 
 void
 kh_cursor_update(
-	struct hse_kvs_cursor    *cur,
-	struct hse_kvdb_opspec   *os);
+	struct hse_kvs_cursor *cur,
+	unsigned int           flags,
+	struct hse_kvdb_txn *  txn);
 
 void
 kh_cursor_seek(

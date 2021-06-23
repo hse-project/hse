@@ -46,7 +46,7 @@ put(void *arg)
 	memset(key, 0xaf, sizeof(key));
 	while (!killthreads) {
 		p++;
-		rc = hse_kvs_put(targ->kvs, 0, key, sizeof(key), &p, sizeof(p));
+		rc = hse_kvs_put(targ->kvs, 0, NULL, key, sizeof(key), &p, sizeof(p));
 		if (rc) {
 			err = 1;
 			killthreads = true;

@@ -40,7 +40,7 @@ void HseKvsCursor::Read() {
   hse_err_t err;
   bool eof;
 
-  err = hse_kvs_cursor_read(kvs_cursor_handle_, nullptr, &current_key_,
+  err = hse_kvs_cursor_read(kvs_cursor_handle_, 0, &current_key_,
                             &current_key_size_, &current_value_,
                             &current_value_size_, &eof);
 
@@ -61,7 +61,7 @@ void HseKvsCursor::Read() {
 void HseKvsCursor::Seek(const Slice& target) {
   hse_err_t err;
 
-  err = hse_kvs_cursor_seek(kvs_cursor_handle_, nullptr, target.data(),
+  err = hse_kvs_cursor_seek(kvs_cursor_handle_, 0, target.data(),
                             target.size(), nullptr, nullptr);
   if (err) {
     char msg[MSG_SIZE];

@@ -33,6 +33,10 @@
 #include <bsd/libutil.h>
 #include <pidfile/pidfile.h>
 
+#define HSE_FLAG_PUT_ALL HSE_FLAG_PUT_PRIORITY
+#define HSE_FLAG_CURSOR_ALL \
+    (HSE_FLAG_CURSOR_REVERSE | HSE_FLAG_CURSOR_BIND_TXN | HSE_FLAG_CURSOR_STATIC_VIEW)
+
 static HSE_ALWAYS_INLINE u64
 kvdb_lat_startu(const u32 cidx)
 {
@@ -616,22 +620,19 @@ hse_kvdb_storage_info_get(struct hse_kvdb *kvdb, struct hse_kvdb_storage_info *i
 
 hse_err_t
 hse_kvs_put(
-    struct hse_kvs *        handle,
-    struct hse_kvdb_opspec *os,
-    const void *            key,
-    size_t                  key_len,
-    const void *            val,
-    size_t                  val_len)
+    struct hse_kvs *           handle,
+    const unsigned int         flags,
+    struct hse_kvdb_txn *const txn,
+    const void *               key,
+    size_t                     key_len,
+    const void *               val,
+    size_t                     val_len)
 {
     struct kvs_ktuple kt;
     struct kvs_vtuple vt;
     merr_t            err;
 
-    if (HSE_UNLIKELY(!handle || !key || (val_len > 0 && !val)))
-        return merr_to_hse_err(merr(EINVAL));
-
-    if (os &&
-        HSE_UNLIKELY(((os->kop_opaque >> 16) != 0xb0de) || ((os->kop_opaque & 0x0000ffff) != 1)))
+    if (HSE_UNLIKELY(!handle || !key || (val_len > 0 && !val) || flags & ~HSE_FLAG_PUT_ALL))
         return merr_to_hse_err(merr(EINVAL));
 
     if (HSE_UNLIKELY(key_len > HSE_KVS_KLEN_MAX))
@@ -646,7 +647,7 @@ hse_kvs_put(
     kvs_ktuple_init_nohash(&kt, key, key_len);
     kvs_vtuple_init(&vt, (void *)val, val_len);
 
-    err = ikvdb_kvs_put(handle, os, &kt, &vt);
+    err = ikvdb_kvs_put(handle, flags, txn, &kt, &vt);
     ev(err);
 
     if (!err)
@@ -658,25 +659,22 @@ hse_kvs_put(
 
 hse_err_t
 hse_kvs_get(
-    struct hse_kvs *        handle,
-    struct hse_kvdb_opspec *os,
-    const void *            key,
-    size_t                  key_len,
-    bool *                  found,
-    void *                  valbuf,
-    size_t                  valbuf_sz,
-    size_t *                val_len)
+    struct hse_kvs *           handle,
+    const unsigned int         flags,
+    struct hse_kvdb_txn *const txn,
+    const void *               key,
+    size_t                     key_len,
+    bool *                     found,
+    void *                     valbuf,
+    size_t                     valbuf_sz,
+    size_t *                   val_len)
 {
     struct kvs_ktuple   kt;
     struct kvs_buf      vbuf;
     enum key_lookup_res res;
     merr_t              err;
 
-    if (HSE_UNLIKELY(!handle || !key || !found || !val_len))
-        return merr_to_hse_err(merr(EINVAL));
-
-    if (os &&
-        HSE_UNLIKELY(((os->kop_opaque >> 16) != 0xb0de) || ((os->kop_opaque & 0x0000ffff) != 1)))
+    if (HSE_UNLIKELY(!handle || !key || !found || !val_len || flags != HSE_FLAG_NONE))
         return merr_to_hse_err(merr(EINVAL));
 
     if (HSE_UNLIKELY(!valbuf && valbuf_sz > 0))
@@ -699,7 +697,7 @@ hse_kvs_get(
     kvs_ktuple_init_nohash(&kt, key, key_len);
     kvs_buf_init(&vbuf, valbuf, valbuf_sz);
 
-    err = ikvdb_kvs_get(handle, os, &kt, &res, &vbuf);
+    err = ikvdb_kvs_get(handle, flags, txn, &kt, &res, &vbuf);
     if (ev(err))
         return merr_to_hse_err(err);
 
@@ -722,16 +720,17 @@ hse_kvs_get(
  * hse_kvs_delete() - remove the supplied key and associated value from the KVS
  */
 hse_err_t
-hse_kvs_delete(struct hse_kvs *handle, struct hse_kvdb_opspec *os, const void *key, size_t key_len)
+hse_kvs_delete(
+    struct hse_kvs *           handle,
+    const unsigned int         flags,
+    struct hse_kvdb_txn *const txn,
+    const void *               key,
+    size_t                     key_len)
 {
     merr_t            err = 0;
     struct kvs_ktuple kt;
 
-    if (HSE_UNLIKELY(!handle || !key))
-        return merr_to_hse_err(merr(EINVAL));
-
-    if (os &&
-        HSE_UNLIKELY(((os->kop_opaque >> 16) != 0xb0de) || ((os->kop_opaque & 0x0000ffff) != 1)))
+    if (HSE_UNLIKELY(!handle || !key || flags != HSE_FLAG_NONE))
         return merr_to_hse_err(merr(EINVAL));
 
     if (HSE_UNLIKELY(key_len > HSE_KVS_KLEN_MAX))
@@ -741,7 +740,7 @@ hse_kvs_delete(struct hse_kvs *handle, struct hse_kvdb_opspec *os, const void *k
         return merr_to_hse_err(merr(ENOENT));
 
     kvs_ktuple_init_nohash(&kt, key, key_len);
-    err = ikvdb_kvs_del(handle, os, &kt);
+    err = ikvdb_kvs_del(handle, flags, txn, &kt);
     ev(err);
 
     if (!err)
@@ -752,19 +751,17 @@ hse_kvs_delete(struct hse_kvs *handle, struct hse_kvdb_opspec *os, const void *k
 
 hse_err_t
 hse_kvs_prefix_delete(
-    struct hse_kvs *        handle,
-    struct hse_kvdb_opspec *os,
-    const void *            prefix_key,
-    size_t                  key_len,
-    size_t *                kvs_pfx_len)
+    struct hse_kvs *           handle,
+    const unsigned int         flags,
+    struct hse_kvdb_txn *const txn,
+    const void *               prefix_key,
+    size_t                     key_len,
+    size_t *                   kvs_pfx_len)
 {
     merr_t            err;
     struct kvs_ktuple kt;
 
-    if (HSE_UNLIKELY(!handle))
-        return merr_to_hse_err(merr(EINVAL));
-
-    if (os && (((os->kop_opaque >> 16) != 0xb0de) || ((os->kop_opaque & 0x0000ffff) != 1)))
+    if (HSE_UNLIKELY(!handle || flags != HSE_FLAG_NONE))
         return merr_to_hse_err(merr(EINVAL));
 
     if (HSE_UNLIKELY(key_len > HSE_KVS_MAX_PFXLEN))
@@ -772,7 +769,7 @@ hse_kvs_prefix_delete(
 
     kvs_ktuple_init(&kt, prefix_key, key_len);
 
-    err = ikvdb_kvs_prefix_delete(handle, os, &kt, kvs_pfx_len);
+    err = ikvdb_kvs_prefix_delete(handle, flags, txn, &kt, kvs_pfx_len);
     ev(err);
 
     if (!err)
@@ -926,44 +923,40 @@ hse_kvdb_txn_get_state(struct hse_kvdb *handle, struct hse_kvdb_txn *txn)
 
 hse_err_t
 hse_kvs_cursor_create(
-    struct hse_kvs *        handle,
-    struct hse_kvdb_opspec *os,
-    const void *            prefix,
-    size_t                  pfx_len,
-    struct hse_kvs_cursor **cursor)
+    struct hse_kvs *           handle,
+    const unsigned int         flags,
+    struct hse_kvdb_txn *const txn,
+    const void *               prefix,
+    size_t                     pfx_len,
+    struct hse_kvs_cursor **   cursor)
 {
     merr_t err;
 
-    if (HSE_UNLIKELY(!handle || !cursor || (pfx_len && !prefix)))
-        return merr_to_hse_err(merr(EINVAL));
-
-    if (os &&
-        HSE_UNLIKELY(((os->kop_opaque >> 16) != 0xb0de) || ((os->kop_opaque & 0x0000ffff) != 1)))
+    if (HSE_UNLIKELY(!handle || !cursor || (pfx_len && !prefix) || flags & ~HSE_FLAG_CURSOR_ALL))
         return merr_to_hse_err(merr(EINVAL));
 
     PERFC_INC_RU(&kvdb_pc, PERFC_RA_KVDBOP_KVS_CURSOR_CREATE);
 
-    err = ikvdb_kvs_cursor_create(handle, os, prefix, pfx_len, cursor);
+    err = ikvdb_kvs_cursor_create(handle, flags, txn, prefix, pfx_len, cursor);
     ev(err);
 
     return merr_to_hse_err(err);
 }
 
 hse_err_t
-hse_kvs_cursor_update(struct hse_kvs_cursor *cursor, struct hse_kvdb_opspec *os)
+hse_kvs_cursor_update(
+    struct hse_kvs_cursor *    cursor,
+    const unsigned int         flags,
+    struct hse_kvdb_txn *const txn)
 {
     merr_t err;
 
-    if (HSE_UNLIKELY(!cursor))
-        return merr_to_hse_err(merr(EINVAL));
-
-    if (os &&
-        HSE_UNLIKELY(((os->kop_opaque >> 16) != 0xb0de) || ((os->kop_opaque & 0x0000ffff) != 1)))
+    if (HSE_UNLIKELY(!cursor || flags & ~HSE_FLAG_CURSOR_ALL))
         return merr_to_hse_err(merr(EINVAL));
 
     PERFC_INC_RU(&kvdb_pc, PERFC_RA_KVDBOP_KVS_CURSOR_UPDATE);
 
-    err = ikvdb_kvs_cursor_update(cursor, os);
+    err = ikvdb_kvs_cursor_update(cursor, flags, txn);
     ev(err);
 
     return merr_to_hse_err(err);
@@ -971,27 +964,23 @@ hse_kvs_cursor_update(struct hse_kvs_cursor *cursor, struct hse_kvdb_opspec *os)
 
 hse_err_t
 hse_kvs_cursor_seek(
-    struct hse_kvs_cursor * cursor,
-    struct hse_kvdb_opspec *os,
-    const void *            key,
-    size_t                  len,
-    const void **           found,
-    size_t *                flen)
+    struct hse_kvs_cursor *cursor,
+    const unsigned int     flags,
+    const void *           key,
+    size_t                 len,
+    const void **          found,
+    size_t *               flen)
 {
     struct kvs_ktuple kt;
     merr_t            err;
 
-    if (HSE_UNLIKELY(!cursor))
-        return merr_to_hse_err(merr(EINVAL));
-
-    if (os &&
-        HSE_UNLIKELY(((os->kop_opaque >> 16) != 0xb0de) || ((os->kop_opaque & 0x0000ffff) != 1)))
+    if (HSE_UNLIKELY(!cursor || flags != HSE_FLAG_NONE))
         return merr_to_hse_err(merr(EINVAL));
 
     PERFC_INC_RU(&kvdb_pc, PERFC_RA_KVDBOP_KVS_CURSOR_SEEK);
 
     kt.kt_len = 0;
-    err = ikvdb_kvs_cursor_seek(cursor, os, key, len, 0, 0, found ? &kt : 0);
+    err = ikvdb_kvs_cursor_seek(cursor, flags, key, len, 0, 0, found ? &kt : 0);
     ev(err);
 
     if (found && flen && !err) {
@@ -1004,29 +993,25 @@ hse_kvs_cursor_seek(
 
 hse_err_t
 hse_kvs_cursor_seek_range(
-    struct hse_kvs_cursor * cursor,
-    struct hse_kvdb_opspec *os,
-    const void *            key,
-    size_t                  key_len,
-    const void *            limit,
-    size_t                  limit_len,
-    const void **           found,
-    size_t *                flen)
+    struct hse_kvs_cursor *cursor,
+    const unsigned int     flags,
+    const void *           key,
+    size_t                 key_len,
+    const void *           limit,
+    size_t                 limit_len,
+    const void **          found,
+    size_t *               flen)
 {
     struct kvs_ktuple kt;
     merr_t            err;
 
-    if (HSE_UNLIKELY(!cursor))
-        return merr_to_hse_err(merr(EINVAL));
-
-    if (os &&
-        HSE_UNLIKELY(((os->kop_opaque >> 16) != 0xb0de) || ((os->kop_opaque & 0x0000ffff) != 1)))
+    if (HSE_UNLIKELY(!cursor || flags != HSE_FLAG_NONE))
         return merr_to_hse_err(merr(EINVAL));
 
     PERFC_INC_RU(&kvdb_pc, PERFC_RA_KVDBOP_KVS_CURSOR_SEEK);
 
     kt.kt_len = 0;
-    err = ikvdb_kvs_cursor_seek(cursor, os, key, key_len, limit, limit_len, found ? &kt : 0);
+    err = ikvdb_kvs_cursor_seek(cursor, flags, key, key_len, limit, limit_len, found ? &kt : 0);
     ev(err);
 
     if (found && flen && !err) {
@@ -1039,24 +1024,20 @@ hse_kvs_cursor_seek_range(
 
 hse_err_t
 hse_kvs_cursor_read(
-    struct hse_kvs_cursor * cursor,
-    struct hse_kvdb_opspec *os,
-    const void **           key,
-    size_t *                klen,
-    const void **           val,
-    size_t *                vlen,
-    bool *                  eof)
+    struct hse_kvs_cursor *cursor,
+    const unsigned int     flags,
+    const void **          key,
+    size_t *               klen,
+    const void **          val,
+    size_t *               vlen,
+    bool *                 eof)
 {
     merr_t err;
 
-    if (HSE_UNLIKELY(!cursor || !key || !klen || !val || !vlen || !eof))
+    if (HSE_UNLIKELY(!cursor || !key || !klen || !val || !vlen || !eof || flags != HSE_FLAG_NONE))
         return merr_to_hse_err(merr(EINVAL));
 
-    if (os &&
-        HSE_UNLIKELY(((os->kop_opaque >> 16) != 0xb0de) || ((os->kop_opaque & 0x0000ffff) != 1)))
-        return merr_to_hse_err(merr(EINVAL));
-
-    err = ikvdb_kvs_cursor_read(cursor, os, key, klen, val, vlen, eof);
+    err = ikvdb_kvs_cursor_read(cursor, flags, key, klen, val, vlen, eof);
     ev(err);
 
     if (!err && !*eof) {

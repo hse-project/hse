@@ -337,7 +337,7 @@ Java_org_micron_hse_API_put(
     keyL = (*env)->GetArrayLength(env, key);
     valueL = (*env)->GetArrayLength(env, value);
 
-    rc = hse_kvs_put((void *)handle, NULL, keyA, keyL, valueA, valueL);
+    rc = hse_kvs_put((void *)handle, 0, NULL, keyA, keyL, valueA, valueL);
     if (rc) {
         char msg[128];
         int  n;
@@ -394,7 +394,7 @@ Java_org_micron_hse_API_get(JNIEnv *env, jobject jobj, jlong handle, jbyteArray 
 
     keyL = (*env)->GetArrayLength(env, key);
 
-    rc = hse_kvs_get((void *)handle, NULL, keyA, keyL, &found, valBuf, g_val_buf_size, &vlen);
+    rc = hse_kvs_get((void *)handle, 0, NULL, keyA, keyL, &found, valBuf, g_val_buf_size, &vlen);
     if (rc) {
         char msg[128];
 
@@ -450,7 +450,7 @@ Java_org_micron_hse_API_del(JNIEnv *env, jobject jobj, jlong handle, jbyteArray 
 
     keyL = (*env)->GetArrayLength(env, key);
 
-    rc = hse_kvs_delete((void *)handle, NULL, keyA, keyL);
+    rc = hse_kvs_delete((void *)handle, 0, NULL, keyA, keyL);
     if (rc) {
         char msg[128];
         int  n;
@@ -492,7 +492,7 @@ Java_org_micron_hse_API_createCursor(
     if (pfx && pfxlen != 0)
         cpfx = (*env)->GetStringUTFChars(env, pfx, &isCopy);
 
-    rc = hse_kvs_cursor_create((void *)handle, NULL, cpfx, pfxlen, &cursor);
+    rc = hse_kvs_cursor_create((void *)handle, 0, NULL, cpfx, pfxlen, &cursor);
     if (rc) {
         cursor = NULL;
         throw_err(env, "hse_kvs_cursor_create", rc);
@@ -555,7 +555,7 @@ Java_org_micron_hse_API_seek(JNIEnv *env, jobject jobj, jlong handle, jbyteArray
 
     keyL = (*env)->GetArrayLength(env, key);
 
-    rc = hse_kvs_cursor_seek(cursor, NULL, keyA, keyL, &foundKey, &foundKeyL);
+    rc = hse_kvs_cursor_seek(cursor, 0, keyA, keyL, &foundKey, &foundKeyL);
 
     (*env)->ReleaseByteArrayElements(env, key, keyA, JNI_ABORT);
 
@@ -592,7 +592,7 @@ Java_org_micron_hse_API_read(JNIEnv *env, jobject jobj, jlong handle)
         goto errout;
     }
 
-    rc = hse_kvs_cursor_read(cursor, NULL, &keyBuf, &klen, &valBuf, &vlen, &eof);
+    rc = hse_kvs_cursor_read(cursor, 0, &keyBuf, &klen, &valBuf, &vlen, &eof);
 
     if (rc) {
         throw_err(env, "hse_kvs_cursor_read", rc);

@@ -170,7 +170,6 @@ main(int argc, char **argv)
     struct parm_groups *pg = NULL;
     const char *           mpname, *kvname;
     char *                 prefix, *seek;
-    struct hse_kvdb_opspec opspec;
     struct hse_kvs_cursor *cursor;
     struct hse_kvdb *      kvdb_h;
     struct hse_kvs *       kvs_h;
@@ -179,7 +178,7 @@ main(int argc, char **argv)
     int                    seeklen, pfxlen;
     bool                   eof, countem, cksum, deletem, stats;
     bool                   reverse = false;
-    unsigned               opt_help = 0;
+    unsigned               opt_help = 0, flags = 0;
     u64                    iter, max_iter;
     int                    c, rc, err;
     struct shr             shr = { 0 };
@@ -195,8 +194,6 @@ main(int argc, char **argv)
     EVENT_INIT(ts);
     EVENT_INIT(tr);
     EVENT_INIT(td);
-
-    HSE_KVDB_OPSPEC_INIT(&opspec);
 
     progname = basename(argv[0]);
     countem = deletem = stats = false;
@@ -356,9 +353,9 @@ main(int argc, char **argv)
 
     EVENT_START(tc);
     if (reverse)
-        opspec.kop_flags |= HSE_KVDB_KOP_FLAG_REVERSE;
+        flags |= HSE_FLAG_CURSOR_REVERSE;
 
-    err = hse_kvs_cursor_create(kvs_h, &opspec, prefix, pfxlen, &cursor);
+    err = hse_kvs_cursor_create(kvs_h, flags, NULL, prefix, pfxlen, &cursor);
     EVENT_SAMPLE(tc);
     if (err) {
         fmt_pe(kbuf, pfxlen, prefix, pfxlen);
@@ -367,7 +364,7 @@ main(int argc, char **argv)
 
     if (seeklen) {
         EVENT_START(ts);
-        err = hse_kvs_cursor_seek(cursor, &opspec, seek, seeklen, 0, 0);
+        err = hse_kvs_cursor_seek(cursor, 0, seek, seeklen, 0, 0);
         EVENT_SAMPLE(ts);
         if (err)
             fatal(err, "cannot seek to %.*s", seeklen, seek);
@@ -406,7 +403,7 @@ main(int argc, char **argv)
         ++shr.count;
 
         if (deletem) {
-            err = hse_kvs_delete(kvs_h, &opspec, key, klen);
+            err = hse_kvs_delete(kvs_h, 0, NULL, key, klen);
             if (err) {
                 fmt_pe(kbuf, klen, key, klen);
                 fatal(err, "cannot delete %s", kbuf);

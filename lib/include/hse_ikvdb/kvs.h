@@ -24,7 +24,7 @@
 
 /*- Internal Key Value Store  -----------------------------------------------*/
 
-struct hse_kvdb_opspec;
+struct hse_kvdb_txn;
 struct kvdb_ctxn;
 struct kvdb_kvs;
 struct cndb;
@@ -46,7 +46,7 @@ struct hse_kvs_cursor {
     struct perfc_set *     kc_pkvsl_pc;
     struct kvdb_kvs *      kc_kvs;
     struct kvdb_ctxn_bind *kc_bind;
-    struct kvdb_ctxn      *kc_ctxn;
+    struct kvdb_ctxn *     kc_ctxn;
     u64                    kc_gen;
     u64                    kc_seq;
     u64                    kc_create_time;
@@ -58,7 +58,7 @@ struct hse_kvs_cursor {
 };
 
 struct ikvs {
-    uint64_t         ikv_gen HSE_ALIGNED(SMP_CACHE_BYTES * 2);
+    uint64_t ikv_gen HSE_ALIGNED(SMP_CACHE_BYTES * 2);
     uint64_t         ikv_cnid;
     uint             ikv_sfx_len;
     uint             ikv_pfx_len;
@@ -150,35 +150,35 @@ kvs_perfc_pkvsl(struct ikvs *ikvs);
 merr_t
 kvs_put(
     struct ikvs *            ikvs,
-    struct hse_kvdb_opspec * os,
+    struct hse_kvdb_txn *    txn,
     struct kvs_ktuple *      kt,
     const struct kvs_vtuple *vt,
     u64                      seqno);
 
 merr_t
 kvs_get(
-    struct ikvs *           ikvs,
-    struct hse_kvdb_opspec *os,
-    struct kvs_ktuple *     key,
-    u64                     seqno,
-    enum key_lookup_res *   res,
-    struct kvs_buf *        vbuf);
+    struct ikvs *        ikvs,
+    struct hse_kvdb_txn *txn,
+    struct kvs_ktuple *  key,
+    u64                  seqno,
+    enum key_lookup_res *res,
+    struct kvs_buf *     vbuf);
 
 merr_t
-kvs_del(struct ikvs *ikvs, struct hse_kvdb_opspec *os, struct kvs_ktuple *key, u64 seqno);
+kvs_del(struct ikvs *ikvs, struct hse_kvdb_txn *txn, struct kvs_ktuple *key, u64 seqno);
 
 merr_t
 kvs_pfx_probe(
-    struct ikvs *           kvs,
-    struct hse_kvdb_opspec *os,
-    struct kvs_ktuple *     kt,
-    u64                     seqno,
-    enum key_lookup_res *   res,
-    struct kvs_buf *        kbuf,
-    struct kvs_buf *        vbuf);
+    struct ikvs *        kvs,
+    struct hse_kvdb_txn *txn,
+    struct kvs_ktuple *  kt,
+    u64                  seqno,
+    enum key_lookup_res *res,
+    struct kvs_buf *     kbuf,
+    struct kvs_buf *     vbuf);
 
 merr_t
-kvs_prefix_del(struct ikvs *ikvs, struct hse_kvdb_opspec *os, struct kvs_ktuple *key, u64 seqno);
+kvs_prefix_del(struct ikvs *ikvs, struct hse_kvdb_txn *txn, struct kvs_ktuple *key, u64 seqno);
 
 void
 kvs_maint_task(struct ikvs *ikvs, u64 now);

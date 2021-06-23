@@ -25,7 +25,7 @@ try:
 
         kvdb.sync()
 
-        txcursor = kvs.cursor(txn=txn, bind_txn=True)
+        txcursor = kvs.cursor(txn=txn, flags=hse.CursorFlag.BIND_TXN)
         txcursor.read()
         assert txcursor.eof
 

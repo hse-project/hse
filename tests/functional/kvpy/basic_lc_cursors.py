@@ -29,7 +29,7 @@ def run_test(kvdb: hse.Kvdb, kvs: hse.Kvs):
     val = kvs.get(b"aa1", txn=t0)
     assert val == b"uncommitted-aa1"
 
-    with kvs.cursor(reverse=False, txn=t0, bind_txn=True) as c:
+    with kvs.cursor(txn=t0, flags=hse.CursorFlag.BIND_TXN) as c:
         assert sum(1 for _ in c.items()) == 5
 
         c.seek(b"aa2")
@@ -52,7 +52,9 @@ def run_test(kvdb: hse.Kvdb, kvs: hse.Kvs):
         c.read()
         assert c.eof
 
-    with kvs.cursor(reverse=True, txn=t0, bind_txn=True) as c:
+    with kvs.cursor(
+        txn=t0, flags=hse.CursorFlag.REVERSE | hse.CursorFlag.BIND_TXN
+    ) as c:
         assert sum(1 for _ in c.items()) == 5
 
         c.seek(b"aa2")
@@ -113,7 +115,9 @@ try:
     with ExitStack() as stack:
         kvdb_ctx = lifecycle.KvdbContext().rparams("dur_enable=0")
         kvdb = stack.enter_context(kvdb_ctx)
-        kvs_ctx = lifecycle.KvsContext(kvdb, "basic_lc").rparams("transactions_enable=1")
+        kvs_ctx = lifecycle.KvsContext(kvdb, "basic_lc").rparams(
+            "transactions_enable=1"
+        )
         kvs = stack.enter_context(kvs_ctx)
         run_test(kvdb, kvs)
 finally:

@@ -31,7 +31,7 @@ put(void *arg)
 
 	while (!killthreads) {
 		p++;
-		hse_kvs_put(targ->kvs, 0, "abc", 3, &p, sizeof(p));
+		hse_kvs_put(targ->kvs, 0, NULL, "abc", 3, &p, sizeof(p));
 	}
 
 }
@@ -41,24 +41,20 @@ txget(void *arg)
 {
 	struct thread_arg  *targ = arg;
 	struct hse_kvdb_txn    *txn = hse_kvdb_txn_alloc(targ->kvdb);
-	struct hse_kvdb_opspec  os;
 	uint64_t            val1, val2;
 	bool                found;
 	size_t              vlen;
-
-	HSE_KVDB_OPSPEC_INIT(&os);
-	os.kop_txn = txn;
 
 	while (!killthreads) {
 		val1 = val2 = 0;
 
 		hse_kvdb_txn_begin(targ->kvdb, txn);
-		hse_kvs_get(targ->kvs, &os, "abc", 3, &found, &val1,
+		hse_kvs_get(targ->kvs, 0, txn, "abc", 3, &found, &val1,
 			sizeof(val1), &vlen);
 		if (!found)
 			continue;
 		usleep(1000);
-		hse_kvs_get(targ->kvs, &os, "abc", 3, &found, &val2,
+		hse_kvs_get(targ->kvs, 0, txn, "abc", 3, &found, &val2,
 			sizeof(val2), &vlen);
 
 		if (val1 != val2) {

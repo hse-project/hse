@@ -31,7 +31,7 @@ try:
 
         txn = kvdb.transaction()
         txn.begin()
-        cursor = kvs.cursor(bind_txn=True, txn=txn)
+        cursor = kvs.cursor(flags=hse.CursorFlag.BIND_TXN, txn=txn)
 
         with kvdb.transaction() as t:
             kvs.put(b"f", b"6", txn=t)
@@ -40,7 +40,7 @@ try:
 
         txn.abort()
         txn.begin()
-        cursor.update(bind_txn=True, txn=txn)  # cursor should now see key 'f'
+        cursor.update(flags=hse.CursorFlag.BIND_TXN, txn=txn)  # cursor should now see key 'f'
         check_keys(cursor, [b"f"])
 
         txn1 = kvdb.transaction()
@@ -60,22 +60,22 @@ try:
 
         txn.abort()
         txn.begin()
-        cursor.update(bind_txn=True, txn=txn)
+        cursor.update(flags=hse.CursorFlag.BIND_TXN, txn=txn)
         cursor.seek(b"c")
 
         # Update after seek
-        cursor.update(txn=txn1, bind_txn=True)
+        cursor.update(txn=txn1, flags=hse.CursorFlag.BIND_TXN)
         kv = cursor.read()
         assert kv == (b"d", b"4")
         cursor.seek(b"c")  # positions cursor at 'd'
 
         with kvdb.transaction() as t:
-            cursor.update(txn=t, bind_txn=True)  # Unbind cursor from txn
+            cursor.update(txn=t, flags=hse.CursorFlag.BIND_TXN)  # Unbind cursor from txn
         kv = cursor.read()
         assert kv == (b"d", b"4")
 
-        cursor.update(txn=txn1, bind_txn=True)
-        cursor.update(txn=txn2, bind_txn=True)
+        cursor.update(txn=txn1, flags=hse.CursorFlag.BIND_TXN)
+        cursor.update(txn=txn2, flags=hse.CursorFlag.BIND_TXN)
         kv = cursor.read()
         assert kv == (b"f", b"6")
         kv = cursor.read()
@@ -85,7 +85,7 @@ try:
         cursor.seek(b"e")
         check_keys(cursor, [b"e", b"f"])
 
-        cursor.update(txn=txn1, bind_txn=True)
+        cursor.update(txn=txn1, flags=hse.CursorFlag.BIND_TXN)
         with kvdb.transaction() as t:
             kvs.put(b"g", b"7", txn=t)
         txn1.commit()

@@ -55,13 +55,13 @@ try:
             cursor.destroy()
 
             # Reverse cursor
-            cursor = kvs.cursor(filt=b"ab", reverse=True)
+            cursor = kvs.cursor(filt=b"ab", flags=hse.CursorFlag.REVERSE)
             kv = cursor.read()
             assert kv == (b"ab2", b"2")
 
             kvs.put(b"ab2", b"3")
 
-            cursor.update(reverse=True)
+            cursor.update(flags=hse.CursorFlag.REVERSE)
             kv = cursor.read()
             assert kv == (b"ab1", b"2")
             cursor.read()
@@ -83,12 +83,14 @@ try:
 
             read_txn = kvdb.transaction()
             read_txn.begin()
-            cursor = kvs.cursor(txn=read_txn, bind_txn=True)
+            cursor = kvs.cursor(txn=read_txn, flags=hse.CursorFlag.BIND_TXN)
             cursor.seek(b"a1b")
             kv = cursor.read()
             assert kv == (b"a1b", b"4")
 
-            revcursor = kvs.cursor(reverse=True, txn=read_txn, bind_txn=True)
+            revcursor = kvs.cursor(
+                txn=read_txn, flags=hse.CursorFlag.REVERSE | hse.CursorFlag.BIND_TXN
+            )
             revcursor.seek(b"a1b")
             kv = revcursor.read()
             assert kv == (b"a1b", b"4")
@@ -98,12 +100,18 @@ try:
 
             txn = kvdb.transaction()
             txn.begin()
-            cursor.update(txn=txn, bind_txn=True)
-            cursor.update(txn=txn, bind_txn=True)
-            cursor.update(txn=txn, bind_txn=True)
-            revcursor.update(txn=txn, bind_txn=True, reverse=True)
-            revcursor.update(txn=txn, bind_txn=True, reverse=True)
-            revcursor.update(txn=txn, bind_txn=True, reverse=True)
+            cursor.update(txn=txn, flags=hse.CursorFlag.BIND_TXN)
+            cursor.update(txn=txn, flags=hse.CursorFlag.BIND_TXN)
+            cursor.update(txn=txn, flags=hse.CursorFlag.BIND_TXN)
+            revcursor.update(
+                txn=txn, flags=hse.CursorFlag.REVERSE | hse.CursorFlag.BIND_TXN
+            )
+            revcursor.update(
+                txn=txn, flags=hse.CursorFlag.REVERSE | hse.CursorFlag.BIND_TXN
+            )
+            revcursor.update(
+                txn=txn, flags=hse.CursorFlag.REVERSE | hse.CursorFlag.BIND_TXN
+            )
 
             kv = cursor.read()
             assert kv == (b"a1c", b"3")

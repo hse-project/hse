@@ -46,7 +46,6 @@ txn_puts(
 	char key[64] = {0};
 	char val[1024];
 	uint64_t *k; /* key */
-	struct hse_kvdb_opspec os;
 	uint64_t kid;
 	int i, rc;
 
@@ -57,15 +56,12 @@ txn_puts(
 	if (!txn)
 		fatal(ENOMEM, "Failed to allocate resources for txn");
 
-	HSE_KVDB_OPSPEC_INIT(&os);
-	os.kop_txn = txn;
-
 	printf("Loading keys\n");
 	hse_kvdb_txn_begin(targ->kvdb, txn);
 	for (i = 0, kid = ti->kidx; i < opts.count; i++) {
 		*k = htobe64(++kid);
 
-		rc = hse_kvs_put(targ->kvs, &os, key, sizeof(key),
+		rc = hse_kvs_put(targ->kvs, 0, txn, key, sizeof(key),
 			     val, sizeof(val));
 		if (rc)
 			fatal(rc, "Put failure");
@@ -89,7 +85,7 @@ txn_puts(
 		*k = htobe64(++kid);
 
 		memset(vbuf, 0, sizeof(vbuf));
-		rc = hse_kvs_get(targ->kvs, 0, key, sizeof(key), &found,
+		rc = hse_kvs_get(targ->kvs, 0, NULL, key, sizeof(key), &found,
 			     vbuf, sizeof(vbuf), &vlen);
 		if (rc)
 			fatal(rc, "Get failure");

@@ -28,7 +28,7 @@ try:
             kvs2.put(b"c", b"2", txn=txn)
 
         with kvdb.transaction() as txn:
-            cursor = kvs1.cursor(bind_txn=True, txn=txn)
+            cursor = kvs1.cursor(flags=hse.CursorFlag.BIND_TXN, txn=txn)
 
             kv = cursor.read()
             assert kv == (b"a", b"1")
@@ -41,7 +41,7 @@ try:
 
             kvs1.put(b"d", b"1", txn=txn)
             cursor.seek(b"d")
-            cursor.update(bind_txn=True, txn=txn)
+            cursor.update(flags=hse.CursorFlag.BIND_TXN, txn=txn)
 
             cursor.seek(b"d")
             kv = cursor.read()
@@ -61,7 +61,7 @@ try:
         txn.begin()
         kvs2.put(b"d", b"2", txn=txn)
 
-        cursor1 = kvs2.cursor(bind_txn=True, txn=txn)
+        cursor1 = kvs2.cursor(flags=hse.CursorFlag.BIND_TXN, txn=txn)
         cursor1.seek(b"d")
         kv = cursor1.read()
         assert kv == (b"d", b"2")
@@ -70,7 +70,7 @@ try:
         txn.commit()
 
         with kvdb.transaction() as t:
-            cursor2 = kvs2.cursor(bind_txn=True, txn=t)
+            cursor2 = kvs2.cursor(flags=hse.CursorFlag.BIND_TXN, txn=t)
             for k, v in cursor2.items():
                 assert v == b"2"
             try:
