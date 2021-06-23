@@ -55,7 +55,6 @@ struct wal {
     uint32_t   dur_ms;
     uint32_t   dur_bytes;
     uint32_t   version;
-    uint64_t   rgen;
     struct kvdb_health *health;
     struct wal_iocb wiocb;
 };
@@ -461,10 +460,7 @@ wal_open(
     struct kvdb_health  *health,
     struct wal         **wal_out)
 {
-    struct wal         *wal;
-    struct wal_bufset  *wbs;
-    struct wal_fileset *wfset;
-    struct wal_mdc     *mdc;
+    struct wal *wal;
     merr_t err;
     int rc;
 
@@ -477,34 +473,17 @@ wal_open(
     wal = aligned_alloc(alignof(*wal), sizeof(*wal));
     if (!wal)
         return merr(ENOMEM);
+    memset(wal, 0, sizeof(*wal));
 
-    err = wal_mdc_open(mp, mdcid1, mdcid2, &mdc);
+    wal->version = WAL_VERSION;
+    wal->mp = mp;
+    wal->health = health;
+
+    err = wal_mdc_open(mp, mdcid1, mdcid2, &wal->mdc);
     if (err)
         goto errout;
 
-    wal->rgen = 0;
-    wal->version = WAL_VERSION;
-    atomic64_set(&wal->rid, 0);
-    atomic64_set(&wal->error, 0);
-    atomic64_set(&wal->ingestgen, 0);
-    atomic_set(&wal->closing, 0);
-
-    INIT_LIST_HEAD(&wal->sync_waiters);
-    cv_init(&wal->sync_cv, "wal_sync_cv");
-    mutex_init(&wal->sync_mutex);
-    wal->sync_pending = false;
-
-    cv_init(&wal->timer_cv, "wal_timer_cv");
-    mutex_init(&wal->timer_mutex);
-
-    wal->mp = mp;
-    wal->mdc = mdc;
-    wal->health = health;
-
-    wal->wiocb.iocb = wal_ionotify_cb;
-    wal->wiocb.cbarg = wal;
-
-    err = wal_mdc_replay(mdc, wal);
+    err = wal_mdc_replay(wal->mdc, wal);
     if (err)
         goto errout;
 
@@ -519,20 +498,27 @@ wal_open(
         wal->dur_bytes = clamp_t(long, wal->dur_bytes, WAL_DUR_BYTES_MIN, WAL_DUR_BYTES_MAX);
     }
 
-    wfset = wal_fileset_open(mp, MP_MED_CAPACITY, WAL_FILE_SIZE_BYTES, WAL_MAGIC, WAL_VERSION);
-    if (!wfset) {
+    if (rp->read_only) {
+        *wal_out = wal;
+        return 0;
+    }
+
+    wal->wfset= wal_fileset_open(mp, MP_MED_CAPACITY, WAL_FILE_SIZE_BYTES, WAL_MAGIC, WAL_VERSION);
+    if (!wal->wfset) {
         err = merr(ENOMEM);
         goto errout;
     }
-    wal->wfset = wfset;
 
-    wbs = wal_bufset_open(wfset, &wal->ingestgen, &wal->wiocb);
-    if (!wbs) {
+    wal->wiocb.iocb = wal_ionotify_cb;
+    wal->wiocb.cbarg = wal;
+    wal->wbs = wal_bufset_open(wal->wfset, &wal->ingestgen, &wal->wiocb);
+    if (!wal->wbs) {
         err = merr(ENOMEM);
         goto errout;
     }
-    wal->wbs = wbs;
 
+    cv_init(&wal->timer_cv, "wal_timer_cv");
+    mutex_init(&wal->timer_mutex);
     rc = pthread_create(&wal->timer_tid, NULL, wal_timer, wal);
     if (rc) {
         err = merr(rc);
@@ -540,6 +526,10 @@ wal_open(
     }
     wal->timer_tid_valid = true;
 
+    INIT_LIST_HEAD(&wal->sync_waiters);
+    cv_init(&wal->sync_cv, "wal_sync_cv");
+    mutex_init(&wal->sync_mutex);
+    wal->sync_pending = false;
     rc = pthread_create(&wal->sync_notify_tid, NULL, wal_sync_notifier, wal);
     if (rc) {
         err = merr(rc);
@@ -571,6 +561,8 @@ wal_close(struct wal *wal)
         mutex_unlock(&wal->timer_mutex);
 
         pthread_join(wal->timer_tid, 0);
+        cv_destroy(&wal->timer_cv);
+        mutex_destroy(&wal->timer_mutex);
     }
 
     wal_bufset_close(wal->wbs);
@@ -585,13 +577,9 @@ wal_close(struct wal *wal)
         mutex_unlock(&wal->sync_mutex);
 
         pthread_join(wal->sync_notify_tid, 0);
+        cv_destroy(&wal->sync_cv);
+        mutex_destroy(&wal->sync_mutex);
     }
-
-    cv_destroy(&wal->sync_cv);
-    mutex_destroy(&wal->sync_mutex);
-
-    cv_destroy(&wal->timer_cv);
-    mutex_destroy(&wal->timer_mutex);
 
     free(wal);
 }
@@ -622,18 +610,6 @@ wal_dur_params_set(struct wal *wal, uint32_t dur_ms, uint32_t dur_bytes)
 {
     wal->dur_ms = dur_ms;
     wal->dur_bytes = dur_bytes;
-}
-
-uint64_t
-wal_reclaim_gen_get(struct wal *wal)
-{
-    return wal->rgen;
-}
-
-void
-wal_reclaim_gen_set(struct wal *wal, uint64_t rgen)
-{
-    wal->rgen = rgen;
 }
 
 uint32_t

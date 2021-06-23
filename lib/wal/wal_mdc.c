@@ -225,47 +225,6 @@ wal_mdc_config_unpack(const char *buf, struct wal *wal)
 }
 
 merr_t
-wal_mdc_reclaim_write(struct wal_mdc *mdc, struct wal *wal, bool sync)
-{
-    struct wal_reclaim_omf romf;
-    uint64_t rgen;
-    merr_t err;
-
-    if (!mdc || !wal)
-        return merr(EINVAL);
-
-    rgen = wal_reclaim_gen_get(wal);
-    if (rgen == 0)
-        return 0;
-
-    wal_mdchdr_pack(WAL_RT_RECLAIM, (char *)&romf);
-    omf_set_rcm_gen(&romf, rgen);
-
-    err = mpool_mdc_append(mdc->mp_mdc, &romf, sizeof(romf), sync);
-    if (err)
-        return err;
-
-    return 0;
-}
-
-static merr_t
-wal_mdc_reclaim_unpack(const char *buf, struct wal *wal)
-{
-    struct wal_reclaim_omf *romf;
-    uint64_t rgen;
-
-    if (!buf || !wal)
-        return merr(EINVAL);
-
-    romf = (struct wal_reclaim_omf *)buf;
-
-    rgen = omf_rcm_gen(romf);
-    wal_reclaim_gen_set(wal, rgen);
-
-    return 0;
-}
-
-merr_t
 wal_mdc_close_write(struct wal_mdc *mdc, bool sync)
 {
     struct wal_close_omf comf;
@@ -320,10 +279,6 @@ wal_mdc_compact(struct wal_mdc *mdc, struct wal *wal)
     if (err)
         return err;
 
-    err = wal_mdc_reclaim_write(mdc, wal, sync);
-    if (err)
-        return err;
-
     err = mpool_mdc_cend(mdc->mp_mdc);
     if (err) {
         mdc->mp_mdc = NULL;
@@ -366,10 +321,6 @@ wal_mdc_replay(struct wal_mdc *mdc, struct wal *wal)
 
             case WAL_RT_CONFIG:
                 err = wal_mdc_config_unpack(mdc->buf, wal);
-                break;
-
-            case WAL_RT_RECLAIM:
-                err = wal_mdc_reclaim_unpack(mdc->buf, wal);
                 break;
 
             case WAL_RT_CLOSE:

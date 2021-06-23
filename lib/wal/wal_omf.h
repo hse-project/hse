@@ -77,15 +77,6 @@ OMF_SETGET(struct wal_config_omf, cfg_durms, 32);
 OMF_SETGET(struct wal_config_omf, cfg_durbytes, 32);
 
 
-struct wal_reclaim_omf {
-    struct wal_mdchdr_omf rcm_hdr;
-    __le64 rcm_gen;
-} HSE_PACKED;
-
-/* Define set/get methods for wal_reclaim_omf */
-OMF_SETGET(struct wal_reclaim_omf, rcm_gen, 64);
-
-
 struct wal_close_omf {
     struct wal_mdchdr_omf cls_hdr;
 } HSE_PACKED;

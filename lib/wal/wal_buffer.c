@@ -313,6 +313,9 @@ wal_bufset_stats_dump(struct wal_bufset *wbs)
 void
 wal_bufset_close(struct wal_bufset *wbs)
 {
+    if (!wbs)
+        return;
+
     destroy_workqueue(wbs->wbs_flushwq);
 
     for (int i = 0; i < wbs->wbs_bufc; ++i) {
