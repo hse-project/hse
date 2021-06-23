@@ -8,13 +8,18 @@
 #include <hse_util/list.h>
 #include <hse_util/page.h>
 #include <hse_util/logging.h>
+#include <hse_util/string.h>
 
 #include "wal.h"
 #include "wal_file.h"
 #include "wal_omf.h"
 
+#define WAL_FILE_HDR_LEN   (PAGE_SIZE)
+#define WAL_FILE_HDR_OFF   (0)
+
 
 struct wal_fileset {
+    struct mutex lock HSE_ALIGNED(SMP_CACHE_BYTES);
     struct list_head active;
     struct list_head complete;
 
@@ -22,33 +27,42 @@ struct wal_fileset {
     atomic64_t compc;
     atomic64_t reclaimc;
 
-    struct mpool *mp;
+    struct mpool *mp HSE_ALIGNED(SMP_CACHE_BYTES);
     enum mpool_mclass mclass;
     size_t capacity;
     u32    magic;
     u32    version;
 
-    struct mutex lock HSE_ALIGNED(SMP_CACHE_BYTES);
 };
 
 struct wal_file {
-    struct list_head   link;
+    struct list_head link;
 
-    struct mpool_file *mpf;
+    struct wal_minmax_info info;
+    off_t roff;
+    off_t woff;
+    off_t soff;
+    atomic64_t ref;
+
+    struct mpool_file *mpf HSE_ALIGNED(SMP_CACHE_BYTES);
+    struct wal_fileset *wfset;
     uint64_t gen;
     int      fileid;
     char     name[64];
 
-    struct wal_minmax_info info HSE_ALIGNED(SMP_CACHE_BYTES);
-    off_t    roff;
-    off_t    woff;
-
-    atomic64_t ref HSE_ALIGNED(SMP_CACHE_BYTES);
 };
 
-/* Forward decls */
+
 static merr_t
-wal_file_pwrite(struct wal_file *wfile, const char *buf, size_t len, off_t off);
+wal_file_format(struct wal_file *wfile, off_t soff, bool closing)
+{
+    char buf[WAL_FILE_HDR_LEN] HSE_ALIGNED(PAGE_SIZE) = {0};
+    struct wal_fileset *wfset = wfile->wfset;
+
+    wal_filehdr_pack(wfset->magic, wfset->version, &wfile->info, soff, closing, buf);
+
+    return mpool_file_write(wfile->mpf, WAL_FILE_HDR_OFF, buf, sizeof(buf), NULL);
+}
 
 void
 wal_file_minmax_init(struct wal_minmax_info *info)
@@ -135,13 +149,12 @@ wal_fileset_open(struct mpool *mp, enum mpool_mclass mclass, size_t capacity, u3
     if (!wfset)
         return NULL;
 
+    mutex_init(&wfset->lock);
     INIT_LIST_HEAD(&wfset->active);
     INIT_LIST_HEAD(&wfset->complete);
     atomic64_set(&wfset->activec, 0);
     atomic64_set(&wfset->compc, 0);
     atomic64_set(&wfset->reclaimc, 0);
-
-    mutex_init(&wfset->lock);
 
     wfset->mp = mp;
     wfset->mclass = mclass;
@@ -166,16 +179,6 @@ wal_fileset_close(struct wal_fileset *wfset, u64 ingestseq, u64 ingestgen, u64 t
     free(wfset);
 }
 
-static merr_t
-wal_file_format(struct wal_file *wfile, u32 magic, u32 version)
-{
-    char buf[PAGE_SIZE] = {0};
-
-    wal_filehdr_pack(magic, version, false, &wfile->info, buf);
-
-    return wal_file_write(wfile, (const char *)buf, sizeof(buf));
-}
-
 merr_t
 wal_file_open(
     struct wal_fileset *wfset,
@@ -183,51 +186,54 @@ wal_file_open(
     int                 fileid,
     struct wal_file   **handle)
 {
-    struct wal_file   *wfile, *cur, *next;
+    struct wal_file   *wfile, *cur = NULL, *next;
     struct mpool_file *mpf;
     merr_t err;
-    char name[PATH_MAX];
-    bool sparse = false, added = false;
+    char name[64];
+    bool sparse = false;
 
     if (!wfset)
         return merr(EINVAL);
 
     snprintf(name, sizeof(name), "%s-%lu-%d", "wal", gen, fileid);
 
-    err = mpool_file_open(wfset->mp, wfset->mclass, name, O_RDWR, wfset->capacity, sparse, &mpf);
+    err = mpool_file_open(wfset->mp, wfset->mclass, name, O_RDWR | O_DIRECT,
+                          wfset->capacity, sparse, &mpf);
     if (err)
         return err;
 
-    wfile = calloc(1, sizeof(*wfile));
+    wfile = aligned_alloc(alignof(*wfile), sizeof(*wfile));
     if (!wfile) {
         mpool_file_close(mpf);
         return merr(ENOMEM);
     }
 
     wfile->mpf = mpf;
+    wfile->wfset = wfset;
     wfile->gen = gen;
     wfile->fileid = fileid;
+    strlcpy(wfile->name, name, sizeof(wfile->name));
+
+    wal_file_minmax_init(&wfile->info);
     wfile->roff = 0;
     wfile->woff = 0;
-
+    wfile->soff = 0;
     atomic64_set(&wfile->ref, 1);
+
+    INIT_LIST_HEAD(&wfile->link);
 
     mutex_lock(&wfset->lock);
     list_for_each_entry_safe(cur, next, &wfset->active, link) {
         if (cur->gen <= wfile->gen) {
             list_add_tail(&wfile->link, &cur->link);
-            added = true;
             break;
         }
     }
-    if (!added)
+    if (!cur)
         list_add(&wfile->link, &wfset->active);
     mutex_unlock(&wfset->lock);
 
     atomic64_inc(&wfset->activec);
-
-    wal_file_minmax_init(&wfile->info);
-    wal_file_format(wfile, wfset->magic, wfset->version);
 
     *handle = wfile;
 
@@ -254,13 +260,10 @@ wal_file_close(struct wal_file *wfile)
 merr_t
 wal_file_complete(struct wal_fileset *wfset, struct wal_file *wfile)
 {
-    char buf[PAGE_SIZE] = {0};
-    struct wal_file *cur, *next;
-    bool added = false;
+    struct wal_file *cur = NULL, *next;
     merr_t err;
 
-    wal_filehdr_pack(wfset->magic, wfset->version, true, &wfile->info, buf);
-    err = wal_file_pwrite(wfile, (const char *)buf, sizeof(buf), 0);
+    err = wal_file_format(wfile, wfile->soff, true);
     if (err)
         return err;
 
@@ -269,11 +272,10 @@ wal_file_complete(struct wal_fileset *wfset, struct wal_file *wfile)
     list_for_each_entry_safe(cur, next, &wfset->complete, link) {
         if (cur->gen >= wfile->gen) {
             list_add_tail(&wfile->link, &cur->link);
-            added = true;
             break;
         }
     }
-    if (!added)
+    if (!cur)
         list_add_tail(&wfile->link, &wfset->complete);
     mutex_unlock(&wfset->lock);
     atomic64_inc(&wfset->compc);
@@ -335,49 +337,71 @@ wal_file_read(struct wal_file *wfile, char *buf, size_t len)
     return 0;
 }
 
-static merr_t
-wal_file_write_impl(struct wal_file *wfile, const char *buf, size_t len, off_t off)
+merr_t
+wal_file_write(struct wal_file *wfile, const char *buf, size_t len)
 {
     merr_t err;
+    const char *abuf;
+    off_t off, aoff;
+    size_t alen, roundsz;
+    bool adjust_woff = false;
 
     if (!wfile)
         return merr(EINVAL);
 
-    while (len > 0) {
-        size_t cc;
+    /* rounddown the buf and file offset to 4K alignment */
+    abuf = (const char *)((uintptr_t)buf & PAGE_MASK);
+    off = wfile->woff;
+    aoff = (off & PAGE_MASK);
 
-        err = mpool_file_write(wfile->mpf, off, buf, len, &cc);
+    roundsz = buf - abuf;
+    if (roundsz != (off - aoff)) { /* Must be the first write if buf and off alignment mismatch */
+        assert(off == WAL_FILE_HDR_OFF);
+        if (off != WAL_FILE_HDR_OFF)
+            return merr(EBUG);
+
+        adjust_woff = true;
+    }
+
+    /* Pack file header with the start offset for the first record */
+    if (off == WAL_FILE_HDR_OFF) {
+        err = wal_file_format(wfile, roundsz, false);
         if (err)
             return err;
 
-        buf += cc;
-        off += cc;
-        len -= cc;
+        wfile->soff = roundsz;
+        aoff += WAL_FILE_HDR_LEN;
+        wfile->woff += WAL_FILE_HDR_LEN;
+    }
+
+    /* roundup the len to 4K alignment */
+    alen = len + roundsz;
+    alen = ALIGN(alen, PAGE_SIZE);
+
+    assert(PAGE_ALIGNED(abuf) && PAGE_ALIGNED(aoff) && PAGE_ALIGNED(alen));
+
+    while (alen > 0) {
+        size_t cc;
+
+        err = mpool_file_write(wfile->mpf, aoff, abuf, alen, &cc);
+        if (err)
+            return err;
+
+        assert(PAGE_ALIGNED(cc));
+        abuf += cc;
+        aoff += cc;
+        alen -= cc;
     }
 
     err = mpool_file_sync(wfile->mpf);
     if (err)
         return err;
 
-    return 0;
-}
-
-merr_t
-wal_file_write(struct wal_file *wfile, const char *buf, size_t len)
-{
-    merr_t err;
-
-    err = wal_file_write_impl(wfile, buf, len, wfile->woff);
-    if (err)
-        return err;
+    /* Bring the buffer addr and file offset to the same alignment if it mismatched */
+    if (adjust_woff)
+        wfile->woff += roundsz;
 
     wfile->woff += len;
 
     return 0;
-}
-
-static merr_t
-wal_file_pwrite(struct wal_file *wfile, const char *buf, size_t len, off_t off)
-{
-    return wal_file_write_impl(wfile, buf, len, off);
 }

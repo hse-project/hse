@@ -109,7 +109,13 @@ wal_txn_rec_len(void)
 }
 
 void
-wal_filehdr_pack(u32 magic, u32 version, bool close, struct wal_minmax_info *info, void *outbuf)
+wal_filehdr_pack(
+    u32                     magic,
+    u32                     version,
+    struct wal_minmax_info *info,
+    off_t                   soff,
+    bool                    close,
+    void                   *outbuf)
 {
     struct wal_filehdr_omf *fhomf = outbuf;
     uint crc;
@@ -125,6 +131,7 @@ wal_filehdr_pack(u32 magic, u32 version, bool close, struct wal_minmax_info *inf
     omf_set_fh_maxseqno(fhomf, info->max_seqno);
     omf_set_fh_mintxid(fhomf, info->min_txid);
     omf_set_fh_maxtxid(fhomf, info->max_txid);
+    omf_set_fh_startoff(fhomf, soff);
 
     crc = crc32c(0, outbuf + ignore, len - ignore);
     omf_set_fh_cksum(fhomf, crc);

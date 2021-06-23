@@ -97,6 +97,7 @@ struct wal_filehdr_omf {
     __le64 fh_maxseqno;
     __le64 fh_mintxid;
     __le64 fh_maxtxid;
+    __le64 fh_startoff;
 } HSE_PACKED;
 
 /* Define set/get methods for wal_filehdr_omf */
@@ -110,6 +111,7 @@ OMF_SETGET(struct wal_filehdr_omf, fh_minseqno, 64);
 OMF_SETGET(struct wal_filehdr_omf, fh_maxseqno, 64);
 OMF_SETGET(struct wal_filehdr_omf, fh_mintxid, 64);
 OMF_SETGET(struct wal_filehdr_omf, fh_maxtxid, 64);
+OMF_SETGET(struct wal_filehdr_omf, fh_startoff, 64);
 
 
 struct wal_rechdr_omf {
@@ -211,6 +213,12 @@ uint
 wal_txn_rec_len(void);
 
 void
-wal_filehdr_pack(u32 magic, u32 version, bool close, struct wal_minmax_info *info, void *outbuf);
+wal_filehdr_pack(
+    u32                     magic,
+    u32                     version,
+    struct wal_minmax_info *info,
+    off_t                   soff,
+    bool                    close,
+    void                   *outbuf);
 
 #endif /* WAL_OMF_H */

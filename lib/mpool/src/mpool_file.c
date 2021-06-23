@@ -54,7 +54,7 @@ mpool_file_open(
         rc = 0;
     }
 
-    flags &= (O_RDWR | O_RDONLY | O_WRONLY | O_CREAT);
+    flags &= (O_RDWR | O_RDONLY | O_WRONLY | O_CREAT | O_DIRECT);
     if (create)
         flags |= (O_CREAT | O_EXCL);
 
