@@ -77,7 +77,7 @@ wal_buffer_flush_worker(struct work_struct *work)
     struct wal_rechdr_omf *rhdr;
     struct wal_minmax_info info = {};
     const char *buf;
-    u64 coff, foff, prev_foff, cgen, start_foff, flushb = 0;
+    u64 coff, foff, prev_foff, cgen, start_foff, flushb = 0, buflen;
     u32 flags, rhlen;
     merr_t err;
 
@@ -177,6 +177,9 @@ restart:
 
         prev_foff = foff;
         foff += (rhlen + omf_rh_len(rhdr));
+
+        if ((foff % WAL_BUFSZ_MAX) < (prev_foff % WAL_BUFSZ_MAX))
+            break;
     }
     assert(foff <= coff);
 
@@ -192,7 +195,15 @@ restart:
     atomic64_set(&wb->wb_foff, foff);
 
     buf = wb->wb_buf + (start_foff % WAL_BUFSZ_MAX);
-    err = wal_io_enqueue(wb->wb_io, buf, foff - start_foff, cgen, &info);
+    assert(foff > start_foff);
+    buflen = foff - start_foff; /* foff is exclusive */
+    assert(buf + buflen - wb->wb_buf <= WAL_BUFALLOCSZ_MAX);
+    if (buf + buflen - wb->wb_buf > WAL_BUFALLOCSZ_MAX) {
+        err = merr(EBUG);
+        goto exit;
+    }
+
+    err = wal_io_enqueue(wb->wb_io, buf, buflen, cgen, &info);
     if (err)
         goto exit;
     flushb += (foff - start_foff);
