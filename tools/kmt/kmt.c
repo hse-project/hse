@@ -297,8 +297,7 @@ int            oom_score_adj = -500;
 uint           c0putval = UINT_MAX;
 bool           kvdb_mode = false;
 bool           latency = false;
-bool           sync_enabled = false;
-ulong          sync_timeout_ms = 0;
+long           sync_timeout_ms = 0;
 int            mclass = MP_MED_CAPACITY;
 
 struct parm_groups *pg;
@@ -312,6 +311,8 @@ struct suftab {
     double      mult[]; /* list of multipliers */
 };
 
+/* clang-format off */
+
 /* kibibytes, mebibytes, ..., including the dd suffixes b and w.
  */
 struct suftab suftab_iec = {
@@ -321,20 +322,17 @@ struct suftab suftab_iec = {
 
 /* kilo, mega, giga, ...
  */
-struct suftab suftab_si = { "kmgtpezy", { 1e3, 1e6, 1e9, 1e12, 1e15, 1e18, 1e21, 1e24 } };
+struct suftab suftab_si = {
+	"kmgtpezy",
+	{ 1e3, 1e6, 1e9, 1e12, 1e15, 1e18, 1e21, 1e24 }
+};
 
 /* seconds, minutes, hours, days, weeks, years, centuries.
  */
-struct suftab suftab_time_t = { "smhdwyc",
-                                {
-                                    1,
-                                    60,
-                                    60 * 60,
-                                    60 * 60 * 24,
-                                    60 * 60 * 24 * 7,
-                                    60 * 60 * 24 * 365,
-                                    60 * 60 * 24 * 365 * 100ul,
-                                } };
+struct suftab suftab_time_t = {
+	"smhdwyc",
+	{ 1, 60, 3600, 86400, 86400 * 7, 86400 * 365, 86400 * 365 * 100ul }
+};
 
 sig_atomic_t sigusr1, sigusr2, sigalrm, sigint;
 
@@ -366,6 +364,8 @@ static const char *const op2txt[] = {
     "null", "start", "lock", "unlock", "alloc", "abort", "commit", "delete", "read",  "write",
     "get",  "put",   "del",  "verify", "run",   "exit",  "begin",  "commit", "abort", "?",
 };
+
+/* clang-format on */
 
 struct km_stats {
     enum km_op op;
@@ -3705,7 +3705,7 @@ spawn(struct km_impl *impl, void (*run)(struct km_inst *), uint runmax, time_t m
     }
 
 #ifndef XKMT
-    if (testmode && sync_enabled) {
+    if (testmode && sync_timeout_ms > 0) {
         rc = pthread_create(&sync_thread, NULL, periodic_sync, impl);
         if (rc) {
             eprint("%s: pthread_create failed for sync thread: %s\n",
@@ -3804,7 +3804,7 @@ spawn(struct km_impl *impl, void (*run)(struct km_inst *), uint runmax, time_t m
     }
 
 #ifndef XKMT
-    if (testmode && sync_enabled) {
+    if (testmode && sync_timeout_ms > 0) {
         pthread_kill(sync_thread, SIGUSR1);
         pthread_join(sync_thread, NULL);
     }
@@ -4128,8 +4128,8 @@ usage(struct km_impl *impl)
     printf("-v          increase verbosity\n");
     printf("-w wpct     write percentage: wpct = 100*w/(w+r), 0 <= wpct <= 50\n");
     printf("-x          show extended statistics\n");
-    printf("-y sync		the length of time in milliseconds in between synchronous calls\n");
-    printf("<device>    mpool, mpool/kvdb/kvs, /dev/nvme*\n");
+    printf("-y sync     kvdb sync interval (milliseconds)\n");
+    printf("<device>    <kvdbhome> <kvsname>, /dev/<devname>, mpool:<kvdbhome>, mongodb://<url>\n");
     printf("\n");
 
     if (verbosity < 1) {
@@ -4169,8 +4169,7 @@ usage(struct km_impl *impl)
     printf("  vebsz       %10zu  set device mode r/w offset between records\n", vebsz);
     printf("  wcmin       %10d  set minimum mongod write concern\n", wcmin);
     printf("  wcmajprob   %10.3f  probability to use majority write concern\n", wcmajprob);
-    printf("  sync        %10d  sync enabled\n", sync_enabled);
-    printf("  sync_ms     %10lu  milliseconds between syncs\n", sync_timeout_ms);
+    printf("  sync_ms     %10lu  kvdb sync interval (milliseconds)\n", sync_timeout_ms);
     printf("  mclass      %10d  media class in mpool mode - 0: cap, 1: stg \n", mclass);
     printf("\n");
 
@@ -4188,15 +4187,15 @@ usage(struct km_impl *impl)
     printf("\n");
 
     printf("EXAMPLES:\n");
-    printf("  init:     %s -i 123456 mp1\n", progname);
-    printf("  test:     %s -t60 -j32 -s10 mp1\n", progname);
-    printf("  check:    %s -c -j32 mp1\n", progname);
-    printf("  destroy:  %s -D mp1/ds1\n", progname);
-    printf("  combo:    %s -i 123456 -t60 -cD -j32 mp1\n", progname);
+    printf("  init:     %s -i 123456 mpool:/mnt/kvdb1\n", progname);
+    printf("  test:     %s -t60 -j32 -s10 mpool:/mnt/kvdb1\n", progname);
+    printf("  check:    %s -c -j32 mpool:/mnt/kvdb1\n", progname);
+    printf("  destroy:  %s -D mpool:/mnt/kvdb1\n", progname);
+    printf("  combo:    %s -i 123456 -t60 -cD -j32 mpool:/mnt/kvdb1\n", progname);
     printf("  device:   %s -i 393216 -t60 -bcDR -j768 -w0 -s1 /dev/nvme0n1p1\n", progname);
-    printf("  kvs:      %s -i 128 -t60 -bcD -j48 -w50 -s1 mp1/kvs1\n", progname);
+    printf("  kvs:      %s -i 128 -t60 -bcD -j48 -w50 -s1 /mnt/kvdb/kvdb1 kvs1\n", progname);
     printf("  mongo:    %s -i8m -t1m -cDx -j32 -p8 -s1 mongodb://localhost:27017\n", progname);
-    printf("  xkmt:    xkmt -i 128 -t60 -bcDOR -j48 -w0 -s1 foo\n");
+    printf("  xkmt:    xkmt -i 128 -t60 -bcDOR -j48 -w0 -s1\n");
     printf("\n");
 }
 
@@ -4393,7 +4392,6 @@ main(int argc, char **argv)
             break;
 
         case 'y':
-            sync_enabled = true;
             sync_timeout_ms = strtoul(optarg, &end, 10);
             errmsg = "invalid sync timeout argument";
             break;
@@ -4420,6 +4418,9 @@ main(int argc, char **argv)
         }
     }
 
+    argc -= optind;
+    argv += optind;
+
 #ifdef XKMT
     mpname = strdup(progname);
     if (!mpname) {
@@ -4427,77 +4428,85 @@ main(int argc, char **argv)
         exit(EX_OSERR);
     }
 #else
-    if (argc - optind < 1) {
-        syntax("insufficient arguments for mandatory parameters");
-        exit(EX_USAGE);
-    }
 
-    mpname = strdup(argv[optind++]);
+    if (argc > 0) {
+		mpname = strdup(argv[0]);
+		optind = 1;
 
-    if (0 == strncmp(mpname, "/dev/", 5)) {
-        impl = &km_impl_dev;
-    } else if (0 == strncmp(mpname, "mongodb://", 10)) {
-        impl = &km_impl_mongo;
-        mongo = 1;
+		if (0 == strncmp(mpname, "/dev/", 5)) {
+			impl = &km_impl_dev;
+		} else if (0 == strncmp(mpname, "mongodb://", 10)) {
+			impl = &km_impl_mongo;
+			mongo = 1;
 
-        kvsname = strchr(mpname + strlen("mongodb://"), '/');
-        if (kvsname)
-            *kvsname++ = '\000';
+			kvsname = strchr(mpname + strlen("mongodb://"), '/');
+			if (kvsname)
+				*kvsname++ = '\000';
 
-        if (!kvsname || !strlen(kvsname)) {
-            syntax("%s does not specify target database", mpname);
-            exit(EX_USAGE);
-        }
-    } else if (0 == strncmp(mpname, "mpool:", 6)) {
-        impl = &km_impl_ds;
-        impl->mpname = mpname + 6;
-    } else {
-        if (argc - optind < 1) {
-            syntax("missing kvs name");
-            exit(EX_USAGE);
-        }
+			if (!kvsname || !strlen(kvsname)) {
+				syntax("%s does not specify target database", mpname);
+				exit(EX_USAGE);
+			}
+		} else if (0 == strncmp(mpname, "mpool:", 6)) {
+			impl = &km_impl_ds;
+			impl->mpname = mpname + 6;
+		} else {
+			if (argc < 2) {
+				syntax("missing kvs name");
+				exit(EX_USAGE);
+			}
 
-        kvsname = argv[optind++];
+			kvsname = argv[1];
+			optind = 2;
 
-        rc = pg_create(&pg, PG_KVDB_OPEN, PG_KVS_OPEN, NULL);
-        if (rc) {
-            eprint("pg_create failed");
-            exit(EX_OSERR);
-        }
+			rc = pg_create(&pg, PG_KVDB_OPEN, PG_KVS_OPEN, NULL);
+			if (rc) {
+				eprint("pg_create failed: %s\n", strerror(rc));
+				exit(EX_OSERR);
+			}
 
-        rc = pg_parse_argv(pg, argc, argv, &optind);
-        switch (rc) {
+			rc = pg_parse_argv(pg, argc, argv, &optind);
+			switch (rc) {
             case 0:
-                if (optind < argc) {
-                    eprint("unknown parameter: %s", argv[optind]);
-                    exit(EX_USAGE);
-                }
-                break;
+				break;
+
             case EINVAL:
                 eprint("missing group name (e.g. %s) before parameter %s\n",
-                    PG_KVDB_OPEN, argv[optind]);
+					   PG_KVDB_OPEN, argv[optind]);
                 exit(EX_USAGE);
                 break;
+
             default:
-                eprint("error processing parameter %s\n", argv[optind]);
+                eprint("error processing parameter %s: %s\n", argv[optind], strerror(rc));
                 exit(EX_OSERR);
                 break;
-        }
+			}
 
-        rc = rc ?: svec_append_pg(&db_oparms, pg, "perfc_enable=0", PG_KVDB_OPEN, NULL);
-        rc = rc ?: svec_append_pg(&kv_oparms_txn, pg, PG_KVS_OPEN, "transactions_enable=1", NULL);
-        rc = rc ?: svec_append_pg(&kv_oparms_notxn, pg, PG_KVS_OPEN, "transactions_enable=0", NULL);
-        if (rc) {
-            eprint("svec_apppend_pg failed: %d", rc);
-            exit(EX_OSERR);
-        }
+			rc = svec_append_pg(&db_oparms, pg, "perfc_enable=0", PG_KVDB_OPEN, NULL);
+			if (rc) {
+				eprint("unable to append kvdb-oparms params: %s\n", strerror(rc));
+				exit(EX_OSERR);
+			}
+
+			rc = svec_append_pg(&kv_oparms_txn, pg, PG_KVS_OPEN, "transactions_enable=1", NULL);
+			if (rc) {
+				eprint("unable to append kvs-oparms txn params: %s\n", strerror(rc));
+				exit(EX_OSERR);
+			}
+
+			rc = svec_append_pg(&kv_oparms_notxn, pg, PG_KVS_OPEN, "transactions_enable=0", NULL);
+			if (rc) {
+				eprint("unable to append kvs-oparms notxn params: %s\n", strerror(rc));
+				exit(EX_OSERR);
+			}
+		}
+
+		if (argc > optind) {
+			syntax("extraneous argument '%s'", argv[optind]);
+			exit(EX_USAGE);
+		}
     }
 #endif
-
-    if (optind < argc) {
-        syntax("extraneous argument: %s", argv[optind]);
-        exit(EX_USAGE);
-    }
 
     if (!impl->mpname)
         impl->mpname = mpname;
@@ -4616,6 +4625,11 @@ main(int argc, char **argv)
 
     if (!(init || test || check || destroy)) {
         syntax("one or more of -i, -t, -c, -D is required");
+        exit(EX_USAGE);
+    }
+
+    if (argc < 1) {
+        syntax("insufficient arguments for mandatory parameters");
         exit(EX_USAGE);
     }
 
