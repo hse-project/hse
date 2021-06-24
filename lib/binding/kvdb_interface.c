@@ -51,24 +51,6 @@ kvdb_lat_record(const u32 cidx, const u64 start)
  */
 static bool hse_initialized = false;
 
-const char *
-hse_kvdb_version_string(void)
-{
-    return hse_version;
-}
-
-const char *
-hse_kvdb_version_tag(void)
-{
-    return hse_tag;
-}
-
-const char *
-hse_kvdb_version_sha(void)
-{
-    return hse_sha;
-}
-
 hse_err_t
 hse_init(void)
 {
@@ -88,7 +70,7 @@ hse_init(void)
         return merr_to_hse_err(err);
     }
 
-    hse_log(HSE_INFO "%s, version %s", HSE_KVDB_DESC, hse_version);
+    hse_log(HSE_INFO "%s, version %s", HSE_KVDB_DESC, HSE_VERSION_STRING);
 
     hse_initialized = true;
 

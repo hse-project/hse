@@ -131,7 +131,7 @@ MTF_DEFINE_UTEST_PREPOST(rest_client, example1, rest_start, rest_stop)
             "HSE REST API Version %d.%d %s\n",
             REST_VERSION_MAJOR,
             REST_VERSION_MINOR,
-            hse_version);
+            HSE_VERSION_STRING);
 
         err = curl_get(path, sock, buf, sizeof(buf));
         ASSERT_EQ(0, err);

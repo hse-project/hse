@@ -470,7 +470,6 @@ options_parse(
 		usage();
 }
 
-
 static void
 usage(void)
 {

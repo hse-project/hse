@@ -396,12 +396,12 @@ hse_platform_init(void)
     rest_url_register(0, 0, kmc_rest_get, NULL, "kmc");
 
     hse_log_sync(HSE_NOTICE "%s: version %s, image %s",
-                 HSE_UTIL_DESC, hse_version, name ?: __func__);
+                 HSE_UTIL_DESC, HSE_VERSION_STRING, name ?: __func__);
 
 errout:
     if (err) {
         fprintf(stderr, "%s: version %s, image %s: init failed: %s\n",
-                HSE_UTIL_DESC, hse_version, name ?: __func__, merr_info(err, &info));
+                HSE_UTIL_DESC, HSE_VERSION_STRING, name ?: __func__, merr_info(err, &info));
     }
 
     free(name);

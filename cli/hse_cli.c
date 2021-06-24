@@ -17,6 +17,7 @@
 #include <sys/types.h>
 
 #include <hse/hse.h>
+#include <hse/hse_version.h>
 #include <hse/hse_experimental.h>
 
 #include <hse_util/parse_num.h>
@@ -1482,11 +1483,11 @@ cli_hse(struct cli_cmd *self, struct cli *cli)
 
     if (version) {
         if (verbosity > 0) {
-            printf("version: %s\n", hse_kvdb_version_string());
-            printf("tag:     %s\n", hse_kvdb_version_tag());
-            printf("sha:     %s\n", hse_kvdb_version_sha());
+            printf("version: %s\n", HSE_VERSION_STRING);
+            printf("tag:     %s\n", HSE_VERSION_TAG);
+            printf("sha:     %s\n", HSE_VERSION_SHA);
         } else {
-            printf("%s\n", hse_kvdb_version_string());
+            printf("%s\n", HSE_VERSION_STRING);
         }
         return 0;
     }

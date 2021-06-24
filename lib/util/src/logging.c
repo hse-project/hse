@@ -722,8 +722,8 @@ pack_source_info(struct hse_log_fmt_state *state)
     if (!state->source_info_set) {
         res =
             (push_nv(state, false, "hse_logver", HSE_LOGGING_VER) &&
-             push_nv(state, false, "hse_version", hse_version) &&
-             push_nv(state, false, "hse_tag", hse_tag));
+             push_nv(state, false, "hse_version", HSE_VERSION_STRING) &&
+             push_nv(state, false, "hse_tag", HSE_VERSION_TAG));
         if (!res)
             return res;
 
@@ -961,8 +961,8 @@ append_hse_arg(
     if (!state->source_info_set) {
         res =
             (push_nv(state, false, "hse_logver", HSE_LOGGING_VER) &&
-             push_nv(state, false, "hse_version", hse_version) &&
-             push_nv(state, false, "hse_tag", hse_tag));
+             push_nv(state, false, "hse_version", HSE_VERSION_STRING) &&
+             push_nv(state, false, "hse_tag", HSE_VERSION_TAG));
         if (!res)
             return res;
         state->source_info_set = true;
@@ -1203,8 +1203,8 @@ static void
 package_source_info(struct json_context *jc)
 {
     json_element_field(jc, "hse_logver", "%s", HSE_LOGGING_VER);
-    json_element_field(jc, "hse_version", "%s", hse_version);
-    json_element_field(jc, "hse_tag", "%s", hse_tag);
+    json_element_field(jc, "hse_version", "%s", HSE_VERSION_STRING);
+    json_element_field(jc, "hse_tag", "%s", HSE_VERSION_TAG);
 }
 
 static void

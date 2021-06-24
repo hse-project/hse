@@ -39,7 +39,6 @@ util_sources = files(
     'time.c',
     'timer.c',
     'token_bucket.c',
-    'version.c',
     'vlb.c',
     'workqueue.c',
     'xrand.c',

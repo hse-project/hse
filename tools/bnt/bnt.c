@@ -989,7 +989,7 @@ main(int argc, char **argv)
         usage();
         exit(0);
     } else if (version) {
-        printf("%s\n", hse_tag);
+        printf("%s\n", HSE_VERSION_TAG);
         exit(0);
     }
 
