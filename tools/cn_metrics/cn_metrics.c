@@ -1,7 +1,9 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
+
+#include <stdio.h>
 
 #include <hse_ikvdb/cn.h>
 #include <hse_ikvdb/limits.h>
@@ -17,6 +19,9 @@
 
 #include <hse_util/parse_num.h>
 
+#include <tools/parm_groups.h>
+#include <tools/common.h>
+
 #include <mpool/mpool.h>
 
 #include <sysexits.h>
@@ -26,7 +31,7 @@ const char *progname;
 void
 usage(void)
 {
-    printf("usage: %s [options] mpool dataset kvs\n", progname);
+    printf("usage: %s [options] kvdb_home kvs\n", progname);
 
     printf("-b      show all kblock/vblock IDs\n"
            "-f FMT  set output format\n"
@@ -36,6 +41,10 @@ usage(void)
            "-y      output tree shape in yaml\n"
            "FMT  h=human(default), s=scalar, x=hex, e=exp\n"
            "\n");
+
+    printf("%s shows detailed cn tree metrics such as tree structure,\n"
+        "number of kvsets/kblocks/vblocks per node, number of keys/kblocks/vblocks\n"
+        "per kvset, and kblock/vblock untilization.\n", progname);
 }
 
 void
@@ -204,7 +213,7 @@ bn64(char *buf, size_t buf_sz, enum bn_fmt fmt, u64 value)
 }
 
 struct options {
-    const char *mpool;
+    const char *kvdb_home;
     const char *kvs;
 
     uint bnfmt; /* big number format */
@@ -274,19 +283,13 @@ process_options(int argc, char *argv[])
         }
     }
 
-    argc -= optind;
-    argv += optind;
-
-    if (argc < 2) {
+    if (argc - optind < 2) {
         syntax("insufficient arguments for mandatory parameters");
-        exit(EX_USAGE);
-    } else if (argc > 2) {
-        syntax("extraneous arguments detected");
         exit(EX_USAGE);
     }
 
-    opt.mpool = argv[0];
-    opt.kvs = argv[1];
+    opt.kvdb_home = argv[optind++];
+    opt.kvs = argv[optind++];
 }
 
 struct rollup {
@@ -533,19 +536,46 @@ int
 main(int argc, char **argv)
 {
     const char *       errmsg = NULL;
-    struct hse_params *params;
     struct ctx         ctx;
     struct cn *        cn = NULL;
     struct hse_kvdb *  kd = NULL;
     struct hse_kvs *   kvs = NULL;
-    uint64_t           rc;
+    hse_err_t          rc;
+
+    struct parm_groups *pg = NULL;
+    struct svec         db_oparm = {};
+    struct svec         kv_oparm = {};
 
     progname = strrchr(argv[0], '/');
     progname = progname ? progname + 1 : argv[0];
 
+    rc = pg_create(&pg, PG_KVDB_OPEN, PG_KVS_OPEN, NULL);
+    if (rc)
+        fatal(rc, "pg_create");
+
     memset(&opt, 0, sizeof(opt));
     opt.bnfmt = BN_HUMAN;
     process_options(argc, argv);
+
+    rc = pg_parse_argv(pg, argc, argv, &optind);
+    switch (rc) {
+        case 0:
+            if (optind < argc)
+                fatal(0, "unknown parameter: %s", argv[optind]);
+            break;
+        case EINVAL:
+            fatal(0, "missing group name (e.g. %s) before parameter %s\n",
+                PG_KVDB_OPEN, argv[optind]);
+            break;
+        default:
+            fatal(rc, "error processing parameter %s\n", argv[optind]);
+            break;
+    }
+
+    rc = rc ?: svec_append_pg(&db_oparm, pg, "perfc_enable=0", PG_KVDB_OPEN, "read_only=1", NULL);
+    rc = rc ?: svec_append_pg(&kv_oparm, pg, PG_KVS_OPEN, "cn_diag_mode=1", "cn_maint_disable=1", NULL);
+    if (rc)
+        fatal(rc, "svec_apppend_pg failed");
 
     rc = hse_init();
     if (rc) {
@@ -553,20 +583,13 @@ main(int argc, char **argv)
         goto done;
     }
 
-    hse_params_create(&params);
-
-    rc = hse_params_set(params, "kvdb.rdonly", "1");
-
-    hse_params_set(params, "kvs.cn_diag_mode", "1");
-    hse_params_set(params, "kvs.cn_maint_disable", "1");
-
-    rc = hse_kvdb_open(opt.mpool, params, &kd);
+    rc = hse_kvdb_open(opt.kvdb_home, db_oparm.strc, db_oparm.strv, &kd);
     if (rc) {
         errmsg = "kvdb_open";
         goto done;
     }
 
-    rc = hse_kvdb_kvs_open(kd, opt.kvs, params, &kvs);
+    rc = hse_kvdb_kvs_open(kd, opt.kvs, kv_oparm.strc, kv_oparm.strv, &kvs);
     if (rc) {
         errmsg = "kvs_open";
         goto done;
@@ -608,25 +631,22 @@ main(int argc, char **argv)
     }
 
 done:
+    if (errmsg) {
+        char errbuf[1000];
+        hse_err_to_string(rc, errbuf, sizeof(errbuf), 0);
+        fprintf(stderr, "Error: %s failed: %s\n", errmsg, errbuf);
+    }
+
     if (kvs)
         hse_kvdb_kvs_close(kvs);
 
     if (kd)
         hse_kvdb_close(kd);
 
-    if (errmsg) {
-        char errbuf[1000];
-
-        hse_err_to_string(rc, errbuf, sizeof(errbuf), 0);
-        fprintf(stderr, "Error: %s failed: %s\n", errmsg, errbuf);
-    }
-
-    if (rc)
-        return EX_SOFTWARE;
-
-    hse_params_destroy(params);
-
     hse_fini();
+    pg_destroy(pg);
+    svec_reset(&kv_oparm);
+    svec_reset(&db_oparm);
 
-    return 0;
+    return rc ? EX_SOFTWARE : 0;
 }

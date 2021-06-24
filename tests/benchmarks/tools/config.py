@@ -9,7 +9,7 @@ AVAILABLE_CPUS = len(os.sched_getaffinity(0))
 
 HSE_EXECUTABLE = "hse1"
 
-KVDB_NAME = None
+KVDB_HOME = None
 KVS_NAME = "data"
 LOG_DIR = None
 
@@ -82,7 +82,7 @@ def get_dict():
         raise Exception("Config not yet loaded")
 
     result = {
-        "KVDB_NAME": KVDB_NAME,
+        "KVDB_HOME": KVDB_HOME,
         "LOG_DIR": str(LOG_DIR),
         "MONITOR_DEVICES": MONITOR_DEVICES,
         "REPORTS_MONGO_COLLECTION": REPORTS_MONGO_COLLECTION,
@@ -95,7 +95,7 @@ def get_dict():
 
 
 def load():
-    global KVDB_NAME
+    global KVDB_HOME
     global LOG_DIR
 
     global MONITOR_DEVICES
@@ -111,7 +111,7 @@ def load():
 
     parser = argparse.ArgumentParser()
 
-    parser.add_argument("--kvdb", type=str)
+    parser.add_argument("-C", "--home", type=str)
 
     grp = parser.add_mutually_exclusive_group()
     grp.add_argument("--log-dir", type=str)
@@ -139,7 +139,7 @@ def load():
         print("Environment variables:")
         print()
         print("HSE_TEST_BENCHMARK_LOG_DIR")
-        print("HSE_TEST_KVDB")
+        print("HSE_TEST_KVDB_HOME")
         print()
         print("HSE_TEST_MONITOR_DEVICES              (list separated by spaces)")
         print()
@@ -156,13 +156,13 @@ def load():
 
     die = False
 
-    KVDB_NAME = __get_option(args, "kvdb", "HSE_TEST_KVDB")
-    if not KVDB_NAME:
+    KVDB_HOME = __get_option(args, "kvdb", "HSE_TEST_KVDB_HOME")
+    if not KVDB_HOME:
         die = True
-        print("KVDB name is required.")
+        print("KVDB home is required.")
         print(
-            "Pass --kvdb on command line "
-            "or set the HSE_TEST_KVDB environment variable."
+            "Pass -C/--home on command line "
+            "or set the HSE_TEST_KVDB_HOME environment variable."
         )
         print()
 

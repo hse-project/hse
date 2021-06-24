@@ -15,16 +15,17 @@
 #include <sys/time.h>
 
 #include <hse/hse.h>
-#include <hse/hse_version.h>
 
 #include <hse_util/atomic.h>
 #include <hse_util/compiler.h>
-#include <hse_util/hse_params_helper.h>
 #include <hse_util/inttypes.h>
-#include <tools/key_generation.h>
 #include <hse_util/parse_num.h>
 #include <hse_util/time.h>
 #include <hse_util/timing.h>
+
+#include <tools/parm_groups.h>
+
+#include <tools/key_generation.h>
 
 /* Default key/value lengths */
 #define KLEN_DEFAULT   23
@@ -35,7 +36,6 @@
 
 struct opts {
     bool    help;
-    bool    version;
     char   *mpool;
     char   *kvs;
     char   *weight;
@@ -49,7 +49,6 @@ struct opts {
     bool    binary;
     u64     kstart;
     u32     errcnt;
-    bool    params;
     u32     ingiters;
     u64     ingestcycle;
     u64     sleepcycle;
@@ -73,7 +72,6 @@ u32 errors = 0;
 static struct key_generator *key_gen;
 static const long key_space_size = 4000000000UL;
 
-struct hse_params *params;
 pthread_barrier_t   barrier;
 struct hse_kvdb *kvdb;
 struct hse_kvs  **kvs_h;
@@ -81,6 +79,10 @@ char **kvs_names;
 uint  *kvs_weight;
 char **kvswt_param;
 uint   kvs_cnt;
+
+struct parm_groups *pg;
+struct svec         db_oparm;
+struct svec         kv_oparm;
 
 struct thread_info {
     struct hse_kvs         *kvs;
@@ -109,7 +111,6 @@ struct thread_info {
 static void syntax(const char *fmt, ...);
 static void quit(const char *fmt, ...);
 static void usage(void);
-static void rparam_usage(void);
 
 /*
  * Use our own asserts so they're enabled in all builds.
@@ -230,10 +231,8 @@ enum opt_enum {
     opt_dryrun	= 'n',
     opt_close       = 'x',
 
-    opt_version	= 'V',
     opt_verbose	= 'v',
     opt_kstart      = 's',
-    opt_params      = 'C',
     opt_threads     = 't',
     opt_ingestcycle = 'i',
     opt_sleepcycle  = 'S',
@@ -258,9 +257,7 @@ struct option longopts[] = {
     { "runtime",     required_argument,  NULL,  opt_runtime },
 
     { "verbose",     optional_argument,  NULL,  opt_verbose },
-    { "version",     no_argument,        NULL,  opt_version },
     { "kstart",      required_argument,  NULL,  opt_kstart  },
-    { "params",      no_argument,        NULL,  opt_params  },
 
     { 0, 0, 0, 0 }
 };
@@ -315,8 +312,7 @@ void
 options_parse(
     int argc,
     char **argv,
-    struct opts *opt,
-    int *last_arg)
+    struct opts *opt)
 {
     int done;
 
@@ -358,10 +354,6 @@ options_parse(
             opt->binary = true;
             break;
 
-        case opt_params:
-            opt->params = true;
-            break;
-
         case opt_help:
             opt->help = true;
             break;
@@ -376,10 +368,6 @@ options_parse(
             else
                 ++verbose;
             opt->show_ops = (verbose > 1);
-            break;
-
-        case opt_version:
-            opt->version = true;
             break;
 
         case opt_keys:
@@ -450,29 +438,8 @@ options_parse(
 
     if (opt->help)
         usage();
-    else if (opt->version) {
-        printf("HSE KVDB Lib:   %s\n", hse_kvdb_version_string());
-        printf("HSE KVDB Tools: %s\n", hse_version);
-    }
-
-    if (opt->params)
-        rparam_usage();
-
-    *last_arg = optind;
 }
 
-
-void
-rparam_usage(void)
-{
-    char buf[8192];
-
-    fprintf(stderr, "\nTunable kvdb params:\n%s\n",
-            hse_generate_help(buf, sizeof(buf), "kvdb_rparams"));
-
-    fprintf(stderr, "\nTunable kvs params:\n%s\n",
-            hse_generate_help(buf, sizeof(buf), "kvs_rparams"));
-}
 
 static void
 usage(void)
@@ -492,9 +459,7 @@ usage(void)
            "  -I, --iterations  how many ingest and sleep cycles to "
            "                    repeat in a single test cycle\n"
            "Other:\n"
-           "  -V, --version      print build version\n"
            "  -v, --verbose=LVL  increase[or set] verbosity\n"
-           "  -C, --params       list tunable params (config vars)\n"
            "  -h, --help         print this help list\n"
            "\n");
 
@@ -530,7 +495,7 @@ test_open_kvdb(void)
     if (kvdb)
         return;
 
-    rc = hse_kvdb_open(opt.mpool, params, &kvdb);
+    rc = hse_kvdb_open(opt.mpool, db_oparm.strc, db_oparm.strv, &kvdb);
     if (rc)
         error_quit("hse_kvdb_open failed", rc);
 
@@ -560,7 +525,7 @@ test_open_kvs(char *kvs_name, struct hse_kvs **kvs)
     if (kvs && *kvs)
         return;
 
-    rc = hse_kvdb_kvs_open(kvdb, kvs_name, params, kvs);
+    rc = hse_kvdb_kvs_open(kvdb, kvs_name, kv_oparm.strc, kv_oparm.strv, kvs);
     if (rc)
         error_quit("hse_kvdb_kvs_open failed", rc);
 }
@@ -952,7 +917,6 @@ main(int argc, char **argv)
 {
     struct thread_info *threads = NULL;
 
-    int     last_arg;
     int     rc;
     hse_err_t  err;
     uint    i;
@@ -970,36 +934,43 @@ main(int argc, char **argv)
     progname = strrchr(argv[0], '/');
     progname = progname ? progname + 1 : argv[0];
 
-    err = hse_init();
-    if (err)
-        quit("failed to initialize kvdb");
+    rc = pg_create(&pg, PG_KVDB_OPEN, PG_KVS_OPEN, NULL);
+    if (rc)
+        quit("pg_create");
 
     options_default(&opt);
-    options_parse(argc, argv, &opt, &last_arg);
+    options_parse(argc, argv, &opt);
 
-    if (opt.version || opt.help || opt.params)
+    if (opt.help)
         goto done;
 
-    hse_params_create(&params);
+    if (argc - optind < 3)
+        syntax("missing required parameters");
 
-    err = hse_parse_cli(argc - last_arg, argv + last_arg,
-                        &last_arg, 0, params);
-    if (err) {
-        rparam_usage();
-        syntax("parameters could not be processed");
+    opt.mpool  = argv[optind++];
+    opt.kvs    = argv[optind++];
+    opt.weight = argv[optind++];
+
+    /* get hse parms from command line */
+    rc = pg_parse_argv(pg, argc, argv, &optind);
+    switch (rc) {
+        case 0:
+            if (optind < argc)
+                quit("unknown parameter: %s", argv[optind]);
+            break;
+        case EINVAL:
+            quit("missing group name (e.g. %s) before parameter %s\n",
+                PG_KVDB_OPEN, argv[optind]);
+            break;
+        default:
+            quit("error processing parameter %s\n", argv[optind]);
+            break;
     }
 
-    if (last_arg + 3 == argc) {
-        opt.mpool  = argv[last_arg++];
-        opt.kvs    = argv[last_arg++];
-        opt.weight = argv[last_arg++];
-    } else if (last_arg + 3 < argc) {
-        syntax("extraneous argument: %s", argv[last_arg + 2]);
-    } else {
-        syntax("insufficient arguments for mandatory parameters");
-    }
-
-    assert(opt.mpool && opt.kvs);
+    rc = rc ?: svec_append_pg(&db_oparm, pg, PG_KVDB_OPEN, NULL);
+    rc = rc ?: svec_append_pg(&kv_oparm, pg, PG_KVS_OPEN, NULL);
+    if (rc)
+        quit("svec_apppend_pg failed: %d", rc);
 
     if (!opt.keys)
         syntax("number of keys must be > 0");
@@ -1047,6 +1018,10 @@ main(int argc, char **argv)
         printf("dryrun");
 
     printf("\n");
+
+    err = hse_init();
+    if (err)
+        quit("failed to initialize kvdb");
 
     time = get_time_ns();
 
@@ -1204,8 +1179,9 @@ main(int argc, char **argv)
 
   done:
     free(threads);
-
-    hse_params_destroy(params);
+    pg_destroy(pg);
+    svec_reset(&db_oparm);
+    svec_reset(&kv_oparm);
     destroy_key_generator(key_gen);
 
     hse_fini();

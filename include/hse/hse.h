@@ -44,8 +44,10 @@
 #include <hse/hse_limits.h>
 
 #include <stdbool.h>
+#include <stddef.h>
 #include <stdint.h>
 #include <stdlib.h>
+#include <limits.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -70,10 +72,6 @@ extern "C" {
  * get a mapping to a POSIX errno value, and (2) call hse_err_to_string() to get a
  * textual reference about what error occurred and where.
  *
- * @typedef hse_params
- * @brief Opaque structure defining a collection of parameters governing KVDB
- *        and KVS settings
- *
  * @typedef hse_kvdb
  * @brief Opaque structure, a pointer to which is a handle to an HSE key-value
  *        database (KVDB)
@@ -92,7 +90,6 @@ extern "C" {
  */
 
 typedef uint64_t hse_err_t;
-struct hse_params;
 struct hse_kvdb;
 struct hse_kvs;
 struct hse_kvs_cursor;
@@ -123,10 +120,10 @@ struct hse_kvdb_opspec {
         (os)->kop_txn = NULL;          \
     } while (0)
 
-#define HSE_KVDB_KOP_FLAG_REVERSE 0x01     /**< reverse cursor */
-#define HSE_KVDB_KOP_FLAG_BIND_TXN 0x02    /**< cursor bound to transaction */
+#define HSE_KVDB_KOP_FLAG_REVERSE     0x01 /**< reverse cursor */
+#define HSE_KVDB_KOP_FLAG_BIND_TXN    0x02 /**< cursor bound to transaction */
 #define HSE_KVDB_KOP_FLAG_STATIC_VIEW 0x04 /**< bound cursor's view is static */
-#define HSE_KVDB_KOP_FLAG_PRIORITY 0x08    /**< op won't be throttled @see, hse_kvs_put */
+#define HSE_KVDB_KOP_FLAG_PRIORITY    0x08 /**< op won't be throttled @see, hse_kvs_put */
 
 /**@}*/
 
@@ -217,25 +214,38 @@ hse_err_to_errno(hse_err_t err);
 
 /**@}*/
 
-
 /** @name Primary Lifecycle Functions
  *        =====================================================
  * @{
  */
 
 /**
- * Create a new KVDB instance within the named mpool
+ * Create a new KVDB instance
  *
- * The mpool must already exist and the client must have permission to use the
- * mpool. This function is not thread safe.
+ * This function is not thread safe.
  *
- * @param mp_name: Mpool name
- * @param params:  Fixed configuration parameters
+ * @param kvdb_home: KVDB home directory, NULL means current working directory
+ * @param paramc: Number of configuration parameters in \p paramv
+ * @param paramv: List of parameters in key=value format
  * @return The function's error status
  */
 /* MTF_MOCK */
 hse_err_t
-hse_kvdb_make(const char *mp_name, const struct hse_params *params);
+hse_kvdb_make(const char *kvdb_home, size_t paramc, const char *const *paramv);
+
+/**
+ * Remove a KVDB
+ *
+ * It is an error to call this function on a KVDB that is open. This function is not
+ * thread safe.
+ *
+ * @param kvdb_home: KVDB home directoryy, NULL means current working directory
+ * @param paramc: Number of configuration parameters in \p paramv
+ * @param paramv: List of parameters in key=value format
+ * @return The function's error status
+ */
+hse_err_t
+hse_kvdb_drop(const char *kvdb_home, size_t paramc, const char *const *paramv);
 
 /**
  * Open an HSE KVDB for use by the application
@@ -243,14 +253,19 @@ hse_kvdb_make(const char *mp_name, const struct hse_params *params);
  * The KVDB must already exist and the client must have permission to use it. This
  * function is not thread safe.
  *
- * @param mp_name: Mpool name in which the KVDB exists
- * @param params:  Configuration parameters
- * @param kvdb:    [out] Handle to access the opened KVDB
+ * @param kvdb_home: KVDB home directory, NULL means current working directory
+ * @param paramc: Number of configuration parameters in \p paramv
+ * @param paramv: List of parameters in key=value format
+ * @param kvdb: [out] Handle to access the opened KVDB
  * @return The function's error status
  */
 /* MTF_MOCK */
 hse_err_t
-hse_kvdb_open(const char *mp_name, const struct hse_params *params, struct hse_kvdb **kvdb);
+hse_kvdb_open(
+    const char *       kvdb_home,
+    size_t             paramc,
+    const char *const *paramv,
+    struct hse_kvdb ** kvdb);
 
 /**
  * Close an open HSE KVDB
@@ -309,18 +324,23 @@ hse_kvdb_free_names(struct hse_kvdb *kvdb, char **kvs_list);
  * Create a new KVS within the referenced KVDB
  *
  * If the KVS will store multi-segment keys then the parameter "pfx_len" should be set
- * to the desired key prefix length - see hse_params_set() and related functions
- * below. Otherwise the param should be set to 0 (the default).  An error will result
- * if there is already a KVS with the given name.  This function is not thread safe.
+ * to the desired key prefix length. Otherwise the param should be set to 0 (the default).
+ * An error will result if there is already a KVS with the given name. This function is not
+ * thread safe.
  *
  * @param kvdb:     KVDB handle from hse_kvdb_open()
  * @param kvs_name: KVS name
- * @param params:   Fixed configuration parameters
+ * @param paramc:   Number of configuration parameters in \p paramv
+ * @param paramv:   List of parameters in key=value format
  * @return The function's error status
  */
 /* MTF_MOCK */
 hse_err_t
-hse_kvdb_kvs_make(struct hse_kvdb *kvdb, const char *kvs_name, const struct hse_params *params);
+hse_kvdb_kvs_make(
+    struct hse_kvdb *  kvdb,
+    const char *       kvs_name,
+    size_t             paramc,
+    const char *const *paramv);
 
 /**
  * Remove a KVS from the referenced KVDB
@@ -342,16 +362,18 @@ hse_kvdb_kvs_drop(struct hse_kvdb *kvdb, const char *kvs_name);
  *
  * @param kvdb:     KVDB handle from hse_kvdb_open()
  * @param kvs_name: KVS name
- * @param params:   Parameters that affect how the KVS will function
+ * @param paramc:   Number of configuration parameters in \p paramv
+ * @param paramv:   List of parameters in key=value format
  * @param kvs_out:  [out] handle to access the opened KVS
  * @return The function's error status
  */
 hse_err_t
 hse_kvdb_kvs_open(
-    struct hse_kvdb            *kvdb,
-    const char                 *kvs_name,
-    const struct hse_params    *params,
-    struct hse_kvs            **kvs_out);
+    struct hse_kvdb *  handle,
+    const char *       kvs_name,
+    const size_t       paramc,
+    const char *const *paramv,
+    struct hse_kvs **  kvs_out);
 
 /**
  * Close an open KVS
@@ -366,7 +388,6 @@ hse_err_t
 hse_kvdb_kvs_close(struct hse_kvs *kvs);
 
 /**@}*/
-
 
 /** @name Create / Read / Update / Delete (CRUD) Functions
  *        =====================================================
@@ -492,7 +513,6 @@ hse_kvs_prefix_delete(
     size_t *                kvs_pfx_len);
 
 /**@}*/
-
 
 /** @name Transaction Functions
  *        =====================================================
@@ -634,7 +654,6 @@ enum hse_kvdb_txn_state
 hse_kvdb_txn_get_state(struct hse_kvdb *kvdb, struct hse_kvdb_txn *txn);
 
 /**@}*/
-
 
 /** @name Cursor Functions
  *        =====================================================
@@ -832,7 +851,6 @@ hse_kvs_cursor_destroy(struct hse_kvs_cursor *cursor);
 
 /**@}*/
 
-
 /** @name Data State Management Functions
  *        =====================================================
  * @{
@@ -858,7 +876,7 @@ hse_err_t
 hse_kvdb_flush(struct hse_kvdb *kvdb);
 
 /* Flags for hse_kvdb_compact() */
-#define HSE_KVDB_COMP_FLAG_CANCEL 0x01
+#define HSE_KVDB_COMP_FLAG_CANCEL   0x01
 #define HSE_KVDB_COMP_FLAG_SAMP_LWM 0x02
 
 /**
@@ -909,115 +927,28 @@ struct hse_kvdb_compact_status {
 hse_err_t
 hse_kvdb_compact_status_get(struct hse_kvdb *kvdb, struct hse_kvdb_compact_status *status);
 
-/**@}*/
-
-
-/** @name Configuration Parameter Functions
- *        =====================================================
- * @{
+/**
+ * struct hse_kvdb_storage_info - storage info for a kvdb
  */
+struct hse_kvdb_storage_info {
+    uint64_t total_bytes;     /**< total space in the file-system containing this kvdb */
+    uint64_t available_bytes; /**< available space in the file-system containing this kvdb */
+    uint64_t allocated_bytes; /**< allocated storage space for a kvdb */
+    uint64_t used_bytes;      /**< used storage space for a kvdb */
+};
 
 /**
- * Create a params object
+ * Get storage config and stats
  *
- * This function allocates an empty params object. This object can then be populated
- * through hse_params_from_file(), hse_params_from_string(), or via hse_params_set().
- * Usage of a given params object is not thread safe.
+ * Obtain the storage paths, allocated and used space for a specified kvdb.
+ * This function is thread safe.
  *
- * @param params: [out] Configuration parameters
+ * @param kvdb: KVDB handle from hse_kvdb_open()
+ * @param info: [out] KVDB storage config and stats
  * @return The function's error status
  */
 hse_err_t
-hse_params_create(struct hse_params **params);
-
-/**
- * Destroy params object
- *
- * This function frees a params object, whether empty or populated. After it is
- * destroyed it may no longer be used.
- *
- * @param params: Configuration parameters
- */
-void
-hse_params_destroy(struct hse_params *params);
-
-/**
- * Parse params from a file
- *
- * This function takes a filename and parses it, populating the supplied params
- * object. If the file is not a valid params specification, the parsing will
- * fail. Client applications can use the experimental function hse_params_err_exp() to
- * get more information as to what problem occurred in processing the file. This
- * function is not thread safe.
- *
- * @param params: Configuration parameters
- * @param path:   Absolute path to config file
- * @return The function's error status
- */
-hse_err_t
-hse_params_from_file(struct hse_params *params, const char *path);
-
-/**
- * Parse params from a string
- *
- * This function takes a string and parses it as YAML, populating the supplied params object. If
- * the string is not a valid params specification, the parsing will fail. Client
- * applications can use the experimental function hse_params_err_exp() to get more
- * information as to what problem occurred in processing the string. This function is
- * not thread safe.
- *
- * @param params: Referenced params object
- * @param input:  Buffer with configuration
- * @return The function's error status
- */
-hse_err_t
-hse_params_from_string(struct hse_params *params, const char *input);
-
-/**
- * Set configuration parameter
- *
- * Set the parameter setting given by "key" to "value". If the "key" or "value" is
- * invalid then the call will fail. Client applications can use the experimental
- * function hse_params_err_exp() to get more information about what problem occurred.
- *
- * The following syntax is supported for keys:
- *
- *   kvdb.<param>           # param is set for the KVDB
- *   kvs.<param>            # param is set for all KVSs in the KVDB
- *   kvs.<kvs_name>.<param> # param is set for the named KVS
- *
- * This function is not thread safe.
- *
- * @param params: Referenced params object
- * @param key:    Target key
- * @param val:    Target value
- * @return The function's error status
- */
-hse_err_t
-hse_params_set(struct hse_params *params, const char *key, const char *val);
-
-/**
- * Get configuration parameter
- *
- * Obtain the value the parameter denoted by "key" is set to in the params object. If
- * the key is valid, then at most "buf_len"-1 bytes of the parameter setting will be
- * copied into "buf". If "param_len" is non-NULL, then on return the referent will
- * contain the length of the parameter value. This function is not thread safe.
- *
- * @param params:    Referenced params object
- * @param key:       Target key
- * @param buf:       Output buffer
- * @param buf_len:   Length of buffer
- * @param param_len: [out] If non-NULL this will be set to the actual parameter length + 1
- * @return The parameter's NULL-terminated string representation, possibly truncated
- */
-char *
-hse_params_get(
-    const struct hse_params    *params,
-    const char                 *key,
-    char                       *buf,
-    size_t                      buf_len,
-    size_t                     *param_len);
+hse_kvdb_storage_info_get(struct hse_kvdb *kvdb, struct hse_kvdb_storage_info *info);
 
 /**@}*/
 

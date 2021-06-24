@@ -12,9 +12,10 @@
 
 #include <hse/hse.h>
 
-#include <hse_util/hse_params_helper.h>
 #include <hse_util/inttypes.h>
 #include <hse_util/arch.h>
+
+#include <tools/parm_groups.h>
 
 const char *progname, *mp_name, *kvs_name;
 ulong       kwrite, kflush, ksync, ktxn;
@@ -23,7 +24,9 @@ size_t      vlenmin = 0;
 size_t      vlenmax = 1024;
 int         verbosity;
 
-struct hse_params *params;
+struct parm_groups *pg;
+struct svec          db_oparm;
+struct svec          kv_oparm;
 
 __attribute__((format(printf, 2, 3))) void
 herr_print(uint64_t herr, char *fmt, ...)
@@ -88,13 +91,13 @@ stuff(void)
 
     memset(val, 0, vlenmax + klen);
 
-    herr = hse_kvdb_open(mp_name, params, &kvdb);
+    herr = hse_kvdb_open(mp_name, db_oparm.strc, db_oparm.strv, &kvdb);
     if (herr) {
         herr_print(herr, "hse_kvdb_open(%s) failed: ", mp_name);
         exit(EX_NOINPUT);
     }
 
-    herr = hse_kvdb_kvs_open(kvdb, kvs_name, params, &kvs);
+    herr = hse_kvdb_kvs_open(kvdb, kvs_name, kv_oparm.strc, kv_oparm.strv, &kvs);
     if (herr) {
         herr_print(herr, "hse_kvdb_kvs_open(%s) failed: ", mp_name);
         exit(EX_NOINPUT);
@@ -243,9 +246,16 @@ main(int argc, char **argv)
 {
     uint64_t herr;
     bool     help = false;
+    int      rc;
 
     progname = strrchr(argv[0], '/');
     progname = progname ? progname + 1 : argv[0];
+
+    rc = pg_create(&pg, PG_KVDB_OPEN, PG_KVS_OPEN, NULL);
+    if (rc) {
+        eprint("pg_create failed");
+        exit(EX_OSERR);
+    }
 
     while (1) {
         char *errmsg, *end;
@@ -319,24 +329,44 @@ main(int argc, char **argv)
         }
     }
 
-    argc -= optind;
-    argv += optind;
-
     if (help) {
         usage();
         exit(0);
     }
 
-    if (argc < 2) {
+    if (argc - optind < 2) {
         syntax("insufficient arguments for mandatory parameters");
         exit(EX_USAGE);
     }
 
-    mp_name = argv[0];
-    kvs_name = argv[1];
+    mp_name  = argv[optind++];
+    kvs_name = argv[optind++];
 
-    argc -= 3;
-    argv += 3;
+    rc = pg_parse_argv(pg, argc, argv, &optind);
+    switch (rc) {
+        case 0:
+            if (optind < argc) {
+                eprint("unknown parameter: %s", argv[optind]);
+                exit(EX_USAGE);
+            }
+            break;
+        case EINVAL:
+            eprint("missing group name (e.g. %s) before parameter %s\n",
+                PG_KVDB_OPEN, argv[optind]);
+            exit(EX_USAGE);
+            break;
+        default:
+            eprint("error processing parameter %s\n", argv[optind]);
+            exit(EX_OSERR);
+            break;
+    }
+
+    rc = rc ?: svec_append_pg(&db_oparm, pg, "perfc_enable=0", PG_KVDB_OPEN, NULL);
+    rc = rc ?: svec_append_pg(&kv_oparm, pg, PG_KVS_OPEN, "transactions_enable=1", NULL);
+    if (rc) {
+        eprint("svec_append_pg failed: %d", rc);
+        exit(EX_OSERR);
+    }
 
     herr = hse_init();
     if (herr) {
@@ -344,32 +374,11 @@ main(int argc, char **argv)
         exit(EX_OSERR);
     }
 
-    hse_params_create(&params);
-    hse_params_set(params, "kvdb.perfc_enable", "0");
-    hse_params_set(params, "kvs.transactions_enable", "1");
-
-    if (argc > 0) {
-        int last;
-
-        last = 0;
-
-        herr = hse_parse_cli(argc, argv, &last, 0, params);
-        if (herr) {
-            herr_print(herr, "hse_parse_cli() failed: ");
-            hse_params_destroy(params);
-            exit(EX_OSERR);
-        }
-
-        if (last < argc) {
-            syntax("invalid kvdb/kvs parameter '%s'", argv[last]);
-            hse_params_destroy(params);
-            exit(EX_OSERR);
-        }
-    }
-
     stuff();
 
-    hse_params_destroy(params);
+    pg_destroy(pg);
+    svec_reset(&db_oparm);
+    svec_reset(&kv_oparm);
 
     hse_fini();
 

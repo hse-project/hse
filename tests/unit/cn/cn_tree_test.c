@@ -373,28 +373,28 @@ MTF_DEFINE_UTEST_PRE(test, t_create_error_paths, test_setup)
     ASSERT_TRUE(err);
 
     /* huge fanouts are invalid */
-    cp.cp_fanout = 100;
+    cp.fanout = 100;
     err = cn_tree_create(&tree, NULL, 0, &cp, &mock_health, rp);
     ASSERT_TRUE(err);
 
     /* pfx_len greater than HSE_KVS_MAX_PFXLEN is invalid */
-    cp.cp_fanout = 1 << 3;
-    cp.cp_pfx_len = HSE_KVS_MAX_PFXLEN + 1;
-    cp.cp_pfx_pivot = 2;
+    cp.fanout = 1 << 3;
+    cp.pfx_len = HSE_KVS_MAX_PFXLEN + 1;
+    cp.pfx_pivot = 2;
     err = cn_tree_create(&tree, NULL, 0, &cp, &mock_health, rp);
     ASSERT_TRUE(err);
 
     /* memory allocation */
     mapi_inject_once_ptr(api, 1, 0);
     memset(&cp, 0, sizeof(cp));
-    cp.cp_fanout = 1 << 2;
+    cp.fanout = 1 << 2;
     err = cn_tree_create(&tree, NULL, 0, &cp, &mock_health, rp);
     ASSERT_EQ(merr_errno(err), ENOMEM);
 
     /* memory allocation - khashmap */
     mapi_inject_once_ptr(api, 1, 0);
     memset(&cp, 0, sizeof(cp));
-    cp.cp_fanout = 1 << 2;
+    cp.fanout = 1 << 2;
     err = cn_tree_create(&tree, (void *)1, 0, &cp, &mock_health, rp);
     ASSERT_EQ(merr_errno(err), ENOMEM);
     mapi_inject_unset(api);
@@ -415,15 +415,15 @@ MTF_DEFINE_UTEST_PRE(test, t_simple_api, test_setup)
 
     struct cn_tree *    tree = 0;
     struct kvs_cparams *out,
-        cp = {.cp_sfx_len = 0, .cp_pfx_len = 12, .cp_fanout = 8, .cp_pfx_pivot = 0 };
+        cp = {.sfx_len = 0, .pfx_len = 12, .fanout = 8, .pfx_pivot = 0 };
 
     err = cn_tree_create(&tree, NULL, 0, &cp, &mock_health, rp);
     ASSERT_EQ(err, 0);
     ASSERT_NE(tree, NULL);
 
     out = cn_tree_get_cparams(tree);
-    ASSERT_EQ(8, out->cp_fanout);
-    ASSERT_EQ(12, out->cp_pfx_len);
+    ASSERT_EQ(8, out->fanout);
+    ASSERT_EQ(12, out->pfx_len);
 
     ASSERT_EQ(0, cn_tree_initial_dgen(tree));
 
@@ -451,8 +451,8 @@ MTF_DEFINE_UTEST_PRE(test, t_cn_tree_create_node, test_setup)
         fan = 1 << fbits;
         max_depth = cn_tree_max_depth(fbits);
 
-        cp.cp_fanout = fan;
-        cp.cp_sfx_len = 0;
+        cp.fanout = fan;
+        cp.sfx_len = 0;
         err = cn_tree_create(&tree, NULL, 0, &cp, &mock_health, rp);
         ASSERT_EQ(err, 0);
 
@@ -491,7 +491,7 @@ MTF_DEFINE_UTEST_PRE(test, t_cn_tree_create_node, test_setup)
     }
 
     struct kvs_cparams cp = {
-        .cp_fanout = 16,
+        .fanout = 16,
     };
 
     err = cn_tree_create(&tree, NULL, 0, &cp, &mock_health, rp);
@@ -503,7 +503,7 @@ MTF_DEFINE_UTEST_PRE(test, t_cn_tree_create_node, test_setup)
     ASSERT_EQ(rp, cn_tree_get_rp(tree));
     ASSERT_EQ(0x5678, cn_tree_get_cndb(tree));
     ASSERT_EQ(10, cn_tree_get_cnid(tree));
-    ASSERT_EQ(1 << 4, (cn_tree_get_cparams(tree))->cp_fanout);
+    ASSERT_EQ(1 << 4, (cn_tree_get_cparams(tree))->fanout);
 
     /* allocation failure */
     api = mapi_idx_kmem_cache_zalloc;
@@ -527,7 +527,7 @@ MTF_DEFINE_UTEST_PRE(test, t_cn_tree_ingest_update, test_setup)
     uint                     i;
 
     struct kvs_cparams cp = {
-        .cp_fanout = 1 << fanout_bits,
+        .fanout = 1 << fanout_bits,
     };
 
     err = cn_tree_create(&tree, NULL, 0, &cp, &mock_health, rp);
@@ -659,7 +659,7 @@ test_tree_create(struct test *t)
     uint               lx, nx, kx;
     struct fake_kvset *kvset;
 
-    cp.cp_fanout = 1 << t->p.fanout_bits;
+    cp.fanout = 1 << t->p.fanout_bits;
 
     err = cn_tree_create(&t->tree, NULL, 0, &cp, &mock_health, rp);
     ASSERT_TRUE_RET(err == 0, -1);
@@ -770,7 +770,7 @@ create(struct test *t)
     struct cn_tree *      tree = 0;
 
     struct kvs_cparams cp = {
-        .cp_fanout = 1 << t->p.fanout_bits,
+        .fanout = 1 << t->p.fanout_bits,
     };
 
     err = cn_tree_create(&tree, NULL, 0, &cp, &mock_health, rp);

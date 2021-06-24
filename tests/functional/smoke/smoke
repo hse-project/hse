@@ -20,7 +20,7 @@ export LOG=              # log file for current "cmd"
 exported_functions=()
 smoke_dir=$(readlink -m "${BASH_SOURCE[0]}"/..) || err "readlink"
 smoke_test_dir=$smoke_dir/tests
-mpool=
+kvdb_home=
 
 
 test_script_options=
@@ -127,10 +127,10 @@ check_tests () {
 
 exported_functions+=(destroy_all_kvs)
 destroy_all_kvs () {
-    hse1 kvdb list -v "$mp" \
+    hse1 -C "$mp" kvdb list -v \
         | awk '($1=="kvslist:") {look=1} (look && $1 == "-") {print($2)}' \
         | while read name; do
-        hse1 kvs destroy "$name" >/dev/null
+        hse1 -C "$mp" kvs destroy "$name" >/dev/null
     done
 }
 
@@ -231,16 +231,16 @@ exported_functions+=(new_kvs)
 new_kvs () {
 
     if (( $# < 1 )); then
-	err "new_kvs takes mpool name as arg"
+	err "new_kvs takes kvdb_home name as arg"
     fi
 
-    local mp=$1 # TODO: use env var
+    local mp=$1
     shift
 
     # reset counters
     local kvs_count=$(counter_increment kvs)
     local kvs_name=smoke$kvs_count
-    cmd -q hse1 kvs create "$mp/$kvs_name" "$@"
+    cmd -q hse1 -C "$mp" kvs create "$kvs_name" "$@"
     echo "$kvs_name"
 }
 
@@ -256,10 +256,16 @@ run_one_test () {
     LOG_DIR=$LOG_TOPDIR/$TEST
 
     # recreate LOG_DIR
-    rm -f "$LOG_DIR"
+    rm -fr "$LOG_DIR"
     [[ -d "$LOG_DIR" ]] && err "Cannot remove old log directory: $LOG_DIR"
     mkdir -p "$LOG_DIR" || err "Cannot create log directory: $LOG_DIR"
     touch "$LOG_DIR"/stat.start
+
+    # destroy and recreate KVDB
+    hse1 -C "$kvdb_home" kvdb destroy || true
+    hse1 -C "$kvdb_home" kvdb create ||
+        err "Cannot create KVDB" \
+            "Command: hse1 -C $kvdb_home kvdb create"
 
     local test_argc=${#test_args[@]}
 
@@ -279,7 +285,7 @@ run_one_test () {
     counter_reset kvs
 
     # set env vars for test script
-    export mp=$mpool
+    export mp=$kvdb_home
 
     case "$TEST" in
         (aloha|version) true;;
@@ -431,11 +437,11 @@ help ()
 {
     echo "$CMD: HSE smoke test tool"
     echo "Usage:"
-    echo "  $CMD -m mp1 -d logs [options] [tests...] # run tests"
+    echo "  $CMD -m home_dir -d logs [options] [tests...] # run tests"
     echo "  $CMD -r -d logs [options]                # show report"
     echo "  $CMD { -l, -L, -g }                      # show test info"
     echo "Parameters:"
-    echo "  -m MPOOL     // set mpool name"
+    echo "  -m KVDB_HOME // set kvdb home dir"
     echo "  -d DIR       // override default log directory"
     echo "  -r           // show report from previous run"
     echo "  -l           // list tests"
@@ -460,13 +466,13 @@ help ()
     echo ""
     echo "Examples:"
     echo "  # Run all smoke tests"
-    echo "  $CMD -m mp1 -d logs"
+    echo "  $CMD -m /mnt/hse-test -d logs"
     echo ""
     echo "  # Run putget1 and putget2"
-    echo "  $CMD -m mp1 -d logs putget1 putget2"
+    echo "  $CMD -m /mnt/hse-test -d logs putget1 putget2"
     echo ""
     echo "  # Run all kvt tests using shell glob expansion"
-    echo "  $CMD -m mp1 -d logs tests/functional/smoke/tests/kvt*"
+    echo "  $CMD -m /mnt/hse-test -d logs tests/functional/smoke/tests/kvt*"
 
 }
 
@@ -483,7 +489,7 @@ while getopts ":C:d:ghklLm:m:rsvV:x" option; do
 
         (d) LOG_TOPDIR=$OPTARG;;
         (k) keep_kvdb=1;;
-        (m) mpool=$OPTARG;;
+        (m) kvdb_home=$OPTARG;;
         (s) stop_on_test_fail=1;;
         (v) (( VERBOSE++ ));;
         (V) (( VERBOSE=OPTARG )); [[ "$VERBOSE" =~ ^[0-9]+$ ]] || err "Invalid verbosity value: $OPTARG";;
@@ -504,7 +510,7 @@ case "$action" in
         exit 0
         ;;
     (test)
-        [[ -n "$mpool" ]]      || syntax "Missing required parameter: -m <mpool>"
+        [[ -n "$kvdb_home" ]]      || syntax "Missing required parameter: -m <kvdb_home>"
         [[ -n "$LOG_TOPDIR" ]] || sytnax "Missing required parameter: -d <logdir>"
         ;;
     (show_report)
@@ -584,7 +590,6 @@ for arg in "${test_list[@]}"; do
 done
 
 # run tests
-rm -fr "$LOG_TOPDIR"
 mkdir -p "$LOG_TOPDIR"
 
 count=${#script_list[@]}

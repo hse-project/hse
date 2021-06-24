@@ -164,7 +164,7 @@ usage()
 int
 main(int argc, char **argv)
 {
-    char *           mp_name, *kvs_name;
+    char *           kvdb_home, *kvs_name;
     struct hse_kvdb *kvdb;
     struct hse_kvs * kvs;
     char             c;
@@ -190,7 +190,7 @@ main(int argc, char **argv)
     if (argc < 4)
         return usage();
 
-    mp_name = argv[optind++];
+    kvdb_home = argv[optind++];
     kvs_name = argv[optind++];
 
     rc = hse_init();
@@ -199,13 +199,13 @@ main(int argc, char **argv)
         exit(1);
     }
 
-    rc = hse_kvdb_open(mp_name, NULL, &kvdb);
+    rc = hse_kvdb_open(kvdb_home, 0, NULL, &kvdb);
     if (rc) {
         err_print("Cannot open kvdb: %s\n", hse_err_to_string(rc, ebuf, sizeof(ebuf), 0));
         exit(1);
     }
 
-    rc = hse_kvdb_kvs_open(kvdb, kvs_name, NULL, &kvs);
+    rc = hse_kvdb_kvs_open(kvdb, kvs_name, 0, NULL, &kvs);
     if (rc)
         exit(1);
 

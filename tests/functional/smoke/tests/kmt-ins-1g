@@ -7,7 +7,7 @@ kvs=$(new_kvs $mp) || err
 threads=$(( 2 * $(nproc) ))
 keys=1g
 
-cmd kmt -j$threads -i$keys -s1 -l50 -b $mp/$kvs kvdb.perfc_enable=1
+cmd kmt -j$threads -i$keys -s1 -l50 -b $mp $kvs
 cmd cn_metrics $mp $kvs
 
 

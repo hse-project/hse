@@ -9,6 +9,7 @@
 #include <hse_util/base.h>
 #include <hse_util/mman.h>
 
+#define SECTOR_SHIFT 9
 #define PAGE_SHIFT 12
 #define PAGE_SIZE (1UL << PAGE_SHIFT)
 #define PAGE_MASK (~(PAGE_SIZE - 1))

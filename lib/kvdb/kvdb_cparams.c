@@ -1,151 +1,230 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
-#include <hse_util/logging.h>
-#include <hse_util/platform.h>
-#include <hse_util/config.h>
-#include <hse_util/param.h>
-#include <hse_util/event_counter.h>
+#include <assert.h>
+#include <errno.h>
+#include <limits.h>
+#include <stddef.h>
 
-#include <hse_ikvdb/limits.h>
+#include <bsd/string.h>
+
+#include <mpool/mpool.h>
+#include <hse_ikvdb/home.h>
 #include <hse_ikvdb/kvdb_cparams.h>
+#include <hse_ikvdb/param.h>
+#include <hse_util/storage.h>
 
-static struct kvdb_cparams kvdb_cp_ref;
-
-#define CPARAMS_MAGIC 0x6264766b5043ul /* ascii CPkvdb */
-
-static struct param_inst kvdb_cp_table[] = {
-    PARAM_INST_U64_EXP(kvdb_cp_ref.dur_capacity, "dur_capacity", "durability capacity in MiB"),
-    PARAM_INST_END
+static const struct param_spec pspecs[] = {
+	{
+        .ps_name = "dur_capacity",
+        .ps_description = "durability capacity in MiB",
+        .ps_flags = PARAM_FLAG_EXPERIMENTAL | PARAM_FLAG_CREATE_ONLY,
+        .ps_type = PARAM_TYPE_U64,
+        .ps_offset = offsetof(struct kvdb_cparams, dur_capacity),
+        .ps_size = sizeof(((struct kvdb_cparams *) 0)->dur_capacity),
+        .ps_convert = param_default_converter,
+        .ps_validate = param_default_validator,
+        .ps_default_value = {
+            .as_uscalar = 6144 * MB, /* 6 GiB */
+        },
+        .ps_bounds = {
+            .as_uscalar = {
+                .ps_min = 0,
+                .ps_max = UINT64_MAX,
+            },
+        },
+    },
+    {
+        .ps_name = "storage.capacity.fmaxsz",
+        .ps_description = "file size in capacity mclass",
+        .ps_flags = PARAM_FLAG_EXPERIMENTAL,
+        .ps_type = PARAM_TYPE_U64,
+        .ps_offset = offsetof(struct kvdb_cparams, storage.mclass[MP_MED_CAPACITY].fmaxsz),
+        .ps_size = sizeof(((struct kvdb_cparams *) 0)->storage.mclass[MP_MED_CAPACITY].fmaxsz),
+        .ps_convert = param_convert_to_bytes_from_GB,
+        .ps_validate = param_default_validator,
+        .ps_default_value = {
+            .as_uscalar = 2048 * GB, /* 2 TiB */
+        },
+        .ps_bounds = {
+            .as_uscalar = {
+                .ps_min = 0,
+                .ps_max = UINT64_MAX,
+            }
+        }
+    },
+    {
+        .ps_name = "storage.capacity.mblocksz",
+        .ps_description = "object size in capacity mclass",
+        .ps_flags = PARAM_FLAG_EXPERIMENTAL | PARAM_FLAG_CREATE_ONLY,
+        .ps_type = PARAM_TYPE_U64,
+        .ps_offset = offsetof(struct kvdb_cparams, storage.mclass[MP_MED_CAPACITY].mblocksz),
+        .ps_size = sizeof(((struct kvdb_cparams *) 0)->storage.mclass[MP_MED_CAPACITY].mblocksz),
+        .ps_convert = param_convert_to_bytes_from_MB,
+        .ps_validate = param_default_validator,
+        .ps_default_value = {
+            .as_uscalar = 32 * MB,
+        },
+        .ps_bounds = {
+            .as_uscalar = {
+                .ps_min = 0,
+                .ps_max = UINT16_MAX,
+            }
+        }
+    },
+    {
+        .ps_name = "storage.capacity.filecnt",
+        .ps_description = "file count in capacity mclass",
+        .ps_flags = PARAM_FLAG_EXPERIMENTAL,
+        .ps_type = PARAM_TYPE_U8,
+        .ps_offset = offsetof(struct kvdb_cparams, storage.mclass[MP_MED_CAPACITY].filecnt),
+        .ps_size = sizeof(((struct kvdb_cparams *) 0)->storage.mclass[MP_MED_CAPACITY].filecnt),
+        .ps_convert = param_default_converter,
+        .ps_validate = param_default_validator,
+        .ps_default_value = {
+            .as_uscalar = 32,
+        },
+        .ps_bounds = {
+            .as_uscalar = {
+                .ps_min = 0,
+                .ps_max = UINT8_MAX,
+            },
+        }
+    },
+    {
+        .ps_name = "storage.capacity.path",
+        .ps_description = "Storage path for capacity mclass",
+        .ps_flags = PARAM_FLAG_EXPERIMENTAL | PARAM_FLAG_NULLABLE,
+        .ps_type = PARAM_TYPE_STRING,
+        .ps_offset = offsetof(struct kvdb_cparams, storage.mclass[MP_MED_CAPACITY].path),
+        .ps_convert = param_default_converter,
+        .ps_validate = param_default_validator,
+        .ps_default_value = {
+            .as_string = MPOOL_CAPACITY_MCLASS_DEFAULT_PATH,
+        },
+        .ps_bounds = {
+            .as_string = {
+                .ps_max_len = sizeof(((struct mpool_cparams *)0)->mclass[MP_MED_CAPACITY].path),
+            },
+        },
+    },
+    {
+        .ps_name = "storage.staging.fmaxsz",
+        .ps_description = "file size in staging mclass",
+        .ps_flags = PARAM_FLAG_EXPERIMENTAL,
+        .ps_type = PARAM_TYPE_U64,
+        .ps_offset = offsetof(struct kvdb_cparams, storage.mclass[MP_MED_STAGING].fmaxsz),
+        .ps_size = sizeof(((struct kvdb_cparams *) 0)->storage.mclass[MP_MED_STAGING].fmaxsz),
+        .ps_convert = param_convert_to_bytes_from_GB,
+        .ps_validate = param_default_validator,
+        .ps_default_value = {
+            .as_uscalar = 2048 * GB, /* 2 TiB */
+        },
+        .ps_bounds = {
+            .as_uscalar = {
+                .ps_min = 0,
+                .ps_max = UINT64_MAX,
+            },
+        },
+    },
+    {
+        .ps_name = "storage.staging.mblocksz",
+        .ps_description = "object size in staging mclass",
+        .ps_flags = PARAM_FLAG_EXPERIMENTAL | PARAM_FLAG_CREATE_ONLY,
+        .ps_type = PARAM_TYPE_U64,
+        .ps_offset = offsetof(struct kvdb_cparams, storage.mclass[MP_MED_STAGING].mblocksz),
+        .ps_size = sizeof(((struct kvdb_cparams *) 0)->storage.mclass[MP_MED_STAGING].mblocksz),
+        .ps_convert = param_convert_to_bytes_from_MB,
+        .ps_validate = param_default_validator,
+        .ps_default_value = {
+            .as_uscalar = 32 * MB,
+        },
+        .ps_bounds = {
+            .as_uscalar = {
+                .ps_min = 0,
+                .ps_max = UINT16_MAX,
+            },
+        },
+    },
+    {
+        .ps_name = "storage.staging.filecnt",
+        .ps_description = "file count in staging mclass",
+        .ps_flags = PARAM_FLAG_EXPERIMENTAL,
+        .ps_type = PARAM_TYPE_U8,
+        .ps_offset = offsetof(struct kvdb_cparams, storage.mclass[MP_MED_STAGING].filecnt),
+        .ps_size = sizeof(((struct kvdb_cparams *) 0)->storage.mclass[MP_MED_STAGING].filecnt),
+        .ps_convert = param_default_converter,
+        .ps_validate = param_default_validator,
+        .ps_default_value = {
+            .as_uscalar = 32,
+        },
+        .ps_bounds = {
+            .as_uscalar = {
+                .ps_min = 0,
+                .ps_max = UINT8_MAX,
+            },
+        },
+    },
+    {
+        .ps_name = "storage.staging.path",
+        .ps_description = "Storage path for staging mclass",
+        .ps_flags = PARAM_FLAG_EXPERIMENTAL | PARAM_FLAG_NULLABLE,
+        .ps_type = PARAM_TYPE_STRING,
+        .ps_offset = offsetof(struct kvdb_cparams, storage.mclass[MP_MED_STAGING].path),
+        .ps_convert = param_default_converter,
+        .ps_validate = param_default_validator,
+        .ps_default_value = {
+            .as_string = NULL,
+        },
+        .ps_bounds = {
+            .as_string = {
+                .ps_max_len = sizeof(((struct mpool_cparams *)0)->mclass[MP_MED_STAGING].path),
+            },
+        },
+    },
 };
 
-void
-kvdb_cparams_table_reset(void)
+const struct param_spec *
+kvdb_cparams_pspecs_get(size_t *pspecs_sz)
 {
-    kvdb_cp_ref = kvdb_cparams_defaults();
-}
-
-struct param_inst *
-kvdb_cparams_table(void)
-{
-    return kvdb_cp_table;
+	if (pspecs_sz)
+		*pspecs_sz = NELEM(pspecs);
+	return pspecs;
 }
 
 struct kvdb_cparams
-kvdb_cparams_defaults(void)
+kvdb_cparams_defaults()
 {
-    struct kvdb_cparams params = {
-        .dur_capacity = 6144, /*  6 GiB */
-        .cpmagic = CPARAMS_MAGIC,
-    };
-
-    return params;
+	struct kvdb_cparams params;
+    const union params p = { .as_kvdb_cp = &params };
+	param_default_populate(pspecs, NELEM(pspecs), p);
+	return params;
 }
 
-static void
-get_param_name(int index, char *buf, size_t buf_len)
+merr_t
+kvdb_cparams_resolve(struct kvdb_cparams *params, const char *home)
 {
-    char *key;
-    int   len;
+    assert(params);
+    assert(home);
 
-    key = kvdb_cp_table[index].pi_type.param_token;
-    len = strcspn(key, "=");
+    char buf[PATH_MAX];
+    size_t n;
 
-    if (len > buf_len) {
-        buf[0] = '\0';
-        return;
-    }
+    n = kvdb_home_storage_capacity_path_get(home, params->storage.mclass[MP_MED_CAPACITY].path,
+                                            buf, sizeof(buf));
+    if (n >= sizeof(buf))
+        return merr(ENAMETOOLONG);
+    strlcpy(params->storage.mclass[MP_MED_CAPACITY].path, buf,
+            sizeof(params->storage.mclass[MP_MED_CAPACITY].path));
 
-    strncpy(buf, key, len);
-    buf[len] = '\0';
-}
-
-char *
-kvdb_cparams_help(char *buf, size_t buf_sz, struct kvdb_cparams *cp)
-{
-    struct kvdb_cparams def;
-    int                 n = NELEM(kvdb_cp_table) - 1; /* skip PARAM_INST_END */
-
-    if (!cp) {
-        /* Caller did not provide the default values to be printed.
-         * Use system defaults. */
-        def = kvdb_cparams_defaults();
-        cp = &def;
-    }
-
-    return params_help(buf, buf_sz, cp, kvdb_cp_table, n, &kvdb_cp_ref);
-}
-
-int
-kvdb_cparams_validate(struct kvdb_cparams *cparams)
-{
-    if (ev(!cparams))
-        return EINVAL;
-
-    if (cparams->cpmagic != CPARAMS_MAGIC) {
-        hse_log(HSE_ERR "KVDB create-time parameters not properly "
-                        "initialized (use kvdb_cparams_defaults())");
-        return EINVAL;
-    }
+    n = kvdb_home_storage_staging_path_get(home, params->storage.mclass[MP_MED_STAGING].path,
+                                           buf, sizeof(buf));
+    if (n >= sizeof(buf))
+        return merr(ENAMETOOLONG);
+    strlcpy(params->storage.mclass[MP_MED_STAGING].path, buf,
+            sizeof(params->storage.mclass[MP_MED_STAGING].path));
 
     return 0;
-}
-
-void
-kvdb_cparams_print(struct kvdb_cparams *cparams)
-{
-    int n = NELEM(kvdb_cp_table) - 1; /* skip PARAM_INST_END */
-
-    if (ev(!cparams))
-        return;
-
-    params_print(kvdb_cp_table, n, "kvdb_cparams", cparams, &kvdb_cp_ref);
-}
-
-int
-kvdb_cparams_parse(
-    int                  argc,
-    char **              argv,
-    struct kvdb_cparams *params,
-    int *                next_arg,
-    unsigned int         flag)
-{
-    merr_t err;
-
-    kvdb_cp_ref = *params;
-
-    err = process_params(argc, argv, kvdb_cp_table, next_arg, flag);
-    if (ev(err))
-        return merr_errno(err);
-
-    *params = kvdb_cp_ref;
-
-    return 0;
-}
-
-void
-kvdb_cparams_diff(
-    struct kvdb_cparams *cp,
-    void *               arg,
-    void (*callback)(const char *, const char *, void *))
-{
-    int                 i;
-    int                 num_elems = NELEM(kvdb_cp_table) - 1;
-    struct kvdb_cparams def = kvdb_cparams_defaults();
-
-    for (i = 0; i < num_elems; i++) {
-        char   valstr[DT_PATH_ELEMENT_LEN];
-        char   param_name[DT_PATH_ELEMENT_LEN];
-        size_t n = kvdb_cp_table[i].pi_type.param_size;
-        size_t offset = (kvdb_cp_table[i].pi_value - (void *)&kvdb_cp_ref);
-
-        if (bcmp((void *)&def + offset, (void *)cp + offset, n)) {
-            get_param_name(i, param_name, sizeof(param_name));
-            kvdb_cp_table[i].pi_type.param_val_to_str(
-                valstr, sizeof(valstr), (void *)cp + offset, NELEM(valstr));
-            callback(param_name, valstr, arg);
-        }
-    }
 }

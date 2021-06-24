@@ -74,15 +74,14 @@ MTF_DEFINE_UTEST(kvdb_log_test, empty_log_test)
 {
     struct kvdb_log *log;
     merr_t           err;
-    u64              oid1, oid2;
 
     load_log("empty.klog");
 
-    err = kvdb_log_open(mock_ds, &log, O_RDWR);
+    err = kvdb_log_open(data_path, mock_ds, O_RDWR, &log);
     ASSERT_EQ(0, err);
     ASSERT_TRUE(log);
 
-    err = kvdb_log_replay(log, &oid1, &oid2);
+    err = kvdb_log_replay(log);
     ASSERT_EQ(0, err);
 
     err = kvdb_log_close(log);
@@ -118,7 +117,7 @@ MTF_DEFINE_UTEST(kvdb_log_test, orphan_test)
     ASSERT_EQ(NULL, p);
 
     mapi_inject(mapi_idx_mpool_mdc_append, 0);
-    err = kvdb_log_make(&log, 1048576);
+    err = kvdb_log_make(&log, 1048576, NULL);
     ASSERT_EQ(0, err);
     ASSERT_EQ(1048576, log.kl_captgt);
     mapi_inject_unset(mapi_idx_mpool_mdc_append);

@@ -4,12 +4,12 @@
 
 # add 3 KVSes to the KVDB
 kvs0=$(new_kvs $mp) || err
-kvs1=$(new_kvs $mp kvs.pfx_len=2) || err
-kvs2=$(new_kvs $mp kvs.pfx_len=3) || err
+kvs1=$(new_kvs $mp pfx_len=2) || err
+kvs2=$(new_kvs $mp pfx_len=3) || err
 
 keys=70000
 
-rparams="kvdb.log_squelch_ns=0"
+rparams="kvdb-oparms log_squelch_ns=0"
 
 # usage: scanfor nkeys $log $mp $kvs $opts
 scanfor() {
@@ -33,7 +33,7 @@ for kvs in $kvs0 $kvs1 $kvs2; do
 	cmd putbin -c $keys $mp $kvs $rparams
 
         # force spill
-	cmd putbin -n 1000 $mp $kvs kvdb.csched_debug_mask=0xffffffff kvs.cn_close_wait=1 kvdb.csched_rspill_params=0x01ff $rparams
+	cmd putbin -n 1000 $mp $kvs kvdb-oparms csched_debug_mask=0xffffffff cn_close_wait=1 csched_rspill_params=0x01ff $rparams
 
         # verify spill occurred
 	cmd cn_metrics $mp $kvs

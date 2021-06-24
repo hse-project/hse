@@ -23,14 +23,13 @@ def main():
     parser.add_argument("--output-dir", "-d", default="cn_tree_shapes")
 
     grp = parser.add_mutually_exclusive_group()
-    grp.add_argument("--all", action="store_true")
     grp.add_argument("--kvs", nargs="+")
     grp.add_argument("--mpool")
 
     args = parser.parse_args()
 
-    if not args.all and not args.kvs and not args.mpool:
-        print("One of --all, --kvs, or --mpool is required. Quitting.")
+    if not args.kvs and not args.mpool:
+        print("One of --kvs, or --mpool is required. Quitting.")
         sys.exit(1)
 
     if os.path.exists(args.output_dir):
@@ -38,13 +37,11 @@ def main():
         sys.exit(1)
 
     print(args.mpool)
-    if args.all or args.mpool:
+    if args.mpool:
         kvslist = []
 
         cmd = ["hse", "kvdb", "list", "-v"]
-
-        if args.mpool:
-            cmd += [args.mpool]
+        cmd += [args.mpool]
 
         out = subprocess.check_output(cmd)
         data = yaml.safe_load(out)
@@ -59,15 +56,15 @@ def main():
     sockpath = {}
 
     for kvs in kvslist:
-        mpname, kvsname = kvs.split("/")
-        socket_path = "/var/run/mpool/%s/%s.sock" % (mpname, mpname)
+        kvdbname, kvsname = kvs.split("/")
+        socket_path = os.getenv('HSE_REST_SOCK_PATH')
         url[kvs] = "http+unix://%s/mpool/%s/kvs/%s/cn/tree" % (
             socket_path.replace("/", "%2F"),
-            mpname,
+            kvdbname,
             kvsname,
         )
 
-        dirpath[kvs] = os.path.join(args.output_dir, mpname, kvsname)
+        dirpath[kvs] = os.path.join(args.output_dir, kvdbname, kvsname)
         os.makedirs(dirpath[kvs])
 
         sockpath[kvs] = socket_path

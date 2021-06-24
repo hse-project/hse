@@ -1,16 +1,17 @@
 #!/usr/bin/env python3
-'''
+"""
 A basic test fo lc cursors
 There's uncommitted data in two transactions and while the transactions are live, sync
 is called. This moves the data to LC. Then cursors are used to read data from LC.
-'''
+"""
 from contextlib import ExitStack
 
 import hse
 
-import util
+from utility import lifecycle
 
-def run_test(kvdb, kvs):
+
+def run_test(kvdb: hse.Kvdb, kvs: hse.Kvs):
     with kvdb.transaction() as t5:
         kvs.put(b"ab1", b"val1", txn=t5)
         kvs.put(b"ab2", b"val2", txn=t5)
@@ -21,9 +22,9 @@ def run_test(kvdb, kvs):
     t1 = kvdb.transaction()
     t1.begin()
 
-    kvs.put(b"aa1", b"uncommitted-aa1", txn=t0) # commit
-    kvs.put(b"aa2", b"uncommitted-aa2", txn=t0) # commit
-    kvs.put(b"aa3", b"uncommitted-aa3", txn=t1) # abort
+    kvs.put(b"aa1", b"uncommitted-aa1", txn=t0)  # commit
+    kvs.put(b"aa2", b"uncommitted-aa2", txn=t0)  # commit
+    kvs.put(b"aa3", b"uncommitted-aa3", txn=t1)  # abort
 
     val = kvs.get(b"aa1", txn=t0)
     assert val == b"uncommitted-aa1"
@@ -33,21 +34,21 @@ def run_test(kvdb, kvs):
 
         c.seek(b"aa2")
         kv = c.read()
-        assert kv == (b'aa2', b'uncommitted-aa2')
+        assert kv == (b"aa2", b"uncommitted-aa2")
         kv = c.read()
-        assert kv == (b'ab1', b'val1')
+        assert kv == (b"ab1", b"val1")
         kv = c.read()
-        assert kv == (b'ab2', b'val2')
+        assert kv == (b"ab2", b"val2")
         kv = c.read()
-        assert kv == (b'ab3', b'val3')
+        assert kv == (b"ab3", b"val3")
         c.read()
         assert c.eof
 
         c.seek(b"ab2")
         kv = c.read()
-        assert kv == (b'ab2', b'val2')
+        assert kv == (b"ab2", b"val2")
         kv = c.read()
-        assert kv == (b'ab3', b'val3')
+        assert kv == (b"ab3", b"val3")
         c.read()
         assert c.eof
 
@@ -56,21 +57,21 @@ def run_test(kvdb, kvs):
 
         c.seek(b"aa2")
         kv = c.read()
-        assert kv == (b'aa2', b'uncommitted-aa2')
+        assert kv == (b"aa2", b"uncommitted-aa2")
         kv = c.read()
-        assert kv == (b'aa1', b'uncommitted-aa1')
+        assert kv == (b"aa1", b"uncommitted-aa1")
         c.read()
         assert c.eof
 
         c.seek(b"ab2")
         kv = c.read()
-        assert kv == (b'ab2', b'val2')
+        assert kv == (b"ab2", b"val2")
         kv = c.read()
-        assert kv == (b'ab1', b'val1')
+        assert kv == (b"ab1", b"val1")
         kv = c.read()
-        assert kv == (b'aa2', b'uncommitted-aa2')
+        assert kv == (b"aa2", b"uncommitted-aa2")
         kv = c.read()
-        assert kv == (b'aa1', b'uncommitted-aa1')
+        assert kv == (b"aa1", b"uncommitted-aa1")
         c.read()
         assert c.eof
 
@@ -83,11 +84,11 @@ def run_test(kvdb, kvs):
 
     # Get from LC
     val = kvs.get(b"aa1", txn=t0)
-    assert val == b"uncommitted-aa1" # uncommitted data from current txn
+    assert val == b"uncommitted-aa1"  # uncommitted data from current txn
     val = kvs.get(b"aa3", txn=t0)
-    assert val == None # uncommitted data from some other txn
+    assert val == None  # uncommitted data from some other txn
     val = kvs.get(b"aa3", txn=t1)
-    assert val == b"uncommitted-aa3" # uncommitted data from current txn
+    assert val == b"uncommitted-aa3"  # uncommitted data from current txn
 
     t0.commit()
     t1.abort()
@@ -105,18 +106,15 @@ def run_test(kvdb, kvs):
         assert val == None
     pass
 
+
 hse.init()
+
 try:
-    p = hse.Params()
-    p.set(key="kvdb.dur_enable", value="0")  # So sync forces an ingest
-    p.set(key="kvs.transactions_enable", value="1")
-
-    with util.create_kvdb(util.get_kvdb_name(), p) as kvdb:
-        with ExitStack() as kvs_stack:
-            kvs = kvs_stack.enter_context(util.create_kvs(kvdb, "basic_lc", p))
-            run_test(kvdb, kvs)
-
+    with ExitStack() as stack:
+        kvdb_ctx = lifecycle.KvdbContext().rparams("dur_enable=0")
+        kvdb = stack.enter_context(kvdb_ctx)
+        kvs_ctx = lifecycle.KvsContext(kvdb, "basic_lc").rparams("transactions_enable=1")
+        kvs = stack.enter_context(kvs_ctx)
+        run_test(kvdb, kvs)
 finally:
     hse.fini()
-
-

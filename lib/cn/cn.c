@@ -301,11 +301,11 @@ cn_get_ingest_perfc(const struct cn *cn)
 }
 
 u32
-cn_cp2cflags(struct kvs_cparams *cp)
+cn_cp2cflags(const struct kvs_cparams *cp)
 {
     u32 flags = 0;
 
-    if (cp->cp_kvs_ext01)
+    if (cp->kvs_ext01)
         flags |= CN_CFLAG_CAPPED;
 
     return flags;
@@ -339,7 +339,7 @@ cn_get_cparams(const struct cn *handle)
 size_t
 cn_get_sfx_len(struct cn *cn)
 {
-    return cn->cp->cp_sfx_len;
+    return cn->cp->sfx_len;
 }
 
 /*----------------------------------------------------------------
@@ -1063,7 +1063,7 @@ cn_perfc_alloc(struct cn *cn)
     };
 
     i = snprintf(
-        name_buf, sizeof(name_buf), "%s%s%s", cn->cn_mpname, IKVDB_SUB_NAME_SEP, cn->cn_kvsname);
+        name_buf, sizeof(name_buf), "%s%s%s", cn->cn_kvdbhome, IKVDB_SUB_NAME_SEP, cn->cn_kvsname);
 
     if (i >= sizeof(name_buf)) {
         hse_log(HSE_WARNING "cn perfc name buffer too small");
@@ -1121,7 +1121,7 @@ cn_open(
     struct cndb *       cndb,
     u64                 cnid,
     struct kvs_rparams *rp,
-    const char *        mp_name,
+    const char *        kvdb_home,
     const char *        kvs_name,
     struct kvdb_health *health,
     uint                flags,
@@ -1137,20 +1137,20 @@ cn_open(
     uint64_t    mperr, staging_absent;
 
     struct cn_kvsetmk_ctx ctx = { 0 };
-    struct mpool_params   mpool_params;
+    struct mpool_props    mpprops;
     struct merr_info      ei;
 
     assert(ds);
     assert(kvs);
     assert(cndb);
-    assert(mp_name);
+    assert(kvdb_home);
     assert(kvs_name);
     assert(health);
     assert(cn_out);
 
-    mperr = mpool_params_get(ds, &mpool_params, NULL);
+    mperr = mpool_props_get(ds, &mpprops);
     if (mperr) {
-        hse_log(HSE_ERR "mpool_params_get error %s\n", merr_info(mperr, &ei));
+        hse_log(HSE_ERR "mpool_props_get error %s\n", merr_info(mperr, &ei));
         return merr_errno(mperr);
     }
 
@@ -1170,7 +1170,7 @@ cn_open(
         *rp = kvs_rparams_defaults();
     }
 
-    strlcpy(cn->cn_mpname, mp_name, sizeof(cn->cn_mpname));
+    strlcpy(cn->cn_kvdbhome, kvdb_home, sizeof(cn->cn_kvdbhome));
     strlcpy(cn->cn_kvsname, kvs_name, sizeof(cn->cn_kvsname));
 
     cn->cn_kvdb = cn_kvdb;
@@ -1182,12 +1182,12 @@ cn_open(
     cn->cn_cnid = cnid;
     cn->cn_cflags = kvdb_kvs_flags(kvs);
     cn->cn_kvdb_health = health;
-    cn->cn_mpool_params = mpool_params;
+    cn->cn_mpool_props = mpprops;
 
     /* Compute hash of kvs name, but don't let it be 0. */
     cn->cn_hash = 1 | key_hash64(kvs_name, strlen(kvs_name));
 
-    staging_absent = mpool_mclass_get(ds, MP_MED_STAGING, NULL);
+    staging_absent = mpool_mclass_props_get(ds, MP_MED_STAGING, NULL);
     if (staging_absent) {
         if (strcmp(rp->mclass_policy, "capacity_only")) {
             hse_log(
@@ -1272,15 +1272,15 @@ cn_open(
         HSE_NOTICE "cn_open %s/%s replay %d fanout %u "
                    "pfx_len %u pfx_pivot %u cnid %lu depth %u/%u %s "
                    "kb %lu%c/%lu vb %lu%c/%lu",
-        cn->cn_mpname,
+        cn->cn_kvdbhome,
         cn->cn_kvsname,
         cn->cn_replay,
-        cn->cp->cp_fanout,
-        cn->cp->cp_pfx_len,
-        cn->cp->cp_pfx_pivot,
+        cn->cp->fanout,
+        cn->cp->pfx_len,
+        cn->cp->pfx_pivot,
         (ulong)cnid,
         ctx.ckmk_node_level_max,
-        cn_tree_max_depth(ilog2(cn->cp->cp_fanout)),
+        cn_tree_max_depth(ilog2(cn->cp->fanout)),
         cn_is_capped(cn) ? "capped" : "!capped",
         ksz >> (kshift * 10),
         *kszsuf,
@@ -1507,7 +1507,7 @@ cn_cursor_create(
     struct cursor_summary *summary,
     struct cn_cursor **    cursorp)
 {
-    int           ct_pfx_len = cn->cp->cp_pfx_len;
+    int           ct_pfx_len = cn->cp->pfx_len;
     int           attempts = 5;
     merr_t        err;
 
@@ -1663,7 +1663,7 @@ cn_cursor_active_kvsets(struct cn_cursor *cursor, u32 *active, u32 *total)
 }
 
 merr_t
-cn_make(struct mpool *ds, struct kvs_cparams *cp, struct kvdb_health *health)
+cn_make(struct mpool *ds, const struct kvs_cparams *cp, struct kvdb_health *health)
 {
     merr_t             err;
     struct cn_tree *   tree;
@@ -1675,7 +1675,7 @@ cn_make(struct mpool *ds, struct kvs_cparams *cp, struct kvdb_health *health)
     assert(cp);
     assert(health);
 
-    switch (cp->cp_fanout) {
+    switch (cp->fanout) {
         case 2:
             fanout_bits = 1;
             break;
@@ -1697,10 +1697,10 @@ cn_make(struct mpool *ds, struct kvs_cparams *cp, struct kvdb_health *health)
      */
     rp = kvs_rparams_defaults();
 
-    icp.cp_fanout = 1 << fanout_bits;
-    icp.cp_pfx_len = cp->cp_pfx_len;
-    icp.cp_sfx_len = cp->cp_sfx_len;
-    icp.cp_pfx_pivot = cp->cp_pfx_pivot;
+    icp.fanout = 1 << fanout_bits;
+    icp.pfx_len = cp->pfx_len;
+    icp.sfx_len = cp->sfx_len;
+    icp.pfx_pivot = cp->pfx_pivot;
 
     err = cn_tree_create(&tree, NULL, cn_cp2cflags(cp), &icp, health, &rp);
     if (!err)
@@ -1710,17 +1710,17 @@ cn_make(struct mpool *ds, struct kvs_cparams *cp, struct kvdb_health *health)
 }
 
 u64
-cn_mpool_dev_zone_alloc_unit_default(struct cn *cn, enum mp_media_classp mclass)
+cn_mpool_dev_zone_alloc_unit_default(struct cn *cn, enum mpool_mclass mclass)
 {
-    return cn->cn_mpool_params.mp_mblocksz[mclass] << 20;
+    return cn->cn_mpool_props.mp_mblocksz[mclass] << 20;
 }
 
 u64
-cn_vma_mblock_max(struct cn *cn, enum mp_media_classp mclass)
+cn_vma_mblock_max(struct cn *cn, enum mpool_mclass mclass)
 {
     u64 vma_size_max, mblocksz;
 
-    vma_size_max = 1ul << cn->cn_mpool_params.mp_vma_size_max;
+    vma_size_max = 1ul << cn->cn_mpool_props.mp_vma_size_max;
     mblocksz = cn_mpool_dev_zone_alloc_unit_default(cn, mclass);
 
     assert(mblocksz > 0);

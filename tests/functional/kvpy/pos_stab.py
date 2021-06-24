@@ -1,22 +1,16 @@
 #!/usr/bin/env python3
-from contextlib import ExitStack
 
 import hse
 
-import util
+from utility import lifecycle
 
 
 hse.init()
 
 try:
-    p = hse.Params()
-    p.set(key="kvdb.dur_enable", value="0")  # So sync forces an ingest
-
-    with util.create_kvdb(util.get_kvdb_name(), p) as kvdb:
-        with ExitStack() as kvs_stack:
-            # Test 1: Update after seek. Seek can be to an existing key or non-existent key
-            kvs = kvs_stack.enter_context(util.create_kvs(kvdb, "pos_stab_1", p))
-
+    with lifecycle.KvdbContext().rparams("dur_enable=0") as kvdb:
+        # Test 1: Update after seek. Seek can be to an existing key or non-existent key
+        with lifecycle.KvsContext(kvdb, "pos_stab-1") as kvs:
             kvs.put(b"a", b"1")
             kvs.put(b"b", b"2")
             kvs.put(b"d", b"4")
@@ -38,12 +32,9 @@ try:
             kv = cursor.read()
             assert kv == (b"d", b"4")
             cursor.destroy()
-            kvs.close()
 
-            # Test 2: Read keys across c0/cn
-            p.set(key="kvs.pfx_len", value="2")
-            kvs = kvs_stack.enter_context(util.create_kvs(kvdb, "pos_stab_2", p))
-
+        # Test 2: Read keys across c0/cn
+        with lifecycle.KvsContext(kvdb, "pos_stab-2") as kvs:
             kvs.put(b"ab1", b"1")
             kvdb.sync()
             kvs.put(b"ab2", b"2")
@@ -77,11 +68,10 @@ try:
             assert cursor.eof
             cursor.destroy()
 
-            # Test 3: Read keys across c0/cn, with key update.
-            p.set(key="kvs.pfx_len", value="1")
-            p.set(key="kvs.transactions_enable", value="1")
-            kvs = kvs_stack.enter_context(util.create_kvs(kvdb, "pos_stab_3", p))
-
+        # Test 3: Read keys across c0/cn, with key update.
+        with lifecycle.KvsContext(kvdb, "pos_stab-3").cparams("pfx_len=1").rparams(
+            "transactions_enable=1"
+        ) as kvs:
             with kvdb.transaction() as txn:
                 kvs.put(b"a1a", b"1", txn=txn)
                 kvs.put(b"a1b", b"2", txn=txn)

@@ -18,7 +18,7 @@ struct blk_list;
 struct kvs_rparams;
 struct cn_merge_stats;
 
-enum mp_media_classp;
+enum mpool_mclass;
 enum hse_mclass_policy_age;
 
 struct kbb_key_stats {
@@ -59,11 +59,10 @@ struct kbb_key_stats {
  * @builder_out: builder handle (output)
  * @cn: cn in which kblocks will be created
  * @pc: perf counters
- * @flags: kvset builder flags
  */
 /* MTF_MOCK */
 merr_t
-kbb_create(struct kblock_builder **bld_out, struct cn *cn, struct perfc_set *pc, uint flags);
+kbb_create(struct kblock_builder **bld_out, struct cn *cn, struct perfc_set *pc);
 
 /**
  * kbb_destroy() - Destroy a kblock builder
@@ -131,7 +130,7 @@ kbb_finish(struct kblock_builder *bld, struct blk_list *kblks, u64 seqno_min, u6
 
 /* MTF_MOCK */
 size_t
-kbb_estimate_alen(struct cn *cn, size_t wlen, enum mp_media_classp mclass);
+kbb_estimate_alen(struct cn *cn, size_t wlen, enum mpool_mclass mclass);
 
 void
 kbb_set_agegroup(struct kblock_builder *bld, enum hse_mclass_policy_age age);

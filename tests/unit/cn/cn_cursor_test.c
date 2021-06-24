@@ -294,7 +294,7 @@ MTF_DEFINE_UTEST_PREPOST(cn_cursor, create_prefix, pre, post)
 
     merr_t err;
 
-    err = cndb_init(&cndb, ds, true, 0, CNDB_ENTRIES, 0, 0, &health);
+    err = cndb_init(&cndb, ds, true, 0, CNDB_ENTRIES, 0, 0, &health, 0);
     ASSERT_EQ(err, 0);
     cndb.cndb_cnc = 1;
     cndb.cndb_cnv[0] = &cndbcn;
@@ -304,7 +304,7 @@ MTF_DEFINE_UTEST_PREPOST(cn_cursor, create_prefix, pre, post)
 
     kk.kk_parent = dummy_ikvdb_create();
     kk.kk_cparams = &cp;
-    kk.kk_cparams->cp_fanout = 1 << 3;
+    kk.kk_cparams->fanout = 1 << 3;
 
     err = cn_open(0, ds, &kk, &cndb, 0, &rp, "mp", "kvs", &health, 0, &cn);
     ASSERT_EQ(err, 0);
@@ -333,7 +333,7 @@ MTF_DEFINE_UTEST_PREPOST(cn_cursor, create_noprefix, pre, post)
     struct kvdb_kvs    kk = { 0 };
     struct kvs_cparams cp = {};
 
-    err = cndb_init(&cndb, ds, true, 0, CNDB_ENTRIES, 0, 0, &health);
+    err = cndb_init(&cndb, ds, true, 0, CNDB_ENTRIES, 0, 0, &health, 0);
     ASSERT_EQ(err, 0);
 
     cndb.cndb_cnc = 1;
@@ -344,7 +344,7 @@ MTF_DEFINE_UTEST_PREPOST(cn_cursor, create_noprefix, pre, post)
 
     kk.kk_parent = dummy_ikvdb_create();
     kk.kk_cparams = &cp;
-    kk.kk_cparams->cp_fanout = 1 << 3;
+    kk.kk_cparams->fanout = 1 << 3;
 
     err = cn_open(0, ds, &kk, &cndb, 0, &rp, "mp", "kvs", &health, 0, &cn);
     ASSERT_EQ(err, 0);
@@ -387,7 +387,7 @@ MTF_DEFINE_UTEST_PREPOST(cn_cursor, repeat_update, pre, post)
     mk = ITV_KVSET_MOCK(itv[0]);
     mapi_inject(mapi_idx_cn_tree_initial_dgen, mk->dgen);
 
-    err = cndb_init(&cndb, ds, true, 0, CNDB_ENTRIES, 0, 0, &health);
+    err = cndb_init(&cndb, ds, true, 0, CNDB_ENTRIES, 0, 0, &health, 0);
     ASSERT_EQ(err, 0);
 
     cndb.cndb_cnc = 1;
@@ -398,7 +398,7 @@ MTF_DEFINE_UTEST_PREPOST(cn_cursor, repeat_update, pre, post)
 
     kk.kk_parent = dummy_ikvdb_create();
     kk.kk_cparams = &cp;
-    kk.kk_cparams->cp_fanout = 1 << 3;
+    kk.kk_cparams->fanout = 1 << 3;
 
     err = cn_open(0, ds, &kk, &cndb, 0, &rp, "mp", "kvs", &health, 0, &cn);
     ASSERT_EQ(err, 0);
@@ -474,7 +474,7 @@ MTF_DEFINE_UTEST_PREPOST(cn_cursor, root_1kvset, pre, post)
     mk = ITV_KVSET_MOCK(itv[0]);
     mapi_inject(mapi_idx_cn_tree_initial_dgen, mk->dgen);
 
-    err = cndb_init(&cndb, ds, true, 0, CNDB_ENTRIES, 0, 0, &health);
+    err = cndb_init(&cndb, ds, true, 0, CNDB_ENTRIES, 0, 0, &health, 0);
     ASSERT_EQ(err, 0);
 
     cndb.cndb_cnc = 1;
@@ -485,7 +485,7 @@ MTF_DEFINE_UTEST_PREPOST(cn_cursor, root_1kvset, pre, post)
 
     kk.kk_parent = dummy_ikvdb_create();
     kk.kk_cparams = &cp;
-    kk.kk_cparams->cp_fanout = 1 << 3;
+    kk.kk_cparams->fanout = 1 << 3;
 
     err = cn_open(0, ds, &kk, &cndb, 0, &rp, "mp", "kvs", &health, 0, &cn);
     ASSERT_EQ(err, 0);
@@ -569,7 +569,7 @@ MTF_DEFINE_UTEST_PREPOST(cn_cursor, root_4kvsets, pre, post)
     mapi_inject(mapi_idx_cn_tree_initial_dgen, mk->dgen);
     mapi_inject_ptr(mapi_idx_ikvdb_get_csched, NULL);
 
-    err = cndb_init(&cndb, ds, true, 0, CNDB_ENTRIES, 0, 0, &health);
+    err = cndb_init(&cndb, ds, true, 0, CNDB_ENTRIES, 0, 0, &health, 0);
     ASSERT_EQ(err, 0);
 
     cndb.cndb_cnc = 1;
@@ -580,7 +580,7 @@ MTF_DEFINE_UTEST_PREPOST(cn_cursor, root_4kvsets, pre, post)
 
     kk.kk_parent = dummy_ikvdb_create();
     kk.kk_cparams = &cp;
-    kk.kk_cparams->cp_fanout = 1 << 3;
+    kk.kk_cparams->fanout = 1 << 3;
 
     err = cn_open(0, ds, &kk, &cndb, 0, &rp, "mp", "kvs", &health, 0, &cn);
     ASSERT_EQ(err, 0);
@@ -718,7 +718,7 @@ MTF_DEFINE_UTEST_PREPOST(cn_cursor, prefix_tree, pre, post)
     mapi_inject(mapi_idx_cn_tree_initial_dgen, mk->dgen);
     mapi_inject_ptr(mapi_idx_ikvdb_get_csched, NULL);
 
-    err = cndb_init(&cndb, ds, true, 0, CNDB_ENTRIES, 0, 0, &health);
+    err = cndb_init(&cndb, ds, true, 0, CNDB_ENTRIES, 0, 0, &health, 0);
     ASSERT_EQ(err, 0);
 
     cndb.cndb_cnc = 1;
@@ -729,7 +729,7 @@ MTF_DEFINE_UTEST_PREPOST(cn_cursor, prefix_tree, pre, post)
 
     kk.kk_parent = dummy_ikvdb_create();
     kk.kk_cparams = &cp;
-    kk.kk_cparams->cp_fanout = 1 << 2;
+    kk.kk_cparams->fanout = 1 << 2;
 
     err = cn_open(0, ds, &kk, &cndb, 0, &rp, "mp", "kvs", &health, 0, &cn);
     ASSERT_EQ(err, 0);
@@ -873,7 +873,7 @@ MTF_DEFINE_UTEST_PREPOST(cn_cursor, cursor_seek, pre, post)
     mk = ITV_KVSET_MOCK(itv[7]);
     mapi_inject(mapi_idx_cn_tree_initial_dgen, mk->dgen);
 
-    err = cndb_init(&cndb, ds, true, 0, CNDB_ENTRIES, 0, 0, &health);
+    err = cndb_init(&cndb, ds, true, 0, CNDB_ENTRIES, 0, 0, &health, 0);
     ASSERT_EQ(err, 0);
 
     cndb.cndb_cnc = 1;
@@ -884,7 +884,7 @@ MTF_DEFINE_UTEST_PREPOST(cn_cursor, cursor_seek, pre, post)
 
     kk.kk_parent = dummy_ikvdb_create();
     kk.kk_cparams = &cp;
-    kk.kk_cparams->cp_fanout = 1 << 2;
+    kk.kk_cparams->fanout = 1 << 2;
 
     err = cn_open(0, ds, &kk, &cndb, 0, &rp, "mp", "kvs", &health, 0, &cn);
     ASSERT_EQ(err, 0);
@@ -994,7 +994,7 @@ MTF_DEFINE_UTEST_PREPOST(cn_cursor, capped_update, pre, post)
     mk = ITV_KVSET_MOCK(itv[initial_kvset_cnt - 1]);
     mapi_inject(mapi_idx_cn_tree_initial_dgen, mk->dgen);
 
-    err = cndb_init(&cndb, ds, true, 0, CNDB_ENTRIES, 0, 0, &health);
+    err = cndb_init(&cndb, ds, true, 0, CNDB_ENTRIES, 0, 0, &health, 0);
     ASSERT_EQ(err, 0);
 
     cndb.cndb_cnc = 1;
@@ -1005,8 +1005,8 @@ MTF_DEFINE_UTEST_PREPOST(cn_cursor, capped_update, pre, post)
 
     kk.kk_parent = dummy_ikvdb_create();
     kk.kk_cparams = &cp;
-    kk.kk_cparams->cp_fanout = 1 << 3;
-    kk.kk_cparams->cp_kvs_ext01 = 1;
+    kk.kk_cparams->fanout = 1 << 3;
+    kk.kk_cparams->kvs_ext01 = 1;
     kk.kk_flags = CN_CFLAG_CAPPED;
 
     err = cn_open(0, ds, &kk, &cndb, 0, &rp, "mp", "kvs", &health, 0, &cn);
@@ -1144,7 +1144,7 @@ MTF_DEFINE_UTEST_PREPOST(cn_cursor, capped_update_errors, pre, post)
     mk = ITV_KVSET_MOCK(itv[initial_kvset_cnt - 1]);
     mapi_inject(mapi_idx_cn_tree_initial_dgen, mk->dgen);
 
-    err = cndb_init(&cndb, ds, true, 0, CNDB_ENTRIES, 0, 0, &health);
+    err = cndb_init(&cndb, ds, true, 0, CNDB_ENTRIES, 0, 0, &health, 0);
     ASSERT_EQ(err, 0);
 
     cndb.cndb_cnc = 1;
@@ -1155,8 +1155,8 @@ MTF_DEFINE_UTEST_PREPOST(cn_cursor, capped_update_errors, pre, post)
 
     kk.kk_parent = dummy_ikvdb_create();
     kk.kk_cparams = &cp;
-    kk.kk_cparams->cp_fanout = 1 << 3;
-    kk.kk_cparams->cp_kvs_ext01 = 1;
+    kk.kk_cparams->fanout = 1 << 3;
+    kk.kk_cparams->kvs_ext01 = 1;
     kk.kk_flags = CN_CFLAG_CAPPED;
 
     err = cn_open(0, ds, &kk, &cndb, 0, &rp, "mp", "kvs", &health, 0, &cn);

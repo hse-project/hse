@@ -10,13 +10,11 @@ target=${1}
 inputs="${3}/inputs"
 depfile=${2}
 project_root=${4}
-mpool_includes=${5}
 
 echo "mapi-idx-generate: " > $depfile
 
 # Get a sorted list of input files
 find $project_root -type f -name '*.h' -print0 | sort -z | tee --append $depfile > "$inputs"
-find $mpool_includes -type f -name '*.h' -print0 | sort -z | tee --append $depfile >> "$inputs"
 
 sed -i "s/\x00/\n/g" $depfile
 

@@ -17,7 +17,7 @@ args+=(--verify=100)
 args+=(--cursor)
 args+=(--kmin=8)
 args+=(--kmax=8)
-args+=(kvs.cn_compaction_debug=3)
+args+=(kvs-oparms cn_compaction_debug=3)
 
 cmd longtest $mp $kvs "${args[@]}"
 cmd cn_metrics $mp $kvs

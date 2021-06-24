@@ -41,12 +41,12 @@ void
 c0sk_perfc_alloc(struct c0sk_impl *self)
 {
     if (perfc_ctrseti_alloc(
-            COMPNAME, self->c0sk_mpname, c0sk_perfc_op, PERFC_EN_C0SKOP, "set", &self->c0sk_pc_op))
+            COMPNAME, self->c0sk_kvdbhome, c0sk_perfc_op, PERFC_EN_C0SKOP, "set", &self->c0sk_pc_op))
         hse_log(HSE_ERR "cannot alloc c0sk op perf counters");
 
     if (perfc_ctrseti_alloc(
             COMPNAME,
-            self->c0sk_mpname,
+            self->c0sk_kvdbhome,
             c0sk_perfc_ingest,
             PERFC_EN_C0SKING,
             "set",
@@ -501,7 +501,7 @@ c0sk_open(
 
     c0sk->c0sk_kvdb_seq = kvdb_seq;
 
-    strlcpy(c0sk->c0sk_mpname, mp_name, sizeof(c0sk->c0sk_mpname));
+    strlcpy(c0sk->c0sk_kvdbhome, mp_name, sizeof(c0sk->c0sk_kvdbhome));
 
     CDS_INIT_LIST_HEAD(&c0sk->c0sk_kvmultisets);
     INIT_LIST_HEAD(&c0sk->c0sk_sync_waiters);

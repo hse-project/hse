@@ -202,21 +202,21 @@ tree_iter_next(struct cn_tree *tree, struct tree_iter *iter)
              *   the decision until we know if prev is last
              *   non-null child.
              */
-            for (child = 1; child <= cp->cp_fanout; child++)
+            for (child = 1; child <= cp->fanout; child++)
                 if (prev == node->tn_childv[child - 1])
                     break;
         }
 
         /* Search for next non-null child. */
-        while (child < cp->cp_fanout && !node->tn_childv[child])
+        while (child < cp->fanout && !node->tn_childv[child])
             child++;
 
         /* Now make bottomup visit decision */
-        if (!iter->topdown && child == cp->cp_fanout)
+        if (!iter->topdown && child == cp->fanout)
             visit = node;
 
         prev = node;
-        node = (child < cp->cp_fanout ? node->tn_childv[child] : node->tn_parent);
+        node = (child < cp->fanout ? node->tn_childv[child] : node->tn_parent);
     }
 
     iter->prev = prev;
@@ -229,7 +229,7 @@ static inline u32
 path_step_to_target(struct cn_tree *tree, struct cn_node_loc *tgt, u32 curr_level)
 {
     u32 shift = 0, child_branch;
-    u32 fanout_bits = ilog2(tree->ct_cp->cp_fanout);
+    u32 fanout_bits = ilog2(tree->ct_cp->fanout);
 
     if (tgt->node_level > curr_level)
         shift = fanout_bits * (tgt->node_level - 1 - curr_level);
@@ -277,7 +277,7 @@ cn_node_alloc(struct cn_tree *tree, uint level, uint offset)
         u64 scale;
         u64 hi = tree->rp->cn_node_size_hi << 20;
         u64 lo = tree->rp->cn_node_size_lo << 20;
-        u64 nodes = nodes_in_level(ilog2(tree->ct_cp->cp_fanout), level);
+        u64 nodes = nodes_in_level(ilog2(tree->ct_cp->fanout), level);
 
         /* Scale by large value (1<<20) to get adequate resolution. */
         assert(nodes);
@@ -285,7 +285,7 @@ cn_node_alloc(struct cn_tree *tree, uint level, uint offset)
         tn->tn_size_max = lo + ((scale * (hi - lo)) >> 20);
     }
 
-    tn->tn_pfx_spill = tree->ct_pfx_len > 0 && level < tree->ct_cp->cp_pfx_pivot;
+    tn->tn_pfx_spill = tree->ct_pfx_len > 0 && level < tree->ct_cp->pfx_pivot;
 
     return tn;
 }
@@ -366,10 +366,10 @@ cn_tree_create(
 
     assert(health);
 
-    if (ev(cp->cp_fanout < 1 << CN_FANOUT_BITS_MIN || cp->cp_fanout > 1 << CN_FANOUT_BITS_MAX))
+    if (ev(cp->fanout < 1 << CN_FANOUT_BITS_MIN || cp->fanout > 1 << CN_FANOUT_BITS_MAX))
         return merr(EINVAL);
 
-    if (ev(cp->cp_pfx_len > HSE_KVS_MAX_PFXLEN))
+    if (ev(cp->pfx_len > HSE_KVS_MAX_PFXLEN))
         return merr(EINVAL);
 
     tree = alloc_aligned(sizeof(*tree), alignof(*tree));
@@ -378,10 +378,10 @@ cn_tree_create(
 
     memset(tree, 0, sizeof(*tree));
     tree->ct_cp = cp;
-    tree->ct_fanout_bits = ilog2(cp->cp_fanout);
-    tree->ct_fanout_mask = tree->ct_cp->cp_fanout - 1;
-    tree->ct_pfx_len = cp->cp_pfx_len;
-    tree->ct_sfx_len = cp->cp_sfx_len;
+    tree->ct_fanout_bits = ilog2(cp->fanout);
+    tree->ct_fanout_mask = tree->ct_cp->fanout - 1;
+    tree->ct_pfx_len = cp->pfx_len;
+    tree->ct_sfx_len = cp->sfx_len;
 
     if (tstate) {
         struct cn_khashmap *khm = &tree->ct_khmbuf;
@@ -879,7 +879,7 @@ cn_tree_samp_update_ingest(struct cn_tree *tree, struct cn_tree_node *tn)
 static void
 cn_tree_samp_update_spill(struct cn_tree *tree, struct cn_tree_node *tn)
 {
-    uint fanout = tree->ct_cp->cp_fanout;
+    uint fanout = tree->ct_cp->fanout;
     uint i;
 
     /* A spill is esentially a compaction with an ingest into each child */
@@ -2937,11 +2937,11 @@ cn_comp_commit_spill(struct cn_compaction_work *work, struct kvset **kvsets)
     struct spill_child *     childv;
 
     /* Precondition: n_outputs == tree fanout */
-    assert(work->cw_outc == tree->ct_cp->cp_fanout);
-    if (ev(work->cw_outc != tree->ct_cp->cp_fanout))
+    assert(work->cw_outc == tree->ct_cp->fanout);
+    if (ev(work->cw_outc != tree->ct_cp->fanout))
         return merr(EBUG);
 
-    childv = calloc(tree->ct_cp->cp_fanout, sizeof(*childv));
+    childv = calloc(tree->ct_cp->fanout, sizeof(*childv));
     if (!childv)
         return merr(EBUG);
 

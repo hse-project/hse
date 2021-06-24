@@ -9,5 +9,3 @@ cmd -s 9  kvt -T60,$((cpus * 2)) -ccv -l8 -m1 -K9,10,20 $mp
 cmd -s 9  kvt -T60,$((cpus * 2)) -ccv -l8 -m1 -K9,15,25 $mp
 
 cmd kvt -cv $mp
-  
-

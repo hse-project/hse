@@ -85,7 +85,7 @@ main(int argc, char **argv)
     char             data[4096];
     uint32_t *       seq;
     struct hse_kvdb *kvdb;
-    void *           h;
+    struct hse_kvs * kvs;
     int              keylen, cnt, start, alen, every, rdm;
     int              i, c, last;
     u64              rc;
@@ -155,11 +155,11 @@ main(int argc, char **argv)
     if (rc)
         fatal(rc, "failed to initialize kvdb");
 
-    rc = hse_kvdb_open(mpname, NULL, &kvdb);
+    rc = hse_kvdb_open(mpname, 0, NULL, &kvdb);
     if (rc)
         fatal(rc, "cannot open kvdb %s/%s", mpname);
 
-    rc = hse_kvdb_kvs_open(kvdb, kvsname, NULL, (struct hse_kvs **)&h);
+    rc = hse_kvdb_kvs_open(kvdb, kvsname, 0, NULL, &kvs);
     if (rc)
         fatal(rc, "cannot open kvs %s/%s", mpname, kvsname);
 
@@ -188,7 +188,7 @@ main(int argc, char **argv)
         vlen = keylen;
         val = data;
 
-        rc = hse_kvs_put(h, &opspec, key, klen, val, vlen);
+        rc = hse_kvs_put(kvs, &opspec, key, klen, val, vlen);
         if (rc)
             fatal(rc, "hse_kvs_put");
     }

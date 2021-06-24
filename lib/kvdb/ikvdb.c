@@ -23,6 +23,8 @@
 #include <hse_util/xrand.h>
 #include <hse_util/bkv_collection.h>
 
+#include <hse_ikvdb/config.h>
+#include <hse_ikvdb/argv.h>
 #include <hse_ikvdb/ikvdb.h>
 #include <hse_ikvdb/kvdb_health.h>
 #include <hse_ikvdb/kvs.h>
@@ -46,8 +48,12 @@
 #include <hse_ikvdb/throttle.h>
 #include <hse_ikvdb/throttle_perfc.h>
 #include <hse_ikvdb/rparam_debug_flags.h>
-#include <hse_ikvdb/hse_params_internal.h>
 #include <hse_ikvdb/mclass_policy.h>
+#include <hse_ikvdb/kvdb_cparams.h>
+#include <hse_ikvdb/kvdb_dparams.h>
+#include <hse_ikvdb/kvdb_rparams.h>
+#include <hse_ikvdb/kvs_cparams.h>
+#include <hse_ikvdb/kvs_rparams.h>
 #include "kvdb_omf.h"
 
 #include "kvdb_log.h"
@@ -58,13 +64,14 @@
 #include <mpool/mpool.h>
 
 #include <xxhash.h>
-#if CJSON_FROM_SUBPROJECT == 1
+#ifdef WITH_CJSON_FROM_SUBPROJECT
 #include <cJSON.h>
 #else
 #include <cjson/cJSON.h>
 #endif
+#include <bsd/libutil.h>
+
 #include "kvdb_rest.h"
-#include "kvdb_params.h"
 
 /* tls_vbuf[] is a thread-local buffer used as a compression output buffer
  * by ikvdb_kvs_put() and for small direct reads by kvset_lookup_val().
@@ -78,9 +85,7 @@ struct perfc_set kvdb_pc        HSE_READ_MOSTLY;
 struct perfc_set kvdb_metrics_pc HSE_READ_MOSTLY;
 struct perfc_set c0_metrics_pc   HSE_READ_MOSTLY;
 
-BUILD_BUG_ON_MSG(
-    (sizeof(uintptr_t) != sizeof(u64)),
-    "code relies on pointers being 64-bits in size");
+static_assert((sizeof(uintptr_t) == sizeof(u64)), "code relies on pointers being 64-bits in size");
 
 #define ikvdb_h2r(handle) container_of(handle, struct ikvdb_impl, ikdb_handle)
 
@@ -109,7 +114,7 @@ struct kvdb_ctxn_bkt {
  * @ikdb_keylock:       handle to the KVDB keylock
  * @ikdb_c0sk:          c0sk handle
  * @ikdb_health:
- * @ikdb_ds:            dataset
+ * @ikdb_mp:            mpool handle
  * @ikdb_log:           KVDB log handle
  * @ikdb_cndb:          CNDB handle
  * @ikdb_workqueue:
@@ -129,7 +134,7 @@ struct kvdb_ctxn_bkt {
  * @ikdb_profile:       hse params stored as profile
  * @ikdb_cndb_oid1:
  * @ikdb_cndb_oid2:
- * @ikdb_mpname:        KVDB mpool name
+ * @ikdb_home:          KVDB home
  *
  * Note:  The first group of fields are read-mostly and some of them are
  * heavily concurrently accessed, hence they live in the first cache line.
@@ -155,7 +160,7 @@ struct ikvdb_impl {
 
     struct csched *          ikdb_csched;
     struct cn_kvdb *         ikdb_cn_kvdb;
-    struct mpool *           ikdb_ds;
+    struct mpool *           ikdb_mp;
     struct kvdb_log *        ikdb_log;
     struct cndb *            ikdb_cndb;
     struct workqueue_struct *ikdb_workqueue;
@@ -188,13 +193,14 @@ struct ikvdb_impl {
     struct kvdb_kvs *  ikdb_kvs_vec[HSE_KVS_COUNT_MAX];
     struct work_struct ikdb_maint_work;
     struct work_struct ikdb_throttle_work;
-    struct hse_params *ikdb_profile;
 
     struct mclass_policy ikdb_mpolicies[HSE_MPOLICY_COUNT];
 
-    u64  ikdb_cndb_oid1;
-    u64  ikdb_cndb_oid2;
-    char ikdb_mpname[MPOOL_NAMESZ_MAX];
+    u64            ikdb_cndb_oid1;
+    u64            ikdb_cndb_oid2;
+    char           ikdb_home[PATH_MAX];
+    struct pidfh * ikdb_pidfh;
+    struct config *ikdb_config;
 };
 
 struct ikvdb *
@@ -211,7 +217,7 @@ ikvdb_perfc_alloc(struct ikvdb_impl *self)
 
     dbname_buf[0] = 0;
 
-    n = strlcpy(dbname_buf, self->ikdb_mpname, sizeof(dbname_buf));
+    n = strlcpy(dbname_buf, self->ikdb_home, sizeof(dbname_buf));
     if (ev(n >= sizeof(dbname_buf)))
         return;
 
@@ -255,13 +261,23 @@ validate_kvs_name(const char *name)
 }
 
 merr_t
-ikvdb_make(
-    struct mpool *       ds,
-    u64                  oid1, /* kvdb oids */
-    u64                  oid2,
-    struct kvdb_cparams *cparams,
-    u64                  captgt)
+ikvdb_log_deserialize_to_kvdb_rparams(const char *kvdb_home, struct kvdb_rparams *params)
 {
+    return kvdb_log_deserialize_to_kvdb_rparams(kvdb_home, params);
+}
+
+merr_t
+ikvdb_log_deserialize_to_kvdb_dparams(const char *kvdb_home, struct kvdb_dparams *params)
+{
+    return kvdb_log_deserialize_to_kvdb_dparams(kvdb_home, params);
+}
+
+merr_t
+ikvdb_make(const char *kvdb_home, struct mpool *mp, struct kvdb_cparams *params, u64 captgt)
+{
+    assert(mp);
+    assert(params);
+
     struct kvdb_log *   log = NULL;
     merr_t              err;
     u64                 cndb_o1, cndb_o2;
@@ -271,16 +287,20 @@ ikvdb_make(
     cndb_o1 = 0;
     cndb_o2 = 0;
 
-    err = kvdb_log_open(ds, &log, O_RDWR);
+    err = mpool_mdc_root_create(kvdb_home);
+    if (err)
+        return err;
+
+    err = kvdb_log_open(kvdb_home, mp, O_RDWR, &log);
     if (ev(err))
         goto out;
 
-    err = kvdb_log_make(log, captgt);
+    err = kvdb_log_make(log, captgt, params);
     if (ev(err))
         goto out;
 
     cndb_captgt = 0;
-    err = cndb_alloc(ds, &cndb_captgt, &cndb_o1, &cndb_o2);
+    err = cndb_alloc(mp, &cndb_captgt, &cndb_o1, &cndb_o2);
     if (ev(err))
         goto out;
 
@@ -288,7 +308,7 @@ ikvdb_make(
     if (ev(err))
         goto out;
 
-    err = cndb_make(ds, cndb_captgt, cndb_o1, cndb_o2);
+    err = cndb_make(mp, cndb_captgt, cndb_o1, cndb_o2);
     if (ev(err)) {
         kvdb_log_abort(log, tx);
         goto out;
@@ -324,7 +344,7 @@ ikvdb_rate_limit_set(struct ikvdb_impl *self, u64 rate)
     /* cache debug params from KVDB runtime params */
     self->ikdb_tb_dbg = self->ikdb_rp.throttle_debug & THROTTLE_DEBUG_TB_MASK;
 
-    /* debug: manual control: get burst and rate from rparams  */
+    /* debug: manual control: get burst and rate from params  */
     if (HSE_UNLIKELY(self->ikdb_tb_dbg & THROTTLE_DEBUG_TB_MANUAL)) {
         burst = self->ikdb_rp.throttle_burst;
         rate = self->ikdb_rp.throttle_rate;
@@ -556,14 +576,24 @@ ikvdb_diag_kvslist(struct ikvdb *handle, struct diag_kvdb_kvs_list *list, int le
 /* ikvdb_diag_open() - open relevant media streams with minimal processing. */
 merr_t
 ikvdb_diag_open(
-    const char *         mp_name,
-    struct mpool *       ds,
-    struct kvdb_rparams *rparams,
+    const char *         kvdb_home,
+    struct pidfh *       pfh,
+    struct mpool *       mp,
+    struct kvdb_rparams *params,
     struct ikvdb **      handle)
 {
     struct ikvdb_impl *self;
     size_t             n;
     merr_t             err;
+    char               cwd[sizeof(self->ikdb_home)];
+
+    if (!kvdb_home) {
+        if (!getcwd(cwd, sizeof(cwd)))
+            return merr(errno);
+        kvdb_home = cwd;
+    } else {
+        kvdb_home = kvdb_home;
+    }
 
     /* [HSE_REVISIT] consider factoring out this code into ikvdb_cmn_open
      * and calling that from here and ikvdb_open.
@@ -574,18 +604,20 @@ ikvdb_diag_open(
 
     memset(self, 0, sizeof(*self));
 
-    n = strlcpy(self->ikdb_mpname, mp_name, sizeof(self->ikdb_mpname));
-    if (ev(n >= sizeof(self->ikdb_mpname))) {
+    self->ikdb_pidfh = pfh;
+
+    n = strlcpy(self->ikdb_home, kvdb_home, sizeof(self->ikdb_home));
+    if (ev(n >= sizeof(self->ikdb_home))) {
         err = merr(ENAMETOOLONG);
         goto err_exit0;
     }
 
-    self->ikdb_ds = ds;
+    self->ikdb_mp = mp;
 
-    assert(rparams);
-    self->ikdb_rp = *rparams;
-    self->ikdb_rdonly = rparams->read_only;
-    rparams = &self->ikdb_rp;
+    assert(params);
+    self->ikdb_rp = *params;
+    self->ikdb_rdonly = params->read_only;
+    params = &self->ikdb_rp;
 
     atomic_set(&self->ikdb_curcnt, 0);
 
@@ -599,27 +631,29 @@ ikvdb_diag_open(
     if (ev(err))
         goto err_exit1;
 
-    err =
-        kvdb_keylock_create(&self->ikdb_keylock, rparams->keylock_tables, rparams->keylock_entries);
+    err = kvdb_keylock_create(&self->ikdb_keylock, params->keylock_tables, params->keylock_entries);
     if (ev(err))
         goto err_exit1;
 
-    err = kvdb_log_open(ds, &self->ikdb_log, rparams->read_only ? O_RDONLY : O_RDWR);
+    err = kvdb_log_open(kvdb_home, mp, params->read_only ? O_RDONLY : O_RDWR, &self->ikdb_log);
     if (ev(err))
         goto err_exit2;
 
-    err = kvdb_log_replay(self->ikdb_log, &self->ikdb_cndb_oid1, &self->ikdb_cndb_oid2);
+    err = kvdb_log_replay(self->ikdb_log);
     if (ev(err))
         goto err_exit3;
 
+    kvdb_log_cndboid_get(self->ikdb_log, &self->ikdb_cndb_oid1, &self->ikdb_cndb_oid2);
+
     err = cndb_open(
-        ds,
+        mp,
         self->ikdb_rdonly,
         &self->ikdb_seqno,
-        rparams->cndb_entries,
+        params->cndb_entries,
         self->ikdb_cndb_oid1,
         self->ikdb_cndb_oid2,
         &self->ikdb_health,
+        &self->ikdb_rp,
         &self->ikdb_cndb);
 
     if (!ev(err)) {
@@ -690,19 +724,18 @@ ikvdb_rest_register(struct ikvdb_impl *self, struct ikvdb *handle)
     merr_t err;
 
     for (i = 0; i < self->ikdb_kvs_cnt; i++) {
-        err = kvs_rest_register(
-            self->ikdb_mpname, self->ikdb_kvs_vec[i]->kk_name, self->ikdb_kvs_vec[i]);
+        err = kvs_rest_register(self->ikdb_kvs_vec[i]->kk_name, self->ikdb_kvs_vec[i]);
         if (err)
             hse_elog(
                 HSE_WARNING "%s/%s REST registration failed: @@e",
                 err,
-                self->ikdb_mpname,
+                self->ikdb_home,
                 self->ikdb_kvs_vec[i]->kk_name);
     }
 
-    err = kvdb_rest_register(self->ikdb_mpname, handle);
+    err = kvdb_rest_register(handle);
     if (err)
-        hse_elog(HSE_WARNING "%s REST registration failed: @@e", err, self->ikdb_mpname);
+        hse_elog(HSE_WARNING "%s REST registration failed: @@e", err, self->ikdb_home);
 }
 
 /**
@@ -718,21 +751,21 @@ ikvdb_maint_start(struct ikvdb_impl *self)
     self->ikdb_workqueue = alloc_workqueue("kvdb_maint", 0, 3);
     if (!self->ikdb_workqueue) {
         err = merr(ENOMEM);
-        hse_elog(HSE_ERR "%s cannot start kvdb maintenance", err, self->ikdb_mpname);
+        hse_elog(HSE_ERR "%s cannot start kvdb maintenance", err, self->ikdb_home);
         return err;
     }
 
     INIT_WORK(&self->ikdb_maint_work, ikvdb_maint_task);
     if (!queue_work(self->ikdb_workqueue, &self->ikdb_maint_work)) {
         err = merr(EBUG);
-        hse_elog(HSE_ERR "%s cannot start kvdb maintenance", err, self->ikdb_mpname);
+        hse_elog(HSE_ERR "%s cannot start kvdb maintenance", err, self->ikdb_home);
         return err;
     }
 
     INIT_WORK(&self->ikdb_throttle_work, ikvdb_throttle_task);
     if (!queue_work(self->ikdb_workqueue, &self->ikdb_throttle_work)) {
         err = merr(EBUG);
-        hse_elog(HSE_ERR "%s cannot start kvdb throttle", err, self->ikdb_mpname);
+        hse_elog(HSE_ERR "%s cannot start kvdb throttle", err, self->ikdb_home);
         return err;
     }
 
@@ -778,13 +811,14 @@ ikvdb_cndb_open(struct ikvdb_impl *self, u64 *seqno, u64 *ingestid)
     struct kvdb_kvs *kvs;
 
     err = cndb_open(
-        self->ikdb_ds,
+        self->ikdb_mp,
         self->ikdb_rdonly,
         &self->ikdb_seqno,
         self->ikdb_rp.cndb_entries,
         self->ikdb_cndb_oid1,
         self->ikdb_cndb_oid2,
         &self->ikdb_health,
+        &self->ikdb_rp,
         &self->ikdb_cndb);
     if (ev(err))
         goto err_exit;
@@ -830,12 +864,12 @@ static void
 ikvdb_low_mem_adjust(struct ikvdb_impl *self)
 {
     struct kvdb_rparams  dflt = kvdb_rparams_defaults();
-    struct kvdb_rparams *rp = &self->ikdb_rp;
+    struct kvdb_rparams *kp = &self->ikdb_rp;
 
     ulong mavail;
     uint  scale;
 
-    hse_log(HSE_WARNING "configuring %s for constrained memory environment", self->ikdb_mpname);
+    hse_log(HSE_WARNING "configuring %s for constrained memory environment", self->ikdb_home);
 
     /* The default parameter values in this function enables us to run
      * in a memory constrained cgroup. Scale the parameter values based
@@ -847,91 +881,82 @@ ikvdb_low_mem_adjust(struct ikvdb_impl *self)
     scale = mavail / 8;
     scale = max_t(uint, 1, scale);
 
-    if (rp->c0_heap_cache_sz_max == dflt.c0_heap_cache_sz_max)
-        rp->c0_heap_cache_sz_max = min_t(u64, 1024 * 1024 * 128UL * scale, HSE_C0_CCACHE_SZ_MAX);
+    if (kp->c0_heap_cache_sz_max == dflt.c0_heap_cache_sz_max)
+        kp->c0_heap_cache_sz_max = min_t(u64, 1024 * 1024 * 128UL * scale, HSE_C0_CCACHE_SZ_MAX);
 
-    if (rp->c0_heap_sz == dflt.c0_heap_sz)
-        rp->c0_heap_sz = min_t(u64, 1024 * 1024 * 16UL * scale, HSE_C0_CHEAP_SZ_MAX);
+    if (kp->c0_heap_sz == dflt.c0_heap_sz)
+        kp->c0_heap_sz = min_t(u64, 1024 * 1024 * 16UL * scale, HSE_C0_CHEAP_SZ_MAX);
 
-    if (rp->c0_ingest_width == dflt.c0_ingest_width)
-        rp->c0_ingest_width = HSE_C0_INGEST_WIDTH_DFLT;
+    if (kp->c0_ingest_width == dflt.c0_ingest_width)
+        kp->c0_ingest_width = HSE_C0_INGEST_WIDTH_DFLT;
 
-    if (rp->c0_ingest_threads == dflt.c0_ingest_threads)
-        rp->c0_ingest_threads = min_t(u64, scale, HSE_C0_INGEST_THREADS_DFLT);
+    if (kp->c0_ingest_threads == dflt.c0_ingest_threads)
+        kp->c0_ingest_threads = min_t(u64, scale, HSE_C0_INGEST_THREADS_DFLT);
 
-    if (rp->c0_mutex_pool_sz == dflt.c0_mutex_pool_sz)
-        rp->c0_mutex_pool_sz = 5;
+    if (kp->c0_mutex_pool_sz == dflt.c0_mutex_pool_sz)
+        kp->c0_mutex_pool_sz = 5;
 
-    if (rp->throttle_c0_hi_th == dflt.throttle_c0_hi_th)
-        rp->throttle_c0_hi_th = (2 * rp->c0_heap_sz * rp->c0_ingest_width) >> 20;
+    if (kp->throttle_c0_hi_th == dflt.throttle_c0_hi_th)
+        kp->throttle_c0_hi_th = (2 * kp->c0_heap_sz * kp->c0_ingest_width) >> 20;
 
-    if (rp->txn_heap_sz == dflt.txn_heap_sz)
-        rp->txn_heap_sz = min_t(u64, 1024 * 1024 * 16UL * scale, HSE_C0_CHEAP_SZ_MAX);
+    if (kp->txn_heap_sz == dflt.txn_heap_sz)
+        kp->txn_heap_sz = min_t(u64, 1024 * 1024 * 16UL * scale, HSE_C0_CHEAP_SZ_MAX);
 
-    if (rp->txn_ingest_width == dflt.txn_ingest_width)
-        rp->txn_ingest_width = HSE_C0_INGEST_WIDTH_DFLT;
+    if (kp->txn_ingest_width == dflt.txn_ingest_width)
+        kp->txn_ingest_width = HSE_C0_INGEST_WIDTH_DFLT;
 
-    c0kvs_reinit(rp->c0_heap_cache_sz_max);
+    c0kvs_reinit(kp->c0_heap_cache_sz_max);
 }
 
 merr_t
 ikvdb_open(
-    const char *             mp_name,
-    struct mpool *           ds,
-    const struct hse_params *params,
-    struct ikvdb **          handle)
+    const char *               kvdb_home,
+    const struct kvdb_rparams *params,
+    struct pidfh *             pfh,
+    struct mpool *             mp,
+    struct config *            conf,
+    struct ikvdb **            handle)
 {
-    merr_t              err;
-    struct ikvdb_impl * self;
-    struct kvdb_rparams rp;
-    u64                 seqno = 0; /* required by unit test */
-    ulong               mavail;
-    size_t              sz, n;
-    int                 i;
-    u64                 ingestid;
+    merr_t             err;
+    struct ikvdb_impl *self;
+    u64                seqno = 0; /* required by unit test */
+    ulong              mavail;
+    size_t             sz, n;
+    int                i;
+    u64                ingestid;
+
+    assert(kvdb_home);
+    assert(params);
 
     self = aligned_alloc(alignof(*self), sizeof(*self));
     if (ev(!self)) {
         err = merr(ENOMEM);
-        hse_elog(HSE_ERR "cannot open %s: @@e", err, mp_name);
+        hse_elog(HSE_ERR "cannot open %s: @@e", err, kvdb_home);
         return err;
     }
 
     memset(self, 0, sizeof(*self));
     mutex_init(&self->ikdb_lock);
     ikvdb_txn_init(self);
-    self->ikdb_ds = ds;
+    self->ikdb_mp = mp;
 
-    n = strlcpy(self->ikdb_mpname, mp_name, sizeof(self->ikdb_mpname));
-    if (n >= sizeof(self->ikdb_mpname)) {
+    self->ikdb_pidfh = pfh;
+
+    n = strlcpy(self->ikdb_home, kvdb_home, sizeof(self->ikdb_home));
+    if (n >= sizeof(self->ikdb_home)) {
         err = merr(ENAMETOOLONG);
-        hse_elog(HSE_ERR "cannot open %s: @@e", err, mp_name);
+        hse_elog(HSE_ERR "cannot open %s: @@e", err, kvdb_home);
         goto err2;
     }
 
-    err = hse_params_to_kvdb_rparams(params, NULL, &rp);
-    if (ev(err))
-        return err;
+    memcpy(self->ikdb_mpolicies, params->mclass_policies, sizeof(params->mclass_policies));
 
-    hse_params_to_mclass_policies(params, self->ikdb_mpolicies, NELEM(self->ikdb_mpolicies));
-
-    self->ikdb_rp = rp;
-    self->ikdb_rdonly = rp.read_only;
-    if (params) {
-        self->ikdb_profile = hse_params_clone(params);
-        if (ev(!self->ikdb_profile)) {
-            err = merr(ENOMEM);
-            goto err2;
-        }
-    }
-
-    rp = self->ikdb_rp;
+    self->ikdb_rp = *params;
+    self->ikdb_rdonly = params->read_only;
 
     hse_meminfo(NULL, &mavail, 0);
-    if (rp.low_mem || (mavail >> 30) < 32)
+    if (params->low_mem || (mavail >> 30) < 32)
         ikvdb_low_mem_adjust(self);
-
-    kvdb_rparams_print(&rp);
 
     throttle_init(&self->ikdb_throttle, &self->ikdb_rp);
     throttle_init_params(&self->ikdb_throttle, &self->ikdb_rp);
@@ -944,13 +969,13 @@ ikvdb_open(
     if (!self->ikdb_rdonly) {
         err = csched_create(
             csched_rp_policy(&self->ikdb_rp),
-            self->ikdb_ds,
+            self->ikdb_mp,
             &self->ikdb_rp,
-            self->ikdb_mpname,
+            self->ikdb_home,
             &self->ikdb_health,
             &self->ikdb_csched);
         if (err) {
-            hse_elog(HSE_ERR "cannot open %s: @@e", err, mp_name);
+            hse_elog(HSE_ERR "cannot open %s: @@e", err, kvdb_home);
             goto err1;
         }
     }
@@ -966,37 +991,38 @@ ikvdb_open(
 
     err = viewset_create(&self->ikdb_txn_viewset, &self->ikdb_seqno);
     if (err) {
-        hse_elog(HSE_ERR "cannot open %s: @@e", err, mp_name);
+        hse_elog(HSE_ERR "cannot open %s: @@e", err, kvdb_home);
         goto err1;
     }
 
     err = viewset_create(&self->ikdb_cur_viewset, &self->ikdb_seqno);
     if (err) {
-        hse_elog(HSE_ERR "cannot open %s: @@e", err, mp_name);
+        hse_elog(HSE_ERR "cannot open %s: @@e", err, kvdb_home);
         goto err1;
     }
 
-    err = kvdb_keylock_create(&self->ikdb_keylock, rp.keylock_tables, rp.keylock_entries);
+    err = kvdb_keylock_create(&self->ikdb_keylock, params->keylock_tables, params->keylock_entries);
     if (err) {
-        hse_elog(HSE_ERR "cannot open %s: @@e", err, mp_name);
+        hse_elog(HSE_ERR "cannot open %s: @@e", err, kvdb_home);
         goto err1;
     }
 
-    err = kvdb_log_open(ds, &self->ikdb_log, self->ikdb_rdonly ? O_RDONLY : O_RDWR);
+    err = kvdb_log_open(kvdb_home, mp, self->ikdb_rdonly ? O_RDONLY : O_RDWR, &self->ikdb_log);
     if (err) {
-        hse_elog(HSE_ERR "cannot open %s: @@e", err, mp_name);
+        hse_elog(HSE_ERR "cannot open %s: @@e", err, kvdb_home);
         goto err1;
     }
 
-    err = kvdb_log_replay(self->ikdb_log, &self->ikdb_cndb_oid1, &self->ikdb_cndb_oid2);
+    err = kvdb_log_replay(self->ikdb_log);
     if (err) {
-        hse_elog(HSE_ERR "cannot open %s: @@e", err, mp_name);
+        hse_elog(HSE_ERR "cannot open %s: @@e", err, kvdb_home);
         goto err1;
     }
+    kvdb_log_cndboid_get(self->ikdb_log, &self->ikdb_cndb_oid1, &self->ikdb_cndb_oid2);
 
     err = ikvdb_cndb_open(self, &seqno, &ingestid);
     if (err) {
-        hse_elog(HSE_ERR "cannot open %s: @@e", err, mp_name);
+        hse_elog(HSE_ERR "cannot open %s: @@e", err, kvdb_home);
         goto err1;
     }
 
@@ -1005,19 +1031,19 @@ ikvdb_open(
     err = kvdb_ctxn_set_create(
         &self->ikdb_ctxn_set, self->ikdb_rp.txn_timeout, self->ikdb_rp.txn_wkth_delay);
     if (err) {
-        hse_elog(HSE_ERR "cannot open %s: @@e", err, mp_name);
+        hse_elog(HSE_ERR "cannot open %s: @@e", err, kvdb_home);
         goto err1;
     }
 
     err = c0snr_set_create(kvdb_ctxn_abort, &self->ikdb_c0snr_set);
     if (err) {
-        hse_elog(HSE_ERR "cannot open %s: @@e", err, mp_name);
+        hse_elog(HSE_ERR "cannot open %s: @@e", err, kvdb_home);
         goto err1;
     }
 
     err = cn_kvdb_create(&self->ikdb_cn_kvdb);
     if (err) {
-        hse_elog(HSE_ERR "cannot open %s: @@e", err, mp_name);
+        hse_elog(HSE_ERR "cannot open %s: @@e", err, kvdb_home);
         goto err1;
     }
 
@@ -1027,18 +1053,18 @@ ikvdb_open(
         goto err1;
     }
 
-    lc_ingest_seqno_set(self->ikdb_lc, atomic64_read(&self->ikdb_seqno)); 
+    lc_ingest_seqno_set(self->ikdb_lc, atomic64_read(&self->ikdb_seqno));
 
     err = c0sk_open(
         &self->ikdb_rp,
-        ds,
-        self->ikdb_mpname,
+        mp,
+        self->ikdb_home,
         &self->ikdb_health,
         self->ikdb_csched,
         &self->ikdb_seqno,
         &self->ikdb_c0sk);
     if (err) {
-        hse_elog(HSE_ERR "cannot open %s: @@e", err, mp_name);
+        hse_elog(HSE_ERR "cannot open %s: @@e", err, kvdb_home);
         goto err1;
     }
 
@@ -1049,7 +1075,7 @@ ikvdb_open(
     if (!self->ikdb_rdonly) {
         err = ikvdb_maint_start(self);
         if (err) {
-            hse_elog(HSE_ERR "cannot open %s: @@e", err, mp_name);
+            hse_elog(HSE_ERR "cannot open %s: @@e", err, kvdb_home);
             goto err1;
         }
     }
@@ -1057,13 +1083,13 @@ ikvdb_open(
     ikvdb_perfc_alloc(self);
     kvdb_keylock_perfc_init(self->ikdb_keylock, &self->ikdb_ctxn_op);
 
-    err = kvdb_rparams_add_to_dt(self->ikdb_mpname, &self->ikdb_rp);
-    if (err)
-        hse_elog(HSE_WARNING "cannot record %s runtime params: @@e", err, mp_name);
-
-    ikvdb_rest_register(self, *handle);
+    ikvdb_rest_register(self, &self->ikdb_handle);
 
     ikvdb_init_throttle_params(self);
+
+    self->ikdb_config = conf;
+
+    *handle = &self->ikdb_handle;
 
     return 0;
 
@@ -1088,11 +1114,34 @@ err1:
 err2:
     ikvdb_txn_fini(self);
     mutex_destroy(&self->ikdb_lock);
-    hse_params_free(self->ikdb_profile);
     free(self);
     *handle = NULL;
 
     return err;
+}
+
+struct pidfh *
+ikvdb_pidfh(struct ikvdb *kvdb)
+{
+    struct ikvdb_impl *self = ikvdb_h2r(kvdb);
+
+    return self->ikdb_pidfh;
+}
+
+const char *
+ikvdb_home(struct ikvdb *kvdb)
+{
+    struct ikvdb_impl *self = ikvdb_h2r(kvdb);
+
+    return self->ikdb_home;
+}
+
+struct config *
+ikvdb_config(struct ikvdb *kvdb)
+{
+    struct ikvdb_impl *self = ikvdb_h2r(kvdb);
+
+    return self->ikdb_config;
 }
 
 bool
@@ -1200,38 +1249,29 @@ kvdb_kvs_set_ikvs(struct kvdb_kvs *kk, struct ikvs *ikvs)
 }
 
 merr_t
-ikvdb_kvs_make(struct ikvdb *handle, const char *kvs_name, const struct hse_params *params)
+ikvdb_kvs_make(struct ikvdb *handle, const char *kvs_name, const struct kvs_cparams *params)
 {
+    assert(handle);
+    assert(kvs_name);
+    assert(params);
+
     merr_t             err = 0;
     struct ikvdb_impl *self = ikvdb_h2r(handle);
-    struct kvdb_kvs *  kvs;
-    struct kvs_cparams kvs_cparams, profile;
+    struct kvdb_kvs *  kvs = NULL;
     int                idx;
 
     if (self->ikdb_rdonly)
-        return merr(ev(EROFS));
+        goto out_immediate;
 
     err = validate_kvs_name(kvs_name);
     if (ev(err))
-        return err;
-
-    /* load profile */
-    err = hse_params_to_kvs_cparams(self->ikdb_profile, kvs_name, NULL, &profile);
-    if (ev(err))
-        return err;
-
-    /* overwrite with new params */
-    err = hse_params_to_kvs_cparams(params, kvs_name, &profile, &kvs_cparams);
-    if (ev(err))
-        return err;
-
-    err = kvs_cparams_validate(&kvs_cparams);
-    if (ev(err))
-        return err;
+        goto out_immediate;
 
     kvs = kvdb_kvs_create();
-    if (ev(!kvs))
-        return merr(ENOMEM);
+    if (ev(!kvs)) {
+        err = merr(ENOMEM);
+        goto out_immediate;
+    }
 
     strlcpy(kvs->kk_name, kvs_name, sizeof(kvs->kk_name));
 
@@ -1239,32 +1279,28 @@ ikvdb_kvs_make(struct ikvdb *handle, const char *kvs_name, const struct hse_para
 
     if (self->ikdb_kvs_cnt >= HSE_KVS_COUNT_MAX) {
         err = merr(ev(EINVAL));
-        goto err_out;
+        goto out_unlock;
     }
 
     if (get_kvs_index(self->ikdb_kvs_vec, kvs_name, &idx) >= 0) {
         err = merr(ev(EEXIST));
-        goto err_out;
+        goto out_unlock;
     }
 
     assert(idx >= 0); /* assert we found an empty slot */
 
-    if (kvs_cparams.cp_fanout < 2 || kvs_cparams.cp_fanout > 16) {
-        err = merr(ev(EINVAL));
-        goto err_out;
-    }
-    kvs->kk_flags = cn_cp2cflags(&kvs_cparams);
+    kvs->kk_flags = cn_cp2cflags(params);
 
-    err = cndb_cn_make(self->ikdb_cndb, &kvs_cparams, &kvs->kk_cnid, kvs->kk_name);
+    err = cndb_cn_make(self->ikdb_cndb, params, &kvs->kk_cnid, kvs->kk_name);
     if (ev(err))
-        goto err_out;
+        goto out_unlock;
 
     kvs->kk_cparams = cndb_cn_cparams(self->ikdb_cndb, kvs->kk_cnid);
 
     if (ev(!kvs->kk_cparams)) {
         cndb_cn_drop(self->ikdb_cndb, kvs->kk_cnid);
         err = merr(EBUG);
-        goto err_out;
+        goto out_unlock;
     }
 
     assert(kvs->kk_cparams);
@@ -1277,17 +1313,19 @@ ikvdb_kvs_make(struct ikvdb *handle, const char *kvs_name, const struct hse_para
     /* Register in kvs make instead of open so all KVSes can be queried for
      * info
      */
-    err = kvs_rest_register(
-        self->ikdb_mpname, self->ikdb_kvs_vec[idx]->kk_name, self->ikdb_kvs_vec[idx]);
+    err = kvs_rest_register(self->ikdb_kvs_vec[idx]->kk_name, self->ikdb_kvs_vec[idx]);
     if (ev(err))
         hse_elog(
             HSE_WARNING "rest: %s registration failed: @@e", err, self->ikdb_kvs_vec[idx]->kk_name);
 
     return 0;
 
-err_out:
+out_unlock:
     mutex_unlock(&self->ikdb_lock);
-    kvdb_kvs_destroy(kvs);
+out_immediate:
+    if (err && kvs)
+        kvdb_kvs_destroy(kvs);
+
     return err;
 }
 
@@ -1299,29 +1337,31 @@ ikvdb_kvs_drop(struct ikvdb *handle, const char *kvs_name)
     int                idx;
     merr_t             err;
 
-    if (self->ikdb_rp.read_only)
-        return merr(ev(EROFS));
+    if (self->ikdb_rp.read_only) {
+        err = merr(ev(EROFS));
+        goto out_immediate;
+    }
 
     err = validate_kvs_name(kvs_name);
     if (ev(err))
-        return err;
+        goto out_immediate;
 
     mutex_lock(&self->ikdb_lock);
 
     idx = get_kvs_index(self->ikdb_kvs_vec, kvs_name, NULL);
     if (idx < 0) {
         err = merr(ev(ENOENT));
-        goto err_out;
+        goto out_unlock;
     }
 
     kvs = self->ikdb_kvs_vec[idx];
 
     if (kvs->kk_ikvs) {
         err = merr(ev(EBUSY));
-        goto err_out;
+        goto out_unlock;
     }
 
-    kvs_rest_deregister(self->ikdb_mpname, kvs->kk_name);
+    kvs_rest_deregister(kvs->kk_name);
 
     /* kvs_rest_deregister() waits until all active rest requests
      * have finished. Verify that the refcnt has gone down to zero
@@ -1330,12 +1370,13 @@ ikvdb_kvs_drop(struct ikvdb *handle, const char *kvs_name)
 
     err = cndb_cn_drop(self->ikdb_cndb, kvs->kk_cnid);
     if (ev(err))
-        goto err_out;
+        goto out_unlock;
 
     drop_kvs_index(handle, idx);
 
-err_out:
+out_unlock:
     mutex_unlock(&self->ikdb_lock);
+out_immediate:
     return err;
 }
 
@@ -1399,51 +1440,42 @@ ikvdb_kvs_query_tree(struct hse_kvs *kvs, struct yaml_context *yc, int fd, bool 
 
 merr_t
 ikvdb_kvs_open(
-    struct ikvdb *           handle,
-    const char *             kvs_name,
-    const struct hse_params *params,
-    uint                     flags,
-    struct hse_kvs **        kvs_out)
+    struct ikvdb *      handle,
+    const char *        kvs_name,
+    struct kvs_rparams *params,
+    uint                flags,
+    struct hse_kvs **   kvs_out)
 {
+    assert(handle);
+    assert(kvs_name);
+    assert(params);
+    assert(kvs_out);
+
     const struct compress_ops *cops;
     struct ikvdb_impl *        self = ikvdb_h2r(handle);
-    struct kvdb_kvs *          kvs;
+    struct kvdb_kvs *          kvs = NULL;
     int                        idx;
-    struct kvs_rparams         rp, profile;
     merr_t                     err;
 
-    /* load profile */
-    err = hse_params_to_kvs_rparams(self->ikdb_profile, kvs_name, NULL, &profile);
+    err = config_deserialize_to_kvs_rparams(self->ikdb_config, kvs_name, params);
     if (ev(err))
-        return err;
+        goto out_immediate;
 
-    /* overwrite with CLI/API changes */
-    err = hse_params_to_kvs_rparams(params, kvs_name, &profile, &rp);
-    if (ev(err))
-        return err;
-
-    rp.rdonly = self->ikdb_rp.read_only; /* inherit from kvdb */
-
-    err = kvs_rparams_validate(&rp);
-    if (ev(err))
-        return err;
-
-    if (rp.kv_print_config)
-        kvs_rparams_print(&rp);
+    params->rdonly = self->ikdb_rp.read_only; /* inherit from kvdb */
 
     mutex_lock(&self->ikdb_lock);
 
     idx = get_kvs_index(self->ikdb_kvs_vec, kvs_name, NULL);
     if (idx < 0) {
         err = merr(ev(ENOENT));
-        goto err_out;
+        goto out_unlock;
     }
 
     kvs = self->ikdb_kvs_vec[idx];
 
     if (kvs->kk_ikvs) {
         err = merr(ev(EBUSY));
-        goto err_out;
+        goto out_unlock;
     }
 
     kvs->kk_parent = self;
@@ -1451,12 +1483,12 @@ ikvdb_kvs_open(
     kvs->kk_viewset = self->ikdb_cur_viewset;
 
     kvs->kk_vcompmin = UINT_MAX;
-    cops = vcomp_compress_ops(&rp);
+    cops = vcomp_compress_ops(params);
     if (cops) {
         assert(cops->cop_compress && cops->cop_estimate);
 
         kvs->kk_vcompress = cops->cop_compress;
-        kvs->kk_vcompmin = max_t(uint, CN_SMALL_VALUE_THRESHOLD, rp.vcompmin);
+        kvs->kk_vcompmin = max_t(uint, CN_SMALL_VALUE_THRESHOLD, params->vcompmin);
 
         kvs->kk_vcompbnd = cops->cop_estimate(NULL, tls_vbufsz);
         kvs->kk_vcompbnd = tls_vbufsz - (kvs->kk_vcompbnd - tls_vbufsz);
@@ -1472,23 +1504,24 @@ ikvdb_kvs_open(
     err = kvs_open(
         handle,
         kvs,
-        self->ikdb_mpname,
-        self->ikdb_ds,
+        self->ikdb_home,
+        self->ikdb_mp,
         self->ikdb_cndb,
         self->ikdb_lc,
-        &rp,
+        params,
         &self->ikdb_health,
         self->ikdb_cn_kvdb,
         flags);
     if (ev(err))
-        goto err_out;
+        goto out_unlock;
 
     atomic_inc(&kvs->kk_refcnt);
 
     *kvs_out = (struct hse_kvs *)kvs;
 
-err_out:
+out_unlock:
     mutex_unlock(&self->ikdb_lock);
+out_immediate:
 
     return err;
 }
@@ -1524,6 +1557,52 @@ ikvdb_kvs_close(struct hse_kvs *handle)
     return err;
 }
 
+merr_t
+ikvdb_storage_info_get(
+    struct ikvdb *                handle,
+    struct hse_kvdb_storage_info *info,
+    char *                        cappath,
+    char *                        stgpath,
+    size_t                        pathlen)
+{
+    struct ikvdb_impl *self = ikvdb_h2r(handle);
+    struct mpool *     mp;
+    struct mpool_stats stats = {};
+    merr_t             err;
+    uint64_t           allocated, used;
+
+    mp = ikvdb_mpool_get(handle);
+    err = mpool_stats_get(mp, &stats);
+    if (ev(err))
+        return err;
+
+    info->total_bytes = stats.mps_total;
+    info->available_bytes = stats.mps_available;
+
+    info->allocated_bytes = stats.mps_allocated;
+    info->used_bytes = stats.mps_used;
+
+    /* Get allocated and used space for kvdb metadata */
+    err = kvdb_log_usage(self->ikdb_log, &allocated, &used);
+    if (ev(err))
+        return err;
+    info->allocated_bytes += allocated;
+    info->used_bytes += used;
+
+    err = cndb_usage(self->ikdb_cndb, &allocated, &used);
+    if (ev(err))
+        return err;
+    info->allocated_bytes += allocated;
+    info->used_bytes += used;
+
+    if (cappath)
+        strlcpy(cappath, stats.mps_path[MP_MED_CAPACITY], pathlen);
+    if (stgpath)
+        strlcpy(stgpath, stats.mps_path[MP_MED_STAGING], pathlen);
+
+    return 0;
+}
+
 /* PRIVATE */
 struct cn *
 ikvdb_kvs_get_cn(struct hse_kvs *kvs)
@@ -1538,7 +1617,7 @@ ikvdb_mpool_get(struct ikvdb *handle)
 {
     struct ikvdb_impl *self = ikvdb_h2r(handle);
 
-    return handle ? self->ikdb_ds : NULL;
+    return handle ? self->ikdb_mp : NULL;
 }
 
 merr_t
@@ -1559,7 +1638,7 @@ ikvdb_close(struct ikvdb *handle)
     /* Deregistering this url before trying to get ikdb_lock prevents
      * a deadlock between this call and an ongoing call to ikvdb_get_names()
      */
-    kvdb_rest_deregister(self->ikdb_mpname);
+    kvdb_rest_deregister();
 
     mutex_lock(&self->ikdb_lock);
 
@@ -1572,7 +1651,7 @@ ikvdb_close(struct ikvdb *handle)
         if (kvs->kk_ikvs)
             atomic_dec(&kvs->kk_refcnt);
 
-        kvs_rest_deregister(self->ikdb_mpname, kvs->kk_name);
+        kvs_rest_deregister(kvs->kk_name);
 
         /* kvs_rest_deregister() waits until all active rest requests
          * have finished. Verify that the refcnt has gone down to zero
@@ -1606,15 +1685,6 @@ ikvdb_close(struct ikvdb *handle)
 
     cn_kvdb_destroy(self->ikdb_cn_kvdb);
 
-    err = kvdb_rparams_remove_from_dt(self->ikdb_mpname);
-    if (err)
-        hse_elog(
-            HSE_ERR "%s: Failed to remove %s KVDB rparams "
-                    "from data tree @@e",
-            err,
-            __func__,
-            self->ikdb_mpname);
-
     err = cndb_close(self->ikdb_cndb);
     if (ev(err))
         ret = ret ?: err;
@@ -1643,8 +1713,6 @@ ikvdb_close(struct ikvdb *handle)
     throttle_fini(&self->ikdb_throttle);
 
     ikvdb_perfc_free(self);
-
-    hse_params_free(self->ikdb_profile);
 
     free(self);
 
@@ -1883,7 +1951,7 @@ ikvdb_kvs_prefix_delete(
     if (ev(parent->ikdb_rdonly))
         return merr(EROFS);
 
-    ct_pfx_len = kk->kk_cparams->cp_pfx_len;
+    ct_pfx_len = kk->kk_cparams->pfx_len;
     if (kvs_pfx_len)
         *kvs_pfx_len = ct_pfx_len;
 
@@ -2759,837 +2827,6 @@ ikvdb_fini(void)
     c0_fini();
     kvs_fini();
     kvdb_perfc_finish();
-}
-
-#define KVDB_EXPORT_FSIZE_MAX 0x100000000LL /* 4GB */
-
-/**
- * ikvdb_kvs_import() - import k-v pairs from file
- * @work:
- *
- * For each k-v pair, we import keylen, vlen, key and
- * value from the file.
- */
-static void
-ikvdb_kvs_import(struct work_struct *work)
-{
-
-    struct kvdb_bak_work *  bak;
-    void *                  key = NULL, *val = NULL;
-    size_t                  klen, vlen;
-    int                     fd;
-    struct kvs_ktuple       kt;
-    struct kvs_vtuple       vt;
-    struct hse_kvdb_opspec  opspec = { 0 };
-    merr_t                  err = 0;
-    u64                     cnt = 0;
-    void *                  dbuf, *beg, *end;
-    u64                     fsize;
-    struct stat             st;
-    struct kvdb_kvmeta_omf *kvmt;
-
-    bak = container_of(work, struct kvdb_bak_work, bak_work);
-
-    if (stat(bak->bak_fname, &st) != 0) {
-        bak->bak_err = merr(ev(errno, HSE_ERR));
-        return;
-    }
-
-    fsize = st.st_size;
-
-    fd = open(bak->bak_fname, O_RDONLY, 0);
-    if (fd == -1) {
-        bak->bak_err = merr(errno);
-        hse_elog(HSE_ERR "Failed to open file %s, @@e", bak->bak_err, bak->bak_fname);
-        return;
-    }
-
-    dbuf = mmap(NULL, fsize, PROT_READ, MAP_PRIVATE, fd, 0);
-    if (dbuf == MAP_FAILED) {
-        close(fd);
-        bak->bak_err = merr(errno);
-        hse_elog(HSE_ERR "Failed to mmap file %s %lu, @@e", bak->bak_err, bak->bak_fname, fsize);
-        return;
-    }
-
-    beg = dbuf;
-    end = dbuf + fsize;
-
-    hse_log(HSE_DEBUG "Import start on %s", bak->bak_fname);
-
-    while (beg < end) {
-        kvmt = (struct kvdb_kvmeta_omf *)beg;
-        klen = omf_kvmt_klen(kvmt);
-        vlen = omf_kvmt_vlen(kvmt);
-        if (klen > HSE_KVS_KLEN_MAX) {
-            err = merr(ev(ENAMETOOLONG, HSE_ERR));
-            break;
-        }
-
-        if (klen == 0) {
-            err = merr(ev(ENOENT, HSE_ERR));
-            break;
-        }
-
-        if (vlen > HSE_KVS_VLEN_MAX) {
-            err = merr(ev(EMSGSIZE, HSE_ERR));
-            break;
-        }
-
-        beg += sizeof(*kvmt);
-        if (beg + klen + vlen > end) {
-            err = merr(ev(EFAULT, HSE_ERR));
-            break;
-        }
-
-        key = beg;
-        beg += klen;
-        val = beg;
-        beg += vlen;
-
-        kvs_ktuple_init_nohash(&kt, (void *)key, klen);
-        kvs_vtuple_init(&vt, (void *)val, vlen);
-
-        err = ikvdb_kvs_put(bak->bak_kvs, &opspec, &kt, &vt);
-        if (err) {
-            hse_elog(HSE_ERR "Failed to put key value pair, @@e", err);
-            break;
-        }
-        cnt++;
-    }
-
-    munmap(dbuf, fsize);
-    close(fd);
-
-    hse_log(
-        HSE_DEBUG "Import %ld out of %ld k-v pairs from %s", cnt, bak->bak_kvcnt, bak->bak_fname);
-
-    bak->bak_err = err;
-}
-
-/*
- * KVDB_DUMP_VER1
- * KVDB_DUMP_CUR_VER - dump version understood by this binary
- */
-#define KVDB_DUMP_VER1    1
-#define KVDB_DUMP_CUR_VER KVDB_DUMP_VER1
-
-/**
- * ikvdb_import_toc() - import kvdb/kvs meta data from TOC file
- * @path: where the dump files are
- * @kvdb_cparams: kvdb create time parameters
- * @kvscnt: number of kvs in this kvdb
- * @kvsi: import meta data into kvsi structs
- *
- * TOC is in JSON format.
- *
- * An example of a TOC file in JSON format
- * {
- *      "version":      1,
- *      "name":        "db1",
- *      "kvscnt":       1,
- *      "cndb_captgt":  0,
- *      "dur_enable":   1,
- *      "dur_capacity": 8589934592,
- *      "KVSs": [{
- *            "name":        "kvs1",
- *            "filecnt":      64,
- *            "kvcnt":        1000000000,
- *            "pfx_len":      0,
- *            "fanout":       8,
- *            "kvs_ext01":    0
- *      }]
- * }
- */
-static merr_t
-ikvdb_import_toc(
-    const char *         path,
-    struct kvdb_cparams *kvdb_cparams,
-    int *                kvscnt,
-    struct kvs_import *  kvsi)
-{
-    FILE *      f;
-    char *      buf, *cjson_str;
-    int         buflen, len;
-    cJSON *     TOC;
-    cJSON *     kvsv_json;
-    cJSON *     kvs_json;
-    int         ver;
-    int         i, cnt;
-    char *      name;
-    char        fname[PATH_MAX];
-    merr_t      err = 0;
-    char        mp_name[MPOOL_NAMESZ_MAX];
-    int         kvs_cnt;
-    u32         crc, crc_rd;
-    struct stat stbuf;
-
-    len = snprintf(fname, sizeof(fname), "%s/TOC", path);
-    if (len >= sizeof(fname)) {
-        err = merr(EINVAL);
-        hse_elog(HSE_ERR "Export path is too long %s, @@e", err, path);
-        return err;
-    }
-
-    /* Open TOC file */
-    f = fopen(fname, "r");
-    if (!f) {
-        err = merr(errno);
-        hse_elog(HSE_ERR "Failed to open TOC file %s, @@e", err, fname);
-        return err;
-    }
-
-    /* Find the size of TOC file */
-    err = stat(fname, &stbuf);
-    if (ev(err) || (!S_ISREG(stbuf.st_mode)) || (stbuf.st_size <= 0)) {
-        err = merr(errno);
-        hse_elog(HSE_ERR "Invalid TOC file %s, @@e", err, fname);
-        fclose(f);
-        return err;
-    }
-
-    buflen = stbuf.st_size;
-    err = fseek(f, 0, SEEK_SET);
-    if (ev(err)) {
-        err = merr(errno);
-        hse_elog(HSE_ERR "fseek failed %s, @@e", err, fname);
-        fclose(f);
-        return err;
-    }
-
-    /* Need an extra byte to terminate string read from TOC file */
-    buf = malloc(buflen + 1);
-    if (!buf) {
-        err = merr(ev(ENOMEM, HSE_ERR));
-        fclose(f);
-        return err;
-    }
-
-    /*
-     * Read TOC file into buffer
-     * The size of TOC file is at most a few KBytes, we can read entire
-     * file all at once
-     */
-    len = fread(buf, 1, buflen, f);
-    fclose(f);
-    if (len != buflen) {
-        err = merr(errno);
-        hse_elog(HSE_ERR "Failed to read TOC file %s, @@e", err, fname);
-        free(buf);
-        return err;
-    }
-
-    buf[buflen] = '\0';
-
-    crc_rd = le32_to_cpu(*((u32 *)buf));
-
-    cjson_str = buf + 4;
-    crc = XXH32((const u8 *)cjson_str, buflen - 4, 0);
-    if (crc != crc_rd) {
-        err = merr(ev(EINVAL, HSE_ERR));
-        hse_elog(
-            HSE_ERR "Corrupted TOC, mismatched calculated"
-                    " crc 0x%x, but read 0x%x, @@e",
-            err,
-            crc,
-            crc_rd);
-        free(buf);
-        return err;
-    }
-
-    /* Parse json format meta data read from TOC */
-    TOC = cJSON_Parse(cjson_str);
-    ver = cJSON_GetObjectItem(TOC, "version")->valueint;
-    if (ver > KVDB_DUMP_CUR_VER) {
-        err = merr(ev(ENOTSUP, HSE_ERR));
-        hse_elog(HSE_ERR "TOC version %d is not supported @@e", err, ver);
-        goto errout;
-    }
-
-    name = cJSON_GetObjectItem(TOC, "name")->valuestring;
-    strlcpy(mp_name, name, MPOOL_NAMESZ_MAX);
-
-    kvs_cnt = cJSON_GetObjectItem(TOC, "kvscnt")->valueint;
-
-    if (kvdb_cparams) {
-        *kvdb_cparams = kvdb_cparams_defaults();
-        kvdb_cparams->dur_capacity = cJSON_GetObjectItem(TOC, "dur_capacity")->valuedouble;
-    }
-
-    if (!kvscnt || !kvsi)
-        /* Don't need to import kvs meta data */
-        goto errout;
-
-    *kvscnt = kvs_cnt;
-
-    kvsv_json = cJSON_GetObjectItem(TOC, "KVSs");
-    cnt = cJSON_GetArraySize(kvsv_json);
-    if (cnt != *kvscnt) {
-        err = merr(EINVAL);
-        hse_elog(
-            HSE_ERR "Failed to import kvdb %s, kvs "
-                    "count mismatched in TOC, %d, %d, @@e",
-            err,
-            mp_name,
-            *kvscnt,
-            cnt);
-        goto errout;
-    }
-
-    if (cnt > HSE_KVS_COUNT_MAX) {
-        err = merr(EINVAL);
-        hse_elog(HSE_ERR "Too many KVSs %d in KVDB %s, @@e", err, cnt, mp_name);
-        goto errout;
-    }
-
-    for (i = 0; i < cnt; i++) {
-        char val_buf[64];
-
-        kvs_json = cJSON_GetArrayItem(kvsv_json, i);
-        name = cJSON_GetObjectItem(kvs_json, "name")->valuestring;
-        memset(kvsi[i].kvsi_name, 0, sizeof(kvsi[i].kvsi_name));
-        strlcpy(kvsi[i].kvsi_name, name, sizeof(kvsi[i].kvsi_name));
-
-        hse_params_create(&kvsi[i].kvsi_params);
-
-        kvsi[i].kvsi_fcnt = cJSON_GetObjectItem(kvs_json, "filecnt")->valueint;
-        kvsi[i].kvsi_kvcnt = cJSON_GetObjectItem(kvs_json, "kvcnt")->valueint;
-
-        snprintf(
-            val_buf, sizeof(val_buf), "%d", cJSON_GetObjectItem(kvs_json, "pfx_len")->valueint);
-        err = hse_params_set(kvsi[i].kvsi_params, "kvs.pfx_len", val_buf);
-        if (ev(err))
-            goto errout;
-
-        snprintf(
-            val_buf, sizeof(val_buf), "%d", cJSON_GetObjectItem(kvs_json, "pfx_pivot")->valueint);
-        err = hse_params_set(kvsi[i].kvsi_params, "kvs.pfx_pivot", val_buf);
-        if (ev(err))
-            goto errout;
-
-        snprintf(val_buf, sizeof(val_buf), "%d", cJSON_GetObjectItem(kvs_json, "fanout")->valueint);
-        err = hse_params_set(kvsi[i].kvsi_params, "kvs.fanout", val_buf);
-        if (ev(err))
-            goto errout;
-
-        snprintf(
-            val_buf, sizeof(val_buf), "%d", cJSON_GetObjectItem(kvs_json, "kvs_ext01")->valueint);
-        err = hse_params_set(kvsi[i].kvsi_params, "kvs.kvs_ext01", val_buf);
-        if (ev(err))
-            goto errout;
-    }
-
-errout:
-    cJSON_Delete(TOC);
-    free(buf);
-    return err;
-}
-
-merr_t
-ikvdb_import_kvdb_cparams(const char *path, struct kvdb_cparams *kvdb_cparams)
-{
-    return ikvdb_import_toc(path, kvdb_cparams, NULL, NULL);
-}
-
-merr_t
-ikvdb_import(struct ikvdb *handle, const char *path)
-{
-    struct kvdb_cparams      kvdb_cparams;
-    int                      i, j;
-    int                      job;
-    int                      kvscnt = 0;
-    int                      done = 0;
-    merr_t                   err = 0;
-    struct kvdb_bak_work *   bak;
-    struct workqueue_struct *wq;
-    struct kvs_import *      kvsi;
-    int                      total = 0;
-    int                      len;
-
-    /* Import all the meta data required for this import from TOC file */
-    kvsi = calloc(HSE_KVS_COUNT_MAX, sizeof(*kvsi));
-    if (!kvsi)
-        return merr(ev(ENOMEM, HSE_ERR));
-
-    err = ikvdb_import_toc(path, &kvdb_cparams, &kvscnt, kvsi);
-    if (ev(err, HSE_ERR)) {
-        hse_log(HSE_ERR "Failed to import TOC from path %s", path);
-        free(kvsi);
-        return err;
-    }
-
-    /* Count the total number of data files */
-    total = 0;
-    for (i = 0; i < kvscnt; i++) {
-        if (kvsi[i].kvsi_kvcnt > 0)
-            total += kvsi[i].kvsi_fcnt;
-    }
-
-    /*
-     * During kvdb export, the data in each kvs is dumped into multiple
-     * data files, 4GB each.
-     * We will next create one workqueue job for each of these data files
-     * and queue them into a workqueue
-     */
-    bak = calloc(total, sizeof(*bak));
-    if (!bak) {
-        err = merr(ev(ENOMEM, HSE_ERR));
-        free(kvsi);
-        return err;
-    }
-
-    wq = alloc_workqueue("dbimport", 0, WQ_MAX_ACTIVE);
-    if (!wq) {
-        err = merr(ENOMEM);
-        hse_elog(HSE_ERR "Failed to alloc import workqueues, @@e", err);
-        free(kvsi);
-        free(bak);
-        return err;
-    }
-
-    job = 0;
-    for (i = 0; i < kvscnt; i++) {
-        /* For each KVS ... */
-        err = ikvdb_kvs_make(handle, kvsi[i].kvsi_name, kvsi[i].kvsi_params);
-        if (err && (merr_errno(err) != EEXIST)) {
-            hse_elog(HSE_ERR "Failed to create kvs %s, @@e", err, kvsi[i].kvsi_name);
-            break;
-        }
-
-        hse_params_destroy(kvsi[i].kvsi_params);
-
-        err = ikvdb_kvs_open(handle, kvsi[i].kvsi_name, 0, 0, &kvsi[i].kvsi_kvs);
-        if (err) {
-            hse_elog(HSE_ERR "Failed to open kvs %s, @@e", err, kvsi[i].kvsi_name);
-            ikvdb_kvs_drop(handle, kvsi[i].kvsi_name);
-            break;
-        }
-
-        /*
-         * Create one workqueue job for each data file
-         */
-        if (kvsi[i].kvsi_kvcnt > 0) {
-            for (j = 0; j < kvsi[i].kvsi_fcnt; j++) {
-                bak[job].bak_kvs = kvsi[i].kvsi_kvs;
-                len = snprintf(
-                    bak[job].bak_fname,
-                    sizeof(bak[job].bak_fname),
-                    "%s/%s_%d",
-                    path,
-                    kvsi[i].kvsi_name,
-                    j);
-                if (len >= sizeof(bak[job].bak_fname)) {
-                    err = merr(EINVAL);
-                    hse_elog(
-                        HSE_ERR "name %s is truncated,"
-                                " @@e",
-                        err,
-                        bak[job].bak_fname);
-                    goto errout;
-                }
-                INIT_WORK(&bak[job].bak_work, ikvdb_kvs_import);
-                queue_work(wq, &bak[job].bak_work);
-                job++;
-            }
-        }
-    }
-
-errout:
-    /* Wait until all the workqueue jobs complete */
-    destroy_workqueue(wq);
-
-    /*
-     * Check the results of all workqueue jobs, if any one
-     * failed, failed the whole import
-     */
-    if (!err) {
-        for (i = 0; i < job; i++) {
-            if (bak[i].bak_err)
-                err = bak[i].bak_err;
-            else
-                done++;
-        }
-    }
-
-    for (i = 0; i < kvscnt; i++)
-        ikvdb_kvs_close(kvsi[i].kvsi_kvs);
-
-    free(bak);
-    free(kvsi);
-    hse_log(HSE_DEBUG "%d out of %d import jobs have completed", done, job);
-
-    return err;
-}
-
-/**
- * ikvdb_kvs_export() - export a kvs into one or more files
- * @work:
- *
- * Worker function for exporting a kvs into one or multiple data files,
- * each data file has a 4GB size limit.
- */
-static void
-ikvdb_kvs_export(struct work_struct *work)
-{
-    struct kvdb_bak_work * bak;
-    struct hse_kvs_cursor *cur;
-    struct kvdb_kvmeta_omf kvmt;
-    const void *           key, *val;
-    size_t                 klen, vlen;
-    bool                   eof;
-    FILE *                 f = 0;
-    int                    fd;
-    u64                    fsize = -1;
-    int                    filecnt = 0;
-    char                   fname[PATH_MAX];
-    int                    len;
-
-    bak = container_of(work, struct kvdb_bak_work, bak_work);
-    bak->bak_err = 0;
-    bak->bak_kvcnt = 0;
-
-    cur = bak->bak_cur;
-
-    eof = false;
-
-    while (true) {
-        /*
-         * Create a new data file, if the current one exceeds
-         * the size limit
-         */
-        if (fsize > KVDB_EXPORT_FSIZE_MAX) {
-            len = snprintf(fname, sizeof(fname), "%s_%d", bak->bak_fname, filecnt);
-
-            if (len >= sizeof(fname)) {
-                bak->bak_err = merr(EINVAL);
-                hse_elog(
-                    HSE_ERR "File name %s is truncated,"
-                            " @@e",
-                    bak->bak_err,
-                    fname);
-                break;
-            }
-
-            if (f) {
-                fclose(f);
-                f = NULL;
-            }
-
-            fsize = 0;
-            filecnt++;
-
-            fd = open(fname, O_CREAT | O_TRUNC | O_EXCL | O_WRONLY, S_IRUSR | S_IWUSR);
-            if (fd < 0) {
-                bak->bak_err = merr(errno);
-                hse_elog(HSE_ERR "Failed to open file %s, @@e", bak->bak_err, fname);
-                break;
-            }
-            f = fdopen(fd, "w");
-            if (!f) {
-                close(fd);
-                bak->bak_err = merr(errno);
-                hse_elog(HSE_ERR "Failed to fdopen file %s,@@e", bak->bak_err, fname);
-                break;
-            }
-        }
-
-        bak->bak_err = ikvdb_kvs_cursor_read(cur, 0, &key, &klen, &val, &vlen, &eof);
-        if (ev(bak->bak_err, HSE_ERR))
-            break;
-
-        if (eof)
-            break;
-
-        /* Convert kvmt to little endian, if needed */
-        omf_set_kvmt_klen(&kvmt, klen);
-        omf_set_kvmt_vlen(&kvmt, vlen);
-        fwrite(&kvmt, sizeof(kvmt), 1, f);
-        fwrite(key, sizeof(char), klen, f);
-        fwrite(val, sizeof(char), vlen, f);
-
-        bak->bak_kvcnt++;
-        fsize += klen + vlen + sizeof(klen) + sizeof(vlen);
-    }
-
-    if (f)
-        fclose(f);
-
-    ikvdb_kvs_cursor_destroy(cur);
-
-    bak->bak_fcnt = filecnt;
-}
-
-/**
- * ikvdb_export_toc() - export kvdb and kvs meta data into TOC file
- * @path: dump directory
- * @mp_name:
- * @kvdb_cparams:
- * @kvscnt:
- * @kvsv: kvs names
- * @kvs_cparams:
- * @bak:
- */
-static merr_t
-ikvdb_export_toc(
-    const char *          path,
-    const char *          mp_name,
-    struct kvdb_cparams * kvdb_cparams,
-    int                   kvscnt,
-    char **               kvsv,
-    struct kvs_cparams *  kvs_cparams,
-    struct kvdb_bak_work *bak)
-{
-    int    i;
-    cJSON *TOC;
-    cJSON *kvs;
-    cJSON *KVSs = NULL;
-    char * string = NULL;
-    merr_t err = 0;
-    char   fname[PATH_MAX];
-    FILE * f;
-    int    fd;
-    int    len;
-    int    ver = KVDB_DUMP_CUR_VER;
-    u32    crc, crc_le;
-
-    TOC = cJSON_CreateObject();
-    if (!TOC) {
-        err = merr(ev(ENOMEM, HSE_ERR));
-        goto errout;
-    }
-
-    cJSON_AddNumberToObject(TOC, "version", ver);
-    cJSON_AddStringToObject(TOC, "name", mp_name);
-    cJSON_AddNumberToObject(TOC, "kvscnt", kvscnt);
-    cJSON_AddNumberToObject(TOC, "dur_capacity", kvdb_cparams->dur_capacity);
-
-    KVSs = cJSON_CreateArray();
-    if (!KVSs) {
-        err = merr(ev(ENOMEM, HSE_ERR));
-        goto errout;
-    }
-
-    for (i = 0; i < kvscnt; i++) {
-        kvs = cJSON_CreateObject();
-        if (!kvs) {
-            err = merr(ev(ENOMEM, HSE_ERR));
-            break;
-        }
-
-        cJSON_AddStringToObject(kvs, "name", kvsv[i]);
-        cJSON_AddNumberToObject(kvs, "filecnt", bak[i].bak_fcnt);
-        cJSON_AddNumberToObject(kvs, "kvcnt", bak[i].bak_kvcnt);
-        cJSON_AddNumberToObject(kvs, "pfx_len", kvs_cparams[i].cp_pfx_len);
-        cJSON_AddNumberToObject(kvs, "pfx_pivot", kvs_cparams[i].cp_pfx_pivot);
-        cJSON_AddNumberToObject(kvs, "fanout", kvs_cparams[i].cp_fanout);
-        cJSON_AddNumberToObject(kvs, "kvs_ext01", kvs_cparams[i].cp_kvs_ext01);
-        cJSON_AddItemToArray(KVSs, kvs);
-    }
-
-    cJSON_AddItemToObject(TOC, "KVSs", KVSs);
-    if (ev(err))
-        goto errout;
-
-    /* Print JSON struct into a buffer, then dump it into TOC file */
-    string = cJSON_Print(TOC);
-
-    len = snprintf(fname, sizeof(fname), "%s/TOC", path);
-    if (len >= sizeof(fname)) {
-        err = merr(EINVAL);
-        hse_elog(
-            HSE_ERR "Export TOC file name %s is truncated,"
-                    " @@e",
-            err,
-            fname);
-        goto errout;
-    }
-
-    fd = open(fname, O_CREAT | O_TRUNC | O_EXCL | O_WRONLY, S_IRUSR | S_IWUSR);
-    if (fd < 0) {
-        err = merr(errno);
-        hse_elog(HSE_ERR "Failed to open file %s, @@e", err, fname);
-        goto errout;
-    }
-    f = fdopen(fd, "w");
-    if (!f) {
-        close(fd);
-        err = merr(errno);
-        hse_elog(HSE_ERR "Failed to fdopen file %s, @@e", err, fname);
-        goto errout;
-    }
-
-    crc = XXH32((const u8 *)string, strlen(string), 0);
-    crc_le = cpu_to_le32(crc);
-
-    fwrite(&crc_le, sizeof(crc_le), 1, f);
-    fprintf(f, "%s", string);
-    fclose(f);
-errout:
-    free(string);
-    cJSON_Delete(TOC);
-    return err;
-}
-
-merr_t
-ikvdb_export(struct ikvdb *handle, struct kvdb_cparams *kvdb_cparams, const char *path)
-{
-    struct ikvdb_impl *      kvdb = ikvdb_h2r(handle);
-    char **                  kvsv = NULL;
-    struct kvs_cparams *     kvs_cparams;
-    unsigned int             count = 0;
-    merr_t                   err;
-    int                      i;
-    struct hse_kvs *         kvs;
-    struct hse_kvs_cursor *  cur;
-    struct hse_kvdb_opspec   opspec = { 0 };
-    struct workqueue_struct *wq;
-    struct kvdb_bak_work *   bak;
-    time_t                   t;
-    char                     pname[PATH_MAX];
-    int                      rc;
-    struct tm *              tmp;
-    char                     timestr[128];
-    int                      done = 0;
-    int                      len;
-
-    if (access(path, W_OK)) {
-        err = merr(errno);
-        hse_elog(HSE_ERR "Failed to open directory %s, @@e", err, path);
-        return err;
-    }
-
-    /*
-     * Create directory "<path>/<mpname>/<timestamp>
-     * e.g.: /tmp/mp1/2018-09-20-18-04-42
-     */
-    snprintf(pname, sizeof(pname), "%s/%s/", path, kvdb->ikdb_mpname);
-    rc = mkdir(pname, S_IRWXU);
-    if (rc && errno != EEXIST) {
-        err = merr(errno);
-        hse_elog(HSE_ERR "Failed to create dir %s, @@e", err, pname);
-        return err;
-    }
-
-    /* Generate timestamp string, append it to directory name */
-    time(&t);
-    tmp = localtime(&t);
-    snprintf(
-        timestr,
-        sizeof(timestr),
-        "%4d-%02d-%02d-%02d-%02d-%02d",
-        tmp->tm_year + 1900,
-        tmp->tm_mon + 1,
-        tmp->tm_mday,
-        tmp->tm_hour,
-        tmp->tm_min,
-        tmp->tm_sec);
-
-    len = strlcat(pname, timestr, sizeof(pname));
-    if (len >= sizeof(pname)) {
-        err = merr(EINVAL);
-        hse_elog(
-            HSE_ERR "Export path name %s is truncated,"
-                    " @@e",
-            err,
-            pname);
-        return err;
-    }
-
-    rc = mkdir(pname, S_IRWXU);
-    if (rc && errno != EEXIST) {
-        err = merr(errno);
-        hse_elog(HSE_ERR "Failed to create dir %s, @@e", err, pname);
-        return err;
-    }
-
-    err = ikvdb_get_names(handle, &count, &kvsv);
-    if (ev(err, HSE_ERR))
-        return err;
-
-    if (count == 0)
-        return 0;
-
-    bak = calloc(count, sizeof(*bak));
-    if (!bak) {
-        ikvdb_free_names(handle, kvsv);
-        return merr(ev(ENOMEM, HSE_ERR));
-    }
-
-    kvs_cparams = calloc(count, sizeof(*kvs_cparams));
-    if (!kvs_cparams) {
-        free(bak);
-        ikvdb_free_names(handle, kvsv);
-        return merr(ev(ENOMEM, HSE_ERR));
-    }
-
-    wq = alloc_workqueue("dbexport", 0, count);
-    if (!wq) {
-        err = merr(ENOMEM);
-        hse_elog(HSE_ERR "Failed to alloc export workqueues, @@e", err);
-        goto errout;
-    }
-
-    for (i = 0; i < count; i++) {
-        int n;
-
-        err = ikvdb_kvs_open(handle, kvsv[i], 0, 0, &kvs);
-        if (err) {
-            hse_elog(HSE_ERR "Failed to open kvs %s, @@e", err, kvsv[i]);
-            goto errout;
-        }
-
-        kvs_cparams[i].cp_pfx_len = ((struct kvdb_kvs *)kvs)->kk_cparams->cp_pfx_len;
-        kvs_cparams[i].cp_pfx_pivot = ((struct kvdb_kvs *)kvs)->kk_cparams->cp_pfx_pivot;
-        kvs_cparams[i].cp_fanout = ((struct kvdb_kvs *)kvs)->kk_cparams->cp_fanout;
-        kvs_cparams[i].cp_kvs_ext01 =
-            (((struct kvdb_kvs *)kvs)->kk_flags & CN_CFLAG_CAPPED) ? 1 : 0;
-
-        err = ikvdb_kvs_cursor_create(kvs, &opspec, NULL, 0, &cur);
-        if (err) {
-            hse_elog(
-                HSE_ERR "Failed to create cursor for kvdb"
-                        " %s kvs %s, @@e",
-                err,
-                kvdb->ikdb_mpname,
-                kvsv[i]);
-            goto errout;
-        }
-
-        bak[i].bak_kvs = kvs;
-        n = snprintf(bak[i].bak_fname, sizeof(bak[i].bak_fname), "%s/%s", pname, kvsv[i]);
-        if (n >= sizeof(bak[i].bak_fname)) {
-            err = merr(EINVAL);
-            goto errout;
-        }
-
-        bak[i].bak_cur = cur;
-        INIT_WORK(&bak[i].bak_work, ikvdb_kvs_export);
-        queue_work(wq, &bak[i].bak_work);
-    }
-
-errout:
-    /* Wait for all exporting jobs finish */
-    destroy_workqueue(wq);
-
-    /* Check the status of all dump threads */
-    if (!err) {
-        for (i = 0; i < count; i++) {
-            if (bak[i].bak_err)
-                err = bak[i].bak_err;
-            else
-                done++;
-        }
-    }
-
-    /* Dump the export summary/meta data to TOC file */
-    if (!err)
-        err =
-            ikvdb_export_toc(pname, kvdb->ikdb_mpname, kvdb_cparams, count, kvsv, kvs_cparams, bak);
-
-    ikvdb_free_names(handle, kvsv);
-    free(kvs_cparams);
-    free(bak);
-    return err;
 }
 
 #if HSE_MOCKING

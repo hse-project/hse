@@ -12,7 +12,7 @@ kvs=$(new_kvs $mp) || err
 keys=$((1000 * 1000 * 4))
 nthread=20
 ncursor=10000
-cmd multicursor_test $mp $kvs -c$keys -j$nthread -r$ncursor -l -v kvs.cn_node_size_lo=32 kvs.cn_node_size_hi=32
+cmd multicursor $mp $kvs -c$keys -j$nthread -r$ncursor -l -v kvs-oparms cn_node_size_lo=32 cn_node_size_hi=32
 
 #
 # capput tests
@@ -25,11 +25,11 @@ pwin=100
 dur=30
 
 # regular kvs
-kvs=$(new_kvs $mp kvs.pfx_len=8) || err
-cmd capput $mp $kvs -j$wth -t$rth -c$chunksz -b$batchsz -m$pwin -d$dur -v kvs.cn_node_size_lo=32 kvs.cn_node_size_hi=32
+kvs=$(new_kvs $mp pfx_len=8) || err
+cmd capput $mp $kvs -j$wth -t$rth -c$chunksz -b$batchsz -m$pwin -d$dur -v kvs-oparms cn_node_size_lo=32 cn_node_size_hi=32
 
 # capped kvs
-kvs=$(new_kvs $mp kvs.pfx_len=8 kvs.kvs_ext01=1) || err
+kvs=$(new_kvs $mp pfx_len=8 kvs_ext01=1) || err
 cmd capput $mp $kvs -j$wth -t$rth -c$chunksz -b$batchsz -m$pwin -d$dur -v
 
 

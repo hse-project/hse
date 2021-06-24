@@ -59,7 +59,7 @@ MTF_DEFINE_UTEST_PRE(cn_api, basic, pre)
 
     rp.cn_diag_mode = 1;
 
-    err = cndb_init(&cndb, NULL, true, 0, 0, 0, 0, &mock_health);
+    err = cndb_init(&cndb, NULL, true, 0, 0, 0, 0, &mock_health, 0);
     ASSERT_EQ(err, 0);
 
     cndb.cndb_cnc = 1;
@@ -70,13 +70,13 @@ MTF_DEFINE_UTEST_PRE(cn_api, basic, pre)
 
     kk.kk_parent = (void *)&dummy_ikvdb;
     kk.kk_cparams = &cp;
-    kk.kk_cparams->cp_fanout = 4;
+    kk.kk_cparams->fanout = 4;
 
     mapi_inject(mapi_idx_ikvdb_get_csched, 0);
     mapi_inject(mapi_idx_cndb_cn_blob_get, 0);
     mapi_inject(mapi_idx_cndb_cn_blob_set, 0);
-    mapi_inject(mapi_idx_mpool_params_get, 0);
-    mapi_inject(mapi_idx_mpool_mclass_get, ENOENT);
+    mapi_inject(mapi_idx_mpool_props_get, 0);
+    mapi_inject(mapi_idx_mpool_mclass_props_get, ENOENT);
 
     err = cn_open(0, ds, &kk, &cndb, 0, &rp, "mp", "kvs", &mock_health, 0, &cn);
     ASSERT_EQ(err, 0);
@@ -87,7 +87,7 @@ MTF_DEFINE_UTEST_PRE(cn_api, basic, pre)
 
     struct kvs_cparams *c = cn_get_cparams(cn);
 
-    ASSERT_EQ(c->cp_fanout, 4);
+    ASSERT_EQ(c->fanout, 4);
 
     struct kvs_rparams *rp_out;
 

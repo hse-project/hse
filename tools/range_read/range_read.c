@@ -19,7 +19,8 @@
 #include <sysexits.h>
 #include <sys/resource.h>
 
-#include "common.h"
+#include <cli/param.h>
+
 #include "kvs_helper.h"
 
 const char *progname;
@@ -436,13 +437,23 @@ main(
     int       argc,
     char    **argv)
 {
-    struct hse_params  *params;
+    struct parm_groups *pg = NULL;
+    struct svec         kvdb_oparms = {};
+    struct svec         kvs_cparms = {};
+    struct svec         kvs_oparms = {};
     int                 i, rc;
     const char         *mpool, *kvs;
     char                c;
     struct thread_info *ti = 0;
+    bool                freet = false;
+    void               *blens_base HSE_MAYBE_UNUSED = NULL;
 
     progname = basename(argv[0]);
+
+    rc = pg_create(&pg, PG_KVDB_OPEN, PG_KVS_OPEN, PG_KVS_CREATE, NULL);
+    if (rc)
+        fatal(rc, "pg_create");
+
     opts.vsep = ",";
 
     strncpy(opts.logdir, "/tmp/range_read_logs", sizeof(opts.logdir));
@@ -456,6 +467,7 @@ main(
         switch (c) {
         case 'b':
             opts.blens = strdup(optarg);
+            blens_base = opts.blens;
             errmsg = "invalid burst lengths";
             break;
         case 'c':
@@ -497,6 +509,7 @@ main(
         case 'T':
             opts.tests = strdup(optarg);
             errmsg = "invalid tests";
+            freet = true;
             break;
         case 'V':
             opts.verify = true;
@@ -529,23 +542,34 @@ main(
         }
     }
 
-    hse_params_create(&params);
-
-    kh_rparams(&argc, &argv, params);
-    if (argc != 2) {
-        syntax("insufficient arguments for mandatory parameters");
-        hse_params_destroy(params);
+    if (argc - optind < 2) {
+        syntax("missing required parameters");
         exit(EX_USAGE);
     }
 
-    mpool = argv[0];
-    kvs   = argv[1];
+    mpool = argv[optind++];
+    kvs   = argv[optind++];
 
-    kh_init(mpool, params);
+    rc = pg_parse_argv(pg, argc, argv, &optind);
+    switch (rc) {
+        case 0:
+            if (optind < argc)
+                fatal(0, "unknown parameter: %s", argv[optind]);
+            break;
+        case EINVAL:
+            fatal(0, "missing group name (e.g. %s) before parameter %s\n",
+                PG_KVDB_OPEN, argv[optind]);
+            break;
+        default:
+            fatal(rc, "error processing parameter %s\n", argv[optind]);
+            break;
+    }
+
+    kh_init(mpool, &kvdb_oparms);
 
     if (opts.phase == NONE) {
         fprintf(stderr, "Choose a phase to run\n");
-        hse_params_destroy(params);
+        pg_destroy(pg);
         exit(EX_USAGE);
     }
 
@@ -569,23 +593,11 @@ main(
 
         /* distribute suffixes across jobs */
         for (i = 0; i < opts.threads; i++) {
-            struct hse_params *p;
-            char               sfxlen[32];
-
-            hse_params_create(&p);
-
-            snprintf(sfxlen, sizeof(sfxlen),
-                     "%lu", sizeof(uint64_t));
-
-            hse_params_set(p, "kvs.sfxlen", sfxlen);
-
             ti[i].sfx_start = opts.sfx_start + (thread_share * i);
             ti[i].sfx_end   = ti[i].sfx_start + thread_share;
 
             if (i == opts.threads - 1)
                 ti[i].sfx_end += thread_extra;
-
-            hse_params_destroy(p);
         }
 
         /* Start all the loaders in a detached state so we can have them
@@ -593,9 +605,9 @@ main(
          */
         stopthreads = false;
         snprintf(logfile, sizeof(logfile), "rr_load_%u.log", opts.sfx_start);
-        kh_register(0, KH_FLAG_DETACH, 0, &print_stats, logfile);
+        kh_register(KH_FLAG_DETACH, &print_stats, logfile);
         for (i = 0; i < opts.threads; i++)
-            kh_register(kvs, KH_FLAG_DETACH, params, &loader, &ti[i]);
+            kh_register_kvs(kvs, KH_FLAG_DETACH, &kvs_cparms, &kvs_oparms, &loader, &ti[i]);
 
         while (!stopthreads && atomic64_read(&n_write) < tot_keys)
             sleep(5);
@@ -624,10 +636,10 @@ main(
         atomic64_set(&n_read, 0);
 
         snprintf(logfile, sizeof(logfile), "rr_warmup.log");
-        kh_register(0, 0, 0, &print_stats, logfile);
+        kh_register(0, &print_stats, logfile);
 
         for (i = 0; i < opts.warmup_threads; i++)
-            kh_register(kvs, 0, params, &point_get, 0);
+            kh_register_kvs(kvs, 0, &kvs_cparms, &kvs_oparms, &point_get, 0);
 
         while (!stopthreads && atomic64_read(&n_read) < warmup_nkeys)
             sleep(5);
@@ -676,13 +688,13 @@ main(
                 stopthreads = false;
 
                 snprintf(logfile, sizeof(logfile), "rr_%s_%s_out.log", op[j].opname, s);
-                kh_register(0, 0, 0, &print_stats, logfile);
+                kh_register(0, &print_stats, logfile);
 
                 for (i = 0; i < opts.threads; i++) {
                     memset(dt[i].dt, 0x00, DT_CNT);
                     dt[i].dt_skip = 5;
                     dt[i].dt_cnt = 0;
-                    kh_register(kvs, 0, params, op[j].opfunc, &dt[i]);
+                    kh_register_kvs(kvs, 0, &kvs_cparms, &kvs_oparms, op[j].opfunc, &dt[i]);
                 }
 
                 duration = opts.duration;
@@ -718,9 +730,11 @@ main(
     kh_fini();
 
     free(ti);
-    free(opts.blens);
+    free(blens_base);
+    if (freet)
+        free(opts.tests);
 
-    hse_params_destroy(params);
+    pg_destroy(pg);
 
     return 0;
 }

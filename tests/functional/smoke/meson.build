@@ -1,13 +1,13 @@
 
 
-smoke_needs = 'cli tests-kvdb tools'
+smoke_needs = 'cli tests-dir tools'
 smoke_enabled = (get_option('cli') and
-                 get_option('tests-kvdb') != '' and
+                 get_option('tests-dir') != '' and
                  get_option('tools'))
 
-samples_needs = 'cli tests-kvdb samples'
+samples_needs = 'cli tests-dir samples'
 samples_enabled = (get_option('cli') and
-                   get_option('tests-kvdb') != '' and
+                   get_option('tests-dir') != '' and
                    get_option('samples'))
 
 suites = {
@@ -33,6 +33,7 @@ suites = {
             'putget2',
             'longtestcn',
             'longtestcn2',
+            'mdc-test',
             'key-imm-disc',
             'kvt-simple',
             'txn1',
@@ -43,8 +44,10 @@ suites = {
             'longtest-sync',
             'kvs-max',
             'omf_encoder_perf',
+            'mcache-test',
             'kvt-logreplay',
             'kmt1',
+            'kmt-mpool',
             'kvt-isolation',
             'bonsai-insdel',
             'large-values1',
@@ -52,10 +55,10 @@ suites = {
             'probe-test',
             'kvt-compression',
 
+
             # These tests disabled until WAL is back:
             #
             #   kvt-logreplay
-            #   c1-correctness
             #
             # These tests started failing around 2021-03-10:
             #
@@ -87,20 +90,29 @@ foreach suite, params : suites
                  '  Requires config options: @1@').format(suite, params['needs']))
     else
         foreach t : params['tests']
+
+            home_dir = tests_dir / t
+
+            if not fs.exists(home_dir)
+                run_command(
+                    'mkdir',
+                    home_dir,
+                    check: true,
+                )
+            endif
+
             test(
                 t,
                 runner_script,
                 args: [
                     '-d', meson.current_build_dir(),
-                    '-m', get_option('tests-kvdb'),
+                    '-m', home_dir,
                     t,
                 ],
-		timeout: 1800,
+                timeout: 1800,
                 is_parallel: false,
                 suite: ['functional', suite],
             )
         endforeach
     endif
 endforeach
-
-

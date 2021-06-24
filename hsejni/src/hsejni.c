@@ -3,6 +3,7 @@
  * Copyright (C) 2015-2017,2019,2021 Micron Technology, Inc.  All rights reserved.
  */
 
+#include <assert.h>
 #include <jni.h>
 #include <hse_jni_util.h>
 #include <hsejni_internal.h>
@@ -10,7 +11,7 @@
 #include <hse/hse.h>
 
 #include <hse_util/compiler.h>
-#include <hse_util/hse_params_helper.h>
+#include <cli/param.h>
 
 #define MAX_ARGS 32
 
@@ -29,72 +30,55 @@ pthread_key_t td_cursor_key;
 
 thread_local struct hse_kvs_cursor *cursor = NULL;
 
-static int
-jni_params_string_to_argv(char *p_list, char **argv, uint32_t max_args)
+static void
+jni_config_string_to_argv(char *p_list, size_t *argc, const char **argv, const char *prefix, uint32_t max_args)
 {
+    assert(p_list);
+    assert(argv);
+    assert(argc);
+
     char *cp;
-    int   argc;
 
-    if (!p_list || !argv)
-        return -EINVAL;
+    while ((cp = strsep(&p_list, ",")) && *argc < max_args)
+        if (*cp) {
+            char *param = strstr(cp, prefix);
+            if (!param || !param[0])
+                continue;
+            param += strlen(prefix) - 1;
+            argv[(*argc)++] = ++param;
+        }
 
-    argc = 0;
-    while ((cp = strsep(&p_list, ",")) && argc < max_args)
-        if (*cp)
-            argv[argc++] = cp;
-
-    if (argc == max_args && cp && *cp)
+    if (*argc == max_args && cp && *cp)
         syslog(
             LOG_ERR,
             "(HSE JNI) "
-            "Extraneous parameters passed (max: %d). Only "
-            "the first %d parameters will be processed",
+            "Extraneous config parameters passed (max: %d). Only "
+            "the first %d config parameters will be processed",
             max_args,
             max_args);
-
-    return argc;
 }
 
 int
-jni_hse_params_parse(struct hse_params *params, const char *p_list)
+jni_hse_config_parse(size_t *argc, const char **argv, char *p_list, const char *prefix, uint32_t max_args)
 {
-    int   argc;
-    char *argv[MAX_ARGS];
-    char *args;
-    int   rc;
-    int   next_arg = 0;
+    jni_config_string_to_argv(p_list, argc, argv, prefix, max_args);
 
-    args = strdup(p_list);
-    if (!args)
-        return (-errno);
-
-    argc = jni_params_string_to_argv(args, argv, MAX_ARGS);
-    if (argc > 0)
-        rc = hse_parse_cli(argc, argv, &next_arg, 0, params);
-    else
-        rc = argc;
-
-    free(args);
-
-    return rc;
+    return 0;
 }
 
-int
-split_str(char **substr1, char **substr2, char *str)
+const char *
+get_kvs_name(char *kvspath)
 {
     char *p;
 
-    /* split str at the last occurrence of '/' */
-    p = strrchr(str, '/');
+    /* split kvspath at the last occurrence of '/' */
+    p = strrchr(kvspath, '/');
     if (p)
         *p++ = 0;
     else
-        return -1;
+        return NULL;
 
-    *substr1 = str;
-    *substr2 = p;
-
-    return 0;
+    return p;
 }
 
 static void
@@ -170,26 +154,32 @@ Java_org_micron_hse_API_fini(JNIEnv *env, jobject jobj)
 }
 
 JNIEXPORT void JNICALL
-               Java_org_micron_hse_API_open(
+Java_org_micron_hse_API_open(
     JNIEnv *env,
     jobject jobj,
     jshort  dbType,
-    jstring mpoolName,
-    jstring dsName,
-    jstring hseParamsList,
-    jstring configPath)
+    jstring kvdbHome,
+    jstring kvsName,
+    jstring hseConfig)
 {
-    jboolean           isCopy = JNI_FALSE;
-    const char *       aMpoolName = NULL;
-    const char *       aDsName = NULL;
-    const char *       aHseParamsList = NULL;
-    const char *       aConfigPath = NULL;
-    char *             aKvdbName = NULL;
-    char *             aKvsName = NULL;
-    char *             dsdup = NULL;
-    void *             kvs_h = NULL;
-    struct hse_params *params;
-    uint64_t           rc;
+    jboolean    isCopy = JNI_FALSE;
+    const char *aKvdbHome = NULL;
+    const char *aHseConfig = NULL;
+    const char *aKvsName = NULL;
+    void *      kvs_h = NULL;
+    uint64_t    rc;
+    char *kvdb_duped_config = NULL;
+    char *kvs_open_duped_config = NULL;
+    char *kvs_make_duped_config = NULL;
+
+    size_t       kvdb_paramc = 0;
+    const char * kvdb_paramv[MAX_ARGS];
+
+    size_t       kvs_open_paramc = 0;
+    const char * kvs_open_paramv[MAX_ARGS];
+
+    size_t       kvs_make_paramc = 0;
+    const char * kvs_make_paramv[MAX_ARGS];
 
     jclass   apiCls = 0;
     jfieldID jf = 0;
@@ -206,71 +196,55 @@ JNIEXPORT void JNICALL
         return;
     }
 
-    hse_params_create(&params);
-    if (!params) {
-        throw_gen_exception(
-            env,
-            "HSE parameters "
-            "could not be created: "
-            "Not enough memory");
-    }
+    aKvdbHome = (*env)->GetStringUTFChars(env, kvdbHome, &isCopy);
+    aKvsName = (*env)->GetStringUTFChars(env, kvsName, &isCopy);
+    aHseConfig = (*env)->GetStringUTFChars(env, hseConfig, &isCopy);
 
-    aMpoolName = (*env)->GetStringUTFChars(env, mpoolName, &isCopy);
-    aDsName = (*env)->GetStringUTFChars(env, dsName, &isCopy);
-    aHseParamsList = (*env)->GetStringUTFChars(env, hseParamsList, &isCopy);
-    aConfigPath = (*env)->GetStringUTFChars(env, configPath, &isCopy);
-
-    /*
-     * [HSE_REVISIT] Once kvdb name is passed as a parameter, this parsing
-     * will no longer be necessary
-     */
-    dsdup = strdup(aDsName);
-    if (!dsdup) {
-        throw_gen_exception(env, "Not enough memory");
-        return;
-    }
-
-    if (split_str(&aKvdbName, &aKvsName, dsdup)) {
-        throw_gen_exception(env, "Please use the format: kvdb/kvs");
-        goto out;
-    }
-
-    if (aConfigPath && aConfigPath[0]) {
-        rc = hse_params_from_file(params, aConfigPath);
-        if (rc) {
-            throw_err(env, "hse_params_from_file", rc);
+    if (aHseConfig && aHseConfig[0]) {
+        kvdb_duped_config = strdup(aHseConfig);
+        kvs_open_duped_config = strdup(aHseConfig);
+        kvs_make_duped_config = strdup(aHseConfig);
+        if (!kvs_open_duped_config || !kvdb_duped_config || !kvs_make_duped_config){
+            throw_gen_exception(env, "Not enough memory");
             goto out;
         }
-    }
-
-    if (aHseParamsList && aHseParamsList[0]) {
-        if (jni_hse_params_parse(params, aHseParamsList)) {
+        if (jni_hse_config_parse(&kvdb_paramc, kvdb_paramv, kvdb_duped_config, "kvdb.open.", MAX_ARGS)) {
             throw_gen_exception(
                 env,
-                "HSE parameters "
-                "could not be parsed: "
-                "Not enough memory");
+                "HSE config could not be parsed");
+            goto out;
+        }
+        if (jni_hse_config_parse(&kvs_make_paramc, kvs_make_paramv, kvs_make_duped_config, "kvs.make.", MAX_ARGS)) {
+            throw_gen_exception(
+                env,
+                "HSE config could not be parsed");
+            goto out;
+        }
+        if (jni_hse_config_parse(&kvs_open_paramc, kvs_open_paramv, kvs_open_duped_config, "kvs.open.", MAX_ARGS)) {
+            throw_gen_exception(
+                env,
+                "HSE config could not be parsed");
             goto out;
         }
     }
 
-    rc = hse_kvdb_open(aMpoolName, params, &kvdb_h);
+    rc = hse_kvdb_open(aKvdbHome, kvdb_paramc, kvdb_paramv, &kvdb_h);
     if (rc) {
         throw_err(env, "hse_kvdb_open", rc);
         goto out;
     }
 
-    rc = hse_kvdb_kvs_open(kvdb_h, aKvsName, params, (struct hse_kvs **)&kvs_h);
+    rc = hse_kvdb_kvs_open(kvdb_h, aKvsName, kvs_open_paramc, kvs_open_paramv, (struct hse_kvs **)&kvs_h);
 
     if (hse_err_to_errno(rc) == ENOENT) {
-        rc = hse_kvdb_kvs_make(kvdb_h, aKvsName, params);
+        rc = hse_kvdb_kvs_make(kvdb_h, aKvsName, kvs_make_paramc, kvs_make_paramv);
         if (rc) {
             hse_kvdb_close(kvdb_h);
             throw_err(env, "hse_kvdb_kvs_make", rc);
             goto out;
         }
 
-        rc = hse_kvdb_kvs_open(kvdb_h, aKvsName, params, (struct hse_kvs **)&kvs_h);
+        rc = hse_kvdb_kvs_open(kvdb_h, aKvsName, kvs_open_paramc, kvs_open_paramv, (struct hse_kvs **)&kvs_h);
     }
 
     if (rc) {
@@ -281,14 +255,17 @@ JNIEXPORT void JNICALL
 
     (*env)->SetLongField(env, jobj, jf, (jlong)kvs_h);
 
-    (*env)->ReleaseStringUTFChars(env, mpoolName, aMpoolName);
-    (*env)->ReleaseStringUTFChars(env, dsName, aDsName);
-    (*env)->ReleaseStringUTFChars(env, hseParamsList, aHseParamsList);
-    (*env)->ReleaseStringUTFChars(env, configPath, aConfigPath);
+    (*env)->ReleaseStringUTFChars(env, kvdbHome, aKvdbHome);
+    (*env)->ReleaseStringUTFChars(env, kvsName, aKvsName);
+    (*env)->ReleaseStringUTFChars(env, hseConfig, aHseConfig);
 
 out:
-    hse_params_destroy(params);
-    free(dsdup);
+    if (kvdb_duped_config)
+        free(kvdb_duped_config);
+    if (kvs_make_duped_config)
+        free(kvs_make_duped_config);
+    if (kvs_open_duped_config)
+        free(kvs_open_duped_config);
 }
 
 JNIEXPORT jint JNICALL
@@ -329,7 +306,7 @@ errout:
 }
 
 JNIEXPORT jint JNICALL
-               Java_org_micron_hse_API_put(
+Java_org_micron_hse_API_put(
     JNIEnv *   env,
     jobject    jobj,
     jlong      handle,
@@ -491,7 +468,7 @@ Java_org_micron_hse_API_del(JNIEnv *env, jobject jobj, jlong handle, jbyteArray 
 }
 
 JNIEXPORT void JNICALL
-               Java_org_micron_hse_API_createCursor(
+Java_org_micron_hse_API_createCursor(
     JNIEnv *env,
     jobject jobj,
     jlong   handle,

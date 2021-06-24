@@ -1,3 +1,8 @@
+if not get_option('bindings-python')
+    warning('kvpy suite is disabled because the Python bindings are disabled')
+    subdir_done()
+endif
+
 tests = [
     'abort-destroy',
     'basic',
@@ -42,22 +47,28 @@ tests = [
     'update_views',
 ]
 
-if not (get_option('bindings-python') and get_option('tests-kvdb') != '')
-    warning(('HSE kvpy test suite disabled.'+
-             '  Requires config options: bindings-python tests-kvdb'))
-else
-    foreach t : tests
-        test(
-            t,
-            python,
-            args: [
-                '@0@.py'.format(t),
-                '--kvdb-name', get_option('tests-kvdb'),
-            ],
-            depends: hse_python_depends,
-            workdir: meson.current_source_dir(),
-            is_parallel: false,
-            suite: ['functional', 'kvpy'],
+
+foreach t : tests
+    home_dir = tests_dir / t
+    if not fs.exists(home_dir)
+        run_command(
+            'mkdir',
+            home_dir,
+            check: true,
         )
-    endforeach
-endif
+    endif
+
+    test(
+        t,
+        python,
+        args: [
+            '@0@.py'.format(t),
+            '--home',
+            home_dir,
+        ],
+        depends: hse_python_depends,
+        workdir: meson.current_source_dir(),
+        suite: ['functional', 'kvpy'],
+        timeout: 300,
+    )
+endforeach

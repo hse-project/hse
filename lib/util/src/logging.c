@@ -1,14 +1,14 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
 #include <hse_util/platform.h>
 #include <hse_util/slab.h>
 #include <hse_util/config.h>
-#include <hse_util/param.h>
 #include <hse_util/string.h>
 #include <hse_util/delay.h>
+#include <hse_util/parse_num.h>
 
 #include <hse/hse_version.h>
 
@@ -31,6 +31,9 @@
  * readability of the source code.
  */
 
+#define PARAM_GET_INVALID(_type, _dst, _dstsz) \
+    ({ ((_dstsz) < sizeof(_type) || !(_dst) || (uintptr_t)(_dst) & (__alignof(_type) - 1)); })
+
 /**
  * struct priority_name - A table mapping priorities to their enum values
  * @priority_name:
@@ -43,7 +46,6 @@ struct priority_name {
 
 DEFINE_SPINLOCK(hse_logging_lock);
 
-static int                 default_mlc_cur_pri = HSE_DEBUG_VAL;
 struct hse_logging_control hse_logging_control = {
     .mlc_cur_pri = -1, /* current priority logging level             */
     .mlc_verbose = 0,  /* print to stderr if set and in user-space   */
@@ -164,6 +166,24 @@ _hse_log_async_cons_th(struct work_struct *wstruct)
 
     async->al_th_working = false;
     spin_unlock_irqrestore(&async->al_lock, flags);
+}
+
+static merr_t
+get_log_level(const char *str, void *dst, size_t dstsz)
+{
+    merr_t err;
+    u64    num;
+
+    if (PARAM_GET_INVALID(log_priority_t, dst, dstsz))
+        return merr(EINVAL);
+
+    err = parse_u64(str, &num);
+    if (err)
+        *(log_priority_t *)dst = hse_logprio_name_to_val(str);
+    else
+        *(log_priority_t *)dst = num;
+
+    return 0;
 }
 
 merr_t
@@ -333,34 +353,9 @@ log_level_set_handler(struct dt_element *dte, struct dt_set_parameters *dsp)
     return 1;
 }
 
-static size_t
-log_level_emit_handler(struct dt_element *dte, struct yaml_context *yc)
-{
-    char value[DT_PATH_LEN];
-
-    show_log_level(value, DT_PATH_LEN, &hse_logging_control.mlc_cur_pri, 0);
-    yaml_element_field(yc, "current", value);
-
-    show_log_level(value, DT_PATH_LEN, &default_mlc_cur_pri, 0);
-    yaml_element_field(yc, "default", value);
-
-    return 1;
-}
-
 merr_t
 hse_logging_post_init(void)
 {
-    CFG("hse_logging",
-        "log_level",
-        &hse_logging_control.mlc_cur_pri,
-        sizeof(hse_logging_control.mlc_cur_pri),
-        &default_mlc_cur_pri,
-        log_level_validator,
-        NULL,
-        log_level_emit_handler,
-        log_level_set_handler,
-        show_log_level,
-        true);
     return 0;
 }
 

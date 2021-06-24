@@ -17,7 +17,7 @@ struct blk_list;
 struct kvs_rparams;
 struct cn_merge_stats;
 
-enum mp_media_classp;
+enum mpool_mclass;
 enum hse_mclass_policy_age;
 
 /* MTF_MOCK_DECL(vblock_builder) */
@@ -27,7 +27,6 @@ enum hse_mclass_policy_age;
  * @bld_out: builder handle (output)
  * @cn: cn in which vblocks will be created
  * @pc: perf counters
- * @flags: kvset builder flags
  */
 /* MTF_MOCK */
 merr_t
@@ -35,8 +34,7 @@ vbb_create(
     struct vblock_builder **bld_out,
     struct cn *             cn,
     struct perfc_set *      pc,
-    u64                     vgroup,
-    uint                    flags);
+    u64                     vgroup);
 
 /**
  * vbb_destroy() - Destroy a vblock builder
@@ -72,7 +70,7 @@ vbb_finish(struct vblock_builder *bld, struct blk_list *vblks);
 
 /* MTF_MOCK */
 size_t
-vbb_estimate_alen(struct cn *cn, size_t wlen, enum mp_media_classp mclass);
+vbb_estimate_alen(struct cn *cn, size_t wlen, enum mpool_mclass mclass);
 
 /**
  * vbb_flush_entry() - Writes vblock contents into media

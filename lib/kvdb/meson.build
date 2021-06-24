@@ -1,9 +1,10 @@
 kvdb_sources = files(
     'ctxn_perfc.c',
-    'hse_params.c',
+    'home.c',
     'ikvdb.c',
     'kvdb_cparams.c',
     'kvdb_ctxn.c',
+    'kvdb_dparams.c',
     'kvdb_health.c',
     'kvdb_keylock.c',
     'kvdb_log.c',
@@ -14,7 +15,6 @@ kvdb_sources = files(
     'sched_sts_perfc.c',
     'throttle.c',
     'viewset.c',
-    'wp.c',
 )
 
 kvdb_includes = include_directories('.')

@@ -7,6 +7,7 @@
 #define HSE_KVDB_HEALTH_H
 
 #include <hse_util/atomic.h>
+#include <hse_util/hse_err.h>
 
 struct kvdb_health_stat {
     atomic64_t khs_odometer;

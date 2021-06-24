@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
 #define MTF_MOCK_IMPL_hse
@@ -12,7 +12,10 @@
 #include <hse_ikvdb/kvdb_ctxn.h>
 #include <hse_ikvdb/limits.h>
 #include <hse_ikvdb/kvdb_perfc.h>
-#include <hse_ikvdb/wp.h>
+#include <hse_ikvdb/config.h>
+#include <hse_ikvdb/argv.h>
+#include <hse_ikvdb/home.h>
+#include <hse_ikvdb/kvdb_rparams.h>
 
 #include <hse/hse_version.h>
 
@@ -21,58 +24,95 @@
 #include <hse_util/logging.h>
 #include <hse_util/string.h>
 
+#include <pidfile/pidfile.h>
+
 merr_t
 diag_kvdb_open(
-    const char *         mpool_name,
-    struct kvdb_rparams *rparams,
-    struct hse_kvdb **   handle)
+    const char *       kvdb_home,
+    size_t             paramc,
+    const char *const *paramv,
+    struct hse_kvdb ** handle)
 {
     merr_t              err;
     struct ikvdb *      ikvdb;
-    struct mpool *      kvdb_ds;
-    struct kvdb_rparams default_params;
+    struct mpool *      mp = NULL;
+    struct kvdb_rparams params = kvdb_rparams_defaults();
+    struct pidfh *      pfh = NULL;
+    struct pidfile      content;
+    char                real_home[PATH_MAX];
+    char                pidfile_path[PATH_MAX];
+    size_t              n;
+    struct config *     conf;
 
-    if (ev(!mpool_name || !handle))
+    if (ev(!kvdb_home || !handle))
         return merr(EINVAL);
 
-    /* [HSE_REVISIT] snapshot_id and certain rparams are ignored */
-    if (!rparams) {
-        /* Open the kvdb using default parameters */
-        default_params = kvdb_rparams_defaults();
-        rparams = &default_params;
-    }
-
-    err = kvdb_rparams_validate(rparams);
+    err = kvdb_home_translate(kvdb_home, real_home, sizeof(real_home));
     if (ev(err))
-        return err;
+        goto close_mp;
 
-    perfc_verbosity = rparams->perfc_enable;
+    err = ikvdb_log_deserialize_to_kvdb_rparams(real_home, &params);
+    if (err)
+        goto close_mp;
 
-    if (rparams->log_lvl <= 7)
-        hse_log_set_pri((int)rparams->log_lvl);
+    err = argv_deserialize_to_kvdb_rparams(paramc, paramv, &params);
+    if (err)
+        goto close_mp;
 
-    hse_log_set_squelch_ns(rparams->log_squelch_ns);
+    err = config_from_hse_conf(real_home, &conf);
+    if (err)
+        goto close_mp;
 
-    kvdb_rparams_print(rparams);
+    err = config_deserialize_to_kvdb_rparams(conf, &params);
+    if (err)
+        goto close_mp;
+
+    n = snprintf(pidfile_path, sizeof(pidfile_path), "%s/" PIDFILE_NAME, real_home);
+    if (n >= sizeof(pidfile_path))
+        goto close_mp;
+
+    pfh = pidfile_open(pidfile_path, S_IRUSR | S_IWUSR, NULL);
+    if (!pfh)
+        goto close_mp;
+
+    content.pid = getpid();
+    n = kvdb_home_socket_path_get(
+        real_home, params.socket.path, content.socket.path, sizeof(content.socket.path));
+    if (n >= sizeof(content.socket.path))
+        goto close_mp;
+
+    err = merr(pidfile_serialize(pfh, &content));
+    if (err)
+        goto close_mp;
+
+    perfc_verbosity = params.perfc_enable;
+
+    if (params.log_lvl <= 7)
+        hse_log_set_pri((int)params.log_lvl);
+
+    hse_log_set_squelch_ns(params.log_squelch_ns);
 
     /* Need write access in case recovery data needs to be replayed into cN.
      * Need exclusive access to prevent multiple applications from
      * working on the same KVDB, which would cause corruption.
      */
-    err = mpool_open(mpool_name, O_RDWR|O_EXCL, &kvdb_ds, NULL);
+    err = mpool_open(real_home, &params.storage, O_RDWR, &mp);
     if (ev(err))
-        return err;
+        goto close_mp;
 
-    err = ikvdb_diag_open(mpool_name, kvdb_ds, rparams, &ikvdb);
+    err = ikvdb_diag_open(real_home, pfh, mp, &params, &ikvdb);
     if (ev(err))
-        goto close_ds;
+        goto close_mp;
 
     *handle = (struct hse_kvdb *)ikvdb;
 
     return 0UL;
 
-close_ds:
-    mpool_close(kvdb_ds);
+close_mp:
+    if (mp)
+        mpool_close(mp);
+    if (pfh)
+        pidfile_remove(pfh);
 
     return err;
 }
@@ -81,10 +121,15 @@ merr_t
 diag_kvdb_close(struct hse_kvdb *handle)
 {
     merr_t        err = 0, err2 = 0;
+    struct pidfh *pfh;
+    char          home[PATH_MAX];
     struct mpool *ds;
 
     if (ev(!handle))
         return merr(EINVAL);
+
+    pfh = ikvdb_pidfh((struct ikvdb *)handle);
+    strlcpy(home, ikvdb_home((struct ikvdb *)handle), sizeof(home));
 
     /* Retrieve mpool descriptor before ikvdb_impl is free'd */
     ds = ikvdb_mpool_get((struct ikvdb *)handle);
@@ -94,6 +139,13 @@ diag_kvdb_close(struct hse_kvdb *handle)
 
     err2 = mpool_close(ds);
     ev(err2);
+
+    if (err || err2) {
+        pidfile_remove(pfh);
+    } else {
+        if (pidfile_remove(pfh) == -1)
+            err = merr(errno);
+    }
 
     return err ? err : err2;
 }

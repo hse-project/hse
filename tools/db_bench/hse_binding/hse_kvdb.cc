@@ -20,7 +20,7 @@ namespace leveldb {
 
 static const int MSG_SIZE = 100;
 
-HseKvdb::HseKvdb(const std::string& kvdb_name) : kvdb_name_(kvdb_name) {}
+HseKvdb::HseKvdb(const std::string& kvdb_home) : kvdb_home_(kvdb_home) {}
 
 void HseKvdb::InitLibrary() { hse_init(); }
 
@@ -30,11 +30,11 @@ std::string HseKvdb::VersionString() {
   return std::string(hse_kvdb_version_string());
 }
 
-Status HseKvdb::Open(const std::string& kvdb_name, HseKvdb** kvdbptr) {
-  HseKvdb* kvdb = new HseKvdb(kvdb_name);
+Status HseKvdb::Open(const std::string& kvdb_home, HseKvdb** kvdbptr) {
+  HseKvdb* kvdb = new HseKvdb(kvdb_home);
   hse_err_t err;
 
-  err = hse_kvdb_open(kvdb_name.c_str(), NULL, &kvdb->kvdb_handle_);
+  err = hse_kvdb_open(kvdb_home.c_str(), 0, NULL, &kvdb->kvdb_handle_);
   if (err) {
     char msg[MSG_SIZE];
     delete kvdb;
@@ -68,10 +68,10 @@ Status HseKvdb::OpenKvs(const std::string& kvs_name, HseKvs** kvsptr,
   hse_kvs* kvs_handle;
   hse_err_t err;
 
-  std::fprintf(stderr, "open kvs \"%s/%s\"\n", kvdb_name_.c_str(),
+  std::fprintf(stderr, "open kvs \"%s/%s\"\n", kvdb_home_.c_str(),
                kvs_name.c_str());
 
-  err = hse_kvdb_kvs_open(kvdb_handle_, kvs_name.c_str(), NULL, &kvs_handle);
+  err = hse_kvdb_kvs_open(kvdb_handle_, kvs_name.c_str(), 0, NULL, &kvs_handle);
   if (err) {
     char msg[MSG_SIZE];
     return Status::IOError(hse_err_to_string(err, msg, sizeof(msg), NULL));
@@ -80,7 +80,7 @@ Status HseKvdb::OpenKvs(const std::string& kvs_name, HseKvs** kvsptr,
   kvs = new HseKvs(kvs_handle, kvs_name, get_buffer_size);
   *kvsptr = kvs;
 
-  std::fprintf(stderr, "open kvs \"%s/%s\" ok\n", kvdb_name_.c_str(),
+  std::fprintf(stderr, "open kvs \"%s/%s\" ok\n", kvdb_home_.c_str(),
                kvs_name.c_str());
 
   return Status::OK();
@@ -89,7 +89,7 @@ Status HseKvdb::OpenKvs(const std::string& kvs_name, HseKvs** kvsptr,
 Status HseKvdb::DropKvs(const std::string& kvs_name) {
   hse_err_t err;
 
-  std::fprintf(stderr, "drop kvs \"%s/%s\"\n", kvdb_name_.c_str(),
+  std::fprintf(stderr, "drop kvs \"%s/%s\"\n", kvdb_home_.c_str(),
                kvs_name.c_str());
 
   err = hse_kvdb_kvs_drop(kvdb_handle_, kvs_name.c_str());
@@ -98,7 +98,7 @@ Status HseKvdb::DropKvs(const std::string& kvs_name) {
     return Status::IOError(hse_err_to_string(err, msg, sizeof(msg), NULL));
   }
 
-  std::fprintf(stderr, "drop kvs \"%s/%s\" ok\n", kvdb_name_.c_str(),
+  std::fprintf(stderr, "drop kvs \"%s/%s\" ok\n", kvdb_home_.c_str(),
                kvs_name.c_str());
 
   return Status::OK();
@@ -107,16 +107,16 @@ Status HseKvdb::DropKvs(const std::string& kvs_name) {
 Status HseKvdb::MakeKvs(const std::string& kvs_name) {
   hse_err_t err;
 
-  std::fprintf(stderr, "make kvs \"%s/%s\"\n", kvdb_name_.c_str(),
+  std::fprintf(stderr, "make kvs \"%s/%s\"\n", kvdb_home_.c_str(),
                kvs_name.c_str());
 
-  err = hse_kvdb_kvs_make(kvdb_handle_, kvs_name.c_str(), NULL);
+  err = hse_kvdb_kvs_make(kvdb_handle_, kvs_name.c_str(), 0, NULL);
   if (err) {
     char msg[MSG_SIZE];
     return Status::IOError(hse_err_to_string(err, msg, sizeof(msg), NULL));
   }
 
-  std::fprintf(stderr, "make kvs \"%s/%s\" ok\n", kvdb_name_.c_str(),
+  std::fprintf(stderr, "make kvs \"%s/%s\" ok\n", kvdb_home_.c_str(),
                kvs_name.c_str());
 
   return Status::OK();

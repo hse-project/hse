@@ -1,7 +1,8 @@
 import shlex
+from typing import List
 
 
-def shlex_join(arglist) -> str:
+def shlex_join(arglist: List[str]) -> str:
     #
     # Implementation for Python 3.7 and older
     # https://bugs.python.org/issue22454

@@ -179,16 +179,55 @@ rest_kvdb_compact_status_get(
 
     return 0;
 }
+
+static merr_t
+rest_kvdb_storage_stats_get(
+    const char *      path,
+    struct conn_info *info,
+    const char *      url,
+    struct kv_iter *  iter,
+    void *            context)
+{
+    struct ikvdb *               ikvdb = context;
+    struct hse_kvdb_storage_info stinfo = {};
+    size_t                       b, bufoff;
+    char *                       buf = info->buf;
+    size_t                       bufsz = info->buf_sz;
+    merr_t                       err;
+    char                         cappath[PATH_MAX], stgpath[PATH_MAX];
+
+    err = ikvdb_storage_info_get(ikvdb, &stinfo, cappath, stgpath, PATH_MAX);
+    if (err)
+        return err;
+
+    bufoff = 0;
+    b = snprintf_append(buf, bufsz, &bufoff, "total: %lu\n", stinfo.total_bytes);
+    b += snprintf_append(buf, bufsz, &bufoff, "available: %lu\n", stinfo.available_bytes);
+    b += snprintf_append(buf, bufsz, &bufoff, "allocated: %lu\n", stinfo.allocated_bytes);
+    b += snprintf_append(buf, bufsz, &bufoff, "used: %lu\n", stinfo.used_bytes);
+    b += snprintf_append(buf, bufsz, &bufoff, "capacity_path: %s\n", cappath);
+    b += snprintf_append(buf, bufsz, &bufoff, "staging_path: %s\n", stgpath);
+
+    if (write(info->resp_fd, buf, b) != b)
+        return merr(EIO);
+
+    return 0;
+}
+
 merr_t
-kvdb_rest_register(const char *mp_name, void *kvdb)
+kvdb_rest_register(void *kvdb)
 {
     merr_t status, err = 0;
 
-    if (!mp_name || !kvdb)
+    if (!kvdb)
         return merr(ev(EINVAL));
 
-    status = rest_url_register(kvdb, URL_FLAG_EXACT, rest_kvdb_get, 0, "mpool/%s", mp_name);
+    status = rest_url_register(kvdb, URL_FLAG_EXACT, rest_kvdb_get, 0, "kvdb");
+    if (ev(status) && !err)
+        err = status;
 
+    status = rest_url_register(kvdb, URL_FLAG_EXACT, rest_kvdb_storage_stats_get,
+                               0, "kvdb/storage_stats");
     if (ev(status) && !err)
         err = status;
 
@@ -197,18 +236,15 @@ kvdb_rest_register(const char *mp_name, void *kvdb)
         URL_FLAG_NONE,
         rest_kvdb_compact_status_get,
         rest_kvdb_compact_request,
-        "mpool/%s/compact",
-        mp_name);
+        "kvdb/compact");
+
     return err;
 }
 
 merr_t
-kvdb_rest_deregister(const char *mp_name)
+kvdb_rest_deregister()
 {
-    if (!mp_name)
-        return merr(ev(EINVAL));
-
-    return rest_url_deregister("mpool/%s", mp_name);
+    return rest_url_deregister("kvdb");
 }
 
 /*---------------------------------------------------------------
@@ -929,16 +965,16 @@ done:
 }
 
 merr_t
-kvs_rest_register(const char *mp_name, const char *kvs_name, void *kvs)
+kvs_rest_register(const char *kvs_name, void *kvs)
 {
     merr_t err = 0;
     merr_t status;
 
-    if (!mp_name || !kvs_name || !kvs)
+    if (!kvs_name || !kvs)
         return merr(ev(EINVAL));
 
     status = rest_url_register(
-        kvs, URL_FLAG_EXACT, rest_kvs_tree, 0, "mpool/%s/kvs/%s/cn/tree", mp_name, kvs_name);
+        kvs, URL_FLAG_EXACT, rest_kvs_tree, 0, "kvdb/kvs/%s/cn/tree", kvs_name);
 
     if (ev(status) && !err)
         err = status;
@@ -948,8 +984,7 @@ kvs_rest_register(const char *mp_name, const char *kvs_name, void *kvs)
         URL_FLAG_BINVAL | URL_FLAG_EXACT,
         rest_kvs_curperf,
         0,
-        "mpool/%s/kvs/%s/curperf",
-        mp_name,
+        "kvdb/kvs/%s/curperf",
         kvs_name);
 
     if (ev(status) && !err)
@@ -959,20 +994,20 @@ kvs_rest_register(const char *mp_name, const char *kvs_name, void *kvs)
 }
 
 merr_t
-kvs_rest_deregister(const char *mp_name, const char *kvs_name)
+kvs_rest_deregister(const char *kvs_name)
 {
     merr_t err = 0;
     merr_t status;
 
-    if (!mp_name || !kvs_name)
+    if (!kvs_name)
         return merr(ev(EINVAL));
 
-    status = rest_url_deregister("mpool/%s/kvs/%s/cn/tree", mp_name, kvs_name);
+    status = rest_url_deregister("kvdb/kvs/%s/cn/tree", kvs_name);
 
     if (ev(status) && !err)
         err = status;
 
-    status = rest_url_deregister("mpool/%s/kvs/%s/curperf", mp_name, kvs_name);
+    status = rest_url_deregister("kvdb/kvs/%s/curperf", kvs_name);
 
     if (ev(status) && !err)
         err = status;

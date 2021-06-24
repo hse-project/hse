@@ -138,7 +138,8 @@
 #include <term.h>
 
 #include <hse/hse.h>
-#include <hse/hse_version.h>
+
+#include <tools/parm_groups.h>
 
 #include <xoroshiro/xoroshiro.h>
 #include <3rdparty/murmur3.h>
@@ -155,6 +156,14 @@
 #define KVS_TOMBS_NAME      "tombs"
 #define KVS_INODES_NAME     "inodes"
 #define KVS_DATA_NAME       "data"
+
+enum kvs_type {
+    kvs_type_unknown,
+    kvs_type_rids,
+    kvs_type_tombs,
+    kvs_type_inodes,
+    kvs_type_data
+};
 
 /* inodes table record flags
  */
@@ -312,6 +321,8 @@ u_int  ridkeybase = NELEM(u64tostrtab) - 1;
 size_t vlenmax = 127;
 size_t vlenmin;
 size_t vrunlen;
+size_t ridpfxlen;
+bool vcomp;
 
 u_int     ijobsmax, tjobsmax, cjobsmax;
 cpu_set_t cpuset;
@@ -333,17 +344,26 @@ bool force;
 bool  sync_enabled = false;
 ulong sync_timeout_ms = 0;
 
+struct parm_groups *pg;
+
+struct svec db_oparms;
+struct svec rids_oparms, rids_cparms;
+struct svec inodes_oparms, inodes_cparms;
+struct svec tombs_oparms, tombs_cparms;
+struct svec data_oparms, data_cparms;
+struct svec empty_parms;
+
+
 static int
 kvt_create(
     const char *       mpname,
-    struct hse_params *params,
     const char *       keyfile,
     const char *       keyfmt,
     u_long             keymax,
     bool *             dump);
 
 static int
-kvt_open(struct hse_params *params, u_int kvs_listc, char **kvs_listv);
+kvt_open(u_int kvs_listc, char **kvs_listv);
 
 static int
 kvt_init(const char *keyfile, const char *keyfmt, u_long keymax, bool dump);
@@ -780,6 +800,130 @@ rsignal(int signo, __sighandler_t func)
     return sigaction(signo, &nact, (struct sigaction *)0);
 }
 
+
+int
+parm_vec_init(void)
+{
+    char *txn = testtxn ? "transactions_enable=1" : "transactions_enable=0";
+    char *cmp = vcomp ? "value_compression=lz4" : "";
+    char rids_pfx[64] = {};
+    int rc = 0;
+
+    if (ridpfxlen)
+        snprintf(rids_pfx, sizeof(rids_pfx), "pfx_len=%zu", ridpfxlen);
+
+    svec_init(&db_oparms);
+
+    svec_init(&rids_oparms);
+    svec_init(&data_oparms);
+    svec_init(&tombs_oparms);
+    svec_init(&inodes_oparms);
+
+    svec_init(&rids_cparms);
+    svec_init(&data_cparms);
+    svec_init(&tombs_cparms);
+    svec_init(&inodes_cparms);
+
+    svec_init(&empty_parms);
+
+    /* kvdb open params */
+    rc = rc ?: svec_append_pg(&db_oparms, pg, "perfc_enable=0", PG_KVDB_OPEN, NULL);
+
+    /* kvs open params: txn setting applies to all, only data and tombs get compression
+     */
+    rc = rc ?: svec_append_pg(&rids_oparms, pg, PG_KVS_OPEN, txn, NULL);
+    rc = rc ?: svec_append_pg(&data_oparms, pg, PG_KVS_OPEN, txn, cmp, NULL);
+    rc = rc ?: svec_append_pg(&tombs_oparms, pg, PG_KVS_OPEN, txn, cmp, NULL);
+    rc = rc ?: svec_append_pg(&inodes_oparms, pg, PG_KVS_OPEN, txn, NULL);
+
+    /* kvs create params
+     */
+    rc = rc ?: svec_append_pg(&rids_cparms, pg, PG_KVS_CREATE, rids_pfx, NULL);
+    rc = rc ?: svec_append_pg(&data_cparms, pg, PG_KVS_CREATE, NULL);
+    rc = rc ?: svec_append_pg(&tombs_cparms, pg, PG_KVS_CREATE, NULL);
+    rc = rc ?: svec_append_pg(&inodes_cparms, pg, PG_KVS_CREATE, NULL);
+
+    return rc;
+}
+
+void
+parm_vec_fini(void)
+{
+    svec_reset(&db_oparms);
+    svec_reset(&rids_oparms);
+    svec_reset(&rids_cparms);
+    svec_reset(&data_oparms);
+    svec_reset(&data_cparms);
+    svec_reset(&tombs_oparms);
+    svec_reset(&tombs_cparms);
+    svec_reset(&inodes_oparms);
+    svec_reset(&inodes_cparms);
+}
+
+enum kvs_type
+decode_kvs_name(
+    const char *name,
+    int *instance)
+{
+    *instance = 0;
+
+    if (!strcmp(name, KVS_RIDS_NAME))
+        return kvs_type_rids;
+
+    if (!strcmp(name, KVS_TOMBS_NAME))
+        return kvs_type_tombs;
+
+    if (1 == sscanf(name, KVS_INODES_NAME"%d", instance))
+        return kvs_type_tombs;
+
+    if (1 == sscanf(name, KVS_DATA_NAME"%d", instance))
+        return kvs_type_data;
+
+    return kvs_type_unknown;
+}
+
+struct svec *
+kvs_cparms_get(const char *kvs_name)
+{
+    int instance;
+
+    switch (decode_kvs_name(kvs_name, &instance)) {
+        case kvs_type_rids:
+            return &rids_cparms;
+        case kvs_type_data:
+            return &data_cparms;
+        case kvs_type_tombs:
+            return &tombs_cparms;
+        case kvs_type_inodes:
+            return &data_cparms;
+        default:
+            break;
+    }
+
+    return &empty_parms;
+}
+
+struct svec *
+kvs_oparms_get(const char *kvs_name)
+{
+    int instance;
+
+    switch (decode_kvs_name(kvs_name, &instance)) {
+        case kvs_type_rids:
+            return &rids_oparms;
+        case kvs_type_data:
+            return &data_oparms;
+        case kvs_type_tombs:
+            return &tombs_oparms;
+        case kvs_type_inodes:
+            return &data_oparms;
+        default:
+            break;
+    }
+
+    return &empty_parms;
+}
+
 int
 ridlock_init(size_t nlocks)
 {
@@ -955,6 +1099,14 @@ prop_decode(const char *list, const char *sep, const char *valid)
             updateprob = prob_decode(value, &end);
         } else if (0 == strcmp(name, "vrunlen")) {
             vrunlen = cvt_strtoul(value, &end, &suftab_iec);
+        } else if (0 == strcmp(name, "ridpfxlen")) {
+            ridpfxlen = cvt_strtoul(value, &end, &suftab_iec);
+            if (ridpfxlen > 100) {
+                eprint(0, "ridpfxlen too large: %zu (max value is 100)\n", ridpfxlen);
+                errno = EINVAL;
+            }
+        } else if (0 == strcmp(name, "vcomp")) {
+            vcomp = (bool)cvt_strtoul(value, &end, &suftab_iec);
         } else {
             eprint(0, "%s property '%s' ignored", valid ? "unhandled" : "invalid", name);
             continue;
@@ -1014,7 +1166,6 @@ usage(void)
         "-b base   specify rid-to-key base [2 <= base <= %zu] (default: %u)\n",
         NELEM(u64tostrtab) - 1,
         ridkeybase);
-    printf("-C conf   specify a file of create/runtime params\n");
     printf("-c        perform a full data integrity check of the kvdb\n");
     printf("-f file   initialize kvdb using keys from file (one key per line)\n");
     printf("-h        show this help list\n");
@@ -1033,7 +1184,6 @@ usage(void)
     printf("-S seed   specify a seed for the RNG\n");
     printf("-T secs   specify test run time (with transactions)\n");
     printf("-t secs   specify test run time (no transactions)\n");
-    printf("-V        show version\n");
     printf("-v        increase verbosity\n");
     printf("-y sync   time in milliseconds for periodic syncs");
     printf("file  use '-' for stdin\n");
@@ -1063,6 +1213,8 @@ usage(void)
         "  updateprob   probability to update a key (default: %lf)\n",
         (double)updateprob / UINT64_MAX);
     printf("  vrunlen      generated ascii value run length (default: %zu)\n", vrunlen);
+    printf("  vcomp        enable value compression for data and tomb kvs (default: %d)\n", vcomp);
+    printf("  ridpfxlen    set prefix len of rid kvs (default:  %zu)\n", ridpfxlen);
 
     printf("\nEXAMPLES:\n");
     printf("  load files:  find /usr | kvt -f- -cv mykvdb\n");
@@ -1079,13 +1231,11 @@ int
 main(int argc, char **argv)
 {
     char               area[64], *areap = area;
-    struct hse_params *params;
-    bool               help, version, dump;
+    bool               help, dump;
     u_long             killmin, killmax;
     char *             keyfile = NULL;
     char *             keyfmt = NULL;
-    char *             cfarg = NULL;
-    int                check, rc, i;
+    int                check, rc;
     u_long             keymax;
     hse_err_t          err;
     tsi_t              tstart;
@@ -1094,7 +1244,7 @@ main(int argc, char **argv)
     progname = strrchr(argv[0], '/');
     progname = progname ? progname + 1 : argv[0];
 
-    version = dump = help = testtxn = false;
+    dump = help = testtxn = false;
     initchkdups = headers = human = true;
     check = 0;
 
@@ -1147,7 +1297,7 @@ main(int argc, char **argv)
         uint64_t seed;
         int      c;
 
-        c = getopt(argc, argv, ":b:C:cDFf:hi:j:K:k:l:m:no:pS:T:t:Vvy:");
+        c = getopt(argc, argv, ":b:cDFf:hi:j:K:k:l:m:no:pS:T:t:vy:");
         if (-1 == c)
             break;
 
@@ -1162,10 +1312,6 @@ main(int argc, char **argv)
                     ridkeybase = NELEM(u64tostrtab) - 1;
                     eprint(0, "%s, using %u", errmsg, ridkeybase);
                 }
-                break;
-
-            case 'C':
-                cfarg = optarg;
                 break;
 
             case 'c':
@@ -1318,10 +1464,6 @@ main(int argc, char **argv)
                 ++verbosity;
                 break;
 
-            case 'V':
-                version = true;
-                break;
-
             case 'y':
                 sync_enabled = true;
                 sync_timeout_ms = strtoul(optarg, &end, 10);
@@ -1396,20 +1538,45 @@ main(int argc, char **argv)
     if (help) {
         usage();
         exit(0);
-    } else if (version) {
-        printf("%s\n", hse_tag);
-        exit(0);
     }
 
-    argc -= optind;
-    argv += optind;
-
-    if (argc < 1) {
+    if (argc - optind < 1) {
         syntax("insufficient arguments for mandatory parameters");
         exit(EX_USAGE);
     }
 
-    mpname = argv[0];
+    mpname = argv[optind++];
+
+    rc = pg_create(&pg, PG_KVDB_OPEN, PG_KVS_OPEN, PG_KVS_CREATE, NULL);
+    if (rc) {
+        eprint(rc, "pg_create");
+        exit(EX_OSERR);
+    }
+
+    rc = pg_parse_argv(pg, argc, argv, &optind);
+    switch (rc) {
+        case 0:
+            if (optind < argc) {
+                eprint(0, "unknown parameter: %s", argv[optind]);
+                exit(EX_USAGE);
+            }
+            break;
+        case EINVAL:
+            eprint(0, "missing group name (e.g. %s) before parameter %s\n",
+                PG_KVDB_OPEN, argv[optind]);
+            exit(EX_USAGE);
+            break;
+        default:
+            eprint(rc, "error processing parameter %s\n", argv[optind]);
+            exit(EX_OSERR);
+            break;
+    }
+
+    rc = parm_vec_init();
+    if (rc) {
+        eprint(rc, "svec_apppend_pg failed");
+        exit(EX_OSERR);
+    }
 
     tsi_start(&tstart);
     status("initializing hse...");
@@ -1420,29 +1587,9 @@ main(int argc, char **argv)
         exit(EX_OSERR);
     }
 
-    hse_params_create(&params);
-    hse_params_set(params, "kvdb.perfc_enable", "0");
-    //hse_params_set(params, "kvs.value_compression", "lz4");
-
-    for (i = 1; i < argc; ++i) {
-        char *ptr = argv[i], *tok;
-
-        tok = strsep(&ptr, "=");
-        if (tok && ptr)
-            hse_params_set(params, tok, ptr);
-    }
-
-    if (cfarg) {
-        rc = hse_params_from_file(params, cfarg);
-        if (rc) {
-            eprint(rc, "unable to parse config file %s", cfarg);
-            exit(EX_OSERR);
-        }
-    }
-
     status("opening kvdb %s...", mpname);
 
-    err = hse_kvdb_open(mpname, params, &kvdb);
+    err = hse_kvdb_open(mpname, db_oparms.strc, db_oparms.strv, &kvdb);
     if (err) {
         eprint(err, "unable to open kvdb `%s'", mpname);
         rc = EX_OSERR;
@@ -1457,7 +1604,7 @@ main(int argc, char **argv)
     rsignal(SIGUSR1, sigusr1_isr);
     rsignal(SIGUSR2, sigint_isr);
 
-    rc = kvt_create(mpname, params, keyfile, keyfmt, keymax, &dump);
+    rc = kvt_create(mpname, keyfile, keyfmt, keymax, &dump);
     if (rc)
         goto errout;
 
@@ -1486,7 +1633,8 @@ errout:
     free(kvs_inodesv);
     hse_fini();
     ridlock_fini();
-    free(params);
+    parm_vec_fini();
+    pg_destroy(pg);
 
     return rc;
 }
@@ -1584,20 +1732,20 @@ fnrec_decode(
 static int
 kvt_create(
     const char *       mpname,
-    struct hse_params *params,
     const char *       keyfile,
     const char *       keyfmt,
     u_long             keymax,
     bool *             dump)
 {
-    char      key[128], val[128];
-    char **   kvs_listv = NULL;
-    u_int     kvs_listc = 0;
-    char      kvsname[32];
-    int       klen, vlen;
-    hse_err_t err;
-    tsi_t     tstart;
-    int       rc, i;
+    char         key[128], val[128];
+    char **      kvs_listv = NULL;
+    u_int        kvs_listc = 0;
+    char         kvsname[32];
+    int          klen, vlen;
+    hse_err_t    err;
+    tsi_t        tstart;
+    int          rc, i;
+    struct svec *parms;
 
     err = hse_kvdb_get_names(kvdb, &kvs_listc, &kvs_listv);
     if (err) {
@@ -1624,10 +1772,12 @@ kvt_create(
     /* Create the file name indexes.
      */
     for (i = 0; i < kvs_inodesc; ++i) {
+
         snprintf(kvsname, sizeof(kvsname), "%s%d", KVS_INODES_NAME, i);
 
         status("creating kvs %s...", kvsname);
-        err = hse_kvdb_kvs_make(kvdb, kvsname, params);
+        parms = kvs_cparms_get(kvsname);
+        err = hse_kvdb_kvs_make(kvdb, kvsname, parms->strc, parms->strv);
         if (err) {
             eprint(err, "unable to create kvs `%s'", kvsname);
             return EX_CANTCREAT;
@@ -1640,7 +1790,8 @@ kvt_create(
         snprintf(kvsname, sizeof(kvsname), "%s%d", KVS_DATA_NAME, i);
 
         status("creating kvs %s...", kvsname);
-        err = hse_kvdb_kvs_make(kvdb, kvsname, params);
+        parms = kvs_cparms_get(kvsname);
+        err = hse_kvdb_kvs_make(kvdb, kvsname, parms->strc, parms->strv);
         if (err) {
             eprint(err, "unable to create kvs `%s'", kvsname);
             return EX_CANTCREAT;
@@ -1648,14 +1799,16 @@ kvt_create(
     }
 
     status("creating kvs %s...", KVS_TOMBS_NAME);
-    err = hse_kvdb_kvs_make(kvdb, KVS_TOMBS_NAME, params);
+    parms = kvs_cparms_get(KVS_TOMBS_NAME);
+    err = hse_kvdb_kvs_make(kvdb, KVS_TOMBS_NAME, parms->strc, parms->strv);
     if (err) {
         eprint(err, "unable to create kvs '%s'", KVS_TOMBS_NAME);
         return EX_CANTCREAT;
     }
 
     status("creating kvs %s...", KVS_RIDS_NAME);
-    err = hse_kvdb_kvs_make(kvdb, KVS_RIDS_NAME, params);
+    parms = kvs_cparms_get(KVS_RIDS_NAME);
+    err = hse_kvdb_kvs_make(kvdb, KVS_RIDS_NAME, parms->strc, parms->strv);
     if (err) {
         eprint(err, "unable to create kvs '%s'", KVS_RIDS_NAME);
         return EX_CANTCREAT;
@@ -1671,10 +1824,10 @@ kvt_create(
 
     dprint(1, "created %u kvs in %.3lf seconds", kvs_listc, tsi_delta(&tstart) / 1000000.0);
 
-    /* Open the rids table and write the root record...
+    /* Open the rids table and write the root record.  Do not use
+     * open parms for this open.
      */
-    hse_params_set(params, "kvs.transactions_enable", "0");
-    err = hse_kvdb_kvs_open(kvdb, KVS_RIDS_NAME, params, &kvs_rids);
+    err = hse_kvdb_kvs_open(kvdb, KVS_RIDS_NAME, 0, NULL, &kvs_rids);
     if (err) {
         eprint(err, "unable to open kvs `%s'", KVS_RIDS_NAME);
         return EX_DATAERR;
@@ -1704,17 +1857,21 @@ kvt_create(
     }
 
     err = hse_kvdb_kvs_close(kvs_rids);
-    if (err)
+    if (err) {
         eprint(err, "kvdb kvs close %s", KVS_RIDS_NAME);
+        return EX_SOFTWARE;
+    }
 
     err = hse_kvdb_sync(kvdb);
-    if (err)
+    if (err) {
         eprint(err, "kvdb sync");
+        return EX_SOFTWARE;
+    }
 
     kvs_rids = NULL;
 
 open:
-    rc = kvt_open(params, kvs_listc, kvs_listv);
+    rc = kvt_open(kvs_listc, kvs_listv);
     if (rc)
         return rc;
 
@@ -1732,24 +1889,23 @@ open:
 }
 
 static int
-kvt_open(struct hse_params *params, u_int kvs_listc, char **kvs_listv)
+kvt_open(u_int kvs_listc, char **kvs_listv)
 {
-    char      key[128], val[128];
-    int       klen, rc, n, i;
-    hse_err_t err;
-    tsi_t     tstart;
-    size_t    vlen;
-    bool      found;
-    size_t    sz;
+    char         key[128], val[128];
+    int          klen, rc, n, i;
+    hse_err_t    err;
+    tsi_t        tstart;
+    size_t       vlen;
+    bool         found;
+    size_t       sz;
+    struct svec *parms;
 
     tsi_start(&tstart);
 
-    if (testtxn)
-        hse_params_set(params, "kvs.transactions_enable", "1");
-
     /* Open the rids table and read the root record...
      */
-    err = hse_kvdb_kvs_open(kvdb, KVS_RIDS_NAME, params, &kvs_rids);
+    parms = kvs_oparms_get(KVS_RIDS_NAME);
+    err = hse_kvdb_kvs_open(kvdb, KVS_RIDS_NAME, parms->strc, parms->strv, &kvs_rids);
     if (err) {
         eprint(err, "unable to open kvs `%s'", KVS_RIDS_NAME);
         return EX_DATAERR;
@@ -1810,7 +1966,8 @@ kvt_open(struct hse_params *params, u_int kvs_listc, char **kvs_listv)
 
         status("opening kvs %s...", kvs_listv[i]);
 
-        err = hse_kvdb_kvs_open(kvdb, kvs_listv[i], params, &kvs);
+        parms = kvs_oparms_get(kvs_listv[i]);
+        err = hse_kvdb_kvs_open(kvdb, kvs_listv[i], parms->strc, parms->strv, &kvs);
         if (err) {
             eprint(err, "unable to open kvs `%s'", kvs_listv[i]);
             return EX_DATAERR;
@@ -2246,7 +2403,7 @@ kvt_init(const char *keyfile, const char *keyfmt, u_long keymax, bool dump)
         if (err)
             eprint(err, "put root key=%s val=%s", key, val);
 
-        hse_kvdb_txn_commit(kvdb, os.kop_txn);
+        err = hse_kvdb_txn_commit(kvdb, os.kop_txn);
         if (err)
             eprint(err, "hse_kvdb_txn_commit");
 
@@ -2470,7 +2627,7 @@ kvt_init_main(void *arg)
 
         err = hse_kvs_put(kvs_rids, testtxn ? &os : NULL, key, klen, work->fn, work->fnlen);
         if (err) {
-            eprint(err, "put %s %lu key=%s val=%s", KVS_RIDS_NAME, rid, key, work->fn);
+            eprint(err, "xput %s %lu key=%s val=%s", KVS_RIDS_NAME, rid, key, work->fn);
             goto errout;
         }
 

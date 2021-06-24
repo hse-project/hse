@@ -77,7 +77,6 @@ struct vblock_builder {
     void *                     wbuf;
     uint                       wbuf_off;
     uint                       wbuf_len;
-    uint                       flags;
     u64                        vgroup;
     bool                       destruct;
     u32                        opt_wrsz;

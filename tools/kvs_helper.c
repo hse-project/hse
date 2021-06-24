@@ -8,12 +8,12 @@
 #include <stddef.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <stdarg.h>
+#include <stdio.h>
 
 #include <bsd/string.h>
 #include <hse/hse.h>
 #include <hse/hse_limits.h>
-
-#include <hse_util/hse_params_helper.h>
 
 #include "kvs_helper.h"
 
@@ -38,39 +38,22 @@ struct thread_info {
 };
 static struct thread_info *t_head, *t_detached;
 
-void
-kh_rparams(
-	int                   *argc,
-	char                ***argv,
-	struct hse_params     *params)
-{
-	int idx = optind;
-
-	hse_parse_cli(*argc - idx, *argv + idx, &idx, 0, params);
-
-	*argc -= idx;
-	*argv += idx;
-	optind = 0;
-}
-
 /* caller processes cmdline options */
 struct hse_kvdb *
 kh_init(
-	const char           *mpool,
-	struct hse_params    *params)
+	const char           *kvdb_home,
+	struct svec          *kvdb_oparms)
 {
-	int                   rc;
+	hse_err_t err;
 
-	rc = hse_init();
-	if (rc) {
-		hse_params_destroy(params);
-		fatal(rc, "hse_init failed");
+	err = hse_init();
+	if (err) {
+		fatal(err, "hse_init failed");
 	}
 
-	rc = hse_kvdb_open(mpool, params, &test.kvdb);
-	if (rc) {
-		hse_params_destroy(params);
-		fatal(rc, "hse_kvdb_open failed");
+	err = hse_kvdb_open(kvdb_home, kvdb_oparms->strc, kvdb_oparms->strv, &test.kvdb);
+	if (err) {
+		fatal(err, "hse_kvdb_open failed");
 	}
 
 	t_head = t_detached = NULL;
@@ -151,9 +134,10 @@ threadfunc(
 struct hse_kvs *
 kh_get_kvs(
 	const char           *name,
-	struct hse_params    *params)
+	struct svec          *cparms,
+	struct svec          *oparms)
 {
-	int rc;
+	hse_err_t err;
 	struct kvs_info *ki;
 
 	/* if already opened, return handle */
@@ -164,30 +148,26 @@ kh_get_kvs(
 
 	ki = malloc(sizeof(*ki));
 	if (!ki) {
-		hse_params_destroy(params);
 		fatal(ENOMEM, "cannot allocate memory for kvs\n");
 	}
 
 	strlcpy(ki->name, name, sizeof(ki->name));
 
-	rc = hse_kvdb_kvs_open(test.kvdb, name, params, &ki->hdl);
-	if (rc == EBUSY) {
-		hse_params_destroy(params);
-		fatal(rc, "hse_kvdb_kvs_open failed");
-	} else if (rc) {
-		rc = hse_kvdb_kvs_make(test.kvdb, name, params);
-		if (rc) {
+	err = hse_kvdb_kvs_open(test.kvdb, name, oparms->strc, oparms->strv, &ki->hdl);
+	if (hse_err_to_errno(err) == EBUSY) {
+		fatal(err, "hse_kvdb_kvs_open failed");
+	} else if (err) {
+		err = hse_kvdb_kvs_make(test.kvdb, name, cparms->strc, cparms->strv);
+		if (err) {
 			free(ki);
-			hse_params_destroy(params);
-			fatal(rc, "hse_kvdb_kvs_make failed");
+			fatal(err, "hse_kvdb_kvs_make failed");
 		}
 
-		rc = hse_kvdb_kvs_open(test.kvdb, name, params, &ki->hdl);
-		if (rc) {
+		err = hse_kvdb_kvs_open(test.kvdb, name, oparms->strc, oparms->strv, &ki->hdl);
+		if (err) {
 			/* [MU_REVISIT] add kvs_drop here */
 			free(ki);
-			hse_params_destroy(params);
-			fatal(rc, "hse_kvdb_kvs_open failed");
+			fatal(err, "hse_kvdb_kvs_open failed");
 		}
 
 	}
@@ -200,10 +180,11 @@ kh_get_kvs(
 }
 
 int
-kh_register(
+kh_register_kvs(
 	const char           *kvs,
 	enum kh_flags         flags,
-	struct hse_params    *params,
+	struct svec          *kvs_cparms,
+	struct svec          *kvs_oparms,
 	kh_func              *func,
 	void                 *arg)
 {
@@ -216,7 +197,6 @@ kh_register(
 
 	ti = malloc(sizeof(struct thread_arg) + sizeof(*ti));
 	if (!ti) {
-		hse_params_destroy(params);
 		fatal(ENOMEM, "kvs_helper: cannot allocate memory for threads");
 	}
 
@@ -226,7 +206,7 @@ kh_register(
 	ti->targ       = (struct thread_arg *)(ti + 1);
 	ti->targ->arg  = arg;
 	ti->targ->kvdb = test.kvdb;
-	ti->targ->kvs  = kvs ? kh_get_kvs(kvs, params) : 0;
+	ti->targ->kvs  = kvs ? kh_get_kvs(kvs, kvs_cparms, kvs_oparms) : 0;
 	ti->flags      = flags;
 
 again:
@@ -252,6 +232,18 @@ again:
 }
 
 int
+kh_register(
+	enum kh_flags         flags,
+	kh_func              *func,
+	void                 *arg)
+{
+	return kh_register_kvs(NULL, flags, NULL, NULL, func, arg);
+}
+
+
+
+
+int
 kh_register_multiple(
 	int           kvs_cnt,
 	const char  **kvs_vec,
@@ -275,20 +267,21 @@ kh_cursor_create(
 	size_t                pfxlen)
 {
 	struct hse_kvs_cursor *cur;
-	int                rc, attempts = 5;
+	hse_err_t              err;
+	int                    attempts = 5;
 
 retry:
 	if (attempts-- == 0)
-		fatal(rc, "cursor create failed");
+		fatal(err, "cursor create failed");
 
-	rc = hse_kvs_cursor_create(kvs, os, pfx, pfxlen, &cur);
-	if (rc) {
-		if (rc == EAGAIN) {
+	err = hse_kvs_cursor_create(kvs, os, pfx, pfxlen, &cur);
+	if (err) {
+		if (hse_err_to_errno(err) == EAGAIN) {
 			usleep(10*1000);
 			goto retry;
 		}
 
-		fatal(rc, "cursor create failed");
+		fatal(err, "cursor create failed");
 	}
 
 	return cur;
@@ -299,11 +292,11 @@ kh_cursor_update(
 	struct hse_kvs_cursor    *cur,
 	struct hse_kvdb_opspec   *os)
 {
-	int rc;
+	hse_err_t err;
 
-	rc = hse_kvs_cursor_update(cur, os);
-	if (rc)
-		fatal(rc, "cursor update failed");
+	err = hse_kvs_cursor_update(cur, os);
+	if (err)
+		fatal(err, "cursor update failed");
 }
 
 void
@@ -312,13 +305,13 @@ kh_cursor_seek(
 	void                 *key,
 	size_t                klen)
 {
-	int                rc;
+	hse_err_t          err;
 	const void        *fkey;
 	size_t             fklen;
 
-	rc = hse_kvs_cursor_seek(cur, 0, key, klen, &fkey, &fklen);
-	if (rc)
-		fatal(rc, "cursor seek failed");
+	err = hse_kvs_cursor_seek(cur, 0, key, klen, &fkey, &fklen);
+	if (err)
+		fatal(err, "cursor seek failed");
 }
 
 void
@@ -329,14 +322,14 @@ kh_cursor_seek_limited(
 	void                 *to,
 	size_t                to_len)
 {
-	int                rc;
+	hse_err_t          err;
 	const void        *fkey;
 	size_t             fklen;
 
-	rc = hse_kvs_cursor_seek_range(cur, 0, from, from_len, to, to_len,
+	err = hse_kvs_cursor_seek_range(cur, 0, from, from_len, to, to_len,
 				   &fkey, &fklen);
-	if (rc)
-		fatal(rc, "cursor seek failed");
+	if (err)
+		fatal(err, "cursor seek failed");
 }
 
 bool
@@ -348,11 +341,11 @@ kh_cursor_read(
 	size_t               *vlen)
 {
 	bool eof;
-	int  rc;
+	hse_err_t err;
 
-	rc = hse_kvs_cursor_read(cur, 0, key, klen, val, vlen, &eof);
-	if (rc)
-		fatal(rc, "cursor read failed");
+	err = hse_kvs_cursor_read(cur, 0, key, klen, val, vlen, &eof);
+	if (err)
+		fatal(err, "cursor read failed");
 
 	return eof;
 }
@@ -361,9 +354,9 @@ void
 kh_cursor_destroy(
 	struct hse_kvs_cursor    *cur)
 {
-	int rc;
+	hse_err_t err;
 
-	rc = hse_kvs_cursor_destroy(cur);
-	if (rc)
-		fatal(rc, "cursor destroy failed");
+	err = hse_kvs_cursor_destroy(cur);
+	if (err)
+		fatal(err, "cursor destroy failed");
 }

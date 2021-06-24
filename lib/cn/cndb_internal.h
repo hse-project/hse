@@ -48,7 +48,7 @@ struct mpool;
 /* Maximum reclen is currently based on a C record, with 3500 blockids. */
 #define CNDB_CBUFSZ_DEFAULT (sizeof(struct cndb_txc_omf) + (sizeof(u64) * 3500))
 #define CNDB_CAPTGT_DEFAULT (CNDB_ENTRIES * CNDB_CBUFSZ_DEFAULT / 4)
-#define CNDB_HIGH_WATER(c) ((c)->cndb_captgt * 3 / 4)
+#define CNDB_HIGH_WATER(c)  ((c)->cndb_captgt * 3 / 4)
 
 struct cndb_cn {
     struct kvs_cparams cn_cp;
@@ -198,6 +198,7 @@ struct cndb {
     size_t                    cndb_cbufsz;
     void *                    cndb_cbuf;
     struct cndb_ingest_replay cndb_ing_rep;
+    struct kvdb_rparams *     cndb_rp;
 };
 
 /* in-memory counterparts to cndb structures */
@@ -562,13 +563,13 @@ omf2mtx(union cndb_mtu *mtu, u32 *mtulen, void *omf, unsigned cndb_version);
  */
 merr_t
 cndb_cnv_add(
-    struct cndb *       cndb,
-    u32                 flags,
-    struct kvs_cparams *cp,
-    u64                 cnid,
-    const char *        name,
-    size_t              metasz,
-    void *              meta);
+    struct cndb *             cndb,
+    u32                       flags,
+    const struct kvs_cparams *cp,
+    u64                       cnid,
+    const char *              name,
+    size_t                    metasz,
+    void *                    meta);
 
 /**
  * cndb_import_md() - unpack a cndb mdc record and place the output in
@@ -631,7 +632,8 @@ cndb_init(
     size_t              cndb_entries,
     u64                 oid1,
     u64                 oid2,
-    struct kvdb_health *health);
+    struct kvdb_health *health,
+    struct kvdb_rparams *rp);
 
 /**
  * cndb_get_ingestid()
@@ -690,7 +692,7 @@ cndb_record_unpack(u32 cndb_version, struct cndb_hdr_omf *buf, union cndb_mtu **
         if (err) {                                            \
             merr_t e = (err);                                 \
             CNDB_LOG_E(e, cndb, primark, fmt, ##__VA_ARGS__); \
-        } else {                                              \
+        } else if ((cndb) && (!(cndb)->cndb_rp || (cndb)->cndb_rp->cndb_debug)) { \
             CNDB_LOG_NE(cndb, primark, fmt, ##__VA_ARGS__);   \
         }                                                     \
     } while (0)

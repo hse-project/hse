@@ -2,6 +2,8 @@ subdir('3rdparty')
 subdir('db_bench')
 subdir('scripts')
 
+tool_targets = {}
+
 tools = {
     'attack': {
         'sources': files(
@@ -13,44 +15,46 @@ tools = {
             'boundcur' / 'boundcur.c',
             'common.c',
             'kvs_helper.c',
+            'parm_groups.c',
         ),
     },
-    # 'c1ingest': {
-    #     'sources': files(
-    #         'c1ingest' / 'c1ingest.c',
-    #         'key_generation.c',
-    #     ),
-    # },
     'capput': {
         'sources': files(
             'capput' / 'capput.c',
             'common.c',
             'kvs_helper.c',
+            'parm_groups.c',
         ),
     },
     'cn_kbdump': {
         'sources': files(
             'cn_kbdump' / 'cn_kbdump.c',
+            'parm_groups.c',
         ),
     },
     'cn_metrics': {
         'sources': files(
             'cn_metrics' / 'cn_metrics.c',
+            'common.c',
+            'parm_groups.c',
         ),
     },
     'cndb_log': {
         'sources': files(
             'cndb_log' / 'cndb_log.c',
+            'parm_groups.c',
         ),
     },
     'ctxn_validation': {
         'sources': files(
             'ctxn_validation' / 'ctxn_validation.c',
+            'parm_groups.c',
         ),
     },
     'curcache': {
         'sources': files(
             'curcache' / 'curcache.c',
+            'parm_groups.c',
         ),
     },
     'deviceprofile': {
@@ -74,6 +78,7 @@ tools = {
         'sources': files(
             'kmt' / 'kmt.c',
             '3rdparty' / 'src' / 'murmur3.c',
+            'parm_groups.c',
         ),
         'c_args': [
             '-DHDR_HISTOGRAM_C_FROM_SUBPROJECT=@0@'.format(HdrHistogram_c_from_subproject ? 1 : 0),
@@ -88,6 +93,7 @@ tools = {
         'sources': files(
             'kmt' / 'kmt.c',
             '3rdparty' / 'src' / 'murmur3.c',
+            'parm_groups.c',
         ),
         'c_args': [
             '-DHDR_HISTOGRAM_C_FROM_SUBPROJECT=@0@'.format(HdrHistogram_c_from_subproject ? 1 : 0),
@@ -102,17 +108,20 @@ tools = {
     'ksync': {
         'sources': files(
             'ksync' / 'ksync.c',
+            'parm_groups.c',
         ),
     },
     'kvck': {
         'sources': files(
             'kvck' / 'kvck.c',
+            'parm_groups.c',
         ),
     },
     'bnt': {
         'sources': files(
             'bnt' / 'bnt.c',
             '3rdparty' / 'src' / 'murmur3.c',
+            'parm_groups.c',
         ),
         'dependencies': [
             ncurses_dep,
@@ -122,6 +131,7 @@ tools = {
         'sources': files(
             'kvt' / 'kvt.c',
             '3rdparty' / 'src' / 'murmur3.c',
+            'parm_groups.c',
         ),
         'dependencies': [
             ncurses_dep,
@@ -131,16 +141,27 @@ tools = {
         'sources': files(
             'longtest' / 'longtest.c',
             'longtest' / 'rsgen.c',
+            'parm_groups.c',
         ),
     },
-    'mdc_tool': {
+    'mdcperf': {
         'sources': files(
-            'mdc_tool' / 'mdc_tool.c',
+            'mpool' / 'mdc' / 'mdcperf.c',
+        ),
+    },
+    'mdctest': {
+        'sources': files(
+            'mpool' / 'mdc' / 'mdctest.c',
+        ),
+    },
+    'mpiotest': {
+        'sources': files(
+            'mpool' / 'mblock' / 'mpiotest.c',
         ),
     },
     'mpool_profile': {
         'sources': files(
-            'mpool_profile' / 'mpool_profile.c',
+            'mpool' / 'mblock' / 'mpool_profile.c',
         ),
     },
     'multicursor': {
@@ -148,6 +169,7 @@ tools = {
             'multicursor' / 'multicursor.c',
             'common.c',
             'kvs_helper.c',
+            'parm_groups.c',
         ),
     },
     'pfx_probe': {
@@ -155,18 +177,21 @@ tools = {
             'pfx_probe' / 'pfx_probe.c',
             'common.c',
             'kvs_helper.c',
+            'parm_groups.c',
         )
     },
     'pgd': {
         'sources': files(
             'pgd' / 'pgd.c',
             'common.c',
+            'parm_groups.c',
         ),
     },
     'pscan': {
         'sources': files(
             'pscan' / 'pscan.c',
             'common.c',
+            'parm_groups.c',
         ),
     },
     'ptree-overload': {
@@ -174,6 +199,7 @@ tools = {
             'ptree-overload' / 'ptree-overload.c',
             'common.c',
             'kvs_helper.c',
+            'parm_groups.c',
         ),
     },
     'put_flush': {
@@ -181,6 +207,7 @@ tools = {
             'put_flush' / 'put_flush.c',
             'common.c',
             'kvs_helper.c',
+            'parm_groups.c',
         ),
     },
     'put_txget': {
@@ -188,18 +215,21 @@ tools = {
             'put_txget' / 'put_txget.c',
             'common.c',
             'kvs_helper.c',
+            'parm_groups.c',
         ),
     },
     'putbin': {
         'sources': files(
             'putbin' / 'putbin.c',
             'common.c',
+            'parm_groups.c',
         ),
     },
     'putgetdel': {
         'sources': files(
             'putgetdel' / 'putgetdel.c',
             'key_generation.c',
+            'parm_groups.c',
         ),
     },
     'range_read': {
@@ -207,17 +237,20 @@ tools = {
             'range_read' / 'range_read.c',
             'common.c',
             'kvs_helper.c',
+            'parm_groups.c',
         ),
     },
     'simple_client': {
         'sources': files(
             'simple_client' / 'simple_client.c',
+            'parm_groups.c',
         ),
     },
     'throttle': {
         'sources': files(
             'throttle' / 'throttle.c',
             'key_generation.c',
+            'parm_groups.c',
         ),
     },
     'txn_thrash': {
@@ -225,6 +258,7 @@ tools = {
             'txn_thrash' / 'txn_thrash.c',
             'common.c',
             'kvs_helper.c',
+            'parm_groups.c',
         ),
     },
     'txput_flush': {
@@ -232,22 +266,26 @@ tools = {
             'txput_flush' / 'txput_flush.c',
             'common.c',
             'kvs_helper.c',
+            'parm_groups.c',
         )
     },
     'wbtsize': {
         'sources': files(
             'wbtsize' / 'wbtsize.c',
+            'parm_groups.c',
         ),
     },
     'wscan': {
         'sources': files(
             'wscan' / 'wscan.c',
             'common.c',
+            'parm_groups.c',
         ),
     },
 }
 
 foreach t, params : tools
+
     t_sources = params['sources']
 
     t_c_args = [
@@ -271,12 +309,13 @@ foreach t, params : tools
     t_dependencies = [
         hse_static_dep,
         hse_dependencies,
+        libhse_cli_dep,
     ]
     if 'dependencies' in params
         t_dependencies += params['dependencies']
     endif
 
-    executable(
+    target = executable(
         t,
         t_sources,
         c_args: t_c_args,
@@ -286,6 +325,8 @@ foreach t, params : tools
         install_rpath: exe_install_rpath,
         gnu_symbol_visibility: 'hidden',
     )
+
+    tool_targets += { t: target }
 endforeach
 
 executable_paths += meson.current_build_dir()

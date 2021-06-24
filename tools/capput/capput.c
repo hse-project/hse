@@ -30,6 +30,7 @@
  */
 
 #include <endian.h>
+#include <errno.h>
 #include <libgen.h>
 #include <pthread.h>
 #include <stdarg.h>
@@ -49,7 +50,8 @@
 #include <hse_util/time.h>
 #include <hse_util/timing.h>
 
-#include "common.h"
+#include <cli/param.h>
+
 #include "kvs_helper.h"
 
 HSE_ALIGNED(SMP_CACHE_BYTES)
@@ -465,13 +467,21 @@ usage(void)
 int
 main(int argc, char **argv)
 {
-	struct hse_params  *params;
+	struct parm_groups *pg = 0;
+	struct svec         kvdb_oparms = {};
+	struct svec         kvs_cparms = {};
+	struct svec         kvs_oparms = {};
 	const char         *mpool, *kvs;
 	size_t              sz;
 	uint                i;
 	char                c;
+	int                 rc;
 
 	progname = basename(argv[0]);
+
+	rc = pg_create(&pg, PG_KVDB_OPEN, PG_KVS_OPEN, PG_KVS_CREATE, NULL);
+	if (rc)
+		fatal(rc, "pg_create");
 
 	while ((c = getopt(argc, argv, ":vhb:c:j:t:m:s:d:")) != -1) {
 		char *errmsg, *end;
@@ -533,29 +543,46 @@ main(int argc, char **argv)
 		}
 	}
 
-	hse_params_create(&params);
-	hse_params_set(params, "kvs.transactions_enable", "1");
-
-	kh_rparams(&argc, &argv, params);
-	if (argc != 2) {
-		syntax("insufficient arguments for mandatory parameters");
-		hse_params_destroy(params);
+	if (argc - optind < 2) {
+		syntax("missing required arguments");
 		exit(EX_USAGE);
 	}
 
-	mpool = argv[0];
-	kvs   = argv[1];
+	mpool = argv[optind++];
+	kvs = argv[optind++];
+
+	rc = pg_parse_argv(pg, argc, argv, &optind);
+	switch (rc) {
+	case 0:
+		if (optind < argc)
+			fatal(0, "unknown parameter: %s", argv[optind]);
+		break;
+	case EINVAL:
+		fatal(0, "missing group name (e.g. %s) before parameter %s\n",
+			PG_KVDB_OPEN, argv[optind]);
+		break;
+	default:
+		fatal(rc, "error processing parameter %s\n", argv[optind]);
+		break;
+	}
 
 	sz = (opts.put_threads + opts.cur_threads) * sizeof(*g_ti);
 
 	g_ti = aligned_alloc(SMP_CACHE_BYTES, sz);
 	if (!g_ti) {
-		hse_params_destroy(params);
 		fatal(ENOMEM, "Allocation failed");
 	}
 	memset(g_ti, 0, sz);
 
-	kh_init(mpool, params);
+	rc = rc ?: svec_append_pg(&kvdb_oparms, pg, PG_KVDB_OPEN, NULL);
+	rc = rc ?: svec_append_pg(&kvs_cparms, pg, PG_KVS_CREATE, NULL);
+	rc = rc ?: svec_append_pg(&kvs_oparms, pg, PG_KVS_OPEN, "transactions_enable=1", NULL);
+	if (rc) {
+		fprintf(stderr, "svec_append_pg failed: %d", rc);
+		exit(EX_USAGE);
+	}
+
+	kh_init(mpool, &kvdb_oparms);
 
 	pthread_barrier_init(&put_barrier1, NULL, opts.put_threads);
 	pthread_barrier_init(&put_barrier2, NULL, opts.put_threads);
@@ -563,7 +590,7 @@ main(int argc, char **argv)
 	for (i = 0; i < opts.put_threads; i++) {
 		g_ti[i].idx = i;
 		atomic64_set(&g_ti[i].ops, 0);
-		kh_register(kvs, 0, params, &txput, &g_ti[i]);
+		kh_register_kvs(kvs, 0, &kvs_cparms, &kvs_oparms, &txput, &g_ti[i]);
 	}
 
 	if (opts.headstart) {
@@ -576,14 +603,14 @@ main(int argc, char **argv)
 
 		g_ti[j].idx = i;
 		atomic64_set(&g_ti[j].ops, 0);
-		kh_register(kvs, 0, params, &reader, &g_ti[j]);
+		kh_register_kvs(kvs, 0, &kvs_cparms, &kvs_oparms, &reader, &g_ti[j]);
 	}
 
 	if (opts.cap)
-		kh_register(kvs, 0, params, &pdel, 0);
+		kh_register_kvs(kvs, 0, &kvs_cparms, &kvs_oparms, &pdel, 0);
 
-	kh_register(0, 0, 0, &print_stats, 0);
-	kh_register(0, 0, 0, &syncme, 0);
+	kh_register(0, &print_stats, NULL);
+	kh_register(0, &syncme, NULL);
 
 	/* run time */
 	while (!killthreads && opts.duration--)
@@ -598,9 +625,11 @@ main(int argc, char **argv)
 
 	kh_fini();
 
-	hse_params_destroy(params);
-
 	free(g_ti);
+	svec_reset(&kvdb_oparms);
+	svec_reset(&kvs_cparms);
+	svec_reset(&kvs_oparms);
+	pg_destroy(pg);
 
 	return err;
 }

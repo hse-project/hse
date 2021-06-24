@@ -1216,7 +1216,7 @@ run_testcase(struct mtf_test_info *lcl_ti, int mode, const char *info)
 
     if (mode == MODE_SPILL) {
         struct kvs_cparams cp = {
-            .cp_fanout = tp.fanout, .cp_pfx_len = tp.pfx_len,
+            .fanout = tp.fanout, .pfx_len = tp.pfx_len,
         };
 
         if (tp.pfx_len == 0)
@@ -1261,7 +1261,7 @@ run_testcase(struct mtf_test_info *lcl_ti, int mode, const char *info)
         omf_set_ts_version(omf, CN_TSTATE_VERSION);
 
         struct kvs_cparams cp = {
-            .cp_fanout = 8,
+            .fanout = 8,
         };
 
         err = cn_tree_create(&tree, &impl.tsi_tstate, 0, &cp, &health, &rp);
@@ -1316,7 +1316,7 @@ run_testcase(struct mtf_test_info *lcl_ti, int mode, const char *info)
         impl.tsi_err = EIO;
 
         struct kvs_cparams cp = {
-            .cp_fanout = 8,
+            .fanout = 8,
         };
 
         err = cn_tree_create(&tree, &impl.tsi_tstate, 0, &cp, &health, &rp);

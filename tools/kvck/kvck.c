@@ -19,6 +19,8 @@
 #include <hse_ikvdb/kvdb_health.h>
 #include <hse_ikvdb/diag_kvdb.h>
 
+#include <tools/parm_groups.h>
+
 #include "kvdb/kvdb_omf.h"
 #include "kvdb/kvdb_omf.h"
 #include "cn/omf.h"
@@ -28,19 +30,8 @@
 
 const char *progname;
 
-static void
-fatal(const char *fmt, ...)
-{
-    char    msg[256];
-    va_list ap;
-
-    va_start(ap, fmt);
-    vsnprintf(msg, sizeof(msg), fmt, ap);
-    va_end(ap);
-
-    fprintf(stderr, "%s: %s\n", progname, msg);
-    exit(1);
-}
+struct parm_groups *pg;
+struct svec         db_oparm;
 
 struct diag_kvdb_kvs_list kvs_tab[HSE_KVS_COUNT_MAX] = {};
 
@@ -57,6 +48,20 @@ struct callback_info {
     struct cn_tstate_omf omf;
     bool                 errors;
 };
+
+static void
+fatal(const char *fmt, ...)
+{
+    char    msg[256];
+    va_list ap;
+
+    va_start(ap, fmt);
+    vsnprintf(msg, sizeof(msg), fmt, ap);
+    va_end(ap);
+
+    fprintf(stderr, "%s: %s\n", progname, msg);
+    exit(1);
+}
 
 static hse_err_t
 verify_kvset(void *ctx, struct kvset_meta *km, u64 tag)
@@ -116,16 +121,18 @@ _verify_kvs(struct cndb *cndb, int cndb_idx, struct entity *ent)
         if (kvs_tab[i].kdl_cnid == cnv[cndb_idx]->cn_cnid)
             break;
 
-    if (i >= cnt)
+    if (i >= cnt) {
+        free(ptr);
         return ENOENT;
+    }
 
     printf(
         "Checking kvs %s cnid %lu fanout %u pfx_len %u sfx_len %u\n",
         kvs_tab[i].kdl_name,
         kvs_tab[i].kdl_cnid,
-        info.cp->cp_fanout,
-        info.cp->cp_pfx_len,
-        info.cp->cp_sfx_len);
+        info.cp->fanout,
+        info.cp->pfx_len,
+        info.cp->sfx_len);
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wincompatible-pointer-types"
@@ -135,6 +142,8 @@ _verify_kvs(struct cndb *cndb, int cndb_idx, struct entity *ent)
         &info,
         (hse_err_t(*)(void *, struct kvset_meta *, u64))verify_kvset);
 #pragma GCC diagnostic pop
+
+    free(ptr);
 
     return info.errors ? EILSEQ : 0;
 }
@@ -179,7 +188,7 @@ verify_kvdb(struct cndb *cndb)
     return errors ? EILSEQ : 0;
 }
 
-static int
+static void
 usage(bool verbose)
 {
     printf(
@@ -190,7 +199,7 @@ usage(bool verbose)
         progname);
 
     if (!verbose)
-        return 1;
+        return;
 
     printf(
         "\n"
@@ -214,7 +223,6 @@ usage(bool verbose)
         progname,
         progname,
         progname);
-    return 1;
 }
 
 static void
@@ -298,8 +306,8 @@ main(int argc, char **argv)
     struct mpool *      ds;
     struct cndb *       cndb;
     struct entity       ent;
-    struct kvdb_rparams rp; /* for cndb_entries */
     struct hse_kvdb *   kvdbh;
+    struct parm_groups *pg = NULL;
     bool                verbose = false;
     bool                help = false;
     hse_err_t           err;
@@ -313,6 +321,10 @@ main(int argc, char **argv)
     loc = loc_buf = 0;
 
     progname = (progname = strrchr(argv[0], '/')) ? progname + 1 : argv[0];
+
+    rc = pg_create(&pg, PG_KVDB_OPEN, NULL);
+    if (rc)
+        fatal("pg_create");
 
     while ((c = getopt(argc, argv, "?hvn:")) != -1) {
         switch (c) {
@@ -330,35 +342,44 @@ main(int argc, char **argv)
         }
     }
 
-    if (help)
-        return usage(verbose);
+    if (help) {
+        usage(verbose);
+        exit(0);
+    }
+
+    if (argc - optind < 1)
+        fatal("missing required parameters");
+
+    mpool = argv[optind++];
+
+    /* get hse parms from command line */
+    rc = pg_parse_argv(pg, argc, argv, &optind);
+    switch (rc) {
+        case 0:
+            if (optind < argc)
+                fatal(0, "unknown parameter: %s", argv[optind]);
+            break;
+        case EINVAL:
+            fatal(0, "missing group name (e.g. %s) before parameter %s\n",
+                PG_KVDB_OPEN, argv[optind]);
+            break;
+        default:
+            fatal("error processing parameter %s\n", argv[optind]);
+            break;
+    }
+
+    rc = svec_append_pg(&db_oparm, pg, PG_KVDB_OPEN, NULL);
+    if (rc)
+        fatal("svec_apppend_pg failed: %d", rc);
+
+    kc_print_reg(verbose, (void *)print_line);
 
     err = hse_init();
     if (err)
         fatal(
             "failed to initialize kvdb: %s", hse_err_to_string(err, errbuf, sizeof(errbuf), NULL));
 
-    /* [HSE_REVISIT]
-     * The rparams are needed only to provide the user an option to use
-     * larger cndb in-memory tables. Once cndb can grow its tables and mdc
-     * by itself, this can and should be removed.
-     * Since this is a workaround until cndb can grow itself, it isn't
-     * listed in the help message either.
-     */
-    rp = kvdb_rparams_defaults();
-
-    err = merr_to_hse_err(kvdb_rparams_parse(argc - optind, argv + optind, &rp, &optind));
-    if (err)
-        return usage(false);
-
-    if (optind + 1 > argc)
-        return usage(false);
-
-    mpool = argv[optind++];
-
-    kc_print_reg(verbose, (void *)print_line);
-
-    rc = merr_to_hse_err(diag_kvdb_open(mpool, &rp, &kvdbh));
+    rc = merr_to_hse_err(diag_kvdb_open(mpool, db_oparm.strc, db_oparm.strv, &kvdbh));
     if (rc)
         fatal("cannot open kvdb %s: %s", mpool, hse_err_to_string(rc, errbuf, sizeof(errbuf), 0));
 
@@ -420,6 +441,10 @@ out:
     free(loc_buf);
 
     diag_kvdb_close(kvdbh);
+
+    pg_destroy(pg);
+
+    svec_reset(&db_oparm);
 
     hse_fini();
 

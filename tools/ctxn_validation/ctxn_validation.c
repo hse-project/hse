@@ -20,8 +20,9 @@
 #include <hse_util/compiler.h>
 #include <hse_util/inttypes.h>
 #include <hse_util/minmax.h>
-#include <hse_util/hse_params_helper.h>
 #include <hse_util/timing.h>
+
+#include <tools/parm_groups.h>
 
 const char *progname, *mp_name, *kvs_name;
 sig_atomic_t done;
@@ -41,12 +42,14 @@ bool        mixed_sz = false;
 uint        seed;
 int         cpustart = -1;
 int         cpuskip = 1;
+ulong       viter;
 
 struct hse_kvdb    *kvdb;
 struct hse_kvs     *kvs;
-struct hse_params  *params;
 
-ulong           viter;
+struct parm_groups *pg;
+struct svec         db_oparm;
+struct svec         kv_oparm;
 
 struct stats {
     ulong       puts_c0;
@@ -146,11 +149,11 @@ ctxn_validation_init(void)
 {
     uint64_t    rc;
 
-    rc = hse_kvdb_open(mp_name, params, &kvdb);
+    rc = hse_kvdb_open(mp_name, db_oparm.strc, db_oparm.strv, &kvdb);
     if (rc)
         fatal(rc, "hse_kvdb_open(%s)", mp_name);
 
-    rc = hse_kvdb_kvs_open(kvdb, kvs_name, params, &kvs);
+    rc = hse_kvdb_kvs_open(kvdb, kvs_name, kv_oparm.strc, kv_oparm.strv, &kvs);
     if (rc)
         fatal(rc, "hse_kvdb_kvs_open(%s)", kvs_name);
 }
@@ -953,25 +956,20 @@ usage(void)
 int
 main(int argc, char **argv)
 {
-    hse_err_t            err;
+    hse_err_t         err;
     uint8_t           given[256] = { };
     bool              help = false;
     ulong             i;
+    int               rc;
 
     progname = strrchr(argv[0], '/');
     progname = progname ? progname + 1 : argv[0];
 
-    err = hse_init();
-    if (err) {
-        eprint("failed to initialize kvdb\n");
-        exit(EX_OSERR);
-    }
-
-    hse_params_create(&params);
-    hse_params_set(params, "kvdb.perfc_enable", "0");
-    hse_params_set(params, "kvs.transactions_enable", "1");
-
     seed = time(NULL);
+
+    rc = pg_create(&pg, PG_KVDB_OPEN, PG_KVS_OPEN, NULL);
+    if (rc)
+        fatal(rc, "pg_create");
 
     while (1) {
         char   *errmsg, *end;
@@ -1090,41 +1088,39 @@ main(int argc, char **argv)
         }
     }
 
-    argc -= optind;
-    argv += optind;
-
     if (help) {
         usage();
         exit(0);
     }
 
-    if (argc < 2) {
+    if (argc - optind < 2) {
         syntax("insufficient arguments for mandatory parameters");
         exit(EX_USAGE);
     }
 
-    mp_name = argv[0];
-    kvs_name = argv[1];
+    mp_name = argv[optind++];
+    kvs_name = argv[optind++];
 
-    argc -= 2;
-    argv += 2;
-
-    if (argc > 0) {
-        int last;
-
-        last = 0;
-
-        err = hse_parse_cli(argc, argv, &last, 0, params);
-        if (err) {
-            eprint("unable to parse parameters\n");
-            exit(EX_OSERR);
-        }
-
-        if (last < argc) {
-            syntax("invalid kvdb/kvs parameter '%s'", argv[last]);
-            exit(EX_OSERR);
-        }
+    /* get hse parms from command line */
+    rc = pg_parse_argv(pg, argc, argv, &optind);
+    switch (rc) {
+        case 0:
+            if (optind < argc)
+                fatal(0, "unknown parameter: %s", argv[optind]);
+            break;
+        case EINVAL:
+            fatal(0, "missing group name (e.g. %s) before parameter %s\n",
+                PG_KVDB_OPEN, argv[optind]);
+            break;
+        default:
+            fatal(rc, "error processing parameter %s\n", argv[optind]);
+            break;
     }
+
+    rc = rc ?: svec_append_pg(&db_oparm, pg, "perfc_enable=0", PG_KVDB_OPEN, NULL);
+    rc = rc ?: svec_append_pg(&kv_oparm, pg, PG_KVS_OPEN, "transactions_enable=1", NULL);
+    if (rc)
+        fatal(rc, "svec_apppend_pg failed");
 
     xrand_init(seed);
     setpriority(PRIO_PROCESS, 0, -1);
@@ -1137,6 +1133,12 @@ main(int argc, char **argv)
     keymax = min_t(ulong, keymax, 1048576);
 
     stats.topen = get_time_ns();
+
+    err = hse_init();
+    if (err) {
+        eprint("failed to initialize kvdb\n");
+        exit(EX_OSERR);
+    }
 
     ctxn_validation_init();
 
@@ -1227,7 +1229,10 @@ main(int argc, char **argv)
         }
     }
 
-    hse_params_destroy(params);
+    pg_destroy(pg);
+
+    svec_reset(&db_oparm);
+    svec_reset(&kv_oparm);
 
     hse_fini();
 

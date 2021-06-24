@@ -31,7 +31,8 @@
 #include <hse_util/compiler.h>
 #include <hse_util/inttypes.h>
 
-#include "common.h"
+#include <cli/param.h>
+
 #include "kvs_helper.h"
 
 static int  err;
@@ -73,7 +74,7 @@ do_things(void *arg)
 	struct thread_info *ti = targ->arg;
 	uint64_t *key = 0;
 	uint i;
-	int rc;
+	hse_err_t err;
 	struct hse_kvs_cursor *cursorv[ti->num_cursors];
 	struct timespec pause = { .tv_nsec = 1000 * 100 };
 
@@ -92,14 +93,14 @@ do_things(void *arg)
 			int retries = 5;
 
 			do {
-				rc = hse_kvs_cursor_create(targ->kvs, 0, 0, 0,
+				err = hse_kvs_cursor_create(targ->kvs, 0, 0, 0,
 						       &cursorv[i]);
-				if (rc == EAGAIN)
+				if (hse_err_to_errno(err) == EAGAIN)
 					nanosleep(&pause, 0);
-			} while (rc == EAGAIN && retries-- > 0);
+			} while (hse_err_to_errno(err) == EAGAIN && retries-- > 0);
 
-			if (rc)
-				fatal(rc, "Failed to create cursor");
+			if (err)
+				fatal(err, "Failed to create cursor");
 
 			atomic64_inc(&ti->cursors);
 		}
@@ -114,10 +115,10 @@ do_things(void *arg)
 		i = ti->start;
 		for (i = ti->start; i < ti->end; i++) {
 			*key = htobe64(i); /* key */
-			rc = hse_kvs_put(targ->kvs, &os, kbuf, sizeof(kbuf),
+			err = hse_kvs_put(targ->kvs, &os, kbuf, sizeof(kbuf),
 				     vbuf, sizeof(vbuf));
-			if (rc)
-				fatal(rc, "Put failed");
+			if (err)
+				fatal(err, "Put failed");
 
 			atomic64_inc(&ti->puts);
 		}
@@ -135,13 +136,13 @@ do_things(void *arg)
 			int retries = 5;
 
 			do {
-				rc = hse_kvs_cursor_update(cursorv[i], 0);
-				if (rc == EAGAIN)
+				err = hse_kvs_cursor_update(cursorv[i], 0);
+				if (hse_err_to_errno(err) == EAGAIN)
 					nanosleep(&pause, 0);
-			} while (rc == EAGAIN && retries-- > 0);
+			} while (hse_err_to_errno(err) == EAGAIN && retries-- > 0);
 
-			if (rc)
-				fatal(rc, "Failed to update cursor");
+			if (err)
+				fatal(err, "Failed to update cursor");
 
 		}
 
@@ -153,10 +154,10 @@ do_things(void *arg)
 			end = start + stride;
 
 			*key = htobe64(start); /* seek key */
-			rc = hse_kvs_cursor_seek(cursorv[i], 0, kbuf,
+			err = hse_kvs_cursor_seek(cursorv[i], 0, kbuf,
 						 sizeof(kbuf), 0, 0);
-			if (rc)
-				fatal(rc, "Failed to seek cursor");
+			if (err)
+				fatal(err, "Failed to seek cursor");
 
 			count = 0;
 			if (i == num_cursors - 1)
@@ -166,10 +167,10 @@ do_things(void *arg)
 				const void  *cur_key, *cur_val;
 				size_t       cur_klen, cur_vlen;
 
-				rc = hse_kvs_cursor_read(cursorv[i], 0,
+				err = hse_kvs_cursor_read(cursorv[i], 0,
 						     &cur_key, &cur_klen,
 						     &cur_val, &cur_vlen, &eof);
-				if (rc || eof)
+				if (err || eof)
 					break;
 
 				/* Verify if keys match */
@@ -192,8 +193,8 @@ do_things(void *arg)
 				atomic64_inc(&ti->reads);
 			}
 
-			if (rc)
-				fatal(rc, "Cursor read failed");
+			if (err)
+				fatal(err, "Cursor read failed");
 
 			if (eof && count != (end - start))
 				fatal(ENODATA,
@@ -263,14 +264,22 @@ syntax(const char *fmt, ...)
 int
 main(int argc, char **argv)
 {
-	struct hse_params  *params;
+	struct parm_groups *pg = NULL;
+	struct svec         kvdb_oparms = {};
+	struct svec         kvs_cparms = {};
+	struct svec         kvs_oparms = {};
 	const char         *mpool, *kvs;
 	size_t              sz;
 	uint                i, stride;
 	char                c;
 	uint                cur_per_thread;
+	int                 rc;
 
 	progname = basename(argv[0]);
+
+	rc = pg_create(&pg, PG_KVDB_OPEN, PG_KVS_OPEN, PG_KVS_CREATE, NULL);
+	if (rc)
+		fatal(rc, "pg_create");
 
 	while ((c = getopt(argc, argv, ":c:hj:lr:v")) != -1) {
 		char *end, *errmsg;
@@ -319,31 +328,50 @@ main(int argc, char **argv)
 		}
 	}
 
-	hse_params_create(&params);
-
-	kh_rparams(&argc, &argv, params);
-	if (argc != 2) {
-		syntax("insufficient arguments for mandatory parameters");
-		hse_params_destroy(params);
+	if (argc - optind < 2) {
+		syntax("missing required parameters");
 		exit(EX_USAGE);
 	}
 
-	mpool = argv[0];
-	kvs   = argv[1];
+	mpool = argv[optind++];
+	kvs   = argv[optind++];
+
+	rc = pg_parse_argv(pg, argc, argv, &optind);
+	switch (rc) {
+	case 0:
+		if (optind < argc)
+			fatal(0, "unknown parameter: %s", argv[optind]);
+		break;
+	case EINVAL:
+		fatal(0, "missing group name (e.g. %s) before parameter %s\n",
+			PG_KVDB_OPEN, argv[optind]);
+		break;
+	default:
+		fatal(rc, "error processing parameter %s\n", argv[optind]);
+		break;
+	}
+
+	rc = rc ?: svec_append_pg(&kvdb_oparms, pg, PG_KVDB_OPEN, NULL);
+	rc = rc ?: svec_append_pg(&kvs_cparms, pg, PG_KVS_CREATE, NULL);
+	rc = rc ?: svec_append_pg(&kvs_oparms, pg, PG_KVS_OPEN, "transactions_enable=1", NULL);
+	if (rc) {
+		fprintf(stderr, "svec_append_pg failed: %d", rc);
+		exit(EX_USAGE);
+	}
 
 	/* Load phase */
 	sz = (opts.threads) * sizeof(*g_ti);
 
 	g_ti = aligned_alloc(SMP_CACHE_BYTES, sz);
 	if (!g_ti) {
-		hse_params_destroy(params);
+		pg_destroy(pg);
 		fatal(ENOMEM, "Allocation failed");
 	}
 	memset(g_ti, 0, sz);
 
-	kh_init(mpool, params);
+	kh_init(mpool, &kvdb_oparms);
 
-	kh_register(0, KH_FLAG_DETACH, 0, &print_stats, 0);
+	kh_register(KH_FLAG_DETACH, &print_stats, NULL);
 	sleep(1); /* wait for print_stats to detach itself */
 
 	stride = opts.count / opts.threads;
@@ -354,7 +382,7 @@ main(int argc, char **argv)
 		g_ti[i].end   = g_ti[i].start + stride;
 		atomic64_set(&g_ti[i].puts, 0);
 		g_ti[i].num_cursors  = cur_per_thread;
-		kh_register(kvs, 0, params, &do_things, &g_ti[i]);
+		kh_register_kvs(kvs, 0, &kvs_cparms, &kvs_oparms, &do_things, &g_ti[i]);
 	}
 
 	kh_wait();
@@ -364,7 +392,7 @@ main(int argc, char **argv)
 
 	kh_fini();
 
-	hse_params_destroy(params);
+	pg_destroy(pg);
 
 	free(g_ti);
 

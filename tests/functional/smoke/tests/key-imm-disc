@@ -15,8 +15,8 @@ key_formats=(
 
 for fmt in $key_formats; do
     kvs=$(new_kvs $mp) || err
-    cmd kmt -s1 -c -f "$fmt" -j3 -i16 -t30 $mp/$kvs
-    cmd kmt -s1 -c -f "$fmt" $mp/$kvs
+    cmd kmt -s1 -c -f "$fmt" -j3 -i16 -t30 $mp $kvs
+    cmd kmt -s1 -c -f "$fmt" $mp $kvs
 done
 
 

@@ -6,38 +6,54 @@ _config_h_data.set(
     description: 'Building with coverage support',
 )
 
+_config_h_data.set(
+    'WITH_CJSON_FROM_SUBPROJECT',
+    cJSON_from_subproject,
+    description: 'Building with cJSON from subprojects',
+)
+
+_config_h_data.set(
+    'HSE_CONF_EXTENDED',
+    get_option('hse-conf-extended'),
+    description: '[TESTING PURPOSES ONLY] Allow cparams and dparams to exist in hse.conf'
+)
+
 _config_h = configure_file(
     input: '_config.h.in',
     output: '_config.h',
     configuration: _config_h_data,
 )
 
+component_root_includes = include_directories('.')
+
 subdir('include')
 subdir('binding')
+subdir('config')
 subdir('kvs')
 subdir('util')
 subdir('c0')
 subdir('lc')
 subdir('cn')
 subdir('kvdb')
-
-component_root_includes = include_directories('.')
+subdir('mpool')
+subdir('pidfile')
 
 hse_sources = [
     _config_h,
     binding_sources,
     c0_sources,
     lc_sources,
+    config_sources,
     cn_sources,
     kvdb_sources,
     kvs_sources,
+    mpool_sources,
     util_sources,
 ]
 
 hse_c_args = [
     '-D_GNU_SOURCE=1',
     '-DCOMPNAME="kvdb"',
-    '-DCJSON_FROM_SUBPROJECT=@0@'.format(cJSON_from_subproject ? 1 : 0),
 ]
 
 hse_include_directories = [
@@ -46,7 +62,7 @@ hse_include_directories = [
     public_includes,
     third_party_includes,
     util_includes,
-    get_option('mpool-include-dir'),
+    mpool_includes,
 ]
 
 hse_dependencies = [
@@ -62,14 +78,10 @@ hse_dependencies = [
     liburcu_bp_dep,
     libyaml_dep,
     m_dep,
-    mpool_dep,
     thread_dep,
     rbtree_dep,
-    uuid_dep,
-]
-
-hse_public_dependencies = [
-    uuid_dep,
+    crc32c_dep,
+    libhse_pidfile_dep,
 ]
 
 hse = both_libraries(
@@ -97,7 +109,6 @@ hse_dep = declare_dependency(
     include_directories: [
         public_includes,
     ],
-    dependencies: hse_public_dependencies,
     variables: hse_variables,
 )
 
@@ -110,16 +121,12 @@ hse_static_dep = declare_dependency(
     include_directories: [
         public_includes,
     ],
-    dependencies: hse_public_dependencies,
     variables: hse_variables,
 )
 
 if 'unit' in enabled_tests
     hse_mock_c_args = [
         '-DHSE_MOCKING=1',
-        # only exists for generating mpool mocks
-        # remove when userspace mpool is merged
-        '-DHSE_UNIT_TEST_MODE=1',
     ]
 
     hse_mock_include_directories = [
@@ -157,7 +164,6 @@ if 'unit' in enabled_tests
             hse_include_directories,
             hse_mock_include_directories,
         ],
-        dependencies: hse_public_dependencies,
     )
 endif
 
@@ -168,7 +174,6 @@ pkg.generate(
     name: meson.project_name(),
     version: meson.project_version(),
     url: 'https://github.com/hse-project/hse',
-    requires: hse_public_dependencies,
     subdirs: [
         '@0@-@1@'.format(meson.project_name(), hse_major_version),
     ],

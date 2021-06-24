@@ -4,7 +4,7 @@
 
 cpus=$(nproc)
 
-cmd kvt -i1m -T30,$((cpus * 2)) -cv -l0,16k -ovrunlen=5 -m1 $mp kvs.value_compression=lz4
-cmd kvt -Fi8k -T30,$((cpus * 2)) -cv -l1m -m1 -ovrunlen=3  $mp kvs.value_compression=lz4
-cmd kvt -Fi8m -T30,$((cpus * 2)) -cv -l0,16 -m1 -ovrunlen=1 $mp kvs.value_compression=lz4
+cmd kvt -i1m  -T30,$((cpus * 2)) -cv -l0,16k    -ovrunlen=5 -ovcomp=1 -m1 $mp
+cmd kvt -Fi8k -T30,$((cpus * 2)) -cv -l1m -m1   -ovrunlen=3 -ovcomp=1 $mp
+cmd kvt -Fi8m -T30,$((cpus * 2)) -cv -l0,16 -m1 -ovrunlen=1 -ovcomp=1 $mp
 cmd kvt -T30,$((cpus * 2)) -cv -m1 $mp

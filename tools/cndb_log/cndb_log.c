@@ -7,15 +7,17 @@
  * cndb_log - read and interpret a cndb log
  */
 
+#include <stdio.h>
+
 #include <hse_util/slab.h>
 #include <hse_util/assert.h>
 #include <hse_util/log2.h>
-#include <hse_util/logging.h>
 
 #include <hse_ikvdb/limits.h>
 #include <hse_ikvdb/ikvdb.h>
 #include <hse_ikvdb/diag_kvdb.h>
 #include <hse_ikvdb/cndb.h>
+#include <hse_ikvdb/config.h>
 
 #include <mpool/mpool.h>
 
@@ -82,7 +84,7 @@ usage(void)
                               "-i       ignore errors\n"
                               "-r file  read from file\n"
                               "-w file  write raw data from input to file\n"
-                              "kvdb   name of the kvdb\n"
+                              "kvdb     name of the kvdb\n"
                               "\n";
 
     printf(msg, progname, progname);
@@ -94,7 +96,7 @@ open_kvdb_and_cndb(struct tool_info *ti)
 {
     u64 rc;
 
-    rc = diag_kvdb_open(ti->mp, 0, &ti->kvdbh);
+    rc = diag_kvdb_open(ti->mp, 0, NULL, &ti->kvdbh);
     if (rc)
         fatal("diag_kvdb_open", rc);
 
@@ -505,8 +507,8 @@ replay_log(struct tool_info *ti)
         inf = cn->cn_cbuf;
 
         cndb_set_hdr(&inf->hdr, CNDB_TYPE_INFO, cn->cn_cbufsz);
-        omf_set_cninfo_fanout_bits(inf, ilog2(cn->cn_cp.cp_fanout));
-        omf_set_cninfo_prefix_len(inf, cn->cn_cp.cp_pfx_len);
+        omf_set_cninfo_fanout_bits(inf, ilog2(cn->cn_cp.fanout));
+        omf_set_cninfo_prefix_len(inf, cn->cn_cp.pfx_len);
         omf_set_cninfo_cnid(inf, cn->cn_cnid);
         omf_set_cninfo_flags(inf, cn->cn_flags);
         omf_set_cninfo_name(inf, (unsigned char *)cn->cn_name, strlen(cn->cn_name));
@@ -564,13 +566,13 @@ replay_log(struct tool_info *ti)
 int
 main(int argc, char **argv)
 {
-    hse_err_t           err;
+    hse_err_t        err;
     int              c;
     struct tool_info ti = { 0 };
 
     err = hse_init();
     if (err)
-        fatal("kvdb_init", err);
+        fatal("hse_init", err);
 
     progname = basename(argv[0]);
     hse_logging_control.mlc_cur_pri = HSE_DEBUG;
@@ -607,13 +609,15 @@ main(int argc, char **argv)
                 exit(EX_USAGE);
 
             default:
-                syntax("option -%c ignored\n", c);
+                syntax("uknown option: -%c\n", c);
+                exit(EX_USAGE);
                 break;
         }
     }
 
     argc -= optind;
     argv += optind;
+
 
     /* Output: if wpath was provided, write raw data to file instead of
      * formatting to stdout
@@ -637,7 +641,8 @@ main(int argc, char **argv)
             syntax("insufficient arguments for mandatory parameters");
             exit(EX_USAGE);
         } else if (argc > 1) {
-            syntax("extraneous parameters ignored");
+            syntax("extraneous parameter: %s", argv[0]);
+            exit(EX_USAGE);
         }
 
         ti.mp = argv[0];
@@ -653,6 +658,7 @@ main(int argc, char **argv)
     }
 
     if (check) {
+        free(ti.cndb->cndb_cbuf);
         ti.cndb->cndb_cbuf = ti.buf;
         ti.cndb->cndb_cbufsz = ti.bufsz;
 

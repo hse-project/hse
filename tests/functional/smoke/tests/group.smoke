@@ -36,6 +36,13 @@ cursor_test2
 kvt-compression
 kvs-max
 
+# These mpool tests needs to be integrated with the smoke
+# framework post config refactor work:
+#
+#   mcache-test
+#   mdc-test
+#   kmt-mpool
+#
 # These tests disabled until WAL is back:
 #
 #   kvt-logreplay

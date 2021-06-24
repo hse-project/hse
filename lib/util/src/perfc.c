@@ -5,6 +5,9 @@
 
 #define MTF_MOCK_IMPL_perfc
 
+#include <assert.h>
+#include <stdio.h>
+
 #include <hse_util/platform.h>
 #include <hse_util/alloc.h>
 #include <hse_util/slab.h>
@@ -507,60 +510,6 @@ static struct dt_element_ops perfc_root_ops = {
     .remove = root_remove_handler,
 };
 
-static size_t
-perfc_verbosity_set_handler(struct dt_element *dte, struct dt_set_parameters *dsp)
-{
-    /* walk through the perfc subtree and refresh bitmaps depending upon
-     * the current value of perfc_verbosity
-     */
-    u32                val, old;
-    struct hse_config *mc = (struct hse_config *)dte->dte_data;
-    merr_t             err;
-    struct rb_node *   node;
-    const char *       path = "/data/perfc";
-    const size_t       pathlen = strlen(path);
-
-    old = *(u32 *)mc->data;
-    err = parse_u32(dsp->value, &val);
-    if (err)
-        return 0;
-
-    memcpy(mc->data, &val, sizeof(val));
-    if (old == val)
-        return 1; /* nothing changed */
-
-    /* update bitmaps for all counter sets */
-    dte = dt_find_locked(dt_data_tree, path, 0);
-    while (dte) {
-        struct perfc_seti *seti;
-        struct perfc_set * setp;
-        int                i;
-
-        if (dte->dte_data) {
-            seti = dte->dte_data;
-            setp = seti->pcs_handle;
-
-            setp->ps_bitmap = 0;
-            for (i = 0; i < seti->pcs_ctrc; i++) {
-                struct perfc_ctr_hdr *pch;
-
-                pch = &seti->pcs_ctrv[i].hdr;
-                if (perfc_verbosity >= pch->pch_prio)
-                    setp->ps_bitmap |= (1ULL << i);
-            }
-        }
-
-        node = rb_next(&dte->dte_node);
-        dte = container_of(node, struct dt_element, dte_node);
-        if (dte && strncmp(path, dte->dte_path, pathlen))
-            /* We've hit the first thing that doesn't include
-             * the search path. That means we're done. */
-            break;
-    }
-
-    return 1;
-}
-
 merr_t
 perfc_init(void)
 {
@@ -620,18 +569,6 @@ perfc_init(void)
         return err;
 
     dt_add(dt_data_tree, &dte);
-
-    CFG("perfc",
-        "perfc_verbosity",
-        &perfc_verbosity,
-        sizeof(perfc_verbosity),
-        &perfc_verbosity_default,
-        NULL,
-        NULL,
-        NULL,
-        perfc_verbosity_set_handler,
-        show_u32,
-        true);
 
     return 0;
 }
@@ -985,7 +922,7 @@ perfc_ctrseti_invalidate_handle(struct perfc_set *set)
     dt_iterate_cmd(dt_data_tree, DT_OP_SET, dsp.path, &dip, 0, 0, 0);
 }
 
-_Static_assert(sizeof(struct perfc_val) >= sizeof(struct perfc_bkt), "sizeof perfc_bkt too large");
+static_assert(sizeof(struct perfc_val) >= sizeof(struct perfc_bkt), "sizeof perfc_bkt too large");
 
 static HSE_ALWAYS_INLINE void
 perfc_latdis_record(struct perfc_dis *dis, u64 sample)

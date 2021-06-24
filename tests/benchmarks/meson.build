@@ -1,22 +1,37 @@
-benchmarks_needs = 'bindings-python tests-kvdb tools'
-benchmarks_enabled = (get_option('bindings-python') and
-                       get_option('tests-kvdb') != '' and
-                       get_option('tools'))
+if not get_option('tools')
+    warning('benchmarks have been disabled because tools are disabled')
+    subdir_done()
+elif not get_option('cli')
+    warning('benchmarks have been disabled because the CLI is disabled')
+    subdir_done()
+endif
 
 tests = {
-    'test_kmt_ro.py': {
-        'suite': 'kmt'
+    'test_kmt_ro': {
+        'suite': 'kmt',
+        'depends': [
+            tool_targets['kmt'],
+        ],
     },
-    'test_kmt_rw.py': {
-        'suite': 'kmt'
+    'test_kmt_rw': {
+        'suite': 'kmt',
+        'depends': [
+            tool_targets['kmt'],
+        ],
     },
-    'test_ycsb_2tb_putget.py': {
+    'test_ycsb_2tb_putget': {
         'suite': 'ycsb',
         'timeout': 0,
+        'depends': [
+            hse_cli,
+        ],
     },
-    'test_ycsb_2tb_scan.py': {
+    'test_ycsb_2tb_scan': {
         'suite': 'ycsb',
         'timeout': 0,
+        'depends': [
+            hse_cli,
+        ],
     },
     'test_dbbench.py': {
         'suite': 'dbbench',
@@ -24,25 +39,27 @@ tests = {
     },
 }
 
-if not benchmarks_enabled
-    warning(('HSE benchmarks disabled.'+
-             '  Requires config options: @0@').format(benchmarks_needs))
-else
-    foreach t, params : tests
-        path = meson.current_source_dir() / t
-        testname = fs.stem(path)
-
-        benchmark(
-            testname,
-            python,
-            args: [
-                path,
-                '--kvdb',
-                get_option('tests-kvdb'),
-            ],
-            env: run_env,
-            suite: params.get('suite', ''),
-            timeout: params.get('timeout', 60),
+foreach t, params : tests
+    home_dir = tests_dir / t
+    if not fs.exists(home_dir)
+        run_command(
+            'mkdir',
+            home_dir,
+            check: true,
         )
-    endforeach
-endif
+    endif
+
+    benchmark(
+        t,
+        python,
+        args: [
+            '@0@.py'.format(t),
+            '--home',
+            home_dir,
+        ],
+        env: run_env,
+        depends: params.get('depends', []),
+        suite: params.get('suite', ''),
+        timeout: params.get('timeout', 60),
+    )
+endforeach

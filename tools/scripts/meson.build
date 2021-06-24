@@ -1,6 +1,5 @@
 if get_option('install-tools')
     scripts = files(
-        'nf.mplist',
         'nf.tree.metrics',
         'nfsock',
         'cn_metrics.py',

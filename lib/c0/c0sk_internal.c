@@ -329,10 +329,8 @@ c0sk_cningest_cb(void *rock, struct bonsai_kv *bkv, struct bonsai_val *vlist)
     struct kvset_builder * bldr = kvbldrs[skidx];
 
     if (!bldr) {
-        uint flags = KVSET_BUILDER_FLAGS_INGEST;
-
         assert(cn);
-        err = kvset_builder_create(&bldr, cn, cn_get_ingest_perfc(cn), get_time_ns(), flags);
+        err = kvset_builder_create(&bldr, cn, cn_get_ingest_perfc(cn), get_time_ns());
         if (ev(err))
             return err;
 

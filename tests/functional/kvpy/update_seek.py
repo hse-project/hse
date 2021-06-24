@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
+
+from contextlib import ExitStack
 from typing import List
 
 import hse
 
-import util
+from utility import lifecycle
 
 
 def check_keys(cursor: hse.Cursor, expected: List[bytes]):
@@ -16,32 +18,34 @@ def check_keys(cursor: hse.Cursor, expected: List[bytes]):
 hse.init()
 
 try:
-    p = hse.Params()
+    with ExitStack() as stack:
+        kvdb_ctx = lifecycle.KvdbContext()
+        kvdb = stack.enter_context(kvdb_ctx)
+        kvs_ctx = lifecycle.KvsContext(kvdb, "update_seek")
+        kvs = stack.enter_context(kvs_ctx)
 
-    with util.create_kvdb(util.get_kvdb_name(), p) as kvdb:
-        with util.create_kvs(kvdb, "update_seek", p) as kvs:
-            kvs.put(b"a", b"1")
-            kvs.put(b"b", b"2")
-            kvs.put(b"c", b"3")
-            kvs.put(b"d", b"4")
+        kvs.put(b"a", b"1")
+        kvs.put(b"b", b"2")
+        kvs.put(b"c", b"3")
+        kvs.put(b"d", b"4")
 
-            cursor = kvs.cursor()
-            cursor.seek(b"c")
-            check_keys(cursor, [b"c", b"d"])
+        cursor = kvs.cursor()
+        cursor.seek(b"c")
+        check_keys(cursor, [b"c", b"d"])
 
-            cursor.seek(b"c")
-            cursor.update()
-            check_keys(cursor, [b"c", b"d"])
-            cursor.destroy()
+        cursor.seek(b"c")
+        cursor.update()
+        check_keys(cursor, [b"c", b"d"])
+        cursor.destroy()
 
-            kvdb.sync()
-            cursor = kvs.cursor()
-            cursor.seek(b"c")
-            check_keys(cursor, [b"c", b"d"])
+        kvdb.sync()
+        cursor = kvs.cursor()
+        cursor.seek(b"c")
+        check_keys(cursor, [b"c", b"d"])
 
-            cursor.seek(b"c")
-            cursor.update()
-            check_keys(cursor, [b"c", b"d"])
-            cursor.destroy()
+        cursor.seek(b"c")
+        cursor.update()
+        check_keys(cursor, [b"c", b"d"])
+        cursor.destroy()
 finally:
     hse.fini()

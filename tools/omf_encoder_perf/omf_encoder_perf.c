@@ -13,6 +13,7 @@
 
 #include <byteswap.h>
 #include <getopt.h>
+#include <stdio.h>
 
 #define GiB 1024 * 1024 * 1024
 #define MiB 1024 * 1024

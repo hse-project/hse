@@ -1,4 +1,3 @@
-import os
 from typing import List
 
 from tools import config
@@ -26,7 +25,7 @@ class KmtTest(BaseTest):
         if not any([arg.startswith("-s") for arg in args]):
             new_args.append("-s1")
 
-        new_args.append("%s/%s" % (config.KVDB_NAME, config.KVS_NAME))
+        new_args.append("%s %s" % (config.KVDB_HOME, config.KVS_NAME))
 
         return new_args
 

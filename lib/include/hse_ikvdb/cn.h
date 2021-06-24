@@ -30,11 +30,11 @@ struct kvdb_kvs;
 struct sts;
 struct mclass_policy;
 enum cn_action;
-enum mp_media_classp;
+enum mpool_mclass;
 
 /* MTF_MOCK */
 merr_t
-cn_make(struct mpool *ds, struct kvs_cparams *cp, struct kvdb_health *health);
+cn_make(struct mpool *ds, const struct kvs_cparams *cp, struct kvdb_health *health);
 
 /* MTF_MOCK */
 merr_t
@@ -45,7 +45,7 @@ cn_open(
     struct cndb *       cndb,
     u64                 cnid,
     struct kvs_rparams *rp,
-    const char *        mp_name,
+    const char *        kvdb_home,
     const char *        kvs_name,
     struct kvdb_health *health,
     uint                flags,
@@ -57,7 +57,7 @@ cn_close(struct cn *cn);
 
 /* MTF_MOCK */
 u32
-cn_cp2cflags(struct kvs_cparams *cp);
+cn_cp2cflags(const struct kvs_cparams *cp);
 
 /* MTF_MOCK */
 bool
@@ -228,11 +228,11 @@ cn_get_flags(const struct cn *handle);
 
 /* MTF_MOCK */
 u64
-cn_vma_mblock_max(struct cn *cn, enum mp_media_classp mclass);
+cn_vma_mblock_max(struct cn *cn, enum mpool_mclass mclass);
 
 /* MTF_MOCK */
 u64
-cn_mpool_dev_zone_alloc_unit_default(struct cn *cn, enum mp_media_classp mclass);
+cn_mpool_dev_zone_alloc_unit_default(struct cn *cn, enum mpool_mclass mclass);
 
 #if HSE_MOCKING
 #include "cn_ut.h"

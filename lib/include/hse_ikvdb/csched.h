@@ -34,8 +34,8 @@ enum csched_policy { csched_policy_old = 0, csched_policy_sp3 = 3, csched_policy
  * @policy:
  * @ds:      dataset handle to access mpool qos
  * @rp:      kvdb run-time parameters
- * @mp_name: mpool name
- * @db_name: kvdb name
+ * @kvdb_home: kvdb home
+ * @db_name: kvdb home
  * @csched:     (out) handle
  */
 /* MTF_MOCK */
@@ -44,7 +44,7 @@ csched_create(
     enum csched_policy   policy,
     struct mpool *       ds,
     struct kvdb_rparams *rp,
-    const char *         mp_name,
+    const char *         kvdb_home,
     struct kvdb_health  *health,
     struct csched **     csched);
 

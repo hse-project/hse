@@ -17,7 +17,7 @@ test_collection_setup(struct mtf_test_info *lcl_ti)
 {
     int rc;
 
-    rc = mtf_kvdb_setup(lcl_ti, NULL, &kvdb_handle, 0);
+    rc = mtf_kvdb_setup(lcl_ti, &kvdb_handle, 0);
     ASSERT_EQ_RET(rc, 0, -1);
 
     return 0;
@@ -39,10 +39,10 @@ open_kvs(struct mtf_test_info *lcl_ti)
 {
     hse_err_t err;
 
-    err = hse_kvdb_kvs_make(kvdb_handle, kvs_name, NULL);
+    err = hse_kvdb_kvs_make(kvdb_handle, kvs_name, 0, NULL);
     ASSERT_EQ_RET(err, 0, -1);
 
-    err = hse_kvdb_kvs_open(kvdb_handle, kvs_name, NULL, &kvs_handle);
+    err = hse_kvdb_kvs_open(kvdb_handle, kvs_name, 0, NULL, &kvs_handle);
     ASSERT_EQ_RET(err, 0, -1);
 
     return 0;

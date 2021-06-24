@@ -170,7 +170,7 @@ load_kblock(
     kblk_desc->map_base = 0;
     kblk_desc->ds = (struct mpool *)-1;
 
-    err = mpool_mcache_mmap(kblk_desc->ds, 1, &blkid, MPC_VMA_COLD, &kblk_desc->map);
+    err = mpool_mcache_mmap(kblk_desc->ds, 1, &blkid, &kblk_desc->map);
     ASSERT_EQ_RET(err, 0, -1);
 
     kblk_desc->map_base = mpool_mcache_getbase(kblk_desc->map, kblk_desc->map_idx);
@@ -183,8 +183,7 @@ load_kblock(
     err = kbr_read_wbt_region_desc_mem(wbt_hdr, desc);
     ASSERT_EQ_RET(err, 0, -1);
 
-    err = mpool_mcache_munmap(kblk_desc->map);
-    ASSERT_EQ_RET(err, 0, -1);
+    mpool_mcache_munmap(kblk_desc->map);
 
     return 0;
 }

@@ -65,7 +65,7 @@ open_kvdb_and_cndb(struct kvs_info *ki)
 {
     uint64_t rc;
 
-    rc = diag_kvdb_open(ki->mp, 0, &ki->kvdbh);
+    rc = diag_kvdb_open(ki->mp, 0, NULL, &ki->kvdbh);
     if (rc)
         fatal("diag_kvdb_open", rc);
 

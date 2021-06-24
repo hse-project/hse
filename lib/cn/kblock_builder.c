@@ -181,7 +181,6 @@ struct kblock_builder {
     struct blk_list            finished_kblks;
     struct curr_kblock         curr;
     bool                       finished;
-    uint                       flags;
     struct wbb *               ptree;
     uint                       pt_pgc;
     uint                       pt_max_pgc;
@@ -534,7 +533,7 @@ kblock_add_entry(
     *added = false;
 
     if (kblk->rp->cn_bloom_create) {
-        size_t tree_sfx_len = kblk->cp->cp_sfx_len;
+        size_t tree_sfx_len = kblk->cp->sfx_len;
 
         /* Ensure we have enough pages reserved for bloom filters. */
         if (kblk->num_keys + 1 > kblk->blm_elt_cap) {
@@ -814,7 +813,7 @@ _kblock_make_header(
 }
 
 size_t
-kbb_estimate_alen(struct cn *cn, size_t wlen, enum mp_media_classp mclass)
+kbb_estimate_alen(struct cn *cn, size_t wlen, enum mpool_mclass mclass)
 {
     u64 zonealloc_unit;
 
@@ -855,9 +854,8 @@ kblock_finish(struct kblock_builder *bld, struct wbb *ptree)
     uint   pt_pgc = 0;
     u64    tstart = 0;
     u64    kblocksz;
-    bool   spare;
 
-    enum mp_media_classp mclass;
+    enum mpool_mclass mclass;
 
     /* Allocate kblock hdr */
     if (!kblk->kblk_hdr) {
@@ -940,15 +938,13 @@ kblock_finish(struct kblock_builder *bld, struct wbb *ptree)
     for (i = 0; i < iov_cnt; i++)
         wlen += iov[i].iov_len;
 
-    kblocksz = (bld->rp->kblock_size_mb << 20);
+    kblocksz = bld->rp->kblock_size;
     if (wlen > kblocksz) {
         hse_log(HSE_DEBUG "wlen %lu kblocksz %lu", wlen, kblocksz);
         assert(wlen <= kblocksz);
         err = merr(EBUG);
         goto errout;
     }
-
-    spare = !!(bld->flags & KVSET_BUILDER_FLAGS_SPARE);
 
     if (stats)
         tstart = get_time_ns();
@@ -961,7 +957,7 @@ kblock_finish(struct kblock_builder *bld, struct wbb *ptree)
             break;
         }
 
-        err = mpool_mblock_alloc(bld->ds, mclass, spare, &blkid, &mbprop);
+        err = mpool_mblock_alloc(bld->ds, mclass, &blkid, &mbprop);
     } while (err && ++allocs < HSE_MPOLICY_MEDIA_CNT);
 
     if (ev(err))
@@ -1019,7 +1015,7 @@ errout:
 
 /* Create a kblock builder */
 merr_t
-kbb_create(struct kblock_builder **builder_out, struct cn *cn, struct perfc_set *pc, uint flags)
+kbb_create(struct kblock_builder **builder_out, struct cn *cn, struct perfc_set *pc)
 {
     merr_t                 err;
     uint                   kb_size;
@@ -1037,14 +1033,13 @@ kbb_create(struct kblock_builder **builder_out, struct cn *cn, struct perfc_set 
     bld->rp = cn_get_rp(cn);
     bld->cp = cn_get_cparams(cn);
     bld->pc = pc;
-    bld->flags = flags;
     bld->agegroup = HSE_MPOLICY_AGE_LEAF;
 
     err = hlog_create(&bld->hlog, HLOG_PRECISION);
     if (ev(err))
         goto err_exit1;
 
-    kb_size = bld->rp->kblock_size_mb << 20;
+    kb_size = bld->rp->kblock_size;
 
     err = kblock_init(&bld->curr, bld->cp, bld->rp, bld->pc, kb_size);
     if (ev(err))
@@ -1198,7 +1193,7 @@ kbb_finish(struct kblock_builder *bld, struct blk_list *kblks, u64 seqno_min, u6
      */
     if (!kblock_is_empty(&bld->curr)) {
         struct wbb *pt = 0;
-        u64         kbsize = (bld->rp->kblock_size_mb << 20);
+        u64         kbsize = bld->rp->kblock_size;
         u64         ptsize = (wbb_page_cnt_get(bld->ptree)) * PAGE_SIZE;
         u64         kbused =
             (KBLOCK_HDR_PAGES + HLOG_PGC + bld->curr.blm_pgc + wbb_page_cnt_get(bld->curr.wbtree)) *

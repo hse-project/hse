@@ -1,43 +1,46 @@
 #!/usr/bin/env python3
+
+from contextlib import ExitStack
 import hse
 
-import util
+from utility import lifecycle
 
 
 hse.init()
 
 try:
-    p = hse.Params()
-    p.set(key="kvs.transactions_enable", value="1")
+    with ExitStack() as stack:
+        kvdb_ctx = lifecycle.KvdbContext()
+        kvdb = stack.enter_context(kvdb_ctx)
+        kvs_ctx = lifecycle.KvsContext(kvdb, "txdel").rparams("transactions_enable=1")
+        kvs = stack.enter_context(kvs_ctx)
 
-    with util.create_kvdb(util.get_kvdb_name(), p) as kvdb:
-        with util.create_kvs(kvdb, "txdel", p) as kvs:
-            with kvdb.transaction() as txn:
-                kvs.put(b"pfx.a", b"1", txn=txn)
-                kvs.put(b"pfx.b", b"2", txn=txn)
-                kvs.put(b"pfx.c", b"3", txn=txn)
+        with kvdb.transaction() as txn:
+            kvs.put(b"pfx.a", b"1", txn=txn)
+            kvs.put(b"pfx.b", b"2", txn=txn)
+            kvs.put(b"pfx.c", b"3", txn=txn)
 
-            with kvdb.transaction() as txn:
-                with kvs.cursor(b"pfx", txn=txn, bind_txn=True) as cur:
-                    kv = cur.read()
-                    assert kv == (b"pfx.a", b"1")
-                    kv = cur.read()
-                    assert kv == (b"pfx.b", b"2")
-                    kv = cur.read()
-                    assert kv == (b"pfx.c", b"3")
-                    cur.read()
-                    assert cur.eof
+        with kvdb.transaction() as txn:
+            with kvs.cursor(b"pfx", txn=txn, bind_txn=True) as cur:
+                kv = cur.read()
+                assert kv == (b"pfx.a", b"1")
+                kv = cur.read()
+                assert kv == (b"pfx.b", b"2")
+                kv = cur.read()
+                assert kv == (b"pfx.c", b"3")
+                cur.read()
+                assert cur.eof
 
-            with kvdb.transaction() as txn:
-                kvs.delete(b"pfx.c", txn=txn)
+        with kvdb.transaction() as txn:
+            kvs.delete(b"pfx.c", txn=txn)
 
-            with kvdb.transaction() as txn:
-                with kvs.cursor(b"pfx", txn=txn, bind_txn=True) as cur:
-                    kv = cur.read()
-                    assert kv == (b"pfx.a", b"1")
-                    kv = cur.read()
-                    assert kv == (b"pfx.b", b"2")
-                    cur.read()
-                    assert cur.eof
+        with kvdb.transaction() as txn:
+            with kvs.cursor(b"pfx", txn=txn, bind_txn=True) as cur:
+                kv = cur.read()
+                assert kv == (b"pfx.a", b"1")
+                kv = cur.read()
+                assert kv == (b"pfx.b", b"2")
+                cur.read()
+                assert cur.eof
 finally:
     hse.fini()

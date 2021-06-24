@@ -2,6 +2,6 @@
 
 # one thread does transactional PUTs while another periodically calls flush
 kvs=$(new_kvs $mp) || err
-cmd txput_flush $mp $kvs kvdb.low_mem=1
+cmd txput_flush $mp $kvs kvdb-oparms low_mem=1
 
 

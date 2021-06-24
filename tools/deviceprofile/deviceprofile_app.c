@@ -5,8 +5,11 @@
 #include <fcntl.h>
 #include <getopt.h>
 #include <stdio.h>
+#include <sysexits.h>
 
 #include <mpool/mpool.h>
+
+#include <hse/hse.h>
 
 #include <hse_util/inttypes.h>
 
@@ -82,14 +85,14 @@ int
 main(int argc, char *argv[])
 {
     struct deviceprofile_calibrate *dpc;
-    hse_err_t                          err;
+    hse_err_t                       err;
     struct deviceprofile_stat       rd, wr;
     struct mpool *                  ds;
-    int                             flags = O_EXCL | O_RDWR;
+    int                             flags = O_RDWR;
     const char *                    program, *mpname;
     int                             mclass, wpct, thrds;
     u64                             bsize, mblks_per_thrd, mblksize;
-    struct mpool_params             params;
+    struct mpool_props              props;
 
     program = strrchr(argv[0], '/');
     program = program ? program + 1 : argv[0];
@@ -107,6 +110,10 @@ main(int argc, char *argv[])
         return -1;
     }
 
+    err = hse_init();
+    if (err)
+        return -1;
+
     for (;;) {
         char c, *end;
 
@@ -123,7 +130,7 @@ main(int argc, char *argv[])
                 break;
             case 'c':
                 mclass = (int)strtoul(optarg, &end, 0);
-                if ((mclass < MP_MED_BASE) || (mclass >= MP_MED_NUMBER)) {
+                if ((mclass < MP_MED_BASE) || (mclass >= MP_MED_COUNT)) {
                     usage(program);
                     return -1;
                 }
@@ -142,50 +149,49 @@ main(int argc, char *argv[])
         }
     }
 
-    if (optind + 1 < argc) {
-        int i;
+    argc -= optind;
+    argv += optind;
 
-        fprintf(stderr, "Invalid argument(s)");
-        for (i = 0; i < argc - optind - 1; i++)
-            fprintf(stderr, " %s", argv[optind + i]);
-        fprintf(stderr, "\n");
-
+    if (argc != 1) {
+        fprintf(stderr, "Invalid or extraneous arguments\n");
         usage(program);
-        return -1;
+        err = EX_USAGE;
+        goto err_exit;
     }
 
     if (mblks_per_thrd == 0) {
         usage(program);
-        return -1;
+        err = EX_USAGE;
+        goto err_exit;
     }
 
-    mpname = argv[argc - 1];
+    mpname = argv[0];
 
     if (!bsize || !mpname) {
         usage(program);
-        return -1;
+        err = EX_USAGE;
+        goto err_exit;
     }
 
-    err = mpool_open(mpname, flags, &ds, NULL);
+    err = mpool_open(mpname, NULL, flags, &ds);
     if (err) {
         fprintf(stderr, "mpool_open error %ld\n", err);
-        return -1;
+        goto err_exit;
     }
 
-    err = mpool_params_get(ds, &params, NULL);
+    err = mpool_props_get(ds, &props);
     if (err) {
         mpool_close(ds);
-        fprintf(stderr, "mpool_params_get error %ld\n", err);
-        return -1;
+        fprintf(stderr, "mpool_props_get error %ld\n", err);
+        goto err_exit;
     }
 
-    mblksize = params.mp_mblocksz[mclass] * MB;
+    mblksize = props.mp_mblocksz[mclass] * MB;
     err = deviceprofile_calibrate_create(ds, mclass, mblksize, mblks_per_thrd, thrds, &dpc);
     if (err) {
         fprintf(stderr, "Initialization error %ld\n", err);
         mpool_close(ds);
-
-        return -1;
+        goto err_exit;
     }
 
     err = deviceprofile_calibrate_sample(dpc, wpct, bsize, &rd, &wr);
@@ -197,6 +203,9 @@ main(int argc, char *argv[])
     deviceprofile_calibrate_destroy(dpc);
 
     mpool_close(ds);
+
+err_exit:
+    hse_fini();
 
     return err;
 }

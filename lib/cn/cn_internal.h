@@ -22,6 +22,7 @@ struct csched;
 #include <hse_util/perfc.h>
 
 #include <hse/hse_limits.h>
+#include <mpool/mpool.h>
 
 struct cn {
     struct cn_tree *  cn_tree;
@@ -71,10 +72,10 @@ struct cn {
 
     u32 cn_cflags;
 
-    char cn_mpname[HSE_KVS_NAME_LEN_MAX];
+    char cn_kvdbhome[PATH_MAX];
     char cn_kvsname[HSE_KVS_NAME_LEN_MAX];
 
-    struct mpool_params cn_mpool_params;
+    struct mpool_props cn_mpool_props;
 };
 
 #endif

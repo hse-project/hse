@@ -1,3 +1,6 @@
+subdir('include')
+subdir('lib')
+
 hse_cli_sources = [
     files(
         'cli_util.c',
@@ -12,6 +15,7 @@ hse_cli_c_args = [
 
 hse_cli_dependencies = [
     hse_dep,
+    libhse_cli_dep,
     hse_dependencies,
 ]
 
@@ -19,7 +23,6 @@ hse_cli_include_directories = [
     component_root_includes,
     third_party_includes,
     util_includes,
-    get_option('mpool-include-dir'),
 ]
 
 hse_cli = executable(

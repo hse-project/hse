@@ -12,7 +12,8 @@
 
 #include <hse/hse.h>
 
-#include "common.h"
+#include <cli/param.h>
+
 #include "kvs_helper.h"
 
 char *progname;
@@ -96,11 +97,19 @@ usage(void)
 int
 main(int argc, char **argv)
 {
-	struct hse_params  *params;
+	struct parm_groups *pg = NULL;
+	struct svec         kvdb_oparms = {};
+	struct svec         kvs_cparms = {};
+	struct svec         kvs_oparms = {};
 	const char         *mpool, *kvs;
 	char                c;
+	int                 rc;
 
 	progname = basename(argv[0]);
+
+	rc = pg_create(&pg, PG_KVDB_OPEN, PG_KVS_OPEN, PG_KVS_CREATE, NULL);
+	if (rc)
+		fatal(rc, "pg_create");
 
 	while ((c = getopt(argc, argv, ":k:p:")) != -1) {
 		char *errmsg, *end;
@@ -139,21 +148,32 @@ main(int argc, char **argv)
 		}
 	}
 
-	hse_params_create(&params);
-
-	kh_rparams(&argc, &argv, params);
-	if (argc != 2) {
-		syntax("insufficient arguments for mandatory parameters");
-		hse_params_destroy(params);
+	if (argc - optind < 2) {
+		syntax("missing required parameters");
 		exit(EX_USAGE);
 	}
 
-	mpool = argv[0];
-	kvs   = argv[1];
+	mpool = argv[optind++];
+	kvs   = argv[optind++];
 
-	kh_init(mpool, params);
+	rc = pg_parse_argv(pg, argc, argv, &optind);
+	switch (rc) {
+	case 0:
+		if (optind < argc)
+			fatal(0, "unknown parameter: %s", argv[optind]);
+		break;
+	case EINVAL:
+		fatal(0, "missing group name (e.g. %s) before parameter %s\n",
+			PG_KVDB_OPEN, argv[optind]);
+		break;
+	default:
+		fatal(rc, "error processing parameter %s\n", argv[optind]);
+		break;
+	}
 
-	kh_register(kvs, 0, params, &dostuff, 0);
+	kh_init(mpool, &kvdb_oparms);
+
+	kh_register_kvs(kvs, 0, &kvs_cparms, &kvs_oparms, &dostuff, 0);
 
 	while(!killthreads)
 		sleep(1);
@@ -162,7 +182,7 @@ main(int argc, char **argv)
 
 	kh_fini();
 
-	hse_params_destroy(params);
+	pg_destroy(pg);
 
 	return 0;
 }

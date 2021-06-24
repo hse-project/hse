@@ -49,11 +49,11 @@
         memcpy(p, s->member, len < plen ? len : plen);                     \
     }
 
-#define OMF_GET_VER(type, member, bits, ver)                           \
-    static HSE_ALWAYS_INLINE u##bits omf_##member##_##ver(const type *s) \
-    {                                                                  \
-        BUILD_BUG_ON(sizeof(((type *)0)->member) * 8 != (bits));       \
-        return le##bits##_to_cpu(s->member);                           \
+#define OMF_GET_VER(type, member, bits, ver)                                                 \
+    static HSE_ALWAYS_INLINE u##bits omf_##member##_##ver(const type *s)                     \
+    {                                                                                        \
+        static_assert(sizeof(((type *)0)->member) * 8 == (bits), "unexpected size"); \
+        return le##bits##_to_cpu(s->member);                                                 \
     }
 
 #define OMF_GET_CHBUF_VER(type, member, ver)                                     \

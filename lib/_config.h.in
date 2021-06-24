@@ -7,5 +7,7 @@
 #define HSE__CONFIG_H
 
 #mesondefine WITH_COVERAGE
+#mesondefine WITH_CJSON_FROM_SUBPROJECT
+#mesondefine HSE_CONF_EXTENDED
 
 #endif

@@ -11,7 +11,6 @@
 #define REST_VERSION_MAJOR 0
 #define REST_VERSION_MINOR 1
 
-#define REST_SOCK_ROOT "/var/run/mpool"
 #define REST_URL_LEN_MAX PATH_MAX
 
 enum rest_url_flags {

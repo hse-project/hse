@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
+
+from contextlib import ExitStack
 from typing import List
 
 import hse
 
-import util
+from utility import lifecycle
 
 
 def check_keys(cursor: hse.Cursor, expected: List[bytes]):
@@ -16,51 +18,53 @@ def check_keys(cursor: hse.Cursor, expected: List[bytes]):
 hse.init()
 
 try:
-    p = hse.Params()
+    with ExitStack() as stack:
+        kvdb_ctx = lifecycle.KvdbContext()
+        kvdb = stack.enter_context(kvdb_ctx)
+        kvs_ctx = lifecycle.KvsContext(kvdb, "tmobspan")
+        kvs = stack.enter_context(kvs_ctx)
 
-    with util.create_kvdb(util.get_kvdb_name(), p) as kvdb:
-        with util.create_kvs(kvdb, "tombspan", p) as kvs:
-            kvs.put(b"a", b"1")
-            kvs.put(b"b", b"2")
-            kvs.put(b"c", b"3")
-            kvs.put(b"d", b"4")
-            kvs.put(b"e", b"5")
-            kvs.put(b"f", b"6")
-            kvs.put(b"g", b"7")
-            kvs.put(b"h", b"8")
+        kvs.put(b"a", b"1")
+        kvs.put(b"b", b"2")
+        kvs.put(b"c", b"3")
+        kvs.put(b"d", b"4")
+        kvs.put(b"e", b"5")
+        kvs.put(b"f", b"6")
+        kvs.put(b"g", b"7")
+        kvs.put(b"h", b"8")
 
-            cursor = kvs.cursor()
-            check_keys(cursor, [b"a", b"b", b"c", b"d", b"e", b"f", b"g", b"h"])
+        cursor = kvs.cursor()
+        check_keys(cursor, [b"a", b"b", b"c", b"d", b"e", b"f", b"g", b"h"])
 
-            kvs.delete(b"a")
-            kvs.delete(b"b")
-            kvs.delete(b"c")
-            kvs.delete(b"d")
-            kvs.delete(b"e")
+        kvs.delete(b"a")
+        kvs.delete(b"b")
+        kvs.delete(b"c")
+        kvs.delete(b"d")
+        kvs.delete(b"e")
 
-            cursor.update()
-            cursor.seek(b"a")
-            kv = cursor.read()
-            assert kv == (b"f", b"6")
-            cursor.seek(b"a")
-            kv = cursor.read()
-            assert kv == (b"f", b"6")
+        cursor.update()
+        cursor.seek(b"a")
+        kv = cursor.read()
+        assert kv == (b"f", b"6")
+        cursor.seek(b"a")
+        kv = cursor.read()
+        assert kv == (b"f", b"6")
 
-            kvs.delete(b"f")
-            cursor.update()
-            cursor.seek(b"a")
-            kv = cursor.read()
-            assert kv == (b"g", b"7")
-            cursor.seek(b"a")
-            kv = cursor.read()
-            assert kv == (b"g", b"7")
+        kvs.delete(b"f")
+        cursor.update()
+        cursor.seek(b"a")
+        kv = cursor.read()
+        assert kv == (b"g", b"7")
+        cursor.seek(b"a")
+        kv = cursor.read()
+        assert kv == (b"g", b"7")
 
-            kvs.put(b"c", b"33")
-            cursor.update()
-            cursor.seek(b"a")
-            kv = cursor.read()
-            assert kv == (b"c", b"33")
+        kvs.put(b"c", b"33")
+        cursor.update()
+        cursor.seek(b"a")
+        kv = cursor.read()
+        assert kv == (b"c", b"33")
 
-            cursor.destroy()
+        cursor.destroy()
 finally:
     hse.fini()

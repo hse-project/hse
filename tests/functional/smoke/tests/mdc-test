@@ -1,0 +1,17 @@
+#!/usr/bin/bash
+
+#tdoc: mdc data integrity and perf tests
+
+storage=$mp/capacity/smoke-mdc-test
+
+cmd rm -fr $storage
+cmd mkdir $storage
+
+cmd mdctest $storage
+
+cmd mdcperf -r 64   -c $((  32 * 1024 * 1024)) -v    $storage
+cmd mdcperf -r 64   -c $((   8 * 1024 * 1024)) -v -s $storage
+cmd mdcperf -r 4096 -c $((1024 * 1024 * 1024)) -v    $storage
+cmd mdcperf -r 4096 -c $(( 256 * 1024 * 1024)) -v -s $storage
+
+cmd rm -fr $storage

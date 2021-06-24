@@ -1,7 +1,7 @@
 project(
     'libbsd',
     ['c'],
-    version: '0.8.7',
+    version: '0.9.0',
     meson_version: '>=0.57.0',
 )
 

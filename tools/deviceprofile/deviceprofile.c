@@ -38,7 +38,7 @@ struct deviceprofile_calibrate_work {
 
 struct deviceprofile_calibrate {
     struct mpool *                       dp_ds;
-    enum mp_media_classp                 dp_mclass;
+    enum mpool_mclass                    dp_mclass;
     int                                  dp_threads;
     u32                                  dp_mblksize;
     u64                                  dp_samplesize;
@@ -60,7 +60,6 @@ deviceprofile_calibrate_worker(struct work_struct *arg)
     struct iovec                         iov;
     void *                               buf;
     int                                  i;
-    char                                 errbuf[160];
     int                                  block, num_blocks;
 
     work = container_of(arg, struct deviceprofile_calibrate_work, dp_work);
@@ -96,10 +95,12 @@ deviceprofile_calibrate_worker(struct work_struct *arg)
 
     for (block = 0; block < num_blocks; ++block) {
         err = mpool_mblock_alloc(
-            work->dp_calibrate->dp_ds, work->dp_calibrate->dp_mclass, false, &handle, &mbprop);
+            work->dp_calibrate->dp_ds, work->dp_calibrate->dp_mclass, &handle, &mbprop);
         if (err) {
+            struct merr_info info;
+
             fprintf(stderr, "mpool_mblock_alloc() failed: %s\n",
-                    mpool_strerror(err, errbuf, sizeof(errbuf)));
+                    merr_info(err, &info));
             work->dp_err = err;
             break;
         }
@@ -112,8 +113,10 @@ deviceprofile_calibrate_worker(struct work_struct *arg)
 
             err = mpool_mblock_write(work->dp_calibrate->dp_ds, handle, &iov, 1);
             if (err) {
+                struct merr_info info;
+
                 fprintf(stderr, "mpool_mblock_write() failed: %s\n",
-                        mpool_strerror(err, errbuf, sizeof(errbuf)));
+                        merr_info(err, &info));
                 work->dp_err = err;
                 break;
             }
@@ -129,8 +132,10 @@ deviceprofile_calibrate_worker(struct work_struct *arg)
 
         err2 = mpool_mblock_abort(work->dp_calibrate->dp_ds, handle);
         if (err2) {
+            struct merr_info info;
+
             fprintf(stderr, "mpool_mblock_write() failed: %s\n",
-                    mpool_strerror(err2, errbuf, sizeof(errbuf)));
+                    merr_info(err2, &info));
             work->dp_err = (err == 0) ? err2 : err;
             break;
         }
@@ -227,7 +232,7 @@ deviceprofile_calibrate_sample(
 hse_err_t
 deviceprofile_calibrate_create(
     struct mpool *                   ds,
-    enum mp_media_classp             mclass,
+    enum mpool_mclass                mclass,
     u32                              mblk_size,
     u32                              mblks_per_thread,
     int                              threads,

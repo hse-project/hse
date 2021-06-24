@@ -1,0 +1,10 @@
+{
+  "kvdb": {
+    "kvs": {
+      "default": {
+        "mclass_policy": "staging_max_capacity",
+        "pfx_len": 7
+      }
+    }
+  }
+}

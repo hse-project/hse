@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
 #ifndef HSE_IKVDB_API_H
@@ -9,9 +9,6 @@
 #include <hse/hse.h>
 
 #include <hse_ikvdb/tuple.h>
-#include <hse_ikvdb/kvdb_cparams.h>
-#include <hse_ikvdb/kvs_cparams.h>
-#include <hse_ikvdb/kvs_rparams.h>
 #include <hse_ikvdb/diag_kvdb.h>
 
 #include <hse_util/inttypes.h>
@@ -19,15 +16,21 @@
 #include <hse_util/perfc.h>
 #include <hse_util/workqueue.h>
 
+#include <bsd/libutil.h>
+
 /* MTF_MOCK_DECL(ikvdb) */
 
 struct yaml_context;
 
+struct config;
 struct ikvdb;
 struct ikvdb_impl;
 struct kvdb_txn;
-struct kvdb_cparams;
 struct kvdb_rparams;
+struct kvdb_cparams;
+struct kvdb_dparams;
+struct kvs_rparams;
+struct kvs_cparams;
 struct hse_kvdb_opspec;
 struct kvdb_log;
 struct hse_kvs_cursor;
@@ -40,43 +43,8 @@ struct kvs;
 struct hse_kvdb_txn {
 };
 
-/**
- * struct kvdb_bak_work
- * @bak_work:
- * @bak_kvs:
- * @bak_fname: data file name
- * @bak_cur: cursor for export
- * @bak_fcnt: number of dumped data files for this kvs
- * @bak_kvcnt: number of k-v pairs in this kvs
- * @bak_err:
- */
-struct kvdb_bak_work {
-    struct work_struct     bak_work;
-    struct hse_kvs *       bak_kvs;
-    char                   bak_fname[PATH_MAX];
-    struct hse_kvs_cursor *bak_cur;
-    int                    bak_fcnt;
-    u64                    bak_kvcnt;
-    merr_t                 bak_err;
-};
-
-/**
- * struct kvs_import
- * @kvsi_params: kvs create time parameters
- * @kvsi_name: kvs name
- * @kvsi_kvcnt: number of k-v pairs in this kvs
- * @kvsi_fcnt: number of data files dumped drung kvdb export
- */
-struct kvs_import {
-    struct hse_params *kvsi_params;
-    char               kvsi_name[HSE_KVS_NAME_LEN_MAX];
-    u64                kvsi_kvcnt;
-    u64                kvsi_fcnt;
-    struct hse_kvs *   kvsi_kvs;
-};
-
 #define IKVDB_SUB_NAME_SEP ":"
-#define HSE_KVDB_DESC "Heterogeneous-memory Storage Engine KVDB"
+#define HSE_KVDB_DESC      "Heterogeneous-memory Storage Engine KVDB"
 
 /**
  * ikvdb_init() - prepare the ikvdb subsystem for use
@@ -102,14 +70,13 @@ kvdb_perfc_register(void *pc);
 
 /**
  * ikvdb_make() - create a new KVDB instance within the named mpool
- * @ds:        dataset descriptor
- * @oid1:      oid of mlog1 of the mdc
- * @oid2:      oid of mlog2 of the mdc
+ * @kvdb_home: KVDB home
+ * @mp:        mpool handle
  * @params:    fixed configuration parameters
  * @captgt:    captgt of the mdc
  */
 merr_t
-ikvdb_make(struct mpool *ds, u64 oid1, u64 oid2, struct kvdb_cparams *params, u64 captgt);
+ikvdb_make(const char *kvdb_home, struct mpool *mp, struct kvdb_cparams *params, u64 captgt);
 
 /**
  * ikvdb_diag_cndb() - returns a pointer to kvdb's cndb
@@ -133,16 +100,18 @@ ikvdb_diag_kvslist(struct ikvdb *handle, struct diag_kvdb_kvs_list *list, int le
 
 /**
  * ikvdb_diag_open() - open relevant media streams with minimal processing
- * @mp_name:        mpool/kvdb name
- * @ds:             dataset descriptor
- * @rparams:        run time parameters that affect how the KVDB will be used
+ * @kvdb_home:      kvdb home
+ * @pfh:            PID file handle
+ * @mp:             mpool handle
+ * @params:         parameters that affect how the KVDB will be used
  * @handle:         (output) handle to access the opened KVDB
  */
 merr_t
 ikvdb_diag_open(
-    const char *         mp_name,
-    struct mpool *       ds,
-    struct kvdb_rparams *rparams,
+    const char *         kvdb_home,
+    struct pidfh *       pfh,
+    struct mpool *       mp,
+    struct kvdb_rparams *params,
     struct ikvdb **      handle);
 
 /**
@@ -154,19 +123,23 @@ ikvdb_diag_close(struct ikvdb *handle);
 
 /**
  * ikvdb_open() - prepare HSE KVDB target for subsequent use by the application
- * @mp_name:        mpool/kbdb name
- * @ds:             dataset descriptor
- * @params:         run time parameters that affect how the KVDB will be used
- * @kvdb:           (output) handle to access the opened KVDB
+ * @kvdb_home:   kvdb home
+ * @params:      kvdb rparams
+ * @pfh:         PID file handle
+ * @mp:          mpool handle
+ * @conf:        hse.conf config object
+ * @kvdb:        (output) handle to access the opened KVDB
  */
 merr_t
 ikvdb_open(
-    const char                 *mp_name,
-    struct mpool               *ds,
-    const struct hse_params    *params,
-    struct ikvdb              **kvdb);
+    const char *               kvdb_home,
+    const struct kvdb_rparams *params,
+    struct pidfh *             pfh,
+    struct mpool *             mp,
+    struct config *            conf,
+    struct ikvdb **            kvdb);
 
-#define IKVS_OFLAG_NONE 0
+#define IKVS_OFLAG_NONE   0
 #define IKVS_OFLAG_REPLAY 1 /* used when c1 opens ikvs/kvs/cn for replay */
 
 /**
@@ -180,11 +153,32 @@ ikvdb_open(
  */
 merr_t
 ikvdb_kvs_open(
-    struct ikvdb               *kvdb,
-    const char                 *kvs_name,
-    const struct hse_params    *params,
-    uint                        ikvs_oflags,
-    struct hse_kvs            **kvs_out);
+    struct ikvdb *      kvdb,
+    const char *        kvs_name,
+    struct kvs_rparams *rparams,
+    uint                ikvs_oflags,
+    struct hse_kvs **   kvs_out);
+
+/**
+ * ikvdb_pidfh() - get the PID file handle associated with the KVDB
+ * @kvdb: kvdb handle
+ */
+struct pidfh *
+ikvdb_pidfh(struct ikvdb *kvdb);
+
+/**
+ * ikvdb_home() - get the home directory
+ * @kvdb: kvdb handle
+ */
+const char *
+ikvdb_home(struct ikvdb *kvdb);
+
+/**
+ * ikvdb_home() - get the config object
+ * @kvdb: kvdb handle
+ */
+struct config *
+ikvdb_config(struct ikvdb *kvdb);
 
 /**
  * ikvdb_rdonly() - is the KVDB read only?
@@ -223,6 +217,14 @@ ikvdb_get_csched(struct ikvdb *handle);
 struct mclass_policy *
 ikvdb_get_mclass_policy(struct ikvdb *handle, const char *name);
 
+merr_t
+ikvdb_storage_info_get(
+    struct ikvdb *                handle,
+    struct hse_kvdb_storage_info *info,
+    char *                        cappath,
+    char *                        stgpath,
+    size_t                        pathlen);
+
 /**
  * ikvdb_kvs_get_cn() - retrieve a pointer to the cn
  * @kvs:     kvs handle
@@ -259,10 +261,10 @@ ikvdb_kvs_count(struct ikvdb *kvdb, unsigned int *count);
  * ikvdb_kvs_make() - allow a new KVS to be created within a KVDB
  * @kvdb:      KVDB handle
  * @kvs_name:  KVS name
- * @params:    static configuration parameters for the KVS
+ * @params:    KVS cparams
  */
 merr_t
-ikvdb_kvs_make(struct ikvdb *kvdb, const char *kvs_name, const struct hse_params *params);
+ikvdb_kvs_make(struct ikvdb *kvdb, const char *kvs_name, const struct kvs_cparams *params);
 
 /**
  * ikvdb_kvs_drop() - delete a KVS from the associated KVDB
@@ -317,10 +319,7 @@ ikvdb_kvs_get(
  */
 /* MTF_MOCK */
 merr_t
-ikvdb_kvs_del(
-    struct hse_kvs *        kvs,
-    struct hse_kvdb_opspec *opspec,
-    struct kvs_ktuple *     kt);
+ikvdb_kvs_del(struct hse_kvs *kvs, struct hse_kvdb_opspec *opspec, struct kvs_ktuple *kt);
 
 /* MTF_MOCK */
 merr_t
@@ -477,31 +476,6 @@ struct ikvdb *
 ikvdb_kvdb_handle(struct ikvdb_impl *self);
 
 /**
- * ikvdb_import() - import kvdb from files
- * @handle: kvdb handle
- * @path:
- */
-merr_t
-ikvdb_import(struct ikvdb *handle, const char *path);
-
-/**
- * ikvdb_export() - export kvdb into files
- * @handle: kvdb handle
- * @cparams: kvdb create time parameters
- * @path: export destination directory
- */
-merr_t
-ikvdb_export(struct ikvdb *handle, struct kvdb_cparams *cparams, const char *path);
-
-/**
- * ikvdb_import_kvdb_cparams() - import kvdb meta data from TOC file
- * @path:
- * @kvdb_cparams:
- */
-merr_t
-ikvdb_import_kvdb_cparams(const char *path, struct kvdb_cparams *kvdb_cparams);
-
-/**
  * ikvdb_kvs_query_tree() - get cn tree shape and write to fd
  * @kvs:  kvs handle
  * @yc:   yaml context
@@ -511,6 +485,21 @@ ikvdb_import_kvdb_cparams(const char *path, struct kvdb_cparams *kvdb_cparams);
 merr_t
 ikvdb_kvs_query_tree(struct hse_kvs *kvs, struct yaml_context *yc, int fd, bool list);
 
+/**
+ * ikvdb_log_deserialize_to_kvdb_rparams - deserialize rparams from kvdb log
+ * @kvdb_home: kvdb home
+ * @params:    rparams
+ */
+merr_t
+ikvdb_log_deserialize_to_kvdb_rparams(const char *kvdb_home, struct kvdb_rparams *params);
+
+/**
+ * ikvdb_log_deserialize_to_kvdb_dparams - deserialize dparams from kvdb log
+ * @kvdb_home: kvdb home
+ * @params:    dparams
+ */
+merr_t
+ikvdb_log_deserialize_to_kvdb_dparams(const char *kvdb_home, struct kvdb_dparams *params);
 /*
  * [HSE_REVISIT] - This whole callback setup up needs to be reworked.
  *                Huge layering violations, etc.

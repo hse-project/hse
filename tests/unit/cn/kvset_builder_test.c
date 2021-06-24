@@ -65,7 +65,7 @@ MTF_BEGIN_UTEST_COLLECTION_PREPOST(test, init, fini);
 #define rp ((struct kvs_rparams *)2)
 
 #define KVSET_BUILDER_CREATE() \
-    ({ kvset_builder_create(&bld, (void *)-1, 0, 1, KVSET_BUILDER_FLAGS_NONE); })
+    ({ kvset_builder_create(&bld, (void *)-1, 0, 1); })
 
 MTF_DEFINE_UTEST_PREPOST(test, t_kvset_builder_create, pre, post)
 {

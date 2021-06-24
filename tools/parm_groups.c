@@ -1,0 +1,368 @@
+/*
+ * Copyright (C) 2021 Micron Technology, Inc.  All rights reserved.
+ */
+
+#include <tools/parm_groups.h>
+
+#include <stdlib.h>
+#include <stdarg.h>
+#include <errno.h>
+#include <assert.h>
+#include <stdbool.h>
+
+#include <bsd/string.h>
+
+struct grp {
+    char            grp_name[PG_NAME_MAX];
+    struct svec     grp_svec;
+    struct grp     *grp_next;
+};
+
+struct parm_groups {
+    char pg_ident[4];
+    struct grp     *pg_grps;
+    struct svec     pg_store;
+};
+
+static struct svec *
+pg_find_grp(struct parm_groups *self, const char *name)
+{
+    struct grp *g = self->pg_grps;
+
+    while (g && strcmp(g->grp_name, name))
+        g = g->grp_next;
+
+    return g ? &g->grp_svec : NULL;
+}
+
+static
+int svec_add(struct svec *self, const char *str)
+{
+    if (self->strc == self->strc_max) {
+
+        void *tmp;
+        size_t new_max;
+
+        new_max = 2 * self->strc_max;
+        if (!new_max)
+            new_max = 64;
+
+        tmp = realloc(self->strv, new_max * sizeof(self->strv[0]));
+        if (!tmp)
+            return ENOMEM;
+
+        self->strv = tmp;
+        self->strc_max = new_max;
+    }
+
+    assert(self->strc < self->strc_max);
+    self->strv[self->strc++] = str;
+
+    return 0;
+}
+
+void
+svec_init(struct svec *self)
+{
+    self->strv = NULL;
+    self->strc = 0;
+    self->strc_max = 0;
+}
+
+static
+void
+svec_truncate(struct svec *self, size_t len, bool deep)
+{
+    for (size_t i = len; i < self->strc; i++) {
+        if (deep)
+            free((void *)self->strv[i]);
+        self->strv[i] = NULL;
+    }
+
+    if (len < self->strc)
+        self->strc = len;
+}
+
+static
+void
+svec_free(struct svec *self, bool deep)
+{
+    svec_truncate(self, 0, deep);
+    free(self->strv);
+    svec_init(self);
+}
+
+void
+svec_reset(struct svec *self)
+{
+    svec_free(self, false);
+}
+
+
+int
+svec_append_svec(struct svec *self, ...)
+{
+    int err = 0;;
+    struct svec *sv;
+    size_t original_len;
+    va_list ap;
+
+    original_len = self->strc;
+
+    va_start(ap, self);
+
+    while (!err && NULL != (sv = va_arg(ap, struct svec *))) {
+        for (size_t i = 0; !err && i < sv->strc; i++)
+            err = svec_add(self, sv->strv[i]);
+    }
+
+    va_end(ap);
+
+    if (err)
+        svec_truncate(self, original_len, false);
+
+    return err;
+}
+
+static int
+pg_add_str(struct parm_groups *self, struct svec *sv, const char *parm)
+{
+    char *parm_copy = NULL;
+    int err;
+
+    parm_copy = strdup(parm);
+    if (!parm_copy)
+        return ENOMEM;
+
+    err = svec_add(&self->pg_store, parm_copy);
+    if (err) {
+        free(parm_copy);
+        return err;
+    }
+
+    /* No need to free parm_copy or remove it from the store on
+     * failures after here.  Allocated parm_copy will be unused, but
+     * it will be in the store and will be cleaned up in pg_destroy().
+     */
+
+    err = svec_add(sv, parm_copy);
+
+    return err;
+}
+
+int
+svec_append_pg_impl(struct svec *self, struct parm_groups *pg, va_list ap)
+{
+    int err = 0;;
+    struct svec sv;
+    struct svec *sv_grp;
+    void *arg;
+
+    svec_init(&sv);
+
+    while (!err && NULL != (arg = va_arg(ap, void *))) {
+        if (pg && NULL != (sv_grp = pg_find_grp(pg, arg)))
+            err = svec_append_svec(&sv, sv_grp, NULL);
+        else
+            err = pg_add_str(pg, &sv, arg);
+    }
+
+    if (!err)
+        err = svec_append_svec(self, &sv, NULL);
+
+    svec_free(&sv, false);
+
+    return err;
+}
+
+int
+svec_append_pg(struct svec *self, struct parm_groups *pg, ...)
+{
+    int err = 0;;
+    va_list ap;
+
+    va_start(ap, pg);
+    err = svec_append_pg_impl(self, pg, ap);
+    va_end(ap);
+
+    return err;
+}
+
+int
+svec_append(struct svec *self, ...)
+{
+    int err = 0;;
+    va_list ap;
+
+    va_start(ap, self);
+    err = svec_append_pg_impl(self, NULL, ap);
+    va_end(ap);
+
+    return err;
+}
+
+int
+pg_create(struct parm_groups **self_out, ...)
+{
+    int err = 0;
+    va_list ap;
+    const char *arg;
+    struct parm_groups *self;
+
+    self = calloc(1, sizeof(*self));
+    if (!self)
+        return ENOMEM;
+
+    va_start(ap, self_out);
+    while (NULL != (arg = va_arg(ap, const char *))) {
+        err = pg_define_group(self, arg);
+        if (err)
+            break;
+    }
+    va_end(ap);
+
+    if (err) {
+        pg_destroy(self);
+        self = NULL;
+    }
+
+    *self_out = self;
+    return err;
+}
+
+void
+pg_destroy(struct parm_groups *self)
+{
+    struct grp *g, *next;
+
+    if (!self)
+        return;
+
+    for (g = self->pg_grps; g; g = next) {
+        next = g->grp_next;
+        svec_free(&g->grp_svec, false);
+        free(g);
+    }
+
+    svec_free(&self->pg_store, true);
+
+    free(self);
+}
+
+int
+pg_define_group(struct parm_groups *self, const char *group_name)
+{
+    struct grp *g;
+
+    if (pg_find_grp(self, group_name))
+        return EINVAL;
+
+    g = calloc(1, sizeof(*g));
+    if (!g)
+        return ENOMEM;
+
+    if (strlcpy(g->grp_name, group_name, sizeof(g->grp_name)) >= sizeof(g->grp_name)) {
+        free(g);
+        return ENAMETOOLONG;
+    }
+
+    g->grp_next = self->pg_grps;
+    self->pg_grps = g;
+    return 0;
+}
+
+int
+pg_set_parms(struct parm_groups *self, const char *group_name, ...)
+{
+    int err = 0;
+    va_list ap;
+    const char *arg;
+    struct svec *sv;
+
+    sv = pg_find_grp(self, group_name);
+    if (!sv)
+        return EINVAL;
+
+    va_start(ap, group_name);
+
+    while (!err && NULL != (arg = va_arg(ap, const char *)))
+        err = pg_add_str(self, sv, arg);
+
+    va_end(ap);
+
+    return err;
+}
+
+int
+pg_svec_alloc(
+    struct parm_groups *self,
+    const char *        group_name,
+    struct svec *       sv,
+    ...)
+{
+    int err = 0;;
+    struct svec sv_tmp = {};
+    struct svec *sv_grp;
+    va_list ap;
+    const char *arg;
+
+    sv_grp = pg_find_grp(self, group_name);
+    if (!sv_grp)
+        return EINVAL;
+
+    for (size_t i = 0; !err && i < sv_grp->strc; i++)
+        err = svec_add(&sv_tmp, sv_grp->strv[i]);
+
+    va_start(ap, sv);
+    while (!err && NULL != (arg = va_arg(ap, const char *)))
+        err = pg_add_str(self, &sv_tmp, arg);
+    va_end(ap);
+
+    if (!err) {
+        *sv = sv_tmp;
+    } else {
+        svec_free(&sv_tmp, false);
+    }
+
+    return err;
+}
+
+void
+pg_svec_free(struct svec *sv)
+{
+    svec_free(sv, false);
+}
+
+int
+pg_parse_argv(struct parm_groups *self, int argc, char **argv, int *argx)
+{
+    struct svec *gsv = NULL;
+
+    while (*argx < argc) {
+
+        const char *arg = argv[*argx];
+        struct svec *tmp = pg_find_grp(self, arg);
+
+        if (tmp) {
+            /* save new group's svec and consume arg */
+            gsv = tmp;
+            *argx += 1;
+            continue;
+        }
+
+        if (*arg == '-' || !strstr(arg, "="))
+            break;
+
+        if (!gsv)
+            return EINVAL;
+
+        /* add to group svec and consume arg */
+        int err = pg_add_str(self, gsv, arg);
+        if (err)
+            return err;
+
+        *argx += 1;
+    }
+
+    return 0;
+}

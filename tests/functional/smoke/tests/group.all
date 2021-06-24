@@ -4,8 +4,6 @@
 aloha
 version
 
-c1-correctness
-coalesce
 compaction
 cursor_test1
 cursor_test2
@@ -19,6 +17,7 @@ kmt-ins-1g
 kmtw05
 kmtw20
 kmtw50
+kmt-mpool
 kvsdrop
 kvs-max
 kvt-compression
@@ -35,6 +34,8 @@ longtest-cursor
 longtestkvmax
 longtest-sync
 longtest-sync-cursor
+mdc-test
+mcache-test
 omf_encoder_perf
 prefix-basic
 prefix-pivot

@@ -29,18 +29,17 @@ err () {
 }
 
 syntax () {
-    exit "$@" "Use -h for help"
+    err "$@" "Use -h for help"
+    exit 1
 }
 
 help ()
 {
     echo "$CMD: get kvs tree metrics"
     echo "Usage:"
-    echo "    $CMD [options] mp/kvs1 mp/kvs2 ..."
-    echo "    $CMD [options] -a"
+    echo "    $CMD [options] <kvdb_home> [<kvs1> <kvs2> ...]"
     echo "Options:"
     echo "    -h, -?   // help"
-    echo "    -a       // show metrics for all kvses"
     echo "    -b       // show byte counts (vs kbyte or mbyte)"
     echo "    -r       // raw output (eg, yaml if using rest interface)"
     echo "    -q       // quiet"
@@ -49,50 +48,53 @@ help ()
 }
 
 
-kvslist=()
+kvdb_home=
 quiet=0
-all=0
 raw=0
 bytes=0
 out=""
 
-while (( $# > 0 )); do
+more=1
+while (( more && $# > 0 )); do
     case "$1" in
         (-\?|-h) help;;
-        (*/*) kvslist+=($1); shift;;
-        (-a)  all=1; shift;;
         (-r)  raw=1; shift;;
         (-b)  bytes=1; shift;;
         (-q)  quiet=1; shift;;
         (-o)  [[ $# -gt 0 ]] || syntax "Option '$1' requires an argument"
               out=$2
               shift 2;;
-        (*)   syntax "Invalid arguments: '$1'";;
+        (-*)  syntax "Invalid option: '$1'";;
+        (*)   kvdb_home=$1; shift; more=0;;
     esac
 done
 
+[[ "$kvdb_home" == "" ]] &&
+    syntax "Need KVDB home dir"
+
 make_temp_dir
 
-set -u
-if (( all || ${#kvslist[@]} == 0 )); then
-    nf.mplist -k > "$TMP"/tmplist
-    kvslist=($(cat "$TMP"/tmplist))
+if (( $# == 0 )); then
+
+    hse1 -C $kvdb_home kvdb list > "$TMP"/tmp1 ||
+        err "Failed: hse1 -C $kvdb_home kvdb list"
+
+    cat "$TMP"/tmp1 \
+        | sed -ne '/^  *kvslist:$/,$ p' \
+        | sed -e 1d -e 's/^ *- //' \
+        > "$TMP"/tmp2
+
+    kvslist=($(cat "$TMP"/tmp2))
     (( kvslist_len = ${#kvslist[@]} ))
     if (( kvslist_len == 0 )); then
-        err "Command 'nf.mplist -k' did not find any kvses"
+        err "KVDB $kvdb_home has no KVSes?"
     fi
 else
+    kvslist=("$@")
     (( kvslist_len = ${#kvslist[@]} ))
 fi
 
 set +u
-
-#for kvs in "${kvslist[@]}"; do
-#    check=$(awk -v kvs="$kvs" -- '($1 == kvs) {print "yes"; exit 0;}' "$TMP"/tmplist)
-#    if [[ "$check" != "yes" ]]; then
-#        err "No such kvs: $kvs"
-#    fi
-#done
 
 get_tree_shape () {
     local metrics_cmd1=($(which cn_metrics.py) "$1" "$2")
@@ -118,19 +120,13 @@ get_tree_shape () {
     cat "$out"
 }
 
-for full_kvs in "${kvslist[@]}"; do
-    IFS=/ read -r mp kv <<<"$full_kvs"
-
-    mpool list "$mp" > "$TMP"/mpool-list ||
-        err "Command failed: mpool list $mp"
-
+for kvs in "${kvslist[@]}"; do
     if [[ -n "$out" ]]; then
-        f=$out.$mp.$kv.txt
+        f=$out.$kvs.txt
         (( quiet )) || echo "$f"
-        get_tree_shape "$mp" "$kv" > "$f"
+        get_tree_shape "$kvdb_home" "$kvs" > "$f"
     else
-        (( quiet )) || { echo; echo "== $full_kvs"; }
-        get_tree_shape "$mp" "$kv"
+        (( quiet )) || { echo; echo "== $kvs"; }
+        get_tree_shape "$kvdb_home" "$kvs"
     fi
-
 done

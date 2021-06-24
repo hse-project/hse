@@ -160,7 +160,6 @@ libyaml_dep = dependency(
     ],
 )
 thread_dep = dependency('threads', required: true)
-uuid_dep = dependency('uuid', version: '>=2.31.1', required: true)
 liburcu_bp_dep = dependency(
     'liburcu-bp',
     version: '>=0.10.1',
@@ -179,7 +178,7 @@ cJSON_dep = dependency(
 )
 libbsd_dep = dependency(
     'libbsd',
-    version: '>=0.8.7',
+    version: '>=0.9.0',
     required: true,
     fallback: ['libbsd', 'libbsd_dep'],
     default_options: [
@@ -229,6 +228,7 @@ endif
 if get_option('use-system-cjson')
     message('For best results, HSE should be built against a static cjson==1.7.14')
     cJSON_dep = dependency('libcjson', version: '>=1.7.14', required: true)
+    cJSON_from_subproject = false
 else
     cJSON_options = cmake.subproject_options()
     cJSON_options.add_cmake_defines({
@@ -242,15 +242,6 @@ else
     cJSON_proj = cmake.subproject('cJSON', options: cJSON_options)
     cJSON_dep = cJSON_proj.dependency('cjson')
     cJSON_from_subproject = true
-endif
-if get_option('mpool-lib-dir') == ''
-    mpool_dep = cc.find_library('mpool', required: true)
-else
-    mpool_dep = cc.find_library(
-        'mpool',
-        required: true,
-        dirs: get_option('mpool-lib-dir'),
-    )
 endif
 libmicrohttpd_dep = dependency(
     'libmicrohttpd',
@@ -394,11 +385,6 @@ if get_option('bindings-python')
     hse_python = subproject(
         'hse-python',
         required: true,
-        default_options: [
-            'buildtype=release',
-            'warning_level=0',
-            'tests=false',
-        ],
     )
 
     hse_python_extension_modules = hse_python.get_variable('extension_modules')
@@ -418,10 +404,6 @@ if get_option('bindings-python')
         env: run_env,
     )
 else
-    if enabled_tests.length() > 0 or get_option('tools')
-        message('tests and tools will use the system HSE Python bindings')
-    endif
-
     hse_python_depends = []
 endif
 
@@ -439,9 +421,6 @@ path = '@0@:@1@'.format(
     ':'.join(executable_paths),
     path,
 )
-if get_option('mpool-bin-dir') != ''
-    path = '@0@:@1@'.format(get_option('mpool-bin-dir'), path)
-endif
 
 ld_library_path = run_command(
     'sh',
@@ -453,9 +432,6 @@ ld_library_path = '@0@:@1@'.format(
     ':'.join(library_paths),
     ld_library_path,
 )
-if get_option('mpool-lib-dir') != ''
-    ld_library_path = '@0@:@1@'.format(get_option('mpool-lib-dir'), ld_library_path)
-endif
 
 run_env.set('PATH', path)
 run_env.set('LD_LIBRARY_PATH', ld_library_path)

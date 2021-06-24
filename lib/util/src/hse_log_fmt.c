@@ -1,11 +1,9 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
 #include <hse_util/platform.h>
-#include <hse_util/logging.h>
-#include <hse_util/config.h>
 
 #include "logging_impl.h"
 #include "logging_util.h"
@@ -19,70 +17,6 @@ show_timestamp_nsec(char *str, size_t strsz, void *val)
 {
     snprintf(str, strsz, "%lu", (unsigned long)((u64)1000 * *(u64 *)val));
     return 0;
-}
-
-static bool
-fmt_config_stats(char **tgt_pos, char *tgt_end, void *obj)
-{
-    struct hse_config *cfg = (struct hse_config *)obj;
-
-    bool  res = false;
-    int   written;
-    char *tgt = *tgt_pos;
-    int   space = (int)(tgt_end - *tgt_pos);
-    char  value[100];
-
-    cfg->show(value, sizeof(value), cfg->data, 0);
-    written = snprintf(tgt, space, "[CFG] %s/%s: %s", cfg->path, cfg->instance, value);
-
-    if (written >= 0) {
-        tgt += (written > space) ? space : written;
-        *tgt_pos = tgt;
-        res = (written < space);
-    }
-
-    return res;
-}
-
-static bool
-add_config_stats(struct hse_log_fmt_state *state, void *obj)
-{
-    struct hse_config *cfg = (struct hse_config *)obj;
-
-    static const char *cat = "hse_%d_category";
-    static const char *cat_val = "hse_config";
-    static const char *ver = "hse_%d_version";
-    static const char *ver_val = "0";
-
-    /* Names */
-    static const char *n_path = "hse_%d_path";
-    static const char *n_varname = "hse_%d_varname";
-    static const char *n_value = "hse_%d_value";
-    static const char *n_timestamp = "hse_%d_timestamp";
-    static const char *n_writable = "hse_%d_writable";
-
-    /* Values */
-    char v_value[100];
-    char v_timestamp[100];
-    char v_writable[2] = { 0, 0 };
-
-    bool res;
-    u64  ts;
-
-    ts = atomic64_read(&cfg->change_timestamp);
-    show_timestamp_nsec(v_timestamp, sizeof(v_timestamp), &ts);
-
-    cfg->show(v_value, sizeof(v_value), cfg->data, 0);
-    v_writable[0] = cfg->writable + '0';
-
-    res =
-        (push_nv(state, true, cat, cat_val) && push_nv(state, true, ver, ver_val) &&
-         push_nv(state, true, n_path, cfg->path) &&
-         push_nv(state, true, n_varname, cfg->instance) && push_nv(state, true, n_value, v_value) &&
-         push_nv(state, true, n_writable, v_writable) &&
-         push_nv(state, true, n_timestamp, v_timestamp));
-
-    return res;
 }
 
 /**
@@ -221,7 +155,6 @@ add_hse_err(struct hse_log_fmt_state *state, void *obj)
 void
 hse_log_reg_platform(void)
 {
-    hse_log_register('c', fmt_config_stats, add_config_stats);
     hse_log_register('E', fmt_event_counter_stats, add_event_counter_stats);
     if (!hse_log_register('e', fmt_hse_err, add_hse_err))
         backstop_log("init_hse_logging() cannot add hse_err formatter");

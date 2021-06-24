@@ -90,11 +90,11 @@ simple_client(
 
 	vlenmax = snprintf(val, sizeof(val), "v%08d", kmax);
 
-	err = hse_kvdb_open(mp_name, NULL, &kvdb);
+	err = hse_kvdb_open(mp_name, 0, NULL, &kvdb);
 	if (err)
 		fatal(err, "hse_kvdb_open(%s) failed", mp_name);
 
-	err = hse_kvdb_kvs_open(kvdb, kvs_name, NULL, &kvs);
+	err = hse_kvdb_kvs_open(kvdb, kvs_name, 0, NULL, &kvs);
 	if (err)
 		fatal(err, "hse_kvdb_kvs_open(%s) failed", kvs_name);
 

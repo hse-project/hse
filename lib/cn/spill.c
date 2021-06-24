@@ -241,7 +241,7 @@ kv_spill(struct cn_compaction_work *w)
         goto done;
 
     khashmap = cn_tree_get_khashmap(w->cw_tree);
-    cn_sfx_len = w->cw_cp->cp_sfx_len;
+    cn_sfx_len = w->cw_cp->sfx_len;
 
     /* We must issue a direct read for all values that will not fit into
      * the vblock readahead buffer.  Since all direct reads require page
@@ -623,8 +623,7 @@ cn_spill(struct cn_compaction_work *w)
             &w->cw_child[i],
             cn_tree_get_cn(w->cw_tree),
             w->cw_pc,
-            w->cw_dgen_hi,
-            KVSET_BUILDER_FLAGS_SPARE);
+            w->cw_dgen_hi);
         if (ev(err))
             goto done;
 

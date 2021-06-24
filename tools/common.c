@@ -12,28 +12,56 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include <hse/hse_limits.h>
+#include <hse/hse.h>
 
 #include <hse_util/fmt.h>
+#include <hse_util/minmax.h>
 
 #include <tools/common.h>
 
 struct app_opts Opts;
 
 static void
-error(int err, char *fmt, va_list ap)
+error(hse_err_t err, char *fmt, va_list ap)
 {
-    vfprintf(stderr, fmt, ap);
-    if (Opts.lineno)
-        fprintf(stderr, ": %d", Opts.lineno);
-    if (err)
-        fprintf(stderr, ": %s\n", strerror(err));
-    else
-        fprintf(stderr, "\n");
+    char user_msg[128];
+    char err_msg[128];
+    bool user_msg_empty, need_newline;
+    size_t off, n;
+
+    off = 0;
+
+    n = vsnprintf(user_msg, sizeof(user_msg), fmt, ap);
+
+    if (err) {
+        hse_err_to_string(err, err_msg + off, sizeof(err_msg) - off, &n);
+        off = min(off + n, sizeof(err_msg) - 1);
+
+        n = snprintf(err_msg + off, sizeof(err_msg) - off, " (0x%lx)", err);
+        off = min(off + n, sizeof(err_msg) - 1);
+    }
+
+    user_msg_empty = user_msg[0] == '\0';
+    need_newline = off > 0 && err_msg[off-1] != '\n';
+
+    fprintf(stderr, "%s%s%s%s", user_msg,
+        user_msg_empty ? "" : " ",
+        err_msg, need_newline ? "\n" : "");
 }
 
-int
-warn(int err, char *fmt, ...)
+
+void
+warn(hse_err_t err, char *fmt, ...)
+{
+    va_list ap;
+
+    va_start(ap, fmt);
+    error(err, fmt, ap);
+    va_end(ap);
+}
+
+void
+fatal(hse_err_t err, char *fmt, ...)
 {
     va_list ap;
 
@@ -41,25 +69,6 @@ warn(int err, char *fmt, ...)
     error(err, fmt, ap);
     va_end(ap);
 
-    return 1;
-}
-
-void
-fatal(int err, char *fmt, ...)
-{
-    va_list ap;
-
-    va_start(ap, fmt);
-    error(err, fmt, ap);
-    va_end(ap);
-
-    assert(0);
-    exit(1);
-}
-
-void
-rp_usage(void)
-{
     exit(1);
 }
 
