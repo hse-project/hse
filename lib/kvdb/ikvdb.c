@@ -1924,7 +1924,7 @@ ikvdb_kvs_put(
     if (vbuf && vbuf != tls_vbuf)
         vlb_free(vbuf, (vbufsz > VLB_ALLOCSZ_MAX) ? vbufsz : clen);
 
-    if (!(flags & HSE_FLAG_PUT_PRIORITY || parent->ikdb_rp.throttle_disable))
+    if (!err && !(flags & HSE_FLAG_PUT_PRIORITY || parent->ikdb_rp.throttle_disable))
         ikvdb_throttle(parent, kt->kt_len + (clen ? clen : vlen));
 
     return err;
@@ -2035,12 +2035,11 @@ ikvdb_kvs_del(
     seqnoref = txn ? 0 : HSE_SQNREF_SINGLE;
 
     err = wal_del(parent->ikdb_wal, kk->kk_ikvs, NULL, kt, &rec);
-    if (err)
-        return err;
+    if (!err) {
+        err = kvs_del(kk->kk_ikvs, txn, kt, seqnoref);
 
-    err = kvs_del(kk->kk_ikvs, txn, kt, seqnoref);
-
-    wal_op_finish(parent->ikdb_wal, &rec, kt->kt_seqno, kt->kt_dgen, merr_errno(err));
+        wal_op_finish(parent->ikdb_wal, &rec, kt->kt_seqno, kt->kt_dgen, merr_errno(err));
+    }
 
     return err;
 }
@@ -2082,17 +2081,16 @@ ikvdb_kvs_prefix_delete(
     seqnoref = txn ? 0 : HSE_SQNREF_SINGLE;
 
     err = wal_del_pfx(parent->ikdb_wal, kk->kk_ikvs, NULL, kt, &rec);
-    if (err)
-        return err;
+    if (!err) {
+        /* Prefix tombstone deletes all current keys with a matching prefix -
+         * those with a sequence number up to but excluding the current seqno.
+         * Insert prefix tombstone with a higher seqno. Use a higher sequence
+         * number to allow newer mutations (after prefix) to be distinguished.
+         */
+        err = kvs_prefix_del(kk->kk_ikvs, txn, kt, seqnoref);
 
-    /* Prefix tombstone deletes all current keys with a matching prefix -
-     * those with a sequence number up to but excluding the current seqno.
-     * Insert prefix tombstone with a higher seqno. Use a higher sequence
-     * number to allow newer mutations (after prefix) to be distinguished.
-     */
-    err = kvs_prefix_del(kk->kk_ikvs, txn, kt, seqnoref);
-
-    wal_op_finish(parent->ikdb_wal, &rec, kt->kt_seqno, kt->kt_dgen, merr_errno(err));
+        wal_op_finish(parent->ikdb_wal, &rec, kt->kt_seqno, kt->kt_dgen, merr_errno(err));
+    }
 
     return err;
 }
@@ -2636,11 +2634,15 @@ ikvdb_txn_begin(struct ikvdb *handle, struct hse_kvdb_txn *txn)
 
     err = kvdb_ctxn_begin(ctxn);
 
-    if (ev(err))
-        perfc_dec(&self->ikdb_ctxn_op, PERFC_BA_CTXNOP_ACTIVE);
+    if (!err) {
+        u64 txid;
 
-    if (!err)
-        err = wal_txn_begin(self->ikdb_wal, kvdb_ctxn_txnid_get(ctxn));
+        err = kvdb_ctxn_get_view_seqno(ctxn, &txid);
+        if (!err)
+            err = wal_txn_begin(self->ikdb_wal, txid);
+    } else {
+        perfc_dec(&self->ikdb_ctxn_op, PERFC_BA_CTXNOP_ACTIVE);
+    }
 
     return err;
 }
@@ -2651,10 +2653,14 @@ ikvdb_txn_commit(struct ikvdb *handle, struct hse_kvdb_txn *txn)
     struct ikvdb_impl *self = ikvdb_h2r(handle);
     struct kvdb_ctxn  *ctxn = kvdb_ctxn_h2h(txn);
     merr_t             err;
-    u64                lstart;
+    u64                lstart, txid;
 
     lstart = perfc_lat_startu(&self->ikdb_ctxn_op, PERFC_LT_CTXNOP_COMMIT);
     perfc_inc(&self->ikdb_ctxn_op, PERFC_RA_CTXNOP_COMMIT);
+
+    err = kvdb_ctxn_get_view_seqno(ctxn, &txid);
+    if (err)
+        return err;
 
     err = kvdb_ctxn_commit(ctxn);
 
@@ -2664,7 +2670,7 @@ ikvdb_txn_commit(struct ikvdb *handle, struct hse_kvdb_txn *txn)
     if (!err) {
         u64 seqno = HSE_SQNREF_TO_ORDNL(kvdb_ctxn_get_seqnoref(ctxn));
 
-        err = wal_txn_commit(self->ikdb_wal, kvdb_ctxn_txnid_get(ctxn), seqno);
+        err = wal_txn_commit(self->ikdb_wal, txid, seqno);
     }
 
     return err;
@@ -2675,14 +2681,20 @@ ikvdb_txn_abort(struct ikvdb *handle, struct hse_kvdb_txn *txn)
 {
     struct ikvdb_impl *self = ikvdb_h2r(handle);
     struct kvdb_ctxn  *ctxn = kvdb_ctxn_h2h(txn);
+    u64 txid;
+    merr_t err;
 
     perfc_inc(&self->ikdb_ctxn_op, PERFC_RA_CTXNOP_ABORT);
+
+    err = kvdb_ctxn_get_view_seqno(ctxn, &txid);
+    if (err)
+        return err;
 
     kvdb_ctxn_abort(ctxn);
 
     perfc_dec(&self->ikdb_ctxn_op, PERFC_BA_CTXNOP_ACTIVE);
 
-    wal_txn_abort(self->ikdb_wal, kvdb_ctxn_txnid_get(ctxn));
+    wal_txn_abort(self->ikdb_wal, txid);
 
     return 0;
 }

@@ -67,6 +67,9 @@ struct wal_sync_waiter {
     struct cv        ws_cv;
 };
 
+
+#define recoverable_error(rc)  (rc == EAGAIN || rc == ECANCELED || rc == EPROTO)
+
 /* clang-format on */
 
 /* Forward decls */
@@ -237,6 +240,7 @@ wal_put(
     size_t klen, vlen, rlen, kvlen, len;
     char *kvdata;
     uint rtype = WAL_RT_NONTX;
+    merr_t err;
 
     if (!wal)
         return 0;
@@ -248,26 +252,28 @@ wal_put(
     len = rlen + kvlen;
 
     rec = wal_bufset_alloc(wal->wbs, len, &recout->offset, &recout->wbidx);
-    if (!rec)
-        return merr(ENOMEM);
+    if (!rec) {
+        err = merr(ENOMEM); /* unrecoverable error */
+        kvdb_health_error(wal->health, err);
+        return err;
+    }
 
     recout->recbuf = rec;
     recout->len = len;
 
     rid = atomic64_inc_return(&wal->rid);
-
     rtype = kvdb_kop_is_txn(os) ? WAL_RT_TX : WAL_RT_NONTX;
-    if (rtype == WAL_RT_TX) {
-        merr_t err;
+    wal_rechdr_pack(rtype, rid, kvlen, rec);
 
+    if (rtype == WAL_RT_TX) {
         err = kvdb_ctxn_get_view_seqno(kvdb_ctxn_h2h(os->kop_txn), &txid);
-        if (err) {
+        if (err) { /* recoverable error */
             wal_bufset_finish(wal->wbs, recout->wbidx, len, 0);
+            wal_rec_finish(recout, 0, 0);
             return err;
         }
     }
 
-    wal_rechdr_pack(rtype, rid, kvlen, rec);
     wal_rec_pack(WAL_OP_PUT, kvs->ikv_cnid, txid, klen, vt->vt_xlen, rec);
 
     kvdata = (char *)rec + rlen;
@@ -299,6 +305,7 @@ wal_del_impl(
     size_t klen, rlen, kalen, len;
     char *kdata;
     uint rtype;
+    merr_t err;
 
     if (!wal)
         return 0;
@@ -309,26 +316,28 @@ wal_del_impl(
     len = rlen + kalen;
 
     rec = wal_bufset_alloc(wal->wbs, len, &recout->offset, &recout->wbidx);
-    if (!rec)
-        return merr(ENOMEM);
+    if (!rec) {
+        err = merr(ENOMEM); /* unrecoverable error */
+        kvdb_health_error(wal->health, err);
+        return err;
+    }
 
     recout->recbuf = rec;
     recout->len = len;
 
     rid = atomic64_inc_return(&wal->rid);
-
     rtype = kvdb_kop_is_txn(os) ? WAL_RT_TX : WAL_RT_NONTX;
-    if (rtype == WAL_RT_TX) {
-        merr_t err;
+    wal_rechdr_pack(rtype, rid, kalen, rec);
 
+    if (rtype == WAL_RT_TX) {
         err = kvdb_ctxn_get_view_seqno(kvdb_ctxn_h2h(os->kop_txn), &txid);
         if (err) {
             wal_bufset_finish(wal->wbs, recout->wbidx, len, 0);
+            wal_rec_finish(recout, 0, 0);
             return err;
         }
     }
 
-    wal_rechdr_pack(rtype, rid, kalen, rec);
     wal_rec_pack(prefix ? WAL_OP_PDEL : WAL_OP_DEL, kvs->ikv_cnid, txid, klen, 0, rec);
 
     kdata = (char *)rec + rlen;
@@ -370,8 +379,12 @@ wal_txn(struct wal *wal, uint rtype, uint64_t txid, uint64_t seqno)
 
     rlen = wal_txn_rec_len();
     rec = wal_bufset_alloc(wal->wbs, rlen, &offset, NULL);
-    if (!rec)
-        return merr(ENOMEM);
+    if (!rec) {
+        merr_t err = merr(ENOMEM); /* unrecoverable error */
+
+        kvdb_health_error(wal->health, err);
+        return err;
+    }
 
     rid = atomic64_inc_return(&wal->rid);
 
@@ -405,10 +418,10 @@ wal_op_finish(struct wal *wal, struct wal_record *rec, uint64_t seqno, uint64_t 
 {
     if (wal) {
         if (rc) {
-            if (rc == EAGAIN || rc == ECANCELED)
-                rec->offset = U64_MAX - 1; /* recoverable error */
+            if (recoverable_error(rc))
+                rec->offset = U64_MAX - 1;
             else
-                rec->offset = U64_MAX; /* non-recoverable error */
+                rec->offset = U64_MAX;
         }
 
         wal_bufset_finish(wal->wbs, rec->wbidx, rec->len, gen);
