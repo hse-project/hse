@@ -238,6 +238,9 @@ wal_put(
     char *kvdata;
     uint rtype = WAL_RT_NONTX;
 
+    if (!wal)
+        return 0;
+
     klen = kt->kt_len;
     vlen = kvs_vtuple_vlen(vt);
     rlen = wal_rec_len();
@@ -296,6 +299,9 @@ wal_del_impl(
     size_t klen, rlen, kalen, len;
     char *kdata;
     uint rtype;
+
+    if (!wal)
+        return 0;
 
     rlen = wal_rec_len();
     klen = kt->kt_len;
@@ -397,15 +403,17 @@ wal_txn_commit(struct wal *wal, uint64_t txid, uint64_t seqno)
 void
 wal_op_finish(struct wal *wal, struct wal_record *rec, uint64_t seqno, uint64_t gen, int rc)
 {
-    if (rc) {
-        if (rc == EAGAIN || rc == ECANCELED)
-            rec->offset = U64_MAX - 1; /* recoverable error */
-        else
-            rec->offset = U64_MAX; /* non-recoverable error */
-    }
+    if (wal) {
+        if (rc) {
+            if (rc == EAGAIN || rc == ECANCELED)
+                rec->offset = U64_MAX - 1; /* recoverable error */
+            else
+                rec->offset = U64_MAX; /* non-recoverable error */
+        }
 
-    wal_bufset_finish(wal->wbs, rec->wbidx, rec->len, gen);
-    wal_rec_finish(rec, seqno, gen);
+        wal_bufset_finish(wal->wbs, rec->wbidx, rec->len, gen);
+        wal_rec_finish(rec, seqno, gen);
+    }
 }
 
 /*

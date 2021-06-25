@@ -1915,22 +1915,17 @@ ikvdb_kvs_put(
     seqnoref = txn ? 0 : HSE_SQNREF_SINGLE;
 
     err = wal_put(parent->ikdb_wal, kk->kk_ikvs, NULL, kt, vt, &rec);
+    if (!err) {
+        err = kvs_put(kk->kk_ikvs, txn, kt, vt, seqnoref);
+
+        wal_op_finish(parent->ikdb_wal, &rec, kt->kt_seqno, kt->kt_dgen, merr_errno(err));
+    }
 
     if (vbuf && vbuf != tls_vbuf)
         vlb_free(vbuf, (vbufsz > VLB_ALLOCSZ_MAX) ? vbufsz : clen);
 
-    if (err)
-        return err;
-
-    err = kvs_put(kk->kk_ikvs, os, kt, vt, seqnoref);
-    if (!err) {
-        if (!(flags & HSE_FLAG_PUT_PRIORITY || parent->ikdb_rp.throttle_disable))
-            ikvdb_throttle(parent, kt->kt_len + (clen ? clen : vlen));
-    } else {
-        ev(merr_errno(err) != ECANCELED);
-    }
-
-    wal_op_finish(parent->ikdb_wal, &rec, kt->kt_seqno, kt->kt_dgen, merr_errno(err));
+    if (!(flags & HSE_FLAG_PUT_PRIORITY || parent->ikdb_rp.throttle_disable))
+        ikvdb_throttle(parent, kt->kt_len + (clen ? clen : vlen));
 
     return err;
 }
@@ -2668,6 +2663,7 @@ ikvdb_txn_commit(struct ikvdb *handle, struct hse_kvdb_txn *txn)
 
     if (!err) {
         u64 seqno = HSE_SQNREF_TO_ORDNL(kvdb_ctxn_get_seqnoref(ctxn));
+
         err = wal_txn_commit(self->ikdb_wal, kvdb_ctxn_txnid_get(ctxn), seqno);
     }
 
