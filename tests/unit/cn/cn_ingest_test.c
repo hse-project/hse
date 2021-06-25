@@ -257,6 +257,7 @@ MTF_DEFINE_UTEST_PRE(cn_ingest_test, worker, test_pre)
 {
     struct kvset_mblocks m[1];
     uint                 n_kvsets = NELEM(m);
+    bool                 ingested;
 
     u32                k, v;
     merr_t             err;
@@ -280,7 +281,7 @@ MTF_DEFINE_UTEST_PRE(cn_ingest_test, worker, test_pre)
     ASSERT_EQ(err, 0);
 
     init_mblks(m, n_kvsets, &k, &v);
-    err = cn_ingestv(cnv, mbv, NELEM(cnv), U64_MAX, U64_MAX, NULL);
+    err = cn_ingestv(cnv, mbv, NELEM(cnv), U64_MAX, U64_MAX, &ingested);
     ASSERT_EQ(err, 0);
     free_mblks(m, n_kvsets);
 
@@ -291,6 +292,7 @@ MTF_DEFINE_UTEST_PRE(cn_ingest_test, fail_cleanup, test_pre)
 {
     struct kvset_mblocks m[1];
     uint                 n_kvsets = NELEM(m);
+    bool                 ingested;
 
     u32                i, k, v;
     merr_t             err;
@@ -316,7 +318,7 @@ MTF_DEFINE_UTEST_PRE(cn_ingest_test, fail_cleanup, test_pre)
     /* kvset create failure */
     init_mblks(m, n_kvsets, &k, &v);
     mapi_inject(mapi_idx_kvset_create, merr(EBADF));
-    err = cn_ingestv(cnv, mbv, NELEM(cnv), U64_MAX, U64_MAX, NULL);
+    err = cn_ingestv(cnv, mbv, NELEM(cnv), U64_MAX, U64_MAX, &ingested);
     ASSERT_EQ(merr_errno(err), EBADF);
     mapi_inject(mapi_idx_kvset_create, 0);
     free_mblks(m, n_kvsets);
