@@ -241,7 +241,8 @@ mblock_fset_meta_open(struct mblock_fset *mbfsp, int flags)
     if (flags & O_CREAT)
         create = true;
 
-    snprintf(mbfsp->mname, sizeof(mbfsp->mname), "%s-%d", "mblock-meta", mclass_id(mbfsp->mc));
+    snprintf(mbfsp->mname, sizeof(mbfsp->mname), "%s-%s-%d", MBLOCK_FILE_PFX, "meta",
+             mclass_id(mbfsp->mc));
     dirfd = mclass_dirfd(mbfsp->mc);
 
     rc = faccessat(dirfd, mbfsp->mname, F_OK, 0);

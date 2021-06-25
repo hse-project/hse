@@ -195,7 +195,7 @@ wal_file_open(
     if (!wfset)
         return merr(EINVAL);
 
-    snprintf(name, sizeof(name), "%s-%lu-%d", "wal", gen, fileid);
+    snprintf(name, sizeof(name), "%s-%lu-%d", WAL_FILE_PFX, gen, fileid);
 
     err = mpool_file_open(wfset->mp, wfset->mclass, name, O_RDWR | O_DIRECT,
                           wfset->capacity, sparse, &mpf);
@@ -304,7 +304,7 @@ wal_file_destroy(struct wal_fileset *wfset, uint64_t gen, int fileid)
     if (!wfset)
         return merr(EINVAL);
 
-    snprintf(name, sizeof(name), "%s-%lu-%d", "wal", gen, fileid);
+    snprintf(name, sizeof(name), "%s-%lu-%d", WAL_FILE_PFX, gen, fileid);
 
     return mpool_file_destroy(wfset->mp, wfset->mclass, name);
 }

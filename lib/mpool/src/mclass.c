@@ -134,7 +134,8 @@ mclass_removecb(const char *path, const struct stat *sb, int typeflag, struct FT
     if (typeflag == FTW_D && ftwbuf->level > 0)
         return FTW_SKIP_SUBTREE;
 
-    if (strstr(path, MBLOCK_FILE_PFX) || strstr(path, MDC_FILE_PFX)) {
+    if (strstr(path, MBLOCK_FILE_PFX) || strstr(path, MDC_FILE_PFX) ||
+        strstr(path, WAL_FILE_PFX)) {
         struct mp_destroy_work *w;
 
         if (!mpdwq) {
@@ -169,7 +170,8 @@ mclass_filecnt_get(const char *path, const struct stat *sb, int typeflag, struct
     if (typeflag == FTW_D && ftwbuf->level > 0)
         return FTW_SKIP_SUBTREE;
 
-    if (strstr(path, MBLOCK_FILE_PFX) || strstr(path, MDC_FILE_PFX))
+    if (strstr(path, MBLOCK_FILE_PFX) || strstr(path, MDC_FILE_PFX) ||
+        strstr(path, WAL_FILE_PFX))
         filecnt++;
 
     return FTW_CONTINUE;

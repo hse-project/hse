@@ -596,7 +596,7 @@ mblock_file_open(
 
     mcid = mclass_id(mc);
     dirfd = mclass_dirfd(mc);
-    snprintf(name, sizeof(name), "%s-%d-%d", MBLOCK_DATA_FILE_PFX, mcid, fileid);
+    snprintf(name, sizeof(name), "%s-%s-%d-%d", MBLOCK_FILE_PFX, "data", mcid, fileid);
 
     rc = faccessat(dirfd, name, F_OK, 0);
     if (rc == -1 && errno == ENOENT && !create)

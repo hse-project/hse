@@ -15,7 +15,7 @@
 #define MDC_LOGHDR_LEN     (4096)
 #define MDC_RA_BYTES       (128 << 10)
 #define MDC_EXTEND_FACTOR  (8)
-#define MDC_FILE_PFX       "mdc-"
+#define MDC_FILE_PFX       "mdc"
 
 struct mpool_mdc;
 struct mdc_file;
@@ -88,7 +88,7 @@ mdc_filename_gen(char *buf, size_t buflen, uint64_t logid)
     if (logid_magic(logid) == MDC_ROOT_MAGIC)
         snprintf(buf, buflen, "%s-%d", MDC_ROOT_FILE_NAME, logid_fid(logid));
     else
-        snprintf(buf, buflen, "%s%lx", MDC_FILE_PFX, logid);
+        snprintf(buf, buflen, "%s-%lx", MDC_FILE_PFX, logid);
 }
 
 /**
