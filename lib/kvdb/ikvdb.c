@@ -2637,6 +2637,9 @@ ikvdb_txn_begin(struct ikvdb *handle, struct hse_kvdb_txn *txn)
     if (!err) {
         u64 txid;
 
+        /* TODO: check if it's fine to obtain view_seqno without holding ctxn lock and
+         * return error if ctxn state is invalid.
+         */
         err = kvdb_ctxn_get_view_seqno(ctxn, &txid);
         if (!err)
             err = wal_txn_begin(self->ikdb_wal, txid);
@@ -2653,14 +2656,14 @@ ikvdb_txn_commit(struct ikvdb *handle, struct hse_kvdb_txn *txn)
     struct ikvdb_impl *self = ikvdb_h2r(handle);
     struct kvdb_ctxn  *ctxn = kvdb_ctxn_h2h(txn);
     merr_t             err;
-    u64                lstart, txid;
+    u64                lstart, txid = 0;
 
     lstart = perfc_lat_startu(&self->ikdb_ctxn_op, PERFC_LT_CTXNOP_COMMIT);
     perfc_inc(&self->ikdb_ctxn_op, PERFC_RA_CTXNOP_COMMIT);
 
+    /* TODO: check if it's fine to obtain view_seqno without holding ctxn lock */
     err = kvdb_ctxn_get_view_seqno(ctxn, &txid);
-    if (err)
-        return err;
+    ev(err); /* kvdb_ctxn_commit() returns EINVAL for invalid ctxn state */
 
     err = kvdb_ctxn_commit(ctxn);
 
@@ -2681,20 +2684,21 @@ ikvdb_txn_abort(struct ikvdb *handle, struct hse_kvdb_txn *txn)
 {
     struct ikvdb_impl *self = ikvdb_h2r(handle);
     struct kvdb_ctxn  *ctxn = kvdb_ctxn_h2h(txn);
-    u64 txid;
+    u64 txid = 0;
     merr_t err;
 
     perfc_inc(&self->ikdb_ctxn_op, PERFC_RA_CTXNOP_ABORT);
 
+    /* TODO: check if it's fine to obtain view_seqno without holding ctxn lock */
     err = kvdb_ctxn_get_view_seqno(ctxn, &txid);
-    if (err)
-        return err;
+    ev(err); /* kvdb_ctxn_abort() doesn't return an error for invalid ctxn state */
 
     kvdb_ctxn_abort(ctxn);
 
     perfc_dec(&self->ikdb_ctxn_op, PERFC_BA_CTXNOP_ACTIVE);
 
-    wal_txn_abort(self->ikdb_wal, txid);
+    if (txid != 0)
+        wal_txn_abort(self->ikdb_wal, txid);
 
     return 0;
 }

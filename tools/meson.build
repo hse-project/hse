@@ -154,6 +154,11 @@ tools = {
             'mpool' / 'mdc' / 'mdctest.c',
         ),
     },
+    'mdc_tool': {
+        'sources': files(
+            'mpool' / 'mdc' / 'mdc_tool.c',
+        ),
+    },
     'mpiotest': {
         'sources': files(
             'mpool' / 'mblock' / 'mpiotest.c',
