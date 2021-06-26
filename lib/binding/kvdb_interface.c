@@ -132,7 +132,7 @@ hse_kvdb_make(const char *kvdb_home, size_t paramc, const char *const *const par
     if (ev(err))
         goto out;
 
-    n = snprintf(pidfile_path, sizeof(pidfile_path), "%s/" PIDFILE_NAME, real_home);
+    n = kvdb_home_pidfile_path_get(real_home, pidfile_path, sizeof(pidfile_path));
     if (n >= sizeof(pidfile_path)) {
         err = merr(ENAMETOOLONG);
         goto out;
@@ -140,7 +140,7 @@ hse_kvdb_make(const char *kvdb_home, size_t paramc, const char *const *const par
 
     pfh = pidfile_open(pidfile_path, S_IRUSR | S_IWUSR, NULL);
     if (!pfh) {
-        err = merr(errno);
+        err = (errno == EEXIST) ? merr(EBUSY) : merr(errno);
         goto out;
     }
 
@@ -224,6 +224,8 @@ hse_kvdb_drop(const char *kvdb_home, const size_t paramc, const char *const *con
 {
     char                real_home[PATH_MAX];
     struct kvdb_dparams params = kvdb_dparams_defaults();
+    char                pidfile_path[PATH_MAX];
+    struct pidfh       *pfh = NULL;
     merr_t              err, err1;
     size_t              n;
     u64                 logid1, logid2;
@@ -231,11 +233,9 @@ hse_kvdb_drop(const char *kvdb_home, const size_t paramc, const char *const *con
     struct config *conf = NULL;
 #endif
 
-    n = kvdb_home_translate(kvdb_home, real_home, sizeof(real_home));
-    if (n >= sizeof(real_home)) {
-        err = merr(ENAMETOOLONG);
+    err = kvdb_home_translate(kvdb_home, real_home, sizeof(real_home));
+    if (err)
         goto out;
-    }
 
     err1 = ikvdb_log_deserialize_to_kvdb_dparams(real_home, &params);
     ev(err1);
@@ -258,6 +258,18 @@ hse_kvdb_drop(const char *kvdb_home, const size_t paramc, const char *const *con
     if (ev(err))
         goto out;
 
+    n = kvdb_home_pidfile_path_get(real_home, pidfile_path, sizeof(pidfile_path));
+    if (n >= sizeof(pidfile_path)) {
+        err = merr(ENAMETOOLONG);
+        goto out;
+    }
+
+    pfh = pidfile_open(pidfile_path, S_IRUSR | S_IWUSR, NULL);
+    if (!pfh) {
+        err = (errno == EEXIST) ? merr(EBUSY) : merr(errno);
+        goto out;
+    }
+
     err = mpool_destroy(real_home, &params.storage);
     ev(err);
 
@@ -273,6 +285,7 @@ out:
 #ifdef HSE_CONF_EXTENDED
     config_destroy(conf);
 #endif
+    pidfile_remove(pfh);
 
     return merr_to_hse_err(err);
 }
@@ -348,7 +361,7 @@ hse_kvdb_open(
 
     pfh = pidfile_open(pidfile_path, S_IRUSR | S_IWUSR, NULL);
     if (!pfh) {
-        err = merr(errno);
+        err = (errno == EEXIST) ? merr(EBUSY) : merr(errno);
         goto out;
     }
 
