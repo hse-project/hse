@@ -135,18 +135,18 @@ struct cli {
 /*****************************************************************
  * HSE KVDB commands:
  *    hse kvdb create
- *    hse kvdb destroy
+ *    hse kvdb drop
  *    hse kvdb list
  *    hse kvdb compact
  */
 static cli_cmd_func_t cli_hse_kvdb_create;
-static cli_cmd_func_t cli_hse_kvdb_destroy;
+static cli_cmd_func_t cli_hse_kvdb_drop;
 static cli_cmd_func_t cli_hse_kvdb_list;
 static cli_cmd_func_t cli_hse_kvdb_compact;
 static cli_cmd_func_t cli_hse_kvdb_params;
 struct cli_cmd        cli_hse_kvdb_commands[] = {
     { "create", "Create a KVDB", cli_hse_kvdb_create, 0 },
-    { "destroy", "Destroy a KVDB", cli_hse_kvdb_destroy, 0 },
+    { "drop", "Drop a KVDB", cli_hse_kvdb_drop, 0 },
     { "list", "List KVDB storage information", cli_hse_kvdb_list, 0 },
     { "compact", "Compact a KVDB", cli_hse_kvdb_compact, 0 },
     { "params", "Show KVDB configuration parameters", cli_hse_kvdb_params, 0 },
@@ -156,13 +156,13 @@ struct cli_cmd        cli_hse_kvdb_commands[] = {
 /*****************************************************************
  * HSE KVS commands:
  *    hse kvs create
- *    hse kvs destroy
+ *    hse kvs drop
  */
 static cli_cmd_func_t cli_hse_kvs_create;
-static cli_cmd_func_t cli_hse_kvs_destroy;
+static cli_cmd_func_t cli_hse_kvs_drop;
 struct cli_cmd        cli_hse_kvs_commands[] = {
     { "create", "Create a KVS", cli_hse_kvs_create, 0 },
-    { "destroy", "Destroy a KVS", cli_hse_kvs_destroy, 0 },
+    { "drop", "Drop a KVS", cli_hse_kvs_drop, 0 },
     { 0 },
 };
 
@@ -585,7 +585,7 @@ cli_hse_kvdb_create_impl(struct cli *cli)
             case EEXIST:
                 fprintf(
                     stderr,
-                    STR("KVDB '%s' already exists. You can destroy and "
+                    STR("KVDB '%s' already exists. You can drop and "
                         "recreate kvdb '%s'.\n"
                         "Please ensure that the media class data directory is empty.\n"),
                     cli->home,
@@ -613,7 +613,7 @@ done:
 }
 
 static int
-cli_hse_kvdb_destroy_impl(struct cli *cli)
+cli_hse_kvdb_drop_impl(struct cli *cli)
 {
     const char **paramv = NULL;
     size_t       paramc = 0;
@@ -640,13 +640,13 @@ cli_hse_kvdb_destroy_impl(struct cli *cli)
         goto done;
     }
 
-    printf("Successfully destroyed KVDB %s\n", cli->home);
+    printf("Successfully dropped KVDB %s\n", cli->home);
 
 done:
     free(paramv);
 
     if (herr && hse_err_to_errno(herr) == ENOENT)
-        fprintf(stderr, "Failed to destroy, KVDB '%s' doesn't exist\n", cli->home);
+        fprintf(stderr, "Failed to drop, KVDB '%s' doesn't exist\n", cli->home);
 
     return (herr || rc) ? -1 : 0;
 }
@@ -839,7 +839,7 @@ cli_hse_kvdb_create(struct cli_cmd *self, struct cli *cli)
 }
 
 static int
-cli_hse_kvdb_destroy(struct cli_cmd *self, struct cli *cli)
+cli_hse_kvdb_drop(struct cli_cmd *self, struct cli *cli)
 {
     const struct cmd_spec spec = {
         .usagev =
@@ -884,7 +884,7 @@ cli_hse_kvdb_destroy(struct cli_cmd *self, struct cli *cli)
         return help ? 0 : EX_USAGE;
     }
 
-    return cli_hse_kvdb_destroy_impl(cli);
+    return cli_hse_kvdb_drop_impl(cli);
 }
 
 static int
@@ -1142,7 +1142,7 @@ cli_hse_kvs_create_impl(struct cli *cli, const char *home, const char *kvs)
             case ENOENT:
                 fprintf(
                     stderr,
-                    STR("KVDB '%s' doesn't exist or was partially created. You can destroy and "
+                    STR("KVDB '%s' doesn't exist or was partially created. You can drop and "
                         "recreate kvdb '%s'.\n"),
                     cli->home,
                     cli->home);
@@ -1169,7 +1169,7 @@ done:
 }
 
 static int
-cli_hse_kvs_destroy_impl(struct cli *cli, const char *home, const char *kvs)
+cli_hse_kvs_drop_impl(struct cli *cli, const char *home, const char *kvs)
 {
     /* Reduce throttle update period to improve kvdb close time.
      */
@@ -1193,7 +1193,7 @@ cli_hse_kvs_destroy_impl(struct cli *cli, const char *home, const char *kvs)
             case ENOENT:
                 fprintf(
                     stderr,
-                    STR("KVDB '%s' doesn't exist or was partially created. You can destroy and "
+                    STR("KVDB '%s' doesn't exist or was partially created. You can drop and "
                         "recreate kvdb '%s'.\n"),
                     cli->home,
                     cli->home);
@@ -1211,7 +1211,7 @@ cli_hse_kvs_destroy_impl(struct cli *cli, const char *home, const char *kvs)
         goto done;
     }
 
-    printf("Successfully destroyed KVS %s\n", kvs);
+    printf("Successfully dropped KVS %s\n", kvs);
 
 done:
     hse_kvdb_close(db);
@@ -1274,7 +1274,7 @@ cli_hse_kvs_create(struct cli_cmd *self, struct cli *cli)
 }
 
 static int
-cli_hse_kvs_destroy(struct cli_cmd *self, struct cli *cli)
+cli_hse_kvs_drop(struct cli_cmd *self, struct cli *cli)
 {
     const struct cmd_spec spec = {
         .usagev =
@@ -1321,7 +1321,7 @@ cli_hse_kvs_destroy(struct cli_cmd *self, struct cli *cli)
         return help ? 0 : EX_USAGE;
     }
 
-    rc = cli_hse_kvs_destroy_impl(cli, cli->home, kvs);
+    rc = cli_hse_kvs_drop_impl(cli, cli->home, kvs);
 
     return rc;
 }
