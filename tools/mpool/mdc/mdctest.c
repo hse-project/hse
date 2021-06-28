@@ -1273,7 +1273,7 @@ main(int argc, char **argv)
     progname = strrchr(argv[0], '/');
     progname = progname ? progname + 1 : argv[0];
 
-    herr = hse_init();
+    herr = hse_init(0, NULL);
     if (herr)
         return -1;
 

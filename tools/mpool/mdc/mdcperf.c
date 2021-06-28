@@ -1065,7 +1065,7 @@ main(int argc, char **argv)
         return -1;
     }
 
-    herr = hse_init();
+    herr = hse_init(0, NULL);
     if (herr)
         return -1;
 

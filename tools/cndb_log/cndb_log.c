@@ -570,7 +570,7 @@ main(int argc, char **argv)
     int              c;
     struct tool_info ti = { 0 };
 
-    err = hse_init();
+    err = hse_init(0, NULL);
     if (err)
         fatal("hse_init", err);
 

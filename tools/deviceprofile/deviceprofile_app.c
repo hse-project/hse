@@ -110,7 +110,7 @@ main(int argc, char *argv[])
         return -1;
     }
 
-    err = hse_init();
+    err = hse_init(0, NULL);
     if (err)
         return -1;
 

@@ -276,7 +276,7 @@ main(int argc, char **argv)
     if (!parts[0] || !parts[1])
         usage(prog);
 
-    err = hse_init();
+    err = hse_init(0, NULL);
     if (err)
         die(err, "failed to initialize kvdb");
 

@@ -1157,7 +1157,7 @@ main(int argc, char **argv)
 	announce_header();
 
 	/* Start HSE */
-	err = hse_init();
+	err = hse_init(0, NULL);
 	if (err)
 		quit("failed to initialize kvdb");
 

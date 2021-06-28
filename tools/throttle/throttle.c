@@ -1018,7 +1018,7 @@ main(int argc, char **argv)
 
     printf("\n");
 
-    err = hse_init();
+    err = hse_init(0, NULL);
     if (err)
         quit("failed to initialize kvdb");
 

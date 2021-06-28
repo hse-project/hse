@@ -193,7 +193,7 @@ main(int argc, char **argv)
     kvdb_home = argv[optind++];
     kvs_name = argv[optind++];
 
-    rc = hse_init();
+    rc = hse_init(0, NULL);
     if (rc) {
         err_print("Failed to initialize kvdb: %s\n", hse_err_to_string(rc, ebuf, sizeof(ebuf), 0));
         exit(1);

@@ -337,7 +337,7 @@ main(int argc, char **argv)
     prefix = pbuf;
     seek = sbuf;
 
-    err = hse_init();
+    err = hse_init(0, NULL);
     if (err)
         fatal(err, "failed to initialize kvdb");
 

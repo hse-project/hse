@@ -374,7 +374,7 @@ main(int argc, char **argv)
 
     kc_print_reg(verbose, (void *)print_line);
 
-    err = hse_init();
+    err = hse_init(0, NULL);
     if (err)
         fatal(
             "failed to initialize kvdb: %s", hse_err_to_string(err, errbuf, sizeof(errbuf), NULL));

@@ -23,7 +23,7 @@ static const int MSG_SIZE = 100;
 
 HseKvdb::HseKvdb(const std::string& kvdb_home) : kvdb_home_(kvdb_home) {}
 
-void HseKvdb::InitLibrary() { hse_init(); }
+void HseKvdb::InitLibrary() { hse_init(0, nullptr); }
 
 void HseKvdb::FiniLibrary() { hse_fini(); }
 

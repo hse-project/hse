@@ -339,7 +339,7 @@ main(int argc, char **argv)
             break;
     }
 
-    rc = hse_init();
+    rc = hse_init(0, NULL);
     if (rc)
         fatal(rc, "failed to initialize kvdb");
 

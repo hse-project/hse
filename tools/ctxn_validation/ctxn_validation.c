@@ -1103,7 +1103,7 @@ main(int argc, char **argv)
 
     stats.topen = get_time_ns();
 
-    err = hse_init();
+    err = hse_init(0, NULL);
     if (err) {
         eprint("failed to initialize kvdb\n");
         exit(EX_OSERR);

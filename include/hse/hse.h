@@ -114,7 +114,7 @@ struct hse_kvdb_txn;
  * idempotent.
  */
 hse_err_t
-hse_init(void);
+hse_init(size_t paramc, const char *const *paramv);
 
 /**
  * Shutdown the HSE subsystem

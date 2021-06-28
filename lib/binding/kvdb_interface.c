@@ -56,7 +56,7 @@ kvdb_lat_record(const u32 cidx, const u64 start)
 static bool hse_initialized = false;
 
 hse_err_t
-hse_init(void)
+hse_init(const size_t paramc, const char *const *const paramv)
 {
     merr_t err;
 
