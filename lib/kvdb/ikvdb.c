@@ -954,12 +954,13 @@ ikvdb_wal_cningest_cb(
     struct ikvdb *ikdb,
     unsigned long seqno,
     unsigned long gen,
-    unsigned long txhorizon)
+    unsigned long txhorizon,
+    bool          post_ingest)
 {
     struct ikvdb_impl *self = ikvdb_h2r(ikdb);
 
     if (self->ikdb_wal)
-        wal_cningest_cb(self->ikdb_wal, seqno, gen, txhorizon);
+        wal_cningest_cb(self->ikdb_wal, seqno, gen, txhorizon, post_ingest);
 }
 
 static void

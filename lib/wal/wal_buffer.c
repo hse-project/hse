@@ -47,6 +47,7 @@ struct wal_buffer {
      * inflight than we can track...
      */
     atomic64_t wb_genlenv[16] HSE_ALIGNED(SMP_CACHE_BYTES);
+    atomic64_t wb_genoffv[16];
 };
 
 struct wal_bufset {
@@ -267,8 +268,10 @@ wal_bufset_open(struct wal_fileset *wfset, atomic64_t *ingestgen, struct wal_ioc
             atomic64_set(&wb->wb_flushc, 0);
             atomic_set(&wb->wb_flushing, 0);
 
-            for (k = 0; k < NELEM(wb->wb_genlenv); ++k)
+            for (k = 0; k < NELEM(wb->wb_genlenv); ++k) {
                 atomic64_set(&wb->wb_genlenv[k], 0);
+                atomic64_set(&wb->wb_genoffv[k], 0);
+            }
 
             wb->wb_index = index + j;
             wb->wb_bs = wbs;
@@ -404,17 +407,31 @@ wal_bufset_alloc(struct wal_bufset *wbs, size_t len, u64 *offout, uint *wbidx)
 }
 
 void
-wal_bufset_finish(struct wal_bufset *wbs, uint wbidx, size_t len, uint64_t gen)
+wal_bufset_finish(struct wal_bufset *wbs, uint wbidx, size_t len, uint64_t gen, u64 endoff)
 {
     struct wal_buffer *wb = wbs->wbs_bufv + wbidx;
+    uint slot;
+
+    slot = gen % NELEM(wb->wb_genoffv);
+
+    /*
+     * Record the maximum buffer offset for each gen in wb_genoffv[].
+     * The ingest thread calls wal_cond_sync() on the ingesting gen (before starting ingest)
+     * and waits for the offset recorded in wb_genoffv to become durable.
+     */
+    if (gen > atomic64_read(&wb->wb_curgen) || (gen + 1 == atomic64_read(&wb->wb_curgen))) {
+        u64 off = atomic64_read(&wb->wb_genoffv[slot]);
+
+        while (endoff > off && atomic64_cas(&wb->wb_genoffv[slot], off, endoff) != off)
+            off = atomic64_read(&wb->wb_genoffv[slot]);
+    }
 
     while (gen > atomic64_read(&wb->wb_curgen) &&
            !atomic64_cas(&wb->wb_curgen, atomic64_read(&wb->wb_curgen), gen))
         ; /* do nothing */
 
-    gen %= NELEM(wb->wb_genlenv);
-
-    atomic64_add(len, &wb->wb_genlenv[gen]);
+    assert(sizeof(wb->wb_genlenv) == sizeof(wb->wb_genoffv));
+    atomic64_add(len, &wb->wb_genlenv[slot]);
 }
 
 void
@@ -484,6 +501,25 @@ wal_bufset_curoff(struct wal_bufset *wbs, int offc, u64 *offv)
         struct wal_buffer *wb = wbs->wbs_bufv + i;
 
         offv[i] = atomic64_read(&wb->wb_offset_head);
+    }
+
+    return wbs->wbs_bufc;
+}
+
+int
+wal_bufset_genoff(struct wal_bufset *wbs, u64 gen, int offc, u64 *offv)
+{
+    assert(offc >= wbs->wbs_bufc);
+
+    if (offc < wbs->wbs_bufc)
+        return -1;
+
+    for (int i = 0; i < wbs->wbs_bufc; ++i) {
+        struct wal_buffer *wb = wbs->wbs_bufv + i;
+
+        gen %= NELEM(wb->wb_genlenv);
+
+        offv[i] = atomic64_read(&wb->wb_genoffv[gen]);
     }
 
     return wbs->wbs_bufc;

@@ -396,7 +396,8 @@ c0sk_cningest_walcb(
     struct c0sk_impl *c0sk,
     u64               seqno,
     u64               gen,
-    u64               txhorizon)
+    u64               txhorizon,
+    bool              post_ingest)
 {
     struct ikvdb *ikvdb;
 
@@ -404,7 +405,7 @@ c0sk_cningest_walcb(
         return;
 
     ikvdb = c0sk->c0sk_cb->kc_cbarg;
-    c0sk->c0sk_cb->kc_cningest_cb(ikvdb, seqno, gen, txhorizon);
+    c0sk->c0sk_cb->kc_cningest_cb(ikvdb, seqno, gen, txhorizon, post_ingest);
 }
 
 static u64
@@ -685,6 +686,8 @@ c0sk_ingest_worker(struct work_struct *work)
     i = atomic_inc_return(&c0sk->c0sk_ingest_serialized_cnt);
     assert(i == 1);
 
+    c0sk_cningest_walcb(c0sk, max_seq, kvms_gen, txhorizon, false);
+
     /* Prepare LC's binheap in serialized section i.e. only after older ingests have updated LC.
      * A call to prepare moves the iterator forward and positions it at the first valid bkv (see
      * bonsai_ingest_iter_next() for the definition of a 'valid bkv').
@@ -785,6 +788,8 @@ exit_err:
         if (ev(err))
             kvdb_health_error(c0sk->c0sk_kvdb_health, err);
 
+        c0sk_cningest_walcb(c0sk, max_seqno, kvms_gen, txhorizon, true);
+
         if (!err) {
             if (debug && cn_min && cn_max)
                 hse_log(
@@ -797,8 +802,6 @@ exit_err:
             assert(!cn_min || cn_min >= min_seq);
             assert(!cn_max || cn_max <= max_seq);
         }
-
-        c0sk_cningest_walcb(c0sk, max_seq, kvms_gen, txhorizon);
     }
 
     if (debug)
@@ -1271,10 +1274,10 @@ c0sk_flush_current_multiset(struct c0sk_impl *self, u64 *genp)
          * the generation of small kvsets we linger around a bit in hopes of
          * piggybacking upon a naturally occuring flush.  This works well if
          * the ingest rate is high.  If the ingest rate is low it simply
-         * serves to limit the sync frequency to roughly dur_lag_ms.
+         * serves to limit the sync frequency to roughly dur_intvl_ms.
          */
         if (!self->c0sk_closing) {
-            long waitmax = self->c0sk_kvdb_rp->dur_lag_ms / 2;
+            long waitmax = self->c0sk_kvdb_rp->dur_intvl_ms / 2;
             long delay = min_t(long, waitmax / 10 + 1, 100);
 
 #if 0

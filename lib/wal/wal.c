@@ -185,6 +185,30 @@ wal_ionotify_cb(void *cbarg, merr_t err)
     mutex_unlock(&wal->sync_mutex);
 }
 
+static merr_t
+wal_sync_impl(struct wal *wal, struct wal_sync_waiter *swait)
+{
+    mutex_lock(&wal->sync_mutex);
+    list_add_tail(&swait->ws_link, &wal->sync_waiters);
+
+    /* Notify the timer worker */
+    mutex_lock(&wal->timer_mutex);
+    wal->sync_pending = true;
+    cv_signal(&wal->timer_cv);
+    mutex_unlock(&wal->timer_mutex);
+
+    while (swait->ws_bufcnt > wal_bufset_durcnt(wal->wbs, swait->ws_bufcnt, swait->ws_offv) &&
+           !swait->ws_err)
+        cv_timedwait(&swait->ws_cv, &wal->sync_mutex, wal->dur_ms);
+
+    list_del(&swait->ws_link);
+    mutex_unlock(&wal->sync_mutex);
+
+    cv_destroy(&swait->ws_cv);
+
+    return swait->ws_err;
+}
+
 merr_t
 wal_sync(struct wal *wal)
 {
@@ -200,26 +224,26 @@ wal_sync(struct wal *wal)
     if (swait.ws_bufcnt < 0)
         return merr(EBUG);
 
-    mutex_lock(&wal->sync_mutex);
-    list_add_tail(&swait.ws_link, &wal->sync_waiters);
-
-    /* Notify the timer worker */
-    mutex_lock(&wal->timer_mutex);
-    wal->sync_pending = true;
-    cv_signal(&wal->timer_cv);
-    mutex_unlock(&wal->timer_mutex);
-
-    while (swait.ws_bufcnt > wal_bufset_durcnt(wal->wbs, swait.ws_bufcnt, swait.ws_offv) &&
-           !swait.ws_err)
-        cv_timedwait(&swait.ws_cv, &wal->sync_mutex, wal->dur_ms);
-
-    list_del(&swait.ws_link);
-    mutex_unlock(&wal->sync_mutex);
-
-    cv_destroy(&swait.ws_cv);
-
-    return swait.ws_err;
+    return wal_sync_impl(wal, &swait);
 }
+
+static merr_t
+wal_cond_sync(struct wal *wal, u64 gen)
+{
+    struct wal_sync_waiter swait = {0};
+
+    assert(wal);
+
+    cv_init(&swait.ws_cv, "wal_cond_sync_waiter");
+    INIT_LIST_HEAD(&swait.ws_link);
+
+    swait.ws_bufcnt = wal_bufset_genoff(wal->wbs, gen, WAL_BUF_MAX, swait.ws_offv);
+    if (swait.ws_bufcnt < 0)
+        return merr(EBUG);
+
+    return wal_sync_impl(wal, &swait);
+}
+
 
 /*
  * WAL data plane
@@ -268,7 +292,7 @@ wal_put(
     if (rtype == WAL_RT_TX) {
         err = kvdb_ctxn_get_view_seqno(kvdb_ctxn_h2h(os->kop_txn), &txid);
         if (err) { /* recoverable error */
-            wal_bufset_finish(wal->wbs, recout->wbidx, len, 0);
+            wal_bufset_finish(wal->wbs, recout->wbidx, len, 0, 0);
             wal_rec_finish(recout, 0, 0);
             return err;
         }
@@ -332,7 +356,7 @@ wal_del_impl(
     if (rtype == WAL_RT_TX) {
         err = kvdb_ctxn_get_view_seqno(kvdb_ctxn_h2h(os->kop_txn), &txid);
         if (err) {
-            wal_bufset_finish(wal->wbs, recout->wbidx, len, 0);
+            wal_bufset_finish(wal->wbs, recout->wbidx, len, 0, 0);
             wal_rec_finish(recout, 0, 0);
             return err;
         }
@@ -424,7 +448,7 @@ wal_op_finish(struct wal *wal, struct wal_record *rec, uint64_t seqno, uint64_t 
                 rec->offset = U64_MAX;
         }
 
-        wal_bufset_finish(wal->wbs, rec->wbidx, rec->len, gen);
+        wal_bufset_finish(wal->wbs, rec->wbidx, rec->len, gen, rec->offset + rec->len);
         wal_rec_finish(rec, seqno, gen);
     }
 }
@@ -450,7 +474,7 @@ wal_create(struct mpool *mp, struct kvdb_cparams *cp, uint64_t *mdcid1, uint64_t
         return err;
     }
 
-    dur_ms = cp->dur_lag_ms;
+    dur_ms = cp->dur_intvl_ms;
     dur_ms = clamp_t(long, dur_ms, WAL_DUR_MS_MIN, WAL_DUR_MS_MAX);
 
     dur_bytes = cp->dur_buf_sz;
@@ -509,8 +533,8 @@ wal_open(
         goto errout;
 
     /* Override persisted params if changed at run-time */
-    if (rp->dur_lag_ms != 0) {
-        wal->dur_ms = rp->dur_lag_ms;
+    if (rp->dur_intvl_ms != 0) {
+        wal->dur_ms = rp->dur_intvl_ms;
         wal->dur_ms = clamp_t(long, wal->dur_ms, WAL_DUR_MS_MIN, WAL_DUR_MS_MAX);
     }
 
@@ -605,8 +629,9 @@ wal_close(struct wal *wal)
     free(wal);
 }
 
-void
-wal_cningest_cb(struct wal *wal, u64 seqno, u64 gen, u64 txhorizon)
+
+static void
+wal_reclaim(struct wal *wal, u64 seqno, u64 gen, u64 txhorizon)
 {
     atomic64_set(&wal->ingestseq, seqno);
     atomic64_set(&wal->ingestgen, gen);
@@ -614,6 +639,15 @@ wal_cningest_cb(struct wal *wal, u64 seqno, u64 gen, u64 txhorizon)
 
     wal_bufset_reclaim(wal->wbs, gen);
     wal_fileset_reclaim(wal->wfset, seqno, gen, txhorizon, false);
+}
+
+void
+wal_cningest_cb(struct wal *wal, u64 seqno, u64 gen, u64 txhorizon, bool post_ingest)
+{
+    if (post_ingest)
+        wal_reclaim(wal, seqno, gen, txhorizon);
+    else
+        wal_cond_sync(wal, gen);
 }
 
 /*

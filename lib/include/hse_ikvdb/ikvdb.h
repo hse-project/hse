@@ -527,7 +527,8 @@ struct kvdb_callback {
         struct ikvdb *ikdb,
         unsigned long seqno,
         unsigned long dgen,
-        unsigned long txhorizon);
+        unsigned long txhorizon,
+        bool          post_ingest);
 };
 
 #if HSE_MOCKING

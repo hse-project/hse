@@ -94,7 +94,7 @@ void
 wal_op_finish(struct wal *wal, struct wal_record *rec, uint64_t seqno, uint64_t gen, int rc);
 
 void
-wal_cningest_cb(struct wal *wal, u64 seqno, u64 gen, u64 txhorizon);
+wal_cningest_cb(struct wal *wal, u64 seqno, u64 gen, u64 txhorizon, bool post_ingest);
 
 merr_t
 wal_sync(struct wal *wal);

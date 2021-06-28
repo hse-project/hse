@@ -19,12 +19,12 @@
 
 static const struct param_spec pspecs[] = {
 	{
-        .ps_name = "dur_lag_ms",
+        .ps_name = "dur_intvl_ms",
         .ps_description = "durability lag in ms",
         .ps_flags = PARAM_FLAG_CREATE_ONLY,
         .ps_type = PARAM_TYPE_U32,
-        .ps_offset = offsetof(struct kvdb_cparams, dur_lag_ms),
-        .ps_size = sizeof(((struct kvdb_cparams *) 0)->dur_lag_ms),
+        .ps_offset = offsetof(struct kvdb_cparams, dur_intvl_ms),
+        .ps_size = sizeof(((struct kvdb_cparams *) 0)->dur_intvl_ms),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
         .ps_default_value = {
