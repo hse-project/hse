@@ -46,7 +46,7 @@ test_collection_setup(struct mtf_test_info *lcl_ti)
     rc = mtf_kvdb_setup(lcl_ti, &kvdb, 0);
     ASSERT_EQ_RET(rc, 0, -1);
 
-    err = hse_kvdb_kvs_make(kvdb, "test", 0, NULL);
+    err = hse_kvdb_kvs_create(kvdb, "test", 0, NULL);
     ASSERT_EQ_RET(err, 0, -1);
 
     err = hse_kvdb_kvs_open(kvdb, "test", 0, NULL, &kvs);

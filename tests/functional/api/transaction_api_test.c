@@ -40,7 +40,7 @@ setup_kvs(struct mtf_test_info *lcl_ti)
         "transactions_enable=1",
     };
 
-    err = hse_kvdb_kvs_make(kvdb_handle, "kvs_transaction_test", 0, NULL);
+    err = hse_kvdb_kvs_create(kvdb_handle, "kvs_transaction_test", 0, NULL);
     ASSERT_EQ_RET(err, 0, -1);
 
     err = hse_kvdb_kvs_open(kvdb_handle, "kvs_transaction_test", NELEM(paramv), paramv, &kvs_handle);

@@ -119,9 +119,9 @@ mtf_kvdb_setupv(
         goto fail;
     }
 
-    err = hse_kvdb_make(home, 0, NULL);
+    err = hse_kvdb_create(home, 0, NULL);
     if (err) {
-        mtf_print_errinfo(err, "Cannot make KVDB '%s'\n", home);
+        mtf_print_errinfo(err, "Cannot create KVDB '%s'\n", home);
         goto fail;
     }
 

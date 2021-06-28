@@ -43,7 +43,7 @@ merr_t
 cndb_alloc(struct mpool *ds, u64 *captgt, u64 *oid1_out, u64 *oid2_out);
 
 /**
- * cndb_make() - initialize a new cndb with no cn KVSes.
+ * cndb_create() - initialize a new cndb with no cn KVSes.
  * @ds:       dataset
  * @captgt:   capacity target for the cndb
  * @oid1:     new cndb MDC mlog id
@@ -52,7 +52,7 @@ cndb_alloc(struct mpool *ds, u64 *captgt, u64 *oid1_out, u64 *oid2_out);
  */
 /* MTF_MOCK */
 merr_t
-cndb_make(struct mpool *ds, u64 captgt, u64 oid1, u64 oid2);
+cndb_create(struct mpool *ds, u64 captgt, u64 oid1, u64 oid2);
 
 /**
  * cndb_drop() - Delete a cndb and its constituent cn KVSes.
@@ -253,7 +253,7 @@ merr_t
 cndb_usage(struct cndb *cndb, uint64_t *allocated, uint64_t *used);
 
 /**
- * cndb_cn_make() - add a cn KVS to a cndb.
+ * cndb_cn_create() - add a cn KVS to a cndb.
  * @cndb:     admin mode cndb handle
  * @cparams:  cn kvs create parameters
  * @cnid_out: persistent identifier for new KVS
@@ -268,7 +268,7 @@ cndb_usage(struct cndb *cndb, uint64_t *allocated, uint64_t *used);
  */
 /* MTF_MOCK */
 merr_t
-cndb_cn_make(struct cndb *cndb, const struct kvs_cparams *cparams, u64 *cnid_out, char *name);
+cndb_cn_create(struct cndb *cndb, const struct kvs_cparams *cparams, u64 *cnid_out, char *name);
 
 /**
  * cndb_cn_cparams() - Get a pointer to the cn cparams
@@ -316,7 +316,7 @@ cndb_txn_start(struct cndb *cndb, u64 *txid, u64 ingestid, int nc, int nd, u64 s
  * cndb_txn_txc() - Add a kvset to a transaction
  * @cndb:     a cndb handle obtained from cndb_open()
  * @txid:     an identifier obtained from cndb_txn_start()
- * @cnid:     a cN identifier minted by ikvdb_kvs_make()
+ * @cnid:     a cN identifier minted by ikvdb_kvs_create()
  * @tag:      (input/output) must be zero for the first TXC in a txn
  * @mblocks:  list of involved blkids
  * @keepvbc:  count of vblocks to keep (not delete) when the CN mutation is
@@ -342,7 +342,7 @@ cndb_txn_txc(
  * cndb_txn_txd() - Add a kvset deletion to a transaction
  * @cndb:     a cndb handle obtained from cndb_open()
  * @txid:     an identifier obtained from cndb_txn_start()
- * @cnid:     a cN identifier minted by ikvdb_kvs_make()
+ * @cnid:     a cN identifier minted by ikvdb_kvs_create()
  * @tag:      kvset to delete, indicated by tag minted by cndb_txn_txc()
  * @n_oids:   count of blkids for deletion
  * @oidv:     list of blkids for deletion
@@ -355,7 +355,7 @@ cndb_txn_txd(struct cndb *cndb, u64 txid, u64 cnid, u64 tag, int n_oids, u64 *oi
  * cndb_txn_meta() - Add a kvset metadata to a transaction
  * @cndb:     a cndb handle obtained from cndb_open()
  * @txid:     an identifier obtained from cndb_txn_start()
- * @cnid:     a cN identifier minted by ikvdb_kvs_make()
+ * @cnid:     a cN identifier minted by ikvdb_kvs_create()
  * @tag:      kvset described by metadata, minted by cndb_txn_txc()
  * @meta:     metadata describing the kvset
  */

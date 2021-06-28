@@ -442,7 +442,7 @@ out:
 }
 
 merr_t
-kvdb_log_make(struct kvdb_log *log, u64 captgt, const struct kvdb_cparams *params)
+kvdb_log_create(struct kvdb_log *log, u64 captgt, const struct kvdb_cparams *params)
 {
     merr_t                   err;
     struct kvdb_log_ver4_omf ver = {};

@@ -176,7 +176,7 @@ stress(char *mp, char *kv)
         die(err, "cannot open kvs");
     }
     if (err) {
-        err = hse_kvdb_kvs_make(kvdb, kv, 0, NULL);
+        err = hse_kvdb_kvs_create(kvdb, kv, 0, NULL);
         if (err) {
             die(err, "cannot make kvs");
         }

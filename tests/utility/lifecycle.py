@@ -23,7 +23,7 @@ class KvdbContext(ContextDecorator):
 
     def __enter__(self) -> hse.Kvdb:
         try:
-            hse.Kvdb.make(self.__home, *self.__kvdb_cparams)
+            hse.Kvdb.create(self.__home, *self.__kvdb_cparams)
         except hse.KvdbException as e:
             if e.returncode != errno.EEXIST and self.__exists_ok:
                 raise e
@@ -63,7 +63,7 @@ class KvsContext(ContextDecorator):
 
     def __enter__(self) -> hse.Kvs:
         try:
-            self.__kvdb.kvs_make(self.__name, *self.__kvs_cparams)
+            self.__kvdb.kvs_create(self.__name, *self.__kvs_cparams)
         except hse.KvdbException as e:
             if e.returncode != errno.EEXIST and self.__exists_ok:
                 raise e

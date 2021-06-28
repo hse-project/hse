@@ -55,7 +55,7 @@ main(int argc, char **argv)
 
     init = true;
 
-    err = hse_kvdb_make(kvdb_home, 0, NULL);
+    err = hse_kvdb_create(kvdb_home, 0, NULL);
     switch (hse_err_to_errno(err)) {
 
         case 0:
@@ -72,7 +72,7 @@ main(int argc, char **argv)
             goto error;
 
         default:
-            report_error("hse_kvdb_make", err);
+            report_error("hse_kvdb_create", err);
             goto error;
     }
 
@@ -85,9 +85,9 @@ main(int argc, char **argv)
     open = true;
 
     for (int i = 0; i < kvs_cnt; i++) {
-        err = hse_kvdb_kvs_make(kvdb, kvs_list[i], 0, NULL);
+        err = hse_kvdb_kvs_create(kvdb, kvs_list[i], 0, NULL);
         if (err) {
-            report_error("hse_kvdb_kvs_make", err);
+            report_error("hse_kvdb_kvs_create", err);
             goto error;
         }
     }

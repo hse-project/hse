@@ -154,7 +154,7 @@ struct mapi_injection inject_list[] = {
 
     { mapi_idx_cndb_cn_cparams, MAPI_RC_PTR, &kp },
     { mapi_idx_cndb_replay, MAPI_RC_SCALAR, 0 },
-    { mapi_idx_cndb_cn_make, MAPI_RC_SCALAR, 0 },
+    { mapi_idx_cndb_cn_create, MAPI_RC_SCALAR, 0 },
 
     { mapi_idx_kvset_get_num_kblocks, MAPI_RC_SCALAR, 1 },
     { mapi_idx_kvset_get_nth_kblock_id, MAPI_RC_SCALAR, 0x70310d },
@@ -199,9 +199,9 @@ test_pre(struct mtf_test_info *ti)
 
     err = argv_deserialize_to_kvdb_rparams(NELEM(paramv), paramv, &params);
     err = ikvdb_open(MP, &params, NULL, ds, NULL, &store);
-    err = ikvdb_kvs_make(store, KVS1, &kvs_cp);
-    err = ikvdb_kvs_make(store, KVS2, &kvs_cp);
-    err = ikvdb_kvs_make(store, KVS3, &kvs_cp);
+    err = ikvdb_kvs_create(store, KVS1, &kvs_cp);
+    err = ikvdb_kvs_create(store, KVS2, &kvs_cp);
+    err = ikvdb_kvs_create(store, KVS3, &kvs_cp);
 
     err = ikvdb_kvs_open(store, KVS1, &kvs_rp, 0, &kvs1);
     assert(err == 0);

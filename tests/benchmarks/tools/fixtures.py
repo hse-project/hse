@@ -5,7 +5,7 @@ import hse
 from tools import config
 
 
-def make_kvdb():
+def create_kvdb():
     kvdb_home = config.KVDB_HOME
     kvs_name = config.KVS_NAME
 
@@ -18,7 +18,7 @@ def make_kvdb():
 
     try:
         try:
-            hse.Kvdb.make(kvdb_home)
+            hse.Kvdb.create(kvdb_home)
         except hse.KvdbException as e:
             if e.returncode == errno.EEXIST:
                 pass
@@ -31,7 +31,7 @@ def make_kvdb():
             for old_name in kvdb.names:
                 kvdb.kvs_drop(old_name)
 
-            kvdb.kvs_make(kvs_name)
+            kvdb.kvs_create(kvs_name)
         finally:
             kvdb.close()
     finally:

@@ -93,7 +93,7 @@ hse_fini(void)
 }
 
 hse_err_t
-hse_kvdb_make(const char *kvdb_home, size_t paramc, const char *const *const paramv)
+hse_kvdb_create(const char *kvdb_home, size_t paramc, const char *const *const paramv)
 {
     struct kvdb_cparams  dbparams = kvdb_cparams_defaults();
     struct mpool *       mp;
@@ -111,7 +111,7 @@ hse_kvdb_make(const char *kvdb_home, size_t paramc, const char *const *const par
 #endif
 
     tstart = perfc_lat_start(&kvdb_pkvdbl_pc);
-    perfc_inc(&kvdb_pc, PERFC_RA_KVDBOP_KVDB_MAKE);
+    perfc_inc(&kvdb_pc, PERFC_RA_KVDBOP_KVDB_CREATE);
 
     err = kvdb_home_translate(kvdb_home, real_home, sizeof(real_home));
     if (ev(err))
@@ -186,7 +186,7 @@ hse_kvdb_make(const char *kvdb_home, size_t paramc, const char *const *const par
             goto out;
     }
 
-    err = ikvdb_make(real_home, mp, &dbparams, MPOOL_ROOT_LOG_CAP);
+    err = ikvdb_create(real_home, mp, &dbparams, MPOOL_ROOT_LOG_CAP);
     if (ev(err))
         goto out;
 
@@ -501,7 +501,7 @@ hse_kvdb_free_names(struct hse_kvdb *handle, char **kvsv)
 }
 
 hse_err_t
-hse_kvdb_kvs_make(
+hse_kvdb_kvs_create(
     struct hse_kvdb *        handle,
     const char *             kvs_name,
     size_t                   paramc,
@@ -516,7 +516,7 @@ hse_kvdb_kvs_make(
     if (HSE_UNLIKELY(!handle))
         return merr_to_hse_err(merr(EINVAL));
 
-    perfc_inc(&kvdb_pc, PERFC_RA_KVDBOP_KVDB_KVS_MAKE);
+    perfc_inc(&kvdb_pc, PERFC_RA_KVDBOP_KVDB_KVS_CREATE);
 
     err = validate_kvs_name(kvs_name);
     if (ev(err))
@@ -532,7 +532,7 @@ hse_kvdb_kvs_make(
         return merr_to_hse_err(err);
 #endif
 
-    err = ikvdb_kvs_make((struct ikvdb *)handle, kvs_name, &params);
+    err = ikvdb_kvs_create((struct ikvdb *)handle, kvs_name, &params);
     ev(err);
 
     return merr_to_hse_err(err);

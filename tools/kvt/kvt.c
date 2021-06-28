@@ -1777,7 +1777,7 @@ kvt_create(
 
         status("creating kvs %s...", kvsname);
         parms = kvs_cparms_get(kvsname);
-        err = hse_kvdb_kvs_make(kvdb, kvsname, parms->strc, parms->strv);
+        err = hse_kvdb_kvs_create(kvdb, kvsname, parms->strc, parms->strv);
         if (err) {
             eprint(err, "unable to create kvs `%s'", kvsname);
             return EX_CANTCREAT;
@@ -1791,7 +1791,7 @@ kvt_create(
 
         status("creating kvs %s...", kvsname);
         parms = kvs_cparms_get(kvsname);
-        err = hse_kvdb_kvs_make(kvdb, kvsname, parms->strc, parms->strv);
+        err = hse_kvdb_kvs_create(kvdb, kvsname, parms->strc, parms->strv);
         if (err) {
             eprint(err, "unable to create kvs `%s'", kvsname);
             return EX_CANTCREAT;
@@ -1800,7 +1800,7 @@ kvt_create(
 
     status("creating kvs %s...", KVS_TOMBS_NAME);
     parms = kvs_cparms_get(KVS_TOMBS_NAME);
-    err = hse_kvdb_kvs_make(kvdb, KVS_TOMBS_NAME, parms->strc, parms->strv);
+    err = hse_kvdb_kvs_create(kvdb, KVS_TOMBS_NAME, parms->strc, parms->strv);
     if (err) {
         eprint(err, "unable to create kvs '%s'", KVS_TOMBS_NAME);
         return EX_CANTCREAT;
@@ -1808,7 +1808,7 @@ kvt_create(
 
     status("creating kvs %s...", KVS_RIDS_NAME);
     parms = kvs_cparms_get(KVS_RIDS_NAME);
-    err = hse_kvdb_kvs_make(kvdb, KVS_RIDS_NAME, parms->strc, parms->strv);
+    err = hse_kvdb_kvs_create(kvdb, KVS_RIDS_NAME, parms->strc, parms->strv);
     if (err) {
         eprint(err, "unable to create kvs '%s'", KVS_RIDS_NAME);
         return EX_CANTCREAT;

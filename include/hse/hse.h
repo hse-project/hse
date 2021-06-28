@@ -174,7 +174,7 @@ hse_err_to_errno(hse_err_t err);
  */
 /* MTF_MOCK */
 hse_err_t
-hse_kvdb_make(const char *kvdb_home, size_t paramc, const char *const *paramv);
+hse_kvdb_create(const char *kvdb_home, size_t paramc, const char *const *paramv);
 
 /**
  * Remove a KVDB
@@ -279,7 +279,7 @@ hse_kvdb_free_names(struct hse_kvdb *kvdb, char **kvs_list);
  */
 /* MTF_MOCK */
 hse_err_t
-hse_kvdb_kvs_make(
+hse_kvdb_kvs_create(
     struct hse_kvdb *  kvdb,
     const char *       kvs_name,
     size_t             paramc,

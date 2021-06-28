@@ -572,7 +572,7 @@ cli_hse_kvdb_create_impl(struct cli *cli)
         goto done;
     }
 
-    herr = hse_kvdb_make(cli->home, paramc, paramv);
+    herr = hse_kvdb_create(cli->home, paramc, paramv);
     if (herr) {
         switch (hse_err_to_errno(herr)) {
             case EINVAL:
@@ -599,7 +599,7 @@ cli_hse_kvdb_create_impl(struct cli *cli)
                     cli->home);
                 break;
             default:
-                print_hse_err(cli, "hse_kvdb_make", herr);
+                print_hse_err(cli, "hse_kvdb_create", herr);
                 break;
         }
         goto done;
@@ -1154,9 +1154,9 @@ cli_hse_kvs_create_impl(struct cli *cli, const char *home, const char *kvs)
         goto done;
     }
 
-    herr = hse_kvdb_kvs_make(db, kvs, kvs_paramc, kvs_paramv);
+    herr = hse_kvdb_kvs_create(db, kvs, kvs_paramc, kvs_paramv);
     if (herr) {
-        print_hse_err(cli, "hse_kvdb_kvs_make", herr);
+        print_hse_err(cli, "hse_kvdb_kvs_create", herr);
         goto done;
     }
 

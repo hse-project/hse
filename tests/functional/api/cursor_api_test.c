@@ -39,7 +39,7 @@ open_kvs(struct mtf_test_info *lcl_ti)
 {
     hse_err_t err;
 
-    err = hse_kvdb_kvs_make(kvdb_handle, kvs_name, 0, NULL);
+    err = hse_kvdb_kvs_create(kvdb_handle, kvs_name, 0, NULL);
     ASSERT_EQ_RET(err, 0, -1);
 
     err = hse_kvdb_kvs_open(kvdb_handle, kvs_name, 0, NULL, &kvs_handle);

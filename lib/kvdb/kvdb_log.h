@@ -105,7 +105,7 @@ kvdb_log_usage(struct kvdb_log *log, uint64_t *allocated, uint64_t *used);
 
 /* MTF_MOCK */
 merr_t
-kvdb_log_make(struct kvdb_log *log, u64 captgt, const struct kvdb_cparams *params);
+kvdb_log_create(struct kvdb_log *log, u64 captgt, const struct kvdb_cparams *params);
 
 /* MTF_MOCK */
 merr_t

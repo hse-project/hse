@@ -354,7 +354,7 @@ MTF_DEFINE_UTEST_PREPOST(ikvdb_test, basic_lifecycle, test_pre, test_post)
     ASSERT_EQ(0, err);
 }
 
-MTF_DEFINE_UTEST_PREPOST(ikvdb_test, ikvdb_make_test, test_pre, test_post)
+MTF_DEFINE_UTEST_PREPOST(ikvdb_test, ikvdb_create_test, test_pre, test_post)
 {
     merr_t              err;
     struct mpool *      ds = (struct mpool *)-1;
@@ -366,10 +366,10 @@ MTF_DEFINE_UTEST_PREPOST(ikvdb_test, ikvdb_make_test, test_pre, test_post)
     mapi_inject(mapi_idx_mpool_mdc_root_open, 0);
     mapi_inject(mapi_idx_mpool_mdc_append, 1);
     mapi_inject(mapi_idx_mpool_mdc_close, 1);
-    err = ikvdb_make(NULL, ds, &kp, 0);
+    err = ikvdb_create(NULL, ds, &kp, 0);
     ASSERT_EQ(0, err);
 
-    err = ikvdb_make(NULL, ds, &kp, 0);
+    err = ikvdb_create(NULL, ds, &kp, 0);
     ASSERT_EQ(0, err);
 
     mapi_inject_unset(mapi_idx_mpool_mdc_append);
@@ -397,7 +397,7 @@ MTF_DEFINE_UTEST_PREPOST(ikvdb_test, ikvdb_kvs_open_test, test_pre, test_post)
     ASSERT_EQ(0, err);
     ASSERT_NE(NULL, hdl);
 
-    err = ikvdb_kvs_make(hdl, kvs, &kvs_cp);
+    err = ikvdb_kvs_create(hdl, kvs, &kvs_cp);
     ASSERT_EQ(0, err);
 
     mapi_inject_ptr(mapi_idx_malloc, 0);
@@ -424,7 +424,7 @@ MTF_DEFINE_UTEST_PREPOST(ikvdb_test, ikvdb_kvs_open_test, test_pre, test_post)
     ASSERT_EQ(0, err);
 }
 
-MTF_DEFINE_UTEST_PREPOST(ikvdb_test, ikvdb_kvs_make_test, test_pre, test_post)
+MTF_DEFINE_UTEST_PREPOST(ikvdb_test, ikvdb_kvs_create_test, test_pre, test_post)
 {
     struct ikvdb *      hdl = NULL;
     const char *        mpool = "mpool_alpha";
@@ -445,23 +445,23 @@ MTF_DEFINE_UTEST_PREPOST(ikvdb_test, ikvdb_kvs_make_test, test_pre, test_post)
 
     mapi_inject_ptr(mapi_idx_malloc, 0);
 
-    err = ikvdb_kvs_make(hdl, kvs, &kvs_cp);
+    err = ikvdb_kvs_create(hdl, kvs, &kvs_cp);
     ASSERT_EQ(ENOMEM, merr_errno(err));
 
     mapi_inject_unset(mapi_idx_malloc);
 
-    err = ikvdb_kvs_make(hdl, kvs, &kvs_cp);
+    err = ikvdb_kvs_create(hdl, kvs, &kvs_cp);
     ASSERT_EQ(0, err);
 
     /* Duplicate kvs */
-    err = ikvdb_kvs_make(hdl, kvs, &kvs_cp);
+    err = ikvdb_kvs_create(hdl, kvs, &kvs_cp);
     ASSERT_EQ(EEXIST, merr_errno(err));
 
     ikvdb_kvs_count(hdl, &cnt);
     ASSERT_EQ(1, cnt);
 
     /* Add a kvs with create-time params */
-    err = ikvdb_kvs_make(hdl, "kvs_delta", &kvs_cp);
+    err = ikvdb_kvs_create(hdl, "kvs_delta", &kvs_cp);
     ASSERT_EQ(0, err);
 
     ikvdb_kvs_count(hdl, &cnt);
@@ -490,7 +490,7 @@ MTF_DEFINE_UTEST_PREPOST(ikvdb_test, ikvdb_kvs_destroy_test, test_pre, test_post
     ASSERT_EQ(0, err);
     ASSERT_NE(NULL, hdl);
 
-    err = ikvdb_kvs_make(hdl, kvs, &kvs_cp);
+    err = ikvdb_kvs_create(hdl, kvs, &kvs_cp);
     ASSERT_EQ(0, err);
 
     ikvdb_kvs_count(hdl, &cnt);
@@ -542,7 +542,7 @@ MTF_DEFINE_UTEST_PREPOST(ikvdb_test, txn_del_test, test_pre, test_post)
     ASSERT_EQ(0, err);
     ASSERT_NE(NULL, h);
 
-    err = ikvdb_kvs_make(h, kvs, &kvs_cp);
+    err = ikvdb_kvs_create(h, kvs, &kvs_cp);
     ASSERT_EQ(0, err);
 
     err = ikvdb_kvs_open(h, kvs, &kvs_rp, 0, &kvs_h);
@@ -670,7 +670,7 @@ MTF_DEFINE_UTEST_PREPOST(ikvdb_test, txn_put_test, test_pre, test_post)
     ASSERT_EQ(0, err);
     ASSERT_NE(NULL, h);
 
-    err = ikvdb_kvs_make(h, kvs, &kvs_cp);
+    err = ikvdb_kvs_create(h, kvs, &kvs_cp);
     ASSERT_EQ(0, err);
 
     err = ikvdb_kvs_open(h, kvs, &kvs_rp, 0, &kvs_h);
@@ -724,7 +724,7 @@ MTF_DEFINE_UTEST_PREPOST(ikvdb_test, aborted_txn_bind, test_pre, test_post)
     ASSERT_EQ(0, err);
     ASSERT_NE(NULL, kvdb_h);
 
-    err = ikvdb_kvs_make(kvdb_h, kvs, &kvs_cp);
+    err = ikvdb_kvs_create(kvdb_h, kvs, &kvs_cp);
     ASSERT_EQ(0, err);
 
     err = ikvdb_kvs_open(kvdb_h, kvs, &kvs_rp, 0, &kvs_h);
@@ -778,7 +778,7 @@ MTF_DEFINE_UTEST_PREPOST(ikvdb_test, cursor_0, test_pre, test_post)
     ASSERT_EQ(0, err);
     ASSERT_NE(NULL, h);
 
-    err = ikvdb_kvs_make(h, kvs, &kvs_cp);
+    err = ikvdb_kvs_create(h, kvs, &kvs_cp);
     ASSERT_EQ(0, err);
 
     err = ikvdb_kvs_open(h, kvs, &kvs_rp, 0, &kvs_h);
@@ -854,7 +854,7 @@ MTF_DEFINE_UTEST_PREPOST(ikvdb_test, cursor_1, test_pre_c0, test_post_c0)
     ASSERT_EQ(0, err);
     ASSERT_NE(NULL, h);
 
-    err = ikvdb_kvs_make(h, kvs, &kvs_cp);
+    err = ikvdb_kvs_create(h, kvs, &kvs_cp);
     ASSERT_EQ(0, err);
 
     err = ikvdb_kvs_open(h, kvs, &kvs_rp, 0, &kvs_h);
@@ -1024,7 +1024,7 @@ MTF_DEFINE_UTEST_PREPOST(ikvdb_test, cursor_tx, test_pre_c0, test_post_c0)
     ASSERT_EQ(0, err);
     ASSERT_NE(NULL, h);
 
-    err = ikvdb_kvs_make(h, kvs, &kvs_cp);
+    err = ikvdb_kvs_create(h, kvs, &kvs_cp);
     ASSERT_EQ(0, err);
 
     err = ikvdb_kvs_open(h, kvs, &kvs_rp, 0, &kvs_h);
@@ -1259,7 +1259,7 @@ MTF_DEFINE_UTEST_PREPOST(ikvdb_test, cursor_tombspan, test_pre_c0, test_post_c0)
     ASSERT_EQ(0, err);
     ASSERT_NE(NULL, h);
 
-    err = ikvdb_kvs_make(h, kvs, NULL);
+    err = ikvdb_kvs_create(h, kvs, NULL);
     ASSERT_EQ(0, err);
 
     err = ikvdb_kvs_open(h, kvs, 0, 0, &kvs_h);
@@ -1487,7 +1487,7 @@ MTF_DEFINE_UTEST_PREPOST(ikvdb_test, cursor_cache, test_pre_c0, test_post_c0)
     for (i = 0; i < NELEM(kvs_h); ++i) {
         snprintf(namebuf[i], sizeof(namebuf[i]), "kvs%d", i);
 
-        err = ikvdb_kvs_make(h, namebuf[i], &kvs_cp);
+        err = ikvdb_kvs_create(h, namebuf[i], &kvs_cp);
         ASSERT_EQ(0, err);
     }
 
@@ -1588,7 +1588,7 @@ MTF_DEFINE_UTEST_PREPOST(ikvdb_test, cursor_2, test_pre_c0, test_post_c0)
     ASSERT_NE(NULL, h);
 
     for (i = 0; i < 4; ++i) {
-        err = ikvdb_kvs_make(h, names[i], NULL);
+        err = ikvdb_kvs_create(h, names[i], NULL);
         ASSERT_EQ(0, err);
     }
 
@@ -1643,7 +1643,7 @@ MTF_DEFINE_UTEST_PREPOST(ikvdb_test, kvdb_sync_test, test_pre, test_post)
 
         snprintf(kvs, sizeof(kvs), "%s%d", kvs_base, i);
 
-        err = ikvdb_kvs_make(h, kvs, &kvs_cp);
+        err = ikvdb_kvs_create(h, kvs, &kvs_cp);
         ASSERT_EQ(0, err);
 
         err = ikvdb_kvs_open(h, kvs, &kvs_rp, 0, &kvs_h[i]);
@@ -1719,7 +1719,7 @@ MTF_DEFINE_UTEST_PREPOST(ikvdb_test, kvdb_parallel_kvs_opens, test_pre, test_pos
     ASSERT_EQ(0, err);
     ASSERT_NE(NULL, h);
 
-    err = ikvdb_kvs_make(h, "same_kvs", &kvs_cp);
+    err = ikvdb_kvs_create(h, "same_kvs", &kvs_cp);
     ASSERT_EQ(0, err);
 
     atomic_set(&num_opens, 0);
@@ -1757,7 +1757,7 @@ parallel_kvs_make(void *info)
     struct thread_info *arg = (struct thread_info *)info;
     struct kvs_cparams  kvs_cp = kvs_cparams_defaults();
 
-    ikvdb_kvs_make(arg->h, "same_kvs", &kvs_cp);
+    ikvdb_kvs_create(arg->h, "same_kvs", &kvs_cp);
 
     return 0;
 }
@@ -1823,7 +1823,7 @@ MTF_DEFINE_UTEST_PREPOST(ikvdb_test, prefix_delete_test, test_pre, test_post)
     ASSERT_EQ(0, err);
     ASSERT_NE(NULL, kvdb);
 
-    err = ikvdb_kvs_make(kvdb, "kvs", &g_kvs_cp);
+    err = ikvdb_kvs_create(kvdb, "kvs", &g_kvs_cp);
     ASSERT_EQ(0, err);
 
     err = ikvdb_kvs_open(kvdb, "kvs", &kvs_rp, 0, &kvs);

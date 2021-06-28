@@ -157,10 +157,10 @@ kh_get_kvs(
 	if (hse_err_to_errno(err) == EBUSY) {
 		fatal(err, "hse_kvdb_kvs_open failed");
 	} else if (err) {
-		err = hse_kvdb_kvs_make(test.kvdb, name, cparms->strc, cparms->strv);
+		err = hse_kvdb_kvs_create(test.kvdb, name, cparms->strc, cparms->strv);
 		if (err) {
 			free(ki);
-			fatal(err, "hse_kvdb_kvs_make failed");
+			fatal(err, "hse_kvdb_kvs_create failed");
 		}
 
 		err = hse_kvdb_kvs_open(test.kvdb, name, oparms->strc, oparms->strv, &ki->hdl);

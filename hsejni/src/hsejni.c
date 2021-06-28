@@ -237,10 +237,10 @@ Java_org_micron_hse_API_open(
     rc = hse_kvdb_kvs_open(kvdb_h, aKvsName, kvs_open_paramc, kvs_open_paramv, (struct hse_kvs **)&kvs_h);
 
     if (hse_err_to_errno(rc) == ENOENT) {
-        rc = hse_kvdb_kvs_make(kvdb_h, aKvsName, kvs_make_paramc, kvs_make_paramv);
+        rc = hse_kvdb_kvs_create(kvdb_h, aKvsName, kvs_make_paramc, kvs_make_paramv);
         if (rc) {
             hse_kvdb_close(kvdb_h);
-            throw_err(env, "hse_kvdb_kvs_make", rc);
+            throw_err(env, "hse_kvdb_kvs_create", rc);
             goto out;
         }
 

@@ -273,7 +273,7 @@ ikvdb_log_deserialize_to_kvdb_dparams(const char *kvdb_home, struct kvdb_dparams
 }
 
 merr_t
-ikvdb_make(const char *kvdb_home, struct mpool *mp, struct kvdb_cparams *params, u64 captgt)
+ikvdb_create(const char *kvdb_home, struct mpool *mp, struct kvdb_cparams *params, u64 captgt)
 {
     assert(mp);
     assert(params);
@@ -295,7 +295,7 @@ ikvdb_make(const char *kvdb_home, struct mpool *mp, struct kvdb_cparams *params,
     if (ev(err))
         goto out;
 
-    err = kvdb_log_make(log, captgt, params);
+    err = kvdb_log_create(log, captgt, params);
     if (ev(err))
         goto out;
 
@@ -308,7 +308,7 @@ ikvdb_make(const char *kvdb_home, struct mpool *mp, struct kvdb_cparams *params,
     if (ev(err))
         goto out;
 
-    err = cndb_make(mp, cndb_captgt, cndb_o1, cndb_o2);
+    err = cndb_create(mp, cndb_captgt, cndb_o1, cndb_o2);
     if (ev(err)) {
         kvdb_log_abort(log, tx);
         goto out;
@@ -319,7 +319,7 @@ ikvdb_make(const char *kvdb_home, struct mpool *mp, struct kvdb_cparams *params,
         goto out;
 
 out:
-    /* Failed ikvdb_make() indicates that the caller or operator should
+    /* Failed ikvdb_create() indicates that the caller or operator should
      * destroy the kvdb: recovery is not possible.
      */
     kvdb_log_close(log);
@@ -1250,7 +1250,7 @@ kvdb_kvs_set_ikvs(struct kvdb_kvs *kk, struct ikvs *ikvs)
 }
 
 merr_t
-ikvdb_kvs_make(struct ikvdb *handle, const char *kvs_name, const struct kvs_cparams *params)
+ikvdb_kvs_create(struct ikvdb *handle, const char *kvs_name, const struct kvs_cparams *params)
 {
     assert(handle);
     assert(kvs_name);
@@ -1292,7 +1292,7 @@ ikvdb_kvs_make(struct ikvdb *handle, const char *kvs_name, const struct kvs_cpar
 
     kvs->kk_flags = cn_cp2cflags(params);
 
-    err = cndb_cn_make(self->ikdb_cndb, params, &kvs->kk_cnid, kvs->kk_name);
+    err = cndb_cn_create(self->ikdb_cndb, params, &kvs->kk_cnid, kvs->kk_name);
     if (ev(err))
         goto out_unlock;
 

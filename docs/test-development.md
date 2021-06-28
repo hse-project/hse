@@ -242,12 +242,11 @@ Declaring a variable like this:
 And then using it 50 lines away from where it was declared:
 
     /* test invalid kvs name */
-    err = hse_kvdb_kvs_make(kvdb, kvs_name, NULL);
+    err = hse_kvdb_kvs_create(kvdb, kvs_name, NULL);
     ASSERT_EQ(err, 0);
 
 Is harder to follow than this:
 
     /* test invalid kvs name */
-    err = hse_kvdb_kvs_make(kvdb, "#####", NULL);
+    err = hse_kvdb_kvs_create(kvdb, "#####", NULL);
     ASSERT_EQ(err, 0);
-

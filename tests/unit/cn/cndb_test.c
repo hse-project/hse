@@ -795,7 +795,7 @@ MTF_DEFINE_UTEST_PREPOST(cndb_test, cndb_blkdel_test, test_pre, test_post)
     ASSERT_EQ(ENOMEM, merr_errno(err));
 }
 
-MTF_DEFINE_UTEST_PREPOST(cndb_test, cndb_make_test, test_pre, test_post)
+MTF_DEFINE_UTEST_PREPOST(cndb_test, cndb_create_test, test_pre, test_post)
 {
     merr_t        err;
     struct mpool *ds = (struct mpool *)-1;
@@ -803,13 +803,13 @@ MTF_DEFINE_UTEST_PREPOST(cndb_test, cndb_make_test, test_pre, test_post)
 
     err = cndb_alloc(ds, 0, &oid1, &oid2);
     ASSERT_EQ(err, 0);
-    err = cndb_make(ds, 0, oid1, oid2);
+    err = cndb_create(ds, 0, oid1, oid2);
     ASSERT_EQ(err, 0);
 
     mapi_inject(mapi_idx_mpool_mdc_close, 1);
     err = cndb_alloc(ds, 0, &oid1, &oid2);
     ASSERT_EQ(err, 0);
-    err = cndb_make(ds, 0, oid1, oid2);
+    err = cndb_create(ds, 0, oid1, oid2);
     ASSERT_EQ(err, 1);
     mapi_inject(mapi_idx_mpool_mdc_close, 0);
 
@@ -821,28 +821,28 @@ MTF_DEFINE_UTEST_PREPOST(cndb_test, cndb_make_test, test_pre, test_post)
     mapi_inject(mapi_idx_mpool_mdc_commit, merr(EBUG));
     err = cndb_alloc(ds, 0, &oid1, &oid2);
     ASSERT_EQ(err, 0);
-    err = cndb_make(ds, 0, oid1, oid2);
+    err = cndb_create(ds, 0, oid1, oid2);
     ASSERT_EQ(merr_errno(err), EBUG);
     mapi_inject(mapi_idx_mpool_mdc_commit, 0);
 
     mapi_inject(mapi_idx_mpool_mdc_open, merr(EBUG));
     err = cndb_alloc(ds, 0, &oid1, &oid2);
     ASSERT_EQ(err, 0);
-    err = cndb_make(ds, 0, oid1, oid2);
+    err = cndb_create(ds, 0, oid1, oid2);
     ASSERT_EQ(merr_errno(err), EBUG);
     mapi_inject(mapi_idx_mpool_mdc_open, 0);
 
     mapi_inject(mapi_idx_mpool_mdc_append, merr(EBUG));
     err = cndb_alloc(ds, 0, &oid1, &oid2);
     ASSERT_EQ(err, 0);
-    err = cndb_make(ds, 0, oid1, oid2);
+    err = cndb_create(ds, 0, oid1, oid2);
     ASSERT_EQ(merr_errno(err), EBUG);
     mapi_inject(mapi_idx_mpool_mdc_append, 0);
 }
 
-/* Test to verify that a cndb_cn_make updates in memory structures (cndb_cnv[])
+/* Test to verify that a cndb_cn_create updates in memory structures (cndb_cnv[])
  */
-MTF_DEFINE_UTEST_PREPOST(cndb_test, cndb_cn_make_updates_cnv, test_pre, test_post)
+MTF_DEFINE_UTEST_PREPOST(cndb_test, cndb_cn_create_updates_cnv, test_pre, test_post)
 {
     merr_t             err;
     struct mpool *     ds = (struct mpool *)-1;
@@ -864,7 +864,7 @@ MTF_DEFINE_UTEST_PREPOST(cndb_test, cndb_cn_make_updates_cnv, test_pre, test_pos
     err = cndb_alloc(ds, 0, &oid1, &oid2);
     ASSERT_EQ(0, err);
 
-    err = cndb_make(ds, 0, oid1, oid2);
+    err = cndb_create(ds, 0, oid1, oid2);
     ASSERT_EQ(0, err);
 
     err = cndb_open(ds, false, 0, 0, 0, 0, &mock_health, NULL, &c);
@@ -875,7 +875,7 @@ MTF_DEFINE_UTEST_PREPOST(cndb_test, cndb_cn_make_updates_cnv, test_pre, test_pos
 
     mapi_inject(mapi_idx_cn_make, 0);
     mapi_inject(mapi_idx_mpool_mdc_usage, 0);
-    err = cndb_cn_make(c, &cp, &cnid, "sabotage");
+    err = cndb_cn_create(c, &cp, &cnid, "sabotage");
     ASSERT_EQ(0, err);
     mapi_inject_unset(mapi_idx_cn_make);
     mapi_inject_unset(mapi_idx_mpool_mdc_usage);
@@ -925,7 +925,7 @@ MTF_DEFINE_UTEST_PREPOST(cndb_test, cndb_open_test, test_pre, test_post)
 
     mapi_inject(mapi_idx_mpool_mdc_open, merr(EBUG));
 
-    err = cndb_make(ds, 0, oid1, oid2);
+    err = cndb_create(ds, 0, oid1, oid2);
     ASSERT_EQ(merr_errno(err), EBUG);
 
     err = cndb_open(ds, false, 0, 0, 0, 0, &mock_health, NULL, &c);

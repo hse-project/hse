@@ -69,14 +69,14 @@ void
 kvdb_perfc_register(void *pc);
 
 /**
- * ikvdb_make() - create a new KVDB instance within the named mpool
+ * ikvdb_create() - create a new KVDB instance within the named mpool
  * @kvdb_home: KVDB home
  * @mp:        mpool handle
  * @params:    fixed configuration parameters
  * @captgt:    captgt of the mdc
  */
 merr_t
-ikvdb_make(const char *kvdb_home, struct mpool *mp, struct kvdb_cparams *params, u64 captgt);
+ikvdb_create(const char *kvdb_home, struct mpool *mp, struct kvdb_cparams *params, u64 captgt);
 
 /**
  * ikvdb_diag_cndb() - returns a pointer to kvdb's cndb
@@ -258,13 +258,13 @@ void
 ikvdb_kvs_count(struct ikvdb *kvdb, unsigned int *count);
 
 /**
- * ikvdb_kvs_make() - allow a new KVS to be created within a KVDB
+ * ikvdb_kvs_create() - allow a new KVS to be created within a KVDB
  * @kvdb:      KVDB handle
  * @kvs_name:  KVS name
  * @params:    KVS cparams
  */
 merr_t
-ikvdb_kvs_make(struct ikvdb *kvdb, const char *kvs_name, const struct kvs_cparams *params);
+ikvdb_kvs_create(struct ikvdb *kvdb, const char *kvs_name, const struct kvs_cparams *params);
 
 /**
  * ikvdb_kvs_drop() - delete a KVS from the associated KVDB

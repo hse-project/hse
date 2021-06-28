@@ -111,7 +111,7 @@ Status HseKvdb::MakeKvs(const std::string& kvs_name) {
   std::fprintf(stderr, "make kvs \"%s/%s\"\n", kvdb_home_.c_str(),
                kvs_name.c_str());
 
-  err = hse_kvdb_kvs_make(kvdb_handle_, kvs_name.c_str(), 0, NULL);
+  err = hse_kvdb_kvs_create(kvdb_handle_, kvs_name.c_str(), 0, NULL);
   if (err) {
     char msg[MSG_SIZE];
     return Status::IOError(hse_err_to_string(err, msg, sizeof(msg), NULL));
