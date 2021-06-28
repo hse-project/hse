@@ -84,7 +84,6 @@ hse_fini(void)
         return;
 
     ikvdb_fini();
-    rest_server_stop();
     hse_platform_fini();
     hse_initialized = false;
 }
@@ -458,6 +457,8 @@ hse_kvdb_close(struct hse_kvdb *handle)
 
     err2 = mpool_close(mp);
     ev(err2);
+
+    rest_server_stop();
 
     if (err || err2) {
         pidfile_remove(pfh);
