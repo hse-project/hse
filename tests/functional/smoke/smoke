@@ -127,7 +127,7 @@ check_tests () {
 
 exported_functions+=(destroy_all_kvs)
 destroy_all_kvs () {
-    hse1 -C "$mp" kvdb list -v \
+    hse1 -C "$mp" kvdb info -v \
         | awk '($1=="kvslist:") {look=1} (look && $1 == "-") {print($2)}' \
         | while read name; do
         hse1 -C "$mp" kvs drop "$name" >/dev/null

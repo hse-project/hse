@@ -222,7 +222,7 @@ emit_storage_info(
 }
 
 static hse_err_t
-kvdb_list_props(const char *kvdb_home, const size_t paramc, const char *const *paramv, struct yaml_context *yc)
+kvdb_info_props(const char *kvdb_home, const size_t paramc, const char *const *paramv, struct yaml_context *yc)
 {
     struct hse_kvdb *            hdl;
     struct hse_kvdb_storage_info info = {};
@@ -293,7 +293,7 @@ exit:
 }
 
 int
-kvdb_list_print(
+kvdb_info_print(
     const char *         kvdb_home,
     const size_t         paramc,
     const char *const *  paramv,
@@ -303,7 +303,7 @@ kvdb_list_print(
     hse_err_t err;
     int       count = 0;
 
-    err = kvdb_list_props(kvdb_home, paramc, paramv, yc);
+    err = kvdb_info_props(kvdb_home, paramc, paramv, yc);
     if (err) {
         char buf[256];
 
@@ -311,7 +311,7 @@ kvdb_list_print(
             goto errout;
 
         hse_err_to_string(err, buf, sizeof(buf), NULL);
-        yaml_field_fmt(yc, "error", "\"kvdb_list_props failed: %s\"", buf);
+        yaml_field_fmt(yc, "error", "\"kvdb_info_props failed: %s\"", buf);
     }
 
     count = 1;

@@ -12,7 +12,7 @@ int
 hse_kvdb_params(const char *kvdb_home, bool get);
 
 int
-kvdb_list_print(
+kvdb_info_print(
     const char *         kvdb_home,
     const size_t         paramc,
     const char *const *  paramv,

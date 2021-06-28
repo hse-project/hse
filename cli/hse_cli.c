@@ -136,18 +136,18 @@ struct cli {
  * HSE KVDB commands:
  *    hse kvdb create
  *    hse kvdb drop
- *    hse kvdb list
+ *    hse kvdb info
  *    hse kvdb compact
  */
 static cli_cmd_func_t cli_hse_kvdb_create;
 static cli_cmd_func_t cli_hse_kvdb_drop;
-static cli_cmd_func_t cli_hse_kvdb_list;
+static cli_cmd_func_t cli_hse_kvdb_info;
 static cli_cmd_func_t cli_hse_kvdb_compact;
 static cli_cmd_func_t cli_hse_kvdb_params;
 struct cli_cmd        cli_hse_kvdb_commands[] = {
     { "create", "Create a KVDB", cli_hse_kvdb_create, 0 },
     { "drop", "Drop a KVDB", cli_hse_kvdb_drop, 0 },
-    { "list", "List KVDB storage information", cli_hse_kvdb_list, 0 },
+    { "info", "Display KVDB information", cli_hse_kvdb_info, 0 },
     { "compact", "Compact a KVDB", cli_hse_kvdb_compact, 0 },
     { "params", "Show KVDB configuration parameters", cli_hse_kvdb_params, 0 },
     { 0 },
@@ -652,7 +652,7 @@ done:
 }
 
 static int
-cli_hse_kvdb_list_impl(struct cli *cli)
+cli_hse_kvdb_info_impl(struct cli *cli)
 {
     const char *paramv[] = { "read_only=1" };
     char        buf[YAML_BUF_SIZE];
@@ -675,9 +675,9 @@ cli_hse_kvdb_list_impl(struct cli *cli)
         goto done;
     }
 
-    count = kvdb_list_print(cli->home, NELEM(paramv), paramv, &yc, (bool)verbosity);
+    count = kvdb_info_print(cli->home, NELEM(paramv), paramv, &yc, (bool)verbosity);
     if (count < 0) {
-        fprintf(stderr, "%s: unable to list KVDB\n", cli->cmd->cmd_path);
+        fprintf(stderr, "%s: unable to retrieve KVDB storage information\n", cli->cmd->cmd_path);
         rc = -1;
         goto done;
     }
@@ -888,7 +888,7 @@ cli_hse_kvdb_drop(struct cli_cmd *self, struct cli *cli)
 }
 
 static int
-cli_hse_kvdb_list(struct cli_cmd *self, struct cli *cli)
+cli_hse_kvdb_info(struct cli_cmd *self, struct cli *cli)
 {
     const struct cmd_spec spec = {
         .usagev =
@@ -938,7 +938,7 @@ cli_hse_kvdb_list(struct cli_cmd *self, struct cli *cli)
         return 0;
     }
 
-    return cli_hse_kvdb_list_impl(cli);
+    return cli_hse_kvdb_info_impl(cli);
 }
 
 static int
