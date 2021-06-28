@@ -100,7 +100,7 @@ u64
 c0kvms_gen_read(struct c0_kvmultiset *mset);
 
 u64
-c0kvms_gen_current(struct c0_kvmultiset *mset);
+c0kvms_gen_current(void);
 
 u64
 c0kvms_ingest_seqno_get(struct c0_kvmultiset *handle);

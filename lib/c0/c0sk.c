@@ -1695,6 +1695,12 @@ c0sk_install_callback(struct c0sk *handle, struct kvdb_callback *cb)
     self->c0sk_cb = cb;
 }
 
+u64
+c0sk_gen_current(void)
+{
+    return c0kvms_gen_current();
+}
+
 #if HSE_MOCKING
 #include "c0sk_ut_impl.i"
 #endif /* HSE_MOCKING */

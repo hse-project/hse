@@ -46,8 +46,8 @@ struct wal_buffer {
     /* TODO: Need to ensure there can never be more c0kvms
      * inflight than we can track...
      */
-    atomic64_t wb_genlenv[16] HSE_ALIGNED(SMP_CACHE_BYTES);
-    atomic64_t wb_genoffv[16];
+    atomic64_t wb_genlenv[32] HSE_ALIGNED(SMP_CACHE_BYTES);
+    atomic64_t wb_genoffv[32];
 };
 
 struct wal_bufset {
@@ -78,7 +78,7 @@ wal_buffer_flush_worker(struct work_struct *work)
     struct wal_rechdr_omf *rhdr;
     struct wal_minmax_info info = {};
     const char *buf;
-    u64 coff, foff, prev_foff, cgen, start_foff, flushb = 0, buflen;
+    u64 coff, foff, prev_foff, cgen, rgen, start_foff, flushb = 0, buflen;
     u32 flags, rhlen;
     merr_t err;
 
@@ -135,27 +135,23 @@ restart:
             continue;
         }
 
-        rtype = omf_rh_type(rhdr);
-        txmeta = wal_rectype_txnmeta(rtype);
-        if (!txmeta) {
-            u64 rgen = omf_rh_gen(rhdr);
+        /* Mark flush boundary on encountering a gen increase */
+        rgen = omf_rh_gen(rhdr);
+        if (cgen > 0 && rgen > cgen)
+            break;
 
-            /* Mark flush boundary on encountering a gen increase */
-            if (cgen > 0 && rgen > cgen)
-                break;
+        /* Do not allow the IO payload to exceed 32 MiB */
+        if (cgen > 0 && (foff - start_foff) >= (32 << 20))
+            break;
 
-            /* Do not allow the IO payload to exceed 32 MiB */
-            if (cgen > 0 && (foff - start_foff) >= (32 << 20))
-                break;
+        if (rgen > cgen)
+            cgen = rgen;
 
-            if (rgen > cgen)
-                cgen = rgen;
-
-            info.min_gen = min_t(u64, info.min_gen, rgen);
-            info.max_gen = max_t(u64, info.max_gen, rgen);
-        }
+        info.min_gen = min_t(u64, info.min_gen, rgen);
+        info.max_gen = max_t(u64, info.max_gen, rgen);
 
         /* Determine min/max seqno from non-tx op and tx-commit record */
+        rtype = omf_rh_type(rhdr);
         nontx = wal_rectype_nontx(rtype);
         txcom = wal_rectype_txcommit(rtype);
         if (nontx || txcom) {
@@ -168,6 +164,7 @@ restart:
         }
 
         /* Determine min/max txid from txmeta */
+        txmeta = wal_rectype_txnmeta(rtype);
         if (txmeta) {
             struct wal_txnrec_omf *tr = (void *)buf;
             u64 txid = omf_tr_txid(tr);
@@ -260,10 +257,10 @@ wal_bufset_open(struct wal_fileset *wfset, atomic64_t *ingestgen, struct wal_ioc
             continue;
 
         for (j = 0; j < WAL_BPN_MAX; ++j, ++wb) {
-            atomic64_set(&wb->wb_offset_head, 0);
-            atomic64_set(&wb->wb_offset_tail, 0);
-            atomic64_set(&wb->wb_doff, 0);
-            atomic64_set(&wb->wb_foff, 0);
+            atomic64_set(&wb->wb_offset_head, PAGE_SIZE);
+            atomic64_set(&wb->wb_offset_tail, PAGE_SIZE);
+            atomic64_set(&wb->wb_doff, PAGE_SIZE);
+            atomic64_set(&wb->wb_foff, PAGE_SIZE);
             atomic64_set(&wb->wb_curgen, 0);
             atomic64_set(&wb->wb_flushc, 0);
             atomic_set(&wb->wb_flushing, 0);
@@ -391,17 +388,7 @@ wal_bufset_alloc(struct wal_bufset *wbs, size_t len, u64 *offout, uint *wbidx)
     }
 
     *offout = offset;
-
-    if (wbidx) {
-        *wbidx = wb - wbs->wbs_bufv;
-    } else {
-        uint gen = atomic64_read(&wb->wb_curgen) % NELEM(wb->wb_genlenv);
-
-        /* The caller (e.g., wal_txn()) will not call wal_bufset_finish()
-         * so we add the request length to the most current bucket.
-         */
-        atomic64_add(len, &wb->wb_genlenv[gen]);
-    }
+    *wbidx = wb - wbs->wbs_bufv;
 
     return wb->wb_buf + (offset % WAL_BUFSZ_MAX);
 }

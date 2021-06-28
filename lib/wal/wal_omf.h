@@ -201,7 +201,7 @@ uint
 wal_rec_len(void);
 
 void
-wal_txn_rechdr_pack(enum wal_rec_type rtype, u64 rid, void *outbuf);
+wal_txn_rechdr_pack(enum wal_rec_type rtype, u64 rid, u64 gen, void *outbuf);
 
 void
 wal_txn_rec_pack(u64 txid, u64 seqno, void *outbuf);

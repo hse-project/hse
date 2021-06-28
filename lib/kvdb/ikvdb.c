@@ -1100,14 +1100,6 @@ ikvdb_open(
 
     atomic64_set(&self->ikdb_seqno, seqno);
 
-    kvdb_log_waloid_get(self->ikdb_log, &self->ikdb_wal_oid1, &self->ikdb_wal_oid2);
-    err = wal_open(mp, &self->ikdb_rp, self->ikdb_wal_oid1, self->ikdb_wal_oid2,
-                   &self->ikdb_health, &self->ikdb_wal);
-    if (err) {
-        hse_elog(HSE_ERR "cannot open %s: @@e", err, kvdb_home);
-        goto err1;
-    }
-
     err = kvdb_ctxn_set_create(
         &self->ikdb_ctxn_set, self->ikdb_rp.txn_timeout, self->ikdb_rp.txn_wkth_delay);
     if (err) {
@@ -1154,6 +1146,14 @@ ikvdb_open(
 
     c0sk_lc_set(self->ikdb_c0sk, self->ikdb_lc);
     c0sk_ctxn_set_set(self->ikdb_c0sk, self->ikdb_ctxn_set);
+
+    kvdb_log_waloid_get(self->ikdb_log, &self->ikdb_wal_oid1, &self->ikdb_wal_oid2);
+    err = wal_open(mp, &self->ikdb_rp, self->ikdb_wal_oid1, self->ikdb_wal_oid2,
+                   &self->ikdb_health, &self->ikdb_wal);
+    if (err) {
+        hse_elog(HSE_ERR "cannot open %s: @@e", err, kvdb_home);
+        goto err1;
+    }
 
     *handle = &self->ikdb_handle;
 

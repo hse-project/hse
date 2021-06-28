@@ -73,12 +73,12 @@ wal_rec_finish(struct wal_record *rec, u64 seqno, u64 gen)
 }
 
 void
-wal_txn_rechdr_pack(enum wal_rec_type rtype, u64 rid, void *outbuf)
+wal_txn_rechdr_pack(enum wal_rec_type rtype, u64 rid, u64 gen, void *outbuf)
 {
     struct wal_rechdr_omf *rhomf = outbuf;
 
     omf_set_rh_flags(rhomf, WAL_FLAGS_MORG);
-    omf_set_rh_gen(rhomf, 0);
+    omf_set_rh_gen(rhomf, gen);
     omf_set_rh_type(rhomf, rtype);
     omf_set_rh_rid(rhomf, rid);
     omf_set_rh_len(rhomf, wal_txn_rec_len() - wal_rechdr_len());

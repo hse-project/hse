@@ -827,7 +827,7 @@ exit_err:
         ingest->t10 = get_time_ns();
 
         ingest->gen = kvms_gen;
-        ingest->gencur = c0kvms_gen_current(kvms);
+        ingest->gencur = c0kvms_gen_current();
     }
 
     c0sk_kvmultiset_ingest_completion(c0sk, kvms);

@@ -15,6 +15,7 @@
 #include <hse_ikvdb/key_hash.h>
 #include <hse_ikvdb/kvdb_ctxn.h>
 #include <hse_ikvdb/kvdb_rparams.h>
+#include <hse_ikvdb/c0sk.h>
 
 #include <mpool/mpool.h>
 
@@ -231,6 +232,9 @@ static merr_t
 wal_cond_sync(struct wal *wal, u64 gen)
 {
     struct wal_sync_waiter swait = {0};
+    u64 start, end;
+    uint dur;
+    merr_t err;
 
     assert(wal);
 
@@ -241,7 +245,14 @@ wal_cond_sync(struct wal *wal, u64 gen)
     if (swait.ws_bufcnt < 0)
         return merr(EBUG);
 
-    return wal_sync_impl(wal, &swait);
+    start = get_time_ns();
+    err = wal_sync_impl(wal, &swait);
+    end = get_time_ns();
+
+    if (!err && (dur = NSEC_TO_MSEC(end - start)) > 20)
+        hse_log(HSE_NOTICE "%s: WAL ingest sync for dgen %lu took %u msec", __func__, gen, dur);
+
+    return err;
 }
 
 
@@ -398,11 +409,12 @@ static merr_t
 wal_txn(struct wal *wal, uint rtype, uint64_t txid, uint64_t seqno)
 {
     struct wal_txnrec_omf *rec;
-    uint64_t rid, offset;
+    uint64_t rid, offset, gen;
     size_t rlen;
+    uint wbidx;
 
     rlen = wal_txn_rec_len();
-    rec = wal_bufset_alloc(wal->wbs, rlen, &offset, NULL);
+    rec = wal_bufset_alloc(wal->wbs, rlen, &offset, &wbidx);
     if (!rec) {
         merr_t err = merr(ENOMEM); /* unrecoverable error */
 
@@ -411,9 +423,12 @@ wal_txn(struct wal *wal, uint rtype, uint64_t txid, uint64_t seqno)
     }
 
     rid = atomic64_inc_return(&wal->rid);
+    gen = c0sk_gen_current();
 
-    wal_txn_rechdr_pack(rtype, rid, rec);
+    wal_txn_rechdr_pack(rtype, rid, gen, rec);
     wal_txn_rec_pack(txid, seqno, rec);
+
+    wal_bufset_finish(wal->wbs, wbidx, rlen, gen, offset + rlen);
     wal_txn_rechdr_finish(rec, rlen, offset);
 
     return 0;
