@@ -387,7 +387,7 @@ if 'unit' in enabled_tests or get_option('tools')
     subdir('tools' / 'include')
 endif
 if enabled_tests.length() > 0
-    # need to know about mocks, framework, test support sources before entering src directory
+    # need to know about mocks, framework, test support sources before entering lib directory
     if 'unit' in enabled_tests
         subdir('tests' / 'mocks')
         subdir('tests' / 'support')

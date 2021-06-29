@@ -2,23 +2,18 @@
 
 set -u
 set -e
-#set -o pipefail
+set -o pipefail
 
 mkdir -p ${3}
 
 target=${1}
-inputs="${3}/inputs"
-depfile=${2}
-project_root=${4}
+project_root=${2}
+inputs=${4}
+file="${3}/inputs"
 
-echo "mapi-idx-generate: " > $depfile
+sed "s/\ /\x00/g" <<<$inputs | tr -d '\n' > $file
 
-# Get a sorted list of input files
-find $project_root -type f -name '*.h' -print0 | sort -z | tee --append $depfile > "$inputs"
-
-sed -i "s/\x00/\n/g" $depfile
-
-xargs -0 -n1 "$project_root/scripts/build/utpp" -- -m < "$inputs" \
+xargs -0 -n1 "$project_root/scripts/build/utpp" -- -m < "$file" \
     | sort -u \
     | awk > "$target" '
     BEGIN {
