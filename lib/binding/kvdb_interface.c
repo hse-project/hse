@@ -139,7 +139,7 @@ hse_kvdb_make(const char *kvdb_home, size_t paramc, const char *const *const par
 
     pfh = pidfile_open(pidfile_path, S_IRUSR | S_IWUSR, NULL);
     if (!pfh) {
-        err = (errno == EEXIST) ? merr(EBUSY) : merr(errno);
+        err = merr(errno);
         goto out;
     }
 
