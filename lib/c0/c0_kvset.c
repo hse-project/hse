@@ -688,7 +688,7 @@ c0kvs_get_element_count(struct c0_kvset *handle)
 }
 
 u64
-c0kvs_get_element_count2(struct c0_kvset *handle, uint *heightp, uint *keyvalsp)
+c0kvs_get_element_count2(struct c0_kvset *handle, uint *heightp, uint *keyvalsp, bool *full)
 {
     struct c0_kvset_impl *self = c0_kvset_h2r(handle);
     u64                   cnt;
@@ -697,6 +697,9 @@ c0kvs_get_element_count2(struct c0_kvset *handle, uint *heightp, uint *keyvalsp)
 
     *heightp = self->c0s_height;
     *keyvalsp = self->c0s_keyvals;
+
+    /* [HSE_REVISIT]: Revisit when working on c0/wal throttling. */
+    *full = (self->c0s_total_key_bytes + self->c0s_total_value_bytes > 2 * HSE_C0_CHEAP_SZ_MAX);
 
     return cnt;
 }

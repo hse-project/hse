@@ -300,6 +300,7 @@ c0kvms_should_ingest(struct c0_kvmultiset *handle)
     const uint                 scaler = 1u << 20;
     uint                       sum_keyvals, sum_height;
     uint                       ndiv, n, r;
+    bool                       full = false;
 
     if (atomic_read(&self->c0ms_ingesting) > 0)
         return true;
@@ -328,7 +329,11 @@ c0kvms_should_ingest(struct c0_kvmultiset *handle)
     while (n-- > 0) {
         uint height, keyvals, cnt;
 
-        cnt = c0kvs_get_element_count2(self->c0ms_sets[r++], &height, &keyvals);
+        cnt = c0kvs_get_element_count2(self->c0ms_sets[r++], &height, &keyvals, &full);
+
+        if (full)
+            return true;
+
         if (cnt > 0) {
             if (ev(keyvals > 4096 || height > 24))
                 return true;
