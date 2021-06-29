@@ -88,7 +88,7 @@ static const struct param_spec pspecs[] = {
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
         .ps_default_value = {
-            .as_uscalar = 0,
+            .as_uscalar = 1500,
         },
         .ps_bounds = {
             .as_uscalar = {
