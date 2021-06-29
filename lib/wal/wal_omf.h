@@ -38,7 +38,6 @@ enum wal_flags {
     WAL_FLAGS_BORG = (1 << 0),
     WAL_FLAGS_MORG = (1 << 1),
     WAL_FLAGS_EORG = (1 << 2),
-    WAL_FLAGS_ERROR = (1 << 3),
 };
 
 
@@ -70,11 +69,19 @@ struct wal_config_omf {
     struct wal_mdchdr_omf cfg_hdr;
     __le32 cfg_durms;
     __le32 cfg_durbytes;
+        u8 cfg_mclass;
+        u8 cfg_rsvd1;
+    __le16 cfg_rsvd2;
+    __le32 cfg_rsvd3;
 } HSE_PACKED;
 
 /* Define set/get methods for wal_config_omf */
 OMF_SETGET(struct wal_config_omf, cfg_durms, 32);
 OMF_SETGET(struct wal_config_omf, cfg_durbytes, 32);
+OMF_SETGET(struct wal_config_omf, cfg_mclass, 8);
+OMF_SETGET(struct wal_config_omf, cfg_rsvd1, 8);
+OMF_SETGET(struct wal_config_omf, cfg_rsvd2, 16);
+OMF_SETGET(struct wal_config_omf, cfg_rsvd3, 32);
 
 
 struct wal_close_omf {

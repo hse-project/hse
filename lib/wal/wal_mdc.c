@@ -176,7 +176,12 @@ wal_mdc_version_unpack(const char *buf, struct wal *wal)
 }
 
 static merr_t
-wal_mdc_config_write_impl(struct wal_mdc *mdc, uint32_t dur_ms, uint32_t dur_bytes, bool sync)
+wal_mdc_config_write_impl(
+    struct wal_mdc   *mdc,
+    uint32_t          dur_ms,
+    uint32_t          dur_bytes,
+    enum mpool_mclass mclass,
+    bool              sync)
 {
     struct wal_config_omf comf;
     merr_t err;
@@ -184,6 +189,10 @@ wal_mdc_config_write_impl(struct wal_mdc *mdc, uint32_t dur_ms, uint32_t dur_byt
     wal_mdchdr_pack(WAL_RT_CONFIG, (char *)&comf);
     omf_set_cfg_durms(&comf, dur_ms);
     omf_set_cfg_durbytes(&comf, dur_bytes);
+    omf_set_cfg_mclass(&comf, mclass);
+    omf_set_cfg_rsvd1(&comf, 0);
+    omf_set_cfg_rsvd2(&comf, 0);
+    omf_set_cfg_rsvd3(&comf, 0);
 
     err = mpool_mdc_append(mdc->mp_mdc, &comf, sizeof(comf), sync);
     if (err)
@@ -196,13 +205,14 @@ merr_t
 wal_mdc_config_write(struct wal_mdc *mdc, struct wal *wal, bool sync)
 {
     uint32_t dur_ms, dur_bytes;
+    enum mpool_mclass mclass;
 
     if (!mdc || !wal)
         return merr(EINVAL);
 
-    wal_dur_params_get(wal, &dur_ms, &dur_bytes);
+    wal_dur_params_get(wal, &dur_ms, &dur_bytes, &mclass);
 
-    return wal_mdc_config_write_impl(mdc, dur_ms, dur_bytes, sync);
+    return wal_mdc_config_write_impl(mdc, dur_ms, dur_bytes, mclass, sync);
 }
 
 
@@ -211,6 +221,7 @@ wal_mdc_config_unpack(const char *buf, struct wal *wal)
 {
     struct wal_config_omf *comf;
     uint32_t dur_ms, dur_bytes;
+    enum mpool_mclass mclass;
 
     if (!buf || !wal)
         return merr(EINVAL);
@@ -219,7 +230,8 @@ wal_mdc_config_unpack(const char *buf, struct wal *wal)
 
     dur_ms = omf_cfg_durms(comf);
     dur_bytes = omf_cfg_durbytes(comf);
-    wal_dur_params_set(wal, dur_ms, dur_bytes);
+    mclass = omf_cfg_mclass(comf);
+    wal_dur_params_set(wal, dur_ms, dur_bytes, mclass);
 
     return 0;
 }
@@ -243,7 +255,12 @@ wal_mdc_close_write(struct wal_mdc *mdc, bool sync)
 }
 
 merr_t
-wal_mdc_format(struct wal_mdc *mdc, uint32_t version, uint32_t dur_ms, uint32_t dur_bytes)
+wal_mdc_format(
+    struct wal_mdc   *mdc,
+    uint32_t          version,
+    uint32_t          dur_ms,
+    uint32_t          dur_bytes,
+    enum mpool_mclass mclass)
 {
     merr_t err;
     bool sync = true;
@@ -252,7 +269,7 @@ wal_mdc_format(struct wal_mdc *mdc, uint32_t version, uint32_t dur_ms, uint32_t 
     if (err)
         return err;
 
-    err = wal_mdc_config_write_impl(mdc, dur_ms, dur_bytes, sync);
+    err = wal_mdc_config_write_impl(mdc, dur_ms, dur_bytes, mclass, sync);
     if (err)
         return err;
 

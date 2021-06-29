@@ -50,15 +50,12 @@ suites = {
             'kmt-mpool',
             'kvt-isolation',
             'bonsai-insdel',
-            'large-values1',    # 1M value tests, yet to be fixed
+            'large-values1',
             'cursor_test2',
             'probe-test',
-            'kvt-compression',  # 1M value tests, yet to be fixed
+            'kvt-compression',
 
 
-            # These tests disabled until WAL is back:
-            #
-            #   kvt-logreplay
             #
             # These tests started failing around 2021-03-10:
             #

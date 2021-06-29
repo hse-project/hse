@@ -15,6 +15,7 @@
 struct kvdb_cparams {
     uint32_t dur_intvl_ms;
     size_t dur_buf_sz;
+    int dur_mclass;
     struct mpool_cparams storage;
 };
 

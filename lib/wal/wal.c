@@ -56,6 +56,7 @@ struct wal {
     uint32_t   dur_ms;
     uint32_t   dur_bytes;
     uint32_t   version;
+    enum mpool_mclass mclass;
     struct kvdb_health *health;
     struct wal_iocb wiocb;
 };
@@ -478,8 +479,12 @@ wal_create(struct mpool *mp, struct kvdb_cparams *cp, uint64_t *mdcid1, uint64_t
     struct wal_mdc *mdc;
     merr_t err;
     u32 dur_ms, dur_bytes;
+    enum mpool_mclass mclass;
 
-    err = wal_mdc_create(mp, MP_MED_CAPACITY, WAL_MDC_CAPACITY, mdcid1, mdcid2);
+    mclass = cp->dur_mclass;
+    assert(mclass >= MP_MED_BASE && mclass < MP_MED_COUNT);
+
+    err = wal_mdc_create(mp, mclass, WAL_MDC_CAPACITY, mdcid1, mdcid2);
     if (err)
         return err;
 
@@ -495,7 +500,7 @@ wal_create(struct mpool *mp, struct kvdb_cparams *cp, uint64_t *mdcid1, uint64_t
     dur_bytes = cp->dur_buf_sz;
     dur_bytes = clamp_t(long, dur_bytes, WAL_DUR_BYTES_MIN, WAL_DUR_BYTES_MAX);
 
-    err = wal_mdc_format(mdc, WAL_VERSION, dur_ms, dur_bytes);
+    err = wal_mdc_format(mdc, WAL_VERSION, dur_ms, dur_bytes, mclass);
 
     wal_mdc_close(mdc);
 
@@ -563,7 +568,11 @@ wal_open(
         return 0;
     }
 
-    wal->wfset= wal_fileset_open(mp, MP_MED_CAPACITY, WAL_FILE_SIZE_BYTES, WAL_MAGIC, WAL_VERSION);
+    err = wal_mdc_compact(wal->mdc, wal);
+    if (err)
+        goto errout;
+
+    wal->wfset= wal_fileset_open(mp, wal->mclass, WAL_FILE_SIZE_BYTES, WAL_MAGIC, WAL_VERSION);
     if (!wal->wfset) {
         err = merr(ENOMEM);
         goto errout;
@@ -669,17 +678,23 @@ wal_cningest_cb(struct wal *wal, u64 seqno, u64 gen, u64 txhorizon, bool post_in
  * get/set interfaces for struct wal fields
  */
 void
-wal_dur_params_get(struct wal *wal, uint32_t *dur_ms, uint32_t *dur_bytes)
+wal_dur_params_get(
+    struct wal        *wal,
+    uint32_t          *dur_ms,
+    uint32_t          *dur_bytes,
+    enum mpool_mclass *mclass)
 {
     *dur_ms = wal->dur_ms;
     *dur_bytes = wal->dur_bytes;
+    *mclass = wal->mclass;
 }
 
 void
-wal_dur_params_set(struct wal *wal, uint32_t dur_ms, uint32_t dur_bytes)
+wal_dur_params_set(struct wal *wal, uint32_t dur_ms, uint32_t dur_bytes, enum mpool_mclass mclass)
 {
     wal->dur_ms = dur_ms;
     wal->dur_bytes = dur_bytes;
+    wal->mclass = mclass;
 }
 
 uint32_t

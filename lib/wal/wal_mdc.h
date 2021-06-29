@@ -44,7 +44,12 @@ merr_t
 wal_mdc_close_write(struct wal_mdc *mdc, bool sync);
 
 merr_t
-wal_mdc_format(struct wal_mdc *mdc, uint32_t version, uint32_t dur_ms, uint32_t dur_bytes);
+wal_mdc_format(
+    struct wal_mdc   *mdc,
+    uint32_t          version,
+    uint32_t          dur_ms,
+    uint32_t          dur_bytes,
+    enum mpool_mclass mclass);
 
 merr_t
 wal_mdc_compact(struct wal_mdc *mdc, struct wal *wal);
