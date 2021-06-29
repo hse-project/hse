@@ -62,6 +62,38 @@ struct wal_bufset {
 
 /* clang-format on */
 
+static HSE_ALWAYS_INLINE void
+wal_buffer_minmax_seqno(const char *buf, uint rtype, struct wal_minmax_info *info)
+{
+    bool nontx, txcom;
+
+    nontx = wal_rectype_nontx(rtype);
+    txcom = wal_rectype_txcommit(rtype);
+    if (nontx || txcom) {
+        struct wal_rec_omf *r = (void *)buf;
+        struct wal_txnrec_omf *tr = (void *)buf;
+        u64 seqno = nontx ? omf_r_seqno(r) : omf_tr_seqno(tr);
+
+        info->min_seqno = min_t(u64, info->min_seqno, seqno);
+        info->max_seqno = max_t(u64, info->max_seqno, seqno);
+    }
+}
+
+static HSE_ALWAYS_INLINE void
+wal_buffer_minmax_txid(const char *buf, uint rtype, struct wal_minmax_info *info)
+{
+    bool txmeta;
+
+    txmeta = wal_rectype_txnmeta(rtype);
+    if (txmeta) {
+        struct wal_txnrec_omf *tr = (void *)buf;
+        u64 txid = omf_tr_txid(tr);
+
+        info->min_txid = min_t(u64, info->min_txid, txid);
+        info->max_txid = max_t(u64, info->max_txid, txid);
+    }
+}
+
 /*
  * Flush worker routine - for a specific buffer
  *
@@ -102,9 +134,9 @@ restart:
     start_foff = foff;
 
     while (foff < coff) {
-        bool txmeta, txcom, nontx, skiprec = false;
+        bool skiprec = false;
         u32 rtype;
-        u64 seqno, recoff;
+        u64 recoff;
 
         buf = wb->wb_buf + (foff % WAL_BUFSZ_MAX);
         rhdr = (void *)buf;
@@ -152,26 +184,10 @@ restart:
 
         /* Determine min/max seqno from non-tx op and tx-commit record */
         rtype = omf_rh_type(rhdr);
-        nontx = wal_rectype_nontx(rtype);
-        txcom = wal_rectype_txcommit(rtype);
-        if (nontx || txcom) {
-            struct wal_rec_omf *r = (void *)buf;
-            struct wal_txnrec_omf *tr = (void *)buf;
+        wal_buffer_minmax_seqno(buf, rtype, &info);
 
-            seqno = nontx ? omf_r_seqno(r) : omf_tr_seqno(tr);
-            info.min_seqno = min_t(u64, info.min_seqno, seqno);
-            info.max_seqno = max_t(u64, info.max_seqno, seqno);
-        }
-
-        /* Determine min/max txid from txmeta */
-        txmeta = wal_rectype_txnmeta(rtype);
-        if (txmeta) {
-            struct wal_txnrec_omf *tr = (void *)buf;
-            u64 txid = omf_tr_txid(tr);
-
-            info.min_txid = min_t(u64, info.min_txid, txid);
-            info.max_txid = max_t(u64, info.max_txid, txid);
-        }
+        /* Determine min/max txid from tx meta record */
+        wal_buffer_minmax_txid(buf, rtype, &info);
 
         prev_foff = foff;
         foff += (rhlen + omf_rh_len(rhdr));

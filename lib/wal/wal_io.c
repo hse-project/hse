@@ -76,6 +76,7 @@ wal_io_submit(struct wal_io_work *iow)
         }
     } else {
         ev(gen < cgen);
+        assert(io->io_wfile);
         wal_file_get(io->io_wfile);
     }
 

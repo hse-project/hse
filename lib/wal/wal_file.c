@@ -286,13 +286,16 @@ wal_file_complete(struct wal_fileset *wfset, struct wal_file *wfile)
 void
 wal_file_get(struct wal_file *wfile)
 {
+    if (!wfile)
+        return;
+
     atomic64_inc(&wfile->ref);
 }
 
 void
 wal_file_put(struct wal_file *wfile)
 {
-    if (atomic64_dec_return(&wfile->ref) == 0)
+    if (wfile && atomic64_dec_return(&wfile->ref) == 0)
         wal_file_close(wfile);
 }
 
