@@ -366,7 +366,7 @@ c0_sync(struct c0 *handle)
     if (self->c0_rp->rdonly)
         return 0;
 
-    return c0sk_sync(self->c0_c0sk);
+    return c0sk_sync(self->c0_c0sk, 0);
 }
 
 u16

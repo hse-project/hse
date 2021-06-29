@@ -822,24 +822,17 @@ hse_kvs_cursor_destroy(struct hse_kvs_cursor *cursor);
  * @{
  */
 
+#define HSE_FLAG_SYNC_ASYNC (1 << 0)/* make the sync operation asynchronous */
+
 /**
- * Flush data in all of the referenced KVDB's KVSs to stable media and return
+ * Sync data in all of the referenced KVDB's KVSs to stable media and return
  *
  * @param kvdb: KVDB handle from hse_kvdb_open()
  * @return The function's error status
  */
 /* MTF_MOCK */
 hse_err_t
-hse_kvdb_sync(struct hse_kvdb *kvdb);
-
-/**
- * Initiate data flush in all of the referenced KVDB's KVSs
- *
- * @param kvdb: KVDB handle from hse_kvdb_open()
- * @return The function's error status
- */
-hse_err_t
-hse_kvdb_flush(struct hse_kvdb *kvdb);
+hse_kvdb_sync(struct hse_kvdb *kvdb, unsigned int flags);
 
 /* Flags for hse_kvdb_compact() */
 #define HSE_KVDB_COMP_FLAG_CANCEL   0x01

@@ -3574,7 +3574,7 @@ periodic_sync(void *arg)
             continue;
 
         ns = get_time_ns();
-        err = hse_kvdb_sync(impl->kvdb);
+        err = hse_kvdb_sync(impl->kvdb, 0);
         ns = get_time_ns() - ns;
 
         if (err) {

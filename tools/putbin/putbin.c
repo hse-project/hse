@@ -198,7 +198,7 @@ do_close(struct hse_kvdb *kvdb, bool sync)
     int rc;
 
     if (sync) {
-        rc = hse_kvdb_sync(kvdb);
+        rc = hse_kvdb_sync(kvdb, 0);
         if (rc)
             fatal(rc, "cannot sync");
         return;

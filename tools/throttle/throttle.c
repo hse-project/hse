@@ -707,7 +707,7 @@ test_put_impl(
     ti->time += tmelapsed;
 
     start = get_time_ns();
-    hse_kvdb_sync(kvdb);
+    hse_kvdb_sync(kvdb, 0);
     tmelapsed = get_time_ns() - start;
 
     ti->time += tmelapsed;

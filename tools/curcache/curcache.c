@@ -138,9 +138,9 @@ maker(void *h)
         }
 
         /* we want a kvms to be ingested */
-        err = hse_kvdb_flush(kvdb);
+        err = hse_kvdb_sync(kvdb, HSE_FLAG_SYNC_ASYNC);
         if (err)
-            tdie(err, "cannot flush");
+            tdie(err, "cannot sync");
 
         if (verbose && j % mod[verbose] == 0) {
             printf("maker: loop %d/%d: put keys 100..1000\n", j, loops);

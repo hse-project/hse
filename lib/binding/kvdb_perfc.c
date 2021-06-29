@@ -50,7 +50,6 @@ struct perfc_name kvdb_perfc_op[] = {
     NE(PERFC_RA_KVDBOP_KVDB_KVS_CLOSE,  3, "kvdb_kvs_close rate",     "r_kvdb_kvs_close(/s)"),
     NE(PERFC_RA_KVDBOP_KVDB_KVS_CREATE,   3, "kvdb_kvs_make rate",      "r_kvdb_kvs_make(/s)"),
     NE(PERFC_RA_KVDBOP_KVDB_KVS_DROP,   3, "kvdb_kvs_drop rate",      "r_kvdb_kvs_drop(/s)"),
-    NE(PERFC_RA_KVDBOP_KVDB_FLUSH,      3, "kvdb_flush rate",         "r_kvdb_flush(/s)"),
     NE(PERFC_RA_KVDBOP_KVDB_TXN_GET_STATE,
        3, "kvdb_txn_get_state rate", "r_kvdb_txn_get_state(/s)"),
 };
@@ -63,7 +62,6 @@ struct perfc_name kvdb_perfc_pkvdbl_op[] = {
     NE(PERFC_LT_PKVDBL_KVDB_MAKE,       3, "kvdb_make latency",       "l_kvdb_make"),
     NE(PERFC_LT_PKVDBL_KVDB_DROP,       3, "kvdb_drop latency",       "l_kvdb_drop"),
     NE(PERFC_LT_PKVDBL_KVDB_OPEN,       3, "kvdb_open latency",       "l_kvdb_open"),
-    NE(PERFC_LT_PKVDBL_KVDB_FLUSH,      3, "kvdb_flush latency",      "l_kvdb_flush"),
     NE(PERFC_LT_PKVDBL_KVDB_TXN_BEGIN,  3, "kvdb_txn_begin latency",  "l_kvdb_txn_begin"),
     NE(PERFC_LT_PKVDBL_KVDB_TXN_COMMIT, 3, "kvdb_txn_commit latency", "l_kvdb_txn_commit"),
     NE(PERFC_LT_PKVDBL_KVDB_TXN_ABORT,  3, "kvdb_txn_abort latency",  "l_kvdb_txn_abort"),

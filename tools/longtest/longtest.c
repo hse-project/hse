@@ -1597,7 +1597,7 @@ do_one_iteration(
 
 	if (opt.sync == -1 || opt.sync == ts->id) {
 		interact("hse_kvdb_sync");
-		hse_kvdb_sync(test.kvdb_h);
+		hse_kvdb_sync(test.kvdb_h, 0);
 	}
 
 	/* KVS State:  PPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPP */

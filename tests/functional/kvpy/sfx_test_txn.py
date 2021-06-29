@@ -29,7 +29,7 @@ try:
         txn = kvdb.transaction()
         txn.begin()
 
-        kvdb.flush()
+        kvdb.sync(flags=hse.SyncFlag.ASYNC)
         with kvdb.transaction() as t:
             kvs.put(b"AbcXY", b"2", txn=t)
 
@@ -37,7 +37,7 @@ try:
         assert cnt == hse_exp.KvsPfxProbeCnt.ONE
         assert kv == [b"AbcXX", b"1"]
 
-        kvdb.flush()
+        kvdb.sync(flags=hse.SyncFlag.ASYNC)
         kvs.put(b"AbcXZ", b"3", txn=txn)
         cnt, *kv = hse_exp.kvs_prefix_probe(kvs, b"Abc", txn=txn)  # inside txn
         assert cnt == hse_exp.KvsPfxProbeCnt.MUL

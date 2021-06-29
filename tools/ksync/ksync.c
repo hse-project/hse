@@ -120,9 +120,9 @@ stuff(void)
                 }
             }
 
-            herr = hse_kvdb_flush(kvdb);
+            herr = hse_kvdb_sync(kvdb, HSE_FLAG_SYNC_ASYNC);
             if (herr) {
-                herr_print(herr, "hse_kvdb_flush() failed: ");
+                herr_print(herr, "hse_kvdb_sync() failed: ");
                 break;
             }
         }
@@ -152,7 +152,7 @@ stuff(void)
                 }
             }
 
-            herr = hse_kvdb_sync(kvdb);
+            herr = hse_kvdb_sync(kvdb, 0);
             if (herr) {
                 herr_print(herr, "hse_kvdb_sync() failed: ");
                 break;

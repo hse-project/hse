@@ -26,16 +26,16 @@ try:
         cursor.read()
         assert cursor.eof
 
-        kvdb.flush()
+        kvdb.sync(flags=hse.SyncFlag.ASYNC)
 
         kvs.put(b"c", b"3")
-        kvdb.flush()
+        kvdb.sync(flags=hse.SyncFlag.ASYNC)
 
         kvs.put(b"d", b"4")
-        kvdb.flush()
+        kvdb.sync(flags=hse.SyncFlag.ASYNC)
 
         kvs.put(b"e", b"5")
-        kvdb.flush()
+        kvdb.sync(flags=hse.SyncFlag.ASYNC)
 
         kvs.put(b"f", b"6")
 

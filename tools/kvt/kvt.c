@@ -1148,7 +1148,7 @@ periodic_sync(void *arg)
         if (rc)
             continue;
 
-        err = hse_kvdb_sync(kvdb);
+        err = hse_kvdb_sync(kvdb, 0);
         if (err)
             eprint(err, "%s: failed to sync kvdb", __func__);
     }
@@ -1862,7 +1862,7 @@ kvt_create(
         return EX_SOFTWARE;
     }
 
-    err = hse_kvdb_sync(kvdb);
+    err = hse_kvdb_sync(kvdb, 0);
     if (err) {
         eprint(err, "kvdb sync");
         return EX_SOFTWARE;
@@ -2416,7 +2416,7 @@ kvt_init(const char *keyfile, const char *keyfmt, u_long keymax, bool dump)
     }
 
 
-    err = hse_kvdb_sync(kvdb);
+    err = hse_kvdb_sync(kvdb, 0);
     if (err)
         eprint(err, "kvdb sync");
 

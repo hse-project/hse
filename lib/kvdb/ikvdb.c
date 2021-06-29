@@ -2494,25 +2494,14 @@ ikvdb_compact_status_get(struct ikvdb *handle, struct hse_kvdb_compact_status *s
 }
 
 merr_t
-ikvdb_sync(struct ikvdb *handle)
+ikvdb_sync(struct ikvdb *handle, const unsigned int flags)
 {
     struct ikvdb_impl *self = ikvdb_h2r(handle);
 
     if (ev(self->ikdb_rdonly))
         return merr(EROFS);
 
-    return c0sk_sync(self->ikdb_c0sk);
-}
-
-merr_t
-ikvdb_flush(struct ikvdb *handle)
-{
-    struct ikvdb_impl *self = ikvdb_h2r(handle);
-
-    if (ev(self->ikdb_rdonly))
-        return merr(EROFS);
-
-    return c0sk_flush(self->ikdb_c0sk);
+    return c0sk_sync(self->ikdb_c0sk, flags);
 }
 
 u64

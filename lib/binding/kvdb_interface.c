@@ -33,6 +33,7 @@
 #include <bsd/libutil.h>
 #include <pidfile/pidfile.h>
 
+#define HSE_FLAG_SYNC_ALL HSE_FLAG_SYNC_ASYNC
 #define HSE_FLAG_PUT_ALL HSE_FLAG_PUT_PRIORITY
 #define HSE_FLAG_CURSOR_ALL \
     (HSE_FLAG_CURSOR_REVERSE | HSE_FLAG_CURSOR_BIND_TXN | HSE_FLAG_CURSOR_STATIC_VIEW)
@@ -780,41 +781,21 @@ hse_kvs_prefix_delete(
 }
 
 hse_err_t
-hse_kvdb_sync(struct hse_kvdb *handle)
+hse_kvdb_sync(struct hse_kvdb *handle, const unsigned int flags)
 {
     merr_t err;
     u64    tstart;
 
-    if (HSE_UNLIKELY(!handle))
+    if (HSE_UNLIKELY(!handle || flags & ~HSE_FLAG_SYNC_ALL))
         return merr_to_hse_err(merr(EINVAL));
 
     tstart = perfc_lat_startl(&kvdb_pkvdbl_pc, PERFC_SL_PKVDBL_KVDB_SYNC);
     perfc_inc(&kvdb_pc, PERFC_RA_KVDBOP_KVDB_SYNC);
 
-    err = ikvdb_sync((struct ikvdb *)handle);
+    err = ikvdb_sync((struct ikvdb *)handle, flags);
     ev(err);
 
     perfc_sl_record(&kvdb_pkvdbl_pc, PERFC_SL_PKVDBL_KVDB_SYNC, tstart);
-
-    return merr_to_hse_err(err);
-}
-
-hse_err_t
-hse_kvdb_flush(struct hse_kvdb *handle)
-{
-    merr_t err;
-    u64    tstart;
-
-    if (HSE_UNLIKELY(!handle))
-        return merr_to_hse_err(merr(EINVAL));
-
-    tstart = perfc_lat_startu(&kvdb_pkvdbl_pc, PERFC_LT_PKVDBL_KVDB_FLUSH);
-    perfc_inc(&kvdb_pc, PERFC_RA_KVDBOP_KVDB_FLUSH);
-
-    err = ikvdb_flush((struct ikvdb *)handle);
-    ev(err);
-
-    perfc_lat_record(&kvdb_pkvdbl_pc, PERFC_LT_PKVDBL_KVDB_FLUSH, tstart);
 
     return merr_to_hse_err(err);
 }

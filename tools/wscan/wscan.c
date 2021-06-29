@@ -190,12 +190,12 @@ main(int argc, char **argv)
         fatal(err, "cannot open %s/%s/%s", mpname, dsname, kvname);
 
     /* MU_REVISIT: bypass bug where c0sk config not plumbed thru */
-    err = hse_kvdb_sync(h);
+    err = hse_kvdb_sync(h, 0);
     if (err)
-        fatal(err, "cannot flush");
-    err = hse_kvdb_sync(h);
+        fatal(err, "cannot sync");
+    err = hse_kvdb_sync(h, 0);
     if (err)
-        fatal(err, "cannot flush");
+        fatal(err, "cannot sync");
 
     // loop:
     //   create cursor

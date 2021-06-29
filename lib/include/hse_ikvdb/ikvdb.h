@@ -353,17 +353,10 @@ ikvdb_kvs_prefix_delete(
     size_t *             kvs_pfx_len);
 
 /**
- * ikvdb_sync() - flush data in all of the KVSes to stable media.
+ * ikvdb_sync() - sync data in all of the KVSes to stable media.
  */
 merr_t
-ikvdb_sync(struct ikvdb *kvdb);
-
-/**
- * ikvdb_flush() - initiate data flush in all of the KVSes to stable media.
- */
-/* MTF_MOCK */
-merr_t
-ikvdb_flush(struct ikvdb *store);
+ikvdb_sync(struct ikvdb *kvdb, unsigned int flags);
 
 /**
  * ikvdb_horizon() - return an upper bound on the smallest view sequence

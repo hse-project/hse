@@ -226,17 +226,6 @@ merr_t
 c0sk_prefix_del(struct c0sk *self, u16 skidx, const struct kvs_ktuple *key, u64 seq);
 
 /**
- * c0sk_flush() - Start ingest of existing c0sk data
- * @self:       Instance of struct c0sk to flush
- *
- * Start ingest of existing c0sk data, returns to caller without waiting
- * for ingest to complete.
- */
-/* MTF_MOCK */
-merr_t
-c0sk_flush(struct c0sk *self);
-
-/**
  * c0sk_rparams() - Get a ptr to c0sk kvdb rparams
  * @self:       Instance of struct c0sk
  *
@@ -245,15 +234,15 @@ struct kvdb_rparams *
 c0sk_rparams(struct c0sk *self);
 
 /**
- * c0sk_sync() - Force immediate ingest of existing c0sk data
+ * c0sk_sync() - Force ingest of existing c0sk data
  * @self:       Instance of struct c0sk to flush
  *
- * Force immediate ingest of existing c0sk data and waits until
- * it has been ingested by cn before returning to caller.
+ * Force ingest of existing c0sk data and waits (if not asynchronous)
+ * until it has been ingested by cn before returning to caller.
  */
 /* MTF_MOCK */
 merr_t
-c0sk_sync(struct c0sk *self);
+c0sk_sync(struct c0sk *self, unsigned int flags);
 
 /**
  * c0sk_cursor_create() - create a cursor over c0

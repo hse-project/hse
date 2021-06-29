@@ -232,7 +232,7 @@ syncme(void *arg)
 	while (!killthreads) {
 		sleep(1);
 
-		hse_kvdb_sync(targ->kvdb);
+		hse_kvdb_sync(targ->kvdb, 0);
 	}
 }
 

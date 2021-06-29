@@ -26,7 +26,7 @@ try:
         assert cnt == hse_exp.KvsPfxProbeCnt.ONE
         assert kv == [b"AbcXX", b"42"]
 
-        kvdb.flush()
+        kvdb.sync(flags=hse.SyncFlag.ASYNC)
         kvs.put(b"AbcXX", b"43")  # duplicate
 
         cnt, *kv = hse_exp.kvs_prefix_probe(kvs, b"Abc")

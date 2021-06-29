@@ -634,7 +634,7 @@ test_end_phase(struct thread_info *ti, bool final)
 		if (verbose)
 			printf("T%u: hse_kvdb_sync\n", ti->id);
 		if (!opt.dryrun) {
-			rc = hse_kvdb_sync(kvdb);
+			rc = hse_kvdb_sync(kvdb, 0);
 			if (rc)
 				merr_quit("hse_kvdb_sync failed", rc);
 		}

@@ -263,7 +263,7 @@ syncme(void *arg)
 	struct thread_arg  *ta = arg;
 
 	while (!killthreads) {
-		hse_kvdb_sync(ta->kvdb);
+		hse_kvdb_sync(ta->kvdb, 0);
 
 		usleep(100 * 1000);
 	}

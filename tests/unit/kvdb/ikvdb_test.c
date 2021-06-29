@@ -1663,7 +1663,7 @@ MTF_DEFINE_UTEST_PREPOST(ikvdb_test, kvdb_sync_test, test_pre, test_post)
 
     ikvdb_free_names(h, list);
 
-    err = ikvdb_sync(h);
+    err = ikvdb_sync(h, 0);
     ASSERT_EQ(0, err);
 
     for (i = 0; i < kvs_cnt; ++i) {
