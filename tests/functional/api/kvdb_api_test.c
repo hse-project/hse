@@ -8,7 +8,6 @@
 #include <hse_ut/fixtures.h>
 
 /* Globals */
-char *           mpool_name;
 struct hse_kvdb *kvdb_handle;
 
 int
@@ -39,8 +38,8 @@ MTF_DEFINE_UTEST(kvdb_api, kvdb_make_exists)
 {
     hse_err_t err;
 
-    /* TC: Trying to create a KVDB on an alredy open KVDB returns EEXIST */
-    err = hse_kvdb_make(mpool_name, 0, NULL);
+    /* TC: Trying to create a KVDB on an alraedy open KVDB returns EEXIST */
+    err = hse_kvdb_make(home, 0, NULL);
     ASSERT_EQ(hse_err_to_errno(err), EEXIST);
 }
 
