@@ -337,10 +337,13 @@ hse_kvdb_kvs_close(struct hse_kvs *kvs);
  * @{
  */
 
-/* Flags for put operation */
+/**
+ * Flags for PUT operation
+ */
 
-/* Operation will not be throttled */
-#define HSE_FLAG_PUT_PRIORITY (1 << 0)
+#define HSE_FLAG_PUT_PRIORITY              (1 << 0) /* Operation will not be throttled */
+#define HSE_FLAG_PUT_VALUE_COMPRESSION_ON  (1 << 1) /* Value will be compressed */
+#define HSE_FLAG_PUT_VALUE_COMPRESSION_OFF (1 << 2) /* Value will not be compressed */
 
 /**
  * Put a KV pair into KVS
@@ -358,6 +361,10 @@ hse_kvdb_kvs_close(struct hse_kvs *kvs);
  * system does not become overrun. As a rough approximation, doing 1M priority puts per
  * second marked as PRIORITY is likely an issue. On the other hand, doing 1K small puts
  * per second marked as PRIORITY is almost certainly fine.
+ *
+ * HSE_FLAG_PUT_VALUE_COMPRESSION_ON and HSE_FLAG_PUT_VALUE_COMPRESSION_OFF will override
+ * the compression settings within a KVS. If neither is set, the default KVS
+ * compression settings are used. It is an error to set both flags.
  *
  * @param kvs: KVS handle from hse_kvdb_kvs_open()
  * @param flags: Flags for operation specialization

@@ -34,7 +34,8 @@
 #include <pidfile/pidfile.h>
 
 #define HSE_FLAG_SYNC_ALL HSE_FLAG_SYNC_ASYNC
-#define HSE_FLAG_PUT_ALL HSE_FLAG_PUT_PRIORITY
+#define HSE_FLAG_PUT_ALL \
+    (HSE_FLAG_PUT_PRIORITY | HSE_FLAG_PUT_VALUE_COMPRESSION_ON | HSE_FLAG_PUT_VALUE_COMPRESSION_OFF)
 #define HSE_FLAG_CURSOR_ALL \
     (HSE_FLAG_CURSOR_REVERSE | HSE_FLAG_CURSOR_BIND_TXN | HSE_FLAG_CURSOR_STATIC_VIEW)
 
@@ -229,7 +230,7 @@ hse_kvdb_drop(const char *kvdb_home, const size_t paramc, const char *const *con
     char                real_home[PATH_MAX];
     struct kvdb_dparams params = kvdb_dparams_defaults();
     char                pidfile_path[PATH_MAX];
-    struct pidfh       *pfh = NULL;
+    struct pidfh *      pfh = NULL;
     merr_t              err, err1;
     size_t              n;
     u64                 logid1, logid2;
@@ -633,7 +634,9 @@ hse_kvs_put(
     struct kvs_vtuple vt;
     merr_t            err;
 
-    if (HSE_UNLIKELY(!handle || !key || (val_len > 0 && !val) || flags & ~HSE_FLAG_PUT_ALL))
+    if (HSE_UNLIKELY(
+            !handle || !key || (val_len > 0 && !val) || flags & ~HSE_FLAG_PUT_ALL ||
+            (flags & HSE_FLAG_PUT_VALUE_COMPRESSION_ON && flags & HSE_FLAG_PUT_VALUE_COMPRESSION_OFF)))
         return merr_to_hse_err(merr(EINVAL));
 
     if (HSE_UNLIKELY(key_len > HSE_KVS_KEY_LEN_MAX))

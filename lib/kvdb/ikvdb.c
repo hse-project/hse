@@ -1791,7 +1791,8 @@ ikvdb_kvs_put(
     vbufsz = tls_vbufsz;
     vbuf = NULL;
 
-    if (clen == 0 && vlen > kk->kk_vcompmin) {
+    if ((clen == 0 && vlen > kk->kk_vcompmin && !(flags & HSE_FLAG_PUT_VALUE_COMPRESSION_OFF)) ||
+        flags & HSE_FLAG_PUT_VALUE_COMPRESSION_ON) {
         if (vlen > kk->kk_vcompbnd) {
             vbufsz = vlen + PAGE_SIZE * 2;
             vbuf = vlb_alloc(vbufsz);
@@ -1800,6 +1801,10 @@ ikvdb_kvs_put(
         }
 
         if (vbuf) {
+            /* Currently kk_vcompress is not set in non-compressed KVSs. This
+             * will change.
+             */
+            assert(kk->kk_vcompress);
             err = kk->kk_vcompress(vt->vt_data, vlen, vbuf, vbufsz, &clen);
 
             if (!err && clen < vlen) {
