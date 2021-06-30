@@ -33,7 +33,7 @@ extern "C" {
 #define HSE_KVS_VLEN_MAX (1024 * 1024)
 
 /* Max key prefix length */
-#define HSE_KVS_MAX_PFXLEN 32
+#define HSE_KVS_PFX_LEN_MAX 32
 
 /* Max KVS name lengths */
 #define HSE_KVS_NAME_LEN_MAX 32

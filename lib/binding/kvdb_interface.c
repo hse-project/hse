@@ -765,7 +765,7 @@ hse_kvs_prefix_delete(
     if (HSE_UNLIKELY(!handle || flags != HSE_FLAG_NONE))
         return merr_to_hse_err(merr(EINVAL));
 
-    if (HSE_UNLIKELY(key_len > HSE_KVS_MAX_PFXLEN))
+    if (HSE_UNLIKELY(key_len > HSE_KVS_PFX_LEN_MAX))
         return merr_to_hse_err(merr(ENAMETOOLONG));
 
     kvs_ktuple_init(&kt, prefix_key, key_len);

@@ -145,7 +145,7 @@ struct cn_tree {
 
     u64 ct_last_ptseq;
     u32 ct_last_ptlen;
-    u8  ct_last_ptomb[HSE_KVS_MAX_PFXLEN];
+    u8  ct_last_ptomb[HSE_KVS_PFX_LEN_MAX];
 
     HSE_ALIGNED(SMP_CACHE_BYTES) struct cn_kle_cache ct_kle_cache;
 

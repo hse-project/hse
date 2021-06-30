@@ -369,7 +369,7 @@ cn_tree_create(
     if (ev(cp->fanout < 1 << CN_FANOUT_BITS_MIN || cp->fanout > 1 << CN_FANOUT_BITS_MAX))
         return merr(EINVAL);
 
-    if (ev(cp->pfx_len > HSE_KVS_MAX_PFXLEN))
+    if (ev(cp->pfx_len > HSE_KVS_PFX_LEN_MAX))
         return merr(EINVAL);
 
     tree = alloc_aligned(sizeof(*tree), alignof(*tree));
@@ -2385,7 +2385,7 @@ cn_tree_cursor_update(struct cn_cursor *cur, struct cn_tree *tree)
         /* Cached ptomb should survive even if the underlying kvset
          * resources are released (deferred deletes).
          */
-        key_obj_copy(cur->pt_buf, HSE_KVS_MAX_PFXLEN, &len, &cur->pt_kobj);
+        key_obj_copy(cur->pt_buf, HSE_KVS_PFX_LEN_MAX, &len, &cur->pt_kobj);
         assert(len == cur->ct_pfx_len);
         key2kobj(&cur->pt_kobj, cur->pt_buf, cur->ct_pfx_len);
     }
