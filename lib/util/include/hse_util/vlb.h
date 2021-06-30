@@ -28,7 +28,7 @@
  * However, be warned that value buffers will be allocated and freed on
  * demand rather than come from the vlb cache.
  */
-_Static_assert(VLB_ALLOCSZ_MAX >= (HSE_KVS_VLEN_MAX * 2),
+_Static_assert(VLB_ALLOCSZ_MAX >= (HSE_KVS_VALUE_LEN_MAX * 2),
                "VLB_ALLOCSZ_MAX too small");
 
 /**

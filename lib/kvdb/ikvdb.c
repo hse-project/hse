@@ -1495,7 +1495,7 @@ ikvdb_kvs_open(
         kvs->kk_vcompbnd = tls_vbufsz - (kvs->kk_vcompbnd - tls_vbufsz);
         assert(kvs->kk_vcompbnd < tls_vbufsz);
 
-        assert(cops->cop_estimate(NULL, HSE_KVS_VLEN_MAX) < HSE_KVS_VLEN_MAX + PAGE_SIZE * 2);
+        assert(cops->cop_estimate(NULL, HSE_KVS_VALUE_LEN_MAX) < HSE_KVS_VALUE_LEN_MAX + PAGE_SIZE * 2);
     }
 
     /* Need a lock to prevent ikvdb_close from freeing up resources from

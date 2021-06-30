@@ -79,7 +79,7 @@ int
 main(int argc, char **argv)
 {
     static char kbuf[HSE_KVS_KLEN_MAX];
-    static char vbuf[HSE_KVS_VLEN_MAX];
+    static char vbuf[HSE_KVS_VALUE_LEN_MAX];
 
     const char *           mpname, *dsname, *kvname, *prog;
     struct parm_groups *   pg = NULL;

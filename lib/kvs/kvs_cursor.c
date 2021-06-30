@@ -745,7 +745,7 @@ kvs_cursor_alloc(struct ikvs *kvs, const void *prefix, size_t pfx_len, bool reve
     cur->kci_pfxhash = pfxhash;
 
     /* Point buffer-pointers to the right memory regions */
-    cur->kci_prefix = cur->kci_buf + HSE_KVS_KLEN_MAX + HSE_KVS_VLEN_MAX;
+    cur->kci_prefix = cur->kci_buf + HSE_KVS_KLEN_MAX + HSE_KVS_VALUE_LEN_MAX;
     cur->kci_last_kbuf = cur->kci_prefix + HSE_KVS_KLEN_MAX;
     cur->kci_limit = cur->kci_last_kbuf + HSE_KVS_KLEN_MAX;
 
@@ -1190,7 +1190,7 @@ ikvs_cursor_kv_copy(struct kvs_cursor_impl *cursor, struct kvs_kvtuple *kvt)
     if (clen) {
         uint outlen;
 
-        err = compress_lz4_ops.cop_decompress(vt->vt_data, clen, vbuf, HSE_KVS_VLEN_MAX, &outlen);
+        err = compress_lz4_ops.cop_decompress(vt->vt_data, clen, vbuf, HSE_KVS_VALUE_LEN_MAX, &outlen);
         if (ev(err))
             return err;
 
@@ -1409,7 +1409,7 @@ kvs_curcache_init(void)
     assert(!ikvs_curcachev);
 
     sz = sizeof(*kci);
-    sz += (HSE_KVS_KLEN_MAX + HSE_KVS_VLEN_MAX); /* For kci_buf */
+    sz += (HSE_KVS_KLEN_MAX + HSE_KVS_VALUE_LEN_MAX); /* For kci_buf */
     sz += (HSE_KVS_KLEN_MAX * 3);                /* For prefix, last_key and limit */
     kvs_cursor_impl_alloc_sz = sz;
 

@@ -5,7 +5,7 @@
 
 /*
  * This example demonstrates how one could add key-value pairs where the value
- * length could be larger than the allowed maximum HSE_KVS_VLEN_MAX.
+ * length could be larger than the allowed maximum HSE_KVS_VALUE_LEN_MAX.
  *
  * To put keys, this example uses files passed to it on the commandline. Each
  * file's name forms the prefix of a key and its contents are chunked into the
@@ -22,7 +22,7 @@
  *     ...
  *     /tmp/foo00000NNN
  *
- * for chunks of size HSE_KVS_VLEN_MAX read from /tmp/foo. Similarly, the file
+ * for chunks of size HSE_KVS_VALUE_LEN_MAX read from /tmp/foo. Similarly, the file
  * /tmp/bar will be split into multiple chunks starting with keys starting at
  * /tmp/bar00000000
  *
@@ -119,7 +119,7 @@ put_files_as_kv(struct hse_kvdb *kvdb, struct hse_kvs *kvs, int kv_cnt, char **k
     hse_err_t rc;
 
     for (i = 0; i < kv_cnt; i++) {
-        char    val[HSE_KVS_VLEN_MAX];
+        char    val[HSE_KVS_VALUE_LEN_MAX];
         char    key_chunk[HSE_KVS_KLEN_MAX];
         ssize_t len;
         int     chunk_nr;

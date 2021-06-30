@@ -204,7 +204,7 @@ main(int argc, char **argv)
     max_iter = ULONG_MAX;
 
     Opts.kmax = HSE_KVS_KLEN_MAX;
-    Opts.vmax = HSE_KVS_VLEN_MAX;
+    Opts.vmax = HSE_KVS_VALUE_LEN_MAX;
     Opts.hexonly = 0;
 
     rc = pg_create(&pg, PG_KVDB_OPEN, PG_KVS_OPEN, NULL);

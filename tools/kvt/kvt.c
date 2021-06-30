@@ -1404,7 +1404,7 @@ main(int argc, char **argv)
                         errmsg = "invalid min file length";
                         vlenmax = cvt_strtoul(end + 1, &end, &suftab_iec);
                     }
-                    if (vlenmax < vlenmin || vlenmax > HSE_KVS_VLEN_MAX)
+                    if (vlenmax < vlenmin || vlenmax > HSE_KVS_VALUE_LEN_MAX)
                         errno = ERANGE;
                 }
                 break;
@@ -2094,7 +2094,7 @@ kvt_init(const char *keyfile, const char *keyfmt, u_long keymax, bool dump)
          * from any offset from randbuf to (randbuf + randbufsz / 2)
          * and access up to vlenmax valid bytes.
          */
-        randbufsz = roundup(HSE_KVS_VLEN_MAX * 8, 4096);
+        randbufsz = roundup(HSE_KVS_VALUE_LEN_MAX * 8, 4096);
 
         randbuf = aligned_alloc(4096, randbufsz);
         if (!randbuf) {
@@ -2466,7 +2466,7 @@ kvt_init_main(void *arg)
             eprint(rc, "setschedparam(SCHED_BATCH)");
     }
 
-    databufsz = roundup(HSE_KVS_VLEN_MAX, 4096);
+    databufsz = roundup(HSE_KVS_VALUE_LEN_MAX, 4096);
 
     databuf = aligned_alloc(4096, databufsz);
     if (!databuf) {
@@ -2956,8 +2956,8 @@ kvt_check_main(void *arg)
             eprint(rc, "setschedparam(SCHED_BATCH)");
     }
 
-    //databufsz = (full || dump) ? HSE_KVS_VLEN_MAX : 4096;
-    databufsz = roundup(HSE_KVS_VLEN_MAX, 4096);
+    //databufsz = (full || dump) ? HSE_KVS_VALUE_LEN_MAX : 4096;
+    databufsz = roundup(HSE_KVS_VALUE_LEN_MAX, 4096);
 
     databuf = aligned_alloc(4096, databufsz);
     if (!databuf) {
@@ -3508,7 +3508,7 @@ kvt_test_main(void *arg)
     job = args->job;
     xrand64_init(args->seed);
 
-    args->databufsz = roundup(HSE_KVS_VLEN_MAX, 4096);
+    args->databufsz = roundup(HSE_KVS_VALUE_LEN_MAX, 4096);
 
     args->databuf = aligned_alloc(4096, args->databufsz);
     if (!args->databuf) {
@@ -3779,7 +3779,7 @@ kvt_test_impl(struct tdargs *args, unsigned int oflags, struct hse_kvdb_txn *txn
      * stale data, which should never happen and is a serious bug.
      */
     if (databuflen != datasz) {
-        assert(databufsz == HSE_KVS_VLEN_MAX);
+        assert(databufsz == HSE_KVS_VALUE_LEN_MAX);
 
         eprint(
             0,

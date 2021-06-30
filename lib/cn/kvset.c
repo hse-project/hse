@@ -2554,10 +2554,10 @@ kvset_iter_enable_mblock_read(struct kvset_iterator *iter)
      * drives, it requires a lot more prefetching to maintain backlog in
      * check.
      */
-    if (ra_size < HSE_KVS_VLEN_MAX) {
+    if (ra_size < HSE_KVS_VALUE_LEN_MAX) {
         if (iter->ks->ks_node_level == 0)
-            ra_size = HSE_KVS_VLEN_MAX;
-        ra_size = min_t(uint, ra_size, HSE_KVS_VLEN_MAX);
+            ra_size = HSE_KVS_VALUE_LEN_MAX;
+        ra_size = min_t(uint, ra_size, HSE_KVS_VALUE_LEN_MAX);
     }
 
     /* Limit buffered reads to values lesser than cn_compact_vblk_ra. The

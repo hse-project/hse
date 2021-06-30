@@ -642,7 +642,7 @@ hse_kvs_put(
     if (HSE_UNLIKELY(key_len == 0))
         return merr_to_hse_err(merr(ENOENT));
 
-    if (HSE_UNLIKELY(val_len > HSE_KVS_VLEN_MAX))
+    if (HSE_UNLIKELY(val_len > HSE_KVS_VALUE_LEN_MAX))
         return merr_to_hse_err(merr(EMSGSIZE));
 
     kvs_ktuple_init_nohash(&kt, key, key_len);

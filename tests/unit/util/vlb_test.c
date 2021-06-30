@@ -26,12 +26,12 @@ MTF_DEFINE_UTEST(vlb_test, alloc)
 
     /* cn requires buffers of at least 2x max value length.
      */
-    ASSERT_TRUE(VLB_ALLOCSZ_MAX >= HSE_KVS_VLEN_MAX * 2);
+    ASSERT_TRUE(VLB_ALLOCSZ_MAX >= HSE_KVS_VALUE_LEN_MAX * 2);
 
     /* Free all buffers, not all will be cached.
      */
     for (i = 0; i < imax; ++i)
-        vlb_free(memv[i], HSE_KVS_VLEN_MAX);
+        vlb_free(memv[i], HSE_KVS_VALUE_LEN_MAX);
 
 
     /* Allocate and free a buffer, should come from cache.

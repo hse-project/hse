@@ -65,7 +65,7 @@
 /* A cursor's footprint is at least 1MB, not including iterators
  * (see struct kvs_cursor).
  */
-#define HSE_CURSOR_SZ_MIN           (HSE_KVS_KLEN_MAX + HSE_KVS_VLEN_MAX)
+#define HSE_CURSOR_SZ_MIN           (HSE_KVS_KLEN_MAX + HSE_KVS_VALUE_LEN_MAX)
 
 /* Using any size other than 32MB will likely cause problems
  * due to the way space is allocated to wbtree internal nodes.

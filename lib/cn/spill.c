@@ -356,8 +356,8 @@ get_values:
         if (direct) {
             uint bufsz_min;
 
-            if (ev(omlen > HSE_KVS_VLEN_MAX)) {
-                assert(omlen <= HSE_KVS_VLEN_MAX);
+            if (ev(omlen > HSE_KVS_VALUE_LEN_MAX)) {
+                assert(omlen <= HSE_KVS_VALUE_LEN_MAX);
                 err = merr(EBUG);
                 goto done;
             }
@@ -374,12 +374,12 @@ get_values:
             if (!buf || bufsz < bufsz_min) {
                 free_aligned(buf);
 
-                if (omlen < HSE_KVS_VLEN_MAX / 4)
-                    bufsz = HSE_KVS_VLEN_MAX / 4;
-                else if (omlen < HSE_KVS_VLEN_MAX / 2)
-                    bufsz = HSE_KVS_VLEN_MAX / 2;
+                if (omlen < HSE_KVS_VALUE_LEN_MAX / 4)
+                    bufsz = HSE_KVS_VALUE_LEN_MAX / 4;
+                else if (omlen < HSE_KVS_VALUE_LEN_MAX / 2)
+                    bufsz = HSE_KVS_VALUE_LEN_MAX / 2;
                 else
-                    bufsz = HSE_KVS_VLEN_MAX;
+                    bufsz = HSE_KVS_VALUE_LEN_MAX;
 
                 /* add an extra page if not aligned */
                 if (bufsz_min < bufsz)

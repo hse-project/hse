@@ -248,7 +248,7 @@ vbb_add_entry(
 
     assert(vdata);
     assert(vlen);
-    assert(vlen <= HSE_KVS_VLEN_MAX);
+    assert(vlen <= HSE_KVS_VALUE_LEN_MAX);
 
     if (HSE_UNLIKELY(!_vblock_has_room(bld, vlen))) {
         err = _vblock_finish(bld);
