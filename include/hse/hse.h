@@ -423,6 +423,43 @@ hse_kvs_prefix_delete(
     size_t               filt_len,
     size_t *             kvs_pfx_len);
 
+#ifdef HSE_EXPERIMENTAL
+/**
+ * Probe for a prefix
+ *
+ * Outputs how many matches were encountered - zero, one or multiple. This function is
+ * thread safe.
+ *
+ * @param kvs: KVS handle from hse_kvdb_kvs_open()
+ * @param flags: Flags for operation specialization
+ * @param txn: Transaction context
+ * @param pfx: Prefix to be probed
+ * @param pfx_len: Length of \p pfx
+ * @param[out] found: Zero, one or multiple matches seen
+ * @param keybuf: Buffer which will be populated with contents of first seen key
+ * @param keybuf_sz: Size of \p keybuf
+ * @param[out] key_len: Length of first seen key
+ * @param valbuf: Buffer which will be populated with value for @keybuf
+ * @param valbuf_sz: Size of \p valbuf
+ * @param[out] val_len: Length of the value seen
+ * @return The function's error status
+ */
+hse_err_t
+hse_kvs_prefix_probe(
+    struct hse_kvs *            kvs,
+    unsigned int                flags,
+    struct hse_kvdb_txn        *txn,
+    const void *                pfx,
+    size_t                      pfx_len,
+    enum hse_kvs_pfx_probe_cnt *found,
+    void *                      keybuf,
+    size_t                      keybuf_sz,
+    size_t *                    key_len,
+    void *                      valbuf,
+    size_t                      valbuf_sz,
+    size_t *                    val_len);
+#endif
+
 /**@}*/
 
 /** @name Transaction Functions

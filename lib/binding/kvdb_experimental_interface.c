@@ -6,7 +6,6 @@
 #include <hse/hse.h>
 #include <hse/types.h>
 #include <hse/flags.h>
-#include <hse/hse_experimental.h>
 
 #include <hse_util/platform.h>
 #include <hse_util/logging.h>
@@ -16,7 +15,7 @@
 #include <hse_ikvdb/config.h>
 
 uint64_t
-hse_kvs_prefix_probe_exp(
+hse_kvs_prefix_probe(
     struct hse_kvs *            handle,
     const unsigned int          flags,
     struct hse_kvdb_txn *const  txn,

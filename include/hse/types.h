@@ -82,11 +82,13 @@ struct hse_kvdb_storage_info {
     uint64_t used_bytes;      /**< used storage space for a kvdb */
 };
 
+#ifdef HSE_EXPERIMENTAL
 enum hse_kvs_pfx_probe_cnt {
     HSE_KVS_PFX_FOUND_ZERO = 0,
     HSE_KVS_PFX_FOUND_ONE,
     HSE_KVS_PFX_FOUND_MUL,
 };
+#endif
 
 /**@}*/
 

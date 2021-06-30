@@ -54,6 +54,7 @@ hse_sources = [
 hse_c_args = [
     '-D_GNU_SOURCE=1',
     '-DCOMPNAME="kvdb"',
+    '-DHSE_EXPERIMENTAL',
 ]
 
 hse_include_directories = [

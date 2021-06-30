@@ -12,7 +12,6 @@
 #include <hse/hse.h>
 #include <hse/flags.h>
 #include <hse/types.h>
-#include <hse/hse_experimental.h>
 #include <hse/kvdb_perfc.h>
 
 #include <hse_ikvdb/ikvdb.h>

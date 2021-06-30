@@ -178,7 +178,10 @@ tools = {
             'common.c',
             'kvs_helper.c',
             'parm_groups.c',
-        )
+        ),
+        'c_args': [
+            '-DHSE_EXPERIMENTAL',
+        ],
     },
     'pgd': {
         'sources': files(
@@ -285,7 +288,6 @@ tools = {
 }
 
 foreach t, params : tools
-
     t_sources = params['sources']
 
     t_c_args = [

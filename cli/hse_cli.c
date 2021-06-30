@@ -18,7 +18,6 @@
 
 #include <hse/hse.h>
 #include <hse/hse_version.h>
-#include <hse/hse_experimental.h>
 
 #include <hse_util/parse_num.h>
 #include <hse_util/yaml.h>

@@ -1397,7 +1397,7 @@ ikvdb_kvs_names_get(struct ikvdb *handle, size_t *namec, char ***namev)
     mutex_lock(&self->ikdb_lock);
 
     /* seek to start of the section holding the strings */
-    name = (char *)&namev[self->ikdb_kvs_cnt];
+    name = (char *)&kvsv[self->ikdb_kvs_cnt];
 
     for (i = 0; i < HSE_KVS_COUNT_MAX; i++) {
         struct kvdb_kvs *kvs = self->ikdb_kvs_vec[i];

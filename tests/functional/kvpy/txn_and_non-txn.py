@@ -3,7 +3,6 @@
 from typing import Tuple
 
 import hse
-from hse import experimental as hse_exp
 
 from utility import lifecycle
 
@@ -54,8 +53,8 @@ try:
             assert kvs.get(b"ab5") is None
             assert kvs.get(b"ab6") is None
 
-            cnt, *_ = hse_exp.kvs_prefix_probe(kvs, b"ab")
-            assert cnt == hse_exp.KvsPfxProbeCnt.MUL
+            cnt, *_ = kvs.prefix_probe(b"ab")
+            assert cnt == hse.KvsPfxProbeCnt.MUL
 
             with kvs.cursor() as cur:
                 assert sum(1 for _ in cur.items()) == 3
@@ -78,7 +77,7 @@ try:
 
             try:
                 with kvdb.transaction() as t:
-                    cnt, *_ = hse_exp.kvs_prefix_probe(kvs, b"ab", txn=t)
+                    cnt, *_ = kvs.prefix_probe(b"ab", txn=t)
                 assert False
             except hse.KvdbException:
                 pass
@@ -123,8 +122,8 @@ try:
                 assert kvs_tx.get(b"ab2", txn=t) == b"1"
                 assert kvs_tx.get(b"ab3", txn=t) == b"1"
 
-                cnt, *_ = hse_exp.kvs_prefix_probe(kvs_tx, b"ab", txn=t)
-                assert cnt == hse_exp.KvsPfxProbeCnt.MUL
+                cnt, *_ = kvs_tx.prefix_probe(b"ab", txn=t)
+                assert cnt == hse.KvsPfxProbeCnt.MUL
 
                 with kvs_tx.cursor(flags=hse.CursorFlag.BIND_TXN, txn=t) as cur:
                     assert sum(1 for _ in cur.items()) == 3
@@ -134,8 +133,8 @@ try:
             assert kvs_tx.get(b"ab2") == b"1"
             assert kvs_tx.get(b"ab3") == b"1"
 
-            cnt, *_ = hse_exp.kvs_prefix_probe(kvs_tx, b"ab")
-            assert cnt == hse_exp.KvsPfxProbeCnt.MUL
+            cnt, *_ = kvs_tx.prefix_probe(b"ab")
+            assert cnt == hse.KvsPfxProbeCnt.MUL
 
             with kvs_tx.cursor() as cur:
                 assert sum(1 for _ in cur.items()) == 3

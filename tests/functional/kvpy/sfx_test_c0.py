@@ -2,7 +2,6 @@
 
 from contextlib import ExitStack
 import hse
-from hse import experimental as hse_exp
 
 from utility import lifecycle
 
@@ -22,28 +21,28 @@ try:
         kvs.put(b"AbcXX", b"42")
         kvs.put(b"AbdXX", b"42")
 
-        cnt, *kv = hse_exp.kvs_prefix_probe(kvs, b"Abc")
-        assert cnt == hse_exp.KvsPfxProbeCnt.ONE
+        cnt, *kv = kvs.prefix_probe(b"Abc")
+        assert cnt == hse.KvsPfxProbeCnt.ONE
         assert kv == [b"AbcXX", b"42"]
 
         kvdb.sync(flags=hse.SyncFlag.ASYNC)
         kvs.put(b"AbcXX", b"43")  # duplicate
 
-        cnt, *kv = hse_exp.kvs_prefix_probe(kvs, b"Abc")
-        assert cnt == hse_exp.KvsPfxProbeCnt.ONE
+        cnt, *kv = kvs.prefix_probe(b"Abc")
+        assert cnt == hse.KvsPfxProbeCnt.ONE
         assert kv == [b"AbcXX", b"43"]
 
         kvs.put(b"AbcXY", b"42")  # multiple
-        cnt, *_ = hse_exp.kvs_prefix_probe(kvs, b"Abc")
-        assert cnt == hse_exp.KvsPfxProbeCnt.MUL
+        cnt, *_ = kvs.prefix_probe(b"Abc")
+        assert cnt == hse.KvsPfxProbeCnt.MUL
         kvs.put(b"AbcXZ", b"42")  # multiple
-        cnt, *_ = hse_exp.kvs_prefix_probe(kvs, b"Abc")
-        assert cnt == hse_exp.KvsPfxProbeCnt.MUL
+        cnt, *_ = kvs.prefix_probe(b"Abc")
+        assert cnt == hse.KvsPfxProbeCnt.MUL
 
         kvs.prefix_delete(b"A")
         kvs.put(b"AbcXZ", b"44")
-        cnt, *kv = hse_exp.kvs_prefix_probe(kvs, b"Abc")
-        assert cnt == hse_exp.KvsPfxProbeCnt.ONE
+        cnt, *kv = kvs.prefix_probe(b"Abc")
+        assert cnt == hse.KvsPfxProbeCnt.ONE
         assert kv == [b"AbcXZ", b"44"]
 finally:
     hse.fini()

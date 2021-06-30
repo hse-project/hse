@@ -5,7 +5,6 @@
 #include <stdlib.h>
 
 #include <hse/hse.h>
-#include <hse/hse_experimental.h>
 
 #include "tools/common.h"
 #include "tools/parm_groups.h"

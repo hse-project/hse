@@ -196,7 +196,7 @@ done:
 			pc = HSE_KVS_PFX_FOUND_MUL;
 	} else {
 
-		rc = hse_kvs_prefix_probe_exp(kvs, 0, NULL, pfx, pfxlen, &pc,
+		rc = hse_kvs_prefix_probe(kvs, 0, NULL, pfx, pfxlen, &pc,
 					      kbuf, kbufsz, &klen,
 					      vbuf, vbufsz, &vlen);
 		if (rc)

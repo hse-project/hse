@@ -11,6 +11,7 @@ hse_cli_sources = [
 
 hse_cli_c_args = [
     '-DCOMPANE="CLI"',
+    '-DHSE_EXPERIMENTAL',
 ]
 
 hse_cli_dependencies = [
