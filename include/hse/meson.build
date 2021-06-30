@@ -23,5 +23,7 @@ install_headers(
     'hse.h',
     'hse_limits.h',
     'hse_experimental.h',
+    'flags.h',
+    'types.h',
     subdir: include_subdir,
 )

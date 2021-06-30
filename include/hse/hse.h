@@ -42,6 +42,8 @@
  */
 
 #include <hse/hse_limits.h>
+#include <hse/types.h>
+#include <hse/flags.h>
 
 #include <stdbool.h>
 #include <stddef.h>
@@ -52,52 +54,6 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-/** @name Type Declarations / Shared Structures / Macros
- *        =====================================================
- * @{
- */
-
-/**
- * These types are generally opaque handles that a client obtains by using library
- * functions. A client uses these handles to exercise more fine-grained
- * functionality. For example a "struct hse_kvdb" is the handle for a key-value database
- * that one obtains by calling hse_kvdb_open().
- *
- * @typedef hse_err_t
- * @brief Generic return type for the HSE library
- *
- * If this scalar quantity is 0 then the call succeeded. If it is non-zero then the
- * 64-bit quantity can be used by the client in two ways: (1) call hse_err_to_errno() to
- * get a mapping to a POSIX errno value, and (2) call hse_err_to_string() to get a
- * textual reference about what error occurred and where.
- *
- * @typedef hse_kvdb
- * @brief Opaque structure, a pointer to which is a handle to an HSE key-value
- *        database (KVDB)
- *
- * @typedef hse_kvs
- * @brief Opaque structure, a pointer to which is a handle to an HSE key-value
- *        store within a KVDB (KVS)
- *
- * @typedef hse_kvs_cursor
- * @brief Opaque structure, a pointer to which is a handle to a cursor within
- *        a KVS
- *
- * @typedef hse_kvdb_txn
- * @brief Opaque structure, a pointer to which is a handle to a transaction
- *        within a KVDB.
- */
-
-typedef uint64_t hse_err_t;
-struct hse_kvdb;
-struct hse_kvs;
-struct hse_kvs_cursor;
-struct hse_kvdb_txn;
-
-#define HSE_FLAG_NONE 0
-
-/**@}*/
 
 #pragma GCC visibility push(default)
 
@@ -338,14 +294,6 @@ hse_kvdb_kvs_close(struct hse_kvs *kvs);
  */
 
 /**
- * Flags for PUT operation
- */
-
-#define HSE_FLAG_PUT_PRIORITY              (1 << 0) /* Operation will not be throttled */
-#define HSE_FLAG_PUT_VALUE_COMPRESSION_ON  (1 << 1) /* Value will be compressed */
-#define HSE_FLAG_PUT_VALUE_COMPRESSION_OFF (1 << 2) /* Value will not be compressed */
-
-/**
  * Put a KV pair into KVS
  *
  * If the key already exists in the KVS then the value is effectively overwritten. The
@@ -528,13 +476,6 @@ hse_kvs_prefix_delete(
  * until it is committed. All such mutations become visible atomically.
  */
 
-enum hse_kvdb_txn_state {
-    HSE_KVDB_TXN_INVALID = 0,
-    HSE_KVDB_TXN_ACTIVE = 1,
-    HSE_KVDB_TXN_COMMITTED = 2,
-    HSE_KVDB_TXN_ABORTED = 3,
-};
-
 /**
  * Allocate transaction object
  *
@@ -627,15 +568,6 @@ hse_kvdb_txn_get_state(struct hse_kvdb *kvdb, struct hse_kvdb_txn *txn);
  * See the concept and best practices sections on the HSE Wiki at
  * https://github.com/hse-project/hse/wiki
  */
-
-/* Flags for cursor usage */
-
-/* Move the cursor in reverse */
-#define HSE_FLAG_CURSOR_REVERSE (1 << 0)
-/* Bind the cursor to a transaction */
-#define HSE_FLAG_CURSOR_BIND_TXN (1 << 1)
-/* Bound cursor's view is static */
-#define HSE_FLAG_CURSOR_STATIC_VIEW (1 << 2)
 
 /**
  * Creates a cursor used to iterate over a KVS
@@ -829,8 +761,6 @@ hse_kvs_cursor_destroy(struct hse_kvs_cursor *cursor);
  * @{
  */
 
-#define HSE_FLAG_SYNC_ASYNC (1 << 0)/* make the sync operation asynchronous */
-
 /**
  * Sync data in all of the referenced KVDB's KVSs to stable media and return
  *
@@ -870,17 +800,6 @@ hse_err_t
 hse_kvdb_compact(struct hse_kvdb *kvdb, int flags);
 
 /**
- * struct hse_kvdb_compact_status - status of a compaction request
- */
-struct hse_kvdb_compact_status {
-    unsigned int kvcs_samp_lwm;  /**< space amp low water mark (%) */
-    unsigned int kvcs_samp_hwm;  /**< space amp high water mark (%) */
-    unsigned int kvcs_samp_curr; /**< current space amp (%) */
-    unsigned int kvcs_active;    /**< is an externally requested compaction underway */
-    unsigned int kvcs_canceled;  /**< was an externally requested compaction canceled */
-};
-
-/**
  * Get status of an ongoing compaction activity
  *
  * The caller can examine the fields of the hse_kvdb_compact_status struct to determine
@@ -892,16 +811,6 @@ struct hse_kvdb_compact_status {
  */
 hse_err_t
 hse_kvdb_compact_status_get(struct hse_kvdb *kvdb, struct hse_kvdb_compact_status *status);
-
-/**
- * struct hse_kvdb_storage_info - storage info for a kvdb
- */
-struct hse_kvdb_storage_info {
-    uint64_t total_bytes;     /**< total space in the file-system containing this kvdb */
-    uint64_t available_bytes; /**< available space in the file-system containing this kvdb */
-    uint64_t allocated_bytes; /**< allocated storage space for a kvdb */
-    uint64_t used_bytes;      /**< used storage space for a kvdb */
-};
 
 /**
  * Get storage config and stats

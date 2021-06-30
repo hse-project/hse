@@ -4,6 +4,8 @@
  */
 
 #include <hse/hse.h>
+#include <hse/types.h>
+#include <hse/flags.h>
 #include <hse/hse_experimental.h>
 
 #include <hse_util/platform.h>

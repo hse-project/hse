@@ -6,6 +6,8 @@
 #include <ftw.h>
 #include <dirent.h>
 
+#include <hse/flags.h>
+
 #include <hse_ut/framework.h>
 #include <hse_test_support/mock_api.h>
 #include <hse_test_support/random_buffer.h>

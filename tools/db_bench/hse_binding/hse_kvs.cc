@@ -7,6 +7,7 @@
 #include "hse_binding/hse_kvs.h"
 
 #include <hse/hse.h>
+#include <hse/flags.h>
 
 #include "leveldb/status.h"
 

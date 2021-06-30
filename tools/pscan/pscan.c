@@ -23,6 +23,7 @@
 #include <sysexits.h>
 
 #include <hse/hse.h>
+#include <hse/flags.h>
 
 #include <xxhash.h>
 #include <hse_util/event_timer.h>

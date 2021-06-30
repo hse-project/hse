@@ -19,12 +19,6 @@ extern "C" {
 
 #pragma GCC visibility push(default)
 
-enum hse_kvs_pfx_probe_cnt {
-    HSE_KVS_PFX_FOUND_ZERO = 0,
-    HSE_KVS_PFX_FOUND_ONE,
-    HSE_KVS_PFX_FOUND_MUL,
-};
-
 /**
  * Probe for a prefix
  *

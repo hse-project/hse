@@ -13,6 +13,7 @@
 #include <unistd.h>
 
 #include <hse/hse.h>
+#include <hse/flags.h>
 
 #include <hse_util/arch.h>
 #include <hse_util/compiler.h>
