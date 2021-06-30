@@ -363,7 +363,7 @@ kvt_create(
     bool *             dump);
 
 static int
-kvt_open(u_int kvs_listc, char **kvs_listv);
+kvt_open(size_t kvs_listc, char **kvs_listv);
 
 static int
 kvt_init(const char *keyfile, const char *keyfmt, u_long keymax, bool dump);
@@ -1739,15 +1739,16 @@ kvt_create(
 {
     char         key[128], val[128];
     char **      kvs_listv = NULL;
-    u_int        kvs_listc = 0;
+    size_t       kvs_listc = 0;
     char         kvsname[32];
     int          klen, vlen;
     hse_err_t    err;
     tsi_t        tstart;
-    int          rc, i;
+    int          rc;
+    size_t       i;
     struct svec *parms;
 
-    err = hse_kvdb_get_names(kvdb, &kvs_listc, &kvs_listv);
+    err = hse_kvdb_kvs_names_get(kvdb, &kvs_listc, &kvs_listv);
     if (err) {
         eprint(err, "unable to get kvs list from `%s'", mpname);
         return EX_DATAERR;
@@ -1773,7 +1774,7 @@ kvt_create(
      */
     for (i = 0; i < kvs_inodesc; ++i) {
 
-        snprintf(kvsname, sizeof(kvsname), "%s%d", KVS_INODES_NAME, i);
+        snprintf(kvsname, sizeof(kvsname), "%s%lu", KVS_INODES_NAME, i);
 
         status("creating kvs %s...", kvsname);
         parms = kvs_cparms_get(kvsname);
@@ -1787,7 +1788,7 @@ kvt_create(
     /* Create the file data indexes.
      */
     for (i = 0; i < kvs_datac; ++i) {
-        snprintf(kvsname, sizeof(kvsname), "%s%d", KVS_DATA_NAME, i);
+        snprintf(kvsname, sizeof(kvsname), "%s%lu", KVS_DATA_NAME, i);
 
         status("creating kvs %s...", kvsname);
         parms = kvs_cparms_get(kvsname);
@@ -1814,15 +1815,15 @@ kvt_create(
         return EX_CANTCREAT;
     }
 
-    hse_kvdb_free_names(kvdb, kvs_listv);
+    hse_kvdb_kvs_names_free(kvdb, kvs_listv);
 
-    err = hse_kvdb_get_names(kvdb, &kvs_listc, &kvs_listv);
+    err = hse_kvdb_kvs_names_get(kvdb, &kvs_listc, &kvs_listv);
     if (err) {
         eprint(err, "unable to get kvs list from %s", mpname);
         return EX_DATAERR;
     }
 
-    dprint(1, "created %u kvs in %.3lf seconds", kvs_listc, tsi_delta(&tstart) / 1000000.0);
+    dprint(1, "created %lu kvs in %.3lf seconds", kvs_listc, tsi_delta(&tstart) / 1000000.0);
 
     /* Open the rids table and write the root record.  Do not use
      * open parms for this open.
@@ -1889,7 +1890,7 @@ open:
 }
 
 static int
-kvt_open(u_int kvs_listc, char **kvs_listv)
+kvt_open(size_t kvs_listc, char **kvs_listv)
 {
     char         key[128], val[128];
     int          klen, rc, n, i;
@@ -2030,7 +2031,7 @@ kvt_open(u_int kvs_listc, char **kvs_listv)
         }
     }
 
-    dprint(1, "opened %u kvs in %.3lf seconds", kvs_listc, tsi_delta(&tstart) / 1000000.0);
+    dprint(1, "opened %lu kvs in %.3lf seconds", kvs_listc, tsi_delta(&tstart) / 1000000.0);
 
     return rc;
 }

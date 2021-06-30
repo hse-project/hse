@@ -478,27 +478,27 @@ hse_kvdb_close(struct hse_kvdb *handle)
 }
 
 hse_err_t
-hse_kvdb_get_names(struct hse_kvdb *handle, unsigned int *count, char ***kvs_list)
+hse_kvdb_kvs_names_get(struct hse_kvdb *handle, size_t *namec, char ***namev)
 {
     merr_t err;
 
-    if (HSE_UNLIKELY(!handle || !kvs_list))
+    if (HSE_UNLIKELY(!handle || !namev))
         return merr_to_hse_err(merr(EINVAL));
 
-    perfc_inc(&kvdb_pc, PERFC_RA_KVDBOP_KVDB_GET_NAMES);
+    perfc_inc(&kvdb_pc, PERFC_RA_KVDBOP_KVDB_KVS_NAMES_GET);
 
-    err = ikvdb_get_names((struct ikvdb *)handle, count, kvs_list);
+    err = ikvdb_kvs_names_get((struct ikvdb *)handle, namec, namev);
     ev(err);
 
     return merr_to_hse_err(err);
 }
 
 void
-hse_kvdb_free_names(struct hse_kvdb *handle, char **kvsv)
+hse_kvdb_kvs_names_free(struct hse_kvdb *handle, char **namev)
 {
-    perfc_inc(&kvdb_pc, PERFC_RA_KVDBOP_KVDB_FREE_NAMES);
+    perfc_inc(&kvdb_pc, PERFC_RA_KVDBOP_KVDB_KVS_NAMES_FREE);
 
-    ikvdb_free_names((struct ikvdb *)handle, kvsv);
+    ikvdb_kvs_names_free((struct ikvdb *)handle, namev);
 }
 
 hse_err_t

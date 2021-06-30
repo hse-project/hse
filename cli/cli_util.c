@@ -227,11 +227,11 @@ kvdb_info_props(const char *kvdb_home, const size_t paramc, const char *const *p
     struct hse_kvdb *            hdl;
     struct hse_kvdb_storage_info info = {};
 
-    unsigned int kvs_cnt;
-    char **      kvs_list;
-    hse_err_t    err;
-    char         socket_path[PATH_MAX];
-    int          i;
+    size_t    kvs_cnt;
+    char **   kvs_list;
+    hse_err_t err;
+    char      socket_path[PATH_MAX];
+    int       i;
 
     err = hse_kvdb_open(kvdb_home, paramc, paramv, &hdl);
     if (err && hse_err_to_errno(err) != EEXIST && hse_err_to_errno(err) != ENODATA &&
@@ -268,7 +268,7 @@ kvdb_info_props(const char *kvdb_home, const size_t paramc, const char *const *p
     }
     emit_storage_info(yc, &info, NULL, NULL);
 
-    err = hse_kvdb_get_names(hdl, &kvs_cnt, &kvs_list);
+    err = hse_kvdb_kvs_names_get(hdl, &kvs_cnt, &kvs_list);
     if (err) {
         hse_kvdb_close(hdl);
         goto exit;
@@ -282,7 +282,7 @@ kvdb_info_props(const char *kvdb_home, const size_t paramc, const char *const *p
     yaml_end_element(yc);
     yaml_end_element_type(yc); /* kvslist */
 
-    hse_kvdb_free_names(hdl, kvs_list);
+    hse_kvdb_kvs_names_free(hdl, kvs_list);
     hse_kvdb_close(hdl);
 
 exit:
@@ -532,7 +532,7 @@ kvdb_compact_request(const char *kvdb_home, const char *request_type, u32 timeou
     u64    stop_ts;
     uint   sleep_secs = 2;
     char **kvs_list;
-    uint   kvs_cnt;
+    size_t kvs_cnt;
 
     err = hse_kvdb_open(kvdb_home, 0, NULL, &handle);
     if (err) {
@@ -549,7 +549,7 @@ kvdb_compact_request(const char *kvdb_home, const char *request_type, u32 timeou
     if (handle) {
         int i;
 
-        err = hse_err_to_errno(hse_kvdb_get_names(handle, &kvs_cnt, &kvs_list));
+        err = hse_err_to_errno(hse_kvdb_kvs_names_get(handle, &kvs_cnt, &kvs_list));
         if (err) {
             char buf[256];
             hse_err_to_string(err, buf, sizeof(buf), NULL);
@@ -671,7 +671,7 @@ kvdb_compact_request(const char *kvdb_home, const char *request_type, u32 timeou
 
 err_out:
     if (handle) {
-        hse_kvdb_free_names(handle, kvs_list);
+        hse_kvdb_kvs_names_free(handle, kvs_list);
         hse_kvdb_close(handle);
     }
 

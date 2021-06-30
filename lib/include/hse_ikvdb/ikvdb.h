@@ -233,21 +233,21 @@ struct cn *
 ikvdb_kvs_get_cn(struct hse_kvs *kvs);
 
 /**
- * ikvdb_get_names() -
- * @kvdb:     handle to the KVDB
- * @count:    (output)number of KVSes in the KVDB
- * @kvs_list: (output)vector of KVSes. Allocated by the function
+ * ikvdb_kvs_names_get() -
+ * @param kvdb: handle to the KVDB
+ * @param[out] count: number of KVSes in the KVDB
+ * @param[out] namev: array of KVS names, caller must free with ikvdb_kvs_names_free()
  */
 merr_t
-ikvdb_get_names(struct ikvdb *kvdb, unsigned int *count, char ***kvs_list);
+ikvdb_kvs_names_get(struct ikvdb *kvdb, size_t *namec, char ***namev);
 
 /**
- * ikvdb_free_names() -
- * @kvdb:     handle to the KVDB
- * @kvsv:     array of buffers that kvdb_get_names populated
+ * ikvdb_kvs_names_free() -
+ * @param kvdb: handle to the KVDB
+ * @param namev: array of buffers that ikvdb_kvs_names_get() populated
  */
 void
-ikvdb_free_names(struct ikvdb *kvdb, char **kvsv);
+ikvdb_kvs_names_free(struct ikvdb *kvdb, char **namev);
 
 /**
  * ikvdb_kvs_count() - Get the number of KVSes in the KVDB

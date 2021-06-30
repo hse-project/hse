@@ -1382,7 +1382,7 @@ out_immediate:
 }
 
 merr_t
-ikvdb_get_names(struct ikvdb *handle, unsigned int *count, char ***kvs_list)
+ikvdb_kvs_names_get(struct ikvdb *handle, size_t *namec, char ***namev)
 {
     struct ikvdb_impl *self = ikvdb_h2r(handle);
     int                i, slot = 0;
@@ -1390,7 +1390,7 @@ ikvdb_get_names(struct ikvdb *handle, unsigned int *count, char ***kvs_list)
     char *             name;
 
     kvsv = calloc(HSE_KVS_COUNT_MAX, sizeof(*kvsv) + HSE_KVS_NAME_LEN_MAX);
-    if (!kvsv)
+    if (!namev)
         return merr(ev(ENOMEM));
 
     mutex_lock(&self->ikdb_lock);
@@ -1410,19 +1410,21 @@ ikvdb_get_names(struct ikvdb *handle, unsigned int *count, char ***kvs_list)
         name += HSE_KVS_NAME_LEN_MAX;
     }
 
-    *kvs_list = kvsv;
+    *namev = kvsv;
 
-    if (count)
-        *count = self->ikdb_kvs_cnt;
+    if (namec)
+        *namec = self->ikdb_kvs_cnt;
 
     mutex_unlock(&self->ikdb_lock);
     return 0;
 }
 
 void
-ikvdb_free_names(struct ikvdb *handle, char **kvsv)
+ikvdb_kvs_names_free(struct ikvdb *handle, char **namev)
 {
-    free(kvsv);
+    assert(namev);
+
+    free(namev);
 }
 
 void
@@ -1637,7 +1639,7 @@ ikvdb_close(struct ikvdb *handle)
     }
 
     /* Deregistering this url before trying to get ikdb_lock prevents
-     * a deadlock between this call and an ongoing call to ikvdb_get_names()
+     * a deadlock between this call and an ongoing call to ikvdb_kvs_names_get()
      */
     kvdb_rest_deregister();
 

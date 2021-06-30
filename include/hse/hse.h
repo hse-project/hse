@@ -228,40 +228,40 @@ hse_kvdb_close(struct hse_kvdb *kvdb);
  *
  * Key-value stores (KVSs) are opened by name. This function allocates a vector of
  * allocated strings, each containing the name of a KVS. The memory must be freed via
- * hse_kvdb_free_names(). This function is thread safe.
+ * hse_kvdb_kvs_names_free(). This function is thread safe.
  *
  * Example Usage:
  *
  *     int     namec, i, rc;
  *     char  **namev;
  *
- *     rc = hse_kvdb_get_names(kvdb, &namec, &namev);
+ *     rc = hse_kvdb_kvs_names_get(kvdb, &namec, &namev);
  *     if (!rc) {
  *         for (i = 0; i < namec; i++)
  *             printf("%s\n", namev[i]);
  *     }
- *     hse_kvdb_free_names(namev);
+ *     hse_kvdb_kvs_names_free(namev);
  *
  * @param kvdb: KVDB handle from hse_kvdb_open()
- * @param[out] count: Number of KVSs in the KVDB.
- * @param[out] kvs_list: Vector of KVSs. Allocated by the function
+ * @param[out] namec: Number of KVSs in the KVDB.
+ * @param[out] namev: Vector of KVSs. Allocated by the function
  * @return The function's error status
  *
  */
 /* MTF_MOCK */
 hse_err_t
-hse_kvdb_get_names(struct hse_kvdb *kvdb, unsigned int *count, char ***kvs_list);
+hse_kvdb_kvs_names_get(struct hse_kvdb *kvdb, size_t *namec, char ***namev);
 
 /**
- * Free the names collection obtained through hse_kvdb_get_names()
+ * Free the names collection obtained through hse_kvdb_kvs_names_get()
  *
  * This function is thread safe.
  *
  * @param kvdb: KVDB handle from hse_kvdb_open()
- * @param kvs_list: Vector of KVS names that hse_kvdb_get_names() output
+ * @param kvs_list: Vector of KVS names that hse_kvdb_kvs_names_get() output
  */
 void
-hse_kvdb_free_names(struct hse_kvdb *kvdb, char **kvs_list);
+hse_kvdb_kvs_names_free(struct hse_kvdb *kvdb, char **namev);
 
 /**
  * Create a new KVS within the referenced KVDB

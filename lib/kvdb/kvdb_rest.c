@@ -52,12 +52,12 @@
 static merr_t
 get_kvs_list(struct ikvdb *ikvdb, int fd, struct yaml_context *yc)
 {
-    char **      kvs_list;
-    unsigned int kvs_cnt;
-    int          i;
-    merr_t       err;
+    char ** kvs_list;
+    size_t  kvs_cnt;
+    int     i;
+    merr_t  err;
 
-    err = ikvdb_get_names(ikvdb, &kvs_cnt, &kvs_list);
+    err = ikvdb_kvs_names_get(ikvdb, &kvs_cnt, &kvs_list);
     if (ev(err))
         return err;
 
@@ -66,7 +66,7 @@ get_kvs_list(struct ikvdb *ikvdb, int fd, struct yaml_context *yc)
         yaml2fd(fd, yaml_list_fmt, yc, kvs_list[i]);
     yaml2fd(fd, yaml_end_element_type, yc);
 
-    ikvdb_free_names(ikvdb, kvs_list);
+    ikvdb_kvs_names_free(ikvdb, kvs_list);
 
     return 0;
 }

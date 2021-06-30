@@ -1650,7 +1650,7 @@ MTF_DEFINE_UTEST_PREPOST(ikvdb_test, kvdb_sync_test, test_pre, test_post)
         ASSERT_EQ(0, err);
     }
 
-    err = ikvdb_get_names(h, 0, &list);
+    err = ikvdb_kvs_names_get(h, 0, &list);
     ASSERT_EQ(0, err);
 
     for (i = 0; i < kvs_cnt; i++) {
@@ -1661,7 +1661,7 @@ MTF_DEFINE_UTEST_PREPOST(ikvdb_test, kvdb_sync_test, test_pre, test_post)
         ASSERT_STREQ(list[i], kvs);
     }
 
-    ikvdb_free_names(h, list);
+    ikvdb_kvs_names_free(h, list);
 
     err = ikvdb_sync(h, 0);
     ASSERT_EQ(0, err);
