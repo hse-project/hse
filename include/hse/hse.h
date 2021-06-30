@@ -258,7 +258,7 @@ hse_kvdb_kvs_names_get(struct hse_kvdb *kvdb, size_t *namec, char ***namev);
  * This function is thread safe.
  *
  * @param kvdb: KVDB handle from hse_kvdb_open()
- * @param kvs_list: Vector of KVS names that hse_kvdb_kvs_names_get() output
+ * @param namev: Vector of KVS names that hse_kvdb_kvs_names_get() output
  */
 void
 hse_kvdb_kvs_names_free(struct hse_kvdb *kvdb, char **namev);
