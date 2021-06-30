@@ -654,7 +654,7 @@ _kvset_builder_add_key(struct kvset_builder *builder, const struct key_obj *kobj
     uint  ref_klen;
     uint  ref_nvals;
     bool  eof;
-    u8    kdata[HSE_KVS_KLEN_MAX];
+    u8    kdata[HSE_KVS_KEY_LEN_MAX];
     uint  klen;
 
     key_obj_copy(kdata, sizeof(kdata), &klen, kobj);

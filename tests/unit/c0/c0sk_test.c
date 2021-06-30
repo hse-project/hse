@@ -2215,11 +2215,11 @@ MTF_DEFINE_UTEST_PREPOST(c0sk_test, c0_rcursor_robust, no_fail_pre, no_fail_post
     merr_t                err;
     bool                  eof;
     atomic64_t            seqno;
-    u8                    pfx[HSE_KVS_KLEN_MAX];
+    u8                    pfx[HSE_KVS_KEY_LEN_MAX];
 
     struct kvs_cursor_element elem;
 
-    memset(pfx, 0xFF, HSE_KVS_KLEN_MAX);
+    memset(pfx, 0xFF, HSE_KVS_KEY_LEN_MAX);
 
 #define nkeys (100 * 1000)
 

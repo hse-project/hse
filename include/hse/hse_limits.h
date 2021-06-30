@@ -27,7 +27,7 @@ extern "C" {
  * can have at most 3 keys of such large size in a 4k page. Lopping off 64-bytes
  * for other data, and we can have 3 keys of 1344 bytes.
  */
-#define HSE_KVS_KLEN_MAX 1344
+#define HSE_KVS_KEY_LEN_MAX 1344
 
 /* Max value length is 1MiB */
 #define HSE_KVS_VALUE_LEN_MAX (1024 * 1024)

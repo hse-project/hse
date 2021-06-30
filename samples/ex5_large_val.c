@@ -70,7 +70,7 @@ extract_kv_to_files(struct hse_kvs *kvs, int file_cnt, char **files)
     struct hse_kvs_cursor *cur;
 
     for (i = 0; i < file_cnt; i++) {
-        char        pfx[HSE_KVS_KLEN_MAX];
+        char        pfx[HSE_KVS_KEY_LEN_MAX];
         char        outfile[NAME_MAX + 8]; /* Extra bytes for '.out' suffix */
         const void *key, *val;
         size_t      klen, vlen;
@@ -120,7 +120,7 @@ put_files_as_kv(struct hse_kvdb *kvdb, struct hse_kvs *kvs, int kv_cnt, char **k
 
     for (i = 0; i < kv_cnt; i++) {
         char    val[HSE_KVS_VALUE_LEN_MAX];
-        char    key_chunk[HSE_KVS_KLEN_MAX];
+        char    key_chunk[HSE_KVS_KEY_LEN_MAX];
         ssize_t len;
         int     chunk_nr;
 

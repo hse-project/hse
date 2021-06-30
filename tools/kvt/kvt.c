@@ -259,7 +259,7 @@ struct work {
     u_long       span;
     size_t       fnlen;
     const char * keyfmt;
-    char         fn[HSE_KVS_KLEN_MAX + 1];
+    char         fn[HSE_KVS_KEY_LEN_MAX + 1];
 };
 
 struct workq {
@@ -1512,8 +1512,8 @@ main(int argc, char **argv)
             return EX_USAGE;
         }
 
-        if (klen > HSE_KVS_KLEN_MAX) {
-            eprint(EINVAL, "key format yields key longer than %u bytes", HSE_KVS_KLEN_MAX);
+        if (klen > HSE_KVS_KEY_LEN_MAX) {
+            eprint(EINVAL, "key format yields key longer than %u bytes", HSE_KVS_KEY_LEN_MAX);
             return EX_USAGE;
         }
     }
@@ -2242,7 +2242,7 @@ kvt_init(const char *keyfile, const char *keyfmt, u_long keymax, bool dump)
             if (fnlen == 0)
                 continue;
 
-            if (fn[--fnlen] != '\n' || fnlen > HSE_KVS_KLEN_MAX) {
+            if (fn[--fnlen] != '\n' || fnlen > HSE_KVS_KEY_LEN_MAX) {
                 skip = true; /* skip excessively long lines */
                 continue;
             }
@@ -2934,7 +2934,7 @@ kvt_check(int check, bool dump)
 static void *
 kvt_check_main(void *arg)
 {
-    char           fnrec[512], key[128], fn[HSE_KVS_KLEN_MAX * 2];
+    char           fnrec[512], key[128], fn[HSE_KVS_KEY_LEN_MAX * 2];
     size_t         databuflen, databufsz, datasz;
     struct tdargs *args = arg;
     struct work *  work;
@@ -3019,7 +3019,7 @@ kvt_check_main(void *arg)
             continue;
         }
 
-        if (fnlen > HSE_KVS_KLEN_MAX) {
+        if (fnlen > HSE_KVS_KEY_LEN_MAX) {
             eprint(
                 err,
                 "unexpectedly large value (%zu) for rid %lu from %s",
@@ -3638,7 +3638,7 @@ kvt_test_main(void *arg)
 static int
 kvt_test_impl(struct tdargs *args, unsigned int oflags, struct hse_kvdb_txn *txn, u_long rid)
 {
-    char            fnrec[512], key[128], fn[HSE_KVS_KLEN_MAX * 2];
+    char            fnrec[512], key[128], fn[HSE_KVS_KEY_LEN_MAX * 2];
     struct hse_kvs *kvs_inodes_src, *kvs_inodes_dst;
     struct hse_kvs *kvs_data_src, *kvs_data_dst;
     size_t          fnlen, fnreclen, databufsz, databuflen;
@@ -3667,7 +3667,7 @@ kvt_test_impl(struct tdargs *args, unsigned int oflags, struct hse_kvdb_txn *txn
     args->stats.gets++;
     args->stats.vgetlen += fnlen;
 
-    if (fnlen > HSE_KVS_KLEN_MAX) {
+    if (fnlen > HSE_KVS_KEY_LEN_MAX) {
         eprint(
             err, "unexpectedly large value (%zu) for rid %lu from %s", fnlen, rid, KVS_RIDS_NAME);
         abort();

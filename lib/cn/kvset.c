@@ -1590,7 +1590,7 @@ kvset_pfx_lookup(
 
     struct key_obj kobj, kt_obj, kbuf_obj;
 
-    u8          curr_sfx_data[HSE_KVS_KLEN_MAX];
+    u8          curr_sfx_data[HSE_KVS_KEY_LEN_MAX];
     const void *curr_sfx;
 
     key2kobj(&kt_obj, kt->kt_data, kt->kt_len);

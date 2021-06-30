@@ -43,7 +43,7 @@ txput(void *arg)
 	int rc;
 
 	char val[8];
-	char key[HSE_KVS_KLEN_MAX];
+	char key[HSE_KVS_KEY_LEN_MAX];
 	uint *v = (uint *)val;
 	uint *k = (uint *)key;
 

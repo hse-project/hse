@@ -41,7 +41,7 @@ put(void *arg)
 	uint64_t p = 0;
 	int rc;
 
-	char key[HSE_KVS_KLEN_MAX];
+	char key[HSE_KVS_KEY_LEN_MAX];
 
 	memset(key, 0xaf, sizeof(key));
 	while (!killthreads) {

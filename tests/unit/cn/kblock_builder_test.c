@@ -46,7 +46,7 @@ struct mclass_policy mocked_mpolicy = {
 struct kvs_rparams mocked_rp;
 struct kvs_cparams mocked_cp;
 
-u8    key_buf_pfxed[HSE_KVS_KLEN_MAX];
+u8    key_buf_pfxed[HSE_KVS_KEY_LEN_MAX];
 void *key_buf;
 void *kmd_buf;
 int   salt;

@@ -290,7 +290,7 @@ wbt_leaf_publish(struct wbb *wbb)
         wbb->wbt_last_kobj.ko_sfx = sfxp + key_extra;
         wbb->wbt_last_kobj.ko_sfx_len = sfx_len;
 
-        assert(pfx_len + sfx_len <= HSE_KVS_KLEN_MAX);
+        assert(pfx_len + sfx_len <= HSE_KVS_KEY_LEN_MAX);
 
         /* Store first key. */
         if (!wbb->entries)

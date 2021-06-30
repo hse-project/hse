@@ -214,7 +214,7 @@ wbti_seek_rev(struct wbti *self, struct kvs_ktuple *kt)
     kt_data = kt->kt_data;
     kt_len = abs(kt->kt_len);
     if (kt->kt_len < 0)
-        kt_len = HSE_KVS_KLEN_MAX;
+        kt_len = HSE_KVS_KEY_LEN_MAX;
 
     node_num = wbtr_seek_page(kbd, wbd, kt_data, kt_len, 0);
     wbti_get_page(self, node_num);

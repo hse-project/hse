@@ -636,7 +636,7 @@ hse_kvs_put(
     if (HSE_UNLIKELY(!handle || !key || (val_len > 0 && !val) || flags & ~HSE_FLAG_PUT_ALL))
         return merr_to_hse_err(merr(EINVAL));
 
-    if (HSE_UNLIKELY(key_len > HSE_KVS_KLEN_MAX))
+    if (HSE_UNLIKELY(key_len > HSE_KVS_KEY_LEN_MAX))
         return merr_to_hse_err(merr(ENAMETOOLONG));
 
     if (HSE_UNLIKELY(key_len == 0))
@@ -681,7 +681,7 @@ hse_kvs_get(
     if (HSE_UNLIKELY(!valbuf && valbuf_sz > 0))
         return merr_to_hse_err(merr(EINVAL));
 
-    if (HSE_UNLIKELY(key_len > HSE_KVS_KLEN_MAX))
+    if (HSE_UNLIKELY(key_len > HSE_KVS_KEY_LEN_MAX))
         return merr_to_hse_err(merr(ENAMETOOLONG));
 
     if (HSE_UNLIKELY(key_len == 0))
@@ -734,7 +734,7 @@ hse_kvs_delete(
     if (HSE_UNLIKELY(!handle || !key || flags != HSE_FLAG_NONE))
         return merr_to_hse_err(merr(EINVAL));
 
-    if (HSE_UNLIKELY(key_len > HSE_KVS_KLEN_MAX))
+    if (HSE_UNLIKELY(key_len > HSE_KVS_KEY_LEN_MAX))
         return merr_to_hse_err(merr(ENAMETOOLONG));
 
     if (HSE_UNLIKELY(key_len == 0))

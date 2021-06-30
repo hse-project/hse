@@ -224,7 +224,7 @@ reader(void *arg)
 	c = p + 1;
 
 	while (!killthreads) {
-		char        kbuf[HSE_KVS_KLEN_MAX] = {0};
+		char        kbuf[HSE_KVS_KEY_LEN_MAX] = {0};
 		char        vbuf[VLEN];
 		uint64_t    pfx, core;
 

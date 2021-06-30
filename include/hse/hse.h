@@ -346,7 +346,7 @@ hse_kvdb_kvs_close(struct hse_kvs *kvs);
  * Put a KV pair into KVS
  *
  * If the key already exists in the KVS then the value is effectively overwritten. The
- * key length must be in the range [1, HSE_KVS_KLEN_MAX] while the value length must be
+ * key length must be in the range [1, HSE_KVS_KEY_LEN_MAX] while the value length must be
  * in the range [0, HSE_KVS_VALUE_LEN_MAX]. See the section on transactions for information
  * on how puts within transactions are handled. This function is thread safe.
  *

@@ -78,7 +78,7 @@ sighandler(int signo)
 int
 main(int argc, char **argv)
 {
-    static char kbuf[HSE_KVS_KLEN_MAX];
+    static char kbuf[HSE_KVS_KEY_LEN_MAX];
     static char vbuf[HSE_KVS_VALUE_LEN_MAX];
 
     const char *           mpname, *dsname, *kvname, *prog;

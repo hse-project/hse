@@ -137,7 +137,7 @@ dummy_ikvdb_destroy(void *p)
 
 #define ITV_INIT(itv, i, make) ASSERT_EQ(0, mock_make_kvi(&itv[i], i, &rp, &make[i]))
 
-static u8 kbuf[HSE_KVS_KLEN_MAX];
+static u8 kbuf[HSE_KVS_KEY_LEN_MAX];
 
 static void
 cn_cursor_read_internal(struct mtf_test_info *lcl_ti,

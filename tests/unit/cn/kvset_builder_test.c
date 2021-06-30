@@ -170,11 +170,11 @@ MTF_DEFINE_UTEST_PREPOST(test, t_kvset_builder_add_entry1, pre, post)
     key2kobj(&ko, kdata, 0);
     err = kvset_builder_add_key(bld, &ko);
     ASSERT_NE(err, 0);
-    key2kobj(&ko, kdata, HSE_KVS_KLEN_MAX + 1);
+    key2kobj(&ko, kdata, HSE_KVS_KEY_LEN_MAX + 1);
     err = kvset_builder_add_key(bld, &ko);
     ASSERT_NE(err, 0);
     /* success */
-    key2kobj(&ko, kdata, HSE_KVS_KLEN_MAX);
+    key2kobj(&ko, kdata, HSE_KVS_KEY_LEN_MAX);
     err = kvset_builder_add_key(bld, &ko);
     ASSERT_EQ(err, 0);
 

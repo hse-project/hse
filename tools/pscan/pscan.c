@@ -203,7 +203,7 @@ main(int argc, char **argv)
     seek = NULL;
     max_iter = ULONG_MAX;
 
-    Opts.kmax = HSE_KVS_KLEN_MAX;
+    Opts.kmax = HSE_KVS_KEY_LEN_MAX;
     Opts.vmax = HSE_KVS_VALUE_LEN_MAX;
     Opts.hexonly = 0;
 
@@ -412,7 +412,7 @@ main(int argc, char **argv)
         }
 
         if (uniq) {
-            static char   keyprev[HSE_KVS_KLEN_MAX];
+            static char   keyprev[HSE_KVS_KEY_LEN_MAX];
             static size_t klenprev;
             size_t        len = klen;
 

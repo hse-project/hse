@@ -90,7 +90,7 @@ usage(char *prog)
 int
 main(int argc, char **argv)
 {
-    static char      buf[(HSE_KVS_KLEN_MAX + HSE_KVS_VALUE_LEN_MAX) * 3];
+    static char      buf[(HSE_KVS_KEY_LEN_MAX + HSE_KVS_VALUE_LEN_MAX) * 3];
     struct parm_groups *pg = NULL;
     char *           mpname, *prog;
     const char *     kvsname;
@@ -169,7 +169,7 @@ main(int argc, char **argv)
 
     err = 0;
     while (fgets(buf, sizeof(buf), stdin) != NULL) {
-        static char kbuf[HSE_KVS_KLEN_MAX];
+        static char kbuf[HSE_KVS_KEY_LEN_MAX];
         static char vbuf[HSE_KVS_VALUE_LEN_MAX];
         static char gbuf[HSE_KVS_VALUE_LEN_MAX];
         static char obuf[HSE_KVS_VALUE_LEN_MAX];

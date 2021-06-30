@@ -360,7 +360,7 @@ MTF_DEFINE_UTEST_PREPOST(lc_test, cursor_rev_basic, test_pre, test_post)
     struct lc_cursor *cur;
     merr_t            err;
     const u64         view_seq = 11;
-    char              pfx[HSE_KVS_KLEN_MAX];
+    char              pfx[HSE_KVS_KEY_LEN_MAX];
 
     memset(pfx, 0xff, sizeof(pfx));
     memcpy(pfx, "ab", strlen("ab"));
@@ -494,7 +494,7 @@ MTF_DEFINE_UTEST_PREPOST(lc_test, cursor_rev_ptomb, test_pre, test_post)
     struct lc_cursor *cur;
     merr_t            err;
     const u64         view_seq = 30;
-    char              pfx[HSE_KVS_KLEN_MAX];
+    char              pfx[HSE_KVS_KEY_LEN_MAX];
 
     memset(pfx, 0xff, sizeof(pfx));
     memcpy(pfx, "ab", strlen("ab"));
@@ -612,7 +612,7 @@ MTF_DEFINE_UTEST_PREPOST(lc_test, cursor_horizon, test_pre, test_post)
     lc_cursor_destroy(cur);
 
     reverse = true;
-    char pfx[HSE_KVS_KLEN_MAX];
+    char pfx[HSE_KVS_KEY_LEN_MAX];
 
     memset(pfx, 0xff, sizeof(pfx));
     memcpy(pfx, "bb", strlen("bb"));

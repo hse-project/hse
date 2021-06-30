@@ -849,7 +849,7 @@ lc_cursor_create(
             cur->lcc_reverse,
             i == 0 ? true : false);
 
-        bonsai_iter_position(&cur->lcc_it[i], pfx_padded, reverse ? HSE_KVS_KLEN_MAX : len);
+        bonsai_iter_position(&cur->lcc_it[i], pfx_padded, reverse ? HSE_KVS_KEY_LEN_MAX : len);
         cur->lcc_esrcv[i] = bonsai_iter_es_make(&cur->lcc_it[i]);
     }
 

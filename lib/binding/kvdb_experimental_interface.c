@@ -38,9 +38,9 @@ hse_kvs_prefix_probe_exp(
         err = merr(EINVAL);
     else if (!valbuf && valbuf_sz > 0)
         err = merr(EINVAL);
-    else if (pfx_len > HSE_KVS_KLEN_MAX)
+    else if (pfx_len > HSE_KVS_KEY_LEN_MAX)
         err = merr(ENAMETOOLONG);
-    else if (keybuf_sz != HSE_KVS_KLEN_MAX)
+    else if (keybuf_sz != HSE_KVS_KEY_LEN_MAX)
         err = merr(EINVAL);
 
     if (ev(err))

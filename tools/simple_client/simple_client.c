@@ -73,7 +73,7 @@ simple_client(
 	bool        write,
 	bool        verbose)
 {
-	char    key[HSE_KVS_KLEN_MAX + 1];
+	char    key[HSE_KVS_KEY_LEN_MAX + 1];
 	char    val[32], xval[32];
 	size_t  klen, klenmax;
 	size_t  vlen, vlenmax;

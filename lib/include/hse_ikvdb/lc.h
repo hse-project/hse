@@ -110,7 +110,7 @@ lc_ingest_seqno_get(struct lc *handle);
  * @seqno:         View seqno for this cursor
  * @seqnoref:      Seqnoref of the associated txn
  * @reverse:       Whether or not this is a reverse cursor
- * @pfx_padded:    Prefix. The caller must pad this to HSE_KVS_KLEN_MAX with 0xff if reverse.
+ * @pfx_padded:    Prefix. The caller must pad this to HSE_KVS_KEY_LEN_MAX with 0xff if reverse.
  * @pfxlen:        Length of the actual prefix (excluding padding if there is any)
  * @tree_pfxlen:   Length of the KVS's pfxlen
  * @summary:

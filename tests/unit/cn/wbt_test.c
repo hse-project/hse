@@ -349,7 +349,7 @@ cursor_verify(
         void *        fkey;
         size_t        fklen;
         int           qt = reverse ? QTYPE_SEEK_REV : QTYPE_SEEK_FWD;
-        unsigned char kbuf[HSE_KVS_KLEN_MAX];
+        unsigned char kbuf[HSE_KVS_KEY_LEN_MAX];
 
         reft_lookup(k->kdata, k->klen, &fkey, &fklen, qt);
         key_obj_copy(kbuf, sizeof(kbuf), &klen, &ko);
@@ -447,7 +447,7 @@ load_and_test(struct mtf_test_info *lcl_ti, struct key_list *kl)
 MTF_DEFINE_UTEST_PREPOST(wbt_test, basic, pre_test, post_test)
 {
     int              i, rc;
-    char             buf[HSE_KVS_KLEN_MAX];
+    char             buf[HSE_KVS_KEY_LEN_MAX];
     struct key_list *ql = &key_list; /* query list */
 
     memset(buf, 0xfe, sizeof(buf));
@@ -522,13 +522,13 @@ MTF_DEFINE_UTEST_PREPOST(wbt_test, few_keys, pre_test, post_test)
 MTF_DEFINE_UTEST_PREPOST(wbt_test, increasing_length, pre_test, post_test)
 {
     int              i, rc;
-    char             buf[HSE_KVS_KLEN_MAX];
+    char             buf[HSE_KVS_KEY_LEN_MAX];
     size_t           nkeys;
     struct key_list *ql = &key_list; /* query list */
 
     memset(buf, 0xfe, sizeof(buf));
 
-    nkeys = HSE_KVS_KLEN_MAX - 30;
+    nkeys = HSE_KVS_KEY_LEN_MAX - 30;
     for (i = 0; i < nkeys; i++) {
         bool added;
 
@@ -546,7 +546,7 @@ MTF_DEFINE_UTEST_PREPOST(wbt_test, increasing_length, pre_test, post_test)
 MTF_DEFINE_UTEST_PREPOST(wbt_test, large_last_key, pre_test, post_test)
 {
     int              i, rc;
-    char             buf[HSE_KVS_KLEN_MAX];
+    char             buf[HSE_KVS_KEY_LEN_MAX];
     size_t           nkeys = 3000;
     size_t           klen = 128;
     const uint       lcp = 23;
@@ -556,7 +556,7 @@ MTF_DEFINE_UTEST_PREPOST(wbt_test, large_last_key, pre_test, post_test)
 
     /*
      * small_key_space (small_sz) = (klen - lcp + lfe);
-     * large_key_space (large_sz) = HSE_KVS_KLEN_MAX - lcp + lfe
+     * large_key_space (large_sz) = HSE_KVS_KEY_LEN_MAX - lcp + lfe
      *
      * total_space = (small_sz * nkeys) + large_sz + lcp + wbt_hdr_sz
      *
@@ -564,7 +564,7 @@ MTF_DEFINE_UTEST_PREPOST(wbt_test, large_last_key, pre_test, post_test)
      * PAGE_SIZE.
      */
     uint max_small_keys =
-        (PAGE_SIZE - HSE_KVS_KLEN_MAX - lfe_sz - lcp - hdr_sz + lcp) / (klen - lcp + lfe_sz);
+        (PAGE_SIZE - HSE_KVS_KEY_LEN_MAX - lfe_sz - lcp - hdr_sz + lcp) / (klen - lcp + lfe_sz);
 
     memset(buf, 0xfe, sizeof(buf));
 
@@ -575,7 +575,7 @@ MTF_DEFINE_UTEST_PREPOST(wbt_test, large_last_key, pre_test, post_test)
         /* Changing this key format will affect lcp too. */
         snprintf(buf, sizeof(buf), "key-%020d", i);
         if (i % max_small_keys == 0)
-            kl = HSE_KVS_KLEN_MAX;
+            kl = HSE_KVS_KEY_LEN_MAX;
 
         added = add_key(&key_list, buf, kl);
         ASSERT_TRUE(added);
@@ -590,7 +590,7 @@ MTF_DEFINE_UTEST_PREPOST(wbt_test, large_last_key, pre_test, post_test)
 MTF_DEFINE_UTEST(wbt_test, varying_large_key)
 {
     int              i, j, rc;
-    char             buf[HSE_KVS_KLEN_MAX];
+    char             buf[HSE_KVS_KEY_LEN_MAX];
     size_t           nkeys = 3000;
     size_t           klen = 64;
     struct key_list *ql = &key_list; /* query list */
@@ -605,7 +605,7 @@ MTF_DEFINE_UTEST(wbt_test, varying_large_key)
 
             snprintf(buf, sizeof(buf), "key-%020d", j);
             if (j % i == 0)
-                kl = HSE_KVS_KLEN_MAX;
+                kl = HSE_KVS_KEY_LEN_MAX;
 
             added = add_key(&key_list, buf, kl);
             ASSERT_TRUE(added);
@@ -622,9 +622,9 @@ MTF_DEFINE_UTEST(wbt_test, varying_large_key)
 MTF_DEFINE_UTEST_PREPOST(wbt_test, small_last_key, pre_test, post_test)
 {
     int              i, rc;
-    char             buf[HSE_KVS_KLEN_MAX];
+    char             buf[HSE_KVS_KEY_LEN_MAX];
     size_t           nkeys = 3000;
-    size_t           large_klen = HSE_KVS_KLEN_MAX;
+    size_t           large_klen = HSE_KVS_KEY_LEN_MAX;
     const int        keys_per_node = 4;
     struct key_list *ql = &key_list; /* query list */
 
@@ -651,7 +651,7 @@ MTF_DEFINE_UTEST_PREPOST(wbt_test, small_last_key, pre_test, post_test)
 MTF_DEFINE_UTEST_PREPOST(wbt_test, skip_keys, pre_test, post_test)
 {
     int             i, rc;
-    char            buf[HSE_KVS_KLEN_MAX];
+    char            buf[HSE_KVS_KEY_LEN_MAX];
     size_t          nkeys = 100 * 1000;
     size_t          klen = 64;
     struct key_list ql = { 0 }; /* query list */

@@ -979,8 +979,8 @@ main(int argc, char **argv)
             return EX_USAGE;
         }
 
-        if (klen > HSE_KVS_KLEN_MAX) {
-            eprint(EINVAL, "key format yields key longer than %u bytes", HSE_KVS_KLEN_MAX);
+        if (klen > HSE_KVS_KEY_LEN_MAX) {
+            eprint(EINVAL, "key format yields key longer than %u bytes", HSE_KVS_KEY_LEN_MAX);
             return EX_USAGE;
         }
     }
