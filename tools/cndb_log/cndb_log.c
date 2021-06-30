@@ -39,7 +39,7 @@ static int check;
 static int status;
 
 struct tool_info {
-    const char *  mp;
+    const char *  kvdb_home;
     char *        buf;
     size_t        bufsz;
     struct mpool *ds;
@@ -84,7 +84,7 @@ usage(void)
                               "-i       ignore errors\n"
                               "-r file  read from file\n"
                               "-w file  write raw data from input to file\n"
-                              "kvdb     name of the kvdb\n"
+                              "<kvdb_home> kvdb home dir\n"
                               "\n";
 
     printf(msg, progname, progname);
@@ -96,7 +96,7 @@ open_kvdb_and_cndb(struct tool_info *ti)
 {
     u64 rc;
 
-    rc = diag_kvdb_open(ti->mp, 0, NULL, &ti->kvdbh);
+    rc = diag_kvdb_open(ti->kvdb_home, 0, NULL, &ti->kvdbh);
     if (rc)
         fatal("diag_kvdb_open", rc);
 
@@ -646,7 +646,7 @@ main(int argc, char **argv)
             exit(EX_USAGE);
         }
 
-        ti.mp = argv[0];
+        ti.kvdb_home = argv[0];
 
         open_kvdb_and_cndb(&ti);
     }

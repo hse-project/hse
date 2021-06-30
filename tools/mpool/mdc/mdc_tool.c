@@ -28,7 +28,7 @@ void
 fatal(char *who, hse_err_t err)
 {
     char buf[ERROR_BUF_SIZE];
-    hse_err_to_string(err, buf, sizeof(buf), NULL);
+    hse_strerror(err, buf, sizeof(buf));
     hse_log(HSE_ERR "mdc_tool: %s: %s", who, buf);
     exit(1);
 }
@@ -103,7 +103,7 @@ main(int argc, char **argv)
     int                ignore, c;
     const char        *home;
 
-    err = hse_init();
+    err = hse_init(0, NULL);
     if (err)
         fatal("hse_init", err);
 

@@ -1,4 +1,4 @@
-0000: ver    magic 0x32313132 version 7 captgt 616562688
+0000: ver    magic 0x32313132 version 12 captgt 616562688
 0018: info   cnid 2 fanout 3 prefix 0 flags 0x0 metasz 4 name kvs2 meta 0xca 0xfe 0xba 0xbe
 005c: info   cnid 3 fanout 3 prefix 2 flags 0x0 metasz 2 name kvs3 meta 0xfe 0xed
 009e: info   cnid 4 fanout 3 prefix 3 flags 0x0 metasz 4 name kvs4 meta 0x21 0x12 0x12 0x21

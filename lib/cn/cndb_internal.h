@@ -450,6 +450,13 @@ cndb_unpack_fn omf_cndb_info_unpack_v9;
 cndb_unpack_fn omf_cndb_tx_unpack_v4;
 
 /**
+ * omf_cndb_tx_unpack_v5() - unpack record CNDB_TYPE_TX V5
+ *
+ * See cndb_unpack_fn definition for parameters explanation.
+ */
+cndb_unpack_fn omf_cndb_tx_unpack_v5;
+
+/**
  * omf_cndb_tx_unpack() - unpack record CNDB_TYPE_TX
  *
  * See cndb_unpack_fn definition for parameters explanation.

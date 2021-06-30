@@ -1547,7 +1547,7 @@ ikvdb_kvs_open(
 
     params->rdonly = self->ikdb_rp.read_only; /* inherit from kvdb */
 
-    ikvdb_wal_install_callback(self);
+    ikvdb_wal_install_callback(self); /* TODO: can this be removed? */
 
     mutex_lock(&self->ikdb_lock);
 
