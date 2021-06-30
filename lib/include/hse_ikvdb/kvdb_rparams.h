@@ -55,12 +55,10 @@ struct kvdb_rparams {
     uint8_t  c0_debug;
     uint16_t txn_commit_abort_pct;
 
-    uint64_t c0_heap_cache_sz_max;
-    uint64_t c0_heap_sz;
+    uint64_t c0_cheap_cache_sz_max;
+    uint64_t c0_cheap_sz;
     uint32_t c0_ingest_width;
 
-    uint64_t txn_heap_sz;
-    uint32_t txn_ingest_width;
     uint64_t txn_timeout;
 
     uint32_t csched_policy;

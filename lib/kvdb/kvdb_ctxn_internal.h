@@ -27,9 +27,7 @@
  * @ctxn_alloc_link:          used to queue onto KVDB allocated txn list
  * @ctxn_tseqno_head:
  * @ctxn_tseqno_tail:
- * @ctxn_ingest_width:
  * @ctxn_ingest_delay:
- * @ctxn_heap_sz:
  * @ctxn_begin_ts:
  * @ctxn_viewset_cookie:
  * @ctxn_alloc_link:

@@ -8,22 +8,18 @@
 
 /* clang-format off */
 
-#define HSE_C0_CHEAP_SZ_MIN         (16ul << 20)
-#define HSE_C0_CHEAP_SZ_DFLT        (16ul << 20)
-#define HSE_C0_CHEAP_SZ_MAX         (64ul << 20)
-#define HSE_C0_CCACHE_SZ_MAX        (4ul << 30)
+#define HSE_C0_CCACHE_SZ_DFLT       (4ul << 30)
+#define HSE_C0_CCACHE_SZ_MAX        (8ul << 30)
 
-/* HSE_C0_INGEST_WIDTH_DYN limits the max width of a normal, dynamically
- * sized kvms, whereas HSE_C0_INGEST_WIDTH_MAX limits the max width of
- * fixed size kvms (fixed either by rparams or via boosting, see
- * c0sk_ingest_tune() for details).
- */
-#define HSE_C0_INGEST_WIDTH_MIN     (16)
-#define HSE_C0_INGEST_WIDTH_DFLT    (16)
-#define HSE_C0_INGEST_WIDTH_DYN     (20)
+#define HSE_C0_CHEAP_SZ_MIN         (16ul << 20)
+#define HSE_C0_CHEAP_SZ_DFLT        (64ul << 20)
+#define HSE_C0_CHEAP_SZ_MAX         (128ul << 20)
+
+#define HSE_C0_INGEST_WIDTH_MIN     (8)
+#define HSE_C0_INGEST_WIDTH_DFLT    (20)
 #define HSE_C0_INGEST_WIDTH_MAX     (32)
 
-#define HSE_C0_INGEST_SZ_MAX        (2048) /* MiB */
+#define HSE_C0_INGEST_SZ_MAX        (HSE_C0_CHEAP_SZ_MAX * HSE_C0_INGEST_WIDTH_MAX)
 
 #define HSE_C0_INGEST_THREADS_DFLT  (3)
 #define HSE_C0_INGEST_THREADS_MAX   (5)

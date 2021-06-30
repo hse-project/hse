@@ -536,15 +536,14 @@ c0sk_open(
         goto errout;
     }
 
-    c0sk->c0sk_ingest_width_max = HSE_C0_INGEST_WIDTH_DYN;
-
-    if (kvdb_rp->c0_ingest_width == 0)
-        c0sk->c0sk_ingest_width = c0sk->c0sk_ingest_width_max / 2;
+    c0sk->c0sk_ingest_width_max = kvdb_rp->c0_ingest_width;
+    c0sk->c0sk_ingest_width = c0sk->c0sk_ingest_width_max;
+    c0sk->c0sk_cheap_sz = kvdb_rp->c0_cheap_sz;
 
     if (gen > 0)
         c0kvms_gen_init(gen);
 
-    err = c0kvms_create(c0sk->c0sk_ingest_width, kvdb_rp->c0_heap_sz, c0sk->c0sk_kvdb_seq, &c0kvms);
+    err = c0kvms_create(c0sk->c0sk_ingest_width, c0sk->c0sk_cheap_sz, c0sk->c0sk_kvdb_seq, &c0kvms);
     if (ev(err))
         goto errout;
 

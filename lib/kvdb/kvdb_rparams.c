@@ -437,16 +437,16 @@ static const struct param_spec pspecs[] = {
         },
     },
     {
-        .ps_name = "c0_heap_cache_sz_max",
+        .ps_name = "c0_cheap_cache_sz_max",
         .ps_description = "max size of c0 cheap cache (bytes)",
         .ps_flags = PARAM_FLAG_EXPERIMENTAL,
         .ps_type = PARAM_TYPE_U64,
-        .ps_offset = offsetof(struct kvdb_rparams, c0_heap_cache_sz_max),
-        .ps_size = sizeof(((struct kvdb_rparams *) 0)->c0_heap_cache_sz_max),
+        .ps_offset = offsetof(struct kvdb_rparams, c0_cheap_cache_sz_max),
+        .ps_size = sizeof(((struct kvdb_rparams *) 0)->c0_cheap_cache_sz_max),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
         .ps_default_value = {
-            .as_uscalar = HSE_C0_CCACHE_SZ_MAX,
+            .as_uscalar = HSE_C0_CCACHE_SZ_DFLT,
         },
         .ps_bounds = {
             .as_uscalar = {
@@ -456,21 +456,21 @@ static const struct param_spec pspecs[] = {
         },
     },
     {
-        .ps_name = "c0_heap_sz",
-        .ps_description = "max c0 cheap size (bytes)",
+        .ps_name = "c0_cheap_sz",
+        .ps_description = "set c0 cheap size (bytes)",
         .ps_flags = PARAM_FLAG_EXPERIMENTAL,
         .ps_type = PARAM_TYPE_U64,
-        .ps_offset = offsetof(struct kvdb_rparams, c0_heap_sz),
-        .ps_size = sizeof(((struct kvdb_rparams *) 0)->c0_heap_sz),
+        .ps_offset = offsetof(struct kvdb_rparams, c0_cheap_sz),
+        .ps_size = sizeof(((struct kvdb_rparams *) 0)->c0_cheap_sz),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
         .ps_default_value = {
-            .as_uscalar = 0,
+            .as_uscalar = HSE_C0_CHEAP_SZ_DFLT,
         },
         .ps_bounds = {
             .as_uscalar = {
-                .ps_min = 0,
-                .ps_max = UINT64_MAX,
+                .ps_min = HSE_C0_CHEAP_SZ_MIN,
+                .ps_max = HSE_C0_CHEAP_SZ_MAX,
             },
         },
     },
@@ -514,49 +514,11 @@ static const struct param_spec pspecs[] = {
     },
     {
         .ps_name = "c0_ingest_width",
-        .ps_description = "fix c0 kvms width (min 2), zero for dynamic width",
+        .ps_description = "set c0 kvms width",
         .ps_flags = PARAM_FLAG_EXPERIMENTAL,
         .ps_type = PARAM_TYPE_U32,
         .ps_offset = offsetof(struct kvdb_rparams, c0_ingest_width),
         .ps_size = sizeof(((struct kvdb_rparams *) 0)->c0_ingest_width),
-        .ps_convert = param_default_converter,
-        .ps_validate = param_default_validator,
-        .ps_default_value = {
-            .as_uscalar = 0,
-        },
-        .ps_bounds = {
-            .as_uscalar = {
-                .ps_min = 0,
-                .ps_max = UINT32_MAX,
-            },
-        },
-    },
-    {
-        .ps_name = "txn_heap_sz",
-        .ps_description = "max txn cheap size (bytes)",
-        .ps_flags = PARAM_FLAG_EXPERIMENTAL,
-        .ps_type = PARAM_TYPE_U64,
-        .ps_offset = offsetof(struct kvdb_rparams, txn_heap_sz),
-        .ps_size = sizeof(((struct kvdb_rparams *) 0)->txn_heap_sz),
-        .ps_convert = param_default_converter,
-        .ps_validate = param_default_validator,
-        .ps_default_value = {
-            .as_uscalar = HSE_C0_CHEAP_SZ_MAX,
-        },
-        .ps_bounds = {
-            .as_scalar = {
-                .ps_min = HSE_C0_CHEAP_SZ_MIN,
-                .ps_max = HSE_C0_CHEAP_SZ_MAX,
-            },
-        },
-    },
-    {
-        .ps_name = "txn_ingest_width",
-        .ps_description = "number of txn trees in parallel",
-        .ps_flags = PARAM_FLAG_EXPERIMENTAL,
-        .ps_type = PARAM_TYPE_U32,
-        .ps_offset = offsetof(struct kvdb_rparams, txn_ingest_width),
-        .ps_size = sizeof(((struct kvdb_rparams *) 0)->txn_ingest_width),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
         .ps_default_value = {
@@ -565,7 +527,7 @@ static const struct param_spec pspecs[] = {
         .ps_bounds = {
             .as_uscalar = {
                 .ps_min = HSE_C0_INGEST_WIDTH_MIN,
-                .ps_max = HSE_C0_INGEST_WIDTH_MAX,
+                .ps_max = HSE_C0_INGEST_WIDTH_DFLT,
             },
         },
     },

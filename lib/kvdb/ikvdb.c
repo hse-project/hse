@@ -922,14 +922,14 @@ ikvdb_low_mem_adjust(struct ikvdb_impl *self)
     scale = mavail / 8;
     scale = max_t(uint, 1, scale);
 
-    if (kp->c0_heap_cache_sz_max == dflt.c0_heap_cache_sz_max)
-        kp->c0_heap_cache_sz_max = min_t(u64, 1024 * 1024 * 128UL * scale, HSE_C0_CCACHE_SZ_MAX);
+    if (kp->c0_cheap_cache_sz_max == dflt.c0_cheap_cache_sz_max)
+        kp->c0_cheap_cache_sz_max = min_t(u64, 1024 * 1024 * 128UL * scale, HSE_C0_CCACHE_SZ_MAX);
 
-    if (kp->c0_heap_sz == dflt.c0_heap_sz)
-        kp->c0_heap_sz = min_t(u64, 1024 * 1024 * 16UL * scale, HSE_C0_CHEAP_SZ_MAX);
+    if (kp->c0_cheap_sz == dflt.c0_cheap_sz)
+        kp->c0_cheap_sz = min_t(u64, HSE_C0_CHEAP_SZ_MIN * scale, HSE_C0_CHEAP_SZ_MAX);
 
     if (kp->c0_ingest_width == dflt.c0_ingest_width)
-        kp->c0_ingest_width = HSE_C0_INGEST_WIDTH_DFLT;
+        kp->c0_ingest_width = HSE_C0_INGEST_WIDTH_MIN;
 
     if (kp->c0_ingest_threads == dflt.c0_ingest_threads)
         kp->c0_ingest_threads = min_t(u64, scale, HSE_C0_INGEST_THREADS_DFLT);
@@ -938,15 +938,9 @@ ikvdb_low_mem_adjust(struct ikvdb_impl *self)
         kp->c0_mutex_pool_sz = 5;
 
     if (kp->throttle_c0_hi_th == dflt.throttle_c0_hi_th)
-        kp->throttle_c0_hi_th = (2 * kp->c0_heap_sz * kp->c0_ingest_width) >> 20;
+        kp->throttle_c0_hi_th = (2 * kp->c0_cheap_sz * kp->c0_ingest_width) >> 20;
 
-    if (kp->txn_heap_sz == dflt.txn_heap_sz)
-        kp->txn_heap_sz = min_t(u64, 1024 * 1024 * 16UL * scale, HSE_C0_CHEAP_SZ_MAX);
-
-    if (kp->txn_ingest_width == dflt.txn_ingest_width)
-        kp->txn_ingest_width = HSE_C0_INGEST_WIDTH_DFLT;
-
-    c0kvs_reinit(kp->c0_heap_cache_sz_max);
+    c0kvs_reinit(kp->c0_cheap_cache_sz_max);
 }
 
 static void

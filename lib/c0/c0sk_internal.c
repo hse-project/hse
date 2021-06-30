@@ -9,6 +9,7 @@
 #include <hse_util/slab.h>
 #include <hse_util/log2.h>
 #include <hse_util/table.h>
+#include <hse_util/xrand.h>
 #include <hse_util/cds_list.h>
 #include <hse_util/bonsai_tree.h>
 #include <hse_util/bkv_collection.h>
@@ -1019,39 +1020,16 @@ c0sk_ingest_boost(struct c0sk_impl *self)
 }
 
 /**
- * conc2width() - choose a kvms width based on given concurrency
- * @conc:   estimated number of threads issuing put/get/del requests
- *
- * The idea being that the width should always be larger than the
- * given concurrency.
- */
-static uint
-conc2width(struct c0sk_impl *self, uint conc)
-{
-    static u8 cwtab[] = {
-        8, 8, 16, 20, 24, 28, 32, 36, 40, 44, 48, 52, 56, 60, 64, 68,
-    };
-
-    conc = min_t(uint, conc, NELEM(cwtab) - 1);
-
-    return cwtab[conc];
-}
-
-/**
- * c0sk_ingest_tune() - dynamically tune c0sk for next ingest buffer size
- * @self:       ptr to c0sk_impl
- * @usage:      usage statistics of most recently ingested kvms
+ * c0sk_ingest_tune() - adjust tuning for next ingest buffer
+ * @self: ptr to c0sk_impl
  */
 static void
-c0sk_ingest_tune(struct c0sk_impl *self, struct c0_usage *usage)
+c0sk_ingest_tune(struct c0sk_impl *self)
 {
     struct kvdb_rparams *rp = self->c0sk_kvdb_rp;
+    uint width;
 
-    size_t oldsz, newsz, pct_used, pct_diff;
-    uint   width, width_max;
-
-    width_max = HSE_C0_INGEST_WIDTH_MAX;
-    oldsz = pct_used = pct_diff = 0;
+    width = min_t(uint, self->c0sk_ingest_width_max * 2, HSE_C0_INGEST_WIDTH_MAX);
 
     /* A mongod replica node requires a maximally provisioned
      * kvms with throttling disabled in order to mitigate lag.
@@ -1063,79 +1041,11 @@ c0sk_ingest_tune(struct c0sk_impl *self, struct c0_usage *usage)
         rp->throttle_disable |= 0x80u;
         self->c0sk_boost--;
     } else {
-        width_max = self->c0sk_ingest_width_max;
+        width = self->c0sk_ingest_width_max;
         rp->throttle_disable &= ~0x80u;
     }
 
-    /* Determine the ingest width hint for the next ingest based on
-     * the number of threads waiting for this ingest to complete.
-     */
-    width = rp->c0_ingest_width;
-    if (width == 0) {
-        width = conc2width(self, self->c0sk_ingest_conc);
-        width = min_t(uint, width, width_max);
-
-        if (width < self->c0sk_ingest_width)
-            width = (width + self->c0sk_ingest_width * 15) / 16;
-    }
-
-    /* Adjust the cheap size for the next ingest such that the aggregate
-     * ingest buffer size is roughly consistent irrespective of width.
-     * If the last buffer was underutilized then adjust the settings
-     * to achieve something close to 95% utilization.
-     */
-    newsz = rp->c0_heap_sz;
-    if (newsz == 0) {
-        size_t diff = usage->u_used_max - usage->u_used_min;
-        size_t used = usage->u_alloc - usage->u_free;
-
-        pct_diff = diff * 100 * usage->u_count / usage->u_alloc;
-        pct_used = used * 100 / usage->u_alloc + 1;
-
-        oldsz = self->c0sk_cheap_sz / 1048576;
-        newsz = HSE_C0_INGEST_SZ_MAX / width;
-
-        if (pct_diff > 15 && pct_used < 85) {
-            pct_diff = min_t(size_t, pct_diff, 99);
-            newsz = newsz * 115 / (100 - pct_diff);
-            newsz = (newsz + oldsz * 3) / 4;
-
-            width = width * (100 - pct_diff) / 115;
-        } else {
-            newsz = (newsz + oldsz * 3) / 4;
-            newsz = newsz * pct_used / 100;
-        }
-    }
-
-    if (width * newsz > HSE_C0_INGEST_SZ_MAX)
-        width = HSE_C0_INGEST_SZ_MAX / newsz;
-
-    newsz *= 1048576;
-    newsz = min_t(size_t, newsz, HSE_C0_CHEAP_SZ_MAX);
-    newsz = max_t(size_t, newsz, HSE_C0_CHEAP_SZ_MIN);
-
-    width = min_t(uint, width, width_max);
-    width = max_t(uint, width, HSE_C0_INGEST_WIDTH_MIN);
-
     self->c0sk_ingest_width = width;
-    self->c0sk_cheap_sz = newsz;
-
-    if (rp->c0_debug & C0_DEBUG_INGTUNE)
-        hse_log(
-            HSE_NOTICE "%s: used %zu%% diff %zu%%, %zu -> %zu (%zu) width %u/%u/%u, conc %u, boost "
-                       "%u, keys %lu",
-            __func__,
-            pct_used,
-            pct_diff,
-            oldsz,
-            newsz / 1048576ul,
-            (width * newsz) / 1048576ul,
-            width,
-            width_max,
-            self->c0sk_ingest_width_max,
-            self->c0sk_ingest_conc,
-            self->c0sk_boost,
-            usage->u_keys);
 }
 
 /* GCOV_EXCL_START */
@@ -1145,46 +1055,22 @@ c0sk_queue_ingest(struct c0sk_impl *self, struct c0_kvmultiset *old)
 {
     struct c0_kvmultiset *new = NULL;
     struct mtx_node *node;
-    struct c0_usage  usage = { 0 };
+    struct c0_usage  usage;
 
     bool   leader, created;
-    u64    cycles;
-    uint   conc;
+    size_t used;
     merr_t err;
 
 genchk:
     if (c0kvms_gen_read(old) < atomic64_read(&self->c0sk_ingest_gen))
         return new ? merr(EAGAIN) : 0;
 
-    cycles = get_cycles(); /* Use TSC as an RNG */
-
-    if (c0kvms_is_ingesting(old)) {
-        conc = atomic_read(&self->c0sk_ingest_ldr);
-
-        /* If there are already a sufficient number of waiters
-         * for tuning purposes then poll until old is ingested
-         * or the leader resigns.
-         */
-        if (conc2width(self, conc) >= self->c0sk_ingest_width_max) {
-            struct timespec req = { .tv_nsec = 100 };
-
-            if (cycles % 64 < 8)
-                nanosleep(&req, NULL);
-            else
-                cpu_relax();
-
-            goto genchk;
-        }
-    }
-
     c0kvms_ingesting(old);
 
-    node = mtx_pool_lock(self->c0sk_mtx_pool, cycles >> 1);
+    node = mtx_pool_lock(self->c0sk_mtx_pool, xrand64_tls());
 
-    conc = atomic_inc_return(&self->c0sk_ingest_ldr);
-    leader = (conc == 1);
-
-    if (!leader && conc2width(self, conc - 1) < self->c0sk_ingest_width_max)
+    leader = (atomic_inc_return(&self->c0sk_ingest_ldr) == 1);
+    if (!leader)
         mtx_pool_wait(node);
     mtx_pool_unlock(node);
 
@@ -1199,17 +1085,20 @@ genchk:
         goto resign;
     }
 
-    /* Sample and save the current usage of old for tuning and
-     * throttling.  It may not be 100% accurate, but should be
-     * close enough to the finalized result.
+    /* Sample and save the current usage of old for throttling.
+     * It may not be 100% accurate, but should be close enough
+     * to the finalized result.
      */
     c0kvms_usage(old, &usage);
-    c0kvms_used_set(old, usage.u_alloc - usage.u_free);
+    used = usage.u_alloc - usage.u_free;
+    if (usage.u_keyb + usage.u_valb > used)
+        used = usage.u_keyb + usage.u_valb;
+    c0kvms_used_set(old, used);
 
     if (ev(new)) {
         /* do nothing */
     } else {
-        c0sk_ingest_tune(self, &usage);
+        c0sk_ingest_tune(self);
 
         err =
             c0kvms_create(self->c0sk_ingest_width, self->c0sk_cheap_sz, self->c0sk_kvdb_seq, &new);
@@ -1233,12 +1122,10 @@ genchk:
      */
 resign:
     mtx_pool_lock_all(self->c0sk_mtx_pool);
-    if (created)
-        self->c0sk_ingest_conc = atomic_read(&self->c0sk_ingest_ldr);
     atomic_set(&self->c0sk_ingest_ldr, 0);
     mtx_pool_unlock_all(self->c0sk_mtx_pool, true);
 
-    if (leader && usage.u_keyb)
+    if (usage.u_keyb)
         perfc_rec_sample(
             &self->c0sk_pc_ingest, PERFC_DI_C0SKING_KVMSDSIZE, (usage.u_keyb + usage.u_valb) >> 10);
     return err;
@@ -1279,26 +1166,6 @@ c0sk_flush_current_multiset(struct c0sk_impl *self, u64 *genp)
         if (!self->c0sk_closing) {
             long waitmax = self->c0sk_kvdb_rp->dur_intvl_ms / 2;
             long delay = min_t(long, waitmax / 10 + 1, 100);
-
-#if 0
-            char namebuf[16];
-            int  rc;
-
-            rc = pthread_getname_np(pthread_self(), namebuf, sizeof(namebuf));
-
-            /* [HSE_REVISIT] Restrict mongod to syncing no more than once
-             * every ten seconds as syncing more frequently generates tiny
-             * kvsets that wreak havoc on cn (e.g., capped kvs' can grow
-             * spectacularly long...)
-             * Remove this once the new WAL is in place.
-             */
-            if (!rc && 0 == strncmp(namebuf, "KVDBJou.Flusher", 15)) {
-                if (c0kvms_ctime(old) + NSEC_PER_SEC * 10 > get_time_ns()) {
-                    c0kvms_putref(old);
-                    return EAGAIN;
-                }
-            }
-#endif
 
             while ((waitmax -= delay) > 0) {
                 struct c0_kvmultiset *cur;

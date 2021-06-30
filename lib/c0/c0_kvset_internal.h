@@ -16,6 +16,7 @@
  * @c0s_cheap:             handle to cheap (may be nil)
  * @c0s_broot:             bonsai tree instance
  * @c0s_alloc_sz:          client requested cursor heap size
+ * @c0s_ccache_sz:         cheap's RAM footprint in the cheap cache
  * @c0s_reset_sz:          size of cheap used by fully setup c0kkvs
  * @c0s_finalized:         kvset is frozen and undergoing c0 ingest
  * @c0s_next:              cheap cache linkage
@@ -29,12 +30,7 @@
  * @c0s_height:            current max tree height
  * @c0s_keyvals:           max number of values in any key
  *
- * Note:  To improve performance in the face of heavy contention, %c0s_mutex
- * is laid out so that it straddles two cache lines:  The lock word and other
- * bits in %c0s_mutex reside in the line with the lower address, while the
- * wait list in %c0s_mutex resides in the line with the higher address.
- *
- * Note also that the first cache line is primarily composed of read-only
+ * Note that the first cache line is primarily composed of read-only
  * fields to ameliorate cache line thrashing while the c0kvset is part
  * of the active kvms.
  */
@@ -43,6 +39,7 @@ struct c0_kvset_impl {
     struct cheap         *c0s_cheap;
     struct bonsai_root   *c0s_broot;
     u32                   c0s_alloc_sz;
+    u32                   c0s_ccache_sz;
     u32                   c0s_reset_sz;
     atomic_t              c0s_finalized;
     struct c0_kvset_impl *c0s_next;
@@ -53,7 +50,7 @@ struct c0_kvset_impl {
 
     struct mutex c0s_mutex HSE_ALIGNED(SMP_CACHE_BYTES * 2);
 
-    u32 c0s_num_entries HSE_ALIGNED(SMP_CACHE_BYTES * 2);
+    u32 c0s_num_entries HSE_ALIGNED(SMP_CACHE_BYTES);
     u32 c0s_num_tombstones;
     u64 c0s_total_key_bytes;
     u64 c0s_total_value_bytes;

@@ -18,15 +18,12 @@
 #include "c0_kvset_internal.h"
 #include "c0_cursor.h"
 
-/* The minimum c0 cheap size should be at least 2MB and large enough to accomodate
+/* The minimum c0 cheap size should be large enough to accomodate
  * at least one max-sized kvs value plus associated overhead.
  */
-_Static_assert(HSE_C0_CHEAP_SZ_MIN >= (2ul << 20), "min c0 cheap size too small");
-_Static_assert(
-    HSE_C0_CHEAP_SZ_MIN >= HSE_KVS_VALUE_LEN_MAX + (1ul << 20),
-    "min c0 cheap size too small");
-_Static_assert(HSE_C0_CHEAP_SZ_DFLT >= HSE_C0_CHEAP_SZ_MIN, "default c0 cheap size too small");
-_Static_assert(HSE_C0_CHEAP_SZ_MAX >= HSE_C0_CHEAP_SZ_DFLT, "max c0 cheap size too small");
+_Static_assert(HSE_C0_CHEAP_SZ_MIN > HSE_KVS_VLEN_MAX + (1ul << 20), "C0_CHEAP_SZ_MIN too small");
+_Static_assert(HSE_C0_CHEAP_SZ_DFLT > HSE_C0_CHEAP_SZ_MIN, "C0_CHEAP_SZ_DFLT too small");
+_Static_assert(HSE_C0_CHEAP_SZ_MAX > HSE_C0_CHEAP_SZ_DFLT, "C0_CHEAP_SZ_MAX too small");
 
 /*
  * A struct c0_kvset contains a Bonsai tree that is used in a RCU style.
@@ -62,7 +59,7 @@ static struct c0kvs_ccache c0kvs_ccache;
 static atomic_t            c0kvs_init_ref;
 
 static struct c0_kvset_impl *
-c0kvs_ccache_alloc(size_t sz)
+c0kvs_ccache_alloc(void)
 {
     struct c0kvs_ccache * cc = &c0kvs_ccache;
     struct c0_kvset_impl *set;
@@ -70,10 +67,8 @@ c0kvs_ccache_alloc(size_t sz)
     spin_lock(&cc->cc_lock);
     set = cc->cc_head;
     if (set) {
-        cc->cc_size -= HSE_C0_CHEAP_SZ_MAX;
+        cc->cc_size -= set->c0s_ccache_sz;
         cc->cc_head = set->c0s_next;
-
-        set->c0s_alloc_sz = sz;
     }
     spin_unlock(&cc->cc_lock);
 
@@ -85,11 +80,12 @@ c0kvs_ccache_free(struct c0_kvset_impl *set)
 {
     struct c0kvs_ccache *cc = &c0kvs_ccache;
 
+    set->c0s_ccache_sz = cheap_used(set->c0s_cheap);
     c0kvs_reset(&set->c0s_handle, 0);
 
     spin_lock(&cc->cc_lock);
-    if (cc->cc_size + HSE_C0_CHEAP_SZ_MAX < HSE_C0_CCACHE_SZ_MAX) {
-        cc->cc_size += HSE_C0_CHEAP_SZ_MAX;
+    if (cc->cc_size + set->c0s_ccache_sz < HSE_C0_CCACHE_SZ_MAX) {
+        cc->cc_size += set->c0s_ccache_sz;
         set->c0s_next = cc->cc_head;
         cc->cc_head = set;
         set = NULL;
@@ -448,14 +444,13 @@ c0kvs_create(
 
     *handlep = NULL;
 
-    alloc_sz = max_t(size_t, alloc_sz, HSE_C0_CHEAP_SZ_MIN);
-    alloc_sz = min_t(size_t, alloc_sz, HSE_C0_CHEAP_SZ_MAX);
+    alloc_sz = clamp_t(size_t, alloc_sz, HSE_C0_CHEAP_SZ_MIN, HSE_C0_CHEAP_SZ_MAX);
 
-    set = c0kvs_ccache_alloc(alloc_sz);
+    set = c0kvs_ccache_alloc();
     if (set)
         goto created;
 
-    cheap = cheap_create(_Alignof(max_align_t), HSE_C0_CHEAP_SZ_MAX);
+    cheap = cheap_create(_Alignof(max_align_t), alloc_sz);
     if (ev(!cheap))
         return merr(ENOMEM);
 
@@ -477,6 +472,7 @@ c0kvs_create(
     }
 
     set->c0s_reset_sz = cheap_used(cheap);
+    ev(1);
 
 created:
     set->c0s_kvdb_seqno = kvdb_seqno;
@@ -492,6 +488,7 @@ c0kvs_destroy_impl(struct c0_kvset_impl *set)
 {
     mutex_destroy(&set->c0s_mutex);
     cheap_destroy(set->c0s_cheap);
+    ev(1);
 }
 
 void
@@ -699,7 +696,7 @@ c0kvs_get_element_count2(struct c0_kvset *handle, uint *heightp, uint *keyvalsp,
     *keyvalsp = self->c0s_keyvals;
 
     /* [HSE_REVISIT]: Revisit when working on c0/wal throttling. */
-    *full = (self->c0s_total_key_bytes + self->c0s_total_value_bytes > 2 * HSE_C0_CHEAP_SZ_MAX);
+    *full = (self->c0s_total_key_bytes + self->c0s_total_value_bytes > self->c0s_alloc_sz);
 
     return cnt;
 }

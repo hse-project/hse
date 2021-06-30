@@ -776,7 +776,7 @@ c0kvms_create(u32 num_sets, size_t alloc_sz, atomic64_t *kvdb_seq, struct c0_kvm
 {
     struct c0_kvmultiset_impl *kvms;
     merr_t                     err;
-    size_t                     kvms_sz, sz;
+    size_t                     kvms_sz;
     size_t                     c0snr_sz, iw_sz;
     int                        i, j;
 
@@ -809,12 +809,8 @@ c0kvms_create(u32 num_sets, size_t alloc_sz, atomic64_t *kvdb_seq, struct c0_kvm
     c0snr_sz = sizeof(*kvms->c0ms_c0snr_base) * HSE_C0KVMS_C0SNR_MAX;
     iw_sz = sizeof(*kvms->c0ms_ingest_work);
 
-    sz = HSE_C0_CHEAP_SZ_MIN * 2 + c0snr_sz + iw_sz;
-    if (sz < alloc_sz)
-        sz = alloc_sz;
-
     for (i = 0; i < num_sets; ++i) {
-        err = c0kvs_create(sz, kvdb_seq, &kvms->c0ms_seqno, &kvms->c0ms_sets[i]);
+        err = c0kvs_create(alloc_sz, kvdb_seq, &kvms->c0ms_seqno, &kvms->c0ms_sets[i]);
         if (ev(err)) {
             if (i > num_sets / 2)
                 break;
@@ -822,7 +818,6 @@ c0kvms_create(u32 num_sets, size_t alloc_sz, atomic64_t *kvdb_seq, struct c0_kvm
         }
 
         ++kvms->c0ms_num_sets;
-        sz = alloc_sz;
     }
 
     /* Copy existing c0kvs pointers to the remainder of the slots so that

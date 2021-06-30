@@ -49,7 +49,6 @@ struct c0sk {
  * @c0sk_ingest_ldr:      used to elect ingest leader
  * @c0sk_ingest_avg:      average ingest time
  * @c0sk_ingest_start:    leader start time (nsecs)
- * @c0sk_ingest_conc:     number of waiters for last ingest
  * @c0sk_ingest_width:    ingest width hint/suggestion to use for next kvms
  * @c0sk_cheap_sz:        ingest cheap size hint to use for next kvms create
  * @c0sk_closing:         set to %true when c0sk is closing
@@ -96,7 +95,6 @@ struct c0sk_impl {
 
     HSE_ALIGNED(SMP_CACHE_BYTES) atomic64_t c0sk_ingest_gen;
     atomic_t c0sk_ingest_ldr;
-    u32      c0sk_ingest_conc;
     u32      c0sk_ingest_width_max;
     u32      c0sk_ingest_width;
     u32      c0sk_cheap_sz;
