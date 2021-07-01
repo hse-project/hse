@@ -789,7 +789,7 @@ exit_err:
         if (ev(err))
             kvdb_health_error(c0sk->c0sk_kvdb_health, err);
 
-        c0sk_cningest_walcb(c0sk, max_seqno, kvms_gen, txhorizon, true);
+        c0sk_cningest_walcb(c0sk, max_seq, kvms_gen, txhorizon, true);
 
         if (!err) {
             if (debug && cn_min && cn_max)

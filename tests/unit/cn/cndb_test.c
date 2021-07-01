@@ -965,10 +965,10 @@ MTF_DEFINE_UTEST(cndb_test, cndb_misc_test)
     mapi_inject(mapi_idx_mpool_mdc_append, 0);
     mapi_inject(mapi_idx_cndb_journal, 0);
     mapi_inject(mapi_idx_mpool_mdc_usage, 1);
-    err = cn_ingestv(cnv, mbv, 1, U64_MAX, U64_MAX, NULL);
+    err = cn_ingestv(cnv, mbv, 1, U64_MAX, U64_MAX, NULL, NULL);
     ASSERT_EQ(1, err);
 
-    err = cn_ingestv(cnv, mbv, 1, U64_MAX, U64_MAX, NULL);
+    err = cn_ingestv(cnv, mbv, 1, U64_MAX, U64_MAX, NULL, NULL);
     ASSERT_EQ(1, err);
 
     err = cndb_replay(&cndb, &seqno, &ingestid);

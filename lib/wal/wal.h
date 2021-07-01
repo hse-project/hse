@@ -18,7 +18,7 @@
 
 #define WAL_MDC_CAPACITY        (32 << 20)
 #define WAL_MAGIC               (0xabcdabcd)
-#define WAL_FILE_SIZE_BYTES     ((HSE_C0_INGEST_SZ_MAX * 4) / 10)
+#define WAL_FILE_SIZE_BYTES     ((HSE_C0_CHEAP_SZ_DFLT * HSE_C0_INGEST_WIDTH_MAX * 4) / 10)
 
 #define MSEC_TO_NSEC(_ms)       (NSEC_PER_SEC / MSEC_PER_SEC * (_ms))
 #define NSEC_TO_MSEC(_ns)       ((_ns) / (NSEC_PER_SEC / MSEC_PER_SEC))
