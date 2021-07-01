@@ -30,6 +30,7 @@ struct kvset_builder;
 struct csched;
 struct throttle_sensor;
 struct query_ctx;
+struct kvdb_ctxn_set;
 
 merr_t
 c0sk_init(void);
@@ -79,8 +80,20 @@ void
 c0sk_lc_set(struct c0sk *self, struct lc *lc);
 
 /* MTF_MOCK */
+void
+c0sk_ctxn_set_set(struct c0sk *handle, struct kvdb_ctxn_set *ctxn_set);
+
+/* MTF_MOCK */
 struct lc *
 c0sk_lc_get(struct c0sk *self);
+
+/* MTF_MOCK */
+void
+c0sk_min_seqno_set(struct c0sk *handle, u64 seq);
+
+/* MTF_MOCK */
+u64
+c0sk_min_seqno_get(struct c0sk *handle);
 
 /* MTF_MOCK */
 u64
@@ -264,13 +277,6 @@ c0sk_cursor_create(
  */
 merr_t
 c0sk_cursor_save(struct c0_cursor *cur);
-
-/**
- * c0sk_cursor_restore() - reinit a cached cursor
- * @cur:        The existing cursor
- */
-merr_t
-c0sk_cursor_restore(struct c0_cursor *cur);
 
 /**
  * c0sk_cursor_bind_txn() - bind a txn kvms to iterable c0

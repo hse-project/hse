@@ -20,11 +20,19 @@ c0_ingest_work_init(struct c0_ingest_work *c0iw)
     memset(c0iw, 0, sizeof(*c0iw));
     c0iw->c0iw_magic = (uintptr_t)c0iw;
 
-    err = bin_heap2_create(HSE_C0_KVSET_ITER_MAX, bn_kv_cmp, &minheap);
+    err = bin_heap2_create(HSE_C0_INGEST_WIDTH_MAX, bn_kv_cmp, &minheap);
     if (ev(err))
         return err;
 
-    c0iw->c0iw_minheap = minheap;
+    c0iw->c0iw_kvms_minheap = minheap;
+
+    err = bin_heap2_create(LC_SOURCE_CNT_MAX, bn_kv_cmp, &minheap);
+    if (ev(err)) {
+        bin_heap2_destroy(c0iw->c0iw_kvms_minheap);
+        return err;
+    }
+
+    c0iw->c0iw_lc_minheap = minheap;
 
     return 0;
 }
@@ -52,12 +60,13 @@ c0_ingest_work_fini(struct c0_ingest_work *w)
             HSE_WARNING "c0_ingest: gen %lu/%lu width %u/%u "
                         "keys %lu tombs %lu keykb %lu valkb %lu "
                         "rcu %lu queue %lu bhprep+bldrs %lu "
-                        "merge_loop %lu lc_finish %lu "
-                        "cn_finish %lu bldr_destroy %lu serialize_wait %lu ingestv %lu total %lu",
+                        "merge_loop1 %lu merge_loop2 %lu "
+                        "lc_finish %lu cn_finish %lu bldr_destroy %lu "
+                        "serialize_wait %lu ingestv %lu total %lu",
             (ulong)w->gen,
             (ulong)w->gencur,
             w->c0iw_usage.u_count,
-            w->c0iw_iterc,
+            w->c0iw_kvms_iterc,
             (ulong)(u->u_keys + u->u_tombs),
             (ulong)u->u_tombs,
             (ulong)u->u_keyb / 1024,
@@ -71,10 +80,12 @@ c0_ingest_work_fini(struct c0_ingest_work *w)
             (ulong)(w->t7 - w->t6) / 1000,
             (ulong)(w->t8 - w->t7) / 1000,
             (ulong)(w->t9 - w->t8) / 1000,
+            (ulong)(w->t10 - w->t9) / 1000,
             (ulong)(w->t10 - w->t0) / 1000);
     }
 
     /* GCOV_EXCL_STOP */
 
-    bin_heap2_destroy(w->c0iw_minheap);
+    bin_heap2_destroy(w->c0iw_kvms_minheap);
+    bin_heap2_destroy(w->c0iw_lc_minheap);
 }

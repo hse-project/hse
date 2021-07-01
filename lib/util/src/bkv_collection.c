@@ -5,6 +5,7 @@
 
 #include <hse_util/event_counter.h>
 #include <hse_util/bkv_collection.h>
+#include <hse_util/bonsai_tree.h>
 #include <hse_util/vlb.h>
 #include <hse_util/slab.h>
 
@@ -107,7 +108,7 @@ bkv_collection_rock_get(struct bkv_collection *bkvc)
 /* Caller must lock resources as needed before calling this function.
  */
 merr_t
-bkv_collection_finish(struct bkv_collection *bkvc)
+bkv_collection_apply(struct bkv_collection *bkvc)
 {
     int    i;
     merr_t err = 0;
@@ -118,6 +119,98 @@ bkv_collection_finish(struct bkv_collection *bkvc)
         struct bonsai_val *          vlist = e->vlist;
 
         err = bkvc->bkvcol_cb(bkvc->bkvcol_cbarg, bkv, vlist);
+        if (ev(err))
+            break;
+    }
+
+    return err;
+}
+
+struct bkv_collection_pair {
+    struct bkv_collection *bkvc[2];
+    int                    idx[2];
+};
+
+static void
+bkv_collection_pair_init(
+    struct bkv_collection *     bkvc1,
+    struct bkv_collection *     bkvc2,
+    struct bkv_collection_pair *pair)
+{
+    pair->bkvc[0] = bkvc1;
+    pair->bkvc[1] = bkvc2;
+    pair->idx[0] = pair->idx[1] = 0;
+}
+
+static bool
+bkv_collection_pair_next(
+    struct bkv_collection_pair *pair,
+    struct bonsai_kv **         bkv,
+    struct bonsai_val **        vlist)
+{
+    struct bkv_collection_entry *e1, *e2;
+    int                          rc, idx1, idx2;
+    bool                         eof1, eof2;
+
+    idx1 = pair->idx[0];
+    e1 = &pair->bkvc[0]->bkvcol_entry[idx1];
+    eof1 = idx1 >= pair->bkvc[0]->bkvcol_cnt;
+
+    idx2 = pair->idx[1];
+    e2 = &pair->bkvc[1]->bkvcol_entry[idx2];
+    eof2 = idx2 >= pair->bkvc[1]->bkvcol_cnt;
+
+    if (eof1 && eof2)
+        return false;
+
+    if (eof1)
+        rc = 1;
+    else if (eof2)
+        rc = -1;
+    else
+        rc = bn_kv_cmp(e1->bkv, e2->bkv);
+
+    if (rc < 0) {
+        *bkv = e1->bkv;
+        *vlist = e1->vlist;
+        pair->idx[0]++;
+    } else if (rc > 0) {
+        *bkv = e2->bkv;
+        *vlist = e2->vlist;
+        pair->idx[1]++;
+    } else {
+        struct bonsai_val *v, **last;
+
+        assert(e1->vlist && e2->vlist);
+        last = &e1->vlist;
+        for (v = e1->vlist; v; v = v->bv_priv)
+            last = &v->bv_priv;
+
+        *last = e2->vlist; /* Add e2->vlist at the end of e1->vlist */
+        *bkv = e1->bkv;
+        *vlist = e1->vlist;
+        pair->idx[0]++;
+        pair->idx[1]++;
+    }
+
+    return true;
+}
+
+merr_t
+bkv_collection_finish_pair(struct bkv_collection *bkvc1, struct bkv_collection *bkvc2)
+{
+    merr_t                     err = 0;
+    struct bkv_collection_pair p;
+    struct bonsai_kv *         bkv;
+    struct bonsai_val *        vlist;
+
+    assert(bkvc1->bkvcol_cb == bkvc2->bkvcol_cb);
+    assert(bkvc1->bkvcol_cbarg == bkvc2->bkvcol_cbarg);
+
+    bkv_collection_pair_init(bkvc1, bkvc2, &p);
+
+    while (bkv_collection_pair_next(&p, &bkv, &vlist)) {
+        err = bkvc1->bkvcol_cb(bkvc1->bkvcol_cbarg, bkv, vlist);
         if (ev(err))
             break;
     }
@@ -148,4 +241,3 @@ bkv_collection_fini(void)
 {
     kmem_cache_destroy(bkv_collection_cache);
 }
-

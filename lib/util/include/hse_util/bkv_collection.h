@@ -29,7 +29,10 @@ merr_t
 bkv_collection_add(struct bkv_collection *bkvc, struct bonsai_kv *bkv, struct bonsai_val *val_list);
 
 merr_t
-bkv_collection_finish(struct bkv_collection *bkvc);
+bkv_collection_apply(struct bkv_collection *bkvc);
+
+merr_t
+bkv_collection_finish_pair(struct bkv_collection *bkvc1, struct bkv_collection *bkvc2);
 
 merr_t
 bkv_collection_init(void);

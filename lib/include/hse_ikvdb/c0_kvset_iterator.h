@@ -12,8 +12,6 @@
 
 #include <hse_ikvdb/lc.h>
 
-#define HSE_C0_KVSET_ITER_MAX (HSE_C0_INGEST_WIDTH_MAX + LC_SOURCE_CNT_MAX)
-
 /**
  * c0_kvset_iterator - c0kvs iterator (used for in order traversal)
  * @c0it_handle:     Handle to the iterator
@@ -104,25 +102,6 @@ c0_kvset_iterator_seek(
     struct c0_kvset_iterator *iter,
     const void *              seek,
     u32                       seeklen,
-    struct kvs_ktuple *       kt);
-
-/**
- * c0_kvset_iterator_skip_pfx() - move iteration past spcified pfx
- * @iter:    c0_kvset iterator
- * @pfx:     the pfx to skip past
- * @pfx_len:  length of pfx
- * @kt:      optional: which key we found
- *
- * Re-initializes the iterator to start at a key with prefix just larger than
- * @pfx.  The next key will be in the direction of the iterator when first
- * initialized.  If @kt is not null, it will be initialized to point to the
- * next key.
- */
-void
-c0_kvset_iterator_skip_pfx(
-    struct c0_kvset_iterator *iter,
-    const void *              pfx,
-    u32                       pfx_len,
     struct kvs_ktuple *       kt);
 
 /**

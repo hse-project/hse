@@ -133,6 +133,8 @@ _lc_ingest_iterv_init(
     struct lc *             handle,
     struct lc_ingest_iter * iterv,
     struct element_source **srcv,
+    u64                     min_seq,
+    u64                     max_seqq,
     uint *                  iter_cnt)
 {
     *iter_cnt = 0; /* Zero LC iterators */
@@ -145,11 +147,9 @@ no_fail_pre(struct mtf_test_info *info)
 
     mapi_inject(mapi_idx_lc_ingest_seqno_set, 0);
     mapi_inject(mapi_idx_lc_ingest_seqno_get, 0);
-    mapi_inject(mapi_idx_lc_builder_create, 0);
-    mapi_inject(mapi_idx_lc_builder_destroy, 0);
     mapi_inject(mapi_idx_lc_builder_add, 0);
     mapi_inject(mapi_idx_lc_builder_finish, 0);
-    mapi_inject(mapi_idx_lc_ingest_iterv_seqno_set, 0);
+    mapi_inject(mapi_idx_kvdb_ctxn_set_wait_commits, 0);
 
     MOCK_SET(lc, _lc_ingest_iterv_init);
 

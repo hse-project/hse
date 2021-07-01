@@ -397,35 +397,6 @@ c0kvms_cursor_prepare(struct c0_kvmultiset_cursor *cur)
     bin_heap2_prepare(cur->c0mc_bh, cur->c0mc_iterc, cur->c0mc_esrcv);
 }
 
-struct element_source *
-c0kvms_cursor_skip_pfx(struct c0_kvmultiset_cursor *cur, struct bonsai_kv *pt_bkv)
-{
-    struct element_source *   pt_es = pt_bkv->bkv_es;
-    struct c0_kvset_iterator *iter;
-    u32                       klen;
-    int                       i;
-    s64                       rc;
-
-    /* skip pfx only if KVMS is strictly older than current. */
-    rc = bin_heap2_age_cmp(pt_es, &cur->c0mc_es);
-    if (rc >= 0)
-        return 0; /* nothing to update */
-
-    /* [HSE_REVISIT] Check if the key contributed by this c0kvms has a pfx
-     * that matches. If not, skip seeking this kvms.
-     */
-
-    klen = key_imm_klen(&pt_bkv->bkv_key_imm);
-    iter = cur->c0mc_iterv;
-
-    for (i = 0; i < cur->c0mc_iterc; ++i)
-        c0_kvset_iterator_skip_pfx(iter++, pt_bkv->bkv_key, klen, 0);
-
-    c0kvms_cursor_prepare(cur);
-
-    return &cur->c0mc_es;
-}
-
 void
 c0kvms_cursor_seek(struct c0_kvmultiset_cursor *cur, const void *seek, u32 seeklen, u32 ct_pfx_len)
 {
@@ -559,12 +530,11 @@ c0kvms_cursor_discover(struct c0_kvmultiset_cursor *cur, struct c0_kvmultiset_im
 }
 
 bool
-c0kvms_cursor_update(struct c0_kvmultiset_cursor *cur, const void *key, u32 klen, u32 ct_pfx_len)
+c0kvms_cursor_update(struct c0_kvmultiset_cursor *cur, u32 ct_pfx_len)
 {
     struct c0_kvmultiset_impl *self = c0_kvmultiset_h2r(cur->c0mc_kvms);
     struct c0_kvset_iterator * iter;
     struct element_source **   esrc;
-    struct bonsai_kv *         bkv;
     int                        num = self->c0ms_num_sets;
     bool                       rev = cur->c0mc_reverse;
     bool                       added = false;
@@ -591,32 +561,12 @@ c0kvms_cursor_update(struct c0_kvmultiset_cursor *cur, const void *key, u32 klen
                 continue;
         }
 
-        if (klen) {
-            u32 len = klen;
-
-            if (i == 0 && klen > ct_pfx_len)
-                len = ct_pfx_len;
-
-            c0_kvset_iterator_seek(iter, key, len, 0);
-        }
-
         bin_heap2_insert_src(cur->c0mc_bh, *esrc);
         added = true;
     }
 
     if (!added)
         return false;
-
-    /*
-     * If an existing kvset was extended, and the last key seen
-     * was from that kvset, the seek repositioned the kvset to
-     * return the duplicate.  Fix that here.
-     */
-    if (bin_heap2_peek(cur->c0mc_bh, (void **)&bkv)) {
-        if (bkv->bkv_es != cur->c0mc_esrcv[0] &&
-            !keycmp(key, klen, bkv->bkv_key, key_imm_klen(&bkv->bkv_key_imm)))
-            bin_heap2_pop(cur->c0mc_bh, (void **)&bkv);
-    }
 
     return true;
 }
@@ -651,8 +601,8 @@ c0kvms_cursor_create(
 
     c0kvms_cursor_discover(cur, self);
 
-    err =
-        bin_heap2_create(HSE_C0_KVSET_ITER_MAX, reverse ? bn_kv_cmp_rev : bn_kv_cmp, &cur->c0mc_bh);
+    err = bin_heap2_create(
+        HSE_C0_INGEST_WIDTH_MAX, reverse ? bn_kv_cmp_rev : bn_kv_cmp, &cur->c0mc_bh);
     if (ev(err)) {
         hse_elog(
             HSE_ERR "c0kvms_cursor_create: "
@@ -763,9 +713,12 @@ c0kvms_ingest_work_prepare(struct c0_kvmultiset *handle, struct c0sk *c0sk)
     work->c0iw_c0kvms = handle;
     work->c0iw_c0sk = c0sk;
     work->c0iw_ingest_order = c0sk_ingest_order_register(c0sk);
+    work->c0iw_ingest_max_seqno = c0kvms_seqno_get(handle);
+    work->c0iw_ingest_min_seqno = c0sk_min_seqno_get(c0sk);
+    c0sk_min_seqno_set(c0sk, work->c0iw_ingest_max_seqno); /* Update lower bound for next ingest */
 
-    source = work->c0iw_sourcev;
-    iter = work->c0iw_iterv;
+    source = work->c0iw_kvms_sourcev;
+    iter = work->c0iw_kvms_iterv;
 
     flags = C0_KVSET_ITER_FLAG_PTOMB;
     for (i = 0; i < self->c0ms_num_sets; i++) {
@@ -785,9 +738,15 @@ c0kvms_ingest_work_prepare(struct c0_kvmultiset *handle, struct c0sk *c0sk)
         iter++;
     }
 
-    work->c0iw_iterc = iter - work->c0iw_iterv;
-    work->c0iw_last_kvms_esrc = work->c0iw_iterc ? work->c0iw_sourcev[work->c0iw_iterc - 1] : NULL;
+    work->c0iw_kvms_iterc = iter - work->c0iw_kvms_iterv;
 
+    lc_ingest_iterv_init(
+        c0sk_lc_get(c0sk),
+        work->c0iw_lc_iterv,
+        work->c0iw_lc_sourcev,
+        work->c0iw_ingest_min_seqno,
+        work->c0iw_ingest_max_seqno,
+        &work->c0iw_lc_iterc);
     return work;
 }
 

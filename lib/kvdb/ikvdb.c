@@ -1069,6 +1069,7 @@ ikvdb_open(
     }
 
     c0sk_lc_set(self->ikdb_c0sk, self->ikdb_lc);
+    c0sk_ctxn_set_set(self->ikdb_c0sk, self->ikdb_ctxn_set);
 
     *handle = &self->ikdb_handle;
 

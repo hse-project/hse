@@ -320,7 +320,8 @@ c0snr_getref(uintptr_t *priv, u64 c0ms_gen)
         atomic_inc(&entry->cse_refcnt);
 
         /* There can only be one txn thread actively inserting
-         * and updating the txn priv entry's c0kvms generation. */
+         * and updating the txn priv entry's c0kvms generation.
+         */
         assert(entry->cse_kvms_gen == KVMS_GEN_INVALID || c0ms_gen > entry->cse_kvms_gen);
         entry->cse_kvms_gen = c0ms_gen;
     }

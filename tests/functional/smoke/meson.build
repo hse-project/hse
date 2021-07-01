@@ -110,7 +110,7 @@ foreach suite, params : suites
                     t,
                 ],
                 timeout: 1800,
-                is_parallel: false,
+                is_parallel: true,
                 suite: ['functional', suite],
             )
         endforeach

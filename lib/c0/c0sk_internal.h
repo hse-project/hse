@@ -74,6 +74,7 @@ struct c0sk_impl {
     struct throttle_sensor * c0sk_sensor;
     struct lc *              c0sk_lc;
     struct cn *              c0sk_cnv[HSE_KVS_COUNT_MAX];
+    struct kvdb_ctxn_set    *c0sk_ctxn_set;
 
     HSE_ALIGNED(SMP_CACHE_BYTES) struct mutex c0sk_kvms_mutex;
     s32                  c0sk_kvmultisets_cnt;
@@ -83,7 +84,6 @@ struct c0sk_impl {
     atomic64_t           c0sk_ingest_order_next;
     atomic64_t           c0sk_ingest_min;
     atomic_t             c0sk_ingest_serialized_cnt;
-    atomic_t             c0sk_ingest_parallel_cnt;
     struct cv            c0sk_kvms_cv;
 
     struct list_head   c0sk_rcu_pending;

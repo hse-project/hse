@@ -118,8 +118,8 @@ MTF_DEFINE_UTEST_PREPOST(c0_kvset_test, basic_put_get, no_fail_pre, no_fail_post
 
             ASSERT_EQ(sum, i * seq);
 
-            c0kvs_prefix_get_excl(kvs, 0, &kt, view_seqno, kt.kt_len, &oseqnoref);
-            ASSERT_EQ(HSE_SQNREF_TO_ORDNL(oseqnoref), 0);
+            c0kvs_prefix_get_excl(kvs, 0, &kt, view_seqno, 0, kt.kt_len, &oseqnoref);
+            ASSERT_EQ(HSE_SQNREF_TO_ORDNL(oseqnoref), view_seqno);
 
             if (seq == i % 8) {
                 err = c0kvs_del(kvs, 0, &kt, iseqnoref);
@@ -158,8 +158,8 @@ MTF_DEFINE_UTEST_PREPOST(c0_kvset_test, basic_put_get, no_fail_pre, no_fail_post
                 ASSERT_EQ(res, FOUND_TMB);
             }
 
-            c0kvs_prefix_get_excl(kvs, 0, &kt, view_seqno, kt.kt_len, &oseqnoref);
-            ASSERT_EQ(HSE_SQNREF_TO_ORDNL(oseqnoref), 0);
+            c0kvs_prefix_get_excl(kvs, 0, &kt, view_seqno, 0, kt.kt_len, &oseqnoref);
+            ASSERT_EQ(HSE_SQNREF_TO_ORDNL(oseqnoref), view_seqno);
         }
     }
 
@@ -768,10 +768,10 @@ MTF_DEFINE_UTEST_PREPOST(c0_kvset_test, basic_put_get_del, no_fail_pre, no_fail_
         err = c0kvs_prefix_del(kvs, 0, &kt, iseqnoref);
         ASSERT_EQ(0, err);
 
-        c0kvs_prefix_get_excl(kvs, 0, &kt, iseqnoref, kt.kt_len, &oseqnoref);
+        c0kvs_prefix_get_excl(kvs, 0, &kt, iseqnoref, 0, kt.kt_len, &oseqnoref);
         ASSERT_EQ(HSE_SQNREF_TO_ORDNL(oseqnoref), i + 1);
 
-        c0kvs_prefix_get_excl(kvs, 0, &kt, HSE_ORDNL_TO_SQNREF(i + 2), kt.kt_len, &oseqnoref);
+        c0kvs_prefix_get_excl(kvs, 0, &kt, HSE_ORDNL_TO_SQNREF(i + 2), 0, kt.kt_len, &oseqnoref);
         ASSERT_EQ(HSE_SQNREF_TO_ORDNL(oseqnoref), i + 1);
     }
 
@@ -791,19 +791,19 @@ MTF_DEFINE_UTEST_PREPOST(c0_kvset_test, basic_put_get_del, no_fail_pre, no_fail_
         }
 
         view_seqno = i;
-        c0kvs_prefix_get_excl(kvs, 0, &kt, view_seqno, kt.kt_len, &oseqnoref);
-        ASSERT_EQ(HSE_SQNREF_TO_ORDNL(oseqnoref), 0);
+        c0kvs_prefix_get_excl(kvs, 0, &kt, view_seqno, 0, kt.kt_len, &oseqnoref);
+        ASSERT_EQ(HSE_SQNREF_TO_ORDNL(oseqnoref), i);
 
         view_seqno = i + 1;
-        c0kvs_prefix_get_excl(kvs, 0, &kt, view_seqno, kt.kt_len, &oseqnoref);
-        ASSERT_EQ(HSE_SQNREF_TO_ORDNL(oseqnoref), 0);
+        c0kvs_prefix_get_excl(kvs, 0, &kt, view_seqno, 0, kt.kt_len, &oseqnoref);
+        ASSERT_EQ(HSE_SQNREF_TO_ORDNL(oseqnoref), i);
 
         view_seqno = i;
-        c0kvs_prefix_get_excl(kvs, 0, &kt, view_seqno, 5, &oseqnoref);
+        c0kvs_prefix_get_excl(kvs, 0, &kt, view_seqno, 0, 5, &oseqnoref);
         ASSERT_EQ(HSE_SQNREF_TO_ORDNL(oseqnoref), 0);
 
         view_seqno = i + 1;
-        c0kvs_prefix_get_excl(kvs, 0, &kt, view_seqno, 5, &oseqnoref);
+        c0kvs_prefix_get_excl(kvs, 0, &kt, view_seqno, 0, 5, &oseqnoref);
         if (i != 4)
             ASSERT_EQ(HSE_SQNREF_TO_ORDNL(oseqnoref), 0);
         else

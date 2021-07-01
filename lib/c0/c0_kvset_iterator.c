@@ -207,41 +207,6 @@ c0_kvset_iterator_seek(
     rcu_read_unlock();
 }
 
-void
-c0_kvset_iterator_skip_pfx(
-    struct c0_kvset_iterator *iter,
-    const void *              pfx,
-    u32                       pfx_len,
-    struct kvs_ktuple *       kt)
-{
-    struct bonsai_skey skey;
-    struct bonsai_kv * kv = NULL;
-    bool               found;
-
-    if (ev(!iter || !iter->c0it_root))
-        return;
-
-    assert(iter->c0it_flags & C0_KVSET_ITER_FLAG_INDEX);
-    bn_skey_init(pfx, pfx_len, 0, iter->c0it_index, &skey);
-
-    rcu_read_lock();
-
-    found = bn_find_pfx_GT(iter->c0it_root, &skey, &kv);
-    if (!found)
-        kv = &iter->c0it_root->br_kv;
-
-    if (kt) {
-        kvs_ktuple_init_nohash(kt, kv->bkv_key, key_imm_klen(&kv->bkv_key_imm));
-    }
-
-    iter->c0it_next = kv;
-    iter->c0it_prev = kv->bkv_prev; /* HSE_REVISIT: direction */
-
-    __builtin_prefetch(kv->bkv_values);
-
-    rcu_read_unlock();
-}
-
 bool
 c0_kvset_iterator_empty(struct c0_kvset_iterator *iter)
 {

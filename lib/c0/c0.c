@@ -284,11 +284,7 @@ c0_cursor_bind_txn(struct c0_cursor *c0cur, struct kvdb_ctxn *ctxn)
 }
 
 merr_t
-c0_cursor_seek(
-    struct c0_cursor * c0cur,
-    const void *       seek,
-    size_t             seeklen,
-    struct kc_filter * filter)
+c0_cursor_seek(struct c0_cursor *c0cur, const void *seek, size_t seeklen, struct kc_filter *filter)
 {
     merr_t err;
 
@@ -306,10 +302,11 @@ c0_cursor_read(struct c0_cursor *c0cur, struct kvs_cursor_element *elem, bool *e
 }
 
 static bool
-c0cur_next(struct element_source *es, void **element) {
+c0cur_next(struct element_source *es, void **element)
+{
     struct c0_cursor *c0cur = container_of(es, struct c0_cursor, c0cur_es);
-    bool eof;
-    merr_t err;
+    bool              eof;
+    merr_t            err;
 
     err = c0_cursor_read(c0cur, &c0cur->c0cur_elem, &eof);
     if (ev(err) || eof)
@@ -321,14 +318,16 @@ c0cur_next(struct element_source *es, void **element) {
 }
 
 struct element_source *
-c0_cursor_es_make(struct c0_cursor *c0cur) {
-	c0cur->c0cur_es = es_make(c0cur_next, 0, 0);
-	return &c0cur->c0cur_es;
+c0_cursor_es_make(struct c0_cursor *c0cur)
+{
+    c0cur->c0cur_es = es_make(c0cur_next, 0, 0);
+    return &c0cur->c0cur_es;
 }
 
 struct element_source *
-c0_cursor_es_get(struct c0_cursor *c0cur) {
-	return &c0cur->c0cur_es;
+c0_cursor_es_get(struct c0_cursor *c0cur)
+{
+    return &c0cur->c0cur_es;
 }
 
 merr_t
@@ -339,19 +338,7 @@ c0_cursor_save(struct c0_cursor *c0cur)
 }
 
 merr_t
-c0_cursor_restore(struct c0_cursor *c0cur)
-{
-    merr_t err;
-
-    err = c0sk_cursor_restore(c0cur);
-    return ev(err);
-}
-
-merr_t
-c0_cursor_update(
-    struct c0_cursor *       c0cur,
-    u64                      seqno,
-    u32 *                    flags_out)
+c0_cursor_update(struct c0_cursor *c0cur, u64 seqno, u32 *flags_out)
 {
     merr_t err;
 

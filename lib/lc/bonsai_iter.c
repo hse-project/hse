@@ -110,15 +110,13 @@ get_next(struct bonsai_iter *iter)
     root = rcu_dereference(*iter->bi_root);
     if (iter->bi_reverse) {
         bkv = rcu_dereference(iter->bi_kv->bkv_prev);
-        if (bkv == &root->br_kv ||
-            key_immediate_index(&bkv->bkv_key_imm) < iter->bi_index) {
+        if (bkv == &root->br_kv || key_immediate_index(&bkv->bkv_key_imm) < iter->bi_index) {
 
             return NULL;
         }
     } else {
         bkv = rcu_dereference(iter->bi_kv->bkv_next);
-        if (bkv == &root->br_kv ||
-            key_immediate_index(&bkv->bkv_key_imm) > iter->bi_index) {
+        if (bkv == &root->br_kv || key_immediate_index(&bkv->bkv_key_imm) > iter->bi_index) {
 
             return NULL;
         }
@@ -202,25 +200,30 @@ static bool
 bonsai_ingest_iter_next(struct element_source *es, void **element)
 {
     struct bonsai_ingest_iter *iter = container_of(es, struct bonsai_ingest_iter, bii_es);
+    struct bonsai_root *       root;
 
     rcu_read_lock();
+
+    root = rcu_dereference(*iter->bii_rootp);
+
     if (!iter->bii_kv)
-        iter->bii_kv = &rcu_dereference(*iter->bii_root)->br_kv;
+        iter->bii_kv = &root->br_kv;
 
     while (!es->es_eof) {
         struct bonsai_kv * bkv;
         struct bonsai_val *val;
 
         iter->bii_kv = bkv = rcu_dereference(iter->bii_kv->bkv_next);
-        if (bkv == &rcu_dereference(*iter->bii_root)->br_kv)
+        if (bkv == &root->br_kv)
             break;
 
         /* Similar to a a cursor read, this function should return only when the bkv is "valid"
-         * or the iteration has eached eof. A bkv is valid if it lies in the ingest's view i.e.
+         * or the iteration has reached eof. A bkv is valid if it lies in the ingest's view i.e.
          * horizon <= seqno <= view.
          *
          * But we can go a step further and treat entries from aborted and active txns as invalid
-         * (invalid for ingest) too. This will save some work for the ingest thread.
+         * lc_ingest_seqno_get (invalid for ingest) too. This will save some work for the ingest
+         * thread.
          */
         for (val = rcu_dereference(bkv->bkv_values); val; val = rcu_dereference(val->bv_next)) {
             u64                  seqno;
@@ -248,23 +251,17 @@ bonsai_ingest_iter_next(struct element_source *es, void **element)
 struct element_source *
 bonsai_ingest_iter_init(
     struct bonsai_ingest_iter *iter,
-    struct bonsai_root **      root)
+    u64                        min_seqno,
+    u64                        max_seqno,
+    struct bonsai_root **      rootp)
 {
-    iter->bii_root = root;
+    iter->bii_rootp = rootp;
     iter->bii_es = es_make(bonsai_ingest_iter_next, 0, 0);
     iter->bii_kv = NULL;
-
-    return &iter->bii_es;
-}
-
-void
-bonsai_ingest_iter_seqno_set(
-    struct bonsai_ingest_iter *iter,
-    u64                        min_seqno,
-    u64                        max_seqno)
-{
     iter->bii_min_seqno = min_seqno;
     iter->bii_max_seqno = max_seqno;
+
+    return &iter->bii_es;
 }
 
 #if HSE_MOCKING

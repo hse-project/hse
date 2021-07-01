@@ -316,21 +316,16 @@ c0kvms_cursor_seek(
     u32                          pfx_len,
     u32                          ct_pfx_len);
 
-struct element_source *
-c0kvms_cursor_skip_pfx(struct c0_kvmultiset_cursor *cur, struct bonsai_kv *pt_bkv);
-
 /**
  * c0kvms_cursor_update() - update this cursor
  * @cursor:   Handle for c0kvms cursor
- * @seek:     Key to position new elements same as existing
- * @seeklen:  Length of seek key.
  *
  * Return: true if added a new source
  *
  * Update this @mset for iteration via a c0_cursor.
  */
 bool
-c0kvms_cursor_update(struct c0_kvmultiset_cursor *cursor, const void *seek, u32 seeklen, u32 ct_pfx_len);
+c0kvms_cursor_update(struct c0_kvmultiset_cursor *cursor, u32 ct_pfx_len);
 
 /**
  * c0kvms_cursor_get_source() - get the element source for this cursor

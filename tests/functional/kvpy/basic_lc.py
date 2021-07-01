@@ -36,7 +36,6 @@ def run_test(kvdb: hse.Kvdb, kvs: hse.Kvs):
     # Get from C0
     with kvdb.transaction() as t5:
         val = kvs.get(b"ab3", txn=t5)
-        print(val)
         assert val == b"val3"
 
     # Get from LC
@@ -71,5 +70,6 @@ try:
         kvdb = stack.enter_context(kvdb_ctx)
         kvs_ctx = lifecycle.KvsContext(kvdb, "basic_lc").rparams("transactions_enable=1")
         kvs = stack.enter_context(kvs_ctx)
+        run_test(kvdb, kvs)
 finally:
     hse.fini()

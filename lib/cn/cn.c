@@ -677,7 +677,9 @@ cn_ingestv(
     struct cn **           cn,
     struct kvset_mblocks **mbv,
     u64                    ingestid,
-    uint                   ingestc)
+    uint                   ingestc,
+    u64                   *min_seqno_out,
+    u64                   *max_seqno_out)
 {
     struct kvset **    kvsetv = NULL;
     struct cndb *      cndb = NULL;
@@ -722,6 +724,11 @@ cn_ingestv(
         err = 0;
         goto done;
     }
+
+    if (min_seqno_out)
+        *min_seqno_out = seqno_min;
+    if (max_seqno_out)
+        *max_seqno_out = seqno_max;
 
     kvsetv = calloc(ingestc, sizeof(*kvsetv));
     if (ev(!kvsetv)) {

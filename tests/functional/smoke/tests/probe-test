@@ -10,10 +10,11 @@ s=10
 threads=96
 
 oparms=(
+    kvdb-oparms
+    csched_samp_max=100
     kvs-oparms
     cn_node_size_hi=128
-    cn_node_size_lo=128
-    csched_samp_max=100)
+    cn_node_size_lo=128)
 
 # Use probe
 cmd pfx_probe $mp $kvs -p$p -c$c -s$s -j$threads "${oparms[@]}"
