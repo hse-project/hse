@@ -38,7 +38,7 @@
 #define HSE_FLAG_PUT_ALL \
     (HSE_FLAG_PUT_PRIORITY | HSE_FLAG_PUT_VALUE_COMPRESSION_ON | HSE_FLAG_PUT_VALUE_COMPRESSION_OFF)
 #define HSE_FLAG_CURSOR_ALL \
-    (HSE_FLAG_CURSOR_REVERSE | HSE_FLAG_CURSOR_BIND_TXN | HSE_FLAG_CURSOR_STATIC_VIEW)
+    (HSE_FLAG_CURSOR_REVERSE)
 
 static HSE_ALWAYS_INLINE u64
 kvdb_lat_startu(const u32 cidx)
@@ -929,10 +929,9 @@ hse_kvs_cursor_create(
 }
 
 hse_err_t
-hse_kvs_cursor_update(
+hse_kvs_cursor_update_view(
     struct hse_kvs_cursor *    cursor,
-    const unsigned int         flags,
-    struct hse_kvdb_txn *const txn)
+    const unsigned int         flags)
 {
     merr_t err;
 
@@ -941,7 +940,7 @@ hse_kvs_cursor_update(
 
     PERFC_INC_RU(&kvdb_pc, PERFC_RA_KVDBOP_KVS_CURSOR_UPDATE);
 
-    err = ikvdb_kvs_cursor_update(cursor, flags, txn);
+    err = ikvdb_kvs_cursor_update_view(cursor, flags);
     ev(err);
 
     return merr_to_hse_err(err);

@@ -106,7 +106,7 @@ MTF_DEFINE_UTEST(cursor_api_test, cursor_invalid_testcase)
     ASSERT_EQ(hse_err_to_errno(err), EINVAL);
 
     /* TC: A null cursor cannot be updated */
-    err = hse_kvs_cursor_update(NULL, 0, NULL);
+    err = hse_kvs_cursor_update_view(NULL, 0);
     ASSERT_EQ(hse_err_to_errno(err), EINVAL);
 
     /* TC: A null cursor cannot be used to read a KVS */
@@ -289,7 +289,7 @@ MTF_DEFINE_UTEST_PREPOST(cursor_api_test, cursor_multiple_testcase, populate_kvs
     err = hse_kvs_put(kvs_handle, 0, NULL, "extra_key", 9, "extra_value", 11);
     ASSERT_EQ(err, 0);
 
-    err = hse_kvs_cursor_update(cursor, 0, NULL);
+    err = hse_kvs_cursor_update_view(cursor, 0);
     ASSERT_EQ(err, 0);
 
     eof = false;

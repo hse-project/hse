@@ -133,7 +133,7 @@ do_things(void *arg)
 			int retries = 5;
 
 			do {
-				err = hse_kvs_cursor_update(cursorv[i], 0, NULL);
+				err = hse_kvs_cursor_update_view(cursorv[i], 0);
 				if (hse_err_to_errno(err) == EAGAIN)
 					nanosleep(&pause, 0);
 			} while (hse_err_to_errno(err) == EAGAIN && retries-- > 0);

@@ -76,11 +76,10 @@ do_work(void *arg)
 
 	if (opts.reverse) {
 		*k = htobe64(ti->end - 1);
-		flags = HSE_FLAG_CURSOR_REVERSE |
-			       HSE_FLAG_CURSOR_BIND_TXN;
+		flags = HSE_FLAG_CURSOR_REVERSE;
 	} else {
 		*k = htobe64(ti->start);
-		flags = HSE_FLAG_CURSOR_BIND_TXN;
+		flags = HSE_FLAG_NONE;
 	}
 
 	do {

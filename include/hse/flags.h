@@ -34,8 +34,6 @@ extern "C" {
  */
 
 #define HSE_FLAG_CURSOR_REVERSE     (1 << 0) /* Move the cursor in reverse */
-#define HSE_FLAG_CURSOR_BIND_TXN    (1 << 1) /* Bind the cursor to a transaction */
-#define HSE_FLAG_CURSOR_STATIC_VIEW (1 << 2) /* Bound cursor's view is static */
 
 #ifdef HSE_EXPERIMENTAL
 /**

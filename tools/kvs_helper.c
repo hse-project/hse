@@ -289,14 +289,13 @@ retry:
 }
 
 void
-kh_cursor_update(
+kh_cursor_update_view(
 	struct hse_kvs_cursor *cur,
-	unsigned int           flags,
-	struct hse_kvdb_txn *  txn)
+	unsigned int           flags)
 {
 	hse_err_t err;
 
-	err = hse_kvs_cursor_update(cur, flags, txn);
+	err = hse_kvs_cursor_update_view(cur, flags);
 	if (err)
 		fatal(err, "cursor update failed");
 }

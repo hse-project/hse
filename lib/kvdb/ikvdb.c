@@ -2076,23 +2076,6 @@ cursor_unbind_txn(struct hse_kvs_cursor *cur)
     if (bind) {
         cur->kc_gen = -1;
         cur->kc_bind = 0;
-
-        /*
-         * Retain the view seqno of the current transaction if the
-         * static view flag is set.
-         * If the flag isn't set, a committed txn unbind sets the view
-         * to commit_sn + 1 and an aborted txn unbind sets the view to
-         * the current KVDB seqno.
-         */
-        if (!(cur->kc_flags & HSE_FLAG_CURSOR_STATIC_VIEW)) {
-            /*
-             * Since the cursor view is refreshed to a newer one,  we need to
-             * wait for ongoing commits after the view is established.
-             */
-            cur->kc_seq = bind->b_seq;
-            kvdb_ctxn_set_wait_commits(cur->kc_kvs->kk_parent->ikdb_ctxn_set);
-        }
-
         kvdb_ctxn_cursor_unbind(bind);
     }
 
@@ -2111,9 +2094,7 @@ ikvdb_kvs_cursor_create(
     struct kvdb_kvs *      kk = (struct kvdb_kvs *)handle;
     struct ikvdb_impl *    ikvdb = kk->kk_parent;
     struct kvdb_ctxn *     ctxn = 0;
-    bool                   bind = false;
     struct hse_kvs_cursor *cur = 0;
-    int                    reverse;
     merr_t                 err;
     u64                    ts, vseq, tstart;
     struct perfc_set *     pkvsl_pc;
@@ -2129,33 +2110,10 @@ ikvdb_kvs_cursor_create(
     pkvsl_pc = kvs_perfc_pkvsl(kk->kk_ikvs);
     tstart = perfc_lat_start(pkvsl_pc);
 
-    reverse = false;
-
-    /*
-     * There are 3 types of cursors:
-     * 1. those that create their own view.
-     * 2. those that use the transaction's view.
-     * 3. those that bind to a transaction's lifecycle.
-     *
-     * The final type is a special cursor that can iterate over
-     * the contents of a transaction.  But it also becomes stale
-     * upon each update to the transaction, and is automatically
-     * canceled when the transaction completes (commit or abort).
-     *
-     * These types are distinguished here.
-     */
-
-    reverse = flags & HSE_FLAG_CURSOR_REVERSE;
-    if (txn)
-        ctxn = kvdb_ctxn_h2h(txn);
-    if (flags & HSE_FLAG_CURSOR_BIND_TXN) {
-        bind = true;
-        if (ev(!ctxn))
-            return merr(EINVAL);
-    }
-
     vseq = HSE_SQNREF_UNDEFINED;
-    if (ctxn) {
+
+    if (txn) {
+        ctxn = kvdb_ctxn_h2h(txn);
         err = kvdb_ctxn_get_view_seqno(ctxn, &vseq);
         if (ev(err))
             return err;
@@ -2172,7 +2130,7 @@ ikvdb_kvs_cursor_create(
      *  - initialize cursor
      * The failure path must unregister the cursor from kk_cursors.
      */
-    cur = kvs_cursor_alloc(kk->kk_ikvs, prefix, pfx_len, reverse);
+    cur = kvs_cursor_alloc(kk->kk_ikvs, prefix, pfx_len, flags & HSE_FLAG_CURSOR_REVERSE);
     if (ev(!cur))
         return merr(ENOMEM);
 
@@ -2185,7 +2143,7 @@ ikvdb_kvs_cursor_create(
     cur->kc_kvs = kk;
     cur->kc_gen = 0;
     cur->kc_ctxn = ctxn;
-    cur->kc_bind = bind ? kvdb_ctxn_cursor_bind(ctxn) : NULL;
+    cur->kc_bind = ctxn ? kvdb_ctxn_cursor_bind(ctxn) : NULL;
 
     /* Temporarily lock a view until this cursor gets refs on cn kvsets. */
     err = cursor_view_acquire(cur);
@@ -2200,11 +2158,11 @@ ikvdb_kvs_cursor_create(
 
     cursor_view_release(cur); /* release the view that was locked */
 
-    /* If this is a bound cursor, the txn waited when its view was being established
-     * at txn begin. Need not wait for commits here. Wait for ongoing commits to finish
-     * only if this is not a bound cursor.
+    /* After acquiring a view, non-txn cursors must wait for ongoing commits
+     * to finish to ensure they never see partial txns.  This is not necessary
+     * for txn cursors because their view is inherited from the txn.
      */
-    if (!bind)
+    if (!txn)
         kvdb_ctxn_set_wait_commits(ikvdb->ikdb_ctxn_set);
 
     err = kvs_cursor_prepare(cur);
@@ -2226,17 +2184,10 @@ out:
 }
 
 merr_t
-ikvdb_kvs_cursor_update(
-    struct hse_kvs_cursor *    cur,
-    unsigned int               flags,
-    struct hse_kvdb_txn *const txn)
+ikvdb_kvs_cursor_update_view(struct hse_kvs_cursor *cur, unsigned int flags)
 {
-    struct kvdb_ctxn_bind *bound;
-    struct kvdb_ctxn *     ctxn;
-    bool                   bind = false;
-    u64                    seqno;
-    merr_t                 err;
-    u64                    tstart;
+    merr_t err;
+    u64    tstart;
 
     tstart = perfc_lat_start(cur->kc_pkvsl_pc);
 
@@ -2244,82 +2195,28 @@ ikvdb_kvs_cursor_update(
     if (ev(cur->kc_err))
         return cur->kc_err;
 
-    if (ev(!is_read_allowed(cur->kc_kvs->kk_ikvs, txn)))
+    if (ev(cur->kc_ctxn))
         return merr(EINVAL);
-
-    /* Check if this call is trying to change cursor direction. */
-    bool os_reverse = flags & HSE_FLAG_CURSOR_REVERSE;
-    bool cur_reverse = cur->kc_flags && (cur->kc_flags & HSE_FLAG_CURSOR_REVERSE);
-    if (ev(os_reverse != cur_reverse))
-        return merr(EINVAL);
-
-    /*
-     * Update is allowed to unbind a txn, bind to a new txn,
-     * change from txn A to txn B without a unbind, or just
-     * update its view seqno.
-     *
-     * If the txn is committed or aborted, update retains the
-     * view seqno, and tosses the kvms.
-     *
-     * Updates cannot restore a cursor in error.  Such cursors
-     * must be destroyed.  There are too many possible recovery
-     * actions to handle with update; destroy and recreate.
-     */
 
     cur->kc_seq = HSE_SQNREF_UNDEFINED;
-
-    ctxn = txn ? kvdb_ctxn_h2h(txn) : NULL;
-    if (ctxn) {
-        /* this is a recoverable error */
-        err = kvdb_ctxn_get_view_seqno(ctxn, &cur->kc_seq);
-        if (ev(err))
-            return err;
-    }
-
-    bound = cur->kc_bind;
-    if (bound) {
-        /* if flags is none, this is the finish of a txn commit/abort */
-        if (flags == HSE_FLAG_NONE)
-            flags = HSE_FLAG_CURSOR_BIND_TXN;
-
-        if (flags & HSE_FLAG_CURSOR_BIND_TXN) {
-            if (!ctxn || ctxn != bound->b_ctxn) {
-                /* Save view seq; do not change in unbind.
-                 * Since the view remains unchanged, no need to wait on commits.
-                 */
-                seqno = cur->kc_seq;
-                cursor_unbind_txn(cur);
-                cur->kc_seq = seqno;
-                bind = !!ctxn;
-            }
-        } else if (ctxn) {
-            return ev(merr(EINVAL));
-        }
-    } else if (ctxn && (flags & HSE_FLAG_CURSOR_BIND_TXN)) {
-        bind = true;
-    }
 
     /* Temporarily reserve seqno until this cursor gets refs on
      * cn kvsets.
      */
-    cur->kc_ctxn = ctxn;
-    cur->kc_bind = bind ? kvdb_ctxn_cursor_bind(ctxn) : NULL;
     err = cursor_view_acquire(cur);
     if (ev(err))
         return err;
 
-    cur->kc_err = kvs_cursor_update(cur, bind ? cur->kc_bind->b_ctxn : 0, cur->kc_seq);
+    cur->kc_err = kvs_cursor_update(cur, NULL, cur->kc_seq);
     if (ev(cur->kc_err))
         goto out;
 
     cursor_view_release(cur);
 
-    /* If this is a bound cursor, the txn waited when its view was being established
-     * at txn begin. Need not wait for commits here. Wait for ongoing commits to finish
-     * only if this is not a bound cursor.
+    /* After acquiring a view, non-txn cursors must wait for ongoing commits
+     * to finish to ensure they never see partial txns.
      */
-    if (!bind)
-        kvdb_ctxn_set_wait_commits(cur->kc_kvs->kk_parent->ikdb_ctxn_set);
+    kvdb_ctxn_set_wait_commits(cur->kc_kvs->kk_parent->ikdb_ctxn_set);
 
     cur->kc_flags = flags;
 

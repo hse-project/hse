@@ -341,7 +341,7 @@ main(int argc, char **argv)
                 break;
         } else {
             EVENT_START(tu);
-            err = hse_kvs_cursor_update(cur, 0, NULL);
+            err = hse_kvs_cursor_update_view(cur, 0);
             EVENT_SAMPLE(tu);
             if (err) {
                 errmsg = "cannot update cursor";

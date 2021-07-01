@@ -61,10 +61,9 @@ kh_cursor_create(
 	size_t               pfxlen);
 
 void
-kh_cursor_update(
+kh_cursor_update_view(
 	struct hse_kvs_cursor *cur,
-	unsigned int           flags,
-	struct hse_kvdb_txn *  txn);
+	unsigned int           flags);
 
 void
 kh_cursor_seek(

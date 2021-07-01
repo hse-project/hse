@@ -422,10 +422,9 @@ ikvdb_kvs_cursor_create(
  * ikvdb_kvs_cursor_update() - incorporate updates since cursor created
  */
 merr_t
-ikvdb_kvs_cursor_update(
+ikvdb_kvs_cursor_update_view(
     struct hse_kvs_cursor *cursor,
-    unsigned int           flags,
-    struct hse_kvdb_txn *  txn);
+    unsigned int           flags);
 
 /**
  * ikvdb_kvs_cursor_seek() - move the cursor to the closet match to @key.

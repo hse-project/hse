@@ -957,7 +957,7 @@ MTF_DEFINE_UTEST_PREPOST(ikvdb_test, cursor_1, test_pre_c0, test_post_c0)
     }
     ASSERT_EQ(7, i);
 
-    err = ikvdb_kvs_cursor_update(cur, 0, txn);
+    err = ikvdb_kvs_cursor_update_view(cur, 0);
     ASSERT_EQ(0, err);
 
     err = ikvdb_kvs_cursor_destroy(cur);
@@ -1074,8 +1074,8 @@ MTF_DEFINE_UTEST_PREPOST(ikvdb_test, cursor_tx, test_pre_c0, test_post_c0)
     ASSERT_EQ(hor2, hor1 + 2);
 #endif
 
-    /* a new type of cursor: bound to txn */
-    flags1 |= HSE_FLAG_CURSOR_BIND_TXN;
+    /* txn cursor */
+    flags1 = 0;
     err = ikvdb_kvs_cursor_create(kvs_h, flags1, txn1, 0, 0, &bound);
     ASSERT_EQ(err, 0);
     ASSERT_NE(0, bound);
@@ -1097,7 +1097,7 @@ MTF_DEFINE_UTEST_PREPOST(ikvdb_test, cursor_tx, test_pre_c0, test_post_c0)
     ASSERT_EQ(0, memcmp(key, kt.kt_data, klen));
 
     /* can unbind a bound cursor -- an lose view -- then regain it */
-    err = ikvdb_kvs_cursor_update(bound, HSE_FLAG_CURSOR_BIND_TXN, NULL);
+    err = ikvdb_kvs_cursor_update_view(bound, HSE_FLAG_NONE);
     ASSERT_EQ(err, 0);
 
     /* ... cannot find what we just did */
@@ -1106,7 +1106,7 @@ MTF_DEFINE_UTEST_PREPOST(ikvdb_test, cursor_tx, test_pre_c0, test_post_c0)
     ASSERT_EQ(0, memcmp(key, kt.kt_data, klen));
 
     /* ... and we should find it again */
-    err = ikvdb_kvs_cursor_update(bound, flags1, txn1);
+    err = ikvdb_kvs_cursor_update_view(bound, flags1);
     ASSERT_EQ(err, 0);
     err = ikvdb_kvs_cursor_seek(bound, 0, key, klen, 0, 0, &kt);
     ASSERT_EQ(err, 0);
@@ -1156,7 +1156,7 @@ MTF_DEFINE_UTEST_PREPOST(ikvdb_test, cursor_tx, test_pre_c0, test_post_c0)
     ASSERT_EQ(0, memcmp(val, "AABC_1", vlen));
 
     /* verify passing a tx to update succeeds */
-    err = ikvdb_kvs_cursor_update(cur, 0, txn1);
+    err = ikvdb_kvs_cursor_update_view(cur, 0);
     ASSERT_EQ(err, 0);
 
     /* this key is not visible to txn view */
@@ -1167,7 +1167,7 @@ MTF_DEFINE_UTEST_PREPOST(ikvdb_test, cursor_tx, test_pre_c0, test_post_c0)
     ASSERT_NE(0, memcmp(kt.kt_data, key, kt.kt_len));
 
     /* update cursor - no longer has view seq of tx */
-    err = ikvdb_kvs_cursor_update(cur, 0, NULL);
+    err = ikvdb_kvs_cursor_update_view(cur, 0);
     ASSERT_EQ(err, 0);
 
     /* start over, visible set now all but tx {AA} */
@@ -1193,7 +1193,7 @@ MTF_DEFINE_UTEST_PREPOST(ikvdb_test, cursor_tx, test_pre_c0, test_post_c0)
     ASSERT_EQ(0, memcmp(kt.kt_data, "AAAXXX", kt.kt_len));
 
     /* update cursor, should now see all keys */
-    err = ikvdb_kvs_cursor_update(cur, 0, NULL);
+    err = ikvdb_kvs_cursor_update_view(cur, 0);
     ASSERT_EQ(err, 0);
 
     err = ikvdb_kvs_cursor_seek(cur, 0, 0, 0, 0, 0, &kt);

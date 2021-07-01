@@ -699,7 +699,7 @@ hse_kvs_cursor_create(
  */
 /* MTF_MOCK */
 HSE_EXPORT hse_err_t
-hse_kvs_cursor_update(struct hse_kvs_cursor *cursor, unsigned int flags, struct hse_kvdb_txn *txn);
+hse_kvs_cursor_update_view(struct hse_kvs_cursor *cursor, unsigned int flags);
 
 /**
  * Move the cursor to point at the key/value pair at or closest to "key"
