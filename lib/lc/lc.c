@@ -623,7 +623,7 @@ static u64
 lc_seqnoref_to_seqno(uintptr_t seqnoref)
 {
     enum hse_seqno_state state;
-    u64                  seq;
+    u64                  seq = 0;
 
     state = seqnoref_to_seqno(seqnoref, &seq);
     assert(state == HSE_SQNREF_STATE_UNDEFINED || state == HSE_SQNREF_STATE_DEFINED);
