@@ -526,7 +526,8 @@ c0sk_merge_loop(
     }
 
     hse_log(
-        HSE_DEBUG "c0sk_ingest_merge (%lu) Entries added: cn %lu lc %lu",
+        HSE_DEBUG "%s: (%lu) Entries added: cn %lu lc %lu",
+        __func__,
         pthread_self(),
         bkv_collection_count(cn_list),
         lc_list ? bkv_collection_count((void *)lc_list) : 0);
@@ -686,7 +687,9 @@ c0sk_ingest_worker(struct work_struct *work)
     atomic_dec(&c0sk->c0sk_ingest_serialized_cnt);
 
     atomic64_inc_acq(&c0sk->c0sk_ingest_order_next); /* Move the ingest order forward */
-    cv_broadcast(&c0sk->c0sk_kvms_cv);               /* Wake up newer ingest threads */
+    mutex_lock(&c0sk->c0sk_kvms_mutex);
+    cv_broadcast(&c0sk->c0sk_kvms_cv); /* Wake up newer ingest threads */
+    mutex_unlock(&c0sk->c0sk_kvms_mutex);
     released = true;
 
     err = bkv_collection_finish_pair(cn_list[0], cn_list[1]);
@@ -713,7 +716,9 @@ health_err:
 exit_err:
     if (!released) {
         atomic64_inc_acq(&c0sk->c0sk_ingest_order_next); /* Move the ingest order forward */
-        cv_broadcast(&c0sk->c0sk_kvms_cv);               /* Wake up newer ingest threads */
+        mutex_lock(&c0sk->c0sk_kvms_mutex);
+        cv_broadcast(&c0sk->c0sk_kvms_cv); /* Wake up newer ingest threads */
+        mutex_unlock(&c0sk->c0sk_kvms_mutex);
         released = true;
     }
 
@@ -754,7 +759,7 @@ exit_err:
         if (!err) {
             if (debug && cn_min && cn_max)
                 hse_log(
-                    HSE_WARNING "c0_ingest minseq: c0sk %lu cn %lu; maxseq: c0sk %lu cn %lu",
+                    HSE_DEBUG "c0_ingest minseq: c0sk %lu cn %lu; maxseq: c0sk %lu cn %lu",
                     min_seq,
                     cn_min,
                     max_seq,

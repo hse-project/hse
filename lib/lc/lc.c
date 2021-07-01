@@ -407,9 +407,11 @@ lc_destroy(struct lc *handle)
 
     self = lc_h2r(handle);
 
-    atomic_set(&self->lc_closing, 1);            /* Don't enqueue more gc threads */
-    cancel_delayed_work(&self->lc_gc.lgc_dwork); /* Cancel any delayed work that may be enqueued */
-    flush_workqueue(self->lc_gc_wq);             /* Wait for any ongoing GC worker to finish */
+    atomic_set(&self->lc_closing, 1); /* Don't enqueue more gc threads */
+    while (!cancel_delayed_work(&self->lc_gc.lgc_dwork))
+        usleep(1000);
+
+    flush_workqueue(self->lc_gc_wq);
     destroy_workqueue(self->lc_gc_wq);
 
     mutex_destroy(&self->lc_mutex);
@@ -618,7 +620,7 @@ copy_val(struct kvs_buf *vbuf, struct bonsai_val *val)
 }
 
 static u64
-get_seqno(uintptr_t seqnoref)
+lc_seqnoref_to_seqno(uintptr_t seqnoref)
 {
     enum hse_seqno_state state;
     u64                  seq;
@@ -666,12 +668,12 @@ lc_get(
 
         bn_skey_init(kt->kt_data, pfxlen, 0, skidx, &pfx_skey);
         lc_get_pfx(self, &pfx_skey, view_seqno, seqnoref, &oseqnoref);
-        pt_seq = get_seqno(oseqnoref);
+        pt_seq = lc_seqnoref_to_seqno(oseqnoref);
     }
 
     lc_get_main(self, &skey, view_seqno, seqnoref, res, &val, &oseqnoref);
     if (val)
-        val_seq = get_seqno(oseqnoref);
+        val_seq = lc_seqnoref_to_seqno(oseqnoref);
 
     /* Return value only if it has not yet been ingested */
     if (pt_seq > val_seq) {
@@ -732,7 +734,7 @@ lc_pfx_probe(
         bn_skey_init(kt->kt_data, pfxlen, 0, skidx, &pfx_skey);
         lc_get_pfx(self, &pfx_skey, view_seqno, seqnoref, &pt_seqref);
 
-        pt_seq = get_seqno(pt_seqref);
+        pt_seq = lc_seqnoref_to_seqno(pt_seqref);
     }
 
     root = rcu_dereference(self->lc_broot[1]);
@@ -1239,8 +1241,7 @@ lc_gc_worker(struct work_struct *work)
     lc_wunlock(lc);
 
 exit:
-    if (!atomic_read(&lc->lc_closing))
-        queue_delayed_work(lc->lc_gc_wq, &gc->lgc_dwork, msecs_to_jiffies(lc->lc_gc_delay_ms));
+    queue_delayed_work(lc->lc_gc_wq, &gc->lgc_dwork, msecs_to_jiffies(lc->lc_gc_delay_ms));
 }
 
 static void
