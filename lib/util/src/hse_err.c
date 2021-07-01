@@ -64,8 +64,6 @@ const char *
 merr_file(merr_t err)
 {
     const char *file;
-    size_t      len;
-    int         slash;
     s32         off;
 
     if (err == 0 || err == -1)
@@ -79,21 +77,21 @@ merr_file(merr_t err)
 
     if (!(file > (char *)&__start_hse_merr ||
           file < (char *)&__stop_hse_merr))
-        file = hse_merr_bug3;
+        return hse_merr_bug3;
 
-    /* [HSE_REVISIT] We can simply 'return file;' here once we teach
-     * cmake how to shorten the .c filenames used by _merr_file.
-     */
-    len = strnlen(file, PATH_MAX);
-    file += len;
-
-    for (slash = 0; len-- > 0; --file) {
-        if (*file && !isprint(*file))
-            return hse_merr_bug2;
-
-        if (file[-1] == '/' && ++slash >= 2)
-            break;
+#ifdef HSE_REL_SRC_DIR
+    if ((uintptr_t)file == (uintptr_t)hse_merr_bug0 ||
+        (uintptr_t)file == (uintptr_t)hse_merr_bug1 ||
+        (uintptr_t)file == (uintptr_t)hse_merr_bug2 ||
+        (uintptr_t)file == (uintptr_t)hse_merr_bug3) {
+        return file;
     }
+
+    /* Point the file pointer past the prefix in order to retrieve the file
+     * path relative to the HSE source tree.
+     */
+    file += sizeof(HSE_REL_SRC_DIR) - 1;
+#endif
 
     return file;
 }
@@ -139,8 +137,7 @@ merr_strinfo(merr_t err, char *buf, size_t buf_sz, size_t *need_sz)
              */
             if (need_sz)
                 *need_sz = sz + 200;
-        }
-        else {
+        } else {
             off = sz;
             sz = merr_strerror(err, buf + off, buf_sz - off);
 
