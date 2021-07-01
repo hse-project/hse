@@ -17,7 +17,7 @@
 #include <sys/types.h>
 
 #include <hse/hse.h>
-#include <hse/hse_version.h>
+#include <hse/version.h>
 
 #include <hse_util/parse_num.h>
 #include <hse_util/yaml.h>

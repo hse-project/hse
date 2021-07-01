@@ -13,15 +13,15 @@ version_data = configuration_data({
 })
 
 version_h = configure_file(
-    input: 'hse_version.h.in',
-    output: 'hse_version.h',
+    input: 'version.h.in',
+    output: 'version.h',
     configuration: version_data,
 )
 
 install_headers(
     version_h,
     'hse.h',
-    'hse_limits.h',
+    'limits.h',
     'flags.h',
     'types.h',
     subdir: include_subdir,

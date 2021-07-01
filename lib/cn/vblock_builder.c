@@ -21,7 +21,7 @@
 #include <hse_ikvdb/kvset_builder.h>
 #include <hse_ikvdb/cn.h>
 
-#include <hse/hse_limits.h>
+#include <hse/limits.h>
 #include <hse/kvdb_perfc.h>
 
 #include "omf.h"

@@ -8,7 +8,7 @@
 
 #include <chrono>
 #include <hse/hse.h>
-#include <hse/hse_version.h>
+#include <hse/version.h>
 #include <thread>
 
 #include "leveldb/slice.h"

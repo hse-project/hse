@@ -8,7 +8,7 @@
 
 #include <hse_util/hse_err.h>
 
-#include <hse/hse_limits.h>
+#include <hse/limits.h>
 
 /* The very-large-buffer cache maintains a small pool of large, page
  * aligned buffers for use cases such as direct reads and compression.

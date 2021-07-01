@@ -6,7 +6,7 @@
 #ifndef HSE_KVS_C0SK_INTERNAL_H
 #define HSE_KVS_C0SK_INTERNAL_H
 
-#include <hse/hse_limits.h>
+#include <hse/limits.h>
 
 #include <hse_util/arch.h>
 #include <hse_util/mtx_pool.h>

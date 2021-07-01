@@ -13,7 +13,7 @@
 
 #include <bsd/string.h>
 #include <hse/hse.h>
-#include <hse/hse_limits.h>
+#include <hse/limits.h>
 
 #include "kvs_helper.h"
 

@@ -22,7 +22,7 @@
 #include <hse_util/compression_lz4.h>
 #include <hse_util/vlb.h>
 
-#include <hse/hse_limits.h>
+#include <hse/limits.h>
 #include <hse/kvdb_perfc.h>
 
 #include <hse_ikvdb/tuple.h>

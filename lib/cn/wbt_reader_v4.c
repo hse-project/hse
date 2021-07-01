@@ -10,7 +10,7 @@
 #include <hse_util/mman.h>
 #include <hse_util/keycmp.h>
 
-#include <hse/hse_limits.h>
+#include <hse/limits.h>
 
 #include <hse_ikvdb/tuple.h>
 #include <hse_ikvdb/omf_kmd.h>

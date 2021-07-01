@@ -14,7 +14,7 @@
 #include <sysexits.h>
 
 #include <hse/hse.h>
-#include <hse/hse_limits.h>
+#include <hse/limits.h>
 
 #include <cli/param.h>
 

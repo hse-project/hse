@@ -6,7 +6,7 @@
 #include <limits.h>
 #include <stddef.h>
 
-#include <hse/hse_limits.h>
+#include <hse/limits.h>
 #include <hse_ikvdb/limits.h>
 #include <hse_ikvdb/param.h>
 #include <hse_ikvdb/kvs_cparams.h>

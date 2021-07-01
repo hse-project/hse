@@ -14,7 +14,7 @@
 #include <hse_ikvdb/limits.h>
 #include <hse_ikvdb/omf_kmd.h>
 
-#include <hse/hse_limits.h>
+#include <hse/limits.h>
 
 #define MTF_MOCK_IMPL_wbt_builder
 #include "wbt_builder.h"

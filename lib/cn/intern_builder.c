@@ -3,7 +3,7 @@
  * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
-#include <hse/hse_limits.h>
+#include <hse/limits.h>
 
 #include <hse_util/platform.h>
 #include <hse_util/slab.h>

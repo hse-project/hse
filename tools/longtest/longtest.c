@@ -12,7 +12,7 @@
 #include <sys/time.h>
 
 #include <hse/hse.h>
-#include <hse/hse_version.h>
+#include <hse/version.h>
 
 #include <hse_util/atomic.h>
 #include <hse_util/inttypes.h>

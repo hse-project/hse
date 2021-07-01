@@ -34,7 +34,7 @@
 
 #include <mpool/mpool.h>
 
-#include <hse/hse_limits.h>
+#include <hse/limits.h>
 
 #include <hse_ikvdb/key_hash.h>
 #include <hse_ikvdb/limits.h>

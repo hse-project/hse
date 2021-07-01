@@ -16,7 +16,7 @@
 #include <hse_ikvdb/kvset_builder.h>
 #include <hse_ikvdb/kvs_rparams.h>
 
-#include <hse/hse_limits.h>
+#include <hse/limits.h>
 
 #include <cn/vblock_builder.h>
 #include <cn/blk_list.h>

@@ -12,7 +12,7 @@
 #include <hse_ikvdb/kvs_rparams.h>
 #include <hse_ikvdb/cn.h>
 
-#include <hse/hse_limits.h>
+#include <hse/limits.h>
 
 #include <mocks/mock_kbb_vbb.h>
 

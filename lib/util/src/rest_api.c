@@ -17,7 +17,7 @@
 #include <hse_util/string.h>
 #include <hse_util/table.h>
 
-#include <hse/hse_version.h>
+#include <hse/version.h>
 
 #include <sys/socket.h>
 #include <sys/un.h>

@@ -10,7 +10,7 @@
 #include <hse_util/logging.h>
 #include <hse_util/storage.h>
 
-#include <hse/hse_limits.h>
+#include <hse/limits.h>
 
 #include <hse_ikvdb/kvs_rparams.h>
 #include <hse_ikvdb/kvs_cparams.h>

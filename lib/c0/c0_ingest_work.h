@@ -6,7 +6,7 @@
 #ifndef HSE_KVS_C0_INGEST_WORK_H
 #define HSE_KVS_C0_INGEST_WORK_H
 
-#include <hse/hse_limits.h>
+#include <hse/limits.h>
 
 #include <hse_util/platform.h>
 

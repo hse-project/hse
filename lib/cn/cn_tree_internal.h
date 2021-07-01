@@ -13,7 +13,7 @@
 #include <hse_util/spinlock.h>
 #include <hse_util/list.h>
 
-#include <hse/hse_limits.h>
+#include <hse/limits.h>
 
 #include <hse_ikvdb/sched_sts.h>
 

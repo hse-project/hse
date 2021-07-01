@@ -16,7 +16,7 @@
 #include <hse_ikvdb/limits.h>
 #include <hse_ikvdb/cn.h>
 
-#include <hse/hse_limits.h>
+#include <hse/limits.h>
 
 #include "kcompact.h"
 #include "spill.h"

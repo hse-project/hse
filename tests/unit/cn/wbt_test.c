@@ -8,7 +8,7 @@
 #include <hse_util/page.h>
 #include <hse_util/keycmp.h>
 
-#include <hse/hse_limits.h>
+#include <hse/limits.h>
 
 #include <cn/omf.h>
 #include <cn/kblock_reader.h>

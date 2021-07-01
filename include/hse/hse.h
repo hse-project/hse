@@ -41,7 +41,7 @@
  *     unsegmented key   - A key that is not logically divided into segments
  */
 
-#include <hse/hse_limits.h>
+#include <hse/limits.h>
 #include <hse/types.h>
 #include <hse/flags.h>
 

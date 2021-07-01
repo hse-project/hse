@@ -6,7 +6,7 @@
 #ifndef HSE_KVS_CNDB_INTERNAL_H
 #define HSE_KVS_CNDB_INTERNAL_H
 
-#include <hse/hse_limits.h>
+#include <hse/limits.h>
 
 #include <hse_util/platform.h>
 #include <hse_util/mutex.h>

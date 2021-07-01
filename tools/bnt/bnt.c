@@ -35,7 +35,7 @@
 #include <sys/sysinfo.h>
 
 #include <hse/hse.h>
-#include <hse/hse_version.h>
+#include <hse/version.h>
 
 #include <hse_util/compiler.h>
 #include <hse_util/page.h>

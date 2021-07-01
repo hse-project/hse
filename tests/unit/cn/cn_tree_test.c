@@ -7,7 +7,7 @@
 
 #include <hse_util/hse_err.h>
 
-#include <hse/hse_limits.h>
+#include <hse/limits.h>
 
 #include <hse_ikvdb/kvs_rparams.h>
 #include <hse_ikvdb/limits.h>

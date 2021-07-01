@@ -6,7 +6,7 @@
 #define MTF_MOCK_IMPL_kblock_builder
 #include "kblock_builder.h"
 
-#include <hse/hse_limits.h>
+#include <hse/limits.h>
 #include <hse/kvdb_perfc.h>
 
 #include <hse_ikvdb/key_hash.h>
