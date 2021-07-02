@@ -342,3 +342,26 @@ mclass_stats_get(struct media_class *mc, struct mpool_mclass_stats *stats)
 
     return 0;
 }
+
+merr_t
+mclass_ftw(struct media_class *mc, const char *prefix, struct mpool_file_cb *cb)
+{
+    if (!mc)
+        return merr(EINVAL);
+
+    int
+    mclass_file_cb(const char *path, const struct stat *sb, int typeflag, struct FTW *ftwbuf)
+    {
+        if (typeflag == FTW_D && ftwbuf->level > 0)
+            return FTW_SKIP_SUBTREE;
+
+        if (!prefix || strstr(path, prefix))
+            cb->cbfunc(cb->cbarg, path);
+
+        return FTW_CONTINUE;
+    }
+
+    nftw(mc->dpath, mclass_file_cb, MCLASS_FILES_MAX, FTW_PHYS | FTW_ACTIONRETVAL);
+
+    return 0;
+}

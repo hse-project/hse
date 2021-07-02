@@ -145,4 +145,10 @@ struct mblock_props {
     uint32_t mpr_mclass;
 };
 
+
+struct mpool_file_cb {
+    void *cbarg;
+    void (*cbfunc)(void *cbarg, const char *path);
+};
+
 #endif /* MPOOL_STRUCTS_H */

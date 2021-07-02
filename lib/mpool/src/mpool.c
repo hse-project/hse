@@ -453,6 +453,24 @@ mpool_mclass_dirfd(struct mpool *mp, enum mpool_mclass mclass, int *dirfd)
     return 0;
 }
 
+merr_t
+mpool_mclass_ftw(
+    struct mpool         *mp,
+    enum mpool_mclass     mclass,
+    const char           *prefix,
+    struct mpool_file_cb *cb)
+{
+    struct media_class *mc;
+
+    if (!mp || mclass >= MP_MED_COUNT)
+        return merr(EINVAL);
+
+    mc = mpool_mclass_handle(mp, mclass);
+    if (!mc)
+        return merr(ENOENT);
+
+    return mclass_ftw(mc, prefix, cb);
+}
 
 #if HSE_MOCKING
 #include "mpool_ut_impl.i"

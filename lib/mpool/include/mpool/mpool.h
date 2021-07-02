@@ -119,6 +119,21 @@ mpool_mclass_stats_get(
     struct mpool_mclass_stats *stats);
 
 /**
+ * mpool_mclass_ftw() - walk files in 'mclass' and invoke cb for each file matching 'prefix'
+ *
+ * @mp:     mpool descriptor
+ * @mclass: enum mpool_mclass
+ * @prefix: file prefix
+ * @cb:     instance of struct mpool_file_cb
+ */
+merr_t
+mpool_mclass_ftw(
+    struct mpool         *mp,
+    enum mpool_mclass     mclass,
+    const char           *prefix,
+    struct mpool_file_cb *cb);
+
+/**
  * mpool_props_get() - get mpool properties
  *
  * @mp:    mpool handle

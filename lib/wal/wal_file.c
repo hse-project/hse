@@ -140,6 +140,25 @@ wal_fileset_reclaim(struct wal_fileset *wfset, u64 seqno, u64 gen, u64 txhorizon
     return 0;
 }
 
+void
+wal_file_cb(void *wfset, const char *path)
+{
+    /* Until replay is implemented, remove leftover WAL files from crash  */
+    hse_log(HSE_NOTICE "Removing WAL file %s, recovery not implemented", path);
+    remove(path);
+}
+
+merr_t
+wal_fileset_replay(struct wal_fileset *wfset)
+{
+    struct mpool_file_cb cb;
+
+    cb.cbarg = (void *)wfset;
+    cb.cbfunc = wal_file_cb;
+
+    return mpool_mclass_ftw(wfset->mp, wfset->mclass, WAL_FILE_PFX, &cb);
+}
+
 struct wal_fileset *
 wal_fileset_open(struct mpool *mp, enum mpool_mclass mclass, size_t capacity, u32 magic, u32 vers)
 {
@@ -161,6 +180,11 @@ wal_fileset_open(struct mpool *mp, enum mpool_mclass mclass, size_t capacity, u3
     wfset->capacity = capacity;
     wfset->magic = magic;
     wfset->version = vers;
+
+    if (wal_fileset_replay(wfset)) {
+        free(wfset);
+        return NULL;
+    }
 
     return wfset;
 }
