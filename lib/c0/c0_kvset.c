@@ -7,6 +7,7 @@
 #include <hse_util/log2.h>
 #include <hse_util/fmt.h>
 #include <hse_util/keycmp.h>
+#include <hse_util/bonsai_tree.h>
 #include <hse_util/compression_lz4.h>
 #include <hse_util/event_counter.h>
 
@@ -17,22 +18,14 @@
 #include "c0_kvset_internal.h"
 #include "c0_cursor.h"
 
+/* clang-format off */
+
 /* The minimum c0 cheap size should be large enough to accomodate
  * at least one max-sized kvs value plus associated overhead.
  */
 static_assert(HSE_C0_CHEAP_SZ_MIN > HSE_KVS_VLEN_MAX + (1ul << 20), "C0_CHEAP_SZ_MIN too small");
 static_assert(HSE_C0_CHEAP_SZ_DFLT > HSE_C0_CHEAP_SZ_MIN, "C0_CHEAP_SZ_DFLT too small");
 static_assert(HSE_C0_CHEAP_SZ_MAX > HSE_C0_CHEAP_SZ_DFLT, "C0_CHEAP_SZ_MAX too small");
-
-/*
- * A struct c0_kvset contains a Bonsai tree that is used in a RCU style.
- * In userspace this is part of the Bonsai tree library. The kernel space
- * implementation is TBD.
- */
-#include <hse_util/bonsai_tree.h>
-
-static void
-c0kvs_destroy_impl(struct c0_kvset_impl *set);
 
 /**
  * struct c0kvs_ccache - cache of initialized cheap-based c0kvs objects
@@ -42,20 +35,22 @@ c0kvs_destroy_impl(struct c0_kvset_impl *set);
  * @cc_init:    set to %true if initialized
  *
  * Creating and destroying cheap-backed c0kvsets is relatively expensive,
- * so we keep a small cache of them ready for immediate use.  The cache
- * is accessed on a per-cpu basis, but we'll check all buckets in order
- * to satisfy each alloc/free request before resorting to full-on c0kvms
- * create/destroy operation.
+ * so we keep a small cache of them ready for immediate use.
  */
 struct c0kvs_ccache {
-    spinlock_t cc_lock HSE_ALIGNED(SMP_CACHE_BYTES * 2);
-    void *cc_head      HSE_ALIGNED(SMP_CACHE_BYTES);
-    size_t             cc_size;
-    bool               cc_init;
+    spinlock_t  cc_lock HSE_ALIGNED(SMP_CACHE_BYTES * 2);
+    void       *cc_head;
+    size_t      cc_size;
+    bool        cc_init;
 };
+
+/* clang-format on */
 
 static struct c0kvs_ccache c0kvs_ccache;
 static atomic_t            c0kvs_init_ref;
+
+static void
+c0kvs_destroy_impl(struct c0_kvset_impl *set);
 
 static struct c0_kvset_impl *
 c0kvs_ccache_alloc(void)
