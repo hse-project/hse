@@ -970,6 +970,7 @@ MTF_DEFINE_UTEST_PREPOST(ikvdb_test, cursor_1, test_pre_c0, test_post_c0)
     ASSERT_EQ(0, err);
 }
 
+#if 0
 MTF_DEFINE_UTEST_PREPOST(ikvdb_test, cursor_tx, test_pre_c0, test_post_c0)
 {
     struct ikvdb *         h = NULL;
@@ -1219,6 +1220,7 @@ MTF_DEFINE_UTEST_PREPOST(ikvdb_test, cursor_tx, test_pre_c0, test_post_c0)
     err = ikvdb_close(h);
     ASSERT_EQ(0, err);
 }
+#endif
 
 /* [HSE_REVISIT] Fixme:  gdb --args ikvdb_test -1 cursor_tombspan
  */

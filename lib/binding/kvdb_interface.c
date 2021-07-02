@@ -935,7 +935,7 @@ hse_kvs_cursor_update_view(
 {
     merr_t err;
 
-    if (HSE_UNLIKELY(!cursor || flags & ~HSE_FLAG_CURSOR_ALL))
+    if (HSE_UNLIKELY(!cursor || flags != HSE_FLAG_NONE))
         return merr_to_hse_err(merr(EINVAL));
 
     PERFC_INC_RU(&kvdb_pc, PERFC_RA_KVDBOP_KVS_CURSOR_UPDATE);
