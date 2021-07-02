@@ -33,6 +33,37 @@ hse_major_version = version_components[0]
 hse_minor_version = version_components[1]
 hse_patch_version = version_components[2]
 
+if meson.version().version_compare('>=0.58.0')
+    global_build_root = meson.global_build_root()
+else
+    global_build_root = meson.build_root()
+endif
+
+# Compute the relative path used by compiler invocations.
+relative_dir = run_command(
+    python,
+    '-c',
+    'import os; print("{}/".format(os.path.relpath("@0@", "@1@")))'.format(
+        meson.project_source_root(),
+        global_build_root,
+    ),
+    check: true,
+).stdout().strip()
+
+# Strip relative path prefixes from the code if possible, otherwise hide them.
+# The following snippet is attributed to the SwayWM Project under the MIT license.
+if cc.has_argument('-fmacro-prefix-map=/prefix/to/hide=')
+	add_project_arguments(
+		'-fmacro-prefix-map=@0@='.format(relative_dir),
+		language: 'c',
+	)
+else
+	add_project_arguments(
+		'-DHSE_REL_SRC_DIR="@0@"'.format(relative_dir),
+		language: 'c',
+	)
+endif
+
 git = find_program('git')
 if git.found() and fs.exists(meson.project_source_root() / '.git')
     build_tag = run_command(
