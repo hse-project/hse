@@ -3,13 +3,12 @@
  * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
-#include <hse_util/platform.h>
-#include <hse_util/event_counter.h>
 #include <hse_util/slab.h>
 #include <hse_util/log2.h>
 #include <hse_util/fmt.h>
 #include <hse_util/keycmp.h>
 #include <hse_util/compression_lz4.h>
+#include <hse_util/event_counter.h>
 
 #include <hse_ikvdb/limits.h>
 #include <hse_ikvdb/c0_kvset.h>
@@ -21,9 +20,9 @@
 /* The minimum c0 cheap size should be large enough to accomodate
  * at least one max-sized kvs value plus associated overhead.
  */
-_Static_assert(HSE_C0_CHEAP_SZ_MIN > HSE_KVS_VLEN_MAX + (1ul << 20), "C0_CHEAP_SZ_MIN too small");
-_Static_assert(HSE_C0_CHEAP_SZ_DFLT > HSE_C0_CHEAP_SZ_MIN, "C0_CHEAP_SZ_DFLT too small");
-_Static_assert(HSE_C0_CHEAP_SZ_MAX > HSE_C0_CHEAP_SZ_DFLT, "C0_CHEAP_SZ_MAX too small");
+static_assert(HSE_C0_CHEAP_SZ_MIN > HSE_KVS_VLEN_MAX + (1ul << 20), "C0_CHEAP_SZ_MIN too small");
+static_assert(HSE_C0_CHEAP_SZ_DFLT > HSE_C0_CHEAP_SZ_MIN, "C0_CHEAP_SZ_DFLT too small");
+static_assert(HSE_C0_CHEAP_SZ_MAX > HSE_C0_CHEAP_SZ_DFLT, "C0_CHEAP_SZ_MAX too small");
 
 /*
  * A struct c0_kvset contains a Bonsai tree that is used in a RCU style.
@@ -472,7 +471,6 @@ c0kvs_create(
     }
 
     set->c0s_reset_sz = cheap_used(cheap);
-    ev(1);
 
 created:
     set->c0s_kvdb_seqno = kvdb_seqno;
@@ -488,7 +486,6 @@ c0kvs_destroy_impl(struct c0_kvset_impl *set)
 {
     mutex_destroy(&set->c0s_mutex);
     cheap_destroy(set->c0s_cheap);
-    ev(1);
 }
 
 void

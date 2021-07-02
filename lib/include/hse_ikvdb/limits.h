@@ -12,14 +12,12 @@
 #define HSE_C0_CCACHE_SZ_MAX        (8ul << 30)
 
 #define HSE_C0_CHEAP_SZ_MIN         (16ul << 20)
-#define HSE_C0_CHEAP_SZ_DFLT        (64ul << 20)
-#define HSE_C0_CHEAP_SZ_MAX         (128ul << 20)
+#define HSE_C0_CHEAP_SZ_DFLT        (128ul << 20)
+#define HSE_C0_CHEAP_SZ_MAX         (256ul << 20)
 
 #define HSE_C0_INGEST_WIDTH_MIN     (8)
-#define HSE_C0_INGEST_WIDTH_DFLT    (20)
+#define HSE_C0_INGEST_WIDTH_DFLT    (18)
 #define HSE_C0_INGEST_WIDTH_MAX     (32)
-
-#define HSE_C0_INGEST_SZ_MAX        (HSE_C0_CHEAP_SZ_MAX * HSE_C0_INGEST_WIDTH_MAX)
 
 #define HSE_C0_INGEST_THREADS_DFLT  (3)
 #define HSE_C0_INGEST_THREADS_MAX   (5)
