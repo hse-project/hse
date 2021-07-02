@@ -1286,8 +1286,7 @@ c0sk_putdel(
         rcu_read_unlock();
 
         if (merr_errno(err) != ENOMEM) {
-            if (!err)
-                kt->kt_dgen = dst_gen;
+            kt->kt_dgen = dst_gen;
             break;
         }
 

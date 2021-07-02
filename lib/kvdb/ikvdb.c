@@ -267,7 +267,7 @@ validate_kvs_name(const char *name)
 }
 
 static merr_t
-ikvdb_wal_make(
+ikvdb_wal_create(
     struct mpool        *mp,
     struct kvdb_cparams *cp,
     struct kvdb_log     *log,
@@ -357,7 +357,7 @@ ikvdb_create(const char *kvdb_home, struct mpool *mp, struct kvdb_cparams *param
     if (ev(err))
         goto out;
 
-    err = ikvdb_wal_make(mp, params, log, &tx);
+    err = ikvdb_wal_create(mp, params, log, &tx);
 
 out:
     /* Failed ikvdb_create() indicates that the caller or operator should

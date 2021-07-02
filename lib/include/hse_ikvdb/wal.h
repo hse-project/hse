@@ -13,7 +13,12 @@
 #include <hse_ikvdb/tuple.h>
 
 #define HSE_WAL_DUR_MS_DFLT    (100)
+#define HSE_WAL_DUR_MS_MIN     (25)
+#define HSE_WAL_DUR_MS_MAX     (1000)
+
 #define HSE_WAL_DUR_BYTES_DFLT (35 << 20)
+#define HSE_WAL_DUR_BYTES_MIN  (8 << 20)
+#define HSE_WAL_DUR_BYTES_MAX  (64 << 20)
 
 struct wal;
 struct kvdb_log;

@@ -19,6 +19,7 @@
 #include <hse_ikvdb/kvdb_cparams.h>
 #include <hse_ikvdb/limits.h>
 #include <hse_ikvdb/home.h>
+#include <hse_ikvdb/wal.h>
 #include <hse_util/storage.h>
 #include <hse_util/compiler.h>
 #include <hse_util/string.h>
@@ -869,7 +870,7 @@ static const struct param_spec pspecs[] = {
         .ps_bounds = {
             .as_uscalar = {
                 .ps_min = 0,
-                .ps_max = 1000,
+                .ps_max = HSE_WAL_DUR_MS_MAX,
             },
         },
     },
@@ -888,7 +889,7 @@ static const struct param_spec pspecs[] = {
         .ps_bounds = {
             .as_uscalar = {
                 .ps_min = 0,
-                .ps_max = 64 << 20,
+                .ps_max = HSE_WAL_DUR_BYTES_MAX,
             },
         },
     },

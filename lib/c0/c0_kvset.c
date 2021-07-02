@@ -564,7 +564,11 @@ c0kvs_alloc(struct c0_kvset *handle, size_t align, size_t sz)
 }
 
 static merr_t
-c0kvs_putdel(struct c0_kvset_impl *self, struct bonsai_skey *skey, struct bonsai_sval *sval)
+c0kvs_putdel(
+    struct c0_kvset_impl *self,
+    struct bonsai_skey   *skey,
+    struct bonsai_sval   *sval,
+    u64                  *seqno)
 {
     merr_t err;
 
@@ -580,6 +584,9 @@ c0kvs_putdel(struct c0_kvset_impl *self, struct bonsai_skey *skey, struct bonsai
      */
     assert(atomic_read(&self->c0s_finalized) == 0);
 
+    if (!err)
+        *seqno = HSE_SQNREF_TO_ORDNL(sval->bsv_seqnoref);
+
     return err;
 }
 
@@ -594,18 +601,11 @@ c0kvs_put(
     struct c0_kvset_impl *self = c0_kvset_h2r(handle);
     struct bonsai_skey    skey;
     struct bonsai_sval    sval;
-    merr_t err;
 
     bn_skey_init(kt->kt_data, kt->kt_len, kt->kt_flags, skidx, &skey);
     bn_sval_init(vt->vt_data, vt->vt_xlen, seqnoref, &sval);
 
-    err = c0kvs_putdel(self, &skey, &sval);
-    if (err)
-        return err;
-
-    kt->kt_seqno = HSE_SQNREF_TO_ORDNL(sval.bsv_seqnoref);
-
-    return 0;
+    return c0kvs_putdel(self, &skey, &sval, &kt->kt_seqno);
 }
 
 merr_t
@@ -614,18 +614,11 @@ c0kvs_del(struct c0_kvset *handle, u16 skidx, struct kvs_ktuple *key, uintptr_t 
     struct c0_kvset_impl *self = c0_kvset_h2r(handle);
     struct bonsai_skey    skey;
     struct bonsai_sval    sval;
-    merr_t err;
 
     bn_skey_init(key->kt_data, key->kt_len, 0, skidx, &skey);
     bn_sval_init(HSE_CORE_TOMB_REG, 0, seqnoref, &sval);
 
-    err = c0kvs_putdel(self, &skey, &sval);
-    if (err)
-        return err;
-
-    key->kt_seqno = HSE_SQNREF_TO_ORDNL(sval.bsv_seqnoref);
-
-    return 0;
+    return c0kvs_putdel(self, &skey, &sval, &key->kt_seqno);
 }
 
 merr_t
@@ -638,18 +631,11 @@ c0kvs_prefix_del(
     struct c0_kvset_impl *self = c0_kvset_h2r(handle);
     struct bonsai_skey    skey;
     struct bonsai_sval    sval;
-    merr_t err;
 
     bn_skey_init(key->kt_data, key->kt_len, 0, skidx, &skey);
     bn_sval_init(HSE_CORE_TOMB_PFX, 0, seqnoref, &sval);
 
-    err = c0kvs_putdel(self, &skey, &sval);
-    if(err)
-        return err;
-
-    key->kt_seqno = HSE_SQNREF_TO_ORDNL(sval.bsv_seqnoref);
-
-    return 0;
+    return c0kvs_putdel(self, &skey, &sval, &key->kt_seqno);
 }
 
 void
