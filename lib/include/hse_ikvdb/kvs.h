@@ -36,6 +36,7 @@ struct kvs_rparams;
 struct lc;
 struct cn;
 struct cn_kvdb;
+struct wal;
 
 struct kc_filter {
     const void *kcf_maxkey;
@@ -65,6 +66,7 @@ struct ikvs {
     struct c0 *      ikv_c0;
     struct cn *      ikv_cn;
     struct lc *      ikv_lc;
+    struct wal *     ikv_wal;
     struct perfc_set ikv_pkvsl_pc; /* Public kvs interfaces Lat. */
     struct perfc_set ikv_cc_pc;
     struct perfc_set ikv_cd_pc;
@@ -85,6 +87,7 @@ kvs_open(
     struct mpool *      ds,
     struct cndb *       cndb,
     struct lc *         lc,
+    struct wal         *wal,
     struct kvs_rparams *rp,
     struct kvdb_health *health,
     struct cn_kvdb *    cn_kvdb,
@@ -152,7 +155,7 @@ kvs_put(
     struct ikvs *            ikvs,
     struct hse_kvdb_txn *    txn,
     struct kvs_ktuple *      kt,
-    const struct kvs_vtuple *vt,
+    struct kvs_vtuple       *vt,
     u64                      seqno);
 
 merr_t

@@ -53,6 +53,7 @@ struct kvdb_ctxn_impl {
     atomic64_t *          ctxn_tseqno_head;
     atomic64_t *          ctxn_tseqno_tail;
     struct c0snr_set     *ctxn_c0snr_set;
+    struct wal           *ctxn_wal;
 
     u64                  ctxn_begin_ts HSE_ALIGNED(SMP_CACHE_BYTES);
     void                *ctxn_viewset_cookie;

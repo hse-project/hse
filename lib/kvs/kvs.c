@@ -33,6 +33,7 @@
 #include <hse_ikvdb/tuple.h>
 #include <hse_ikvdb/kvdb_health.h>
 #include <hse_ikvdb/cursor.h>
+#include <hse_ikvdb/wal.h>
 
 /* "pkvsl" stands for Public KVS interface Latencies" */
 struct perfc_name kvs_pkvsl_perfc_op[] = {
@@ -144,6 +145,7 @@ kvs_open(
     struct mpool *      ds,
     struct cndb *       cndb,
     struct lc *         lc,
+    struct wal *        wal,
     struct kvs_rparams *rp,
     struct kvdb_health *health,
     struct cn_kvdb *    cn_kvdb,
@@ -169,6 +171,7 @@ kvs_open(
     ikvs->ikv_mpool_name = strdup(kvdb_home);
     ikvs->ikv_kvs_name = strdup(kvs_name);
     ikvs->ikv_lc = lc;
+    ikvs->ikv_wal = wal;
 
     if (!ikvs->ikv_mpool_name || !ikvs->ikv_kvs_name) {
         err = merr(ev(ENOMEM));
@@ -292,6 +295,7 @@ kvs_put(
 {
     struct kvdb_ctxn *ctxn = txn ? kvdb_ctxn_h2h(txn) : 0;
     struct perfc_set *pkvsl_pc = kvs_perfc_pkvsl(kvs);
+    struct wal_record rec;
     struct c0 *       c0 = kvs->ikv_c0;
     size_t            sfx_len;
     size_t            hashlen;
@@ -318,14 +322,19 @@ kvs_put(
         return merr(EINVAL);
     }
 
+    /* Exclusively lock txn for c0 update. */
     if (ctxn) {
-        /* Lock txn for write operation while we query c0. */
-        err = kvdb_ctxn_trylock_write(ctxn, kt, c0_hash_get(c0), &seqnoref);
-        if (ev(err))
+        err = kvdb_ctxn_trylock_write(ctxn, kt, &seqnoref, c0_hash_get(c0));
+        if (err)
             return err;
     }
 
-    err = c0_put(c0, kt, vt, seqnoref);
+    err = wal_put(kvs->ikv_wal, kvs, os, kt, vt, &rec);
+    if (!err) {
+        err = c0_put(c0, kt, vt, seqnoref);
+
+        wal_op_finish(kvs->ikv_wal, &rec, kt->kt_seqno, kt->kt_dgen, merr_errno(err));
+    }
 
     if (ctxn)
         kvdb_ctxn_unlock(ctxn);
@@ -359,11 +368,12 @@ kvs_get(
     hashlen = kt->kt_len - kvs->ikv_sfx_len;
     kt->kt_hash = key_hash64(kt->kt_data, hashlen);
 
+    /* Exclusively lock txn for query.
+     * seqnoref is invalid ater lock is released.
+     */
     if (ctxn) {
-        /* Lock txn for read operation while we query c0.  seqnoref is invalid
-         * ater lock is released. */
         err = kvdb_ctxn_trylock_read(ctxn, &seqno, &seqnoref);
-        if (ev(err))
+        if (err)
             return err;
     }
 
@@ -388,6 +398,7 @@ kvs_del(struct ikvs *kvs, struct hse_kvdb_txn *const txn, struct kvs_ktuple *kt,
 {
     struct perfc_set *pkvsl_pc = kvs_perfc_pkvsl(kvs);
     struct kvdb_ctxn *ctxn = txn ? kvdb_ctxn_h2h(txn) : 0;
+    struct wal_record rec;
     struct c0 *       c0 = kvs->ikv_c0;
     size_t            sfx_len;
     size_t            hashlen;
@@ -414,14 +425,19 @@ kvs_del(struct ikvs *kvs, struct hse_kvdb_txn *const txn, struct kvs_ktuple *kt,
         return merr(EINVAL);
     }
 
+    /* Exclusively lock txn for c0 update. */
     if (ctxn) {
-        /* Lock txn for write operation while we query c0. */
-        err = kvdb_ctxn_trylock_write(ctxn, kt, c0_hash_get(c0), &seqnoref);
-        if (ev(err))
+        err = kvdb_ctxn_trylock_write(ctxn, kt, &seqnoref, c0_hash_get(c0));
+        if (err)
             return err;
     }
 
-    err = c0_del(c0, kt, seqnoref);
+    err = wal_del(kvs->ikv_wal, kvs, os, kt, &rec);
+    if (!err) {
+        err = c0_del(c0, kt, seqnoref);
+
+        wal_op_finish(kvs->ikv_wal, &rec, kt->kt_seqno, kt->kt_dgen, merr_errno(err));
+    }
 
     if (ctxn)
         kvdb_ctxn_unlock(ctxn);
@@ -440,6 +456,7 @@ kvs_prefix_del(
 {
     struct perfc_set *pkvsl_pc = kvs_perfc_pkvsl(kvs);
     struct kvdb_ctxn *ctxn = txn ? kvdb_ctxn_h2h(txn) : 0;
+    struct wal_record rec;
     struct c0 *       c0 = kvs->ikv_c0;
     u64               tstart;
     merr_t            err;
@@ -449,16 +466,21 @@ kvs_prefix_del(
     if (!kt->kt_hash)
         kt->kt_hash = key_hash64(kt->kt_data, kt->kt_len);
 
+    /* Exclusively lock txn for c0 update.  Pass 0 for keylock seed
+     * to prevent write collision detection for this operation.
+     */
     if (ctxn) {
-        /* Lock txn for write operation while we query c0.  We don't detect
-         * write collisions for prefix deletes, so pass 0 for keylock seed.
-         */
-        err = kvdb_ctxn_trylock_write(ctxn, kt, 0, &seqnoref);
-        if (ev(err))
+        err = kvdb_ctxn_trylock_write(ctxn, kt, &seqnoref, 0);
+        if (err)
             return err;
     }
 
-    err = c0_prefix_del(c0, kt, seqnoref);
+    err = wal_del_pfx(kvs->ikv_wal, kvs, os, kt, &rec);
+    if (!err) {
+        err = c0_prefix_del(c0, kt, seqnoref);
+
+        wal_op_finish(kvs->ikv_wal, &rec, kt->kt_seqno, kt->kt_dgen, merr_errno(err));
+    }
 
     if (ctxn)
         kvdb_ctxn_unlock(ctxn);
@@ -506,12 +528,12 @@ kvs_pfx_probe(
     if (!kt->kt_hash)
         kt->kt_hash = key_hash64(kt->kt_data, kt->kt_len);
 
+    /* Exclusively lock txn for query.
+     * seqnoref is invalid after lock is released.
+     */
     if (ctxn) {
-        /* Lock txn for read operation while we query c0.  seqnoref is invalid
-         * after lock is released.
-         */
         err = kvdb_ctxn_trylock_read(ctxn, &seqno, &seqnoref);
-        if (ev(err))
+        if (err)
             return err;
     }
 

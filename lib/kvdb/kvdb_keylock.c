@@ -508,6 +508,7 @@ kvdb_keylock_lock(
 
     assert(hash);
 
+    hash += (hash >> 48);
     hash = (hash << 16) >> 16;
     tindex = hash % klock->kl_num_tables;
     keylock = klock->kl_keylock[tindex];

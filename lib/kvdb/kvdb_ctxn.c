@@ -26,6 +26,7 @@
 #include <hse_ikvdb/c0sk.h>
 #include <hse_ikvdb/c0snr_set.h>
 #include <hse_ikvdb/limits.h>
+#include <hse_ikvdb/wal.h>
 
 #include "viewset.h"
 #include "kvdb_ctxn_internal.h"
@@ -180,7 +181,8 @@ kvdb_ctxn_alloc(
     struct kvdb_ctxn_set *  kcs_handle,
     struct viewset         *viewset,
     struct c0snr_set       *c0snrset,
-    struct c0sk            *c0sk)
+    struct c0sk            *c0sk,
+    struct wal             *wal)
 {
     struct kvdb_ctxn_impl *    ctxn;
     struct kvdb_ctxn_set_impl *kvdb_ctxn_set;
@@ -200,6 +202,7 @@ kvdb_ctxn_alloc(
     ctxn->ctxn_viewset = viewset;
     ctxn->ctxn_c0snr_set = c0snrset;
     ctxn->ctxn_c0sk = c0sk;
+    ctxn->ctxn_wal = wal;
     ctxn->ctxn_kvdb_ctxn_set = kcs_handle;
     ctxn->ctxn_kvdb_seq_addr = kvdb_seqno_addr;
     ctxn->ctxn_tseqno_head = &kvdb_ctxn_set->ktn_tseqno_head;
@@ -453,6 +456,8 @@ kvdb_ctxn_abort_inner(struct kvdb_ctxn_impl *ctxn)
         kvdb_ctxn_locks_destroy(locks);
     }
 
+    wal_txn_abort(ctxn->ctxn_wal, ctxn->ctxn_view_seqno);
+
     /* At this point the transaction ceases to be considered active */
     kvdb_ctxn_deactivate(ctxn);
 }
@@ -463,8 +468,8 @@ kvdb_ctxn_abort(struct kvdb_ctxn *handle)
     struct kvdb_ctxn_impl *ctxn = kvdb_ctxn_h2r(handle);
     enum kvdb_ctxn_state   state;
 
-    if (ev(!ctxn_trylock(ctxn)))
-        return;
+    while (ev(!ctxn_trylock(ctxn)))
+        usleep(100);
 
     state = seqnoref_to_state(ctxn->ctxn_seqref);
 
@@ -486,6 +491,7 @@ kvdb_ctxn_commit(struct kvdb_ctxn *handle)
     uintptr_t               ref;
     u64                     commit_sn;
     u64                     head;
+    merr_t err;
 
     if (ev(!ctxn_trylock(ctxn)))
         return merr(EPROTO);
@@ -636,11 +642,12 @@ kvdb_ctxn_commit(struct kvdb_ctxn *handle)
         ctxn->ctxn_bind = 0;
     }
 
-    kvdb_ctxn_deactivate(ctxn);
+    err = wal_txn_commit(ctxn->ctxn_wal, ctxn->ctxn_view_seqno, commit_sn);
 
+    kvdb_ctxn_deactivate(ctxn);
     ctxn_unlock(ctxn);
 
-    return 0;
+    return err;
 }
 
 enum kvdb_ctxn_state
@@ -881,8 +888,8 @@ merr_t
 kvdb_ctxn_trylock_write(
     struct kvdb_ctxn           *handle,
     const struct kvs_ktuple    *kt,
-    u64                         keylock_seed,
-    uintptr_t                  *seqref)
+    uintptr_t                  *seqref,
+    u64                         keylock_seed)
 {
     merr_t                  err = 0;
     struct kvdb_ctxn_impl  *ctxn;
@@ -901,20 +908,23 @@ kvdb_ctxn_trylock_write(
     }
 
     if (!ctxn->ctxn_can_insert) {
+        err = wal_txn_begin(ctxn->ctxn_wal, ctxn->ctxn_view_seqno);
+        if (err)
+            goto errout;
+
         err = kvdb_ctxn_enable_inserts(ctxn);
-        if (ev(err))
+        if (err)
             goto errout;
     }
 
     if (keylock_seed) {
         hash = key_hash64_seed(kt->kt_data, kt->kt_len, keylock_seed);
+
         err = kvdb_keylock_lock(
             ctxn->ctxn_kvdb_keylock, ctxn->ctxn_locks_handle, hash, ctxn->ctxn_view_seqno);
 
-        if (err) {
-            ev(merr_errno(err) != ECANCELED);
+        if (err)
             goto errout;
-        }
     }
 
     if (ctxn->ctxn_bind)

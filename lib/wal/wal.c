@@ -414,6 +414,9 @@ wal_txn(struct wal *wal, uint rtype, uint64_t txid, uint64_t seqno)
     size_t rlen;
     uint wbidx;
 
+    if (!wal)
+        return 0;
+
     rlen = wal_txn_rec_len();
     rec = wal_bufset_alloc(wal->wbs, rlen, &offset, &wbidx);
     if (!rec) {

@@ -1594,6 +1594,7 @@ ikvdb_kvs_open(
         self->ikdb_mp,
         self->ikdb_cndb,
         self->ikdb_lc,
+        self->ikdb_wal,
         params,
         &self->ikdb_health,
         self->ikdb_cn_kvdb,
@@ -1849,7 +1850,6 @@ ikvdb_kvs_put(
     struct ikvdb_impl *parent;
     struct kvs_ktuple  ktbuf;
     struct kvs_vtuple  vtbuf;
-    struct wal_record  rec;
     uint64_t           seqnoref;
     merr_t             err;
     uint               vlen, clen;
@@ -1881,6 +1881,9 @@ ikvdb_kvs_put(
     vlen = kvs_vtuple_vlen(vt);
     clen = kvs_vtuple_clen(vt);
 
+    if (!(flags & HSE_FLAG_PUT_PRIORITY || parent->ikdb_rp.throttle_disable))
+        ikvdb_throttle(parent, kt->kt_len + (clen ? clen : vlen));
+
     vbufsz = tls_vbufsz;
     vbuf = NULL;
 
@@ -1909,18 +1912,10 @@ ikvdb_kvs_put(
 
     seqnoref = txn ? 0 : HSE_SQNREF_SINGLE;
 
-    err = wal_put(parent->ikdb_wal, kk->kk_ikvs, NULL, kt, vt, &rec);
-    if (!err) {
-        err = kvs_put(kk->kk_ikvs, txn, kt, vt, seqnoref);
-
-        wal_op_finish(parent->ikdb_wal, &rec, kt->kt_seqno, kt->kt_dgen, merr_errno(err));
-    }
+    err = kvs_put(kk->kk_ikvs, txn, kt, vt, seqnoref);
 
     if (vbuf && vbuf != tls_vbuf)
         vlb_free(vbuf, (vbufsz > VLB_ALLOCSZ_MAX) ? vbufsz : clen);
-
-    if (!err && !(flags & HSE_FLAG_PUT_PRIORITY || parent->ikdb_rp.throttle_disable))
-        ikvdb_throttle(parent, kt->kt_len + (clen ? clen : vlen));
 
     return err;
 }
@@ -2007,7 +2002,6 @@ ikvdb_kvs_del(
 {
     struct kvdb_kvs *  kk = (struct kvdb_kvs *)handle;
     struct ikvdb_impl *parent;
-    struct wal_record  rec;
     u64                seqnoref;
     merr_t             err;
 
@@ -2029,14 +2023,7 @@ ikvdb_kvs_del(
 
     seqnoref = txn ? 0 : HSE_SQNREF_SINGLE;
 
-    err = wal_del(parent->ikdb_wal, kk->kk_ikvs, NULL, kt, &rec);
-    if (!err) {
-        err = kvs_del(kk->kk_ikvs, txn, kt, seqnoref);
-
-        wal_op_finish(parent->ikdb_wal, &rec, kt->kt_seqno, kt->kt_dgen, merr_errno(err));
-    }
-
-    return err;
+    return kvs_del(kk->kk_ikvs, txn, kt, seqnoref);
 }
 
 merr_t
@@ -2049,8 +2036,6 @@ ikvdb_kvs_prefix_delete(
 {
     struct kvdb_kvs *  kk = (struct kvdb_kvs *)handle;
     struct ikvdb_impl *parent;
-    struct wal_record  rec;
-    merr_t             err;
     u32                ct_pfx_len;
     u64                seqnoref;
 
@@ -2075,19 +2060,12 @@ ikvdb_kvs_prefix_delete(
 
     seqnoref = txn ? 0 : HSE_SQNREF_SINGLE;
 
-    err = wal_del_pfx(parent->ikdb_wal, kk->kk_ikvs, NULL, kt, &rec);
-    if (!err) {
-        /* Prefix tombstone deletes all current keys with a matching prefix -
-         * those with a sequence number up to but excluding the current seqno.
-         * Insert prefix tombstone with a higher seqno. Use a higher sequence
-         * number to allow newer mutations (after prefix) to be distinguished.
-         */
-        err = kvs_prefix_del(kk->kk_ikvs, txn, kt, seqnoref);
-
-        wal_op_finish(parent->ikdb_wal, &rec, kt->kt_seqno, kt->kt_dgen, merr_errno(err));
-    }
-
-    return err;
+    /* Prefix tombstone deletes all current keys with a matching prefix -
+     * those with a sequence number up to but excluding the current seqno.
+     * Insert prefix tombstone with a higher seqno. Use a higher sequence
+     * number to allow newer mutations (after prefix) to be distinguished.
+     */
+    return kvs_prefix_del(kk->kk_ikvs, txn, kt, seqnoref);
 }
 
 /*-  IKVDB Cursors --------------------------------------------------*/
@@ -2566,14 +2544,14 @@ ikvdb_txn_alloc(struct ikvdb *handle)
     struct kvdb_ctxn *    ctxn = NULL;
 
     spin_lock(&bkt->kcb_lock);
-    if (bkt->kcb_ctxnc > 0) {
+    if (bkt->kcb_ctxnc > 0)
         ctxn = bkt->kcb_ctxnv[--bkt->kcb_ctxnc];
-        kvdb_ctxn_reset(ctxn);
-    }
     spin_unlock(&bkt->kcb_lock);
 
-    if (ctxn)
+    if (ctxn) {
+        kvdb_ctxn_reset(ctxn);
         return &ctxn->ctxn_handle;
+    }
 
     ctxn = kvdb_ctxn_alloc(
         self->ikdb_keylock,
@@ -2581,7 +2559,8 @@ ikvdb_txn_alloc(struct ikvdb *handle)
         self->ikdb_ctxn_set,
         self->ikdb_txn_viewset,
         self->ikdb_c0snr_set,
-        self->ikdb_c0sk);
+        self->ikdb_c0sk,
+        self->ikdb_wal);
     if (ev(!ctxn))
         return NULL;
 
@@ -2628,19 +2607,8 @@ ikvdb_txn_begin(struct ikvdb *handle, struct hse_kvdb_txn *txn)
     perfc_inc(&self->ikdb_ctxn_op, PERFC_RA_CTXNOP_BEGIN);
 
     err = kvdb_ctxn_begin(ctxn);
-
-    if (!err) {
-        u64 txid;
-
-        /* TODO: check if it's fine to obtain view_seqno without holding ctxn lock and
-         * return error if ctxn state is invalid.
-         */
-        err = kvdb_ctxn_get_view_seqno(ctxn, &txid);
-        if (!err)
-            err = wal_txn_begin(self->ikdb_wal, txid);
-    } else {
+    if (err)
         perfc_dec(&self->ikdb_ctxn_op, PERFC_BA_CTXNOP_ACTIVE);
-    }
 
     return err;
 }
@@ -2651,25 +2619,15 @@ ikvdb_txn_commit(struct ikvdb *handle, struct hse_kvdb_txn *txn)
     struct ikvdb_impl *self = ikvdb_h2r(handle);
     struct kvdb_ctxn  *ctxn = kvdb_ctxn_h2h(txn);
     merr_t             err;
-    u64                lstart, txid = 0;
+    u64                lstart;
 
     lstart = perfc_lat_startu(&self->ikdb_ctxn_op, PERFC_LT_CTXNOP_COMMIT);
     perfc_inc(&self->ikdb_ctxn_op, PERFC_RA_CTXNOP_COMMIT);
-
-    /* TODO: check if it's fine to obtain view_seqno without holding ctxn lock */
-    err = kvdb_ctxn_get_view_seqno(ctxn, &txid);
-    ev(err); /* kvdb_ctxn_commit() returns EINVAL for invalid ctxn state */
 
     err = kvdb_ctxn_commit(ctxn);
 
     perfc_dec(&self->ikdb_ctxn_op, PERFC_BA_CTXNOP_ACTIVE);
     perfc_lat_record(&self->ikdb_ctxn_op, PERFC_LT_CTXNOP_COMMIT, lstart);
-
-    if (!err) {
-        u64 seqno = HSE_SQNREF_TO_ORDNL(kvdb_ctxn_get_seqnoref(ctxn));
-
-        err = wal_txn_commit(self->ikdb_wal, txid, seqno);
-    }
 
     return err;
 }
@@ -2679,21 +2637,12 @@ ikvdb_txn_abort(struct ikvdb *handle, struct hse_kvdb_txn *txn)
 {
     struct ikvdb_impl *self = ikvdb_h2r(handle);
     struct kvdb_ctxn  *ctxn = kvdb_ctxn_h2h(txn);
-    u64 txid = 0;
-    merr_t err;
 
     perfc_inc(&self->ikdb_ctxn_op, PERFC_RA_CTXNOP_ABORT);
-
-    /* TODO: check if it's fine to obtain view_seqno without holding ctxn lock */
-    err = kvdb_ctxn_get_view_seqno(ctxn, &txid);
-    ev(err); /* kvdb_ctxn_abort() doesn't return an error for invalid ctxn state */
 
     kvdb_ctxn_abort(ctxn);
 
     perfc_dec(&self->ikdb_ctxn_op, PERFC_BA_CTXNOP_ACTIVE);
-
-    if (txid != 0)
-        wal_txn_abort(self->ikdb_wal, txid);
 
     return 0;
 }

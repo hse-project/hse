@@ -1192,8 +1192,11 @@ cn_open(
     cn->cn_kvdb_health = health;
     cn->cn_mpool_props = mpprops;
 
-    /* Compute hash of kvs name, but don't let it be 0. */
-    cn->cn_hash = 1 | key_hash64(kvs_name, strlen(kvs_name));
+    /* Generate a unique non-zero hash for each kvs.  This is primarily
+     * used to avoid false write lock collisions when trying to insert
+     * the same key into more than one kvs within the same transaction.
+     */
+    cn->cn_hash = XXH_PRIME64_3 + ((cnid + 1) << 32) + cnid + 1;
 
     staging_absent = mpool_mclass_props_get(ds, MP_MED_STAGING, NULL);
     if (staging_absent) {
