@@ -120,9 +120,10 @@ wal_fileset_reclaim(struct wal_fileset *wfset, u64 seqno, u64 gen, u64 txhorizon
     list_for_each_entry_safe(cur, next, &reclaim, link) {
         u64 gen = cur->gen;
         int fileid = cur->fileid;
-        struct wal_minmax_info *info = &cur->info;
 
 #ifndef NDEBUG
+        struct wal_minmax_info *info = &cur->info;
+
         hse_log(HSE_NOTICE
                 "Reclaiming gen %lu [%lu, %lu] seqno %lu [%lu, %lu] txid %lu [%lu, %lu]",
                 gen, info->min_gen, info->max_gen,
