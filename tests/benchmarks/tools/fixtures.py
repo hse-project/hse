@@ -19,7 +19,7 @@ def create_kvdb():
     try:
         try:
             hse.Kvdb.create(kvdb_home)
-        except hse.KvdbException as e:
+        except hse.HseException as e:
             if e.returncode == errno.EEXIST:
                 pass
             else:

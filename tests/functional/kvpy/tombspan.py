@@ -8,7 +8,7 @@ import hse
 from utility import lifecycle
 
 
-def check_keys(cursor: hse.Cursor, expected: List[bytes]):
+def check_keys(cursor: hse.KvsCursor, expected: List[bytes]):
     actual = [k for k, _ in cursor.items()]
     assert len(actual) == len(expected)
     for x, y in zip(expected, actual):

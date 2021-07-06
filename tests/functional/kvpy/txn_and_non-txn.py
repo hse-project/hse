@@ -64,7 +64,7 @@ try:
                 with kvdb.transaction() as t:
                     kvs.put(b"ab1", b"2", txn=t)
                 assert False
-            except hse.KvdbException:
+            except hse.HseException:
                 pass
 
             # non-txn kvs and txn read: not allowed
@@ -72,14 +72,14 @@ try:
                 with kvdb.transaction() as t:
                     kvs.get(b"ab1", txn=t)
                 assert False
-            except hse.KvdbException:
+            except hse.HseException:
                 pass
 
             try:
                 with kvdb.transaction() as t:
                     cnt, *_ = kvs.prefix_probe(b"ab", txn=t)
                 assert False
-            except hse.KvdbException:
+            except hse.HseException:
                 pass
 
             try:
@@ -87,7 +87,7 @@ try:
                     with kvs.cursor(flags=hse.CursorFlag.BIND_TXN, txn=t) as cur:
                         assert sum(1 for _ in cur.items()) == 3
                 assert False
-            except hse.KvdbException:
+            except hse.HseException:
                 pass
 
             # non-txn kvs and txn delete: not allowed
@@ -95,7 +95,7 @@ try:
                 with kvdb.transaction() as t:
                     kvs.delete(b"ab1", txn=t)
                 assert False
-            except hse.KvdbException:
+            except hse.HseException:
                 pass
 
         #
@@ -143,14 +143,14 @@ try:
             try:
                 kvs_tx.put(b"ab1", b"2")
                 assert False
-            except hse.KvdbException:
+            except hse.HseException:
                 pass
 
             # txn kvs and non-txn delete: not allowed
             try:
                 kvs_tx.delete(b"ab1")
                 assert False
-            except hse.KvdbException:
+            except hse.HseException:
                 pass
 
         #
@@ -178,7 +178,7 @@ try:
                 with kvdb.transaction() as t:
                     kvs.prefix_delete(b"aa", txn=t)
                 assert False
-            except hse.KvdbException:
+            except hse.HseException:
                 pass
 
             # Cleanup
@@ -208,7 +208,7 @@ try:
             try:
                 kvs_tx.prefix_delete(b"aa")
                 assert False
-            except hse.KvdbException:
+            except hse.HseException:
                 pass
 finally:
     hse.fini()
