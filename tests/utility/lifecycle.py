@@ -5,7 +5,7 @@ from types import TracebackType
 from typing import Iterable, Optional, Type, Union
 
 from utility import cli
-import hse
+from hse2 import hse
 
 
 class KvdbContext(ContextDecorator):

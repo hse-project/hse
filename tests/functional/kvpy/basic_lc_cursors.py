@@ -6,7 +6,7 @@ is called. This moves the data to LC. Then cursors are used to read data from LC
 """
 from contextlib import ExitStack
 
-import hse
+from hse2 import hse
 
 from utility import lifecycle
 

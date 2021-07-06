@@ -2,7 +2,7 @@
 
 from typing import Tuple
 
-import hse
+from hse2 import hse
 
 from utility import lifecycle
 

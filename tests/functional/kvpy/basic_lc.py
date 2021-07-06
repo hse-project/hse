@@ -9,7 +9,7 @@ It also checks if the right values are read if a txn is committed or aborted.
 
 from contextlib import ExitStack
 
-import hse
+from hse2 import hse
 
 from utility import lifecycle
 

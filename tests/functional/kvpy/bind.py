@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 from contextlib import ExitStack
-import hse
+from hse2 import hse
 
 from utility import lifecycle
 

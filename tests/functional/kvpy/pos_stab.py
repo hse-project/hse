@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-import hse
+from hse2 import hse
 
 from utility import lifecycle
 

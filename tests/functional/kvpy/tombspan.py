@@ -3,7 +3,7 @@
 from contextlib import ExitStack
 from typing import List
 
-import hse
+from hse2 import hse
 
 from utility import lifecycle
 

@@ -1,6 +1,6 @@
 import errno
 
-import hse
+from hse2 import hse
 
 from tools import config
 
