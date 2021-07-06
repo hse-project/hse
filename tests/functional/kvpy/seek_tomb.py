@@ -28,14 +28,14 @@ try:
 
             kvdb.sync()
 
-            cur.update()
+            cur.update_view()
             cur.seek(b"a")
             kv = cur.read()
             assert kv == (b"b", b"2")
             cur.read()
 
             kvs.delete(b"b")
-            cur.update()
+            cur.update_view()
             cur.seek(b"b")
             kv = cur.read()
             assert kv == (None, None) and cur.eof

@@ -42,7 +42,7 @@ try:
         kvs.delete(b"d")
         kvs.delete(b"e")
 
-        cursor.update()
+        cursor.update_view()
         cursor.seek(b"a")
         kv = cursor.read()
         assert kv == (b"f", b"6")
@@ -51,7 +51,7 @@ try:
         assert kv == (b"f", b"6")
 
         kvs.delete(b"f")
-        cursor.update()
+        cursor.update_view()
         cursor.seek(b"a")
         kv = cursor.read()
         assert kv == (b"g", b"7")
@@ -60,7 +60,7 @@ try:
         assert kv == (b"g", b"7")
 
         kvs.put(b"c", b"33")
-        cursor.update()
+        cursor.update_view()
         cursor.seek(b"a")
         kv = cursor.read()
         assert kv == (b"c", b"33")

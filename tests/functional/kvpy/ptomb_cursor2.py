@@ -28,12 +28,12 @@ try:
             kv = c.read()
             assert kv == (b"key2", b"val1")
 
-            c.update()
+            c.update_view()
             kv = c.read()
             assert kv == (b"key3", b"val1")
 
             c.seek(b"key2")
-            c.update()
+            c.update_view()
             kv = c.read()
             assert kv == (b"key2", b"val1")
 
@@ -53,12 +53,12 @@ try:
             kvs.put(b"key3", b"val3")
             kvs.put(b"key4", b"val3")
 
-            c.update()
+            c.update_view()
             kv = c.read()
             assert kv == (b"key3", b"val3")
 
             c.seek(b"key2")
-            c.update()
+            c.update_view()
             kv = c.read()
             assert kv == (b"key3", b"val3")
 

@@ -29,7 +29,7 @@ def run_test(kvdb: hse.Kvdb, kvs: hse.Kvs):
     val = kvs.get(b"aa1", txn=t0)
     assert val == b"uncommitted-aa1"
 
-    with kvs.cursor(txn=t0, flags=hse.CursorFlag.BIND_TXN) as c:
+    with kvs.cursor(txn=t0, flags=0) as c:
         assert sum(1 for _ in c.items()) == 5
 
         c.seek(b"aa2")
@@ -53,7 +53,7 @@ def run_test(kvdb: hse.Kvdb, kvs: hse.Kvs):
         assert c.eof
 
     with kvs.cursor(
-        txn=t0, flags=hse.CursorFlag.REVERSE | hse.CursorFlag.BIND_TXN
+        txn=t0, flags=hse.CursorFlag.REVERSE
     ) as c:
         assert sum(1 for _ in c.items()) == 5
 

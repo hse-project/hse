@@ -19,7 +19,7 @@ try:
         txn = kvdb.transaction()
         txn.begin()
 
-        txcursor = kvs.cursor(txn=txn, flags=hse.CursorFlag.BIND_TXN)
+        txcursor = kvs.cursor(txn=txn, flags=0)
         kvs.put(b"a", b"1", txn=txn)
         kvs.put(b"b", b"2", txn=txn)
         kvs.put(b"c", b"3", txn=txn)
@@ -28,7 +28,6 @@ try:
 
         txn.commit()
         txn.begin()
-        txcursor.update(txn=txn, flags=hse.CursorFlag.BIND_TXN)
         kvs.put(b"a", b"12", txn=txn)
         kvs.put(b"b", b"22", txn=txn)
         kvs.put(b"c", b"32", txn=txn)
@@ -39,7 +38,7 @@ try:
         assert kv == (b"c", b"32")
 
         with kvdb.transaction() as t:
-            cursor = kvs.cursor(txn=t, flags=hse.CursorFlag.BIND_TXN)
+            cursor = kvs.cursor(txn=t, flags=0)
             kv = cursor.read()
             assert kv == (b"a", b"1")
             kv = cursor.read()

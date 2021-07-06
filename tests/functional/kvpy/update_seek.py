@@ -34,7 +34,7 @@ try:
         check_keys(cursor, [b"c", b"d"])
 
         cursor.seek(b"c")
-        cursor.update()
+        cursor.update_view()
         check_keys(cursor, [b"c", b"d"])
         cursor.destroy()
 
@@ -44,7 +44,7 @@ try:
         check_keys(cursor, [b"c", b"d"])
 
         cursor.seek(b"c")
-        cursor.update()
+        cursor.update_view()
         check_keys(cursor, [b"c", b"d"])
         cursor.destroy()
 finally:

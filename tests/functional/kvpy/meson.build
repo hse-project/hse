@@ -39,7 +39,6 @@ tests = [
     'sfx_test_cn',
     'sfx_test_tomb',
     'sfx_test_txn',
-    'ten_tx',
     'tombspan',
     'txcursor',
     'txdel',

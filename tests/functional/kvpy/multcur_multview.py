@@ -41,7 +41,7 @@ try:
         ce_count = sum(1 for _ in ce.items())
         assert ca_count < cb_count < cc_count < cd_count < ce_count
 
-        ca.update()
+        ca.update_view()
         ca.seek(b"0x00")
         ca_count_v2 = sum(1 for _ in ca.items())
         assert ca_count_v2 != ca_count

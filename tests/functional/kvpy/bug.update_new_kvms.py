@@ -42,7 +42,7 @@ try:
         with kvdb.transaction() as txn:
             kvs.put(b"c", b"3")
 
-        cursor.update()
+        cursor.update_view()
         cursor.seek(b"0x00")
 
         assert sum(1 for _ in cursor.items()) == 6

@@ -27,7 +27,7 @@ try:
 
         kvs.put(b"c", b"3")
 
-        cursor.update()
+        cursor.update_view()
         cursor.seek(b"0x00")
 
         kv = cursor.read()

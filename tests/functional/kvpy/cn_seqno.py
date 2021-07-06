@@ -25,15 +25,14 @@ try:
 
         kvdb.sync()
 
-        txcursor = kvs.cursor(txn=txn, flags=hse.CursorFlag.BIND_TXN)
+        txcursor = kvs.cursor(txn=txn)
         txcursor.read()
         assert txcursor.eof
 
         txn.abort()
         txcursor.seek(b"0")
         kv = txcursor.read()
-        assert not txcursor.eof
-        assert kv == (b"a", b"1")
+        assert txcursor.eof
 
         txcursor.destroy()
 finally:

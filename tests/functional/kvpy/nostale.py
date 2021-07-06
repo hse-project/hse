@@ -36,27 +36,20 @@ try:
         txn1.begin()
         txn2 = kvdb.transaction()
         txn2.begin()
-        txn3 = kvdb.transaction()
-        txn3.begin()
 
-        # Create a bound cursor over each txn
-        cursor1 = kvs.cursor(txn=txn1, flags=hse.CursorFlag.BIND_TXN)
-        cursor2 = kvs.cursor(txn=txn2, flags=hse.CursorFlag.BIND_TXN)
-        cursor3 = kvs.cursor(
-            txn=txn3, flags=hse.CursorFlag.BIND_TXN | hse.CursorFlag.STATIC_VIEW
-        )
+        # Create a cursor for each txn
+        cursor1 = kvs.cursor(txn=txn1)
+        cursor2 = kvs.cursor(txn=txn2)
 
         # Add a few keys to each txn
         kvs.put(b"b1", b"21", txn=txn1)
         kvs.put(b"c1", b"31", txn=txn1)
         kvs.put(b"b2", b"21", txn=txn2)
         kvs.put(b"c2", b"31", txn=txn2)
-        kvs.put(b"b3", b"21", txn=txn3)
-        kvs.put(b"c3", b"31", txn=txn3)
 
         # Check that the cursors see all keys
         # Check that each cursor sees (b, 2) as the next kv pair when seeked to 'b'
-        for c in [cursor1, cursor2, cursor3]:
+        for c in [cursor1, cursor2]:
             assert 6 == sum(1 for _ in c.items())
 
             c.seek(b"b")
@@ -66,20 +59,18 @@ try:
         # Add a key to each txn
         kvs.put(b"d1", b"41", txn=txn1)
         kvs.put(b"d2", b"41", txn=txn2)
-        kvs.put(b"d3", b"41", txn=txn3)
 
-        # Commit txn1 and abort the others.
+        # Commit txn1 and abort txn2
         txn1.commit()
         txn2.abort()
-        txn3.abort()  # cursor3 should fall back on what was txn3's view
 
-        # Both cursors should be positioned to current kvs view
+        # txn1 should see it's keys + original keys
         check_keys(cursor1, [b"b1", b"c", b"c1", b"d", b"d1"])
-        check_keys(cursor2, [b"b1", b"c", b"c1", b"d", b"d1"])
-        check_keys(cursor3, [b"c", b"d"])
+
+        # txn2 should see original keys
+        check_keys(cursor2, [b"c", b"d"])
 
         cursor1.destroy()
         cursor2.destroy()
-        cursor3.destroy()
 finally:
     hse.fini()

@@ -84,7 +84,7 @@ try:
 
             try:
                 with kvdb.transaction() as t:
-                    with kvs.cursor(flags=hse.CursorFlag.BIND_TXN, txn=t) as cur:
+                    with kvs.cursor(flags=0, txn=t) as cur:
                         assert sum(1 for _ in cur.items()) == 3
                 assert False
             except hse.HseException:
@@ -125,7 +125,7 @@ try:
                 cnt, *_ = kvs_tx.prefix_probe(b"ab", txn=t)
                 assert cnt == hse.KvsPfxProbeCnt.MUL
 
-                with kvs_tx.cursor(flags=hse.CursorFlag.BIND_TXN, txn=t) as cur:
+                with kvs_tx.cursor(flags=0, txn=t) as cur:
                     assert sum(1 for _ in cur.items()) == 3
 
             # txn kvs and non-txn read: allowed

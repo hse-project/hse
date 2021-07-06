@@ -15,7 +15,7 @@ try:
 
         txn = kvdb.transaction()
         txn.begin()
-        cursor = kvs.cursor(txn=txn, flags=hse.CursorFlag.BIND_TXN)
+        cursor = kvs.cursor(txn=txn, flags=0)
         txn.abort()
         cursor.destroy()
 finally:

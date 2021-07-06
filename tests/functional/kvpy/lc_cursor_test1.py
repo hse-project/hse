@@ -21,18 +21,18 @@ def run_test_1(kvdb: hse.Kvdb, kvs: hse.Kvs):
         kvs.put(b"abc03", b"val1", txn=t)  # C0
         kvs.put(b"abc04", b"val1", txn=t)  # C0
 
-        with kvs.cursor(filt=b"abc", flags=hse.CursorFlag.BIND_TXN, txn=t) as c:
+        with kvs.cursor(filt=b"abc", txn=t) as c:
             kv = c.read()
             assert kv == (b"abc01", b"val1")
             kv = c.read()
             assert kv == (b"abc02", b"val1")
 
-            c.update()
+            ##c.update()
             kv = c.read()
             assert kv == (b"abc03", b"val1")
 
             c.seek(b"abc02")
-            c.update()
+            ##c.update()
             kv = c.read()
             assert kv == (b"abc02", b"val1")
 
@@ -62,7 +62,7 @@ def run_test_2(kvdb: hse.Kvdb, kvs: hse.Kvs):
         c.read()
         assert c.eof is True
 
-        c.update()
+        ##c.update()
         c.read()
         assert c.eof is True
 
@@ -71,7 +71,7 @@ def run_test_2(kvdb: hse.Kvdb, kvs: hse.Kvs):
         assert c.eof is True
 
         c.seek(b"def02")
-        c.update()
+        ##c.update()
         c.read()
         assert c.eof is True
 

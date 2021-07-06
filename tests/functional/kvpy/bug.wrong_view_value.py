@@ -26,7 +26,7 @@ try:
             cur.read()
             cur.read()
 
-            cur.update()
+            cur.update_view()
             cur.seek(b"a")
 
             kv = cur.read()
