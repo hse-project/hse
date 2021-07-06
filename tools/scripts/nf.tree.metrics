@@ -76,8 +76,8 @@ make_temp_dir
 
 if (( $# == 0 )); then
 
-    hse1 -C $kvdb_home kvdb info > "$TMP"/tmp1 ||
-        err "Failed: hse1 -C $kvdb_home kvdb info"
+    hse -C $kvdb_home kvdb info > "$TMP"/tmp1 ||
+        err "Failed: hse -C $kvdb_home kvdb info"
 
     cat "$TMP"/tmp1 \
         | sed -ne '/^  *kvslist:$/,$ p' \

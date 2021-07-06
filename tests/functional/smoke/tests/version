@@ -2,13 +2,13 @@
 
 #doc: test HSE CLI version command
 
-cmd hse1 -Vv
+cmd hse -Vv
 
 # Check for three lines of output
 count=$(wc -l < "$LOG")
 if [[ "$count" != 3 ]]; then
     err "Expect three lines of output from command:" \
-        "  hse1 -Vv" \
+        "  hse -Vv" \
         "Found $count lines in log file:" \
         "  $LOG"
 fi

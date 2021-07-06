@@ -6,9 +6,7 @@ typeset -i i=256
 
 while (( i>0 )) ; do
     i=i-1
-    cmd hse1 -C "$mp" kvs create "kvs$i" || err
+    cmd hse -C "$mp" kvs create "kvs$i" || err
 done
 
 cmd kmt -i1k -t5 -cx -s1 "$mp" "kvs$i"
-
-

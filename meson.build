@@ -1,12 +1,12 @@
 project(
     'hse',
     ['c', 'cpp', 'java'],
-    version: '1.10.0',
+    version: '2.0.0',
     license: [
         'Apache-2.0',
     ],
     default_options: [
-        'prefix=/opt/hse-1',
+        'prefix=/opt/hse',
         'b_ndebug=if-release',
         'c_std=gnu11',
         'buildtype=debugoptimized',
