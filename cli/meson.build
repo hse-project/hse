@@ -1,6 +1,8 @@
 subdir('include')
 subdir('lib')
 
+cli_name = meson.project_name() + hse_major_version
+
 hse_cli_sources = [
     files(
         'cli_util.c',
@@ -27,7 +29,7 @@ hse_cli_include_directories = [
 ]
 
 hse_cli = executable(
-    meson.project_name() + hse_major_version,
+    cli_name,
     hse_cli_sources,
     c_args: hse_cli_c_args,
     include_directories: hse_cli_include_directories,
@@ -37,6 +39,22 @@ hse_cli = executable(
     gnu_symbol_visibility: 'hidden',
 )
 
-meson.override_find_program('hse1', hse_cli)
+custom_target(
+    '@0@-symlink'.format(cli_name),
+    build_by_default: true,
+    input: hse_cli,
+    command: [
+        'ln',
+        '--force',
+        '--symbolic',
+        meson.project_build_root() / '@INPUT@',
+        meson.project_build_root() / '@OUTPUT@',
+    ],
+    output: meson.project_name(),
+    install: true,
+    install_dir: join_paths(get_option('prefix'), get_option('bindir')),
+)
+
+meson.override_find_program(cli_name, hse_cli)
 
 executable_paths += meson.current_build_dir()
