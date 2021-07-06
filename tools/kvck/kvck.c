@@ -375,13 +375,17 @@ main(int argc, char **argv)
     kc_print_reg(verbose, (void *)print_line);
 
     err = hse_init(0, NULL);
-    if (err)
+    if (err) {
+        hse_err_to_string(err, errbuf, sizeof(errbuf));
         fatal(
-            "failed to initialize kvdb: %s", hse_err_to_string(err, errbuf, sizeof(errbuf), NULL));
+            "failed to initialize kvdb: %s", errbuf);
+    }
 
     rc = merr_to_hse_err(diag_kvdb_open(mpool, db_oparm.strc, db_oparm.strv, &kvdbh));
-    if (rc)
-        fatal("cannot open kvdb %s: %s", mpool, hse_err_to_string(rc, errbuf, sizeof(errbuf), 0));
+    if (rc) {
+        hse_err_to_string(rc, errbuf, sizeof(errbuf));
+        fatal("cannot open kvdb %s: %s", mpool, errbuf);
+    }
 
     if (optind < argc && !(argv[optind][0] == '0' && argv[optind][1] == 'x'))
         kvs = argv[optind++];
@@ -398,8 +402,10 @@ main(int argc, char **argv)
     }
 
     err = merr_to_hse_err(cndb_replay(cndb, &seqno, &ingestv));
-    if (err)
-        fatal("cannot replay cndb: %s", hse_err_to_string(err, errbuf, sizeof(errbuf), 0));
+    if (err) {
+        hse_err_to_string(err, errbuf, sizeof(errbuf));
+        fatal("cannot replay cndb: %s", errbuf);
+    }
 
     err = merr_to_hse_err(diag_kvdb_kvslist(kvdbh, kvs_tab, NELEM(kvs_tab), &kvscnt));
     if (err)
@@ -434,8 +440,10 @@ main(int argc, char **argv)
     else
         err = verify_kvdb(cndb);
 
-    if (err)
-        fatal("Verification failed: %s", hse_err_to_string(err, errbuf, sizeof(errbuf), 0));
+    if (err) {
+        hse_err_to_string(err, errbuf, sizeof(errbuf));
+        fatal("Verification failed: %s", errbuf);
+    }
 
 out:
     free(loc_buf);

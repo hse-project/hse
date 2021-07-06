@@ -38,8 +38,10 @@ herr_print(uint64_t herr, char *fmt, ...)
     vfprintf(stderr, fmt, ap);
     va_end(ap);
 
-    if (herr)
-        fprintf(stderr, "%s", hse_err_to_string(herr, msg_buf, sizeof(msg_buf), 0));
+    if (herr) {
+        hse_err_to_string(herr, msg_buf, sizeof(msg_buf));
+        fprintf(stderr, "%s", msg_buf);
+    }
 }
 
 __attribute__((format(printf, 1, 2))) void

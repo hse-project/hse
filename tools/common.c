@@ -34,7 +34,7 @@ error(hse_err_t err, char *fmt, va_list ap)
     n = vsnprintf(user_msg, sizeof(user_msg), fmt, ap);
 
     if (err) {
-        hse_err_to_string(err, err_msg + off, sizeof(err_msg) - off, &n);
+        hse_err_to_string(err, err_msg + off, sizeof(err_msg) - off);
         off = min(off + n, sizeof(err_msg) - 1);
 
         n = snprintf(err_msg + off, sizeof(err_msg) - off, " (0x%lx)", err);

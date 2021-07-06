@@ -633,7 +633,7 @@ main(int argc, char **argv)
 done:
     if (errmsg) {
         char errbuf[1000];
-        hse_err_to_string(rc, errbuf, sizeof(errbuf), 0);
+        hse_err_to_string(rc, errbuf, sizeof(errbuf));
         fprintf(stderr, "Error: %s failed: %s\n", errmsg, errbuf);
     }
 

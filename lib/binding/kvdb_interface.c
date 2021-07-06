@@ -1072,10 +1072,14 @@ hse_kvdb_compact_status_get(struct hse_kvdb *handle, struct hse_kvdb_compact_sta
     return 0;
 }
 
-char *
-hse_err_to_string(hse_err_t err, char *buf, size_t buf_sz, size_t *need_sz)
+size_t
+hse_err_to_string(hse_err_t err, char *buf, size_t buf_sz)
 {
-    return merr_strinfo(err, buf, buf_sz, need_sz);
+    size_t need_sz;
+
+    merr_strinfo(err, buf, buf_sz, &need_sz);
+
+    return need_sz;
 }
 
 int

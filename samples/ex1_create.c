@@ -18,7 +18,7 @@ report_error(const char *api, hse_err_t err)
 {
     char message[256];
 
-    hse_err_to_string(err, message, sizeof(message), NULL);
+    hse_err_to_string(err, message, sizeof(message));
     printf("%s: %s\n", api, message);
 }
 

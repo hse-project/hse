@@ -27,9 +27,10 @@ mtf_print_errinfo(
     vfprintf(stderr, fmt, ap);
     va_end(ap);
 
-    if (err)
-        fprintf(stderr, "\nError detail: %s\n",
-            hse_err_to_string(err, msgbuf, sizeof(msgbuf), 0));
+    if (err) {
+        hse_err_to_string(err, msgbuf, sizeof(msgbuf));
+        fprintf(stderr, "\nError detail: %s\n", msgbuf);
+    }
 }
 
 void

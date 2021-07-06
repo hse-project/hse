@@ -100,12 +100,11 @@ hse_fini(void);
  * @param err:      Error value returned from an HSE API function
  * @param buf:      Buffer to hold the formatted string
  * @param buf_len:  Length of buffer
- * @param need_len: [out] If non-NULL, the referent size_t will be the needed
- *                  buffer length
- * @return The error's NULL-terminated string representation, possibly truncated
+ * @return The number of characters (excluding the terminating null byte) which would
+ * have been written to the final string if enough space had been available
  */
-HSE_EXPORT char *
-hse_err_to_string(hse_err_t err, char *buf, size_t buf_len, size_t *need_len);
+HSE_EXPORT size_t
+hse_err_to_string(hse_err_t err, char *buf, size_t buf_len);
 
 /**
  * Return an hse_err_t value's errno representation
