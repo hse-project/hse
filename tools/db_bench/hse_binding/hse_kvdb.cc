@@ -4,16 +4,16 @@
 //
 // This code is derived from and modifies the LevelDB project.
 
-#include "hse_binding/hse_kvdb.h"
-
 #include <chrono>
-#include <hse/hse.h>
-#include <hse/version.h>
 #include <thread>
 
 #include "leveldb/slice.h"
 #include "leveldb/status.h"
 
+#include <hse/hse.h>
+#include <hse/version.h>
+
+#include "hse_binding/hse_kvdb.h"
 #include "hse_binding/hse_kvs.h"
 #include "hse_binding/hse_kvs_cursor.h"
 
@@ -135,7 +135,7 @@ Status HseKvdb::Compact() {
 
   memset(&status, 0, sizeof(status));
 
-  err = hse_kvdb_compact(kvdb_handle_, HSE_KVDB_COMP_FLAG_SAMP_LWM);
+  err = hse_kvdb_compact(kvdb_handle_, HSE_FLAG_KVDB_COMPACT_SAMP_LWM);
 
   if (err) {
     hse_strerror(err, msg, sizeof(msg));

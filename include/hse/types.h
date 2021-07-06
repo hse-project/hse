@@ -61,6 +61,7 @@ enum hse_kvdb_txn_state {
     HSE_KVDB_TXN_ABORTED = 3,
 };
 
+#ifdef HSE_EXPERIMENTAL
 /**
  * struct hse_kvdb_compact_status - status of a compaction request
  */
@@ -71,6 +72,7 @@ struct hse_kvdb_compact_status {
     unsigned int kvcs_active;    /**< is an externally requested compaction underway */
     unsigned int kvcs_canceled;  /**< was an externally requested compaction canceled */
 };
+#endif
 
 /**
  * struct hse_kvdb_storage_info - storage info for a kvdb

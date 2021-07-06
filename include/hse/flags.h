@@ -37,6 +37,14 @@ extern "C" {
 #define HSE_FLAG_CURSOR_BIND_TXN    (1 << 1) /* Bind the cursor to a transaction */
 #define HSE_FLAG_CURSOR_STATIC_VIEW (1 << 2) /* Bound cursor's view is static */
 
+#ifdef HSE_EXPERIMENTAL
+/**
+ * Flags for KVDB compaction
+ */
+#define HSE_FLAG_KVDB_COMPACT_CANCEL   (1 << 0)
+#define HSE_FLAG_KVDB_COMPACT_SAMP_LWM (1 << 1)
+#endif
+
 #ifdef __cplusplus
 }
 #endif

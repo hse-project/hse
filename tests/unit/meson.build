@@ -74,7 +74,9 @@ components = {
                 'debug': ['debug'],
             },
         },
-        'csched_test': {},
+        'csched_test': {
+            'c_args': [ '-DHSE_EXPERIMENTAL' ],
+        },
         'kblock_builder_test': {},
         'kblock_reader_test': {},
         'kcompact_test': {},

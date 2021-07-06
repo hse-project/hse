@@ -815,10 +815,7 @@ hse_kvs_cursor_destroy(struct hse_kvs_cursor *cursor);
 HSE_EXPORT hse_err_t
 hse_kvdb_sync(struct hse_kvdb *kvdb, unsigned int flags);
 
-/* Flags for hse_kvdb_compact() */
-#define HSE_KVDB_COMP_FLAG_CANCEL   0x01
-#define HSE_KVDB_COMP_FLAG_SAMP_LWM 0x02
-
+#ifdef HSE_EXPERIMENTAL
 /**
  * Request a data compaction operation
  *
@@ -828,15 +825,15 @@ hse_kvdb_sync(struct hse_kvdb *kvdb, unsigned int flags);
  * normal operation. To achieve this, the client calls this function in the following
  * fashion:
  *
- *     hse_kvdb_compact(<kvdb handle>, HSE_KVDB_COMP_FLAG_SAMP_LWM);
+ *     hse_kvdb_compact(<kvdb handle>, HSE_FLAG_KVDB_COMPACT_SAMP_LWM);
  *
  * To cancel an ongoing compaction request for a KVDB:
  *
- *     hse_kvdb_compact(<kvdb handle>, HSE_KVDB_COMP_FLAG_CANCEL);
+ *     hse_kvdb_compact(<kvdb handle>, HSE_FLAG_KVDB_COMPACT_CANCEL);
  *
  * See the function hse_kvdb_compact_status_get(). This function is thread safe.
  *
- * @param kvdb:  KVDB handle from hse_kvdb_open()
+ * @param kvdb: KVDB handle from hse_kvdb_open()
  * @param flags: Compaction flags
  * @return The function's error status
  */
@@ -849,12 +846,13 @@ hse_kvdb_compact(struct hse_kvdb *kvdb, int flags);
  * The caller can examine the fields of the hse_kvdb_compact_status struct to determine
  * the current state of maintenance compaction. This function is thread safe.
  *
- * @param kvdb:   KVDB handle from hse_kvdb_open()
- * @param status: [out] Status of compaction request
+ * @param kvdb: KVDB handle from hse_kvdb_open()
+ * @param[out] status: Status of compaction request
  * @return The function's error status
  */
 HSE_EXPORT hse_err_t
 hse_kvdb_compact_status_get(struct hse_kvdb *kvdb, struct hse_kvdb_compact_status *status);
+#endif
 
 /**
  * Get storage config and stats
@@ -863,7 +861,7 @@ hse_kvdb_compact_status_get(struct hse_kvdb *kvdb, struct hse_kvdb_compact_statu
  * This function is thread safe.
  *
  * @param kvdb: KVDB handle from hse_kvdb_open()
- * @param info: [out] KVDB storage config and stats
+ * @param[out] info: KVDB storage config and stats
  * @return The function's error status
  */
 HSE_EXPORT hse_err_t
