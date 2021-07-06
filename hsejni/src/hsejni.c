@@ -87,7 +87,7 @@ throw_err(JNIEnv *env, const char *func, uint64_t err)
     char err_buf[200];
     char msg[300];
 
-    hse_err_to_string(err, err_buf, sizeof(err_buf));
+    hse_strerror(err, err_buf, sizeof(err_buf));
 
     snprintf(msg, sizeof(msg), "%s: %s", func, err_buf);
 
@@ -108,7 +108,7 @@ td_exit_cursor(void *arg)
 
     rc = hse_kvs_cursor_destroy((struct hse_kvs_cursor *)arg);
     if (rc) {
-        hse_err_to_string(rc, err_buf, sizeof(err_buf));
+        hse_strerror(rc, err_buf, sizeof(err_buf));
         syslog(LOG_ERR, "(HSE JNI) %s: hse_kvs_cursor_destroy: %s", __func__, err_buf);
     }
 }
@@ -123,7 +123,7 @@ Java_org_micron_hse_API_init(JNIEnv *env, jobject jobj, jlong valBufSize)
     if (hse_rc) {
         char buf[1024];
 
-        hse_err_to_string(hse_rc, buf, 1024);
+        hse_strerror(hse_rc, buf, 1024);
         syslog(LOG_ERR, "(HSE JNI) %s: hse_init: %s", __func__, buf);
     }
 

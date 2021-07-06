@@ -104,7 +104,7 @@ hse_fini(void);
  * have been written to the final string if enough space had been available
  */
 HSE_EXPORT size_t
-hse_err_to_string(hse_err_t err, char *buf, size_t buf_len);
+hse_strerror(hse_err_t err, char *buf, size_t buf_len);
 
 /**
  * Return an hse_err_t value's errno representation

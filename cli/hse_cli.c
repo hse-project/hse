@@ -514,7 +514,7 @@ print_hse_err(struct cli *cli, const char *api, hse_err_t err)
 {
     char msg[256];
 
-    hse_err_to_string(err, msg, sizeof(msg));
+    hse_strerror(err, msg, sizeof(msg));
     fprintf(stderr, "%s: error from %s: %s\n", cli->cmd->cmd_path, api, msg);
 }
 

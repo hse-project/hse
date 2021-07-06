@@ -28,7 +28,7 @@ extern "C" {
  *
  * If this scalar quantity is 0 then the call succeeded. If it is non-zero then the
  * 64-bit quantity can be used by the client in two ways: (1) call hse_err_to_errno() to
- * get a mapping to a POSIX errno value, and (2) call hse_err_to_string() to get a
+ * get a mapping to a POSIX errno value, and (2) call hse_strerror() to get a
  * textual reference about what error occurred and where.
  *
  * @typedef hse_kvdb

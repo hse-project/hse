@@ -1073,7 +1073,7 @@ hse_kvdb_compact_status_get(struct hse_kvdb *handle, struct hse_kvdb_compact_sta
 }
 
 size_t
-hse_err_to_string(hse_err_t err, char *buf, size_t buf_sz)
+hse_strerror(hse_err_t err, char *buf, size_t buf_sz)
 {
     size_t need_sz;
 

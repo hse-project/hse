@@ -68,21 +68,21 @@ main(int argc, char **argv)
     /* Open the KVDB and the KVS instances in it */
     rc = hse_kvdb_open(kvdb_home, 0, NULL, &kvdb);
     if (rc) {
-        hse_err_to_string(rc, errbuf, sizeof(errbuf));
+        hse_strerror(rc, errbuf, sizeof(errbuf));
         printf("Cannot open kvdb: %s\n", errbuf);
         exit(1);
     }
 
     rc = hse_kvdb_kvs_open(kvdb, kvs_name1, 0, NULL, &kvs1);
     if (rc) {
-        hse_err_to_string(rc, errbuf, sizeof(errbuf));
+        hse_strerror(rc, errbuf, sizeof(errbuf));
         printf("Cannot open kvs %s: %s\n", kvs_name1, errbuf);
         exit(1);
     }
 
     rc = hse_kvdb_kvs_open(kvdb, kvs_name2, 0, NULL, &kvs2);
     if (rc) {
-        hse_err_to_string(rc, errbuf, sizeof(errbuf));
+        hse_strerror(rc, errbuf, sizeof(errbuf));
         printf("Cannot open kvs %s: %s\n", kvs_name2, errbuf);
         exit(1);
     }

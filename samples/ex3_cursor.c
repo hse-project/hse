@@ -58,7 +58,7 @@ main(int argc, char **argv)
 
     rc = hse_kvdb_open(kvdb_home, 0, NULL, &kvdb);
     if (rc) {
-        hse_err_to_string(rc, errbuf, sizeof(errbuf));
+        hse_strerror(rc, errbuf, sizeof(errbuf));
         printf("Cannot open kvdb: %s\n", errbuf);
         exit(1);
     }

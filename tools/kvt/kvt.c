@@ -508,7 +508,7 @@ eprint(hse_err_t err, const char *fmt, ...)
 
     if (err) {
         emsglen += strlen(strcat(emsg + emsglen, ": "));
-        hse_err_to_string(err, emsg + emsglen, emsgsz - emsglen);
+        hse_strerror(err, emsg + emsglen, emsgsz - emsglen);
         emsglen += strlen(emsg + emsglen);
     }
 

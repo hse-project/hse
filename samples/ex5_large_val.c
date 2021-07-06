@@ -195,14 +195,14 @@ main(int argc, char **argv)
 
     rc = hse_init(0, NULL);
     if (rc) {
-        hse_err_to_string(rc, ebuf, sizeof(ebuf));
+        hse_strerror(rc, ebuf, sizeof(ebuf));
         err_print("Failed to initialize kvdb: %s\n", ebuf);
         exit(1);
     }
 
     rc = hse_kvdb_open(kvdb_home, 0, NULL, &kvdb);
     if (rc) {
-        hse_err_to_string(rc, ebuf, sizeof(ebuf));
+        hse_strerror(rc, ebuf, sizeof(ebuf));
         err_print("Cannot open kvdb: %s\n", ebuf);
         exit(1);
     }

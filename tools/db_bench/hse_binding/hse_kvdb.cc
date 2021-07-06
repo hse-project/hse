@@ -39,7 +39,7 @@ Status HseKvdb::Open(const std::string& kvdb_home, HseKvdb** kvdbptr) {
   if (err) {
     char msg[MSG_SIZE];
     delete kvdb;
-    hse_err_to_string(err, msg, sizeof(msg));
+    hse_strerror(err, msg, sizeof(msg));
     return Status::IOError(msg);
   }
 
@@ -57,7 +57,7 @@ Status HseKvdb::Close() {
 
     if (err) {
       char msg[MSG_SIZE];
-      hse_err_to_string(err, msg, sizeof(msg));
+      hse_strerror(err, msg, sizeof(msg));
       return Status::IOError(msg);
     }
   }
@@ -77,7 +77,7 @@ Status HseKvdb::OpenKvs(const std::string& kvs_name, HseKvs** kvsptr,
   err = hse_kvdb_kvs_open(kvdb_handle_, kvs_name.c_str(), 0, NULL, &kvs_handle);
   if (err) {
     char msg[MSG_SIZE];
-    hse_err_to_string(err, msg, sizeof(msg));
+    hse_strerror(err, msg, sizeof(msg));
     return Status::IOError(msg);
   }
 
@@ -99,7 +99,7 @@ Status HseKvdb::DropKvs(const std::string& kvs_name) {
   err = hse_kvdb_kvs_drop(kvdb_handle_, kvs_name.c_str());
   if (err) {
     char msg[MSG_SIZE];
-    hse_err_to_string(err, msg, sizeof(msg));
+    hse_strerror(err, msg, sizeof(msg));
     return Status::IOError(msg);
   }
 
@@ -118,7 +118,7 @@ Status HseKvdb::MakeKvs(const std::string& kvs_name) {
   err = hse_kvdb_kvs_create(kvdb_handle_, kvs_name.c_str(), 0, NULL);
   if (err) {
     char msg[MSG_SIZE];
-    hse_err_to_string(err, msg, sizeof(msg));
+    hse_strerror(err, msg, sizeof(msg));
     return Status::IOError(msg);
   }
 
@@ -138,7 +138,7 @@ Status HseKvdb::Compact() {
   err = hse_kvdb_compact(kvdb_handle_, HSE_KVDB_COMP_FLAG_SAMP_LWM);
 
   if (err) {
-    hse_err_to_string(err, msg, sizeof(msg));
+    hse_strerror(err, msg, sizeof(msg));
     return Status::IOError(msg);
   }
 
@@ -147,7 +147,7 @@ Status HseKvdb::Compact() {
     err = hse_kvdb_compact_status_get(kvdb_handle_, &status);
 
     if (err) {
-      hse_err_to_string(err, msg, sizeof(msg));
+      hse_strerror(err, msg, sizeof(msg));
       return Status::IOError(msg);
     }
   } while (status.kvcs_active != 0);

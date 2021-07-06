@@ -77,7 +77,7 @@ fatal(hse_err_t err, char *fmt, ...)
     va_end(ap);
 
     char buf[ERROR_BUF_SIZE];
-    hse_err_to_string(err, buf, sizeof(buf));
+    hse_strerror(err, buf, sizeof(buf));
     fprintf(stderr, "%s: %s: %s\n", progname, msg, buf);
     exit(1);
 }

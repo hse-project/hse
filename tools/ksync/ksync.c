@@ -39,7 +39,7 @@ herr_print(uint64_t herr, char *fmt, ...)
     va_end(ap);
 
     if (herr) {
-        hse_err_to_string(herr, msg_buf, sizeof(msg_buf));
+        hse_strerror(herr, msg_buf, sizeof(msg_buf));
         fprintf(stderr, "%s", msg_buf);
     }
 }

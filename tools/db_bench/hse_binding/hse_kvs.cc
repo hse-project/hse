@@ -32,7 +32,7 @@ Status HseKvs::Close() {
 
     if (err) {
       char msg[MSG_SIZE];
-      hse_err_to_string(err, msg, sizeof(msg));
+      hse_strerror(err, msg, sizeof(msg));
       return Status::IOError(msg);
     }
   }
@@ -47,7 +47,7 @@ Status HseKvs::Put(const Slice& key, const Slice& value) {
                     value.size());
   if (err) {
     char msg[MSG_SIZE];
-    hse_err_to_string(err, msg, sizeof(msg));
+    hse_strerror(err, msg, sizeof(msg));
     return Status::IOError(msg);
   }
 
@@ -75,7 +75,7 @@ Status HseKvs::GetInPlace(const Slice& key, void* dest, size_t dest_size,
 
   if (err) {
     char msg[MSG_SIZE];
-    hse_err_to_string(err, msg, sizeof(msg));
+    hse_strerror(err, msg, sizeof(msg));
     return Status::IOError(msg);
   }
 
@@ -93,7 +93,7 @@ Status HseKvs::Delete(const Slice& key) {
 
   if (err) {
     char msg[MSG_SIZE];
-    hse_err_to_string(err, msg, sizeof(msg));
+    hse_strerror(err, msg, sizeof(msg));
     return Status::IOError(msg);
   }
 
@@ -112,7 +112,7 @@ HseKvsCursor* HseKvs::NewCursor(bool reverse) {
   err = hse_kvs_cursor_create(kvs_handle_, flags, NULL, NULL, 0, &kvs_cursor_handle);
   if (err) {
     char msg[MSG_SIZE];
-    hse_err_to_string(err, msg, sizeof(msg));
+    hse_strerror(err, msg, sizeof(msg));
     std::fprintf(stderr, "cursor create error: %s\n", msg);
     return nullptr;
   }

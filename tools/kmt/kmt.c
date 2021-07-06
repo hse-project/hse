@@ -943,7 +943,7 @@ static void
 hse_kvdb_txn_abort(void *kvdb, void *txn){};
 
 static char *
-hse_err_to_string(u64 err, char *buf, size_t bufsz)
+hse_strerror(u64 err, char *buf, size_t bufsz)
 {
     return strerror_r(err, buf, bufsz);
 }
@@ -3277,7 +3277,7 @@ status(
         if (inst->err && inst->fmt) {
             char errbuf[128];
 
-            hse_err_to_string(inst->err, errbuf, sizeof(errbuf));
+            hse_strerror(inst->err, errbuf, sizeof(errbuf));
             snprintf(errmsg, sizeof(errmsg), inst->fmt, errbuf);
             inst->fmt = NULL;
         }
@@ -3580,7 +3580,7 @@ periodic_sync(void *arg)
         if (err) {
             char errbuf[128];
 
-            hse_err_to_string(err, errbuf, sizeof(errbuf));
+            hse_strerror(err, errbuf, sizeof(errbuf));
             eprint("%s: failed to sync kvdb: %s\n", __func__, errbuf);
             continue;
         }
@@ -3645,7 +3645,7 @@ spawn(struct km_impl *impl, void (*run)(struct km_inst *), uint runmax, time_t m
 
     err = km_open(impl);
     if (err) {
-        hse_err_to_string(err, errbuf, sizeof(errbuf));
+        hse_strerror(err, errbuf, sizeof(errbuf));
         eprint("%s: km_open failed: %s\n", __func__, errbuf);
         exit(EX_NOINPUT);
     }
@@ -4629,7 +4629,7 @@ main(int argc, char **argv)
 #else
     err = hse_init(0, NULL);
     if (err) {
-        hse_err_to_string(err, errbuf, sizeof(errbuf));
+        hse_strerror(err, errbuf, sizeof(errbuf));
         eprint("%s: failed to initialize kvdb: %s\n", __func__, errbuf);
         exit(EX_OSERR);
     }

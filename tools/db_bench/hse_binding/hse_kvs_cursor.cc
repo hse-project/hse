@@ -49,7 +49,7 @@ void HseKvsCursor::Read() {
     valid_ = false;
     current_key_ = nullptr;
     current_value_ = nullptr;
-    hse_err_to_string(err, msg, sizeof(msg));
+    hse_strerror(err, msg, sizeof(msg));
     std::fprintf(stderr, "cursor read error: %s\n", msg);
   } else if (eof) {
     valid_ = false;
@@ -65,7 +65,7 @@ void HseKvsCursor::Seek(const Slice& target) {
                             target.size(), nullptr, nullptr);
   if (err) {
     char msg[MSG_SIZE];
-    hse_err_to_string(err, msg, sizeof(msg));
+    hse_strerror(err, msg, sizeof(msg));
     std::fprintf(stderr, "cursor seek error: %s\n", msg);
     valid_ = false;
   } else {

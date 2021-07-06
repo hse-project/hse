@@ -137,7 +137,7 @@ fatal(uint64_t err, const char *fmt, ...)
     va_end(ap);
 
     if (err) {
-        hse_err_to_string(err, errbuf, sizeof(errbuf));
+        hse_strerror(err, errbuf, sizeof(errbuf));
         fprintf(stderr, "%s: %s: %s\n", progname, msg, errbuf);
     }
 
@@ -169,7 +169,7 @@ ctxn_validation_fini(void)
 
     rc = hse_kvdb_close(kvdb);
     if (rc) {
-        hse_err_to_string(rc, errbuf, sizeof(errbuf));
+        hse_strerror(rc, errbuf, sizeof(errbuf));
         eprint("hse_kvdb_close: %s\n", errbuf);
     }
 

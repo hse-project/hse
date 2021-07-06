@@ -168,7 +168,7 @@ _error_quit(
 {
     char err_buf[300];
 
-    hse_err_to_string(err, err_buf, sizeof(err_buf));
+    hse_strerror(err, err_buf, sizeof(err_buf));
 
     quit("%s:%d: %s: %s", file, line,
          (detail && *detail) ? detail : "",
