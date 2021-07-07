@@ -617,7 +617,7 @@ static void
 kvdb_ctxn_locks_release(struct kvdb_ctxn_locks_impl *locks)
 {
     while (!atomic_ptr_cas(&ctxn_locks_ptrv[locks->ctxn_locks_idx], locks, NULL))
-        continue;
+        assert(0);
 }
 
 uint

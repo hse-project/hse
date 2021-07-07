@@ -112,7 +112,7 @@ static HSE_ALWAYS_INLINE void
 ctxn_unlock(struct kvdb_ctxn_impl *ctxn)
 {
     while (!atomic_cas(&ctxn->ctxn_lock, 1, 0))
-        continue;
+        assert(0);
 }
 
 static void

@@ -92,14 +92,6 @@ keylock_destroy(struct keylock *handle)
 
     table = keylock_h2r(handle);
 
-    if (table->kli_max_psl > 10) {
-        hse_log(HSE_WARNING "%s: %p %u %u %u %lu",
-                __func__, table, table->kli_max_occupied,
-                table->kli_max_psl,
-                table->kli_table_full,
-                table->kli_collisions);
-    }
-
     mutex_destroy(&table->kli_kmutex);
 
     free(table->kli_mem);
