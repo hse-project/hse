@@ -296,7 +296,6 @@ kvs_put(
     struct kvdb_ctxn *ctxn = txn ? kvdb_ctxn_h2h(txn) : 0;
     struct perfc_set *pkvsl_pc = kvs_perfc_pkvsl(kvs);
     struct wal_record rec;
-    struct c0 *       c0 = kvs->ikv_c0;
     size_t            sfx_len;
     size_t            hashlen;
     u64               tstart;
@@ -312,26 +311,35 @@ kvs_put(
      *  1. This is NOT a suffixed tree, OR
      *  2. keylen is at least pfx_len + sfx_len
      */
-    if (ev(sfx_len && kt->kt_len < sfx_len + kvs->ikv_pfx_len)) {
+    if (HSE_UNLIKELY(sfx_len && kt->kt_len < sfx_len + kvs->ikv_pfx_len)) {
+#ifndef HSE_BUILD_RELEASE
         hse_log(
             HSE_ERR "%s is a suffixed kvs. Keys must be at least "
                     "pfx_len(%u) + sfx_len(%u) bytes long.",
             kvs->ikv_kvs_name,
             kvs->ikv_pfx_len,
             kvs->ikv_sfx_len);
+#endif
         return merr(EINVAL);
     }
 
-    /* Exclusively lock txn for c0 update. */
+    /* Exclusively lock txn for c0 update (with write collision detection).
+     */
     if (ctxn) {
-        err = kvdb_ctxn_trylock_write(ctxn, kt, &seqnoref, c0_hash_get(c0));
+        u64 hash = kt->kt_hash ^ kvs->ikv_gen;
+
+        if (sfx_len > 0)
+            hash = key_hash64_seed(kt->kt_data, kt->kt_len, kvs->ikv_gen);
+
+        err = kvdb_ctxn_trylock_write(ctxn, &seqnoref, true, hash);
         if (err)
             return err;
     }
 
     err = wal_put(kvs->ikv_wal, kvs, os, kt, vt, &rec);
-    if (!err) {
-        err = c0_put(c0, kt, vt, seqnoref);
+
+    if (HSE_LIKELY(!err)) {
+        err = c0_put(kvs->ikv_c0, kt, vt, seqnoref);
 
         wal_op_finish(kvs->ikv_wal, &rec, kt->kt_seqno, kt->kt_dgen, merr_errno(err));
     }
@@ -372,7 +380,7 @@ kvs_get(
      * seqnoref is invalid ater lock is released.
      */
     if (ctxn) {
-        err = kvdb_ctxn_trylock_read(ctxn, &seqno, &seqnoref);
+        err = kvdb_ctxn_trylock_read(ctxn, &seqnoref, &seqno);
         if (err)
             return err;
     }
@@ -399,7 +407,6 @@ kvs_del(struct ikvs *kvs, struct hse_kvdb_txn *const txn, struct kvs_ktuple *kt,
     struct perfc_set *pkvsl_pc = kvs_perfc_pkvsl(kvs);
     struct kvdb_ctxn *ctxn = txn ? kvdb_ctxn_h2h(txn) : 0;
     struct wal_record rec;
-    struct c0 *       c0 = kvs->ikv_c0;
     size_t            sfx_len;
     size_t            hashlen;
     u64               tstart;
@@ -415,26 +422,34 @@ kvs_del(struct ikvs *kvs, struct hse_kvdb_txn *const txn, struct kvs_ktuple *kt,
      *  1. This is NOT a suffixed tree, OR
      *  2. keylen is at least pfx_len + sfx_len
      */
-    if (ev(sfx_len && kt->kt_len < sfx_len + kvs->ikv_pfx_len)) {
+    if (HSE_UNLIKELY(sfx_len && kt->kt_len < sfx_len + kvs->ikv_pfx_len)) {
+#ifndef HSE_BUILD_RELEASE
         hse_log(
             HSE_ERR "%s is a suffixed kvs. Keys must be at least "
                     "pfx_len(%u) + sfx_len(%u) bytes long.",
             kvs->ikv_kvs_name,
             kvs->ikv_pfx_len,
             kvs->ikv_sfx_len);
+#endif
         return merr(EINVAL);
     }
 
-    /* Exclusively lock txn for c0 update. */
+    /* Exclusively lock txn for c0 update (with write collision detection).
+     */
     if (ctxn) {
-        err = kvdb_ctxn_trylock_write(ctxn, kt, &seqnoref, c0_hash_get(c0));
+        u64 hash = kt->kt_hash ^ kvs->ikv_gen;
+
+        if (sfx_len > 0)
+            hash = key_hash64_seed(kt->kt_data, kt->kt_len, kvs->ikv_gen);
+
+        err = kvdb_ctxn_trylock_write(ctxn, &seqnoref, true, hash);
         if (err)
             return err;
     }
 
     err = wal_del(kvs->ikv_wal, kvs, os, kt, &rec);
     if (!err) {
-        err = c0_del(c0, kt, seqnoref);
+        err = c0_del(kvs->ikv_c0, kt, seqnoref);
 
         wal_op_finish(kvs->ikv_wal, &rec, kt->kt_seqno, kt->kt_dgen, merr_errno(err));
     }
@@ -457,7 +472,6 @@ kvs_prefix_del(
     struct perfc_set *pkvsl_pc = kvs_perfc_pkvsl(kvs);
     struct kvdb_ctxn *ctxn = txn ? kvdb_ctxn_h2h(txn) : 0;
     struct wal_record rec;
-    struct c0 *       c0 = kvs->ikv_c0;
     u64               tstart;
     merr_t            err;
 
@@ -466,18 +480,17 @@ kvs_prefix_del(
     if (!kt->kt_hash)
         kt->kt_hash = key_hash64(kt->kt_data, kt->kt_len);
 
-    /* Exclusively lock txn for c0 update.  Pass 0 for keylock seed
-     * to prevent write collision detection for this operation.
+    /* Exclusively lock txn for c0 update (no write collision detection.
      */
     if (ctxn) {
-        err = kvdb_ctxn_trylock_write(ctxn, kt, &seqnoref, 0);
+        err = kvdb_ctxn_trylock_write(ctxn, &seqnoref, false, 0);
         if (err)
             return err;
     }
 
     err = wal_del_pfx(kvs->ikv_wal, kvs, os, kt, &rec);
     if (!err) {
-        err = c0_prefix_del(c0, kt, seqnoref);
+        err = c0_prefix_del(kvs->ikv_c0, kt, seqnoref);
 
         wal_op_finish(kvs->ikv_wal, &rec, kt->kt_seqno, kt->kt_dgen, merr_errno(err));
     }
@@ -532,7 +545,7 @@ kvs_pfx_probe(
      * seqnoref is invalid after lock is released.
      */
     if (ctxn) {
-        err = kvdb_ctxn_trylock_read(ctxn, &seqno, &seqnoref);
+        err = kvdb_ctxn_trylock_read(ctxn, &seqnoref, &seqno);
         if (err)
             return err;
     }

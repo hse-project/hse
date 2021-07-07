@@ -33,7 +33,6 @@ struct cn {
     struct cndb *     cn_cndb;
     struct tbkt *     cn_tbkt_maint;
     u64               cn_cnid;
-    u64               cn_hash;
 
     HSE_ALIGNED(SMP_CACHE_BYTES) atomic64_t cn_ingest_dgen;
 

@@ -10,17 +10,17 @@
 
 #include <hse_util/hse_err.h>
 
-#define KLE_PLEN_MAX ((1u << 15) - 1)
+/* clang-format off */
+
+#define KLE_PSL_MAX     (1u << 15)
 
 struct keylock;
-struct keylock_cb_rock;
 
-typedef bool
-keylock_cb_fn(u64 start_seq, struct keylock_cb_rock *rock1, struct keylock_cb_rock **new_rock);
+typedef bool keylock_cb_fn(u64 start_seq, uint rock1, uint *new_rock);
 
 /* MTF_MOCK */
 merr_t
-keylock_create(uint maxbkts, keylock_cb_fn *cb_fun, struct keylock **handle_out);
+keylock_create(keylock_cb_fn *cb_fun, struct keylock **handle_out);
 
 void
 keylock_destroy(struct keylock *handle);
@@ -38,14 +38,16 @@ keylock_destroy(struct keylock *handle);
  */
 merr_t
 keylock_lock(
-    struct keylock *        handle,
-    u64                     hash,
-    u64                     start_seq,
-    struct keylock_cb_rock *rock,
-    bool *                  inherited);
+    struct keylock *handle,
+    u64             hash,
+    u64             start_seq,
+    uint            rock,
+    bool           *inherited);
+
+/* clang-format on */
 
 void
-keylock_unlock(struct keylock *handle, u64 hash, struct keylock_cb_rock *rock);
+keylock_unlock(struct keylock *handle, u64 hash, uint rock);
 
 #if HSE_MOCKING
 void

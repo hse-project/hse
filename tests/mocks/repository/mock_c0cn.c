@@ -144,7 +144,6 @@ _c0_open(struct ikvdb *kvdb, struct kvs_rparams *rp, struct cn *cn, struct mpool
     m0->hash = (uintptr_t)m0;
 
     if (mn) {
-        m0->hash = cn_hash_get(cn);
         mn->data = m0->data; /* inform mock_cn of the data */
     }
 
@@ -179,14 +178,6 @@ _c0_index(struct c0 *handle)
     struct mock_c0 *m0 = mock_c0_h2r(handle);
 
     return m0 ? m0->index : HSE_KVS_COUNT_MAX - 1;
-}
-
-static u64
-_c0_hash_get(struct c0 *handle)
-{
-    struct mock_c0 *m0 = mock_c0_h2r(handle);
-
-    return m0 ? m0->hash : -1;
 }
 
 static merr_t
@@ -474,12 +465,6 @@ _cn_ref_put(struct cn *arg)
     atomic_dec(&cn->refcnt);
 }
 
-static u64
-_cn_hash_get(const struct cn *arg)
-{
-    return (uintptr_t)arg;
-}
-
 static int
 cmp(const void *a_, const void *b_)
 {
@@ -693,7 +678,6 @@ mock_cn_set()
     MOCK_SET(cn, _cn_get);
     MOCK_SET(cn, _cn_ref_get);
     MOCK_SET(cn, _cn_ref_put);
-    MOCK_SET(cn, _cn_hash_get);
 
     MOCK_SET(cn_cursor, _cn_cursor_create);
     MOCK_SET(cn_cursor, _cn_cursor_update);
@@ -717,7 +701,6 @@ mock_cn_unset()
     MOCK_UNSET(cn, _cn_get);
     MOCK_UNSET(cn, _cn_ref_get);
     MOCK_UNSET(cn, _cn_ref_put);
-    MOCK_UNSET(cn, _cn_hash_get);
 
     MOCK_UNSET(cn_cursor, _cn_cursor_create);
     MOCK_UNSET(cn_cursor, _cn_cursor_update);
@@ -753,7 +736,6 @@ mock_c0_set()
     MOCK_SET(c0, _c0_open);
     MOCK_SET(c0, _c0_close);
     MOCK_SET(c0, _c0_index);
-    MOCK_SET(c0, _c0_hash_get);
     MOCK_SET(c0, _c0_put);
     MOCK_SET(c0, _c0_get);
     MOCK_SET(c0, _c0_del);
@@ -774,7 +756,6 @@ mock_c0_unset()
     MOCK_UNSET(c0, _c0_open);
     MOCK_UNSET(c0, _c0_close);
     MOCK_UNSET(c0, _c0_index);
-    MOCK_UNSET(c0, _c0_hash_get);
     MOCK_UNSET(c0, _c0_put);
     MOCK_UNSET(c0, _c0_get);
     MOCK_UNSET(c0, _c0_del);

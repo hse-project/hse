@@ -105,16 +105,14 @@ kvdb_ctxn_bind_cancel(struct kvdb_ctxn_bind *bind, bool preserve)
 static HSE_ALWAYS_INLINE bool
 ctxn_trylock(struct kvdb_ctxn_impl *ctxn)
 {
-    return atomic_cmpxchg(&ctxn->ctxn_lock, 0, 1) == 0;
+    return atomic_cas(&ctxn->ctxn_lock, 0, 1);
 }
 
 static HSE_ALWAYS_INLINE void
 ctxn_unlock(struct kvdb_ctxn_impl *ctxn)
 {
-    int old HSE_MAYBE_UNUSED;
-
-    old = atomic_cmpxchg(&ctxn->ctxn_lock, 1, 0);
-    assert(old == 1);
+    while (!atomic_cas(&ctxn->ctxn_lock, 1, 0))
+        continue;
 }
 
 static void
@@ -702,12 +700,9 @@ kvdb_ctxn_get_seqnoref(struct kvdb_ctxn *handle)
  *      the old_rock.
  */
 bool
-kvdb_ctxn_lock_inherit(
-    u64                      start_seq,
-    struct keylock_cb_rock * old_rock,
-    struct keylock_cb_rock **new_rock)
+kvdb_ctxn_lock_inherit(u64 start_seq, uint old_rock, uint *new_rock)
 {
-    struct kvdb_ctxn_locks *old_locks = (struct kvdb_ctxn_locks *)old_rock;
+    struct kvdb_ctxn_locks *old_locks = kvdb_ctxn_locks_idx2locks(old_rock);
 
     /* The structure pointed to by "old_locks" cannot vanish during this
      * call because of pre-condition (1) above. However, it is entirely
@@ -856,8 +851,8 @@ kvdb_ctxn_cursor_unbind(struct kvdb_ctxn_bind *bind)
 merr_t
 kvdb_ctxn_trylock_read(
     struct kvdb_ctxn   *handle,
-    u64                *view_seqno,
-    uintptr_t          *seqref)
+    uintptr_t          *seqref,
+    u64                *view_seqno)
 {
     merr_t                  err = 0;
     struct kvdb_ctxn_impl  *ctxn;
@@ -866,10 +861,10 @@ kvdb_ctxn_trylock_read(
 
     ctxn = kvdb_ctxn_h2r(handle);
 
-    if (ev(!ctxn_trylock(ctxn)))
+    if (HSE_UNLIKELY(!ctxn_trylock(ctxn)))
         return merr(EPROTO);
 
-    if (ev(seqnoref_to_state(ctxn->ctxn_seqref) != KVDB_CTXN_ACTIVE)) {
+    if (HSE_UNLIKELY(seqnoref_to_state(ctxn->ctxn_seqref) != KVDB_CTXN_ACTIVE)) {
         err = merr(ECANCELED);
         goto errout;
     }
@@ -887,27 +882,26 @@ kvdb_ctxn_trylock_read(
 merr_t
 kvdb_ctxn_trylock_write(
     struct kvdb_ctxn           *handle,
-    const struct kvs_ktuple    *kt,
     uintptr_t                  *seqref,
-    u64                         keylock_seed)
+    bool                        wcd,
+    u64                         hash)
 {
     merr_t                  err = 0;
     struct kvdb_ctxn_impl  *ctxn;
-    u64                     hash;
 
     assert(handle);
 
     ctxn = kvdb_ctxn_h2r(handle);
 
-    if (ev(!ctxn_trylock(ctxn)))
+    if (HSE_UNLIKELY(!ctxn_trylock(ctxn)))
         return merr(EPROTO);
 
-    if (ev(seqnoref_to_state(ctxn->ctxn_seqref) != KVDB_CTXN_ACTIVE)) {
+    if (HSE_UNLIKELY(seqnoref_to_state(ctxn->ctxn_seqref) != KVDB_CTXN_ACTIVE)) {
         err = merr(ECANCELED);
         goto errout;
     }
 
-    if (!ctxn->ctxn_can_insert) {
+    if (HSE_UNLIKELY(!ctxn->ctxn_can_insert)) {
         err = wal_txn_begin(ctxn->ctxn_wal, ctxn->ctxn_view_seqno);
         if (err)
             goto errout;
@@ -917,9 +911,7 @@ kvdb_ctxn_trylock_write(
             goto errout;
     }
 
-    if (keylock_seed) {
-        hash = key_hash64_seed(kt->kt_data, kt->kt_len, keylock_seed);
-
+    if (HSE_LIKELY(wcd)) {
         err = kvdb_keylock_lock(
             ctxn->ctxn_kvdb_keylock, ctxn->ctxn_locks_handle, hash, ctxn->ctxn_view_seqno);
 

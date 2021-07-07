@@ -54,7 +54,6 @@ struct c0_impl {
     u32                 c0_index;
     s32                 c0_pfx_len;
     u32                 c0_sfx_len;
-    u64                 c0_hash;
     struct cn *         c0_cn;
     struct kvs_rparams *c0_rp; /* not owned by c0 */
 };
@@ -213,7 +212,6 @@ c0_open(
     if (ev(err))
         goto err_exit;
 
-    new_c0->c0_hash = cn_hash_get(cn);
     new_c0->c0_index = skidx;
     *c0 = &new_c0->c0_handle;
 
@@ -375,14 +373,6 @@ c0_index(struct c0 *handle)
     struct c0_impl *self = c0_h2r(handle);
 
     return self->c0_index;
-}
-
-u64
-c0_hash_get(struct c0 *handle)
-{
-    struct c0_impl *self = c0_h2r(handle);
-
-    return self->c0_hash;
 }
 
 #if HSE_MOCKING

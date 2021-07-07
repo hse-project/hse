@@ -236,7 +236,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, basic_commit, mapi_pre, mapi_post)
     struct c0              *c0 = NULL; /* c0 is mocked */
     atomic64_t              kvdb_seq;
 
-    err = kvdb_keylock_create(&klock, 16, 65536);
+    err = kvdb_keylock_create(&klock, 16);
     ASSERT_EQ(0, err);
     ASSERT_NE(0, klock);
 
@@ -309,7 +309,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, basic_commit_twice, mapi_pre, mapi_post
     atomic64_t              kvdb_seq;
     merr_t                  err;
 
-    err = kvdb_keylock_create(&klock, 16, 65536);
+    err = kvdb_keylock_create(&klock, 16);
     ASSERT_EQ(0, err);
     ASSERT_NE(0, klock);
 
@@ -364,7 +364,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, basic_commit_proto, mapi_pre, mapi_post
     const u64               initial_seq = 117UL;
     merr_t                  err;
 
-    err = kvdb_keylock_create(&klock, 16, 65536);
+    err = kvdb_keylock_create(&klock, 16);
     ASSERT_EQ(0, err);
     ASSERT_NE(0, klock);
 
@@ -421,7 +421,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, basic_commit_seqno, mapi_pre, mapi_post
     struct c0              *c0 = NULL; /* c0 is mocked */
     atomic64_t              kvdb_seq;
 
-    err = kvdb_keylock_create(&klock, 16, 65536);
+    err = kvdb_keylock_create(&klock, 16);
     ASSERT_EQ(0, err);
     ASSERT_NE(0, klock);
 
@@ -580,7 +580,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, get_view_seqno, mapi_pre, mapi_post)
     merr_t                  err;
     atomic64_t              kvdb_seq;
 
-    err = kvdb_keylock_create(&klock, 16, 65536);
+    err = kvdb_keylock_create(&klock, 16);
     ASSERT_EQ(0, err);
     ASSERT_NE(0, klock);
 
@@ -641,7 +641,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, get_state, mapi_pre, mapi_post)
     merr_t                  err;
     atomic64_t              kvdb_seq;
 
-    err = kvdb_keylock_create(&klock, 16, 65536);
+    err = kvdb_keylock_create(&klock, 16);
     ASSERT_EQ(0, err);
     ASSERT_NE(0, klock);
 
@@ -715,7 +715,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, put_get_del, mapi_pre, mapi_post)
     struct c0              *c0 = NULL; /* c0 is mocked */
     atomic64_t              kvdb_seq;
 
-    err = kvdb_keylock_create(&klock, 16, 65536);
+    err = kvdb_keylock_create(&klock, 16);
     ASSERT_EQ(0, err);
     ASSERT_NE(0, klock);
 
@@ -836,7 +836,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, put_get_pdel, mapi_pre, mapi_post)
     struct c0              *c0 = NULL; /* c0 is mocked */
     atomic64_t              kvdb_seq;
 
-    err = kvdb_keylock_create(&klock, 16, 65536);
+    err = kvdb_keylock_create(&klock, 16);
     ASSERT_EQ(0, err);
     ASSERT_NE(0, klock);
 
@@ -934,7 +934,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, txn_timeout, mapi_pre, mapi_post)
     u32                     delay_ms = 500;
     atomic64_t              kvdb_seq;
 
-    err = kvdb_keylock_create(&klock, 16, 65536);
+    err = kvdb_keylock_create(&klock, 16);
     ASSERT_EQ(0, err);
     ASSERT_NE(0, klock);
 
@@ -1014,7 +1014,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, txn_cleanup, mapi_pre, mapi_post)
     struct c0              *c0 = NULL; /* c0 is mocked */
     atomic64_t              kvdb_seq;
 
-    err = kvdb_keylock_create(&klock, 16, 65536);
+    err = kvdb_keylock_create(&klock, 16);
     ASSERT_EQ(0, err);
     ASSERT_NE(0, klock);
 
@@ -1078,7 +1078,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, txn_hash, mapi_pre, mapi_post)
 
     mapi_inject_unset(mapi_idx_kvdb_keylock_lock);
 
-    err = kvdb_keylock_create(&klock, 5, 4096);
+    err = kvdb_keylock_create(&klock, 5);
     ASSERT_EQ(0, err);
     ASSERT_NE(0, klock);
 
@@ -1170,7 +1170,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, txn_independence, mapi_pre, mapi_post)
 
     mapi_inject_unset(mapi_idx_kvdb_keylock_lock);
 
-    err = kvdb_keylock_create(&klock, 7, 4096);
+    err = kvdb_keylock_create(&klock, 7);
     ASSERT_EQ(0, err);
     ASSERT_NE(0, klock);
 
@@ -1268,7 +1268,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, txn_seq, mapi_pre, mapi_post)
     u32                     delay_us;
     atomic64_t              kvdb_seq;
 
-    err = kvdb_keylock_create(&klock, 16, 65536);
+    err = kvdb_keylock_create(&klock, 16);
     ASSERT_EQ(0, err);
     ASSERT_NE(0, klock);
 
@@ -1406,7 +1406,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, multiple_ctxn_commit, mapi_pre, mapi_po
     const u64               initial_value = 117UL;
     atomic64_t              kvdb_seq;
 
-    err = kvdb_keylock_create(&klock, 16, 65536);
+    err = kvdb_keylock_create(&klock, 16);
     ASSERT_EQ(0, err);
     ASSERT_NE(0, klock);
 

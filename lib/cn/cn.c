@@ -265,12 +265,6 @@ cn_ref_put(struct cn *cn)
 }
 
 u64
-cn_hash_get(const struct cn *cn)
-{
-    return cn->cn_hash;
-}
-
-u64
 cn_get_cnid(const struct cn *handle)
 {
     return handle->cn_cnid;
@@ -1191,12 +1185,6 @@ cn_open(
     cn->cn_cflags = kvdb_kvs_flags(kvs);
     cn->cn_kvdb_health = health;
     cn->cn_mpool_props = mpprops;
-
-    /* Generate a unique non-zero hash for each kvs.  This is primarily
-     * used to avoid false write lock collisions when trying to insert
-     * the same key into more than one kvs within the same transaction.
-     */
-    cn->cn_hash = XXH_PRIME64_3 + ((cnid + 1) << 32) + cnid + 1;
 
     staging_absent = mpool_mclass_props_get(ds, MP_MED_STAGING, NULL);
     if (staging_absent) {

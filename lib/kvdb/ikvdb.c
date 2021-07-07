@@ -672,7 +672,7 @@ ikvdb_diag_open(
     if (ev(err))
         goto err_exit1;
 
-    err = kvdb_keylock_create(&self->ikdb_keylock, params->keylock_tables, params->keylock_entries);
+    err = kvdb_keylock_create(&self->ikdb_keylock, params->keylock_tables);
     if (ev(err))
         goto err_exit1;
 
@@ -1067,7 +1067,7 @@ ikvdb_open(
         goto err1;
     }
 
-    err = kvdb_keylock_create(&self->ikdb_keylock, params->keylock_tables, params->keylock_entries);
+    err = kvdb_keylock_create(&self->ikdb_keylock, params->keylock_tables);
     if (err) {
         hse_elog(HSE_ERR "cannot open %s: @@e", err, kvdb_home);
         goto err1;

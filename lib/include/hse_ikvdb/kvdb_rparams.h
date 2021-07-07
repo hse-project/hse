@@ -35,7 +35,6 @@
  * @log_lvl:          log level for hse_log.
  * @log_squelch_ns:   log squelch window in nsec
  * @keylock_tables:   number of keylock hash tables
- * @keylock_entries:  number of entries in the keylock hash table
  * @txn_wkth_delay:        delay (msecs) to invoke transaction worker thread
  * @cndb_entries:     max number of entries CNDB's in memory structures. Note
  *                    that this does not affect the MDC's size.
@@ -106,7 +105,6 @@ struct kvdb_rparams {
     uint32_t c0_ingest_threads;
     uint32_t c0_mutex_pool_sz;
 
-    uint32_t keylock_entries;
     uint32_t keylock_tables;
     uint32_t low_mem;
 

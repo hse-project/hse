@@ -27,24 +27,19 @@ MTF_DEFINE_UTEST(keylock_test, keylock_create_destroy)
     merr_t          err = 0;
     struct keylock *handle;
 
-    err = keylock_create(KLE_PLEN_MAX, 0, &handle);
+    err = keylock_create(0, &handle);
     ASSERT_TRUE(handle);
     ASSERT_FALSE(err);
     keylock_destroy(handle);
 
-    err = keylock_create(0, 0, &handle);
-    ASSERT_EQ(0, err);
-    ASSERT_NE(NULL, handle);
-    keylock_destroy(handle);
-
-    err = keylock_create(KLE_PLEN_MAX + 1, 0, &handle);
+    err = keylock_create(0, &handle);
     ASSERT_EQ(0, err);
     ASSERT_NE(NULL, handle);
     keylock_destroy(handle);
 
     mapi_inject_once_ptr(mapi_idx_malloc, 1, NULL);
 
-    err = keylock_create(KLE_PLEN_MAX, 0, &handle);
+    err = keylock_create(0, &handle);
     ASSERT_EQ(0, handle);
     ASSERT_EQ(ENOMEM, merr_errno(err));
 
@@ -53,7 +48,7 @@ MTF_DEFINE_UTEST(keylock_test, keylock_create_destroy)
 
 MTF_DEFINE_UTEST(keylock_test, keylock_lock_unlock)
 {
-    uint                 table_size = 9973;
+    uint                 table_size = KLE_PSL_MAX;
     merr_t               err = 0;
     struct keylock *     handle;
     int                  i;
@@ -62,7 +57,7 @@ MTF_DEFINE_UTEST(keylock_test, keylock_lock_unlock)
     u64                  entries[table_size * 2];
     bool                 inherited;
 
-    err = keylock_create(table_size, 0, &handle);
+    err = keylock_create(0, &handle);
     ASSERT_TRUE(handle);
     ASSERT_FALSE(err);
 
@@ -74,7 +69,7 @@ MTF_DEFINE_UTEST(keylock_test, keylock_lock_unlock)
 
         keylock_search(handle, hash, &index);
 
-        err = keylock_lock(handle, hash, 0, NULL, &inherited);
+        err = keylock_lock(handle, hash, 0, 0, &inherited);
         if (!err)
             ASSERT_FALSE(inherited);
 
@@ -100,18 +95,18 @@ MTF_DEFINE_UTEST(keylock_test, keylock_lock_unlock)
 
     for (i = 0; i < num_entries; i++) {
         /* The same locker sees that the locks are already held. */
-        err = keylock_lock(handle, entries[i], 0, NULL, &inherited);
+        err = keylock_lock(handle, entries[i], 0, 0, &inherited);
         ASSERT_EQ(err, 0);
 
         /* Verify that another locking thread sees collisions. */
-        err = keylock_lock(handle, entries[i], 0, (void *)2, &inherited);
+        err = keylock_lock(handle, entries[i], 0, 2, &inherited);
         ASSERT_EQ(ECANCELED, merr_errno(err));
 
-        keylock_unlock(handle, entries[i], NULL);
+        keylock_unlock(handle, entries[i], 0);
         keylock_search(handle, entries[i], &index);
         ASSERT_EQ(index, table_size);
 
-        err = keylock_lock(handle, entries[i], 0, NULL, &inherited);
+        err = keylock_lock(handle, entries[i], 0, 0, &inherited);
         if (err) {
         } else {
             ASSERT_FALSE(inherited);
@@ -122,17 +117,63 @@ MTF_DEFINE_UTEST(keylock_test, keylock_lock_unlock)
     }
 
     for (i = 0; i < num_entries; i++)
-        keylock_unlock(handle, entries[i], NULL);
+        keylock_unlock(handle, entries[i], 0);
 
     keylock_destroy(handle);
 }
 
-struct keylock_cb_rock *g_rock1;
-struct keylock_cb_rock *g_rock2;
-u64                     g_start_seq;
+MTF_DEFINE_UTEST(keylock_test, keylock_psl)
+{
+    struct keylock *handle;
+    uint            table_size;
+    bool            inherited;
+    int             i;
+    u64             hash;
+    merr_t          err;
+
+    err = keylock_create(NULL, &handle);
+    ASSERT_EQ(0, err);
+    ASSERT_NE(NULL, handle);
+
+    keylock_search(handle, 0, &table_size);
+
+    /* Each hash should hash to the same bucket in the keylock table,
+     * thereby triggering a whole lot of entry relocations and pushing
+     * the probe sequence length to the max.
+     */
+    for (i = 0; i < table_size + 1; i++) {
+        hash = i * table_size;
+
+        err = keylock_lock(handle, hash, 0, 1, &inherited);
+        if (err) {
+            ASSERT_EQ(i, table_size);
+            break;
+        }
+
+        ASSERT_EQ(0, err);
+        ASSERT_FALSE(inherited);
+
+        err = keylock_lock(handle, hash, 0, 0, &inherited);
+        ASSERT_EQ(ECANCELED, merr_errno(err));
+        ASSERT_FALSE(inherited);
+    }
+
+    for (i = 0; i < table_size; i++) {
+        hash = i * table_size;
+
+        keylock_unlock(handle, hash, 0);
+        keylock_unlock(handle, hash, 1);
+    }
+
+    keylock_destroy(handle);
+}
+
+uint g_rock1;
+uint g_rock2;
+u64  g_start_seq;
 
 bool
-rock_handling(u64 start_seq, struct keylock_cb_rock *old_rock, struct keylock_cb_rock **new_rock)
+rock_handling(u64 start_seq, uint old_rock, uint *new_rock)
 {
     g_rock1 = *new_rock;
     g_rock2 = old_rock;
@@ -151,7 +192,7 @@ MTF_DEFINE_UTEST(keylock_test, keylock_rock_handling)
     uintptr_t       rock;
     bool            inherited;
 
-    err = keylock_create(10, rock_handling, &handle);
+    err = keylock_create(rock_handling, &handle);
     ASSERT_TRUE(handle);
     ASSERT_FALSE(err);
 
@@ -162,11 +203,11 @@ MTF_DEFINE_UTEST(keylock_test, keylock_rock_handling)
         ASSERT_EQ(index, table_size);
 
         rock = i + 1UL;
-        err = keylock_lock(handle, i, i, (struct keylock_cb_rock *)rock, &inherited);
+        err = keylock_lock(handle, i, i, rock, &inherited);
         ASSERT_EQ(0, err);
 
         rock = i + 2UL;
-        err = keylock_lock(handle, i, i, (struct keylock_cb_rock *)rock, &inherited);
+        err = keylock_lock(handle, i, i, rock, &inherited);
         if ((i % 2) == 0)
             ASSERT_EQ(0, err);
         else
@@ -192,7 +233,7 @@ MTF_DEFINE_UTEST(keylock_test, keylock_rock_default)
     merr_t          err;
     int             i;
 
-    err = keylock_create(10, NULL, &handle);
+    err = keylock_create(NULL, &handle);
     ASSERT_TRUE(handle);
     ASSERT_FALSE(err);
 
@@ -204,11 +245,11 @@ MTF_DEFINE_UTEST(keylock_test, keylock_rock_default)
         keylock_search(handle, i, &index);
         ASSERT_EQ(index, table_size);
 
-        err = keylock_lock(handle, i, i, (struct keylock_cb_rock *)rock, &inherited);
+        err = keylock_lock(handle, i, i, rock, &inherited);
         ASSERT_EQ(0, err);
         ASSERT_FALSE(inherited);
 
-        err = keylock_lock(handle, i, i, (struct keylock_cb_rock *)(rock + 1), &inherited);
+        err = keylock_lock(handle, i, i, (rock + 1), &inherited);
         ASSERT_NE(0, err);
         ASSERT_FALSE(inherited);
     }

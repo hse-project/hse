@@ -85,10 +85,6 @@ c0_close(struct c0 *c0);
 u16
 c0_index(struct c0 *handle);
 
-/* MTF_MOCK */
-u64
-c0_hash_get(struct c0 *handle);
-
 /**
  * c0_get_width() - get the parallel width for a struct c0
  * @self: Instance of struct c0 to probe

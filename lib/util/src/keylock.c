@@ -13,6 +13,7 @@
 #include <hse_util/page.h>
 #include <hse_util/minmax.h>
 #include <hse_util/mutex.h>
+#include <hse_util/logging.h>
 #include <hse_util/keylock.h>
 
 /* clang-format off */
@@ -23,15 +24,14 @@ struct keylock {
 #define keylock_h2r(handle) container_of(handle, struct keylock_impl, kli_handle)
 
 struct keylock_entry {
-    u64                     kle_hash : 48;
-    u64                     kle_plen : 15;
-    u64                     kle_busy : 1;
-    struct keylock_cb_rock *kle_rock;
+    u64  kle_hash;
+    uint kle_rock;
+    uint kle_plen : 31;
+    uint kle_busy : 1;
 };
 
 struct keylock_impl {
     struct keylock kli_handle HSE_ALIGNED(SMP_CACHE_BYTES * 2);
-    uint           kli_bucketc;
     uint           kli_fullhwm;
     keylock_cb_fn *kli_cb_func;
     void          *kli_mem;
@@ -39,7 +39,7 @@ struct keylock_impl {
     struct mutex   kli_kmutex HSE_ALIGNED(SMP_CACHE_BYTES);
     uint           kli_num_occupied;
     uint           kli_max_occupied;
-    uint           kli_max_probe_len;
+    uint           kli_max_psl;
     uint           kli_table_full;
     ulong          kli_collisions;
 
@@ -49,13 +49,13 @@ struct keylock_impl {
 /* clang-format on */
 
 static bool
-keylock_cb_func(u64 start_seq, struct keylock_cb_rock *rock1, struct keylock_cb_rock **new_rock)
+keylock_cb_func(u64 start_seq, uint rock1, uint *new_rock)
 {
     return false;
 }
 
 merr_t
-keylock_create(uint maxbkts, keylock_cb_fn *cb_func, struct keylock **handle_out)
+keylock_create(keylock_cb_fn *cb_func, struct keylock **handle_out)
 {
     struct keylock_impl *table;
     size_t               sz;
@@ -63,10 +63,8 @@ keylock_create(uint maxbkts, keylock_cb_fn *cb_func, struct keylock **handle_out
 
     *handle_out = 0;
 
-    maxbkts = clamp_t(uint, maxbkts, 128, KLE_PLEN_MAX);
-
     sz = sizeof(struct keylock_impl);
-    sz += maxbkts * sizeof(struct keylock_entry);
+    sz += sizeof(struct keylock_entry) * KLE_PSL_MAX;
     sz = roundup(sz + alignof(*table), alignof(*table));
 
     mem = calloc(1, sz);
@@ -74,8 +72,7 @@ keylock_create(uint maxbkts, keylock_cb_fn *cb_func, struct keylock **handle_out
         return merr(ENOMEM);
 
     table = PTR_ALIGN(mem, alignof(*table));
-    table->kli_bucketc = maxbkts;
-    table->kli_fullhwm = maxbkts * 90 / 100;
+    table->kli_fullhwm = KLE_PSL_MAX * 90 / 100;
     table->kli_cb_func = cb_func ? cb_func : keylock_cb_func;
     table->kli_mem = mem;
     mutex_init_adaptive(&table->kli_kmutex);
@@ -95,6 +92,14 @@ keylock_destroy(struct keylock *handle)
 
     table = keylock_h2r(handle);
 
+    if (table->kli_max_psl > 10) {
+        hse_log(HSE_WARNING "%s: %p %u %u %u %lu",
+                __func__, table, table->kli_max_occupied,
+                table->kli_max_psl,
+                table->kli_table_full,
+                table->kli_collisions);
+    }
+
     mutex_destroy(&table->kli_kmutex);
 
     free(table->kli_mem);
@@ -102,18 +107,17 @@ keylock_destroy(struct keylock *handle)
 
 merr_t
 keylock_lock(
-    struct keylock *        handle,
-    u64                     hash,
-    u64                     start_seq,
-    struct keylock_cb_rock *rock,
-    bool *                  inherited)
+    struct keylock *handle,
+    u64             hash,
+    u64             start_seq,
+    uint            rock,
+    bool *          inherited)
 {
     struct keylock_impl * table = keylock_h2r(handle);
     struct keylock_entry  entry, *curr;
-    bool                  displaced, full, almostfull;
+    bool                  displaced, almostfull;
 
-    hash = (hash << 16) >> 16;
-    curr = table->kli_bucketv + (hash % table->kli_bucketc);
+    curr = table->kli_bucketv + (hash % KLE_PSL_MAX);
     __builtin_prefetch(curr);
 
     entry.kle_busy = 1;
@@ -125,15 +129,14 @@ keylock_lock(
 
     mutex_lock(&table->kli_kmutex);
     almostfull = table->kli_num_occupied >= table->kli_fullhwm;
-    full = table->kli_num_occupied >= table->kli_bucketc;
 
     /* Insert will succeed unless probing requires that we move a key
      * and the load factor is too high (i.e., num_occupied > fullhwm).
      */
     while (curr->kle_busy) {
         if (!displaced && hash == curr->kle_hash) {
-            struct keylock_cb_rock *old = curr->kle_rock;
-            struct keylock_cb_rock *new = rock;
+            uint old = curr->kle_rock;
+            uint new = rock;
 
             /* Should only be considering this for the 1st hash */
             assert(hash == entry.kle_hash);
@@ -184,21 +187,21 @@ keylock_lock(
             displaced = true;
         }
 
+        assert(entry.kle_plen < KLE_PSL_MAX);
         entry.kle_plen += 1;
-        curr = table->kli_bucketv + ((entry.kle_hash + entry.kle_plen) % table->kli_bucketc);
+        curr = table->kli_bucketv + ((entry.kle_hash + entry.kle_plen) % KLE_PSL_MAX);
     }
 
     /* Insert a new entry in the hash table */
-    assert(!curr->kle_busy && !full);
-    assert(entry.kle_plen < table->kli_bucketc);
+    assert(!curr->kle_busy);
 
     *curr = entry;
 
-    assert(table->kli_num_occupied < table->kli_bucketc);
+    assert(table->kli_num_occupied < KLE_PSL_MAX);
     table->kli_num_occupied++;
 
-    if (entry.kle_plen > table->kli_max_probe_len)
-        table->kli_max_probe_len = entry.kle_plen;
+    if (entry.kle_plen > table->kli_max_psl)
+        table->kli_max_psl = entry.kle_plen;
     if (table->kli_num_occupied > table->kli_max_occupied)
         table->kli_max_occupied = table->kli_num_occupied;
 
@@ -210,13 +213,12 @@ keylock_lock(
 }
 
 void
-keylock_unlock(struct keylock *handle, u64 hash, struct keylock_cb_rock *rock)
+keylock_unlock(struct keylock *handle, u64 hash, uint rock)
 {
     struct keylock_impl *table = keylock_h2r(handle);
     u64                  plen = 0, index, free;
 
-    hash = (hash << 16) >> 16;
-    index = (hash + plen) % table->kli_bucketc;
+    index = (hash + plen) % KLE_PSL_MAX;
 
     mutex_lock(&table->kli_kmutex);
 
@@ -224,9 +226,7 @@ keylock_unlock(struct keylock *handle, u64 hash, struct keylock_cb_rock *rock)
            table->kli_bucketv[index].kle_hash != hash &&
            table->kli_bucketv[index].kle_plen >= plen) {
         plen++;
-        index++;
-        if (index == table->kli_bucketc)
-            index = 0;
+        index = (index + 1) % KLE_PSL_MAX;
     }
 
     /* Check that the caller really holds the lock. If the lock was
@@ -248,9 +248,7 @@ keylock_unlock(struct keylock *handle, u64 hash, struct keylock_cb_rock *rock)
     table->kli_num_occupied--;
 
     free = index;
-    index++;
-    if (index == table->kli_bucketc)
-        index = 0;
+    index = (index + 1) % KLE_PSL_MAX;
     plen = 1;
 
     while (table->kli_bucketv[index].kle_plen) {
@@ -263,9 +261,7 @@ keylock_unlock(struct keylock *handle, u64 hash, struct keylock_cb_rock *rock)
         }
 
         plen++;
-        index++;
-        if (index == table->kli_bucketc)
-            index = 0;
+        index = (index + 1) % KLE_PSL_MAX;
     }
 
     mutex_unlock(&table->kli_kmutex);
@@ -278,9 +274,8 @@ keylock_search(struct keylock *handle, u64 hash, uint *pos)
     struct keylock_impl *table = keylock_h2r(handle);
     u64                  plen = 0, index;
 
-    hash = (hash << 16) >> 16;
-    index = (hash + plen) % table->kli_bucketc;
-    *pos = table->kli_bucketc;
+    index = (hash + plen) % KLE_PSL_MAX;
+    *pos = KLE_PSL_MAX;
 
     mutex_lock(&table->kli_kmutex);
 
@@ -293,9 +288,7 @@ keylock_search(struct keylock *handle, u64 hash, uint *pos)
         }
 
         plen++;
-        index++;
-        if (index == table->kli_bucketc)
-            index = 0;
+        index = (index + 1) % KLE_PSL_MAX;
     }
 
     mutex_unlock(&table->kli_kmutex);

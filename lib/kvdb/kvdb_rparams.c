@@ -1315,25 +1315,6 @@ static const struct param_spec pspecs[] = {
         },
     },
     {
-        .ps_name = "keylock_entries",
-        .ps_description = "number of keylock entries in a table",
-        .ps_flags = PARAM_FLAG_EXPERIMENTAL,
-        .ps_type = PARAM_TYPE_U32,
-        .ps_offset = offsetof(struct kvdb_rparams, keylock_entries),
-        .ps_size = sizeof(((struct kvdb_rparams *) 0)->keylock_entries),
-        .ps_convert = param_default_converter,
-        .ps_validate = param_default_validator,
-        .ps_default_value = {
-            .as_uscalar = 22397,
-        },
-        .ps_bounds = {
-            .as_uscalar = {
-                .ps_min = 0,
-                .ps_max = UINT32_MAX,
-            },
-        },
-    },
-    {
         .ps_name = "keylock_tables",
         .ps_description = "number of keylock tables",
         .ps_flags = PARAM_FLAG_EXPERIMENTAL,
@@ -1343,12 +1324,12 @@ static const struct param_spec pspecs[] = {
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
         .ps_default_value = {
-            .as_uscalar = 293,
+            .as_uscalar = 367,
         },
         .ps_bounds = {
             .as_uscalar = {
-                .ps_min = 0,
-                .ps_max = UINT32_MAX,
+                .ps_min = 16,
+                .ps_max = 8192,
             },
         },
     },

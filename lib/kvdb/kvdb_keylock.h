@@ -17,7 +17,7 @@ struct perfc_set;
 /* MTF_MOCK_DECL(kvdb_keylock) */
 
 merr_t
-kvdb_keylock_create(struct kvdb_keylock **handle_out, u32 num_tables, u64 num_entries);
+kvdb_keylock_create(struct kvdb_keylock **handle_out, u32 num_tables);
 
 void
 kvdb_keylock_destroy(struct kvdb_keylock *handle);
@@ -62,6 +62,14 @@ kvdb_ctxn_locks_destroy(struct kvdb_ctxn_locks *ctxn_locks_handle);
 /* MTF_MOCK */
 u64
 kvdb_ctxn_locks_end_seqno(struct kvdb_ctxn_locks *handle);
+
+/* MTF_MOCK */
+uint
+kvdb_ctxn_locks_locks2idx(struct kvdb_ctxn_locks *handle);
+
+/* MTF_MOCK */
+struct kvdb_ctxn_locks *
+kvdb_ctxn_locks_idx2locks(uint idx);
 
 /* MTF_MOCK */
 void

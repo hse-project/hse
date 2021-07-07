@@ -98,27 +98,17 @@ kvdb_ctxn_get_view_seqno(struct kvdb_ctxn *txn, u64 *view_seqno);
 
 /* MTF_MOCK */
 bool
-kvdb_ctxn_lock_inherit(
-    u64                      start_seq,
-    struct keylock_cb_rock * old_rock,
-    struct keylock_cb_rock **new_rock);
+kvdb_ctxn_lock_inherit(u64 start_seq, uint old_rock, uint *new_rock);
 
 /* Exclusively Lock a txn for reading (e.g., get, prefix probe)  */
 /* MTF_MOCK */
 merr_t
-kvdb_ctxn_trylock_read(
-    struct kvdb_ctxn   *handle,
-    u64                *view_seqno,
-    uintptr_t          *seqref);
+kvdb_ctxn_trylock_read(struct kvdb_ctxn *handle, uintptr_t *seqref, u64 *view_seqno);
 
 /* Exclusively Lock a txn for write (e.g., put, delete)  */
 /* MTF_MOCK */
 merr_t
-kvdb_ctxn_trylock_write(
-    struct kvdb_ctxn           *handle,
-    const struct kvs_ktuple    *kt,
-    uintptr_t                  *seqref,
-    u64                         keylock_seed);
+kvdb_ctxn_trylock_write(struct kvdb_ctxn *handle, uintptr_t *seqref, bool wcd, u64 hash);
 
 /* MTF_MOCK */
 void

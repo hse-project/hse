@@ -174,10 +174,6 @@ void
 cn_ref_put(struct cn *cn);
 
 /* MTF_MOCK */
-u64
-cn_hash_get(const struct cn *cn);
-
-/* MTF_MOCK */
 struct workqueue_struct *
 cn_get_io_wq(struct cn *cn);
 
