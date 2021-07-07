@@ -66,7 +66,6 @@ struct c0snr_set_entry {
     };
 };
 
-#define KVMS_GEN_INVALID             (~0UL)
 #define priv_to_c0snr_set_entry(ptr) container_of(ptr, struct c0snr_set_entry, cse_c0snr)
 
 /**
@@ -292,29 +291,16 @@ c0snr_get_cgen(uintptr_t *priv)
 }
 
 void
-c0snr_getref_lc(uintptr_t *priv)
-{
-    struct c0snr_set_entry *entry;
-
-    entry = priv_to_c0snr_set_entry(priv);
-    atomic_inc(&entry->cse_refcnt);
-}
-
-void
-c0snr_dropref_lc(uintptr_t *priv)
-{
-    struct c0snr_set_entry *entry;
-
-    entry = priv_to_c0snr_set_entry(priv);
-    atomic_dec(&entry->cse_refcnt);
-}
-
-void
 c0snr_getref(uintptr_t *priv, u64 c0ms_gen)
 {
     struct c0snr_set_entry *entry;
 
     entry = priv_to_c0snr_set_entry(priv);
+
+    if (c0ms_gen == KVMS_GEN_INVALID) {
+        atomic_inc(&entry->cse_refcnt);
+        return;
+    }
 
     if (entry->cse_kvms_gen != c0ms_gen) {
         atomic_inc(&entry->cse_refcnt);

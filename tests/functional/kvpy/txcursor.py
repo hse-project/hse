@@ -40,5 +40,8 @@ try:
         assert cursor.eof
 
         cursor.destroy()
+
+        # Exit without committing/aborting txn1
+
 finally:
     hse.fini()

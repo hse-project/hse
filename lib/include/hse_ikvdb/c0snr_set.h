@@ -10,6 +10,8 @@
 #include <hse_util/event_counter.h>
 #include <hse_util/atomic.h>
 
+#define KVMS_GEN_INVALID             (~0UL)
+
 struct kvdb_ctxn;
 struct c0snr_set;
 
@@ -61,9 +63,6 @@ c0snr_txn_is_active(uintptr_t *priv);
 void
 c0snr_getref(uintptr_t *priv, u64 c0ms_gen);
 
-void
-c0snr_getref_lc(uintptr_t *priv);
-
 /**
  * c0snr_getref() - get KVMS generation of last put that used this C0SNR
  * @priv:     c0snr
@@ -79,9 +78,6 @@ c0snr_get_cgen(uintptr_t *priv);
  */
 void
 c0snr_dropref(uintptr_t *priv);
-
-void
-c0snr_dropref_lc(uintptr_t *priv);
 
 /**
  * c0snr_droprefv() - drop all references in the given vector of C0SNRs

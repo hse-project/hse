@@ -2650,7 +2650,7 @@ MTF_DEFINE_UTEST_PREPOST(c0sk_test, c0_cursor_ptombs, no_fail_pre, no_fail_post)
     err = c0sk_cursor_seek(cur, NULL, 0, NULL);
     ASSERT_EQ(0, err);
 
-    /* expect ptomb (meant for cn )*/
+    /* expect ptomb (meant for lc and cn )*/
     err = c0sk_cursor_read(cur, &elem, &eof);
     ASSERT_EQ(0, err);
     ASSERT_EQ(false, eof);

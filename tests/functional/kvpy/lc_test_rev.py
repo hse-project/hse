@@ -17,43 +17,42 @@ def separate_keys(kvdb: hse.Kvdb, kvs: hse.Kvs):
     with kvdb.transaction() as t:
         kvs.put(b"ab03", b"val-c0", txn=t)
 
-    with kvdb.transaction() as t:
-        # Cursor
-        with kvs.cursor(filt=b"ab", txn=t, flags=hse.CursorFlag.REVERSE) as c:
-            # Read all keys
-            assert c.read() == (b"ab03", b"val-c0")
-            assert c.read() == (b"ab02", b"val-lc")
-            assert c.read() == (b"ab01", b"val-cn")
-            assert c.read() == (None, None) and c.eof == True
+    # Cursor
+    with kvs.cursor(filt=b"ab", flags=hse.CursorFlag.REVERSE) as c:
+        # Read all keys
+        assert c.read() == (b"ab03", b"val-c0")
+        assert c.read() == (b"ab02", b"val-lc")
+        assert c.read() == (b"ab01", b"val-cn")
+        assert c.read() == (None, None) and c.eof == True
 
-            # Seek, read
-            c.seek(b"ab03")
-            assert c.read() == (b"ab03", b"val-c0")
-            c.seek(b"ab02")
-            assert c.read() == (b"ab02", b"val-lc")
-            c.seek(b"ab01")
-            assert c.read() == (b"ab01", b"val-cn")
+        # Seek, read
+        c.seek(b"ab03")
+        assert c.read() == (b"ab03", b"val-c0")
+        c.seek(b"ab02")
+        assert c.read() == (b"ab02", b"val-lc")
+        c.seek(b"ab01")
+        assert c.read() == (b"ab01", b"val-cn")
 
-            # Read, update, read
-            c.seek(b"ab03")
-            assert c.read() == (b"ab03", b"val-c0")
-            ##c.update()
-            assert c.read() == (b"ab02", b"val-lc")
-            ##c.update()
-            assert c.read() == (b"ab01", b"val-cn")
-            ##c.update()
-            assert c.read() == (None, None) and c.eof == True
+        # Read, update, read
+        c.seek(b"ab03")
+        assert c.read() == (b"ab03", b"val-c0")
+        c.update_view()
+        assert c.read() == (b"ab02", b"val-lc")
+        c.update_view()
+        assert c.read() == (b"ab01", b"val-cn")
+        c.update_view()
+        assert c.read() == (None, None) and c.eof == True
 
-            # Seek, update, read
-            c.seek(b"ab03")
-            ##c.update()
-            assert c.read() == (b"ab03", b"val-c0")
-            c.seek(b"ab02")
-            ##c.update()
-            assert c.read() == (b"ab02", b"val-lc")
-            c.seek(b"ab01")
-            ##c.update()
-            assert c.read() == (b"ab01", b"val-cn")
+        # Seek, update, read
+        c.seek(b"ab03")
+        c.update_view()
+        assert c.read() == (b"ab03", b"val-c0")
+        c.seek(b"ab02")
+        c.update_view()
+        assert c.read() == (b"ab02", b"val-lc")
+        c.seek(b"ab01")
+        c.update_view()
+        assert c.read() == (b"ab01", b"val-cn")
 
 
 def duplicate_lc_cn(kvdb: hse.Kvdb, kvs: hse.Kvs, cursor_sync: bool=False):
@@ -67,46 +66,45 @@ def duplicate_lc_cn(kvdb: hse.Kvdb, kvs: hse.Kvs, cursor_sync: bool=False):
     with kvdb.transaction() as t:
         kvs.put(b"ab02", b"val-c0", txn=t)
 
-    with kvdb.transaction() as t:
-        # Cursor
-        with kvs.cursor(filt=b"ab", txn=t, flags=hse.CursorFlag.REVERSE) as c:
-            if cursor_sync:
-                kvdb.sync()
+    # Cursor
+    with kvs.cursor(filt=b"ab", flags=hse.CursorFlag.REVERSE) as c:
+        if cursor_sync:
+            kvdb.sync()
 
-            # Read all keys
-            assert c.read() == (b"ab02", b"val-c0")
-            assert c.read() == (b"ab01", b"val-lc")
-            assert c.read() == (None, None) and c.eof == True
+        # Read all keys
+        assert c.read() == (b"ab02", b"val-c0")
+        assert c.read() == (b"ab01", b"val-lc")
+        assert c.read() == (None, None) and c.eof == True
 
-            # Seek, read
-            c.seek(b"ab03")
-            assert c.read() == (b"ab02", b"val-c0")
-            c.seek(b"ab02")
-            assert c.read() == (b"ab02", b"val-c0")
-            c.seek(b"ab01")
-            assert c.read() == (b"ab01", b"val-lc")
-            c.seek(b"ab00")
-            assert c.read() == (None, None) and c.eof == True
+        # Seek, read
+        c.seek(b"ab03")
+        assert c.read() == (b"ab02", b"val-c0")
+        c.seek(b"ab02")
+        assert c.read() == (b"ab02", b"val-c0")
+        c.seek(b"ab01")
+        assert c.read() == (b"ab01", b"val-lc")
+        c.seek(b"ab00")
+        assert c.read() == (None, None) and c.eof == True
 
-            # Read, update, read
-            c.seek(b"ab02")
-            ##c.update()
-            assert c.read() == (b"ab02", b"val-c0")
-            ##c.update()
-            assert c.read() == (b"ab01", b"val-lc")
-            ##c.update()
-            assert c.read() == (None, None) and c.eof == True
+        # Read, update, read
+        c.seek(b"ab02")
+        c.update_view()
+        assert c.read() == (b"ab02", b"val-c0")
+        c.update_view()
+        assert c.read() == (b"ab01", b"val-lc")
+        c.update_view()
+        assert c.read() == (None, None) and c.eof == True
 
-            # Seek, update, read
-            c.seek(b"ab02")
-            ##c.update()
-            assert c.read() == (b"ab02", b"val-c0")
-            c.seek(b"ab01")
-            ##c.update()
-            assert c.read() == (b"ab01", b"val-lc")
-            c.seek(b"ab00")
-            ##c.update()
-            assert c.read() == (None, None) and c.eof == True
+        # Seek, update, read
+        c.seek(b"ab02")
+        c.update_view()
+        assert c.read() == (b"ab02", b"val-c0")
+        c.seek(b"ab01")
+        c.update_view()
+        assert c.read() == (b"ab01", b"val-lc")
+        c.seek(b"ab00")
+        c.update_view()
+        assert c.read() == (None, None) and c.eof == True
 
 
 def duplicate_c0_lc(kvdb: hse.Kvdb, kvs: hse.Kvs, cursor_sync: bool=False):
@@ -120,45 +118,44 @@ def duplicate_c0_lc(kvdb: hse.Kvdb, kvs: hse.Kvs, cursor_sync: bool=False):
     with kvdb.transaction() as t:
         kvs.put(b"ab02", b"val-c0", txn=t)
 
-    with kvdb.transaction() as t:
-        with kvs.cursor(filt=b"ab", txn=t, flags=hse.CursorFlag.REVERSE) as c:
-            if cursor_sync:
-                kvdb.sync()
+    with kvs.cursor(filt=b"ab", flags=hse.CursorFlag.REVERSE) as c:
+        if cursor_sync:
+            kvdb.sync()
 
-            # Read all keys
-            assert c.read() == (b"ab02", b"val-c0")
-            assert c.read() == (b"ab01", b"val-cn")
-            assert c.read() == (None, None) and c.eof == True
+        # Read all keys
+        assert c.read() == (b"ab02", b"val-c0")
+        assert c.read() == (b"ab01", b"val-cn")
+        assert c.read() == (None, None) and c.eof == True
 
-            # Seek, read
-            c.seek(b"ab03")
-            assert c.read() == (b"ab02", b"val-c0")
-            c.seek(b"ab02")
-            assert c.read() == (b"ab02", b"val-c0")
-            c.seek(b"ab01")
-            assert c.read() == (b"ab01", b"val-cn")
-            c.seek(b"ab00")
-            assert c.read() == (None, None) and c.eof == True
+        # Seek, read
+        c.seek(b"ab03")
+        assert c.read() == (b"ab02", b"val-c0")
+        c.seek(b"ab02")
+        assert c.read() == (b"ab02", b"val-c0")
+        c.seek(b"ab01")
+        assert c.read() == (b"ab01", b"val-cn")
+        c.seek(b"ab00")
+        assert c.read() == (None, None) and c.eof == True
 
-            # Read, update, read
-            c.seek(b"ab03")
-            ##c.update()
-            assert c.read() == (b"ab02", b"val-c0")
-            ##c.update()
-            assert c.read() == (b"ab01", b"val-cn")
-            ##c.update()
-            assert c.read() == (None, None) and c.eof == True
+        # Read, update, read
+        c.seek(b"ab03")
+        c.update_view()
+        assert c.read() == (b"ab02", b"val-c0")
+        c.update_view()
+        assert c.read() == (b"ab01", b"val-cn")
+        c.update_view()
+        assert c.read() == (None, None) and c.eof == True
 
-            # Seek, update, read
-            c.seek(b"ab02")
-            ##c.update()
-            assert c.read() == (b"ab02", b"val-c0")
-            c.seek(b"ab01")
-            ##c.update()
-            assert c.read() == (b"ab01", b"val-cn")
-            c.seek(b"ab00")
-            ##c.update()
-            assert c.read() == (None, None) and c.eof == True
+        # Seek, update, read
+        c.seek(b"ab02")
+        c.update_view()
+        assert c.read() == (b"ab02", b"val-c0")
+        c.seek(b"ab01")
+        c.update_view()
+        assert c.read() == (b"ab01", b"val-cn")
+        c.seek(b"ab00")
+        c.update_view()
+        assert c.read() == (None, None) and c.eof == True
 
 
 def tombs_c0_lc(kvdb: hse.Kvdb, kvs: hse.Kvs, cursor_sync: bool=False):
@@ -173,37 +170,36 @@ def tombs_c0_lc(kvdb: hse.Kvdb, kvs: hse.Kvs, cursor_sync: bool=False):
         kvs.delete(b"ab02", txn=t)
 
     # Cursor
-    with kvdb.transaction() as t:
-        with kvs.cursor(filt=b"ab", txn=t, flags=hse.CursorFlag.REVERSE) as c:
-            if cursor_sync:
-                kvdb.sync()
+    with kvs.cursor(filt=b"ab", flags=hse.CursorFlag.REVERSE) as c:
+        if cursor_sync:
+            kvdb.sync()
 
-            # Read all keys
-            assert c.read() == (b"ab01", b"val-cn")
-            assert c.read() == (None, None) and c.eof == True
+        # Read all keys
+        assert c.read() == (b"ab01", b"val-cn")
+        assert c.read() == (None, None) and c.eof == True
 
-            # Seek, read
-            c.seek(b"ab02")
-            assert c.read() == (b"ab01", b"val-cn")
-            c.seek(b"ab01")
-            assert c.read() == (b"ab01", b"val-cn")
-            c.seek(b"ab00")
-            assert c.read() == (None, None) and c.eof == True
+        # Seek, read
+        c.seek(b"ab02")
+        assert c.read() == (b"ab01", b"val-cn")
+        c.seek(b"ab01")
+        assert c.read() == (b"ab01", b"val-cn")
+        c.seek(b"ab00")
+        assert c.read() == (None, None) and c.eof == True
 
-            # Read, update, read
-            c.seek(b"ab01")
-            ##c.update()
-            assert c.read() == (b"ab01", b"val-cn")
-            ##c.update()
-            assert c.read() == (None, None) and c.eof == True
+        # Read, update, read
+        c.seek(b"ab01")
+        c.update_view()
+        assert c.read() == (b"ab01", b"val-cn")
+        c.update_view()
+        assert c.read() == (None, None) and c.eof == True
 
-            # Seek, update, read
-            c.seek(b"ab01")
-            ##c.update()
-            assert c.read() == (b"ab01", b"val-cn")
-            c.seek(b"ab00")
-            ##c.update()
-            assert c.read() == (None, None) and c.eof == True
+        # Seek, update, read
+        c.seek(b"ab01")
+        c.update_view()
+        assert c.read() == (b"ab01", b"val-cn")
+        c.seek(b"ab00")
+        c.update_view()
+        assert c.read() == (None, None) and c.eof == True
 
 
 def tombs_lc_cn(kvdb: hse.Kvdb, kvs: hse.Kvs, cursor_sync: bool=False):
@@ -217,36 +213,35 @@ def tombs_lc_cn(kvdb: hse.Kvdb, kvs: hse.Kvs, cursor_sync: bool=False):
     with kvdb.transaction() as t:
         kvs.put(b"ab02", b"val-c0", txn=t)
 
-    with kvdb.transaction() as t:
-        # Cursor
-        with kvs.cursor(filt=b"ab", txn=t, flags=hse.CursorFlag.REVERSE) as c:
-            if cursor_sync:
-                kvdb.sync()
+    # Cursor
+    with kvs.cursor(filt=b"ab", flags=hse.CursorFlag.REVERSE) as c:
+        if cursor_sync:
+            kvdb.sync()
 
-            # Read all keys
-            assert c.read() == (b"ab02", b"val-c0")
-            assert c.read() == (None, None) and c.eof == True
+        # Read all keys
+        assert c.read() == (b"ab02", b"val-c0")
+        assert c.read() == (None, None) and c.eof == True
 
-            # Seek, read
-            c.seek(b"ab03")
-            assert c.read() == (b"ab02", b"val-c0")
-            c.seek(b"ab02")
-            assert c.read() == (b"ab02", b"val-c0")
+        # Seek, read
+        c.seek(b"ab03")
+        assert c.read() == (b"ab02", b"val-c0")
+        c.seek(b"ab02")
+        assert c.read() == (b"ab02", b"val-c0")
 
-            # Read, update, read
-            c.seek(b"ab03")
-            ##c.update()
-            assert c.read() == (b"ab02", b"val-c0")
-            ##c.update()
-            assert c.read() == (None, None) and c.eof == True
+        # Read, update, read
+        c.seek(b"ab03")
+        c.update_view()
+        assert c.read() == (b"ab02", b"val-c0")
+        c.update_view()
+        assert c.read() == (None, None) and c.eof == True
 
-            # Seek, update, read
-            c.seek(b"ab03")
-            ##c.update()
-            assert c.read() == (b"ab02", b"val-c0")
-            c.seek(b"ab02")
-            ##c.update()
-            assert c.read() == (b"ab02", b"val-c0")
+        # Seek, update, read
+        c.seek(b"ab03")
+        c.update_view()
+        assert c.read() == (b"ab02", b"val-c0")
+        c.seek(b"ab02")
+        c.update_view()
+        assert c.read() == (b"ab02", b"val-c0")
 
 
 def ptombs_c0_lc(kvdb: hse.Kvdb, kvs: hse.Kvs, cursor_sync: bool=False):
@@ -261,36 +256,35 @@ def ptombs_c0_lc(kvdb: hse.Kvdb, kvs: hse.Kvs, cursor_sync: bool=False):
         kvs.prefix_delete(b"ab", txn=t)
 
     # Cursor
-    with kvdb.transaction() as t:
-        with kvs.cursor(filt=b"ab", txn=t, flags=hse.CursorFlag.REVERSE) as c:
-            if cursor_sync:
-                kvdb.sync()
+    with kvs.cursor(filt=b"ab", flags=hse.CursorFlag.REVERSE) as c:
+        if cursor_sync:
+            kvdb.sync()
 
-            # Read all keys
-            assert c.read() == (None, None) and c.eof == True
+        # Read all keys
+        assert c.read() == (None, None) and c.eof == True
 
-            # Seek, read
-            c.seek(b"ab00")
-            assert c.read() == (None, None) and c.eof == True
-            c.seek(b"ab01")
-            assert c.read() == (None, None) and c.eof == True
-            c.seek(b"ab02")
-            assert c.read() == (None, None) and c.eof == True
-            c.seek(b"ab03")
-            assert c.read() == (None, None) and c.eof == True
+        # Seek, read
+        c.seek(b"ab00")
+        assert c.read() == (None, None) and c.eof == True
+        c.seek(b"ab01")
+        assert c.read() == (None, None) and c.eof == True
+        c.seek(b"ab02")
+        assert c.read() == (None, None) and c.eof == True
+        c.seek(b"ab03")
+        assert c.read() == (None, None) and c.eof == True
 
-            # Read, update, read
-            c.seek(b"ab01")
-            ##c.update()
-            assert c.read() == (None, None) and c.eof == True
+        # Read, update, read
+        c.seek(b"ab01")
+        c.update_view()
+        assert c.read() == (None, None) and c.eof == True
 
-            # Seek, update, read
-            c.seek(b"ab01")
-            ##c.update()
-            assert c.read() == (None, None) and c.eof == True
-            c.seek(b"ab02")
-            ##c.update()
-            assert c.read() == (None, None) and c.eof == True
+        # Seek, update, read
+        c.seek(b"ab01")
+        c.update_view()
+        assert c.read() == (None, None) and c.eof == True
+        c.seek(b"ab02")
+        c.update_view()
+        assert c.read() == (None, None) and c.eof == True
 
 
 def ptombs_lc_cn(kvdb: hse.Kvdb, kvs: hse.Kvs, cursor_sync: bool=False):
@@ -304,39 +298,38 @@ def ptombs_lc_cn(kvdb: hse.Kvdb, kvs: hse.Kvs, cursor_sync: bool=False):
     with kvdb.transaction() as t:
         kvs.put(b"ab02", b"val-c0", txn=t)
 
-    with kvdb.transaction() as t:
-        # Cursor
-        with kvs.cursor(filt=b"ab", flags=hse.CursorFlag.REVERSE) as c:
-            if cursor_sync:
-                kvdb.sync()
+    # Cursor
+    with kvs.cursor(filt=b"ab", flags=hse.CursorFlag.REVERSE) as c:
+        if cursor_sync:
+            kvdb.sync()
 
-            # Read all keys
-            assert c.read() == (b"ab02", b"val-c0")
-            x = c.read()
-            print(x)
-            assert x == (None, None) and c.eof == True
-            # assert c.read() == (None, None) and c.eof == True
+        # Read all keys
+        assert c.read() == (b"ab02", b"val-c0")
+        x = c.read()
+        print(x)
+        assert x == (None, None) and c.eof == True
+        # assert c.read() == (None, None) and c.eof == True
 
-            # Seek, read
-            c.seek(b"ab03")
-            assert c.read() == (b"ab02", b"val-c0")
-            c.seek(b"ab02")
-            assert c.read() == (b"ab02", b"val-c0")
+        # Seek, read
+        c.seek(b"ab03")
+        assert c.read() == (b"ab02", b"val-c0")
+        c.seek(b"ab02")
+        assert c.read() == (b"ab02", b"val-c0")
 
-            # Read, update, read
-            c.seek(b"ab03")
-            ##c.update()
-            assert c.read() == (b"ab02", b"val-c0")
-            ##c.update()
-            assert c.read() == (None, None) and c.eof == True
+        # Read, update, read
+        c.seek(b"ab03")
+        c.update_view()
+        assert c.read() == (b"ab02", b"val-c0")
+        c.update_view()
+        assert c.read() == (None, None) and c.eof == True
 
-            # Seek, update, read
-            c.seek(b"ab03")
-            ##c.update()
-            assert c.read() == (b"ab02", b"val-c0")
-            c.seek(b"ab02")
-            ##c.update()
-            assert c.read() == (b"ab02", b"val-c0")
+        # Seek, update, read
+        c.seek(b"ab03")
+        c.update_view()
+        assert c.read() == (b"ab02", b"val-c0")
+        c.seek(b"ab02")
+        c.update_view()
+        assert c.read() == (b"ab02", b"val-c0")
 
 
 hse.init()

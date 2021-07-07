@@ -170,7 +170,7 @@ bonsai_iter_next(struct element_source *es, void **element)
          * If val is set (non-NULL), check if seqno is larger than the horizon.
          */
         state = seqnoref_to_seqno(val->bv_seqnoref, &seqno);
-        if (state == HSE_SQNREF_STATE_DEFINED && seqno <= iter->bi_seq_horizon)
+        if (state == HSE_SQNREF_STATE_DEFINED && seqno < iter->bi_seq_horizon)
             val = NULL;
 
     } while (!val);
