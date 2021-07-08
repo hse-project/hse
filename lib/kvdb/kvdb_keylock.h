@@ -41,11 +41,11 @@ kvdb_keylock_lock(
     u64                     hash,
     u64                     start_seq);
 
-void
-kvdb_ctxn_locks_fini(void);
+merr_t
+kvdb_ctxn_locks_init(void);
 
 void
-kvdb_ctxn_locks_init(void);
+kvdb_ctxn_locks_fini(void);
 
 /* MTF_MOCK */
 u64

@@ -149,7 +149,6 @@ static_assert(sizeof(struct ctxn_locks_slab) < CTXN_LOCKS_IMPL_CACHE_SZ / 16,
 static struct kmem_cache *ctxn_locks_impl_cache  HSE_READ_MOSTLY;
 static struct kmem_cache *ctxn_locks_slab_cache  HSE_READ_MOSTLY;
 static void **ctxn_locks_ptrv  HSE_READ_MOSTLY;
-static atomic_t ctxn_locks_init_ref  HSE_READ_MOSTLY;
 
 /* clang-format on */
 
@@ -616,8 +615,8 @@ kvdb_ctxn_locks_reserve(struct kvdb_ctxn_locks_impl *locks)
 static void
 kvdb_ctxn_locks_release(struct kvdb_ctxn_locks_impl *locks)
 {
-    while (!atomic_ptr_cas(&ctxn_locks_ptrv[locks->ctxn_locks_idx], locks, NULL))
-        assert(0);
+    if (!atomic_ptr_cas(&ctxn_locks_ptrv[locks->ctxn_locks_idx], locks, NULL))
+        abort();
 }
 
 uint
@@ -703,32 +702,32 @@ kvdb_ctxn_locks_end_seqno(struct kvdb_ctxn_locks *handle)
     return impl->ctxn_locks_end_seqno;
 }
 
-void
+HSE_COLD merr_t
 kvdb_ctxn_locks_init(void)
 {
     struct kmem_cache *zone;
 
-    if (atomic_inc_return(&ctxn_locks_init_ref) > 1)
-        return;
+    assert(!ctxn_locks_ptrv);
 
     zone = kmem_cache_create("ctxn_locks_impl", CTXN_LOCKS_IMPL_CACHE_SZ, 0, 0, NULL);
     ctxn_locks_impl_cache = zone;
-    assert(zone); /* [HSE_REVISIT] */
 
     zone = kmem_cache_create("ctxn_locks_slab", CTXN_LOCKS_SLAB_CACHE_SZ, 0, 0, NULL);
     ctxn_locks_slab_cache = zone;
-    assert(zone); /* [HSE_REVISIT] */
 
     ctxn_locks_ptrv = calloc(CTXN_LOCKS_MAX, sizeof(*ctxn_locks_ptrv));
-    assert(ctxn_locks_ptrv);
+
+    if (!ctxn_locks_impl_cache || !ctxn_locks_slab_cache || !ctxn_locks_ptrv) {
+        kvdb_ctxn_locks_fini();
+        return merr(ENOMEM);
+    }
+
+    return 0;
 }
 
-void
+HSE_COLD void
 kvdb_ctxn_locks_fini(void)
 {
-    if (atomic_dec_return(&ctxn_locks_init_ref) > 0)
-        return;
-
     kmem_cache_destroy(ctxn_locks_impl_cache);
     ctxn_locks_impl_cache = NULL;
 
@@ -736,6 +735,7 @@ kvdb_ctxn_locks_fini(void)
     ctxn_locks_slab_cache = NULL;
 
     free(ctxn_locks_ptrv);
+    ctxn_locks_ptrv = NULL;
 }
 
 #if HSE_MOCKING

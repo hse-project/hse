@@ -100,15 +100,20 @@ kvdb_ctxn_get_view_seqno(struct kvdb_ctxn *txn, u64 *view_seqno);
 bool
 kvdb_ctxn_lock_inherit(u64 start_seq, uint old_rock, uint *new_rock);
 
-/* Exclusively Lock a txn for reading (e.g., get, prefix probe)  */
+/* Exclusively lock a txn for reading (e.g., get, prefix probe)  */
 /* MTF_MOCK */
 merr_t
 kvdb_ctxn_trylock_read(struct kvdb_ctxn *handle, uintptr_t *seqref, u64 *view_seqno);
 
-/* Exclusively Lock a txn for write (e.g., put, delete)  */
+/* Exclusively lock a txn for write (e.g., put, delete)  */
 /* MTF_MOCK */
 merr_t
-kvdb_ctxn_trylock_write(struct kvdb_ctxn *handle, uintptr_t *seqref, bool wcd, u64 hash);
+kvdb_ctxn_trylock_write(
+    struct kvdb_ctxn *handle,
+    uintptr_t        *seqref,
+    u64              *view_seqno,
+    bool              needkeylock,
+    u64               hash);
 
 /* MTF_MOCK */
 void

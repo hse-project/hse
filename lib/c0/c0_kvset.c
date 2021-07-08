@@ -23,9 +23,9 @@
 /* The minimum c0 cheap size should be large enough to accomodate
  * at least one max-sized kvs value plus associated overhead.
  */
-static_assert(HSE_C0_CHEAP_SZ_MIN > HSE_KVS_VLEN_MAX + (1ul << 20), "C0_CHEAP_SZ_MIN too small");
-static_assert(HSE_C0_CHEAP_SZ_DFLT > HSE_C0_CHEAP_SZ_MIN, "C0_CHEAP_SZ_DFLT too small");
-static_assert(HSE_C0_CHEAP_SZ_MAX > HSE_C0_CHEAP_SZ_DFLT, "C0_CHEAP_SZ_MAX too small");
+static_assert(HSE_C0_CHEAP_SZ_MIN >= HSE_KVS_VLEN_MAX + (1ul << 20), "C0_CHEAP_SZ_MIN too small");
+static_assert(HSE_C0_CHEAP_SZ_DFLT >= HSE_C0_CHEAP_SZ_MIN, "C0_CHEAP_SZ_DFLT too small");
+static_assert(HSE_C0_CHEAP_SZ_MAX >= HSE_C0_CHEAP_SZ_DFLT, "C0_CHEAP_SZ_MAX too small");
 
 /**
  * struct c0kvs_ccache - cache of initialized cheap-based c0kvs objects

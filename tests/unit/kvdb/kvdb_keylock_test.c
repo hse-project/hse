@@ -40,23 +40,6 @@ mapi_post(struct mtf_test_info *ti)
 
 MTF_BEGIN_UTEST_COLLECTION(kvdb_keylock_test)
 
-/* We should be able to make balanced calls to kvdb keylock
- * init/fini functions with no ill effects.
- */
-MTF_DEFINE_UTEST(kvdb_keylock_test, kvdb_keylock_init)
-{
-    int i;
-
-    kvdb_ctxn_locks_init();
-
-    for (i = 0; i < 3; ++i) {
-        kvdb_ctxn_locks_init();
-        kvdb_ctxn_locks_fini();
-    }
-
-    kvdb_ctxn_locks_fini();
-}
-
 MTF_DEFINE_UTEST_PREPOST(kvdb_keylock_test, kvdb_keylock_alloc, mapi_pre, mapi_post)
 {
     struct kvdb_keylock *handle;

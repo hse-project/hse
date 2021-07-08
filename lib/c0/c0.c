@@ -58,27 +58,32 @@ struct c0_impl {
     struct kvs_rparams *c0_rp; /* not owned by c0 */
 };
 
-merr_t
+HSE_COLD merr_t
 c0_init(void)
 {
+    merr_t err;
+
     rcu_init();
     c0sk_init();
     c0kvs_init();
     c0kvms_init();
-    kvdb_ctxn_locks_init();
+
+    err = kvdb_ctxn_locks_init();
+    if (err) {
+        c0_fini();
+        return err;
+    }
 
     return 0;
 }
 
-void
+HSE_COLD void
 c0_fini(void)
 {
-    /* [HSE_REVISIT] */
-
-    c0sk_fini();
-    c0kvs_fini();
-    c0kvms_fini();
     kvdb_ctxn_locks_fini();
+    c0kvms_fini();
+    c0kvs_fini();
+    c0sk_fini();
 }
 
 s32

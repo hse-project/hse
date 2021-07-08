@@ -111,8 +111,8 @@ ctxn_trylock(struct kvdb_ctxn_impl *ctxn)
 static HSE_ALWAYS_INLINE void
 ctxn_unlock(struct kvdb_ctxn_impl *ctxn)
 {
-    while (!atomic_cas(&ctxn->ctxn_lock, 1, 0))
-        assert(0);
+    if (!atomic_cas(&ctxn->ctxn_lock, 1, 0))
+        abort();
 }
 
 static void
@@ -881,10 +881,11 @@ kvdb_ctxn_trylock_read(
 
 merr_t
 kvdb_ctxn_trylock_write(
-    struct kvdb_ctxn           *handle,
-    uintptr_t                  *seqref,
-    bool                        wcd,
-    u64                         hash)
+    struct kvdb_ctxn *handle,
+    uintptr_t        *seqref,
+    u64              *view_seqno,
+    bool              needkeylock,
+    u64               hash)
 {
     merr_t                  err = 0;
     struct kvdb_ctxn_impl  *ctxn;
@@ -911,7 +912,7 @@ kvdb_ctxn_trylock_write(
             goto errout;
     }
 
-    if (HSE_LIKELY(wcd)) {
+    if (HSE_LIKELY(needkeylock)) {
         err = kvdb_keylock_lock(
             ctxn->ctxn_kvdb_keylock, ctxn->ctxn_locks_handle, hash, ctxn->ctxn_view_seqno);
 
@@ -922,6 +923,7 @@ kvdb_ctxn_trylock_write(
     if (ctxn->ctxn_bind)
         kvdb_ctxn_bind_invalidate(ctxn->ctxn_bind);
 
+    *view_seqno = ctxn->ctxn_view_seqno;
     *seqref = ctxn->ctxn_seqref;
 
   errout:

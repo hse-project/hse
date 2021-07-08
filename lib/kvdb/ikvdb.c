@@ -1872,6 +1872,9 @@ ikvdb_kvs_put(
     if (ev(err))
         return err;
 
+    if (flags & HSE_FLAG_PUT_PRIORITY || parent->ikdb_rp.throttle_disable)
+        parent = NULL;
+
     ktbuf = *kt;
     vtbuf = *vt;
 
@@ -1880,9 +1883,6 @@ ikvdb_kvs_put(
 
     vlen = kvs_vtuple_vlen(vt);
     clen = kvs_vtuple_clen(vt);
-
-    if (!(flags & HSE_FLAG_PUT_PRIORITY || parent->ikdb_rp.throttle_disable))
-        ikvdb_throttle(parent, kt->kt_len + (clen ? clen : vlen));
 
     vbufsz = tls_vbufsz;
     vbuf = NULL;
@@ -1916,6 +1916,9 @@ ikvdb_kvs_put(
 
     if (vbuf && vbuf != tls_vbuf)
         vlb_free(vbuf, (vbufsz > VLB_ALLOCSZ_MAX) ? vbufsz : clen);
+
+    if (parent)
+        ikvdb_throttle(parent, kt->kt_len + (clen ? clen : vlen));
 
     return err;
 }

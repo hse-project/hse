@@ -265,14 +265,14 @@ merr_t
 wal_put(
     struct wal *wal,
     struct ikvs *kvs,
-    struct hse_kvdb_opspec *os,
     struct kvs_ktuple *kt,
     struct kvs_vtuple *vt,
+    uint64_t txid,
     struct wal_record *recout)
 {
     const size_t kvalign = alignof(uint64_t);
     struct wal_rec_omf *rec;
-    uint64_t rid, txid = 0;
+    uint64_t rid;
     size_t klen, vlen, rlen, kvlen, len;
     char *kvdata;
     uint rtype = WAL_RT_NONTX;
@@ -298,17 +298,8 @@ wal_put(
     recout->len = len;
 
     rid = atomic64_inc_return(&wal->rid);
-    rtype = kvdb_kop_is_txn(os) ? WAL_RT_TX : WAL_RT_NONTX;
+    rtype = (txid > 0) ? WAL_RT_TX : WAL_RT_NONTX;
     wal_rechdr_pack(rtype, rid, kvlen, rec);
-
-    if (rtype == WAL_RT_TX) {
-        err = kvdb_ctxn_get_view_seqno(kvdb_ctxn_h2h(os->kop_txn), &txid);
-        if (err) { /* recoverable error */
-            wal_bufset_finish(wal->wbs, recout->wbidx, len, 0, 0);
-            wal_rec_finish(recout, 0, 0);
-            return err;
-        }
-    }
 
     wal_rec_pack(WAL_OP_PUT, kvs->ikv_cnid, txid, klen, vt->vt_xlen, rec);
 
@@ -330,14 +321,14 @@ static merr_t
 wal_del_impl(
     struct wal *wal,
     struct ikvs *kvs,
-    struct hse_kvdb_opspec *os,
     struct kvs_ktuple *kt,
-    bool prefix,
-    struct wal_record *recout)
+    uint64_t txid,
+    struct wal_record *recout,
+    bool prefix)
 {
     const size_t kalign = alignof(uint64_t);
     struct wal_rec_omf *rec;
-    uint64_t rid, txid = 0;
+    uint64_t rid;
     size_t klen, rlen, kalen, len;
     char *kdata;
     uint rtype;
@@ -362,17 +353,8 @@ wal_del_impl(
     recout->len = len;
 
     rid = atomic64_inc_return(&wal->rid);
-    rtype = kvdb_kop_is_txn(os) ? WAL_RT_TX : WAL_RT_NONTX;
+    rtype = (txid > 0) ? WAL_RT_TX : WAL_RT_NONTX;
     wal_rechdr_pack(rtype, rid, kalen, rec);
-
-    if (rtype == WAL_RT_TX) {
-        err = kvdb_ctxn_get_view_seqno(kvdb_ctxn_h2h(os->kop_txn), &txid);
-        if (err) {
-            wal_bufset_finish(wal->wbs, recout->wbidx, len, 0, 0);
-            wal_rec_finish(recout, 0, 0);
-            return err;
-        }
-    }
 
     wal_rec_pack(prefix ? WAL_OP_PDEL : WAL_OP_DEL, kvs->ikv_cnid, txid, klen, 0, rec);
 
@@ -388,22 +370,22 @@ merr_t
 wal_del(
     struct wal *wal,
     struct ikvs *kvs,
-    struct hse_kvdb_opspec *os,
     struct kvs_ktuple *kt,
+    uint64_t txid,
     struct wal_record *recout)
 {
-    return wal_del_impl(wal, kvs, os, kt, false, recout);
+    return wal_del_impl(wal, kvs, kt, txid, recout, false);
 }
 
 merr_t
 wal_del_pfx(
     struct wal *wal,
     struct ikvs *kvs,
-    struct hse_kvdb_opspec *os,
     struct kvs_ktuple *kt,
+    uint64_t txid,
     struct wal_record *recout)
 {
-    return wal_del_impl(wal, kvs, os, kt, true, recout);
+    return wal_del_impl(wal, kvs, kt, txid, recout, true);
 }
 
 static merr_t

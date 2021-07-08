@@ -60,9 +60,9 @@ merr_t
 wal_put(
     struct wal *wal,
     struct ikvs *kvs,
-    struct hse_kvdb_opspec *os,
     struct kvs_ktuple *kt,
     struct kvs_vtuple *vt,
+    uint64_t txid,
     struct wal_record *recout);
 
 /* MTF_MOCK */
@@ -70,8 +70,8 @@ merr_t
 wal_del(
     struct wal *wal,
     struct ikvs *kvs,
-    struct hse_kvdb_opspec *os,
     struct kvs_ktuple *kt,
+    uint64_t txid,
     struct wal_record *recout);
 
 /* MTF_MOCK */
@@ -79,8 +79,8 @@ merr_t
 wal_del_pfx(
     struct wal *wal,
     struct ikvs *kvs,
-    struct hse_kvdb_opspec *os,
     struct kvs_ktuple *kt,
+    uint64_t txid,
     struct wal_record *recout);
 
 /* MTF_MOCK */

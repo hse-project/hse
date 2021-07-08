@@ -299,13 +299,13 @@ kvs_put(
     size_t            sfx_len;
     size_t            hashlen;
     u64               tstart;
+    u64               seqno;
     merr_t            err;
 
     tstart = perfc_lat_start(pkvsl_pc);
 
     sfx_len = kvs->ikv_sfx_len;
     hashlen = kt->kt_len - sfx_len;
-    kt->kt_hash = key_hash64(kt->kt_data, hashlen);
 
     /* Assert that either
      *  1. This is NOT a suffixed tree, OR
@@ -313,17 +313,25 @@ kvs_put(
      */
     if (HSE_UNLIKELY(sfx_len && kt->kt_len < sfx_len + kvs->ikv_pfx_len)) {
 #ifndef HSE_BUILD_RELEASE
-        hse_log(
-            HSE_ERR "%s is a suffixed kvs. Keys must be at least "
-                    "pfx_len(%u) + sfx_len(%u) bytes long.",
-            kvs->ikv_kvs_name,
-            kvs->ikv_pfx_len,
-            kvs->ikv_sfx_len);
+        hse_log(HSE_ERR "%s: suffixed kvs %s %lu min key length is pfx_len(%u) + sfx_len(%u)",
+                __func__,
+                kvs->ikv_kvs_name,
+                kvs->ikv_cnid,
+                kvs->ikv_pfx_len,
+                kvs->ikv_sfx_len);
 #endif
         return merr(EINVAL);
     }
 
+    kt->kt_hash = key_hash64(kt->kt_data, hashlen);
+    seqno = 0;
+
     /* Exclusively lock txn for c0 update (with write collision detection).
+     *
+     * Note that we permute the hash with the ephemeral kvs unique generation
+     * count to allow the caller to insert identical keys into more than one
+     * kvs within the same transaction (despite which could falsely fail due
+     * to hash collisions within the write conflict detection apparatus).
      */
     if (ctxn) {
         u64 hash = kt->kt_hash ^ kvs->ikv_gen;
@@ -331,12 +339,12 @@ kvs_put(
         if (sfx_len > 0)
             hash = key_hash64_seed(kt->kt_data, kt->kt_len, kvs->ikv_gen);
 
-        err = kvdb_ctxn_trylock_write(ctxn, &seqnoref, true, hash);
+        err = kvdb_ctxn_trylock_write(ctxn, &seqnoref, &seqno, true, hash);
         if (err)
             return err;
     }
 
-    err = wal_put(kvs->ikv_wal, kvs, os, kt, vt, &rec);
+    err = wal_put(kvs->ikv_wal, kvs, kt, vt, seqno, &rec);
 
     if (HSE_LIKELY(!err)) {
         err = c0_put(kvs->ikv_c0, kt, vt, seqnoref);
@@ -410,13 +418,13 @@ kvs_del(struct ikvs *kvs, struct hse_kvdb_txn *const txn, struct kvs_ktuple *kt,
     size_t            sfx_len;
     size_t            hashlen;
     u64               tstart;
+    u64               seqno;
     merr_t            err;
 
     tstart = perfc_lat_start(pkvsl_pc);
 
     sfx_len = kvs->ikv_sfx_len;
     hashlen = kt->kt_len - sfx_len;
-    kt->kt_hash = key_hash64(kt->kt_data, hashlen);
 
     /* Assert that either
      *  1. This is NOT a suffixed tree, OR
@@ -424,15 +432,18 @@ kvs_del(struct ikvs *kvs, struct hse_kvdb_txn *const txn, struct kvs_ktuple *kt,
      */
     if (HSE_UNLIKELY(sfx_len && kt->kt_len < sfx_len + kvs->ikv_pfx_len)) {
 #ifndef HSE_BUILD_RELEASE
-        hse_log(
-            HSE_ERR "%s is a suffixed kvs. Keys must be at least "
-                    "pfx_len(%u) + sfx_len(%u) bytes long.",
-            kvs->ikv_kvs_name,
-            kvs->ikv_pfx_len,
-            kvs->ikv_sfx_len);
+        hse_log(HSE_ERR "%s: suffixed kvs %s %lu min key length is pfx_len(%u) + sfx_len(%u)",
+                __func__,
+                kvs->ikv_kvs_name,
+                kvs->ikv_cnid,
+                kvs->ikv_pfx_len,
+                kvs->ikv_sfx_len);
 #endif
         return merr(EINVAL);
     }
+
+    kt->kt_hash = key_hash64(kt->kt_data, hashlen);
+    seqno = 0;
 
     /* Exclusively lock txn for c0 update (with write collision detection).
      */
@@ -442,12 +453,12 @@ kvs_del(struct ikvs *kvs, struct hse_kvdb_txn *const txn, struct kvs_ktuple *kt,
         if (sfx_len > 0)
             hash = key_hash64_seed(kt->kt_data, kt->kt_len, kvs->ikv_gen);
 
-        err = kvdb_ctxn_trylock_write(ctxn, &seqnoref, true, hash);
+        err = kvdb_ctxn_trylock_write(ctxn, &seqnoref, &seqno, true, hash);
         if (err)
             return err;
     }
 
-    err = wal_del(kvs->ikv_wal, kvs, os, kt, &rec);
+    err = wal_del(kvs->ikv_wal, kvs, kt, seqno, &rec);
     if (!err) {
         err = c0_del(kvs->ikv_c0, kt, seqnoref);
 
@@ -473,6 +484,7 @@ kvs_prefix_del(
     struct kvdb_ctxn *ctxn = txn ? kvdb_ctxn_h2h(txn) : 0;
     struct wal_record rec;
     u64               tstart;
+    u64               seqno;
     merr_t            err;
 
     tstart = perfc_lat_start(pkvsl_pc);
@@ -480,15 +492,17 @@ kvs_prefix_del(
     if (!kt->kt_hash)
         kt->kt_hash = key_hash64(kt->kt_data, kt->kt_len);
 
+    seqno = 0;
+
     /* Exclusively lock txn for c0 update (no write collision detection.
      */
     if (ctxn) {
-        err = kvdb_ctxn_trylock_write(ctxn, &seqnoref, false, 0);
+        err = kvdb_ctxn_trylock_write(ctxn, &seqnoref, &seqno, false, 0);
         if (err)
             return err;
     }
 
-    err = wal_del_pfx(kvs->ikv_wal, kvs, os, kt, &rec);
+    err = wal_del_pfx(kvs->ikv_wal, kvs, kt, seqno, &rec);
     if (!err) {
         err = c0_prefix_del(kvs->ikv_c0, kt, seqnoref);
 
@@ -526,9 +540,11 @@ kvs_pfx_probe(
 
     tstart = perfc_lat_start(pkvsl_pc);
 
-    if (ev(kvs->ikv_sfx_len == 0)) {
-        hse_log(HSE_ERR "Prefix probe not supported because kvs is "
-                        "not suffixed");
+    if (HSE_UNLIKELY(kvs->ikv_sfx_len == 0)) {
+#ifndef HSE_BUILD_RELEASE
+        hse_log(HSE_ERR "%s: unsuffixed kvs %s %lu does not support prefix probe",
+                __func__, kvs->ikv_kvs_name, kvs->ikv_cnid);
+#endif
         return merr(EINVAL);
     }
 
