@@ -51,10 +51,15 @@ custom_target(
         meson.project_build_root() / '@OUTPUT@',
     ],
     output: meson.project_name(),
-    install: true,
-    install_dir: join_paths(get_option('prefix'), get_option('bindir')),
 )
 
 meson.override_find_program(cli_name, hse_cli)
 
 executable_paths += meson.current_build_dir()
+
+meson.add_install_script(
+    meson.project_source_root() / 'scripts/meson-hooks/install/cli-symlink.sh',
+    get_option('bindir'),
+    fs.name(hse_cli.full_path()),
+    meson.project_name(),
+)
