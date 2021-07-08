@@ -124,8 +124,8 @@ c0kvs_ior_stats(
         if (HSE_CORE_IS_TOMB(new_value))
             ++c0kvs->c0s_num_tombstones;
         c0kvs->c0s_total_key_bytes += new_key_len;
+        c0kvs->c0s_key_value_bytes += new_key_len;
         c0kvs->c0s_total_value_bytes += new_value_len;
-
     } else if (IS_IOR_REP(code)) {
         /* replaced existing value for this key ... */
 
@@ -151,6 +151,8 @@ c0kvs_ior_stats(
             ++c0kvs->c0s_num_tombstones;
         c0kvs->c0s_total_value_bytes += new_value_len;
     }
+
+    c0kvs->c0s_key_value_bytes += new_value_len;
 
     if (height > c0kvs->c0s_height)
         c0kvs->c0s_height = height;
@@ -534,6 +536,7 @@ c0kvs_reset(struct c0_kvset *handle, size_t sz)
     set->c0s_num_tombstones = 0;
     set->c0s_total_key_bytes = 0;
     set->c0s_total_value_bytes = 0;
+    set->c0s_key_value_bytes = 0;
     set->c0s_height = 0;
     set->c0s_keyvals = 0;
 }
@@ -674,7 +677,7 @@ c0kvs_get_element_count2(struct c0_kvset *handle, uint *heightp, uint *keyvalsp,
     *keyvalsp = self->c0s_keyvals;
 
     /* [HSE_REVISIT]: Revisit when working on c0/wal throttling. */
-    *full = (self->c0s_total_key_bytes + self->c0s_total_value_bytes > self->c0s_alloc_sz);
+    *full = (self->c0s_key_value_bytes > self->c0s_alloc_sz);
 
     return cnt;
 }

@@ -54,6 +54,7 @@ struct c0_kvset_impl {
     u32 c0s_num_tombstones;
     u64 c0s_total_key_bytes;
     u64 c0s_total_value_bytes;
+    u64 c0s_key_value_bytes;
     u32 c0s_height;
     u32 c0s_keyvals;
 };

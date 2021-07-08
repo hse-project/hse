@@ -222,7 +222,7 @@ wal_file_open(
 
     snprintf(name, sizeof(name), "%s-%lu-%d", WAL_FILE_PFX, gen, fileid);
 
-    err = mpool_file_open(wfset->mp, wfset->mclass, name, O_RDWR | O_DIRECT,
+    err = mpool_file_open(wfset->mp, wfset->mclass, name, O_RDWR | O_DIRECT | O_SYNC,
                           wfset->capacity, sparse, &mpf);
     if (err)
         return err;
@@ -420,10 +420,6 @@ wal_file_write(struct wal_file *wfile, const char *buf, size_t len)
         aoff += cc;
         alen -= cc;
     }
-
-    err = mpool_file_sync(wfile->mpf);
-    if (err)
-        return err;
 
     /* Bring the buffer addr and file offset to the same alignment if it mismatched */
     if (adjust_woff)
