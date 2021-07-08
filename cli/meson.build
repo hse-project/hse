@@ -1,6 +1,10 @@
 subdir('include')
 subdir('lib')
 
+if not get_option('cli')
+    subdir_done()
+endif
+
 cli_name = meson.project_name() + hse_major_version
 
 hse_cli_sources = [

@@ -395,7 +395,7 @@ if enabled_tests.length() > 0
     subdir('tests' / 'framework')
 endif
 subdir('lib')
-if get_option('cli')
+if get_option('cli') or get_option('tools')
     subdir('cli')
 endif
 if get_option('samples')
