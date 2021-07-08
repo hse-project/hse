@@ -161,33 +161,29 @@ restart:
             omf_set_rh_flags(rhdr, flags);
         }
 
-        if (skiprec) { /* go to next record */
-            prev_foff = foff;
-            foff += (rhlen + omf_rh_len(rhdr));
-            continue;
+        if (!skiprec) {
+            /* Mark flush boundary on encountering a gen increase */
+            rgen = omf_rh_gen(rhdr);
+            if (cgen > 0 && rgen > cgen)
+                break;
+
+            /* Do not allow the IO payload to exceed 32 MiB */
+            if (cgen > 0 && (foff - start_foff) >= (32 << 20))
+                break;
+
+            if (rgen > cgen)
+                cgen = rgen;
+
+            info.min_gen = min_t(u64, info.min_gen, rgen);
+            info.max_gen = max_t(u64, info.max_gen, rgen);
+
+            /* Determine min/max seqno from non-tx op and tx-commit record */
+            rtype = omf_rh_type(rhdr);
+            wal_buffer_minmax_seqno(buf, rtype, &info);
+
+            /* Determine min/max txid from tx meta record */
+            wal_buffer_minmax_txid(buf, rtype, &info);
         }
-
-        /* Mark flush boundary on encountering a gen increase */
-        rgen = omf_rh_gen(rhdr);
-        if (cgen > 0 && rgen > cgen)
-            break;
-
-        /* Do not allow the IO payload to exceed 32 MiB */
-        if (cgen > 0 && (foff - start_foff) >= (32 << 20))
-            break;
-
-        if (rgen > cgen)
-            cgen = rgen;
-
-        info.min_gen = min_t(u64, info.min_gen, rgen);
-        info.max_gen = max_t(u64, info.max_gen, rgen);
-
-        /* Determine min/max seqno from non-tx op and tx-commit record */
-        rtype = omf_rh_type(rhdr);
-        wal_buffer_minmax_seqno(buf, rtype, &info);
-
-        /* Determine min/max txid from tx meta record */
-        wal_buffer_minmax_txid(buf, rtype, &info);
 
         prev_foff = foff;
         foff += (rhlen + omf_rh_len(rhdr));
