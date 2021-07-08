@@ -65,6 +65,13 @@ extern "C" {
 #  define HSE_EXPORT
 #endif
 
+#ifdef HSE_EXPORT_EXPERIMENTAL
+#undef HSE_EXPORT_EXPERIMENTAL
+#define HSE_EXPORT_EXPERIMENTAL HSE_EXPORT
+#else
+#define HSE_EXPORT_EXPERIMENTAL
+#endif
+
 /** @name Utility Routines
  *        =====================================================
  * @{
@@ -451,7 +458,7 @@ hse_kvs_prefix_delete(
  * @param[out] val_len: Length of the value seen
  * @return The function's error status
  */
-HSE_EXPORT hse_err_t
+HSE_EXPORT_EXPERIMENTAL hse_err_t
 hse_kvs_prefix_probe(
     struct hse_kvs *            kvs,
     unsigned int                flags,
@@ -837,7 +844,7 @@ hse_kvdb_sync(struct hse_kvdb *kvdb, unsigned int flags);
  * @param flags: Compaction flags
  * @return The function's error status
  */
-HSE_EXPORT hse_err_t
+HSE_EXPORT_EXPERIMENTAL hse_err_t
 hse_kvdb_compact(struct hse_kvdb *kvdb, int flags);
 
 /**
@@ -850,7 +857,7 @@ hse_kvdb_compact(struct hse_kvdb *kvdb, int flags);
  * @param[out] status: Status of compaction request
  * @return The function's error status
  */
-HSE_EXPORT hse_err_t
+HSE_EXPORT_EXPERIMENTAL hse_err_t
 hse_kvdb_compact_status_get(struct hse_kvdb *kvdb, struct hse_kvdb_compact_status *status);
 #endif
 
@@ -869,6 +876,7 @@ hse_kvdb_storage_info_get(struct hse_kvdb *kvdb, struct hse_kvdb_storage_info *i
 
 /**@}*/
 
+#undef HSE_EXPORT_EXPERIMENTAL
 #undef HSE_EXPORT
 
 #if HSE_MOCKING
@@ -877,7 +885,9 @@ hse_kvdb_storage_info_get(struct hse_kvdb *kvdb, struct hse_kvdb_storage_info *i
  * pointers types for each mocked function.
  */
 #define HSE_EXPORT
+#define HSE_EXPORT_EXPERIMENTAL
 #include "hse_ut.h"
+#undef HSE_EXPORT_EXPERIMENTAL
 #undef HSE_EXPORT
 #endif /* HSE_MOCKING */
 

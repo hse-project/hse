@@ -60,6 +60,10 @@ hse_c_args = [
     '-DHSE_EXPERIMENTAL',
 ]
 
+if get_option('export-experimental')
+    hse_c_args += '-DHSE_EXPORT_EXPERIMENTAL'
+endif
+
 hse_include_directories = [
     ikvdb_includes,
     component_root_includes,
