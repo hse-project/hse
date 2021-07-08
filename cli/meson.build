@@ -44,7 +44,7 @@ hse_cli = executable(
 )
 
 custom_target(
-    '@0@-symlink'.format(cli_name),
+    'cli-symlink',
     build_by_default: true,
     input: hse_cli,
     command: [
