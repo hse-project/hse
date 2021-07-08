@@ -288,41 +288,27 @@ tools = {
 }
 
 foreach t, params : tools
-    t_sources = params['sources']
-
-    t_c_args = [
-        '-D_GNU_SOURCE=1',
-        '-DCOMPNAME="@0@"'.format(t),
-    ]
-    if 'c_args' in params
-        t_c_args += params['c_args']
-    endif
-
-    t_include_directories = [
-        component_root_includes,
-        hse_include_directories,
-        tools_includes,
-        tools_third_party_includes
-    ]
-    if 'include_directories' in params
-        t_include_directories += params['include_directories']
-    endif
-
-    t_dependencies = [
-        hse_static_dep,
-        hse_dependencies,
-        libhse_cli_dep,
-    ]
-    if 'dependencies' in params
-        t_dependencies += params['dependencies']
-    endif
-
     target = executable(
         t,
-        t_sources,
-        c_args: t_c_args,
-        include_directories: t_include_directories,
-        dependencies: t_dependencies,
+        params['sources'],
+        c_args: [
+            '-D_GNU_SOURCE=1',
+            '-DCOMPNAME="@0@"'.format(t),
+            params.get('c_args', []),
+        ],
+        include_directories: [
+            component_root_includes,
+            hse_include_directories,
+            tools_includes,
+            tools_third_party_includes,
+            params.get('include_directories', []),
+        ],
+        dependencies: [
+            hse_static_dep,
+            hse_dependencies,
+            libhse_cli_dep,
+            params.get('dependencies', [])
+        ],
         install: get_option('install-tools'),
         install_rpath: exe_install_rpath,
         gnu_symbol_visibility: 'hidden',

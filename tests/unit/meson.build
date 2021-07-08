@@ -1,19 +1,3 @@
-common_test_c_args = [
-    '-D_GNU_SOURCE=1',
-    '-DHSE_MOCKING=1',
-    '-DCOMPNAME="kvdb"',
-]
-
-common_test_includes = []
-
-common_test_sources = []
-
-common_test_dependencies = [
-    hse_mock_dep,
-    hse_mock_repository_dep,
-    hse_dependencies,
-]
-
 components = {
     'c0': {
         'c0_kvmultiset_test': {},
@@ -309,7 +293,7 @@ components = {
 unit_test_exes = []
 foreach c, tests : components
     foreach t, params : tests
-        if 'requires_home' in params and params['requires_home']
+        if params.get('requires_home', false)
             home_dir = tests_dir / t
             if not fs.exists(home_dir)
                 run_command(
@@ -320,45 +304,27 @@ foreach c, tests : components
             endif
         endif
 
-        t_sources = common_test_sources
-        t_sources += c / '@0@.c'.format(t)
-        if 'sources' in params
-            t_sources += params['sources']
-        endif
-
-        t_c_args = common_test_c_args
-        if 'c_args' in params
-            t_c_args += params['c_args']
-        endif
-
-        t_include_directories = common_test_includes
-        if 'include_directories' in params
-            t_include_directories += params['include_directories']
-        endif
-
-        t_dependencies = common_test_dependencies
-        if 'dependencies' in params
-            t_dependencies += params['dependencies']
-        endif
-
         t_exe = executable(
             t,
-            t_sources,
-            c_args: t_c_args,
-            include_directories: t_include_directories,
-            dependencies: t_dependencies,
+            [
+                c / '@0@.c'.format(t),
+                params.get('sources', []),
+            ],
+            c_args: [
+                '-DCOMPNAME="kvdb"',
+                '-D_GNU_SOURCE=1',
+                params.get('c_args', []),
+            ],
+            include_directories: params.get('include_directories', []),
+            dependencies: [
+                hse_mock_dep,
+                hse_mock_repository_dep,
+                hse_dependencies,
+                params.get('dependencies', []),
+            ],
             gnu_symbol_visibility: 'hidden',
         )
         unit_test_exes += t_exe
-
-        t_suites = ['unit', c]
-        if 'suites' in params
-            t_suites += params['suites']
-        endif
-
-        t_env = 'env' in params ? environment(params['env']) : environment()
-
-        t_is_parallel = 'is_parallel' in params ? params['is_parallel'] : true
 
         if 'cases' in params
             foreach ident, args : params['cases']
@@ -368,25 +334,20 @@ foreach c, tests : components
                     t_name,
                     t_exe,
                     args: args,
-                    env: t_env,
-                    is_parallel: t_is_parallel,
-                    suite: t_suites,
+                    env: params.get('env', environment()),
+                    is_parallel: params.get('is_parallel', true),
+                    suite: ['unit', c] + params.get('suites', []),
                     timeout: 300,
                 )
             endforeach
         else
-            t_args = []
-            if 'args' in params
-                t_args += params['args']
-            endif
-
             test(
                 t,
                 t_exe,
-                args: t_args,
-                env: t_env,
-                is_parallel: t_is_parallel,
-                suite: t_suites,
+                args: params.get('args', []),
+                env: params.get('env', environment()),
+                is_parallel: params.get('is_parallel', true),
+                suite: ['unit', c] + params.get('suites', []),
                 timeout: 300,
             )
         endif
