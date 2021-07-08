@@ -33,6 +33,7 @@ hsejni = library(
         libhse_cli_dep,
     ],
     version: meson.project_version(),
+    soversion: '0',
     install: true,
 )
 

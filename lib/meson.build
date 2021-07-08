@@ -27,6 +27,7 @@ _config_h = configure_file(
 component_root_includes = include_directories('.')
 
 lib_name = '@0@-@1@'.format(meson.project_name(), hse_major_version)
+soversion = '0'
 
 subdir('include')
 subdir('binding')
@@ -95,6 +96,7 @@ hse = both_libraries(
     dependencies: hse_dependencies,
     version: meson.project_version(),
     install: true,
+    soversion: soversion,
     gnu_symbol_visibility: 'hidden',
 )
 
@@ -150,6 +152,7 @@ if 'unit' in enabled_tests
         c_args: hse_c_args + hse_mock_c_args,
         include_directories: hse_include_directories + hse_mock_include_directories,
         dependencies: hse_dependencies,
+        soversion: soversion,
         version: meson.project_version(),
     )
 
