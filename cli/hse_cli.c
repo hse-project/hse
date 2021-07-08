@@ -575,6 +575,13 @@ cli_hse_kvdb_create_impl(struct cli *cli)
     herr = hse_kvdb_make(cli->home, paramc, paramv);
     if (herr) {
         switch (hse_err_to_errno(herr)) {
+            case EINVAL:
+                fprintf(
+                    stderr,
+                    STR("KVDB '%s' creation failed. Potentially received an invalid home directory "
+                        "or an invalid parameter."),
+                    cli->home);
+                break;
             case EEXIST:
                 fprintf(
                     stderr,
