@@ -20,13 +20,12 @@ struct c0_kvset_iterator;
 
 struct c0_usage {
     size_t u_alloc;
-    size_t u_free;
-    size_t u_used_min;
-    size_t u_used_max;
+    size_t u_used;
     ulong  u_keys;
     ulong  u_tombs;
     size_t u_keyb;
     size_t u_valb;
+    size_t u_memsz;
     int    u_count;
 };
 
@@ -95,13 +94,6 @@ c0kvs_destroy(struct c0_kvset *set);
  */
 size_t
 c0kvs_used(struct c0_kvset *set);
-
-/**
- * c0kvs_avail() - return bytes free in c0kvs cheap
- * @set:        c0kvs handle
- */
-size_t
-c0kvs_avail(struct c0_kvset *set);
 
 /**
  * c0kvs_reset() - return a cursor allocated c0_kvset to an as-new state
@@ -315,32 +307,6 @@ struct bonsai_val *
 c0kvs_findval(struct bonsai_kv *kv, u64 view_seqno, uintptr_t seqnoref);
 
 /**
- * c0kvs_get_content_metrics() - retrieve metrics for the struct c0_kvset
- * @set:                  Struct c0_kvset to insert the key/value into
- * @num_entries:          Number of entries in the struct c0_kvset
- * @num_tombstones:       Number of tombstone entries in the struct c0_kvset
- * @total_key_bytes:      Total number of bytes for all the keys
- * @total_value_bytes:    Total number of bytes for all the values
- *
- * Retrieve metrics associated with the c0_kvset, particularly its
- * number of entries, number of tombstones, total size of all keys,
- * and total size of all values. Note that the latter two are not
- * inclusive of the in-memory overhead of the kvs_ktuple and
- * kvs_vtuple structures. Only the actual key data and value data are
- * counted. Additionally, a deleted element's tombstone counts as an
- * entry and has 8 bytes of value data.
- *
- * Return: [HSE_REVISIT]
- */
-void
-c0kvs_get_content_metrics(
-    struct c0_kvset *set,
-    u64 *            num_entries,
-    u64 *            num_tombstones,
-    u64 *            total_key_bytes,
-    u64 *            total_value_bytes);
-
-/**
  * c0kvs_get_element_count() - return the number of elements in the c0_kvset
  * @set:   Struct c0_kvset to inspect
  *
@@ -352,6 +318,19 @@ c0kvs_get_element_count(struct c0_kvset *set);
 u64
 c0kvs_get_element_count2(struct c0_kvset *set, uint *heightp, uint *keyvalsp, bool *full);
 
+/**
+ * c0kvs_usage() - retrieve usage metrics for the struct c0_kvset
+ * @handle: c0 kvset handle
+ * @usage:  usage metrics
+ *
+ * Retrieve metrics associated with the c0 kvset, particularly its
+ * number of entries, number of tombstones, total size of all keys,
+ * and total size of all values. Note that the latter two are not
+ * inclusive of the in-memory overhead of the kvs_ktuple and
+ * kvs_vtuple structures. Only the actual key data and value data are
+ * counted. Additionally, a deleted element's tombstone counts as an
+ * entry and has 8 bytes of value data.
+ */
 void
 c0kvs_usage(struct c0_kvset *handle, struct c0_usage *usage);
 

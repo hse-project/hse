@@ -39,6 +39,19 @@ no_fail_post(struct mtf_test_info *info)
     return 0;
 }
 
+static void
+c0kvs_get_content_metrics(struct c0_kvset *c0kvs, u64 *num_entries, u64 *num_tombs, u64 *key_bytes, u64 *val_bytes)
+{
+    struct c0_usage u;
+
+    c0kvs_usage(c0kvs, &u);
+
+    *num_entries = u.u_keys;
+    *num_tombs = u.u_tombs;
+    *key_bytes = u.u_keyb;
+    *val_bytes = u.u_valb;
+}
+
 MTF_BEGIN_UTEST_COLLECTION_PREPOST(c0_kvset_test, test_collection_setup, test_collection_teardown);
 
 MTF_DEFINE_UTEST_PREPOST(c0_kvset_test, basic, no_fail_pre, no_fail_post)
@@ -168,6 +181,7 @@ MTF_DEFINE_UTEST_PREPOST(c0_kvset_test, basic_put_get, no_fail_pre, no_fail_post
 
 MTF_DEFINE_UTEST_PREPOST(c0_kvset_test, basic_put_get_fail, no_fail_pre, no_fail_post)
 {
+    struct c0_usage   usage;
     struct c0_kvset * kvs;
     struct kvs_ktuple kt;
     struct kvs_vtuple vt;
@@ -180,10 +194,14 @@ MTF_DEFINE_UTEST_PREPOST(c0_kvset_test, basic_put_get_fail, no_fail_pre, no_fail
 
     /* Allocate largest possible kvs.
      */
-    err = c0kvs_create(HSE_C0_CHEAP_SZ_MAX, 0, 0, &kvs);
+    err = c0kvs_create(HSE_C0_CHEAP_SZ_DFLT, 0, 0, &kvs);
     ASSERT_NE(NULL, kvs);
 
-    avail = c0kvs_avail(kvs) + 1;
+    c0kvs_usage(kvs, &usage);
+    avail = usage.u_alloc - usage.u_used + 1;
+    ASSERT_GT(avail, HSE_C0_CHEAP_SZ_DFLT / 2);
+    ASSERT_LT(avail, HSE_C0_CHEAP_SZ_DFLT);
+
     bigly = malloc(avail);
     ASSERT_NE(NULL, bigly);
 

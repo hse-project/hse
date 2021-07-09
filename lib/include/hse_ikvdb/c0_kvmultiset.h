@@ -261,9 +261,6 @@ c0kvms_used_get(struct c0_kvmultiset *mset);
 void
 c0kvms_used_set(struct c0_kvmultiset *mset, size_t used);
 
-size_t
-c0kvms_avail(struct c0_kvmultiset *mset);
-
 bool
 c0kvms_should_ingest(struct c0_kvmultiset *handle);
 

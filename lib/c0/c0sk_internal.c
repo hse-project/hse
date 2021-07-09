@@ -1058,7 +1058,6 @@ c0sk_queue_ingest(struct c0sk_impl *self, struct c0_kvmultiset *old)
     struct c0_usage  usage;
 
     bool   leader, created;
-    size_t used;
     merr_t err;
 
 genchk:
@@ -1090,10 +1089,7 @@ genchk:
      * to the finalized result.
      */
     c0kvms_usage(old, &usage);
-    used = usage.u_alloc - usage.u_free;
-    if (usage.u_keyb + usage.u_valb > used)
-        used = usage.u_keyb + usage.u_valb;
-    c0kvms_used_set(old, used);
+    c0kvms_used_set(old, max_t(size_t, usage.u_used, usage.u_memsz));
 
     if (ev(new)) {
         /* do nothing */

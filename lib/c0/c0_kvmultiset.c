@@ -225,7 +225,6 @@ c0kvms_usage(struct c0_kvmultiset *handle, struct c0_usage *usage)
     u32 i, n;
 
     memset(usage, 0, sizeof(*usage));
-    usage->u_used_min = ULONG_MAX;
 
     n = self->c0ms_num_sets;
 
@@ -236,16 +235,13 @@ c0kvms_usage(struct c0_kvmultiset *handle, struct c0_usage *usage)
         usage->u_tombs += u.u_tombs;
         usage->u_keyb += u.u_keyb;
         usage->u_valb += u.u_valb;
+        usage->u_memsz += u.u_memsz;
 
         if (i == 0)
             continue;
 
         usage->u_alloc += u.u_alloc;
-        usage->u_free += u.u_free;
-        if (u.u_used_max > usage->u_used_max)
-            usage->u_used_max = u.u_used_max;
-        if (u.u_used_min < usage->u_used_min)
-            usage->u_used_min = u.u_used_min;
+        usage->u_used += u.u_used;
     }
 
     usage->u_count = n;
@@ -278,19 +274,6 @@ c0kvms_used_set(struct c0_kvmultiset *handle, size_t used)
     struct c0_kvmultiset_impl *self = c0_kvmultiset_h2r(handle);
 
     self->c0ms_used = used;
-}
-
-size_t
-c0kvms_avail(struct c0_kvmultiset *handle)
-{
-    struct c0_kvmultiset_impl *self = c0_kvmultiset_h2r(handle);
-    size_t                     sz = 0;
-    u32                        i;
-
-    for (i = 1; i < self->c0ms_num_sets; ++i)
-        sz += c0kvs_avail(self->c0ms_sets[i]);
-
-    return sz; /* excludes ptomb */
 }
 
 bool

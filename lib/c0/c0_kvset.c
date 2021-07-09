@@ -23,7 +23,7 @@
 /* The minimum c0 cheap size should be large enough to accomodate
  * at least one max-sized kvs value plus associated overhead.
  */
-static_assert(HSE_C0_CHEAP_SZ_MIN >= HSE_KVS_VLEN_MAX + (1ul << 20), "C0_CHEAP_SZ_MIN too small");
+static_assert(HSE_C0_CHEAP_SZ_MIN >= HSE_KVS_VALUE_LEN_MAX + (1ul << 20), "C0_CHEAP_SZ_MIN too small");
 static_assert(HSE_C0_CHEAP_SZ_DFLT >= HSE_C0_CHEAP_SZ_MIN, "C0_CHEAP_SZ_DFLT too small");
 static_assert(HSE_C0_CHEAP_SZ_MAX >= HSE_C0_CHEAP_SZ_DFLT, "C0_CHEAP_SZ_MAX too small");
 
@@ -118,41 +118,40 @@ c0kvs_ior_stats(
     uint                  height,
     uint                  keyvals)
 {
+    size_t memsz = sizeof(struct bonsai_val) + new_value_len;
+
     if (IS_IOR_INS(code)) {
         /* first insert for this key ... */
+
         ++c0kvs->c0s_num_entries;
         if (HSE_CORE_IS_TOMB(new_value))
             ++c0kvs->c0s_num_tombstones;
-        c0kvs->c0s_total_key_bytes += new_key_len;
-        c0kvs->c0s_key_value_bytes += new_key_len;
-        c0kvs->c0s_total_value_bytes += new_value_len;
+        c0kvs->c0s_keyb += new_key_len;
+
+        memsz += sizeof(struct bonsai_kv) + new_key_len;
+        memsz += sizeof(struct bonsai_node);
     } else if (IS_IOR_REP(code)) {
         /* replaced existing value for this key ... */
 
         if (!HSE_CORE_IS_TOMB(old_value)) {
             if (HSE_CORE_IS_TOMB(new_value)) {
-                --c0kvs->c0s_num_entries;
                 ++c0kvs->c0s_num_tombstones;
             }
-            c0kvs->c0s_total_value_bytes -= old_value_len;
-            c0kvs->c0s_total_value_bytes += new_value_len;
+            c0kvs->c0s_valb -= old_value_len;
         } else {
             if (!HSE_CORE_IS_TOMB(new_value)) {
-                ++c0kvs->c0s_num_entries;
                 --c0kvs->c0s_num_tombstones;
             }
-            c0kvs->c0s_total_value_bytes += new_value_len;
         }
     } else {
         assert(IS_IOR_ADD(code));
-        if (!HSE_CORE_IS_TOMB(new_value))
-            ++c0kvs->c0s_num_entries;
-        else
+
+        if (HSE_CORE_IS_TOMB(new_value))
             ++c0kvs->c0s_num_tombstones;
-        c0kvs->c0s_total_value_bytes += new_value_len;
     }
 
-    c0kvs->c0s_key_value_bytes += new_value_len;
+    c0kvs->c0s_valb += new_value_len;
+    c0kvs->c0s_memsz += memsz;
 
     if (height > c0kvs->c0s_height)
         c0kvs->c0s_height = height;
@@ -506,18 +505,6 @@ c0kvs_used(struct c0_kvset *handle)
     return cheap_used(self->c0s_cheap);
 }
 
-size_t
-c0kvs_avail(struct c0_kvset *handle)
-{
-    struct c0_kvset_impl *self = c0_kvset_h2r(handle);
-    size_t                used;
-
-    used = cheap_used(self->c0s_cheap);
-    used = min_t(size_t, self->c0s_alloc_sz, used);
-
-    return self->c0s_alloc_sz - used;
-}
-
 void
 c0kvs_reset(struct c0_kvset *handle, size_t sz)
 {
@@ -534,9 +521,9 @@ c0kvs_reset(struct c0_kvset *handle, size_t sz)
     atomic_set(&set->c0s_finalized, 0);
     set->c0s_num_entries = 0;
     set->c0s_num_tombstones = 0;
-    set->c0s_total_key_bytes = 0;
-    set->c0s_total_value_bytes = 0;
-    set->c0s_key_value_bytes = 0;
+    set->c0s_keyb = 0;
+    set->c0s_valb = 0;
+    set->c0s_memsz = 0;
     set->c0s_height = 0;
     set->c0s_keyvals = 0;
 }
@@ -641,28 +628,12 @@ c0kvs_prefix_del(
     return c0kvs_putdel(self, &skey, &sval, &key->kt_seqno);
 }
 
-void
-c0kvs_get_content_metrics(
-    struct c0_kvset *handle,
-    u64 *            num_entries,
-    u64 *            num_tombstones,
-    u64 *            total_key_bytes,
-    u64 *            total_value_bytes)
-{
-    struct c0_kvset_impl *self = c0_kvset_h2r(handle);
-
-    *num_entries = self->c0s_num_entries;
-    *num_tombstones = self->c0s_num_tombstones;
-    *total_key_bytes = self->c0s_total_key_bytes;
-    *total_value_bytes = self->c0s_total_value_bytes;
-}
-
 u64
 c0kvs_get_element_count(struct c0_kvset *handle)
 {
     struct c0_kvset_impl *self = c0_kvset_h2r(handle);
 
-    return self->c0s_num_entries + self->c0s_num_tombstones;
+    return self->c0s_num_entries;
 }
 
 u64
@@ -671,13 +642,13 @@ c0kvs_get_element_count2(struct c0_kvset *handle, uint *heightp, uint *keyvalsp,
     struct c0_kvset_impl *self = c0_kvset_h2r(handle);
     u64                   cnt;
 
-    cnt = self->c0s_num_entries + self->c0s_num_tombstones;
+    cnt = self->c0s_num_entries;
 
     *heightp = self->c0s_height;
     *keyvalsp = self->c0s_keyvals;
 
     /* [HSE_REVISIT]: Revisit when working on c0/wal throttling. */
-    *full = (self->c0s_key_value_bytes > self->c0s_alloc_sz);
+    *full = (self->c0s_memsz > self->c0s_alloc_sz);
 
     return cnt;
 }
@@ -686,19 +657,14 @@ void
 c0kvs_usage(struct c0_kvset *handle, struct c0_usage *usage)
 {
     struct c0_kvset_impl *self = c0_kvset_h2r(handle);
-    size_t                free;
-
-    free = c0kvs_avail(handle);
-    assert(free < self->c0s_alloc_sz);
 
     usage->u_alloc = self->c0s_alloc_sz;
-    usage->u_free = free;
-    usage->u_used_min = self->c0s_alloc_sz - free;
-    usage->u_used_max = self->c0s_alloc_sz - free;
-    usage->u_keys = self->c0s_num_entries;
+    usage->u_used = c0kvs_used(handle);
+    usage->u_keys = self->c0s_num_entries - self->c0s_num_tombstones;
     usage->u_tombs = self->c0s_num_tombstones;
-    usage->u_keyb = self->c0s_total_key_bytes;
-    usage->u_valb = self->c0s_total_value_bytes;
+    usage->u_keyb = self->c0s_keyb;
+    usage->u_valb = self->c0s_valb;
+    usage->u_memsz = self->c0s_memsz;
     usage->u_count = 1;
 }
 
@@ -1026,7 +992,7 @@ c0kvs_iterator_init(struct c0_kvset *handle, struct c0_kvset_iterator *iter, uin
     c0_kvset_iterator_init(iter, self->c0s_broot, flags, skidx);
 }
 
-void
+HSE_COLD void
 c0kvs_debug(struct c0_kvset *handle, void *key, int klen)
 {
     struct c0_kvset_impl *self = c0_kvset_h2r(handle);
@@ -1091,7 +1057,7 @@ c0kvs_reinit(size_t cb_max)
     }
 }
 
-void
+HSE_COLD void
 c0kvs_init(void)
 {
     struct c0kvs_ccache *cc = &c0kvs_ccache;
@@ -1103,7 +1069,7 @@ c0kvs_init(void)
     cc->cc_init = true;
 }
 
-void
+HSE_COLD void
 c0kvs_fini(void)
 {
     if (atomic_dec_return(&c0kvs_init_ref) > 0)

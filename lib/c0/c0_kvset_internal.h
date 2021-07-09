@@ -25,12 +25,13 @@
  * @c0s_mutex:             mutex for bonsai tree updates
  * @c0s_num_entries:       how many entries (includes tombstones)
  * @c0s_num_tombstones:    how many tombstones
- * @c0s_total_key_bytes:   total # of key bytes
- * @c0s_total_value_bytes: total # of value bytes
+ * @c0s_keyb:              total key bytes
+ * @c0s_valb:              total value bytes (not including replaced values)
+ * @c0s_memsz:             minimum RAM consumed by all keys, values, tombs.
  * @c0s_height:            current max tree height
  * @c0s_keyvals:           max number of values in any key
  *
- * Note that the first cache line is primarily composed of read-only
+ * Note that the first two cache lines are primarily composed of read-only
  * fields to ameliorate cache line thrashing while the c0kvset is part
  * of the active kvms.
  */
@@ -52,9 +53,9 @@ struct c0_kvset_impl {
 
     u32 c0s_num_entries HSE_ALIGNED(SMP_CACHE_BYTES);
     u32 c0s_num_tombstones;
-    u64 c0s_total_key_bytes;
-    u64 c0s_total_value_bytes;
-    u64 c0s_key_value_bytes;
+    u32 c0s_keyb;
+    u32 c0s_valb;
+    u32 c0s_memsz;
     u32 c0s_height;
     u32 c0s_keyvals;
 };
