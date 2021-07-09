@@ -38,8 +38,10 @@ herr_print(uint64_t herr, char *fmt, ...)
     vfprintf(stderr, fmt, ap);
     va_end(ap);
 
-    if (herr)
-        fprintf(stderr, "%s", hse_err_to_string(herr, msg_buf, sizeof(msg_buf), 0));
+    if (herr) {
+        hse_strerror(herr, msg_buf, sizeof(msg_buf));
+        fprintf(stderr, "%s", msg_buf);
+    }
 }
 
 __attribute__((format(printf, 1, 2))) void
@@ -113,16 +115,16 @@ stuff(void)
                 vlen = vlenmin;
                 vlen += get_cycles() % (vlenmax - vlenmin + 1);
 
-                herr = hse_kvs_put(kvs, NULL, &key, klen, val, vlen);
+                herr = hse_kvs_put(kvs, 0, NULL, &key, klen, val, vlen);
                 if (herr) {
                     herr_print(herr, "hse_kvs_put() failed: ");
                     break;
                 }
             }
 
-            herr = hse_kvdb_flush(kvdb);
+            herr = hse_kvdb_sync(kvdb, HSE_FLAG_SYNC_ASYNC);
             if (herr) {
-                herr_print(herr, "hse_kvdb_flush() failed: ");
+                herr_print(herr, "hse_kvdb_sync() failed: ");
                 break;
             }
         }
@@ -145,14 +147,14 @@ stuff(void)
                 vlen = vlenmin;
                 vlen += get_cycles() % (vlenmax - vlenmin + 1);
 
-                herr = hse_kvs_put(kvs, NULL, &key, klen, val, vlen);
+                herr = hse_kvs_put(kvs, 0, NULL, &key, klen, val, vlen);
                 if (herr) {
                     herr_print(herr, "hse_kvs_put() failed: ");
                     break;
                 }
             }
 
-            herr = hse_kvdb_sync(kvdb);
+            herr = hse_kvdb_sync(kvdb, 0);
             if (herr) {
                 herr_print(herr, "hse_kvdb_sync() failed: ");
                 break;
@@ -169,7 +171,6 @@ stuff(void)
 
     if (ktxn > 0) {
         struct hse_kvdb_txn *  txn;
-        struct hse_kvdb_opspec os;
 
         gettimeofday(&tstart, NULL);
 
@@ -177,11 +178,8 @@ stuff(void)
         if (!txn)
             abort();
 
-        os.kop_txn = txn;
-        os.kop_flags = 0;
-
         for (i = 0; i < ktxn; ++i) {
-            herr = hse_kvdb_txn_begin(kvdb, os.kop_txn);
+            herr = hse_kvdb_txn_begin(kvdb, txn);
             if (herr) {
                 herr_print(herr, "hse_kvdb_txn_begin() failed: ");
                 abort();
@@ -193,14 +191,14 @@ stuff(void)
                 vlen = vlenmin;
                 vlen += get_cycles() % (vlenmax - vlenmin + 1);
 
-                herr = hse_kvs_put(kvs, &os, &key, klen, val, vlen);
+                herr = hse_kvs_put(kvs, 0, txn, &key, klen, val, vlen);
                 if (herr) {
                     herr_print(herr, "hse_kvs_put() failed: ");
                     break;
                 }
             }
 
-            herr = hse_kvdb_txn_commit(kvdb, os.kop_txn);
+            herr = hse_kvdb_txn_commit(kvdb, txn);
             if (herr) {
                 herr_print(herr, "hse_kvdb_txn_commit() failed: ");
                 break;
@@ -368,9 +366,9 @@ main(int argc, char **argv)
         exit(EX_OSERR);
     }
 
-    herr = hse_init();
+    herr = hse_init(0, NULL);
     if (herr) {
-        herr_print(herr, "hse_init() failed: ");
+        herr_print(herr, "hse_init(0, NULL) failed: ");
         exit(EX_OSERR);
     }
 

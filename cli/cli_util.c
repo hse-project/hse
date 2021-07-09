@@ -222,16 +222,16 @@ emit_storage_info(
 }
 
 static hse_err_t
-kvdb_list_props(const char *kvdb_home, const size_t paramc, const char *const *paramv, struct yaml_context *yc)
+kvdb_info_props(const char *kvdb_home, const size_t paramc, const char *const *paramv, struct yaml_context *yc)
 {
     struct hse_kvdb *            hdl;
     struct hse_kvdb_storage_info info = {};
 
-    unsigned int kvs_cnt;
-    char **      kvs_list;
-    hse_err_t    err;
-    char         socket_path[PATH_MAX];
-    int          i;
+    size_t    kvs_cnt;
+    char **   kvs_list;
+    hse_err_t err;
+    char      socket_path[PATH_MAX];
+    int       i;
 
     err = hse_kvdb_open(kvdb_home, paramc, paramv, &hdl);
     if (err && hse_err_to_errno(err) != EEXIST && hse_err_to_errno(err) != ENODATA &&
@@ -268,7 +268,7 @@ kvdb_list_props(const char *kvdb_home, const size_t paramc, const char *const *p
     }
     emit_storage_info(yc, &info, NULL, NULL);
 
-    err = hse_kvdb_get_names(hdl, &kvs_cnt, &kvs_list);
+    err = hse_kvdb_kvs_names_get(hdl, &kvs_cnt, &kvs_list);
     if (err) {
         hse_kvdb_close(hdl);
         goto exit;
@@ -282,7 +282,7 @@ kvdb_list_props(const char *kvdb_home, const size_t paramc, const char *const *p
     yaml_end_element(yc);
     yaml_end_element_type(yc); /* kvslist */
 
-    hse_kvdb_free_names(hdl, kvs_list);
+    hse_kvdb_kvs_names_free(hdl, kvs_list);
     hse_kvdb_close(hdl);
 
 exit:
@@ -293,7 +293,7 @@ exit:
 }
 
 int
-kvdb_list_print(
+kvdb_info_print(
     const char *         kvdb_home,
     const size_t         paramc,
     const char *const *  paramv,
@@ -303,15 +303,15 @@ kvdb_list_print(
     hse_err_t err;
     int       count = 0;
 
-    err = kvdb_list_props(kvdb_home, paramc, paramv, yc);
+    err = kvdb_info_props(kvdb_home, paramc, paramv, yc);
     if (err) {
         char buf[256];
 
         if (hse_err_to_errno(err) == ENOENT)
             goto errout;
 
-        hse_err_to_string(err, buf, sizeof(buf), NULL);
-        yaml_field_fmt(yc, "error", "\"kvdb_list_props failed: %s\"", buf);
+        hse_strerror(err, buf, sizeof(buf));
+        yaml_field_fmt(yc, "error", "\"kvdb_info_props failed: %s\"", buf);
     }
 
     count = 1;
@@ -532,14 +532,14 @@ kvdb_compact_request(const char *kvdb_home, const char *request_type, u32 timeou
     u64    stop_ts;
     uint   sleep_secs = 2;
     char **kvs_list;
-    uint   kvs_cnt;
+    size_t kvs_cnt;
 
     err = hse_kvdb_open(kvdb_home, 0, NULL, &handle);
     if (err) {
         handle = 0;
         if (hse_err_to_errno(err) != EEXIST && hse_err_to_errno(err) != EBUSY) {
             char buf[256];
-            hse_err_to_string(err, buf, sizeof(buf), NULL);
+            hse_strerror(err, buf, sizeof(buf));
             fprintf(stderr, "kvdb open %s failed: %s\n", kvdb_home, buf);
             goto err_out;
         }
@@ -549,10 +549,10 @@ kvdb_compact_request(const char *kvdb_home, const char *request_type, u32 timeou
     if (handle) {
         int i;
 
-        err = hse_err_to_errno(hse_kvdb_get_names(handle, &kvs_cnt, &kvs_list));
+        err = hse_err_to_errno(hse_kvdb_kvs_names_get(handle, &kvs_cnt, &kvs_list));
         if (err) {
             char buf[256];
-            hse_err_to_string(err, buf, sizeof(buf), NULL);
+            hse_strerror(err, buf, sizeof(buf));
             fprintf(stderr, "unable to get %s kvs names: %s\n", kvdb_home, buf);
             goto err_out;
         }
@@ -563,7 +563,7 @@ kvdb_compact_request(const char *kvdb_home, const char *request_type, u32 timeou
             err = hse_kvdb_kvs_open(handle, kvs_list[i], 0, NULL, &k);
             if (err) {
                 char buf[256];
-                hse_err_to_string(err, buf, sizeof(buf), NULL);
+                hse_strerror(err, buf, sizeof(buf));
                 fprintf(stderr, "kvs open %s failed: %s\n", kvs_list[i], buf);
                 goto err_out;
             }
@@ -585,7 +585,7 @@ kvdb_compact_request(const char *kvdb_home, const char *request_type, u32 timeou
         err = rest_kvdb_comp(socket_path, policy);
         if (err) {
             char buf[256];
-            hse_err_to_string(err, buf, sizeof(buf), NULL);
+            hse_strerror(err, buf, sizeof(buf));
             fprintf(stderr, "rest_kvdb_comp(%s) failed: %s\n", policy, buf);
             goto err_out;
         }
@@ -593,7 +593,7 @@ kvdb_compact_request(const char *kvdb_home, const char *request_type, u32 timeou
         err = rest_kvdb_status(socket_path, sizeof(stat_buf), stat_buf);
         if (err) {
             char buf[256];
-            hse_err_to_string(err, buf, sizeof(buf), NULL);
+            hse_strerror(err, buf, sizeof(buf));
             fprintf(stderr, "rest_kvdb_status failed: %s\n", buf);
             goto err_out;
         }
@@ -612,7 +612,7 @@ kvdb_compact_request(const char *kvdb_home, const char *request_type, u32 timeou
             err = rest_kvdb_status(socket_path, sizeof(stat_buf), stat_buf);
             if (err) {
                 char buf[256];
-                hse_err_to_string(err, buf, sizeof(buf), NULL);
+                hse_strerror(err, buf, sizeof(buf));
                 fprintf(stderr, "rest_kvdb_status failed: %s\n", buf);
                 goto err_out;
             }
@@ -629,7 +629,7 @@ kvdb_compact_request(const char *kvdb_home, const char *request_type, u32 timeou
                 err = rest_kvdb_comp(socket_path, "cancel");
                 if (err) {
                     char buf[256];
-                    hse_err_to_string(err, buf, sizeof(buf), NULL);
+                    hse_strerror(err, buf, sizeof(buf));
                     fprintf(stderr, "rest_kvdb_comp cancel failed: %s\n", buf);
                 } else {
                     err = ETIMEDOUT;
@@ -645,7 +645,7 @@ kvdb_compact_request(const char *kvdb_home, const char *request_type, u32 timeou
         err = rest_kvdb_comp(socket_path, "cancel");
         if (err) {
             char buf[256];
-            hse_err_to_string(err, buf, sizeof(buf), NULL);
+            hse_strerror(err, buf, sizeof(buf));
             fprintf(stderr, "rest_kvdb_comp cancel failed: %s\n", buf);
             goto err_out;
         }
@@ -657,7 +657,7 @@ kvdb_compact_request(const char *kvdb_home, const char *request_type, u32 timeou
         err = rest_kvdb_status(socket_path, sizeof(stat_buf), stat_buf);
         if (err) {
             char buf[256];
-            hse_err_to_string(err, buf, sizeof(buf), NULL);
+            hse_strerror(err, buf, sizeof(buf));
             fprintf(stderr, "rest_kvdb_status failed: %s\n", buf);
             goto err_out;
         }
@@ -671,7 +671,7 @@ kvdb_compact_request(const char *kvdb_home, const char *request_type, u32 timeou
 
 err_out:
     if (handle) {
-        hse_kvdb_free_names(handle, kvs_list);
+        hse_kvdb_kvs_names_free(handle, kvs_list);
         hse_kvdb_close(handle);
     }
 
@@ -700,7 +700,7 @@ hse_kvdb_params(const char *kvdb_home, bool get)
         err = rest_kvdb_params(kvdb_home, bufsz, buf);
         if (err) {
             char buf[256];
-            hse_err_to_string(err, buf, sizeof(buf), NULL);
+            hse_strerror(err, buf, sizeof(buf));
             fprintf(
                 stderr,
                 "rest_kvdb_params failed: %s\n"

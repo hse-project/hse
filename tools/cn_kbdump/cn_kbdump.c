@@ -77,7 +77,7 @@ fatal(hse_err_t err, char *fmt, ...)
     va_end(ap);
 
     char buf[ERROR_BUF_SIZE];
-    hse_err_to_string(err, buf, sizeof(buf), NULL);
+    hse_strerror(err, buf, sizeof(buf));
     fprintf(stderr, "%s: %s: %s\n", progname, msg, buf);
     exit(1);
 }
@@ -1126,7 +1126,7 @@ main(int argc, char **argv)
     argc -= optind;
     argv += optind;
 
-    err = hse_init();
+    err = hse_init(0, NULL);
     if (err)
         return -1;
 

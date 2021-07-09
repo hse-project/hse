@@ -320,7 +320,7 @@ const char *home;
         char *verbose, *logpri;                                                                    \
         int   c, rc;                                                                               \
                                                                                                    \
-        rc = hse_init();                                                                           \
+        rc = hse_init(0, NULL);                                                                    \
         if (rc)                                                                                    \
             return rc;                                                                             \
                                                                                                    \

@@ -167,7 +167,7 @@ cndb_alloc(struct mpool *ds, u64 *captgt, u64 *oid1_out, u64 *oid2_out)
 }
 
 merr_t
-cndb_make(struct mpool *ds, u64 captgt, u64 oid1, u64 oid2)
+cndb_create(struct mpool *ds, u64 captgt, u64 oid1, u64 oid2)
 {
     merr_t err, err2;
 
@@ -567,7 +567,7 @@ cndb_mdc_grow(struct cndb *cndb, size_t capreq)
     assert(cndb->cndb_compacted);
 
     /* [HSE_REVISIT] implement transactional MDC growth
-     * theory of operation: cndb_make will provision two MDCs, one of the
+     * theory of operation: cndb_create will provision two MDCs, one of the
      * size indicated by cparams/defaults and one that is 50% larger. When
      * growth is necessary, this function will write the compacted set into
      * the reserve MDC, switch active MDCs, delete the old MDC and initiate
@@ -2944,7 +2944,7 @@ cndb_cn_cparams(struct cndb *cndb, u64 cnid)
 }
 
 merr_t
-cndb_cn_make2(struct cndb *cndb, const struct kvs_cparams *cparams, u64 *cnid_out, const char *name)
+cndb_cn_create2(struct cndb *cndb, const struct kvs_cparams *cparams, u64 *cnid_out, const char *name)
 {
     merr_t               err;
     struct cndb_info_omf info = {};
@@ -2989,7 +2989,7 @@ done:
 }
 
 merr_t
-cndb_cn_make(struct cndb *cndb, const struct kvs_cparams *cparams, u64 *cnid_out, char *name)
+cndb_cn_create(struct cndb *cndb, const struct kvs_cparams *cparams, u64 *cnid_out, char *name)
 {
     merr_t err;
 
@@ -3005,7 +3005,7 @@ cndb_cn_make(struct cndb *cndb, const struct kvs_cparams *cparams, u64 *cnid_out
         return err;
     }
 
-    err = cndb_cn_make2(cndb, cparams, cnid_out, name);
+    err = cndb_cn_create2(cndb, cparams, cnid_out, name);
     if (err)
         CNDB_LOG(err, cndb, HSE_ERR, " cn %s adoption failed", name);
 

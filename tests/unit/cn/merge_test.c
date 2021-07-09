@@ -10,7 +10,7 @@
 #include <hse_util/logging.h>
 #include <hse_util/parse_num.h>
 
-#include <hse/hse_limits.h>
+#include <hse/limits.h>
 
 #include <hse_ikvdb/kvs_rparams.h>
 #include <hse_ikvdb/kvs_cparams.h>
@@ -654,7 +654,7 @@ _kvset_builder_add_key(struct kvset_builder *builder, const struct key_obj *kobj
     uint  ref_klen;
     uint  ref_nvals;
     bool  eof;
-    u8    kdata[HSE_KVS_KLEN_MAX];
+    u8    kdata[HSE_KVS_KEY_LEN_MAX];
     uint  klen;
 
     key_obj_copy(kdata, sizeof(kdata), &klen, kobj);

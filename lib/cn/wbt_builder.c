@@ -14,7 +14,7 @@
 #include <hse_ikvdb/limits.h>
 #include <hse_ikvdb/omf_kmd.h>
 
-#include <hse/hse_limits.h>
+#include <hse/limits.h>
 
 #define MTF_MOCK_IMPL_wbt_builder
 #include "wbt_builder.h"
@@ -290,7 +290,7 @@ wbt_leaf_publish(struct wbb *wbb)
         wbb->wbt_last_kobj.ko_sfx = sfxp + key_extra;
         wbb->wbt_last_kobj.ko_sfx_len = sfx_len;
 
-        assert(pfx_len + sfx_len <= HSE_KVS_KLEN_MAX);
+        assert(pfx_len + sfx_len <= HSE_KVS_KEY_LEN_MAX);
 
         /* Store first key. */
         if (!wbb->entries)

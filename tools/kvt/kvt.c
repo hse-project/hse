@@ -259,7 +259,7 @@ struct work {
     u_long       span;
     size_t       fnlen;
     const char * keyfmt;
-    char         fn[HSE_KVS_KLEN_MAX + 1];
+    char         fn[HSE_KVS_KEY_LEN_MAX + 1];
 };
 
 struct workq {
@@ -363,7 +363,7 @@ kvt_create(
     bool *             dump);
 
 static int
-kvt_open(u_int kvs_listc, char **kvs_listv);
+kvt_open(size_t kvs_listc, char **kvs_listv);
 
 static int
 kvt_init(const char *keyfile, const char *keyfmt, u_long keymax, bool dump);
@@ -384,7 +384,7 @@ static void *
 kvt_test_main(void *arg);
 
 static int
-kvt_test_impl(struct tdargs *args, struct hse_kvdb_opspec *opspec, u_long rid);
+kvt_test_impl(struct tdargs *args, unsigned int flags, struct hse_kvdb_txn *txn, u_long rid);
 
 static thread_local uint64_t xrand64_state[2];
 
@@ -508,7 +508,7 @@ eprint(hse_err_t err, const char *fmt, ...)
 
     if (err) {
         emsglen += strlen(strcat(emsg + emsglen, ": "));
-        hse_err_to_string(err, emsg + emsglen, emsgsz - emsglen, NULL);
+        hse_strerror(err, emsg + emsglen, emsgsz - emsglen);
         emsglen += strlen(emsg + emsglen);
     }
 
@@ -1148,7 +1148,7 @@ periodic_sync(void *arg)
         if (rc)
             continue;
 
-        err = hse_kvdb_sync(kvdb);
+        err = hse_kvdb_sync(kvdb, 0);
         if (err)
             eprint(err, "%s: failed to sync kvdb", __func__);
     }
@@ -1404,7 +1404,7 @@ main(int argc, char **argv)
                         errmsg = "invalid min file length";
                         vlenmax = cvt_strtoul(end + 1, &end, &suftab_iec);
                     }
-                    if (vlenmax < vlenmin || vlenmax > HSE_KVS_VLEN_MAX)
+                    if (vlenmax < vlenmin || vlenmax > HSE_KVS_VALUE_LEN_MAX)
                         errno = ERANGE;
                 }
                 break;
@@ -1512,8 +1512,8 @@ main(int argc, char **argv)
             return EX_USAGE;
         }
 
-        if (klen > HSE_KVS_KLEN_MAX) {
-            eprint(EINVAL, "key format yields key longer than %u bytes", HSE_KVS_KLEN_MAX);
+        if (klen > HSE_KVS_KEY_LEN_MAX) {
+            eprint(EINVAL, "key format yields key longer than %u bytes", HSE_KVS_KEY_LEN_MAX);
             return EX_USAGE;
         }
     }
@@ -1581,7 +1581,7 @@ main(int argc, char **argv)
     tsi_start(&tstart);
     status("initializing hse...");
 
-    err = hse_init();
+    err = hse_init(0, NULL);
     if (err) {
         eprint(err, "hse_kvb_init");
         exit(EX_OSERR);
@@ -1739,15 +1739,16 @@ kvt_create(
 {
     char         key[128], val[128];
     char **      kvs_listv = NULL;
-    u_int        kvs_listc = 0;
+    size_t       kvs_listc = 0;
     char         kvsname[32];
     int          klen, vlen;
     hse_err_t    err;
     tsi_t        tstart;
-    int          rc, i;
+    int          rc;
+    size_t       i;
     struct svec *parms;
 
-    err = hse_kvdb_get_names(kvdb, &kvs_listc, &kvs_listv);
+    err = hse_kvdb_kvs_names_get(kvdb, &kvs_listc, &kvs_listv);
     if (err) {
         eprint(err, "unable to get kvs list from `%s'", mpname);
         return EX_DATAERR;
@@ -1773,11 +1774,11 @@ kvt_create(
      */
     for (i = 0; i < kvs_inodesc; ++i) {
 
-        snprintf(kvsname, sizeof(kvsname), "%s%d", KVS_INODES_NAME, i);
+        snprintf(kvsname, sizeof(kvsname), "%s%lu", KVS_INODES_NAME, i);
 
         status("creating kvs %s...", kvsname);
         parms = kvs_cparms_get(kvsname);
-        err = hse_kvdb_kvs_make(kvdb, kvsname, parms->strc, parms->strv);
+        err = hse_kvdb_kvs_create(kvdb, kvsname, parms->strc, parms->strv);
         if (err) {
             eprint(err, "unable to create kvs `%s'", kvsname);
             return EX_CANTCREAT;
@@ -1787,11 +1788,11 @@ kvt_create(
     /* Create the file data indexes.
      */
     for (i = 0; i < kvs_datac; ++i) {
-        snprintf(kvsname, sizeof(kvsname), "%s%d", KVS_DATA_NAME, i);
+        snprintf(kvsname, sizeof(kvsname), "%s%lu", KVS_DATA_NAME, i);
 
         status("creating kvs %s...", kvsname);
         parms = kvs_cparms_get(kvsname);
-        err = hse_kvdb_kvs_make(kvdb, kvsname, parms->strc, parms->strv);
+        err = hse_kvdb_kvs_create(kvdb, kvsname, parms->strc, parms->strv);
         if (err) {
             eprint(err, "unable to create kvs `%s'", kvsname);
             return EX_CANTCREAT;
@@ -1800,7 +1801,7 @@ kvt_create(
 
     status("creating kvs %s...", KVS_TOMBS_NAME);
     parms = kvs_cparms_get(KVS_TOMBS_NAME);
-    err = hse_kvdb_kvs_make(kvdb, KVS_TOMBS_NAME, parms->strc, parms->strv);
+    err = hse_kvdb_kvs_create(kvdb, KVS_TOMBS_NAME, parms->strc, parms->strv);
     if (err) {
         eprint(err, "unable to create kvs '%s'", KVS_TOMBS_NAME);
         return EX_CANTCREAT;
@@ -1808,21 +1809,21 @@ kvt_create(
 
     status("creating kvs %s...", KVS_RIDS_NAME);
     parms = kvs_cparms_get(KVS_RIDS_NAME);
-    err = hse_kvdb_kvs_make(kvdb, KVS_RIDS_NAME, parms->strc, parms->strv);
+    err = hse_kvdb_kvs_create(kvdb, KVS_RIDS_NAME, parms->strc, parms->strv);
     if (err) {
         eprint(err, "unable to create kvs '%s'", KVS_RIDS_NAME);
         return EX_CANTCREAT;
     }
 
-    hse_kvdb_free_names(kvdb, kvs_listv);
+    hse_kvdb_kvs_names_free(kvdb, kvs_listv);
 
-    err = hse_kvdb_get_names(kvdb, &kvs_listc, &kvs_listv);
+    err = hse_kvdb_kvs_names_get(kvdb, &kvs_listc, &kvs_listv);
     if (err) {
         eprint(err, "unable to get kvs list from %s", mpname);
         return EX_DATAERR;
     }
 
-    dprint(1, "created %u kvs in %.3lf seconds", kvs_listc, tsi_delta(&tstart) / 1000000.0);
+    dprint(1, "created %lu kvs in %.3lf seconds", kvs_listc, tsi_delta(&tstart) / 1000000.0);
 
     /* Open the rids table and write the root record.  Do not use
      * open parms for this open.
@@ -1850,7 +1851,7 @@ kvt_create(
         return EX_SOFTWARE;
     }
 
-    err = hse_kvs_put(kvs_rids, NULL, key, klen, val, vlen);
+    err = hse_kvs_put(kvs_rids, 0, NULL, key, klen, val, vlen);
     if (err) {
         eprint(err, "put root key=%s val=%s", key, val);
         return EX_SOFTWARE;
@@ -1862,7 +1863,7 @@ kvt_create(
         return EX_SOFTWARE;
     }
 
-    err = hse_kvdb_sync(kvdb);
+    err = hse_kvdb_sync(kvdb, 0);
     if (err) {
         eprint(err, "kvdb sync");
         return EX_SOFTWARE;
@@ -1889,7 +1890,7 @@ open:
 }
 
 static int
-kvt_open(u_int kvs_listc, char **kvs_listv)
+kvt_open(size_t kvs_listc, char **kvs_listv)
 {
     char         key[128], val[128];
     int          klen, rc, n, i;
@@ -1913,7 +1914,7 @@ kvt_open(u_int kvs_listc, char **kvs_listv)
 
     klen = snprintf(key, sizeof(key), ".root");
 
-    err = hse_kvs_get(kvs_rids, NULL, key, klen, &found, val, sizeof(val), &vlen);
+    err = hse_kvs_get(kvs_rids, 0, NULL, key, klen, &found, val, sizeof(val), &vlen);
     if (err || !found) {
         eprint(err, "unable to find root record in kvs `%s'", KVS_RIDS_NAME);
         return EX_DATAERR;
@@ -2030,7 +2031,7 @@ kvt_open(u_int kvs_listc, char **kvs_listv)
         }
     }
 
-    dprint(1, "opened %u kvs in %.3lf seconds", kvs_listc, tsi_delta(&tstart) / 1000000.0);
+    dprint(1, "opened %lu kvs in %.3lf seconds", kvs_listc, tsi_delta(&tstart) / 1000000.0);
 
     return rc;
 }
@@ -2094,7 +2095,7 @@ kvt_init(const char *keyfile, const char *keyfmt, u_long keymax, bool dump)
          * from any offset from randbuf to (randbuf + randbufsz / 2)
          * and access up to vlenmax valid bytes.
          */
-        randbufsz = roundup(HSE_KVS_VLEN_MAX * 8, 4096);
+        randbufsz = roundup(HSE_KVS_VALUE_LEN_MAX * 8, 4096);
 
         randbuf = aligned_alloc(4096, randbufsz);
         if (!randbuf) {
@@ -2242,7 +2243,7 @@ kvt_init(const char *keyfile, const char *keyfmt, u_long keymax, bool dump)
             if (fnlen == 0)
                 continue;
 
-            if (fn[--fnlen] != '\n' || fnlen > HSE_KVS_KLEN_MAX) {
+            if (fn[--fnlen] != '\n' || fnlen > HSE_KVS_KEY_LEN_MAX) {
                 skip = true; /* skip excessively long lines */
                 continue;
             }
@@ -2388,36 +2389,35 @@ kvt_init(const char *keyfile, const char *keyfmt, u_long keymax, bool dump)
         hash1);
 
     if (testtxn) {
-        struct hse_kvdb_opspec os;
+        struct hse_kvdb_txn *txn;
 
-        HSE_KVDB_OPSPEC_INIT(&os);
-        os.kop_txn = hse_kvdb_txn_alloc(kvdb);
-        if (!os.kop_txn)
+        txn = hse_kvdb_txn_alloc(kvdb);
+        if (!txn)
             eprint(ENOMEM, "Could not allocate txn");
 
-        err = hse_kvdb_txn_begin(kvdb, os.kop_txn);
+        err = hse_kvdb_txn_begin(kvdb, txn);
         if (err)
             eprint(err, "hse_kvdb_txn_begin");
 
-        err = hse_kvs_put(kvs_rids, &os, key, klen, val, vlen);
+        err = hse_kvs_put(kvs_rids, 0, txn, key, klen, val, vlen);
         if (err)
             eprint(err, "put root key=%s val=%s", key, val);
 
-        err = hse_kvdb_txn_commit(kvdb, os.kop_txn);
+        err = hse_kvdb_txn_commit(kvdb, txn);
         if (err)
             eprint(err, "hse_kvdb_txn_commit");
 
-        hse_kvdb_txn_free(kvdb, os.kop_txn);
+        hse_kvdb_txn_free(kvdb, txn);
         if (err)
             eprint(err, "hse_kvdb_txn_free");
     } else {
-        err = hse_kvs_put(kvs_rids, NULL, key, klen, val, vlen);
+        err = hse_kvs_put(kvs_rids, 0, NULL, key, klen, val, vlen);
         if (err)
             eprint(err, "put root key=%s val=%s", key, val);
     }
 
 
-    err = hse_kvdb_sync(kvdb);
+    err = hse_kvdb_sync(kvdb, 0);
     if (err)
         eprint(err, "kvdb sync");
 
@@ -2451,7 +2451,7 @@ kvt_init_main(void *arg)
     hse_err_t      err;
     char *         databuf;
     u_long         flags;
-    struct hse_kvdb_opspec os;
+    struct hse_kvdb_txn *txn = NULL;
 
     job = args->job;
     xrand64_init(args->seed);
@@ -2467,7 +2467,7 @@ kvt_init_main(void *arg)
             eprint(rc, "setschedparam(SCHED_BATCH)");
     }
 
-    databufsz = roundup(HSE_KVS_VLEN_MAX, 4096);
+    databufsz = roundup(HSE_KVS_VALUE_LEN_MAX, 4096);
 
     databuf = aligned_alloc(4096, databufsz);
     if (!databuf) {
@@ -2480,9 +2480,8 @@ kvt_init_main(void *arg)
     err = 0;
 
     if (testtxn) {
-        HSE_KVDB_OPSPEC_INIT(&os);
-        os.kop_txn = hse_kvdb_txn_alloc(kvdb);
-        if (!os.kop_txn)
+        txn = hse_kvdb_txn_alloc(kvdb);
+        if (!txn)
             eprint(ENOMEM, "Could not allocate txn");
     }
 
@@ -2564,7 +2563,7 @@ kvt_init_main(void *arg)
             /* Check to verify that the record doesn't exist in the tomb...
              */
             err = hse_kvs_get(
-                kvs_tombs, NULL, work->fn, work->fnlen, &found, vbuf, sizeof(vbuf), &vlen);
+                kvs_tombs, 0, NULL, work->fn, work->fnlen, &found, vbuf, sizeof(vbuf), &vlen);
             if (err) {
                 eprint(err, "get %s verify %lu fn=%s", KVS_TOMBS_NAME, rid, work->fn);
                 goto errout;
@@ -2590,12 +2589,12 @@ kvt_init_main(void *arg)
             continue;
 
         if (testtxn) {
-            err = hse_kvdb_txn_begin(kvdb, os.kop_txn);
+            err = hse_kvdb_txn_begin(kvdb, txn);
             if (err)
                 eprint(err, "hse_kvdb_txn_begin");
         }
 
-        err = hse_kvs_put(rid2data_kvs(datarid), testtxn ? &os : NULL, key, klen, datasrc, cc);
+        err = hse_kvs_put(rid2data_kvs(datarid), 0, testtxn ? txn : NULL, key, klen, datasrc, cc);
         if (err) {
             eprint(
                 err,
@@ -2612,7 +2611,7 @@ kvt_init_main(void *arg)
         /* Load all file name keys into the tombs table so that we can attempt
          * to detect duplicates during initial load.
          */
-        err = hse_kvs_put(kvs_tombs, testtxn ? &os : NULL, work->fn, work->fnlen, fnrec, fnreclen);
+        err = hse_kvs_put(kvs_tombs, 0, testtxn ? txn : NULL, work->fn, work->fnlen, fnrec, fnreclen);
         if (err) {
             eprint(
                 err,
@@ -2625,14 +2624,14 @@ kvt_init_main(void *arg)
             goto errout;
         }
 
-        err = hse_kvs_put(kvs_rids, testtxn ? &os : NULL, key, klen, work->fn, work->fnlen);
+        err = hse_kvs_put(kvs_rids, 0, testtxn ? txn : NULL, key, klen, work->fn, work->fnlen);
         if (err) {
             eprint(err, "xput %s %lu key=%s val=%s", KVS_RIDS_NAME, rid, key, work->fn);
             goto errout;
         }
 
         if (testtxn) {
-            hse_kvdb_txn_commit(kvdb, os.kop_txn);
+            hse_kvdb_txn_commit(kvdb, txn);
             if (err)
                 eprint(err, "hse_kvdb_txn_commit");
         }
@@ -2657,7 +2656,7 @@ kvt_init_main(void *arg)
     }
 
     if (testtxn) {
-        hse_kvdb_txn_free(kvdb, os.kop_txn);
+        hse_kvdb_txn_free(kvdb, txn);
         if (err)
             eprint(err, "hse_kvdb_txn_free");
     }
@@ -2936,7 +2935,7 @@ kvt_check(int check, bool dump)
 static void *
 kvt_check_main(void *arg)
 {
-    char           fnrec[512], key[128], fn[HSE_KVS_KLEN_MAX * 2];
+    char           fnrec[512], key[128], fn[HSE_KVS_KEY_LEN_MAX * 2];
     size_t         databuflen, databufsz, datasz;
     struct tdargs *args = arg;
     struct work *  work;
@@ -2958,8 +2957,8 @@ kvt_check_main(void *arg)
             eprint(rc, "setschedparam(SCHED_BATCH)");
     }
 
-    //databufsz = (full || dump) ? HSE_KVS_VLEN_MAX : 4096;
-    databufsz = roundup(HSE_KVS_VLEN_MAX, 4096);
+    //databufsz = (full || dump) ? HSE_KVS_VALUE_LEN_MAX : 4096;
+    databufsz = roundup(HSE_KVS_VALUE_LEN_MAX, 4096);
 
     databuf = aligned_alloc(4096, databufsz);
     if (!databuf) {
@@ -3013,7 +3012,7 @@ kvt_check_main(void *arg)
 
         klen = rid2key(key, sizeof(key), rid, ridkeybase);
 
-        err = hse_kvs_get(kvs_rids, NULL, key, klen, &found, fn, sizeof(fn), &fnlen);
+        err = hse_kvs_get(kvs_rids, 0, NULL, key, klen, &found, fn, sizeof(fn), &fnlen);
         if (err || !found) {
             eprint(
                 err, "get %s rid=%lu key=%s%s", KVS_RIDS_NAME, rid, key, err ? "" : " not found");
@@ -3021,7 +3020,7 @@ kvt_check_main(void *arg)
             continue;
         }
 
-        if (fnlen > HSE_KVS_KLEN_MAX) {
+        if (fnlen > HSE_KVS_KEY_LEN_MAX) {
             eprint(
                 err,
                 "unexpectedly large value (%zu) for rid %lu from %s",
@@ -3035,7 +3034,7 @@ kvt_check_main(void *arg)
         found = exhumed = false;
 
         err = hse_kvs_get(
-            rid2inodes_kvs(rid), NULL, fn, fnlen, &found, fnrec, sizeof(fnrec), &fnreclen);
+            rid2inodes_kvs(rid), 0, NULL, fn, fnlen, &found, fnrec, sizeof(fnrec), &fnreclen);
         if (err) {
             eprint(err, "get %s%u rid=%lu key=%s", KVS_INODES_NAME, rid2inodes_idx(rid), rid, fn);
             ++nerrs;
@@ -3043,7 +3042,7 @@ kvt_check_main(void *arg)
         }
 
         if (!found) {
-            err = hse_kvs_get(kvs_tombs, NULL, fn, fnlen, &found, fnrec, sizeof(fnrec), &fnreclen);
+            err = hse_kvs_get(kvs_tombs, 0, NULL, fn, fnlen, &found, fnrec, sizeof(fnrec), &fnreclen);
             if (err || !found) {
                 eprint(
                     err,
@@ -3086,7 +3085,7 @@ kvt_check_main(void *arg)
             continue;
 
         err = hse_kvs_get(
-            rid2data_kvs(datarid), NULL, key, klen, &found, databuf, databufsz, &databuflen);
+            rid2data_kvs(datarid), 0, NULL, key, klen, &found, databuf, databufsz, &databuflen);
         if (err || !found) {
             if (nerrs < 8 || verbosity > 2) {
                 eprint(
@@ -3501,7 +3500,6 @@ join:
 static void *
 kvt_test_main(void *arg)
 {
-    struct hse_kvdb_opspec opspecbuf, *opspec;
     struct tdargs *        args = arg;
     struct hse_kvdb_txn *  txn;
     hse_err_t              err;
@@ -3511,7 +3509,7 @@ kvt_test_main(void *arg)
     job = args->job;
     xrand64_init(args->seed);
 
-    args->databufsz = roundup(HSE_KVS_VLEN_MAX, 4096);
+    args->databufsz = roundup(HSE_KVS_VALUE_LEN_MAX, 4096);
 
     args->databuf = aligned_alloc(4096, args->databufsz);
     if (!args->databuf) {
@@ -3528,7 +3526,6 @@ kvt_test_main(void *arg)
     }
 
     tsi_start(&tstart);
-    opspec = NULL;
     txn = NULL;
 
     /* In non-tranaction mode each thread must lock its selected
@@ -3556,10 +3553,6 @@ kvt_test_main(void *arg)
                     rc = EX_SOFTWARE;
                     break;
                 }
-
-                HSE_KVDB_OPSPEC_INIT(&opspecbuf);
-                opspec = &opspecbuf;
-                opspec->kop_txn = txn;
             }
 
             err = hse_kvdb_txn_begin(kvdb, txn);
@@ -3570,7 +3563,7 @@ kvt_test_main(void *arg)
             }
         }
 
-        rc = kvt_test_impl(args, opspec, rid);
+        rc = kvt_test_impl(args, 0, txn, rid);
         if (rc) {
             if (txn) {
                 hse_kvdb_txn_abort(kvdb, txn);
@@ -3644,9 +3637,9 @@ kvt_test_main(void *arg)
 }
 
 static int
-kvt_test_impl(struct tdargs *args, struct hse_kvdb_opspec *opspec, u_long rid)
+kvt_test_impl(struct tdargs *args, unsigned int oflags, struct hse_kvdb_txn *txn, u_long rid)
 {
-    char            fnrec[512], key[128], fn[HSE_KVS_KLEN_MAX * 2];
+    char            fnrec[512], key[128], fn[HSE_KVS_KEY_LEN_MAX * 2];
     struct hse_kvs *kvs_inodes_src, *kvs_inodes_dst;
     struct hse_kvs *kvs_data_src, *kvs_data_dst;
     size_t          fnlen, fnreclen, databufsz, databuflen;
@@ -3666,7 +3659,7 @@ kvt_test_impl(struct tdargs *args, struct hse_kvdb_opspec *opspec, u_long rid)
 
     /* Use the rid to obtain a file name from the rids table...
      */
-    err = hse_kvs_get(kvs_rids, opspec, key, klen, &found, fn, sizeof(fn), &fnlen);
+    err = hse_kvs_get(kvs_rids, oflags, txn, key, klen, &found, fn, sizeof(fn), &fnlen);
     if (err || !found) {
         eprint(err, "cannot find rid %lu in %s: key=%s", rid, KVS_RIDS_NAME, key);
         return err ? hse_err_to_errno(err) : ENOENT;
@@ -3675,7 +3668,7 @@ kvt_test_impl(struct tdargs *args, struct hse_kvdb_opspec *opspec, u_long rid)
     args->stats.gets++;
     args->stats.vgetlen += fnlen;
 
-    if (fnlen > HSE_KVS_KLEN_MAX) {
+    if (fnlen > HSE_KVS_KEY_LEN_MAX) {
         eprint(
             err, "unexpectedly large value (%zu) for rid %lu from %s", fnlen, rid, KVS_RIDS_NAME);
         abort();
@@ -3690,7 +3683,7 @@ kvt_test_impl(struct tdargs *args, struct hse_kvdb_opspec *opspec, u_long rid)
     kvs_inodes_dst = kvs_inodes_src;
     found = exhumed = false;
 
-    err = hse_kvs_get(kvs_inodes_src, opspec, fn, fnlen, &found, fnrec, sizeof(fnrec), &fnreclen);
+    err = hse_kvs_get(kvs_inodes_src, oflags, txn, fn, fnlen, &found, fnrec, sizeof(fnrec), &fnreclen);
     if (err) {
         eprint(
             err,
@@ -3705,7 +3698,7 @@ kvt_test_impl(struct tdargs *args, struct hse_kvdb_opspec *opspec, u_long rid)
     /* If not found then someone must have moved it to the tomb...
      */
     if (!found) {
-        err = hse_kvs_get(kvs_tombs, opspec, fn, fnlen, &found, fnrec, sizeof(fnrec), &fnreclen);
+        err = hse_kvs_get(kvs_tombs, oflags, txn, fn, fnlen, &found, fnrec, sizeof(fnrec), &fnreclen);
         if (err || !found) {
             eprint(
                 err,
@@ -3768,7 +3761,7 @@ kvt_test_impl(struct tdargs *args, struct hse_kvdb_opspec *opspec, u_long rid)
 
     /* Now, retrieve the file data...
      */
-    err = hse_kvs_get(kvs_data_src, opspec, key, klen, &found, databuf, databufsz, &databuflen);
+    err = hse_kvs_get(kvs_data_src, oflags, txn, key, klen, &found, databuf, databufsz, &databuflen);
     if (err || !found) {
         eprint(
             err,
@@ -3787,7 +3780,7 @@ kvt_test_impl(struct tdargs *args, struct hse_kvdb_opspec *opspec, u_long rid)
      * stale data, which should never happen and is a serious bug.
      */
     if (databuflen != datasz) {
-        assert(databufsz == HSE_KVS_VLEN_MAX);
+        assert(databufsz == HSE_KVS_VALUE_LEN_MAX);
 
         eprint(
             0,
@@ -3875,7 +3868,7 @@ kvt_test_impl(struct tdargs *args, struct hse_kvdb_opspec *opspec, u_long rid)
     assert(kvs_data_src != kvs_data_dst || kvs_datac == 1);
     assert(databuflen == datasz);
 
-    err = hse_kvs_put(kvs_data_dst, opspec, key, klen, databuf, databuflen);
+    err = hse_kvs_put(kvs_data_dst, oflags, txn, key, klen, databuf, databuflen);
     if (err) {
         rc = hse_err_to_errno(err);
         if (rc != ECANCELED)
@@ -3900,7 +3893,7 @@ kvt_test_impl(struct tdargs *args, struct hse_kvdb_opspec *opspec, u_long rid)
 
     /* Update the inodes table with the new metadata (fnrec).
      */
-    err = hse_kvs_put(kvs_inodes_dst, opspec, fn, fnlen, fnrec, fnreclen);
+    err = hse_kvs_put(kvs_inodes_dst, oflags, txn, fn, fnlen, fnrec, fnreclen);
     if (err) {
         rc = hse_err_to_errno(err);
         if (rc != ECANCELED) {
@@ -3925,7 +3918,7 @@ kvt_test_impl(struct tdargs *args, struct hse_kvdb_opspec *opspec, u_long rid)
     if (kvs_inodes_src == kvs_tombs || kvs_inodes_dst == kvs_tombs) {
         assert(kvs_inodes_src != kvs_inodes_dst);
 
-        err = hse_kvs_delete(kvs_inodes_src, opspec, fn, fnlen);
+        err = hse_kvs_delete(kvs_inodes_src, oflags, txn, fn, fnlen);
         if (err) {
             rc = hse_err_to_errno(err);
             if (rc != ECANCELED)
@@ -3948,7 +3941,7 @@ kvt_test_impl(struct tdargs *args, struct hse_kvdb_opspec *opspec, u_long rid)
      * it via a stale fn key.
      */
     if (kvs_datac > 1) {
-        err = hse_kvs_delete(kvs_data_src, opspec, key, klen);
+        err = hse_kvs_delete(kvs_data_src, oflags, txn, key, klen);
         if (err) {
             rc = hse_err_to_errno(err);
             if (rc != ECANCELED)

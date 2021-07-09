@@ -6,7 +6,7 @@
 #ifndef HSE_KVS_C0SK_INTERNAL_H
 #define HSE_KVS_C0SK_INTERNAL_H
 
-#include <hse/hse_limits.h>
+#include <hse/limits.h>
 
 #include <hse_util/arch.h>
 #include <hse_util/mtx_pool.h>
@@ -179,7 +179,7 @@ void
 c0sk_release_multiset(struct c0sk_impl *self, struct c0_kvmultiset *multiset);
 
 /**
- * flush_current_multiset() - enqueue current kvmultiset for ingest
+ * sync_current_multiset() - enqueue current kvmultiset for ingest
  * @self:   struct c0sk owning the struct c0_kvmultiset
  * @genp:   the gen count of the kvms enqueued for ingest is stored here
  *

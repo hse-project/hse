@@ -26,6 +26,9 @@ _config_h = configure_file(
 
 component_root_includes = include_directories('.')
 
+lib_name = '@0@-@1@'.format(meson.project_name(), hse_major_version)
+soversion = '0'
+
 subdir('include')
 subdir('binding')
 subdir('config')
@@ -54,7 +57,12 @@ hse_sources = [
 hse_c_args = [
     '-D_GNU_SOURCE=1',
     '-DCOMPNAME="kvdb"',
+    '-DHSE_EXPERIMENTAL',
 ]
+
+if get_option('export-experimental')
+    hse_c_args += '-DHSE_EXPORT_EXPERIMENTAL'
+endif
 
 hse_include_directories = [
     ikvdb_includes,
@@ -85,13 +93,14 @@ hse_dependencies = [
 ]
 
 hse = both_libraries(
-    '@0@-@1@'.format(meson.project_name(), hse_major_version),
+    lib_name,
     hse_sources,
     c_args: hse_c_args,
     include_directories: hse_include_directories,
     dependencies: hse_dependencies,
     version: meson.project_version(),
     install: true,
+    soversion: soversion,
     gnu_symbol_visibility: 'hidden',
 )
 
@@ -147,6 +156,7 @@ if 'unit' in enabled_tests
         c_args: hse_c_args + hse_mock_c_args,
         include_directories: hse_include_directories + hse_mock_include_directories,
         dependencies: hse_dependencies,
+        soversion: soversion,
         version: meson.project_version(),
     )
 
@@ -170,15 +180,15 @@ endif
 pkg.generate(
     hse,
     description: 'Fast key-value storage for SSDs and persistent memory',
-    filebase: '@0@-@1@'.format(meson.project_name(), hse_major_version),
+    filebase: lib_name,
     name: meson.project_name(),
     version: meson.project_version(),
     url: 'https://github.com/hse-project/hse',
     subdirs: [
-        '@0@-@1@'.format(meson.project_name(), hse_major_version),
+        lib_name,
     ],
 )
 
-meson.override_dependency('@0@-1'.format(meson.project_name()), hse_dep)
+meson.override_dependency(lib_name, hse_dep)
 
 library_paths += meson.current_build_dir()

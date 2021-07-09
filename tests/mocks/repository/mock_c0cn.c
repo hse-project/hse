@@ -812,7 +812,7 @@ mock_c0cn_unset()
  * changes).
  */
 static struct mapi_injection kvdb_log_inject_list[] = {
-    { mapi_idx_kvdb_log_make,                        MAPI_RC_SCALAR, 0 },
+    { mapi_idx_kvdb_log_create,                        MAPI_RC_SCALAR, 0 },
     { mapi_idx_kvdb_log_open,                        MAPI_RC_SCALAR, 0 },
     { mapi_idx_kvdb_log_close,                       MAPI_RC_SCALAR, 0 },
     { mapi_idx_kvdb_log_rollover,                    MAPI_RC_SCALAR, 0 },
@@ -852,7 +852,7 @@ _cndb_alloc(struct mpool *ds, u64 *captgt, u64 *oid1, u64 *oid2)
 }
 
 static merr_t
-_cndb_cn_make(struct cndb *cndb, const struct kvs_cparams *cp, u64 *cnid, char *name)
+_cndb_cn_create(struct cndb *cndb, const struct kvs_cparams *cp, u64 *cnid, char *name)
 {
     *cnid = ++cndb_id_mocked;
     return 0;
@@ -866,7 +866,7 @@ _cndb_cn_make(struct cndb *cndb, const struct kvs_cparams *cp, u64 *cnid, char *
  * changes).
  */
 static struct mapi_injection cndb_inject_list[] = {
-    { mapi_idx_cndb_make,         MAPI_RC_SCALAR, 0 },
+    { mapi_idx_cndb_create,         MAPI_RC_SCALAR, 0 },
     { mapi_idx_cndb_replay,       MAPI_RC_SCALAR, 0 },
     { mapi_idx_cndb_cnv_get,      MAPI_RC_SCALAR, 0 },
     { mapi_idx_cndb_cn_info_idx,  MAPI_RC_SCALAR, 0 },
@@ -889,7 +889,7 @@ mock_cndb_set()
 {
     mapi_inject_list_set(cndb_inject_list);
     MOCK_SET(cndb, _cndb_alloc);
-    MOCK_SET(cndb, _cndb_cn_make);
+    MOCK_SET(cndb, _cndb_cn_create);
 }
 
 void
@@ -897,5 +897,5 @@ mock_cndb_unset()
 {
     mapi_inject_list_unset(cndb_inject_list);
     MOCK_UNSET(cndb, _cndb_alloc);
-    MOCK_UNSET(cndb, _cndb_cn_make);
+    MOCK_UNSET(cndb, _cndb_cn_create);
 }

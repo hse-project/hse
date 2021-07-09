@@ -66,7 +66,7 @@ struct kvset_builder {
     struct kbb_key_stats  key_stats;
     struct cn_merge_stats mstats;
 
-    u8  last_ptomb[HSE_KVS_MAX_PFXLEN];
+    u8  last_ptomb[HSE_KVS_PFX_LEN_MAX];
     u32 last_ptlen;
     u64 last_ptseq;
 };

@@ -6,7 +6,7 @@
 #include <limits.h>
 #include <stddef.h>
 
-#include <hse/hse_limits.h>
+#include <hse/limits.h>
 #include <hse_ikvdb/limits.h>
 #include <hse_ikvdb/param.h>
 #include <hse_ikvdb/kvs_cparams.h>
@@ -46,7 +46,7 @@ static const struct param_spec pspecs[] = {
         .ps_bounds = {
             .as_uscalar = {
                 .ps_min = 0,
-                .ps_max = HSE_KVS_MAX_PFXLEN,
+                .ps_max = HSE_KVS_PFX_LEN_MAX,
             },
         },
     },

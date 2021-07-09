@@ -28,7 +28,7 @@ flush_kvs(void *arg)
 	struct thread_arg *targ = arg;
 
 	while (!killthreads) {
-		hse_kvdb_flush(targ->kvdb);
+		hse_kvdb_sync(targ->kvdb, HSE_FLAG_SYNC_ASYNC);
 		usleep(100*1000);
 	}
 }
@@ -38,28 +38,24 @@ txput(void *arg)
 {
 	struct thread_arg *targ = arg;
 	struct hse_kvdb_txn    *txn = hse_kvdb_txn_alloc(targ->kvdb);
-	struct hse_kvdb_opspec  os;
 	uint idx;
 	uint64_t  vidx;
 	int rc;
 
 	char val[8];
-	char key[HSE_KVS_KLEN_MAX];
+	char key[HSE_KVS_KEY_LEN_MAX];
 	uint *v = (uint *)val;
 	uint *k = (uint *)key;
-
-	HSE_KVDB_OPSPEC_INIT(&os);
 
 	idx = *(uint *)targ->arg;
 	*k = htonl(idx);
 	memset(key + sizeof(*k), 0xaf, sizeof(key) - sizeof(*k));
-	os.kop_txn = txn;
 
 	vidx = 0;
 	while (!killthreads) {
 		hse_kvdb_txn_begin(targ->kvdb, txn);
 		*v = htonl(vidx++);
-		rc = hse_kvs_put(targ->kvs, &os, key, sizeof(key),
+		rc = hse_kvs_put(targ->kvs, 0, txn, key, sizeof(key),
 			     val, sizeof(val));
 		if (rc) {
 			err = 1;

@@ -64,8 +64,6 @@ struct info {
     size_t vlen;
 };
 
-struct hse_kvdb_opspec opspec;
-
 void *
 run(void *p)
 {
@@ -82,8 +80,6 @@ run(void *p)
 
     EVENT_TIMER(t);
     EVENT_INIT(t);
-
-    HSE_KVDB_OPSPEC_INIT(&opspec);
 
     /*
 	 * fake a unique value that is likely unique, but really fast,
@@ -115,19 +111,19 @@ run(void *p)
                 EVENT_START(t);
 
                 rc = hse_kvs_get(
-                    h, &opspec, ti->key, ti->klen, &found, ti->val, ti->vlen, &ti->vlen);
+                    h, 0, NULL, ti->key, ti->klen, &found, ti->val, ti->vlen, &ti->vlen);
                 EVENT_SAMPLE(t);
                 break;
 
             case DEL:
                 EVENT_START(t);
-                rc = hse_kvs_delete(h, &opspec, ti->key, ti->klen);
+                rc = hse_kvs_delete(h, 0, NULL, ti->key, ti->klen);
                 EVENT_SAMPLE(t);
                 break;
 
             case PUT:
                 EVENT_START(t);
-                rc = hse_kvs_put(h, &opspec, ti->key, ti->klen, ti->val, ti->vlen);
+                rc = hse_kvs_put(h, 0, NULL, ti->key, ti->klen, ti->val, ti->vlen);
                 EVENT_SAMPLE(t);
                 break;
 
@@ -202,7 +198,7 @@ do_close(struct hse_kvdb *kvdb, bool sync)
     int rc;
 
     if (sync) {
-        rc = hse_kvdb_sync(kvdb);
+        rc = hse_kvdb_sync(kvdb, 0);
         if (rc)
             fatal(rc, "cannot sync");
         return;
@@ -343,7 +339,7 @@ main(int argc, char **argv)
             break;
     }
 
-    rc = hse_init();
+    rc = hse_init(0, NULL);
     if (rc)
         fatal(rc, "failed to initialize kvdb");
 

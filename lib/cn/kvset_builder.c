@@ -16,7 +16,7 @@
 #include <hse_ikvdb/limits.h>
 #include <hse_ikvdb/cn.h>
 
-#include <hse/hse_limits.h>
+#include <hse/limits.h>
 
 #include "kcompact.h"
 #include "spill.h"
@@ -111,7 +111,7 @@ kvset_builder_add_key(struct kvset_builder *self, const struct key_obj *kobj)
         return merr(EINVAL);
 
     klen = key_obj_len(kobj);
-    if (ev(!klen || klen > HSE_KVS_KLEN_MAX))
+    if (ev(!klen || klen > HSE_KVS_KEY_LEN_MAX))
         return merr(EINVAL);
 
     if (self->key_stats.nptombs > 0) {

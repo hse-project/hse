@@ -18,7 +18,7 @@ MTF_DEFINE_UTEST(compression_test, compress)
     merr_t err;
     int i;
 
-    srcsz = HSE_KVS_VLEN_MAX + 16;
+    srcsz = HSE_KVS_VALUE_LEN_MAX + 16;
     src = src_base = malloc(srcsz);
     ASSERT_NE(NULL, src);
 

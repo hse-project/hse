@@ -10,7 +10,7 @@
 #include <hse_util/logging.h>
 #include <hse_util/keycmp.h>
 
-#include <hse/hse_limits.h>
+#include <hse/limits.h>
 
 #include <cn/omf.h>
 #include <cn/kblock_reader.h>
@@ -225,7 +225,7 @@ t_iterate_helper(struct mtf_test_info *lcl_ti, struct test_kblock *kblock)
     const void *         kdata;
     const void *         kmd;
     uint                 klen, xlen;
-    unsigned char        seekbuf[HSE_KVS_KLEN_MAX];
+    unsigned char        seekbuf[HSE_KVS_KEY_LEN_MAX];
     struct kvs_ktuple    seek = { 0, 0 };
     char **              keyv;
 

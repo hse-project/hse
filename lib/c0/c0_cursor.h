@@ -6,7 +6,7 @@
 #ifndef HSE_KVS_C0_CURSOR_H
 #define HSE_KVS_C0_CURSOR_H
 
-#include <hse/hse_limits.h>
+#include <hse/limits.h>
 
 #include <hse_ikvdb/c0_kvset_iterator.h>
 #include <hse_ikvdb/cursor.h>

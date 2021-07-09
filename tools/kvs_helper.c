@@ -13,7 +13,7 @@
 
 #include <bsd/string.h>
 #include <hse/hse.h>
-#include <hse/hse_limits.h>
+#include <hse/limits.h>
 
 #include "kvs_helper.h"
 
@@ -46,7 +46,7 @@ kh_init(
 {
 	hse_err_t err;
 
-	err = hse_init();
+	err = hse_init(0, NULL);
 	if (err) {
 		fatal(err, "hse_init failed");
 	}
@@ -157,10 +157,10 @@ kh_get_kvs(
 	if (hse_err_to_errno(err) == EBUSY) {
 		fatal(err, "hse_kvdb_kvs_open failed");
 	} else if (err) {
-		err = hse_kvdb_kvs_make(test.kvdb, name, cparms->strc, cparms->strv);
+		err = hse_kvdb_kvs_create(test.kvdb, name, cparms->strc, cparms->strv);
 		if (err) {
 			free(ki);
-			fatal(err, "hse_kvdb_kvs_make failed");
+			fatal(err, "hse_kvdb_kvs_create failed");
 		}
 
 		err = hse_kvdb_kvs_open(test.kvdb, name, oparms->strc, oparms->strv, &ki->hdl);
@@ -261,10 +261,11 @@ kh_register_multiple(
 /* cursor helper functions */
 struct hse_kvs_cursor *
 kh_cursor_create(
-	struct hse_kvs           *kvs,
-	struct hse_kvdb_opspec   *os,
-	void                 *pfx,
-	size_t                pfxlen)
+	struct hse_kvs *     kvs,
+	unsigned int         flags,
+	struct hse_kvdb_txn *txn,
+	void *               pfx,
+	size_t               pfxlen)
 {
 	struct hse_kvs_cursor *cur;
 	hse_err_t              err;
@@ -274,7 +275,7 @@ retry:
 	if (attempts-- == 0)
 		fatal(err, "cursor create failed");
 
-	err = hse_kvs_cursor_create(kvs, os, pfx, pfxlen, &cur);
+	err = hse_kvs_cursor_create(kvs, flags, txn, pfx, pfxlen, &cur);
 	if (err) {
 		if (hse_err_to_errno(err) == EAGAIN) {
 			usleep(10*1000);
@@ -288,13 +289,13 @@ retry:
 }
 
 void
-kh_cursor_update(
-	struct hse_kvs_cursor    *cur,
-	struct hse_kvdb_opspec   *os)
+kh_cursor_update_view(
+	struct hse_kvs_cursor *cur,
+	unsigned int           flags)
 {
 	hse_err_t err;
 
-	err = hse_kvs_cursor_update(cur, os);
+	err = hse_kvs_cursor_update_view(cur, flags);
 	if (err)
 		fatal(err, "cursor update failed");
 }

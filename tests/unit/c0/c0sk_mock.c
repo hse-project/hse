@@ -146,22 +146,7 @@ _c0sk_prefix_del(struct c0sk *self, u16 skidx, const struct kvs_ktuple *key, con
 struct c0_kvmultiset;
 
 merr_t
-_c0sk_flush(struct c0sk *self)
-{
-    struct mock_c0sk *mock_c0sk = (struct mock_c0sk *)self;
-    merr_t            err = 0;
-
-    assert(mock_c0sk->mczk_integrity == INTEGRITY_CHECK);
-    if (mock_c0sk->mczk_err) {
-        err = merr(mock_c0sk->mczk_err);
-        mock_c0sk->mczk_err = 0;
-    }
-
-    return err;
-}
-
-merr_t
-_c0sk_sync(struct c0sk *self)
+_c0sk_sync(struct c0sk *self, unsigned int flags)
 {
     struct mock_c0sk *mock_c0sk = (struct mock_c0sk *)self;
     merr_t            err = 0;
@@ -192,7 +177,6 @@ create_mock_c0sk(struct c0sk **c0sk)
     MOCK_SET(c0sk, _c0sk_get);
     MOCK_SET(c0sk, _c0sk_del);
     MOCK_SET(c0sk, _c0sk_prefix_del);
-    MOCK_SET(c0sk, _c0sk_flush);
     MOCK_SET(c0sk, _c0sk_sync);
 
     mock_c0sk->mczk_integrity = INTEGRITY_CHECK;

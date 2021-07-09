@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 from contextlib import ExitStack
-import hse
+from hse2 import hse
 
 from utility import lifecycle
 
@@ -27,7 +27,7 @@ try:
 
         kvs.put(b"c", b"3")
 
-        cursor.update()
+        cursor.update_view()
         cursor.seek(b"0x00")
 
         kv = cursor.read()

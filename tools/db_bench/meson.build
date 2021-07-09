@@ -1,5 +1,6 @@
 db_bench_cpp_args = [
     '-std=c++11',
+    '-DHSE_EXPERIMENTAL',
     '-DHAVE_FREAD',
     '-DHAVE_FWRITE',
     '-DHAVE_FFLUSH',
@@ -17,7 +18,7 @@ db_bench_dependencies = [
 db_bench_include_directories = [
     hse_include_directories,
     include_directories('.'),
-    include_directories('./include'),
+    include_directories('include'),
 ]
 
 db_bench_sources = files(
@@ -38,5 +39,5 @@ executable(
     dependencies: db_bench_dependencies,
     install: get_option('install-tools'),
     install_rpath: exe_install_rpath,
-    gnu_symbol_visibility: 'hidden', 
+    gnu_symbol_visibility: 'hidden',
 )

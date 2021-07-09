@@ -42,9 +42,9 @@ main(int argc, char **argv)
     char *kvdb_home;
     char *kvs_name1, *kvs_name2;
 
-    struct hse_kvdb *      kvdb;
-    struct hse_kvs *       kvs1, *kvs2;
-    struct hse_kvdb_opspec os;
+    struct hse_kvdb *    kvdb;
+    struct hse_kvs *     kvs1, *kvs2;
+    struct hse_kvdb_txn *txn;
 
     char      vbuf[64];
     size_t    vlen;
@@ -59,78 +59,75 @@ main(int argc, char **argv)
     kvs_name1 = argv[2];
     kvs_name2 = argv[3];
 
-    rc = hse_init();
+    rc = hse_init(0, NULL);
     if (rc) {
         printf("Failed to initialize kvdb");
         exit(1);
     }
 
-    HSE_KVDB_OPSPEC_INIT(&os);
-
     /* Open the KVDB and the KVS instances in it */
     rc = hse_kvdb_open(kvdb_home, 0, NULL, &kvdb);
     if (rc) {
-        printf("Cannot open kvdb: %s\n", hse_err_to_string(rc, errbuf, sizeof(errbuf), 0));
+        hse_strerror(rc, errbuf, sizeof(errbuf));
+        printf("Cannot open kvdb: %s\n", errbuf);
         exit(1);
     }
 
     rc = hse_kvdb_kvs_open(kvdb, kvs_name1, 0, NULL, &kvs1);
     if (rc) {
-        printf("Cannot open kvs %s: %s\n",
-               kvs_name1,
-               hse_err_to_string(rc, errbuf, sizeof(errbuf), 0));
+        hse_strerror(rc, errbuf, sizeof(errbuf));
+        printf("Cannot open kvs %s: %s\n", kvs_name1, errbuf);
         exit(1);
     }
 
     rc = hse_kvdb_kvs_open(kvdb, kvs_name2, 0, NULL, &kvs2);
     if (rc) {
-        printf("Cannot open kvs %s: %s\n",
-               kvs_name2,
-               hse_err_to_string(rc, errbuf, sizeof(errbuf), 0));
+        hse_strerror(rc, errbuf, sizeof(errbuf));
+        printf("Cannot open kvs %s: %s\n", kvs_name2, errbuf);
         exit(1);
     }
 
-    os.kop_txn = hse_kvdb_txn_alloc(kvdb);
+    txn = hse_kvdb_txn_alloc(kvdb);
 
     /* txn 1 */
-    hse_kvdb_txn_begin(kvdb, os.kop_txn);
+    hse_kvdb_txn_begin(kvdb, txn);
 
     /* Error handling is elided for clarity */
 
-    rc = hse_kvs_put(kvs1, &os, "k1", 2, "val1", 4);
-    rc = hse_kvs_put(kvs2, &os, "k2", 2, "val2", 4);
+    rc = hse_kvs_put(kvs1, 0, txn, "k1", 2, "val1", 4);
+    rc = hse_kvs_put(kvs2, 0, txn, "k2", 2, "val2", 4);
 
     /* This txn hasn't been committed or aborted yet. So we should be able
      * to see the keys from inside the txn, but not from outside.
      */
-    rc = hse_kvs_get(kvs1, &os, "k1", 2, &found, vbuf, sizeof(vbuf), &vlen);
+    rc = hse_kvs_get(kvs1, 0, txn, "k1", 2, &found, vbuf, sizeof(vbuf), &vlen);
     printf("k1 from inside txn: found = %s\n", found ? "true" : "false");
-    rc = hse_kvs_get(kvs1, NULL, "k1", 2, &found, vbuf, sizeof(vbuf), &vlen);
+    rc = hse_kvs_get(kvs1, 0, NULL, "k1", 2, &found, vbuf, sizeof(vbuf), &vlen);
     printf("k1 from outside txn: found = %s\n", found ? "true" : "false");
 
-    hse_kvdb_txn_commit(kvdb, os.kop_txn);
+    hse_kvdb_txn_commit(kvdb, txn);
 
     /* txn 2. Reuse txn object from the first allocation */
-    hse_kvdb_txn_begin(kvdb, os.kop_txn);
+    hse_kvdb_txn_begin(kvdb, txn);
 
-    rc = hse_kvs_put(kvs1, &os, "k3", 2, "val3", 4);
-    rc = hse_kvs_put(kvs2, &os, "k4", 2, "val4", 4);
+    rc = hse_kvs_put(kvs1, 0, txn, "k3", 2, "val3", 4);
+    rc = hse_kvs_put(kvs2, 0, txn, "k4", 2, "val4", 4);
 
-    hse_kvdb_txn_abort(kvdb, os.kop_txn);
+    hse_kvdb_txn_abort(kvdb, txn);
 
     /* 3.1 Verify keys that are part of txn number 1 can be found */
-    rc = hse_kvs_get(kvs1, NULL, "k1", 2, &found, vbuf, sizeof(vbuf), &vlen);
+    rc = hse_kvs_get(kvs1, 0, NULL, "k1", 2, &found, vbuf, sizeof(vbuf), &vlen);
     printf("txn1(committed), k1: found = %s\n", found ? "true" : "false");
-    rc = hse_kvs_get(kvs2, NULL, "k2", 2, &found, vbuf, sizeof(vbuf), &vlen);
+    rc = hse_kvs_get(kvs2, 0, NULL, "k2", 2, &found, vbuf, sizeof(vbuf), &vlen);
     printf("txn1(committed), k2: found = %s\n", found ? "true" : "false");
 
     /* 3.2 Verify keys that are part of txn number 2 cannot be found */
-    rc = hse_kvs_get(kvs1, NULL, "k3", 2, &found, vbuf, sizeof(vbuf), &vlen);
+    rc = hse_kvs_get(kvs1, 0, NULL, "k3", 2, &found, vbuf, sizeof(vbuf), &vlen);
     printf("txn2(aborted), k3: found = %s\n", found ? "true" : "false");
-    rc = hse_kvs_get(kvs2, NULL, "k4", 2, &found, vbuf, sizeof(vbuf), &vlen);
+    rc = hse_kvs_get(kvs2, 0, NULL, "k4", 2, &found, vbuf, sizeof(vbuf), &vlen);
     printf("txn2(aborted), k4: found = %s\n", found ? "true" : "false");
 
-    hse_kvdb_txn_free(kvdb, os.kop_txn);
+    hse_kvdb_txn_free(kvdb, txn);
 
     hse_kvdb_close(kvdb);
     hse_fini();

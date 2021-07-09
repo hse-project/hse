@@ -10,7 +10,7 @@
 #include <hse_util/atomic.h>
 #include <hse_util/event_counter.h>
 
-#include <hse/hse_limits.h>
+#include <hse/limits.h>
 
 #include <hse_ikvdb/tuple.h>
 #include <hse_ikvdb/omf_kmd.h>

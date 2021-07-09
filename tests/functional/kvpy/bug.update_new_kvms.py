@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 from contextlib import ExitStack
-import hse
+from hse2 import hse
 
 from utility import lifecycle
 
@@ -26,23 +26,23 @@ try:
         cursor.read()
         assert cursor.eof
 
-        kvdb.flush()
+        kvdb.sync(flags=hse.SyncFlag.ASYNC)
 
         kvs.put(b"c", b"3")
-        kvdb.flush()
+        kvdb.sync(flags=hse.SyncFlag.ASYNC)
 
         kvs.put(b"d", b"4")
-        kvdb.flush()
+        kvdb.sync(flags=hse.SyncFlag.ASYNC)
 
         kvs.put(b"e", b"5")
-        kvdb.flush()
+        kvdb.sync(flags=hse.SyncFlag.ASYNC)
 
         kvs.put(b"f", b"6")
 
         with kvdb.transaction() as txn:
             kvs.put(b"c", b"3")
 
-        cursor.update()
+        cursor.update_view()
         cursor.seek(b"0x00")
 
         assert sum(1 for _ in cursor.items()) == 6

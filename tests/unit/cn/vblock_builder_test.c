@@ -16,7 +16,7 @@
 #include <hse_ikvdb/kvset_builder.h>
 #include <hse_ikvdb/kvs_rparams.h>
 
-#include <hse/hse_limits.h>
+#include <hse/limits.h>
 
 #include <cn/vblock_builder.h>
 #include <cn/blk_list.h>
@@ -27,7 +27,7 @@ struct kvs_rparams kvsrp;
 int                salt;
 void *             workbuf;
 
-#define WORKBUF_SIZE (2 * HSE_KVS_VLEN_MAX)
+#define WORKBUF_SIZE (2 * HSE_KVS_VALUE_LEN_MAX)
 
 #define VBB_CREATE_ARGS &vbb, (void *)0, NULL, 1
 
@@ -475,7 +475,7 @@ static int
 fill_exact(struct mtf_test_info *lcl_ti, struct vblock_builder *vbb, uint space, int expected_errno)
 {
     merr_t err = 0;
-    uint   vlen_max = HSE_KVS_VLEN_MAX;
+    uint   vlen_max = HSE_KVS_VALUE_LEN_MAX;
     uint   avail = kvsrp.vblock_size - PAGE_SIZE - space;
     uint   vlen;
 
@@ -506,7 +506,7 @@ run_test_case(struct mtf_test_info *lcl_ti, enum test_case tc, size_t n_vblocks)
     const size_t values_per_mblock = avail_mblock_size / vlen;
     const size_t add_count = n_vblocks * values_per_mblock;
 
-    ASSERT_LE_RET(vlen, HSE_KVS_VLEN_MAX, -1);
+    ASSERT_LE_RET(vlen, HSE_KVS_VALUE_LEN_MAX, -1);
 
     u32             i;
     merr_t          err;

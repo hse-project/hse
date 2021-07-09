@@ -22,7 +22,7 @@
 #include <hse_util/compression_lz4.h>
 #include <hse_util/vlb.h>
 
-#include <hse/hse_limits.h>
+#include <hse/limits.h>
 #include <hse/kvdb_perfc.h>
 
 #include <hse_ikvdb/tuple.h>
@@ -1590,7 +1590,7 @@ kvset_pfx_lookup(
 
     struct key_obj kobj, kt_obj, kbuf_obj;
 
-    u8          curr_sfx_data[HSE_KVS_KLEN_MAX];
+    u8          curr_sfx_data[HSE_KVS_KEY_LEN_MAX];
     const void *curr_sfx;
 
     key2kobj(&kt_obj, kt->kt_data, kt->kt_len);
@@ -2554,10 +2554,10 @@ kvset_iter_enable_mblock_read(struct kvset_iterator *iter)
      * drives, it requires a lot more prefetching to maintain backlog in
      * check.
      */
-    if (ra_size < HSE_KVS_VLEN_MAX) {
+    if (ra_size < HSE_KVS_VALUE_LEN_MAX) {
         if (iter->ks->ks_node_level == 0)
-            ra_size = HSE_KVS_VLEN_MAX;
-        ra_size = min_t(uint, ra_size, HSE_KVS_VLEN_MAX);
+            ra_size = HSE_KVS_VALUE_LEN_MAX;
+        ra_size = min_t(uint, ra_size, HSE_KVS_VALUE_LEN_MAX);
     }
 
     /* Limit buffered reads to values lesser than cn_compact_vblk_ra. The

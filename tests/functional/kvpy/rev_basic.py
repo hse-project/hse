@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 from contextlib import ExitStack
-import hse
+from hse2 import hse
 
 from utility import lifecycle
 
@@ -20,7 +20,7 @@ try:
         assert kvs.get(b"a") == b"1"
         assert kvs.get(b"b") == b"2"
 
-        cursor = kvs.cursor(reverse=True)
+        cursor = kvs.cursor(flags=hse.CursorFlag.REVERSE)
         kv = cursor.read()
         assert kv == (b"b", b"2")
         kv = cursor.read()

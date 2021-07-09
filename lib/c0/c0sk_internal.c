@@ -1213,7 +1213,7 @@ resign:
 /* GCOV_EXCL_STOP */
 
 /*
- * Flush the present kvmultiset (queue it for ingest).
+ * Sync the present kvmultiset (queue it for ingest).
  * For sync(), we need to know when this c0kvms has been ingested.
  */
 merr_t

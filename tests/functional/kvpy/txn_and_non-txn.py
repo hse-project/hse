@@ -2,8 +2,7 @@
 
 from typing import Tuple
 
-import hse
-from hse import experimental as hse_exp
+from hse2 import hse
 
 from utility import lifecycle
 
@@ -54,8 +53,8 @@ try:
             assert kvs.get(b"ab5") is None
             assert kvs.get(b"ab6") is None
 
-            cnt, *_ = hse_exp.kvs_prefix_probe(kvs, b"ab")
-            assert cnt == hse_exp.KvsPfxProbeCnt.MUL
+            cnt, *_ = kvs.prefix_probe(b"ab")
+            assert cnt == hse.KvsPfxProbeCnt.MUL
 
             with kvs.cursor() as cur:
                 assert sum(1 for _ in cur.items()) == 3
@@ -65,7 +64,7 @@ try:
                 with kvdb.transaction() as t:
                     kvs.put(b"ab1", b"2", txn=t)
                 assert False
-            except hse.KvdbException:
+            except hse.HseException:
                 pass
 
             # non-txn kvs and txn read: not allowed
@@ -73,22 +72,22 @@ try:
                 with kvdb.transaction() as t:
                     kvs.get(b"ab1", txn=t)
                 assert False
-            except hse.KvdbException:
+            except hse.HseException:
                 pass
 
             try:
                 with kvdb.transaction() as t:
-                    cnt, *_ = hse_exp.kvs_prefix_probe(kvs, b"ab", txn=t)
+                    cnt, *_ = kvs.prefix_probe(b"ab", txn=t)
                 assert False
-            except hse.KvdbException:
+            except hse.HseException:
                 pass
 
             try:
                 with kvdb.transaction() as t:
-                    with kvs.cursor(bind_txn=True, txn=t) as cur:
+                    with kvs.cursor(flags=0, txn=t) as cur:
                         assert sum(1 for _ in cur.items()) == 3
                 assert False
-            except hse.KvdbException:
+            except hse.HseException:
                 pass
 
             # non-txn kvs and txn delete: not allowed
@@ -96,7 +95,7 @@ try:
                 with kvdb.transaction() as t:
                     kvs.delete(b"ab1", txn=t)
                 assert False
-            except hse.KvdbException:
+            except hse.HseException:
                 pass
 
         #
@@ -123,10 +122,10 @@ try:
                 assert kvs_tx.get(b"ab2", txn=t) == b"1"
                 assert kvs_tx.get(b"ab3", txn=t) == b"1"
 
-                cnt, *_ = hse_exp.kvs_prefix_probe(kvs_tx, b"ab", txn=t)
-                assert cnt == hse_exp.KvsPfxProbeCnt.MUL
+                cnt, *_ = kvs_tx.prefix_probe(b"ab", txn=t)
+                assert cnt == hse.KvsPfxProbeCnt.MUL
 
-                with kvs_tx.cursor(bind_txn=True, txn=t) as cur:
+                with kvs_tx.cursor(flags=0, txn=t) as cur:
                     assert sum(1 for _ in cur.items()) == 3
 
             # txn kvs and non-txn read: allowed
@@ -134,8 +133,8 @@ try:
             assert kvs_tx.get(b"ab2") == b"1"
             assert kvs_tx.get(b"ab3") == b"1"
 
-            cnt, *_ = hse_exp.kvs_prefix_probe(kvs_tx, b"ab")
-            assert cnt == hse_exp.KvsPfxProbeCnt.MUL
+            cnt, *_ = kvs_tx.prefix_probe(b"ab")
+            assert cnt == hse.KvsPfxProbeCnt.MUL
 
             with kvs_tx.cursor() as cur:
                 assert sum(1 for _ in cur.items()) == 3
@@ -144,14 +143,14 @@ try:
             try:
                 kvs_tx.put(b"ab1", b"2")
                 assert False
-            except hse.KvdbException:
+            except hse.HseException:
                 pass
 
             # txn kvs and non-txn delete: not allowed
             try:
                 kvs_tx.delete(b"ab1")
                 assert False
-            except hse.KvdbException:
+            except hse.HseException:
                 pass
 
         #
@@ -179,7 +178,7 @@ try:
                 with kvdb.transaction() as t:
                     kvs.prefix_delete(b"aa", txn=t)
                 assert False
-            except hse.KvdbException:
+            except hse.HseException:
                 pass
 
             # Cleanup
@@ -209,7 +208,7 @@ try:
             try:
                 kvs_tx.prefix_delete(b"aa")
                 assert False
-            except hse.KvdbException:
+            except hse.HseException:
                 pass
 finally:
     hse.fini()

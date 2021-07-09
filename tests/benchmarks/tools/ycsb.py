@@ -41,7 +41,7 @@ def merge_properties(workload_file_path, args):
 
     cmdline_properties = __get_cmdline_properties(args)
 
-    properties.update(cmdline_properties)
+    properties.update_view(cmdline_properties)
 
     return properties
 

@@ -56,7 +56,7 @@ void
 fatal(char *who, hse_err_t err)
 {
     char buf[ERROR_BUF_SIZE];
-    hse_err_to_string(err, buf, sizeof(buf), NULL);
+    hse_strerror(err, buf, sizeof(buf));
 
     hse_log(HSE_ERR "cndb_log: %s: %s", who, buf);
     exit(1);
@@ -351,7 +351,7 @@ printbuf(struct tool_info *ti, u32 cndb_version, struct cndb_hdr_omf *hdr)
     if (err) {
         char errbuf[300];
 
-        hse_err_to_string(err, errbuf, sizeof(errbuf), NULL);
+        hse_strerror(err, errbuf, sizeof(errbuf));
 
         printf("%04x: ", fileoff);
         printf("error unpacking record type %d: %s\n", type, errbuf);
@@ -570,7 +570,7 @@ main(int argc, char **argv)
     int              c;
     struct tool_info ti = { 0 };
 
-    err = hse_init();
+    err = hse_init(0, NULL);
     if (err)
         fatal("hse_init", err);
 

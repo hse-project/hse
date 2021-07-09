@@ -50,7 +50,7 @@ main(int argc, char **argv)
     kvdb_home = argv[1];
     kvs_name = argv[2];
 
-    rc = hse_init();
+    rc = hse_init(0, NULL);
     if (rc) {
         printf("failed to initialize kvdb");
         exit(1);
@@ -58,7 +58,8 @@ main(int argc, char **argv)
 
     rc = hse_kvdb_open(kvdb_home, 0, NULL, &kvdb);
     if (rc) {
-        printf("Cannot open kvdb: %s\n", hse_err_to_string(rc, errbuf, sizeof(errbuf), 0));
+        hse_strerror(rc, errbuf, sizeof(errbuf));
+        printf("Cannot open kvdb: %s\n", errbuf);
         exit(1);
     }
 
@@ -73,15 +74,15 @@ main(int argc, char **argv)
         snprintf(key, sizeof(key), "key%03d", i);
         snprintf(val, sizeof(val), "val%03d", i);
 
-        rc = hse_kvs_put(kvs, NULL, key, strlen(key), val, strlen(val));
+        rc = hse_kvs_put(kvs, 0, NULL, key, strlen(key), val, strlen(val));
     }
 
-    rc = hse_kvs_cursor_create(kvs, NULL, NULL, 0, &cursor);
+    rc = hse_kvs_cursor_create(kvs, 0, NULL, NULL, 0, &cursor);
     if (rc)
         exit(1);
 
     while (!eof) {
-        rc = hse_kvs_cursor_read(cursor, NULL, &cur_key, &cur_klen, &cur_val, &cur_vlen, &eof);
+        rc = hse_kvs_cursor_read(cursor, 0, &cur_key, &cur_klen, &cur_val, &cur_vlen, &eof);
 
         if (!eof)
             printf(
@@ -92,8 +93,8 @@ main(int argc, char **argv)
                 (char *)cur_val);
     }
 
-    rc = hse_kvs_cursor_seek(cursor, NULL, "key010", 6, NULL, NULL);
-    rc = hse_kvs_cursor_read(cursor, NULL, &cur_key, &cur_klen, &cur_val, &cur_vlen, &eof);
+    rc = hse_kvs_cursor_seek(cursor, 0, "key010", 6, NULL, NULL);
+    rc = hse_kvs_cursor_read(cursor, 0, &cur_key, &cur_klen, &cur_val, &cur_vlen, &eof);
 
     printf("After seek to key010:\n");
     printf("expected: key:%s\tval:%s\n", "key010", "val010");

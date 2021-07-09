@@ -3,7 +3,7 @@
  * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
-#include <hse/hse_limits.h>
+#include <hse/limits.h>
 
 #include <hse_util/platform.h>
 #include <hse_util/slab.h>
@@ -97,11 +97,11 @@ struct intern_builder {
     u_char                  sbufv[];
 };
 
-/* If you increase the size of IB_ESBUFSZ_MAX or HSE_KVS_KLEN_MAX then
+/* If you increase the size of IB_ESBUFSZ_MAX or HSE_KVS_KEY_LEN_MAX then
  * you probably need to increase the buffer grow size in ib_sbuf_key_add().
  */
 _Static_assert(IB_ESBUFSZ_MAX < 4096, "adjust grow size in ib_sbuf_key_add()");
-_Static_assert(HSE_KVS_KLEN_MAX < 4096, "adjust grow size in ib_sbuf_key_add()");
+_Static_assert(HSE_KVS_KEY_LEN_MAX < 4096, "adjust grow size in ib_sbuf_key_add()");
 
 
 static struct kmem_cache *ib_node_cache HSE_READ_MOSTLY;

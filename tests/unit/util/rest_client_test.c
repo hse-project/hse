@@ -11,7 +11,7 @@
 #include <hse_util/rest_api.h>
 #include <hse_util/rest_client.h>
 
-#include <hse/hse_version.h>
+#include <hse/version.h>
 
 #define MP "r_client_mp"
 #define KVDB "r_client_kv"

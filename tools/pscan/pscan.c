@@ -23,6 +23,7 @@
 #include <sysexits.h>
 
 #include <hse/hse.h>
+#include <hse/flags.h>
 
 #include <xxhash.h>
 #include <hse_util/event_timer.h>
@@ -170,7 +171,6 @@ main(int argc, char **argv)
     struct parm_groups *pg = NULL;
     const char *           mpname, *kvname;
     char *                 prefix, *seek;
-    struct hse_kvdb_opspec opspec;
     struct hse_kvs_cursor *cursor;
     struct hse_kvdb *      kvdb_h;
     struct hse_kvs *       kvs_h;
@@ -179,7 +179,7 @@ main(int argc, char **argv)
     int                    seeklen, pfxlen;
     bool                   eof, countem, cksum, deletem, stats;
     bool                   reverse = false;
-    unsigned               opt_help = 0;
+    unsigned               opt_help = 0, flags = 0;
     u64                    iter, max_iter;
     int                    c, rc, err;
     struct shr             shr = { 0 };
@@ -196,8 +196,6 @@ main(int argc, char **argv)
     EVENT_INIT(tr);
     EVENT_INIT(td);
 
-    HSE_KVDB_OPSPEC_INIT(&opspec);
-
     progname = basename(argv[0]);
     countem = deletem = stats = false;
     showlen = seeklen = pfxlen = 0;
@@ -206,8 +204,8 @@ main(int argc, char **argv)
     seek = NULL;
     max_iter = ULONG_MAX;
 
-    Opts.kmax = HSE_KVS_KLEN_MAX;
-    Opts.vmax = HSE_KVS_VLEN_MAX;
+    Opts.kmax = HSE_KVS_KEY_LEN_MAX;
+    Opts.vmax = HSE_KVS_VALUE_LEN_MAX;
     Opts.hexonly = 0;
 
     rc = pg_create(&pg, PG_KVDB_OPEN, PG_KVS_OPEN, NULL);
@@ -340,7 +338,7 @@ main(int argc, char **argv)
     prefix = pbuf;
     seek = sbuf;
 
-    err = hse_init();
+    err = hse_init(0, NULL);
     if (err)
         fatal(err, "failed to initialize kvdb");
 
@@ -356,9 +354,9 @@ main(int argc, char **argv)
 
     EVENT_START(tc);
     if (reverse)
-        opspec.kop_flags |= HSE_KVDB_KOP_FLAG_REVERSE;
+        flags |= HSE_FLAG_CURSOR_REVERSE;
 
-    err = hse_kvs_cursor_create(kvs_h, &opspec, prefix, pfxlen, &cursor);
+    err = hse_kvs_cursor_create(kvs_h, flags, NULL, prefix, pfxlen, &cursor);
     EVENT_SAMPLE(tc);
     if (err) {
         fmt_pe(kbuf, pfxlen, prefix, pfxlen);
@@ -367,7 +365,7 @@ main(int argc, char **argv)
 
     if (seeklen) {
         EVENT_START(ts);
-        err = hse_kvs_cursor_seek(cursor, &opspec, seek, seeklen, 0, 0);
+        err = hse_kvs_cursor_seek(cursor, 0, seek, seeklen, 0, 0);
         EVENT_SAMPLE(ts);
         if (err)
             fatal(err, "cannot seek to %.*s", seeklen, seek);
@@ -406,7 +404,7 @@ main(int argc, char **argv)
         ++shr.count;
 
         if (deletem) {
-            err = hse_kvs_delete(kvs_h, &opspec, key, klen);
+            err = hse_kvs_delete(kvs_h, 0, NULL, key, klen);
             if (err) {
                 fmt_pe(kbuf, klen, key, klen);
                 fatal(err, "cannot delete %s", kbuf);
@@ -415,7 +413,7 @@ main(int argc, char **argv)
         }
 
         if (uniq) {
-            static char   keyprev[HSE_KVS_KLEN_MAX];
+            static char   keyprev[HSE_KVS_KEY_LEN_MAX];
             static size_t klenprev;
             size_t        len = klen;
 

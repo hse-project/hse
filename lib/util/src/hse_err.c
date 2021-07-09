@@ -116,37 +116,27 @@ merr_strerror(merr_t err, char *buf, size_t buf_sz)
 char *
 merr_strinfo(merr_t err, char *buf, size_t buf_sz, size_t *need_sz)
 {
-    int off = 0, sz = 0;
+    ssize_t     sz = 0;
+    const char *file = NULL;
 
     if (err) {
-        if (merr_file(err))
-            sz = snprintf(buf, buf_sz, "%s:%d: ", merr_file(err), merr_lineno(err));
+        file = merr_file(err);
+        if (file)
+            sz = snprintf(buf, buf_sz, "%s:%d: ", file, merr_lineno(err));
         if (sz < 0) {
-            size_t tmp_sz = strlcpy(buf, "<error formating error message>", buf_sz);
-
-            if (need_sz)
-                *need_sz = tmp_sz;
-
-            return buf;
+            sz = strlcpy(buf, "<error formating error message>", buf_sz);
+            goto out;
         }
+        if (sz >= buf_sz)
+            goto out;
 
-        if (sz >= buf_sz) {
-            /* This is the case where even the file and line # didn't fit. We can't safely call
-             * merr_strerror() at this point so we tell the caller as much as we can about how
-             * much space is likely needed.
-             */
-            if (need_sz)
-                *need_sz = sz + 200;
-        } else {
-            off = sz;
-            sz = merr_strerror(err, buf + off, buf_sz - off);
-
-            if (need_sz)
-                *need_sz = off + sz;
-        }
+        sz = merr_strerror(err, buf + sz, buf_sz - sz);
     } else {
-        snprintf(buf, buf_sz, "success");
+        sz = strlcpy(buf, "success", buf_sz);
     }
 
+out:
+    if (need_sz)
+        *need_sz = sz < 0 ? 0 : (size_t)sz;
     return buf;
 }

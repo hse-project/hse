@@ -577,7 +577,7 @@ main(int argc, char **argv)
     if (rc)
         fatal(rc, "svec_apppend_pg failed");
 
-    rc = hse_init();
+    rc = hse_init(0, NULL);
     if (rc) {
         errmsg = "kvdb_init";
         goto done;
@@ -633,7 +633,7 @@ main(int argc, char **argv)
 done:
     if (errmsg) {
         char errbuf[1000];
-        hse_err_to_string(rc, errbuf, sizeof(errbuf), 0);
+        hse_strerror(rc, errbuf, sizeof(errbuf));
         fprintf(stderr, "Error: %s failed: %s\n", errmsg, errbuf);
     }
 

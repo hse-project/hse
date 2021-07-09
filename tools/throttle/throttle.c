@@ -168,7 +168,7 @@ _error_quit(
 {
     char err_buf[300];
 
-    hse_err_to_string(err, err_buf, sizeof(err_buf), 0);
+    hse_strerror(err, err_buf, sizeof(err_buf));
 
     quit("%s:%d: %s: %s", file, line,
          (detail && *detail) ? detail : "",
@@ -686,7 +686,7 @@ test_put_impl(
         if (opt.dryrun)
             continue;
 
-        err = hse_kvs_put(kvs_h[idx], NULL,
+        err = hse_kvs_put(kvs_h[idx], 0, NULL,
                           (char *)ti->ref_key,
                           ti->ref_klen,
                           (char *)ti->ref_val,
@@ -707,7 +707,7 @@ test_put_impl(
     ti->time += tmelapsed;
 
     start = get_time_ns();
-    hse_kvdb_sync(kvdb);
+    hse_kvdb_sync(kvdb, 0);
     tmelapsed = get_time_ns() - start;
 
     ti->time += tmelapsed;
@@ -1018,7 +1018,7 @@ main(int argc, char **argv)
 
     printf("\n");
 
-    err = hse_init();
+    err = hse_init(0, NULL);
     if (err)
         quit("failed to initialize kvdb");
 

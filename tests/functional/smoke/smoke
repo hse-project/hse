@@ -103,12 +103,12 @@ get_test_script () {
 }
 
 check_environment() {
-    for executable in hse1 kmt ex1_create; do
+    for executable in hse kmt ex1_create; do
         type -p $executable &>/dev/null ||
             err "Cannot find $executable in PATH"
     done
-    hse1 -h &> /dev/null ||
-        err "Cannot execute HSE CLI: hse1"
+    hse -h &> /dev/null ||
+        err "Cannot execute HSE CLI: hse"
 }
 
 check_tests () {
@@ -127,10 +127,10 @@ check_tests () {
 
 exported_functions+=(destroy_all_kvs)
 destroy_all_kvs () {
-    hse1 -C "$mp" kvdb list -v \
+    hse -C "$mp" kvdb info -v \
         | awk '($1=="kvslist:") {look=1} (look && $1 == "-") {print($2)}' \
         | while read name; do
-        hse1 -C "$mp" kvs destroy "$name" >/dev/null
+        hse -C "$mp" kvs drop "$name" >/dev/null
     done
 }
 
@@ -240,7 +240,7 @@ new_kvs () {
     # reset counters
     local kvs_count=$(counter_increment kvs)
     local kvs_name=smoke$kvs_count
-    cmd -q hse1 -C "$mp" kvs create "$kvs_name" "$@"
+    cmd -q hse -C "$mp" kvs create "$kvs_name" "$@"
     echo "$kvs_name"
 }
 
@@ -261,11 +261,11 @@ run_one_test () {
     mkdir -p "$LOG_DIR" || err "Cannot create log directory: $LOG_DIR"
     touch "$LOG_DIR"/stat.start
 
-    # destroy and recreate KVDB
-    hse1 -C "$kvdb_home" kvdb destroy || true
-    hse1 -C "$kvdb_home" kvdb create ||
+    # drop and recreate KVDB
+    hse -C "$kvdb_home" kvdb drop || true
+    hse -C "$kvdb_home" kvdb create ||
         err "Cannot create KVDB" \
-            "Command: hse1 -C $kvdb_home kvdb create"
+            "Command: hse -C $kvdb_home kvdb create"
 
     local test_argc=${#test_args[@]}
 

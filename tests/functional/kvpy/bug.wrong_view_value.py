@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 from contextlib import ExitStack
-import hse
+from hse2 import hse
 
 from utility import lifecycle
 
@@ -26,7 +26,7 @@ try:
             cur.read()
             cur.read()
 
-            cur.update()
+            cur.update_view()
             cur.seek(b"a")
 
             kv = cur.read()

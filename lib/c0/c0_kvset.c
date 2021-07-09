@@ -23,7 +23,7 @@
  */
 _Static_assert(HSE_C0_CHEAP_SZ_MIN >= (2ul << 20), "min c0 cheap size too small");
 _Static_assert(
-    HSE_C0_CHEAP_SZ_MIN >= HSE_KVS_VLEN_MAX + (1ul << 20),
+    HSE_C0_CHEAP_SZ_MIN >= HSE_KVS_VALUE_LEN_MAX + (1ul << 20),
     "min c0 cheap size too small");
 _Static_assert(HSE_C0_CHEAP_SZ_DFLT >= HSE_C0_CHEAP_SZ_MIN, "default c0 cheap size too small");
 _Static_assert(HSE_C0_CHEAP_SZ_MAX >= HSE_C0_CHEAP_SZ_DFLT, "max c0 cheap size too small");

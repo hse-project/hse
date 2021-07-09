@@ -6,7 +6,7 @@
 #include <hse_util/platform.h>
 #include <hse_util/minmax.h>
 #include <hse_util/key_util.h>
-#include <hse/hse_limits.h>
+#include <hse/limits.h>
 
 /* If you change the size of struct key_immediate then you'll need to update
  * key_immediate_init(), key_imm_klen(), and key_immediate_cmp_full().

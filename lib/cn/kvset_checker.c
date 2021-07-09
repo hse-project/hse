@@ -195,7 +195,7 @@ kc_loc_check(struct kb_info *kb, struct key_obj *kobj, u64 *hash_out)
     u32 fanmask = kb->cp->fanout - 1;
     u8 *mapv = kb->khmapv;
 
-    u8   key[HSE_KVS_KLEN_MAX];
+    u8   key[HSE_KVS_KEY_LEN_MAX];
     uint klen;
 
     key_obj_copy(key, sizeof(key), &klen, kobj);

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 from contextlib import ExitStack
-import hse
+from hse2 import hse
 
 from utility import lifecycle
 
@@ -25,7 +25,7 @@ try:
         kvs.delete(b"a")
         kvs.put(b"a", b"11")
 
-        cursor.update()
+        cursor.update_view()
         kv = cursor.read()
         assert kv == (b"a", b"11")
 

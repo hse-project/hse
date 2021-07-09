@@ -8,7 +8,7 @@
 
 #include <hse_util/omf.h>
 
-#include <hse/hse_limits.h>
+#include <hse/limits.h>
 
 #define KVDB_OMF_REC_MAX (PAGE_SIZE * 2)
 

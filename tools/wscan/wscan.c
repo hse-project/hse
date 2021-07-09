@@ -78,14 +78,13 @@ sighandler(int signo)
 int
 main(int argc, char **argv)
 {
-    static char kbuf[HSE_KVS_KLEN_MAX];
-    static char vbuf[HSE_KVS_VLEN_MAX];
+    static char kbuf[HSE_KVS_KEY_LEN_MAX];
+    static char vbuf[HSE_KVS_VALUE_LEN_MAX];
 
     const char *           mpname, *dsname, *kvname, *prog;
     struct parm_groups *   pg = NULL;
     struct svec            db_oparm = {};
     struct svec            kv_oparm = {};
-    struct hse_kvdb_opspec opspec;
     struct hse_kvs_cursor *cur;
     struct hse_kvdb *      h;
     struct hse_kvs *       kvs;
@@ -178,9 +177,7 @@ main(int argc, char **argv)
      * This is the stuff you really wanted to see.
      */
 
-    HSE_KVDB_OPSPEC_INIT(&opspec);
-
-    err = hse_init();
+    err = hse_init(0, NULL);
     if (err)
         fatal(err, "failed to initialize kvdb");
 
@@ -193,12 +190,12 @@ main(int argc, char **argv)
         fatal(err, "cannot open %s/%s/%s", mpname, dsname, kvname);
 
     /* MU_REVISIT: bypass bug where c0sk config not plumbed thru */
-    err = hse_kvdb_sync(h);
+    err = hse_kvdb_sync(h, 0);
     if (err)
-        fatal(err, "cannot flush");
-    err = hse_kvdb_sync(h);
+        fatal(err, "cannot sync");
+    err = hse_kvdb_sync(h, 0);
     if (err)
-        fatal(err, "cannot flush");
+        fatal(err, "cannot sync");
 
     // loop:
     //   create cursor
@@ -231,7 +228,7 @@ main(int argc, char **argv)
             klen = mk_key(kbuf, key);
             vlen = mk_val(vbuf, 0);
 
-            err = hse_kvs_put(kvs, &opspec, kbuf, klen, vbuf, vlen);
+            err = hse_kvs_put(kvs, 0, NULL, kbuf, klen, vbuf, vlen);
             if (err) {
                 errmsg = "cannot put key";
                 goto error;
@@ -242,7 +239,7 @@ main(int argc, char **argv)
 #define begin()                                                \
     do {                                                       \
         EVENT_START(tb);                                       \
-        err = hse_kvs_cursor_create(kvs, &opspec, 0, 0, &cur); \
+        err = hse_kvs_cursor_create(kvs, 0, 0, 0, 0, &cur);    \
         EVENT_SAMPLE(tb);                                      \
         if (err) {                                             \
             errmsg = "cannot begin scan";                      \
@@ -253,7 +250,7 @@ main(int argc, char **argv)
 #define seek()                                                          \
     do {                                                                \
         EVENT_START(ts);                                                \
-        err = hse_kvs_cursor_seek(cur, &opspec, kbuf, klen, &k, &vlen); \
+        err = hse_kvs_cursor_seek(cur, 0, kbuf, klen, &k, &vlen); \
         EVENT_SAMPLE(ts);                                               \
         if (err) {                                                      \
             errmsg = "cannot seek";                                     \
@@ -314,7 +311,7 @@ main(int argc, char **argv)
         if (!c0)
             n = *(u64 *)v + 1;
         vlen = mk_val(vbuf, n);
-        err = hse_kvs_put(kvs, &opspec, kbuf, klen, vbuf, vlen);
+        err = hse_kvs_put(kvs, 0, NULL, kbuf, klen, vbuf, vlen);
         if (err) {
             errmsg = "cannot update key";
             break;
@@ -325,7 +322,7 @@ main(int argc, char **argv)
             bool   fnd = 0;
             size_t xlen;
 
-            err = hse_kvs_get(kvs, &opspec, kbuf, klen, &fnd, xbuf, sizeof(xbuf), &xlen);
+            err = hse_kvs_get(kvs, 0, NULL, kbuf, klen, &fnd, xbuf, sizeof(xbuf), &xlen);
             if (err || !fnd) {
                 errmsg = "cannot get key just put";
                 break;
@@ -344,7 +341,7 @@ main(int argc, char **argv)
                 break;
         } else {
             EVENT_START(tu);
-            err = hse_kvs_cursor_update(cur, &opspec);
+            err = hse_kvs_cursor_update_view(cur, 0);
             EVENT_SAMPLE(tu);
             if (err) {
                 errmsg = "cannot update cursor";
@@ -373,7 +370,7 @@ main(int argc, char **argv)
             bool   fnd = 0;
             size_t xlen;
 
-            err = hse_kvs_get(kvs, &opspec, kbuf, klen, &fnd, xbuf, sizeof(xbuf), &xlen);
+            err = hse_kvs_get(kvs, 0, NULL, kbuf, klen, &fnd, xbuf, sizeof(xbuf), &xlen);
             if (err || !fnd) {
                 errmsg = "cannot get key after cursor update";
                 break;

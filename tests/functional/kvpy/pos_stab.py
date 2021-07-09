@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-import hse
+from hse2 import hse
 
 from utility import lifecycle
 
@@ -18,16 +18,16 @@ try:
 
             cursor = kvs.cursor()
 
-            # seek to an existing key and update.
+            # seek to an existing key and update_view.
             cursor.seek(b"b")
-            cursor.update()
+            cursor.update_view()
             kv = cursor.read()
             assert kv == (b"b", b"2")
 
-            # seek to a non-existent key and update.
+            # seek to a non-existent key and update_view.
             cursor.seek(b"c")
             kvs.put(b"c", b"3")
-            cursor.update()
+            cursor.update_view()
 
             kv = cursor.read()
             assert kv == (b"d", b"4")
@@ -47,7 +47,7 @@ try:
 
             kvs.put(b"ab1", b"2")
 
-            cursor.update()
+            cursor.update_view()
             kv = cursor.read()
             assert kv == (b"ab2", b"2")
             cursor.read()
@@ -55,20 +55,20 @@ try:
             cursor.destroy()
 
             # Reverse cursor
-            cursor = kvs.cursor(filt=b"ab", reverse=True)
+            cursor = kvs.cursor(filt=b"ab", flags=hse.CursorFlag.REVERSE)
             kv = cursor.read()
             assert kv == (b"ab2", b"2")
 
             kvs.put(b"ab2", b"3")
 
-            cursor.update(reverse=True)
+            cursor.update_view()
             kv = cursor.read()
             assert kv == (b"ab1", b"2")
             cursor.read()
             assert cursor.eof
             cursor.destroy()
 
-        # Test 3: Read keys across c0/cn, with key update.
+        # Test 3: Read keys across c0/cn, with key update_view.
         with lifecycle.KvsContext(kvdb, "pos_stab-3").cparams("pfx_len=1").rparams(
             "transactions_enable=1"
         ) as kvs:
@@ -83,12 +83,14 @@ try:
 
             read_txn = kvdb.transaction()
             read_txn.begin()
-            cursor = kvs.cursor(txn=read_txn, bind_txn=True)
+            cursor = kvs.cursor(txn=read_txn, flags=0)
             cursor.seek(b"a1b")
             kv = cursor.read()
             assert kv == (b"a1b", b"4")
 
-            revcursor = kvs.cursor(reverse=True, txn=read_txn, bind_txn=True)
+            revcursor = kvs.cursor(
+                txn=read_txn, flags=hse.CursorFlag.REVERSE
+            )
             revcursor.seek(b"a1b")
             kv = revcursor.read()
             assert kv == (b"a1b", b"4")
@@ -98,12 +100,6 @@ try:
 
             txn = kvdb.transaction()
             txn.begin()
-            cursor.update(txn=txn, bind_txn=True)
-            cursor.update(txn=txn, bind_txn=True)
-            cursor.update(txn=txn, bind_txn=True)
-            revcursor.update(txn=txn, bind_txn=True, reverse=True)
-            revcursor.update(txn=txn, bind_txn=True, reverse=True)
-            revcursor.update(txn=txn, bind_txn=True, reverse=True)
 
             kv = cursor.read()
             assert kv == (b"a1c", b"3")

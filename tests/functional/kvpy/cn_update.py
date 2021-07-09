@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 from contextlib import ExitStack
-import hse
+from hse2 import hse
 
 from utility import lifecycle
 
@@ -28,7 +28,7 @@ try:
         kvs.put(b"e", b"5")
         kvs.put(b"a", b"100")
 
-        cur.update()
+        cur.update_view()
         assert sum(1 for _ in cur.items()) == 2  # keys beyond 'c' = 'd' and 'e'
         cur.seek(b"0x0")
         assert sum(1 for _ in cur.items()) == 5

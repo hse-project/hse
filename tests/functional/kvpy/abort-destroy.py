@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-import hse
+from hse2 import hse
 from contextlib import ExitStack
 from utility import lifecycle
 
@@ -15,7 +15,7 @@ try:
 
         txn = kvdb.transaction()
         txn.begin()
-        cursor = kvs.cursor(txn=txn, bind_txn=True)
+        cursor = kvs.cursor(txn=txn, flags=0)
         txn.abort()
         cursor.destroy()
 finally:

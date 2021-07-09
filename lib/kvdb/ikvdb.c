@@ -7,6 +7,7 @@
 #define MTF_MOCK_IMPL_kvs
 
 #include <hse/hse.h>
+#include <hse/flags.h>
 
 #include <hse_util/hse_err.h>
 #include <hse_util/event_counter.h>
@@ -273,7 +274,7 @@ ikvdb_log_deserialize_to_kvdb_dparams(const char *kvdb_home, struct kvdb_dparams
 }
 
 merr_t
-ikvdb_make(const char *kvdb_home, struct mpool *mp, struct kvdb_cparams *params, u64 captgt)
+ikvdb_create(const char *kvdb_home, struct mpool *mp, struct kvdb_cparams *params, u64 captgt)
 {
     assert(mp);
     assert(params);
@@ -295,7 +296,7 @@ ikvdb_make(const char *kvdb_home, struct mpool *mp, struct kvdb_cparams *params,
     if (ev(err))
         goto out;
 
-    err = kvdb_log_make(log, captgt, params);
+    err = kvdb_log_create(log, captgt, params);
     if (ev(err))
         goto out;
 
@@ -308,7 +309,7 @@ ikvdb_make(const char *kvdb_home, struct mpool *mp, struct kvdb_cparams *params,
     if (ev(err))
         goto out;
 
-    err = cndb_make(mp, cndb_captgt, cndb_o1, cndb_o2);
+    err = cndb_create(mp, cndb_captgt, cndb_o1, cndb_o2);
     if (ev(err)) {
         kvdb_log_abort(log, tx);
         goto out;
@@ -319,7 +320,7 @@ ikvdb_make(const char *kvdb_home, struct mpool *mp, struct kvdb_cparams *params,
         goto out;
 
 out:
-    /* Failed ikvdb_make() indicates that the caller or operator should
+    /* Failed ikvdb_create() indicates that the caller or operator should
      * destroy the kvdb: recovery is not possible.
      */
     kvdb_log_close(log);
@@ -1250,7 +1251,7 @@ kvdb_kvs_set_ikvs(struct kvdb_kvs *kk, struct ikvs *ikvs)
 }
 
 merr_t
-ikvdb_kvs_make(struct ikvdb *handle, const char *kvs_name, const struct kvs_cparams *params)
+ikvdb_kvs_create(struct ikvdb *handle, const char *kvs_name, const struct kvs_cparams *params)
 {
     assert(handle);
     assert(kvs_name);
@@ -1292,7 +1293,7 @@ ikvdb_kvs_make(struct ikvdb *handle, const char *kvs_name, const struct kvs_cpar
 
     kvs->kk_flags = cn_cp2cflags(params);
 
-    err = cndb_cn_make(self->ikdb_cndb, params, &kvs->kk_cnid, kvs->kk_name);
+    err = cndb_cn_create(self->ikdb_cndb, params, &kvs->kk_cnid, kvs->kk_name);
     if (ev(err))
         goto out_unlock;
 
@@ -1382,7 +1383,7 @@ out_immediate:
 }
 
 merr_t
-ikvdb_get_names(struct ikvdb *handle, unsigned int *count, char ***kvs_list)
+ikvdb_kvs_names_get(struct ikvdb *handle, size_t *namec, char ***namev)
 {
     struct ikvdb_impl *self = ikvdb_h2r(handle);
     int                i, slot = 0;
@@ -1390,7 +1391,7 @@ ikvdb_get_names(struct ikvdb *handle, unsigned int *count, char ***kvs_list)
     char *             name;
 
     kvsv = calloc(HSE_KVS_COUNT_MAX, sizeof(*kvsv) + HSE_KVS_NAME_LEN_MAX);
-    if (!kvsv)
+    if (!namev)
         return merr(ev(ENOMEM));
 
     mutex_lock(&self->ikdb_lock);
@@ -1410,19 +1411,21 @@ ikvdb_get_names(struct ikvdb *handle, unsigned int *count, char ***kvs_list)
         name += HSE_KVS_NAME_LEN_MAX;
     }
 
-    *kvs_list = kvsv;
+    *namev = kvsv;
 
-    if (count)
-        *count = self->ikdb_kvs_cnt;
+    if (namec)
+        *namec = self->ikdb_kvs_cnt;
 
     mutex_unlock(&self->ikdb_lock);
     return 0;
 }
 
 void
-ikvdb_free_names(struct ikvdb *handle, char **kvsv)
+ikvdb_kvs_names_free(struct ikvdb *handle, char **namev)
 {
-    free(kvsv);
+    assert(namev);
+
+    free(namev);
 }
 
 void
@@ -1495,7 +1498,7 @@ ikvdb_kvs_open(
         kvs->kk_vcompbnd = tls_vbufsz - (kvs->kk_vcompbnd - tls_vbufsz);
         assert(kvs->kk_vcompbnd < tls_vbufsz);
 
-        assert(cops->cop_estimate(NULL, HSE_KVS_VLEN_MAX) < HSE_KVS_VLEN_MAX + PAGE_SIZE * 2);
+        assert(cops->cop_estimate(NULL, HSE_KVS_VALUE_LEN_MAX) < HSE_KVS_VALUE_LEN_MAX + PAGE_SIZE * 2);
     }
 
     /* Need a lock to prevent ikvdb_close from freeing up resources from
@@ -1637,7 +1640,7 @@ ikvdb_close(struct ikvdb *handle)
     }
 
     /* Deregistering this url before trying to get ikdb_lock prevents
-     * a deadlock between this call and an ongoing call to ikvdb_get_names()
+     * a deadlock between this call and an ongoing call to ikvdb_kvs_names_get()
      */
     kvdb_rest_deregister();
 
@@ -1736,26 +1739,27 @@ ikvdb_throttle(struct ikvdb_impl *self, u64 bytes)
 }
 
 static inline bool
-is_write_allowed(struct ikvs *kvs, struct hse_kvdb_opspec *os)
+is_write_allowed(struct ikvs *kvs, struct hse_kvdb_txn *const txn)
 {
-    bool kvs_is_txn = kvs_txn_is_enabled(kvs);
-    bool op_is_txn = os && os->kop_txn;
+    const bool kvs_is_txn = kvs_txn_is_enabled(kvs);
+    const bool op_is_txn = txn;
 
     return kvs_is_txn ^ op_is_txn ? false : true;
 }
 
 static inline bool
-is_read_allowed(struct ikvs *kvs, struct hse_kvdb_opspec *os)
+is_read_allowed(struct ikvs *kvs, struct hse_kvdb_txn *const txn)
 {
-    return os && os->kop_txn && !kvs_txn_is_enabled(kvs) ? false : true;
+    return txn && !kvs_txn_is_enabled(kvs) ? false : true;
 }
 
 merr_t
 ikvdb_kvs_put(
-    struct hse_kvs *         handle,
-    struct hse_kvdb_opspec * os,
-    struct kvs_ktuple *      kt,
-    const struct kvs_vtuple *vt)
+    struct hse_kvs *           handle,
+    const unsigned int         flags,
+    struct hse_kvdb_txn *const txn,
+    struct kvs_ktuple *        kt,
+    const struct kvs_vtuple *  vt)
 {
     struct kvdb_kvs *  kk = (struct kvdb_kvs *)handle;
     struct ikvdb_impl *parent;
@@ -1769,7 +1773,7 @@ ikvdb_kvs_put(
     if (ev(!handle))
         return merr(EINVAL);
 
-    if (ev(!is_write_allowed(kk->kk_ikvs, os)))
+    if (ev(!is_write_allowed(kk->kk_ikvs, txn)))
         return merr(EINVAL);
 
     parent = kk->kk_parent;
@@ -1788,7 +1792,8 @@ ikvdb_kvs_put(
     vbufsz = tls_vbufsz;
     vbuf = NULL;
 
-    if (clen == 0 && vlen > kk->kk_vcompmin) {
+    if ((clen == 0 && vlen > kk->kk_vcompmin && !(flags & HSE_FLAG_PUT_VALUE_COMPRESSION_OFF)) ||
+        flags & HSE_FLAG_PUT_VALUE_COMPRESSION_ON) {
         if (vlen > kk->kk_vcompbnd) {
             vbufsz = vlen + PAGE_SIZE * 2;
             vbuf = vlb_alloc(vbufsz);
@@ -1797,6 +1802,10 @@ ikvdb_kvs_put(
         }
 
         if (vbuf) {
+            /* Currently kk_vcompress is not set in non-compressed KVSs. This
+             * will change.
+             */
+            assert(kk->kk_vcompress);
             err = kk->kk_vcompress(vt->vt_data, vlen, vbuf, vbufsz, &clen);
 
             if (!err && clen < vlen) {
@@ -1807,9 +1816,9 @@ ikvdb_kvs_put(
         }
     }
 
-    put_seqno = kvdb_kop_is_txn(os) ? 0 : HSE_SQNREF_SINGLE;
+    put_seqno = txn ? 0 : HSE_SQNREF_SINGLE;
 
-    err = kvs_put(kk->kk_ikvs, os, kt, vt, put_seqno);
+    err = kvs_put(kk->kk_ikvs, txn, kt, vt, put_seqno);
 
     if (vbuf && vbuf != tls_vbuf)
         vlb_free(vbuf, (vbufsz > VLB_ALLOCSZ_MAX) ? vbufsz : clen);
@@ -1819,7 +1828,7 @@ ikvdb_kvs_put(
         return err;
     }
 
-    if (!(kvdb_kop_is_priority(os) || parent->ikdb_rp.throttle_disable))
+    if (!(flags & HSE_FLAG_PUT_PRIORITY || parent->ikdb_rp.throttle_disable))
         ikvdb_throttle(parent, kt->kt_len + (clen ? clen : vlen));
 
     return 0;
@@ -1827,12 +1836,13 @@ ikvdb_kvs_put(
 
 merr_t
 ikvdb_kvs_pfx_probe(
-    struct hse_kvs *        handle,
-    struct hse_kvdb_opspec *os,
-    struct kvs_ktuple *     kt,
-    enum key_lookup_res *   res,
-    struct kvs_buf *        kbuf,
-    struct kvs_buf *        vbuf)
+    struct hse_kvs *           handle,
+    const unsigned int         flags,
+    struct hse_kvdb_txn *const txn,
+    struct kvs_ktuple *        kt,
+    enum key_lookup_res *      res,
+    struct kvs_buf *           kbuf,
+    struct kvs_buf *           vbuf)
 {
     struct kvdb_kvs *  kk = (struct kvdb_kvs *)handle;
     struct ikvdb_impl *p;
@@ -1841,12 +1851,12 @@ ikvdb_kvs_pfx_probe(
     if (ev(!handle))
         return merr(EINVAL);
 
-    if (ev(!is_read_allowed(kk->kk_ikvs, os)))
+    if (ev(!is_read_allowed(kk->kk_ikvs, txn)))
         return merr(EINVAL);
 
     p = kk->kk_parent;
 
-    if (kvdb_kop_is_txn(os)) {
+    if (txn) {
         /*
          * No need to wait for ongoing commits. A transaction waited when its view was
          * being established i.e. at the time of transaction begin.
@@ -1858,16 +1868,17 @@ ikvdb_kvs_pfx_probe(
         kvdb_ctxn_set_wait_commits(p->ikdb_ctxn_set);
     }
 
-    return kvs_pfx_probe(kk->kk_ikvs, os, kt, view_seqno, res, kbuf, vbuf);
+    return kvs_pfx_probe(kk->kk_ikvs, txn, kt, view_seqno, res, kbuf, vbuf);
 }
 
 merr_t
 ikvdb_kvs_get(
-    struct hse_kvs *        handle,
-    struct hse_kvdb_opspec *os,
-    struct kvs_ktuple *     kt,
-    enum key_lookup_res *   res,
-    struct kvs_buf *        vbuf)
+    struct hse_kvs *           handle,
+    const unsigned int         flags,
+    struct hse_kvdb_txn *const txn,
+    struct kvs_ktuple *        kt,
+    enum key_lookup_res *      res,
+    struct kvs_buf *           vbuf)
 {
     struct kvdb_kvs *  kk = (struct kvdb_kvs *)handle;
     struct ikvdb_impl *p;
@@ -1876,12 +1887,12 @@ ikvdb_kvs_get(
     if (ev(!handle))
         return merr(EINVAL);
 
-    if (ev(!is_read_allowed(kk->kk_ikvs, os)))
+    if (ev(!is_read_allowed(kk->kk_ikvs, txn)))
         return merr(EINVAL);
 
     p = kk->kk_parent;
 
-    if (kvdb_kop_is_txn(os)) {
+    if (txn) {
         /*
          * No need to wait for ongoing commits. A transaction waited when its view was
          * being established i.e. at the time of transaction begin.
@@ -1893,11 +1904,15 @@ ikvdb_kvs_get(
         kvdb_ctxn_set_wait_commits(p->ikdb_ctxn_set);
     }
 
-    return kvs_get(kk->kk_ikvs, os, kt, view_seqno, res, vbuf);
+    return kvs_get(kk->kk_ikvs, txn, kt, view_seqno, res, vbuf);
 }
 
 merr_t
-ikvdb_kvs_del(struct hse_kvs *handle, struct hse_kvdb_opspec *os, struct kvs_ktuple *kt)
+ikvdb_kvs_del(
+    struct hse_kvs *           handle,
+    const unsigned int         flags,
+    struct hse_kvdb_txn *const txn,
+    struct kvs_ktuple *        kt)
 {
     struct kvdb_kvs *  kk = (struct kvdb_kvs *)handle;
     struct ikvdb_impl *parent;
@@ -1907,7 +1922,7 @@ ikvdb_kvs_del(struct hse_kvs *handle, struct hse_kvdb_opspec *os, struct kvs_ktu
     if (ev(!handle))
         return merr(EINVAL);
 
-    if (ev(!is_write_allowed(kk->kk_ikvs, os)))
+    if (ev(!is_write_allowed(kk->kk_ikvs, txn)))
         return merr(EINVAL);
 
     parent = kk->kk_parent;
@@ -1920,9 +1935,9 @@ ikvdb_kvs_del(struct hse_kvs *handle, struct hse_kvdb_opspec *os, struct kvs_ktu
     if (ev(err))
         return err;
 
-    del_seqno = kvdb_kop_is_txn(os) ? 0 : HSE_SQNREF_SINGLE;
+    del_seqno = txn ? 0 : HSE_SQNREF_SINGLE;
 
-    err = kvs_del(kk->kk_ikvs, os, kt, del_seqno);
+    err = kvs_del(kk->kk_ikvs, txn, kt, del_seqno);
     if (ev(err))
         return err;
 
@@ -1931,10 +1946,11 @@ ikvdb_kvs_del(struct hse_kvs *handle, struct hse_kvdb_opspec *os, struct kvs_ktu
 
 merr_t
 ikvdb_kvs_prefix_delete(
-    struct hse_kvs *        handle,
-    struct hse_kvdb_opspec *os,
-    struct kvs_ktuple *     kt,
-    size_t *                kvs_pfx_len)
+    struct hse_kvs *           handle,
+    const unsigned int         flags,
+    struct hse_kvdb_txn *const txn,
+    struct kvs_ktuple *        kt,
+    size_t *                   kvs_pfx_len)
 {
     struct kvdb_kvs *  kk = (struct kvdb_kvs *)handle;
     struct ikvdb_impl *parent;
@@ -1945,7 +1961,7 @@ ikvdb_kvs_prefix_delete(
     if (ev(!handle))
         return merr(EINVAL);
 
-    if (ev(!is_write_allowed(kk->kk_ikvs, os)))
+    if (ev(!is_write_allowed(kk->kk_ikvs, txn)))
         return merr(EINVAL);
 
     parent = kk->kk_parent;
@@ -1961,14 +1977,14 @@ ikvdb_kvs_prefix_delete(
     if (ev(kt->kt_len == 0))
         return merr(ENOENT);
 
-    pdel_seqno = kvdb_kop_is_txn(os) ? 0 : HSE_SQNREF_SINGLE;
+    pdel_seqno = txn ? 0 : HSE_SQNREF_SINGLE;
 
     /* Prefix tombstone deletes all current keys with a matching prefix -
      * those with a sequence number up to but excluding the current seqno.
      * Insert prefix tombstone with a higher seqno. Use a higher sequence
      * number to allow newer mutations (after prefix) to be distinguished.
      */
-    err = kvs_prefix_del(kk->kk_ikvs, os, kt, pdel_seqno);
+    err = kvs_prefix_del(kk->kk_ikvs, txn, kt, pdel_seqno);
     if (ev(err))
         return err;
 
@@ -2060,23 +2076,6 @@ cursor_unbind_txn(struct hse_kvs_cursor *cur)
     if (bind) {
         cur->kc_gen = -1;
         cur->kc_bind = 0;
-
-        /*
-         * Retain the view seqno of the current transaction if the
-         * static view flag is set.
-         * If the flag isn't set, a committed txn unbind sets the view
-         * to commit_sn + 1 and an aborted txn unbind sets the view to
-         * the current KVDB seqno.
-         */
-        if (!(cur->kc_flags & HSE_KVDB_KOP_FLAG_STATIC_VIEW)) {
-            /*
-             * Since the cursor view is refreshed to a newer one,  we need to
-             * wait for ongoing commits after the view is established.
-             */
-            cur->kc_seq = bind->b_seq;
-            kvdb_ctxn_set_wait_commits(cur->kc_kvs->kk_parent->ikdb_ctxn_set);
-        }
-
         kvdb_ctxn_cursor_unbind(bind);
     }
 
@@ -2085,25 +2084,24 @@ cursor_unbind_txn(struct hse_kvs_cursor *cur)
 
 merr_t
 ikvdb_kvs_cursor_create(
-    struct hse_kvs *        handle,
-    struct hse_kvdb_opspec *os,
-    const void *            prefix,
-    size_t                  pfx_len,
-    struct hse_kvs_cursor **cursorp)
+    struct hse_kvs *           handle,
+    const unsigned int         flags,
+    struct hse_kvdb_txn *const txn,
+    const void *               prefix,
+    size_t                     pfx_len,
+    struct hse_kvs_cursor **   cursorp)
 {
     struct kvdb_kvs *      kk = (struct kvdb_kvs *)handle;
     struct ikvdb_impl *    ikvdb = kk->kk_parent;
     struct kvdb_ctxn *     ctxn = 0;
-    bool                   bind = false;
     struct hse_kvs_cursor *cur = 0;
-    int                    reverse;
     merr_t                 err;
     u64                    ts, vseq, tstart;
     struct perfc_set *     pkvsl_pc;
 
     *cursorp = NULL;
 
-    if (ev(!is_read_allowed(kk->kk_ikvs, os)))
+    if (ev(!is_read_allowed(kk->kk_ikvs, txn)))
         return merr(EINVAL);
 
     if (ev(atomic_read(&ikvdb->ikdb_curcnt) > ikvdb->ikdb_curcnt_max))
@@ -2112,33 +2110,10 @@ ikvdb_kvs_cursor_create(
     pkvsl_pc = kvs_perfc_pkvsl(kk->kk_ikvs);
     tstart = perfc_lat_start(pkvsl_pc);
 
-    reverse = false;
-
-    /*
-     * There are 3 types of cursors:
-     * 1. those that create their own view.
-     * 2. those that use the transaction's view.
-     * 3. those that bind to a transaction's lifecycle.
-     *
-     * The final type is a special cursor that can iterate over
-     * the contents of a transaction.  But it also becomes stale
-     * upon each update to the transaction, and is automatically
-     * canceled when the transaction completes (commit or abort).
-     *
-     * These types are distinguished here.
-     */
-
-    reverse = kvdb_kop_is_reverse(os);
-    if (kvdb_kop_is_txn(os))
-        ctxn = kvdb_ctxn_h2h(os->kop_txn);
-    if (kvdb_kop_is_bind_txn(os)) {
-        bind = true;
-        if (ev(!ctxn))
-            return merr(EINVAL);
-    }
-
     vseq = HSE_SQNREF_UNDEFINED;
-    if (ctxn) {
+
+    if (txn) {
+        ctxn = kvdb_ctxn_h2h(txn);
         err = kvdb_ctxn_get_view_seqno(ctxn, &vseq);
         if (ev(err))
             return err;
@@ -2155,7 +2130,7 @@ ikvdb_kvs_cursor_create(
      *  - initialize cursor
      * The failure path must unregister the cursor from kk_cursors.
      */
-    cur = kvs_cursor_alloc(kk->kk_ikvs, prefix, pfx_len, reverse);
+    cur = kvs_cursor_alloc(kk->kk_ikvs, prefix, pfx_len, flags & HSE_FLAG_CURSOR_REVERSE);
     if (ev(!cur))
         return merr(ENOMEM);
 
@@ -2163,12 +2138,12 @@ ikvdb_kvs_cursor_create(
 
     /* if we have a transaction at all, use its view seqno... */
     cur->kc_seq = vseq;
-    cur->kc_flags = os ? os->kop_flags : 0;
+    cur->kc_flags = flags;
 
     cur->kc_kvs = kk;
     cur->kc_gen = 0;
     cur->kc_ctxn = ctxn;
-    cur->kc_bind = bind ? kvdb_ctxn_cursor_bind(ctxn) : NULL;
+    cur->kc_bind = ctxn ? kvdb_ctxn_cursor_bind(ctxn) : NULL;
 
     /* Temporarily lock a view until this cursor gets refs on cn kvsets. */
     err = cursor_view_acquire(cur);
@@ -2183,11 +2158,11 @@ ikvdb_kvs_cursor_create(
 
     cursor_view_release(cur); /* release the view that was locked */
 
-    /* If this is a bound cursor, the txn waited when its view was being established
-     * at txn begin. Need not wait for commits here. Wait for ongoing commits to finish
-     * only if this is not a bound cursor.
+    /* After acquiring a view, non-txn cursors must wait for ongoing commits
+     * to finish to ensure they never see partial txns.  This is not necessary
+     * for txn cursors because their view is inherited from the txn.
      */
-    if (!bind)
+    if (!txn)
         kvdb_ctxn_set_wait_commits(ikvdb->ikdb_ctxn_set);
 
     err = kvs_cursor_prepare(cur);
@@ -2209,14 +2184,10 @@ out:
 }
 
 merr_t
-ikvdb_kvs_cursor_update(struct hse_kvs_cursor *cur, struct hse_kvdb_opspec *os)
+ikvdb_kvs_cursor_update_view(struct hse_kvs_cursor *cur, unsigned int flags)
 {
-    struct kvdb_ctxn_bind *bound;
-    struct kvdb_ctxn *     ctxn;
-    bool                   bind = false;
-    u64                    seqno;
-    merr_t                 err;
-    u64                    tstart;
+    merr_t err;
+    u64    tstart;
 
     tstart = perfc_lat_start(cur->kc_pkvsl_pc);
 
@@ -2224,92 +2195,30 @@ ikvdb_kvs_cursor_update(struct hse_kvs_cursor *cur, struct hse_kvdb_opspec *os)
     if (ev(cur->kc_err))
         return cur->kc_err;
 
-    if (ev(!is_read_allowed(cur->kc_kvs->kk_ikvs, os)))
+    if (ev(cur->kc_ctxn))
         return merr(EINVAL);
 
-    /* Check if this call is trying to change cursor direction. */
-    if (os) {
-        bool os_reverse = kvdb_kop_is_reverse(os);
-        bool cur_reverse = cur->kc_flags && (cur->kc_flags & HSE_KVDB_KOP_FLAG_REVERSE);
-
-        if (ev(os_reverse != cur_reverse))
-            return merr(EINVAL);
-    }
-
-    /*
-     * Update is allowed to unbind a txn, bind to a new txn,
-     * change from txn A to txn B without a unbind, or just
-     * update its view seqno.
-     *
-     * If the txn is committed or aborted, update retains the
-     * view seqno, and tosses the kvms.
-     *
-     * Updates cannot restore a cursor in error.  Such cursors
-     * must be destroyed.  There are too many possible recovery
-     * actions to handle with update; destroy and recreate.
-     */
-
     cur->kc_seq = HSE_SQNREF_UNDEFINED;
-
-    ctxn = kvdb_kop_is_txn(os) ? kvdb_ctxn_h2h(os->kop_txn) : NULL;
-    if (ctxn) {
-        /* this is a recoverable error */
-        err = kvdb_ctxn_get_view_seqno(ctxn, &cur->kc_seq);
-        if (ev(err))
-            return err;
-    }
-
-    bound = cur->kc_bind;
-    if (bound) {
-        struct hse_kvdb_opspec unbindme;
-
-        HSE_KVDB_OPSPEC_INIT(&unbindme);
-        unbindme.kop_flags = HSE_KVDB_KOP_FLAG_BIND_TXN;
-
-        /* if os is nil, this is the finish of a txn commit/abort */
-        if (!os)
-            os = &unbindme;
-
-        if (kvdb_kop_is_bind_txn(os)) {
-            if (!ctxn || ctxn != bound->b_ctxn) {
-                /* Save view seq; do not change in unbind.
-                 * Since the view remains unchanged, no need to wait on commits.
-                 */
-                seqno = cur->kc_seq;
-                cursor_unbind_txn(cur);
-                cur->kc_seq = seqno;
-                bind = !!ctxn;
-            }
-        } else if (ctxn) {
-            return ev(merr(EINVAL));
-        }
-    } else if (ctxn && kvdb_kop_is_bind_txn(os)) {
-        bind = true;
-    }
 
     /* Temporarily reserve seqno until this cursor gets refs on
      * cn kvsets.
      */
-    cur->kc_ctxn = ctxn;
-    cur->kc_bind = bind ? kvdb_ctxn_cursor_bind(ctxn) : NULL;
     err = cursor_view_acquire(cur);
     if (ev(err))
         return err;
 
-    cur->kc_err = kvs_cursor_update(cur, bind ? cur->kc_bind->b_ctxn : 0, cur->kc_seq);
+    cur->kc_err = kvs_cursor_update(cur, NULL, cur->kc_seq);
     if (ev(cur->kc_err))
         goto out;
 
     cursor_view_release(cur);
 
-    /* If this is a bound cursor, the txn waited when its view was being established
-     * at txn begin. Need not wait for commits here. Wait for ongoing commits to finish
-     * only if this is not a bound cursor.
+    /* After acquiring a view, non-txn cursors must wait for ongoing commits
+     * to finish to ensure they never see partial txns.
      */
-    if (!bind)
-        kvdb_ctxn_set_wait_commits(cur->kc_kvs->kk_parent->ikdb_ctxn_set);
+    kvdb_ctxn_set_wait_commits(cur->kc_kvs->kk_parent->ikdb_ctxn_set);
 
-    cur->kc_flags = os ? os->kop_flags : 0;
+    cur->kc_flags = flags;
 
     perfc_lat_record(cur->kc_pkvsl_pc, PERFC_LT_PKVSL_KVS_CURSOR_UPDATE, tstart);
 
@@ -2351,23 +2260,20 @@ cursor_refresh(struct hse_kvs_cursor *cur)
 
 merr_t
 ikvdb_kvs_cursor_seek(
-    struct hse_kvs_cursor * cur,
-    struct hse_kvdb_opspec *os,
-    const void *            key,
-    size_t                  len,
-    const void *            limit,
-    size_t                  limit_len,
-    struct kvs_ktuple *     kt)
+    struct hse_kvs_cursor *cur,
+    const unsigned int     flags,
+    const void *           key,
+    size_t                 len,
+    const void *           limit,
+    size_t                 limit_len,
+    struct kvs_ktuple *    kt)
 {
     merr_t err;
     u64    tstart;
 
     tstart = perfc_lat_start(cur->kc_pkvsl_pc);
 
-    if (ev(kvdb_kop_is_txn(os)))
-        return merr(EINVAL);
-
-    if (ev(limit && (cur->kc_flags & HSE_KVDB_KOP_FLAG_REVERSE)))
+    if (ev(limit && (cur->kc_flags & HSE_FLAG_CURSOR_REVERSE)))
         return merr(EINVAL);
 
     if (ev(cur->kc_err)) {
@@ -2395,22 +2301,19 @@ ikvdb_kvs_cursor_seek(
 
 merr_t
 ikvdb_kvs_cursor_read(
-    struct hse_kvs_cursor * cur,
-    struct hse_kvdb_opspec *os,
-    const void **           key,
-    size_t *                key_len,
-    const void **           val,
-    size_t *                val_len,
-    bool *                  eof)
+    struct hse_kvs_cursor *cur,
+    const unsigned int     flags,
+    const void **          key,
+    size_t *               key_len,
+    const void **          val,
+    size_t *               val_len,
+    bool *                 eof)
 {
     struct kvs_kvtuple kvt;
     merr_t             err;
     u64                tstart;
 
     tstart = perfc_lat_start(cur->kc_pkvsl_pc);
-
-    if (ev(kvdb_kop_is_txn(os)))
-        return merr(EINVAL);
 
     if (ev(cur->kc_err)) {
         if (ev(merr_errno(cur->kc_err) != EAGAIN))
@@ -2441,8 +2344,8 @@ ikvdb_kvs_cursor_read(
 
     perfc_lat_record(
         cur->kc_pkvsl_pc,
-        cur->kc_flags & HSE_KVDB_KOP_FLAG_REVERSE ? PERFC_LT_PKVSL_KVS_CURSOR_READREV
-                                                  : PERFC_LT_PKVSL_KVS_CURSOR_READFWD,
+        cur->kc_flags & HSE_FLAG_CURSOR_REVERSE ? PERFC_LT_PKVSL_KVS_CURSOR_READREV
+                                                : PERFC_LT_PKVSL_KVS_CURSOR_READFWD,
         tstart);
 
     return 0;
@@ -2496,25 +2399,14 @@ ikvdb_compact_status_get(struct ikvdb *handle, struct hse_kvdb_compact_status *s
 }
 
 merr_t
-ikvdb_sync(struct ikvdb *handle)
+ikvdb_sync(struct ikvdb *handle, const unsigned int flags)
 {
     struct ikvdb_impl *self = ikvdb_h2r(handle);
 
     if (ev(self->ikdb_rdonly))
         return merr(EROFS);
 
-    return c0sk_sync(self->ikdb_c0sk);
-}
-
-merr_t
-ikvdb_flush(struct ikvdb *handle)
-{
-    struct ikvdb_impl *self = ikvdb_h2r(handle);
-
-    if (ev(self->ikdb_rdonly))
-        return merr(EROFS);
-
-    return c0sk_flush(self->ikdb_c0sk);
+    return c0sk_sync(self->ikdb_c0sk, flags);
 }
 
 u64

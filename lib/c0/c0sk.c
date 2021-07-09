@@ -232,7 +232,7 @@ c0sk_c0_deregister(struct c0sk *handle, u16 skidx)
         self->c0sk_cnv[skidx] = 0;
     }
 
-    return c0sk_flush(handle);
+    return c0sk_sync(handle, HSE_FLAG_SYNC_ASYNC);
 }
 
 static struct kmem_cache *c0_cursor_cache;
@@ -588,7 +588,7 @@ c0sk_close(struct c0sk *handle)
     self->c0sk_cheap_sz = 0;
     self->c0sk_closing = true;
 
-    c0sk_sync(handle);
+    c0sk_sync(handle, 0);
 
     /* There should be only one (empty) kvms on the list after
      * calling c0sk_sync() and waiting for ingest to complete.
@@ -695,22 +695,6 @@ c0sk_rparams(struct c0sk *handle)
     return self->c0sk_kvdb_rp;
 }
 
-merr_t
-c0sk_flush(struct c0sk *handle)
-{
-    struct c0sk_impl *self;
-
-    if (!handle)
-        return merr(ev(EINVAL));
-
-    self = c0sk_h2r(handle);
-
-    if (self->c0sk_kvdb_rp->read_only)
-        return 0;
-
-    return c0sk_flush_current_multiset(self, NULL);
-}
-
 static void
 c0sk_sync_debug(struct c0sk_impl *self, u64 waiter_gen)
 {
@@ -739,7 +723,7 @@ c0sk_sync_debug(struct c0sk_impl *self, u64 waiter_gen)
  * cf: c0_kvmultiset_ingest_completion(), release_multiset()
  */
 merr_t
-c0sk_sync(struct c0sk *handle)
+c0sk_sync(struct c0sk *handle, const unsigned int flags)
 {
     struct c0sk_waiter waiter = {};
     struct c0sk_impl * self;
@@ -754,12 +738,18 @@ c0sk_sync(struct c0sk *handle)
     if (self->c0sk_kvdb_rp->read_only)
         return 0;
 
-    self->c0sk_syncing = true;
+    /**
+     * Don't mark syncing in asynchronous request.
+     */
+    self->c0sk_syncing = !(flags & HSE_FLAG_SYNC_ASYNC);
     err = c0sk_flush_current_multiset(self, &waiter.c0skw_gen);
     if (ev(err)) {
         self->c0sk_syncing = false;
         return merr_errno(err) == EAGAIN ? 0 : err;
     }
+
+    if (flags & HSE_FLAG_SYNC_ASYNC)
+        return err;
 
     cv_init(&waiter.c0skw_cv, __func__);
 

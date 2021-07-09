@@ -7,7 +7,7 @@
 
 #include <hse_util/hse_err.h>
 
-#include <hse/hse_limits.h>
+#include <hse/limits.h>
 
 #include <hse_ikvdb/kvs_rparams.h>
 #include <hse_ikvdb/limits.h>
@@ -377,9 +377,9 @@ MTF_DEFINE_UTEST_PRE(test, t_create_error_paths, test_setup)
     err = cn_tree_create(&tree, NULL, 0, &cp, &mock_health, rp);
     ASSERT_TRUE(err);
 
-    /* pfx_len greater than HSE_KVS_MAX_PFXLEN is invalid */
+    /* pfx_len greater than HSE_KVS_PFX_LEN_MAX is invalid */
     cp.fanout = 1 << 3;
-    cp.pfx_len = HSE_KVS_MAX_PFXLEN + 1;
+    cp.pfx_len = HSE_KVS_PFX_LEN_MAX + 1;
     cp.pfx_pivot = 2;
     err = cn_tree_create(&tree, NULL, 0, &cp, &mock_health, rp);
     ASSERT_TRUE(err);

@@ -73,7 +73,7 @@ simple_client(
 	bool        write,
 	bool        verbose)
 {
-	char    key[HSE_KVS_KLEN_MAX + 1];
+	char    key[HSE_KVS_KEY_LEN_MAX + 1];
 	char    val[32], xval[32];
 	size_t  klen, klenmax;
 	size_t  vlen, vlenmax;
@@ -113,7 +113,7 @@ simple_client(
 			printf("put %8d:  %*s  %*s\n",
 			       i, (int)klenmax, key, (int)vlenmax, val);
 
-		err = hse_kvs_put(kvs, NULL, key, klen, val, vlen);
+		err = hse_kvs_put(kvs, 0, NULL, key, klen, val, vlen);
 		if (err)
 			fatal(err, "hse_kvs_put(%s, %zu, %s, %zu) failed",
 			      key, klen, val, vlen);
@@ -122,7 +122,7 @@ simple_client(
 	for (i = 0; read && i < kmax; i++) {
 		klen = snprintf(key, sizeof(key), kfmt, i, i, i);
 
-		err = hse_kvs_get(kvs, NULL, key, klen, &found,
+		err = hse_kvs_get(kvs, 0, NULL, key, klen, &found,
 			      val, sizeof(val), &vlen);
 		if (err)
 			fatal(err, "hse_kvs_get(%s, %zu) failed", key, klen);
@@ -235,7 +235,7 @@ main(int argc, char **argv)
 		printf("count %u\n", kmax);
 	}
 
-	rc = hse_init();
+	rc = hse_init(0, NULL);
 	if (rc)
 		fatal(rc, "failed to initalize kvdb");
 

@@ -32,8 +32,6 @@
 
 const char *progname;
 
-struct hse_kvdb_opspec opspec;
-
 void
 fatal(hse_err_t err, char *fmt, ...)
 {
@@ -98,8 +96,6 @@ main(int argc, char **argv)
     every = 153;
     rdm = 0;
 
-    HSE_KVDB_OPSPEC_INIT(&opspec);
-
     while ((c = getopt(argc, argv, ":a:c:e:hl:o:r:s:")) != -1) {
         switch (c) {
             case 'a':
@@ -151,7 +147,7 @@ main(int argc, char **argv)
     mpname = argv[0];
     kvsname = argv[1];
 
-    rc = hse_init();
+    rc = hse_init(0, NULL);
     if (rc)
         fatal(rc, "failed to initialize kvdb");
 
@@ -188,7 +184,7 @@ main(int argc, char **argv)
         vlen = keylen;
         val = data;
 
-        rc = hse_kvs_put(kvs, &opspec, key, klen, val, vlen);
+        rc = hse_kvs_put(kvs, 0, NULL, key, klen, val, vlen);
         if (rc)
             fatal(rc, "hse_kvs_put");
     }

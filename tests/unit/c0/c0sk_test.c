@@ -439,7 +439,7 @@ MTF_DEFINE_UTEST_PREPOST(c0sk_test, t_sync, no_fail_pre, no_fail_post)
     err = c0sk_del(mkvdb.ikdb_c0sk, skidx, &kt, HSE_SQNREF_SINGLE);
     ASSERT_EQ(0, err);
 
-    err = c0sk_sync(mkvdb.ikdb_c0sk);
+    err = c0sk_sync(mkvdb.ikdb_c0sk, 0);
     ASSERT_EQ(0, err);
 
     /* [HSE_REVISIT] Replace with cndb_ingest.
@@ -1985,7 +1985,7 @@ MTF_DEFINE_UTEST_PREPOST(c0sk_test, c0_cursor_robust, no_fail_pre, no_fail_post)
             if (random() % 100 < 5)
                 atomic64_inc(&seqno);
             if (j > 0 && j % 17977 == 0)
-                c0sk_flush(c0sk);
+                c0sk_sync(c0sk, HSE_FLAG_SYNC_ASYNC);
         }
     }
 
@@ -2176,7 +2176,7 @@ MTF_DEFINE_UTEST_PREPOST(c0sk_test, c0_cursor_eagain, no_fail_pre, no_fail_post)
         err = c0sk_put(c0sk, skidx, &kt, &vt, HSE_SQNREF_SINGLE);
         ASSERT_EQ(0, err);
 
-        c0sk_flush(c0sk);
+        c0sk_sync(c0sk, HSE_FLAG_SYNC_ASYNC);
         err = c0sk_cursor_update(cur, atomic64_fetch_add(1, &seqno), 0);
         if (err)
             ASSERT_EQ(EAGAIN, merr_errno(err));
@@ -2215,11 +2215,11 @@ MTF_DEFINE_UTEST_PREPOST(c0sk_test, c0_rcursor_robust, no_fail_pre, no_fail_post
     merr_t                err;
     bool                  eof;
     atomic64_t            seqno;
-    u8                    pfx[HSE_KVS_KLEN_MAX];
+    u8                    pfx[HSE_KVS_KEY_LEN_MAX];
 
     struct kvs_cursor_element elem;
 
-    memset(pfx, 0xFF, HSE_KVS_KLEN_MAX);
+    memset(pfx, 0xFF, HSE_KVS_KEY_LEN_MAX);
 
 #define nkeys (100 * 1000)
 
@@ -2318,7 +2318,7 @@ MTF_DEFINE_UTEST_PREPOST(c0sk_test, c0_rcursor_robust, no_fail_pre, no_fail_post
             if (random() % 100 < 5)
                 atomic64_inc(&seqno);
             if (j > 0 && j % 17977 == 0)
-                c0sk_flush(c0sk);
+                c0sk_sync(c0sk, HSE_FLAG_SYNC_ASYNC);
         }
     }
 
@@ -2569,7 +2569,7 @@ MTF_DEFINE_UTEST_PREPOST(c0sk_test, c0_cursor_ptombs, no_fail_pre, no_fail_post)
         err = c0sk_put(mkvdb.ikdb_c0sk, skidx, &kt, &vt, HSE_SQNREF_SINGLE);
         ASSERT_EQ(0, err);
         if (i > 0 && i % 4000 == 0)
-            c0sk_flush(c0sk);
+            c0sk_sync(c0sk, HSE_FLAG_SYNC_ASYNC);
 
         if (i > 0 && i == 8765) {
             kvs_ktuple_init(&kt, kbuf, sizeof(kbuf[0]));

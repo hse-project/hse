@@ -10,7 +10,7 @@
 
 #include <bsd/string.h>
 
-#include <hse/hse_limits.h>
+#include <hse/limits.h>
 #include <hse_ut/framework.h>
 #include <hse_ikvdb/config.h>
 #include <hse_ikvdb/kvdb_rparams.h>

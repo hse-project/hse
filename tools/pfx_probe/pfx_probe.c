@@ -91,7 +91,7 @@ loader(void *arg)
 	size_t plen;
         u64 rc;
 
-	rc = hse_kvs_prefix_delete(ta->kvs, 0, 0, 0, &plen);
+	rc = hse_kvs_prefix_delete(ta->kvs, 0, NULL, 0, 0, &plen);
         if (err)
             fatal(rc, "prefix delete failed");
 
@@ -109,7 +109,7 @@ loader(void *arg)
 		*c = htobe64(i);
 		for (j = 0; j < ti->sfx; j++) {
 			*s = htobe64(j);
-			rc = hse_kvs_put(ta->kvs, 0, key, sizeof(key),
+			rc = hse_kvs_put(ta->kvs, 0, NULL, key, sizeof(key),
 				     val, sizeof(val));
 			if (rc)
 				fatal(rc, "put failure");
@@ -148,7 +148,7 @@ _pfx_probe(
 		bool eof;
 
 		/* cursor over the hard prefix */
-		c = kh_cursor_create(kvs, 0, pfx, sizeof(uint64_t));
+		c = kh_cursor_create(kvs, 0, NULL, pfx, sizeof(uint64_t));
 
 		/* seek to soft prefix */
 		kh_cursor_seek(c, pfx, pfxlen);
@@ -180,7 +180,7 @@ done:
         s = (uint64_t *)(key + pfxlen);
 
 		pc = HSE_KVS_PFX_FOUND_ZERO;
-		rc = hse_kvs_get(kvs, 0, key, sizeof(key), &found,
+		rc = hse_kvs_get(kvs, 0, NULL, key, sizeof(key), &found,
 				 vbuf, vbufsz, &vlen);
 		if (rc)
 			fatal(rc, "get failure");
@@ -188,7 +188,7 @@ done:
 			pc = HSE_KVS_PFX_FOUND_ONE;
 
         *s = htobe64(1);
-		rc = hse_kvs_get(kvs, 0, key, sizeof(key), &found,
+		rc = hse_kvs_get(kvs, 0, NULL, key, sizeof(key), &found,
 				 vbuf, vbufsz, &vlen);
 		if (rc)
 			fatal(rc, "get failure");
@@ -196,7 +196,7 @@ done:
 			pc = HSE_KVS_PFX_FOUND_MUL;
 	} else {
 
-		rc = hse_kvs_prefix_probe_exp(kvs, 0, pfx, pfxlen, &pc,
+		rc = hse_kvs_prefix_probe(kvs, 0, NULL, pfx, pfxlen, &pc,
 					      kbuf, kbufsz, &klen,
 					      vbuf, vbufsz, &vlen);
 		if (rc)
@@ -224,7 +224,7 @@ reader(void *arg)
 	c = p + 1;
 
 	while (!killthreads) {
-		char        kbuf[HSE_KVS_KLEN_MAX] = {0};
+		char        kbuf[HSE_KVS_KEY_LEN_MAX] = {0};
 		char        vbuf[VLEN];
 		uint64_t    pfx, core;
 
@@ -263,7 +263,7 @@ syncme(void *arg)
 	struct thread_arg  *ta = arg;
 
 	while (!killthreads) {
-		hse_kvdb_sync(ta->kvdb);
+		hse_kvdb_sync(ta->kvdb, 0);
 
 		usleep(100 * 1000);
 	}

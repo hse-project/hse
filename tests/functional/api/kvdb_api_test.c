@@ -38,8 +38,8 @@ MTF_DEFINE_UTEST(kvdb_api, kvdb_make_exists)
 {
     hse_err_t err;
 
-    /* TC: Trying to create a KVDB on an alraedy open KVDB returns EEXIST */
-    err = hse_kvdb_make(home, 0, NULL);
+    /* TC: Trying to create a KVDB on an already open KVDB returns EEXIST */
+    err = hse_kvdb_create(home, 0, NULL);
     ASSERT_EQ(hse_err_to_errno(err), EEXIST);
 }
 

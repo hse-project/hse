@@ -34,7 +34,7 @@ error(hse_err_t err, char *fmt, va_list ap)
     n = vsnprintf(user_msg, sizeof(user_msg), fmt, ap);
 
     if (err) {
-        hse_err_to_string(err, err_msg + off, sizeof(err_msg) - off, &n);
+        hse_strerror(err, err_msg + off, sizeof(err_msg) - off);
         off = min(off + n, sizeof(err_msg) - 1);
 
         n = snprintf(err_msg + off, sizeof(err_msg) - off, " (0x%lx)", err);
@@ -127,8 +127,8 @@ fmt_data(char *out, char *in)
 void
 show(const void *key, size_t klen, const void *val, size_t vlen, int showlen)
 {
-    static char kbuf[HSE_KVS_KLEN_MAX * 3];
-    static char vbuf[HSE_KVS_VLEN_MAX * 3];
+    static char kbuf[HSE_KVS_KEY_LEN_MAX * 3];
+    static char vbuf[HSE_KVS_VALUE_LEN_MAX * 3];
     size_t      koff, voff;
 
     kbuf[0] = vbuf[0] = '\000';
@@ -159,8 +159,8 @@ show(const void *key, size_t klen, const void *val, size_t vlen, int showlen)
 void
 show_hex(const void *key, size_t klen, const void *val, size_t vlen, int showlen)
 {
-    static char kbuf[HSE_KVS_KLEN_MAX * 2 + 8];
-    static char vbuf[HSE_KVS_VLEN_MAX * 2 + 8];
+    static char kbuf[HSE_KVS_KEY_LEN_MAX * 2 + 8];
+    static char vbuf[HSE_KVS_VALUE_LEN_MAX * 2 + 8];
     size_t      koff, voff;
 
     kbuf[0] = vbuf[0] = '\000';

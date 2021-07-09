@@ -21,7 +21,7 @@
 
 #include <hse_util/perfc.h>
 
-#include <hse/hse_limits.h>
+#include <hse/limits.h>
 
 #include <hse_ikvdb/cn.h>
 #include <hse_ikvdb/cndb.h>
@@ -93,7 +93,7 @@ cn_init(void)
 
     hse_log_reg_cn();
 
-    sz = sizeof(struct cn_cursor) + HSE_KVS_MAX_PFXLEN;
+    sz = sizeof(struct cn_cursor) + HSE_KVS_PFX_LEN_MAX;
     cache = kmem_cache_create("cn_cursor", sz, alignof(struct cn_cursor), SLAB_PACKED, NULL);
     if (ev(!cache)) {
         err = merr(ENOMEM);

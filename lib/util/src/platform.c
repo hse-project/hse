@@ -16,7 +16,7 @@
 #include <hse_util/rest_api.h>
 #include <hse_util/slab.h>
 
-#include <hse/hse_version.h>
+#include <hse/version.h>
 
 #include "logging_impl.h"
 #include "logging_util.h"

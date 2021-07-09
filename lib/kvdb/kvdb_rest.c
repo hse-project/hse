@@ -1,7 +1,9 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
+
+#include <hse/flags.h>
 
 #include <hse_util/slab.h>
 #include <hse_util/logging.h>
@@ -52,12 +54,12 @@
 static merr_t
 get_kvs_list(struct ikvdb *ikvdb, int fd, struct yaml_context *yc)
 {
-    char **      kvs_list;
-    unsigned int kvs_cnt;
-    int          i;
-    merr_t       err;
+    char ** kvs_list;
+    size_t  kvs_cnt;
+    int     i;
+    merr_t  err;
 
-    err = ikvdb_get_names(ikvdb, &kvs_cnt, &kvs_list);
+    err = ikvdb_kvs_names_get(ikvdb, &kvs_cnt, &kvs_list);
     if (ev(err))
         return err;
 
@@ -66,7 +68,7 @@ get_kvs_list(struct ikvdb *ikvdb, int fd, struct yaml_context *yc)
         yaml2fd(fd, yaml_list_fmt, yc, kvs_list[i]);
     yaml2fd(fd, yaml_end_element_type, yc);
 
-    ikvdb_free_names(ikvdb, kvs_list);
+    ikvdb_kvs_names_free(ikvdb, kvs_list);
 
     return 0;
 }
@@ -123,12 +125,12 @@ rest_kvdb_compact_request(
     flags = 0;
     kv = rest_kv_next(iter);
     if (!kv) {
-        flags = HSE_KVDB_COMP_FLAG_SAMP_LWM;
+        flags = HSE_FLAG_KVDB_COMPACT_SAMP_LWM;
     } else if (strcmp(kv->key, "policy") == 0) {
         if (strcmp(kv->value, "samp_lwm") == 0)
-            flags = HSE_KVDB_COMP_FLAG_SAMP_LWM;
+            flags = HSE_FLAG_KVDB_COMPACT_SAMP_LWM;
         else if (strcmp(kv->value, "cancel") == 0)
-            flags = HSE_KVDB_COMP_FLAG_CANCEL;
+            flags = HSE_FLAG_KVDB_COMPACT_CANCEL;
     }
 
     /* process command */
@@ -723,7 +725,7 @@ cursor_test_set_params(struct cursor_test *ct, const struct cursor_test_params *
 static merr_t
 cursor_test_execute(struct cursor_test *ct, struct hse_kvs *kvs)
 {
-    struct hse_kvdb_opspec ops = {};
+    unsigned int flags = 0;
     struct hse_kvs_cursor *cur = 0;
     merr_t                 err = 0;
 
@@ -733,15 +735,13 @@ cursor_test_execute(struct cursor_test *ct, struct hse_kvs *kvs)
     u64   dt;
     ulong i;
 
-    HSE_KVDB_OPSPEC_INIT(&ops);
-
     if (p->ctp_reverse)
-        ops.kop_flags |= HSE_KVDB_KOP_FLAG_REVERSE;
+        flags |= HSE_FLAG_CURSOR_REVERSE;
 
     /* Create cursor */
     {
         dt = r->ctr_start = get_time_ns();
-        err = hse_kvs_cursor_create(kvs, &ops, p->ctp_pkey, p->ctp_pkey_len, &cur);
+        err = hse_kvs_cursor_create(kvs, flags, NULL, p->ctp_pkey, p->ctp_pkey_len, &cur);
         dt = get_time_ns() - dt;
         if (err) {
             cursor_test_set_err(ct, err, "hse_kvs_cursor_create failed");
@@ -755,7 +755,7 @@ cursor_test_execute(struct cursor_test *ct, struct hse_kvs *kvs)
         dt = 0;
         if (p->ctp_skey && p->ctp_skey_len > 0) {
             dt = get_time_ns();
-            err = hse_kvs_cursor_seek(cur, &ops, p->ctp_skey, p->ctp_skey_len, 0, 0);
+            err = hse_kvs_cursor_seek(cur, 0, p->ctp_skey, p->ctp_skey_len, 0, 0);
             dt = get_time_ns() - dt;
             if (err) {
                 cursor_test_set_err(ct, err, "hse_kvs_cursor_seek failed");

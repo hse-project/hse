@@ -35,7 +35,7 @@
 #include <sys/sysinfo.h>
 
 #include <hse/hse.h>
-#include <hse/hse_version.h>
+#include <hse/version.h>
 
 #include <hse_util/compiler.h>
 #include <hse_util/page.h>
@@ -295,7 +295,7 @@ eprint(hse_err_t err, const char *fmt, ...)
 
     if (err) {
         emsglen += strlen(strcat(emsg + emsglen, ": "));
-        hse_err_to_string(err, emsg + emsglen, emsgsz - emsglen, NULL);
+        hse_strerror(err, emsg + emsglen, emsgsz - emsglen);
         emsglen += strlen(emsg + emsglen);
     }
 
@@ -979,8 +979,8 @@ main(int argc, char **argv)
             return EX_USAGE;
         }
 
-        if (klen > HSE_KVS_KLEN_MAX) {
-            eprint(EINVAL, "key format yields key longer than %u bytes", HSE_KVS_KLEN_MAX);
+        if (klen > HSE_KVS_KEY_LEN_MAX) {
+            eprint(EINVAL, "key format yields key longer than %u bytes", HSE_KVS_KEY_LEN_MAX);
             return EX_USAGE;
         }
     }
@@ -999,7 +999,7 @@ main(int argc, char **argv)
     tsi_start(&tstart);
 
     status("initializing hse...");
-    err = hse_init();
+    err = hse_init(0, NULL);
     if (err) {
         eprint(err, "hse_init");
         exit(EX_OSERR);

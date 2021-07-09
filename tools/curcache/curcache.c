@@ -80,7 +80,7 @@ parallel_cursors(void *info)
 
         /* create different prefixes each time */
         sprintf(buf, "%d", r);
-        err = hse_kvs_cursor_create(ci->kvs, 0, buf, 3, &c);
+        err = hse_kvs_cursor_create(ci->kvs, 0, NULL, buf, 3, &c);
         if (err)
             return tdie(err, "cannot create cursor iter %d", i);
 
@@ -132,15 +132,15 @@ maker(void *h)
             char buf[32];
             int  len = sprintf(buf, "%d", i);
 
-            err = hse_kvs_put(kvs, 0, buf, len, buf, len);
+            err = hse_kvs_put(kvs, 0, NULL, buf, len, buf, len);
             if (err)
                 tdie(err, "cannot put");
         }
 
         /* we want a kvms to be ingested */
-        err = hse_kvdb_flush(kvdb);
+        err = hse_kvdb_sync(kvdb, HSE_FLAG_SYNC_ASYNC);
         if (err)
-            tdie(err, "cannot flush");
+            tdie(err, "cannot sync");
 
         if (verbose && j % mod[verbose] == 0) {
             printf("maker: loop %d/%d: put keys 100..1000\n", j, loops);
@@ -176,7 +176,7 @@ stress(char *mp, char *kv)
         die(err, "cannot open kvs");
     }
     if (err) {
-        err = hse_kvdb_kvs_make(kvdb, kv, 0, NULL);
+        err = hse_kvdb_kvs_create(kvdb, kv, 0, NULL);
         if (err) {
             die(err, "cannot make kvs");
         }
@@ -276,7 +276,7 @@ main(int argc, char **argv)
     if (!parts[0] || !parts[1])
         usage(prog);
 
-    err = hse_init();
+    err = hse_init(0, NULL);
     if (err)
         die(err, "failed to initialize kvdb");
 

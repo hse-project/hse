@@ -10,7 +10,7 @@
 #include <hse_util/delay.h>
 #include <hse_util/parse_num.h>
 
-#include <hse/hse_version.h>
+#include <hse/version.h>
 
 #include "logging_impl.h"
 #include "logging_util.h"

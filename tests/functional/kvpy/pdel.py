@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 from contextlib import ExitStack
-import hse
+from hse2 import hse
 
 from utility import lifecycle
 
@@ -34,7 +34,7 @@ try:
         kvs_ctx = lifecycle.KvsContext(kvdb, "pdel").cparams("pfx_len=2")
         kvs = stack.enter_context(kvs_ctx)
 
-        num_keys = 1000 * 1000
+        num_keys = 50 * 1000
 
         kvs.prefix_delete(b"AA")
 

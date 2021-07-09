@@ -6,7 +6,7 @@
 #define MTF_MOCK_IMPL_kblock_builder
 #include "kblock_builder.h"
 
-#include <hse/hse_limits.h>
+#include <hse/limits.h>
 #include <hse/kvdb_perfc.h>
 
 #include <hse_ikvdb/key_hash.h>
@@ -666,7 +666,7 @@ _kblock_make_header(
     const unsigned  align = 7;
 
     struct key_obj  tmp_kobj;
-    unsigned char   tmp_kobj_buf[HSE_KVS_KLEN_MAX];
+    unsigned char   tmp_kobj_buf[HSE_KVS_KEY_LEN_MAX];
     unsigned int    tmp_kobj_bufsz = sizeof(tmp_kobj_buf);
 
     assert(kblk->num_keys > 0);
@@ -759,11 +759,11 @@ _kblock_make_header(
         uint minkey_len = key_obj_len(min_kobj);
         uint maxkey_len = key_obj_len(max_kobj);
 
-        assert(0 < minkey_len && minkey_len <= HSE_KVS_KLEN_MAX);
-        assert(0 < maxkey_len && maxkey_len <= HSE_KVS_KLEN_MAX);
+        assert(0 < minkey_len && minkey_len <= HSE_KVS_KEY_LEN_MAX);
+        assert(0 < maxkey_len && maxkey_len <= HSE_KVS_KEY_LEN_MAX);
     }
 
-    assert(HSE_KVS_KLEN_MAX <= HSE_KBLOCK_OMF_KLEN_MAX);
+    assert(HSE_KVS_KEY_LEN_MAX <= HSE_KBLOCK_OMF_KLEN_MAX);
 #endif
 
     /* min key is at last 8-byte boundary that accommodates the min key */
@@ -808,8 +808,8 @@ _kblock_make_header(
     memcpy(base + omf_kbh_blm_hoff(hdr), blm_hdr, sizeof(*blm_hdr));
     memcpy(base + omf_kbh_pt_hoff(hdr), pt_hdr, sizeof(*pt_hdr));
 
-    key_obj_copy(base + omf_kbh_max_koff(hdr), HSE_KVS_KLEN_MAX, 0, max_kobj);
-    key_obj_copy(base + omf_kbh_min_koff(hdr), HSE_KVS_KLEN_MAX, 0, min_kobj);
+    key_obj_copy(base + omf_kbh_max_koff(hdr), HSE_KVS_KEY_LEN_MAX, 0, max_kobj);
+    key_obj_copy(base + omf_kbh_min_koff(hdr), HSE_KVS_KEY_LEN_MAX, 0, min_kobj);
 }
 
 size_t
@@ -1124,7 +1124,7 @@ kbb_add_entry(
 
     assert(!bld->finished);
     assert(key_obj_len(kobj) > 0);
-    assert(key_obj_len(kobj) <= HSE_KVS_KLEN_MAX);
+    assert(key_obj_len(kobj) <= HSE_KVS_KEY_LEN_MAX);
     assert(kmd_len);
     assert(stats->nvals);
 

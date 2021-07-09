@@ -634,7 +634,7 @@ test_end_phase(struct thread_info *ti, bool final)
 		if (verbose)
 			printf("T%u: hse_kvdb_sync\n", ti->id);
 		if (!opt.dryrun) {
-			rc = hse_kvdb_sync(kvdb);
+			rc = hse_kvdb_sync(kvdb, 0);
 			if (rc)
 				merr_quit("hse_kvdb_sync failed", rc);
 		}
@@ -801,7 +801,7 @@ test_put(struct thread_info *ti, uint salt)
 		if (opt.dryrun)
 			continue;
 
-		rc = hse_kvs_put(ti->kvs, NULL,
+		rc = hse_kvs_put(ti->kvs, 0, NULL,
 			     ti->ref_key, ti->ref_klen,
 			     ti->ref_val, ti->ref_vlen);
 		if (rc)
@@ -825,7 +825,7 @@ test_delete(struct thread_info *ti)
 	if (opt.do_pdel) {
 		size_t plen = 0;
 
-		rc = hse_kvs_prefix_delete(ti->kvs, NULL, ti->pfx, ti->pfxlen, &plen);
+		rc = hse_kvs_prefix_delete(ti->kvs, 0, NULL, ti->pfx, ti->pfxlen, &plen);
 		if (!rc)
 			goto done;
 		if (plen)
@@ -845,7 +845,7 @@ test_delete(struct thread_info *ti)
 		if (opt.dryrun)
 			continue;
 
-		rc = hse_kvs_delete(ti->kvs, NULL, ti->ref_key, ti->ref_klen);
+		rc = hse_kvs_delete(ti->kvs, 0, NULL, ti->ref_key, ti->ref_klen);
 		if (rc)
 			merr_quit("kvs_del failed", rc);
 	}
@@ -887,7 +887,7 @@ test_put_verify(struct thread_info *ti, uint salt)
 			continue;
 
 		get_vlen = (size_t)-1;
-		rc = hse_kvs_get(ti->kvs, NULL, ti->ref_key,
+		rc = hse_kvs_get(ti->kvs, 0, NULL, ti->ref_key,
 			     ti->ref_klen, &found, get_val,
 			     VLEN_MAX, &get_vlen);
 		if (rc)
@@ -964,7 +964,7 @@ test_delete_verify(struct thread_info *ti)
 		if (opt.dryrun)
 			continue;
 
-		rc = hse_kvs_get(ti->kvs, NULL, ti->ref_key,
+		rc = hse_kvs_get(ti->kvs, 0, NULL, ti->ref_key,
 			     ti->ref_klen, &found, get_val,
 			     VLEN_MAX, &get_vlen);
 		if (rc)
@@ -1157,7 +1157,7 @@ main(int argc, char **argv)
 	announce_header();
 
 	/* Start HSE */
-	err = hse_init();
+	err = hse_init(0, NULL);
 	if (err)
 		quit("failed to initialize kvdb");
 

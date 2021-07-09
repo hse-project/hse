@@ -1,37 +1,30 @@
 import errno
 
-import hse
+from hse2 import hse
 
 from tools import config
 
 
-def make_kvdb():
+def create_kvdb():
     kvdb_home = config.KVDB_HOME
     kvs_name = config.KVS_NAME
-
-    #
-    # Until the mpool kernel module goes away, there is no way to drop and
-    # recreate a KVDB without being root.  Just drop and recreate the KVS for now.
-    #
 
     hse.init()
 
     try:
         try:
-            hse.Kvdb.make(kvdb_home)
-        except hse.KvdbException as e:
+            hse.Kvdb.create(kvdb_home)
+        except hse.HseException as e:
             if e.returncode == errno.EEXIST:
-                pass
+                hse.Kvdb.drop(kvdb_home)
+                hse.Kvdb.create(kvdb_home)
             else:
                 raise e
 
         kvdb = hse.Kvdb.open(kvdb_home)
 
         try:
-            for old_name in kvdb.names:
-                kvdb.kvs_drop(old_name)
-
-            kvdb.kvs_make(kvs_name)
+            kvdb.kvs_create(kvs_name)
         finally:
             kvdb.close()
     finally:

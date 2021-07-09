@@ -1,8 +1,7 @@
 #!/usr/bin/env python3
 
 from contextlib import ExitStack
-import hse
-from hse import experimental as hse_exp
+from hse2 import hse
 
 from utility import lifecycle
 
@@ -32,31 +31,31 @@ try:
         kvs.put(b"AbeGarbageXY", b"44")
         kvdb.sync()
 
-        cnt, *_ = hse_exp.kvs_prefix_probe(kvs, b"Abc")
-        assert cnt == hse_exp.KvsPfxProbeCnt.MUL
-        cnt, *kv = hse_exp.kvs_prefix_probe(kvs, b"Abd")
-        assert cnt == hse_exp.KvsPfxProbeCnt.ONE
+        cnt, *_ = kvs.prefix_probe(b"Abc")
+        assert cnt == hse.KvsPfxProbeCnt.MUL
+        cnt, *kv = kvs.prefix_probe(b"Abd")
+        assert cnt == hse.KvsPfxProbeCnt.ONE
         assert kv == [b"AbdXX", b"42"]
 
         kvs.put(b"AbdXX", b"43")
-        cnt, *kv = hse_exp.kvs_prefix_probe(kvs, b"Abd")
-        assert cnt == hse_exp.KvsPfxProbeCnt.ONE
+        cnt, *kv = kvs.prefix_probe(b"Abd")
+        assert cnt == hse.KvsPfxProbeCnt.ONE
         assert kv == [b"AbdXX", b"43"]
 
         kvs.prefix_delete(b"A")
         kvs.put(b"AbeGarbageXY", b"45")
         kvdb.sync()
 
-        cnt, *kv = hse_exp.kvs_prefix_probe(kvs, b"AbeGarbage")
-        assert cnt == hse_exp.KvsPfxProbeCnt.ONE
+        cnt, *kv = kvs.prefix_probe(b"AbeGarbage")
+        assert cnt == hse.KvsPfxProbeCnt.ONE
         assert kv == [b"AbeGarbageXY", b"45"]
 
         kvs.prefix_delete(b"A")
         kvs.put(b"AbeGarbageXZ", b"46")
         kvdb.sync()
 
-        cnt, *kv = hse_exp.kvs_prefix_probe(kvs, b"AbeGarbage")
-        assert cnt == hse_exp.KvsPfxProbeCnt.ONE
+        cnt, *kv = kvs.prefix_probe(b"AbeGarbage")
+        assert cnt == hse.KvsPfxProbeCnt.ONE
         assert kv == [b"AbeGarbageXZ", b"46"]
 finally:
     hse.fini()

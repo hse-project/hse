@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 from contextlib import ExitStack
-import hse
+from hse2 import hse
 
 from utility import lifecycle
 
@@ -25,15 +25,14 @@ try:
 
         kvdb.sync()
 
-        txcursor = kvs.cursor(txn=txn, bind_txn=True)
+        txcursor = kvs.cursor(txn=txn)
         txcursor.read()
         assert txcursor.eof
 
         txn.abort()
         txcursor.seek(b"0")
         kv = txcursor.read()
-        assert not txcursor.eof
-        assert kv == (b"a", b"1")
+        assert txcursor.eof
 
         txcursor.destroy()
 finally:

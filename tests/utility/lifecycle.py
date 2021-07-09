@@ -5,7 +5,7 @@ from types import TracebackType
 from typing import Iterable, Optional, Type, Union
 
 from utility import cli
-import hse
+from hse2 import hse
 
 
 class KvdbContext(ContextDecorator):
@@ -23,8 +23,8 @@ class KvdbContext(ContextDecorator):
 
     def __enter__(self) -> hse.Kvdb:
         try:
-            hse.Kvdb.make(self.__home, *self.__kvdb_cparams)
-        except hse.KvdbException as e:
+            hse.Kvdb.create(self.__home, *self.__kvdb_cparams)
+        except hse.HseException as e:
             if e.returncode != errno.EEXIST and self.__exists_ok:
                 raise e
         self.__kvdb = hse.Kvdb.open(self.__home, *self.__kvdb_rparams)
@@ -63,8 +63,8 @@ class KvsContext(ContextDecorator):
 
     def __enter__(self) -> hse.Kvs:
         try:
-            self.__kvdb.kvs_make(self.__name, *self.__kvs_cparams)
-        except hse.KvdbException as e:
+            self.__kvdb.kvs_create(self.__name, *self.__kvs_cparams)
+        except hse.HseException as e:
             if e.returncode != errno.EEXIST and self.__exists_ok:
                 raise e
         self.__kvs = self.__kvdb.kvs_open(self.__name, *self.__kvs_rparams)

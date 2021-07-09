@@ -202,14 +202,14 @@ MTF_DEFINE_UTEST_PREPOST(c0_kvset_test, basic_put_get_fail, no_fail_pre, no_fail
 
     /* Use up most of the available space from the cheap..
      */
-    mem = c0kvs_alloc(kvs, 8, avail - HSE_KVS_KLEN_MAX);
+    mem = c0kvs_alloc(kvs, 8, avail - HSE_KVS_KEY_LEN_MAX);
     ASSERT_NE(NULL, mem);
 
     /* Try to put an excessively large key
      */
     kvs_ktuple_init(&kt, bigly, strlen(bigly));
     kvs_vtuple_init(&vt, "val", 3);
-    kt.kt_len = HSE_KVS_KLEN_MAX;
+    kt.kt_len = HSE_KVS_KEY_LEN_MAX;
 
     err = c0kvs_put(kvs, 0, &kt, &vt, seqnoref);
     ASSERT_EQ(ENOMEM, merr_errno(err));
@@ -217,7 +217,7 @@ MTF_DEFINE_UTEST_PREPOST(c0_kvset_test, basic_put_get_fail, no_fail_pre, no_fail
     /* Try to delete an excessively large key
      */
     kvs_ktuple_init(&kt, bigly, strlen(bigly));
-    kt.kt_len = HSE_KVS_KLEN_MAX;
+    kt.kt_len = HSE_KVS_KEY_LEN_MAX;
 
     err = c0kvs_del(kvs, 0, &kt, seqnoref);
     ASSERT_EQ(ENOMEM, merr_errno(err));
@@ -225,7 +225,7 @@ MTF_DEFINE_UTEST_PREPOST(c0_kvset_test, basic_put_get_fail, no_fail_pre, no_fail
     /* Try to prefix delete an excessively large key
      */
     kvs_ktuple_init(&kt, bigly, strlen(bigly));
-    kt.kt_len = HSE_KVS_KLEN_MAX;
+    kt.kt_len = HSE_KVS_KEY_LEN_MAX;
 
     err = c0kvs_prefix_del(kvs, 0, &kt, seqnoref);
     ASSERT_EQ(ENOMEM, merr_errno(err));

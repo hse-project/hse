@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 from contextlib import ExitStack
-import hse
+from hse2 import hse
 
 from utility import lifecycle
 
@@ -27,7 +27,7 @@ try:
             kvs.put(b"0x000000012b0604", b"key3", txn=txn)
 
         with kvdb.transaction() as txn:
-            with kvs.cursor(bind_txn=True, txn=txn) as cur:
+            with kvs.cursor(flags=0, txn=txn) as cur:
                 cur.seek(b"0x000000012b0404")
                 _, value = cur.read()
 

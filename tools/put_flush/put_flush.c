@@ -14,7 +14,7 @@
 #include <sysexits.h>
 
 #include <hse/hse.h>
-#include <hse/hse_limits.h>
+#include <hse/limits.h>
 
 #include <cli/param.h>
 
@@ -29,7 +29,7 @@ flush_kvs(void *arg)
 	struct thread_arg *targ = arg;
 
 	while (!killthreads) {
-		hse_kvdb_flush(targ->kvdb);
+		hse_kvdb_sync(targ->kvdb, HSE_FLAG_SYNC_ASYNC);
 		usleep(10*1000);
 	}
 }
@@ -41,12 +41,12 @@ put(void *arg)
 	uint64_t p = 0;
 	int rc;
 
-	char key[HSE_KVS_KLEN_MAX];
+	char key[HSE_KVS_KEY_LEN_MAX];
 
 	memset(key, 0xaf, sizeof(key));
 	while (!killthreads) {
 		p++;
-		rc = hse_kvs_put(targ->kvs, 0, key, sizeof(key), &p, sizeof(p));
+		rc = hse_kvs_put(targ->kvs, 0, NULL, key, sizeof(key), &p, sizeof(p));
 		if (rc) {
 			err = 1;
 			killthreads = true;

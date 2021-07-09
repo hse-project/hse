@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 from contextlib import ExitStack
-import hse
+from hse2 import hse
 
 from utility import lifecycle
 
@@ -19,7 +19,7 @@ try:
         txn = kvdb.transaction()
         txn.begin()
 
-        txcursor = kvs.cursor(txn=txn, bind_txn=True)
+        txcursor = kvs.cursor(txn=txn, flags=0)
         kvs.put(b"a", b"1", txn=txn)
         kvs.put(b"b", b"2", txn=txn)
         kvs.put(b"c", b"3", txn=txn)
@@ -28,7 +28,6 @@ try:
 
         txn.commit()
         txn.begin()
-        txcursor.update(txn=txn, bind_txn=True)
         kvs.put(b"a", b"12", txn=txn)
         kvs.put(b"b", b"22", txn=txn)
         kvs.put(b"c", b"32", txn=txn)
@@ -39,7 +38,7 @@ try:
         assert kv == (b"c", b"32")
 
         with kvdb.transaction() as t:
-            cursor = kvs.cursor(txn=t, bind_txn=t)
+            cursor = kvs.cursor(txn=t, flags=0)
             kv = cursor.read()
             assert kv == (b"a", b"1")
             kv = cursor.read()

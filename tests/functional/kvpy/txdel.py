@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 from contextlib import ExitStack
-import hse
+from hse2 import hse
 
 from utility import lifecycle
 
@@ -21,7 +21,7 @@ try:
             kvs.put(b"pfx.c", b"3", txn=txn)
 
         with kvdb.transaction() as txn:
-            with kvs.cursor(b"pfx", txn=txn, bind_txn=True) as cur:
+            with kvs.cursor(b"pfx", txn=txn, flags=0) as cur:
                 kv = cur.read()
                 assert kv == (b"pfx.a", b"1")
                 kv = cur.read()
@@ -35,7 +35,7 @@ try:
             kvs.delete(b"pfx.c", txn=txn)
 
         with kvdb.transaction() as txn:
-            with kvs.cursor(b"pfx", txn=txn, bind_txn=True) as cur:
+            with kvs.cursor(b"pfx", txn=txn, flags=0) as cur:
                 kv = cur.read()
                 assert kv == (b"pfx.a", b"1")
                 kv = cur.read()

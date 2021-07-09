@@ -5,7 +5,7 @@
 
 /*
  * This example demonstrates how one could add key-value pairs where the value
- * length could be larger than the allowed maximum HSE_KVS_VLEN_MAX.
+ * length could be larger than the allowed maximum HSE_KVS_VALUE_LEN_MAX.
  *
  * To put keys, this example uses files passed to it on the commandline. Each
  * file's name forms the prefix of a key and its contents are chunked into the
@@ -22,7 +22,7 @@
  *     ...
  *     /tmp/foo00000NNN
  *
- * for chunks of size HSE_KVS_VLEN_MAX read from /tmp/foo. Similarly, the file
+ * for chunks of size HSE_KVS_VALUE_LEN_MAX read from /tmp/foo. Similarly, the file
  * /tmp/bar will be split into multiple chunks starting with keys starting at
  * /tmp/bar00000000
  *
@@ -70,7 +70,7 @@ extract_kv_to_files(struct hse_kvs *kvs, int file_cnt, char **files)
     struct hse_kvs_cursor *cur;
 
     for (i = 0; i < file_cnt; i++) {
-        char        pfx[HSE_KVS_KLEN_MAX];
+        char        pfx[HSE_KVS_KEY_LEN_MAX];
         char        outfile[NAME_MAX + 8]; /* Extra bytes for '.out' suffix */
         const void *key, *val;
         size_t      klen, vlen;
@@ -87,10 +87,10 @@ extract_kv_to_files(struct hse_kvs *kvs, int file_cnt, char **files)
             exit(1);
         }
 
-        hse_kvs_cursor_create(kvs, NULL, pfx, strlen(pfx), &cur);
+        hse_kvs_cursor_create(kvs, 0, NULL, pfx, strlen(pfx), &cur);
 
         do {
-            hse_kvs_cursor_read(cur, NULL, &key, &klen, &val, &vlen, &eof);
+            hse_kvs_cursor_read(cur, 0, &key, &klen, &val, &vlen, &eof);
             if (!eof)
               data_found = true;
 
@@ -119,8 +119,8 @@ put_files_as_kv(struct hse_kvdb *kvdb, struct hse_kvs *kvs, int kv_cnt, char **k
     hse_err_t rc;
 
     for (i = 0; i < kv_cnt; i++) {
-        char    val[HSE_KVS_VLEN_MAX];
-        char    key_chunk[HSE_KVS_KLEN_MAX];
+        char    val[HSE_KVS_VALUE_LEN_MAX];
+        char    key_chunk[HSE_KVS_KEY_LEN_MAX];
         ssize_t len;
         int     chunk_nr;
 
@@ -139,7 +139,7 @@ put_files_as_kv(struct hse_kvdb *kvdb, struct hse_kvs *kvs, int kv_cnt, char **k
 
             snprintf(key_chunk, sizeof(key_chunk), "%s|%08x", (char *)keys[i], chunk_nr);
 
-            rc = hse_kvs_put(kvs, NULL, key_chunk, strlen(key_chunk), val, len);
+            rc = hse_kvs_put(kvs, 0, NULL, key_chunk, strlen(key_chunk), val, len);
 
             chunk_nr++;
 
@@ -193,15 +193,17 @@ main(int argc, char **argv)
     kvdb_home = argv[optind++];
     kvs_name = argv[optind++];
 
-    rc = hse_init();
+    rc = hse_init(0, NULL);
     if (rc) {
-        err_print("Failed to initialize kvdb: %s\n", hse_err_to_string(rc, ebuf, sizeof(ebuf), 0));
+        hse_strerror(rc, ebuf, sizeof(ebuf));
+        err_print("Failed to initialize kvdb: %s\n", ebuf);
         exit(1);
     }
 
     rc = hse_kvdb_open(kvdb_home, 0, NULL, &kvdb);
     if (rc) {
-        err_print("Cannot open kvdb: %s\n", hse_err_to_string(rc, ebuf, sizeof(ebuf), 0));
+        hse_strerror(rc, ebuf, sizeof(ebuf));
+        err_print("Cannot open kvdb: %s\n", ebuf);
         exit(1);
     }
 

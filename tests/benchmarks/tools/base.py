@@ -5,7 +5,7 @@ from contextlib import ExitStack
 from typing import Dict
 
 from tools import config
-from tools.fixtures import make_kvdb
+from tools.fixtures import create_kvdb
 from tools.helpers import shlex_join
 from tools.monitors import spawn_pidstat, spawn_vmstat, spawn_iostat
 from tools.report import (
@@ -53,7 +53,7 @@ class BaseTest:
         self.report["tool_name"] = tool_name
 
     def _execute_init(self):
-        make_kvdb()
+        create_kvdb()
 
     def _save_report(self):
         if self.start_timestamp_ms is not None:

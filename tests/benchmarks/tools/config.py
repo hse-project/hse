@@ -7,7 +7,7 @@ from pathlib import Path
 # https://stackoverflow.com/a/55423170
 AVAILABLE_CPUS = len(os.sched_getaffinity(0))
 
-HSE_EXECUTABLE = "hse1"
+HSE_EXECUTABLE = "hse"
 
 KVDB_HOME = None
 KVS_NAME = "data"

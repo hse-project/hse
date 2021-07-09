@@ -1,12 +1,12 @@
 project(
     'hse',
     ['c', 'cpp', 'java'],
-    version: '1.10.0',
+    version: '2.0.0',
     license: [
         'Apache-2.0',
     ],
     default_options: [
-        'prefix=/opt/hse-1',
+        'prefix=/opt/hse',
         'b_ndebug=if-release',
         'c_std=gnu11',
         'buildtype=debugoptimized',
@@ -387,7 +387,7 @@ if 'unit' in enabled_tests or get_option('tools')
     subdir('tools' / 'include')
 endif
 if enabled_tests.length() > 0
-    # need to know about mocks, framework, test support sources before entering src directory
+    # need to know about mocks, framework, test support sources before entering lib directory
     if 'unit' in enabled_tests
         subdir('tests' / 'mocks')
         subdir('tests' / 'support')
@@ -395,7 +395,7 @@ if enabled_tests.length() > 0
     subdir('tests' / 'framework')
 endif
 subdir('lib')
-if get_option('cli')
+if get_option('cli') or get_option('tools')
     subdir('cli')
 endif
 if get_option('samples')
@@ -418,11 +418,8 @@ if get_option('bindings-python')
         required: true,
     )
 
-    hse_python_extension_modules = hse_python.get_variable('extension_modules')
-    hse_python_pyi_stubs = hse_python.get_variable('pyi_stubs')
     hse_python_depends = [
-        hse_python_extension_modules,
-        hse_python_pyi_stubs,
+        hse_python.get_variable('extension_modules'),
     ]
     run_env.set('PYTHONPATH', hse_python.get_variable('project_build_root'))
 

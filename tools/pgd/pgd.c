@@ -90,7 +90,7 @@ usage(char *prog)
 int
 main(int argc, char **argv)
 {
-    static char      buf[(HSE_KVS_KLEN_MAX + HSE_KVS_VLEN_MAX) * 3];
+    static char      buf[(HSE_KVS_KEY_LEN_MAX + HSE_KVS_VALUE_LEN_MAX) * 3];
     struct parm_groups *pg = NULL;
     char *           mpname, *prog;
     const char *     kvsname;
@@ -161,7 +161,7 @@ main(int argc, char **argv)
             break;
     }
 
-    err = hse_init();
+    err = hse_init(0, NULL);
     if (err)
         fatal(err, "failed to initialize kvdb");
 
@@ -169,10 +169,10 @@ main(int argc, char **argv)
 
     err = 0;
     while (fgets(buf, sizeof(buf), stdin) != NULL) {
-        static char kbuf[HSE_KVS_KLEN_MAX];
-        static char vbuf[HSE_KVS_VLEN_MAX];
-        static char gbuf[HSE_KVS_VLEN_MAX];
-        static char obuf[HSE_KVS_VLEN_MAX];
+        static char kbuf[HSE_KVS_KEY_LEN_MAX];
+        static char vbuf[HSE_KVS_VALUE_LEN_MAX];
+        static char gbuf[HSE_KVS_VALUE_LEN_MAX];
+        static char obuf[HSE_KVS_VALUE_LEN_MAX];
         char *      key = buf;
         char *      val = 0;
         char *      cp = strchr(buf, ' ');
@@ -204,15 +204,15 @@ main(int argc, char **argv)
 
         switch (action) {
             case PUT:
-                err = hse_kvs_put(kvs, 0, kbuf, klen, vbuf, vlen);
+                err = hse_kvs_put(kvs, 0, NULL, kbuf, klen, vbuf, vlen);
                 break;
             case DEL:
-                err = hse_kvs_delete(kvs, 0, kbuf, klen);
+                err = hse_kvs_delete(kvs, 0, NULL, kbuf, klen);
                 break;
             case GET:
             case VFY:
                 glen = sizeof(gbuf);
-                err = hse_kvs_get(kvs, 0, kbuf, klen, &fnd, gbuf, glen, &glen);
+                err = hse_kvs_get(kvs, 0, NULL, kbuf, klen, &fnd, gbuf, glen, &glen);
                 if (err)
                     break;
                 if (!fnd)

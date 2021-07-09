@@ -40,7 +40,7 @@ dostuff(void *arg)
 		uint64_t *k = (uint64_t *)key;
 
 		*k = htole64(i);
-		rc = hse_kvs_put(targ->kvs, 0, key, sizeof(key),
+		rc = hse_kvs_put(targ->kvs, 0, NULL, key, sizeof(key),
 			     key, sizeof(key));
 		if (rc) {
 			killthreads = 1;
@@ -54,7 +54,7 @@ dostuff(void *arg)
 		size_t kvs_plen;
 
 		snprintf(key, sizeof(key), "k%06lu", i);
-		rc = hse_kvs_prefix_delete(targ->kvs, 0, key, sizeof(key),
+		rc = hse_kvs_prefix_delete(targ->kvs, 0, NULL, key, sizeof(key),
 				       &kvs_plen);
 		if (rc) {
 			killthreads = 1;

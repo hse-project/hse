@@ -87,7 +87,7 @@ throw_err(JNIEnv *env, const char *func, uint64_t err)
     char err_buf[200];
     char msg[300];
 
-    hse_err_to_string(err, err_buf, sizeof(err_buf), 0);
+    hse_strerror(err, err_buf, sizeof(err_buf));
 
     snprintf(msg, sizeof(msg), "%s: %s", func, err_buf);
 
@@ -108,7 +108,7 @@ td_exit_cursor(void *arg)
 
     rc = hse_kvs_cursor_destroy((struct hse_kvs_cursor *)arg);
     if (rc) {
-        hse_err_to_string(rc, err_buf, sizeof(err_buf), 0);
+        hse_strerror(rc, err_buf, sizeof(err_buf));
         syslog(LOG_ERR, "(HSE JNI) %s: hse_kvs_cursor_destroy: %s", __func__, err_buf);
     }
 }
@@ -119,11 +119,11 @@ Java_org_micron_hse_API_init(JNIEnv *env, jobject jobj, jlong valBufSize)
     int      rc;
     uint64_t hse_rc;
 
-    hse_rc = hse_init();
+    hse_rc = hse_init(0, NULL);
     if (hse_rc) {
         char buf[1024];
 
-        hse_err_to_string(hse_rc, buf, 1024, 0);
+        hse_strerror(hse_rc, buf, 1024);
         syslog(LOG_ERR, "(HSE JNI) %s: hse_init: %s", __func__, buf);
     }
 
@@ -237,10 +237,10 @@ Java_org_micron_hse_API_open(
     rc = hse_kvdb_kvs_open(kvdb_h, aKvsName, kvs_open_paramc, kvs_open_paramv, (struct hse_kvs **)&kvs_h);
 
     if (hse_err_to_errno(rc) == ENOENT) {
-        rc = hse_kvdb_kvs_make(kvdb_h, aKvsName, kvs_make_paramc, kvs_make_paramv);
+        rc = hse_kvdb_kvs_create(kvdb_h, aKvsName, kvs_make_paramc, kvs_make_paramv);
         if (rc) {
             hse_kvdb_close(kvdb_h);
-            throw_err(env, "hse_kvdb_kvs_make", rc);
+            throw_err(env, "hse_kvdb_kvs_create", rc);
             goto out;
         }
 
@@ -337,7 +337,7 @@ Java_org_micron_hse_API_put(
     keyL = (*env)->GetArrayLength(env, key);
     valueL = (*env)->GetArrayLength(env, value);
 
-    rc = hse_kvs_put((void *)handle, NULL, keyA, keyL, valueA, valueL);
+    rc = hse_kvs_put((void *)handle, 0, NULL, keyA, keyL, valueA, valueL);
     if (rc) {
         char msg[128];
         int  n;
@@ -394,7 +394,7 @@ Java_org_micron_hse_API_get(JNIEnv *env, jobject jobj, jlong handle, jbyteArray 
 
     keyL = (*env)->GetArrayLength(env, key);
 
-    rc = hse_kvs_get((void *)handle, NULL, keyA, keyL, &found, valBuf, g_val_buf_size, &vlen);
+    rc = hse_kvs_get((void *)handle, 0, NULL, keyA, keyL, &found, valBuf, g_val_buf_size, &vlen);
     if (rc) {
         char msg[128];
 
@@ -450,7 +450,7 @@ Java_org_micron_hse_API_del(JNIEnv *env, jobject jobj, jlong handle, jbyteArray 
 
     keyL = (*env)->GetArrayLength(env, key);
 
-    rc = hse_kvs_delete((void *)handle, NULL, keyA, keyL);
+    rc = hse_kvs_delete((void *)handle, 0, NULL, keyA, keyL);
     if (rc) {
         char msg[128];
         int  n;
@@ -492,7 +492,7 @@ Java_org_micron_hse_API_createCursor(
     if (pfx && pfxlen != 0)
         cpfx = (*env)->GetStringUTFChars(env, pfx, &isCopy);
 
-    rc = hse_kvs_cursor_create((void *)handle, NULL, cpfx, pfxlen, &cursor);
+    rc = hse_kvs_cursor_create((void *)handle, 0, NULL, cpfx, pfxlen, &cursor);
     if (rc) {
         cursor = NULL;
         throw_err(env, "hse_kvs_cursor_create", rc);
@@ -555,7 +555,7 @@ Java_org_micron_hse_API_seek(JNIEnv *env, jobject jobj, jlong handle, jbyteArray
 
     keyL = (*env)->GetArrayLength(env, key);
 
-    rc = hse_kvs_cursor_seek(cursor, NULL, keyA, keyL, &foundKey, &foundKeyL);
+    rc = hse_kvs_cursor_seek(cursor, 0, keyA, keyL, &foundKey, &foundKeyL);
 
     (*env)->ReleaseByteArrayElements(env, key, keyA, JNI_ABORT);
 
@@ -592,7 +592,7 @@ Java_org_micron_hse_API_read(JNIEnv *env, jobject jobj, jlong handle)
         goto errout;
     }
 
-    rc = hse_kvs_cursor_read(cursor, NULL, &keyBuf, &klen, &valBuf, &vlen, &eof);
+    rc = hse_kvs_cursor_read(cursor, 0, &keyBuf, &klen, &valBuf, &vlen, &eof);
 
     if (rc) {
         throw_err(env, "hse_kvs_cursor_read", rc);

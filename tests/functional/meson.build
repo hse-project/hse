@@ -24,6 +24,10 @@ tests = {
         'suites': ['short'],
         'depends': hse_python_depends,
     },
+    #'kvs_compression_flags': {
+    #    'suites': ['short'],
+    #    'depends': hse_python_depends,
+    #},
     'kvs_scan_a_billion': {
         'suites': ['long'],
         'depends': hse_python_depends,
@@ -40,12 +44,6 @@ foreach t, params : tests
         )
     endif
 
-    t_suites = ['functional']
-
-    if 'suites' in params
-        t_suites += params['suites']
-    endif
-
     test(
         t,
         python,
@@ -56,7 +54,7 @@ foreach t, params : tests
         ],
         workdir: meson.current_source_dir(),
         depends: params.get('depends', []),
-        suite: t_suites,
+        suite: ['functional'] + params.get('suites', []),
         timeout: 3600,
     )
 endforeach

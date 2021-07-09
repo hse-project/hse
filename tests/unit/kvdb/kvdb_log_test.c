@@ -117,7 +117,7 @@ MTF_DEFINE_UTEST(kvdb_log_test, orphan_test)
     ASSERT_EQ(NULL, p);
 
     mapi_inject(mapi_idx_mpool_mdc_append, 0);
-    err = kvdb_log_make(&log, 1048576, NULL);
+    err = kvdb_log_create(&log, 1048576, NULL);
     ASSERT_EQ(0, err);
     ASSERT_EQ(1048576, log.kl_captgt);
     mapi_inject_unset(mapi_idx_mpool_mdc_append);

@@ -27,9 +27,10 @@ mtf_print_errinfo(
     vfprintf(stderr, fmt, ap);
     va_end(ap);
 
-    if (err)
-        fprintf(stderr, "\nError detail: %s\n",
-            hse_err_to_string(err, msgbuf, sizeof(msgbuf), 0));
+    if (err) {
+        hse_strerror(err, msgbuf, sizeof(msgbuf));
+        fprintf(stderr, "\nError detail: %s\n", msgbuf);
+    }
 }
 
 void
@@ -49,21 +50,20 @@ mtf_kvs_drop_all_warn(
     struct hse_kvdb    *kvdb,
     bool                warn)
 {
-    int             rc;
-    hse_err_t       err;
-    unsigned int    kvs_count;
-    char          **kvs_list;
+    int       rc;
+    hse_err_t err;
+    size_t    kvs_count;
+    char    **kvs_list;
 
-    err = hse_kvdb_get_names(kvdb, &kvs_count, &kvs_list);
+    err = hse_kvdb_kvs_names_get(kvdb, &kvs_count, &kvs_list);
     if (err) {
-        mtf_print_errinfo(err, "%s: hse_kvdb_get_names failed\n", __func__);
+        mtf_print_errinfo(err, "%s: hse_kvdb_kvs_names_get failed\n", __func__);
         return -1;
     }
 
     rc = 0;
 
     for (unsigned int i = 0; i < kvs_count; i++) {
-
         const char *kvs_name = kvs_list[i];
 
         if (warn)
@@ -76,7 +76,7 @@ mtf_kvs_drop_all_warn(
         }
     }
 
-    hse_kvdb_free_names(kvdb, kvs_list);
+    hse_kvdb_kvs_names_free(kvdb, kvs_list);
     return rc;
 }
 
@@ -119,9 +119,9 @@ mtf_kvdb_setupv(
         goto fail;
     }
 
-    err = hse_kvdb_make(home, 0, NULL);
+    err = hse_kvdb_create(home, 0, NULL);
     if (err) {
-        mtf_print_errinfo(err, "Cannot make KVDB '%s'\n", home);
+        mtf_print_errinfo(err, "Cannot create KVDB '%s'\n", home);
         goto fail;
     }
 

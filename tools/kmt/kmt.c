@@ -207,23 +207,6 @@ typedef uint64_t hse_err_t;
 int
 hse_err_to_errno(hse_err_t err);
 
-/* Note - This opspec isn't a real HSE opspec, it's use is internal to kmt and
- *        is here to make the core kmt code re-usable in xkmt mode.
- */
-struct hse_kvdb_opspec {
-    unsigned int         kop_opaque;
-    unsigned int         kop_flags;
-    struct hse_kvdb_txn *kop_txn;
-};
-
-/* different opspec magic value to detect incorrect usage */
-#define HSE_KVDB_OPSPEC_INIT(os)       \
-    do {                               \
-        (os)->kop_opaque = 0x00000001; \
-        (os)->kop_flags = 0x0000;      \
-        (os)->kop_txn = NULL;          \
-    } while (0)
-
 #else
 
 #include <hse/hse.h>
@@ -544,7 +527,8 @@ struct km_inst {
     mongoc_write_concern_t *wcmin;
     mongoc_write_concern_t *wcmaj;
     void *                  tdval;
-    struct hse_kvdb_opspec *opspec;
+    unsigned int            flags;
+    struct hse_kvdb_txn *   txn;
     char                    mode[32];
     pthread_t               td;
     hse_err_t                  err;
@@ -959,7 +943,7 @@ static void
 hse_kvdb_txn_abort(void *kvdb, void *txn){};
 
 static char *
-hse_err_to_string(u64 err, char *buf, size_t bufsz, void *dumb)
+hse_strerror(u64 err, char *buf, size_t bufsz)
 {
     return strerror_r(err, buf, bufsz);
 }
@@ -1015,7 +999,8 @@ kvdb_close_xkmt(struct hse_kvdb *hdl)
 int
 kvs_get_xkmt(
     struct hse_kvs *kvs_handle,
-    void *          opspec,
+    unsigned int    flags,
+    void *          txn,
     const void *    key,
     size_t          key_len,
     bool *          found,
@@ -1069,7 +1054,8 @@ kvs_get_xkmt(
 int
 kvs_put_xkmt(
     struct hse_kvs *kvs_handle,
-    void *          opspec,
+    unsigned int    flags,
+    void *          txn,
     const void *    key,
     size_t          key_len,
     const void *    val,
@@ -1155,7 +1141,12 @@ kvs_put_xkmt(
 }
 
 int
-kvs_delete_xkmt(struct hse_kvs *kvs_handle, void *opspec, const void *key, size_t key_len)
+kvs_delete_xkmt(
+    struct hse_kvs *kvs_handle,
+    unsigned int    flags,
+    void *          txn,
+    const void *    key,
+    size_t          key_len)
 {
     struct kvnode *node, tmp;
     struct bkt *   bkt;
@@ -1762,7 +1753,7 @@ km_rec_get_kvs(struct km_inst *inst, struct km_rec *r, uint64_t rid)
     klen = km_rec_keygen_cmn(key, rid);
     vlen = 0;
 
-    rc = hse_kvs_get(impl->kvs, inst->opspec, key, klen, &found, r, secsz, &vlen);
+    rc = hse_kvs_get(impl->kvs, inst->flags, inst->txn, key, klen, &found, r, secsz, &vlen);
     if (rc) {
         inst->fmt = "hse_kvs_get: %s";
         return rc;
@@ -1828,7 +1819,7 @@ km_rec_put_kvs(struct km_inst *inst, struct km_rec *r)
      * A transaction updates chk only when the puts succeed and the
      * transaction commits successfully.
      */
-    if (!inst->opspec || !inst->opspec->kop_txn)
+    if (!inst->txn)
         chk_update(impl, r, true);
     else
         hash_update(r);
@@ -1840,7 +1831,7 @@ km_rec_put_kvs(struct km_inst *inst, struct km_rec *r)
     inst->stats.put++;
     inst->stats.putbytes += vlen;
 
-    rc = hse_kvs_put(impl->kvs, inst->opspec, key, r->klen, r, vlen);
+    rc = hse_kvs_put(impl->kvs, inst->flags, inst->txn, key, r->klen, r, vlen);
 
     if (!rc)
         km_op_latency_record(inst, OP_KVS_PUT, ns);
@@ -1868,7 +1859,7 @@ km_rec_del_kvs(struct km_inst *inst, uint64_t rid)
     inst->stats.del++;
     inst->stats.putbytes += klen;
 
-    rc = hse_kvs_delete(impl->kvs, inst->opspec, key, klen);
+    rc = hse_kvs_delete(impl->kvs, inst->flags, inst->txn, key, klen);
 
     if (!rc)
         km_op_latency_record(inst, OP_KVS_DEL, ns);
@@ -2947,7 +2938,6 @@ void
 td_test(struct km_inst *inst)
 {
     char                   td_name[16];
-    struct hse_kvdb_opspec opspec;
     struct km_rec *        recx, *recy;
     uint64_t               ridx, ridy;
     struct km_impl *       impl;
@@ -2971,10 +2961,8 @@ td_test(struct km_inst *inst)
     if (swaptxn && inst->impl->kvdb) {
         txn = hse_kvdb_txn_alloc(impl->kvdb);
         if (txn) {
-            HSE_KVDB_OPSPEC_INIT(&opspec);
-            inst->opspec = &opspec;
-            inst->opspec->kop_flags = 0;
-            inst->opspec->kop_txn = txn;
+            inst->flags = 0;
+            inst->txn = txn;
         } else {
             inst->fmt = "txn alloc failed: %s";
             err = ENOMEM;
@@ -3104,7 +3092,7 @@ td_test(struct km_inst *inst)
     if (txn) {
         hse_kvdb_txn_abort(impl->kvdb, txn);
         hse_kvdb_txn_free(impl->kvdb, txn);
-        inst->opspec = NULL;
+        inst->txn = NULL;
     }
 
     inst->stats.op = OP_EXIT;
@@ -3289,7 +3277,7 @@ status(
         if (inst->err && inst->fmt) {
             char errbuf[128];
 
-            hse_err_to_string(inst->err, errbuf, sizeof(errbuf), NULL);
+            hse_strerror(inst->err, errbuf, sizeof(errbuf));
             snprintf(errmsg, sizeof(errmsg), inst->fmt, errbuf);
             inst->fmt = NULL;
         }
@@ -3586,13 +3574,13 @@ periodic_sync(void *arg)
             continue;
 
         ns = get_time_ns();
-        err = hse_kvdb_sync(impl->kvdb);
+        err = hse_kvdb_sync(impl->kvdb, 0);
         ns = get_time_ns() - ns;
 
         if (err) {
             char errbuf[128];
 
-            hse_err_to_string(err, errbuf, sizeof(errbuf), NULL);
+            hse_strerror(err, errbuf, sizeof(errbuf));
             eprint("%s: failed to sync kvdb: %s\n", __func__, errbuf);
             continue;
         }
@@ -3657,7 +3645,7 @@ spawn(struct km_impl *impl, void (*run)(struct km_inst *), uint runmax, time_t m
 
     err = km_open(impl);
     if (err) {
-        hse_err_to_string(err, errbuf, sizeof(errbuf), NULL);
+        hse_strerror(err, errbuf, sizeof(errbuf));
         eprint("%s: km_open failed: %s\n", __func__, errbuf);
         exit(EX_NOINPUT);
     }
@@ -4639,9 +4627,9 @@ main(int argc, char **argv)
         exit(EX_USAGE);
     }
 #else
-    err = hse_init();
+    err = hse_init(0, NULL);
     if (err) {
-        hse_err_to_string(err, errbuf, sizeof(errbuf), NULL);
+        hse_strerror(err, errbuf, sizeof(errbuf));
         eprint("%s: failed to initialize kvdb: %s\n", __func__, errbuf);
         exit(EX_OSERR);
     }

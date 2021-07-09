@@ -467,7 +467,7 @@ main(int argc, char *argv[])
     const char        *result = "default";
     hse_err_t          err;
 
-    err = hse_init();
+    err = hse_init(0, NULL);
     if (err)
         return -1;
 
