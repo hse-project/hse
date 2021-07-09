@@ -1,6 +1,6 @@
 option('cli', type: 'boolean', value: true,
     description: 'Build the CLI')
-option('export-experimental', type: 'boolean', value: false,
+option('export-experimental', type: 'boolean', value: true,
     description: 'Export the experimental API')
 option('install-rpath', type: 'boolean', value: true,
     description: 'Add rpath to ELF files to faciliate discovery of libhse')
