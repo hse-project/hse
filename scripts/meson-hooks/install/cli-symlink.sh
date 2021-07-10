@@ -7,4 +7,4 @@ case $1 in
   *) bindir=$MESON_INSTALL_DESTDIR_PREFIX/$1 ;;
 esac
 
-ln --symbolic --force "$bindir/$2" "$bindir/$3"
+ln --symbolic --force "$2" "$bindir/$3"
