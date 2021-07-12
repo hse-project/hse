@@ -51,7 +51,7 @@ custom_target(
         'ln',
         '--force',
         '--symbolic',
-        meson.project_build_root() / '@INPUT@',
+        fs.name(hse_cli.full_path()),
         meson.project_build_root() / '@OUTPUT@',
     ],
     output: meson.project_name(),
