@@ -124,7 +124,7 @@ wal_fileset_reclaim(struct wal_fileset *wfset, u64 seqno, u64 gen, u64 txhorizon
 #ifndef NDEBUG
         struct wal_minmax_info *info = &cur->info;
 
-        hse_log(HSE_NOTICE
+        hse_log(HSE_DEBUG
                 "Reclaiming gen %lu [%lu, %lu] seqno %lu [%lu, %lu] txid %lu [%lu, %lu]",
                 gen, info->min_gen, info->max_gen,
                 seqno, info->min_seqno, info->max_seqno,

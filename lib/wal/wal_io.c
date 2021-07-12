@@ -180,7 +180,7 @@ wal_io_enqueue(struct wal_io *io, const char *buf, u64 len, u64 gen, struct wal_
 
 #ifndef NDEBUG
     if (atomic64_read(&io->io_pend) % 1536 == 0)
-        hse_log(HSE_NOTICE "IO stats: pend %lu comp %lu",
+        hse_log(HSE_DEBUG "IO stats: pend %lu comp %lu",
                 atomic64_read(&io->io_pend), atomic64_read(&io->io_comp));
 #endif
 

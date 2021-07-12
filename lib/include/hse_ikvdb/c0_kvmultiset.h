@@ -68,6 +68,12 @@ c0kvms_seqno_set(struct c0_kvmultiset *handle, uint64_t kvdb_seq);
 u64
 c0kvms_seqno_get(struct c0_kvmultiset *handle);
 
+void
+c0kvms_txhorizon_set(struct c0_kvmultiset *handle, uint64_t txhorizon);
+
+uint64_t
+c0kvms_txhorizon_get(struct c0_kvmultiset *handle);
+
 /**
  * c0kvms_getref() - obtain a ref against a struct c0_kvmultiset
  * @mset: struct c0_kvset to obtain a ref against

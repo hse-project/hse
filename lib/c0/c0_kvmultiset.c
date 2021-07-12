@@ -60,6 +60,7 @@ struct c0_kvmultiset_impl {
     atomic64_t           c0ms_seqno;
     u64                  c0ms_rsvd_sn;
     u64                  c0ms_ctime;
+    atomic64_t           c0ms_txhorizon;
 
     atomic_t c0ms_ingesting  HSE_ALIGNED(SMP_CACHE_BYTES);
     bool                     c0ms_ingested;
@@ -739,6 +740,22 @@ c0kvms_ingest_work_prepare(struct c0_kvmultiset *handle, struct c0sk *c0sk)
 }
 
 void
+c0kvms_txhorizon_set(struct c0_kvmultiset *handle, uint64_t txhorizon)
+{
+    struct c0_kvmultiset_impl *self = c0_kvmultiset_h2r(handle);
+
+    atomic64_set(&self->c0ms_txhorizon, txhorizon);
+}
+
+uint64_t
+c0kvms_txhorizon_get(struct c0_kvmultiset *handle)
+{
+    struct c0_kvmultiset_impl *self = c0_kvmultiset_h2r(handle);
+
+    return atomic64_read(&self->c0ms_txhorizon);
+}
+
+void
 c0kvms_seqno_set(struct c0_kvmultiset *handle, uint64_t kvdb_seq)
 {
     struct c0_kvmultiset_impl *self = c0_kvmultiset_h2r(handle);
@@ -783,6 +800,7 @@ c0kvms_create(u32 num_sets, size_t alloc_sz, atomic64_t *kvdb_seq, struct c0_kvm
 
     /* mark this seqno 'not in use'. */
     atomic64_set(&kvms->c0ms_seqno, HSE_SQNREF_INVALID);
+    atomic64_set(&kvms->c0ms_txhorizon, U64_MAX);
 
     /* The first kvset is reserved for ptombs and needn't be as large
      * as the rest, so we leverage it for the c0snr buffer.  Note that

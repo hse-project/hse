@@ -143,6 +143,19 @@ c0sk_adjust_throttling(struct c0sk_impl *self)
     return new;
 }
 
+static uint64_t
+c0sk_txhorizon_get(struct c0sk_impl *c0sk)
+{
+    struct ikvdb *ikvdb;
+
+    if (!c0sk->c0sk_cb)
+        return CNDB_INVAL_HORIZON;
+
+    ikvdb = c0sk->c0sk_cb->kc_cbarg;
+
+    return ikvdb_txn_horizon(ikvdb);
+}
+
 /**
  * c0sk_rsvd_sn_set() - called when a new kvms is activated
  * @c0sk:   c0sk handle
@@ -181,6 +194,7 @@ c0sk_install_c0kvms(struct c0sk_impl *self, struct c0_kvmultiset *old, struct c0
      */
     if (old) {
         used = c0kvms_used_get(old);
+        c0kvms_txhorizon_set(old, c0sk_txhorizon_get(self));
         c0kvms_seqno_set(old, atomic64_inc_acq(self->c0sk_kvdb_seq));
     }
 
@@ -409,19 +423,6 @@ c0sk_cningest_walcb(
     c0sk->c0sk_cb->kc_cningest_cb(ikvdb, seqno, gen, txhorizon, post_ingest);
 }
 
-static u64
-c0sk_txn_horizon_get(struct c0sk_impl *c0sk)
-{
-    struct ikvdb *ikvdb;
-
-    if (!c0sk->c0sk_cb)
-        return CNDB_INVAL_HORIZON;
-
-    ikvdb = c0sk->c0sk_cb->kc_cbarg;
-
-    return ikvdb_txn_horizon(ikvdb);
-}
-
 /* Initial number of entries in cn ingest's bkv_collection.
  */
 #define CN_INGEST_BKV_CNT (4UL << 20)
@@ -620,7 +621,7 @@ c0sk_ingest_worker(struct work_struct *work)
     struct bkv_collection *cn_list[2] = { 0 };
     struct lc_builder *    lc_list = { 0 };
     u64                    kvms_gen = c0kvms_gen_read(kvms);
-    u64                    txhorizon = c0sk_txn_horizon_get(c0sk);
+    u64                    txhorizon = c0kvms_txhorizon_get(kvms);
     int                    i;
     u64                    go = 0;
     bool                   released = false;
