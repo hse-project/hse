@@ -45,6 +45,21 @@ tools = {
             'parm_groups.c',
         ),
     },
+    'cndb_txn_inject': {
+        'sources': files(
+            'cndb_tests' / 'cndb_txn_inject.c',
+        ),
+    },
+    'cndb_simpledrop_inject': {
+        'sources': files(
+            'cndb_tests' / 'cndb_simpledrop_inject.c',
+        ),
+    },
+    'cndb_simpledrop_recovery_inject': {
+        'sources': files(
+            'cndb_tests' / 'cndb_simpledrop_recovery_inject.c',
+        ),
+    },
     'ctxn_validation': {
         'sources': files(
             'ctxn_validation' / 'ctxn_validation.c',
@@ -152,6 +167,11 @@ tools = {
     'mdctest': {
         'sources': files(
             'mpool' / 'mdc' / 'mdctest.c',
+        ),
+    },
+    'mdc_tool': {
+        'sources': files(
+            'mpool' / 'mdc' / 'mdc_tool.c',
         ),
     },
     'mpiotest': {

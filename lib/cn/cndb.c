@@ -373,6 +373,7 @@ mtx2omf(struct cndb *cndb, void *omf, union cndb_mtu *mtu)
             omf_set_tx_nd(omf, mtu->x.mtx_nd);
             omf_set_tx_seqno(omf, mtu->x.mtx_seqno);
             omf_set_tx_ingestid(omf, mtu->x.mtx_ingestid);
+            omf_set_tx_txhorizon(omf, mtu->x.mtx_txhorizon);
             break;
         case CNDB_TYPE_TXC:
             sz = sizeof(struct cndb_txc_omf) +
@@ -3084,7 +3085,7 @@ cndb_txn_nextid(struct cndb *cndb, int nc)
 }
 
 merr_t
-cndb_txn_start(struct cndb *cndb, u64 *txid, u64 ingestid, int nc, int nd, u64 seqno)
+cndb_txn_start(struct cndb *cndb, u64 *txid, int nc, int nd, u64 seqno, u64 ingestid, u64 txhorizon)
 {
     struct cndb_tx_omf tx = {};
     merr_t             err;
@@ -3099,6 +3100,7 @@ cndb_txn_start(struct cndb *cndb, u64 *txid, u64 ingestid, int nc, int nd, u64 s
     omf_set_tx_nd(&tx, nd);
     omf_set_tx_seqno(&tx, cndb->cndb_seqno);
     omf_set_tx_ingestid(&tx, ingestid);
+    omf_set_tx_txhorizon(&tx, txhorizon);
 
     err = ev(cndb_journal(cndb, &tx, sizeof(tx)), HSE_ERR);
     return err;

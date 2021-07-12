@@ -27,9 +27,7 @@
  * @ctxn_alloc_link:          used to queue onto KVDB allocated txn list
  * @ctxn_tseqno_head:
  * @ctxn_tseqno_tail:
- * @ctxn_ingest_width:
  * @ctxn_ingest_delay:
- * @ctxn_heap_sz:
  * @ctxn_begin_ts:
  * @ctxn_viewset_cookie:
  * @ctxn_alloc_link:
@@ -55,6 +53,7 @@ struct kvdb_ctxn_impl {
     atomic64_t *          ctxn_tseqno_head;
     atomic64_t *          ctxn_tseqno_tail;
     struct c0snr_set     *ctxn_c0snr_set;
+    struct wal           *ctxn_wal;
 
     u64                  ctxn_begin_ts HSE_ALIGNED(SMP_CACHE_BYTES);
     void                *ctxn_viewset_cookie;

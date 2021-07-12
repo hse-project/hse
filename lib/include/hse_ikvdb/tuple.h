@@ -41,6 +41,8 @@ struct kvs_ktuple {
     const void *kt_data;
     s32         kt_len;
     u32         kt_flags;
+    u64         kt_seqno;
+    u64         kt_dgen;
 };
 
 /**

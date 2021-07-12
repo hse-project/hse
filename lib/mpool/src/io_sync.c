@@ -22,6 +22,7 @@
 #endif
 
 #include <hse_util/minmax.h>
+#include <hse_util/event_counter.h>
 
 #include "io.h"
 
@@ -37,16 +38,19 @@ iolen(const struct iovec *iov, int cnt)
 }
 
 merr_t
-io_sync_read(int fd, off_t off, const struct iovec *iov, int iovcnt, int flags)
+io_sync_read(int fd, off_t off, const struct iovec *iov, int iovcnt, int flags, size_t *rdlen)
 {
     const struct iovec *curiov;
     int left;
+    off_t start;
 
     curiov = iov;
     left = iovcnt;
+    start = off;
 
     while (left > 0) {
-        size_t cc, len;
+        ssize_t cc;
+        size_t len;
         int    cnt;
 
         cnt = min_t(int, left, IOV_MAX);
@@ -55,26 +59,36 @@ io_sync_read(int fd, off_t off, const struct iovec *iov, int iovcnt, int flags)
 
         /* Pass flags to preadv2(). Not available on fc25. */
         cc = preadv(fd, curiov, cnt, off);
-        if (cc != len)
-            return merr((cc == -1) ? errno : EIO);
+        if (cc != len) {
+            if (cc == -1)
+                return merr(errno);
+            ev(1);
+            off += cc;
+            goto out;
+        }
 
         off += cc;
-
         left -= cnt;
         curiov += cnt;
     }
+
+out:
+    if (rdlen)
+        *rdlen = off - start;
 
     return 0;
 }
 
 merr_t
-io_sync_write(int fd, off_t off, const struct iovec *iov, int iovcnt, int flags)
+io_sync_write(int fd, off_t off, const struct iovec *iov, int iovcnt, int flags, size_t *wrlen)
 {
     const struct iovec *curiov;
     int left;
+    off_t start;
 
     curiov = iov;
     left = iovcnt;
+    start = off;
 
     while (left > 0) {
         size_t cc, len;
@@ -86,14 +100,22 @@ io_sync_write(int fd, off_t off, const struct iovec *iov, int iovcnt, int flags)
 
         /* Pass flags to pwritev2(). Not available on fc25. */
         cc = pwritev(fd, curiov, cnt, off);
-        if (cc != len)
-            return merr((cc == -1) ? errno : EIO);
+        if (cc != len) {
+            if (cc == -1)
+                return merr(errno);
+            ev(1);
+            off += cc;
+            goto out;
+        }
 
         off += cc;
-
         left -= cnt;
         curiov += cnt;
     }
+
+out:
+    if (wrlen)
+        *wrlen = off - start;
 
     return 0;
 }

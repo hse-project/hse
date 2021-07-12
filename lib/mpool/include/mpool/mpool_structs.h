@@ -11,6 +11,7 @@
 #define MPOOL_ROOT_LOG_CAP     (8 * 1024 * 1024)
 #define MDC_ROOT_MAGIC         (0xFACE0FFF)
 #define MDC_ROOT_FILE_NAME     "hse.meta"
+#define WAL_FILE_PFX           "wal"
 
 /**
  * mpool_mclass = Media classes
@@ -142,6 +143,12 @@ struct mblock_props {
     uint32_t mpr_write_len;
     uint32_t mpr_optimal_wrsz;
     uint32_t mpr_mclass;
+};
+
+
+struct mpool_file_cb {
+    void *cbarg;
+    void (*cbfunc)(void *cbarg, const char *path);
 };
 
 #endif /* MPOOL_STRUCTS_H */

@@ -6,10 +6,10 @@
 #ifndef HSE_KVDB_CTXN_H
 #define HSE_KVDB_CTXN_H
 
-#include <hse_ikvdb/ikvdb.h>
-
 #include <hse_util/hse_err.h>
 #include <hse_util/keylock.h>
+
+#include <hse_ikvdb/ikvdb.h>
 
 /* MTF_MOCK_DECL(kvdb_ctxn) */
 
@@ -21,6 +21,7 @@ struct kvdb_ctxn_set;
 struct viewset;
 struct c0snr_set;
 struct query_ctx;
+struct wal;
 
 enum kvdb_ctxn_state {
     KVDB_CTXN_ACTIVE = 11,
@@ -64,7 +65,8 @@ kvdb_ctxn_alloc(
     struct kvdb_ctxn_set *  kvdb_ctxn_set,
     struct viewset         *active_txn_set,
     struct c0snr_set       *c0snrset,
-    struct c0sk *           c0sk);
+    struct c0sk *           c0sk,
+    struct wal             *wal);
 
 /* MTF_MOCK */
 void
@@ -96,27 +98,22 @@ kvdb_ctxn_get_view_seqno(struct kvdb_ctxn *txn, u64 *view_seqno);
 
 /* MTF_MOCK */
 bool
-kvdb_ctxn_lock_inherit(
-    u64                      start_seq,
-    struct keylock_cb_rock * old_rock,
-    struct keylock_cb_rock **new_rock);
+kvdb_ctxn_lock_inherit(u64 start_seq, uint old_rock, uint *new_rock);
 
-/* Lock a txn for reading (e.g., get, prefix probe)  */
+/* Exclusively lock a txn for reading (e.g., get, prefix probe)  */
 /* MTF_MOCK */
 merr_t
-kvdb_ctxn_trylock_read(
-    struct kvdb_ctxn   *handle,
-    u64                *view_seqno,
-    uintptr_t          *seqref);
+kvdb_ctxn_trylock_read(struct kvdb_ctxn *handle, uintptr_t *seqref, u64 *view_seqno);
 
-/* Lock a txn for reading (e.g., put, delete)  */
+/* Exclusively lock a txn for write (e.g., put, delete)  */
 /* MTF_MOCK */
 merr_t
 kvdb_ctxn_trylock_write(
-    struct kvdb_ctxn           *handle,
-    const struct kvs_ktuple    *kt,
-    u64                         keylock_seed,
-    uintptr_t                  *seqref);
+    struct kvdb_ctxn *handle,
+    uintptr_t        *seqref,
+    u64              *view_seqno,
+    bool              needkeylock,
+    u64               hash);
 
 /* MTF_MOCK */
 void

@@ -18,6 +18,7 @@ _c0sk_open(
     struct kvdb_health * health,
     struct csched *      csched,
     atomic64_t *         kvdb_seq,
+    u64                  gen,
     struct c0sk **       c0sk)
 {
     return 0;
@@ -74,7 +75,7 @@ merr_t
 _c0sk_put(
     struct c0sk *            self,
     u16                      skidx,
-    const struct kvs_ktuple *key,
+    struct kvs_ktuple       *key,
     const struct kvs_vtuple *value,
     const uintptr_t          seqno)
 {
@@ -114,7 +115,7 @@ _c0sk_get(
 }
 
 merr_t
-_c0sk_del(struct c0sk *self, u16 skidx, const struct kvs_ktuple *key, const uintptr_t seqno)
+_c0sk_del(struct c0sk *self, u16 skidx, struct kvs_ktuple *key, const uintptr_t seqno)
 {
     struct mock_c0sk *mock_c0sk = (struct mock_c0sk *)self;
     merr_t            err = 0;
@@ -129,7 +130,7 @@ _c0sk_del(struct c0sk *self, u16 skidx, const struct kvs_ktuple *key, const uint
 }
 
 merr_t
-_c0sk_prefix_del(struct c0sk *self, u16 skidx, const struct kvs_ktuple *key, const uintptr_t seqno)
+_c0sk_prefix_del(struct c0sk *self, u16 skidx, struct kvs_ktuple *key, const uintptr_t seqno)
 {
     struct mock_c0sk *mock_c0sk = (struct mock_c0sk *)self;
     merr_t            err = 0;

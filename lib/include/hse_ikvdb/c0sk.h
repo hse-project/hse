@@ -31,6 +31,7 @@ struct csched;
 struct throttle_sensor;
 struct query_ctx;
 struct kvdb_ctxn_set;
+struct kvdb_callback;
 
 merr_t
 c0sk_init(void);
@@ -63,6 +64,7 @@ c0sk_open(
     struct kvdb_health * health,
     struct csched *      csched,
     atomic64_t *         kvdb_seq,
+    u64                  gen,
     struct c0sk **       c0sk);
 
 /**
@@ -147,7 +149,7 @@ c0sk_get_mhandle(struct c0sk *self);
  * @skidx:     Structured key index
  * @key:       Key for insertion
  * @value:     Value for insertion
- * @seq:       Sequence number for insertion
+ * @seqnoref:  seqnoref for insertion
  *
  * Return: [HSE_REVISIT]
  */
@@ -156,9 +158,9 @@ merr_t
 c0sk_put(
     struct c0sk *            self,
     u16                      skidx,
-    const struct kvs_ktuple *key,
+    struct kvs_ktuple       *key,
     const struct kvs_vtuple *value,
-    u64                      seq);
+    uintptr_t                seqnoref);
 
 /**
  * c0sk_get() - retrieve the value associated with the given key
@@ -190,13 +192,13 @@ c0sk_get(
  * @self:       Instance of struct c0sk from which to delete
  * @skidx:      Structured key index
  * @key:        Key to delete
- * @seq:        Sequence number for insertion
+ * @seqnoref:   seqnoref for deletion
  *
  * Return: [HSE_REVISIT]
  */
 /* MTF_MOCK */
 merr_t
-c0sk_del(struct c0sk *self, u16 skidx, const struct kvs_ktuple *key, u64 seq);
+c0sk_del(struct c0sk *self, u16 skidx, struct kvs_ktuple *key, uintptr_t seqnoref);
 
 merr_t
 c0sk_pfx_probe(
@@ -217,13 +219,13 @@ c0sk_pfx_probe(
  * @self:      Instance of struct c0sk from which to delete
  * @skidx:     Structured key index
  * @key:       Prefix key to delete
- * @seq:       Sequence number for insertion
+ * @seqnoref:  seqnoref for prefix delete
  *
  * Return: [HSE_REVISIT]
  */
 /* MTF_MOCK */
 merr_t
-c0sk_prefix_del(struct c0sk *self, u16 skidx, const struct kvs_ktuple *key, u64 seq);
+c0sk_prefix_del(struct c0sk *self, u16 skidx, struct kvs_ktuple *key, uintptr_t seqnoref);
 
 /**
  * c0sk_rparams() - Get a ptr to c0sk kvdb rparams
@@ -326,6 +328,12 @@ c0sk_get_first_c0kvms(struct c0sk *handle);
 
 struct c0_kvmultiset *
 c0sk_get_last_c0kvms(struct c0sk *handle);
+
+void
+c0sk_install_callback(struct c0sk *handle, struct kvdb_callback *cb);
+
+u64
+c0sk_gen_current(void);
 
 #if HSE_MOCKING
 #include "c0sk_ut.h"

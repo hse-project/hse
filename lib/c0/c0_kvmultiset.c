@@ -60,6 +60,7 @@ struct c0_kvmultiset_impl {
     atomic64_t           c0ms_seqno;
     u64                  c0ms_rsvd_sn;
     u64                  c0ms_ctime;
+    atomic64_t           c0ms_txhorizon;
 
     atomic_t c0ms_ingesting  HSE_ALIGNED(SMP_CACHE_BYTES);
     bool                     c0ms_ingested;
@@ -225,7 +226,6 @@ c0kvms_usage(struct c0_kvmultiset *handle, struct c0_usage *usage)
     u32 i, n;
 
     memset(usage, 0, sizeof(*usage));
-    usage->u_used_min = ULONG_MAX;
 
     n = self->c0ms_num_sets;
 
@@ -236,16 +236,13 @@ c0kvms_usage(struct c0_kvmultiset *handle, struct c0_usage *usage)
         usage->u_tombs += u.u_tombs;
         usage->u_keyb += u.u_keyb;
         usage->u_valb += u.u_valb;
+        usage->u_memsz += u.u_memsz;
 
         if (i == 0)
             continue;
 
         usage->u_alloc += u.u_alloc;
-        usage->u_free += u.u_free;
-        if (u.u_used_max > usage->u_used_max)
-            usage->u_used_max = u.u_used_max;
-        if (u.u_used_min < usage->u_used_min)
-            usage->u_used_min = u.u_used_min;
+        usage->u_used += u.u_used;
     }
 
     usage->u_count = n;
@@ -280,19 +277,6 @@ c0kvms_used_set(struct c0_kvmultiset *handle, size_t used)
     self->c0ms_used = used;
 }
 
-size_t
-c0kvms_avail(struct c0_kvmultiset *handle)
-{
-    struct c0_kvmultiset_impl *self = c0_kvmultiset_h2r(handle);
-    size_t                     sz = 0;
-    u32                        i;
-
-    for (i = 1; i < self->c0ms_num_sets; ++i)
-        sz += c0kvs_avail(self->c0ms_sets[i]);
-
-    return sz; /* excludes ptomb */
-}
-
 bool
 c0kvms_should_ingest(struct c0_kvmultiset *handle)
 {
@@ -300,6 +284,7 @@ c0kvms_should_ingest(struct c0_kvmultiset *handle)
     const uint                 scaler = 1u << 20;
     uint                       sum_keyvals, sum_height;
     uint                       ndiv, n, r;
+    bool                       full = false;
 
     if (atomic_read(&self->c0ms_ingesting) > 0)
         return true;
@@ -328,7 +313,11 @@ c0kvms_should_ingest(struct c0_kvmultiset *handle)
     while (n-- > 0) {
         uint height, keyvals, cnt;
 
-        cnt = c0kvs_get_element_count2(self->c0ms_sets[r++], &height, &keyvals);
+        cnt = c0kvs_get_element_count2(self->c0ms_sets[r++], &height, &keyvals, &full);
+
+        if (full)
+            return true;
+
         if (cnt > 0) {
             if (ev(keyvals > 4096 || height > 24))
                 return true;
@@ -751,6 +740,22 @@ c0kvms_ingest_work_prepare(struct c0_kvmultiset *handle, struct c0sk *c0sk)
 }
 
 void
+c0kvms_txhorizon_set(struct c0_kvmultiset *handle, uint64_t txhorizon)
+{
+    struct c0_kvmultiset_impl *self = c0_kvmultiset_h2r(handle);
+
+    atomic64_set(&self->c0ms_txhorizon, txhorizon);
+}
+
+uint64_t
+c0kvms_txhorizon_get(struct c0_kvmultiset *handle)
+{
+    struct c0_kvmultiset_impl *self = c0_kvmultiset_h2r(handle);
+
+    return atomic64_read(&self->c0ms_txhorizon);
+}
+
+void
 c0kvms_seqno_set(struct c0_kvmultiset *handle, uint64_t kvdb_seq)
 {
     struct c0_kvmultiset_impl *self = c0_kvmultiset_h2r(handle);
@@ -771,7 +776,7 @@ c0kvms_create(u32 num_sets, size_t alloc_sz, atomic64_t *kvdb_seq, struct c0_kvm
 {
     struct c0_kvmultiset_impl *kvms;
     merr_t                     err;
-    size_t                     kvms_sz, sz;
+    size_t                     kvms_sz;
     size_t                     c0snr_sz, iw_sz;
     int                        i, j;
 
@@ -795,6 +800,7 @@ c0kvms_create(u32 num_sets, size_t alloc_sz, atomic64_t *kvdb_seq, struct c0_kvm
 
     /* mark this seqno 'not in use'. */
     atomic64_set(&kvms->c0ms_seqno, HSE_SQNREF_INVALID);
+    atomic64_set(&kvms->c0ms_txhorizon, U64_MAX);
 
     /* The first kvset is reserved for ptombs and needn't be as large
      * as the rest, so we leverage it for the c0snr buffer.  Note that
@@ -804,12 +810,8 @@ c0kvms_create(u32 num_sets, size_t alloc_sz, atomic64_t *kvdb_seq, struct c0_kvm
     c0snr_sz = sizeof(*kvms->c0ms_c0snr_base) * HSE_C0KVMS_C0SNR_MAX;
     iw_sz = sizeof(*kvms->c0ms_ingest_work);
 
-    sz = HSE_C0_CHEAP_SZ_MIN * 2 + c0snr_sz + iw_sz;
-    if (sz < alloc_sz)
-        sz = alloc_sz;
-
     for (i = 0; i < num_sets; ++i) {
-        err = c0kvs_create(sz, kvdb_seq, &kvms->c0ms_seqno, &kvms->c0ms_sets[i]);
+        err = c0kvs_create(alloc_sz, kvdb_seq, &kvms->c0ms_seqno, &kvms->c0ms_sets[i]);
         if (ev(err)) {
             if (i > num_sets / 2)
                 break;
@@ -817,7 +819,6 @@ c0kvms_create(u32 num_sets, size_t alloc_sz, atomic64_t *kvdb_seq, struct c0_kvm
         }
 
         ++kvms->c0ms_num_sets;
-        sz = alloc_sz;
     }
 
     /* Copy existing c0kvs pointers to the remainder of the slots so that
@@ -961,6 +962,12 @@ c0kvms_gen_update(struct c0_kvmultiset *handle)
     return self->c0ms_gen;
 }
 
+void
+c0kvms_gen_init(u64 gen)
+{
+    atomic64_set(&c0kvms_gen, gen);
+}
+
 u64
 c0kvms_gen_read(struct c0_kvmultiset *handle)
 {
@@ -970,7 +977,7 @@ c0kvms_gen_read(struct c0_kvmultiset *handle)
 }
 
 u64
-c0kvms_gen_current(struct c0_kvmultiset *handle)
+c0kvms_gen_current(void)
 {
     return atomic64_read(&c0kvms_gen);
 }

@@ -144,7 +144,7 @@ MTF_DEFINE_UTEST(cndb_test, mtx2omf_test)
     struct cndb_ack_omf ack = {};
     struct cndb_nak_omf nak = {};
 
-    struct cndb_tx  mtx = { { CNDB_TYPE_TX }, 1, 4, 5, 2, 3 };
+    struct cndb_tx  mtx = { { CNDB_TYPE_TX }, 1, 2, 3, 4, 5, 6 };
     struct cndb_txc mtc = { { CNDB_TYPE_TXC }, 1, 2, 3, 0, 0, 0 };
     struct cndb_txm mtm = { { CNDB_TYPE_TXM }, 1, 2, 3, 4, 5, 6, 7, 8, 1 };
     struct cndb_txd mtd = { { CNDB_TYPE_TXD }, 1, 2, 3, 0 };
@@ -164,6 +164,7 @@ MTF_DEFINE_UTEST(cndb_test, mtx2omf_test)
     ASSERT_EQ(3, omf_tx_nd(&tx));
     ASSERT_EQ(4, omf_tx_seqno(&tx));
     ASSERT_EQ(5, omf_tx_ingestid(&tx));
+    ASSERT_EQ(6, omf_tx_txhorizon(&tx));
 
     mtx2omf(&mock_cndb, &txc, (void *)&mtc);
     ASSERT_EQ(CNDB_TYPE_TXC, omf_cnhdr_type((void *)&txc));
@@ -964,10 +965,10 @@ MTF_DEFINE_UTEST(cndb_test, cndb_misc_test)
     mapi_inject(mapi_idx_mpool_mdc_append, 0);
     mapi_inject(mapi_idx_cndb_journal, 0);
     mapi_inject(mapi_idx_mpool_mdc_usage, 1);
-    err = cn_ingestv(cnv, mbv, U64_MAX, 1, NULL, NULL);
+    err = cn_ingestv(cnv, mbv, 1, U64_MAX, U64_MAX, NULL, NULL);
     ASSERT_EQ(1, err);
 
-    err = cn_ingestv(cnv, mbv, U64_MAX, 1, NULL, NULL);
+    err = cn_ingestv(cnv, mbv, 1, U64_MAX, U64_MAX, NULL, NULL);
     ASSERT_EQ(1, err);
 
     err = cndb_replay(&cndb, &seqno, &ingestid);
@@ -977,7 +978,7 @@ MTF_DEFINE_UTEST(cndb_test, cndb_misc_test)
     err = cndb_replay(&cndb, &seqno, &ingestid);
     ASSERT_EQ(ENODATA, merr_errno(err));
 
-    err = cndb_txn_start(&cndb, &txid, 0, 0, 0, 0);
+    err = cndb_txn_start(&cndb, &txid, 0, 0, 0, 0, 0);
     ASSERT_EQ(1, err);
 
     tag = 0;
@@ -1046,7 +1047,7 @@ MTF_DEFINE_UTEST(cndb_test, cndb_compaction_test)
 
     /* txn1: Finishes its creates, but is waiting on an ack-D
      */
-    err = cndb_txn_start(cndb, &txid, 0, 2, 1, 0);
+    err = cndb_txn_start(cndb, &txid, 2, 1, 0, 0, 0);
     ASSERT_EQ(0, err);
 
     tag = 0;
@@ -1071,7 +1072,7 @@ MTF_DEFINE_UTEST(cndb_test, cndb_compaction_test)
     /* txn2: Deletes a kvset from the previous incomplete txn
      */
     atomic64_set(&cndb->cndb_txid, 20);
-    err = cndb_txn_start(cndb, &txid, 0, 2, 1, 0);
+    err = cndb_txn_start(cndb, &txid, 2, 1, 0, 0, 0);
     ASSERT_EQ(0, err);
 
     tag = 0;

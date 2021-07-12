@@ -61,7 +61,7 @@ static struct bonsai_node *
 bn_ior_replace(
     struct bonsai_root *      tree,
     const struct bonsai_skey *skey,
-    const struct bonsai_sval *sval,
+    struct bonsai_sval       *sval,
     struct bonsai_node       *node)
 {
     struct bonsai_val *oldv = NULL, *v;
@@ -81,6 +81,8 @@ bn_ior_replace(
     if (oldv)
         bn_val_rcufree(node->bn_kv, oldv);
 
+    sval->bsv_seqnoref = v->bv_seqnoref;
+
     return tree->br_root;
 }
 
@@ -88,11 +90,12 @@ static struct bonsai_node *
 bn_ior_insert(
     struct bonsai_root         *tree,
     const struct bonsai_skey   *skey,
-    const struct bonsai_sval   *sval,
+    struct bonsai_sval         *sval,
     struct bonsai_kv           *kvlist,
     u32                         flags)
 {
     struct bonsai_node *node;
+    struct bonsai_val  *val;
     enum bonsai_ior_code code;
 
     node = bn_kvnode_alloc(tree, skey, sval);
@@ -113,6 +116,9 @@ bn_ior_insert(
     SET_IOR_INS(code);
     tree->br_ior_cb(tree->br_ior_cbarg, &code, node->bn_kv, NULL, NULL, tree->br_height);
 
+    val = rcu_dereference(node->bn_kv->bkv_values);
+    sval->bsv_seqnoref = val->bv_seqnoref;
+
     return node;
 }
 
@@ -130,7 +136,7 @@ static struct bonsai_node *
 bn_ior_impl(
     struct bonsai_root         *tree,
     const struct bonsai_skey   *skey,
-    const struct bonsai_sval   *sval)
+    struct bonsai_sval         *sval)
 {
     const struct key_immediate *key_imm;
     struct bonsai_node *node;
@@ -526,7 +532,7 @@ merr_t
 bn_insert_or_replace(
     struct bonsai_root *      tree,
     const struct bonsai_skey *skey,
-    const struct bonsai_sval *sval)
+     struct bonsai_sval      *sval)
 {
     struct bonsai_node *newroot;
 

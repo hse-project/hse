@@ -93,7 +93,6 @@ MTF_DEFINE_UTEST(c0_test, basic_open_close)
 
     destroy_mock_c0sk(c0sk);
     destroy_mock_cn(cn);
-    c0_fini();
 }
 
 MTF_DEFINE_UTEST(c0_test, open_error_paths)

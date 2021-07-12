@@ -1643,7 +1643,8 @@ cn_tree_capped_compact(struct cn_tree *tree)
         return;
     }
 
-    err = cndb_txn_start(tree->cndb, &txid, CNDB_INVAL_INGESTID, 0, kvset_cnt, 0);
+    err = cndb_txn_start(tree->cndb, &txid, 0, kvset_cnt, 0,
+                         CNDB_INVAL_INGESTID, CNDB_INVAL_HORIZON);
     if (ev(err))
         return;
 
@@ -3323,7 +3324,8 @@ cn_comp_compact(struct cn_compaction_work *w)
         int nc = (skip_commit) ? 0 : w->cw_outc;
         int nd = w->cw_kvset_cnt;
 
-        err = cndb_txn_start(w->cw_tree->cndb, &w->cw_work_txid, CNDB_INVAL_INGESTID, nc, nd, 0);
+        err = cndb_txn_start(w->cw_tree->cndb, &w->cw_work_txid, nc, nd, 0, CNDB_INVAL_INGESTID,
+                             CNDB_INVAL_HORIZON);
         if (ev(err)) {
             kvdb_health_error(hp, err);
             goto err_exit;

@@ -71,10 +71,11 @@ $2 == "infod" {
 $2 == "tx" {
 	set_hdr("CNDB_TYPE_TX", "tx", "0")
 	printf("\tomf_set_tx_id(&tx, %s);\n", $3)
-	printf("\tomf_set_tx_seqno(&tx, %s);\n", $5)
-	printf("\tomf_set_tx_nc(&tx, %s);\n", $7)
-	printf("\tomf_set_tx_nd(&tx, %s);\n", $9)
+	printf("\tomf_set_tx_nc(&tx, %s);\n", $5)
+	printf("\tomf_set_tx_nd(&tx, %s);\n", $7)
+	printf("\tomf_set_tx_seqno(&tx, %s);\n", $9)
 	printf("\tomf_set_tx_ingestid(&tx, %s);\n", $11)
+	printf("\tomf_set_tx_txhorizon(&tx, %s);\n", $13)
 	printf("\terr = mpool_mdc_append(mdc, &tx, sizeof(tx), false);\n")
 	printf("\tif (ev(err))\n\t\tgoto errout;\n")
 	print ""

@@ -37,7 +37,7 @@ MTF_BEGIN_UTEST_COLLECTION(xrand_test);
 
 MTF_DEFINE_UTEST(xrand_test, seed_test)
 {
-    u64 seedv[] = { 0, 1, 2, 1234, (u64)-1234, U64_MAX, (u64)S64_MAX };
+    u64 seedv[] = { 1, 2, 1234, (u64)-1234, U64_MAX, (u64)S64_MAX };
     uint seedc = sizeof(seedv) / sizeof(seedv[0]);
     uint iters = SEQUENCE_LEN;
 

@@ -156,6 +156,9 @@ struct mapi_injection inject_list[] = {
     { mapi_idx_cndb_replay, MAPI_RC_SCALAR, 0 },
     { mapi_idx_cndb_cn_create, MAPI_RC_SCALAR, 0 },
 
+    { mapi_idx_wal_open, MAPI_RC_SCALAR, 0 },
+    { mapi_idx_wal_close, MAPI_RC_SCALAR, 0 },
+
     { mapi_idx_kvset_get_num_kblocks, MAPI_RC_SCALAR, 1 },
     { mapi_idx_kvset_get_nth_kblock_id, MAPI_RC_SCALAR, 0x70310d },
     { mapi_idx_kvset_get_num_vblocks, MAPI_RC_SCALAR, 1 },

@@ -596,7 +596,7 @@ mblock_file_open(
 
     mcid = mclass_id(mc);
     dirfd = mclass_dirfd(mc);
-    snprintf(name, sizeof(name), "%s-%d-%d", MBLOCK_DATA_FILE_PFX, mcid, fileid);
+    snprintf(name, sizeof(name), "%s-%s-%d-%d", MBLOCK_FILE_PFX, "data", mcid, fileid);
 
     rc = faccessat(dirfd, name, F_OK, 0);
     if (rc == -1 && errno == ENOENT && !create)
@@ -1018,7 +1018,7 @@ mblock_file_read(
     if (!PAGE_ALIGNED(len) || (roff + len - 1 > eoff))
         return merr(EINVAL);
 
-    return mbfp->io.read(mbfp->fd, roff, iov, iovc, 0);
+    return mbfp->io.read(mbfp->fd, roff, iov, iovc, 0, NULL);
 }
 
 merr_t
@@ -1057,7 +1057,7 @@ mblock_file_write(struct mblock_file *mbfp, uint64_t mbid, const struct iovec *i
     if (!PAGE_ALIGNED(len) || (woff + len - 1 > eoff))
         return merr(EINVAL);
 
-    err = mbfp->io.write(mbfp->fd, woff, iov, iovc, 0);
+    err = mbfp->io.write(mbfp->fd, woff, iov, iovc, 0, NULL);
     if (!err)
         atomic_add(len, wlenp);
 

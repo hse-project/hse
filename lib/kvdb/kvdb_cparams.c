@@ -14,25 +14,64 @@
 #include <hse_ikvdb/home.h>
 #include <hse_ikvdb/kvdb_cparams.h>
 #include <hse_ikvdb/param.h>
+#include <hse_ikvdb/wal.h>
 #include <hse_util/storage.h>
 
 static const struct param_spec pspecs[] = {
 	{
-        .ps_name = "dur_capacity",
-        .ps_description = "durability capacity in MiB",
-        .ps_flags = PARAM_FLAG_EXPERIMENTAL | PARAM_FLAG_CREATE_ONLY,
-        .ps_type = PARAM_TYPE_U64,
-        .ps_offset = offsetof(struct kvdb_cparams, dur_capacity),
-        .ps_size = sizeof(((struct kvdb_cparams *) 0)->dur_capacity),
+        .ps_name = "dur_intvl_ms",
+        .ps_description = "durability lag in ms",
+        .ps_flags = PARAM_FLAG_CREATE_ONLY,
+        .ps_type = PARAM_TYPE_U32,
+        .ps_offset = offsetof(struct kvdb_cparams, dur_intvl_ms),
+        .ps_size = sizeof(((struct kvdb_cparams *) 0)->dur_intvl_ms),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
         .ps_default_value = {
-            .as_uscalar = 6144 * MB, /* 6 GiB */
+            .as_uscalar = HSE_WAL_DUR_MS_DFLT,
         },
         .ps_bounds = {
             .as_uscalar = {
-                .ps_min = 0,
-                .ps_max = UINT64_MAX,
+                .ps_min = HSE_WAL_DUR_MS_MIN,
+                .ps_max = HSE_WAL_DUR_MS_MAX,
+            },
+        },
+    },
+	{
+        .ps_name = "dur_buf_sz",
+        .ps_description = "durability buffer size in bytes",
+        .ps_flags = PARAM_FLAG_EXPERIMENTAL | PARAM_FLAG_CREATE_ONLY,
+        .ps_type = PARAM_TYPE_U32,
+        .ps_offset = offsetof(struct kvdb_cparams, dur_buf_sz),
+        .ps_size = sizeof(((struct kvdb_cparams *) 0)->dur_buf_sz),
+        .ps_convert = param_default_converter,
+        .ps_validate = param_default_validator,
+        .ps_default_value = {
+            .as_uscalar = HSE_WAL_DUR_BYTES_DFLT,
+        },
+        .ps_bounds = {
+            .as_uscalar = {
+                .ps_min = HSE_WAL_DUR_BYTES_MIN,
+                .ps_max = HSE_WAL_DUR_BYTES_MAX,
+            },
+        },
+    },
+	{
+        .ps_name = "dur_mclass",
+        .ps_description = "media class to use for WAL files (0 - capacity, 1 - staging)",
+        .ps_flags = PARAM_FLAG_CREATE_ONLY,
+        .ps_type = PARAM_TYPE_U8,
+        .ps_offset = offsetof(struct kvdb_cparams, dur_mclass),
+        .ps_size = sizeof(((struct kvdb_cparams *) 0)->dur_mclass),
+        .ps_convert = param_default_converter,
+        .ps_validate = param_default_validator,
+        .ps_default_value = {
+            .as_uscalar = MP_MED_CAPACITY,
+        },
+        .ps_bounds = {
+            .as_uscalar = {
+                .ps_min = MP_MED_CAPACITY,
+                .ps_max = MP_MED_COUNT - 1,
             },
         },
     },

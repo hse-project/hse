@@ -1130,8 +1130,8 @@ void *
 periodic_sync(void *arg)
 {
     struct timespec timeout = {
-        .tv_sec = (sync_timeout_ms * 1000000) / 1000000,
-        .tv_nsec = (sync_timeout_ms * 1000000) % 1000000
+        .tv_sec = sync_timeout_ms / 1000,
+        .tv_nsec = (sync_timeout_ms % 1000) * 1000000
     };
     sigset_t sigmask;
     hse_err_t err;

@@ -15,10 +15,10 @@
 
 #include <mpool/mpool.h>
 
-#include <cn/kvdb/kvdb_omf.h>
-#include <cn/cn/kvset.h>
-#include <cn/cn/cndb_omf.h>
-#include <cn/cn/cndb_internal.h>
+#include <kvdb/kvdb_omf.h>
+#include <cn/kvset.h>
+#include <cn/cndb_omf.h>
+#include <cn/cndb_internal.h>
 
 #include <libgen.h>
 
@@ -27,7 +27,7 @@ struct nfault_probe *cndb_probes;
 #define BUF_SZ ((25 * 1024)) /* fo=8: 24K for C and D + extra (for omf structs) */
 
 struct kvs_info {
-    const char *     mp;
+    const char *     kvdb_home;
     const char *     kvs;
     char             buf[BUF_SZ];
     u64              ref_cnid;
@@ -37,7 +37,7 @@ struct kvs_info {
 };
 
 void
-fatal(char *who, u64 err)
+fatal(char *who, merr_t err)
 {
     struct merr_info info;
 
@@ -48,8 +48,8 @@ fatal(char *who, u64 err)
 void
 usage(char *prog)
 {
-    static const char msg[] = "usage: %s kvdb\n"
-                              "kvdb  name of the kvdb\n";
+    static const char msg[] = "usage: %s <kvdb_home>\n"
+                              "kvdb home dir\n";
 
     fprintf(stderr, msg, prog);
     exit(1);
@@ -58,9 +58,9 @@ usage(char *prog)
 void
 open_kvdb_and_cndb(struct kvs_info *ki)
 {
-    u64 rc;
+    uint64_t rc;
 
-    rc = diag_kvdb_open(ki->mp, 0, NULL, &ki->kvdbh);
+    rc = diag_kvdb_open(ki->kvdb_home, 0, NULL, &ki->kvdbh);
     if (rc)
         fatal("diag_kvdb_open", rc);
 
@@ -77,7 +77,7 @@ open_kvdb_and_cndb(struct kvs_info *ki)
     fprintf(stderr, "CNDB oids(0x%lx, 0x%lx)\n", ki->cndb->cndb_oid1, ki->cndb->cndb_oid2);
 }
 
-#include "mdc_images/simpledrop_recovery.c"
+#include "simpledrop.c"
 
 int
 main(int argc, char **argv)
@@ -85,6 +85,7 @@ main(int argc, char **argv)
     char *          prog;
     int             opt;
     struct kvs_info ki = { 0 };
+    hse_err_t       herr;
 
     prog = basename(argv[0]);
     hse_openlog(prog, false);
@@ -100,10 +101,14 @@ main(int argc, char **argv)
     argc -= optind;
     argv += optind;
 
-    if ((argc != 2))
+    if ((argc != 1))
         usage(prog);
 
-    ki.mp = argv[0];
+    herr = hse_init(0, NULL);
+    if (herr)
+        fatal("hse_init failure", herr);
+
+    ki.kvdb_home = argv[0];
 
     open_kvdb_and_cndb(&ki);
 
@@ -113,6 +118,8 @@ main(int argc, char **argv)
 
     mpool_mdc_cend(ki.cndb->cndb_mdc);
     (void)mpool_mdc_close(ki.cndb->cndb_mdc);
+
+    hse_fini();
 
     return 0;
 }

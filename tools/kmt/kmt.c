@@ -2577,6 +2577,7 @@ km_open_mongo(struct km_impl *impl)
     if (ok) {
         mongoc_collection_t *collection;
         char collname[16];
+        int64_t prev = 0;
         int64_t total;
         int retries = 15;
         int i;
@@ -2646,6 +2647,11 @@ km_open_mongo(struct km_impl *impl)
             if (retries-- > 0) {
                 eprint("%s: record count mismatch (expected %lu, got %ld), retrying...\n",
                        __func__, impl->recmax, total);
+
+                if (total > prev) {
+                    prev = total;
+                    retries++;
+                }
 
                 usleep(1000 * 1000);
                 goto retry;
@@ -3553,8 +3559,8 @@ void *
 periodic_sync(void *arg)
 {
     struct timespec timeout = {
-        .tv_sec = (sync_timeout_ms * 1000000) / 1000000,
-        .tv_nsec = (sync_timeout_ms * 1000000) % 1000000
+        .tv_sec = sync_timeout_ms / 1000,
+        .tv_nsec = (sync_timeout_ms % 1000) * 1000000
     };
     struct km_impl *impl = arg;
     sigset_t sigmask;

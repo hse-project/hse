@@ -42,7 +42,8 @@ enum {
     CNDB_VERSION9 = 9,
     CNDB_VERSION10 = 10,
     CNDB_VERSION11 = 11,
-    CNDB_VERSION = CNDB_VERSION11,
+    CNDB_VERSION12 = 12,
+    CNDB_VERSION = CNDB_VERSION12,
 
     /* the algorithm in cndb_compact() is sensitive to CNDB_TYPE_ enums.
      * they are used by cndb_cmp() to order records during collation.
@@ -279,6 +280,25 @@ OMF_GET_VER(struct cndb_tx_omf_v4, tx_nc, 32, v4);
 OMF_GET_VER(struct cndb_tx_omf_v4, tx_nd, 32, v4);
 
 /**
+ * struct cndb_tx_omf_v5
+ */
+struct cndb_tx_omf_v5 {
+    struct cndb_hdr_omf hdr;
+    __le64              tx_id;
+    __le64              tx_seqno;
+    __le64              tx_ingestid;
+    __le32              tx_nc;
+    __le32              tx_nd;
+} HSE_PACKED;
+
+OMF_GET_VER(struct cndb_tx_omf_v5, tx_id, 64, v5);
+OMF_GET_VER(struct cndb_tx_omf_v5, tx_seqno, 64, v5);
+OMF_GET_VER(struct cndb_tx_omf_v5, tx_ingestid, 64, v5);
+OMF_GET_VER(struct cndb_tx_omf_v5, tx_nc, 32, v5);
+OMF_GET_VER(struct cndb_tx_omf_v5, tx_nd, 32, v5);
+
+
+/**
  * struct cndb_tx_omf
  * Record type CNDB_TYPE_TX.
  * One record per CN ingest or CN compaction or CN spill.
@@ -289,10 +309,6 @@ OMF_GET_VER(struct cndb_tx_omf_v4, tx_nd, 32, v4);
  * CNDB_TYPE_TXD, CNDB_TYPE_TXM, CNDB_TYPE_ACK
  *
  * @tx_id:    transaction id associated with this CN mutation.
- * @tx_seqno: KVDB sequence number at the time the transaction started.
- * @tx_ingestid: if different from CNDB_INVAL_INGESTID:
- *      - it is the ingest id of a CN ingest
- *      When the transaction is not an ingest, the value is CNDB_INVAL_INGESTID.
  * @tx_nc:    number of kvsets created during the CN mutation.
  *            Also number of records CNDB_TYPE_TXC following this record
  *            in the same transaction.
@@ -302,14 +318,21 @@ OMF_GET_VER(struct cndb_tx_omf_v4, tx_nd, 32, v4);
  * @tx_nd:    number of kvsets deleted during the CN mutation.
  *            Also number of records CNDB_TYPE_TXD following this record
  *            in the same transaction.
+ * @tx_seqno: KVDB sequence number at the time the transaction started.
+ * @tx_ingestid: if different from CNDB_INVAL_INGESTID:
+ *      - it is the ingest id of a CN ingest
+ *      When the transaction is not an ingest, the value is CNDB_INVAL_INGESTID.
+ * @tx_horizon: transaction horizon for a cN ingest
+ *      When the transaction is not an ingest, the value is CNDB_INVAL_HORIZON.
  */
 struct cndb_tx_omf {
     struct cndb_hdr_omf hdr;
     __le64              tx_id;
-    __le64              tx_seqno;
-    __le64              tx_ingestid;
     __le32              tx_nc;
     __le32              tx_nd;
+    __le64              tx_seqno;
+    __le64              tx_ingestid;
+    __le64              tx_txhorizon;
 } HSE_PACKED;
 
 #define CNDB_TXF_KEEPV 1 /* For field txc_flags in CNDB_VERSION4 */
@@ -545,6 +568,7 @@ OMF_SETGET(struct cndb_tx_omf, tx_nc, 32);
 OMF_SETGET(struct cndb_tx_omf, tx_nd, 32);
 OMF_SETGET(struct cndb_tx_omf, tx_seqno, 64);
 OMF_SETGET(struct cndb_tx_omf, tx_ingestid, 64);
+OMF_SETGET(struct cndb_tx_omf, tx_txhorizon, 64);
 
 OMF_SETGET(struct cndb_txc_omf, txc_cnid, 64);
 OMF_SETGET(struct cndb_txc_omf, txc_id, 64);

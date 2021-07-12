@@ -3,13 +3,13 @@
  * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
-#include <hse_util/platform.h>
-#include <hse_util/event_counter.h>
 #include <hse_util/slab.h>
 #include <hse_util/log2.h>
 #include <hse_util/fmt.h>
 #include <hse_util/keycmp.h>
+#include <hse_util/bonsai_tree.h>
 #include <hse_util/compression_lz4.h>
+#include <hse_util/event_counter.h>
 
 #include <hse_ikvdb/limits.h>
 #include <hse_ikvdb/c0_kvset.h>
@@ -18,25 +18,14 @@
 #include "c0_kvset_internal.h"
 #include "c0_cursor.h"
 
-/* The minimum c0 cheap size should be at least 2MB and large enough to accomodate
+/* clang-format off */
+
+/* The minimum c0 cheap size should be large enough to accomodate
  * at least one max-sized kvs value plus associated overhead.
  */
-_Static_assert(HSE_C0_CHEAP_SZ_MIN >= (2ul << 20), "min c0 cheap size too small");
-_Static_assert(
-    HSE_C0_CHEAP_SZ_MIN >= HSE_KVS_VALUE_LEN_MAX + (1ul << 20),
-    "min c0 cheap size too small");
-_Static_assert(HSE_C0_CHEAP_SZ_DFLT >= HSE_C0_CHEAP_SZ_MIN, "default c0 cheap size too small");
-_Static_assert(HSE_C0_CHEAP_SZ_MAX >= HSE_C0_CHEAP_SZ_DFLT, "max c0 cheap size too small");
-
-/*
- * A struct c0_kvset contains a Bonsai tree that is used in a RCU style.
- * In userspace this is part of the Bonsai tree library. The kernel space
- * implementation is TBD.
- */
-#include <hse_util/bonsai_tree.h>
-
-static void
-c0kvs_destroy_impl(struct c0_kvset_impl *set);
+static_assert(HSE_C0_CHEAP_SZ_MIN >= HSE_KVS_VALUE_LEN_MAX + (1ul << 20), "C0_CHEAP_SZ_MIN too small");
+static_assert(HSE_C0_CHEAP_SZ_DFLT >= HSE_C0_CHEAP_SZ_MIN, "C0_CHEAP_SZ_DFLT too small");
+static_assert(HSE_C0_CHEAP_SZ_MAX >= HSE_C0_CHEAP_SZ_DFLT, "C0_CHEAP_SZ_MAX too small");
 
 /**
  * struct c0kvs_ccache - cache of initialized cheap-based c0kvs objects
@@ -46,23 +35,25 @@ c0kvs_destroy_impl(struct c0_kvset_impl *set);
  * @cc_init:    set to %true if initialized
  *
  * Creating and destroying cheap-backed c0kvsets is relatively expensive,
- * so we keep a small cache of them ready for immediate use.  The cache
- * is accessed on a per-cpu basis, but we'll check all buckets in order
- * to satisfy each alloc/free request before resorting to full-on c0kvms
- * create/destroy operation.
+ * so we keep a small cache of them ready for immediate use.
  */
 struct c0kvs_ccache {
-    spinlock_t cc_lock HSE_ALIGNED(SMP_CACHE_BYTES * 2);
-    void *cc_head      HSE_ALIGNED(SMP_CACHE_BYTES);
-    size_t             cc_size;
-    bool               cc_init;
+    spinlock_t  cc_lock HSE_ALIGNED(SMP_CACHE_BYTES * 2);
+    void       *cc_head;
+    size_t      cc_size;
+    bool        cc_init;
 };
+
+/* clang-format on */
 
 static struct c0kvs_ccache c0kvs_ccache;
 static atomic_t            c0kvs_init_ref;
 
+static void
+c0kvs_destroy_impl(struct c0_kvset_impl *set);
+
 static struct c0_kvset_impl *
-c0kvs_ccache_alloc(size_t sz)
+c0kvs_ccache_alloc(void)
 {
     struct c0kvs_ccache * cc = &c0kvs_ccache;
     struct c0_kvset_impl *set;
@@ -70,10 +61,8 @@ c0kvs_ccache_alloc(size_t sz)
     spin_lock(&cc->cc_lock);
     set = cc->cc_head;
     if (set) {
-        cc->cc_size -= HSE_C0_CHEAP_SZ_MAX;
+        cc->cc_size -= set->c0s_ccache_sz;
         cc->cc_head = set->c0s_next;
-
-        set->c0s_alloc_sz = sz;
     }
     spin_unlock(&cc->cc_lock);
 
@@ -85,11 +74,12 @@ c0kvs_ccache_free(struct c0_kvset_impl *set)
 {
     struct c0kvs_ccache *cc = &c0kvs_ccache;
 
+    set->c0s_ccache_sz = cheap_used(set->c0s_cheap);
     c0kvs_reset(&set->c0s_handle, 0);
 
     spin_lock(&cc->cc_lock);
-    if (cc->cc_size + HSE_C0_CHEAP_SZ_MAX < HSE_C0_CCACHE_SZ_MAX) {
-        cc->cc_size += HSE_C0_CHEAP_SZ_MAX;
+    if (cc->cc_size + set->c0s_ccache_sz < HSE_C0_CCACHE_SZ_MAX) {
+        cc->cc_size += set->c0s_ccache_sz;
         set->c0s_next = cc->cc_head;
         cc->cc_head = set;
         set = NULL;
@@ -128,39 +118,40 @@ c0kvs_ior_stats(
     uint                  height,
     uint                  keyvals)
 {
+    size_t memsz = sizeof(struct bonsai_val) + new_value_len;
+
     if (IS_IOR_INS(code)) {
         /* first insert for this key ... */
+
         ++c0kvs->c0s_num_entries;
         if (HSE_CORE_IS_TOMB(new_value))
             ++c0kvs->c0s_num_tombstones;
-        c0kvs->c0s_total_key_bytes += new_key_len;
-        c0kvs->c0s_total_value_bytes += new_value_len;
+        c0kvs->c0s_keyb += new_key_len;
 
+        memsz += sizeof(struct bonsai_kv) + new_key_len;
+        memsz += sizeof(struct bonsai_node);
     } else if (IS_IOR_REP(code)) {
         /* replaced existing value for this key ... */
 
         if (!HSE_CORE_IS_TOMB(old_value)) {
             if (HSE_CORE_IS_TOMB(new_value)) {
-                --c0kvs->c0s_num_entries;
                 ++c0kvs->c0s_num_tombstones;
             }
-            c0kvs->c0s_total_value_bytes -= old_value_len;
-            c0kvs->c0s_total_value_bytes += new_value_len;
+            c0kvs->c0s_valb -= old_value_len;
         } else {
             if (!HSE_CORE_IS_TOMB(new_value)) {
-                ++c0kvs->c0s_num_entries;
                 --c0kvs->c0s_num_tombstones;
             }
-            c0kvs->c0s_total_value_bytes += new_value_len;
         }
     } else {
         assert(IS_IOR_ADD(code));
-        if (!HSE_CORE_IS_TOMB(new_value))
-            ++c0kvs->c0s_num_entries;
-        else
+
+        if (HSE_CORE_IS_TOMB(new_value))
             ++c0kvs->c0s_num_tombstones;
-        c0kvs->c0s_total_value_bytes += new_value_len;
     }
+
+    c0kvs->c0s_valb += new_value_len;
+    c0kvs->c0s_memsz += memsz;
 
     if (height > c0kvs->c0s_height)
         c0kvs->c0s_height = height;
@@ -448,14 +439,13 @@ c0kvs_create(
 
     *handlep = NULL;
 
-    alloc_sz = max_t(size_t, alloc_sz, HSE_C0_CHEAP_SZ_MIN);
-    alloc_sz = min_t(size_t, alloc_sz, HSE_C0_CHEAP_SZ_MAX);
+    alloc_sz = clamp_t(size_t, alloc_sz, HSE_C0_CHEAP_SZ_MIN, HSE_C0_CHEAP_SZ_MAX);
 
-    set = c0kvs_ccache_alloc(alloc_sz);
+    set = c0kvs_ccache_alloc();
     if (set)
         goto created;
 
-    cheap = cheap_create(_Alignof(max_align_t), HSE_C0_CHEAP_SZ_MAX);
+    cheap = cheap_create(_Alignof(max_align_t), alloc_sz);
     if (ev(!cheap))
         return merr(ENOMEM);
 
@@ -515,18 +505,6 @@ c0kvs_used(struct c0_kvset *handle)
     return cheap_used(self->c0s_cheap);
 }
 
-size_t
-c0kvs_avail(struct c0_kvset *handle)
-{
-    struct c0_kvset_impl *self = c0_kvset_h2r(handle);
-    size_t                used;
-
-    used = cheap_used(self->c0s_cheap);
-    used = min_t(size_t, self->c0s_alloc_sz, used);
-
-    return self->c0s_alloc_sz - used;
-}
-
 void
 c0kvs_reset(struct c0_kvset *handle, size_t sz)
 {
@@ -543,8 +521,9 @@ c0kvs_reset(struct c0_kvset *handle, size_t sz)
     atomic_set(&set->c0s_finalized, 0);
     set->c0s_num_entries = 0;
     set->c0s_num_tombstones = 0;
-    set->c0s_total_key_bytes = 0;
-    set->c0s_total_value_bytes = 0;
+    set->c0s_keyb = 0;
+    set->c0s_valb = 0;
+    set->c0s_memsz = 0;
     set->c0s_height = 0;
     set->c0s_keyvals = 0;
 }
@@ -575,7 +554,11 @@ c0kvs_alloc(struct c0_kvset *handle, size_t align, size_t sz)
 }
 
 static merr_t
-c0kvs_putdel(struct c0_kvset_impl *self, struct bonsai_skey *skey, struct bonsai_sval *sval)
+c0kvs_putdel(
+    struct c0_kvset_impl *self,
+    struct bonsai_skey   *skey,
+    struct bonsai_sval   *sval,
+    u64                  *seqno)
 {
     merr_t err;
 
@@ -591,6 +574,9 @@ c0kvs_putdel(struct c0_kvset_impl *self, struct bonsai_skey *skey, struct bonsai
      */
     assert(atomic_read(&self->c0s_finalized) == 0);
 
+    if (!err)
+        *seqno = HSE_SQNREF_TO_ORDNL(sval->bsv_seqnoref);
+
     return err;
 }
 
@@ -598,7 +584,7 @@ merr_t
 c0kvs_put(
     struct c0_kvset *        handle,
     u16                      skidx,
-    const struct kvs_ktuple *kt,
+    struct kvs_ktuple       *kt,
     const struct kvs_vtuple *vt,
     uintptr_t                seqnoref)
 {
@@ -609,11 +595,11 @@ c0kvs_put(
     bn_skey_init(kt->kt_data, kt->kt_len, kt->kt_flags, skidx, &skey);
     bn_sval_init(vt->vt_data, vt->vt_xlen, seqnoref, &sval);
 
-    return c0kvs_putdel(self, &skey, &sval);
+    return c0kvs_putdel(self, &skey, &sval, &kt->kt_seqno);
 }
 
 merr_t
-c0kvs_del(struct c0_kvset *handle, u16 skidx, const struct kvs_ktuple *key, uintptr_t seqnoref)
+c0kvs_del(struct c0_kvset *handle, u16 skidx, struct kvs_ktuple *key, uintptr_t seqnoref)
 {
     struct c0_kvset_impl *self = c0_kvset_h2r(handle);
     struct bonsai_skey    skey;
@@ -622,14 +608,14 @@ c0kvs_del(struct c0_kvset *handle, u16 skidx, const struct kvs_ktuple *key, uint
     bn_skey_init(key->kt_data, key->kt_len, 0, skidx, &skey);
     bn_sval_init(HSE_CORE_TOMB_REG, 0, seqnoref, &sval);
 
-    return c0kvs_putdel(self, &skey, &sval);
+    return c0kvs_putdel(self, &skey, &sval, &key->kt_seqno);
 }
 
 merr_t
 c0kvs_prefix_del(
     struct c0_kvset *        handle,
     u16                      skidx,
-    const struct kvs_ktuple *key,
+    struct kvs_ktuple       *key,
     uintptr_t                seqnoref)
 {
     struct c0_kvset_impl *self = c0_kvset_h2r(handle);
@@ -639,23 +625,7 @@ c0kvs_prefix_del(
     bn_skey_init(key->kt_data, key->kt_len, 0, skidx, &skey);
     bn_sval_init(HSE_CORE_TOMB_PFX, 0, seqnoref, &sval);
 
-    return c0kvs_putdel(self, &skey, &sval);
-}
-
-void
-c0kvs_get_content_metrics(
-    struct c0_kvset *handle,
-    u64 *            num_entries,
-    u64 *            num_tombstones,
-    u64 *            total_key_bytes,
-    u64 *            total_value_bytes)
-{
-    struct c0_kvset_impl *self = c0_kvset_h2r(handle);
-
-    *num_entries = self->c0s_num_entries;
-    *num_tombstones = self->c0s_num_tombstones;
-    *total_key_bytes = self->c0s_total_key_bytes;
-    *total_value_bytes = self->c0s_total_value_bytes;
+    return c0kvs_putdel(self, &skey, &sval, &key->kt_seqno);
 }
 
 u64
@@ -663,19 +633,22 @@ c0kvs_get_element_count(struct c0_kvset *handle)
 {
     struct c0_kvset_impl *self = c0_kvset_h2r(handle);
 
-    return self->c0s_num_entries + self->c0s_num_tombstones;
+    return self->c0s_num_entries;
 }
 
 u64
-c0kvs_get_element_count2(struct c0_kvset *handle, uint *heightp, uint *keyvalsp)
+c0kvs_get_element_count2(struct c0_kvset *handle, uint *heightp, uint *keyvalsp, bool *full)
 {
     struct c0_kvset_impl *self = c0_kvset_h2r(handle);
     u64                   cnt;
 
-    cnt = self->c0s_num_entries + self->c0s_num_tombstones;
+    cnt = self->c0s_num_entries;
 
     *heightp = self->c0s_height;
     *keyvalsp = self->c0s_keyvals;
+
+    /* [HSE_REVISIT]: Revisit when working on c0/wal throttling. */
+    *full = (self->c0s_memsz > self->c0s_alloc_sz);
 
     return cnt;
 }
@@ -684,19 +657,14 @@ void
 c0kvs_usage(struct c0_kvset *handle, struct c0_usage *usage)
 {
     struct c0_kvset_impl *self = c0_kvset_h2r(handle);
-    size_t                free;
-
-    free = c0kvs_avail(handle);
-    assert(free < self->c0s_alloc_sz);
 
     usage->u_alloc = self->c0s_alloc_sz;
-    usage->u_free = free;
-    usage->u_used_min = self->c0s_alloc_sz - free;
-    usage->u_used_max = self->c0s_alloc_sz - free;
-    usage->u_keys = self->c0s_num_entries;
+    usage->u_used = c0kvs_used(handle);
+    usage->u_keys = self->c0s_num_entries - self->c0s_num_tombstones;
     usage->u_tombs = self->c0s_num_tombstones;
-    usage->u_keyb = self->c0s_total_key_bytes;
-    usage->u_valb = self->c0s_total_value_bytes;
+    usage->u_keyb = self->c0s_keyb;
+    usage->u_valb = self->c0s_valb;
+    usage->u_memsz = self->c0s_memsz;
     usage->u_count = 1;
 }
 
@@ -1024,7 +992,7 @@ c0kvs_iterator_init(struct c0_kvset *handle, struct c0_kvset_iterator *iter, uin
     c0_kvset_iterator_init(iter, self->c0s_broot, flags, skidx);
 }
 
-void
+HSE_COLD void
 c0kvs_debug(struct c0_kvset *handle, void *key, int klen)
 {
     struct c0_kvset_impl *self = c0_kvset_h2r(handle);
@@ -1089,7 +1057,7 @@ c0kvs_reinit(size_t cb_max)
     }
 }
 
-void
+HSE_COLD void
 c0kvs_init(void)
 {
     struct c0kvs_ccache *cc = &c0kvs_ccache;
@@ -1101,7 +1069,7 @@ c0kvs_init(void)
     cc->cc_init = true;
 }
 
-void
+HSE_COLD void
 c0kvs_fini(void)
 {
     if (atomic_dec_return(&c0kvs_init_ref) > 0)

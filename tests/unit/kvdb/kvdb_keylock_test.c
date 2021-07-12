@@ -40,23 +40,6 @@ mapi_post(struct mtf_test_info *ti)
 
 MTF_BEGIN_UTEST_COLLECTION(kvdb_keylock_test)
 
-/* We should be able to make balanced calls to kvdb keylock
- * init/fini functions with no ill effects.
- */
-MTF_DEFINE_UTEST(kvdb_keylock_test, kvdb_keylock_init)
-{
-    int i;
-
-    kvdb_ctxn_locks_init();
-
-    for (i = 0; i < 3; ++i) {
-        kvdb_ctxn_locks_init();
-        kvdb_ctxn_locks_fini();
-    }
-
-    kvdb_ctxn_locks_fini();
-}
-
 MTF_DEFINE_UTEST_PREPOST(kvdb_keylock_test, kvdb_keylock_alloc, mapi_pre, mapi_post)
 {
     struct kvdb_keylock *handle;
@@ -65,7 +48,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_keylock_test, kvdb_keylock_alloc, mapi_pre, mapi_p
     ASSERT_EQ(0, mapi_calls(mapi_idx_malloc));
     ASSERT_EQ(0, mapi_calls(mapi_idx_free));
 
-    err = kvdb_keylock_create(&handle, 16, 65536);
+    err = kvdb_keylock_create(&handle, 16);
 
     ASSERT_EQ(err, 0);
     ASSERT_NE(0, handle);
@@ -77,14 +60,14 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_keylock_test, kvdb_keylock_alloc, mapi_pre, mapi_p
 
     mapi_inject_once_ptr(mapi_idx_malloc, 1, NULL);
 
-    err = kvdb_keylock_create(&handle, 16, 65536);
+    err = kvdb_keylock_create(&handle, 16);
 
     ASSERT_EQ(0, handle);
     ASSERT_EQ(ENOMEM, merr_errno(err));
 
     mapi_inject_once_ptr(mapi_idx_malloc, 2, NULL);
 
-    err = kvdb_keylock_create(&handle, 16, 65536);
+    err = kvdb_keylock_create(&handle, 16);
 
     ASSERT_EQ(0, handle);
     ASSERT_EQ(ENOMEM, merr_errno(err));
@@ -101,7 +84,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_keylock_test, kvdb_ctxn_locks_alloc, mapi_pre, map
     ASSERT_EQ(0, mapi_calls(mapi_idx_malloc));
     ASSERT_EQ(0, mapi_calls(mapi_idx_free));
 
-    err = kvdb_keylock_create(&klock_handle, 16, 65536);
+    err = kvdb_keylock_create(&klock_handle, 16);
     ASSERT_EQ(0, err);
     ASSERT_NE(NULL, klock_handle);
     ASSERT_GE(mapi_calls(mapi_idx_malloc), 16);
@@ -127,7 +110,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_keylock_test, keylock_lock_one_ctxn, mapi_pre, map
     u64                     magic = 0x12345678UL << 32;
     u64                     hash = magic;
 
-    err = kvdb_keylock_create(&klock_handle, 16, 65536);
+    err = kvdb_keylock_create(&klock_handle, 16);
     ASSERT_EQ(0, err);
     ASSERT_NE(0, klock_handle);
 
@@ -211,13 +194,12 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_keylock_test, keylock_lock_one_ctxn, mapi_pre, map
 MTF_DEFINE_UTEST_PREPOST(kvdb_keylock_test, keylock_lock_ctxn_max, mapi_pre, mapi_post)
 {
     int                     i = 0;
-    const int               num_keys = 16 * 1024;
+    int                     num_keys;
     struct kvdb_keylock *   klock_handle;
     struct kvdb_ctxn_locks *locks_handle;
     merr_t                  err = 0;
-    u64                     magic = 0x12345678UL << 32;
 
-    err = kvdb_keylock_create(&klock_handle, 16, 1024);
+    err = kvdb_keylock_create(&klock_handle, 16);
     ASSERT_EQ(0, err);
     ASSERT_NE(0, klock_handle);
 
@@ -225,10 +207,12 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_keylock_test, keylock_lock_ctxn_max, mapi_pre, map
     ASSERT_EQ(err, 0);
     ASSERT_NE(0, locks_handle);
 
+    num_keys = (KLE_PSL_MAX * 16) / 4;
+
     /* Insert unique keys. */
-    for (i = 0; i <= num_keys + 100; i++) {
-        err = kvdb_keylock_lock(klock_handle, locks_handle, magic | i, 0);
-        if (i > num_keys / 4)
+    for (i = 0; i < num_keys + 100; i++) {
+        err = kvdb_keylock_lock(klock_handle, locks_handle, i, 0);
+        if (i > num_keys)
             ASSERT_EQ(E2BIG, merr_errno(err));
         else
             ASSERT_EQ(err, 0);
@@ -306,7 +290,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_keylock_test, keylock_lock_multiple_ctxn, mapi_pre
     merr_t                   err;
     int                      i, rc;
 
-    err = kvdb_keylock_create(&klock_handle, 16, 65536);
+    err = kvdb_keylock_create(&klock_handle, 16);
     ASSERT_EQ(0, err);
     ASSERT_NE(0, klock_handle);
 
@@ -414,7 +398,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_keylock_test, multiple_ctxn_end, mapi_pre, mapi_po
 
     atomic64_set(&kvdb_seq, 3234UL);
 
-    err = kvdb_keylock_create(&klock_handle, 16, 65536);
+    err = kvdb_keylock_create(&klock_handle, 16);
     ASSERT_EQ(0, err);
     ASSERT_NE(0, klock_handle);
 

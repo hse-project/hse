@@ -300,7 +300,7 @@ ikvdb_kvs_put(
     unsigned int             flags,
     struct hse_kvdb_txn *    txn,
     struct kvs_ktuple *      kt,
-    const struct kvs_vtuple *vt);
+    struct kvs_vtuple       *vt);
 
 /**
  * ikvdb_kvs_get() - search for the given key within the KVS. HSE allocates
@@ -365,6 +365,13 @@ ikvdb_sync(struct ikvdb *kvdb, unsigned int flags);
  */
 u64
 ikvdb_horizon(struct ikvdb *store);
+
+/**
+ * ikvdb_txn_horizon() - return an upper bound on the smallest view sequence
+ *                   number in use by any currently active transaction.
+ */
+u64
+ikvdb_txn_horizon(struct ikvdb *store);
 
 /**
  * ikvdb_txn_alloc() - allocate space for a transaction
@@ -510,19 +517,18 @@ ikvdb_log_deserialize_to_kvdb_dparams(const char *kvdb_home, struct kvdb_dparams
  */
 
 /**
- * struct kvdb_callback       - Providing callbacks for cN ingest.
- * @kc_cbarg:                   opaque subscriber specific argument
- * @kc_cn_ingest_callback:      supplies cN ingest status
+ * struct kvdb_callback - Providing callbacks for cN ingest.
+ * @kc_cbarg:       opaque subscriber specific argument
+ * @kc_cningest_cb: supplies cN ingest status
  */
 struct kvdb_callback {
     struct ikvdb *kc_cbarg;
-    void (*kc_cn_ingest_callback)(
+    void (*kc_cningest_cb)(
         struct ikvdb *ikdb,
         unsigned long seqno,
-        unsigned long status,
-        unsigned long cnid,
-        const void *  key,
-        unsigned int  key_len);
+        unsigned long dgen,
+        unsigned long txhorizon,
+        bool          post_ingest);
 };
 
 #if HSE_MOCKING

@@ -263,9 +263,9 @@ merr_t
 c0sk_put(
     struct c0sk *            handle,
     u16                      skidx,
-    const struct kvs_ktuple *kt,
+    struct kvs_ktuple       *kt,
     const struct kvs_vtuple *vt,
-    u64                      seqno)
+    uintptr_t                seqnoref)
 {
     struct c0sk_impl *self = c0sk_h2r(handle);
     u64               start;
@@ -273,7 +273,7 @@ c0sk_put(
 
     start = perfc_lat_startu(&self->c0sk_pc_op, PERFC_LT_C0SKOP_PUT);
 
-    err = c0sk_putdel(self, skidx, C0SK_OP_PUT, kt, vt, seqno);
+    err = c0sk_putdel(self, skidx, C0SK_OP_PUT, kt, vt, seqnoref);
 
     if (start > 0) {
         perfc_lat_record(&self->c0sk_pc_op, PERFC_LT_C0SKOP_PUT, start);
@@ -284,7 +284,7 @@ c0sk_put(
 }
 
 merr_t
-c0sk_del(struct c0sk *handle, u16 skidx, const struct kvs_ktuple *kt, u64 seqno)
+c0sk_del(struct c0sk *handle, u16 skidx, struct kvs_ktuple *kt, uintptr_t seqnoref)
 {
     struct c0sk_impl *self = c0sk_h2r(handle);
     u64               start;
@@ -292,7 +292,7 @@ c0sk_del(struct c0sk *handle, u16 skidx, const struct kvs_ktuple *kt, u64 seqno)
 
     start = perfc_lat_startu(&self->c0sk_pc_op, PERFC_LT_C0SKOP_DEL);
 
-    err = c0sk_putdel(self, skidx, C0SK_OP_DEL, kt, NULL, seqno);
+    err = c0sk_putdel(self, skidx, C0SK_OP_DEL, kt, NULL, seqnoref);
 
     if (start > 0) {
         perfc_lat_record(&self->c0sk_pc_op, PERFC_LT_C0SKOP_DEL, start);
@@ -303,11 +303,11 @@ c0sk_del(struct c0sk *handle, u16 skidx, const struct kvs_ktuple *kt, u64 seqno)
 }
 
 merr_t
-c0sk_prefix_del(struct c0sk *handle, u16 skidx, const struct kvs_ktuple *kt, u64 seqno)
+c0sk_prefix_del(struct c0sk *handle, u16 skidx, struct kvs_ktuple *kt, uintptr_t seqnoref)
 {
     struct c0sk_impl *self = c0sk_h2r(handle);
 
-    return c0sk_putdel(self, skidx, C0SK_OP_PREFIX_DEL, kt, NULL, seqno);
+    return c0sk_putdel(self, skidx, C0SK_OP_PREFIX_DEL, kt, NULL, seqnoref);
 }
 
 /*
@@ -477,6 +477,7 @@ c0sk_open(
     struct kvdb_health * health,
     struct csched *      csched,
     atomic64_t *         kvdb_seq,
+    u64                  gen,
     struct c0sk **       c0skp)
 {
     struct c0_kvmultiset *c0kvms;
@@ -535,12 +536,14 @@ c0sk_open(
         goto errout;
     }
 
-    c0sk->c0sk_ingest_width_max = HSE_C0_INGEST_WIDTH_DYN;
+    c0sk->c0sk_ingest_width_max = kvdb_rp->c0_ingest_width;
+    c0sk->c0sk_ingest_width = c0sk->c0sk_ingest_width_max;
+    c0sk->c0sk_cheap_sz = kvdb_rp->c0_cheap_sz;
 
-    if (kvdb_rp->c0_ingest_width == 0)
-        c0sk->c0sk_ingest_width = c0sk->c0sk_ingest_width_max / 2;
+    if (gen > 0)
+        c0kvms_gen_init(gen);
 
-    err = c0kvms_create(c0sk->c0sk_ingest_width, kvdb_rp->c0_heap_sz, c0sk->c0sk_kvdb_seq, &c0kvms);
+    err = c0kvms_create(c0sk->c0sk_ingest_width, c0sk->c0sk_cheap_sz, c0sk->c0sk_kvdb_seq, &c0kvms);
     if (ev(err))
         goto errout;
 
@@ -1681,6 +1684,20 @@ struct cn *
 c0sk_get_cn(struct c0sk_impl *c0sk, u64 skidx)
 {
     return c0sk->c0sk_cnv[skidx];
+}
+
+void
+c0sk_install_callback(struct c0sk *handle, struct kvdb_callback *cb)
+{
+    struct c0sk_impl *self = c0sk_h2r(handle);
+
+    self->c0sk_cb = cb;
+}
+
+u64
+c0sk_gen_current(void)
+{
+    return c0kvms_gen_current();
 }
 
 #if HSE_MOCKING

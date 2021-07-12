@@ -16,10 +16,10 @@
 
 #include <mpool/mpool.h>
 
-#include <cn/kvdb/kvdb_omf.h>
-#include <cn/cn/kvset.h>
-#include <cn/cn/cndb_omf.h>
-#include <cn/cn/cndb_internal.h>
+#include <kvdb/kvdb_omf.h>
+#include <cn/kvset.h>
+#include <cn/cndb_omf.h>
+#include <cn/cndb_internal.h>
 
 #include <libgen.h>
 
@@ -28,7 +28,7 @@ struct nfault_probe *cndb_probes;
 #define BUF_SZ ((25 * 1024)) /* fo=8: 24K for C and D + extra (for omf structs) */
 
 struct kvs_info {
-    const char *     mp;
+    const char *     kvdb_home;
     const char *     kvs;
     char             buf[BUF_SZ];
     u64              ref_cnid;
@@ -49,12 +49,12 @@ fatal(char *who, merr_t err)
 void
 usage(char *prog)
 {
-    static const char msg[] = "usage: %s [options] kvdb\n"
+    static const char msg[] = "usage: %s [options] <kvdb_home>\n"
                               "-b  inject txns that require rollback\n"
                               "-f  inject txns that require rollforward\n"
                               "-i  inject wrong ingest ids\n"
                               "-c  attempt to bracket with cstart/cend\n"
-                              "kvdb  name of the kvdb\n";
+                              "kvdb home dir\n";
 
     fprintf(stderr, msg, prog);
     exit(1);
@@ -65,7 +65,7 @@ open_kvdb_and_cndb(struct kvs_info *ki)
 {
     uint64_t rc;
 
-    rc = diag_kvdb_open(ki->mp, 0, NULL, &ki->kvdbh);
+    rc = diag_kvdb_open(ki->kvdb_home, 0, NULL, &ki->kvdbh);
     if (rc)
         fatal("diag_kvdb_open", rc);
 
@@ -133,7 +133,7 @@ write_ingest(struct kvs_info *ki, bool wrongingestid)
      * If wrong ingest id is requested, keep passing the same ingest id
      * at each successive ingest.
      */
-    cndb_txn_start(ki->cndb, &txid, wrongingestid ? 33 : ingestid++, nc, 0, 0);
+    cndb_txn_start(ki->cndb, &txid, nc, 0, 0, wrongingestid ? 33 : ingestid++, 0);
 
     for (i = 0, tag = 0; i < nc; i++) {
         u64 mblkid[2]; /* 1 kb, 1 vb */
@@ -169,7 +169,7 @@ write_spill(struct kvs_info *ki)
     int                  otagc = tagc;
     u64                  mblkid[5];
 
-    cndb_txn_start(ki->cndb, &txid, CNDB_INVAL_INGESTID, c, d, 0);
+    cndb_txn_start(ki->cndb, &txid, c, d, 0, CNDB_INVAL_INGESTID, CNDB_INVAL_HORIZON);
 
     for (i = 0, tag = 0; i < c; i++) {
         u64 mblkid[2];
@@ -225,7 +225,7 @@ write_kc(struct kvs_info *ki)
     u64                  tag;
     int                  otagc = tagc;
 
-    cndb_txn_start(ki->cndb, &txid, CNDB_INVAL_INGESTID, c, d, 0);
+    cndb_txn_start(ki->cndb, &txid, c, d, 0, CNDB_INVAL_INGESTID, CNDB_INVAL_HORIZON);
 
     for (i = 0, tag = 0; i < c; i++) {
         u64 mblkid[5];
@@ -294,6 +294,7 @@ main(int argc, char **argv)
     int             opt;
     struct kvs_info ki = { 0 };
     int             i;
+    hse_err_t       herr;
 
     prog = basename(argv[0]);
     hse_openlog(prog, false);
@@ -324,8 +325,11 @@ main(int argc, char **argv)
     if ((argc != 1) || (backward && forward))
         usage(prog);
 
-    ki.mp = argv[0];
+    herr = hse_init(0, NULL);
+    if (herr)
+        fatal("hse_init failure", herr);
 
+    ki.kvdb_home = argv[0];
     open_kvdb_and_cndb(&ki);
 
     if (compact) {
@@ -370,6 +374,8 @@ main(int argc, char **argv)
     if (compact)
         mpool_mdc_cend(ki.cndb->cndb_mdc);
     (void)mpool_mdc_close(ki.cndb->cndb_mdc);
+
+    hse_fini();
 
     return 0;
 }

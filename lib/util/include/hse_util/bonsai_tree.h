@@ -451,7 +451,7 @@ merr_t
 bn_insert_or_replace(
     struct bonsai_root *      tree,
     const struct bonsai_skey *skey,
-    const struct bonsai_sval *sval);
+    struct bonsai_sval       *sval);
 
 /**
  * bn_delete() - remove and delete the given key from the tree

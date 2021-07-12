@@ -1,16 +1,26 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2020-2021 Micron Technology, Inc.  All rights reserved.
  */
 
+#include <hse_util/arch.h>
 #include <hse_util/xrand.h>
 
 thread_local struct xrand xrand_tls;
-thread_local u64          xrand_tls_seed;
 
 void
 xrand_init(struct xrand *xr, u64 seed)
 {
+    if (!seed) {
+        while (1) {
+            seed = (seed << 16) | ((get_cycles() >> 1) & 0xffffu);
+            if (seed >> 48)
+                break;
+
+            usleep(seed % 127); /* leverage scheduling entropy */
+        }
+    }
+
     xoroshiro128plus_init(xr->xr_state, seed);
 }
 

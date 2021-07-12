@@ -68,6 +68,12 @@ c0kvms_seqno_set(struct c0_kvmultiset *handle, uint64_t kvdb_seq);
 u64
 c0kvms_seqno_get(struct c0_kvmultiset *handle);
 
+void
+c0kvms_txhorizon_set(struct c0_kvmultiset *handle, uint64_t txhorizon);
+
+uint64_t
+c0kvms_txhorizon_get(struct c0_kvmultiset *handle);
+
 /**
  * c0kvms_getref() - obtain a ref against a struct c0_kvmultiset
  * @mset: struct c0_kvset to obtain a ref against
@@ -100,7 +106,7 @@ u64
 c0kvms_gen_read(struct c0_kvmultiset *mset);
 
 u64
-c0kvms_gen_current(struct c0_kvmultiset *mset);
+c0kvms_gen_current(void);
 
 u64
 c0kvms_ingest_seqno_get(struct c0_kvmultiset *handle);
@@ -116,6 +122,9 @@ c0kvms_ingest_seqno_get(struct c0_kvmultiset *handle);
  */
 u64
 c0kvms_gen_update(struct c0_kvmultiset *mset);
+
+void
+c0kvms_gen_init(u64 dgen);
 
 struct c0_kvset *
 c0kvms_ptomb_c0kvset_get(struct c0_kvmultiset *handle);
@@ -257,9 +266,6 @@ c0kvms_used_get(struct c0_kvmultiset *mset);
 
 void
 c0kvms_used_set(struct c0_kvmultiset *mset, size_t used);
-
-size_t
-c0kvms_avail(struct c0_kvmultiset *mset);
 
 bool
 c0kvms_should_ingest(struct c0_kvmultiset *handle);

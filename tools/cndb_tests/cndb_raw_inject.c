@@ -111,6 +111,7 @@ write_ingest(struct kvs_info *ki)
     omf_set_tx_nc(&tx, nc);
     omf_set_tx_nd(&tx, 0);
     omf_set_tx_ingestid(&tx, ingestid++);
+    omf_set_tx_txhorizon(&tx, 0);
 
     mpool_mdc_append(ki->cndb->cndb_mdc, &tx, sizeof(tx), true);
 

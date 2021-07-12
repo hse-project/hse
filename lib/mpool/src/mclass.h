@@ -150,4 +150,14 @@ mclass_mblocksz_set(struct media_class *mc, size_t mblocksz);
 merr_t
 mclass_stats_get(struct media_class *mc, struct mpool_mclass_stats *stats);
 
+/**
+ * mclass_ftw() - walk mclass files matching prefix and invoke callback for each file
+ *
+ * @mc:     mclass handle
+ * @prefix: file prefix
+ * @cb:     instance of struct mpool_file_cb
+ */
+merr_t
+mclass_ftw(struct media_class *mc, const char *prefix, struct mpool_file_cb *cb);
+
 #endif /* MPOOL_MCLASS_H */

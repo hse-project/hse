@@ -54,32 +54,36 @@ struct c0_impl {
     u32                 c0_index;
     s32                 c0_pfx_len;
     u32                 c0_sfx_len;
-    u64                 c0_hash;
     struct cn *         c0_cn;
     struct kvs_rparams *c0_rp; /* not owned by c0 */
 };
 
-merr_t
+HSE_COLD merr_t
 c0_init(void)
 {
+    merr_t err;
+
     rcu_init();
     c0sk_init();
     c0kvs_init();
     c0kvms_init();
-    kvdb_ctxn_locks_init();
+
+    err = kvdb_ctxn_locks_init();
+    if (err) {
+        c0_fini();
+        return err;
+    }
 
     return 0;
 }
 
-void
+HSE_COLD void
 c0_fini(void)
 {
-    /* [HSE_REVISIT] */
-
-    c0sk_fini();
-    c0kvs_fini();
-    c0kvms_fini();
     kvdb_ctxn_locks_fini();
+    c0kvms_fini();
+    c0kvs_fini();
+    c0sk_fini();
 }
 
 s32
@@ -99,30 +103,30 @@ c0_get_sfx_len(struct c0 *handle)
 }
 
 merr_t
-c0_put(struct c0 *handle, const struct kvs_ktuple *kt, const struct kvs_vtuple *vt, u64 seqno)
+c0_put(struct c0 *handle, struct kvs_ktuple *kt, const struct kvs_vtuple *vt, uintptr_t seqnoref)
 {
     struct c0_impl *self = c0_h2r(handle);
 
     assert(self->c0_index < HSE_KVS_COUNT_MAX);
-    return c0sk_put(self->c0_c0sk, self->c0_index, kt, vt, seqno);
+    return c0sk_put(self->c0_c0sk, self->c0_index, kt, vt, seqnoref);
 }
 
 merr_t
-c0_del(struct c0 *handle, const struct kvs_ktuple *kt, u64 seqno)
+c0_del(struct c0 *handle, struct kvs_ktuple *kt, uintptr_t seqnoref)
 {
     struct c0_impl *self = c0_h2r(handle);
 
     assert(self->c0_index < HSE_KVS_COUNT_MAX);
-    return c0sk_del(self->c0_c0sk, self->c0_index, kt, seqno);
+    return c0sk_del(self->c0_c0sk, self->c0_index, kt, seqnoref);
 }
 
 merr_t
-c0_prefix_del(struct c0 *handle, const struct kvs_ktuple *kt, u64 seqno)
+c0_prefix_del(struct c0 *handle, struct kvs_ktuple *kt, uintptr_t seqnoref)
 {
     struct c0_impl *self = c0_h2r(handle);
 
     assert(self->c0_index < HSE_KVS_COUNT_MAX);
-    return c0sk_prefix_del(self->c0_c0sk, self->c0_index, kt, seqno);
+    return c0sk_prefix_del(self->c0_c0sk, self->c0_index, kt, seqnoref);
 }
 
 /*
@@ -213,7 +217,6 @@ c0_open(
     if (ev(err))
         goto err_exit;
 
-    new_c0->c0_hash = cn_hash_get(cn);
     new_c0->c0_index = skidx;
     *c0 = &new_c0->c0_handle;
 
@@ -375,14 +378,6 @@ c0_index(struct c0 *handle)
     struct c0_impl *self = c0_h2r(handle);
 
     return self->c0_index;
-}
-
-u64
-c0_hash_get(struct c0 *handle)
-{
-    struct c0_impl *self = c0_h2r(handle);
-
-    return self->c0_hash;
 }
 
 #if HSE_MOCKING

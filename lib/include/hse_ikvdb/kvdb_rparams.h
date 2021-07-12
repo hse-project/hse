@@ -35,7 +35,6 @@
  * @log_lvl:          log level for hse_log.
  * @log_squelch_ns:   log squelch window in nsec
  * @keylock_tables:   number of keylock hash tables
- * @keylock_entries:  number of entries in the keylock hash table
  * @txn_wkth_delay:        delay (msecs) to invoke transaction worker thread
  * @cndb_entries:     max number of entries CNDB's in memory structures. Note
  *                    that this does not affect the MDC's size.
@@ -55,12 +54,10 @@ struct kvdb_rparams {
     uint8_t  c0_debug;
     uint16_t txn_commit_abort_pct;
 
-    uint64_t c0_heap_cache_sz_max;
-    uint64_t c0_heap_sz;
+    uint64_t c0_cheap_cache_sz_max;
+    uint64_t c0_cheap_sz;
     uint32_t c0_ingest_width;
 
-    uint64_t txn_heap_sz;
-    uint32_t txn_ingest_width;
     uint64_t txn_timeout;
 
     uint32_t csched_policy;
@@ -78,13 +75,13 @@ struct kvdb_rparams {
     uint64_t csched_leaf_len_params;
     uint64_t csched_node_min_ttl;
 
-    uint64_t dur_enable;
-    uint64_t dur_intvl_ms;
-    uint64_t dur_buf_sz;
-    uint64_t dur_delay_pct;
-    uint64_t dur_throttle_enable;
-    uint64_t dur_throttle_lo_th;
-    uint64_t dur_throttle_hi_th;
+    uint32_t dur_enable;
+    uint32_t dur_intvl_ms;
+    uint32_t dur_buf_sz;
+    uint32_t dur_delay_pct;
+    uint32_t dur_throttle_enable;
+    uint32_t dur_throttle_lo_th;
+    uint32_t dur_throttle_hi_th;
 
     uint64_t throttle_update_ns;
     uint32_t throttle_relax;
@@ -108,7 +105,6 @@ struct kvdb_rparams {
     uint32_t c0_ingest_threads;
     uint32_t c0_mutex_pool_sz;
 
-    uint32_t keylock_entries;
     uint32_t keylock_tables;
     uint32_t low_mem;
 
@@ -125,7 +121,7 @@ const struct param_spec *
 kvdb_rparams_pspecs_get(size_t *pspecs_sz) HSE_RETURNS_NONNULL;
 
 struct kvdb_rparams
-kvdb_rparams_defaults() HSE_CONST;
+kvdb_rparams_defaults(void) HSE_CONST;
 
 merr_t
 kvdb_rparams_resolve(struct kvdb_rparams *params, const char *home);

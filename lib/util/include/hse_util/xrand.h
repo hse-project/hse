@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2020-2021 Micron Technology, Inc.  All rights reserved.
  */
 
 #ifndef HSE_XRAND_H
@@ -16,7 +16,6 @@ struct xrand {
 };
 
 extern thread_local struct xrand    xrand_tls;
-extern thread_local u64             xrand_tls_seed;
 
 /* Functions xrand_init() and xrand64() implement a standard PRNG API where
  * the user manages the PRNG state and initializes it with a seed value.
@@ -25,26 +24,23 @@ extern thread_local u64             xrand_tls_seed;
 
 void xrand_init(struct xrand *xr, u64 seed);
 
-static inline
+static HSE_ALWAYS_INLINE
 u64
 xrand64(struct xrand *xr)
 {
     return xoroshiro128plus(xr->xr_state);
 }
 
-
 /* Function xrand64_tls() implements a PRNG that uses thread local state.
  * The PRNG is automatically initialized on the first call to xrand64_tls().
- * The initial seed value is based on the pthread id.
  * This function is thread safe.
  */
-static inline
+static HSE_ALWAYS_INLINE
 u64
 xrand64_tls(void)
 {
-    if (HSE_UNLIKELY(!xrand_tls_seed)) {
-        xrand_tls_seed = pthread_self();
-        xrand_init(&xrand_tls, xrand_tls_seed);
+    if (HSE_UNLIKELY(!xrand_tls.xr_state[0])) {
+        xrand_init(&xrand_tls, 0);
     }
 
     return xrand64(&xrand_tls);

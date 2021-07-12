@@ -56,9 +56,6 @@ suites = {
             'kvt-compression',
 
 
-            # These tests disabled until WAL is back:
-            #
-            #   kvt-logreplay
             #
             # These tests started failing around 2021-03-10:
             #

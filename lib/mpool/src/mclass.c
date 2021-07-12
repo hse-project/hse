@@ -134,7 +134,8 @@ mclass_removecb(const char *path, const struct stat *sb, int typeflag, struct FT
     if (typeflag == FTW_D && ftwbuf->level > 0)
         return FTW_SKIP_SUBTREE;
 
-    if (strstr(path, MBLOCK_FILE_PFX) || strstr(path, MDC_FILE_PFX)) {
+    if (strstr(path, MBLOCK_FILE_PFX) || strstr(path, MDC_FILE_PFX) ||
+        strstr(path, WAL_FILE_PFX)) {
         struct mp_destroy_work *w;
 
         if (!mpdwq) {
@@ -169,7 +170,8 @@ mclass_filecnt_get(const char *path, const struct stat *sb, int typeflag, struct
     if (typeflag == FTW_D && ftwbuf->level > 0)
         return FTW_SKIP_SUBTREE;
 
-    if (strstr(path, MBLOCK_FILE_PFX) || strstr(path, MDC_FILE_PFX))
+    if (strstr(path, MBLOCK_FILE_PFX) || strstr(path, MDC_FILE_PFX) ||
+        strstr(path, WAL_FILE_PFX))
         filecnt++;
 
     return FTW_CONTINUE;
@@ -337,6 +339,29 @@ mclass_stats_get(struct media_class *mc, struct mpool_mclass_stats *stats)
         return err;
 
     strlcpy(stats->mcs_path, mclass_dpath(mc), sizeof(stats->mcs_path));
+
+    return 0;
+}
+
+merr_t
+mclass_ftw(struct media_class *mc, const char *prefix, struct mpool_file_cb *cb)
+{
+    if (!mc)
+        return merr(EINVAL);
+
+    int
+    mclass_file_cb(const char *path, const struct stat *sb, int typeflag, struct FTW *ftwbuf)
+    {
+        if (typeflag == FTW_D && ftwbuf->level > 0)
+            return FTW_SKIP_SUBTREE;
+
+        if (!prefix || strstr(path, prefix))
+            cb->cbfunc(cb->cbarg, path);
+
+        return FTW_CONTINUE;
+    }
+
+    nftw(mc->dpath, mclass_file_cb, MCLASS_FILES_MAX, FTW_PHYS | FTW_ACTIONRETVAL);
 
     return 0;
 }

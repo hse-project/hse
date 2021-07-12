@@ -238,10 +238,11 @@ struct cndb_info {
 struct cndb_tx {
     struct cndb_hdr hdr;
     u64             mtx_id;
-    u64             mtx_seqno;
-    u64             mtx_ingestid;
     u32             mtx_nc;
     u32             mtx_nd;
+    u64             mtx_seqno;
+    u64             mtx_ingestid;
+    u64             mtx_txhorizon;
 };
 
 /**
@@ -447,6 +448,13 @@ cndb_unpack_fn omf_cndb_info_unpack_v9;
  * See cndb_unpack_fn definition for parameters explanation.
  */
 cndb_unpack_fn omf_cndb_tx_unpack_v4;
+
+/**
+ * omf_cndb_tx_unpack_v5() - unpack record CNDB_TYPE_TX V5
+ *
+ * See cndb_unpack_fn definition for parameters explanation.
+ */
+cndb_unpack_fn omf_cndb_tx_unpack_v5;
 
 /**
  * omf_cndb_tx_unpack() - unpack record CNDB_TYPE_TX

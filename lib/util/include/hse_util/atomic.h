@@ -354,13 +354,17 @@ atomic64_cmpxchg(atomic64_t *v, long oldv, long newv)
     return retv;
 }
 
-static inline _Bool
+static HSE_ALWAYS_INLINE _Bool
 atomic64_cas(atomic64_t *v, long oldv, long newv)
 {
-    long retv = oldv;
-
     return __atomic_compare_exchange_n(
-        &v->counter, &retv, newv, 0, __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST);
+        &v->counter, &oldv, newv, 0, __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST);
+}
+
+static HSE_ALWAYS_INLINE _Bool
+atomic_ptr_cas(void **p, void *oldv, void *newv)
+{
+    return __atomic_compare_exchange_n(p, &oldv, newv, 0, __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST);
 }
 
 

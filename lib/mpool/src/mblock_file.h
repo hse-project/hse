@@ -20,8 +20,7 @@
 #define MBLOCK_SIZE_BYTES      (MBLOCK_SIZE_MB << 20)
 #define MBLOCK_SIZE_SHIFT      (25)
 
-#define MBLOCK_FILE_PFX        "mblock-"
-#define MBLOCK_DATA_FILE_PFX   "mblock-data"
+#define MBLOCK_FILE_PFX        "mblock"
 #define MBLOCK_OPT_WRITE_SZ    (128 << 10)
 
 #define MBLOCK_FILE_SIZE_MAX   ((1ULL << MBID_BLOCK_BITS) << MBLOCK_SIZE_SHIFT)

@@ -21,6 +21,7 @@ struct kvdb_rparams;
 
 /* Invalid ingest id. */
 #define CNDB_INVAL_INGESTID U64_MAX
+#define CNDB_INVAL_HORIZON  CNDB_INVAL_INGESTID
 
 /* Default ingest id. */
 #define CNDB_DFLT_INGESTID (U64_MAX - 1)
@@ -310,7 +311,14 @@ cndb_cn_drop(struct cndb *cndb, u64 cnid);
  */
 /* MTF_MOCK */
 merr_t
-cndb_txn_start(struct cndb *cndb, u64 *txid, u64 ingestid, int nc, int nd, u64 seqno);
+cndb_txn_start(
+    struct cndb *cndb,
+    u64         *txid,
+    int          nc,
+    int          nd,
+    u64          seqno,
+    u64          ingestid,
+    u64          txhorizon);
 
 /**
  * cndb_txn_txc() - Add a kvset to a transaction

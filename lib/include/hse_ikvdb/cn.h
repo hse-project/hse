@@ -147,8 +147,9 @@ merr_t
 cn_ingestv(
     struct cn **           cn,
     struct kvset_mblocks **mbv,
-    u64                    ingestid,
     uint                   ingestc,
+    u64                    ingestid,
+    u64                    txhorizon,
     u64                   *min_seqno_out,
     u64                   *max_seqno_out);
 
@@ -171,10 +172,6 @@ cn_ref_get(struct cn *cn);
 /* MTF_MOCK */
 void
 cn_ref_put(struct cn *cn);
-
-/* MTF_MOCK */
-u64
-cn_hash_get(const struct cn *cn);
 
 /* MTF_MOCK */
 struct workqueue_struct *

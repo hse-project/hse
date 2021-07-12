@@ -55,6 +55,7 @@
 #include <hse_ikvdb/kvdb_rparams.h>
 #include <hse_ikvdb/kvs_cparams.h>
 #include <hse_ikvdb/kvs_rparams.h>
+#include <hse_ikvdb/wal.h>
 #include "kvdb_omf.h"
 
 #include "kvdb_log.h"
@@ -159,6 +160,8 @@ struct ikvdb_impl {
 
     struct throttle ikdb_throttle;
 
+    struct wal              *ikdb_wal;
+    struct kvdb_callback     ikdb_wal_cb;
     struct csched *          ikdb_csched;
     struct cn_kvdb *         ikdb_cn_kvdb;
     struct mpool *           ikdb_mp;
@@ -199,6 +202,8 @@ struct ikvdb_impl {
 
     u64            ikdb_cndb_oid1;
     u64            ikdb_cndb_oid2;
+    u64            ikdb_wal_oid1;
+    u64            ikdb_wal_oid2;
     char           ikdb_home[PATH_MAX];
     struct pidfh * ikdb_pidfh;
     struct config *ikdb_config;
@@ -261,6 +266,39 @@ validate_kvs_name(const char *name)
     return 0;
 }
 
+static merr_t
+ikvdb_wal_create(
+    struct mpool        *mp,
+    struct kvdb_cparams *cp,
+    struct kvdb_log     *log,
+    struct kvdb_log_tx **tx)
+{
+    uint64_t mdcid1, mdcid2;
+    merr_t err;
+
+    err = wal_create(mp, cp, &mdcid1, &mdcid2);
+    if (err)
+        return err;
+
+    err = kvdb_log_mdc_create(log, KVDB_LOG_MDC_ID_WAL, mdcid1, mdcid2, tx);
+    if (err) {
+        wal_destroy(mp, mdcid1, mdcid2);
+        return err;
+    }
+
+    err = kvdb_log_done(log, *tx);
+    if (err)
+        goto errout;
+
+    return 0;
+
+errout:
+    wal_destroy(mp, mdcid1, mdcid2);
+    kvdb_log_abort(log, *tx);
+
+    return err;
+}
+
 merr_t
 ikvdb_log_deserialize_to_kvdb_rparams(const char *kvdb_home, struct kvdb_rparams *params)
 {
@@ -318,6 +356,8 @@ ikvdb_create(const char *kvdb_home, struct mpool *mp, struct kvdb_cparams *param
     err = kvdb_log_done(log, tx);
     if (ev(err))
         goto out;
+
+    err = ikvdb_wal_create(mp, params, log, &tx);
 
 out:
     /* Failed ikvdb_create() indicates that the caller or operator should
@@ -632,7 +672,7 @@ ikvdb_diag_open(
     if (ev(err))
         goto err_exit1;
 
-    err = kvdb_keylock_create(&self->ikdb_keylock, params->keylock_tables, params->keylock_entries);
+    err = kvdb_keylock_create(&self->ikdb_keylock, params->keylock_tables);
     if (ev(err))
         goto err_exit1;
 
@@ -882,14 +922,14 @@ ikvdb_low_mem_adjust(struct ikvdb_impl *self)
     scale = mavail / 8;
     scale = max_t(uint, 1, scale);
 
-    if (kp->c0_heap_cache_sz_max == dflt.c0_heap_cache_sz_max)
-        kp->c0_heap_cache_sz_max = min_t(u64, 1024 * 1024 * 128UL * scale, HSE_C0_CCACHE_SZ_MAX);
+    if (kp->c0_cheap_cache_sz_max == dflt.c0_cheap_cache_sz_max)
+        kp->c0_cheap_cache_sz_max = min_t(u64, 1024 * 1024 * 128UL * scale, HSE_C0_CCACHE_SZ_MAX);
 
-    if (kp->c0_heap_sz == dflt.c0_heap_sz)
-        kp->c0_heap_sz = min_t(u64, 1024 * 1024 * 16UL * scale, HSE_C0_CHEAP_SZ_MAX);
+    if (kp->c0_cheap_sz == dflt.c0_cheap_sz)
+        kp->c0_cheap_sz = min_t(u64, HSE_C0_CHEAP_SZ_MIN * scale, HSE_C0_CHEAP_SZ_MAX);
 
     if (kp->c0_ingest_width == dflt.c0_ingest_width)
-        kp->c0_ingest_width = HSE_C0_INGEST_WIDTH_DFLT;
+        kp->c0_ingest_width = HSE_C0_INGEST_WIDTH_MIN;
 
     if (kp->c0_ingest_threads == dflt.c0_ingest_threads)
         kp->c0_ingest_threads = min_t(u64, scale, HSE_C0_INGEST_THREADS_DFLT);
@@ -898,15 +938,39 @@ ikvdb_low_mem_adjust(struct ikvdb_impl *self)
         kp->c0_mutex_pool_sz = 5;
 
     if (kp->throttle_c0_hi_th == dflt.throttle_c0_hi_th)
-        kp->throttle_c0_hi_th = (2 * kp->c0_heap_sz * kp->c0_ingest_width) >> 20;
+        kp->throttle_c0_hi_th = (2 * kp->c0_cheap_sz * kp->c0_ingest_width) >> 20;
 
-    if (kp->txn_heap_sz == dflt.txn_heap_sz)
-        kp->txn_heap_sz = min_t(u64, 1024 * 1024 * 16UL * scale, HSE_C0_CHEAP_SZ_MAX);
+    c0kvs_reinit(kp->c0_cheap_cache_sz_max);
+}
 
-    if (kp->txn_ingest_width == dflt.txn_ingest_width)
-        kp->txn_ingest_width = HSE_C0_INGEST_WIDTH_DFLT;
+static void
+ikvdb_wal_cningest_cb(
+    struct ikvdb *ikdb,
+    unsigned long seqno,
+    unsigned long gen,
+    unsigned long txhorizon,
+    bool          post_ingest)
+{
+    struct ikvdb_impl *self = ikvdb_h2r(ikdb);
 
-    c0kvs_reinit(kp->c0_heap_cache_sz_max);
+    if (self->ikdb_wal)
+        wal_cningest_cb(self->ikdb_wal, seqno, gen, txhorizon, post_ingest);
+}
+
+static void
+ikvdb_wal_install_callback(struct ikvdb_impl *self)
+{
+    struct kvdb_callback *cb = &self->ikdb_wal_cb;
+
+    if (!self->ikdb_wal) {
+        c0sk_install_callback(self->ikdb_c0sk, NULL);
+        return;
+    }
+
+    cb->kc_cbarg = &self->ikdb_handle;
+    cb->kc_cningest_cb = ikvdb_wal_cningest_cb;
+
+    c0sk_install_callback(self->ikdb_c0sk, cb);
 }
 
 merr_t
@@ -924,7 +988,7 @@ ikvdb_open(
     ulong              mavail;
     size_t             sz, n;
     int                i;
-    u64                ingestid;
+    u64                ingestid, gen = 0;
 
     assert(kvdb_home);
     assert(params);
@@ -989,6 +1053,7 @@ ikvdb_open(
     self->ikdb_curcnt_max = sz / HSE_CURSOR_SZ_MIN;
 
     atomic_set(&self->ikdb_curcnt, 0);
+    atomic64_set(&self->ikdb_seqno, 1);
 
     err = viewset_create(&self->ikdb_txn_viewset, &self->ikdb_seqno);
     if (err) {
@@ -1002,7 +1067,7 @@ ikvdb_open(
         goto err1;
     }
 
-    err = kvdb_keylock_create(&self->ikdb_keylock, params->keylock_tables, params->keylock_entries);
+    err = kvdb_keylock_create(&self->ikdb_keylock, params->keylock_tables);
     if (err) {
         hse_elog(HSE_ERR "cannot open %s: @@e", err, kvdb_home);
         goto err1;
@@ -1019,8 +1084,8 @@ ikvdb_open(
         hse_elog(HSE_ERR "cannot open %s: @@e", err, kvdb_home);
         goto err1;
     }
-    kvdb_log_cndboid_get(self->ikdb_log, &self->ikdb_cndb_oid1, &self->ikdb_cndb_oid2);
 
+    kvdb_log_cndboid_get(self->ikdb_log, &self->ikdb_cndb_oid1, &self->ikdb_cndb_oid2);
     err = ikvdb_cndb_open(self, &seqno, &ingestid);
     if (err) {
         hse_elog(HSE_ERR "cannot open %s: @@e", err, kvdb_home);
@@ -1056,6 +1121,9 @@ ikvdb_open(
 
     lc_ingest_seqno_set(self->ikdb_lc, atomic64_read(&self->ikdb_seqno));
 
+    if (ingestid != CNDB_INVAL_INGESTID && ingestid != CNDB_DFLT_INGESTID && ingestid > 0)
+        gen = ingestid;
+
     err = c0sk_open(
         &self->ikdb_rp,
         mp,
@@ -1063,6 +1131,7 @@ ikvdb_open(
         &self->ikdb_health,
         self->ikdb_csched,
         &self->ikdb_seqno,
+        gen,
         &self->ikdb_c0sk);
     if (err) {
         hse_elog(HSE_ERR "cannot open %s: @@e", err, kvdb_home);
@@ -1071,6 +1140,14 @@ ikvdb_open(
 
     c0sk_lc_set(self->ikdb_c0sk, self->ikdb_lc);
     c0sk_ctxn_set_set(self->ikdb_c0sk, self->ikdb_ctxn_set);
+
+    kvdb_log_waloid_get(self->ikdb_log, &self->ikdb_wal_oid1, &self->ikdb_wal_oid2);
+    err = wal_open(mp, &self->ikdb_rp, self->ikdb_wal_oid1, self->ikdb_wal_oid2,
+                   &self->ikdb_health, &self->ikdb_wal);
+    if (err) {
+        hse_elog(HSE_ERR "cannot open %s: @@e", err, kvdb_home);
+        goto err1;
+    }
 
     *handle = &self->ikdb_handle;
 
@@ -1081,6 +1158,8 @@ ikvdb_open(
             goto err1;
         }
     }
+
+    ikvdb_wal_install_callback(self);
 
     ikvdb_perfc_alloc(self);
     kvdb_keylock_perfc_init(self->ikdb_keylock, &self->ikdb_ctxn_op);
@@ -1105,6 +1184,7 @@ err1:
         kvdb_kvs_destroy(self->ikdb_kvs_vec[i]);
     c0snr_set_destroy(self->ikdb_c0snr_set);
     kvdb_ctxn_set_destroy(self->ikdb_ctxn_set);
+    wal_close(self->ikdb_wal);
     cndb_close(self->ikdb_cndb);
     kvdb_log_close(self->ikdb_log);
     kvdb_keylock_destroy(self->ikdb_keylock);
@@ -1467,6 +1547,8 @@ ikvdb_kvs_open(
 
     params->rdonly = self->ikdb_rp.read_only; /* inherit from kvdb */
 
+    ikvdb_wal_install_callback(self); /* TODO: can this be removed? */
+
     mutex_lock(&self->ikdb_lock);
 
     idx = get_kvs_index(self->ikdb_kvs_vec, kvs_name, NULL);
@@ -1512,6 +1594,7 @@ ikvdb_kvs_open(
         self->ikdb_mp,
         self->ikdb_cndb,
         self->ikdb_lc,
+        self->ikdb_wal,
         params,
         &self->ikdb_health,
         self->ikdb_cn_kvdb,
@@ -1697,6 +1780,8 @@ ikvdb_close(struct ikvdb *handle)
     if (ev(err))
         ret = ret ?: err;
 
+    wal_close(self->ikdb_wal);
+
     mutex_unlock(&self->ikdb_lock);
 
     ikvdb_txn_fini(self);
@@ -1759,12 +1844,13 @@ ikvdb_kvs_put(
     const unsigned int         flags,
     struct hse_kvdb_txn *const txn,
     struct kvs_ktuple *        kt,
-    const struct kvs_vtuple *  vt)
+    struct kvs_vtuple *        vt)
 {
     struct kvdb_kvs *  kk = (struct kvdb_kvs *)handle;
     struct ikvdb_impl *parent;
+    struct kvs_ktuple  ktbuf;
     struct kvs_vtuple  vtbuf;
-    u64                put_seqno;
+    uint64_t           seqnoref;
     merr_t             err;
     uint               vlen, clen;
     size_t             vbufsz;
@@ -1785,6 +1871,15 @@ ikvdb_kvs_put(
         &parent->ikdb_health, KVDB_HEALTH_FLAG_ALL & ~KVDB_HEALTH_FLAG_DELBLKFAIL);
     if (ev(err))
         return err;
+
+    if (flags & HSE_FLAG_PUT_PRIORITY || parent->ikdb_rp.throttle_disable)
+        parent = NULL;
+
+    ktbuf = *kt;
+    vtbuf = *vt;
+
+    kt = &ktbuf;
+    vt = &vtbuf;
 
     vlen = kvs_vtuple_vlen(vt);
     clen = kvs_vtuple_clen(vt);
@@ -1809,29 +1904,23 @@ ikvdb_kvs_put(
             err = kk->kk_vcompress(vt->vt_data, vlen, vbuf, vbufsz, &clen);
 
             if (!err && clen < vlen) {
-                kvs_vtuple_cinit(&vtbuf, vbuf, vlen, clen);
-                vt = &vtbuf;
+                kvs_vtuple_cinit(vt, vbuf, vlen, clen);
                 vlen = clen;
             }
         }
     }
 
-    put_seqno = txn ? 0 : HSE_SQNREF_SINGLE;
+    seqnoref = txn ? 0 : HSE_SQNREF_SINGLE;
 
-    err = kvs_put(kk->kk_ikvs, txn, kt, vt, put_seqno);
+    err = kvs_put(kk->kk_ikvs, txn, kt, vt, seqnoref);
 
     if (vbuf && vbuf != tls_vbuf)
         vlb_free(vbuf, (vbufsz > VLB_ALLOCSZ_MAX) ? vbufsz : clen);
 
-    if (err) {
-        ev(merr_errno(err) != ECANCELED);
-        return err;
-    }
-
-    if (!(flags & HSE_FLAG_PUT_PRIORITY || parent->ikdb_rp.throttle_disable))
+    if (parent)
         ikvdb_throttle(parent, kt->kt_len + (clen ? clen : vlen));
 
-    return 0;
+    return err;
 }
 
 merr_t
@@ -1916,7 +2005,7 @@ ikvdb_kvs_del(
 {
     struct kvdb_kvs *  kk = (struct kvdb_kvs *)handle;
     struct ikvdb_impl *parent;
-    u64                del_seqno;
+    u64                seqnoref;
     merr_t             err;
 
     if (ev(!handle))
@@ -1935,13 +2024,9 @@ ikvdb_kvs_del(
     if (ev(err))
         return err;
 
-    del_seqno = txn ? 0 : HSE_SQNREF_SINGLE;
+    seqnoref = txn ? 0 : HSE_SQNREF_SINGLE;
 
-    err = kvs_del(kk->kk_ikvs, txn, kt, del_seqno);
-    if (ev(err))
-        return err;
-
-    return 0;
+    return kvs_del(kk->kk_ikvs, txn, kt, seqnoref);
 }
 
 merr_t
@@ -1954,9 +2039,8 @@ ikvdb_kvs_prefix_delete(
 {
     struct kvdb_kvs *  kk = (struct kvdb_kvs *)handle;
     struct ikvdb_impl *parent;
-    merr_t             err;
     u32                ct_pfx_len;
-    u64                pdel_seqno;
+    u64                seqnoref;
 
     if (ev(!handle))
         return merr(EINVAL);
@@ -1977,18 +2061,14 @@ ikvdb_kvs_prefix_delete(
     if (ev(kt->kt_len == 0))
         return merr(ENOENT);
 
-    pdel_seqno = txn ? 0 : HSE_SQNREF_SINGLE;
+    seqnoref = txn ? 0 : HSE_SQNREF_SINGLE;
 
     /* Prefix tombstone deletes all current keys with a matching prefix -
      * those with a sequence number up to but excluding the current seqno.
      * Insert prefix tombstone with a higher seqno. Use a higher sequence
      * number to allow newer mutations (after prefix) to be distinguished.
      */
-    err = kvs_prefix_del(kk->kk_ikvs, txn, kt, pdel_seqno);
-    if (ev(err))
-        return err;
-
-    return 0;
+    return kvs_prefix_del(kk->kk_ikvs, txn, kt, seqnoref);
 }
 
 /*-  IKVDB Cursors --------------------------------------------------*/
@@ -2406,6 +2486,9 @@ ikvdb_sync(struct ikvdb *handle, const unsigned int flags)
     if (ev(self->ikdb_rdonly))
         return merr(EROFS);
 
+    if (self->ikdb_wal)
+        return wal_sync(self->ikdb_wal);
+
     return c0sk_sync(self->ikdb_c0sk, flags);
 }
 
@@ -2439,6 +2522,15 @@ ikvdb_horizon(struct ikvdb *handle)
     return horizon;
 }
 
+u64
+ikvdb_txn_horizon(struct ikvdb *handle)
+{
+    struct ikvdb_impl *self = ikvdb_h2r(handle);
+
+    return viewset_horizon(self->ikdb_txn_viewset);
+}
+
+
 static HSE_ALWAYS_INLINE struct kvdb_ctxn_bkt *
 ikvdb_txn_tid2bkt(struct ikvdb_impl *self)
 {
@@ -2455,14 +2547,14 @@ ikvdb_txn_alloc(struct ikvdb *handle)
     struct kvdb_ctxn *    ctxn = NULL;
 
     spin_lock(&bkt->kcb_lock);
-    if (bkt->kcb_ctxnc > 0) {
+    if (bkt->kcb_ctxnc > 0)
         ctxn = bkt->kcb_ctxnv[--bkt->kcb_ctxnc];
-        kvdb_ctxn_reset(ctxn);
-    }
     spin_unlock(&bkt->kcb_lock);
 
-    if (ctxn)
+    if (ctxn) {
+        kvdb_ctxn_reset(ctxn);
         return &ctxn->ctxn_handle;
+    }
 
     ctxn = kvdb_ctxn_alloc(
         self->ikdb_keylock,
@@ -2470,7 +2562,8 @@ ikvdb_txn_alloc(struct ikvdb *handle)
         self->ikdb_ctxn_set,
         self->ikdb_txn_viewset,
         self->ikdb_c0snr_set,
-        self->ikdb_c0sk);
+        self->ikdb_c0sk,
+        self->ikdb_wal);
     if (ev(!ctxn))
         return NULL;
 
@@ -2510,14 +2603,14 @@ merr_t
 ikvdb_txn_begin(struct ikvdb *handle, struct hse_kvdb_txn *txn)
 {
     struct ikvdb_impl *self = ikvdb_h2r(handle);
+    struct kvdb_ctxn  *ctxn = kvdb_ctxn_h2h(txn);
     merr_t             err;
 
     perfc_inc(&self->ikdb_ctxn_op, PERFC_BA_CTXNOP_ACTIVE);
     perfc_inc(&self->ikdb_ctxn_op, PERFC_RA_CTXNOP_BEGIN);
 
-    err = kvdb_ctxn_begin(kvdb_ctxn_h2h(txn));
-
-    if (ev(err))
+    err = kvdb_ctxn_begin(ctxn);
+    if (err)
         perfc_dec(&self->ikdb_ctxn_op, PERFC_BA_CTXNOP_ACTIVE);
 
     return err;
@@ -2527,13 +2620,14 @@ merr_t
 ikvdb_txn_commit(struct ikvdb *handle, struct hse_kvdb_txn *txn)
 {
     struct ikvdb_impl *self = ikvdb_h2r(handle);
+    struct kvdb_ctxn  *ctxn = kvdb_ctxn_h2h(txn);
     merr_t             err;
     u64                lstart;
 
     lstart = perfc_lat_startu(&self->ikdb_ctxn_op, PERFC_LT_CTXNOP_COMMIT);
     perfc_inc(&self->ikdb_ctxn_op, PERFC_RA_CTXNOP_COMMIT);
 
-    err = kvdb_ctxn_commit(kvdb_ctxn_h2h(txn));
+    err = kvdb_ctxn_commit(ctxn);
 
     perfc_dec(&self->ikdb_ctxn_op, PERFC_BA_CTXNOP_ACTIVE);
     perfc_lat_record(&self->ikdb_ctxn_op, PERFC_LT_CTXNOP_COMMIT, lstart);
@@ -2545,10 +2639,11 @@ merr_t
 ikvdb_txn_abort(struct ikvdb *handle, struct hse_kvdb_txn *txn)
 {
     struct ikvdb_impl *self = ikvdb_h2r(handle);
+    struct kvdb_ctxn  *ctxn = kvdb_ctxn_h2h(txn);
 
     perfc_inc(&self->ikdb_ctxn_op, PERFC_RA_CTXNOP_ABORT);
 
-    kvdb_ctxn_abort(kvdb_ctxn_h2h(txn));
+    kvdb_ctxn_abort(ctxn);
 
     perfc_dec(&self->ikdb_ctxn_op, PERFC_BA_CTXNOP_ACTIVE);
 
@@ -2673,6 +2768,7 @@ ikvdb_init(void)
     merr_t err;
 
     kvdb_perfc_initialize();
+
     kvs_init();
 
     err = c0_init();

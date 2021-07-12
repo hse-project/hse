@@ -265,12 +265,6 @@ cn_ref_put(struct cn *cn)
 }
 
 u64
-cn_hash_get(const struct cn *cn)
-{
-    return cn->cn_hash;
-}
-
-u64
 cn_get_cnid(const struct cn *handle)
 {
     return handle->cn_cnid;
@@ -676,8 +670,9 @@ merr_t
 cn_ingestv(
     struct cn **           cn,
     struct kvset_mblocks **mbv,
-    u64                    ingestid,
     uint                   ingestc,
+    u64                    ingestid,
+    u64                    txhorizon,
     u64                   *min_seqno_out,
     u64                   *max_seqno_out)
 {
@@ -736,7 +731,7 @@ cn_ingestv(
         goto done;
     }
 
-    err = cndb_txn_start(cndb, &txid, ingestid, count, 0, seqno_max);
+    err = cndb_txn_start(cndb, &txid, count, 0, seqno_max, ingestid, txhorizon);
     if (ev(err))
         goto done;
 
@@ -1190,9 +1185,6 @@ cn_open(
     cn->cn_cflags = kvdb_kvs_flags(kvs);
     cn->cn_kvdb_health = health;
     cn->cn_mpool_props = mpprops;
-
-    /* Compute hash of kvs name, but don't let it be 0. */
-    cn->cn_hash = 1 | key_hash64(kvs_name, strlen(kvs_name));
 
     staging_absent = mpool_mclass_props_get(ds, MP_MED_STAGING, NULL);
     if (staging_absent) {

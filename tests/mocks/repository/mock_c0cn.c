@@ -18,10 +18,12 @@
 #include <cn/cn_cursor.h>
 #include <hse_ikvdb/c0.h>
 #include <hse_ikvdb/cndb.h>
+#include <hse_ikvdb/wal.h>
 #include <hse_ikvdb/kvdb_health.h>
 
 #include <kvdb/kvdb_log.h>
 #include <mocks/mock_kvset_builder.h>
+#include <mocks/mock_mpool.h>
 
 /* ------------------------------------------------------------
  * Mocked c0/cn
@@ -142,7 +144,6 @@ _c0_open(struct ikvdb *kvdb, struct kvs_rparams *rp, struct cn *cn, struct mpool
     m0->hash = (uintptr_t)m0;
 
     if (mn) {
-        m0->hash = cn_hash_get(cn);
         mn->data = m0->data; /* inform mock_cn of the data */
     }
 
@@ -177,14 +178,6 @@ _c0_index(struct c0 *handle)
     struct mock_c0 *m0 = mock_c0_h2r(handle);
 
     return m0 ? m0->index : HSE_KVS_COUNT_MAX - 1;
-}
-
-static u64
-_c0_hash_get(struct c0 *handle)
-{
-    struct mock_c0 *m0 = mock_c0_h2r(handle);
-
-    return m0 ? m0->hash : -1;
 }
 
 static merr_t
@@ -295,7 +288,7 @@ _c0_cursor_es_get(
 static merr_t
 _c0_put(
     struct c0 *              handle,
-    const struct kvs_ktuple *kt,
+    struct kvs_ktuple       *kt,
     const struct kvs_vtuple *vt,
     const uintptr_t          seqnoref)
 {
@@ -363,7 +356,7 @@ _cn_get(
 }
 
 static merr_t
-_c0_del(struct c0 *handle, const struct kvs_ktuple *kt, const uintptr_t seqno)
+_c0_del(struct c0 *handle, struct kvs_ktuple *kt, const uintptr_t seqno)
 {
     struct mock_c0 *m0 = mock_c0_h2r(handle);
     int             i;
@@ -382,7 +375,7 @@ _c0_del(struct c0 *handle, const struct kvs_ktuple *kt, const uintptr_t seqno)
 }
 
 static merr_t
-_c0_prefix_del(struct c0 *handle, const struct kvs_ktuple *kt, u64 seqno)
+_c0_prefix_del(struct c0 *handle, struct kvs_ktuple *kt, u64 seqno)
 {
     struct mock_c0 *m0 = mock_c0_h2r(handle);
     int             i;
@@ -470,12 +463,6 @@ _cn_ref_put(struct cn *arg)
     struct mock_cn *cn = (struct mock_cn *)arg;
 
     atomic_dec(&cn->refcnt);
-}
-
-static u64
-_cn_hash_get(const struct cn *arg)
-{
-    return (uintptr_t)arg;
 }
 
 static int
@@ -691,7 +678,6 @@ mock_cn_set()
     MOCK_SET(cn, _cn_get);
     MOCK_SET(cn, _cn_ref_get);
     MOCK_SET(cn, _cn_ref_put);
-    MOCK_SET(cn, _cn_hash_get);
 
     MOCK_SET(cn_cursor, _cn_cursor_create);
     MOCK_SET(cn_cursor, _cn_cursor_update);
@@ -715,7 +701,6 @@ mock_cn_unset()
     MOCK_UNSET(cn, _cn_get);
     MOCK_UNSET(cn, _cn_ref_get);
     MOCK_UNSET(cn, _cn_ref_put);
-    MOCK_UNSET(cn, _cn_hash_get);
 
     MOCK_UNSET(cn_cursor, _cn_cursor_create);
     MOCK_UNSET(cn_cursor, _cn_cursor_update);
@@ -751,7 +736,6 @@ mock_c0_set()
     MOCK_SET(c0, _c0_open);
     MOCK_SET(c0, _c0_close);
     MOCK_SET(c0, _c0_index);
-    MOCK_SET(c0, _c0_hash_get);
     MOCK_SET(c0, _c0_put);
     MOCK_SET(c0, _c0_get);
     MOCK_SET(c0, _c0_del);
@@ -772,7 +756,6 @@ mock_c0_unset()
     MOCK_UNSET(c0, _c0_open);
     MOCK_UNSET(c0, _c0_close);
     MOCK_UNSET(c0, _c0_index);
-    MOCK_UNSET(c0, _c0_hash_get);
     MOCK_UNSET(c0, _c0_put);
     MOCK_UNSET(c0, _c0_get);
     MOCK_UNSET(c0, _c0_del);
@@ -898,4 +881,36 @@ mock_cndb_unset()
     mapi_inject_list_unset(cndb_inject_list);
     MOCK_UNSET(cndb, _cndb_alloc);
     MOCK_UNSET(cndb, _cndb_cn_create);
+}
+
+/*****************************************************************
+ * WAL Mock
+ */
+
+static struct mapi_injection wal_inject_list[] = {
+    { mapi_idx_wal_create,     MAPI_RC_SCALAR, 0 },
+    { mapi_idx_wal_destroy,    MAPI_RC_SCALAR, 0 },
+    { mapi_idx_wal_open,       MAPI_RC_SCALAR, 0 },
+    { mapi_idx_wal_close,      MAPI_RC_SCALAR, 0 },
+    { mapi_idx_wal_put,        MAPI_RC_SCALAR, 0 },
+    { mapi_idx_wal_del,        MAPI_RC_SCALAR, 0 },
+    { mapi_idx_wal_del_pfx,    MAPI_RC_SCALAR, 0 },
+    { mapi_idx_wal_txn_begin,  MAPI_RC_SCALAR, 0 },
+    { mapi_idx_wal_txn_abort,  MAPI_RC_SCALAR, 0 },
+    { mapi_idx_wal_txn_commit, MAPI_RC_SCALAR, 0 },
+    { -1 },
+};
+
+void
+mock_wal_set()
+{
+    mock_mpool_set();
+    mapi_inject_list_set(wal_inject_list);
+}
+
+void
+mock_wal_unset()
+{
+    mock_mpool_unset();
+    mapi_inject_list_unset(wal_inject_list);
 }
