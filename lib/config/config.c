@@ -193,7 +193,8 @@ json_deserialize(
     va_start(providers, num_providers);
 
     /* Walk each provider to set params which will overwrite the previous provider */
-    for (size_t j = 0; j < num_providers; j++) {
+    size_t j = 0;
+    while (j < num_providers) {
         const cJSON *provider = va_arg(providers, const cJSON *);
         if (!provider || cJSON_IsNull(provider))
             continue;
@@ -202,6 +203,8 @@ json_deserialize(
             json_walk(provider, pspecs, pspecs_sz, params, ignore_keys, ignore_keys_sz, NULL, true);
         if (err)
             goto va_cleanup;
+
+        j++;
     }
 
     for (size_t i = 0; i < pspecs_sz; i++) {

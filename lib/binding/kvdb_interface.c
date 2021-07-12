@@ -568,9 +568,6 @@ hse_kvdb_kvs_open(
     struct kvs_rparams params = kvs_rparams_defaults();
     merr_t             err;
     u64                tstart;
-#ifdef HSE_CONF_EXTENDED
-    const struct config *conf = ikvdb_config((struct ikvdb *)handle);
-#endif
 
     if (HSE_UNLIKELY(!handle || !kvs_name || !kvs_out))
         return merr_to_hse_err(merr(EINVAL));
@@ -581,12 +578,6 @@ hse_kvdb_kvs_open(
     err = argv_deserialize_to_kvs_rparams(paramc, paramv, &params);
     if (ev(err))
         return merr_to_hse_err(err);
-
-#ifdef HSE_CONF_EXTENDED
-    err = config_deserialize_to_kvs_rparams(conf, kvs_name, &params);
-    if (ev(err))
-        return merr_to_hse_err(err);
-#endif
 
     err = ikvdb_kvs_open((struct ikvdb *)handle, kvs_name, &params, IKVS_OFLAG_NONE, kvs_out);
     ev(err);
