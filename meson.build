@@ -1,6 +1,6 @@
 project(
     'hse',
-    ['c', 'cpp', 'java'],
+    ['c', 'java'],
     version: '2.0.0',
     license: [
         'Apache-2.0',
@@ -434,6 +434,10 @@ if get_option('bindings-python')
 else
     hse_python_depends = []
 endif
+
+subproject(
+    'db_bench',
+)
 
 if get_option('tools')
     subdir('tools')

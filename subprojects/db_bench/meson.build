@@ -1,3 +1,30 @@
+project(
+    'db_bench',
+    ['cpp'],
+    version: '1.0.0',
+    license: [
+        'BSD-3-Clause',
+    ],
+    default_options: [
+        'prefix=/opt/hse',
+        'buildtype=debugoptimized',
+    ],
+)
+    
+hse = dependency(
+    'hse-2',
+    version: '>=2.0.0',
+    required: true,
+    fallback: ['hse', 'hse_dep'],
+    default_options: [
+        'cli=false',
+        'tests=[]',
+        'tools=false',
+        'samples=false',
+        'bindings-python=false',
+    ],
+)
+
 db_bench_cpp_args = [
     '-std=c++11',
     '-DHSE_EXPERIMENTAL',
@@ -11,12 +38,10 @@ db_bench_cpp_args = [
 ]
 
 db_bench_dependencies = [
-    hse_dependencies,
-    hse_static_dep,
+    hse,
 ]
 
 db_bench_include_directories = [
-    hse_include_directories,
     include_directories('.'),
     include_directories('include'),
 ]
@@ -37,7 +62,6 @@ executable(
     cpp_args: db_bench_cpp_args,
     include_directories: db_bench_include_directories,
     dependencies: db_bench_dependencies,
-    install: get_option('install-tools'),
-    install_rpath: exe_install_rpath,
+    install: true,
     gnu_symbol_visibility: 'hidden',
 )
