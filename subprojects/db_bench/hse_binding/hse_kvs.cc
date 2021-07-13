@@ -37,6 +37,8 @@ Status HseKvs::Close() {
     }
   }
 
+  delete [] get_buffer_;
+
   return Status::OK();
 }
 

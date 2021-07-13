@@ -71,8 +71,7 @@ Status HseKvdb::OpenKvs(const std::string& kvs_name, HseKvs** kvsptr,
   hse_kvs* kvs_handle;
   hse_err_t err;
 
-  std::fprintf(stderr, "open kvs \"%s/%s\"\n", kvdb_home_.c_str(),
-               kvs_name.c_str());
+  std::fprintf(stderr, "open kvs \"%s\" in kvdb \"%s\"\n", kvs_name.c_str(), kvdb_home_.c_str());
 
   err = hse_kvdb_kvs_open(kvdb_handle_, kvs_name.c_str(), 0, NULL, &kvs_handle);
   if (err) {
@@ -84,8 +83,7 @@ Status HseKvdb::OpenKvs(const std::string& kvs_name, HseKvs** kvsptr,
   kvs = new HseKvs(kvs_handle, kvs_name, get_buffer_size);
   *kvsptr = kvs;
 
-  std::fprintf(stderr, "open kvs \"%s/%s\" ok\n", kvdb_home_.c_str(),
-               kvs_name.c_str());
+  std::fprintf(stderr, "open kvs \"%s\" in kvdb \"%s\" ok\n", kvs_name.c_str(), kvdb_home_.c_str());
 
   return Status::OK();
 }
@@ -93,8 +91,7 @@ Status HseKvdb::OpenKvs(const std::string& kvs_name, HseKvs** kvsptr,
 Status HseKvdb::DropKvs(const std::string& kvs_name) {
   hse_err_t err;
 
-  std::fprintf(stderr, "drop kvs \"%s/%s\"\n", kvdb_home_.c_str(),
-               kvs_name.c_str());
+  std::fprintf(stderr, "drop kvs \"%s\" in kvdb \"%s\"\n", kvs_name.c_str(), kvdb_home_.c_str());
 
   err = hse_kvdb_kvs_drop(kvdb_handle_, kvs_name.c_str());
   if (err) {
@@ -103,8 +100,7 @@ Status HseKvdb::DropKvs(const std::string& kvs_name) {
     return Status::IOError(msg);
   }
 
-  std::fprintf(stderr, "drop kvs \"%s/%s\" ok\n", kvdb_home_.c_str(),
-               kvs_name.c_str());
+  std::fprintf(stderr, "drop kvs \"%s\" in kvdb \"%s\" ok\n", kvs_name.c_str(), kvdb_home_.c_str());
 
   return Status::OK();
 }
@@ -112,8 +108,7 @@ Status HseKvdb::DropKvs(const std::string& kvs_name) {
 Status HseKvdb::MakeKvs(const std::string& kvs_name) {
   hse_err_t err;
 
-  std::fprintf(stderr, "make kvs \"%s/%s\"\n", kvdb_home_.c_str(),
-               kvs_name.c_str());
+  std::fprintf(stderr, "create kvs \"%s\" in kvdb \"%s\"\n", kvs_name.c_str(), kvdb_home_.c_str());
 
   err = hse_kvdb_kvs_create(kvdb_handle_, kvs_name.c_str(), 0, NULL);
   if (err) {
@@ -122,8 +117,7 @@ Status HseKvdb::MakeKvs(const std::string& kvs_name) {
     return Status::IOError(msg);
   }
 
-  std::fprintf(stderr, "make kvs \"%s/%s\" ok\n", kvdb_home_.c_str(),
-               kvs_name.c_str());
+  std::fprintf(stderr, "create kvs \"%s\" in kvdb \"%s\" ok\n", kvs_name.c_str(), kvdb_home_.c_str());
 
   return Status::OK();
 }
