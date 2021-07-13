@@ -11,7 +11,19 @@ project(
     ],
 )
     
-hse = dependency(
+db_bench_cpp_args = [
+    '-std=c++11',
+    '-DHSE_EXPERIMENTAL',
+    '-DHAVE_FREAD',
+    '-DHAVE_FWRITE',
+    '-DHAVE_FFLUSH',
+    '-DHAVE_FSYNC',
+    '-DLEVELDB_PLATFORM_POSIX',
+    '-Wno-unused-parameter',
+    '-Wno-sign-compare',
+]
+
+hse_dep = dependency(
     'hse-2',
     version: '>=2.0.0',
     required: true,
@@ -25,20 +37,14 @@ hse = dependency(
     ],
 )
 
-db_bench_cpp_args = [
-    '-std=c++11',
-    '-DHSE_EXPERIMENTAL',
-    '-DHAVE_FREAD',
-    '-DHAVE_FWRITE',
-    '-DHAVE_FFLUSH',
-    '-DHAVE_FSYNC',
-    '-DLEVELDB_PLATFORM_POSIX',
-    '-Wno-unused-parameter',
-    '-Wno-sign-compare',
-]
+threads_dep = dependency(
+    'threads',
+    required: true
+)
 
 db_bench_dependencies = [
-    hse,
+    hse_dep,
+    threads_dep,
 ]
 
 db_bench_include_directories = [
