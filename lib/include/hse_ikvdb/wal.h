@@ -33,6 +33,15 @@ struct wal_record {
     size_t  len;
 };
 
+struct wal_replay_info {
+    u64  mdcid1;
+    u64  mdcid2;
+    u64  gen;
+    u64  seqno;
+    u64  txhorizon;
+    bool clean;
+};
+
 /* MTF_MOCK */
 merr_t
 wal_create(struct mpool *mp, struct kvdb_cparams *cp, uint64_t *mdcid1, uint64_t *mdcid2);
@@ -44,12 +53,12 @@ wal_destroy(struct mpool *mp, uint64_t mdcid1, uint64_t mdcid2);
 /* MTF_MOCK */
 merr_t
 wal_open(
-    struct mpool        *mp,
-    struct kvdb_rparams *rp,
-    uint64_t             mdcid1,
-    uint64_t             mdcid2,
-    struct kvdb_health  *health,
-    struct wal         **wal_out);
+    struct mpool           *mp,
+    struct kvdb_rparams    *rp,
+    struct wal_replay_info *rinfo,
+    struct ikvdb           *ikdb,
+    struct kvdb_health     *health,
+    struct wal            **wal_out);
 
 /* MTF_MOCK */
 void

@@ -646,6 +646,24 @@ mpool_file_write(
 merr_t
 mpool_file_sync(struct mpool_file *file);
 
+/**
+ * mpool_file_mmap() - mmap the given file
+ *
+ * @file:     mpool file handle
+ * @rdonly:   read-only
+ * @addr_out: mapped addr
+ */
+merr_t
+mpool_file_mmap(struct mpool_file *file, bool rdonly, int advice, char **addr_out);
+
+/**
+ * mpool_file_size() - get mpool file size
+ *
+ * @file: mpool file handle
+ */
+size_t
+mpool_file_size(struct mpool_file *file);
+
 #if HSE_MOCKING
 #include "mpool_ut.h"
 #endif /* HSE_MOCKING */

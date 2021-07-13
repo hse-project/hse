@@ -96,6 +96,7 @@ struct c0sk_impl {
 
     atomic64_t c0sk_ingest_gen HSE_ALIGNED(SMP_CACHE_BYTES);
     atomic_t   c0sk_ingest_ldrcnt;
+    atomic_t   c0sk_replaying;
 
     u32        c0sk_ingest_width_max HSE_ALIGNED(SMP_CACHE_BYTES);
     u32        c0sk_ingest_width;

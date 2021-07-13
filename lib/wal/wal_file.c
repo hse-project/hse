@@ -13,15 +13,18 @@
 #include "wal.h"
 #include "wal_file.h"
 #include "wal_omf.h"
+#include "wal_replay.h"
 
-#define WAL_FILE_HDR_LEN   (PAGE_SIZE)
-#define WAL_FILE_HDR_OFF   (0)
+#define WAL_FILE_HDR_LEN       (PAGE_SIZE)
+#define WAL_FILE_HDR_OFF       (0)
+#define WAL_FILE_NAME_LEN_MAX  (64)
 
 
 struct wal_fileset {
     struct mutex lock HSE_ALIGNED(SMP_CACHE_BYTES);
     struct list_head active;
     struct list_head complete;
+    struct list_head replay;
 
     atomic64_t activec;
     atomic64_t compc;
@@ -32,7 +35,8 @@ struct wal_fileset {
     size_t capacity;
     u32    magic;
     u32    version;
-
+    merr_t err;
+    void  *repbuf;
 };
 
 struct wal_file {
@@ -47,19 +51,21 @@ struct wal_file {
     struct mpool_file *mpf HSE_ALIGNED(SMP_CACHE_BYTES);
     struct wal_fileset *wfset;
     uint64_t gen;
+    char    *addr;
     int      fileid;
-    char     name[64];
+    bool     close;
+    char     name[WAL_FILE_NAME_LEN_MAX];
 
 };
 
 
 static merr_t
-wal_file_format(struct wal_file *wfile, off_t soff, bool closing)
+wal_file_format(struct wal_file *wfile, off_t soff, off_t eoff, bool closing)
 {
     char buf[WAL_FILE_HDR_LEN] HSE_ALIGNED(PAGE_SIZE) = {0};
     struct wal_fileset *wfset = wfile->wfset;
 
-    wal_filehdr_pack(wfset->magic, wfset->version, &wfile->info, soff, closing, buf);
+    wal_filehdr_pack(wfset->magic, wfset->version, &wfile->info, soff, eoff, closing, buf);
 
     return mpool_file_write(wfile->mpf, WAL_FILE_HDR_OFF, buf, sizeof(buf), NULL);
 }
@@ -97,22 +103,17 @@ wal_fileset_reclaim(struct wal_fileset *wfset, u64 seqno, u64 gen, u64 txhorizon
     list_for_each_entry_safe(cur, next, &wfset->complete, link) {
         struct wal_minmax_info *info = &cur->info;
 
-        if (info->max_gen > gen) {
-            if (closing) {
-                /* TODO: Seems like this cannot happen during graceful close.
-                 * If it does happen, do not destroy the file.
-                 */
-                list_del_init(&cur->link);
-                wal_file_put(cur);
-                continue;
-            }
-            break;
-        }
-
         if (info->max_seqno <= seqno && info->max_txid < txhorizon) {
             assert(info->max_gen <= gen);
             list_del_init(&cur->link);
             list_add_tail(&cur->link, &reclaim);
+        } else if (closing) {
+            /*
+             * TODO: This path should not be taken during graceful close.
+             * If it does happen, do not destroy the file.
+             */
+            list_del_init(&cur->link);
+            wal_file_put(cur);
         }
     }
     mutex_unlock(&wfset->lock);
@@ -141,25 +142,6 @@ wal_fileset_reclaim(struct wal_fileset *wfset, u64 seqno, u64 gen, u64 txhorizon
     return 0;
 }
 
-void
-wal_file_cb(void *wfset, const char *path)
-{
-    /* Until replay is implemented, remove leftover WAL files from crash  */
-    hse_log(HSE_NOTICE "Removing WAL file %s, recovery not implemented", path);
-    remove(path);
-}
-
-merr_t
-wal_fileset_replay(struct wal_fileset *wfset)
-{
-    struct mpool_file_cb cb;
-
-    cb.cbarg = (void *)wfset;
-    cb.cbfunc = wal_file_cb;
-
-    return mpool_mclass_ftw(wfset->mp, wfset->mclass, WAL_FILE_PFX, &cb);
-}
-
 struct wal_fileset *
 wal_fileset_open(struct mpool *mp, enum mpool_mclass mclass, size_t capacity, u32 magic, u32 vers)
 {
@@ -172,6 +154,7 @@ wal_fileset_open(struct mpool *mp, enum mpool_mclass mclass, size_t capacity, u3
     mutex_init(&wfset->lock);
     INIT_LIST_HEAD(&wfset->active);
     INIT_LIST_HEAD(&wfset->complete);
+    INIT_LIST_HEAD(&wfset->replay);
     atomic64_set(&wfset->activec, 0);
     atomic64_set(&wfset->compc, 0);
     atomic64_set(&wfset->reclaimc, 0);
@@ -181,11 +164,6 @@ wal_fileset_open(struct mpool *mp, enum mpool_mclass mclass, size_t capacity, u3
     wfset->capacity = capacity;
     wfset->magic = magic;
     wfset->version = vers;
-
-    if (wal_fileset_replay(wfset)) {
-        free(wfset);
-        return NULL;
-    }
 
     return wfset;
 }
@@ -214,7 +192,7 @@ wal_file_open(
     struct wal_file   *wfile, *cur = NULL, *next;
     struct mpool_file *mpf;
     merr_t err;
-    char name[64];
+    char name[WAL_FILE_NAME_LEN_MAX];
     bool sparse = false;
 
     if (!wfset)
@@ -243,6 +221,7 @@ wal_file_open(
     wfile->roff = 0;
     wfile->woff = 0;
     wfile->soff = 0;
+    wfile->close = false;
     atomic64_set(&wfile->ref, 1);
 
     INIT_LIST_HEAD(&wfile->link);
@@ -255,7 +234,7 @@ wal_file_open(
         }
     }
     if (!cur)
-        list_add(&wfile->link, &wfset->active);
+        list_add_tail(&wfile->link, &wfset->active);
     mutex_unlock(&wfset->lock);
 
     atomic64_inc(&wfset->activec);
@@ -282,13 +261,25 @@ wal_file_close(struct wal_file *wfile)
     return 0;
 }
 
+static merr_t
+wal_file_mmap(struct wal_file *wfile, int advice)
+{
+    return mpool_file_mmap(wfile->mpf, true, advice, &wfile->addr);
+}
+
+static size_t
+wal_file_size(struct wal_file *wfile)
+{
+    return mpool_file_size(wfile->mpf);
+}
+
 merr_t
 wal_file_complete(struct wal_fileset *wfset, struct wal_file *wfile)
 {
     struct wal_file *cur = NULL, *next;
     merr_t err;
 
-    err = wal_file_format(wfile, wfile->soff, true);
+    err = wal_file_format(wfile, wfile->soff, wfile->woff, true);
     if (err)
         return err;
 
@@ -327,7 +318,7 @@ wal_file_put(struct wal_file *wfile)
 merr_t
 wal_file_destroy(struct wal_fileset *wfset, uint64_t gen, int fileid)
 {
-    char name[PATH_MAX];
+    char name[WAL_FILE_NAME_LEN_MAX];
 
     if (!wfset)
         return merr(EINVAL);
@@ -393,7 +384,7 @@ wal_file_write(struct wal_file *wfile, const char *buf, size_t len)
 
     /* Pack file header with the start offset for the first record */
     if (off == WAL_FILE_HDR_OFF) {
-        err = wal_file_format(wfile, roundsz, false);
+        err = wal_file_format(wfile, roundsz, 0, false);
         if (err)
             return err;
 
@@ -428,4 +419,169 @@ wal_file_write(struct wal_file *wfile, const char *buf, size_t len)
     wfile->woff += len;
 
     return 0;
+}
+
+/* wal fileset replay interfaces */
+
+static void
+wal_file_cb(void *wfset, const char *path)
+{
+    struct wal_file *wfile HSE_MAYBE_UNUSED;
+    char *tok;
+    u64 gen;
+    int fileid, n;
+    merr_t err = 0;
+    char *name = basename(path);
+
+    tok = strchr(name, '-');
+    if (tok) {
+        tok++; /* skip - */
+
+        n = sscanf(tok, "%lu-%d", &gen, &fileid);
+        if (n != 2)
+            err = (errno ? merr(errno) : merr(EINVAL));
+    } else {
+        err = merr(EINVAL);
+    }
+
+    if (!err)
+        err = wal_file_open(wfset, gen, fileid, &wfile);
+
+    if (err)
+        ((struct wal_fileset *)wfset)->err = err;
+}
+
+merr_t
+wal_fileset_replay(
+    struct wal_fileset          *wfset,
+    struct wal_replay_info      *rinfo,
+    uint                        *rgcnt_out,
+    struct wal_replay_gen_info **rginfo_out)
+{
+    struct mpool_file_cb cb;
+    struct wal_file *cur, *next;
+    struct wal_replay_gen_info *rginfo;
+    merr_t err;
+    size_t sz;
+    uint   fcnt, i;
+
+    cb.cbarg = (void *)wfset;
+    cb.cbfunc = wal_file_cb;
+
+    err = mpool_mclass_ftw(wfset->mp, wfset->mclass, WAL_FILE_PFX, &cb);
+    if (err || wfset->err) {
+        if (!err)
+            err = wfset->err;
+        goto exit;
+    }
+
+    /*
+     * Move candidate wal files from the active to replay list.
+     * No need to acquire the list lock as there are no other threads concurrently
+     * working on this list.
+     */
+    fcnt = 0;
+    list_for_each_entry_reverse_safe(cur, next, &wfset->active, link) {
+        u32 magic, vers;
+
+        err = wal_file_mmap(cur, MADV_RANDOM);
+        if (err)
+            goto exit;
+
+        err = wal_filehdr_unpack(cur->addr, &magic, &vers, &cur->close,
+                                 &cur->soff, &cur->woff, &cur->info);
+        if (err) {
+            hse_log(HSE_NOTICE "Incomplete file header gen %lu fileid %d",
+                    cur->gen, cur->fileid);
+            continue; /* likely that the file header is incomplete */
+        }
+
+        if (wfset->magic != magic || wfset->version != vers) {
+            err = merr(EBADMSG);
+            goto exit;
+        }
+
+        /* Can trust minmax info only if the close flag is set */
+        list_del_init(&cur->link);
+        if (!cur->close) {
+            list_add_tail(&cur->link, &wfset->replay);
+            fcnt++;
+        } else {
+            struct wal_minmax_info *info = &cur->info;
+
+            /* TODO: txhorizon will be taken into account during tx replay */
+            if (info->max_seqno <= rinfo->seqno) {
+                u64 gen = cur->gen;
+                uint fileid = cur->fileid;
+
+                assert(info->max_gen <= rinfo->gen);
+                wal_file_close(cur);
+                wal_file_destroy(wfset, gen, fileid);
+            } else {
+                list_add_tail(&cur->link, &wfset->replay);
+                fcnt++;
+            }
+        }
+    }
+
+    sz = fcnt * sizeof(*rginfo);
+    rginfo = calloc(1, sz);
+    if (!rginfo) {
+        err = merr(ENOMEM);
+        goto exit;
+    }
+    wfset->repbuf = rginfo;
+
+    i = 0;
+    list_for_each_entry_safe(cur, next, &wfset->replay, link) {
+        rginfo[i].info_valid = cur->close;
+        rginfo[i].info = cur->info;
+        rginfo[i].gen = cur->gen;
+        rginfo[i].fileid = cur->fileid;
+        rginfo[i].soff = WAL_FILE_HDR_LEN + cur->soff;
+        rginfo[i].eoff = cur->woff;
+        rginfo[i].buf = cur->addr + rginfo[i].soff;
+        rginfo[i].size = wal_file_size(cur);
+        i++;
+    }
+    assert(i == fcnt);
+
+    *rgcnt_out = fcnt;
+    *rginfo_out = rginfo;
+
+exit:
+    if (err)
+        wal_fileset_replay_free(wfset, !!err);
+
+    return err;
+}
+
+void
+wal_fileset_replay_free(struct wal_fileset *wfset, bool failed)
+{
+    struct wal_file *cur, *next;
+    merr_t err;
+
+    if (!wfset)
+        return;
+
+    list_for_each_entry_safe(cur, next, &wfset->active, link) {
+        list_del_init(&cur->link);
+        err = wal_file_close(cur);
+        ev(err);
+    }
+
+    list_for_each_entry_safe(cur, next, &wfset->replay, link) {
+        u64 gen = cur->gen;
+        uint fileid = cur->fileid;
+
+        list_del_init(&cur->link);
+        err = wal_file_close(cur);
+        ev(err);
+
+        if (!failed)
+            wal_file_destroy(wfset, gen, fileid);
+    }
+
+    free(wfset->repbuf);
 }

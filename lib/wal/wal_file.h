@@ -13,6 +13,8 @@
 struct wal;
 struct wal_fileset;
 struct wal_file;
+struct wal_replay_gen_info;
+struct wal_replay_info;
 
 struct wal_fileset *
 wal_fileset_open(struct mpool *mp, enum mpool_mclass mclass, size_t capacity, u32 magic, u32 vers);
@@ -49,5 +51,15 @@ wal_fileset_reclaim(struct wal_fileset *wfset, u64 seqno, u64 gen, u64 txhorizon
 
 merr_t
 wal_file_complete(struct wal_fileset *wfset, struct wal_file *wfile);
+
+merr_t
+wal_fileset_replay(
+    struct wal_fileset          *wfset,
+    struct wal_replay_info      *rinfo,
+    uint                        *cnt_out,
+    struct wal_replay_gen_info **rginfo_out);
+
+void
+wal_fileset_replay_free(struct wal_fileset *wfset, bool failed);
 
 #endif /* WAL_FILE_H */

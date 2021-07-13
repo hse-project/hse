@@ -96,7 +96,7 @@ c0kvms_putref(struct c0_kvmultiset *mset);
 u64
 c0kvms_gen_read(struct c0_kvmultiset *mset);
 
-u64
+uint64_t
 c0kvms_gen_current(void);
 
 u64

@@ -332,8 +332,17 @@ c0sk_get_last_c0kvms(struct c0sk *handle);
 void
 c0sk_install_callback(struct c0sk *handle, struct kvdb_callback *cb);
 
-u64
+uint64_t
 c0sk_gen_current(void);
+
+void
+c0sk_gen_set(struct c0sk *handle, uint64_t gen);
+
+void
+c0sk_replaying_set(struct c0sk *handle);
+
+void
+c0sk_replaying_unset(struct c0sk *handle);
 
 #if HSE_MOCKING
 #include "c0sk_ut.h"

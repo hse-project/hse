@@ -71,4 +71,22 @@ wal_version_set(struct wal *wal, uint32_t version);
 struct mpool *
 wal_mpool_get(struct wal *wal);
 
+void
+wal_clean_set(struct wal *wal);
+
+bool
+wal_is_rdonly(struct wal *wal);
+
+bool
+wal_is_clean(struct wal *wal);
+
+struct ikvdb *
+wal_ikvdb(struct wal *wal);
+
+struct wal_fileset *
+wal_fset(struct wal *wal);
+
+struct wal_mdc *
+wal_mdc(struct wal *wal);
+
 #endif /* WAL_INTERNAL_H */

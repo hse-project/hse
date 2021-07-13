@@ -519,6 +519,7 @@ c0sk_open(
     INIT_LIST_HEAD(&c0sk->c0sk_rcu_pending);
     c0sk->c0sk_rcu_active = false;
 
+    atomic_set(&c0sk->c0sk_replaying, 0);
     atomic64_set(&c0sk->c0sk_ingest_gen, 0);
     atomic_set(&c0sk->c0sk_ingest_ldrcnt, 0);
     atomic_set(&c0sk->c0sk_ingest_finlat, 30000);
@@ -1697,10 +1698,49 @@ c0sk_install_callback(struct c0sk *handle, struct kvdb_callback *cb)
     self->c0sk_cb = cb;
 }
 
-u64
+uint64_t
 c0sk_gen_current(void)
 {
     return c0kvms_gen_current();
+}
+
+void
+c0sk_gen_set(struct c0sk *handle, uint64_t gen)
+{
+    struct c0sk_impl *self = c0sk_h2r(handle);
+    struct c0_kvmultiset *first;
+
+    mutex_lock(&self->c0sk_kvms_mutex);
+    first = c0sk_get_first_c0kvms(handle);
+    if (first) {
+        c0kvms_gen_init(gen - 1);
+        c0kvms_gen_update(first);
+    }
+    mutex_unlock(&self->c0sk_kvms_mutex);
+}
+
+void
+c0sk_replaying_set(struct c0sk *handle)
+{
+    struct c0sk_impl *self;
+
+    if (!handle)
+        return;
+
+    self = c0sk_h2r(handle);
+    atomic_set(&self->c0sk_replaying, 1);
+}
+
+void
+c0sk_replaying_unset(struct c0sk *handle)
+{
+    struct c0sk_impl *self;
+
+    if (!handle)
+        return;
+
+    self = c0sk_h2r(handle);
+    atomic_set(&self->c0sk_replaying, 0);
 }
 
 #if HSE_MOCKING
