@@ -1780,8 +1780,6 @@ ikvdb_close(struct ikvdb *handle)
     if (ev(err))
         ret = ret ?: err;
 
-    wal_close(self->ikdb_wal);
-
     mutex_unlock(&self->ikdb_lock);
 
     ikvdb_txn_fini(self);
@@ -1794,6 +1792,8 @@ ikvdb_close(struct ikvdb *handle)
 
     viewset_destroy(self->ikdb_cur_viewset);
     viewset_destroy(self->ikdb_txn_viewset);
+
+    wal_close(self->ikdb_wal);
 
     csched_destroy(self->ikdb_csched);
 
