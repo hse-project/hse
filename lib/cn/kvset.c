@@ -1518,27 +1518,28 @@ kvset_lookup_val(struct kvset *ks, struct kvs_vtuple_ref *vref, struct kvs_buf *
     direct = copylen >= ks->ks_vmax
         || (copylen >= ks->ks_vmin && ks->ks_node_level >= ks->ks_vminlvl);
 
+    if (!copylen)
+        goto done;
+
     if (vref->vb.vr_complen) {
         uint outlen;
 
         err = 0;
 
-        if (copylen > 0) {
-            if (direct)
-                err = kvset_lookup_val_direct_decompress(
-                    ks, vbd, vref->vb.vr_index, vref->vb.vr_off, dst, copylen, omlen, &outlen);
+        if (direct)
+            err = kvset_lookup_val_direct_decompress(
+                ks, vbd, vref->vb.vr_index, vref->vb.vr_off, dst, copylen, omlen, &outlen);
 
-            if (!direct || err) {
-                err = compress_lz4_ops.cop_decompress(src, omlen, dst, copylen, &outlen);
-                if (ev(err))
-                    return err;
-            }
+        if (!direct || err) {
+            err = compress_lz4_ops.cop_decompress(src, omlen, dst, copylen, &outlen);
+            if (ev(err))
+                return err;
+        }
 
-            if (ev(copylen == vref->vb.vr_len && outlen != copylen)) {
-                /* oops: full size buffer, but not able to decompress all data */
-                assert(0);
-                return merr(EBUG);
-            }
+        if (ev(copylen == vref->vb.vr_len && outlen != copylen)) {
+            /* oops: full size buffer, but not able to decompress all data */
+            assert(0);
+            return merr(EBUG);
         }
 
     } else {

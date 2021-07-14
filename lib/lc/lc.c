@@ -91,7 +91,8 @@
 
 #include "bonsai_iter.h"
 
-#define LC_C0SNR_MAX 20000
+#define LC_C0SNR_MAX_SZ (1 << 20)
+#define LC_C0SNR_MAX    (LC_C0SNR_MAX_SZ / sizeof(uintptr_t *))
 
 static struct kmem_cache *lc_cursor_cache;
 
@@ -1205,7 +1206,8 @@ lc_gc_worker(struct work_struct *work)
         goto exit;
 
     hse_log(
-        HSE_DEBUG "LC GC: Horizon %lu Last %lu Head %lu ListLen %u",
+        HSE_DEBUG "%s: Horizon %lu Last %lu Head %lu ListLen %u",
+        __func__,
         horizon_incl,
         gc->lgc_last_horizon_incl,
         lc_ib_head_seqno(lc),
@@ -1253,8 +1255,8 @@ lc_gc_worker(struct work_struct *work)
 
                 if (HSE_SQNREF_INDIRECT_P(val->bv_seqnoref)) {
                     lc->lc_err = lc_gc_c0snr_add(gc, (uintptr_t *)val->bv_seqnoref);
-                    if (ev(lc->lc_err)) {
-                        hse_elog(HSE_ERR "LC GC failed to add seqnoref: @@e", lc->lc_err);
+                    if (lc->lc_err) {
+                        hse_elog(HSE_ERR "%s: failed to add seqnoref: @@e", lc->lc_err, __func__);
                         goto health_err;
                     }
                 }
@@ -1276,7 +1278,7 @@ lc_gc_worker(struct work_struct *work)
 
                 lc->lc_err = bn_delete(root, &skey);
                 if (ev(lc->lc_err)) {
-                    hse_elog(HSE_ERR "LC GC failed to delete bonsai node: @@e", lc->lc_err);
+                    hse_elog(HSE_ERR "%s: failed to delete bonsai node: @@e", lc->lc_err, __func__);
                     goto health_err;
                 }
             }
