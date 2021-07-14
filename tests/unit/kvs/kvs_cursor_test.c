@@ -28,7 +28,7 @@ test_pre(struct mtf_test_info *lcl_ti)
 
     mock_c0cn_set();
 
-    err = lc_create(&lc);
+    err = lc_create(&lc, (void *)-1);
     ASSERT_EQ_RET(0, err, -1);
 
     lc_ingest_seqno_set(lc, 1);

@@ -41,7 +41,12 @@ void
 c0sk_perfc_alloc(struct c0sk_impl *self)
 {
     if (perfc_ctrseti_alloc(
-            COMPNAME, self->c0sk_kvdbhome, c0sk_perfc_op, PERFC_EN_C0SKOP, "set", &self->c0sk_pc_op))
+            COMPNAME,
+            self->c0sk_kvdbhome,
+            c0sk_perfc_op,
+            PERFC_EN_C0SKOP,
+            "set",
+            &self->c0sk_pc_op))
         hse_log(HSE_ERR "cannot alloc c0sk op perf counters");
 
     if (perfc_ctrseti_alloc(
@@ -1272,6 +1277,7 @@ c0sk_cursor_seek(struct c0_cursor *cur, const void *seek, size_t seeklen, struct
 
     cur->c0cur_filter = filter;
 
+    c0sk_cursor_ptomb_reset(cur);
     for (this = cur->c0cur_active; this; this = MSCUR_NEXT(this))
         c0kvms_cursor_seek(this, seek, seeklen, cur->c0cur_ct_pfx_len);
 
@@ -1314,6 +1320,8 @@ c0sk_cursor_read(struct c0_cursor *cur, struct kvs_cursor_element *elem, bool *e
         struct bonsai_val *   val;
         u32                   klen = key_imm_klen(imm);
         bool                  is_ptomb = bkv->bkv_flags & BKV_FLAG_PTOMB;
+        enum hse_seqno_state  state;
+        u64                   seqno = 0;
 
         if (cur->c0cur_pfx_len) {
             int len = min_t(int, klen, cur->c0cur_pfx_len);
@@ -1331,12 +1339,12 @@ c0sk_cursor_read(struct c0_cursor *cur, struct kvs_cursor_element *elem, bool *e
                 continue;
         }
 
-        if (cur->c0cur_filter &&
-            keycmp(
-                bkv->bkv_key, klen, cur->c0cur_filter->kcf_maxkey, cur->c0cur_filter->kcf_maxklen) >
-                0) {
-            /* eof */
-            break;
+        if (cur->c0cur_filter) {
+            const void *maxkey = cur->c0cur_filter->kcf_maxkey;
+            size_t      maxlen = cur->c0cur_filter->kcf_maxklen;
+
+            if (keycmp(bkv->bkv_key, klen, maxkey, maxlen) > 0)
+                break; /* eof */
         }
 
         val = c0kvs_findval(bkv, cur->c0cur_seqno, seqnoref);
@@ -1347,15 +1355,14 @@ c0sk_cursor_read(struct c0_cursor *cur, struct kvs_cursor_element *elem, bool *e
         }
 
         assert(!HSE_CORE_IS_PTOMB(val->bv_value) || is_ptomb);
+        state = seqnoref_to_seqno(val->bv_seqnoref, &seqno);
 
         if (cur->c0cur_ptomb_key) {
             int rc = keycmp_prefix(cur->c0cur_ptomb_key, cur->c0cur_ct_pfx_len, bkv->bkv_key, klen);
 
             if (rc == 0) {
-                /* If this val is from txn, do not compare seqnos.
-                 */
-                if ((!seqnoref || seqnoref != val->bv_seqnoref) &&
-                    cur->c0cur_ptomb_seq > HSE_SQNREF_TO_ORDNL(val->bv_seqnoref))
+                /* Compare seqnos only if value has an ordinal seqno. */
+                if (state == HSE_SQNREF_STATE_DEFINED && seqno < cur->c0cur_ptomb_seq)
                     continue;
             } else {
                 c0sk_cursor_ptomb_reset(cur);
@@ -1363,72 +1370,56 @@ c0sk_cursor_read(struct c0_cursor *cur, struct kvs_cursor_element *elem, bool *e
         }
 
         if (is_ptomb) {
-            /* store ptomb w/ largest seqno visible to this cursor
+            /* Store newest version of a ptomb.
              */
-            if (seqnoref && val->bv_seqnoref == seqnoref) {
-                /* ptomb is from txn, set its seqno to be one higher than cursor's view so it
-                 * hides all kv-tuples.
-                 */
+            if (!cur->c0cur_ptomb_key) {
                 cur->c0cur_ptomb_key = bkv->bkv_key;
                 cur->c0cur_ptomb_klen = klen;
-                cur->c0cur_ptomb_seq = cur->c0cur_seqno + 1;
                 cur->c0cur_ptomb_es = bkv->bkv_es;
-            } else if (HSE_SQNREF_TO_ORDNL(val->bv_seqnoref) > cur->c0cur_ptomb_seq) {
-                /* ptomb is newest ptomb, store it */
-                cur->c0cur_ptomb_key = bkv->bkv_key;
-                cur->c0cur_ptomb_klen = klen;
-                cur->c0cur_ptomb_seq = HSE_SQNREF_TO_ORDNL(val->bv_seqnoref);
-                cur->c0cur_ptomb_es = bkv->bkv_es;
+                cur->c0cur_ptomb_seq =
+                    state == HSE_SQNREF_STATE_DEFINED ? seqno : cur->c0cur_seqno + 1;
             }
         }
 
         /*
-         * We have a key for c0, but there may be duplicates in
-         * other kvmultisets -- this one must hide all the rest.
+         * We have a key for c0, but there may be duplicates in other kvmultisets -- this one must
+         * hide all the rest.
          */
-
         while (bin_heap2_peek(cur->c0cur_bh, (void **)&dup)) {
-            struct bonsai_val *   dupv;
+            struct bonsai_val *   dup_val;
             struct key_immediate *dupi = &dup->bkv_key_imm;
+            enum hse_seqno_state  dup_state;
+            u64                   dup_seqno = 0;
 
             if (key_imm_klen(imm) != key_imm_klen(dupi) ||
                 memcmp(bkv->bkv_key, dup->bkv_key, key_imm_klen(imm)))
                 break;
 
-            /* if dup is a ptomb, and current key is NOT a ptomb,
-             * stop dropping dups, since this ptomb might hide
-             * other keys.
-             */
-            dupv = c0kvs_findval(dup, cur->c0cur_seqno, seqnoref);
-            if (dupv && HSE_CORE_IS_PTOMB(dupv->bv_value) && !HSE_CORE_IS_PTOMB(val->bv_value))
-                break;
-
-            /* Dups within a KVMS means one of them is a ptomb and
-             * the other a non-ptomb.
-             */
-            if (dup->bkv_es == bkv->bkv_es) {
-                /* If dups from same txn, ptomb is older than non-ptomb.
-                 */
-                if (seqnoref && dupv->bv_seqnoref == seqnoref)
-                    break;
-
-                /* Dups within the same kvms, but not the txn. Compare seqnos.
-                 */
-                if (HSE_SQNREF_TO_ORDNL(dupv->bv_seqnoref) >= cur->c0cur_ptomb_seq)
-                    break;
+            /* Next key is a dup */
+            dup_val = c0kvs_findval(dup, cur->c0cur_seqno, seqnoref);
+            if (!dup_val) {
+                bin_heap2_pop(cur->c0cur_bh, (void **)&dup); /* No val in cursor's view */
+                continue;
             }
 
-            /* delete the duplicate c0 key */
+            dup_state = seqnoref_to_seqno(dup_val->bv_seqnoref, &dup_seqno);
+
+            if (dup_state == HSE_SQNREF_STATE_UNDEFINED && !HSE_CORE_IS_PTOMB(dup_val->bv_seqnoref))
+                break; /* Any non-ptomb from txn must be visible */
+
+            if (!is_ptomb && HSE_CORE_IS_PTOMB(dup_val->bv_seqnoref))
+                break;
+
+            if (state == HSE_SQNREF_STATE_DEFINED && dup_state == HSE_SQNREF_STATE_DEFINED &&
+                dup_seqno > seqno)
+                break;
+
             bin_heap2_pop(cur->c0cur_bh, (void **)&dup);
         }
 
         /*
          * NB: this primitive must return tombstones
          * so higher layers can do annihilation
-         *
-         * It must also copy keys + values to a private area,
-         * so the underlying structures can change without
-         * affecting the present cursor key/value.
          */
 
         key2kobj(&elem->kce_kobj, bkv->bkv_key, key_imm_klen(&bkv->bkv_key_imm));
@@ -1499,8 +1490,7 @@ retry:
 
     cur->c0cur_seqno = seqno;
 
-    /* HSE_REVISIT: Skip trim if this is a bound cursor
-     */
+    c0sk_cursor_ptomb_reset(cur);
     c0sk_cursor_trim(cur);
 
     /* trimming could possibly have removed all active kvms */

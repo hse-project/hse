@@ -254,8 +254,8 @@ ikvs_curcache_entry_free(struct curcache_bucket *bkt, struct curcache_entry *ent
     bkt->cb_free = entry;
 }
 
-static HSE_ALWAYS_INLINE struct curcache_bucket *
-ikvs_curcache_idx2bkt(uint idx)
+static HSE_ALWAYS_INLINE size_t
+ikvs_curcache_idx2bktoff(uint idx)
 {
     size_t offset;
 
@@ -264,21 +264,21 @@ ikvs_curcache_idx2bkt(uint idx)
     offset = ikvs_curcachesz * idx;
     offset += sizeof(struct curcache_bucket) * (idx % ikvs_colormax);
 
-    return ikvs_curcachev + offset;
+    return offset;
 }
 
 static HSE_ALWAYS_INLINE struct curcache_bucket *
 ikvs_curcache_td2bkt(void)
 {
-    static thread_local struct curcache_bucket *tls_cc_bkt;
+    static thread_local size_t tls_offset;
 
-    if (HSE_UNLIKELY(!tls_cc_bkt)) {
+    if (HSE_UNLIKELY(!tls_offset)) {
         static atomic_t g_cc_idx;
 
-        tls_cc_bkt = ikvs_curcache_idx2bkt(atomic_inc_return(&g_cc_idx));
+        tls_offset = ikvs_curcache_idx2bktoff(atomic_inc_return(&g_cc_idx));
     }
 
-    return tls_cc_bkt;
+    return ikvs_curcachev + tls_offset;
 }
 
 /**
@@ -361,7 +361,7 @@ ikvs_curcache_prune(struct ikvs *kvs)
     atomic_inc_acq(&ikvs_curcache_pruning);
 
     for (i = 0; i < ikvs_curcachec; ++i) {
-        struct curcache_bucket *bkt = ikvs_curcache_idx2bkt(i);
+        struct curcache_bucket *bkt = ikvs_curcachev + ikvs_curcache_idx2bktoff(i);
 
         ikvs_curcache_prune_impl(bkt, kvs, kvs ? U64_MAX : jclock_ns, &nretired, &nevicted);
     }
@@ -1254,8 +1254,6 @@ kvs_cursor_read(struct hse_kvs_cursor *handle, struct kvs_kvtuple *kvt, bool *eo
         }
 
     } else {
-        /* Detect a [seek,update,read] order of operations and SKIP replenish in that case */
-        /* [HSE_REVISIT] There may be a better way to do this... */
         if (cursor->kci_need_toss || !cursor->kci_last) {
             cursor->kci_err = ikvs_cursor_replenish(cursor);
             if (ev(cursor->kci_err))
@@ -1447,7 +1445,7 @@ kvs_curcache_init(void)
         return merr(ENOMEM);
 
     for (i = 0; i < ikvs_curcachec; ++i) {
-        struct curcache_bucket *bkt = ikvs_curcache_idx2bkt(i);
+        struct curcache_bucket *bkt = ikvs_curcachev + ikvs_curcache_idx2bktoff(i);
 
         memset(bkt, 0, sizeof(*bkt));
         mutex_init(&bkt->cb_lock);
@@ -1480,7 +1478,7 @@ kvs_curcache_fini(void)
         usleep(333);
 
     for (i = 0; i < ikvs_curcachec; ++i) {
-        struct curcache_bucket *bkt = ikvs_curcache_idx2bkt(i);
+        struct curcache_bucket *bkt = ikvs_curcachev + ikvs_curcache_idx2bktoff(i);
 
         /* All calls to kvs_close() should have emptied the cache.
          */

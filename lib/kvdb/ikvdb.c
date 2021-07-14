@@ -1113,7 +1113,7 @@ ikvdb_open(
         goto err1;
     }
 
-    err = lc_create(&self->ikdb_lc);
+    err = lc_create(&self->ikdb_lc, &self->ikdb_health);
     if (ev(err)) {
         hse_elog(HSE_ERR "failed to create lc: @@e", err);
         goto err1;
@@ -1780,8 +1780,6 @@ ikvdb_close(struct ikvdb *handle)
     if (ev(err))
         ret = ret ?: err;
 
-    wal_close(self->ikdb_wal);
-
     mutex_unlock(&self->ikdb_lock);
 
     ikvdb_txn_fini(self);
@@ -1794,6 +1792,8 @@ ikvdb_close(struct ikvdb *handle)
 
     viewset_destroy(self->ikdb_cur_viewset);
     viewset_destroy(self->ikdb_txn_viewset);
+
+    wal_close(self->ikdb_wal);
 
     csched_destroy(self->ikdb_csched);
 

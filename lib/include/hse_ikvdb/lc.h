@@ -30,11 +30,12 @@ struct kvs_ktuple;
 struct bonsai_kv;
 struct query_ctx;
 struct kvs_cursor_element;
+struct kvdb_health;
 enum key_lookup_res;
 
 /* MTF_MOCK */
 merr_t
-lc_create(struct lc **handle);
+lc_create(struct lc **handle, struct kvdb_health *health);
 
 /* MTF_MOCK */
 void

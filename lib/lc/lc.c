@@ -76,6 +76,7 @@
 #include <hse_ikvdb/kvdb_ctxn.h>
 #include <hse_ikvdb/c0_kvset.h>
 #include <hse_ikvdb/c0snr_set.h>
+#include <hse_ikvdb/kvdb_health.h>
 
 #include <hse_util/alloc.h>
 #include <hse_util/slab.h>
@@ -89,6 +90,9 @@
 #include <c0/c0_kvset_internal.h>
 
 #include "bonsai_iter.h"
+
+#define LC_C0SNR_MAX_SZ (1 << 20)
+#define LC_C0SNR_MAX    (LC_C0SNR_MAX_SZ / sizeof(uintptr_t *))
 
 static struct kmem_cache *lc_cursor_cache;
 
@@ -113,6 +117,10 @@ struct ingest_batch {
 struct lc_gc {
     struct delayed_work lgc_dwork;
     u64                 lgc_last_horizon_incl;
+
+    uintptr_t **lgc_c0snr_refv;
+    size_t      lgc_c0snr_cnt;
+    size_t      lgc_c0snr_max;
 };
 
 /**
@@ -136,6 +144,9 @@ struct lc_impl {
     struct lc_gc             lc_gc;
     struct workqueue_struct *lc_gc_wq;
     unsigned long            lc_gc_delay_ms;
+
+    merr_t              lc_err;
+    struct kvdb_health *lc_health;
 
     struct rmlock        lc_ib_rmlock;
     struct ingest_batch *lc_ib_head;
@@ -272,7 +283,7 @@ lc_ior_cb(
 
         /* Get a ref on c0snr if this val belongs/belonged to a txn */
         if (HSE_SQNREF_INDIRECT_P(seqnoref))
-            c0snr_getref_lc((uintptr_t *)seqnoref);
+            c0snr_getref((uintptr_t *)seqnoref, KVMS_GEN_INVALID);
 
         kv->bkv_valcnt++;
         assert(state != HSE_SQNREF_STATE_SINGLE);
@@ -292,10 +303,6 @@ lc_ior_cb(
     state = seqnoref_to_seqno(seqnoref, &seqno);
 
     assert(state != HSE_SQNREF_STATE_SINGLE);
-
-    /* Get a ref on c0snr if this val belongs/belonged to a txn */
-    if (HSE_SQNREF_INDIRECT_P(seqnoref))
-        c0snr_getref_lc((uintptr_t *)seqnoref);
 
     old = rcu_dereference(kv->bkv_values);
     assert(old);
@@ -334,6 +341,11 @@ lc_ior_cb(
         prevp = &kv->bkv_values;
         new_val->bv_next = *prevp;
         kv->bkv_valcnt++;
+
+        /* Get a ref on c0snr since this val belongs/belonged to a txn, and is being added (not
+         * replacing an older value).
+         */
+        c0snr_getref((uintptr_t *)seqnoref, KVMS_GEN_INVALID);
     }
 
     /* Publish the new value node.  New readers will see the new node,
@@ -347,9 +359,10 @@ static void
 lc_gc_worker_start(struct lc_impl *self);
 
 merr_t
-lc_create(struct lc **handle)
+lc_create(struct lc **handle, struct kvdb_health *health)
 {
     struct lc_impl *self;
+    struct lc_gc *  gc;
     merr_t          err;
     int             i;
 
@@ -357,6 +370,7 @@ lc_create(struct lc **handle)
     if (ev(!self))
         return merr(ENOMEM);
 
+    gc = &self->lc_gc;
     self->lc_nsrc = 2;
     assert(self->lc_nsrc <= LC_SOURCE_CNT_MAX);
 
@@ -366,12 +380,22 @@ lc_create(struct lc **handle)
             goto err_exit;
     }
 
+    gc->lgc_c0snr_cnt = 0;
+    gc->lgc_c0snr_max = LC_C0SNR_MAX;
+    gc->lgc_c0snr_refv = malloc(gc->lgc_c0snr_max * sizeof(*gc->lgc_c0snr_refv));
+    if (!gc->lgc_c0snr_refv) {
+        err = merr(ENOMEM);
+        goto err_exit;
+    }
+
     self->lc_gc_delay_ms = 1000;
     self->lc_gc_wq = alloc_workqueue("lc_gc", 0, 1);
     if (ev(!self->lc_gc_wq)) {
         err = merr(ENOMEM);
         goto err_exit;
     }
+
+    self->lc_health = health;
 
     atomic_set(&self->lc_closing, 0);
     rmlock_init(&self->lc_ib_rmlock);
@@ -383,6 +407,9 @@ lc_create(struct lc **handle)
     return 0;
 
 err_exit:
+
+    free(gc->lgc_c0snr_refv);
+
     for (i = 0; i < self->lc_nsrc; i++) {
         if (self->lc_broot[i])
             bn_destroy(self->lc_broot[i]);
@@ -413,6 +440,8 @@ lc_destroy(struct lc *handle)
 
     flush_workqueue(self->lc_gc_wq);
     destroy_workqueue(self->lc_gc_wq);
+
+    free(self->lc_gc.lgc_c0snr_refv);
 
     mutex_destroy(&self->lc_mutex);
 
@@ -926,6 +955,7 @@ lc_cursor_read(struct lc_cursor *cur, struct kvs_cursor_element *lc_elem, bool *
 
         if (cur->lcc_ptomb_set) {
             int rc = key_obj_cmp_prefix(&cur->lcc_ptomb, &elem->kce_kobj);
+
             if (rc == 0) {
                 enum hse_seqno_state state;
                 u64                  seqno;
@@ -967,19 +997,11 @@ lc_cursor_read(struct lc_cursor *cur, struct kvs_cursor_element *lc_elem, bool *
              */
             state = seqnoref_to_seqno(elem->kce_seqnoref, &seqno);
             cur->lcc_ptomb_seq = state == HSE_SQNREF_STATE_DEFINED ? seqno : cur->lcc_seq_view + 1;
-        } else if (cur->lcc_lc->lc_nsrc > 2) {
-            /* If LC has a single bonsai tree (excluding the ptomb tree), There should never be
-             * any dups. Process dups only when we have more than one non-ptomb bonsai tree.
-             */
-            struct kvs_cursor_element *dup;
-
-            while (bin_heap2_peek(cur->lcc_bh, (void **)&dup)) {
-                if (key_obj_cmp_spl(&lc_elem->kce_kobj, &dup->kce_kobj))
-                    break; /* not a dup */
-
-                bin_heap2_pop(cur->lcc_bh, (void **)&dup);
-            }
         }
+
+        /* Since LC has a single bonsai tree (excluding the ptomb tree), there should never be
+         * any dups.
+         */
 
         *eof = false;
         return;
@@ -1099,6 +1121,24 @@ lc_ingest_iterv_init(
 }
 
 /* Garbage Collection */
+static merr_t
+lc_gc_c0snr_add(struct lc_gc *gc, uintptr_t *snr)
+{
+    if (HSE_UNLIKELY(gc->lgc_c0snr_cnt >= gc->lgc_c0snr_max)) {
+        void *mem;
+
+        gc->lgc_c0snr_max += LC_C0SNR_MAX;
+        mem = realloc(gc->lgc_c0snr_refv, gc->lgc_c0snr_max * sizeof(*gc->lgc_c0snr_refv));
+        if (!mem)
+            return merr(ENOMEM);
+
+        gc->lgc_c0snr_refv = mem;
+    }
+
+    gc->lgc_c0snr_refv[gc->lgc_c0snr_cnt++] = snr;
+    return 0;
+}
+
 static u64
 lc_gc_horizon(struct lc_impl *self)
 {
@@ -1151,6 +1191,10 @@ lc_gc_worker(struct work_struct *work)
     if (HSE_UNLIKELY(atomic_read(&lc->lc_closing)))
         goto exit;
 
+    if (ev(lc->lc_err ||
+           kvdb_health_check(lc->lc_health, KVDB_HEALTH_FLAG_ALL & ~KVDB_HEALTH_FLAG_DELBLKFAIL)))
+        goto exit;
+
     /* Note that the horizon_incl returned here is an inclusive lower bound for entries that
      * must NOT be garbage collected. See 'keepval' below.
      */
@@ -1162,13 +1206,15 @@ lc_gc_worker(struct work_struct *work)
         goto exit;
 
     hse_log(
-        HSE_DEBUG "LC GC: Horizon %lu Last %lu Head %lu ListLen %u",
+        HSE_DEBUG "%s: Horizon %lu Last %lu Head %lu ListLen %u",
+        __func__,
         horizon_incl,
         gc->lgc_last_horizon_incl,
         lc_ib_head_seqno(lc),
         atomic_read(&lc->lc_ib_len));
 
     gc->lgc_last_horizon_incl = horizon_incl;
+    gc->lgc_c0snr_cnt = 0;
 
     lc_wlock(lc);
     rcu_read_lock();
@@ -1207,11 +1253,13 @@ lc_gc_worker(struct work_struct *work)
                     continue;
                 }
 
-                /* [HSE_REVISIT] If this value is accessed by another thread after we drop the
-                 * c0snr ref, it may see a garbage seqno for the val
-                 */
-                if (HSE_SQNREF_INDIRECT_P(val->bv_seqnoref))
-                    c0snr_dropref_lc((uintptr_t *)val->bv_seqnoref);
+                if (HSE_SQNREF_INDIRECT_P(val->bv_seqnoref)) {
+                    lc->lc_err = lc_gc_c0snr_add(gc, (uintptr_t *)val->bv_seqnoref);
+                    if (lc->lc_err) {
+                        hse_elog(HSE_ERR "%s: failed to add seqnoref: @@e", lc->lc_err, __func__);
+                        goto health_err;
+                    }
+                }
 
                 /* Mark value for deletion */
                 deleted = true;
@@ -1225,20 +1273,27 @@ lc_gc_worker(struct work_struct *work)
                 struct bonsai_skey skey;
                 uint               klen = key_imm_klen(&bkv->bkv_key_imm);
                 u16                skidx = key_immediate_index(&bkv->bkv_key_imm);
-                merr_t             err;
 
                 bn_skey_init(bkv->bkv_key, klen, 0, skidx, &skey);
 
-                err = bn_delete(root, &skey);
-                if (err)
-                    hse_elog(
-                        HSE_ERR "LC garbage collection: Failed to delete bonsai node: @@e", err);
+                lc->lc_err = bn_delete(root, &skey);
+                if (ev(lc->lc_err)) {
+                    hse_elog(HSE_ERR "%s: failed to delete bonsai node: @@e", lc->lc_err, __func__);
+                    goto health_err;
+                }
             }
         }
     }
 
+health_err:
     rcu_read_unlock();
     lc_wunlock(lc);
+
+    synchronize_rcu();
+    c0snr_droprefv(gc->lgc_c0snr_cnt, gc->lgc_c0snr_refv);
+
+    if (ev(lc->lc_err) && lc->lc_health)
+        kvdb_health_error(lc->lc_health, lc->lc_err);
 
 exit:
     queue_delayed_work(lc->lc_gc_wq, &gc->lgc_dwork, msecs_to_jiffies(lc->lc_gc_delay_ms));

@@ -1518,6 +1518,9 @@ kvset_lookup_val(struct kvset *ks, struct kvs_vtuple_ref *vref, struct kvs_buf *
     direct = copylen >= ks->ks_vmax
         || (copylen >= ks->ks_vmin && ks->ks_node_level >= ks->ks_vminlvl);
 
+    if (!copylen)
+        goto done;
+
     if (vref->vb.vr_complen) {
         uint outlen;
 
