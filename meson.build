@@ -1,6 +1,6 @@
 project(
     'hse',
-    ['c', 'cpp', 'java'],
+    ['c', 'java'],
     version: '2.0.0',
     license: [
         'Apache-2.0',
@@ -434,6 +434,12 @@ if get_option('bindings-python')
 else
     hse_python_depends = []
 endif
+
+if get_option('db_bench')
+    subproject('db_bench')
+    executable_paths += (meson.current_build_dir() + '/subprojects/db_bench')
+endif
+
 
 if get_option('tools')
     subdir('tools')

@@ -91,8 +91,7 @@ static bool FLAGS_use_existing_db = false;
 static const char* FLAGS_db = nullptr;
 
 // HSE properties
-char mpool_name[32] = "mp1";
-char kvs_name[32] = "kvs1";
+static const char* FLAGS_kvs_name = "kvs1";
 
 namespace leveldb {
 
@@ -613,13 +612,13 @@ class Benchmark {
     assert(kvdb_ == nullptr);
     assert(kvs_ == nullptr);
 
-    Status s = HseKvdb::Open(mpool_name, &kvdb_);
+    Status s = HseKvdb::Open(FLAGS_db, &kvdb_);
     if (!s.ok()) {
       std::fprintf(stderr, "open kvdb error: %s\n", s.ToString().c_str());
       std::exit(1);
     }
 
-    s = kvdb_->OpenKvs(kvs_name, &kvs_, value_size_);
+    s = kvdb_->OpenKvs(FLAGS_kvs_name, &kvs_, value_size_);
     if (!s.ok()) {
       std::fprintf(stderr, "open kvs error: %s\n", s.ToString().c_str());
       s = kvdb_->Close();
@@ -853,8 +852,8 @@ class Benchmark {
       delete kvs_;
       kvs_ = nullptr;
 
-      kvdb_->DropKvs(kvs_name);
-      kvdb_->MakeKvs(kvs_name);
+      kvdb_->DropKvs(FLAGS_kvs_name);
+      kvdb_->MakeKvs(FLAGS_kvs_name);
       kvdb_->Close();
       delete kvdb_;
       kvdb_ = nullptr;
@@ -896,21 +895,8 @@ int main(int argc, char** argv) {
       FLAGS_key_prefix = n;
     } else if (strncmp(argv[i], "--db=", 5) == 0) {
       FLAGS_db = argv[i] + 5;
-
-      size_t path_len = strlen(FLAGS_db);
-      const char* sep = strchr(FLAGS_db, '/');
-      size_t mp_name_len = sep == nullptr ? 0 : (sep - FLAGS_db);
-      size_t kvs_name_len = sep == nullptr ? 0 : (path_len - mp_name_len - 1);
-
-      if (mp_name_len == 0 || mp_name_len >= path_len - 1 ||
-          mp_name_len > sizeof(mpool_name) - 1 || kvs_name_len == 0 ||
-          kvs_name_len > sizeof(kvs_name) - 1) {
-        std::fprintf(stderr, "Invalid KVS path '%s'\n", FLAGS_db);
-        std::exit(1);
-      }
-
-      strncpy(mpool_name, FLAGS_db, mp_name_len);
-      strncpy(kvs_name, sep + 1, kvs_name_len);
+    } else if (strncmp(argv[i], "--kvs=", 6) == 0) {
+      FLAGS_kvs_name = argv[i] + 6;
     } else {
       std::fprintf(stderr, "Invalid flag '%s'\n", argv[i]);
       std::exit(1);

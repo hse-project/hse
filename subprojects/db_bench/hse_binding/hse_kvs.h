@@ -42,7 +42,7 @@ class HseKvs {
   std::string kvs_name_;
 
  private:
-  void* get_buffer_;
+  char* get_buffer_;
   size_t get_buffer_size_;
 };
 

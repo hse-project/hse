@@ -1,5 +1,19 @@
+project(
+    'db_bench',
+    ['cpp'],
+    version: '1.0.0',
+    license: [
+        'BSD-3-Clause',
+    ],
+    default_options: [
+        'b_ndebug=if-release',
+        'cpp_std=c++11',
+        'buildtype=debugoptimized',
+        'warning_level=2',
+    ],
+)
+    
 db_bench_cpp_args = [
-    '-std=c++11',
     '-DHSE_EXPERIMENTAL',
     '-DHAVE_FREAD',
     '-DHAVE_FWRITE',
@@ -10,13 +24,22 @@ db_bench_cpp_args = [
     '-Wno-sign-compare',
 ]
 
+hse_dep = dependency(
+    'hse-2-static',
+    required: true,
+)
+
+threads_dep = dependency(
+    'threads',
+    required: true
+)
+
 db_bench_dependencies = [
-    hse_dependencies,
-    hse_static_dep,
+    hse_dep,
+    threads_dep,
 ]
 
 db_bench_include_directories = [
-    hse_include_directories,
     include_directories('.'),
     include_directories('include'),
 ]
@@ -37,7 +60,6 @@ executable(
     cpp_args: db_bench_cpp_args,
     include_directories: db_bench_include_directories,
     dependencies: db_bench_dependencies,
-    install: get_option('install-tools'),
-    install_rpath: exe_install_rpath,
+    install: true,
     gnu_symbol_visibility: 'hidden',
 )
