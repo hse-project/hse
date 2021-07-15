@@ -25,13 +25,14 @@
 #include <hse_ikvdb/kvdb_rparams.h>
 #include <hse_ikvdb/kvs_cparams.h>
 #include <hse_ikvdb/kvs_rparams.h>
+#include <hse_ikvdb/hse_gparams.h>
 #include <hse_util/hse_err.h>
 
-#define PARAM_FLAG_DEVELOPER_ONLY 1 << 1
-#define PARAM_FLAG_EXPERIMENTAL   1 << 2
-#define PARAM_FLAG_CREATE_ONLY    1 << 3
-#define PARAM_FLAG_WRITABLE       1 << 4
-#define PARAM_FLAG_NULLABLE       1 << 5
+#define PARAM_FLAG_DEVELOPER_ONLY (1 << 1)
+#define PARAM_FLAG_EXPERIMENTAL   (1 << 2)
+#define PARAM_FLAG_CREATE_ONLY    (1 << 3)
+#define PARAM_FLAG_WRITABLE       (1 << 4)
+#define PARAM_FLAG_NULLABLE       (1 << 5)
 
 struct param_spec;
 
@@ -43,6 +44,7 @@ union params {
     struct kvdb_dparams *const as_kvdb_dp;
     struct kvs_cparams *const as_kvs_cp;
     struct kvs_rparams *const as_kvs_rp;
+    struct hse_gparams *const as_hse_gp;
 };
 
 typedef bool (*param_converter_t)(const struct param_spec *, const cJSON*, void *);

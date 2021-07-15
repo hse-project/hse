@@ -2721,8 +2721,6 @@ kvdb_perfc_initialize(void)
     cn_perfc_init();
     throttle_perfc_init();
 
-    hse_openlog(COMPNAME, 0);
-
     if (perfc_ctrseti_alloc(COMPNAME, "global", kvdb_perfc_op, PERFC_EN_KVDBOP, "set", &kvdb_pc))
         hse_log(HSE_ERR "cannot alloc kvdb op perf counters");
     else

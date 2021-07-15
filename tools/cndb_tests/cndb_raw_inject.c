@@ -400,7 +400,6 @@ main(int argc, char **argv)
     int             c, i;
 
     progname = basename(argv[0]);
-    hse_openlog(progname, false);
 
     while ((c = getopt(argc, argv, ":h")) != -1) {
         switch (c) {

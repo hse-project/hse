@@ -75,7 +75,6 @@ _getkey(struct mtf_test_info *lcl_ti, struct bin_heap *bh, int key)
 int
 test_collection_pre(struct mtf_test_info *lcl_ti)
 {
-    hse_openlog("bin_heap_test", 1);
     return 0;
 }
 

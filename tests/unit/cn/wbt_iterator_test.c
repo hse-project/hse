@@ -95,8 +95,6 @@ setup(struct mtf_test_info *lcl_ti)
     struct mtf_test_coll_info *coll_info = lcl_ti->ti_coll;
     int                        len;
 
-    hse_openlog("wbt_iterator_test", 1);
-
     if (coll_info->tci_argc != 2) {
         hse_log(HSE_ERR "Usage:  %s <mblock_image_dir>", coll_info->tci_argv[0]);
         return -1;

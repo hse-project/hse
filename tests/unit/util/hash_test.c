@@ -63,8 +63,6 @@ MTF_DEFINE_UTEST(hash_test, FanoutDistribution)
     u64  h;
     int  i, j, n;
 
-    hse_openlog("hash", 1);
-
     n = 0;
     for (i = 0; i < 256; ++i) {
         buf[1] = i;

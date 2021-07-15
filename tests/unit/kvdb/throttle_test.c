@@ -39,7 +39,6 @@ init(void)
 int
 pre_collection(struct mtf_test_info *info)
 {
-    hse_log_set_verbose(true);
     return 0;
 }
 

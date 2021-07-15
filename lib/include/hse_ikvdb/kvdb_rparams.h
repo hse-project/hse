@@ -32,8 +32,6 @@
  * @perfc_enable:     perf counter verbosity
  * @c0_diag_mode:     disable c0 spill
  * @c0_debug:         c0 debug flags (see param_debug_flags.h)
- * @log_lvl:          log level for hse_log.
- * @log_squelch_ns:   log squelch window in nsec
  * @keylock_tables:   number of keylock hash tables
  * @txn_wkth_delay:        delay (msecs) to invoke transaction worker thread
  * @cndb_entries:     max number of entries CNDB's in memory structures. Note
@@ -97,9 +95,7 @@ struct kvdb_rparams {
     /* The following fields are typically only accessed by kvdb open
      * and hence are extremely cold.
      */
-    uint64_t log_squelch_ns;
     uint64_t txn_wkth_delay;
-    uint32_t log_lvl;
     uint32_t cndb_entries;
     uint32_t cndb_debug;
     uint32_t c0_maint_threads;

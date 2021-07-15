@@ -84,8 +84,6 @@ initial_setup(struct mtf_test_info *lcl_ti)
 {
     u32 i, j, k;
 
-    hse_openlog("vblock_builder_test", 1);
-
     workbuf = mapi_safe_malloc(WORKBUF_SIZE);
     ASSERT_TRUE_RET(workbuf, -1);
 

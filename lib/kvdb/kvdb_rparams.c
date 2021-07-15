@@ -1182,44 +1182,6 @@ static const struct param_spec pspecs[] = {
         },
     },
     {
-        .ps_name = "log_lvl",
-        .ps_description = "log message verbosity. Range: 0 to 7.",
-        .ps_flags = 0,
-        .ps_type = PARAM_TYPE_U32,
-        .ps_offset = offsetof(struct kvdb_rparams, log_lvl),
-        .ps_size = sizeof(((struct kvdb_rparams *) 0)->log_lvl),
-        .ps_convert = param_default_converter,
-        .ps_validate = param_default_validator,
-        .ps_default_value = {
-            .as_uscalar = HSE_LOG_PRI_DEFAULT,
-        },
-        .ps_bounds = {
-            .as_uscalar = {
-                .ps_min = 0,
-                .ps_max = 7,
-            },
-        },
-    },
-    {
-        .ps_name = "log_squelch_ns",
-        .ps_description = "drop messages repeated within nsec window",
-        .ps_flags = PARAM_FLAG_EXPERIMENTAL,
-        .ps_type = PARAM_TYPE_U64,
-        .ps_offset = offsetof(struct kvdb_rparams, log_squelch_ns),
-        .ps_size = sizeof(((struct kvdb_rparams *) 0)->log_squelch_ns),
-        .ps_convert = param_default_converter,
-        .ps_validate = param_default_validator,
-        .ps_default_value = {
-            .as_uscalar = HSE_LOG_SQUELCH_NS_DEFAULT,
-        },
-        .ps_bounds = {
-            .as_uscalar = {
-                .ps_min = 0,
-                .ps_max = UINT64_MAX,
-            },
-        },
-    },
-    {
         .ps_name = "txn_wkth_delay",
         .ps_description = "delay for transaction worker thread",
         .ps_flags = PARAM_FLAG_EXPERIMENTAL,

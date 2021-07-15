@@ -22,6 +22,7 @@
 #include <hse_ikvdb/argv.h>
 #include <hse_ikvdb/kvdb_cparams.h>
 #include <hse_ikvdb/kvdb_dparams.h>
+#include <hse_ikvdb/hse_gparams.h>
 #include <hse_ikvdb/home.h>
 
 #include <hse/version.h>
@@ -64,8 +65,13 @@ hse_init(const size_t paramc, const char *const *const paramv)
     struct kvdb_rparams rparams = kvdb_rparams_defaults();
     merr_t err;
 
-    if (hse_initialized)
+    if (hse_initialized) {
         return 0;
+    }
+
+	err = argv_deserialize_to_hse_gparams(paramc, paramv, &hse_gparams);
+    if (err)
+        return merr_to_hse_err(err);
 
     err = argv_deserialize_to_kvdb_rparams(paramc, paramv, &rparams);
     if (err)
@@ -301,19 +307,6 @@ out:
     return merr_to_hse_err(err);
 }
 
-static merr_t
-handle_params(struct kvdb_rparams *params)
-{
-    perfc_verbosity = params->perfc_enable;
-
-    if (params->log_lvl <= 7)
-        hse_log_set_pri((int)params->log_lvl);
-
-    hse_log_set_squelch_ns(params->log_squelch_ns);
-
-    return 0;
-}
-
 hse_err_t
 hse_kvdb_open(
     const char *             kvdb_home,
@@ -387,8 +380,6 @@ hse_kvdb_open(
     err = merr(pidfile_serialize(pfh, &content));
     if (err)
         goto out;
-
-    handle_params(&params);
 
     /* Need write access in case recovery data needs to be replayed into cN.
      * Need exclusive access to prevent multiple applications from

@@ -152,14 +152,12 @@ vsyslog(int pri, const char *fmt, va_list args)
 int
 structured_logging_test_pre(struct mtf_test_info *ti)
 {
-    hse_openlog("test", 1);
     return 0;
 }
 
 int
 structured_logging_test_post(struct mtf_test_info *ti)
 {
-    hse_closelog();
     return 0;
 }
 

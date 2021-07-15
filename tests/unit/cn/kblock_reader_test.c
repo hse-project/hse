@@ -23,7 +23,6 @@
 int
 test_collection_setup(struct mtf_test_info *info)
 {
-    hse_openlog("kblock_reader_test", 1);
     return 0;
 }
 

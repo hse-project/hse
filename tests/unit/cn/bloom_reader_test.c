@@ -26,8 +26,6 @@ test_collection_setup(struct mtf_test_info *info)
     struct mtf_test_coll_info *coll_info = info->ti_coll;
     int                        len;
 
-    hse_openlog("bloom_reader_test", 1);
-
     if (coll_info->tci_argc != 2) {
         hse_log(HSE_ERR "Usage:  %s <mblock_image_dir>", coll_info->tci_argv[0]);
         return -1;

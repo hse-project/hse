@@ -87,11 +87,6 @@ diag_kvdb_open(
 
     perfc_verbosity = params.perfc_enable;
 
-    if (params.log_lvl <= 7)
-        hse_log_set_pri((int)params.log_lvl);
-
-    hse_log_set_squelch_ns(params.log_squelch_ns);
-
     /* Need write access in case recovery data needs to be replayed into cN.
      * Need exclusive access to prevent multiple applications from
      * working on the same KVDB, which would cause corruption.

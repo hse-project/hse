@@ -88,7 +88,6 @@ main(int argc, char **argv)
     hse_err_t       herr;
 
     prog = basename(argv[0]);
-    hse_openlog(prog, false);
 
     while ((opt = getopt(argc, argv, "?h")) != -1) {
         switch (opt) {

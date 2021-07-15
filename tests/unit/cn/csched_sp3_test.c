@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
 #include <hse_ut/framework.h>
@@ -377,8 +377,6 @@ mock_init(void)
 int
 pre_collection(struct mtf_test_info *info)
 {
-    hse_log_set_verbose(true);
-    hse_log_set_pri(HSE_DEBUG_VAL);
     return 0;
 }
 

@@ -597,7 +597,6 @@ MTF_END_UTEST_COLLECTION(kcompact_test)
 int
 init(struct mtf_test_info *info)
 {
-    hse_openlog("kcompact_test", 1);
     return 0;
 }
 

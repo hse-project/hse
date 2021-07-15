@@ -67,8 +67,6 @@ ev_match_select_handler(struct dt_element *dte, char *field, char *value)
     } else if (!strcmp(field, "ev_log_level")) {
         log_priority_t pri = hse_logprio_name_to_val(value);
 
-        if (pri == HSE_INVALID_VAL)
-            return false;
         if (ec->ev_log_level <= pri)
             return true;
     }

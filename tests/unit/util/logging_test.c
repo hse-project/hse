@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
 #include <hse_util/logging.h>
@@ -102,9 +102,6 @@ MTF_BEGIN_UTEST_COLLECTION(hse_logging_test);
 
 MTF_DEFINE_UTEST(hse_logging_test, DoesAnything)
 {
-    hse_openlog("test", false);
-
-    hse_closelog();
 }
 
 MTF_DEFINE_UTEST(hse_logging_test, Test_is_std_specifier)
@@ -245,11 +242,9 @@ MTF_DEFINE_UTEST(hse_logging_test, Test_string)
 {
     const char str[] = "A string with no special characters.";
 
-    hse_openlog("test", true);
     hse_log(HSE_NOTICE "A string with no special characters.");
 
     ASSERT_TRUE(strstr(shared_result.msg_buffer, str));
-    hse_closelog();
 }
 
 MTF_DEFINE_UTEST(hse_logging_test, Test_register)
@@ -503,22 +498,6 @@ MTF_DEFINE_UTEST(hse_logging_test, Test_log_call)
     ASSERT_EQ(ix, shared_result.count);
 }
 
-MTF_DEFINE_UTEST(hse_logging_test, Test_set_pri_and_verbose)
-{
-    hse_openlog("test", false);
-    ASSERT_EQ(HSE_LOG_PRI_DEFAULT, hse_logging_control.mlc_cur_pri);
-    ASSERT_EQ(false, hse_logging_control.mlc_verbose);
-    ASSERT_NE(HSE_WARNING_VAL, HSE_LOG_PRI_DEFAULT);
-
-    hse_log_set_pri(HSE_WARNING_VAL);
-    ASSERT_EQ(HSE_WARNING_VAL, hse_logging_control.mlc_cur_pri);
-
-    hse_log_set_verbose(true);
-    ASSERT_EQ(true, hse_logging_control.mlc_verbose);
-
-    hse_closelog();
-}
-
 MTF_DEFINE_UTEST(hse_logging_test, Test_hse_logprio_val_to_name)
 {
     const char *name;
@@ -600,7 +579,6 @@ MTF_DEFINE_UTEST(hse_logging_test, Test_hse_alog)
     hse_logging_fini();
     rc = hse_logging_init();
     ASSERT_EQ(0, rc);
-    hse_log_set_verbose(true);
 
     hse_log(HSE_ERR "Test %s %d", "test", -1);
 

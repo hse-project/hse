@@ -1498,8 +1498,6 @@ test_collection_setup(struct mtf_test_info *info)
     char * file_path = 0;
     int    i;
 
-    hse_openlog("merge_test", true);
-
     tp.verbose = VERBOSE_PER_FILE1;
 
     for (i = 1; i < argc; i++) {

@@ -27,8 +27,6 @@ kvdb_log_test_collection_setup(struct mtf_test_info *info)
 {
     struct mtf_test_coll_info *coll_info = info->ti_coll;
 
-    hse_openlog("kvdb_log_test", 1);
-
     if (coll_info->tci_argc > 1) {
         int len = strlen(coll_info->tci_argv[1]);
 
