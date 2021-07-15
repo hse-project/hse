@@ -58,8 +58,8 @@ struct c0_kvmultiset {
 merr_t
 c0kvms_create(
     u32                    num_sets,
-    size_t                 alloc_sz,
     atomic64_t *           kvdb_seq,
+    void                 **stash,
     struct c0_kvmultiset **multiset);
 
 void
@@ -88,15 +88,6 @@ c0kvms_getref(struct c0_kvmultiset *mset);
 /* MTF_MOCK */
 void
 c0kvms_putref(struct c0_kvmultiset *mset);
-
-/**
- * c0kvms_thresholds_get() - get txn thresholds of the kvms. Used for deciding
- *                           between merging a transaction and flushing it.
- * @mset: struct c0_kvmultiset handle.
- */
-/* MTF_MOCK */
-void
-c0kvms_thresholds_get(struct c0_kvmultiset *handle, size_t *thresh_lo, size_t *thresh_hi);
 
 /**
  * c0kvms_gen_read() - return the given c0kvms' generation count
@@ -141,16 +132,6 @@ c0kvms_size(struct c0_kvmultiset *handle);
  */
 struct c0_kvset *
 c0kvms_get_hashed_c0kvset(struct c0_kvmultiset *mset, u64 hash);
-
-/**
- * c0kvms_get_c0kvset() - obtain the c0_kvset at the absolute index
- * @mset:  Struct c0_kvmultiset to lookup in
- * @index: absolute index
- *
- * Return: Struct c0_kvset pointer
- */
-struct c0_kvset *
-c0kvms_get_c0kvset(struct c0_kvmultiset *mset, u32 index);
 
 /**
  * c0kvms_finalize() - freeze the elements of the c0_kvmultiset

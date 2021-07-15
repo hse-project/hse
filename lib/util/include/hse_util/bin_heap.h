@@ -50,6 +50,15 @@ bin_heap_delete_top(struct bin_heap *bh);
 
 /* ------------------------------------------------------------------------ */
 
+#define BIN_HEAP2_SZ(_bh2_width) \
+    (sizeof(struct bin_heap2) + sizeof(struct heap_node) * (_bh2_width))
+
+#define BIN_HEAP2_DEFINE(_bh2_name, _bh2_width)                 \
+    union {                                                     \
+        struct bin_heap2 _bh2_name;                             \
+        char _bh2_name ## _data[BIN_HEAP2_SZ(_bh2_width)];      \
+    }
+
 struct bin_heap2;
 
 /*
@@ -75,6 +84,9 @@ struct bin_heap2 {
 
 u32
 bin_heap2_width(struct bin_heap2 *bh);
+
+void
+bin_heap2_init(u32 max_width, bin_heap2_compare_fn *cmp, struct bin_heap2 *bh);
 
 merr_t
 bin_heap2_create(u32 max_width, bin_heap2_compare_fn *cmp, struct bin_heap2 **bh_out);

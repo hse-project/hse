@@ -35,7 +35,7 @@ MTF_DEFINE_UTEST(c0_kvset_iterator_test, basic_construction)
     ASSERT_TRUE(rcu_thrd);
     set_thread_call_rcu_data(rcu_thrd);
 
-    err = c0kvs_create(HSE_C0_CHEAP_SZ_DFLT, 0, 0, &kvs);
+    err = c0kvs_create(NULL, NULL, &kvs);
     ASSERT_NE((struct c0_kvset *)0, kvs);
 
     kvs_ktuple_init(&kt, kbuf, sizeof(kbuf));
@@ -80,7 +80,7 @@ MTF_DEFINE_UTEST(c0_kvset_iterator_test, element_source)
     ASSERT_TRUE(rcu_thrd);
     set_thread_call_rcu_data(rcu_thrd);
 
-    err = c0kvs_create(HSE_C0_CHEAP_SZ_DFLT, 0, 0, &kvs);
+    err = c0kvs_create(NULL, NULL, &kvs);
     ASSERT_NE((struct c0_kvset *)0, kvs);
     kvs_impl = c0_kvset_h2r(kvs);
 
@@ -231,7 +231,7 @@ MTF_DEFINE_UTEST(c0_kvset_iterator_test, seek)
     ASSERT_TRUE(rcu_thrd);
     set_thread_call_rcu_data(rcu_thrd);
 
-    c0kvs_create(HSE_C0_CHEAP_SZ_DFLT, 0, 0, &kvs);
+    c0kvs_create(NULL, NULL, &kvs);
     ASSERT_NE((struct c0_kvset *)0, kvs);
     kvs_impl = c0_kvset_h2r(kvs);
 

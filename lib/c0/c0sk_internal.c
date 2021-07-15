@@ -35,39 +35,6 @@
 #include "c0sk_internal.h"
 #include "c0_ingest_work.h"
 
-merr_t
-c0sk_initialize_concurrency_control(struct c0sk_impl *c0sk)
-{
-    atomic_set(&c0sk->c0sk_ingest_ldr, 0);
-    atomic64_set(&c0sk->c0sk_ingest_gen, 0);
-    mutex_init_adaptive(&c0sk->c0sk_kvms_mutex);
-    mutex_init(&c0sk->c0sk_sync_mutex);
-    cv_init(&c0sk->c0sk_kvms_cv, "c0sk_kvms_cv");
-
-    c0sk->c0sk_mtx_pool = mtx_pool_create(c0sk->c0sk_kvdb_rp->c0_mutex_pool_sz);
-    if (!c0sk->c0sk_mtx_pool) {
-        cv_destroy(&c0sk->c0sk_kvms_cv);
-        mutex_destroy(&c0sk->c0sk_kvms_mutex);
-        mutex_destroy(&c0sk->c0sk_sync_mutex);
-        return merr(ev(ENOMEM));
-    }
-
-    return 0;
-}
-
-merr_t
-c0sk_free_concurrency_control(struct c0sk_impl *c0sk)
-{
-    if (c0sk->c0sk_mtx_pool) {
-        mtx_pool_destroy(c0sk->c0sk_mtx_pool);
-        cv_destroy(&c0sk->c0sk_kvms_cv);
-        mutex_destroy(&c0sk->c0sk_sync_mutex);
-        mutex_destroy(&c0sk->c0sk_kvms_mutex);
-    }
-
-    return 0;
-}
-
 /* Update c0sk's throttle sensor based on:
  * - the aggregate size of c0 kvms,
  * - the number of c0 kvms, and
@@ -201,7 +168,8 @@ c0sk_install_c0kvms(struct c0sk_impl *self, struct c0_kvmultiset *old, struct c0
     mutex_lock(&self->c0sk_kvms_mutex);
     first = c0sk_get_first_c0kvms(&self->c0sk_handle);
     if (first == old) {
-        atomic64_set(&self->c0sk_ingest_gen, c0kvms_gen_update(new));
+        c0kvms_gen_update(new);
+
         cds_list_add_rcu(&new->c0ms_link, &self->c0sk_kvmultisets);
 
         c0sk_rsvd_sn_set(self, new);
@@ -213,7 +181,6 @@ c0sk_install_c0kvms(struct c0sk_impl *self, struct c0_kvmultiset *old, struct c0
     mutex_unlock(&self->c0sk_kvms_mutex);
 
     perfc_set(&self->c0sk_pc_ingest, PERFC_BA_C0SKING_QLEN, self->c0sk_kvmultisets_cnt);
-
     perfc_set(&self->c0sk_pc_ingest, PERFC_BA_C0SKING_WIDTH, self->c0sk_ingest_width);
 
     return (first == old);
@@ -635,8 +602,8 @@ c0sk_ingest_worker(struct work_struct *work)
 
     assert(min_seq >= lc_ingest_seqno_get(lc));
 
-    kvms_minheap = ingest->c0iw_kvms_minheap;
-    lc_minheap = ingest->c0iw_lc_minheap;
+    kvms_minheap = &ingest->c0iw_kvms_minheap;
+    lc_minheap = &ingest->c0iw_lc_minheap;
 
     assert(c0sk->c0sk_kvdb_health);
 
@@ -1051,39 +1018,71 @@ c0sk_ingest_tune(struct c0sk_impl *self)
 
 /* GCOV_EXCL_START */
 
+static HSE_ALWAYS_INLINE void
+c0sk_ingestref_get(struct c0sk_impl *self, bool is_txn, void **cookiep)
+{
+    atomic_t *ptr = NULL;
+
+    if (!is_txn) {
+        uint node = hse_cpu2node(raw_smp_processor_id());
+
+        ptr = &self->c0sk_ingest_refv[node % NELEM(self->c0sk_ingest_refv)].refcnt;
+
+        atomic_inc(ptr);
+    }
+
+    *cookiep = ptr;
+}
+
+static HSE_ALWAYS_INLINE void
+c0sk_ingestref_put(struct c0sk_impl *self, void *cookie)
+{
+    if (cookie)
+        atomic_dec((atomic_t *)cookie);
+}
+
+static HSE_ALWAYS_INLINE void
+c0sk_ingestref_wait(struct c0sk_impl *self)
+{
+    while (1) {
+        uint bits = 0, i;
+
+        for (i = 0; i < NELEM(self->c0sk_ingest_refv); ++i)
+            bits |= atomic_read(&self->c0sk_ingest_refv[i].refcnt);
+
+        if (bits == 0)
+            return;
+
+        cpu_relax();
+    }
+}
+
 merr_t
 c0sk_queue_ingest(struct c0sk_impl *self, struct c0_kvmultiset *old)
 {
-    struct c0_kvmultiset *new = NULL;
-    struct mtx_node *node;
-    struct c0_usage  usage;
-
-    bool   leader, created;
+    struct c0_kvmultiset *new;
+    struct c0_usage usage;
     merr_t err;
-
-genchk:
-    if (c0kvms_gen_read(old) < atomic64_read(&self->c0sk_ingest_gen))
-        return new ? merr(EAGAIN) : 0;
 
     c0kvms_ingesting(old);
 
-    node = mtx_pool_lock(self->c0sk_mtx_pool, xrand64_tls());
+    while (1) {
+        const struct timespec req = { .tv_nsec = 1000 };
 
-    leader = (atomic_inc_return(&self->c0sk_ingest_ldr) == 1);
-    if (!leader)
-        mtx_pool_wait(node);
-    mtx_pool_unlock(node);
+        if (c0kvms_gen_read(old) < atomic64_read(&self->c0sk_ingest_gen))
+            return 0;
 
-    if (!leader)
-        goto genchk;
+        if (atomic_inc_return(&self->c0sk_ingest_ldrcnt) == 1)
+            break; /* ingest leader */
 
-    created = false;
+        nanosleep(&req, NULL);
+    }
+
+    usage.u_keyb = 0;
     err = 0;
 
-    if (c0kvms_gen_read(old) < atomic64_read(&self->c0sk_ingest_gen)) {
-        err = new ? merr(EAGAIN) : 0;
+    if (c0kvms_gen_read(old) < atomic64_read(&self->c0sk_ingest_gen))
         goto resign;
-    }
 
     /* Sample and save the current usage of old for throttling.
      * It may not be 100% accurate, but should be close enough
@@ -1092,39 +1091,39 @@ genchk:
     c0kvms_usage(old, &usage);
     c0kvms_used_set(old, max_t(size_t, usage.u_used, usage.u_memsz));
 
-    if (ev(new)) {
-        /* do nothing */
-    } else {
-        c0sk_ingest_tune(self);
+    c0sk_ingest_tune(self);
 
-        err =
-            c0kvms_create(self->c0sk_ingest_width, self->c0sk_cheap_sz, self->c0sk_kvdb_seq, &new);
+    err = c0kvms_create(self->c0sk_ingest_width, self->c0sk_kvdb_seq, &self->c0sk_stash, &new);
+    if (!err) {
+        c0kvms_getref(new);
 
-        created = !err;
-    }
+        /* Wait for all active non-txn put/del threads to complete or abort to
+         * ensure that all seqnos minted for the new kvms are larger than all
+         * seqnos minted for the old kvms.  It would suffice to simply call
+         * synchronize_rcu() here, but it is often too slow.
+         */
+        c0sk_ingestref_wait(self);
 
-    if (new) {
         if (c0sk_install_c0kvms(self, old, new)) {
+            atomic64_set(&self->c0sk_ingest_gen, c0kvms_gen_read(new));
             c0sk_rcu_sync(self, old, true);
         } else {
-            if (created)
-                c0kvms_putref(new);
+            c0kvms_putref(new);
             err = merr(EAGAIN);
-            created = false;
             ev(1);
         }
+
+        c0kvms_putref(new);
     }
 
-    /* Resign as leader and awaken all waiters...
-     */
-resign:
-    mtx_pool_lock_all(self->c0sk_mtx_pool);
-    atomic_set(&self->c0sk_ingest_ldr, 0);
-    mtx_pool_unlock_all(self->c0sk_mtx_pool, true);
+  resign:
+    while (!atomic_cas(&self->c0sk_ingest_ldrcnt, atomic_read(&self->c0sk_ingest_ldrcnt), 0))
+        continue;
 
     if (usage.u_keyb)
         perfc_rec_sample(
             &self->c0sk_pc_ingest, PERFC_DI_C0SKING_KVMSDSIZE, (usage.u_keyb + usage.u_valb) >> 10);
+
     return err;
 }
 
@@ -1203,15 +1202,16 @@ c0sk_putdel(
     const struct kvs_vtuple *vt,
     uintptr_t                seqnoref)
 {
-    bool   is_txn = (seqnoref != HSE_SQNREF_SINGLE);
-    merr_t err;
+    uintptr_t *priv = (uintptr_t *)seqnoref;
+    bool       is_txn = (seqnoref != HSE_SQNREF_SINGLE);
+    u64        dst_gen = 0;
+    merr_t     err;
 
     while (1) {
         struct c0_kvmultiset *dst;
         struct c0_kvset *     kvs;
         uintptr_t *           entry = NULL;
-        uintptr_t *           priv = (uintptr_t *)seqnoref;
-        u64                   dst_gen = 0;
+        void                 *cookie = NULL;
 
         rcu_read_lock();
         dst = c0sk_get_first_c0kvms(&self->c0sk_handle);
@@ -1219,6 +1219,11 @@ c0sk_putdel(
             rcu_read_unlock();
             return merr(EINVAL);
         }
+
+        /* Non-txn mutations must synchronize with c0sk_queue_ingest()
+         * to ensure correct seqno ordering across a kvms switch.
+         */
+        c0sk_ingestref_get(self, is_txn, &cookie);
 
         if (c0kvms_should_ingest(dst)) {
             err = merr(ENOMEM);
@@ -1277,19 +1282,21 @@ c0sk_putdel(
         }
 
     unlock:
+        c0sk_ingestref_put(self, cookie);
+
         if (merr_errno(err) == ENOMEM)
             c0kvms_getref(dst);
 
         rcu_read_unlock();
 
-        if (merr_errno(err) != ENOMEM) {
-            kt->kt_dgen = dst_gen;
+        if (merr_errno(err) != ENOMEM)
             break;
-        }
 
         c0sk_queue_ingest(self, dst);
         c0kvms_putref(dst);
     }
+
+    kt->kt_dgen = dst_gen;
 
     return err;
 }

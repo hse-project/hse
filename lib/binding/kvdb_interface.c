@@ -61,16 +61,21 @@ static bool hse_initialized = false;
 hse_err_t
 hse_init(const size_t paramc, const char *const *const paramv)
 {
+    struct kvdb_rparams rparams = kvdb_rparams_defaults();
     merr_t err;
 
     if (hse_initialized)
         return 0;
 
+    err = argv_deserialize_to_kvdb_rparams(paramc, paramv, &rparams);
+    if (err)
+        return err;
+
     err = hse_platform_init();
     if (err)
         return merr_to_hse_err(err);
 
-    err = ikvdb_init();
+    err = ikvdb_init(&rparams);
     if (err) {
         hse_platform_fini();
 

@@ -59,13 +59,13 @@ struct c0_impl {
 };
 
 HSE_COLD merr_t
-c0_init(void)
+c0_init(size_t c0kvs_cache_sz, size_t c0kvs_cheap_sz)
 {
     merr_t err;
 
     rcu_init();
     c0sk_init();
-    c0kvs_init();
+    c0kvs_init(c0kvs_cache_sz, c0kvs_cheap_sz);
     c0kvms_init();
 
     err = kvdb_ctxn_locks_init();

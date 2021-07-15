@@ -18,6 +18,8 @@
 #include <hse_ikvdb/sched_sts.h>
 #include <hse_ikvdb/lc.h>
 
+/* clang-format off */
+
 /**
  * struct c0_ingest_work - description of ingest work to be performed
  * @c0iw_c0:            struct c0 in whose context the ingest is occuring
@@ -39,19 +41,20 @@
  */
 struct c0_ingest_work {
     struct work_struct       c0iw_work;
-    struct c0sk *            c0iw_c0sk;
-    struct bin_heap2 *       c0iw_kvms_minheap;
-    struct element_source *  c0iw_kvms_sourcev[HSE_C0_INGEST_WIDTH_MAX];
+    struct c0sk             *c0iw_c0sk;
+    struct element_source   *c0iw_kvms_sourcev[HSE_C0_INGEST_WIDTH_MAX];
     struct c0_kvset_iterator c0iw_kvms_iterv[HSE_C0_INGEST_WIDTH_MAX];
-    struct bin_heap2 *       c0iw_lc_minheap;
     struct lc_ingest_iter    c0iw_lc_iterv[LC_SOURCE_CNT_MAX];
-    struct element_source *  c0iw_lc_sourcev[LC_SOURCE_CNT_MAX];
-    struct kvset_builder *   c0iw_bldrs[HSE_KVS_COUNT_MAX];
+    struct element_source   *c0iw_lc_sourcev[LC_SOURCE_CNT_MAX];
+    struct kvset_builder    *c0iw_bldrs[HSE_KVS_COUNT_MAX];
     struct kvset_mblocks     c0iw_mblocks[HSE_KVS_COUNT_MAX];
-    struct c0_kvmultiset *   c0iw_c0kvms;
+    struct c0_kvmultiset    *c0iw_c0kvms;
     u32                      c0iw_kvms_iterc;
     u32                      c0iw_lc_iterc;
-    struct kvset_mblocks *   c0iw_mbv[HSE_KVS_COUNT_MAX];
+    struct kvset_mblocks    *c0iw_mbv[HSE_KVS_COUNT_MAX];
+
+    BIN_HEAP2_DEFINE(c0iw_kvms_minheap, HSE_C0_INGEST_WIDTH_MAX);
+    BIN_HEAP2_DEFINE(c0iw_lc_minheap, LC_SOURCE_CNT_MAX);
 
     struct c0_usage c0iw_usage;
     u64             c0iw_tenqueued;
@@ -73,7 +76,9 @@ struct c0_ingest_work {
     uintptr_t c0iw_magic;
 };
 
-merr_t
+/* clang-format on */
+
+void
 c0_ingest_work_init(struct c0_ingest_work *c0iw);
 
 void

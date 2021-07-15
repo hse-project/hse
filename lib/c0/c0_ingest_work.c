@@ -9,32 +9,16 @@
 
 #include "c0_ingest_work.h"
 
-merr_t
+void
 c0_ingest_work_init(struct c0_ingest_work *c0iw)
 {
-    struct bin_heap2 *minheap;
-    merr_t            err;
-
     assert(c0iw);
 
     memset(c0iw, 0, sizeof(*c0iw));
     c0iw->c0iw_magic = (uintptr_t)c0iw;
 
-    err = bin_heap2_create(HSE_C0_INGEST_WIDTH_MAX, bn_kv_cmp, &minheap);
-    if (ev(err))
-        return err;
-
-    c0iw->c0iw_kvms_minheap = minheap;
-
-    err = bin_heap2_create(LC_SOURCE_CNT_MAX, bn_kv_cmp, &minheap);
-    if (ev(err)) {
-        bin_heap2_destroy(c0iw->c0iw_kvms_minheap);
-        return err;
-    }
-
-    c0iw->c0iw_lc_minheap = minheap;
-
-    return 0;
+    bin_heap2_init(HSE_C0_INGEST_WIDTH_MAX, bn_kv_cmp, &c0iw->c0iw_kvms_minheap);
+    bin_heap2_init(LC_SOURCE_CNT_MAX, bn_kv_cmp, &c0iw->c0iw_lc_minheap);
 }
 
 void
@@ -85,7 +69,4 @@ c0_ingest_work_fini(struct c0_ingest_work *w)
     }
 
     /* GCOV_EXCL_STOP */
-
-    bin_heap2_destroy(w->c0iw_kvms_minheap);
-    bin_heap2_destroy(w->c0iw_lc_minheap);
 }

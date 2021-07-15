@@ -492,8 +492,8 @@ c0sk_open(
 
     assert(health);
 
-    c0sk = alloc_aligned(sizeof(*c0sk), alignof(*c0sk));
-    if (ev(!c0sk)) {
+    c0sk = aligned_alloc(alignof(*c0sk), sizeof(*c0sk));
+    if (!c0sk) {
         err = merr(ENOMEM);
         goto errout;
     }
@@ -507,7 +507,11 @@ c0sk_open(
 
     c0sk->c0sk_kvdb_seq = kvdb_seq;
 
-    strlcpy(c0sk->c0sk_kvdbhome, mp_name, sizeof(c0sk->c0sk_kvdbhome));
+    c0sk->c0sk_kvdbhome = strdup(mp_name);
+    if (!c0sk->c0sk_kvdbhome) {
+        err = merr(ENOMEM);
+        goto errout;
+    }
 
     CDS_INIT_LIST_HEAD(&c0sk->c0sk_kvmultisets);
     INIT_LIST_HEAD(&c0sk->c0sk_sync_waiters);
@@ -515,9 +519,14 @@ c0sk_open(
     INIT_LIST_HEAD(&c0sk->c0sk_rcu_pending);
     c0sk->c0sk_rcu_active = false;
 
-    err = c0sk_initialize_concurrency_control(c0sk);
-    if (ev(err))
-        goto errout;
+    atomic_set(&c0sk->c0sk_ingest_ldrcnt, 0);
+    atomic64_set(&c0sk->c0sk_ingest_gen, 0);
+    mutex_init_adaptive(&c0sk->c0sk_kvms_mutex);
+    mutex_init(&c0sk->c0sk_sync_mutex);
+    cv_init(&c0sk->c0sk_kvms_cv, "c0sk_kvms_cv");
+
+    for (int i = 0; i < NELEM(c0sk->c0sk_ingest_refv); ++i)
+        atomic_set(&c0sk->c0sk_ingest_refv[i].refcnt, 0);
 
     c0sk_calibrate(c0sk);
 
@@ -528,7 +537,7 @@ c0sk_open(
 
     c0sk->c0sk_wq_ingest = alloc_workqueue("c0sk_ingest", 0, tdmax);
     if (!c0sk->c0sk_wq_ingest) {
-        err = merr(ev(ENOMEM));
+        err = merr(ENOMEM);
         goto errout;
     }
 
@@ -537,25 +546,24 @@ c0sk_open(
 
     c0sk->c0sk_wq_maint = alloc_workqueue("c0sk_maint", 0, tdmax);
     if (!c0sk->c0sk_wq_maint) {
-        err = merr(ev(ENOMEM));
+        err = merr(ENOMEM);
         goto errout;
     }
 
     c0sk->c0sk_ingest_width_max = kvdb_rp->c0_ingest_width;
     c0sk->c0sk_ingest_width = c0sk->c0sk_ingest_width_max;
-    c0sk->c0sk_cheap_sz = kvdb_rp->c0_cheap_sz;
 
     if (gen > 0)
         c0kvms_gen_init(gen);
 
-    err = c0kvms_create(c0sk->c0sk_ingest_width, c0sk->c0sk_cheap_sz, c0sk->c0sk_kvdb_seq, &c0kvms);
-    if (ev(err))
+    err = c0kvms_create(c0sk->c0sk_ingest_width, c0sk->c0sk_kvdb_seq, &c0sk->c0sk_stash, &c0kvms);
+    if (err)
         goto errout;
 
     if (!c0sk_install_c0kvms(c0sk, NULL, c0kvms)) {
         assert(0);
         c0kvms_putref(c0kvms); /* release birth reference */
-        err = merr(ev(EINVAL));
+        err = merr(EINVAL);
         goto errout;
     }
 
@@ -575,8 +583,11 @@ errout:
         if (c0sk) {
             destroy_workqueue(c0sk->c0sk_wq_ingest);
             destroy_workqueue(c0sk->c0sk_wq_maint);
-            c0sk_free_concurrency_control(c0sk);
-            free_aligned(c0sk);
+            cv_destroy(&c0sk->c0sk_kvms_cv);
+            mutex_destroy(&c0sk->c0sk_sync_mutex);
+            mutex_destroy(&c0sk->c0sk_kvms_mutex);
+            free(c0sk->c0sk_kvdbhome);
+            free(c0sk);
         }
     }
 
@@ -592,8 +603,6 @@ c0sk_close(struct c0sk *handle)
         return merr(ev(EINVAL));
 
     self = c0sk_h2r(handle);
-    self->c0sk_ingest_width = 0;
-    self->c0sk_cheap_sz = 0;
     self->c0sk_closing = true;
 
     c0sk_sync(handle, 0);
@@ -626,10 +635,12 @@ c0sk_close(struct c0sk *handle)
 
     destroy_workqueue(self->c0sk_wq_ingest);
     destroy_workqueue(self->c0sk_wq_maint);
-    c0sk_free_concurrency_control(self);
+    cv_destroy(&self->c0sk_kvms_cv);
+    mutex_destroy(&self->c0sk_sync_mutex);
+    mutex_destroy(&self->c0sk_kvms_mutex);
     c0sk_perfc_free(self);
-
-    free_aligned(self);
+    free(self->c0sk_kvdbhome);
+    free(self);
 
     return 0;
 }

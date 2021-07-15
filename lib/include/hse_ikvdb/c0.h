@@ -35,7 +35,7 @@ struct mpool;
 extern struct perfc_set c0_metrics_pc;
 
 merr_t
-c0_init(void);
+c0_init(size_t c0kvs_ccache_sz, size_t c0kvs_cheap_sz);
 
 void
 c0_fini(void);

@@ -47,7 +47,8 @@ struct c0kvs_ccache {
 /* clang-format on */
 
 static struct c0kvs_ccache c0kvs_ccache;
-static atomic_t            c0kvs_init_ref;
+static size_t c0kvs_ccache_sz HSE_READ_MOSTLY;
+static size_t c0kvs_cheap_sz HSE_READ_MOSTLY;
 
 static void
 c0kvs_destroy_impl(struct c0_kvset_impl *set);
@@ -78,7 +79,7 @@ c0kvs_ccache_free(struct c0_kvset_impl *set)
     c0kvs_reset(&set->c0s_handle, 0);
 
     spin_lock(&cc->cc_lock);
-    if (cc->cc_size + set->c0s_ccache_sz < HSE_C0_CCACHE_SZ_MAX) {
+    if (cc->cc_size + set->c0s_ccache_sz < c0kvs_ccache_sz) {
         cc->cc_size += set->c0s_ccache_sz;
         set->c0s_next = cc->cc_head;
         cc->cc_head = set;
@@ -428,22 +429,26 @@ c0kvs_findval(struct bonsai_kv *kv, u64 view_seqno, uintptr_t seqnoref)
 
 merr_t
 c0kvs_create(
-    size_t            alloc_sz,
     atomic64_t *      kvdb_seqno,
     atomic64_t *      kvms_seqno,
     struct c0_kvset **handlep)
 {
     struct c0_kvset_impl *set;
     struct cheap *        cheap;
+    size_t                alloc_sz;
     merr_t                err;
 
     *handlep = NULL;
 
-    alloc_sz = clamp_t(size_t, alloc_sz, HSE_C0_CHEAP_SZ_MIN, HSE_C0_CHEAP_SZ_MAX);
+    alloc_sz = c0kvs_cheap_sz;
 
     set = c0kvs_ccache_alloc();
-    if (set)
-        goto created;
+    if (set) {
+        if (set->c0s_alloc_sz == alloc_sz)
+            goto created;
+
+        c0kvs_destroy_impl(set);
+    }
 
     cheap = cheap_create(_Alignof(max_align_t), alloc_sz);
     if (ev(!cheap))
@@ -1037,13 +1042,16 @@ c0kvs_debug(struct c0_kvset *handle, void *key, int klen)
 }
 
 void
-c0kvs_reinit(size_t cb_max)
+c0kvs_reinit(size_t ccache_sz, size_t cheap_sz)
 {
     struct c0kvs_ccache * cc = &c0kvs_ccache;
     struct c0_kvset_impl *head, *next;
 
     if (!cc->cc_init)
         return;
+
+    c0kvs_ccache_sz = clamp_t(size_t, ccache_sz, 0, HSE_C0_CCACHE_SZ_MAX);
+    c0kvs_cheap_sz = clamp_t(size_t, cheap_sz, HSE_C0_CHEAP_SZ_MIN, HSE_C0_CHEAP_SZ_MAX);
 
     spin_lock(&cc->cc_lock);
     head = cc->cc_head;
@@ -1058,12 +1066,12 @@ c0kvs_reinit(size_t cb_max)
 }
 
 HSE_COLD void
-c0kvs_init(void)
+c0kvs_init(size_t ccache_sz, size_t cheap_sz)
 {
     struct c0kvs_ccache *cc = &c0kvs_ccache;
 
-    if (atomic_inc_return(&c0kvs_init_ref) > 1)
-        return;
+    c0kvs_ccache_sz = clamp_t(size_t, ccache_sz, 0, HSE_C0_CCACHE_SZ_MAX);
+    c0kvs_cheap_sz = clamp_t(size_t, cheap_sz, HSE_C0_CHEAP_SZ_MIN, HSE_C0_CHEAP_SZ_MAX);
 
     spin_lock_init(&cc->cc_lock);
     cc->cc_init = true;
@@ -1072,8 +1080,5 @@ c0kvs_init(void)
 HSE_COLD void
 c0kvs_fini(void)
 {
-    if (atomic_dec_return(&c0kvs_init_ref) > 0)
-        return;
-
-    c0kvs_reinit(0);
+    c0kvs_reinit(0, c0kvs_cheap_sz);
 }
