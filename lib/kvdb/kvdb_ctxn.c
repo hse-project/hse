@@ -34,6 +34,11 @@
 
 #include <semaphore.h>
 
+/* clang-format off */
+
+#define kvdb_ctxn_set_h2r(_ktn_handle) \
+    container_of(_ktn_handle, struct kvdb_ctxn_set_impl, ktn_handle)
+
 struct kvdb_ctxn_set {
 };
 
@@ -71,7 +76,7 @@ struct kvdb_ctxn_set_impl {
     bool                 ktn_queued;
 };
 
-#define kvdb_ctxn_set_h2r(handle) container_of(handle, struct kvdb_ctxn_set_impl, ktn_handle)
+/* clang-format on */
 
 static inline void
 kvdb_ctxn_bind_putref(struct kvdb_ctxn_bind *bind)
@@ -102,17 +107,29 @@ kvdb_ctxn_bind_cancel(struct kvdb_ctxn_bind *bind, bool preserve)
     bind->b_ctxn = 0;
 }
 
-static HSE_ALWAYS_INLINE bool
-ctxn_trylock(struct kvdb_ctxn_impl *ctxn)
+static HSE_ALWAYS_INLINE merr_t
+kvdb_ctxn_trylock_impl(struct kvdb_ctxn_impl *ctxn)
 {
-    return atomic_cas(&ctxn->ctxn_lock, 0, 1);
+    mutex_lock(&ctxn->ctxn_lock);
+
+    if (HSE_UNLIKELY(seqnoref_to_state(ctxn->ctxn_seqref) != KVDB_CTXN_ACTIVE)) {
+        mutex_unlock(&ctxn->ctxn_lock);
+        return merr(ECANCELED);
+    }
+
+    return 0;
 }
 
 static HSE_ALWAYS_INLINE void
-ctxn_unlock(struct kvdb_ctxn_impl *ctxn)
+kvdb_ctxn_lock_impl(struct kvdb_ctxn_impl *ctxn)
 {
-    if (!atomic_cas(&ctxn->ctxn_lock, 1, 0))
-        abort();
+    mutex_lock(&ctxn->ctxn_lock);
+}
+
+static HSE_ALWAYS_INLINE void
+kvdb_ctxn_unlock_impl(struct kvdb_ctxn_impl *ctxn)
+{
+    mutex_unlock(&ctxn->ctxn_lock);
 }
 
 static void
@@ -167,6 +184,7 @@ kvdb_ctxn_set_thread(struct work_struct *work)
      */
     list_for_each_entry_safe(ctxn, next, &freelist, ctxn_free_link) {
         kvdb_ctxn_cursor_unbind(ctxn->ctxn_bind);
+        mutex_destroy(&ctxn->ctxn_lock);
         free_aligned(ctxn);
         ev(1);
     }
@@ -184,7 +202,6 @@ kvdb_ctxn_alloc(
 {
     struct kvdb_ctxn_impl *    ctxn;
     struct kvdb_ctxn_set_impl *kvdb_ctxn_set;
-    struct kvdb_rparams *      rp;
     bool                       start;
 
     kvdb_ctxn_set = kvdb_ctxn_set_h2r(kcs_handle);
@@ -194,7 +211,7 @@ kvdb_ctxn_alloc(
         return NULL;
 
     memset(ctxn, 0, sizeof(*ctxn));
-    atomic_set(&ctxn->ctxn_lock, 0);
+    mutex_init(&ctxn->ctxn_lock);
     ctxn->ctxn_seqref = HSE_SQNREF_INVALID;
     ctxn->ctxn_kvdb_keylock = kvdb_keylock;
     ctxn->ctxn_viewset = viewset;
@@ -205,10 +222,6 @@ kvdb_ctxn_alloc(
     ctxn->ctxn_kvdb_seq_addr = kvdb_seqno_addr;
     ctxn->ctxn_tseqno_head = &kvdb_ctxn_set->ktn_tseqno_head;
     ctxn->ctxn_tseqno_tail = &kvdb_ctxn_set->ktn_tseqno_tail;
-
-    rp = c0sk_rparams(ctxn->ctxn_c0sk);
-    if (rp)
-        ctxn->ctxn_commit_abort_pct = rp->txn_commit_abort_pct;
 
     mutex_lock(&kvdb_ctxn_set->ktn_list_mutex);
     cds_list_add_rcu(&ctxn->ctxn_alloc_link, &kvdb_ctxn_set->ktn_alloc_list);
@@ -240,6 +253,7 @@ kvdb_ctxn_set_remove(struct kvdb_ctxn_set *handle, struct kvdb_ctxn_impl *ctxn)
 
     if (!delay_free) {
         kvdb_ctxn_cursor_unbind(ctxn->ctxn_bind);
+        mutex_destroy(&ctxn->ctxn_lock);
         free_aligned(ctxn);
     }
 }
@@ -349,9 +363,7 @@ kvdb_ctxn_begin(struct kvdb_ctxn *handle)
     enum kvdb_ctxn_state   state;
     merr_t                 err;
 
-    if (ev(!ctxn_trylock(ctxn)))
-        return merr(EPROTO);
-
+    kvdb_ctxn_lock_impl(ctxn);
     state = seqnoref_to_state(ctxn->ctxn_seqref);
 
     if (ev(state != KVDB_CTXN_ABORTED && state != KVDB_CTXN_COMMITTED &&
@@ -374,7 +386,7 @@ kvdb_ctxn_begin(struct kvdb_ctxn *handle)
     ctxn->ctxn_seqref = HSE_SQNREF_UNDEFINED;
 
 errout:
-    ctxn_unlock(ctxn);
+    kvdb_ctxn_unlock_impl(ctxn);
 
     return err;
 }
@@ -464,17 +476,11 @@ void
 kvdb_ctxn_abort(struct kvdb_ctxn *handle)
 {
     struct kvdb_ctxn_impl *ctxn = kvdb_ctxn_h2r(handle);
-    enum kvdb_ctxn_state   state;
 
-    while (ev(!ctxn_trylock(ctxn)))
-        usleep(100);
-
-    state = seqnoref_to_state(ctxn->ctxn_seqref);
-
-    if (state == KVDB_CTXN_ACTIVE)
+    if (kvdb_ctxn_trylock_impl(ctxn) == 0) {
         kvdb_ctxn_abort_inner(ctxn);
-
-    ctxn_unlock(ctxn);
+        kvdb_ctxn_unlock_impl(ctxn);
+    }
 }
 
 merr_t
@@ -483,7 +489,6 @@ kvdb_ctxn_commit(struct kvdb_ctxn *handle)
     struct kvdb_ctxn_impl * ctxn = kvdb_ctxn_h2r(handle);
     struct kvdb_ctxn_bind * bind = ctxn->ctxn_bind;
     struct kvdb_ctxn_locks *locks;
-    enum kvdb_ctxn_state    state;
     void *                  cookie;
     uintptr_t *             priv;
     uintptr_t               ref;
@@ -491,27 +496,9 @@ kvdb_ctxn_commit(struct kvdb_ctxn *handle)
     u64                     head;
     merr_t err;
 
-    if (ev(!ctxn_trylock(ctxn)))
-        return merr(EPROTO);
-
-    state = seqnoref_to_state(ctxn->ctxn_seqref);
-    if (ev(state != KVDB_CTXN_ACTIVE)) {
-        ctxn_unlock(ctxn);
-        return merr(EINVAL);
-    }
-
-    /* Inject a commit fault for testing purposes.  For example, the
-     * hse-mongo connector will throw a WriteConflictException (WCE)
-     * when kvdb_ctxn_commit() returns an error which should cause
-     * mongod to restart the transaction.
-     */
-    if (ctxn->ctxn_commit_abort_pct) {
-        if (ev((xrand64_tls() % 16384) < ctxn->ctxn_commit_abort_pct)) {
-            kvdb_ctxn_abort_inner(ctxn);
-            ctxn_unlock(ctxn);
-            return merr(ECANCELED);
-        }
-    }
+    err = kvdb_ctxn_trylock_impl(ctxn);
+    if (err)
+        return err;
 
     /* If this transaction never wrote anything then the commit path is
      * much simpler. We make our "transaction sequence number" be a
@@ -529,7 +516,7 @@ kvdb_ctxn_commit(struct kvdb_ctxn *handle)
 
         ctxn->ctxn_seqref = HSE_ORDNL_TO_SQNREF(ctxn->ctxn_view_seqno);
         kvdb_ctxn_deactivate(ctxn);
-        ctxn_unlock(ctxn);
+        kvdb_ctxn_unlock_impl(ctxn);
 
         return 0;
     }
@@ -643,7 +630,7 @@ kvdb_ctxn_commit(struct kvdb_ctxn *handle)
     err = wal_txn_commit(ctxn->ctxn_wal, ctxn->ctxn_view_seqno, commit_sn);
 
     kvdb_ctxn_deactivate(ctxn);
-    ctxn_unlock(ctxn);
+    kvdb_ctxn_unlock_impl(ctxn);
 
     return err;
 }
@@ -854,29 +841,21 @@ kvdb_ctxn_trylock_read(
     uintptr_t          *seqref,
     u64                *view_seqno)
 {
-    merr_t                  err = 0;
-    struct kvdb_ctxn_impl  *ctxn;
+    struct kvdb_ctxn_impl *ctxn;
+    merr_t                 err;
 
     assert(handle);
 
     ctxn = kvdb_ctxn_h2r(handle);
 
-    if (HSE_UNLIKELY(!ctxn_trylock(ctxn)))
-        return merr(EPROTO);
-
-    if (HSE_UNLIKELY(seqnoref_to_state(ctxn->ctxn_seqref) != KVDB_CTXN_ACTIVE)) {
-        err = merr(ECANCELED);
-        goto errout;
-    }
+    err = kvdb_ctxn_trylock_impl(ctxn);
+    if (err)
+        return err;
 
     *view_seqno = ctxn->ctxn_view_seqno;
     *seqref = ctxn->ctxn_seqref;
 
-  errout:
-    if (err)
-        ctxn_unlock(ctxn);
-
-    return err;
+    return 0;
 }
 
 merr_t
@@ -887,20 +866,16 @@ kvdb_ctxn_trylock_write(
     bool              needkeylock,
     u64               hash)
 {
-    merr_t                  err = 0;
-    struct kvdb_ctxn_impl  *ctxn;
+    struct kvdb_ctxn_impl *ctxn;
+    merr_t                 err;
 
     assert(handle);
 
     ctxn = kvdb_ctxn_h2r(handle);
 
-    if (HSE_UNLIKELY(!ctxn_trylock(ctxn)))
-        return merr(EPROTO);
-
-    if (HSE_UNLIKELY(seqnoref_to_state(ctxn->ctxn_seqref) != KVDB_CTXN_ACTIVE)) {
-        err = merr(ECANCELED);
-        goto errout;
-    }
+    err = kvdb_ctxn_trylock_impl(ctxn);
+    if (err)
+        return err;
 
     if (HSE_UNLIKELY(!ctxn->ctxn_can_insert)) {
         err = wal_txn_begin(ctxn->ctxn_wal, ctxn->ctxn_view_seqno);
@@ -928,7 +903,7 @@ kvdb_ctxn_trylock_write(
 
   errout:
     if (err)
-        ctxn_unlock(ctxn);
+        kvdb_ctxn_unlock_impl(ctxn);
 
     return err;
 }
@@ -938,7 +913,7 @@ void
 kvdb_ctxn_unlock(struct kvdb_ctxn *handle)
 {
     assert(handle);
-    ctxn_unlock(kvdb_ctxn_h2r(handle));
+    kvdb_ctxn_unlock_impl(kvdb_ctxn_h2r(handle));
 }
 
 #if HSE_MOCKING

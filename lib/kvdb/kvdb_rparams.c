@@ -514,25 +514,6 @@ static const struct param_spec pspecs[] = {
         },
     },
     {
-        .ps_name = "txn_commit_abort_pct",
-        .ps_description = "pct of commits to abort ((pct * 16384) / 100)",
-        .ps_flags = PARAM_FLAG_EXPERIMENTAL | PARAM_FLAG_WRITABLE,
-        .ps_type = PARAM_TYPE_U16,
-        .ps_offset = offsetof(struct kvdb_rparams, txn_commit_abort_pct),
-        .ps_size = sizeof(((struct kvdb_rparams *) 0)->txn_commit_abort_pct),
-        .ps_convert = param_default_converter,
-        .ps_validate = param_default_validator,
-        .ps_default_value = {
-            .as_uscalar = 0,
-        },
-        .ps_bounds = {
-            .as_uscalar = {
-                .ps_min = 0,
-                .ps_max = UINT16_MAX,
-            },
-        },
-    },
-    {
         .ps_name = "csched_policy",
         .ps_description = "csched (compaction scheduler) policy",
         .ps_flags = PARAM_FLAG_EXPERIMENTAL | PARAM_FLAG_WRITABLE,
