@@ -6,13 +6,14 @@ project(
         'BSD-3-Clause',
     ],
     default_options: [
-        'prefix=/opt/hse',
+        'b_ndebug=if-release',
+        'cpp_std=c++11',
         'buildtype=debugoptimized',
+        'warning_level=2',
     ],
 )
     
 db_bench_cpp_args = [
-    '-std=c++11',
     '-DHSE_EXPERIMENTAL',
     '-DHAVE_FREAD',
     '-DHAVE_FWRITE',
@@ -24,17 +25,8 @@ db_bench_cpp_args = [
 ]
 
 hse_dep = dependency(
-    'hse-2',
-    version: '>=2.0.0',
+    'hse-2-static',
     required: true,
-    fallback: ['hse', 'hse_dep'],
-    default_options: [
-        'cli=false',
-        'tests=[]',
-        'tools=false',
-        'samples=false',
-        'bindings-python=false',
-    ],
 )
 
 threads_dep = dependency(

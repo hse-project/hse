@@ -435,9 +435,11 @@ else
     hse_python_depends = []
 endif
 
-subproject(
-    'db_bench',
-)
+if get_option('db_bench')
+    subproject('db_bench')
+    executable_paths += (meson.current_build_dir() + '/subprojects/db_bench')
+endif
+
 
 if get_option('tools')
     subdir('tools')
