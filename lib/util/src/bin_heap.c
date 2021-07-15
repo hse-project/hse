@@ -291,24 +291,32 @@ bin_heap2_width(struct bin_heap2 *bh)
     return bh ? bh->bh2_width : 0;
 }
 
+void
+bin_heap2_init(u32 max_width, bin_heap2_compare_fn *cmp, struct bin_heap2 *bh)
+{
+    assert(max_width > 0 && cmp && bh);
+
+    bh->bh2_cmp = cmp;
+    bh->bh2_max_width = max_width;
+    bh->bh2_width = 0;
+}
+
 merr_t
 bin_heap2_create(u32 max_width, bin_heap2_compare_fn *cmp, struct bin_heap2 **bh_out)
 {
     struct bin_heap2 *bh;
     size_t            sz;
 
-    if (ev(!bh_out || !cmp || max_width <= 0))
+    if (HSE_UNLIKELY(max_width < 1 || !cmp || !bh_out))
         return merr(EINVAL);
 
-    sz = sizeof(*bh) + max_width * sizeof(struct heap_node);
+    sz = BIN_HEAP2_SZ(max_width);
 
     bh = alloc_aligned(sz, SMP_CACHE_BYTES);
-    if (ev(!bh))
+    if (!bh)
         return merr(ENOMEM);
 
-    bh->bh2_cmp = cmp;
-    bh->bh2_max_width = max_width;
-    bh->bh2_width = 0;
+    bin_heap2_init(max_width, cmp, bh);
 
     *bh_out = bh;
 

@@ -50,7 +50,7 @@ struct hse_kvdb_txn {
  * ikvdb_init() - prepare the ikvdb subsystem for use
  */
 extern merr_t
-ikvdb_init(void);
+ikvdb_init(const struct kvdb_rparams *rparams);
 
 /**
  * ikvdb_fini() - prepare the ikvdb subsystem for being unloaded

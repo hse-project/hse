@@ -14,6 +14,8 @@
 
 #include <mpool/mpool.h>
 
+/* clang-format off */
+
 /* MTF_MOCK_DECL(c0sk_internal) */
 
 struct rcu_head;
@@ -33,12 +35,15 @@ struct c0sk {
  * @c0sk_ds:              mpool dataset
  * @c0sk_wq_ingest        workqueue for ingest processing (one thread)
  * @c0sk_wq_maint         workqueue for concurrent maintenance tasks
- * @c0sk_mtx_pool:        mutex/condvar pool for ingest synchronization
+ * @c0sk_kvdb_seq:        kvdb seqno
+ * @c0sk_closing:         set to %true when c0sk is closing
+ * @c0sk_pc_op:           perf counter for c0sk
+ * @c0sk_pc_ingest:       perf counter for c0sk ingests
  * @c0sk_kvms_mutex:      mutex protecting the list of c0_kvmultisets
- * @c0sk_kvmultisets_cnt: how many struct c0_kvmultiset's does this c0sk have
- * @c0sk_kvmultisets_sz:  size in bytes consumed by all kvms pending ingest
  * @c0sk_kvmultisets:     list of struct c0_kvmultiset's
- * @c0sk_kvms_ingest:     head of list of kvms coalescing
+ * @c0sk_release_gen:     generation count of most recently released multiset
+ * @c0sk_kvmultisets_sz:  size in bytes consumed by all kvms pending ingest
+ * @c0sk_kvmultisets_cnt: how many struct c0_kvmultiset's does this c0sk have
  * @c0sk_kvms_cv:         used for kvms state change signaling
  * @c0sk_rcu_pending:     list of kvmultisets pending RCU synchronization
  * @c0sk_rcu_active:      list of kvmultisets to be ingested or released
@@ -46,80 +51,71 @@ struct c0sk {
  * @c0sk_sync_mutex:      mutex protecting the c0sk_waiters list
  * @c0sk_sync_waiters:    list of waiters for specific c0_kvmultisets
  * @c0sk_ingest_gen:      ingest generation count
- * @c0sk_ingest_ldr:      used to elect ingest leader
- * @c0sk_ingest_avg:      average ingest time
- * @c0sk_ingest_start:    leader start time (nsecs)
+ * @c0sk_ingest_ldrcnt:   used to elect ingest leader
  * @c0sk_ingest_width:    ingest width hint/suggestion to use for next kvms
- * @c0sk_cheap_sz:        ingest cheap size hint to use for next kvms create
- * @c0sk_closing:         set to %true when c0sk is closing
- * @c0sk_release_gen:     generation count of most recently released multiset
  * @c0sk_kvdbhome:        kvdb home
- * @c0sk_kvdb_seq:        kvdb seqno
- * @c0sk_mhandle:         mutation handle
- * @c0sk_pc_op:           perf counter for c0sk
- * @c0sk_pc_ingest:       perf counter for c0sk ingests
+ * @c0sk_stash:           storage for caching a recently freed c0kvms
+ * @c0sk_ingest_refv:     vector of ingest synchronization ref counts
  *
  * [HSE_REVISIT]
  */
 struct c0sk_impl {
     struct c0sk              c0sk_handle;
-    struct kvdb_rparams *    c0sk_kvdb_rp; /* not owned by c0sk */
-    struct mpool *           c0sk_ds;      /* not owned by c0sk */
+    struct kvdb_rparams     *c0sk_kvdb_rp; /* not owned by c0sk */
+    struct mpool            *c0sk_ds;      /* not owned by c0sk */
     struct workqueue_struct *c0sk_wq_ingest;
     struct workqueue_struct *c0sk_wq_maint;
-    struct mtx_pool *        c0sk_mtx_pool;
-    struct kvdb_health *     c0sk_kvdb_health;
+    struct kvdb_health      *c0sk_kvdb_health;
     struct kvdb_callback    *c0sk_cb;
-    struct csched *          c0sk_csched;
-    struct throttle_sensor * c0sk_sensor;
-    struct lc *              c0sk_lc;
-    struct cn *              c0sk_cnv[HSE_KVS_COUNT_MAX];
+    struct csched           *c0sk_csched;
+    struct throttle_sensor  *c0sk_sensor;
+    struct lc               *c0sk_lc;
     struct kvdb_ctxn_set    *c0sk_ctxn_set;
+    atomic64_t              *c0sk_kvdb_seq;
+    bool                     c0sk_closing;
+    bool                     c0sk_syncing;
+    struct perfc_set         c0sk_pc_op;
+    struct perfc_set         c0sk_pc_ingest;
 
-    HSE_ALIGNED(SMP_CACHE_BYTES) struct mutex c0sk_kvms_mutex;
-    s32                  c0sk_kvmultisets_cnt;
-    size_t               c0sk_kvmultisets_sz;
+    struct mutex         c0sk_kvms_mutex HSE_ALIGNED(SMP_CACHE_BYTES * 2);
     struct cds_list_head c0sk_kvmultisets;
+    u64                  c0sk_release_gen;
+    size_t               c0sk_kvmultisets_sz;
+    s32                  c0sk_kvmultisets_cnt;
+    atomic_t             c0sk_ingest_serialized_cnt;
     atomic64_t           c0sk_ingest_order_curr;
     atomic64_t           c0sk_ingest_order_next;
     atomic64_t           c0sk_ingest_min;
-    atomic_t             c0sk_ingest_serialized_cnt;
     struct cv            c0sk_kvms_cv;
+    struct list_head     c0sk_rcu_pending;
+    bool                 c0sk_rcu_active;
+    struct work_struct   c0sk_rcu_work;
 
-    struct list_head   c0sk_rcu_pending;
-    bool               c0sk_rcu_active;
-    struct work_struct c0sk_rcu_work;
+    struct mutex       c0sk_sync_mutex HSE_ALIGNED(SMP_CACHE_BYTES);
+    struct list_head   c0sk_sync_waiters;
 
-    HSE_ALIGNED(SMP_CACHE_BYTES) struct mutex c0sk_sync_mutex;
-    struct list_head c0sk_sync_waiters;
+    atomic64_t c0sk_ingest_gen HSE_ALIGNED(SMP_CACHE_BYTES);
+    atomic_t   c0sk_ingest_ldrcnt;
 
-    HSE_ALIGNED(SMP_CACHE_BYTES) atomic64_t c0sk_ingest_gen;
-    atomic_t c0sk_ingest_ldr;
-    u32      c0sk_ingest_width_max;
-    u32      c0sk_ingest_width;
-    u32      c0sk_cheap_sz;
-    int      c0sk_boost;
-    int      c0sk_nslpmin;
-    u64      c0sk_release_gen;
+    u32        c0sk_ingest_width_max HSE_ALIGNED(SMP_CACHE_BYTES);
+    u32        c0sk_ingest_width;
+    int        c0sk_boost;
+    int        c0sk_nslpmin;
+    char      *c0sk_kvdbhome;
+    void      *c0sk_stash;
 
-    atomic64_t *c0sk_kvdb_seq;
-    bool        c0sk_closing;
-    bool        c0sk_syncing;
-
-    HSE_ALIGNED(SMP_CACHE_BYTES) atomic64_t c0sk_c0ing_bldrs;
-
-    /* perf counters*/
-    struct perfc_set c0sk_pc_op;
-    struct perfc_set c0sk_pc_ingest;
-
-    char c0sk_kvdbhome[PATH_MAX];
+    struct {
+        atomic_t refcnt HSE_ALIGNED(SMP_CACHE_BYTES * 2);
+    } c0sk_ingest_refv[4];
 
     /* HSE_REVISIT: must track ALL c0sk cursors, so can invalidate them */
+
+    struct cn *c0sk_cnv[HSE_KVS_COUNT_MAX] HSE_ALIGNED(SMP_CACHE_BYTES);
 };
 
 /**
- * c0sk_waiter - allow waiters on a resource to be ingested
- * @c0skw_link:  list of waiters
+ * struct c0sk_waiter - context for waiting on a kvms to be ingested
+ * @c0skw_link:  wait list linkage
  * @c0skw_gen:   mutation/kvms gen count to wait for ingest completion
  * @c0skw_cv:    condvar on which to sleep
  * @c0skw_err:   to communicate sync error to app. thread.
@@ -131,23 +127,7 @@ struct c0sk_waiter {
     merr_t           c0skw_err;
 };
 
-/**
- * initialize_concurrency_control() - alloc and init c0sk concurrency elements
- * @c0sk: struct c0sk for which to alloc/init
- *
- * Return: [HSE_REVISIT]
- */
-merr_t
-c0sk_initialize_concurrency_control(struct c0sk_impl *c0sk);
-
-/**
- * free_concurrency_control() - teardown and free c0sk concurrency elements
- * @c0sk: struct c0sk for which to teardown/free
- *
- * Return: [HSE_REVISIT]
- */
-merr_t
-c0sk_free_concurrency_control(struct c0sk_impl *c0sk);
+/* clang-format on */
 
 /**
  * c0sk_adjust_throttling - adjust c0sk throttling

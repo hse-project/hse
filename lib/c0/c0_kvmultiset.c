@@ -28,6 +28,8 @@
 
 #include <hse_util/bonsai_tree.h>
 
+/* clang-format off */
+
 #define c0_kvmultiset_cursor_es_h2r(handle) \
     container_of(handle, struct c0_kvmultiset_cursor, c0mc_es)
 
@@ -39,19 +41,21 @@
  * @c0ms_gen:           kvms unique generation count
  * @c0ms_seqno:
  * @c0ms_rsvd_sn:       reserved at kvms activation for txn flush and ingestid
+ * @c0ms_ctime:         create time (ns)
+ * @c0ms_used:          RAM footprint when queued for ingest (bytes)
+ * @c0ms_stashp:        ptr to storage in which to cache a single freed kvms
  * @c0ms_ingesting:     kvms is being ingested (no longer active)
  * @c0ms_ingested:
  * @c0ms_finalized:     kvms guaranteed to be frozen (no more updates)
- * @c0ms_txn_thresh_lo:
- * @c0ms_txn_thresh_hi:
  * @c0ms_ingest_work:   data used to orchestrate c0+cn ingest
- * @c0ms_destroy_work   work struct for c0kvms_destroy() offload
  * @c0ms_wq:            workqueue for c0kvms_destroy() offload
+ * @c0ms_destroy_work:  work struct for c0kvms_destroy() offload
  * @c0ms_refcnt:        used to manage the lifetime of the kvms
- * @c0ms_c0snr_cur:      current offset into c0snr memory pool
- * @c0ms_c0snr_max:      max elements in c0snr memory pool
- * @c0ms_c0snr_base:     base of c0snr memory pool dedicated
- * @c0ms_resetsz:       size used by fully set up c0kvms
+ * @c0ms_c0snr_cur:     current offset into c0snr memory pool
+ * @c0ms_c0snr_max:     max elements in c0snr memory pool
+ * @c0ms_c0snr_base:    base of c0snr memory pool dedicated
+ * @c0ms_num_sets:      size of c0ms_sets[]
+ * @c0ms_ptreset_sz:    ptomb c0kvs reset size (bytes)
  * @c0ms_sets:          vector of c0 kvset pointers
  */
 struct c0_kvmultiset_impl {
@@ -61,45 +65,36 @@ struct c0_kvmultiset_impl {
     u64                  c0ms_rsvd_sn;
     u64                  c0ms_ctime;
     atomic64_t           c0ms_txhorizon;
+    size_t               c0ms_used;
+    atomic64_t          *c0ms_kvdb_seq;
+    void               **c0ms_stashp;
 
-    atomic_t c0ms_ingesting  HSE_ALIGNED(SMP_CACHE_BYTES);
+    atomic_t                 c0ms_ingesting HSE_ALIGNED(SMP_CACHE_BYTES);
     bool                     c0ms_ingested;
     bool                     c0ms_finalized;
-    size_t                   c0ms_txn_thresh_lo;
-    size_t                   c0ms_txn_thresh_hi;
-    struct c0_ingest_work *  c0ms_ingest_work;
+    struct c0_ingest_work   *c0ms_ingest_work;
     struct workqueue_struct *c0ms_wq;
     struct work_struct       c0ms_destroy_work;
 
-    atomic_t c0ms_refcnt HSE_ALIGNED(SMP_CACHE_BYTES);
-    size_t c0ms_used     HSE_ALIGNED(SMP_CACHE_BYTES * 2);
+    atomic_t   c0ms_refcnt HSE_ALIGNED(SMP_CACHE_BYTES);
 
     atomic64_t c0ms_c0snr_cur HSE_ALIGNED(SMP_CACHE_BYTES * 2);
-    size_t c0ms_c0snr_max     HSE_ALIGNED(SMP_CACHE_BYTES);
-    uintptr_t *               c0ms_c0snr_base;
+    size_t     c0ms_c0snr_max HSE_ALIGNED(SMP_CACHE_BYTES);
+    uintptr_t *c0ms_c0snr_base;
 
-    u32 c0ms_num_sets;
-    u32 c0ms_resetsz;
-
-    /* The size of c0ms_sets[] must accomodate at least (2x + 1)
-     * c0 kvsets for correct functioning of c0kvms_should_ingest()
-     * and c0kvms_get_hashed_c0kvset().
+    /* The size of c0ms_sets[] must accomodate at least (2x + 1) of the
+     * maximum width so that we can leverage a power-of-two modulus to
+     * select a bucket from a given hash.
      */
+    u32              c0ms_num_sets;
+    u32              c0ms_ptreset_sz;
     struct c0_kvset *c0ms_sets[HSE_C0_INGEST_WIDTH_MAX * 2 + 1];
 };
 
 static struct kmem_cache *c0kvms_cache HSE_READ_MOSTLY;
-static atomic64_t                      c0kvms_gen = ATOMIC_INIT(0);
-static atomic_t                        c0kvms_init_ref;
+static atomic64_t         c0kvms_gen = ATOMIC_INIT(0);
 
-void
-c0kvms_thresholds_get(struct c0_kvmultiset *handle, size_t *thresh_lo, size_t *thresh_hi)
-{
-    struct c0_kvmultiset_impl *self = c0_kvmultiset_h2r(handle);
-
-    *thresh_lo = self->c0ms_txn_thresh_lo;
-    *thresh_hi = self->c0ms_txn_thresh_hi;
-}
+/* clang-format on */
 
 struct c0_kvset *
 c0kvms_ptomb_c0kvset_get(struct c0_kvmultiset *handle)
@@ -118,16 +113,6 @@ c0kvms_get_hashed_c0kvset(struct c0_kvmultiset *handle, u64 hash)
     idx = hash % (HSE_C0_INGEST_WIDTH_MAX * 2);
 
     return self->c0ms_sets[idx + 1]; /* skip ptomb c0kvset at index zero */
-}
-
-struct c0_kvset *
-c0kvms_get_c0kvset(struct c0_kvmultiset *handle, u32 index)
-{
-    struct c0_kvmultiset_impl *self = c0_kvmultiset_h2r(handle);
-
-    assert(index < self->c0ms_num_sets);
-
-    return self->c0ms_sets[index];
 }
 
 void
@@ -772,11 +757,10 @@ c0kvms_seqno_get(struct c0_kvmultiset *handle)
 }
 
 merr_t
-c0kvms_create(u32 num_sets, size_t alloc_sz, atomic64_t *kvdb_seq, struct c0_kvmultiset **multiset)
+c0kvms_create(u32 num_sets, atomic64_t *kvdb_seq, void **stashp, struct c0_kvmultiset **multiset)
 {
     struct c0_kvmultiset_impl *kvms;
     merr_t                     err;
-    size_t                     kvms_sz;
     size_t                     c0snr_sz, iw_sz;
     int                        i, j;
 
@@ -784,23 +768,53 @@ c0kvms_create(u32 num_sets, size_t alloc_sz, atomic64_t *kvdb_seq, struct c0_kvm
 
     num_sets = clamp_t(u32, num_sets, HSE_C0_INGEST_WIDTH_MIN, HSE_C0_INGEST_WIDTH_MAX);
 
-    kvms = kmem_cache_alloc(c0kvms_cache);
-    if (ev(!kvms))
-        return merr(ENOMEM);
+    kvms = stashp ? *stashp : NULL;
 
-    memset(kvms, 0, sizeof(*kvms));
+    /* Check the caller's stash for a recently freed kvms and use
+     * it (if possible) rather than create a new one.
+     */
+    if (kvms && atomic_ptr_cas(stashp, kvms, NULL)) {
+        if (kvms->c0ms_num_sets != num_sets ||
+            kvms->c0ms_kvdb_seq != kvdb_seq) {
 
-    atomic_set(&kvms->c0ms_refcnt, 1); /* birth reference */
-    atomic_set(&kvms->c0ms_ingesting, 0);
+            for (i = 0; i < kvms->c0ms_num_sets; ++i)
+                c0kvs_destroy(kvms->c0ms_sets[i]);
+            kmem_cache_free(c0kvms_cache, kvms);
 
-    kvms->c0ms_c0snr_max = HSE_C0KVMS_C0SNR_MAX;
+            kvms = NULL;
+        } else {
+            num_sets = 0;
+        }
+    }
 
-    kvms->c0ms_rsvd_sn = HSE_SQNREF_INVALID;
-    kvms->c0ms_ctime = get_time_ns();
+    if (!kvms) {
+        kvms = kmem_cache_alloc(c0kvms_cache);
+        if (!kvms)
+            return merr(ENOMEM);
+
+        memset(kvms, 0, sizeof(*kvms));
+    }
+
+    kvms->c0ms_gen = 0;
 
     /* mark this seqno 'not in use'. */
     atomic64_set(&kvms->c0ms_seqno, HSE_SQNREF_INVALID);
+    kvms->c0ms_rsvd_sn = HSE_SQNREF_INVALID;
+    kvms->c0ms_ctime = get_time_ns();
     atomic64_set(&kvms->c0ms_txhorizon, U64_MAX);
+    kvms->c0ms_used = 0;
+    kvms->c0ms_kvdb_seq = kvdb_seq;
+    kvms->c0ms_stashp = stashp;
+
+    atomic_set(&kvms->c0ms_ingesting, 0);
+    kvms->c0ms_ingested = false;
+    kvms->c0ms_finalized = false;
+    kvms->c0ms_wq = NULL;
+
+    atomic_set(&kvms->c0ms_refcnt, 1); /* birth reference */
+
+    atomic64_set(&kvms->c0ms_c0snr_cur, 0);
+    kvms->c0ms_c0snr_max = HSE_C0KVMS_C0SNR_MAX;
 
     /* The first kvset is reserved for ptombs and needn't be as large
      * as the rest, so we leverage it for the c0snr buffer.  Note that
@@ -810,12 +824,17 @@ c0kvms_create(u32 num_sets, size_t alloc_sz, atomic64_t *kvdb_seq, struct c0_kvm
     c0snr_sz = sizeof(*kvms->c0ms_c0snr_base) * HSE_C0KVMS_C0SNR_MAX;
     iw_sz = sizeof(*kvms->c0ms_ingest_work);
 
+    if (num_sets == 0)
+        goto cached;
+
     for (i = 0; i < num_sets; ++i) {
-        err = c0kvs_create(alloc_sz, kvdb_seq, &kvms->c0ms_seqno, &kvms->c0ms_sets[i]);
+        err = c0kvs_create(kvdb_seq, &kvms->c0ms_seqno, &kvms->c0ms_sets[i]);
         if (ev(err)) {
             if (i > num_sets / 2)
                 break;
-            goto errout;
+
+            c0kvms_putref(&kvms->c0ms_handle);
+            return err;
         }
 
         ++kvms->c0ms_num_sets;
@@ -831,43 +850,32 @@ c0kvms_create(u32 num_sets, size_t alloc_sz, atomic64_t *kvdb_seq, struct c0_kvm
         kvms->c0ms_sets[i] = kvms->c0ms_sets[j];
     }
 
-    /* define thresholds for transactions to merge/flush */
-    kvms_sz = (kvms->c0ms_num_sets - 1) * alloc_sz;
-    kvms->c0ms_txn_thresh_lo = kvms_sz >> 4; /* 1/16th of kvms size */
-    kvms->c0ms_txn_thresh_hi = kvms_sz >> 2; /* 1/4th  of kvms size */
-
     /* Allocate the c0snr buffer from the ptomb c0kvset,
      * this should never fail.
      */
-    kvms->c0ms_c0snr_base = c0kvs_alloc(kvms->c0ms_sets[0], SMP_CACHE_BYTES, c0snr_sz);
-    if (ev(!kvms->c0ms_c0snr_base)) {
+    kvms->c0ms_c0snr_base = c0kvs_alloc(kvms->c0ms_sets[0], SMP_CACHE_BYTES * 2, c0snr_sz);
+    if (!kvms->c0ms_c0snr_base) {
         assert(kvms->c0ms_c0snr_base);
-        err = merr(ENOMEM);
-        goto errout;
+        c0kvms_putref(&kvms->c0ms_handle);
+        return merr(ENOMEM);
     }
 
     /* Allocate the ingest work buffer from the ptomb c0kvset,
      * this should never fail.
      */
-    kvms->c0ms_ingest_work = c0kvs_alloc(kvms->c0ms_sets[0], SMP_CACHE_BYTES, iw_sz);
-    if (ev(!kvms->c0ms_ingest_work)) {
+    kvms->c0ms_ingest_work = c0kvs_alloc(kvms->c0ms_sets[0], SMP_CACHE_BYTES * 2, iw_sz);
+    if (!kvms->c0ms_ingest_work) {
         assert(kvms->c0ms_ingest_work);
-        err = merr(ENOMEM);
-        goto errout;
+        c0kvms_putref(&kvms->c0ms_handle);
+        return merr(ENOMEM);
     }
 
     /* Remember the size of the ptomb c0kvs for c0kvs_reset().
      */
-    kvms->c0ms_resetsz = c0kvs_used(kvms->c0ms_sets[0]);
+    kvms->c0ms_ptreset_sz = c0kvs_used(kvms->c0ms_sets[0]);
 
-    err = c0_ingest_work_init(kvms->c0ms_ingest_work);
-
-errout:
-    if (ev(err)) {
-        c0kvms_putref(&kvms->c0ms_handle);
-        *multiset = NULL;
-        return err;
-    }
+  cached:
+    c0_ingest_work_init(kvms->c0ms_ingest_work);
 
     perfc_inc(&c0_metrics_pc, PERFC_BA_C0METRICS_KVMS_CNT);
 
@@ -897,10 +905,24 @@ c0kvms_destroy(struct c0_kvmultiset_impl *mset)
 
     c0snr_droprefv(c0snr_cnt, (uintptr_t **)mset->c0ms_c0snr_base);
 
-    for (i = 0; i < mset->c0ms_num_sets; ++i)
-        c0kvs_destroy(mset->c0ms_sets[i]);
+    /* Try to save this kvms in the caller's stash for fast re-use...
+     */
+    if (mset->c0ms_finalized && mset->c0ms_stashp) {
+        c0kvs_reset(mset->c0ms_sets[0], mset->c0ms_ptreset_sz);
 
-    kmem_cache_free(c0kvms_cache, mset);
+        for (i = 1; i < mset->c0ms_num_sets; ++i)
+            c0kvs_reset(mset->c0ms_sets[i], 0);
+
+        if (atomic_ptr_cas(mset->c0ms_stashp, NULL, mset))
+            mset = NULL;
+    }
+
+    if (mset) {
+        for (i = 0; i < mset->c0ms_num_sets; ++i)
+            c0kvs_destroy(mset->c0ms_sets[i]);
+
+        kmem_cache_free(c0kvms_cache, mset);
+    }
 
     perfc_dec(&c0_metrics_pc, PERFC_BA_C0METRICS_KVMS_CNT);
 }
@@ -1008,29 +1030,32 @@ c0kvms_ctime(struct c0_kvmultiset *handle)
     return self->c0ms_ctime;
 }
 
-merr_t
+HSE_COLD merr_t
 c0kvms_init(void)
 {
-    struct c0_kvmultiset_impl *kvms HSE_MAYBE_UNUSED;
+    struct c0_kvmultiset_impl *kvmsv[8];
+    int i;
 
-    if (atomic_inc_return(&c0kvms_init_ref) > 1)
-        return 0;
+    assert(c0kvms_cache == NULL);
 
-    c0kvms_cache = kmem_cache_create("c0kvms", sizeof(*kvms), alignof(*kvms), SLAB_PACKED, NULL);
-    if (ev(!c0kvms_cache)) {
-        atomic_dec(&c0kvms_init_ref);
+    c0kvms_cache = kmem_cache_create("c0kvms", sizeof(**kvmsv), alignof(**kvmsv), SLAB_PACKED, NULL);
+    if (!c0kvms_cache)
         return merr(ENOMEM);
-    }
+
+    /* Prime the cache...
+     */
+    for (i = 0; i < NELEM(kvmsv); ++i)
+        kvmsv[i] = kmem_cache_alloc(c0kvms_cache);
+
+    for (i = 0; i < NELEM(kvmsv); ++i)
+        kmem_cache_free(c0kvms_cache, kvmsv[i]);
 
     return 0;
 }
 
-void
+HSE_COLD void
 c0kvms_fini(void)
 {
-    if (atomic_dec_return(&c0kvms_init_ref) > 0)
-        return;
-
     kmem_cache_destroy(c0kvms_cache);
     c0kvms_cache = NULL;
 }

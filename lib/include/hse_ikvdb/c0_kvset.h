@@ -37,7 +37,7 @@ struct c0_usage {
  * calls are idempotent.
  */
 void
-c0kvs_reinit(size_t cc_max);
+c0kvs_reinit(size_t c0kvs_ccache_sz, size_t c0kvs_cheap_sz);
 
 /**
  * c0kvs_init() - initialize global c0kvs state
@@ -46,7 +46,7 @@ c0kvs_reinit(size_t cc_max);
  * calls are idempotent.
  */
 void
-c0kvs_init(void);
+c0kvs_init(size_t c0kvs_ccache_sz, size_t c0kvs_cheap_sz);
 
 /**
  * c0kvs_fini() - clean up global c0kvs state
@@ -72,7 +72,6 @@ c0kvs_fini(void);
  */
 merr_t
 c0kvs_create(
-    size_t            alloc_sz,
     atomic64_t *      kvdb_seq,
     atomic64_t *      kvms_seq,
     struct c0_kvset **handlep);

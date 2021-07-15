@@ -60,14 +60,11 @@ MTF_DEFINE_UTEST_PREPOST(c0_kvmultiset_test, basic, no_fail_pre, no_fail_post)
     merr_t                err;
     u32                   rc;
 
-    err = c0kvms_create(1, HSE_C0_CHEAP_SZ_DFLT, 0, &kvms);
+    err = c0kvms_create(1, 0, NULL, &kvms);
     ASSERT_EQ(0, err);
     ASSERT_NE((struct c0_kvmultiset *)0, kvms);
 
     p = c0kvms_get_hashed_c0kvset(kvms, 0);
-    ASSERT_NE((struct c0_kvset *)0, p);
-
-    p = c0kvms_get_c0kvset(kvms, 0);
     ASSERT_NE((struct c0_kvset *)0, p);
 
     rc = c0kvms_width(kvms);
@@ -85,15 +82,12 @@ MTF_DEFINE_UTEST_PREPOST(c0_kvmultiset_test, basic_create, no_fail_pre, no_fail_
 
     const int WIDTH = 8;
 
-    err = c0kvms_create(WIDTH, HSE_C0_CHEAP_SZ_DFLT, 0, &kvms);
+    err = c0kvms_create(WIDTH, 0, NULL, &kvms);
     ASSERT_EQ(0, err);
     ASSERT_NE((struct c0_kvmultiset *)0, kvms);
 
     for (i = 0; i < WIDTH; ++i) {
         p = c0kvms_get_hashed_c0kvset(kvms, i);
-        ASSERT_NE((struct c0_kvset *)0, p);
-
-        p = c0kvms_get_c0kvset(kvms, i);
         ASSERT_NE((struct c0_kvset *)0, p);
     }
 
@@ -107,7 +101,7 @@ MTF_DEFINE_UTEST_PREPOST(c0_kvmultiset_test, limit_create, no_fail_pre, no_fail_
 
     const int WIDTH = -1;
 
-    err = c0kvms_create(WIDTH, HSE_C0_CHEAP_SZ_DFLT, 0, &kvms);
+    err = c0kvms_create(WIDTH, 0, NULL, &kvms);
     ASSERT_EQ(0, err);
     ASSERT_NE((struct c0_kvmultiset *)0, kvms);
 
@@ -126,7 +120,7 @@ MTF_DEFINE_UTEST_PREPOST(c0_kvmultiset_test, create_insert_check, no_fail_pre, n
 
     ASSERT_LT(WIDTH, 256);
 
-    err = c0kvms_create(WIDTH, HSE_C0_CHEAP_SZ_DFLT, 0, &kvms);
+    err = c0kvms_create(WIDTH, 0, NULL, &kvms);
     ASSERT_EQ(0, err);
     ASSERT_NE((struct c0_kvmultiset *)0, kvms);
 
@@ -213,7 +207,7 @@ MTF_DEFINE_UTEST_PREPOST(c0_kvmultiset_test, ingest_sk, no_fail_pre, no_fail_pos
 
     ASSERT_LT(WIDTH, 200);
 
-    err = c0kvms_create(WIDTH, HSE_C0_CHEAP_SZ_DFLT, 0, &kvms);
+    err = c0kvms_create(WIDTH, 0, NULL, &kvms);
     ASSERT_EQ(0, err);
     ASSERT_NE((struct c0_kvmultiset *)NULL, kvms);
 
@@ -325,17 +319,3 @@ MTF_DEFINE_UTEST_PREPOST(c0_kvmultiset_test, ingest_sk, no_fail_pre, no_fail_pos
 }
 
 MTF_END_UTEST_COLLECTION(c0_kvmultiset_test)
-
-MTF_DEFINE_UTEST_PREPOST(c0_kvmultiset_test, ingest_work_create_fail, no_fail_pre, no_fail_post)
-{
-    struct c0_ingest_work ingest;
-    merr_t                err;
-
-    /* c0_ingest_work_init() calls bin_heap2_create(), so make
-     * that allocation fail...
-     */
-    mapi_inject_once_ptr(mapi_idx_malloc, 1, 0);
-    err = c0_ingest_work_init(&ingest);
-    mapi_inject_unset(mapi_idx_malloc);
-    ASSERT_NE(0, err);
-}
