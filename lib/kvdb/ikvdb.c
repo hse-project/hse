@@ -67,11 +67,7 @@
 #include <mpool/mpool.h>
 
 #include <xxhash.h>
-#ifdef WITH_CJSON_FROM_SUBPROJECT
-#include <cJSON.h>
-#else
 #include <cjson/cJSON.h>
-#endif
 #include <bsd/libutil.h>
 
 #include "kvdb_rest.h"

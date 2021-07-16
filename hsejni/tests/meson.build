@@ -11,7 +11,7 @@ hsejni_parse_test = executable(
 		hse_mock_dep,
 		hsejni_dep,
 		libhse_cli_dep,
-		cJSON_dep,
+		cjson_dep,
 		libbsd_dep,
 	],
 )

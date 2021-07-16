@@ -202,11 +202,6 @@ liburcu_bp_dep = dependency(
         'werror=false',
     ],
 )
-cJSON_dep = dependency(
-    'libcjson',
-    version: '>=1.7.14',
-    required: get_option('wrap_mode') == 'nofallback',
-)
 libbsd_dep = dependency(
     'libbsd',
     version: '>=0.9.0',
@@ -257,22 +252,21 @@ else
     xxhash_dep = xxhash.get_variable('xxhash_dep')
 endif
 if get_option('use-system-cjson')
-    message('For best results, HSE should be built against a static cjson==1.7.14')
-    cJSON_dep = dependency('libcjson', version: '>=1.7.14', required: true)
-    cJSON_from_subproject = false
+    cjson_dep = dependency(
+        'libcjson',
+        version: '>=1.7.14',
+        required: true,
+    )
 else
-    cJSON_options = cmake.subproject_options()
-    cJSON_options.add_cmake_defines({
-        'CMAKE_C_FLAGS': '-fPIC',
-        'BUILD_SHARED_LIBS': false,
-        'BUILD_SHARED_AND_STATIC_LIBS': false,
-        'ENABLE_HIDDEN_SYMBOLS': true,
-    })
-    cJSON_options.set_override_option('werror', 'false')
-    cJSON_options.set_override_option('warning_level', '0')
-    cJSON_proj = cmake.subproject('cJSON', options: cJSON_options)
-    cJSON_dep = cJSON_proj.dependency('cjson')
-    cJSON_from_subproject = true
+    cjson = subproject(
+        'cjson',
+        default_options: [
+            'default_library=static',
+            'warning_level=0',
+            'werror=false',
+        ],
+    )
+    cjson_dep = cjson.get_variable('libcjson_dep')
 endif
 libmicrohttpd_dep = dependency(
     'libmicrohttpd',

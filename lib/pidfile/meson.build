@@ -9,7 +9,7 @@ libhse_pidfile = static_library(
         component_root_includes,
     ],
     dependencies: [
-        cJSON_dep,
+        cjson_dep,
         libbsd_dep,
     ],
     gnu_symbol_visibility: 'hidden',

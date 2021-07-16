@@ -7,12 +7,6 @@ _config_h_data.set(
 )
 
 _config_h_data.set(
-    'WITH_CJSON_FROM_SUBPROJECT',
-    cJSON_from_subproject,
-    description: 'Building with cJSON from subprojects',
-)
-
-_config_h_data.set(
     'HSE_CONF_EXTENDED',
     get_option('hse-conf-extended'),
     description: '[TESTING PURPOSES ONLY] Allow cparams and dparams to exist in hse.conf'
@@ -81,7 +75,7 @@ hse_dependencies = [
     # including xxhash.h from the lz4 source tree.
     xxhash_dep,
     lz4_dep,
-    cJSON_dep,
+    cjson_dep,
     libbsd_dep,
     libcurl_dep,
     libmicrohttpd_dep,

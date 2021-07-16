@@ -1,6 +1,0 @@
-[wrap-file]
-directory = cJSON-1.7.14
-
-source_url = https://github.com/DaveGamble/cJSON/archive/v1.7.14.tar.gz
-source_filename = v1.7.14.tar.gz
-source_hash = fb50a663eefdc76bafa80c82bc045af13b1363e8f45cec8b442007aef6a41343

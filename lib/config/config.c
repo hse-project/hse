@@ -14,11 +14,7 @@
 #include <stdio.h>
 #include <string.h>
 
-#ifdef WITH_CJSON_FROM_SUBPROJECT
-#include <cJSON.h>
-#else
 #include <cjson/cJSON.h>
-#endif
 #include <bsd/string.h>
 
 #include <hse_ikvdb/config.h>

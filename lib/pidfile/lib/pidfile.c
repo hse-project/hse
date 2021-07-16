@@ -16,11 +16,7 @@
 #include <sys/file.h>
 #include <unistd.h>
 
-#ifdef WITH_CJSON_FROM_SUBPROJECT
-#include <cJSON.h>
-#else
 #include <cjson/cJSON.h>
-#endif
 #include <bsd/string.h>
 #include <bsd/libutil.h>
 
