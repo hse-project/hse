@@ -438,63 +438,6 @@ static const struct param_spec pspecs[] = {
         },
     },
     {
-        .ps_name = "c0kvs_ccache_sz_max",
-        .ps_description = "max size of c0kvs cheap cache (bytes)",
-        .ps_flags = PARAM_FLAG_EXPERIMENTAL,
-        .ps_type = PARAM_TYPE_U64,
-        .ps_offset = offsetof(struct kvdb_rparams, c0kvs_ccache_sz_max),
-        .ps_size = sizeof(((struct kvdb_rparams *) 0)->c0kvs_ccache_sz_max),
-        .ps_convert = param_default_converter,
-        .ps_validate = param_default_validator,
-        .ps_default_value = {
-            .as_uscalar = HSE_C0_CCACHE_SZ_DFLT,
-        },
-        .ps_bounds = {
-            .as_uscalar = {
-                .ps_min = 0,
-                .ps_max = HSE_C0_CCACHE_SZ_MAX,
-            },
-        },
-    },
-    {
-        .ps_name = "c0kvs_ccache_sz",
-        .ps_description = "size of c0kvs cheap cache (bytes)",
-        .ps_flags = PARAM_FLAG_EXPERIMENTAL,
-        .ps_type = PARAM_TYPE_U64,
-        .ps_offset = offsetof(struct kvdb_rparams, c0kvs_ccache_sz),
-        .ps_size = sizeof(((struct kvdb_rparams *) 0)->c0kvs_ccache_sz),
-        .ps_convert = param_default_converter,
-        .ps_validate = param_default_validator,
-        .ps_default_value = {
-            .as_uscalar = HSE_C0_CCACHE_SZ_DFLT,
-        },
-        .ps_bounds = {
-            .as_uscalar = {
-                .ps_min = 0,
-                .ps_max = HSE_C0_CCACHE_SZ_MAX,
-            },
-        },
-    },
-    {
-        .ps_name = "c0kvs_cheap_sz",
-        .ps_description = "set c0kvs cheap size (bytes)",
-        .ps_flags = PARAM_FLAG_EXPERIMENTAL,
-        .ps_type = PARAM_TYPE_U64,
-        .ps_offset = offsetof(struct kvdb_rparams, c0kvs_cheap_sz),
-        .ps_size = sizeof(((struct kvdb_rparams *) 0)->c0kvs_cheap_sz),
-        .ps_convert = param_default_converter,
-        .ps_validate = param_default_validator,
-        .ps_default_value = {
-            .as_uscalar = HSE_C0_CHEAP_SZ_DFLT,
-        },
-        .ps_bounds = {
-            .as_uscalar = {
-                .ps_min = HSE_C0_CHEAP_SZ_MIN,
-                .ps_max = HSE_C0_CHEAP_SZ_MAX,
-            },
-        },
-    },
-    {
         .ps_name = "c0_debug",
         .ps_description = "c0 debug flags",
         .ps_flags = PARAM_FLAG_EXPERIMENTAL | PARAM_FLAG_WRITABLE,

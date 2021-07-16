@@ -15,6 +15,9 @@
 #include <hse_util/compiler.h>
 
 struct hse_gparams {
+	uint64_t c0kvs_ccache_sz_max;
+    uint64_t c0kvs_ccache_sz;
+    uint64_t c0kvs_cheap_sz;
 	struct {
 		bool enabled;
 		/* bool structured; */
