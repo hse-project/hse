@@ -9,6 +9,12 @@
 
 #include <kvdb/viewset.h>
 
+#include <pthread.h>
+#include <stdio.h>
+#include <sys/sysinfo.h>
+#include <unistd.h>
+#include <hse_ikvdb/limits.h>
+
 MTF_BEGIN_UTEST_COLLECTION(viewset_test)
 
 MTF_DEFINE_UTEST(viewset_test, t_viewset_create)
@@ -66,7 +72,7 @@ MTF_DEFINE_UTEST(viewset_test, t_viewset_insert)
 
     show = 10;
     inserted = 0;
-    max_inserts = 10000;
+    max_inserts = HSE_VIEWSET_ELTS_MAX + 1;
     cookies = mapi_safe_calloc(max_inserts, sizeof(*cookies));
     ASSERT_NE(cookies, NULL);
 
@@ -92,6 +98,9 @@ MTF_DEFINE_UTEST(viewset_test, t_viewset_insert)
             printf("insert %5u with view %5lu --> viewset_horizon %lu\n",
                 i, views[i], viewset_horizon(vs));
         ASSERT_EQ(viewset_horizon(vs), start_seqno);
+
+        if (inserted % 500)
+            usleep(1);
     }
 
     ASSERT_GT(inserted, 0);
@@ -99,13 +108,7 @@ MTF_DEFINE_UTEST(viewset_test, t_viewset_insert)
     printf("...\ninsert %5u with view %5lu --> viewset_horizon %lu\n",
         inserted-1, views[inserted-1], viewset_horizon(vs));
 
-    if (inserted == max_inserts) {
-        printf("%s",
-            "This test is out of date.\n"
-            "Must increase value of max_inserts so that\n"
-            "we can test an allocation failure.\n");
-        ASSERT_LT(inserted, max_inserts);
-    }
+    ASSERT_LT(inserted, max_inserts);
 
     for (int i = 0; i < inserted; i++) {
         u32 min_changed;
