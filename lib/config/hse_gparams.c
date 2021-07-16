@@ -3,18 +3,13 @@
  * Copyright (C) 2021 Micron Technology, Inc.  All rights reserved.
  */
 
-#include "_config.h"
 
 #include <assert.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <string.h>
 
-#ifdef WITH_CJSON_FROM_SUBPROJECT
-#include <cJSON.h>
-#else
 #include <cjson/cJSON.h>
-#endif
 
 #include <hse_ikvdb/hse_gparams.h>
 #include <hse_ikvdb/param.h>

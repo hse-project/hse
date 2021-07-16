@@ -3,10 +3,8 @@
  * Copyright (C) 2021 Micron Technology, Inc.  All rights reserved.
  */
 
-#ifndef HSE_PARAM_H
-#define HSE_PARAM_H
-
-#include "_config.h"
+#ifndef HSE_CONFIG_PARAM_H
+#define HSE_CONFIG_PARAM_H
 
 #include <assert.h>
 #include <limits.h>
@@ -15,11 +13,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#ifdef WITH_CJSON_FROM_SUBPROJECT
-#include <cJSON.h>
-#else
 #include <cjson/cJSON.h>
-#endif
 
 #include <hse_ikvdb/kvdb_cparams.h>
 #include <hse_ikvdb/kvdb_rparams.h>
