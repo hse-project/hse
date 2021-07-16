@@ -43,13 +43,13 @@ struct key_immediate {
     u64 ki_data[4];
 };
 
-static inline u32
+static HSE_ALWAYS_INLINE u32
 key_immediate_index(const struct key_immediate *imm)
 {
     return imm->ki_data[0] >> 56;
 }
 
-static inline u32
+static HSE_ALWAYS_INLINE u32
 key_imm_klen(const struct key_immediate *imm)
 {
     return imm->ki_data[3] & 0xfffful;
@@ -65,9 +65,6 @@ key_imm_klen(const struct key_immediate *imm)
 void
 key_immediate_init(const void *key, size_t key_len, u16 index, struct key_immediate *immediate);
 
-s32
-key_immediate_cmp_full(const struct key_immediate *imm0, const struct key_immediate *imm1);
-
 static HSE_ALWAYS_INLINE s32
 key_immediate_cmp(const struct key_immediate *imm0, const struct key_immediate *imm1)
 {
@@ -82,7 +79,21 @@ key_immediate_cmp(const struct key_immediate *imm0, const struct key_immediate *
     if (imm0->ki_data[2] != imm1->ki_data[2])
         return (imm0->ki_data[2] < imm1->ki_data[2]) ? -1 : 1;
 
-    return key_immediate_cmp_full(imm0, imm1);
+    /* The final comparison includes the d-length but not the k-length.
+     */
+    if ((imm0->ki_data[3] >> 16) != (imm1->ki_data[3] >> 16))
+        return ((imm0->ki_data[3] >> 16) < (imm1->ki_data[3] >> 16)) ? -1 : 1;
+
+    /* If there is more to compare, tell the caller by returning S32_MIN.
+     * Since keys are limited to 1536 bytes this value can't be returned
+     * from this function in any other case.
+     */
+    if (key_imm_klen(imm0) > KI_DLEN_MAX &&
+        key_imm_klen(imm1) > KI_DLEN_MAX)
+        return S32_MIN;
+
+    /* Otherwise, the result comes down to the key lengths. */
+    return (key_imm_klen(imm0) - key_imm_klen(imm1));
 }
 
 /**
@@ -100,7 +111,7 @@ key_immediate_cmp(const struct key_immediate *imm0, const struct key_immediate *
  *   len1 <  len2 --> return neg; (key1 < ken2).
  *   len1 >  len2 --> return pos (key1 > key2).
  */
-static inline int
+static HSE_ALWAYS_INLINE int
 key_inner_cmp(const void *key0, int key0_len, const void *key1, int key1_len)
 {
     int rc = memcmp(key0, key1, min(key0_len, key1_len));
@@ -108,7 +119,7 @@ key_inner_cmp(const void *key0, int key0_len, const void *key1, int key1_len)
     return rc ? rc : (key0_len - key1_len);
 }
 
-static inline s32
+static HSE_ALWAYS_INLINE s32
 key_full_cmp(
     const struct key_immediate *imm0,
     const void *                key0,
@@ -120,18 +131,30 @@ key_full_cmp(
     rc = key_immediate_cmp(imm0, imm1);
 
     if (rc == S32_MIN) {
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Warray-bounds"
         rc = key_inner_cmp(
             key0 + KI_DLEN_MAX,
             key_imm_klen(imm0) - KI_DLEN_MAX,
             key1 + KI_DLEN_MAX,
             key_imm_klen(imm1) - KI_DLEN_MAX);
-#pragma GCC diagnostic pop
     }
 
     return rc;
 }
+
+/* Unit tests should not call key_full_cmp() directly because gcc can
+ * see the actual sizes of the the key buffers and produces erroneous
+ * warnings (array-bounds and overread).  Additionally, we want to test
+ * these functions as they're used in production, i.e., where the size
+ * of the key buffer cannot be deduced at the call site.  Testing them
+ * via this "noinline" wrapper helps to ensure the test code should see
+ * the same optimized version of key_full_cmp() as seen in production.
+ */
+s32
+key_full_cmp_noinline(
+    const struct key_immediate *imm0,
+    const void *                key0,
+    const struct key_immediate *imm1,
+    const void *                key1);
 
 /**
  * struct key_disc - key discriminator for fast key comparison
