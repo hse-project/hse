@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
 #include <hse_ut/framework.h>
@@ -8,6 +8,7 @@
 #include <hse_util/inttypes.h>
 #include <hse_util/key_util.h>
 #include <hse_util/minmax.h>
+
 
 MTF_BEGIN_UTEST_COLLECTION(key_util_test);
 
@@ -23,16 +24,16 @@ MTF_DEFINE_UTEST(key_util_test, basic)
     key_immediate_init(k0, k0_len, 1, &im0);
     key_immediate_init(k1, k1_len, 1, &im1);
 
-    res = key_full_cmp(&im0, k0, &im1, k1);
+    res = key_full_cmp_noinline(&im0, k0, &im1, k1);
     ASSERT_LT(res, 0);
 
-    res = key_full_cmp(&im1, k1, &im0, k0);
+    res = key_full_cmp_noinline(&im1, k1, &im0, k0);
     ASSERT_GT(res, 0);
 
-    res = key_full_cmp(&im0, k0, &im0, k0);
+    res = key_full_cmp_noinline(&im0, k0, &im0, k0);
     ASSERT_EQ(res, 0);
 
-    res = key_full_cmp(&im1, k1, &im1, k1);
+    res = key_full_cmp_noinline(&im1, k1, &im1, k1);
     ASSERT_EQ(res, 0);
 }
 
@@ -117,7 +118,7 @@ MTF_DEFINE_UTEST_CP2(
 
     key_immediate_init(k0, k0_len, idx0, &im0);
     key_immediate_init(k1, k1_len, idx1, &im1);
-    res = key_full_cmp(&im0, k0, &im1, k1);
+    res = key_full_cmp_noinline(&im0, k0, &im1, k1);
 
     if (idx0 < idx1)
         ASSERT_LT(res, 0);
@@ -169,7 +170,7 @@ MTF_DEFINE_UTEST_CP2(
     key_immediate_init(key, klen, idx0, &im0);
     key_immediate_init(key, klen, idx2, &im1);
 
-    res = key_full_cmp(&im0, key, &im1, key);
+    res = key_full_cmp_noinline(&im0, key, &im1, key);
 
     if (idx0 < idx2)
         ASSERT_LT(res, 0);
@@ -186,7 +187,7 @@ MTF_DEFINE_UTEST_CP2(
     key_immediate_init(key, klen, idx0, &im0);
     key_immediate_init(key, klen, idx2, &im1);
 
-    res = key_full_cmp(&im0, key, &im1, key);
+    res = key_full_cmp_noinline(&im0, key, &im1, key);
 
     if (idx0 < idx2)
         ASSERT_LT(res, 0);
@@ -220,7 +221,7 @@ MTF_DEFINE_UTEST_CP2(key_util_test, vary_index3, MTF_ST_IRANGE, u16, idx1, MTF_S
 
     key_immediate_init(k0, k0_len, idx1, &im0);
     key_immediate_init(k1, k1_len, idx2, &im1);
-    res = key_full_cmp(&im0, k0, &im1, k1);
+    res = key_full_cmp_noinline(&im0, k0, &im1, k1);
 
     if (idx1 < idx2)
         ASSERT_LT(res, 0);
@@ -242,17 +243,17 @@ MTF_DEFINE_UTEST(key_util_test, zero_length_keys)
 
     key_immediate_init(k0, k0_len, 0, &im0);
     key_immediate_init(k1, k1_len, 1, &im1);
-    res = key_full_cmp(&im0, k0, &im1, k1);
+    res = key_full_cmp_noinline(&im0, k0, &im1, k1);
     ASSERT_LT(res, 0);
 
     key_immediate_init(k0, k0_len, 1, &im0);
     key_immediate_init(k1, k1_len, 1, &im1);
-    res = key_full_cmp(&im0, k0, &im1, k1);
+    res = key_full_cmp_noinline(&im0, k0, &im1, k1);
     ASSERT_EQ(0, res);
 
     key_immediate_init(k0, k0_len, 2, &im0);
     key_immediate_init(k1, k1_len, 1, &im1);
-    res = key_full_cmp(&im0, k0, &im1, k1);
+    res = key_full_cmp_noinline(&im0, k0, &im1, k1);
     ASSERT_GT(res, 0);
 }
 
@@ -267,17 +268,17 @@ MTF_DEFINE_UTEST(key_util_test, dissimilar_keys)
 
     key_immediate_init(k0, k0_len, 0, &im0);
     key_immediate_init(k1, k1_len, 1, &im1);
-    res = key_full_cmp(&im0, k0, &im1, k1);
+    res = key_full_cmp_noinline(&im0, k0, &im1, k1);
     ASSERT_LT(res, 0);
 
     key_immediate_init(k0, k0_len, 1, &im0);
     key_immediate_init(k1, k1_len, 1, &im1);
-    res = key_full_cmp(&im0, k0, &im1, k1);
+    res = key_full_cmp_noinline(&im0, k0, &im1, k1);
     ASSERT_LT(res, 0);
 
     key_immediate_init(k0, k0_len, 2, &im0);
     key_immediate_init(k1, k1_len, 1, &im1);
-    res = key_full_cmp(&im0, k0, &im1, k1);
+    res = key_full_cmp_noinline(&im0, k0, &im1, k1);
     ASSERT_GT(res, 0);
 }
 
@@ -292,7 +293,7 @@ MTF_DEFINE_UTEST(key_util_test, key_immediate_match_length)
 
     key_immediate_init(k0, k0_len, 0, &im0);
     key_immediate_init(k1, k1_len, 0, &im1);
-    res = key_full_cmp(&im0, k0, &im1, k1);
+    res = key_full_cmp_noinline(&im0, k0, &im1, k1);
     ASSERT_LT(res, 0);
 }
 
@@ -307,7 +308,7 @@ MTF_DEFINE_UTEST(key_util_test, key_immediate_match_lt)
 
     key_immediate_init(k0, k0_len, 0, &im0);
     key_immediate_init(k1, k1_len, 0, &im1);
-    res = key_full_cmp(&im0, k0, &im1, k1);
+    res = key_full_cmp_noinline(&im0, k0, &im1, k1);
     ASSERT_LT(res, 0);
 }
 
@@ -358,7 +359,7 @@ MTF_DEFINE_UTEST_CP2(
     key_immediate_init(k1, k1_len, 17, &im1);
 
     memcmp_res = my_memcmp(k0, k0_len, k1, k1_len);
-    keyimmcmp_res = key_full_cmp(&im0, k0, &im1, k1);
+    keyimmcmp_res = key_full_cmp_noinline(&im0, k0, &im1, k1);
 
     if (memcmp_res < 0)
         ASSERT_LT(keyimmcmp_res, 0);

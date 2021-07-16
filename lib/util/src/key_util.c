@@ -46,34 +46,13 @@ key_immediate_init(const void *key, size_t klen, u16 index, struct key_immediate
 }
 
 s32
-key_immediate_cmp_full(const struct key_immediate *imm0, const struct key_immediate *imm1)
+key_full_cmp_noinline(
+    const struct key_immediate *imm0,
+    const void *                key0,
+    const struct key_immediate *imm1,
+    const void *                key1)
 {
-    /* The first comparison includes the skidx.
-     */
-    if (imm0->ki_data[0] != imm1->ki_data[0])
-        return (imm0->ki_data[0] < imm1->ki_data[0]) ? -1 : 1;
-
-    if (imm0->ki_data[1] != imm1->ki_data[1])
-        return (imm0->ki_data[1] < imm1->ki_data[1]) ? -1 : 1;
-
-    if (imm0->ki_data[2] != imm1->ki_data[2])
-        return (imm0->ki_data[2] < imm1->ki_data[2]) ? -1 : 1;
-
-    /* The final comparison includes the d-length but not the k-length.
-     */
-    if ((imm0->ki_data[3] >> 16) != (imm1->ki_data[3] >> 16))
-        return ((imm0->ki_data[3] >> 16) < (imm1->ki_data[3] >> 16)) ? -1 : 1;
-
-    /* If there is more to compare, tell the caller by returning S32_MIN.
-     * Since keys are limited to 1023 bytes at this layer, this can't
-     * be a return value from this function other than in this case.
-     */
-    if (key_imm_klen(imm0) > KI_DLEN_MAX &&
-        key_imm_klen(imm1) > KI_DLEN_MAX)
-        return S32_MIN;
-
-    /* Otherwise, the result comes down to the key lengths. */
-    return (key_imm_klen(imm0) - key_imm_klen(imm1));
+    return key_full_cmp(imm0, key0, imm1, key1);
 }
 
 
