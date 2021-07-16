@@ -202,3 +202,18 @@ exit
 After the virtual environment has been setup properly, then any errors which
 you may have seen in previous attempts to build/test/install `hse` should be
 resolved, at least partially.
+
+## Documentation
+
+To build doxygen generated API documentation, install doxygen and graphviz,
+turn on the docs flags, and compile the doxygen target..
+
+```shell
+# CWD = repository root
+meson setup -C build -Ddocs=true
+meson compile -C build doxygen
+```
+
+Static html doxygen pages with index will be generated in
+build/docs/doxygen/api/html.
+

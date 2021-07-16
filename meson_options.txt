@@ -30,3 +30,6 @@ option('hse-conf-extended', type: 'boolean', value: false,
     description: '[TESTING PURPOSES ONLY] Allow cparams/dparams to exist in hse.conf')
 option('tests-dir', type: 'string', value: '',
     description: 'Directory for pre-creating home directories')
+option('docs', type: 'boolean', value: false,
+    description: 'Build documentation')
+

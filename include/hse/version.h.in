@@ -10,24 +10,25 @@
 extern "C" {
 #endif
 
-/**
- * A string representing the HSE KVDB libary version
+/** @addtogroup TYPES
+ * @{
+ */ 
+
+/** @brief A string representing the HSE KVDB libary version
  *
  * The version string starts with a numeric sequence (e.g., 1.7.0) and then, depending
  * on the type of build may have additional information appended.
  */
 #define HSE_VERSION_STRING "@build_version@"
 
-/**
- * A string representing the HSE KVDB libary version tag
+/** @brief A string representing the HSE KVDB libary version tag
  *
  * The version tag starts with a sequence (e.g., r1.9.0) and then, depending
  * on the type of build may have additional information appended.
  */
 #define HSE_VERSION_TAG "@build_tag@"
 
-/**
- * A string representing the HSE KVDB library version commit hash
+/** @brief A string representing the HSE KVDB library version commit hash
  *
  * The version commit hash is a git commit hash
  * (e.g., b55fe07774d7cbc1492d7b8a47dc2c194cd3e24a).
@@ -35,7 +36,8 @@ extern "C" {
 #define HSE_VERSION_SHA "@build_sha@"
 
 /* clang-format off */
-/**
+
+/*
  * Below are three numeric constants that are suitable for use in macros for
  * conditionally compiling parts of your code based on the version of HSE you
  * are compiling against.
@@ -44,6 +46,9 @@ extern "C" {
 #define HSE_VERSION_MINOR @minor_version@
 #define HSE_VERSION_PATCH @patch_version@
 /* clang-format on */
+
+/** @} TYPES */
+
 
 #ifdef __cplusplus
 }
