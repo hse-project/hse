@@ -27,7 +27,6 @@
 int
 init(struct mtf_test_info *info)
 {
-    hse_openlog("cn_mblock_test", 1);
     hse_log(HSE_INFO "Assuming mpool VEB size == %zu bytes", VEB_SIZE);
     return 0;
 }

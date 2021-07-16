@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
 #include <hse_ut/framework.h>
@@ -42,10 +42,6 @@ pre_collection(struct mtf_test_info *info)
 {
     struct mtf_test_coll_info *tci = info->ti_coll;
     int                        i;
-
-    hse_log_set_squelch_ns(0);
-    hse_log_set_verbose(true);
-    hse_log_set_pri(HSE_DEBUG_VAL);
 
     /* To get max branch coverage, run once with
      * debug and once without.

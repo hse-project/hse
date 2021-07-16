@@ -13,6 +13,7 @@
 #include <hse_ikvdb/kvdb_rparams.h>
 #include <hse_ikvdb/kvs_cparams.h>
 #include <hse_ikvdb/kvs_rparams.h>
+#include <hse_ikvdb/hse_gparams.h>
 #include <hse_util/hse_err.h>
 
 /**
@@ -94,5 +95,21 @@ argv_deserialize_to_kvs_cparams(
     size_t              paramc,
     const char *const * paramv,
     struct kvs_cparams *params);
+
+/**
+ * Deserialize list of key=value parameters to global params
+ *
+ * @param paramc: number of parameters
+ * @param paramv: list of key=value strings
+ * @param params: params struct
+ * @returns error status
+ * @retval 0 success
+ * @retval !0 failure
+ */
+merr_t
+argv_deserialize_to_hse_gparams(
+    size_t                paramc,
+    const char *const *   paramv,
+    struct hse_gparams *params);
 
 #endif

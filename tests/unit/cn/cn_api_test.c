@@ -20,7 +20,6 @@ static struct kvdb_health mock_health;
 int
 init(struct mtf_test_info *info)
 {
-    hse_openlog("cn_api_test", 1);
     return 0;
 }
 

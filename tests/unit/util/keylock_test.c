@@ -14,7 +14,6 @@
 int
 test_collection_pre(struct mtf_test_info *lcl_ti)
 {
-    hse_openlog("keylock_test", 1);
     mapi_inject_clear();
 
     return 0;

@@ -18,7 +18,6 @@ struct workqueue_struct *vbr_wq;
 int
 test_collection_setup(struct mtf_test_info *info)
 {
-    hse_openlog("vblock_reader_test", 1);
     return 0;
 }
 

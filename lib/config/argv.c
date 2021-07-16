@@ -15,6 +15,7 @@
 #include <hse_ikvdb/kvdb_rparams.h>
 #include <hse_ikvdb/kvs_cparams.h>
 #include <hse_ikvdb/kvs_rparams.h>
+#include <hse_ikvdb/hse_gparams.h>
 #include <hse_util/compiler.h>
 #include <hse_util/hse_err.h>
 
@@ -129,16 +130,13 @@ argv_deserialize_to_kvdb_rparams(
 {
     assert(params);
 
-    merr_t                   err = 0;
     size_t                   pspecs_sz;
     const struct param_spec *pspecs;
     const union params       p = { .as_kvdb_rp = params };
 
     pspecs = kvdb_rparams_pspecs_get(&pspecs_sz);
 
-    err = argv_deserialize_to_params(paramc, paramv, pspecs_sz, pspecs, p);
-
-    return err;
+    return argv_deserialize_to_params(paramc, paramv, pspecs_sz, pspecs, p);
 }
 
 merr_t
@@ -149,16 +147,13 @@ argv_deserialize_to_kvdb_cparams(
 {
     assert(params);
 
-    merr_t                   err = 0;
     size_t                   pspecs_sz;
     const struct param_spec *pspecs;
     const union params       p = { .as_kvdb_cp = params };
 
     pspecs = kvdb_cparams_pspecs_get(&pspecs_sz);
 
-    err = argv_deserialize_to_params(paramc, paramv, pspecs_sz, pspecs, p);
-
-    return err;
+    return argv_deserialize_to_params(paramc, paramv, pspecs_sz, pspecs, p);
 }
 
 merr_t
@@ -169,16 +164,13 @@ argv_deserialize_to_kvdb_dparams(
 {
     assert(params);
 
-    merr_t                   err = 0;
     size_t                   pspecs_sz;
     const struct param_spec *pspecs;
     const union params       p = { .as_kvdb_dp = params };
 
     pspecs = kvdb_dparams_pspecs_get(&pspecs_sz);
 
-    err = argv_deserialize_to_params(paramc, paramv, pspecs_sz, pspecs, p);
-
-    return err;
+    return argv_deserialize_to_params(paramc, paramv, pspecs_sz, pspecs, p);
 }
 
 merr_t
@@ -189,16 +181,13 @@ argv_deserialize_to_kvs_rparams(
 {
     assert(params);
 
-    merr_t                   err = 0;
     size_t                   pspecs_sz;
     const struct param_spec *pspecs;
     const union params       p = { .as_kvs_rp = params };
 
     pspecs = kvs_rparams_pspecs_get(&pspecs_sz);
 
-    err = argv_deserialize_to_params(paramc, paramv, pspecs_sz, pspecs, p);
-
-    return err;
+    return argv_deserialize_to_params(paramc, paramv, pspecs_sz, pspecs, p);
 }
 
 merr_t
@@ -209,14 +198,28 @@ argv_deserialize_to_kvs_cparams(
 {
     assert(params);
 
-    merr_t                   err = 0;
     size_t                   pspecs_sz;
     const struct param_spec *pspecs;
     const union params       p = { .as_kvs_cp = params };
 
     pspecs = kvs_cparams_pspecs_get(&pspecs_sz);
 
-    err = argv_deserialize_to_params(paramc, paramv, pspecs_sz, pspecs, p);
+    return argv_deserialize_to_params(paramc, paramv, pspecs_sz, pspecs, p);
+}
 
-    return err;
+merr_t
+argv_deserialize_to_hse_gparams(
+    const size_t              paramc,
+    const char *const *const  paramv,
+    struct hse_gparams *const params)
+{
+    assert(params);
+
+    size_t                   pspecs_sz;
+    const struct param_spec *pspecs;
+    const union params       p = { .as_hse_gp = params };
+
+    pspecs = hse_gparams_pspecs_get(&pspecs_sz);
+
+    return argv_deserialize_to_params(paramc, paramv, pspecs_sz, pspecs, p);
 }

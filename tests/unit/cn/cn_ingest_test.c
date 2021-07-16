@@ -113,7 +113,6 @@ _kvset_stats(const struct kvset *ks, struct kvset_stats *stats)
 int
 setup(struct mtf_test_info *info)
 {
-    hse_openlog("cn_ingest_test", 1);
     return 0;
 }
 

@@ -9,6 +9,7 @@
 #include <hse_util/string.h>
 #include <hse_util/delay.h>
 #include <hse_util/parse_num.h>
+#include <hse_ikvdb/hse_gparams.h>
 
 #include <hse/version.h>
 
@@ -46,10 +47,7 @@ struct priority_name {
 
 DEFINE_SPINLOCK(hse_logging_lock);
 
-struct hse_logging_control hse_logging_control = {
-    .mlc_cur_pri = -1, /* current priority logging level             */
-    .mlc_verbose = 0,  /* print to stderr if set and in user-space   */
-};
+FILE *logging_file = NULL;
 
 struct hse_logging_infrastructure hse_logging_inf = {
     .mli_nm_buf = 0,    /* temp buffer for structured data field name */
@@ -201,6 +199,19 @@ hse_logging_init(void)
     if (hse_logging_disable_init)
         return 0;
 
+    if (!hse_gparams.logging.enabled)
+        return 0;
+
+    if (hse_gparams.logging.destination == LD_STDOUT) {
+        logging_file = stdout;
+    } else if (hse_gparams.logging.destination == LD_STDERR) {
+        logging_file = stderr;
+    } else if (hse_gparams.logging.destination == LD_FILE) {
+        logging_file = fopen(hse_gparams.logging.path, "a");
+        if (!logging_file)
+            return merr(errno);
+    }
+
     spin_lock(&hse_logging_lock);
     err = hse_logging_inf.mli_active ? EBUSY : 0;
     spin_unlock(&hse_logging_lock);
@@ -292,9 +303,6 @@ hse_logging_init(void)
     spin_lock_init(&async->al_lock);
     hse_logging_inf.mli_active = 1;
 
-    hse_logging_control.mlc_cur_pri = HSE_LOG_PRI_DEFAULT;
-    hse_logging_control.mlc_squelch_ns = HSE_LOG_SQUELCH_NS_DEFAULT;
-
     spin_unlock(&hse_logging_lock);
 
     return 0;
@@ -335,24 +343,6 @@ log_level_validator(
     return 0;
 }
 
-size_t
-log_level_set_handler(struct dt_element *dte, struct dt_set_parameters *dsp)
-{
-    int    level;
-    merr_t err;
-
-    err = get_log_level(dsp->value, &level, sizeof(level));
-    if (err)
-        return 0;
-
-    if ((level < HSE_EMERG_VAL) || (level > HSE_DEBUG_VAL))
-        return 0;
-
-    hse_logging_control.mlc_cur_pri = level;
-
-    return 1;
-}
-
 merr_t
 hse_logging_post_init(void)
 {
@@ -366,9 +356,11 @@ hse_logging_fini(void)
     struct hse_log_async *   async;
     unsigned long            flags;
 
+    if (!hse_gparams.logging.enabled)
+        return;
+
     spin_lock(&hse_logging_lock);
-    hse_logging_control.mlc_cur_pri = -1;
-    hse_logging_control.mlc_verbose = 0;
+    hse_gparams.logging.level = -1;
     spin_unlock(&hse_logging_lock);
 
     async = &hse_logging_inf.mli_async;
@@ -383,6 +375,11 @@ hse_logging_fini(void)
     destroy_workqueue(wq);
 
     spin_lock(&hse_logging_lock);
+
+    if (hse_gparams.logging.destination == LD_FILE &&
+        logging_file != stdout &&
+        logging_file != stderr)
+        fclose(logging_file);
 
     free(hse_logging_inf.mli_name_buf);
     hse_logging_inf.mli_name_buf = 0;
@@ -414,48 +411,6 @@ hse_logging_fini(void)
     hse_logging_inf.mli_active = 0;
     hse_logging_inf.mli_opened = 0;
 
-    spin_unlock(&hse_logging_lock);
-}
-
-void
-hse_log_set_pri(int pri)
-{
-    hse_logging_control.mlc_cur_pri = pri;
-}
-
-void
-hse_log_set_squelch_ns(unsigned long squelch_ns)
-{
-    hse_logging_control.mlc_squelch_ns = squelch_ns;
-}
-
-void
-hse_log_set_verbose(bool yn)
-{
-    hse_logging_control.mlc_verbose = yn;
-}
-
-void
-_hse_openlog(const char *identity, bool verbose)
-{
-    spin_lock(&hse_logging_lock);
-    hse_logging_control.mlc_verbose = verbose ? true : false;
-
-    if (!hse_logging_inf.mli_opened) {
-        openlog(identity, 0, LOG_USER);
-        hse_logging_inf.mli_opened = 1;
-    }
-    spin_unlock(&hse_logging_lock);
-}
-
-void
-_hse_closelog(void)
-{
-    spin_lock(&hse_logging_lock);
-    if (hse_logging_inf.mli_opened) {
-        closelog();
-        hse_logging_inf.mli_opened = 0;
-    }
     spin_unlock(&hse_logging_lock);
 }
 
@@ -636,12 +591,14 @@ _hse_log(
     bool                     res = false;
     unsigned long            flags = 0;
 
-    if (priority > hse_logging_control.mlc_cur_pri)
+    assert(hse_gparams.logging.enabled);
+
+    if (priority > hse_gparams.logging.level)
         return;
 
     spin_lock_irqsave(&hse_logging_lock, flags);
 
-    if (priority > hse_logging_control.mlc_cur_pri)
+    if (priority > hse_gparams.logging.level)
         goto out;
 
     assert(hse_logging_inf.mli_nm_buf != 0);
@@ -1169,7 +1126,6 @@ struct priority_name priority_names[] = {
     { "HSE_CRIT", HSE_CRIT_VAL },       { "HSE_ERR", HSE_ERR_VAL },
     { "HSE_WARNING", HSE_WARNING_VAL }, { "HSE_NOTICE", HSE_NOTICE_VAL },
     { "HSE_INFO", HSE_INFO_VAL },       { "HSE_DEBUG", HSE_DEBUG_VAL },
-    { NULL, HSE_INVALID_VAL }
 };
 
 log_priority_t
@@ -1187,8 +1143,7 @@ hse_logprio_name_to_val(const char *priority)
         if (!strcasecmp(priority_names[i].priority_name, pri))
             break;
         if (!strncasecmp(priority_names[i].priority_name, pri, strlen(pri))) {
-            if (best_fit != -1)
-                return HSE_INVALID_VAL;
+            assert(best_fit != -1);
             best_fit = i;
         }
         i++;
@@ -1338,7 +1293,7 @@ hse_slog_internal(int priority, const char *fmt, ...)
     const char *  buf;
     unsigned long flags = 0;
 
-    if (priority > hse_logging_control.mlc_cur_pri)
+    if (priority > hse_gparams.logging.level || !hse_gparams.logging.enabled)
         return;
 
     va_start(payload, fmt);
@@ -1369,14 +1324,12 @@ hse_slog_emit(int priority, const char *fmt, ...)
     va_list payload;
 
     va_start(payload, fmt);
-    vsyslog(priority, fmt, payload);
-    va_end(payload);
-
-    if (hse_logging_control.mlc_verbose) {
-        va_start(payload, fmt);
-        vfprintf(stderr, fmt, payload);
-        va_end(payload);
+    if (hse_gparams.logging.destination == LD_SYSLOG) {
+        vsyslog(priority, fmt, payload);
+    } else {
+        vfprintf(logging_file, fmt, payload);
     }
+    va_end(payload);
 }
 
 int
@@ -1387,7 +1340,7 @@ hse_slog_create(int priority, const char *unused, struct slog **sl, const char *
     if (!sl || !type)
         return -EINVAL;
 
-    if (priority > hse_logging_control.mlc_cur_pri) {
+    if (priority > hse_gparams.logging.level || !hse_gparams.logging.enabled) {
         *sl = NULL;
         return 0;
     }

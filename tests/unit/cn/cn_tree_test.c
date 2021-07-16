@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
 #include <hse_ut/framework.h>
@@ -320,8 +320,6 @@ struct mapi_injection inject_list[] = {
 static int
 preload(struct mtf_test_info *lcl_ti)
 {
-    hse_openlog("cn_tree_test", 1);
-    hse_log_set_squelch_ns(0);
     return 0;
 }
 

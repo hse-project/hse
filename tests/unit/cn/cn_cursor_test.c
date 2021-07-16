@@ -52,7 +52,6 @@ static u64 seqno = -4;
 int
 test_collection_setup(struct mtf_test_info *info)
 {
-    hse_openlog("cn_cursor_test", 1);
     mock_mpool_set();
     mock_kvset_set();
 

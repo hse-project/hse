@@ -209,8 +209,6 @@ initial_setup(struct mtf_test_info *lcl_ti)
 {
     int i, j, k;
 
-    hse_openlog("kblock_builder_test", 1);
-
     key_buf = mapi_safe_malloc(WORK_BUF_SIZE);
     ASSERT_TRUE_RET(key_buf, -1);
 

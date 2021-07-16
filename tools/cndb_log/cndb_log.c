@@ -570,14 +570,13 @@ main(int argc, char **argv)
     hse_err_t        err;
     int              c;
     struct tool_info ti = { 0 };
+    const char *paramv[] = { "logging.level=7" };
 
-    err = hse_init(0, NULL);
+    err = hse_init(NELEM(paramv), paramv);
     if (err)
         fatal("hse_init", err);
 
     progname = basename(argv[0]);
-    hse_logging_control.mlc_cur_pri = HSE_DEBUG;
-    hse_openlog(progname, 0);
 
     while ((c = getopt(argc, argv, ":chir:w:")) != -1) {
         switch (c) {

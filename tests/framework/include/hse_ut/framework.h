@@ -317,46 +317,37 @@ const char *home;
                                                                                                    \
     int main(int argc, char **argv)                                                                \
     {                                                                                              \
-        char *verbose, *logpri;                                                                    \
+        char *logging_level;                                                                       \
         int   c, rc;                                                                               \
                                                                                                    \
         rc = hse_init(0, NULL);                                                                    \
         if (rc)                                                                                    \
             return rc;                                                                             \
                                                                                                    \
-        logpri = getenv("HSE_TEST_LOGPRI");                                                        \
-        if (logpri)                                                                                \
-            hse_logging_control.mlc_cur_pri = atoi(logpri);                                        \
-                                                                                                   \
-        verbose = getenv("HSE_TEST_VERBOSE");                                                      \
-        if (verbose)                                                                               \
-            hse_openlog(argv[0], atoi(verbose));                                                   \
+        logging_level = getenv("HSE_TEST_LOGGING_LEVEL");                                          \
+        if (logging_level)                                                                         \
+            hse_gparams.logging.level = atoi(logging_level);                                       \
                                                                                                    \
         _mtf_##coll_name##_tci.tci_named = 0;                                                      \
                                                                                                    \
         static const struct option long_options[] = {                                              \
-            { "verbose", no_argument, NULL, 'v' },                                                 \
-            { "logpri", required_argument, NULL, 'd' },                                            \
+            { "logging-level", required_argument, NULL, 'l' },                                     \
             { "help", no_argument, NULL, 'h' },                                                    \
             { "one", required_argument, NULL, '1' },                                               \
             { "home", required_argument, NULL, 'C' },                                     \
             { 0, 0, 0, 0 },                                                                        \
         };                                                                                         \
                                                                                                    \
-        while (-1 != (c = getopt_long(argc, argv, "+:1:d:hva:", long_options, NULL))) {            \
+        while (-1 != (c = getopt_long(argc, argv, "+:1:l:hva:", long_options, NULL))) {            \
             switch (c) {                                                                           \
                 case 'h':                                                                          \
                     printf(                                                                        \
-                        "usage: %s [-v] [-d logpri] [-1 testname] [-C home]\n", argv[0]); \
+                        "usage: %s [-l logging-level] [-1 testname] [-C home]\n", argv[0]); \
                     printf("usage: %s -h\n", argv[0]);                                             \
                     exit(0);                                                                       \
                                                                                                    \
-                case 'd':                                                                          \
-                    hse_logging_control.mlc_cur_pri = atoi(optarg);                                \
-                    break;                                                                         \
-                                                                                                   \
-                case 'v':                                                                          \
-                    hse_openlog(argv[0], 1);                                                       \
+                case 'l':                                                                          \
+                    hse_gparams.logging.level = atoi(optarg);                                      \
                     break;                                                                         \
                                                                                                    \
                 case '1':                                                                          \
@@ -364,7 +355,7 @@ const char *home;
                     break;                                                                         \
                                                                                                    \
                 case 'C':                                                                          \
-                    home = optarg;                                                        \
+                    home = optarg;                                                                 \
                     break;                                                                         \
                                                                                                    \
                 case ':':                                                                          \

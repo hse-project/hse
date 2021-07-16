@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
 #ifndef HSE_PLATFORM_LOGGING_H
@@ -11,6 +11,8 @@
 #include <hse_util/event_counter.h>
 #include <hse_util/time.h>
 #include <hse_util/timing.h>
+#include <hse_util/logging_types.h>
+#include <hse_ikvdb/hse_gparams.h>
 
 #include <syslog.h>
 
@@ -19,18 +21,6 @@
 #ifndef HSE_LOG_PRI_DEFAULT
 #define HSE_LOG_PRI_DEFAULT (7)
 #endif
-
-typedef enum {
-    HSE_EMERG_VAL,
-    HSE_ALERT_VAL,
-    HSE_CRIT_VAL,
-    HSE_ERR_VAL,
-    HSE_WARNING_VAL,
-    HSE_NOTICE_VAL,
-    HSE_INFO_VAL,
-    HSE_DEBUG_VAL,
-    HSE_INVALID_VAL
-} log_priority_t;
 
 /*
  * A single log instance can have no more than MAX_HSE_SPECS hse-specific
@@ -94,13 +84,7 @@ typedef enum {
 
 #define MAX_HSE_NV_PAIRS (40 * MAX_HSE_SPECS)
 
-struct hse_logging_control {
-    int           mlc_cur_pri;
-    int           mlc_verbose;
-    unsigned long mlc_squelch_ns;
-};
-
-extern struct hse_logging_control hse_logging_control;
+extern FILE *logging_file;
 
 void
 _hse_fmt(char *buf, size_t buflen, const char *fmt, ...);
@@ -119,6 +103,9 @@ _hse_fmt(char *buf, size_t buflen, const char *fmt, ...);
  */
 #define hse_log_pri(pri, fmt, async, hse_args, ...)                     \
     do {                                                                \
+        if (!hse_gparams.logging.enabled)                               \
+            break;                                                      \
+                                                                        \
         static struct event_counter _ev = {                             \
             .ev_odometer = ATOMIC_INIT(0),                              \
             .ev_trip_odometer = 0,                                      \
@@ -138,11 +125,11 @@ _hse_fmt(char *buf, size_t buflen, const char *fmt, ...);
         static volatile u64 mlp_next;                                   \
                                                                         \
         event_counter(&_dte, &_ev);                                     \
-        if (HSE_UNLIKELY(_ev.ev_log_level <= hse_logging_control.mlc_cur_pri)) { \
+        if (HSE_UNLIKELY(_ev.ev_log_level <= hse_gparams.logging.level)) { \
             u64 mlp_now = get_time_ns();                                \
                                                                         \
             if (mlp_now > mlp_next) {                                   \
-                mlp_next = mlp_now + hse_logging_control.mlc_squelch_ns; \
+                mlp_next = mlp_now + hse_gparams.logging.squelch_ns;    \
                 _hse_log(__FILE__, __LINE__, (pri), (fmt), (async), (hse_args), ##__VA_ARGS__); \
             }                                                           \
         }                                                               \
@@ -152,7 +139,7 @@ _hse_fmt(char *buf, size_t buflen, const char *fmt, ...);
 
 #define hse_log_pri(pri, fmt, async, hse_args, ...)                                         \
     do {                                                                                    \
-        if (HSE_UNLIKELY((pri) <= hse_logging_control.mlc_cur_pri))                             \
+        if (HSE_UNLIKELY((pri) <= hse_gparams.logging.level))                               \
             _hse_log(__FILE__, __LINE__, (pri), (fmt), (async), (hse_args), ##__VA_ARGS__); \
     } while (0)
 
@@ -173,9 +160,6 @@ _hse_fmt(char *buf, size_t buflen, const char *fmt, ...);
 
 #define hse_log_sync(log_fmt, ...) hse_log_pri(log_fmt, false, NULL, ##__VA_ARGS__)
 
-#define hse_openlog(identity, verbose) _hse_openlog((identity), (verbose))
-#define hse_closelog() _hse_closelog()
-
 void
 _hse_log(
     const char *source_file,
@@ -185,21 +169,6 @@ _hse_log(
     bool        async,
     void **     hse_args,
     ...) HSE_PRINTF(4, 7);
-
-void
-_hse_openlog(const char *identity, bool verbose);
-
-void
-_hse_closelog(void);
-
-void
-hse_log_set_verbose(bool yn);
-
-void
-hse_log_set_pri(int priority);
-
-void
-hse_log_set_squelch_ns(unsigned long priority);
 
 const char *
 hse_logprio_val_to_name(int priority);

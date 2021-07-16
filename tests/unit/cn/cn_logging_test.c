@@ -134,14 +134,12 @@ cn_logging_test_pre(struct mtf_test_info *ti)
     if (err)
         abort();
 
-    hse_openlog("test", 1);
     return 0;
 }
 
 int
 cn_logging_test_post(struct mtf_test_info *ti)
 {
-    hse_closelog();
     return 0;
 }
 

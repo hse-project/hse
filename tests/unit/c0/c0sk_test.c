@@ -48,7 +48,6 @@ uint c0sk_test_klen;
 int
 test_collection_setup(struct mtf_test_info *info)
 {
-    hse_log_set_verbose(true);
     kvdb_rp = kvdb_rparams_defaults();
     csched_create(csched_policy_noop, NULL, &kvdb_rp, "mp_name", &mock_health, &csched);
     return 0;
