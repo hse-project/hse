@@ -50,7 +50,6 @@ struct kvdb_rparams {
     uint8_t  perfc_enable;
     uint8_t  c0_diag_mode;
     uint8_t  c0_debug;
-    uint16_t txn_commit_abort_pct;
 
     uint32_t c0_ingest_width;
 
