@@ -694,8 +694,11 @@ perfc_ctrseti_alloc(
     setp->ps_seti = NULL;
     setp->ps_bitmap = 0;
 
-    if (ev(ctrc == 0))
+    if (!name || ctrc == 0)
         return merr(EINVAL);
+
+    if (strlen(name) >= DT_PATH_COMP_ELEMENT_LEN)
+        return merr(ENAMETOOLONG);
 
     /*
      * Find out the number of counters in the set.
