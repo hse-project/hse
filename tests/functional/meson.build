@@ -24,10 +24,10 @@ tests = {
         'suites': ['short'],
         'depends': hse_python_depends,
     },
-    #'kvs_compression_flags': {
-    #    'suites': ['short'],
-    #    'depends': hse_python_depends,
-    #},
+    'kvs_compression_flags': {
+        'suites': ['short'],
+        'depends': hse_python_depends,
+    },
     'kvs_scan_a_billion': {
         'suites': ['long'],
         'depends': hse_python_depends,

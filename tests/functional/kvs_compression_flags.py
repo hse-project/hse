@@ -22,7 +22,7 @@ try:
 
         for i in range(100000):
             kvs1.put(
-                str(i).encode(), 500 * b"A", flags=hse.PutFlag.VALUE_COMPRESSION_ON
+                str(i).encode(), 500 * b"A"
             )
 
         kvdb.compact()

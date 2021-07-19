@@ -324,9 +324,9 @@ hse_kvdb_kvs_close(struct hse_kvs *kvs);
  * second marked as PRIORITY is likely an issue. On the other hand, doing 1K small puts
  * per second marked as PRIORITY is almost certainly fine.
  *
- * HSE_FLAG_PUT_VALUE_COMPRESSION_ON and HSE_FLAG_PUT_VALUE_COMPRESSION_OFF will override
- * the compression settings within a KVS. If neither is set, the default KVS
- * compression settings are used. It is an error to set both flags.
+ * If compression is enabled for the given kvs, then hse_kvs_put() will attempt to
+ * compress the value unless the HSE_FLAG_PUT_VCOMP_OFF flag is given.  Otherwise,
+ * the HSE_FLAG_PUT_VCOMP_OFF flag is ignored.
  *
  * @param kvs: KVS handle from hse_kvdb_kvs_open()
  * @param flags: Flags for operation specialization

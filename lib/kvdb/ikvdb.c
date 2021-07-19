@@ -72,10 +72,15 @@
 
 #include "kvdb_rest.h"
 
-/* tls_vbuf[] is a thread-local buffer used as a compression output buffer
- * by ikvdb_kvs_put() and for small direct reads by kvset_lookup_val().
+/* clang-format off */
+
+static_assert((sizeof(uintptr_t) == sizeof(u64)),
+              "libhse relies on pointers being 64-bits in size");
+
+/* tls_vbuf[] is a thread-local buffer used as a compression output buffer by
+ * ikvdb_kvs_put() and for small to medium direct reads by kvset_lookup_val().
  */
-thread_local char tls_vbuf[32 * 1024] HSE_ALIGNED(PAGE_SIZE);
+thread_local char tls_vbuf[256 * 1024] HSE_ALIGNED(PAGE_SIZE);
 const size_t      tls_vbufsz = sizeof(tls_vbuf);
 
 struct perfc_set kvdb_pkvdbl_pc HSE_READ_MOSTLY;
@@ -84,127 +89,121 @@ struct perfc_set kvdb_pc        HSE_READ_MOSTLY;
 struct perfc_set kvdb_metrics_pc HSE_READ_MOSTLY;
 struct perfc_set c0_metrics_pc   HSE_READ_MOSTLY;
 
-static_assert((sizeof(uintptr_t) == sizeof(u64)), "code relies on pointers being 64-bits in size");
-
-#define ikvdb_h2r(handle) container_of(handle, struct ikvdb_impl, ikdb_handle)
+#define ikvdb_h2r(_ikvdb_handle) \
+    container_of(_ikvdb_handle, struct ikvdb_impl, ikdb_handle)
 
 struct ikvdb {
 };
 
-/* Max buckets in ctxn cache.  Must be prime for best results.
+/* Max buckets in ctxn cache.
  */
-#define KVDB_CTXN_BKT_MAX (17)
+#define KVDB_CTXN_BKT_MAX   (32)
 
 /* Simple fixed-size stack for caching ctxn objects.
  */
 struct kvdb_ctxn_bkt {
-    spinlock_t kcb_lock HSE_ALIGNED(SMP_CACHE_BYTES * 2);
-    uint                kcb_ctxnc;
-    struct kvdb_ctxn *  kcb_ctxnv[15];
+    spinlock_t        kcb_lock HSE_ALIGNED(SMP_CACHE_BYTES);
+    uint              kcb_ctxnc;
+    struct kvdb_ctxn *kcb_ctxnv[7];
 };
+
+static thread_local uint     tls_txn_idx;
+static              atomic_t ikvdb_txn_idx;
 
 /**
  * struct ikvdb_impl - private representation of a kvdb
  * @ikdb_handle:        handle for users of struct ikvdb_impl's
  * @ikdb_rdonly:        bool indicating read-only mode
- * @ikdb_work_stop:
+ * @ikdb_work_stop:     used to control maint and throttle threads
+ * @ikdb_tb_dbg:        token bucket debug flags
  * @ikdb_ctxn_set:      kvdb transaction set
  * @ikdb_ctxn_op:       transaction performance counters
  * @ikdb_keylock:       handle to the KVDB keylock
  * @ikdb_c0sk:          c0sk handle
- * @ikdb_health:
+ * @ikdb_health:        used to remember health error counts
  * @ikdb_mp:            mpool handle
  * @ikdb_log:           KVDB log handle
  * @ikdb_cndb:          CNDB handle
- * @ikdb_workqueue:
+ * @ikdb_ctxn_cache:    ctxn cache
  * @ikdb_curcnt:        number of active cursors (lazily updated)
  * @ikdb_curcnt_max:    maximum number of active cursors
- * @ikdb_cur_ticket:    ticket lock ticket dispenser (serializes ikvdb_cur_list access)
- * @ikdb_cur_serving:   ticket lock "now serving" number
  * @ikdb_seqno:         current sequence number for the struct ikvdb
- * @ikdb_cur_list:      list of cursors holding the cursor horizon
- * @ikdb_cur_horizon:   oldest seqno in cursor ikdb_cur_list
+ * @ikdb_maint_work:    used to schedule kvdb maint task
  * @ikdb_rp:            KVDB run time params
- * @ikdb_ctxn_cache:    ctxn cache
  * @ikdb_lock:          protects ikdb_kvs_vec/ikdb_kvs_cnt writes
  * @ikdb_kvs_cnt:       number of KVSes in ikdb_kvs_vec
  * @ikdb_kvs_vec:       vector of KVDB KVSes
- * @ikdb_maint_work:
- * @ikdb_profile:       hse params stored as profile
- * @ikdb_cndb_oid1:
- * @ikdb_cndb_oid2:
  * @ikdb_home:          KVDB home
  *
- * Note:  The first group of fields are read-mostly and some of them are
- * heavily concurrently accessed, hence they live in the first cache line.
- * Only add a new field to this group if it is read-mostly and would not push
- * the first field of %ikdb_health out of the first cache line.  Similarly,
- * the group of fields which contains %ikdb_seqno is heavily concurrently
- * accessed and heavily modified. Only add a new field to this group if it
- * will be accessed just before or after accessing %ikdb_seqno.
+ * Note:  The first group of fields are read-mostly and some of them are very
+ * heavily concurrently accessed, hence they live in the first few cache lines.
+ * Only add a new fields to this group if they are read-mostly.  Similarly,
+ * fields such as %ikdb_seqno and %ikdb_curcnt are heavily concurrently
+ * modified, hence they get their own private cache lines that are padded
+ * with fields that are rarely referenced.
  */
 struct ikvdb_impl {
-    struct ikvdb          ikdb_handle;
-    bool                  ikdb_rdonly;
-    bool                  ikdb_work_stop;
-    struct kvdb_ctxn_set *ikdb_ctxn_set;
-    struct c0snr_set *    ikdb_c0snr_set;
-    struct perfc_set      ikdb_ctxn_op;
-    struct kvdb_keylock * ikdb_keylock;
-    struct c0sk *         ikdb_c0sk;
-    struct lc *           ikdb_lc;
-    struct kvdb_health    ikdb_health;
+    struct ikvdb            ikdb_handle;
+    bool                    ikdb_rdonly;
+    bool                    ikdb_work_stop;
+    u32                     ikdb_tb_dbg;
+    struct kvdb_ctxn_set   *ikdb_ctxn_set;
+    struct c0snr_set       *ikdb_c0snr_set;
+    struct perfc_set        ikdb_ctxn_op;
+    struct kvdb_keylock    *ikdb_keylock;
+    struct c0sk            *ikdb_c0sk;
+    struct lc              *ikdb_lc;
 
-    struct throttle ikdb_throttle;
+    struct wal             *ikdb_wal;
+    struct csched          *ikdb_csched;
+    struct cn_kvdb         *ikdb_cn_kvdb;
+    struct mpool           *ikdb_mp;
+    struct kvdb_log        *ikdb_log;
+    struct cndb            *ikdb_cndb;
+    struct viewset         *ikdb_txn_viewset;
+    struct viewset         *ikdb_cur_viewset;
 
-    struct wal              *ikdb_wal;
-    struct kvdb_callback     ikdb_wal_cb;
-    struct csched *          ikdb_csched;
-    struct cn_kvdb *         ikdb_cn_kvdb;
-    struct mpool *           ikdb_mp;
-    struct kvdb_log *        ikdb_log;
-    struct cndb *            ikdb_cndb;
+    struct kvdb_callback    ikdb_wal_cb;
+    struct kvdb_health      ikdb_health;
+    struct throttle         ikdb_throttle;
+    struct tbkt             ikdb_tb;
+
+    struct kvdb_ctxn_bkt    ikdb_ctxn_cache[KVDB_CTXN_BKT_MAX];
+
+    atomic_t                ikdb_curcnt HSE_ALIGNED(SMP_CACHE_BYTES * 2);
+    u32                     ikdb_curcnt_max;
+
+    atomic64_t              ikdb_tb_dbg_ops HSE_ALIGNED(SMP_CACHE_BYTES);
+    atomic64_t              ikdb_tb_dbg_bytes;
+    atomic64_t              ikdb_tb_dbg_sleep_ns;
+    u64                     ikdb_tb_dbg_next;
+    u64                     ikdb_tb_burst;
+    u64                     ikdb_tb_rate;
+
+    atomic64_t              ikdb_seqno HSE_ALIGNED(SMP_CACHE_BYTES * 2);
+    struct work_struct      ikdb_throttle_work;
+    struct work_struct      ikdb_maint_work;
+
+    u64                     ikdb_cndb_oid1;
+    u64                     ikdb_cndb_oid2;
+    u64                     ikdb_wal_oid1;
+    u64                     ikdb_wal_oid2;
+
+    struct kvdb_rparams     ikdb_rp HSE_ALIGNED(SMP_CACHE_BYTES * 2);
+    struct mclass_policy    ikdb_mpolicies[HSE_MPOLICY_COUNT];
+
     struct workqueue_struct *ikdb_workqueue;
-    struct viewset *         ikdb_txn_viewset;
-    struct viewset *         ikdb_cur_viewset;
 
-    struct tbkt ikdb_tb HSE_ALIGNED(SMP_CACHE_BYTES * 2);
+    struct mutex     ikdb_lock;
+    u32              ikdb_kvs_cnt;
+    struct kvdb_kvs *ikdb_kvs_vec[HSE_KVS_COUNT_MAX];
 
-    u64 ikdb_tb_burst;
-    u64 ikdb_tb_rate;
-
-    u64        ikdb_tb_dbg;
-    u64        ikdb_tb_dbg_next;
-    atomic64_t ikdb_tb_dbg_ops;
-    atomic64_t ikdb_tb_dbg_bytes;
-    atomic64_t ikdb_tb_dbg_sleep_ns;
-
-    atomic_t ikdb_curcnt HSE_ALIGNED(SMP_CACHE_BYTES * 2);
-    u32                  ikdb_curcnt_max;
-
-    atomic64_t ikdb_seqno       HSE_ALIGNED(SMP_CACHE_BYTES * 2);
-    struct kvdb_rparams ikdb_rp HSE_ALIGNED(SMP_CACHE_BYTES * 2);
-    struct kvdb_ctxn_bkt        ikdb_ctxn_cache[KVDB_CTXN_BKT_MAX];
-
-    /* Put the mostly cold data at end of the structure to improve
-     * the density of the hotter data.
-     */
-    struct mutex       ikdb_lock;
-    u32                ikdb_kvs_cnt;
-    struct kvdb_kvs *  ikdb_kvs_vec[HSE_KVS_COUNT_MAX];
-    struct work_struct ikdb_maint_work;
-    struct work_struct ikdb_throttle_work;
-
-    struct mclass_policy ikdb_mpolicies[HSE_MPOLICY_COUNT];
-
-    u64            ikdb_cndb_oid1;
-    u64            ikdb_cndb_oid2;
-    u64            ikdb_wal_oid1;
-    u64            ikdb_wal_oid2;
-    char           ikdb_home[PATH_MAX];
-    struct pidfh * ikdb_pidfh;
-    struct config *ikdb_config;
+    struct pidfh    *ikdb_pidfh;
+    struct config   *ikdb_config;
+    const char       ikdb_home[]; /* flexible array */
 };
+
+/* clang-format on */
 
 struct ikvdb *
 ikvdb_kvdb_handle(struct ikvdb_impl *self)
@@ -215,18 +214,12 @@ ikvdb_kvdb_handle(struct ikvdb_impl *self)
 void
 ikvdb_perfc_alloc(struct ikvdb_impl *self)
 {
-    char   dbname_buf[DT_PATH_COMP_ELEMENT_LEN];
-    size_t n;
+    merr_t err;
 
-    dbname_buf[0] = 0;
-
-    n = strlcpy(dbname_buf, self->ikdb_home, sizeof(dbname_buf));
-    if (ev(n >= sizeof(dbname_buf)))
-        return;
-
-    if (perfc_ctrseti_alloc(
-            COMPNAME, dbname_buf, ctxn_perfc_op, PERFC_EN_CTXNOP, "set", &self->ikdb_ctxn_op))
-        hse_log(HSE_ERR "cannot alloc ctxn op perf counters");
+    err = perfc_ctrseti_alloc(
+        COMPNAME, self->ikdb_home, ctxn_perfc_op, PERFC_EN_CTXNOP, "set", &self->ikdb_ctxn_op);
+    if (err)
+        hse_elog(HSE_ERR "cannot alloc ctxn op perf counters for %s: @@e", err, self->ikdb_home);
 }
 
 static void
@@ -548,6 +541,7 @@ ikvdb_txn_init(struct ikvdb_impl *self)
         struct kvdb_ctxn_bkt *bkt = self->ikdb_ctxn_cache + i;
 
         spin_lock_init(&bkt->kcb_lock);
+        bkt->kcb_ctxnc = 0;
     }
 }
 
@@ -561,6 +555,8 @@ ikvdb_txn_fini(struct ikvdb_impl *self)
 
         for (j = 0; j < bkt->kcb_ctxnc; ++j)
             kvdb_ctxn_free(bkt->kcb_ctxnv[j]);
+
+        bkt->kcb_ctxnc = 0;
     }
 }
 
@@ -611,6 +607,34 @@ ikvdb_diag_kvslist(struct ikvdb *handle, struct diag_kvdb_kvs_list *list, int le
     return err;
 }
 
+static merr_t
+ikvdb_alloc(
+    const char                 *kvdb_home,
+    const struct kvdb_rparams  *params,
+    struct ikvdb_impl         **impl)
+{
+    struct ikvdb_impl *self;
+    size_t             sz;
+
+    if (!kvdb_home || !params || !impl)
+        return merr(EINVAL);
+
+    sz = sizeof(*self) + strlen(kvdb_home) + 1;
+
+    self = aligned_alloc(4096, roundup(sz, 4096));
+    if (!self)
+        return merr(ENOMEM);
+
+    memset(self, 0, sz);
+    self->ikdb_rp = *params;
+    self->ikdb_rdonly = params->read_only;
+    strcpy((char *)self->ikdb_home, kvdb_home);
+
+    *impl = self;
+
+    return 0;
+}
+
 /* ikvdb_diag_open() - open relevant media streams with minimal processing. */
 merr_t
 ikvdb_diag_open(
@@ -620,46 +644,19 @@ ikvdb_diag_open(
     struct kvdb_rparams *params,
     struct ikvdb **      handle)
 {
-    struct ikvdb_impl *self;
-    size_t             n;
+    struct ikvdb_impl *self = NULL;
     merr_t             err;
-    char               cwd[sizeof(self->ikdb_home)];
 
-    if (!kvdb_home) {
-        if (!getcwd(cwd, sizeof(cwd)))
-            return merr(errno);
-        kvdb_home = cwd;
-    } else {
-        kvdb_home = kvdb_home;
-    }
-
-    /* [HSE_REVISIT] consider factoring out this code into ikvdb_cmn_open
-     * and calling that from here and ikvdb_open.
-     */
-    self = aligned_alloc(alignof(*self), sizeof(*self));
-    if (ev(!self))
+    err = ikvdb_alloc(kvdb_home, params, &self);
+    if (err)
         return merr(ENOMEM);
 
-    memset(self, 0, sizeof(*self));
-
+    mutex_init(&self->ikdb_lock);
+    ikvdb_txn_init(self);
+    self->ikdb_mp = mp;
     self->ikdb_pidfh = pfh;
 
-    n = strlcpy(self->ikdb_home, kvdb_home, sizeof(self->ikdb_home));
-    if (ev(n >= sizeof(self->ikdb_home))) {
-        err = merr(ENAMETOOLONG);
-        goto err_exit0;
-    }
-
-    self->ikdb_mp = mp;
-
-    assert(params);
-    self->ikdb_rp = *params;
-    self->ikdb_rdonly = params->read_only;
-    params = &self->ikdb_rp;
-
     atomic_set(&self->ikdb_curcnt, 0);
-
-    ikvdb_txn_init(self);
 
     err = viewset_create(&self->ikdb_txn_viewset, &self->ikdb_seqno);
     if (ev(err))
@@ -711,6 +708,7 @@ err_exit1:
 
 err_exit0:
     ikvdb_txn_fini(self);
+    mutex_destroy(&self->ikdb_lock);
     free(self);
     *handle = NULL;
 
@@ -737,14 +735,12 @@ ikvdb_diag_close(struct ikvdb *handle)
 
     mutex_unlock(&self->ikdb_lock);
 
-    ikvdb_txn_fini(self);
-
     viewset_destroy(self->ikdb_cur_viewset);
     viewset_destroy(self->ikdb_txn_viewset);
 
     kvdb_keylock_destroy(self->ikdb_keylock);
+    ikvdb_txn_fini(self);
     mutex_destroy(&self->ikdb_lock);
-
     free(self);
 
     return ret;
@@ -980,41 +976,25 @@ ikvdb_open(
     struct ikvdb **            handle)
 {
     merr_t             err;
-    struct ikvdb_impl *self;
+    struct ikvdb_impl *self = NULL;
     u64                seqno = 0; /* required by unit test */
     ulong              mavail;
-    size_t             sz, n;
+    size_t             sz;
     int                i;
     u64                ingestid, gen = 0;
 
-    assert(kvdb_home);
-    assert(params);
-
-    self = aligned_alloc(alignof(*self), sizeof(*self));
-    if (ev(!self)) {
-        err = merr(ENOMEM);
+    err = ikvdb_alloc(kvdb_home, params, &self);
+    if (err) {
         hse_elog(HSE_ERR "cannot open %s: @@e", err, kvdb_home);
-        return err;
+        return merr(ENOMEM);
     }
 
-    memset(self, 0, sizeof(*self));
     mutex_init(&self->ikdb_lock);
     ikvdb_txn_init(self);
     self->ikdb_mp = mp;
-
     self->ikdb_pidfh = pfh;
 
-    n = strlcpy(self->ikdb_home, kvdb_home, sizeof(self->ikdb_home));
-    if (n >= sizeof(self->ikdb_home)) {
-        err = merr(ENAMETOOLONG);
-        hse_elog(HSE_ERR "cannot open %s: @@e", err, kvdb_home);
-        goto err2;
-    }
-
     memcpy(self->ikdb_mpolicies, params->mclass_policies, sizeof(params->mclass_policies));
-
-    self->ikdb_rp = *params;
-    self->ikdb_rdonly = params->read_only;
 
     hse_meminfo(NULL, &mavail, 0);
     if (params->low_mem || (mavail >> 30) < 32)
@@ -1190,7 +1170,6 @@ err1:
     csched_destroy(self->ikdb_csched);
     throttle_fini(&self->ikdb_throttle);
 
-err2:
     ikvdb_txn_fini(self);
     mutex_destroy(&self->ikdb_lock);
     free(self);
@@ -1527,37 +1506,37 @@ ikvdb_kvs_open(
     uint                flags,
     struct hse_kvs **   kvs_out)
 {
+    const struct compress_ops *cops;
+    struct ikvdb_impl *        self;
+    struct kvdb_kvs *          kvs;
+    int                        idx;
+    merr_t                     err;
+
     assert(handle);
     assert(kvs_name);
     assert(params);
     assert(kvs_out);
 
-    const struct compress_ops *cops;
-    struct ikvdb_impl *        self = ikvdb_h2r(handle);
-    struct kvdb_kvs *          kvs = NULL;
-    int                        idx;
-    merr_t                     err;
+    self = ikvdb_h2r(handle);
 
     err = config_deserialize_to_kvs_rparams(self->ikdb_config, kvs_name, params);
     if (ev(err))
-        goto out_immediate;
+        return err;
 
     params->rdonly = self->ikdb_rp.read_only; /* inherit from kvdb */
-
-    ikvdb_wal_install_callback(self); /* TODO: can this be removed? */
 
     mutex_lock(&self->ikdb_lock);
 
     idx = get_kvs_index(self->ikdb_kvs_vec, kvs_name, NULL);
     if (idx < 0) {
-        err = merr(ev(ENOENT));
+        err = merr(ENOENT);
         goto out_unlock;
     }
 
     kvs = self->ikdb_kvs_vec[idx];
 
     if (kvs->kk_ikvs) {
-        err = merr(ev(EBUSY));
+        err = merr(EBUSY);
         goto out_unlock;
     }
 
@@ -1579,6 +1558,8 @@ ikvdb_kvs_open(
 
         assert(cops->cop_estimate(NULL, HSE_KVS_VALUE_LEN_MAX) < HSE_KVS_VALUE_LEN_MAX + PAGE_SIZE * 2);
     }
+
+    ikvdb_wal_install_callback(self); /* TODO: can this be removed? */
 
     /* Need a lock to prevent ikvdb_close from freeing up resources from
      * under us
@@ -1605,7 +1586,6 @@ ikvdb_kvs_open(
 
 out_unlock:
     mutex_unlock(&self->ikdb_lock);
-out_immediate:
 
     return err;
 }
@@ -1884,8 +1864,7 @@ ikvdb_kvs_put(
     vbufsz = tls_vbufsz;
     vbuf = NULL;
 
-    if ((clen == 0 && vlen > kk->kk_vcompmin && !(flags & HSE_FLAG_PUT_VALUE_COMPRESSION_OFF)) ||
-        flags & HSE_FLAG_PUT_VALUE_COMPRESSION_ON) {
+    if (clen == 0 && vlen > kk->kk_vcompmin && !(flags & HSE_FLAG_PUT_VCOMP_OFF)) {
         if (vlen > kk->kk_vcompbnd) {
             vbufsz = vlen + PAGE_SIZE * 2;
             vbuf = vlb_alloc(vbufsz);
@@ -1894,10 +1873,6 @@ ikvdb_kvs_put(
         }
 
         if (vbuf) {
-            /* Currently kk_vcompress is not set in non-compressed KVSs. This
-             * will change.
-             */
-            assert(kk->kk_vcompress);
             err = kk->kk_vcompress(vt->vt_data, vlen, vbuf, vbufsz, &clen);
 
             if (!err && clen < vlen) {
@@ -2531,9 +2506,10 @@ ikvdb_txn_horizon(struct ikvdb *handle)
 static HSE_ALWAYS_INLINE struct kvdb_ctxn_bkt *
 ikvdb_txn_tid2bkt(struct ikvdb_impl *self)
 {
-    u64 tid = pthread_self();
+    if (!tls_txn_idx)
+        tls_txn_idx = atomic_inc_return(&ikvdb_txn_idx);
 
-    return self->ikdb_ctxn_cache + (tid % NELEM(self->ikdb_ctxn_cache));
+    return self->ikdb_ctxn_cache + (tls_txn_idx % NELEM(self->ikdb_ctxn_cache));
 }
 
 struct hse_kvdb_txn *

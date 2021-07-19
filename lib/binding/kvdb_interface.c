@@ -35,11 +35,13 @@
 #include <bsd/libutil.h>
 #include <pidfile/pidfile.h>
 
-#define HSE_FLAG_SYNC_ALL HSE_FLAG_SYNC_ASYNC
-#define HSE_FLAG_PUT_ALL \
-    (HSE_FLAG_PUT_PRIORITY | HSE_FLAG_PUT_VALUE_COMPRESSION_ON | HSE_FLAG_PUT_VALUE_COMPRESSION_OFF)
-#define HSE_FLAG_CURSOR_ALL \
-    (HSE_FLAG_CURSOR_REVERSE)
+/* clang-format off */
+
+#define HSE_FLAG_SYNC_MASK      (HSE_FLAG_SYNC_ASYNC)
+#define HSE_FLAG_PUT_MASK       (HSE_FLAG_PUT_PRIORITY | HSE_FLAG_PUT_VCOMP_OFF)
+#define HSE_FLAG_CURSOR_MASK    (HSE_FLAG_CURSOR_REVERSE)
+
+/* clang-format on */
 
 static HSE_ALWAYS_INLINE u64
 kvdb_lat_startu(const u32 cidx)
@@ -617,9 +619,7 @@ hse_kvs_put(
     struct kvs_vtuple vt;
     merr_t            err;
 
-    if (HSE_UNLIKELY(
-            !handle || !key || (val_len > 0 && !val) || flags & ~HSE_FLAG_PUT_ALL ||
-            (flags & HSE_FLAG_PUT_VALUE_COMPRESSION_ON && flags & HSE_FLAG_PUT_VALUE_COMPRESSION_OFF)))
+    if (HSE_UNLIKELY(!handle || !key || (val_len > 0 && !val) || flags & ~HSE_FLAG_PUT_MASK))
         return merr_to_hse_err(merr(EINVAL));
 
     if (HSE_UNLIKELY(key_len > HSE_KVS_KEY_LEN_MAX))
@@ -772,7 +772,7 @@ hse_kvdb_sync(struct hse_kvdb *handle, const unsigned int flags)
     merr_t err;
     u64    tstart;
 
-    if (HSE_UNLIKELY(!handle || flags & ~HSE_FLAG_SYNC_ALL))
+    if (HSE_UNLIKELY(!handle || flags & ~HSE_FLAG_SYNC_MASK))
         return merr_to_hse_err(merr(EINVAL));
 
     tstart = perfc_lat_startl(&kvdb_pkvdbl_pc, PERFC_SL_PKVDBL_KVDB_SYNC);
@@ -899,7 +899,7 @@ hse_kvs_cursor_create(
 {
     merr_t err;
 
-    if (HSE_UNLIKELY(!handle || !cursor || (pfx_len && !prefix) || flags & ~HSE_FLAG_CURSOR_ALL))
+    if (HSE_UNLIKELY(!handle || !cursor || (pfx_len && !prefix) || flags & ~HSE_FLAG_CURSOR_MASK))
         return merr_to_hse_err(merr(EINVAL));
 
     PERFC_INC_RU(&kvdb_pc, PERFC_RA_KVDBOP_KVS_CURSOR_CREATE);
