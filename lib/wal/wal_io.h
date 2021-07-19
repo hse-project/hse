@@ -11,7 +11,14 @@ struct wal_fileset;
 struct wal_iocb;
 
 merr_t
-wal_io_enqueue(struct wal_io *io, const char *buf, u64 len, u64 gen, struct wal_minmax_info *info);
+wal_io_enqueue(
+    struct wal_io          *io,
+    const char             *buf,
+    u64                     len,
+    u64                     gen,
+    struct wal_minmax_info *info,
+    bool                    bufwrap,
+    bool                    gendone);
 
 struct wal_io *
 wal_io_create(

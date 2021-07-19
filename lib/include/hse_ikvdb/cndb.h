@@ -134,7 +134,7 @@ cndb_putref(struct cndb *cndb);
  */
 /* MTF_MOCK */
 merr_t
-cndb_replay(struct cndb *cndb, u64 *seqno, u64 *ingestid);
+cndb_replay(struct cndb *cndb, u64 *seqno, u64 *ingestid, u64 *txhorizon);
 
 typedef merr_t
 cn_init_callback(void *, struct kvset_meta *, u64);

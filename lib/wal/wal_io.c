@@ -28,6 +28,8 @@ struct wal_io_work {
     u64         iow_len;
     u64         iow_gen;
     uint        iow_index;
+    bool        iow_bufwrap;
+    bool        iow_gendone;
 } HSE_ALIGNED(SMP_CACHE_BYTES);
 
 
@@ -84,22 +86,29 @@ wal_io_submit(struct wal_io_work *iow)
     if (!wfile) {
         merr_t err;
 
-        err = wal_file_open(io->io_wfset, gen, iow->iow_index, &wfile);
+        err = wal_file_open(io->io_wfset, gen, iow->iow_index, false, &wfile);
         if (err)
             return err;
     }
 
-    err = wal_file_write(wfile, iow->iow_buf, buflen);
+    err = wal_file_write(wfile, iow->iow_buf, buflen, iow->iow_bufwrap);
     if (!err) {
         wal_file_minmax_update(wfile, &iow->iow_info);
         atomic64_add(buflen, io->io_doff);
         io->io_cb->iocb(io->io_cb->cbarg, err);
     }
 
-    if (io->io_wfile)
+    if (io->io_wfile) {
         wal_file_put(wfile);
-    else
+        if (iow->iow_gendone && gen == cgen) {
+            err = wal_file_complete(io->io_wfset, wfile);
+            if (err)
+                return err;
+            io->io_wfile = NULL;
+        }
+    } else {
         io->io_wfile = wfile;
+    }
 
     return err;
 }
@@ -151,7 +160,14 @@ wal_io_worker(struct work_struct *work)
 }
 
 merr_t
-wal_io_enqueue(struct wal_io *io, const char *buf, u64 len, u64 gen, struct wal_minmax_info *info)
+wal_io_enqueue(
+    struct wal_io          *io,
+    const char             *buf,
+    u64                     len,
+    u64                     gen,
+    struct wal_minmax_info *info,
+    bool                    bufwrap,
+    bool                    gendone)
 {
     struct wal_io_work *iow;
     merr_t err;
@@ -169,6 +185,8 @@ wal_io_enqueue(struct wal_io *io, const char *buf, u64 len, u64 gen, struct wal_
     iow->iow_gen = gen;
     iow->iow_index = io->io_index;
     iow->iow_info = *info;
+    iow->iow_bufwrap = bufwrap;
+    iow->iow_gendone = gendone;
 
     INIT_LIST_HEAD(&iow->iow_list);
 

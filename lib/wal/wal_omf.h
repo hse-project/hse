@@ -11,6 +11,7 @@
 #include "wal.h"
 
 struct wal_rec;
+struct wal_txmeta_rec;
 
 enum wal_rec_type {
     WAL_RT_INVALID = 0,
@@ -202,7 +203,7 @@ wal_rectype_nontx(enum wal_rec_type rtype)
 }
 
 void
-wal_rechdr_pack(enum wal_rec_type rtype, u64 rid, size_t kvlen, void *outbuf);
+wal_rechdr_pack(enum wal_rec_type rtype, u64 rid, size_t tlen, uint64_t gen, void *outbuf);
 
 uint
 wal_rechdr_len(void);
@@ -214,25 +215,39 @@ void
 wal_rec_pack(enum wal_op op, u64 cnid, u64 txid, uint klen, size_t vxlen, void *outbuf);
 
 uint
-wal_rec_len(void);
+wal_reclen(void);
 
 u64
-wal_rec_total_len(const char *inbuf);
+wal_rec_total_len(const void *inbuf);
 
 bool
-wal_rec_is_borg(const char *inbuf);
+wal_rec_is_borg(const void *inbuf);
 
 bool
-wal_rec_is_eorg(const char *inbuf);
+wal_rec_is_eorg(const void *inbuf);
 
 bool
-wal_rec_is_morg(const char *inbuf);
+wal_rec_is_morg(const void *inbuf);
 
 bool
-wal_rec_is_valid(const char *inbuf, off_t *offset, u64 gen);
+wal_rec_is_txmeta(const void *inbuf);
 
 bool
-wal_rec_skip(const char *inbuf);
+wal_rec_is_txcommit(const void *inbuf);
+
+bool
+wal_rec_is_txop(const void *inbuf);
+
+bool
+wal_rec_is_valid(
+    const void             *inbuf,
+    off_t                  *offset,
+    u64                     gen,
+    struct wal_minmax_info *info,
+    bool                   *eorg);
+
+bool
+wal_rec_skip(const void *inbuf);
 
 void
 wal_rec_unpack(const char *inbuf, struct wal_rec *rec);
@@ -244,10 +259,19 @@ void
 wal_txn_rec_pack(u64 txid, u64 seqno, void *outbuf);
 
 void
+wal_txn_rec_unpack(const void *inbuf, struct wal_txmeta_rec *trec);
+
+void
 wal_txn_rechdr_finish(void *recbuf, size_t len, u64 offset);
 
 uint
-wal_txn_rec_len(void);
+wal_txn_reclen(void);
+
+void
+wal_update_minmax_seqno(const void *buf, struct wal_minmax_info *info);
+
+void
+wal_update_minmax_txid(const void *buf, struct wal_minmax_info *info);
 
 void
 wal_filehdr_pack(

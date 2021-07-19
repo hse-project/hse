@@ -342,6 +342,8 @@ kvs_put(
         err = kvdb_ctxn_trylock_write(ctxn, &seqnoref, &seqno, true, hash);
         if (err)
             return err;
+
+        rec.cookie = kvdb_ctxn_wal_cookie_get(ctxn);
     }
 
     err = wal_put(kvs->ikv_wal, kvs, kt, vt, seqno, &rec);
@@ -456,6 +458,8 @@ kvs_del(struct ikvs *kvs, struct hse_kvdb_txn *const txn, struct kvs_ktuple *kt,
         err = kvdb_ctxn_trylock_write(ctxn, &seqnoref, &seqno, true, hash);
         if (err)
             return err;
+
+        rec.cookie = kvdb_ctxn_wal_cookie_get(ctxn);
     }
 
     err = wal_del(kvs->ikv_wal, kvs, kt, seqno, &rec);
@@ -500,6 +504,8 @@ kvs_prefix_del(
         err = kvdb_ctxn_trylock_write(ctxn, &seqnoref, &seqno, false, 0);
         if (err)
             return err;
+
+        rec.cookie = kvdb_ctxn_wal_cookie_get(ctxn);
     }
 
     err = wal_del_pfx(kvs->ikv_wal, kvs, kt, seqno, &rec);

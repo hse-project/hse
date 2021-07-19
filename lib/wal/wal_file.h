@@ -23,7 +23,12 @@ void
 wal_fileset_close(struct wal_fileset *wfset, u64 ingestseq, u64 ingestgen, u64 txhorizon);
 
 merr_t
-wal_file_open(struct wal_fileset *wfset, uint64_t gen, int fileid, struct wal_file **handle);
+wal_file_open(
+    struct wal_fileset *wfset,
+    uint64_t            gen,
+    int                 fileid,
+    bool                replay,
+    struct wal_file   **handle);
 
 merr_t
 wal_file_close(struct wal_file *walf);
@@ -41,7 +46,7 @@ merr_t
 wal_file_read(struct wal_file *walf, char *buf, size_t len);
 
 merr_t
-wal_file_write(struct wal_file *wfile, const char *buf, size_t len);
+wal_file_write(struct wal_file *wfile, const char *buf, size_t len, bool bufwrap);
 
 void
 wal_file_minmax_update(struct wal_file *wfile, struct wal_minmax_info *info);

@@ -120,6 +120,9 @@ void
 kvdb_ctxn_unlock(
     struct kvdb_ctxn *handle);
 
+int64_t
+kvdb_ctxn_wal_cookie_get(struct kvdb_ctxn *handle);
+
 /* -- c0 cursor w/ txn support ------------ */
 
 /* MTF_MOCK */

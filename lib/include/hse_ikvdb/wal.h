@@ -31,6 +31,7 @@ struct wal_record {
     u64     offset;
     uint    wbidx;
     size_t  len;
+    int64_t cookie;
 };
 
 struct wal_replay_info {
@@ -94,15 +95,15 @@ wal_del_pfx(
 
 /* MTF_MOCK */
 merr_t
-wal_txn_begin(struct wal *wal, uint64_t txid);
+wal_txn_begin(struct wal *wal, uint64_t txid, int64_t *cookie);
 
 /* MTF_MOCK */
 merr_t
-wal_txn_abort(struct wal *wal, uint64_t txid);
+wal_txn_abort(struct wal *wal, uint64_t txid, int64_t cookie);
 
 /* MTF_MOCK */
 merr_t
-wal_txn_commit(struct wal *wal, uint64_t txid, uint64_t seqno);
+wal_txn_commit(struct wal *wal, uint64_t txid, uint64_t seqno, int64_t cookie);
 
 void
 wal_op_finish(struct wal *wal, struct wal_record *rec, uint64_t seqno, uint64_t gen, int rc);

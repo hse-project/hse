@@ -466,7 +466,7 @@ kvdb_ctxn_abort_inner(struct kvdb_ctxn_impl *ctxn)
         kvdb_ctxn_locks_destroy(locks);
     }
 
-    wal_txn_abort(ctxn->ctxn_wal, ctxn->ctxn_view_seqno);
+    wal_txn_abort(ctxn->ctxn_wal, ctxn->ctxn_view_seqno, ctxn->ctxn_wal_cookie);
 
     /* At this point the transaction ceases to be considered active */
     kvdb_ctxn_deactivate(ctxn);
@@ -627,7 +627,7 @@ kvdb_ctxn_commit(struct kvdb_ctxn *handle)
         ctxn->ctxn_bind = 0;
     }
 
-    err = wal_txn_commit(ctxn->ctxn_wal, ctxn->ctxn_view_seqno, commit_sn);
+    err = wal_txn_commit(ctxn->ctxn_wal, ctxn->ctxn_view_seqno, commit_sn, ctxn->ctxn_wal_cookie);
 
     kvdb_ctxn_deactivate(ctxn);
     kvdb_ctxn_unlock_impl(ctxn);
@@ -671,6 +671,15 @@ kvdb_ctxn_get_seqnoref(struct kvdb_ctxn *handle)
 
     return ctxn ? ctxn->ctxn_seqref : 0;
 }
+
+int64_t
+kvdb_ctxn_wal_cookie_get(struct kvdb_ctxn *handle)
+{
+    struct kvdb_ctxn_impl *ctxn = kvdb_ctxn_h2r(handle);
+
+    return ctxn->ctxn_wal_cookie;
+}
+
 
 /* This routine determines whether ownership of a write lock can be inherited
  * from one client transaction to another and if so performs the transfer.
@@ -878,7 +887,7 @@ kvdb_ctxn_trylock_write(
         return err;
 
     if (HSE_UNLIKELY(!ctxn->ctxn_can_insert)) {
-        err = wal_txn_begin(ctxn->ctxn_wal, ctxn->ctxn_view_seqno);
+        err = wal_txn_begin(ctxn->ctxn_wal, ctxn->ctxn_view_seqno, &ctxn->ctxn_wal_cookie);
         if (err)
             goto errout;
 

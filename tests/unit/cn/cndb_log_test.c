@@ -100,7 +100,7 @@ MTF_DEFINE_UTEST(cndb_log_test, rollforward)
     merr_t err;
     size_t expect_workc = 0;
     size_t expect_keepc = 66;
-    u64    ingestid;
+    u64    ingestid, txhorizon;
 
     load_log("missing_ackds.cndblog");
 
@@ -113,7 +113,7 @@ MTF_DEFINE_UTEST(cndb_log_test, rollforward)
     mapi_inject(mapi_idx_mpool_mblock_props_get, 0);
     mapi_inject(mapi_idx_mpool_mblock_abort, 0);
     mapi_inject(mapi_idx_mpool_mblock_delete, 0);
-    err = cndb_replay(mock_cndb, &seqno, &ingestid);
+    err = cndb_replay(mock_cndb, &seqno, &ingestid, &txhorizon);
     ASSERT_EQ(0, err);
 
     /* [HSE_REVISIT] cndb_validate_vector() could check more than it does */
@@ -131,7 +131,7 @@ MTF_DEFINE_UTEST(cndb_log_test, rollforward)
     err = mpm_mdc_set_getlen(mock_cndb->cndb_mdc, getlen);
     ASSERT_EQ(0, err);
 
-    err = cndb_replay(mock_cndb, &seqno, &ingestid);
+    err = cndb_replay(mock_cndb, &seqno, &ingestid, &txhorizon);
     ASSERT_EQ(0, err);
 
     ASSERT_EQ(expect_workc, mock_cndb->cndb_workc);
@@ -152,7 +152,7 @@ MTF_DEFINE_UTEST(cndb_log_test, rollbackward)
     merr_t err;
     size_t expect_workc = 0;
     size_t expect_keepc = 58;
-    u64    ingestid;
+    u64    ingestid, txhorizon;
 
     load_log("missing_ackc.cndblog");
 
@@ -165,7 +165,7 @@ MTF_DEFINE_UTEST(cndb_log_test, rollbackward)
     mapi_inject(mapi_idx_mpool_mblock_props_get, 0);
     mapi_inject(mapi_idx_mpool_mblock_abort, 0);
     mapi_inject(mapi_idx_mpool_mblock_delete, 0);
-    err = cndb_replay(mock_cndb, &seqno, &ingestid);
+    err = cndb_replay(mock_cndb, &seqno, &ingestid, &txhorizon);
     ASSERT_EQ(0, err);
 
     ASSERT_EQ(expect_workc, mock_cndb->cndb_workc);
@@ -182,7 +182,7 @@ MTF_DEFINE_UTEST(cndb_log_test, rollbackward)
     err = mpm_mdc_set_getlen(mock_cndb->cndb_mdc, getlen);
     ASSERT_EQ(0, err);
 
-    err = cndb_replay(mock_cndb, &seqno, &ingestid);
+    err = cndb_replay(mock_cndb, &seqno, &ingestid, &txhorizon);
     ASSERT_EQ(0, err);
 
     ASSERT_EQ(expect_workc, mock_cndb->cndb_workc);
@@ -201,7 +201,7 @@ MTF_DEFINE_UTEST(cndb_log_test, rollbackward)
 MTF_DEFINE_UTEST(cndb_log_test, wrongingestid)
 {
     merr_t err;
-    u64    ingestid;
+    u64    ingestid, txhorizon;
 
     load_log("wrongingestid.cndblog");
 
@@ -214,7 +214,7 @@ MTF_DEFINE_UTEST(cndb_log_test, wrongingestid)
     mapi_inject(mapi_idx_mpool_mblock_props_get, 0);
     mapi_inject(mapi_idx_mpool_mblock_abort, 0);
     mapi_inject(mapi_idx_mpool_mblock_delete, 0);
-    err = cndb_replay(mock_cndb, &seqno, &ingestid);
+    err = cndb_replay(mock_cndb, &seqno, &ingestid, &txhorizon);
     /*
      * cndb should not check ingest ids. It is normal for them not to
      * be increasing order.
@@ -238,7 +238,7 @@ MTF_DEFINE_UTEST(cndb_log_test, simpledrop)
     size_t final_workc = 0;
     size_t final_keepc = 26;
     u64    drop_cnid = 2;
-    u64    ingestid;
+    u64    ingestid, txhorizon;
     size_t blobsz;
     char * blob = NULL;
     int    rc;
@@ -256,7 +256,7 @@ MTF_DEFINE_UTEST(cndb_log_test, simpledrop)
     mapi_inject(mapi_idx_mpool_mblock_abort, 0);
     mapi_inject(mapi_idx_mpool_mblock_delete, 0);
     mapi_inject(mapi_idx_mpool_mdc_usage, 0);
-    err = cndb_replay(mock_cndb, &seqno, &ingestid);
+    err = cndb_replay(mock_cndb, &seqno, &ingestid, &txhorizon);
     ASSERT_EQ(0, err);
 
     ASSERT_EQ(expect_workc, mock_cndb->cndb_workc);
@@ -299,7 +299,7 @@ MTF_DEFINE_UTEST(cndb_log_test, simpledrop2)
     size_t final_workc = 0;
     size_t final_keepc = 36;
     u64    drop_cnid = 3;
-    u64    ingestid;
+    u64    ingestid, txhorizon;
 
     load_log("simpledrop.cndblog");
 
@@ -313,7 +313,7 @@ MTF_DEFINE_UTEST(cndb_log_test, simpledrop2)
     mapi_inject(mapi_idx_mpool_mblock_abort, 0);
     mapi_inject(mapi_idx_mpool_mblock_delete, 0);
     mapi_inject(mapi_idx_mpool_mdc_usage, 0);
-    err = cndb_replay(mock_cndb, &seqno, &ingestid);
+    err = cndb_replay(mock_cndb, &seqno, &ingestid, &txhorizon);
     ASSERT_EQ(0, err);
 
     ASSERT_EQ(expect_workc, mock_cndb->cndb_workc);
@@ -347,7 +347,7 @@ MTF_DEFINE_UTEST(cndb_log_test, simpledrop_recovery)
     size_t expect_workc = 0;
     size_t expect_keepc = 36;
     u64    drop_cnid = 3;
-    u64    ingestid;
+    u64    ingestid, txhorizon;
 
     load_log("simpledrop_recovery.cndblog");
 
@@ -361,7 +361,7 @@ MTF_DEFINE_UTEST(cndb_log_test, simpledrop_recovery)
     mapi_inject(mapi_idx_mpool_mblock_abort, 0);
     mapi_inject(mapi_idx_mpool_mblock_delete, 0);
     mapi_inject(mapi_idx_mpool_mdc_usage, 0);
-    err = cndb_replay(mock_cndb, &seqno, &ingestid);
+    err = cndb_replay(mock_cndb, &seqno, &ingestid, &txhorizon);
     ASSERT_EQ(0, err);
 
     ASSERT_EQ(expect_workc, mock_cndb->cndb_workc);
@@ -386,7 +386,7 @@ MTF_DEFINE_UTEST(cndb_log_test, info_v9_test)
     merr_t err;
     size_t expect_workc = 0;
     size_t expect_keepc = 38;
-    u64    ingestid;
+    u64    ingestid, txhorizon;
 
     load_log("putbin_v9.cndblog");
 
@@ -400,7 +400,7 @@ MTF_DEFINE_UTEST(cndb_log_test, info_v9_test)
     mapi_inject(mapi_idx_mpool_mblock_abort, 0);
     mapi_inject(mapi_idx_mpool_mblock_delete, 0);
     mapi_inject(mapi_idx_mpool_mdc_usage, 0);
-    err = cndb_replay(mock_cndb, &seqno, &ingestid);
+    err = cndb_replay(mock_cndb, &seqno, &ingestid, &txhorizon);
     ASSERT_EQ(0, err);
 
     ASSERT_EQ(expect_workc, mock_cndb->cndb_workc);
@@ -422,7 +422,7 @@ MTF_DEFINE_UTEST(cndb_log_test, info_v11_test)
     merr_t err;
     size_t expect_workc = 0;
     size_t expect_keepc = 4;
-    u64    ingestid;
+    u64    ingestid, txhorizon;
 
     load_log("putbin_v11.cndblog");
 
@@ -436,7 +436,7 @@ MTF_DEFINE_UTEST(cndb_log_test, info_v11_test)
     mapi_inject(mapi_idx_mpool_mblock_abort, 0);
     mapi_inject(mapi_idx_mpool_mblock_delete, 0);
     mapi_inject(mapi_idx_mpool_mdc_usage, 0);
-    err = cndb_replay(mock_cndb, &seqno, &ingestid);
+    err = cndb_replay(mock_cndb, &seqno, &ingestid, &txhorizon);
     ASSERT_EQ(0, err);
 
     ASSERT_EQ(expect_workc, mock_cndb->cndb_workc);

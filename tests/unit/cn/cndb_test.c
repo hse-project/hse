@@ -951,7 +951,7 @@ MTF_DEFINE_UTEST(cndb_test, cndb_misc_test)
     u64                   seqno;
     struct kvset_meta     km = {};
     struct kvdb_health    health;
-    u64                   ingestid;
+    u64                   ingestid, txhorizon;
 
     cn.cn_cndb = &cndb;
     cn.rp = &rp;
@@ -971,11 +971,11 @@ MTF_DEFINE_UTEST(cndb_test, cndb_misc_test)
     err = cn_ingestv(cnv, mbv, 1, U64_MAX, U64_MAX, NULL, NULL);
     ASSERT_EQ(1, err);
 
-    err = cndb_replay(&cndb, &seqno, &ingestid);
+    err = cndb_replay(&cndb, &seqno, &ingestid, &txhorizon);
     ASSERT_EQ(1, err);
 
     mapi_inject(mapi_idx_mpool_mdc_read, 0);
-    err = cndb_replay(&cndb, &seqno, &ingestid);
+    err = cndb_replay(&cndb, &seqno, &ingestid, &txhorizon);
     ASSERT_EQ(ENODATA, merr_errno(err));
 
     err = cndb_txn_start(&cndb, &txid, 0, 0, 0, 0, 0);

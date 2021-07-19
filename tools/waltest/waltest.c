@@ -1422,12 +1422,12 @@ main(int argc, char **argv)
     progname = strrchr(argv[0], '/');
     progname = progname ? progname + 1 : argv[0];
 
-    err = hse_init(0, NULL);
+    ingest_mode = false;
+    err = waltest_parse(argc, argv);
     if (err)
         return err;
 
-    ingest_mode = false;
-    err = waltest_parse(argc, argv);
+    err = hse_init(opt.kvdb, 0, NULL);
     if (err)
         return err;
 

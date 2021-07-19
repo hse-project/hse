@@ -91,6 +91,7 @@ struct cndb_idx {
  */
 struct cndb_ingest_replay {
     u64  cir_ingestid;
+    u64  cir_txhorizon;
     u64  cir_txid;
     bool cir_success;
 };

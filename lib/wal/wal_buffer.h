@@ -18,7 +18,7 @@ void
 wal_bufset_close(struct wal_bufset *wbs);
 
 void *
-wal_bufset_alloc(struct wal_bufset *wbs, size_t len, u64 *offout, uint *wbidx);
+wal_bufset_alloc(struct wal_bufset *wbs, size_t len, u64 *offout, uint *wbidx, int64_t *cookie);
 
 void
 wal_bufset_finish(struct wal_bufset *wbs, uint wbidx, size_t len, uint64_t gen, u64 endoff);

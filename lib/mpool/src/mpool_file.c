@@ -253,5 +253,7 @@ mpool_file_unmap(struct mpool_file *file)
     if (rc == -1)
         return merr(errno);
 
+    file->addr = NULL;
+
     return 0;
 }

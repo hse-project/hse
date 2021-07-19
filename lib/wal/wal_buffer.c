@@ -24,7 +24,7 @@
 #define WAL_BUFSZ_MAX       (4ul << 30)
 
 #define WAL_BUFALLOCSZ_MAX \
-    (ALIGN(WAL_BUFSZ_MAX + wal_rec_len() + HSE_KVS_KEY_LEN_MAX + HSE_KVS_VALUE_LEN_MAX, 2ul << 20))
+    (ALIGN(WAL_BUFSZ_MAX + wal_reclen() + HSE_KVS_KEY_LEN_MAX + HSE_KVS_VALUE_LEN_MAX, 2ul << 20))
 
 
 struct wal_buffer {
@@ -36,6 +36,7 @@ struct wal_buffer {
     char      *wb_buf;
     atomic64_t wb_curgen;
     atomic_t   wb_flushing;
+    atomic_t   wb_wrap;
     atomic64_t wb_flushb;
     atomic64_t wb_flushc;
 
@@ -63,38 +64,6 @@ struct wal_bufset {
 
 /* clang-format on */
 
-static HSE_ALWAYS_INLINE void
-wal_buffer_minmax_seqno(const char *buf, uint rtype, struct wal_minmax_info *info)
-{
-    bool nontx, txcom;
-
-    nontx = wal_rectype_nontx(rtype);
-    txcom = wal_rectype_txcommit(rtype);
-    if (nontx || txcom) {
-        struct wal_rec_omf *r = (void *)buf;
-        struct wal_txnrec_omf *tr = (void *)buf;
-        u64 seqno = nontx ? omf_r_seqno(r) : omf_tr_seqno(tr);
-
-        info->min_seqno = min_t(u64, info->min_seqno, seqno);
-        info->max_seqno = max_t(u64, info->max_seqno, seqno);
-    }
-}
-
-static HSE_ALWAYS_INLINE void
-wal_buffer_minmax_txid(const char *buf, uint rtype, struct wal_minmax_info *info)
-{
-    bool txmeta;
-
-    txmeta = wal_rectype_txnmeta(rtype);
-    if (txmeta) {
-        struct wal_txnrec_omf *tr = (void *)buf;
-        u64 txid = omf_tr_txid(tr);
-
-        info->min_txid = min_t(u64, info->min_txid, txid);
-        info->max_txid = max_t(u64, info->max_txid, txid);
-    }
-}
-
 /*
  * Flush worker routine - for a specific buffer
  *
@@ -114,6 +83,7 @@ wal_buffer_flush_worker(struct work_struct *work)
     u64 coff, foff, prev_foff, cgen, rgen, start_foff, flushb = 0, buflen;
     u32 flags, rhlen;
     merr_t err;
+    bool wrap, gendone;
 
     wb = container_of(work, struct wal_buffer, wb_fwork);
 
@@ -124,6 +94,7 @@ restart:
     foff = atomic64_read(&wb->wb_foff);
     info.min_seqno = info.min_gen = info.min_txid = U64_MAX;
     info.max_seqno = info.max_gen = info.max_txid = 0;
+    wrap = gendone = false;
 
     if (coff == foff) {
         atomic_set(&wb->wb_flushing, 0);
@@ -136,7 +107,6 @@ restart:
 
     while (foff < coff) {
         bool skiprec = false;
-        u32 rtype;
         u64 recoff;
 
         buf = wb->wb_buf + (foff % WAL_BUFSZ_MAX);
@@ -165,8 +135,10 @@ restart:
         if (!skiprec) {
             /* Mark flush boundary on encountering a gen increase */
             rgen = omf_rh_gen(rhdr);
-            if (cgen > 0 && rgen > cgen)
+            if (cgen > 0 && rgen > cgen) {
+                gendone = true;
                 break;
+            }
 
             /* Do not allow the IO payload to exceed 32 MiB */
             if (cgen > 0 && (foff - start_foff) >= (32 << 20))
@@ -179,18 +151,19 @@ restart:
             info.max_gen = max_t(u64, info.max_gen, rgen);
 
             /* Determine min/max seqno from non-tx op and tx-commit record */
-            rtype = omf_rh_type(rhdr);
-            wal_buffer_minmax_seqno(buf, rtype, &info);
+            wal_update_minmax_seqno(buf, &info);
 
             /* Determine min/max txid from tx meta record */
-            wal_buffer_minmax_txid(buf, rtype, &info);
+            wal_update_minmax_txid(buf, &info);
         }
 
         prev_foff = foff;
         foff += (rhlen + omf_rh_len(rhdr));
 
-        if ((foff % WAL_BUFSZ_MAX) < (prev_foff % WAL_BUFSZ_MAX))
+        if ((foff % WAL_BUFSZ_MAX) < (prev_foff % WAL_BUFSZ_MAX)) {
+            wrap = true;
             break;
+        }
     }
     assert(foff <= coff);
 
@@ -215,11 +188,13 @@ restart:
         goto exit;
     }
 
-    err = wal_io_enqueue(wb->wb_io, buf, buflen, cgen, &info);
+    err = wal_io_enqueue(wb->wb_io, buf, buflen, cgen, &info, !!atomic_read(&wb->wb_wrap), gendone);
     if (err)
         goto exit;
 
     flushb += (foff - start_foff);
+
+    atomic_set(&wb->wb_wrap, wrap ? 1 : 0);
 
     if (foff < coff)
         goto restart;
@@ -279,6 +254,7 @@ wal_bufset_open(struct wal_fileset *wfset, atomic64_t *ingestgen, struct wal_ioc
             atomic64_set(&wb->wb_curgen, 0);
             atomic64_set(&wb->wb_flushc, 0);
             atomic_set(&wb->wb_flushing, 0);
+            atomic_set(&wb->wb_wrap, 0);
 
             for (k = 0; k < NELEM(wb->wb_genlenv); ++k) {
                 atomic64_set(&wb->wb_genlenv[k], 0);
@@ -360,18 +336,26 @@ wal_bufset_close(struct wal_bufset *wbs)
 }
 
 void *
-wal_bufset_alloc(struct wal_bufset *wbs, size_t len, u64 *offout, uint *wbidx)
+wal_bufset_alloc(struct wal_bufset *wbs, size_t len, u64 *offout, uint *wbidx, int64_t *cookie)
 {
     const size_t hwm = WAL_BUFSZ_MAX - (8u << 20);
     struct wal_buffer *wb;
-    uint cpuid, nodeid, coreid;
     u64 offset, doff;
+    int slot;
 
-    hse_getcpu(&cpuid, &nodeid, &coreid);
+    if (!cookie || (cookie && *cookie == -1)) {
+        uint cpuid, nodeid, coreid;
 
-    wb = wbs->wbs_bufv;
-    wb += (nodeid % WAL_NODE_MAX) * WAL_BPN_MAX;
-    wb += (coreid % WAL_BPN_MAX);
+        hse_getcpu(&cpuid, &nodeid, &coreid);
+        slot = (nodeid % WAL_NODE_MAX) * WAL_BPN_MAX + (coreid % WAL_BPN_MAX);
+
+        if (cookie)
+            *cookie = slot;
+    } else {
+        slot = *cookie;
+    }
+
+    wb = wbs->wbs_bufv + slot;
 
     offset = atomic64_fetch_add(len, &wb->wb_offset_head);
 
@@ -404,7 +388,7 @@ wal_bufset_alloc(struct wal_bufset *wbs, size_t len, u64 *offout, uint *wbidx)
     }
 
     *offout = offset;
-    *wbidx = wb - wbs->wbs_bufv;
+    *wbidx = slot;
 
     return wb->wb_buf + (offset % WAL_BUFSZ_MAX);
 }

@@ -301,11 +301,12 @@ wal_put(
 
     klen = kt->kt_len;
     vlen = kvs_vtuple_vlen(vt);
-    rlen = wal_rec_len();
+    rlen = wal_reclen();
     kvlen = ALIGN(klen, kvalign) + ALIGN(vlen, kvalign);
     len = rlen + kvlen;
 
-    rec = wal_bufset_alloc(wal->wbs, len, &recout->offset, &recout->wbidx);
+    rec = wal_bufset_alloc(wal->wbs, len, &recout->offset, &recout->wbidx,
+                           txid > 0 ? &recout->cookie : NULL);
     if (!rec) {
         err = merr(ENOMEM); /* unrecoverable error */
         kvdb_health_error(wal->health, err);
@@ -317,7 +318,7 @@ wal_put(
 
     rid = atomic64_inc_return(&wal->wal_rid);
     rtype = (txid > 0) ? WAL_RT_TX : WAL_RT_NONTX;
-    wal_rechdr_pack(rtype, rid, kvlen, rec);
+    wal_rechdr_pack(rtype, rid, len, 0, rec);
 
     wal_rec_pack(WAL_OP_PUT, kvs->ikv_cnid, txid, klen, vt->vt_xlen, rec);
 
@@ -355,12 +356,13 @@ wal_del_impl(
     if (!wal)
         return 0;
 
-    rlen = wal_rec_len();
+    rlen = wal_reclen();
     klen = kt->kt_len;
     kalen = ALIGN(klen, kalign);
     len = rlen + kalen;
 
-    rec = wal_bufset_alloc(wal->wbs, len, &recout->offset, &recout->wbidx);
+    rec = wal_bufset_alloc(wal->wbs, len, &recout->offset, &recout->wbidx,
+                           txid > 0 ? &recout->cookie : NULL);
     if (!rec) {
         err = merr(ENOMEM); /* unrecoverable error */
         kvdb_health_error(wal->health, err);
@@ -372,7 +374,7 @@ wal_del_impl(
 
     rid = atomic64_inc_return(&wal->wal_rid);
     rtype = (txid > 0) ? WAL_RT_TX : WAL_RT_NONTX;
-    wal_rechdr_pack(rtype, rid, kalen, rec);
+    wal_rechdr_pack(rtype, rid, len, 0, rec);
 
     wal_rec_pack(prefix ? WAL_OP_PDEL : WAL_OP_DEL, kvs->ikv_cnid, txid, klen, 0, rec);
 
@@ -407,7 +409,7 @@ wal_del_pfx(
 }
 
 static merr_t
-wal_txn(struct wal *wal, uint rtype, uint64_t txid, uint64_t seqno)
+wal_txn(struct wal *wal, uint rtype, uint64_t txid, uint64_t seqno, int64_t *cookie)
 {
     struct wal_txnrec_omf *rec;
     uint64_t rid, offset, gen;
@@ -417,8 +419,8 @@ wal_txn(struct wal *wal, uint rtype, uint64_t txid, uint64_t seqno)
     if (!wal)
         return 0;
 
-    rlen = wal_txn_rec_len();
-    rec = wal_bufset_alloc(wal->wbs, rlen, &offset, &wbidx);
+    rlen = wal_txn_reclen();
+    rec = wal_bufset_alloc(wal->wbs, rlen, &offset, &wbidx, cookie);
     if (!rec) {
         merr_t err = merr(ENOMEM); /* unrecoverable error */
 
@@ -439,21 +441,30 @@ wal_txn(struct wal *wal, uint rtype, uint64_t txid, uint64_t seqno)
 }
 
 merr_t
-wal_txn_begin(struct wal *wal, uint64_t txid)
+wal_txn_begin(struct wal *wal, uint64_t txid, int64_t *cookie)
 {
-    return wal_txn(wal, WAL_RT_TXBEGIN, txid, 0);
+    if (!wal || !cookie)
+        return merr(EINVAL);
+
+    *cookie = -1;
+
+    return wal_txn(wal, WAL_RT_TXBEGIN, txid, 0, cookie);
 }
 
 merr_t
-wal_txn_abort(struct wal *wal, uint64_t txid)
+wal_txn_abort(struct wal *wal, uint64_t txid, int64_t cookie)
 {
-    return wal_txn(wal, WAL_RT_TXABORT, txid, 0);
+    assert(cookie >= 0);
+
+    return wal_txn(wal, WAL_RT_TXABORT, txid, 0, &cookie);
 }
 
 merr_t
-wal_txn_commit(struct wal *wal, uint64_t txid, uint64_t seqno)
+wal_txn_commit(struct wal *wal, uint64_t txid, uint64_t seqno, int64_t cookie)
 {
-    return wal_txn(wal, WAL_RT_TXCOMMIT, txid, seqno);
+    assert(cookie >= 0);
+
+    return wal_txn(wal, WAL_RT_TXCOMMIT, txid, seqno, &cookie);
 }
 
 void
@@ -659,7 +670,7 @@ wal_close(struct wal *wal)
         mutex_destroy(&wal->sync_mutex);
     }
 
-    /* Write a close record */
+    /* Write a close record to indicate graceful shutdown */
     wal_mdc_close_write(wal->mdc, true);
     wal_mdc_close(wal->mdc);
 

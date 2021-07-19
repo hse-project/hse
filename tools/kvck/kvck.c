@@ -317,7 +317,7 @@ main(int argc, char **argv)
     uint64_t            rc = 0;
     int                 kvscnt = 0;
     u64                 seqno;
-    u64                 ingestv;
+    u64                 ingestid, txhorizon;
 
     loc = loc_buf = 0;
 
@@ -405,7 +405,7 @@ main(int argc, char **argv)
         goto out;
     }
 
-    err = merr_to_hse_err(cndb_replay(cndb, &seqno, &ingestv));
+    err = merr_to_hse_err(cndb_replay(cndb, &seqno, &ingestid, &txhorizon));
     if (err) {
         hse_strerror(err, errbuf, sizeof(errbuf));
         fatal("cannot replay cndb: %s", errbuf);
