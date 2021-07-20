@@ -100,12 +100,13 @@ main(int argc, char **argv)
     int              c, rc, help;
     bool             fnd;
     enum Actions     action;
+    struct svec      hse_gparm;
 
     prog = basename(argv[0]);
     help = 0;
     action = PUT;
 
-    rc = pg_create(&pg, PG_KVDB_OPEN, PG_KVS_OPEN, NULL);
+    rc = pg_create(&pg, PG_HSE_GLOBAL, PG_KVDB_OPEN, PG_KVS_OPEN, NULL);
     if (rc)
         fatal(rc, "pg_create");
 
@@ -161,7 +162,11 @@ main(int argc, char **argv)
             break;
     }
 
-    err = hse_init(mpname, 0, NULL);
+    rc = svec_append_pg(&hse_gparm, pg, PG_HSE_GLOBAL, NULL);
+    if (rc)
+        fatal(rc, "failed to parse hse-gparams\n");
+
+    err = hse_init(mpname, hse_gparm.strc, hse_gparm.strv);
     if (err)
         fatal(err, "failed to initialize kvdb");
 
@@ -229,6 +234,7 @@ main(int argc, char **argv)
 
     hse_kvdb_close(kvdb);
     pg_destroy(pg);
+    svec_reset(&hse_gparm);
     hse_fini();
 
     return err ? 1 : 0;

@@ -248,9 +248,7 @@ main(int argc, char **argv)
     unsigned           action, endian, iter, paws, comp;
     unsigned           cnt, start, klen, vlen;
     unsigned           opt_sync = 0;
-
-    //foo_test(argc, argv);
-    //exit(0);
+    struct svec        hse_gparm;
 
     prog = basename(argv[0]);
     klen = 4;
@@ -264,7 +262,7 @@ main(int argc, char **argv)
     action = PUT;
     endian = BIG_ENDIAN;
 
-    rc = pg_create(&pg, PG_KVDB_OPEN, PG_KVS_OPEN, NULL);
+    rc = pg_create(&pg, PG_HSE_GLOBAL, PG_KVDB_OPEN, PG_KVS_OPEN, NULL);
     if (rc)
         fatal(rc, "pg_create");
 
@@ -339,7 +337,11 @@ main(int argc, char **argv)
             break;
     }
 
-    rc = hse_init(mpname, 0, NULL);
+    rc = svec_append_pg(&hse_gparm, pg, PG_HSE_GLOBAL, NULL);
+    if (rc)
+        fatal(rc, "failed to parse hse-gparams");
+
+    rc = hse_init(mpname, hse_gparm.strc, hse_gparm.strv);
     if (rc)
         fatal(rc, "failed to initialize kvdb");
 
@@ -468,6 +470,7 @@ main(int argc, char **argv)
     hse_fini();
 
     pg_destroy(pg);
+    svec_reset(&hse_gparm);
 
     return rc;
 }

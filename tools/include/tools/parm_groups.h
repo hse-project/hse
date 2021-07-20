@@ -19,6 +19,7 @@ struct parm_groups;
 /* These are suggested group names.  Clients are free to use other
  * names or define additional groups as they see fit.
  */
+#define PG_HSE_GLOBAL  "hse-gparams"
 #define PG_KVDB_CREATE "kvdb-cparms"
 #define PG_KVDB_OPEN   "kvdb-oparms"
 #define PG_KVS_CREATE  "kvs-cparms"

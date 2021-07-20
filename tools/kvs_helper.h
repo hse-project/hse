@@ -20,8 +20,9 @@ struct thread_arg {
 
 struct hse_kvdb *
 kh_init(
-	const char           *kvdb_home,
-	struct svec          *kvdb_oparms);
+	const char  *kvdb_home,
+	struct svec *hse_gparms,
+	struct svec *kvdb_oparms);
 
 void
 kh_fini(void);

@@ -432,6 +432,7 @@ main(
     char    **argv)
 {
     struct parm_groups *pg = NULL;
+    struct svec         hse_gparms = {};
     struct svec         kvdb_oparms = {};
     struct svec         kvs_cparms = {};
     struct svec         kvs_oparms = {};
@@ -444,7 +445,7 @@ main(
 
     progname = basename(argv[0]);
 
-    rc = pg_create(&pg, PG_KVDB_OPEN, PG_KVS_OPEN, PG_KVS_CREATE, NULL);
+    rc = pg_create(&pg, PG_HSE_GLOBAL, PG_KVDB_OPEN, PG_KVS_OPEN, PG_KVS_CREATE, NULL);
     if (rc)
         fatal(rc, "pg_create");
 
@@ -559,7 +560,14 @@ main(
             break;
     }
 
-    kh_init(mpool, &kvdb_oparms);
+	rc = rc ?: svec_append_pg(&hse_gparms, pg, PG_HSE_GLOBAL, NULL);
+	rc = rc ?: svec_append_pg(&kvdb_oparms, pg, PG_KVDB_OPEN, NULL);
+	rc = rc ?: svec_append_pg(&kvs_cparms, pg, PG_KVS_CREATE, NULL);
+	rc = rc ?: svec_append_pg(&kvs_oparms, pg, PG_KVS_OPEN, NULL);
+	if (rc)
+		fatal(rc, "failed to parse params\n");
+
+    kh_init(mpool, &hse_gparms, &kvdb_oparms);
 
     if (opts.phase == NONE) {
         fprintf(stderr, "Choose a phase to run\n");
@@ -729,6 +737,10 @@ main(
         free(opts.tests);
 
     pg_destroy(pg);
+	svec_reset(&hse_gparms);
+	svec_reset(&kvdb_oparms);
+	svec_reset(&kvs_cparms);
+	svec_reset(&kvs_oparms);
 
     return 0;
 }

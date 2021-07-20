@@ -25,8 +25,9 @@ size_t      vlenmax = 1024;
 int         verbosity;
 
 struct parm_groups *pg;
-struct svec          db_oparm;
-struct svec          kv_oparm;
+struct svec         hse_gparm;
+struct svec         db_oparm;
+struct svec         kv_oparm;
 
 __attribute__((format(printf, 2, 3))) void
 herr_print(uint64_t herr, char *fmt, ...)
@@ -249,7 +250,7 @@ main(int argc, char **argv)
     progname = strrchr(argv[0], '/');
     progname = progname ? progname + 1 : argv[0];
 
-    rc = pg_create(&pg, PG_KVDB_OPEN, PG_KVS_OPEN, NULL);
+    rc = pg_create(&pg, PG_HSE_GLOBAL, PG_KVDB_OPEN, PG_KVS_OPEN, NULL);
     if (rc) {
         eprint("pg_create failed");
         exit(EX_OSERR);
@@ -359,6 +360,7 @@ main(int argc, char **argv)
             break;
     }
 
+    rc = rc ?: svec_append_pg(&hse_gparm, pg, PG_KVDB_OPEN, NULL);
     rc = rc ?: svec_append_pg(&db_oparm, pg, "perfc_enable=0", PG_KVDB_OPEN, NULL);
     rc = rc ?: svec_append_pg(&kv_oparm, pg, PG_KVS_OPEN, "transactions_enable=1", NULL);
     if (rc) {
@@ -366,7 +368,7 @@ main(int argc, char **argv)
         exit(EX_OSERR);
     }
 
-    herr = hse_init(mp_name, 0, NULL);
+    herr = hse_init(mp_name, hse_gparm.strc, hse_gparm.strv);
     if (herr) {
         herr_print(herr, "hse_init() failed: ");
         exit(EX_OSERR);
@@ -375,6 +377,7 @@ main(int argc, char **argv)
     stuff();
 
     pg_destroy(pg);
+    svec_reset(&hse_gparm);
     svec_reset(&db_oparm);
     svec_reset(&kv_oparm);
 

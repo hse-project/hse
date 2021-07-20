@@ -346,6 +346,7 @@ ulong sync_timeout_ms = 0;
 
 struct parm_groups *pg;
 
+struct svec hse_gparm;
 struct svec db_oparms;
 struct svec rids_oparms, rids_cparms;
 struct svec inodes_oparms, inodes_cparms;
@@ -812,6 +813,7 @@ parm_vec_init(void)
     if (ridpfxlen)
         snprintf(rids_pfx, sizeof(rids_pfx), "pfx_len=%zu", ridpfxlen);
 
+    svec_init(&hse_gparm);
     svec_init(&db_oparms);
 
     svec_init(&rids_oparms);
@@ -825,6 +827,8 @@ parm_vec_init(void)
     svec_init(&inodes_cparms);
 
     svec_init(&empty_parms);
+
+    rc = rc ?: svec_append_pg(&hse_gparm, pg, PG_HSE_GLOBAL, NULL);
 
     /* kvdb open params */
     rc = rc ?: svec_append_pg(&db_oparms, pg, "perfc_enable=0", PG_KVDB_OPEN, NULL);
@@ -849,6 +853,7 @@ parm_vec_init(void)
 void
 parm_vec_fini(void)
 {
+    svec_reset(&hse_gparm);
     svec_reset(&db_oparms);
     svec_reset(&rids_oparms);
     svec_reset(&rids_cparms);
@@ -1547,7 +1552,7 @@ main(int argc, char **argv)
 
     mpname = argv[optind++];
 
-    rc = pg_create(&pg, PG_KVDB_OPEN, PG_KVS_OPEN, PG_KVS_CREATE, NULL);
+    rc = pg_create(&pg, PG_HSE_GLOBAL, PG_KVDB_OPEN, PG_KVS_OPEN, PG_KVS_CREATE, NULL);
     if (rc) {
         eprint(rc, "pg_create");
         exit(EX_OSERR);
@@ -1581,7 +1586,7 @@ main(int argc, char **argv)
     tsi_start(&tstart);
     status("initializing hse...");
 
-    err = hse_init(mpname, 0, NULL);
+    err = hse_init(mpname, hse_gparm.strc, hse_gparm.strv);
     if (err) {
         eprint(err, "hse_kvb_init");
         exit(EX_OSERR);

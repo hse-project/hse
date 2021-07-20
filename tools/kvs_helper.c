@@ -41,12 +41,13 @@ static struct thread_info *t_head, *t_detached;
 /* caller processes cmdline options */
 struct hse_kvdb *
 kh_init(
-	const char           *kvdb_home,
-	struct svec          *kvdb_oparms)
+	const char  *kvdb_home,
+	struct svec *hse_gparms,
+	struct svec *kvdb_oparms)
 {
 	hse_err_t err;
 
-	err = hse_init(kvdb_home, 0, NULL);
+	err = hse_init(kvdb_home, hse_gparms->strc, hse_gparms->strv);
 	if (err) {
 		fatal(err, "hse_init failed");
 	}
@@ -239,9 +240,6 @@ kh_register(
 {
 	return kh_register_kvs(NULL, flags, NULL, NULL, func, arg);
 }
-
-
-
 
 int
 kh_register_multiple(

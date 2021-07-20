@@ -230,6 +230,7 @@ struct opts {
 };
 
 struct parm_groups *pg;
+struct svec         hse_gparm;
 struct svec         db_oparms;
 struct svec         kv_oparms;
 
@@ -2076,7 +2077,7 @@ main(int argc, char **argv)
 	if (opt.version || opt.help)
 		goto done;
 
-	err = pg_create(&pg, PG_KVDB_OPEN, PG_KVS_OPEN, NULL);
+	err = pg_create(&pg, PG_HSE_GLOBAL, PG_KVDB_OPEN, PG_KVS_OPEN, NULL);
 	if (err) {
 		fprintf(stderr, "pg_create: rc %d\n", err);
 		goto done;
@@ -2160,6 +2161,7 @@ main(int argc, char **argv)
 			break;
 	}
 
+	err = err ?: svec_append_pg(&hse_gparm, pg, PG_HSE_GLOBAL, NULL);
 	err = err ?: svec_append_pg(&db_oparms, pg, PG_KVDB_OPEN, NULL);
 	err = err ?: svec_append_pg(&kv_oparms, pg, PG_KVS_OPEN, NULL);
 	if (err) {
@@ -2185,7 +2187,7 @@ main(int argc, char **argv)
 			goto done;
 	}
 
-	err = hse_init(opt.mpool, 0, NULL);
+	err = hse_init(opt.mpool, hse_gparm.strc, hse_gparm.strv);
 	if (err) {
 		fprintf(stderr, "failed to initialize kvdb\n");
 		goto done;
@@ -2208,6 +2210,7 @@ done:
 	test_fini();
 
 	pg_destroy(pg);
+	svec_reset(&hse_gparm);
 	svec_reset(&db_oparms);
 	svec_reset(&kv_oparms);
 

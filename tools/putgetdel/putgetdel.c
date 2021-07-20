@@ -1025,14 +1025,15 @@ main(int argc, char **argv)
 	uint              kvsc;
 	int               rc;
 	uint              i;
-	hse_err_t            err;
+	hse_err_t         err;
+	struct svec       hse_gparm;
 
 	gettimeofday(&tv_start, NULL);
 
 	progname = strrchr(argv[0], '/');
 	progname = progname ? progname + 1 : argv[0];
 
-	rc = pg_create(&pg, PG_KVDB_OPEN, PG_KVS_OPEN, NULL);
+	rc = pg_create(&pg, PG_HSE_GLOBAL, PG_KVDB_OPEN, PG_KVS_OPEN, NULL);
 	if (rc)
 		quit("pg_create");
 
@@ -1062,6 +1063,10 @@ main(int argc, char **argv)
 			quit("error processing parameter %s\n", argv[optind]);
 			break;
 	}
+
+	rc = svec_append_pg(&hse_gparm, pg, PG_HSE_GLOBAL, NULL);
+	if (rc)
+		quit("failed to parse hse-gparams");
 
 	if (!opt.keys)
 		syntax("number of keys must be > 0");
@@ -1157,7 +1162,7 @@ main(int argc, char **argv)
 	announce_header();
 
 	/* Start HSE */
-	err = hse_init(opt.mpool, 0, NULL);
+	err = hse_init(opt.mpool, hse_gparm.strc, hse_gparm.strv);
 	if (err)
 		quit("failed to initialize kvdb");
 
@@ -1250,6 +1255,7 @@ done:
 	}
 
 	pg_destroy(pg);
+	svec_reset(&hse_gparm);
 
 	destroy_key_generator(key_gen);
 

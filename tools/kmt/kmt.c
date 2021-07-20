@@ -284,6 +284,7 @@ long           sync_timeout_ms = 0;
 int            mclass = MP_MED_CAPACITY;
 
 struct parm_groups *pg;
+struct svec         hse_gparms;
 struct svec         db_oparms;
 struct svec         kv_oparms_notxn;
 struct svec         kv_oparms_txn;
@@ -4453,7 +4454,7 @@ main(int argc, char **argv)
 			kvsname = argv[1];
 			optind = 2;
 
-			rc = pg_create(&pg, PG_KVDB_OPEN, PG_KVS_OPEN, NULL);
+			rc = pg_create(&pg, PG_HSE_GLOBAL, PG_KVDB_OPEN, PG_KVS_OPEN, NULL);
 			if (rc) {
 				eprint("pg_create failed: %s\n", strerror(rc));
 				exit(EX_OSERR);
@@ -4475,6 +4476,12 @@ main(int argc, char **argv)
                 exit(EX_OSERR);
                 break;
 			}
+
+            rc = svec_append_pg(&hse_gparms, pg, PG_HSE_GLOBAL, NULL);
+            if (rc) {
+                eprint("unable to append hse-gparams params: %s\n", strerror(rc));
+                exit(EX_OSERR);
+            }
 
 			rc = svec_append_pg(&db_oparms, pg, "perfc_enable=0", PG_KVDB_OPEN, NULL);
 			if (rc) {
@@ -4633,7 +4640,7 @@ main(int argc, char **argv)
         exit(EX_USAGE);
     }
 #else
-    err = hse_init(impl->mpname, 0, NULL);
+    err = hse_init(impl->mpname, hse_gparms.strc, hse_gparms.strv);
     if (err) {
         hse_strerror(err, errbuf, sizeof(errbuf));
         eprint("%s: failed to initialize kvdb: %s\n", __func__, errbuf);
@@ -4802,6 +4809,7 @@ sigint:
     if (mongo)
         mongoc_cleanup();
 
+    svec_reset(&hse_gparms);
     svec_reset(&db_oparms);
     svec_reset(&kv_oparms_notxn);
     svec_reset(&kv_oparms_txn);
