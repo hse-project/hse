@@ -5,6 +5,8 @@ from hse2 import hse
 
 from utility import lifecycle, cli
 
+import errno
+
 """
 Test 1: Ptomb in LC
 """
@@ -27,62 +29,21 @@ def run_test_1(kvdb: hse.Kvdb, kvs: hse.Kvs):
             kv = c.read()
             assert kv == (b"abc02", b"val1")
 
-            ##c.update()
             kv = c.read()
             assert kv == (b"abc03", b"val1")
 
             c.seek(b"abc02")
-            ##c.update()
             kv = c.read()
             assert kv == (b"abc02", b"val1")
 
 
 """
-Test 2: Ptomb in LC has higher seqno than keys in C0
-[HSE_REVISIT] This will not be allowed once we have snapshot isolation for ptombs
-"""
-
-
-def run_test_2(kvdb: hse.Kvdb, kvs: hse.Kvs):
-    t1 = kvdb.transaction()
-    t1.begin()
-    kvs.prefix_delete(b"def", txn=t1)  # LC
-    kvdb.sync()
-    kvs.prefix_delete(b"def", txn=t1)  # LC
-    kvdb.sync()
-
-    with kvdb.transaction() as t:
-        kvs.put(b"def01", b"val1", txn=t)  # C0
-        kvs.put(b"def02", b"val1", txn=t)  # C0
-        kvs.put(b"def03", b"val1", txn=t)  # C0
-        kvs.put(b"def04", b"val1", txn=t)  # C0
-    t1.commit()  # ptomb has higher seqno
-
-    with kvs.cursor(filt=b"def") as c:
-        c.read()
-        assert c.eof is True
-
-        ##c.update()
-        c.read()
-        assert c.eof is True
-
-        c.seek(b"def03")
-        c.read()
-        assert c.eof is True
-
-        c.seek(b"def02")
-        ##c.update()
-        c.read()
-        assert c.eof is True
-
-
-"""
-Test 3: Value in LC is older than value in cn. The value in LC in this case is just waiting to be
+Test 2: Value in LC is older than value in cn. The value in LC in this case is just waiting to be
 garbage collected and should not be returned by a get
 """
 
 
-def run_test_3(kvdb: hse.Kvdb, kvs: hse.Kvs):
+def run_test_2(kvdb: hse.Kvdb, kvs: hse.Kvs):
     with kvdb.transaction() as t:
         kvs.put(b"ghi01", b"val1", txn=t)  # LC
         kvdb.sync()
@@ -102,11 +63,11 @@ def run_test_3(kvdb: hse.Kvdb, kvs: hse.Kvs):
 
 
 """
-Test 4: Ptomb in LC. Get and Prefix probe
+Test 3: Ptomb in LC. Get and Prefix probe
 """
 
 
-def run_test_4(kvdb: hse.Kvdb, kvs: hse.Kvs):
+def run_test_3(kvdb: hse.Kvdb, kvs: hse.Kvs):
     with kvdb.transaction() as t:
         kvs.put(b"jkl01", b"val1", txn=t)
         kvs.put(b"jkl02", b"val1", txn=t)
@@ -146,9 +107,6 @@ try:
         kvdb.sync()
 
         run_test_3(kvdb, kvs)
-        kvdb.sync()
-
-        run_test_4(kvdb, kvs)
         kvdb.sync()
 finally:
     hse.fini()

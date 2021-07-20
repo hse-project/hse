@@ -26,6 +26,7 @@ tests = [
     'lc_cursor_test1',
     'lc_test_fwd',
     'lc_test_rev',
+    'ptomb_snapshot_isolation',
     'rev_basic',
     'seek-del-put-next',
     'seek_tomb',

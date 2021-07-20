@@ -37,6 +37,7 @@ struct lc;
 struct cn;
 struct cn_kvdb;
 struct wal;
+struct viewset;
 
 struct kc_filter {
     const void *kcf_maxkey;

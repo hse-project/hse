@@ -63,6 +63,7 @@
 #include "kvdb_kvs.h"
 #include "viewset.h"
 #include "kvdb_keylock.h"
+#include "kvdb_pfxlock.h"
 
 #include <mpool/mpool.h>
 
@@ -151,6 +152,7 @@ struct ikvdb_impl {
     struct c0snr_set       *ikdb_c0snr_set;
     struct perfc_set        ikdb_ctxn_op;
     struct kvdb_keylock    *ikdb_keylock;
+    struct kvdb_pfxlock    *ikdb_pfxlock;
     struct c0sk            *ikdb_c0sk;
     struct lc              *ikdb_lc;
 
@@ -258,13 +260,13 @@ validate_kvs_name(const char *name)
 
 static merr_t
 ikvdb_wal_create(
-    struct mpool        *mp,
+    struct mpool *       mp,
     struct kvdb_cparams *cp,
-    struct kvdb_log     *log,
+    struct kvdb_log *    log,
     struct kvdb_log_tx **tx)
 {
     uint64_t mdcid1, mdcid2;
-    merr_t err;
+    merr_t   err;
 
     err = wal_create(mp, cp, &mdcid1, &mdcid2);
     if (err)
@@ -676,13 +678,17 @@ ikvdb_diag_open(
     if (ev(err))
         goto err_exit1;
 
-    err = kvdb_log_open(kvdb_home, mp, params->read_only ? O_RDONLY : O_RDWR, &self->ikdb_log);
+    err = kvdb_pfxlock_create(&self->ikdb_pfxlock, self->ikdb_txn_viewset);
     if (ev(err))
         goto err_exit2;
 
-    err = kvdb_log_replay(self->ikdb_log);
+    err = kvdb_log_open(kvdb_home, mp, params->read_only ? O_RDONLY : O_RDWR, &self->ikdb_log);
     if (ev(err))
         goto err_exit3;
+
+    err = kvdb_log_replay(self->ikdb_log);
+    if (ev(err))
+        goto err_exit4;
 
     kvdb_log_cndboid_get(self->ikdb_log, &self->ikdb_cndb_oid1, &self->ikdb_cndb_oid2);
 
@@ -702,8 +708,11 @@ ikvdb_diag_open(
         return 0;
     }
 
-err_exit3:
+err_exit4:
     kvdb_log_close(self->ikdb_log);
+
+err_exit3:
+    kvdb_pfxlock_destroy(self->ikdb_pfxlock);
 
 err_exit2:
     kvdb_keylock_destroy(self->ikdb_keylock);
@@ -744,6 +753,7 @@ ikvdb_diag_close(struct ikvdb *handle)
     viewset_destroy(self->ikdb_cur_viewset);
     viewset_destroy(self->ikdb_txn_viewset);
 
+    kvdb_pfxlock_destroy(self->ikdb_pfxlock);
     kvdb_keylock_destroy(self->ikdb_keylock);
     ikvdb_txn_fini(self);
     mutex_destroy(&self->ikdb_lock);
@@ -1075,6 +1085,10 @@ ikvdb_open(
         goto err1;
     }
 
+    err = kvdb_pfxlock_create(&self->ikdb_pfxlock, self->ikdb_txn_viewset);
+    if (ev(err))
+        goto err1;
+
     err = kvdb_log_open(kvdb_home, mp, self->ikdb_rdonly ? O_RDONLY : O_RDWR, &self->ikdb_log);
     if (err) {
         hse_elog(HSE_ERR "cannot open %s: @@e", err, kvdb_home);
@@ -1188,6 +1202,7 @@ err1:
     cndb_close(self->ikdb_cndb);
     kvdb_log_close(self->ikdb_log);
     kvdb_keylock_destroy(self->ikdb_keylock);
+    kvdb_pfxlock_destroy(self->ikdb_pfxlock);
     viewset_destroy(self->ikdb_cur_viewset);
     viewset_destroy(self->ikdb_txn_viewset);
     csched_destroy(self->ikdb_csched);
@@ -1579,7 +1594,9 @@ ikvdb_kvs_open(
         kvs->kk_vcompbnd = tls_vbufsz - (kvs->kk_vcompbnd - tls_vbufsz);
         assert(kvs->kk_vcompbnd < tls_vbufsz);
 
-        assert(cops->cop_estimate(NULL, HSE_KVS_VALUE_LEN_MAX) < HSE_KVS_VALUE_LEN_MAX + PAGE_SIZE * 2);
+        assert(
+            cops->cop_estimate(NULL, HSE_KVS_VALUE_LEN_MAX) <
+            HSE_KVS_VALUE_LEN_MAX + PAGE_SIZE * 2);
     }
 
     ikvdb_wal_install_callback(self); /* TODO: can this be removed? */
@@ -1788,6 +1805,7 @@ ikvdb_close(struct ikvdb *handle)
 
     c0snr_set_destroy(self->ikdb_c0snr_set);
 
+    kvdb_pfxlock_destroy(self->ikdb_pfxlock);
     kvdb_keylock_destroy(self->ikdb_keylock);
 
     viewset_destroy(self->ikdb_cur_viewset);
@@ -2525,7 +2543,6 @@ ikvdb_txn_horizon(struct ikvdb *handle)
     return viewset_horizon(self->ikdb_txn_viewset);
 }
 
-
 static HSE_ALWAYS_INLINE struct kvdb_ctxn_bkt *
 ikvdb_txn_tid2bkt(struct ikvdb_impl *self)
 {
@@ -2554,6 +2571,7 @@ ikvdb_txn_alloc(struct ikvdb *handle)
 
     ctxn = kvdb_ctxn_alloc(
         self->ikdb_keylock,
+        self->ikdb_pfxlock,
         &self->ikdb_seqno,
         self->ikdb_ctxn_set,
         self->ikdb_txn_viewset,
@@ -2599,7 +2617,7 @@ merr_t
 ikvdb_txn_begin(struct ikvdb *handle, struct hse_kvdb_txn *txn)
 {
     struct ikvdb_impl *self = ikvdb_h2r(handle);
-    struct kvdb_ctxn  *ctxn = kvdb_ctxn_h2h(txn);
+    struct kvdb_ctxn * ctxn = kvdb_ctxn_h2h(txn);
     merr_t             err;
 
     perfc_inc(&self->ikdb_ctxn_op, PERFC_BA_CTXNOP_ACTIVE);
@@ -2616,7 +2634,7 @@ merr_t
 ikvdb_txn_commit(struct ikvdb *handle, struct hse_kvdb_txn *txn)
 {
     struct ikvdb_impl *self = ikvdb_h2r(handle);
-    struct kvdb_ctxn  *ctxn = kvdb_ctxn_h2h(txn);
+    struct kvdb_ctxn * ctxn = kvdb_ctxn_h2h(txn);
     merr_t             err;
     u64                lstart;
 
@@ -2635,7 +2653,7 @@ merr_t
 ikvdb_txn_abort(struct ikvdb *handle, struct hse_kvdb_txn *txn)
 {
     struct ikvdb_impl *self = ikvdb_h2r(handle);
-    struct kvdb_ctxn  *ctxn = kvdb_ctxn_h2h(txn);
+    struct kvdb_ctxn * ctxn = kvdb_ctxn_h2h(txn);
 
     perfc_inc(&self->ikdb_ctxn_op, PERFC_RA_CTXNOP_ABORT);
 

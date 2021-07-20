@@ -33,7 +33,7 @@ test_pre(struct mtf_test_info *lcl_ti)
 
     lc_ingest_seqno_set(lc, 1);
 
-    err = kvs_open(dummy, &kvdb_kvs, "mp_test", dummy, dummy, lc, &rp, dummy, dummy, 0);
+    err = kvs_open(dummy, &kvdb_kvs, "mp_test", dummy, dummy, lc, NULL, &rp, dummy, dummy, 0);
     ASSERT_EQ_RET(0, err, -1);
 
     kvs = kvdb_kvs.kk_ikvs;

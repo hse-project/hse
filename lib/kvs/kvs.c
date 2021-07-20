@@ -35,6 +35,8 @@
 #include <hse_ikvdb/cursor.h>
 #include <hse_ikvdb/wal.h>
 
+#include <kvdb/kvdb_ctxn_pfxlock.h>
+
 /* "pkvsl" stands for Public KVS interface Latencies" */
 struct perfc_name kvs_pkvsl_perfc_op[] = {
     NE(PERFC_LT_PKVSL_KVS_PUT, 3, "kvs_put latency", "kvs_put_lat", 7),
@@ -336,11 +338,15 @@ kvs_put(
      */
     if (ctxn) {
         u64 hash = kt->kt_hash ^ kvs->ikv_gen;
+        u64 pfxhash = 0;
 
         if (sfx_len > 0)
             hash = key_hash64_seed(kt->kt_data, kt->kt_len, kvs->ikv_gen);
 
-        err = kvdb_ctxn_trylock_write(ctxn, &seqnoref, &seqno, &rec.cookie, true, hash);
+        if (kvs->ikv_pfx_len && kt->kt_len >= kvs->ikv_pfx_len)
+            pfxhash = key_hash64(kt->kt_data, kvs->ikv_pfx_len) ^ kvs->ikv_gen;
+
+        err = kvdb_ctxn_trylock_write(ctxn, &seqnoref, &seqno, &rec.cookie, true, pfxhash, hash);
         if (err)
             return err;
     }
@@ -451,11 +457,15 @@ kvs_del(struct ikvs *kvs, struct hse_kvdb_txn *const txn, struct kvs_ktuple *kt,
      */
     if (ctxn) {
         u64 hash = kt->kt_hash ^ kvs->ikv_gen;
+        u64 pfxhash = 0;
 
         if (sfx_len > 0)
             hash = key_hash64_seed(kt->kt_data, kt->kt_len, kvs->ikv_gen);
 
-        err = kvdb_ctxn_trylock_write(ctxn, &seqnoref, &seqno, &rec.cookie, true, hash);
+        if (kvs->ikv_pfx_len && kt->kt_len >= kvs->ikv_pfx_len)
+            pfxhash = key_hash64(kt->kt_data, kvs->ikv_pfx_len) ^ kvs->ikv_gen;
+
+        err = kvdb_ctxn_trylock_write(ctxn, &seqnoref, &seqno, &rec.cookie, true, pfxhash, hash);
         if (err)
             return err;
     }
@@ -500,7 +510,12 @@ kvs_prefix_del(
     /* Exclusively lock txn for c0 update (no write collision detection.
      */
     if (ctxn) {
-        err = kvdb_ctxn_trylock_write(ctxn, &seqnoref, &seqno, &rec.cookie, false, 0);
+        u64 pfxhash = 0;
+
+        if (kvs->ikv_pfx_len && kt->kt_len >= kvs->ikv_pfx_len)
+            pfxhash = key_hash64(kt->kt_data, kvs->ikv_pfx_len) ^ kvs->ikv_gen;
+
+        err = kvdb_ctxn_trylock_write(ctxn, &seqnoref, &seqno, &rec.cookie, false, pfxhash, 0);
         if (err)
             return err;
     }
