@@ -18,7 +18,7 @@
 #include <hse_ikvdb/kvdb_rparams.h>
 #include <hse_ikvdb/kvdb_cparams.h>
 #include <hse_ikvdb/limits.h>
-#include <hse_ikvdb/home.h>
+#include <hse_ikvdb/kvdb_home.h>
 #include <hse_ikvdb/wal.h>
 #include <hse_util/storage.h>
 #include <hse_util/compiler.h>
@@ -1310,23 +1310,6 @@ static const struct param_spec pspecs[] = {
             },
         },
     },
-    {
-        .ps_name = "socket.path",
-        .ps_description = "UNIX socket path",
-        .ps_flags = 0,
-        .ps_type = PARAM_TYPE_STRING,
-        .ps_offset = offsetof(struct kvdb_rparams, socket.path),
-        .ps_convert = param_default_converter,
-        .ps_validate = param_default_validator,
-        .ps_default_value = {
-            .as_string = "hse.sock",
-        },
-        .ps_bounds = {
-            .as_string = {
-                .ps_max_len = sizeof(((struct kvdb_rparams *)0)->socket.path),
-            },
-        },
-    },
 };
 
 static_assert(sizeof(((struct kvdb_rparams *) 0)->storage.mclass[MP_MED_CAPACITY].path) == sizeof(((struct kvdb_cparams *)0)->storage.mclass[MP_MED_CAPACITY].path), "buffer sizes for capacity path should match");
@@ -1355,27 +1338,22 @@ kvdb_rparams_resolve(struct kvdb_rparams *params, const char *home)
     assert(params);
     assert(home);
 
-    char buf[PATH_MAX];
-    size_t n;
+    char   buf[PATH_MAX];
+    merr_t err;
 
-    n = kvdb_home_storage_capacity_path_get(home, params->storage.mclass[MP_MED_CAPACITY].path,
-                                            buf, sizeof(buf));
-    if (n >= sizeof(buf))
-        return merr(ENAMETOOLONG);
+    err = kvdb_home_storage_capacity_path_get(home, params->storage.mclass[MP_MED_CAPACITY].path,
+                                              buf, sizeof(buf));
+    if (err)
+        return err;
     strlcpy(params->storage.mclass[MP_MED_CAPACITY].path, buf,
             sizeof(params->storage.mclass[MP_MED_CAPACITY].path));
 
-    n = kvdb_home_storage_staging_path_get(home, params->storage.mclass[MP_MED_STAGING].path,
-                                           buf, sizeof(buf));
-    if (n >= sizeof(buf))
-        return merr(ENAMETOOLONG);
+    err = kvdb_home_storage_staging_path_get(home, params->storage.mclass[MP_MED_STAGING].path,
+                                             buf, sizeof(buf));
+    if (err)
+        return err;
     strlcpy(params->storage.mclass[MP_MED_STAGING].path, buf,
             sizeof(params->storage.mclass[MP_MED_STAGING].path));
-
-    n = kvdb_home_socket_path_get(home, params->socket.path, buf, sizeof(buf));
-    if (n >= sizeof(buf))
-        return merr(ENAMETOOLONG);
-    strlcpy(params->socket.path, buf, sizeof(params->socket.path));
 
     return 0;
 }

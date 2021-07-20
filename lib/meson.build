@@ -56,7 +56,7 @@ hse_c_args = [
     '-DHSE_EXPERIMENTAL',
 ]
 
-if get_option('export-experimental')
+if get_option('experimental')
     hse_c_args += '-DHSE_EXPORT_EXPERIMENTAL'
 endif
 

@@ -915,11 +915,11 @@ ikvdb_low_mem_adjust(struct ikvdb_impl *self)
     scale = mavail / 8;
     scale = max_t(uint, 1, scale);
 
-    if (hse_gparams.c0kvs_ccache_sz_max == HSE_C0_CCACHE_SZ_DFLT)
-        hse_gparams.c0kvs_ccache_sz_max = min_t(u64, 1024 * 1024 * 128UL * scale, HSE_C0_CCACHE_SZ_MAX);
+    if (hse_gparams.gp_c0kvs_ccache_sz_max == HSE_C0_CCACHE_SZ_DFLT)
+        hse_gparams.gp_c0kvs_ccache_sz_max = min_t(u64, 1024 * 1024 * 128UL * scale, HSE_C0_CCACHE_SZ_MAX);
 
-    if (hse_gparams.c0kvs_cheap_sz == HSE_C0_CHEAP_SZ_DFLT)
-        hse_gparams.c0kvs_cheap_sz = min_t(u64, HSE_C0_CHEAP_SZ_MIN * scale, HSE_C0_CHEAP_SZ_MAX);
+    if (hse_gparams.gp_c0kvs_cheap_sz == HSE_C0_CHEAP_SZ_DFLT)
+        hse_gparams.gp_c0kvs_cheap_sz = min_t(u64, HSE_C0_CHEAP_SZ_MIN * scale, HSE_C0_CHEAP_SZ_MAX);
 
     if (kp->c0_ingest_width == dflt.c0_ingest_width)
         kp->c0_ingest_width = HSE_C0_INGEST_WIDTH_MIN;
@@ -931,9 +931,9 @@ ikvdb_low_mem_adjust(struct ikvdb_impl *self)
         kp->c0_mutex_pool_sz = 5;
 
     if (kp->throttle_c0_hi_th == dflt.throttle_c0_hi_th)
-        kp->throttle_c0_hi_th = (2 * hse_gparams.c0kvs_cheap_sz * kp->c0_ingest_width) >> 20;
+        kp->throttle_c0_hi_th = (2 * hse_gparams.gp_c0kvs_cheap_sz * kp->c0_ingest_width) >> 20;
 
-    c0kvs_reinit(hse_gparams.c0kvs_ccache_sz_max, hse_gparams.c0kvs_cheap_sz);
+    c0kvs_reinit(hse_gparams.gp_c0kvs_ccache_sz_max, hse_gparams.gp_c0kvs_cheap_sz);
 }
 
 static void
@@ -2742,7 +2742,7 @@ ikvdb_init(void)
 
     kvs_init();
 
-    err = c0_init(hse_gparams.c0kvs_ccache_sz, hse_gparams.c0kvs_cheap_sz);
+    err = c0_init(hse_gparams.gp_c0kvs_ccache_sz, hse_gparams.gp_c0kvs_cheap_sz);
     if (err)
         goto errout;
 

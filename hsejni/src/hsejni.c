@@ -119,7 +119,10 @@ Java_org_micron_hse_API_init(JNIEnv *env, jobject jobj, jlong valBufSize)
     int      rc;
     uint64_t hse_rc;
 
-    hse_rc = hse_init(0, NULL);
+    /* [HSE_TODO]: Plumb runtime home value from the Java API unless the new
+     * Java bindings come along first.
+     */
+    hse_rc = hse_init(NULL, 0, NULL);
     if (hse_rc) {
         char buf[1024];
 

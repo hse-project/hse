@@ -1126,7 +1126,7 @@ main(int argc, char **argv)
     argc -= optind;
     argv += optind;
 
-    err = hse_init(0, NULL);
+    err = hse_init(NULL, 0, NULL);
     if (err)
         return -1;
 

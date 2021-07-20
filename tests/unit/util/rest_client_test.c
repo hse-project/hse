@@ -13,24 +13,19 @@
 
 #include <hse/version.h>
 
-#define MP "r_client_mp"
-#define KVDB "r_client_kv"
-#define SOCK "/tmp/" MP "." KVDB ".rest"
-
 char sock[PATH_MAX];
 
 static int
 set_sock(struct mtf_test_info *ti)
 {
-    snprintf(sock, sizeof(sock), "%s.%d", SOCK, getpid());
+    snprintf(sock, sizeof(sock), "%s/hse.sock", home);
     return 0;
 }
 
 static int
 rest_start(struct mtf_test_info *ti)
 {
-    rest_server_start(sock);
-    return 0;
+    return merr_errno(rest_server_start(sock));
 }
 
 static int

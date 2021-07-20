@@ -11,7 +11,7 @@ from contextlib import ExitStack
 
 from hse2 import hse
 
-from utility import lifecycle
+from utility import lifecycle, cli
 
 
 def run_test(kvdb: hse.Kvdb, kvs: hse.Kvs):
@@ -63,7 +63,8 @@ def run_test(kvdb: hse.Kvdb, kvs: hse.Kvs):
     pass
 
 
-hse.init()
+hse.init(cli.HOME)
+
 try:
     with ExitStack() as stack:
         kvdb_ctx = lifecycle.KvdbContext().rparams("dur_enable=0")

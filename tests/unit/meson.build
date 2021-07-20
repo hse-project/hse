@@ -92,16 +92,17 @@ components = {
                 meson.current_source_dir() / 'config',
             ],
         },
+        'runtime_home_test': {},
     },
     'framework': {
         'mock_test': {},
     },
     'kvdb': {
         'ctxn_perfc_test': {},
-        'home_test': {},
         'ikvdb_test': {},
         'kvdb_ctxn_test': {},
         'kvdb_keylock_test': {},
+        'kvdb_home_test': {},
         'kvdb_log_test': {
             'args': [
                 meson.current_source_dir() / 'cn' / 'mdc_images',
@@ -257,7 +258,13 @@ components = {
         'program_name_test': {},
         'rbtree_test': {},
         'rest_api_test': {},
-        'rest_client_test': {},
+        'rest_client_test': {
+            'args': [
+                '--home',
+                tests_dir / 'rest_client_test',
+            ],
+            'requires_home': true,
+        },
         'rwsem_test': {
             'sources': [
                 files(

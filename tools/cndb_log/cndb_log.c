@@ -572,10 +572,6 @@ main(int argc, char **argv)
     struct tool_info ti = { 0 };
     const char *paramv[] = { "logging.level=7" };
 
-    err = hse_init(NELEM(paramv), paramv);
-    if (err)
-        fatal("hse_init", err);
-
     progname = basename(argv[0]);
 
     while ((c = getopt(argc, argv, ":chir:w:")) != -1) {
@@ -636,6 +632,10 @@ main(int argc, char **argv)
         ti.fd = open(ti.rpath, O_RDONLY, 0);
         if (ti.fd < 0)
             fatal(ti.rpath, errno);
+
+        err = hse_init(NULL, NELEM(paramv), paramv);
+        if (err)
+            fatal("hse_init", err);
     } else {
         if (argc < 1) {
             syntax("insufficient arguments for mandatory parameters");
@@ -646,6 +646,10 @@ main(int argc, char **argv)
         }
 
         ti.kvdb_home = argv[0];
+
+        err = hse_init(ti.kvdb_home, NELEM(paramv), paramv);
+        if (err)
+            fatal("hse_init", err);
 
         open_kvdb_and_cndb(&ti);
     }

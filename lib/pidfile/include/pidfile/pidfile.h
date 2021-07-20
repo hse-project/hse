@@ -10,7 +10,7 @@
 
 #include <bsd/libutil.h>
 
-#define PIDFILE_NAME "hse.pid"
+#define PIDFILE_NAME "kvdb.pid"
 
 struct pidfile {
 	pid_t pid;

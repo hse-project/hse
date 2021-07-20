@@ -199,15 +199,15 @@ hse_logging_init(void)
     if (hse_logging_disable_init)
         return 0;
 
-    if (!hse_gparams.logging.enabled)
+    if (!hse_gparams.gp_logging.enabled)
         return 0;
 
-    if (hse_gparams.logging.destination == LD_STDOUT) {
+    if (hse_gparams.gp_logging.destination == LD_STDOUT) {
         logging_file = stdout;
-    } else if (hse_gparams.logging.destination == LD_STDERR) {
+    } else if (hse_gparams.gp_logging.destination == LD_STDERR) {
         logging_file = stderr;
-    } else if (hse_gparams.logging.destination == LD_FILE) {
-        logging_file = fopen(hse_gparams.logging.path, "a");
+    } else if (hse_gparams.gp_logging.destination == LD_FILE) {
+        logging_file = fopen(hse_gparams.gp_logging.path, "a");
         if (!logging_file)
             return merr(errno);
     }
@@ -356,11 +356,11 @@ hse_logging_fini(void)
     struct hse_log_async *   async;
     unsigned long            flags;
 
-    if (!hse_gparams.logging.enabled)
+    if (!hse_gparams.gp_logging.enabled)
         return;
 
     spin_lock(&hse_logging_lock);
-    hse_gparams.logging.level = -1;
+    hse_gparams.gp_logging.level = -1;
     spin_unlock(&hse_logging_lock);
 
     async = &hse_logging_inf.mli_async;
@@ -376,7 +376,7 @@ hse_logging_fini(void)
 
     spin_lock(&hse_logging_lock);
 
-    if (hse_gparams.logging.destination == LD_FILE &&
+    if (hse_gparams.gp_logging.destination == LD_FILE &&
         logging_file != stdout &&
         logging_file != stderr)
         fclose(logging_file);
@@ -591,14 +591,14 @@ _hse_log(
     bool                     res = false;
     unsigned long            flags = 0;
 
-    assert(hse_gparams.logging.enabled);
+    assert(hse_gparams.gp_logging.enabled);
 
-    if (priority > hse_gparams.logging.level)
+    if (priority > hse_gparams.gp_logging.level)
         return;
 
     spin_lock_irqsave(&hse_logging_lock, flags);
 
-    if (priority > hse_gparams.logging.level)
+    if (priority > hse_gparams.gp_logging.level)
         goto out;
 
     assert(hse_logging_inf.mli_nm_buf != 0);
@@ -1293,7 +1293,7 @@ hse_slog_internal(int priority, const char *fmt, ...)
     const char *  buf;
     unsigned long flags = 0;
 
-    if (priority > hse_gparams.logging.level || !hse_gparams.logging.enabled)
+    if (priority > hse_gparams.gp_logging.level || !hse_gparams.gp_logging.enabled)
         return;
 
     va_start(payload, fmt);
@@ -1324,7 +1324,7 @@ hse_slog_emit(int priority, const char *fmt, ...)
     va_list payload;
 
     va_start(payload, fmt);
-    if (hse_gparams.logging.destination == LD_SYSLOG) {
+    if (hse_gparams.gp_logging.destination == LD_SYSLOG) {
         vsyslog(priority, fmt, payload);
     } else {
         vfprintf(logging_file, fmt, payload);
@@ -1340,7 +1340,7 @@ hse_slog_create(int priority, const char *unused, struct slog **sl, const char *
     if (!sl || !type)
         return -EINVAL;
 
-    if (priority > hse_gparams.logging.level || !hse_gparams.logging.enabled) {
+    if (priority > hse_gparams.gp_logging.level || !hse_gparams.gp_logging.enabled) {
         *sl = NULL;
         return 0;
     }

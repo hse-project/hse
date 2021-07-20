@@ -374,7 +374,7 @@ main(int argc, char **argv)
 
     kc_print_reg(verbose, (void *)print_line);
 
-    err = hse_init(0, NULL);
+    err = hse_init(mpool, 0, NULL);
     if (err) {
         hse_strerror(err, errbuf, sizeof(errbuf));
         fatal(

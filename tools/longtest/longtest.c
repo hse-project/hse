@@ -2185,7 +2185,7 @@ main(int argc, char **argv)
 			goto done;
 	}
 
-	err = hse_init(0, NULL);
+	err = hse_init(opt.mpool, 0, NULL);
 	if (err) {
 		fprintf(stderr, "failed to initialize kvdb\n");
 		goto done;

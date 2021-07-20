@@ -235,7 +235,7 @@ main(int argc, char **argv)
 		printf("count %u\n", kmax);
 	}
 
-	rc = hse_init(0, NULL);
+	rc = hse_init(mp_name, 0, NULL);
 	if (rc)
 		fatal(rc, "failed to initalize kvdb");
 

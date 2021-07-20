@@ -12,12 +12,6 @@ endif
 
 pytest = find_program('pytest', required: true)
 
-if get_option('tests-dir') == ''
-    tests_dir = meson.project_build_root() / 'hse-tests'
-else
-    tests_dir = get_option('tests-dir')
-endif
-
 if not fs.exists(tests_dir)
     run_command(
         'mkdir',

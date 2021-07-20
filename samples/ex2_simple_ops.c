@@ -46,7 +46,7 @@ main(int argc, char **argv)
     kvdb_home = argv[1];
     kvs_name = argv[2];
 
-    rc = hse_init(0, NULL);
+    rc = hse_init(kvdb_home, 0, NULL);
     if (rc) {
         printf("failed to initialize kvdb");
         exit(1);

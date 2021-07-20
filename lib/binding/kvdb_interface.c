@@ -23,7 +23,8 @@
 #include <hse_ikvdb/kvdb_cparams.h>
 #include <hse_ikvdb/kvdb_dparams.h>
 #include <hse_ikvdb/hse_gparams.h>
-#include <hse_ikvdb/home.h>
+#include <hse_ikvdb/runtime_home.h>
+#include <hse_ikvdb/kvdb_home.h>
 
 #include <hse/version.h>
 
@@ -62,15 +63,35 @@ kvdb_lat_record(const u32 cidx, const u64 start)
 static bool hse_initialized = false;
 
 hse_err_t
-hse_init(const size_t paramc, const char *const *const paramv)
+hse_init(const char *const runtime_home, const size_t paramc, const char *const *const paramv)
 {
-    merr_t err;
+    merr_t         err;
+    struct config *conf;
 
     if (hse_initialized) {
         return 0;
     }
 
+    err = runtime_home_set(runtime_home);
+    if (err) {
+        return merr_to_hse_err(err);
+    }
+
 	err = argv_deserialize_to_hse_gparams(paramc, paramv, &hse_gparams);
+    if (err)
+        return merr_to_hse_err(err);
+
+    err = config_from_hse_conf(runtime_home_get(), &conf);
+    if (err)
+        return merr_to_hse_err(err);
+
+    err = config_deserialize_to_hse_gparams(conf, &hse_gparams);
+    config_destroy(conf);
+    if (err) {
+        return merr_to_hse_err(err);
+    }
+
+    err = hse_gparams_resolve(&hse_gparams, runtime_home_get());
     if (err)
         return merr_to_hse_err(err);
 
@@ -83,6 +104,16 @@ hse_init(const size_t paramc, const char *const *const paramv)
         hse_platform_fini();
 
         return merr_to_hse_err(err);
+    }
+
+    if (hse_gparams.gp_socket.enabled) {
+        err = rest_server_start(hse_gparams.gp_socket.path);
+        if (ev(err)) {
+            hse_log(HSE_WARNING "Could not start rest server on %s", hse_gparams.gp_socket.path);
+            err = 0;
+        } else {
+            hse_log(HSE_INFO "Rest server started: %s", hse_gparams.gp_socket.path);
+        }
     }
 
     hse_log(HSE_INFO "%s, version %s", HSE_KVDB_DESC, HSE_VERSION_STRING);
@@ -98,6 +129,8 @@ hse_fini(void)
     if (!hse_initialized)
         return;
 
+    rest_server_stop();
+
     ikvdb_fini();
     hse_platform_fini();
     hse_initialized = false;
@@ -112,7 +145,6 @@ hse_kvdb_create(const char *kvdb_home, size_t paramc, const char *const *const p
     u64                  tstart;
     char                 real_home[PATH_MAX];
     char                 pidfile_path[PATH_MAX];
-    size_t               n;
     struct pidfh *       pfh = NULL;
     struct pidfile       content;
     struct mpool_rparams mp_rparams = { 0 };
@@ -124,7 +156,7 @@ hse_kvdb_create(const char *kvdb_home, size_t paramc, const char *const *const p
     tstart = perfc_lat_start(&kvdb_pkvdbl_pc);
     perfc_inc(&kvdb_pc, PERFC_RA_KVDBOP_KVDB_CREATE);
 
-    err = kvdb_home_translate(kvdb_home, real_home, sizeof(real_home));
+    err = kvdb_home_resolve(kvdb_home, real_home, sizeof(real_home));
     if (ev(err))
         return merr_to_hse_err(err);
 
@@ -133,7 +165,7 @@ hse_kvdb_create(const char *kvdb_home, size_t paramc, const char *const *const p
         return merr_to_hse_err(err);
 
 #ifdef HSE_CONF_EXTENDED
-    err = config_from_hse_conf(real_home, &conf);
+    err = config_from_kvdb_conf(real_home, &conf);
     if (ev(err))
         return merr_to_hse_err(err);
 
@@ -146,11 +178,9 @@ hse_kvdb_create(const char *kvdb_home, size_t paramc, const char *const *const p
     if (ev(err))
         goto out;
 
-    n = kvdb_home_pidfile_path_get(real_home, pidfile_path, sizeof(pidfile_path));
-    if (n >= sizeof(pidfile_path)) {
-        err = merr(ENAMETOOLONG);
+    err = kvdb_home_pidfile_path_get(real_home, pidfile_path, sizeof(pidfile_path));
+    if (err)
         goto out;
-    }
 
     pfh = pidfile_open(pidfile_path, S_IRUSR | S_IWUSR, NULL);
     if (!pfh) {
@@ -241,13 +271,12 @@ hse_kvdb_drop(const char *kvdb_home, const size_t paramc, const char *const *con
     char                pidfile_path[PATH_MAX];
     struct pidfh *      pfh = NULL;
     merr_t              err, err1;
-    size_t              n;
     u64                 logid1, logid2;
 #ifdef HSE_CONF_EXTENDED
     struct config *conf = NULL;
 #endif
 
-    err = kvdb_home_translate(kvdb_home, real_home, sizeof(real_home));
+    err = kvdb_home_resolve(kvdb_home, real_home, sizeof(real_home));
     if (err)
         goto out;
 
@@ -259,7 +288,7 @@ hse_kvdb_drop(const char *kvdb_home, const size_t paramc, const char *const *con
         goto out;
 
 #ifdef HSE_CONF_EXTENDED
-    err = config_from_hse_conf(real_home, &conf);
+    err = config_from_kvdb_conf(real_home, &conf);
     if (ev(err))
         goto out;
 
@@ -272,11 +301,9 @@ hse_kvdb_drop(const char *kvdb_home, const size_t paramc, const char *const *con
     if (ev(err))
         goto out;
 
-    n = kvdb_home_pidfile_path_get(real_home, pidfile_path, sizeof(pidfile_path));
-    if (n >= sizeof(pidfile_path)) {
-        err = merr(ENAMETOOLONG);
+    err = kvdb_home_pidfile_path_get(real_home, pidfile_path, sizeof(pidfile_path));
+    if (err)
         goto out;
-    }
 
     pfh = pidfile_open(pidfile_path, S_IRUSR | S_IWUSR, NULL);
     if (!pfh) {
@@ -330,7 +357,7 @@ hse_kvdb_open(
     tstart = perfc_lat_start(&kvdb_pkvdbl_pc);
     perfc_inc(&kvdb_pc, PERFC_RA_KVDBOP_KVDB_OPEN);
 
-    err = kvdb_home_translate(kvdb_home, real_home, sizeof(real_home));
+    err = kvdb_home_resolve(kvdb_home, real_home, sizeof(real_home));
     if (ev(err))
         goto out;
 
@@ -342,7 +369,7 @@ hse_kvdb_open(
     if (ev(err))
         goto out;
 
-    err = config_from_hse_conf(real_home, &conf);
+    err = config_from_kvdb_conf(real_home, &conf);
     if (ev(err))
         goto out;
 
@@ -354,11 +381,9 @@ hse_kvdb_open(
     if (ev(err))
         goto out;
 
-    n = kvdb_home_pidfile_path_get(real_home, pidfile_path, sizeof(pidfile_path));
-    if (n >= sizeof(pidfile_path)) {
-        err = merr(ENAMETOOLONG);
+    err = kvdb_home_pidfile_path_get(real_home, pidfile_path, sizeof(pidfile_path));
+    if (err)
         goto out;
-    }
 
     pfh = pidfile_open(pidfile_path, S_IRUSR | S_IWUSR, NULL);
     if (!pfh) {
@@ -367,8 +392,7 @@ hse_kvdb_open(
     }
 
     content.pid = getpid();
-    n = kvdb_home_socket_path_get(
-        real_home, params.socket.path, content.socket.path, sizeof(content.socket.path));
+    n = strlcpy(content.socket.path, hse_gparams.gp_socket.path, sizeof(content.socket.path));
     if (n >= sizeof(content.socket.path)) {
         err = merr(ENAMETOOLONG);
         goto out;
@@ -407,16 +431,6 @@ hse_kvdb_open(
         goto out;
 
     *handle = (struct hse_kvdb *)ikvdb;
-
-    if (params.read_only == 0) {
-        err = rest_server_start(content.socket.path);
-        if (ev(err)) {
-            hse_log(HSE_WARNING "Could not start rest server on %s", content.socket.path);
-            err = 0;
-        } else {
-            hse_log(HSE_INFO "Rest server started: %s", content.socket.path);
-        }
-    }
 
     perfc_lat_record(&kvdb_pkvdbl_pc, PERFC_LT_PKVDBL_KVDB_OPEN, tstart);
 
@@ -457,8 +471,6 @@ hse_kvdb_close(struct hse_kvdb *handle)
 
     err2 = mpool_close(mp);
     ev(err2);
-
-    rest_server_stop();
 
     if (err || err2) {
         pidfile_remove(pfh);

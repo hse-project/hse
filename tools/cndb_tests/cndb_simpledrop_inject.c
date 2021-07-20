@@ -103,11 +103,11 @@ main(int argc, char **argv)
     if ((argc != 1))
         usage(prog);
 
-    herr = hse_init(0, NULL);
+    ki.kvdb_home = argv[0];
+
+    herr = hse_init(ki.kvdb_home, 0, NULL);
     if (herr)
         fatal("hse_init failure", herr);
-
-    ki.kvdb_home = argv[0];
 
     open_kvdb_and_cndb(&ki);
 

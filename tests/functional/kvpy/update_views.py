@@ -5,7 +5,7 @@ from typing import List
 
 from hse2 import hse
 
-from utility import lifecycle
+from utility import lifecycle, cli
 
 
 def check_keys(cursor: hse.KvsCursor, expected: List[bytes]):
@@ -15,7 +15,7 @@ def check_keys(cursor: hse.KvsCursor, expected: List[bytes]):
         assert x == y
 
 
-hse.init()
+hse.init(cli.HOME)
 
 try:
     with ExitStack() as stack:
@@ -31,7 +31,7 @@ try:
 
         txn = kvdb.transaction()
         txn.begin()
-        cursor = kvs.cursor(flags=0, txn=txn)
+        cursor = kvs.cursor(txn=txn)
 
         with kvdb.transaction() as t:
             kvs.put(b"f", b"6", txn=t)

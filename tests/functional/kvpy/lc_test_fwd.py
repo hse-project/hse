@@ -3,7 +3,7 @@ from contextlib import ExitStack
 
 from hse2 import hse
 
-from utility import lifecycle
+from utility import lifecycle, cli
 
 
 def separate_keys(kvdb: hse.Kvdb, kvs: hse.Kvs):
@@ -395,7 +395,7 @@ def ptombs_lc_cn(kvdb: hse.Kvdb, kvs: hse.Kvs, cursor_sync: bool = False):
         assert c.read() == (b"ab02", b"val-c0")
 
 
-hse.init()
+hse.init(cli.HOME)
 
 try:
     with ExitStack() as stack:

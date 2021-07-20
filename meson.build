@@ -334,6 +334,12 @@ if get_option('tools')
     endif
 endif
 
+if get_option('tests-dir') == ''
+    tests_dir = meson.project_build_root() / 'hse-tests'
+else
+    tests_dir = get_option('tests-dir')
+endif
+
 enabled_tests = []
 foreach t : get_option('tests')
     if t == 'all'
@@ -410,6 +416,10 @@ if get_option('bindings-python')
     hse_python = subproject(
         'hse-python',
         required: true,
+        default_options: [
+            'experimental=@0@'.format(get_option('experimental')),
+            'tests-dir=@0@'.format(tests_dir),
+        ],
     )
 
     hse_python_depends = [
@@ -431,9 +441,8 @@ endif
 
 if get_option('db_bench')
     subproject('db_bench')
-    executable_paths += (meson.current_build_dir() + '/subprojects/db_bench')
+    executable_paths += (meson.project_build_root() / 'subprojects/db_bench')
 endif
-
 
 if get_option('tools')
     subdir('tools')

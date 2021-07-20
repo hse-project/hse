@@ -18,7 +18,7 @@
  * @returns error status
  */
 merr_t
-kvdb_home_translate(const char *home, char *buf, const size_t buf_sz);
+kvdb_home_resolve(const char *home, char *buf, const size_t buf_sz);
 
 /**
  * Converts the storage capacity path to be an absolute path
@@ -27,9 +27,9 @@ kvdb_home_translate(const char *home, char *buf, const size_t buf_sz);
  * @param capacity_path: parameter-supplied capacity path
  * @param buf: buffer
  * @param buf_sz: size of the buffer
- * @returns total length of string that tried to be created
+ * @returns error status
  */
-size_t
+merr_t
 kvdb_home_storage_capacity_path_get(
     const char * home,
     const char * capacity_path,
@@ -43,28 +43,12 @@ kvdb_home_storage_capacity_path_get(
  * @param staging_path: parameter-supplied staging path
  * @param buf: buffer
  * @param buf_sz: size of the buffer
- * @returns total length of string that tried to be created
+ * @returns error status
  */
-size_t
+merr_t
 kvdb_home_storage_staging_path_get(
     const char * home,
     const char * staging_path,
-    char *       buf,
-    const size_t buf_sz);
-
-/**
- * Converts the socket path to be an absolute path
- *
- * @param home: home directory
- * @param socket_path: parameter-supplied socket path
- * @param buf: buffer
- * @param buf_sz: size of the buffer
- * @returns total length of string that tried to be created
- */
-size_t
-kvdb_home_socket_path_get(
-    const char * home,
-    const char * socket_path,
     char *       buf,
     const size_t buf_sz);
 
@@ -74,9 +58,9 @@ kvdb_home_socket_path_get(
  * @param home: home directory
  * @param buf: buffer
  * @param buf_sz: size of the buffer
- * @returns total length of string the tried to be created
+ * @returns error status
  */
-size_t
+merr_t
 kvdb_home_pidfile_path_get(
 	const char *home,
 	char *buf,

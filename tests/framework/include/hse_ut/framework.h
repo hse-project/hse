@@ -317,16 +317,9 @@ const char *home;
                                                                                                    \
     int main(int argc, char **argv)                                                                \
     {                                                                                              \
-        char *logging_level;                                                                       \
-        int   c, rc;                                                                               \
-                                                                                                   \
-        rc = hse_init(0, NULL);                                                                    \
-        if (rc)                                                                                    \
-            return rc;                                                                             \
-                                                                                                   \
-        logging_level = getenv("HSE_TEST_LOGGING_LEVEL");                                          \
-        if (logging_level)                                                                         \
-            hse_gparams.logging.level = atoi(logging_level);                                       \
+        const char *paramv[] = { "socket.enabled=false" };                                         \
+        char *      logging_level;                                                                 \
+        int         c, rc;                                                                         \
                                                                                                    \
         _mtf_##coll_name##_tci.tci_named = 0;                                                      \
                                                                                                    \
@@ -334,7 +327,7 @@ const char *home;
             { "logging-level", required_argument, NULL, 'l' },                                     \
             { "help", no_argument, NULL, 'h' },                                                    \
             { "one", required_argument, NULL, '1' },                                               \
-            { "home", required_argument, NULL, 'C' },                                     \
+            { "home", required_argument, NULL, 'C' },                                              \
             { 0, 0, 0, 0 },                                                                        \
         };                                                                                         \
                                                                                                    \
@@ -342,12 +335,12 @@ const char *home;
             switch (c) {                                                                           \
                 case 'h':                                                                          \
                     printf(                                                                        \
-                        "usage: %s [-l logging-level] [-1 testname] [-C home]\n", argv[0]); \
+                        "usage: %s [-l logging-level] [-1 testname] [-C home]\n", argv[0]);        \
                     printf("usage: %s -h\n", argv[0]);                                             \
                     exit(0);                                                                       \
                                                                                                    \
                 case 'l':                                                                          \
-                    hse_gparams.logging.level = atoi(optarg);                                      \
+                    hse_gparams.gp_logging.level = atoi(optarg);                                   \
                     break;                                                                         \
                                                                                                    \
                 case '1':                                                                          \
@@ -372,6 +365,14 @@ const char *home;
                                                                                                    \
         _mtf_##coll_name##_tci.tci_argc = argc;                                                    \
         _mtf_##coll_name##_tci.tci_argv = argv;                                                    \
+                                                                                                   \
+        rc = hse_init(home, NELEM(paramv), paramv);                                                \
+        if (rc)                                                                                    \
+            return rc;                                                                             \
+                                                                                                   \
+        logging_level = getenv("HSE_TEST_LOGGING_LEVEL");                                          \
+        if (logging_level)                                                                         \
+            hse_gparams.gp_logging.level = atoi(logging_level);                                    \
                                                                                                    \
         rc = run_tests(&_mtf_##coll_name##_tci);                                                   \
                                                                                                    \

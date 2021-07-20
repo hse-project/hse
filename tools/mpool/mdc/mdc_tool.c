@@ -103,10 +103,6 @@ main(int argc, char **argv)
     int                ignore, c;
     const char        *home;
 
-    err = hse_init(0, NULL);
-    if (err)
-        fatal("hse_init", err);
-
     progname = basename(argv[0]);
 
     wpath = 0;
@@ -149,6 +145,10 @@ main(int argc, char **argv)
     }
 
     home = argv[argc - 1];
+
+    err = hse_init(home, 0, NULL);
+    if (err)
+        fatal("hse_init", err);
 
     fp = 0;
     if (wpath) {

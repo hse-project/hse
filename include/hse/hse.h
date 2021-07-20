@@ -85,7 +85,7 @@ extern "C" {
  * idempotent.
  */
 HSE_EXPORT hse_err_t
-hse_init(size_t paramc, const char *const *paramv);
+hse_init(const char *rt_home, size_t paramc, const char *const *paramv);
 
 /**
  * Shutdown the HSE subsystem

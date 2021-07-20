@@ -103,7 +103,7 @@ _hse_fmt(char *buf, size_t buflen, const char *fmt, ...);
  */
 #define hse_log_pri(pri, fmt, async, hse_args, ...)                     \
     do {                                                                \
-        if (!hse_gparams.logging.enabled)                               \
+        if (!hse_gparams.gp_logging.enabled)                               \
             break;                                                      \
                                                                         \
         static struct event_counter _ev = {                             \
@@ -125,11 +125,11 @@ _hse_fmt(char *buf, size_t buflen, const char *fmt, ...);
         static volatile u64 mlp_next;                                   \
                                                                         \
         event_counter(&_dte, &_ev);                                     \
-        if (HSE_UNLIKELY(_ev.ev_log_level <= hse_gparams.logging.level)) { \
+        if (HSE_UNLIKELY(_ev.ev_log_level <= hse_gparams.gp_logging.level)) { \
             u64 mlp_now = get_time_ns();                                \
                                                                         \
             if (mlp_now > mlp_next) {                                   \
-                mlp_next = mlp_now + hse_gparams.logging.squelch_ns;    \
+                mlp_next = mlp_now + hse_gparams.gp_logging.squelch_ns;    \
                 _hse_log(__FILE__, __LINE__, (pri), (fmt), (async), (hse_args), ##__VA_ARGS__); \
             }                                                           \
         }                                                               \
@@ -139,7 +139,7 @@ _hse_fmt(char *buf, size_t buflen, const char *fmt, ...);
 
 #define hse_log_pri(pri, fmt, async, hse_args, ...)                                         \
     do {                                                                                    \
-        if (HSE_UNLIKELY((pri) <= hse_gparams.logging.level))                               \
+        if (HSE_UNLIKELY((pri) <= hse_gparams.gp_logging.level))                               \
             _hse_log(__FILE__, __LINE__, (pri), (fmt), (async), (hse_args), ##__VA_ARGS__); \
     } while (0)
 

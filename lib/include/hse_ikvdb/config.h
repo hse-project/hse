@@ -11,15 +11,23 @@
 #include <hse_util/hse_err.h>
 #include <hse_ikvdb/kvdb_rparams.h>
 #include <hse_ikvdb/kvs_rparams.h>
+#include <hse_ikvdb/hse_gparams.h>
 #ifdef HSE_CONF_EXTENDED
 #include <hse_ikvdb/kvdb_cparams.h>
 #include <hse_ikvdb/kvdb_dparams.h>
 #include <hse_ikvdb/kvs_cparams.h>
 #endif
 
-#define CONF_FILE_NAME "hse.conf"
-
 struct config;
+
+/**
+ * Deserialize a config object to HSE gparams
+ *
+ * @param config: Config object
+ * @param params: HSE global params
+ */
+merr_t
+config_deserialize_to_hse_gparams(const struct config *conf, struct hse_gparams *params);
 
 #ifdef HSE_CONF_EXTENDED
 /**
@@ -79,13 +87,22 @@ config_deserialize_to_kvs_rparams(
     struct kvs_rparams * params);
 
 /**
- * Create a config object from a hse.conf file located in the home directory
+ * Create a config object from an hse.conf file located in the HSE home directory
  *
- * @param home: KVDB home directory
+ * @param runtime_home: HSE runtime home directory
  * @param[out] config: Config object
  */
 merr_t
-config_from_hse_conf(const char *home, struct config **conf);
+config_from_hse_conf(const char *runtime_home, struct config **conf);
+
+/**
+ * Create a config object from a kvdb.conf file located in a KVDB home directory
+ *
+ * @param kvdb_home: KVDB home directory
+ * @param[out] config: Config object
+ */
+merr_t
+config_from_kvdb_conf(const char *kvdb_home, struct config **conf);
 
 /**
  * Destroy a config object

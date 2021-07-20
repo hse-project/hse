@@ -866,7 +866,7 @@ class Benchmark {
 }  // namespace leveldb
 
 int main(int argc, char** argv) {
-  leveldb::HseKvdb::InitLibrary();
+  leveldb::HseKvdb::InitLibrary(nullptr);
   leveldb::LocalEnv main_env;
 
   for (int i = 1; i < argc; i++) {

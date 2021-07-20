@@ -366,9 +366,9 @@ main(int argc, char **argv)
         exit(EX_OSERR);
     }
 
-    herr = hse_init(0, NULL);
+    herr = hse_init(mp_name, 0, NULL);
     if (herr) {
-        herr_print(herr, "hse_init(0, NULL) failed: ");
+        herr_print(herr, "hse_init() failed: ");
         exit(EX_OSERR);
     }
 

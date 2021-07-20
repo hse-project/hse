@@ -3,9 +3,9 @@
 from contextlib import ExitStack
 from hse2 import hse
 
-from utility import lifecycle
+from utility import lifecycle, cli
 
-hse.init()
+hse.init(cli.HOME)
 
 try:
     with ExitStack() as stack:
