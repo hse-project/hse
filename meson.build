@@ -282,7 +282,7 @@ libmicrohttpd_dep = dependency(
 m_dep = cc.find_library('m', required: true)
 if get_option('tools')
     ncurses_dep = dependency('ncurses', required: true)
-    HdrHistogram_c_dep = cc.find_library('hdr_histogram', required: false)
+    HdrHistogram_c_dep = cc.find_library('hdr_histogram', required: false, disabler: true)
     if (not HdrHistogram_c_dep.found()
             or (HdrHistogram_c_dep.found() and not cc.has_header_symbol(
                 'hdr/hdr_histogram.h',
@@ -304,8 +304,8 @@ if get_option('tools')
     else
         HdrHistogram_c_from_subproject = false
     endif
-    libmongoc_dep = dependency('libmongoc-1.0', version: '>=1.7.3', required: false)
-    libbson_dep = dependency('libbson-1.0', version: '>=1.7.3', required: false)
+    libmongoc_dep = dependency('libmongoc-1.0', version: '>=1.7.3', required: false, disabler: true)
+    libbson_dep = dependency('libbson-1.0', version: '>=1.7.3', required: false, disabler: true)
     mongo_c_driver_force_fallback = get_option('wrap_mode') == 'forcefallback' or 'mongo-c-driver' in get_option('force_fallback_for')
     if not libmongoc_dep.found() or not libbson_dep.found() or mongo_c_driver_force_fallback
         mongo_c_driver_options = cmake.subproject_options()
