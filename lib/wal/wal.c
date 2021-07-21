@@ -32,6 +32,7 @@ struct wal {
     struct wal_bufset  *wbs;
     struct wal_fileset *wfset;
     struct wal_mdc     *mdc;
+    struct throttle_sensor *wal_sensor;
 
     atomic64_t ingestseq;
     atomic64_t ingestgen;
@@ -82,7 +83,7 @@ static void *
 wal_timer(void *rock)
 {
     struct wal *wal = rock;
-    u64 rid_last = 0;
+    uint64_t rid_last = 0;
     long dur_ns;
     bool closing = false;
     merr_t err;
@@ -92,7 +93,7 @@ wal_timer(void *rock)
     dur_ns = MSEC_TO_NSEC(wal->dur_ms) - (long)timer_slack;
 
     while (!closing && !atomic64_read(&wal->error)) {
-        u64 tstart, rid, lag, sleep_ns, flushb;
+        uint64_t tstart, rid, lag, sleep_ns, flushb, bufsz, buflen;
 
         closing = !!atomic_read(&wal->closing);
 
@@ -103,7 +104,7 @@ wal_timer(void *rock)
         if (rid != rid_last || closing) {
             rid_last = rid;
 
-            err = wal_bufset_flush(wal->wbs, &flushb);
+            err = wal_bufset_flush(wal->wbs, &flushb, &bufsz, &buflen);
             if (err) {
                 atomic64_set(&wal->error, err);
                 wal_ionotify_cb(wal, err); /* Notify sync waiters on flush error */
@@ -113,6 +114,26 @@ wal_timer(void *rock)
             /* No dirty data, notify any sync waiters */
             if (flushb == 0)
                 wal_ionotify_cb(wal, 0);
+
+            if (wal->wal_sensor) {
+                const uint64_t hwm = (bufsz * 87) / 100;
+                const uint64_t lwm = (bufsz * 13) / 100;
+                uint new = 0, old;
+
+                assert(buflen < bufsz);
+
+                if (buflen > lwm)
+                    new = (THROTTLE_SENSOR_SCALE * buflen) / hwm;
+
+                /* Ease off the throttle to ameliorate stop-n-go behavior...
+                 */
+                old = throttle_sensor_get(wal->wal_sensor);
+
+                if (new < old)
+                    new = (new + old * 127) / 128;
+
+                throttle_sensor_set(wal->wal_sensor, new);
+            }
 
             lag = get_time_ns() - tstart;
             sleep_ns = (lag >= sleep_ns || closing) ? 0 : sleep_ns - lag;
@@ -657,6 +678,13 @@ wal_cningest_cb(struct wal *wal, u64 seqno, u64 gen, u64 txhorizon, bool post_in
         wal_reclaim(wal, seqno, gen, txhorizon);
     else
         wal_cond_sync(wal, gen);
+}
+
+void
+wal_throttle_sensor(struct wal *wal, struct throttle_sensor *sensor)
+{
+    if (wal)
+        wal->wal_sensor = sensor;
 }
 
 /*

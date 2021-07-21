@@ -104,6 +104,9 @@ wal_cningest_cb(struct wal *wal, u64 seqno, u64 gen, u64 txhorizon, bool post_in
 merr_t
 wal_sync(struct wal *wal);
 
+void
+wal_throttle_sensor(struct wal *wal, struct throttle_sensor *sensor);
+
 #if HSE_MOCKING
 #include "wal_ut.h"
 #endif /* HSE_MOCKING */

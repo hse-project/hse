@@ -14,13 +14,16 @@
 #include <hse_util/perfc.h>
 #include <hse_util/condvar.h>
 
+/* clang-format off */
+
 enum {
     THROTTLE_SENSOR_CSCHED,
     THROTTLE_SENSOR_C0SK,
+    THROTTLE_SENSOR_WAL,
     THROTTLE_SENSOR_CNT
 };
 
-#define THROTTLE_INIT_POLICY_NAME_LEN_MAX 32
+#define THROTTLE_INIT_POLICY_NAME_LEN_MAX   32
 
 /* Raw delay values.
  * Use throttle_raw_to_rate to convert to byte rate.
@@ -32,14 +35,16 @@ enum {
 #define THROTTLE_DELAY_START_LIGHT      251137  /*    534,440,277  bytes/sec */
 #define THROTTLE_DELAY_MIN                8192  /* 16,384,000,000  bytes/sec */
 
-#define THROTTLE_SMAX_CNT 24
-#define THROTTLE_REDUCE_CYCLES 200
-#define THROTTLE_INJECT_MS 200
-#define THROTTLE_SKIP_CYCLES 20
-#define THROTTLE_DELTA_CYCLES 32
-#define THROTTLE_LMAX_CYCLES 400
-#define THROTTLE_SENSOR_SCALE 1000
-#define THROTTLE_MAX_RUN 6
+#define THROTTLE_SMAX_CNT          24
+#define THROTTLE_REDUCE_CYCLES    200
+#define THROTTLE_INJECT_MS        200
+#define THROTTLE_SKIP_CYCLES       20
+#define THROTTLE_DELTA_CYCLES      32
+#define THROTTLE_LMAX_CYCLES      400
+#define THROTTLE_SENSOR_SCALE    1000
+#define THROTTLE_MAX_RUN            6
+
+/* clang-format on */
 
 /**
  * struct throttle_sensor - throttle sensor

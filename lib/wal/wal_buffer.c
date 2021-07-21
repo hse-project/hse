@@ -20,7 +20,7 @@
 /* Until we have some synchronization in place we need to make bufsz
  * large enough to accomodate several outstanding c0kvms buffers.
  */
-#define WAL_BUFSZ_MAX       (8ul << 30)
+#define WAL_BUFSZ_MAX       (4ul << 30)
 
 #define WAL_BUFALLOCSZ_MAX \
     (ALIGN(WAL_BUFSZ_MAX + wal_rec_len() + HSE_KVS_KEY_LEN_MAX + HSE_KVS_VALUE_LEN_MAX, 2ul << 20))
@@ -203,12 +203,13 @@ restart:
     /* Set flush offset to the next record */
     foff = prev_foff + (rhlen + omf_rh_len(rhdr));
     atomic64_set(&wb->wb_foff, foff);
+    assert(foff > start_foff);
 
     buf = wb->wb_buf + (start_foff % WAL_BUFSZ_MAX);
-    assert(foff > start_foff);
     buflen = foff - start_foff; /* foff is exclusive */
-    assert(buf + buflen - wb->wb_buf <= WAL_BUFALLOCSZ_MAX);
+
     if (buf + buflen - wb->wb_buf > WAL_BUFALLOCSZ_MAX) {
+        assert(buf + buflen - wb->wb_buf <= WAL_BUFALLOCSZ_MAX);
         err = merr(EBUG);
         goto exit;
     }
@@ -216,6 +217,7 @@ restart:
     err = wal_io_enqueue(wb->wb_io, buf, buflen, cgen, &info);
     if (err)
         goto exit;
+
     flushb += (foff - start_foff);
 
     if (foff < coff)
@@ -252,7 +254,7 @@ wal_bufset_open(struct wal_fileset *wfset, atomic64_t *ingestgen, struct wal_ioc
 
     sz = sizeof(*wbs) + sizeof(*wbs->wbs_bufv) * WAL_NODE_MAX * WAL_BPN_MAX;
 
-    wbs = aligned_alloc(alignof(*wbs), sz);
+    wbs = aligned_alloc(alignof(*wbs), roundup(sz, alignof(*wbs)));
     if (!wbs)
         return NULL;
 
@@ -359,7 +361,7 @@ wal_bufset_close(struct wal_bufset *wbs)
 void *
 wal_bufset_alloc(struct wal_bufset *wbs, size_t len, u64 *offout, uint *wbidx)
 {
-    const size_t hwm = WAL_BUFSZ_MAX * 93 / 100;
+    const size_t hwm = WAL_BUFSZ_MAX - (8u << 20);
     struct wal_buffer *wb;
     uint cpuid, nodeid, coreid;
     u64 offset, doff;
@@ -392,8 +394,9 @@ wal_bufset_alloc(struct wal_bufset *wbs, size_t len, u64 *offout, uint *wbidx)
             ev(1);
         }
 
-        /* HSE_REVISIT: Add a throttle sensor to each bufset to mitigate
-         * having to stall hard here when we hit the HWM.
+        /* At this point we're within 8M of overflowing the wal buffer which
+         * we cannot allow.  This should only happen if the ingest pipeline
+         * configuration or throttle sensors are out of whack...
          */
         usleep(131);
         ev(1);
@@ -454,11 +457,11 @@ wal_bufset_reclaim(struct wal_bufset *wbs, uint64_t gen)
 }
 
 merr_t
-wal_bufset_flush(struct wal_bufset *wbs, u64 *flushb)
+wal_bufset_flush(struct wal_bufset *wbs, uint64_t *flushb, uint64_t *bufszp, uint64_t *buflenp)
 {
     struct workqueue_struct *wq;
-    uint i;
     merr_t err;
+    uint i;
 
     if (!wbs)
         return merr(EINVAL);
@@ -478,11 +481,20 @@ wal_bufset_flush(struct wal_bufset *wbs, u64 *flushb)
     if ((err = atomic64_read(&wbs->wbs_err)))
         return err;
 
+    *bufszp = WAL_BUFSZ_MAX;
+    *buflenp = 0;
     *flushb = 0;
+
     for (i = 0; i < wbs->wbs_bufc; ++i) {
         struct wal_buffer *wb = wbs->wbs_bufv + i;
+        uint64_t head, tail;
 
         *flushb += atomic64_read(&wb->wb_flushb);
+
+        tail = atomic64_read_acq(&wb->wb_offset_tail);
+        head = atomic64_read(&wb->wb_offset_head);
+        if (head - tail > *buflenp)
+            *buflenp = head - tail;
     }
 
     return 0;

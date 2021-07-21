@@ -133,6 +133,7 @@ enum kvdb_perfc_sidx_kvdb_metrics {
 enum kvdb_perfc_sidx_api_throttle {
     PERFC_DI_THSR_CSCHED,
     PERFC_DI_THSR_C0SK,
+    PERFC_DI_THSR_WAL,
     PERFC_DI_THSR_MAX,
     PERFC_DI_THSR_MAVG,
     PERFC_EN_THSR
