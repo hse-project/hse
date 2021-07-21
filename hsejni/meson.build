@@ -1,6 +1,6 @@
 subdir('include')
 subdir('java')
 subdir('src')
-if 'unit' in enabled_tests
+if 'unit' in tests
 	subdir('tests')
 endif

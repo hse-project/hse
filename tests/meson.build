@@ -1,6 +1,6 @@
 # TODO: On upgrade to 0.58, remove hse-python reference
 # https://mesonbuild.com/Reference-manual.html#environment-object
-if get_option('bindings-python')
+if 'python' in bindings
     run_env.set(
         'PYTHONPATH',
         hse_python.get_variable('project_build_root'),
@@ -27,10 +27,10 @@ add_test_setup(
     exclude_suites: ['ycsb'],
 )
 
-if 'unit' in enabled_tests
+if 'unit' in tests
     subdir('unit')
 endif
-if 'functional' in enabled_tests
+if 'functional' in tests
     subdir('functional')
 endif
 
