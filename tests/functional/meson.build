@@ -2,11 +2,6 @@ subdir('kvpy')
 subdir('smoke')
 subdir('api')
 
-if not get_option('bindings-python')
-    warning('Some functional tests have been disabled because the Python bindings are disabled')
-    subdir_done()
-endif
-
 tests = {
     'kvs_compare_full_and_pfx': {
         'suites': ['long'],

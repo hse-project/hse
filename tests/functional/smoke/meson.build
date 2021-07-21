@@ -76,6 +76,15 @@ suites = {
         'tests': [
             'samples'
         ],
+        'depends': [
+            hse_cli_symlink,
+            tool_targets['kmt'],
+            sample_targets['ex1_create'],
+            sample_targets['ex2_simple_ops'],
+            sample_targets['ex3_cursor'],
+            sample_targets['ex4_transactions'],
+            sample_targets['ex5_large_val'],
+        ]
     },
 }
 
@@ -87,9 +96,7 @@ foreach suite, params : suites
                  '  Requires config options: @1@').format(suite, params['needs']))
     else
         foreach t : params['tests']
-
             home_dir = tests_dir / t
-
             if not fs.exists(home_dir)
                 run_command(
                     'mkdir',
@@ -109,6 +116,7 @@ foreach suite, params : suites
                 timeout: 1800,
                 is_parallel: true,
                 suite: ['functional', suite],
+                depends: params.get('depends', [])
             )
         endforeach
     endif

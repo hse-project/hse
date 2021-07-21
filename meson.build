@@ -395,12 +395,8 @@ if enabled_tests.length() > 0
     subdir('tests' / 'framework')
 endif
 subdir('lib')
-if get_option('cli') or get_option('tools')
-    subdir('cli')
-endif
-if get_option('samples')
-    subdir('samples')
-endif
+subdir('cli')
+subdir('samples')
 if get_option('ycsb')
     subdir('hsejni')
 endif
@@ -436,7 +432,7 @@ if get_option('bindings-python')
         env: run_env,
     )
 else
-    hse_python_depends = []
+    hse_python_depends = disabler()
 endif
 
 if get_option('db_bench')
@@ -444,9 +440,7 @@ if get_option('db_bench')
     executable_paths += (meson.project_build_root() / 'subprojects/db_bench')
 endif
 
-if get_option('tools')
-    subdir('tools')
-endif
+subdir('tools')
 
 path = run_command(
     'sh',
