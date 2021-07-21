@@ -67,24 +67,6 @@ MTF_DEFINE_UTEST(config_test, deserialize_incorrect_type)
     ASSERT_NE(0, err);
 }
 
-MTF_DEFINE_UTEST(config_test, deserialize_kvdb_params_no_kvdb)
-{
-    char                home[PATH_MAX];
-    struct kvdb_rparams params = kvdb_rparams_defaults();
-    struct config *     conf;
-    merr_t              err;
-
-    snprintf(home, sizeof(home), "%s/deserialize-kvdb-params-no-kvdb", config_root);
-
-    err = config_from_kvdb_conf(home, &conf);
-    ASSERT_EQ(0, err);
-    ASSERT_NE(NULL, conf);
-
-    err = config_deserialize_to_kvdb_rparams(conf, &params);
-    config_destroy(conf);
-    ASSERT_EQ(0, err);
-}
-
 MTF_DEFINE_UTEST(config_test, deserialize_kvs_params_no_kvs)
 {
     char               home[PATH_MAX];
@@ -154,24 +136,6 @@ MTF_DEFINE_UTEST(config_test, deserialize_invalid_key)
     ASSERT_NE(0, err);
 
     config_destroy(conf);
-}
-
-MTF_DEFINE_UTEST(config_test, deserialize_kvdb_incorrect_type)
-{
-    char                home[PATH_MAX];
-    struct kvdb_rparams params = kvdb_rparams_defaults();
-    struct config *     conf;
-    merr_t              err;
-
-    snprintf(home, sizeof(home), "%s/deserialize-kvdb-incorrect-type", config_root);
-
-    err = config_from_kvdb_conf(home, &conf);
-    ASSERT_EQ(0, err);
-    ASSERT_NE(NULL, conf);
-
-    err = config_deserialize_to_kvdb_rparams(conf, &params);
-    config_destroy(conf);
-    ASSERT_NE(0, err);
 }
 
 MTF_DEFINE_UTEST(config_test, deserialize_kvs_incorrect_type)

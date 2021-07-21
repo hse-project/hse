@@ -30,21 +30,7 @@
 #endif
 
 #define DEFAULT_KEY "default"
-#define KVDB_KEY    "kvdb"
 #define KVS_KEY     "kvs"
-
-static bool
-check_root_keys(cJSON *root)
-{
-    assert(root);
-
-    for (cJSON *n = root->child; n; n = n->next) {
-        if (strcmp(n->string, "kvdb"))
-            return false;
-    }
-
-    return true;
-}
 
 /**
  * Walk and deserialize a JSON object recursively
@@ -76,7 +62,7 @@ json_walk(
     const struct param_spec *ps = NULL;
 
     const size_t prefix_sz = prefix ? strlen(prefix) : 0;
-    const size_t node_str_sz = strlen(node->string);
+    const size_t node_str_sz = node->string ? strlen(node->string) : 0;
     /* +2 for NUL byte and potential '.' separator */
     const size_t key_sz = prefix_sz + node_str_sz + 2;
 
@@ -87,6 +73,7 @@ json_walk(
     assert(bypass ? cJSON_IsObject(node) : true);
 
     if (!bypass) {
+        assert(key_sz > 0);
         key = malloc(key_sz);
         if (!key) {
             err = merr(ENOMEM);
@@ -218,19 +205,6 @@ va_cleanup:
 }
 
 static merr_t
-kvdb_node_get(const cJSON *root, cJSON **kvdb)
-{
-    assert(root);
-    assert(kvdb);
-
-    *kvdb = cJSON_GetObjectItemCaseSensitive(root, KVDB_KEY);
-    if (*kvdb && !cJSON_IsObject(*kvdb))
-        return merr(EINVAL);
-
-    return 0;
-}
-
-static merr_t
 kvs_node_get(const cJSON *kvdb, cJSON **kvs)
 {
     assert(kvdb);
@@ -290,7 +264,6 @@ config_deserialize_to_kvdb_cparams(const struct config *conf, struct kvdb_cparam
 {
     merr_t                   err = 0;
     const char **            ignore_keys = NULL;
-    cJSON *                  kvdb = NULL;
     size_t                   cpspecs_sz, dpspecs_sz, rpspecs_sz;
     const struct param_spec *cpspecs = kvdb_cparams_pspecs_get(&cpspecs_sz);
     const struct param_spec *dpspecs = kvdb_dparams_pspecs_get(&dpspecs_sz);
@@ -301,10 +274,6 @@ config_deserialize_to_kvdb_cparams(const struct config *conf, struct kvdb_cparam
     assert(params);
 
     if (!conf)
-        return err;
-
-    err = kvdb_node_get((cJSON *)conf, &kvdb);
-    if (err || !kvdb)
         return err;
 
     ignore_keys = malloc(sizeof(char *) * ignore_keys_sz);
@@ -318,7 +287,7 @@ config_deserialize_to_kvdb_cparams(const struct config *conf, struct kvdb_cparam
     for (size_t i = 0; i < dpspecs_sz; i++, idx++)
         ignore_keys[idx] = dpspecs[i].ps_name;
 
-    err = json_deserialize(cpspecs, cpspecs_sz, p, ignore_keys, ignore_keys_sz, 1, kvdb);
+    err = json_deserialize(cpspecs, cpspecs_sz, p, ignore_keys, ignore_keys_sz, 1, (cJSON *)conf);
 
     free(ignore_keys);
 
@@ -330,7 +299,6 @@ config_deserialize_to_kvdb_dparams(const struct config *conf, struct kvdb_dparam
 {
     merr_t                   err = 0;
     const char **            ignore_keys = NULL;
-    cJSON *                  kvdb = NULL;
     size_t                   cpspecs_sz, dpspecs_sz, rpspecs_sz;
     const struct param_spec *cpspecs = kvdb_cparams_pspecs_get(&cpspecs_sz);
     const struct param_spec *dpspecs = kvdb_dparams_pspecs_get(&dpspecs_sz);
@@ -341,10 +309,6 @@ config_deserialize_to_kvdb_dparams(const struct config *conf, struct kvdb_dparam
     assert(params);
 
     if (!conf)
-        return err;
-
-    err = kvdb_node_get((cJSON *)conf, &kvdb);
-    if (err || !kvdb)
         return err;
 
     ignore_keys = malloc(sizeof(char *) * ignore_keys_sz);
@@ -358,7 +322,7 @@ config_deserialize_to_kvdb_dparams(const struct config *conf, struct kvdb_dparam
     for (size_t i = 0; i < rpspecs_sz; i++, idx++)
         ignore_keys[idx] = rpspecs[i].ps_name;
 
-    err = json_deserialize(dpspecs, dpspecs_sz, p, ignore_keys, ignore_keys_sz, 1, kvdb);
+    err = json_deserialize(dpspecs, dpspecs_sz, p, ignore_keys, ignore_keys_sz, 1, (cJSON *)conf);
 
     free(ignore_keys);
 
@@ -370,7 +334,6 @@ merr_t
 config_deserialize_to_kvdb_rparams(const struct config *conf, struct kvdb_rparams *params)
 {
     merr_t err = 0;
-    cJSON *kvdb = NULL;
 #ifndef HSE_CONF_EXTENDED
     const char * ignore_keys[] = { "kvs" };
     const size_t ignore_keys_sz = NELEM(ignore_keys);
@@ -390,10 +353,6 @@ config_deserialize_to_kvdb_rparams(const struct config *conf, struct kvdb_rparam
     if (!conf)
         return err;
 
-    err = kvdb_node_get((cJSON *)conf, &kvdb);
-    if (err || !kvdb)
-        return err;
-
 #ifdef HSE_CONF_EXTENDED
     ignore_keys = malloc(sizeof(char *) * ignore_keys_sz);
     if (!ignore_keys)
@@ -407,7 +366,7 @@ config_deserialize_to_kvdb_rparams(const struct config *conf, struct kvdb_rparam
         ignore_keys[idx] = dpspecs[i].ps_name;
 #endif
 
-    err = json_deserialize(rpspecs, rpspecs_sz, p, ignore_keys, ignore_keys_sz, 1, kvdb);
+    err = json_deserialize(rpspecs, rpspecs_sz, p, ignore_keys, ignore_keys_sz, 1, (cJSON *)conf);
 
 #ifdef HSE_CONF_EXTENDED
     free(ignore_keys);
@@ -424,7 +383,7 @@ config_deserialize_to_kvs_cparams(
     struct kvs_cparams * params)
 {
     merr_t                   err = 0;
-    cJSON *                  kvdb = NULL, *kvs = NULL;
+    cJSON *                  kvs = NULL;
     cJSON *                  named_kvs = NULL, *default_kvs = NULL;
     const char **            ignore_keys = NULL;
     size_t                   cpspecs_sz, rpspecs_sz;
@@ -438,11 +397,7 @@ config_deserialize_to_kvs_cparams(
     if (!conf)
         return err;
 
-    err = kvdb_node_get((cJSON *)conf, &kvdb);
-    if (err || !kvdb)
-        return err;
-
-    err = kvs_node_get(kvdb, &kvs);
+    err = kvs_node_get((cJSON *)conf, &kvs);
     if (err || !kvs)
         return err;
 
@@ -481,7 +436,7 @@ config_deserialize_to_kvs_rparams(
     struct kvs_rparams * params)
 {
     merr_t err = 0;
-    cJSON *kvdb = NULL, *kvs = NULL;
+    cJSON *kvs = NULL;
     cJSON *named_kvs = NULL, *default_kvs = NULL;
 #ifdef HSE_CONF_EXTENDED
     const char **            ignore_keys = NULL;
@@ -498,11 +453,7 @@ config_deserialize_to_kvs_rparams(
     if (!conf)
         return err;
 
-    err = kvdb_node_get((cJSON *)conf, &kvdb);
-    if (err || !kvdb)
-        return err;
-
-    err = kvs_node_get(kvdb, &kvs);
+    err = kvs_node_get((cJSON *)conf, &kvs);
     if (err || !kvs)
         return err;
 
@@ -660,11 +611,6 @@ config_from_kvdb_conf(const char *kvdb_home, struct config **conf)
     }
 
     if (!cJSON_IsObject(impl)) {
-        err = merr(EINVAL);
-        goto out;
-    }
-
-    if (!check_root_keys(impl)) {
         err = merr(EINVAL);
         goto out;
     }
