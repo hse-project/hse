@@ -7,6 +7,7 @@
 #include <hse_util/page.h>
 #include <hse_util/vlb.h>
 #include <hse_util/logging.h>
+#include <hse_util/xrand.h>
 #include <hse_util/slab.h>
 
 #include "wal.h"
@@ -398,7 +399,7 @@ wal_bufset_alloc(struct wal_bufset *wbs, size_t len, u64 *offout, uint *wbidx)
          * we cannot allow.  This should only happen if the ingest pipeline
          * configuration or throttle sensors are out of whack...
          */
-        usleep(131);
+        usleep((xrand64_tls() % 256) + 128);
         ev(1);
     }
 

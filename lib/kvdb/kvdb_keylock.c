@@ -558,7 +558,7 @@ kvdb_keylock_lock(
     if (HSE_UNLIKELY(slab->cls_entryc >= slab->cls_entrymax)) {
         slab = kmem_cache_alloc(ctxn_locks_slab_cache);
         if (ev(!slab))
-            return merr(ENOMEM);
+            return merr(ECANCELED);
 
         memset(slab, 0, sizeof(*slab));
         slab->cls_entrymax = CTXN_LOCKS_SLAB_CACHE_SZ - sizeof(*slab);
@@ -642,7 +642,7 @@ kvdb_ctxn_locks_create(struct kvdb_ctxn_locks **locksp)
     impl = kmem_cache_alloc(ctxn_locks_impl_cache);
     if (ev(!impl)) {
         *locksp = NULL;
-        return merr(ENOMEM);
+        return merr(ECANCELED);
     }
 
     sz = sizeof(*impl) + sizeof(*slab);
