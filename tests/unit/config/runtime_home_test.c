@@ -23,7 +23,10 @@ MTF_DEFINE_UTEST(runtime_home_test, set_null)
 	merr_t err;
 	char   buf[PATH_MAX];
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-result"
 	getcwd(buf, sizeof(buf));
+#pragma GCC diagnostic pop
 
 	err = runtime_home_set(NULL);
 	ASSERT_EQ(0, err);
