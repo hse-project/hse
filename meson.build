@@ -336,7 +336,10 @@ endif
 
 bindings = []
 if 'all' in get_option('bindings')
+    assert(get_option('bindings').length() == 1, 'The -Dbindings=all option cannot have additional values')
     bindings += 'python'
+elif 'none' in get_option('tests')
+    assert(get_option('bindings').length() == 1, 'The -Dtests=bindings option cannot have additional values')
 else
     foreach b : get_option('bindings')
         bindings += b
@@ -351,8 +354,11 @@ endif
 
 tests = []
 if 'all' in get_option('tests')
+    assert(get_option('tests').length() == 1, 'The -Dtests=all option cannot have additional values')
     tests += 'unit'
     tests += 'functional'
+elif 'none' in get_option('tests')
+    assert(get_option('tests').length() == 1, 'The -Dtests=none option cannot have additional values')
 else
     foreach t : get_option('tests')
         tests += t
