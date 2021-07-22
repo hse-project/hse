@@ -17,6 +17,15 @@ add_test_setup(
     exclude_suites: ['ycsb'],
 )
 
+if in_ci
+    add_test_setup(
+        'ci',
+        env: run_env,
+        is_default: false,
+        exclude_suites: ['long', 'smoke', 'ycsb', 'kmt'],
+    )
+endif
+
 if 'unit' in hse_tests
     subdir('unit')
 endif
