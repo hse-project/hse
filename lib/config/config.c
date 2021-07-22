@@ -81,9 +81,13 @@ json_walk(
         }
 
         if (prefix) {
-            HSE_MAYBE_UNUSED const int overflow =
+            const int overflow =
                 snprintf(key, key_sz, "%s.%s", prefix, node->string);
             assert(overflow == key_sz - 1);
+            if (overflow < 0) {
+                err = merr(EBADMSG);
+                goto out;
+            }
         } else {
             HSE_MAYBE_UNUSED const size_t sz = strlcpy(key, node->string, key_sz);
             assert(sz == node_str_sz);
@@ -554,7 +558,7 @@ config_from_hse_conf(const char *const runtime_home, struct config **conf)
 {
     cJSON *impl = NULL;
     char   conf_file_path[PATH_MAX];
-    size_t n;
+    int    n;
     merr_t err;
 
     assert(conf);
@@ -562,6 +566,9 @@ config_from_hse_conf(const char *const runtime_home, struct config **conf)
     n = snprintf(conf_file_path, sizeof(conf_file_path), "%s/hse.conf", runtime_home);
     if (n >= sizeof(conf_file_path)) {
         err = merr(ENAMETOOLONG);
+        goto out;
+    } else if (n < 0) {
+        err = merr(EBADMSG);
         goto out;
     }
 
@@ -591,7 +598,7 @@ config_from_kvdb_conf(const char *kvdb_home, struct config **conf)
 {
     cJSON *impl = NULL;
     char   conf_file_path[PATH_MAX];
-    size_t n;
+    int    n;
     merr_t err = 0;
 
     assert(kvdb_home);
@@ -600,6 +607,9 @@ config_from_kvdb_conf(const char *kvdb_home, struct config **conf)
     n = snprintf(conf_file_path, sizeof(conf_file_path), "%s/kvdb.conf", kvdb_home);
     if (n >= sizeof(conf_file_path)) {
         err = merr(ENAMETOOLONG);
+        goto out;
+    } else if (n < 0) {
+        err = merr(EBADMSG);
         goto out;
     }
 
