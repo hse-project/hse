@@ -6,6 +6,7 @@
 #include <assert.h>
 #include <errno.h>
 #include <limits.h>
+#include <sys/un.h>
 
 #include <hse_util/rest_client.h>
 #include <hse_util/hse_err.h>
@@ -526,7 +527,7 @@ kvdb_compact_request(const char *kvdb_home, const char *request_type, u32 timeou
     hse_err_t                      err;
     struct hse_kvdb *              handle = 0;
     struct hse_kvdb_compact_status status;
-    char                           socket_path[PATH_MAX];
+    char                           socket_path[sizeof(((struct sockaddr_un *)0)->sun_path)];
 
     char   stat_buf[256];
     u64    stop_ts;
@@ -577,7 +578,6 @@ kvdb_compact_request(const char *kvdb_home, const char *request_type, u32 timeou
     }
 
     if (strcmp(request_type, "request") == 0) {
-
         const char *policy = "samp_lwm";
 
         printf("issuing compaction request with timeout of %u seconds\n", timeout_sec);

@@ -525,7 +525,7 @@ static int
 cli_hse_init(struct cli *cli)
 {
     hse_err_t   err;
-    const char *paramv[] = { "logging.destination=stderr", "logging.level=3", "socket.enabled=false" };
+    const char *paramv[] = { "logging.destination=stderr", "logging.level=3" };
 
     if (cli->hse_init)
         return 0;
