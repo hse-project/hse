@@ -536,13 +536,13 @@ config_create(const char *path, cJSON **conf)
         goto out;
     }
 
+    config[size] = '\0';
+
     *conf = cJSON_ParseWithLength(config, size);
     if (!*conf) {
         err = merr(EINVAL);
         goto out;
     }
-
-    config[size + 1] = '\0';
 
 out:
     if (config)

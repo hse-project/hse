@@ -124,7 +124,7 @@ pidfile_deserialize(const char *home, struct pidfile *content)
         goto out;
     }
 
-    str[sz + 1] = '\0';
+    str[sz] = '\0';
 
     root = cJSON_Parse(str);
     if (!root) {
