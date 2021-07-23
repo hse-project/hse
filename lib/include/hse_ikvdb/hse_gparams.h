@@ -10,6 +10,7 @@
 #include <inttypes.h>
 #include <limits.h>
 #include <stddef.h>
+#include <sys/un.h>
 
 #include <hse_util/hse_err.h>
 #include <hse_util/logging_types.h>
@@ -21,7 +22,7 @@ struct hse_gparams {
     uint64_t gp_c0kvs_cheap_sz;
     struct {
         bool enabled;
-        char path[PATH_MAX];
+        char path[sizeof(((struct sockaddr_un *) 0)->sun_path)];
     } gp_socket;
     struct {
         bool enabled;
@@ -40,5 +41,8 @@ hse_gparams_pspecs_get(size_t *pspecs_sz) HSE_RETURNS_NONNULL;
 
 merr_t
 hse_gparams_resolve(struct hse_gparams *params, const char *runtime_home);
+
+struct hse_gparams
+hse_gparams_defaults(void) HSE_CONST;
 
 #endif

@@ -3,6 +3,8 @@
  * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
  */
 
+#include <unistd.h>
+
 #include <hse_ut/framework.h>
 
 #include <hse_util/inttypes.h>
@@ -18,7 +20,7 @@ char sock[PATH_MAX];
 static int
 set_sock(struct mtf_test_info *ti)
 {
-    snprintf(sock, sizeof(sock), "%s/hse.sock", home);
+    snprintf(sock, sizeof(sock), "/tmp/hse-%d.sock", getpid());
     return 0;
 }
 
@@ -149,6 +151,7 @@ MTF_DEFINE_UTEST_PREPOST(rest_client, example1, rest_start, rest_stop)
     memset(buf, 0, sizeof(buf));
     ex1.calls = 0;
     err = curl_put(putpath1, sock, 0, 0, buf, sizeof(buf));
+    printf("%s:%d\n", merr_file(err), merr_lineno(err));
     ASSERT_EQ(0, err);
     ASSERT_STREQ("text:new_name,number:10", buf);
     ASSERT_STREQ("new_name", ex1.text);
@@ -205,6 +208,7 @@ MTF_DEFINE_UTEST_PREPOST(rest_client, example2, rest_start, rest_stop)
 
     memset(buf, 0, sizeof(buf));
     err = curl_get(getpath, sock, buf, sizeof(buf));
+    printf("%s:%d\n", merr_file(err), merr_lineno(err));
     ASSERT_EQ(0, err);
     ASSERT_STREQ("text:slartibartfast,number:42", buf);
 

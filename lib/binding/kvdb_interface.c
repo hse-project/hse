@@ -77,6 +77,8 @@ hse_init(const char *const runtime_home, const size_t paramc, const char *const 
         return merr_to_hse_err(err);
     }
 
+    hse_gparams = hse_gparams_defaults();
+
 	err = argv_deserialize_to_hse_gparams(paramc, paramv, &hse_gparams);
     if (err)
         return merr_to_hse_err(err);

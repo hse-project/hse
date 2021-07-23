@@ -1260,7 +1260,7 @@ static const struct param_spec pspecs[] = {
     {
         .ps_name = "mclass_policies",
         .ps_description = "media class policy definitions",
-        .ps_flags = PARAM_FLAG_EXPERIMENTAL,
+        .ps_flags = PARAM_FLAG_EXPERIMENTAL | PARAM_FLAG_DEFAULT_BUILDER,
         .ps_type = PARAM_TYPE_ARRAY,
         .ps_offset = offsetof(struct kvdb_rparams, mclass_policies),
         .ps_convert = mclass_policies_converter,

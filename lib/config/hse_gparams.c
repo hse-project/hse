@@ -8,6 +8,7 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include <string.h>
+#include <unistd.h>
 
 #include <cjson/cJSON.h>
 #include <bsd/string.h>
@@ -17,23 +18,9 @@
 #include <hse_ikvdb/param.h>
 #include <hse_ikvdb/limits.h>
 #include <hse_util/logging.h>
+#include <hse_util/compiler.h>
 
-struct hse_gparams hse_gparams = {
-    .gp_c0kvs_ccache_sz_max = HSE_C0_CCACHE_SZ_DFLT,
-    .gp_c0kvs_ccache_sz = HSE_C0_CCACHE_SZ_DFLT,
-    .gp_c0kvs_cheap_sz = HSE_C0_CHEAP_SZ_DFLT,
-	.gp_logging = {
-		.enabled = true,
-		.destination = LD_SYSLOG,
-		.path = "hse.log",
-		.level = HSE_LOG_PRI_DEFAULT,
-		.squelch_ns = HSE_LOG_SQUELCH_NS_DEFAULT,
-	},
-    .gp_socket = {
-        .enabled = true,
-        .path = "hse.log",
-    }
-};
+struct hse_gparams hse_gparams;
 
 bool
 logging_destination_converter(const struct param_spec *ps, const cJSON *node, void *value)
@@ -71,6 +58,18 @@ logging_destination_validator(const struct param_spec *ps, const void *value)
     const enum log_destination dest = *(enum log_destination *)value;
 
     return dest == LD_STDOUT || dest == LD_STDERR || dest == LD_FILE || dest == LD_SYSLOG;
+}
+
+void
+socket_path_default(const struct param_spec *ps, void *value)
+{
+    assert(ps);
+    assert(value);
+
+    HSE_MAYBE_UNUSED int n;
+
+    n = snprintf(value, sizeof(hse_gparams.gp_socket.path), "/tmp/hse-%d.pid", getpid());
+    assert(n < sizeof(hse_gparams.gp_socket.path) && n > 0);
 }
 
 static const struct param_spec pspecs[] = {
@@ -254,13 +253,13 @@ static const struct param_spec pspecs[] = {
     {
         .ps_name = "socket.path",
         .ps_description = "UNIX socket path",
-        .ps_flags = 0,
+        .ps_flags = PARAM_FLAG_DEFAULT_BUILDER,
         .ps_type = PARAM_TYPE_STRING,
         .ps_offset = offsetof(struct hse_gparams, gp_socket.path),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
         .ps_default_value = {
-            .as_string = "hse.sock",
+            .as_builder = socket_path_default,
         },
         .ps_bounds = {
             .as_string = {
@@ -298,4 +297,13 @@ hse_gparams_resolve(struct hse_gparams *const params, const char *const runtime_
     strlcpy(hse_gparams.gp_logging.path, buf, sizeof(hse_gparams.gp_logging.path));
 
     return 0;
+}
+
+struct hse_gparams
+hse_gparams_defaults()
+{
+    struct hse_gparams params;
+    const union params p = { .as_hse_gp = &params };
+    param_default_populate(pspecs, NELEM(pspecs), p);
+    return params;
 }

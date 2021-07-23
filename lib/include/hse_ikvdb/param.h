@@ -22,11 +22,12 @@
 #include <hse_ikvdb/hse_gparams.h>
 #include <hse_util/hse_err.h>
 
-#define PARAM_FLAG_DEVELOPER_ONLY (1 << 1)
-#define PARAM_FLAG_EXPERIMENTAL   (1 << 2)
-#define PARAM_FLAG_CREATE_ONLY    (1 << 3)
-#define PARAM_FLAG_WRITABLE       (1 << 4)
-#define PARAM_FLAG_NULLABLE       (1 << 5)
+#define PARAM_FLAG_DEVELOPER_ONLY  (1 << 1)
+#define PARAM_FLAG_EXPERIMENTAL    (1 << 2)
+#define PARAM_FLAG_CREATE_ONLY     (1 << 3)
+#define PARAM_FLAG_WRITABLE        (1 << 4)
+#define PARAM_FLAG_NULLABLE        (1 << 5)
+#define PARAM_FLAG_DEFAULT_BUILDER (1 << 6) /* PARAM_TYPE_ARRAY and PARAM_TYPE_OBJECT must have PARAM_FLAG_DEFAULT_BUILDER */
 
 struct param_spec;
 
@@ -44,7 +45,6 @@ union params {
 typedef bool (*param_converter_t)(const struct param_spec *, const cJSON*, void *);
 typedef bool (*param_validator_t)(const struct param_spec *, const void *);
 typedef bool (*param_relation_validator_t)(const struct param_spec *, const union params);
-
 typedef void (*param_default_builder_t)(const struct param_spec *, void *);
 
 enum param_type {
