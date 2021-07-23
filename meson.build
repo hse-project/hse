@@ -352,16 +352,16 @@ else
     tests_dir = get_option('tests-dir')
 endif
 
-tests = []
+hse_tests = []
 if 'all' in get_option('tests')
     assert(get_option('tests').length() == 1, 'The -Dtests=all option cannot have additional values')
-    tests += 'unit'
-    tests += 'functional'
+    hse_tests += 'unit'
+    hse_tests += 'functional'
 elif 'none' in get_option('tests')
     assert(get_option('tests').length() == 1, 'The -Dtests=none option cannot have additional values')
 else
     foreach t : get_option('tests')
-        tests += t
+        hse_tests += t
     endforeach
 endif
 
@@ -370,7 +370,7 @@ endif
 executable_paths = []
 library_paths = []
 
-if 'unit' in tests
+if 'unit' in hse_tests
     find_program(
         'gawk',
         required: true,
@@ -394,13 +394,13 @@ exe_install_rpath = get_option('install-rpath') ? '$ORIGIN' / '..' / get_option(
 subdir('config')
 subdir('3rdparty')
 subdir('include')
-if 'unit' in tests or get_option('tools')
+if 'unit' in hse_tests or get_option('tools')
     # need access to tools_includes for unit tests and tools
     subdir('tools' / 'include')
 endif
-if tests.length() > 0
+if hse_tests.length() > 0
     # need to know about mocks, framework, test support sources before entering lib directory
-    if 'unit' in tests
+    if 'unit' in hse_tests
         subdir('tests' / 'mocks')
         subdir('tests' / 'support')
     endif
@@ -475,8 +475,8 @@ ld_library_path = '@0@:@1@'.format(
 run_env.set('PATH', path)
 run_env.set('LD_LIBRARY_PATH', ld_library_path)
 
-if tests.length() > 0
-    if 'unit' in tests
+if hse_tests.length() > 0
+    if 'unit' in hse_tests
         # now that we have libhse-mock, go into repository directory
         subdir('tests' / 'mocks' / 'repository')
     endif
@@ -542,7 +542,7 @@ if not meson.is_subproject()
 endif
 
 gcovr = find_program('gcovr', required: get_option('b_coverage'))
-if gcovr.found() and get_option('b_coverage') and 'unit' in tests
+if gcovr.found() and get_option('b_coverage') and 'unit' in hse_tests
     reports = {
         'text': [ '-o' ],
         'html': [ '--html', '--html-details', '-o' ],
