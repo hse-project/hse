@@ -7,26 +7,28 @@ elif not get_option('cli')
 endif
 
 tests = {
-    'test_kmt_ro': {
-        'suite': 'kmt',
+    'test_kmt_ro.py': {
+        'suite': ['kmt', 'github'],
+        'timeout': 600,
         'depends': [
             tool_targets['kmt'],
         ],
     },
-    'test_kmt_rw': {
-        'suite': 'kmt',
+    'test_kmt_rw.py': {
+        'suite': ['kmt', 'github'],
+        'timeout': 600,
         'depends': [
             tool_targets['kmt'],
         ],
     },
-    'test_ycsb_2tb_putget': {
+    'test_ycsb_2tb_putget.py': {
         'suite': 'ycsb',
         'timeout': 0,
         'depends': [
             hse_cli,
         ],
     },
-    'test_ycsb_2tb_scan': {
+    'test_ycsb_2tb_scan.py': {
         'suite': 'ycsb',
         'timeout': 0,
         'depends': [
@@ -39,26 +41,31 @@ tests = {
     },
 }
 
+# benchmarks may consume a great deal of space, so confine them to reuse a single home dir
+home_dir = tests_dir / 'benchmark'
+
+if not fs.exists(home_dir)
+    run_command(
+        'mkdir',
+        home_dir,
+        check: true,
+    )
+endif
+
 foreach t, params : tests
-    home_dir = tests_dir / t
-    if not fs.exists(home_dir)
-        run_command(
-            'mkdir',
-            home_dir,
-            check: true,
-        )
-    endif
+    path = meson.current_source_dir() / t
+    testname = fs.stem(path)
 
     benchmark(
-        t,
+        testname,
         python,
         args: [
-            '@0@.py'.format(t),
+            path,
             '--home',
             home_dir,
         ],
         env: run_env,
-        depends: params.get('depends', []),
+        depends: params.get('depends', []) + [hse_python_depends],
         suite: params.get('suite', ''),
         timeout: params.get('timeout', 60),
     )

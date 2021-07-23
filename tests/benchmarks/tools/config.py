@@ -156,7 +156,7 @@ def load():
 
     die = False
 
-    KVDB_HOME = __get_option(args, "kvdb", "HSE_TEST_KVDB_HOME")
+    KVDB_HOME = __get_option(args, "home", "HSE_TEST_KVDB_HOME")
     if not KVDB_HOME:
         die = True
         print("KVDB home is required.")

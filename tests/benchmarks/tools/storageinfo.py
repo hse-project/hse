@@ -5,9 +5,9 @@ import subprocess
 from tools import config
 
 
-def save_mpool_info(dest_dir, tag: str):
-    args = ["mpool", "list", "-Y", "-v", config.KVDB_HOME]
-    out = os.path.join(dest_dir, f"mpool_list.{tag}.out")
+def save_kvdb_info(dest_dir, tag: str):
+    args = ["hse2", "-C", config.KVDB_HOME, "kvdb", "info"]
+    out = os.path.join(dest_dir, f"kvdb_info.{tag}.out")
     with open(out, "w") as fd:
         subprocess.run(args, stdout=fd, stderr=subprocess.STDOUT, check=True)
 
@@ -21,9 +21,18 @@ def save_diskstats(dest_dir, tag: str):
 
 def generate_diskstats_report(diskstats_before_path, diskstats_after_path):
     result = {
-        "after": {"overall": {}, "devices": [],},
-        "before": {"overall": {}, "devices": [],},
-        "delta": {"overall": {}, "devices": [],},
+        "after": {
+            "overall": {},
+            "devices": [],
+        },
+        "before": {
+            "overall": {},
+            "devices": [],
+        },
+        "delta": {
+            "overall": {},
+            "devices": [],
+        },
     }
 
     d1 = parse_diskstats(diskstats_before_path)
