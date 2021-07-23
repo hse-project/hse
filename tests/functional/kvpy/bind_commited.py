@@ -3,10 +3,10 @@
 from contextlib import ExitStack
 from hse2 import hse
 
-from utility import lifecycle
+from utility import lifecycle, cli
 
 
-hse.init()
+hse.init(cli.HOME)
 
 try:
 
@@ -19,7 +19,7 @@ try:
         txn = kvdb.transaction()
         txn.begin()
 
-        txcursor = kvs.cursor(txn=txn, flags=0)
+        txcursor = kvs.cursor(txn=txn)
         kvs.put(b"a", b"1", txn=txn)
         kvs.put(b"b", b"2", txn=txn)
         kvs.put(b"c", b"3", txn=txn)
@@ -38,7 +38,7 @@ try:
         assert kv == (b"c", b"32")
 
         with kvdb.transaction() as t:
-            cursor = kvs.cursor(txn=t, flags=0)
+            cursor = kvs.cursor(txn=t)
             kv = cursor.read()
             assert kv == (b"a", b"1")
             kv = cursor.read()

@@ -104,10 +104,6 @@ struct kvdb_rparams {
     struct mclass_policy mclass_policies[HSE_MPOLICY_COUNT];
 
     struct mpool_rparams storage;
-
-    struct {
-        char path[PATH_MAX];
-    } socket;
 };
 
 const struct param_spec *

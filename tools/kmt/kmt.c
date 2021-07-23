@@ -4633,7 +4633,7 @@ main(int argc, char **argv)
         exit(EX_USAGE);
     }
 #else
-    err = hse_init(0, NULL);
+    err = hse_init(impl->mpname, 0, NULL);
     if (err) {
         hse_strerror(err, errbuf, sizeof(errbuf));
         eprint("%s: failed to initialize kvdb: %s\n", __func__, errbuf);

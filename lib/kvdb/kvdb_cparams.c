@@ -11,7 +11,7 @@
 #include <bsd/string.h>
 
 #include <mpool/mpool.h>
-#include <hse_ikvdb/home.h>
+#include <hse_ikvdb/kvdb_home.h>
 #include <hse_ikvdb/kvdb_cparams.h>
 #include <hse_ikvdb/param.h>
 #include <hse_ikvdb/wal.h>
@@ -248,20 +248,20 @@ kvdb_cparams_resolve(struct kvdb_cparams *params, const char *home)
     assert(params);
     assert(home);
 
-    char buf[PATH_MAX];
-    size_t n;
+    char   buf[PATH_MAX];
+    merr_t err;
 
-    n = kvdb_home_storage_capacity_path_get(home, params->storage.mclass[MP_MED_CAPACITY].path,
-                                            buf, sizeof(buf));
-    if (n >= sizeof(buf))
-        return merr(ENAMETOOLONG);
+    err = kvdb_home_storage_capacity_path_get(home, params->storage.mclass[MP_MED_CAPACITY].path,
+                                              buf, sizeof(buf));
+    if (err)
+        return err;
     strlcpy(params->storage.mclass[MP_MED_CAPACITY].path, buf,
             sizeof(params->storage.mclass[MP_MED_CAPACITY].path));
 
-    n = kvdb_home_storage_staging_path_get(home, params->storage.mclass[MP_MED_STAGING].path,
-                                           buf, sizeof(buf));
-    if (n >= sizeof(buf))
-        return merr(ENAMETOOLONG);
+    err = kvdb_home_storage_staging_path_get(home, params->storage.mclass[MP_MED_STAGING].path,
+                                             buf, sizeof(buf));
+    if (err)
+        return err;
     strlcpy(params->storage.mclass[MP_MED_STAGING].path, buf,
             sizeof(params->storage.mclass[MP_MED_STAGING].path));
 

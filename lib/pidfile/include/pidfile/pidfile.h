@@ -7,15 +7,16 @@
 #define HSE_PIDFILE_PIDFILE_H
 
 #include <limits.h>
+#include <sys/un.h>
 
 #include <bsd/libutil.h>
 
-#define PIDFILE_NAME "hse.pid"
+#define PIDFILE_NAME "kvdb.pid"
 
 struct pidfile {
 	pid_t pid;
 	struct {
-		char path[PATH_MAX];
+		char path[sizeof(((struct sockaddr_un *) 0)->sun_path)];
 	} socket;
 };
 

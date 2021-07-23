@@ -3,7 +3,7 @@
 from contextlib import ExitStack
 from hse2 import hse
 
-from utility import lifecycle
+from utility import lifecycle, cli
 
 
 def verify(kvs: hse.Kvs, pfx: str, cnt: int):
@@ -40,7 +40,7 @@ def verify(kvs: hse.Kvs, pfx: str, cnt: int):
         assert sum(1 for _ in rc.items()) == cnt
 
 
-hse.init()
+hse.init(cli.HOME)
 
 try:
     with ExitStack() as stack:

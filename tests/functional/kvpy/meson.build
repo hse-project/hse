@@ -1,8 +1,3 @@
-if not get_option('bindings-python')
-    warning('kvpy suite is disabled because the Python bindings are disabled')
-    subdir_done()
-endif
-
 tests = [
     'abort-destroy',
     'basic',
@@ -48,7 +43,6 @@ tests = [
     'update_seek',
     'update_views',
 ]
-
 
 foreach t : tests
     home_dir = tests_dir / t

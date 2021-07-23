@@ -8,7 +8,7 @@ from contextlib import ExitStack
 
 from hse2 import hse
 
-from utility import lifecycle
+from utility import lifecycle, cli
 
 
 def run_test(kvdb: hse.Kvdb, kvs: hse.Kvs):
@@ -29,7 +29,7 @@ def run_test(kvdb: hse.Kvdb, kvs: hse.Kvs):
     val = kvs.get(b"aa1", txn=t0)
     assert val == b"uncommitted-aa1"
 
-    with kvs.cursor(txn=t0, flags=0) as c:
+    with kvs.cursor(txn=t0) as c:
         assert sum(1 for _ in c.items()) == 5
 
         c.seek(b"aa2")
@@ -109,7 +109,7 @@ def run_test(kvdb: hse.Kvdb, kvs: hse.Kvs):
     pass
 
 
-hse.init()
+hse.init(cli.HOME)
 
 try:
     with ExitStack() as stack:

@@ -39,7 +39,7 @@ MTF_DEFINE_UTEST(config_test, deserialize_hierarchical_param)
 
     snprintf(home, sizeof(home), "%s/deserialize-hierarchical-params", config_root);
 
-    err = config_from_hse_conf(home, &conf);
+    err = config_from_kvdb_conf(home, &conf);
     ASSERT_EQ(0, err);
     ASSERT_NE(NULL, conf);
 
@@ -47,7 +47,6 @@ MTF_DEFINE_UTEST(config_test, deserialize_hierarchical_param)
     config_destroy(conf);
     ASSERT_EQ(0, err);
     ASSERT_EQ(0, strcmp(params.storage.mclass[MP_MED_CAPACITY].path, "/var/lib/capacity"));
-    ASSERT_EQ(0, strcmp(params.socket.path, "/var/run/hse.sock"));
 }
 
 MTF_DEFINE_UTEST(config_test, deserialize_incorrect_type)
@@ -59,31 +58,13 @@ MTF_DEFINE_UTEST(config_test, deserialize_incorrect_type)
 
     snprintf(home, sizeof(home), "%s/deserialize-incorrect-type", config_root);
 
-    err = config_from_hse_conf(home, &conf);
+    err = config_from_kvdb_conf(home, &conf);
     ASSERT_EQ(0, err);
     ASSERT_NE(NULL, conf);
 
     err = config_deserialize_to_kvdb_rparams(conf, &params);
     config_destroy(conf);
     ASSERT_NE(0, err);
-}
-
-MTF_DEFINE_UTEST(config_test, deserialize_kvdb_params_no_kvdb)
-{
-    char                home[PATH_MAX];
-    struct kvdb_rparams params = kvdb_rparams_defaults();
-    struct config *     conf;
-    merr_t              err;
-
-    snprintf(home, sizeof(home), "%s/deserialize-kvdb-params-no-kvdb", config_root);
-
-    err = config_from_hse_conf(home, &conf);
-    ASSERT_EQ(0, err);
-    ASSERT_NE(NULL, conf);
-
-    err = config_deserialize_to_kvdb_rparams(conf, &params);
-    config_destroy(conf);
-    ASSERT_EQ(0, err);
 }
 
 MTF_DEFINE_UTEST(config_test, deserialize_kvs_params_no_kvs)
@@ -95,7 +76,7 @@ MTF_DEFINE_UTEST(config_test, deserialize_kvs_params_no_kvs)
 
     snprintf(home, sizeof(home), "%s/deserialize-kvs-params-no-kvs", config_root);
 
-    err = config_from_hse_conf(home, &conf);
+    err = config_from_kvdb_conf(home, &conf);
     ASSERT_EQ(0, err);
     ASSERT_NE(NULL, conf);
 
@@ -112,7 +93,7 @@ MTF_DEFINE_UTEST(config_test, deserialize_root_incorrect_type)
 
     snprintf(home, sizeof(home), "%s/deserialize-root-incorrect-type", config_root);
 
-    err = config_from_hse_conf(home, &conf);
+    err = config_from_kvdb_conf(home, &conf);
     ASSERT_NE(0, err);
 }
 
@@ -125,7 +106,7 @@ MTF_DEFINE_UTEST(config_test, deserialize_kvs_default_override)
 
     snprintf(home, sizeof(home), "%s/deserialize-kvs-default-override", config_root);
 
-    err = config_from_hse_conf(home, &conf);
+    err = config_from_kvdb_conf(home, &conf);
     ASSERT_EQ(0, err);
     ASSERT_NE(NULL, conf);
 
@@ -145,7 +126,7 @@ MTF_DEFINE_UTEST(config_test, deserialize_invalid_key)
 
     snprintf(home, sizeof(home), "%s/deserialize-invalid-key", config_root);
 
-    err = config_from_hse_conf(home, &conf);
+    err = config_from_kvdb_conf(home, &conf);
     ASSERT_EQ(0, err);
     ASSERT_NE(NULL, conf);
 
@@ -157,24 +138,6 @@ MTF_DEFINE_UTEST(config_test, deserialize_invalid_key)
     config_destroy(conf);
 }
 
-MTF_DEFINE_UTEST(config_test, deserialize_kvdb_incorrect_type)
-{
-    char                home[PATH_MAX];
-    struct kvdb_rparams params = kvdb_rparams_defaults();
-    struct config *     conf;
-    merr_t              err;
-
-    snprintf(home, sizeof(home), "%s/deserialize-kvdb-incorrect-type", config_root);
-
-    err = config_from_hse_conf(home, &conf);
-    ASSERT_EQ(0, err);
-    ASSERT_NE(NULL, conf);
-
-    err = config_deserialize_to_kvdb_rparams(conf, &params);
-    config_destroy(conf);
-    ASSERT_NE(0, err);
-}
-
 MTF_DEFINE_UTEST(config_test, deserialize_kvs_incorrect_type)
 {
     char               home[PATH_MAX];
@@ -184,7 +147,7 @@ MTF_DEFINE_UTEST(config_test, deserialize_kvs_incorrect_type)
 
     snprintf(home, sizeof(home), "%s/deserialize-kvs-incorrect-type", config_root);
 
-    err = config_from_hse_conf(home, &conf);
+    err = config_from_kvdb_conf(home, &conf);
     ASSERT_EQ(0, err);
     ASSERT_NE(NULL, conf);
 
@@ -202,7 +165,7 @@ MTF_DEFINE_UTEST(config_test, deserialize_kvs_default_incorrect_type)
 
     snprintf(home, sizeof(home), "%s/deserialize-kvs-default-incorrect-type", config_root);
 
-    err = config_from_hse_conf(home, &conf);
+    err = config_from_kvdb_conf(home, &conf);
     ASSERT_EQ(0, err);
     ASSERT_NE(NULL, conf);
 
@@ -220,7 +183,7 @@ MTF_DEFINE_UTEST(config_test, deserialize_kvs_named_incorrect_type)
 
     snprintf(home, sizeof(home), "%s/deserialize-kvs-named-incorrect-type", config_root);
 
-    err = config_from_hse_conf(home, &conf);
+    err = config_from_kvdb_conf(home, &conf);
     ASSERT_EQ(0, err);
     ASSERT_NE(NULL, conf);
 

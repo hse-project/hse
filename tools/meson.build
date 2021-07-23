@@ -1,5 +1,7 @@
-subdir('3rdparty')
-subdir('scripts')
+if get_option('tools')
+    subdir('3rdparty')
+    subdir('scripts')
+endif
 
 tool_targets = {}
 
@@ -307,33 +309,37 @@ tools = {
 }
 
 foreach t, params : tools
-    target = executable(
-        t,
-        params['sources'],
-        c_args: [
-            '-D_GNU_SOURCE=1',
-            '-DCOMPNAME="@0@"'.format(t),
-            params.get('c_args', []),
-        ],
-        include_directories: [
-            component_root_includes,
-            hse_include_directories,
-            tools_includes,
-            tools_third_party_includes,
-            params.get('include_directories', []),
-        ],
-        dependencies: [
-            hse_static_dep,
-            hse_dependencies,
-            libhse_cli_dep,
-            params.get('dependencies', [])
-        ],
-        install: get_option('install-tools'),
-        install_rpath: exe_install_rpath,
-        gnu_symbol_visibility: 'hidden',
-    )
+    if get_option('tools')
+        target = executable(
+            t,
+            params['sources'],
+            c_args: [
+                '-D_GNU_SOURCE=1',
+                '-DCOMPNAME="@0@"'.format(t),
+                params.get('c_args', []),
+            ],
+            include_directories: [
+                component_root_includes,
+                hse_include_directories,
+                tools_includes,
+                tools_third_party_includes,
+                params.get('include_directories', []),
+            ],
+            dependencies: [
+                hse_static_dep,
+                hse_dependencies,
+                libhse_cli_dep,
+                params.get('dependencies', [])
+            ],
+            install: get_option('install-tools'),
+            install_rpath: exe_install_rpath,
+            gnu_symbol_visibility: 'hidden',
+        )
 
-    tool_targets += { t: target }
+        tool_targets += { t: target }
+    else
+        tool_targets += { t: disabler() }
+    endif
 endforeach
 
 executable_paths += meson.current_build_dir()

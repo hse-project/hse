@@ -135,7 +135,7 @@ MTF_DEFINE_UTEST_PREPOST(transaction_api_test, transaction_commit_testcase, setu
 
     /* TC: A transaction that has not begun cannot be committed */
     err = hse_kvdb_txn_commit(kvdb_handle, txn);
-    ASSERT_EQ(hse_err_to_errno(err), EINVAL);
+    ASSERT_EQ(hse_err_to_errno(err), ECANCELED);
 
     /* TC: A transaction that has begun can be committed */
     err = hse_kvdb_txn_begin(kvdb_handle, txn);

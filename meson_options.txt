@@ -1,10 +1,10 @@
 option('cli', type: 'boolean', value: true,
     description: 'Build the CLI')
-option('export-experimental', type: 'boolean', value: true,
-    description: 'Export the experimental API')
+option('experimental', type: 'boolean', value: true,
+    description: 'Build the experimental parts of HSE')
 option('install-rpath', type: 'boolean', value: true,
     description: 'Add rpath to ELF files to faciliate discovery of libhse')
-option('tests', type: 'array', choices: ['all', 'unit', 'functional'], value: ['unit'],
+option('tests', type: 'array', choices: ['all', 'none', 'unit', 'functional'], value: ['unit'],
     description: 'Build and enable tests')
 option('ycsb', type: 'boolean', value: false,
     description: 'Build JNI bridge artifacts')
@@ -24,8 +24,8 @@ option('use-system-xxhash', type: 'boolean', value: false,
     description: 'Build against the system xxhash package')
 option('use-system-cjson', type: 'boolean', value: false,
     description: 'Build against the system cJSON package')
-option('bindings-python', type: 'boolean', value: true,
-    description: 'Build Python bindings for use in tests and tools')
+option('bindings', type: 'array', choices: ['all', 'none', 'python'], value: ['all'],
+    description: 'Build language bindings')
 option('hse-conf-extended', type: 'boolean', value: false,
     description: '[TESTING PURPOSES ONLY] Allow cparams/dparams to exist in hse.conf')
 option('tests-dir', type: 'string', value: '',

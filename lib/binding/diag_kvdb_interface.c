@@ -14,7 +14,7 @@
 #include <hse_ikvdb/kvdb_perfc.h>
 #include <hse_ikvdb/config.h>
 #include <hse_ikvdb/argv.h>
-#include <hse_ikvdb/home.h>
+#include <hse_ikvdb/kvdb_home.h>
 #include <hse_ikvdb/kvdb_rparams.h>
 
 #include <hse/version.h>
@@ -47,7 +47,7 @@ diag_kvdb_open(
     if (ev(!kvdb_home || !handle))
         return merr(EINVAL);
 
-    err = kvdb_home_translate(kvdb_home, real_home, sizeof(real_home));
+    err = kvdb_home_resolve(kvdb_home, real_home, sizeof(real_home));
     if (ev(err))
         goto close_mp;
 
@@ -59,7 +59,7 @@ diag_kvdb_open(
     if (err)
         goto close_mp;
 
-    err = config_from_hse_conf(real_home, &conf);
+    err = config_from_kvdb_conf(real_home, &conf);
     if (err)
         goto close_mp;
 
@@ -67,8 +67,8 @@ diag_kvdb_open(
     if (err)
         goto close_mp;
 
-    n = snprintf(pidfile_path, sizeof(pidfile_path), "%s/" PIDFILE_NAME, real_home);
-    if (n >= sizeof(pidfile_path))
+    err = kvdb_home_pidfile_path_get(kvdb_home, pidfile_path, sizeof(pidfile_path));
+    if (err)
         goto close_mp;
 
     pfh = pidfile_open(pidfile_path, S_IRUSR | S_IWUSR, NULL);
@@ -76,10 +76,11 @@ diag_kvdb_open(
         goto close_mp;
 
     content.pid = getpid();
-    n = kvdb_home_socket_path_get(
-        real_home, params.socket.path, content.socket.path, sizeof(content.socket.path));
-    if (n >= sizeof(content.socket.path))
+    n = strlcpy(content.socket.path, hse_gparams.gp_socket.path, sizeof(content.socket.path));
+    if (n >= sizeof(content.socket.path)) {
+        err = merr(ENAMETOOLONG);
         goto close_mp;
+    }
 
     err = merr(pidfile_serialize(pfh, &content));
     if (err)

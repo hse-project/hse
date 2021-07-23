@@ -3,7 +3,7 @@
 from contextlib import ExitStack
 from hse2 import hse
 
-from utility import lifecycle
+from utility import lifecycle, cli
 
 
 """
@@ -13,7 +13,7 @@ This script tests the following (forward cursors only):
   3. A bound cursor passes case 1 and 2 without needing an update_view
 """
 
-hse.init()
+hse.init(cli.HOME)
 
 try:
     with ExitStack() as stack:

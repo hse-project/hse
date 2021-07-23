@@ -14,7 +14,7 @@
 void
 backstop_log(const char *fmt)
 {
-    if (hse_gparams.logging.destination == LD_SYSLOG) {
+    if (hse_gparams.gp_logging.destination == LD_SYSLOG) {
         syslog(3, "%s: %s", __func__, fmt);
     } else {
         fprintf(logging_file, "%s: %s", __func__, fmt);

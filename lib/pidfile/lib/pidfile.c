@@ -112,7 +112,7 @@ pidfile_deserialize(const char *home, struct pidfile *content)
     }
     rewind(pidf);
 
-    str = malloc(sz);
+    str = malloc(sz + 1);
     if (!str) {
         rc = ENOMEM;
         goto out;
@@ -123,6 +123,8 @@ pidfile_deserialize(const char *home, struct pidfile *content)
         rc = EIO;
         goto out;
     }
+
+    str[sz] = '\0';
 
     root = cJSON_Parse(str);
     if (!root) {
@@ -140,17 +142,21 @@ pidfile_deserialize(const char *home, struct pidfile *content)
         goto out;
     }
     socket_path = cJSON_GetObjectItemCaseSensitive(socket, "path");
-    if (!socket_path || !cJSON_IsString(socket_path)) {
+    if (!socket_path || !(cJSON_IsString(socket_path) || cJSON_IsNull(socket_path))) {
         rc = EINVAL;
         goto out;
     }
 
     content->pid = (pid_t)cJSON_GetNumberValue(pid);
-    n = strlcpy(
-        content->socket.path, cJSON_GetStringValue(socket_path), sizeof(content->socket.path));
-    if (n >= sizeof(content->socket.path)) {
-        rc = ENAMETOOLONG;
-        goto out;
+    if (cJSON_IsNull(socket_path)) {
+        memset(content->socket.path, 0, sizeof(content->socket.path));
+    } else {
+        n = strlcpy(
+            content->socket.path, cJSON_GetStringValue(socket_path), sizeof(content->socket.path));
+        if (n >= sizeof(content->socket.path)) {
+            rc = ENAMETOOLONG;
+            goto out;
+        }
     }
 
 out:

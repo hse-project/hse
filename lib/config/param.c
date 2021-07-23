@@ -28,6 +28,12 @@ param_default_populate(const struct param_spec *pspecs, const size_t pspecs_sz, 
         void *data = p + ps.ps_offset;
         assert(data);
 
+        /* PARAM_TYPE_ARRAY and PARAM_TYPE_OBJECT must have PARAM_FLAG_DEFAULT_BUILDER */
+        if (ps.ps_flags & PARAM_FLAG_DEFAULT_BUILDER) {
+            ps.ps_default_value.as_builder(&ps, data);
+            continue;
+        }
+
         switch (ps.ps_type) {
             case PARAM_TYPE_BOOL:
                 *(bool *)data = ps.ps_default_value.as_bool;
@@ -73,9 +79,6 @@ param_default_populate(const struct param_spec *pspecs, const size_t pspecs_sz, 
                 break;
             case PARAM_TYPE_ARRAY:
             case PARAM_TYPE_OBJECT:
-                assert(ps.ps_default_value.as_builder);
-                ps.ps_default_value.as_builder(&ps, data);
-                break;
             default:
                 assert(false);
                 break;

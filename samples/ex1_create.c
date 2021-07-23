@@ -47,7 +47,7 @@ main(int argc, char **argv)
     init = false;
     open = false;
 
-    err = hse_init(0, NULL);
+    err = hse_init(kvdb_home, 0, NULL);
     if (err) {
         report_error("hse_init", err);
         goto error;

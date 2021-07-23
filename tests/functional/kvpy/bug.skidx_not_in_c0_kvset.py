@@ -3,10 +3,10 @@
 from contextlib import ExitStack
 from hse2 import hse
 
-from utility import lifecycle
+from utility import lifecycle, cli
 
 
-hse.init()
+hse.init(cli.HOME)
 
 try:
     with ExitStack() as stack:
@@ -27,7 +27,7 @@ try:
             kvs.put(b"0x000000012b0604", b"key3", txn=txn)
 
         with kvdb.transaction() as txn:
-            with kvs.cursor(flags=0, txn=txn) as cur:
+            with kvs.cursor(txn=txn) as cur:
                 cur.seek(b"0x000000012b0404")
                 _, value = cur.read()
 

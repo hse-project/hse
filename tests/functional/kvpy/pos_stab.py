@@ -2,10 +2,10 @@
 
 from hse2 import hse
 
-from utility import lifecycle
+from utility import lifecycle, cli
 
 
-hse.init()
+hse.init(cli.HOME)
 
 try:
     with lifecycle.KvdbContext().rparams("dur_enable=0") as kvdb:
@@ -83,7 +83,7 @@ try:
 
             read_txn = kvdb.transaction()
             read_txn.begin()
-            cursor = kvs.cursor(txn=read_txn, flags=0)
+            cursor = kvs.cursor(txn=read_txn)
             cursor.seek(b"a1b")
             kv = cursor.read()
             assert kv == (b"a1b", b"4")

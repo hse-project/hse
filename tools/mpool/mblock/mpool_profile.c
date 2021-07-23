@@ -467,15 +467,15 @@ main(int argc, char *argv[])
     const char        *result = "default";
     hse_err_t          err;
 
-    err = hse_init(0, NULL);
-    if (err)
-        return -1;
-
     rc = handle_options(argc, argv, &verbose, &cappath, &stgpath);
     if (rc) {
         hse_fini();
         return -1;
     }
+
+    err = hse_init(NULL, 0, NULL);
+    if (err)
+        return -1;
 
     strlcpy(cparams.mclass[MP_MED_CAPACITY].path, cappath,
             sizeof(cparams.mclass[MP_MED_CAPACITY].path));

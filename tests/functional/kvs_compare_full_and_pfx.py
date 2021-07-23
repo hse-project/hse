@@ -2,13 +2,13 @@
 
 from hse2 import hse
 
-from utility import lifecycle
+from utility import lifecycle, cli
 
 # Verify a case where full scan and pfx scan return equivalent results
 
 keycount = 10 * 1024 * 1024
 
-hse.init()
+hse.init(cli.HOME)
 
 try:
     with lifecycle.KvdbContext() as kvdb:

@@ -2,14 +2,9 @@ subdir('kvpy')
 subdir('smoke')
 subdir('api')
 
-if not get_option('bindings-python')
-    warning('Some functional tests have been disabled because the Python bindings are disabled')
-    subdir_done()
-endif
-
 tests = {
     'kvs_compare_full_and_pfx': {
-        'suites': ['short'],
+        'suites': ['long'],
         'depends': hse_python_depends,
     },
     'kvs_scan_deleted_keys': {
@@ -20,14 +15,15 @@ tests = {
         'suites': ['short'],
         'depends': hse_python_depends,
     },
-    'kvs_compressed_values_take_less_space': {
-        'suites': ['short'],
-        'depends': hse_python_depends,
-    },
-    'kvs_compression_flags': {
-        'suites': ['short'],
-        'depends': hse_python_depends,
-    },
+    # [HSE_TODO]: Invalid tests
+    # 'kvs_compressed_values_take_less_space': {
+    #     'suites': ['short'],
+    #     'depends': hse_python_depends,
+    # },
+    # 'kvs_compression_flags': {
+    #     'suites': ['short'],
+    #     'depends': hse_python_depends,
+    # },
     'kvs_scan_a_billion': {
         'suites': ['long'],
         'depends': hse_python_depends,

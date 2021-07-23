@@ -177,7 +177,7 @@ main(int argc, char **argv)
      * This is the stuff you really wanted to see.
      */
 
-    err = hse_init(0, NULL);
+    err = hse_init(mpname, 0, NULL);
     if (err)
         fatal(err, "failed to initialize kvdb");
 

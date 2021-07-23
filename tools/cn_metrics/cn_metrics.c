@@ -577,7 +577,7 @@ main(int argc, char **argv)
     if (rc)
         fatal(rc, "svec_apppend_pg failed");
 
-    rc = hse_init(0, NULL);
+    rc = hse_init(opt.kvdb_home, 0, NULL);
     if (rc) {
         errmsg = "kvdb_init";
         goto done;

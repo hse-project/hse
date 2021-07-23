@@ -3,10 +3,10 @@
 from contextlib import ExitStack
 from hse2 import hse
 
-from utility import lifecycle
+from utility import lifecycle, cli
 
 
-hse.init()
+hse.init(cli.HOME)
 
 try:
     with ExitStack() as stack:
@@ -23,7 +23,7 @@ try:
             kvs.put(b"c", b"3", txn=txn)
 
         with kvdb.transaction() as txn:
-            txcursor = kvs.cursor(txn=txn, flags=0)
+            txcursor = kvs.cursor(txn=txn)
             txcursor.seek(b"a")
             kvs.delete(b"a", txn=txn)
 

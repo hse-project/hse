@@ -105,7 +105,7 @@ main(int argc, char **argv)
 
     ki.kvdb_home = argv[0];
 
-    herr = hse_init(0, NULL);
+    herr = hse_init(ki.kvdb_home, 0, NULL);
     if (herr)
         fatal("hse_init failure", herr);
 

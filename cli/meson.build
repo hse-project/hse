@@ -2,6 +2,8 @@ subdir('include')
 subdir('lib')
 
 if not get_option('cli')
+    hse_cli = disabler()
+    hse_cli_symlink = disabler()
     subdir_done()
 endif
 
@@ -43,7 +45,7 @@ hse_cli = executable(
     gnu_symbol_visibility: 'hidden',
 )
 
-custom_target(
+hse_cli_symlink = custom_target(
     'cli-symlink',
     build_by_default: true,
     input: hse_cli,

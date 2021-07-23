@@ -108,8 +108,8 @@ argv_deserialize_to_kvs_cparams(
  */
 merr_t
 argv_deserialize_to_hse_gparams(
-    size_t                paramc,
-    const char *const *   paramv,
+    size_t              paramc,
+    const char *const * paramv,
     struct hse_gparams *params);
 
 #endif

@@ -931,6 +931,8 @@ kvs_cursor_prepare(struct hse_kvs_cursor *cursor)
     cur->kci_esrcv[cnt++] = cn_cursor_es_make(cur->kci_cncur);
 
     cmp = cur->kci_reverse ? kvs_cursor_cmp_rev : kvs_cursor_cmp;
+    if (cur->kci_bh)
+        bin_heap2_destroy(cur->kci_bh);
     err = bin_heap2_create(KVS_CURSOR_SOURCES_CNT, cmp, &cur->kci_bh);
     if (ev(err))
         goto error;

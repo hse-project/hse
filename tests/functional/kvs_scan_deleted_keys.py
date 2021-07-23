@@ -3,14 +3,14 @@
 from contextlib import ExitStack
 from hse2 import hse
 
-from utility import lifecycle
+from utility import lifecycle, cli
 
 # Verify scanning a KVS full of tombstones returns nothing
 
 keycount = 1000 * 1000
 kvsname = "scan_deleted_keys"
 
-hse.init()
+hse.init(cli.HOME)
 
 try:
     with ExitStack() as stack:

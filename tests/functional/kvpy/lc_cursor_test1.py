@@ -3,7 +3,7 @@ from contextlib import ExitStack
 
 from hse2 import hse
 
-from utility import lifecycle
+from utility import lifecycle, cli
 
 """
 Test 1: Ptomb in LC
@@ -126,7 +126,7 @@ def run_test_4(kvdb: hse.Kvdb, kvs: hse.Kvs):
     pass
 
 
-hse.init()
+hse.init(cli.HOME)
 
 try:
     with ExitStack() as stack:

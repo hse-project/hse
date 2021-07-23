@@ -1010,7 +1010,7 @@ main(int argc, char **argv)
     seed = time(NULL);
     oflags = O_RDWR;
 
-    herr = hse_init(0, NULL);
+    herr = hse_init(NULL, 0, NULL);
     if (herr)
         exit(1);
 

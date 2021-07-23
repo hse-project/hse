@@ -2,9 +2,9 @@
 
 from hse2 import hse
 from contextlib import ExitStack
-from utility import lifecycle
+from utility import lifecycle, cli
 
-hse.init()
+hse.init(cli.HOME)
 
 try:
     with ExitStack() as stack:
@@ -15,7 +15,7 @@ try:
 
         txn = kvdb.transaction()
         txn.begin()
-        cursor = kvs.cursor(txn=txn, flags=0)
+        cursor = kvs.cursor(txn=txn)
         txn.abort()
         cursor.destroy()
 finally:

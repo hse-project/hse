@@ -46,7 +46,7 @@ kh_init(
 {
 	hse_err_t err;
 
-	err = hse_init(0, NULL);
+	err = hse_init(kvdb_home, 0, NULL);
 	if (err) {
 		fatal(err, "hse_init failed");
 	}

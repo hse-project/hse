@@ -1,11 +1,9 @@
 {
-  "kvdb": {
-    "csched_vb_scatter_pct": 1,
-    "kvs": {
-      "default": {
-        "pfx_len": 7,
-        "cn_cursor_vra": 0
-      }
+  "csched_vb_scatter_pct": 1,
+  "kvs": {
+    "default": {
+      "pfx_len": 7,
+      "cn_cursor_vra": 0
     }
   }
 }

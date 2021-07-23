@@ -282,7 +282,7 @@ libmicrohttpd_dep = dependency(
 m_dep = cc.find_library('m', required: true)
 if get_option('tools')
     ncurses_dep = dependency('ncurses', required: true)
-    HdrHistogram_c_dep = cc.find_library('hdr_histogram', required: false)
+    HdrHistogram_c_dep = cc.find_library('hdr_histogram', required: false, disabler: true)
     if (not HdrHistogram_c_dep.found()
             or (HdrHistogram_c_dep.found() and not cc.has_header_symbol(
                 'hdr/hdr_histogram.h',
@@ -304,8 +304,8 @@ if get_option('tools')
     else
         HdrHistogram_c_from_subproject = false
     endif
-    libmongoc_dep = dependency('libmongoc-1.0', version: '>=1.7.3', required: false)
-    libbson_dep = dependency('libbson-1.0', version: '>=1.7.3', required: false)
+    libmongoc_dep = dependency('libmongoc-1.0', version: '>=1.7.3', required: false, disabler: true)
+    libbson_dep = dependency('libbson-1.0', version: '>=1.7.3', required: false, disabler: true)
     mongo_c_driver_force_fallback = get_option('wrap_mode') == 'forcefallback' or 'mongo-c-driver' in get_option('force_fallback_for')
     if not libmongoc_dep.found() or not libbson_dep.found() or mongo_c_driver_force_fallback
         mongo_c_driver_options = cmake.subproject_options()
@@ -334,25 +334,43 @@ if get_option('tools')
     endif
 endif
 
-enabled_tests = []
-foreach t : get_option('tests')
-    if t == 'all'
-        enabled_tests += 'unit'
-        enabled_tests += 'functional'
-        break
-    elif t == 'unit'
-        enabled_tests += 'unit'
-    elif t == 'functional'
-        enabled_tests += 'functional'
-    endif
-endforeach
+bindings = []
+if 'all' in get_option('bindings')
+    assert(get_option('bindings').length() == 1, 'The -Dbindings=all option cannot have additional values')
+    bindings += 'python'
+elif 'none' in get_option('tests')
+    assert(get_option('bindings').length() == 1, 'The -Dtests=bindings option cannot have additional values')
+else
+    foreach b : get_option('bindings')
+        bindings += b
+    endforeach
+endif
+
+if get_option('tests-dir') == ''
+    tests_dir = meson.project_build_root() / 'hse-tests'
+else
+    tests_dir = get_option('tests-dir')
+endif
+
+tests = []
+if 'all' in get_option('tests')
+    assert(get_option('tests').length() == 1, 'The -Dtests=all option cannot have additional values')
+    tests += 'unit'
+    tests += 'functional'
+elif 'none' in get_option('tests')
+    assert(get_option('tests').length() == 1, 'The -Dtests=none option cannot have additional values')
+else
+    foreach t : get_option('tests')
+        tests += t
+    endforeach
+endif
 
 # Add paths to these variables if you want to see targets in the runtime
 # environment
 executable_paths = []
 library_paths = []
 
-if 'unit' in enabled_tests
+if 'unit' in tests
     find_program(
         'gawk',
         required: true,
@@ -376,25 +394,21 @@ exe_install_rpath = get_option('install-rpath') ? '$ORIGIN' / '..' / get_option(
 subdir('config')
 subdir('3rdparty')
 subdir('include')
-if 'unit' in enabled_tests or get_option('tools')
+if 'unit' in tests or get_option('tools')
     # need access to tools_includes for unit tests and tools
     subdir('tools' / 'include')
 endif
-if enabled_tests.length() > 0
+if tests.length() > 0
     # need to know about mocks, framework, test support sources before entering lib directory
-    if 'unit' in enabled_tests
+    if 'unit' in tests
         subdir('tests' / 'mocks')
         subdir('tests' / 'support')
     endif
     subdir('tests' / 'framework')
 endif
 subdir('lib')
-if get_option('cli') or get_option('tools')
-    subdir('cli')
-endif
-if get_option('samples')
-    subdir('samples')
-endif
+subdir('cli')
+subdir('samples')
 if get_option('ycsb')
     subdir('hsejni')
 endif
@@ -402,14 +416,14 @@ endif
 # Environment in which various run_targets and tests will run in
 run_env = environment()
 
-if get_option('bindings-python')
-    if enabled_tests.length() > 0 or get_option('tools')
-        message('tests and tools will use the built-in HSE Python bindings')
-    endif
-
+if 'python' in bindings
     hse_python = subproject(
         'hse-python',
         required: true,
+        default_options: [
+            'experimental=@0@'.format(get_option('experimental')),
+            'tests-dir=@0@'.format(tests_dir),
+        ],
     )
 
     hse_python_depends = [
@@ -426,18 +440,15 @@ if get_option('bindings-python')
         env: run_env,
     )
 else
-    hse_python_depends = []
+    hse_python_depends = disabler()
 endif
 
 if get_option('db_bench')
     subproject('db_bench')
-    executable_paths += (meson.current_build_dir() + '/subprojects/db_bench')
+    executable_paths += meson.project_build_root() / 'subprojects/db_bench'
 endif
 
-
-if get_option('tools')
-    subdir('tools')
-endif
+subdir('tools')
 
 path = run_command(
     'sh',
@@ -464,8 +475,8 @@ ld_library_path = '@0@:@1@'.format(
 run_env.set('PATH', path)
 run_env.set('LD_LIBRARY_PATH', ld_library_path)
 
-if enabled_tests.length() > 0
-    if 'unit' in enabled_tests
+if tests.length() > 0
+    if 'unit' in tests
         # now that we have libhse-mock, go into repository directory
         subdir('tests' / 'mocks' / 'repository')
     endif
@@ -531,7 +542,7 @@ if not meson.is_subproject()
 endif
 
 gcovr = find_program('gcovr', required: get_option('b_coverage'))
-if gcovr.found() and get_option('b_coverage') and 'unit' in enabled_tests
+if gcovr.found() and get_option('b_coverage') and 'unit' in tests
     reports = {
         'text': [ '-o' ],
         'html': [ '--html', '--html-details', '-o' ],

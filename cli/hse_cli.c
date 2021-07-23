@@ -519,17 +519,18 @@ print_hse_err(struct cli *cli, const char *api, hse_err_t err)
 }
 
 /**
- * cli_hse_init(0, NULL) -- call hse_init(0, NULL) if it hasn't already been called
+ * cli_hse_init() -- call hse_init() if it hasn't already been called
  */
 static int
 cli_hse_init(struct cli *cli)
 {
-    hse_err_t err;
+    hse_err_t   err;
+    const char *paramv[] = { "logging.destination=stderr", "logging.level=3" };
 
     if (cli->hse_init)
         return 0;
 
-    err = hse_init(0, NULL);
+    err = hse_init(NULL, NELEM(paramv), paramv);
     if (err) {
         print_hse_err(cli, "hse_init", err);
         return -1;
@@ -540,7 +541,7 @@ cli_hse_init(struct cli *cli)
 }
 
 /**
- * cli_hse_init(0, NULL) -- call hse_fini() if hse_init(0, NULL) has been called
+ * cli_hse_init() -- call hse_fini() if hse_init() has been called
  */
 static void
 cli_hse_fini(struct cli *cli)

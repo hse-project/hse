@@ -1581,7 +1581,7 @@ main(int argc, char **argv)
     tsi_start(&tstart);
     status("initializing hse...");
 
-    err = hse_init(0, NULL);
+    err = hse_init(mpname, 0, NULL);
     if (err) {
         eprint(err, "hse_kvb_init");
         exit(EX_OSERR);

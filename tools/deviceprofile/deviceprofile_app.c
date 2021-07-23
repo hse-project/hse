@@ -110,10 +110,6 @@ main(int argc, char *argv[])
         return -1;
     }
 
-    err = hse_init(0, NULL);
-    if (err)
-        return -1;
-
     for (;;) {
         char c, *end;
 
@@ -166,6 +162,10 @@ main(int argc, char *argv[])
     }
 
     mpname = argv[0];
+
+    err = hse_init(mpname, 0, NULL);
+    if (err)
+        return -1;
 
     if (!bsize || !mpname) {
         usage(program);

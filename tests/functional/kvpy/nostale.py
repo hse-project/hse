@@ -5,7 +5,7 @@ from typing import List
 
 from hse2 import hse
 
-from utility import lifecycle
+from utility import lifecycle, cli
 
 
 def check_keys(cursor: hse.KvsCursor, expected: List[bytes]):
@@ -15,7 +15,7 @@ def check_keys(cursor: hse.KvsCursor, expected: List[bytes]):
         assert x == y
 
 
-hse.init()
+hse.init(cli.HOME)
 
 try:
     with ExitStack() as stack:

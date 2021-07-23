@@ -27,9 +27,9 @@ argv_deserialize_to_params(
     const struct param_spec *const pspecs,
     const union params             params)
 {
-    assert(pspecs);
-
     merr_t err = 0;
+
+    assert(pspecs);
 
     for (size_t i = 0; i < paramc; i++) {
         const char *param = paramv[i];
@@ -128,11 +128,11 @@ argv_deserialize_to_kvdb_rparams(
     const char *const *const   paramv,
     struct kvdb_rparams *const params)
 {
-    assert(params);
-
     size_t                   pspecs_sz;
     const struct param_spec *pspecs;
     const union params       p = { .as_kvdb_rp = params };
+
+    assert(params);
 
     pspecs = kvdb_rparams_pspecs_get(&pspecs_sz);
 
@@ -145,11 +145,11 @@ argv_deserialize_to_kvdb_cparams(
     const char *const *const   paramv,
     struct kvdb_cparams *const params)
 {
-    assert(params);
-
     size_t                   pspecs_sz;
     const struct param_spec *pspecs;
     const union params       p = { .as_kvdb_cp = params };
+
+    assert(params);
 
     pspecs = kvdb_cparams_pspecs_get(&pspecs_sz);
 
@@ -162,11 +162,11 @@ argv_deserialize_to_kvdb_dparams(
     const char *const *const   paramv,
     struct kvdb_dparams *const params)
 {
-    assert(params);
-
     size_t                   pspecs_sz;
     const struct param_spec *pspecs;
     const union params       p = { .as_kvdb_dp = params };
+
+    assert(params);
 
     pspecs = kvdb_dparams_pspecs_get(&pspecs_sz);
 
@@ -179,11 +179,11 @@ argv_deserialize_to_kvs_rparams(
     const char *const *const  paramv,
     struct kvs_rparams *const params)
 {
-    assert(params);
-
     size_t                   pspecs_sz;
     const struct param_spec *pspecs;
     const union params       p = { .as_kvs_rp = params };
+
+    assert(params);
 
     pspecs = kvs_rparams_pspecs_get(&pspecs_sz);
 
@@ -196,11 +196,11 @@ argv_deserialize_to_kvs_cparams(
     const char *const *const  paramv,
     struct kvs_cparams *const params)
 {
-    assert(params);
-
     size_t                   pspecs_sz;
     const struct param_spec *pspecs;
     const union params       p = { .as_kvs_cp = params };
+
+    assert(params);
 
     pspecs = kvs_cparams_pspecs_get(&pspecs_sz);
 
@@ -213,8 +213,6 @@ argv_deserialize_to_hse_gparams(
     const char *const *const  paramv,
     struct hse_gparams *const params)
 {
-    assert(params);
-
     size_t                   pspecs_sz;
     const struct param_spec *pspecs;
     const union params       p = { .as_hse_gp = params };

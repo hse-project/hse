@@ -17,8 +17,9 @@
 #include <cjson/cJSON.h>
 #include <bsd/string.h>
 
-#include <hse_ikvdb/config.h>
 #include <hse_util/hse_err.h>
+#include <hse_ikvdb/config.h>
+#include <hse_ikvdb/runtime_home.h>
 #include <hse_ikvdb/param.h>
 #include <hse_ikvdb/kvdb_rparams.h>
 #include <hse_ikvdb/kvs_rparams.h>
@@ -29,21 +30,7 @@
 #endif
 
 #define DEFAULT_KEY "default"
-#define KVDB_KEY    "kvdb"
 #define KVS_KEY     "kvs"
-
-static bool
-check_root_keys(cJSON *root)
-{
-    assert(root);
-
-    for (cJSON *n = root->child; n; n = n->next) {
-        if (strcmp(n->string, "kvdb"))
-            return false;
-    }
-
-    return true;
-}
 
 /**
  * Walk and deserialize a JSON object recursively
@@ -70,22 +57,23 @@ json_walk(
     const char *const        prefix,
     const bool               bypass)
 {
+    merr_t                   err = 0;
+    char *                   key = NULL;
+    const struct param_spec *ps = NULL;
+
+    const size_t prefix_sz = prefix ? strlen(prefix) : 0;
+    const size_t node_str_sz = node->string ? strlen(node->string) : 0;
+    /* +2 for NUL byte and potential '.' separator */
+    const size_t key_sz = prefix_sz + node_str_sz + 2;
+
     assert(pspecs);
     assert(pspecs_sz > 0);
     assert(node);
     assert(ignore_keys ? ignore_keys_sz > 0 : true);
     assert(bypass ? cJSON_IsObject(node) : true);
 
-    merr_t                   err = 0;
-    char *                   key = NULL;
-    const struct param_spec *ps = NULL;
-
-    const size_t prefix_sz = prefix ? strlen(prefix) : 0;
-    const size_t node_str_sz = strlen(node->string);
-    /* +2 for NUL byte and potential '.' separator */
-    const size_t key_sz = prefix_sz + node_str_sz + 2;
-
     if (!bypass) {
+        assert(key_sz > 0);
         key = malloc(key_sz);
         if (!key) {
             err = merr(ENOMEM);
@@ -93,9 +81,13 @@ json_walk(
         }
 
         if (prefix) {
-            HSE_MAYBE_UNUSED const int overflow =
+            const int overflow =
                 snprintf(key, key_sz, "%s.%s", prefix, node->string);
             assert(overflow == key_sz - 1);
+            if (overflow < 0) {
+                err = merr(EBADMSG);
+                goto out;
+            }
         } else {
             HSE_MAYBE_UNUSED const size_t sz = strlcpy(key, node->string, key_sz);
             assert(sz == node_str_sz);
@@ -180,10 +172,10 @@ json_deserialize(
     const size_t             num_providers,
     ...)
 {
+    merr_t err = 0;
+
     assert(pspecs);
     assert(pspecs_sz > 0);
-
-    merr_t err = 0;
 
     va_list providers;
     va_start(providers, num_providers);
@@ -217,33 +209,16 @@ va_cleanup:
 }
 
 static merr_t
-kvdb_node_get(const cJSON *root, cJSON **kvdb)
-{
-    assert(root);
-    assert(kvdb);
-
-    merr_t err = 0;
-
-    *kvdb = cJSON_GetObjectItemCaseSensitive(root, KVDB_KEY);
-    if (*kvdb && !cJSON_IsObject(*kvdb))
-        err = merr(EINVAL);
-
-    return err;
-}
-
-static merr_t
 kvs_node_get(const cJSON *kvdb, cJSON **kvs)
 {
     assert(kvdb);
     assert(kvs);
 
-    merr_t err = 0;
-
     *kvs = cJSON_GetObjectItemCaseSensitive(kvdb, KVS_KEY);
     if (*kvs && !cJSON_IsObject(*kvs))
-        err = merr(EINVAL);
+        return merr(EINVAL);
 
-    return err;
+    return 0;
 }
 
 static merr_t
@@ -252,13 +227,11 @@ default_kvs_node_get(const cJSON *kvs, cJSON **default_kvs)
     assert(kvs);
     assert(default_kvs);
 
-    merr_t err = 0;
-
     *default_kvs = cJSON_GetObjectItemCaseSensitive(kvs, DEFAULT_KEY);
     if (*default_kvs && !cJSON_IsObject(*default_kvs))
-        err = merr(EINVAL);
+        return merr(EINVAL);
 
-    return err;
+    return 0;
 }
 
 static merr_t
@@ -267,24 +240,34 @@ named_kvs_node_get(const char *kvs_name, const cJSON *kvs, cJSON **named_kvs)
     assert(kvs);
     assert(named_kvs);
 
-    merr_t err = 0;
-
     *named_kvs = cJSON_GetObjectItemCaseSensitive(kvs, kvs_name);
     if (*named_kvs && !cJSON_IsObject(*named_kvs))
-        err = merr(EINVAL);
+        return merr(EINVAL);
 
-    return err;
+    return 0;
+}
+
+merr_t
+config_deserialize_to_hse_gparams(const struct config *conf, struct hse_gparams *const params)
+{
+    size_t                   pspecs_sz;
+    const struct param_spec *pspecs = hse_gparams_pspecs_get(&pspecs_sz);
+    const union params       p = { .as_hse_gp = params };
+
+    assert(params);
+
+    if (!conf)
+        return 0;
+
+    return json_deserialize(pspecs, pspecs_sz, p, NULL, 0, 1, (cJSON *)conf);
 }
 
 #ifdef HSE_CONF_EXTENDED
 merr_t
 config_deserialize_to_kvdb_cparams(const struct config *conf, struct kvdb_cparams *params)
 {
-    assert(params);
-
     merr_t                   err = 0;
     const char **            ignore_keys = NULL;
-    cJSON *                  kvdb = NULL;
     size_t                   cpspecs_sz, dpspecs_sz, rpspecs_sz;
     const struct param_spec *cpspecs = kvdb_cparams_pspecs_get(&cpspecs_sz);
     const struct param_spec *dpspecs = kvdb_dparams_pspecs_get(&dpspecs_sz);
@@ -292,11 +275,9 @@ config_deserialize_to_kvdb_cparams(const struct config *conf, struct kvdb_cparam
     const size_t             ignore_keys_sz = rpspecs_sz + dpspecs_sz + 1;
     const union params       p = { .as_kvdb_cp = params };
 
-    if (!conf)
-        return err;
+    assert(params);
 
-    err = kvdb_node_get((cJSON *)conf, &kvdb);
-    if (err || !kvdb)
+    if (!conf)
         return err;
 
     ignore_keys = malloc(sizeof(char *) * ignore_keys_sz);
@@ -310,7 +291,7 @@ config_deserialize_to_kvdb_cparams(const struct config *conf, struct kvdb_cparam
     for (size_t i = 0; i < dpspecs_sz; i++, idx++)
         ignore_keys[idx] = dpspecs[i].ps_name;
 
-    err = json_deserialize(cpspecs, cpspecs_sz, p, ignore_keys, ignore_keys_sz, 1, kvdb);
+    err = json_deserialize(cpspecs, cpspecs_sz, p, ignore_keys, ignore_keys_sz, 1, (cJSON *)conf);
 
     free(ignore_keys);
 
@@ -320,11 +301,8 @@ config_deserialize_to_kvdb_cparams(const struct config *conf, struct kvdb_cparam
 merr_t
 config_deserialize_to_kvdb_dparams(const struct config *conf, struct kvdb_dparams *params)
 {
-    assert(params);
-
     merr_t                   err = 0;
     const char **            ignore_keys = NULL;
-    cJSON *                  kvdb = NULL;
     size_t                   cpspecs_sz, dpspecs_sz, rpspecs_sz;
     const struct param_spec *cpspecs = kvdb_cparams_pspecs_get(&cpspecs_sz);
     const struct param_spec *dpspecs = kvdb_dparams_pspecs_get(&dpspecs_sz);
@@ -332,11 +310,9 @@ config_deserialize_to_kvdb_dparams(const struct config *conf, struct kvdb_dparam
     const size_t             ignore_keys_sz = rpspecs_sz + cpspecs_sz + 1;
     const union params       p = { .as_kvdb_dp = params };
 
-    if (!conf)
-        return err;
+    assert(params);
 
-    err = kvdb_node_get((cJSON *)conf, &kvdb);
-    if (err || !kvdb)
+    if (!conf)
         return err;
 
     ignore_keys = malloc(sizeof(char *) * ignore_keys_sz);
@@ -350,7 +326,7 @@ config_deserialize_to_kvdb_dparams(const struct config *conf, struct kvdb_dparam
     for (size_t i = 0; i < rpspecs_sz; i++, idx++)
         ignore_keys[idx] = rpspecs[i].ps_name;
 
-    err = json_deserialize(dpspecs, dpspecs_sz, p, ignore_keys, ignore_keys_sz, 1, kvdb);
+    err = json_deserialize(dpspecs, dpspecs_sz, p, ignore_keys, ignore_keys_sz, 1, (cJSON *)conf);
 
     free(ignore_keys);
 
@@ -361,10 +337,7 @@ config_deserialize_to_kvdb_dparams(const struct config *conf, struct kvdb_dparam
 merr_t
 config_deserialize_to_kvdb_rparams(const struct config *conf, struct kvdb_rparams *params)
 {
-    assert(params);
-
     merr_t err = 0;
-    cJSON *kvdb = NULL;
 #ifndef HSE_CONF_EXTENDED
     const char * ignore_keys[] = { "kvs" };
     const size_t ignore_keys_sz = NELEM(ignore_keys);
@@ -379,11 +352,9 @@ config_deserialize_to_kvdb_rparams(const struct config *conf, struct kvdb_rparam
     const struct param_spec *rpspecs = kvdb_rparams_pspecs_get(&rpspecs_sz);
     const union params       p = { .as_kvdb_rp = params };
 
-    if (!conf)
-        return err;
+    assert(params);
 
-    err = kvdb_node_get((cJSON *)conf, &kvdb);
-    if (err || !kvdb)
+    if (!conf)
         return err;
 
 #ifdef HSE_CONF_EXTENDED
@@ -399,7 +370,7 @@ config_deserialize_to_kvdb_rparams(const struct config *conf, struct kvdb_rparam
         ignore_keys[idx] = dpspecs[i].ps_name;
 #endif
 
-    err = json_deserialize(rpspecs, rpspecs_sz, p, ignore_keys, ignore_keys_sz, 1, kvdb);
+    err = json_deserialize(rpspecs, rpspecs_sz, p, ignore_keys, ignore_keys_sz, 1, (cJSON *)conf);
 
 #ifdef HSE_CONF_EXTENDED
     free(ignore_keys);
@@ -415,11 +386,8 @@ config_deserialize_to_kvs_cparams(
     const char *         kvs_name,
     struct kvs_cparams * params)
 {
-    assert(kvs_name);
-    assert(params);
-
     merr_t                   err = 0;
-    cJSON *                  kvdb = NULL, *kvs = NULL;
+    cJSON *                  kvs = NULL;
     cJSON *                  named_kvs = NULL, *default_kvs = NULL;
     const char **            ignore_keys = NULL;
     size_t                   cpspecs_sz, rpspecs_sz;
@@ -427,14 +395,13 @@ config_deserialize_to_kvs_cparams(
     const struct param_spec *rpspecs = kvs_rparams_pspecs_get(&rpspecs_sz);
     const union params       p = { .as_kvs_cp = params };
 
+    assert(kvs_name);
+    assert(params);
+
     if (!conf)
         return err;
 
-    err = kvdb_node_get((cJSON *)conf, &kvdb);
-    if (err || !kvdb)
-        return err;
-
-    err = kvs_node_get(kvdb, &kvs);
+    err = kvs_node_get((cJSON *)conf, &kvs);
     if (err || !kvs)
         return err;
 
@@ -472,11 +439,8 @@ config_deserialize_to_kvs_rparams(
     const char *         kvs_name,
     struct kvs_rparams * params)
 {
-    assert(kvs_name);
-    assert(params);
-
     merr_t err = 0;
-    cJSON *kvdb = NULL, *kvs = NULL;
+    cJSON *kvs = NULL;
     cJSON *named_kvs = NULL, *default_kvs = NULL;
 #ifdef HSE_CONF_EXTENDED
     const char **            ignore_keys = NULL;
@@ -487,14 +451,13 @@ config_deserialize_to_kvs_rparams(
     const struct param_spec *rpspecs = kvs_rparams_pspecs_get(&rpspecs_sz);
     const union params       p = { .as_kvs_rp = params };
 
+    assert(kvs_name);
+    assert(params);
+
     if (!conf)
         return err;
 
-    err = kvdb_node_get((cJSON *)conf, &kvdb);
-    if (err || !kvdb)
-        return err;
-
-    err = kvs_node_get(kvdb, &kvs);
+    err = kvs_node_get((cJSON *)conf, &kvs);
     if (err || !kvs)
         return err;
 
@@ -530,25 +493,20 @@ config_deserialize_to_kvs_rparams(
     return err;
 }
 
-merr_t
-config_from_hse_conf(const char *home, struct config **conf)
+static merr_t
+config_create(const char *path, cJSON **conf)
 {
-    assert(home);
-    assert(conf);
-
-    char   conf_file_path[PATH_MAX];
     size_t n;
     char * config = NULL;
     FILE * file = NULL;
     merr_t err = 0;
 
-    n = snprintf(conf_file_path, sizeof(conf_file_path), "%s/" CONF_FILE_NAME, home);
-    assert(n < sizeof(conf_file_path));
+    assert(path);
+    assert(conf);
 
-    file = fopen(conf_file_path, "r");
+    file = fopen(path, "r");
     if (!file) {
-        if (errno != ENOENT)
-            err = merr(errno);
+        err = merr(errno);
         *conf = NULL;
         goto out;
     }
@@ -566,7 +524,7 @@ config_from_hse_conf(const char *home, struct config **conf)
 
     rewind(file);
 
-    config = malloc(size);
+    config = malloc(size + 1);
     if (!config) {
         err = merr(ENOMEM);
         goto out;
@@ -578,31 +536,102 @@ config_from_hse_conf(const char *home, struct config **conf)
         goto out;
     }
 
-    *((cJSON **)conf) = cJSON_ParseWithLength(config, size);
+    config[size] = '\0';
+
+    *conf = cJSON_ParseWithLength(config, size);
     if (!*conf) {
         err = merr(EINVAL);
         goto out;
     }
 
-    if (!cJSON_IsObject(*(cJSON **)conf)) {
-        err = merr(EINVAL);
+out:
+    if (config)
+        free(config);
+    if (file && fclose(file) == EOF && !err) {
+        err = merr(errno);
+        cJSON_Delete(*conf);
+    }
+
+    return err;
+}
+
+merr_t
+config_from_hse_conf(const char *const runtime_home, struct config **conf)
+{
+    cJSON *impl = NULL;
+    char   conf_file_path[PATH_MAX];
+    int    n;
+    merr_t err;
+
+    assert(conf);
+
+    n = snprintf(conf_file_path, sizeof(conf_file_path), "%s/hse.conf", runtime_home);
+    if (n >= sizeof(conf_file_path)) {
+        err = merr(ENAMETOOLONG);
+        goto out;
+    } else if (n < 0) {
+        err = merr(EBADMSG);
         goto out;
     }
 
-    if (!check_root_keys(*(cJSON **)conf)) {
+    err = config_create(conf_file_path, &impl);
+    if (err) {
+        if (merr_errno(err) == ENOENT)
+        err = 0;
+        goto out;
+    }
+
+    if (!cJSON_IsObject(impl)) {
         err = merr(EINVAL);
         goto out;
     }
 
 out:
-    if (err && *conf)
-        cJSON_Delete(*(cJSON **)conf);
-    if (config)
-        free(config);
-    if (file && fclose(file) == EOF && !err) {
-        err = merr(errno);
+    if (err && impl)
+        cJSON_Delete(impl);
+
+    *conf = (struct config *)impl;
+
+    return err;
+}
+
+merr_t
+config_from_kvdb_conf(const char *kvdb_home, struct config **conf)
+{
+    cJSON *impl = NULL;
+    char   conf_file_path[PATH_MAX];
+    int    n;
+    merr_t err = 0;
+
+    assert(kvdb_home);
+    assert(conf);
+
+    n = snprintf(conf_file_path, sizeof(conf_file_path), "%s/kvdb.conf", kvdb_home);
+    if (n >= sizeof(conf_file_path)) {
+        err = merr(ENAMETOOLONG);
+        goto out;
+    } else if (n < 0) {
+        err = merr(EBADMSG);
         goto out;
     }
+
+    err = config_create(conf_file_path, &impl);
+    if (err) {
+        if (merr_errno(err) == ENOENT)
+            err = 0;
+        goto out;
+    }
+
+    if (!cJSON_IsObject(impl)) {
+        err = merr(EINVAL);
+        goto out;
+    }
+
+out:
+    if (err && impl)
+        cJSON_Delete(impl);
+
+    *conf = (struct config *)impl;
 
     return err;
 }
