@@ -112,7 +112,7 @@ pidfile_deserialize(const char *home, struct pidfile *content)
     }
     rewind(pidf);
 
-    str = malloc(sz);
+    str = malloc(sz + 1);
     if (!str) {
         rc = ENOMEM;
         goto out;
@@ -123,6 +123,8 @@ pidfile_deserialize(const char *home, struct pidfile *content)
         rc = EIO;
         goto out;
     }
+
+    str[sz + 1] = '\0';
 
     root = cJSON_Parse(str);
     if (!root) {

@@ -524,7 +524,7 @@ config_create(const char *path, cJSON **conf)
 
     rewind(file);
 
-    config = malloc(size);
+    config = malloc(size + 1);
     if (!config) {
         err = merr(ENOMEM);
         goto out;
@@ -541,6 +541,8 @@ config_create(const char *path, cJSON **conf)
         err = merr(EINVAL);
         goto out;
     }
+
+    config[size + 1] = '\0';
 
 out:
     if (config)
