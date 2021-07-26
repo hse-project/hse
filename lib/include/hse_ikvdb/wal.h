@@ -21,8 +21,6 @@
 #define HSE_WAL_DUR_BYTES_MAX  (64 << 20)
 
 struct wal;
-struct kvdb_log;
-struct kvdb_log_tx;
 
 /* MTF_MOCK_DECL(wal) */
 

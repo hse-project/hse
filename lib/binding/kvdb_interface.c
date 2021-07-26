@@ -142,15 +142,12 @@ hse_err_t
 hse_kvdb_create(const char *kvdb_home, size_t paramc, const char *const *const paramv)
 {
     struct kvdb_cparams  dbparams = kvdb_cparams_defaults();
-    struct mpool *       mp;
     merr_t               err;
     u64                  tstart;
     char                 real_home[PATH_MAX];
     char                 pidfile_path[PATH_MAX];
     struct pidfh *       pfh = NULL;
     struct pidfile       content;
-    struct mpool_rparams mp_rparams = { 0 };
-    bool                 mpool_created = false;
 #ifdef WITH_KVDB_CONF_EXTENDED
     struct config *conf = NULL;
 #endif
@@ -197,65 +194,15 @@ hse_kvdb_create(const char *kvdb_home, size_t paramc, const char *const *const p
     if (err)
         goto out;
 
-    err = mpool_create(real_home, &dbparams.storage);
-    if (ev(err))
-        goto out;
-    mpool_created = true;
-
-    for (int i = 0; i < MP_MED_COUNT; i++) {
-        if (dbparams.storage.mclass[i].path[0] != '\0') {
-            strlcpy(
-                mp_rparams.mclass[i].path,
-                dbparams.storage.mclass[i].path,
-                sizeof(mp_rparams.mclass[i].path));
-        }
-    }
-
-    err = mpool_open(real_home, &mp_rparams, O_RDWR, &mp);
-    if (ev(err))
-        goto out;
-
-    for (int i = 0; i < MP_MED_COUNT; i++) {
-        struct mpool_mclass_props mcprops;
-
-        err = mpool_mclass_props_get(mp, i, &mcprops);
-        if (merr_errno(err) == ENOENT)
-            continue;
-        else if (err)
-            goto out;
-
-        err = mcprops.mc_mblocksz == 32 ? 0 : merr(EINVAL);
-        if (ev(err))
-            goto out;
-    }
-
-    err = ikvdb_create(real_home, mp, &dbparams, MPOOL_ROOT_LOG_CAP);
+    err = ikvdb_create(real_home, &dbparams);
     if (ev(err))
         goto out;
 
     perfc_lat_record(&kvdb_pkvdbl_pc, PERFC_LT_PKVDBL_KVDB_MAKE, tstart);
 
 out:
-    if (err) {
-        if (mpool_created) {
-            struct mpool_dparams mp_dparams;
-
-            for (int i = 0; i < MP_MED_COUNT; i++) {
-                if (dbparams.storage.mclass[i].path[0] != '\0') {
-                    strlcpy(
-                        mp_dparams.mclass[i].path,
-                        dbparams.storage.mclass[i].path,
-                        sizeof(mp_dparams.mclass[i].path));
-                }
-            }
-            mpool_destroy(real_home, &mp_dparams);
-        }
-        pidfile_remove(pfh);
-    } else {
-        mpool_close(mp);
-        if (pidfile_remove(pfh) == -1)
-            err = merr(errno);
-    }
+    if (pidfile_remove(pfh) == -1 && !err)
+        err = merr(errno);
     pfh = NULL;
 
 #ifdef WITH_KVDB_CONF_EXTENDED
@@ -272,8 +219,7 @@ hse_kvdb_drop(const char *kvdb_home, const size_t paramc, const char *const *con
     struct kvdb_dparams params = kvdb_dparams_defaults();
     char                pidfile_path[PATH_MAX];
     struct pidfh *      pfh = NULL;
-    merr_t              err, err1;
-    u64                 logid1, logid2;
+    merr_t              err;
 #ifdef WITH_KVDB_CONF_EXTENDED
     struct config *conf = NULL;
 #endif
@@ -281,9 +227,6 @@ hse_kvdb_drop(const char *kvdb_home, const size_t paramc, const char *const *con
     err = kvdb_home_resolve(kvdb_home, real_home, sizeof(real_home));
     if (err)
         goto out;
-
-    err1 = ikvdb_log_deserialize_to_kvdb_dparams(real_home, &params);
-    ev(err1);
 
     err = argv_deserialize_to_kvdb_dparams(paramc, paramv, &params);
     if (err)
@@ -313,16 +256,9 @@ hse_kvdb_drop(const char *kvdb_home, const size_t paramc, const char *const *con
         goto out;
     }
 
-    err = mpool_destroy(real_home, &params.storage);
-    ev(err);
-
-    if (!err1) {
-        err = mpool_mdc_rootid_get(&logid1, &logid2);
-        if (err)
-            goto out;
-
-        err = mpool_mdc_root_destroy(real_home, logid1, logid2);
-    }
+    err = ikvdb_drop(real_home, &params);
+    if (ev(err))
+        goto out;
 
 out:
 #ifdef WITH_KVDB_CONF_EXTENDED
@@ -343,10 +279,8 @@ hse_kvdb_open(
 {
     merr_t              err;
     struct ikvdb *      ikvdb;
-    struct mpool *      mp = NULL;
     struct kvdb_rparams params = kvdb_rparams_defaults();
     u64                 tstart;
-    int                 flags;
     size_t              n;
     char                real_home[PATH_MAX];
     char                pidfile_path[PATH_MAX];
@@ -362,10 +296,6 @@ hse_kvdb_open(
 
     err = kvdb_home_resolve(kvdb_home, real_home, sizeof(real_home));
     if (ev(err))
-        goto out;
-
-    err = ikvdb_log_deserialize_to_kvdb_rparams(real_home, &params);
-    if (err)
         goto out;
 
     err = argv_deserialize_to_kvdb_rparams(paramc, paramv, &params);
@@ -405,33 +335,12 @@ hse_kvdb_open(
     if (err)
         goto out;
 
-    /* Need write access in case recovery data needs to be replayed into cN.
-     * Need exclusive access to prevent multiple applications from
-     * working on the same KVDB, which would cause corruption.
-     */
-
-    flags = params.read_only == 0 ? O_RDWR : O_RDONLY;
-    err = mpool_open(real_home, &params.storage, flags, &mp);
+    err = ikvdb_open(real_home, &params, &ikvdb);
     if (ev(err))
         goto out;
 
-    for (int i = 0; i < MP_MED_COUNT; i++) {
-        struct mpool_mclass_props mcprops;
-
-        err = mpool_mclass_props_get(mp, i, &mcprops);
-        if (merr_errno(err) == ENOENT)
-            continue;
-        else if (err)
-            goto out;
-
-        err = mcprops.mc_mblocksz == 32 ? 0 : merr(EINVAL);
-        if (ev(err))
-            goto out;
-    }
-
-    err = ikvdb_open(real_home, &params, pfh, mp, conf, &ikvdb);
-    if (ev(err))
-        goto out;
+    ikvdb_config_attach(ikvdb, conf);
+    ikvdb_pidfh_attach(ikvdb, pfh);
 
     *handle = (struct hse_kvdb *)ikvdb;
 
@@ -439,12 +348,9 @@ hse_kvdb_open(
 
 out:
     if (err) {
-        if (mp)
-            mpool_close(mp);
         if (pfh)
             pidfile_remove(pfh);
-        if (conf)
-            config_destroy(conf);
+        config_destroy(conf);
     }
 
     return merr_to_hse_err(err);
@@ -453,10 +359,9 @@ out:
 hse_err_t
 hse_kvdb_close(struct hse_kvdb *handle)
 {
-    merr_t         err = 0, err2 = 0;
+    merr_t         err = 0;
     struct pidfh * pfh;
-    struct mpool * mp;
-    struct config *conf = NULL;
+    struct config *conf;
 
     if (HSE_UNLIKELY(!handle))
         return merr_to_hse_err(merr(EINVAL));
@@ -465,26 +370,17 @@ hse_kvdb_close(struct hse_kvdb *handle)
 
     conf = ikvdb_config((struct ikvdb *)handle);
     pfh = ikvdb_pidfh((struct ikvdb *)handle);
-
-    /* Retrieve mpool descriptor before ikvdb_impl is free'd */
-    mp = ikvdb_mpool_get((struct ikvdb *)handle);
+    assert(pfh);
 
     err = ikvdb_close((struct ikvdb *)handle);
     ev(err);
 
-    err2 = mpool_close(mp);
-    ev(err2);
-
-    if (err || err2) {
-        pidfile_remove(pfh);
-    } else {
-        if (pidfile_remove(pfh) == -1)
-            err = merr(errno);
-    }
+    if (pidfile_remove(pfh) == -1 && !err)
+        err = merr(errno);
 
     config_destroy(conf);
 
-    return err ? merr_to_hse_err(err) : merr_to_hse_err(err2);
+    return merr_to_hse_err(err);
 }
 
 hse_err_t

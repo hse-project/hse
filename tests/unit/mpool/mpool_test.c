@@ -28,9 +28,6 @@ MTF_DEFINE_UTEST_PREPOST(mpool_test, mpool_ocd_test, mpool_test_pre, mpool_test_
     int     rc, entry;
     DIR    *dirp;
 
-    err = mpool_open(home, &trparams, 0, NULL);
-    ASSERT_EQ(EINVAL, merr_errno(err));
-
     err = mpool_open(home, &trparams, 0, &mp);
     ASSERT_EQ(ENOENT, merr_errno(err));
 
@@ -39,9 +36,6 @@ MTF_DEFINE_UTEST_PREPOST(mpool_test, mpool_ocd_test, mpool_test_pre, mpool_test_
 
     err = mpool_open(home, &trparams, O_RDWR, &mp);
     ASSERT_EQ(0, err);
-
-    err = mpool_close(NULL);
-    ASSERT_EQ(EINVAL, merr_errno(err));
 
     err = mpool_close(mp);
     ASSERT_EQ(0, err);

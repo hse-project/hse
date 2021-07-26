@@ -103,12 +103,21 @@ components = {
         'kvdb_ctxn_test': {},
         'kvdb_keylock_test': {},
         'kvdb_home_test': {},
-        'kvdb_log_test': {
+        'kvdb_meta_test': {
             'args': [
-                meson.current_source_dir() / 'cn' / 'mdc_images',
+                '--home',
+                tests_dir / 'kvdb_meta_test',
+			    meson.current_source_dir() / 'kvdb/kvdb-meta-files',
+			],
+            'requires_home': true
+		},
+        'kvdb_rest_test': {
+            'args': [
+                '--home',
+                tests_dir / 'kvdb_rest_test',
             ],
+            'requires_home': true,
         },
-        'kvdb_rest_test': {},
         'kvdb_health_test': {},
         'mclass_policy_test': {},
         'sched_sts_test': {
@@ -236,7 +245,7 @@ components = {
         'hash_test': {},
         'hlog_unit_test': {},
         # This test requires access to some private information, so we compile it
-        # in with hse_err.c. It also necessitates mpool as a dependency.
+        # in with hse_err.c.
         'hse_err_test': {
             'sources': files(
                 meson.project_source_root() / 'lib' / 'util' / 'src' / 'hse_err.c',

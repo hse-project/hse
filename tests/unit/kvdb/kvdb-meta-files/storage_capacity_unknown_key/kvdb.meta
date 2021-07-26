@@ -1,0 +1,19 @@
+{
+	"cndb": {
+		"oid1": 1,
+		"oid2": 2
+	},
+	"wal": {
+		"oid1": 3,
+		"oid2": 4
+	},
+	"storage": {
+		"capacity": {
+			"hello": "world",
+			"path": "capacity"
+		},
+		"staging": {
+			"path": "staging"
+		}
+	}
+}

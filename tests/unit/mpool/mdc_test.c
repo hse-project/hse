@@ -108,9 +108,6 @@ MTF_DEFINE_UTEST_PREPOST(mdc_test, mdc_abc, mpool_test_pre, mpool_test_post)
     err = mpool_mdc_delete(mp, logid1, logid2 + 1);
     ASSERT_EQ(EINVAL, merr_errno(err));
 
-    err = mpool_mdc_open(NULL, logid1, logid2, &mdc);
-    ASSERT_EQ(EINVAL, merr_errno(err));
-
     err = mpool_mdc_open(mp, logid1, logid1, &mdc);
     ASSERT_EQ(EINVAL, merr_errno(err));
 
@@ -159,17 +156,6 @@ MTF_DEFINE_UTEST_PREPOST(mdc_test, mdc_abc, mpool_test_pre, mpool_test_post)
 
     err = mpool_mdc_delete(mp, logid1, logid2);
     ASSERT_EQ(ENOENT, merr_errno(err));
-
-    err = mpool_mdc_rootid_get(NULL, &logid2);
-    ASSERT_EQ(EINVAL, merr_errno(err));
-
-    err = mpool_mdc_rootid_get(&logid1, NULL);
-    ASSERT_EQ(EINVAL, merr_errno(err));
-
-    err = mpool_mdc_rootid_get(&logid1, &logid2);
-    ASSERT_EQ(0, err);
-    ASSERT_NE(0, logid1);
-    ASSERT_NE(0, logid2);
 
     err = mpool_close(mp);
     ASSERT_EQ(0, err);
@@ -262,9 +248,6 @@ MTF_DEFINE_UTEST_PREPOST(mdc_test, mdc_io_basic, mpool_test_pre, mpool_test_post
         err = mpool_mdc_append(mdc, buf, iter * i, sync);
         ASSERT_EQ(0, err);
     }
-
-    err = mpool_mdc_sync(NULL);
-    ASSERT_EQ(EINVAL, merr_errno(err));
 
     err = mpool_mdc_sync(mdc);
     ASSERT_EQ(0, err);

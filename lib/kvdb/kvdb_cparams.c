@@ -135,7 +135,7 @@ static const struct param_spec pspecs[] = {
     {
         .ps_name = "storage.capacity.path",
         .ps_description = "Storage path for capacity mclass",
-        .ps_flags = PARAM_FLAG_EXPERIMENTAL | PARAM_FLAG_NULLABLE,
+        .ps_flags = 0,
         .ps_type = PARAM_TYPE_STRING,
         .ps_offset = offsetof(struct kvdb_cparams, storage.mclass[MP_MED_CAPACITY].path),
         .ps_convert = param_default_converter,
@@ -209,7 +209,7 @@ static const struct param_spec pspecs[] = {
     {
         .ps_name = "storage.staging.path",
         .ps_description = "Storage path for staging mclass",
-        .ps_flags = PARAM_FLAG_EXPERIMENTAL | PARAM_FLAG_NULLABLE,
+        .ps_flags = PARAM_FLAG_NULLABLE,
         .ps_type = PARAM_TYPE_STRING,
         .ps_offset = offsetof(struct kvdb_cparams, storage.mclass[MP_MED_STAGING].path),
         .ps_convert = param_default_converter,

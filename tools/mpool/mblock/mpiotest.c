@@ -1133,7 +1133,7 @@ main(int argc, char **argv)
     path = strdup(argv[0]);
     strlcpy(cparams.mclass[MP_MED_CAPACITY].path, path,
             sizeof(cparams.mclass[MP_MED_CAPACITY].path));
-    err = mpool_create(NULL, &cparams);
+    err = mpool_create(path, &cparams);
     if (err) {
         fprintf(stderr, "mpool creation at path %s failed\n", path);
         free(path);
@@ -1143,7 +1143,7 @@ main(int argc, char **argv)
 
     strlcpy(rparams.mclass[MP_MED_CAPACITY].path, path,
             sizeof(rparams.mclass[MP_MED_CAPACITY].path));
-    err = mpool_open(NULL, &rparams, oflags, &mp);
+    err = mpool_open(path, &rparams, oflags, &mp);
     if (err) {
         merr_strinfo(err, errbuf, sizeof(errbuf), NULL);
         eprint("mpool_open(%s): %s\n", path, errbuf);

@@ -21,8 +21,6 @@
 
 #include <tools/parm_groups.h>
 
-#include "kvdb/kvdb_omf.h"
-#include "kvdb/kvdb_omf.h"
 #include "cn/omf.h"
 #include "cn/cndb_omf.h"
 #include "cn/cndb_internal.h"

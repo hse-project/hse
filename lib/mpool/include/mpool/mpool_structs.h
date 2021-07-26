@@ -8,9 +8,6 @@
 
 #include <hse_util/inttypes.h>
 
-#define MPOOL_ROOT_LOG_CAP     (8 * 1024 * 1024)
-#define MDC_ROOT_MAGIC         (0xFACE0FFF)
-#define MDC_ROOT_FILE_NAME     "hse.meta"
 #define WAL_FILE_PFX           "wal"
 #define WAL_FILE_PFX_LEN       (sizeof(WAL_FILE_PFX) - 1)
 

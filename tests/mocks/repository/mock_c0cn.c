@@ -21,7 +21,6 @@
 #include <hse_ikvdb/wal.h>
 #include <hse_ikvdb/kvdb_health.h>
 
-#include <kvdb/kvdb_log.h>
 #include <mocks/mock_kvset_builder.h>
 #include <mocks/mock_mpool.h>
 
@@ -794,30 +793,28 @@ mock_c0cn_unset()
  * maintenance (will not break when the mocked function signature
  * changes).
  */
-static struct mapi_injection kvdb_log_inject_list[] = {
-    { mapi_idx_kvdb_log_create,                        MAPI_RC_SCALAR, 0 },
-    { mapi_idx_kvdb_log_open,                        MAPI_RC_SCALAR, 0 },
-    { mapi_idx_kvdb_log_close,                       MAPI_RC_SCALAR, 0 },
-    { mapi_idx_kvdb_log_rollover,                    MAPI_RC_SCALAR, 0 },
-    { mapi_idx_kvdb_log_done,                        MAPI_RC_SCALAR, 0 },
-    { mapi_idx_kvdb_log_abort,                       MAPI_RC_SCALAR, 0 },
-    { mapi_idx_kvdb_log_mdc_create,                  MAPI_RC_SCALAR, 0 },
-    { mapi_idx_kvdb_log_replay,                      MAPI_RC_SCALAR, 0 },
-    { mapi_idx_kvdb_log_deserialize_to_kvdb_rparams, MAPI_RC_SCALAR, 0 },
-    { mapi_idx_kvdb_log_deserialize_to_kvdb_dparams, MAPI_RC_SCALAR, 0 },
+static struct mapi_injection kvdb_meta_inject_list[] = {
+    { mapi_idx_kvdb_meta_create,          MAPI_RC_SCALAR, 0 },
+    { mapi_idx_kvdb_meta_destroy,         MAPI_RC_SCALAR, 0 },
+    { mapi_idx_kvdb_meta_serialize,       MAPI_RC_SCALAR, 0 },
+    { mapi_idx_kvdb_meta_deserialize,     MAPI_RC_SCALAR, 0 },
+    { mapi_idx_kvdb_meta_sync,            MAPI_RC_SCALAR, 0 },
+    { mapi_idx_kvdb_meta_usage,           MAPI_RC_SCALAR, 0 },
+    { mapi_idx_kvdb_meta_to_kvdb_rparams, MAPI_RC_SCALAR, 0 },
+    { mapi_idx_kvdb_meta_to_kvdb_dparams, MAPI_RC_SCALAR, 0 },
     { -1 },
 };
 
 void
-mock_kvdb_log_set(void)
+mock_kvdb_meta_set(void)
 {
-    mapi_inject_list_set(kvdb_log_inject_list);
+    mapi_inject_list_set(kvdb_meta_inject_list);
 }
 
 void
-mock_kvdb_log_unset(void)
+mock_kvdb_meta_unset(void)
 {
-    mapi_inject_list_unset(kvdb_log_inject_list);
+    mapi_inject_list_unset(kvdb_meta_inject_list);
 }
 
 /*****************************************************************

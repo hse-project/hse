@@ -10,9 +10,12 @@
 #include <sysexits.h>
 
 #include <hse_util/logging.h>
+#include <hse_ikvdb/kvdb_meta.h>
 
 #include <hse/hse.h>
 #include <mpool/mpool.h>
+
+#include <bsd/string.h>
 
 #define ERROR_BUF_SIZE 256
 
@@ -57,18 +60,16 @@ dump(char *buf, size_t sz)
  * MDC open and close dance
  */
 void
-eopen_mdc(const char *home, struct mpool_mdc **mdc)
+eopen_mdc(struct mpool *const mp, const struct kvdb_meta *const meta, struct mpool_mdc **mdc)
 {
     merr_t err;
-    u64 oid1, oid2;
 
-    err = mpool_mdc_rootid_get(&oid1, &oid2);
-    if (err)
-        fatal("mpool_mdc_rootid_get", err);
+    assert(mp);
+    assert(mdc);
 
-    err = mpool_mdc_root_open(home, oid1, oid2, mdc);
+    err = mpool_mdc_open(mp, meta->km_cndb.oid1, meta->km_cndb.oid2, mdc);
     if (err)
-        fatal("mpool_mdc_root_open", err);
+        fatal("mpool_mdc_open", err);
 
     err = mpool_mdc_rewind(*mdc);
     if (err)
@@ -96,12 +97,15 @@ usage(void)
 int
 main(int argc, char **argv)
 {
-    struct mpool_mdc  *mdc;
-    char              *wpath;
-    FILE              *fp;
-    hse_err_t          err;
-    int                ignore, c;
-    const char        *home;
+    struct mpool_mdc    *mdc;
+    char                *wpath;
+    FILE                *fp;
+    hse_err_t            err;
+    int                  ignore, c;
+    const char          *home;
+    struct mpool        *mp;
+    struct mpool_rparams params;
+    struct kvdb_meta     meta;
 
     progname = basename(argv[0]);
 
@@ -157,7 +161,18 @@ main(int argc, char **argv)
             fatal(wpath, errno);
     }
 
-    eopen_mdc(home, &mdc);
+    err = kvdb_meta_deserialize(&meta, home);
+    if (err)
+        fatal("kvdb_meta_deserialize", err);
+
+    for (int i = MP_MED_BASE; i < MP_MED_CAPACITY; i++)
+        strlcpy(params.mclass[i].path, meta.km_storage[i].path, sizeof(params.mclass[i].path));
+
+    err = mpool_open(home, &params, O_RDWR, &mp);
+    if (err)
+        fatal("mpool_open", err);
+
+    eopen_mdc(mp, &meta, &mdc);
 
     for (;;) {
         size_t len;

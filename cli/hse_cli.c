@@ -544,7 +544,7 @@ cli_hse_kvdb_create_impl(struct cli *cli)
                 fprintf(
                     stderr,
                     "Failed to create the KVDB (%s). Potentially received an invalid KVDB home directory "
-                    "or an invalid parameter.",
+                    "or an invalid parameter.\n",
                     cli->home);
                 break;
             case EEXIST:
