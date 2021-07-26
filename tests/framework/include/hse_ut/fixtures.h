@@ -9,7 +9,9 @@
 
 #include <hse_ut/common.h>
 
-__attribute__((__weak__))
+#include <hse_util/compiler.h>
+
+HSE_WEAK
 void
 mtf_debug_hook(void);
 

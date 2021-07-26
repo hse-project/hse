@@ -22,7 +22,7 @@ static struct hse_kvdb *mtf_kvdb_handle;
  * of trouble.  Individual tests can override this debug hook if need
  * be, but it is not recommended.
  */
-__attribute__((__weak__))
+HSE_WEAK
 void
 mtf_debug_hook(void)
 {
