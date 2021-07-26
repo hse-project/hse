@@ -898,6 +898,8 @@ err_exit:
 /**
  * ikvdb_low_mem_adjust() - configure for constrained memory environment
  * @self:       self
+ *
+ * [HSE_REVISIT]: This tuning should only be performed by hse_init(),
  */
 static void
 ikvdb_low_mem_adjust(struct ikvdb_impl *self)
@@ -928,15 +930,6 @@ ikvdb_low_mem_adjust(struct ikvdb_impl *self)
 
     if (kp->c0_ingest_width == dflt.c0_ingest_width)
         kp->c0_ingest_width = HSE_C0_INGEST_WIDTH_MIN;
-
-    if (kp->c0_ingest_threads == dflt.c0_ingest_threads)
-        kp->c0_ingest_threads = min_t(u64, scale, HSE_C0_INGEST_THREADS_DFLT);
-
-    if (kp->c0_mutex_pool_sz == dflt.c0_mutex_pool_sz)
-        kp->c0_mutex_pool_sz = 5;
-
-    if (kp->throttle_c0_hi_th == dflt.throttle_c0_hi_th)
-        kp->throttle_c0_hi_th = (2 * hse_gparams.gp_c0kvs_cheap_sz * kp->c0_ingest_width) >> 20;
 
     c0kvs_reinit(hse_gparams.gp_c0kvs_ccache_sz_max, hse_gparams.gp_c0kvs_cheap_sz);
 }

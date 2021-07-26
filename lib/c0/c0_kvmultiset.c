@@ -233,35 +233,6 @@ c0kvms_usage(struct c0_kvmultiset *handle, struct c0_usage *usage)
     usage->u_count = n;
 }
 
-size_t
-c0kvms_used(struct c0_kvmultiset *handle)
-{
-    struct c0_kvmultiset_impl *self = c0_kvmultiset_h2r(handle);
-    size_t                     sz = 0;
-    u32                        i;
-
-    for (i = 1; i < self->c0ms_num_sets; ++i)
-        sz += c0kvs_used(self->c0ms_sets[i]);
-
-    return sz; /* excludes ptomb */
-}
-
-size_t
-c0kvms_used_get(struct c0_kvmultiset *handle)
-{
-    struct c0_kvmultiset_impl *self = c0_kvmultiset_h2r(handle);
-
-    return self->c0ms_used;
-}
-
-void
-c0kvms_used_set(struct c0_kvmultiset *handle, size_t used)
-{
-    struct c0_kvmultiset_impl *self = c0_kvmultiset_h2r(handle);
-
-    self->c0ms_used = used;
-}
-
 bool
 c0kvms_should_ingest(struct c0_kvmultiset *handle)
 {

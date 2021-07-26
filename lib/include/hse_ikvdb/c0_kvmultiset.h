@@ -239,15 +239,6 @@ c0kvms_get_element_count(struct c0_kvmultiset *mset);
 void
 c0kvms_usage(struct c0_kvmultiset *mset, struct c0_usage *usage);
 
-size_t
-c0kvms_used(struct c0_kvmultiset *mset);
-
-size_t
-c0kvms_used_get(struct c0_kvmultiset *mset);
-
-void
-c0kvms_used_set(struct c0_kvmultiset *mset, size_t used);
-
 bool
 c0kvms_should_ingest(struct c0_kvmultiset *handle);
 

@@ -82,7 +82,7 @@ struct kvdb_rparams {
     uint32_t throttle_relax;
     uint32_t throttle_debug;
     uint32_t throttle_debug_intvl_s;
-    uint64_t throttle_c0_hi_th;
+    uint32_t throttle_c0_hi_th;
     uint64_t throttle_sleep_min_ns;
     uint64_t throttle_burst;
     uint64_t throttle_rate;
@@ -96,7 +96,6 @@ struct kvdb_rparams {
     uint32_t cndb_debug;
     uint32_t c0_maint_threads;
     uint32_t c0_ingest_threads;
-    uint32_t c0_mutex_pool_sz;
 
     uint32_t keylock_tables;
     uint32_t low_mem;

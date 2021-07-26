@@ -118,19 +118,11 @@ wal_timer(void *rock)
             if (wal->wal_sensor) {
                 const uint64_t hwm = (bufsz * 87) / 100;
                 const uint64_t lwm = (bufsz * 13) / 100;
-                uint new = 0, old;
+                uint new;
 
                 assert(buflen < bufsz);
 
-                if (buflen > lwm)
-                    new = (THROTTLE_SENSOR_SCALE * buflen) / hwm;
-
-                /* Ease off the throttle to ameliorate stop-n-go behavior...
-                 */
-                old = throttle_sensor_get(wal->wal_sensor);
-
-                if (new < old)
-                    new = (new + old * 127) / 128;
+                new = (buflen > lwm) ? (THROTTLE_SENSOR_SCALE * buflen) / hwm : 0;
 
                 throttle_sensor_set(wal->wal_sensor, new);
             }

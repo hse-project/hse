@@ -447,7 +447,7 @@ static const struct param_spec pspecs[] = {
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
         .ps_default_value = {
-            .as_uscalar = 0,
+            .as_uscalar = 4,
         },
         .ps_bounds = {
             .as_uscalar = {
@@ -1028,20 +1028,20 @@ static const struct param_spec pspecs[] = {
     },
     {
         .ps_name = "throttle_c0_hi_th",
-        .ps_description = "throttle sensor: c0 high water mark (MiB)",
+        .ps_description = "c0 ingest backlog sensor high-watermark",
         .ps_flags = PARAM_FLAG_EXPERIMENTAL,
-        .ps_type = PARAM_TYPE_U64,
+        .ps_type = PARAM_TYPE_U32,
         .ps_offset = offsetof(struct kvdb_rparams, throttle_c0_hi_th),
         .ps_size = sizeof(((struct kvdb_rparams *) 0)->throttle_c0_hi_th),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
         .ps_default_value = {
-            .as_uscalar = 1024 * 8,
+            .as_uscalar = 35,
         },
         .ps_bounds = {
             .as_uscalar = {
                 .ps_min = 0,
-                .ps_max = 1024 * 16,
+                .ps_max = 100,
             },
         },
     },
@@ -1176,8 +1176,8 @@ static const struct param_spec pspecs[] = {
         },
         .ps_bounds = {
             .as_uscalar = {
-                .ps_min = 0,
-                .ps_max = UINT64_MAX,
+                .ps_min = 1,
+                .ps_max = HSE_C0_MAINT_THREADS_MAX,
             },
         },
     },
@@ -1195,27 +1195,8 @@ static const struct param_spec pspecs[] = {
         },
         .ps_bounds = {
             .as_uscalar = {
-                .ps_min = 0,
-                .ps_max = UINT32_MAX,
-            },
-        },
-    },
-    {
-        .ps_name = "c0_mutex_pool_sz",
-        .ps_description = "max locks in c0 ingest sync pool",
-        .ps_flags = PARAM_FLAG_EXPERIMENTAL,
-        .ps_type = PARAM_TYPE_U32,
-        .ps_offset = offsetof(struct kvdb_rparams, c0_mutex_pool_sz),
-        .ps_size = sizeof(((struct kvdb_rparams *) 0)->c0_mutex_pool_sz),
-        .ps_convert = param_default_converter,
-        .ps_validate = param_default_validator,
-        .ps_default_value = {
-            .as_uscalar = 0,
-        },
-        .ps_bounds = {
-            .as_uscalar = {
-                .ps_min = 0,
-                .ps_max = UINT32_MAX,
+                .ps_min = 1,
+                .ps_max = HSE_C0_INGEST_THREADS_MAX,
             },
         },
     },

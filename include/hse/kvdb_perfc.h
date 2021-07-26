@@ -66,11 +66,8 @@ enum kvdb_perfc_sidx_c0skop {
 enum kvdb_perfc_sidx_c0sking {
     PERFC_BA_C0SKING_QLEN,
     PERFC_BA_C0SKING_WIDTH,
-    PERFC_DI_C0SKING_KVMSDSIZE,
     PERFC_DI_C0SKING_PREP,
     PERFC_DI_C0SKING_FIN,
-    PERFC_DI_C0SKING_THRSR,
-    PERFC_DI_C0SKING_MEM,
     PERFC_EN_C0SKING
 };
 

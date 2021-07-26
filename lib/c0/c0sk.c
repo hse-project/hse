@@ -519,8 +519,9 @@ c0sk_open(
     INIT_LIST_HEAD(&c0sk->c0sk_rcu_pending);
     c0sk->c0sk_rcu_active = false;
 
-    atomic_set(&c0sk->c0sk_ingest_ldrcnt, 0);
     atomic64_set(&c0sk->c0sk_ingest_gen, 0);
+    atomic_set(&c0sk->c0sk_ingest_ldrcnt, 0);
+    atomic_set(&c0sk->c0sk_ingest_finlat, 30000);
     mutex_init_adaptive(&c0sk->c0sk_kvms_mutex);
     mutex_init(&c0sk->c0sk_sync_mutex);
     cv_init(&c0sk->c0sk_kvms_cv, "c0sk_kvms_cv");
@@ -530,8 +531,7 @@ c0sk_open(
 
     c0sk_calibrate(c0sk);
 
-    tdmax = min_t(u64, kvdb_rp->c0_ingest_threads, HSE_C0_INGEST_THREADS_MAX);
-    tdmax = max_t(int, tdmax, 1);
+    tdmax = clamp_t(int, kvdb_rp->c0_ingest_threads, 1, HSE_C0_INGEST_THREADS_MAX);
 
     hse_log(HSE_INFO "c0sk_open c0 ingest thread %d ", tdmax);
 
@@ -623,7 +623,6 @@ c0sk_close(struct c0sk *handle)
 
             assert(c0kvms_get_element_count(first) == 0);
             assert(self->c0sk_kvmultisets_cnt == 0);
-            assert(self->c0sk_kvmultisets_sz == 0);
         }
         mutex_unlock(&self->c0sk_kvms_mutex);
 
@@ -694,11 +693,18 @@ c0sk_ingest_order_register(struct c0sk *handle)
     return atomic64_fetch_add(1, &self->c0sk_ingest_order_curr);
 }
 
+/* In order to adjust the throttle accurately, c0sk need to measure a few ingests
+ * that run concurrently with cn I/O.  So we initialize the throttle at startup
+ * to prevent a large backlog of pending c0kvms before we've had enough time
+ * to gather sufficient hueristics.
+ */
 void
 c0sk_throttle_sensor(struct c0sk *handle, struct throttle_sensor *sensor)
 {
-    if (handle)
+    if (handle) {
+        throttle_sensor_set(sensor, THROTTLE_SENSOR_SCALE / 3);
         c0sk_h2r(handle)->c0sk_sensor = sensor;
+    }
 }
 
 struct kvdb_rparams *
@@ -718,13 +724,12 @@ static void
 c0sk_sync_debug(struct c0sk_impl *self, u64 waiter_gen)
 {
     hse_log(
-        HSE_WARNING "%s: %lu %lu %lu %d (%zuK)",
+        HSE_WARNING "%s: %lu %lu %lu %d",
         __func__,
         (ulong)atomic64_read(&self->c0sk_ingest_gen),
         (ulong)waiter_gen,
         (ulong)self->c0sk_release_gen,
-        self->c0sk_kvmultisets_cnt,
-        self->c0sk_kvmultisets_sz / 1024);
+        self->c0sk_kvmultisets_cnt);
 }
 
 /*

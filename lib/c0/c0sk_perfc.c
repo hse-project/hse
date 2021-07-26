@@ -10,6 +10,8 @@
 #include <hse_ikvdb/c0sk_perfc.h>
 #include <hse_ikvdb/ikvdb.h>
 
+/* clang-format off */
+
 /*
  * The NE() macro string-izes the enum.
  * perfc_ctrseti_alloc() parses this string to get the type(!).
@@ -17,27 +19,24 @@
 
 struct perfc_name c0sk_perfc_op[] = {
     NE(PERFC_LT_C0SKOP_GET, 3, "Latency of c0sk gets", "l_get(/s)", 7),
-    NE(PERFC_RA_C0SKOP_GET, 3, "Count of c0sk gets", "c_get(/s)"),
-    NE(PERFC_RA_C0SKOP_PUT, 3, "Count of c0sk puts", "c_put(/s)"),
+    NE(PERFC_RA_C0SKOP_GET, 3, "Count of c0sk gets",   "c_get(/s)"),
+    NE(PERFC_RA_C0SKOP_PUT, 3, "Count of c0sk puts",   "c_put(/s)"),
     NE(PERFC_LT_C0SKOP_PUT, 3, "Latency of c0sk puts", "l_put(/s)"),
-    NE(PERFC_RA_C0SKOP_DEL, 3, "Count of c0sk dels", "c_del(/s)"),
+    NE(PERFC_RA_C0SKOP_DEL, 3, "Count of c0sk dels",   "c_del(/s)"),
     NE(PERFC_LT_C0SKOP_DEL, 3, "Latency of c0sk dels", "l_del(/s)"),
 };
 
 struct perfc_name c0sk_perfc_ingest[] = {
-    NE(PERFC_BA_C0SKING_QLEN, 2, "Ingest queue length", "d_queue_len"),
-    NE(PERFC_DI_C0SKING_PREP, 2, "Ingest prep. time", "l_ingprep(ms)"),
-    NE(PERFC_DI_C0SKING_FIN, 2, "Ingest finish time", "l_ingfin(ms)"),
-    NE(PERFC_DI_C0SKING_KVMSDSIZE, 2, "kvms size", "c_kvmsdsz(mb)"),
-
-    NE(PERFC_BA_C0SKING_WIDTH, 3, "Ingest width", "d_width"),
-    NE(PERFC_DI_C0SKING_THRSR, 3, "Throttle sensor", "c_thrsr", 10),
-    NE(PERFC_DI_C0SKING_MEM, 3, "Ingest memory limit", "c_ingmem"),
+    NE(PERFC_BA_C0SKING_QLEN,  2, "Ingest queue length", "c_ing_qlen"),
+    NE(PERFC_DI_C0SKING_PREP,  2, "Ingest prep time",    "d_ing_prep(ms)"),
+    NE(PERFC_DI_C0SKING_FIN,   2, "Ingest finish time",  "d_ing_finish(ms)"),
+    NE(PERFC_BA_C0SKING_WIDTH, 3, "Ingest width",        "c_width"),
 };
 
-NE_CHECK(c0sk_perfc_op, PERFC_EN_C0SKOP, "c0sk_perfc_op table/enum mismatch");
-
+NE_CHECK(c0sk_perfc_op,     PERFC_EN_C0SKOP,  "c0sk_perfc_op table/enum mismatch");
 NE_CHECK(c0sk_perfc_ingest, PERFC_EN_C0SKING, "c0sk_perfc_ingest table/enum mismatch");
+
+/* clang-format on */
 
 void
 c0sk_perfc_init(void)
@@ -61,9 +60,6 @@ c0sk_perfc_init(void)
 
     c0sk_perfc_ingest[PERFC_DI_C0SKING_PREP].pcn_ivl = ivl;
     c0sk_perfc_ingest[PERFC_DI_C0SKING_FIN].pcn_ivl = ivl;
-    c0sk_perfc_ingest[PERFC_DI_C0SKING_THRSR].pcn_ivl = ivl;
-    c0sk_perfc_ingest[PERFC_DI_C0SKING_MEM].pcn_ivl = ivl;
-    c0sk_perfc_ingest[PERFC_DI_C0SKING_KVMSDSIZE].pcn_ivl = ivl;
 
     c0sk_perfc_op[PERFC_LT_C0SKOP_GET].pcn_samplepct = 3;
     c0sk_perfc_op[PERFC_LT_C0SKOP_PUT].pcn_samplepct = 3;
