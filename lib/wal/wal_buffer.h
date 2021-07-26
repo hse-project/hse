@@ -27,7 +27,7 @@ void
 wal_bufset_reclaim(struct wal_bufset *wbs, uint64_t gen);
 
 merr_t
-wal_bufset_flush(struct wal_bufset *wbs, u64 *flushb);
+wal_bufset_flush(struct wal_bufset *wbs, uint64_t *flushb, uint64_t *bufszp, uint64_t *buflenp);
 
 int
 wal_bufset_durcnt(struct wal_bufset *wbs, int offc, u64 *offv);

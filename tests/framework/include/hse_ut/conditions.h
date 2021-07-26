@@ -5,13 +5,8 @@
 #ifndef HSE_UTEST_CONDITIONS_H
 #define HSE_UTEST_CONDITIONS_H
 
-static inline void
-mtf_debug_hook(void)
-{
-    return;
-}
-
 #include "common.h"
+#include "fixtures.h"
 
 /* Set the mtf_verify_flag when the verify check fails the first time and record
  * file/line info. Subsequent failures are likely to be duplicates or collateral

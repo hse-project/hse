@@ -35,77 +35,36 @@
 #include "c0sk_internal.h"
 #include "c0_ingest_work.h"
 
-/* Update c0sk's throttle sensor based on:
- * - the aggregate size of c0 kvms,
- * - the number of c0 kvms, and
- * - the configured high water mark.
- *
- * The general idea is to limit the amount of RAM that c0sk is holding in kvms
- * pending ingest.  The sensor setting becomes more aggressive as the pending
- * ingest size grows above the high water mark.
- *
- * The general flow is that for any given kvms c0sk_install_c0kvms() adds
- * the estimated 'old' kvms size to c0sk_kvmultisets_sz.  After ingestion,
- * c0sk_release_multiset() subtracts the original estimated size from
- * c0sk_kvmultisets_sz, for a net gain of zero wrt any given kvms.
- *
- * Additionally, we factor in a small fixed amount for each pending kvms
- * (currently roughly .1% of the high water mark per pending kvms).  This
- * allows throttling to engage in the presence of numerous small kvms whose
- * aggregate usage would otherwise never eclipse the high water mark.
+/* The c0sk throttle is used to try and prevent a large backlog of finalized
+ * c0kvms waiting to be spilled, as a large backlog is a good indicator that
+ * there are currently insufficient resources (i.e., cpu and media bandwidth)
+ * available to quickly process and write the k/v tuples to media.
  *
  * See 'struct throttle_sensor' for guidelines on setting sensor values.
-
- * [HSE_REVISIT] This function here may be redundant once the new
- * c0sk throttler c0sk_ingest_throttle_adjust() controls throttling
- * based on outstanding bytes to be ingested. Will be removed later
- * if this function is indeed redundant.
  */
 int
 c0sk_adjust_throttling(struct c0sk_impl *self)
 {
     const struct kvdb_rparams *rp = self->c0sk_kvdb_rp;
-
-    size_t new, old, sz;
-    size_t lwm, hwm;
+    int hwm, new;
 
     if (!self->c0sk_sensor || !rp->throttle_c0_hi_th)
         return 0;
 
-    lwm = 1ul << 30;
-    hwm = max_t(size_t, lwm, rp->throttle_c0_hi_th * 1024 * 1024);
-
-    /* Current size is based on current pending kvms RAM usage plus
-     * a fixed amount per pending kvms.
+    /* Use the ingest finish latency (i.e., the running average time it takes
+     * to process and write k/v tuples to media) to adjust the hwm +/- 16
+     * to try and maintain a max backlog of between 3.0 and 5.1 c0kvms
+     * (based upon the default value of throttle_c0_hi_th=3.5).
      */
-    sz = self->c0sk_kvmultisets_sz;
-    sz += (rp->throttle_c0_hi_th * self->c0sk_kvmultisets_cnt / 64) << 20;
+    hwm = atomic_read(&self->c0sk_ingest_finlat) / 1000;
+    if (hwm > 21)
+        hwm = 21;
 
-    old = throttle_sensor_get(self->c0sk_sensor);
-    new = 0;
+    hwm = rp->throttle_c0_hi_th + (16 - hwm);
 
-    if (sz > lwm) {
-        new = THROTTLE_SENSOR_SCALE *sz / hwm;
-        new = min_t(size_t, new, THROTTLE_SENSOR_SCALE * 2);
-
-        /* Ease off the throttle to ameliorate stop-n-go behavior...
-         */
-        if (new < old)
-            new = (new + old * 7) / 8;
-    }
+    new = (self->c0sk_kvmultisets_cnt * THROTTLE_SENSOR_SCALE * 10) / hwm;
 
     throttle_sensor_set(self->c0sk_sensor, new);
-
-    perfc_rec_sample(&self->c0sk_pc_ingest, PERFC_DI_C0SKING_THRSR, new);
-
-    if (self->c0sk_kvdb_rp->throttle_debug & THROTTLE_DEBUG_SENSOR_C0SK)
-        hse_log(
-            HSE_NOTICE "%s: kvms_cnt %d, kvms_sz_MiB %zu, sensor: %zu -> %zu",
-            __func__,
-            self->c0sk_kvmultisets_cnt,
-            self->c0sk_kvmultisets_sz >> 20,
-            old,
-            new);
 
     return new;
 }
@@ -153,14 +112,12 @@ bool
 c0sk_install_c0kvms(struct c0sk_impl *self, struct c0_kvmultiset *old, struct c0_kvmultiset *new)
 {
     struct c0_kvmultiset *first;
-    size_t                used = 0;
 
     /* Set old kvms seqno to kvdb's seqno + 1 before freezing it.
      * The increment is necessary since this is also used as the upper bound by the
      * ingest thread.
      */
     if (old) {
-        used = c0kvms_used_get(old);
         c0kvms_txhorizon_set(old, c0sk_txhorizon_get(self));
         c0kvms_seqno_set(old, atomic64_inc_acq(self->c0sk_kvdb_seq));
     }
@@ -174,7 +131,6 @@ c0sk_install_c0kvms(struct c0sk_impl *self, struct c0_kvmultiset *old, struct c0
 
         c0sk_rsvd_sn_set(self, new);
 
-        self->c0sk_kvmultisets_sz += used;
         self->c0sk_kvmultisets_cnt += 1;
         c0sk_adjust_throttling(self);
     }
@@ -187,7 +143,7 @@ c0sk_install_c0kvms(struct c0sk_impl *self, struct c0_kvmultiset *old, struct c0
 }
 
 static void
-signal_waiters(struct c0sk_impl *c0sk, u64 gen)
+c0sk_signal_waiters(struct c0sk_impl *c0sk, u64 gen)
 {
     struct c0sk_waiter *p;
 
@@ -199,16 +155,6 @@ signal_waiters(struct c0sk_impl *c0sk, u64 gen)
             cv_broadcast(&p->c0skw_cv);
     }
     mutex_unlock(&c0sk->c0sk_sync_mutex);
-}
-
-static inline void
-c0sk_kvmultiset_ingest_completion(struct c0sk_impl *c0sk, struct c0_kvmultiset *multiset)
-{
-    u64 gen = c0kvms_gen_read(multiset);
-
-    c0kvms_ingested(multiset);
-    c0sk_release_multiset(c0sk, multiset);
-    signal_waiters(c0sk, gen);
 }
 
 /* Compare seqno with the correct previous seqno - ptomb or other
@@ -641,8 +587,9 @@ c0sk_ingest_worker(struct work_struct *work)
     if (debug)
         ingest->t3 = get_time_ns();
 
-    /* Ensure that all committed txns upto min_seq have finished. */
+    /* Ensure that all committed txns up to min_seq have finished. */
     kvdb_ctxn_set_wait_commits(c0sk->c0sk_ctxn_set);
+
     err = c0sk_merge_loop(kvms_minheap, min_seq, max_seq, kvms_gen, cn_list[0], lc_list);
     if (ev(err))
         goto health_err;
@@ -652,8 +599,7 @@ c0sk_ingest_worker(struct work_struct *work)
 
     /* Wait for older ingests to finish this sequential part */
     c0sk_ingest_serialize_wait(ingest);
-    i = atomic_inc_return(&c0sk->c0sk_ingest_serialized_cnt);
-    assert(i == 1);
+    assert(atomic_inc_return(&c0sk->c0sk_ingest_serialized_cnt) == 1);
 
     c0sk_cningest_walcb(c0sk, max_seq, kvms_gen, txhorizon, false);
 
@@ -666,38 +612,35 @@ c0sk_ingest_worker(struct work_struct *work)
      * thread) that appears before this first entry would be missed.
      */
     err = bin_heap2_prepare(lc_minheap, ingest->c0iw_lc_iterc, ingest->c0iw_lc_sourcev);
+    if (!err) {
+        err = c0sk_merge_loop(lc_minheap, min_seq, max_seq, kvms_gen, cn_list[1], NULL);
+        if (!err) {
+            ingest->t5 = get_time_ns();
+
+            /* Update lc with entries from kvms and lc */
+            err = lc_builder_finish(lc_list);
+        }
+    }
+
+    assert(atomic_dec_return(&c0sk->c0sk_ingest_serialized_cnt) == 0);
+
     if (ev(err))
         goto health_err;
-
-    err = c0sk_merge_loop(lc_minheap, min_seq, max_seq, kvms_gen, cn_list[1], NULL);
-    if (ev(err))
-        goto health_err;
-
-    if (debug)
-        ingest->t5 = get_time_ns();
-
-    /* Update lc with entries from kvms and lc */
-    err = lc_builder_finish(lc_list);
-    if (ev(err))
-        goto health_err;
-
-    if (debug)
-        ingest->t6 = get_time_ns();
-
-    atomic_dec(&c0sk->c0sk_ingest_serialized_cnt);
 
     atomic64_inc_acq(&c0sk->c0sk_ingest_order_next); /* Move the ingest order forward */
+
     mutex_lock(&c0sk->c0sk_kvms_mutex);
     cv_broadcast(&c0sk->c0sk_kvms_cv); /* Wake up newer ingest threads */
     mutex_unlock(&c0sk->c0sk_kvms_mutex);
     released = true;
 
+    ingest->t6 = get_time_ns();
+
     err = bkv_collection_finish_pair(cn_list[0], cn_list[1]);
     if (ev(err))
         goto health_err;
 
-    if (debug)
-        ingest->t7 = get_time_ns();
+    ingest->t7 = get_time_ns();
 
     for (i = 0; i < HSE_KVS_COUNT_MAX; ++i) {
         if (ingest->c0iw_bldrs[i] == 0)
@@ -716,6 +659,7 @@ health_err:
 exit_err:
     if (!released) {
         atomic64_inc_acq(&c0sk->c0sk_ingest_order_next); /* Move the ingest order forward */
+
         mutex_lock(&c0sk->c0sk_kvms_mutex);
         cv_broadcast(&c0sk->c0sk_kvms_cv); /* Wake up newer ingest threads */
         mutex_unlock(&c0sk->c0sk_kvms_mutex);
@@ -754,6 +698,7 @@ exit_err:
                          txhorizon, &cn_min, &cn_max);
 
         c0sk_ingest_rec_perfc(&c0sk->c0sk_pc_ingest, PERFC_DI_C0SKING_FIN, go);
+
         if (ev(err))
             kvdb_health_error(c0sk->c0sk_kvdb_health, err);
 
@@ -776,11 +721,29 @@ exit_err:
     if (debug)
         ingest->t9 = get_time_ns();
 
-    if (ev(err))
+    if (err) {
         hse_elog(HSE_ERR "c0 ingest failed on %p: @@e", err, kvms);
+    } else {
+        int finlat;
 
-    if (!err)
         lc_ingest_seqno_set(lc, max_seq);
+
+        /* Compute a running average of the finish latency (weighted more
+         * heavily on previous result) for use in adjusting the throttle.
+         */
+        finlat = atomic_read(&c0sk->c0sk_ingest_finlat);
+        finlat = ((ingest->t7 - ingest->t6) / 1000000 + finlat * 2) / 3;
+        atomic_set(&c0sk->c0sk_ingest_finlat, finlat);
+    }
+
+    /* Releasing mblocks could take several seconds on slow or very busy
+     * media, so we release the kvms before we start teardown to allow
+     * any kvms waiting on us to run concurrently with our teardown.
+     */
+    c0kvms_getref(kvms);
+    c0kvms_ingested(kvms);
+    c0sk_release_multiset(c0sk, kvms);
+    c0sk_signal_waiters(c0sk, kvms_gen);
 
     for (i = 0; i < HSE_KVS_COUNT_MAX; ++i) {
         if (ingest->c0iw_bldrs[i] == 0)
@@ -799,7 +762,7 @@ exit_err:
         ingest->gencur = c0kvms_gen_current();
     }
 
-    c0sk_kvmultiset_ingest_completion(c0sk, kvms);
+    c0kvms_putref(kvms);
 }
 
 /**
@@ -929,10 +892,8 @@ void
 c0sk_release_multiset(struct c0sk_impl *self, struct c0_kvmultiset *multiset)
 {
     struct c0_kvmultiset *p;
-    size_t                used;
     u64                   gen;
 
-    used = c0kvms_used_get(multiset);
     gen = c0kvms_gen_read(multiset);
 
     mutex_lock(&self->c0sk_kvms_mutex);
@@ -943,7 +904,6 @@ c0sk_release_multiset(struct c0sk_impl *self, struct c0_kvmultiset *multiset)
     {
         if (p == multiset) {
             cds_list_del_rcu(&p->c0ms_link);
-            self->c0sk_kvmultisets_sz -= used;
             self->c0sk_kvmultisets_cnt -= 1;
             c0sk_adjust_throttling(self);
             cv_broadcast(&self->c0sk_kvms_cv);
@@ -1061,7 +1021,6 @@ merr_t
 c0sk_queue_ingest(struct c0sk_impl *self, struct c0_kvmultiset *old)
 {
     struct c0_kvmultiset *new;
-    struct c0_usage usage;
     merr_t err;
 
     c0kvms_ingesting(old);
@@ -1078,18 +1037,10 @@ c0sk_queue_ingest(struct c0sk_impl *self, struct c0_kvmultiset *old)
         nanosleep(&req, NULL);
     }
 
-    usage.u_keyb = 0;
     err = 0;
 
     if (c0kvms_gen_read(old) < atomic64_read(&self->c0sk_ingest_gen))
         goto resign;
-
-    /* Sample and save the current usage of old for throttling.
-     * It may not be 100% accurate, but should be close enough
-     * to the finalized result.
-     */
-    c0kvms_usage(old, &usage);
-    c0kvms_used_set(old, max_t(size_t, usage.u_used, usage.u_memsz));
 
     c0sk_ingest_tune(self);
 
@@ -1119,10 +1070,6 @@ c0sk_queue_ingest(struct c0sk_impl *self, struct c0_kvmultiset *old)
   resign:
     while (!atomic_cas(&self->c0sk_ingest_ldrcnt, atomic_read(&self->c0sk_ingest_ldrcnt), 0))
         continue;
-
-    if (usage.u_keyb)
-        perfc_rec_sample(
-            &self->c0sk_pc_ingest, PERFC_DI_C0SKING_KVMSDSIZE, (usage.u_keyb + usage.u_valb) >> 10);
 
     return err;
 }

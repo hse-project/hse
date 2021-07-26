@@ -80,8 +80,8 @@ struct c0sk_impl {
     struct mutex         c0sk_kvms_mutex HSE_ALIGNED(SMP_CACHE_BYTES * 2);
     struct cds_list_head c0sk_kvmultisets;
     u64                  c0sk_release_gen;
-    size_t               c0sk_kvmultisets_sz;
     s32                  c0sk_kvmultisets_cnt;
+    atomic_t             c0sk_ingest_finlat;
     atomic_t             c0sk_ingest_serialized_cnt;
     atomic64_t           c0sk_ingest_order_curr;
     atomic64_t           c0sk_ingest_order_next;

@@ -66,11 +66,8 @@ enum kvdb_perfc_sidx_c0skop {
 enum kvdb_perfc_sidx_c0sking {
     PERFC_BA_C0SKING_QLEN,
     PERFC_BA_C0SKING_WIDTH,
-    PERFC_DI_C0SKING_KVMSDSIZE,
     PERFC_DI_C0SKING_PREP,
     PERFC_DI_C0SKING_FIN,
-    PERFC_DI_C0SKING_THRSR,
-    PERFC_DI_C0SKING_MEM,
     PERFC_EN_C0SKING
 };
 
@@ -133,6 +130,7 @@ enum kvdb_perfc_sidx_kvdb_metrics {
 enum kvdb_perfc_sidx_api_throttle {
     PERFC_DI_THSR_CSCHED,
     PERFC_DI_THSR_C0SK,
+    PERFC_DI_THSR_WAL,
     PERFC_DI_THSR_MAX,
     PERFC_DI_THSR_MAVG,
     PERFC_EN_THSR

@@ -14,6 +14,21 @@ extern const char *home;
 
 static struct hse_kvdb *mtf_kvdb_handle;
 
+/* By default, the UT framework will try to plow ahead in the presence
+ * of failures.  Unfortunately, that often leads to red herrings due
+ * to insufficent cleanup of the failing test (e.g., pthreads) such
+ * that things go confusingly awry during hse_init() of the subsequent
+ * subtest.  Instead, we now we abort the entire test at the first sign
+ * of trouble.  Individual tests can override this debug hook if need
+ * be, but it is not recommended.
+ */
+HSE_WEAK
+void
+mtf_debug_hook(void)
+{
+    abort();
+}
+
 void
 mtf_print_errinfo(
     hse_err_t               err,

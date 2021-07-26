@@ -30,7 +30,7 @@
 #define HSE_COLD            __attribute__((cold))
 #define HSE_RETURNS_NONNULL __attribute__((returns_nonnull))
 #define HSE_CONST           __attribute__((const))
-#define HSE_PURE            __attribute__((pure))
+#define HSE_WEAK            __attribute__((__weak__))
 #define HSE_SENTINEL        __attribute__((sentinel))
 
 #if __amd64__

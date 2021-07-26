@@ -19,15 +19,14 @@
 
 #include <hse/kvdb_perfc.h>
 
+/* clang-format off */
+
 static struct perfc_name throttle_sen_perfc[] = {
-
     NE(PERFC_DI_THSR_CSCHED, 2, "csched leaf percent sensor", "thsr_csched"),
-
-    NE(PERFC_DI_THSR_C0SK, 2, "c0sk sensor", "thsr_c0sk"),
-
-    NE(PERFC_DI_THSR_MAX, 2, "max sensor", "thsr_max"),
-
-    NE(PERFC_DI_THSR_MAVG, 2, "mavg sensor", "thsr_mavg"),
+    NE(PERFC_DI_THSR_C0SK,   2, "c0sk ingest queue sensor",   "thsr_c0sk"),
+    NE(PERFC_DI_THSR_WAL,    2, "wal buffer length sensor",   "thsr_wal"),
+    NE(PERFC_DI_THSR_MAX,    2, "max sensor",                 "thsr_max"),
+    NE(PERFC_DI_THSR_MAVG,   2, "mavg sensor",                "thsr_mavg"),
 };
 
 NE_CHECK(throttle_sen_perfc, PERFC_EN_THSR, "perfc table/enum mismatch");
@@ -37,6 +36,8 @@ static struct perfc_name throttle_sleep_perfc[] = {
 };
 
 NE_CHECK(throttle_sleep_perfc, PERFC_EN_THR_MAX, "perfc table/enum mismatch");
+
+/* clang-format on */
 
 void
 throttle_perfc_init(void)
@@ -69,6 +70,7 @@ throttle_perfc_init(void)
 
     throttle_sen_perfc[PERFC_DI_THSR_CSCHED].pcn_ivl = sensor_ivl;
     throttle_sen_perfc[PERFC_DI_THSR_C0SK].pcn_ivl = sensor_ivl;
+    throttle_sen_perfc[PERFC_DI_THSR_WAL].pcn_ivl = sensor_ivl;
     throttle_sen_perfc[PERFC_DI_THSR_MAX].pcn_ivl = sensor_ivl;
     throttle_sen_perfc[PERFC_DI_THSR_MAVG].pcn_ivl = sensor_ivl;
     throttle_sleep_perfc[PERFC_DI_THR_SVAL].pcn_ivl = sleep_ivl;
@@ -420,6 +422,9 @@ throttle_update(struct throttle *self)
                 break;
             case THROTTLE_SENSOR_C0SK:
                 cidx = PERFC_DI_THSR_C0SK;
+                break;
+            case THROTTLE_SENSOR_WAL:
+                cidx = PERFC_DI_THSR_WAL;
                 break;
         }
 
