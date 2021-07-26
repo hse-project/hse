@@ -6,6 +6,7 @@ import sys
 import argparse
 import subprocess as sp
 import yaml
+import json
 
 
 def warn(*lines, **kwargs):
@@ -33,7 +34,7 @@ Convert NF data tree from YAML to a more readable form.
 """,
         epilog="""
 """)
-    argparser.add_argument("mpool", nargs='?', help="name of mpool (eg, mp1)" )
+    argparser.add_argument("kvdb_home", nargs='?', help="kvdb home dir (eg, /var/hse/kvdb1" )
     argparser.add_argument( "-h",   dest="help", help="show help", action="store_true")
     argparser.add_argument( "-d",   dest="describe", help="show descriptions (for perf counters)", action="store_true")
     argparser.add_argument( "-p",   dest="perfc",    help="show perf counters only", action="store_true")
@@ -244,12 +245,24 @@ def main(args):
         op.config = False
         pass
 
-    mpool = vars(op).get("mpool",False)
-    if not mpool:
-        fatal("Must specify mpool, use -h for help")
+    kvdb_home = vars(op).get("kvdb_home",False)
+    if not kvdb_home:
+        fatal("Must specify kvdb_home, use -h for help")
         pass
 
-    sock = os.path.join(mpool, 'hse.sock')
+    pid_file = os.path.join(kvdb_home, 'kvdb.pid')
+    try:
+        fh = open(pid_file)
+    except:
+        fatal(f"Cannot open pid file: {pid_file}")
+    try:
+        js = json.load(fh)
+        sock = js['socket']['path']
+    except:
+        fatal(f"Cannot get socket.path from pid file {pid_file}")
+
+    fh.close()
+
     url = "http://localhost/data"
 
     curl_cmd = ['curl', '-s', '--noproxy', 'localhost', '--unix-socket', sock, url]

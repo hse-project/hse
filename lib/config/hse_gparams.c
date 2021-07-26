@@ -68,7 +68,7 @@ socket_path_default(const struct param_spec *ps, void *value)
 
     HSE_MAYBE_UNUSED int n;
 
-    n = snprintf(value, sizeof(hse_gparams.gp_socket.path), "/tmp/hse-%d.pid", getpid());
+    n = snprintf(value, sizeof(hse_gparams.gp_socket.path), "/tmp/hse-%d.sock", getpid());
     assert(n < sizeof(hse_gparams.gp_socket.path) && n > 0);
 }
 

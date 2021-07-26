@@ -27,10 +27,11 @@ add_test_setup(
     exclude_suites: ['ycsb'],
 )
 
-if 'unit' in tests
+if 'unit' in hse_tests
     subdir('unit')
 endif
-if 'functional' in tests
+
+if 'functional' in hse_tests
     subdir('functional')
 endif
 
