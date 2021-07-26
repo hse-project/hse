@@ -175,6 +175,7 @@ wal_replay_close(struct wal_replay *rep, bool failed)
 
     kmem_cache_destroy(rep->r_txmcache);
     kmem_cache_destroy(rep->r_cache);
+    rmlock_destroy(&rep->r_txmlock);
 
     free(rep);
 }

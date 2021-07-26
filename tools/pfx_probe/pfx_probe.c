@@ -465,6 +465,10 @@ skip_load:
 
 	kh_fini();
 
+    svec_reset(&db_oparms);
+    svec_reset(&kv_cparms);
+    svec_reset(&kv_oparms);
+
 	pg_destroy(pg);
 	svec_reset(&hse_gparms);
 	svec_reset(&db_oparms);
