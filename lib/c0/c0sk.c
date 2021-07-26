@@ -488,7 +488,7 @@ c0sk_open(
     struct c0_kvmultiset *c0kvms;
     struct c0sk_impl *    c0sk;
     merr_t                err;
-    int                   tdmax;
+    uint                  tdmax;
 
     assert(health);
 
@@ -531,9 +531,7 @@ c0sk_open(
 
     c0sk_calibrate(c0sk);
 
-    tdmax = clamp_t(int, kvdb_rp->c0_ingest_threads, 1, HSE_C0_INGEST_THREADS_MAX);
-
-    hse_log(HSE_INFO "c0sk_open c0 ingest thread %d ", tdmax);
+    tdmax = clamp_t(uint, kvdb_rp->c0_ingest_threads, 1, HSE_C0_INGEST_THREADS_MAX);
 
     c0sk->c0sk_wq_ingest = alloc_workqueue("c0sk_ingest", 0, tdmax);
     if (!c0sk->c0sk_wq_ingest) {
@@ -541,8 +539,7 @@ c0sk_open(
         goto errout;
     }
 
-    tdmax = min_t(u64, kvdb_rp->c0_maint_threads, HSE_C0_MAINT_THREADS_MAX);
-    tdmax = max_t(int, tdmax, 1);
+    tdmax = clamp_t(uint, kvdb_rp->c0_maint_threads, 1, HSE_C0_MAINT_THREADS_MAX);
 
     c0sk->c0sk_wq_maint = alloc_workqueue("c0sk_maint", 0, tdmax);
     if (!c0sk->c0sk_wq_maint) {

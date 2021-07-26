@@ -28,17 +28,18 @@
 /* clang-format off */
 
 struct wal {
-    struct mpool       *mp HSE_ALIGNED(SMP_CACHE_BYTES * 2);
-    struct wal_bufset  *wbs;
-    struct wal_fileset *wfset;
-    struct wal_mdc     *mdc;
-    struct throttle_sensor *wal_sensor;
+    struct mpool           *mp HSE_ALIGNED(SMP_CACHE_BYTES * 2);
+    struct wal_bufset      *wbs;
+    struct wal_fileset     *wfset;
+    struct wal_mdc         *mdc;
+    struct throttle_sensor *wal_thr_sensor;
+    uint                    wal_thr_hwm;
+    uint                    wal_thr_lwm;
 
-    atomic64_t ingestseq;
-    atomic64_t ingestgen;
-    atomic64_t txhorizon;
-
-    atomic64_t rid HSE_ALIGNED(SMP_CACHE_BYTES);
+    atomic64_t              wal_rid HSE_ALIGNED(SMP_CACHE_BYTES);
+    atomic64_t              wal_ingestseq;
+    atomic64_t              wal_ingestgen;
+    atomic64_t              wal_txhorizon;
 
     struct mutex     sync_mutex HSE_ALIGNED(SMP_CACHE_BYTES);
     struct list_head sync_waiters;
@@ -100,7 +101,7 @@ wal_timer(void *rock)
         tstart = get_time_ns();
         sleep_ns = dur_ns;
 
-        rid = atomic64_read(&wal->rid);
+        rid = atomic64_read(&wal->wal_rid);
         if (rid != rid_last || closing) {
             rid_last = rid;
 
@@ -115,16 +116,16 @@ wal_timer(void *rock)
             if (flushb == 0)
                 wal_ionotify_cb(wal, 0);
 
-            if (wal->wal_sensor) {
-                const uint64_t hwm = (bufsz * 87) / 100;
-                const uint64_t lwm = (bufsz * 13) / 100;
+            if (wal->wal_thr_sensor) {
+                const uint64_t hwm = (bufsz * wal->wal_thr_hwm) / 100;
+                const uint64_t lwm = (bufsz * wal->wal_thr_lwm) / 100;
                 uint new;
 
                 assert(buflen < bufsz);
 
                 new = (buflen > lwm) ? (THROTTLE_SENSOR_SCALE * buflen) / hwm : 0;
 
-                throttle_sensor_set(wal->wal_sensor, new);
+                throttle_sensor_set(wal->wal_thr_sensor, new);
             }
 
             lag = get_time_ns() - tstart;
@@ -310,7 +311,7 @@ wal_put(
     recout->recbuf = rec;
     recout->len = len;
 
-    rid = atomic64_inc_return(&wal->rid);
+    rid = atomic64_inc_return(&wal->wal_rid);
     rtype = (txid > 0) ? WAL_RT_TX : WAL_RT_NONTX;
     wal_rechdr_pack(rtype, rid, kvlen, rec);
 
@@ -365,7 +366,7 @@ wal_del_impl(
     recout->recbuf = rec;
     recout->len = len;
 
-    rid = atomic64_inc_return(&wal->rid);
+    rid = atomic64_inc_return(&wal->wal_rid);
     rtype = (txid > 0) ? WAL_RT_TX : WAL_RT_NONTX;
     wal_rechdr_pack(rtype, rid, kalen, rec);
 
@@ -421,7 +422,7 @@ wal_txn(struct wal *wal, uint rtype, uint64_t txid, uint64_t seqno)
         return err;
     }
 
-    rid = atomic64_inc_return(&wal->rid);
+    rid = atomic64_inc_return(&wal->wal_rid);
     gen = c0sk_gen_current();
 
     wal_txn_rechdr_pack(rtype, rid, gen, rec);
@@ -536,11 +537,13 @@ wal_open(
     wal = aligned_alloc(alignof(*wal), sizeof(*wal));
     if (!wal)
         return merr(ENOMEM);
-    memset(wal, 0, sizeof(*wal));
 
+    memset(wal, 0, sizeof(*wal));
     wal->version = WAL_VERSION;
     wal->mp = mp;
     wal->health = health;
+    wal->wal_thr_hwm = rp->dur_throttle_hi_th;
+    wal->wal_thr_lwm = rp->dur_throttle_lo_th;
 
     err = wal_mdc_open(mp, mdcid1, mdcid2, &wal->mdc);
     if (err)
@@ -578,7 +581,7 @@ wal_open(
 
     wal->wiocb.iocb = wal_ionotify_cb;
     wal->wiocb.cbarg = wal;
-    wal->wbs = wal_bufset_open(wal->wfset, &wal->ingestgen, &wal->wiocb);
+    wal->wbs = wal_bufset_open(wal->wfset, &wal->wal_ingestgen, &wal->wiocb);
     if (!wal->wbs) {
         err = merr(ENOMEM);
         goto errout;
@@ -633,8 +636,8 @@ wal_close(struct wal *wal)
     }
 
     wal_bufset_close(wal->wbs);
-    wal_fileset_close(wal->wfset, atomic64_read(&wal->ingestseq),
-                      atomic64_read(&wal->ingestgen), atomic64_read(&wal->txhorizon));
+    wal_fileset_close(wal->wfset, atomic64_read(&wal->wal_ingestseq),
+                      atomic64_read(&wal->wal_ingestgen), atomic64_read(&wal->wal_txhorizon));
     wal_mdc_close(wal->mdc);
 
     /* Ensure that the notify thread exits after all pending IOs are drained */
@@ -655,9 +658,9 @@ wal_close(struct wal *wal)
 static void
 wal_reclaim(struct wal *wal, u64 seqno, u64 gen, u64 txhorizon)
 {
-    atomic64_set(&wal->ingestseq, seqno);
-    atomic64_set(&wal->ingestgen, gen);
-    atomic64_set(&wal->txhorizon, txhorizon);
+    atomic64_set(&wal->wal_ingestseq, seqno);
+    atomic64_set(&wal->wal_ingestgen, gen);
+    atomic64_set(&wal->wal_txhorizon, txhorizon);
 
     wal_bufset_reclaim(wal->wbs, gen);
     wal_fileset_reclaim(wal->wfset, seqno, gen, txhorizon, false);
@@ -676,7 +679,7 @@ void
 wal_throttle_sensor(struct wal *wal, struct throttle_sensor *sensor)
 {
     if (wal)
-        wal->wal_sensor = sensor;
+        wal->wal_thr_sensor = sensor;
 }
 
 /*
