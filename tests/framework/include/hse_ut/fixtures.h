@@ -9,6 +9,11 @@
 
 #include <hse_ut/common.h>
 
+__attribute__((__weak__))
+void
+mtf_debug_hook(void);
+
+__attribute__((__weak__))
 void
 mtf_print_errinfo(
     hse_err_t               err,

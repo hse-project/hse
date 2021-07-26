@@ -314,6 +314,7 @@ foreach c, tests : components
         t_exe = executable(
             t,
             [
+                '../framework/src/fixtures.c',
                 c / '@0@.c'.format(t),
                 params.get('sources', []),
             ],

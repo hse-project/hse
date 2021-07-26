@@ -542,8 +542,11 @@ wal_open(
     wal->version = WAL_VERSION;
     wal->mp = mp;
     wal->health = health;
+
     wal->wal_thr_hwm = rp->dur_throttle_hi_th;
     wal->wal_thr_lwm = rp->dur_throttle_lo_th;
+    if (wal->wal_thr_lwm > wal->wal_thr_hwm / 2)
+        wal->wal_thr_lwm = wal->wal_thr_hwm / 2;
 
     err = wal_mdc_open(mp, mdcid1, mdcid2, &wal->mdc);
     if (err)
