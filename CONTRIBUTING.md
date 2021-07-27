@@ -1,11 +1,40 @@
-# Contributing to HSE
+# Contributing to the HSE Project
 
-We are currently focused on collaborating with the open source community to
-get HSE and its related components into popular Linux distributions,
-and are not able to accept contributions at this time.
-However, see the [HSE Wiki](https://github.com/hse-project/hse/wiki)
-for how you can report a bug, make a feature request, provide feedback,
-or ask a question.
+The first section below contains general information on contributing to
+the HSE project.  It is referenced by the `CONTRIBUTING.md` files in all
+other HSE project repos.
+
+The second section contains information on contributing to this specific repo.
+
+
+# General Information on Contributing
+
+## Prior to Starting Work
+
+* Review the [RFC process](https://github.com/hse-project/rfcs) to determine
+if the work you are planning requires an RFC.
+* Use the `Ideas` category of the HSE
+[discussions forum](https://github.com/hse-project/hse/discussions)
+to get feedback on minor features or enhancements not requiring an RFC.
+* File an issue in the appropriate repo using the predefined templates.
+
+
+## Submitting a Pull Request
+
+* Submit pull requests (PRs) following the GitHub
+[fork and pull model](https://docs.github.com/en/github/collaborating-with-pull-requests/getting-started/about-collaborative-development-models#fork-and-pull-model).
+* Commits must be signed-off which indicates that you agree to the
+[Developer Certificate of Origin](https://developercertificate.org/).
+This is done using the `--signoff` option when committing your changes.
+* Initial commits must be rebased.
+* Use the predefined PR template and specify which issue the commit
+addresses, what the commit does, and provide a concise description of
+the change.
+* All new code must include unit or functional tests.
+* All existing unit and functional tests must pass.
+* For any data path changes, run the benchmark suite before and after
+your PR to verify there is no regression.
+
 
 ## Code Style
 
@@ -16,6 +45,9 @@ importantly please use 4 spaces for indention rather than tabs.
 
 Please make sure all contributions adhere to the aforementioned
 styles.
+
+
+# Information on Contributing to this Repo
 
 ## Cloning
 
