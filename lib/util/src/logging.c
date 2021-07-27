@@ -69,38 +69,6 @@ struct hse_log_code {
 
 bool hse_logging_disable_init = false;
 
-void
-_hse_fmt(char *buf, size_t buflen, const char *fmt, ...)
-{
-    va_list ap;
-    size_t  hlen;
-    size_t  copylen;
-    char *  beg;
-
-    if ((buf == NULL) || (buflen < 2))
-        return;
-
-    va_start(ap, fmt);
-    vsnprintf(buf, buflen, fmt, ap);
-    va_end(ap);
-
-    /* Remove the "....[HSE] " from the beginning of the string. */
-    beg = strstr(buf, "[HSE]");
-    if (beg == NULL)
-        return;
-    hlen = (beg - buf) + strlen("[HSE] ");
-    if (strlen(buf) <= hlen)
-        return;
-    copylen = strlen(buf + hlen); /* copylen >= 1 */
-    memmove(buf, buf + hlen, copylen);
-
-    /* Remove potential trailing \n and add a 0 at the end */
-    if (buf[copylen - 1] == '\n')
-        buf[copylen - 1] = 0;
-    else
-        buf[copylen] = 0;
-}
-
 /**
  * _hse_consume_one_async() - log one entry of the circular buffer.
  * @entry: entry in the circular buffer that needs to be logged.
