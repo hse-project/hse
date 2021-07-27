@@ -8,9 +8,9 @@ iniconfig==1.1.1
 Jinja2==2.11.3
 lxml==4.6.3
 MarkupSafe==1.1.1
-meson==0.57.2
+meson==0.58.2
 mypy-extensions==0.4.3
-ninja==1.10.0.post2
+ninja==1.10.0.post3
 packaging==20.9
 pathspec==0.8.1
 pluggy==0.13.1
