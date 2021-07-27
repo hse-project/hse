@@ -3,13 +3,11 @@
  * Copyright (C) 2021 Micron Technology, Inc.  All rights reserved.
  */
 
-#include <fcntl.h>
-#include <sys/mman.h>
-
 #include <hse_util/event_counter.h>
 #include <hse_util/hse_err.h>
 #include <hse_util/logging.h>
 #include <hse_util/string.h>
+#include <hse_util/mman.h>
 
 #include "mpool_internal.h"
 #include "mclass.h"
@@ -22,7 +20,7 @@ struct mpool_file {
     char  *addr;
     size_t size;
     int    fd;
-    char   name[PATH_MAX];
+    const char name[];
 };
 
 /* Forward Decls. */
@@ -44,6 +42,7 @@ mpool_file_open(
     int    dirfd, fd, rc;
     merr_t err;
     bool create = false;
+    size_t sz;
 
     if (!mp || !name || mclass > MP_MED_COUNT)
         return merr(EINVAL);
@@ -80,7 +79,9 @@ mpool_file_open(
         }
     }
 
-    mfp = calloc(1, sizeof(*mfp));
+    sz = sizeof(*mfp) + strlen(name) + 1;
+
+    mfp = calloc(1, sz);
     if (!mfp) {
         err = merr(ENOMEM);
         goto errout;
@@ -90,7 +91,7 @@ mpool_file_open(
     mfp->mc = mc;
     mfp->fd = fd;
     mfp->io = io_sync_ops;
-    strlcpy(mfp->name, name, sizeof(mfp->name));
+    strcpy((char *)mfp->name, name);
 
     *handle = mfp;
 

@@ -672,14 +672,6 @@ kvdb_ctxn_get_seqnoref(struct kvdb_ctxn *handle)
     return ctxn ? ctxn->ctxn_seqref : 0;
 }
 
-int64_t
-kvdb_ctxn_wal_cookie_get(struct kvdb_ctxn *handle)
-{
-    struct kvdb_ctxn_impl *ctxn = kvdb_ctxn_h2r(handle);
-
-    return ctxn->ctxn_wal_cookie;
-}
-
 
 /* This routine determines whether ownership of a write lock can be inherited
  * from one client transaction to another and if so performs the transfer.
@@ -872,6 +864,7 @@ kvdb_ctxn_trylock_write(
     struct kvdb_ctxn *handle,
     uintptr_t        *seqref,
     u64              *view_seqno,
+    int64_t          *cookie,
     bool              needkeylock,
     u64               hash)
 {
@@ -909,6 +902,7 @@ kvdb_ctxn_trylock_write(
 
     *view_seqno = ctxn->ctxn_view_seqno;
     *seqref = ctxn->ctxn_seqref;
+    *cookie = ctxn->ctxn_wal_cookie;
 
   errout:
     if (err)

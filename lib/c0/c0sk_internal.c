@@ -101,7 +101,7 @@ c0sk_rsvd_sn_set(struct c0sk_impl *c0sk, struct c0_kvmultiset *kvms)
     unsigned int inc = 2;
     u64          res;
 
-    if (atomic_read(&c0sk->c0sk_replaying) > 0)
+    if (HSE_UNLIKELY(atomic_read(&c0sk->c0sk_replaying) > 0))
         return;
 
     /* flush from txcommit context; reverve seqno for txn. */
@@ -125,7 +125,7 @@ c0sk_install_c0kvms(struct c0sk_impl *self, struct c0_kvmultiset *old, struct c0
 
         c0kvms_txhorizon_set(old, c0sk_txhorizon_get(self));
 
-        seqno = (atomic_read(&self->c0sk_replaying) > 0) ?
+        seqno = (HSE_UNLIKELY(atomic_read(&self->c0sk_replaying) > 0)) ?
             atomic64_read(self->c0sk_kvdb_seq) : atomic64_inc_acq(self->c0sk_kvdb_seq);
         c0kvms_seqno_set(old, seqno);
     }

@@ -305,8 +305,7 @@ wal_put(
     kvlen = ALIGN(klen, kvalign) + ALIGN(vlen, kvalign);
     len = rlen + kvlen;
 
-    rec = wal_bufset_alloc(wal->wbs, len, &recout->offset, &recout->wbidx,
-                           txid > 0 ? &recout->cookie : NULL);
+    rec = wal_bufset_alloc(wal->wbs, len, &recout->offset, &recout->wbidx, &recout->cookie);
     if (!rec) {
         err = merr(ENOMEM); /* unrecoverable error */
         kvdb_health_error(wal->health, err);
@@ -361,8 +360,7 @@ wal_del_impl(
     kalen = ALIGN(klen, kalign);
     len = rlen + kalen;
 
-    rec = wal_bufset_alloc(wal->wbs, len, &recout->offset, &recout->wbidx,
-                           txid > 0 ? &recout->cookie : NULL);
+    rec = wal_bufset_alloc(wal->wbs, len, &recout->offset, &recout->wbidx, &recout->cookie);
     if (!rec) {
         err = merr(ENOMEM); /* unrecoverable error */
         kvdb_health_error(wal->health, err);
@@ -430,8 +428,8 @@ wal_txn(struct wal *wal, uint rtype, uint64_t txid, uint64_t seqno, int64_t *coo
 
     rid = atomic64_inc_return(&wal->wal_rid);
     gen = c0sk_gen_current();
+    wal_rechdr_pack(rtype, rid, rlen, gen, rec);
 
-    wal_txn_rechdr_pack(rtype, rid, gen, rec);
     wal_txn_rec_pack(txid, seqno, rec);
 
     wal_bufset_finish(wal->wbs, wbidx, rlen, gen, offset + rlen);
@@ -569,7 +567,7 @@ wal_open(
     if (err)
         goto errout;
 
-    wal->wfset= wal_fileset_open(mp, wal->mclass, WAL_FILE_SIZE_BYTES, WAL_MAGIC, WAL_VERSION);
+    wal->wfset = wal_fileset_open(mp, wal->mclass, WAL_FILE_SIZE_BYTES, WAL_MAGIC, WAL_VERSION);
     if (!wal->wfset) {
         err = merr(ENOMEM);
         goto errout;

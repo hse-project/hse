@@ -365,10 +365,10 @@ wal_file_read(struct wal_file *wfile, char *buf, size_t len)
 }
 
 merr_t
-wal_file_write(struct wal_file *wfile, const char *buf, size_t len, bool bufwrap)
+wal_file_write(struct wal_file *wfile, char *buf, size_t len, bool bufwrap)
 {
     merr_t err;
-    const char *abuf;
+    char *abuf;
     off_t off, aoff;
     size_t alen, roundsz;
     bool adjust_woff = false;
@@ -377,7 +377,7 @@ wal_file_write(struct wal_file *wfile, const char *buf, size_t len, bool bufwrap
         return merr(EINVAL);
 
     /* rounddown the buf and file offset to 4K alignment */
-    abuf = (const char *)((uintptr_t)buf & PAGE_MASK);
+    abuf = (char *)((uintptr_t)buf & PAGE_MASK);
     off = wfile->woff;
     aoff = (off & PAGE_MASK);
 
@@ -388,7 +388,7 @@ wal_file_write(struct wal_file *wfile, const char *buf, size_t len, bool bufwrap
             return merr(EBUG);
 
         adjust_woff = true;
-    } else if (bufwrap && roundsz > 0) {
+    } else if (ev(bufwrap && roundsz > 0)) {
         char rdbuf[PAGE_SIZE] HSE_ALIGNED(PAGE_SIZE);
         size_t cc;
 
@@ -421,7 +421,7 @@ wal_file_write(struct wal_file *wfile, const char *buf, size_t len, bool bufwrap
     while (alen > 0) {
         size_t cc;
 
-        err = mpool_file_write(wfile->mpf, aoff, abuf, alen, &cc);
+        err = mpool_file_write(wfile->mpf, aoff, (const char *)abuf, alen, &cc);
         if (err)
             return err;
 
@@ -449,26 +449,48 @@ static void
 wal_file_cb(void *wfset, const char *path)
 {
     struct wal_file *wfile HSE_MAYBE_UNUSED;
-    char *tok;
     u64 gen;
-    int fileid, n;
+    int fileid;
     merr_t err = 0;
-    char *name = basename(path);
+    char *name, *path_base = NULL, *tok, *end = NULL, *pathdup;
+    const char *delim = "-";
 
-    tok = strchr(name, '-');
-    if (tok) {
-        tok++; /* skip - */
+    pathdup = strdup(path);
+    if (!pathdup) {
+        err = merr(ENOMEM);
+        goto err_exit;
+    }
+    path_base = pathdup;
 
-        /* Determine gen and fileid from wal file name */
-        n = sscanf(tok, "%lu-%d", &gen, &fileid);
-        if (n != 2)
-            err = (errno ? merr(errno) : merr(EINVAL));
-    } else {
+    name = basename(pathdup);
+    tok = strsep(&name, delim);
+    if (strcmp((const char *)tok, WAL_FILE_PFX) != 0) {
         err = merr(EINVAL);
+        goto err_exit;
     }
 
-    if (!err)
-        err = wal_file_open(wfset, gen, fileid, true, &wfile);
+    /* Parse gen */
+    tok = strsep(&name, delim);
+    errno = 0;
+    gen = strtoull(tok, &end, 10);
+    if (errno || *end || gen == 0) {
+        err = merr(EINVAL);
+        goto err_exit;
+    }
+
+    /* Parse fileid */
+    tok = strsep(&name, delim);
+    errno = 0;
+    fileid = strtol(tok, &end, 10);
+    if (errno || *end || fileid < 0 || fileid >= WAL_BUF_MAX) {
+        err = merr(EINVAL);
+        goto err_exit;
+    }
+
+    err = wal_file_open(wfset, gen, fileid, true, &wfile);
+
+err_exit:
+    free(path_base);
 
     if (err)
         ((struct wal_fileset *)wfset)->err = err;
@@ -511,14 +533,13 @@ wal_fileset_replay(
      */
     fcnt = 0;
     list_for_each_entry_reverse_safe(cur, next, &wfset->active, link) {
-        u32 magic, vers;
         bool discard = false;
 
         err = wal_file_mmap(cur, MADV_SEQUENTIAL);
         if (err)
             goto exit;
 
-        err = wal_filehdr_unpack(cur->addr, &magic, &vers, &cur->close,
+        err = wal_filehdr_unpack(cur->addr, wfset->magic, wfset->version, &cur->close,
                                  &cur->soff, &cur->woff, &cur->info);
         if (err) {
             if (cur->gen == maxgen && merr_errno(err) == ENODATA) {
@@ -533,11 +554,6 @@ wal_fileset_replay(
              * then all the files belonging to this corrupted gen can be destroyed.
              * TODO: Address this when adding force replay support.
              */
-            goto exit;
-        }
-
-        if (wfset->magic != magic || wfset->version != vers) {
-            err = merr(EBADMSG); /* unexpected magic or version */
             goto exit;
         }
 

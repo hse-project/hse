@@ -339,10 +339,10 @@ void
 c0sk_gen_set(struct c0sk *handle, uint64_t gen);
 
 void
-c0sk_replaying_set(struct c0sk *handle);
+c0sk_replaying_enable(struct c0sk *handle);
 
 void
-c0sk_replaying_unset(struct c0sk *handle);
+c0sk_replaying_disable(struct c0sk *handle);
 
 #if HSE_MOCKING
 #include "c0sk_ut.h"

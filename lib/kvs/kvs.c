@@ -325,6 +325,7 @@ kvs_put(
 
     kt->kt_hash = key_hash64(kt->kt_data, hashlen);
     seqno = 0;
+    rec.cookie = -1;
 
     /* Exclusively lock txn for c0 update (with write collision detection).
      *
@@ -339,11 +340,9 @@ kvs_put(
         if (sfx_len > 0)
             hash = key_hash64_seed(kt->kt_data, kt->kt_len, kvs->ikv_gen);
 
-        err = kvdb_ctxn_trylock_write(ctxn, &seqnoref, &seqno, true, hash);
+        err = kvdb_ctxn_trylock_write(ctxn, &seqnoref, &seqno, &rec.cookie, true, hash);
         if (err)
             return err;
-
-        rec.cookie = kvdb_ctxn_wal_cookie_get(ctxn);
     }
 
     err = wal_put(kvs->ikv_wal, kvs, kt, vt, seqno, &rec);
@@ -446,6 +445,7 @@ kvs_del(struct ikvs *kvs, struct hse_kvdb_txn *const txn, struct kvs_ktuple *kt,
 
     kt->kt_hash = key_hash64(kt->kt_data, hashlen);
     seqno = 0;
+    rec.cookie = -1;
 
     /* Exclusively lock txn for c0 update (with write collision detection).
      */
@@ -455,11 +455,9 @@ kvs_del(struct ikvs *kvs, struct hse_kvdb_txn *const txn, struct kvs_ktuple *kt,
         if (sfx_len > 0)
             hash = key_hash64_seed(kt->kt_data, kt->kt_len, kvs->ikv_gen);
 
-        err = kvdb_ctxn_trylock_write(ctxn, &seqnoref, &seqno, true, hash);
+        err = kvdb_ctxn_trylock_write(ctxn, &seqnoref, &seqno, &rec.cookie, true, hash);
         if (err)
             return err;
-
-        rec.cookie = kvdb_ctxn_wal_cookie_get(ctxn);
     }
 
     err = wal_del(kvs->ikv_wal, kvs, kt, seqno, &rec);
@@ -497,15 +495,14 @@ kvs_prefix_del(
         kt->kt_hash = key_hash64(kt->kt_data, kt->kt_len);
 
     seqno = 0;
+    rec.cookie = -1;
 
     /* Exclusively lock txn for c0 update (no write collision detection.
      */
     if (ctxn) {
-        err = kvdb_ctxn_trylock_write(ctxn, &seqnoref, &seqno, false, 0);
+        err = kvdb_ctxn_trylock_write(ctxn, &seqnoref, &seqno, &rec.cookie, false, 0);
         if (err)
             return err;
-
-        rec.cookie = kvdb_ctxn_wal_cookie_get(ctxn);
     }
 
     err = wal_del_pfx(kvs->ikv_wal, kvs, kt, seqno, &rec);

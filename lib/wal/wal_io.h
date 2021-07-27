@@ -13,7 +13,7 @@ struct wal_iocb;
 merr_t
 wal_io_enqueue(
     struct wal_io          *io,
-    const char             *buf,
+    char                   *buf,
     u64                     len,
     u64                     gen,
     struct wal_minmax_info *info,

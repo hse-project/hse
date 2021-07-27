@@ -46,7 +46,7 @@ merr_t
 wal_file_read(struct wal_file *walf, char *buf, size_t len);
 
 merr_t
-wal_file_write(struct wal_file *wfile, const char *buf, size_t len, bool bufwrap);
+wal_file_write(struct wal_file *wfile, char *buf, size_t len, bool bufwrap);
 
 void
 wal_file_minmax_update(struct wal_file *wfile, struct wal_minmax_info *info);

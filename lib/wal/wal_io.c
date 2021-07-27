@@ -24,7 +24,7 @@ struct wal_io_work {
     struct wal_io    *iow_io;
     struct wal_minmax_info iow_info;
 
-    const char *iow_buf;
+    char       *iow_buf;
     u64         iow_len;
     u64         iow_gen;
     uint        iow_index;
@@ -162,7 +162,7 @@ wal_io_worker(struct work_struct *work)
 merr_t
 wal_io_enqueue(
     struct wal_io          *io,
-    const char             *buf,
+    char                   *buf,
     u64                     len,
     u64                     gen,
     struct wal_minmax_info *info,

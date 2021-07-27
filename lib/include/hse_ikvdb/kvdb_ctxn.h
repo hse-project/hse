@@ -112,6 +112,7 @@ kvdb_ctxn_trylock_write(
     struct kvdb_ctxn *handle,
     uintptr_t        *seqref,
     u64              *view_seqno,
+    int64_t          *cookie,
     bool              needkeylock,
     u64               hash);
 

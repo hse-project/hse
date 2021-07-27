@@ -532,10 +532,14 @@ struct kvdb_callback {
         bool          post_ingest);
 };
 
+/*
+ * WAL replay routines
+ */
+
 merr_t
 ikvdb_wal_replay_open(struct ikvdb *ikvdb, struct ikvdb_kvs_hdl **ikvsh_out);
 
-merr_t
+void
 ikvdb_wal_replay_close(struct ikvdb *ikvdb, struct ikvdb_kvs_hdl *ikvsh);
 
 merr_t
@@ -570,10 +574,10 @@ void
 ikvdb_wal_replay_gen_set(struct ikvdb *ikvdb, u64 gen);
 
 void
-ikvdb_wal_replay_set(struct ikvdb *ikvdb);
+ikvdb_wal_replay_enable(struct ikvdb *ikvdb);
 
 void
-ikvdb_wal_replay_unset(struct ikvdb *ikvdb);
+ikvdb_wal_replay_disable(struct ikvdb *ikvdb);
 
 #if HSE_MOCKING
 #include "ikvdb_ut.h"

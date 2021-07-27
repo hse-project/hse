@@ -79,7 +79,7 @@ wal_buffer_flush_worker(struct work_struct *work)
     struct wal_buffer *wb;
     struct wal_rechdr_omf *rhdr;
     struct wal_minmax_info info = {};
-    const char *buf;
+    char *buf;
     u64 coff, foff, prev_foff, cgen, rgen, start_foff, flushb = 0, buflen;
     u32 flags, rhlen;
     merr_t err;
@@ -343,16 +343,13 @@ wal_bufset_alloc(struct wal_bufset *wbs, size_t len, u64 *offout, uint *wbidx, i
     u64 offset, doff;
     int slot;
 
-    if (!cookie || (cookie && *cookie == -1)) {
+    slot = *cookie;
+    if (HSE_LIKELY(slot == -1)) {
         uint cpuid, nodeid, coreid;
 
         hse_getcpu(&cpuid, &nodeid, &coreid);
         slot = (nodeid % WAL_NODE_MAX) * WAL_BPN_MAX + (coreid % WAL_BPN_MAX);
-
-        if (cookie)
-            *cookie = slot;
-    } else {
-        slot = *cookie;
+        *cookie = slot;
     }
 
     wb = wbs->wbs_bufv + slot;

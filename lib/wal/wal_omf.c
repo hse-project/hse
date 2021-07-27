@@ -24,6 +24,7 @@ wal_rechdr_pack(enum wal_rec_type rtype, u64 rid, size_t tlen, u64 gen, void *ou
     omf_set_rh_type(rhomf, rtype);
     omf_set_rh_len(rhomf, tlen - wal_rechdr_len()); /* exclude record hdr */
     omf_set_rh_rid(rhomf, rid);
+    omf_set_rh_rsvd(rhomf, 0);
 }
 
 uint
@@ -33,7 +34,7 @@ wal_rechdr_len(void)
 }
 
 void
-wal_rechdr_crc_pack(const char *recbuf, size_t len)
+wal_rechdr_crc_pack(char *recbuf, size_t len)
 {
     struct wal_rechdr_omf *rhomf = (struct wal_rechdr_omf *)recbuf;
     uint crc;
@@ -79,7 +80,7 @@ wal_rec_finish(struct wal_record *rec, u64 seqno, u64 gen)
 /* Record unpack routines */
 
 u64
-wal_rec_total_len(const void *inbuf)
+wal_reclen_total(const void *inbuf)
 {
     const struct wal_rechdr_omf *rhomf = inbuf;
 
@@ -157,7 +158,7 @@ wal_rec_cksum_valid(const char *inbuf)
     size_t len;
     uint crc, ignore = offsetof(struct wal_rechdr_omf, rh_cksum) + sizeof(rhomf->rh_cksum);
 
-    len = wal_rec_total_len(inbuf);
+    len = wal_reclen_total(inbuf);
     crc = crc32c(0, inbuf + ignore, len - ignore);
 
     return (crc == omf_rh_cksum(rhomf));
@@ -172,6 +173,7 @@ wal_update_minmax_seqno(const void *buf, struct wal_minmax_info *info)
 
     nontx = wal_rectype_nontx(rtype);
     txcom = wal_rectype_txcommit(rtype);
+
     if (nontx || txcom) {
         const struct wal_rec_omf *r = buf;
         const struct wal_txnrec_omf *tr = buf;
@@ -200,13 +202,16 @@ wal_update_minmax_txid(const void *buf, struct wal_minmax_info *info)
 bool
 wal_rec_is_valid(
     const void             *inbuf,
-    off_t                  *offset,
+    off_t                   foff,
+    size_t                  fsize,
+    off_t                  *recoff,
     u64                     gen,
     struct wal_minmax_info *info,
     bool                   *eorg)
 {
     const struct wal_rechdr_omf *rhomf = inbuf;
     off_t off;
+    size_t len;
 
     off = wal_rec_off(inbuf);
     *eorg = false;
@@ -220,18 +225,24 @@ wal_rec_is_valid(
     if (omf_rh_type(rhomf) > WAL_RT_TYPE_MAX)
         return false;
 
-    if (omf_rh_len(rhomf) >
-        (wal_reclen() + HSE_KVS_KEY_LEN_MAX + HSE_KVS_VALUE_LEN_MAX + 2 * alignof(uint64_t)))
+    len = omf_rh_len(rhomf);
+    if (len > (wal_reclen() + HSE_KVS_KEY_LEN_MAX + HSE_KVS_VALUE_LEN_MAX + 2 * alignof(uint64_t)))
+        return false;
+
+    if (foff + wal_rechdr_len() + len > fsize)
         return false;
 
     if (omf_rh_gen(rhomf) > gen)
         return false;
 
-    if (*offset != 0 && off != U64_MAX - 1 && off != *offset)
+    if (omf_rh_rsvd(rhomf) != 0)
         return false;
 
-    if (*offset == 0 && off != U64_MAX - 1)
-        *offset = off;
+    if (*recoff != 0 && off != U64_MAX - 1 && off != *recoff)
+        return false;
+
+    if (*recoff == 0 && off != U64_MAX - 1)
+        *recoff = off;
 
     if (!wal_rec_cksum_valid(inbuf))
         return false;
@@ -272,7 +283,9 @@ void
 wal_rec_unpack(const char *inbuf, struct wal_rec *rec)
 {
     const struct wal_rec_omf *romf = (const void *)inbuf;
-    size_t rlen = wal_reclen(), kvalign = alignof(uint64_t), klen, vxlen;
+    size_t rlen = wal_reclen();
+    size_t kvalign = alignof(uint64_t);
+    size_t klen, vxlen;
     const void *kdata;
     void *vdata = NULL;
 
@@ -292,18 +305,6 @@ wal_rec_unpack(const char *inbuf, struct wal_rec *rec)
     if (vxlen > 0)
         vdata = PTR_ALIGN((void *)rec->kt.kt_data + klen, kvalign);
     kvs_vtuple_init(&rec->vt, vdata, vxlen);
-}
-
-void
-wal_txn_rechdr_pack(enum wal_rec_type rtype, u64 rid, u64 gen, void *outbuf)
-{
-    struct wal_rechdr_omf *rhomf = outbuf;
-
-    omf_set_rh_flags(rhomf, WAL_FLAGS_MORG);
-    omf_set_rh_gen(rhomf, gen);
-    omf_set_rh_type(rhomf, rtype);
-    omf_set_rh_rid(rhomf, rid);
-    omf_set_rh_len(rhomf, wal_txn_reclen() - wal_rechdr_len());
 }
 
 void
@@ -376,8 +377,8 @@ wal_filehdr_pack(
 merr_t
 wal_filehdr_unpack(
     const void             *inbuf,
-    u32                    *magic,
-    u32                    *version,
+    u32                     magic,
+    u32                     version,
     bool                   *close,
     off_t                  *soff,
     off_t                  *eoff,
@@ -388,8 +389,9 @@ wal_filehdr_unpack(
     uint ignore = sizeof(fhomf->fh_cksum);
     uint len = sizeof(*fhomf);
 
-    *magic = omf_fh_magic(fhomf);
-    *version = omf_fh_version(fhomf);
+    if ((magic != omf_fh_magic(fhomf)) || (version != omf_fh_version(fhomf)))
+        return merr(EBADMSG);
+
     *close = (omf_fh_close(fhomf) == 1);
     *soff = omf_fh_startoff(fhomf);
     *eoff = omf_fh_endoff(fhomf);

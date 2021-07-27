@@ -64,6 +64,20 @@ struct wal_replay {
     uint                        r_cnt;
 };
 
+struct wal_rec_iter {
+    struct kmem_cache      *rcache;
+    struct wal_replay_work *rw;
+    const char             *buf;
+    u64                     gen;
+    off_t                   curoff;
+    off_t                   soff;
+    off_t                   eoff;
+    off_t                   rgeoff;
+    size_t                  size;
+    merr_t                  err;
+    bool                    eof;
+};
+
 
 /* Forward declarations */
 #ifndef NDEBUG
@@ -136,13 +150,14 @@ wal_replay_close(struct wal_replay *rep, bool failed)
     struct wal_replay_gen *cgen, *ngen;
     struct wal_txmeta_rec *ctxm, *ntxm;
     struct wal *wal;
-    merr_t err;
     int i;
 
     if (!rep)
         return;
 
     wal = rep->r_wal;
+
+    ikvdb_wal_replay_close(wal_ikvdb(wal), rep->r_ikvsh);
 
     list_for_each_entry_safe(cgen, ngen, &rep->r_head, rg_link) {
         struct rb_root *root = &cgen->rg_root;
@@ -170,9 +185,6 @@ wal_replay_close(struct wal_replay *rep, bool failed)
 
     wal_fileset_replay_free(wal_fset(wal), failed);
 
-    err = ikvdb_wal_replay_close(wal_ikvdb(wal), rep->r_ikvsh);
-    ev(err);
-
     kmem_cache_destroy(rep->r_txmcache);
     kmem_cache_destroy(rep->r_cache);
     rmlock_destroy(&rep->r_txmlock);
@@ -184,20 +196,6 @@ wal_replay_close(struct wal_replay *rep, bool failed)
 /*
  * WAL record iterator interfaces
  */
-
-struct wal_rec_iter {
-    struct kmem_cache      *rcache;
-    struct wal_replay_work *rw;
-    const char             *buf;
-    u64                     gen;
-    off_t                   curoff;
-    off_t                   soff;
-    off_t                   eoff;
-    off_t                   rgeoff;
-    size_t                  size;
-    merr_t                  err;
-    bool                    eof;
-};
 
 static void
 wal_rec_iter_init(struct wal_replay_work *rw, struct wal_rec_iter *iter)
@@ -265,7 +263,7 @@ next_rec:
     if (iter->curoff + iter->soff >= iter->rgeoff)
         skip_nontx = true;
 
-    iter->curoff += wal_rec_total_len(buf);
+    iter->curoff += wal_reclen_total(buf);
 
     if (wal_rec_skip(buf) || wal_rec_is_txmeta(buf))
         goto next_rec;
@@ -343,8 +341,9 @@ wal_recs_validate(struct wal_replay_work *rw)
 
     info = rginfo->info_valid ? NULL : &rginfo->info;
 
-    while ((valid = wal_rec_is_valid(buf, &recoff, gen, info, &eorg))) {
-        size_t len = wal_rec_total_len(buf);
+    while ((valid = wal_rec_is_valid(buf, curoff + rginfo->soff, rginfo->size, &recoff,
+                                     gen, info, &eorg))) {
+        size_t len = wal_reclen_total(buf);
 
         if (wal_rec_is_txcommit(buf)) {
             struct wal_txmeta_rec *trec;
@@ -377,8 +376,9 @@ wal_recs_validate(struct wal_replay_work *rw)
             rginfo->rgeoff = curoff;
 
         if ((rginfo->eoff != 0 && (curoff + rginfo->soff >= rginfo->eoff)) ||
-            curoff + rginfo->soff >= rginfo->size)
+            curoff + rginfo->soff >= rginfo->size) {
             break; /* end of wal file */
+        }
 
         buf += len;
         recoff += len;
@@ -393,7 +393,7 @@ wal_recs_validate(struct wal_replay_work *rw)
     rginfo->rgeoff += rginfo->soff;
     assert(rginfo->eoff == 0 || rginfo->eoff == rginfo->rgeoff);
 
-    /* eoff of 0 implies that the crash occurred before updating file stats */
+    /* An ending offset of 0 implies that the crash occurred before updating file stats */
     if (rginfo->eoff == 0) {
         rginfo->eoff = curoff + rginfo->soff;
         assert(rginfo->eoff >= rginfo->rgeoff);
@@ -497,8 +497,15 @@ wal_replay_gen_impl(struct wal_replay *rep, struct wal_replay_gen *rgen, bool fl
             break;
         }
 
-        if (err)
-            goto err_exit;
+        if (HSE_UNLIKELY(err)) {
+            struct wal_rec *cur, *next;
+
+            rbtree_postorder_for_each_entry_safe(cur, next, root, node) {
+                kmem_cache_free(rep->r_cache, cur);
+            }
+
+            return err;
+        }
 
         rgen->rg_maxseqno = max_t(u64, rgen->rg_maxseqno, rec->seqno);
 
@@ -508,17 +515,6 @@ wal_replay_gen_impl(struct wal_replay *rep, struct wal_replay_gen *rgen, bool fl
     }
 
     return 0;
-
-err_exit:
-    do {
-        struct wal_rec *cur, *next;
-
-        rbtree_postorder_for_each_entry_safe(cur, next, root, node) {
-            kmem_cache_free(rep->r_cache, cur);
-        }
-    } while (0);
-
-    return err;
 }
 
 
@@ -544,7 +540,7 @@ wal_replay_core(struct wal_replay *rep)
      * allow us to take control of the c0kvms boundaries. Also, the seqno bump for reserved
      * seqno and LC are also skipped.
      */
-    ikvdb_wal_replay_set(ikvdb);
+    ikvdb_wal_replay_enable(ikvdb);
 
     list_for_each_entry_safe(cur, next, &rep->r_head, rg_link) {
         merr_t err;
@@ -554,7 +550,7 @@ wal_replay_core(struct wal_replay *rep)
 
         err = wal_replay_gen_impl(rep, cur, flags);
         if (err) {
-            ikvdb_wal_replay_unset(ikvdb);
+            ikvdb_wal_replay_disable(ikvdb);
             return err;
         }
 
@@ -562,7 +558,7 @@ wal_replay_core(struct wal_replay *rep)
         if (cur->rg_krcnt && (cur != list_last_entry(&rep->r_head, typeof(*cur), rg_link))) {
             err = ikvdb_sync(ikvdb, HSE_FLAG_SYNC_ASYNC);
             if (err) {
-                ikvdb_wal_replay_unset(ikvdb);
+                ikvdb_wal_replay_disable(ikvdb);
                 return err;
             }
         }
@@ -579,7 +575,7 @@ wal_replay_core(struct wal_replay *rep)
     /* Set ikvdb seqno to the max seqno seen during replay */
     ikvdb_wal_replay_seqno_set(ikvdb, maxseqno);
 
-    ikvdb_wal_replay_unset(ikvdb);
+    ikvdb_wal_replay_disable(ikvdb);
 
     return ikvdb_sync(ikvdb, 0); /* Sync the last c0kvms */
 }

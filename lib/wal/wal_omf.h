@@ -139,6 +139,7 @@ struct wal_rechdr_omf {
     __le64 rh_gen;
     __le32 rh_type;
     __le32 rh_len;
+    __le64 rh_rsvd;
 } __attribute__((packed,aligned(__alignof__(uint64_t))));
 
 /* Define set/get methods for wal_rechdr_omf */
@@ -149,6 +150,7 @@ OMF_SETGET(struct wal_rechdr_omf, rh_rid, 64);
 OMF_SETGET(struct wal_rechdr_omf, rh_gen, 64);
 OMF_SETGET(struct wal_rechdr_omf, rh_type, 32);
 OMF_SETGET(struct wal_rechdr_omf, rh_len, 32);
+OMF_SETGET(struct wal_rechdr_omf, rh_rsvd, 64);
 
 
 struct wal_rec_omf {
@@ -218,7 +220,7 @@ uint
 wal_reclen(void);
 
 u64
-wal_rec_total_len(const void *inbuf);
+wal_reclen_total(const void *inbuf);
 
 bool
 wal_rec_is_borg(const void *inbuf);
@@ -241,7 +243,9 @@ wal_rec_is_txop(const void *inbuf);
 bool
 wal_rec_is_valid(
     const void             *inbuf,
-    off_t                  *offset,
+    off_t                   foff,
+    size_t                  fsize,
+    off_t                  *recoff,
     u64                     gen,
     struct wal_minmax_info *info,
     bool                   *eorg);
@@ -251,9 +255,6 @@ wal_rec_skip(const void *inbuf);
 
 void
 wal_rec_unpack(const char *inbuf, struct wal_rec *rec);
-
-void
-wal_txn_rechdr_pack(enum wal_rec_type rtype, u64 rid, u64 gen, void *outbuf);
 
 void
 wal_txn_rec_pack(u64 txid, u64 seqno, void *outbuf);
@@ -286,8 +287,8 @@ wal_filehdr_pack(
 merr_t
 wal_filehdr_unpack(
     const void             *inbuf,
-    u32                    *magic,
-    u32                    *version,
+    u32                     magic,
+    u32                     version,
     bool                   *close,
     off_t                  *soff,
     off_t                  *eoff,
