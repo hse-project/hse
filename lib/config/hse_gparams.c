@@ -61,6 +61,17 @@ logging_destination_validator(const struct param_spec *ps, const void *value)
 }
 
 void
+logging_destination_default(const struct param_spec *ps, void *value)
+{
+    assert(ps);
+    assert(value);
+
+    enum log_destination *dest = (enum log_destination *)value;
+
+    *dest = LD_SYSLOG;
+}
+
+void
 socket_path_default(const struct param_spec *ps, void *value)
 {
     assert(ps);
@@ -83,7 +94,7 @@ static const struct param_spec pspecs[] = {
 		.ps_convert = param_default_converter,
 		.ps_validate = param_default_validator,
 		.ps_default_value = {
-			.as_bool = false,
+			.as_bool = true,
 		},
 	},
 	/* [HSE_TODO]: Implement this toggle, currently everything seems to be structured.
@@ -104,14 +115,14 @@ static const struct param_spec pspecs[] = {
 	{
 		.ps_name = "logging.destination",
 		.ps_description = "Where log messages should be written to",
-		.ps_flags = 0,
+		.ps_flags = PARAM_FLAG_DEFAULT_BUILDER,
 		.ps_type = PARAM_TYPE_ENUM,
 		.ps_offset = offsetof(struct hse_gparams, gp_logging.destination),
 		.ps_size = sizeof(enum log_destination),
 		.ps_convert = logging_destination_converter,
 		.ps_validate = logging_destination_validator,
 		.ps_default_value = {
-			.as_enum = "syslog",
+			.as_builder = logging_destination_default,
 		},
 		.ps_bounds = {
 			.as_enum = {
