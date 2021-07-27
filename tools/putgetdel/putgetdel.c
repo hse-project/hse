@@ -111,21 +111,6 @@ static void syntax(const char *fmt, ...);
 static void quit(const char *fmt, ...);
 static void usage(void);
 
-/*
- * Use our own asserts so they're enabled in all builds.
- * This code relies on them to catch errors.
- */
-#define my_assert(condition) \
-	do { \
-		int ass_hurts = !(condition); \
-		if (ass_hurts) { \
-			fprintf(stderr,\
-				"assert(%s) failed at %s:%d\n", #condition, \
-				__FILE__, __LINE__); \
-			exit(-1); \
-		} \
-	} while (0)
-
 static void
 quit(const char *fmt, ...)
 {

@@ -138,9 +138,6 @@ main(int argc, char **argv)
 
 	kh_fini();
 
-    svec_reset(&kvdb_oparms);
-    svec_reset(&kvs_cparms);
-    svec_reset(&kvs_oparms);
 	pg_destroy(pg);
 	svec_reset(&hse_gparms);
 	svec_reset(&kvdb_oparms);

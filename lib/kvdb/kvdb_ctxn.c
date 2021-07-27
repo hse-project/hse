@@ -672,7 +672,6 @@ kvdb_ctxn_get_seqnoref(struct kvdb_ctxn *handle)
     return ctxn ? ctxn->ctxn_seqref : 0;
 }
 
-
 /* This routine determines whether ownership of a write lock can be inherited
  * from one client transaction to another and if so performs the transfer.
  * This can happen if the new transaction started after the commit-time of the

@@ -93,7 +93,7 @@ kvs_ktuple_init(struct kvs_ktuple *kt, const void *key, s32 key_len)
     kt->kt_data = key;
     kt->kt_len = key_len;
     kt->kt_hash = key_hash64(kt->kt_data, kt->kt_len);
-    kt->kt_flags = 0;
+    kt->kt_flags = kt->kt_seqno = kt->kt_dgen = 0;
 }
 
 static inline void
@@ -102,7 +102,7 @@ kvs_ktuple_init_nohash(struct kvs_ktuple *kt, const void *key, s32 key_len)
     kt->kt_data = key;
     kt->kt_len = key_len;
     kt->kt_hash = 0;
-    kt->kt_flags = 0;
+    kt->kt_flags = kt->kt_seqno = kt->kt_dgen = 0;
 }
 
 /**

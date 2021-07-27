@@ -34,8 +34,8 @@ struct wal {
     struct wal_fileset     *wfset;
     struct wal_mdc         *mdc;
     struct throttle_sensor *wal_thr_sensor;
-    uint                    wal_thr_hwm;
-    uint                    wal_thr_lwm;
+    uint32_t                wal_thr_hwm;
+    uint32_t                wal_thr_lwm;
 
     atomic64_t              wal_rid HSE_ALIGNED(SMP_CACHE_BYTES);
     atomic64_t              wal_ingestseq;
@@ -123,7 +123,7 @@ wal_timer(void *rock)
             if (wal->wal_thr_sensor) {
                 const uint64_t hwm = (bufsz * wal->wal_thr_hwm) / 100;
                 const uint64_t lwm = (bufsz * wal->wal_thr_lwm) / 100;
-                uint new;
+                uint32_t new;
 
                 assert(buflen < bufsz);
 
@@ -248,11 +248,11 @@ wal_sync(struct wal *wal)
 }
 
 static merr_t
-wal_cond_sync(struct wal *wal, u64 gen)
+wal_cond_sync(struct wal *wal, uint64_t gen)
 {
     struct wal_sync_waiter swait = {0};
-    u64 start, end;
-    uint dur;
+    uint64_t start, end;
+    uint32_t dur;
     merr_t err;
 
     assert(wal);
@@ -293,7 +293,7 @@ wal_put(
     uint64_t rid;
     size_t klen, vlen, rlen, kvlen, len;
     char *kvdata;
-    uint rtype = WAL_RT_NONTX;
+    uint32_t rtype = WAL_RT_NONTX;
     merr_t err;
 
     if (!wal)
@@ -349,7 +349,7 @@ wal_del_impl(
     uint64_t rid;
     size_t klen, rlen, kalen, len;
     char *kdata;
-    uint rtype;
+    uint32_t rtype;
     merr_t err;
 
     if (!wal)
@@ -407,12 +407,12 @@ wal_del_pfx(
 }
 
 static merr_t
-wal_txn(struct wal *wal, uint rtype, uint64_t txid, uint64_t seqno, int64_t *cookie)
+wal_txn(struct wal *wal, uint32_t rtype, uint64_t txid, uint64_t seqno, int64_t *cookie)
 {
     struct wal_txnrec_omf *rec;
     uint64_t rid, offset, gen;
     size_t rlen;
-    uint wbidx;
+    uint32_t wbidx;
 
     if (!wal)
         return 0;
@@ -441,9 +441,6 @@ wal_txn(struct wal *wal, uint rtype, uint64_t txid, uint64_t seqno, int64_t *coo
 merr_t
 wal_txn_begin(struct wal *wal, uint64_t txid, int64_t *cookie)
 {
-    if (!wal || !cookie)
-        return merr(EINVAL);
-
     *cookie = -1;
 
     return wal_txn(wal, WAL_RT_TXBEGIN, txid, 0, cookie);
@@ -471,11 +468,14 @@ wal_op_finish(struct wal *wal, struct wal_record *rec, uint64_t seqno, uint64_t 
     if (wal) {
         if (rc) {
             if (recoverable_error(rc))
-                rec->offset = U64_MAX - 1;
+                rec->offset = WAL_ROFF_RECOV_ERR;
             else
-                rec->offset = U64_MAX;
+                rec->offset = WAL_ROFF_UNRECOV_ERR;
+
+            gen = gen ? : c0sk_gen_current();
         }
 
+        assert(gen);
         wal_bufset_finish(wal->wbs, rec->wbidx, rec->len, gen, rec->offset + rec->len);
         wal_rec_finish(rec, seqno, gen);
     }
@@ -490,7 +490,7 @@ wal_create(struct mpool *mp, struct kvdb_cparams *cp, uint64_t *mdcid1, uint64_t
 {
     struct wal_mdc *mdc;
     merr_t err;
-    u32 dur_ms, dur_bytes;
+    uint32_t dur_ms, dur_bytes;
     enum mpool_mclass mclass;
 
     mclass = cp->dur_mclass;
@@ -677,7 +677,7 @@ wal_close(struct wal *wal)
 
 
 static void
-wal_reclaim(struct wal *wal, u64 seqno, u64 gen, u64 txhorizon)
+wal_reclaim(struct wal *wal, uint64_t seqno, uint64_t gen, uint64_t txhorizon)
 {
     atomic64_set(&wal->wal_ingestseq, seqno);
     atomic64_set(&wal->wal_ingestgen, gen);
@@ -688,7 +688,7 @@ wal_reclaim(struct wal *wal, u64 seqno, u64 gen, u64 txhorizon)
 }
 
 void
-wal_cningest_cb(struct wal *wal, u64 seqno, u64 gen, u64 txhorizon, bool post_ingest)
+wal_cningest_cb(struct wal *wal, uint64_t seqno, uint64_t gen, uint64_t txhorizon, bool post_ingest)
 {
     if (post_ingest)
         wal_reclaim(wal, seqno, gen, txhorizon);

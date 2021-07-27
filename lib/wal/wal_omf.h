@@ -75,12 +75,12 @@ OMF_SETGET(struct wal_version_omf, ver_magic, 32);
 
 struct wal_config_omf {
     struct wal_mdchdr_omf cfg_hdr;
-    __le32 cfg_durms;
-    __le32 cfg_durbytes;
-        u8 cfg_mclass;
-        u8 cfg_rsvd1;
-    __le16 cfg_rsvd2;
-    __le32 cfg_rsvd3;
+    __le32  cfg_durms;
+    __le32  cfg_durbytes;
+    uint8_t cfg_mclass;
+    uint8_t cfg_rsvd1;
+    __le16  cfg_rsvd2;
+    __le32  cfg_rsvd3;
 } HSE_PACKED;
 
 /* Define set/get methods for wal_config_omf */
@@ -161,7 +161,7 @@ struct wal_rec_omf {
     __le64                r_txid;
     __le64                r_seqno;
     __le64                r_vxlen;
-    __u8                  r_data[0];
+    uint8_t               r_data[0];
 } __attribute__((packed,aligned(__alignof__(uint64_t))));
 
 /* Define set/get methods for wal_oprec_omf */
@@ -205,21 +205,27 @@ wal_rectype_nontx(enum wal_rec_type rtype)
 }
 
 void
-wal_rechdr_pack(enum wal_rec_type rtype, u64 rid, size_t tlen, uint64_t gen, void *outbuf);
+wal_rechdr_pack(enum wal_rec_type rtype, uint64_t rid, size_t tlen, uint64_t gen, void *outbuf);
 
-uint
+uint32_t
 wal_rechdr_len(void);
 
 void
-wal_rec_finish(struct wal_record *rec, u64 seqno, u64 gen);
+wal_rec_finish(struct wal_record *rec, uint64_t seqno, uint64_t gen);
 
 void
-wal_rec_pack(enum wal_op op, u64 cnid, u64 txid, uint klen, size_t vxlen, void *outbuf);
+wal_rec_pack(
+    enum wal_op op,
+    uint64_t    cnid,
+    uint64_t    txid,
+    uint32_t    klen,
+    size_t      vxlen,
+    void       *outbuf);
 
-uint
+uint32_t
 wal_reclen(void);
 
-u64
+uint64_t
 wal_reclen_total(const void *inbuf);
 
 bool
@@ -245,8 +251,8 @@ wal_rec_is_valid(
     const void             *inbuf,
     off_t                   foff,
     size_t                  fsize,
-    off_t                  *recoff,
-    u64                     gen,
+    uint64_t               *recoff,
+    uint64_t                gen,
     struct wal_minmax_info *info,
     bool                   *eorg);
 
@@ -257,15 +263,15 @@ void
 wal_rec_unpack(const char *inbuf, struct wal_rec *rec);
 
 void
-wal_txn_rec_pack(u64 txid, u64 seqno, void *outbuf);
+wal_txn_rec_pack(uint64_t txid, uint64_t seqno, void *outbuf);
 
 void
 wal_txn_rec_unpack(const void *inbuf, struct wal_txmeta_rec *trec);
 
 void
-wal_txn_rechdr_finish(void *recbuf, size_t len, u64 offset);
+wal_txn_rechdr_finish(void *recbuf, size_t len, uint64_t offset);
 
-uint
+uint32_t
 wal_txn_reclen(void);
 
 void
@@ -276,8 +282,8 @@ wal_update_minmax_txid(const void *buf, struct wal_minmax_info *info);
 
 void
 wal_filehdr_pack(
-    u32                     magic,
-    u32                     version,
+    uint32_t                magic,
+    uint32_t                version,
     struct wal_minmax_info *info,
     off_t                   soff,
     off_t                   eoff,
@@ -287,8 +293,8 @@ wal_filehdr_pack(
 merr_t
 wal_filehdr_unpack(
     const void             *inbuf,
-    u32                     magic,
-    u32                     version,
+    uint32_t                magic,
+    uint32_t                version,
     bool                   *close,
     off_t                  *soff,
     off_t                  *eoff,

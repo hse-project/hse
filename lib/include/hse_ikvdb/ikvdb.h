@@ -560,7 +560,7 @@ ikvdb_wal_replay_del(
     struct kvs_ktuple    *kt);
 
 merr_t
-ikvdb_wal_replay_pdel(
+ikvdb_wal_replay_prefix_del(
     struct ikvdb         *ikvdb,
     struct ikvdb_kvs_hdl *ikvsh,
     u64                   cnid,

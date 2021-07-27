@@ -28,12 +28,10 @@ struct wal_replay_gen {
     struct rb_root         rg_root;
 
     struct wal_minmax_info rg_info HSE_ALIGNED(SMP_CACHE_BYTES);
-    u64                    rg_gen;
+    uint64_t               rg_gen;
 
     uint64_t               rg_krcnt;
     uint64_t               rg_maxseqno;
-
-
 };
 
 struct wal_replay_work {
@@ -61,14 +59,14 @@ struct wal_replay {
 
     struct wal_replay_info     *r_info;
     struct wal_replay_gen_info *r_ginfo;
-    uint                        r_cnt;
+    uint32_t                    r_cnt;
 };
 
 struct wal_rec_iter {
     struct kmem_cache      *rcache;
     struct wal_replay_work *rw;
     const char             *buf;
-    u64                     gen;
+    uint64_t                gen;
     off_t                   curoff;
     off_t                   soff;
     off_t                   eoff;
@@ -94,9 +92,6 @@ wal_replay_open(struct wal *wal, struct wal_replay_info *rinfo, struct wal_repla
 {
     struct wal_replay *rep;
     merr_t err;
-
-    if (!wal || !rinfo || !rep_out)
-        return merr(EINVAL);
 
     rep = aligned_alloc(alignof(*rep), sizeof(*rep));
     if (!rep)
@@ -213,11 +208,13 @@ wal_rec_iter_init(struct wal_replay_work *rw, struct wal_rec_iter *iter)
     iter->rw = rw;
 }
 
+#ifndef NDEBUG
 static bool
 wal_rec_iter_eof(struct wal_rec_iter *iter)
 {
     return iter->eof;
 }
+#endif
 
 static struct wal_txmeta_rec *
 wal_txmrec_rb_search(struct wal_replay *rep, uint64_t txid)
@@ -333,8 +330,8 @@ wal_recs_validate(struct wal_replay_work *rw)
     struct wal_replay *rep = rw->rw_rep;
     struct wal_minmax_info *info;
     struct wal_replay_gen_info *rginfo = rw->rw_rginfo;
-    off_t curoff = 0, recoff = 0;
-    u64 gen = rginfo->gen;
+    off_t curoff = 0;
+    uint64_t gen = rginfo->gen, recoff = 0;
     const char *buf = rginfo->buf;
     bool valid, eorg = false;
     merr_t err = 0;
@@ -386,6 +383,9 @@ wal_recs_validate(struct wal_replay_work *rw)
 
     if (rginfo->eoff && !valid) {
         assert(valid);
+        hse_log(HSE_CRIT "%s: Corrupted record found in gen %lu file %d, off (%lu:%lu:%lu), "
+                "failing replay", __func__, gen, rginfo->fileid, curoff, rginfo->eoff,
+                rginfo->rgeoff);
         err = merr(EBADMSG);
         goto exit;
     }
@@ -437,16 +437,16 @@ wal_replay_gen_update(struct wal_replay_gen *rgen, struct wal_replay_gen_info *r
         return;
 
     info = &rgen->rg_info;
-    info->min_seqno = min_t(u64, info->min_seqno, rginfo->info.min_seqno);
-    info->max_seqno = max_t(u64, info->max_seqno, rginfo->info.max_seqno);
-    info->min_gen = min_t(u64, info->min_gen, rginfo->info.min_gen);
-    info->max_gen = max_t(u64, info->max_gen, rginfo->info.max_gen);
-    info->min_txid = min_t(u64, info->min_txid, rginfo->info.min_txid);
-    info->max_txid = max_t(u64, info->max_txid, rginfo->info.max_txid);
+    info->min_seqno = min_t(uint64_t, info->min_seqno, rginfo->info.min_seqno);
+    info->max_seqno = max_t(uint64_t, info->max_seqno, rginfo->info.max_seqno);
+    info->min_gen = min_t(uint64_t, info->min_gen, rginfo->info.min_gen);
+    info->max_gen = max_t(uint64_t, info->max_gen, rginfo->info.max_gen);
+    info->min_txid = min_t(uint64_t, info->min_txid, rginfo->info.min_txid);
+    info->max_txid = max_t(uint64_t, info->max_txid, rginfo->info.max_txid);
 }
 
 static struct wal_replay_gen *
-wal_replay_gen_get(struct wal_replay *rep, u64 gen)
+wal_replay_gen_get(struct wal_replay *rep, uint64_t gen)
 {
     struct wal_replay_gen *cur;
 
@@ -489,7 +489,7 @@ wal_replay_gen_impl(struct wal_replay *rep, struct wal_replay_gen *rgen, bool fl
             break;
 
           case WAL_OP_PDEL:
-            err = ikvdb_wal_replay_pdel(ikvdb, ikvsh, rec->cnid, rec->seqno, kt);
+            err = ikvdb_wal_replay_prefix_del(ikvdb, ikvsh, rec->cnid, rec->seqno, kt);
             break;
 
           default:
@@ -500,6 +500,9 @@ wal_replay_gen_impl(struct wal_replay *rep, struct wal_replay_gen *rgen, bool fl
         if (HSE_UNLIKELY(err)) {
             struct wal_rec *cur, *next;
 
+            hse_log(HSE_CRIT "%s: Unrecognized record op %d in gen %lu, failing replay",
+                    __func__, rec->op, rgen->rg_gen);
+
             rbtree_postorder_for_each_entry_safe(cur, next, root, node) {
                 kmem_cache_free(rep->r_cache, cur);
             }
@@ -507,7 +510,7 @@ wal_replay_gen_impl(struct wal_replay *rep, struct wal_replay_gen *rgen, bool fl
             return err;
         }
 
-        rgen->rg_maxseqno = max_t(u64, rgen->rg_maxseqno, rec->seqno);
+        rgen->rg_maxseqno = max_t(uint64_t, rgen->rg_maxseqno, rec->seqno);
 
         rb_erase(&rec->node, root);
         kmem_cache_free(rep->r_cache, rec);
@@ -527,11 +530,8 @@ wal_replay_core(struct wal_replay *rep)
 {
     struct wal_replay_gen *cur, *next;
     struct ikvdb *ikvdb;
-    uint flags;
-    u64 maxseqno = 0;
-
-    if (!rep)
-        return merr(EINVAL);
+    uint32_t flags;
+    uint64_t maxseqno = 0;
 
     ikvdb = wal_ikvdb(rep->r_wal);
     flags = HSE_BTF_MANAGED; /* Replay with MANAGED flag to let c0 share the mmaped wal files */
@@ -563,7 +563,7 @@ wal_replay_core(struct wal_replay *rep)
             }
         }
 
-        maxseqno = max_t(u64, maxseqno, cur->rg_maxseqno);
+        maxseqno = max_t(uint64_t, maxseqno, cur->rg_maxseqno);
 
         hse_log(HSE_NOTICE "WAL replay: gen %lu, maxseqno %lu replayed %lu keys",
                 cur->rg_gen, maxseqno, cur->rg_krcnt);
@@ -585,7 +585,7 @@ wal_replay_consolidate(struct wal_replay *rep)
 {
     struct wal_replay_gen *prev_rgen = NULL, *cur, *next;
     merr_t err = 0;
-    u64 prev_gen = 0;
+    uint64_t prev_gen = 0;
     int i;
 
     for (i = 0; i < rep->r_cnt; i++) {
@@ -624,7 +624,7 @@ wal_replay_consolidate(struct wal_replay *rep)
 
     /* Fix seqno bounds. Set min bound of a gen based on the max bound of the previous gen */
     list_for_each_entry_safe(cur, next, &rep->r_head, rg_link) {
-        u64 nmin_seqno, cmax_seqno;
+        uint64_t nmin_seqno, cmax_seqno;
 
         if (!next)
             break;
@@ -632,10 +632,10 @@ wal_replay_consolidate(struct wal_replay *rep)
         nmin_seqno = next->rg_info.min_seqno;
         cmax_seqno = cur->rg_info.max_seqno;
 
-        if (nmin_seqno == U64_MAX) {
+        if (nmin_seqno == UINT64_MAX) {
             assert(next == list_last_entry(&rep->r_head, typeof(*next), rg_link));
             next->rg_info.min_seqno = cmax_seqno + 1;
-            next->rg_info.max_seqno = U64_MAX;
+            next->rg_info.max_seqno = UINT64_MAX;
         } else if (nmin_seqno <= cmax_seqno) {
             next->rg_info.min_seqno = cmax_seqno + 1;
         }
@@ -644,8 +644,8 @@ wal_replay_consolidate(struct wal_replay *rep)
     return 0;
 }
 
-static u64
-wal_txmeta_gen_get(struct wal_replay *rep, u64 seqno)
+static uint64_t
+wal_txmeta_gen_get(struct wal_replay *rep, uint64_t seqno)
 {
     struct wal_replay_gen *rgen;
 
@@ -675,7 +675,7 @@ wal_txmeta_gen_update(struct wal_replay *rep)
         cnode = rb_first(root);
         while (cnode) {
             struct wal_txmeta_rec *trec;
-            u64 gen;
+            uint64_t gen;
 
             nnode = rb_next(cnode);
 
@@ -735,7 +735,7 @@ wal_replay_worker(struct work_struct *work)
     struct wal_replay          *rep;
     struct wal_rec_iter         iter;
     struct wal_rec             *rec;
-    u64                         nrecs = 0, ntxrecs = 0, nskipped = 0;
+    uint64_t                    nrecs = 0, ntxrecs = 0, nskipped = 0;
     merr_t                      err;
 
     rw = container_of(work, struct wal_replay_work, rw_work);
@@ -752,15 +752,14 @@ wal_replay_worker(struct work_struct *work)
      * a must to guarantee txn atomicity when replaying txn mutations.
      */
     while (atomic_read(&rep->r_vdone) < rep->r_cnt)
-        cpu_relax();
+        usleep(333);
 
     /* Do not proceed further if there's a failed record validation. Add a force flag
      * later which can replay mutations until the corrupted record.
      */
-    if (atomic64_read(&rep->r_verr) != 0) {
-        rw->rw_err = atomic64_read(&rep->r_verr);
+    rw->rw_err = atomic64_read(&rep->r_verr);
+    if (rw->rw_err)
         return;
-    }
 
     /* Elect a leader thread to do replay stats consolidation and fix target gen */
     if (atomic_inc_acq(&rep->r_leader) == 1) {
@@ -774,16 +773,21 @@ wal_replay_worker(struct work_struct *work)
             err = wal_txmeta_gen_update(rep);
         }
 
-        if (err) {
-            rw->rw_err = err;
-            atomic_dec_rel(&rep->r_leader);
-            return;
-        }
+        if (err)
+            atomic64_set(&rep->r_verr, err);
+
+        while (atomic_read(&rep->r_leader) < rep->r_cnt)
+            cpu_relax();
+
+        atomic_set_rel(&rep->r_leader, 0);
     }
-    atomic_dec_rel(&rep->r_leader);
 
     while (atomic_read(&rep->r_leader) > 0)
-        cpu_relax();
+        usleep(333);
+
+    rw->rw_err = atomic64_read(&rep->r_verr);
+    if (rw->rw_err)
+        return;
 
     rginfo = rw->rw_rginfo;
     wal_rec_iter_init(rw, &iter);
@@ -791,8 +795,8 @@ wal_replay_worker(struct work_struct *work)
 
     while ((rec = wal_rec_iter_next(&iter))) {
         struct wal_replay_gen *trgen = rgen;
-        u64 gen = rec->hdr.gen;
-        u64 seqno = rec->seqno;
+        uint64_t gen = rec->hdr.gen;
+        uint64_t seqno = rec->seqno;
 
         /* Add record to the right rgen tree */
         if (gen != trgen->rg_gen)
@@ -824,7 +828,9 @@ wal_replay_worker(struct work_struct *work)
     hse_log(HSE_NOTICE "%s: gen %lu fileid %d nrecs %lu ntxrecs %lu nskipped %lu",
             __func__, rginfo->gen, rginfo->fileid, nrecs, ntxrecs, nskipped);
 
+#ifndef NDEBUG
     assert(wal_rec_iter_eof(&iter));
+#endif
 }
 
 static merr_t
@@ -832,6 +838,7 @@ wal_replay_prepare(struct wal_replay *rep)
 {
     struct wal_replay_work *rw;
     int i;
+    merr_t err = 0;
 
     /* The no. of worker threads must not be lower than rep->r_cnt.
      * More details in the replay worker code
@@ -862,12 +869,12 @@ wal_replay_prepare(struct wal_replay *rep)
 
     for (i = 0; i < rep->r_cnt; i++) {
         if (rw[i].rw_err)
-            return rw[i].rw_err;
+            err = rw[i].rw_err;
     }
 
     free(rw);
 
-    return 0;
+    return err;
 }
 
 merr_t
@@ -889,6 +896,9 @@ wal_replay(struct wal *wal, struct wal_replay_info *rinfo)
 
     err = wal_fileset_replay(wal_fset(wal), rinfo, &rep->r_cnt, &rep->r_ginfo);
     if (err)
+        goto exit;
+
+    if (rep->r_cnt == 0) /* Nothing to replay */
         goto exit;
 
 #ifndef NDEBUG

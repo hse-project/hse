@@ -23,37 +23,37 @@ struct wal_replay_gen_info {
     off_t eoff;
     off_t rgeoff;
     size_t size;
-    uint fileid;
+    uint32_t fileid;
     bool info_valid;
 };
 
 struct wal_rechdr {
-    u64 off;
-    u32 cksum;
-    u32 flags;
-    u64 rid;
-    u64 gen;
-    u32 type;
-    u32 len;
+    uint64_t off;
+    uint32_t cksum;
+    uint32_t flags;
+    uint64_t rid;
+    uint64_t gen;
+    uint32_t type;
+    uint32_t len;
 };
 
 struct wal_rec {
     struct rb_node    node;
     struct wal_rechdr hdr;
-    u64               cnid;
-    u64               txid;
-    u64               seqno;
-    u32               op;
+    uint64_t          cnid;
+    uint64_t          txid;
+    uint64_t          seqno;
+    uint32_t          op;
     struct kvs_ktuple kt;
     struct kvs_vtuple vt;
 };
 
 struct wal_txmeta_rec {
     struct rb_node node;
-    u64            rid;
-    u64            txid;
-    u64            cseqno;
-    u64            gen;
+    uint64_t       rid;
+    uint64_t       txid;
+    uint64_t       cseqno;
+    uint64_t       gen;
 };
 
 merr_t

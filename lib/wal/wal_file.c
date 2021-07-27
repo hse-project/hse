@@ -34,11 +34,11 @@ struct wal_fileset {
 
     struct mpool *mp HSE_ALIGNED(SMP_CACHE_BYTES);
     enum mpool_mclass mclass;
-    size_t capacity;
-    u32    magic;
-    u32    version;
-    merr_t err;
-    void  *repbuf;
+    size_t   capacity;
+    uint32_t magic;
+    uint32_t version;
+    merr_t   err;
+    void    *repbuf;
 };
 
 struct wal_file {
@@ -75,7 +75,7 @@ wal_file_format(struct wal_file *wfile, off_t soff, off_t eoff, bool closing)
 void
 wal_file_minmax_init(struct wal_minmax_info *info)
 {
-    info->min_seqno = info->min_gen = info->min_txid = U64_MAX;
+    info->min_seqno = info->min_gen = info->min_txid = UINT64_MAX;
     info->max_seqno = info->max_gen = info->max_txid = 0;
 }
 
@@ -85,16 +85,21 @@ wal_file_minmax_update(struct wal_file *wfile, struct wal_minmax_info *info)
     struct wal_minmax_info *winfo;
 
     winfo = &wfile->info;
-    winfo->min_seqno = min_t(u64, winfo->min_seqno, info->min_seqno);
-    winfo->max_seqno = max_t(u64, winfo->max_seqno, info->max_seqno);
-    winfo->min_gen = min_t(u64, winfo->min_gen, info->min_gen);
-    winfo->max_gen = max_t(u64, winfo->max_gen, info->max_gen);
-    winfo->min_txid = min_t(u64, winfo->min_txid, info->min_txid);
-    winfo->max_txid = max_t(u64, winfo->max_txid, info->max_txid);
+    winfo->min_seqno = min_t(uint64_t, winfo->min_seqno, info->min_seqno);
+    winfo->max_seqno = max_t(uint64_t, winfo->max_seqno, info->max_seqno);
+    winfo->min_gen = min_t(uint64_t, winfo->min_gen, info->min_gen);
+    winfo->max_gen = max_t(uint64_t, winfo->max_gen, info->max_gen);
+    winfo->min_txid = min_t(uint64_t, winfo->min_txid, info->min_txid);
+    winfo->max_txid = max_t(uint64_t, winfo->max_txid, info->max_txid);
 }
 
 merr_t
-wal_fileset_reclaim(struct wal_fileset *wfset, u64 seqno, u64 gen, u64 txhorizon, bool closing)
+wal_fileset_reclaim(
+    struct wal_fileset *wfset,
+    uint64_t            seqno,
+    uint64_t            gen,
+    uint64_t            txhorizon,
+    bool                closing)
 {
     struct wal_file *cur, *next;
     struct list_head reclaim;
@@ -109,10 +114,6 @@ wal_fileset_reclaim(struct wal_fileset *wfset, u64 seqno, u64 gen, u64 txhorizon
             list_del_init(&cur->link);
             list_add_tail(&cur->link, &reclaim);
         } else if (closing) {
-            /*
-             * TODO: This path should not be taken during graceful close.
-             * If it does happen, do not destroy the file.
-             */
             list_del_init(&cur->link);
             wal_file_put(cur);
         }
@@ -120,7 +121,7 @@ wal_fileset_reclaim(struct wal_fileset *wfset, u64 seqno, u64 gen, u64 txhorizon
     mutex_unlock(&wfset->lock);
 
     list_for_each_entry_safe(cur, next, &reclaim, link) {
-        u64 gen = cur->gen;
+        uint64_t gen = cur->gen;
         int fileid = cur->fileid;
 
 #ifndef NDEBUG
@@ -144,7 +145,12 @@ wal_fileset_reclaim(struct wal_fileset *wfset, u64 seqno, u64 gen, u64 txhorizon
 }
 
 struct wal_fileset *
-wal_fileset_open(struct mpool *mp, enum mpool_mclass mclass, size_t capacity, u32 magic, u32 vers)
+wal_fileset_open(
+    struct mpool     *mp,
+    enum mpool_mclass mclass,
+    size_t            capacity,
+    uint32_t          magic,
+    uint32_t          vers)
 {
     struct wal_fileset *wfset;
 
@@ -165,12 +171,17 @@ wal_fileset_open(struct mpool *mp, enum mpool_mclass mclass, size_t capacity, u3
     wfset->capacity = capacity;
     wfset->magic = magic;
     wfset->version = vers;
+    wfset->repbuf = NULL;
 
     return wfset;
 }
 
 void
-wal_fileset_close(struct wal_fileset *wfset, u64 ingestseq, u64 ingestgen, u64 txhorizon)
+wal_fileset_close(
+    struct wal_fileset *wfset,
+    uint64_t            ingestseq,
+    uint64_t            ingestgen,
+    uint64_t            txhorizon)
 {
     if (!wfset)
         return;
@@ -307,18 +318,24 @@ wal_file_complete(struct wal_fileset *wfset, struct wal_file *wfile)
     return 0;
 }
 
-void
+merr_t
 wal_file_get(struct wal_file *wfile)
 {
-    if (!wfile)
-        return;
+    if (!wfile) {
+        assert(wfile);
+        return merr(EBUG);
+    }
 
     atomic64_inc(&wfile->ref);
+
+    return 0;
 }
 
 void
 wal_file_put(struct wal_file *wfile)
 {
+    assert(wfile);
+
     if (wfile && atomic64_dec_return(&wfile->ref) == 0)
         wal_file_close(wfile);
 }
@@ -449,10 +466,10 @@ static void
 wal_file_cb(void *wfset, const char *path)
 {
     struct wal_file *wfile HSE_MAYBE_UNUSED;
-    u64 gen;
+    uint64_t gen;
     int fileid;
     merr_t err = 0;
-    char *name, *path_base = NULL, *tok, *end = NULL, *pathdup;
+    char *name, *tok, *end = NULL, *pathdup;
     const char *delim = "-";
 
     pathdup = strdup(path);
@@ -460,11 +477,10 @@ wal_file_cb(void *wfset, const char *path)
         err = merr(ENOMEM);
         goto err_exit;
     }
-    path_base = pathdup;
 
     name = basename(pathdup);
     tok = strsep(&name, delim);
-    if (strcmp((const char *)tok, WAL_FILE_PFX) != 0) {
+    if (strcmp(tok, WAL_FILE_PFX) != 0) {
         err = merr(EINVAL);
         goto err_exit;
     }
@@ -490,7 +506,7 @@ wal_file_cb(void *wfset, const char *path)
     err = wal_file_open(wfset, gen, fileid, true, &wfile);
 
 err_exit:
-    free(path_base);
+    free(pathdup);
 
     if (err)
         ((struct wal_fileset *)wfset)->err = err;
@@ -500,7 +516,7 @@ merr_t
 wal_fileset_replay(
     struct wal_fileset          *wfset,
     struct wal_replay_info      *rinfo,
-    uint                        *rgcnt_out,
+    uint32_t                    *rgcnt_out,
     struct wal_replay_gen_info **rginfo_out)
 {
     struct mpool_file_cb cb;
@@ -508,8 +524,8 @@ wal_fileset_replay(
     struct wal_replay_gen_info *rginfo;
     merr_t err;
     size_t sz;
-    uint   fcnt, i;
-    u64    maxgen;
+    uint32_t fcnt, i;
+    uint64_t maxgen;
 
     cb.cbarg = (void *)wfset;
     cb.cbfunc = wal_file_cb;
@@ -522,8 +538,11 @@ wal_fileset_replay(
     }
 
     cur = list_first_entry_or_null(&wfset->active, typeof(*cur), link);
-    if (!cur)
+    if (!cur) {
+        *rgcnt_out = 0;
         return 0; /* Nothing to replay */
+    }
+
     maxgen = cur->gen;
 
     /*
@@ -641,8 +660,8 @@ wal_fileset_replay_free(struct wal_fileset *wfset, bool failed)
     }
 
     list_for_each_entry_safe(cur, next, &wfset->replay, link) {
-        u64 gen = cur->gen;
-        uint fileid = cur->fileid;
+        uint64_t gen = cur->gen;
+        uint32_t fileid = cur->fileid;
 
         list_del_init(&cur->link);
         err = wal_file_close(cur);

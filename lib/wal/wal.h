@@ -27,6 +27,9 @@
 #define WAL_BPN_MAX             (2)
 #define WAL_BUF_MAX             (WAL_NODE_MAX * WAL_BPN_MAX)
 
+#define WAL_ROFF_UNRECOV_ERR    (UINT64_MAX)
+#define WAL_ROFF_RECOV_ERR      (UINT64_MAX - 1)
+
 /* clang-format on */
 
 struct wal_minmax_info {

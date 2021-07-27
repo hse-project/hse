@@ -118,22 +118,6 @@ static void syntax(const char *fmt, ...);
 static void quit(const char *fmt, ...);
 static void usage(void);
 
-/*
- * Use our own asserts so they're enabled in all builds.
- * This code relies on them to catch errors.
- */
-#define my_assert(condition)                                    \
-    do {                                                        \
-        int ass_hurts = !(condition);                           \
-        if (ass_hurts) {                                        \
-            fprintf(stderr,                                     \
-                    "assert(%s) failed at %s:%d\n", #condition, \
-                    __FILE__, __LINE__);                        \
-            exit(-1);                                           \
-        }                                                       \
-    } while (0)
-
-
 static void
 quit(const char *fmt, ...)
 {
@@ -165,9 +149,7 @@ syntax(const char *fmt, ...)
 
 
 #define merr_quit(detail, err)			\
-    quit("%s:%d: %s: %ld",          \
-         __FILE__, __LINE__,     \
-         (detail), (err));
+    quit("%s:%d: %s: %ld", __FILE__, __LINE__, (detail), (err));
 
 void
 announce_header(void)
@@ -214,28 +196,26 @@ announce(const char *msg)
  */
 
 enum opt_enum {
-    opt_ingest      = 'I',
     opt_binary	= 'b',
     opt_keys	= 'c',
-    opt_help	= 'h',
-    opt_klen        = 'l',
-    opt_vlen        = 'L',
-    opt_dryrun	= 'n',
-
-    opt_do_put	= 'p',
-    opt_do_up	= 'u',
+    opt_params  = 'C',
     opt_do_del	= 'd',
     opt_do_pdel	= 'D',
-    opt_do_txn      = 'x',
-
-    opt_version	= 'V',
+    opt_errcnt  = 'e',
+    opt_pfxlen  = 'f',
+    opt_help	= 'h',
+    opt_ingest  = 'I',
+    opt_klen    = 'l',
+    opt_vlen    = 'L',
+    opt_dryrun	= 'n',
+    opt_do_put	= 'p',
+    opt_kstart  = 's',
+    opt_threads = 't',
+    opt_time    = 'T',
+    opt_do_up	= 'u',
     opt_verbose	= 'v',
-    opt_kstart      = 's',
-    opt_errcnt      = 'e',
-    opt_params      = 'C',
-    opt_threads     = 't',
-    opt_time        = 'T',
-    opt_pfxlen      = 'f',
+    opt_version	= 'V',
+    opt_do_txn  = 'x',
 
     opt_unclean,
 };
@@ -243,28 +223,25 @@ enum opt_enum {
 
 struct option longopts[] = {
     { "binary",     no_argument,        NULL,  opt_binary },
-    { "ingest",     no_argument,        NULL,  opt_ingest },
-    { "dryrun",     no_argument,        NULL,  opt_dryrun },
-    { "help",       no_argument,        NULL,  opt_help },
     { "keys",       required_argument,  NULL,  opt_keys },
-    { "klen",       required_argument,  NULL,  opt_klen },
-    { "vlen",       required_argument,  NULL,  opt_vlen },
-    { "threads",    required_argument,  NULL,  opt_threads },
-    { "pfxlen",     required_argument,  NULL,  opt_pfxlen},
-
-    { "put",        no_argument,        NULL,  opt_do_put },
-    { "up",         no_argument,        NULL,  opt_do_up },
+    { "params",     no_argument,        NULL,  opt_params  },
     { "del",        no_argument,        NULL,  opt_do_del },
     { "pdel",       no_argument,        NULL,  opt_do_pdel },
-    { "txn",        no_argument,        NULL,  opt_do_txn},
-
-
+    { "errcnt",     required_argument,  NULL,  opt_errcnt  },
+    { "pfxlen",     required_argument,  NULL,  opt_pfxlen},
+    { "help",       no_argument,        NULL,  opt_help },
+    { "ingest",     no_argument,        NULL,  opt_ingest },
+    { "klen",       required_argument,  NULL,  opt_klen },
+    { "vlen",       required_argument,  NULL,  opt_vlen },
+    { "dryrun",     no_argument,        NULL,  opt_dryrun },
+    { "put",        no_argument,        NULL,  opt_do_put },
+    { "kstart",     required_argument,  NULL,  opt_kstart  },
+    { "threads",    required_argument,  NULL,  opt_threads },
+    { "time",       required_argument,  NULL,  opt_time    },
+    { "up",         no_argument,        NULL,  opt_do_up },
     { "verbose",    optional_argument,  NULL,  opt_verbose },
     { "version",    no_argument,        NULL,  opt_version  },
-    { "kstart",     required_argument,  NULL,  opt_kstart  },
-    { "errcnt",     required_argument,  NULL,  opt_errcnt  },
-    { "params",     no_argument,        NULL,  opt_params  },
-    { "time",       required_argument,  NULL,  opt_time    },
+    { "txn",        no_argument,        NULL,  opt_do_txn},
     { 0, 0, 0, 0 }
 };
 
@@ -502,7 +479,7 @@ options_parse(
         if (opt->pfxlen == 0) {
             printf("pfxlen param is required for prefix del\n");
             usage();
-            return;
+            exit(0);
         }
 
         opt->klen   = opt->pfxlen;
@@ -521,27 +498,25 @@ usage(void)
     printf("usage: %s [options] <kvdb_home> <kvslist> [param=value]\n",
            progname);
     printf("Key/value count and format:\n"
-           "  -t, --threads      number of threads\n"
-           "  -s, --kstart       starting index of keys, default=0\n"
-           "  -c, --keys COUNT   put/get COUNT keys\n"
            "  -b, --binary       generate binary keys and values\n"
-           "  -l, --klen LEN     keys are LEN bytes\n"
-           "  -L, --vlen LEN     values are LEN bytes\n"
-           "  -T, --Time seconds c1 flush time in ms\n"
-           "  -x, --txn          do transaction tests\n"
-           "  -f, --pfxlen       prefix len\n"
-           "Phases:\n"
-           "  -p, --put       put keys\n"
-           "  -u, --up        update keys\n"
+           "  -c, --keys COUNT   put/get COUNT keys\n"
+           "  -C, --params       list tunable params (config vars)\n"
            "  -d, --del       delete keys\n"
            "  -D, --pdel      prefix delete keys\n"
-           "Other:\n"
            "  -e, --errcnt N     stop verify after N errors, 0=infinite\n"
-           "  -V, --version      print build version\n"
-           "  -v, --verbose=LVL  increase[or set] verbosity\n"
-           "  -C, --params       list tunable params (config vars)\n"
+           "  -f, --pfxlen       prefix len\n"
            "  -h, --help         print this help list\n"
+           "  -l, --klen LEN     keys are LEN bytes\n"
+           "  -L, --vlen LEN     values are LEN bytes\n"
            "  -n, --dryrun       show operations w/o executing them\n"
+           "  -p, --put       put keys\n"
+           "  -s, --kstart       starting index of keys, default=0\n"
+           "  -t, --threads      number of threads\n"
+           "  -T, --Time seconds c1 flush time in ms\n"
+           "  -u, --up        update keys\n"
+           "  -v, --verbose=LVL  increase[or set] verbosity\n"
+           "  -V, --version      print build version\n"
+           "  -x, --txn          do transaction tests\n"
            "\n");
 
     if (!verbose) {
@@ -550,20 +525,13 @@ usage(void)
     }
 
     printf("Mandatory parameters:\n"
-           "  <kvdb>\n"
+           "  <kvdb_home>\n"
            "  <kvslist> -- A kvs name, a comma or colon separated list\n"
            "      of kvs names, a format string with a %%d conversion\n"
            "      specifier that will be replaced with the logical\n"
            "      thread ID, or any combination thereof.  The list is\n"
            "      iterated over from left to right in round-robin\n"
            "      fashion as each thread is created.\n"
-           "\n"
-           "Examples:\n"
-           "  waltest mp1 db1 kvs2\n"
-           "  waltest mp1 db1 kvs%%d\n"
-           "  waltest mp1 db1 foo:bar:baz\n"
-           "  waltest mp1 db1 kvs3 -t8 -c1000 "
-           "--put cn_compaction_debug=1\n"
            "\n");
 }
 

@@ -2667,9 +2667,6 @@ ikvdb_wal_replay_open(struct ikvdb *ikvdb, struct ikvdb_kvs_hdl **ikvsh_out)
     size_t  kvshc;
     char  **knamev = NULL;
 
-    if (!ikvdb || !ikvsh_out)
-        return merr(EINVAL);
-
     err = ikvdb_kvs_names_get(ikvdb, &kvshc, &knamev);
     if (err)
         return err;
@@ -2701,6 +2698,7 @@ ikvdb_wal_replay_open(struct ikvdb *ikvdb, struct ikvdb_kvs_hdl **ikvsh_out)
 
     ikvsh->kvshc = kvshc;
 
+    assert(ikvsh_out);
     *ikvsh_out = ikvsh;
 
     return 0;
@@ -2711,8 +2709,7 @@ ikvdb_wal_replay_close(struct ikvdb *ikvdb, struct ikvdb_kvs_hdl *ikvsh)
 {
     int i;
 
-    if (!ikvsh)
-        return;
+    assert(ikvsh);
 
     for (i = 0; i < ikvsh->kvshc; i++)
         ikvdb_kvs_close(ikvsh->kvshv[i]);
@@ -2752,8 +2749,7 @@ ikvdb_wal_replay_put(
     struct kvdb_kvs *kk;
     merr_t err;
 
-    if (!ikvdb || !ikvsh || !kt || !vt)
-        return merr(EINVAL);
+    assert(ikvdb && ikvsh);
 
     kk = ikvdb_wal_replay_kvs_get(ikvsh, cnid);
     if (ev(!kk))
@@ -2777,8 +2773,7 @@ ikvdb_wal_replay_del(
     struct kvdb_kvs *kk;
     merr_t err;
 
-    if (!ikvdb || !ikvsh || !kt)
-        return merr(EINVAL);
+    assert(ikvdb && ikvsh);
 
     kk = ikvdb_wal_replay_kvs_get(ikvsh, cnid);
     if (ev(!kk))
@@ -2792,7 +2787,7 @@ ikvdb_wal_replay_del(
 }
 
 merr_t
-ikvdb_wal_replay_pdel(
+ikvdb_wal_replay_prefix_del(
     struct ikvdb         *ikvdb,
     struct ikvdb_kvs_hdl *ikvsh,
     u64                   cnid,
@@ -2802,8 +2797,7 @@ ikvdb_wal_replay_pdel(
     struct kvdb_kvs *kk;
     merr_t err;
 
-    if (!ikvdb || !ikvsh || !kt)
-        return merr(EINVAL);
+    assert(ikvdb && ikvsh);
 
     kk = ikvdb_wal_replay_kvs_get(ikvsh, cnid);
     if (ev(!kk))
@@ -2821,8 +2815,7 @@ ikvdb_wal_replay_seqno_set(struct ikvdb *ikvdb, uint64_t seqno)
 {
     struct ikvdb_impl *self;
 
-    if (!ikvdb)
-        return;
+    assert(ikvdb);
 
     self = ikvdb_h2r(ikvdb);
 
@@ -2836,8 +2829,7 @@ ikvdb_wal_replay_gen_set(struct ikvdb *ikvdb, u64 gen)
 {
     struct ikvdb_impl *self;
 
-    if (!ikvdb)
-        return;
+    assert(ikvdb);
 
     self = ikvdb_h2r(ikvdb);
 
@@ -2849,8 +2841,7 @@ ikvdb_wal_replay_enable(struct ikvdb *ikvdb)
 {
     struct ikvdb_impl *self;
 
-    if (!ikvdb)
-        return;
+    assert(ikvdb);
 
     self = ikvdb_h2r(ikvdb);
 
@@ -2862,8 +2853,7 @@ ikvdb_wal_replay_disable(struct ikvdb *ikvdb)
 {
     struct ikvdb_impl *self;
 
-    if (!ikvdb)
-        return;
+    assert(ikvdb);
 
     self = ikvdb_h2r(ikvdb);
 

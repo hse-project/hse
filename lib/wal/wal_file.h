@@ -17,10 +17,19 @@ struct wal_replay_gen_info;
 struct wal_replay_info;
 
 struct wal_fileset *
-wal_fileset_open(struct mpool *mp, enum mpool_mclass mclass, size_t capacity, u32 magic, u32 vers);
+wal_fileset_open(
+    struct mpool     *mp,
+    enum mpool_mclass mclass,
+    size_t            capacity,
+    uint32_t          magic,
+    uint32_t          vers);
 
 void
-wal_fileset_close(struct wal_fileset *wfset, u64 ingestseq, u64 ingestgen, u64 txhorizon);
+wal_fileset_close(
+    struct wal_fileset *wfset,
+    uint64_t            ingestseq,
+    uint64_t            ingestgen,
+    uint64_t            txhorizon);
 
 merr_t
 wal_file_open(
@@ -33,7 +42,7 @@ wal_file_open(
 merr_t
 wal_file_close(struct wal_file *walf);
 
-void
+merr_t
 wal_file_get(struct wal_file *walf);
 
 void
@@ -52,7 +61,12 @@ void
 wal_file_minmax_update(struct wal_file *wfile, struct wal_minmax_info *info);
 
 merr_t
-wal_fileset_reclaim(struct wal_fileset *wfset, u64 seqno, u64 gen, u64 txhorizon, bool closing);
+wal_fileset_reclaim(
+    struct wal_fileset *wfset,
+    uint64_t            seqno,
+    uint64_t            gen,
+    uint64_t            txhorizon,
+    bool                closing);
 
 merr_t
 wal_file_complete(struct wal_fileset *wfset, struct wal_file *wfile);
@@ -61,7 +75,7 @@ merr_t
 wal_fileset_replay(
     struct wal_fileset          *wfset,
     struct wal_replay_info      *rinfo,
-    uint                        *cnt_out,
+    uint32_t                    *cnt_out,
     struct wal_replay_gen_info **rginfo_out);
 
 void
