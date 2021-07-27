@@ -1050,7 +1050,7 @@ finalize_log_structure(
 
     i = vsnprintf(msg_buf, MAX_STRUCTURED_DATA_LENGTH, fmt, args);
 
-    if (!hse_gparams.gp_logging.enabled) {
+    if (!hse_gparams.gp_logging.structured) {
         jc.json_buf = msg_buf;
         slog_prefix = "";
         goto emit_logs;
