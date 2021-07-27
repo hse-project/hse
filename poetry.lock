@@ -157,7 +157,7 @@ python-versions = ">=2.7,!=3.0.*,!=3.1.*,!=3.2.*,!=3.3.*"
 
 [[package]]
 name = "meson"
-version = "0.58.0"
+version = "0.58.2"
 description = "A high performance build system"
 category = "dev"
 optional = false
@@ -176,11 +176,14 @@ python-versions = "*"
 
 [[package]]
 name = "ninja"
-version = "1.10.0.post2"
+version = "1.10.0.post3"
 description = "Ninja is a small build system with a focus on speed"
 category = "dev"
 optional = false
 python-versions = "*"
+
+[package.extras]
+test = ["codecov (>=2.0.5)", "coverage (>=4.2)", "flake8 (>=3.0.4)", "pytest (>=4.5.0)", "pytest-cov (>=2.7.1)", "pytest-runner (>=5.1)", "pytest-virtualenv (>=1.7.0)", "virtualenv (>=15.0.3)"]
 
 [[package]]
 name = "packaging"
@@ -323,7 +326,7 @@ testing = ["pytest (>=4.6)", "pytest-checkdocs (>=1.2.3)", "pytest-flake8", "pyt
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.6"
-content-hash = "bf51d86368734843ba58ac65d311f052b31da98beaa5d80de05096eb46ebcae1"
+content-hash = "1023f368137da9020362c5b8bd253eaeb7e467aa30421addc70db5c33b71d3c0"
 
 [metadata.files]
 appdirs = [
@@ -509,24 +512,22 @@ markupsafe = [
     {file = "MarkupSafe-1.1.1.tar.gz", hash = "sha256:29872e92839765e546828bb7754a68c418d927cd064fd4708fab9fe9c8bb116b"},
 ]
 meson = [
-    {file = "meson-0.58.0.tar.gz", hash = "sha256:f4820df0bc969c99019fd4af8ca5f136ee94c63d8a5ad67e7eb73bdbc9182fdd"},
+    {file = "meson-0.58.2.tar.gz", hash = "sha256:7634ec32955d3f897d623b88e9d2988451035f43d73c17a29caf767387baedb7"},
 ]
 mypy-extensions = [
     {file = "mypy_extensions-0.4.3-py2.py3-none-any.whl", hash = "sha256:090fedd75945a69ae91ce1303b5824f428daf5a028d2f6ab8a299250a846f15d"},
     {file = "mypy_extensions-0.4.3.tar.gz", hash = "sha256:2d82818f5bb3e369420cb3c4060a7970edba416647068eb4c5343488a6c604a8"},
 ]
 ninja = [
-    {file = "ninja-1.10.0.post2-py2-none-macosx_10_6_x86_64.whl", hash = "sha256:a1a9d9455623a3f45557fff6eb5abb3e70910dde28cfb9239e3ca14249149f55"},
-    {file = "ninja-1.10.0.post2-py2-none-manylinux1_i686.whl", hash = "sha256:99c6102ae9a8981afe4d06f92508dbeab1e28ec89783fb703411166f4e13c9ee"},
-    {file = "ninja-1.10.0.post2-py2-none-manylinux1_x86_64.whl", hash = "sha256:4252ce532304841e47478bb61710fcf9940cf2c91731303490762b6e4f23fd2b"},
-    {file = "ninja-1.10.0.post2-py2-none-win32.whl", hash = "sha256:24acc95359308d11243386cf9f076bdc95f438ef6a4e0e357e7c122c5e02816d"},
-    {file = "ninja-1.10.0.post2-py2-none-win_amd64.whl", hash = "sha256:16fc1bea52a36a91a0e80c3b221d2c1bc9bcf04d0564da9344e349b8c5efd5c6"},
-    {file = "ninja-1.10.0.post2-py3-none-macosx_10_6_x86_64.whl", hash = "sha256:1d9ed3b5fdeb646516f54bec92453dcb3000d6771c2fea56451444c988a23e29"},
-    {file = "ninja-1.10.0.post2-py3-none-manylinux1_i686.whl", hash = "sha256:5c3a8cb54aaaf5d4f692d65121ef47b3e43dea123a6563153d9d97631c0adf4f"},
-    {file = "ninja-1.10.0.post2-py3-none-manylinux1_x86_64.whl", hash = "sha256:fb1ae96811a9b73773014b8a21d710b89d7d5f765427a5e2541e7fb9d530fdd5"},
-    {file = "ninja-1.10.0.post2-py3-none-win32.whl", hash = "sha256:06a72090f5c5516e57f12699644179504a77585bed6d5f8be9e67219a398ec80"},
-    {file = "ninja-1.10.0.post2-py3-none-win_amd64.whl", hash = "sha256:c6059bd04ad235e2326b39bc71bb7989de8d565084b5f269557704747b2910fa"},
-    {file = "ninja-1.10.0.post2.tar.gz", hash = "sha256:621fd73513a9bef0cb82e8c531a29ef96580b4d6e797f833cce167054ad812f8"},
+    {file = "ninja-1.10.0.post3-py2.py3-none-macosx_10_9_x86_64.whl", hash = "sha256:9b571ec9501b578668a6ad70dd0d841deb16607cf5b8936a43069de36c9650f6"},
+    {file = "ninja-1.10.0.post3-py2.py3-none-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:6a2a0b3c29bcd276464677162947a2b75b0dba5aa518f8fd287b47e4861f1adf"},
+    {file = "ninja-1.10.0.post3-py2.py3-none-manylinux_2_17_ppc64le.manylinux2014_ppc64le.whl", hash = "sha256:a2d36f997bed67b596e818a9421828fa40ed638ba548565bab68a958dbd14247"},
+    {file = "ninja-1.10.0.post3-py2.py3-none-manylinux_2_17_s390x.manylinux2014_s390x.whl", hash = "sha256:bf02773504f793a11738670939a755df57884acdb6a1091adf4c619a9acf3bef"},
+    {file = "ninja-1.10.0.post3-py2.py3-none-manylinux_2_5_i686.manylinux1_i686.whl", hash = "sha256:2199dd10e046182fa288424344fddd6f09a6446c494abeafd6daeb8202839baf"},
+    {file = "ninja-1.10.0.post3-py2.py3-none-manylinux_2_5_x86_64.manylinux1_x86_64.whl", hash = "sha256:0a00849cbc75c916cde35c345ca392109721d05753080b00ee7d2f58d028e169"},
+    {file = "ninja-1.10.0.post3-py2.py3-none-win32.whl", hash = "sha256:c6a9dab4dc404326f3b8e31d0200c890e342247e106441708aed907d8f96f5d7"},
+    {file = "ninja-1.10.0.post3-py2.py3-none-win_amd64.whl", hash = "sha256:c3d68c3de771d37b7511dda5c81030c24fdf95763309e61812eb79208b679179"},
+    {file = "ninja-1.10.0.post3.tar.gz", hash = "sha256:8d328888b5bff8a4adc88c4f84e074e31d0b4195459395f8f3c47b07e5d3c0f9"},
 ]
 packaging = [
     {file = "packaging-20.9-py2.py3-none-any.whl", hash = "sha256:67714da7f7bc052e064859c05c595155bd1ee9f69f76557e21f051443c20947a"},

@@ -12,7 +12,7 @@ project(
         'buildtype=debugoptimized',
         'warning_level=2',
     ],
-    meson_version: '>=0.57.0',
+    meson_version: '>=0.58.0',
 )
 
 pkg = import('pkgconfig')
@@ -450,30 +450,7 @@ endif
 
 subdir('tools')
 
-path = run_command(
-    'sh',
-    '-c',
-    'echo $PATH',
-    check: true,
-).stdout().strip()
-path = '@0@:@1@'.format(
-    ':'.join(executable_paths),
-    path,
-)
-
-ld_library_path = run_command(
-    'sh',
-    '-c',
-    'echo $LD_LIBRARY_PATH',
-    check: true,
-).stdout().strip()
-ld_library_path = '@0@:@1@'.format(
-    ':'.join(library_paths),
-    ld_library_path,
-)
-
-run_env.set('PATH', path)
-run_env.set('LD_LIBRARY_PATH', ld_library_path)
+run_env.append('PATH', executable_paths)
 
 if hse_tests.length() > 0
     if 'unit' in hse_tests
@@ -499,35 +476,6 @@ run_target(
 )
 
 if not meson.is_subproject()
-    pkg_config_path = run_command(
-        'sh',
-        '-c',
-        'echo $PKG_CONFIG_PATH',
-        check: true,
-    ).stdout().strip()
-    run_env.set(
-        'PKG_CONFIG_PATH',
-        '@0@:@1@:@2@'.format(
-            meson.project_build_root() / 'meson-uninstalled',
-            ':'.join(get_option('pkg_config_path')),
-            pkg_config_path
-        )
-    )
-
-    shell = run_command(
-        'sh',
-        '-c',
-        'echo $SHELL',
-        check: true,
-    ).stdout().strip()
-    run_target(
-        'shell',
-        command: [
-            shell,
-        ],
-        env: run_env,
-    )
-
     if fs.exists(meson.project_source_root() / '.git')
         git_hooks = find_program('scripts' / 'dev' / 'git-hooks', required: true)
         run_target(

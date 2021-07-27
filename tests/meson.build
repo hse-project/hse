@@ -1,14 +1,4 @@
-# TODO: On upgrade to 0.58, remove hse-python reference
-# https://mesonbuild.com/Reference-manual.html#environment-object
-if 'python' in bindings
-    run_env.set(
-        'PYTHONPATH',
-        hse_python.get_variable('project_build_root'),
-        meson.current_source_dir(),
-    )
-else
-    run_env.set('PYTHONPATH', meson.current_source_dir())
-endif
+run_env.append('PYTHONPATH', meson.current_source_dir())
 
 pytest = find_program('pytest', required: true)
 
