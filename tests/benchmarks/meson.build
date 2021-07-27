@@ -7,35 +7,35 @@ elif not get_option('cli')
 endif
 
 tests = {
-    'test_kmt_ro.py': {
-        'suite': ['kmt', 'github'],
+    'test_kmt_ro': {
+        'suite': 'kmt',
         'timeout': 600,
         'depends': [
             tool_targets['kmt'],
         ],
     },
-    'test_kmt_rw.py': {
-        'suite': ['kmt', 'github'],
+    'test_kmt_rw': {
+        'suite': 'kmt',
         'timeout': 600,
         'depends': [
             tool_targets['kmt'],
         ],
     },
-    'test_ycsb_2tb_putget.py': {
+    'test_ycsb_2tb_putget': {
         'suite': 'ycsb',
         'timeout': 0,
         'depends': [
             hse_cli,
         ],
     },
-    'test_ycsb_2tb_scan.py': {
+    'test_ycsb_2tb_scan': {
         'suite': 'ycsb',
         'timeout': 0,
         'depends': [
             hse_cli,
         ],
     },
-    'test_dbbench.py': {
+    'test_dbbench': {
         'suite': 'dbbench',
         'timeout': 0,
     },
@@ -53,7 +53,7 @@ if not fs.exists(home_dir)
 endif
 
 foreach t, params : tests
-    path = meson.current_source_dir() / t
+    path = meson.current_source_dir() / t + '.py'
     testname = fs.stem(path)
 
     benchmark(
@@ -65,7 +65,7 @@ foreach t, params : tests
             home_dir,
         ],
         env: run_env,
-        depends: params.get('depends', []) + [hse_python_depends],
+        depends: [hse_python_depends, params.get('depends', [])],
         suite: params.get('suite', ''),
         timeout: params.get('timeout', 60),
     )
