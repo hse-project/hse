@@ -13,7 +13,7 @@ from tools.report import (
     save_report_as_json,
     save_report_to_db,
 )
-from tools.storageinfo import save_diskstats, save_mpool_info, generate_diskstats_report
+from tools.storageinfo import save_diskstats, save_kvdb_info, generate_diskstats_report
 
 
 class CompletedCommand:
@@ -154,7 +154,7 @@ class BaseTest:
             if is_device_monitoring_enabled:
                 diskstats_before_path = save_diskstats(dest_dir, "BEFORE")
 
-            save_mpool_info(dest_dir, "BEFORE")
+            save_kvdb_info(dest_dir, "BEFORE")
 
             fd = open(out_path, "w")
             stack.enter_context(fd)
@@ -200,7 +200,7 @@ class BaseTest:
         end_timestamp_ms = int(time.time() * 1000)
         self.end_timestamp_ms = end_timestamp_ms
 
-        save_mpool_info(dest_dir, "AFTER")
+        save_kvdb_info(dest_dir, "AFTER")
 
         if is_device_monitoring_enabled:
             diskstats_after_path = save_diskstats(dest_dir, "AFTER")

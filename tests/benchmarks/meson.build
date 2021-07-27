@@ -9,12 +9,14 @@ endif
 tests = {
     'test_kmt_ro': {
         'suite': 'kmt',
+        'timeout': 600,
         'depends': [
             tool_targets['kmt'],
         ],
     },
     'test_kmt_rw': {
         'suite': 'kmt',
+        'timeout': 600,
         'depends': [
             tool_targets['kmt'],
         ],
@@ -33,32 +35,37 @@ tests = {
             hse_cli,
         ],
     },
-    'test_dbbench.py': {
+    'test_dbbench': {
         'suite': 'dbbench',
         'timeout': 0,
     },
 }
 
+# benchmarks may consume a great deal of space, so confine them to reuse a single home dir
+home_dir = tests_dir / 'benchmark'
+
+if not fs.exists(home_dir)
+    run_command(
+        'mkdir',
+        home_dir,
+        check: true,
+    )
+endif
+
 foreach t, params : tests
-    home_dir = tests_dir / t
-    if not fs.exists(home_dir)
-        run_command(
-            'mkdir',
-            home_dir,
-            check: true,
-        )
-    endif
+    path = meson.current_source_dir() / t + '.py'
+    testname = fs.stem(path)
 
     benchmark(
-        t,
+        testname,
         python,
         args: [
-            '@0@.py'.format(t),
+            path,
             '--home',
             home_dir,
         ],
         env: run_env,
-        depends: params.get('depends', []),
+        depends: [hse_python_depends, params.get('depends', [])],
         suite: params.get('suite', ''),
         timeout: params.get('timeout', 60),
     )
