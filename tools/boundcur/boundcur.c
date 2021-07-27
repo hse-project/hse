@@ -172,6 +172,7 @@ main(
 	char    **argv)
 {
 	struct parm_groups *pg = NULL;
+	struct svec         hse_gparms = {};
 	struct svec         db_oparms = {};
 	struct svec         kv_cparms = {};
 	struct svec         kv_oparms = {};
@@ -225,7 +226,7 @@ main(
 	mpool = argv[optind++];
 	kvs   = argv[optind++];
 
-	rc = pg_create(&pg, PG_KVDB_OPEN, PG_KVS_OPEN, PG_KVS_CREATE, NULL);
+	rc = pg_create(&pg, PG_HSE_GLOBAL, PG_KVDB_OPEN, PG_KVS_OPEN, PG_KVS_CREATE, NULL);
 	if (rc)
 		fatal(rc, "pg_create");
 
@@ -244,13 +245,14 @@ main(
 		break;
 	}
 
+	rc = rc ?: svec_append_pg(&hse_gparms, pg, PG_HSE_GLOBAL, NULL);
 	rc = rc ?: svec_append_pg(&db_oparms, pg, PG_KVDB_OPEN, NULL);
 	rc = rc ?: svec_append_pg(&kv_cparms, pg, PG_KVS_CREATE, NULL);
 	rc = rc ?: svec_append_pg(&kv_oparms, pg, PG_KVS_OPEN, NULL);
 	if (rc)
 		fatal(rc, "svec_append_pg failed");
 
-	kh_init(mpool, &db_oparms);
+	kh_init(mpool, &hse_gparms, &db_oparms);
 
 	g_ti = malloc(sizeof(*g_ti) * opts.nthread);
 	if (!g_ti)
@@ -269,6 +271,7 @@ main(
 	kh_wait();
 	kh_fini();
 
+	svec_reset(&hse_gparms);
 	svec_reset(&db_oparms);
 	svec_reset(&kv_cparms);
 	svec_reset(&kv_oparms);

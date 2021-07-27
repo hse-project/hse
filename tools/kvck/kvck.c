@@ -31,6 +31,7 @@
 const char *progname;
 
 struct parm_groups *pg;
+struct svec         hse_gparm;
 struct svec         db_oparm;
 
 struct diag_kvdb_kvs_list kvs_tab[HSE_KVS_COUNT_MAX] = {};
@@ -322,7 +323,7 @@ main(int argc, char **argv)
 
     progname = (progname = strrchr(argv[0], '/')) ? progname + 1 : argv[0];
 
-    rc = pg_create(&pg, PG_KVDB_OPEN, NULL);
+    rc = pg_create(&pg, PG_HSE_GLOBAL, PG_KVDB_OPEN, NULL);
     if (rc)
         fatal("pg_create");
 
@@ -368,13 +369,16 @@ main(int argc, char **argv)
             break;
     }
 
+    rc = svec_append_pg(&hse_gparm, pg, PG_HSE_GLOBAL, NULL);
+    if (rc)
+        fatal("svec_apppend_pg failed: %d", rc);
     rc = svec_append_pg(&db_oparm, pg, PG_KVDB_OPEN, NULL);
     if (rc)
         fatal("svec_apppend_pg failed: %d", rc);
 
     kc_print_reg(verbose, (void *)print_line);
 
-    err = hse_init(mpool, 0, NULL);
+    err = hse_init(mpool, hse_gparm.strc, hse_gparm.strv);
     if (err) {
         hse_strerror(err, errbuf, sizeof(errbuf));
         fatal(
@@ -452,6 +456,7 @@ out:
 
     pg_destroy(pg);
 
+    svec_reset(&hse_gparm);
     svec_reset(&db_oparm);
 
     hse_fini();

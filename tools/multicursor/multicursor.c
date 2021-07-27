@@ -262,6 +262,7 @@ int
 main(int argc, char **argv)
 {
 	struct parm_groups *pg = NULL;
+	struct svec         hse_gparms = {};
 	struct svec         kvdb_oparms = {};
 	struct svec         kvs_cparms = {};
 	struct svec         kvs_oparms = {};
@@ -274,7 +275,7 @@ main(int argc, char **argv)
 
 	progname = basename(argv[0]);
 
-	rc = pg_create(&pg, PG_KVDB_OPEN, PG_KVS_OPEN, PG_KVS_CREATE, NULL);
+	rc = pg_create(&pg, PG_HSE_GLOBAL, PG_KVDB_OPEN, PG_KVS_OPEN, PG_KVS_CREATE, NULL);
 	if (rc)
 		fatal(rc, "pg_create");
 
@@ -348,6 +349,7 @@ main(int argc, char **argv)
 		break;
 	}
 
+	rc = rc ?: svec_append_pg(&hse_gparms, pg, PG_HSE_GLOBAL, NULL);
 	rc = rc ?: svec_append_pg(&kvdb_oparms, pg, PG_KVDB_OPEN, NULL);
 	rc = rc ?: svec_append_pg(&kvs_cparms, pg, PG_KVS_CREATE, NULL);
 	rc = rc ?: svec_append_pg(&kvs_oparms, pg, PG_KVS_OPEN, "transactions_enable=1", NULL);
@@ -366,7 +368,7 @@ main(int argc, char **argv)
 	}
 	memset(g_ti, 0, sz);
 
-	kh_init(mpool, &kvdb_oparms);
+	kh_init(mpool, &hse_gparms, &kvdb_oparms);
 
 	kh_register(KH_FLAG_DETACH, &print_stats, NULL);
 	sleep(1); /* wait for print_stats to detach itself */
@@ -390,6 +392,10 @@ main(int argc, char **argv)
 	kh_fini();
 
 	pg_destroy(pg);
+	svec_reset(&hse_gparms);
+	svec_reset(&kvdb_oparms);
+	svec_reset(&kvs_cparms);
+	svec_reset(&kvs_oparms);
 
 	free(g_ti);
 

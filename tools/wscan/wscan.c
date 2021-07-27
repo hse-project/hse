@@ -83,6 +83,7 @@ main(int argc, char **argv)
 
     const char *           mpname, *dsname, *kvname, *prog;
     struct parm_groups *   pg = NULL;
+    struct svec            hse_gparm = {};
     struct svec            db_oparm = {};
     struct svec            kv_oparm = {};
     struct hse_kvs_cursor *cur;
@@ -113,7 +114,7 @@ main(int argc, char **argv)
     c0 = 1;
     get = 0;
 
-    rc = pg_create(&pg, PG_KVDB_OPEN, PG_KVS_OPEN, NULL);
+    rc = pg_create(&pg, PG_HSE_GLOBAL, PG_KVDB_OPEN, PG_KVS_OPEN, NULL);
     if (rc)
         fatal(rc, "pg_create");
 
@@ -166,6 +167,7 @@ main(int argc, char **argv)
             break;
     }
 
+    rc = rc ?: svec_append_pg(&hse_gparm, pg, PG_HSE_GLOBAL, NULL);
     rc = rc ?: svec_append_pg(&db_oparm, pg, "perfc_enable=0", PG_KVDB_OPEN, NULL);
     rc = rc ?: svec_append_pg(&kv_oparm, pg, "cn_mcache_wbt=0", "cn_bloom_lookup=0",
         PG_KVS_OPEN, NULL);
@@ -176,8 +178,7 @@ main(int argc, char **argv)
      * MAIN: Everything else is preamble to get to here.
      * This is the stuff you really wanted to see.
      */
-
-    err = hse_init(mpname, 0, NULL);
+    err = hse_init(mpname, hse_gparm.strc, hse_gparm.strv);
     if (err)
         fatal(err, "failed to initialize kvdb");
 
@@ -422,6 +423,7 @@ error:
         fatal(err, errmsg);
 
     pg_destroy(pg);
+    svec_reset(&hse_gparm);
     svec_reset(&db_oparm);
     svec_reset(&kv_oparm);
 

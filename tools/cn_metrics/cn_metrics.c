@@ -543,13 +543,14 @@ main(int argc, char **argv)
     hse_err_t          rc;
 
     struct parm_groups *pg = NULL;
+    struct svec         hse_gparm = {};
     struct svec         db_oparm = {};
     struct svec         kv_oparm = {};
 
     progname = strrchr(argv[0], '/');
     progname = progname ? progname + 1 : argv[0];
 
-    rc = pg_create(&pg, PG_KVDB_OPEN, PG_KVS_OPEN, NULL);
+    rc = pg_create(&pg, PG_HSE_GLOBAL, PG_KVDB_OPEN, PG_KVS_OPEN, NULL);
     if (rc)
         fatal(rc, "pg_create");
 
@@ -572,12 +573,13 @@ main(int argc, char **argv)
             break;
     }
 
+    rc = rc ?: svec_append_pg(&hse_gparm, pg, PG_HSE_GLOBAL, NULL);
     rc = rc ?: svec_append_pg(&db_oparm, pg, "perfc_enable=0", PG_KVDB_OPEN, "read_only=1", NULL);
     rc = rc ?: svec_append_pg(&kv_oparm, pg, PG_KVS_OPEN, "cn_diag_mode=1", "cn_maint_disable=1", NULL);
     if (rc)
         fatal(rc, "svec_apppend_pg failed");
 
-    rc = hse_init(opt.kvdb_home, 0, NULL);
+    rc = hse_init(opt.kvdb_home, hse_gparm.strc, hse_gparm.strv);
     if (rc) {
         errmsg = "kvdb_init";
         goto done;
@@ -645,6 +647,7 @@ done:
 
     hse_fini();
     pg_destroy(pg);
+    svec_reset(&hse_gparm);
     svec_reset(&kv_oparm);
     svec_reset(&db_oparm);
 

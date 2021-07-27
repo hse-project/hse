@@ -13,15 +13,14 @@
 #include <bsd/string.h>
 
 struct grp {
-    char            grp_name[PG_NAME_MAX];
-    struct svec     grp_svec;
-    struct grp     *grp_next;
+    char        grp_name[PG_NAME_MAX];
+    struct svec grp_svec;
+    struct grp *grp_next;
 };
 
 struct parm_groups {
-    char pg_ident[4];
-    struct grp     *pg_grps;
-    struct svec     pg_store;
+    struct grp *pg_grps;
+    struct svec pg_store;
 };
 
 static struct svec *
