@@ -26,7 +26,7 @@ struct hse_gparams {
     } gp_socket;
     struct {
         bool enabled;
-        /* bool structured; */
+        bool structured;
         enum log_destination destination;
         log_priority_t       level;
         uint64_t             squelch_ns;

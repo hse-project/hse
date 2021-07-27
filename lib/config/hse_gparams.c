@@ -97,13 +97,12 @@ static const struct param_spec pspecs[] = {
 			.as_bool = true,
 		},
 	},
-	/* [HSE_TODO]: Implement this toggle, currently everything seems to be structured.
 	{
 		.ps_name = "logging.structured",
 		.ps_description = "Whether logging is structured",
 		.ps_flags = 0,
 		.ps_type = PARAM_TYPE_BOOL,
-		.ps_offset = offsetof(struct hse_gparams, logging.structured),
+		.ps_offset = offsetof(struct hse_gparams, gp_logging.structured),
 		.ps_size = sizeof(bool),
 		.ps_convert = param_default_converter,
 		.ps_validate = param_default_validator,
@@ -111,7 +110,6 @@ static const struct param_spec pspecs[] = {
 			.as_bool = false,
 		},
 	},
-	*/
 	{
 		.ps_name = "logging.destination",
 		.ps_description = "Where log messages should be written to",
