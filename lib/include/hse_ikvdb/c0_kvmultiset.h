@@ -63,6 +63,9 @@ c0kvms_create(
     struct c0_kvmultiset **multiset);
 
 void
+c0kvms_destroy_cache(void **stashp);
+
+void
 c0kvms_seqno_set(struct c0_kvmultiset *handle, uint64_t kvdb_seq);
 
 u64

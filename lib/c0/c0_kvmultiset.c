@@ -855,6 +855,20 @@ c0kvms_create(u32 num_sets, atomic64_t *kvdb_seq, void **stashp, struct c0_kvmul
     return 0;
 }
 
+void
+c0kvms_destroy_cache(void **stashp)
+{
+    struct c0_kvmultiset_impl *kvms = stashp ? *stashp : NULL;
+    int i;
+
+    if (kvms && atomic_ptr_cas(kvms->c0ms_stashp, kvms, NULL)) {
+        for (i = 0; i < kvms->c0ms_num_sets; ++i)
+            c0kvs_destroy(kvms->c0ms_sets[i]);
+
+        kmem_cache_free(c0kvms_cache, kvms);
+    }
+}
+
 static void
 c0kvms_destroy(struct c0_kvmultiset_impl *mset)
 {

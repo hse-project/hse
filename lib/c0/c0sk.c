@@ -632,6 +632,7 @@ c0sk_close(struct c0sk *handle)
 
     destroy_workqueue(self->c0sk_wq_ingest);
     destroy_workqueue(self->c0sk_wq_maint);
+    c0kvms_destroy_cache(&self->c0sk_stash);
     cv_destroy(&self->c0sk_kvms_cv);
     mutex_destroy(&self->c0sk_sync_mutex);
     mutex_destroy(&self->c0sk_kvms_mutex);
