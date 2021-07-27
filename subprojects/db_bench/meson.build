@@ -12,7 +12,11 @@ project(
         'warning_level=2',
     ],
 )
-    
+
+# meson does not appear to be able to use subproject's
+# compile flags specified via default option.
+add_project_arguments('-std=c++11', language: 'cpp' )
+
 db_bench_cpp_args = [
     '-DHSE_EXPERIMENTAL',
     '-DHAVE_FREAD',
