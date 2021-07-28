@@ -7,9 +7,9 @@ other HSE project repos.
 The second section contains information on contributing to this specific repo.
 
 
-# General Information on Contributing
+## General Information on Contributing
 
-## Prior to Starting Work
+### Prior to Starting Work
 
 * Review the [RFC process](https://github.com/hse-project/rfcs) to determine
 if the work you are planning requires an RFC.
@@ -19,7 +19,7 @@ to get feedback on minor features or enhancements not requiring an RFC.
 * File an issue in the appropriate repo using the predefined templates.
 
 
-## Submitting a Pull Request
+### Submitting a Pull Request
 
 * Submit pull requests (PRs) following the GitHub
 [fork and pull model](https://docs.github.com/en/github/collaborating-with-pull-requests/getting-started/about-collaborative-development-models#fork-and-pull-model).
@@ -36,7 +36,7 @@ the change.
 your PR to verify there is no regression.
 
 
-## Code Style
+### Coding Style
 
 All the C code within HSE conforms to the defined `clang-format` file. All
 Python code you may find in the code base conforms entirely to the `black`
@@ -47,9 +47,9 @@ Please make sure all contributions adhere to the aforementioned
 styles.
 
 
-# Information on Contributing to this Repo
+## Information on Contributing to this Repo
 
-## Cloning
+### Cloning
 
 You can clone HSE through both HTTPS and SSH protocols.
 
@@ -60,7 +60,7 @@ git clone https://github.com/hse-project/hse.git
 git clone git@github.com:hse-project/hse.git
 ```
 
-## Git Hooks
+### Git Hooks
 
 HSE has some Git hooks in its source tree that you are welcome to use.
 
@@ -73,7 +73,7 @@ ninja -C build git-hooks
 Either of the above commands will ensure that Git hooks are properly setup for
 the project.
 
-## Building
+### Building
 
 HSE uses the [Meson build system](https://mesonbuild.com). You can obtain a copy
 of `meson` from PyPI or through your system repositories. HSE currently needs a
@@ -101,7 +101,7 @@ is important to reduce issues like memory leaks and undefined behavior when
 developing HSE. Common sanitizers you may want to use during development are
 `address` and `undefined`.
 
-## Installing
+### Installing
 
 After building HSE, it can be installed using the following:
 
@@ -120,7 +120,7 @@ If HSE was installed using Meson, then you can run the following to uninstall:
 ninja -C build uninstall
 ```
 
-## Testing
+### Testing
 
 Test can be ran using the following:
 
@@ -138,7 +138,7 @@ meson test -C build -t 9 ikvdb_test
 If you choose to add a feature or a bug fix to HSE, make sure to add any
 necessary tests to confirm that the contribution works as it should.
 
-### Suites
+### Test Suites
 
 HSE has the following test suites:
 
@@ -167,7 +167,7 @@ meson test -C build --suite c0
 
 The default test setup for HSE will run *all* test suites.
 
-## Targets
+### Targets
 
 Targets that you may find useful during HSE development:
 
@@ -189,9 +189,7 @@ To format all code and source files for instance, run the following:
 ninja -C build format
 ```
 
-## Distributing
-
-### Source
+### Distributing Source
 
 If you want to distribute HSE as a source tarball, then the following commands
 should create a tar file in `build/meson-dist`.
@@ -202,7 +200,7 @@ should create a tar file in `build/meson-dist`.
 meson dist -C build --formats gz --no-tests
 ```
 
-### Binary
+### Distributing Binaries
 
 If you want to distribute HSE as a binary tarball, then the following commands
 should build a tar file where `--destdir` is specified.
@@ -213,7 +211,7 @@ cd /tmp
 tar -czf hse.tar.gz hse
 ```
 
-## Python
+### Python
 
 Some of the tests or tools may require various Python dependencies including
 [`hse-python`](https://github.com/hse-project/hse-python). At the root of the
