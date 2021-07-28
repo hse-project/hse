@@ -587,7 +587,7 @@ test_start_phase(struct thread_info *ti, char *message)
 		bar_sync();
 		if (ti->id == 0) {
 			if (!opt.dryrun) {
-				struct svec sv = {};
+				struct svec sv = { 0 };
 				rc = svec_append_pg(&sv, pg, PG_KVDB_OPEN, NULL);
 				if (rc)
 					quit("svec_append_pg: rc %d", rc);
@@ -608,7 +608,7 @@ test_start_phase(struct thread_info *ti, char *message)
 			printf("T%u: hse_kvdb_kvs_open %s\n", ti->id,
 			       ti->kvs_name);
 		if (!opt.dryrun) {
-			struct svec sv = {};
+			struct svec sv = { 0 };
 			rc = svec_append_pg(&sv, pg, PG_KVS_OPEN, NULL);
 			if (rc)
 				quit("svec_append_pg: rc %d", rc);
@@ -1026,7 +1026,7 @@ main(int argc, char **argv)
 	int               rc;
 	uint              i;
 	hse_err_t         err;
-	struct svec       hse_gparm;
+	struct svec       hse_gparm = { 0 };
 
 	gettimeofday(&tv_start, NULL);
 

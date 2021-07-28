@@ -543,9 +543,9 @@ main(int argc, char **argv)
     hse_err_t          rc;
 
     struct parm_groups *pg = NULL;
-    struct svec         hse_gparm = {};
-    struct svec         db_oparm = {};
-    struct svec         kv_oparm = {};
+    struct svec         hse_gparm = { 0 };
+    struct svec         db_oparm = { 0 };
+    struct svec         kv_oparm = { 0 };
 
     progname = strrchr(argv[0], '/');
     progname = progname ? progname + 1 : argv[0];

@@ -284,10 +284,10 @@ long           sync_timeout_ms = 0;
 int            mclass = MP_MED_CAPACITY;
 
 struct parm_groups *pg;
-struct svec         hse_gparms;
-struct svec         db_oparms;
-struct svec         kv_oparms_notxn;
-struct svec         kv_oparms_txn;
+struct svec         hse_gparms = { 0 };
+struct svec         db_oparms = { 0 };
+struct svec         kv_oparms_notxn = { 0 };
+struct svec         kv_oparms_txn = { 0 };
 bool                kvs_txn;
 
 struct suftab {

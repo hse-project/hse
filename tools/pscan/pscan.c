@@ -41,9 +41,9 @@ bool         uniq = false;
 sig_atomic_t sigint;
 
 struct parm_groups *pg;
-struct svec         hse_gparm;
-struct svec         db_oparm;
-struct svec         kv_oparm;
+struct svec         hse_gparm = { 0 };
+struct svec         db_oparm = { 0 };
+struct svec         kv_oparm = { 0 };
 
 /**
  * struct shr - Data shared between pthreads...

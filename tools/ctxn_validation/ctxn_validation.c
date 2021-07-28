@@ -48,9 +48,9 @@ struct hse_kvdb    *kvdb;
 struct hse_kvs     *kvs;
 
 struct parm_groups *pg;
-struct svec         db_oparm;
-struct svec         kv_oparm;
-struct svec         hse_gparm;
+struct svec         db_oparm = { 0 };
+struct svec         kv_oparm = { 0 };
+struct svec         hse_gparm = { 0 };
 
 struct stats {
     ulong       puts_c0;

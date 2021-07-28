@@ -346,13 +346,13 @@ ulong sync_timeout_ms = 0;
 
 struct parm_groups *pg;
 
-struct svec hse_gparm;
-struct svec db_oparms;
-struct svec rids_oparms, rids_cparms;
-struct svec inodes_oparms, inodes_cparms;
-struct svec tombs_oparms, tombs_cparms;
-struct svec data_oparms, data_cparms;
-struct svec empty_parms;
+struct svec hse_gparm = { 0 };
+struct svec db_oparms = { 0 };
+struct svec rids_oparms = { 0 }, rids_cparms = { 0 };
+struct svec inodes_oparms = { 0 }, inodes_cparms = { 0 };
+struct svec tombs_oparms = { 0 }, tombs_cparms = { 0 };
+struct svec data_oparms = { 0 }, data_cparms = { 0 };
+struct svec empty_parms = { 0 };
 
 
 static int
