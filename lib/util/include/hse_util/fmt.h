@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
 #ifndef HSE_PLATFORM_FMT_H
@@ -60,16 +60,5 @@ fmt_hex(char *dst, size_t dst_len, const void *src, size_t src_len)
 {
     return fmt_hexp(dst, dst_len, src, src_len, "0x", 8, "-", "");
 }
-
-/**
- * fmt_time - format %ts as localtime
- * @out: sufficient memory to hold desired output string
- * @sz:  size of %out
- * @ts:  0 for now, < 2billion is unix epoch, else realtime sampled
- *
- * returns: number of bytes in output (null terminated)
- */
-int
-fmt_time(char *out, int sz, u64 ts);
 
 #endif

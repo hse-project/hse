@@ -599,64 +599,6 @@ ikvs_cursor_restore(struct ikvs *kvs, const void *prefix, size_t pfx_len, u64 pf
 }
 
 static void
-cursor_summary_log(struct kvs_cursor_impl *cur)
-{
-    struct cursor_summary *s = &cur->kci_summary;
-    char                   buf[512], gbuf[128], ctime[32], utime[32], pfx[32];
-    int                    i, j, o;
-
-    o = 0;
-    i = s->n_dgen & 3;
-
-    if (cur->kci_pfxlen)
-        fmt_hex(pfx, sizeof(pfx), cur->kci_prefix, cur->kci_pfxlen);
-    else
-        strlcpy(pfx, "(null)", sizeof(pfx));
-
-    if (s->dgen[i]) {
-        /* dgen buffer has wrapped */
-        for (j = 0; j < 4; ++j) {
-            o += sprintf(gbuf + o, "%lu,", (ulong)s->dgen[i]);
-            i = (i + 1) & 3;
-        }
-    } else {
-        for (j = 0; j < i; ++j)
-            o += sprintf(gbuf + o, "%lu,", (ulong)s->dgen[j]);
-        if (i == 0)
-            o += sprintf(gbuf + o, "%u,", 0);
-    }
-    gbuf[--o] = 0;
-
-    fmt_time(ctime, sizeof(ctime), s->created);
-    fmt_time(utime, sizeof(utime), s->updated);
-
-    snprintf(
-        buf,
-        sizeof(buf),
-        "skidx %d pfx %s len %d created %s updated %s dgen %s "
-        "view 0x%lu readc0 %u readcn %u kvms %u kvset %u "
-        "ingest %u trim %u bind %u upd %u eof %d",
-        s->skidx,
-        pfx,
-        cur->kci_pfxlen,
-        ctime,
-        utime,
-        gbuf,
-        (ulong)s->seqno,
-        s->read_c0,
-        s->read_cn,
-        s->n_kvms,
-        s->n_kvset,
-        s->n_dgen,
-        s->n_trim,
-        s->n_bind,
-        s->n_update,
-        cur->kci_eof);
-
-    hse_log(HSE_NOTICE "cursor: %p %s", cur, buf);
-}
-
-static void
 _perfc_readperseek_record(struct kvs_cursor_impl *cur)
 {
     if (!cur->kci_summary.util)
@@ -689,10 +631,8 @@ ikvs_cursor_save(struct kvs_cursor_impl *cur)
     struct ikvs *kvs = cur->kci_kvs;
     u64          tstart;
 
-    if ((kvs->ikv_rp.kvs_debug & 64)) {
-        cursor_summary_log(cur);
+    if ((kvs->ikv_rp.kvs_debug & 64))
         _perfc_readperseek_record(cur);
-    }
 
     tstart = perfc_lat_startl(&kvs->ikv_cd_pc, PERFC_LT_CD_SAVE);
 

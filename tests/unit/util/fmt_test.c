@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
 #include <hse_ut/framework.h>
@@ -146,48 +146,6 @@ MTF_DEFINE_UTEST(fmt, fmt_test)
     }
 
     mapi_safe_free(buf);
-}
-
-MTF_DEFINE_UTEST(fmt, time0)
-{
-    struct timespec ts = { 1513271583, 123456789 };
-    u64             t64 = 1513271583123456789ULL;
-    char            expect[] = "2017-12-14T11:13:03.123456";
-    char            buf[256];
-    int             rc;
-    char *          tm;
-
-    rc = fmt_time(buf, sizeof(buf), t64);
-    printf("t64: %s\n", buf);
-    ASSERT_LE(rc, sizeof(buf));
-    ASSERT_EQ(0, buf[rc]);
-    rc = strcmp(buf, expect);
-    if (rc) {
-        printf("expect: (%s)\n", expect);
-        printf("buf     (%s)\n", buf);
-    }
-    ASSERT_EQ(0, rc);
-
-    rc = fmt_time(buf, sizeof(buf), ts.tv_sec);
-    printf("tv_sec: %s\n", buf);
-    ASSERT_LE(rc, sizeof(buf));
-    ASSERT_EQ(0, buf[rc]);
-
-    tm = "2017-12-14T11:13:03.000000";
-    rc = strcmp(buf, tm);
-    if (rc) {
-        printf("Time miscompare; if the error is just in the hours\n"
-               "place this could be just a bad time zone setting\n");
-        printf("expect: (%s)\n", tm);
-        printf("buf     (%s)\n", buf);
-    }
-    ASSERT_EQ(0, rc);
-
-    rc = fmt_time(buf, sizeof(buf), 0);
-    printf("now: %s\n", buf);
-    ASSERT_LE(rc, sizeof(buf));
-    ASSERT_EQ(0, buf[rc]);
-    ASSERT_NE(0, strcmp(buf, "2017-12-14T11:13:03"));
 }
 
 MTF_END_UTEST_COLLECTION(fmt);
