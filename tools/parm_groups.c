@@ -23,15 +23,55 @@ struct parm_groups {
     struct svec pg_store;
 };
 
+/*
+ * Examples:
+ *    pg_name_match("hse-gparams|gp", "hse-gparams") --> true
+ *    pg_name_match("hse-gparams|gp", "gp") --> true
+ *
+ * Special case:
+ *    pg_name_match("hse-gparams|gp", "hse-gparams|gp") --> true
+ */
+static bool
+pg_name_match(const char *match_list, const char *name)
+{
+    const char *match;
+    const char *match_end;
+    unsigned    match_len;
+    unsigned    name_len;
+
+    if (!strcmp(name, match_list))
+        return true;
+
+    name_len = strlen(name);
+    match = match_list;
+    while (*match) {
+        match_end = strchrnul(match, LIST_SEP_CHAR);
+        match_len = match_end - match;
+        if (match_len == name_len && !strncmp(name, match, name_len))
+            return true;
+        match = match_end;
+        if (*match == LIST_SEP_CHAR)
+            match++;
+    }
+
+    return false;
+}
+
+
 static struct svec *
 pg_find_grp(struct parm_groups *self, const char *name)
 {
     struct grp *g = self->pg_grps;
 
-    while (g && strcmp(g->grp_name, name))
-        g = g->grp_next;
+    while (g) {
 
-    return g ? &g->grp_svec : NULL;
+        if (pg_name_match(g->grp_name, name))
+            return &g->grp_svec;
+
+        g = g->grp_next;
+    }
+
+    return NULL;
 }
 
 static
@@ -177,7 +217,7 @@ svec_append_pg_impl(struct svec *self, struct parm_groups *pg, va_list ap)
 int
 svec_append_pg(struct svec *self, struct parm_groups *pg, ...)
 {
-    int err = 0;;
+    int err = 0;
     va_list ap;
 
     va_start(ap, pg);

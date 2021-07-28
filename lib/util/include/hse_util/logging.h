@@ -86,9 +86,6 @@
 
 extern FILE *logging_file;
 
-void
-_hse_fmt(char *buf, size_t buflen, const char *fmt, ...);
-
 #ifndef NO_ERROR_COUNTER
 
 /* [HSE_REVISIT] a circular-include issue prevents using timer.h constants */

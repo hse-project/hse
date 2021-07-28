@@ -69,38 +69,6 @@ struct hse_log_code {
 
 bool hse_logging_disable_init = false;
 
-void
-_hse_fmt(char *buf, size_t buflen, const char *fmt, ...)
-{
-    va_list ap;
-    size_t  hlen;
-    size_t  copylen;
-    char *  beg;
-
-    if ((buf == NULL) || (buflen < 2))
-        return;
-
-    va_start(ap, fmt);
-    vsnprintf(buf, buflen, fmt, ap);
-    va_end(ap);
-
-    /* Remove the "....[HSE] " from the beginning of the string. */
-    beg = strstr(buf, "[HSE]");
-    if (beg == NULL)
-        return;
-    hlen = (beg - buf) + strlen("[HSE] ");
-    if (strlen(buf) <= hlen)
-        return;
-    copylen = strlen(buf + hlen); /* copylen >= 1 */
-    memmove(buf, buf + hlen, copylen);
-
-    /* Remove potential trailing \n and add a 0 at the end */
-    if (buf[copylen - 1] == '\n')
-        buf[copylen - 1] = 0;
-    else
-        buf[copylen] = 0;
-}
-
 /**
  * _hse_consume_one_async() - log one entry of the circular buffer.
  * @entry: entry in the circular buffer that needs to be logged.
@@ -112,6 +80,7 @@ static void
 _hse_consume_one_async(struct hse_log_async_entry *entry)
 {
     u32 source_file_len;
+    const char *slog_prefix = hse_gparams.gp_logging.structured ? "@cee:" : "";
 
     source_file_len = strlen(entry->ae_buf);
     if (source_file_len >= (sizeof(entry->ae_buf) - 2))
@@ -120,7 +89,7 @@ _hse_consume_one_async(struct hse_log_async_entry *entry)
 
     entry->ae_buf[sizeof(entry->ae_buf) - 1] = 0;
 
-    hse_slog_emit(entry->ae_priority, "@cee:%s\n", entry->ae_buf + source_file_len + 1);
+    hse_slog_emit(entry->ae_priority, "%s%s\n", slog_prefix, entry->ae_buf + source_file_len + 1);
 }
 
 /**
@@ -590,8 +559,6 @@ _hse_log(
     char *                   int_fmt = hse_logging_inf.mli_fmt_buf;
     bool                     res = false;
     unsigned long            flags = 0;
-
-    assert(hse_gparams.gp_logging.enabled);
 
     if (priority > hse_gparams.gp_logging.level)
         return;
@@ -1077,10 +1044,17 @@ finalize_log_structure(
     int                 i, j;
     struct json_context jc = { 0 };
     char *              msg_buf;
+    const char *        slog_prefix = "@cee:";
 
     msg_buf = hse_logging_inf.mli_nm_buf;
 
     i = vsnprintf(msg_buf, MAX_STRUCTURED_DATA_LENGTH, fmt, args);
+
+    if (!hse_gparams.gp_logging.structured) {
+        jc.json_buf = msg_buf;
+        slog_prefix = "";
+        goto emit_logs;
+    }
 
     jc.json_buf = hse_logging_inf.mli_json_buf;
     jc.json_buf_sz = MAX_STRUCTURED_DATA_LENGTH;
@@ -1101,10 +1075,11 @@ finalize_log_structure(
     json_element_end(&jc);
     json_element_end(&jc);
 
+  emit_logs:
     if (async)
         _hse_log_post_async(source_file, source_line, priority, jc.json_buf);
     else
-        hse_slog_emit(priority, "@cee:%s\n", jc.json_buf);
+        hse_slog_emit(priority, "%s%s\n", slog_prefix, jc.json_buf);
 }
 
 static const char *pri_name[] = {
@@ -1292,6 +1267,9 @@ hse_slog_internal(int priority, const char *fmt, ...)
     va_list       payload;
     const char *  buf;
     unsigned long flags = 0;
+
+    if (!hse_gparams.gp_logging.structured)
+        return;
 
     if (priority > hse_gparams.gp_logging.level || !hse_gparams.gp_logging.enabled)
         return;
