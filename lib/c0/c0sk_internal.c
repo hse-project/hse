@@ -751,10 +751,7 @@ exit_err:
      * media, so we release the kvms before we start teardown to allow
      * any kvms waiting on us to run concurrently with our teardown.
      */
-    c0kvms_getref(kvms);
     c0kvms_ingested(kvms);
-    c0sk_release_multiset(c0sk, kvms);
-    c0sk_signal_waiters(c0sk, kvms_gen);
 
     for (i = 0; i < HSE_KVS_COUNT_MAX; ++i) {
         if (ingest->c0iw_bldrs[i] == 0)
@@ -773,7 +770,8 @@ exit_err:
         ingest->gencur = c0kvms_gen_current();
     }
 
-    c0kvms_putref(kvms);
+    c0sk_release_multiset(c0sk, kvms);
+    c0sk_signal_waiters(c0sk, kvms_gen);
 }
 
 /**

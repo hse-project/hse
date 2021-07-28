@@ -32,7 +32,7 @@ mapi_pre(struct mtf_test_info *lcl_ti)
     g_txn_horizon = 0;
     MOCK_SET(viewset, _viewset_horizon);
 
-    err = kvdb_pfxlock_create(&kpl, (void *)-1);
+    err = kvdb_pfxlock_create((void *)-1, &kpl);
     ASSERT_EQ_RET(0, err, -1);
     return 0;
 }
@@ -56,13 +56,13 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_pfxlock_test, basic, mapi_pre, mapi_post)
     struct kvdb_ctxn_pfxlock *txn1, *txn2, *txn3;
 
     /* Begin txns */
-    err = kvdb_ctxn_pfxlock_create(&txn1, kpl, 10);
+    err = kvdb_ctxn_pfxlock_create(kpl, 10, &txn1);
     ASSERT_EQ(0, err);
 
-    err = kvdb_ctxn_pfxlock_create(&txn2, kpl, 10);
+    err = kvdb_ctxn_pfxlock_create(kpl, 10, &txn2);
     ASSERT_EQ(0, err);
 
-    err = kvdb_ctxn_pfxlock_create(&txn3, kpl, 10);
+    err = kvdb_ctxn_pfxlock_create(kpl, 10, &txn3);
     ASSERT_EQ(0, err);
 
     /* Put */
@@ -93,10 +93,10 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_pfxlock_test, write_conflict, mapi_pre, mapi_
     struct kvdb_ctxn_pfxlock *txn1, *txn2;
 
     /* Begin txns */
-    err = kvdb_ctxn_pfxlock_create(&txn1, kpl, 10);
+    err = kvdb_ctxn_pfxlock_create(kpl, 10, &txn1);
     ASSERT_EQ(0, err);
 
-    err = kvdb_ctxn_pfxlock_create(&txn2, kpl, 10);
+    err = kvdb_ctxn_pfxlock_create(kpl, 10, &txn2);
     ASSERT_EQ(0, err);
 
     /* Put */

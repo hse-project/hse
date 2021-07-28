@@ -32,7 +32,7 @@ mapi_pre(struct mtf_test_info *lcl_ti)
     g_txn_horizon = 0;
     MOCK_SET(viewset, _viewset_horizon);
 
-    err = kvdb_pfxlock_create(&kpl, (void *)-1);
+    err = kvdb_pfxlock_create((void *)-1, &kpl);
     ASSERT_EQ_RET(0, err, -1);
     return 0;
 }

@@ -5,8 +5,6 @@ from hse2 import hse
 
 from utility import lifecycle, cli
 
-import errno
-
 """
 Test 1: Ptomb in LC
 """

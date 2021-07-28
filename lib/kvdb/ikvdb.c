@@ -64,6 +64,7 @@
 #include "viewset.h"
 #include "kvdb_keylock.h"
 #include "kvdb_pfxlock.h"
+#include "kvdb_ctxn_pfxlock.h"
 
 #include <mpool/mpool.h>
 
@@ -678,7 +679,7 @@ ikvdb_diag_open(
     if (ev(err))
         goto err_exit1;
 
-    err = kvdb_pfxlock_create(&self->ikdb_pfxlock, self->ikdb_txn_viewset);
+    err = kvdb_pfxlock_create(self->ikdb_txn_viewset, &self->ikdb_pfxlock);
     if (ev(err))
         goto err_exit2;
 
@@ -1085,7 +1086,7 @@ ikvdb_open(
         goto err1;
     }
 
-    err = kvdb_pfxlock_create(&self->ikdb_pfxlock, self->ikdb_txn_viewset);
+    err = kvdb_pfxlock_create(self->ikdb_txn_viewset, &self->ikdb_pfxlock);
     if (ev(err))
         goto err1;
 
@@ -1201,8 +1202,8 @@ err1:
     wal_close(self->ikdb_wal);
     cndb_close(self->ikdb_cndb);
     kvdb_log_close(self->ikdb_log);
-    kvdb_keylock_destroy(self->ikdb_keylock);
     kvdb_pfxlock_destroy(self->ikdb_pfxlock);
+    kvdb_keylock_destroy(self->ikdb_keylock);
     viewset_destroy(self->ikdb_cur_viewset);
     viewset_destroy(self->ikdb_txn_viewset);
     csched_destroy(self->ikdb_csched);
@@ -1594,9 +1595,7 @@ ikvdb_kvs_open(
         kvs->kk_vcompbnd = tls_vbufsz - (kvs->kk_vcompbnd - tls_vbufsz);
         assert(kvs->kk_vcompbnd < tls_vbufsz);
 
-        assert(
-            cops->cop_estimate(NULL, HSE_KVS_VALUE_LEN_MAX) <
-            HSE_KVS_VALUE_LEN_MAX + PAGE_SIZE * 2);
+        assert(cops->cop_estimate(NULL, HSE_KVS_VALUE_LEN_MAX) < HSE_KVS_VALUE_LEN_MAX + PAGE_SIZE * 2);
     }
 
     ikvdb_wal_install_callback(self); /* TODO: can this be removed? */
@@ -3000,34 +2999,41 @@ ikvdb_init(void)
 
     err = c0_init(hse_gparams.gp_c0kvs_ccache_sz, hse_gparams.gp_c0kvs_cheap_sz);
     if (err)
-        goto errout;
+        goto errout1;
+
+    err = kvdb_ctxn_pfxlock_init();
+    if (err)
+        goto errout2;
 
     err = lc_init();
-    if (err) {
-        c0_fini();
-        goto errout;
-    }
+    if (err)
+        goto errout3;
 
     err = cn_init();
-    if (err) {
-        lc_fini();
-        c0_fini();
-        goto errout;
-    }
+    if (err)
+        goto errout4;
 
     err = bkv_collection_init();
-    if (err) {
-        cn_fini();
-        lc_fini();
-        c0_fini();
-        goto errout;
-    }
+    if (err)
+        goto errout5;
 
-errout:
-    if (err) {
-        kvs_fini();
-        kvdb_perfc_finish();
-    }
+    return 0;
+
+errout5:
+    cn_fini();
+
+errout4:
+    lc_fini();
+
+errout3:
+    kvdb_ctxn_pfxlock_fini();
+
+errout2:
+    c0_fini();
+
+errout1:
+    kvs_fini();
+    kvdb_perfc_finish();
 
     return err;
 }
@@ -3040,6 +3046,7 @@ ikvdb_fini(void)
     bkv_collection_fini();
     cn_fini();
     lc_fini();
+    kvdb_ctxn_pfxlock_fini();
     c0_fini();
     kvs_fini();
     kvdb_perfc_finish();

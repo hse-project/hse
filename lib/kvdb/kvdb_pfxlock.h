@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2021 Micron Technology, Inc.  All rights reserved.
  */
 
 #ifndef HSE_KVDB_PFX_RMLOCK_H
@@ -21,12 +21,12 @@ struct viewset;
 /**
  * kvdb_pfxlock_create() - Create a new kvdb_pfxlock instance
  *
- * @pfxlock_out:  (output) created kvdb_pfxlock instance
  * @txn_viewset: txn viewset of the kvdb
+ * @pfxlock_out: (output) created kvdb_pfxlock instance
  */
 /* MTF_MOCK */
 merr_t
-kvdb_pfxlock_create(struct kvdb_pfxlock **pfxlock_out, struct viewset *txn_viewset);
+kvdb_pfxlock_create(struct viewset *txn_viewset, struct kvdb_pfxlock **pfxlock_out);
 
 /**
  * kvdb_pfxlock_destroy() - Destroy kvdb_pfxlock

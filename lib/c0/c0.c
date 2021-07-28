@@ -25,7 +25,6 @@
 #include <hse_ikvdb/c0_kvmultiset.h>
 
 #include <kvdb/kvdb_keylock.h>
-#include <kvdb/kvdb_ctxn_pfxlock.h>
 
 #include "c0_cursor.h"
 
@@ -75,20 +74,12 @@ c0_init(size_t c0kvs_cache_sz, size_t c0kvs_cheap_sz)
         return err;
     }
 
-    err = kvdb_ctxn_pfxlock_init();
-    if (err) {
-        kvdb_ctxn_locks_fini();
-        c0_fini();
-        return err;
-    }
-
     return 0;
 }
 
 HSE_COLD void
 c0_fini(void)
 {
-    kvdb_ctxn_pfxlock_fini();
     kvdb_ctxn_locks_fini();
     c0kvms_fini();
     c0kvs_fini();

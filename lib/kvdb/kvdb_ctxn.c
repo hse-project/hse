@@ -151,8 +151,7 @@ kvdb_ctxn_set_thread(struct work_struct *work)
     ttl_ns = ktn->ktn_txn_timeout * 1000000UL;
 
     rcu_read_lock();
-    cds_list_for_each_entry_rcu(ctxn, &ktn->ktn_alloc_list, ctxn_alloc_link)
-    {
+    cds_list_for_each_entry_rcu(ctxn, &ktn->ktn_alloc_list, ctxn_alloc_link) {
         state = seqnoref_to_state(ctxn->ctxn_seqref);
         if (state == KVDB_CTXN_ACTIVE) {
             if (now > (ctxn->ctxn_begin_ts + ttl_ns))
@@ -161,7 +160,7 @@ kvdb_ctxn_set_thread(struct work_struct *work)
     }
     rcu_read_unlock();
 
-    list_for_each_entry (ctxn, &alist, ctxn_abort_link)
+    list_for_each_entry(ctxn, &alist, ctxn_abort_link)
         kvdb_ctxn_abort(&ctxn->ctxn_inner_handle);
 
     atomic_set(&ktn->ktn_reading, 0);
@@ -181,7 +180,7 @@ kvdb_ctxn_set_thread(struct work_struct *work)
     /* Free all transactions that were waiting for the thread
      * to finish reading.
      */
-    list_for_each_entry_safe (ctxn, next, &freelist, ctxn_free_link) {
+    list_for_each_entry_safe(ctxn, next, &freelist, ctxn_free_link) {
         kvdb_ctxn_cursor_unbind(ctxn->ctxn_bind);
         mutex_destroy(&ctxn->ctxn_lock);
         free_aligned(ctxn);
@@ -327,7 +326,7 @@ kvdb_ctxn_enable_inserts(struct kvdb_ctxn_impl *ctxn)
         return err;
 
     err = kvdb_ctxn_pfxlock_create(
-        &ctxn->ctxn_pfxlock_handle, ctxn->ctxn_kvdb_pfxlock, ctxn->ctxn_view_seqno);
+        ctxn->ctxn_kvdb_pfxlock, ctxn->ctxn_view_seqno, &ctxn->ctxn_pfxlock_handle);
     if (ev(err)) {
         kvdb_ctxn_locks_destroy(locks);
         return err;
@@ -783,7 +782,7 @@ kvdb_ctxn_set_destroy(struct kvdb_ctxn_set *handle)
     cds_list_for_each_entry_rcu(ctxn, &ktn->ktn_alloc_list, ctxn_alloc_link)
         list_add_tail(&ctxn->ctxn_free_link, &ktn->ktn_pending);
 
-    list_for_each_entry_safe (ctxn, next, &ktn->ktn_pending, ctxn_free_link)
+    list_for_each_entry_safe(ctxn, next, &ktn->ktn_pending, ctxn_free_link)
         kvdb_ctxn_free(&ctxn->ctxn_inner_handle);
 
     mutex_destroy(&ktn->ktn_list_mutex);
@@ -894,20 +893,20 @@ kvdb_ctxn_trylock_write(
     if (HSE_UNLIKELY(!ctxn->ctxn_can_insert)) {
         err = wal_txn_begin(ctxn->ctxn_wal, ctxn->ctxn_view_seqno, &ctxn->ctxn_wal_cookie);
         if (err)
-            goto errout1;
+            goto errout;
 
         err = kvdb_ctxn_enable_inserts(ctxn);
         if (err)
-            goto errout1;
+            goto errout;
     }
 
     if (pfxhash) {
         struct kvdb_ctxn_pfxlock *pl = ctxn->ctxn_pfxlock_handle;
 
-        err =
-            is_ptomb ? kvdb_ctxn_pfxlock_excl(pl, pfxhash) : kvdb_ctxn_pfxlock_shared(pl, pfxhash);
+        err = is_ptomb ? kvdb_ctxn_pfxlock_excl(pl, pfxhash) :
+                         kvdb_ctxn_pfxlock_shared(pl, pfxhash);
         if (err)
-            goto errout1;
+            goto errout;
     }
 
     if (HSE_LIKELY(!is_ptomb)) {
@@ -915,7 +914,7 @@ kvdb_ctxn_trylock_write(
             ctxn->ctxn_kvdb_keylock, ctxn->ctxn_locks_handle, hash, ctxn->ctxn_view_seqno);
 
         if (err)
-            goto errout2;
+            goto errout;
     }
 
     if (ctxn->ctxn_bind)
@@ -925,12 +924,7 @@ kvdb_ctxn_trylock_write(
     *seqref = ctxn->ctxn_seqref;
     *cookie = ctxn->ctxn_wal_cookie;
 
-errout2:
-    if (err && is_ptomb)
-        kvdb_ctxn_pfxlock_seqno_pub(
-            ctxn->ctxn_pfxlock_handle, atomic64_fetch_add(1, ctxn->ctxn_kvdb_seq_addr));
-
-errout1:
+  errout:
     if (err)
         kvdb_ctxn_unlock_impl(ctxn);
 

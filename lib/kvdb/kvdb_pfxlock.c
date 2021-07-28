@@ -1,6 +1,11 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2021 Micron Technology, Inc.  All rights reserved.
+ *
+ * The pfxlock is a collection of rbtrees that maintain shared and exclusive locks. Each entry
+ * contains an end_seqno which is set at the time of commit/abort. An entry can be deleted only
+ * when there are no txns in kvdb which have a start seqno larger than the entry's end_seqno.
+ * This is handled by the garbage collector thread.
  */
 
 #include <hse_util/platform.h>
@@ -94,7 +99,7 @@ ecache_alloc(struct kvdb_pfxlock_entry_cache *ecache)
 }
 
 merr_t
-kvdb_pfxlock_create(struct kvdb_pfxlock **pfxlock_out, struct viewset *txn_viewset)
+kvdb_pfxlock_create(struct viewset *txn_viewset, struct kvdb_pfxlock **pfxlock_out)
 {
     struct kvdb_pfxlock *     pfxlock;
     struct kvdb_pfxlock_tree *tree;
@@ -355,13 +360,17 @@ kvdb_pfxlock_seqno_pub(struct kvdb_pfxlock *pfxlock, u64 end_seqno, void *cookie
 void
 kvdb_pfxlock_prune(struct kvdb_pfxlock *pfxlock)
 {
-    u64 txn_horizon = viewset_horizon(pfxlock->kpl_txn_viewset);
-    int i;
+    u64    txn_horizon = viewset_horizon(pfxlock->kpl_txn_viewset);
+    int    i;
+    char   distbuf[256] HSE_MAYBE_UNUSED;
+    size_t off HSE_MAYBE_UNUSED;
 
-    for (i = 0; i < KVDB_PFXLOCK_NUM_TREES; i++) {
+    for (i = 0, off = 0; i < KVDB_PFXLOCK_NUM_TREES; i++) {
         struct rb_root *tree = &pfxlock->kpl_tree[i].kplt_tree;
         spinlock_t *    spinlock = &pfxlock->kpl_tree[i].kplt_spinlock;
         struct rb_node *node, *next;
+
+        snprintf_append(distbuf, sizeof(distbuf), &off, "%u ", pfxlock->kpl_tree[i].kplt_entry_cnt);
 
         spin_lock(spinlock);
         for (node = rb_first(tree); node; node = next) {
@@ -376,6 +385,8 @@ kvdb_pfxlock_prune(struct kvdb_pfxlock *pfxlock)
         }
         spin_unlock(spinlock);
     }
+
+    hse_log(HSE_INFO "pfxdist: %s", distbuf);
 }
 
 static void

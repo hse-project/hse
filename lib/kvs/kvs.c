@@ -35,8 +35,6 @@
 #include <hse_ikvdb/cursor.h>
 #include <hse_ikvdb/wal.h>
 
-#include <kvdb/kvdb_ctxn_pfxlock.h>
-
 /* "pkvsl" stands for Public KVS interface Latencies" */
 struct perfc_name kvs_pkvsl_perfc_op[] = {
     NE(PERFC_LT_PKVSL_KVS_PUT, 3, "kvs_put latency", "kvs_put_lat", 7),
@@ -346,7 +344,7 @@ kvs_put(
         if (kvs->ikv_pfx_len && kt->kt_len >= kvs->ikv_pfx_len)
             pfxhash = key_hash64(kt->kt_data, kvs->ikv_pfx_len) ^ kvs->ikv_gen;
 
-        err = kvdb_ctxn_trylock_write(ctxn, &seqnoref, &seqno, &rec.cookie, true, pfxhash, hash);
+        err = kvdb_ctxn_trylock_write(ctxn, &seqnoref, &seqno, &rec.cookie, false, pfxhash, hash);
         if (err)
             return err;
     }
@@ -465,7 +463,7 @@ kvs_del(struct ikvs *kvs, struct hse_kvdb_txn *const txn, struct kvs_ktuple *kt,
         if (kvs->ikv_pfx_len && kt->kt_len >= kvs->ikv_pfx_len)
             pfxhash = key_hash64(kt->kt_data, kvs->ikv_pfx_len) ^ kvs->ikv_gen;
 
-        err = kvdb_ctxn_trylock_write(ctxn, &seqnoref, &seqno, &rec.cookie, true, pfxhash, hash);
+        err = kvdb_ctxn_trylock_write(ctxn, &seqnoref, &seqno, &rec.cookie, false, pfxhash, hash);
         if (err)
             return err;
     }
@@ -515,7 +513,7 @@ kvs_prefix_del(
         if (kvs->ikv_pfx_len && kt->kt_len >= kvs->ikv_pfx_len)
             pfxhash = key_hash64(kt->kt_data, kvs->ikv_pfx_len) ^ kvs->ikv_gen;
 
-        err = kvdb_ctxn_trylock_write(ctxn, &seqnoref, &seqno, &rec.cookie, false, pfxhash, 0);
+        err = kvdb_ctxn_trylock_write(ctxn, &seqnoref, &seqno, &rec.cookie, true, pfxhash, 0);
         if (err)
             return err;
     }

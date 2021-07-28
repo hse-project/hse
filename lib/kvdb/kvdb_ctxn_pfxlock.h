@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2021 Micron Technology, Inc.  All rights reserved.
  */
 
 #ifndef HSE_KVDB_PFXLOCK_H
@@ -21,9 +21,9 @@ kvdb_ctxn_pfxlock_fini(void);
 
 merr_t
 kvdb_ctxn_pfxlock_create(
-    struct kvdb_ctxn_pfxlock **kpl_out,
     struct kvdb_pfxlock *      kvdb_pfxlock,
-    u64                        view_seqno);
+    u64                        view_seqno,
+    struct kvdb_ctxn_pfxlock **kpl_out);
 
 void
 kvdb_ctxn_pfxlock_destroy(struct kvdb_ctxn_pfxlock *kpl);
