@@ -75,10 +75,10 @@ int
 main(int argc, char **argv)
 {
 	struct parm_groups *pg = NULL;
-	struct svec         hse_gparms = {};
-	struct svec         kvdb_oparms = {};
-	struct svec         kvs_cparms = {};
-	struct svec         kvs_oparms = {};
+	struct svec         hse_gparms = { 0 };
+	struct svec         kvdb_oparms = { 0 };
+	struct svec         kvs_cparms = { 0 };
+	struct svec         kvs_oparms = { 0 };
 	const char *mpool;
 	int rc = 0;
 

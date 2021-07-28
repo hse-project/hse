@@ -46,7 +46,7 @@ do_open(
 {
     int rc;
     uint64_t err;
-    struct svec sv = {};
+    struct svec sv = { 0 };
 
     rc = svec_append_pg(&sv, pg, PG_KVDB_OPEN, NULL);
     if (rc)
@@ -100,7 +100,7 @@ main(int argc, char **argv)
     int              c, rc, help;
     bool             fnd;
     enum Actions     action;
-    struct svec      hse_gparm;
+    struct svec      hse_gparm = { 0 };
 
     prog = basename(argv[0]);
     help = 0;

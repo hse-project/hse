@@ -25,9 +25,9 @@ size_t      vlenmax = 1024;
 int         verbosity;
 
 struct parm_groups *pg;
-struct svec         hse_gparm;
-struct svec         db_oparm;
-struct svec         kv_oparm;
+struct svec         hse_gparm = { 0 };
+struct svec         db_oparm = { 0 };
+struct svec         kv_oparm = { 0 };
 
 __attribute__((format(printf, 2, 3))) void
 herr_print(uint64_t herr, char *fmt, ...)

@@ -230,9 +230,9 @@ struct opts {
 };
 
 struct parm_groups *pg;
-struct svec         hse_gparm;
-struct svec         db_oparms;
-struct svec         kv_oparms;
+struct svec         hse_gparm = { 0 };
+struct svec         db_oparms = { 0 };
+struct svec         kv_oparms = { 0 };
 
 /* per-thread state */
 struct tstate {

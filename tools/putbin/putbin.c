@@ -167,7 +167,7 @@ do_open(
 {
     int rc;
 
-    struct svec sv = {};
+    struct svec sv = { 0 };
 
     rc = svec_append_pg(&sv, pg, "perfc_enable=0", PG_KVDB_OPEN, NULL);
     if (rc)
@@ -248,7 +248,7 @@ main(int argc, char **argv)
     unsigned           action, endian, iter, paws, comp;
     unsigned           cnt, start, klen, vlen;
     unsigned           opt_sync = 0;
-    struct svec        hse_gparm;
+    struct svec        hse_gparm = { 0 };
 
     prog = basename(argv[0]);
     klen = 4;

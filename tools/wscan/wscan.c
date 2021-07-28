@@ -83,9 +83,9 @@ main(int argc, char **argv)
 
     const char *           mpname, *dsname, *kvname, *prog;
     struct parm_groups *   pg = NULL;
-    struct svec            hse_gparm = {};
-    struct svec            db_oparm = {};
-    struct svec            kv_oparm = {};
+    struct svec            hse_gparm = { 0 };
+    struct svec            db_oparm = { 0 };
+    struct svec            kv_oparm = { 0 };
     struct hse_kvs_cursor *cur;
     struct hse_kvdb *      h;
     struct hse_kvs *       kvs;

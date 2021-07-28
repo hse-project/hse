@@ -31,8 +31,8 @@
 const char *progname;
 
 struct parm_groups *pg;
-struct svec         hse_gparm;
-struct svec         db_oparm;
+struct svec         hse_gparm = { 0 };
+struct svec         db_oparm = { 0 };
 
 struct diag_kvdb_kvs_list kvs_tab[HSE_KVS_COUNT_MAX] = {};
 

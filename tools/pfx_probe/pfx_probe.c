@@ -329,10 +329,10 @@ main(
 	char    **argv)
 {
 	struct parm_groups *pg = NULL;
-	struct svec         hse_gparms = {};
-	struct svec         db_oparms = {};
-	struct svec         kv_cparms = {};
-	struct svec         kv_oparms = {};
+	struct svec         hse_gparms = { 0 };
+	struct svec         db_oparms = { 0 };
+	struct svec         kv_cparms = { 0 };
+	struct svec         kv_oparms = { 0 };
 	const char         *mpool, *kvs;
 	struct thread_info *ti;
 	char                c;
