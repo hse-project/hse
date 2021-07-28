@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
 #include <hse_util/inttypes.h>
@@ -127,44 +127,4 @@ fmt_hexp(
      * This is compatible with snprintf, strncpy, and strlcat.
      */
     return unlimited;
-}
-
-int
-fmt_time(char *out, int sz, u64 ts)
-{
-    static const u64 billion = 1000ULL * 1000 * 1000;
-    struct timespec  tspec;
-    struct tm *      tmp;
-    time_t           t;
-    u32              ns;
-
-    /*
-     * if ts is 0, use the current localtime;
-     * else if it is < 2 billion, it is a unix epoch,
-     * else it is a get_realtime() converted to a u64
-     */
-    if (ts == 0) {
-        get_realtime(&tspec);
-        t = tspec.tv_sec;
-        ns = tspec.tv_nsec;
-    } else if (ts > 2 * billion) {
-        t = ts / billion;
-        ns = ts % billion;
-    } else {
-        t = ts;
-        ns = 0;
-    }
-
-    tmp = localtime(&t);
-    return snprintf(
-        out,
-        sz,
-        "%4d-%02d-%02dT%02d:%02d:%02d.%06d",
-        tmp->tm_year + 1900,
-        tmp->tm_mon + 1,
-        tmp->tm_mday,
-        tmp->tm_hour,
-        tmp->tm_min,
-        tmp->tm_sec,
-        ns / 1000);
 }
