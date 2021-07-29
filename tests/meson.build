@@ -14,14 +14,14 @@ add_test_setup(
     'default',
     env: run_env,
     is_default: true,
-    exclude_suites: ['ycsb'],
+    exclude_suites: ['non-deterministic'],
 )
 
 add_test_setup(
     'ci',
     env: run_env,
     is_default: false,
-    exclude_suites: ['long', 'smoke', 'ycsb', 'kmt', 'samples'],
+    exclude_suites: ['long', 'smoke', 'non-deterministic', 'samples'],
 )
 
 if 'unit' in hse_tests
