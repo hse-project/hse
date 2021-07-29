@@ -25,3 +25,5 @@ subprojects/*
 !scripts/build/
 .pytest_cache/
 *venv*/
+compile_commands.json
+/.cache/

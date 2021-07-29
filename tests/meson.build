@@ -21,7 +21,7 @@ add_test_setup(
     'ci',
     env: run_env,
     is_default: false,
-    exclude_suites: ['long', 'smoke', 'non-deterministic', 'samples'],
+    exclude_suites: ['long', 'smoke', 'non-deterministic'],
 )
 
 if 'unit' in hse_tests
