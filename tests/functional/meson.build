@@ -4,28 +4,29 @@ subdir('api')
 
 tests = {
     'kvs_compare_full_and_pfx': {
-        'suites': ['python', 'long'],
+        'suites': ['hse-python', 'long'],
         'depends': hse_python_depends,
     },
     'kvs_scan_deleted_keys': {
-        'suites': ['python', 'short'],
+        'suites': ['hse-python', 'short'],
         'depends': hse_python_depends,
     },
     'kvs_scan_empty_kvs': {
-        'suites': ['python', 'short'],
+        'suites': ['hse-python', 'short'],
         'depends': hse_python_depends,
     },
-    # [HSE_TODO]: Invalid tests
+    # [HSE_TODO]: Invalid tests; I think this is because of compaction not being
+    # synchonous.
     # 'kvs_compressed_values_take_less_space': {
-    #     'suites': ['python', 'short'],
+    #     'suites': ['hse-python', 'short'],
     #     'depends': hse_python_depends,
     # },
     # 'kvs_compression_flags': {
-    #     'suites': ['python', 'short'],
+    #     'suites': ['hse-python', 'short'],
     #     'depends': hse_python_depends,
     # },
     'kvs_scan_a_billion': {
-        'suites': ['python', 'long'],
+        'suites': ['hse-python', 'long'],
         'depends': hse_python_depends,
     },
 }
@@ -50,7 +51,7 @@ foreach t, params : tests
         ],
         workdir: meson.current_source_dir(),
         depends: params.get('depends', []),
-        suite: ['functional', 'python'] + params.get('suites', []),
+        suite: ['functional'] + params.get('suites', []),
         timeout: 3600,
     )
 endforeach
