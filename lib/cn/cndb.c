@@ -1466,6 +1466,7 @@ cndb_get_ingestid(struct cndb *cndb, struct cndb_tx *tx)
 
     if ((ing_rep->cir_ingestid == CNDB_INVAL_INGESTID) || (txid > ing_rep->cir_txid)) {
         ing_rep->cir_ingestid = ingestid;
+        ing_rep->cir_txhorizon = tx->mtx_txhorizon;
         ing_rep->cir_txid = txid;
     }
 }
@@ -2028,7 +2029,7 @@ cndb_ikvdb_seqno_get(struct cndb *cndb)
 }
 
 merr_t
-cndb_replay(struct cndb *cndb, u64 *seqno, u64 *ingestid)
+cndb_replay(struct cndb *cndb, u64 *seqno, u64 *ingestid, u64 *txhorizon)
 {
     merr_t          err = 0;
     size_t          len = 0;
@@ -2038,8 +2039,10 @@ cndb_replay(struct cndb *cndb, u64 *seqno, u64 *ingestid)
     union cndb_mtu *mtu;
 
     cndb->cndb_ing_rep.cir_ingestid = CNDB_INVAL_INGESTID;
+    cndb->cndb_ing_rep.cir_txhorizon = CNDB_INVAL_HORIZON;
     cndb->cndb_ing_rep.cir_txid = 0;
     *ingestid = CNDB_INVAL_INGESTID;
+    *txhorizon = CNDB_INVAL_HORIZON;
 
     /* First txid is 1 */
     atomic64_set(&cndb->cndb_txid, 1);
@@ -2183,13 +2186,15 @@ cndb_replay(struct cndb *cndb, u64 *seqno, u64 *ingestid)
         otxid = otag;
     atomic64_set(&cndb->cndb_txid, otxid + 1);
 
-    if (err)
+    if (err) {
         kvdb_health_error(cndb->cndb_kvdb_health, err);
-    else
+    } else {
         /*
          * Return the ingestid of the latest successful ingest.
          */
         *ingestid = cndb->cndb_ing_rep.cir_ingestid;
+        *txhorizon = cndb->cndb_ing_rep.cir_txhorizon;
+    }
 
     return err;
 }

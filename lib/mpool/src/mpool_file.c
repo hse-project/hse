@@ -3,12 +3,11 @@
  * Copyright (C) 2021 Micron Technology, Inc.  All rights reserved.
  */
 
-#include <fcntl.h>
-
 #include <hse_util/event_counter.h>
 #include <hse_util/hse_err.h>
 #include <hse_util/logging.h>
 #include <hse_util/string.h>
+#include <hse_util/mman.h>
 
 #include "mpool_internal.h"
 #include "mclass.h"
@@ -18,10 +17,15 @@ struct mpool_file {
     struct mpool       *mp;
     struct media_class *mc;
     struct io_ops       io;
+    char  *addr;
+    size_t size;
     int    fd;
-    char   name[PATH_MAX];
+    const char name[];
 };
 
+/* Forward Decls. */
+static merr_t
+mpool_file_unmap(struct mpool_file *file);
 
 merr_t
 mpool_file_open(
@@ -38,6 +42,7 @@ mpool_file_open(
     int    dirfd, fd, rc;
     merr_t err;
     bool create = false;
+    size_t sz;
 
     if (!mp || !name || mclass > MP_MED_COUNT)
         return merr(EINVAL);
@@ -74,7 +79,9 @@ mpool_file_open(
         }
     }
 
-    mfp = calloc(1, sizeof(*mfp));
+    sz = sizeof(*mfp) + strlen(name) + 1;
+
+    mfp = calloc(1, sz);
     if (!mfp) {
         err = merr(ENOMEM);
         goto errout;
@@ -84,7 +91,7 @@ mpool_file_open(
     mfp->mc = mc;
     mfp->fd = fd;
     mfp->io = io_sync_ops;
-    strlcpy(mfp->name, name, sizeof(mfp->name));
+    strcpy((char *)mfp->name, name);
 
     *handle = mfp;
 
@@ -101,8 +108,13 @@ errout:
 merr_t
 mpool_file_close(struct mpool_file *file)
 {
+    merr_t err;
+
     if (!file)
         return merr(EINVAL);
+
+    err = mpool_file_unmap(file);
+    ev(err);
 
     close(file->fd);
     free(file);
@@ -182,6 +194,67 @@ mpool_file_sync(struct mpool_file *file)
     rc = fsync(file->fd);
     if (rc)
         return merr(errno);
+
+    return 0;
+}
+
+size_t
+mpool_file_size(struct mpool_file *file)
+{
+    struct stat st;
+    int rc;
+
+    rc = fstat(file->fd, &st);
+    if (rc == -1)
+        return 0;
+
+    return st.st_size;
+}
+
+merr_t
+mpool_file_mmap(struct mpool_file *file, bool rdonly, int advice, char **addr_out)
+{
+    char *addr;
+    int prot, rc;
+    size_t sz;
+
+    if (!file)
+        return merr(EINVAL);
+
+    sz = mpool_file_size(file);
+    prot = rdonly ? PROT_READ : PROT_READ | PROT_WRITE;
+
+    addr = mmap(NULL, sz, prot, MAP_SHARED, file->fd, 0);
+    if (addr == MAP_FAILED)
+        return merr(errno);
+
+    file->addr = addr;
+    file->size = sz;
+
+    if (advice != 0) {
+        rc = madvise(addr, sz, advice);
+        ev(rc);
+    }
+
+    if (addr_out)
+        *addr_out = addr;
+
+    return 0;
+}
+
+static merr_t
+mpool_file_unmap(struct mpool_file *file)
+{
+    int rc;
+
+    if (!file->addr)
+        return 0;
+
+    rc = munmap(file->addr, file->size);
+    if (rc == -1)
+        return merr(errno);
+
+    file->addr = NULL;
 
     return 0;
 }

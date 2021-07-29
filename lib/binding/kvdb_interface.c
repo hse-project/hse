@@ -741,6 +741,7 @@ hse_kvs_delete(
         return merr_to_hse_err(merr(ENOENT));
 
     kvs_ktuple_init_nohash(&kt, key, key_len);
+
     err = ikvdb_kvs_del(handle, flags, txn, &kt);
     ev(err);
 

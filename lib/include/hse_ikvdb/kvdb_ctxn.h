@@ -112,6 +112,7 @@ kvdb_ctxn_trylock_write(
     struct kvdb_ctxn *handle,
     uintptr_t        *seqref,
     u64              *view_seqno,
+    int64_t          *cookie,
     bool              needkeylock,
     u64               hash);
 
@@ -119,6 +120,9 @@ kvdb_ctxn_trylock_write(
 void
 kvdb_ctxn_unlock(
     struct kvdb_ctxn *handle);
+
+int64_t
+kvdb_ctxn_wal_cookie_get(struct kvdb_ctxn *handle);
 
 /* -- c0 cursor w/ txn support ------------ */
 

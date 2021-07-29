@@ -24,10 +24,11 @@ struct wal_io_work {
     struct wal_io    *iow_io;
     struct wal_minmax_info iow_info;
 
-    const char *iow_buf;
-    u64         iow_len;
-    u64         iow_gen;
-    uint        iow_index;
+    char       *iow_buf;
+    uint64_t    iow_len;
+    uint64_t    iow_gen;
+    uint32_t    iow_index;
+    bool        iow_bufwrap;
 } HSE_ALIGNED(SMP_CACHE_BYTES);
 
 
@@ -47,7 +48,7 @@ struct wal_io {
     struct wal_file    *io_wfile;
     struct wal_iocb    *io_cb;
     atomic64_t          io_err;
-    uint                io_index;
+    uint32_t            io_index;
     struct work_struct  io_work;
 };
 
@@ -56,10 +57,9 @@ static merr_t
 wal_io_submit(struct wal_io_work *iow)
 {
     struct wal_io *io;
-    struct wal_file *wfile;
     size_t buflen;
     merr_t err = 0;
-    u64 gen, cgen;
+    uint64_t gen, cgen;
 
     io = iow->iow_io;
     buflen = iow->iow_len;
@@ -76,32 +76,36 @@ wal_io_submit(struct wal_io_work *iow)
         }
     } else {
         ev(gen < cgen);
-        assert(io->io_wfile);
-        wal_file_get(io->io_wfile);
-    }
-
-    wfile = io->io_wfile;
-    if (!wfile) {
-        merr_t err;
-
-        err = wal_file_open(io->io_wfset, gen, iow->iow_index, &wfile);
+        err = wal_file_get(io->io_wfile);
         if (err)
             return err;
     }
 
-    err = wal_file_write(wfile, iow->iow_buf, buflen);
-    if (!err) {
-        wal_file_minmax_update(wfile, &iow->iow_info);
-        atomic64_add(buflen, io->io_doff);
-        io->io_cb->iocb(io->io_cb->cbarg, err);
+    if (!io->io_wfile) {
+        merr_t err;
+
+        err = wal_file_open(io->io_wfset, gen, iow->iow_index, false, &io->io_wfile);
+        if (err)
+            return err;
+
+        wal_file_get(io->io_wfile);
     }
 
-    if (io->io_wfile)
-        wal_file_put(wfile);
-    else
-        io->io_wfile = wfile;
+    assert(io->io_wfile);
 
-    return err;
+    err = wal_file_write(io->io_wfile, iow->iow_buf, buflen, iow->iow_bufwrap);
+    if (err) {
+        wal_file_put(io->io_wfile);
+        return err;
+    }
+
+    wal_file_minmax_update(io->io_wfile, &iow->iow_info);
+    atomic64_add(buflen, io->io_doff);
+    io->io_cb->iocb(io->io_cb->cbarg, 0);
+
+    wal_file_put(io->io_wfile);
+
+    return 0;
 }
 
 static void
@@ -133,25 +137,34 @@ wal_io_worker(struct work_struct *work)
         mutex_unlock(&io->io_lock);
 
         list_for_each_entry_safe(iow, next, &active, iow_list) {
-            merr_t err;
+            if (atomic64_read(&io->io_err) == 0) {
+                merr_t err;
 
-            assert(iow->iow_index == io->io_index);
+                assert(iow->iow_index == io->io_index);
 
-            err = wal_io_submit(iow);
-            if (err) {
-                atomic64_set(&io->io_err, err);
-                io->io_cb->iocb(io->io_cb->cbarg, err); /* Notify sync waiters */
+                err = wal_io_submit(iow);
+                if (err) {
+                    atomic64_set(&io->io_err, err);
+                    io->io_cb->iocb(io->io_cb->cbarg, err); /* Notify sync waiters */
+                }
+
+                atomic64_inc(&io->io_comp);
             }
 
             list_del(&iow->iow_list);
             kmem_cache_free(iowcache, iow);
-            atomic64_inc(&io->io_comp);
         }
     }
 }
 
 merr_t
-wal_io_enqueue(struct wal_io *io, const char *buf, u64 len, u64 gen, struct wal_minmax_info *info)
+wal_io_enqueue(
+    struct wal_io          *io,
+    char                   *buf,
+    uint64_t                len,
+    uint64_t                gen,
+    struct wal_minmax_info *info,
+    bool                    bufwrap)
 {
     struct wal_io_work *iow;
     merr_t err;
@@ -169,6 +182,7 @@ wal_io_enqueue(struct wal_io *io, const char *buf, u64 len, u64 gen, struct wal_
     iow->iow_gen = gen;
     iow->iow_index = io->io_index;
     iow->iow_info = *info;
+    iow->iow_bufwrap = bufwrap;
 
     INIT_LIST_HEAD(&iow->iow_list);
 
@@ -190,7 +204,7 @@ wal_io_enqueue(struct wal_io *io, const char *buf, u64 len, u64 gen, struct wal_
 struct wal_io *
 wal_io_create(
     struct wal_fileset *wfset,
-    uint                index,
+    uint32_t            index,
     atomic64_t         *doff,
     struct wal_iocb    *iocb)
 {
@@ -241,7 +255,7 @@ wal_io_destroy(struct wal_io *io)
 }
 
 merr_t
-wal_io_init(u32 threads)
+wal_io_init(uint32_t threads)
 {
     iowcache = kmem_cache_create("wal-iowork", sizeof(struct wal_io_work),
                                  alignof(struct wal_io_work), 0, NULL);

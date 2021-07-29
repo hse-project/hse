@@ -273,7 +273,7 @@ wal_mdc_format(
     if (err)
         return err;
 
-    return 0;
+    return wal_mdc_close_write(mdc, sync);
 }
 
 merr_t
@@ -341,7 +341,7 @@ wal_mdc_replay(struct wal_mdc *mdc, struct wal *wal)
                 break;
 
             case WAL_RT_CLOSE:
-                /* Indication of graceful close, nothing to do for now. */
+                wal_clean_set(wal);
                 break;
 
             default: /* Invalid record type */

@@ -466,7 +466,7 @@ kvdb_ctxn_abort_inner(struct kvdb_ctxn_impl *ctxn)
         kvdb_ctxn_locks_destroy(locks);
     }
 
-    wal_txn_abort(ctxn->ctxn_wal, ctxn->ctxn_view_seqno);
+    wal_txn_abort(ctxn->ctxn_wal, ctxn->ctxn_view_seqno, ctxn->ctxn_wal_cookie);
 
     /* At this point the transaction ceases to be considered active */
     kvdb_ctxn_deactivate(ctxn);
@@ -627,7 +627,7 @@ kvdb_ctxn_commit(struct kvdb_ctxn *handle)
         ctxn->ctxn_bind = 0;
     }
 
-    err = wal_txn_commit(ctxn->ctxn_wal, ctxn->ctxn_view_seqno, commit_sn);
+    err = wal_txn_commit(ctxn->ctxn_wal, ctxn->ctxn_view_seqno, commit_sn, ctxn->ctxn_wal_cookie);
 
     kvdb_ctxn_deactivate(ctxn);
     kvdb_ctxn_unlock_impl(ctxn);
@@ -863,6 +863,7 @@ kvdb_ctxn_trylock_write(
     struct kvdb_ctxn *handle,
     uintptr_t        *seqref,
     u64              *view_seqno,
+    int64_t          *cookie,
     bool              needkeylock,
     u64               hash)
 {
@@ -878,7 +879,7 @@ kvdb_ctxn_trylock_write(
         return err;
 
     if (HSE_UNLIKELY(!ctxn->ctxn_can_insert)) {
-        err = wal_txn_begin(ctxn->ctxn_wal, ctxn->ctxn_view_seqno);
+        err = wal_txn_begin(ctxn->ctxn_wal, ctxn->ctxn_view_seqno, &ctxn->ctxn_wal_cookie);
         if (err)
             goto errout;
 
@@ -900,6 +901,7 @@ kvdb_ctxn_trylock_write(
 
     *view_seqno = ctxn->ctxn_view_seqno;
     *seqref = ctxn->ctxn_seqref;
+    *cookie = ctxn->ctxn_wal_cookie;
 
   errout:
     if (err)

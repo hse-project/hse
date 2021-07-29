@@ -11,12 +11,18 @@ struct wal_fileset;
 struct wal_iocb;
 
 merr_t
-wal_io_enqueue(struct wal_io *io, const char *buf, u64 len, u64 gen, struct wal_minmax_info *info);
+wal_io_enqueue(
+    struct wal_io          *io,
+    char                   *buf,
+    uint64_t                len,
+    uint64_t                gen,
+    struct wal_minmax_info *info,
+    bool                    bufwrap);
 
 struct wal_io *
 wal_io_create(
     struct wal_fileset *wfset,
-    uint                index,
+    uint32_t            index,
     atomic64_t         *doff,
     struct wal_iocb    *iocb);
 
@@ -24,7 +30,7 @@ void
 wal_io_destroy(struct wal_io *io);
 
 merr_t
-wal_io_init(u32 threads);
+wal_io_init(uint32_t threads);
 
 void
 wal_io_fini();

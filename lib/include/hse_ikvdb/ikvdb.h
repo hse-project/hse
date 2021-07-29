@@ -39,6 +39,7 @@ struct c0sk;
 struct cndb;
 struct kvdb_diag_kvs_list;
 struct kvs;
+struct ikvdb_kvs_hdl;
 
 struct hse_kvdb_txn {
 };
@@ -140,7 +141,7 @@ ikvdb_open(
     struct ikvdb **            kvdb);
 
 #define IKVS_OFLAG_NONE   0
-#define IKVS_OFLAG_REPLAY 1 /* used when c1 opens ikvs/kvs/cn for replay */
+#define IKVS_OFLAG_REPLAY 1 /* used when wal opens ikvs/kvs/cn for replay */
 
 /**
  * ikvdb_kvs_open() - prepare HSE KVDB constituent KVS for subsequent use by
@@ -530,6 +531,53 @@ struct kvdb_callback {
         unsigned long txhorizon,
         bool          post_ingest);
 };
+
+/*
+ * WAL replay routines
+ */
+
+merr_t
+ikvdb_wal_replay_open(struct ikvdb *ikvdb, struct ikvdb_kvs_hdl **ikvsh_out);
+
+void
+ikvdb_wal_replay_close(struct ikvdb *ikvdb, struct ikvdb_kvs_hdl *ikvsh);
+
+merr_t
+ikvdb_wal_replay_put(
+    struct ikvdb         *ikvdb,
+    struct ikvdb_kvs_hdl *ikvsh,
+    u64                   cnid,
+    u64                   seqno,
+    struct kvs_ktuple    *kt,
+    struct kvs_vtuple    *vt);
+
+merr_t
+ikvdb_wal_replay_del(
+    struct ikvdb         *ikvdb,
+    struct ikvdb_kvs_hdl *ikvsh,
+    u64                   cnid,
+    u64                   seqno,
+    struct kvs_ktuple    *kt);
+
+merr_t
+ikvdb_wal_replay_prefix_del(
+    struct ikvdb         *ikvdb,
+    struct ikvdb_kvs_hdl *ikvsh,
+    u64                   cnid,
+    u64                   seqno,
+    struct kvs_ktuple    *kt);
+
+void
+ikvdb_wal_replay_seqno_set(struct ikvdb *ikvdb, uint64_t seqno);
+
+void
+ikvdb_wal_replay_gen_set(struct ikvdb *ikvdb, u64 gen);
+
+void
+ikvdb_wal_replay_enable(struct ikvdb *ikvdb);
+
+void
+ikvdb_wal_replay_disable(struct ikvdb *ikvdb);
 
 #if HSE_MOCKING
 #include "ikvdb_ut.h"

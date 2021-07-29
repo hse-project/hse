@@ -41,6 +41,12 @@ struct list_head {
          (item);                                                        \
          item = (nitem), nitem = (item) ? list_next_entry_or_null((item), field, (head)) : NULL)
 
+#define list_for_each_entry_reverse_safe(item, nitem, head, field)              \
+    for (item = list_last_entry_or_null((head), typeof(*(item)), field), \
+             nitem = (item) ? list_prev_entry_or_null((item), field, (head)) : NULL; \
+         (item);                                                        \
+         item = (nitem), nitem = (item) ? list_prev_entry_or_null((item), field, (head)) : NULL)
+
 static inline void
 INIT_LIST_HEAD(struct list_head *head)
 {

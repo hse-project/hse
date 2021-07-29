@@ -31,6 +31,16 @@ struct wal_record {
     u64     offset;
     uint    wbidx;
     size_t  len;
+    int64_t cookie;
+};
+
+struct wal_replay_info {
+    u64  mdcid1;
+    u64  mdcid2;
+    u64  gen;
+    u64  seqno;
+    u64  txhorizon;
+    bool clean;
 };
 
 /* MTF_MOCK */
@@ -44,12 +54,12 @@ wal_destroy(struct mpool *mp, uint64_t mdcid1, uint64_t mdcid2);
 /* MTF_MOCK */
 merr_t
 wal_open(
-    struct mpool        *mp,
-    struct kvdb_rparams *rp,
-    uint64_t             mdcid1,
-    uint64_t             mdcid2,
-    struct kvdb_health  *health,
-    struct wal         **wal_out);
+    struct mpool           *mp,
+    struct kvdb_rparams    *rp,
+    struct wal_replay_info *rinfo,
+    struct ikvdb           *ikdb,
+    struct kvdb_health     *health,
+    struct wal            **wal_out);
 
 /* MTF_MOCK */
 void
@@ -85,15 +95,15 @@ wal_del_pfx(
 
 /* MTF_MOCK */
 merr_t
-wal_txn_begin(struct wal *wal, uint64_t txid);
+wal_txn_begin(struct wal *wal, uint64_t txid, int64_t *cookie);
 
 /* MTF_MOCK */
 merr_t
-wal_txn_abort(struct wal *wal, uint64_t txid);
+wal_txn_abort(struct wal *wal, uint64_t txid, int64_t cookie);
 
 /* MTF_MOCK */
 merr_t
-wal_txn_commit(struct wal *wal, uint64_t txid, uint64_t seqno);
+wal_txn_commit(struct wal *wal, uint64_t txid, uint64_t seqno, int64_t cookie);
 
 void
 wal_op_finish(struct wal *wal, struct wal_record *rec, uint64_t seqno, uint64_t gen, int rc);

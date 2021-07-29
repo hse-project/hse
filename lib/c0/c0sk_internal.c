@@ -101,6 +101,9 @@ c0sk_rsvd_sn_set(struct c0sk_impl *c0sk, struct c0_kvmultiset *kvms)
     unsigned int inc = 2;
     u64          res;
 
+    if (HSE_UNLIKELY(atomic_read(&c0sk->c0sk_replaying) > 0))
+        return;
+
     /* flush from txcommit context; reverve seqno for txn. */
 
     res = (inc - 1) + atomic64_fetch_add_rel(inc, c0sk->c0sk_kvdb_seq);
@@ -118,8 +121,13 @@ c0sk_install_c0kvms(struct c0sk_impl *self, struct c0_kvmultiset *old, struct c0
      * ingest thread.
      */
     if (old) {
+        u64 seqno;
+
         c0kvms_txhorizon_set(old, c0sk_txhorizon_get(self));
-        c0kvms_seqno_set(old, atomic64_inc_acq(self->c0sk_kvdb_seq));
+
+        seqno = (HSE_UNLIKELY(atomic_read(&self->c0sk_replaying) > 0)) ?
+            atomic64_read(self->c0sk_kvdb_seq) : atomic64_inc_acq(self->c0sk_kvdb_seq);
+        c0kvms_seqno_set(old, seqno);
     }
 
     mutex_lock(&self->c0sk_kvms_mutex);
@@ -1150,7 +1158,7 @@ c0sk_putdel(
     uintptr_t                seqnoref)
 {
     uintptr_t *priv = (uintptr_t *)seqnoref;
-    bool       is_txn = (seqnoref != HSE_SQNREF_SINGLE);
+    bool       is_txn = (!HSE_SQNREF_SINGLE_P(seqnoref) && !HSE_SQNREF_ORDNL_P(seqnoref));
     u64        dst_gen = 0;
     merr_t     err;
 
@@ -1172,7 +1180,7 @@ c0sk_putdel(
          */
         c0sk_ingestref_get(self, is_txn, &cookie);
 
-        if (c0kvms_should_ingest(dst)) {
+        if (c0kvms_should_ingest(dst) && atomic_read(&self->c0sk_replaying) == 0) {
             err = merr(ENOMEM);
             goto unlock;
         }

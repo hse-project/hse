@@ -63,6 +63,9 @@ c0kvms_create(
     struct c0_kvmultiset **multiset);
 
 void
+c0kvms_destroy_cache(void **stashp);
+
+void
 c0kvms_seqno_set(struct c0_kvmultiset *handle, uint64_t kvdb_seq);
 
 u64
@@ -96,7 +99,7 @@ c0kvms_putref(struct c0_kvmultiset *mset);
 u64
 c0kvms_gen_read(struct c0_kvmultiset *mset);
 
-u64
+uint64_t
 c0kvms_gen_current(void);
 
 u64

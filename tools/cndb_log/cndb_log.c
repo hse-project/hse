@@ -458,7 +458,7 @@ replay_log(struct tool_info *ti)
     size_t               len;
     int                  i;
     u64                  seqno;
-    u64                  ingestid;
+    u64                  ingestid, txhorizon;
     u32                  cndb_version;
     union cndb_mtu *     mtu;
 
@@ -484,7 +484,7 @@ replay_log(struct tool_info *ti)
     if (ev(err))
         return err;
 
-    err = merr_to_hse_err(ev(cndb_replay(ti->cndb, &seqno, &ingestid)));
+    err = merr_to_hse_err(ev(cndb_replay(ti->cndb, &seqno, &ingestid, &txhorizon)));
 
     fileoff = 0;
     err = merr_to_hse_err(cndb_record_unpack(cndb_version, ti->cndb->cndb_cbuf, &mtu));

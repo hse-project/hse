@@ -74,6 +74,7 @@ struct c0sk_impl {
     atomic64_t              *c0sk_kvdb_seq;
     bool                     c0sk_closing;
     bool                     c0sk_syncing;
+    atomic_t                 c0sk_replaying;
     struct perfc_set         c0sk_pc_op;
     struct perfc_set         c0sk_pc_ingest;
 

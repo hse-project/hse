@@ -843,7 +843,7 @@ kvdb_kvs_destroy(struct kvdb_kvs *kvs)
  * @ingestid:   ingest id (output)
  */
 static merr_t
-ikvdb_cndb_open(struct ikvdb_impl *self, u64 *seqno, u64 *ingestid)
+ikvdb_cndb_open(struct ikvdb_impl *self, u64 *seqno, u64 *ingestid, u64 *txhorizon)
 {
     merr_t           err = 0;
     int              i;
@@ -862,7 +862,7 @@ ikvdb_cndb_open(struct ikvdb_impl *self, u64 *seqno, u64 *ingestid)
     if (ev(err))
         goto err_exit;
 
-    err = cndb_replay(self->ikdb_cndb, seqno, ingestid);
+    err = cndb_replay(self->ikdb_cndb, seqno, ingestid, txhorizon);
     if (ev(err))
         goto err_exit;
 
@@ -964,6 +964,21 @@ ikvdb_wal_install_callback(struct ikvdb_impl *self)
     c0sk_install_callback(self->ikdb_c0sk, cb);
 }
 
+static void
+ikvdb_wal_replay_info_init(
+    struct ikvdb_impl      *self,
+    uint64_t                seqno,
+    uint64_t                gen,
+    uint64_t                txhorizon,
+    struct wal_replay_info *rinfo)
+{
+    rinfo->mdcid1 = self->ikdb_wal_oid1;
+    rinfo->mdcid2 = self->ikdb_wal_oid2;
+    rinfo->seqno = seqno;
+    rinfo->gen = gen;
+    rinfo->txhorizon = txhorizon;
+}
+
 merr_t
 ikvdb_open(
     const char *               kvdb_home,
@@ -979,7 +994,8 @@ ikvdb_open(
     ulong              mavail;
     size_t             sz;
     int                i;
-    u64                ingestid, gen = 0;
+    u64                ingestid, gen = 0, txhorizon = 0;
+    struct wal_replay_info rinfo = {0};
 
     err = ikvdb_alloc(kvdb_home, params, &self);
     if (err) {
@@ -1061,7 +1077,7 @@ ikvdb_open(
     }
 
     kvdb_log_cndboid_get(self->ikdb_log, &self->ikdb_cndb_oid1, &self->ikdb_cndb_oid2);
-    err = ikvdb_cndb_open(self, &seqno, &ingestid);
+    err = ikvdb_cndb_open(self, &seqno, &ingestid, &txhorizon);
     if (err) {
         hse_elog(HSE_ERR "cannot open %s: @@e", err, kvdb_home);
         goto err1;
@@ -1117,8 +1133,11 @@ ikvdb_open(
     c0sk_ctxn_set_set(self->ikdb_c0sk, self->ikdb_ctxn_set);
 
     kvdb_log_waloid_get(self->ikdb_log, &self->ikdb_wal_oid1, &self->ikdb_wal_oid2);
-    err = wal_open(mp, &self->ikdb_rp, self->ikdb_wal_oid1, self->ikdb_wal_oid2,
-                   &self->ikdb_health, &self->ikdb_wal);
+
+    ikvdb_wal_replay_info_init(self, seqno, gen, txhorizon, &rinfo);
+
+    err = wal_open(mp, &self->ikdb_rp, &rinfo, &self->ikdb_handle, &self->ikdb_health,
+                   &self->ikdb_wal);
     if (err) {
         hse_elog(HSE_ERR "cannot open %s: @@e", err, kvdb_home);
         goto err1;
@@ -2626,6 +2645,221 @@ ikvdb_txn_state(struct ikvdb *handle, struct hse_kvdb_txn *txn)
 {
     return kvdb_ctxn_get_state(kvdb_ctxn_h2h(txn));
 }
+
+/* ------------------  WAL replay ikvdb interfaces ---------------- */
+
+struct ikvdb_kvs_hdl {
+    struct kvdb_kvs *kk_prev;
+    u64  cnid_prev;
+    uint kvshc;
+    struct hse_kvs *kvshv[];
+};
+
+merr_t
+ikvdb_wal_replay_open(struct ikvdb *ikvdb, struct ikvdb_kvs_hdl **ikvsh_out)
+{
+    struct ikvdb_kvs_hdl  *ikvsh;
+    struct hse_kvs       **kvshv;
+    struct kvs_rparams params = kvs_rparams_defaults();
+    merr_t  err;
+    int     i;
+    size_t  sz;
+    size_t  kvshc;
+    char  **knamev = NULL;
+
+    err = ikvdb_kvs_names_get(ikvdb, &kvshc, &knamev);
+    if (err)
+        return err;
+
+    sz = sizeof(*ikvsh) + kvshc * sizeof(kvshv[0]);
+    ikvsh = calloc(1, sz);
+    if (!ikvsh) {
+        ikvdb_kvs_names_free(ikvdb, knamev);
+        return merr(ENOMEM);
+    }
+
+    kvshv = ikvsh->kvshv;
+    for (i = 0; i < kvshc; i++) {
+        err = ikvdb_kvs_open(ikvdb, knamev[i], &params, IKVS_OFLAG_REPLAY, &kvshv[i]);
+        if (err) {
+            hse_elog(HSE_WARNING "ikvdb_kvs_open %s: @@e", err, knamev[i]);
+            break;
+        }
+    }
+
+    ikvdb_kvs_names_free(ikvdb, knamev);
+
+    if (err) {
+        while (i-- > 0)
+            ikvdb_kvs_close(kvshv[i]);
+        free(ikvsh);
+        return err;
+    }
+
+    ikvsh->kvshc = kvshc;
+
+    assert(ikvsh_out);
+    *ikvsh_out = ikvsh;
+
+    return 0;
+}
+
+void
+ikvdb_wal_replay_close(struct ikvdb *ikvdb, struct ikvdb_kvs_hdl *ikvsh)
+{
+    int i;
+
+    assert(ikvsh);
+
+    for (i = 0; i < ikvsh->kvshc; i++)
+        ikvdb_kvs_close(ikvsh->kvshv[i]);
+
+    free(ikvsh);
+}
+
+static struct kvdb_kvs *
+ikvdb_wal_replay_kvs_get(struct ikvdb_kvs_hdl *ikvsh, u64 cnid)
+{
+    int i;
+
+    if (ikvsh->cnid_prev == cnid)
+        return ikvsh->kk_prev;
+
+    for (i = 0; i < ikvsh->kvshc; i++) {
+        struct kvdb_kvs *kk = (struct kvdb_kvs *)ikvsh->kvshv[i];
+        if (kk->kk_cnid == cnid) {
+            ikvsh->cnid_prev = cnid;
+            ikvsh->kk_prev = kk;
+            return kk;
+        }
+    }
+
+    return NULL;
+}
+
+merr_t
+ikvdb_wal_replay_put(
+    struct ikvdb         *ikvdb,
+    struct ikvdb_kvs_hdl *ikvsh,
+    u64                   cnid,
+    u64                   seqno,
+    struct kvs_ktuple    *kt,
+    struct kvs_vtuple    *vt)
+{
+    struct kvdb_kvs *kk;
+    merr_t err;
+
+    assert(ikvdb && ikvsh);
+
+    kk = ikvdb_wal_replay_kvs_get(ikvsh, cnid);
+    if (ev(!kk))
+        return 0; /* Possible that the kvs is dropped just prior to crash */
+
+    err = kvs_put(kk->kk_ikvs, NULL, kt, vt, HSE_ORDNL_TO_SQNREF(seqno));
+    if (!err) /* Update ikdb_seqno if it's lower than "seqno", called from the replay thread */
+        ikvdb_wal_replay_seqno_set(ikvdb, seqno);
+
+    return err;
+}
+
+merr_t
+ikvdb_wal_replay_del(
+    struct ikvdb         *ikvdb,
+    struct ikvdb_kvs_hdl *ikvsh,
+    u64                   cnid,
+    u64                   seqno,
+    struct kvs_ktuple    *kt)
+{
+    struct kvdb_kvs *kk;
+    merr_t err;
+
+    assert(ikvdb && ikvsh);
+
+    kk = ikvdb_wal_replay_kvs_get(ikvsh, cnid);
+    if (ev(!kk))
+        return 0; /* Possible that the kvs is dropped just prior to crash */
+
+    err = kvs_del(kk->kk_ikvs, NULL, kt, HSE_ORDNL_TO_SQNREF(seqno));
+    if (!err)
+        ikvdb_wal_replay_seqno_set(ikvdb, seqno);
+
+    return err;
+}
+
+merr_t
+ikvdb_wal_replay_prefix_del(
+    struct ikvdb         *ikvdb,
+    struct ikvdb_kvs_hdl *ikvsh,
+    u64                   cnid,
+    u64                   seqno,
+    struct kvs_ktuple    *kt)
+{
+    struct kvdb_kvs *kk;
+    merr_t err;
+
+    assert(ikvdb && ikvsh);
+
+    kk = ikvdb_wal_replay_kvs_get(ikvsh, cnid);
+    if (ev(!kk))
+        return 0; /* Possible that the kvs is dropped just prior to crash */
+
+    err = kvs_prefix_del(kk->kk_ikvs, NULL, kt, HSE_ORDNL_TO_SQNREF(seqno));
+    if (!err)
+        ikvdb_wal_replay_seqno_set(ikvdb, seqno);
+
+    return err;
+}
+
+void
+ikvdb_wal_replay_seqno_set(struct ikvdb *ikvdb, uint64_t seqno)
+{
+    struct ikvdb_impl *self;
+
+    assert(ikvdb);
+
+    self = ikvdb_h2r(ikvdb);
+
+    /* This is called only in a single-threaded replay context */
+    if (seqno > atomic64_read(&self->ikdb_seqno))
+        atomic64_set(&self->ikdb_seqno, seqno);
+}
+
+void
+ikvdb_wal_replay_gen_set(struct ikvdb *ikvdb, u64 gen)
+{
+    struct ikvdb_impl *self;
+
+    assert(ikvdb);
+
+    self = ikvdb_h2r(ikvdb);
+
+    c0sk_gen_set(self->ikdb_c0sk, gen);
+}
+
+void
+ikvdb_wal_replay_enable(struct ikvdb *ikvdb)
+{
+    struct ikvdb_impl *self;
+
+    assert(ikvdb);
+
+    self = ikvdb_h2r(ikvdb);
+
+    c0sk_replaying_enable(self->ikdb_c0sk);
+}
+
+void
+ikvdb_wal_replay_disable(struct ikvdb *ikvdb)
+{
+    struct ikvdb_impl *self;
+
+    assert(ikvdb);
+
+    self = ikvdb_h2r(ikvdb);
+
+    c0sk_replaying_disable(self->ikdb_c0sk);
+}
+
 
 /*-  Perf Counter Support  --------------------------------------------------*/
 

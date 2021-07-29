@@ -293,6 +293,13 @@ tools = {
             'parm_groups.c',
         )
     },
+    'waltest': {
+        'sources': files(
+            'waltest' / 'waltest.c',
+            'key_generation.c',
+            'parm_groups.c',
+        ),
+    },
     'wbtsize': {
         'sources': files(
             'wbtsize' / 'wbtsize.c',
