@@ -449,7 +449,7 @@ wal_txn_begin(struct wal *wal, uint64_t txid, int64_t *cookie)
 merr_t
 wal_txn_abort(struct wal *wal, uint64_t txid, int64_t cookie)
 {
-    assert(cookie >= 0);
+    assert(!wal || cookie >= 0);
 
     return wal_txn(wal, WAL_RT_TXABORT, txid, 0, &cookie);
 }
@@ -457,7 +457,7 @@ wal_txn_abort(struct wal *wal, uint64_t txid, int64_t cookie)
 merr_t
 wal_txn_commit(struct wal *wal, uint64_t txid, uint64_t seqno, int64_t cookie)
 {
-    assert(cookie >= 0);
+    assert(!wal || cookie >= 0);
 
     return wal_txn(wal, WAL_RT_TXCOMMIT, txid, seqno, &cookie);
 }
