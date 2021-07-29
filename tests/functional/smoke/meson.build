@@ -69,6 +69,15 @@ suites = {
             #   ptree-test
         ],
     },
+    'smoke-ci': {
+        'enabled': smoke_enabled,
+        'needs': smoke_needs,
+        'tests': [
+            'aloha',
+            'version',
+            'simple_client1',
+        ],
+    },
 
     'samples': {
         'enabled': samples_enabled,
