@@ -14,6 +14,8 @@ endif
 additional_suite_exclusions = []
 
 if get_option('b_sanitize') != 'none'
+    # Enabling hse-python based tests in sanitized builds needs to be
+    # investigated. Issues with PYTHON_MALLOC_ and LD_PRELOAD.
     additional_suite_exclusions += 'hse-python'
 endif
 
