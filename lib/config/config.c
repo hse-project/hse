@@ -504,7 +504,9 @@ config_create(const char *path, cJSON **conf)
     assert(path);
     assert(conf);
 
-    file = fopen(path, "r");
+	*conf = NULL;
+
+	file = fopen(path, "r");
     if (!file) {
         err = merr(errno);
         *conf = NULL;
@@ -565,6 +567,8 @@ config_from_hse_conf(const char *const runtime_home, struct config **conf)
 
     assert(conf);
 
+	*conf = NULL;
+
     n = snprintf(conf_file_path, sizeof(conf_file_path), "%s/hse.conf", runtime_home);
     if (n >= sizeof(conf_file_path)) {
         err = merr(ENAMETOOLONG);
@@ -577,7 +581,7 @@ config_from_hse_conf(const char *const runtime_home, struct config **conf)
     err = config_create(conf_file_path, &impl);
     if (err) {
         if (merr_errno(err) == ENOENT)
-        err = 0;
+        	err = 0;
         goto out;
     }
 
