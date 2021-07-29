@@ -1,13 +1,13 @@
 project(
     'curl',
     ['c'],
-    version: '7.61.1',
+    version: '7.58.0',
     meson_version: '>=0.57.0',
 )
 
 extern = import('unstable_external_project')
 
-run_command('buildconf')
+run_command('buildconf', check: true)
 
 configure_options = [
     '--enable-http',
