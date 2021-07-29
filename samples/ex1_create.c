@@ -36,7 +36,7 @@ main(int argc, char **argv)
     int errno;
 
     if (argc < 3) {
-        printf("Usage: %s <mpool> <kvs1> [<kvs2> ... <kvsN>]\n", argv[0]);
+        printf("Usage: %s <kvdb> <kvs1> [<kvs2> ... <kvsN>]\n", argv[0]);
         exit(1);
     }
 
@@ -57,7 +57,6 @@ main(int argc, char **argv)
 
     err = hse_kvdb_create(kvdb_home, 0, NULL);
     switch (hse_err_to_errno(err)) {
-
         case 0:
             printf("KVDB created\n");
             break;
@@ -66,10 +65,6 @@ main(int argc, char **argv)
             printf("Use existing KVDB\n");
             err = 0;
             break;
-
-        case ENODATA:
-            printf("No such mpool: %s\n", kvdb_home);
-            goto error;
 
         default:
             report_error("hse_kvdb_create", err);
@@ -95,7 +90,6 @@ main(int argc, char **argv)
     printf("KVSes created\n");
 
   error:
-
     err2 = 0;
 
     if (open) {
