@@ -11,13 +11,12 @@
 
 /* MTF_MOCK_DECL(hse) */
 
-/*! @mainpage Overview
- *
+/** @mainpage Overview
  * The HSE library is generally described in other places. The documentation here is
  * geared towards describing the structure of the HSE API and the specifics of each
  * entry point's operation.
  *
- * Terminology:
+ * <h3>Terminology</h3>
  *
  *     KVS               - Key-value store, containing zero or more key-value (KV)
  *                         pairs
@@ -39,6 +38,11 @@
  *     key prefix length - For multi-segment keys, the length of a key prefix (bytes)
  *
  *     unsegmented key   - A key that is not logically divided into segments
+ */
+
+/** @page examples Examples
+ * See the samples directory in the source tree for examples. Here is a simple one.
+ * @include ex2_simple_ops.c
  */
 
 #include <hse/limits.h>
@@ -72,23 +76,57 @@ extern "C" {
 #define HSE_EXPORT_EXPERIMENTAL
 #endif
 
-/** @name Utility Routines
- *        =====================================================
- * @{
+/** @addtogroup ERROR_HANDLING HSE Return Codes
+ * @{ 
+ * Describes the HSE API return code type and associated utilities.
  */
 
-/**
- * Initialize the HSE subsystem
+/** @brief Return an hse_err_t value's string representation.
+ *
+ * The hse_err_t scalar value "err" is decoded into a string representation giving more
+ * information about the error and where it occurred. This function is thread safe.
+ *
+ * @param err:      Error value returned from an HSE API function.
+ * @param buf:      Buffer to hold the formatted string.
+ * @param buf_len:  Length of buffer.
+ * @returns The number of characters (excluding the terminating null byte) which would
+ * have been written to the final string if enough space had been available.
+ */
+HSE_EXPORT size_t
+hse_strerror(hse_err_t err, char *buf, size_t buf_len);
+
+/** @brief Return an hse_err_t value's errno representation.
+ *
+ * The hse_err_t scalar value "err" is translated into its errno equivalent. This
+ * function is thread safe.
+ *
+ * @param err: Error value returned from an HSE API function.
+ * @returns The error's errno equivalent.
+ */
+HSE_EXPORT int
+hse_err_to_errno(hse_err_t err);
+
+/**@} ERROR_HANDLING */
+
+/** @defgroup INIT Initialization Routines
+ * @{ 
+ */
+
+/** @brief Initialize the HSE subsystem.
  *
  * This function initializes a range of different internal HSE structures. It must be
  * called before any other HSE functions are used. It is not thread safe and is
  * idempotent.
+ *
+ * @param paramc: Number of initialization parameters in @p paramv.
+ * @param paramv: List of parameters in key=value format.
+ *
+ * @returns The function's error status.
  */
 HSE_EXPORT hse_err_t
 hse_init(const char *rt_home, size_t paramc, const char *const *paramv);
 
-/**
- * Shutdown the HSE subsystem
+/** @brief Shutdown the HSE subsystem.
  *
  * This function cleanly finalizes a range of different internal HSE structures. It
  * should be called prior to application exit and is not thread safe. After it is
@@ -98,79 +136,53 @@ hse_init(const char *rt_home, size_t paramc, const char *const *paramv);
 HSE_EXPORT void
 hse_fini(void);
 
-/**
- * Return an hse_err_t value's string representation
- *
- * The hse_err_t scalar value "err" is decoded into a string representation giving more
- * information about the error and where it occurred. This function is thread safe.
- *
- * @param err:      Error value returned from an HSE API function
- * @param buf:      Buffer to hold the formatted string
- * @param buf_len:  Length of buffer
- * @return The number of characters (excluding the terminating null byte) which would
- * have been written to the final string if enough space had been available
- */
-HSE_EXPORT size_t
-hse_strerror(hse_err_t err, char *buf, size_t buf_len);
+/** @} INIT */
 
-/**
- * Return an hse_err_t value's errno representation
- *
- * The hse_err_t scalar value "err" is translated into its errno equivalent. This
- * function is thread safe.
- *
- * @param err: Error value returned from an HSE API function
- * @return The error's errno equivalent
- */
-HSE_EXPORT int
-hse_err_to_errno(hse_err_t err);
 
-/**@}*/
-
-/** @name Primary Lifecycle Functions
- *        =====================================================
+/** @defgroup LIFECYCLE Primary Lifecycle Functions
  * @{
+ * Functions that manage HSE objects. 
  */
 
-/**
- * Create a new KVDB instance
+/** @brief Create a new KVDB instance.
  *
  * This function is not thread safe.
  *
- * @param kvdb_home: KVDB home directory, NULL means current working directory
- * @param paramc: Number of configuration parameters in \p paramv
- * @param paramv: List of parameters in key=value format
- * @return The function's error status
+ * @param kvdb_home: KVDB home directory, NULL means current working directory.
+ * @param paramc:    Number of configuration parameters in @p paramv.
+ * @param paramv:    List of parameters in key=value format.
+ *
+ * @returns The function's error status
  */
 /* MTF_MOCK */
 HSE_EXPORT hse_err_t
 hse_kvdb_create(const char *kvdb_home, size_t paramc, const char *const *paramv);
 
-/**
- * Remove a KVDB
+/** @brief Remove a KVDB.
  *
  * It is an error to call this function on a KVDB that is open. This function is not
  * thread safe.
  *
- * @param kvdb_home: KVDB home directoryy, NULL means current working directory
- * @param paramc: Number of configuration parameters in \p paramv
- * @param paramv: List of parameters in key=value format
- * @return The function's error status
+ * @param kvdb_home: KVDB home directoryy, NULL means current working directory.
+ * @param paramc:    Number of configuration parameters in @p paramv.
+ * @param paramv:    List of parameters in key=value format.
+ *
+ * @returns The function's error status.
  */
 HSE_EXPORT hse_err_t
 hse_kvdb_drop(const char *kvdb_home, size_t paramc, const char *const *paramv);
 
-/**
- * Open an HSE KVDB for use by the application
+/** @brief Open an HSE KVDB for use by the application.
  *
  * The KVDB must already exist and the client must have permission to use it. This
  * function is not thread safe.
  *
  * @param kvdb_home: KVDB home directory, NULL means current working directory
- * @param paramc: Number of configuration parameters in \p paramv
- * @param paramv: List of parameters in key=value format
- * @param kvdb: [out] Handle to access the opened KVDB
- * @return The function's error status
+ * @param paramc:    Number of configuration parameters in @p paramv.
+ * @param paramv:    List of parameters in key=value format.
+ * @param[out] kvdb: Handle to access the opened KVDB.
+ *
+ * @returns The function's error status.
  */
 /* MTF_MOCK */
 HSE_EXPORT hse_err_t
@@ -180,21 +192,20 @@ hse_kvdb_open(
     const char *const *paramv,
     struct hse_kvdb ** kvdb);
 
-/**
- * Close an open HSE KVDB
+/** @brief Close an open HSE KVDB.
  *
  * No client thread may enter the HSE KVDB API with the referenced KVDB after this
  * function starts. This function is not thread safe.
  *
- * @param kvdb: KVDB handle from hse_kvdb_open()
- * @return The function's error status
+ * @param kvdb: KVDB handle from hse_kvdb_open().
+ *
+ * @returns The function's error status.
  */
 /* MTF_MOCK */
 HSE_EXPORT hse_err_t
 hse_kvdb_close(struct hse_kvdb *kvdb);
 
-/**
- * Get the names of the KVSs within the given KVDB
+/** @brief Get the names of the KVSs within the given KVDB.
  *
  * Key-value stores (KVSs) are opened by name. This function allocates a vector of
  * allocated strings, each containing the name of a KVS. The memory must be freed via
@@ -202,6 +213,7 @@ hse_kvdb_close(struct hse_kvdb *kvdb);
  *
  * Example Usage:
  *
+ * @code{.c}
  *     int     namec, i, rc;
  *     char  **namev;
  *
@@ -211,41 +223,42 @@ hse_kvdb_close(struct hse_kvdb *kvdb);
  *             printf("%s\n", namev[i]);
  *     }
  *     hse_kvdb_kvs_names_free(namev);
+ * @endcode
  *
- * @param kvdb: KVDB handle from hse_kvdb_open()
+ * @param kvdb:       KVDB handle from hse_kvdb_open().
  * @param[out] namec: Number of KVSs in the KVDB.
- * @param[out] namev: Vector of KVSs. Allocated by the function
- * @return The function's error status
+ * @param[out] namev: Vector of KVSs. Allocated by the function.
+ *
+ * @returns The function's error status.
  *
  */
 /* MTF_MOCK */
 HSE_EXPORT hse_err_t
 hse_kvdb_kvs_names_get(struct hse_kvdb *kvdb, size_t *namec, char ***namev);
 
-/**
- * Free the names collection obtained through hse_kvdb_kvs_names_get()
+/** @brief Free the names collection obtained through hse_kvdb_kvs_names_get().
  *
  * This function is thread safe.
  *
- * @param kvdb: KVDB handle from hse_kvdb_open()
- * @param namev: Vector of KVS names that hse_kvdb_kvs_names_get() output
+ * @param kvdb:  KVDB handle from hse_kvdb_open().
+ * @param namev: Vector of KVS names that hse_kvdb_kvs_names_get() output.
  */
 HSE_EXPORT void
 hse_kvdb_kvs_names_free(struct hse_kvdb *kvdb, char **namev);
 
-/**
- * Create a new KVS within the referenced KVDB
+/** @brief Create a new KVS within the referenced KVDB.
  *
  * If the KVS will store multi-segment keys then the parameter "pfx_len" should be set
  * to the desired key prefix length. Otherwise the param should be set to 0 (the default).
  * An error will result if there is already a KVS with the given name. This function is not
  * thread safe.
  *
- * @param kvdb: KVDB handle from hse_kvdb_open()
- * @param kvs_name: KVS name
- * @param paramc: Number of configuration parameters in \p paramv
- * @param paramv: List of parameters in key=value format
- * @return The function's error status
+ * @param kvdb:     KVDB handle from hse_kvdb_open().
+ * @param kvs_name: KVS name.
+ * @param paramc:   Number of configuration parameters in @p paramv.
+ * @param paramv:   List of parameters in key=value format.
+ *
+ * @returns The function's error status.
  */
 /* MTF_MOCK */
 HSE_EXPORT hse_err_t
@@ -255,30 +268,30 @@ hse_kvdb_kvs_create(
     size_t             paramc,
     const char *const *paramv);
 
-/**
- * Remove a KVS from the referenced KVDB
+/** @brief Remove a KVS from the referenced KVDB.
  *
  * It is an error to call this function on a KVS that is open. This function is not
  * thread safe.
  *
- * @param kvdb: KVDB handle from hse_kvdb_open()
+ * @param kvdb:     KVDB handle from hse_kvdb_open()
  * @param kvs_name: KVS name
- * @return The function's error status
+ *
+ * @returns The function's error status
  */
 HSE_EXPORT hse_err_t
 hse_kvdb_kvs_drop(struct hse_kvdb *kvdb, const char *kvs_name);
 
-/**
- * Open a KVS in a KVDB
+/** @brief Open a KVS in a KVDB.
  *
  * This function is not thread safe.
  *
- * @param kvdb: KVDB handle from hse_kvdb_open()
- * @param kvs_name: KVS name
- * @param paramc: Number of configuration parameters in \p paramv
- * @param paramv: List of parameters in key=value format
- * @param[out] kvs_out: Handle to access the opened KVS
- * @return The function's error status
+ * @param handle:       KVDB handle from hse_kvdb_open().
+ * @param kvs_name:     KVS name.
+ * @param paramc:       Number of configuration parameters in @p paramv.
+ * @param paramv:       List of parameters in key=value format.
+ * @param[out] kvs_out: Handle to access the opened KVS.
+ *
+ * @returns The function's error status
  */
 HSE_EXPORT hse_err_t
 hse_kvdb_kvs_open(
@@ -288,27 +301,25 @@ hse_kvdb_kvs_open(
     const char *const *paramv,
     struct hse_kvs **  kvs_out);
 
-/**
- * Close an open KVS
+/** @brief Close an open KVS.
  *
  * No client thread may enter the HSE KVDB API with the referenced KVS after this
  * function starts. This function is not thread safe.
  *
- * @param kvs: KVS handle from hse_kvdb_kvs_open()
- * @return The function's error status
+ * @param kvs: KVS handle from hse_kvdb_kvs_open().
+ *
+ * @returns The function's error status
  */
 HSE_EXPORT hse_err_t
 hse_kvdb_kvs_close(struct hse_kvs *kvs);
 
-/**@}*/
+/**@} LIFECYCLE */
 
-/** @name Create / Read / Update / Delete (CRUD) Functions
- *        =====================================================
- * @{
+/** @defgroup CRUD Create, Read, Update and Delete (CRUD) Functions
+ * @{ 
  */
 
-/**
- * Put a KV pair into KVS
+/** @brief Put a KV pair into KVS.
  *
  * If the key already exists in the KVS then the value is effectively overwritten. The
  * key length must be in the range [1, HSE_KVS_KEY_LEN_MAX] while the value length must be
@@ -328,14 +339,15 @@ hse_kvdb_kvs_close(struct hse_kvs *kvs);
  * compress the value unless the HSE_FLAG_PUT_VCOMP_OFF flag is given.  Otherwise,
  * the HSE_FLAG_PUT_VCOMP_OFF flag is ignored.
  *
- * @param kvs: KVS handle from hse_kvdb_kvs_open()
- * @param flags: Flags for operation specialization
- * @param txn: Transaction context
- * @param key: Key to put into kvs
- * @param key_len: Length of key
- * @param val: Value associated with key
- * @param val_len: Length of value
- * @return The function's error status
+ * @param kvs:     KVS handle from hse_kvdb_kvs_open().
+ * @param flags:   Flags for operation specialization.
+ * @param txn:     Transaction context.
+ * @param key:     Key to put into kvs.
+ * @param key_len: Length of key.
+ * @param val:     Value associated with key.
+ * @param val_len: Length of value.
+ *
+ * @returns The function's error status.
  */
 /* MTF_MOCK */
 HSE_EXPORT hse_err_t
@@ -348,8 +360,7 @@ hse_kvs_put(
     const void *         val,
     size_t               val_len);
 
-/**
- * Retrieve the value for a given key from KVS
+/** @brief Retrieve the value for a given key from KVS.
  *
  * If the key exists in the KVS then the referent of "found" is set to true. If the
  * caller's value buffer is large enough then the data will be returned. Regardless, the
@@ -357,16 +368,17 @@ hse_kvs_put(
  * information on how gets within transactions are handled. This function is thread
  * safe.
  *
- * @param kvs: KVS handle from hse_kvdb_kvs_open()
- * @param flags: Flags for operation specialization
- * @param txn: Transaction context
- * @param key: Key to get from kvs
- * @param key_len: Length of key
- * @param[out] found: Whether or not key was found
- * @param[out] buf: Buffer into which the value associated with key will be copied
- * @param buf_len: Length of buffer
- * @param[out] val_len: [out] Actual length of value if key was found
- * @return The function's error status
+ * @param kvs:          KVS handle from hse_kvdb_kvs_open().
+ * @param flags:        Flags for operation specialization.
+ * @param txn:          Transaction context.
+ * @param key:          Key to get from kvs.
+ * @param key_len:      Length of key.
+ * @param[out] found:   Whether or not key was found.
+ * @param[out] buf:     Buffer into which the value associated with key will be copied.
+ * @param buf_len:      Length of buffer.
+ * @param[out] val_len: Actual length of value if key was found.
+ *
+ * @returns The function's error status.
  */
 /* MTF_MOCK */
 HSE_EXPORT hse_err_t
@@ -381,19 +393,19 @@ hse_kvs_get(
     size_t               buf_len,
     size_t *             val_len);
 
-/**
- * Delete the key and its associated value from KVS
+/** @brief Delete the key and its associated value from KVS.
  *
  * It is not an error if the key does not exist within the KVS. See the section on
  * transactions for information on how deletes within transactions are handled. This
  * function is thread safe.
  *
- * @param kvs: KVS handle from hse_kvdb_kvs_open()
- * @param flags: Flags for operation specialization
- * @param txn: Transaction context (optional)
- * @param key: Key to be deleted from kvs
+ * @param kvs:     KVS handle from hse_kvdb_kvs_open()
+ * @param flags:   Flags for operation specialization
+ * @param txn:     Transaction context (optional)
+ * @param key:     Key to be deleted from kvs
  * @param key_len: Length of key
- * @return The function's error status
+ *
+ * @returns The function's error status.
  */
 /* MTF_MOCK */
 HSE_EXPORT hse_err_t
@@ -404,8 +416,7 @@ hse_kvs_delete(
     const void *         key,
     size_t               key_len);
 
-/**
- * Delete all KV pairs matching the key prefix from a KVS storing multi-segment keys
+/** @brief Delete all KV pairs matching the key prefix from a KVS storing multi-segment keys.
  *
  * This interface is used to delete an entire range of multi-segment keys. To do this
  * the caller passes a filter with a length equal to the KVS's key prefix length. It is
@@ -419,13 +430,14 @@ hse_kvs_delete(
  * treated as though they were issued serially at the beginning of the transaction
  * regardless of the actual order these commands appeared in.
  *
- * @param kvs: KVS handle from hse_kvdb_kvs_open()
- * @param flags: Flags for operation specialization
- * @param txn: Transaction context (optional)
- * @param filt: Filter for keys to delete
- * @param filt_len: Filter length
- * @param[out] kvs_pfx_len: If specified, this will be set to the KVS's prefix length
- * @return The function's error status
+ * @param kvs:              KVS handle from hse_kvdb_kvs_open().
+ * @param flags:            Flags for operation specialization.
+ * @param txn:              Transaction context (optional).
+ * @param filt:             Filter for keys to delete.
+ * @param filt_len:         Filter length.
+ * @param[out] kvs_pfx_len: If specified, this will be set to the KVS's prefix length.
+ *
+ * @returns The function's error status.
  */
 /* MTF_MOCK */
 HSE_EXPORT hse_err_t
@@ -448,15 +460,15 @@ hse_kvs_prefix_delete(
  * @param flags: Flags for operation specialization
  * @param txn: Transaction context
  * @param pfx: Prefix to be probed
- * @param pfx_len: Length of \p pfx
+ * @param pfx_len: Length of @p pfx
  * @param[out] found: Zero, one or multiple matches seen
  * @param keybuf: Buffer which will be populated with contents of first seen key
- * @param keybuf_sz: Size of \p keybuf
+ * @param keybuf_sz: Size of @p keybuf
  * @param[out] key_len: Length of first seen key
  * @param valbuf: Buffer which will be populated with value for @keybuf
- * @param valbuf_sz: Size of \p valbuf
+ * @param valbuf_sz: Size of @p valbuf
  * @param[out] val_len: Length of the value seen
- * @return The function's error status
+ * @returns The function's error status
  */
 HSE_EXPORT_EXPERIMENTAL hse_err_t
 hse_kvs_prefix_probe(
@@ -474,14 +486,10 @@ hse_kvs_prefix_probe(
     size_t *                    val_len);
 #endif
 
-/**@}*/
+/**@} CRUD */
 
-/** @name Transaction Functions
- *        =====================================================
- * @{
- */
 
-/*
+/** @defgroup TXN Transaction Functions
  * The HSE KVDB provides transactions with operations spanning KVSs within a single
  * KVDB.  These transactions have snapshot isolation (a specific form of MVCC) with the
  * normal semantics (see "Concurrency Control and Recovery in Database Systems" by PA
@@ -499,6 +507,8 @@ hse_kvs_prefix_probe(
  * performing an operation in the context of a particular transaction at any particular
  * time.
  *
+ * @if DOXYGEN_DISABLED
+
  * The general lifecycle of a transaction is as follows:
  *
  *                       +----------+
@@ -513,6 +523,18 @@ hse_kvs_prefix_probe(
  *     +--| COMMITTED |<---+      +---->| ABORTED  |--+
  *        +-----------+                 +----------+
  *
+ * @endif
+ *
+ * @dot
+ * digraph D {
+ *  INVALID -> ACTIVE
+ *  ACTIVE -> ABORTED
+ *  ACTIVE -> COMMITTED
+ *  ABORTED -> ACTIVE
+ *  COMMITTED -> ACTIVE
+ * }
+ * @enddot
+
  * When a transaction is initially allocated, it starts in the INVALID state. When
  * hse_kvdb_txn_begin() is called with transaction in the INVALID, COMMITTED, or ABORTED
  * states, it moves to the ACTIVE state. It is an error to call the hse_kvdb_txn_begin()
@@ -525,103 +547,104 @@ hse_kvs_prefix_probe(
  * point are not visible to the transaction. Similarly, any mutations performed within
  * the context of the transaction are not visible outside of the transaction unless and
  * until it is committed. All such mutations become visible atomically.
+ *
+ * @anchor WRITE_CONFLICT
+ * Within a transaction whenever a write operation e.g., put, delete, etc., encounters a
+ * write conflict, that operation returns an error code of ECANCELED. The caller is then
+ * expected to re-try the operation in a new transaction, see @ref ERROR_HANDLING.
  */
+/** @{ */
 
-/**
- * Allocate transaction object
+/** @brief Allocate transaction object.
  *
  * This object can and should be re-used many times to avoid the overhead of
  * allocation. This function is thread safe.
  *
- * @param kvdb: KVDB handle from hse_kvdb_open()
- * @return The allocated transaction structure
+ * @param kvdb: KVDB handle from hse_kvdb_open().
+ *
+ * @returns The allocated transaction structure.
  */
 /* MTF_MOCK */
 HSE_EXPORT struct hse_kvdb_txn *
 hse_kvdb_txn_alloc(struct hse_kvdb *kvdb);
 
-/**
- * Free transaction object
+/** @brief Free transaction object.
  *
  * If the transaction handle refers to an ACTIVE transaction, the transaction is aborted
  * prior to being freed. This function is thread safe with different transactions.
  *
- * @param kvdb: KVDB handle from hse_kvdb_open()
- * @param txn: KVDB transaction handle
+ * @param kvdb: KVDB handle from hse_kvdb_open().
+ * @param txn:  KVDB transaction handle.
  */
 /* MTF_MOCK */
 HSE_EXPORT void
 hse_kvdb_txn_free(struct hse_kvdb *kvdb, struct hse_kvdb_txn *txn);
 
-/**
- * Initiate transaction
+/** @brief Initiate transaction.
  *
  * The call fails if the transaction handle refers to an ACTIVE transaction. This
  * function is thread safe with different transactions.
  *
- * @param kvdb: KVDB handle from hse_kvdb_open()
- * @param txn: KVDB transaction handle from hse_kvdb_txn_alloc()
- * @return The function's error status
+ * @param kvdb: KVDB handle from hse_kvdb_open().
+ * @param txn:  KVDB transaction handle from hse_kvdb_txn_alloc().
+ *
+ * @returns The function's error status
  */
 /* MTF_MOCK */
 HSE_EXPORT hse_err_t
 hse_kvdb_txn_begin(struct hse_kvdb *kvdb, struct hse_kvdb_txn *txn);
 
-/**
- * Commit all the mutations of the referenced transaction
+/** @brief Commit all the mutations of the referenced transaction.
  *
  * The call fails if the referenced transaction is not in the ACTIVE state. This
  * function is thread safe with different transactions.
  *
- * @param kvdb: KVDB handle from hse_kvdb_open()
- * @param txn: KVDB transaction handle from hse_kvdb_txn_alloc()
- * @return The function's error status
+ * @param kvdb: KVDB handle from hse_kvdb_open().
+ * @param txn:  KVDB transaction handle from hse_kvdb_txn_alloc().
+ *
+ * @returns The function's error status.
  */
 /* MTF_MOCK */
 HSE_EXPORT hse_err_t
 hse_kvdb_txn_commit(struct hse_kvdb *kvdb, struct hse_kvdb_txn *txn);
 
-/**
- * Abort/rollback transaction
+/** @brief Abort/rollback transaction.
  *
  * The call fails if the referenced transaction is not in the ACTIVE state. This
  * function is thread safe with different transactions.
  *
- * @param kvdb: KVDB handle from hse_kvdb_open()
- * @param txn: KVDB transaction handle from hse_kvdb_txn_alloc()
- * @return The function's error status
+ * @param kvdb: KVDB handle from hse_kvdb_open().
+ * @param txn:  KVDB transaction handle from hse_kvdb_txn_alloc().
+ *
+ * @returns The function's error status.
  */
 /* MTF_MOCK */
 HSE_EXPORT hse_err_t
 hse_kvdb_txn_abort(struct hse_kvdb *kvdb, struct hse_kvdb_txn *txn);
 
-/**
- * Retrieve the state of the referenced transaction
+/** @brief Retrieve the state of the referenced transaction.
  *
  * This function is thread safe with different transactions.
  *
- * @param kvdb: KVDB handle from hse_kvdb_open()
- * @param txn: KVDB transaction handle from hse_kvdb_txn_alloc()
- * @return The transaction's state
+ * @param kvdb: KVDB handle from hse_kvdb_open().
+ * @param txn:  KVDB transaction handle from hse_kvdb_txn_alloc().
+ *
+ * @returns The transaction's state
  */
 /* MTF_MOCK */
 HSE_EXPORT enum hse_kvdb_txn_state
 hse_kvdb_txn_get_state(struct hse_kvdb *kvdb, struct hse_kvdb_txn *txn);
 
-/**@}*/
+/**@} TXN */
 
-/** @name Cursor Functions
- *        =====================================================
- * @{
+
+/** @defgroup CURSOR Cursor Functions 
+ * See the concept and best practices sections on the HSE project site at
+ * https://hse-project.github.io/dev/concepts/
  */
+/** @{ */
 
-/*
- * See the concept and best practices sections on the HSE Wiki at
- * https://github.com/hse-project/hse/wiki
- */
-
-/**
- * Creates a cursor used to iterate over a KVS
+/** @brief Creates a cursor used to iterate over a KVS.
  *
  * When cursors are created they are by default forward iterating. If the caller of
  * hse_kvs_cursor_create() passes a flags parameter with the bit flag
@@ -668,13 +691,14 @@ hse_kvdb_txn_get_state(struct hse_kvdb *kvdb, struct hse_kvdb_txn *txn);
  * the mutations of the transaction, if any. Note that this will make any other
  * mutations that occurred during the lifespan of the transaction visible as well.
  *
- * @param kvs: KVS to iterate over, handle from hse_kvdb_kvs_open()
- * @param flags: Flags for operation specialization
- * @param txn: Transaction context (optional)
- * @param filt: Iteration limited to keys matching this prefix filter (optional)
- * @param filt_len: Length of filter (optional)
- * @param[out] cursor: Cursor handle
- * @return The function's error status
+ * @param kvs:         KVS to iterate over, handle from hse_kvdb_kvs_open().
+ * @param flags:       Flags for operation specialization.
+ * @param txn:         Transaction context (optional).
+ * @param filt:        Iteration limited to keys matching this prefix filter (optional).
+ * @param filt_len:    Length of filter (optional).
+ * @param[out] cursor: Cursor handle.
+ *
+ * @returns The function's error status.
  */
 /* MTF_MOCK */
 HSE_EXPORT hse_err_t
@@ -686,8 +710,7 @@ hse_kvs_cursor_create(
     size_t                  filt_len,
     struct hse_kvs_cursor **cursor);
 
-/**
- * Update a plain cursor or modify any cursor
+/** @brief Update a plain cursor or modify any cursor.
  *
  * This operation serves to either move the snapshot view forward for a type (1) cursor,
  * or to transition between being a type (1), type (2), and type (3) cursor.  That
@@ -699,29 +722,29 @@ hse_kvs_cursor_create(
  * The flags and txn parameters must be unchanged and set to their original values
  * (as set at hse_kvs_cursor_create()).
  *
- * @param cursor: Cursor handle from hse_kvs_cursor_create()
- * @param flags: Flags for operation specialization
- * @param txn: Transaction context (optional)
- * @return The function's error status
+ * @param cursor: Cursor handle from hse_kvs_cursor_create().
+ * @param flags:  Flags for operation specialization.
+ *
+ * @returns The function's error status
  */
 /* MTF_MOCK */
 HSE_EXPORT hse_err_t
 hse_kvs_cursor_update_view(struct hse_kvs_cursor *cursor, unsigned int flags);
 
-/**
- * Move the cursor to point at the key/value pair at or closest to "key"
+/** @brief Move the cursor to point at the key/value pair at or closest to "key".
  *
  * The next hse_kvs_cursor_read() will start at this point. Both "found" and "found_len"
  * must be non-NULL for that functionality to work. This function is thread safe across
  * disparate cursors.
  *
- * @param cursor: Cursor handle from hse_kvs_cursor_create()
- * @param flags: Flags for operation specialization
- * @param key: Key to find
- * @param key_len: Length of key
- * @param found: If non-NULL, referent point to next key in sequence (optional)
- * @param found_len: If "found" is non-NULL, referent is length of "found" key
- * @return The function's error status
+ * @param cursor:    Cursor handle from hse_kvs_cursor_create().
+ * @param flags:     Flags for operation specialization.
+ * @param key:       Key to find.
+ * @param key_len:   Length of key.
+ * @param found:     If non-NULL, referent point to next key in sequence (optional).
+ * @param found_len: If "found" is non-NULL, referent is length of "found" key.
+ *
+ * @returns The function's error status.
  */
 /* MTF_MOCK */
 HSE_EXPORT hse_err_t
@@ -733,8 +756,7 @@ hse_kvs_cursor_seek(
     const void **          found,
     size_t *               found_len);
 
-/**
- * Move the cursor to the closest match to key, gated by the given filter
+/** @brief Move the cursor to the closest match to key, gated by the given filter.
  *
  * Keys read from this cursor will belong to the closed interval defined by the given
  * filter: ["filt_min", "filt_max"]. For KVSs storing multi-segment keys, performance
@@ -744,15 +766,16 @@ hse_kvs_cursor_seek(
  *
  * Note: this is only supported for forward cursors.
  *
- * @param cursor: Cursor handle from hse_kvs_cursor_create()
- * @param flags: Flags for operation specialization
- * @param filt_min: Filter minimum
- * @param filt_min_len: Length of filter minimum
- * @param filt_max: Filter maximum
- * @param filt_max_len: Length of filter maximum
- * @param[out] found: If non-NULL, referent points to next key in sequence (optional)
- * @param[out] found_len: If non-NULL, referent is length of "found" key (optional)
- * @return The function's error status
+ * @param cursor:         Cursor handle from hse_kvs_cursor_create().
+ * @param flags:          Flags for operation specialization.
+ * @param filt_min:       Filter minimum.
+ * @param filt_min_len:   Length of filter minimum.
+ * @param filt_max:       Filter maximum.
+ * @param filt_max_len:   Length of filter maximum.
+ * @param[out] found:     If non-NULL, referent points to next key in sequence (optional).
+ * @param[out] found_len: If non-NULL, referent is length of "found" key (optional).
+ *
+ * @returns The function's error status.
  */
 /* MTF_MOCK */
 HSE_EXPORT hse_err_t
@@ -766,21 +789,21 @@ hse_kvs_cursor_seek_range(
     const void **          found,
     size_t *               found_len);
 
-/**
- * Iteratively access the elements pointed to by the cursor
+/** @brief Iteratively access the elements pointed to by the cursor.
  *
  * Read a KV pair from the cursor, advancing the cursor past its current location. If
  * the cursor is at EOF, attempts to read from it will not change the state of the
  * cursor. This function is thread safe across disparate cursors.
  *
- * @param cursor:  Cursor handle from hse_kvs_cursor_create()
- * @param flags: Flags for operation specialization=
- * @param[out] key: Next key in sequence
- * @param[out] key_len: Length of key
- * @param[out] val: Next value in sequence
- * @param[out] val_len: Length of value
- * @param[out] eof: If true, no more key/value pairs in sequence
- * @return The function's error status
+ * @param cursor:       Cursor handle from hse_kvs_cursor_create().
+ * @param flags:        Flags for operation specialization.
+ * @param[out] key:     Next key in sequence.
+ * @param[out] key_len: Length of key.
+ * @param[out] val:     Next value in sequence.
+ * @param[out] val_len: Length of value.
+ * @param[out] eof:     If true, no more key/value pairs in sequence.
+ *
+ * @returns The function's error status.
  */
 /* MTF_MOCK */
 HSE_EXPORT hse_err_t
@@ -793,34 +816,46 @@ hse_kvs_cursor_read(
     size_t *               val_len,
     bool *                 eof);
 
-/**
- * Destroy cursor
+/** @brief Destroy cursor.
  *
  * This function is thread safe.
  *
- * @param cursor: Cursor handle from hse_kvs_cursor_create()
- * @return The function's error status
+ * @param cursor: Cursor handle from hse_kvs_cursor_create().
+ *
+ * @returns The function's error status
  */
 /* MTF_MOCK */
 HSE_EXPORT hse_err_t
 hse_kvs_cursor_destroy(struct hse_kvs_cursor *cursor);
 
-/**@}*/
+/**@} CURSOR */
 
-/** @name Data State Management Functions
- *        =====================================================
- * @{
+
+/** @defgroup DSTATE Data State Management Functions.
+ * @{ 
  */
 
-/**
- * Sync data in all of the referenced KVDB's KVSs to stable media and return
+/** @brief Sync data in all of the referenced KVDB's KVSs to stable media and return.
  *
- * @param kvdb: KVDB handle from hse_kvdb_open()
- * @return The function's error status
+ * @param kvdb:  KVDB handle from hse_kvdb_open().
+ * @param flags: Flags for operation specialization.
+ *
+ * @returns The function's error status.
  */
 /* MTF_MOCK */
 HSE_EXPORT hse_err_t
 hse_kvdb_sync(struct hse_kvdb *kvdb, unsigned int flags);
+
+/**@} DSTATE */
+
+
+/** @defgroup LIMITS Limits
+ * @{
+ */
+
+/* empty here to maintain the order in doxygen output , see limits.h */
+
+/** @} LIMITS */
 
 #ifdef HSE_EXPERIMENTAL
 /**
@@ -842,7 +877,7 @@ hse_kvdb_sync(struct hse_kvdb *kvdb, unsigned int flags);
  *
  * @param kvdb: KVDB handle from hse_kvdb_open()
  * @param flags: Compaction flags
- * @return The function's error status
+ * @returns The function's error status
  */
 HSE_EXPORT_EXPERIMENTAL hse_err_t
 hse_kvdb_compact(struct hse_kvdb *kvdb, int flags);
@@ -855,7 +890,7 @@ hse_kvdb_compact(struct hse_kvdb *kvdb, int flags);
  *
  * @param kvdb: KVDB handle from hse_kvdb_open()
  * @param[out] status: Status of compaction request
- * @return The function's error status
+ * @returns The function's error status
  */
 HSE_EXPORT_EXPERIMENTAL hse_err_t
 hse_kvdb_compact_status_get(struct hse_kvdb *kvdb, struct hse_kvdb_compact_status *status);
@@ -869,12 +904,11 @@ hse_kvdb_compact_status_get(struct hse_kvdb *kvdb, struct hse_kvdb_compact_statu
  *
  * @param kvdb: KVDB handle from hse_kvdb_open()
  * @param[out] info: KVDB storage config and stats
- * @return The function's error status
+ * @returns The function's error status
  */
 HSE_EXPORT hse_err_t
 hse_kvdb_storage_info_get(struct hse_kvdb *kvdb, struct hse_kvdb_storage_info *info);
 
-/**@}*/
 
 #undef HSE_EXPORT_EXPERIMENTAL
 #undef HSE_EXPORT

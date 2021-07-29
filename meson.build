@@ -412,6 +412,9 @@ subdir('samples')
 if get_option('ycsb')
     subdir('hsejni')
 endif
+if get_option('docs')
+    subdir('docs')
+endif
 
 # Environment in which various run_targets and tests will run in
 run_env = environment()

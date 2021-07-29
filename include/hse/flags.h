@@ -13,28 +13,23 @@
 extern "C" {
 #endif
 
-#define HSE_FLAG_NONE (0u) /* Represents no flags */
+/** @addtogroup TYPES
+ * @{
+ */ 
+#define HSE_FLAG_NONE (0u) /**< Represents no flags */
 
-/**
- * Flags for sync operation
- */
+#define HSE_FLAG_SYNC_ASYNC (1u << 0) /**< make the sync operation asynchronous */
 
-#define HSE_FLAG_SYNC_ASYNC (1u << 0) /* make the sync operation asynchronous */
+#define HSE_FLAG_PUT_PRIORITY  (1u << 0) /**< Operation will not be throttled */
+#define HSE_FLAG_PUT_VCOMP_OFF (1u << 1) /**< Value will not be compressed */
 
-/**
- * Flags for PUT operation
- */
+/** @brief Turns of value compression on puts. */
+#define HSE_FLAG_PUT_VALUE_COMPRESSION_OFF HSE_FLAG_PUT_VCOMP_OFF 
 
-#define HSE_FLAG_PUT_PRIORITY  (1u << 0) /* Operation will not be throttled */
-#define HSE_FLAG_PUT_VCOMP_OFF (1u << 1) /* Value will not be compressed */
+/* Flags for cursor usage */
+#define HSE_FLAG_CURSOR_REVERSE     (1u << 0) /**< Move the cursor in reverse */
 
-#define HSE_FLAG_PUT_VALUE_COMPRESSION_OFF HSE_FLAG_PUT_VCOMP_OFF
-
-/**
- * Flags for cursor usage
- */
-
-#define HSE_FLAG_CURSOR_REVERSE     (1u << 0) /* Move the cursor in reverse */
+/** @} TYPES */
 
 #ifdef HSE_EXPERIMENTAL
 /**
