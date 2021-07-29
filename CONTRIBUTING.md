@@ -1,5 +1,7 @@
 # Contributing to the HSE Project
 
+We welcome your contributions to the HSE project.
+
 The first section below contains general information on contributing to
 the HSE project.  It is referenced by the `CONTRIBUTING.md` files in all
 other HSE project repos.
@@ -77,7 +79,7 @@ the project.
 
 HSE uses the [Meson build system](https://mesonbuild.com). You can obtain a copy
 of `meson` from PyPI or through your system repositories. HSE currently needs a
-copy of Meson >= 0.57 to build. If you choose to install from PyPI, it might
+copy of Meson >= 0.58 to build. If you choose to install from PyPI, it might
 make sense to just install Meson into a [virtual environment](#Python).
 
 ```sh
@@ -165,7 +167,7 @@ To execute only tests pertaining to `c0`, run the following:
 meson test -C build --suite c0
 ```
 
-The default test setup for HSE will run *all* test suites.
+The default test setup for HSE runs the unit test suite.
 
 ### Targets
 
