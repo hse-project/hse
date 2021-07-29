@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
 /*
@@ -13,15 +13,7 @@
 
 #include <hse/hse.h>
 
-void
-report_error(const char *api, hse_err_t err)
-{
-    char message[256];
-
-    hse_strerror(err, message, sizeof(message));
-    printf("%s: %s\n", api, message);
-}
-
+#include "helper.h"
 
 int
 main(int argc, char **argv)
@@ -31,9 +23,7 @@ main(int argc, char **argv)
     char       *kvdb_home;
     char      **kvs_list;
     int         kvs_cnt;
-    hse_err_t   err, err2;
-    bool        init, open;
-    int errno;
+    hse_err_t   rc, rc2;
 
     if (argc < 3) {
         printf("Usage: %s <kvdb> <kvs1> [<kvs2> ... <kvsN>]\n", argv[0]);
@@ -44,62 +34,51 @@ main(int argc, char **argv)
     kvs_list = &argv[2];
     kvs_cnt = argc - 2;
 
-    init = false;
-    open = false;
-
-    err = hse_init(kvdb_home, 0, NULL);
-    if (err) {
-        report_error("hse_init", err);
-        goto error;
+    rc = hse_init(kvdb_home, 0, NULL);
+    if (rc) {
+		error(rc, "Failed to initialize HSE");
+        goto out;
     }
 
-    init = true;
-
-    err = hse_kvdb_create(kvdb_home, 0, NULL);
-    switch (hse_err_to_errno(err)) {
+    rc = hse_kvdb_create(kvdb_home, 0, NULL);
+    switch (hse_err_to_errno(rc)) {
         case 0:
-            printf("KVDB created\n");
+            printf("KVDB (%s) created\n", kvdb_home);
             break;
 
         case EEXIST:
-            printf("Use existing KVDB\n");
-            err = 0;
+            printf("Using existing KVDB (%s)\n", kvdb_home);
+            rc = 0;
             break;
 
         default:
-            report_error("hse_kvdb_create", err);
-            goto error;
+			error(rc, "Failed to create KVDB (%s)", kvdb_home);
+            goto hse_cleanup;
     }
 
-    err = hse_kvdb_open(kvdb_home, 0, NULL, &kvdb);
-    if (err) {
-        report_error("hse_kvdb_open", err);
-        goto error;
+    rc = hse_kvdb_open(kvdb_home, 0, NULL, &kvdb);
+    if (rc) {
+		error(rc, "Failed to open KVDB (%s)", kvdb_home);
+        goto hse_cleanup;
     }
-
-    open = true;
 
     for (int i = 0; i < kvs_cnt; i++) {
-        err = hse_kvdb_kvs_create(kvdb, kvs_list[i], 0, NULL);
-        if (err) {
-            report_error("hse_kvdb_kvs_create", err);
-            goto error;
+        rc = hse_kvdb_kvs_create(kvdb, kvs_list[i], 0, NULL);
+        if (rc) {
+			error(rc, "Failed to create KVS (%s)", kvs_list[i]);
+            goto kvdb_cleanup;
         }
     }
 
     printf("KVSes created\n");
 
-  error:
-    err2 = 0;
-
-    if (open) {
-        err2 = hse_kvdb_close(kvdb);
-        if (err2)
-            report_error("hse_kvdb_close", err2);
-    }
-
-    if (init)
-        hse_fini();
-
-    return (err || err2) ? 1 : 0;
+kvdb_cleanup:
+	rc2 = hse_kvdb_close(kvdb);
+	if (rc2)
+		error(rc2, "Failed to close KVDB (%s)", kvdb_home);
+	rc = rc ?: rc2;
+hse_cleanup:
+	hse_fini();
+out:
+    return hse_err_to_errno(rc);
 }
