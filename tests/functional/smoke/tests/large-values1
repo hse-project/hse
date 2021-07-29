@@ -23,12 +23,10 @@ cmd kmt $mp $kvs -s1 $VLEN -c kvs-oparms cn_maint_disable=1
 
 # spill
 cmd putbin $mp $kvs -n 1000 kvs-oparms cn_close_wait=1
-                                       
+
 # verify spill has occurred
 cmd cn_metrics $mp $kvs
 cmd grep -q n.1, $LOG
 
 # verify keys and values
 cmd kmt $mp $kvs -s1 $VLEN -c kvs-oparms cn_maint_disable=1
-
-

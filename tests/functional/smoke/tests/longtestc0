@@ -8,5 +8,3 @@ keys=5000
 
 cmd longtest $mp $kvs -t $threads -i 3 -c $keys
 cmd cn_metrics $mp $kvs
-
-

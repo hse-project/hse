@@ -32,5 +32,3 @@ cmd putbin -n 3000 $mp $kvs $parms
 cmd cn_metrics $mp $kvs
 check=$LOG
 cmd grep -P "^t${sp}+0,0,0${sp}" "$check"
-
-

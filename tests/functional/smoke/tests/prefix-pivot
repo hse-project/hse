@@ -25,7 +25,6 @@ rparams=(
     cn_node_size_hi=$node_size
 )
 
-
 for pivot in 0 1 2 3 4; do
 
     if (( pivot == 2 )); then
@@ -65,5 +64,3 @@ for pivot in 0 1 2 3 4; do
     cmd grep -P "^$keys\\b" "$LOG"
 
 done
-
-

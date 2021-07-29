@@ -7,5 +7,3 @@ cmd txn_thrash $mp $kvs -j1 -c500000
 
 # Multi threaded, relatively small txns
 cmd txn_thrash $mp $kvs -j16 -c200000
-
-

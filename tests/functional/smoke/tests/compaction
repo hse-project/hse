@@ -21,7 +21,7 @@ setup () {
     #   Deleted: 100..299
     #   Put:     300..999
 }
-    
+
 verify_keys () {
     # verify the three ranges before compaction
     cmd putgetdel $mp $kvs -U -s   0 -c 100  kvs-oparms cn_maint_disable=1
@@ -82,4 +82,3 @@ cmd putbin $mp $kvs -n 100 kvs-oparms cn_close_wait=1 cn_compaction_debug=-1 \
     cn_compact_limit=100 cn_compact_spill=100 cn_compact_only=2 \
     cn_compact_waste=0
 verify_shape_after_kv_compact
-

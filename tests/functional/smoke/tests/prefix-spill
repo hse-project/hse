@@ -63,5 +63,3 @@ for kvs in $kvs0 $kvs1 $kvs2; do
 	scanfor 0     $mp $kvs -p0x000002 -s0xffffffff
 
 done
-
-

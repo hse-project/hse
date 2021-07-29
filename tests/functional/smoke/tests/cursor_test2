@@ -21,5 +21,3 @@ duration=20 # seconds
 range=10
 cmd range_read $mp $kvs -f "$range_read_logs" -e -b$range -j$nthread -v$vlen -p$npfx -s$nsfx -d$duration -V
 cmd range_read $mp $kvs -f "$range_read_logs" -e -b$range -j$nthread -v$vlen -p$npfx -s$nsfx -d$duration -V
-
-

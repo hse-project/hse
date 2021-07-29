@@ -7,5 +7,3 @@ seconds=60
 
 kvs=$(new_kvs $mp) || err
 cmd kmt -i1000 -t$seconds -bcDOR -w0 -j$(nproc) -s1 $mp $kvs
-
-
