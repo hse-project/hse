@@ -1761,6 +1761,7 @@ kvt_create(
 
     if (kvs_listc > 0 && !force) {
         if (keyfile || keyfmt || keymax < ULONG_MAX) {
+            hse_kvdb_kvs_names_free(kvdb, kvs_listv);
             eprint(EEXIST, "kvdb %s appears to exist, use -F to force re-creation", mpname);
             return EX_DATAERR;
         }
@@ -1774,6 +1775,8 @@ kvt_create(
         status("dropping kvs %s...", kvs_listv[i]);
         hse_kvdb_kvs_drop(kvdb, kvs_listv[i]);
     }
+
+    hse_kvdb_kvs_names_free(kvdb, kvs_listv);
 
     /* Create the file name indexes.
      */
@@ -1819,8 +1822,6 @@ kvt_create(
         eprint(err, "unable to create kvs '%s'", KVS_RIDS_NAME);
         return EX_CANTCREAT;
     }
-
-    hse_kvdb_kvs_names_free(kvdb, kvs_listv);
 
     err = hse_kvdb_kvs_names_get(kvdb, &kvs_listc, &kvs_listv);
     if (err) {
@@ -1878,6 +1879,7 @@ kvt_create(
 
 open:
     rc = kvt_open(kvs_listc, kvs_listv);
+    hse_kvdb_kvs_names_free(kvdb, kvs_listv);
     if (rc)
         return rc;
 
@@ -1888,8 +1890,6 @@ open:
 
         *dump = false;
     }
-
-    free(kvs_listv);
 
     return 0;
 }
@@ -2527,14 +2527,18 @@ kvt_init_main(void *arg)
         }
 
         if (work->keyfmt) {
+
+            const ssize_t valign = alignof(uint64_t);
+
             rid = __atomic_fetch_add(&workq.rid, 1, __ATOMIC_RELAXED);
 
             work->fnlen = snprintf(work->fn, sizeof(work->fn), work->keyfmt, rid, rid, rid);
 
             cc = vlenmin + (xrand64() % (vlenmax - vlenmin + 1));
 
-            datasrc = workq.randbuf + (xrand64() % (workq.randbufsz - cc + 1));
-            datasrc = (char *)roundup((uintptr_t)datasrc, alignof(uint64_t));
+            datasrc = workq.randbuf + (xrand64() % (workq.randbufsz - valign - cc + 1));
+            datasrc = (char *)roundup((uintptr_t)datasrc, valign);
+
         } else {
             struct stat sb;
 
