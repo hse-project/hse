@@ -829,15 +829,6 @@ c0kvs_pfx_probe_cmn(
         if (!val)
             continue;
 
-        /* add to tomblist if a tombstone was encountered */
-        if (HSE_CORE_IS_TOMB(val->bv_value)) {
-            err = qctx_tomb_insert(qctx, kv->bkv_key + klen - sfx_len, sfx_len);
-            if (ev(err))
-                break;
-
-            continue;
-        }
-
         if (seqnoref_to_seqno(val->bv_seqnoref, &val_seq) != HSE_SQNREF_STATE_DEFINED) {
             /* This kv is from a txn. In a txn, a ptomb doesn't
              * hide mutations local to txn. So fallthrough and
@@ -848,6 +839,15 @@ c0kvs_pfx_probe_cmn(
                 continue;
             if (val_seq < max_seq)
                 continue;
+        }
+
+        /* add to tomblist if a tombstone was encountered */
+        if (HSE_CORE_IS_TOMB(val->bv_value)) {
+            err = qctx_tomb_insert(qctx, kv->bkv_key + klen - sfx_len, sfx_len);
+            if (ev(err))
+                break;
+
+            continue;
         }
 
         if (++qctx->seen == 1) {

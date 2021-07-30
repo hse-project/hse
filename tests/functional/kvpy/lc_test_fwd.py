@@ -5,7 +5,6 @@ from hse2 import hse
 
 from utility import lifecycle, cli
 
-
 def separate_keys(kvdb: hse.Kvdb, kvs: hse.Kvs):
     with kvdb.transaction() as t:
         kvs.put(b"ab01", b"val-cn", txn=t)

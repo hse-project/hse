@@ -93,7 +93,7 @@ alloc_tomb_mem(struct query_ctx *qctx, size_t bytes)
     } else if (qctx->pos + sz > PAGE_SIZE) {
         hdr = ptr->curr_pg;
         if (hdr->next) {
-            /* The there is a cached page that can be used */
+            /* There is a cached page that can be used */
             hdr = hdr->next;
         } else {
             /* No more cached pages. Allocate and use a new page */
@@ -118,56 +118,29 @@ alloc_tomb_mem(struct query_ctx *qctx, size_t bytes)
     return te;
 }
 
-static HSE_ALWAYS_INLINE int
-qctx_tomb_cmp(const void *lhs, size_t len1, const void *rhs, size_t len2)
-{
-    const uint64_t *l, *r;
-    uint64_t        ll, rr;
-
-    if (HSE_UNLIKELY(len1 != sizeof(uint64_t) || len2 != sizeof(uint64_t)))
-        return keycmp(lhs, len1, rhs, len2);
-
-    l = lhs;
-    r = rhs;
-    ll = be64_to_cpu(*l);
-    rr = be64_to_cpu(*r);
-
-    if (rr > ll)
-        return 1;
-
-    if (rr < ll)
-        return -1;
-
-    return 0;
-}
-
 merr_t
 qctx_tomb_insert(struct query_ctx *qctx, const void *sfx, size_t sfx_len)
 {
-    struct rb_node * parent;
-    int              bkt;
+    struct rb_node * parent, **link;
     struct rb_root * root;
-    struct rb_node **link;
+    u64              hash = hse_hash64(sfx, sfx_len);
 
     assert(sfx_len > 0);
-    bkt = hse_hash64(sfx, sfx_len) % TT_WIDTH;
-    root = &qctx->tomb_tree[bkt];
+    root = &qctx->tomb_tree;
     link = &root->rb_node;
+    parent = NULL;
 
-    parent = 0;
     while (*link) {
-        struct tomb_elem *p;
-        int               rc;
+        struct tomb_elem *te;
 
         __builtin_prefetch(*link);
 
         parent = *link;
-        p = rb_entry(*link, struct tomb_elem, node);
+        te = rb_entry(*link, typeof(*te), node);
 
-        rc = qctx_tomb_cmp(sfx, sfx_len, p->tomb, p->tomblen);
-        if (rc > 0)
+        if (hash > te->hash)
             link = &(*link)->rb_right;
-        else if (rc < 0)
+        else if (hash < te->hash)
             link = &(*link)->rb_left;
         else
             break;
@@ -182,9 +155,7 @@ qctx_tomb_insert(struct query_ctx *qctx, const void *sfx, size_t sfx_len)
         if (ev(!te))
             return merr(ENOMEM);
 
-        te->tomblen = sfx_len;
-        te->tomb = te + 1;
-        memcpy(te->tomb, sfx, sfx_len);
+        te->hash = hash;
 
         rb_link_node(&te->node, parent, link);
         rb_insert_color(&te->node, root);
@@ -197,34 +168,33 @@ qctx_tomb_insert(struct query_ctx *qctx, const void *sfx, size_t sfx_len)
 bool
 qctx_tomb_seen(struct query_ctx *qctx, const void *sfx, size_t sfx_len)
 {
-    struct tomb_elem *p = 0;
-    int               bkt;
-    struct rb_node *  n;
+    struct tomb_elem *te = 0;
+    struct rb_node  **link;
+    struct rb_root   *root;
+    u64               hash;
 
     assert(sfx_len > 0);
-    bkt = hse_hash64(sfx, sfx_len) % TT_WIDTH;
-    n = qctx->tomb_tree[bkt].rb_node;
-
     if (!qctx->ntombs)
         return false;
 
-    while (n) {
-        int rc;
+    hash = hse_hash64(sfx, sfx_len);
+    root = &qctx->tomb_tree;
+    link = &root->rb_node;
 
-        __builtin_prefetch(n);
+    while (*link) {
+        __builtin_prefetch(*link);
 
-        p = rb_entry(n, struct tomb_elem, node);
+        te = rb_entry(*link, typeof(*te), node);
 
-        rc = qctx_tomb_cmp(sfx, sfx_len, p->tomb, p->tomblen);
-        if (rc > 0)
-            n = n->rb_right;
-        else if (rc < 0)
-            n = n->rb_left;
+        if (hash > te->hash)
+            link = &(*link)->rb_right;
+        else if (hash < te->hash)
+            link = &(*link)->rb_left;
         else
             break;
     }
 
-    if (n)
+    if (*link)
         return true;
 
     return false;

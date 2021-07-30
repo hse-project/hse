@@ -33,7 +33,6 @@ try:
         with kvdb.transaction() as txn:
             txcursor.seek(b"a")
             kv = txcursor.read()
-            print(kv)
             assert kv == (b"a", b"1")
 
             txcursor.destroy()

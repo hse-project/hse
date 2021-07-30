@@ -539,7 +539,6 @@ kvs_pfx_probe(
     struct query_ctx  qctx;
     u64               tstart;
     merr_t            err;
-    int               i;
 
     tstart = perfc_lat_start(pkvsl_pc);
 
@@ -553,9 +552,7 @@ kvs_pfx_probe(
 
     qctx.qtype = QUERY_PROBE_PFX;
     qctx.pos = qctx.ntombs = qctx.seen = 0;
-
-    for (i = 0; i < TT_WIDTH; i++)
-        qctx.tomb_tree[i] = RB_ROOT;
+    qctx.tomb_tree = RB_ROOT;
 
     if (!kt->kt_hash)
         kt->kt_hash = key_hash64(kt->kt_data, kt->kt_len);
@@ -576,18 +573,8 @@ kvs_pfx_probe(
     if (err || *res == FOUND_PTMB || qctx.seen > 1)
         goto exit;
 
-    err = lc_pfx_probe(
-        lc,
-        kt,
-        c0_index(c0),
-        seqno,
-        seqnoref,
-        c0_get_pfx_len(c0),
-        c0_get_sfx_len(c0),
-        res,
-        &qctx,
-        kbuf,
-        vbuf);
+    err = lc_pfx_probe(lc, kt, c0_index(c0), seqno, seqnoref, c0_get_pfx_len(c0),
+                       c0_get_sfx_len(c0), res, &qctx, kbuf, vbuf);
     if (err || *res == FOUND_PTMB || qctx.seen > 1)
         goto exit;
 
