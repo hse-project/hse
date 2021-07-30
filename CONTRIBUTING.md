@@ -219,7 +219,7 @@ tar -czf hse.tar.gz hse
 
 Some of the tests or tools may require various Python dependencies including
 [`hse-python`](https://github.com/hse-project/hse-python). At the root of the
-repository is a `pyproject.toml`, which is configured with Poetry to install 
+repository is a `pyproject.toml`, which is configured with Poetry to install
 python dependencies. Poetry will setup a virtual environment.
 Install Poetry as per [docs](https://python-poetry.org/docs/#installation).
 Use the following steps to set up Poetry shell.
@@ -250,4 +250,3 @@ meson compile -C build doxygen
 
 Static html doxygen pages with index will be generated in
 build/docs/doxygen/api/html.
-
