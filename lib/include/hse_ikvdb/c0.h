@@ -247,7 +247,7 @@ c0_cursor_update(
     u32 *                    flags_out);
 
 /**
- * c0sk_cursor_destroy() - destroy existing iterators over c0
+ * c0_cursor_destroy() - destroy existing iterators over c0
  * @c0cur:     Instance of struct c0_cursor
  */
 /* MTF_MOCK */
