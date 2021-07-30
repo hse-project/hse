@@ -1,12 +1,14 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
 #include <stdio.h>
 #include <string.h>
 
 #include <hse/hse.h>
+
+#include "helper.h"
 
 /*
  * Note: Make sure the KVS instances are freshly created. No keys in them.
@@ -42,15 +44,16 @@ main(int argc, char **argv)
     char *kvdb_home;
     char *kvs_name1, *kvs_name2;
 
+	const char *paramv[] = { "transactions_enable=1" };
+
     struct hse_kvdb *    kvdb;
-    struct hse_kvs *     kvs1, *kvs2;
+    struct hse_kvs *     kvs1 = NULL, *kvs2 = NULL;
     struct hse_kvdb_txn *txn;
 
     char      vbuf[64];
     size_t    vlen;
     bool      found;
-    hse_err_t rc;
-    char      errbuf[200];
+    hse_err_t rc, rc2;
 
     if (argc != 4)
         return usage(argv[0]);
@@ -61,76 +64,145 @@ main(int argc, char **argv)
 
     rc = hse_init(kvdb_home, 0, NULL);
     if (rc) {
-        printf("Failed to initialize kvdb");
-        exit(1);
+		error(rc, "Failed to initialize HSE");
+		goto out;
     }
 
     /* Open the KVDB and the KVS instances in it */
     rc = hse_kvdb_open(kvdb_home, 0, NULL, &kvdb);
     if (rc) {
-        hse_strerror(rc, errbuf, sizeof(errbuf));
-        printf("Cannot open kvdb: %s\n", errbuf);
-        exit(1);
+		error(rc, "Failed to open KVDB (%s)", kvdb_home);
+		goto hse_cleanup;
     }
 
-    rc = hse_kvdb_kvs_open(kvdb, kvs_name1, 0, NULL, &kvs1);
+    rc = hse_kvdb_kvs_open(kvdb, kvs_name1, sizeof(paramv) / sizeof(paramv[0]), paramv, &kvs1);
     if (rc) {
-        hse_strerror(rc, errbuf, sizeof(errbuf));
-        printf("Cannot open kvs %s: %s\n", kvs_name1, errbuf);
-        exit(1);
+		error(rc, "Failed to open KVS (%s)", kvs_name1);
+		goto kvdb_cleanup;
     }
 
-    rc = hse_kvdb_kvs_open(kvdb, kvs_name2, 0, NULL, &kvs2);
+    rc = hse_kvdb_kvs_open(kvdb, kvs_name2, sizeof(paramv) / sizeof(paramv[0]), paramv, &kvs2);
     if (rc) {
-        hse_strerror(rc, errbuf, sizeof(errbuf));
-        printf("Cannot open kvs %s: %s\n", kvs_name2, errbuf);
-        exit(1);
+		error(rc, "Failed to open KVS (%s)", kvs_name2);
+		goto kvs_cleanup;
     }
 
     txn = hse_kvdb_txn_alloc(kvdb);
 
-    /* txn 1 */
-    hse_kvdb_txn_begin(kvdb, txn);
-
-    /* Error handling is elided for clarity */
+	/* txn 1 */
+    rc = hse_kvdb_txn_begin(kvdb, txn);
+	if (rc) {
+		error(rc, "Failed to being transaction");
+		goto txn_cleanup;
+	}
 
     rc = hse_kvs_put(kvs1, 0, txn, "k1", 2, "val1", 4);
+	if (rc) {
+		error(rc, "Failed to put data (k1, val1) into KVS (%s)", kvs_name1);
+		goto txn_cleanup;
+	}
     rc = hse_kvs_put(kvs2, 0, txn, "k2", 2, "val2", 4);
+	if (rc) {
+		error(rc, "Failed to put data (k2, val2) into KVS (%s)", kvs_name2);
+		goto txn_cleanup;
+	}
 
     /* This txn hasn't been committed or aborted yet. So we should be able
      * to see the keys from inside the txn, but not from outside.
      */
     rc = hse_kvs_get(kvs1, 0, txn, "k1", 2, &found, vbuf, sizeof(vbuf), &vlen);
+	if (rc) {
+		error(rc, "Failed to get k1 data from KVS (%s)", kvs_name1);
+		goto txn_cleanup;
+	}
     printf("k1 from inside txn: found = %s\n", found ? "true" : "false");
     rc = hse_kvs_get(kvs1, 0, NULL, "k1", 2, &found, vbuf, sizeof(vbuf), &vlen);
+	if (rc) {
+		error(rc, "Failed to get k1 data from KVS (%s)", kvs_name1);
+		goto txn_cleanup;
+	}
     printf("k1 from outside txn: found = %s\n", found ? "true" : "false");
 
-    hse_kvdb_txn_commit(kvdb, txn);
+    rc = hse_kvdb_txn_commit(kvdb, txn);
+	if (rc) {
+		error(rc, "Failed to commit the transaction");
+		goto txn_cleanup;
+	}
 
     /* txn 2. Reuse txn object from the first allocation */
-    hse_kvdb_txn_begin(kvdb, txn);
+    rc = hse_kvdb_txn_begin(kvdb, txn);
+	if (rc) {
+		error(rc, "Failed to begin the transaction");
+		goto txn_cleanup;
+	}
 
     rc = hse_kvs_put(kvs1, 0, txn, "k3", 2, "val3", 4);
+	if (rc) {
+		error(rc, "Failed to put data (k3, val3) into KVS (%s)", kvs_name1);
+		goto txn_cleanup;
+	}
     rc = hse_kvs_put(kvs2, 0, txn, "k4", 2, "val4", 4);
+	if (rc) {
+		error(rc, "Failed to put data (k4, val4) into KVS (%s)", kvs_name2);
+		goto txn_cleanup;
+	}
 
-    hse_kvdb_txn_abort(kvdb, txn);
+    rc = hse_kvdb_txn_abort(kvdb, txn);
+	if (rc) {
+		error(rc, "Failed to abort the transaction");
+		goto txn_cleanup;
+	}
 
     /* 3.1 Verify keys that are part of txn number 1 can be found */
     rc = hse_kvs_get(kvs1, 0, NULL, "k1", 2, &found, vbuf, sizeof(vbuf), &vlen);
+	if (rc) {
+		error(rc, "Failed to get k1 data from KVS (%s)", kvs_name1);
+		goto txn_cleanup;
+	}
     printf("txn1(committed), k1: found = %s\n", found ? "true" : "false");
     rc = hse_kvs_get(kvs2, 0, NULL, "k2", 2, &found, vbuf, sizeof(vbuf), &vlen);
+	if (rc) {
+		error(rc, "Failed to get k2 data from KVS (%s)", kvs_name2);
+		goto txn_cleanup;
+	}
     printf("txn1(committed), k2: found = %s\n", found ? "true" : "false");
 
     /* 3.2 Verify keys that are part of txn number 2 cannot be found */
     rc = hse_kvs_get(kvs1, 0, NULL, "k3", 2, &found, vbuf, sizeof(vbuf), &vlen);
+	if (rc) {
+		error(rc, "Failed to get k3 data from KVS (%s)", kvs_name1);
+		goto txn_cleanup;
+	}
     printf("txn2(aborted), k3: found = %s\n", found ? "true" : "false");
     rc = hse_kvs_get(kvs2, 0, NULL, "k4", 2, &found, vbuf, sizeof(vbuf), &vlen);
+	if (rc) {
+		error(rc, "Failed to get k4 data from KVS (%s)", kvs_name2);
+		goto txn_cleanup;
+	}
     printf("txn2(aborted), k4: found = %s\n", found ? "true" : "false");
 
+txn_cleanup:
     hse_kvdb_txn_free(kvdb, txn);
-
-    hse_kvdb_close(kvdb);
-    hse_fini();
-
-    return 0;
+kvs_cleanup:
+	if (kvs1) {
+		rc2 = hse_kvdb_kvs_close(kvs1);
+		if (rc2)
+			error(rc, "Failed to close KVS (%s)", kvs_name1);
+		rc = rc ?: rc2;
+	}
+	if (kvs2) {
+		rc2 = hse_kvdb_kvs_close(kvs2);
+		if (rc2)
+			error(rc2, "Failed to close KVS (%s)", kvs_name2);
+		rc = rc ?: rc2;
+	}
+kvdb_cleanup:
+    rc2 = hse_kvdb_close(kvdb);
+	if (rc2)
+		error(rc2, "Failed to close KVDB (%s)", kvdb_home);
+	rc = rc ?: rc2;
+hse_cleanup:
+	hse_fini();
+out:
+    return hse_err_to_errno(rc);
 }

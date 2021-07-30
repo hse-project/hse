@@ -185,6 +185,9 @@ MTF_DEFINE_UTEST_PREPOST(cursor_api_test, cursor_read_testcase, populate_kvs, de
             ASSERT_EQ(memcmp(expec_buff, cur_val, cur_vlen), 0);
         }
     }
+
+    err = hse_kvs_cursor_destroy(cursor);
+    ASSERT_EQ(err, 0);
 }
 
 MTF_DEFINE_UTEST_PREPOST(cursor_api_test, cursor_read_changes_testcase, populate_kvs, destroy_kvs)
@@ -212,6 +215,9 @@ MTF_DEFINE_UTEST_PREPOST(cursor_api_test, cursor_read_changes_testcase, populate
     }
 
     ASSERT_EQ(count, key_value_pairs);
+
+    err = hse_kvs_cursor_destroy(cursor);
+    ASSERT_EQ(err, 0);
 }
 
 MTF_DEFINE_UTEST_PREPOST(cursor_api_test, cursor_seek_testcase, populate_kvs, destroy_kvs)
@@ -246,6 +252,9 @@ MTF_DEFINE_UTEST_PREPOST(cursor_api_test, cursor_seek_testcase, populate_kvs, de
 
     ASSERT_EQ(cur_klen, strlen("test_key_00"));
     ASSERT_EQ(memcmp("test_key_00", cur_key, cur_klen), 0);
+
+    err = hse_kvs_cursor_destroy(cursor);
+    ASSERT_EQ(err, 0);
 }
 
 MTF_DEFINE_UTEST_PREPOST(cursor_api_test, cursor_multiple_testcase, populate_kvs, destroy_kvs)
@@ -258,6 +267,7 @@ MTF_DEFINE_UTEST_PREPOST(cursor_api_test, cursor_multiple_testcase, populate_kvs
     hse_err_t              err;
     struct hse_kvs_cursor *cursor;
     struct hse_kvs_cursor *duplicate_cursor;
+    struct hse_kvs_cursor *yet_another_cursor;
 
     /* TC: A KVS can have multiple cursors reading at different rates */
     err = hse_kvs_cursor_create(kvs_handle, 0, NULL, NULL, 0, &cursor);
@@ -283,7 +293,7 @@ MTF_DEFINE_UTEST_PREPOST(cursor_api_test, cursor_multiple_testcase, populate_kvs
     ASSERT_STRNE(buff_1, buff_2);
 
     /* TC: A KVS with multiple cursors must update each cursor explicitly */
-    err = hse_kvs_cursor_create(kvs_handle, 0, NULL, NULL, 0, &duplicate_cursor);
+    err = hse_kvs_cursor_create(kvs_handle, 0, NULL, NULL, 0, &yet_another_cursor);
     ASSERT_EQ(err, 0);
 
     err = hse_kvs_put(kvs_handle, 0, NULL, "extra_key", 9, "extra_value", 11);
@@ -303,7 +313,7 @@ MTF_DEFINE_UTEST_PREPOST(cursor_api_test, cursor_multiple_testcase, populate_kvs
 
     eof = false;
     while (!eof) {
-        hse_kvs_cursor_read(duplicate_cursor, 0, &cur_key, &cur_klen, &cur_val, &cur_vlen, &eof);
+        hse_kvs_cursor_read(yet_another_cursor, 0, &cur_key, &cur_klen, &cur_val, &cur_vlen, &eof);
 
         if (!eof) {
             count_2++;
@@ -311,6 +321,13 @@ MTF_DEFINE_UTEST_PREPOST(cursor_api_test, cursor_multiple_testcase, populate_kvs
     }
 
     ASSERT_NE(count_1, count_2);
+
+    err = hse_kvs_cursor_destroy(cursor);
+    ASSERT_EQ(err, 0);
+    err = hse_kvs_cursor_destroy(duplicate_cursor);
+    ASSERT_EQ(err, 0);
+    err = hse_kvs_cursor_destroy(yet_another_cursor);
+    ASSERT_EQ(err, 0);
 }
 
 MTF_END_UTEST_COLLECTION(cursor_api_test)

@@ -24,5 +24,3 @@ cmd pfx_probe $mp $kvs -p$p -c$c -s$s -j$threads -v -x -d15 "${oparms[@]}"
 
 # Use gets; skip load
 cmd pfx_probe $mp $kvs -p$p -c$c -s$s -j$threads -v -g -d15 "${oparms[@]}"
-
-

@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2017 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
 /*
@@ -48,26 +48,16 @@
 
 #include <hse/hse.h>
 
+#include "helper.h"
+
 char *progname;
 
-static void
-err_print(const char *fmt, ...)
-{
-    char    msg[256];
-    va_list ap;
-
-    va_start(ap, fmt);
-    vsnprintf(msg, sizeof(msg), fmt, ap);
-    va_end(ap);
-
-    fprintf(stderr, "Error: %s: %s\n", progname, msg);
-}
-
-hse_err_t
+int
 extract_kv_to_files(struct hse_kvs *kvs, int file_cnt, char **files)
 {
-    int                    fd, i;
+    int                    err, fd, i;
     struct hse_kvs_cursor *cur;
+	hse_err_t              rc;
 
     for (i = 0; i < file_cnt; i++) {
         char        pfx[HSE_KVS_KEY_LEN_MAX];
@@ -82,40 +72,62 @@ extract_kv_to_files(struct hse_kvs *kvs, int file_cnt, char **files)
         printf("filename: %s\n", outfile);
 
         fd = open(outfile, O_RDWR | O_CREAT, 0644);
-        if (fd < 0) {
-            err_print("Error opening file %s: %s\n", outfile, strerror(errno));
-            exit(1);
+        if (fd == -1) {
+			err = errno;
+			fprintf(stderr, "Failed to open %s: %s", outfile, strerror(err));
+			return err;
         }
 
-        hse_kvs_cursor_create(kvs, 0, NULL, pfx, strlen(pfx), &cur);
+        rc = hse_kvs_cursor_create(kvs, 0, NULL, pfx, strlen(pfx), &cur);
+		if (rc) {
+			error(rc, "Failed to create cursor");
+			err = hse_err_to_errno(rc);
+			goto close_file;
+		}
 
         do {
-            hse_kvs_cursor_read(cur, 0, &key, &klen, &val, &vlen, &eof);
-            if (!eof)
+            rc = hse_kvs_cursor_read(cur, 0, &key, &klen, &val, &vlen, &eof);
+            if (rc) {
+				error(rc, "Failed to read from cursor");
+				err = hse_err_to_errno(rc);
+				goto cursor_cleanup;
+			}
+			if (!eof)
               data_found = true;
 
             if (eof)
                 break;
 
-            if (write(fd, val, vlen) != vlen)
-                abort();
+            if (write(fd, val, vlen) != vlen) {
+				err = errno;
+				goto cursor_cleanup;
+			}
         } while (!eof);
 
-        hse_kvs_cursor_destroy(cur);
+cursor_cleanup:
+        rc = hse_kvs_cursor_destroy(cur);
+		if (rc) {
+			error(rc, "Failed to destroy cursor");
+			err = hse_err_to_errno(rc);
+		}
+close_file:
+        if (close(fd) == -1 && !rc)
+			err = errno;
 
-        close(fd);
+		if (err)
+			return err;
 
         if (!data_found)
-          err_print("No chunk keys found for file '%s'", files[i]);
+			fprintf(stderr, "No chunk keys found for file '%s'\n", files[i]);
     }
 
-    return 0;
+    return err;
 }
 
-hse_err_t
+int
 put_files_as_kv(struct hse_kvdb *kvdb, struct hse_kvs *kvs, int kv_cnt, char **keys)
 {
-    int       fd, i;
+    int       err = 0, err2, fd, i;
     hse_err_t rc;
 
     for (i = 0; i < kv_cnt; i++) {
@@ -126,29 +138,46 @@ put_files_as_kv(struct hse_kvdb *kvdb, struct hse_kvs *kvs, int kv_cnt, char **k
 
         printf("Inserting chunks for %s\n", (char *)keys[i]);
         fd = open(keys[i], O_RDONLY);
-        if (fd < 0) {
-            err_print("Error opening file %s: %s\n", keys[i], strerror(errno));
-            exit(1);
+        if (fd == -1) {
+			err = errno;
+			fprintf(stderr, "Error opening file %s: %s\n", keys[i], strerror(err));
+			return err;
         }
 
         chunk_nr = 0;
         do {
             len = read(fd, val, sizeof(val));
-            if (len <= 0)
-                break;
+            if (len == -1) {
+                err = errno;
+                fprintf(stderr, "Failed to read %s: %s\n", keys[i], strerror(err));
+				break;
+			} else if (len == 0) {
+				break;
+			}
 
             snprintf(key_chunk, sizeof(key_chunk), "%s|%08x", (char *)keys[i], chunk_nr);
 
             rc = hse_kvs_put(kvs, 0, NULL, key_chunk, strlen(key_chunk), val, len);
+			if (rc) {
+				error(rc, "Failed to put data into KVS");
+				err = hse_err_to_errno(rc);
+				break;
+			}
 
             chunk_nr++;
-
         } while (!rc && len > 0);
 
-        close(fd);
+        if (close(fd) == -1) {
+            err2 = errno;
+			err = err ?: err2;
+            fprintf(stderr, "Failed to close %s: %s\n", keys[i], strerror(err2));
+        }
+
+        if (err)
+            break;
     }
 
-    return 0;
+    return err;
 }
 
 int
@@ -169,8 +198,7 @@ main(int argc, char **argv)
     struct hse_kvs * kvs;
     char             c;
     bool             extract = false;
-    hse_err_t        rc;
-    char             ebuf[200];
+    hse_err_t        rc, rc2;
 
     progname = argv[0];
 
@@ -195,29 +223,39 @@ main(int argc, char **argv)
 
     rc = hse_init(kvdb_home, 0, NULL);
     if (rc) {
-        hse_strerror(rc, ebuf, sizeof(ebuf));
-        err_print("Failed to initialize kvdb: %s\n", ebuf);
-        exit(1);
+		error(rc, "Failed to initialize HSE");
+		goto out;
     }
 
     rc = hse_kvdb_open(kvdb_home, 0, NULL, &kvdb);
     if (rc) {
-        hse_strerror(rc, ebuf, sizeof(ebuf));
-        err_print("Cannot open kvdb: %s\n", ebuf);
-        exit(1);
+		error(rc, "Failed to open KVDB (%s)", kvdb_home);
+		goto hse_cleanup;
     }
 
     rc = hse_kvdb_kvs_open(kvdb, kvs_name, 0, NULL, &kvs);
-    if (rc)
-        exit(1);
+    if (rc) {
+		error(rc, "Failed to open KVS (%s)", kvs_name);
+		goto kvdb_cleanup;
+	}
 
-    if (extract)
+    if (extract) {
         rc = extract_kv_to_files(kvs, argc - optind, &argv[optind]);
-    else
+	} else {
         rc = put_files_as_kv(kvdb, kvs, argc - optind, &argv[optind]);
+	}
 
-    hse_kvdb_close(kvdb);
+	rc2 = hse_kvdb_kvs_close(kvs);
+	if (rc2)
+		error(rc2, "Failed to close KVS (%s)", kvs_name);
+	rc = rc ?: rc2;
+kvdb_cleanup:
+	rc2 = hse_kvdb_close(kvdb);
+	if (rc2)
+		error(rc2, "Failed to close KVDB (%s)", kvdb_home);
+	rc = rc ?: rc2;
+hse_cleanup:
     hse_fini();
-
-    return rc;
+out:
+    return hse_err_to_errno(rc);
 }

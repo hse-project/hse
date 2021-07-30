@@ -9,5 +9,3 @@ keys=1g
 
 cmd kmt -j$threads -i$keys -s1 -l50 -b $mp $kvs
 cmd cn_metrics $mp $kvs
-
-

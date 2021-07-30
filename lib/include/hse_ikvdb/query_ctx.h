@@ -21,17 +21,13 @@ enum query_type {
 
 /**
  * struct tomb_elem - an element in the rb tree.
- * @node:    rb node
- * @tomb:    tombstone's suffix bytes
- * @tomblen: length of data at @tomb
+ * @node: rb node
+ * @hash: sfx hash
  */
 struct tomb_elem {
     struct rb_node node;
-    void *         tomb;
-    size_t         tomblen;
+    u64            hash;
 };
-
-#define TT_WIDTH 47
 
 /**
  * struct query_ctx - context for queries (get, probe etc.)
@@ -48,7 +44,7 @@ struct query_ctx {
     int            pos;
     uint           ntombs;
     int            seen;
-    struct rb_root tomb_tree[TT_WIDTH];
+    struct rb_root tomb_tree;
 };
 
 merr_t

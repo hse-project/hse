@@ -60,5 +60,3 @@ while (( i <= pfxmax )) ; do
 
     i=i+1
 done
-
-

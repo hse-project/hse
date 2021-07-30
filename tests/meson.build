@@ -10,18 +10,29 @@ if not fs.exists(tests_dir)
     )
 endif
 
+# Suites to exclude based on varying factors
+additional_suite_exclusions = []
+
+if get_option('b_sanitize') != 'none'
+    # Enabling hse-python based tests in sanitized builds needs to be
+    # investigated. Issues with PYTHON_MALLOC_ and LD_PRELOAD.
+    additional_suite_exclusions += 'hse-python'
+endif
+
 add_test_setup(
     'default',
     env: run_env,
     is_default: true,
-    exclude_suites: ['ycsb'],
+    # TODO: Check with Meson 0.59 else PR to Meson...
+    exclude_suites: ['non-deterministic'] + additional_suite_exclusions,
 )
 
 add_test_setup(
     'ci',
     env: run_env,
     is_default: false,
-    exclude_suites: ['long', 'smoke', 'ycsb', 'kmt', 'samples'],
+    # TODO: Check with Meson 0.59 else PR to Meson...
+    exclude_suites: ['long', 'smoke', 'non-deterministic'] + additional_suite_exclusions,
 )
 
 if 'unit' in hse_tests

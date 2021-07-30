@@ -32,5 +32,3 @@ cmd grep -P "^n${sp}+0,0,1${sp}" "$check"
 
 # Validate keys, w/ maint disabled. Expect error since tombstones block.
 cmd --exp-err-status putbin -V -c1 $mp $kvs $kvdb_oparms kvs-oparms cn_maint_disable=1
-
-

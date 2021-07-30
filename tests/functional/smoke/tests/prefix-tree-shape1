@@ -9,7 +9,7 @@
 #    ----------   --------    --------    --------    ---------
 #    Root   0          1           1           1            1
 #    Level  1          2           4           8           16
-#    Level  2          4          16          64        **256** 
+#    Level  2          4          16          64        **256**
 #    Level  3          8          64       **512***      4096
 #    Level  4         16       **256**      4096        65536
 #    Level  5         32        1024       32768
@@ -20,7 +20,7 @@
 #    Level  10      1024
 #    Level  11      2048
 #    Level  12      4096
-#    
+#
 
 
 # Test logic
@@ -64,7 +64,7 @@ for fanout in 2 4 8 16; do
 
 
     cmd kmt -j32 -f 'xxxx%016lx' -l$vlen:$vlen -s1 -i$nkeys $mp $kvs $oparms
-                                                                                      
+
     cmd putbin -n 5000 $mp $kvs $oparms
 
     cmd cn_metrics $mp $kvs
@@ -75,7 +75,3 @@ for fanout in 2 4 8 16; do
     #cmd --exp-err-status grep -q "^n $((lvl+1))," $metrics_log
 
 done
-
-
-
-

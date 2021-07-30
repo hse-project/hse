@@ -5,5 +5,3 @@
 # kvdb/kvs test
 
 cmd kvt -i1m -t15 -cv -m1 $mp
-  
-

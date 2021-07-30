@@ -328,7 +328,8 @@ out:
 #ifdef HSE_CONF_EXTENDED
     config_destroy(conf);
 #endif
-    pidfile_remove(pfh);
+    if (pfh)
+        pidfile_remove(pfh);
 
     return merr_to_hse_err(err);
 }

@@ -102,15 +102,6 @@ get_test_script () {
     echo "$f"
 }
 
-check_environment() {
-    for executable in hse kmt ex1_create; do
-        type -p $executable &>/dev/null ||
-            err "Cannot find $executable in PATH"
-    done
-    hse -h &> /dev/null ||
-        err "Cannot execute HSE CLI: hse"
-}
-
 check_tests () {
     local g
     local t
@@ -540,7 +531,6 @@ esac
 # All the "show" and "help" paths have exited.
 # At this point we are running tests.
 
-check_environment
 check_tests
 
 # Export shell functions to test scripts

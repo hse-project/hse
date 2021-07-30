@@ -13,5 +13,3 @@ for (( phase = 0; phase <= 9; phase++ )); do
     cmd longtest $mp $kvs --seed $seed -t $threads -i 3 -c $keys --mphase $((1<<phase)) --verify 100 --once -v
     cmd cn_metrics $mp $kvs
 done
-
-

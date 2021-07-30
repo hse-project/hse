@@ -1,12 +1,14 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
 #include <stdio.h>
 #include <string.h>
 
 #include <hse/hse.h>
+
+#include "helper.h"
 
 /*
  * This is an example program that illustrates the use of cursors in a KVS.
@@ -38,8 +40,7 @@ main(int argc, char **argv)
 
     int       i, cnt = 15;
     bool      eof = false;
-    hse_err_t rc;
-    char      errbuf[200];
+    hse_err_t rc, rc2;
 
     const void *cur_key, *cur_val;
     size_t      cur_klen, cur_vlen;
@@ -52,22 +53,21 @@ main(int argc, char **argv)
 
     rc = hse_init(kvdb_home, 0, NULL);
     if (rc) {
-        printf("failed to initialize kvdb");
-        exit(1);
+		error(rc, "Failed to initialize HSE");
+		goto out;
     }
 
     rc = hse_kvdb_open(kvdb_home, 0, NULL, &kvdb);
     if (rc) {
-        hse_strerror(rc, errbuf, sizeof(errbuf));
-        printf("Cannot open kvdb: %s\n", errbuf);
-        exit(1);
+		error(rc, "Failed to open KVDB (%s)", kvdb_home);
+		goto hse_cleanup;
     }
 
     rc = hse_kvdb_kvs_open(kvdb, kvs_name, 0, NULL, &kvs);
-    if (rc)
-        exit(1);
-
-    /* Error handling is elided for clarity */
+    if (rc) {
+		error(rc, "Failed to open KVS (%s)", kvs_name);
+		goto kvdb_cleanup;
+	}
 
     /* put 'cnt' keys */
     for (i = 0; i < cnt; i++) {
@@ -75,14 +75,24 @@ main(int argc, char **argv)
         snprintf(val, sizeof(val), "val%03d", i);
 
         rc = hse_kvs_put(kvs, 0, NULL, key, strlen(key), val, strlen(val));
+		if (rc) {
+			error(rc, "Failed to put data (%s, %s) into KVS (%s)", key, val, kvs_name);
+			goto kvs_cleanup;
+		}
     }
 
     rc = hse_kvs_cursor_create(kvs, 0, NULL, NULL, 0, &cursor);
-    if (rc)
-        exit(1);
+    if (rc) {
+		error(rc, "Failed to create cursor");
+		goto kvs_cleanup;
+	}
 
     while (!eof) {
         rc = hse_kvs_cursor_read(cursor, 0, &cur_key, &cur_klen, &cur_val, &cur_vlen, &eof);
+		if (rc) {
+			error(rc, "Failed to read from cursor");
+			goto cursor_cleanup;
+		}
 
         if (!eof)
             printf(
@@ -94,17 +104,38 @@ main(int argc, char **argv)
     }
 
     rc = hse_kvs_cursor_seek(cursor, 0, "key010", 6, NULL, NULL);
+	if (rc) {
+		error(rc, "Failed to seek cursor to key010");
+		goto cursor_cleanup;
+	}
     rc = hse_kvs_cursor_read(cursor, 0, &cur_key, &cur_klen, &cur_val, &cur_vlen, &eof);
+	if (rc) {
+		error(rc, "Failed to read from cursor");
+		goto cursor_cleanup;
+	}
 
     printf("After seek to key010:\n");
     printf("expected: key:%s\tval:%s\n", "key010", "val010");
     printf("found:    key:%.*s\tval:%.*s\n", (int)cur_klen, (char *)cur_key,
            (int)cur_vlen, (char *)cur_val);
 
-    hse_kvs_cursor_destroy(cursor);
-
-    hse_kvdb_close(kvdb);
-    hse_fini();
-
-    return 0;
+cursor_cleanup:
+    rc2 = hse_kvs_cursor_destroy(cursor);
+	if (rc2)
+		error(rc2, "Failed to destroy cursor");
+	rc = rc ?: rc2;
+kvs_cleanup:
+	rc2 = hse_kvdb_kvs_close(kvs);
+	if (rc2)
+		error(rc2, "Failed to close KVS (%s)", kvs_name);
+	rc = rc ?: rc2;
+kvdb_cleanup:
+    rc2 = hse_kvdb_close(kvdb);
+	if (rc2)
+		error(rc2, "Failed to close KVDB (%s)", kvdb_home);
+	rc = rc ?: rc2;
+hse_cleanup:
+	hse_fini();
+out:
+    return hse_err_to_errno(rc);
 }

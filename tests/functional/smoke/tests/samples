@@ -20,5 +20,3 @@ cmd chmod 644 $fbase*.out
 for ((n=1; n<10; n++)); do
     cmd cmp $fbase$n $fbase$n.out
 done
-
-

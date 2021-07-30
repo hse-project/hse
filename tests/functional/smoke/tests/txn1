@@ -31,5 +31,3 @@ cmd ctxn_validation -p pa -i5 -k1 -r -j64 $mp $kvs1
 cmd ctxn_validation -p ga -i5 -k1 -r -j64 $mp $kvs1
 cmd ctxn_validation -p pc -i1234 -k7 -r -j333 $mp $kvs1
 cmd ctxn_validation $mp $kvs1
-
-
