@@ -22,6 +22,7 @@ hsejni = library(
         public_includes,
         util_includes,
         hsejni_includes,
+        component_root_includes,
         include_directories(
             '@0@'.format(java_home) / 'include',
             '@0@'.format(java_home) / 'include' / 'linux'
