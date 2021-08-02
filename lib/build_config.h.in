@@ -22,7 +22,7 @@
 #mesondefine SUPPORTS_ATTR_NO_SANITIZE_ALIGNMENT
 
 #mesondefine WITH_COVERAGE
-#mesondefine WTIH_UBSAN
+#mesondefine WITH_UBSAN
 #mesondefine WITH_KVDB_CONF_EXTENDED
 
 #endif
