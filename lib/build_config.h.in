@@ -3,10 +3,26 @@
  * Copyright (C) 2021 Micron Technology, Inc.  All rights reserved.
  */
 
-#ifndef HSE__CONFIG_H
-#define HSE__CONFIG_H
+#ifndef HSE_BUILD_CONFIG_H
+#define HSE_BUILD_CONFIG_H
+
+#mesondefine SUPPORTS_ATTR_ALWAYS_INLINE
+#mesondefine SUPPORTS_ATTR_FORMAT
+#mesondefine SUPPORTS_ATTR_PACKED
+#mesondefine SUPPORTS_ATTR_ALIGNED
+#mesondefine SUPPORTS_ATTR_SECTION
+#mesondefine SUPPORTS_ATTR_UNUSED
+#mesondefine SUPPORTS_ATTR_USED
+#mesondefine SUPPORTS_ATTR_HOT
+#mesondefine SUPPORTS_ATTR_COLD
+#mesondefine SUPPORTS_ATTR_RETURNS_NONNULL
+#mesondefine SUPPORTS_ATTR_CONST
+#mesondefine SUPPORTS_ATTR_WEAK
+#mesondefine SUPPORTS_ATTR_SENTINEL
+#mesondefine SUPPORTS_ATTR_NO_SANITIZE_ALIGNMENT
 
 #mesondefine WITH_COVERAGE
-#mesondefine HSE_CONF_EXTENDED
+#mesondefine WTIH_UBSAN
+#mesondefine WITH_KVDB_CONF_EXTENDED
 
 #endif

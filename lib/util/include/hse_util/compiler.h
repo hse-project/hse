@@ -6,8 +6,10 @@
 #ifndef HSE_PLATFORM_COMPILER_H
 #define HSE_PLATFORM_COMPILER_H
 
+#include "build_config.h"
+
 /* Ubuntu 18.04 uses glibc 2.27, and threads.h only exists in glibc >= 2.28 */
-#if !__has_include(<threads.h>)
+#if defined(__has_include) && !__has_include(<threads.h>)
 #define thread_local _Thread_local
 #else
 #include <threads.h>
@@ -17,22 +19,82 @@
 /* The "volatile" is due to gcc bugs */
 #define barrier() asm volatile("" : : : "memory")
 
-#define HSE_LIKELY(x)             __builtin_expect(!!(x), 1)
-#define HSE_UNLIKELY(x)           __builtin_expect(!!(x), 0)
-#define HSE_ALWAYS_INLINE         inline __attribute__((always_inline))
-#define HSE_PRINTF(a, b)          __attribute__((format(printf, a, b)))
-#define HSE_PACKED                __attribute__((packed))
-#define HSE_ALIGNED(SIZE)         __attribute__((aligned(SIZE)))
-#define HSE_READ_MOSTLY           __attribute__((section(".read_mostly")))
-#define HSE_MAYBE_UNUSED          __attribute__((unused))
-#define HSE_USED                  __attribute__((used))
-#define HSE_HOT                   __attribute__((hot))
-#define HSE_COLD                  __attribute__((cold))
-#define HSE_RETURNS_NONNULL       __attribute__((returns_nonnull))
-#define HSE_CONST                 __attribute__((const))
-#define HSE_WEAK                  __attribute__((__weak__))
-#define HSE_SENTINEL              __attribute__((sentinel))
+#define HSE_LIKELY(x)   __builtin_expect(!!(x), 1)
+#define HSE_UNLIKELY(x) __builtin_expect(!!(x), 0)
+#ifdef SUPPORTS_ATTR_ALWAYS_INLINE
+#define HSE_ALWAYS_INLINE inline __attribute__((always_inline))
+#else
+#define HSE_ALWAYS_INLINE inline
+#endif
+#ifdef SUPPORTS_ATTR_FORMAT
+#define HSE_PRINTF(a, b) __attribute__((format(printf, a, b)))
+#else
+#define HSE_PRINTF(a, b)
+#endif
+#ifdef SUPPORTS_ATTR_PACKED
+#define HSE_PACKED __attribute__((packed))
+#else
+#define HSE_PACKED
+#endif
+#ifdef SUPPORTS_ATTR_ALIGNED
+#define HSE_ALIGNED(SIZE) __attribute__((aligned(SIZE)))
+#else
+#define HSE_ALIGNED(SIZE)
+#endif
+#ifdef SUPPORTS_ATTR_SECTION
+#define HSE_READ_MOSTLY __attribute__((section(".read_mostly")))
+#else
+#define HSE_READ_MOSTLY
+#endif
+#ifdef SUPPORTS_ATTR_UNUSED
+#define HSE_MAYBE_UNUSED __attribute__((unused))
+#else
+#define HSE_MAYBE_UNUSED
+#endif
+#ifdef SUPPORTS_ATTR_USED
+#define HSE_USED __attribute__((used))
+#else
+#define HSE_USED
+#endif
+#ifdef SUPPORTS_ATTR_HOT
+#define HSE_HOT __attribute__((hot))
+#else
+#define HSE_HOT
+#endif
+#ifdef SUPPORTS_ATTR_COLD
+#define HSE_COLD __attribute__((cold))
+#else
+#define HSE_COLD
+#endif
+#ifdef SUPPORTS_ATTR_RETURNS_NONNULL
+#define HSE_RETURNS_NONNULL __attribute__((returns_nonnull))
+#else
+#define HSE_RETURNS_NONNULL
+#endif
+#ifdef SUPPORTS_ATTR_CONST
+#define HSE_CONST __attribute__((const))
+#else
+#define HSE_CONST
+#endif
+#ifdef SUPPORTS_ATTR_WEAK
+#define HSE_WEAK __attribute__((weak))
+#else
+#define HSE_WEAK
+#endif
+#ifdef SUPPORTS_ATTR_SENTINEL
+#define HSE_SENTINEL __attribute__((sentinel))
+#else
+#define HSE_SENTINEL
+#endif
+#ifdef __has_feature
+#if __has_feature(undefined_behavior_sanitizer)
 #define HSE_NO_SANITIZE_ALIGNMENT __attribute__((no_sanitize("alignment")))
+#endif
+#elif WITH_UBSAN
+#define HSE_NO_SANITIZE_ALIGNMENT __attribute__((no_sanitize("alignment")))
+#else
+#define HSE_NO_SANITIZE_ALIGNMENT
+#endif
 
 #if __amd64__
 static HSE_ALWAYS_INLINE void
