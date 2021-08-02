@@ -1,6 +1,6 @@
 subdir('include')
 subdir('java')
 subdir('src')
-if 'unit' in hse_tests
+if get_option('tests')
 	subdir('tests')
 endif

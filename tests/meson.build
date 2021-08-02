@@ -37,12 +37,6 @@ add_test_setup(
     exclude_suites: ['long', 'smoke', 'non-deterministic'] + additional_suite_exclusions,
 )
 
-if 'unit' in hse_tests
-    subdir('unit')
-endif
-
-if 'functional' in hse_tests
-    subdir('functional')
-endif
-
+subdir('unit')
+subdir('functional')
 subdir('benchmarks')
