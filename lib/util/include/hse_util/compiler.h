@@ -90,7 +90,7 @@
 #if __has_feature(undefined_behavior_sanitizer)
 #define HSE_NO_SANITIZE_ALIGNMENT __attribute__((no_sanitize("alignment")))
 #endif
-#elif WITH_UBSAN
+#elif defined(WITH_UBSAN)
 #define HSE_NO_SANITIZE_ALIGNMENT __attribute__((no_sanitize("alignment")))
 #else
 #define HSE_NO_SANITIZE_ALIGNMENT
