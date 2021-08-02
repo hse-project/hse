@@ -6,7 +6,7 @@
 #ifndef HSE_CONFIG_CONFIG_H
 #define HSE_CONFIG_CONFIG_H
 
-#include "_config.h"
+#include "build_config.h"
 
 #include <hse_util/hse_err.h>
 #include <hse_ikvdb/kvdb_rparams.h>

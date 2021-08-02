@@ -1,21 +1,21 @@
-_config_h_data = configuration_data()
+build_config_h_data = configuration_data()
 
-_config_h_data.set(
+build_config_h_data.set(
     'WITH_COVERAGE',
     get_option('b_coverage'),
     description: 'Building with coverage support',
 )
 
-_config_h_data.set(
+build_config_h_data.set(
     'HSE_CONF_EXTENDED',
     get_option('hse-conf-extended'),
     description: '[TESTING PURPOSES ONLY] Allow cparams and dparams to exist in hse.conf'
 )
 
-_config_h = configure_file(
-    input: '_config.h.in',
-    output: '_config.h',
-    configuration: _config_h_data,
+build_config_h = configure_file(
+    input: 'build_config.h.in',
+    output: 'build_config.h',
+    configuration: build_config_h_data,
 )
 
 component_root_includes = include_directories('.')
@@ -37,7 +37,7 @@ subdir('mpool')
 subdir('pidfile')
 
 hse_sources = [
-    _config_h,
+    build_config_h,
     binding_sources,
     c0_sources,
     lc_sources,

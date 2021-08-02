@@ -3,8 +3,6 @@
  * Copyright (C) 2021 Micron Technology, Inc.  All rights reserved.
  */
 
-#include "_config.h"
-
 #include <assert.h>
 #include <dirent.h>
 #include <errno.h>

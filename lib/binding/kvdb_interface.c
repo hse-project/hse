@@ -5,7 +5,7 @@
 
 #define MTF_MOCK_IMPL_hse
 
-#include "_config.h"
+#include "build_config.h"
 
 #include <mpool/mpool.h>
 

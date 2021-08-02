@@ -1,6 +1,3 @@
-pidfile_sources = [
-    files(
-        'pidfile.c',
-    ),
-    _config_h,
-]
+pidfile_sources = files(
+    'pidfile.c',
+)

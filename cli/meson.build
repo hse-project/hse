@@ -9,13 +9,10 @@ endif
 
 cli_name = meson.project_name() + hse_major_version
 
-hse_cli_sources = [
-    files(
-        'cli_util.c',
-        'hse_cli.c',
-    ),
-    _config_h,
-]
+hse_cli_sources = files(
+    'cli_util.c',
+    'hse_cli.c',
+)
 
 hse_cli_c_args = [
     '-DCOMPANE="CLI"',
