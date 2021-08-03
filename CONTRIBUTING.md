@@ -167,7 +167,9 @@ To execute only tests pertaining to `c0`, run the following:
 meson test -C build --suite c0
 ```
 
-The default test setup for HSE runs the unit test suite.
+> TODO: Document how to build and test in a way that mimics what
+> is done one each PR.  Contributors should be encouraged to run
+> those same tests prior to submitting a PR.
 
 ### Targets
 
