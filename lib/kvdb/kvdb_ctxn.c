@@ -32,8 +32,6 @@
 #include "kvdb_ctxn_internal.h"
 #include "kvdb_keylock.h"
 
-#include <semaphore.h>
-
 /* clang-format off */
 
 #define kvdb_ctxn_set_h2r(_ktn_handle) \
@@ -48,9 +46,9 @@ struct kvdb_ctxn_set {
  * @txn_wkth_delay:   delay in jiffies to use for transaction worker thread
  * @ktn_txn_timeout:  max time to live (in msecs) after which txn is aborted
  * @ktn_dwork:        delayed work struct
- * @ktn_tseqno_head:  used to serialize commits in seqno order
- * @ktn_tseqno_tail:  used to serialize commits in seqno order
- * @ktn_tseqno_sema:  used to limit threads spinning in kvdb_ctxn_set_wait_commits()
+ * @ktn_tseqno_sync:  used to serialize commits in seqno order
+ * @ktn_tseqno_head:  used to obtain a stable view seqno
+ * @ktn_tseqno_tail:  used to obtain a stable view seqno
  * @ktn_list_mutex:   protects updates to list of allocated transactions
  * @ktn_alloc_list:   RCU list of allocated transactions
  * @ktn_pending:      transactions to be freed when reader thread finishes
@@ -66,7 +64,6 @@ struct kvdb_ctxn_set_impl {
 
     atomic64_t ktn_tseqno_head HSE_ALIGNED(SMP_CACHE_BYTES * 2);
     atomic64_t ktn_tseqno_tail HSE_ALIGNED(SMP_CACHE_BYTES * 2);
-    sem_t      ktn_tseqno_sema HSE_ALIGNED(SMP_CACHE_BYTES * 2);
     spinlock_t ktn_tseqno_sync HSE_ALIGNED(SMP_CACHE_BYTES * 2);
 
     struct mutex         ktn_list_mutex HSE_ALIGNED(SMP_CACHE_BYTES * 2);
@@ -220,8 +217,6 @@ kvdb_ctxn_alloc(
     ctxn->ctxn_wal = wal;
     ctxn->ctxn_kvdb_ctxn_set = kcs_handle;
     ctxn->ctxn_kvdb_seq_addr = kvdb_seqno_addr;
-    ctxn->ctxn_tseqno_head = &kvdb_ctxn_set->ktn_tseqno_head;
-    ctxn->ctxn_tseqno_tail = &kvdb_ctxn_set->ktn_tseqno_tail;
 
     mutex_lock(&kvdb_ctxn_set->ktn_list_mutex);
     cds_list_add_rcu(&ctxn->ctxn_alloc_link, &kvdb_ctxn_set->ktn_alloc_list);
@@ -258,57 +253,42 @@ kvdb_ctxn_set_remove(struct kvdb_ctxn_set *handle, struct kvdb_ctxn_impl *ctxn)
     }
 }
 
+/*
+ * Ensure that all preceding commits have published their mutations.
+ * This ensures that we have a consistent read snapshot to work with.
+ * We do not expect any new committing transactions' mutations
+ * to unexpectedly pop up within our view after this wait is over.
+ *
+ * Note that your view must be established prior to calling wait_commits.
+ * Every transaction that starts its commit after our view is established
+ * will have a commit_seqno strictly greater than our view_seqno.
+ *
+ * Note: At 4-billion commits per second it would take more than 136
+ * years for head to wrap.  So we just don't worry about it...
+ */
 void
-kvdb_ctxn_set_wait_commits(struct kvdb_ctxn_set *handle)
+kvdb_ctxn_set_wait_commits(struct kvdb_ctxn_set *handle, u64 head)
 {
-    struct kvdb_ctxn_set_impl *kvdb_ctxn_set = kvdb_ctxn_set_h2r(handle);
-    u64 head, tail;
-    sem_t *sema;
-    int spin;
+    struct kvdb_ctxn_set_impl *self = kvdb_ctxn_set_h2r(handle);
 
-    /*
-     * This transaction started its commit only after our view was established.
-     * Note that your view must be established prior to calling wait_commits.
-     * Every transaction that starts its commit after our view is established
-     * will have a commit_seqno strictly greater than our view_seqno.
-     */
-    head = atomic64_read_acq(&kvdb_ctxn_set->ktn_tseqno_head);
+    if (!head)
+        head = atomic64_read_acq(&self->ktn_tseqno_head);
 
-    /*
-     * Ensure that all preceding commits have published their mutations.
-     * This ensures that we have a consistent read snapshot to work with.
-     * We do not expect any new committing transactions' mutations
-     * to unexpectedly pop up within our view after this wait is over.
-     *
-     * Note: At 4-billion commits per second it would take more than 136
-     * years for head to wrap.  So we just don't worry about it...
-     */
-  again:
-    spin = 32;
+    while (1) {
+        int spin = 128;
+        u64 tail;
 
-    while (spin > 0) {
-        tail = atomic64_read(&kvdb_ctxn_set->ktn_tseqno_tail);
-        if (tail >= head)
-            return;
+        while (spin-- > 0) {
+            tail = atomic64_read(&self->ktn_tseqno_tail);
+            if (tail >= head)
+                return;
 
-        cpu_relax();
-        spin--;
+            cpu_relax();
+        }
+
+        usleep(1);
+        ev(1);
     }
-
-    /* At this point the view still isn't stable, but if we busy-wait
-     * indefinitely we could bring the system to a crawl.  So we use
-     * counting semaphore to limit the number of threads allowed to
-     * busy-wait for their view to stabilize.
-     */
-    sema = &kvdb_ctxn_set->ktn_tseqno_sema;
-
-    if (sem_wait(sema))
-        goto again; /* Probably EINTR */
-
-    while (atomic64_read(&kvdb_ctxn_set->ktn_tseqno_tail) < head)
-        cpu_relax();
-
-    sem_post(&kvdb_ctxn_set->ktn_tseqno_sema);
 }
 
 void
@@ -336,6 +316,8 @@ kvdb_ctxn_enable_inserts(struct kvdb_ctxn_impl *ctxn)
     uintptr_t                  *priv;
     merr_t                      err;
 
+    kvdb_keylock_expire(ctxn->ctxn_kvdb_keylock, viewset_min_view(ctxn->ctxn_viewset), 1);
+
     err = kvdb_ctxn_locks_create(&locks);
     if (ev(err))
         return err;
@@ -361,6 +343,7 @@ kvdb_ctxn_begin(struct kvdb_ctxn *handle)
 {
     struct kvdb_ctxn_impl *ctxn = kvdb_ctxn_h2r(handle);
     enum kvdb_ctxn_state   state;
+    u64                    tseqno;
     merr_t                 err;
 
     kvdb_ctxn_lock_impl(ctxn);
@@ -372,18 +355,16 @@ kvdb_ctxn_begin(struct kvdb_ctxn *handle)
         goto errout;
     }
 
-    ctxn->ctxn_bind = 0;
     ctxn->ctxn_begin_ts = get_time_ns();
+    ctxn->ctxn_can_insert = 0;
+    ctxn->ctxn_seqref = HSE_SQNREF_UNDEFINED;
+    ctxn->ctxn_bind = NULL;
 
-    err = viewset_insert(
-        ctxn->ctxn_viewset, &ctxn->ctxn_view_seqno, &ctxn->ctxn_viewset_cookie);
+    err = viewset_insert(ctxn->ctxn_viewset, &ctxn->ctxn_view_seqno, &tseqno, &ctxn->ctxn_viewset_cookie);
     if (ev(err))
         goto errout;
 
-    kvdb_ctxn_set_wait_commits(ctxn->ctxn_kvdb_ctxn_set);
-
-    ctxn->ctxn_can_insert = 0;
-    ctxn->ctxn_seqref = HSE_SQNREF_UNDEFINED;
+    kvdb_ctxn_set_wait_commits(ctxn->ctxn_kvdb_ctxn_set, tseqno);
 
 errout:
     kvdb_ctxn_unlock_impl(ctxn);
@@ -404,8 +385,9 @@ kvdb_ctxn_deactivate(struct kvdb_ctxn_impl *ctxn)
     ctxn->ctxn_viewset_cookie = NULL;
 
     viewset_remove(ctxn->ctxn_viewset, cookie, &min_changed, &new_min);
+
     if (min_changed)
-        kvdb_keylock_expire(ctxn->ctxn_kvdb_keylock, new_min);
+        kvdb_keylock_expire(ctxn->ctxn_kvdb_keylock, new_min, UINT64_MAX);
 }
 
 static void
@@ -460,7 +442,7 @@ kvdb_ctxn_abort_inner(struct kvdb_ctxn_impl *ctxn)
 
         kvdb_keylock_list_lock(keylock, &cookie);
         end_seq = atomic64_fetch_add(1, ctxn->ctxn_kvdb_seq_addr);
-        kvdb_keylock_queue_locks(locks, end_seq, cookie);
+        kvdb_keylock_enqueue_locks(locks, end_seq, cookie);
         kvdb_keylock_list_unlock(cookie);
     } else {
         kvdb_ctxn_locks_destroy(locks);
@@ -534,9 +516,10 @@ kvdb_ctxn_commit(struct kvdb_ctxn *handle)
      *     transaction that began execution prior to the commit of A
      *     completes.
      *
-     *   - The viewset mechanism is used to efficiently track what
-     *     the lowest view sequence number is for any active txn.  If there
-     *     are no active txn's, then that number is U64_MAX.
+     *   - The viewset mechanism is used to efficiently track what the
+     *     lowest view sequence number is for any active txn.  If there
+     *     are no active txn's, then that number is the current value
+     *     of ikdb_seqno.
      *
      *   - The write lock collections are held on a list managed by the
      *     kvdb_keylock code. These collections are placed on this list at
@@ -549,55 +532,60 @@ kvdb_ctxn_commit(struct kvdb_ctxn *handle)
      *     it updates the collection of active txn's. If that update causes
      *     the minimum view sequence number for any active txn to change,
      *     then it will traverse the write lock collection list, removing
-     *     any element whose commit sequence number is less than the new
+     *     all elements whose commit sequence number is less than the new
      *     minimum sequence number.
      *
      *   - To account for the case that a given txn A is the only active
      *     txn in the system, we ensure that we put A's write lock
-     *     collection on the list before we call kvdb_ctxn_deactivate so
-     *     A commit execution will reap its own collection.
+     *     collection on the list before we call kvdb_ctxn_deactivate
+     *     so that a commit execution will reap its own collection.
      */
-
-    /* The following critical section demarcated by the list lock/unlock
-     * calls provide mutual exclusion only for the list referenced by
-     * cookie.  The list lock mechanism does, however, limit total
-     * concurrency through this section to only a handful of cpus
-     * (currently 8 as defined by KVDB_DLOCK_MAX).
-     */
-    cookie = NULL; /* For error detection by mapi */
-
-    kvdb_keylock_list_lock(ctxn->ctxn_kvdb_keylock, &cookie);
 
     struct kvdb_ctxn_set_impl *kcs = kvdb_ctxn_set_h2r(ctxn->ctxn_kvdb_ctxn_set);
-    priv = (uintptr_t *)ctxn->ctxn_seqref;
 
-    /*
-     * Ensure that threads mint commit sequence numbers in increasing order
-     * of ctxn_tseqno_head.
+    /* Prefetch priv to try and avoid a cache miss whithin the critsec.
+     */
+    priv = (uintptr_t *)ctxn->ctxn_seqref;
+    __builtin_prefetch(priv);
+
+    cookie = NULL; /* Set to nil for mapi */
+
+    /* The critical section demarcated by the keylock_list_{lock/unlock}
+     * calls provide mutual exclusion only for the list referenced by
+     * cookie, and ensures that keylocks are queued to their respective
+     * lists in commit sequence number order.  Additionally, the list
+     * lock limits concurrency through this section to only a handful
+     * of CPUs (currently 4 as defined by KVDB_DLOCK_MAX) which helps
+     * to relive contention on the commit sync and ticket locks.
+     */
+    kvdb_keylock_list_lock(ctxn->ctxn_kvdb_keylock, &cookie);
+
+    /* The commit sync lock (tseqno sync) ensures that only one thread can
+     * obtain a ticket and commit sequence number at any given time.
+     *
+     * The commit ticket lock (tseqno head/tail) ensures that commit sequence
+     * numbers are minted and made visible in ticket order.  Acquire semantics
+     * on the increment of tseqno head ensure that it is always incremented
+     * before commit_sn is computed.  This ticket lock is also used by
+     * kvdb_ctxn_set_wait_commit() to ensure visibility of a view seqno
+     * obtained asynchronously with respect to this critical section.
      */
     spin_lock(&kcs->ktn_tseqno_sync);
-    head = atomic64_inc_acq(ctxn->ctxn_tseqno_head);
-    commit_sn = 1 + atomic64_fetch_add_rel(2, ctxn->ctxn_kvdb_seq_addr);
+    head = atomic64_inc_acq(&kcs->ktn_tseqno_head); /* acquire next ticket */
+    commit_sn = 1 + atomic64_fetch_add(2, ctxn->ctxn_kvdb_seq_addr);
     spin_unlock(&kcs->ktn_tseqno_sync);
 
-    /* We leverage tseqno head and tail to ensure that we never present
-     * a commit_sn to c1 for which there might be a lower commit_sn that
-     * has not yet been applied to the kvms (via *priv = ref).  We could
-     * accomplish the same thing with a mutex, but this approach greatly
-     * improves throughput of the above critical section vs a mutex.
-     */
-    while (atomic64_read(ctxn->ctxn_tseqno_tail) + 1 < head)
-        cpu_relax();
+    while (atomic64_read(&kcs->ktn_tseqno_tail) + 1 < head)
+        cpu_relax(); /* wait for our ticket to be served */
 
-    /* This assignment through the pointer gives all the values
-     * associated with this transaction an ordinal sequence
-     * number. Each of those values has their own pointer to the
-     * ordinal value.
+    /* The assignment through *priv gives all the values associated
+     * with this transaction an ordinal sequence number. Each of
+     * those values has their own pointer to the ordinal value.
      */
     ref = HSE_ORDNL_TO_SQNREF(commit_sn);
     *priv = ref;
 
-    atomic64_inc_rel(ctxn->ctxn_tseqno_tail);
+    atomic64_inc_rel(&kcs->ktn_tseqno_tail); /* release ticket lock */
 
     /* Once the indirect assignment has been performed the
      * transaction itself no longer needs to see the shared value
@@ -612,7 +600,7 @@ kvdb_ctxn_commit(struct kvdb_ctxn *handle)
     ctxn->ctxn_locks_handle = NULL;
 
     if (kvdb_ctxn_locks_count(locks) > 0) {
-        kvdb_keylock_insert_locks(locks, commit_sn, cookie);
+        kvdb_keylock_enqueue_locks(locks, commit_sn, cookie);
         locks = NULL;
     }
 
@@ -712,7 +700,6 @@ merr_t
 kvdb_ctxn_set_create(struct kvdb_ctxn_set **handle_out, u64 txn_timeout_ms, u64 delay_msecs)
 {
     struct kvdb_ctxn_set_impl *ktn;
-    int limit, rc;
 
     *handle_out = 0;
 
@@ -722,22 +709,8 @@ kvdb_ctxn_set_create(struct kvdb_ctxn_set **handle_out, u64 txn_timeout_ms, u64 
 
     memset(ktn, 0, sizeof(*ktn));
 
-    /* Limit the number of threads allowed to busy-wait
-     * indefinitely in kvdb_ctxn_set_wait_commits().
-     */
-    limit = clamp_t(int, get_nprocs() / 8, 1, 8);
-
-    rc = sem_init(&ktn->ktn_tseqno_sema, 0, limit);
-    if (ev(rc)) {
-        int xerrno = errno;
-
-        free_aligned(ktn);
-        return merr(xerrno);
-    }
-
     ktn->ktn_wq = alloc_workqueue("kvdb_ctxn_set", 0, 1);
     if (ev(!ktn->ktn_wq)) {
-        sem_destroy(&ktn->ktn_tseqno_sema);
         free_aligned(ktn);
         return merr(ENOMEM);
     }
@@ -788,9 +761,16 @@ kvdb_ctxn_set_destroy(struct kvdb_ctxn_set *handle)
         kvdb_ctxn_free(&ctxn->ctxn_inner_handle);
 
     mutex_destroy(&ktn->ktn_list_mutex);
-    sem_destroy(&ktn->ktn_tseqno_sema);
 
     free_aligned(ktn);
+}
+
+atomic64_t *
+kvdb_ctxn_set_tseqnop_get(struct kvdb_ctxn_set *handle)
+{
+    struct kvdb_ctxn_set_impl *kcs = kvdb_ctxn_set_h2r(handle);
+
+    return &kcs->ktn_tseqno_head;
 }
 
 struct kvdb_ctxn_bind *

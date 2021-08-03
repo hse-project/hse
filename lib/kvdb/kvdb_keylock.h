@@ -76,17 +76,7 @@ void
 kvdb_keylock_release_locks(struct kvdb_keylock *klock_handle, struct kvdb_ctxn_locks *locks_handle);
 
 /**
- * kvdb_keylock_queue_locks() - Add locks to the end of deferred list.
- * @handle:    handle to transaction's write locks.
- * @end_seqno: end seqno of transaction.
- * @cookie:    identifies dlock from the per-cpu buckets.
- */
-/* MTF_MOCK */
-void
-kvdb_keylock_queue_locks(struct kvdb_ctxn_locks *handle, u64 end_seqno, void *cookie);
-
-/**
- * kvdb_keylock_insert_locks() - Add locks to the deferred list at the right
+ * kvdb_keylock_enqueue_locks() - Add locks to the deferred list at the right
  *                               position (as determined by end_seqno).
  * @handle:    handle to transaction's write locks.
  * @end_seqno: end seqno of transaction.
@@ -94,14 +84,14 @@ kvdb_keylock_queue_locks(struct kvdb_ctxn_locks *handle, u64 end_seqno, void *co
  */
 /* MTF_MOCK */
 void
-kvdb_keylock_insert_locks(struct kvdb_ctxn_locks *handle, u64 end_seqno, void *cookie);
+kvdb_keylock_enqueue_locks(struct kvdb_ctxn_locks *handle, u64 end_seqno, void *cookie);
 
 void
 kvdb_keylock_prune_own_locks(struct kvdb_keylock *kl_handle, struct kvdb_ctxn_locks *locks_handle);
 
 /* MTF_MOCK */
 void
-kvdb_keylock_expire(struct kvdb_keylock *klock, u64 min_view_seqno);
+kvdb_keylock_expire(struct kvdb_keylock *klock, u64 min_view_seqno, u64 spin);
 
 #if HSE_MOCKING
 #include "kvdb_keylock_ut.h"

@@ -19,11 +19,12 @@ MTF_BEGIN_UTEST_COLLECTION(viewset_test)
 
 MTF_DEFINE_UTEST(viewset_test, t_viewset_create)
 {
-    struct viewset         *vs;
-    merr_t                  err;
-    atomic64_t              seqno;
+    struct viewset *vs;
+    merr_t         err;
+    atomic64_t     seqno;
+    atomic64_t     tseqno;
 
-    err = viewset_create(&vs, &seqno);
+    err = viewset_create(&vs, &seqno, &tseqno);
     ASSERT_EQ(err, 0);
 
     viewset_destroy(vs);
@@ -34,11 +35,12 @@ MTF_DEFINE_UTEST(viewset_test, t_viewset_create_enomem)
     struct viewset *vs;
     merr_t          err;
     atomic64_t      seqno;
+    atomic64_t      tseqno;
     int             rc;
 
     void run(struct mtf_test_info * lcl_ti, uint i, uint j)
     {
-        err = viewset_create(&vs, &seqno);
+        err = viewset_create(&vs, &seqno, &tseqno);
         if (i == j)
             ASSERT_EQ(err, 0);
         else
@@ -59,13 +61,14 @@ MTF_DEFINE_UTEST(viewset_test, t_viewset_insert)
 {
     struct viewset *vs;
     atomic64_t      vs_seqno;
+    atomic64_t      vs_tseqno;
     long            start_seqno;
     merr_t          err;
     int             show;
     int             inserted;
     int             max_inserts;
     void          **cookies;
-    u64            *views;
+    u64            *views, tseqno;
 
     start_seqno = 1234;
     atomic64_set(&vs_seqno, start_seqno);
@@ -79,13 +82,13 @@ MTF_DEFINE_UTEST(viewset_test, t_viewset_insert)
     views = mapi_safe_calloc(max_inserts, sizeof(*views));
     ASSERT_NE(views, NULL);
 
-    err = viewset_create(&vs, &vs_seqno);
+    err = viewset_create(&vs, &vs_seqno, &vs_tseqno);
     ASSERT_EQ(err, 0);
 
     ASSERT_EQ(viewset_horizon(vs), start_seqno);
 
     for (int i = 0; i < max_inserts; i++) {
-        err = viewset_insert(vs, &views[i], &cookies[i]);
+        err = viewset_insert(vs, &views[i], &tseqno, &cookies[i]);
         if (err) {
             ASSERT_EQ(merr_errno(err), ENOMEM);
             break;

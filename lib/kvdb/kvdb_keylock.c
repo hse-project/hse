@@ -35,7 +35,7 @@
 #define KVDB_DLOCK_MAX              (4) /* Must be power-of-2 */
 #define CTXN_LOCKS_IMPL_CACHE_SZ    (PAGE_SIZE - SMP_CACHE_BYTES * 2)
 #define CTXN_LOCKS_SLAB_CACHE_SZ    (16 * 1024 - SMP_CACHE_BYTES * 2)
-#define CTXN_LOCKS_MAX              (2u << 20)
+#define CTXN_LOCKS_MAX              (16u << 20)
 
 struct kvdb_keylock {
 };
@@ -50,7 +50,7 @@ struct kvdb_keylock {
  */
 struct kvdb_dlock {
     struct mutex     kd_lock  HSE_ALIGNED(SMP_CACHE_BYTES * 2);
-    struct list_head kd_list  HSE_ALIGNED(SMP_CACHE_BYTES);
+    struct list_head kd_list;
     volatile u64     kd_mvs   HSE_ALIGNED(SMP_CACHE_BYTES);
 };
 
@@ -183,7 +183,7 @@ kvdb_keylock_create(struct kvdb_keylock **handle_out, u32 num_tables)
     for (i = 0; i < KVDB_DLOCK_MAX; ++i) {
         mutex_init(&klock->kl_dlockv[i].kd_lock);
         INIT_LIST_HEAD(&klock->kl_dlockv[i].kd_list);
-        klock->kl_dlockv[i].kd_mvs = 0;
+        klock->kl_dlockv[i].kd_mvs = UINT64_MAX;
     }
 
     for (i = 0; i < num_tables; i++) {
@@ -254,11 +254,8 @@ kvdb_keylock_list_lock(struct kvdb_keylock *handle, void **cookiep)
 {
     struct kvdb_keylock_impl *klock = kvdb_keylock_h2r(handle);
     struct kvdb_dlock *       dlock = klock->kl_dlockv;
-    uint cpu, node, core;
 
-    hse_getcpu(&cpu, &node, &core);
-
-    dlock += core % KVDB_DLOCK_MAX;
+    dlock += hse_cpu2core(raw_smp_processor_id()) % KVDB_DLOCK_MAX;
 
     mutex_lock(&dlock->kd_lock);
     *cookiep = dlock;
@@ -275,30 +272,13 @@ kvdb_keylock_list_unlock(void *cookie)
 }
 
 void
-kvdb_keylock_queue_locks(struct kvdb_ctxn_locks *handle, u64 end_seqno, void *cookie)
-{
-    struct kvdb_ctxn_locks_impl *locks = kvdb_ctxn_locks_h2r(handle);
-    struct kvdb_dlock *          dlock = cookie;
-
-    assert(dlock);
-
-    assert(kvdb_ctxn_locks_count(handle));
-
-    locks->ctxn_locks_end_seqno = end_seqno;
-
-    list_add_tail(&locks->ctxn_locks_link, &dlock->kd_list);
-}
-
-void
-kvdb_keylock_insert_locks(struct kvdb_ctxn_locks *handle, u64 end_seqno, void *cookie)
+kvdb_keylock_enqueue_locks(struct kvdb_ctxn_locks *handle, u64 end_seqno, void *cookie)
 {
     struct kvdb_ctxn_locks_impl *locks = kvdb_ctxn_locks_h2r(handle);
     struct kvdb_dlock *          dlock = cookie;
     struct kvdb_ctxn_locks_impl *elem;
 
-    assert(dlock);
-
-    assert(kvdb_ctxn_locks_count(handle));
+    assert(dlock && locks->ctxn_locks_cnt > 0);
 
     locks->ctxn_locks_end_seqno = end_seqno;
 
@@ -306,14 +286,19 @@ kvdb_keylock_insert_locks(struct kvdb_ctxn_locks *handle, u64 end_seqno, void *c
      * traverse in reverse.
      */
     list_for_each_entry_reverse(elem, &dlock->kd_list, ctxn_locks_link) {
-        if (end_seqno > elem->ctxn_locks_end_seqno)
-            break;
+        if (end_seqno > elem->ctxn_locks_end_seqno) {
+            list_add(&locks->ctxn_locks_link, &elem->ctxn_locks_link);
+            return;
+        }
     }
 
-    if (elem)
-        list_add(&locks->ctxn_locks_link, &elem->ctxn_locks_link);
-    else
-        list_add(&locks->ctxn_locks_link, &dlock->kd_list);
+    /* Should only be here if the list is empty, it is a grievous error
+     * if caller is trying insert a dlock out of view seqno order.
+     */
+    assert(list_empty(&dlock->kd_list));
+
+    dlock->kd_mvs = end_seqno;
+    list_add(&locks->ctxn_locks_link, &dlock->kd_list);
 }
 
 void
@@ -371,45 +356,47 @@ kvdb_keylock_prune_own_locks(struct kvdb_keylock *kl_handle, struct kvdb_ctxn_lo
  * @min_view_sn:    the new minimum view sequence number for any active txn
  */
 void
-kvdb_keylock_expire(struct kvdb_keylock *handle, u64 min_view_sn)
+kvdb_keylock_expire(struct kvdb_keylock *handle, u64 min_view_sn, u64 spin)
 {
-    struct kvdb_ctxn_locks_impl *curr, *tmp;
-    struct kvdb_keylock_impl *   klock;
-    struct list_head             expired;
-    uint mask, cpu, node, core, idx;
+    struct kvdb_keylock_impl *klock = kvdb_keylock_h2r(handle);
+    uint mask, idx;
 
-    klock = kvdb_keylock_h2r(handle);
-
-    hse_getcpu(&cpu, &node, &core);
-
-    /* Start with the dlock onto which we most likely queued
-     * a lock set.
+    /* Start with the dlock onto which we most likely queued a lock set.
      */
-    idx = core % KVDB_DLOCK_MAX;
+    idx = hse_cpu2core(raw_smp_processor_id()) % KVDB_DLOCK_MAX;
     mask = (1u << KVDB_DLOCK_MAX) - 1;
-    INIT_LIST_HEAD(&expired);
 
-    /* Continously cycle around the wheel of dlocks looking for expired
-     * lock sets until we have either visited all the dlocks or find
-     * cause to stop looking.
+    /* Continuously cycle around the wheel of dlocks looking for expired
+     * lock sets until none have an end seqno less than min_view_sn.
      */
-    while (mask) {
+    while (mask && spin--) {
         struct kvdb_dlock *dlock = klock->kl_dlockv + idx;
+        struct kvdb_ctxn_locks_impl *curr, *tmp;
+        struct list_head expired;
 
-        if (!(mask & (1u << idx)))
-            goto next;
+        if (!(mask & (1u << idx)) || dlock->kd_mvs >= min_view_sn) {
+            mask &= ~(1u << idx);
+            idx = (idx + 1) % KVDB_DLOCK_MAX;
+            continue;
+        }
 
-        if (dlock->kd_mvs >= min_view_sn)
-            return;
+        if (!mutex_trylock(&dlock->kd_lock)) {
+            idx = (idx + 1) % KVDB_DLOCK_MAX;
+            continue;
+        }
 
-        if (!mutex_trylock(&dlock->kd_lock))
-            goto next;
+        INIT_LIST_HEAD(&expired);
 
         if (min_view_sn > dlock->kd_mvs) {
-            dlock->kd_mvs = min_view_sn;
+            int batchmax = 8;
 
             list_for_each_entry_safe(curr, tmp, &dlock->kd_list, ctxn_locks_link) {
-                if (curr->ctxn_locks_end_seqno >= min_view_sn)
+                if (curr->ctxn_locks_end_seqno >= min_view_sn) {
+                    dlock->kd_mvs = curr->ctxn_locks_end_seqno;
+                    break;
+                }
+
+                if (--batchmax < 0)
                     break;
 
                 /* Allow all locks in this set to be inherited.
@@ -418,6 +405,11 @@ kvdb_keylock_expire(struct kvdb_keylock *handle, u64 min_view_sn)
 
                 list_del(&curr->ctxn_locks_link);
                 list_add_tail(&curr->ctxn_locks_link, &expired);
+            }
+
+            if (list_empty(&dlock->kd_list)) {
+                dlock->kd_mvs = UINT64_MAX;
+                mask &= ~(1u << idx);
             }
         }
         mutex_unlock(&dlock->kd_lock);
@@ -429,12 +421,6 @@ kvdb_keylock_expire(struct kvdb_keylock *handle, u64 min_view_sn)
             kvdb_keylock_release_locks(handle, locks);
             kvdb_ctxn_locks_destroy(locks);
         }
-
-        INIT_LIST_HEAD(&expired);
-        mask &= ~(1u << idx);
-
-    next:
-        idx = (idx + 1) % KVDB_DLOCK_MAX;
     }
 }
 
@@ -558,7 +544,7 @@ kvdb_keylock_lock(
     if (HSE_UNLIKELY(slab->cls_entryc >= slab->cls_entrymax)) {
         slab = kmem_cache_alloc(ctxn_locks_slab_cache);
         if (ev(!slab))
-            return merr(ECANCELED);
+            return merr(ENOMEM);
 
         memset(slab, 0, sizeof(*slab));
         slab->cls_entrymax = CTXN_LOCKS_SLAB_CACHE_SZ - sizeof(*slab);
@@ -601,13 +587,28 @@ static void
 kvdb_ctxn_locks_reserve(struct kvdb_ctxn_locks_impl *locks)
 {
     struct kvdb_ctxn_locks *handle = &locks->ctxn_locks_handle;
-    uint idx;
+    uint probes = 0, node, idx;
 
-    idx = xrand64_tls();
+    while (1) {
+        uint64_t r = xrand64_tls();
 
-    do {
-        idx = (idx + 7) % CTXN_LOCKS_MAX;
-    } while (!atomic_ptr_cas(&ctxn_locks_ptrv[idx], NULL, handle));
+        node = hse_cpu2node(raw_smp_processor_id()) % 2;
+
+        idx = (CTXN_LOCKS_MAX / 2) * node;
+        idx += r % (CTXN_LOCKS_MAX / 2);
+
+      again:
+        if (atomic_ptr_cas(&ctxn_locks_ptrv[idx], NULL, handle))
+            break;
+
+        if (++probes % 16) {
+            idx = (idx + ((r >>= 2) % 4)) % CTXN_LOCKS_MAX;
+            goto again;
+        }
+
+        usleep(1);
+        ev(1);
+    }
 
     locks->ctxn_locks_idx = idx;
 }
@@ -642,7 +643,7 @@ kvdb_ctxn_locks_create(struct kvdb_ctxn_locks **locksp)
     impl = kmem_cache_alloc(ctxn_locks_impl_cache);
     if (ev(!impl)) {
         *locksp = NULL;
-        return merr(ECANCELED);
+        return merr(ENOMEM);
     }
 
     sz = sizeof(*impl) + sizeof(*slab);

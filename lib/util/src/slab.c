@@ -1298,7 +1298,6 @@ kmc_snprintf(struct kmem_cache *zone, char *buf, size_t bufsz, const char *fmt)
 
         slab = list_next_entry_or_null(slab, slab_zentry, head);
     }
-    kmc_zone_unlock(zone);
 
     if (addrv) {
         qsort(addrv, addrc, sizeof(*addrv), kmc_addrv_cmp);
@@ -1314,6 +1313,9 @@ kmc_snprintf(struct kmem_cache *zone, char *buf, size_t bufsz, const char *fmt)
             }
         }
     }
+    kmc_zone_unlock(zone);
+
+    free(addrv);
 
     snprintf(flagsbuf, sizeof(flagsbuf), "%s%s%s",
              (zone->zone_flags & SLAB_HUGE) ? " huge" : "",

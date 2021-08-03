@@ -38,6 +38,11 @@
 struct viewset {
 };
 
+/* BKT_MAX should be an even number such that divided by two yields
+ * an odd number.  This is to allow an even distribution of cores to
+ * buckets on a machine which enumerates all it's even numbered cores
+ * to one NUMA node and vice versa for odd numbered cores.
+ */
 #define VIEWSET_BKT_MAX     (14)
 
 /**
@@ -56,7 +61,8 @@ struct viewset_bkt {
  * struct viewset_impl -
  * @vs_handle:         opaque handle for this struct
  * @vs_bkt_end:        ptr to one bucket past the last valid bucket
- * @vs_seqno_addr:
+ * @vs_seqno_addr:     address of kvdb seqno (ikdb_seqno)
+ * @vs_tseqnop:        address of commit ticket lock (ktn_tseqno_head)
  * @vs_min_view_sn:    set minimum view seqno
  * @vs_min_view_bkt:   bucket which contains current min-view-sn
  * @vs_horizon:
@@ -68,6 +74,7 @@ struct viewset_bkt {
 struct viewset_impl {
     struct viewset      vs_handle;
     atomic64_t         *vs_seqno_addr;
+    atomic64_t         *vs_tseqnop;
     struct viewset_bkt *vs_bkt_first;
     struct viewset_bkt *vs_bkt_last;
 
@@ -91,7 +98,7 @@ struct viewset_impl {
 struct viewset_tree;
 
 struct viewset_entry {
-    struct list_head    vse_link;
+    struct list_head    vse_link HSE_ALIGNED(SMP_CACHE_BYTES);
     struct viewset_bkt *vse_bkt;
     union {
         u64   vse_view_sn;
@@ -171,7 +178,7 @@ viewset_entry_free(struct viewset_tree *tree, struct viewset_entry *entry)
 }
 
 merr_t
-viewset_create(struct viewset **handle, atomic64_t *kvdb_seqno_addr)
+viewset_create(struct viewset **handle, atomic64_t *kvdb_seqno_addr, atomic64_t *tseqnop)
 {
     struct viewset_impl *self;
     merr_t err = 0;
@@ -198,6 +205,7 @@ viewset_create(struct viewset **handle, atomic64_t *kvdb_seqno_addr)
     }
 
     self->vs_seqno_addr = kvdb_seqno_addr;
+    self->vs_tseqnop = tseqnop;
     self->vs_min_view_sn = atomic64_read(kvdb_seqno_addr);
     atomic64_set(&self->vs_horizon, self->vs_min_view_sn);
     self->vs_min_view_bkt = NULL;
@@ -279,6 +287,14 @@ viewset_horizon(struct viewset *handle)
     return oldh;
 }
 
+u64
+viewset_min_view(struct viewset *handle)
+{
+    struct viewset_impl *self = viewset_h2r(handle);
+
+    return self->vs_min_view_sn;
+}
+
 /**
  * viewset_update() - update set minimum view seqno
  * @self:       ptr to active_ctxn object
@@ -286,7 +302,7 @@ viewset_horizon(struct viewset *handle)
  *
  * This function must be called with the vse_lock held.
  */
-static inline void
+static inline bool
 viewset_update(struct viewset_impl *self, u64 entry_sn)
 {
     struct viewset_bkt *min_bkt, *bkt;
@@ -305,7 +321,7 @@ viewset_update(struct viewset_impl *self, u64 entry_sn)
     }
 
     if (atomic_read_acq(&self->vs_changing))
-        return;
+        return false;
 
     /* No active transaction in the system after a remove. */
     if (min_sn == U64_MAX) {
@@ -316,10 +332,12 @@ viewset_update(struct viewset_impl *self, u64 entry_sn)
     assert(min_sn >= self->vs_min_view_sn);
     self->vs_min_view_sn = min_sn;
     self->vs_min_view_bkt = min_bkt;
+
+    return true;
 }
 
 merr_t
-viewset_insert(struct viewset *handle, u64 *viewp, void **cookiep)
+viewset_insert(struct viewset *handle, u64 *viewp, u64 *tseqnop, void **cookiep)
 {
     struct viewset_impl *self = viewset_h2r(handle);
     struct viewset_entry *   entry;
@@ -365,6 +383,8 @@ viewset_insert(struct viewset *handle, u64 *viewp, void **cookiep)
     }
     treelock_unlock(tree);
 
+    *tseqnop = atomic64_read(self->vs_tseqnop);
+
     if (changed) {
         bool updated = false;
         sem_t *sema = NULL;
@@ -393,18 +413,16 @@ viewset_insert(struct viewset *handle, u64 *viewp, void **cookiep)
         if (atomic_read(&self->vs_changing) - ++self->vs_chgaccum == 0) {
             atomic_sub_rel(self->vs_chgaccum, &self->vs_changing);
             self->vs_chgaccum = 0;
-            viewset_update(self, 0);
-            updated = true;
+            updated = viewset_update(self, 0);
         }
         viewlock_unlock(self);
 
         if (sema)
             sem_post(sema);
 
-        /* If we skipped the updated because some other thread was
+        /* If we skipped the update because some other thread was
          * making a change then we must ensure we wait until our
-         * view has been registered.  Note that I've yet to see
-         * this situation occur, but it seems plausible.
+         * view has been registered.
          */
         if (!updated) {
             while (ev(self->vs_min_view_sn > entry->vse_view_sn))
@@ -462,9 +480,6 @@ viewset_remove(
     treelock_unlock(tree);
 
     while (changed) {
-        if (atomic_read_acq(&self->vs_changing))
-            break;
-
         if (entry_sn < self->vs_min_view_sn)
             break;
 
@@ -474,6 +489,7 @@ viewset_remove(
         if (viewlock_trylock(self)) {
             if (entry_sn >= self->vs_min_view_sn) {
                 u64 seq = atomic64_read(self->vs_seqno_addr);
+
                 viewset_update(self, seq);
             }
             viewlock_unlock(self);

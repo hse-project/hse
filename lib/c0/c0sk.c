@@ -701,8 +701,18 @@ void
 c0sk_throttle_sensor(struct c0sk *handle, struct throttle_sensor *sensor)
 {
     if (handle) {
-        throttle_sensor_set(sensor, THROTTLE_SENSOR_SCALE / 3);
-        c0sk_h2r(handle)->c0sk_sensor = sensor;
+        struct c0sk_impl *self = c0sk_h2r(handle);
+        uint senval = THROTTLE_SENSOR_SCALE / 3;
+        uint finlat = 30000;
+
+        if (0 == strcmp(self->c0sk_kvdb_rp->throttle_init_policy, "light")) {
+            finlat = 6000;
+            senval = 0;
+        }
+
+        atomic_set(&self->c0sk_ingest_finlat, finlat);
+        throttle_sensor_set(sensor, senval);
+        self->c0sk_sensor = sensor;
     }
 }
 

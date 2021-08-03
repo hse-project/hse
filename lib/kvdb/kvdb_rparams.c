@@ -447,7 +447,7 @@ static const struct param_spec pspecs[] = {
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
         .ps_default_value = {
-            .as_uscalar = 4,
+            .as_uscalar = 0,
         },
         .ps_bounds = {
             .as_uscalar = {
@@ -1028,7 +1028,7 @@ static const struct param_spec pspecs[] = {
     },
     {
         .ps_name = "throttle_c0_hi_th",
-        .ps_description = "c0 ingest backlog sensor high-watermark",
+        .ps_description = "c0 ingest backlog sensor high-watermark (x10)",
         .ps_flags = PARAM_FLAG_EXPERIMENTAL,
         .ps_type = PARAM_TYPE_U32,
         .ps_offset = offsetof(struct kvdb_rparams, throttle_c0_hi_th),
@@ -1040,8 +1040,8 @@ static const struct param_spec pspecs[] = {
         },
         .ps_bounds = {
             .as_uscalar = {
-                .ps_min = 0,
-                .ps_max = 100,
+                .ps_min = 30,
+                .ps_max = UINT32_MAX,
             },
         },
     },
@@ -1210,7 +1210,7 @@ static const struct param_spec pspecs[] = {
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
         .ps_default_value = {
-            .as_uscalar = 367,
+            .as_uscalar = 761,
         },
         .ps_bounds = {
             .as_uscalar = {
