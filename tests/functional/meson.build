@@ -4,15 +4,15 @@ subdir('api')
 
 tests = {
     'kvs_compare_full_and_pfx': {
-        'suites': ['hse-python', 'long'],
+        'suites': ['python', 'long'],
         'depends': hse_python_depends,
     },
     'kvs_scan_deleted_keys': {
-        'suites': ['hse-python', 'short'],
+        'suites': ['python', 'short'],
         'depends': hse_python_depends,
     },
     'kvs_scan_empty_kvs': {
-        'suites': ['hse-python', 'short'],
+        'suites': ['python', 'short'],
         'depends': hse_python_depends,
     },
     # [HSE_TODO]: Invalid tests; I think this is because of compaction not being
@@ -25,8 +25,8 @@ tests = {
     #     'suites': ['hse-python', 'short'],
     #     'depends': hse_python_depends,
     # },
-    'kvs_scan_a_billion': {
-        'suites': ['hse-python', 'long'],
+    'kvs_scan_a_million': {
+        'suites': ['python', 'long'],
         'depends': hse_python_depends,
     },
 }

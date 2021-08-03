@@ -64,7 +64,7 @@ foreach t : tests
         ],
         depends: hse_python_depends,
         workdir: meson.current_source_dir(),
-        suite: ['functional', 'hse-python'],
+        suite: ['functional', 'python'],
         timeout: 300,
     )
 endforeach

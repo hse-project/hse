@@ -5,10 +5,10 @@ from hse2 import hse
 
 from utility import lifecycle, cli
 
-# Scan a billion keys
+# Scan a million keys
 
-keycount = 1000 * 1000 * 1000
-kvsname = "scan_a_billion"
+keycount = 1000 * 1000
+kvsname = "scan_a_million"
 
 hse.init(cli.HOME)
 
