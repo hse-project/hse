@@ -922,6 +922,14 @@ c0kvms_destroy_cb(struct work_struct *w)
     c0kvms_destroy(c0kvms);
 }
 
+int
+c0kvms_refcnt(struct c0_kvmultiset *handle)
+{
+    struct c0_kvmultiset_impl *self = c0_kvmultiset_h2r(handle);
+
+    return atomic_read(&self->c0ms_refcnt);
+}
+
 void
 c0kvms_getref(struct c0_kvmultiset *handle)
 {

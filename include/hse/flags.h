@@ -19,6 +19,7 @@ extern "C" {
 #define HSE_FLAG_NONE (0u) /**< Represents no flags */
 
 #define HSE_FLAG_SYNC_ASYNC (1u << 0) /**< make the sync operation asynchronous */
+#define HSE_FLAG_CLOSING (1u << 1) /**< block sync while there are refs on the kvms being ingested */
 
 #define HSE_FLAG_PUT_PRIORITY  (1u << 0) /**< Operation will not be throttled */
 #define HSE_FLAG_PUT_VCOMP_OFF (1u << 1) /**< Value will not be compressed */

@@ -36,7 +36,7 @@ struct kvdb_pfxlock_entry {
 };
 
 #define ENTRY_CACHE_CNT_MAX 10000
-#define ENTRY_CACHE_WIDTH   17
+#define ENTRY_CACHE_WIDTH   16
 
 /* clang-format off */
 struct kvdb_pfxlock_entry_cache {
@@ -46,9 +46,9 @@ struct kvdb_pfxlock_entry_cache {
 };
 
 struct kvdb_pfxlock_tree {
-    struct rb_root             kplt_tree;
-    uint                       kplt_entry_cnt;
-    spinlock_t                 kplt_spinlock HSE_ALIGNED(SMP_CACHE_BYTES);
+    struct rb_root kplt_tree;
+    spinlock_t     kplt_spinlock HSE_ALIGNED(SMP_CACHE_BYTES);
+    uint           kplt_entry_cnt;
 };
 /* clang-format on */
 
@@ -160,7 +160,7 @@ kvdb_pfxlock_destroy(struct kvdb_pfxlock *pfxlock)
     for (i = 0; i < KVDB_PFXLOCK_NUM_TREES; i++) {
         struct rb_root *tree = &pfxlock->kpl_tree[i].kplt_tree;
         struct rb_node *node, *next;
-        spinlock_t *    spinlock = &pfxlock->kpl_tree[i].kplt_spinlock;
+        spinlock_t     *spinlock = &pfxlock->kpl_tree[i].kplt_spinlock;
 
         spin_lock(spinlock);
         for (node = rb_first(tree); node; node = next) {
@@ -206,14 +206,14 @@ kvdb_pfxlock_excl(struct kvdb_pfxlock *pfxlock, u64 hash, u64 start_seqno, void 
     struct rb_node **                link, *parent;
     struct kvdb_pfxlock_entry *      entry, *new;
     int                              idx = hash % KVDB_PFXLOCK_NUM_TREES;
-    uint                             cpu, node, core;
+    uint                             core;
     int                              cache_idx;
     struct kvdb_pfxlock_entry_cache *ecache;
     struct rb_root *                 tree = &pfxlock->kpl_tree[idx].kplt_tree;
     spinlock_t *                     spinlock = &pfxlock->kpl_tree[idx].kplt_spinlock;
     bool                             insert = true;
 
-    hse_getcpu(&cpu, &node, &core);
+    core = hse_cpu2core(raw_smp_processor_id());
     cache_idx = core % ENTRY_CACHE_WIDTH;
     ecache = &pfxlock->kpl_ecache[cache_idx];
 
@@ -267,7 +267,7 @@ kvdb_pfxlock_excl(struct kvdb_pfxlock *pfxlock, u64 hash, u64 start_seqno, void 
     }
 
     spin_unlock(spinlock);
-    *cookie = (void *)new;
+    *cookie = new;
     return 0;
 }
 
@@ -275,7 +275,7 @@ merr_t
 kvdb_pfxlock_shared(struct kvdb_pfxlock *pfxlock, u64 hash, u64 start_seqno, void **cookie)
 {
     uint                             idx = hash % KVDB_PFXLOCK_NUM_TREES;
-    uint                             cpu, node, core;
+    uint                             core;
     int                              cache_idx;
     struct kvdb_pfxlock_entry_cache *ecache;
     struct rb_node **                link, *parent;
@@ -284,7 +284,7 @@ kvdb_pfxlock_shared(struct kvdb_pfxlock *pfxlock, u64 hash, u64 start_seqno, voi
     struct kvdb_pfxlock_entry *      entry, *new;
     bool                             insert = true;
 
-    hse_getcpu(&cpu, &node, &core);
+    core = hse_cpu2core(raw_smp_processor_id());
     cache_idx = core % ENTRY_CACHE_WIDTH;
     ecache = &pfxlock->kpl_ecache[cache_idx];
 
@@ -335,7 +335,7 @@ kvdb_pfxlock_shared(struct kvdb_pfxlock *pfxlock, u64 hash, u64 start_seqno, voi
 
     spin_unlock(spinlock);
 
-    *cookie = (void *)new;
+    *cookie = new;
     return 0;
 }
 
@@ -367,7 +367,7 @@ kvdb_pfxlock_prune(struct kvdb_pfxlock *pfxlock)
 
     for (i = 0, off = 0; i < KVDB_PFXLOCK_NUM_TREES; i++) {
         struct rb_root *tree = &pfxlock->kpl_tree[i].kplt_tree;
-        spinlock_t *    spinlock = &pfxlock->kpl_tree[i].kplt_spinlock;
+        spinlock_t     *spinlock = &pfxlock->kpl_tree[i].kplt_spinlock;
         struct rb_node *node, *next;
 
         snprintf_append(distbuf, sizeof(distbuf), &off, "%u ", pfxlock->kpl_tree[i].kplt_entry_cnt);

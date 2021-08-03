@@ -165,7 +165,7 @@ c0sk_release_multiset(struct c0sk_impl *self, struct c0_kvmultiset *multiset);
  *
  */
 merr_t
-c0sk_flush_current_multiset(struct c0sk_impl *self, u64 *genp);
+c0sk_flush_current_multiset(struct c0sk_impl *self, u64 *genp, bool destroywaitflag);
 
 /**
  * c0sk_merge_impl() - merge the 'from' kvms into the 'first' kvms

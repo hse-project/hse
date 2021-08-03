@@ -751,7 +751,10 @@ exit_err:
      * media, so we release the kvms before we start teardown to allow
      * any kvms waiting on us to run concurrently with our teardown.
      */
+    c0kvms_getref(kvms);
     c0kvms_ingested(kvms);
+    c0sk_release_multiset(c0sk, kvms);
+    c0sk_signal_waiters(c0sk, kvms_gen);
 
     for (i = 0; i < HSE_KVS_COUNT_MAX; ++i) {
         if (ingest->c0iw_bldrs[i] == 0)
@@ -770,8 +773,7 @@ exit_err:
         ingest->gencur = c0kvms_gen_current();
     }
 
-    c0sk_release_multiset(c0sk, kvms);
-    c0sk_signal_waiters(c0sk, kvms_gen);
+    c0kvms_putref(kvms);
 }
 
 /**
@@ -1090,7 +1092,7 @@ c0sk_queue_ingest(struct c0sk_impl *self, struct c0_kvmultiset *old)
  * For sync(), we need to know when this c0kvms has been ingested.
  */
 merr_t
-c0sk_flush_current_multiset(struct c0sk_impl *self, u64 *genp)
+c0sk_flush_current_multiset(struct c0sk_impl *self, u64 *genp, bool destroywaitflag)
 {
     struct c0_kvmultiset *old;
     merr_t                err;
@@ -1115,7 +1117,7 @@ c0sk_flush_current_multiset(struct c0sk_impl *self, u64 *genp)
          * the ingest rate is high.  If the ingest rate is low it simply
          * serves to limit the sync frequency to roughly dur_intvl_ms.
          */
-        if (!self->c0sk_closing) {
+        if (!self->c0sk_closing && !destroywaitflag) {
             long waitmax = self->c0sk_kvdb_rp->dur_intvl_ms / 2;
             long delay = min_t(long, waitmax / 10 + 1, 100);
 
@@ -1137,6 +1139,10 @@ c0sk_flush_current_multiset(struct c0sk_impl *self, u64 *genp)
     }
 
     err = c0sk_queue_ingest(self, old);
+    if (!err && destroywaitflag) {
+        while (c0kvms_refcnt(old) > 1)
+            usleep(1000);
+    }
 
     c0kvms_putref(old);
 

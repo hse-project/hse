@@ -407,6 +407,7 @@ kvdb_ctxn_abort_inner(struct kvdb_ctxn_impl *ctxn)
     struct kvdb_ctxn_locks *locks;
     struct kvdb_ctxn_bind * bind;
     struct kvdb_keylock *   keylock;
+    u64                     end_seq;
 
     if (ctxn->ctxn_can_insert) {
         uintptr_t *priv = (uintptr_t *)ctxn->ctxn_seqref;
@@ -449,20 +450,18 @@ kvdb_ctxn_abort_inner(struct kvdb_ctxn_impl *ctxn)
 
     if (kvdb_ctxn_locks_count(locks) > 0) {
         void *cookie = NULL;
-        u64   end_seq;
 
         kvdb_keylock_list_lock(keylock, &cookie);
         end_seq = atomic64_fetch_add(1, ctxn->ctxn_kvdb_seq_addr);
         kvdb_keylock_enqueue_locks(locks, end_seq, cookie);
         kvdb_keylock_list_unlock(cookie);
 
-        kvdb_ctxn_pfxlock_seqno_pub(ctxn->ctxn_pfxlock_handle, end_seq);
     } else {
-        kvdb_ctxn_pfxlock_seqno_pub(
-            ctxn->ctxn_pfxlock_handle, atomic64_fetch_add(1, ctxn->ctxn_kvdb_seq_addr));
+        end_seq = atomic64_fetch_add(1, ctxn->ctxn_kvdb_seq_addr);
         kvdb_ctxn_locks_destroy(locks);
     }
 
+    kvdb_ctxn_pfxlock_seqno_pub(ctxn->ctxn_pfxlock_handle, end_seq);
     wal_txn_abort(ctxn->ctxn_wal, ctxn->ctxn_view_seqno, ctxn->ctxn_wal_cookie);
 
     /* At this point the transaction ceases to be considered active */
