@@ -40,7 +40,7 @@ struct c0snr_set_bkt {
  */
 struct c0snr_set_impl {
     struct c0snr_set     css_handle;
-    struct c0snr_set_bkt css_bktv[14];
+    struct c0snr_set_bkt css_bktv[10];
 } HSE_ALIGNED(SMP_CACHE_BYTES * 2);
 
 #define c0snr_set_h2r(handle) container_of(handle, struct c0snr_set_impl, css_handle)
