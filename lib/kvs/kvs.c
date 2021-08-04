@@ -342,7 +342,7 @@ kvs_put(
             hash = key_hash64_seed(kt->kt_data, kt->kt_len, kvs->ikv_gen);
 
         if (kvs->ikv_pfx_len && kt->kt_len >= kvs->ikv_pfx_len)
-            pfxhash = key_hash64(kt->kt_data, kvs->ikv_pfx_len) ^ kvs->ikv_gen;
+            pfxhash = key_hash64_seed(kt->kt_data, kvs->ikv_pfx_len, kvs->ikv_gen);
 
         err = kvdb_ctxn_trylock_write(ctxn, &seqnoref, &seqno, &rec.cookie, false, pfxhash, hash);
         if (err)
@@ -461,7 +461,7 @@ kvs_del(struct ikvs *kvs, struct hse_kvdb_txn *const txn, struct kvs_ktuple *kt,
             hash = key_hash64_seed(kt->kt_data, kt->kt_len, kvs->ikv_gen);
 
         if (kvs->ikv_pfx_len && kt->kt_len >= kvs->ikv_pfx_len)
-            pfxhash = key_hash64(kt->kt_data, kvs->ikv_pfx_len) ^ kvs->ikv_gen;
+            pfxhash = key_hash64_seed(kt->kt_data, kvs->ikv_pfx_len, kvs->ikv_gen);
 
         err = kvdb_ctxn_trylock_write(ctxn, &seqnoref, &seqno, &rec.cookie, false, pfxhash, hash);
         if (err)
@@ -511,7 +511,7 @@ kvs_prefix_del(
         u64 pfxhash = 0;
 
         if (kvs->ikv_pfx_len && kt->kt_len >= kvs->ikv_pfx_len)
-            pfxhash = key_hash64(kt->kt_data, kvs->ikv_pfx_len) ^ kvs->ikv_gen;
+            pfxhash = key_hash64_seed(kt->kt_data, kvs->ikv_pfx_len, kvs->ikv_gen);
 
         err = kvdb_ctxn_trylock_write(ctxn, &seqnoref, &seqno, &rec.cookie, true, pfxhash, 0);
         if (err)

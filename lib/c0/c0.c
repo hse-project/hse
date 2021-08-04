@@ -369,7 +369,7 @@ c0_sync(struct c0 *handle)
     if (self->c0_rp->rdonly)
         return 0;
 
-    return c0sk_sync(self->c0_c0sk, HSE_FLAG_CLOSING);
+    return c0sk_sync(self->c0_c0sk, HSE_FLAG_SYNC_REFWAIT);
 }
 
 u16

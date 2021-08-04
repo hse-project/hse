@@ -25,40 +25,8 @@ struct kvdb_ctxn_pfxlock {
     u64                  ktp_view_seqno;
 };
 
-static struct kmem_cache *ctxn_pfxlock_cache       HSE_READ_MOSTLY;
-static struct kmem_cache *ctxn_pfxlock_entry_cache HSE_READ_MOSTLY;
-
-HSE_COLD merr_t
-kvdb_ctxn_pfxlock_init(void)
-{
-    if (ctxn_pfxlock_cache && ctxn_pfxlock_entry_cache)
-        return 0;
-
-    ctxn_pfxlock_cache = kmem_cache_create("ctxn_pfxlock",
-                                           sizeof(struct kvdb_ctxn_pfxlock),
-                                           SMP_CACHE_BYTES, 0, NULL);
-
-    ctxn_pfxlock_entry_cache = kmem_cache_create("ctxn_pfxlock_entry",
-                                                 sizeof(struct kvdb_ctxn_pfxlock_entry),
-                                                 SMP_CACHE_BYTES, 0, NULL);
-
-    if (!ctxn_pfxlock_cache || !ctxn_pfxlock_entry_cache) {
-        kvdb_ctxn_pfxlock_fini();
-        return merr(ENOMEM);
-    }
-
-    return 0;
-}
-
-HSE_COLD void
-kvdb_ctxn_pfxlock_fini(void)
-{
-    kmem_cache_destroy(ctxn_pfxlock_entry_cache);
-    ctxn_pfxlock_entry_cache = NULL;
-
-    kmem_cache_destroy(ctxn_pfxlock_cache);
-    ctxn_pfxlock_cache = NULL;
-}
+static struct kmem_cache *ctxn_pfxlock_cache;
+static struct kmem_cache *ctxn_pfxlock_entry_cache;
 
 merr_t
 kvdb_ctxn_pfxlock_create(
@@ -83,13 +51,9 @@ kvdb_ctxn_pfxlock_create(
 void
 kvdb_ctxn_pfxlock_destroy(struct kvdb_ctxn_pfxlock *ktp)
 {
-    struct rb_node *node, *next;
+    struct kvdb_ctxn_pfxlock_entry *entry, *next;
 
-    for (node = rb_first(&ktp->ktp_tree); node; node = next) {
-        struct kvdb_ctxn_pfxlock_entry *entry = rb_entry(node, typeof(*entry), ktpe_node);
-
-        next = rb_next(node);
-
+    rbtree_postorder_for_each_entry_safe(entry, next, &ktp->ktp_tree, ktpe_node) {
         kmem_cache_free(ctxn_pfxlock_entry_cache, entry);
     }
 
@@ -207,4 +171,36 @@ kvdb_ctxn_pfxlock_seqno_pub(struct kvdb_ctxn_pfxlock *ktp, u64 end_seqno)
         next = rb_next(node);
         kvdb_pfxlock_seqno_pub(ktp->ktp_pfxlock, end_seqno, entry->ktpe_cookie);
     }
+}
+
+HSE_COLD merr_t
+kvdb_ctxn_pfxlock_init(void)
+{
+    if (ctxn_pfxlock_cache && ctxn_pfxlock_entry_cache)
+        return 0;
+
+    ctxn_pfxlock_cache = kmem_cache_create("ctxn_pfxlock",
+                                           sizeof(struct kvdb_ctxn_pfxlock),
+                                           2 * SMP_CACHE_BYTES, 0, NULL);
+
+    ctxn_pfxlock_entry_cache = kmem_cache_create("ctxn_pfxlock_entry",
+                                                 sizeof(struct kvdb_ctxn_pfxlock_entry),
+                                                 2 * SMP_CACHE_BYTES, 0, NULL);
+
+    if (!ctxn_pfxlock_cache || !ctxn_pfxlock_entry_cache) {
+        kvdb_ctxn_pfxlock_fini();
+        return merr(ENOMEM);
+    }
+
+    return 0;
+}
+
+HSE_COLD void
+kvdb_ctxn_pfxlock_fini(void)
+{
+    kmem_cache_destroy(ctxn_pfxlock_entry_cache);
+    ctxn_pfxlock_entry_cache = NULL;
+
+    kmem_cache_destroy(ctxn_pfxlock_cache);
+    ctxn_pfxlock_cache = NULL;
 }

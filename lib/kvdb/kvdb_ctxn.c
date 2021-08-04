@@ -429,7 +429,6 @@ kvdb_ctxn_abort_inner(struct kvdb_ctxn_impl *ctxn)
 
     bind = ctxn->ctxn_bind;
     if (bind) {
-        bind->b_seq = atomic64_read(ctxn->ctxn_kvdb_seq_addr);
         kvdb_ctxn_bind_cancel(bind, !ctxn->ctxn_can_insert);
         ctxn->ctxn_bind = 0;
     }
@@ -462,6 +461,7 @@ kvdb_ctxn_abort_inner(struct kvdb_ctxn_impl *ctxn)
     }
 
     kvdb_ctxn_pfxlock_seqno_pub(ctxn->ctxn_pfxlock_handle, end_seq);
+    kvdb_ctxn_pfxlock_destroy(ctxn->ctxn_pfxlock_handle);
     wal_txn_abort(ctxn->ctxn_wal, ctxn->ctxn_view_seqno, ctxn->ctxn_wal_cookie);
 
     /* At this point the transaction ceases to be considered active */
@@ -505,7 +505,6 @@ kvdb_ctxn_commit(struct kvdb_ctxn *handle)
      */
     if (!ctxn->ctxn_can_insert) {
         if (bind) {
-            bind->b_seq = atomic64_read(ctxn->ctxn_kvdb_seq_addr);
             kvdb_ctxn_bind_cancel(bind, true);
             ctxn->ctxn_bind = 0;
         }
@@ -589,8 +588,6 @@ kvdb_ctxn_commit(struct kvdb_ctxn *handle)
     commit_sn = 1 + atomic64_fetch_add(2, ctxn->ctxn_kvdb_seq_addr);
     spin_unlock(&kcs->ktn_tseqno_sync);
 
-    kvdb_ctxn_pfxlock_seqno_pub(ctxn->ctxn_pfxlock_handle, commit_sn);
-
     while (atomic64_read(&kcs->ktn_tseqno_tail) + 1 < head)
         cpu_relax(); /* wait for our ticket to be served */
 
@@ -620,13 +617,15 @@ kvdb_ctxn_commit(struct kvdb_ctxn *handle)
         locks = NULL;
     }
 
+    kvdb_ctxn_pfxlock_seqno_pub(ctxn->ctxn_pfxlock_handle, commit_sn);
     kvdb_keylock_list_unlock(cookie);
+
+    kvdb_ctxn_pfxlock_destroy(ctxn->ctxn_pfxlock_handle);
 
     if (locks)
         kvdb_ctxn_locks_destroy(locks);
 
     if (bind) {
-        bind->b_seq = commit_sn + 1;
         kvdb_ctxn_bind_cancel(bind, true);
         ctxn->ctxn_bind = 0;
     }

@@ -158,34 +158,24 @@ try:
         kvdb_ctx = lifecycle.KvdbContext().rparams("dur_enable=0")
         kvdb = stack.enter_context(kvdb_ctx)
 
-        with lifecycle.KvsContext(kvdb, "test_kvs").cparams(
-            "pfx_len=2"
-        ).rparams("transactions_enable=1") as kvs:
+        kvs_ctx = lifecycle.KvsContext(kvdb, "test_kvs").cparams("pfx_len=2").rparams("transactions_enable=1")
+
+        with kvs_ctx as kvs:
             pdel_before_put(kvdb, kvs)
 
-        with lifecycle.KvsContext(kvdb, "test_kvs").cparams(
-            "pfx_len=2"
-        ).rparams("transactions_enable=1") as kvs:
+        with kvs_ctx as kvs:
             put_before_pdel(kvdb, kvs)
 
-        with lifecycle.KvsContext(kvdb, "test_kvs").cparams(
-            "pfx_len=2"
-        ).rparams("transactions_enable=1") as kvs:
+        with kvs_ctx as kvs:
             pdel_commits(kvdb, kvs)
 
-        with lifecycle.KvsContext(kvdb, "test_kvs").cparams(
-            "pfx_len=2"
-        ).rparams("transactions_enable=1") as kvs:
+        with kvs_ctx as kvs:
             long_put(kvdb, kvs)
 
-        with lifecycle.KvsContext(kvdb, "test_kvs").cparams(
-            "pfx_len=2"
-        ).rparams("transactions_enable=1") as kvs:
+        with kvs_ctx as kvs:
             long_put_abort(kvdb, kvs)
 
-        with lifecycle.KvsContext(kvdb, "test_kvs").cparams(
-            "pfx_len=2"
-        ).rparams("transactions_enable=1") as kvs:
+        with kvs_ctx as kvs:
             short_put(kvdb, kvs)
 
 finally:

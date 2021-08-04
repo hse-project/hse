@@ -51,7 +51,6 @@ struct kvdb_ctxn {
  */
 struct kvdb_ctxn_bind {
     struct kvdb_ctxn *b_ctxn;
-    u64               b_seq;
     atomic64_t        b_gen;
     atomic64_t        b_ref;
     bool              b_update;
