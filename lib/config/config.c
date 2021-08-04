@@ -23,6 +23,7 @@
 #include <hse_ikvdb/param.h>
 #include <hse_ikvdb/kvdb_rparams.h>
 #include <hse_ikvdb/kvs_rparams.h>
+
 #ifdef WITH_KVDB_CONF_EXTENDED
 #include <hse_ikvdb/kvdb_cparams.h>
 #include <hse_ikvdb/kvdb_dparams.h>
