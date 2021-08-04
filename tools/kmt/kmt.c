@@ -4093,9 +4093,106 @@ oom_score_adj_set(int adj)
     }
 }
 
+#include <hse_ikvdb/param.h>
+#include <hse_ikvdb/kvdb_rparams.h>
+#include <hse_ikvdb/kvdb_cparams.h>
+
+static int
+psortv_cmp(const void *lhs, const void *rhs)
+{
+    const struct param_spec *l = *(const struct param_spec **)lhs;
+    const struct param_spec *r = *(const struct param_spec **)rhs;
+
+    return strcmp(l->ps_name, r->ps_name);
+}
+
+static void
+usage_parms(size_t *npsp, const struct param_spec *psv, const char *hdr)
+{
+    size_t nps = *npsp, len;
+    int wname = 4, wvalue = 5, pass, i;
+    const struct param_spec *psortv[nps];
+
+    for (i = 0; i < nps; ++i) {
+        len = strlen(psv[i].ps_name);
+        if (len > wname)
+            wname = len;
+
+        psortv[i] = psv + i;
+    }
+
+    qsort(psortv, nps, sizeof(psortv[0]), psortv_cmp);
+
+    for (pass = 0; pass < 2; ++pass) {
+        for (i = 0; i < nps; ++i) {
+            const struct param_spec *ps = psortv[i];
+            char buf[128] = "n/a";
+
+            switch (ps->ps_type) {
+            case PARAM_TYPE_BOOL:
+            case PARAM_TYPE_I8:
+            case PARAM_TYPE_I16:
+            case PARAM_TYPE_I32:
+                snprintf(buf, sizeof(buf), "%d", (int)ps->ps_default_value.as_scalar);
+                break;
+
+            case PARAM_TYPE_I64:
+                snprintf(buf, sizeof(buf), "%ld", ps->ps_default_value.as_scalar);
+                break;
+
+            case PARAM_TYPE_U8:
+            case PARAM_TYPE_U16:
+            case PARAM_TYPE_U32:
+                snprintf(buf, sizeof(buf), "%u", (uint)ps->ps_default_value.as_uscalar);
+                break;
+
+            case PARAM_TYPE_U64:
+                snprintf(buf, sizeof(buf), "%lu", ps->ps_default_value.as_uscalar);
+                break;
+
+            case PARAM_TYPE_ENUM:
+                if (ps->ps_default_value.as_enum) {
+                    strlcpy(buf, ps->ps_default_value.as_enum, sizeof(buf));
+                }
+                break;
+
+            case PARAM_TYPE_STRING:
+                if (ps->ps_default_value.as_string) {
+                    strlcpy(buf, ps->ps_default_value.as_string, sizeof(buf));
+                }
+                break;
+
+            default:
+                break;
+            }
+
+            if (pass == 0) {
+                len = strlen(buf);
+                if (len > wvalue)
+                    wvalue = len;
+                continue;
+            }
+
+            if (hdr) {
+                printf("%s\n  %-*s  %*s%s  %s\n",
+                       hdr, wname, "NAME", wvalue, "VALUE", " ", "DESCRIPTION");
+                hdr = NULL;
+            }
+
+            printf("  %-*s  %*s%s  %s\n", wname, ps->ps_name, wvalue, buf,
+                   (ps->ps_flags & PARAM_FLAG_WRITABLE) ? "*" : " ",
+                   ps->ps_description);
+        }
+    }
+
+    printf("\n");
+}
+
 void
 usage(struct km_impl *impl)
 {
+    size_t nps;
+
     printf("usage: %s [options] <device> [kvs_param=value ...]\n", progname);
     printf("usage: %s -h [-v]\n", progname);
 
@@ -4167,6 +4264,11 @@ usage(struct km_impl *impl)
     printf("  sync_ms     %10lu  kvdb sync interval (milliseconds)\n", sync_timeout_ms);
     printf("  mclass      %10d  media class in mpool mode - 0: cap, 1: stg \n", mclass);
     printf("\n");
+
+    usage_parms(&nps, kvdb_cparams_pspecs_get(&nps), "KVDB-CPARMS");
+    usage_parms(&nps, kvdb_rparams_pspecs_get(&nps), "KVDB-OPARMS");
+    usage_parms(&nps, kvs_cparams_pspecs_get(&nps), "KVS-CPARMS");
+    usage_parms(&nps, kvs_rparams_pspecs_get(&nps), "KVS-OPARMS");
 
     printf("SIZEOF:\n");
     printf("  pthread_spinlock_t:   %zu\n", sizeof(pthread_spinlock_t));
@@ -4425,49 +4527,49 @@ main(int argc, char **argv)
 #else
 
     if (argc > 0) {
-		mpname = strdup(argv[0]);
-		optind = 1;
+        mpname = strdup(argv[0]);
+        optind = 1;
 
-		if (0 == strncmp(mpname, "/dev/", 5)) {
-			impl = &km_impl_dev;
-		} else if (0 == strncmp(mpname, "mongodb://", 10)) {
-			impl = &km_impl_mongo;
-			mongo = 1;
+        if (0 == strncmp(mpname, "/dev/", 5)) {
+            impl = &km_impl_dev;
+        } else if (0 == strncmp(mpname, "mongodb://", 10)) {
+            impl = &km_impl_mongo;
+            mongo = 1;
 
-			kvsname = strchr(mpname + strlen("mongodb://"), '/');
-			if (kvsname)
-				*kvsname++ = '\000';
+            kvsname = strchr(mpname + strlen("mongodb://"), '/');
+            if (kvsname)
+                *kvsname++ = '\000';
 
-			if (!kvsname || !strlen(kvsname)) {
-				syntax("%s does not specify target database", mpname);
-				exit(EX_USAGE);
-			}
-		} else if (0 == strncmp(mpname, "mpool:", 6)) {
-			impl = &km_impl_ds;
-			impl->mpname = mpname + 6;
-		} else {
-			if (argc < 2) {
-				syntax("missing kvs name");
-				exit(EX_USAGE);
-			}
+            if (!kvsname || !strlen(kvsname)) {
+                syntax("%s does not specify target database", mpname);
+                exit(EX_USAGE);
+            }
+        } else if (0 == strncmp(mpname, "mpool:", 6)) {
+            impl = &km_impl_ds;
+            impl->mpname = mpname + 6;
+        } else {
+            if (argc < 2) {
+                syntax("missing kvs name");
+                exit(EX_USAGE);
+            }
 
-			kvsname = argv[1];
-			optind = 2;
+            kvsname = argv[1];
+            optind = 2;
 
-			rc = pg_create(&pg, PG_HSE_GLOBAL, PG_KVDB_OPEN, PG_KVS_OPEN, NULL);
-			if (rc) {
-				eprint("pg_create failed: %s\n", strerror(rc));
-				exit(EX_OSERR);
-			}
+            rc = pg_create(&pg, PG_HSE_GLOBAL, PG_KVDB_OPEN, PG_KVS_OPEN, NULL);
+            if (rc) {
+                eprint("pg_create failed: %s\n", strerror(rc));
+                exit(EX_OSERR);
+            }
 
-			rc = pg_parse_argv(pg, argc, argv, &optind);
-			switch (rc) {
+            rc = pg_parse_argv(pg, argc, argv, &optind);
+            switch (rc) {
             case 0:
-				break;
+                break;
 
             case EINVAL:
                 eprint("missing group name (e.g. %s) before parameter %s\n",
-					   PG_KVDB_OPEN, argv[optind]);
+                       PG_KVDB_OPEN, argv[optind]);
                 exit(EX_USAGE);
                 break;
 
@@ -4475,7 +4577,7 @@ main(int argc, char **argv)
                 eprint("error processing parameter %s: %s\n", argv[optind], strerror(rc));
                 exit(EX_OSERR);
                 break;
-			}
+            }
 
             rc = svec_append_pg(&hse_gparms, pg, PG_HSE_GLOBAL, NULL);
             if (rc) {
@@ -4483,29 +4585,29 @@ main(int argc, char **argv)
                 exit(EX_OSERR);
             }
 
-			rc = svec_append_pg(&db_oparms, pg, "perfc_enable=0", PG_KVDB_OPEN, NULL);
-			if (rc) {
-				eprint("unable to append kvdb-oparms params: %s\n", strerror(rc));
-				exit(EX_OSERR);
-			}
+            rc = svec_append_pg(&db_oparms, pg, "perfc_enable=0", PG_KVDB_OPEN, NULL);
+            if (rc) {
+                eprint("unable to append kvdb-oparms params: %s\n", strerror(rc));
+                exit(EX_OSERR);
+            }
 
-			rc = svec_append_pg(&kv_oparms_txn, pg, PG_KVS_OPEN, "transactions_enable=1", NULL);
-			if (rc) {
-				eprint("unable to append kvs-oparms txn params: %s\n", strerror(rc));
-				exit(EX_OSERR);
-			}
+            rc = svec_append_pg(&kv_oparms_txn, pg, PG_KVS_OPEN, "transactions_enable=1", NULL);
+            if (rc) {
+                eprint("unable to append kvs-oparms txn params: %s\n", strerror(rc));
+                exit(EX_OSERR);
+            }
 
-			rc = svec_append_pg(&kv_oparms_notxn, pg, PG_KVS_OPEN, "transactions_enable=0", NULL);
-			if (rc) {
-				eprint("unable to append kvs-oparms notxn params: %s\n", strerror(rc));
-				exit(EX_OSERR);
-			}
-		}
+            rc = svec_append_pg(&kv_oparms_notxn, pg, PG_KVS_OPEN, "transactions_enable=0", NULL);
+            if (rc) {
+                eprint("unable to append kvs-oparms notxn params: %s\n", strerror(rc));
+                exit(EX_OSERR);
+            }
+        }
 
-		if (argc > optind) {
-			syntax("extraneous argument '%s'", argv[optind]);
-			exit(EX_USAGE);
-		}
+        if (argc > optind) {
+            syntax("extraneous argument '%s'", argv[optind]);
+            exit(EX_USAGE);
+        }
     }
 #endif
 

@@ -145,11 +145,14 @@ kvdb_ctxn_set_create(struct kvdb_ctxn_set **handle_out, u64 txn_timeout, u64 mse
 
 /* MTF_MOCK */
 void
-kvdb_ctxn_set_wait_commits(struct kvdb_ctxn_set *handle);
+kvdb_ctxn_set_wait_commits(struct kvdb_ctxn_set *handle, u64 head);
 
 /* MTF_MOCK */
 void
 kvdb_ctxn_set_destroy(struct kvdb_ctxn_set *handle);
+
+atomic64_t *
+kvdb_ctxn_set_tseqnop_get(struct kvdb_ctxn_set *handle);
 
 #if HSE_MOCKING
 #include "kvdb_ctxn_ut.h"

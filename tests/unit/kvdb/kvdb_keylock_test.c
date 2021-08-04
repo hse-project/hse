@@ -372,7 +372,7 @@ parallel_ctxn_helper(void *arg)
 
     end_ctxn(commit, &end_seqno);
     if (lockcnt)
-        kvdb_keylock_queue_locks(locks_handle, end_seqno, cookie);
+        kvdb_keylock_enqueue_locks(locks_handle, end_seqno, cookie);
 
     kvdb_keylock_list_unlock(cookie);
 
@@ -381,7 +381,7 @@ parallel_ctxn_helper(void *arg)
         kvdb_ctxn_locks_destroy(locks_handle);
     }
 
-    kvdb_keylock_expire(klock_handle, view_seqno);
+    kvdb_keylock_expire(klock_handle, view_seqno, UINT64_MAX);
 
     return 0;
 }

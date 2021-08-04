@@ -23,15 +23,12 @@
  * @ctxn_kvdb_keylock:        address of the KVDB keylock
  * @ctxn_locks_handle:        container to store acquired write locks
  * @ctxn_bind:
- * @ctxn_viewset:
  * @ctxn_c0sk:                address of underlying c0sk
  * @ctxn_kvdb_ctxn_set:       address of the KVDB txns struct
  * @ctxn_kvdb_seq_addr:       address of atomic used to generate seqnos
- * @ctxn_tseqno_head:
- * @ctxn_tseqno_tail:
- * @ctxn_ingest_delay:
- * @ctxn_begin_ts:
- * @ctxn_viewset_cookie:
+ * @ctxn_viewset:             horizon tracking
+ * @ctxn_viewset_cookie:      horizon tracking
+ * @ctxn_begin_ts:            txn begin start time
  * @ctxn_alloc_link:          used to queue onto KVDB allocated txn list
  * @ctxn_free_link:           used to queue onto the list of txns to be freed
  * @ctxn_abort_link:
@@ -42,25 +39,24 @@ struct kvdb_ctxn_impl {
     bool                    ctxn_can_insert;
     uintptr_t               ctxn_seqref;
     u64                     ctxn_view_seqno;
+
     struct kvdb_keylock    *ctxn_kvdb_keylock;
     struct kvdb_ctxn_locks *ctxn_locks_handle;
     struct kvdb_ctxn_bind  *ctxn_bind;
+    struct c0sk            *ctxn_c0sk;
+    struct kvdb_ctxn_set   *ctxn_kvdb_ctxn_set;
+    atomic64_t             *ctxn_kvdb_seq_addr;
+    struct c0snr_set       *ctxn_c0snr_set;
 
-    struct viewset       *ctxn_viewset HSE_ALIGNED(SMP_CACHE_BYTES * 2);
-    struct c0sk          *ctxn_c0sk;
-    struct kvdb_ctxn_set *ctxn_kvdb_ctxn_set;
-    atomic64_t           *ctxn_kvdb_seq_addr;
-    atomic64_t           *ctxn_tseqno_head;
-    atomic64_t           *ctxn_tseqno_tail;
-    struct c0snr_set     *ctxn_c0snr_set;
-    struct wal           *ctxn_wal;
-    int64_t               ctxn_wal_cookie;
+    struct wal             *ctxn_wal HSE_ALIGNED(SMP_CACHE_BYTES * 2);
+    int64_t                 ctxn_wal_cookie;
+    struct viewset         *ctxn_viewset;
+    void                   *ctxn_viewset_cookie;
 
-    u64                   ctxn_begin_ts HSE_ALIGNED(SMP_CACHE_BYTES);
-    void                 *ctxn_viewset_cookie;
-    struct cds_list_head  ctxn_alloc_link;
-    struct list_head      ctxn_free_link;
-    struct list_head      ctxn_abort_link;
+    u64                     ctxn_begin_ts HSE_ALIGNED(SMP_CACHE_BYTES);
+    struct cds_list_head    ctxn_alloc_link;
+    struct list_head        ctxn_free_link;
+    struct list_head        ctxn_abort_link;
 };
 
 /* clang-format on */

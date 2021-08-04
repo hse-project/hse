@@ -46,21 +46,22 @@ int
 c0sk_adjust_throttling(struct c0sk_impl *self)
 {
     const struct kvdb_rparams *rp = self->c0sk_kvdb_rp;
-    int hwm, new;
+    int finlat, hwm, new;
 
-    if (!self->c0sk_sensor || !rp->throttle_c0_hi_th)
+    if (!self->c0sk_sensor)
         return 0;
 
     /* Use the ingest finish latency (i.e., the running average time it takes
-     * to process and write k/v tuples to media) to adjust the hwm +/- 16
-     * to try and maintain a max backlog of between 3.0 and 5.1 c0kvms
-     * (based upon the default value of throttle_c0_hi_th=3.5).
+     * to process and write k/v tuples to media) to adjust the hwm to try and
+     * maintain a max backlog of between 2.9 and 5.2 c0kvms (based upon the
+     * default value of throttle_c0_hi_th=3.5).
      */
-    hwm = atomic_read(&self->c0sk_ingest_finlat) / 1000;
-    if (hwm > 21)
-        hwm = 21;
+    finlat = atomic_read(&self->c0sk_ingest_finlat);
+    hwm = finlat / 1000;
+    if (hwm > 23)
+        hwm = 23;
 
-    hwm = rp->throttle_c0_hi_th + (16 - hwm);
+    hwm = rp->throttle_c0_hi_th + (17 - hwm);
 
     new = (self->c0sk_kvmultisets_cnt * THROTTLE_SENSOR_SCALE * 10) / hwm;
 
@@ -595,8 +596,10 @@ c0sk_ingest_worker(struct work_struct *work)
     if (debug)
         ingest->t3 = get_time_ns();
 
-    /* Ensure that all committed txns up to min_seq have finished. */
-    kvdb_ctxn_set_wait_commits(c0sk->c0sk_ctxn_set);
+    /* Ensure that all committed txns up to min_seq have finished.
+     * TODO: Doesn't finalization make this unnecessary?
+     */
+    kvdb_ctxn_set_wait_commits(c0sk->c0sk_ctxn_set, 0);
 
     err = c0sk_merge_loop(kvms_minheap, min_seq, max_seq, kvms_gen, cn_list[0], lc_list);
     if (ev(err))

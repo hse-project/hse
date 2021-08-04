@@ -649,6 +649,7 @@ ikvdb_diag_open(
     struct kvdb_rparams *params,
     struct ikvdb **      handle)
 {
+    static atomic64_t tseqno = ATOMIC_INIT(0);
     struct ikvdb_impl *self = NULL;
     merr_t             err;
 
@@ -663,11 +664,11 @@ ikvdb_diag_open(
 
     atomic_set(&self->ikdb_curcnt, 0);
 
-    err = viewset_create(&self->ikdb_txn_viewset, &self->ikdb_seqno);
+    err = viewset_create(&self->ikdb_txn_viewset, &self->ikdb_seqno, &tseqno);
     if (ev(err))
         goto err_exit0;
 
-    err = viewset_create(&self->ikdb_cur_viewset, &self->ikdb_seqno);
+    err = viewset_create(&self->ikdb_cur_viewset, &self->ikdb_seqno, &tseqno);
     if (ev(err))
         goto err_exit1;
 
@@ -990,6 +991,7 @@ ikvdb_open(
 {
     merr_t             err;
     struct ikvdb_impl *self = NULL;
+    atomic64_t        *tseqnop;
     u64                seqno = 0; /* required by unit test */
     ulong              mavail;
     size_t             sz;
@@ -1046,13 +1048,22 @@ ikvdb_open(
     atomic_set(&self->ikdb_curcnt, 0);
     atomic64_set(&self->ikdb_seqno, 1);
 
-    err = viewset_create(&self->ikdb_txn_viewset, &self->ikdb_seqno);
+    err = kvdb_ctxn_set_create(
+        &self->ikdb_ctxn_set, self->ikdb_rp.txn_timeout, self->ikdb_rp.txn_wkth_delay);
     if (err) {
         hse_elog(HSE_ERR "cannot open %s: @@e", err, kvdb_home);
         goto err1;
     }
 
-    err = viewset_create(&self->ikdb_cur_viewset, &self->ikdb_seqno);
+    tseqnop = kvdb_ctxn_set_tseqnop_get(self->ikdb_ctxn_set);
+
+    err = viewset_create(&self->ikdb_txn_viewset, &self->ikdb_seqno, tseqnop);
+    if (err) {
+        hse_elog(HSE_ERR "cannot open %s: @@e", err, kvdb_home);
+        goto err1;
+    }
+
+    err = viewset_create(&self->ikdb_cur_viewset, &self->ikdb_seqno, tseqnop);
     if (err) {
         hse_elog(HSE_ERR "cannot open %s: @@e", err, kvdb_home);
         goto err1;
@@ -1084,13 +1095,6 @@ ikvdb_open(
     }
 
     atomic64_set(&self->ikdb_seqno, seqno);
-
-    err = kvdb_ctxn_set_create(
-        &self->ikdb_ctxn_set, self->ikdb_rp.txn_timeout, self->ikdb_rp.txn_wkth_delay);
-    if (err) {
-        hse_elog(HSE_ERR "cannot open %s: @@e", err, kvdb_home);
-        goto err1;
-    }
 
     err = c0snr_set_create(kvdb_ctxn_abort, &self->ikdb_c0snr_set);
     if (err) {
@@ -1943,7 +1947,7 @@ ikvdb_kvs_pfx_probe(
     } else {
         /* Establish our view before waiting on ongoing commits. */
         view_seqno = atomic64_read(&p->ikdb_seqno);
-        kvdb_ctxn_set_wait_commits(p->ikdb_ctxn_set);
+        kvdb_ctxn_set_wait_commits(p->ikdb_ctxn_set, 0);
     }
 
     return kvs_pfx_probe(kk->kk_ikvs, txn, kt, view_seqno, res, kbuf, vbuf);
@@ -1979,7 +1983,7 @@ ikvdb_kvs_get(
     } else {
         /* Establish our view before waiting on ongoing commits. */
         view_seqno = atomic64_read(&p->ikdb_seqno);
-        kvdb_ctxn_set_wait_commits(p->ikdb_ctxn_set);
+        kvdb_ctxn_set_wait_commits(p->ikdb_ctxn_set, 0);
     }
 
     return kvs_get(kk->kk_ikvs, txn, kt, view_seqno, res, vbuf);
@@ -2121,18 +2125,18 @@ cursor_view_release(struct hse_kvs_cursor *cursor)
 }
 
 static merr_t
-cursor_view_acquire(struct hse_kvs_cursor *cursor)
+cursor_view_acquire(struct hse_kvs_cursor *cur, u64 *tseqnop)
 {
     merr_t err;
 
     /* Add to cursor list only if this is NOT part of a txn.
      */
-    if (cursor->kc_seq != HSE_SQNREF_UNDEFINED)
+    if (cur->kc_seq != HSE_SQNREF_UNDEFINED)
         return 0;
 
-    err = viewset_insert(cursor->kc_kvs->kk_viewset, &cursor->kc_seq, &cursor->kc_viewcookie);
+    err = viewset_insert(cur->kc_kvs->kk_viewset, &cur->kc_seq, tseqnop, &cur->kc_viewcookie);
     if (!err)
-        cursor->kc_on_list = true;
+        cur->kc_on_list = true;
 
     return err;
 }
@@ -2165,7 +2169,7 @@ ikvdb_kvs_cursor_create(
     struct kvdb_ctxn *     ctxn = 0;
     struct hse_kvs_cursor *cur = 0;
     merr_t                 err;
-    u64                    ts, vseq, tstart;
+    u64                    ts, vseq, tstart, tseqno;
     struct perfc_set *     pkvsl_pc;
 
     *cursorp = NULL;
@@ -2215,7 +2219,7 @@ ikvdb_kvs_cursor_create(
     cur->kc_bind = ctxn ? kvdb_ctxn_cursor_bind(ctxn) : NULL;
 
     /* Temporarily lock a view until this cursor gets refs on cn kvsets. */
-    err = cursor_view_acquire(cur);
+    err = cursor_view_acquire(cur, &tseqno);
     if (ev(err))
         goto out;
 
@@ -2232,7 +2236,7 @@ ikvdb_kvs_cursor_create(
      * for txn cursors because their view is inherited from the txn.
      */
     if (!txn)
-        kvdb_ctxn_set_wait_commits(ikvdb->ikdb_ctxn_set);
+        kvdb_ctxn_set_wait_commits(ikvdb->ikdb_ctxn_set, tseqno);
 
     err = kvs_cursor_prepare(cur);
     if (ev(err))
@@ -2255,8 +2259,8 @@ out:
 merr_t
 ikvdb_kvs_cursor_update_view(struct hse_kvs_cursor *cur, unsigned int flags)
 {
+    u64 tstart, tseqno;
     merr_t err;
-    u64    tstart;
 
     tstart = perfc_lat_start(cur->kc_pkvsl_pc);
 
@@ -2272,7 +2276,7 @@ ikvdb_kvs_cursor_update_view(struct hse_kvs_cursor *cur, unsigned int flags)
     /* Temporarily reserve seqno until this cursor gets refs on
      * cn kvsets.
      */
-    err = cursor_view_acquire(cur);
+    err = cursor_view_acquire(cur, &tseqno);
     if (ev(err))
         return err;
 
@@ -2285,7 +2289,7 @@ ikvdb_kvs_cursor_update_view(struct hse_kvs_cursor *cur, unsigned int flags)
     /* After acquiring a view, non-txn cursors must wait for ongoing commits
      * to finish to ensure they never see partial txns.
      */
-    kvdb_ctxn_set_wait_commits(cur->kc_kvs->kk_parent->ikdb_ctxn_set);
+    kvdb_ctxn_set_wait_commits(cur->kc_kvs->kk_parent->ikdb_ctxn_set, tseqno);
 
     cur->kc_flags = flags;
 

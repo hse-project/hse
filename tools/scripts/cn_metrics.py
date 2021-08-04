@@ -6,6 +6,7 @@ import yaml
 import sys
 import time
 import os
+import json
 from typing import Any, Dict, Optional
 
 
@@ -113,7 +114,22 @@ def main() -> int:
     if not opt.kvdb_home or not opt.kvs:
         cmd_help()
 
-    sock = os.path.join(opt.kvdb_home, 'hse.sock')
+    kvdb_home = vars(opt).get("kvdb_home",False)
+
+    pid_file = os.path.join(kvdb_home, 'kvdb.pid')
+    try:
+        fh = open(pid_file)
+    except:
+        fatal(f"Cannot open pid file: {pid_file}")
+
+    try:
+        js = json.load(fh)
+        sock = js['socket']['path']
+    except:
+        fatal(f"Cannot get socket.path from pid file {pid_file}")
+
+    fh.close()
+
     url = f"http://localhost/kvdb/kvs/{opt.kvs}/cn/tree"
 
     if opt.refresh:
