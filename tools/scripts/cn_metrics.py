@@ -5,9 +5,36 @@ import subprocess as sp
 import yaml
 import sys
 import time
-import os
 import json
+import pathlib
 from typing import Any, Dict, Optional
+
+desc = (
+    "print cn tree shape\n\n"
+    "example1: %(prog)s --home /var/lib/hse kvs1 -r3\n"
+    "example2: cat file.yml | %(prog)s"
+)
+PARSER = argparse.ArgumentParser(
+    description=desc, formatter_class=argparse.RawTextHelpFormatter
+)
+PARSER.add_argument(
+    "-r",
+    "--refresh",
+    type=int,
+    metavar="N",
+    help="refresh every N secs",
+    required=False,
+)
+PARSER.add_argument("-y", "--yaml", help="output in yaml", action="store_true")
+
+PARSER.add_argument(
+    "-C",
+    "--home",
+    help="Home directory",
+    type=pathlib.Path,
+    default=pathlib.Path.cwd(),
+)
+PARSER.add_argument("kvs", help="kvs name")
 
 
 def full_tree(ybuf: Optional[Dict[str, Any]]):
@@ -56,44 +83,9 @@ def full_tree(ybuf: Optional[Dict[str, Any]]):
             print()
 
 
-def cmd_parser_setup() -> argparse.ArgumentParser:
-    desc = (
-        "print cn tree shape\n\n"
-        "example1: %(prog)s mp1 kvs1 -r3\n"
-        "example2: cat file.yml | %(prog)s"
-    )
-    p = argparse.ArgumentParser(
-        description=desc, formatter_class=argparse.RawTextHelpFormatter
-    )
-    p.add_argument(
-        "-r",
-        "--refresh",
-        type=int,
-        metavar="N",
-        help="refresh every N secs",
-        required=False,
-    )
-    p.add_argument("-y", "--yaml", help="output in yaml", action="store_true")
-
-    p.add_argument("kvdb_home", help="kvdb home dir")
-    p.add_argument("kvs", help="kvs name")
-
-    return p
-
-
-def get_args():
-    p = cmd_parser_setup()
-    return p.parse_args()
-
-
-def cmd_help():
-    p = cmd_parser_setup()
-    p.print_help()
-
-
 def process_stdin() -> int:
     if sys.stdin.isatty():
-        cmd_help()
+        print("Not a TTY", file=sys.stderr)
         return -1
 
     buf = sys.stdin.read()
@@ -109,26 +101,11 @@ def main() -> int:
     if len(sys.argv) == 1:
         return process_stdin()
 
-    opt = get_args()
+    opt = PARSER.parse_args()
 
-    if not opt.kvdb_home or not opt.kvs:
-        cmd_help()
-
-    kvdb_home = vars(opt).get("kvdb_home",False)
-
-    pid_file = os.path.join(kvdb_home, 'kvdb.pid')
-    try:
-        fh = open(pid_file)
-    except:
-        fatal(f"Cannot open pid file: {pid_file}")
-
-    try:
-        js = json.load(fh)
-        sock = js['socket']['path']
-    except:
-        fatal(f"Cannot get socket.path from pid file {pid_file}")
-
-    fh.close()
+    with open(opt.home / "kvdb.pid", "r") as pfh:
+        content = json.load(pfh)
+        sock: str = content["socket"]["path"]
 
     url = f"http://localhost/kvdb/kvs/{opt.kvs}/cn/tree"
 
