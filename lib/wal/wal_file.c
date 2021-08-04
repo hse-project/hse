@@ -109,7 +109,7 @@ wal_fileset_reclaim(
     mutex_lock(&wfset->lock);
     list_for_each_entry_safe(cur, next, &wfset->complete, link) {
         struct wal_minmax_info *info = &cur->info;
-        bool seqno_valid, txid_valid, seqno_reclaim, txid_reclaim;
+        bool seqno_valid, txid_valid, seqno_reclaim, txid_reclaim = false;
 
         /*
          * If info->min/max seqno is invalid, then this file has 0 non-tx and tx-commit records
@@ -119,8 +119,10 @@ wal_fileset_reclaim(
         seqno_valid = (info->min_seqno != UINT64_MAX && info->max_seqno != 0);
         seqno_reclaim = seqno_valid ? info->max_seqno <= seqno : true;
 
-        txid_valid = (info->min_txid != UINT64_MAX && info->max_txid != 0);
-        txid_reclaim = txid_valid ? info->max_txid < txhorizon : true;
+        if (seqno_reclaim) {
+            txid_valid = (info->min_txid != UINT64_MAX && info->max_txid != 0);
+            txid_reclaim = txid_valid ? info->max_txid < txhorizon : true;
+        }
 
         if (seqno_reclaim && txid_reclaim) {
             list_del_init(&cur->link);
@@ -570,7 +572,7 @@ wal_fileset_replay(
         if (err) {
             if (merr_errno(err) == EINVAL && wal_file_size(cur) == 0) {
                 /* Possible that the crash happened just after file creation */
-                hse_log(HSE_NOTICE "Discarding empty wal file: gen %lu fileid %u",
+                hse_log(HSE_NOTICE "WAL replay: Discarding empty wal file: gen %lu fileid %u",
                         cur->gen, cur->fileid);
                 discard = true;
                 goto discard;
@@ -583,7 +585,7 @@ wal_fileset_replay(
         if (err) {
             if (cur->gen == maxgen && merr_errno(err) == ENODATA) {
                 /* Can safely delete this empty file */
-                hse_log(HSE_NOTICE "Discarding empty wal file, gen %lu fileid %u",
+                hse_log(HSE_NOTICE "WAL replay: Discarding empty wal file, gen %lu fileid %u",
                         cur->gen, cur->fileid);
                 discard = true;
                 goto discard;
@@ -606,12 +608,12 @@ wal_fileset_replay(
             bool seqno_discard, txid_discard;
 
             seqno_discard = (info->max_seqno != 0 && info->max_seqno <= rinfo->seqno);
-            txid_discard = (rinfo->txhorizon != CNDB_INVAL_HORIZON &&
+            txid_discard = (seqno_discard && rinfo->txhorizon != CNDB_INVAL_HORIZON &&
                             info->max_txid < rinfo->txhorizon);
 
             if (seqno_discard && txid_discard) {
-                hse_log(HSE_NOTICE "Skipping wal file, gen %lu fileid %u, cndb seqno %lu "
-                        "txhorizon %lu gen %lu",
+                hse_log(HSE_NOTICE "WAL replay: Skipping wal file, gen %lu fileid %u, "
+                        "cndb seqno %lu txhorizon %lu gen %lu",
                         cur->gen, cur->fileid, rinfo->seqno, rinfo->txhorizon, rinfo->gen);
                 discard = true;
                 goto discard;

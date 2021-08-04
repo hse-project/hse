@@ -1096,7 +1096,7 @@ ikvdb_open(
 
     atomic64_set(&self->ikdb_seqno, seqno);
 
-    kvdb_ctxn_set_tseqno_set(self->ikdb_ctxn_set, seqno);
+    kvdb_ctxn_set_tseqno_init(self->ikdb_ctxn_set, seqno);
 
     err = c0snr_set_create(kvdb_ctxn_abort, &self->ikdb_c0snr_set);
     if (err) {

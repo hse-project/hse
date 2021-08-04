@@ -189,25 +189,25 @@ OMF_SETGET(struct wal_txnrec_omf, tr_cid, 64);
 /* WAL OMF interfaces */
 
 static inline bool
-wal_rectype_tx(enum wal_rec_type rtype)
+wal_rectype_txn(enum wal_rec_type rtype)
 {
     return rtype == WAL_RT_TX;
 }
 
 static inline bool
-wal_rectype_txmeta(enum wal_rec_type rtype)
+wal_rectype_txnmeta(enum wal_rec_type rtype)
 {
     return rtype == WAL_RT_TXBEGIN || rtype == WAL_RT_TXCOMMIT || rtype == WAL_RT_TXABORT;
 }
 
 static inline bool
-wal_rectype_txcommit(enum wal_rec_type rtype)
+wal_rectype_txncommit(enum wal_rec_type rtype)
 {
     return rtype == WAL_RT_TXCOMMIT;
 }
 
 static inline bool
-wal_rectype_nontx(enum wal_rec_type rtype)
+wal_rectype_nontxn(enum wal_rec_type rtype)
 {
     return rtype == WAL_RT_NONTX;
 }
@@ -237,22 +237,13 @@ uint64_t
 wal_reclen_total(const void *inbuf);
 
 bool
-wal_rec_is_borg(const void *inbuf);
-
-bool
 wal_rec_is_eorg(const void *inbuf);
 
 bool
-wal_rec_is_morg(const void *inbuf);
+wal_rec_is_txnmeta(const void *inbuf);
 
 bool
-wal_rec_is_txmeta(const void *inbuf);
-
-bool
-wal_rec_is_txcommit(const void *inbuf);
-
-bool
-wal_rec_is_txop(const void *inbuf);
+wal_rec_is_txncommit(const void *inbuf);
 
 bool
 wal_rec_is_valid(

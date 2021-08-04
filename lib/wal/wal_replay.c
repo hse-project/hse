@@ -45,10 +45,9 @@ struct wal_replay {
     struct list_head            r_head HSE_ALIGNED(SMP_CACHE_BYTES);
     struct kmem_cache          *r_cache;
 
-    struct rmlock               r_txm_lock;
+    struct kmem_cache          *r_txm_cache;
     struct rb_root              r_txm_root;
     struct rb_root              r_txcid_root;
-    struct kmem_cache          *r_txm_cache;
     uint64_t                    r_maxcid;
 
     atomic_t                    r_leader;
@@ -62,6 +61,8 @@ struct wal_replay {
     struct wal_replay_info     *r_info;
     struct wal_replay_gen_info *r_ginfo;
     uint32_t                    r_cnt;
+
+    struct rmlock               r_txm_lock HSE_ALIGNED(SMP_CACHE_BYTES);
 };
 
 struct wal_rec_iter {
@@ -263,7 +264,7 @@ next_rec:
 
     iter->curoff += wal_reclen_total(buf);
 
-    if (wal_rec_skip(buf) || wal_rec_is_txmeta(buf))
+    if (wal_rec_skip(buf) || wal_rec_is_txnmeta(buf))
         goto next_rec;
 
     rec = kmem_cache_alloc(iter->rcache);
@@ -375,7 +376,7 @@ wal_recs_validate(struct wal_replay_work *rw)
                                      gen, info, &eorg))) {
         size_t len = wal_reclen_total(buf);
 
-        if (wal_rec_is_txcommit(buf)) {
+        if (wal_rec_is_txncommit(buf)) {
             struct wal_txmeta_rec *trec;
 
             trec = kmem_cache_alloc(rep->r_txm_cache);

@@ -410,6 +410,7 @@ if 'python' in bindings
         required: true,
         default_options: [
             'experimental=@0@'.format(get_option('experimental')),
+            'tests=@0@'.format(get_option('tests')),
             'tests-dir=@0@'.format(tests_dir),
         ],
     )
