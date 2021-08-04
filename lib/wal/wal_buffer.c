@@ -151,7 +151,7 @@ restart:
             /* Determine min/max seqno from non-tx op and tx-commit record */
             wal_update_minmax_seqno(buf, &info);
 
-            /* Determine min/max txid from tx meta record */
+            /* Determine min/max txid from tx op and tx-meta record */
             wal_update_minmax_txid(buf, &info);
         }
 
@@ -384,7 +384,6 @@ wal_bufset_alloc(
          * configuration or throttle sensors are out of whack...
          */
         usleep((xrand64_tls() % 256) + 128);
-        ev(1);
     }
 
     *offout = offset;

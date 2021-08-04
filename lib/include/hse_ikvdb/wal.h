@@ -103,7 +103,7 @@ wal_txn_abort(struct wal *wal, uint64_t txid, int64_t cookie);
 
 /* MTF_MOCK */
 merr_t
-wal_txn_commit(struct wal *wal, uint64_t txid, uint64_t seqno, int64_t cookie);
+wal_txn_commit(struct wal *wal, uint64_t txid, uint64_t seqno, uint64_t cid, int64_t cookie);
 
 void
 wal_op_finish(struct wal *wal, struct wal_record *rec, uint64_t seqno, uint64_t gen, int rc);

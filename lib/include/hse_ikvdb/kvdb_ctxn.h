@@ -154,6 +154,9 @@ kvdb_ctxn_set_destroy(struct kvdb_ctxn_set *handle);
 atomic64_t *
 kvdb_ctxn_set_tseqnop_get(struct kvdb_ctxn_set *handle);
 
+void
+kvdb_ctxn_set_tseqno_set(struct kvdb_ctxn_set *handle, uint64_t kvdb_seqno);
+
 #if HSE_MOCKING
 #include "kvdb_ctxn_ut.h"
 #endif /* HSE_MOCKING */

@@ -177,17 +177,25 @@ struct wal_txnrec_omf {
     struct wal_rechdr_omf tr_hdr;
     __le64                tr_txid;
     __le64                tr_seqno;
+    __le64                tr_cid;
 } __attribute__((packed,aligned(__alignof__(uint64_t))));
 
 /* Define set/get methods for wal_txrec_omf */
 OMF_SETGET(struct wal_txnrec_omf, tr_txid, 64);
 OMF_SETGET(struct wal_txnrec_omf, tr_seqno, 64);
+OMF_SETGET(struct wal_txnrec_omf, tr_cid, 64);
 
 
 /* WAL OMF interfaces */
 
 static inline bool
-wal_rectype_txnmeta(enum wal_rec_type rtype)
+wal_rectype_tx(enum wal_rec_type rtype)
+{
+    return rtype == WAL_RT_TX;
+}
+
+static inline bool
+wal_rectype_txmeta(enum wal_rec_type rtype)
 {
     return rtype == WAL_RT_TXBEGIN || rtype == WAL_RT_TXCOMMIT || rtype == WAL_RT_TXABORT;
 }
@@ -263,7 +271,7 @@ void
 wal_rec_unpack(const char *inbuf, struct wal_rec *rec);
 
 void
-wal_txn_rec_pack(uint64_t txid, uint64_t seqno, void *outbuf);
+wal_txn_rec_pack(uint64_t txid, uint64_t seqno, uint64_t cid, void *outbuf);
 
 void
 wal_txn_rec_unpack(const void *inbuf, struct wal_txmeta_rec *trec);

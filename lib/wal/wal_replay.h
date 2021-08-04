@@ -13,15 +13,15 @@ struct wal;
 struct wal_replay_info;
 
 struct wal_replay_gen_info {
-    spinlock_t     txmlock HSE_ALIGNED(SMP_CACHE_BYTES);
-    struct rb_root txmroot;
+    spinlock_t     txm_lock HSE_ALIGNED(SMP_CACHE_BYTES);
+    struct rb_root txm_root;
+    struct rb_root txcid_root;
 
     struct wal_minmax_info info HSE_ALIGNED(SMP_CACHE_BYTES);
     char *buf;
     uint64_t gen;
     off_t soff;
     off_t eoff;
-    off_t rgeoff;
     size_t size;
     uint32_t fileid;
     bool info_valid;
@@ -50,10 +50,13 @@ struct wal_rec {
 
 struct wal_txmeta_rec {
     struct rb_node node;
+    struct rb_node cid_node;
     uint64_t       rid;
     uint64_t       txid;
     uint64_t       cseqno;
+    uint64_t       cid;
     uint64_t       gen;
+    off_t          fileoff;
 };
 
 merr_t

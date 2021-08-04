@@ -195,10 +195,15 @@ wal_update_minmax_txid(const void *buf, struct wal_minmax_info *info)
 {
     const struct wal_rechdr_omf *rhomf = buf;
     uint32_t rtype = omf_rh_type(rhomf);
+    bool tx, txmeta;
 
-    if (wal_rectype_txnmeta(rtype)) {
+    tx = wal_rectype_tx(rtype);
+    txmeta = wal_rectype_txmeta(rtype);
+
+    if (tx || txmeta) {
+        const struct wal_rec_omf *r = buf;
         const struct wal_txnrec_omf *tr = buf;
-        uint64_t txid = omf_tr_txid(tr);
+        uint64_t txid = tx ? omf_r_txid(r) : omf_tr_txid(tr);
 
         info->min_txid = min_t(uint64_t, info->min_txid, txid);
         info->max_txid = max_t(uint64_t, info->max_txid, txid);
@@ -328,12 +333,13 @@ wal_txn_rechdr_finish(void *recbuf, size_t len, uint64_t offset)
 }
 
 void
-wal_txn_rec_pack(uint64_t txid, uint64_t seqno, void *outbuf)
+wal_txn_rec_pack(uint64_t txid, uint64_t seqno, uint64_t cid, void *outbuf)
 {
     struct wal_txnrec_omf *tromf = outbuf;
 
     omf_set_tr_txid(tromf, txid);
     omf_set_tr_seqno(tromf, seqno);
+    omf_set_tr_cid(tromf, cid);
 }
 
 void
@@ -346,6 +352,7 @@ wal_txn_rec_unpack(const void *inbuf, struct wal_txmeta_rec *trec)
     trec->gen = omf_rh_gen(rhomf);
     trec->txid = omf_tr_txid(tromf);
     trec->cseqno = omf_tr_seqno(tromf);
+    trec->cid = omf_tr_cid(tromf);
 }
 
 uint32_t
@@ -400,9 +407,6 @@ wal_filehdr_unpack(
     uint32_t ignore = sizeof(fhomf->fh_cksum);
     uint32_t len = sizeof(*fhomf);
 
-    if ((magic != omf_fh_magic(fhomf)) || (version != omf_fh_version(fhomf)))
-        return merr(EBADMSG);
-
     *close = (omf_fh_close(fhomf) == 1);
     *soff = omf_fh_startoff(fhomf);
     *eoff = omf_fh_endoff(fhomf);
@@ -421,6 +425,9 @@ wal_filehdr_unpack(
 
         return ((memcmp(fhomf, &ref, sizeof(*fhomf)) == 0) ? merr(ENODATA) : merr(EBADMSG));
     }
+
+    if ((magic != omf_fh_magic(fhomf)) || (version != omf_fh_version(fhomf)))
+        return merr(EBADMSG);
 
     return 0;
 }

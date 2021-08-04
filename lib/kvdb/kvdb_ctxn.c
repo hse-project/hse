@@ -471,11 +471,14 @@ kvdb_ctxn_commit(struct kvdb_ctxn *handle)
     struct kvdb_ctxn_impl * ctxn = kvdb_ctxn_h2r(handle);
     struct kvdb_ctxn_bind * bind = ctxn->ctxn_bind;
     struct kvdb_ctxn_locks *locks;
+    struct wal             *wal = ctxn->ctxn_wal;
     void *                  cookie;
     uintptr_t *             priv;
     uintptr_t               ref;
     u64                     commit_sn;
     u64                     head;
+    u64                     view_seqno = ctxn->ctxn_view_seqno;
+    int64_t                 wal_cookie = ctxn->ctxn_wal_cookie;
     merr_t err;
 
     err = kvdb_ctxn_trylock_impl(ctxn);
@@ -615,12 +618,10 @@ kvdb_ctxn_commit(struct kvdb_ctxn *handle)
         ctxn->ctxn_bind = 0;
     }
 
-    err = wal_txn_commit(ctxn->ctxn_wal, ctxn->ctxn_view_seqno, commit_sn, ctxn->ctxn_wal_cookie);
-
     kvdb_ctxn_deactivate(ctxn);
     kvdb_ctxn_unlock_impl(ctxn);
 
-    return err;
+    return wal_txn_commit(wal, view_seqno, commit_sn, head, wal_cookie);
 }
 
 enum kvdb_ctxn_state
@@ -778,6 +779,15 @@ kvdb_ctxn_set_tseqnop_get(struct kvdb_ctxn_set *handle)
     struct kvdb_ctxn_set_impl *kcs = kvdb_ctxn_set_h2r(handle);
 
     return &kcs->ktn_tseqno_head;
+}
+
+void
+kvdb_ctxn_set_tseqno_set(struct kvdb_ctxn_set *handle, uint64_t kvdb_seqno)
+{
+    struct kvdb_ctxn_set_impl *kcs = kvdb_ctxn_set_h2r(handle);
+
+    atomic64_set(&kcs->ktn_tseqno_head, kvdb_seqno);
+    atomic64_set(&kcs->ktn_tseqno_tail, kvdb_seqno);
 }
 
 struct kvdb_ctxn_bind *
