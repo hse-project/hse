@@ -1,8 +1,0 @@
-#!/usr/bin/bash
-
-#doc: simple putgetdel test
-
-keys=10000
-kvs=$(new_kvs $mp) || err
-
-cmd putgetdel $mp $kvs -c $keys

@@ -1,0 +1,29 @@
+#!/usr/bin/env bash
+
+#doc: test to verify kvs drop functionality, specifically testing the edge condition where the last transactions are completely removed.
+
+source $(dirname "${BASH_SOURCE[0]}")/smoke.subr
+
+trap kvdb_drop EXIT SIGTERM SIGINT SIGKILL
+kvdb_create
+
+keys=10
+
+kvs=$(kvs_create smoke-0) || exit $?
+kvs2=$(kvs_create smoke-1) || exit $?
+
+cmd putbin -c$keys "$home" $kvs
+cmd putbin -c$keys "$home" $kvs2
+
+# validate
+cmd putbin -V -c$keys "$home" $kvs
+cmd putbin -V -c$keys "$home" $kvs2
+
+cmd hse -C "$home" kvs drop $kvs2
+
+# validate cndb and that cnid 1 keys exist
+cmd putbin -V -c$keys "$home" $kvs
+
+# get tree metrics
+# verify that cnid 2 is not present
+cmd cndb_log "$home" | cmd -e grep 'cnid 2'

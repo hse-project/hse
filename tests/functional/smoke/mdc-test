@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+
+#tdoc: mdc data integrity and perf tests
+
+source $(dirname "${BASH_SOURCE[0]}")/smoke.subr
+
+trap kvdb_drop EXIT SIGTERM SIGINT SIGKILL
+kvdb_create
+
+storage="$home/capacity/smoke-mdc-test"
+
+cmd rm -fr $storage
+cmd mkdir $storage
+
+cmd mdctest $storage
+
+cmd mdcperf -r 64   -c $((  32 * 1024 * 1024)) -v    $storage
+cmd mdcperf -r 64   -c $((   8 * 1024 * 1024)) -v -s $storage
+cmd mdcperf -r 4096 -c $((1024 * 1024 * 1024)) -v    $storage
+cmd mdcperf -r 4096 -c $(( 256 * 1024 * 1024)) -v -s $storage
+
+cmd rm -fr $storage

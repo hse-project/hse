@@ -1,9 +1,0 @@
-#!/usr/bin/bash
-
-#doc: quick kvdb/cn performance test using kmt (60s, 5% writes)
-w=5
-seconds=60
-
-kvs=$(new_kvs $mp) || err
-
-cmd kmt -i20m -t$seconds -bcDR -s1 -w$w -j$(nproc) $mp $kvs

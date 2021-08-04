@@ -1,0 +1,38 @@
+#!/usr/bin/env bash
+
+#doc: simple transaction test on a KVDB kvs
+
+source $(dirname "${BASH_SOURCE[0]}")/smoke.subr
+
+trap kvdb_drop EXIT SIGTERM SIGINT SIGKILL
+kvdb_create
+
+kvs1=$(kvs_create smoke-0) || exit $?
+
+cmd ctxn_validation "$home" $kvs1
+cmd ctxn_validation -i7 "$home" $kvs1
+cmd ctxn_validation -i17 "$home" $kvs1
+cmd ctxn_validation -i17 -K13 "$home" $kvs1
+cmd ctxn_validation -i34 -K13 "$home" $kvs1
+cmd ctxn_validation -s -k1 "$home" $kvs1
+cmd ctxn_validation -s -i9 -k1 "$home" $kvs1
+cmd ctxn_validation -s -i19 -k1000 "$home" $kvs1
+cmd ctxn_validation -s -i5555 -k1 "$home" $kvs1
+cmd ctxn_validation -s -i6666 -k7 "$home" $kvs1
+cmd ctxn_validation -s -i9999 -k173 "$home" $kvs1
+cmd ctxn_validation -c -i5 -k173 "$home" $kvs1
+cmd ctxn_validation -p pc -k1 "$home" $kvs1
+cmd ctxn_validation -p pc -k3 "$home" $kvs1
+cmd ctxn_validation -p pc -i1234 -k0 "$home" $kvs1
+cmd ctxn_validation -p pc -i1234 -k1 "$home" $kvs1
+cmd ctxn_validation -p pc -i1234 -k1 -r "$home" $kvs1
+cmd ctxn_validation -p pc -i1234 -k1 -j64 "$home" $kvs1
+cmd ctxn_validation -p gc -i1234 -k1 -j64 "$home" $kvs1
+cmd ctxn_validation -p pa -i5 -k1 -j64 "$home" $kvs1
+cmd ctxn_validation -p ga -i5 -k1 -j64 "$home" $kvs1
+cmd ctxn_validation -p pc -i1234 -k1 -r -j64 "$home" $kvs1
+cmd ctxn_validation -p gc -i1234 -k1 -r -j64 "$home" $kvs1
+cmd ctxn_validation -p pa -i5 -k1 -r -j64 "$home" $kvs1
+cmd ctxn_validation -p ga -i5 -k1 -r -j64 "$home" $kvs1
+cmd ctxn_validation -p pc -i1234 -k7 -r -j333 "$home" $kvs1
+cmd ctxn_validation "$home" $kvs1

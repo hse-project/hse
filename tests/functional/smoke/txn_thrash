@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+
+source $(dirname "${BASH_SOURCE[0]}")/smoke.subr
+
+trap kvdb_drop EXIT SIGTERM SIGINT SIGKILL
+kvdb_create
+
+kvs=$(kvs_create smoke-0) || exit $?
+
+# Single threaded large transaction
+cmd txn_thrash "$home" $kvs -j1 -c500000
+
+# Multi threaded, relatively small txns
+cmd txn_thrash "$home" $kvs -j16 -c200000

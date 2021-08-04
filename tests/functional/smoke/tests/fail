@@ -1,7 +1,0 @@
-#!/usr/bin/bash
-
-#doc: a test that fails (use to test the smoke script itself)
-
-ls foobar-no-such-file
-
-cmd kmt invalid arguments fail me please

@@ -1,6 +1,8 @@
 run_env.append('PYTHONPATH', meson.current_source_dir())
 
 pytest = find_program('pytest', required: true)
+bash = find_program('bash')
+sh = find_program('sh') # write POSIX-compliant when easily doable
 
 if not fs.exists(tests_dir)
     run_command(

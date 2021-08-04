@@ -1,7 +1,0 @@
-#!/usr/bin/bash
-
-#doc: a "hello world" test
-
-cmd echo aloha
-cmd echo hola
-cmd echo hello

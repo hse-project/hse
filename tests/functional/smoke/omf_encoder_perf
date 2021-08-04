@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+
+#doc: run omf_encoder_perf
+
+source $(dirname "${BASH_SOURCE[0]}")/smoke.subr
+
+cmd omf_encoder_perf

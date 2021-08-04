@@ -1,9 +1,0 @@
-#!/usr/bin/bash
-
-
-#doc: quick kvdb/c0 read performance test using kmt (60s)
-
-seconds=60
-
-kvs=$(new_kvs $mp) || err
-cmd kmt -i1000 -t$seconds -bcDOR -w0 -j$(nproc) -s1 $mp $kvs

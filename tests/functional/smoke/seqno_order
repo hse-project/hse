@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+
+source $(dirname "${BASH_SOURCE[0]}")/smoke.subr
+
+trap kvdb_drop EXIT SIGTERM SIGINT SIGKILL
+kvdb_create
+
+# one thread does transactional PUTs while another periodically calls flush
+kvs=$(kvs_create smoke-0) || exit $?
+cmd txput_flush "$home" $kvs kvdb-oparms low_mem=1
