@@ -1041,8 +1041,8 @@ c0kvs_debug(struct c0_kvset *handle, void *key, int klen)
     rcu_read_unlock();
 }
 
-void
-c0kvs_reinit(size_t ccache_sz, size_t cheap_sz)
+static void
+c0kvs_reinit_impl(size_t ccache_sz, size_t cheap_sz, bool force)
 {
     struct c0kvs_ccache * cc = &c0kvs_ccache;
     struct c0_kvset_impl *head, *next;
@@ -1051,7 +1051,9 @@ c0kvs_reinit(size_t ccache_sz, size_t cheap_sz)
         return;
 
     c0kvs_ccache_sz = clamp_t(size_t, ccache_sz, 0, HSE_C0_CCACHE_SZ_MAX);
-    c0kvs_cheap_sz = clamp_t(size_t, cheap_sz, HSE_C0_CHEAP_SZ_MIN, HSE_C0_CHEAP_SZ_MAX);
+
+    c0kvs_cheap_sz = force ? cheap_sz :
+        clamp_t(size_t, cheap_sz, HSE_C0_CHEAP_SZ_MIN, HSE_C0_CHEAP_SZ_MAX);
 
     spin_lock(&cc->cc_lock);
     head = cc->cc_head;
@@ -1063,6 +1065,30 @@ c0kvs_reinit(size_t ccache_sz, size_t cheap_sz)
         next = head->c0s_next;
         c0kvs_destroy_impl(head);
     }
+}
+
+void
+c0kvs_reinit(size_t ccache_sz, size_t cheap_sz)
+{
+    c0kvs_reinit_impl(ccache_sz, cheap_sz, false);
+}
+
+void
+c0kvs_reinit_force(size_t ccache_sz, size_t cheap_sz)
+{
+    c0kvs_reinit_impl(ccache_sz, cheap_sz, true);
+}
+
+size_t
+c0kvs_cache_sz_get(void)
+{
+    return c0kvs_ccache_sz;
+}
+
+size_t
+c0kvs_cheap_sz_get(void)
+{
+    return c0kvs_cheap_sz;
 }
 
 HSE_COLD void

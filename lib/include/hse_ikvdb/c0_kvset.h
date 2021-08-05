@@ -39,6 +39,9 @@ struct c0_usage {
 void
 c0kvs_reinit(size_t c0kvs_ccache_sz, size_t c0kvs_cheap_sz);
 
+void
+c0kvs_reinit_force(size_t c0kvs_ccache_sz, size_t c0kvs_cheap_sz);
+
 /**
  * c0kvs_init() - initialize global c0kvs state
  *
@@ -373,5 +376,11 @@ c0kvs_iterator_init(struct c0_kvset *set, struct c0_kvset_iterator *iter, uint f
  */
 void
 c0kvs_debug(struct c0_kvset *set, void *key, int klen);
+
+size_t
+c0kvs_cache_sz_get(void);
+
+size_t
+c0kvs_cheap_sz_get(void);
 
 #endif /* HSE_CORE_C0_KVSET_H */

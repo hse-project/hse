@@ -2673,8 +2673,11 @@ ikvdb_txn_state(struct ikvdb *handle, struct hse_kvdb_txn *txn)
 
 struct ikvdb_kvs_hdl {
     struct kvdb_kvs *kk_prev;
-    u64  cnid_prev;
-    uint kvshc;
+    uint64_t cnid_prev;
+    size_t   cache_sz;
+    size_t   cheap_sz;
+    bool     needs_reset;
+    uint32_t kvshc;
     struct hse_kvs *kvshv[];
 };
 
@@ -2881,6 +2884,56 @@ ikvdb_wal_replay_disable(struct ikvdb *ikvdb)
     self = ikvdb_h2r(ikvdb);
 
     c0sk_replaying_disable(self->ikdb_c0sk);
+}
+
+bool
+ikvdb_wal_replay_size_set(struct ikvdb *ikvdb, struct ikvdb_kvs_hdl *ikvsh, uint64_t mem_sz)
+{
+    struct ikvdb_impl *self;
+    size_t             cheap_sz;
+    uint32_t           width;
+
+    assert(ikvdb && ikvsh);
+
+    if (mem_sz == 0)
+        return false;
+
+    self = ikvdb_h2r(ikvdb);
+
+    /* Save a copy of the globals to restore post replay */
+    ikvsh->cache_sz = ikvsh->cache_sz ? : c0kvs_cache_sz_get();
+    ikvsh->cheap_sz = ikvsh->cheap_sz ? : c0kvs_cheap_sz_get();
+
+    width = c0sk_ingest_width_get(self->ikdb_c0sk);
+    assert(width);
+
+    cheap_sz = mem_sz / width;
+    if (cheap_sz <= ikvsh->cheap_sz)
+        return false;
+
+    cheap_sz = roundup_pow_of_two(cheap_sz);
+    cheap_sz = max_t(size_t, cheap_sz, HSE_C0_CHEAP_SZ_DFLT);
+
+    hse_log(HSE_NOTICE "WAL replay: Setting c0kvms cheap size from %lu to %lu",
+            ikvsh->cheap_sz, cheap_sz);
+    c0kvs_reinit_force(0, cheap_sz);
+
+    ikvsh->needs_reset = true;
+
+    return true;
+}
+
+void
+ikvdb_wal_replay_size_reset(struct ikvdb_kvs_hdl *ikvsh)
+{
+    assert(ikvsh);
+
+    if (ikvsh->needs_reset) {
+        hse_log(HSE_NOTICE "WAL replay: Resetting c0kvms cheap size back to %lu", ikvsh->cheap_sz);
+        c0kvs_reinit_force(ikvsh->cache_sz, ikvsh->cheap_sz);
+    }
+
+    ikvsh->needs_reset = false;
 }
 
 
