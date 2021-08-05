@@ -45,9 +45,10 @@ struct wal_replay {
     struct list_head            r_head HSE_ALIGNED(SMP_CACHE_BYTES);
     struct kmem_cache          *r_cache;
 
-    struct rmlock               r_txmlock;
-    struct rb_root              r_txmroot;
-    struct kmem_cache          *r_txmcache;
+    struct kmem_cache          *r_txm_cache;
+    struct rb_root              r_txm_root;
+    struct rb_root              r_txcid_root;
+    uint64_t                    r_maxcid;
 
     atomic_t                    r_leader;
     atomic_t                    r_vdone;
@@ -60,6 +61,8 @@ struct wal_replay {
     struct wal_replay_info     *r_info;
     struct wal_replay_gen_info *r_ginfo;
     uint32_t                    r_cnt;
+
+    struct rmlock               r_txm_lock HSE_ALIGNED(SMP_CACHE_BYTES);
 };
 
 struct wal_rec_iter {
@@ -70,7 +73,6 @@ struct wal_rec_iter {
     off_t                   curoff;
     off_t                   soff;
     off_t                   eoff;
-    off_t                   rgeoff;
     size_t                  size;
     merr_t                  err;
     bool                    eof;
@@ -86,6 +88,11 @@ static void
 wal_replay_dump_rgen(struct wal_replay *rep);
 #endif
 
+static struct wal_replay_gen *
+wal_replay_gen_get(struct wal_replay *rep, uint64_t gen);
+
+static struct wal_replay_gen *
+wal_replay_gen_getbyseqno(struct wal_replay *rep, uint64_t seqno);
 
 static merr_t
 wal_replay_open(struct wal *wal, struct wal_replay_info *rinfo, struct wal_replay **rep_out)
@@ -105,9 +112,9 @@ wal_replay_open(struct wal *wal, struct wal_replay_info *rinfo, struct wal_repla
         goto err_exit;
     }
 
-    rep->r_txmcache = kmem_cache_create("wal-reptxm", sizeof(struct wal_txmeta_rec),
+    rep->r_txm_cache = kmem_cache_create("wal-reptxm", sizeof(struct wal_txmeta_rec),
                                         alignof(struct wal_txmeta_rec), 0, NULL);
-    if (!rep->r_txmcache) {
+    if (!rep->r_txm_cache) {
         err = merr(ENOMEM);
         goto err_exit;
     }
@@ -120,8 +127,9 @@ wal_replay_open(struct wal *wal, struct wal_replay_info *rinfo, struct wal_repla
     rep->r_info = rinfo;
     INIT_LIST_HEAD(&rep->r_head);
 
-    rmlock_init(&rep->r_txmlock);
-    rep->r_txmroot = RB_ROOT;
+    rmlock_init(&rep->r_txm_lock);
+    rep->r_txm_root = RB_ROOT;
+    rep->r_txcid_root = RB_ROOT;
 
     atomic_set(&rep->r_leader, 0);
     atomic_set(&rep->r_vdone, 0);
@@ -132,7 +140,7 @@ wal_replay_open(struct wal *wal, struct wal_replay_info *rinfo, struct wal_repla
     return 0;
 
 err_exit:
-    kmem_cache_destroy(rep->r_txmcache);
+    kmem_cache_destroy(rep->r_txm_cache);
     kmem_cache_destroy(rep->r_cache);
     free(rep);
 
@@ -166,23 +174,23 @@ wal_replay_close(struct wal_replay *rep, bool failed)
         free(cgen);
     }
 
-    rbtree_postorder_for_each_entry_safe(ctxm, ntxm, &rep->r_txmroot, node) {
-        kmem_cache_free(rep->r_txmcache, ctxm);
+    rbtree_postorder_for_each_entry_safe(ctxm, ntxm, &rep->r_txm_root, node) {
+        kmem_cache_free(rep->r_txm_cache, ctxm);
     }
 
     for (i = 0; i < rep->r_cnt; i++) {
         struct wal_replay_gen_info *rginfo = rep->r_ginfo + i;
 
-        rbtree_postorder_for_each_entry_safe(ctxm, ntxm, &rginfo->txmroot, node) {
-            kmem_cache_free(rep->r_txmcache, ctxm);
+        rbtree_postorder_for_each_entry_safe(ctxm, ntxm, &rginfo->txm_root, node) {
+            kmem_cache_free(rep->r_txm_cache, ctxm);
         }
     }
 
     wal_fileset_replay_free(wal_fset(wal), failed);
 
-    kmem_cache_destroy(rep->r_txmcache);
+    kmem_cache_destroy(rep->r_txm_cache);
     kmem_cache_destroy(rep->r_cache);
-    rmlock_destroy(&rep->r_txmlock);
+    rmlock_destroy(&rep->r_txm_lock);
 
     free(rep);
 }
@@ -200,7 +208,6 @@ wal_rec_iter_init(struct wal_replay_work *rw, struct wal_rec_iter *iter)
     iter->curoff = 0;
     iter->soff = rw->rw_rginfo->soff;
     iter->eoff = rw->rw_rginfo->eoff;
-    iter->rgeoff = rw->rw_rginfo->rgeoff;
     iter->eof = false;
     iter->rcache = rw->rw_rep->r_cache;
     iter->size = rw->rw_rginfo->size;
@@ -219,7 +226,7 @@ wal_rec_iter_eof(struct wal_rec_iter *iter)
 static struct wal_txmeta_rec *
 wal_txmrec_rb_search(struct wal_replay *rep, uint64_t txid)
 {
-    struct rb_root *root = &rep->r_txmroot;
+    struct rb_root *root = &rep->r_txm_root;
     struct rb_node *node = root->rb_node;
 
     while (node) {
@@ -241,28 +248,23 @@ wal_rec_iter_next(struct wal_rec_iter *iter)
 {
     struct wal_rec *rec;
     const char *buf;
-    bool skip_nontx;
 
 next_rec:
     if (iter->eof)
         return NULL;
 
-    skip_nontx = false;
     buf = iter->buf;
     buf += iter->curoff;
 
     if ((iter->eoff != 0 && (iter->curoff + iter->soff >= iter->eoff)) ||
-        iter->curoff + iter->soff >= iter->size) {
+        (iter->curoff + iter->soff >= iter->size)) {
         iter->eof = true;
         return NULL;
     }
 
-    if (iter->curoff + iter->soff >= iter->rgeoff)
-        skip_nontx = true;
-
     iter->curoff += wal_reclen_total(buf);
 
-    if (wal_rec_skip(buf) || wal_rec_is_txmeta(buf))
+    if (wal_rec_skip(buf) || wal_rec_is_txnmeta(buf))
         goto next_rec;
 
     rec = kmem_cache_alloc(iter->rcache);
@@ -278,10 +280,11 @@ next_rec:
         struct wal_txmeta_rec *trec;
         void *cookie;
 
-        rmlock_rlock(&rep->r_txmlock, &cookie);
+        rmlock_rlock(&rep->r_txm_lock, &cookie);
         trec = wal_txmrec_rb_search(rep, rec->txid);
         rmlock_runlock(cookie);
-        if (!trec) { /* aborted or un-committed txn */
+
+        if (!trec || trec->cid > rep->r_maxcid) {
             kmem_cache_free(iter->rcache, rec);
             goto next_rec;
         }
@@ -290,10 +293,12 @@ next_rec:
         rec->seqno = trec->cseqno;
         rec->hdr.gen = trec->gen;
         assert(rec->hdr.rid <= trec->rid);
-    } else if (skip_nontx) {
-        assert(rec->hdr.type == WAL_RT_NONTX);
-        kmem_cache_free(iter->rcache, rec);
-        goto next_rec;
+    } else if (rec->hdr.type == WAL_RT_NONTX) {
+        struct wal_replay *rep = iter->rw->rw_rep;
+        struct wal_replay_gen *rgen = wal_replay_gen_getbyseqno(rep, rec->seqno);
+
+        if (rgen)
+            rec->hdr.gen = rgen->rg_gen;
     }
 
     return rec;
@@ -325,12 +330,41 @@ wal_txmeta_rb_insert(struct rb_root *root, struct wal_txmeta_rec *trec)
 }
 
 static merr_t
+wal_txcid_rb_insert(struct rb_root *root, struct wal_txmeta_rec *trec)
+{
+    struct rb_node **new = &root->rb_node;
+    struct rb_node  *parent = NULL;
+
+    while (*new) {
+        struct wal_txmeta_rec *this = container_of(*new, struct wal_txmeta_rec, cid_node);
+
+        parent = *new;
+
+        if (trec->cid < this->cid) {
+            new = &((*new)->rb_left);
+            assert(trec->cseqno < this->cseqno);
+        } else if (trec->cid > this->cid) {
+            new = &((*new)->rb_right);
+            assert(trec->cseqno > this->cseqno);
+        } else {
+            assert(trec->cseqno == this->cseqno);
+            return merr(EBUG);
+        }
+    }
+
+    rb_link_node(&trec->cid_node, parent, new);
+    rb_insert_color(&trec->cid_node, root);
+
+    return 0;
+}
+
+static merr_t
 wal_recs_validate(struct wal_replay_work *rw)
 {
     struct wal_replay *rep = rw->rw_rep;
     struct wal_minmax_info *info;
     struct wal_replay_gen_info *rginfo = rw->rw_rginfo;
-    off_t curoff = 0;
+    off_t curoff = 0, rgeoff = 0;
     uint64_t gen = rginfo->gen, recoff = 0;
     const char *buf = rginfo->buf;
     bool valid, eorg = false;
@@ -342,35 +376,38 @@ wal_recs_validate(struct wal_replay_work *rw)
                                      gen, info, &eorg))) {
         size_t len = wal_reclen_total(buf);
 
-        if (wal_rec_is_txcommit(buf)) {
+        if (wal_rec_is_txncommit(buf)) {
             struct wal_txmeta_rec *trec;
 
-            trec = kmem_cache_alloc(rep->r_txmcache);
+            trec = kmem_cache_alloc(rep->r_txm_cache);
             if (!trec) {
                 err = merr(ENOMEM);
                 goto exit;
             }
 
             wal_txn_rec_unpack(buf, trec);
+            trec->fileoff = curoff + rginfo->soff;
 
-            if (rep->r_info->txhorizon == CNDB_INVAL_HORIZON ||
-                trec->txid >= rep->r_info->txhorizon) {
-                spin_lock(&rginfo->txmlock);
-                err = wal_txmeta_rb_insert(&rginfo->txmroot, trec);
-                spin_unlock(&rginfo->txmlock);
+            if (trec->cseqno > rep->r_info->seqno) {
+                spin_lock(&rginfo->txm_lock);
+                err = wal_txmeta_rb_insert(&rginfo->txm_root, trec);
+                if (HSE_LIKELY(!err))
+                    err = wal_txcid_rb_insert(&rginfo->txcid_root, trec);
+                spin_unlock(&rginfo->txm_lock);
+
                 if (err) {
-                    kmem_cache_free(rep->r_txmcache, trec);
+                    kmem_cache_free(rep->r_txm_cache, trec);
                     goto exit;
                 }
             } else {
-                kmem_cache_free(rep->r_txmcache, trec); /* Ingested txn */
+                kmem_cache_free(rep->r_txm_cache, trec); /* Ingested txn */
             }
         }
 
         curoff += len;
 
-        if (eorg && curoff > rginfo->rgeoff)
-            rginfo->rgeoff = curoff;
+        if (eorg && curoff > rgeoff)
+            rgeoff = curoff;
 
         if ((rginfo->eoff != 0 && (curoff + rginfo->soff >= rginfo->eoff)) ||
             curoff + rginfo->soff >= rginfo->size) {
@@ -383,21 +420,18 @@ wal_recs_validate(struct wal_replay_work *rw)
 
     if (rginfo->eoff && !valid) {
         assert(valid);
-        hse_log(HSE_CRIT "%s: Corrupted record found in gen %lu file %d, off (%lu:%lu:%lu), "
-                "failing replay", __func__, gen, rginfo->fileid, curoff, rginfo->eoff,
-                rginfo->rgeoff);
+        hse_log(HSE_CRIT "WAL replay: Corrupted record found in gen %lu file %d, "
+                "off (%lu:%lu:%lu), failing replay",
+                gen, rginfo->fileid, curoff, rginfo->eoff, rgeoff);
         err = merr(EBADMSG);
         goto exit;
     }
 
-    rginfo->rgeoff += rginfo->soff;
-    assert(rginfo->eoff == 0 || rginfo->eoff == rginfo->rgeoff);
+    rgeoff += rginfo->soff;
+    assert(rginfo->eoff == 0 || rginfo->eoff == rgeoff);
 
     /* An ending offset of 0 implies that the crash occurred before updating file stats */
-    if (rginfo->eoff == 0) {
-        rginfo->eoff = curoff + rginfo->soff;
-        assert(rginfo->eoff >= rginfo->rgeoff);
-    }
+    rginfo->eoff = rginfo->eoff ? : rgeoff;
 
     rginfo->info_valid = true;
 
@@ -448,11 +482,25 @@ wal_replay_gen_update(struct wal_replay_gen *rgen, struct wal_replay_gen_info *r
 static struct wal_replay_gen *
 wal_replay_gen_get(struct wal_replay *rep, uint64_t gen)
 {
-    struct wal_replay_gen *cur;
+    struct wal_replay_gen *rgen;
 
-    list_for_each_entry(cur, &rep->r_head, rg_link) {
-        if (cur->rg_gen == gen)
-            return cur;
+    list_for_each_entry(rgen, &rep->r_head, rg_link) {
+        if (rgen->rg_gen == gen)
+            return rgen;
+    }
+
+    return NULL;
+}
+
+static struct wal_replay_gen *
+wal_replay_gen_getbyseqno(struct wal_replay *rep, uint64_t seqno)
+{
+    struct wal_replay_gen *rgen;
+
+    list_for_each_entry(rgen, &rep->r_head, rg_link) {
+        if (seqno >= rgen->rg_info.min_seqno && seqno <= rgen->rg_info.max_seqno) {
+            return rgen;
+        }
     }
 
     return NULL;
@@ -500,8 +548,8 @@ wal_replay_gen_impl(struct wal_replay *rep, struct wal_replay_gen *rgen, bool fl
         if (HSE_UNLIKELY(err)) {
             struct wal_rec *cur, *next;
 
-            hse_log(HSE_CRIT "%s: Unrecognized record op %d in gen %lu, failing replay",
-                    __func__, rec->op, rgen->rg_gen);
+            hse_log(HSE_CRIT "WAL replay: Unrecognized record op %d in gen %lu, failing replay",
+                    rec->op, rgen->rg_gen);
 
             rbtree_postorder_for_each_entry_safe(cur, next, root, node) {
                 kmem_cache_free(rep->r_cache, cur);
@@ -565,7 +613,7 @@ wal_replay_core(struct wal_replay *rep)
 
         maxseqno = max_t(uint64_t, maxseqno, cur->rg_maxseqno);
 
-        hse_log(HSE_NOTICE "WAL replay: gen %lu, maxseqno %lu replayed %lu keys",
+        hse_log(HSE_NOTICE "WAL replay: Gen %lu, maxseqno %lu replayed %lu keys",
                 cur->rg_gen, maxseqno, cur->rg_krcnt);
 
         list_del_init(&cur->rg_link);
@@ -624,13 +672,18 @@ wal_replay_consolidate(struct wal_replay *rep)
 
     /* Fix seqno bounds. Set min bound of a gen based on the max bound of the previous gen */
     list_for_each_entry_safe(cur, next, &rep->r_head, rg_link) {
-        uint64_t nmin_seqno, cmax_seqno;
+        uint64_t cmin_seqno, cmax_seqno, nmin_seqno;
 
         if (!next)
             break;
 
-        nmin_seqno = next->rg_info.min_seqno;
+        cmin_seqno = cur->rg_info.min_seqno;
         cmax_seqno = cur->rg_info.max_seqno;
+
+        if (ev(cmin_seqno == UINT64_MAX && cmax_seqno == 0))
+            continue; /* neither commit records nor non-tx recs in this gen, skip it */
+
+        nmin_seqno = next->rg_info.min_seqno;
 
         if (nmin_seqno == UINT64_MAX) {
             assert(next == list_last_entry(&rep->r_head, typeof(*next), rg_link));
@@ -644,58 +697,87 @@ wal_replay_consolidate(struct wal_replay *rep)
     return 0;
 }
 
-static uint64_t
-wal_txmeta_gen_get(struct wal_replay *rep, uint64_t seqno)
-{
-    struct wal_replay_gen *rgen;
-
-    list_for_each_entry(rgen, &rep->r_head, rg_link) {
-        if (seqno >= rgen->rg_info.min_seqno && seqno <= rgen->rg_info.max_seqno) {
-            return rgen->rg_gen;
-        }
-    }
-
-    return 0;
-}
-
 static merr_t
 wal_txmeta_gen_update(struct wal_replay *rep)
 {
+    struct rb_root *root;
+    struct rb_node *cnode, *nnode;
+    struct wal_txmeta_rec *trec;
     merr_t err = 0;
     int i;
+    uint64_t prevcid, curcid;
 
-    rmlock_wlock(&rep->r_txmlock);
+    rmlock_wlock(&rep->r_txm_lock);
+
     for (i = 0; i < rep->r_cnt; i++) {
         struct wal_replay_gen_info *rginfo = rep->r_ginfo + i;
-        struct rb_root *root;
-        struct rb_node *cnode, *nnode;
+        struct rb_root *cid_root;
 
-        spin_lock(&rginfo->txmlock);
-        root = &rginfo->txmroot;
+        spin_lock(&rginfo->txm_lock);
+
+        root = &rginfo->txm_root;
+        cid_root = &rginfo->txcid_root;
+
         cnode = rb_first(root);
-        while (cnode) {
-            struct wal_txmeta_rec *trec;
-            uint64_t gen;
 
+        while (cnode) {
             nnode = rb_next(cnode);
 
             trec = rb_entry(cnode, struct wal_txmeta_rec, node);
+
             rb_erase(&trec->node, root);
+            rb_erase(&trec->cid_node, cid_root);
 
-            gen = wal_txmeta_gen_get(rep, trec->cseqno);
-            if (gen != 0)
-                trec->gen = gen;
+            if (trec->fileoff < rginfo->eoff) {
+                struct wal_replay_gen *rgen = wal_replay_gen_getbyseqno(rep, trec->cseqno);
 
-            err = wal_txmeta_rb_insert(&rep->r_txmroot, trec);
-            if (err)
-                break;
+                if (rgen)
+                    trec->gen = rgen->rg_gen;
+
+                err = wal_txmeta_rb_insert(&rep->r_txm_root, trec);
+                if (HSE_LIKELY(!err)) {
+                    err = wal_txcid_rb_insert(&rep->r_txcid_root, trec);
+                    if (err)
+                        break;
+                }
+            } else {
+                kmem_cache_free(rep->r_txm_cache, trec);
+            }
 
             cnode = nnode;
         }
-        rginfo->txmroot = RB_ROOT;
-        spin_unlock(&rginfo->txmlock);
+
+        if (HSE_LIKELY(!err)) {
+            rginfo->txm_root = RB_ROOT;
+            rginfo->txcid_root = RB_ROOT;
+        }
+
+        spin_unlock(&rginfo->txm_lock);
     }
-    rmlock_wunlock(&rep->r_txmlock);
+
+    if (HSE_LIKELY(!err)) {
+        root = &rep->r_txcid_root;
+        cnode = rb_first(root);
+        rep->r_maxcid = prevcid = curcid = 0;
+
+        while (cnode) {
+            trec = rb_entry(cnode, struct wal_txmeta_rec, cid_node);
+            curcid = trec->cid;
+
+            if (prevcid != 0 && prevcid + 1 != curcid) {
+                rep->r_maxcid = prevcid;
+                break;
+            }
+
+            prevcid = curcid;
+            cnode = rb_next(cnode);
+        }
+
+        if (rep->r_maxcid == 0)
+            rep->r_maxcid = curcid;
+    }
+
+    rmlock_wunlock(&rep->r_txm_lock);
 
     return err;
 }
@@ -764,7 +846,7 @@ wal_replay_worker(struct work_struct *work)
     /* Elect a leader thread to do replay stats consolidation and fix target gen */
     if (atomic_inc_acq(&rep->r_leader) == 1) {
         err = wal_replay_consolidate(rep);
-        if (!err) {
+        if (HSE_LIKELY(!err)) {
             /*
              * Fix target gen for txns based on the consolidated seqno bounds
              * determined by wal_replay_consolidate(). This ensures that the seqno
@@ -791,6 +873,7 @@ wal_replay_worker(struct work_struct *work)
 
     rginfo = rw->rw_rginfo;
     wal_rec_iter_init(rw, &iter);
+
     rgen = wal_replay_gen_get(rep, rginfo->gen);
 
     while ((rec = wal_rec_iter_next(&iter))) {
@@ -825,8 +908,8 @@ wal_replay_worker(struct work_struct *work)
     if (rw->rw_err)
         return;
 
-    hse_log(HSE_NOTICE "%s: gen %lu fileid %d nrecs %lu ntxrecs %lu nskipped %lu",
-            __func__, rginfo->gen, rginfo->fileid, nrecs, ntxrecs, nskipped);
+    hse_log(HSE_NOTICE "WAL replay: Gen %lu fileid %d nrecs %lu ntxrecs %lu nskipped %lu",
+            rginfo->gen, rginfo->fileid, nrecs, ntxrecs, nskipped);
 
 #ifndef NDEBUG
     assert(wal_rec_iter_eof(&iter));
@@ -902,7 +985,7 @@ wal_replay(struct wal *wal, struct wal_replay_info *rinfo)
         goto exit;
 
 #ifndef NDEBUG
-    hse_log(HSE_NOTICE "WAL replay info: ");
+    hse_log(HSE_NOTICE "WAL replay: Info: ");
     wal_replay_dump_info(rep);
 #endif
 
@@ -911,7 +994,7 @@ wal_replay(struct wal *wal, struct wal_replay_info *rinfo)
         goto exit;
 
 #ifndef NDEBUG
-    hse_log(HSE_NOTICE "WAL replay gen info: ");
+    hse_log(HSE_NOTICE "WAL replay: Gen info: ");
     wal_replay_dump_rgen(rep);
 #endif
 
@@ -929,18 +1012,18 @@ exit:
 static void
 wal_replay_dump_info(struct wal_replay *rep)
 {
-    hse_log(HSE_NOTICE "Replay entry count: %u", rep->r_cnt);
+    hse_log(HSE_NOTICE "WAL replay: Entry count: %u", rep->r_cnt);
 
     for (int i = 0; i < rep->r_cnt; i++) {
         struct wal_replay_gen_info *rginfo;
         struct wal_minmax_info *info;
 
-        hse_log(HSE_NOTICE "Entry %u", i);
+        hse_log(HSE_NOTICE "WAL replay: Entry %u", i);
 
         rginfo = rep->r_ginfo + i;
         info = &rginfo->info;
 
-        hse_log(HSE_NOTICE "Gen %lu Fileid %u Seqno (%lu : %lu) gen (%lu : %lu) "
+        hse_log(HSE_NOTICE "WAL replay: Gen %lu Fileid %u Seqno (%lu : %lu) gen (%lu : %lu) "
                 "txhorizon (%lu : %lu) eoff %lu", rginfo->gen, rginfo->fileid,
                 info->min_seqno, info->max_seqno, info->min_gen, info->max_gen,
                 info->min_txid, info->max_txid, rginfo->eoff);
@@ -953,7 +1036,7 @@ wal_replay_dump_rgen(struct wal_replay *rep)
     struct wal_replay_gen *cur;
 
     list_for_each_entry(cur, &rep->r_head, rg_link) {
-        hse_log(HSE_NOTICE "Gen %lu Seqno (%lu : %lu)", cur->rg_gen,
+        hse_log(HSE_NOTICE "WAL replay: Gen %lu Seqno (%lu : %lu)", cur->rg_gen,
                 cur->rg_info.min_seqno, cur->rg_info.max_seqno);
     }
 }

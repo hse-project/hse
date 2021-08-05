@@ -76,7 +76,7 @@ struct wal_sync_waiter {
 };
 
 
-#define recoverable_error(rc)  (rc == EAGAIN || rc == ECANCELED || rc == EPROTO)
+#define recoverable_error(rc)  (rc == EAGAIN || rc == ECANCELED)
 
 /* clang-format on */
 
@@ -407,7 +407,13 @@ wal_del_pfx(
 }
 
 static merr_t
-wal_txn(struct wal *wal, uint32_t rtype, uint64_t txid, uint64_t seqno, int64_t *cookie)
+wal_txn(
+    struct wal *wal,
+    uint32_t    rtype,
+    uint64_t    txid,
+    uint64_t    seqno,
+    uint64_t    cid,
+    int64_t    *cookie)
 {
     struct wal_txnrec_omf *rec;
     uint64_t rid, offset, gen;
@@ -430,7 +436,7 @@ wal_txn(struct wal *wal, uint32_t rtype, uint64_t txid, uint64_t seqno, int64_t 
     gen = c0sk_gen_current();
     wal_rechdr_pack(rtype, rid, rlen, gen, rec);
 
-    wal_txn_rec_pack(txid, seqno, rec);
+    wal_txn_rec_pack(txid, seqno, cid, rec);
 
     wal_bufset_finish(wal->wbs, wbidx, rlen, gen, offset + rlen);
     wal_txn_rechdr_finish(rec, rlen, offset);
@@ -443,7 +449,7 @@ wal_txn_begin(struct wal *wal, uint64_t txid, int64_t *cookie)
 {
     *cookie = -1;
 
-    return wal_txn(wal, WAL_RT_TXBEGIN, txid, 0, cookie);
+    return wal_txn(wal, WAL_RT_TXBEGIN, txid, 0, 0, cookie);
 }
 
 merr_t
@@ -451,15 +457,15 @@ wal_txn_abort(struct wal *wal, uint64_t txid, int64_t cookie)
 {
     assert(!wal || cookie >= 0);
 
-    return wal_txn(wal, WAL_RT_TXABORT, txid, 0, &cookie);
+    return wal_txn(wal, WAL_RT_TXABORT, txid, 0, 0, &cookie);
 }
 
 merr_t
-wal_txn_commit(struct wal *wal, uint64_t txid, uint64_t seqno, int64_t cookie)
+wal_txn_commit(struct wal *wal, uint64_t txid, uint64_t seqno, uint64_t cid, int64_t cookie)
 {
     assert(!wal || cookie >= 0);
 
-    return wal_txn(wal, WAL_RT_TXCOMMIT, txid, seqno, &cookie);
+    return wal_txn(wal, WAL_RT_TXCOMMIT, txid, seqno, cid, &cookie);
 }
 
 void
