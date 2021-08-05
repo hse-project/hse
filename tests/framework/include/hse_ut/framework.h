@@ -311,14 +311,14 @@ inner_attr_show(struct mtf_test_coll_info *tci, const char *attr_name, char *buf
     return cnt;
 }
 
-const char *home;
+char home[PATH_MAX];
 
 #define MTF_END_UTEST_COLLECTION(coll_name)                                                        \
                                                                                                    \
     int main(int argc, char **argv)                                                                \
     {                                                                                              \
         const char *paramv[] = { "socket.enabled=false" };                                         \
-        char *      logging_level;                                                                 \
+        char *      logging_level, *argv_home = NULL;                                              \
         int         c, rc;                                                                         \
                                                                                                    \
         _mtf_##coll_name##_tci.tci_named = 0;                                                      \
@@ -348,7 +348,7 @@ const char *home;
                     break;                                                                         \
                                                                                                    \
                 case 'C':                                                                          \
-                    home = optarg;                                                                 \
+                    argv_home = optarg;                                                            \
                     break;                                                                         \
                                                                                                    \
                 case ':':                                                                          \
@@ -365,6 +365,12 @@ const char *home;
                                                                                                    \
         _mtf_##coll_name##_tci.tci_argc = argc;                                                    \
         _mtf_##coll_name##_tci.tci_argv = argv;                                                    \
+                                                                                                   \
+        if (argv_home && !realpath(argv_home, home)) {                                             \
+            rc = errno;                                                                            \
+            fprintf(stderr, "Failed to resolve home directory\n");                                 \
+            return rc;                                                                             \
+        }                                                                                          \
                                                                                                    \
         rc = hse_init(home, NELEM(paramv), paramv);                                                \
         if (rc)                                                                                    \

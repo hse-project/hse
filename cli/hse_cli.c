@@ -1438,11 +1438,12 @@ cli_hse(struct cli_cmd *self, struct cli *cli)
     while (-1 != (c = cli_getopt(cli))) {
         switch (c) {
             case 'C': {
-                char                          buf[sizeof(cli->home)];
-                const size_t HSE_MAYBE_UNUSED n = strlcpy(buf, optarg, sizeof(cli->home));
-                assert(n <= sizeof(buf));
-                if (!realpath(buf, cli->home))
-                    return errno;
+                const size_t n = strlcpy(cli->home, optarg, sizeof(cli->home));
+
+                if (n >= sizeof(cli->home)) {
+                    fprintf(stderr, "Length of home directory path is >= PATH_MAX (%d)", PATH_MAX);
+                    return ENAMETOOLONG;
+                }
                 break;
             }
             case 'h':

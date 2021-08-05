@@ -8,7 +8,6 @@
 #include <hse_util/logging.h>
 #include <mpool/mpool_structs.h>
 
-extern const char *home;
 extern char capacity_path[PATH_MAX];
 extern char staging_path[PATH_MAX];
 

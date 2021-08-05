@@ -331,8 +331,8 @@ mclass_stats_get(struct media_class *mc, struct mpool_mclass_stats *stats)
 {
     merr_t err;
 
-    if (!mc || !stats)
-        return merr(EINVAL);
+    assert(mc);
+    assert(stats);
 
     err = mblock_fset_stats_get(mc->mbfsp, stats);
     if (err)
@@ -346,8 +346,7 @@ mclass_stats_get(struct media_class *mc, struct mpool_mclass_stats *stats)
 merr_t
 mclass_ftw(struct media_class *mc, const char *prefix, struct mpool_file_cb *cb)
 {
-    if (!mc)
-        return merr(EINVAL);
+    assert(mc);
 
     int
     mclass_file_cb(const char *path, const struct stat *sb, int typeflag, struct FTW *ftwbuf)

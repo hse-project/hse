@@ -19,7 +19,7 @@
 
 #include "common.h"
 
-extern const char *home;
+extern char home[PATH_MAX];
 
 char capacity_path[PATH_MAX];
 char staging_path[PATH_MAX];
