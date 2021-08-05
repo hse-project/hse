@@ -1421,6 +1421,7 @@ cli_hse(struct cli_cmd *self, struct cli *cli)
             "  hse -hv                  # get help on all commands",
             "  hse kvdb -h              # get help on KVDB commands",
             "  hse -C test kvdb create  # create a KVDB in the 'test' directory",
+            "  hse -C test kvs create   # create a KVS in the 'test' directory KVDB",
             NULL,
         },
     };
