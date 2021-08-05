@@ -1974,9 +1974,9 @@ MTF_DEFINE_UTEST_PREPOST(c0sk_test, c0_cursor_robust, no_fail_pre, no_fail_post)
         for (; j < n; ++j) {
             int vlen;
 
-            kvs_ktuple_init(&kt, kbuf, sprintf(kbuf, "%05d", keys[j]) + 1);
+            kvs_ktuple_init(&kt, kbuf, snprintf(kbuf, sizeof(kbuf), "%05d", keys[j]) + 1);
 
-            vlen = sprintf(vbuf, "%lu", (ulong)atomic64_read(&seqno));
+            vlen = snprintf(vbuf, sizeof(vbuf), "%lu", (ulong)atomic64_read(&seqno));
             kvs_vtuple_init(&vt, vbuf, vlen);
 
             err = c0sk_put(mkvdb.ikdb_c0sk, skidx, &kt, &vt, HSE_SQNREF_SINGLE);
@@ -2061,7 +2061,7 @@ MTF_DEFINE_UTEST_PREPOST(c0sk_test, c0_cursor_robust, no_fail_pre, no_fail_post)
     ASSERT_EQ(0, atoi(KOBJ2KEY(&elem.kce_kobj)));
 
     /* seek after last key */
-    seeklen = sprintf(seek, "%05d", 999999);
+    seeklen = snprintf(seek, sizeof(seek), "%05d", 999999);
     err = c0sk_cursor_seek(cur[0], seek, seeklen + 1, 0);
     ASSERT_EQ(0, err);
 
@@ -2072,7 +2072,7 @@ MTF_DEFINE_UTEST_PREPOST(c0sk_test, c0_cursor_robust, no_fail_pre, no_fail_post)
 
         /* always a valid key, never eof */
         j = random() % (nkeys - 1);
-        len = sprintf(seek, "%05d", j);
+        len = snprintf(seek, sizeof(seek), "%05d", j);
         for (k = 0; k < 5; ++k) {
             const char kdata[32];
             uint klen;
@@ -2167,9 +2167,9 @@ MTF_DEFINE_UTEST_PREPOST(c0sk_test, c0_cursor_eagain, no_fail_pre, no_fail_post)
     for (i = 0; i <= HSE_C0_KVSET_CURSOR_MAX; ++i) {
         int vlen;
 
-        kvs_ktuple_init(&kt, kbuf, sprintf(kbuf, "%05d", i));
+        kvs_ktuple_init(&kt, kbuf, snprintf(kbuf, sizeof(kbuf), "%05d", i));
 
-        vlen = sprintf(vbuf, "%lu", (ulong)atomic64_read(&seqno));
+        vlen = snprintf(vbuf, sizeof(vbuf), "%lu", (ulong)atomic64_read(&seqno));
         kvs_vtuple_init(&vt, vbuf, vlen);
 
         err = c0sk_put(c0sk, skidx, &kt, &vt, HSE_SQNREF_SINGLE);
@@ -2307,9 +2307,9 @@ MTF_DEFINE_UTEST_PREPOST(c0sk_test, c0_rcursor_robust, no_fail_pre, no_fail_post
         for (; j < n; ++j) {
             int vlen;
 
-            kvs_ktuple_init(&kt, kbuf, sprintf(kbuf, "%05d", keys[j]) + 1);
+            kvs_ktuple_init(&kt, kbuf, snprintf(kbuf, sizeof(kbuf), "%05d", keys[j]) + 1);
 
-            vlen = sprintf(vbuf, "%lu", (ulong)atomic64_read(&seqno));
+            vlen = snprintf(vbuf, sizeof(vbuf), "%lu", (ulong)atomic64_read(&seqno));
             kvs_vtuple_init(&vt, vbuf, vlen);
 
             err = c0sk_put(mkvdb.ikdb_c0sk, skidx, &kt, &vt, HSE_SQNREF_SINGLE);
@@ -2363,7 +2363,7 @@ MTF_DEFINE_UTEST_PREPOST(c0sk_test, c0_rcursor_robust, no_fail_pre, no_fail_post
     ASSERT_EQ(0, err);
 
     /* seek to the first key */
-    seeklen = sprintf(seek, "%05d", 99999);
+    seeklen = snprintf(seek, sizeof(seek), "%05d", 99999);
     err = c0sk_cursor_seek(cur[0], seek, seeklen + 1, 0);
     ASSERT_EQ(0, err);
 
@@ -2380,7 +2380,7 @@ MTF_DEFINE_UTEST_PREPOST(c0sk_test, c0_rcursor_robust, no_fail_pre, no_fail_post
     ASSERT_TRUE(eof);
 
     /* seek to first element <= 999999 */
-    seeklen = sprintf(seek, "%05d", 999999);
+    seeklen = snprintf(seek, sizeof(seek), "%05d", 999999);
     err = c0sk_cursor_seek(cur[0], seek, seeklen + 1, 0);
     ASSERT_EQ(0, err);
 
@@ -2405,7 +2405,7 @@ MTF_DEFINE_UTEST_PREPOST(c0sk_test, c0_rcursor_robust, no_fail_pre, no_fail_post
 
         /* always a valid key, never eof */
         j = random() % (nkeys - 1);
-        len = sprintf(seek, "%05d", j);
+        len = snprintf(seek, sizeof(seek), "%05d", j);
         for (k = 0; k < 5; ++k) {
             const char kdata[32];
             uint klen;
