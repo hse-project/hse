@@ -217,7 +217,7 @@ Java_org_micron_hse_API_open(
                 "HSE config could not be parsed");
             goto out;
         }
-        if (jni_hse_config_parse(&kvs_make_paramc, kvs_make_paramv, kvs_make_duped_config, "kvs.make.", MAX_ARGS)) {
+        if (jni_hse_config_parse(&kvs_make_paramc, kvs_make_paramv, kvs_make_duped_config, "kvs.create.", MAX_ARGS)) {
             throw_gen_exception(
                 env,
                 "HSE config could not be parsed");
