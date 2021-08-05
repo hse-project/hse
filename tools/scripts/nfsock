@@ -11,8 +11,6 @@ import pathlib
 
 def make_argparser() -> argparse.ArgumentParser:
     argparser = argparse.ArgumentParser(
-        formatter_class=argparse.RawDescriptionHelpFormatter,
-        add_help=False,
         description="""
 Convert NF data tree from YAML to a more readable form.
 """,
@@ -247,10 +245,6 @@ def main():
 
     global op
     op = argparser.parse_args()
-
-    if op.help:
-        help(argparser)
-        return 0
 
     with open(op.home / "kvdb.pid", "r") as pfh:
         content = json.load(pfh)
