@@ -247,7 +247,7 @@ kvdb_info_props(const char *kvdb_home, const size_t paramc, const char *const *p
 
         err = socket_path_get(kvdb_home, socket_path, sizeof(socket_path));
         if (err) {
-            fprintf(stderr, "unable to create the UNIX socket path for the KVDB\n");
+            fprintf(stderr, "Failed to find the UNIX socket for the KVDB (%s). Ensure the KVDB is open in a process.\n", kvdb_home);
             goto exit;
         }
 
@@ -541,7 +541,7 @@ kvdb_compact_request(const char *kvdb_home, const char *request_type, u32 timeou
         if (hse_err_to_errno(err) != EEXIST && hse_err_to_errno(err) != EBUSY) {
             char buf[256];
             hse_strerror(err, buf, sizeof(buf));
-            fprintf(stderr, "kvdb open %s failed: %s\n", kvdb_home, buf);
+            fprintf(stderr, "Failed to open the KVDB (%s): %s\n", kvdb_home, buf);
             goto err_out;
         }
     }
@@ -554,7 +554,7 @@ kvdb_compact_request(const char *kvdb_home, const char *request_type, u32 timeou
         if (err) {
             char buf[256];
             hse_strerror(err, buf, sizeof(buf));
-            fprintf(stderr, "unable to get %s kvs names: %s\n", kvdb_home, buf);
+            fprintf(stderr, "Failed to retrieve the KVS names of the KVDB (%s): %s\n", kvdb_home, buf);
             goto err_out;
         }
 
@@ -565,7 +565,7 @@ kvdb_compact_request(const char *kvdb_home, const char *request_type, u32 timeou
             if (err) {
                 char buf[256];
                 hse_strerror(err, buf, sizeof(buf));
-                fprintf(stderr, "kvs open %s failed: %s\n", kvs_list[i], buf);
+                fprintf(stderr, "Failed to open the KVS (%s) within the KVDB (%s): %s\n", kvs_list[i], kvdb_home, buf);
                 goto err_out;
             }
         }
@@ -573,20 +573,18 @@ kvdb_compact_request(const char *kvdb_home, const char *request_type, u32 timeou
 
     err = socket_path_get(kvdb_home, socket_path, sizeof(socket_path));
     if (err) {
-        fprintf(stderr, "unable to create the UNIX socket path for the KVDB\n");
+        fprintf(stderr, "Failed to find the UNIX socket for the KVDB (%s). Ensure the KVDB is open in a process.\n", kvdb_home);
         goto err_out;
     }
 
     if (strcmp(request_type, "request") == 0) {
         const char *policy = "samp_lwm";
 
-        printf("issuing compaction request with timeout of %u seconds\n", timeout_sec);
-
         err = rest_kvdb_comp(socket_path, policy);
         if (err) {
             char buf[256];
             hse_strerror(err, buf, sizeof(buf));
-            fprintf(stderr, "rest_kvdb_comp(%s) failed: %s\n", policy, buf);
+            fprintf(stderr, "Compaction request failed for the KVDB (%s): %s\n", kvdb_home, buf);
             goto err_out;
         }
 
@@ -594,14 +592,14 @@ kvdb_compact_request(const char *kvdb_home, const char *request_type, u32 timeou
         if (err) {
             char buf[256];
             hse_strerror(err, buf, sizeof(buf));
-            fprintf(stderr, "rest_kvdb_status failed: %s\n", buf);
+            fprintf(stderr, "Failed to retrieve current compaction status of the KVDB (%s): %s\n", kvdb_home, buf);
             goto err_out;
         }
 
         rest_status_parse(stat_buf, &status);
 
         if (!status.kvcs_active) {
-            printf("no active compaction request in progress\n");
+            printf("No active compaction request for KVDB (%s) in progress\n", kvdb_home);
             err = 0;
             goto err_out;
         }
@@ -613,7 +611,7 @@ kvdb_compact_request(const char *kvdb_home, const char *request_type, u32 timeou
             if (err) {
                 char buf[256];
                 hse_strerror(err, buf, sizeof(buf));
-                fprintf(stderr, "rest_kvdb_status failed: %s\n", buf);
+                fprintf(stderr, "Failed to retrieve current compaction status of the KVDB (%s): %s\n", kvdb_home, buf);
                 goto err_out;
             }
 
@@ -623,14 +621,13 @@ kvdb_compact_request(const char *kvdb_home, const char *request_type, u32 timeou
                 sleep(sleep_secs);
 
             if (get_time_ns() > stop_ts) {
-
-                fprintf(stderr, "compact kvdb %s timed out\n", kvdb_home);
+                fprintf(stderr, "Compaction request timed out for the KVDB (%s)\n", kvdb_home);
 
                 err = rest_kvdb_comp(socket_path, "cancel");
                 if (err) {
                     char buf[256];
                     hse_strerror(err, buf, sizeof(buf));
-                    fprintf(stderr, "rest_kvdb_comp cancel failed: %s\n", buf);
+                    fprintf(stderr, "Failed to cancel compaction for the KVDB (%s): %s\n", kvdb_home, buf);
                 } else {
                     err = ETIMEDOUT;
                 }
@@ -638,27 +635,23 @@ kvdb_compact_request(const char *kvdb_home, const char *request_type, u32 timeou
             }
         }
 
-        printf("compact kvdb %s %s\n", kvdb_home, status.kvcs_canceled ? "canceled" : "successful");
-
+        printf("Compaction request was %s for KVDB (%s)\n", status.kvcs_canceled ? "canceled" : "successful", kvdb_home);
     } else if (strcmp(request_type, "cancel") == 0) {
-
         err = rest_kvdb_comp(socket_path, "cancel");
         if (err) {
             char buf[256];
             hse_strerror(err, buf, sizeof(buf));
-            fprintf(stderr, "rest_kvdb_comp cancel failed: %s\n", buf);
+            fprintf(stderr, "Failed to cancel compaction for the KVDB (%s): %s\n", kvdb_home, buf);
             goto err_out;
         }
 
-        printf("compact kvdb %s canceled\n", kvdb_home);
-
+        printf("Successfully canceled the compaction request for the KVDB (%s)\n", kvdb_home);
     } else if (strcmp(request_type, "status") == 0) {
-
         err = rest_kvdb_status(socket_path, sizeof(stat_buf), stat_buf);
         if (err) {
             char buf[256];
             hse_strerror(err, buf, sizeof(buf));
-            fprintf(stderr, "rest_kvdb_status failed: %s\n", buf);
+            fprintf(stderr, "Failed to retrieve current compaction status of the KVDB (%s): %s\n", kvdb_home, buf);
             goto err_out;
         }
 
@@ -692,7 +685,7 @@ hse_kvdb_params(const char *kvdb_home, bool get)
 
     err = socket_path_get(kvdb_home, socket_path, sizeof(socket_path));
     if (err) {
-        fprintf(stderr, "unable to create the UNIX socket path for the KVDB\n");
+        fprintf(stderr, "Failed to find the UNIX socket for the KVDB (%s). Ensure the KVDB is open in a process.\n", kvdb_home);
         goto err_out;
     }
 
@@ -703,10 +696,10 @@ hse_kvdb_params(const char *kvdb_home, bool get)
             hse_strerror(err, buf, sizeof(buf));
             fprintf(
                 stderr,
-                "rest_kvdb_params failed: %s\n"
-                "Ensure that KVDB '%s' is open in a process before querying its params.\n",
-                buf,
-                kvdb_home);
+                "Failed to retrieve parameters for the KVDB (%s): %s\n"
+                "Ensure the KVDB is open in a process before querying its params.\n",
+                kvdb_home,
+                buf);
             goto err_out;
         }
 
