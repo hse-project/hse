@@ -24,12 +24,12 @@ kvdb_home_resolve(const char *home, char *buf, const size_t buf_sz)
     if (!home) {
         if (!getcwd(buf, buf_sz))
             return merr(errno);
+    } else {
+        const size_t n = strlcpy(buf, home, buf_sz);
 
-        return 0;
+        if (n >= buf_sz)
+            return merr(ENAMETOOLONG);
     }
-
-    if (!realpath(home, buf))
-        return merr(errno);
 
     return 0;
 }

@@ -3,7 +3,7 @@
  * Copyright (C) 2021 Micron Technology, Inc.  All rights reserved.
  */
 
-#include "_config.h"
+#include "build_config.h"
 
 #include <assert.h>
 #include <errno.h>
@@ -23,7 +23,8 @@
 #include <hse_ikvdb/param.h>
 #include <hse_ikvdb/kvdb_rparams.h>
 #include <hse_ikvdb/kvs_rparams.h>
-#ifdef HSE_CONF_EXTENDED
+
+#ifdef WITH_KVDB_CONF_EXTENDED
 #include <hse_ikvdb/kvdb_cparams.h>
 #include <hse_ikvdb/kvdb_dparams.h>
 #include <hse_ikvdb/kvs_cparams.h>
@@ -262,7 +263,7 @@ config_deserialize_to_hse_gparams(const struct config *conf, struct hse_gparams 
     return json_deserialize(pspecs, pspecs_sz, p, NULL, 0, 1, (cJSON *)conf);
 }
 
-#ifdef HSE_CONF_EXTENDED
+#ifdef WITH_KVDB_CONF_EXTENDED
 merr_t
 config_deserialize_to_kvdb_cparams(const struct config *conf, struct kvdb_cparams *params)
 {
@@ -338,7 +339,7 @@ merr_t
 config_deserialize_to_kvdb_rparams(const struct config *conf, struct kvdb_rparams *params)
 {
     merr_t err = 0;
-#ifndef HSE_CONF_EXTENDED
+#ifndef WITH_KVDB_CONF_EXTENDED
     const char * ignore_keys[] = { "kvs" };
     const size_t ignore_keys_sz = NELEM(ignore_keys);
 #else
@@ -357,7 +358,7 @@ config_deserialize_to_kvdb_rparams(const struct config *conf, struct kvdb_rparam
     if (!conf)
         return err;
 
-#ifdef HSE_CONF_EXTENDED
+#ifdef WITH_KVDB_CONF_EXTENDED
     ignore_keys = malloc(sizeof(char *) * ignore_keys_sz);
     if (!ignore_keys)
         return merr(ENOMEM);
@@ -372,14 +373,14 @@ config_deserialize_to_kvdb_rparams(const struct config *conf, struct kvdb_rparam
 
     err = json_deserialize(rpspecs, rpspecs_sz, p, ignore_keys, ignore_keys_sz, 1, (cJSON *)conf);
 
-#ifdef HSE_CONF_EXTENDED
+#ifdef WITH_KVDB_CONF_EXTENDED
     free(ignore_keys);
 #endif
 
     return err;
 }
 
-#ifdef HSE_CONF_EXTENDED
+#ifdef WITH_KVDB_CONF_EXTENDED
 merr_t
 config_deserialize_to_kvs_cparams(
     const struct config *conf,
@@ -442,7 +443,7 @@ config_deserialize_to_kvs_rparams(
     merr_t err = 0;
     cJSON *kvs = NULL;
     cJSON *named_kvs = NULL, *default_kvs = NULL;
-#ifdef HSE_CONF_EXTENDED
+#ifdef WITH_KVDB_CONF_EXTENDED
     const char **            ignore_keys = NULL;
     size_t                   cpspecs_sz;
     const struct param_spec *cpspecs = kvs_cparams_pspecs_get(&cpspecs_sz);
@@ -474,7 +475,7 @@ config_deserialize_to_kvs_rparams(
     if (named_kvs)
         num_providers++;
 
-#ifndef HSE_CONF_EXTENDED
+#ifndef WITH_KVDB_CONF_EXTENDED
     err = json_deserialize(rpspecs, rpspecs_sz, p, NULL, 0, num_providers, default_kvs, named_kvs);
 #else
     ignore_keys = malloc(sizeof(char *) * cpspecs_sz);

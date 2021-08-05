@@ -1,21 +1,50 @@
-_config_h_data = configuration_data()
+build_config_h_data = configuration_data({
+    'SUPPORTS_ATTR_ALWAYS_INLINE': cc.has_function_attribute('always_inline'),
+    'SUPPORTS_ATTR_FORMAT': cc.has_function_attribute('format'),
+    'SUPPORTS_ATTR_PACKED': cc.has_function_attribute('packed'),
+    'SUPPORTS_ATTR_ALIGNED': cc.has_function_attribute('aligned'),
+    'SUPPORTS_ATTR_SECTION': cc.compiles(
+        '''
+        int x __attribute__((section(".read_mostly"))) = 0;
+        ''',
+        name: '__attribute__((section(".read_mostly")))',
+    ),
+    'SUPPORTS_ATTR_UNUSED': cc.has_function_attribute('unused'),
+    'SUPPORTS_ATTR_USED': cc.has_function_attribute('used'),
+    'SUPPORTS_ATTR_HOT': cc.has_function_attribute('hot'),
+    'SUPPORTS_ATTR_COLD': cc.has_function_attribute('cold'),
+    'SUPPORTS_ATTR_RETURNS_NONNULL': cc.has_function_attribute('returns_nonnull'),
+    'SUPPORTS_ATTR_CONST': cc.has_function_attribute('const'),
+    'SUPPORTS_ATTR_WEAK': cc.has_function_attribute('weak'),
+    'SUPPORTS_ATTR_SENTINEL': cc.compiles(
+        '''
+        int __attribute__((sentinel))
+        test_func(const char *fmt, ...)
+        {
+            return 0;
+        }
+        ''',
+        name: '__attribute__((sentinel))',
+    ),
+    'SUPPORTS_ATTR_NO_SANITIZE_ALIGNMENT': cc.compiles(
+        '''
+        int __attribute__((no_sanitize("alignment")))
+        test_func()
+        {
+            return 0;
+        }
+        ''',
+        name: '__attribute__((no_sanitize("alignment")))',
+    ),
+    'WITH_COVERAGE': get_option('b_coverage'),
+    'WITH_UBSAN': get_option('b_sanitize').contains('undefined'),
+    'WITH_KVDB_CONF_EXTENDED': get_option('kvdb-conf-extended'),
+})
 
-_config_h_data.set(
-    'WITH_COVERAGE',
-    get_option('b_coverage'),
-    description: 'Building with coverage support',
-)
-
-_config_h_data.set(
-    'HSE_CONF_EXTENDED',
-    get_option('hse-conf-extended'),
-    description: '[TESTING PURPOSES ONLY] Allow cparams and dparams to exist in hse.conf'
-)
-
-_config_h = configure_file(
-    input: '_config.h.in',
-    output: '_config.h',
-    configuration: _config_h_data,
+build_config_h = configure_file(
+    input: 'build_config.h.in',
+    output: 'build_config.h',
+    configuration: build_config_h_data,
 )
 
 component_root_includes = include_directories('.')
@@ -37,7 +66,7 @@ subdir('mpool')
 subdir('pidfile')
 
 hse_sources = [
-    _config_h,
+    build_config_h,
     binding_sources,
     c0_sources,
     lc_sources,
@@ -129,7 +158,7 @@ hse_static_dep = declare_dependency(
     variables: hse_variables,
 )
 
-if 'unit' in hse_tests
+if get_option('tests')
     hse_mock_c_args = [
         '-DHSE_MOCKING=1',
     ]

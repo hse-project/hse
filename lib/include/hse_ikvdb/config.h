@@ -6,13 +6,13 @@
 #ifndef HSE_CONFIG_CONFIG_H
 #define HSE_CONFIG_CONFIG_H
 
-#include "_config.h"
+#include "build_config.h"
 
 #include <hse_util/hse_err.h>
 #include <hse_ikvdb/kvdb_rparams.h>
 #include <hse_ikvdb/kvs_rparams.h>
 #include <hse_ikvdb/hse_gparams.h>
-#ifdef HSE_CONF_EXTENDED
+#ifdef WITH_KVDB_CONF_EXTENDED
 #include <hse_ikvdb/kvdb_cparams.h>
 #include <hse_ikvdb/kvdb_dparams.h>
 #include <hse_ikvdb/kvs_cparams.h>
@@ -29,7 +29,7 @@ struct config;
 merr_t
 config_deserialize_to_hse_gparams(const struct config *conf, struct hse_gparams *params);
 
-#ifdef HSE_CONF_EXTENDED
+#ifdef WITH_KVDB_CONF_EXTENDED
 /**
  * Deserialize a config object into KVDB cparams
  *
@@ -58,7 +58,7 @@ config_deserialize_to_kvdb_dparams(const struct config *conf, struct kvdb_dparam
 merr_t
 config_deserialize_to_kvdb_rparams(const struct config *conf, struct kvdb_rparams *params);
 
-#ifdef HSE_CONF_EXTENDED
+#ifdef WITH_KVDB_CONF_EXTENDED
 /**
  * Deserialize a config object into KVS cparams
  *

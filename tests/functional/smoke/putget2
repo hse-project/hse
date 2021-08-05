@@ -1,0 +1,26 @@
+#!/usr/bin/env bash
+
+#doc: simple putgetdel test on a KVDB kvs
+
+source $(dirname "${BASH_SOURCE[0]}")/smoke.subr
+
+trap kvdb_drop EXIT SIGTERM SIGINT SIGKILL
+kvdb_create
+
+keys=10000
+t=4   #threads
+
+# add 4 KVSes to the KVDB
+kvs_unused1=$(kvs_create smoke-0) || exit $?
+kvs1=$(kvs_create smoke-1) || exit $?
+kvs2=$(kvs_create smoke-2) || exit $?
+kvs3=$(kvs_create smoke-3) || exit $?
+kvs4=$(kvs_create smoke-4) || exit $?
+kvs_unused2=$(kvs_create smoke-5) || exit $?
+
+kvs_list="$kvs1,$kvs2,$kvs3,$kvs4"
+
+cmd putgetdel "$home" $kvs_list -v -t $t -c $keys
+cmd putgetdel "$home" $kvs_list -v -t $t -c $keys --sync
+cmd putgetdel "$home" $kvs_list -v -t $t -c $keys --ckvs
+cmd putgetdel "$home" $kvs_list -v -t $t -c $keys --ckvdb

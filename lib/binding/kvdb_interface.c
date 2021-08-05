@@ -5,7 +5,7 @@
 
 #define MTF_MOCK_IMPL_hse
 
-#include "_config.h"
+#include "build_config.h"
 
 #include <mpool/mpool.h>
 
@@ -151,7 +151,7 @@ hse_kvdb_create(const char *kvdb_home, size_t paramc, const char *const *const p
     struct pidfile       content;
     struct mpool_rparams mp_rparams = { 0 };
     bool                 mpool_created = false;
-#ifdef HSE_CONF_EXTENDED
+#ifdef WITH_KVDB_CONF_EXTENDED
     struct config *conf = NULL;
 #endif
 
@@ -166,7 +166,7 @@ hse_kvdb_create(const char *kvdb_home, size_t paramc, const char *const *const p
     if (ev(err))
         return merr_to_hse_err(err);
 
-#ifdef HSE_CONF_EXTENDED
+#ifdef WITH_KVDB_CONF_EXTENDED
     err = config_from_kvdb_conf(real_home, &conf);
     if (ev(err))
         return merr_to_hse_err(err);
@@ -258,7 +258,7 @@ out:
     }
     pfh = NULL;
 
-#ifdef HSE_CONF_EXTENDED
+#ifdef WITH_KVDB_CONF_EXTENDED
     config_destroy(conf);
 #endif
 
@@ -274,7 +274,7 @@ hse_kvdb_drop(const char *kvdb_home, const size_t paramc, const char *const *con
     struct pidfh *      pfh = NULL;
     merr_t              err, err1;
     u64                 logid1, logid2;
-#ifdef HSE_CONF_EXTENDED
+#ifdef WITH_KVDB_CONF_EXTENDED
     struct config *conf = NULL;
 #endif
 
@@ -289,7 +289,7 @@ hse_kvdb_drop(const char *kvdb_home, const size_t paramc, const char *const *con
     if (err)
         goto out;
 
-#ifdef HSE_CONF_EXTENDED
+#ifdef WITH_KVDB_CONF_EXTENDED
     err = config_from_kvdb_conf(real_home, &conf);
     if (ev(err))
         goto out;
@@ -325,7 +325,7 @@ hse_kvdb_drop(const char *kvdb_home, const size_t paramc, const char *const *con
     }
 
 out:
-#ifdef HSE_CONF_EXTENDED
+#ifdef WITH_KVDB_CONF_EXTENDED
     config_destroy(conf);
 #endif
     if (pfh)
@@ -520,7 +520,7 @@ hse_kvdb_kvs_create(
 {
     struct kvs_cparams params = kvs_cparams_defaults();
     merr_t             err;
-#ifdef HSE_CONF_EXTENDED
+#ifdef WITH_KVDB_CONF_EXTENDED
     const struct config *conf = ikvdb_config((struct ikvdb *)handle);
 #endif
 
@@ -537,7 +537,7 @@ hse_kvdb_kvs_create(
     if (ev(err))
         return merr_to_hse_err(err);
 
-#ifdef HSE_CONF_EXTENDED
+#ifdef WITH_KVDB_CONF_EXTENDED
     err = config_deserialize_to_kvs_cparams(conf, kvs_name, &params);
     if (ev(err))
         return merr_to_hse_err(err);

@@ -23,8 +23,10 @@ runtime_home_set(const char *home)
         if (!getcwd(runtime_home, sizeof(runtime_home)))
             return merr(errno);
     } else {
-        if (!realpath(home, runtime_home))
-            return merr(errno);
+        const size_t n = strlcpy(runtime_home, home, sizeof(runtime_home));
+
+        if (n >= sizeof(runtime_home))
+            return merr(ENAMETOOLONG);
     }
 
     return 0;

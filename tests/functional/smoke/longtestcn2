@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+
+#doc: quick longtest focused on cn
+
+source $(dirname "${BASH_SOURCE[0]}")/smoke.subr
+
+trap kvdb_drop EXIT SIGTERM SIGINT SIGKILL
+kvdb_create
+
+# add 3 KVSes to the KVDB
+kvs1=$(kvs_create smoke-0) || exit $?
+kvs2=$(kvs_create smoke-1) || exit $?
+kvs3=$(kvs_create smoke-2) || exit $?
+
+threads=4
+keys=100000
+seed=$RANDOM
+
+# This test requires '--once' to ensure each thread of each invocation of
+# longtest runs through exactly one iteration.
+for (( phase = 0; phase <= 9; phase++ )); do
+    cmd longtest "$home" $kvs2 -t $threads -c $keys --mphase $((1<<phase)) --verify 100 --seed $seed --once -v
+    cmd cn_metrics "$home" $kvs2
+done

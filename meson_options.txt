@@ -4,7 +4,7 @@ option('experimental', type: 'boolean', value: true,
     description: 'Build the experimental parts of HSE')
 option('install-rpath', type: 'boolean', value: true,
     description: 'Add rpath to ELF files to faciliate discovery of libhse')
-option('tests', type: 'array', choices: ['all', 'none', 'unit', 'functional'], value: ['unit'],
+option('tests', type: 'boolean', value: true,
     description: 'Build and enable tests')
 option('ycsb', type: 'boolean', value: false,
     description: 'Build JNI bridge artifacts')
@@ -26,10 +26,9 @@ option('use-system-cjson', type: 'boolean', value: false,
     description: 'Build against the system cJSON package')
 option('bindings', type: 'array', choices: ['all', 'none', 'python'], value: ['all'],
     description: 'Build language bindings')
-option('hse-conf-extended', type: 'boolean', value: false,
-    description: '[TESTING PURPOSES ONLY] Allow cparams/dparams to exist in hse.conf')
+option('kvdb-conf-extended', type: 'boolean', value: false,
+    description: '[TESTING PURPOSES ONLY] Allow cparams/dparams to exist in kvdb.conf')
 option('tests-dir', type: 'string', value: '',
     description: 'Directory for pre-creating home directories')
 option('docs', type: 'boolean', value: false,
     description: 'Build documentation')
-

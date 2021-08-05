@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+
+#doc: simple kvt c1 logreplay crash test (transactional, snapshot isolation)
+
+source $(dirname "${BASH_SOURCE[0]}")/smoke.subr
+
+trap kvdb_drop EXIT SIGTERM SIGINT SIGKILL
+kvdb_create
+
+cpus=$(nproc)
+
+cmd kvt -i1m "$home"
+cmd -s 9 kvt -T60,$((cpus * 2)) -ccv -l8 -m1 -K9,10,20 "$home"
+cmd -s 9 kvt -T60,$((cpus * 2)) -ccv -l8 -m1 -K9,15,25 "$home"
+
+cmd kvt -cv "$home"

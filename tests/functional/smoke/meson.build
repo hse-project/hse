@@ -248,8 +248,6 @@ tests = {
     #   ptree-test
 }
 
-runner_script = find_program('smoke', required: true)
-
 foreach t, params : tests
     home_dir = tests_dir / t
     if not fs.exists(home_dir)
@@ -260,13 +258,20 @@ foreach t, params : tests
         )
     endif
 
+    # Make sure every file is executable
+    run_command(
+        sh,
+        '-c',
+        '[ -x "@0@" ]'.format(t),
+        check: true
+    )
+
     test(
         t,
-        runner_script,
+        bash,
         args: [
-            '-d', meson.current_build_dir(),
-            '-m', home_dir,
-            t,
+            meson.current_source_dir() / t,
+            '-C', home_dir,
         ],
         timeout: 1800,
         is_parallel: true,

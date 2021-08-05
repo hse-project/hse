@@ -272,12 +272,6 @@ MTF_DEFINE_UTEST_PREPOST(mpool_test, mclass_test, mpool_test_pre, mpool_test_pos
         ASSERT_EQ(i, mcid_to_mclass(i + 1));
     }
 
-    err = mclass_stats_get(NULL, &stats);
-    ASSERT_EQ(EINVAL, merr_errno(err));
-
-    err = mclass_stats_get(mc, NULL);
-    ASSERT_EQ(EINVAL, merr_errno(err));
-
     ASSERT_EQ(MCID_INVALID, mclass_to_mcid(i));
     ASSERT_EQ(MP_MED_INVALID, mcid_to_mclass(i + 1));
 

@@ -26,13 +26,14 @@ MTF_DEFINE_UTEST(kvdb_home_test, translation_null)
 	ASSERT_EQ(0, strncmp(cwd, buf, sizeof(cwd)));
 }
 
-MTF_DEFINE_UTEST(kvdb_home_test, translation_dne)
+MTF_DEFINE_UTEST(kvdb_home_test, translation)
 {
 	merr_t err;
 	char   buf[PATH_MAX];
 
-	err = kvdb_home_resolve("/this/does/not/exist", buf, sizeof(buf));
-	ASSERT_NE(0, err);
+	err = kvdb_home_resolve("/var/lib/hse", buf, sizeof(buf));
+	ASSERT_EQ(0, err);
+	ASSERT_STREQ(buf, "/var/lib/hse");
 }
 
 MTF_DEFINE_UTEST(kvdb_home_test, storage_capacity_path)

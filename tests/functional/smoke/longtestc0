@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+
+#doc: quick longtest focused on c0
+
+source $(dirname "${BASH_SOURCE[0]}")/smoke.subr
+
+trap kvdb_drop EXIT SIGTERM SIGINT SIGKILL
+kvdb_create
+
+kvs=$(kvs_create smoke-0) || exit $?
+
+threads=1
+keys=5000
+
+cmd longtest "$home" $kvs -t $threads -i 3 -c $keys
+cmd cn_metrics "$home" $kvs

@@ -10,7 +10,7 @@
 #include <stdio.h>
 #include <errno.h>
 
-extern const char *home;
+extern char home[PATH_MAX];
 
 static struct hse_kvdb *mtf_kvdb_handle;
 

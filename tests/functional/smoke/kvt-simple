@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+
+#doc: simple kvt test (non-transactional)
+
+source $(dirname "${BASH_SOURCE[0]}")/smoke.subr
+
+trap kvdb_drop EXIT SIGTERM SIGINT SIGKILL
+kvdb_create
+
+# kvdb/kvs test
+
+cmd kvt -i1m -t15 -cv -m1 "$home"

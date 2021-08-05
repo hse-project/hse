@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+
+#doc: 60s longtest
+
+source $(dirname "${BASH_SOURCE[0]}")/smoke.subr
+
+trap kvdb_drop EXIT SIGTERM SIGINT SIGKILL
+kvdb_create
+
+kvs=$(kvs_create smoke-0) || exit $?
+
+keys=$((20*1000*1000))
+threads=$(nproc)
+seconds=60
+
+cmd longtest "$home" $kvs -t $threads -s $seconds -c $keys
+cmd cn_metrics "$home" $kvs

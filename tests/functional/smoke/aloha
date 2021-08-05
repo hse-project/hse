@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+
+#doc: a "hello world" test
+
+source $(dirname "${BASH_SOURCE[0]}")/smoke.subr
+
+cmd echo aloha
+cmd -i echo --not-an-option

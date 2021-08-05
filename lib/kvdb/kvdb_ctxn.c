@@ -733,7 +733,14 @@ kvdb_ctxn_set_create(struct kvdb_ctxn_set **handle_out, u64 txn_timeout_ms, u64 
     return 0;
 }
 
-void
+/* We can not compile this function with alignment checking because of the
+ * cds_list macro usage.
+ *
+ * [HSE_TODO]: Determine whether it could be worth wrapping the cds_list macros
+ * into inline functions and annotating that function instead to reduce
+ * annotation scope.
+ */
+void HSE_NO_SANITIZE_ALIGNMENT
 kvdb_ctxn_set_destroy(struct kvdb_ctxn_set *handle)
 {
     struct kvdb_ctxn_set_impl *ktn;

@@ -29,7 +29,6 @@ enum mpool_mclass {
 #define MP_MED_COUNT   (MP_MED_STAGING + 1)
 #define MP_MED_INVALID U8_MAX
 
-
 /**
  * struct mpool_cparams - mpool create params
  *

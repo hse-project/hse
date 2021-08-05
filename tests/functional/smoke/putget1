@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+
+#doc: simple putgetdel test
+
+source $(dirname "${BASH_SOURCE[0]}")/smoke.subr
+
+trap kvdb_drop EXIT SIGTERM SIGINT SIGKILL
+kvdb_create
+
+keys=10000
+kvs=$(kvs_create smoke-0) || exit $?
+
+cmd putgetdel "$home" $kvs -c $keys

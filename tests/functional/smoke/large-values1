@@ -1,0 +1,35 @@
+#!/usr/bin/env bash
+
+#doc: kmt large value test (SBUSWNF-2165)
+
+source $(dirname "${BASH_SOURCE[0]}")/smoke.subr
+
+trap kvdb_drop EXIT SIGTERM SIGINT SIGKILL
+kvdb_create
+
+kvs=$(kvs_create smoke-0) || exit $?
+
+# This test depends on having 1MiB values in vblocks at offsets that are not
+# page-aligned.  Using a small number of value lengths make that a frequent
+# occurrence, thus exposing the bug (or verifying the fix) more likely.
+
+VLEN=-l1048532:1048576
+KEYS=20k
+
+# ingest w spill disabled
+cmd kmt "$home" $kvs -s1 $VLEN -i$KEYS kvs-oparms cn_maint_disable=1
+
+# verify no spill occurred
+cmd cn_metrics "$home" $kvs | cmd -e grep -q n.1,
+
+# verify keys and values
+cmd kmt "$home" $kvs -s1 $VLEN -c kvs-oparms cn_maint_disable=1
+
+# spill
+cmd putbin "$home" $kvs -n 1000 kvs-oparms cn_close_wait=1
+
+# verify spill has occurred
+cmd cn_metrics "$home" $kvs | cmd grep -q n.1,
+
+# verify keys and values
+cmd kmt "$home" $kvs -s1 $VLEN -c kvs-oparms cn_maint_disable=1

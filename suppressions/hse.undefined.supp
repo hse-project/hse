@@ -1,0 +1,4 @@
+# https://clang.llvm.org/docs/UndefinedBehaviorSanitizer.html
+alignment:_urcu_bp_read_lock
+alignment:_urcu_bp_read_unlock
+alignment:_urcu_bp_read_ongoing
