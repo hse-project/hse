@@ -1092,17 +1092,21 @@ c0sk_queue_ingest(struct c0sk_impl *self, struct c0_kvmultiset *old)
  * For sync(), we need to know when this c0kvms has been ingested.
  */
 merr_t
-c0sk_flush_current_multiset(struct c0sk_impl *self, u64 *genp, bool destroywaitflag)
+c0sk_flush_current_multiset(struct c0sk_impl *self, u64 *genp, bool destroywait)
 {
     struct c0_kvmultiset *old;
     merr_t                err;
 
-    rcu_read_lock();
+    /* Serialize all callers who wish to wait for the c0kvms refcount
+     * to drop to 0 (otherwise two concurrent callers could deadlock).
+     */
+    while (destroywait && sem_wait(&self->c0sk_sync_sema))
+        continue;
 
+    rcu_read_lock();
     old = c0sk_get_first_c0kvms(&self->c0sk_handle);
     if (old)
         c0kvms_getref(old);
-
     rcu_read_unlock();
 
     if (ev(!old))
@@ -1117,7 +1121,7 @@ c0sk_flush_current_multiset(struct c0sk_impl *self, u64 *genp, bool destroywaitf
          * the ingest rate is high.  If the ingest rate is low it simply
          * serves to limit the sync frequency to roughly dur_intvl_ms.
          */
-        if (!self->c0sk_closing && !destroywaitflag) {
+        if (!self->c0sk_closing && !destroywait) {
             long waitmax = self->c0sk_kvdb_rp->dur_intvl_ms / 2;
             long delay = min_t(long, waitmax / 10 + 1, 100);
 
@@ -1139,9 +1143,12 @@ c0sk_flush_current_multiset(struct c0sk_impl *self, u64 *genp, bool destroywaitf
     }
 
     err = c0sk_queue_ingest(self, old);
-    if (!err && destroywaitflag) {
-        while (c0kvms_refcnt(old) > 1)
+
+    if (destroywait) {
+        while (!err && c0kvms_refcnt(old) > 1)
             usleep(1000);
+
+        sem_post(&self->c0sk_sync_sema);
     }
 
     c0kvms_putref(old);

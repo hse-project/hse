@@ -527,6 +527,11 @@ c0sk_open(
     mutex_init(&c0sk->c0sk_sync_mutex);
     cv_init(&c0sk->c0sk_kvms_cv, "c0sk_kvms_cv");
 
+    if (sem_init(&c0sk->c0sk_sync_sema, 0, 1)) {
+        err = merr(errno);
+        goto errout;
+    }
+
     for (int i = 0; i < NELEM(c0sk->c0sk_ingest_refv); ++i)
         atomic_set(&c0sk->c0sk_ingest_refv[i].refcnt, 0);
 
