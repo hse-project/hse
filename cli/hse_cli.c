@@ -1418,9 +1418,9 @@ cli_hse(struct cli_cmd *self, struct cli *cli)
             },
         .extra_help = {
             "Examples:",
-            "  hse -hv               # get help on all commands",
-            "  hse kvdb -h           # get help on KVDB commands",
-            "  hse kvdb create test  # create a KVDB named 'test'",
+            "  hse -hv                  # get help on all commands",
+            "  hse kvdb -h              # get help on KVDB commands",
+            "  hse -C test kvdb create  # create a KVDB in the 'test' directory",
             NULL,
         },
     };
