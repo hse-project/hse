@@ -929,7 +929,7 @@ hse_kvs_cursor_create(
 
     t_cur = get_time_ns() - t_cur;
     if (t_cur > MAX_CUR_TIME)
-        hse_log(HSE_ERR "cursor create taking too long: %lus", t_cur / NSEC_PER_SEC);
+        hse_elog(HSE_ERR "cursor create taking too long: %lus: @@e", err, t_cur / NSEC_PER_SEC);
 
     return merr_to_hse_err(err);
 }
