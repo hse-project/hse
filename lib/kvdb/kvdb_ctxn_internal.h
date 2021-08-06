@@ -20,6 +20,7 @@
  * @ctxn_can_insert:          true when txn can accept puts
  * @ctxn_seqref:              transaction seqref
  * @ctxn_view_seqno:          seqno at time of transaction begin call
+ * @ctxn_kvdb_pfxlock:        address of the KVDB pfxlock
  * @ctxn_kvdb_keylock:        address of the KVDB keylock
  * @ctxn_locks_handle:        container to store acquired write locks
  * @ctxn_bind:
@@ -40,8 +41,11 @@ struct kvdb_ctxn_impl {
     uintptr_t               ctxn_seqref;
     u64                     ctxn_view_seqno;
 
-    struct kvdb_keylock    *ctxn_kvdb_keylock;
-    struct kvdb_ctxn_locks *ctxn_locks_handle;
+    struct kvdb_keylock      *ctxn_kvdb_keylock;
+    struct kvdb_ctxn_locks   *ctxn_locks_handle;
+    struct kvdb_pfxlock      *ctxn_kvdb_pfxlock;
+    struct kvdb_ctxn_pfxlock *ctxn_pfxlock_handle;
+
     struct kvdb_ctxn_bind  *ctxn_bind;
     struct c0sk            *ctxn_c0sk;
     struct kvdb_ctxn_set   *ctxn_kvdb_ctxn_set;

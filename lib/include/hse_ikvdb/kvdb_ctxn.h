@@ -22,6 +22,7 @@ struct viewset;
 struct c0snr_set;
 struct query_ctx;
 struct wal;
+struct kvdb_pfxlock;
 
 enum kvdb_ctxn_state {
     KVDB_CTXN_ACTIVE = 11,
@@ -50,7 +51,6 @@ struct kvdb_ctxn {
  */
 struct kvdb_ctxn_bind {
     struct kvdb_ctxn *b_ctxn;
-    u64               b_seq;
     atomic64_t        b_gen;
     atomic64_t        b_ref;
     bool              b_update;
@@ -61,6 +61,7 @@ struct kvdb_ctxn_bind {
 struct kvdb_ctxn *
 kvdb_ctxn_alloc(
     struct kvdb_keylock *   kvdb_keylock,
+    struct kvdb_pfxlock *   kvdb_pfxlock,
     atomic64_t *            kvdb_seqno_addr,
     struct kvdb_ctxn_set *  kvdb_ctxn_set,
     struct viewset         *active_txn_set,
@@ -113,8 +114,9 @@ kvdb_ctxn_trylock_write(
     uintptr_t        *seqref,
     u64              *view_seqno,
     int64_t          *cookie,
-    bool              needkeylock,
-    u64               hash);
+    bool              is_ptomb,
+    u64               pfxhash,
+    u64               keyhash);
 
 /* MTF_MOCK */
 void

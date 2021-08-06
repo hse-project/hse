@@ -337,63 +337,39 @@ try:
         kvdb_ctx = lifecycle.KvdbContext().rparams("dur_enable=0")
         kvdb = stack.enter_context(kvdb_ctx)
 
-        with lifecycle.KvsContext(kvdb, "test_kvs").cparams(
-            "pfx_len=2", "sfx_len=1"
-        ).rparams("transactions_enable=1") as kvs:
+        kvs_ctx = lifecycle.KvsContext(kvdb, "test_kvs").cparams("pfx_len=2", "sfx_len=1").rparams("transactions_enable=1")
+
+        with kvs_ctx as kvs:
             separate_keys(kvdb, kvs)
 
         # Duplicate keys
-        with lifecycle.KvsContext(kvdb, "test_kvs").cparams(
-            "pfx_len=2", "sfx_len=1"
-        ).rparams("transactions_enable=1") as kvs:
+        with kvs_ctx as kvs:
             duplicate_c0_lc(kvdb, kvs, cursor_sync=False)
-        with lifecycle.KvsContext(kvdb, "test_kvs").cparams(
-            "pfx_len=2", "sfx_len=1"
-        ).rparams("transactions_enable=1") as kvs:
+        with kvs_ctx as kvs:
             duplicate_lc_cn(kvdb, kvs, cursor_sync=False)
-        with lifecycle.KvsContext(kvdb, "test_kvs").cparams(
-            "pfx_len=2", "sfx_len=1"
-        ).rparams("transactions_enable=1") as kvs:
+        with kvs_ctx as kvs:
             duplicate_c0_lc(kvdb, kvs, cursor_sync=True)
-        with lifecycle.KvsContext(kvdb, "test_kvs").cparams(
-            "pfx_len=2", "sfx_len=1"
-        ).rparams("transactions_enable=1") as kvs:
+        with kvs_ctx as kvs:
             duplicate_lc_cn(kvdb, kvs, cursor_sync=True)
 
         # With deletes
-        with lifecycle.KvsContext(kvdb, "test_kvs").cparams(
-            "pfx_len=2", "sfx_len=1"
-        ).rparams("transactions_enable=1") as kvs:
+        with kvs_ctx as kvs:
             tombs_c0_lc(kvdb, kvs, cursor_sync=False)
-        with lifecycle.KvsContext(kvdb, "test_kvs").cparams(
-            "pfx_len=2", "sfx_len=1"
-        ).rparams("transactions_enable=1") as kvs:
+        with kvs_ctx as kvs:
             tombs_lc_cn(kvdb, kvs, cursor_sync=False)
-        with lifecycle.KvsContext(kvdb, "test_kvs").cparams(
-            "pfx_len=2", "sfx_len=1"
-        ).rparams("transactions_enable=1") as kvs:
+        with kvs_ctx as kvs:
             tombs_c0_lc(kvdb, kvs, cursor_sync=True)
-        with lifecycle.KvsContext(kvdb, "test_kvs").cparams(
-            "pfx_len=2", "sfx_len=1"
-        ).rparams("transactions_enable=1") as kvs:
+        with kvs_ctx as kvs:
             tombs_lc_cn(kvdb, kvs, cursor_sync=True)
 
         # With prefix deletes
-        with lifecycle.KvsContext(kvdb, "test_kvs").cparams(
-            "pfx_len=2", "sfx_len=1"
-        ).rparams("transactions_enable=1") as kvs:
+        with kvs_ctx as kvs:
             ptombs_c0_lc(kvdb, kvs, cursor_sync=False)
-        with lifecycle.KvsContext(kvdb, "test_kvs").cparams(
-            "pfx_len=2", "sfx_len=1"
-        ).rparams("transactions_enable=1") as kvs:
+        with kvs_ctx as kvs:
             ptombs_lc_cn(kvdb, kvs, cursor_sync=False)
-        with lifecycle.KvsContext(kvdb, "test_kvs").cparams(
-            "pfx_len=2", "sfx_len=1"
-        ).rparams("transactions_enable=1") as kvs:
+        with kvs_ctx as kvs:
             ptombs_lc_cn(kvdb, kvs, cursor_sync=True)
-        with lifecycle.KvsContext(kvdb, "test_kvs").cparams(
-            "pfx_len=2", "sfx_len=1"
-        ).rparams("transactions_enable=1") as kvs:
+        with kvs_ctx as kvs:
             ptombs_c0_lc(kvdb, kvs, cursor_sync=True)
 finally:
     hse.fini()

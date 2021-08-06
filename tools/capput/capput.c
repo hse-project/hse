@@ -162,6 +162,8 @@ pdel(void *arg)
 
         last_del++;
     }
+
+    hse_kvdb_txn_free(targ->kvdb, txn);
 }
 
 #define VLEN 1024

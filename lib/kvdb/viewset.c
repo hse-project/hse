@@ -17,6 +17,8 @@
 #include <hse_util/hse_err.h>
 #include <hse_util/event_counter.h>
 
+#define MTF_MOCK_IMPL_viewset
+
 #include "viewset.h"
 
 #include <hse_ikvdb/limits.h>
@@ -506,3 +508,6 @@ viewset_remove(
 }
 /* GCOV_EXCL_STOP */
 
+#if HSE_MOCKING
+#include "viewset_ut_impl.i"
+#endif /* HSE_MOCKING */

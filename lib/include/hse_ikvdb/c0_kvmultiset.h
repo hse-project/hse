@@ -92,6 +92,9 @@ c0kvms_getref(struct c0_kvmultiset *mset);
 void
 c0kvms_putref(struct c0_kvmultiset *mset);
 
+int
+c0kvms_refcnt(struct c0_kvmultiset *handle);
+
 /**
  * c0kvms_gen_read() - return the given c0kvms' generation count
  * @mset:       struct c0_kvset from which to obtain the gen count

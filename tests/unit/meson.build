@@ -119,6 +119,8 @@ components = {
         },
         'throttle_test': {},
         'viewset_test': {},
+        'kvdb_pfxlock_test': {},
+        'kvdb_ctxn_pfxlock_test': {},
     },
     'mpool': {
         'mpool_test': {
@@ -174,7 +176,9 @@ components = {
             'requires_home': true,
         },
     },
-    'kvs': {},
+    'kvs': {
+        'kvs_cursor_test': {},
+    },
     'util': {
         'allocation_test': {},
         'atomic_test': {

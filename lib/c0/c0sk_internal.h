@@ -9,10 +9,11 @@
 #include <hse/limits.h>
 
 #include <hse_util/arch.h>
-#include <hse_util/mtx_pool.h>
 #include <hse_util/perfc.h>
 
 #include <mpool/mpool.h>
+
+#include <semaphore.h>
 
 /* clang-format off */
 
@@ -52,6 +53,7 @@ struct c0sk {
  * @c0sk_sync_waiters:    list of waiters for specific c0_kvmultisets
  * @c0sk_ingest_gen:      ingest generation count
  * @c0sk_ingest_ldrcnt:   used to elect ingest leader
+ * @c0sk_sync_sema:       used to serialize kvs_close() calls c0sk_queue_ingest(0
  * @c0sk_ingest_width:    ingest width hint/suggestion to use for next kvms
  * @c0sk_kvdbhome:        kvdb home
  * @c0sk_stash:           storage for caching a recently freed c0kvms
@@ -97,6 +99,7 @@ struct c0sk_impl {
 
     atomic64_t c0sk_ingest_gen HSE_ALIGNED(SMP_CACHE_BYTES);
     atomic_t   c0sk_ingest_ldrcnt;
+    sem_t      c0sk_sync_sema;
 
     u32        c0sk_ingest_width_max HSE_ALIGNED(SMP_CACHE_BYTES);
     u32        c0sk_ingest_width;
@@ -165,7 +168,7 @@ c0sk_release_multiset(struct c0sk_impl *self, struct c0_kvmultiset *multiset);
  *
  */
 merr_t
-c0sk_flush_current_multiset(struct c0sk_impl *self, u64 *genp);
+c0sk_flush_current_multiset(struct c0sk_impl *self, u64 *genp, bool destroywaitflag);
 
 /**
  * c0sk_merge_impl() - merge the 'from' kvms into the 'first' kvms

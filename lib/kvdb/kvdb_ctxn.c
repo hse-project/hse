@@ -30,6 +30,7 @@
 
 #include "viewset.h"
 #include "kvdb_ctxn_internal.h"
+#include "kvdb_ctxn_pfxlock.h"
 #include "kvdb_keylock.h"
 
 /* clang-format off */
@@ -189,13 +190,14 @@ kvdb_ctxn_set_thread(struct work_struct *work)
 
 struct kvdb_ctxn *
 kvdb_ctxn_alloc(
-    struct kvdb_keylock *   kvdb_keylock,
-    atomic64_t *            kvdb_seqno_addr,
-    struct kvdb_ctxn_set *  kcs_handle,
-    struct viewset         *viewset,
-    struct c0snr_set       *c0snrset,
-    struct c0sk            *c0sk,
-    struct wal             *wal)
+    struct kvdb_keylock * kvdb_keylock,
+    struct kvdb_pfxlock * kvdb_pfxlock,
+    atomic64_t *          kvdb_seqno_addr,
+    struct kvdb_ctxn_set *kcs_handle,
+    struct viewset *      viewset,
+    struct c0snr_set *    c0snrset,
+    struct c0sk *         c0sk,
+    struct wal *          wal)
 {
     struct kvdb_ctxn_impl *    ctxn;
     struct kvdb_ctxn_set_impl *kvdb_ctxn_set;
@@ -210,6 +212,7 @@ kvdb_ctxn_alloc(
     memset(ctxn, 0, sizeof(*ctxn));
     mutex_init(&ctxn->ctxn_lock);
     ctxn->ctxn_seqref = HSE_SQNREF_INVALID;
+    ctxn->ctxn_kvdb_pfxlock = kvdb_pfxlock;
     ctxn->ctxn_kvdb_keylock = kvdb_keylock;
     ctxn->ctxn_viewset = viewset;
     ctxn->ctxn_c0snr_set = c0snrset;
@@ -312,9 +315,9 @@ kvdb_ctxn_free(struct kvdb_ctxn *handle)
 static merr_t
 kvdb_ctxn_enable_inserts(struct kvdb_ctxn_impl *ctxn)
 {
-    struct kvdb_ctxn_locks     *locks;
-    uintptr_t                  *priv;
-    merr_t                      err;
+    struct kvdb_ctxn_locks *locks;
+    uintptr_t *             priv;
+    merr_t                  err;
 
     kvdb_keylock_expire(ctxn->ctxn_kvdb_keylock, viewset_min_view(ctxn->ctxn_viewset), 1);
 
@@ -322,8 +325,16 @@ kvdb_ctxn_enable_inserts(struct kvdb_ctxn_impl *ctxn)
     if (ev(err))
         return err;
 
+    err = kvdb_ctxn_pfxlock_create(
+        ctxn->ctxn_kvdb_pfxlock, ctxn->ctxn_view_seqno, &ctxn->ctxn_pfxlock_handle);
+    if (ev(err)) {
+        kvdb_ctxn_locks_destroy(locks);
+        return err;
+    }
+
     priv = c0snr_set_get_c0snr(ctxn->ctxn_c0snr_set, &ctxn->ctxn_inner_handle);
     if (ev(!priv)) {
+        kvdb_ctxn_pfxlock_destroy(ctxn->ctxn_pfxlock_handle);
         kvdb_ctxn_locks_destroy(locks);
         return merr(ECANCELED);
     }
@@ -396,6 +407,7 @@ kvdb_ctxn_abort_inner(struct kvdb_ctxn_impl *ctxn)
     struct kvdb_ctxn_locks *locks;
     struct kvdb_ctxn_bind * bind;
     struct kvdb_keylock *   keylock;
+    u64                     end_seq;
 
     if (ctxn->ctxn_can_insert) {
         uintptr_t *priv = (uintptr_t *)ctxn->ctxn_seqref;
@@ -417,7 +429,6 @@ kvdb_ctxn_abort_inner(struct kvdb_ctxn_impl *ctxn)
 
     bind = ctxn->ctxn_bind;
     if (bind) {
-        bind->b_seq = atomic64_read(ctxn->ctxn_kvdb_seq_addr);
         kvdb_ctxn_bind_cancel(bind, !ctxn->ctxn_can_insert);
         ctxn->ctxn_bind = 0;
     }
@@ -438,16 +449,19 @@ kvdb_ctxn_abort_inner(struct kvdb_ctxn_impl *ctxn)
 
     if (kvdb_ctxn_locks_count(locks) > 0) {
         void *cookie = NULL;
-        u64   end_seq;
 
         kvdb_keylock_list_lock(keylock, &cookie);
         end_seq = atomic64_fetch_add(1, ctxn->ctxn_kvdb_seq_addr);
         kvdb_keylock_enqueue_locks(locks, end_seq, cookie);
         kvdb_keylock_list_unlock(cookie);
+
     } else {
+        end_seq = atomic64_fetch_add(1, ctxn->ctxn_kvdb_seq_addr);
         kvdb_ctxn_locks_destroy(locks);
     }
 
+    kvdb_ctxn_pfxlock_seqno_pub(ctxn->ctxn_pfxlock_handle, end_seq);
+    kvdb_ctxn_pfxlock_destroy(ctxn->ctxn_pfxlock_handle);
     wal_txn_abort(ctxn->ctxn_wal, ctxn->ctxn_view_seqno, ctxn->ctxn_wal_cookie);
 
     /* At this point the transaction ceases to be considered active */
@@ -476,7 +490,7 @@ kvdb_ctxn_commit(struct kvdb_ctxn *handle)
     uintptr_t               ref;
     u64                     commit_sn;
     u64                     head;
-    merr_t err;
+    merr_t                  err;
 
     err = kvdb_ctxn_trylock_impl(ctxn);
     if (err)
@@ -491,7 +505,6 @@ kvdb_ctxn_commit(struct kvdb_ctxn *handle)
      */
     if (!ctxn->ctxn_can_insert) {
         if (bind) {
-            bind->b_seq = atomic64_read(ctxn->ctxn_kvdb_seq_addr);
             kvdb_ctxn_bind_cancel(bind, true);
             ctxn->ctxn_bind = 0;
         }
@@ -604,13 +617,15 @@ kvdb_ctxn_commit(struct kvdb_ctxn *handle)
         locks = NULL;
     }
 
+    kvdb_ctxn_pfxlock_seqno_pub(ctxn->ctxn_pfxlock_handle, commit_sn);
     kvdb_keylock_list_unlock(cookie);
+
+    kvdb_ctxn_pfxlock_destroy(ctxn->ctxn_pfxlock_handle);
 
     if (locks)
         kvdb_ctxn_locks_destroy(locks);
 
     if (bind) {
-        bind->b_seq = commit_sn + 1;
         kvdb_ctxn_bind_cancel(bind, true);
         ctxn->ctxn_bind = 0;
     }
@@ -833,10 +848,7 @@ kvdb_ctxn_cursor_unbind(struct kvdb_ctxn_bind *bind)
 }
 
 merr_t
-kvdb_ctxn_trylock_read(
-    struct kvdb_ctxn   *handle,
-    uintptr_t          *seqref,
-    u64                *view_seqno)
+kvdb_ctxn_trylock_read(struct kvdb_ctxn *handle, uintptr_t *seqref, u64 *view_seqno)
 {
     struct kvdb_ctxn_impl *ctxn;
     merr_t                 err;
@@ -858,10 +870,11 @@ kvdb_ctxn_trylock_read(
 merr_t
 kvdb_ctxn_trylock_write(
     struct kvdb_ctxn *handle,
-    uintptr_t        *seqref,
-    u64              *view_seqno,
+    uintptr_t *       seqref,
+    u64 *             view_seqno,
     int64_t          *cookie,
-    bool              needkeylock,
+    bool              is_ptomb,
+    u64               pfxhash,
     u64               hash)
 {
     struct kvdb_ctxn_impl *ctxn;
@@ -885,7 +898,16 @@ kvdb_ctxn_trylock_write(
             goto errout;
     }
 
-    if (HSE_LIKELY(needkeylock)) {
+    if (pfxhash) {
+        struct kvdb_ctxn_pfxlock *pl = ctxn->ctxn_pfxlock_handle;
+
+        err = is_ptomb ? kvdb_ctxn_pfxlock_excl(pl, pfxhash) :
+                         kvdb_ctxn_pfxlock_shared(pl, pfxhash);
+        if (err)
+            goto errout;
+    }
+
+    if (HSE_LIKELY(!is_ptomb)) {
         err = kvdb_keylock_lock(
             ctxn->ctxn_kvdb_keylock, ctxn->ctxn_locks_handle, hash, ctxn->ctxn_view_seqno);
 
@@ -906,7 +928,6 @@ kvdb_ctxn_trylock_write(
 
     return err;
 }
-
 
 void
 kvdb_ctxn_unlock(struct kvdb_ctxn *handle)
