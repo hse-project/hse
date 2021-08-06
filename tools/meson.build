@@ -79,7 +79,7 @@ tools = {
             'deviceprofile' / 'deviceprofile_app.c',
         ),
         'c_args': [
-            '-DHDR_HISTOGRAM_C_FROM_SUBPROJECT=@0@'.format(HdrHistogram_c_from_subproject ? 1 : 0),
+            '-DHDR_HISTOGRAM_C_FROM_SUBPROJECT=@0@'.format(get_variable('HdrHistogram_c_from_subproject', 0)),
         ],
         'dependencies': [
             HdrHistogram_c_dep,
@@ -97,7 +97,7 @@ tools = {
             'parm_groups.c',
         ),
         'c_args': [
-            '-DHDR_HISTOGRAM_C_FROM_SUBPROJECT=@0@'.format(HdrHistogram_c_from_subproject ? 1 : 0),
+            '-DHDR_HISTOGRAM_C_FROM_SUBPROJECT=@0@'.format(get_variable('HdrHistogram_c_from_subproject', 0)),
         ],
         'dependencies': [
             HdrHistogram_c_dep,
@@ -112,7 +112,7 @@ tools = {
             'parm_groups.c',
         ),
         'c_args': [
-            '-DHDR_HISTOGRAM_C_FROM_SUBPROJECT=@0@'.format(HdrHistogram_c_from_subproject ? 1 : 0),
+            '-DHDR_HISTOGRAM_C_FROM_SUBPROJECT=@0@'.format(get_variable('HdrHistogram_c_from_subproject', 0)),
             '-DXKMT',
         ],
         'dependencies': [
