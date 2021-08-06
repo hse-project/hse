@@ -22,6 +22,14 @@
 
 #include <hse_ikvdb/limits.h>
 
+/* clang-format off */
+
+#define c0snr_set_h2r(_handle) \
+    container_of(_handle, struct c0snr_set_impl, css_handle)
+
+#define priv_to_c0snr_set_entry(_priv) \
+    container_of(_priv, struct c0snr_set_entry, cse_c0snr)
+
 struct c0snr_set {
 };
 
@@ -43,30 +51,27 @@ struct c0snr_set_impl {
     struct c0snr_set_bkt css_bktv[10];
 } HSE_ALIGNED(SMP_CACHE_BYTES * 2);
 
-#define c0snr_set_h2r(handle) container_of(handle, struct c0snr_set_impl, css_handle)
-
 struct c0snr_set_entry;
 
 /**
  * struct c0snr_set_entry -
- * @cse_list:           ptr to the c0snr_set_list object
- * @cse_ctxn:           handle to the transaction (if active)
- * @cse_kvms_gen:       last active kvms gen to use this c0snr
  * @cse_refcnt:         reference count (txn, kvms and lc acquire refs)
+ * @cse_list:           ptr to the c0snr_set_list object
+ * @cse_kvms_gen:       last active kvms gen to use this c0snr
  */
 struct c0snr_set_entry {
-    atomic_t                   cse_refcnt;
-    struct c0snr_set_list *    cse_list;
-    volatile struct kvdb_ctxn *cse_ctxn;
-    u64                        cse_kvms_gen;
+    atomic_t               cse_refcnt;
+    volatile bool          cse_ctxn;
+    struct c0snr_set_list *cse_list;
+    u64                    cse_kvms_gen;
 
     union {
         uintptr_t cse_c0snr;
-        void *    cse_next;
+        void     *cse_next;
     };
 };
 
-#define priv_to_c0snr_set_entry(ptr) container_of(ptr, struct c0snr_set_entry, cse_c0snr)
+/* clang-format on */
 
 /**
  * struct c0snr_set_list - c0 sequence number reference set list
@@ -252,7 +257,7 @@ c0snr_set_get_c0snr(struct c0snr_set *handle, struct kvdb_ctxn *ctxn)
     if (ev(!entry))
         return NULL;
 
-    entry->cse_ctxn = ctxn;
+    entry->cse_ctxn = !!ctxn;
     entry->cse_kvms_gen = KVMS_GEN_INVALID;
     entry->cse_c0snr = HSE_SQNREF_INVALID;
 
@@ -275,7 +280,7 @@ c0snr_clear_txn(uintptr_t *priv)
      * However, other readers may still be holding references.
      */
     assert(entry->cse_ctxn);
-    entry->cse_ctxn = NULL;
+    entry->cse_ctxn = false;
 
     c0snr_dropref(priv);
 }
@@ -387,9 +392,8 @@ c0snr_droprefv(int refc, uintptr_t **refv)
 bool
 c0snr_txn_is_active(uintptr_t *priv)
 {
-    struct c0snr_set_entry *entry;
+    struct c0snr_set_entry *entry = priv_to_c0snr_set_entry(priv);
 
-    entry = priv_to_c0snr_set_entry(priv);
-    return entry->cse_ctxn ? true : false;
+    return entry->cse_ctxn;
 }
 

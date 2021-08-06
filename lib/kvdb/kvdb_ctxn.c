@@ -676,40 +676,34 @@ kvdb_ctxn_get_seqnoref(struct kvdb_ctxn *handle)
     return ctxn ? ctxn->ctxn_seqref : 0;
 }
 
-/* This routine determines whether ownership of a write lock can be inherited
- * from one client transaction to another and if so performs the transfer.
- * This can happen if the new transaction started after the commit-time of the
- * previous transaction. If ownership has been inherited, the function
- * returns true.
+/* This routine determines whether exclusive ownership of a keylock can be
+ * inherited from one client transaction to another.  This can happen if
+ * the new transaction starts after the commit or abort of the transaction
+ * that currently holds the keylock in an inheritable state.
+ *
+ * Hence, this function returns true if ownership can be transferred.
  *
  * Pre-Conditions at Entry:
  * ------------------------
  *  (1) The keylock table holding the hash is locked by the calling thread.
- *  (2) new_rock is a pointer to the kvdb_ctxn_impl that is attempting
- *      to acquire ownership of the hash.
- *  (3) Ownership of the hash is held by the lock collection pointed to by
- *      the old_rock.
+ *  (2) Ownership of the hash is held by the lock collection referenced by desc.
+ *
+ * The lock collection referenced by "desc" cannot vanish during this call
+ * because of pre-condition (1) above.  However, it is entirely possible
+ * that its ref goes to 0 at any time while another thread is attempting
+ * to inherit the lock.  This is protected against by updating the rock
+ * of the entry while we are holding off the other threads so that any
+ * unlock attempt on the part of the previous owner silently fails.
+ *
+ * Release of lock (1) will handle the write memory barrier needed.
+ *
+ * Note that while the lock collection referenced by desc holds the keylock
+ * its end seqno will be U64_MAX and hence it can never be transferred.
  */
 bool
-kvdb_ctxn_lock_inherit(u64 start_seq, uint old_rock, uint *new_rock)
+kvdb_ctxn_lock_inherit(uint32_t desc, uint64_t start_seq)
 {
-    struct kvdb_ctxn_locks *old_locks = kvdb_ctxn_locks_idx2locks(old_rock);
-
-    /* The structure pointed to by "old_locks" cannot vanish during this
-     * call because of pre-condition (1) above. However, it is entirely
-     * possible that old_locks ref goes to 0 at any time and another
-     * thread is attempting to unlock the hash at any moment. This is
-     * protected against by updating the rock of the entry while we are
-     * holding off the other threads so that any "unlock" attempt on the
-     * part of the previous owner silently does nothing.
-     */
-
-    /* release of lock (1) will handle the write memory barrier needed */
-
-    /* Note that while old_locks holds the key lock its end seqno will
-     * be U64_MAX and hence can never be inherited/transferred.
-     */
-    return (start_seq > kvdb_ctxn_locks_end_seqno(old_locks));
+    return (start_seq > kvdb_ctxn_locks_end_seqno(desc));
 }
 
 merr_t
