@@ -904,6 +904,8 @@ hse_kvdb_txn_get_state(struct hse_kvdb *handle, struct hse_kvdb_txn *txn)
     return state;
 }
 
+#define MAX_CUR_TIME (10 * NSEC_PER_SEC)
+
 hse_err_t
 hse_kvs_cursor_create(
     struct hse_kvs *           handle,
@@ -914,14 +916,20 @@ hse_kvs_cursor_create(
     struct hse_kvs_cursor **   cursor)
 {
     merr_t err;
+    u64 t_cur;
 
     if (HSE_UNLIKELY(!handle || !cursor || (pfx_len && !prefix) || flags & ~HSE_FLAG_CURSOR_MASK))
         return merr_to_hse_err(merr(EINVAL));
 
     PERFC_INC_RU(&kvdb_pc, PERFC_RA_KVDBOP_KVS_CURSOR_CREATE);
 
+    t_cur = get_time_ns();
     err = ikvdb_kvs_cursor_create(handle, flags, txn, prefix, pfx_len, cursor);
     ev(err);
+
+    t_cur = get_time_ns() - t_cur;
+    if (t_cur > MAX_CUR_TIME)
+        hse_log(HSE_ERR "cursor create taking too long: %lus", t_cur / NSEC_PER_SEC);
 
     return merr_to_hse_err(err);
 }
