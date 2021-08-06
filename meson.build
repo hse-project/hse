@@ -332,6 +332,11 @@ if get_option('tools')
             libbson_dep = mongo_c_driver_proj.dependency('bson_static')
         endif
     endif
+else
+    ncurses_dep = disabler()
+    HdrHistogram_c_dep = disabler()
+    libmongoc_dep = disabler()
+    libbson_dep = disabler()
 endif
 
 bindings = []

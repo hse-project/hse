@@ -1,5 +1,0 @@
-[wrap-file]
-directory = db_bench
-
-[provide]
-program_names = db_bench
