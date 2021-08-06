@@ -337,15 +337,15 @@ kvdb_pfxlock_prune(struct kvdb_pfxlock *pfxlock)
 {
     u64    txn_horizon = viewset_horizon(pfxlock->kpl_txn_viewset);
     int    i;
-    char   distbuf[256];
-    size_t off;
+    char   distbuf[256] HSE_MAYBE_UNUSED;
+    size_t off HSE_MAYBE_UNUSED;
 
     for (i = 0, off = 0; i < KVDB_PFXLOCK_NUM_TREES; i++) {
         struct kvdb_pfxlock_tree  *tree = &pfxlock->kpl_tree[i];
         spinlock_t                *spinlock = &pfxlock->kpl_tree[i].kplt_spinlock;
         struct kvdb_pfxlock_entry *entry, *next;
 
-#ifndef HSE_RELEASE_BUILD
+#ifndef HSE_BUILD_RELEASE
         snprintf_append(distbuf, sizeof(distbuf), &off, "%u ", pfxlock->kpl_tree[i].kplt_entry_cnt);
 #endif
 
@@ -360,7 +360,7 @@ kvdb_pfxlock_prune(struct kvdb_pfxlock *pfxlock)
         spin_unlock(spinlock);
     }
 
-#ifndef HSE_RELEASE_BUILD
+#ifndef HSE_BUILD_RELEASE
     hse_log(HSE_INFO "pfxdist: %s", distbuf);
 #endif
 }
