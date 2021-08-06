@@ -227,4 +227,44 @@ MTF_DEFINE_UTEST(allocation, kmem_cache_test)
     }
 }
 
+MTF_DEFINE_UTEST(allocation, kmem_cache_desc)
+{
+    void *zone, *mem, *memv[1024];
+    uint32_t desc;
+    size_t size;
+    int i;
+
+    zone = kmem_cache_create("test", 64, 64, 0, NULL);
+    ASSERT_NE(NULL, zone);
+
+    mem = kmem_cache_alloc(zone);
+    ASSERT_NE(NULL, mem);
+
+    desc = kmem_cache_addr2desc(zone, mem);
+    ASSERT_EQ(UINT32_MAX, desc);
+
+    kmem_cache_free(zone, mem);
+    kmem_cache_destroy(zone);
+
+    for (size = 1; size < 32 * 1024; size *= 2) {
+        zone = kmem_cache_create("test", size, 0, SLAB_DESC, NULL);
+        ASSERT_NE(NULL, zone);
+
+        for (i = 0; i < NELEM(memv); ++i) {
+            memv[i] = kmem_cache_alloc(zone);
+            ASSERT_NE(NULL, memv[i]);
+        }
+
+        for (i = 0; i < NELEM(memv); ++i) {
+            desc = kmem_cache_addr2desc(zone, memv[i]);
+            mem = kmem_cache_desc2addr(zone, desc);
+            ASSERT_EQ(memv[i], mem);
+
+            kmem_cache_free(zone, memv[i]);
+        }
+
+        kmem_cache_destroy(zone);
+    }
+}
+
 MTF_END_UTEST_COLLECTION(allocation)

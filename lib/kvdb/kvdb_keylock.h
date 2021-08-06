@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
 #ifndef HSE_KVDB_KEYLOCK_H
@@ -61,15 +61,11 @@ kvdb_ctxn_locks_destroy(struct kvdb_ctxn_locks *ctxn_locks_handle);
 
 /* MTF_MOCK */
 u64
-kvdb_ctxn_locks_end_seqno(struct kvdb_ctxn_locks *handle);
-
-/* MTF_MOCK */
-uint
-kvdb_ctxn_locks_locks2idx(struct kvdb_ctxn_locks *handle);
+kvdb_ctxn_locks_end_seqno(uint32_t desc);
 
 /* MTF_MOCK */
 struct kvdb_ctxn_locks *
-kvdb_ctxn_locks_idx2locks(uint idx);
+kvdb_ctxn_locks_desc2locks(uint32_t desc);
 
 /* MTF_MOCK */
 void

@@ -98,7 +98,7 @@ MTF_DEFINE_UTEST(keylock_test, keylock_lock_unlock)
         ASSERT_EQ(err, 0);
 
         /* Verify that another locking thread sees collisions. */
-        err = keylock_lock(handle, entries[i], 0, 2, &inherited);
+        err = keylock_lock(handle, entries[i], 2, 0, &inherited);
         ASSERT_EQ(ECANCELED, merr_errno(err));
 
         keylock_unlock(handle, entries[i], 0);
@@ -143,7 +143,7 @@ MTF_DEFINE_UTEST(keylock_test, keylock_psl)
     for (i = 0; i < table_size + 1; i++) {
         hash = i * table_size;
 
-        err = keylock_lock(handle, hash, 0, 1, &inherited);
+        err = keylock_lock(handle, hash, 1, 0, &inherited);
         if (err) {
             ASSERT_EQ(i, table_size);
             break;
@@ -167,91 +167,93 @@ MTF_DEFINE_UTEST(keylock_test, keylock_psl)
     keylock_destroy(handle);
 }
 
-uint g_rock1;
-uint g_rock2;
-u64  g_start_seq;
+#define  ITERMAX (1000)
+uint64_t seqnov[ITERMAX + 1];
 
 bool
-rock_handling(u64 start_seq, uint old_rock, uint *new_rock)
+keylock_test_inheritable(uint32_t owner, uint64_t start_seq)
 {
-    g_rock1 = *new_rock;
-    g_rock2 = old_rock;
-    g_start_seq = start_seq;
-
-    return ((start_seq % 2) == 0);
+    return (start_seq > seqnov[owner]);
 }
 
-MTF_DEFINE_UTEST(keylock_test, keylock_rock_handling)
+MTF_DEFINE_UTEST(keylock_test, keylock_inheritance)
 {
     uint            table_size;
-    merr_t          err = 0;
-    struct keylock *handle;
-    int             i;
-    uint            index;
-    uintptr_t       rock;
-    bool            inherited;
-
-    err = keylock_create(rock_handling, &handle);
-    ASSERT_TRUE(handle);
-    ASSERT_FALSE(err);
-
-    keylock_search(handle, 0, &table_size);
-
-    for (i = 0; i < 10; i++) {
-        keylock_search(handle, i, &index);
-        ASSERT_EQ(index, table_size);
-
-        rock = i + 1UL;
-        err = keylock_lock(handle, i, i, rock, &inherited);
-        ASSERT_EQ(0, err);
-
-        rock = i + 2UL;
-        err = keylock_lock(handle, i, i, rock, &inherited);
-        if ((i % 2) == 0)
-            ASSERT_EQ(0, err);
-        else
-            ASSERT_NE(0, err);
-
-        ASSERT_EQ(i, g_start_seq);
-        ASSERT_EQ(i + 2UL, (u64)g_rock1);
-        ASSERT_EQ(i + 1UL, (u64)g_rock2);
-    }
-
-    keylock_destroy(handle);
-}
-
-/* This unit test tests that the default lock inheritance/transfer
- * function does not permit lock transference.
- */
-MTF_DEFINE_UTEST(keylock_test, keylock_rock_default)
-{
-    uint            table_size;
-    struct keylock *handle;
-    bool            inherited;
-    uint            index;
     merr_t          err;
-    int             i;
+    struct keylock *handle;
+    uint            index, i;
+    bool            inherited;
+    uint64_t        hash;
 
-    err = keylock_create(NULL, &handle);
-    ASSERT_TRUE(handle);
-    ASSERT_FALSE(err);
+    hash = xrand64_tls();
 
-    keylock_search(handle, 0, &table_size);
+    for (i = 0; i < ITERMAX + 1; ++i)
+        seqnov[i] = (xrand64_tls() % 1024) + (i * 1024);
 
-    for (i = 0; i < 10; i++) {
-        uintptr_t rock = i;
+    err = keylock_create(keylock_test_inheritable, &handle);
+    ASSERT_EQ(0, err);
+    ASSERT_NE(NULL, handle);
 
-        keylock_search(handle, i, &index);
-        ASSERT_EQ(index, table_size);
+    /* Get the size of the empty keylock table.
+     */
+    keylock_search(handle, hash, &table_size);
 
-        err = keylock_lock(handle, i, i, rock, &inherited);
+    for (i = 0; i < ITERMAX; ++i) {
+        uint32_t owner = i;
+
+        keylock_search(handle, hash, &index);
+        if (i > 0)
+            ASSERT_NE(index, table_size);
+
+        err = keylock_lock(handle, hash, owner, seqnov[owner], &inherited);
         ASSERT_EQ(0, err);
-        ASSERT_FALSE(inherited);
+        ASSERT_EQ(false, inherited);
 
-        err = keylock_lock(handle, i, i, (rock + 1), &inherited);
+        /* Should be able to re-acquire a lock I hold...
+         */
+        err = keylock_lock(handle, hash, owner, seqnov[owner], &inherited);
+        ASSERT_EQ(0, err);
+        ASSERT_EQ(false, inherited);
+
+        /* A different owner should not be able to acquire nor inherit
+         * the lock with the same seqno as the lock holder.
+         */
+        err = keylock_lock(handle, hash, owner + 1, seqnov[owner], &inherited);
         ASSERT_NE(0, err);
-        ASSERT_FALSE(inherited);
+
+        /* New owner should be able to inherit the lock given a higher
+         * seqno than the lock holder.
+         */
+        err = keylock_lock(handle, hash, owner + 1, seqnov[owner + 1], &inherited);
+        ASSERT_EQ(0, err);
+        ASSERT_EQ(true, inherited);
+
+        /* Old owner should not be able to release nor reacquire the lock.
+         */
+        keylock_unlock(handle, hash, owner);
+
+        err = keylock_lock(handle, hash, owner, seqnov[owner], &inherited);
+        ASSERT_NE(0, err);
+
+        /* Test that new owner still holds the lock...
+         */
+        err = keylock_lock(handle, hash, owner + 1, seqnov[owner + 1], &inherited);
+        ASSERT_EQ(0, err);
+        ASSERT_EQ(false, inherited);
     }
+
+    /* Test that most recent owner still holds the lock...
+     */
+    err = keylock_lock(handle, hash, i, seqnov[i], &inherited);
+    ASSERT_EQ(0, err);
+    ASSERT_EQ(false, inherited);
+
+    /* Test that most recent owner can unlock the lock, after which there
+     * should be no more locks in the table.
+     */
+    keylock_unlock(handle, hash, i);
+    keylock_search(handle, hash, &index);
+    ASSERT_EQ(index, table_size);
 
     keylock_destroy(handle);
 }

@@ -116,6 +116,7 @@ struct kmc_zone;
  * @slab_iused:     current number of items in use
  * @slab_zalloc:    number of calls to kmem_cache_alloc() on this slab
  * @slab_zfree:     number of calls to kmem_cache_free() on this slab
+ * @slab_descidx:   index into zone_descv[] for this slab
  * @slab_magic:     used to detect access to invalid slab
  *
  * A slab is a 256KB contiguous piece of virtual memory aligned on a 256KB
@@ -140,7 +141,8 @@ struct kmc_slab {
     struct list_head *slab_list;
     ulong             slab_zalloc;
     ulong             slab_zfree;
-    void             *slab_magic;
+    uint32_t          slab_descidx;
+    uint32_t          slab_magic;
 };
 
 /**
@@ -225,8 +227,10 @@ struct kmc_pcpu {
  * @zone_ctor;          item constructor
  * @zone_magic;         used to detect errant access
  * @zone_lock;          protects list and variable accesses that follow
- * @zone_nslabs;        number of slabs in use by this cache
  * @zone_slabs;         list of slabs in use by this cache
+ * @zone_nslabs;        number of slabs in use by this cache
+ * @zone_descmax;       max slots in zone_descv[]
+ * @zone_descidx;       current slot in zone_descv[] from which to allocate
  * @zone_zalloc;        total calls to kmem_cache_alloc on this zone
  * @zone_zfree;         total calls to kmem_cache_free on this zone
  * @zone_salloc;        total slab allocations on this zone
@@ -236,6 +240,7 @@ struct kmc_pcpu {
  * @zone_entry;         linkage on global cache list
  * @zone_dwork;         dwork for periodic zone reaping
  * @zone_pcpuv;         per-cpu slab management
+ * @zone_descv;         slab descriptor map
  */
 struct kmem_cache {
     struct kmc_node    *zone_nodev;
@@ -257,12 +262,16 @@ struct kmem_cache {
 
     struct list_head    zone_slabs  HSE_ALIGNED(SMP_CACHE_BYTES);
     uint                zone_nslabs;
+    uint                zone_descmax;
+    uint                zone_descidx;
     ulong               zone_zalloc;
     ulong               zone_zfree;
     ulong               zone_salloc;
     ulong               zone_sfree;
 
     struct kmc_pcpu     zone_pcpuv[KMC_PCPU_MAX * KMC_NODES_MAX];
+
+    struct kmc_slab    *zone_descv[];
 };
 
 /**
@@ -287,6 +296,13 @@ static struct {
 
 static void
 kmc_reaper(struct work_struct *work);
+
+static HSE_ALWAYS_INLINE void
+assert_slab_magic(struct kmc_slab *slab)
+{
+    assert(slab->slab_magic == (uint32_t)(uintptr_t)slab);
+}
+
 
 struct kmc_chunk *
 kmc_chunk_create(uint cpuid, bool tryhuge)
@@ -392,7 +408,7 @@ kmc_chunk_create(uint cpuid, bool tryhuge)
         slab->slab_end = slab->slab_base + KMC_SLAB_SZ;
         if (slab->slab_end > (void *)chunk)
             slab->slab_end -= sizeof(*chunk);
-        slab->slab_magic = slab;
+        slab->slab_magic = (uintptr_t)slab;
 
         assert(slab->slab_base < (void *)chunk);
         assert(slab->slab_end <= (void *)chunk);
@@ -418,7 +434,7 @@ kmc_chunk_destroy(struct kmc_chunk *chunk)
     hugecnt = chunk->ch_hugecnt;
 
     for (i = 0; i < KMC_SPC_MAX; ++i)
-        chunk->ch_slabv[i].slab_magic = (void *)0xdeadbeefdeadbeef;
+        chunk->ch_slabv[i].slab_magic = 0xdeadbeef;
 
     munmap(chunk->ch_base, chunk->ch_basesz);
 
@@ -456,7 +472,6 @@ kmc_slab_alloc(struct kmem_cache *zone, uint cpuid)
     }
 
     slab = kmc_slab_first(&chunk->ch_slabs);
-    assert(slab);
 
     list_del(&slab->slab_entry);
 
@@ -467,7 +482,7 @@ kmc_slab_alloc(struct kmem_cache *zone, uint cpuid)
     }
     kmc_node_unlock(node);
 
-    assert(slab->slab_magic == slab);
+    assert_slab_magic(slab);
     assert(slab->slab_chunk == chunk);
     assert(slab->slab_iused == 0);
 
@@ -501,6 +516,23 @@ kmc_slab_alloc(struct kmem_cache *zone, uint cpuid)
     list_add(&slab->slab_zentry, &zone->zone_slabs);
     ++zone->zone_nslabs;
     ++zone->zone_salloc;
+
+    /* Find an empty slot in the zone's descriptor cache if this zone
+     * was created with the SLAB_DESC flag.
+     */
+    for (i = 0; i < zone->zone_descmax; ++i) {
+        if (!zone->zone_descv[zone->zone_descidx])
+            break;
+
+        zone->zone_descidx = (zone->zone_descidx + 1) % zone->zone_descmax;
+    }
+
+    slab->slab_descidx = UINT32_MAX;
+
+    if (i < zone->zone_descmax) {
+        slab->slab_descidx = zone->zone_descidx;
+        zone->zone_descv[zone->zone_descidx] = slab;
+    }
     kmc_zone_unlock(zone);
 
     return slab;
@@ -515,7 +547,7 @@ kmc_slab_free(struct kmem_cache *zone, struct kmc_slab *slab)
     if (!slab)
         return;
 
-    assert(slab->slab_magic == slab);
+    assert_slab_magic(slab);
 
     if (slab->slab_iused > 0) {
         hse_log(
@@ -534,6 +566,12 @@ kmc_slab_free(struct kmem_cache *zone, struct kmc_slab *slab)
     zone->zone_zfree += slab->slab_zfree;
     --zone->zone_nslabs;
     ++zone->zone_sfree;
+
+    if (slab->slab_descidx < zone->zone_descmax) {
+        assert(zone->zone_descv[slab->slab_descidx] == slab);
+
+        zone->zone_descv[slab->slab_descidx] = NULL;
+    }
     kmc_zone_unlock(zone);
 
     chunk = slab->slab_chunk;
@@ -572,8 +610,7 @@ kmem_cache_alloc_impl(struct kmem_cache *zone, uint cpuid)
     uint nodeid, coreid;
     void *mem;
 
-    assert(zone);
-    assert(zone->zone_magic == zone);
+    assert(zone && zone->zone_magic == zone);
 
     nodeid = hse_cpu2node(cpuid);
     coreid = hse_cpu2core(cpuid);
@@ -618,7 +655,7 @@ kmem_cache_alloc_impl(struct kmem_cache *zone, uint cpuid)
         }
     }
 
-    assert(slab->slab_magic == slab);
+    assert_slab_magic(slab);
     assert(slab->slab_iused < slab->slab_imax);
     assert(slab->slab_chunk->ch_magic == slab->slab_chunk);
 
@@ -703,8 +740,8 @@ kmc_addr2slab(struct kmem_cache *zone, void *mem)
      */
     slab = chunk->ch_slabv + ((addr & ~KMC_CHUNK_MASK) / KMC_SLAB_SZ);
 
-    if (HSE_UNLIKELY(slab != slab->slab_magic)) {
-        assert(slab == slab->slab_magic);
+    if (HSE_UNLIKELY((uint32_t)(uintptr_t)slab != slab->slab_magic)) {
+        assert_slab_magic(slab);
         abort(); /* invalid free or slab corruption */
     }
 
@@ -737,14 +774,13 @@ kmem_cache_free(struct kmem_cache *zone, void *mem)
     struct kmc_pcpu *pcpu;
     void **cachep;
 
-    assert(zone);
-    assert(zone->zone_magic == zone);
+    assert(zone && zone->zone_magic == zone);
 
     slab = kmc_addr2slab(zone, mem);
     if (!slab)
         return;
 
-    assert(slab->slab_magic == slab);
+    assert_slab_magic(slab);
 
 #ifdef HSE_BUILD_DEBUG
     *(void **)(mem + zone->zone_iasz - sizeof(void *)) = slab;
@@ -778,6 +814,40 @@ kmem_cache_free(struct kmem_cache *zone, void *mem)
 
     ++slab->slab_zfree;
     kmc_pcpu_unlock(pcpu);
+}
+
+void *
+kmem_cache_desc2addr(struct kmem_cache *zone, uint32_t desc)
+{
+    struct kmc_slab *slab;
+    uint item = (desc << 20) >> 20;
+    uint idx = desc >> 12;
+
+    if (idx >= zone->zone_descmax)
+        return NULL;
+
+    slab = zone->zone_descv[idx];
+    if (!slab)
+        return NULL;
+
+    return slab->slab_base + zone->zone_iasz * item;
+}
+
+uint32_t
+kmem_cache_addr2desc(struct kmem_cache *zone, void *mem)
+{
+    struct kmc_slab *slab;
+    uint32_t item;
+
+    slab = kmc_addr2slab(zone, mem);
+
+    if (!slab || slab->slab_descidx >= zone->zone_descmax)
+        return UINT32_MAX;
+
+    item = (mem - slab->slab_base) / zone->zone_iasz;
+    assert(item < (1u << 12));
+
+    return (slab->slab_descidx << 12) | item;
 }
 
 static void
@@ -833,7 +903,7 @@ kmem_cache_create(const char *name, size_t size, size_t align, ulong flags, void
     struct kmem_cache *zone;
     size_t slab_sz, iasz;
     ulong delay;
-    uint i;
+    uint descmax, i;
 
     assert(kmc.kmc_wq);
 
@@ -853,15 +923,29 @@ kmem_cache_create(const char *name, size_t size, size_t align, ulong flags, void
 
     iasz = max_t(uint, align, ALIGN(size, align)); /* in case size == 0 */
 
+    /* If the descriptor cache is enabled then the aligned item size
+     * must be large enough to prevent more than 2^12 items per slab.
+     * We adjust the size of the descriptor map such that the entire
+     * allocation is as close to 8M as possible without going over.
+     */
+    descmax = 0;
+
+    if (flags & SLAB_DESC) {
+        if (KMC_SLAB_SZ / iasz > (1u << 12))
+            iasz = ALIGN(KMC_SLAB_SZ / (1u << 12), align);
+
+        descmax = (1024 * 1024 * sizeof(void *) - sizeof(*zone)) / sizeof(void *);
+    }
+
     slab_sz = KMC_SLAB_SZ;
     if (iasz > slab_sz / 2)
         return NULL;
 
-    zone = aligned_alloc(alignof(*zone), sizeof(*zone));
+    zone = aligned_alloc(alignof(*zone), sizeof(*zone) + descmax * 8);
     if (ev(!zone))
         return NULL;
 
-    memset(zone, 0, sizeof(*zone));
+    memset(zone, 0, sizeof(*zone) + descmax * 8);
     zone->zone_iasz = iasz;
     zone->zone_imax = KMC_SLAB_SZ / iasz;
     zone->zone_isize = size;
@@ -870,6 +954,7 @@ kmem_cache_create(const char *name, size_t size, size_t align, ulong flags, void
     zone->zone_flags = flags;
     zone->zone_ctor = ctor;
     INIT_LIST_HEAD(&zone->zone_slabs);
+    zone->zone_descmax = descmax;
     zone->zone_delay = 15000;
     zone->zone_magic = zone;
 
@@ -1317,8 +1402,9 @@ kmc_snprintf(struct kmem_cache *zone, char *buf, size_t bufsz, const char *fmt)
 
     free(addrv);
 
-    snprintf(flagsbuf, sizeof(flagsbuf), "%s%s%s",
+    snprintf(flagsbuf, sizeof(flagsbuf), "%s%s%s%s",
              (zone->zone_flags & SLAB_HUGE) ? " huge" : "",
+             (zone->zone_flags & SLAB_DESC) ? " desc" : "",
              (zone->zone_flags & SLAB_PACKED) ? " packed" : "",
              (zone->zone_flags & SLAB_HWCACHE_ALIGN) ? " hwalign" : "");
 

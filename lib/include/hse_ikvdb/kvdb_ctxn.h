@@ -99,7 +99,7 @@ kvdb_ctxn_get_view_seqno(struct kvdb_ctxn *txn, u64 *view_seqno);
 
 /* MTF_MOCK */
 bool
-kvdb_ctxn_lock_inherit(u64 start_seq, uint old_rock, uint *new_rock);
+kvdb_ctxn_lock_inherit(uint32_t desc, uint64_t start_seq);
 
 /* Exclusively lock a txn for reading (e.g., get, prefix probe)  */
 /* MTF_MOCK */

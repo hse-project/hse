@@ -21,13 +21,14 @@
 struct keylock {
 };
 
-#define keylock_h2r(handle) container_of(handle, struct keylock_impl, kli_handle)
+#define keylock_h2r(handle) \
+    container_of(handle, struct keylock_impl, kli_handle)
 
 struct keylock_entry {
-    u64  kle_hash;
-    uint kle_rock;
-    uint kle_plen : 31;
-    uint kle_busy : 1;
+    uint64_t kle_hash;
+    uint32_t kle_owner;
+    uint32_t kle_plen : 31;
+    uint32_t kle_busy : 1;
 };
 
 struct keylock_impl {
@@ -49,7 +50,7 @@ struct keylock_impl {
 /* clang-format on */
 
 static bool
-keylock_cb_func(u64 start_seq, uint rock1, uint *new_rock)
+keylock_cb_func(uint32_t owner, uint64_t start_seq)
 {
     return false;
 }
@@ -100,9 +101,9 @@ keylock_destroy(struct keylock *handle)
 merr_t
 keylock_lock(
     struct keylock *handle,
-    u64             hash,
-    u64             start_seq,
-    uint            rock,
+    uint64_t        hash,
+    uint32_t        owner,
+    uint64_t        start_seq,
     bool *          inherited)
 {
     struct keylock_impl * table = keylock_h2r(handle);
@@ -115,7 +116,7 @@ keylock_lock(
     entry.kle_busy = 1;
     entry.kle_plen = 0;
     entry.kle_hash = hash;
-    entry.kle_rock = rock;
+    entry.kle_owner = owner;
 
     displaced = false;
 
@@ -127,22 +128,22 @@ keylock_lock(
      */
     while (curr->kle_busy) {
         if (!displaced && hash == curr->kle_hash) {
-            uint old = curr->kle_rock;
-            uint new = rock;
+            uint32_t old = curr->kle_owner;
+            uint32_t new = owner;
 
             /* Should only be considering this for the 1st hash */
             assert(hash == entry.kle_hash);
 
             /* Does the caller already hold the lock? */
-            if (old == rock) {
+            if (old == owner) {
                 mutex_unlock(&table->kli_kmutex);
                 *inherited = false;
                 return 0;
             }
 
             /* Can the caller inherit the lock? */
-            if (table->kli_cb_func(start_seq, old, &new)) {
-                curr->kle_rock = new;
+            if (table->kli_cb_func(old, start_seq)) {
+                curr->kle_owner = new;
                 mutex_unlock(&table->kli_kmutex);
                 *inherited = true;
                 return 0;
@@ -205,10 +206,10 @@ keylock_lock(
 }
 
 void
-keylock_unlock(struct keylock *handle, u64 hash, uint rock)
+keylock_unlock(struct keylock *handle, uint64_t hash, uint32_t owner)
 {
     struct keylock_impl *table = keylock_h2r(handle);
-    u64                  plen = 0, index, free;
+    uint                 plen = 0, index, free;
 
     index = (hash + plen) % KLE_PSL_MAX;
 
@@ -229,7 +230,7 @@ keylock_unlock(struct keylock *handle, u64 hash, uint rock)
      */
     if (!table->kli_bucketv[index].kle_busy ||
         table->kli_bucketv[index].kle_hash != hash ||
-        table->kli_bucketv[index].kle_rock != rock) {
+        table->kli_bucketv[index].kle_owner != owner) {
 
         mutex_unlock(&table->kli_kmutex);
 
@@ -261,10 +262,10 @@ keylock_unlock(struct keylock *handle, u64 hash, uint rock)
 
 #if HSE_MOCKING
 void
-keylock_search(struct keylock *handle, u64 hash, uint *pos)
+keylock_search(struct keylock *handle, uint64_t hash, uint *pos)
 {
     struct keylock_impl *table = keylock_h2r(handle);
-    u64                  plen = 0, index;
+    uint                 plen = 0, index;
 
     index = (hash + plen) % KLE_PSL_MAX;
     *pos = KLE_PSL_MAX;
