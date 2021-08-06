@@ -102,7 +102,7 @@ kvdb_pfxlock_create(struct viewset *txn_viewset, struct kvdb_pfxlock **pfxlock_o
     struct kvdb_pfxlock_tree *tree;
     int                       i;
 
-    pfxlock = malloc(sizeof(*pfxlock));
+    pfxlock = aligned_alloc(alignof(*pfxlock), sizeof(*pfxlock));
     if (ev(!pfxlock))
         return merr(ENOMEM);
 
@@ -113,7 +113,7 @@ kvdb_pfxlock_create(struct viewset *txn_viewset, struct kvdb_pfxlock **pfxlock_o
         tree[i].kplt_tree = RB_ROOT;
         spin_lock_init(&tree[i].kplt_spinlock);
         tree[i].kplt_ecache_cnt = 0;
-        tree[i].kplt_ecache = tree[i].kplt_ecache0;
+        tree[i].kplt_ecache = NULL;
 
         /* Initialize kplt_ecache with all entries from the embedded cache.
          */
