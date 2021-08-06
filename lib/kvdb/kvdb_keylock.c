@@ -33,7 +33,7 @@
 /* clang-format off */
 
 #define KVDB_DLOCK_MAX              (4) /* Must be power-of-2 */
-#define CTXN_LOCKS_IMPL_CACHE_SZ    (PAGE_SIZE - SMP_CACHE_BYTES * 2)
+#define CTXN_LOCKS_IMPL_CACHE_SZ    (1024 + SMP_CACHE_BYTES * 2)
 #define CTXN_LOCKS_SLAB_CACHE_SZ    (16 * 1024 - SMP_CACHE_BYTES * 2)
 
 struct kvdb_keylock {
@@ -139,7 +139,7 @@ struct kvdb_ctxn_locks_impl {
     struct ctxn_locks_slab   ctxn_locks_slab0[];
 };
 
-static_assert(sizeof(struct kvdb_ctxn_locks_impl) < CTXN_LOCKS_IMPL_CACHE_SZ / 16,
+static_assert(sizeof(struct kvdb_ctxn_locks_impl) < CTXN_LOCKS_IMPL_CACHE_SZ / 4,
               "CTXN_LOCKS_IMPL_CACHE_SZ too small");
 
 static_assert(sizeof(struct ctxn_locks_slab) < CTXN_LOCKS_IMPL_CACHE_SZ / 16,
