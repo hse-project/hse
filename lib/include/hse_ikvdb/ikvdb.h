@@ -573,6 +573,12 @@ ikvdb_wal_replay_seqno_set(struct ikvdb *ikvdb, uint64_t seqno);
 void
 ikvdb_wal_replay_gen_set(struct ikvdb *ikvdb, u64 gen);
 
+bool
+ikvdb_wal_replay_size_set(struct ikvdb *ikvdb, struct ikvdb_kvs_hdl *ikvsh, uint64_t mem_sz);
+
+void
+ikvdb_wal_replay_size_reset(struct ikvdb_kvs_hdl *ikvsh);
+
 void
 ikvdb_wal_replay_enable(struct ikvdb *ikvdb);
 
