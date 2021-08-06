@@ -21,7 +21,7 @@ foreach s : samples
 
         sample_targets += { s: e }
     else
-        sample_targets += { s: disabler }
+        sample_targets += { s: disabler() }
     endif
 endforeach
 
