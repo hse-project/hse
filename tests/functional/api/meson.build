@@ -56,6 +56,7 @@ foreach t, params : tests
         ],
         dependencies: [
             hse_static_dep,
+            hse_dependencies,
             params.get('dependencies', [])
         ],
     )
