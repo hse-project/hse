@@ -8,7 +8,6 @@ other HSE project repos.
 
 The second section contains information on contributing to this specific repo.
 
-
 ## General Information on Contributing
 
 ### Prior to Starting Work
@@ -19,7 +18,6 @@ if the work you are planning requires an RFC.
 [discussions forum](https://github.com/hse-project/hse/discussions)
 to get feedback on minor features or enhancements not requiring an RFC.
 * File an issue in the appropriate repo using the predefined templates.
-
 
 ### Submitting a Pull Request
 
@@ -37,17 +35,14 @@ the change.
 * For any data path changes, run the benchmark suite before and after
 your PR to verify there is no regression.
 
-
 ### Coding Style
 
-All the C code within HSE conforms to the defined `clang-format` file. All
+All the C code within HSE conforms to the pre-defined `clang-format` file. All
 Python code you may find in the code base conforms entirely to the `black`
 formatter. For Meson files, try to match the style in other files, but most
-importantly please use 4 spaces for indention rather than tabs.
+importantly use 4 spaces for indention rather than tabs.
 
-Please make sure all contributions adhere to the aforementioned
-styles.
-
+Make sure all contributions adhere to the aforementioned styles.
 
 ## Information on Contributing to this Repo
 
@@ -62,146 +57,125 @@ git clone https://github.com/hse-project/hse.git
 git clone git@github.com:hse-project/hse.git
 ```
 
-### Git Hooks
-
-HSE has some Git hooks in its source tree that you are welcome to use.
-
-```shell
-ninja -C build git-hooks
-# or
-./scripts/dev/git-hooks
-```
-
-Either of the above commands will ensure that Git hooks are properly setup for
-the project.
-
 ### Building
 
-HSE uses the [Meson build system](https://mesonbuild.com). You can obtain a copy
-of `meson` from PyPI or through your system repositories. HSE currently needs a
-copy of Meson >= 0.58 to build. If you choose to install from PyPI, it might
-make sense to just install Meson into a [virtual environment](#Python).
+Refer to the [README.md](./README.md#building-hse) to get
+started.
 
-```sh
-# From PyPI
-python3 -m pip install meson
+Building HSE requires Meson >= 0.58.
+
+HSE comes with many build options. Refer to the
+[`meson_options.txt` file](./meson_options.txt) for all available build options.
+Alternatively run the following command:
+
+```shell
+$ meson configure build
 ```
 
-Basic steps to build the project are the following:
+#### For Distribution Maintainers
 
-```sh
-meson build
-ninja -C build # or 'meson compile -C build'
+The following HSE-specific build options are recommended for distributing HSE:
+
+```shell
+$ meson setup build -Dcli=true -Dexperimental=false -Dinstall-rpath=false \
+    -Dinstall-configs=false -Dinstall-tools=false -Dycsb=false \
+    -Ddb_bench=false -Dsamples=false -Dbindings=none \
+    -Dkvdb-conf-extended=false -Ddocs=false
 ```
 
-### Sanitized Builds
+#### Sanitized Builds
 
 Meson has built-in support for sanitized builds.
 
-Run `meson configure $builddir` to see what options exist for `b_sanitize`. It
+Run `meson configure build` to see what options exist for `b_sanitize`. It
 is important to reduce issues like memory leaks and undefined behavior when
 developing HSE. Common sanitizers you may want to use during development are
 `address` and `undefined`.
 
-### Installing
+HSE maintainers aim to have all tests pass with
+`-Db_sanitize=address,undefined`. Keeping
+that baseline is extremely important. All contributions will be required to meet
+that same standard. Compiling with these options locally can help contributors
+identify issues early on in their work.
 
-After building HSE, it can be installed using the following:
+#### Documentation
 
-```sh
-ninja -C build install # or 'meson install -C build'
+HSE's public API is annotated with Doxygen and includes a few graphs that can be
+rendered with Graphviz. Run the following to set it up:
+
+```shell
+$ meson setup -C build -Ddocs=true
+$ meson compile -C build doxygen
 ```
 
-You can configure where Meson installs the build artifacts using various
-built-in configuration options for Meson.
+Static HTML Doxygen files will be generated in `build/docs/doxygen/api/html`.
+
+### Installing
+
+Refer to the [README.md](./README.md#building-hse) to get
+started.
+
+Meson has various options for controlling where build artifacts will install to
+if you need something other than the defaults.
+
+To avoid installing HSE's subprojects (*recommended*) run the following:
+
+```shell
+$ meson install -C build --skip-subprojects
+```
+
+HSE uses its subprojects as static libraries, so there is no need to install
+them. This is especially useful if you decide to change the install prefix, so
+the subproject artifacts don't clash with the system artifacts.
 
 ### Uninstalling
 
 If HSE was installed using Meson, then you can run the following to uninstall:
 
-```sh
+```shell
 ninja -C build uninstall
 ```
 
+If you also install subprojects, then those will also be uninstalled.
+
 ### Testing
 
-Test can be ran using the following:
+Tests can be run using the following:
 
-```sh
+```shell
 meson test -C build [testname...]
 ```
 
 In the event the tests timeout, you can change Meson's timeout multiplier
-through the `-t` option.
+through the `-t` option:
 
-```sh
+```shell
 meson test -C build -t 9 ikvdb_test
 ```
 
 If you choose to add a feature or a bug fix to HSE, make sure to add any
 necessary tests to confirm that the contribution works as it should.
 
-### Test Suites
+To run a specific suite, run the following:
 
-HSE has the following test suites:
-
-- `unit` - unit tests
-- `c0` - c0 tests
-- `cn` - cn tests
-- `framework` - test framework tests
-- `kvdb` - kvdb tests
-- `kvs` - kvs tests
-- `util` - util tests
-- `functional` - check HSE's functionality
-- `smoke` - smoke tests
-
-To run a full suite, run the following:
-
-```sh
+```shell
 # If running multiple suites, use a comma separated list
 meson test -C build --suite [suite...]
-```
-
-To execute only tests pertaining to `c0`, run the following:
-
-```sh
-meson test -C build --suite c0
 ```
 
 > TODO: Document how to build and test in a way that mimics what
 > is done one each PR.  Contributors should be encouraged to run
 > those same tests prior to submitting a PR.
 
-### Targets
-
-Targets that you may find useful during HSE development:
-
-- `install`
-- `uninstall`
-- `format`
-- `python-repl`
-- `shell`
-- `test`
-- `git-hooks`
-
-```sh
-ninja -C build [target...]
-```
-
-To format all code and source files for instance, run the following:
-
-```sh
-ninja -C build format
-```
-
-### Distributing Source
+### Distributing the Source
 
 If you want to distribute HSE as a source tarball, then the following commands
 should create a tar file in `build/meson-dist`.
 
-```sh
+```shell
 # Read `meson dist -h` for other format options. Tests are disabled as an
 # example, but you may want the test suites to run.
-meson dist -C build --formats gz --no-tests
+$ meson dist -C build --formats gz --no-tests
 ```
 
 ### Distributing Binaries
@@ -210,9 +184,9 @@ If you want to distribute HSE as a binary tarball, then the following commands
 should build a tar file where `--destdir` is specified.
 
 ```sh
-meson install -C build --destdir /tmp/hse
-cd /tmp
-tar -czf hse.tar.gz hse
+$ meson install -C build --destdir $location
+$ cd $location
+$ tar -czf hse.tar.gz hse
 ```
 
 ### Python
@@ -220,33 +194,17 @@ tar -czf hse.tar.gz hse
 Some of the tests or tools may require various Python dependencies including
 [`hse-python`](https://github.com/hse-project/hse-python). At the root of the
 repository is a `pyproject.toml`, which is configured with Poetry to install
-python dependencies. Poetry will setup a virtual environment.
-Install Poetry as per [docs](https://python-poetry.org/docs/#installation).
-Use the following steps to set up Poetry shell.
+python dependencies. Refer to the [README.md](./README.md#poetry)
+
+### Git Hooks
+
+HSE has some Git hooks in its source tree that you are welcome to use.
 
 ```shell
-# CWD = repository root
-poetry install
-poetry shell
-
-# To exit the virtual environment
-exit
+$ ninja -C build git-hooks
+# or
+$ ./scripts/dev/git-hooks
 ```
 
-After the virtual environment has been setup properly, then any errors which
-you may have seen in previous attempts to build/test/install `hse` should be
-resolved, at least partially.
-
-## Documentation
-
-To build doxygen generated API documentation, install doxygen and graphviz,
-turn on the docs flags, and compile the doxygen target..
-
-```shell
-# CWD = repository root
-meson setup -C build -Ddocs=true
-meson compile -C build doxygen
-```
-
-Static html doxygen pages with index will be generated in
-build/docs/doxygen/api/html.
+Either of the above commands will ensure that Git hooks are properly setup for
+the project.
