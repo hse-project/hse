@@ -5,8 +5,6 @@
 
 #include <ftw.h>
 
-#include <rbtree/rbtree.h>
-
 #include <hse_util/mutex.h>
 #include <hse_util/string.h>
 #include <hse_util/slab.h>
@@ -26,18 +24,6 @@
 #define MBLOCK_FILE_META_HDRLEN    (4096)
 #define MBLOCK_FILE_UNIQ_DELTA     (1024)
 #define MBLOCK_MMAP_CHUNK_MAX      (1024)
-
-/**
- * struct mblock_rgn -
- * @rgn_node:  rb-tree linkage
- * @rgn_start: first available key
- * @rgn_end:   last available key (not inclusive)
- */
-struct mblock_rgn {
-    struct rb_node rgn_node;
-    uint32_t       rgn_start;
-    uint32_t       rgn_end;
-};
 
 /**
  * struct mblock_rgnmap -
@@ -137,26 +123,19 @@ mblock_file_insert(struct mblock_file *mbfp, uint64_t mbid);
  */
 
 static merr_t
-mblock_rgnmap_init(struct mblock_file *mbfp, const char *name)
+mblock_rgnmap_init(struct mblock_file *mbfp, struct kmem_cache *rmcache)
 {
-    struct kmem_cache    *rmcache = NULL;
     struct mblock_rgnmap *rgnmap;
     struct mblock_rgn    *rgn;
     uint32_t rmax;
-
-    rmcache = kmem_cache_create(name, sizeof(*rgn), alignof(*rgn), 0, NULL);
-    if (!rmcache)
-        return merr(ENOMEM);
 
     rgnmap = &mbfp->rgnmap;
     mutex_init(&rgnmap->rm_lock);
     rgnmap->rm_root = RB_ROOT;
 
     rgn = kmem_cache_alloc(rmcache);
-    if (!rgn) {
-        kmem_cache_destroy(rmcache);
+    if (!rgn)
         return merr(ENOMEM);
-    }
 
     rgn->rgn_start = 1;
     rmax = mbfp->fszmax >> ilog2(mbfp->mblocksz);
@@ -553,7 +532,8 @@ mblock_file_meta_log(struct mblock_file *mbfp, uint64_t *mbidv, int mbidc, bool 
 
     omf_set_mblk_id(mbomf, delete ? 0 : *mbidv);
     omf_set_mblk_wlen(mbomf, delete ? 0 : wlen);
-    omf_set_mblk_rsvd(mbomf, 0);
+    omf_set_mblk_rsvd1(mbomf, 0);
+    omf_set_mblk_rsvd2(mbomf, 0);
 
     rc = msync((void *)((unsigned long)addr & PAGE_MASK), PAGE_SIZE, MS_SYNC);
     if (rc == -1)
@@ -574,17 +554,18 @@ mblock_file_open(
     struct mblock_file_params *params,
     int                        flags,
     char                      *meta_addr,
+    struct kmem_cache         *rmcache,
     struct mblock_file       **handle)
 {
     struct mblock_file *mbfp;
     enum mclass_id      mcid;
     int    fd, rc, dirfd, mmapc, wlenc, fileid;
     merr_t err = 0;
-    char   name[32], rname[32];
+    char   name[32];
     bool   create = false;
     size_t sz, mblocksz, fszmax;
 
-    if (!mbfsp || !mc || !meta_addr || !handle || !params)
+    if (!mbfsp || !mc || !meta_addr || !handle || !params || !rmcache)
         return merr(EINVAL);
 
     if (flags & O_CREAT)
@@ -620,8 +601,7 @@ mblock_file_open(
     mbfp->mblocksz = mblocksz;
 
     mbfp->fszmax = fszmax;
-    snprintf(rname, sizeof(rname), "%s-%d-%d", "rgnmap", mcid, fileid);
-    err = mblock_rgnmap_init(mbfp, rname);
+    err = mblock_rgnmap_init(mbfp, rmcache);
     if (err) {
         free(mbfp);
         return err;
@@ -693,11 +673,7 @@ mblock_file_close(struct mblock_file *mbfp)
     {
         kmem_cache_free(rgnmap->rm_cache, rgn);
     }
-
-    if (rgnmap->rm_cache) {
-        kmem_cache_destroy(rgnmap->rm_cache);
-        rgnmap->rm_cache = NULL;
-    }
+    rgnmap->rm_cache = NULL;
 
     mblock_file_unmapall(mbfp);
 

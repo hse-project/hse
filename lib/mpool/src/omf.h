@@ -162,18 +162,21 @@ OMF_SETGET(struct mblock_filehdr_omf, fh_rsvd2, 16);
  *
  * @mblk_id:   mblock ID
  * @mblk_wlen: mblock write length
- * @mblk_rsvd: reserved
+ * @mblk_rsvd1: reserved 1
+ * @mblk_rsvd2: reserved 2
  */
 struct mblock_oid_omf {
     __le64 mblk_id;
     __le32 mblk_wlen;
-    __le32 mblk_rsvd;
+    __le32 mblk_rsvd1;
+    __le64 mblk_rsvd2;
 } HSE_PACKED;
 
 /* Define set/get methods for mblock_oid_omf */
 OMF_SETGET(struct mblock_oid_omf, mblk_id, 64);
 OMF_SETGET(struct mblock_oid_omf, mblk_wlen, 32);
-OMF_SETGET(struct mblock_oid_omf, mblk_rsvd, 32);
+OMF_SETGET(struct mblock_oid_omf, mblk_rsvd1, 32);
+OMF_SETGET(struct mblock_oid_omf, mblk_rsvd2, 64);
 
 #define MBLOCK_FILE_META_OIDLEN (sizeof(struct mblock_oid_omf))
 
