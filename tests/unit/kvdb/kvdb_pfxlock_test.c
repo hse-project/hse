@@ -81,6 +81,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_pfxlock_test, ptomb_before_put, mapi_pre, mapi_pos
     merr_t    err;
     void *    lock = NULL;
 
+    g_txn_horizon = 0;
     err = kvdb_pfxlock_excl(kpl, hash, 3, &lock); /* pdel */
     ASSERT_EQ(0, err);
 
@@ -103,39 +104,36 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_pfxlock_test, long_txn, mapi_pre, mapi_post)
     merr_t    err;
     void *    lockv[32] = { NULL };
 
+    g_txn_horizon = 0;
     err = kvdb_pfxlock_excl(kpl, hash, 100, &lockv[0]); /* pdel */
     ASSERT_EQ(0, err);
 
     kvdb_pfxlock_seqno_pub(kpl, 110, lockv[0]); /* Commit at seqno 110 */
+    g_txn_horizon = 110;
 
     err = kvdb_pfxlock_shared(kpl, hash, 200, &lockv[0]); /* put by txn with view_seq = 200 */
     ASSERT_EQ(0, err);
 
-    err = kvdb_pfxlock_shared(kpl, hash, 1, &lockv[1]); /* old txn with view_seq = 1 */
+    kvdb_pfxlock_prune(kpl); /* This should remove entries older than seqno=110 (horizon) */
+
+    err = kvdb_pfxlock_shared(kpl, hash, 201, &lockv[1]);
     ASSERT_EQ(0, err);
 
-    g_txn_horizon = 0;
-    kvdb_pfxlock_prune(kpl); /* This should not remove any entries since horizon is 0. */
-
-    err = kvdb_pfxlock_shared(kpl, hash, 1, &lockv[2]);
-    ASSERT_EQ(0, err);
-
-    err = kvdb_pfxlock_excl(kpl, hash, 201, &lockv[3]);
+    err = kvdb_pfxlock_excl(kpl, hash, 201, &lockv[2]);
     ASSERT_EQ(ECANCELED, merr_errno(err));
 
     g_txn_horizon = 500;
     kvdb_pfxlock_prune(kpl); /* This will clear out the entry from the rbtree */
 
-    err = kvdb_pfxlock_excl(kpl, hash, 501, &lockv[4]);
+    err = kvdb_pfxlock_excl(kpl, hash, 501, &lockv[3]);
     ASSERT_EQ(ECANCELED, merr_errno(err));
 
 
     /* Commit all entries */
     kvdb_pfxlock_seqno_pub(kpl, 502, lockv[0]);
     kvdb_pfxlock_seqno_pub(kpl, 502, lockv[1]);
-    kvdb_pfxlock_seqno_pub(kpl, 502, lockv[2]);
 
-    err = kvdb_pfxlock_excl(kpl, hash, 503, &lockv[4]);
+    err = kvdb_pfxlock_excl(kpl, hash, 503, &lockv[3]);
     ASSERT_EQ(0, err);
 }
 
