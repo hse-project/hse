@@ -196,8 +196,7 @@ lc_ib_head_seqno(struct lc_impl *self)
      */
     rmlock_rlock(&self->lc_ib_rmlock, &lock);
     first = self->lc_ib_head;
-    assert(first);
-    seqno = first->ib_seqno;
+    seqno = first ? first->ib_seqno : 0;
     rmlock_runlock(lock);
 
     return seqno;

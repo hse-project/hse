@@ -737,7 +737,8 @@ exit_err:
     } else {
         int finlat;
 
-        lc_ingest_seqno_set(lc, max_seq);
+        if (atomic_read(&c0sk->c0sk_replaying) == 0)
+            lc_ingest_seqno_set(lc, max_seq);
 
         /* Compute a running average of the finish latency (weighted more
          * heavily on previous result) for use in adjusting the throttle.
