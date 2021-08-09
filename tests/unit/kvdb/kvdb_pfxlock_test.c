@@ -79,7 +79,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_pfxlock_test, ptomb_before_put, mapi_pre, mapi_pos
 {
     const u64 hash = 0;
     merr_t    err;
-    void *    lock;
+    void *    lock = NULL;
 
     err = kvdb_pfxlock_excl(kpl, hash, 3, &lock); /* pdel */
     ASSERT_EQ(0, err);
@@ -101,7 +101,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_pfxlock_test, long_txn, mapi_pre, mapi_post)
 {
     const u64 hash = 0;
     merr_t    err;
-    void *    lockv[32];
+    void *    lockv[32] = { NULL };
 
     err = kvdb_pfxlock_excl(kpl, hash, 100, &lockv[0]); /* pdel */
     ASSERT_EQ(0, err);
