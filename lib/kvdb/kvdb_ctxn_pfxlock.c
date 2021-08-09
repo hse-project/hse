@@ -12,18 +12,26 @@
 
 #include "kvdb_ctxn_pfxlock.h"
 
+/* clang-format off */
+
 struct kvdb_ctxn_pfxlock_entry {
     struct rb_node ktpe_node;
-    u64            ktpe_hash : 63;
-    u64            ktpe_excl : 1;
-    void *         ktpe_cookie;
+    u64            ktpe_hash;
+    void          *ktpe_cookie;
+    bool           ktpe_excl;
+    bool           ktpe_freeme;
 };
 
 struct kvdb_ctxn_pfxlock {
     struct rb_root       ktp_tree;
     struct kvdb_pfxlock *ktp_pfxlock;
     u64                  ktp_view_seqno;
+    int                  ktp_entryc;
+
+    struct kvdb_ctxn_pfxlock_entry ktp_entryv[4];
 };
+
+/* clang-format off */
 
 static struct kmem_cache *ctxn_pfxlock_cache;
 static struct kmem_cache *ctxn_pfxlock_entry_cache;
@@ -40,9 +48,10 @@ kvdb_ctxn_pfxlock_create(
     if (ev(!ktp))
         return merr(ENOMEM);
 
-    ktp->ktp_pfxlock = pfxlock;
     ktp->ktp_tree = RB_ROOT;
+    ktp->ktp_pfxlock = pfxlock;
     ktp->ktp_view_seqno = view_seqno;
+    ktp->ktp_entryc = NELEM(ktp->ktp_entryv);
 
     *ktp_out = ktp;
     return 0;
@@ -51,10 +60,13 @@ kvdb_ctxn_pfxlock_create(
 void
 kvdb_ctxn_pfxlock_destroy(struct kvdb_ctxn_pfxlock *ktp)
 {
-    struct kvdb_ctxn_pfxlock_entry *entry, *next;
+    if (ktp->ktp_entryc < 0) {
+        struct kvdb_ctxn_pfxlock_entry *entry, *next;
 
-    rbtree_postorder_for_each_entry_safe(entry, next, &ktp->ktp_tree, ktpe_node) {
-        kmem_cache_free(ctxn_pfxlock_entry_cache, entry);
+        rbtree_postorder_for_each_entry_safe(entry, next, &ktp->ktp_tree, ktpe_node) {
+            if (entry->ktpe_freeme)
+                kmem_cache_free(ctxn_pfxlock_entry_cache, entry);
+        }
     }
 
     kmem_cache_free(ctxn_pfxlock_cache, ktp);
@@ -93,11 +105,8 @@ kvdb_ctxn_pfxlock_shared(struct kvdb_ctxn_pfxlock *ktp, u64 hash)
     struct kvdb_ctxn_pfxlock_entry *entry;
     merr_t                          err;
     void *                          cookie;
-    u64                             ctxn_hash;
 
-    ctxn_hash = hash >> 1;
-
-    link = kvdb_ctxn_pfxlock_lookup(ktp, ctxn_hash, &parent, &entry);
+    link = kvdb_ctxn_pfxlock_lookup(ktp, hash, &parent, &entry);
     if (*link)
         return 0;
 
@@ -106,13 +115,20 @@ kvdb_ctxn_pfxlock_shared(struct kvdb_ctxn_pfxlock *ktp, u64 hash)
     if (err)
         return err;
 
-    entry = kmem_cache_alloc(ctxn_pfxlock_entry_cache);
-    if (ev(!entry))
-        return merr(ENOMEM);
+    if (ktp->ktp_entryc-- > 0) {
+        entry = ktp->ktp_entryv + ktp->ktp_entryc;
+        entry->ktpe_freeme = false;
+    } else {
+        entry = kmem_cache_alloc(ctxn_pfxlock_entry_cache);
+        if (ev(!entry))
+            return merr(ENOMEM);
 
-    entry->ktpe_hash = ctxn_hash;
+        entry->ktpe_freeme = true;
+    }
+
+    entry->ktpe_hash = hash;
     entry->ktpe_cookie = cookie;
-    entry->ktpe_excl = 0;
+    entry->ktpe_excl = false;
 
     rb_link_node(&entry->ktpe_node, parent, link);
     rb_insert_color(&entry->ktpe_node, &ktp->ktp_tree);
@@ -126,31 +142,39 @@ kvdb_ctxn_pfxlock_excl(struct kvdb_ctxn_pfxlock *ktp, u64 hash)
     struct rb_node **               link, *parent;
     struct kvdb_ctxn_pfxlock_entry *entry;
     merr_t                          err;
-    void *                          cookie;
     bool                            insert;
-    u64                             ctxn_hash;
 
-    ctxn_hash = hash >> 1;
+    link = kvdb_ctxn_pfxlock_lookup(ktp, hash, &parent, &entry);
+    if (*link) {
+        if (entry->ktpe_excl)
+            return 0; /* Nothing to do, we already own an exclusive lock */
 
-    link = kvdb_ctxn_pfxlock_lookup(ktp, ctxn_hash, &parent, &entry);
-    if (*link && entry->ktpe_excl)
-        return 0; /* Nothing to do, we already own an exclusive lock */
+        insert = false;
+    } else{
+        if (ktp->ktp_entryc-- > 0) {
+            entry = ktp->ktp_entryv + ktp->ktp_entryc;
+            entry->ktpe_freeme = false;
+        } else {
+            entry = kmem_cache_alloc(ctxn_pfxlock_entry_cache);
+            if (ev(!entry))
+                return merr(ENOMEM);
 
-    cookie = *link ? entry->ktpe_cookie : NULL;
-    err = kvdb_pfxlock_excl(ktp->ktp_pfxlock, hash, ktp->ktp_view_seqno, &cookie);
-    if (err)
-        return err;
+            entry->ktpe_freeme = true;
+        }
 
-    insert = *link ? false : true;
-    if (insert) {
-        entry = kmem_cache_alloc(ctxn_pfxlock_entry_cache);
-        if (ev(!entry))
-            return merr(ENOMEM);
+        entry->ktpe_cookie = NULL;
+        insert = true;
     }
 
-    entry->ktpe_hash = ctxn_hash;
-    entry->ktpe_cookie = cookie;
-    entry->ktpe_excl = 1;
+    err = kvdb_pfxlock_excl(ktp->ktp_pfxlock, hash, ktp->ktp_view_seqno, &entry->ktpe_cookie);
+    if (err) {
+        if (insert && entry->ktpe_freeme)
+            kmem_cache_free(ctxn_pfxlock_entry_cache, entry);
+        return err;
+    }
+
+    entry->ktpe_hash = hash;
+    entry->ktpe_excl = true;
 
     if (insert) {
         rb_link_node(&entry->ktpe_node, parent, link);

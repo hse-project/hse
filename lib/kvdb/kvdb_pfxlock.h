@@ -8,9 +8,6 @@
 
 #include <hse_util/hse_err.h>
 
-#define KVDB_PFXLOCK_NUM_TREES (173)
-#define KVDB_PFXLOCK_ACTIVE    (UINT64_MAX - 1)
-
 struct kvdb_pfxlock;
 struct kvdb_pfxlock_entry;
 
