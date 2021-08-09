@@ -13,29 +13,24 @@
 extern "C" {
 #endif
 
-/** @addtogroup TYPES
- * @{
- */ 
-#define HSE_FLAG_NONE (0u) /**< Represents no flags */
+/* Documentation for these flags appears in hse.h */
 
-#define HSE_FLAG_SYNC_ASYNC (1u << 0) /**< make the sync operation asynchronous */
-#define HSE_FLAG_SYNC_REFWAIT (1u << 1) /**< block sync while there are refs on the kvms being ingested */
+#define HSE_FLAG_NONE (0u)
 
-#define HSE_FLAG_PUT_PRIORITY  (1u << 0) /**< Operation will not be throttled */
-#define HSE_FLAG_PUT_VCOMP_OFF (1u << 1) /**< Value will not be compressed */
+/* hse_kvdb_sync() flags */
+#define HSE_FLAG_SYNC_ASYNC (1u << 0)
+#define HSE_FLAG_SYNC_REFWAIT (1u << 1)
 
-/** @brief Turns of value compression on puts. */
-#define HSE_FLAG_PUT_VALUE_COMPRESSION_OFF HSE_FLAG_PUT_VCOMP_OFF 
+/* hse_kvs_put() flags */
+#define HSE_FLAG_PUT_PRIORITY  (1u << 0)
+#define HSE_FLAG_PUT_VCOMP_OFF (1u << 1)
+#define HSE_FLAG_PUT_VALUE_COMPRESSION_OFF HSE_FLAG_PUT_VCOMP_OFF
 
-/* Flags for cursor usage */
-#define HSE_FLAG_CURSOR_REVERSE     (1u << 0) /**< Move the cursor in reverse */
-
-/** @} TYPES */
+/* hse_kvs_cursor_create() flags */
+#define HSE_FLAG_CURSOR_REVERSE     (1u << 0)
 
 #ifdef HSE_EXPERIMENTAL
-/**
- * Flags for KVDB compaction
- */
+/* hse_kvdb_compact() flags */
 #define HSE_FLAG_KVDB_COMPACT_CANCEL   (1u << 0)
 #define HSE_FLAG_KVDB_COMPACT_SAMP_LWM (1u << 1)
 #endif
