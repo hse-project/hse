@@ -36,6 +36,7 @@ struct kvdb_pfxlock_entry {
     struct rb_node kple_node HSE_ALIGNED(SMP_CACHE_BYTES);
     u64            kple_hash;
     u64            kple_end_seqno;
+    u64            kple_end_seqno_excl;
     int            kple_refcnt;
     bool           kple_excl;
 };
@@ -198,10 +199,10 @@ merr_t
 kvdb_pfxlock_excl(struct kvdb_pfxlock *pfxlock, u64 hash, u64 start_seqno, void **cookie)
 {
     struct rb_node **                link, *parent;
-    struct kvdb_pfxlock_entry *      entry, *new;
+    struct kvdb_pfxlock_entry *      entry;
     struct kvdb_pfxlock_tree        *tree;
     struct rb_root *                 root;
-    bool                             insert = true;
+    bool                             insert;
 
     tree = pfxlock->kpl_tree + (hash % KVDB_PFXLOCK_NUM_TREES);
 
@@ -226,7 +227,9 @@ kvdb_pfxlock_excl(struct kvdb_pfxlock *pfxlock, u64 hash, u64 start_seqno, void 
 
         if (entry->kple_refcnt == 1 && *cookie) {
             /* Caller is the only txn holding this shared lock, fallthrough */
-        } else if (start_seqno <= entry->kple_end_seqno) {
+        } else if (entry->kple_refcnt > 1 || start_seqno <= entry->kple_end_seqno ||
+            start_seqno <= entry->kple_end_seqno_excl) {
+
             spin_unlock(&tree->kplt_lock);
             return merr(ECANCELED);
         }
@@ -234,28 +237,30 @@ kvdb_pfxlock_excl(struct kvdb_pfxlock *pfxlock, u64 hash, u64 start_seqno, void 
         /* This entry can be inherited since it was published before this txn began. Replace.
          */
         insert = false;
-        new = entry;
     } else {
-        new = kvdb_pfxlock_entry_alloc(tree);
-        if (ev(!new)) {
+        entry = kvdb_pfxlock_entry_alloc(tree);
+        if (ev(!entry)) {
             spin_unlock(&tree->kplt_lock);
             return merr(ENOMEM);
         }
-        memset(new, 0, sizeof(*new));
+
+        memset(entry, 0, sizeof(*entry));
+        insert = true;
     }
 
-    new->kple_hash = hash;
-    new->kple_end_seqno = KVDB_PFXLOCK_ACTIVE;
-    new->kple_refcnt = 1;
-    new->kple_excl = 1;
+    entry->kple_hash = hash;
+    entry->kple_end_seqno = KVDB_PFXLOCK_ACTIVE;
+    entry->kple_end_seqno_excl = KVDB_PFXLOCK_ACTIVE;
+    entry->kple_refcnt = 1;
+    entry->kple_excl = true;
 
     if (insert) {
-        kvdb_pfxlock_entry_add(parent, root, link, new);
+        kvdb_pfxlock_entry_add(parent, root, link, entry);
         tree->kplt_entry_cnt++;
     }
     spin_unlock(&tree->kplt_lock);
 
-    *cookie = new;
+    *cookie = entry;
     return 0;
 }
 
@@ -264,9 +269,9 @@ kvdb_pfxlock_shared(struct kvdb_pfxlock *pfxlock, u64 hash, u64 start_seqno, voi
 {
     struct rb_node **                link, *parent;
     struct rb_root *                 root;
-    struct kvdb_pfxlock_entry *      entry, *new;
+    struct kvdb_pfxlock_entry *      entry;
     struct kvdb_pfxlock_tree        *tree;
-    bool                             insert = true;
+    bool                             insert;
 
     tree = pfxlock->kpl_tree + (hash % KVDB_PFXLOCK_NUM_TREES);
 
@@ -287,7 +292,7 @@ kvdb_pfxlock_shared(struct kvdb_pfxlock *pfxlock, u64 hash, u64 start_seqno, voi
     }
 
     if (*link) {
-        if (entry->kple_excl && start_seqno <= entry->kple_end_seqno) {
+        if (entry->kple_excl || start_seqno <= entry->kple_end_seqno_excl) {
             spin_unlock(&tree->kplt_lock);
             return merr(ECANCELED);
         }
@@ -295,28 +300,28 @@ kvdb_pfxlock_shared(struct kvdb_pfxlock *pfxlock, u64 hash, u64 start_seqno, voi
         /* This entry can be inherited since it was published before this txn began. Replace.
          */
         insert = false;
-        new = entry;
     } else {
-        new = kvdb_pfxlock_entry_alloc(tree);
-        if (ev(!new)) {
+        entry = kvdb_pfxlock_entry_alloc(tree);
+        if (ev(!entry)) {
             spin_unlock(&tree->kplt_lock);
             return merr(ENOMEM);
         }
-        memset(new, 0, sizeof(*new));
+
+        memset(entry, 0, sizeof(*entry));
+        insert = true;
     }
 
-    new->kple_hash = hash;
-    new->kple_end_seqno = KVDB_PFXLOCK_ACTIVE;
-    new->kple_refcnt++;
-    new->kple_excl = 0;
+    entry->kple_hash = hash;
+    entry->kple_end_seqno = KVDB_PFXLOCK_ACTIVE;
+    entry->kple_refcnt++;
 
     if (insert) {
-        kvdb_pfxlock_entry_add(parent, root, link, new);
+        kvdb_pfxlock_entry_add(parent, root, link, entry);
         tree->kplt_entry_cnt++;
     }
     spin_unlock(&tree->kplt_lock);
 
-    *cookie = new;
+    *cookie = entry;
     return 0;
 }
 
@@ -329,9 +334,14 @@ kvdb_pfxlock_seqno_pub(struct kvdb_pfxlock *pfxlock, u64 end_seqno, void *cookie
 
     spin_lock(spinlock);
 
-    entry->kple_refcnt--;
-    if (!entry->kple_refcnt)
+    if (--entry->kple_refcnt == 0) {
         entry->kple_end_seqno = end_seqno;
+
+        if (entry->kple_excl) {
+            entry->kple_end_seqno_excl = end_seqno;
+            entry->kple_excl = false;
+        }
+    }
 
     spin_unlock(spinlock);
 }
