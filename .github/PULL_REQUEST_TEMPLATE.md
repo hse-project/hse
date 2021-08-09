@@ -6,7 +6,7 @@
 
 #### Verified checks?
 Have the checks completed?
-- [ ] All new and existing unit and functional tests pass
-- [ ] Checkoss pass
-- [ ] Code format check pass
-- [ ] All Commits are signed off
+- [ ] All new and existing unit and functional tests passes
+- [ ] Checkoss passes
+- [ ] Code format check passes
+- [ ] All commits are signed off

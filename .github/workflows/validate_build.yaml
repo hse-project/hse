@@ -6,7 +6,7 @@ on:
                 types: [opened, synchronize, reopened, edited]
 
 jobs:
-        build_ub:
+        build_ubuntu:
                 runs-on: ${{ matrix.os }}
                 strategy:
                         fail-fast: false
@@ -18,7 +18,7 @@ jobs:
                 - name: Install dependencies
                   run: |
                           sudo apt-get update
-                          sudo apt-get install build-essential libblkid-dev libbsd-dev gettext autopoint autoconf bison libtool pkg-config openjdk-8-jdk libmicrohttpd-dev liburcu-dev libyaml-dev liblz4-1 liblz4-dev curl python3-setuptools
+                          sudo apt-get install build-essential libbsd-dev gettext autopoint autoconf bison libtool pkg-config openjdk-8-jdk libmicrohttpd-dev liburcu-dev libyaml-dev liblz4-dev curl python3-setuptools
                           dpkg -l | grep curl
                           sudo apt-get install libmongoc-1.0-0 libbson-1.0-0 libssl-dev libsasl2-dev
                           python3 -m pip install --user setuptools_rust wheel
@@ -44,7 +44,7 @@ jobs:
                 - uses: actions/upload-artifact@v2
                   if: failure()
                   with:
-                    name: build-artifact-ubuntu
+                    name: build-artifact-ubuntu18
                     path: builddir/meson-logs/
 
         build_fedora:
@@ -60,7 +60,7 @@ jobs:
                 steps:
                 - name: Install dependencies
                   run: |
-                          sudo dnf install -y which git libblkid-devel gettext autoconf bison libtool pkg-config java-11-openjdk-devel libmicrohttpd-devel userspace-rcu-devel libyaml-devel lz4-devel
+                          sudo dnf install -y which git gettext autoconf bison libtool pkg-config java-1.8.0-openjdk-devel libmicrohttpd-devel userspace-rcu-devel libyaml-devel lz4-devel
                           sudo dnf install -y xz xz-libs xz-devel libbsd-devel curl mongo-c-driver libbson openssl-devel cyrus-sasl-devel ncurses-devel cmake make automake gcc gcc-c++ kernel-devel
                           sudo dnf install -y python-pip python-wheel python3-devel
                           sudo dnf upgrade -y python-setuptools
@@ -87,5 +87,5 @@ jobs:
                 - uses: actions/upload-artifact@v2
                   if: failure()
                   with:
-                    name: build-artifact-fedora
+                    name: build-artifact-fedora-latest
                     path: builddir/meson-logs/
