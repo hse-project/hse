@@ -1055,7 +1055,7 @@ hse_kvs_cursor_destroy(struct hse_kvs_cursor *cursor)
 }
 
 hse_err_t
-hse_kvdb_compact(struct hse_kvdb *handle, int flags)
+hse_kvdb_compact(struct hse_kvdb *handle, unsigned int flags)
 {
     if (HSE_UNLIKELY(!handle))
         return merr_to_hse_err(merr(EINVAL));

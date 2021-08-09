@@ -13,7 +13,7 @@ extern "C" {
 #include <inttypes.h>
 
 /** @defgroup ERROR_HANDLING HSE Return Codes
- * @{ 
+ * @{
  * Describes the HSE API return code type and associated utilities.
  */
 
@@ -41,13 +41,10 @@ extern "C" {
  * int retries = 0;
  * hse_err_t ret = 0;
  *
- * while(retries < MAX_RETRIES) {  
- *    hse_err_t ret;
- *    ...
+ * while (retries < MAX_RETRIES) {
  *    ret = hse_kvs_put(kvs_handle, flags, txn, key, k_len, val, v_len)
- *    if (EAGAIN != hse_err_to_errno(ret)) {
+ *    if (EAGAIN != hse_err_to_errno(ret))
  *       break;
- *    }
  *    retries++;
  * }
  * @endcode
@@ -58,7 +55,7 @@ typedef uint64_t hse_err_t;
 
 
 /** @defgroup TYPES Type Declarations, Shared Structures and Macros.
- * @{ 
+ * @{
  * These types are generally opaque handles that a client obtains by using library
  * functions. A client uses these handles to exercise more fine-grained
  * functionality. For example a "struct hse_kvdb" is the handle for a key-value database

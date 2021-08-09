@@ -12,7 +12,7 @@ extern "C" {
 
 /** @addtogroup TYPES
  * @{
- */ 
+ */
 
 /** @brief A string representing the HSE KVDB libary version
  *
