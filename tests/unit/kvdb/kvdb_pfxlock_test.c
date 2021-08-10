@@ -6,6 +6,8 @@
 #include <hse_ut/framework.h>
 #include <hse_test_support/mock_api.h>
 
+#include <hse_util/xrand.h>
+
 #include <kvdb/kvdb_pfxlock.h>
 #include <kvdb/viewset.h>
 
@@ -50,7 +52,7 @@ MTF_BEGIN_UTEST_COLLECTION(kvdb_pfxlock_test)
 
 MTF_DEFINE_UTEST_PREPOST(kvdb_pfxlock_test, basic, mapi_pre, mapi_post)
 {
-    const u64 hash = 0;
+    const u64 hash = xrand64_tls();
     merr_t    err;
     void *    lock;
 
@@ -77,13 +79,23 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_pfxlock_test, basic, mapi_pre, mapi_post)
 
 MTF_DEFINE_UTEST_PREPOST(kvdb_pfxlock_test, ptomb_before_put, mapi_pre, mapi_post)
 {
-    const u64 hash = 0;
+    const u64 hash = xrand64_tls();
     merr_t    err;
     void *    lock = NULL;
+    void *    lock2;
 
     g_txn_horizon = 0;
     err = kvdb_pfxlock_excl(kpl, hash, 3, &lock); /* pdel */
     ASSERT_EQ(0, err);
+
+    lock2 = lock;
+    err = kvdb_pfxlock_excl(kpl, hash, 3, &lock2); /* reacquire pdel lock */
+    ASSERT_EQ(0, err);
+    ASSERT_EQ(lock, lock2);
+
+    lock2 = NULL;
+    err = kvdb_pfxlock_excl(kpl, hash, 4, &lock2);
+    ASSERT_EQ(ECANCELED, merr_errno(err));
 
     err = kvdb_pfxlock_shared(kpl, hash, 4, &lock); /* put */
     ASSERT_EQ(ECANCELED, merr_errno(err));
@@ -100,7 +112,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_pfxlock_test, ptomb_before_put, mapi_pre, mapi_pos
 
 MTF_DEFINE_UTEST_PREPOST(kvdb_pfxlock_test, long_txn, mapi_pre, mapi_post)
 {
-    const u64 hash = 0;
+    const u64 hash = xrand64_tls();
     merr_t    err;
     void *    lockv[32] = { NULL };
 
