@@ -133,6 +133,11 @@ tools = {
             'parm_groups.c',
         ),
     },
+    'kvdb_profile': {
+        'sources': files(
+            'kvdb_profile' / 'kvdb_profile.c',
+        ),
+    },
     'bnt': {
         'sources': files(
             'bnt' / 'bnt.c',
@@ -178,11 +183,6 @@ tools = {
     'mpiotest': {
         'sources': files(
             'mpool' / 'mblock' / 'mpiotest.c',
-        ),
-    },
-    'mpool_profile': {
-        'sources': files(
-            'mpool' / 'mblock' / 'mpool_profile.c',
         ),
     },
     'multicursor': {
