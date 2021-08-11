@@ -310,7 +310,7 @@ ikvdb_create(const char *kvdb_home, struct kvdb_cparams *params)
     if (ev(err))
         goto cndb_cleanup; /* XXXXXX: Is this a valid point to call cndb_drop()? */
 
-    err = wal_create(mp, params, &meta.km_wal.oid1, &meta.km_wal.oid2);
+    err = wal_create(mp, &meta.km_wal.oid1, &meta.km_wal.oid2);
     if (err)
         goto cndb_cleanup;
 

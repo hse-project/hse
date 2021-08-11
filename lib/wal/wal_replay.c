@@ -976,10 +976,6 @@ wal_replay(struct wal *wal, struct wal_replay_info *rinfo)
     struct wal_replay *rep = NULL;
     merr_t err = 0;
 
-    err = wal_mdc_replay(wal_mdc(wal), wal);
-    if (err)
-        return err;
-
     if (wal_is_rdonly(wal) || wal_is_clean(wal))
         return 0; /* clean shutdown */
 

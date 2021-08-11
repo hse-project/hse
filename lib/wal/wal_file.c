@@ -158,6 +158,12 @@ wal_fileset_reclaim(
     return 0;
 }
 
+void
+wal_fileset_mclass_update(struct wal_fileset *wfset, enum mpool_mclass mclass)
+{
+    wfset->mclass = mclass;
+}
+
 struct wal_fileset *
 wal_fileset_open(
     struct mpool     *mp,

@@ -10,12 +10,6 @@
 
 /* clang-format off */
 
-#define WAL_DUR_MS_MAX          (1000)
-#define WAL_DUR_MS_MIN          (10)
-
-#define WAL_DUR_BYTES_MAX       (100 << 20)
-#define WAL_DUR_BYTES_MIN       (16 << 20)
-
 #define WAL_MDC_CAPACITY        (32 << 20)
 #define WAL_MAGIC               (0xabcdabcd)
 #define WAL_FILE_SIZE_BYTES     ((HSE_C0_CHEAP_SZ_DFLT * HSE_C0_INGEST_WIDTH_DFLT * 3) / 10)
@@ -49,15 +43,11 @@ struct wal_iocb {
 struct wal;
 struct mpool;
 
-void
-wal_dur_params_get(
-    struct wal        *wal,
-    uint32_t          *dur_ms,
-    uint32_t          *dur_bytes,
-    enum mpool_mclass *mclass);
+enum mpool_mclass
+wal_dur_mclass_get(struct wal *wal);
 
 void
-wal_dur_params_set(struct wal *wal, uint32_t dur_ms, uint32_t dur_bytes, enum mpool_mclass mclass);
+wal_dur_mclass_set(struct wal *wal, enum mpool_mclass mclass);
 
 uint64_t
 wal_reclaim_gen_get(struct wal *wal);

@@ -18,15 +18,6 @@
 
 /* clang-format off */
 
-/* Until we have some synchronization in place we need to make bufsz
- * large enough to accomodate several outstanding c0kvms buffers.
- */
-#define WAL_BUFSZ_MAX       (4ul << 30)
-
-#define WAL_BUFALLOCSZ_MAX \
-    (ALIGN(WAL_BUFSZ_MAX + wal_reclen() + HSE_KVS_KEY_LEN_MAX + HSE_KVS_VALUE_LEN_MAX, 2ul << 20))
-
-
 struct wal_buffer {
     atomic64_t wb_offset_head HSE_ALIGNED(SMP_CACHE_BYTES * 2);
     atomic64_t wb_offset_tail;
@@ -55,6 +46,9 @@ struct wal_buffer {
 struct wal_bufset {
     struct workqueue_struct *wbs_flushwq;
 
+    size_t      wbs_buf_sz;
+    size_t      wbs_buf_allocsz;
+
     atomic64_t *wbs_ingestgen;
     atomic64_t  wbs_err;
 
@@ -82,6 +76,7 @@ wal_buffer_flush_worker(struct work_struct *work)
     char *buf;
     uint64_t coff, foff, prev_foff, cgen, rgen, start_foff, flushb = 0, buflen;
     uint32_t flags, rhlen;
+    size_t bufsz, bufasz;
     merr_t err;
     bool wrap;
 
@@ -89,6 +84,8 @@ wal_buffer_flush_worker(struct work_struct *work)
 
     coff = atomic64_read(&wb->wb_offset_head);
     rhlen = wal_rechdr_len();
+    bufsz = wb->wb_bs->wbs_buf_sz;
+    bufasz = wb->wb_bs->wbs_buf_allocsz;
 
 restart:
     foff = atomic64_read(&wb->wb_foff);
@@ -109,7 +106,7 @@ restart:
         bool skiprec = false;
         uint64_t recoff;
 
-        buf = wb->wb_buf + (foff % WAL_BUFSZ_MAX);
+        buf = wb->wb_buf + (foff % bufsz);
         rhdr = (void *)buf;
 
         while ((recoff = le64_to_cpu(atomic64_read((atomic64_t *)&rhdr->rh_off))) != foff) {
@@ -158,14 +155,14 @@ restart:
         prev_foff = foff;
         foff += (rhlen + omf_rh_len(rhdr));
 
-        if ((foff % WAL_BUFSZ_MAX) < (prev_foff % WAL_BUFSZ_MAX)) {
+        if ((foff % bufsz) < (prev_foff % bufsz)) {
             wrap = true;
             break;
         }
     }
     assert(foff <= coff);
 
-    rhdr = (void *)(wb->wb_buf + prev_foff % WAL_BUFSZ_MAX);
+    rhdr = (void *)(wb->wb_buf + prev_foff % bufsz);
 
     /* Set the EOR flag in the last record */
     flags = omf_rh_flags(rhdr);
@@ -177,11 +174,11 @@ restart:
     atomic64_set(&wb->wb_foff, foff);
     assert(foff > start_foff);
 
-    buf = wb->wb_buf + (start_foff % WAL_BUFSZ_MAX);
+    buf = wb->wb_buf + (start_foff % bufsz);
     buflen = foff - start_foff; /* foff is exclusive */
 
-    if (buf + buflen - wb->wb_buf > WAL_BUFALLOCSZ_MAX) {
-        assert(buf + buflen - wb->wb_buf <= WAL_BUFALLOCSZ_MAX);
+    if (buf + buflen - wb->wb_buf > bufasz) {
+        assert(buf + buflen - wb->wb_buf <= bufasz);
         err = merr(EBUG);
         goto exit;
     }
@@ -218,7 +215,11 @@ exit:
  */
 
 struct wal_bufset *
-wal_bufset_open(struct wal_fileset *wfset, atomic64_t *ingestgen, struct wal_iocb *iocb)
+wal_bufset_open(
+    struct wal_fileset *wfset,
+    size_t              bufsz,
+    atomic64_t         *ingestgen,
+    struct wal_iocb    *iocb)
 {
     struct wal_bufset *wbs;
     uint32_t i, j, k;
@@ -235,6 +236,10 @@ wal_bufset_open(struct wal_fileset *wfset, atomic64_t *ingestgen, struct wal_ioc
     memset(wbs, 0, sz);
     atomic64_set(&wbs->wbs_err, 0);
     wbs->wbs_ingestgen = ingestgen;
+
+    wbs->wbs_buf_sz = bufsz;
+    wbs->wbs_buf_allocsz = ALIGN(bufsz + wal_reclen() + HSE_KVS_KEY_LEN_MAX +
+                                 HSE_KVS_VALUE_LEN_MAX, 2ul << 20);
 
     for (i = 0; i < get_nprocs_conf(); ++i) {
         struct wal_buffer *wb;
@@ -263,7 +268,7 @@ wal_bufset_open(struct wal_fileset *wfset, atomic64_t *ingestgen, struct wal_ioc
             wb->wb_bs = wbs;
             INIT_WORK(&wb->wb_fwork, wal_buffer_flush_worker);
 
-            wb->wb_buf = vlb_alloc(WAL_BUFALLOCSZ_MAX);
+            wb->wb_buf = vlb_alloc(wbs->wbs_buf_allocsz);
             if (!wb->wb_buf)
                 goto errout;
 
@@ -323,7 +328,7 @@ wal_bufset_close(struct wal_bufset *wbs)
 
         wal_io_destroy(wb->wb_io);
 
-        vlb_free(wb->wb_buf, WAL_BUFALLOCSZ_MAX);
+        vlb_free(wb->wb_buf, wbs->wbs_buf_allocsz);
     }
 
     wal_io_fini();
@@ -341,7 +346,7 @@ wal_bufset_alloc(
     uint32_t          *wbidx,
     int64_t           *cookie)
 {
-    const size_t hwm = WAL_BUFSZ_MAX - (8u << 20);
+    const size_t hwm = wbs->wbs_buf_sz - (8u << 20);
     struct wal_buffer *wb;
     uint64_t offset, doff;
     int slot;
@@ -389,7 +394,7 @@ wal_bufset_alloc(
     *offout = offset;
     *wbidx = slot;
 
-    return wb->wb_buf + (offset % WAL_BUFSZ_MAX);
+    return wb->wb_buf + (offset % wbs->wbs_buf_sz);
 }
 
 void
@@ -465,7 +470,7 @@ wal_bufset_flush(struct wal_bufset *wbs, uint64_t *flushb, uint64_t *bufszp, uin
     if ((err = atomic64_read(&wbs->wbs_err)))
         return err;
 
-    *bufszp = WAL_BUFSZ_MAX;
+    *bufszp = wbs->wbs_buf_sz;
     *buflenp = 0;
     *flushb = 0;
 

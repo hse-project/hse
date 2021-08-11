@@ -12,7 +12,11 @@ struct wal_buffer;
 struct wal_iocb;
 
 struct wal_bufset *
-wal_bufset_open(struct wal_fileset *wfset, atomic64_t *ingestgen, struct wal_iocb *iocb);
+wal_bufset_open(
+    struct wal_fileset *wfset,
+    size_t              bufsz,
+    atomic64_t         *ingestgen,
+    struct wal_iocb    *iocb);
 
 void
 wal_bufset_close(struct wal_bufset *wbs);

@@ -13,10 +13,7 @@
 #include <mpool/mpool_structs.h>
 
 struct kvdb_cparams {
-    size_t dur_buf_sz;
-    uint32_t dur_intvl_ms;
     struct mpool_cparams storage;
-    uint8_t dur_mclass;
 };
 
 const struct param_spec *
