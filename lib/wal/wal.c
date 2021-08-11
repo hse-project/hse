@@ -524,6 +524,18 @@ wal_destroy(struct mpool *mp, uint64_t oid1, uint64_t oid2)
     wal_mdc_destroy(mp, oid1, oid2);
 }
 
+static enum mpool_mclass
+mclass_name_to_val(const char *mcname)
+{
+    if (!strcmp(mcname, MP_MED_NAME_CAPACITY))
+        return MP_MED_CAPACITY;
+
+    if (!strcmp(mcname, MP_MED_NAME_STAGING))
+        return MP_MED_STAGING;
+
+    return MP_MED_INVALID;
+}
+
 merr_t
 wal_open(
     struct mpool           *mp,
@@ -534,6 +546,7 @@ wal_open(
     struct wal            **wal_out)
 {
     struct wal *wal;
+    enum mpool_mclass mclass;
     merr_t err;
     int rc;
 
@@ -569,7 +582,7 @@ wal_open(
 
     err = wal_mdc_replay(wal->mdc, wal);
     if (err)
-        return err;
+        goto errout;
 
     wal->wfset = wal_fileset_open(mp, wal->dur_mclass, WAL_FILE_SIZE_BYTES, WAL_MAGIC, WAL_VERSION);
     if (!wal->wfset) {
@@ -595,9 +608,11 @@ wal_open(
         wal->dur_bufsz = roundup_pow_of_two(wal->dur_bufsz);
     }
 
-    if (rp->dur_mclass != wal->dur_mclass) {
-        assert(rp->dur_mclass < MP_MED_COUNT);
-        wal->dur_mclass = rp->dur_mclass;
+    mclass = mclass_name_to_val(rp->dur_mclass);
+    assert(mclass != MP_MED_INVALID);
+    if (mclass != wal->dur_mclass) {
+        assert(mclass < MP_MED_COUNT);
+        wal->dur_mclass = mclass;
         wal_fileset_mclass_update(wal->wfset, wal->dur_mclass);
     }
 
