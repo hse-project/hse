@@ -167,24 +167,21 @@ wal_replay_close(struct wal_replay *rep, bool failed)
         struct rb_root *root = &cgen->rg_root;
         struct wal_rec *cur, *next;
 
-        rbtree_postorder_for_each_entry_safe(cur, next, root, node) {
+        rbtree_postorder_for_each_entry_safe(cur, next, root, node)
             kmem_cache_free(rep->r_cache, cur);
-        }
 
         list_del_init(&cgen->rg_link);
         free(cgen);
     }
 
-    rbtree_postorder_for_each_entry_safe(ctxm, ntxm, &rep->r_txm_root, node) {
+    rbtree_postorder_for_each_entry_safe(ctxm, ntxm, &rep->r_txm_root, node)
         kmem_cache_free(rep->r_txm_cache, ctxm);
-    }
 
     for (i = 0; i < rep->r_cnt; i++) {
         struct wal_replay_gen_info *rginfo = rep->r_ginfo + i;
 
-        rbtree_postorder_for_each_entry_safe(ctxm, ntxm, &rginfo->txm_root, node) {
+        rbtree_postorder_for_each_entry_safe(ctxm, ntxm, &rginfo->txm_root, node)
             kmem_cache_free(rep->r_txm_cache, ctxm);
-        }
     }
 
     wal_fileset_replay_free(wal_fset(wal), failed);
@@ -553,9 +550,8 @@ wal_replay_gen_impl(struct wal_replay *rep, struct wal_replay_gen *rgen, bool fl
             hse_log(HSE_CRIT "WAL replay: Unrecognized record op %d in gen %lu, failing replay",
                     rec->op, rgen->rg_gen);
 
-            rbtree_postorder_for_each_entry_safe(cur, next, root, node) {
+            rbtree_postorder_for_each_entry_safe(cur, next, root, node)
                 kmem_cache_free(rep->r_cache, cur);
-            }
 
             return err;
         }
@@ -600,7 +596,7 @@ wal_replay_core(struct wal_replay *rep)
 
     list_for_each_entry_safe(cur, next, &rep->r_head, rg_link) {
         merr_t err;
-        bool   flush = false;
+        bool   flush = false, last_entry;
 
         /* Set the c0kvms gen to the gen that's about to be replayed */
         ikvdb_wal_replay_gen_set(ikvdb, cur->rg_gen);
@@ -614,10 +610,10 @@ wal_replay_core(struct wal_replay *rep)
         if (next && next->rg_bytes != 0)
             flush = ikvdb_wal_replay_size_set(ikvdb, rep->r_ikvsh, next->rg_bytes);
 
-        /* Flush all c0kvmses except the last one */
-        if (flush ||
-            (cur->rg_krcnt && (cur != list_last_entry(&rep->r_head, typeof(*cur), rg_link)))) {
-            err = ikvdb_sync(ikvdb, HSE_FLAG_SYNC_ASYNC);
+        last_entry = !next;
+
+        if (flush || cur->rg_krcnt || last_entry) {
+            err = ikvdb_sync(ikvdb, last_entry ? 0 : HSE_FLAG_SYNC_ASYNC);
             if (err) {
                 ikvdb_wal_replay_disable(ikvdb);
                 return err;
@@ -640,7 +636,7 @@ wal_replay_core(struct wal_replay *rep)
 
     ikvdb_wal_replay_size_reset(rep->r_ikvsh);
 
-    return ikvdb_sync(ikvdb, 0); /* Sync the last c0kvms */
+    return ikvdb_sync(ikvdb, 0); /* Sync a final time after restoring all replay settings */
 }
 
 static merr_t

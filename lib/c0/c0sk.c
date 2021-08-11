@@ -667,7 +667,6 @@ c0sk_lc_set(struct c0sk *handle, struct lc *lc)
 
     self = c0sk_h2r(handle);
     self->c0sk_lc = lc;
-    atomic64_set(&self->c0sk_ingest_min, lc_ingest_seqno_get(lc));
 }
 
 struct lc *

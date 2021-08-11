@@ -1131,8 +1131,6 @@ ikvdb_open(
         goto err1;
     }
 
-    lc_ingest_seqno_set(self->ikdb_lc, atomic64_read(&self->ikdb_seqno));
-
     if (ingestid != CNDB_INVAL_INGESTID && ingestid != CNDB_DFLT_INGESTID && ingestid > 0)
         gen = ingestid;
 
@@ -1163,6 +1161,10 @@ ikvdb_open(
         hse_elog(HSE_ERR "cannot open %s: @@e", err, kvdb_home);
         goto err1;
     }
+
+    seqno = atomic64_read(&self->ikdb_seqno);
+    lc_ingest_seqno_set(self->ikdb_lc, seqno);
+    c0sk_min_seqno_set(self->ikdb_c0sk, seqno);
 
     *handle = &self->ikdb_handle;
 
@@ -1669,6 +1671,7 @@ ikvdb_storage_info_get(
     size_t                        pathlen)
 {
     struct ikvdb_impl *self = ikvdb_h2r(handle);
+    struct kvdb_rparams *rparams = &self->ikdb_rp;
     struct mpool *     mp;
     struct mpool_stats stats = {};
     merr_t             err;
@@ -1699,9 +1702,9 @@ ikvdb_storage_info_get(
     info->used_bytes += used;
 
     if (cappath)
-        strlcpy(cappath, stats.mps_path[MP_MED_CAPACITY], pathlen);
+        strlcpy(cappath, rparams->storage.mclass[MP_MED_CAPACITY].path, pathlen);
     if (stgpath)
-        strlcpy(stgpath, stats.mps_path[MP_MED_STAGING], pathlen);
+        strlcpy(stgpath, rparams->storage.mclass[MP_MED_STAGING].path, pathlen);
 
     return 0;
 }
@@ -2907,12 +2910,12 @@ ikvdb_wal_replay_size_set(struct ikvdb *ikvdb, struct ikvdb_kvs_hdl *ikvsh, uint
     width = c0sk_ingest_width_get(self->ikdb_c0sk);
     assert(width);
 
-    cheap_sz = mem_sz / width;
+    cheap_sz = ((mem_sz * 14) / 10) / (width - 1);
     if (cheap_sz <= ikvsh->cheap_sz)
         return false;
 
     cheap_sz = roundup_pow_of_two(cheap_sz);
-    cheap_sz = max_t(size_t, cheap_sz, HSE_C0_CHEAP_SZ_DFLT);
+    cheap_sz = max_t(size_t, cheap_sz, HSE_C0_CHEAP_SZ_MAX);
 
     hse_log(HSE_NOTICE "WAL replay: Setting c0kvms cheap size from %lu to %lu",
             ikvsh->cheap_sz, cheap_sz);
