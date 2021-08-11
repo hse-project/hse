@@ -109,7 +109,7 @@ struct rest {
     struct MHD_Daemon *monitor_daemon;
 
     int  sockfd;
-    char sock_name[PATH_MAX];
+    char sock_name[sizeof(((struct sockaddr_un *)0)->sun_path)];
 };
 
 static struct rest rest;
@@ -974,19 +974,23 @@ get_socket(const char *sock_name, int *sock_out)
 }
 
 merr_t
-rest_server_start(const char *fmt)
+rest_server_start(const char *sock_path)
 {
     merr_t err;
-    char   sock_path[PATH_MAX];
+    size_t n HSE_MAYBE_UNUSED;
 
     if (rest.monitor_daemon)
         return 0; /* only one rest port per process */
 
-    strlcpy(sock_path, fmt, sizeof(sock_path));
+    /* Keep a copy of the socket path so we can unlink it when closing the
+     * rest server. Use realpath(3) because unlink doesn't work with symlinks.
+     */
+    n = strlcpy(rest.sock_name, sock_path, sizeof(rest.sock_name));
+    assert(n < sizeof(rest.sock_name));
 
-    err = get_socket(sock_path, &rest.sockfd);
+    err = get_socket(rest.sock_name, &rest.sockfd);
     if (ev(err)) {
-        hse_elog(HSE_ERR "Could not create socket %s: @@e", err, sock_path);
+        hse_elog(HSE_ERR "Could not create socket %s: @@e", err, rest.sock_name);
         return err;
     }
 
@@ -994,20 +998,12 @@ rest_server_start(const char *fmt)
 
     rest.url_hdlr_wq = alloc_workqueue("url_handler_wq", 0, WQ_THREADS);
     if (!rest.url_hdlr_wq) {
-        unlink(sock_path);
+        unlink(rest.sock_name);
         return merr(ev(ENOMEM));
     }
 
-    /* MHD_USE_SELECT_INTERNALLY : use an internal thread, so we needn't
-     * call select() explicitly in a thread
-     * MHD_USE_DEBUG : print errors to strerr
-     * MHD_OPTION_LISTEN_SOCKET: Listen on specified socket(subsequent arg)
-     * instead of opening a socket based on the "port" argument.
-     * MHD_OPTION_NOTIFY_COMPLETED : specify a callback function to be
-     * called upon successful exit/completion of request
-     */
     rest.monitor_daemon = MHD_start_daemon(
-        MHD_USE_EPOLL_INTERNALLY_LINUX_ONLY | MHD_USE_DEBUG,
+        MHD_USE_EPOLL_INTERNALLY_LINUX_ONLY,
         0,
         NULL,
         NULL,
@@ -1026,14 +1022,9 @@ rest_server_start(const char *fmt)
         NULL,
         MHD_OPTION_END);
     if (!rest.monitor_daemon) {
-        unlink(sock_path);
+        unlink(rest.sock_name);
         return merr(ev(ENOANO));
     }
-
-    /* keep a copy of the socket path so we can unlink it when closing the
-     * rest server
-     */
-    strlcpy(rest.sock_name, sock_path, sizeof(rest.sock_name));
 
     return 0;
 }

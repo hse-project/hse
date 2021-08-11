@@ -20,8 +20,6 @@
 #include "mblock_fset.h"
 #include "mblock_file.h"
 
-
-
 /**
  * struct mpool - mpool handle
  *
@@ -138,17 +136,29 @@ mpool_mclass_add(
     return err;
 }
 
+const char *
+mpool_mclass_default_path_get(const enum mpool_mclass mc)
+{
+    switch (mc) {
+        case MP_MED_CAPACITY:
+            return MPOOL_CAPACITY_MCLASS_DEFAULT_PATH;
+        case MP_MED_STAGING:
+            return NULL;
+        default:
+            assert(false);
+            return NULL;
+    }
+}
+
 merr_t
 mpool_create(const char *home, const struct mpool_cparams *params)
 {
-    assert(params);
-
     struct mpool *mp;
     merr_t        err;
     int           i, flags = 0;
 
-    if (!params)
-        return merr(EINVAL);
+    assert(home);
+    assert(params);
 
     mp = calloc(1, sizeof(*mp));
     if (!mp)
@@ -216,8 +226,9 @@ mpool_open(
     merr_t        err;
     int           i;
 
-    if (!params || !handle)
-        return merr(EINVAL);
+    assert(home);
+    assert(params);
+    assert(handle);
 
     *handle = NULL;
 
@@ -260,7 +271,7 @@ mpool_close(struct mpool *mp)
     int    i;
 
     if (!mp)
-        return merr(EINVAL);
+        return 0;
 
     for (i = MP_MED_COUNT - 1; i >= MP_MED_BASE; i--) {
         if (mp->mc[i]) {

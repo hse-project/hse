@@ -699,7 +699,7 @@ perf_seq_writes(const char *path)
     strlcpy(params.mclass[MP_MED_CAPACITY].path, path,
             sizeof(params.mclass[MP_MED_CAPACITY].path));
     /* 2. Open the mpool */
-    err = mpool_open(NULL, &params, O_RDWR, &mp);
+    err = mpool_open(path, &params, O_RDWR, &mp);
     if (err) {
         fprintf(stderr, "Cannot open mpool %s\n", path);
         return err;
@@ -1078,7 +1078,7 @@ main(int argc, char **argv)
 
     strlcpy(cparams.mclass[MP_MED_CAPACITY].path, path,
             sizeof(cparams.mclass[MP_MED_CAPACITY].path));
-    err = mpool_create(NULL, &cparams);
+    err = mpool_create(path, &cparams);
     if (err) {
         fprintf(stderr, "mpool creation at path %s failed\n", path);
         hse_fini();

@@ -5,6 +5,26 @@ project(
     meson_version: '>=0.57.0',
 )
 
+cc = meson.get_compiler('c')
+
+c_flags = []
+
+if get_option('werror')
+    c_flags += '-Werror'
+endif
+
+if get_option('warning_level') == '0'
+    if cc.get_id() == 'gcc'
+        c_flags += '-w'
+    elif cc.get_id() == 'clang'
+        c_flags += '-Wno-everything'
+    elif
+        error('Unable to translate "warning_level" for your compiler')
+    endif
+else
+    error('Unable to translate "warning_level" for your compiler')
+endif
+
 extern = import('unstable_external_project')
 
 run_command('bootstrap', check: true)
@@ -29,6 +49,9 @@ endif
 proj = extern.add_project(
     'configure',
     configure_options: configure_options,
+    env: environment({
+        'CFLAGS': ' '.join(c_flags),
+    })
 )
 
 liburcu_bp_dep = proj.dependency('urcu-bp')

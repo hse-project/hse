@@ -3,6 +3,7 @@
  * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
+#include "mapi_idx.h"
 #include <hse_ut/framework.h>
 #include <hse_test_support/mock_api.h>
 
@@ -18,9 +19,6 @@
 #include <hse_ikvdb/ikvdb.h>
 #include <hse_ikvdb/argv.h>
 
-#define MP   "kvdb_rest_mp"
-#define SOCK "/tmp/" MP ".rest"
-
 #define KVS  "kvdb_rest_kvs"
 #define KVS1 KVS "1"
 #define KVS2 KVS "2"
@@ -30,14 +28,15 @@
 #include <kvdb/kvdb_rest.h>
 #include <cn/kvset.h>
 #include <cn/cn_metrics.h>
+#include <sys/un.h>
 
 struct ikvdb *store;
-char          sock[PATH_MAX];
+char          sock[sizeof(((struct sockaddr_un *)0)->sun_path)];
 
 static int
 set_sock(struct mtf_test_info *ti)
 {
-    snprintf(sock, sizeof(sock), "%s.%d", SOCK, getpid());
+    snprintf(sock, sizeof(sock), "/tmp/hse-%d.sock", getpid());
     return 0;
 }
 
@@ -136,8 +135,8 @@ struct kvs_cparams kp;
  * changes).
  */
 struct mapi_injection inject_list[] = {
-    { mapi_idx_mpool_mdc_rootid_get, MAPI_RC_SCALAR, 0 },
-    { mapi_idx_mpool_mdc_root_open, MAPI_RC_SCALAR, 0 },
+    { mapi_idx_mpool_open, MAPI_RC_SCALAR, 0 },
+    { mapi_idx_mpool_close, MAPI_RC_SCALAR, 0 },
     { mapi_idx_mpool_mdc_open, MAPI_RC_SCALAR, 0 },
     { mapi_idx_mpool_mdc_close, MAPI_RC_SCALAR, 0 },
     { mapi_idx_mpool_mdc_append, MAPI_RC_SCALAR, 0 },
@@ -147,8 +146,6 @@ struct mapi_injection inject_list[] = {
     { mapi_idx_mpool_mdc_rewind, MAPI_RC_SCALAR, 0 },
     { mapi_idx_mpool_mdc_read, MAPI_RC_SCALAR, 0 },
     { mapi_idx_mpool_mclass_props_get, MAPI_RC_SCALAR, ENOENT },
-    { mapi_idx_kvdb_log_replay, MAPI_RC_SCALAR, 0 },
-    { mapi_idx_kvdb_log_done, MAPI_RC_SCALAR, 0 },
 
     { mapi_idx_cn_get_tree, MAPI_RC_SCALAR, 0 },
 
@@ -170,10 +167,9 @@ struct mapi_injection inject_list[] = {
 };
 
 static int
-test_pre(struct mtf_test_info *ti)
+test_pre(struct mtf_test_info *lcl_ti)
 {
     merr_t              err = 0;
-    struct mpool *      ds = (struct mpool *)-1;
     struct hse_kvs *    kvs1 = 0;
     struct hse_kvs *    kvs2 = 0;
     struct kvdb_rparams params = kvdb_rparams_defaults();
@@ -186,6 +182,7 @@ test_pre(struct mtf_test_info *ti)
 
     mapi_inject_list_set(inject_list);
 
+    mock_kvdb_meta_set();
     mock_c0cn_set();
 
     MOCK_SET(ct_view, _cn_tree_view_create);
@@ -201,16 +198,20 @@ test_pre(struct mtf_test_info *ti)
     rest_server_start(sock);
 
     err = argv_deserialize_to_kvdb_rparams(NELEM(paramv), paramv, &params);
-    err = ikvdb_open(MP, &params, NULL, ds, NULL, &store);
+    ASSERT_EQ_RET(0, err, merr_errno(err));
+    err = ikvdb_open(home, &params, &store);
+    ASSERT_EQ_RET(0, err, merr_errno(err));
     err = ikvdb_kvs_create(store, KVS1, &kvs_cp);
+    ASSERT_EQ_RET(0, err, merr_errno(err));
     err = ikvdb_kvs_create(store, KVS2, &kvs_cp);
+    ASSERT_EQ_RET(0, err, merr_errno(err));
     err = ikvdb_kvs_create(store, KVS3, &kvs_cp);
 
     err = ikvdb_kvs_open(store, KVS1, &kvs_rp, 0, &kvs1);
-    assert(err == 0);
+    ASSERT_EQ_RET(0, err, merr_errno(err));
 
     err = ikvdb_kvs_open(store, KVS2, &kvs_rp, 0, &kvs2);
-    assert(err == 0);
+    ASSERT_EQ_RET(0, err, merr_errno(err));
 
     return err;
 }
@@ -228,6 +229,8 @@ test_post(struct mtf_test_info *ti)
     store = 0;
 
     MOCK_UNSET(platform, _hse_meminfo);
+
+    mock_kvdb_meta_unset();
 
     return 0;
 }

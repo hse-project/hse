@@ -64,7 +64,7 @@ else
 	)
 endif
 
-git = find_program('git')
+git = find_program('git', required: false)
 if git.found() and fs.exists(meson.project_source_root() / '.git')
     build_tag = run_command(
         git,

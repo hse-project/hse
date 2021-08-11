@@ -427,16 +427,6 @@ _mpool_mdc_open(
     return 0;
 }
 
-static merr_t
-_mpool_mdc_root_open(
-    const char        *home,
-    uint64_t           oid1,
-    uint64_t           oid2,
-    struct mpool_mdc **mdc)
-{
-    return _mpool_mdc_open(NULL, oid1, oid2, mdc);
-}
-
 merr_t
 mpm_mdc_set_getlen(struct mpool_mdc *mdc, size_t (*getlen)(void *, size_t))
 {
@@ -747,7 +737,6 @@ mock_mpool_set(void)
     MOCK_SET(mpool, _mpool_mcache_getpages);
 
     MOCK_SET(mpool, _mpool_mdc_open);
-    MOCK_SET(mpool, _mpool_mdc_root_open);
     MOCK_SET(mpool, _mpool_mdc_close);
     MOCK_SET(mpool, _mpool_mdc_cstart);
     MOCK_SET(mpool, _mpool_mdc_cend);
@@ -756,8 +745,6 @@ mock_mpool_set(void)
     MOCK_SET(mpool, _mpool_mdc_read);
     MOCK_SET(mpool, _mpool_props_get);
     MOCK_SET(mpool, _mpool_mclass_props_get);
-
-    mapi_inject(mapi_idx_mpool_mdc_rootid_get, 0);
 }
 
 void
@@ -780,15 +767,12 @@ mock_mpool_unset(void)
     MOCK_UNSET(mpool, _mpool_mcache_getbase);
     MOCK_UNSET(mpool, _mpool_mcache_getpages);
 
-    MOCK_UNSET(mpool, _mpool_mdc_root_open);
     MOCK_UNSET(mpool, _mpool_mdc_close);
     MOCK_UNSET(mpool, _mpool_mdc_cstart);
     MOCK_UNSET(mpool, _mpool_mdc_cend);
     MOCK_UNSET(mpool, _mpool_mdc_append);
     MOCK_UNSET(mpool, _mpool_mdc_rewind);
     MOCK_UNSET(mpool, _mpool_mdc_read);
-
-    mapi_inject_unset(mapi_idx_mpool_mdc_rootid_get);
 
     for (i = 0; i < MPM_MAX_MBLOCKS; ++i)
         mapi_safe_free(mocked_mblocks[i].mb_base);

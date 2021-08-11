@@ -497,10 +497,11 @@ config_deserialize_to_kvs_rparams(
 static merr_t
 config_create(const char *path, cJSON **conf)
 {
-    size_t n;
-    char * config = NULL;
-    FILE * file = NULL;
-    merr_t err = 0;
+    char *      config = NULL;
+    FILE *      file = NULL;
+    merr_t      err = 0;
+    int         fd;
+    struct stat st;
 
     assert(path);
     assert(conf);
@@ -510,38 +511,34 @@ config_create(const char *path, cJSON **conf)
 	file = fopen(path, "r");
     if (!file) {
         err = merr(errno);
-        *conf = NULL;
         goto out;
     }
 
-    if (fseek(file, 0, SEEK_END)) {
+    fd = fileno(file);
+    if (fd == -1) {
         err = merr(errno);
         goto out;
     }
 
-    const long size = ftell(file);
-    if (size == -1) {
+    if (fstat(fd, &st) == -1) {
         err = merr(errno);
         goto out;
     }
 
-    rewind(file);
-
-    config = malloc(size + 1);
+    config = malloc(st.st_size + 1);
     if (!config) {
         err = merr(ENOMEM);
         goto out;
     }
 
-    n = fread(config, 1, size, file);
-    if (n != size || ferror(file)) {
+    if (fread(config, st.st_size, 1, file) != 1 || ferror(file)) {
         err = merr(EIO);
         goto out;
     }
 
-    config[size] = '\0';
+    config[st.st_size] = '\0';
 
-    *conf = cJSON_ParseWithLength(config, size);
+    *conf = cJSON_ParseWithLength(config, st.st_size);
     if (!*conf) {
         err = merr(EINVAL);
         goto out;
