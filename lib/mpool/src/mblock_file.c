@@ -670,9 +670,8 @@ mblock_file_close(struct mblock_file *mbfp)
     rgnmap = &mbfp->rgnmap;
 
     rbtree_postorder_for_each_entry_safe(rgn, next, &rgnmap->rm_root, rgn_node)
-    {
         kmem_cache_free(rgnmap->rm_cache, rgn);
-    }
+
     rgnmap->rm_cache = NULL;
 
     mblock_file_unmapall(mbfp);

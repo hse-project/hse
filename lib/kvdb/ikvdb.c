@@ -1671,7 +1671,7 @@ ikvdb_storage_info_get(
     size_t                        pathlen)
 {
     struct ikvdb_impl *self = ikvdb_h2r(handle);
-    struct kvdb_rparams *params = &self->ikdb_rp;
+    struct kvdb_rparams *rparams = &self->ikdb_rp;
     struct mpool *     mp;
     struct mpool_stats stats = {};
     merr_t             err;
@@ -1702,9 +1702,9 @@ ikvdb_storage_info_get(
     info->used_bytes += used;
 
     if (cappath)
-        strlcpy(cappath, params->storage.mclass[MP_MED_CAPACITY].path, pathlen);
+        strlcpy(cappath, rparams->storage.mclass[MP_MED_CAPACITY].path, pathlen);
     if (stgpath)
-        strlcpy(stgpath, params->storage.mclass[MP_MED_STAGING].path, pathlen);
+        strlcpy(stgpath, rparams->storage.mclass[MP_MED_STAGING].path, pathlen);
 
     return 0;
 }
