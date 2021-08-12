@@ -535,6 +535,9 @@ test_start(void *arg)
 
         err = mpool_mblock_write(mp, objid, iov, niov);
         if (err) {
+            if (merr_errno(err) == ENOSPC)
+                break;
+
             merr_strinfo(err, errbuf, sizeof(errbuf), NULL);
             eprint(
                 "mpool_mblock_write: %d objid=0x%lx len=%zu: %s\n",
