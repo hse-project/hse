@@ -22,9 +22,13 @@ enum mpool_mclass {
     MP_MED_STAGING = 1,
 };
 
-#define MP_MED_BASE    MP_MED_CAPACITY
-#define MP_MED_COUNT   (MP_MED_STAGING + 1)
-#define MP_MED_INVALID U8_MAX
+#define MP_MED_BASE            MP_MED_CAPACITY
+#define MP_MED_COUNT           (MP_MED_STAGING + 1)
+#define MP_MED_INVALID         U8_MAX
+
+#define MP_MED_NAME_CAPACITY   "capacity"
+#define MP_MED_NAME_STAGING    "staging"
+#define MP_MED_NAME_LEN_MAX    (16)
 
 /**
  * struct mpool_cparams - mpool create params

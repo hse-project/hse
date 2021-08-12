@@ -147,7 +147,6 @@ MTF_DEFINE_UTEST_PRE(test, t_dur_params, pre_test)
     throttle_fini(t);
 
     kvdb_rp = kvdb_rparams_defaults();
-    kvdb_rp.dur_throttle_enable = 0;
 
     throttle_init(t, &kvdb_rp);
     throttle_init_params(t, &kvdb_rp);

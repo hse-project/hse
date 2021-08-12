@@ -178,8 +178,6 @@ wal_mdc_version_unpack(const char *buf, struct wal *wal)
 static merr_t
 wal_mdc_config_write_impl(
     struct wal_mdc   *mdc,
-    uint32_t          dur_ms,
-    uint32_t          dur_bytes,
     enum mpool_mclass mclass,
     bool              sync)
 {
@@ -187,8 +185,6 @@ wal_mdc_config_write_impl(
     merr_t err;
 
     wal_mdchdr_pack(WAL_RT_CONFIG, (char *)&comf);
-    omf_set_cfg_durms(&comf, dur_ms);
-    omf_set_cfg_durbytes(&comf, dur_bytes);
     omf_set_cfg_mclass(&comf, mclass);
     omf_set_cfg_rsvd1(&comf, 0);
     omf_set_cfg_rsvd2(&comf, 0);
@@ -204,15 +200,10 @@ wal_mdc_config_write_impl(
 merr_t
 wal_mdc_config_write(struct wal_mdc *mdc, struct wal *wal, bool sync)
 {
-    uint32_t dur_ms, dur_bytes;
-    enum mpool_mclass mclass;
-
     if (!mdc || !wal)
         return merr(EINVAL);
 
-    wal_dur_params_get(wal, &dur_ms, &dur_bytes, &mclass);
-
-    return wal_mdc_config_write_impl(mdc, dur_ms, dur_bytes, mclass, sync);
+    return wal_mdc_config_write_impl(mdc, wal_dur_mclass_get(wal), sync);
 }
 
 
@@ -220,18 +211,15 @@ static merr_t
 wal_mdc_config_unpack(const char *buf, struct wal *wal)
 {
     struct wal_config_omf *comf;
-    uint32_t dur_ms, dur_bytes;
     enum mpool_mclass mclass;
 
     if (!buf || !wal)
         return merr(EINVAL);
 
     comf = (struct wal_config_omf *)buf;
-
-    dur_ms = omf_cfg_durms(comf);
-    dur_bytes = omf_cfg_durbytes(comf);
     mclass = omf_cfg_mclass(comf);
-    wal_dur_params_set(wal, dur_ms, dur_bytes, mclass);
+
+    wal_dur_mclass_set(wal, mclass);
 
     return 0;
 }
@@ -255,21 +243,12 @@ wal_mdc_close_write(struct wal_mdc *mdc, bool sync)
 }
 
 merr_t
-wal_mdc_format(
-    struct wal_mdc   *mdc,
-    uint32_t          version,
-    uint32_t          dur_ms,
-    uint32_t          dur_bytes,
-    enum mpool_mclass mclass)
+wal_mdc_format(struct wal_mdc *mdc, uint32_t version)
 {
     merr_t err;
     bool sync = true;
 
     err = wal_mdc_version_write_impl(mdc, version, sync);
-    if (err)
-        return err;
-
-    err = wal_mdc_config_write_impl(mdc, dur_ms, dur_bytes, mclass, sync);
     if (err)
         return err;
 
