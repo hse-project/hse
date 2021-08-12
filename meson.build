@@ -146,6 +146,7 @@ elif get_option('debug')
 endif
 
 add_project_arguments(
+    '-D_LGPL_SOURCE',
     '-Wlogical-op',
     '-Wno-missing-field-initializers',
     '-Wmaybe-uninitialized',
@@ -197,7 +198,7 @@ liburcu_bp_dep = dependency(
     required: true,
     fallback: ['userspace-rcu', 'liburcu_bp_dep'],
     default_options: [
-        'default_library=static',
+        'default_library=shared',
         'warning_level=0',
         'werror=false',
     ],
@@ -274,7 +275,7 @@ libmicrohttpd_dep = dependency(
     required: true,
     fallback: ['libmicrohttpd', 'libmicrohttpd_dep'],
     default_options: [
-        'default_library=static',
+        'default_library=shared',
         'warning_level=0',
         'werror=false',
     ],

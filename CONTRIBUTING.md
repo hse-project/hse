@@ -69,7 +69,7 @@ HSE comes with many build options. Refer to the
 Alternatively run the following command:
 
 ```shell
-$ meson configure build
+meson configure build
 ```
 
 #### For Distribution Maintainers
@@ -77,7 +77,7 @@ $ meson configure build
 The following HSE-specific build options are recommended for distributing HSE:
 
 ```shell
-$ meson setup build -Dcli=true -Dexperimental=false -Dinstall-rpath=false \
+meson setup build -Dcli=true -Dexperimental=false -Dinstall-rpath=false \
     -Dinstall-configs=false -Dinstall-tools=false -Dycsb=false \
     -Ddb_bench=false -Dsamples=false -Dbindings=none \
     -Dkvdb-conf-extended=false -Ddocs=false
@@ -104,8 +104,8 @@ HSE's public API is annotated with Doxygen and includes a few graphs that can be
 rendered with Graphviz. Run the following to set it up:
 
 ```shell
-$ meson setup -C build -Ddocs=true
-$ meson compile -C build doxygen
+meson setup -C build -Ddocs=true
+meson compile -C build doxygen
 ```
 
 Static HTML Doxygen files will be generated in `build/docs/doxygen/api/html`.
@@ -117,16 +117,6 @@ started.
 
 Meson has various options for controlling where build artifacts will install to
 if you need something other than the defaults.
-
-To avoid installing HSE's subprojects (*recommended*) run the following:
-
-```shell
-$ meson install -C build --skip-subprojects
-```
-
-HSE uses its subprojects as static libraries, so there is no need to install
-them. This is especially useful if you decide to change the install prefix, so
-the subproject artifacts don't clash with the system artifacts.
 
 ### Uninstalling
 
@@ -175,7 +165,7 @@ should create a tar file in `build/meson-dist`.
 ```shell
 # Read `meson dist -h` for other format options. Tests are disabled as an
 # example, but you may want the test suites to run.
-$ meson dist -C build --formats gz --no-tests
+meson dist -C build --formats gz --no-tests
 ```
 
 ### Distributing Binaries
@@ -184,9 +174,9 @@ If you want to distribute HSE as a binary tarball, then the following commands
 should build a tar file where `--destdir` is specified.
 
 ```sh
-$ meson install -C build --destdir $location
-$ cd $location
-$ tar -czf hse.tar.gz hse
+meson install -C build --destdir $location
+cd $location
+tar -czf hse.tar.gz hse
 ```
 
 ### Python
@@ -201,9 +191,9 @@ python dependencies. Refer to the [README.md](./README.md#poetry)
 HSE has some Git hooks in its source tree that you are welcome to use.
 
 ```shell
-$ ninja -C build git-hooks
+ninja -C build git-hooks
 # or
-$ ./scripts/dev/git-hooks
+./scripts/dev/git-hooks
 ```
 
 Either of the above commands will ensure that Git hooks are properly setup for

@@ -18,7 +18,7 @@ Meson subprojects for performance and embedding reasons. To use system pacakges
 for cJSON, lz4, and xxHash, setup your build with the following:
 
 ```shell
-$ meson setup build -Duse-system-cjson=true -Duse-system-lz4=true \
+meson setup build -Duse-system-cjson=true -Duse-system-lz4=true \
     -Duse-system-xxhash=true
 ```
 
@@ -36,9 +36,9 @@ or meta package for your system.
 
 ```shell
 # RHEL-based
-$ sudo dnf install "@Development Tools"
+sudo dnf install "@Development Tools"
 # Ubuntu-based
-$ sudo apt install build-essential
+sudo apt install build-essential
 ```
 
 ## Dependencies From System
@@ -48,10 +48,10 @@ To obtain these from you system's package manager:
 ### RHEL 8
 
 ```shell
-$ sudo dnf install libcurl-devel libyaml-devel userspace-rcu-devel \
+sudo dnf install libcurl-devel libyaml-devel userspace-rcu-devel \
     libmicrohttpd-devel libbsd-devel
 # Optionally, depending on the your build settings
-$ sudo dnf install cjson-devel lz4-devel xxhash-devel mongo-c-driver-devel \
+sudo dnf install cjson-devel lz4-devel xxhash-devel mongo-c-driver-devel \
     ncurses-devel HdrHistogram_c-devel doxygen graphviz
 ```
 
@@ -63,10 +63,10 @@ subproject. cJSON, xxHash, and HdrHistogram_c aren't packaged for this
 distribution.
 
 ```shell
-$ sudo apt install libcurl4-openssl-dev libyaml-dev liburcu-dev \
+sudo apt install libcurl4-openssl-dev libyaml-dev liburcu-dev \
     libmicrohttpd-dev
 # Optionally, depending on the your build settings.
-$ sudo apt install liblz4-dev libncurses-dev doxygen graphviz
+sudo apt install liblz4-dev libncurses-dev doxygen graphviz
 ```
 
 ## Dependencies from Meson Subprojects
