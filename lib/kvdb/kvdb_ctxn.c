@@ -461,8 +461,10 @@ kvdb_ctxn_abort_inner(struct kvdb_ctxn_impl *ctxn)
     }
 
     kvdb_ctxn_pfxlock_seqno_pub(ctxn->ctxn_pfxlock_handle, end_seq);
-    kvdb_ctxn_pfxlock_destroy(ctxn->ctxn_pfxlock_handle);
+
     wal_txn_abort(ctxn->ctxn_wal, ctxn->ctxn_view_seqno, ctxn->ctxn_wal_cookie);
+
+    kvdb_ctxn_pfxlock_destroy(ctxn->ctxn_pfxlock_handle);
 
     /* At this point the transaction ceases to be considered active */
     kvdb_ctxn_deactivate(ctxn);
@@ -616,11 +618,7 @@ kvdb_ctxn_commit(struct kvdb_ctxn *handle)
         kvdb_keylock_enqueue_locks(locks, commit_sn, cookie);
         locks = NULL;
     }
-
-    kvdb_ctxn_pfxlock_seqno_pub(ctxn->ctxn_pfxlock_handle, commit_sn);
     kvdb_keylock_list_unlock(cookie);
-
-    kvdb_ctxn_pfxlock_destroy(ctxn->ctxn_pfxlock_handle);
 
     if (locks)
         kvdb_ctxn_locks_destroy(locks);
@@ -632,6 +630,9 @@ kvdb_ctxn_commit(struct kvdb_ctxn *handle)
 
     err = wal_txn_commit(ctxn->ctxn_wal, ctxn->ctxn_view_seqno, commit_sn, head,
                          ctxn->ctxn_wal_cookie);
+
+    kvdb_ctxn_pfxlock_seqno_pub(ctxn->ctxn_pfxlock_handle, commit_sn);
+    kvdb_ctxn_pfxlock_destroy(ctxn->ctxn_pfxlock_handle);
 
     kvdb_ctxn_deactivate(ctxn);
     kvdb_ctxn_unlock_impl(ctxn);

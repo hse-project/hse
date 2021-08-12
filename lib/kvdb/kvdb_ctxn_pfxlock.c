@@ -187,13 +187,16 @@ kvdb_ctxn_pfxlock_excl(struct kvdb_ctxn_pfxlock *ktp, u64 hash)
 void
 kvdb_ctxn_pfxlock_seqno_pub(struct kvdb_ctxn_pfxlock *ktp, u64 end_seqno)
 {
-    struct rb_node *node, *next;
+    struct rb_node *node;
 
-    for (node = rb_first(&ktp->ktp_tree); node; node = next) {
+    node = rb_first(&ktp->ktp_tree);
+    while (node) {
         struct kvdb_ctxn_pfxlock_entry *entry = rb_entry(node, typeof(*entry), ktpe_node);
 
-        next = rb_next(node);
         kvdb_pfxlock_seqno_pub(ktp->ktp_pfxlock, end_seqno, entry->ktpe_cookie);
+        entry->ktpe_cookie = NULL;
+
+        node = rb_next(node);
     }
 }
 

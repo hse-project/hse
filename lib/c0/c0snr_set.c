@@ -243,28 +243,40 @@ c0snr_set_get_c0snr(struct c0snr_set *handle, struct kvdb_ctxn *ctxn)
     struct c0snr_set_list * cslist;
     struct c0snr_set_bkt *  bkt;
     uint                    cpu, node, core;
+    uint                    tries;
 
     hse_getcpu(&cpu, &node, &core);
 
     bkt = self->css_bktv + (node % 2) * (NELEM(self->css_bktv) / 2);
     bkt += core % (NELEM(self->css_bktv) / 2);
-    cslist = bkt->csb_list;
+    tries = NELEM(self->css_bktv);
 
-    spin_lock(&cslist->act_lock);
-    entry = c0snr_set_entry_alloc(cslist);
-    spin_unlock(&cslist->act_lock);
+    while (tries-- > 0) {
+        cslist = bkt->csb_list;
 
-    if (ev(!entry))
-        return NULL;
+        spin_lock(&cslist->act_lock);
+        entry = c0snr_set_entry_alloc(cslist);
+        spin_unlock(&cslist->act_lock);
 
-    entry->cse_ctxn = !!ctxn;
-    entry->cse_kvms_gen = KVMS_GEN_INVALID;
-    entry->cse_c0snr = HSE_SQNREF_INVALID;
+        if (entry) {
+            entry->cse_ctxn = !!ctxn;
+            entry->cse_kvms_gen = KVMS_GEN_INVALID;
+            entry->cse_c0snr = HSE_SQNREF_INVALID;
 
-    assert(atomic_read(&entry->cse_refcnt) == 0);
-    atomic_inc(&entry->cse_refcnt);
+            assert(atomic_read(&entry->cse_refcnt) == 0);
+            atomic_inc(&entry->cse_refcnt);
 
-    return &entry->cse_c0snr;
+            return &entry->cse_c0snr;
+        }
+
+        /* Try the next bucket...
+         */
+        if (++bkt >= self->css_bktv + NELEM(self->css_bktv))
+            bkt = self->css_bktv;
+        ev(1);
+    }
+
+    return NULL;
 }
 
 void

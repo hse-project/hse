@@ -12,7 +12,7 @@
 #include <hse_util/event_counter.h>
 #include <hse_util/workqueue.h>
 #include <hse_util/timer.h>
-#include <hse_util/spinlock.h>
+#include <hse_util/mutex.h>
 #include <hse_util/slab.h>
 
 #include <rbtree/rbtree.h>
@@ -24,41 +24,46 @@
 
 /* clang-format off */
 
-#define KVDB_PFXLOCK_NUM_TREES  (256)
-#define KVDB_PFXLOCK_ACTIVE     (UINT64_MAX - 1)
-#define KVDB_MCACHE_CNT_MAX     (1024)
+#define KVDB_PFXLOCK_RANGE_MAX  (10)
+#define KVDB_PFXLOCK_TREES_MAX  (KVDB_PFXLOCK_RANGE_MAX * 199)
+#define KVDB_PFXLOCK_CACHE_MAX  (1024)
 
 struct kvdb_pfxlock_gc {
     struct delayed_work kpl_gc_dwork;
 };
 
 struct kvdb_pfxlock_entry {
-    struct rb_node kple_node HSE_ALIGNED(SMP_CACHE_BYTES);
+    union {
+        struct rb_node  kple_node;
+        void           *kple_next;
+    };
     u64            kple_hash;
     int            kple_refcnt;
+    ushort         kple_treeidx;
     bool           kple_excl;
+    bool           kple_stale;
     u64            kple_end_seqno;
     u64            kple_end_seqno_excl;
-};
+} HSE_ALIGNED(SMP_CACHE_BYTES);
 
 struct kvdb_pfxlock_tree {
-    spinlock_t                 kplt_lock HSE_ALIGNED(SMP_CACHE_BYTES * 2);
+    struct mutex               kplt_lock HSE_ALIGNED(SMP_CACHE_BYTES * 2);
 
     struct rb_root             kplt_root HSE_ALIGNED(SMP_CACHE_BYTES);
     struct kvdb_pfxlock_entry *kplt_ecache;
-    uint                       kplt_entry_cnt;
+    volatile uint              kplt_entry_cnt;
     uint                       kplt_mcache_cnt;
     struct kvdb_pfxlock_entry *kplt_mcache;
 
-    struct kvdb_pfxlock_entry  kplt_ecachev[16];
+    struct kvdb_pfxlock_entry  kplt_ecachev[14];
 };
 
 struct kvdb_pfxlock {
-    struct kvdb_pfxlock_tree        kpl_tree[KVDB_PFXLOCK_NUM_TREES];
-    struct workqueue_struct *       kpl_gc_wq;
-    struct kvdb_pfxlock_gc          kpl_gc;
-    u64                             kpl_gc_delay_ms;
-    struct viewset *                kpl_txn_viewset;
+    struct kvdb_pfxlock_tree   kpl_tree[KVDB_PFXLOCK_TREES_MAX];
+    struct workqueue_struct   *kpl_gc_wq;
+    struct kvdb_pfxlock_gc     kpl_gc;
+    u64                        kpl_gc_delay_ms;
+    struct viewset            *kpl_txn_viewset;
 };
 
 /* clang-format on */
@@ -72,14 +77,16 @@ kvdb_pfxlock_entry_free(struct kvdb_pfxlock_tree *tree, struct kvdb_pfxlock_entr
     bool freeme = entry < tree->kplt_ecachev ||
                   entry >= (tree->kplt_ecachev + NELEM(tree->kplt_ecachev));
 
+    entry->kple_hash = -1;
+
     if (!freeme) {
-        *(void **)entry = tree->kplt_ecache;
+        entry->kple_next = tree->kplt_ecache;
         tree->kplt_ecache = entry;
         return;
     }
 
-    if (tree->kplt_mcache_cnt < KVDB_MCACHE_CNT_MAX) {
-        *(void **)entry = tree->kplt_mcache;
+    if (tree->kplt_mcache_cnt < KVDB_PFXLOCK_CACHE_MAX) {
+        entry->kple_next = tree->kplt_mcache;
         tree->kplt_mcache = entry;
         tree->kplt_mcache_cnt++;
         return;
@@ -95,18 +102,18 @@ kvdb_pfxlock_entry_alloc(struct kvdb_pfxlock_tree *tree)
 
     e = tree->kplt_ecache;
     if (e) {
-        tree->kplt_ecache = *(void **)e;
+        tree->kplt_ecache = e->kple_next;
         return e;
     }
 
     e = tree->kplt_mcache;
     if (e) {
-        tree->kplt_mcache = *(void **)e;
+        tree->kplt_mcache = e->kple_next;
         tree->kplt_mcache_cnt--;
         return e;
     }
 
-    return malloc(sizeof(*e));
+    return aligned_alloc(alignof(*e), sizeof(*e));
 }
 
 merr_t
@@ -121,10 +128,10 @@ kvdb_pfxlock_create(struct viewset *txn_viewset, struct kvdb_pfxlock **pfxlock_o
 
     memset(pfxlock, 0, sizeof(*pfxlock));
 
-    for (i = 0; i < KVDB_PFXLOCK_NUM_TREES; i++) {
+    for (i = 0; i < KVDB_PFXLOCK_TREES_MAX; i++) {
         struct kvdb_pfxlock_tree *tree = pfxlock->kpl_tree + i;
 
-        spin_lock_init(&tree->kplt_lock);
+        mutex_init(&tree->kplt_lock);
         tree->kplt_root = RB_ROOT;
 
         /* Initialize kplt_ecache with all entries from the embedded cache.
@@ -137,7 +144,7 @@ kvdb_pfxlock_create(struct viewset *txn_viewset, struct kvdb_pfxlock **pfxlock_o
 
     /* Set up GC worker for pfxlock
      */
-    pfxlock->kpl_gc_delay_ms = 5000;
+    pfxlock->kpl_gc_delay_ms = 3000;
     pfxlock->kpl_gc_wq = alloc_workqueue("kpl_gc", 0, 1);
     if (ev(!pfxlock->kpl_gc_wq)) {
         free(pfxlock);
@@ -166,7 +173,7 @@ kvdb_pfxlock_destroy(struct kvdb_pfxlock *pfxlock)
         usleep(100);
     destroy_workqueue(pfxlock->kpl_gc_wq);
 
-    for (i = 0; i < KVDB_PFXLOCK_NUM_TREES; i++) {
+    for (i = 0; i < KVDB_PFXLOCK_TREES_MAX; i++) {
         struct kvdb_pfxlock_tree  *tree = &pfxlock->kpl_tree[i];
         struct kvdb_pfxlock_entry *entry, *next;
 
@@ -195,85 +202,187 @@ kvdb_pfxlock_entry_add(
     rb_insert_color(&entry->kple_node, tree);
 }
 
+void *
+kvdb_pfxlock_cookie_setexcl(void **cookie)
+{
+    return (void *)((uintptr_t)cookie | 1lu);
+}
+
+void **
+kvdb_pfxlock_cookie_isexcl(void *cookie)
+{
+    bool isexcl = (((uintptr_t)cookie & 7lu) == 1);
+
+    return isexcl ? (void *)((uintptr_t)cookie & ~7lu) : NULL;
+}
+
+uint
+kvdb_pfxlock_hash2treeidx(uint64_t hash, bool shared)
+{
+    uint idx;
+
+    idx = hash % (KVDB_PFXLOCK_TREES_MAX / KVDB_PFXLOCK_RANGE_MAX);
+    idx *= KVDB_PFXLOCK_RANGE_MAX;
+
+    if (shared) {
+        uint cpu, node, core;
+
+        hse_getcpu(&cpu, &node, &core);
+        idx += (node % 2) * (KVDB_PFXLOCK_RANGE_MAX / 2);
+        idx += core % (KVDB_PFXLOCK_RANGE_MAX / 2);
+    }
+
+    return idx;
+}
+
 merr_t
 kvdb_pfxlock_excl(struct kvdb_pfxlock *pfxlock, u64 hash, u64 start_seqno, void **cookie)
 {
-    struct rb_node **                link, *parent;
-    struct kvdb_pfxlock_entry *      entry;
-    struct kvdb_pfxlock_tree        *tree;
-    struct rb_root *                 root;
-    merr_t err;
+    struct kvdb_pfxlock_entry *entry;
+    struct kvdb_pfxlock_tree *tree;
+    uint busyv[KVDB_PFXLOCK_RANGE_MAX];
+    uint busyc, nbusy, cookiec;
+    void **cookiev;
+    uint delay, i;
 
-    tree = pfxlock->kpl_tree + (hash % KVDB_PFXLOCK_NUM_TREES);
-
-    root = &tree->kplt_root;
-    link = &root->rb_node;
-    parent = NULL;
-    entry = NULL;
-    err = 0;
-
-    spin_lock(&tree->kplt_lock);
-    while (*link) {
-        parent = *link;
-        entry = rb_entry(parent, typeof(*entry), kple_node);
-
-        if (HSE_UNLIKELY(hash == entry->kple_hash))
-            break;
-
-        link = (hash < entry->kple_hash) ? &parent->rb_left : &parent->rb_right;
-    }
-
-    if (*link) {
-        entry = rb_entry(*link, typeof(*entry), kple_node);
-
-        if (entry->kple_refcnt == 1 && *cookie == entry) {
-            entry->kple_excl = true; /* caller already holds this lock */
-            entry->kple_end_seqno_excl = KVDB_PFXLOCK_ACTIVE;
-        } else if (entry->kple_refcnt > 0 || *cookie ||
-                   start_seqno <= entry->kple_end_seqno ||
-                   start_seqno <= entry->kple_end_seqno_excl) {
-            err = merr(ECANCELED);
-        } else {
-            entry->kple_refcnt = 1;
-            entry->kple_excl = true;
-            entry->kple_end_seqno = KVDB_PFXLOCK_ACTIVE;
-            entry->kple_end_seqno_excl = KVDB_PFXLOCK_ACTIVE;
-
-            *cookie = entry;
-        }
-    } else {
-        entry = kvdb_pfxlock_entry_alloc(tree);
-        if (entry) {
-            memset(entry, 0, sizeof(*entry));
-            entry->kple_hash = hash;
-            entry->kple_refcnt = 1;
-            entry->kple_excl = true;
-            entry->kple_end_seqno = KVDB_PFXLOCK_ACTIVE;
-            entry->kple_end_seqno_excl = KVDB_PFXLOCK_ACTIVE;
-
-            kvdb_pfxlock_entry_add(parent, root, link, entry);
-            tree->kplt_entry_cnt++;
-
-            *cookie = entry;
+    if (*cookie) {
+        cookiev = kvdb_pfxlock_cookie_isexcl(*cookie);
+        if (cookiev) {
+            entry = cookiev[0];
+            return (entry->kple_hash == hash) ? 0 : merr(EINVAL);
         }
 
-        err = entry ? 0 : merr(ENOMEM);
+        entry = *cookie;
+        if (entry->kple_hash != hash)
+            return merr(EINVAL);
     }
-    spin_unlock(&tree->kplt_lock);
 
-    return err;
+    cookiev = calloc(KVDB_PFXLOCK_RANGE_MAX, sizeof(*cookiev));
+    if (!cookiev)
+        return merr(ENOMEM);
+
+    i = kvdb_pfxlock_hash2treeidx(hash, false); /* get range start index */
+
+    for (nbusy = 0; nbusy < KVDB_PFXLOCK_RANGE_MAX; ++nbusy)
+        busyv[nbusy] = nbusy + i;
+    busyc = cookiec = 0;
+    delay = 1;
+
+    /* One of more shared locks for this prefix hash can appear in any tree
+     * within the range given by the tree indices in busyv[].  Therefore,
+     * we must acquire an exclusive lock on each tree within the range.
+     *
+     * Note that it seems extremely unlikely that an app will issue a prefix
+     * delete while it has transactions inflight for keys with the prefix it
+     * it trying to delete.
+     */
+    while (delay < USEC_PER_SEC / 10) {
+        for (i = 0; i < nbusy; ++i) {
+            struct rb_node **link, *parent;
+            struct rb_root *root;
+            int rc = 0;
+
+            tree = pfxlock->kpl_tree + busyv[i];
+
+            root = &tree->kplt_root;
+            link = &root->rb_node;
+            parent = NULL;
+            entry = NULL;
+
+            mutex_lock(&tree->kplt_lock);
+            while (*link) {
+                parent = *link;
+                entry = rb_entry(parent, typeof(*entry), kple_node);
+
+                if (HSE_UNLIKELY(hash == entry->kple_hash))
+                    break;
+
+                link = (hash < entry->kple_hash) ? &parent->rb_left : &parent->rb_right;
+            }
+
+            if (*link) {
+                entry = rb_entry(*link, typeof(*entry), kple_node);
+
+                if (start_seqno <= entry->kple_end_seqno ||
+                    start_seqno <= entry->kple_end_seqno_excl) {
+                    rc = ECANCELED;
+                } else if (entry->kple_refcnt > 0) {
+                    if (entry->kple_refcnt == 1 && *cookie == entry) {
+                        /* Caller already holds this shared lock */
+                        assert(!entry->kple_excl);
+                    } else {
+                        rc = EBUSY;
+                    }
+                } else {
+                    entry->kple_refcnt++;
+                }
+            } else {
+                entry = kvdb_pfxlock_entry_alloc(tree);
+                if (entry) {
+                    memset(entry, 0, sizeof(*entry));
+                    entry->kple_hash = hash;
+                    entry->kple_refcnt = 1;
+                    entry->kple_treeidx = busyv[i];
+
+                    kvdb_pfxlock_entry_add(parent, root, link, entry);
+                    tree->kplt_entry_cnt++;
+                }
+            }
+            mutex_unlock(&tree->kplt_lock);
+
+            if (rc || !entry) {
+                busyv[busyc++] = busyv[i];
+
+                if (rc == ECANCELED)
+                    goto errout;
+                continue;
+            }
+
+            entry->kple_excl = true;
+            entry->kple_stale = false;
+            cookiev[cookiec++] = entry;
+        }
+
+        if (busyc == 0) {
+            *cookie = kvdb_pfxlock_cookie_setexcl(cookiev);
+            return 0;
+        }
+
+        nbusy = busyc;
+        busyc = 0;
+
+        usleep(delay);
+        delay *= 10;
+        ev(1);
+    }
+
+  errout:
+    while (cookiec-- > 0) {
+        entry = cookiev[cookiec];
+        tree = pfxlock->kpl_tree + entry->kple_treeidx;
+
+        mutex_lock(&tree->kplt_lock);
+        entry->kple_refcnt--;
+        entry->kple_excl = false;
+        mutex_unlock(&tree->kplt_lock);
+    }
+
+    free(cookiev);
+    ev(1);
+
+    return merr(ECANCELED);
 }
 
 merr_t
 kvdb_pfxlock_shared(struct kvdb_pfxlock *pfxlock, u64 hash, u64 start_seqno, void **cookie)
 {
-    struct rb_node **                link, *parent;
-    struct rb_root *                 root;
-    struct kvdb_pfxlock_entry *      entry;
-    struct kvdb_pfxlock_tree        *tree;
+    struct kvdb_pfxlock_entry *entry;
+    struct kvdb_pfxlock_tree *tree;
+    struct rb_node **link, *parent;
+    struct rb_root *root;
     merr_t err;
 
-    tree = pfxlock->kpl_tree + (hash % KVDB_PFXLOCK_NUM_TREES);
+    tree = pfxlock->kpl_tree + kvdb_pfxlock_hash2treeidx(hash, true);
 
     root = &tree->kplt_root;
     link = &root->rb_node;
@@ -281,7 +390,7 @@ kvdb_pfxlock_shared(struct kvdb_pfxlock *pfxlock, u64 hash, u64 start_seqno, voi
     entry = NULL;
     err = 0;
 
-    spin_lock(&tree->kplt_lock);
+    mutex_lock(&tree->kplt_lock);
     while (*link) {
         parent = *link;
         entry = rb_entry(parent, typeof(*entry), kple_node);
@@ -297,25 +406,25 @@ kvdb_pfxlock_shared(struct kvdb_pfxlock *pfxlock, u64 hash, u64 start_seqno, voi
             err = merr(ECANCELED);
         } else {
             entry->kple_refcnt++;
-            entry->kple_end_seqno = KVDB_PFXLOCK_ACTIVE;
+            entry->kple_stale = false;
+            *cookie = entry;
         }
     } else {
         entry = kvdb_pfxlock_entry_alloc(tree);
         if (entry) {
             memset(entry, 0, sizeof(*entry));
             entry->kple_hash = hash;
-            entry->kple_refcnt = 1;
-            entry->kple_end_seqno = KVDB_PFXLOCK_ACTIVE;
+            entry->kple_refcnt++;
+            entry->kple_treeidx = tree - pfxlock->kpl_tree;
 
             kvdb_pfxlock_entry_add(parent, root, link, entry);
             tree->kplt_entry_cnt++;
+            *cookie = entry;
         }
 
         err = entry ? 0 : merr(ENOMEM);
     }
-    spin_unlock(&tree->kplt_lock);
-
-    *cookie = entry;
+    mutex_unlock(&tree->kplt_lock);
 
     return err;
 }
@@ -323,22 +432,41 @@ kvdb_pfxlock_shared(struct kvdb_pfxlock *pfxlock, u64 hash, u64 start_seqno, voi
 void
 kvdb_pfxlock_seqno_pub(struct kvdb_pfxlock *pfxlock, u64 end_seqno, void *cookie)
 {
-    struct kvdb_pfxlock_entry *entry = (struct kvdb_pfxlock_entry *)cookie;
-    int                        idx = entry->kple_hash % KVDB_PFXLOCK_NUM_TREES;
-    spinlock_t *               spinlock = &pfxlock->kpl_tree[idx].kplt_lock;
+    struct kvdb_pfxlock_entry *entry;
+    struct kvdb_pfxlock_tree *tree;
+    void **cookiev;
 
-    spin_lock(spinlock);
+    /* If cookie is for an exclusive lock then we must update the end
+     * seqnos for each lock in the range.
+     */
+    cookiev = kvdb_pfxlock_cookie_isexcl(cookie);
+    if (cookiev) {
+        for (uint i = 0; i < KVDB_PFXLOCK_RANGE_MAX; ++i) {
+            entry = cookiev[i];
+            tree = pfxlock->kpl_tree + entry->kple_treeidx;
 
-    if (--entry->kple_refcnt == 0) {
-        entry->kple_end_seqno = end_seqno;
-
-        if (entry->kple_excl) {
-            entry->kple_end_seqno_excl = end_seqno;
+            mutex_lock(&tree->kplt_lock);
+            entry->kple_refcnt--;
             entry->kple_excl = false;
+            entry->kple_end_seqno = end_seqno;
+            entry->kple_end_seqno_excl = end_seqno;
+            mutex_unlock(&tree->kplt_lock);
         }
+
+        free(cookiev);
+        return;
     }
 
-    spin_unlock(spinlock);
+    /* cookie is for a shared lock...
+     */
+    entry = cookie;
+    tree = pfxlock->kpl_tree + entry->kple_treeidx;
+
+    mutex_lock(&tree->kplt_lock);
+    entry->kple_refcnt--;
+    if (end_seqno > entry->kple_end_seqno)
+        entry->kple_end_seqno = end_seqno;
+    mutex_unlock(&tree->kplt_lock);
 }
 
 /* Garbage Collection
@@ -347,32 +475,60 @@ void
 kvdb_pfxlock_prune(struct kvdb_pfxlock *pfxlock)
 {
     u64    txn_horizon = viewset_horizon(pfxlock->kpl_txn_viewset);
-    int    i;
-    char   distbuf[1024] HSE_MAYBE_UNUSED;
-    size_t off HSE_MAYBE_UNUSED;
+    uint   skipped HSE_MAYBE_UNUSED = 0;
+    uint   scanned HSE_MAYBE_UNUSED = 0;
+    uint   pruned HSE_MAYBE_UNUSED = 0;
 
-    for (i = 0, off = 0; i < KVDB_PFXLOCK_NUM_TREES; i++) {
+#ifndef HSE_BUILD_RELEASE
+    char   distbuf[4096];
+    size_t off = 0;
+#endif
+
+    for (int i = 0; i < KVDB_PFXLOCK_TREES_MAX; i++) {
         struct kvdb_pfxlock_tree  *tree = &pfxlock->kpl_tree[i];
         struct kvdb_pfxlock_entry *entry, *next;
 
 #ifndef HSE_BUILD_RELEASE
-        snprintf_append(distbuf, sizeof(distbuf), &off, " %u", tree->kplt_entry_cnt);
+        snprintf_append(distbuf, sizeof(distbuf), &off, "%s%x",
+                        (i % KVDB_PFXLOCK_RANGE_MAX) ? "" : " ",
+                        tree->kplt_entry_cnt);
 #endif
 
-        spin_lock(&tree->kplt_lock);
+        if (tree->kplt_entry_cnt == 0) {
+            skipped++;
+            continue;
+        }
+
+        mutex_lock(&tree->kplt_lock);
         rbtree_postorder_for_each_entry_safe(entry, next, &tree->kplt_root, kple_node) {
             if (txn_horizon > entry->kple_end_seqno) {
-                assert(entry->kple_refcnt == 0);
-                tree->kplt_entry_cnt--;
+                if (entry->kple_refcnt > 0) {
+                    entry->kple_stale = false;
+                    ev(1);
+                    continue;
+                }
+
+                if (!entry->kple_stale) {
+                    entry->kple_stale = true;
+                    continue;
+                }
+
                 rb_erase(&entry->kple_node, &tree->kplt_root);
                 kvdb_pfxlock_entry_free(tree, entry);
+                tree->kplt_entry_cnt--;
+                ++pruned;
             }
+
+            ++scanned;
         }
-        spin_unlock(&tree->kplt_lock);
+        mutex_unlock(&tree->kplt_lock);
     }
 
 #ifndef HSE_BUILD_RELEASE
-    hse_log(HSE_INFO "pfxdist: %s", distbuf);
+    if (scanned > 0)
+        hse_log(HSE_NOTICE "%s: %4u/%u %4u %4u  %s",
+                __func__, skipped, KVDB_PFXLOCK_TREES_MAX,
+                scanned, pruned, distbuf);
 #endif
 }
 
