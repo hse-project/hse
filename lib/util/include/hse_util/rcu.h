@@ -8,8 +8,19 @@
 
 #define _LGPL_SOURCE
 
+/*
+ * This snippet exists as a proxy to solve release buildtype issues due to
+ * unread/unused variable warnings in urcu/wfcqueue.h.
+ */
+
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-but-set-variable"
+#pragma GCC diagnostic ignored "-Wunused-variable"
+
 #include <urcu-bp.h>
 #include <urcu/rculist.h>
+
+#pragma GCC diagnostic pop
 
 #ifdef rcu_barrier
 #define HSE_HAVE_RCU_BARRIER 1
