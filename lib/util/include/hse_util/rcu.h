@@ -6,8 +6,6 @@
 #ifndef HSE_PLATFORM_RCU_H
 #define HSE_PLATFORM_RCU_H
 
-#define _LGPL_SOURCE
-
 /*
  * This snippet exists as a proxy to solve release buildtype issues due to
  * unread/unused variable warnings in urcu/wfcqueue.h.

@@ -61,24 +61,24 @@ the latest release tag.  This tag must be for HSE version 2.0 or higher.
 For example
 
 ```shell
-$ git clone https://github.com/hse-project/hse.git
-$ cd hse
-$ git checkout <release tag>
+git clone https://github.com/hse-project/hse.git
+cd hse
+git checkout <release tag>
 ```
 
 Install Python dependencies using Poetry.
 
 ```shell
-$ poetry install
+poetry install
 ```
 
 Build and install using Meson and Ninja from within the Poetry shell.
 
 ```shell
-$ poetry shell
-$ meson setup build
-$ meson compile -C build
-$ meson install -C build
+poetry shell
+meson setup build
+meson compile -C build
+meson install -C build
 ```
 
 The default install directory is `/opt/hse`. This can be overridden by
@@ -86,7 +86,7 @@ configuring the build with either `-Dprefix=$prefix` or `--prefix=$prefix`.
 After building and installing HSE you can exit the Poetry shell.
 
 ```shell
-$ exit
+exit
 ```
 
 ## Additional References
