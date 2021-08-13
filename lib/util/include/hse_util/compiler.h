@@ -86,6 +86,11 @@
 #else
 #define HSE_SENTINEL
 #endif
+#ifdef SUPPORTS_ATTR_NONNULL
+#define HSE_NONNULL(...) __attribute__((nonnull(__VA_ARGS__)))
+#else
+#define HSE_NONNULL(...)
+#endif
 
 #if __amd64__
 static HSE_ALWAYS_INLINE void

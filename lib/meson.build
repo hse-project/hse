@@ -26,6 +26,7 @@ build_config_h_data = configuration_data({
         ''',
         name: '__attribute__((sentinel))',
     ),
+    'SUPPORTS_ATTR_NONNULL': cc.has_function_attribute('nonnull'),
     'WITH_COVERAGE': get_option('b_coverage'),
     'WITH_UBSAN': get_option('b_sanitize').contains('undefined'),
     'WITH_KVDB_CONF_EXTENDED': get_option('kvdb-conf-extended'),
