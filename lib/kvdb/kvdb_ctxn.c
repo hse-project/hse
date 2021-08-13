@@ -308,6 +308,7 @@ kvdb_ctxn_free(struct kvdb_ctxn *handle)
 
     assert(!ctxn->ctxn_bind);
     assert(!ctxn->ctxn_locks_handle);
+    assert(!ctxn->ctxn_pfxlock_handle);
 
     kvdb_ctxn_set_remove(ctxn->ctxn_kvdb_ctxn_set, ctxn);
 }
@@ -335,6 +336,7 @@ kvdb_ctxn_enable_inserts(struct kvdb_ctxn_impl *ctxn)
     priv = c0snr_set_get_c0snr(ctxn->ctxn_c0snr_set, &ctxn->ctxn_inner_handle);
     if (ev(!priv)) {
         kvdb_ctxn_pfxlock_destroy(ctxn->ctxn_pfxlock_handle);
+        ctxn->ctxn_pfxlock_handle = NULL;
         kvdb_ctxn_locks_destroy(locks);
         return merr(ECANCELED);
     }
@@ -344,7 +346,7 @@ kvdb_ctxn_enable_inserts(struct kvdb_ctxn_impl *ctxn)
 
     ctxn->ctxn_seqref = HSE_REF_TO_SQNREF(priv);
     ctxn->ctxn_locks_handle = locks;
-    ctxn->ctxn_can_insert = 1;
+    ctxn->ctxn_can_insert = true;
 
     return 0;
 }
@@ -393,24 +395,35 @@ kvdb_ctxn_deactivate(struct kvdb_ctxn_impl *ctxn)
     ctxn->ctxn_can_insert = false;
 
     cookie = ctxn->ctxn_viewset_cookie;
+    if (!cookie)
+        return;
+
+    if (ctxn->ctxn_pfxlock_handle) {
+        kvdb_ctxn_pfxlock_destroy(ctxn->ctxn_pfxlock_handle);
+        ctxn->ctxn_pfxlock_handle = NULL;
+    }
+
     ctxn->ctxn_viewset_cookie = NULL;
 
     viewset_remove(ctxn->ctxn_viewset, cookie, &min_changed, &new_min);
 
     if (min_changed)
         kvdb_keylock_expire(ctxn->ctxn_kvdb_keylock, new_min, UINT64_MAX);
+
 }
 
 static void
 kvdb_ctxn_abort_inner(struct kvdb_ctxn_impl *ctxn)
 {
-    struct kvdb_ctxn_locks *locks;
-    struct kvdb_ctxn_bind * bind;
-    struct kvdb_keylock *   keylock;
-    u64                     end_seq;
+    if (ctxn->ctxn_bind) {
+        kvdb_ctxn_bind_cancel(ctxn->ctxn_bind, !ctxn->ctxn_can_insert);
+        ctxn->ctxn_bind = NULL;
+    }
 
     if (ctxn->ctxn_can_insert) {
         uintptr_t *priv = (uintptr_t *)ctxn->ctxn_seqref;
+        struct kvdb_ctxn_locks *locks;
+        struct kvdb_keylock *keylock;
 
         *priv = HSE_SQNREF_ABORTED;
 
@@ -423,48 +436,33 @@ kvdb_ctxn_abort_inner(struct kvdb_ctxn_impl *ctxn)
         ctxn->ctxn_seqref = HSE_SQNREF_ABORTED;
 
         c0snr_clear_txn(priv);
+
+        keylock = ctxn->ctxn_kvdb_keylock;
+        locks = ctxn->ctxn_locks_handle;
+        ctxn->ctxn_locks_handle = NULL;
+
+        assert(locks);
+
+        /* Release all the locks that we didn't inherit */
+        kvdb_keylock_prune_own_locks(keylock, locks);
+
+        if (kvdb_ctxn_locks_count(locks) > 0) {
+            void *cookie = NULL;
+            u64 end_seq;
+
+            kvdb_keylock_list_lock(keylock, &cookie);
+            end_seq = atomic64_fetch_add(1, ctxn->ctxn_kvdb_seq_addr);
+            kvdb_keylock_enqueue_locks(locks, end_seq, cookie);
+            kvdb_keylock_list_unlock(cookie);
+
+        } else {
+            kvdb_ctxn_locks_destroy(locks);
+        }
+
+        wal_txn_abort(ctxn->ctxn_wal, ctxn->ctxn_view_seqno, ctxn->ctxn_wal_cookie);
     } else {
         ctxn->ctxn_seqref = HSE_SQNREF_ABORTED;
     }
-
-    bind = ctxn->ctxn_bind;
-    if (bind) {
-        kvdb_ctxn_bind_cancel(bind, !ctxn->ctxn_can_insert);
-        ctxn->ctxn_bind = 0;
-    }
-
-    if (!ctxn->ctxn_can_insert) {
-        kvdb_ctxn_deactivate(ctxn);
-        return;
-    }
-
-    keylock = ctxn->ctxn_kvdb_keylock;
-    locks = ctxn->ctxn_locks_handle;
-    ctxn->ctxn_locks_handle = NULL;
-
-    assert(locks);
-
-    /* Release all the locks that we didn't inherit */
-    kvdb_keylock_prune_own_locks(keylock, locks);
-
-    if (kvdb_ctxn_locks_count(locks) > 0) {
-        void *cookie = NULL;
-
-        kvdb_keylock_list_lock(keylock, &cookie);
-        end_seq = atomic64_fetch_add(1, ctxn->ctxn_kvdb_seq_addr);
-        kvdb_keylock_enqueue_locks(locks, end_seq, cookie);
-        kvdb_keylock_list_unlock(cookie);
-
-    } else {
-        end_seq = atomic64_fetch_add(1, ctxn->ctxn_kvdb_seq_addr);
-        kvdb_ctxn_locks_destroy(locks);
-    }
-
-    kvdb_ctxn_pfxlock_seqno_pub(ctxn->ctxn_pfxlock_handle, end_seq);
-
-    wal_txn_abort(ctxn->ctxn_wal, ctxn->ctxn_view_seqno, ctxn->ctxn_wal_cookie);
-
-    kvdb_ctxn_pfxlock_destroy(ctxn->ctxn_pfxlock_handle);
 
     /* At this point the transaction ceases to be considered active */
     kvdb_ctxn_deactivate(ctxn);
@@ -632,7 +630,6 @@ kvdb_ctxn_commit(struct kvdb_ctxn *handle)
                          ctxn->ctxn_wal_cookie);
 
     kvdb_ctxn_pfxlock_seqno_pub(ctxn->ctxn_pfxlock_handle, commit_sn);
-    kvdb_ctxn_pfxlock_destroy(ctxn->ctxn_pfxlock_handle);
 
     kvdb_ctxn_deactivate(ctxn);
     kvdb_ctxn_unlock_impl(ctxn);
