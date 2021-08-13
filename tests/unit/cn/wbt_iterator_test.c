@@ -268,8 +268,10 @@ reverse:
         xlen = strlen(keyv[cnt]) - plen + (kblock->null_terminated ? 1 : 0);
         ASSERT_EQ(klen, xlen);
 
-        rc = memcmp(pfx, keyv[cnt], plen);
-        ASSERT_EQ(0, rc);
+		if (pfx) {
+			rc = memcmp(pfx, keyv[cnt], plen);
+			ASSERT_EQ(0, rc);
+		}
         rc = memcmp(kdata, keyv[cnt] + plen, klen);
         ASSERT_EQ(0, rc);
 
@@ -349,8 +351,10 @@ t_seek_helper(struct mtf_test_info *lcl_ti, struct test_kblock *kblock, bool rev
         xlen = strlen(keyv[idx]) - plen + (kblock->null_terminated ? 1 : 0);
         ASSERT_EQ(klen, xlen);
 
-        rc = memcmp(pfx, keyv[idx], plen);
-        ASSERT_EQ(0, rc);
+		if (pfx) {
+        	rc = memcmp(pfx, keyv[idx], plen);
+        	ASSERT_EQ(0, rc);
+		}
         rc = memcmp(kdata, keyv[idx] + plen, klen);
         ASSERT_EQ(0, rc);
         idx += inc;
