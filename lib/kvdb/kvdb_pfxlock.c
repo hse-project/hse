@@ -6,6 +6,15 @@
  * contains an end_seqno which is set at the time of commit/abort. An entry can be deleted only
  * when there are no txns in kvdb which have a start seqno larger than the entry's end_seqno.
  * This is handled by the garbage collector thread.
+ *
+ * Ideally, each prefix hash would be used to select exactly one tree to contain the
+ * prefix lock for that hash, and this approach works quite well if the distribution
+ * of prefixes is fairly uniform across the array of trees.  However, in order to
+ * mitigate lock contention should the distribution cluster around one or two trees,
+ * we instead carve up the array of trees into disjoint equal-size ranges such that
+ * the prefix hash is used to select the range.  A shared lock attempt may then acquire
+ * a prefix lock from any tree within the range, while an exclusive lock attempt must
+ * acquire the prefix lock from each and every tree within the range.
  */
 
 #include <hse_util/platform.h>
@@ -24,8 +33,8 @@
 
 /* clang-format off */
 
-#define KVDB_PFXLOCK_RANGE_MAX  (10)
-#define KVDB_PFXLOCK_TREES_MAX  (KVDB_PFXLOCK_RANGE_MAX * 199)
+#define KVDB_PFXLOCK_RANGE_MAX  (6)
+#define KVDB_PFXLOCK_TREES_MAX  (KVDB_PFXLOCK_RANGE_MAX * 61)
 #define KVDB_PFXLOCK_CACHE_MAX  (1024)
 
 struct kvdb_pfxlock_gc {
@@ -55,7 +64,7 @@ struct kvdb_pfxlock_tree {
     uint                       kplt_mcache_cnt;
     struct kvdb_pfxlock_entry *kplt_mcache;
 
-    struct kvdb_pfxlock_entry  kplt_ecachev[14];
+    struct kvdb_pfxlock_entry  kplt_ecachev[30];
 };
 
 struct kvdb_pfxlock {
@@ -144,7 +153,7 @@ kvdb_pfxlock_create(struct viewset *txn_viewset, struct kvdb_pfxlock **pfxlock_o
 
     /* Set up GC worker for pfxlock
      */
-    pfxlock->kpl_gc_delay_ms = 3000;
+    pfxlock->kpl_gc_delay_ms = 1500;
     pfxlock->kpl_gc_wq = alloc_workqueue("kpl_gc", 0, 1);
     if (ev(!pfxlock->kpl_gc_wq)) {
         free(pfxlock);
@@ -480,8 +489,9 @@ kvdb_pfxlock_prune(struct kvdb_pfxlock *pfxlock)
     uint   pruned HSE_MAYBE_UNUSED = 0;
 
 #ifndef HSE_BUILD_RELEASE
-    char   distbuf[4096];
-    size_t off = 0;
+    uint64_t tstart = get_time_ns();
+    char     distbuf[4096];
+    size_t   off = 0;
 #endif
 
     for (int i = 0; i < KVDB_PFXLOCK_TREES_MAX; i++) {
@@ -494,7 +504,7 @@ kvdb_pfxlock_prune(struct kvdb_pfxlock *pfxlock)
                         tree->kplt_entry_cnt);
 #endif
 
-        if (tree->kplt_entry_cnt == 0) {
+        if (tree->kplt_entry_cnt < 2) {
             skipped++;
             continue;
         }
@@ -504,7 +514,6 @@ kvdb_pfxlock_prune(struct kvdb_pfxlock *pfxlock)
             if (txn_horizon > entry->kple_end_seqno) {
                 if (entry->kple_refcnt > 0) {
                     entry->kple_stale = false;
-                    ev(1);
                     continue;
                 }
 
@@ -526,8 +535,9 @@ kvdb_pfxlock_prune(struct kvdb_pfxlock *pfxlock)
 
 #ifndef HSE_BUILD_RELEASE
     if (scanned > 0)
-        hse_log(HSE_NOTICE "%s: %4u/%u %4u %4u  %s",
-                __func__, skipped, KVDB_PFXLOCK_TREES_MAX,
+        hse_log(HSE_NOTICE "%s: %4luus %4u/%u %4u %4u  %s",
+                __func__, (get_time_ns() - tstart) / 1000,
+                skipped, KVDB_PFXLOCK_TREES_MAX,
                 scanned, pruned, distbuf);
 #endif
 }

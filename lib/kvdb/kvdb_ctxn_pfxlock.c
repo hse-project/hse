@@ -60,15 +60,7 @@ kvdb_ctxn_pfxlock_create(
 void
 kvdb_ctxn_pfxlock_destroy(struct kvdb_ctxn_pfxlock *ktp)
 {
-    if (ktp->ktp_entryc < 0) {
-        struct kvdb_ctxn_pfxlock_entry *entry, *next;
-
-        rbtree_postorder_for_each_entry_safe(entry, next, &ktp->ktp_tree, ktpe_node) {
-            if (entry->ktpe_freeme)
-                kmem_cache_free(ctxn_pfxlock_entry_cache, entry);
-        }
-    }
-
+    kvdb_ctxn_pfxlock_seqno_pub(ktp, 0);
     kmem_cache_free(ctxn_pfxlock_cache, ktp);
 }
 
@@ -187,16 +179,18 @@ kvdb_ctxn_pfxlock_excl(struct kvdb_ctxn_pfxlock *ktp, u64 hash)
 void
 kvdb_ctxn_pfxlock_seqno_pub(struct kvdb_ctxn_pfxlock *ktp, u64 end_seqno)
 {
-    struct rb_node *node;
+    if (ktp->ktp_entryc < NELEM(ktp->ktp_entryv)) {
+        struct kvdb_ctxn_pfxlock_entry *entry, *next;
 
-    node = rb_first(&ktp->ktp_tree);
-    while (node) {
-        struct kvdb_ctxn_pfxlock_entry *entry = rb_entry(node, typeof(*entry), ktpe_node);
+        rbtree_postorder_for_each_entry_safe(entry, next, &ktp->ktp_tree, ktpe_node) {
+            kvdb_pfxlock_seqno_pub(ktp->ktp_pfxlock, end_seqno, entry->ktpe_cookie);
 
-        kvdb_pfxlock_seqno_pub(ktp->ktp_pfxlock, end_seqno, entry->ktpe_cookie);
-        entry->ktpe_cookie = NULL;
+            if (entry->ktpe_freeme)
+                kmem_cache_free(ctxn_pfxlock_entry_cache, entry);
+        }
 
-        node = rb_next(node);
+        ktp->ktp_tree = RB_ROOT;
+        ktp->ktp_entryc = NELEM(ktp->ktp_entryv);
     }
 }
 
