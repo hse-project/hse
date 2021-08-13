@@ -16,11 +16,13 @@ cpu_to_le16(uint16_t x)
 {
     return htole16(x);
 }
+
 static HSE_ALWAYS_INLINE uint32_t
 cpu_to_le32(uint32_t x)
 {
     return htole32(x);
 }
+
 static HSE_ALWAYS_INLINE uint64_t
 cpu_to_le64(uint64_t x)
 {
@@ -32,11 +34,13 @@ le16_to_cpu(uint16_t x)
 {
     return le16toh(x);
 }
+
 static HSE_ALWAYS_INLINE uint32_t
 le32_to_cpu(uint32_t x)
 {
     return le32toh(x);
 }
+
 static HSE_ALWAYS_INLINE uint64_t
 le64_to_cpu(uint64_t x)
 {
@@ -48,11 +52,13 @@ cpu_to_be16(uint16_t x)
 {
     return htobe16(x);
 }
+
 static HSE_ALWAYS_INLINE uint32_t
 cpu_to_be32(uint32_t x)
 {
     return htobe32(x);
 }
+
 static HSE_ALWAYS_INLINE uint64_t
 cpu_to_be64(uint64_t x)
 {
@@ -64,11 +70,13 @@ be16_to_cpu(uint16_t x)
 {
     return be16toh(x);
 }
+
 static HSE_ALWAYS_INLINE uint32_t
 be32_to_cpu(uint32_t x)
 {
     return be32toh(x);
 }
+
 static HSE_ALWAYS_INLINE uint64_t
 be64_to_cpu(uint64_t x)
 {
