@@ -181,6 +181,7 @@ ikvdb_pidfh_attach(struct ikvdb *kvdb, struct pidfh *pfh);
  * ikvdb_home() - get the home directory
  * @kvdb: kvdb handle
  */
+/* MTF_MOCK */
 const char *
 ikvdb_home(struct ikvdb *kvdb);
 

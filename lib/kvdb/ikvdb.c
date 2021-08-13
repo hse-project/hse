@@ -1687,7 +1687,6 @@ ikvdb_kvs_open(
     err = kvs_open(
         handle,
         kvs,
-        self->ikdb_home,
         self->ikdb_mp,
         self->ikdb_cndb,
         self->ikdb_lc,

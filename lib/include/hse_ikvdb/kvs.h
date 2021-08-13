@@ -75,7 +75,6 @@ struct ikvs {
     struct kvs_rparams ikv_rp;
 
     const char *ikv_kvs_name;
-    const char *ikv_kvdb_home;
 };
 
 /* kvs interfaces...
@@ -84,7 +83,6 @@ merr_t
 kvs_open(
     struct ikvdb *      kvdb,
     struct kvdb_kvs *   kvs,
-    const char *        mp_name,
     struct mpool *      ds,
     struct cndb *       cndb,
     struct lc *         lc,
