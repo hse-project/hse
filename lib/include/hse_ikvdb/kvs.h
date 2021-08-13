@@ -75,7 +75,7 @@ struct ikvs {
     struct kvs_rparams ikv_rp;
 
     const char *ikv_kvs_name;
-    const char *ikv_mpool_name;
+    const char *ikv_kvdb_home;
 };
 
 /* kvs interfaces...

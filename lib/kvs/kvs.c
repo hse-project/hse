@@ -168,12 +168,12 @@ kvs_open(
      */
 
     ikvs->ikv_cnid = cnid;
-    ikvs->ikv_mpool_name = strdup(kvdb_home);
-    ikvs->ikv_kvs_name = strdup(kvs_name);
+    ikvs->ikv_kvdb_home = strndup(kvdb_home, PATH_MAX);
+    ikvs->ikv_kvs_name = strndup(kvs_name, HSE_KVS_NAME_LEN_MAX);
     ikvs->ikv_lc = lc;
     ikvs->ikv_wal = wal;
 
-    if (!ikvs->ikv_mpool_name || !ikvs->ikv_kvs_name) {
+    if (!ikvs->ikv_kvdb_home || !ikvs->ikv_kvs_name) {
         err = merr(ev(ENOMEM));
         goto err_exit;
     }
@@ -651,7 +651,7 @@ kvs_destroy(struct ikvs *kvs)
         return;
     }
 
-    free((void *)kvs->ikv_mpool_name);
+    free((void *)kvs->ikv_kvdb_home);
     free((void *)kvs->ikv_kvs_name);
     free(kvs);
 }

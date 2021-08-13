@@ -15,6 +15,8 @@
 
 #include <mocks/mock_c0cn.h>
 
+#include <bsd/string.h>
+
 static struct ikvs *kvs;
 static struct lc *lc;
 
@@ -25,6 +27,8 @@ test_pre(struct mtf_test_info *lcl_ti)
     void *             dummy = (void *)-1;
     struct kvs_rparams rp = kvs_rparams_defaults();
     struct kvdb_kvs    kvdb_kvs;
+
+    strlcpy(kvdb_kvs.kk_name, "dummy", sizeof(kvdb_kvs.kk_name));
 
     mock_c0cn_set();
 
