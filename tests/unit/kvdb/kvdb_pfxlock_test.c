@@ -133,6 +133,8 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_pfxlock_test, ptomb_after_put, mapi_pre, mapi_post
 
     err = kvdb_pfxlock_excl(kpl, hash, 4, &lock2); /* pdel 4 */
     ASSERT_EQ(0, err);
+
+    kvdb_pfxlock_seqno_pub(kpl, 5, lock2);
 }
 
 MTF_DEFINE_UTEST_PREPOST(kvdb_pfxlock_test, long_txn, mapi_pre, mapi_post)
@@ -173,6 +175,8 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_pfxlock_test, long_txn, mapi_pre, mapi_post)
 
     err = kvdb_pfxlock_excl(kpl, hash, 503, &lockv[3]);
     ASSERT_EQ(0, err);
+
+    kvdb_pfxlock_seqno_pub(kpl, 504, lockv[3]);
 }
 
 MTF_END_UTEST_COLLECTION(kvdb_pfxlock_test);
