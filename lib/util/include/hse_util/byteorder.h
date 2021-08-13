@@ -1,12 +1,15 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
 #ifndef HSE_PLATFORM_BYTEORDER_H
 #define HSE_PLATFORM_BYTEORDER_H
 
 #include <endian.h>
+#include <stdint.h>
+
+#include <hse_util/compiler.h>
 
 static HSE_ALWAYS_INLINE uint16_t
 cpu_to_le16(uint16_t x)

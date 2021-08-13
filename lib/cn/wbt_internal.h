@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
 #ifndef HSE_KVS_CN_WBT_INTERNAL_H
@@ -9,6 +9,7 @@
 #include "kvs_mblk_desc.h"
 
 #include <hse_util/inttypes.h>
+#include <hse_util/compiler.h>
 #include <hse_util/byteorder.h>
 
 #include "omf.h"
