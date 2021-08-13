@@ -55,13 +55,23 @@ relative_dir = run_command(
 if cc.has_argument('-fmacro-prefix-map=/prefix/to/hide=')
 	add_project_arguments(
 		'-fmacro-prefix-map=@0@='.format(relative_dir),
-		language: 'c',
+		language: 'c'
 	)
 else
 	add_project_arguments(
 		'-DHSE_REL_SRC_DIR="@0@"'.format(relative_dir),
-		language: 'c',
+		language: 'c'
 	)
+endif
+
+if get_option('b_sanitize').contains('undefined')
+    if cc.has_argument('-fno-sanitize-recover=undefinded') and cc.has_argument('-fsanitize-recover=alignment')
+        add_project_arguments(
+            '-fno-sanitize-recover=undefinded',
+            '-fsanitize-recover=alignment',
+            language: 'c'
+        )
+    endif
 endif
 
 git = find_program('git', required: false)

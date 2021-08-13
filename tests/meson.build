@@ -21,7 +21,10 @@ if get_option('b_sanitize') != 'none'
     additional_suite_exclusions += 'python'
     additional_suite_exclusions += 'hse-python'
 
-    run_env.set('UBSAN_OPTIONS', 'suppressions=@0@/suppressions/hse.undefined.supp'.format(meson.project_source_root()))
+    if get_option('b_sanitize').contains('undefined')
+        run_env.append('UBSAN_OPTIONS', 'suppressions=@0@/suppressions/hse.undefined.supp'.format(meson.project_source_root()))
+        run_env.append('UBSAN_OPTIONS', 'print_stacktrace=1')
+    endif
 endif
 
 add_test_setup(
