@@ -356,10 +356,10 @@ profile_mpool(const char *path, uint64_t mblock_sz, uint32_t thread_cnt, double 
 
     mpool_rparams_init(path, &params);
 
-    err = mpool_open(NULL, &params, flags, &mp);
+    err = mpool_open(path, &params, flags, &mp);
     if (err) {
         merr_strerror(err, errbuf, sizeof(errbuf));
-        fprintf(stderr, "error from mpool_open() : %s\n", errbuf);
+        fprintf(stderr, "Failed to open storage %s: %s\n", path, errbuf);
         return merr_errno(err);
     }
 
@@ -383,7 +383,7 @@ get_mpool_info(const char *path, struct mpool_info *info)
 
     mpool_rparams_init(path, &params);
 
-    err = mpool_open(NULL, &params, flags, &mp);
+    err = mpool_open(path, &params, flags, &mp);
     if (err) {
         merr_strerror(err, errbuf, sizeof(errbuf));
         fprintf(stderr, "Failed to open storage %s: %s\n", path, errbuf);
@@ -494,18 +494,12 @@ static int
 profile_dir_destroy(const char *path)
 {
     struct mpool_dparams dparams = {0};
-    int    rc;
-    merr_t err;
 
     mpool_dparams_init(path, &dparams);
 
-    err = mpool_destroy(NULL, &dparams);
-    if (err)
-        return merr_errno(err);
+    mpool_destroy(path, &dparams);
 
-    rc = rmdir(path);
-
-    return rc ? errno : 0;
+    return rmdir(path);
 }
 
 int
@@ -513,7 +507,7 @@ main(int argc, char *argv[])
 {
     struct mpool_cparams cparams = {0};
     struct mpool_info  info = {0};
-    int                i, rc, rc1;
+    int                i, rc;
     int                thread_counts[] = { 16, 20, 24, 32, 40, 48 };
     int                num_thread_counts = NELEM(thread_counts);
     double             scores[num_thread_counts];
@@ -558,7 +552,7 @@ main(int argc, char *argv[])
 
     mpool_cparams_init(path, &cparams);
 
-    err = mpool_create(NULL, &cparams);
+    err = mpool_create(path, &cparams);
     if (err) {
         merr_strerror(err, errbuf, sizeof(errbuf));
         fprintf(stderr, "Failed to initialize storage: %s\n", errbuf);
@@ -636,11 +630,8 @@ main(int argc, char *argv[])
         printf("%s\n", result);
 
 err_exit:
-    rc1 = profile_dir_destroy(path);
-    if (rc1) {
-        fprintf(stderr, "Failed to clean up profile dir %s: %s\n", path, strerror(rc1));
-        rc = rc ? : rc1;
-    }
+    if (profile_dir_destroy(path))
+        fprintf(stderr, "Failed to clean up profile dir %s, please remove manually\n", path);
 
     if (!verbose || rc) {
         hse_fini();
@@ -660,9 +651,9 @@ err_exit:
     printf("along with whatever other configuration settings you already have.\n");
     printf("\n");
     printf("Running HSE with an improper setting for throttle_init_policy\n");
-    printf("(e.g., \"medium\" for a slow mpool) will likely cause durability\n");
-    printf("settings to not be honored and search data structures to become\n");
-    printf("unbalanced until the throttling catches up.\n");
+    printf("(e.g., \"medium\" for a slow KVDB storage device) will likely\n");
+    printf("cause durability settings to not be honored and search data\n");
+    printf("structures to become unbalanced until the throttling catches up.\n");
 
     hse_fini();
 

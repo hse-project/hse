@@ -30,7 +30,7 @@
  */
 struct mpool {
     struct media_class *mc[MP_MED_COUNT];
-    char                home[PATH_MAX];
+    const char          home[]; /* flexible array */
 };
 
 static merr_t
@@ -156,38 +156,47 @@ mpool_create(const char *home, const struct mpool_cparams *params)
     struct mpool *mp;
     merr_t        err;
     int           i, flags = 0;
+    size_t        sz;
 
-    assert(home);
-    assert(params);
+    if (!home || !params)
+        return merr(EINVAL);
 
-    mp = calloc(1, sizeof(*mp));
+    sz = sizeof(*mp) + strlen(home) + 1;
+    mp = calloc(1, sz);
     if (!mp)
         return merr(ENOMEM);
 
-    if (home)
-        strlcpy(mp->home, home, sizeof(mp->home));
-
+    strcpy((char *)mp->home, home);
     flags |= (O_CREAT | O_RDWR);
+
     for (i = MP_MED_BASE; i < MP_MED_COUNT; i++) {
         struct mclass_params mcp = {0};
 
         /* If capacity path is the default, automatically create it */
-        if (i == MP_MED_CAPACITY && flags & O_CREAT && home) {
+        if (i == MP_MED_CAPACITY) {
             char   buf[sizeof(params->mclass[i].path)];
             size_t n = snprintf(buf, sizeof(buf), "%s/" MPOOL_CAPACITY_MCLASS_DEFAULT_PATH, home);
-            if (n >= sizeof(params->mclass[i].path))
-                return merr(ENAMETOOLONG);
+
+            if (n >= sizeof(params->mclass[i].path)) {
+                err = merr(ENAMETOOLONG);
+                goto errout;
+            }
 
             if (!strcmp(buf, params->mclass[i].path)) {
                 DIR *dirp = opendir(buf);
                 if (dirp) {
-                    if (closedir(dirp))
-                        return merr(errno);
+                    if (closedir(dirp)) {
+                        err = merr(errno);
+                        goto errout;
+                    }
                 } else if (errno == ENOENT) {
-                    if (mkdir(buf, S_IRGRP | S_IXGRP | S_IRWXU))
-                        return merr(errno);
+                    if (mkdir(buf, S_IRGRP | S_IXGRP | S_IRWXU)) {
+                        err = merr(errno);
+                        goto errout;
+                    }
                 } else {
-                    return merr(errno);
+                    err = merr(errno);
+                    goto errout;
                 }
             }
         }
@@ -208,6 +217,7 @@ mpool_create(const char *home, const struct mpool_cparams *params)
 errout:
     while (i-- > MP_MED_BASE)
         mclass_close(mp->mc[i]);
+
     free(mp);
 
     return err;
@@ -220,24 +230,22 @@ mpool_open(
     uint32_t                    flags,
     struct mpool              **handle)
 {
-    assert(params);
-
     struct mpool *mp;
     merr_t        err;
     int           i;
+    size_t        sz;
 
-    assert(home);
-    assert(params);
-    assert(handle);
+    if (!home || !params || !handle)
+        return merr(EINVAL);
 
     *handle = NULL;
 
-    mp = calloc(1, sizeof(*mp));
+    sz = sizeof(*mp) + strlen(home) + 1;
+    mp = calloc(1, sz);
     if (!mp)
         return merr(ENOMEM);
 
-    if (home)
-        strlcpy(mp->home, home, sizeof(mp->home));
+    strcpy((char *)mp->home, home);
 
     for (i = MP_MED_BASE; i < MP_MED_COUNT; i++) {
         struct mclass_params mcp = {0};
@@ -288,12 +296,12 @@ mpool_close(struct mpool *mp)
 merr_t
 mpool_destroy(const char *home, const struct mpool_dparams *params)
 {
+    struct workqueue_struct *mpdwq;
     char path[PATH_MAX];
     int filecnt = 0;
 
-    assert(params);
-
-    struct workqueue_struct *mpdwq;
+    if (!home || !params)
+        return merr(EINVAL);
 
     mpdwq = alloc_workqueue("mp_destroy", 0, MP_DESTROY_THREADS);
     ev(!mpdwq);
@@ -307,16 +315,9 @@ mpool_destroy(const char *home, const struct mpool_dparams *params)
 
     destroy_workqueue(mpdwq);
 
-    if (home) {
-        snprintf(path, sizeof(path), "%s/" MPOOL_CAPACITY_MCLASS_DEFAULT_PATH, home);
-        if (!strcmp(path, params->mclass[MP_MED_CAPACITY].path)) {
-            int rc;
-
-            rc = remove(path);
-            if (rc == 0)
-                filecnt++;
-        }
-    }
+    snprintf(path, sizeof(path), "%s/" MPOOL_CAPACITY_MCLASS_DEFAULT_PATH, home);
+    if (!strcmp(path, params->mclass[MP_MED_CAPACITY].path) && !remove(path))
+        filecnt++;
 
     return filecnt > 0 ? 0 : merr(ENOENT);
 }
