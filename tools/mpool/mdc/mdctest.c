@@ -1346,7 +1346,7 @@ main(int argc, char **argv)
 
     strlcpy(dparams.mclass[MP_MED_CAPACITY].path, path,
             sizeof(dparams.mclass[MP_MED_CAPACITY].path));
-    err = mpool_destroy(NULL, &dparams);
+    err = mpool_destroy(path, &dparams);
     if (err) {
         fprintf(stderr, "mpool destroy at path %s failed\n", path);
         hse_fini();
