@@ -109,20 +109,10 @@ programs = {
     },
 }
 
-home_dir = tests_dir / 'stress'
-
-if not fs.exists(home_dir)
-    run_command(
-        'mkdir',
-        home_dir,
-        check: true,
-    )
-endif
-
 foreach p, p_params: programs
     e = executable(
         p,
-        [p + '.c', 'stress_util.c'],
+        ['@0@.c'.format(p), 'stress_util.c'],
         c_args: [
             '-D_GNU_SOURCE=1',
         ],
@@ -133,7 +123,7 @@ foreach p, p_params: programs
         test(
             t,
             e,
-            args: ['-C', home_dir] + t_params['args'],
+            args: t_params['args'],
             is_parallel: false,
             suite: ['stress'],
             timeout: params.get('timeout', 600),
@@ -144,7 +134,7 @@ foreach p, p_params: programs
         test(
             t,
             e,
-            args: ['-C', home_dir] + t_params['args'],
+            args: t_params['args'],
             is_parallel: false,
             suite: ['stress_large'],
             timeout: params.get('timeout', 3600),

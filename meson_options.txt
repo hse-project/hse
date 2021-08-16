@@ -28,7 +28,5 @@ option('bindings', type: 'array', choices: ['all', 'none', 'python'], value: ['a
     description: 'Build language bindings')
 option('kvdb-conf-extended', type: 'boolean', value: false,
     description: '[TESTING PURPOSES ONLY] Allow cparams/dparams to exist in kvdb.conf')
-option('tests-dir', type: 'string', value: '',
-    description: 'Directory for pre-creating home directories')
 option('docs', type: 'boolean', value: false,
     description: 'Build documentation')

@@ -331,7 +331,7 @@ char home[PATH_MAX];
             { 0, 0, 0, 0 },                                                                        \
         };                                                                                         \
                                                                                                    \
-        while (-1 != (c = getopt_long(argc, argv, "+:1:l:hva:", long_options, NULL))) {            \
+        while (-1 != (c = getopt_long(argc, argv, "+:l:h1:C:", long_options, NULL))) {             \
             switch (c) {                                                                           \
                 case 'h':                                                                          \
                     printf(                                                                        \
@@ -365,6 +365,7 @@ char home[PATH_MAX];
                                                                                                    \
         _mtf_##coll_name##_tci.tci_argc = argc;                                                    \
         _mtf_##coll_name##_tci.tci_argv = argv;                                                    \
+        _mtf_##coll_name##_tci.tci_optind = optind;                                                \
                                                                                                    \
         if (argv_home && !realpath(argv_home, home)) {                                             \
             rc = errno;                                                                            \
