@@ -248,7 +248,7 @@ hse_kvdb_kvs_names_free(struct hse_kvdb *kvdb, char **namev);
 
 /** @brief Create a KVS within the referenced KVDB.
  *
- * If the KVS will store multi-segment keys then the parameter "pfx_len" should be set to
+ * If the KVS will store segmented keys then the parameter "pfx_len" should be set to
  * the desired key prefix length.  An error will result if there is already a KVS with the
  * given name. This function is not thread safe.
  *
@@ -425,9 +425,9 @@ hse_kvs_delete(
     const void *         key,
     size_t               key_len);
 
-/** @brief Delete all key-value pairs matching the key prefix from a KVS storing multi-segment keys.
+/** @brief Delete all key-value pairs matching the key prefix from a KVS storing segmented keys.
  *
- * This interface is used to delete an entire range of multi-segment keys. To do this
+ * This interface is used to delete an entire range of segmented keys. To do this
  * the caller passes a filter with a length equal to the KVS's key prefix length. It is
  * not an error if no keys exist matching the filter. If there is a filtered iteration
  * in progress, then that iteration can fail if hse_kvs_prefix_delete() is called with
