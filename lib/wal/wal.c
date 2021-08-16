@@ -553,8 +553,7 @@ wal_open(
     if (!mp || !rp || !rinfo || !wal_out)
         return merr(EINVAL);
 
-    if (!rp->dur_enable)
-        return 0;
+    *wal_out = NULL;
 
     wal = aligned_alloc(alignof(*wal), sizeof(*wal));
     if (!wal)
@@ -566,11 +565,6 @@ wal_open(
     wal->health = health;
     wal->rdonly = rp->read_only;
     wal->ikvdb = ikdb;
-
-    wal->wal_thr_hwm = rp->dur_throttle_hi_th;
-    wal->wal_thr_lwm = rp->dur_throttle_lo_th;
-    if (wal->wal_thr_lwm > wal->wal_thr_hwm / 2)
-        wal->wal_thr_lwm = wal->wal_thr_hwm / 2;
 
     wal->dur_ms = HSE_WAL_DUR_MS_DFLT;
     wal->dur_bufsz = HSE_WAL_DUR_BUFSZ_MB_DFLT << 20;
@@ -593,6 +587,11 @@ wal_open(
     err = wal_replay(wal, rinfo);
     if (err)
         goto errout;
+
+    if (!rp->dur_enable) {
+        wal_close(wal);
+        return 0;
+    }
 
     if (wal->rdonly) {
         *wal_out = wal;
@@ -619,6 +618,11 @@ wal_open(
     err = wal_mdc_compact(wal->mdc, wal);
     if (err)
         goto errout;
+
+    wal->wal_thr_hwm = rp->dur_throttle_hi_th;
+    wal->wal_thr_lwm = rp->dur_throttle_lo_th;
+    if (wal->wal_thr_lwm > wal->wal_thr_hwm / 2)
+        wal->wal_thr_lwm = wal->wal_thr_hwm / 2;
 
     wal->wiocb.iocb = wal_ionotify_cb;
     wal->wiocb.cbarg = wal;
