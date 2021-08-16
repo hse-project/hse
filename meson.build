@@ -167,6 +167,13 @@ add_project_arguments(
     language: 'c',
 )
 
+if get_option('debug')
+    add_project_arguments(
+        '-DWITH_INVARIANTS',
+        language: 'c'
+    )
+endif
+
 build_rtype = build_stype
 build_number_result = run_command(
     'sh',
