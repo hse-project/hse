@@ -15,6 +15,8 @@
 
 #include <mocks/mock_c0cn.h>
 
+#include <bsd/string.h>
+
 static struct ikvs *kvs;
 static struct lc *lc;
 
@@ -26,6 +28,8 @@ test_pre(struct mtf_test_info *lcl_ti)
     struct kvs_rparams rp = kvs_rparams_defaults();
     struct kvdb_kvs    kvdb_kvs;
 
+    strlcpy(kvdb_kvs.kk_name, "dummy", sizeof(kvdb_kvs.kk_name));
+
     mock_c0cn_set();
 
     err = lc_create(&lc, (void *)-1);
@@ -33,8 +37,10 @@ test_pre(struct mtf_test_info *lcl_ti)
 
     lc_ingest_seqno_set(lc, 1);
 
-    err = kvs_open(dummy, &kvdb_kvs, "mp_test", dummy, dummy, lc, NULL, &rp, dummy, dummy, 0);
+    mapi_inject_ptr(mapi_idx_ikvdb_home, "kvdb");
+    err = kvs_open(dummy, &kvdb_kvs, dummy, dummy, lc, NULL, &rp, dummy, dummy, 0);
     ASSERT_EQ_RET(0, err, -1);
+    mapi_inject_unset(mapi_idx_ikvdb_home);
 
     kvs = kvdb_kvs.kk_ikvs;
     return 0;

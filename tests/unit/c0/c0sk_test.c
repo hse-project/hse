@@ -1965,16 +1965,17 @@ MTF_DEFINE_UTEST_PREPOST(c0sk_test, c0_cursor_robust, no_fail_pre, no_fail_post)
     for (i = 0; i < 5; ++i) {
         int n = (i + 1) * 20000;
 
-        err = c0sk_cursor_create(c0sk, atomic64_read(&seqno), skidx, 0, 0, 0, 0, &summary, &cur[i]);
+        err = c0sk_cursor_create(c0sk, atomic64_read(&seqno), skidx, 0, 0, "", 0, &summary, &cur[i]);
         ASSERT_EQ(0, err);
         atomic64_inc(&seqno);
 
         /* this cursor will NOT see these keys */
 
         for (; j < n; ++j) {
-            int vlen;
+            int klen, vlen;
 
-            kvs_ktuple_init(&kt, kbuf, snprintf(kbuf, sizeof(kbuf), "%05d", keys[j]) + 1);
+            klen = snprintf(kbuf, sizeof(kbuf), "%05d", keys[j]) + 1;
+            kvs_ktuple_init(&kt, kbuf, klen);
 
             vlen = snprintf(vbuf, sizeof(vbuf), "%lu", (ulong)atomic64_read(&seqno));
             kvs_vtuple_init(&vt, vbuf, vlen);
@@ -2160,7 +2161,7 @@ MTF_DEFINE_UTEST_PREPOST(c0sk_test, c0_cursor_eagain, no_fail_pre, no_fail_post)
     kt.kt_data = kbuf;
     vt.vt_data = vbuf;
 
-    err = c0sk_cursor_create(c0sk, atomic64_read(&seqno), skidx, 0, 0, 0, 0, &summary, &cur);
+    err = c0sk_cursor_create(c0sk, atomic64_read(&seqno), skidx, 0, 0, "", 0, &summary, &cur);
     ASSERT_EQ(0, err);
 
     /* at least one too many */
@@ -2577,7 +2578,7 @@ MTF_DEFINE_UTEST_PREPOST(c0sk_test, c0_cursor_ptombs, no_fail_pre, no_fail_post)
 
             /* use a tree prefix length of sizeof(kbuf[0]) */
             err = c0sk_cursor_create(
-                c0sk, atomic64_read(&seqno), skidx, 0, sizeof(kbuf[0]), 0, 0, &summary, &cur);
+                c0sk, atomic64_read(&seqno), skidx, 0, sizeof(kbuf[0]), "", 0, &summary, &cur);
             ASSERT_EQ(0, err);
 
             atomic64_inc(&seqno);
@@ -2597,7 +2598,7 @@ MTF_DEFINE_UTEST_PREPOST(c0sk_test, c0_cursor_ptombs, no_fail_pre, no_fail_post)
     ASSERT_EQ(0, err);
     ASSERT_EQ(true, eof);
 
-    err = c0sk_cursor_seek(cur, NULL, 0, NULL);
+    err = c0sk_cursor_seek(cur, "", 0, NULL);
     ASSERT_EQ(0, err);
 
     /* use a tree prefix length of sizeof(kbuf[0]) */
@@ -2637,7 +2638,7 @@ MTF_DEFINE_UTEST_PREPOST(c0sk_test, c0_cursor_ptombs, no_fail_pre, no_fail_post)
     err = c0sk_prefix_del(mkvdb.ikdb_c0sk, skidx, &kt, HSE_SQNREF_SINGLE);
     ASSERT_EQ(0, err);
 
-    err = c0sk_cursor_seek(cur, NULL, 0, NULL);
+    err = c0sk_cursor_seek(cur, "", 0, NULL);
     ASSERT_EQ(0, err);
 
     flags = 0;
@@ -2646,7 +2647,7 @@ MTF_DEFINE_UTEST_PREPOST(c0sk_test, c0_cursor_ptombs, no_fail_pre, no_fail_post)
     ASSERT_EQ(0, err);
     ASSERT_TRUE(flags & CURSOR_FLAG_SEQNO_CHANGE);
 
-    err = c0sk_cursor_seek(cur, NULL, 0, NULL);
+    err = c0sk_cursor_seek(cur, "", 0, NULL);
     ASSERT_EQ(0, err);
 
     /* expect ptomb (meant for lc and cn )*/

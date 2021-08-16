@@ -9,6 +9,7 @@
 #include <hse_util/inttypes.h>
 #include <hse_util/minmax.h>
 #include <hse_util/assert.h>
+#include <hse_util/compiler.h>
 
 /* Max number of a key's bytes that we can store in a key_immediate
  * minus 4 (i.e., the skidx byte + dlen byte + two bytes used to

@@ -19,7 +19,7 @@
 #mesondefine SUPPORTS_ATTR_CONST
 #mesondefine SUPPORTS_ATTR_WEAK
 #mesondefine SUPPORTS_ATTR_SENTINEL
-#mesondefine SUPPORTS_ATTR_NO_SANITIZE_ALIGNMENT
+#mesondefine SUPPORTS_ATTR_NONNULL
 
 #mesondefine WITH_COVERAGE
 #mesondefine WITH_UBSAN
