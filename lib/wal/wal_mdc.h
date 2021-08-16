@@ -29,21 +29,6 @@ merr_t
 wal_mdc_close(struct wal_mdc *mdc);
 
 merr_t
-wal_mdc_sync(struct wal_mdc *mdc);
-
-merr_t
-wal_mdc_version_write(struct wal_mdc *mdc, struct wal *wal, bool sync);
-
-merr_t
-wal_mdc_config_write(struct wal_mdc *mdc, struct wal *wal, bool sync);
-
-merr_t
-wal_mdc_reclaim_write(struct wal_mdc *mdc, struct wal *wal, bool sync);
-
-merr_t
-wal_mdc_close_write(struct wal_mdc *mdc, bool sync);
-
-merr_t
 wal_mdc_format(struct wal_mdc *mdc, uint32_t version);
 
 merr_t
@@ -51,5 +36,8 @@ wal_mdc_compact(struct wal_mdc *mdc, struct wal *wal);
 
 merr_t
 wal_mdc_replay(struct wal_mdc *mdc, struct wal *wal);
+
+merr_t
+wal_mdc_close_write(struct wal_mdc *mdc);
 
 #endif /* WAL_MDC_H */

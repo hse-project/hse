@@ -696,7 +696,7 @@ wal_close(struct wal *wal)
     }
 
     /* Write a close record to indicate graceful shutdown */
-    wal_mdc_close_write(wal->mdc, true);
+    wal_mdc_close_write(wal->mdc);
     wal_mdc_close(wal->mdc);
 
     free(wal);
