@@ -75,6 +75,7 @@ struct kvdb_rparams {
     uint64_t dur_bufsz_mb;
     uint32_t dur_throttle_lo_th;
     uint32_t dur_throttle_hi_th;
+    bool     dur_buf_managed;
     char     dur_mclass[MP_MED_NAME_LEN_MAX];
 
     uint64_t throttle_update_ns;

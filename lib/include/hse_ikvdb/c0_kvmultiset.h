@@ -23,6 +23,7 @@ struct cn;
 struct c0_kvmultiset_cursor;
 struct c0sk;
 struct c0_kvmultiset_impl;
+struct kvdb_callback;
 
 /**
  * c0_kvmultiset - container for struct c0_kvset's
@@ -104,6 +105,9 @@ c0kvms_gen_read(struct c0_kvmultiset *mset);
 
 uint64_t
 c0kvms_gen_current(void);
+
+void
+c0kvms_cb_setup(struct c0_kvmultiset *handle, struct kvdb_callback *cb);
 
 u64
 c0kvms_ingest_seqno_get(struct c0_kvmultiset *handle);

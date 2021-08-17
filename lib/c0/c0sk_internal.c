@@ -136,6 +136,8 @@ c0sk_install_c0kvms(struct c0sk_impl *self, struct c0_kvmultiset *old, struct c0
     if (first == old) {
         c0kvms_gen_update(new);
 
+        c0kvms_cb_setup(new, self->c0sk_cb);
+
         cds_list_add_rcu(&new->c0ms_link, &self->c0sk_kvmultisets);
 
         c0sk_rsvd_sn_set(self, new);

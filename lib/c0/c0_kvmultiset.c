@@ -15,6 +15,7 @@
 #include <hse_util/xrand.h>
 #include <hse_util/keycmp.h>
 
+#include <hse_ikvdb/ikvdb.h>
 #include <hse_ikvdb/lc.h>
 #include <hse_ikvdb/c0sk.h>
 #include <hse_ikvdb/cn.h>
@@ -59,15 +60,16 @@
  * @c0ms_sets:          vector of c0 kvset pointers
  */
 struct c0_kvmultiset_impl {
-    struct c0_kvmultiset c0ms_handle;
-    u64                  c0ms_gen;
-    atomic64_t           c0ms_seqno;
-    u64                  c0ms_rsvd_sn;
-    u64                  c0ms_ctime;
-    atomic64_t           c0ms_txhorizon;
-    size_t               c0ms_used;
-    atomic64_t          *c0ms_kvdb_seq;
-    void               **c0ms_stashp;
+    struct c0_kvmultiset  c0ms_handle;
+    u64                   c0ms_gen;
+    atomic64_t            c0ms_seqno;
+    u64                   c0ms_rsvd_sn;
+    u64                   c0ms_ctime;
+    atomic64_t            c0ms_txhorizon;
+    size_t                c0ms_used;
+    atomic64_t           *c0ms_kvdb_seq;
+    void                **c0ms_stashp;
+    struct kvdb_callback *c0ms_cb;
 
     atomic_t                 c0ms_ingesting HSE_ALIGNED(SMP_CACHE_BYTES);
     bool                     c0ms_ingested;
@@ -869,6 +871,18 @@ c0kvms_destroy_cache(void **stashp)
     }
 }
 
+void
+c0kvms_bufrel_walcb(struct c0_kvmultiset_impl *mset)
+{
+    struct ikvdb *ikvdb;
+
+    if (!mset->c0ms_cb || !mset->c0ms_cb->kc_bufrel_cb)
+        return;
+
+    ikvdb = mset->c0ms_cb->kc_cbarg;
+    mset->c0ms_cb->kc_bufrel_cb(ikvdb, mset->c0ms_gen);
+}
+
 static void
 c0kvms_destroy(struct c0_kvmultiset_impl *mset)
 {
@@ -889,6 +903,9 @@ c0kvms_destroy(struct c0_kvmultiset_impl *mset)
         c0snr_cnt = mset->c0ms_c0snr_max;
 
     c0snr_droprefv(c0snr_cnt, (uintptr_t **)mset->c0ms_c0snr_base);
+
+    /* Notify wal to free up buffer space */
+    c0kvms_bufrel_walcb(mset);
 
     /* Try to save this kvms in the caller's stash for fast re-use...
      */
@@ -995,6 +1012,14 @@ uint64_t
 c0kvms_gen_current(void)
 {
     return atomic64_read(&c0kvms_gen);
+}
+
+void
+c0kvms_cb_setup(struct c0_kvmultiset *handle, struct kvdb_callback *cb)
+{
+    struct c0_kvmultiset_impl *self = c0_kvmultiset_h2r(handle);
+
+    self->c0ms_cb = cb;
 }
 
 uintptr_t *

@@ -976,6 +976,17 @@ ikvdb_wal_cningest_cb(
 }
 
 static void
+ikvdb_wal_bufrel_cb(
+    struct ikvdb *ikdb,
+    unsigned long gen)
+{
+    struct ikvdb_impl *self = ikvdb_h2r(ikdb);
+
+    if (self->ikdb_wal)
+        wal_bufrel_cb(self->ikdb_wal, gen);
+}
+
+static void
 ikvdb_wal_install_callback(struct ikvdb_impl *self)
 {
     struct kvdb_callback *cb = &self->ikdb_wal_cb;
@@ -987,6 +998,7 @@ ikvdb_wal_install_callback(struct ikvdb_impl *self)
 
     cb->kc_cbarg = &self->ikdb_handle;
     cb->kc_cningest_cb = ikvdb_wal_cningest_cb;
+    cb->kc_bufrel_cb = ikvdb_wal_bufrel_cb;
 
     c0sk_install_callback(self->ikdb_c0sk, cb);
 }

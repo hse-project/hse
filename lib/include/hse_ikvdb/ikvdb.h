@@ -525,12 +525,9 @@ ikvdb_kvs_query_tree(struct hse_kvs *kvs, struct yaml_context *yc, int fd, bool 
  */
 struct kvdb_callback {
     struct ikvdb *kc_cbarg;
-    void (*kc_cningest_cb)(
-        struct ikvdb *ikdb,
-        unsigned long seqno,
-        unsigned long dgen,
-        unsigned long txhorizon,
-        bool          post_ingest);
+    void (*kc_cningest_cb)(struct ikvdb *ikdb, unsigned long seqno, unsigned long gen,
+                           unsigned long txhorizon, bool post_ingest);
+    void (*kc_bufrel_cb)(struct ikvdb *ikdb, unsigned long gen);
 };
 
 /*

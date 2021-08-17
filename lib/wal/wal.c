@@ -63,6 +63,7 @@ struct wal {
     size_t     dur_bufsz;
     enum mpool_mclass dur_mclass;
     uint32_t   version;
+    bool       buf_managed;
     struct kvdb_health *health;
     struct ikvdb *ikvdb;
     struct wal_iocb wiocb;
@@ -325,7 +326,7 @@ wal_put(
     kvdata = (char *)rec + rlen;
     memcpy(kvdata, kt->kt_data, klen);
     kt->kt_data = kvdata;
-    kt->kt_flags = HSE_BTF_MANAGED;
+    kt->kt_flags = wal->buf_managed ? HSE_BTF_MANAGED : 0;
 
     if (vlen > 0) {
         kvdata = PTR_ALIGN(kvdata + klen, kvalign);
@@ -380,7 +381,7 @@ wal_del_impl(
     kdata = (char *)rec + rlen;
     memcpy(kdata, kt->kt_data, klen);
     kt->kt_data = kdata;
-    kt->kt_flags = HSE_BTF_MANAGED;
+    kt->kt_flags = wal->buf_managed ? HSE_BTF_MANAGED : 0;
 
     return 0;
 }
@@ -565,6 +566,7 @@ wal_open(
     wal->health = health;
     wal->rdonly = rp->read_only;
     wal->ikvdb = ikdb;
+    wal->buf_managed = rp->dur_buf_managed;
 
     wal->dur_ms = HSE_WAL_DUR_MS_DFLT;
     wal->dur_bufsz = HSE_WAL_DUR_BUFSZ_MB_DFLT << 20;
@@ -710,7 +712,8 @@ wal_reclaim(struct wal *wal, uint64_t seqno, uint64_t gen, uint64_t txhorizon)
     atomic64_set(&wal->wal_ingestgen, gen);
     atomic64_set(&wal->wal_txhorizon, txhorizon);
 
-    wal_bufset_reclaim(wal->wbs, gen);
+    if (!wal->buf_managed)
+        wal_bufset_reclaim(wal->wbs, gen);
     wal_fileset_reclaim(wal->wfset, seqno, gen, txhorizon, false);
 }
 
@@ -721,6 +724,13 @@ wal_cningest_cb(struct wal *wal, uint64_t seqno, uint64_t gen, uint64_t txhorizo
         wal_reclaim(wal, seqno, gen, txhorizon);
     else
         wal_cond_sync(wal, gen);
+}
+
+void
+wal_bufrel_cb(struct wal *wal, uint64_t gen)
+{
+    if (wal->buf_managed)
+        wal_bufset_reclaim(wal->wbs, gen);
 }
 
 void
