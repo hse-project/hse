@@ -24,10 +24,9 @@
 
 #define PARAM_FLAG_DEVELOPER_ONLY  (1 << 1)
 #define PARAM_FLAG_EXPERIMENTAL    (1 << 2)
-#define PARAM_FLAG_CREATE_ONLY     (1 << 3)
-#define PARAM_FLAG_WRITABLE        (1 << 4)
-#define PARAM_FLAG_NULLABLE        (1 << 5)
-#define PARAM_FLAG_DEFAULT_BUILDER (1 << 6) /* PARAM_TYPE_ARRAY and PARAM_TYPE_OBJECT must have PARAM_FLAG_DEFAULT_BUILDER */
+#define PARAM_FLAG_WRITABLE        (1 << 3)
+#define PARAM_FLAG_NULLABLE        (1 << 4)
+#define PARAM_FLAG_DEFAULT_BUILDER (1 << 5) /* PARAM_TYPE_ARRAY and PARAM_TYPE_OBJECT must have PARAM_FLAG_DEFAULT_BUILDER */
 
 struct param_spec;
 

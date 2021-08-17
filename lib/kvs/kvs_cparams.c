@@ -15,7 +15,7 @@ static const struct param_spec pspecs[] = {
     {
         .ps_name = "fanout",
         .ps_description = "cN tree fanout",
-        .ps_flags = PARAM_FLAG_EXPERIMENTAL | PARAM_FLAG_CREATE_ONLY,
+        .ps_flags = PARAM_FLAG_EXPERIMENTAL,
         .ps_type = PARAM_TYPE_U32,
         .ps_offset = offsetof(struct kvs_cparams, fanout),
         .ps_size = sizeof(((struct kvs_cparams *) 0)->fanout),
@@ -34,7 +34,7 @@ static const struct param_spec pspecs[] = {
     {
         .ps_name = "pfx_len",
         .ps_description = "Key prefix length",
-        .ps_flags = PARAM_FLAG_CREATE_ONLY,
+        .ps_flags = 0,
         .ps_type = PARAM_TYPE_U32,
         .ps_offset = offsetof(struct kvs_cparams, pfx_len),
         .ps_size = sizeof(((struct kvs_cparams *) 0)->pfx_len),
@@ -53,7 +53,7 @@ static const struct param_spec pspecs[] = {
     {
         .ps_name = "pfx_pivot",
         .ps_description = "First level to spill with full hash, only applies when pfx_len > 0 (0=root)",
-        .ps_flags = PARAM_FLAG_EXPERIMENTAL | PARAM_FLAG_CREATE_ONLY,
+        .ps_flags = PARAM_FLAG_EXPERIMENTAL,
         .ps_type = PARAM_TYPE_U32,
         .ps_offset = offsetof(struct kvs_cparams, pfx_pivot),
         .ps_size = sizeof(((struct kvs_cparams *) 0)->pfx_pivot),
@@ -72,7 +72,7 @@ static const struct param_spec pspecs[] = {
     {
         .ps_name = "kvs_ext01",
         .ps_description = "kvs_ext01",
-        .ps_flags = PARAM_FLAG_EXPERIMENTAL | PARAM_FLAG_CREATE_ONLY,
+        .ps_flags = PARAM_FLAG_EXPERIMENTAL,
         .ps_type = PARAM_TYPE_U32,
         .ps_offset = offsetof(struct kvs_cparams, kvs_ext01),
         .ps_size = sizeof(((struct kvs_cparams *) 0)->kvs_ext01),
@@ -91,7 +91,7 @@ static const struct param_spec pspecs[] = {
     {
         .ps_name = "sfx_len",
         .ps_description = "Key suffix length",
-        .ps_flags = PARAM_FLAG_CREATE_ONLY,
+        .ps_flags = 0,
         .ps_type = PARAM_TYPE_U32,
         .ps_offset = offsetof(struct kvs_cparams, sfx_len),
         .ps_size = sizeof(((struct kvs_cparams *) 0)->sfx_len),

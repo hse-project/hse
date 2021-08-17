@@ -40,7 +40,7 @@ static const struct param_spec pspecs[] = {
     {
         .ps_name = "storage.capacity.mblocksz",
         .ps_description = "object size in capacity mclass",
-        .ps_flags = PARAM_FLAG_EXPERIMENTAL | PARAM_FLAG_CREATE_ONLY,
+        .ps_flags = PARAM_FLAG_EXPERIMENTAL,
         .ps_type = PARAM_TYPE_U64,
         .ps_offset = offsetof(struct kvdb_cparams, storage.mclass[MP_MED_CAPACITY].mblocksz),
         .ps_size = sizeof(((struct kvdb_cparams *) 0)->storage.mclass[MP_MED_CAPACITY].mblocksz),
@@ -114,7 +114,7 @@ static const struct param_spec pspecs[] = {
     {
         .ps_name = "storage.staging.mblocksz",
         .ps_description = "object size in staging mclass",
-        .ps_flags = PARAM_FLAG_EXPERIMENTAL | PARAM_FLAG_CREATE_ONLY,
+        .ps_flags = PARAM_FLAG_EXPERIMENTAL,
         .ps_type = PARAM_TYPE_U64,
         .ps_offset = offsetof(struct kvdb_cparams, storage.mclass[MP_MED_STAGING].mblocksz),
         .ps_size = sizeof(((struct kvdb_cparams *) 0)->storage.mclass[MP_MED_STAGING].mblocksz),
