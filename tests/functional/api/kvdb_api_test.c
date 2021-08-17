@@ -34,7 +34,7 @@ test_collection_teardown(struct mtf_test_info *lcl_ti)
 MTF_BEGIN_UTEST_COLLECTION_PREPOST(kvdb_api, test_collection_setup, test_collection_teardown);
 
 /* [HSE_REVISIT] when libmpool is available, add a test to create a KVDB */
-MTF_DEFINE_UTEST(kvdb_api, kvdb_make_exists)
+MTF_DEFINE_UTEST(kvdb_api, kvdb_create_exists)
 {
     hse_err_t err;
 

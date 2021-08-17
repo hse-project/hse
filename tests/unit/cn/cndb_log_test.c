@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
 #include <hse_ut/framework.h>
@@ -47,15 +47,17 @@ int
 test_collection_setup(struct mtf_test_info *info)
 {
     struct mtf_test_coll_info *coll_info = info->ti_coll;
+    int                        idx = coll_info->tci_optind;
+    int                        len = strlen(coll_info->tci_argv[idx]);
 
-    if (coll_info->tci_argc > 1) {
-        int len = strlen(coll_info->tci_argv[1]);
+    if (coll_info->tci_argc - coll_info->tci_optind != 1) {
+        fprintf(stderr, "Usage: %s [test framework options] <data-dir>\n", coll_info->tci_argv[0]);
+        return EINVAL;
+    }
 
-        if (coll_info->tci_argv[1][len - 1] == '/')
-            coll_info->tci_argv[1][len - 1] = 0;
-        strncpy(data_path, coll_info->tci_argv[1], sizeof(data_path) - 1);
-    } else
-        data_path[0] = 0;
+    if (coll_info->tci_argv[idx][len - 1] == '/')
+        coll_info->tci_argv[idx][len - 1] = 0;
+    strncpy(data_path, coll_info->tci_argv[idx], sizeof(data_path) - 1);
 
     mock_mpool_set();
     mock_kvset_set();

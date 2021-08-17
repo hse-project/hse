@@ -46,26 +46,18 @@ tests = [
 ]
 
 foreach t : tests
-    home_dir = tests_dir / t
-    if not fs.exists(home_dir)
-        run_command(
-            'mkdir',
-            home_dir,
-            check: true,
-        )
-    endif
-
     test(
         t,
         python,
         args: [
             '@0@.py'.format(t),
-            '--home',
-            home_dir,
         ],
         depends: hse_python_depends,
         workdir: meson.current_source_dir(),
         suite: ['functional', 'python'],
         timeout: 300,
+        env: environment({
+            'HSE_TEST_RUNNER_RUNNER': 'python',
+        })
     )
 endforeach

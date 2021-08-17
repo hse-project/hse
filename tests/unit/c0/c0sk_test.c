@@ -1088,7 +1088,7 @@ parallel_put_helper(void *arg)
     int                   idx = p->index;
     uintptr_t             priv;
     merr_t                err;
-    u8                    key_buf[kw + 1];
+    u8 *                  key_buf = calloc(1, kw + 1);
     int                   key_len = kw;
     u8                    val_buf[100];
     int                   val_len = 100;
@@ -1096,7 +1096,6 @@ parallel_put_helper(void *arg)
     struct kvs_vtuple     vt;
     int                   i;
 
-    memset(key_buf, 0, sizeof(key_buf));
     memset(val_buf, 0, sizeof(val_buf));
 
     priv = (idx == -1) ? HSE_SQNREF_SINGLE : 0;
@@ -1141,6 +1140,8 @@ retry:
             hse_elog(HSE_ERR "c0sk_put() failed: @@e", err);
         VERIFY_EQ_RET(0, err, 0);
     }
+
+    free(key_buf);
 
     return 0;
 }
@@ -1623,20 +1624,17 @@ parallel_get_helper(void *arg)
     const u16             skidx = p->skidx;
     const u32             pfx_len = p->pfx_len;
     enum key_lookup_res   res;
-    u8                    val_buf[kw + 1];
-    u8                    key_buf[kw + 1];
     int                   key_len = kw;
     struct kvs_ktuple     kt;
     struct kvs_buf        vbuf;
     int                   i;
     u64                   seq;
+    u8 *                  val_buf = calloc(1, kw + 1);
+    u8 *                  key_buf = calloc(1, kw + 1);
 
     seq = 0;
 
-    memset(key_buf, 0, sizeof(key_buf));
-    memset(val_buf, 0, sizeof(val_buf));
-
-    kvs_buf_init(&vbuf, val_buf, sizeof(val_buf));
+    kvs_buf_init(&vbuf, val_buf, kw + 1);
 
     for (i = 0; i < cnt; ++i) {
         u32  key_num = generate_random_u32(0, 4000000000);
@@ -1653,6 +1651,9 @@ parallel_get_helper(void *arg)
             VERIFY_EQ_RET(0, rc, 0);
         }
     }
+
+    free(val_buf);
+    free(key_buf);
 
     return 0;
 }

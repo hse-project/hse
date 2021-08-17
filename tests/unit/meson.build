@@ -105,19 +105,10 @@ components = {
         'kvdb_home_test': {},
         'kvdb_meta_test': {
             'args': [
-                '--home',
-                tests_dir / 'kvdb_meta_test',
 			    meson.current_source_dir() / 'kvdb/kvdb-meta-files',
 			],
-            'requires_home': true
 		},
-        'kvdb_rest_test': {
-            'args': [
-                '--home',
-                tests_dir / 'kvdb_rest_test',
-            ],
-            'requires_home': true,
-        },
+        'kvdb_rest_test': {},
         'kvdb_health_test': {},
         'mclass_policy_test': {},
         'sched_sts_test': {
@@ -139,11 +130,6 @@ components = {
             'include_directories': [
                 mpool_internal_includes,
             ],
-            'args': [
-                '--home',
-                tests_dir / 'mpool_test',
-            ],
-            'requires_home': true,
         },
         'mblock_test': {
             'sources': [
@@ -152,11 +138,6 @@ components = {
             'include_directories': [
                 mpool_internal_includes,
             ],
-            'args': [
-                '--home',
-                tests_dir / 'mblock_test',
-            ],
-            'requires_home': true,
         },
         'mdc_test': {
             'sources': [
@@ -165,11 +146,6 @@ components = {
             'include_directories': [
                 mpool_internal_includes,
             ],
-            'args': [
-                '--home',
-                tests_dir / 'mdc_test',
-            ],
-            'requires_home': true,
         },
         'mcache_test': {
             'sources': [
@@ -178,11 +154,6 @@ components = {
             'include_directories': [
                 mpool_internal_includes,
             ],
-            'args': [
-                '--home',
-                tests_dir / 'mcache_test',
-            ],
-            'requires_home': true,
         },
     },
     'kvs': {
@@ -271,13 +242,7 @@ components = {
         'program_name_test': {},
         'rbtree_test': {},
         'rest_api_test': {},
-        'rest_client_test': {
-            'args': [
-                '--home',
-                tests_dir / 'rest_client_test',
-            ],
-            'requires_home': true,
-        },
+        'rest_client_test': {},
         'rwsem_test': {
             'sources': [
                 files(
@@ -313,17 +278,6 @@ components = {
 unit_test_exes = []
 foreach c, tests : components
     foreach t, params : tests
-        if params.get('requires_home', false)
-            home_dir = tests_dir / t
-            if not fs.exists(home_dir)
-                run_command(
-                    'mkdir',
-                    home_dir,
-                    check: true,
-                )
-            endif
-        endif
-
         t_exe = executable(
             t,
             [

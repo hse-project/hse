@@ -1,16 +1,9 @@
 run_env.append('PYTHONPATH', meson.current_source_dir())
 
+test_runner = find_program('test-runner')
 pytest = find_program('pytest', required: true)
 bash = find_program('bash')
 sh = find_program('sh') # write POSIX-compliant when easily doable
-
-if not fs.exists(tests_dir)
-    run_command(
-        'mkdir',
-        tests_dir,
-        check: true,
-    )
-endif
 
 # Suites to exclude based on varying factors
 additional_suite_exclusions = []
@@ -29,6 +22,10 @@ endif
 
 add_test_setup(
     'default',
+    exe_wrapper: [
+        test_runner,
+        '--',
+    ],
     env: run_env,
     is_default: true,
     # TODO: Check with Meson 0.59 else PR to Meson...
@@ -37,6 +34,10 @@ add_test_setup(
 
 add_test_setup(
     'ci',
+    exe_wrapper: [
+        test_runner,
+        '--',
+    ],
     env: run_env,
     is_default: false,
     # TODO: Check with Meson 0.59 else PR to Meson...

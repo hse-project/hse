@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
 #include <hse_ut/framework.h>
@@ -1495,12 +1495,13 @@ test_collection_setup(struct mtf_test_info *info)
 {
     int    argc = info->ti_coll->tci_argc;
     char **argv = info->ti_coll->tci_argv;
+    int    idx = info->ti_coll->tci_optind;
     char * file_path = 0;
     int    i;
 
     tp.verbose = VERBOSE_PER_FILE1;
 
-    for (i = 1; i < argc; i++) {
+    for (i = idx; i < argc; i++) {
         if (!strcmp(argv[i], "-H"))
             help(stdout, 0);
         else if (!strcmp(argv[i], "-q"))

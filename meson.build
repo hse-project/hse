@@ -369,12 +369,6 @@ else
     endforeach
 endif
 
-if get_option('tests-dir') == ''
-    tests_dir = meson.project_build_root() / 'hse-tests'
-else
-    tests_dir = get_option('tests-dir')
-endif
-
 # Add paths to these variables if you want to see targets in the runtime
 # environment
 executable_paths = []
@@ -434,7 +428,6 @@ if 'python' in bindings
         default_options: [
             'experimental=@0@'.format(get_option('experimental')),
             'tests=@0@'.format(get_option('tests')),
-            'tests-dir=@0@'.format(tests_dir),
         ],
     )
 

@@ -3,7 +3,7 @@
 We welcome your contributions to the HSE project.
 
 The first section below contains general information on contributing to
-the HSE project.  It is referenced by the `CONTRIBUTING.md` files in all
+the HSE project. It is referenced by the `CONTRIBUTING.md` files in all
 other HSE project repos.
 
 The second section contains information on contributing to this specific repo.
@@ -130,27 +130,46 @@ If you also install subprojects, then those will also be uninstalled.
 
 ### Testing
 
+If you choose to add a feature or a bug fix to HSE, make sure to add any
+necessary tests to confirm that the contribution works as it should.
+
 Tests can be run using the following:
 
 ```shell
-meson test -C build [testname...]
+meson test -C build [tests...]
 ```
 
-In the event the tests timeout, you can change Meson's timeout multiplier
+We recommend running tests through Meson always. There is a lot of
+infrastructure setup through Meson that you would have to duplicate otherwise.
+
+#### Timeouts
+
+Depending on the speed of your drive, tests may timeout frequently. We recommend
+mounting a fast drive to run HSE tests. In order to tell HSE's test
+infrastructure about your mounted drive, use the `HSE_TEST_RUNNER_DIR`
+environment variable with that value set to the drive's mount point.
+
+In the event tests do timeout, you can change Meson's timeout multiplier
 through the `-t` option:
 
 ```shell
-meson test -C build -t 9 ikvdb_test
+meson test -C build -t 9 [tests...]
 ```
 
-If you choose to add a feature or a bug fix to HSE, make sure to add any
-necessary tests to confirm that the contribution works as it should.
+#### Suites
 
 To run a specific suite, run the following:
 
 ```shell
 # If running multiple suites, use a comma separated list
-meson test -C build --suite [suite...]
+meson test -C build [--suite suite...]
+```
+
+To ignore a suite, run the following:
+
+```shell
+# If running multiple suites, use a comma separated list
+meson test -C build [--no-suite suite...]
 ```
 
 > TODO: Document how to build and test in a way that mimics what

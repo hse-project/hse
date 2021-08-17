@@ -11,7 +11,7 @@ end () {
     kvdb_drop
 }
 
-trap end EXIT SIGTERM SIGINT SIGKILL
+trap end EXIT
 
 cmd ex1_create "$home" skvs0 skvs1 skvs2 skvs3 skvs4
 cmd ex2_simple_ops "$home" skvs0
