@@ -2,3 +2,4 @@
 alignment:_urcu_bp_read_lock
 alignment:_urcu_bp_read_unlock
 alignment:_urcu_bp_read_ongoing
+alignment:kvdb_ctxn_set_destroy
