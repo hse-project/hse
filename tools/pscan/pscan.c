@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: Apache-2.0 */
 /*
  * Copyright (C) 2015-2017,2019,2021 Micron Technology, Inc.  All rights reserved.
  */

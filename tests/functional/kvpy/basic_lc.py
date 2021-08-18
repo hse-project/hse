@@ -1,5 +1,9 @@
 #!/usr/bin/env python3
 
+# SPDX-License-Identifier: Apache-2.0
+#
+# Copyright (C) 2021 Micron Technology, Inc. All rights reserved.
+
 """
 This test checks basic ingest and get operation in LC.
 It creates 2 active transactions, inserts keys in them and calls sync (ingest)

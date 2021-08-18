@@ -36,7 +36,7 @@ license_check_output="${WORK_DIR}/files_check_license"
 if [ -f "${license_check_output}" ]; then
   rm "${license_check_output}"
 fi
-git -C "${SRC_ROOT}" ls-files | grep -E '\.(c|h|py|sh|java)$' | grep -v '3rdparty\|subprojects'> "${WORK_DIR}/src_files"
+git -C "${SRC_ROOT}" ls-files | grep -E '\.(c|h|py|sh|java)$' | grep -v '3rdparty\|subprojects\|simpledrop'> "${WORK_DIR}/src_files"
 pushd "${SRC_ROOT}" > /dev/null
 while read -r file; do 
     if ! head -10 "${file}" | grep -qE "\s*[/#*]*\s*SPDX-License-Identifier:\s+Apache-2.0"; then 

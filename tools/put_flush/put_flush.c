@@ -1,4 +1,7 @@
+/* SPDX-License-Identifier: Apache-2.0 */
 /*
+ * Copyright (C) 2015-2021 Micron Technology, Inc. All rights reserved.
+ *
  * This test creates several threads that call non-transactional PUTs on a loop.
  * One  thread that calls flush periodically on the KVDB.
  * And another thread that creates dummy transactions to bump up the kvdb seqno.

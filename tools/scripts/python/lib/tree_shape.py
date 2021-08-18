@@ -1,3 +1,7 @@
+# SPDX-License-Identifier: Apache-2.0
+#
+# Copyright (C) 2020-2021 Micron Technology, Inc. All rights reserved.
+
 """
 References:
     https://docs.bokeh.org/en/latest/docs/user_guide/graph.html#layout-providers
