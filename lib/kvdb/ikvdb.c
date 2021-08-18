@@ -476,7 +476,7 @@ ikvdb_rate_limit_set(struct ikvdb_impl *self, u64 rate)
 
             hse_log(
                 HSE_NOTICE " tbkt_debug: manual %d shunt %d ops %8ld  bytes %10ld"
-                           " sleep_ns %12ld burst %10lu rate %10lu raw %10lu",
+                           " sleep_ns %12ld burst %10lu rate %10lu raw %10u",
                 (bool)(self->ikdb_tb_dbg & THROTTLE_DEBUG_TB_MANUAL),
                 (bool)(self->ikdb_tb_dbg & THROTTLE_DEBUG_TB_SHUNT),
                 dbg_ops,
@@ -1717,7 +1717,9 @@ ikvdb_kvs_open(
     kvs->kk_viewset = self->ikdb_cur_viewset;
 
     kvs->kk_vcompmin = UINT_MAX;
-    cops = vcomp_compress_ops(params);
+    assert(params->value_compression >= VCOMP_ALGO_MIN &&
+        params->value_compression <= VCOMP_ALGO_MAX);
+    cops = vcomp_compress_ops[params->value_compression];
     if (cops) {
         assert(cops->cop_compress && cops->cop_estimate);
 

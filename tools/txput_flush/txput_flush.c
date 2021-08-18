@@ -112,7 +112,7 @@ main(int argc, char **argv)
 		break;
 	}
 
-	rc = svec_append_pg(&kvs_oparms, pg, PG_KVS_OPEN, "transactions_enable=1", NULL);
+	rc = svec_append_pg(&kvs_oparms, pg, PG_KVS_OPEN, "transactions_enable=true", NULL);
 	if (rc) {
 		fprintf(stderr, "pg_set_parms failed");
 		exit(EX_USAGE);

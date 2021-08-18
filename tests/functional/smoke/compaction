@@ -17,16 +17,16 @@ setup () {
     counter=$((counter+1))
 
     # first 6 kvsets have keys 0..999
-    cmd putgetdel "$home" $kvs -p -s   0 -c 100 kvs-oparms cn_maint_disable=1
-    cmd putgetdel "$home" $kvs -p -s 100 -c 100 kvs-oparms cn_maint_disable=1
-    cmd putgetdel "$home" $kvs -p -s 200 -c 200 kvs-oparms cn_maint_disable=1
-    cmd putgetdel "$home" $kvs -p -s 400 -c 200 kvs-oparms cn_maint_disable=1
-    cmd putgetdel "$home" $kvs -p -s 600 -c 200 kvs-oparms cn_maint_disable=1
-    cmd putgetdel "$home" $kvs -p -s 800 -c 200 kvs-oparms cn_maint_disable=1
+    cmd putgetdel "$home" $kvs -p -s   0 -c 100 kvs-oparms cn_maint_disable=true
+    cmd putgetdel "$home" $kvs -p -s 100 -c 100 kvs-oparms cn_maint_disable=true
+    cmd putgetdel "$home" $kvs -p -s 200 -c 200 kvs-oparms cn_maint_disable=true
+    cmd putgetdel "$home" $kvs -p -s 400 -c 200 kvs-oparms cn_maint_disable=true
+    cmd putgetdel "$home" $kvs -p -s 600 -c 200 kvs-oparms cn_maint_disable=true
+    cmd putgetdel "$home" $kvs -p -s 800 -c 200 kvs-oparms cn_maint_disable=true
     # next kvset: update 0..199
-    cmd putgetdel "$home" $kvs -u -s   0 -c 200 kvs-oparms cn_maint_disable=1
+    cmd putgetdel "$home" $kvs -u -s   0 -c 200 kvs-oparms cn_maint_disable=true
     # next kvset: delete 100.299
-    cmd putgetdel "$home" $kvs -d -s 100 -c 200  kvs-oparms cn_maint_disable=1
+    cmd putgetdel "$home" $kvs -d -s 100 -c 200  kvs-oparms cn_maint_disable=true
     # Final state:
     #   Updated:   0..99
     #   Deleted: 100..299
@@ -35,11 +35,11 @@ setup () {
 
 verify_keys () {
     # verify the three ranges before compaction
-    cmd putgetdel "$home" $kvs -U -s   0 -c 100  kvs-oparms cn_maint_disable=1
-    cmd putgetdel "$home" $kvs -D -s 100 -c 200  kvs-oparms cn_maint_disable=1
-    cmd putgetdel "$home" $kvs -P -s 300 -c 700  kvs-oparms cn_maint_disable=1
+    cmd putgetdel "$home" $kvs -U -s   0 -c 100  kvs-oparms cn_maint_disable=true
+    cmd putgetdel "$home" $kvs -D -s 100 -c 200  kvs-oparms cn_maint_disable=true
+    cmd putgetdel "$home" $kvs -P -s 300 -c 700  kvs-oparms cn_maint_disable=true
     # prove putgetdel is actually verifying by asking it to verify 0..1000 and expecting failure
-    cmd -e putgetdel "$home" $kvs -P -s 0 -c 1000  kvs-oparms cn_maint_disable=1
+    cmd -e putgetdel "$home" $kvs -P -s 0 -c 1000  kvs-oparms cn_maint_disable=true
 }
 
 verify_shape_before () {

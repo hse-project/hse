@@ -11,7 +11,6 @@
 #include <stdio.h>
 #include <string.h>
 
-#include <mpool/mpool_structs.h>
 #include <mpool/mpool.h>
 #include <hse_ikvdb/mclass_policy.h>
 #include <hse_ikvdb/param.h>
@@ -23,6 +22,7 @@
 #include <hse_util/storage.h>
 #include <hse_util/compiler.h>
 #include <hse_util/string.h>
+#include <hse_ikvdb/csched.h>
 
 /**
  * Set the default media class policies
@@ -398,24 +398,83 @@ mclass_policies_validator(const struct param_spec *ps, const void *data)
     return true;
 }
 
+static bool HSE_NONNULL(1, 2, 3)
+dur_mclass_converter(
+    const struct param_spec *const ps,
+    const cJSON *const             node,
+    void *const                    data)
+{
+    static const char *mclasses[MP_MED_COUNT] = { MP_MED_NAME_CAPACITY, MP_MED_NAME_STAGING };
+
+    assert(ps);
+    assert(node);
+    assert(data);
+
+    if (!cJSON_IsString(node))
+        return false;
+
+    const char *value = cJSON_GetStringValue(node);
+    for (size_t i = 0; i < NELEM(mclasses); i++) {
+        if (!strcmp(mclasses[i], value)) {
+            *(enum mpool_mclass *)data = i;
+            return true;
+        }
+    }
+
+    return false;
+}
+
+static bool HSE_NONNULL(1, 2, 3)
+throttle_init_policy_converter(
+    const struct param_spec *const ps,
+    const cJSON *const             node,
+    void *const                    data)
+{
+    assert(ps);
+    assert(node);
+    assert(data);
+
+    if (!cJSON_IsString(node))
+        return false;
+
+    const char *value = cJSON_GetStringValue(node);
+    if (!strcmp(value, "default")) {
+        *(uint *)data = THROTTLE_DELAY_START_DEFAULT;
+    } else if (!strcmp(value, "light")) {
+        *(uint *)data = THROTTLE_DELAY_START_LIGHT;
+    } else if (!strcmp(value, "medium")) {
+        *(uint *)data = THROTTLE_DELAY_START_MEDIUM;
+    } else {
+        return false;
+    }
+
+    return true;
+}
+
+static bool HSE_NONNULL(1, 2)
+csched_policy_validator(const struct param_spec *const ps, const void *const data)
+{
+    assert(ps);
+    assert(data);
+
+    const enum csched_policy policy = *(enum csched_policy *)data;
+
+    return policy == csched_policy_old || policy == csched_policy_sp3
+        || policy == csched_policy_noop;
+}
+
 static const struct param_spec pspecs[] = {
     {
         .ps_name = "read_only",
         .ps_description = "readonly flag",
         .ps_flags = 0,
-        .ps_type = PARAM_TYPE_U8,
+        .ps_type = PARAM_TYPE_BOOL,
         .ps_offset = offsetof(struct kvdb_rparams, read_only),
         .ps_size = sizeof(((struct kvdb_rparams *) 0)->read_only),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
         .ps_default_value = {
-            .as_uscalar = 0,
-        },
-        .ps_bounds = {
-            .as_uscalar = {
-                .ps_min = 0,
-                .ps_max = 1,
-            },
+            .as_bool = false,
         },
     },
     {
@@ -460,19 +519,13 @@ static const struct param_spec pspecs[] = {
         .ps_name = "c0_diag_mode",
         .ps_description = "disable c0 spill",
         .ps_flags = PARAM_FLAG_EXPERIMENTAL,
-        .ps_type = PARAM_TYPE_U8,
+        .ps_type = PARAM_TYPE_BOOL,
         .ps_offset = offsetof(struct kvdb_rparams, c0_diag_mode),
         .ps_size = sizeof(((struct kvdb_rparams *) 0)->c0_diag_mode),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
         .ps_default_value = {
-            .as_uscalar = 0,
-        },
-        .ps_bounds = {
-            .as_uscalar = {
-                .ps_min = 0,
-                .ps_max = 1,
-            },
+            .as_uscalar = false,
         },
     },
     {
@@ -513,6 +566,7 @@ static const struct param_spec pspecs[] = {
             },
         },
     },
+    /* [HSE_REVISIT]: Change this to an enum where use can give value as a string */
     {
         .ps_name = "csched_policy",
         .ps_description = "csched (compaction scheduler) policy",
@@ -521,14 +575,14 @@ static const struct param_spec pspecs[] = {
         .ps_offset = offsetof(struct kvdb_rparams, csched_policy),
         .ps_size = sizeof(((struct kvdb_rparams *) 0)->csched_policy),
         .ps_convert = param_default_converter,
-        .ps_validate = param_default_validator,
+        .ps_validate = csched_policy_validator,
         .ps_default_value = {
-            .as_uscalar = 3,
+            .as_uscalar = csched_policy_sp3,
         },
         .ps_bounds = {
             .as_uscalar = {
-                .ps_min = 0,
-                .ps_max = UINT32_MAX,
+                .ps_min = csched_policy_old,
+                .ps_max = csched_policy_noop,
             },
         },
     },
@@ -781,21 +835,15 @@ static const struct param_spec pspecs[] = {
     },
     {
         .ps_name = "dur_enable",
-        .ps_description = "0: disable durability, 1:enable durability",
+        .ps_description = "Enable durability in the event of a crash",
         .ps_flags = 0,
-        .ps_type = PARAM_TYPE_U32,
+        .ps_type = PARAM_TYPE_BOOL,
         .ps_offset = offsetof(struct kvdb_rparams, dur_enable),
         .ps_size = sizeof(((struct kvdb_rparams *) 0)->dur_enable),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
         .ps_default_value = {
-            .as_uscalar = 1,
-        },
-        .ps_bounds = {
-            .as_uscalar = {
-                .ps_min = 0,
-                .ps_max = 1,
-            },
+            .as_uscalar = true,
         },
     },
     {
@@ -893,18 +941,15 @@ static const struct param_spec pspecs[] = {
         .ps_flags = 0,
         .ps_type = PARAM_TYPE_ENUM,
         .ps_offset = offsetof(struct kvdb_rparams, dur_mclass),
-        .ps_convert = param_default_converter,
+        .ps_convert = dur_mclass_converter,
         .ps_validate = param_default_validator,
         .ps_default_value = {
-            .as_enum = MP_MED_NAME_CAPACITY,
+            .as_enum = MP_MED_CAPACITY,
         },
         .ps_bounds = {
             .as_enum = {
-                .ps_num_values = MP_MED_COUNT,
-                .ps_values = {
-                    MP_MED_NAME_CAPACITY,
-                    MP_MED_NAME_STAGING,
-                },
+                .ps_min = MP_MED_BASE,
+                .ps_max = MP_MED_MAX,
             },
         },
     },
@@ -1028,19 +1073,15 @@ static const struct param_spec pspecs[] = {
         .ps_flags = 0,
         .ps_type = PARAM_TYPE_ENUM,
         .ps_offset = offsetof(struct kvdb_rparams, throttle_init_policy),
-        .ps_convert = param_default_converter,
+        .ps_convert = throttle_init_policy_converter,
         .ps_validate = param_default_validator,
         .ps_default_value = {
-            .as_enum = "default",
+            .as_enum = THROTTLE_DELAY_START_DEFAULT,
         },
         .ps_bounds = {
             .as_enum = {
-                .ps_values = {
-                    "light",
-                    "medium",
-                    "default",
-                },
-                .ps_num_values = 3,
+                .ps_min = THROTTLE_DELAY_MIN,
+                .ps_max = THROTTLE_DELAY_MAX,
             },
         },
     },
@@ -1200,19 +1241,13 @@ static const struct param_spec pspecs[] = {
         .ps_name = "low_mem",
         .ps_description = "configure for a constrained memory environment",
         .ps_flags = PARAM_FLAG_EXPERIMENTAL,
-        .ps_type = PARAM_TYPE_U32,
+        .ps_type = PARAM_TYPE_BOOL,
         .ps_offset = offsetof(struct kvdb_rparams, low_mem),
         .ps_size = sizeof(((struct kvdb_rparams *) 0)->low_mem),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
         .ps_default_value = {
-            .as_uscalar = 0,
-        },
-        .ps_bounds = {
-            .as_uscalar = {
-                .ps_min = 0,
-                .ps_max = 1,
-            },
+            .as_uscalar = false,
         },
     },
     {
@@ -1246,7 +1281,7 @@ struct kvdb_rparams
 kvdb_rparams_defaults()
 {
     struct kvdb_rparams params;
-    const union params p = { .as_kvdb_rp = &params };
+    const union params  p = { .as_kvdb_rp = &params };
     param_default_populate(pspecs, NELEM(pspecs), p);
     return params;
 }

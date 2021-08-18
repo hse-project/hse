@@ -21,7 +21,7 @@ try:
         # Part 1: Non-Txn KVS
         #
         with lifecycle.KvsContext(kvdb, "kvs37-non_txn").rparams(
-            "transactions_enable=0"
+            "transactions_enable=false"
         ).cparams(*KVS_CPARAMS) as kvs:
             """
             +--------------------+---------------+-------------+
@@ -106,7 +106,7 @@ try:
         # Part 2: Txn KVS
         #
         with lifecycle.KvsContext(kvdb, "kvs37-txn").rparams(
-            "transactions_enable=1"
+            "transactions_enable=true"
         ).cparams(*KVS_CPARAMS) as kvs_tx:
             with kvdb.transaction() as t:
                 # txn kvs and txn write: allowed
@@ -161,7 +161,7 @@ try:
         # Part 3: Prefix deletes
         #
         with lifecycle.KvsContext(kvdb, "kvs37-non_txn-2").rparams(
-            "transactions_enable=0"
+            "transactions_enable=false"
         ).cparams(*KVS_CPARAMS) as kvs:
             kvs.put(b"aa1", b"1")
             kvs.put(b"aa2", b"1")
@@ -191,7 +191,7 @@ try:
             assert kvs.get(b"aa2") is None
 
         with lifecycle.KvsContext(kvdb, "kvs37-txn-2").rparams(
-            "transactions_enable=1"
+            "transactions_enable=true"
         ).cparams(*KVS_CPARAMS) as kvs_tx:
             # txn kvs and txn prefix delete: allowed
             with kvdb.transaction() as t:

@@ -12,6 +12,7 @@
 #include <hse_util/keycmp.h>
 #include <hse_util/table.h>
 #include <hse_util/spinlock.h>
+#include <hse_util/event_counter.h>
 
 #include <hse_ikvdb/kvs.h>
 #include <hse_ikvdb/cn.h>

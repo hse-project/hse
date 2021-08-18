@@ -63,12 +63,6 @@ void
 mpool_mclass_destroy(enum mpool_mclass mclass, const struct mpool_dparams *dparams);
 
 /**
- * Retrieve the default media class path given a media class
- */
-const char *
-mpool_mclass_default_path_get(enum mpool_mclass) HSE_CONST;
-
-/**
  * mpool_open() - Open an mpool
  *
  * @home:    kvdb home

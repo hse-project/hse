@@ -8,6 +8,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include <hse_util/compiler.h>
 #include <hse_util/logging.h>
 #include <hse_ikvdb/mclass_policy.h>
 #include <hse_ikvdb/param.h>
@@ -58,6 +59,37 @@ validate_cn_node_size_hi(const struct param_spec *ps, const union params params)
     return true;
 }
 
+static bool HSE_NONNULL(1, 2, 3)
+value_compression_converter(
+    const struct param_spec *const ps,
+    const cJSON *const             node,
+    void *const                    data)
+{
+    static const char *algos[VCOMP_ALGO_COUNT] = { VCOMP_PARAM_NONE, VCOMP_PARAM_LZ4 };
+
+    assert(ps);
+    assert(node);
+    assert(data);
+
+    if (cJSON_IsNull(node)) {
+        *(enum vcomp_algorithm *)data = VCOMP_ALGO_NONE;
+        return true;
+    }
+
+    if (!cJSON_IsString(node))
+        return false;
+
+    const char *value = cJSON_GetStringValue(node);
+    for (size_t i = VCOMP_ALGO_NONE + 1; i < NELEM(algos); i++) {
+        if (!strcmp(algos[i], value)) {
+            *(enum vcomp_algorithm *)data = i;
+            return true;
+        }
+    }
+
+    return false;
+}
+
 static const struct param_spec pspecs[] = {
     {
         .ps_name = "kvs_debug",
@@ -101,19 +133,13 @@ static const struct param_spec pspecs[] = {
         .ps_name = "transactions_enable",
         .ps_description = "enable transactions for the kvs",
         .ps_flags = 0,
-        .ps_type = PARAM_TYPE_U64,
+        .ps_type = PARAM_TYPE_BOOL,
         .ps_offset = offsetof(struct kvs_rparams, transactions_enable),
         .ps_size = sizeof(((struct kvs_rparams *) 0)->transactions_enable),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
         .ps_default_value = {
-            .as_uscalar = 0,
-        },
-        .ps_bounds = {
-            .as_uscalar = {
-                .ps_min = 0,
-                .ps_max = 1,
-            },
+            .as_bool = false,
         },
     },
     {
@@ -426,57 +452,39 @@ static const struct param_spec pspecs[] = {
         .ps_name = "cn_diag_mode",
         .ps_description = "enable/disable cn diag mode",
         .ps_flags = PARAM_FLAG_EXPERIMENTAL,
-        .ps_type = PARAM_TYPE_U64,
+        .ps_type = PARAM_TYPE_BOOL,
         .ps_offset = offsetof(struct kvs_rparams, cn_diag_mode),
         .ps_size = sizeof(((struct kvs_rparams *) 0)->cn_diag_mode),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
         .ps_default_value = {
-            .as_uscalar = 0,
-        },
-        .ps_bounds = {
-            .as_uscalar = {
-                .ps_min = 0,
-                .ps_max = 1,
-            },
+            .as_bool = false,
         },
     },
     {
         .ps_name = "cn_maint_disable",
         .ps_description = "disable cn maintenance",
         .ps_flags = PARAM_FLAG_EXPERIMENTAL | PARAM_FLAG_WRITABLE,
-        .ps_type = PARAM_TYPE_U64,
+        .ps_type = PARAM_TYPE_BOOL,
         .ps_offset = offsetof(struct kvs_rparams, cn_maint_disable),
         .ps_size = sizeof(((struct kvs_rparams *) 0)->cn_maint_disable),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
         .ps_default_value = {
-            .as_uscalar = 0,
-        },
-        .ps_bounds = {
-            .as_uscalar = {
-                .ps_min = 0,
-                .ps_max = 1,
-            },
+            .as_bool = true,
         },
     },
     {
         .ps_name = "cn_bloom_create",
         .ps_description = "enable bloom creation",
         .ps_flags = PARAM_FLAG_EXPERIMENTAL,
-        .ps_type = PARAM_TYPE_U64,
+        .ps_type = PARAM_TYPE_BOOL,
         .ps_offset = offsetof(struct kvs_rparams, cn_bloom_create),
         .ps_size = sizeof(((struct kvs_rparams *) 0)->cn_bloom_create),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
         .ps_default_value = {
-            .as_uscalar = 1,
-        },
-        .ps_bounds = {
-            .as_uscalar = {
-                .ps_min = 0,
-                .ps_max = 1,
-            },
+            .as_bool = true,
         },
     },
     {
@@ -635,19 +643,13 @@ static const struct param_spec pspecs[] = {
         .ps_name = "cn_verify",
         .ps_description = "verify kvsets as they are created",
         .ps_flags = PARAM_FLAG_EXPERIMENTAL,
-        .ps_type = PARAM_TYPE_U64,
+        .ps_type = PARAM_TYPE_BOOL,
         .ps_offset = offsetof(struct kvs_rparams, cn_verify),
         .ps_size = sizeof(((struct kvs_rparams *) 0)->cn_verify),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
         .ps_default_value = {
-            .as_uscalar = 0,
-        },
-        .ps_bounds = {
-            .as_uscalar = {
-                .ps_min = 0,
-                .ps_max = 1,
-            },
+            .as_uscalar = false,
         },
     },
     {
@@ -730,61 +732,42 @@ static const struct param_spec pspecs[] = {
         .ps_name = "kv_print_config",
         .ps_description = "print kvs runtime params",
         .ps_flags = PARAM_FLAG_EXPERIMENTAL,
-        .ps_type = PARAM_TYPE_U64,
+        .ps_type = PARAM_TYPE_BOOL,
         .ps_offset = offsetof(struct kvs_rparams, kv_print_config),
         .ps_size = sizeof(((struct kvs_rparams *) 0)->kv_print_config),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
         .ps_default_value = {
-            .as_uscalar = 1,
-        },
-        .ps_bounds = {
-            .as_uscalar = {
-                .ps_min = 0,
-                .ps_max = 1,
-            },
+            .as_bool = true,
         },
     },
     {
         .ps_name = "rdonly",
         .ps_description = "open kvs in read-only mode",
         .ps_flags = PARAM_FLAG_EXPERIMENTAL,
-        .ps_type = PARAM_TYPE_U64,
+        .ps_type = PARAM_TYPE_BOOL,
         .ps_offset = offsetof(struct kvs_rparams, rdonly),
         .ps_size = sizeof(((struct kvs_rparams *) 0)->rdonly),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
         .ps_default_value = {
-            .as_uscalar = 0,
-        },
-        .ps_bounds = {
-            .as_uscalar = {
-                .ps_min = 0,
-                .ps_max = 1,
-            },
+            .as_bool = false,
         },
     },
     {
         .ps_name = "mclass_policy",
         .ps_description = "media class policy",
         .ps_flags = 0,
-        .ps_type = PARAM_TYPE_ENUM,
+        .ps_type = PARAM_TYPE_STRING,
         .ps_offset = offsetof(struct kvs_rparams, mclass_policy),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
         .ps_default_value = {
-            .as_enum = "capacity_only",
+            .as_string = "capacity_only",
         },
         .ps_bounds = {
-            .as_enum = {
-                .ps_num_values = 4,
-                .ps_values = {
-                    /* stolen from lib/kvdb/mclass_policy.c */
-                    "capacity_only",
-                    "staging_only",
-                    "staging_max_capacity",
-                    "staging_min_capacity",
-                },
+            .as_string = {
+                .ps_max_len = HSE_MPOLICY_NAME_LEN_MAX,
             },
         },
     },
@@ -813,18 +796,15 @@ static const struct param_spec pspecs[] = {
         .ps_flags = 0,
         .ps_type = PARAM_TYPE_ENUM,
         .ps_offset = offsetof(struct kvs_rparams, value_compression),
-        .ps_convert = param_default_converter,
+        .ps_convert = value_compression_converter,
         .ps_validate = param_default_validator,
         .ps_default_value = {
-            .as_enum = VCOMP_PARAM_NONE,
+            .as_enum = VCOMP_ALGO_NONE,
         },
         .ps_bounds = {
             .as_enum = {
-                .ps_values = {
-                    VCOMP_PARAM_NONE,
-                    VCOMP_PARAM_LZ4,
-                },
-                .ps_num_values = 2,
+                .ps_min = VCOMP_ALGO_MIN,
+                .ps_max = VCOMP_ALGO_MAX,
             },
         },
     },

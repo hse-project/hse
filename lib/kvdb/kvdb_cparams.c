@@ -171,18 +171,18 @@ static const struct param_spec pspecs[] = {
 const struct param_spec *
 kvdb_cparams_pspecs_get(size_t *pspecs_sz)
 {
-	if (pspecs_sz)
-		*pspecs_sz = NELEM(pspecs);
-	return pspecs;
+    if (pspecs_sz)
+        *pspecs_sz = NELEM(pspecs);
+    return pspecs;
 }
 
 struct kvdb_cparams
 kvdb_cparams_defaults()
 {
-	struct kvdb_cparams params;
-    const union params p = { .as_kvdb_cp = &params };
-	param_default_populate(pspecs, NELEM(pspecs), p);
-	return params;
+    struct kvdb_cparams params;
+    const union params  p = { .as_kvdb_cp = &params };
+    param_default_populate(pspecs, NELEM(pspecs), p);
+    return params;
 }
 
 merr_t
@@ -194,19 +194,23 @@ kvdb_cparams_resolve(struct kvdb_cparams *params, const char *home)
     char   buf[PATH_MAX];
     merr_t err;
 
-    err = kvdb_home_storage_capacity_path_get(home, params->storage.mclass[MP_MED_CAPACITY].path,
-                                              buf, sizeof(buf));
+    err = kvdb_home_storage_capacity_path_get(
+        home, params->storage.mclass[MP_MED_CAPACITY].path, buf, sizeof(buf));
     if (err)
         return err;
-    strlcpy(params->storage.mclass[MP_MED_CAPACITY].path, buf,
-            sizeof(params->storage.mclass[MP_MED_CAPACITY].path));
+    strlcpy(
+        params->storage.mclass[MP_MED_CAPACITY].path,
+        buf,
+        sizeof(params->storage.mclass[MP_MED_CAPACITY].path));
 
-    err = kvdb_home_storage_staging_path_get(home, params->storage.mclass[MP_MED_STAGING].path,
-                                             buf, sizeof(buf));
+    err = kvdb_home_storage_staging_path_get(
+        home, params->storage.mclass[MP_MED_STAGING].path, buf, sizeof(buf));
     if (err)
         return err;
-    strlcpy(params->storage.mclass[MP_MED_STAGING].path, buf,
-            sizeof(params->storage.mclass[MP_MED_STAGING].path));
+    strlcpy(
+        params->storage.mclass[MP_MED_STAGING].path,
+        buf,
+        sizeof(params->storage.mclass[MP_MED_STAGING].path));
 
     return 0;
 }

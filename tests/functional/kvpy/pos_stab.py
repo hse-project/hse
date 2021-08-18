@@ -12,7 +12,7 @@ from utility import lifecycle, cli
 hse.init(cli.HOME)
 
 try:
-    with lifecycle.KvdbContext().rparams("dur_enable=0") as kvdb:
+    with lifecycle.KvdbContext().rparams("dur_enable=false") as kvdb:
         # Test 1: Update after seek. Seek can be to an existing key or non-existent key
         with lifecycle.KvsContext(kvdb, "pos_stab-1") as kvs:
             kvs.put(b"a", b"1")
@@ -74,7 +74,7 @@ try:
 
         # Test 3: Read keys across c0/cn, with key update_view.
         with lifecycle.KvsContext(kvdb, "pos_stab-3").cparams("pfx_len=1").rparams(
-            "transactions_enable=1"
+            "transactions_enable=true"
         ) as kvs:
             with kvdb.transaction() as txn:
                 kvs.put(b"a1a", b"1", txn=txn)

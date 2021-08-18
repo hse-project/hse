@@ -631,7 +631,7 @@ done:
 static int
 cli_hse_kvdb_info_impl(struct cli *cli)
 {
-    const char *paramv[] = { "read_only=1" };
+    const char *paramv[] = { "read_only=true" };
     char        buf[YAML_BUF_SIZE];
     int         rc = 0;
     bool        exists;

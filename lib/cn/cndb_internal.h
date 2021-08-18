@@ -11,6 +11,7 @@
 #include <hse_util/platform.h>
 #include <hse_util/mutex.h>
 
+#include <hse_ikvdb/kvdb_rparams.h>
 #include <hse_ikvdb/kvs_cparams.h>
 
 #include "cndb_omf.h"

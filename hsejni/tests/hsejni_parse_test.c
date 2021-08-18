@@ -18,41 +18,41 @@ MTF_BEGIN_UTEST_COLLECTION(hsejni_parse_test)
 
 MTF_DEFINE_UTEST(hsejni_parse_test, normal_parse)
 {
-    char        raw_arg_list[] = "kvs.open.rdonly=1,kvs.open.cn_diag_mode=1";
+    char        raw_arg_list[] = "kvs.open.rdonly=true,kvs.open.cn_diag_mode=true";
     size_t      paramc = 0;
     const char *paramv[32];
 
     jni_hse_config_parse(&paramc, paramv, raw_arg_list, "kvs.open.", NELEM(paramv));
 
     ASSERT_EQ(2, paramc);
-    ASSERT_EQ(0, strcmp("rdonly=1", paramv[0]));
-    ASSERT_EQ(0, strcmp("cn_diag_mode=1", paramv[1]));
+    ASSERT_EQ(0, strcmp("rdonly=true", paramv[0]));
+    ASSERT_EQ(0, strcmp("cn_diag_mode=true", paramv[1]));
 }
 
 MTF_DEFINE_UTEST(hsejni_parse_test, leading_comma)
 {
-    char        raw_arg_list[] = ",kvs.open.rdonly=1,kvs.open.cn_diag_mode=1";
+    char        raw_arg_list[] = ",kvs.open.rdonly=true,kvs.open.cn_diag_mode=true";
     size_t      paramc = 0;
     const char *paramv[32];
 
     jni_hse_config_parse(&paramc, paramv, raw_arg_list, "kvs.open.", NELEM(paramv));
 
     ASSERT_EQ(2, paramc);
-    ASSERT_EQ(0, strcmp("rdonly=1", paramv[0]));
-    ASSERT_EQ(0, strcmp("cn_diag_mode=1", paramv[1]));
+    ASSERT_EQ(0, strcmp("rdonly=true", paramv[0]));
+    ASSERT_EQ(0, strcmp("cn_diag_mode=true", paramv[1]));
 }
 
 MTF_DEFINE_UTEST(hsejni_parse_test, trailing_comma)
 {
-    char        raw_arg_list[] = "kvs.open.rdonly=1,kvs.open.cn_diag_mode=1,";
+    char        raw_arg_list[] = "kvs.open.rdonly=true,kvs.open.cn_diag_mode=true,";
     size_t      paramc = 0;
     const char *paramv[32];
 
     jni_hse_config_parse(&paramc, paramv, raw_arg_list, "kvs.open.", NELEM(paramv));
 
     ASSERT_EQ(2, paramc);
-    ASSERT_EQ(0, strcmp("rdonly=1", paramv[0]));
-    ASSERT_EQ(0, strcmp("cn_diag_mode=1", paramv[1]));
+    ASSERT_EQ(0, strcmp("rdonly=true", paramv[0]));
+    ASSERT_EQ(0, strcmp("cn_diag_mode=true", paramv[1]));
 }
 
 MTF_DEFINE_UTEST(hsejni_parse_test, blank_list)
@@ -67,27 +67,27 @@ MTF_DEFINE_UTEST(hsejni_parse_test, blank_list)
 
 MTF_DEFINE_UTEST(hsejni_parse_test, no_commas)
 {
-    char        raw_arg_list[] = "kvdb.open.dur_enable=0";
+    char        raw_arg_list[] = "kvdb.open.dur_enable=false";
     size_t      paramc = 0;
     const char *paramv[32];
 
     jni_hse_config_parse(&paramc, paramv, raw_arg_list, "kvdb.open.", NELEM(paramv));
 
     ASSERT_EQ(1, paramc);
-    ASSERT_EQ(0, strcmp("dur_enable=0", paramv[0]));
+    ASSERT_EQ(0, strcmp("dur_enable=false", paramv[0]));
 }
 
 MTF_DEFINE_UTEST(hsejni_parse_test, too_many_commas)
 {
-    char        raw_arg_list[] = ",,kvs.open.rdonly=1,,,,,kvs.open.cn_diag_mode=1";
+    char        raw_arg_list[] = ",,kvs.open.rdonly=true,,,,,kvs.open.cn_diag_mode=true";
     size_t      paramc = 0;
     const char *paramv[32];
 
     jni_hse_config_parse(&paramc, paramv, raw_arg_list, "kvs.open.", NELEM(paramv));
 
     ASSERT_EQ(2, paramc);
-    ASSERT_EQ(0, strcmp("rdonly=1", paramv[0]));
-    ASSERT_EQ(0, strcmp("cn_diag_mode=1", paramv[1]));
+    ASSERT_EQ(0, strcmp("rdonly=true", paramv[0]));
+    ASSERT_EQ(0, strcmp("cn_diag_mode=true", paramv[1]));
 }
 
 MTF_END_UTEST_COLLECTION(hsejni_parse_test)

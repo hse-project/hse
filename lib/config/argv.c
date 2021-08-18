@@ -89,6 +89,11 @@ argv_deserialize_to_params(
             }
         }
 
+        if (cJSON_IsNull(node) && !(ps->ps_flags & PARAM_FLAG_NULLABLE)) {
+            err = merr(EINVAL);
+            goto out;
+        }
+
         assert(ps->ps_convert);
         if (!ps->ps_convert(ps, node, data)) {
             /* Delete the node in the case of an error */

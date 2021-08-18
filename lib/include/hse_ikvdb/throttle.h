@@ -23,8 +23,6 @@ enum {
     THROTTLE_SENSOR_CNT
 };
 
-#define THROTTLE_INIT_POLICY_NAME_LEN_MAX   32
-
 /* Raw delay values.
  * Use throttle_raw_to_rate to convert to byte rate.
  * Comments show the corresponding rate.
@@ -127,7 +125,7 @@ struct throttle_mavg {
  * struct throttle - throttle state
  * @thr_next:           time at which to recompute %thr_pct (nsecs)
  * @thr_pct:            percentage of requests not to throttle
- * @thr_delay_raw:      raw throttle delay amount
+ * @thr_delay:      raw throttle delay amount
  * @thr_lock:           lock for updating %thr_pct
  * @thr_mavg:           struct to compute mavg
  * @thr_reduce_sum:     sum to compute cumulative mavg while reducing sleep
@@ -158,7 +156,7 @@ struct throttle_mavg {
 struct throttle {
     atomic_t             thr_pct;
     atomic64_t           thr_next;
-    uint                 thr_delay_raw;
+    uint                 thr_delay;
     spinlock_t           thr_lock;
 
     HSE_ALIGNED(SMP_CACHE_BYTES)
@@ -205,10 +203,10 @@ throttle_fini(struct throttle *self);
 uint
 throttle_update(struct throttle *self);
 
-static inline long
+static inline uint
 throttle_delay(struct throttle *self)
 {
-    return self->thr_delay_raw;
+    return self->thr_delay;
 }
 
 static inline struct throttle_sensor *

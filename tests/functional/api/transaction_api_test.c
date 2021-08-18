@@ -37,7 +37,7 @@ setup_kvs(struct mtf_test_info *lcl_ti)
 {
     hse_err_t err;
     const char *paramv[] = {
-        "transactions_enable=1",
+        "transactions_enable=true",
     };
 
     err = hse_kvdb_kvs_create(kvdb_handle, "kvs_transaction_test", 0, NULL);

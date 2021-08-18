@@ -16,7 +16,7 @@ kvs=$(kvs_create smoke-0 pfx_len=8) || exit $?
 keys=1300000
 ptombs=300000
 
-rparams='kvs-oparms cn_maint_disable=1'
+rparams='kvs-oparms cn_maint_disable=true'
 
 cmd ptree-overload "$home" $kvs -k $keys -p $ptombs ${rparams}
 cn_metrics "$home" $kvs

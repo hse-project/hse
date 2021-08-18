@@ -17,7 +17,7 @@ try:
         kvdb_ctx = lifecycle.KvdbContext()
         kvdb = stack.enter_context(kvdb_ctx)
         kvs_ctx = lifecycle.KvsContext(kvdb, "txn_seek_del_put_next").rparams(
-            "transactions_enable=1"
+            "transactions_enable=true"
         )
         kvs = stack.enter_context(kvs_ctx)
 

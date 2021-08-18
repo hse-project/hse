@@ -526,18 +526,6 @@ wal_destroy(struct mpool *mp, uint64_t oid1, uint64_t oid2)
     wal_mdc_destroy(mp, oid1, oid2);
 }
 
-static enum mpool_mclass
-mclass_name_to_val(const char *mcname)
-{
-    if (!strcmp(mcname, MP_MED_NAME_CAPACITY))
-        return MP_MED_CAPACITY;
-
-    if (!strcmp(mcname, MP_MED_NAME_STAGING))
-        return MP_MED_STAGING;
-
-    return MP_MED_INVALID;
-}
-
 merr_t
 wal_open(
     struct mpool           *mp,
@@ -611,8 +599,7 @@ wal_open(
         wal->dur_bufsz = roundup_pow_of_two(wal->dur_bufsz);
     }
 
-    mclass = mclass_name_to_val(rp->dur_mclass);
-    assert(mclass != MP_MED_INVALID);
+    mclass = rp->dur_mclass;
     if (mclass != wal->dur_mclass) {
         assert(mclass < MP_MED_COUNT);
         wal->dur_mclass = mclass;

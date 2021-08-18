@@ -118,10 +118,10 @@ hse.init(cli.HOME)
 
 try:
     with ExitStack() as stack:
-        kvdb_ctx = lifecycle.KvdbContext().rparams("dur_enable=0")
+        kvdb_ctx = lifecycle.KvdbContext().rparams("dur_enable=false")
         kvdb = stack.enter_context(kvdb_ctx)
         kvs_ctx = lifecycle.KvsContext(kvdb, "basic_lc").rparams(
-            "transactions_enable=1"
+            "transactions_enable=true"
         )
         kvs = stack.enter_context(kvs_ctx)
         run_test(kvdb, kvs)

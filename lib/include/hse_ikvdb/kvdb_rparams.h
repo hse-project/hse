@@ -70,13 +70,13 @@ struct kvdb_rparams {
     uint64_t csched_leaf_len_params;
     uint64_t csched_node_min_ttl;
 
-    uint32_t dur_enable;
-    uint32_t dur_intvl_ms;
-    uint64_t dur_bufsz_mb;
-    uint32_t dur_throttle_lo_th;
-    uint32_t dur_throttle_hi_th;
-    bool     dur_buf_managed;
-    char     dur_mclass[MP_MED_NAME_LEN_MAX];
+    bool              dur_enable;
+    uint32_t          dur_intvl_ms;
+    uint64_t          dur_bufsz_mb;
+    uint32_t          dur_throttle_lo_th;
+    uint32_t          dur_throttle_hi_th;
+    bool              dur_buf_managed;
+    enum mpool_mclass dur_mclass;
 
     uint64_t throttle_update_ns;
     uint32_t throttle_relax;
@@ -85,7 +85,7 @@ struct kvdb_rparams {
     uint32_t throttle_c0_hi_th;
     uint64_t throttle_burst;
     uint64_t throttle_rate;
-    char     throttle_init_policy[THROTTLE_INIT_POLICY_NAME_LEN_MAX];
+    uint     throttle_init_policy; /* [HSE_REVISIT]: Make this a fixed width type */
 
     /* The following fields are typically only accessed by kvdb open
      * and hence are extremely cold.
@@ -97,7 +97,7 @@ struct kvdb_rparams {
     uint32_t c0_ingest_threads;
 
     uint32_t keylock_tables;
-    uint32_t low_mem;
+    bool     low_mem;
 
     struct mclass_policy mclass_policies[HSE_MPOLICY_COUNT];
 };

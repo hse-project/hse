@@ -25,7 +25,7 @@ try:
     with ExitStack() as stack:
         kvdb_ctx = lifecycle.KvdbContext()
         kvdb = stack.enter_context(kvdb_ctx)
-        kvs_ctx = lifecycle.KvsContext(kvdb, "update_views").rparams("transactions_enable=1")
+        kvs_ctx = lifecycle.KvsContext(kvdb, "update_views").rparams("transactions_enable=true")
         kvs = stack.enter_context(kvs_ctx)
 
         with kvdb.transaction() as t:

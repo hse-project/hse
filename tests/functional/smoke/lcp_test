@@ -18,14 +18,14 @@ kvs=$(kvs_create smoke-0) || exit $?
 nkeys=1000
 
 # load w/ little endian fmt keys
-cmd putbin "$home" $kvs -c$nkeys -e kvs-oparms cn_maint_disable=1
+cmd putbin "$home" $kvs -c$nkeys -e kvs-oparms cn_maint_disable=true
 
 # create a cursor using the last key in pg 0 of the wbtree as a prefix
 key=0x7f010000
-cnt=$(awk '{print($1);exit(0)}' <<<$(cmd pscan "$home" $kvs -p$key -c kvs-oparms cn_maint_disable=1))
+cnt=$(awk '{print($1);exit(0)}' <<<$(cmd pscan "$home" $kvs -p$key -c kvs-oparms cn_maint_disable=true))
 [[ "$cnt" == "1" ]] ||
     err "Forward cursor didn't find key '$key'"
 
-cnt=$(awk '{print($1);exit(0)}' <<<$(cmd pscan "$home" $kvs -p$key -c -r kvs-oparms cn_maint_disable=1))
+cnt=$(awk '{print($1);exit(0)}' <<<$(cmd pscan "$home" $kvs -p$key -c -r kvs-oparms cn_maint_disable=true))
 [[ "$cnt" == "1" ]] ||
     err "Reverse cursor didn't find key '$key'"

@@ -724,7 +724,7 @@ rsignal(int signo, __sighandler_t func)
 int
 parm_vec_init(void)
 {
-    char *txn = testtxn ? "transactions_enable=1" : "transactions_enable=0";
+    char *txn = testtxn ? "transactions_enable=true" : "transactions_enable=false";
     char *cmp = vcomp ? "value_compression=lz4" : "";
     char rids_pfx[64] = {};
     int rc = 0;

@@ -152,19 +152,7 @@ throttle_init_params(struct throttle *self, struct kvdb_rparams *rp)
 {
     u32 time_ms;
 
-    if (strcmp(self->thr_rp->throttle_init_policy, "light") == 0) {
-        self->thr_delay_raw = THROTTLE_DELAY_START_LIGHT;
-    } else if (strcmp(self->thr_rp->throttle_init_policy, "medium") == 0) {
-        self->thr_delay_raw = THROTTLE_DELAY_START_MEDIUM;
-    } else if (strcmp(self->thr_rp->throttle_init_policy, "default") == 0) {
-        self->thr_delay_raw = THROTTLE_DELAY_START_DEFAULT;
-    } else {
-        self->thr_delay_raw = THROTTLE_DELAY_START_DEFAULT;
-
-        hse_log(
-            HSE_NOTICE "Invalid setting for throttle_init_policy: %s, using \"default\"",
-            self->thr_rp->throttle_init_policy);
-    }
+    self->thr_delay = rp->throttle_init_policy;
 
     if (self->thr_rp->throttle_debug_intvl_s == 0) {
         hse_log(
@@ -201,12 +189,10 @@ throttle_init_params(struct throttle *self, struct kvdb_rparams *rp)
     self->thr_delta_cycles =
         time_ms / self->thr_update_ms + (time_ms % self->thr_update_ms ? 1 : 0);
 
-    hse_log(HSE_NOTICE "throttle init policy: %s", self->thr_rp->throttle_init_policy);
-
     hse_log(
         HSE_NOTICE "throttle init: delay %d u_ms %d rcycles %d"
                    " icycles %d scycles %d dcycles %d",
-        self->thr_delay_raw,
+        self->thr_delay,
         self->thr_update_ms,
         self->thr_reduce_cycles,
         self->thr_inject_cycles,
@@ -239,7 +225,7 @@ throttle_reduce_debug(struct throttle *self, uint sensor, uint mavg)
         HSE_NOTICE "throttle: icnt %u raw %d prev %d trial %d"
                    " mcnt %d v %d cmavg %d",
         self->thr_inject_cnt,
-        self->thr_delay_raw,
+        self->thr_delay,
         self->thr_delay_prev,
         self->thr_delay_test,
         self->thr_monitor_cnt,
@@ -258,35 +244,35 @@ throttle_increase(struct throttle *self, uint value)
         if (self->thr_delay_idelta)
             delta = 2 * self->thr_delay_idelta;
         else
-            delta = self->thr_delay_raw / 15;
+            delta = self->thr_delay / 15;
 
         delta = max_t(uint, delta, 1);
 
-        if (!self->thr_delay_raw)
+        if (!self->thr_delay)
             delta = THROTTLE_DELAY_MIN;
 
         self->thr_skip_cnt = 40;
     } else if (value >= 1800) {
-        delta = max_t(uint, self->thr_delay_raw / 10, 1);
+        delta = max_t(uint, self->thr_delay / 10, 1);
         self->thr_skip_cnt = 40;
     } else if (value > 1100) {
-        delta = max_t(uint, self->thr_delay_raw / 20, 1);
+        delta = max_t(uint, self->thr_delay / 20, 1);
         self->thr_skip_cnt = 32;
     } else if (value >= 1000) {
-        delta = max_t(uint, self->thr_delay_raw / 100, 1);
+        delta = max_t(uint, self->thr_delay / 100, 1);
         self->thr_skip_cnt = 24;
     }
 
     /* Reset the moving average when the sleep time is adjusted. */
-    if (self->thr_delay_raw + delta > self->thr_delay_raw) {
+    if (self->thr_delay + delta > self->thr_delay) {
         self->thr_delay_idelta = delta;
-        self->thr_delay_raw += delta;
-        self->thr_delay_raw = min_t(uint, self->thr_delay_raw, THROTTLE_DELAY_MAX);
+        self->thr_delay += delta;
+        self->thr_delay = min_t(uint, self->thr_delay, THROTTLE_DELAY_MAX);
         throttle_reset_mavg(self);
     } else {
         /* Record the min sleep value that worked in the last 10 s */
-        if (!self->thr_delay_min || self->thr_delay_raw >= self->thr_delay_min) {
-            self->thr_delay_min = self->thr_delay_raw;
+        if (!self->thr_delay_min || self->thr_delay >= self->thr_delay_min) {
+            self->thr_delay_min = self->thr_delay;
             self->thr_lmin_cycles = self->thr_cycles;
         }
 
@@ -320,7 +306,7 @@ throttle_decrease(struct throttle *self, uint svalue)
 
     /* Don't attempt to go faster if the tree is out of shape */
     if (self->thr_csched >= THROTTLE_SENSOR_SCALE) {
-        self->thr_delay_raw = self->thr_delay_prev;
+        self->thr_delay = self->thr_delay_prev;
         throttle_reset_state(self);
         return;
     }
@@ -329,7 +315,7 @@ throttle_decrease(struct throttle *self, uint svalue)
     if (self->thr_inject_cnt > 0) {
         self->thr_inject_cnt--;
         if (self->thr_inject_cnt == 0)
-            self->thr_delay_raw = self->thr_delay_prev;
+            self->thr_delay = self->thr_delay_prev;
     }
 
     /* Track the longest run of high sensor values */
@@ -347,7 +333,7 @@ throttle_decrease(struct throttle *self, uint svalue)
          * Since the reduced delay isn't sustainable, attempt to
          * reduce the delay by only half as much the next time around.
          */
-        self->thr_delay_raw = self->thr_delay_prev;
+        self->thr_delay = self->thr_delay_prev;
         self->thr_delay_test = self->thr_delay_prev - delta / 2;
 
         if (debug & THROTTLE_DEBUG_REDUCE)
@@ -364,7 +350,7 @@ throttle_decrease(struct throttle *self, uint svalue)
             self->thr_longest_run = 0;
             self->thr_monitor_cnt = 0;
             self->thr_num_tries++;
-            self->thr_delay_raw = self->thr_delay_test;
+            self->thr_delay = self->thr_delay_test;
 
             if (self->thr_num_tries < self->thr_max_tries) {
                 self->thr_inject_cnt = self->thr_inject_cycles * (self->thr_num_tries + 1);
@@ -525,25 +511,25 @@ throttle_update(struct throttle *self)
              */
             if (reduce && self->thr_csched < THROTTLE_SENSOR_SCALE) {
 
-                int delta = self->thr_delay_raw - self->thr_delay_test;
+                int delta = self->thr_delay - self->thr_delay_test;
                 const double pmax = 0.40; /* max percent reduce when cmavg==lo */
                 const double pmin = 0.01; /* min percent reduce when cmavg==hi */
                 double p;
 
                 assert(cmavg <= cmavg_hi);
 
-                if (delta <= 0 || delta >= self->thr_delay_raw) {
+                if (delta <= 0 || delta >= self->thr_delay) {
                     if (cmavg > cmavg_lo)
                         p = pmax - (pmax - pmin) * (cmavg - cmavg_lo) / (cmavg_hi - cmavg_lo);
                     else
                         p = pmax;
-                    delta = p * self->thr_delay_raw;
+                    delta = p * self->thr_delay;
                 }
 
                 if (delta > 0) {
-                    self->thr_delay_prev = self->thr_delay_raw;
-                    self->thr_delay_raw -= delta;
-                    self->thr_delay_test = self->thr_delay_raw;
+                    self->thr_delay_prev = self->thr_delay;
+                    self->thr_delay -= delta;
+                    self->thr_delay_test = self->thr_delay;
                     self->thr_inject_cnt = self->thr_inject_cycles;
                     self->thr_num_tries = 0;
                     self->thr_monitor_cnt = 0;
@@ -559,7 +545,7 @@ throttle_update(struct throttle *self)
         }
     }
 
-    perfc_rec_sample(&self->thr_sleep_perfc, PERFC_DI_THR_SVAL, self->thr_delay_raw);
+    perfc_rec_sample(&self->thr_sleep_perfc, PERFC_DI_THR_SVAL, self->thr_delay);
 
     self->thr_cycles++;
     if (debug & THROTTLE_DEBUG_DELAYV) {
@@ -569,7 +555,7 @@ throttle_update(struct throttle *self)
             throttle_debug(self);
     }
 
-    return self->thr_delay_raw;
+    return self->thr_delay;
 }
 
 void
@@ -577,7 +563,7 @@ throttle_debug(struct throttle *self)
 {
     hse_log(HSE_NOTICE "%s: delay %d min %d mavg %d cnt %d state %d sensors %d %d",
             __func__,
-            self->thr_delay_raw,
+            self->thr_delay,
             self->thr_delay_min,
             self->thr_mavg.tm_curr,
             self->thr_monitor_cnt,

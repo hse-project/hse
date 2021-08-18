@@ -22,12 +22,12 @@
 
 struct hse_gparams hse_gparams;
 
-bool
-logging_destination_converter(const struct param_spec *ps, const cJSON *node, void *value)
+bool HSE_NONNULL(1, 2, 3)
+logging_destination_converter(const struct param_spec *const ps, const cJSON *const node, void *const data)
 {
     assert(ps);
     assert(node);
-    assert(value);
+    assert(data);
 
     if (!cJSON_IsString(node))
         return false;
@@ -35,40 +35,18 @@ logging_destination_converter(const struct param_spec *ps, const cJSON *node, vo
     const char *setting = cJSON_GetStringValue(node);
 
     if (strcmp(setting, "stdout") == 0) {
-        *(enum log_destination *)value = LD_STDOUT;
+        *(enum log_destination *)data = LD_STDOUT;
     } else if (strcmp(setting, "stderr") == 0) {
-        *(enum log_destination *)value = LD_STDERR;
+        *(enum log_destination *)data = LD_STDERR;
     } else if (strcmp(setting, "file") == 0) {
-        *(enum log_destination *)value = LD_FILE;
+        *(enum log_destination *)data = LD_FILE;
     } else if (strcmp(setting, "syslog") == 0) {
-        *(enum log_destination *)value = LD_SYSLOG;
+        *(enum log_destination *)data = LD_SYSLOG;
     } else {
         return false;
     }
 
     return true;
-}
-
-bool
-logging_destination_validator(const struct param_spec *ps, const void *value)
-{
-    assert(ps);
-    assert(value);
-
-    const enum log_destination dest = *(enum log_destination *)value;
-
-    return dest == LD_STDOUT || dest == LD_STDERR || dest == LD_FILE || dest == LD_SYSLOG;
-}
-
-void
-logging_destination_default(const struct param_spec *ps, void *value)
-{
-    assert(ps);
-    assert(value);
-
-    enum log_destination *dest = (enum log_destination *)value;
-
-    *dest = LD_SYSLOG;
 }
 
 void
@@ -113,25 +91,20 @@ static const struct param_spec pspecs[] = {
 	{
 		.ps_name = "logging.destination",
 		.ps_description = "Where log messages should be written to",
-		.ps_flags = PARAM_FLAG_DEFAULT_BUILDER,
+		.ps_flags = 0,
 		.ps_type = PARAM_TYPE_ENUM,
 		.ps_offset = offsetof(struct hse_gparams, gp_logging.destination),
 		.ps_size = sizeof(enum log_destination),
 		.ps_convert = logging_destination_converter,
-		.ps_validate = logging_destination_validator,
+		.ps_validate = param_default_validator,
 		.ps_default_value = {
-			.as_builder = logging_destination_default,
+			.as_enum = LD_SYSLOG,
 		},
 		.ps_bounds = {
 			.as_enum = {
-				.ps_values = {
-					"stdout",
-					"stderr",
-					"file",
-					"syslog",
-				},
-				.ps_num_values = LD_SYSLOG + 1,
-			},
+                .ps_min = LD_MIN,
+                .ps_max = LD_MAX,
+            }
 		},
 	},
 	{

@@ -175,7 +175,7 @@ test_pre(struct mtf_test_info *lcl_ti)
     struct kvdb_rparams params = kvdb_rparams_defaults();
     struct kvs_rparams  kvs_rp = kvs_rparams_defaults();
     struct kvs_cparams  kvs_cp = kvs_cparams_defaults();
-    const char * const  paramv[] = { "dur_enable=0" };
+    const char * const  paramv[] = { "dur_enable=false" };
 
     /* Mocks */
     mapi_inject_clear();

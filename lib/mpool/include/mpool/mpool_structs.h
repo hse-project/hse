@@ -23,12 +23,12 @@ enum mpool_mclass {
 };
 
 #define MP_MED_BASE            MP_MED_CAPACITY
-#define MP_MED_COUNT           (MP_MED_STAGING + 1)
+#define MP_MED_MAX             MP_MED_STAGING
+#define MP_MED_COUNT           (MP_MED_MAX + 1)
 #define MP_MED_INVALID         U8_MAX
 
 #define MP_MED_NAME_CAPACITY   "capacity"
 #define MP_MED_NAME_STAGING    "staging"
-#define MP_MED_NAME_LEN_MAX    (16)
 
 #define MPOOL_CAPACITY_MCLASS_DEFAULT_PATH "capacity"
 

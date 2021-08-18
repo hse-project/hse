@@ -202,7 +202,7 @@ MTF_DEFINE_UTEST_PREPOST(ikvdb_test, init, test_pre, test_post)
     const char *        mpool = "mpool_alpha";
     struct ikvdb *      store = NULL;
     merr_t              err;
-    const char *const   paramv[] = { "c0_diag_mode=1" };
+    const char *const   paramv[] = { "c0_diag_mode=true" };
     struct kvdb_rparams params = kvdb_rparams_defaults();
 
     err = argv_deserialize_to_kvdb_rparams(NELEM(paramv), paramv, &params);
@@ -221,7 +221,7 @@ MTF_DEFINE_UTEST_PREPOST(ikvdb_test, init_fail, test_pre, test_post)
     const char *        mpool = "mpool_alpha";
     struct ikvdb *      store;
     merr_t              err;
-    const char *const   paramv[] = { "c0_diag_mode=1" };
+    const char *const   paramv[] = { "c0_diag_mode=true" };
     struct kvdb_rparams params = kvdb_rparams_defaults();
 
     err = argv_deserialize_to_kvdb_rparams(NELEM(paramv), paramv, &params);
@@ -239,7 +239,7 @@ MTF_DEFINE_UTEST_PREPOST(ikvdb_test, basic_txn_alloc, test_pre, test_post)
     struct ikvdb *       store;
     struct hse_kvdb_txn *txn1, *txn2;
     merr_t               err;
-    const char *const    paramv[] = { "c0_diag_mode=1" };
+    const char *const    paramv[] = { "c0_diag_mode=true" };
     struct kvdb_rparams  params = kvdb_rparams_defaults();
 
     err = argv_deserialize_to_kvdb_rparams(NELEM(paramv), paramv, &params);
@@ -268,7 +268,7 @@ MTF_DEFINE_UTEST_PREPOST(ikvdb_test, basic_lifecycle, test_pre, test_post)
     const char *         mpool = "mpool_alpha";
     struct ikvdb *       store;
     struct hse_kvdb_txn *txn1, *txn2;
-    const char *const    paramv[] = { "c0_diag_mode=1" };
+    const char *const    paramv[] = { "c0_diag_mode=true" };
     merr_t               err;
     struct kvdb_rparams  params = kvdb_rparams_defaults();
 
@@ -359,7 +359,7 @@ MTF_DEFINE_UTEST_PREPOST(ikvdb_test, ikvdb_kvs_open_test, test_pre, test_post)
     struct hse_kvs *    h = NULL;
     const char *        mpool = "mpool_alpha";
     const char *        kvs = "kvs_gamma";
-    const char *const   paramv[] = { "c0_diag_mode=1" };
+    const char *const   paramv[] = { "c0_diag_mode=true" };
     merr_t              err;
     struct kvdb_rparams params = kvdb_rparams_defaults();
     struct kvs_rparams  kvs_rp = kvs_rparams_defaults();
@@ -405,7 +405,7 @@ MTF_DEFINE_UTEST_PREPOST(ikvdb_test, ikvdb_kvs_create_test, test_pre, test_post)
     const char *        mpool = "mpool_alpha";
     const char *        kvs = "kvs_gamma";
     merr_t              err;
-    const char *const   paramv[] = { "c0_diag_mode=1" };
+    const char *const   paramv[] = { "c0_diag_mode=true" };
     unsigned int        cnt;
     struct kvdb_rparams params = kvdb_rparams_defaults();
     struct kvs_cparams  kvs_cp = kvs_cparams_defaults();
@@ -452,7 +452,7 @@ MTF_DEFINE_UTEST_PREPOST(ikvdb_test, ikvdb_kvs_destroy_test, test_pre, test_post
     const char *        kvs = "kvs_gamma";
     merr_t              err;
     unsigned int        cnt;
-    const char *const   paramv[] = { "c0_diag_mode=1" };
+    const char *const   paramv[] = { "c0_diag_mode=true" };
     struct kvdb_rparams params = kvdb_rparams_defaults();
     struct kvs_cparams  kvs_cp = kvs_cparams_defaults();
 
@@ -487,8 +487,8 @@ MTF_DEFINE_UTEST_PREPOST(ikvdb_test, txn_del_test, test_pre, test_post)
     struct hse_kvs *     kvs_h = NULL;
     const char *         mpool = "mpool";
     const char *         kvs = "kvs";
-    const char *const    kvdb_open_paramv[] = { "c0_diag_mode=1" };
-    const char *const    kvs_open_paramv[] = { "transactions_enable=1" };
+    const char *const    kvdb_open_paramv[] = { "c0_diag_mode=true" };
+    const char *const    kvs_open_paramv[] = { "transactions_enable=true" };
     merr_t               err;
     struct hse_kvdb_txn *txn;
     struct kvs_ktuple    kt;
@@ -618,7 +618,7 @@ MTF_DEFINE_UTEST_PREPOST(ikvdb_test, txn_put_test, test_pre, test_post)
     const char *        mpool = "mpool";
     const char *        kvs = "kvs";
     const char *const   kvdb_open_paramv[] = { "c0_debug=16" };
-    const char *const   kvs_open_paramv[] = { "transactions_enable=1" };
+    const char *const   kvs_open_paramv[] = { "transactions_enable=true" };
     merr_t              err;
     const int           num_txn = 256;
     struct tx_info      info[num_txn];
@@ -675,8 +675,8 @@ MTF_DEFINE_UTEST_PREPOST(ikvdb_test, aborted_txn_bind, test_pre, test_post)
     struct hse_kvs *       kvs_h = NULL;
     const char *           mpool = "mpool";
     const char *           kvs = "kvs";
-    const char *const      kvdb_open_paramv[] = { "c0_debug=16", "c0_diag_mode=1" };
-    const char *const      kvs_open_paramv[] = { "transactions_enable=1" };
+    const char *const      kvdb_open_paramv[] = { "c0_debug=16", "c0_diag_mode=true" };
+    const char *const      kvs_open_paramv[] = { "transactions_enable=true" };
     merr_t                 err;
     struct hse_kvdb_txn *  txn;
     struct hse_kvs_cursor *cur;
@@ -729,7 +729,7 @@ MTF_DEFINE_UTEST_PREPOST(ikvdb_test, cursor_0, test_pre, test_post)
     struct hse_kvs *       kvs_h = NULL;
     const char *           mpool = "mpool";
     const char *           kvs = "kvs";
-    const char *const      paramv[] = { "c0_debug=16", "c0_diag_mode=1" };
+    const char *const      paramv[] = { "c0_debug=16", "c0_diag_mode=true" };
     merr_t                 err;
     struct hse_kvdb_txn *  txn = NULL;
     struct hse_kvs_cursor *cur;
@@ -788,7 +788,7 @@ MTF_DEFINE_UTEST_PREPOST(ikvdb_test, cursor_1, test_pre_c0, test_post_c0)
     struct hse_kvs *       kvs_h = NULL;
     const char *           mpool = "mpool";
     const char *           kvs = "kvs";
-    const char *const      paramv[] = { "c0_diag_mode=1" };
+    const char *const      paramv[] = { "c0_diag_mode=true" };
     struct hse_kvdb_txn *  txn = NULL;
     struct hse_kvs_cursor *cur;
     struct kvs_ktuple      kt = { 0 };
@@ -945,8 +945,8 @@ MTF_DEFINE_UTEST_PREPOST(ikvdb_test, cursor_tx, test_pre_c0, test_post_c0)
     const char *           mpool = "mpool";
     const char *           kvs = "kvs";
     struct mpool *         ds = (struct mpool *)-1;
-    const char *const      kvdb_open_paramv[] = { "c0_diag_mode=1" };
-    const char *const      kvs_open_paramv[] = { "transactions_enable=1" };
+    const char *const      kvdb_open_paramv[] = { "c0_diag_mode=true" };
+    const char *const      kvs_open_paramv[] = { "transactions_enable=true" };
     struct hse_kvdb_txn *  txn1;
     unsigned int           flags1 = 0;
     struct hse_kvdb_txn *  txn2;
@@ -1435,7 +1435,7 @@ MTF_DEFINE_UTEST_PREPOST(ikvdb_test, cursor_cache, test_pre_c0, test_post_c0)
     struct ikvdb *      h = NULL;
     struct hse_kvs *    kvs_h[3];
     const char *        mpool = "mpool";
-    const char *const   paramv[] = { "c0_diag_mode=1" };
+    const char *const   paramv[] = { "c0_diag_mode=true" };
     const int           num_threads = get_nprocs() * 3;
     struct cursor_info  info[num_threads];
     merr_t              err;
@@ -1590,7 +1590,7 @@ MTF_DEFINE_UTEST_PREPOST(ikvdb_test, kvdb_sync_test, test_pre, test_post)
     struct ikvdb *      h = NULL;
     const char *        mpool = "mpool";
     const char *        kvs_base = "kvs";
-    const char *const   paramv[] = { "c0_diag_mode=1" };
+    const char *const   paramv[] = { "c0_diag_mode=true" };
     u8                  kvs_cnt = 5;
     merr_t              err;
     u32                 i;
@@ -1675,7 +1675,7 @@ MTF_DEFINE_UTEST_PREPOST(ikvdb_test, kvdb_parallel_kvs_opens, test_pre, test_pos
     struct ikvdb *      h;
     struct thread_info  infov[num_threads];
     const char *        mpool = "mpool";
-    const char *const   paramv[] = { "c0_diag_mode=1" };
+    const char *const   paramv[] = { "c0_diag_mode=true" };
     int                 rc;
     struct kvdb_rparams params = kvdb_rparams_defaults();
     struct kvs_cparams  kvs_cp = kvs_cparams_defaults();
@@ -1738,7 +1738,7 @@ MTF_DEFINE_UTEST_PREPOST(ikvdb_test, kvdb_parallel_kvs_makes, test_pre, test_pos
     pthread_t           t[num_threads];
     struct thread_info  info = { 0 };
     char *              mpool = "mpool";
-    const char *const   paramv[] = { "c0_diag_mode=1" };
+    const char *const   paramv[] = { "c0_diag_mode=true" };
     int                 rc;
     unsigned int        kvs_cnt;
     struct kvdb_rparams params = kvdb_rparams_defaults();
@@ -1770,7 +1770,7 @@ MTF_DEFINE_UTEST_PREPOST(ikvdb_test, kvdb_parallel_kvs_makes, test_pre, test_pos
 MTF_DEFINE_UTEST_PREPOST(ikvdb_test, prefix_delete_test, test_pre, test_post)
 {
     merr_t              err;
-    const char *const   kvdb_open_paramv[] = { "c0_diag_mode=1" };
+    const char *const   kvdb_open_paramv[] = { "c0_diag_mode=true" };
     const char *const   kvs_make_paramv[] = { "pfx_len=4" };
     struct kvs_ktuple   kt;
     struct ikvdb *      kvdb = NULL;
