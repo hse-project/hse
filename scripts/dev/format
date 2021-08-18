@@ -1,4 +1,7 @@
 #!/usr/bin/env sh
+# SPDX-License-Identifier: Apache-2.0
+#
+# Copyright (C) 2021 Micron Technology, Inc. All rights reserved.
 
 if ! type clang-format > /dev/null 2>&1; then
 	>&2 echo "clang-format not found"

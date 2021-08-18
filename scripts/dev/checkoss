@@ -1,4 +1,7 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: Apache-2.0
+#
+# Copyright (C) 2021 Micron Technology, Inc. All rights reserved.
 
 # Run this on root of source
 default_workspace="/tmp"
@@ -37,6 +40,7 @@ if [ -f "${license_check_output}" ]; then
   rm "${license_check_output}"
 fi
 git -C "${SRC_ROOT}" ls-files | grep -E '\.(c|h|py|sh|java)$' | grep -v '3rdparty\|subprojects\|simpledrop'> "${WORK_DIR}/src_files"
+grep -Er '^#!/.*sh' "${SRC_ROOT}" |sed 's/:.*$//pi' |grep -vE '(subprojects|build.*|.git)' >> "${WORK_DIR}/src_files"
 pushd "${SRC_ROOT}" > /dev/null
 while read -r file; do 
     if ! head -10 "${file}" | grep -qE "\s*[/#*]*\s*SPDX-License-Identifier:\s+Apache-2.0"; then 
