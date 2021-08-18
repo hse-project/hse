@@ -55,7 +55,7 @@ mdc_correctness_simple(const char *path)
     strlcpy(params.mclass[MP_MED_CAPACITY].path, path,
             sizeof(params.mclass[MP_MED_CAPACITY].path));
     /* 2. Open the mpool */
-    err = mpool_open(NULL, &params, O_RDWR, &mp);
+    err = mpool_open(path, &params, O_RDWR, &mp);
     if (err) {
         original_err = err;
         merr_strinfo(err, errbuf, ERROR_BUFFER_SIZE, NULL);
@@ -193,7 +193,7 @@ mdc_correctness_mp_release(const char *path)
     strlcpy(params.mclass[MP_MED_CAPACITY].path, path,
             sizeof(params.mclass[MP_MED_CAPACITY].path));
     /* 2. Open the mpool */
-    err = mpool_open(NULL, &params, O_RDWR, &mp);
+    err = mpool_open(path, &params, O_RDWR, &mp);
     if (err) {
         original_err = err;
         merr_strinfo(err, errbuf, ERROR_BUFFER_SIZE, NULL);
@@ -249,7 +249,7 @@ mdc_correctness_mp_release(const char *path)
     }
 
     /* 7. Open the mpool */
-    err = mpool_open(NULL, &params, O_RDWR, &mp);
+    err = mpool_open(path, &params, O_RDWR, &mp);
     if (err) {
         original_err = err;
         merr_strinfo(err, errbuf, ERROR_BUFFER_SIZE, NULL);
@@ -360,7 +360,7 @@ mdc_correctness_multi_reader_single_app(const char *path)
     strlcpy(params.mclass[MP_MED_CAPACITY].path, path,
             sizeof(params.mclass[MP_MED_CAPACITY].path));
     /* 2. Open the mpool RDWR */
-    err = mpool_open(NULL, &params, O_RDWR, &mp);
+    err = mpool_open(path, &params, O_RDWR, &mp);
     if (err) {
         original_err = err;
         merr_strinfo(err, errbuf, ERROR_BUFFER_SIZE, NULL);
@@ -663,7 +663,7 @@ mdc_correctness_reader_then_writer(const char *path)
     strlcpy(params.mclass[MP_MED_CAPACITY].path, path,
             sizeof(params.mclass[MP_MED_CAPACITY].path));
     /* 2. Open the mpool RDWR */
-    err = mpool_open(NULL, &params, O_RDWR, &mp);
+    err = mpool_open(path, &params, O_RDWR, &mp);
     if (err) {
         original_err = err;
         merr_strinfo(err, errbuf, ERROR_BUFFER_SIZE, NULL);
@@ -901,7 +901,7 @@ mdc_correctness_writer_then_reader(const char *path)
     strlcpy(params.mclass[MP_MED_CAPACITY].path, path,
             sizeof(params.mclass[MP_MED_CAPACITY].path));
     /* 2. Open the mpool RDWR */
-    err = mpool_open(NULL, &params, O_RDWR, &mp);
+    err = mpool_open(path, &params, O_RDWR, &mp);
     if (err) {
         original_err = err;
         merr_strinfo(err, errbuf, ERROR_BUFFER_SIZE, NULL);
@@ -1099,7 +1099,7 @@ mdc_correctness_multi_mdc(const char *path)
     strlcpy(params.mclass[MP_MED_CAPACITY].path, path,
             sizeof(params.mclass[MP_MED_CAPACITY].path));
     /* 2. Open the mpool RDWR */
-    err = mpool_open(NULL, &params, O_RDWR, &mp);
+    err = mpool_open(path, &params, O_RDWR, &mp);
     if (err) {
         original_err = err;
         merr_strinfo(err, errbuf, ERROR_BUFFER_SIZE, NULL);
@@ -1292,7 +1292,7 @@ main(int argc, char **argv)
 
     strlcpy(cparams.mclass[MP_MED_CAPACITY].path, path,
             sizeof(cparams.mclass[MP_MED_CAPACITY].path));
-    err = mpool_create(NULL, &cparams);
+    err = mpool_create(path, &cparams);
     if (err) {
         fprintf(stderr, "mpool creation at path %s failed\n", path);
         hse_fini();
@@ -1346,7 +1346,7 @@ main(int argc, char **argv)
 
     strlcpy(dparams.mclass[MP_MED_CAPACITY].path, path,
             sizeof(dparams.mclass[MP_MED_CAPACITY].path));
-    err = mpool_destroy(NULL, &dparams);
+    err = mpool_destroy(path, &dparams);
     if (err) {
         fprintf(stderr, "mpool destroy at path %s failed\n", path);
         hse_fini();

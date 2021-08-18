@@ -86,14 +86,10 @@
 #else
 #define HSE_SENTINEL
 #endif
-#ifdef __has_feature
-#if __has_feature(undefined_behavior_sanitizer)
-#define HSE_NO_SANITIZE_ALIGNMENT __attribute__((no_sanitize("alignment")))
-#endif
-#elif defined(WITH_UBSAN)
-#define HSE_NO_SANITIZE_ALIGNMENT __attribute__((no_sanitize("alignment")))
+#ifdef SUPPORTS_ATTR_NONNULL
+#define HSE_NONNULL(...) __attribute__((nonnull(__VA_ARGS__)))
 #else
-#define HSE_NO_SANITIZE_ALIGNMENT
+#define HSE_NONNULL(...)
 #endif
 
 #if __amd64__

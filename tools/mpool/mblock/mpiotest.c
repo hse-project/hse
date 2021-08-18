@@ -535,6 +535,9 @@ test_start(void *arg)
 
         err = mpool_mblock_write(mp, objid, iov, niov);
         if (err) {
+            if (merr_errno(err) == ENOSPC)
+                break;
+
             merr_strinfo(err, errbuf, sizeof(errbuf), NULL);
             eprint(
                 "mpool_mblock_write: %d objid=0x%lx len=%zu: %s\n",
@@ -1133,7 +1136,7 @@ main(int argc, char **argv)
     path = strdup(argv[0]);
     strlcpy(cparams.mclass[MP_MED_CAPACITY].path, path,
             sizeof(cparams.mclass[MP_MED_CAPACITY].path));
-    err = mpool_create(NULL, &cparams);
+    err = mpool_create(path, &cparams);
     if (err) {
         fprintf(stderr, "mpool creation at path %s failed\n", path);
         free(path);
@@ -1143,7 +1146,7 @@ main(int argc, char **argv)
 
     strlcpy(rparams.mclass[MP_MED_CAPACITY].path, path,
             sizeof(rparams.mclass[MP_MED_CAPACITY].path));
-    err = mpool_open(NULL, &rparams, oflags, &mp);
+    err = mpool_open(path, &rparams, oflags, &mp);
     if (err) {
         merr_strinfo(err, errbuf, sizeof(errbuf), NULL);
         eprint("mpool_open(%s): %s\n", path, errbuf);
@@ -1259,7 +1262,7 @@ err_exit:
     if (!err) {
         strlcpy(dparams.mclass[MP_MED_CAPACITY].path, path,
                 sizeof(dparams.mclass[MP_MED_CAPACITY].path));
-        err = mpool_destroy(NULL, &dparams);
+        err = mpool_destroy(path, &dparams);
         if (err)
             fprintf(stderr, "mpool destroy at path %s failed\n", path);
     }

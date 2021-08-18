@@ -12,17 +12,15 @@
 #include <hse_ikvdb/kvs.h>
 #include <hse_ikvdb/tuple.h>
 
-#define HSE_WAL_DUR_MS_DFLT    (100)
-#define HSE_WAL_DUR_MS_MIN     (25)
-#define HSE_WAL_DUR_MS_MAX     (1000)
+#define HSE_WAL_DUR_MS_DFLT        (100)
+#define HSE_WAL_DUR_MS_MIN         (25)
+#define HSE_WAL_DUR_MS_MAX         (1000)
 
-#define HSE_WAL_DUR_BYTES_DFLT (35 << 20)
-#define HSE_WAL_DUR_BYTES_MIN  (8 << 20)
-#define HSE_WAL_DUR_BYTES_MAX  (64 << 20)
+#define HSE_WAL_DUR_BUFSZ_MB_DFLT  (4096ul)
+#define HSE_WAL_DUR_BUFSZ_MB_MIN   (1024ul)
+#define HSE_WAL_DUR_BUFSZ_MB_MAX   (8192ul)
 
 struct wal;
-struct kvdb_log;
-struct kvdb_log_tx;
 
 /* MTF_MOCK_DECL(wal) */
 
@@ -45,7 +43,7 @@ struct wal_replay_info {
 
 /* MTF_MOCK */
 merr_t
-wal_create(struct mpool *mp, struct kvdb_cparams *cp, uint64_t *mdcid1, uint64_t *mdcid2);
+wal_create(struct mpool *mp, uint64_t *mdcid1, uint64_t *mdcid2);
 
 /* MTF_MOCK */
 void

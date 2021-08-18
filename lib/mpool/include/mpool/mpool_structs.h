@@ -8,9 +8,6 @@
 
 #include <hse_util/inttypes.h>
 
-#define MPOOL_ROOT_LOG_CAP     (8 * 1024 * 1024)
-#define MDC_ROOT_MAGIC         (0xFACE0FFF)
-#define MDC_ROOT_FILE_NAME     "hse.meta"
 #define WAL_FILE_PFX           "wal"
 #define WAL_FILE_PFX_LEN       (sizeof(WAL_FILE_PFX) - 1)
 
@@ -25,9 +22,13 @@ enum mpool_mclass {
     MP_MED_STAGING = 1,
 };
 
-#define MP_MED_BASE    MP_MED_CAPACITY
-#define MP_MED_COUNT   (MP_MED_STAGING + 1)
-#define MP_MED_INVALID U8_MAX
+#define MP_MED_BASE            MP_MED_CAPACITY
+#define MP_MED_COUNT           (MP_MED_STAGING + 1)
+#define MP_MED_INVALID         U8_MAX
+
+#define MP_MED_NAME_CAPACITY   "capacity"
+#define MP_MED_NAME_STAGING    "staging"
+#define MP_MED_NAME_LEN_MAX    (16)
 
 /**
  * struct mpool_cparams - mpool create params

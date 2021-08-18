@@ -5,7 +5,7 @@ KVSDROP_RECOVERY=`which cndb_simpledrop_recovery_inject`
 CNDB_LOG=`which cndb_log`
 MDC_TOOL=`which mdc_tool`
 KVDBDIR?=kvdbs
-IMGTARGETS=empty.klog missing_ackds.cndblog missing_ackc.cndblog wrongingestid.cndblog simpledrop.cndblog simpledrop_recovery.cndblog
+IMGTARGETS=missing_ackds.cndblog missing_ackc.cndblog wrongingestid.cndblog simpledrop.cndblog simpledrop_recovery.cndblog
 CTARGETS=simpledrop.c simpledrop_recovery.c
 
 all: clean $(IMGTARGETS) $(CTARGETS)
@@ -14,11 +14,6 @@ clean:
 	rm -f $(IMGTARGETS)
 	rm -rf $(KVDBDIR)
 	mkdir -p ${KVDBDIR}
-
-empty.klog:
-	mkdir $(KVDBDIR)/empty
-	$(HSE) -C $(KVDBDIR)/empty kvdb create
-	$(MDC_TOOL) -i -w $@ $(KVDBDIR)/empty
 
 missing_ackds.cndblog:
 	mkdir $(KVDBDIR)/rollforward

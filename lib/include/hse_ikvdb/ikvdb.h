@@ -32,7 +32,6 @@ struct kvdb_dparams;
 struct kvs_rparams;
 struct kvs_cparams;
 struct hse_kvdb_opspec;
-struct kvdb_log;
 struct hse_kvs_cursor;
 struct mpool;
 struct c0sk;
@@ -72,12 +71,22 @@ kvdb_perfc_register(void *pc);
 /**
  * ikvdb_create() - create a new KVDB instance within the named mpool
  * @kvdb_home: KVDB home
- * @mp:        mpool handle
  * @params:    fixed configuration parameters
  * @captgt:    captgt of the mdc
  */
 merr_t
-ikvdb_create(const char *kvdb_home, struct mpool *mp, struct kvdb_cparams *params, u64 captgt);
+ikvdb_create(const char *kvdb_home, struct kvdb_cparams *params);
+
+/**
+ * Drop a KVDB
+ *
+ * Drops files managed by the KVDB such as the kvdb.meta file
+ *
+ * @param kvdb_home: KVDB home
+ * @param params: KVDB dparams
+ */
+merr_t
+ikvdb_drop(const char *kvdb_home, struct kvdb_dparams *const params);
 
 /**
  * ikvdb_diag_cndb() - returns a pointer to kvdb's cndb
@@ -110,8 +119,6 @@ ikvdb_diag_kvslist(struct ikvdb *handle, struct diag_kvdb_kvs_list *list, int le
 merr_t
 ikvdb_diag_open(
     const char *         kvdb_home,
-    struct pidfh *       pfh,
-    struct mpool *       mp,
     struct kvdb_rparams *params,
     struct ikvdb **      handle);
 
@@ -126,19 +133,13 @@ ikvdb_diag_close(struct ikvdb *handle);
  * ikvdb_open() - prepare HSE KVDB target for subsequent use by the application
  * @kvdb_home:   kvdb home
  * @params:      kvdb rparams
- * @pfh:         PID file handle
- * @mp:          mpool handle
- * @conf:        hse.conf config object
  * @kvdb:        (output) handle to access the opened KVDB
  */
 merr_t
 ikvdb_open(
-    const char *               kvdb_home,
-    const struct kvdb_rparams *params,
-    struct pidfh *             pfh,
-    struct mpool *             mp,
-    struct config *            conf,
-    struct ikvdb **            kvdb);
+    const char *         kvdb_home,
+    struct kvdb_rparams *params,
+    struct ikvdb **      kvdb);
 
 #define IKVS_OFLAG_NONE   0
 #define IKVS_OFLAG_REPLAY 1 /* used when wal opens ikvs/kvs/cn for replay */
@@ -168,9 +169,19 @@ struct pidfh *
 ikvdb_pidfh(struct ikvdb *kvdb);
 
 /**
+ * Attach a pidfile to the lifetime of the KVDB
+ *
+ * @param kvdb: KVDB handle
+ * @param pfh: pidfile handle
+ */
+void
+ikvdb_pidfh_attach(struct ikvdb *kvdb, struct pidfh *pfh);
+
+/**
  * ikvdb_home() - get the home directory
  * @kvdb: kvdb handle
  */
+/* MTF_MOCK */
 const char *
 ikvdb_home(struct ikvdb *kvdb);
 
@@ -180,6 +191,15 @@ ikvdb_home(struct ikvdb *kvdb);
  */
 struct config *
 ikvdb_config(struct ikvdb *kvdb);
+
+/**
+ * Attach a config object to the lifetime of the KVDB
+ *
+ * @param kvdb: KVDB handle
+ * @param conf: Config handle
+ */
+void
+ikvdb_config_attach(struct ikvdb *kvdb, struct config *conf);
 
 /**
  * ikvdb_rdonly() - is the KVDB read only?
@@ -497,21 +517,6 @@ ikvdb_kvdb_handle(struct ikvdb_impl *self);
 merr_t
 ikvdb_kvs_query_tree(struct hse_kvs *kvs, struct yaml_context *yc, int fd, bool list);
 
-/**
- * ikvdb_log_deserialize_to_kvdb_rparams - deserialize rparams from kvdb log
- * @kvdb_home: kvdb home
- * @params:    rparams
- */
-merr_t
-ikvdb_log_deserialize_to_kvdb_rparams(const char *kvdb_home, struct kvdb_rparams *params);
-
-/**
- * ikvdb_log_deserialize_to_kvdb_dparams - deserialize dparams from kvdb log
- * @kvdb_home: kvdb home
- * @params:    dparams
- */
-merr_t
-ikvdb_log_deserialize_to_kvdb_dparams(const char *kvdb_home, struct kvdb_dparams *params);
 /*
  * [HSE_REVISIT] - This whole callback setup up needs to be reworked.
  *                Huge layering violations, etc.
@@ -572,6 +577,12 @@ ikvdb_wal_replay_seqno_set(struct ikvdb *ikvdb, uint64_t seqno);
 
 void
 ikvdb_wal_replay_gen_set(struct ikvdb *ikvdb, u64 gen);
+
+bool
+ikvdb_wal_replay_size_set(struct ikvdb *ikvdb, struct ikvdb_kvs_hdl *ikvsh, uint64_t mem_sz);
+
+void
+ikvdb_wal_replay_size_reset(struct ikvdb_kvs_hdl *ikvsh);
 
 void
 ikvdb_wal_replay_enable(struct ikvdb *ikvdb);

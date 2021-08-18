@@ -7,7 +7,6 @@
 #define HSE_KVS_CNDB_OMF_H
 
 #include <hse_util/omf.h>
-#include "../kvdb/kvdb_omf.h"
 
 /*****************************************************************
  *

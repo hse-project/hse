@@ -3,6 +3,7 @@
  * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
+#include "mapi_idx.h"
 #include <ftw.h>
 #include <dirent.h>
 
@@ -29,7 +30,6 @@
 #include <hse_ikvdb/rparam_debug_flags.h>
 #include <hse_ikvdb/argv.h>
 
-#include <kvdb/kvdb_log.h>
 #include <c0/c0_cursor.h>
 #include <c0/c0sk_internal.h>
 
@@ -55,7 +55,7 @@ test_pre(struct mtf_test_info *ti)
 {
     srand(time(NULL));
 
-    mock_kvdb_log_set();
+    mock_kvdb_meta_set();
     mock_cndb_set();
     mock_wal_set();
     mock_c0cn_set();
@@ -71,6 +71,8 @@ test_pre(struct mtf_test_info *ti)
     mapi_inject(mapi_idx_cndb_cn_drop, 0);
     mapi_inject(mapi_idx_c0_get_pfx_len, 0);
     mapi_inject(mapi_idx_mpool_mclass_props_get, ENOENT);
+    mapi_inject(mapi_idx_mpool_open, 0);
+    mapi_inject(mapi_idx_mpool_close, 0);
 
     return 0;
 }
@@ -78,7 +80,7 @@ test_pre(struct mtf_test_info *ti)
 static int
 test_post(struct mtf_test_info *ti)
 {
-    mock_kvdb_log_unset();
+    mock_kvdb_meta_unset();
     mock_c0cn_unset();
     mock_wal_unset();
 
@@ -90,6 +92,8 @@ test_post(struct mtf_test_info *ti)
     mapi_inject(mapi_idx_cndb_cn_drop, 0);
     mapi_inject_unset(mapi_idx_c0_get_pfx_len);
     mapi_inject(mapi_idx_mpool_mclass_props_get, ENOENT);
+    mapi_inject_unset(mapi_idx_mpool_open);
+    mapi_inject_unset(mapi_idx_mpool_close);
 
     return 0;
 }
@@ -99,7 +103,7 @@ test_pre_c0(struct mtf_test_info *ti)
 {
     srand(time(NULL));
 
-    mock_kvdb_log_set();
+    mock_kvdb_meta_set();
     mock_cndb_set();
     mock_wal_set();
     mock_cn_set();
@@ -109,6 +113,8 @@ test_pre_c0(struct mtf_test_info *ti)
 
     mapi_inject(mapi_idx_cn_get_ingest_perfc, 0);
     mapi_inject(mapi_idx_cndb_cn_drop, 0);
+    mapi_inject(mapi_idx_mpool_open, 0);
+    mapi_inject(mapi_idx_mpool_close, 0);
 
     return 0;
 }
@@ -116,12 +122,14 @@ test_pre_c0(struct mtf_test_info *ti)
 static int
 test_post_c0(struct mtf_test_info *ti)
 {
-    mock_kvdb_log_unset();
+    mock_kvdb_meta_set();
     mock_cn_unset();
     mock_wal_unset();
 
     mapi_inject_unset(mapi_idx_cn_get_ingest_perfc);
     mapi_inject(mapi_idx_cndb_cn_drop, 0);
+    mapi_inject(mapi_idx_mpool_open, 0);
+    mapi_inject(mapi_idx_mpool_close, 0);
 
     return 0;
 }
@@ -194,14 +202,13 @@ MTF_DEFINE_UTEST_PREPOST(ikvdb_test, init, test_pre, test_post)
     const char *        mpool = "mpool_alpha";
     struct ikvdb *      store = NULL;
     merr_t              err;
-    struct mpool *      ds = (struct mpool *)-1;
     const char *const   paramv[] = { "c0_diag_mode=1" };
     struct kvdb_rparams params = kvdb_rparams_defaults();
 
     err = argv_deserialize_to_kvdb_rparams(NELEM(paramv), paramv, &params);
     ASSERT_EQ(0, err);
 
-    err = ikvdb_open(mpool, &params, NULL, ds, NULL, &store);
+    err = ikvdb_open(mpool, &params, &store);
     ASSERT_EQ(0, err);
     ASSERT_NE(0, store);
 
@@ -214,7 +221,6 @@ MTF_DEFINE_UTEST_PREPOST(ikvdb_test, init_fail, test_pre, test_post)
     const char *        mpool = "mpool_alpha";
     struct ikvdb *      store;
     merr_t              err;
-    struct mpool *      ds = (struct mpool *)-1;
     const char *const   paramv[] = { "c0_diag_mode=1" };
     struct kvdb_rparams params = kvdb_rparams_defaults();
 
@@ -222,25 +228,13 @@ MTF_DEFINE_UTEST_PREPOST(ikvdb_test, init_fail, test_pre, test_post)
     ASSERT_EQ(0, err);
 
     mapi_inject_ptr(mapi_idx_malloc, 0);
-    err = ikvdb_open(mpool, &params, NULL, ds, NULL, &store);
-
+    err = ikvdb_open(mpool, &params, &store);
     ASSERT_EQ(ENOMEM, merr_errno(err));
     mapi_inject_unset(mapi_idx_malloc);
-
-    mapi_inject(mapi_idx_kvdb_log_open, merr(EBUG));
-    err = ikvdb_open(mpool, &params, NULL, ds, NULL, &store);
-    ASSERT_EQ(EBUG, merr_errno(err));
-    mapi_inject(mapi_idx_kvdb_log_open, 0);
-
-    mapi_inject(mapi_idx_kvdb_log_replay, merr(EBUG));
-    err = ikvdb_open(mpool, &params, NULL, ds, NULL, &store);
-    ASSERT_EQ(EBUG, merr_errno(err));
-    mapi_inject(mapi_idx_kvdb_log_replay, 0);
 }
 
 MTF_DEFINE_UTEST_PREPOST(ikvdb_test, basic_txn_alloc, test_pre, test_post)
 {
-    struct mpool *       ds = (struct mpool *)-1;
     const char *         mpool = "mpool_alpha";
     struct ikvdb *       store;
     struct hse_kvdb_txn *txn1, *txn2;
@@ -251,7 +245,7 @@ MTF_DEFINE_UTEST_PREPOST(ikvdb_test, basic_txn_alloc, test_pre, test_post)
     err = argv_deserialize_to_kvdb_rparams(NELEM(paramv), paramv, &params);
     ASSERT_EQ(0, err);
 
-    err = ikvdb_open(mpool, &params, NULL, ds, NULL, &store);
+    err = ikvdb_open(mpool, &params, &store);
     ASSERT_EQ(0, err);
 
     txn1 = ikvdb_txn_alloc(store);
@@ -271,7 +265,6 @@ MTF_DEFINE_UTEST_PREPOST(ikvdb_test, basic_txn_alloc, test_pre, test_post)
 
 MTF_DEFINE_UTEST_PREPOST(ikvdb_test, basic_lifecycle, test_pre, test_post)
 {
-    struct mpool *       ds = (struct mpool *)-1;
     const char *         mpool = "mpool_alpha";
     struct ikvdb *       store;
     struct hse_kvdb_txn *txn1, *txn2;
@@ -282,7 +275,7 @@ MTF_DEFINE_UTEST_PREPOST(ikvdb_test, basic_lifecycle, test_pre, test_post)
     err = argv_deserialize_to_kvdb_rparams(NELEM(paramv), paramv, &params);
     ASSERT_EQ(0, err);
 
-    err = ikvdb_open(mpool, &params, NULL, ds, NULL, &store);
+    err = ikvdb_open(mpool, &params, &store);
     ASSERT_EQ(0, err);
 
     txn1 = ikvdb_txn_alloc(store);
@@ -360,29 +353,6 @@ MTF_DEFINE_UTEST_PREPOST(ikvdb_test, basic_lifecycle, test_pre, test_post)
     ASSERT_EQ(0, err);
 }
 
-MTF_DEFINE_UTEST_PREPOST(ikvdb_test, ikvdb_create_test, test_pre, test_post)
-{
-    merr_t              err;
-    struct mpool *      ds = (struct mpool *)-1;
-    struct kvdb_cparams kp = kvdb_cparams_defaults();
-
-    mapi_inject(mapi_idx_mpool_mdc_alloc, 0);
-    mapi_inject(mapi_idx_mpool_mdc_commit, 0);
-    mapi_inject(mapi_idx_mpool_mdc_root_create, 0);
-    mapi_inject(mapi_idx_mpool_mdc_root_open, 0);
-    mapi_inject(mapi_idx_mpool_mdc_append, 1);
-    mapi_inject(mapi_idx_mpool_mdc_close, 1);
-    err = ikvdb_create(NULL, ds, &kp, 0);
-    ASSERT_EQ(0, err);
-
-    err = ikvdb_create(NULL, ds, &kp, 0);
-    ASSERT_EQ(0, err);
-
-    mapi_inject_unset(mapi_idx_mpool_mdc_append);
-    mapi_inject_unset(mapi_idx_mpool_mdc_alloc);
-    mapi_inject_unset(mapi_idx_mpool_mdc_commit);
-}
-
 MTF_DEFINE_UTEST_PREPOST(ikvdb_test, ikvdb_kvs_open_test, test_pre, test_post)
 {
     struct ikvdb *      hdl = NULL;
@@ -391,7 +361,6 @@ MTF_DEFINE_UTEST_PREPOST(ikvdb_test, ikvdb_kvs_open_test, test_pre, test_post)
     const char *        kvs = "kvs_gamma";
     const char *const   paramv[] = { "c0_diag_mode=1" };
     merr_t              err;
-    struct mpool *      ds = (struct mpool *)-1;
     struct kvdb_rparams params = kvdb_rparams_defaults();
     struct kvs_rparams  kvs_rp = kvs_rparams_defaults();
     struct kvs_cparams  kvs_cp = kvs_cparams_defaults();
@@ -399,7 +368,7 @@ MTF_DEFINE_UTEST_PREPOST(ikvdb_test, ikvdb_kvs_open_test, test_pre, test_post)
     err = argv_deserialize_to_kvdb_rparams(NELEM(paramv), paramv, &params);
     ASSERT_EQ(0, err);
 
-    err = ikvdb_open(mpool, &params, NULL, ds, NULL, &hdl);
+    err = ikvdb_open(mpool, &params, &hdl);
     ASSERT_EQ(0, err);
     ASSERT_NE(NULL, hdl);
 
@@ -436,7 +405,6 @@ MTF_DEFINE_UTEST_PREPOST(ikvdb_test, ikvdb_kvs_create_test, test_pre, test_post)
     const char *        mpool = "mpool_alpha";
     const char *        kvs = "kvs_gamma";
     merr_t              err;
-    struct mpool *      ds = (struct mpool *)-1;
     const char *const   paramv[] = { "c0_diag_mode=1" };
     unsigned int        cnt;
     struct kvdb_rparams params = kvdb_rparams_defaults();
@@ -445,7 +413,7 @@ MTF_DEFINE_UTEST_PREPOST(ikvdb_test, ikvdb_kvs_create_test, test_pre, test_post)
     err = argv_deserialize_to_kvdb_rparams(NELEM(paramv), paramv, &params);
     ASSERT_EQ(0, err);
 
-    err = ikvdb_open(mpool, &params, NULL, ds, NULL, &hdl);
+    err = ikvdb_open(mpool, &params, &hdl);
     ASSERT_EQ(0, err);
     ASSERT_NE(NULL, hdl);
 
@@ -483,7 +451,6 @@ MTF_DEFINE_UTEST_PREPOST(ikvdb_test, ikvdb_kvs_destroy_test, test_pre, test_post
     const char *        mpool = "mpool_alpha";
     const char *        kvs = "kvs_gamma";
     merr_t              err;
-    struct mpool *      ds = (struct mpool *)-1;
     unsigned int        cnt;
     const char *const   paramv[] = { "c0_diag_mode=1" };
     struct kvdb_rparams params = kvdb_rparams_defaults();
@@ -492,7 +459,7 @@ MTF_DEFINE_UTEST_PREPOST(ikvdb_test, ikvdb_kvs_destroy_test, test_pre, test_post
     err = argv_deserialize_to_kvdb_rparams(NELEM(paramv), paramv, &params);
     ASSERT_EQ(0, err);
 
-    err = ikvdb_open(mpool, &params, NULL, ds, NULL, &hdl);
+    err = ikvdb_open(mpool, &params, &hdl);
     ASSERT_EQ(0, err);
     ASSERT_NE(NULL, hdl);
 
@@ -523,7 +490,6 @@ MTF_DEFINE_UTEST_PREPOST(ikvdb_test, txn_del_test, test_pre, test_post)
     const char *const    kvdb_open_paramv[] = { "c0_diag_mode=1" };
     const char *const    kvs_open_paramv[] = { "transactions_enable=1" };
     merr_t               err;
-    struct mpool *       ds = (struct mpool *)-1;
     struct hse_kvdb_txn *txn;
     struct kvs_ktuple    kt;
     struct kvs_vtuple    vt;
@@ -544,7 +510,7 @@ MTF_DEFINE_UTEST_PREPOST(ikvdb_test, txn_del_test, test_pre, test_post)
     err = argv_deserialize_to_kvs_rparams(NELEM(kvs_open_paramv), kvs_open_paramv, &kvs_rp);
     ASSERT_EQ(0, err);
 
-    err = ikvdb_open(mpool, &kvdb_rp, NULL, ds, NULL, &h);
+    err = ikvdb_open(mpool, &kvdb_rp, &h);
     ASSERT_EQ(0, err);
     ASSERT_NE(NULL, h);
 
@@ -654,7 +620,6 @@ MTF_DEFINE_UTEST_PREPOST(ikvdb_test, txn_put_test, test_pre, test_post)
     const char *const   kvdb_open_paramv[] = { "c0_debug=16" };
     const char *const   kvs_open_paramv[] = { "transactions_enable=1" };
     merr_t              err;
-    struct mpool *      ds = (struct mpool *)-1;
     const int           num_txn = 256;
     struct tx_info      info[num_txn];
     pthread_t           th[num_txn];
@@ -672,7 +637,7 @@ MTF_DEFINE_UTEST_PREPOST(ikvdb_test, txn_put_test, test_pre, test_post)
     err = argv_deserialize_to_kvs_rparams(NELEM(kvs_open_paramv), kvs_open_paramv, &kvs_rp);
     ASSERT_EQ(0, err);
 
-    err = ikvdb_open(mpool, &kvdb_rp, NULL, ds, NULL, &h);
+    err = ikvdb_open(mpool, &kvdb_rp, &h);
     ASSERT_EQ(0, err);
     ASSERT_NE(NULL, h);
 
@@ -713,7 +678,6 @@ MTF_DEFINE_UTEST_PREPOST(ikvdb_test, aborted_txn_bind, test_pre, test_post)
     const char *const      kvdb_open_paramv[] = { "c0_debug=16", "c0_diag_mode=1" };
     const char *const      kvs_open_paramv[] = { "transactions_enable=1" };
     merr_t                 err;
-    struct mpool *         ds = (struct mpool *)-1;
     struct hse_kvdb_txn *  txn;
     struct hse_kvs_cursor *cur;
     struct kvdb_rparams    kvdb_rp = kvdb_rparams_defaults();
@@ -726,7 +690,7 @@ MTF_DEFINE_UTEST_PREPOST(ikvdb_test, aborted_txn_bind, test_pre, test_post)
     err = argv_deserialize_to_kvs_rparams(NELEM(kvs_open_paramv), kvs_open_paramv, &kvs_rp);
     ASSERT_EQ(0, err);
 
-    err = ikvdb_open(mpool, &kvdb_rp, NULL, ds, NULL, &kvdb_h);
+    err = ikvdb_open(mpool, &kvdb_rp, &kvdb_h);
     ASSERT_EQ(0, err);
     ASSERT_NE(NULL, kvdb_h);
 
@@ -767,7 +731,6 @@ MTF_DEFINE_UTEST_PREPOST(ikvdb_test, cursor_0, test_pre, test_post)
     const char *           kvs = "kvs";
     const char *const      paramv[] = { "c0_debug=16", "c0_diag_mode=1" };
     merr_t                 err;
-    struct mpool *         ds = (struct mpool *)-1;
     struct hse_kvdb_txn *  txn = NULL;
     struct hse_kvs_cursor *cur;
     const void *           key, *val;
@@ -780,7 +743,7 @@ MTF_DEFINE_UTEST_PREPOST(ikvdb_test, cursor_0, test_pre, test_post)
     err = argv_deserialize_to_kvdb_rparams(NELEM(paramv), paramv, &params);
     ASSERT_EQ(0, err);
 
-    err = ikvdb_open(mpool, &params, NULL, ds, NULL, &h);
+    err = ikvdb_open(mpool, &params, &h);
     ASSERT_EQ(0, err);
     ASSERT_NE(NULL, h);
 
@@ -825,7 +788,6 @@ MTF_DEFINE_UTEST_PREPOST(ikvdb_test, cursor_1, test_pre_c0, test_post_c0)
     struct hse_kvs *       kvs_h = NULL;
     const char *           mpool = "mpool";
     const char *           kvs = "kvs";
-    struct mpool *         ds = (struct mpool *)-1;
     const char *const      paramv[] = { "c0_diag_mode=1" };
     struct hse_kvdb_txn *  txn = NULL;
     struct hse_kvs_cursor *cur;
@@ -856,7 +818,8 @@ MTF_DEFINE_UTEST_PREPOST(ikvdb_test, cursor_1, test_pre_c0, test_post_c0)
     err = argv_deserialize_to_kvdb_rparams(NELEM(paramv), paramv, &params);
     ASSERT_EQ(0, err);
 
-    err = ikvdb_open(mpool, &params, NULL, ds, NULL, &h);
+    err = ikvdb_open(mpool, &params, &h);
+    printf("%s:%d\n", merr_file(err), merr_lineno(err));
     ASSERT_EQ(0, err);
     ASSERT_NE(NULL, h);
 
@@ -1472,7 +1435,6 @@ MTF_DEFINE_UTEST_PREPOST(ikvdb_test, cursor_cache, test_pre_c0, test_post_c0)
     struct ikvdb *      h = NULL;
     struct hse_kvs *    kvs_h[3];
     const char *        mpool = "mpool";
-    struct mpool *      ds = (struct mpool *)-1;
     const char *const   paramv[] = { "c0_diag_mode=1" };
     const int           num_threads = get_nprocs() * 3;
     struct cursor_info  info[num_threads];
@@ -1488,7 +1450,7 @@ MTF_DEFINE_UTEST_PREPOST(ikvdb_test, cursor_cache, test_pre_c0, test_post_c0)
     err = argv_deserialize_to_kvdb_rparams(NELEM(paramv), paramv, &params);
     ASSERT_EQ(0, err);
 
-    err = ikvdb_open(mpool, &params, NULL, ds, NULL, &h);
+    err = ikvdb_open(mpool, &params, &h);
     ASSERT_EQ(0, err);
     ASSERT_NE(NULL, h);
 
@@ -1625,7 +1587,6 @@ MTF_DEFINE_UTEST_PREPOST(ikvdb_test, cursor_2, test_pre_c0, test_post_c0)
 
 MTF_DEFINE_UTEST_PREPOST(ikvdb_test, kvdb_sync_test, test_pre, test_post)
 {
-    struct mpool *      ds = (struct mpool *)-1;
     struct ikvdb *      h = NULL;
     const char *        mpool = "mpool";
     const char *        kvs_base = "kvs";
@@ -1642,7 +1603,7 @@ MTF_DEFINE_UTEST_PREPOST(ikvdb_test, kvdb_sync_test, test_pre, test_post)
     err = argv_deserialize_to_kvdb_rparams(NELEM(paramv), paramv, &params);
     ASSERT_EQ(0, err);
 
-    err = ikvdb_open(mpool, &params, NULL, ds, NULL, &h);
+    err = ikvdb_open(mpool, &params, &h);
     ASSERT_EQ(0, err);
     ASSERT_NE(NULL, h);
 
@@ -1713,7 +1674,6 @@ MTF_DEFINE_UTEST_PREPOST(ikvdb_test, kvdb_parallel_kvs_opens, test_pre, test_pos
     merr_t              err;
     struct ikvdb *      h;
     struct thread_info  infov[num_threads];
-    struct mpool *      ds = (struct mpool *)-1;
     const char *        mpool = "mpool";
     const char *const   paramv[] = { "c0_diag_mode=1" };
     int                 rc;
@@ -1723,7 +1683,7 @@ MTF_DEFINE_UTEST_PREPOST(ikvdb_test, kvdb_parallel_kvs_opens, test_pre, test_pos
     err = argv_deserialize_to_kvdb_rparams(NELEM(paramv), paramv, &params);
     ASSERT_EQ(0, err);
 
-    err = ikvdb_open(mpool, &params, NULL, ds, NULL, &h);
+    err = ikvdb_open(mpool, &params, &h);
     ASSERT_EQ(0, err);
     ASSERT_NE(NULL, h);
 
@@ -1777,7 +1737,6 @@ MTF_DEFINE_UTEST_PREPOST(ikvdb_test, kvdb_parallel_kvs_makes, test_pre, test_pos
     merr_t              err;
     pthread_t           t[num_threads];
     struct thread_info  info = { 0 };
-    struct mpool *      ds = (struct mpool *)-1;
     char *              mpool = "mpool";
     const char *const   paramv[] = { "c0_diag_mode=1" };
     int                 rc;
@@ -1787,7 +1746,7 @@ MTF_DEFINE_UTEST_PREPOST(ikvdb_test, kvdb_parallel_kvs_makes, test_pre, test_pos
     err = argv_deserialize_to_kvdb_rparams(NELEM(paramv), paramv, &params);
     ASSERT_EQ(0, err);
 
-    err = ikvdb_open(mpool, &params, NULL, ds, NULL, &info.h);
+    err = ikvdb_open(mpool, &params, &info.h);
     ASSERT_EQ(0, err);
     ASSERT_NE(NULL, info.h);
 
@@ -1811,7 +1770,6 @@ MTF_DEFINE_UTEST_PREPOST(ikvdb_test, kvdb_parallel_kvs_makes, test_pre, test_pos
 MTF_DEFINE_UTEST_PREPOST(ikvdb_test, prefix_delete_test, test_pre, test_post)
 {
     merr_t              err;
-    struct mpool *      ds = (struct mpool *)-1;
     const char *const   kvdb_open_paramv[] = { "c0_diag_mode=1" };
     const char *const   kvs_make_paramv[] = { "pfx_len=4" };
     struct kvs_ktuple   kt;
@@ -1827,7 +1785,7 @@ MTF_DEFINE_UTEST_PREPOST(ikvdb_test, prefix_delete_test, test_pre, test_post)
     err = argv_deserialize_to_kvs_cparams(NELEM(kvs_make_paramv), kvs_make_paramv, &g_kvs_cp);
     ASSERT_EQ(0, err);
 
-    err = ikvdb_open("mpool", &kvdb_rp, NULL, ds, NULL, &kvdb);
+    err = ikvdb_open("mpool", &kvdb_rp, &kvdb);
     ASSERT_EQ(0, err);
     ASSERT_NE(NULL, kvdb);
 
@@ -1900,7 +1858,6 @@ MTF_DEFINE_UTEST_PREPOST(ikvdb_test, ikvdb_mclass_policies_test, test_pre, test_
     const char *          mpool = "mpool_alpha";
     struct ikvdb *        store = NULL;
     merr_t                err;
-    struct mpool *        ds = (struct mpool *)-1;
     struct mclass_policy *policy = NULL;
     const char **         default_policies;
     int                   count;
@@ -1910,7 +1867,7 @@ MTF_DEFINE_UTEST_PREPOST(ikvdb_test, ikvdb_mclass_policies_test, test_pre, test_
     count = mclass_policy_get_num_default_policies();
     default_policies = mclass_policy_get_default_policy_names();
 
-    err = ikvdb_open(mpool, &params, NULL, ds, NULL, &store);
+    err = ikvdb_open(mpool, &params, &store);
     ASSERT_EQ(0, err);
     ASSERT_NE(0, store);
 

@@ -141,7 +141,6 @@ merr_t
 kvs_open(
     struct ikvdb *      kvdb,
     struct kvdb_kvs *   kvs,
-    const char *        kvdb_home,
     struct mpool *      ds,
     struct cndb *       cndb,
     struct lc *         lc,
@@ -156,6 +155,7 @@ kvs_open(
     const char * kvs_name = kvdb_kvs_name(kvs);
     u64          cnid = kvdb_kvs_cnid(kvs);
 
+    assert(kvdb);
     assert(health);
 
     err = kvs_create(&ikvs, rp);
@@ -168,13 +168,12 @@ kvs_open(
      */
 
     ikvs->ikv_cnid = cnid;
-    ikvs->ikv_mpool_name = strdup(kvdb_home);
-    ikvs->ikv_kvs_name = strdup(kvs_name);
+    ikvs->ikv_kvs_name = strndup(kvs_name, HSE_KVS_NAME_LEN_MAX);
     ikvs->ikv_lc = lc;
     ikvs->ikv_wal = wal;
 
-    if (!ikvs->ikv_mpool_name || !ikvs->ikv_kvs_name) {
-        err = merr(ev(ENOMEM));
+    if (!ikvs->ikv_kvs_name) {
+        err = merr(ENOMEM);
         goto err_exit;
     }
 
@@ -188,7 +187,7 @@ kvs_open(
         cndb,
         cnid,
         &ikvs->ikv_rp,
-        kvdb_home,
+        ikvdb_home(kvdb),
         kvs_name,
         health,
         flags,
@@ -207,7 +206,7 @@ kvs_open(
     if (ev(err))
         goto err_exit;
 
-    kvs_perfc_alloc(kvdb_home, kvs_name, ikvs);
+    kvs_perfc_alloc(ikvdb_home(kvdb), kvs_name, ikvs);
 
     kvdb_kvs_set_ikvs(kvs, ikvs);
 
@@ -651,7 +650,6 @@ kvs_destroy(struct ikvs *kvs)
         return;
     }
 
-    free((void *)kvs->ikv_mpool_name);
     free((void *)kvs->ikv_kvs_name);
     free(kvs);
 }

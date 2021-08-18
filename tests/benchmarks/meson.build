@@ -41,19 +41,8 @@ tests = {
     },
 }
 
-# benchmarks may consume a great deal of space, so confine them to reuse a single home dir
-home_dir = tests_dir / 'benchmark'
-
-if not fs.exists(home_dir)
-    run_command(
-        'mkdir',
-        home_dir,
-        check: true,
-    )
-endif
-
 foreach t, params : tests
-    path = meson.current_source_dir() / t + '.py'
+    path = meson.current_source_dir() / '@0@.py'.format(t)
     testname = fs.stem(path)
 
     benchmark(
@@ -61,8 +50,6 @@ foreach t, params : tests
         python,
         args: [
             path,
-            '--home',
-            home_dir,
         ],
         env: run_env,
         depends: [hse_python_depends, params.get('depends', [])],

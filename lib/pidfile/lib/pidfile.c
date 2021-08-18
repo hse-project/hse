@@ -13,6 +13,7 @@
 #include <string.h>
 #include <sys/file.h>
 #include <unistd.h>
+#include <sys/stat.h>
 
 #include <cjson/cJSON.h>
 #include <bsd/string.h>
@@ -80,13 +81,14 @@ pidfile_deserialize(const char *home, struct pidfile *content)
     assert(home);
     assert(content);
 
-    FILE * pidf = NULL;
-    cJSON *root = NULL, *pid = NULL, *socket = NULL, *socket_path = NULL;
-    char * str = NULL;
-    int    rc = 0;
-    long   sz = 0;
-    size_t n = 0;
-    char   pidfile_path[PATH_MAX];
+    FILE *      pidf = NULL;
+    cJSON *     root = NULL, *pid = NULL, *socket = NULL, *socket_path = NULL;
+    char *      str = NULL;
+    int         rc = 0;
+    int         fd;
+    size_t      n = 0;
+    char        pidfile_path[PATH_MAX];
+    struct stat st;
 
     n = snprintf(pidfile_path, sizeof(pidfile_path), "%s/" PIDFILE_NAME, home);
     if (n >= sizeof(pidfile_path)) {
@@ -99,32 +101,33 @@ pidfile_deserialize(const char *home, struct pidfile *content)
         rc = errno;
         goto out;
     }
-    if (fseek(pidf, 0, SEEK_END)) {
-        rc = errno;
-        goto out;
-    }
-    sz = ftell(pidf);
-    if (sz == -1) {
-        rc = errno;
-        goto out;
-    }
-    rewind(pidf);
 
-    str = malloc(sz + 1);
+    fd = fileno(pidf);
+    if (fd == -1) {
+        rc = errno;
+        goto out;
+    }
+
+    if (fstat(fd, &st) == -1) {
+        rc = errno;
+        goto out;
+    }
+
+    str = malloc(st.st_size + 1);
     if (!str) {
         rc = ENOMEM;
         goto out;
     }
 
-    n = fread(str, 1, sz, pidf);
-    if (n != sz || ferror(pidf)) {
+    n = fread(str, st.st_size, 1, pidf);
+    if (n != 1 || ferror(pidf)) {
         rc = EIO;
         goto out;
     }
 
-    str[sz] = '\0';
+    str[st.st_size] = '\0';
 
-    root = cJSON_Parse(str);
+    root = cJSON_ParseWithLength(str, st.st_size);
     if (!root) {
         rc = EINVAL;
         goto out;

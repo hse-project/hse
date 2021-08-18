@@ -34,7 +34,7 @@
 
 source $(dirname "${BASH_SOURCE[0]}")/smoke.subr
 
-trap kvdb_drop EXIT SIGTERM SIGINT SIGKILL
+trap kvdb_drop EXIT
 kvdb_create
 
 node_size=32

@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2017 Micron Technology, Inc. All rights reserved.
+ * Copyright (C) 2015-2017,2021 Micron Technology, Inc. All rights reserved.
  */
 #ifndef HSE_UTEST_COMMON_H
 #define HSE_UTEST_COMMON_H
@@ -50,6 +50,7 @@ struct mtf_test_coll_info {
     const char *tci_named;
     int         tci_argc;
     char **     tci_argv;
+    int         tci_optind;
 
     /* test collection overall state */
     enum mtf_test_coll_state tci_state;

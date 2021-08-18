@@ -1,16 +1,9 @@
 run_env.append('PYTHONPATH', meson.current_source_dir())
 
+test_runner = find_program('test-runner')
 pytest = find_program('pytest', required: true)
 bash = find_program('bash')
 sh = find_program('sh') # write POSIX-compliant when easily doable
-
-if not fs.exists(tests_dir)
-    run_command(
-        'mkdir',
-        tests_dir,
-        check: true,
-    )
-endif
 
 # Suites to exclude based on varying factors
 additional_suite_exclusions = []
@@ -21,25 +14,37 @@ if get_option('b_sanitize') != 'none'
     additional_suite_exclusions += 'python'
     additional_suite_exclusions += 'hse-python'
 
-    run_env.set('UBSAN_OPTIONS', 'suppressions=@0@/suppressions/hse.undefined.supp'.format(meson.project_source_root()))
+    if get_option('b_sanitize').contains('undefined')
+        run_env.append('UBSAN_OPTIONS', 'suppressions=@0@/suppressions/hse.undefined.supp'.format(meson.project_source_root()))
+        run_env.append('UBSAN_OPTIONS', 'print_stacktrace=1')
+    endif
 endif
 
 add_test_setup(
     'default',
+    exe_wrapper: [
+        test_runner,
+        '--',
+    ],
     env: run_env,
     is_default: true,
     # TODO: Check with Meson 0.59 else PR to Meson...
-    exclude_suites: ['long', 'non-deterministic'] + additional_suite_exclusions,
+    exclude_suites: ['long', 'non-deterministic', 'stress', 'stress_large'] + additional_suite_exclusions,
 )
 
 add_test_setup(
     'ci',
+    exe_wrapper: [
+        test_runner,
+        '--',
+    ],
     env: run_env,
     is_default: false,
     # TODO: Check with Meson 0.59 else PR to Meson...
-    exclude_suites: ['long', 'smoke', 'non-deterministic'] + additional_suite_exclusions,
+    exclude_suites: ['long', 'smoke', 'non-deterministic', 'stress', 'stress_large'] + additional_suite_exclusions,
 )
 
 subdir('unit')
 subdir('functional')
+subdir('stress')
 subdir('benchmarks')

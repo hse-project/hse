@@ -6,7 +6,5 @@
 
 ## Verified checks?
 Have the checks completed?
-- [ ] All new and existing unit and functional tests pass
-- [ ] Checkoss passes
-- [ ] Code format check passes
+- [ ] meson test -C build --setup=ci
 - [ ] All commits are signed off

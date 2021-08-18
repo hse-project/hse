@@ -16,7 +16,6 @@
 
 #include <mpool/mpool.h>
 
-#include <kvdb/kvdb_omf.h>
 #include <cn/kvset.h>
 #include <cn/cndb_omf.h>
 #include <cn/cndb_internal.h>

@@ -1,45 +1,12 @@
 tests = {
-    'kvdb_api_test': {
-        'args': [
-            '--home',
-            tests_dir / 'kvdb_api_test',
-        ],
-    },
-    'transaction_api_test': {
-        'args': [
-            '--home',
-            tests_dir / 'transaction_api_test',
-        ],
-    },
-    'kvs_put_get_delete_api_test': {
-        'args': [
-            '--home',
-            tests_dir / 'kvs_put_get_delete_api_test',
-        ],
-    },
-    'kvs_lifecycle_test': {
-        'args': [
-            '--home',
-            tests_dir / 'kvs_lifecycle_test',
-        ],
-    },
-    'cursor_api_test': {
-        'args': [
-            '--home',
-            tests_dir / 'cursor_api_test',
-        ],
-    }
+    'kvdb_api_test': {},
+    'transaction_api_test': {},
+    'kvs_put_get_delete_api_test': {},
+    'kvs_lifecycle_test': {},
+    'cursor_api_test': {}
 }
 
 foreach t, params : tests
-    home_dir = tests_dir / t
-    if not fs.exists(home_dir)
-        run_command(
-            'mkdir',
-            home_dir,
-        )
-    endif
-
     t_exe = executable(
         t,
         [
@@ -56,6 +23,7 @@ foreach t, params : tests
         ],
         dependencies: [
             hse_static_dep,
+            hse_dependencies,
             params.get('dependencies', [])
         ],
     )

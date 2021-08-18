@@ -278,7 +278,7 @@ test_collection_setup(struct mtf_test_info *info)
 
     optind = 1;
 
-    while (-1 != (c = getopt(tci->tci_argc, tci->tci_argv, ":cm"))) {
+    while (-1 != (c = getopt(tci->tci_argc - tci->tci_optind, tci->tci_argv + tci->tci_optind, ":cm"))) {
         switch (c) {
         case 'c':
             allocm = HSE_ALLOC_CURSOR;

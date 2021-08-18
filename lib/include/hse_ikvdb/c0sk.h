@@ -338,6 +338,9 @@ c0sk_gen_current(void);
 void
 c0sk_gen_set(struct c0sk *handle, uint64_t gen);
 
+uint32_t
+c0sk_ingest_width_get(struct c0sk *handle);
+
 void
 c0sk_replaying_enable(struct c0sk *handle);
 

@@ -32,6 +32,7 @@ struct wal_replay_gen {
 
     uint64_t               rg_krcnt;
     uint64_t               rg_maxseqno;
+    uint64_t               rg_bytes;
 };
 
 struct wal_replay_work {
@@ -166,24 +167,21 @@ wal_replay_close(struct wal_replay *rep, bool failed)
         struct rb_root *root = &cgen->rg_root;
         struct wal_rec *cur, *next;
 
-        rbtree_postorder_for_each_entry_safe(cur, next, root, node) {
+        rbtree_postorder_for_each_entry_safe(cur, next, root, node)
             kmem_cache_free(rep->r_cache, cur);
-        }
 
         list_del_init(&cgen->rg_link);
         free(cgen);
     }
 
-    rbtree_postorder_for_each_entry_safe(ctxm, ntxm, &rep->r_txm_root, node) {
+    rbtree_postorder_for_each_entry_safe(ctxm, ntxm, &rep->r_txm_root, node)
         kmem_cache_free(rep->r_txm_cache, ctxm);
-    }
 
     for (i = 0; i < rep->r_cnt; i++) {
         struct wal_replay_gen_info *rginfo = rep->r_ginfo + i;
 
-        rbtree_postorder_for_each_entry_safe(ctxm, ntxm, &rginfo->txm_root, node) {
+        rbtree_postorder_for_each_entry_safe(ctxm, ntxm, &rginfo->txm_root, node)
             kmem_cache_free(rep->r_txm_cache, ctxm);
-        }
     }
 
     wal_fileset_replay_free(wal_fset(wal), failed);
@@ -460,6 +458,7 @@ wal_replay_gen_init(struct wal_replay_gen *rgen, struct wal_replay_gen_info *rgi
     rgen->rg_info = rginfo->info;
     rgen->rg_krcnt = 0;
     rgen->rg_maxseqno = 0;
+    rgen->rg_bytes = 0;
 }
 
 static void
@@ -551,9 +550,8 @@ wal_replay_gen_impl(struct wal_replay *rep, struct wal_replay_gen *rgen, bool fl
             hse_log(HSE_CRIT "WAL replay: Unrecognized record op %d in gen %lu, failing replay",
                     rec->op, rgen->rg_gen);
 
-            rbtree_postorder_for_each_entry_safe(cur, next, root, node) {
+            rbtree_postorder_for_each_entry_safe(cur, next, root, node)
                 kmem_cache_free(rep->r_cache, cur);
-            }
 
             return err;
         }
@@ -590,8 +588,15 @@ wal_replay_core(struct wal_replay *rep)
      */
     ikvdb_wal_replay_enable(ikvdb);
 
+    cur = list_first_entry_or_null(&rep->r_head, typeof(*cur), rg_link);
+    if (cur && cur->rg_bytes != 0) {
+        if (ikvdb_wal_replay_size_set(ikvdb, rep->r_ikvsh, cur->rg_bytes))
+            ikvdb_sync(ikvdb, HSE_FLAG_SYNC_ASYNC);
+    }
+
     list_for_each_entry_safe(cur, next, &rep->r_head, rg_link) {
         merr_t err;
+        bool   flush = false, last_entry;
 
         /* Set the c0kvms gen to the gen that's about to be replayed */
         ikvdb_wal_replay_gen_set(ikvdb, cur->rg_gen);
@@ -602,9 +607,13 @@ wal_replay_core(struct wal_replay *rep)
             return err;
         }
 
-        /* Flush all c0kvmses except the last one */
-        if (cur->rg_krcnt && (cur != list_last_entry(&rep->r_head, typeof(*cur), rg_link))) {
-            err = ikvdb_sync(ikvdb, HSE_FLAG_SYNC_ASYNC);
+        if (next && next->rg_bytes != 0)
+            flush = ikvdb_wal_replay_size_set(ikvdb, rep->r_ikvsh, next->rg_bytes);
+
+        last_entry = !next;
+
+        if (flush || cur->rg_krcnt || last_entry) {
+            err = ikvdb_sync(ikvdb, last_entry ? 0 : HSE_FLAG_SYNC_ASYNC);
             if (err) {
                 ikvdb_wal_replay_disable(ikvdb);
                 return err;
@@ -625,7 +634,9 @@ wal_replay_core(struct wal_replay *rep)
 
     ikvdb_wal_replay_disable(ikvdb);
 
-    return ikvdb_sync(ikvdb, 0); /* Sync the last c0kvms */
+    ikvdb_wal_replay_size_reset(rep->r_ikvsh);
+
+    return ikvdb_sync(ikvdb, 0); /* Sync a final time after restoring all replay settings */
 }
 
 static merr_t
@@ -634,6 +645,7 @@ wal_replay_consolidate(struct wal_replay *rep)
     struct wal_replay_gen *prev_rgen = NULL, *cur, *next;
     merr_t err = 0;
     uint64_t prev_gen = 0;
+    uint64_t pmax_seqno = 0;
     int i;
 
     for (i = 0; i < rep->r_cnt; i++) {
@@ -671,27 +683,22 @@ wal_replay_consolidate(struct wal_replay *rep)
     }
 
     /* Fix seqno bounds. Set min bound of a gen based on the max bound of the previous gen */
-    list_for_each_entry_safe(cur, next, &rep->r_head, rg_link) {
-        uint64_t cmin_seqno, cmax_seqno, nmin_seqno;
+    list_for_each_entry(cur, &rep->r_head, rg_link) {
+        uint64_t cmin_seqno = cur->rg_info.min_seqno;
+        uint64_t cmax_seqno = cur->rg_info.max_seqno;
 
-        if (!next)
-            break;
-
-        cmin_seqno = cur->rg_info.min_seqno;
-        cmax_seqno = cur->rg_info.max_seqno;
-
-        if (ev(cmin_seqno == UINT64_MAX && cmax_seqno == 0))
+        if (cmin_seqno == UINT64_MAX && cmax_seqno == 0) {
+            if (cur == list_last_entry(&rep->r_head, typeof(*cur), rg_link) && pmax_seqno > 0) {
+                cur->rg_info.min_seqno = pmax_seqno + 1;
+                cur->rg_info.max_seqno = UINT64_MAX;
+            }
             continue; /* neither commit records nor non-tx recs in this gen, skip it */
-
-        nmin_seqno = next->rg_info.min_seqno;
-
-        if (nmin_seqno == UINT64_MAX) {
-            assert(next == list_last_entry(&rep->r_head, typeof(*next), rg_link));
-            next->rg_info.min_seqno = cmax_seqno + 1;
-            next->rg_info.max_seqno = UINT64_MAX;
-        } else if (nmin_seqno <= cmax_seqno) {
-            next->rg_info.min_seqno = cmax_seqno + 1;
         }
+
+        if (cmin_seqno <= pmax_seqno)
+            cur->rg_info.min_seqno = pmax_seqno + 1;
+
+        pmax_seqno = cmax_seqno;
     }
 
     return 0;
@@ -899,6 +906,9 @@ wal_replay_worker(struct work_struct *work)
             break;
         }
 
+        trgen->rg_bytes += (sizeof(struct bonsai_node) + sizeof(struct bonsai_kv) +
+            sizeof(struct bonsai_val) + rec->kt.kt_len + kvs_vtuple_vlen(&rec->vt));
+
         (rec->hdr.type == WAL_RT_TX) ? ntxrecs++ : nrecs++;
     }
 
@@ -966,10 +976,6 @@ wal_replay(struct wal *wal, struct wal_replay_info *rinfo)
     struct wal_replay *rep = NULL;
     merr_t err = 0;
 
-    err = wal_mdc_replay(wal_mdc(wal), wal);
-    if (err)
-        return err;
-
     if (wal_is_rdonly(wal) || wal_is_clean(wal))
         return 0; /* clean shutdown */
 
@@ -1036,8 +1042,8 @@ wal_replay_dump_rgen(struct wal_replay *rep)
     struct wal_replay_gen *cur;
 
     list_for_each_entry(cur, &rep->r_head, rg_link) {
-        hse_log(HSE_NOTICE "WAL replay: Gen %lu Seqno (%lu : %lu)", cur->rg_gen,
-                cur->rg_info.min_seqno, cur->rg_info.max_seqno);
+        hse_log(HSE_NOTICE "WAL replay: Gen %lu Seqno (%lu : %lu) Memsz: %lu", cur->rg_gen,
+                cur->rg_info.min_seqno, cur->rg_info.max_seqno, cur->rg_bytes);
     }
 }
 #endif

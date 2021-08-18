@@ -6,6 +6,7 @@
 #ifndef MPOOL_MBLOCK_FILE_H
 #define MPOOL_MBLOCK_FILE_H
 
+#include <rbtree/rbtree.h>
 #include <hse_util/hse_err.h>
 
 #include "mclass.h"
@@ -54,6 +55,7 @@ struct mblock_mmap;
 struct mblock_rgnmap;
 struct mblock_fset;
 struct mblock_file;
+struct kmem_cache;
 struct io_ops;
 
 /**
@@ -97,6 +99,18 @@ struct mblock_file_stats {
     uint32_t mbcnt;
 };
 
+/**
+ * struct mblock_rgn -
+ * @rgn_node:  rb-tree linkage
+ * @rgn_start: first available key
+ * @rgn_end:   last available key (not inclusive)
+ */
+struct mblock_rgn {
+    struct rb_node rgn_node;
+    uint32_t       rgn_start;
+    uint32_t       rgn_end;
+};
+
 static HSE_ALWAYS_INLINE int
 file_id(uint64_t mbid)
 {
@@ -123,6 +137,7 @@ mclassid(uint64_t mbid)
  * @params:    mblock file params
  * @flags:     open flags
  * @meta_addr: mapped region in the mclass metadata file for this file
+ * @rmcache:   region map kmem cache
  * @handle:    mblock file handle (output)
  *
  */
@@ -133,6 +148,7 @@ mblock_file_open(
     struct mblock_file_params *params,
     int                        flags,
     char                      *meta_addr,
+    struct kmem_cache         *rmcache,
     struct mblock_file       **handle);
 
 /**

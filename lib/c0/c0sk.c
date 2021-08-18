@@ -489,6 +489,7 @@ c0sk_open(
     struct c0sk_impl *    c0sk;
     merr_t                err;
     uint                  tdmax;
+    void                **stashp;
 
     assert(health);
 
@@ -559,7 +560,9 @@ c0sk_open(
     if (gen > 0)
         c0kvms_gen_init(gen);
 
-    err = c0kvms_create(c0sk->c0sk_ingest_width, c0sk->c0sk_kvdb_seq, &c0sk->c0sk_stash, &c0kvms);
+    stashp = HSE_LIKELY(atomic_read(&c0sk->c0sk_replaying) == 0) ? &c0sk->c0sk_stash : NULL;
+
+    err = c0kvms_create(c0sk->c0sk_ingest_width, c0sk->c0sk_kvdb_seq, stashp, &c0kvms);
     if (err)
         goto errout;
 
@@ -664,7 +667,6 @@ c0sk_lc_set(struct c0sk *handle, struct lc *lc)
 
     self = c0sk_h2r(handle);
     self->c0sk_lc = lc;
-    atomic64_set(&self->c0sk_ingest_min, lc_ingest_seqno_get(lc));
 }
 
 struct lc *
@@ -1757,6 +1759,18 @@ c0sk_replaying_disable(struct c0sk *handle)
 
     self = c0sk_h2r(handle);
     atomic_set(&self->c0sk_replaying, 0);
+}
+
+uint32_t
+c0sk_ingest_width_get(struct c0sk *handle)
+{
+    struct c0sk_impl *self;
+
+    assert(handle);
+
+    self = c0sk_h2r(handle);
+
+    return self->c0sk_ingest_width;
 }
 
 #if HSE_MOCKING

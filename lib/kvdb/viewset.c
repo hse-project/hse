@@ -442,17 +442,16 @@ viewset_insert(struct viewset *handle, u64 *viewp, u64 *tseqnop, void **cookiep)
 void
 viewset_remove(
     struct viewset *handle,
-    void *                  cookie,
-    u32 *                   min_changed,
-    u64 *                   min_view_sn)
+    void           *cookie,
+    u32            *min_changed,
+    u64            *min_view_sn)
 {
     struct viewset_impl *self = viewset_h2r(handle);
-    struct viewset_entry *   entry, *first;
-    struct viewset_tree *    tree;
-    struct viewset_bkt *     bkt;
-    u64                          entry_sn;
-    u64                          min_sn;
-    bool                         changed;
+    struct viewset_entry *entry, *first;
+    struct viewset_tree *tree;
+    struct viewset_bkt *bkt;
+    u64 entry_sn, min_sn;
+    bool changed;
 
     assert(handle);
     assert(cookie);

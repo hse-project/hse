@@ -121,4 +121,51 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_pfxlock_test, write_conflict, mapi_pre, mapi_
     kvdb_ctxn_pfxlock_destroy(txn1);
     kvdb_ctxn_pfxlock_destroy(txn2);
 }
+
+MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_pfxlock_test, excl_inheritance, mapi_pre, mapi_post)
+{
+    const u64 hash = 1;
+    merr_t    err;
+
+    struct kvdb_ctxn_pfxlock *txn1, *txn2, *txn3, *txn4;
+
+    /* Begin txn1 */
+    g_txn_horizon = 10;
+    err = kvdb_ctxn_pfxlock_create(kpl, 10, &txn1);
+    ASSERT_EQ(0, err);
+
+    /* Begin txn2 */
+    err = kvdb_ctxn_pfxlock_create(kpl, 20, &txn2);
+    ASSERT_EQ(0, err);
+
+    err = kvdb_ctxn_pfxlock_excl(txn2, hash);
+    ASSERT_EQ(0, err);
+
+    kvdb_ctxn_pfxlock_seqno_pub(txn2, 30); /* Commit w/ seqno=30 */
+
+    /* Begin txn3 */
+    err = kvdb_ctxn_pfxlock_create(kpl, 40, &txn3);
+    ASSERT_EQ(0, err);
+
+    err = kvdb_ctxn_pfxlock_shared(txn3, hash);
+    ASSERT_EQ(0, err);
+
+    kvdb_ctxn_pfxlock_seqno_pub(txn3, 50); /* Commit w/ seqno=50 */
+
+    /* The old txn shouldn't pass because it was created before the excl lock was unlocked */
+    err = kvdb_ctxn_pfxlock_shared(txn1, hash);
+    ASSERT_EQ(ECANCELED, merr_errno(err));
+
+    err = kvdb_ctxn_pfxlock_create(kpl, 60, &txn4);
+    ASSERT_EQ(0, err);
+
+    err = kvdb_ctxn_pfxlock_excl(txn4, hash);
+    ASSERT_EQ(0, err);
+
+    kvdb_ctxn_pfxlock_destroy(txn1);
+    kvdb_ctxn_pfxlock_destroy(txn2);
+    kvdb_ctxn_pfxlock_destroy(txn3);
+    kvdb_ctxn_pfxlock_destroy(txn4);
+}
+
 MTF_END_UTEST_COLLECTION(kvdb_ctxn_pfxlock_test);

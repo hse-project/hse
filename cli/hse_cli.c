@@ -50,11 +50,8 @@
         arg1 > arg2 ? arg1 : arg2; \
     })
 
-#define STR(X) X
-
 #define YAML_BUF_SIZE (16 * 1024)
 
-typedef uint64_t mp_err_t;
 typedef uint64_t hse_err_t;
 
 #define INTERNAL_ERROR()                                                \
@@ -63,12 +60,6 @@ typedef uint64_t hse_err_t;
         assert(0);                                                      \
         exit(-1);                                                       \
     } while (0)
-
-enum help_style {
-    help_style_full = 0,
-    help_style_leaf_summary,
-    help_style_usage,
-};
 
 /* Max len of any individual command.  Not enforced.  It is only used
  * for sizing.  See CLI_CMD_PATH_LEN_MAX.
@@ -122,7 +113,6 @@ struct cli_cmd {
 struct cli {
     bool            hse_init;
     bool            help_show_all;
-    enum help_style help_style;
     char            home[PATH_MAX];
     struct cli_cmd *cmd;
     int             argc;
@@ -142,13 +132,13 @@ static cli_cmd_func_t cli_hse_kvdb_create;
 static cli_cmd_func_t cli_hse_kvdb_drop;
 static cli_cmd_func_t cli_hse_kvdb_info;
 static cli_cmd_func_t cli_hse_kvdb_compact;
-static cli_cmd_func_t cli_hse_kvdb_params;
+/* static cli_cmd_func_t cli_hse_kvdb_params; */
 struct cli_cmd        cli_hse_kvdb_commands[] = {
     { "create", "Create a KVDB", cli_hse_kvdb_create, 0 },
     { "drop", "Drop a KVDB", cli_hse_kvdb_drop, 0 },
-    { "info", "Display KVDB information", cli_hse_kvdb_info, 0 },
+    { "info", "Display information for a KVDB", cli_hse_kvdb_info, 0 },
     { "compact", "Compact a KVDB", cli_hse_kvdb_compact, 0 },
-    { "params", "Show KVDB configuration parameters", cli_hse_kvdb_params, 0 },
+    /* { "params", "Show configuration parameters for a KVDB", cli_hse_kvdb_params, 0 }, */
     { 0 },
 };
 
@@ -271,10 +261,9 @@ cli_cmd_lookup(struct cli_cmd *cmdv, const char *name)
  * If @sub_commands != 0, the subcomands will be listed.
  */
 static void
-cmd_print_help(struct cli_cmd *cmd, enum help_style style, FILE *fp)
+cmd_print_help(struct cli_cmd *cmd, FILE *fp)
 {
     const struct name_desc *nd;
-    const char *            vert_space = "";
 
     bool have_subs;
     int  i, width;
@@ -283,95 +272,71 @@ cmd_print_help(struct cli_cmd *cmd, enum help_style style, FILE *fp)
 
     have_subs = cmd->cmd_subcommandv && cmd->cmd_subcommandv->cmd_name;
 
-    switch (style) {
+    fprintf(fp, "Usage: %*s%s", ilvl * tabw, "", cmd->cmd_path);
+    for (i = 0; cmd->cmd_spec->usagev[i]; i++)
+        fprintf(fp, "%*s%s%s", i == 0 ? 1 : ((ilvl + 1) * tabw), "", cmd->cmd_spec->usagev[i],
+            cmd->cmd_spec->usagev[i + 1] ? "\n" : "");
 
-        case help_style_leaf_summary:
-            if (!have_subs) {
-                fprintf(fp, "%*s%s:\n", ilvl * tabw, "", cmd->cmd_describe);
-                fprintf(fp, "%*s%s", (ilvl + 1) * tabw, "", cmd->cmd_path);
-                for (i = 0; cmd->cmd_spec->usagev[i]; i++)
-                    printf(
-                        "%*s%s\n", i == 0 ? 1 : ((ilvl + 2) * tabw), "", cmd->cmd_spec->usagev[i]);
-                if (!i)
-                    fprintf(fp, "\n");
-            }
-            break;
-
-        case help_style_full:
-            fprintf(fp, "\n%*s%s:\n\n", ilvl * tabw, "", cmd->cmd_describe);
-            vert_space = "\n";
-            ilvl += 1;
-        /* FALLTHROUGH */
-        default: {
-            fprintf(fp, "%*s%s", ilvl * tabw, "", cmd->cmd_path);
-            for (i = 0; cmd->cmd_spec->usagev[i]; i++)
-                printf("%*s%s\n", i == 0 ? 1 : ((ilvl + 1) * tabw), "", cmd->cmd_spec->usagev[i]);
-            if (i == 0)
-                fprintf(fp, "\n");
-            if (i > 0)
-                fprintf(fp, "%s", vert_space);
-
-            nd = cmd->cmd_spec->optionv;
-            width = 0;
-            for (i = 0; nd[i].name; i++)
-                width = max(width, strlen(nd[i].name));
-            width += 4;
-            width = max(width, 24);
-            for (i = 0; nd[i].name; i++) {
-                if (i == 0)
-                    fprintf(fp, "%*sOptions:\n", ilvl * tabw, "");
-                fprintf(fp, "%*s%-*s%s\n", (ilvl + 1) * tabw, "", width, nd[i].name, nd[i].desc);
-            }
-            if (i > 0)
-                fprintf(fp, "%s", vert_space);
-
-            nd = cmd->cmd_spec->configv;
-            width = 0;
-            for (i = 0; nd[i].name; i++)
-                width = max(width, strlen(nd[i].name));
-            width += 4;
-            width = max(width, 24);
-            for (i = 0; nd[i].name; i++) {
-                if (i == 0)
-                    fprintf(fp, "%*sConfig parameters:\n", ilvl * tabw, "");
-                fprintf(fp, "%*s%-*s%s\n", (ilvl + 1) * tabw, "", width, nd[i].name, nd[i].desc);
-            }
-            if (i > 0)
-                fprintf(fp, "%s", vert_space);
-
-            if (have_subs) {
-
-                struct cli_cmd *sub;
-
-                width = 0;
-                for (sub = cmd->cmd_subcommandv; sub->cmd_name; sub++)
-                    width = max(width, strlen(sub->cmd_name));
-                width += 4;
-                width = max(width, 24);
-
-                fprintf(fp, "%*sCommands:\n", ilvl * tabw, "");
-                for (sub = cmd->cmd_subcommandv; sub->cmd_name; sub++) {
-                    fprintf(
-                        fp,
-                        "%*s%-*s%s\n",
-                        (ilvl + 1) * tabw,
-                        "",
-                        width,
-                        sub->cmd_name,
-                        sub->cmd_describe);
-                }
-                fprintf(fp, "%s", vert_space);
-            }
-
-            for (i = 0; i < NELEM(cmd->cmd_spec->extra_help); i++) {
-                const char *msg = cmd->cmd_spec->extra_help[i];
-                if (!msg)
-                    break;
-                fprintf(fp, "%*s%s\n", ilvl * tabw, "", msg);
-            }
-
-        } break;
+    nd = cmd->cmd_spec->optionv;
+    width = 0;
+    for (i = 0; nd[i].name; i++)
+        width = max(width, strlen(nd[i].name));
+    width += 4;
+    width = max(width, 24);
+    for (i = 0; nd[i].name; i++) {
+        if (i == 0)
+            fprintf(fp, "\n\n%*sOptions:\n", ilvl * tabw, "");
+        fprintf(fp, "%*s%-*s%s%s", (ilvl + 1) * tabw, "", width,
+            nd[i].name, nd[i].desc, nd[i + 1].name ? "\n" : "");
     }
+
+    nd = cmd->cmd_spec->configv;
+    width = 0;
+    for (i = 0; nd[i].name; i++) {
+        width = max(width, strlen(nd[i].name));
+    }
+    width += 4;
+    width = max(width, 24);
+    for (i = 0; nd[i].name; i++) {
+        if (i == 0)
+            fprintf(fp, "\n\n%*sParameters:\n", ilvl * tabw, "");
+        fprintf(fp, "%*s%-*s%s%s", (ilvl + 1) * tabw, "", width,
+            nd[i].name, nd[i].desc, nd[i + 1].name ? "\n" : "");
+    }
+
+    if (have_subs) {
+        struct cli_cmd *sub;
+
+        width = 0;
+        for (sub = cmd->cmd_subcommandv; sub->cmd_name; sub++)
+            width = max(width, strlen(sub->cmd_name));
+        width += 4;
+        width = max(width, 24);
+
+        fprintf(fp, "\n\n%*sCommands:\n", ilvl * tabw, "");
+        for (sub = cmd->cmd_subcommandv; sub->cmd_name; sub++) {
+            fprintf(
+                fp,
+                "%*s%-*s%s%s",
+                (ilvl + 1) * tabw,
+                "",
+                width,
+                sub->cmd_name,
+                sub->cmd_describe,
+                (sub + 1)->cmd_name ? "\n" : "");
+        }
+    }
+
+    for (i = 0; cmd->cmd_spec->extra_help[i]; i++) {
+        const char *msg = cmd->cmd_spec->extra_help[i];
+        if (i == 0)
+            fprintf(fp, "\n\n");
+        fprintf(fp, "%*s%s%s", ilvl * tabw, "", msg,
+            cmd->cmd_spec->extra_help[i + 1] ? "\n" : "");
+    }
+
+    /* Final newline. All other prints should go before this. */
+    fprintf(fp, "\n");
 }
 
 /**
@@ -437,7 +402,7 @@ cli_hook(struct cli *cli, struct cli_cmd *cmd, const struct cmd_spec *spec)
 
     if (cli->help_show_all) {
         struct cli_cmd *sub;
-        cmd_print_help(cmd, cli->help_style, stdout);
+        cmd_print_help(cmd, stdout);
         for (sub = cmd->cmd_subcommandv; sub && sub->cmd_name; sub++)
             sub->cmd_main(sub, cli);
         return 1;
@@ -578,24 +543,22 @@ cli_hse_kvdb_create_impl(struct cli *cli)
             case EINVAL:
                 fprintf(
                     stderr,
-                    STR("KVDB '%s' creation failed. Potentially received an invalid home directory "
-                        "or an invalid parameter."),
+                    "Failed to create the KVDB (%s). Potentially received an invalid KVDB home directory "
+                    "or an invalid parameter.\n",
                     cli->home);
                 break;
             case EEXIST:
                 fprintf(
                     stderr,
-                    STR("KVDB '%s' already exists. You can drop and "
-                        "recreate kvdb '%s'.\n"
-                        "Please ensure that the media class data directory is empty.\n"),
-                    cli->home,
+                    "KVDB (%s) already exists. You can drop and "
+                    "recreate the KVDB.\n",
                     cli->home);
                 break;
             case ENOENT:
                 fprintf(
                     stderr,
-                    STR("KVDB '%s' creation failed. Please ensure that the KVDB home and "
-                        "the media class paths exist.\n"),
+                    "Failed to create the KVDB (%s). Please ensure that the KVDB home and "
+                    "any specified media class paths exist.\n",
                     cli->home);
                 break;
             default:
@@ -605,7 +568,7 @@ cli_hse_kvdb_create_impl(struct cli *cli)
         goto done;
     }
 
-    printf("Successfully created KVDB %s\n", cli->home);
+    printf("Successfully created the KVDB (%s)\n", cli->home);
 
 done:
     free(paramv);
@@ -640,13 +603,13 @@ cli_hse_kvdb_drop_impl(struct cli *cli)
         goto done;
     }
 
-    printf("Successfully dropped KVDB %s\n", cli->home);
+    printf("Successfully dropped the KVDB (%s)\n", cli->home);
 
 done:
     free(paramv);
 
     if (herr && hse_err_to_errno(herr) == ENOENT)
-        fprintf(stderr, "Failed to drop, KVDB '%s' doesn't exist\n", cli->home);
+        fprintf(stderr, "Failed to drop the KVDB (%s) because it does not exist\n", cli->home);
 
     return (herr || rc) ? -1 : 0;
 }
@@ -677,13 +640,13 @@ cli_hse_kvdb_info_impl(struct cli *cli)
 
     count = kvdb_info_print(cli->home, NELEM(paramv), paramv, &yc, (bool)verbosity);
     if (count < 0) {
-        fprintf(stderr, "%s: unable to retrieve KVDB storage information\n", cli->cmd->cmd_path);
+        fprintf(stderr, "Failed to retrieve KVDB (%s) storage information\n", cli->home);
         rc = -1;
         goto done;
     }
 
     if (count == 0) {
-        fprintf(stderr, "No such KVDB\n");
+        fprintf(stderr, "No such KVDB (%s)\n", cli->home);
         rc = -1;
     }
 
@@ -776,7 +739,7 @@ cli_hse_kvdb(struct cli_cmd *self, struct cli *cli)
 
     sub_name = cli_next_arg(cli);
     if (!sub_name || help) {
-        cmd_print_help(self, help_style_usage, help ? stdout : stderr);
+        cmd_print_help(self, help ? stdout : stderr);
         return help ? 0 : EX_USAGE;
     }
 
@@ -831,7 +794,7 @@ cli_hse_kvdb_create(struct cli_cmd *self, struct cli *cli)
     }
 
     if (help) {
-        cmd_print_help(self, help_style_usage, help ? stdout : stderr);
+        cmd_print_help(self, help ? stdout : stderr);
         return help ? 0 : EX_USAGE;
     }
 
@@ -844,7 +807,7 @@ cli_hse_kvdb_drop(struct cli_cmd *self, struct cli *cli)
     const struct cmd_spec spec = {
         .usagev =
             {
-                "[options]",
+                "[options] [<param>=<value>]...",
                 NULL,
             },
         .optionv =
@@ -880,7 +843,7 @@ cli_hse_kvdb_drop(struct cli_cmd *self, struct cli *cli)
     }
 
     if (help) {
-        cmd_print_help(self, help_style_usage, help ? stdout : stderr);
+        cmd_print_help(self, help ? stdout : stderr);
         return help ? 0 : EX_USAGE;
     }
 
@@ -934,7 +897,7 @@ cli_hse_kvdb_info(struct cli_cmd *self, struct cli *cli)
     }
 
     if (help) {
-        cmd_print_help(self, help_style_usage, stdout);
+        cmd_print_help(self, stdout);
         return 0;
     }
 
@@ -1003,9 +966,9 @@ cli_hse_kvdb_compact(struct cli_cmd *self, struct cli *cli)
                 if (parse_u32(optarg, &timeout_secs)) {
                     fprintf(
                         stderr,
-                        STR("%s: unable to parse"
-                            " '%s' as an unsigned 32-bit"
-                            " scalar value\n"),
+                        "%s: unable to parse"
+                        " '%s' as an unsigned 32-bit"
+                        " scalar value\n",
                         self->cmd_path,
                         optarg);
                     return EX_USAGE;
@@ -1017,93 +980,91 @@ cli_hse_kvdb_compact(struct cli_cmd *self, struct cli *cli)
     }
 
     if (help) {
-        cmd_print_help(self, help_style_usage, stdout);
+        cmd_print_help(self, stdout);
         return 0;
     }
 
     return cli_hse_kvdb_compact_impl(cli, cli->home, status, cancel, timeout_secs);
 }
 
-static int
-cli_hse_kvdb_params_impl(struct cli *cli, const char *home)
-{
-    const char *extra_arg;
+// static int
+// cli_hse_kvdb_params_impl(struct cli *cli, const char *home)
+// {
+//     const char *extra_arg;
 
-    if (cli_hse_init(cli))
-        return -1;
+//     if (cli_hse_init(cli))
+//         return -1;
 
-    /* This command hits the REST interface, so we don't need or
-     * support config files or command line hse param settings.
-     */
-    extra_arg = cli_next_arg(cli);
-    if (extra_arg) {
-        fprintf(
-            stderr,
-            "%s: unexpected parameter: '%s', use -h for help.\n",
-            cli->cmd->cmd_path,
-            extra_arg);
-        return EX_USAGE;
-    }
+//     /* This command hits the REST interface, so we don't need or
+//      * support config files or command line hse param settings.
+//      */
+//     extra_arg = cli_next_arg(cli);
+//     if (extra_arg) {
+//         fprintf(
+//             stderr,
+//             "%s: unexpected parameter: '%s', use -h for help.\n",
+//             cli->cmd->cmd_path,
+//             extra_arg);
+//         return EX_USAGE;
+//     }
 
-    return hse_kvdb_params(home, true);
-}
+//     return hse_kvdb_params(home, true);
+// }
 
-static int
-cli_hse_kvdb_params(struct cli_cmd *self, struct cli *cli)
-{
-    const struct cmd_spec spec = {
-        .usagev =
-            {
-                "[options]",
-                NULL,
-            },
-        .optionv =
-            {
-                OPTION_HELP,
-                { NULL },
-            },
-        .longoptv =
-            {
-                { "help", no_argument, 0, 'h' },
-                { NULL },
-            },
-        .configv =
-            {
-                { NULL },
-            },
-        .extra_help = {
-            "Notes:",
-            "  - Only operates on KVDBs that are currently open by another application.",
-            "  - Shows configuration parameter settings for the KVDB and for all KVSes",
-            "    that the application has open.",
-            NULL,
-        },
-    };
+// static int
+// cli_hse_kvdb_params(struct cli_cmd *self, struct cli *cli)
+// {
+//     const struct cmd_spec spec = {
+//         .usagev =
+//             {
+//                 "[options]",
+//                 NULL,
+//             },
+//         .optionv =
+//             {
+//                 OPTION_HELP,
+//                 { NULL },
+//             },
+//         .longoptv =
+//             {
+//                 { "help", no_argument, 0, 'h' },
+//                 { NULL },
+//             },
+//         .configv =
+//             {
+//                 { NULL },
+//             },
+//         .extra_help = {
+//             "Only operates on KVDBs that are currently open by another application.",
+//             "Shows configuration parameter settings for the KVDB and for all KVSes",
+//             "that the application has open.",
+//             NULL,
+//         },
+//     };
 
-    bool help = false;
-    int  c;
+//     bool help = false;
+//     int  c;
 
-    if (cli_hook(cli, self, &spec))
-        return 0;
+//     if (cli_hook(cli, self, &spec))
+//         return 0;
 
-    while (-1 != (c = cli_getopt(cli))) {
+//     while (-1 != (c = cli_getopt(cli))) {
+//         switch (c) {
+//             case 'h':
+//                 help = true;
+//                 break;
+//             default:
+//                 return EX_USAGE;
+//         }
+//     }
 
-        switch (c) {
-            case 'h':
-                help = true;
-                break;
-            default:
-                return EX_USAGE;
-        }
-    }
+//     if (help) {
+//         cmd_print_help(self, stdout);
+//         return 0;
+//     }
 
-    if (help) {
-        cmd_print_help(self, help_style_usage, stdout);
-        return 0;
-    }
-
-    return cli_hse_kvdb_params_impl(cli, cli->home);
-}
+//     return cli_hse_kvdb_params_impl(cli, cli->home);
+// }
 
 static int
 cli_hse_kvs_create_impl(struct cli *cli, const char *home, const char *kvs)
@@ -1142,8 +1103,10 @@ cli_hse_kvs_create_impl(struct cli *cli, const char *home, const char *kvs)
             case ENOENT:
                 fprintf(
                     stderr,
-                    STR("KVDB '%s' doesn't exist or was partially created. You can drop and "
-                        "recreate kvdb '%s'.\n"),
+                    "Failed to create the KVS (%s). The KVDB (%s) does not exist "
+                    "or was previously partially created. Please drop and "
+                    "recreate the KVDB. It may be required to run 'rm -rf %s/*'.\n",
+                    kvs,
                     cli->home,
                     cli->home);
                 break;
@@ -1160,7 +1123,7 @@ cli_hse_kvs_create_impl(struct cli *cli, const char *home, const char *kvs)
         goto done;
     }
 
-    printf("Successfully created KVS %s\n", kvs);
+    printf("Successfully created the KVS (%s)\n", kvs);
 
 done:
     free(kvs_paramv);
@@ -1193,8 +1156,8 @@ cli_hse_kvs_drop_impl(struct cli *cli, const char *home, const char *kvs)
             case ENOENT:
                 fprintf(
                     stderr,
-                    STR("KVDB '%s' doesn't exist or was partially created. You can drop and "
-                        "recreate kvdb '%s'.\n"),
+                    "KVDB (%s) does not exist or was partially created. Please drop and "
+                    "recreate the KVDB. It may be required to run 'rm -rf %s/*'.\n",
                     cli->home,
                     cli->home);
                 break;
@@ -1211,7 +1174,7 @@ cli_hse_kvs_drop_impl(struct cli *cli, const char *home, const char *kvs)
         goto done;
     }
 
-    printf("Successfully dropped KVS %s\n", kvs);
+    printf("Successfully dropped the KVS (%s)\n", kvs);
 
 done:
     hse_kvdb_close(db);
@@ -1251,8 +1214,6 @@ cli_hse_kvs_create(struct cli_cmd *self, struct cli *cli)
     if (cli_hook(cli, self, &spec))
         return 0;
 
-    kvs = cli_next_arg(cli);
-
     while (-1 != (c = cli_getopt(cli))) {
         switch (c) {
             case 'h':
@@ -1263,8 +1224,10 @@ cli_hse_kvs_create(struct cli_cmd *self, struct cli *cli)
         }
     }
 
+    kvs = cli_next_arg(cli);
+
     if (!kvs || help) {
-        cmd_print_help(self, help_style_usage, help ? stdout : stderr);
+        cmd_print_help(self, help ? stdout : stderr);
         return help ? 0 : EX_USAGE;
     }
 
@@ -1317,7 +1280,7 @@ cli_hse_kvs_drop(struct cli_cmd *self, struct cli *cli)
 
     kvs = cli_next_arg(cli);
     if (!kvs || help) {
-        cmd_print_help(self, help_style_usage, help ? stdout : stderr);
+        cmd_print_help(self, help ? stdout : stderr);
         return help ? 0 : EX_USAGE;
     }
 
@@ -1372,7 +1335,7 @@ cli_hse_kvs(struct cli_cmd *self, struct cli *cli)
     sub_name = cli_next_arg(cli);
 
     if (!sub_name || help) {
-        cmd_print_help(self, help_style_usage, help ? stdout : stderr);
+        cmd_print_help(self, help ? stdout : stderr);
         return help ? 0 : EX_USAGE;
     }
 
@@ -1398,7 +1361,6 @@ cli_hse(struct cli_cmd *self, struct cli *cli)
             {
                 { "[-C|--home]",    "Home directory" },
                 { "[-h|--help]",    "Print help (use -hv for more help)" },
-                { "[-S|--summary]", "Print one-line summary of all commands" },
                 { "[-V|--version]", "Print version" },
                 { "[-v|--verbose]", "Increase verbosity" },
                 { NULL },
@@ -1407,7 +1369,6 @@ cli_hse(struct cli_cmd *self, struct cli *cli)
             {
                 { "home", required_argument, 0, 'C' },
                 { "help", no_argument, 0, 'h' },
-                { "summary", no_argument, 0, 'S' },
                 { "verbose", no_argument, 0, 'v' },
                 { "version", no_argument, 0, 'V' },
                 { NULL },
@@ -1418,9 +1379,9 @@ cli_hse(struct cli_cmd *self, struct cli *cli)
             },
         .extra_help = {
             "Examples:",
-            "  hse -hv               # get help on all commands",
-            "  hse kvdb -h           # get help on KVDB commands",
-            "  hse kvdb create test  # create a KVDB named 'test'",
+            "  hse kvdb -h              # get help on KVDB commands",
+            "  hse -C test kvdb create  # create a KVDB in the 'test' directory",
+            "  hse -C test kvs create   # create a KVS in the 'test' directory KVDB",
             NULL,
         },
     };
@@ -1430,7 +1391,6 @@ cli_hse(struct cli_cmd *self, struct cli *cli)
     int             c;
     bool            help = false;
     bool            version = false;
-    bool            summary = false;
 
     if (cli_hook(cli, self, &spec))
         return 0;
@@ -1441,16 +1401,13 @@ cli_hse(struct cli_cmd *self, struct cli *cli)
                 const size_t n = strlcpy(cli->home, optarg, sizeof(cli->home));
 
                 if (n >= sizeof(cli->home)) {
-                    fprintf(stderr, "Length of home directory path is >= PATH_MAX (%d)", PATH_MAX);
+                    fprintf(stderr, "Length of KVDB home directory path is >= PATH_MAX (%d)", PATH_MAX);
                     return ENAMETOOLONG;
                 }
                 break;
             }
             case 'h':
                 help = true;
-                break;
-            case 'S':
-                summary = true;
                 break;
             case 'V':
                 version = true;
@@ -1464,28 +1421,8 @@ cli_hse(struct cli_cmd *self, struct cli *cli)
     }
 
     if (help) {
-        if (verbosity) {
-            /* show help for all commands (can't do it here
-             * though-- have to pop out of the "cli" stack do
-             * it from there).
-             */
-            cli->help_show_all = true;
-            cli->help_style = help_style_full;
-            return 0;
-        }
-
         /* show help for this command */
-        cmd_print_help(self, help_style_usage, stdout);
-        return 0;
-    }
-
-    if (summary) {
-        /* show command summary (can't do it here
-         * though-- have to pop out of the "cli" stack do
-         * it from there).
-         */
-        cli->help_show_all = true;
-        cli->help_style = help_style_leaf_summary;
+        cmd_print_help(self, stdout);
         return 0;
     }
 
@@ -1502,7 +1439,7 @@ cli_hse(struct cli_cmd *self, struct cli *cli)
 
     sub_name = cli_next_arg(cli);
     if (!sub_name) {
-        cmd_print_help(self, help_style_usage, stderr);
+        cmd_print_help(self, stderr);
         return EX_USAGE;
     }
 
@@ -1533,17 +1470,6 @@ main(int argc, char **argv)
         INTERNAL_ERROR();
 
     rc = cli_root.cmd_main(&cli_root, &cli);
-
-    if (!rc && cli.help_show_all) {
-        /* ugliness :( */
-        enum help_style style = cli.help_style;
-        rc = cli_init(&cli, argc, argv);
-        if (rc)
-            INTERNAL_ERROR();
-        cli.help_show_all = true;
-        cli.help_style = style;
-        cli_root.cmd_main(&cli_root, &cli);
-    }
 
     cli_hse_fini(&cli);
 

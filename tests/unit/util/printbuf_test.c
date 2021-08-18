@@ -297,7 +297,7 @@ MTF_DEFINE_UTEST(printbuf, u64_to_string_test)
     ASSERT_EQ(cc2, 0);
 
     for (i = 0; i < 64; ++i) {
-        u64 val = i > 0 ? (1u << i) | i : 0;
+        u64 val = i > 0 ? (1UL << i) | i : 0;
 
         cc2 = u64_to_string(dst2, sizeof(dst2), val);
         cc3 = snprintf(dst3, sizeof(dst3), "%lu", val);

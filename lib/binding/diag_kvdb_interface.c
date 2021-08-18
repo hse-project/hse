@@ -51,10 +51,6 @@ diag_kvdb_open(
     if (ev(err))
         goto close_mp;
 
-    err = ikvdb_log_deserialize_to_kvdb_rparams(real_home, &params);
-    if (err)
-        goto close_mp;
-
     err = argv_deserialize_to_kvdb_rparams(paramc, paramv, &params);
     if (err)
         goto close_mp;
@@ -65,6 +61,10 @@ diag_kvdb_open(
 
     err = config_deserialize_to_kvdb_rparams(conf, &params);
     if (err)
+        goto close_mp;
+
+    err = kvdb_rparams_resolve(&params, real_home);
+    if (ev(err))
         goto close_mp;
 
     err = kvdb_home_pidfile_path_get(kvdb_home, pidfile_path, sizeof(pidfile_path));
@@ -88,17 +88,12 @@ diag_kvdb_open(
 
     perfc_verbosity = params.perfc_enable;
 
-    /* Need write access in case recovery data needs to be replayed into cN.
-     * Need exclusive access to prevent multiple applications from
-     * working on the same KVDB, which would cause corruption.
-     */
-    err = mpool_open(real_home, &params.storage, O_RDWR, &mp);
+    err = ikvdb_diag_open(real_home, &params, &ikvdb);
     if (ev(err))
         goto close_mp;
 
-    err = ikvdb_diag_open(real_home, pfh, mp, &params, &ikvdb);
-    if (ev(err))
-        goto close_mp;
+    ikvdb_pidfh_attach(ikvdb, pfh);
+    ikvdb_config_attach(ikvdb, conf);
 
     *handle = (struct hse_kvdb *)ikvdb;
 

@@ -69,7 +69,7 @@ cmd () {
 		0) ;;
 		1)
 			if [ $status -ne 0 ]; then
-				err -s $status "ERROR: Expectend success, got $status\n\t$@"
+				err -s $status "ERROR: Expected success, got $status\n\t$@"
 			fi
 			;;
 		2)

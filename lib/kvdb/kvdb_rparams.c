@@ -808,50 +808,31 @@ static const struct param_spec pspecs[] = {
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
         .ps_default_value = {
-            .as_uscalar = 0,
+            .as_uscalar = HSE_WAL_DUR_MS_DFLT,
         },
         .ps_bounds = {
             .as_uscalar = {
-                .ps_min = 0,
+                .ps_min = HSE_WAL_DUR_MS_MIN,
                 .ps_max = HSE_WAL_DUR_MS_MAX,
             },
         },
     },
     {
-        .ps_name = "dur_buf_sz",
-        .ps_description = "durability buffer size in bytes",
+        .ps_name = "dur_bufsz_mb",
+        .ps_description = "durability buffer size in MiB",
         .ps_flags = PARAM_FLAG_EXPERIMENTAL,
-        .ps_type = PARAM_TYPE_U32,
-        .ps_offset = offsetof(struct kvdb_rparams, dur_buf_sz),
-        .ps_size = sizeof(((struct kvdb_rparams *) 0)->dur_buf_sz),
+        .ps_type = PARAM_TYPE_U64,
+        .ps_offset = offsetof(struct kvdb_rparams, dur_bufsz_mb),
+        .ps_size = sizeof(((struct kvdb_rparams *) 0)->dur_bufsz_mb),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
         .ps_default_value = {
-            .as_uscalar = 0,
+            .as_uscalar = HSE_WAL_DUR_BUFSZ_MB_DFLT,
         },
         .ps_bounds = {
             .as_uscalar = {
-                .ps_min = 0,
-                .ps_max = HSE_WAL_DUR_BYTES_MAX,
-            },
-        },
-    },
-    {
-        .ps_name = "dur_delay_pct",
-        .ps_description = "durability delay percent",
-        .ps_flags = PARAM_FLAG_EXPERIMENTAL,
-        .ps_type = PARAM_TYPE_U32,
-        .ps_offset = offsetof(struct kvdb_rparams, dur_delay_pct),
-        .ps_size = sizeof(((struct kvdb_rparams *) 0)->dur_delay_pct),
-        .ps_convert = param_default_converter,
-        .ps_validate = param_default_validator,
-        .ps_default_value = {
-            .as_uscalar = 30,
-        },
-        .ps_bounds = {
-            .as_uscalar = {
-                .ps_min = 0,
-                .ps_max = 100,
+                .ps_min = HSE_WAL_DUR_BUFSZ_MB_MIN,
+                .ps_max = HSE_WAL_DUR_BUFSZ_MB_MAX,
             },
         },
     },
@@ -893,22 +874,24 @@ static const struct param_spec pspecs[] = {
             },
         },
     },
-    {
-        .ps_name = "dur_throttle_enable",
-        .ps_description = "enable durablity throttling",
-        .ps_flags = PARAM_FLAG_EXPERIMENTAL,
-        .ps_type = PARAM_TYPE_U32,
-        .ps_offset = offsetof(struct kvdb_rparams, dur_throttle_enable),
-        .ps_size = sizeof(((struct kvdb_rparams *) 0)->dur_throttle_enable),
+	{
+        .ps_name = "dur_mclass",
+        .ps_description = "media class to use for WAL files",
+        .ps_flags = 0,
+        .ps_type = PARAM_TYPE_ENUM,
+        .ps_offset = offsetof(struct kvdb_rparams, dur_mclass),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
         .ps_default_value = {
-            .as_uscalar = 1,
+            .as_enum = MP_MED_NAME_CAPACITY,
         },
         .ps_bounds = {
-            .as_uscalar = {
-                .ps_min = 0,
-                .ps_max = 1,
+            .as_enum = {
+                .ps_num_values = MP_MED_COUNT,
+                .ps_values = {
+                    MP_MED_NAME_CAPACITY,
+                    MP_MED_NAME_STAGING,
+                },
             },
         },
     },
@@ -1258,7 +1241,7 @@ static const struct param_spec pspecs[] = {
     {
         .ps_name = "storage.capacity.path",
         .ps_description = "Storage path for capacity mclass",
-        .ps_flags = PARAM_FLAG_EXPERIMENTAL | PARAM_FLAG_NULLABLE,
+        .ps_flags = 0,
         .ps_type = PARAM_TYPE_STRING,
         .ps_offset = offsetof(struct kvdb_rparams, storage.mclass[MP_MED_CAPACITY].path),
         .ps_convert = param_default_converter,
@@ -1276,7 +1259,7 @@ static const struct param_spec pspecs[] = {
         {
         .ps_name = "storage.staging.path",
         .ps_description = "Storage path for staging mclass",
-        .ps_flags = PARAM_FLAG_EXPERIMENTAL | PARAM_FLAG_NULLABLE,
+        .ps_flags = PARAM_FLAG_NULLABLE,
         .ps_type = PARAM_TYPE_STRING,
         .ps_offset = offsetof(struct kvdb_rparams, storage.mclass[MP_MED_STAGING].path),
         .ps_convert = param_default_converter,

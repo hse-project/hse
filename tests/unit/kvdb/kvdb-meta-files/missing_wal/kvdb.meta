@@ -1,0 +1,14 @@
+{
+	"cndb": {
+		"oid1": 1,
+		"oid2": 2
+	},
+	"storage": {
+		"capacity": {
+			"path": "capacity"
+		},
+		"staging": {
+			"path": "staging"
+		}
+	}
+}

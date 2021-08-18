@@ -93,17 +93,19 @@ int
 setup(struct mtf_test_info *lcl_ti)
 {
     struct mtf_test_coll_info *coll_info = lcl_ti->ti_coll;
-    int                        len;
+    int                        len, idx;
 
-    if (coll_info->tci_argc != 2) {
-        hse_log(HSE_ERR "Usage:  %s <mblock_image_dir>", coll_info->tci_argv[0]);
+    if (coll_info->tci_argc - coll_info->tci_optind != 1) {
+        hse_log(HSE_ERR "Usage: %s [test framework options] <mblock_image_dir>", coll_info->tci_argv[0]);
         return -1;
     }
 
-    len = strlen(coll_info->tci_argv[1]);
-    if (coll_info->tci_argv[1][len - 1] == '/')
-        coll_info->tci_argv[1][len - 1] = 0;
-    strncpy(data_path, coll_info->tci_argv[1], sizeof(data_path) - 1);
+    idx = coll_info->tci_optind;
+
+    len = strlen(coll_info->tci_argv[idx]);
+    if (coll_info->tci_argv[idx][len - 1] == '/')
+        coll_info->tci_argv[idx][len - 1] = 0;
+    strncpy(data_path, coll_info->tci_argv[idx], sizeof(data_path) - 1);
 
     return 0;
 }
@@ -268,8 +270,10 @@ reverse:
         xlen = strlen(keyv[cnt]) - plen + (kblock->null_terminated ? 1 : 0);
         ASSERT_EQ(klen, xlen);
 
-        rc = memcmp(pfx, keyv[cnt], plen);
-        ASSERT_EQ(0, rc);
+		if (pfx) {
+			rc = memcmp(pfx, keyv[cnt], plen);
+			ASSERT_EQ(0, rc);
+		}
         rc = memcmp(kdata, keyv[cnt] + plen, klen);
         ASSERT_EQ(0, rc);
 
@@ -349,8 +353,10 @@ t_seek_helper(struct mtf_test_info *lcl_ti, struct test_kblock *kblock, bool rev
         xlen = strlen(keyv[idx]) - plen + (kblock->null_terminated ? 1 : 0);
         ASSERT_EQ(klen, xlen);
 
-        rc = memcmp(pfx, keyv[idx], plen);
-        ASSERT_EQ(0, rc);
+		if (pfx) {
+        	rc = memcmp(pfx, keyv[idx], plen);
+        	ASSERT_EQ(0, rc);
+		}
         rc = memcmp(kdata, keyv[idx] + plen, klen);
         ASSERT_EQ(0, rc);
         idx += inc;

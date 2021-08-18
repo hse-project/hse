@@ -23,12 +23,4 @@ struct mpool_mdc;
 struct media_class *
 mdc_mclass_get(struct mpool_mdc *mdc);
 
-/**
- * mpool_mdc_sync() - sync the root MDC
- *
- * @mdc: mdc handle
- */
-merr_t
-mpool_mdc_sync(struct mpool_mdc *mdc);
-
 #endif /* MPOOL_MDC_H */

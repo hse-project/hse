@@ -257,8 +257,8 @@ MTF_DEFINE_UTEST_PREPOST(mblock_test, mblock_abc, mpool_test_pre, mpool_test_pos
 
     err = mpool_stats_get(mp, &stats);
     ASSERT_EQ(0, err);
-    ASSERT_LT(stats.mps_allocated, 68 << 20);
-    ASSERT_LT(stats.mps_used, 68 << 20);
+    ASSERT_LT(stats.mps_allocated, 100 << 20);
+    ASSERT_LT(stats.mps_used, 100 << 20);
     ASSERT_EQ(1, stats.mps_mblock_cnt);
     ASSERT_EQ(0, strncmp(capacity_path, stats.mps_path[MP_MED_CAPACITY], sizeof(capacity_path)));
     ASSERT_EQ(0, strncmp(staging_path, stats.mps_path[MP_MED_STAGING], sizeof(staging_path)));
@@ -516,6 +516,7 @@ MTF_DEFINE_UTEST_PREPOST(mblock_test, mblock_invalid_args, mpool_test_pre, mpool
     struct mblock_file_params *params = (struct mblock_file_params *)0x1234;
     struct mblock_file        *mbfp = (struct mblock_file *)0x1234;
     struct mblock_file_stats   mbstats = {};
+    struct kmem_cache         *rmcache = (struct kmem_cache *)0x1234;
     struct iovec              *iov = (struct iovec *)0x1234;
 
     char    *addr = (char *)0x1234;
@@ -619,19 +620,22 @@ MTF_DEFINE_UTEST_PREPOST(mblock_test, mblock_invalid_args, mpool_test_pre, mpool
     ASSERT_EQ(EINVAL, merr_errno(err));
 
     /* mblock_file.c */
-    err = mblock_file_open(NULL, mc, params, 0, addr, &mbfp);
+    err = mblock_file_open(NULL, mc, params, 0, addr, rmcache, &mbfp);
     ASSERT_EQ(EINVAL, merr_errno(err));
 
-    err = mblock_file_open(mbfsp, NULL, params, 0, addr, &mbfp);
+    err = mblock_file_open(mbfsp, NULL, params, 0, addr, rmcache, &mbfp);
     ASSERT_EQ(EINVAL, merr_errno(err));
 
-    err = mblock_file_open(mbfsp, mc, NULL, 0, addr, &mbfp);
+    err = mblock_file_open(mbfsp, mc, NULL, 0, addr, rmcache, &mbfp);
     ASSERT_EQ(EINVAL, merr_errno(err));
 
-    err = mblock_file_open(mbfsp, mc, params, 0, NULL, &mbfp);
+    err = mblock_file_open(mbfsp, mc, params, 0, NULL, rmcache, &mbfp);
     ASSERT_EQ(EINVAL, merr_errno(err));
 
-    err = mblock_file_open(mbfsp, mc, params, 0, addr, NULL);
+    err = mblock_file_open(mbfsp, mc, params, 0, addr, NULL, &mbfp);
+    ASSERT_EQ(EINVAL, merr_errno(err));
+
+    err = mblock_file_open(mbfsp, mc, params, 0, addr, rmcache, NULL);
     ASSERT_EQ(EINVAL, merr_errno(err));
 
     mblock_file_close(NULL);

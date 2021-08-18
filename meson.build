@@ -55,16 +55,26 @@ relative_dir = run_command(
 if cc.has_argument('-fmacro-prefix-map=/prefix/to/hide=')
 	add_project_arguments(
 		'-fmacro-prefix-map=@0@='.format(relative_dir),
-		language: 'c',
+		language: 'c'
 	)
 else
 	add_project_arguments(
 		'-DHSE_REL_SRC_DIR="@0@"'.format(relative_dir),
-		language: 'c',
+		language: 'c'
 	)
 endif
 
-git = find_program('git')
+if get_option('b_sanitize').contains('undefined')
+    if cc.has_argument('-fno-sanitize-recover=undefinded') and cc.has_argument('-fsanitize-recover=alignment')
+        add_project_arguments(
+            '-fno-sanitize-recover=undefinded',
+            '-fsanitize-recover=alignment',
+            language: 'c'
+        )
+    endif
+endif
+
+git = find_program('git', required: false)
 if git.found() and fs.exists(meson.project_source_root() / '.git')
     build_tag = run_command(
         git,
@@ -146,6 +156,7 @@ elif get_option('debug')
 endif
 
 add_project_arguments(
+    '-D_LGPL_SOURCE',
     '-Wlogical-op',
     '-Wno-missing-field-initializers',
     '-Wmaybe-uninitialized',
@@ -155,6 +166,13 @@ add_project_arguments(
     '-DHSE_LOG_PRI_DEFAULT=@0@'.format(log_pri_default),
     language: 'c',
 )
+
+if get_option('debug')
+    add_project_arguments(
+        '-DWITH_INVARIANTS',
+        language: 'c'
+    )
+endif
 
 build_rtype = build_stype
 build_number_result = run_command(
@@ -197,7 +215,7 @@ liburcu_bp_dep = dependency(
     required: true,
     fallback: ['userspace-rcu', 'liburcu_bp_dep'],
     default_options: [
-        'default_library=static',
+        'default_library=shared',
         'warning_level=0',
         'werror=false',
     ],
@@ -274,7 +292,7 @@ libmicrohttpd_dep = dependency(
     required: true,
     fallback: ['libmicrohttpd', 'libmicrohttpd_dep'],
     default_options: [
-        'default_library=static',
+        'default_library=shared',
         'warning_level=0',
         'werror=false',
     ],
@@ -351,12 +369,6 @@ else
     endforeach
 endif
 
-if get_option('tests-dir') == ''
-    tests_dir = meson.project_build_root() / 'hse-tests'
-else
-    tests_dir = get_option('tests-dir')
-endif
-
 # Add paths to these variables if you want to see targets in the runtime
 # environment
 executable_paths = []
@@ -416,7 +428,6 @@ if 'python' in bindings
         default_options: [
             'experimental=@0@'.format(get_option('experimental')),
             'tests=@0@'.format(get_option('tests')),
-            'tests-dir=@0@'.format(tests_dir),
         ],
     )
 

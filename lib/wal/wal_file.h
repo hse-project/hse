@@ -31,6 +31,9 @@ wal_fileset_close(
     uint64_t            ingestgen,
     uint64_t            txhorizon);
 
+void
+wal_fileset_mclass_update(struct wal_fileset *wfset, enum mpool_mclass mclass);
+
 merr_t
 wal_file_open(
     struct wal_fileset *wfset,

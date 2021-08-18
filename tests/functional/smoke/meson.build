@@ -249,15 +249,6 @@ tests = {
 }
 
 foreach t, params : tests
-    home_dir = tests_dir / t
-    if not fs.exists(home_dir)
-        run_command(
-            'mkdir',
-            home_dir,
-            check: true,
-        )
-    endif
-
     # Make sure every file is executable
     run_command(
         sh,
@@ -270,15 +261,18 @@ foreach t, params : tests
         t,
         bash,
         args: [
-            meson.current_source_dir() / t,
-            '-C', home_dir,
+            t,
         ],
         timeout: 1800,
         is_parallel: true,
+        workdir: meson.current_source_dir(),
         suite: ['functional'] + params.get('suites', []),
         depends: [
             hse_cli_symlink,
             params.get('depends', []),
         ],
+        env: environment({
+            'HSE_TEST_RUNNER_RUNNER': 'bash',
+        })
     )
 endforeach

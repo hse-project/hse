@@ -1,0 +1,16 @@
+name: Feature Requests
+labels: [feature-request]
+description: Describe the feature you would like added
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for opening an issue. Please be sure to review contributing guidelines.
+        Review the [RFC process](https://github.com/hse-project/rfcs) to determine if your request requires an RFC.
+  - type: textarea
+    id: feature-description
+    attributes:
+      label: Description
+      placeholder: A clear and concise description of the feature.
+    validations:
+      required: true

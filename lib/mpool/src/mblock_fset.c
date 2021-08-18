@@ -9,6 +9,7 @@
 #include <hse_util/logging.h>
 #include <hse_util/page.h>
 #include <hse_util/string.h>
+#include <hse_util/slab.h>
 
 #include "omf.h"
 #include "mclass.h"
@@ -17,9 +18,10 @@
 
 /* clang-format off */
 
-#define MBLOCK_FSET_HDR_LEN    (4096)
-#define MBLOCK_FSET_NAME_LEN   (32)
-#define GB_SHIFT               (30)
+#define MBLOCK_FSET_HDR_LEN        (4096)
+#define MBLOCK_FSET_NAME_LEN       (32)
+#define GB_SHIFT                   (30)
+#define MBLOCK_FSET_RMCACHE_CNT    (4)
 
 /* clang-format on */
 
@@ -40,7 +42,8 @@
  * @meta_name: mblock fileset meta file name
  */
 struct mblock_fset {
-    struct media_class *mc;
+    struct media_class  *mc;
+    struct kmem_cache   *rmcache[MBLOCK_FSET_RMCACHE_CNT];
 
     atomic64_t           fidx;
     size_t               fszmax;
@@ -349,13 +352,24 @@ mblock_fset_open(
     fparams.mblocksz = mblocksz;
     fparams.fszmax = mbfsp->fszmax;
 
+    for (i = 0; i < MBLOCK_FSET_RMCACHE_CNT; i++) {
+        char name[32];
+
+        snprintf(name, sizeof(name), "%s-%d-%d", "mpool-rgnmap", mclass_id(mbfsp->mc), i);
+        mbfsp->rmcache[i] = kmem_cache_create(name, sizeof(struct mblock_rgn),
+                                              alignof(struct mblock_rgn), SLAB_PACKED, NULL);
+        if (!mbfsp->rmcache[i])
+            goto errout;
+    }
+
     for (i = 0; i < mbfsp->fcnt; i++) {
         char *addr;
 
         mblock_fset_meta_get(mbfsp, i, &addr);
 
         fparams.fileid = i + 1;
-        err = mblock_file_open(mbfsp, mc, &fparams, flags, addr, &mbfsp->filev[i]);
+        err = mblock_file_open(mbfsp, mc, &fparams, flags, addr,
+                               mbfsp->rmcache[i % MBLOCK_FSET_RMCACHE_CNT], &mbfsp->filev[i]);
         if (err)
             goto errout;
     }
@@ -377,8 +391,7 @@ mblock_fset_open(
     return 0;
 
 errout:
-    if (!(flags & O_CREAT))
-        mblock_fset_close(mbfsp);
+    mblock_fset_close(mbfsp);
 
     return err;
 }
@@ -404,6 +417,8 @@ mblock_fset_meta_usage(struct mblock_fset *mbfsp, uint64_t *allocated)
 void
 mblock_fset_close(struct mblock_fset *mbfsp)
 {
+    int i;
+
     if (!mbfsp)
         return;
 
@@ -417,6 +432,9 @@ mblock_fset_close(struct mblock_fset *mbfsp)
     }
 
     mblock_fset_meta_close(mbfsp);
+
+    for (i = 0; i < MBLOCK_FSET_RMCACHE_CNT; i++)
+        kmem_cache_destroy(mbfsp->rmcache[i]);
 
     free(mbfsp->filev);
     free(mbfsp);

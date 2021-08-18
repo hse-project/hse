@@ -737,7 +737,8 @@ exit_err:
     } else {
         int finlat;
 
-        lc_ingest_seqno_set(lc, max_seq);
+        if (atomic_read(&c0sk->c0sk_replaying) == 0)
+            lc_ingest_seqno_set(lc, max_seq);
 
         /* Compute a running average of the finish latency (weighted more
          * heavily on previous result) for use in adjusting the throttle.
@@ -1033,6 +1034,7 @@ c0sk_queue_ingest(struct c0sk_impl *self, struct c0_kvmultiset *old)
 {
     struct c0_kvmultiset *new;
     merr_t err;
+    void  **stashp;
 
     c0kvms_ingesting(old);
 
@@ -1055,7 +1057,9 @@ c0sk_queue_ingest(struct c0sk_impl *self, struct c0_kvmultiset *old)
 
     c0sk_ingest_tune(self);
 
-    err = c0kvms_create(self->c0sk_ingest_width, self->c0sk_kvdb_seq, &self->c0sk_stash, &new);
+    stashp = HSE_LIKELY(atomic_read(&self->c0sk_replaying) == 0) ? &self->c0sk_stash : NULL;
+
+    err = c0kvms_create(self->c0sk_ingest_width, self->c0sk_kvdb_seq, stashp, &new);
     if (!err) {
         c0kvms_getref(new);
 

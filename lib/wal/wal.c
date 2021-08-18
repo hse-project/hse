@@ -8,6 +8,7 @@
 #include <hse_util/hse_err.h>
 #include <hse_util/bonsai_tree.h>
 #include <hse_util/event_counter.h>
+#include <hse_util/log2.h>
 
 #include <hse_ikvdb/ikvdb.h>
 #include <hse_ikvdb/kvs.h>
@@ -59,9 +60,9 @@ struct wal {
     pthread_t  timer_tid;
     pthread_t  sync_notify_tid;
     uint32_t   dur_ms;
-    uint32_t   dur_bytes;
+    size_t     dur_bufsz;
+    enum mpool_mclass dur_mclass;
     uint32_t   version;
-    enum mpool_mclass mclass;
     struct kvdb_health *health;
     struct ikvdb *ikvdb;
     struct wal_iocb wiocb;
@@ -492,17 +493,12 @@ wal_op_finish(struct wal *wal, struct wal_record *rec, uint64_t seqno, uint64_t 
  */
 
 merr_t
-wal_create(struct mpool *mp, struct kvdb_cparams *cp, uint64_t *mdcid1, uint64_t *mdcid2)
+wal_create(struct mpool *mp, uint64_t *mdcid1, uint64_t *mdcid2)
 {
     struct wal_mdc *mdc;
     merr_t err;
-    uint32_t dur_ms, dur_bytes;
-    enum mpool_mclass mclass;
 
-    mclass = cp->dur_mclass;
-    assert(mclass >= MP_MED_BASE && mclass < MP_MED_COUNT);
-
-    err = wal_mdc_create(mp, mclass, WAL_MDC_CAPACITY, mdcid1, mdcid2);
+    err = wal_mdc_create(mp, MP_MED_CAPACITY, WAL_MDC_CAPACITY, mdcid1, mdcid2);
     if (err)
         return err;
 
@@ -512,13 +508,7 @@ wal_create(struct mpool *mp, struct kvdb_cparams *cp, uint64_t *mdcid1, uint64_t
         return err;
     }
 
-    dur_ms = cp->dur_intvl_ms;
-    dur_ms = clamp_t(long, dur_ms, WAL_DUR_MS_MIN, WAL_DUR_MS_MAX);
-
-    dur_bytes = cp->dur_buf_sz;
-    dur_bytes = clamp_t(long, dur_bytes, WAL_DUR_BYTES_MIN, WAL_DUR_BYTES_MAX);
-
-    err = wal_mdc_format(mdc, WAL_VERSION, dur_ms, dur_bytes, mclass);
+    err = wal_mdc_format(mdc, WAL_VERSION);
 
     wal_mdc_close(mdc);
 
@@ -534,6 +524,18 @@ wal_destroy(struct mpool *mp, uint64_t oid1, uint64_t oid2)
     wal_mdc_destroy(mp, oid1, oid2);
 }
 
+static enum mpool_mclass
+mclass_name_to_val(const char *mcname)
+{
+    if (!strcmp(mcname, MP_MED_NAME_CAPACITY))
+        return MP_MED_CAPACITY;
+
+    if (!strcmp(mcname, MP_MED_NAME_STAGING))
+        return MP_MED_STAGING;
+
+    return MP_MED_INVALID;
+}
+
 merr_t
 wal_open(
     struct mpool           *mp,
@@ -544,6 +546,7 @@ wal_open(
     struct wal            **wal_out)
 {
     struct wal *wal;
+    enum mpool_mclass mclass;
     merr_t err;
     int rc;
 
@@ -569,11 +572,19 @@ wal_open(
     if (wal->wal_thr_lwm > wal->wal_thr_hwm / 2)
         wal->wal_thr_lwm = wal->wal_thr_hwm / 2;
 
+    wal->dur_ms = HSE_WAL_DUR_MS_DFLT;
+    wal->dur_bufsz = HSE_WAL_DUR_BUFSZ_MB_DFLT << 20;
+    wal->dur_mclass = MP_MED_CAPACITY;
+
     err = wal_mdc_open(mp, rinfo->mdcid1, rinfo->mdcid2, &wal->mdc);
     if (err)
         goto errout;
 
-    wal->wfset = wal_fileset_open(mp, wal->mclass, WAL_FILE_SIZE_BYTES, WAL_MAGIC, WAL_VERSION);
+    err = wal_mdc_replay(wal->mdc, wal);
+    if (err)
+        goto errout;
+
+    wal->wfset = wal_fileset_open(mp, wal->dur_mclass, WAL_FILE_SIZE_BYTES, WAL_MAGIC, WAL_VERSION);
     if (!wal->wfset) {
         err = merr(ENOMEM);
         goto errout;
@@ -583,20 +594,26 @@ wal_open(
     if (err)
         goto errout;
 
-    /* Override persisted params if changed at run-time */
-    if (rp->dur_intvl_ms != 0) {
-        wal->dur_ms = rp->dur_intvl_ms;
-        wal->dur_ms = clamp_t(long, wal->dur_ms, WAL_DUR_MS_MIN, WAL_DUR_MS_MAX);
-    }
-
-    if (rp->dur_buf_sz != 0) {
-        wal->dur_bytes = rp->dur_buf_sz;
-        wal->dur_bytes = clamp_t(long, wal->dur_bytes, WAL_DUR_BYTES_MIN, WAL_DUR_BYTES_MAX);
-    }
-
     if (wal->rdonly) {
         *wal_out = wal;
         return 0;
+    }
+
+    if (rp->dur_intvl_ms != HSE_WAL_DUR_MS_DFLT)
+        wal->dur_ms = clamp_t(long, rp->dur_intvl_ms, HSE_WAL_DUR_MS_MIN, HSE_WAL_DUR_MS_MAX);
+
+    if (rp->dur_bufsz_mb != HSE_WAL_DUR_BUFSZ_MB_DFLT) {
+        wal->dur_bufsz = clamp_t(size_t, rp->dur_bufsz_mb << 20, HSE_WAL_DUR_BUFSZ_MB_MIN << 20,
+                                 HSE_WAL_DUR_BUFSZ_MB_MAX << 20);
+        wal->dur_bufsz = roundup_pow_of_two(wal->dur_bufsz);
+    }
+
+    mclass = mclass_name_to_val(rp->dur_mclass);
+    assert(mclass != MP_MED_INVALID);
+    if (mclass != wal->dur_mclass) {
+        assert(mclass < MP_MED_COUNT);
+        wal->dur_mclass = mclass;
+        wal_fileset_mclass_update(wal->wfset, wal->dur_mclass);
     }
 
     err = wal_mdc_compact(wal->mdc, wal);
@@ -605,7 +622,7 @@ wal_open(
 
     wal->wiocb.iocb = wal_ionotify_cb;
     wal->wiocb.cbarg = wal;
-    wal->wbs = wal_bufset_open(wal->wfset, &wal->wal_ingestgen, &wal->wiocb);
+    wal->wbs = wal_bufset_open(wal->wfset, wal->dur_bufsz, &wal->wal_ingestgen, &wal->wiocb);
     if (!wal->wbs) {
         err = merr(ENOMEM);
         goto errout;
@@ -712,24 +729,16 @@ wal_throttle_sensor(struct wal *wal, struct throttle_sensor *sensor)
 /*
  * get/set interfaces for struct wal fields
  */
-void
-wal_dur_params_get(
-    struct wal        *wal,
-    uint32_t          *dur_ms,
-    uint32_t          *dur_bytes,
-    enum mpool_mclass *mclass)
+enum mpool_mclass
+wal_dur_mclass_get(struct wal *wal)
 {
-    *dur_ms = wal->dur_ms;
-    *dur_bytes = wal->dur_bytes;
-    *mclass = wal->mclass;
+    return wal->dur_mclass;
 }
 
 void
-wal_dur_params_set(struct wal *wal, uint32_t dur_ms, uint32_t dur_bytes, enum mpool_mclass mclass)
+wal_dur_mclass_set(struct wal *wal, enum mpool_mclass mclass)
 {
-    wal->dur_ms = dur_ms;
-    wal->dur_bytes = dur_bytes;
-    wal->mclass = mclass;
+    wal->dur_mclass = mclass;
 }
 
 uint32_t

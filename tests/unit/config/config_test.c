@@ -21,10 +21,12 @@ const char *config_root;
 static int
 collection_pre(struct mtf_test_info *ti)
 {
-    if (ti->ti_coll->tci_argc != 2)
+    if (ti->ti_coll->tci_argc - ti->ti_coll->tci_optind != 1) {
+        fprintf(stderr, "Usage: %s [test framework options] <configs-dir>\n", ti->ti_coll->tci_argv[0]);
         return -1;
+    }
 
-    config_root = ti->ti_coll->tci_argv[1];
+    config_root = ti->ti_coll->tci_argv[ti->ti_coll->tci_optind];
     return 0;
 }
 

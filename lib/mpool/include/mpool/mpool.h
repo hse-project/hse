@@ -6,6 +6,7 @@
 #ifndef MPOOL_H
 #define MPOOL_H
 
+#include "hse_util/compiler.h"
 #include <mpool/mpool_structs.h>
 
 #include <hse_util/hse_err.h>
@@ -45,6 +46,12 @@ mpool_mclass_add(
     const char *                home,
     enum mpool_mclass           mclass,
     const struct mpool_cparams *params);
+
+/**
+ * Retrieve the default media class path given a media class
+ */
+const char *
+mpool_mclass_default_path_get(enum mpool_mclass) HSE_CONST;
 
 /**
  * mpool_open() - Open an mpool
@@ -209,49 +216,6 @@ mpool_mdc_abort(struct mpool *mp, uint64_t logid1, uint64_t logid2);
 /* MTF_MOCK */
 merr_t
 mpool_mdc_delete(struct mpool *mp, uint64_t logid1, uint64_t logid2);
-
-/**
- * mpool_mdc_rootid_get() - Retrieve mpool root MDC OIDs
- *
- * @logid1: logid 1
- * @logid2: logid 2
- */
-/* MTF_MOCK */
-merr_t
-mpool_mdc_rootid_get(uint64_t *logid1, uint64_t *logid2);
-
-
-/**
- * mpool_mdc_root_open() - Open root MDC
- *
- * @home:   kvdb home
- * @logid1: logid 1
- * @logid2: logid 2
- * @handle: MDC handle (output)
- */
-/* MTF_MOCK */
-merr_t
-mpool_mdc_root_open(const char *home, uint64_t logid1, uint64_t logid2, struct mpool_mdc **handle);
-
-/**
- * mpool_mdc_root_create() - initialize the root MDC
- *
- * @home: kvdb home
- */
-/* MTF_MOCK */
-merr_t
-mpool_mdc_root_create(const char *home);
-
-/**
- * mpool_mdc_root_destroy() - Destroy root MDC
- *
- * @home:   kvdb home
- * @logid1: logid 1
- * @logid2: logid 2
- */
-/* MTF_MOCK */
-merr_t
-mpool_mdc_root_destroy(const char *home, uint64_t logid1, uint64_t logid2);
 
 /**
  * mpool_mdc_open() - Open MDC by OIDs

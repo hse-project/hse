@@ -2602,11 +2602,11 @@ km_open_mongo(struct km_impl *impl)
                 exit(EX_OSERR);
             }
 
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
-            n = mongoc_collection_count_with_opts(
-                collection, MONGOC_QUERY_NONE, &query, 0, 0, NULL, NULL, &error);
-#pragma GCC diagnostic pop
+            /* TODO: Can we optimize this query to run faster?  All we need
+             * is the record count, but it takes forever (I think it's using
+             * a cursor to scan all the records).
+             */
+            n = mongoc_collection_count_documents(collection, &query, NULL, NULL, NULL, &error);
 
             if (n == -1) {
                 eprint("%s: unable to count collection %s: %s\n",
