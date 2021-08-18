@@ -65,6 +65,8 @@ validate_random_buffer(void *buf, size_t len, unsigned int seed)
     return -1;
 }
 
+/* Get a random value in the range [min, max]. Note that the max is an inclusive upper bound.
+ */
 u32
 generate_random_u32(u32 min, u32 max)
 {

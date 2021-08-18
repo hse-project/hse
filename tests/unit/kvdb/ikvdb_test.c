@@ -1393,7 +1393,7 @@ parallel_cursors(void *info)
     merr_t                 err;
 
     for (i = 0; i < 100000; ++i) {
-        u32  r = generate_random_u32(0, 10000);
+        u32  r = generate_random_u32(0, 10000 - 1); /* max is inclusive */
         bool eof = true;
 
         /* create different prefixes each time */
