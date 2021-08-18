@@ -1300,7 +1300,7 @@ do_error(
  *      DDUUUPPPDD del-2 phase
  * p_len is the total number of ops.
  * u_len is the number of UPD ops.
- * d1_len is the number of DEL ops, and is the same for fore and aft.
+ * d1_len is the number of DEL ops, and is the same for before and after.
  *
  * At the point cursor verification runs, the number of updates
  * is u_len - d1_len, the number of puts is p_len - u_len - d1_len.

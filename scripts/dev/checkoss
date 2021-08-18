@@ -24,7 +24,7 @@ wget https://www.cs.cmu.edu/~biglou/resources/bad-words.txt -q -P "${WORK_DIR}"
 sed -i '/^[[:space:]]*$/d' "${WORK_DIR}/bad-words.txt"
 grep -v -f "${SRC_ROOT}/scripts/dev/checkoss-ignore-words.txt" "${WORK_DIR}/bad-words.txt" > "${WORK_DIR}/bad-words1.txt"
 sed -i 's/.*/\\\W&\\\W/' "${WORK_DIR}/bad-words1.txt"
-git -C "${SRC_ROOT}" ls-files | grep -vE '(3rdparty|doxy|format|poetry)' > "${WORK_DIR}/files"
+git -C "${SRC_ROOT}" ls-files | grep -vE '(3rdparty|doxy|format|poetry|images)' > "${WORK_DIR}/files"
 pushd "${SRC_ROOT}" > /dev/null
 cat "${WORK_DIR}/files" | xargs grep -in -f "${WORK_DIR}/bad-words1.txt" > "${bad_words_check_output}"
 popd > /dev/null

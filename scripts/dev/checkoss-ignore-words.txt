@@ -1,5 +1,6 @@
 attack
-bigger
+bi
+black
 color
 corruption
 crash
@@ -28,6 +29,8 @@ kills
 laid
 lies
 period
+pros
 reject
 remains
 sos
+uk

@@ -184,7 +184,7 @@ MTF_DEFINE_UTEST(seqno_test, seqno_test_assert)
 
     /* If assert() is enabled then seqnoref_to_seqno() will quietly
      * succeed and return HSE_SQNREF_STATE_INVALID.  Otherwise, the
-     * assert will fire and the we'll jump back to a context in
+     * assert will trigger and the we'll jump back to a context in
      * which state contains its initial value.
      */
 #ifdef NDEBUG

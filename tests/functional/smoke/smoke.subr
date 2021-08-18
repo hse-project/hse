@@ -51,7 +51,7 @@ cmd () {
             e) # expect error status
                 check_status=2
 				;;
-            s) # expect death by signal
+            s) # expect kill by signal
                 check_signal=$2
                 check_signal=$((check_signal + 128))
                 check_status=2
@@ -79,7 +79,7 @@ cmd () {
 			;;
 	esac
 
-    # Death by signal causes failure unless explicitly ignored.
+    # Killed by signal causes failure unless explicitly ignored.
     # special case: ignore 255 b/c many programs use exit(-1) which
     # maps to a return status of 255.
 	if [ $status -ge 128 ] && [ $status -ne 255 ] && [ $status -ne $check_signal ]; then
