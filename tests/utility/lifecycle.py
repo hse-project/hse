@@ -18,7 +18,6 @@ class KvdbContext(ContextDecorator):
         self.__home = home
         self.__exists_ok = exists_ok
         self.__kvdb_cparams: Iterable[str] = ()
-        self.__kvdb_dparams: Iterable[str] = ()
         self.__kvdb_rparams: Iterable[str] = ()
 
     def __enter__(self) -> hse.Kvdb:
@@ -37,14 +36,10 @@ class KvdbContext(ContextDecorator):
         exc_tb: Optional[TracebackType],
     ):
         self.__kvdb.close()
-        hse.Kvdb.drop(self.__home, *self.__kvdb_dparams)
+        hse.Kvdb.drop(self.__home)
 
     def cparams(self, *params: str) -> "KvdbContext":
         self.__kvdb_cparams = params
-        return self
-
-    def dparams(self, *params: str) -> "KvdbContext":
-        self.__kvdb_dparams = params
         return self
 
     def rparams(self, *params: str) -> "KvdbContext":

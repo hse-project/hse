@@ -16,10 +16,6 @@
 #include <mpool/mpool.h>
 #include <hse_util/hse_err.h>
 
-struct kvdb_cparams;
-struct kvdb_rparams;
-struct kvdb_dparams;
-
 struct kvdb_meta {
     struct {
         uint64_t oid1;
@@ -79,20 +75,6 @@ merr_t
 kvdb_meta_deserialize(struct kvdb_meta *meta, const char *kvdb_home);
 
 /**
- * Sync the kvdb.meta file given a set of KVDB rparams
- *
- * @param meta: KVDB metadata
- * @param kvdb_home: KVDB home
- * @param params: KVDB rparams
- * @returns Error status
- * @retval 0 on success
- * @retval !0 on error
- */
-/* MTF_MOCK */
-merr_t
-kvdb_meta_sync(struct kvdb_meta *meta, const char *kvdb_home, const struct kvdb_rparams *params);
-
-/**
  * Gets the size of the kvdb.meta file in bytes
  *
  * @param kvdb_home: KVDB home
@@ -110,51 +92,51 @@ kvdb_meta_usage(const char *kvdb_home, uint64_t *size);
  *
  * @param meta: KVDB metadata
  * @param kvdb_home: KVDB home
- * @param params: KVDB cparams
+ * @param params: mpool cparams
  * @returns Error status
  * @retval 0 on succes
  * @retval !0 on error
  */
 /* MTF_MOCK */
 void
-kvdb_meta_from_kvdb_cparams(
-    struct kvdb_meta *         meta,
-    const char *               kvdb_home,
-    const struct kvdb_cparams *params);
+kvdb_meta_from_mpool_cparams(
+    struct kvdb_meta *          meta,
+    const char *                kvdb_home,
+    const struct mpool_cparams *params);
 
 /**
- * Deserializes KVDB metadata into KVDB rparams
+ * Deserializes KVDB metadata into mpool rparams
  *
  * @param meta: KVDB metadata
  * @param kvdb_home: KVDB home
- * @param params: KVDB rparams
+ * @param params: mpool rparams
  * @returns Error status
  * @retval 0 on succes
  * @retval !0 on error
  */
 /* MTF_MOCK */
 merr_t
-kvdb_meta_to_kvdb_rparams(
+kvdb_meta_to_mpool_rparams(
     const struct kvdb_meta *meta,
     const char *            kvdb_home,
-    struct kvdb_rparams *   params);
+    struct mpool_rparams *  params);
 
 /**
- * Deserializes KVDB metadata into KVDB dparams
+ * Deserializes KVDB metadata into mpool dparams
  *
  * @param meta: KVDB metadata
  * @param kvdb_home: KVDB home
- * @param params: KVDB dparams
+ * @param params: mpool dparams
  * @returns Error status
  * @retval 0 on succes
  * @retval !0 on error
  */
 /* MTF_MOCK */
 merr_t
-kvdb_meta_to_kvdb_dparams(
-    const struct kvdb_meta *meta,
-    const char *            kvdb_home,
-    struct kvdb_dparams *   params);
+kvdb_meta_to_mpool_dparams(
+    const struct kvdb_meta *const meta,
+    const char *const             kvdb_home,
+    struct mpool_dparams *const   params);
 
 #if HSE_MOCKING
 #include "kvdb_meta_ut.h"

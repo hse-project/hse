@@ -21,7 +21,6 @@
 #include <hse_ikvdb/config.h>
 #include <hse_ikvdb/argv.h>
 #include <hse_ikvdb/kvdb_cparams.h>
-#include <hse_ikvdb/kvdb_dparams.h>
 #include <hse_ikvdb/hse_gparams.h>
 #include <hse_ikvdb/runtime_home.h>
 #include <hse_ikvdb/kvdb_home.h>
@@ -216,34 +215,12 @@ hse_err_t
 hse_kvdb_drop(const char *kvdb_home, const size_t paramc, const char *const *const paramv)
 {
     char                real_home[PATH_MAX];
-    struct kvdb_dparams params = kvdb_dparams_defaults();
     char                pidfile_path[PATH_MAX];
     struct pidfh *      pfh = NULL;
     merr_t              err;
-#ifdef WITH_KVDB_CONF_EXTENDED
-    struct config *conf = NULL;
-#endif
 
     err = kvdb_home_resolve(kvdb_home, real_home, sizeof(real_home));
     if (err)
-        goto out;
-
-    err = argv_deserialize_to_kvdb_dparams(paramc, paramv, &params);
-    if (err)
-        goto out;
-
-#ifdef WITH_KVDB_CONF_EXTENDED
-    err = config_from_kvdb_conf(real_home, &conf);
-    if (ev(err))
-        goto out;
-
-    err = config_deserialize_to_kvdb_dparams(conf, &params);
-    if (ev(err))
-        goto out;
-#endif
-
-    err = kvdb_dparams_resolve(&params, real_home);
-    if (ev(err))
         goto out;
 
     err = kvdb_home_pidfile_path_get(real_home, pidfile_path, sizeof(pidfile_path));
@@ -256,14 +233,11 @@ hse_kvdb_drop(const char *kvdb_home, const size_t paramc, const char *const *con
         goto out;
     }
 
-    err = ikvdb_drop(real_home, &params);
+    err = ikvdb_drop(real_home);
     if (ev(err))
         goto out;
 
 out:
-#ifdef WITH_KVDB_CONF_EXTENDED
-    config_destroy(conf);
-#endif
     if (pfh)
         pidfile_remove(pfh);
 
@@ -513,7 +487,7 @@ hse_kvdb_storage_info_get(struct hse_kvdb *kvdb, struct hse_kvdb_storage_info *i
     if (HSE_UNLIKELY(!kvdb || !info))
         return merr_to_hse_err(merr(EINVAL));
 
-    return merr_to_hse_err(ikvdb_storage_info_get((struct ikvdb *)kvdb, info, NULL, NULL, 0));
+    return merr_to_hse_err(ikvdb_storage_info_get((struct ikvdb *)kvdb, info, 0));
 }
 
 hse_err_t

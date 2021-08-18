@@ -748,7 +748,7 @@ static const struct param_spec pspecs[] = {
     {
         .ps_name = "rdonly",
         .ps_description = "open kvs in read-only mode",
-        .ps_flags = PARAM_FLAG_EXPERIMENTAL,
+        .ps_flags = 0,
         .ps_type = PARAM_TYPE_U64,
         .ps_offset = offsetof(struct kvs_rparams, rdonly),
         .ps_size = sizeof(((struct kvs_rparams *) 0)->rdonly),
@@ -791,7 +791,7 @@ static const struct param_spec pspecs[] = {
     {
         .ps_name = "vcompmin",
         .ps_description = "value length above which compression is considered",
-        .ps_flags = PARAM_FLAG_EXPERIMENTAL,
+        .ps_flags = 0,
         .ps_type = PARAM_TYPE_U64,
         .ps_offset = offsetof(struct kvs_rparams, vcompmin),
         .ps_size = sizeof(((struct kvs_rparams *) 0)->vcompmin),

@@ -1238,46 +1238,7 @@ static const struct param_spec pspecs[] = {
             }
         },
     },
-    {
-        .ps_name = "storage.capacity.path",
-        .ps_description = "Storage path for capacity mclass",
-        .ps_flags = 0,
-        .ps_type = PARAM_TYPE_STRING,
-        .ps_offset = offsetof(struct kvdb_rparams, storage.mclass[MP_MED_CAPACITY].path),
-        .ps_convert = param_default_converter,
-        .ps_validate = param_default_validator,
-        .ps_default_value = {
-            .as_string = MPOOL_CAPACITY_MCLASS_DEFAULT_PATH,
-        },
-        .ps_bounds = {
-            .as_string = {
-                .ps_max_len =
-                    sizeof(((struct kvdb_rparams *)0)->storage.mclass[MP_MED_CAPACITY].path),
-            },
-        },
-    },
-        {
-        .ps_name = "storage.staging.path",
-        .ps_description = "Storage path for staging mclass",
-        .ps_flags = PARAM_FLAG_NULLABLE,
-        .ps_type = PARAM_TYPE_STRING,
-        .ps_offset = offsetof(struct kvdb_rparams, storage.mclass[MP_MED_STAGING].path),
-        .ps_convert = param_default_converter,
-        .ps_validate = param_default_validator,
-        .ps_default_value = {
-            .as_string = NULL,
-        },
-        .ps_bounds = {
-            .as_string = {
-                .ps_max_len =
-                    sizeof(((struct kvdb_rparams *)0)->storage.mclass[MP_MED_STAGING].path),
-            },
-        },
-    },
 };
-
-static_assert(sizeof(((struct kvdb_rparams *) 0)->storage.mclass[MP_MED_CAPACITY].path) == sizeof(((struct kvdb_cparams *)0)->storage.mclass[MP_MED_CAPACITY].path), "buffer sizes for capacity path should match");
-static_assert(sizeof(((struct kvdb_rparams *) 0)->storage.mclass[MP_MED_STAGING].path) == sizeof(((struct kvdb_cparams *)0)->storage.mclass[MP_MED_STAGING].path), "buffer sizes for staging path should match");
 
 const struct param_spec *
 kvdb_rparams_pspecs_get(size_t *pspecs_sz)
@@ -1301,23 +1262,6 @@ kvdb_rparams_resolve(struct kvdb_rparams *params, const char *home)
 {
     assert(params);
     assert(home);
-
-    char   buf[PATH_MAX];
-    merr_t err;
-
-    err = kvdb_home_storage_capacity_path_get(home, params->storage.mclass[MP_MED_CAPACITY].path,
-                                              buf, sizeof(buf));
-    if (err)
-        return err;
-    strlcpy(params->storage.mclass[MP_MED_CAPACITY].path, buf,
-            sizeof(params->storage.mclass[MP_MED_CAPACITY].path));
-
-    err = kvdb_home_storage_staging_path_get(home, params->storage.mclass[MP_MED_STAGING].path,
-                                             buf, sizeof(buf));
-    if (err)
-        return err;
-    strlcpy(params->storage.mclass[MP_MED_STAGING].path, buf,
-            sizeof(params->storage.mclass[MP_MED_STAGING].path));
 
     return 0;
 }

@@ -794,14 +794,13 @@ mock_c0cn_unset()
  * changes).
  */
 static struct mapi_injection kvdb_meta_inject_list[] = {
-    { mapi_idx_kvdb_meta_create,          MAPI_RC_SCALAR, 0 },
-    { mapi_idx_kvdb_meta_destroy,         MAPI_RC_SCALAR, 0 },
-    { mapi_idx_kvdb_meta_serialize,       MAPI_RC_SCALAR, 0 },
-    { mapi_idx_kvdb_meta_deserialize,     MAPI_RC_SCALAR, 0 },
-    { mapi_idx_kvdb_meta_sync,            MAPI_RC_SCALAR, 0 },
-    { mapi_idx_kvdb_meta_usage,           MAPI_RC_SCALAR, 0 },
-    { mapi_idx_kvdb_meta_to_kvdb_rparams, MAPI_RC_SCALAR, 0 },
-    { mapi_idx_kvdb_meta_to_kvdb_dparams, MAPI_RC_SCALAR, 0 },
+    { mapi_idx_kvdb_meta_create,           MAPI_RC_SCALAR, 0 },
+    { mapi_idx_kvdb_meta_destroy,          MAPI_RC_SCALAR, 0 },
+    { mapi_idx_kvdb_meta_serialize,        MAPI_RC_SCALAR, 0 },
+    { mapi_idx_kvdb_meta_deserialize,      MAPI_RC_SCALAR, 0 },
+    { mapi_idx_kvdb_meta_usage,            MAPI_RC_SCALAR, 0 },
+    { mapi_idx_kvdb_meta_to_mpool_rparams, MAPI_RC_SCALAR, 0 },
+    { mapi_idx_kvdb_meta_to_mpool_dparams, MAPI_RC_SCALAR, 0 },
     { -1 },
 };
 
