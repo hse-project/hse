@@ -75,6 +75,7 @@ MTF_DEFINE_UTEST(c0_kvset_iterator_test, element_source)
     bool                     br;
     int                      source_count;
     struct bonsai_kv *       last_bkv, *bkv;
+    uint                    *keys;
 
     rcu_thrd = create_call_rcu_data(0, -1);
     ASSERT_TRUE(rcu_thrd);
@@ -108,14 +109,23 @@ MTF_DEFINE_UTEST(c0_kvset_iterator_test, element_source)
     kvs_vtuple_init(&vt, vbuf, sizeof(vbuf));
 
     srand(42);
+    keys = malloc(insert_count * sizeof(*keys));
+    ASSERT_NE(NULL, keys);
+
+    for (i = 0; i < insert_count; ++i)
+        keys[i] = i;
+
+    permute_u32_sequence(keys, insert_count);
+
     for (i = 0; i < insert_count; ++i) {
-        kbuf[0] = generate_random_u32(0, 1000000000);
+        kbuf[0] = keys[i];
         vbuf[0] = rand();
         err = c0kvs_put(kvs, 0, &kt, &vt, HSE_ORDNL_TO_SQNREF(117));
         ASSERT_EQ(0, err);
     }
 
     synchronize_rcu();
+    free(keys);
 
     c0kvs_finalize(&kvs_impl->c0s_handle);
 
@@ -226,6 +236,7 @@ MTF_DEFINE_UTEST(c0_kvset_iterator_test, seek)
     struct bonsai_kv *       last_bkv = NULL, *bkv;
     void *                   seek;
     int                      seeklen;
+    uint                    *keys;
 
     rcu_thrd = create_call_rcu_data(0, -1);
     ASSERT_TRUE(rcu_thrd);
@@ -239,12 +250,22 @@ MTF_DEFINE_UTEST(c0_kvset_iterator_test, seek)
     kvs_vtuple_init(&vt, vbuf, sizeof(vbuf));
 
     srand(42);
+    keys = malloc(insert_count * sizeof(*keys));
+    ASSERT_NE(NULL, keys);
+
+    for (i = 0; i < insert_count; ++i)
+        keys[i] = i;
+
+    permute_u32_sequence(keys, insert_count);
+
     for (i = 0; i < insert_count; ++i) {
-        kbuf[0] = generate_random_u32(0, 1000000000);
+        kbuf[0] = keys[i];
         vbuf[0] = rand();
         err = c0kvs_put(kvs, 1, &kt, &vt, HSE_ORDNL_TO_SQNREF(117));
         ASSERT_EQ(0, err);
     }
+
+    free(keys);
 
     /* NB: finalize NOT necessary!
 
