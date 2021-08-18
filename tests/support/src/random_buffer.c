@@ -65,13 +65,12 @@ validate_random_buffer(void *buf, size_t len, unsigned int seed)
     return -1;
 }
 
+/* Get a random value in the range [min, max]. Note that the max is an inclusive upper bound.
+ */
 u32
 generate_random_u32(u32 min, u32 max)
 {
-    const double r = (double)rand() / (double)RAND_MAX;
-    const double tmp = (double)min + r * (double)(max - min);
-
-    return (u32)tmp;
+    return (xrand64_tls() % (max - min + 1)) + min;
 }
 
 void
