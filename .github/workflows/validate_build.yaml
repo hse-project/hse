@@ -22,6 +22,7 @@ jobs:
         sudo apt-get install libmongoc-1.0-0 libbson-1.0-0 libssl-dev libsasl2-dev
         python3 -m pip install --user setuptools_rust wheel
         python3 -m pip install --user poetry
+
     - uses: actions/checkout@v2
 
     - name: Setup python environment to run branch
@@ -60,6 +61,7 @@ jobs:
         sudo dnf install -y python-pip python-wheel python3-devel
         python3 -m pip install --user setuptools_rust wheel
         python3 -m pip install --user poetry
+
     - uses: actions/checkout@v2
 
     - name: Setup python environment to run branch
@@ -79,3 +81,20 @@ jobs:
       with:
         name: build-artifact-fedora-latest
         path: builddir/meson-logs/
+
+  checkoss:
+    runs-on: ubuntu-18.04
+
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: check for license
+      continue-on-error: true
+      run: |
+        scripts/dev/checkoss "${{ runner.temp }}" ./
+
+    - uses: actions/upload-artifact@v2
+      if: failure()
+      with:
+        name: checkoss-errors
+        path: "${{ runner.temp }}"
