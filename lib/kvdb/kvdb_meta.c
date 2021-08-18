@@ -12,9 +12,6 @@
 
 #include <mpool/mpool.h>
 #include <hse_ikvdb/kvdb_meta.h>
-#include <hse_ikvdb/kvdb_cparams.h>
-#include <hse_ikvdb/kvdb_rparams.h>
-#include <hse_ikvdb/kvdb_dparams.h>
 
 #define KVDB_META       "kvdb.meta"
 #define KVDB_META_PERMS (S_IRUSR | S_IWUSR)
@@ -449,34 +446,6 @@ out:
 }
 
 merr_t
-kvdb_meta_sync(
-    struct kvdb_meta *const          meta,
-    const char *const                kvdb_home,
-    const struct kvdb_rparams *const params)
-{
-    bool updated = false;
-
-    assert(meta);
-    assert(kvdb_home);
-    assert(params);
-
-    for (int i = MP_MED_BASE; i < MP_MED_COUNT; i++) {
-        const char *mc_path = params->storage.mclass[i].path;
-        if (strncmp(meta->km_storage[i].path, mc_path, sizeof(meta->km_storage[i].path))) {
-            updated = true;
-
-            /* strnlen() + 1 should move us past the final trailing / */
-            strlcpy(
-                meta->km_storage[i].path,
-                strstr(mc_path, kvdb_home) ? mc_path + strnlen(kvdb_home, PATH_MAX) + 1 : mc_path,
-                sizeof(meta->km_storage[i].path));
-        }
-    }
-
-    return updated ? kvdb_meta_serialize(meta, kvdb_home) : 0;
-}
-
-merr_t
 kvdb_meta_usage(const char *kvdb_home, uint64_t *const size)
 {
     int         meta_fd;
@@ -509,29 +478,31 @@ out:
 
 static_assert(
     sizeof(((struct kvdb_meta *)0)->km_storage[MP_MED_BASE].path) ==
-        sizeof(((struct kvdb_cparams *)0)->storage.mclass[MP_MED_BASE].path),
+        sizeof(((struct mpool_cparams *)0)->mclass[MP_MED_BASE].path),
     "sizes of buffers differ");
+
 static_assert(
     sizeof(((struct kvdb_meta *)0)->km_storage[MP_MED_BASE].path) ==
-        sizeof(((struct kvdb_rparams *)0)->storage.mclass[MP_MED_BASE].path),
+        sizeof(((struct mpool_rparams *)0)->mclass[MP_MED_BASE].path),
     "sizes of buffers differ");
+
 static_assert(
     sizeof(((struct kvdb_meta *)0)->km_storage[MP_MED_BASE].path) ==
-        sizeof(((struct kvdb_dparams *)0)->storage.mclass[MP_MED_BASE].path),
+        sizeof(((struct mpool_dparams *)0)->mclass[MP_MED_BASE].path),
     "sizes of buffers differ");
 
 void
-kvdb_meta_from_kvdb_cparams(
-    struct kvdb_meta *const          meta,
-    const char *const                kvdb_home,
-    const struct kvdb_cparams *const params)
+kvdb_meta_from_mpool_cparams(
+    struct kvdb_meta *const           meta,
+    const char *const                 kvdb_home,
+    const struct mpool_cparams *const params)
 {
     assert(meta);
     assert(kvdb_home);
     assert(params);
 
     for (int i = MP_MED_BASE; i < MP_MED_COUNT; i++) {
-        const char *mc_path = params->storage.mclass[i].path;
+        const char *mc_path = params->mclass[i].path;
 
         /* strnlen() + 1 should move us past the final trailing / */
         strlcpy(
@@ -542,36 +513,28 @@ kvdb_meta_from_kvdb_cparams(
 }
 
 merr_t
-kvdb_meta_to_kvdb_rparams(
+kvdb_meta_to_mpool_rparams(
     const struct kvdb_meta *const meta,
     const char *const             kvdb_home,
-    struct kvdb_rparams *const    params)
+    struct mpool_rparams *const   params)
 {
-    int n;
-
     assert(meta);
     assert(kvdb_home);
     assert(params);
 
     for (int i = MP_MED_BASE; i < MP_MED_COUNT; i++) {
-        const char *mc_def = mpool_mclass_default_path_get(i);
-
-        /* Check if current path is the default */
-        const bool def = !mc_def ? params->storage.mclass[i].path[0] == '\0'
-                                 : !strncmp(
-                                       mc_def,
-                                       params->storage.mclass[i].path,
-                                       sizeof(params->storage.mclass[i].path));
-
-        /* If current path is the default, we will override */
-        if (def && meta->km_storage[i].path[0] != '\0') {
-            n = snprintf(
-                params->storage.mclass[i].path,
-                sizeof(params->storage.mclass[i].path),
+        if (meta->km_storage[i].path[0] == '\0') {
+            memset(params->mclass[i].path, 0, sizeof(params->mclass[i].path));
+        } else if (meta->km_storage[i].path[0] == '/') {
+            strlcpy(
+                params->mclass[i].path, meta->km_storage[i].path, sizeof(params->mclass[i].path));
+        } else {
+            const int n = snprintf(
+                params->mclass[i].path,
+                sizeof(params->mclass[i].path),
                 "%s/%s",
                 kvdb_home,
                 meta->km_storage[i].path);
-            assert(n < sizeof(params->storage.mclass[i].path));
             if (n < 0)
                 return merr(EBADMSG);
         }
@@ -581,36 +544,28 @@ kvdb_meta_to_kvdb_rparams(
 }
 
 merr_t
-kvdb_meta_to_kvdb_dparams(
+kvdb_meta_to_mpool_dparams(
     const struct kvdb_meta *const meta,
     const char *const             kvdb_home,
-    struct kvdb_dparams *const    params)
+    struct mpool_dparams *const   params)
 {
-    int n;
-
     assert(meta);
     assert(kvdb_home);
     assert(params);
 
     for (int i = MP_MED_BASE; i < MP_MED_COUNT; i++) {
-        const char *mc_def = mpool_mclass_default_path_get(i);
-
-        /* Check if current path is the default */
-        const bool def = !mc_def ? params->storage.mclass[i].path[0] == '\0'
-                                 : !strncmp(
-                                       mc_def,
-                                       params->storage.mclass[i].path,
-                                       sizeof(params->storage.mclass[i].path));
-
-        /* If current path is the default, we will override */
-        if (def && meta->km_storage[i].path[0] != '\0') {
-            n = snprintf(
-                params->storage.mclass[i].path,
-                sizeof(params->storage.mclass[i].path),
+        if (meta->km_storage[i].path[0] == '\0') {
+            memset(params->mclass[i].path, 0, sizeof(params->mclass[i].path));
+        } else if (meta->km_storage[i].path[0] == '/') {
+            strlcpy(
+                params->mclass[i].path, meta->km_storage[i].path, sizeof(params->mclass[i].path));
+        } else {
+            const int n = snprintf(
+                params->mclass[i].path,
+                sizeof(params->mclass[i].path),
                 "%s/%s",
                 kvdb_home,
                 meta->km_storage[i].path);
-            assert(n < sizeof(params->storage.mclass[i].path));
             if (n < 0)
                 return merr(EBADMSG);
         }

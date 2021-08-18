@@ -100,8 +100,6 @@ struct kvdb_rparams {
     uint32_t low_mem;
 
     struct mclass_policy mclass_policies[HSE_MPOLICY_COUNT];
-
-    struct mpool_rparams storage;
 };
 
 const struct param_spec *

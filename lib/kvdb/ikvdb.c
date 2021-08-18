@@ -52,7 +52,6 @@
 #include <hse_ikvdb/rparam_debug_flags.h>
 #include <hse_ikvdb/mclass_policy.h>
 #include <hse_ikvdb/kvdb_cparams.h>
-#include <hse_ikvdb/kvdb_dparams.h>
 #include <hse_ikvdb/kvdb_rparams.h>
 #include <hse_ikvdb/kvs_cparams.h>
 #include <hse_ikvdb/kvs_rparams.h>
@@ -314,7 +313,7 @@ ikvdb_create(const char *kvdb_home, struct kvdb_cparams *params)
     if (err)
         goto cndb_cleanup;
 
-    kvdb_meta_from_kvdb_cparams(&meta, kvdb_home, params);
+    kvdb_meta_from_mpool_cparams(&meta, kvdb_home, &params->storage);
 
     err = kvdb_meta_create(kvdb_home);
     if (ev(err))
@@ -355,23 +354,23 @@ out:
 }
 
 merr_t
-ikvdb_drop(const char *const kvdb_home, struct kvdb_dparams *const params)
+ikvdb_drop(const char *const kvdb_home)
 {
-    struct kvdb_meta meta;
-    merr_t           err;
+    struct kvdb_meta     meta;
+    merr_t               err;
+    struct mpool_dparams mparams;
 
     assert(kvdb_home);
-    assert(params);
 
     err = kvdb_meta_deserialize(&meta, kvdb_home);
     if (ev(err))
         return err;
 
-    err = kvdb_meta_to_kvdb_dparams(&meta, kvdb_home, params);
+    err = kvdb_meta_to_mpool_dparams(&meta, kvdb_home, &mparams);
     if (err)
         return err;
 
-    err = mpool_destroy(kvdb_home, &params->storage);
+    err = mpool_destroy(kvdb_home, &mparams);
     if (err)
         return err;
 
@@ -672,10 +671,11 @@ ikvdb_diag_open(
     struct kvdb_rparams *params,
     struct ikvdb **      handle)
 {
-    static atomic64_t tseqno = ATOMIC_INIT(0);
-    struct ikvdb_impl *self = NULL;
-    merr_t             err;
-    struct kvdb_meta   meta;
+    static atomic64_t    tseqno = ATOMIC_INIT(0);
+    struct ikvdb_impl   *self = NULL;
+    merr_t               err;
+    struct kvdb_meta     meta;
+    struct mpool_rparams mparams;
 
     err = ikvdb_alloc(kvdb_home, params, &self);
     if (err)
@@ -688,18 +688,13 @@ ikvdb_diag_open(
     if (ev(err))
         goto self_cleanup;
 
-    err = kvdb_meta_to_kvdb_rparams(&meta, kvdb_home, params);
+    err = kvdb_meta_to_mpool_rparams(&meta, kvdb_home, &mparams);
     if (ev(err))
         goto self_cleanup;
 
-    err = mpool_open(kvdb_home, &params->storage, O_RDWR, &self->ikdb_mp);
+    err = mpool_open(kvdb_home, &mparams, O_RDWR, &self->ikdb_mp);
     if (ev(err))
         goto self_cleanup;
-
-    /* Since the paths are fine, sync the kvdb.meta file */
-    err = kvdb_meta_sync(&meta, kvdb_home, params);
-    if (err)
-        goto mpool_cleanup;
 
     atomic_set(&self->ikdb_curcnt, 0);
 
@@ -1027,6 +1022,7 @@ ikvdb_open(
     uint32_t               flags;
     u64                    ingestid, gen = 0, txhorizon = 0;
     struct wal_replay_info rinfo = {0};
+    struct mpool_rparams   mparams;
     struct kvdb_meta       meta;
 
     assert(kvdb_home);
@@ -1048,20 +1044,14 @@ ikvdb_open(
     if (ev(err))
         goto out;
 
-    err = kvdb_meta_to_kvdb_rparams(&meta, kvdb_home, params);
+    err = kvdb_meta_to_mpool_rparams(&meta, kvdb_home, &mparams);
     if (ev(err))
         goto out;
 
     flags = params->read_only == 0 ? O_RDWR : O_RDONLY;
-    err = mpool_open(kvdb_home, &params->storage, flags, &self->ikdb_mp);
+    err = mpool_open(kvdb_home, &mparams, flags, &self->ikdb_mp);
     if (ev(err))
         goto out;
-
-    /* Since the paths are fine, sync the kvdb.meta file */
-    err = kvdb_meta_sync(&meta, kvdb_home, params);
-    if (err)
-        goto out;
-
 
     for (int i = 0; i < MP_MED_COUNT; i++) {
         struct mpool_mclass_props mcprops;
@@ -1743,12 +1733,9 @@ merr_t
 ikvdb_storage_info_get(
     struct ikvdb *                handle,
     struct hse_kvdb_storage_info *info,
-    char *                        cappath,
-    char *                        stgpath,
     size_t                        pathlen)
 {
     struct ikvdb_impl *self = ikvdb_h2r(handle);
-    struct kvdb_rparams *rparams = &self->ikdb_rp;
     struct mpool *     mp;
     struct mpool_stats stats = {};
     merr_t             err;
@@ -1779,11 +1766,6 @@ ikvdb_storage_info_get(
         return err;
     info->allocated_bytes += allocated;
     info->used_bytes += used;
-
-    if (cappath)
-        strlcpy(cappath, rparams->storage.mclass[MP_MED_CAPACITY].path, pathlen);
-    if (stgpath)
-        strlcpy(stgpath, rparams->storage.mclass[MP_MED_STAGING].path, pathlen);
 
     return 0;
 }

@@ -4,7 +4,6 @@ kvdb_sources = files(
     'kvdb_cparams.c',
     'kvdb_ctxn.c',
     'kvdb_ctxn_pfxlock.c',
-    'kvdb_dparams.c',
     'kvdb_health.c',
     'kvdb_home.c',
     'kvdb_keylock.c',

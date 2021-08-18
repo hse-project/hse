@@ -196,9 +196,8 @@ rest_kvdb_storage_stats_get(
     char *                       buf = info->buf;
     size_t                       bufsz = info->buf_sz;
     merr_t                       err;
-    char                         cappath[PATH_MAX], stgpath[PATH_MAX];
 
-    err = ikvdb_storage_info_get(ikvdb, &stinfo, cappath, stgpath, PATH_MAX);
+    err = ikvdb_storage_info_get(ikvdb, &stinfo, PATH_MAX);
     if (err)
         return err;
 
@@ -207,8 +206,6 @@ rest_kvdb_storage_stats_get(
     b += snprintf_append(buf, bufsz, &bufoff, "available: %lu\n", stinfo.available_bytes);
     b += snprintf_append(buf, bufsz, &bufoff, "allocated: %lu\n", stinfo.allocated_bytes);
     b += snprintf_append(buf, bufsz, &bufoff, "used: %lu\n", stinfo.used_bytes);
-    b += snprintf_append(buf, bufsz, &bufoff, "capacity_path: %s\n", cappath);
-    b += snprintf_append(buf, bufsz, &bufoff, "staging_path: %s\n", stgpath);
 
     if (write(info->resp_fd, buf, b) != b)
         return merr(EIO);

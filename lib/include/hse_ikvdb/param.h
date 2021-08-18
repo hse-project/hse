@@ -35,7 +35,6 @@ union params {
     void *const as_generic;
     struct kvdb_cparams *const as_kvdb_cp;
     struct kvdb_rparams *const as_kvdb_rp;
-    struct kvdb_dparams *const as_kvdb_dp;
     struct kvs_cparams *const as_kvs_cp;
     struct kvs_rparams *const as_kvs_rp;
     struct hse_gparams *const as_hse_gp;

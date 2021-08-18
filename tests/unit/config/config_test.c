@@ -35,20 +35,20 @@ MTF_BEGIN_UTEST_COLLECTION_PRE(config_test, collection_pre)
 MTF_DEFINE_UTEST(config_test, deserialize_hierarchical_param)
 {
     char                home[PATH_MAX];
-    struct kvdb_rparams params = kvdb_rparams_defaults();
+    struct hse_gparams  params = hse_gparams_defaults();
     struct config *     conf;
     merr_t              err;
 
     snprintf(home, sizeof(home), "%s/deserialize-hierarchical-params", config_root);
 
-    err = config_from_kvdb_conf(home, &conf);
+    err = config_from_hse_conf(home, &conf);
     ASSERT_EQ(0, err);
     ASSERT_NE(NULL, conf);
 
-    err = config_deserialize_to_kvdb_rparams(conf, &params);
+    err = config_deserialize_to_hse_gparams(conf, &params);
     config_destroy(conf);
     ASSERT_EQ(0, err);
-    ASSERT_EQ(0, strcmp(params.storage.mclass[MP_MED_CAPACITY].path, "/var/lib/capacity"));
+    ASSERT_EQ(false, params.gp_logging.enabled);
 }
 
 MTF_DEFINE_UTEST(config_test, deserialize_incorrect_type)

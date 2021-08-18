@@ -28,7 +28,6 @@ struct ikvdb_impl;
 struct kvdb_txn;
 struct kvdb_rparams;
 struct kvdb_cparams;
-struct kvdb_dparams;
 struct kvs_rparams;
 struct kvs_cparams;
 struct hse_kvdb_opspec;
@@ -83,10 +82,9 @@ ikvdb_create(const char *kvdb_home, struct kvdb_cparams *params);
  * Drops files managed by the KVDB such as the kvdb.meta file
  *
  * @param kvdb_home: KVDB home
- * @param params: KVDB dparams
  */
 merr_t
-ikvdb_drop(const char *kvdb_home, struct kvdb_dparams *const params);
+ikvdb_drop(const char *kvdb_home);
 
 /**
  * ikvdb_diag_cndb() - returns a pointer to kvdb's cndb
@@ -242,8 +240,6 @@ merr_t
 ikvdb_storage_info_get(
     struct ikvdb *                handle,
     struct hse_kvdb_storage_info *info,
-    char *                        cappath,
-    char *                        stgpath,
     size_t                        pathlen);
 
 /**

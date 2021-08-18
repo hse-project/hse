@@ -11,7 +11,6 @@
 
 #include <hse_ikvdb/param.h>
 #include <hse_ikvdb/kvdb_cparams.h>
-#include <hse_ikvdb/kvdb_dparams.h>
 #include <hse_ikvdb/kvdb_rparams.h>
 #include <hse_ikvdb/kvs_cparams.h>
 #include <hse_ikvdb/kvs_rparams.h>
@@ -152,23 +151,6 @@ argv_deserialize_to_kvdb_cparams(
     assert(params);
 
     pspecs = kvdb_cparams_pspecs_get(&pspecs_sz);
-
-    return argv_deserialize_to_params(paramc, paramv, pspecs_sz, pspecs, p);
-}
-
-merr_t
-argv_deserialize_to_kvdb_dparams(
-    const size_t               paramc,
-    const char *const *const   paramv,
-    struct kvdb_dparams *const params)
-{
-    size_t                   pspecs_sz;
-    const struct param_spec *pspecs;
-    const union params       p = { .as_kvdb_dp = params };
-
-    assert(params);
-
-    pspecs = kvdb_dparams_pspecs_get(&pspecs_sz);
 
     return argv_deserialize_to_params(paramc, paramv, pspecs_sz, pspecs, p);
 }

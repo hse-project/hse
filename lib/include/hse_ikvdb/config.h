@@ -14,7 +14,6 @@
 #include <hse_ikvdb/hse_gparams.h>
 #ifdef WITH_KVDB_CONF_EXTENDED
 #include <hse_ikvdb/kvdb_cparams.h>
-#include <hse_ikvdb/kvdb_dparams.h>
 #include <hse_ikvdb/kvs_cparams.h>
 #endif
 
@@ -38,15 +37,6 @@ config_deserialize_to_hse_gparams(const struct config *conf, struct hse_gparams 
  */
 merr_t
 config_deserialize_to_kvdb_cparams(const struct config *conf, struct kvdb_cparams *params);
-
-/**
- * Deserialize a config object into KVDB dparams
- *
- * @param config: Config object
- * @param params: KVDB dparams
- */
-merr_t
-config_deserialize_to_kvdb_dparams(const struct config *conf, struct kvdb_dparams *params);
 #endif
 
 /**
