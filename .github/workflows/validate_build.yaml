@@ -91,10 +91,4 @@ jobs:
     - name: check for license
       continue-on-error: true
       run: |
-        scripts/dev/checkoss "${{ runner.temp }}" ./
-
-    - uses: actions/upload-artifact@v2
-      if: failure()
-      with:
-        name: checkoss-errors
-        path: "${{ runner.temp }}"
+        scripts/dev/checkoss
