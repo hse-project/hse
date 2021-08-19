@@ -63,6 +63,8 @@ struct wal {
     size_t     dur_bufsz;
     enum mpool_mclass dur_mclass;
     uint32_t   version;
+    bool       buf_managed;
+    uint32_t   buf_flags;
     struct kvdb_health *health;
     struct ikvdb *ikvdb;
     struct wal_iocb wiocb;
@@ -325,7 +327,7 @@ wal_put(
     kvdata = (char *)rec + rlen;
     memcpy(kvdata, kt->kt_data, klen);
     kt->kt_data = kvdata;
-    kt->kt_flags = HSE_BTF_MANAGED;
+    kt->kt_flags = wal->buf_flags;
 
     if (vlen > 0) {
         kvdata = PTR_ALIGN(kvdata + klen, kvalign);
@@ -380,7 +382,7 @@ wal_del_impl(
     kdata = (char *)rec + rlen;
     memcpy(kdata, kt->kt_data, klen);
     kt->kt_data = kdata;
-    kt->kt_flags = HSE_BTF_MANAGED;
+    kt->kt_flags = wal->buf_flags;
 
     return 0;
 }
@@ -553,8 +555,7 @@ wal_open(
     if (!mp || !rp || !rinfo || !wal_out)
         return merr(EINVAL);
 
-    if (!rp->dur_enable)
-        return 0;
+    *wal_out = NULL;
 
     wal = aligned_alloc(alignof(*wal), sizeof(*wal));
     if (!wal)
@@ -566,11 +567,8 @@ wal_open(
     wal->health = health;
     wal->rdonly = rp->read_only;
     wal->ikvdb = ikdb;
-
-    wal->wal_thr_hwm = rp->dur_throttle_hi_th;
-    wal->wal_thr_lwm = rp->dur_throttle_lo_th;
-    if (wal->wal_thr_lwm > wal->wal_thr_hwm / 2)
-        wal->wal_thr_lwm = wal->wal_thr_hwm / 2;
+    wal->buf_managed = rp->dur_buf_managed;
+    wal->buf_flags = wal->buf_managed ? HSE_BTF_MANAGED : 0;
 
     wal->dur_ms = HSE_WAL_DUR_MS_DFLT;
     wal->dur_bufsz = HSE_WAL_DUR_BUFSZ_MB_DFLT << 20;
@@ -593,6 +591,11 @@ wal_open(
     err = wal_replay(wal, rinfo);
     if (err)
         goto errout;
+
+    if (!rp->dur_enable) {
+        wal_close(wal);
+        return 0;
+    }
 
     if (wal->rdonly) {
         *wal_out = wal;
@@ -619,6 +622,11 @@ wal_open(
     err = wal_mdc_compact(wal->mdc, wal);
     if (err)
         goto errout;
+
+    wal->wal_thr_hwm = rp->dur_throttle_hi_th;
+    wal->wal_thr_lwm = rp->dur_throttle_lo_th;
+    if (wal->wal_thr_lwm > wal->wal_thr_hwm / 2)
+        wal->wal_thr_lwm = wal->wal_thr_hwm / 2;
 
     wal->wiocb.iocb = wal_ionotify_cb;
     wal->wiocb.cbarg = wal;
@@ -692,7 +700,7 @@ wal_close(struct wal *wal)
     }
 
     /* Write a close record to indicate graceful shutdown */
-    wal_mdc_close_write(wal->mdc, true);
+    wal_mdc_close_write(wal->mdc);
     wal_mdc_close(wal->mdc);
 
     free(wal);
@@ -706,7 +714,8 @@ wal_reclaim(struct wal *wal, uint64_t seqno, uint64_t gen, uint64_t txhorizon)
     atomic64_set(&wal->wal_ingestgen, gen);
     atomic64_set(&wal->wal_txhorizon, txhorizon);
 
-    wal_bufset_reclaim(wal->wbs, gen);
+    if (!wal->buf_managed)
+        wal_bufset_reclaim(wal->wbs, gen);
     wal_fileset_reclaim(wal->wfset, seqno, gen, txhorizon, false);
 }
 
@@ -717,6 +726,13 @@ wal_cningest_cb(struct wal *wal, uint64_t seqno, uint64_t gen, uint64_t txhorizo
         wal_reclaim(wal, seqno, gen, txhorizon);
     else
         wal_cond_sync(wal, gen);
+}
+
+void
+wal_bufrel_cb(struct wal *wal, uint64_t gen)
+{
+    if (wal->buf_managed)
+        wal_bufset_reclaim(wal->wbs, gen);
 }
 
 void

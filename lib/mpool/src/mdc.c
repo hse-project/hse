@@ -29,42 +29,6 @@ struct mpool_mdc {
     struct mdc_file *mfpa;
 };
 
-static merr_t
-mdc_alloc_impl(
-    int               dirfd,
-    int               mcid,
-    uint32_t          magic,
-    size_t            capacity,
-    uint64_t         *logid1,
-    uint64_t         *logid2)
-{
-    merr_t   err;
-    uint64_t id[2];
-    int      flags, mode;
-
-    flags = O_RDWR | O_CREAT | O_EXCL;
-    mode = S_IRUSR | S_IWUSR;
-
-    for (int i = 0; i < 2; i++) {
-        char name[MDC_NAME_LENGTH_MAX];
-
-        id[i] = logid_make(i, mcid, magic);
-        mdc_filename_gen(name, sizeof(name), id[i]);
-        err = mdc_file_create(dirfd, name, flags, mode, capacity);
-        if (err) {
-            if (i != 0) {
-                mdc_filename_gen(name, sizeof(name), id[0]);
-                mdc_file_destroy(dirfd, name);
-            }
-            return err;
-        }
-    }
-
-    *logid1 = id[0];
-    *logid2 = id[1];
-
-    return 0;
-}
 
 merr_t
 mpool_mdc_alloc(
@@ -76,8 +40,9 @@ mpool_mdc_alloc(
     uint64_t         *logid2)
 {
     enum mclass_id mcid;
-    int dirfd;
-    merr_t err;
+    uint64_t id[2];
+    merr_t   err;
+    int      dirfd, flags, mode, i;
 
     if (!mp || mclass >= MP_MED_COUNT || capacity < MDC_LOGHDR_LEN || !logid1 || !logid2)
         return merr(EINVAL);
@@ -88,28 +53,28 @@ mpool_mdc_alloc(
 
     mcid = mclass_to_mcid(mclass);
 
-    return mdc_alloc_impl(dirfd, mcid, magic, capacity, logid1, logid2);
-}
+    flags = O_RDWR | O_CREAT | O_EXCL;
+    mode = S_IRUSR | S_IWUSR;
 
-static merr_t
-mdc_commit_impl(int dirfd, uint64_t logid1, uint64_t logid2)
-{
-    uint64_t id[] = { logid1, logid2 };
-
-    for (int i = 0; i < 2; i++) {
+    for (i = 0; i < 2; i++) {
         char name[MDC_NAME_LENGTH_MAX];
-        merr_t err;
 
+        id[i] = logid_make(i, mcid, magic);
         mdc_filename_gen(name, sizeof(name), id[i]);
-        err = mdc_file_commit(dirfd, name);
+
+        err = mdc_file_create(dirfd, name, flags, mode, capacity);
         if (err) {
-            while (i >= 0) {
-                mdc_filename_gen(name, sizeof(name), id[i--]);
+            if (i != 0) {
+                mdc_filename_gen(name, sizeof(name), id[0]);
                 mdc_file_destroy(dirfd, name);
             }
-            return merr(err);
+
+            return err;
         }
     }
+
+    *logid1 = id[0];
+    *logid2 = id[1];
 
     return 0;
 }
@@ -118,7 +83,8 @@ merr_t
 mpool_mdc_commit(struct mpool *mp, uint64_t logid1, uint64_t logid2)
 {
     merr_t   err;
-    int      dirfd, mcid;
+    int      dirfd, mcid, i;
+    uint64_t id[] = { logid1, logid2 };
 
     if (!mp || !logids_valid(logid1, logid2))
         return merr(EINVAL);
@@ -128,7 +94,23 @@ mpool_mdc_commit(struct mpool *mp, uint64_t logid1, uint64_t logid2)
     if (err)
         return err;
 
-    return mdc_commit_impl(dirfd, logid1, logid2);
+    for (i = 0; i < 2; i++) {
+        char name[MDC_NAME_LENGTH_MAX];
+
+        mdc_filename_gen(name, sizeof(name), id[i]);
+
+        err = mdc_file_commit(dirfd, name);
+        if (err) {
+            while (i >= 0) {
+                mdc_filename_gen(name, sizeof(name), id[i--]);
+                mdc_file_destroy(dirfd, name);
+            }
+
+            return err;
+        }
+    }
+
+    return 0;
 }
 
 merr_t
@@ -164,14 +146,24 @@ mpool_mdc_abort(struct mpool *mp, uint64_t logid1, uint64_t logid2)
     return mpool_mdc_delete(mp, logid1, logid2);
 }
 
-static merr_t
-mdc_open_impl(int dirfd, uint64_t logid1, uint64_t logid2, struct mpool_mdc **handle)
+merr_t
+mpool_mdc_open(struct mpool *mp, uint64_t logid1, uint64_t logid2, struct mpool_mdc **handle)
 {
     struct mdc_file  *mfp[2] = {};
     struct mpool_mdc *mdc;
-    merr_t         err, err1, err2;
-    uint64_t       gen1, gen2;
-    char           name[2][MDC_NAME_LENGTH_MAX];
+    enum mclass_id    mcid;
+    merr_t   err, err1, err2;
+    int      dirfd;
+    uint64_t gen1, gen2;
+    char     name[2][MDC_NAME_LENGTH_MAX];
+
+    if (!mp || !handle || !logids_valid(logid1, logid2))
+        return merr(EINVAL);
+
+    mcid = logid_mcid(logid1);
+    err = mpool_mclass_dirfd(mp, mcid_to_mclass(mcid), &dirfd);
+    if (err)
+        return err;
 
     mdc = calloc(1, sizeof(*mdc));
     if (!mdc)
@@ -187,13 +179,8 @@ mdc_open_impl(int dirfd, uint64_t logid1, uint64_t logid2, struct mpool_mdc **ha
 
     if (err || (!err && gen1 && gen1 == gen2)) {
         err = merr(EINVAL);
-        hse_log(
-            HSE_ERR "%s: MDC (%lu:%lu) bad pair gen (%lu, %lu)",
-            __func__,
-            logid1,
-            logid2,
-            gen1,
-            gen2);
+        hse_log(HSE_ERR "%s: MDC (%lu:%lu) corrupt: bad pair err (%d, %d) gen (%lu, %lu)",
+                __func__, logid1, logid2, merr_errno(err1), merr_errno(err2), gen1, gen2);
     } else {
         /* active log is valid log with smallest gen */
         if (gen2 < gen1) {
@@ -208,13 +195,8 @@ mdc_open_impl(int dirfd, uint64_t logid1, uint64_t logid2, struct mpool_mdc **ha
              */
             err = mdc_file_erase(mfp[0], gen2 + 1);
             if (err)
-                hse_elog(
-                    HSE_ERR "%s: mdc file1 logid %lu erase failed, gen (%lu, %lu): @@e",
-                    err,
-                    __func__,
-                    logid1,
-                    gen1,
-                    gen2);
+                hse_elog(HSE_ERR "%s: mdc file1 logid %lu erase failed, gen (%lu, %lu): @@e",
+                         err, __func__, logid1, gen1, gen2);
         } else {
             mdc->mfpa = mfp[0];
 
@@ -222,11 +204,7 @@ mdc_open_impl(int dirfd, uint64_t logid1, uint64_t logid2, struct mpool_mdc **ha
             if (err)
                 hse_elog(
                     HSE_ERR "%s: mdc file2 logid %lu erase failed, gen (%lu, %lu): @@e",
-                    err,
-                    __func__,
-                    logid2,
-                    gen1,
-                    gen2);
+                    err, __func__, logid2, gen1, gen2);
         }
     }
 
@@ -245,28 +223,6 @@ mdc_open_impl(int dirfd, uint64_t logid1, uint64_t logid2, struct mpool_mdc **ha
         free(mdc);
 
     return err;
-}
-
-merr_t
-mpool_mdc_open(struct mpool *mp, uint64_t logid1, uint64_t logid2, struct mpool_mdc **handle)
-{
-    enum mclass_id mcid;
-    merr_t err;
-    int dirfd;
-
-    assert(mp);
-    assert(handle);
-
-    /* [HSE_TODO]: Elevate this to an assert? */
-    if (!logids_valid(logid1, logid2))
-        return merr(EINVAL);
-
-    mcid = logid_mcid(logid1);
-    err = mpool_mclass_dirfd(mp, mcid_to_mclass(mcid), &dirfd);
-    if (err)
-        return err;
-
-    return mdc_open_impl(dirfd, logid1, logid2, handle);
 }
 
 merr_t

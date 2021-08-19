@@ -21,6 +21,86 @@ struct wal_mdc {
     char             *buf;
 };
 
+static inline void
+wal_mdchdr_pack(enum wal_rec_type rtype, char *outbuf)
+{
+    struct wal_mdchdr_omf *homf = (struct wal_mdchdr_omf *)outbuf;
+
+    omf_set_mh_rtype(homf, rtype);
+    omf_set_mh_rsvd(homf, 0);
+}
+
+static merr_t
+wal_mdc_version_write(struct wal_mdc *mdc, uint32_t version, bool sync)
+{
+    struct wal_version_omf vomf;
+
+    wal_mdchdr_pack(WAL_RT_VERSION, (char *)&vomf);
+    omf_set_ver_version(&vomf, version);
+    omf_set_ver_magic(&vomf, WAL_MAGIC);
+
+    return mpool_mdc_append(mdc->mp_mdc, &vomf, sizeof(vomf), sync);
+}
+
+static merr_t
+wal_mdc_config_write(struct wal_mdc *mdc, enum mpool_mclass mclass, bool sync)
+{
+    struct wal_config_omf comf;
+
+    wal_mdchdr_pack(WAL_RT_CONFIG, (char *)&comf);
+    omf_set_cfg_mclass(&comf, mclass);
+    omf_set_cfg_rsvd1(&comf, 0);
+    omf_set_cfg_rsvd2(&comf, 0);
+    omf_set_cfg_rsvd3(&comf, 0);
+
+    return mpool_mdc_append(mdc->mp_mdc, &comf, sizeof(comf), sync);
+}
+
+static merr_t
+wal_mdc_version_unpack(const char *buf, struct wal *wal)
+{
+    struct wal_version_omf *vomf;
+    uint32_t version;
+
+    if (!buf || !wal)
+        return merr(EINVAL);
+
+    vomf = (struct wal_version_omf *)buf;
+
+    version = omf_ver_version(vomf);
+    wal_version_set(wal, version);
+
+    if (WAL_MAGIC != omf_ver_magic(vomf))
+        return merr(EBADMSG);
+
+    return 0;
+}
+
+static merr_t
+wal_mdc_config_unpack(const char *buf, struct wal *wal)
+{
+    struct wal_config_omf *comf;
+    enum mpool_mclass mclass;
+
+    if (!buf || !wal)
+        return merr(EINVAL);
+
+    comf = (struct wal_config_omf *)buf;
+    mclass = omf_cfg_mclass(comf);
+
+    wal_dur_mclass_set(wal, mclass);
+
+    return 0;
+}
+
+static inline enum wal_rec_type
+wal_mdchdr_rtype_get(char *inbuf)
+{
+    struct wal_mdchdr_omf *homf = (struct wal_mdchdr_omf *)inbuf;
+
+    return omf_mh_rtype(homf);
+}
+
 merr_t
 wal_mdc_create(
     struct mpool     *mp,
@@ -41,11 +121,7 @@ wal_mdc_create(
     if (err)
         return err;
 
-    err = mpool_mdc_commit(mp, *mdcid1, *mdcid2);
-    if (err)
-        return err;
-
-    return 0;
+    return mpool_mdc_commit(mp, *mdcid1, *mdcid2);
 }
 
 void
@@ -107,152 +183,15 @@ wal_mdc_close(struct wal_mdc *mdc)
 }
 
 merr_t
-wal_mdc_sync(struct wal_mdc *mdc)
-{
-    return mpool_mdc_sync(mdc->mp_mdc);
-}
-
-static inline void
-wal_mdchdr_pack(enum wal_rec_type rtype, char *outbuf)
-{
-    struct wal_mdchdr_omf *homf = (struct wal_mdchdr_omf *)outbuf;
-
-    omf_set_mh_rtype(homf, rtype);
-    omf_set_mh_rsvd(homf, 0);
-}
-
-static inline enum wal_rec_type
-wal_mdchdr_rtype_get(char *inbuf)
-{
-    struct wal_mdchdr_omf *homf = (struct wal_mdchdr_omf *)inbuf;
-
-    return omf_mh_rtype(homf);
-}
-
-static merr_t
-wal_mdc_version_write_impl(struct wal_mdc *mdc, uint32_t version, bool sync)
-{
-    struct wal_version_omf vomf;
-    merr_t err;
-
-    wal_mdchdr_pack(WAL_RT_VERSION, (char *)&vomf);
-    omf_set_ver_version(&vomf, version);
-    omf_set_ver_magic(&vomf, WAL_MAGIC);
-
-    err = mpool_mdc_append(mdc->mp_mdc, &vomf, sizeof(vomf), sync);
-    if (err)
-        return err;
-
-    return 0;
-}
-
-merr_t
-wal_mdc_version_write(struct wal_mdc *mdc, struct wal *wal, bool sync)
-{
-    if (!mdc || !wal)
-        return merr(EINVAL);
-
-    return wal_mdc_version_write_impl(mdc, wal_version_get(wal), sync);
-}
-
-static merr_t
-wal_mdc_version_unpack(const char *buf, struct wal *wal)
-{
-    struct wal_version_omf *vomf;
-    uint32_t version;
-
-    if (!buf || !wal)
-        return merr(EINVAL);
-
-    vomf = (struct wal_version_omf *)buf;
-
-    version = omf_ver_version(vomf);
-    wal_version_set(wal, version);
-
-    if (WAL_MAGIC != omf_ver_magic(vomf))
-        return merr(EBADMSG);
-
-    return 0;
-}
-
-static merr_t
-wal_mdc_config_write_impl(
-    struct wal_mdc   *mdc,
-    enum mpool_mclass mclass,
-    bool              sync)
-{
-    struct wal_config_omf comf;
-    merr_t err;
-
-    wal_mdchdr_pack(WAL_RT_CONFIG, (char *)&comf);
-    omf_set_cfg_mclass(&comf, mclass);
-    omf_set_cfg_rsvd1(&comf, 0);
-    omf_set_cfg_rsvd2(&comf, 0);
-    omf_set_cfg_rsvd3(&comf, 0);
-
-    err = mpool_mdc_append(mdc->mp_mdc, &comf, sizeof(comf), sync);
-    if (err)
-        return err;
-
-    return 0;
-}
-
-merr_t
-wal_mdc_config_write(struct wal_mdc *mdc, struct wal *wal, bool sync)
-{
-    if (!mdc || !wal)
-        return merr(EINVAL);
-
-    return wal_mdc_config_write_impl(mdc, wal_dur_mclass_get(wal), sync);
-}
-
-
-static merr_t
-wal_mdc_config_unpack(const char *buf, struct wal *wal)
-{
-    struct wal_config_omf *comf;
-    enum mpool_mclass mclass;
-
-    if (!buf || !wal)
-        return merr(EINVAL);
-
-    comf = (struct wal_config_omf *)buf;
-    mclass = omf_cfg_mclass(comf);
-
-    wal_dur_mclass_set(wal, mclass);
-
-    return 0;
-}
-
-merr_t
-wal_mdc_close_write(struct wal_mdc *mdc, bool sync)
-{
-    struct wal_close_omf comf;
-    merr_t err;
-
-    if (!mdc)
-        return merr(EINVAL);
-
-    wal_mdchdr_pack(WAL_RT_CLOSE, (char *)&comf);
-
-    err = mpool_mdc_append(mdc->mp_mdc, &comf, sizeof(comf), sync);
-    if (err)
-        return err;
-
-    return 0;
-}
-
-merr_t
 wal_mdc_format(struct wal_mdc *mdc, uint32_t version)
 {
     merr_t err;
-    bool sync = true;
 
-    err = wal_mdc_version_write_impl(mdc, version, sync);
+    err = wal_mdc_version_write(mdc, version, true);
     if (err)
         return err;
 
-    return wal_mdc_close_write(mdc, sync);
+    return wal_mdc_close_write(mdc);
 }
 
 merr_t
@@ -267,11 +206,11 @@ wal_mdc_compact(struct wal_mdc *mdc, struct wal *wal)
         return err;
     }
 
-    err = wal_mdc_version_write(mdc, wal, sync);
+    err = wal_mdc_version_write(mdc, wal_version_get(wal), sync);
     if (err)
         return err;
 
-    err = wal_mdc_config_write(mdc, wal, sync);
+    err = wal_mdc_config_write(mdc, wal_dur_mclass_get(wal), sync);
     if (err)
         return err;
 
@@ -330,4 +269,17 @@ wal_mdc_replay(struct wal_mdc *mdc, struct wal *wal)
     };
 
     return err;
+}
+
+merr_t
+wal_mdc_close_write(struct wal_mdc *mdc)
+{
+    struct wal_close_omf comf;
+
+    if (!mdc)
+        return merr(EINVAL);
+
+    wal_mdchdr_pack(WAL_RT_CLOSE, (char *)&comf);
+
+    return mpool_mdc_append(mdc->mp_mdc, &comf, sizeof(comf), true);
 }

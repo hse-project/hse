@@ -874,6 +874,19 @@ static const struct param_spec pspecs[] = {
             },
         },
     },
+    {
+        .ps_name = "dur_buf_managed",
+        .ps_description = "Controls whether WAL buffers are shared with c0",
+        .ps_flags = PARAM_FLAG_EXPERIMENTAL,
+        .ps_type = PARAM_TYPE_BOOL,
+        .ps_offset = offsetof(struct kvdb_rparams, dur_buf_managed),
+        .ps_size = sizeof(((struct kvdb_rparams *) 0)->dur_buf_managed),
+        .ps_convert = param_default_converter,
+        .ps_validate = param_default_validator,
+        .ps_default_value = {
+            .as_bool = false,
+        },
+    },
 	{
         .ps_name = "dur_mclass",
         .ps_description = "media class to use for WAL files",

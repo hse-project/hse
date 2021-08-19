@@ -140,7 +140,7 @@ logrec_crc_get(const uint8_t *data1, size_t len1, const uint8_t *data2, size_t l
 }
 
 static merr_t
-logrec_validate(char *addr, size_t *recsz)
+logrec_validate(struct mdc_file *mfp, char *addr, size_t *recsz)
 {
     struct mdc_rechdr      rh;
     struct mdc_rechdr_omf *rhomf;
@@ -151,7 +151,10 @@ logrec_validate(char *addr, size_t *recsz)
 
     omf_mdc_rechdr_unpack_letoh((const char *)addr, &rh);
     if (rh.size == 0 && rh.crc == 0)
-        return merr(ENOMSG);
+        return merr(ENOMSG); /* end-of-log */
+
+    if (addr + rh.size - mfp->addr > mfp->size || rh.rsvd != 0)
+        return merr(EBADMSG); /* corruption */
 
     rhomf = (struct mdc_rechdr_omf *)addr;
     addr += omf_mdc_rechdr_len();
@@ -159,7 +162,7 @@ logrec_validate(char *addr, size_t *recsz)
     hdrlen = sizeof(rhomf->rh_size);
     crc = logrec_crc_get((const uint8_t *)&rhomf->rh_size, hdrlen, (const uint8_t *)addr, rh.size);
     if (crc != rh.crc)
-        return merr(EBADMSG);
+        return merr(ENOMSG); /* Likely crashed while writing record, mark end-of-log */
 
     *recsz = rh.size;
 
@@ -293,7 +296,7 @@ mdc_file_validate(struct mdc_file *mfp, uint64_t *gen)
         do {
             size_t recsz;
 
-            err = logrec_validate(addr, &recsz);
+            err = logrec_validate(mfp, addr, &recsz);
             if (err) {
                 if (merr_errno(err) == ENOMSG) { /* End of log */
                     err = 0;
@@ -575,10 +578,10 @@ mdc_file_read(struct mdc_file *mfp, void *data, size_t len, bool verify, size_t 
     }
 
     omf_mdc_rechdr_unpack_letoh((const char *)addr, &rh);
-    if (rh.size == 0 && rh.crc == 0) { /* Reached end of log */
+    if (mfp->roff == mfp->woff) {
         if (rdlen)
             *rdlen = 0;
-        return 0;
+        return 0; /* Reached end of log */
     }
 
     if (rdlen)
