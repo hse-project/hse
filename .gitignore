@@ -21,6 +21,7 @@ bull.cov
 subprojects/*
 !subprojects/*.wrap
 !subprojects/packagefiles
+!subprojects/db_bench
 *build*/
 !scripts/build/
 .pytest_cache/
