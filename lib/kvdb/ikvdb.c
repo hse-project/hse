@@ -964,9 +964,9 @@ ikvdb_low_mem_adjust(struct ikvdb_impl *self)
 static void
 ikvdb_wal_cningest_cb(
     struct ikvdb *ikdb,
-    unsigned long seqno,
-    unsigned long gen,
-    unsigned long txhorizon,
+    uint64_t      seqno,
+    uint64_t      gen,
+    uint64_t      txhorizon,
     bool          post_ingest)
 {
     struct ikvdb_impl *self = ikvdb_h2r(ikdb);
@@ -976,9 +976,7 @@ ikvdb_wal_cningest_cb(
 }
 
 static void
-ikvdb_wal_bufrel_cb(
-    struct ikvdb *ikdb,
-    unsigned long gen)
+ikvdb_wal_bufrel_cb(struct ikvdb *ikdb, uint64_t gen)
 {
     struct ikvdb_impl *self = ikvdb_h2r(ikdb);
 

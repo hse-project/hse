@@ -371,13 +371,6 @@ uintptr_t *
 c0kvms_c0snr_alloc(struct c0_kvmultiset *handle);
 
 /**
- * c0kvms_ctime() - retrieve the kvms creation time (get_time_ns() semantics)
- * @mset: struct c0_kvset
- */
-u64
-c0kvms_ctime(struct c0_kvmultiset *handle);
-
-/**
  * c0kvms_init() - called to initialize c0kvms subsystem
  */
 merr_t

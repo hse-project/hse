@@ -64,6 +64,7 @@ struct wal {
     enum mpool_mclass dur_mclass;
     uint32_t   version;
     bool       buf_managed;
+    uint32_t   buf_flags;
     struct kvdb_health *health;
     struct ikvdb *ikvdb;
     struct wal_iocb wiocb;
@@ -326,7 +327,7 @@ wal_put(
     kvdata = (char *)rec + rlen;
     memcpy(kvdata, kt->kt_data, klen);
     kt->kt_data = kvdata;
-    kt->kt_flags = wal->buf_managed ? HSE_BTF_MANAGED : 0;
+    kt->kt_flags = wal->buf_flags;
 
     if (vlen > 0) {
         kvdata = PTR_ALIGN(kvdata + klen, kvalign);
@@ -381,7 +382,7 @@ wal_del_impl(
     kdata = (char *)rec + rlen;
     memcpy(kdata, kt->kt_data, klen);
     kt->kt_data = kdata;
-    kt->kt_flags = wal->buf_managed ? HSE_BTF_MANAGED : 0;
+    kt->kt_flags = wal->buf_flags;
 
     return 0;
 }
@@ -567,6 +568,7 @@ wal_open(
     wal->rdonly = rp->read_only;
     wal->ikvdb = ikdb;
     wal->buf_managed = rp->dur_buf_managed;
+    wal->buf_flags = wal->buf_managed ? HSE_BTF_MANAGED : 0;
 
     wal->dur_ms = HSE_WAL_DUR_MS_DFLT;
     wal->dur_bufsz = HSE_WAL_DUR_BUFSZ_MB_DFLT << 20;

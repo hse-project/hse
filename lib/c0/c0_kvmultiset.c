@@ -42,7 +42,6 @@
  * @c0ms_gen:           kvms unique generation count
  * @c0ms_seqno:
  * @c0ms_rsvd_sn:       reserved at kvms activation for txn flush and ingestid
- * @c0ms_ctime:         create time (ns)
  * @c0ms_used:          RAM footprint when queued for ingest (bytes)
  * @c0ms_stashp:        ptr to storage in which to cache a single freed kvms
  * @c0ms_ingesting:     kvms is being ingested (no longer active)
@@ -64,7 +63,6 @@ struct c0_kvmultiset_impl {
     u64                   c0ms_gen;
     atomic64_t            c0ms_seqno;
     u64                   c0ms_rsvd_sn;
-    u64                   c0ms_ctime;
     atomic64_t            c0ms_txhorizon;
     size_t                c0ms_used;
     atomic64_t           *c0ms_kvdb_seq;
@@ -773,7 +771,6 @@ c0kvms_create(u32 num_sets, atomic64_t *kvdb_seq, void **stashp, struct c0_kvmul
     /* mark this seqno 'not in use'. */
     atomic64_set(&kvms->c0ms_seqno, HSE_SQNREF_INVALID);
     kvms->c0ms_rsvd_sn = HSE_SQNREF_INVALID;
-    kvms->c0ms_ctime = get_time_ns();
     atomic64_set(&kvms->c0ms_txhorizon, U64_MAX);
     kvms->c0ms_used = 0;
     kvms->c0ms_kvdb_seq = kvdb_seq;
@@ -1038,14 +1035,6 @@ c0kvms_c0snr_alloc(struct c0_kvmultiset *handle)
     entry = self->c0ms_c0snr_base + cur;
 
     return entry;
-}
-
-u64
-c0kvms_ctime(struct c0_kvmultiset *handle)
-{
-    struct c0_kvmultiset_impl *self = c0_kvmultiset_h2r(handle);
-
-    return self->c0ms_ctime;
 }
 
 HSE_COLD merr_t

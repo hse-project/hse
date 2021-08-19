@@ -25,20 +25,20 @@ struct wal;
 /* MTF_MOCK_DECL(wal) */
 
 struct wal_record {
-    void   *recbuf;
-    u64     offset;
-    uint    wbidx;
-    size_t  len;
-    int64_t cookie;
+    void    *recbuf;
+    uint64_t offset;
+    uint     wbidx;
+    size_t   len;
+    int64_t  cookie;
 };
 
 struct wal_replay_info {
-    u64  mdcid1;
-    u64  mdcid2;
-    u64  gen;
-    u64  seqno;
-    u64  txhorizon;
-    bool clean;
+    uint64_t  mdcid1;
+    uint64_t  mdcid2;
+    uint64_t  gen;
+    uint64_t  seqno;
+    uint64_t  txhorizon;
+    bool      clean;
 };
 
 /* MTF_MOCK */
@@ -107,7 +107,12 @@ void
 wal_op_finish(struct wal *wal, struct wal_record *rec, uint64_t seqno, uint64_t gen, int rc);
 
 void
-wal_cningest_cb(struct wal *wal, u64 seqno, u64 gen, u64 txhorizon, bool post_ingest);
+wal_cningest_cb(
+    struct wal *wal,
+    uint64_t    seqno,
+    uint64_t    gen,
+    uint64_t    txhorizon,
+    bool        post_ingest);
 
 void
 wal_bufrel_cb(struct wal *wal, uint64_t gen);

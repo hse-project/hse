@@ -162,7 +162,7 @@ logrec_validate(struct mdc_file *mfp, char *addr, size_t *recsz)
     hdrlen = sizeof(rhomf->rh_size);
     crc = logrec_crc_get((const uint8_t *)&rhomf->rh_size, hdrlen, (const uint8_t *)addr, rh.size);
     if (crc != rh.crc)
-        return merr(ENOMSG); /* Likely crash while writing record, mark end-of-log */
+        return merr(ENOMSG); /* Likely crashed while writing record, mark end-of-log */
 
     *recsz = rh.size;
 
@@ -578,10 +578,10 @@ mdc_file_read(struct mdc_file *mfp, void *data, size_t len, bool verify, size_t 
     }
 
     omf_mdc_rechdr_unpack_letoh((const char *)addr, &rh);
-    if (mfp->roff == mfp->woff) { /* Reached end of log */
+    if (mfp->roff == mfp->woff) {
         if (rdlen)
             *rdlen = 0;
-        return 0;
+        return 0; /* Reached end of log */
     }
 
     if (rdlen)
