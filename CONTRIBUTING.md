@@ -172,9 +172,15 @@ To ignore a suite, run the following:
 meson test -C build [--no-suite suite...]
 ```
 
-> TODO: Document how to build and test in a way that mimics what
-> is done one each PR.  Contributors should be encouraged to run
-> those same tests prior to submitting a PR.
+#### Replicating CI build checks
+The CI runs the builds on ubuntu and fedora system with release and
+debugoptimized build types.
+To mimic the checks for build validation in CI run the following:
+```shell
+meson build -Dbuildtype=${build_type} -Dycsb=true -Dinstall-tools=true \
+    -Dinstall-configs=true -Dwerror=true -Db_sanitize=address,undefined
+meson test -C build --setup=ci
+```
 
 ### Distributing the Source
 

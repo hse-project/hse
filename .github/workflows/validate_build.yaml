@@ -1,0 +1,94 @@
+name: Validate Builds
+
+on:
+  push:
+  pull_request:
+    types: [opened, synchronize, reopened, edited]
+
+jobs:
+  build_ubuntu:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-18.04]
+        build_type: [release, debugoptimized]
+
+    steps:
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install build-essential libbsd-dev pkg-config openjdk-8-jdk libmicrohttpd-dev liburcu-dev libyaml-dev liblz4-dev libcurl4-openssl-dev
+        sudo apt-get install libmongoc-1.0-0 libbson-1.0-0 libssl-dev libsasl2-dev
+        python3 -m pip install --user setuptools_rust wheel
+        python3 -m pip install --user poetry
+
+    - uses: actions/checkout@v2
+
+    - name: Setup python environment to run branch
+      run: |
+        python3 -m poetry install
+
+    - name: Build setup with YCSB, tools and configs
+      run: |
+        python3 -m poetry run meson builddir -Dbuildtype=${{ matrix.build_type }} -Dycsb=true -Dinstall-tools=true -Dinstall-configs=true -Dwerror=true
+
+    - name: Run tests
+      run: |
+        poetry run meson test -C builddir --setup=ci --print-errorlogs --no-stdsplit
+
+    - uses: actions/upload-artifact@v2
+      if: failure()
+      with:
+        name: build-artifact-ubuntu18-${{ matrix.build_type }}
+        path: builddir/meson-logs/
+
+  build_fedora:
+    runs-on: ubuntu-18.04
+    container:
+      image: fedora:latest
+      options: --privileged  -v /usr/src:/usr/src -v /lib/modules:/lib/modules
+    strategy:
+      fail-fast: false
+      matrix:
+        build_type: [release, debugoptimized]
+
+    steps:
+    - name: Install dependencies
+      run: |
+        sudo dnf install -y which git pkg-config java-1.8.0-openjdk-devel libmicrohttpd-devel userspace-rcu-devel libyaml-devel lz4-devel libbsd-devel libcurl-devel
+        sudo dnf install -y xz mongo-c-driver libbson openssl-devel cyrus-sasl-devel ncurses-devel cmake make automake gcc gcc-c++ kernel-devel
+        sudo dnf install -y python-pip python-wheel python3-devel
+        python3 -m pip install --user setuptools_rust wheel
+        python3 -m pip install --user poetry
+
+    - uses: actions/checkout@v2
+
+    - name: Setup python environment to run branch
+      run: |
+        python3 -m poetry install
+
+    - name: Build setup with YCSB, tools and configs
+      run: |
+        python3 -m poetry run meson builddir -Dbuildtype=${{ matrix.build_type }} -Dycsb=true -Dinstall-tools=true -Dinstall-configs=true -Dwerror=true
+
+    - name: Run tests
+      run: |
+        python3 -m poetry run meson test -C builddir --setup=ci --print-errorlogs --no-stdsplit
+
+    - uses: actions/upload-artifact@v2
+      if: failure()
+      with:
+        name: build-artifact-fedora-latest-${{ matrix.build_type }}
+        path: builddir/meson-logs/
+
+  checkoss:
+    runs-on: ubuntu-18.04
+
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: check for license
+      continue-on-error: true
+      run: |
+        scripts/dev/checkoss
