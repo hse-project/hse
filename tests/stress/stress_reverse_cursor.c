@@ -279,7 +279,7 @@ point_insertion(void *args)
         log_debug("hse_kvs_cursor_create: rank=%d", info->rank);
     }
 
-    err = hse_kvs_cursor_create(info->kvs, HSE_FLAG_CURSOR_REVERSE, txn, NULL, 0, &CURSOR);
+    err = hse_kvs_cursor_create(info->kvs, HSE_CURSOR_CREATE_REV, txn, NULL, 0, &CURSOR);
     if (err) {
         hse_strerror(err, msg, sizeof(msg));
         log_error(

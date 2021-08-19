@@ -58,7 +58,7 @@ def run_test(kvdb: hse.Kvdb, kvs: hse.Kvs):
         assert c.eof
 
     with kvs.cursor(
-        txn=t0, flags=hse.CursorFlag.REVERSE
+        txn=t0, flags=hse.CursorCreateFlag.REV
     ) as c:
         assert sum(1 for _ in c.items()) == 5
 

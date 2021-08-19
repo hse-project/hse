@@ -20,6 +20,8 @@
 
 /* MTF_MOCK_DECL(ikvdb) */
 
+#define HSE_KVDB_SYNC_REFWAIT HSE_KVDB_SYNC_RSVD1
+
 struct yaml_context;
 
 struct config;

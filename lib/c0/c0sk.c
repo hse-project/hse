@@ -611,7 +611,7 @@ c0sk_close(struct c0sk *handle)
     self = c0sk_h2r(handle);
     self->c0sk_closing = true;
 
-    c0sk_sync(handle, HSE_FLAG_SYNC_REFWAIT);
+    c0sk_sync(handle, HSE_KVDB_SYNC_REFWAIT);
 
     /* There should be only one (empty) kvms on the list after
      * calling c0sk_sync() and waiting for ingest to complete.
@@ -782,7 +782,7 @@ c0sk_sync(struct c0sk *handle, const unsigned int flags)
      * Don't mark syncing in asynchronous request.
      */
     self->c0sk_syncing = !(flags & HSE_FLAG_SYNC_ASYNC);
-    err = c0sk_flush_current_multiset(self, &waiter.c0skw_gen, flags & HSE_FLAG_SYNC_REFWAIT);
+    err = c0sk_flush_current_multiset(self, &waiter.c0skw_gen, flags & HSE_KVDB_SYNC_REFWAIT);
     if (ev(err)) {
         self->c0sk_syncing = false;
         return merr_errno(err) == EAGAIN ? 0 : err;

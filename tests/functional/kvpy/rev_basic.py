@@ -24,7 +24,7 @@ try:
         assert kvs.get(b"a") == b"1"
         assert kvs.get(b"b") == b"2"
 
-        cursor = kvs.cursor(flags=hse.CursorFlag.REVERSE)
+        cursor = kvs.cursor(flags=hse.CursorCreateFlag.REV)
         kv = cursor.read()
         assert kv == (b"b", b"2")
         kv = cursor.read()

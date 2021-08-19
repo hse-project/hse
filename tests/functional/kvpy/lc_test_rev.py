@@ -23,7 +23,7 @@ def separate_keys(kvdb: hse.Kvdb, kvs: hse.Kvs):
         kvs.put(b"ab03", b"val-c0", txn=t)
 
     # Cursor
-    with kvs.cursor(filt=b"ab", flags=hse.CursorFlag.REVERSE) as c:
+    with kvs.cursor(filt=b"ab", flags=hse.CursorCreateFlag.REV) as c:
         # Read all keys
         assert c.read() == (b"ab03", b"val-c0")
         assert c.read() == (b"ab02", b"val-lc")
@@ -72,7 +72,7 @@ def duplicate_lc_cn(kvdb: hse.Kvdb, kvs: hse.Kvs, cursor_sync: bool=False):
         kvs.put(b"ab02", b"val-c0", txn=t)
 
     # Cursor
-    with kvs.cursor(filt=b"ab", flags=hse.CursorFlag.REVERSE) as c:
+    with kvs.cursor(filt=b"ab", flags=hse.CursorCreateFlag.REV) as c:
         if cursor_sync:
             kvdb.sync()
 
@@ -123,7 +123,7 @@ def duplicate_c0_lc(kvdb: hse.Kvdb, kvs: hse.Kvs, cursor_sync: bool=False):
     with kvdb.transaction() as t:
         kvs.put(b"ab02", b"val-c0", txn=t)
 
-    with kvs.cursor(filt=b"ab", flags=hse.CursorFlag.REVERSE) as c:
+    with kvs.cursor(filt=b"ab", flags=hse.CursorCreateFlag.REV) as c:
         if cursor_sync:
             kvdb.sync()
 
@@ -175,7 +175,7 @@ def tombs_c0_lc(kvdb: hse.Kvdb, kvs: hse.Kvs, cursor_sync: bool=False):
         kvs.delete(b"ab02", txn=t)
 
     # Cursor
-    with kvs.cursor(filt=b"ab", flags=hse.CursorFlag.REVERSE) as c:
+    with kvs.cursor(filt=b"ab", flags=hse.CursorCreateFlag.REV) as c:
         if cursor_sync:
             kvdb.sync()
 
@@ -219,7 +219,7 @@ def tombs_lc_cn(kvdb: hse.Kvdb, kvs: hse.Kvs, cursor_sync: bool=False):
         kvs.put(b"ab02", b"val-c0", txn=t)
 
     # Cursor
-    with kvs.cursor(filt=b"ab", flags=hse.CursorFlag.REVERSE) as c:
+    with kvs.cursor(filt=b"ab", flags=hse.CursorCreateFlag.REV) as c:
         if cursor_sync:
             kvdb.sync()
 
@@ -261,7 +261,7 @@ def ptombs_c0_lc(kvdb: hse.Kvdb, kvs: hse.Kvs, cursor_sync: bool=False):
         kvs.prefix_delete(b"ab", txn=t)
 
     # Cursor
-    with kvs.cursor(filt=b"ab", flags=hse.CursorFlag.REVERSE) as c:
+    with kvs.cursor(filt=b"ab", flags=hse.CursorCreateFlag.REV) as c:
         if cursor_sync:
             kvdb.sync()
 
@@ -304,13 +304,13 @@ def ptombs_lc_cn(kvdb: hse.Kvdb, kvs: hse.Kvs, cursor_sync: bool=False):
         kvs.put(b"ab02", b"val-c0", txn=t)
 
     # Cursor
-    with kvs.cursor(filt=b"ab", flags=hse.CursorFlag.REVERSE) as c:
+    with kvs.cursor(filt=b"ab", flags=hse.CursorCreateFlag.REV) as c:
         if cursor_sync:
             kvdb.sync()
 
         # Read all keys
         assert c.read() == (b"ab02", b"val-c0")
-        x = c.read()
+        c.read()
         assert c.read() == (None, None) and c.eof == True
 
         # Seek, read

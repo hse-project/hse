@@ -58,8 +58,8 @@ try:
             assert cursor.eof
             cursor.destroy()
 
-            # Reverse cursor
-            cursor = kvs.cursor(filt=b"ab", flags=hse.CursorFlag.REVERSE)
+            # REV cursor
+            cursor = kvs.cursor(filt=b"ab", flags=hse.CursorCreateFlag.REV)
             kv = cursor.read()
             assert kv == (b"ab2", b"2")
 
@@ -93,7 +93,7 @@ try:
             assert kv == (b"a1b", b"4")
 
             revcursor = kvs.cursor(
-                txn=read_txn, flags=hse.CursorFlag.REVERSE
+                txn=read_txn, flags=hse.CursorCreateFlag.REV
             )
             revcursor.seek(b"a1b")
             kv = revcursor.read()

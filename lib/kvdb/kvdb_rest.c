@@ -125,12 +125,12 @@ rest_kvdb_compact_request(
     flags = 0;
     kv = rest_kv_next(iter);
     if (!kv) {
-        flags = HSE_FLAG_KVDB_COMPACT_SAMP_LWM;
+        flags = HSE_KVDB_COMPACT_SAMP_LWM;
     } else if (strcmp(kv->key, "policy") == 0) {
         if (strcmp(kv->value, "samp_lwm") == 0)
-            flags = HSE_FLAG_KVDB_COMPACT_SAMP_LWM;
+            flags = HSE_KVDB_COMPACT_SAMP_LWM;
         else if (strcmp(kv->value, "cancel") == 0)
-            flags = HSE_FLAG_KVDB_COMPACT_CANCEL;
+            flags = HSE_KVDB_COMPACT_CANCEL;
     }
 
     /* process command */
@@ -733,7 +733,7 @@ cursor_test_execute(struct cursor_test *ct, struct hse_kvs *kvs)
     ulong i;
 
     if (p->ctp_reverse)
-        flags |= HSE_FLAG_CURSOR_REVERSE;
+        flags |= HSE_CURSOR_CREATE_REV;
 
     /* Create cursor */
     {
