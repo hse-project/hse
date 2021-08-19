@@ -79,7 +79,7 @@ kvdb_ctxn_pfxlock_lookup(
         parent = *link;
         entry = rb_entry(parent, typeof(*entry), ktpe_node);
 
-        if (HSE_UNLIKELY(hash == entry->ktpe_hash))
+        if (hash == entry->ktpe_hash)
             break;
 
         link = (hash < entry->ktpe_hash) ? &parent->rb_left : &parent->rb_right;
@@ -179,7 +179,7 @@ kvdb_ctxn_pfxlock_excl(struct kvdb_ctxn_pfxlock *ktp, u64 hash)
 void
 kvdb_ctxn_pfxlock_seqno_pub(struct kvdb_ctxn_pfxlock *ktp, u64 end_seqno)
 {
-    if (ktp->ktp_entryc < NELEM(ktp->ktp_entryv)) {
+    if (ktp->ktp_tree.rb_node) {
         struct kvdb_ctxn_pfxlock_entry *entry, *next;
 
         rbtree_postorder_for_each_entry_safe(entry, next, &ktp->ktp_tree, ktpe_node) {

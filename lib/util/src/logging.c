@@ -107,18 +107,17 @@ _hse_log_async_cons_th(struct work_struct *wstruct)
 {
     struct hse_log_async *      async;
     struct hse_log_async_entry *entry;
-    unsigned long               flags = 0;
     u32                         loop = 0;
 
     async = container_of(wstruct, struct hse_log_async, al_wstruct);
 
     /* Process all the log messages in the circular buffer.
      */
-    spin_lock_irqsave(&async->al_lock, flags);
+    spin_lock(&async->al_lock);
 
     while (async->al_nb > 0) {
         entry = async->al_entries + async->al_cons % MAX_LOGGING_ASYNC_ENTRIES;
-        spin_unlock_irqrestore(&async->al_lock, flags);
+        spin_unlock(&async->al_lock);
 
         _hse_consume_one_async(entry);
 
@@ -126,13 +125,13 @@ _hse_log_async_cons_th(struct work_struct *wstruct)
         if ((++loop % 128) == 0)
             msleep(100);
 
-        spin_lock_irqsave(&async->al_lock, flags);
+        spin_lock(&async->al_lock);
         async->al_cons++;
         async->al_nb--;
     }
 
     async->al_th_working = false;
-    spin_unlock_irqrestore(&async->al_lock, flags);
+    spin_unlock(&async->al_lock);
 }
 
 static merr_t
@@ -323,7 +322,6 @@ hse_logging_fini(void)
 {
     struct workqueue_struct *wq;
     struct hse_log_async *   async;
-    unsigned long            flags;
 
     if (!hse_gparams.gp_logging.enabled)
         return;
@@ -334,11 +332,10 @@ hse_logging_fini(void)
 
     async = &hse_logging_inf.mli_async;
 
-    flags = 0;
-    spin_lock_irqsave(&async->al_lock, flags);
+    spin_lock(&async->al_lock);
     wq = async->al_wq;
     async->al_wq = NULL;
-    spin_unlock_irqrestore(&async->al_lock, flags);
+    spin_unlock(&async->al_lock);
 
     /* Wait for the async logging consumer thread to exit. */
     destroy_workqueue(wq);
@@ -403,16 +400,15 @@ _hse_log_post_vasync(
 {
     struct hse_log_async *      async;
     struct hse_log_async_entry *entry;
-    unsigned long               flags = 0;
     bool                        start;
     char *                      buf;
 
     async = &(hse_logging_inf.mli_async);
 
-    spin_lock_irqsave(&async->al_lock, flags);
+    spin_lock(&async->al_lock);
     if (async->al_nb == MAX_LOGGING_ASYNC_ENTRIES || !async->al_wq) {
         /* Circular buffer full. */
-        spin_unlock_irqrestore(&async->al_lock, flags);
+        spin_unlock(&async->al_lock);
         ev(ENOENT);
         return;
     }
@@ -446,7 +442,7 @@ _hse_log_post_vasync(
     start = !async->al_th_working;
     if (start)
         async->al_th_working = true;
-    spin_unlock_irqrestore(&async->al_lock, flags);
+    spin_unlock(&async->al_lock);
 
     if (start) {
         INIT_WORK(&async->al_wstruct, _hse_log_async_cons_th);
@@ -469,16 +465,15 @@ _hse_log_post_async(const char *source_file, s32 source_line, s32 priority, char
 {
     struct hse_log_async *      async;
     struct hse_log_async_entry *entry;
-    unsigned long               flags = 0;
     bool                        start;
     char *                      buf;
 
     async = &(hse_logging_inf.mli_async);
 
-    spin_lock_irqsave(&async->al_lock, flags);
+    spin_lock(&async->al_lock);
     if (async->al_nb == MAX_LOGGING_ASYNC_ENTRIES || !async->al_wq) {
         /* Circular buffer full. */
-        spin_unlock_irqrestore(&async->al_lock, flags);
+        spin_unlock(&async->al_lock);
         ev(ENOENT);
         return;
     }
@@ -512,7 +507,7 @@ _hse_log_post_async(const char *source_file, s32 source_line, s32 priority, char
     start = !async->al_th_working;
     if (start)
         async->al_th_working = true;
-    spin_unlock_irqrestore(&async->al_lock, flags);
+    spin_unlock(&async->al_lock);
 
     if (start) {
         INIT_WORK(&async->al_wstruct, _hse_log_async_cons_th);
@@ -558,12 +553,11 @@ _hse_log(
     int                      num_hse_args;
     char *                   int_fmt = hse_logging_inf.mli_fmt_buf;
     bool                     res = false;
-    unsigned long            flags = 0;
 
     if (priority > hse_gparams.gp_logging.level)
         return;
 
-    spin_lock_irqsave(&hse_logging_lock, flags);
+    spin_lock(&hse_logging_lock);
 
     if (priority > hse_gparams.gp_logging.level)
         goto out;
@@ -623,7 +617,7 @@ _hse_log(
     va_end(args);
 
 out:
-    spin_unlock_irqrestore(&hse_logging_lock, flags);
+    spin_unlock(&hse_logging_lock);
 }
 
 static struct hse_log_code codetab[52];
@@ -1266,7 +1260,6 @@ hse_slog_internal(int priority, const char *fmt, ...)
 {
     va_list       payload;
     const char *  buf;
-    unsigned long flags = 0;
 
     if (!hse_gparams.gp_logging.structured)
         return;
@@ -1275,7 +1268,7 @@ hse_slog_internal(int priority, const char *fmt, ...)
         return;
 
     va_start(payload, fmt);
-    spin_lock_irqsave(&hse_logging_lock, flags);
+    spin_lock(&hse_logging_lock);
 
     if (fmt) {
         buf = fmt;
@@ -1292,7 +1285,7 @@ hse_slog_internal(int priority, const char *fmt, ...)
 
     _hse_log_post_vasync("_hse_slog", 1, priority, buf, payload);
 
-    spin_unlock_irqrestore(&hse_logging_lock, flags);
+    spin_unlock(&hse_logging_lock);
     va_end(payload);
 }
 
