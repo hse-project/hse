@@ -1270,7 +1270,7 @@ main(int argc, char **argv)
     updateprob = UINT64_MAX / 100 * 50;
     tombprob = UINT64_MAX / 100 * 13;
 
-    if (isatty(1) && tgetent(NULL, getenv("TERM") ?: "dumb") > 0)
+    if (isatty(1) && tgetent(NULL, getenv("TERM") ?: "noterm") > 0)
         tgs_clrtoeol = tgetstr("ce", &areap);
 
     rc = pthread_getaffinity_np(pthread_self(), sizeof(cpuset), &cpuset);

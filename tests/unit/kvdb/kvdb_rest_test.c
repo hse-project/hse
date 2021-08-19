@@ -353,7 +353,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_rest, unexact_paths, test_pre, test_post)
     err = curl_get(path, sock, NULL, 0);
     ASSERT_NE(0, err);
 
-    snprintf(path, sizeof(path), "kvdb/kkk");
+    snprintf(path, sizeof(path), "kvdb/zzz");
     err = curl_get(path, sock, NULL, 0);
     ASSERT_NE(0, err);
 }
@@ -629,7 +629,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_rest, t_curperf, test_pre, test_post)
     } testcases[] = {
 
         { true, "" },
-        { false, "xxx" }, /* tests the "verify path is exact" case */
+        { false, "zzz" }, /* tests the "verify path is exact" case */
 
         { true, "?prefix" },
         { true, "?prefix=" },

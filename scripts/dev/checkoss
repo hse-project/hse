@@ -4,62 +4,38 @@
 # Copyright (C) 2021 Micron Technology, Inc. All rights reserved.
 
 # Run this on root of source
-default_workspace="/tmp"
-default_src_root="./"
-WORK_DIR=$(realpath ${1:-$default_workspace})
-SRC_ROOT=$(realpath ${2:-$default_src_root})
-
-cleanup () {
-    for f in "bad-words.txt" "bad-words1.txt" "files" "src_files"; do
-        if [ -f "${WORK_DIR}/${f}" ]; then
-            rm "${WORK_DIR}/${f}"
-        fi
-    done
-}
-cleanup
+SRC_ROOT=$(realpath ${1:-"./"})
 
 # Print the usage of offensive language
-bad_words_check_output="${WORK_DIR}/files_check_bad_words"
-if [ -f "${bad_words_check_output}" ]; then
-  rm "${bad_words_check_output}"
-fi
-wget https://www.cs.cmu.edu/~biglou/resources/bad-words.txt -q -P "${WORK_DIR}"
-sed -i '/^[[:space:]]*$/d' "${WORK_DIR}/bad-words.txt"
-grep -v -f "${SRC_ROOT}/scripts/dev/checkoss-ignore-words.txt" "${WORK_DIR}/bad-words.txt" > "${WORK_DIR}/bad-words1.txt"
-sed -i 's/.*/\\\W&\\\W/' "${WORK_DIR}/bad-words1.txt"
-git -C "${SRC_ROOT}" ls-files | grep -vE '(3rdparty|doxy|format|poetry|images)' > "${WORK_DIR}/files"
+bad_words=$(curl -s "https://www.cs.cmu.edu/~biglou/resources/bad-words.txt")
+bad_words=$(grep -v -f "${SRC_ROOT}/scripts/dev/checkoss-ignore-words.txt" <<< "${bad_words[*]}")
+files=$(git -C "${SRC_ROOT}" ls-files | grep -vE '(3rdparty|doxy|format|poetry|images)')
 pushd "${SRC_ROOT}" > /dev/null
-cat "${WORK_DIR}/files" | xargs grep -in -f "${WORK_DIR}/bad-words1.txt" > "${bad_words_check_output}"
+check_bad_words=$(echo "${files}" | xargs egrep -Hinw $(echo ${bad_words} | tr ' ' '|'))
 popd > /dev/null
-cleanup
 
-
-# Check for valid license and Copyright
-license_check_output="${WORK_DIR}/files_check_license"
-if [ -f "${license_check_output}" ]; then
-  rm "${license_check_output}"
-fi
-git -C "${SRC_ROOT}" ls-files | grep -E '\.(c|h|py|sh|java)$' | grep -v '3rdparty\|subprojects\|simpledrop'> "${WORK_DIR}/src_files"
-grep -Er '^#!/.*sh' "${SRC_ROOT}" |sed 's/:.*$//pi' |grep -vE '(subprojects|build.*|.git)' >> "${WORK_DIR}/src_files"
+# Check for valid license and copyright
+src_files=$(git -C "${SRC_ROOT}" ls-files | grep -E '\.(c|h|py|sh|java)$' | grep -v '3rdparty\|subprojects\|simpledrop')
+shell_files=$(grep -Er '^#!/.*sh' "${SRC_ROOT}" | sed 's/:.*$//pi' | grep -vE '(subprojects|build.*|.git)')
+src_files=$(echo -e "${src_files}\n${shell_files}")
 pushd "${SRC_ROOT}" > /dev/null
-while read -r file; do 
+for file in ${src_files}; do 
     if ! head -10 "${file}" | grep -qE "\s*[/#*]*\s*SPDX-License-Identifier:\s+Apache-2.0"; then 
-        echo "invalid or missing SPDX license identifier: ${file}" >> "${license_check_output}"
+        check_license="${check_license}\ninvalid or missing SPDX license identifier: ${file}"
     fi
     if ! head -10 "${file}" | grep -qE "^(.*)\bCopyright\s+\(C\)\s+([0-9]|,|-|\s)*\s+Micron\s+Technology,\s+Inc\.\s*(.*)"; then
-        echo "Copyright check error: ${file}"  >> "${license_check_output}"
+        check_license="${check_license}\nCopyright check error: ${file}"
     fi
-done < "${WORK_DIR}/src_files"
+done
 popd > /dev/null
-cleanup
 
 exit_code=0
-if [ -s "${bad_words_check_output}" ]; then
-    echo "Check out for offensive language: ${bad_words_check_output}"
+if [ ! -z "${check_bad_words}" ]; then
+    echo -e "Found the following potentially offensive language:\n${check_bad_words}"
     exit_code=$((exit_code + 1))
 fi
-if [ -s "${license_check_output}" ]; then
-    echo "Check out for License/Copyright: ${license_check_output}"
+if [ ! -z "${check_license}" ]; then
+    echo -e "Check following files for License/Copyright:\n${check_license}"
     exit_code=$((exit_code + 1))
 fi
 exit $exit_code
