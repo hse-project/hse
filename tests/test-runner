@@ -130,7 +130,7 @@ if __name__ == "__main__":
 
     test = Test.create(args.program, *args.arguments)
 
-    with tempfile.TemporaryDirectory(prefix=f"{test.name}-", dir=args.dir) as home:
+    with tempfile.TemporaryDirectory(prefix=f"mtest-{test.name}-", dir=args.dir) as home:
         proc = subprocess.Popen(test.command_line(home))
 
         def proxy(s: int, frame: Optional[FrameType]):
