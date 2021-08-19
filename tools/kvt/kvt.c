@@ -1,4 +1,7 @@
+/* SPDX-License-Identifier: Apache-2.0 */
 /*
+ * Copyright (C) 2015-2021 Micron Technology, Inc. All rights reserved.
+ *
  * Stress + data integrity test tool for HSE KVDB.
  *
  * kvt creates simple database and continuously transforms it such that
@@ -1267,7 +1270,7 @@ main(int argc, char **argv)
     updateprob = UINT64_MAX / 100 * 50;
     tombprob = UINT64_MAX / 100 * 13;
 
-    if (isatty(1) && tgetent(NULL, getenv("TERM") ?: "dumb") > 0)
+    if (isatty(1) && tgetent(NULL, getenv("TERM") ?: "noterm") > 0)
         tgs_clrtoeol = tgetstr("ce", &areap);
 
     rc = pthread_getaffinity_np(pthread_self(), sizeof(cpuset), &cpuset);

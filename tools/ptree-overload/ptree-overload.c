@@ -1,3 +1,7 @@
+/* SPDX-License-Identifier: Apache-2.0 */
+/*
+ * Copyright (C) 2015-2021 Micron Technology, Inc. All rights reserved.
+ */
 #include <endian.h>
 #include <errno.h>
 #include <getopt.h>

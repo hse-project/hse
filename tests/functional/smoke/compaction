@@ -1,4 +1,7 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: Apache-2.0
+#
+# Copyright (C) 2021 Micron Technology, Inc. All rights reserved.
 
 #doc: test cn tree spill, k-compaction and kv-compaction
 
@@ -65,7 +68,7 @@ verify_shape_before
 cmd putbin "$home" $kvs -n 100 kvs-oparms cn_close_wait=1 cn_compaction_debug=-1
 verify_shape_after_spill
 
-# CRAP: we can't test k_compact or kv_compact easily because the root node is hard-coded to spill
+# we can't test k_compact or kv_compact easily because the root node is hard-coded to spill
 exit 0
 
 # k_compact

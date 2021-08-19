@@ -1,4 +1,7 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: Apache-2.0
+#
+# Copyright (C) 2021 Micron Technology, Inc. All rights reserved.
 
 #tdoc: quick mpool IO test using kmt (50%, 20% and 5% writes)
 

@@ -1,3 +1,7 @@
+# SPDX-License-Identifier: Apache-2.0
+#
+# Copyright (C) 2021 Micron Technology, Inc. All rights reserved.
+
 from pathlib import Path
 
 from tools.ycsb import YcsbTest

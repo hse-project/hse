@@ -806,7 +806,7 @@ main(int argc, char **argv)
     updateprob = ULONG_MAX / 100 * 5;
     keybase = 10;
 
-    if (isatty(1) && tgetent(NULL, getenv("TERM") ?: "dumb") > 0)
+    if (isatty(1) && tgetent(NULL, getenv("TERM") ?: "noterm") > 0)
         tgs_clrtoeol = tgetstr("ce", &areap);
 
     while (1) {

@@ -1,4 +1,7 @@
+/* SPDX-License-Identifier: Apache-2.0 */
 /*
+ * Copyright (C) 2015-2021 Micron Technology, Inc. All rights reserved.
+ *
  * Several threads call transactional PUTs in a loop. For a given thread, each
  * time w/ the same key, but a different value.
  * Another thread periodically flushes the kvdb.

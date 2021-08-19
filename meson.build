@@ -492,6 +492,16 @@ if not meson.is_subproject()
     meson.add_dist_script('scripts' / 'release' / 'gen-version')
 endif
 
+checkoss = find_program('scripts' / 'dev' / 'checkoss')
+run_target(
+    'checkoss',
+    command: [
+        checkoss,
+        '@BUILD_ROOT@',
+        '@SOURCE_ROOT@',
+    ],
+)
+
 gcovr = find_program('gcovr', required: get_option('b_coverage'))
 if gcovr.found() and get_option('b_coverage') and get_option('tests')
     reports = {

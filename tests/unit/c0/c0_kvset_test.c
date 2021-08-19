@@ -1022,7 +1022,7 @@ MTF_DEFINE_UTEST_PREPOST(c0_kvset_test, finalize, no_fail_pre, no_fail_post)
     }
 
     /* If assert() is disabled then c0kvs_del() will quietly succeed.
-     * Otherwise, the assert will fire and the we'll jump back to a
+     * Otherwise, the assert will trigger and the we'll jump back to a
      * context in which err contains its initial value.
      */
 #ifdef NDEBUG
@@ -1045,7 +1045,7 @@ MTF_DEFINE_UTEST_PREPOST(c0_kvset_test, finalize, no_fail_pre, no_fail_post)
     }
 
     /* If assert() is disabled then c0kvs_put() will quietly succeed.
-     * Otherwise, the assert will fire and the we'll jump back to a
+     * Otherwise, the assert will trigger and the we'll jump back to a
      * context in which err contains its initial value.
      */
 #ifdef NDEBUG

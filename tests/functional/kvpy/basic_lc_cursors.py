@@ -1,4 +1,9 @@
 #!/usr/bin/env python3
+
+# SPDX-License-Identifier: Apache-2.0
+#
+# Copyright (C) 2021 Micron Technology, Inc. All rights reserved.
+
 """
 A basic test fo lc cursors
 There's uncommitted data in two transactions and while the transactions are live, sync
