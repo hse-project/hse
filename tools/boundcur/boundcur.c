@@ -80,7 +80,7 @@ do_work(void *arg)
 
 	if (opts.reverse) {
 		*k = htobe64(ti->end - 1);
-		flags = HSE_FLAG_CURSOR_REVERSE;
+		flags = HSE_CURSOR_CREATE_REV;
 	} else {
 		*k = htobe64(ti->start);
 		flags = HSE_FLAG_NONE;

@@ -108,7 +108,7 @@ HseKvsCursor* HseKvs::NewCursor(bool reverse) {
   hse_err_t err;
 
   if (reverse) {
-    flags |= HSE_FLAG_CURSOR_REVERSE;
+    flags |= HSE_CURSOR_CREATE_REV;
   }
 
   err = hse_kvs_cursor_create(kvs_handle_, flags, NULL, NULL, 0, &kvs_cursor_handle);

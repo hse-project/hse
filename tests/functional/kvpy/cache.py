@@ -24,7 +24,7 @@ try:
         kvs.put(b"c", b"3")
 
         cursor = kvs.cursor()
-        revcursor = kvs.cursor(flags=hse.CursorFlag.REVERSE)
+        revcursor = kvs.cursor(flags=hse.CursorCreateFlag.REV)
 
         kv = cursor.read()
         assert kv == (b"a", b"1")
@@ -51,7 +51,7 @@ try:
         revcursor.destroy()
 
         cursor = kvs.cursor()
-        revcursor = kvs.cursor(flags=hse.CursorFlag.REVERSE)
+        revcursor = kvs.cursor(flags=hse.CursorCreateFlag.REV)
 
         kv = cursor.read()
         assert kv == (b"a", b"1")
@@ -81,7 +81,7 @@ try:
         kvs.put(b"e", b"5")
 
         cursor = kvs.cursor()
-        revcursor = kvs.cursor(flags=hse.CursorFlag.REVERSE)
+        revcursor = kvs.cursor(flags=hse.CursorCreateFlag.REV)
 
         assert sum(1 for _ in cursor.items()) == 5
 

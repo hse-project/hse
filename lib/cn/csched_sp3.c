@@ -2214,16 +2214,11 @@ sp3_op_compact_request(struct csched_ops *handle, int flags)
 {
     struct sp3 *sp = h2sp(handle);
 
-    if (flags & HSE_FLAG_KVDB_COMPACT_CANCEL) {
-
+    if (flags & HSE_KVDB_COMPACT_CANCEL) {
         sp3_ucomp_cancel(sp);
-
-    } else if (flags & HSE_FLAG_KVDB_COMPACT_SAMP_LWM) {
-
+    } else if (flags & HSE_KVDB_COMPACT_SAMP_LWM) {
         sp3_ucomp_start(sp);
-
     } else {
-
         hse_log(HSE_NOTICE "invalid user-initiated compaction request: flags 0x%x", flags);
     }
 }

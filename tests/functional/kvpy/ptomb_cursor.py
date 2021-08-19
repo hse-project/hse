@@ -25,7 +25,7 @@ def verify(kvs: hse.Kvs, pfx: str, cnt: int):
     with kvs.cursor(pfx.encode()) as c:
         assert sum(1 for _ in c.items()) == cnt
 
-    with kvs.cursor(pfx.encode(), flags=hse.CursorFlag.REVERSE) as rc:
+    with kvs.cursor(pfx.encode(), flags=hse.CursorCreateFlag.REV) as rc:
         assert sum(1 for _ in rc.items()) == cnt
 
     # create, seek, reads
@@ -33,7 +33,7 @@ def verify(kvs: hse.Kvs, pfx: str, cnt: int):
         c.seek(pfx.encode())
         assert sum(1 for _ in c.items()) == cnt
 
-    with kvs.cursor(pfx.encode(), flags=hse.CursorFlag.REVERSE) as rc:
+    with kvs.cursor(pfx.encode(), flags=hse.CursorCreateFlag.REV) as rc:
         # Bump up the last character so prefix is larger than all keys
         ch = pfx[-1]
         i = ord(ch[0])

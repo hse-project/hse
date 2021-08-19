@@ -37,9 +37,9 @@
 
 /* clang-format off */
 
-#define HSE_FLAG_SYNC_MASK      (HSE_FLAG_SYNC_ASYNC)
-#define HSE_FLAG_PUT_MASK       (HSE_FLAG_PUT_PRIORITY | HSE_FLAG_PUT_VCOMP_OFF)
-#define HSE_FLAG_CURSOR_MASK    (HSE_FLAG_CURSOR_REVERSE)
+#define HSE_KVDB_SYNC_MASK     (HSE_KVDB_SYNC_ASYNC)
+#define HSE_KVS_PUT_MASK       (HSE_KVS_PUT_PRIO | HSE_KVS_PUT_VCOMP_OFF)
+#define HSE_CURSOR_CREATE_MASK (HSE_CURSOR_CREATE_REV)
 
 /* clang-format on */
 
@@ -504,7 +504,7 @@ hse_kvs_put(
     struct kvs_vtuple vt;
     merr_t            err;
 
-    if (HSE_UNLIKELY(!handle || !key || (val_len > 0 && !val) || flags & ~HSE_FLAG_PUT_MASK))
+    if (HSE_UNLIKELY(!handle || !key || (val_len > 0 && !val) || flags & ~HSE_KVS_PUT_MASK))
         return merr_to_hse_err(merr(EINVAL));
 
     if (HSE_UNLIKELY(key_len > HSE_KVS_KEY_LEN_MAX))
@@ -658,7 +658,7 @@ hse_kvdb_sync(struct hse_kvdb *handle, const unsigned int flags)
     merr_t err;
     u64    tstart;
 
-    if (HSE_UNLIKELY(!handle || flags & ~HSE_FLAG_SYNC_MASK))
+    if (HSE_UNLIKELY(!handle || flags & ~HSE_KVDB_SYNC_MASK))
         return merr_to_hse_err(merr(EINVAL));
 
     tstart = perfc_lat_startl(&kvdb_pkvdbl_pc, PERFC_SL_PKVDBL_KVDB_SYNC);
@@ -788,7 +788,7 @@ hse_kvs_cursor_create(
     merr_t err;
     u64 t_cur;
 
-    if (HSE_UNLIKELY(!handle || !cursor || (pfx_len && !prefix) || flags & ~HSE_FLAG_CURSOR_MASK))
+    if (HSE_UNLIKELY(!handle || !cursor || (pfx_len && !prefix) || flags & ~HSE_CURSOR_CREATE_MASK))
         return merr_to_hse_err(merr(EINVAL));
 
     PERFC_INC_RU(&kvdb_pc, PERFC_RA_KVDBOP_KVS_CURSOR_CREATE);

@@ -101,7 +101,7 @@ cursor_read(void *args)
     if (error_count > 0 || verification_failure_count > 0)
         goto out;
 
-    hse_err = hse_kvs_cursor_create(info->kvs, HSE_FLAG_CURSOR_REVERSE, NULL, NULL, 0, &CURSOR);
+    hse_err = hse_kvs_cursor_create(info->kvs, HSE_CURSOR_CREATE_REV, NULL, NULL, 0, &CURSOR);
 
     if (hse_err) {
         hse_strerror(hse_err, msg, sizeof(msg));

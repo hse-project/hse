@@ -1961,7 +1961,7 @@ ikvdb_kvs_put(
     if (ev(err))
         return err;
 
-    if (flags & HSE_FLAG_PUT_PRIORITY || parent->ikdb_rp.throttle_disable)
+    if (flags & HSE_KVS_PUT_PRIO || parent->ikdb_rp.throttle_disable)
         parent = NULL;
 
     ktbuf = *kt;
@@ -1976,7 +1976,7 @@ ikvdb_kvs_put(
     vbufsz = tls_vbufsz;
     vbuf = NULL;
 
-    if (clen == 0 && vlen > kk->kk_vcompmin && !(flags & HSE_FLAG_PUT_VCOMP_OFF)) {
+    if (clen == 0 && vlen > kk->kk_vcompmin && !(flags & HSE_KVS_PUT_VCOMP_OFF)) {
         if (vlen > kk->kk_vcompbnd) {
             vbufsz = vlen + PAGE_SIZE * 2;
             vbuf = vlb_alloc(vbufsz);
@@ -2294,7 +2294,7 @@ ikvdb_kvs_cursor_create(
      *  - initialize cursor
      * The failure path must unregister the cursor from kk_cursors.
      */
-    cur = kvs_cursor_alloc(kk->kk_ikvs, prefix, pfx_len, flags & HSE_FLAG_CURSOR_REVERSE);
+    cur = kvs_cursor_alloc(kk->kk_ikvs, prefix, pfx_len, flags & HSE_CURSOR_CREATE_REV);
     if (ev(!cur))
         return merr(ENOMEM);
 
@@ -2437,7 +2437,7 @@ ikvdb_kvs_cursor_seek(
 
     tstart = perfc_lat_start(cur->kc_pkvsl_pc);
 
-    if (ev(limit && (cur->kc_flags & HSE_FLAG_CURSOR_REVERSE)))
+    if (ev(limit && (cur->kc_flags & HSE_CURSOR_CREATE_REV)))
         return merr(EINVAL);
 
     if (ev(cur->kc_err)) {
@@ -2508,7 +2508,7 @@ ikvdb_kvs_cursor_read(
 
     perfc_lat_record(
         cur->kc_pkvsl_pc,
-        cur->kc_flags & HSE_FLAG_CURSOR_REVERSE ? PERFC_LT_PKVSL_KVS_CURSOR_READREV
+        cur->kc_flags & HSE_CURSOR_CREATE_REV ? PERFC_LT_PKVSL_KVS_CURSOR_READREV
                                                 : PERFC_LT_PKVSL_KVS_CURSOR_READFWD,
         tstart);
 

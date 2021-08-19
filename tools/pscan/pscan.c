@@ -357,7 +357,7 @@ main(int argc, char **argv)
 
     EVENT_START(tc);
     if (reverse)
-        flags |= HSE_FLAG_CURSOR_REVERSE;
+        flags |= HSE_CURSOR_CREATE_REV;
 
     err = hse_kvs_cursor_create(kvs_h, flags, NULL, prefix, pfxlen, &cursor);
     EVENT_SAMPLE(tc);

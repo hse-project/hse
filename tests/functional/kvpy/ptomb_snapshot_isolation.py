@@ -5,6 +5,7 @@
 # Copyright (C) 2021 Micron Technology, Inc. All rights reserved.
 
 from contextlib import ExitStack
+from typing import cast
 
 from hse2 import hse
 
@@ -30,14 +31,14 @@ def pdel_before_put(kvdb: hse.Kvdb, kvs: hse.Kvs):
 
     t2.commit()
 
-    assert kvs.get(b"ab01").decode() == "old"
+    assert cast(bytes, kvs.get(b"ab01")).decode() == "old"
 
     t1.commit()
     assert kvs.get(b"ab01") == None
 
     with kvdb.transaction() as t:
         kvs.put(b"ab01", b"new", txn=t)
-    assert kvs.get(b"ab01").decode() == "new"
+    assert cast(bytes, kvs.get(b"ab01")).decode() == "new"
 
 def put_before_pdel(kvdb: hse.Kvdb, kvs: hse.Kvs):
     with kvdb.transaction() as t:
@@ -134,7 +135,7 @@ def long_put_abort(kvdb: hse.Kvdb, kvs: hse.Kvs):
 
     with kvdb.transaction() as t:
         kvs.put(b"ab01", b"new", txn=t)
-    assert kvs.get(b"ab01").decode() == "new"
+    assert cast(bytes, kvs.get(b"ab01")).decode() == "new"
 
 def short_put(kvdb: hse.Kvdb, kvs: hse.Kvs):
     with kvdb.transaction() as t:

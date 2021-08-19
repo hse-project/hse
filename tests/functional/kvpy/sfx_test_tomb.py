@@ -24,7 +24,7 @@ try:
         kvs.put(b"AbcXX", b"1")
         kvs.put(b"AbdXX", b"1")
         kvs.put(b"AbdXY", b"2")
-        kvdb.sync(flags=hse.SyncFlag.ASYNC)
+        kvdb.sync(flags=hse.KvdbSyncFlag.ASYNC)
 
         cnt, *_ = kvs.prefix_probe(b"Abd")
         assert cnt == hse.KvsPfxProbeCnt.MUL
