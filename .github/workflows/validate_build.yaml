@@ -40,7 +40,7 @@ jobs:
     - uses: actions/upload-artifact@v2
       if: failure()
       with:
-        name: build-artifact-ubuntu18
+        name: build-artifact-ubuntu18-${{ matrix.build_type }}
         path: builddir/meson-logs/
 
   build_fedora:
@@ -79,7 +79,7 @@ jobs:
     - uses: actions/upload-artifact@v2
       if: failure()
       with:
-        name: build-artifact-fedora-latest
+        name: build-artifact-fedora-latest-${{ matrix.build_type }}
         path: builddir/meson-logs/
 
   checkoss:
