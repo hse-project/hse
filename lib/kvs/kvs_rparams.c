@@ -100,7 +100,7 @@ static const struct param_spec pspecs[] = {
     {
         .ps_name = "transactions_enable",
         .ps_description = "enable transactions for the kvs",
-        .ps_flags = PARAM_FLAG_EXPERIMENTAL,
+        .ps_flags = 0,
         .ps_type = PARAM_TYPE_U64,
         .ps_offset = offsetof(struct kvs_rparams, transactions_enable),
         .ps_size = sizeof(((struct kvs_rparams *) 0)->transactions_enable),
@@ -748,7 +748,7 @@ static const struct param_spec pspecs[] = {
     {
         .ps_name = "rdonly",
         .ps_description = "open kvs in read-only mode",
-        .ps_flags = 0,
+        .ps_flags = PARAM_FLAG_EXPERIMENTAL,
         .ps_type = PARAM_TYPE_U64,
         .ps_offset = offsetof(struct kvs_rparams, rdonly),
         .ps_size = sizeof(((struct kvs_rparams *) 0)->rdonly),

@@ -91,7 +91,7 @@ static const struct param_spec pspecs[] = {
     {
         .ps_name = "sfx_len",
         .ps_description = "Key suffix length",
-        .ps_flags = 0,
+        .ps_flags = PARAM_FLAG_EXPERIMENTAL,
         .ps_type = PARAM_TYPE_U32,
         .ps_offset = offsetof(struct kvs_cparams, sfx_len),
         .ps_size = sizeof(((struct kvs_cparams *) 0)->sfx_len),
