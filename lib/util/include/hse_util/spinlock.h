@@ -14,10 +14,10 @@ typedef struct {
 
 /*
  * NOTE: pthreads does not provide a static initializer for
- * pthread_spinlock_t, but the GNU C Library implemenation of pthreads
+ * pthread_spinlock_t, but the GNU C Library implementation
  * uses a value of 1 for the unlocked state.
  */
-#define DEFINE_SPINLOCK(xx) spinlock_t xx = {.lock = 1 }
+#define DEFINE_SPINLOCK(_name)      spinlock_t _name = {.lock = 1 }
 
 static inline void
 spin_lock_init(spinlock_t *lock)
@@ -54,18 +54,6 @@ spin_unlock(spinlock_t *lock)
 
     rc = pthread_spin_unlock(&lock->lock);
     assert(rc == 0);
-}
-
-static inline void
-spin_lock_irqsave(spinlock_t *lock, unsigned long flags HSE_MAYBE_UNUSED)
-{
-    spin_lock(lock);
-}
-
-static inline void
-spin_unlock_irqrestore(spinlock_t *lock, unsigned long flags HSE_MAYBE_UNUSED)
-{
-    spin_unlock(lock);
 }
 
 #endif

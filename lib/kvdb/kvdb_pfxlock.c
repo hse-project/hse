@@ -34,7 +34,7 @@
 /* clang-format off */
 
 #define KVDB_PFXLOCK_RANGE_MAX  (6)
-#define KVDB_PFXLOCK_TREES_MAX  (KVDB_PFXLOCK_RANGE_MAX * 61)
+#define KVDB_PFXLOCK_TREES_MAX  (KVDB_PFXLOCK_RANGE_MAX * 83)
 #define KVDB_PFXLOCK_CACHE_MAX  (1024)
 
 struct kvdb_pfxlock_gc {
@@ -319,11 +319,15 @@ kvdb_pfxlock_excl(struct kvdb_pfxlock *pfxlock, u64 hash, u64 start_seqno, void 
                     if (entry->kple_refcnt == 1 && *cookie == entry) {
                         /* Caller already holds this shared lock */
                         assert(!entry->kple_excl);
+                        entry->kple_excl = true;
+                        entry->kple_stale = false;
                     } else {
                         rc = EBUSY;
                     }
                 } else {
-                    entry->kple_refcnt++;
+                    entry->kple_refcnt = 1;
+                    entry->kple_excl = true;
+                    entry->kple_stale = false;
                 }
             } else {
                 entry = kvdb_pfxlock_entry_alloc(tree);
@@ -332,6 +336,7 @@ kvdb_pfxlock_excl(struct kvdb_pfxlock *pfxlock, u64 hash, u64 start_seqno, void 
                     entry->kple_hash = hash;
                     entry->kple_refcnt = 1;
                     entry->kple_treeidx = busyv[i];
+                    entry->kple_excl = true;
 
                     kvdb_pfxlock_entry_add(parent, root, link, entry);
                     tree->kplt_entry_cnt++;
@@ -347,8 +352,6 @@ kvdb_pfxlock_excl(struct kvdb_pfxlock *pfxlock, u64 hash, u64 start_seqno, void 
                 continue;
             }
 
-            entry->kple_excl = true;
-            entry->kple_stale = false;
             cookiev[cookiec++] = entry;
         }
 
@@ -423,7 +426,7 @@ kvdb_pfxlock_shared(struct kvdb_pfxlock *pfxlock, u64 hash, u64 start_seqno, voi
         if (entry) {
             memset(entry, 0, sizeof(*entry));
             entry->kple_hash = hash;
-            entry->kple_refcnt++;
+            entry->kple_refcnt = 1;
             entry->kple_treeidx = tree - pfxlock->kpl_tree;
 
             kvdb_pfxlock_entry_add(parent, root, link, entry);
@@ -525,6 +528,7 @@ kvdb_pfxlock_prune(struct kvdb_pfxlock *pfxlock)
                 rb_erase(&entry->kple_node, &tree->kplt_root);
                 kvdb_pfxlock_entry_free(tree, entry);
                 tree->kplt_entry_cnt--;
+
                 ++pruned;
             }
 

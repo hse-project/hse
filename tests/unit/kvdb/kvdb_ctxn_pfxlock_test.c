@@ -6,6 +6,8 @@
 #include <hse_ut/framework.h>
 #include <hse_test_support/mock_api.h>
 
+#include <hse_util/xrand.h>
+
 #include <kvdb/kvdb_ctxn_pfxlock.h>
 #include <kvdb/viewset.h>
 
@@ -83,6 +85,37 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_pfxlock_test, basic, mapi_pre, mapi_post)
     kvdb_ctxn_pfxlock_destroy(txn1);
     kvdb_ctxn_pfxlock_destroy(txn2);
     kvdb_ctxn_pfxlock_destroy(txn3);
+}
+
+/* This test attempts to exhaust the emddeded entry caches of both
+ * kvdb_pfxlock and kvdb_ctxn_pfxlock.
+ */
+MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_pfxlock_test, prefix_party, mapi_pre, mapi_post)
+{
+    u64 view = (xrand64_tls() % 1024) + 100;
+    const u64 hash = xrand64_tls();
+    struct kvdb_ctxn_pfxlock *txn;
+    merr_t err;
+    int i, j;
+
+    for (i = 0; i < 5; ++i) {
+        err = kvdb_ctxn_pfxlock_create(kpl, ++view, &txn);
+        ASSERT_EQ(0, err);
+
+        for (j = 0; j < 50000; ++j) {
+            if (xrand64_tls() < UINT64_MAX / 2)
+                err = kvdb_ctxn_pfxlock_shared(txn, hash + j);
+            else
+                err = kvdb_ctxn_pfxlock_excl(txn, hash + j);
+
+            ASSERT_EQ(0, err);
+        }
+
+        kvdb_ctxn_pfxlock_seqno_pub(txn, ++view);
+        g_txn_horizon = view;
+
+        kvdb_ctxn_pfxlock_destroy(txn);
+    }
 }
 
 MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_pfxlock_test, write_conflict, mapi_pre, mapi_post)

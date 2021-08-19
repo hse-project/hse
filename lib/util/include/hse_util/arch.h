@@ -8,6 +8,8 @@
 
 #include <hse_util/timing.h>
 
+#include <immintrin.h>
+
 #ifndef SMP_CACHE_BYTES
 #define SMP_CACHE_BYTES (64)
 #endif
@@ -59,6 +61,12 @@ raw_smp_processor_id(void)
 }
 
 #endif
+
+static HSE_ALWAYS_INLINE void
+cpu_relax(void)
+{
+    _mm_pause();
+}
 
 size_t memlcp(const void *s1, const void *s2, size_t len);
 size_t memlcpq(const void *s1, const void *s2, size_t len);

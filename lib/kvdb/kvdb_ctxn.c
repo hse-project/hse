@@ -47,7 +47,6 @@ struct kvdb_ctxn_set {
  * @txn_wkth_delay:   delay in jiffies to use for transaction worker thread
  * @ktn_txn_timeout:  max time to live (in msecs) after which txn is aborted
  * @ktn_dwork:        delayed work struct
- * @ktn_tseqno_sync:  used to serialize commits in seqno order
  * @ktn_tseqno_head:  used to obtain a stable view seqno
  * @ktn_tseqno_tail:  used to obtain a stable view seqno
  * @ktn_list_mutex:   protects updates to list of allocated transactions
@@ -65,7 +64,6 @@ struct kvdb_ctxn_set_impl {
 
     atomic64_t ktn_tseqno_head HSE_ALIGNED(SMP_CACHE_BYTES * 2);
     atomic64_t ktn_tseqno_tail HSE_ALIGNED(SMP_CACHE_BYTES * 2);
-    spinlock_t ktn_tseqno_sync HSE_ALIGNED(SMP_CACHE_BYTES * 2);
 
     struct mutex         ktn_list_mutex HSE_ALIGNED(SMP_CACHE_BYTES * 2);
     struct cds_list_head ktn_alloc_list HSE_ALIGNED(SMP_CACHE_BYTES);
@@ -277,21 +275,8 @@ kvdb_ctxn_set_wait_commits(struct kvdb_ctxn_set *handle, u64 head)
     if (!head)
         head = atomic64_read_acq(&self->ktn_tseqno_head);
 
-    while (1) {
-        int spin = 128;
-        u64 tail;
-
-        while (spin-- > 0) {
-            tail = atomic64_read(&self->ktn_tseqno_tail);
-            if (tail >= head)
-                return;
-
-            cpu_relax();
-        }
-
-        usleep(1);
-        ev(1);
-    }
+    while (atomic64_read(&self->ktn_tseqno_tail) < head)
+        cpu_relax();
 }
 
 void
@@ -569,27 +554,23 @@ kvdb_ctxn_commit(struct kvdb_ctxn *handle)
      * lists in commit sequence number order.  Additionally, the list
      * lock limits concurrency through this section to only a handful
      * of CPUs (currently 4 as defined by KVDB_DLOCK_MAX) which helps
-     * to relive contention on the commit sync and ticket locks.
+     * to relive contention on the ticket lock.
      */
     kvdb_keylock_list_lock(ctxn->ctxn_kvdb_keylock, &cookie);
 
-    /* The commit sync lock (tseqno sync) ensures that only one thread can
-     * obtain a ticket and commit sequence number at any given time.
-     *
-     * The commit ticket lock (tseqno head/tail) ensures that commit sequence
+    /* The commit ticket lock (tseqno head/tail) ensures that commit sequence
      * numbers are minted and made visible in ticket order.  Acquire semantics
      * on the increment of tseqno head ensure that it is always incremented
      * before commit_sn is computed.  This ticket lock is also used by
      * kvdb_ctxn_set_wait_commit() to ensure visibility of a view seqno
      * obtained asynchronously with respect to this critical section.
      */
-    spin_lock(&kcs->ktn_tseqno_sync);
-    head = atomic64_inc_acq(&kcs->ktn_tseqno_head); /* acquire next ticket */
-    commit_sn = 1 + atomic64_fetch_add(2, ctxn->ctxn_kvdb_seq_addr);
-    spin_unlock(&kcs->ktn_tseqno_sync);
+    head = atomic64_fetch_add(1, &kcs->ktn_tseqno_head); /* acquire next ticket */
 
-    while (atomic64_read(&kcs->ktn_tseqno_tail) + 1 < head)
+    while (atomic64_read_acq(&kcs->ktn_tseqno_tail) < head)
         cpu_relax(); /* wait for our ticket to be served */
+
+    commit_sn = 1 + atomic64_fetch_add(2, ctxn->ctxn_kvdb_seq_addr);
 
     /* The assignment through *priv gives all the values associated
      * with this transaction an ordinal sequence number. Each of
@@ -725,7 +706,6 @@ kvdb_ctxn_set_create(struct kvdb_ctxn_set **handle_out, u64 txn_timeout_ms, u64 
 
     atomic64_set(&ktn->ktn_tseqno_head, 0);
     atomic64_set(&ktn->ktn_tseqno_tail, 0);
-    spin_lock_init(&ktn->ktn_tseqno_sync);
     atomic_set(&ktn->ktn_reading, 0);
     ktn->ktn_queued = false;
     ktn->ktn_txn_timeout = txn_timeout_ms;

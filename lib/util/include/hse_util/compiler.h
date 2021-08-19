@@ -92,15 +92,4 @@
 #define HSE_NONNULL(...)
 #endif
 
-#if __amd64__
-static HSE_ALWAYS_INLINE void
-cpu_relax(void)
-{
-    asm volatile("rep; nop" ::: "memory");
-}
-
-#else
-#error cpu_relax() not implemented for this architecture
-#endif
-
 #endif /* HSE_PLATFORM_COMPILER_H */
