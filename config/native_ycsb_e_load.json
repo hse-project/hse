@@ -1,9 +1,0 @@
-{
-  "kvs": {
-    "default": {
-      "prefix": {
-        "length": 7
-      }
-    }
-  }
-}
