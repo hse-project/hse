@@ -96,3 +96,24 @@ generate_random_u32_sequence(u32 min_value, u32 max_value, u32 *values, u32 num_
 
     permute_u32_sequence(values, num_values);
 }
+
+void
+generate_random_u32_sequence_unique(u32 min_value, u32 max_value, u32 *values, u32 num_values)
+{
+    u32 i;
+    u32 stride = (max_value - min_value) / num_values;
+
+    assert(stride > 0);
+
+    for (i = 0; i < num_values; ++i) {
+        u32 min = i * stride;
+        u32 max = min + stride - 1;
+
+        if (i == num_values - 1)
+            max = max_value;
+
+        values[i] = generate_random_u32(min, max);
+    }
+
+    permute_u32_sequence(values, num_values);
+}

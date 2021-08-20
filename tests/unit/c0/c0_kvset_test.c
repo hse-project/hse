@@ -555,7 +555,7 @@ MTF_DEFINE_UTEST_PREPOST(c0_kvset_test, advanced_repeated_put, no_fail_pre, no_f
     u32                      kbuf[1], vbuf[1];
     const u32                insert_count = 10000;
     const u32                reinsert_count = 1000;
-    u32                      keys[reinsert_count];
+    u32                      keys[insert_count];
     struct kvs_ktuple        kt;
     struct kvs_vtuple        vt;
     struct c0_kvset_iterator iter;
@@ -576,6 +576,8 @@ MTF_DEFINE_UTEST_PREPOST(c0_kvset_test, advanced_repeated_put, no_fail_pre, no_f
     size_t                   last_key_len, key_len;
     bool                     found;
 
+    ASSERT_LE(reinsert_count, insert_count);
+
     rcu_thrd = create_call_rcu_data(0, -1);
     ASSERT_TRUE(rcu_thrd);
     set_thread_call_rcu_data(rcu_thrd);
@@ -588,11 +590,10 @@ MTF_DEFINE_UTEST_PREPOST(c0_kvset_test, advanced_repeated_put, no_fail_pre, no_f
 
     /* Insert a bunch of pseudo-random stuff ... */
     srand(42);
+
+    generate_random_u32_sequence_unique(0, 1000000000, keys, insert_count);
     for (i = 0; i < insert_count; ++i) {
-        kbuf[0] = generate_random_u32(0, 1000000000);
-        /* remember the first reinsert_count keys */
-        if (i < reinsert_count)
-            keys[i] = kbuf[0];
+        kbuf[0] = keys[i];
 
         for (j = 0; j < 8; ++j) {
             vbuf[0] = rand();
@@ -605,7 +606,6 @@ MTF_DEFINE_UTEST_PREPOST(c0_kvset_test, advanced_repeated_put, no_fail_pre, no_f
     synchronize_rcu();
 
     /* Create a permuted array of the first reinsert_count keys used */
-    srand(42);
     permute_u32_sequence(keys, reinsert_count);
 
     /* Create a permuted array of indexes */

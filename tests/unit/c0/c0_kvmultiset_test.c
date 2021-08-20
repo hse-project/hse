@@ -203,7 +203,8 @@ MTF_DEFINE_UTEST_PREPOST(c0_kvmultiset_test, ingest_sk, no_fail_pre, no_fail_pos
     struct c0_usage usage;
     u64             db_put_cnt = 0, db_del_cnt = 0;
     const int       WIDTH = 3;
-    int             i, j;
+    int             i, j, k;
+    uint            keys[WIDTH * WIDTH * WIDTH];
 
     ASSERT_LT(WIDTH, 200);
 
@@ -211,8 +212,8 @@ MTF_DEFINE_UTEST_PREPOST(c0_kvmultiset_test, ingest_sk, no_fail_pre, no_fail_pos
     ASSERT_EQ(0, err);
     ASSERT_NE((struct c0_kvmultiset *)NULL, kvms);
 
-    srand(32);
-    for (i = 0; i <= WIDTH; ++i) {
+    generate_random_u32_sequence_unique(0, 1000000000, keys, NELEM(keys));
+    for (i = 0, k = 0; i <= WIDTH; ++i) {
         u32               kbuf[1];
         char              vbuf[1];
         struct kvs_ktuple kt;
@@ -221,10 +222,10 @@ MTF_DEFINE_UTEST_PREPOST(c0_kvmultiset_test, ingest_sk, no_fail_pre, no_fail_pos
         p = c0kvms_get_hashed_c0kvset(kvms, i);
         ASSERT_NE((struct c0_kvset *)NULL, p);
 
-        for (j = i + 3; j >= 0; --j) {
+        for (j = i + WIDTH; j >= 0; --j) {
             u16 skidx;
 
-            kbuf[0] = generate_random_u32(0, 1000000000);
+            kbuf[0] = keys[k++];
             vbuf[0] = i + j + 3;
 
             skidx = kbuf[0] % 256;
