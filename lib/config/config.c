@@ -24,11 +24,6 @@
 #include <hse_ikvdb/kvdb_rparams.h>
 #include <hse_ikvdb/kvs_rparams.h>
 
-#ifdef WITH_KVDB_CONF_EXTENDED
-#include <hse_ikvdb/kvdb_cparams.h>
-#include <hse_ikvdb/kvs_cparams.h>
-#endif
-
 #include "logging.h"
 
 #define DEFAULT_KEY "default"
@@ -278,53 +273,12 @@ config_deserialize_to_hse_gparams(const struct config *conf, struct hse_gparams 
     return json_deserialize(pspecs, pspecs_sz, &p, NULL, 0, 1, (cJSON *)conf);
 }
 
-#ifdef WITH_KVDB_CONF_EXTENDED
-merr_t
-config_deserialize_to_kvdb_cparams(const struct config *conf, struct kvdb_cparams *params)
-{
-    merr_t                   err = 0;
-    const char **            ignore_keys = NULL;
-    size_t                   cpspecs_sz, rpspecs_sz;
-    const struct param_spec *cpspecs = kvdb_cparams_pspecs_get(&cpspecs_sz);
-    const struct param_spec *rpspecs = kvdb_rparams_pspecs_get(&rpspecs_sz);
-    const size_t             ignore_keys_sz = rpspecs_sz + 1;
-    const struct params      p = { .p_type = PARAMS_KVDB_CP, .p_params = { .as_kvdb_cp = params } };
-
-    assert(params);
-
-    if (!conf)
-        return err;
-
-    ignore_keys = malloc(sizeof(char *) * ignore_keys_sz);
-    if (!ignore_keys)
-        return merr(ENOMEM);
-
-    size_t idx = 0;
-    ignore_keys[idx++] = "kvs";
-    for (size_t i = 0; i < rpspecs_sz; i++, idx++)
-        ignore_keys[idx] = rpspecs[i].ps_name;
-
-    err = json_deserialize(cpspecs, cpspecs_sz, &p, ignore_keys, ignore_keys_sz, 1, (cJSON *)conf);
-
-    free(ignore_keys);
-
-    return err;
-}
-#endif
-
 merr_t
 config_deserialize_to_kvdb_rparams(const struct config *conf, struct kvdb_rparams *params)
 {
-    merr_t err = 0;
-#ifndef WITH_KVDB_CONF_EXTENDED
-    const char * ignore_keys[] = { "kvs" };
-    const size_t ignore_keys_sz = NELEM(ignore_keys);
-#else
-    const char **            ignore_keys = NULL;
-    size_t                   cpspecs_sz;
-    const struct param_spec *cpspecs = kvdb_cparams_pspecs_get(&cpspecs_sz);
-    const size_t             ignore_keys_sz = cpspecs_sz + 1;
-#endif
+    merr_t                   err = 0;
+    const char *             ignore_keys[] = { "kvs" };
+    const size_t             ignore_keys_sz = NELEM(ignore_keys);
     size_t                   rpspecs_sz;
     const struct param_spec *rpspecs = kvdb_rparams_pspecs_get(&rpspecs_sz);
     const struct params      p = { .p_type = PARAMS_KVDB_RP, .p_params = { .as_kvdb_rp = params } };
@@ -334,79 +288,10 @@ config_deserialize_to_kvdb_rparams(const struct config *conf, struct kvdb_rparam
     if (!conf)
         return err;
 
-#ifdef WITH_KVDB_CONF_EXTENDED
-    ignore_keys = malloc(sizeof(char *) * ignore_keys_sz);
-    if (!ignore_keys)
-        return merr(ENOMEM);
-
-    size_t idx = 0;
-    ignore_keys[idx++] = "kvs";
-    for (size_t i = 0; i < cpspecs_sz; i++, idx++)
-        ignore_keys[idx] = cpspecs[i].ps_name;
-#endif
-
     err = json_deserialize(rpspecs, rpspecs_sz, &p, ignore_keys, ignore_keys_sz, 1, (cJSON *)conf);
 
-#ifdef WITH_KVDB_CONF_EXTENDED
-    free(ignore_keys);
-#endif
-
     return err;
 }
-
-#ifdef WITH_KVDB_CONF_EXTENDED
-merr_t
-config_deserialize_to_kvs_cparams(
-    const struct config *conf,
-    const char *         kvs_name,
-    struct kvs_cparams * params)
-{
-    merr_t                   err = 0;
-    cJSON *                  kvs = NULL;
-    cJSON *                  named_kvs = NULL, *default_kvs = NULL;
-    const char **            ignore_keys = NULL;
-    size_t                   cpspecs_sz, rpspecs_sz;
-    const struct param_spec *cpspecs = kvs_cparams_pspecs_get(&cpspecs_sz);
-    const struct param_spec *rpspecs = kvs_rparams_pspecs_get(&rpspecs_sz);
-    const struct params      p = { .p_type = PARAMS_KVS_CP, .p_params = { .as_kvs_cp = params } };
-
-    assert(kvs_name);
-    assert(params);
-
-    if (!conf)
-        return err;
-
-    err = kvs_node_get((cJSON *)conf, &kvs);
-    if (err || !kvs)
-        return err;
-
-    size_t num_providers = 0;
-    err = default_kvs_node_get(kvs, &default_kvs);
-    if (err)
-        return err;
-    if (default_kvs)
-        num_providers++;
-
-    err = named_kvs_node_get(kvs_name, kvs, &named_kvs);
-    if (err)
-        return err;
-    if (named_kvs)
-        num_providers++;
-
-    ignore_keys = malloc(sizeof(char *) * rpspecs_sz);
-    if (!ignore_keys)
-        return merr(ENOMEM);
-    for (size_t i = 0; i < rpspecs_sz; i++)
-        ignore_keys[i] = rpspecs[i].ps_name;
-
-    err = json_deserialize(
-        cpspecs, cpspecs_sz, &p, ignore_keys, rpspecs_sz, num_providers, default_kvs, named_kvs);
-
-    free(ignore_keys);
-
-    return err;
-}
-#endif
 
 merr_t
 config_deserialize_to_kvs_rparams(
@@ -414,14 +299,9 @@ config_deserialize_to_kvs_rparams(
     const char *         kvs_name,
     struct kvs_rparams * params)
 {
-    merr_t err = 0;
-    cJSON *kvs = NULL;
-    cJSON *named_kvs = NULL, *default_kvs = NULL;
-#ifdef WITH_KVDB_CONF_EXTENDED
-    const char **            ignore_keys = NULL;
-    size_t                   cpspecs_sz;
-    const struct param_spec *cpspecs = kvs_cparams_pspecs_get(&cpspecs_sz);
-#endif
+    merr_t                   err = 0;
+    cJSON *                  kvs = NULL;
+    cJSON *                  named_kvs = NULL, *default_kvs = NULL;
     size_t                   rpspecs_sz;
     const struct param_spec *rpspecs = kvs_rparams_pspecs_get(&rpspecs_sz);
     const struct params      p = { .p_type = PARAMS_KVS_RP, .p_params = { .as_kvs_rp = params } };
@@ -449,21 +329,7 @@ config_deserialize_to_kvs_rparams(
     if (named_kvs)
         num_providers++;
 
-#ifndef WITH_KVDB_CONF_EXTENDED
     err = json_deserialize(rpspecs, rpspecs_sz, &p, NULL, 0, num_providers, default_kvs, named_kvs);
-#else
-    ignore_keys = malloc(sizeof(char *) * cpspecs_sz);
-    if (!ignore_keys)
-        return merr(ENOMEM);
-
-    for (size_t i = 0; i < cpspecs_sz; i++)
-        ignore_keys[i] = cpspecs[i].ps_name;
-
-    err = json_deserialize(
-        rpspecs, rpspecs_sz, &p, ignore_keys, cpspecs_sz, num_providers, default_kvs, named_kvs);
-
-    free(ignore_keys);
-#endif
 
     return err;
 }

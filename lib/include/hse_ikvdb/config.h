@@ -6,18 +6,12 @@
 #ifndef HSE_CONFIG_CONFIG_H
 #define HSE_CONFIG_CONFIG_H
 
-#include "build_config.h"
-
 #include <hse_util/hse_err.h>
-#include <hse_ikvdb/kvdb_rparams.h>
-#include <hse_ikvdb/kvs_rparams.h>
-#include <hse_ikvdb/hse_gparams.h>
-#ifdef WITH_KVDB_CONF_EXTENDED
-#include <hse_ikvdb/kvdb_cparams.h>
-#include <hse_ikvdb/kvs_cparams.h>
-#endif
 
 struct config;
+struct hse_gparams;
+struct kvdb_rparams;
+struct kvs_rparams;
 
 /**
  * Deserialize a config object to HSE gparams
@@ -28,17 +22,6 @@ struct config;
 merr_t
 config_deserialize_to_hse_gparams(const struct config *conf, struct hse_gparams *params);
 
-#ifdef WITH_KVDB_CONF_EXTENDED
-/**
- * Deserialize a config object into KVDB cparams
- *
- * @param config: Config object
- * @param params: KVDB cparams
- */
-merr_t
-config_deserialize_to_kvdb_cparams(const struct config *conf, struct kvdb_cparams *params);
-#endif
-
 /**
  * Deserialize a config object into KVDB rparams
  *
@@ -47,21 +30,6 @@ config_deserialize_to_kvdb_cparams(const struct config *conf, struct kvdb_cparam
  */
 merr_t
 config_deserialize_to_kvdb_rparams(const struct config *conf, struct kvdb_rparams *params);
-
-#ifdef WITH_KVDB_CONF_EXTENDED
-/**
- * Deserialize a config object into KVS cparams
- *
- * @param config: Config object
- * @param kvs_name: Name of KVS
- * @param params: KVS cparams
- */
-merr_t
-config_deserialize_to_kvs_cparams(
-    const struct config *conf,
-    const char *         kvs_name,
-    struct kvs_cparams * params);
-#endif
 
 /**
  * Deserialize a config object into KVS rparams

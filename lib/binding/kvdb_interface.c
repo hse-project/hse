@@ -187,9 +187,6 @@ hse_kvdb_create(const char *kvdb_home, size_t paramc, const char *const *const p
     char                 pidfile_path[PATH_MAX];
     struct pidfh *       pfh = NULL;
     struct pidfile       content;
-#ifdef WITH_KVDB_CONF_EXTENDED
-    struct config *conf = NULL;
-#endif
 
     tstart = perfc_lat_start(&kvdb_pkvdbl_pc);
     perfc_inc(&kvdb_pc, PERFC_RA_KVDBOP_KVDB_CREATE);
@@ -205,18 +202,6 @@ hse_kvdb_create(const char *kvdb_home, size_t paramc, const char *const *const p
         hse_log(HSE_ERR "Failed to deserialize paramv for KVDB (%s) cparams", real_home);
         return merr_to_hse_err(err);
     }
-
-#ifdef WITH_KVDB_CONF_EXTENDED
-    err = config_from_kvdb_conf(real_home, &conf);
-    if (ev(err))
-        return merr_to_hse_err(err);
-
-    err = config_deserialize_to_kvdb_cparams(conf, &dbparams);
-    if (ev(err)) {
-        hse_log(HSE_ERR "Failed to deserialize config file (%s) for KVDB cparams", real_home);
-        goto out;
-    }
-#endif
 
     err = kvdb_cparams_resolve(&dbparams, real_home);
     if (ev(err)) {
@@ -256,10 +241,6 @@ out:
     if (pidfile_remove(pfh) == -1 && !err)
         err = merr(errno);
     pfh = NULL;
-
-#ifdef WITH_KVDB_CONF_EXTENDED
-    config_destroy(conf);
-#endif
 
     return merr_to_hse_err(err);
 }
@@ -464,9 +445,6 @@ hse_kvdb_kvs_create(
 {
     struct kvs_cparams params = kvs_cparams_defaults();
     merr_t             err;
-#ifdef WITH_KVDB_CONF_EXTENDED
-    const struct config *conf = ikvdb_config((struct ikvdb *)handle);
-#endif
 
     if (HSE_UNLIKELY(!handle))
         return merr_to_hse_err(merr(EINVAL));
@@ -484,13 +462,6 @@ hse_kvdb_kvs_create(
         hse_log(HSE_ERR "Failed to deserialize paramv for KVS (%s) cparams", kvs_name);
         return merr_to_hse_err(err);
     }
-
-#ifdef WITH_KVDB_CONF_EXTENDED
-    err = config_deserialize_to_kvs_cparams(conf, kvs_name, &params);
-    if (ev(err)) {
-        return merr_to_hse_err(err);
-    }
-#endif
 
     err = ikvdb_kvs_create((struct ikvdb *)handle, kvs_name, &params);
     ev(err);
