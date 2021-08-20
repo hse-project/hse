@@ -1,3 +1,3 @@
 [wrap-git]
-url = ssh://git@bitbucket.micron.com/hse/hse-python.git
-revision = master
+url = https://github.com/hse-project/hse-python.git
+revision = 7539d7db27b990dd64c24726bbc4cffb68695c7a
