@@ -2562,7 +2562,6 @@ MTF_DEFINE_UTEST_PREPOST(c0sk_test, c0_cursor_ptombs, no_fail_pre, no_fail_post)
     srand(42);
     for (i = 0; i < tot_keys; ++i) {
         kbuf[0] = 1;
-        kbuf[1] = generate_random_u32(0, 1000000000);
         kbuf[1] = i;
         kvs_ktuple_init(&kt, kbuf, sizeof(kbuf));
 

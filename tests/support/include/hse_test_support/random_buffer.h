@@ -48,4 +48,11 @@ permute_u32_sequence(u32 *values, u32 num_values);
 void
 generate_random_u32_sequence(u32 min_value, u32 max_value, u32 *values, u32 num_values);
 
+/* generate_unique_random_u32_sequence
+ *
+ * Same as generate_random_u32_sequence(), but all values are unique.
+ */
+void
+generate_unique_random_u32_sequence(u32 min_value, u32 max_value, u32 *values, u32 num_values);
+
 #endif
