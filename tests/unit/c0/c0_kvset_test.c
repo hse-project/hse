@@ -591,7 +591,7 @@ MTF_DEFINE_UTEST_PREPOST(c0_kvset_test, advanced_repeated_put, no_fail_pre, no_f
     /* Insert a bunch of pseudo-random stuff ... */
     srand(42);
 
-    generate_unique_random_u32_sequence(0, 1000000000, keys, insert_count);
+    generate_random_u32_sequence_unique(0, 1000000000, keys, insert_count);
     for (i = 0; i < insert_count; ++i) {
         kbuf[0] = keys[i];
 

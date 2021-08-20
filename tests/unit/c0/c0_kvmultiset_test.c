@@ -212,7 +212,7 @@ MTF_DEFINE_UTEST_PREPOST(c0_kvmultiset_test, ingest_sk, no_fail_pre, no_fail_pos
     ASSERT_EQ(0, err);
     ASSERT_NE((struct c0_kvmultiset *)NULL, kvms);
 
-    generate_unique_random_u32_sequence(0, 1000000000, keys, NELEM(keys));
+    generate_random_u32_sequence_unique(0, 1000000000, keys, NELEM(keys));
     for (i = 0, k = 0; i <= WIDTH; ++i) {
         u32               kbuf[1];
         char              vbuf[1];

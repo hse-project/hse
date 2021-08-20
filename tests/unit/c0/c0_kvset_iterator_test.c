@@ -43,7 +43,7 @@ MTF_DEFINE_UTEST(c0_kvset_iterator_test, basic_construction)
     kvs_vtuple_init(&vt, vbuf, sizeof(vbuf));
 
     srand(42);
-    generate_unique_random_u32_sequence(0, 1000000000, keys, NELEM(keys));
+    generate_random_u32_sequence_unique(0, 1000000000, keys, NELEM(keys));
     for (i = 0; i < insert_count; ++i) {
         kbuf[0] = keys[i];
         vbuf[0] = rand();
@@ -111,7 +111,7 @@ MTF_DEFINE_UTEST(c0_kvset_iterator_test, element_source)
     kvs_vtuple_init(&vt, vbuf, sizeof(vbuf));
 
     srand(42);
-    generate_unique_random_u32_sequence(0, 1000000000, keys, NELEM(keys));
+    generate_random_u32_sequence_unique(0, 1000000000, keys, NELEM(keys));
 
     for (i = 0; i < insert_count; ++i) {
         kbuf[0] = keys[i];
@@ -245,7 +245,7 @@ MTF_DEFINE_UTEST(c0_kvset_iterator_test, seek)
     kvs_vtuple_init(&vt, vbuf, sizeof(vbuf));
 
     srand(42);
-    generate_unique_random_u32_sequence(0, 1000000000, keys, NELEM(keys));
+    generate_random_u32_sequence_unique(0, 1000000000, keys, NELEM(keys));
 
     for (i = 0; i < insert_count; ++i) {
         kbuf[0] = keys[i];
