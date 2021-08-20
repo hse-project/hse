@@ -37,6 +37,9 @@ extern "C" {
 /* hse_kvs_cursor_create() flags */
 #define HSE_CURSOR_CREATE_REV (1u << 0)
 
+/* Do not use the following, marked for removal pre-2.0 final release */
+#define HSE_FLAG_CURSOR_REVERSE HSE_CURSOR_CREATE_REV
+
 #ifdef HSE_EXPERIMENTAL
 /* hse_kvdb_compact() flags */
 #define HSE_KVDB_COMPACT_CANCEL   (1u << 0)
