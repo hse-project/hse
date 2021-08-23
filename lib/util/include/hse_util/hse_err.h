@@ -93,15 +93,11 @@ extern char hse_merr_bug2[];
 
 typedef s64 merr_t;
 
-#pragma GCC visibility push(default)
-
 static HSE_ALWAYS_INLINE uint64_t
 merr_to_hse_err(merr_t merr)
 {
     return (uint64_t)merr;
 }
-
-#pragma GCC visibility pop
 
 struct merr_info {
     char buf[MERR_INFO_SZ];
