@@ -6,16 +6,12 @@ from bokeh.plotting import figure, output_file, save, gridplot
 from bokeh.layouts import layout, column, row
 from bokeh.models import Div
 
-import pandas as pd
 import os, re
-import yaml
 import argparse
-from multiprocessing import Pool, Queue
 import threading
 
 from lib.tree_shape import TreeShape
 from lib.crossover import Crossover
-from lib.util import Util
 
 
 def parse_cmdline():

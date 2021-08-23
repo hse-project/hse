@@ -4,9 +4,6 @@
 
 import os
 import argparse
-import time
-import subprocess as sp
-import yaml
 
 from bokeh.plotting import output_file, save
 from bokeh.layouts import layout
