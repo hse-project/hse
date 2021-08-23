@@ -26,7 +26,7 @@ main(int argc, char **argv)
     hse_err_t   rc, rc2;
 
     if (argc < 3) {
-        printf("Usage: %s <kvdb> <kvs1> [<kvs2> ... <kvsN>]\n", argv[0]);
+        printf("Usage: %s <kvdb_home> <kvs1> [<kvs2> ... <kvsN>]\n", argv[0]);
         exit(1);
     }
 

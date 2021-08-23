@@ -34,7 +34,7 @@
 int
 usage(char *prog)
 {
-    printf("usage: %s <mpool> <kvs1> <kvs2>\n", prog);
+    printf("usage: %s <kvdb_home> <kvs1> <kvs2>\n", prog);
     return 1;
 }
 

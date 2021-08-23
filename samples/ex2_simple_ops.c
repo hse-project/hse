@@ -24,7 +24,7 @@
 int
 usage(char *prog)
 {
-    printf("usage: %s <kvdb> <kvs>\n", prog);
+    printf("usage: %s <kvdb_home> <kvs>\n", prog);
 
     return 1;
 }
