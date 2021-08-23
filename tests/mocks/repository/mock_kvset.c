@@ -573,6 +573,7 @@ _kvset_iter_next_vref(
     *vboff = 0;
 
     if (entry->val_len == 0 && entry->val == -1) {
+        *vdata = HSE_CORE_TOMB_REG;
         *vtype = vtype_tomb;
     } else {
         if (entry->val_len == 0) {
