@@ -69,7 +69,7 @@ param_default_populate(
                 *(uint64_t *)data = ps.ps_default_value.as_uscalar;
                 break;
             case PARAM_TYPE_ENUM:
-                *(uint64_t *)data = ps.ps_default_value.as_enum;
+                *(uint32_t *)data = ps.ps_default_value.as_enum;
                 break;
             case PARAM_TYPE_STRING:
                 if (ps.ps_default_value.as_string) {
@@ -226,9 +226,9 @@ param_default_converter(const struct param_spec *ps, const cJSON *node, void *va
             const double to_conv = cJSON_GetNumberValue(node);
             if (!IS_WHOLE(to_conv))
                 return false;
-            if (to_conv < 0 || to_conv > (double)UINT64_MAX)
+            if (to_conv < 0 || to_conv > (double)UINT32_MAX)
                 return false;
-            *(uint64_t *)value = (uint64_t)to_conv;
+            *(uint32_t *)value = (uint32_t)to_conv;
             break;
         case PARAM_TYPE_STRING:
             if (cJSON_IsNull(node)) {
@@ -296,7 +296,7 @@ param_default_validator(const struct param_spec *ps, const void *value)
             return tmp >= ps->ps_bounds.as_uscalar.ps_min && tmp <= ps->ps_bounds.as_uscalar.ps_max;
         }
         case PARAM_TYPE_ENUM: {
-            const uint64_t tmp = *((uint64_t *)value);
+            const uint32_t tmp = *((uint32_t *)value);
             return tmp >= ps->ps_bounds.as_enum.ps_min && tmp <= ps->ps_bounds.as_enum.ps_max;
         }
         case PARAM_TYPE_STRING: {

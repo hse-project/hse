@@ -33,7 +33,7 @@
 
 #define CONFIG_KVS_PFX_LEN                                                  \
     {                                                                       \
-        "pfx_len=<int>", "Set KVS prefix length, range [0..32], default: 0" \
+        "prefix.length=<int>", "Set KVS prefix length, range [0..32], default: 0" \
     }
 
 #define min(a, b)                  \

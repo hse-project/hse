@@ -17,7 +17,7 @@ try:
     with ExitStack() as stack:
         kvdb_ctx = lifecycle.KvdbContext()
         kvdb = stack.enter_context(kvdb_ctx)
-        kvs_ctx = lifecycle.KvsContext(kvdb, "bind_committed").rparams("transactions_enable=true")
+        kvs_ctx = lifecycle.KvsContext(kvdb, "bind_committed").rparams("transactions.enabled=true")
         kvs = stack.enter_context(kvs_ctx)
 
         txn = kvdb.transaction()

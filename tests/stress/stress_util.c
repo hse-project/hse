@@ -136,7 +136,7 @@ create_or_open_kvs(
     char            msg[100];
 
     if (transactions_enable) {
-        paramv[paramc] = "transactions_enable=true";
+        paramv[paramc] = "transactions.enabled=true";
         paramc++;
     }
 
@@ -200,7 +200,7 @@ create_or_open_kvdb_and_kvs(
     status = 0;
 
     if (wal_disable) {
-        paramv[paramc] = "dur_enable=false";
+        paramv[paramc] = "durability.enabled=false";
         paramc++;
     }
 

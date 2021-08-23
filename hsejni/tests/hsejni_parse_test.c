@@ -67,14 +67,14 @@ MTF_DEFINE_UTEST(hsejni_parse_test, blank_list)
 
 MTF_DEFINE_UTEST(hsejni_parse_test, no_commas)
 {
-    char        raw_arg_list[] = "kvdb.open.dur_enable=false";
+    char        raw_arg_list[] = "kvdb.open.durability.enabled=false";
     size_t      paramc = 0;
     const char *paramv[32];
 
     jni_hse_config_parse(&paramc, paramv, raw_arg_list, "kvdb.open.", NELEM(paramv));
 
     ASSERT_EQ(1, paramc);
-    ASSERT_EQ(0, strcmp("dur_enable=false", paramv[0]));
+    ASSERT_EQ(0, strcmp("durability.enabled=false", paramv[0]));
 }
 
 MTF_DEFINE_UTEST(hsejni_parse_test, too_many_commas)

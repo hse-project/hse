@@ -618,7 +618,7 @@ main(int argc, char **argv)
     rc = rc ?: svec_append_pg(&hse_gparms, pg, PG_HSE_GLOBAL, NULL);
     rc = rc ?: svec_append_pg(&kvdb_oparms, pg, PG_KVDB_OPEN, NULL);
     rc = rc ?: svec_append_pg(&kvs_cparms, pg, PG_KVS_CREATE, NULL);
-    rc = rc ?: svec_append_pg(&kvs_oparms, pg, PG_KVS_OPEN, "transactions_enable=true", NULL);
+    rc = rc ?: svec_append_pg(&kvs_oparms, pg, PG_KVS_OPEN, "transactions.enabled=true", NULL);
     if (rc) {
         fprintf(stderr, "svec_append_pg failed: %d", rc);
         exit(EX_USAGE);

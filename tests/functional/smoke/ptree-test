@@ -10,7 +10,7 @@ source $(dirname "${BASH_SOURCE[0]}")/smoke.subr
 trap kvdb_drop EXIT
 kvdb_create
 
-kvs=$(kvs_create smoke-0 pfx_len=8) || exit $?
+kvs=$(kvs_create smoke-0 prefix.length=8) || exit $?
 
 # Test 1: Should result in 2 kblocks
 keys=1300000
@@ -27,7 +27,7 @@ nkblks=$(cn_metrics "$home" $kvs | awk '$1 ~ /^k/ {print $14}')
 [[ $nkblks == 2 ]] || err "Expected two kblocks. Found $nkblks kblocks"
 
 # Test 2: Should result in 1 kblock
-kvs=$(kvs_create pfx_len=8) || err
+kvs=$(kvs_create prefix.length=8) || err
 keys=1000000
 ptombs=300000
 

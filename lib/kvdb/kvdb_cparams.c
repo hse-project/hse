@@ -19,7 +19,7 @@
 
 static const struct param_spec pspecs[] = {
     {
-        .ps_name = "storage.capacity.fmaxsz",
+        .ps_name = "storage.capacity.file.max_size",
         .ps_description = "file size in capacity mclass (GiB)",
         .ps_flags = PARAM_FLAG_EXPERIMENTAL,
         .ps_type = PARAM_TYPE_U64,
@@ -38,7 +38,7 @@ static const struct param_spec pspecs[] = {
         }
     },
     {
-        .ps_name = "storage.capacity.mblocksz",
+        .ps_name = "storage.capacity.mblock.size",
         .ps_description = "object size in capacity mclass (MiB)",
         .ps_flags = PARAM_FLAG_EXPERIMENTAL,
         .ps_type = PARAM_TYPE_U64,
@@ -57,7 +57,7 @@ static const struct param_spec pspecs[] = {
         }
     },
     {
-        .ps_name = "storage.capacity.filecnt",
+        .ps_name = "storage.capacity.file.count",
         .ps_description = "file count in capacity mclass",
         .ps_flags = PARAM_FLAG_EXPERIMENTAL,
         .ps_type = PARAM_TYPE_U8,
@@ -93,7 +93,7 @@ static const struct param_spec pspecs[] = {
         },
     },
     {
-        .ps_name = "storage.staging.fmaxsz",
+        .ps_name = "storage.staging.file.max_size",
         .ps_description = "file size in staging mclass (GiB)",
         .ps_flags = PARAM_FLAG_EXPERIMENTAL,
         .ps_type = PARAM_TYPE_U64,
@@ -112,7 +112,7 @@ static const struct param_spec pspecs[] = {
         },
     },
     {
-        .ps_name = "storage.staging.mblocksz",
+        .ps_name = "storage.staging.mblock.size",
         .ps_description = "object size in staging mclass (MiB)",
         .ps_flags = PARAM_FLAG_EXPERIMENTAL,
         .ps_type = PARAM_TYPE_U64,
@@ -131,7 +131,7 @@ static const struct param_spec pspecs[] = {
         },
     },
     {
-        .ps_name = "storage.staging.filecnt",
+        .ps_name = "storage.staging.file.count",
         .ps_description = "file count in staging mclass",
         .ps_flags = PARAM_FLAG_EXPERIMENTAL,
         .ps_type = PARAM_TYPE_U8,

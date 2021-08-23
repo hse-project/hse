@@ -18,7 +18,7 @@ try:
         kvs1_ctx = lifecycle.KvsContext(kvdb, "no-compression")
         kvs1 = stack.enter_context(kvs1_ctx)
         kvs2_ctx = lifecycle.KvsContext(kvdb, "compression").rparams(
-            "value_compression=lz4"
+            "compression.value.algorithm=lz4"
         )
         kvs2 = stack.enter_context(kvs2_ctx)
 

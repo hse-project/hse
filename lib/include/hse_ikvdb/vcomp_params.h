@@ -6,7 +6,7 @@
 #ifndef HSE_VCOMP_PARAMS_H
 #define HSE_VCOMP_PARAMS_H
 
-#define VCOMP_PARAM_NONE    NULL
+#define VCOMP_PARAM_NONE    "none"
 #define VCOMP_PARAM_LZ4     "lz4"
 
 enum vcomp_algorithm

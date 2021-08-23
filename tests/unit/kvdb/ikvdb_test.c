@@ -488,7 +488,7 @@ MTF_DEFINE_UTEST_PREPOST(ikvdb_test, txn_del_test, test_pre, test_post)
     const char *         mpool = "mpool";
     const char *         kvs = "kvs";
     const char *const    kvdb_open_paramv[] = { "c0_diag_mode=true" };
-    const char *const    kvs_open_paramv[] = { "transactions_enable=true" };
+    const char *const    kvs_open_paramv[] = { "transactions.enabled=true" };
     merr_t               err;
     struct hse_kvdb_txn *txn;
     struct kvs_ktuple    kt;
@@ -618,7 +618,7 @@ MTF_DEFINE_UTEST_PREPOST(ikvdb_test, txn_put_test, test_pre, test_post)
     const char *        mpool = "mpool";
     const char *        kvs = "kvs";
     const char *const   kvdb_open_paramv[] = { "c0_debug=16" };
-    const char *const   kvs_open_paramv[] = { "transactions_enable=true" };
+    const char *const   kvs_open_paramv[] = { "transactions.enabled=true" };
     merr_t              err;
     const int           num_txn = 256;
     struct tx_info      info[num_txn];
@@ -676,7 +676,7 @@ MTF_DEFINE_UTEST_PREPOST(ikvdb_test, aborted_txn_bind, test_pre, test_post)
     const char *           mpool = "mpool";
     const char *           kvs = "kvs";
     const char *const      kvdb_open_paramv[] = { "c0_debug=16", "c0_diag_mode=true" };
-    const char *const      kvs_open_paramv[] = { "transactions_enable=true" };
+    const char *const      kvs_open_paramv[] = { "transactions.enabled=true" };
     merr_t                 err;
     struct hse_kvdb_txn *  txn;
     struct hse_kvs_cursor *cur;
@@ -946,7 +946,7 @@ MTF_DEFINE_UTEST_PREPOST(ikvdb_test, cursor_tx, test_pre_c0, test_post_c0)
     const char *           kvs = "kvs";
     struct mpool *         ds = (struct mpool *)-1;
     const char *const      kvdb_open_paramv[] = { "c0_diag_mode=true" };
-    const char *const      kvs_open_paramv[] = { "transactions_enable=true" };
+    const char *const      kvs_open_paramv[] = { "transactions.enabled=true" };
     struct hse_kvdb_txn *  txn1;
     unsigned int           flags1 = 0;
     struct hse_kvdb_txn *  txn2;
@@ -1771,7 +1771,7 @@ MTF_DEFINE_UTEST_PREPOST(ikvdb_test, prefix_delete_test, test_pre, test_post)
 {
     merr_t              err;
     const char *const   kvdb_open_paramv[] = { "c0_diag_mode=true" };
-    const char *const   kvs_make_paramv[] = { "pfx_len=4" };
+    const char *const   kvs_make_paramv[] = { "prefix.length=4" };
     struct kvs_ktuple   kt;
     struct ikvdb *      kvdb = NULL;
     struct hse_kvs *    kvs = NULL;

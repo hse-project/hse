@@ -33,9 +33,9 @@ pwin=100
 dur=30
 
 # regular kvs
-kvs=$(kvs_create smoke-1 pfx_len=8)
+kvs=$(kvs_create smoke-1 prefix.length=8)
 cmd capput "$home" $kvs -j$wth -t$rth -c$chunksz -b$batchsz -m$pwin -d$dur -v kvs-oparms cn_node_size_lo=32 cn_node_size_hi=32
 
 # capped kvs
-kvs=$(kvs_create smoke-2 pfx_len=8 kvs_ext01=1)
+kvs=$(kvs_create smoke-2 prefix.length=8 kvs_ext01=1)
 cmd capput "$home" $kvs -j$wth -t$rth -c$chunksz -b$batchsz -m$pwin -d$dur -v

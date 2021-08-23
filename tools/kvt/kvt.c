@@ -724,13 +724,13 @@ rsignal(int signo, __sighandler_t func)
 int
 parm_vec_init(void)
 {
-    char *txn = testtxn ? "transactions_enable=true" : "transactions_enable=false";
-    char *cmp = vcomp ? "value_compression=lz4" : "";
+    char *txn = testtxn ? "transactions.enabled=true" : "transactions.enabled=false";
+    char *cmp = vcomp ? "compression.value.algorithm=lz4" : "";
     char rids_pfx[64] = {};
     int rc = 0;
 
     if (ridpfxlen)
-        snprintf(rids_pfx, sizeof(rids_pfx), "pfx_len=%zu", ridpfxlen);
+        snprintf(rids_pfx, sizeof(rids_pfx), "prefix.length=%zu", ridpfxlen);
 
     svec_init(&hse_gparm);
     svec_init(&db_oparms);

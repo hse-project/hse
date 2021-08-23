@@ -4528,13 +4528,13 @@ main(int argc, char **argv)
                 exit(EX_OSERR);
             }
 
-            rc = svec_append_pg(&kv_oparms_txn, pg, PG_KVS_OPEN, "transactions_enable=true", NULL);
+            rc = svec_append_pg(&kv_oparms_txn, pg, PG_KVS_OPEN, "transactions.enabled=true", NULL);
             if (rc) {
                 eprint("unable to append kvs-oparms txn params: %s\n", strerror(rc));
                 exit(EX_OSERR);
             }
 
-            rc = svec_append_pg(&kv_oparms_notxn, pg, PG_KVS_OPEN, "transactions_enable=false", NULL);
+            rc = svec_append_pg(&kv_oparms_notxn, pg, PG_KVS_OPEN, "transactions.enabled=false", NULL);
             if (rc) {
                 eprint("unable to append kvs-oparms notxn params: %s\n", strerror(rc));
                 exit(EX_OSERR);

@@ -60,7 +60,7 @@ validate_cn_node_size_hi(const struct param_spec *ps, const union params params)
 }
 
 static bool HSE_NONNULL(1, 2, 3)
-value_compression_converter(
+compression_value_algorithm_converter(
     const struct param_spec *const ps,
     const cJSON *const             node,
     void *const                    data)
@@ -71,16 +71,11 @@ value_compression_converter(
     assert(node);
     assert(data);
 
-    if (cJSON_IsNull(node)) {
-        *(enum vcomp_algorithm *)data = VCOMP_ALGO_NONE;
-        return true;
-    }
-
     if (!cJSON_IsString(node))
         return false;
 
     const char *value = cJSON_GetStringValue(node);
-    for (size_t i = VCOMP_ALGO_NONE + 1; i < NELEM(algos); i++) {
+    for (size_t i = VCOMP_ALGO_NONE; i < NELEM(algos); i++) {
         if (!strcmp(algos[i], value)) {
             *(enum vcomp_algorithm *)data = i;
             return true;
@@ -130,7 +125,7 @@ static const struct param_spec pspecs[] = {
         },
     },
     {
-        .ps_name = "transactions_enable",
+        .ps_name = "transactions.enabled",
         .ps_description = "enable transactions for the kvs",
         .ps_flags = 0,
         .ps_type = PARAM_TYPE_BOOL,
@@ -755,7 +750,7 @@ static const struct param_spec pspecs[] = {
         },
     },
     {
-        .ps_name = "mclass_policy",
+        .ps_name = "mclass.policy",
         .ps_description = "media class policy",
         .ps_flags = 0,
         .ps_type = PARAM_TYPE_STRING,
@@ -772,7 +767,7 @@ static const struct param_spec pspecs[] = {
         },
     },
     {
-        .ps_name = "vcompmin",
+        .ps_name = "compression.value.min_length",
         .ps_description = "value length above which compression is considered",
         .ps_flags = 0,
         .ps_type = PARAM_TYPE_U64,
@@ -791,12 +786,12 @@ static const struct param_spec pspecs[] = {
         },
     },
     {
-        .ps_name = "value_compression",
+        .ps_name = "compression.value.algorithm",
         .ps_description = "value compression algorithm (lz4 or none)",
         .ps_flags = 0,
         .ps_type = PARAM_TYPE_ENUM,
         .ps_offset = offsetof(struct kvs_rparams, value_compression),
-        .ps_convert = value_compression_converter,
+        .ps_convert = compression_value_algorithm_converter,
         .ps_validate = param_default_validator,
         .ps_default_value = {
             .as_enum = VCOMP_ALGO_NONE,

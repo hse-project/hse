@@ -834,7 +834,7 @@ static const struct param_spec pspecs[] = {
         },
     },
     {
-        .ps_name = "dur_enable",
+        .ps_name = "durability.enabled",
         .ps_description = "Enable durability in the event of a crash",
         .ps_flags = 0,
         .ps_type = PARAM_TYPE_BOOL,
@@ -847,7 +847,7 @@ static const struct param_spec pspecs[] = {
         },
     },
     {
-        .ps_name = "dur_intvl_ms",
+        .ps_name = "durability.interval",
         .ps_description = "durability lag in ms",
         .ps_flags = 0,
         .ps_type = PARAM_TYPE_U32,
@@ -866,7 +866,7 @@ static const struct param_spec pspecs[] = {
         },
     },
     {
-        .ps_name = "dur_bufsz_mb",
+        .ps_name = "durability.buffer.size",
         .ps_description = "durability buffer size in MiB",
         .ps_flags = PARAM_FLAG_EXPERIMENTAL,
         .ps_type = PARAM_TYPE_U64,
@@ -885,7 +885,7 @@ static const struct param_spec pspecs[] = {
         },
     },
     {
-        .ps_name = "dur_throttle_lo_th",
+        .ps_name = "durability.throttling.threshold.low",
         .ps_description = "low watermark for throttling in percentage",
         .ps_flags = PARAM_FLAG_EXPERIMENTAL,
         .ps_type = PARAM_TYPE_U32,
@@ -904,7 +904,7 @@ static const struct param_spec pspecs[] = {
         },
     },
     {
-        .ps_name = "dur_throttle_hi_th",
+        .ps_name = "durability.throttling.threshold.high",
         .ps_description = "high watermark for throttling in percentage",
         .ps_flags = PARAM_FLAG_EXPERIMENTAL,
         .ps_type = PARAM_TYPE_U32,
@@ -923,7 +923,7 @@ static const struct param_spec pspecs[] = {
         },
     },
     {
-        .ps_name = "dur_buf_managed",
+        .ps_name = "durability.buffer.managed",
         .ps_description = "Controls whether WAL buffers are shared with c0",
         .ps_flags = PARAM_FLAG_EXPERIMENTAL,
         .ps_type = PARAM_TYPE_BOOL,
@@ -936,7 +936,7 @@ static const struct param_spec pspecs[] = {
         },
     },
 	{
-        .ps_name = "dur_mclass",
+        .ps_name = "durability.mclass",
         .ps_description = "media class to use for WAL files",
         .ps_flags = 0,
         .ps_type = PARAM_TYPE_ENUM,
@@ -1068,7 +1068,7 @@ static const struct param_spec pspecs[] = {
         },
     },
     {
-        .ps_name = "throttle_init_policy",
+        .ps_name = "throttling.init_policy",
         .ps_description = "throttle initialization policy",
         .ps_flags = 0,
         .ps_type = PARAM_TYPE_ENUM,

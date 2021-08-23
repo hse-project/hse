@@ -177,7 +177,7 @@ main(
 		break;
 	}
 
-	rc = pg_set_parms(pg, PG_KVS_OPEN, "transactions_enable=true", NULL);
+	rc = pg_set_parms(pg, PG_KVS_OPEN, "transactions.enabled=true", NULL);
 	if (rc)
 		fatal(rc, "pg_set_parms");
 

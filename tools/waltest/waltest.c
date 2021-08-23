@@ -1348,7 +1348,7 @@ waltest_parse(int argc, char **argv)
 
     /* You can perform non-txn reads on a txn kvs */
     if (opt.do_txn) {
-        rc = svec_append_pg(&kvs_oparms, pg, PG_KVS_OPEN, "transactions_enable=true", NULL);
+        rc = svec_append_pg(&kvs_oparms, pg, PG_KVS_OPEN, "transactions.enabled=true", NULL);
         if (rc)
             quit("svec_append_pg failed: %d", rc);
     } else {

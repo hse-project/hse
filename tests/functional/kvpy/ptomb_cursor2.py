@@ -14,9 +14,9 @@ hse.init(cli.HOME)
 
 try:
     with ExitStack() as stack:
-        kvdb_ctx = lifecycle.KvdbContext().rparams("dur_enable=false")
+        kvdb_ctx = lifecycle.KvdbContext().rparams("durability.enabled=false")
         kvdb = stack.enter_context(kvdb_ctx)
-        kvs_ctx = lifecycle.KvsContext(kvdb, "ptomb_cursor2").cparams("pfx_len=3")
+        kvs_ctx = lifecycle.KvsContext(kvdb, "ptomb_cursor2").cparams("prefix.length=3")
         kvs = stack.enter_context(kvs_ctx)
 
         # Test 1: Update after seek. Seek can be to an existing key or non-existent key
