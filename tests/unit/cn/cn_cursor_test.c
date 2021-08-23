@@ -542,7 +542,6 @@ MTF_DEFINE_UTEST_PREPOST(cn_cursor, root_4kvsets, pre, post)
                               { 0x040, 0x080, -1, VMX_S32, KVDATA_BE_KEY, 3 }, /* tombs */
                               { 0x400, 0x200, 0x2200, VMX_S32, KVDATA_BE_KEY, 4 } };
 
-#if 0
     unsigned char pfx0[] = { 0, 0, 0 };
     unsigned char pfx1[] = { 0, 0, 1 };
     unsigned char pfx2[] = { 0, 0, 2 };
@@ -557,7 +556,6 @@ MTF_DEFINE_UTEST_PREPOST(cn_cursor, root_4kvsets, pre, post)
         { 0x100, 0x200, 0x2200, VMX_S32, 0, 0 }, /* dgen 4 */
         { 0x300, 0x300, 0x2300, VMX_S32, 0, 0 }  /* dgen 4 */
     };
-#endif
 
     ITV_INIT(itv, 0, make);
     ITV_INIT(itv, 1, make);
@@ -598,13 +596,11 @@ MTF_DEFINE_UTEST_PREPOST(cn_cursor, root_4kvsets, pre, post)
     /*
      * and validate we get what we expect
      */
-#if 0
     verify_cursor(lcl_ti, cn, pfx0, sizeof(pfx0), vtab, 2);
     verify_cursor(lcl_ti, cn, pfx1, sizeof(pfx1), vtab+2, 1);
     verify_cursor(lcl_ti, cn, pfx2, sizeof(pfx2), vtab+3, 1);
     verify_cursor(lcl_ti, cn, pfx9, sizeof(pfx9), 0, 0);
     verify_cursor(lcl_ti, cn, all, sizeof(all), vtab, 5);
-#endif
 
     err = cn_close(cn);
     ASSERT_EQ(err, 0);
