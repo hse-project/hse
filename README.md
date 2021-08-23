@@ -97,5 +97,5 @@ Information on running test suites and contributing to HSE is located in the
 We integrated HSE with several common applications to demonstrate its
 capabilities.
 
-* YCSB: See [`README.md`](https://github.com/hse-project/hse-ycsb/blob/master/hse/README.md) in the [`hse-ycsb`](https://github.com/hse-project/hse-ycsb) repo.
-* MongoDB: See [`README.md`](https://github.com/hse-project/hse-mongo/blob/master/src/mongo/db/storage/hse/README.md) in the [`hse-mongo`](https://github.com/hse-project/hse-mongo) repo.
+* YCSB: See [`README.md`](https://github.com/hse-project/hse-ycsb/blob/v0.17.0-hse/hse/README.md) in the [`hse-ycsb`](https://github.com/hse-project/hse-ycsb) repo.
+* MongoDB: See [`README.md`](https://github.com/hse-project/hse-mongo/blob/v3.4.17-hse/src/mongo/db/storage/hse/README.md) in the [`hse-mongo`](https://github.com/hse-project/hse-mongo) repo.
