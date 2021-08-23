@@ -6,6 +6,7 @@
 #include <hse_util/page.h>
 #include <hse_util/minmax.h>
 #include <hse_util/hse_err.h>
+#include <hse_util/invariant.h>
 
 #include <mpool/mpool.h>
 
@@ -24,16 +25,18 @@ extern uint8_t __start_hse_merr;
 extern uint8_t __stop_hse_merr;
 
 merr_t
-merr_pack(int errnum, const char *file, int line)
+merr_pack(int errno_value, const enum hse_err_ctx ctx, const char *file, int line)
 {
     merr_t err = 0;
     s64    off;
 
+    INVARIANT(errno_value >= 0 && errno_value <= INT16_MAX);
+    INVARIANT(ctx >= 0 && ctx < HSE_ERR_CTX_MAX);
+    INVARIANT(file);
+    INVARIANT(line > 0);
+
     if (errnum == 0)
         return 0;
-
-    if (errnum < 0)
-        errnum = -errnum;
 
     if (!file)
         goto finish;
@@ -54,9 +57,9 @@ merr_pack(int errnum, const char *file, int line)
         err = (u64)off << MERR_FILE_SHIFT;
 
   finish:
-    err |= (1ul << MERR_RSVD_SHIFT);
-    err |= ((u64)line << MERR_LINE_SHIFT) & MERR_LINE_MASK;
-    err |= errnum & MERR_ERRNO_MASK;
+    err |= ((uint64_t)line << MERR_LINE_SHIFT) & MERR_LINE_MASK;
+    err |= (ctx << MERR_CTX_SHIFT) & MERR_CTX_MASK;
+    err |= errno_value & MERR_ERRNO_MASK;
 
     return err;
 }

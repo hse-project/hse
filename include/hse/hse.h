@@ -110,6 +110,19 @@ hse_err_to_errno(hse_err_t err);
 HSE_EXPORT size_t
 hse_strerror(hse_err_t err, char *buf, size_t buf_len);
 
+/** @brief Return an hse_err_t value's error context.
+ *
+ * The error context value is retrieved from the hse_err_t value.
+ *
+ * @note This function is thread safe.
+ *
+ * @param err: Error value returned from an HSE API function.
+ *
+ * @returns The error's context.
+ */
+HSE_EXPORT enum hse_err_ctx
+hse_err_to_ctx(hse_err_t err);
+
 /**@} ERRORS */
 
 /** @defgroup SUBSYS Subsystem

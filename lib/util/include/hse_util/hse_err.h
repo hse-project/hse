@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
 #ifndef HSE_PLATFORM_HSE_ERR_H
@@ -49,6 +49,8 @@
  *     foo.c:120:  return merr(ENOSPC);
  */
 
+#include <hse/types.h>
+
 #include <hse_util/base.h>
 #include <hse_util/compiler.h>
 #include <hse_util/inttypes.h>
@@ -77,24 +79,23 @@ extern char hse_merr_bug2[];
  *   ------  -----  ----------
  *   63..48   16    signed offset of (_he_merr_file - merr_base) / MERR_ALIGN
  *   47..32   16    line number
- *   31..31    1    reserved bits
- *   30..0    31    positive errno value
+ *   31..16   16    error context
+ *   15..0    16    positive errno value
  */
 #define MERR_FILE_SHIFT (48)
 #define MERR_LINE_SHIFT (32)
-#define MERR_RSVD_SHIFT (31)
+#define MERR_CTX_SHIFT  (16)
 
 #define MERR_FILE_MASK  (0xffff000000000000ul)
 #define MERR_LINE_MASK  (0x0000ffff00000000ul)
-#define MERR_RSVD_MASK  (0x0000000080000000ul)
-#define MERR_ERRNO_MASK (0x000000007ffffffful)
+#define MERR_CTX_MASK   (0x00000000ffff0000ul)
+#define MERR_ERRNO_MASK (0x000000000000fffful)
 
 typedef s64 merr_t;
 
 #pragma GCC visibility push(default)
 
-static HSE_ALWAYS_INLINE
-uint64_t
+static HSE_ALWAYS_INLINE uint64_t
 merr_to_hse_err(merr_t merr)
 {
     return (uint64_t)merr;
@@ -109,28 +110,33 @@ struct merr_info {
 /**
  * merr() - Pack given errno and call-site info into a merr_t
  */
-#define merr(_errnum)   merr_pack((_errnum), _hse_merr_file, __LINE__)
+#define merr(_errnum) merr_pack((_errnum), 0, _hse_merr_file, __LINE__)
 
-#define merr_once(_errnum)                                              \
-({									\
-    merr_t _err;                                                        \
-                                                                        \
-    if (__builtin_constant_p(_errnum)) {                                \
-        static merr_t _moerr HSE_READ_MOSTLY;                             \
-                                                                        \
-        if (HSE_UNLIKELY(!_moerr))                                          \
-            _moerr = merr_pack((_errnum), _hse_merr_file, __LINE__);    \
-        _err = _moerr;                                                  \
-    } else {								\
-        _err = merr_pack((_errnum), _hse_merr_file, __LINE__);          \
-    }									\
-    _err;                                                               \
-})
+/**
+ * merrx() - Pack given errno, error context, and call-site info into a merr_t
+ */
+#define merrx(_errnum, _ctx) merr_pack((_errnum), (_ctx), _hse_merr_file, __LINE__)
+
+#define merr_once(_errnum)                                                  \
+    ({                                                                      \
+        merr_t _err;                                                        \
+                                                                            \
+        if (__builtin_constant_p(_errnum)) {                                \
+            static merr_t _moerr HSE_READ_MOSTLY;                           \
+                                                                            \
+            if (HSE_UNLIKELY(!_moerr))                                      \
+                _moerr = merr_pack((_errnum), 0, _hse_merr_file, __LINE__); \
+            _err = _moerr;                                                  \
+        } else {                                                            \
+            _err = merr_pack((_errnum), 0, _hse_merr_file, __LINE__);       \
+        }                                                                   \
+        _err;                                                               \
+    })
 
 /* Not a public API, called only via the merr() macro.
  */
 merr_t
-merr_pack(int error, const char *file, const int line);
+merr_pack(int error, enum hse_err_ctx ctx, const char *file, const int line);
 
 /**
  * merr_strerror() - Format errno description from merr_t
@@ -157,6 +163,15 @@ static HSE_ALWAYS_INLINE int
 merr_errno(merr_t merr)
 {
     return merr & MERR_ERRNO_MASK;
+}
+
+/**
+ * merr_ctx() - Return the error context from given merr_t
+ */
+static HSE_ALWAYS_INLINE enum hse_err_ctx
+merr_ctx(merr_t merr)
+{
+    return (merr & MERR_CTX_MASK) >> MERR_CTX_SHIFT;
 }
 
 /**

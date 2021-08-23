@@ -13,9 +13,9 @@ version_h = configure_file(
 
 install_headers(
     version_h,
+    'flags.h',
     'hse.h',
     'limits.h',
-    'flags.h',
     'types.h',
     subdir: include_subdir,
 )

@@ -1130,6 +1130,12 @@ hse_err_to_errno(hse_err_t err)
     return merr_errno(err);
 }
 
+uint16_t
+hse_err_to_ctx(const hse_err_t err)
+{
+    return merr_ctx(err);
+}
+
 /* Includes necessary files for mocking */
 #if HSE_MOCKING
 #define HSE_EXPORT

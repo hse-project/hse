@@ -51,6 +51,17 @@ extern "C" {
  */
 typedef uint64_t hse_err_t;
 
+/** @brief Error context values */
+enum hse_err_ctx {
+    HSE_ERR_CTX_NONE, /**< No context */
+};
+
+/** @brief Smallest error context value */
+#define HSE_ERR_CTX_MIN HSE_ERR_CTX_NONE
+
+/** @brief Largest error context value */
+#define HSE_ERR_CTX_MAX HSE_ERR_CTX_NONE
+
 /**@} ERRORS */
 
 /** @addtogroup KVDB
