@@ -153,7 +153,7 @@ keylock_lock(
             table->kli_collisions++;
             mutex_unlock(&table->kli_kmutex);
 
-            return merr_once(ECANCELED);
+            return merr(ECANCELED);
         }
 
         /* If the probe len of the current entry is higher, swap it
@@ -170,7 +170,7 @@ keylock_lock(
                 table->kli_table_full++;
                 mutex_unlock(&table->kli_kmutex);
 
-                return merr_once(ECANCELED);
+                return merr(ECANCELED);
             }
 
             tmp = *curr;

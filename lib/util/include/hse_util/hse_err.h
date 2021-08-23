@@ -113,22 +113,6 @@ struct merr_info {
  */
 #define merrx(_errnum, _ctx) merr_pack((_errnum), (_ctx), _hse_merr_file, __LINE__)
 
-#define merr_once(_errnum)                                                  \
-    ({                                                                      \
-        merr_t _err;                                                        \
-                                                                            \
-        if (__builtin_constant_p(_errnum)) {                                \
-            static merr_t _moerr HSE_READ_MOSTLY;                           \
-                                                                            \
-            if (HSE_UNLIKELY(!_moerr))                                      \
-                _moerr = merr_pack((_errnum), 0, _hse_merr_file, __LINE__); \
-            _err = _moerr;                                                  \
-        } else {                                                            \
-            _err = merr_pack((_errnum), 0, _hse_merr_file, __LINE__);       \
-        }                                                                   \
-        _err;                                                               \
-    })
-
 /* Not a public API, called only via the merr() macro.
  */
 merr_t
