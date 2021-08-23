@@ -56,6 +56,7 @@ tests = {
             sample_targets['ex3_cursor'],
             sample_targets['ex4_transactions'],
             sample_targets['ex5_large_val'],
+            sample_targets['ex6_error_handling'],
         ],
     },
     'droptomb1': {

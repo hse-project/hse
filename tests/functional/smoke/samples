@@ -20,6 +20,7 @@ cmd ex1_create "$home" skvs0 skvs1 skvs2 skvs3 skvs4
 cmd ex2_simple_ops "$home" skvs0
 cmd ex3_cursor "$home" skvs1
 cmd ex4_transactions "$home" skvs2 skvs3
+cmd ex6_error_handling
 
 for ((n=1; n<10; n++)); do
     cmd dd bs=1000000 count=$n if=/dev/urandom of=$fbase$n
