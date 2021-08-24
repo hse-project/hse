@@ -1887,9 +1887,8 @@ kvstart_put_ref(void *arg)
 {
     struct kvstarts *s = arg;
 
-    assert(s->view.kvset);
-
-    kvset_put_ref(s->view.kvset);
+    if (s->view.kvset)
+        kvset_put_ref(s->view.kvset);
 }
 
 merr_t

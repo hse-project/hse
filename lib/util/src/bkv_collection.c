@@ -33,12 +33,16 @@ bkv_collection_create(
     void *                  cbarg)
 {
     struct bkv_collection *bkvc;
-    size_t                 alloc_cnt = cnt;
+    size_t                 alloc_cnt;
     size_t                 sz;
 
     bkvc = kmem_cache_alloc(bkv_collection_cache);
     if (ev(!bkvc))
         return merr(ENOMEM);
+
+    alloc_cnt = VLB_ALLOCSZ_MAX / sizeof(*bkvc->bkvcol_entry);
+    if (cnt > alloc_cnt)
+        alloc_cnt = cnt;
 
     sz = (alloc_cnt * sizeof(*bkvc->bkvcol_entry));
     bkvc->bkvcol_entry = vlb_alloc(sz);
@@ -60,7 +64,15 @@ bkv_collection_create(
 void
 bkv_collection_destroy(struct bkv_collection *bkvc)
 {
-    vlb_free(bkvc->bkvcol_entry, bkvc->bkvcol_cnt * sizeof(*bkvc->bkvcol_entry));
+    size_t oldsz = bkvc->bkvcol_cnt_max * sizeof(*bkvc->bkvcol_entry);
+    size_t usedsz = bkvc->bkvcol_cnt * sizeof(*bkvc->bkvcol_entry);
+
+    assert(oldsz >= usedsz);
+
+    if (oldsz > VLB_ALLOCSZ_MAX)
+        usedsz = oldsz;
+
+    vlb_free(bkvc->bkvcol_entry, usedsz);
     kmem_cache_free(bkv_collection_cache, bkvc);
 }
 
@@ -77,9 +89,12 @@ bkv_collection_add(struct bkv_collection *bkvc, struct bonsai_kv *bkv, struct bo
 
     if (HSE_UNLIKELY(bkvc->bkvcol_cnt >= bkvc->bkvcol_cnt_max)) {
         void * mem;
-        size_t newsz, oldsz;
+        size_t newsz, oldsz, usedsz;
 
         oldsz = bkvc->bkvcol_cnt_max * sizeof(*bkvc->bkvcol_entry);
+        usedsz = bkvc->bkvcol_cnt * sizeof(*bkvc->bkvcol_entry);
+        assert(oldsz >= usedsz);
+
         bkvc->bkvcol_cnt_max += bkvc->bkvcol_cnt_initial;
         newsz = bkvc->bkvcol_cnt_max * sizeof(*bkvc->bkvcol_entry);
 
@@ -87,8 +102,12 @@ bkv_collection_add(struct bkv_collection *bkvc, struct bonsai_kv *bkv, struct bo
         if (ev(!mem))
             return merr(ENOMEM);
 
-        memcpy(mem, bkvc->bkvcol_entry, oldsz);
-        vlb_free(bkvc->bkvcol_entry, oldsz);
+        memcpy(mem, bkvc->bkvcol_entry, usedsz);
+
+        if (oldsz > VLB_ALLOCSZ_MAX)
+            usedsz = oldsz;
+
+        vlb_free(bkvc->bkvcol_entry, usedsz);
         bkvc->bkvcol_entry = mem;
     }
 
