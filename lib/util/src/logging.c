@@ -175,6 +175,12 @@ hse_logging_init(void)
             return merr(errno);
     }
 
+    /* stdout is already line buffered */
+    if (logging_file && logging_file != stdout) {
+        if (setvbuf(logging_file, NULL, _IOLBF, 0) != 0)
+            return merr(errno);
+    }
+
     spin_lock(&hse_logging_lock);
     err = hse_logging_inf.mli_active ? EBUSY : 0;
     spin_unlock(&hse_logging_lock);
