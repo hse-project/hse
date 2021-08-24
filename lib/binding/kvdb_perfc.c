@@ -59,7 +59,7 @@ NE_CHECK(kvdb_perfc_op, PERFC_EN_KVDBOP, "kvdb_perfc_op table/enum mismatch");
 /* Public kvdb interface latencies */
 struct perfc_name kvdb_perfc_pkvdbl_op[] = {
     NE(PERFC_SL_PKVDBL_KVDB_SYNC,       1, "kvdb_sync latency",       "l_kvdb_sync"),
-    NE(PERFC_LT_PKVDBL_KVDB_MAKE,       3, "kvdb_make latency",       "l_kvdb_make"),
+    NE(PERFC_LT_PKVDBL_KVDB_CREATE,     3, "kvdb_create latency",     "l_kvdb_create"),
     NE(PERFC_LT_PKVDBL_KVDB_DROP,       3, "kvdb_drop latency",       "l_kvdb_drop"),
     NE(PERFC_LT_PKVDBL_KVDB_OPEN,       3, "kvdb_open latency",       "l_kvdb_open"),
     NE(PERFC_LT_PKVDBL_KVDB_TXN_BEGIN,  3, "kvdb_txn_begin latency",  "l_kvdb_txn_begin"),

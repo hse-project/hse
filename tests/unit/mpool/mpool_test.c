@@ -114,7 +114,7 @@ MTF_DEFINE_UTEST_PREPOST(mpool_test, mpool_ocd_test, mpool_test_pre, mpool_test_
     rc = remove_staging_path();
     ASSERT_EQ(0, rc);
 
-    err = mpool_mclass_add(home, MP_MED_STAGING, &tcparams);
+    err = mpool_mclass_add(MP_MED_STAGING, &tcparams);
     ASSERT_EQ(ENOENT, merr_errno(err));
 
     err = mpool_open(home, &trparams, O_RDWR, &mp);
@@ -133,7 +133,7 @@ MTF_DEFINE_UTEST_PREPOST(mpool_test, mpool_ocd_test, mpool_test_pre, mpool_test_
 
     rewinddir(dirp);
 
-    err = mpool_mclass_add(home, MP_MED_STAGING, &tcparams);
+    err = mpool_mclass_add(MP_MED_STAGING, &tcparams);
     ASSERT_EQ(0, merr_errno(err));
 
     err = mpool_open(home, &trparams, O_RDWR, &mp);

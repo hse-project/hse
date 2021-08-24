@@ -10,7 +10,6 @@
 #include <bsd/string.h>
 #include <cjson/cJSON.h>
 
-#include <mpool/mpool.h>
 #include <hse_ikvdb/kvdb_meta.h>
 
 #define KVDB_META       "kvdb.meta"
@@ -572,6 +571,33 @@ kvdb_meta_to_mpool_dparams(
     }
 
     return 0;
+}
+
+merr_t
+kvdb_meta_storage_add(
+    struct kvdb_meta           *meta,
+    const char                 *kvdb_home,
+    const struct mpool_cparams *cparams)
+{
+    enum mpool_mclass mc;
+    bool added = false;
+
+    assert(meta);
+    assert(kvdb_home);
+    assert(cparams);
+
+    for (mc = MP_MED_BASE; mc < MP_MED_COUNT; mc++) {
+        const char *path = cparams->mclass[mc].path;
+
+        if (mc != MP_MED_CAPACITY && path[0] != '\0') {
+            assert(meta->km_storage[mc].path[0] == '\0');
+
+            strlcpy(meta->km_storage[mc].path, path, sizeof(meta->km_storage[mc].path));
+            added = true;
+        }
+    }
+
+    return added ? kvdb_meta_serialize(meta, kvdb_home) : 0;
 }
 
 #if HSE_MOCKING

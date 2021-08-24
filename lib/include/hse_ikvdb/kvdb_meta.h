@@ -88,6 +88,23 @@ merr_t
 kvdb_meta_usage(const char *kvdb_home, uint64_t *size);
 
 /**
+ * Add new mclass storage paths to the kvdb.meta file
+ *
+ * @param meta: KVDB metadata
+ * @param kvdb_home: KVDB home
+ * @param cparams: mpool create params
+ * @returns Error status
+ * @retval 0 on succes
+ * @retval !0 on error
+ */
+/* MTF_MOCK */
+merr_t
+kvdb_meta_storage_add(
+    struct kvdb_meta           *meta,
+    const char                 *kvdb_home,
+    const struct mpool_cparams *cparams);
+
+/**
  * Appends to a KVDB meta object with media class paths
  *
  * @param meta: KVDB metadata

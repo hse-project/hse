@@ -34,8 +34,30 @@ struct mpool {
 };
 
 static merr_t
+mpool_to_mclass_params(
+    enum mpool_mclass           mc,
+    const struct mpool_cparams *cparams,
+    struct mclass_params       *mcp)
+{
+    size_t n;
+
+    if (cparams) {
+        n = strlcpy(mcp->path, cparams->mclass[mc].path, sizeof(mcp->path));
+        if (n >= sizeof(mcp->path))
+            return merr(EINVAL);
+    } else {
+        memset(mcp->path, '\0', sizeof(mcp->path));
+    }
+
+    mcp->mblocksz = cparams->mclass[mc].mblocksz;
+    mcp->filecnt = cparams->mclass[mc].filecnt;
+    mcp->fmaxsz = cparams->mclass[mc].fmaxsz;
+
+    return 0;
+}
+
+static merr_t
 mclass_params_init(
-    enum mpool_mclass     mclass,
     const char           *path,
     struct mclass_params *mcp)
 {
@@ -49,9 +71,9 @@ mclass_params_init(
         memset(mcp->path, '\0', sizeof(mcp->path));
     }
 
-    mcp->mblocksz = MBLOCK_SIZE_BYTES;
-    mcp->filecnt = MBLOCK_FSET_FILES_DEFAULT;
-    mcp->fmaxsz = MBLOCK_FILE_SIZE_MAX;
+    mcp->mblocksz = MPOOL_MBLOCK_SIZE_DEFAULT;
+    mcp->filecnt = MPOOL_MBLOCK_FILECNT_DEFAULT;
+    mcp->fmaxsz = MPOOL_MBLOCK_FILESZ_DEFAULT;
 
     return 0;
 }
@@ -108,32 +130,40 @@ mpool_mclass_open(
 }
 
 merr_t
-mpool_mclass_add(
-    const char *                home,
-    enum mpool_mclass           mclass,
-    const struct mpool_cparams *params)
+mpool_mclass_add(enum mpool_mclass mclass, const struct mpool_cparams *cparams)
 {
     struct media_class *mc;
     struct mclass_params mcp = {0};
     merr_t              err = 0;
     int                 flags = 0;
 
-    if (!params)
+    if (!cparams || mclass == MP_MED_CAPACITY || cparams->mclass[mclass].path[0] == '\0')
         return merr(EINVAL);
 
-    if (params->mclass[mclass].path[0] == '\0')
-        return merr(EINVAL);
-
-    err = mclass_params_init(mclass, params->mclass[mclass].path, &mcp);
+    err = mpool_to_mclass_params(mclass, cparams, &mcp);
     if (err)
         return err;
 
     flags |= (O_CREAT | O_RDWR);
+
     err = mclass_open(mclass, &mcp, flags, &mc);
     if (!err)
         mclass_close(mc);
 
     return err;
+}
+
+void
+mpool_mclass_destroy(enum mpool_mclass mclass, const struct mpool_dparams *dparams)
+{
+    const char *path;
+
+    if (!dparams || mclass == MP_MED_CAPACITY)
+        return;
+
+    path = dparams->mclass[mclass].path;
+    if (path[0] != '\0')
+        mclass_destroy(path, NULL);
 }
 
 const char *
@@ -151,14 +181,14 @@ mpool_mclass_default_path_get(const enum mpool_mclass mc)
 }
 
 merr_t
-mpool_create(const char *home, const struct mpool_cparams *params)
+mpool_create(const char *home, const struct mpool_cparams *cparams)
 {
     struct mpool *mp;
     merr_t        err;
     int           i, flags = 0;
     size_t        sz;
 
-    if (!home || !params)
+    if (!home || !cparams)
         return merr(EINVAL);
 
     sz = sizeof(*mp) + strlen(home) + 1;
@@ -174,15 +204,15 @@ mpool_create(const char *home, const struct mpool_cparams *params)
 
         /* If capacity path is the default, automatically create it */
         if (i == MP_MED_CAPACITY) {
-            char   buf[sizeof(params->mclass[i].path)];
+            char   buf[sizeof(cparams->mclass[i].path)];
             size_t n = snprintf(buf, sizeof(buf), "%s/" MPOOL_CAPACITY_MCLASS_DEFAULT_PATH, home);
 
-            if (n >= sizeof(params->mclass[i].path)) {
+            if (n >= sizeof(cparams->mclass[i].path)) {
                 err = merr(ENAMETOOLONG);
                 goto errout;
             }
 
-            if (!strcmp(buf, params->mclass[i].path)) {
+            if (!strcmp(buf, cparams->mclass[i].path)) {
                 DIR *dirp = opendir(buf);
                 if (dirp) {
                     if (closedir(dirp)) {
@@ -201,7 +231,7 @@ mpool_create(const char *home, const struct mpool_cparams *params)
             }
         }
 
-        err = mclass_params_init(i, params->mclass[i].path, &mcp);
+        err = mpool_to_mclass_params(i, cparams, &mcp);
         if (err)
             goto errout;
 
@@ -226,7 +256,7 @@ errout:
 merr_t
 mpool_open(
     const char                 *home,
-    const struct mpool_rparams *params,
+    const struct mpool_rparams *rparams,
     uint32_t                    flags,
     struct mpool              **handle)
 {
@@ -235,7 +265,7 @@ mpool_open(
     int           i;
     size_t        sz;
 
-    if (!home || !params || !handle)
+    if (!home || !rparams || !handle)
         return merr(EINVAL);
 
     *handle = NULL;
@@ -250,7 +280,7 @@ mpool_open(
     for (i = MP_MED_BASE; i < MP_MED_COUNT; i++) {
         struct mclass_params mcp = {0};
 
-        err = mclass_params_init(i, params->mclass[i].path, &mcp);
+        err = mclass_params_init(rparams->mclass[i].path, &mcp);
         if (err)
             goto errout;
 
@@ -294,20 +324,20 @@ mpool_close(struct mpool *mp)
 }
 
 merr_t
-mpool_destroy(const char *home, const struct mpool_dparams *params)
+mpool_destroy(const char *home, const struct mpool_dparams *dparams)
 {
     struct workqueue_struct *mpdwq;
     char path[PATH_MAX];
     int filecnt = 0;
 
-    if (!home || !params)
+    if (!home || !dparams)
         return merr(EINVAL);
 
     mpdwq = alloc_workqueue("mp_destroy", 0, MP_DESTROY_THREADS);
     ev(!mpdwq);
 
     for (int i = MP_MED_COUNT - 1; i >= MP_MED_BASE; i--) {
-        const char *path = params->mclass[i].path;
+        const char *path = dparams->mclass[i].path;
 
         if (path[0] != '\0')
             filecnt += mclass_destroy(path, mpdwq);
@@ -316,7 +346,7 @@ mpool_destroy(const char *home, const struct mpool_dparams *params)
     destroy_workqueue(mpdwq);
 
     snprintf(path, sizeof(path), "%s/" MPOOL_CAPACITY_MCLASS_DEFAULT_PATH, home);
-    if (!strcmp(path, params->mclass[MP_MED_CAPACITY].path) && !remove(path))
+    if (!strcmp(path, dparams->mclass[MP_MED_CAPACITY].path) && !remove(path))
         filecnt++;
 
     return filecnt > 0 ? 0 : merr(ENOENT);
@@ -482,6 +512,25 @@ mpool_mclass_ftw(
         return merr(ENOENT);
 
     return mclass_ftw(mc, prefix, cb);
+}
+
+void
+mpool_cparams_defaults(struct mpool_cparams *cparams)
+{
+    enum mpool_mclass mc;
+
+    if (!cparams)
+        return;
+
+    for (mc = MP_MED_BASE; mc < MP_MED_COUNT; mc++) {
+        cparams->mclass[mc].fmaxsz = MPOOL_MBLOCK_FILESZ_DEFAULT;
+        cparams->mclass[mc].filecnt = MPOOL_MBLOCK_FILECNT_DEFAULT;
+        cparams->mclass[mc].mblocksz = MPOOL_MBLOCK_SIZE_DEFAULT;
+        cparams->mclass[mc].path[0] = '\0';
+    }
+
+    strlcpy(cparams->mclass[MP_MED_CAPACITY].path, MPOOL_CAPACITY_MCLASS_DEFAULT_PATH,
+            sizeof(cparams->mclass[MP_MED_CAPACITY].path));
 }
 
 #if HSE_MOCKING

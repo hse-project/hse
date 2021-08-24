@@ -20,7 +20,7 @@
 static const struct param_spec pspecs[] = {
     {
         .ps_name = "storage.capacity.fmaxsz",
-        .ps_description = "file size in capacity mclass",
+        .ps_description = "file size in capacity mclass (GiB)",
         .ps_flags = PARAM_FLAG_EXPERIMENTAL,
         .ps_type = PARAM_TYPE_U64,
         .ps_offset = offsetof(struct kvdb_cparams, storage.mclass[MP_MED_CAPACITY].fmaxsz),
@@ -28,7 +28,7 @@ static const struct param_spec pspecs[] = {
         .ps_convert = param_convert_to_bytes_from_GB,
         .ps_validate = param_default_validator,
         .ps_default_value = {
-            .as_uscalar = 2048 * GB, /* 2 TiB */
+            .as_uscalar = MPOOL_MBLOCK_FILESZ_DEFAULT,
         },
         .ps_bounds = {
             .as_uscalar = {
@@ -39,7 +39,7 @@ static const struct param_spec pspecs[] = {
     },
     {
         .ps_name = "storage.capacity.mblocksz",
-        .ps_description = "object size in capacity mclass",
+        .ps_description = "object size in capacity mclass (MiB)",
         .ps_flags = PARAM_FLAG_EXPERIMENTAL,
         .ps_type = PARAM_TYPE_U64,
         .ps_offset = offsetof(struct kvdb_cparams, storage.mclass[MP_MED_CAPACITY].mblocksz),
@@ -47,7 +47,7 @@ static const struct param_spec pspecs[] = {
         .ps_convert = param_convert_to_bytes_from_MB,
         .ps_validate = param_default_validator,
         .ps_default_value = {
-            .as_uscalar = 32 * MB,
+            .as_uscalar = MPOOL_MBLOCK_SIZE_DEFAULT,
         },
         .ps_bounds = {
             .as_uscalar = {
@@ -66,7 +66,7 @@ static const struct param_spec pspecs[] = {
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
         .ps_default_value = {
-            .as_uscalar = 32,
+            .as_uscalar = MPOOL_MBLOCK_FILECNT_DEFAULT,
         },
         .ps_bounds = {
             .as_uscalar = {
@@ -94,7 +94,7 @@ static const struct param_spec pspecs[] = {
     },
     {
         .ps_name = "storage.staging.fmaxsz",
-        .ps_description = "file size in staging mclass",
+        .ps_description = "file size in staging mclass (GiB)",
         .ps_flags = PARAM_FLAG_EXPERIMENTAL,
         .ps_type = PARAM_TYPE_U64,
         .ps_offset = offsetof(struct kvdb_cparams, storage.mclass[MP_MED_STAGING].fmaxsz),
@@ -102,7 +102,7 @@ static const struct param_spec pspecs[] = {
         .ps_convert = param_convert_to_bytes_from_GB,
         .ps_validate = param_default_validator,
         .ps_default_value = {
-            .as_uscalar = 2048 * GB, /* 2 TiB */
+            .as_uscalar = MPOOL_MBLOCK_FILESZ_DEFAULT,
         },
         .ps_bounds = {
             .as_uscalar = {
@@ -113,7 +113,7 @@ static const struct param_spec pspecs[] = {
     },
     {
         .ps_name = "storage.staging.mblocksz",
-        .ps_description = "object size in staging mclass",
+        .ps_description = "object size in staging mclass (MiB)",
         .ps_flags = PARAM_FLAG_EXPERIMENTAL,
         .ps_type = PARAM_TYPE_U64,
         .ps_offset = offsetof(struct kvdb_cparams, storage.mclass[MP_MED_STAGING].mblocksz),
@@ -121,7 +121,7 @@ static const struct param_spec pspecs[] = {
         .ps_convert = param_convert_to_bytes_from_MB,
         .ps_validate = param_default_validator,
         .ps_default_value = {
-            .as_uscalar = 32 * MB,
+            .as_uscalar = MPOOL_MBLOCK_SIZE_DEFAULT,
         },
         .ps_bounds = {
             .as_uscalar = {
@@ -140,7 +140,7 @@ static const struct param_spec pspecs[] = {
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
         .ps_default_value = {
-            .as_uscalar = 32,
+            .as_uscalar = MPOOL_MBLOCK_FILECNT_DEFAULT,
         },
         .ps_bounds = {
             .as_uscalar = {

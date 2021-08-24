@@ -65,7 +65,7 @@ mclass_open(
     mc->dirp = dirp;
     mc->mcid = mclass_to_mcid(mclass);
 
-    mc->mblocksz = powerof2(params->mblocksz) ? params->mblocksz : MBLOCK_SIZE_BYTES;
+    mc->mblocksz = powerof2(params->mblocksz) ? params->mblocksz : MPOOL_MBLOCK_SIZE_DEFAULT;
 
     mc->dpath = realpath(params->path, NULL);
     if (!mc->dpath) {

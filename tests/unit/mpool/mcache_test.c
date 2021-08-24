@@ -184,7 +184,7 @@ MTF_DEFINE_UTEST_PREPOST(mcache_test, mcache_api, mpool_test_pre, mpool_test_pos
 
     setup_mclass(MP_MED_STAGING);
 
-    err = mpool_mclass_add(home, MP_MED_STAGING, &tcparams);
+    err = mpool_mclass_add(MP_MED_STAGING, &tcparams);
     ASSERT_EQ(0, merr_errno(err));
 
     err = mpool_open(home, &trparams, O_RDWR, &mp);

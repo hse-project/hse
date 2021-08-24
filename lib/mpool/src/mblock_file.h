@@ -17,14 +17,8 @@
 #define MBID_MCID_BITS         (2)
 #define MBID_BLOCK_BITS        (16)
 
-#define MBLOCK_SIZE_MB         (32)
-#define MBLOCK_SIZE_BYTES      (MBLOCK_SIZE_MB << 20)
-#define MBLOCK_SIZE_SHIFT      (25)
-
 #define MBLOCK_FILE_PFX        "mblock"
 #define MBLOCK_OPT_WRITE_SZ    (128 << 10)
-
-#define MBLOCK_FILE_SIZE_MAX   ((1ULL << MBID_BLOCK_BITS) << MBLOCK_SIZE_SHIFT)
 
 /**
  * Mblock ID in-memory layout

@@ -1133,9 +1133,11 @@ main(int argc, char **argv)
         rows -= 1;
     }
 
+    mpool_cparams_defaults(&cparams);
     path = strdup(argv[0]);
     strlcpy(cparams.mclass[MP_MED_CAPACITY].path, path,
             sizeof(cparams.mclass[MP_MED_CAPACITY].path));
+
     err = mpool_create(path, &cparams);
     if (err) {
         fprintf(stderr, "mpool creation at path %s failed\n", path);

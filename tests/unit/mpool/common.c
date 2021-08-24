@@ -15,7 +15,7 @@
 #include <hse_util/storage.h>
 
 #include <hse_ut/common.h>
-#include <mpool/mpool_structs.h>
+#include <mpool/mpool.h>
 
 #include "common.h"
 
@@ -96,6 +96,8 @@ mpool_collection_pre(struct mtf_test_info *ti)
     if (rc == -1)
         return errno;
 
+    mpool_cparams_defaults(&tcparams);
+
     return 0;
 }
 
@@ -134,17 +136,9 @@ unset_mclass(const enum mpool_mclass mc)
 void
 setup_mclass(const enum mpool_mclass mc)
 {
-    /* [HSE_REVISIT]: When mpool gets refactored to mpool_cparams/mpool_rparams,
-     * use the default constants.
-     */
     const char *path = mc == MP_MED_CAPACITY ? capacity_path : staging_path;
 
     strlcpy(tcparams.mclass[mc].path, path, sizeof(tcparams.mclass[mc].path));
-    tcparams.mclass[mc].fmaxsz = 2048 * GB;
-    tcparams.mclass[mc].filecnt = 32;
-    tcparams.mclass[mc].mblocksz = 32 * MB;
-
     strlcpy(trparams.mclass[mc].path, path, sizeof(trparams.mclass[mc].path));
-
     strlcpy(tdparams.mclass[mc].path, path, sizeof(tdparams.mclass[mc].path));
 }

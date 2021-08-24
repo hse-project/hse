@@ -11,8 +11,6 @@
 
 #include <hse_util/hse_err.h>
 
-#define MPOOL_CAPACITY_MCLASS_DEFAULT_PATH "capacity"
-
 struct mpool;            /* opaque mpool handle */
 struct mpool_mdc;        /* opaque MDC (metadata container) handle */
 struct mpool_mcache_map; /* opaque mcache map handle */
@@ -27,25 +25,42 @@ struct mpool_file;       /* opaque mpool file handle */
 /**
  * mpool_create() - Create an mpool
  *
- * @name:   kvdb home
- * @params: mpool cparams
+ * @home:    kvdb home
+ * @cparams: mpool cparams
  */
 /* MTF_MOCK */
 merr_t
-mpool_create(const char *home, const struct mpool_cparams *params);
+mpool_create(const char *home, const struct mpool_cparams *cparams);
+
+
+/**
+ * mpool_cparams_defaults() - Init default mpool cparams
+ *
+ * @cparams: mpool cparams (output)
+ */
+/* MTF_MOCK */
+void
+mpool_cparams_defaults(struct mpool_cparams *cparams);
 
 /**
  * mpool_mclass_add() - Add a media class to the mpool
  *
- * @name:   kvdb home
- * @mclass  mclass id
- * @params: mpool cparams
+ * @mclass   enum mpool_mclass, cannot be MP_MED_CAPACITY
+ * @cparams: mpool cparams
  */
+/* MTF_MOCK */
 merr_t
-mpool_mclass_add(
-    const char *                home,
-    enum mpool_mclass           mclass,
-    const struct mpool_cparams *params);
+mpool_mclass_add(enum mpool_mclass mclass, const struct mpool_cparams *cparams);
+
+/**
+ * mpool_mclass_destroy() - Destroy the specified mclass (used only during error path cleanup)
+ *
+ * @mclass   enum mpool_mclass, cannot be MP_MED_CAPACITY
+ * @dparams: mpool dparams
+ */
+/* MTF_MOCK */
+void
+mpool_mclass_destroy(enum mpool_mclass mclass, const struct mpool_dparams *dparams);
 
 /**
  * Retrieve the default media class path given a media class
@@ -56,10 +71,10 @@ mpool_mclass_default_path_get(enum mpool_mclass) HSE_CONST;
 /**
  * mpool_open() - Open an mpool
  *
- * @home: mpool home
- * @params: mpool rparams
- * @flags:  open flags
- * @mp:     mpool handle (output)
+ * @home:    kvdb home
+ * @rparams: mpool rparams
+ * @flags:   open flags
+ * @handle:  mpool handle (output)
  *
  * Flags are limited to a subset of flags allowed by open(2):
  * O_CREAT, O_RDONLY, O_WRONLY, and O_RDWR.
@@ -68,7 +83,7 @@ mpool_mclass_default_path_get(enum mpool_mclass) HSE_CONST;
 merr_t
 mpool_open(
     const char                 *home,
-    const struct mpool_rparams *params,
+    const struct mpool_rparams *rparams,
     uint32_t                    flags,
     struct mpool              **handle);
 
@@ -84,12 +99,12 @@ mpool_close(struct mpool *mp);
 /**
  * mpool_destroy() - Destroy an mpool
  *
- * @name:   mpool name
- * @params: mpool dparams
+ * @home:    kvdb home
+ * @dparams: mpool dparams
  */
 /* MTF_MOCK */
 merr_t
-mpool_destroy(const char *name, const struct mpool_dparams *params);
+mpool_destroy(const char *home, const struct mpool_dparams *dparams);
 
 /**
  * mpool_mclass_props_get() - get properties of the specified media class

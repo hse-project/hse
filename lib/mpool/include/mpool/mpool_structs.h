@@ -30,6 +30,13 @@ enum mpool_mclass {
 #define MP_MED_NAME_STAGING    "staging"
 #define MP_MED_NAME_LEN_MAX    (16)
 
+#define MPOOL_CAPACITY_MCLASS_DEFAULT_PATH "capacity"
+
+#define MPOOL_MBLOCK_SIZE_DEFAULT      (32L << 20)
+#define MPOOL_MBLOCK_FILECNT_DEFAULT   (32)
+#define MPOOL_MBLOCK_FILESZ_DEFAULT    (2048ULL << 30)
+
+
 /**
  * struct mpool_cparams - mpool create params
  *
