@@ -223,7 +223,12 @@ emit_storage_info(
 }
 
 static hse_err_t
-kvdb_info_props(const char *kvdb_home, const size_t paramc, const char *const *paramv, struct yaml_context *yc)
+kvdb_info_props(
+    const char          *kvdb_home,
+    const size_t         paramc,
+    const char *const   *paramv,
+    struct yaml_context *yc,
+    bool                 verbose)
 {
     struct hse_kvdb *            hdl;
     struct hse_kvdb_storage_info info = {};
@@ -255,9 +260,11 @@ kvdb_info_props(const char *kvdb_home, const size_t paramc, const char *const *p
         if (!err) {
             emit_storage_info(yc, &info, cappath, stgpath);
 
-            yaml_start_element_type(yc, "kvslist");
-            err = rest_kvs_list(socket_path, yc, kvdb_home);
-            yaml_end_element_type(yc);
+            if (verbose) {
+                yaml_start_element_type(yc, "kvslist");
+                err = rest_kvs_list(socket_path, yc, kvdb_home);
+                yaml_end_element_type(yc);
+            }
         }
         goto exit;
     }
@@ -269,21 +276,24 @@ kvdb_info_props(const char *kvdb_home, const size_t paramc, const char *const *p
     }
     emit_storage_info(yc, &info, NULL, NULL);
 
-    err = hse_kvdb_kvs_names_get(hdl, &kvs_cnt, &kvs_list);
-    if (err) {
-        hse_kvdb_close(hdl);
-        goto exit;
+    if (verbose) {
+        err = hse_kvdb_kvs_names_get(hdl, &kvs_cnt, &kvs_list);
+        if (err) {
+            hse_kvdb_close(hdl);
+            goto exit;
+        }
+
+        yaml_start_element_type(yc, "kvslist");
+
+        for (i = 0; i < kvs_cnt; i++)
+            yaml_element_list(yc, kvs_list[i]);
+
+        yaml_end_element(yc);
+        yaml_end_element_type(yc); /* kvslist */
+
+        hse_kvdb_kvs_names_free(hdl, kvs_list);
     }
 
-    yaml_start_element_type(yc, "kvslist");
-
-    for (i = 0; i < kvs_cnt; i++)
-        yaml_element_list(yc, kvs_list[i]);
-
-    yaml_end_element(yc);
-    yaml_end_element_type(yc); /* kvslist */
-
-    hse_kvdb_kvs_names_free(hdl, kvs_list);
     hse_kvdb_close(hdl);
 
 exit:
@@ -293,7 +303,7 @@ exit:
     return err;
 }
 
-int
+bool
 kvdb_info_print(
     const char *         kvdb_home,
     const size_t         paramc,
@@ -302,23 +312,19 @@ kvdb_info_print(
     bool                 verbose)
 {
     hse_err_t err;
-    int       count = 0;
 
-    err = kvdb_info_props(kvdb_home, paramc, paramv, yc);
+    err = kvdb_info_props(kvdb_home, paramc, paramv, yc, verbose);
     if (err) {
         char buf[256];
 
         if (hse_err_to_errno(err) == ENOENT)
-            goto errout;
+            return false;
 
         hse_strerror(err, buf, sizeof(buf));
         yaml_field_fmt(yc, "error", "\"kvdb_info_props failed: %s\"", buf);
     }
 
-    count = 1;
-
-errout:
-    return count;
+    return true;
 }
 
 static hse_err_t
