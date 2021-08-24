@@ -19,7 +19,7 @@ def check_keys(cursor: hse.KvsCursor, expected: List[bytes]):
         assert x == y
 
 
-hse.init(cli.HOME)
+hse.init(cli.CONFIG)
 
 try:
     with ExitStack() as stack:

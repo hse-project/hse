@@ -57,12 +57,13 @@ usage(const char *prog)
     fprintf(
         stderr,
         "usage: %s [options] [kvdb kvs] [param=value ...]\n"
-        "-0    disable c0 seeding -- requires cn has prev run\n"
-        "-g    get the key just put using hse_kvs_get\n"
-        "-i n  do $n iterations between cursors\n"
-        "-s n  start with $n\n"
-        "-U    update cursor (vs restart it)\n"
-        "-v n  set verbosity to $n\n",
+        "-0         disable c0 seeding -- requires cn has prev run\n"
+        "-g         get the key just put using hse_kvs_get\n"
+        "-i n       do $n iterations between cursors\n"
+        "-s n       start with $n\n"
+        "-U         update cursor (vs restart it)\n"
+        "-v n       set verbosity to $n\n"
+        "-Z config  path to global config file\n",
         prog);
 
     exit(1);
@@ -82,7 +83,7 @@ main(int argc, char **argv)
     static char kbuf[HSE_KVS_KEY_LEN_MAX];
     static char vbuf[HSE_KVS_VALUE_LEN_MAX];
 
-    const char *           mpname, *dsname, *kvname, *prog;
+    const char *           mpname, *dsname, *kvname, *prog, *config = NULL;
     struct parm_groups *   pg = NULL;
     struct svec            hse_gparm = { 0 };
     struct svec            db_oparm = { 0 };
@@ -119,8 +120,11 @@ main(int argc, char **argv)
     if (rc)
         fatal(rc, "pg_create");
 
-    while ((c = getopt(argc, argv, "?U0gi:s:")) != -1) {
+    while ((c = getopt(argc, argv, "?U0gi:s:Z:")) != -1) {
         switch (c) {
+            case 'Z':
+                config = optarg;
+                break;
             case 'U':
                 update = 1;
                 break;
@@ -179,7 +183,7 @@ main(int argc, char **argv)
      * MAIN: Everything else is preamble to get to here.
      * This is the stuff you really wanted to see.
      */
-    err = hse_init(mpname, hse_gparm.strc, hse_gparm.strv);
+    err = hse_init(config, hse_gparm.strc, hse_gparm.strv);
     if (err)
         fatal(err, "failed to initialize kvdb");
 

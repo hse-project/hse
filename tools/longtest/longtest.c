@@ -146,6 +146,7 @@ static void syntax(const char *fmt, ...);
 static void usage(void);
 
 enum opt_enum {
+	opt_config = 'Z',
 	opt_keys	= 'c',
 	opt_help	= 'h',
 	opt_num_iters	= 'i',
@@ -195,9 +196,9 @@ enum phase {
 };
 
 struct opts {
-
-	const char  *mpool;
-	const char  *kvs;
+	const char *config;
+	const char *mpool;
+	const char *kvs;
 
 	u64 keys;
 	u64 duration;
@@ -314,6 +315,7 @@ struct opts opt;
 struct test test;
 
 struct option longopts[] = {
+	{ "config",         required_argument,  NULL,  opt_config },
 	{ "dryrun",         no_argument,        NULL,  opt_dryrun   },
 	{ "duration",       required_argument,  NULL,  opt_duration },
 	{ "exp",            required_argument,  NULL,  opt_exp   },
@@ -497,6 +499,7 @@ opts_parse(
 			break;
 
 		case opt_help:         opt->help = true; break;
+		case opt_config:       opt->config = optarg; break;
 		case opt_dryrun:       opt->dryrun = true; break;
 		case opt_once:         opt->once = true; break;
 		case opt_show:         opt->show = true; break;
@@ -2188,7 +2191,7 @@ main(int argc, char **argv)
 			goto done;
 	}
 
-	err = hse_init(opt.mpool, hse_gparm.strc, hse_gparm.strv);
+	err = hse_init(opt.config, hse_gparm.strc, hse_gparm.strv);
 	if (err) {
 		fprintf(stderr, "failed to initialize kvdb\n");
 		goto done;

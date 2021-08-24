@@ -103,6 +103,7 @@ main(int argc, char **argv)
     hse_err_t            err;
     int                  ignore, c;
     const char          *home;
+    const char          *config = NULL;
     struct mpool        *mp;
     struct mpool_rparams params;
     struct kvdb_meta     meta;
@@ -112,7 +113,7 @@ main(int argc, char **argv)
     wpath = 0;
     ignore = 0;
 
-    while ((c = getopt(argc, argv, ":hiw:")) != -1) {
+    while ((c = getopt(argc, argv, ":hiw:Z:")) != -1) {
         switch (c) {
             case 'h':
                 usage();
@@ -124,6 +125,10 @@ main(int argc, char **argv)
 
             case 'w':
                 wpath = optarg;
+                break;
+
+            case 'Z':
+                config = optarg;
                 break;
 
             case '?':
@@ -150,7 +155,7 @@ main(int argc, char **argv)
 
     home = argv[argc - 1];
 
-    err = hse_init(home, 0, NULL);
+    err = hse_init(config, 0, NULL);
     if (err)
         fatal("hse_init", err);
 

@@ -89,6 +89,7 @@ usage(void)
 		"usage: %s [options] kvdb kvs [param=value ...]\n"
 		"-k nkeys   Number of keys\n"
 		"-p nptombs Number of ptombs\n"
+		"-Z config  Path to global config file\n"
 		"-h      Print this help menu\n"
 		, progname);
 
@@ -106,7 +107,7 @@ main(int argc, char **argv)
 	struct svec         kvdb_oparms = { 0 };
 	struct svec         kvs_cparms = { 0 };
 	struct svec         kvs_oparms = { 0 };
-	const char         *mpool, *kvs;
+	const char         *mpool, *kvs, *config = NULL;
 	char                c;
 	int                 rc;
 
@@ -132,6 +133,9 @@ main(int argc, char **argv)
 		case 'p':
 			opts.nptombs = strtoul(optarg, &end, 0);
 			errmsg = "invalid nptombs";
+			break;
+		case 'Z':
+			config = optarg;
 			break;
 		case '?':
 			syntax("invalid option -%c", optopt);
@@ -183,7 +187,7 @@ main(int argc, char **argv)
 	if (rc)
 		fatal(rc, "failed to parse params\n");
 
-	kh_init(mpool, &hse_gparms, &kvdb_oparms);
+	kh_init(config, mpool, &hse_gparms, &kvdb_oparms);
 
 	kh_register_kvs(kvs, 0, &kvs_cparms, &kvs_oparms, &dostuff, 0);
 

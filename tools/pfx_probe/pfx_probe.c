@@ -309,15 +309,16 @@ usage(void)
 {
 	printf(
 		"usage: %s [options] kvdb kvs [param=value]\n"
-		"-c nvar  Number of core (middle portion of key) variations "
+		"-c nvar    Number of core (middle portion of key) variations "
 		"per hard prefix\n"
-		"-d secs  Duration of run (in seconds)\n"
-		"-g       Use gets (in addition to -v)\n"
-		"-j jobs  Number of threads\n"
-		"-p npfx  Hard prefixes\n"
-		"-s nsfx  Suffixes per soft prefix\n"
-		"-v       Only verify (default: use hse_kvs_prefix_probe)\n"
-		"-x       Use cursors (in addition to -v)\n"
+		"-d secs    Duration of run (in seconds)\n"
+		"-g         Use gets (in addition to -v)\n"
+		"-j jobs    Number of threads\n"
+		"-p npfx    Hard prefixes\n"
+		"-s nsfx    Suffixes per soft prefix\n"
+		"-v         Only verify (default: use hse_kvs_prefix_probe)\n"
+		"-x         Use cursors (in addition to -v)\n"
+		"-Z config  path to global config file\n"
 		, progname);
 
 	printf("\n");
@@ -334,7 +335,7 @@ main(
 	struct svec         db_oparms = { 0 };
 	struct svec         kv_cparms = { 0 };
 	struct svec         kv_oparms = { 0 };
-	const char         *mpool, *kvs;
+	const char         *mpool, *kvs, *config = NULL;
 	struct thread_info *ti;
 	char                c;
 	int                 i;
@@ -347,7 +348,7 @@ main(
 	if (rc)
 		fatal(rc, "pg_create");
 
-	while ((c = getopt(argc, argv, "gvxd:j:p:c:s:")) != -1) {
+	while ((c = getopt(argc, argv, "gvxd:j:p:c:s:Z:")) != -1) {
 		errno = 0;
 		switch (c) {
 		case 'p':
@@ -372,6 +373,9 @@ main(
 			break;
 		case 'v':
 			opts.skip_load = true;
+			break;
+		case 'Z':
+			config = optarg;
 			break;
 		case 'd':
 			opts.duration = strtoul(optarg, 0, 0);
@@ -414,7 +418,7 @@ main(
 	if (rc)
 		fatal(rc, "svec_append_pg failed");
 
-	kh_init(mpool, &hse_gparms, &db_oparms);
+	kh_init(config, mpool, &hse_gparms, &db_oparms);
 
 	kh_register(KH_FLAG_DETACH, syncme, NULL);
 	kh_register(KH_FLAG_DETACH, print_stats, NULL);

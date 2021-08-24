@@ -16,7 +16,7 @@
 
 #include "deviceprofile.h"
 
-static const char options[] = "m:b:s:t:c:w:";
+static const char options[] = "m:b:s:t:c:w:Z:";
 
 static void
 usage(const char *program)
@@ -32,6 +32,7 @@ usage(const char *program)
            DEVICEPROFILE_MAXBSIZE / (1 << 10),
            1 << 10);
     printf("-s # of mblocks per thread to sample (optional, defaults to 1).\n");
+    printf("-Z path to global config file");
     printf("\n\nEXAMPLES:\n");
     printf("%s -s 8192 mp1\n", program);
     printf("%s -j 8 -c 6 -i 7 -b 128 -s 16384 mp1\n", program);
@@ -92,6 +93,7 @@ main(int argc, char *argv[])
     int                             mclass, wpct, thrds;
     u64                             bsize, mblks_per_thrd, mblksize;
     struct mpool_props              props;
+    const char *                    config = NULL;
 
     program = strrchr(argv[0], '/');
     program = program ? program + 1 : argv[0];
@@ -130,6 +132,9 @@ main(int argc, char *argv[])
                     return -1;
                 }
                 break;
+            case 'Z':
+                config = optarg;
+                break;
             case 'b':
                 bsize = strtoul(optarg, &end, 0);
                 bsize *= 1024;
@@ -162,7 +167,7 @@ main(int argc, char *argv[])
 
     mpname = argv[0];
 
-    err = hse_init(mpname, 0, NULL);
+    err = hse_init(config, 0, NULL);
     if (err)
         return -1;
 

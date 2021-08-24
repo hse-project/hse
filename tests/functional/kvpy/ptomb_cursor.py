@@ -44,7 +44,7 @@ def verify(kvs: hse.Kvs, pfx: str, cnt: int):
         assert sum(1 for _ in rc.items()) == cnt
 
 
-hse.init(cli.HOME)
+hse.init(cli.CONFIG)
 
 try:
     with ExitStack() as stack:

@@ -122,7 +122,7 @@ main(
 	struct svec         kvdb_oparms = { 0 };
 	struct svec         kvs_cparms = { 0 };
 	struct svec         kvs_oparms = { 0 };
-	const char         *mpool, *kvs;
+	const char         *mpool, *kvs, *config = NULL;
 	struct thread_info *ti;
 	int i, rc;
 	char  c;
@@ -133,7 +133,7 @@ main(
 	if (rc)
 		fatal(rc, "pg_create");
 
-	while ((c = getopt(argc, argv, "hc:j:")) != -1) {
+	while ((c = getopt(argc, argv, "hc:j:Z:")) != -1) {
 		char *errmsg = 0;
 
 		errno = 0;
@@ -145,6 +145,9 @@ main(
 		case 'j':
 			opts.threads = strtoul(optarg, 0, 0);
 			errmsg = "invalid number of threads";
+			break;
+		case 'Z':
+			config = optarg;
 			break;
 		}
 
@@ -188,7 +191,7 @@ main(
 	if (rc)
 		fatal(rc, "failed to parse params\n");
 
-	kh_init(mpool, &hse_gparms, &kvdb_oparms);
+	kh_init(config, mpool, &hse_gparms, &kvdb_oparms);
 
 	ti = malloc(opts.threads * sizeof(*ti));
 	if (!ti)

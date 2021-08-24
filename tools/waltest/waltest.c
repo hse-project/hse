@@ -34,6 +34,7 @@
 struct opts {
     bool    help;
     bool    version;
+    char   *config;
     char   *kvdb;
     char   *kvs;
     u64     keys;
@@ -217,12 +218,14 @@ enum opt_enum {
     opt_verbose	= 'v',
     opt_version	= 'V',
     opt_do_txn  = 'x',
+    opt_config  = 'Z',
 
     opt_unclean,
 };
 
 
 struct option longopts[] = {
+    { "config",     required_argument,  NULL,  opt_config },
     { "binary",     no_argument,        NULL,  opt_binary },
     { "keys",       required_argument,  NULL,  opt_keys },
     { "params",     no_argument,        NULL,  opt_params  },
@@ -329,6 +332,10 @@ options_parse(
             break; /* got '--' or end of arg list */
 
         switch (c) {
+        case opt_config:
+            opt->config = optarg;
+            break;
+
         case opt_ingest:
             opt->ingest = true;
             ingest_mode = true;
@@ -499,25 +506,26 @@ usage(void)
     printf("usage: %s [options] <kvdb_home> <kvslist> [param=value]\n",
            progname);
     printf("Key/value count and format:\n"
-           "  -b, --binary       generate binary keys and values\n"
-           "  -c, --keys COUNT   put/get COUNT keys\n"
-           "  -C, --params       list tunable params (config vars)\n"
-           "  -d, --del       delete keys\n"
-           "  -D, --pdel      prefix delete keys\n"
-           "  -e, --errcnt N     stop verify after N errors, 0=infinite\n"
-           "  -f, --pfxlen       prefix len\n"
-           "  -h, --help         print this help list\n"
-           "  -l, --klen LEN     keys are LEN bytes\n"
-           "  -L, --vlen LEN     values are LEN bytes\n"
-           "  -n, --dryrun       show operations w/o executing them\n"
-           "  -p, --put       put keys\n"
-           "  -s, --kstart       starting index of keys, default=0\n"
-           "  -t, --threads      number of threads\n"
-           "  -T, --Time seconds c1 flush time in ms\n"
-           "  -u, --up        update keys\n"
-           "  -v, --verbose=LVL  increase[or set] verbosity\n"
-           "  -V, --version      print build version\n"
-           "  -x, --txn          do transaction tests\n"
+           "  -b, --binary         generate binary keys and values\n"
+           "  -c, --keys COUNT     put/get COUNT keys\n"
+           "  -C, --params         list tunable params (config vars)\n"
+           "  -d, --del            delete keys\n"
+           "  -D, --pdel           prefix delete keys\n"
+           "  -e, --errcnt N       stop verify after N errors, 0=infinite\n"
+           "  -f, --pfxlen         prefix len\n"
+           "  -h, --help           print this help list\n"
+           "  -l, --klen LEN       keys are LEN bytes\n"
+           "  -L, --vlen LEN       values are LEN bytes\n"
+           "  -n, --dryrun         show operations w/o executing them\n"
+           "  -p, --put            put keys\n"
+           "  -s, --kstart         starting index of keys, default=0\n"
+           "  -t, --threads        number of threads\n"
+           "  -T, --Time seconds   c1 flush time in ms\n"
+           "  -u, --up             update keys\n"
+           "  -v, --verbose=LVL    increase[or set] verbosity\n"
+           "  -V, --version        print build version\n"
+           "  -x, --txn            do transaction tests\n"
+           "  -Z, --config CONFIG  path to global config file\n"
            "\n");
 
     if (!verbose) {
@@ -1396,7 +1404,7 @@ main(int argc, char **argv)
     if (err)
         return err;
 
-    err = hse_init(opt.kvdb, 0, NULL);
+    err = hse_init(opt.config, 0, NULL);
     if (err)
         return err;
 

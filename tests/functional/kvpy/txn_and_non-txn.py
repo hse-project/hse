@@ -11,7 +11,7 @@ from hse2 import hse
 from utility import lifecycle, cli
 
 
-hse.init(cli.HOME)
+hse.init(cli.CONFIG)
 
 KVS_CPARAMS: Tuple[str, ...] = ("prefix.length=2", "suffix.length=1")
 

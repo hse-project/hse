@@ -216,19 +216,20 @@ usage(char *prog)
     fprintf(
         stderr,
         "usage: %s [options] kvdb kvs [param=value ...]\n"
-        "-c n  do count $n operations per iteration, default 1000\n"
-        "-D    delete puts\n"
-        "-h    print help\n"
-        "-i n  repeat for $n iterations; default 1\n"
-        "-L n  length of values is $n; default keylen\n"
-        "-l n  length of keys and values is $n; default 4\n"
-        "-n n  nop; pauses n ms to allow compaction\n"
-        "-p n  pause 2 seconds after every $n keys; default none\n"
-        "-s n  start sequence at $n; default 1\n"
-        "-t n  run in $n threads; default 1\n"
-        "-V    verify puts, fails on first miss\n"
-        "-v n  set hse_log_pri to $n\n"
-        "-X    exit with sync instead of close\n",
+        "-c n       do count $n operations per iteration, default 1000\n"
+        "-D         delete puts\n"
+        "-h         print help\n"
+        "-i n       repeat for $n iterations; default 1\n"
+        "-L n       length of values is $n; default keylen\n"
+        "-l n       length of keys and values is $n; default 4\n"
+        "-n n       nop; pauses n ms to allow compaction\n"
+        "-p n       pause 2 seconds after every $n keys; default none\n"
+        "-s n       start sequence at $n; default 1\n"
+        "-t n       run in $n threads; default 1\n"
+        "-V         verify puts, fails on first miss\n"
+        "-v n       set hse_log_pri to $n\n"
+        "-X         exit with sync instead of close\n"
+        "-Z config  path to global config file\n",
         prog);
 
     exit(0);
@@ -237,6 +238,7 @@ usage(char *prog)
 int
 main(int argc, char **argv)
 {
+    const char *       config = NULL;
     char *             mpname, *prog;
     struct parm_groups  *pg = NULL;
     const char *       kvname;
@@ -269,7 +271,7 @@ main(int argc, char **argv)
 
     opterr = 0;
 
-    while ((c = getopt(argc, argv, "?hVDCXen:p:t:i:l:L:c:s:o:")) != -1) {
+    while ((c = getopt(argc, argv, "?hVDC:Xen:p:t:i:l:L:c:s:o:Z:")) != -1) {
         switch (c) {
             case 'V':
                 action = GET;
@@ -307,6 +309,9 @@ main(int argc, char **argv)
             case 's':
                 start = (unsigned)strtoul(optarg, 0, 0);
                 break;
+            case 'Z':
+                config = optarg;
+                break;
             case 'h':
                 usage(prog);
                 break;
@@ -342,7 +347,7 @@ main(int argc, char **argv)
     if (rc)
         fatal(rc, "failed to parse hse-gparams");
 
-    rc = hse_init(mpname, hse_gparm.strc, hse_gparm.strv);
+    rc = hse_init(config, hse_gparm.strc, hse_gparm.strv);
     if (rc)
         fatal(rc, "failed to initialize kvdb");
 

@@ -910,6 +910,7 @@ usage(void)
     printf("-s          run stress test (stringent verification)\n");
     printf("-t secs     specify max run time in seconds (requires {-p | -s})\n");
     printf("-v          increase verbosity\n");
+    printf("-Z config   path to global config file\n");
     printf("affine  first[,skip]  specify first cpu and number of cpus to skip\n");
     printf("mode    pc:put+commit, gc:get+commit, pa:put+abort, ga:get+abort\n");
     printf("\n");
@@ -928,11 +929,12 @@ usage(void)
 int
 main(int argc, char **argv)
 {
-    hse_err_t         err;
-    uint8_t           given[256] = { };
-    bool              help = false;
-    ulong             i;
-    int               rc;
+    const char *config = NULL;
+    hse_err_t   err;
+    uint8_t     given[256] = { };
+    bool        help = false;
+    ulong       i;
+    int         rc;
 
     progname = strrchr(argv[0], '/');
     progname = progname ? progname + 1 : argv[0];
@@ -947,7 +949,7 @@ main(int argc, char **argv)
         char   *errmsg, *end;
         int     c;
 
-        c = getopt(argc, argv, ":a:cf:hi:j:K:k:p:rS:st:Vvwm");
+        c = getopt(argc, argv, ":a:cf:hi:j:K:k:p:rS:st:VvwmZ:");
         if (-1 == c)
             break;
 
@@ -1038,6 +1040,10 @@ main(int argc, char **argv)
             ++given['c'];
             break;
 
+        case 'Z':
+            config = optarg;
+            break;
+
         case '?':
             syntax("invalid option -%c", optopt);
             exit(EX_USAGE);
@@ -1107,7 +1113,7 @@ main(int argc, char **argv)
 
     stats.topen = get_time_ns();
 
-    err = hse_init(mp_name, hse_gparm.strc, hse_gparm.strv);
+    err = hse_init(config, hse_gparm.strc, hse_gparm.strv);
     if (err) {
         eprint("failed to initialize kvdb\n");
         exit(EX_OSERR);

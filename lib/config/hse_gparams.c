@@ -13,7 +13,6 @@
 #include <bsd/string.h>
 
 #include <hse_ikvdb/hse_gparams.h>
-#include <hse_ikvdb/runtime_home.h>
 #include <hse_ikvdb/param.h>
 #include <hse_ikvdb/limits.h>
 #include <hse_util/logging.h>
@@ -289,28 +288,6 @@ hse_gparams_pspecs_get(size_t *pspecs_sz)
     if (pspecs_sz)
         *pspecs_sz = NELEM(pspecs);
     return pspecs;
-}
-
-merr_t
-hse_gparams_resolve(struct hse_gparams *const params, const char *const runtime_home)
-{
-    merr_t err;
-    char   buf[PATH_MAX];
-
-    assert(params);
-    assert(runtime_home);
-
-    err = runtime_home_socket_path_get(runtime_home, params, buf, sizeof(buf));
-    if (err)
-        return err;
-    strlcpy(hse_gparams.gp_socket.path, buf, sizeof(hse_gparams.gp_socket.path));
-
-    err = runtime_home_logging_path_get(runtime_home, params, buf, sizeof(buf));
-    if (err)
-        return err;
-    strlcpy(hse_gparams.gp_logging.path, buf, sizeof(hse_gparams.gp_logging.path));
-
-    return 0;
 }
 
 struct hse_gparams

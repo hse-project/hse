@@ -238,15 +238,17 @@ usage(void)
     printf("-s sync    specify how many times to call c0sk_sync\n");
     printf("-t txn     specify how many times to issue a transaction\n");
     printf("-v         increase verbosity\n");
+    printf("-Z config  path to global config file\n");
     printf("\n");
 }
 
 int
 main(int argc, char **argv)
 {
-    uint64_t herr;
-    bool     help = false;
-    int      rc;
+    const char *config = NULL;
+    uint64_t    herr;
+    bool        help = false;
+    int         rc;
 
     progname = strrchr(argv[0], '/');
     progname = progname ? progname + 1 : argv[0];
@@ -261,7 +263,7 @@ main(int argc, char **argv)
         char *errmsg, *end;
         int   c;
 
-        c = getopt(argc, argv, ":hf:j:k:l:s:t:Vv");
+        c = getopt(argc, argv, ":hf:j:k:l:s:t:VvZ:");
         if (-1 == c)
             break;
 
@@ -269,6 +271,10 @@ main(int argc, char **argv)
         errno = 0;
 
         switch (c) {
+            case 'Z':
+                config = optarg;
+                break;
+
             case 'f':
                 kflush = strtoul(optarg, &end, 0);
                 errmsg = "invalid flush count";
@@ -369,7 +375,7 @@ main(int argc, char **argv)
         exit(EX_OSERR);
     }
 
-    herr = hse_init(mp_name, hse_gparm.strc, hse_gparm.strv);
+    herr = hse_init(config, hse_gparm.strc, hse_gparm.strv);
     if (herr) {
         herr_print(herr, "hse_init() failed: ");
         exit(EX_OSERR);

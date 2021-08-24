@@ -42,13 +42,14 @@ static struct thread_info *t_head, *t_detached;
 /* caller processes cmdline options */
 struct hse_kvdb *
 kh_init(
+	const char  *config,
 	const char  *kvdb_home,
 	struct svec *hse_gparms,
 	struct svec *kvdb_oparms)
 {
 	hse_err_t err;
 
-	err = hse_init(kvdb_home, hse_gparms->strc, hse_gparms->strv);
+	err = hse_init(config, hse_gparms->strc, hse_gparms->strv);
 	if (err) {
 		fatal(err, "hse_init failed");
 	}

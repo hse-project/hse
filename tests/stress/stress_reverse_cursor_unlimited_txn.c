@@ -651,7 +651,8 @@ main(int argc, char *argv[])
     log_info("val_size                      = %d", para.val_size);
     log_info("wal_disable                   = %d", para.wal_disable);
 
-    hse_err = hse_init(para.kvdb_home, 0, NULL);
+    /* [HSE_REVISIT]: Re-evaluate options to make room for -c/--config */
+    hse_err = hse_init(NULL, 0, NULL);
     if (hse_err) {
         log_fatal("hse_init: errno=%d", hse_err_to_errno(hse_err));
         exit(EXIT_FAILURE);

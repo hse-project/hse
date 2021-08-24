@@ -118,14 +118,14 @@ hse_err_to_errno(hse_err_t err);
  * called before any other HSE functions are used. It is not thread safe and is
  * idempotent.
  *
- * @param rt_home: Run-time home directory.
+ * @param config: Path to a global configuration file.
  * @param paramc: Number of initialization parameters in @p paramv.
  * @param paramv: List of parameters in key=value format.
  *
  * @returns Error status
  */
 HSE_EXPORT hse_err_t
-hse_init(const char *rt_home, size_t paramc, const char *const *paramv);
+hse_init(const char *config, size_t paramc, const char *const *paramv);
 
 /** @brief Shutdown the HSE subsystem.
  *

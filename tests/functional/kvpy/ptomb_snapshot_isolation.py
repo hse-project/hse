@@ -157,7 +157,7 @@ def short_put(kvdb: hse.Kvdb, kvs: hse.Kvs):
 
     t2.abort()
 
-hse.init(cli.HOME)
+hse.init(cli.CONFIG)
 
 try:
     with ExitStack() as stack:

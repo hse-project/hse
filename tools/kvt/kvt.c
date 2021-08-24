@@ -1090,26 +1090,27 @@ usage(void)
         "-b base   specify rid-to-key base [2 <= base <= %zu] (default: %u)\n",
         NELEM(u64tostrtab) - 1,
         ridkeybase);
-    printf("-c        perform a full data integrity check of the kvdb\n");
-    printf("-f file   initialize kvdb using keys from file (one key per line)\n");
-    printf("-h        show this help list\n");
-    printf("-i kmax   limit initial load to at most kmax keys\n");
-    printf("-j jobs   specify max number worker threads (default: %u)\n", tjobsmax);
-    printf("-K ksig   kill test workers at end of test (test mode only)\n");
-    printf("-k kfmt   specify key generator snprintf format\n");
+    printf("-c         perform a full data integrity check of the kvdb\n");
+    printf("-f file    initialize kvdb using keys from file (one key per line)\n");
+    printf("-h         show this help list\n");
+    printf("-i kmax    limit initial load to at most kmax keys\n");
+    printf("-j jobs    specify max number worker threads (default: %u)\n", tjobsmax);
+    printf("-K ksig    kill test workers at end of test (test mode only)\n");
+    printf("-k kfmt    specify key generator snprintf format\n");
     printf(
-        "-l vlen   specify min/max value length during load (default: %lu,%lu)\n",
+        "-l vlen    specify min/max value length during load (default: %lu,%lu)\n",
         vlenmin,
         vlenmax);
-    printf("-m mark   show test status every mark seconds\n");
-    printf("-n        dry run\n");
-    printf("-o props  set one or more %s properties\n", progname);
-    printf("-p        print numbers in machine-readable format\n");
-    printf("-S seed   specify a seed for the RNG\n");
-    printf("-T secs   specify test run time (with transactions)\n");
-    printf("-t secs   specify test run time (no transactions)\n");
-    printf("-v        increase verbosity\n");
-    printf("-y sync   time in milliseconds for periodic syncs");
+    printf("-m mark    show test status every mark seconds\n");
+    printf("-n         dry run\n");
+    printf("-o props   set one or more %s properties\n", progname);
+    printf("-p         print numbers in machine-readable format\n");
+    printf("-S seed    specify a seed for the RNG\n");
+    printf("-T secs    specify test run time (with transactions)\n");
+    printf("-t secs    specify test run time (no transactions)\n");
+    printf("-v         increase verbosity\n");
+    printf("-y sync    time in milliseconds for periodic syncs");
+    printf("-Z config  path to global config file\n");
     printf("file  use '-' for stdin\n");
     printf("ksig  sig[,min[,max]] specify signal and min/max time range\n");
     printf("name  name of an HSE config or runtime parameter\n");
@@ -1154,16 +1155,17 @@ usage(void)
 int
 main(int argc, char **argv)
 {
-    char               area[64], *areap = area;
-    bool               help, dump;
-    u_long             killmin, killmax;
-    char *             keyfile = NULL;
-    char *             keyfmt = NULL;
-    int                check, rc;
-    u_long             keymax;
-    hse_err_t          err;
-    tsi_t              tstart;
-    FILE *             fp;
+    const char *config = NULL;
+    char        area[64], *areap = area;
+    bool        help, dump;
+    u_long      killmin, killmax;
+    char *      keyfile = NULL;
+    char *      keyfmt = NULL;
+    int         check, rc;
+    u_long      keymax;
+    hse_err_t   err;
+    tsi_t       tstart;
+    FILE *      fp;
 
     progname = strrchr(argv[0], '/');
     progname = progname ? progname + 1 : argv[0];
@@ -1221,7 +1223,7 @@ main(int argc, char **argv)
         uint64_t seed;
         int      c;
 
-        c = getopt(argc, argv, ":b:cDFf:hi:j:K:k:l:m:no:pS:T:t:vy:");
+        c = getopt(argc, argv, ":b:cDFf:hi:j:K:k:l:m:no:pS:T:t:vy:Z:");
         if (-1 == c)
             break;
 
@@ -1394,6 +1396,10 @@ main(int argc, char **argv)
             errmsg = "invalid sync timeout argument";
             break;
 
+        case 'Z':
+            config = optarg;
+            break;
+
         case '?':
             syntax("invalid option -%c", optopt);
             exit(EX_USAGE);
@@ -1505,7 +1511,7 @@ main(int argc, char **argv)
     tsi_start(&tstart);
     status("initializing hse...");
 
-    err = hse_init(mpname, hse_gparm.strc, hse_gparm.strv);
+    err = hse_init(config, hse_gparm.strc, hse_gparm.strv);
     if (err) {
         eprint(err, "hse_kvb_init");
         exit(EX_OSERR);

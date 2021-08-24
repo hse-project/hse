@@ -154,9 +154,10 @@ usage(void)
 {
 	printf(
 		"usage: %s [options] kvdb kvs [param=value ...]\n"
-		"-c keys  Number of keys\n"
-		"-j jobs  Number of threads\n"
-		"-r       Use reverse cursors\n"
+		"-c keys    Number of keys\n"
+		"-j jobs    Number of threads\n"
+		"-r         Use reverse cursors\n"
+		"-Z config  Path to global config file\n"
 		, progname);
 
 	printf("\nDescription:\n");
@@ -181,14 +182,14 @@ main(
 	struct svec         kv_cparms = { 0 };
 	struct svec         kv_oparms = { 0 };
 
-	const char         *mpool, *kvs;
+	const char         *mpool, *kvs, *config = NULL;
 	char                c;
 	int                 i;
 	int                 rc;
 
 	progname = basename(argv[0]);
 
-	while ((c = getopt(argc, argv, "c:hj:r")) != -1) {
+	while ((c = getopt(argc, argv, "c:hj:rZ:")) != -1) {
 		char *errmsg, *end;
 
 		errmsg = end = 0;
@@ -207,6 +208,9 @@ main(
 			break;
 		case 'r':
 			opts.reverse = true;
+			break;
+		case 'Z':
+			config = optarg;
 			break;
 		default:
 			fprintf(stderr, "option -%c ignored\n", c);
@@ -256,7 +260,7 @@ main(
 	if (rc)
 		fatal(rc, "svec_append_pg failed");
 
-	kh_init(mpool, &hse_gparms, &db_oparms);
+	kh_init(config, mpool, &hse_gparms, &db_oparms);
 
 	g_ti = malloc(sizeof(*g_ti) * opts.nthread);
 	if (!g_ti)

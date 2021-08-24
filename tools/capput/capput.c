@@ -487,16 +487,17 @@ usage(void)
 {
     printf(
         "usage: %s [options] kvdb kvs [param=value ...]\n"
-        "-b bsz  Reader batch size\n"
-        "-c csz  Chunk size per writer thread\n"
-        "-d dur  Duration of run (in seconds)\n"
-        "-h      Print this help menu\n"
-        "-j wtd  Number of writer threads\n"
-        "-m pfx  How many most recent prefixes to keep alive\n"
-        "-s sec  Headstart for put threads (in seconds)\n"
-        "-t rtd  Number of reader threads\n"
-        "-v      Verify data\n"
-        "-w      Wide output (i.e., show put threads state)\n"
+        "-b bsz     Reader batch size\n"
+        "-c csz     Chunk size per writer thread\n"
+        "-d dur     Duration of run (in seconds)\n"
+        "-h         Print this help menu\n"
+        "-j wtd     Number of writer threads\n"
+        "-m pfx     How many most recent prefixes to keep alive\n"
+        "-s sec     Headstart for put threads (in seconds)\n"
+        "-t rtd     Number of reader threads\n"
+        "-v         Verify data\n"
+        "-w         Wide output (i.e., show put threads state)\n"
+        "-Z config  Path to global config file\n"
         , progname);
 
     printf("\nDescription:\n");
@@ -517,7 +518,7 @@ main(int argc, char **argv)
     struct svec         kvdb_oparms = { 0 };
     struct svec         kvs_cparms = { 0 };
     struct svec         kvs_oparms = { 0 };
-    const char         *mpool, *kvs;
+    const char         *mpool, *kvs, *config = NULL;
     size_t              sz;
     uint                i;
     char                c;
@@ -529,7 +530,7 @@ main(int argc, char **argv)
     if (rc)
         fatal(rc, "pg_create");
 
-    while ((c = getopt(argc, argv, ":b:c:d:hj:t:m:s:vw")) != -1) {
+    while ((c = getopt(argc, argv, ":b:c:d:hj:t:m:s:vwZ:")) != -1) {
         char *errmsg = NULL, *end = NULL;
 
         errno = 0;
@@ -571,6 +572,9 @@ main(int argc, char **argv)
             break;
         case 'w':
             opts.wide = true;
+            break;
+        case 'Z':
+            config = optarg;
             break;
         case '?':
             syntax("invalid option -%c", optopt);
@@ -624,7 +628,7 @@ main(int argc, char **argv)
         exit(EX_USAGE);
     }
 
-    kh_init(mpool, &hse_gparms, &kvdb_oparms);
+    kh_init(config, mpool, &hse_gparms, &kvdb_oparms);
 
     pthread_barrier_init(&put_barrier1, NULL, opts.put_threads);
     pthread_barrier_init(&put_barrier2, NULL, opts.put_threads);

@@ -22,7 +22,6 @@
 #include <hse_ikvdb/argv.h>
 #include <hse_ikvdb/kvdb_cparams.h>
 #include <hse_ikvdb/hse_gparams.h>
-#include <hse_ikvdb/runtime_home.h>
 #include <hse_ikvdb/kvdb_home.h>
 
 #include <hse/version.h>
@@ -92,45 +91,35 @@ hse_lowmem_adjust(unsigned long *memgb)
 }
 
 hse_err_t
-hse_init(const char *const runtime_home, const size_t paramc, const char *const *const paramv)
+hse_init(const char *const config, const size_t paramc, const char *const *const paramv)
 {
     merr_t         err;
     ulong          memgb;
     struct config *conf;
 
-    if (hse_initialized) {
+    if (hse_initialized)
         return 0;
-    }
-
-    err = runtime_home_set(runtime_home);
-    if (err) {
-        return merr_to_hse_err(err);
-    }
 
     hse_gparams = hse_gparams_defaults();
 
 	err = argv_deserialize_to_hse_gparams(paramc, paramv, &hse_gparams);
     if (err) {
-        fprintf(stderr, "Failed to deserialize paramv for HSE (%s) gparams\n", runtime_home_get());
+        fprintf(stderr, "Failed to deserialize paramv for HSE gparams\n");
         return merr_to_hse_err(err);
     }
 
-    err = config_from_hse_conf(runtime_home_get(), &conf);
+    err = config_from_hse_conf(config, &conf);
     if (err) {
-        fprintf(stderr, "Failed to read HSE config file (%s/hse.conf)\n", runtime_home_get());
+        fprintf(stderr, "Failed to read HSE config file (%s)\n", config);
         return merr_to_hse_err(err);
     }
 
     err = config_deserialize_to_hse_gparams(conf, &hse_gparams);
     config_destroy(conf);
     if (err) {
-        fprintf(stderr, "Failed to deserialize config file (%s) for HSE gparams\n", runtime_home_get());
+        fprintf(stderr, "Failed to deserialize config file (%s) for HSE gparams\n", config);
         return merr_to_hse_err(err);
     }
-
-    err = hse_gparams_resolve(&hse_gparams, runtime_home_get());
-    if (err)
-        return merr_to_hse_err(err);
 
     hse_lowmem_adjust(&memgb);
 

@@ -10,7 +10,6 @@
 #include "leveldb/slice.h"
 #include "leveldb/status.h"
 
-#include "hse_binding/hse_kvdb.h"
 #include "hse_binding/hse_kvs.h"
 
 struct hse_kvdb;
@@ -22,7 +21,7 @@ class HseKvdb {
   static Status Open(const std::string& kvdb_home, HseKvdb** kvdbptr);
 
   static void FiniLibrary();
-  static void InitLibrary(const std::string &home);
+  static void InitLibrary(const std::string &config);
   static std::string VersionString();
 
   HseKvdb(const HseKvdb&) = delete;

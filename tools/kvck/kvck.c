@@ -194,7 +194,8 @@ usage(bool verbose)
         "usage: %s [options] kvdb [kbid ...[/ vbid ...]]\n"
         "-h                 print this help message\n"
         "-n lvl,off[,dgen]  check only this node or kvset\n"
-        "-v                 verbose output\n",
+        "-v                 verbose output\n"
+        "-Z config          path to global config file\n",
         progname);
 
     if (!verbose)
@@ -300,6 +301,7 @@ out:
 int
 main(int argc, char **argv)
 {
+    const char *        config = NULL;
     char *              mpool, *kvs = 0;
     char *              loc_buf, *loc;
     struct mpool *      ds;
@@ -325,8 +327,11 @@ main(int argc, char **argv)
     if (rc)
         fatal("pg_create");
 
-    while ((c = getopt(argc, argv, "?hvn:")) != -1) {
+    while ((c = getopt(argc, argv, "?hvn:Z:")) != -1) {
         switch (c) {
+            case 'Z':
+                config = optarg;
+                break;
             case 'v':
                 verbose = true;
                 break;
@@ -376,7 +381,7 @@ main(int argc, char **argv)
 
     kc_print_reg(verbose, (void *)print_line);
 
-    err = hse_init(mpool, hse_gparm.strc, hse_gparm.strv);
+    err = hse_init(config, hse_gparm.strc, hse_gparm.strv);
     if (err) {
         hse_strerror(err, errbuf, sizeof(errbuf));
         fatal(

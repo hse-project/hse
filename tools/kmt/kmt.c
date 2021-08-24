@@ -4158,6 +4158,7 @@ usage(struct km_impl *impl)
     printf("-w wpct     write percentage: wpct = 100*w/(w+r), 0 <= wpct <= 50\n");
     printf("-x          show extended statistics\n");
     printf("-y sync     kvdb sync interval (milliseconds)\n");
+    printf("-Z config   path to global HSE config file\n");
     printf("<device>    <kvdbhome> <kvsname>, /dev/<devname>, mpool:<kvdbhome>, mongodb://<url>\n");
     printf("\n");
 
@@ -4251,6 +4252,10 @@ main(int argc, char **argv)
     int    rc, c;
     float  swappctf;
 
+#ifndef XKMT
+    const char *config = NULL;
+#endif
+
     progname = strrchr(argv[0], '/');
     progname = progname ? progname + 1 : argv[0];
 
@@ -4276,7 +4281,7 @@ main(int argc, char **argv)
     while (1) {
         char *errmsg, *end;
 
-        c = getopt(argc, argv, ":B:bC:cDd:f:Hhi:j:KkLl:Mm:Oo:p:RS:s:T:t:vW:w:xy:");
+        c = getopt(argc, argv, ":B:bC:cDd:f:Hhi:j:KLl:Mm:Oo:p:RS:s:T:t:vW:w:xy:Z:");
         if (-1 == c)
             break;
 
@@ -4341,9 +4346,6 @@ main(int argc, char **argv)
         case 'j':
             tdmax = strtol(optarg, &end, 0);
             errmsg = "invalid max jobs count";
-            break;
-
-        case 'k': /* deprecated */
             break;
 
         case 'l':
@@ -4429,6 +4431,12 @@ main(int argc, char **argv)
             sync_timeout_ms = strtoul(optarg, &end, 10);
             errmsg = "invalid sync timeout argument";
             break;
+
+#ifndef XKMT
+        case 'Z':
+            config = optarg;
+            break;
+#endif
 
         case '?':
             syntax("invalid option -%c", optopt);
@@ -4679,7 +4687,7 @@ main(int argc, char **argv)
         exit(EX_USAGE);
     }
 #else
-    err = hse_init(impl->mpname, hse_gparms.strc, hse_gparms.strv);
+    err = hse_init(config, hse_gparms.strc, hse_gparms.strv);
     if (err) {
         hse_strerror(err, errbuf, sizeof(errbuf));
         eprint("%s: failed to initialize kvdb: %s\n", __func__, errbuf);

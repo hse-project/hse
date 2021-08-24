@@ -68,7 +68,7 @@ main(int argc, char **argv)
     kvs_name1 = argv[2];
     kvs_name2 = argv[3];
 
-    rc = hse_init(kvdb_home, hi_paramc, hi_paramv);
+    rc = hse_init(NULL, hi_paramc, hi_paramv);
     if (rc) {
 		error(rc, "Failed to initialize HSE");
 		goto out;

@@ -1024,7 +1024,8 @@ main(int argc, char *argv[])
             log_info("adjusted thread_count to %d", para.thread_count);
         }
 
-    err = hse_init(para.kvdb_home, 0, NULL);
+    /* [HSE_REVISIT]: Re-evaluate options to make room for -c/--config */
+    err = hse_init(NULL, 0, NULL);
     if (err) {
         log_fatal("hse_init: errno=%d", hse_err_to_errno(err));
         exit(EXIT_FAILURE);

@@ -67,6 +67,7 @@ usage(void)
     printf("-r          read and verify key/value pairs\n");
     printf("-v          be verbose\n");
     printf("-w          write key/value pairs\n");
+    printf("-Z config   path to global config file\n");
     printf("\n");
 }
 
@@ -168,11 +169,12 @@ main(int argc, char **argv)
     bool write = false;
     const char *mp_name;
     const char *kvs_name;
+    const char *config = NULL;
 
     progname = strrchr(argv[0], '/');
     progname = progname ? progname + 1 : argv[0];
 
-    while (-1 != (c = getopt(argc, argv, ":c:f:hrvw"))) {
+    while (-1 != (c = getopt(argc, argv, ":c:f:hrvwZ:"))) {
         char *endptr = NULL;
 
         errno = 0;
@@ -204,6 +206,10 @@ main(int argc, char **argv)
 
         case 'w':
             write = true;
+            break;
+
+        case 'Z':
+            config = optarg;
             break;
 
         case '?':
@@ -240,7 +246,7 @@ main(int argc, char **argv)
         printf("count %u\n", kmax);
     }
 
-    rc = hse_init(mp_name, 0, NULL);
+    rc = hse_init(config, 0, NULL);
     if (rc)
         fatal(rc, "failed to initalize kvdb");
 

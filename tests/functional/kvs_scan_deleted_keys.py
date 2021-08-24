@@ -14,7 +14,7 @@ from utility import lifecycle, cli
 keycount = 1000 * 1000
 kvsname = "scan_deleted_keys"
 
-hse.init(cli.HOME)
+hse.init(cli.CONFIG)
 
 try:
     with ExitStack() as stack:

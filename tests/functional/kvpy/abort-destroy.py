@@ -8,7 +8,7 @@ from hse2 import hse
 from contextlib import ExitStack
 from utility import lifecycle, cli
 
-hse.init(cli.HOME)
+hse.init(cli.CONFIG)
 
 try:
     with ExitStack() as stack:

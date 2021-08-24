@@ -225,7 +225,7 @@ main(int argc, char **argv)
     kvdb_home = argv[optind++];
     kvs_name = argv[optind++];
 
-    rc = hse_init(kvdb_home, paramc, paramv);
+    rc = hse_init(NULL, paramc, paramv);
     if (rc) {
 		error(rc, "Failed to initialize HSE");
 		goto out;

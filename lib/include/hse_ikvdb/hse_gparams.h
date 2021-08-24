@@ -40,9 +40,6 @@ extern struct hse_gparams hse_gparams;
 const struct param_spec *
 hse_gparams_pspecs_get(size_t *pspecs_sz) HSE_RETURNS_NONNULL;
 
-merr_t
-hse_gparams_resolve(struct hse_gparams *params, const char *runtime_home);
-
 struct hse_gparams
 hse_gparams_defaults(void) HSE_CONST;
 

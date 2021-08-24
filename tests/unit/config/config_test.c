@@ -39,7 +39,7 @@ MTF_DEFINE_UTEST(config_test, deserialize_hierarchical_param)
     struct config *     conf;
     merr_t              err;
 
-    snprintf(home, sizeof(home), "%s/deserialize-hierarchical-params", config_root);
+    snprintf(home, sizeof(home), "%s/deserialize-hierarchical-params/hse.conf", config_root);
 
     err = config_from_hse_conf(home, &conf);
     ASSERT_EQ(0, err);
@@ -210,6 +210,36 @@ MTF_DEFINE_UTEST(config_test, deserialize_keys_with_dots)
     err = config_deserialize_to_kvs_rparams(conf, "named", &params);
     config_destroy(conf);
     ASSERT_NE(0, err);
+}
+
+MTF_DEFINE_UTEST(config_test, from_hse_conf)
+{
+    struct config *conf;
+    merr_t         err;
+
+    err = config_from_hse_conf("C:\\does\\not\\exist.conf", &conf);
+    ASSERT_EQ(0, merr_errno(err));
+
+    err = config_from_hse_conf(NULL, &conf);
+    ASSERT_EQ(0, merr_errno(err));
+
+    err = config_from_hse_conf("not null", NULL);
+    ASSERT_NE(0, merr_errno(err));
+}
+
+MTF_DEFINE_UTEST(config_test, from_kvdb_conf)
+{
+    struct config *conf;
+    merr_t         err;
+
+    err = config_from_kvdb_conf("C:\\does\\not\\exist", &conf);
+    ASSERT_EQ(0, merr_errno(err));
+
+    err = config_from_kvdb_conf(NULL, &conf);
+    ASSERT_NE(0, merr_errno(err));
+
+    err = config_from_kvdb_conf("not null", NULL);
+    ASSERT_NE(0, merr_errno(err));
 }
 
 MTF_END_UTEST_COLLECTION(config_test)

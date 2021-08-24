@@ -39,7 +39,7 @@ main(int argc, char **argv)
     kvs_list = &argv[2];
     kvs_cnt = argc - 2;
 
-    rc = hse_init(kvdb_home, paramc, paramv);
+    rc = hse_init(NULL, paramc, paramv);
     if (rc) {
 		error(rc, "Failed to initialize HSE");
         goto out;

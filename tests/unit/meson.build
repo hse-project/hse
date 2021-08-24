@@ -97,7 +97,6 @@ components = {
         },
         'hse_gparams_test': {},
         'param_test': {},
-        'runtime_home_test': {},
     },
     'framework': {
         'mock_test': {},

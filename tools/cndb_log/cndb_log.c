@@ -38,6 +38,7 @@ static int check;
 static int status;
 
 struct tool_info {
+    const char *  config;
     const char *  kvdb_home;
     char *        buf;
     size_t        bufsz;
@@ -79,10 +80,11 @@ usage(void)
 {
     static const char msg[] = "usage: %s [-r file]\n"
                               "usage: %s [-w file] kvdb\n"
-                              "-c       check integrity\n"
-                              "-i       ignore errors\n"
-                              "-r file  read from file\n"
-                              "-w file  write raw data from input to file\n"
+                              "-c         check integrity\n"
+                              "-i         ignore errors\n"
+                              "-r file    read from file\n"
+                              "-w file    write raw data from input to file\n"
+                              "-Z config  path to global config file\n"
                               "<kvdb_home> kvdb home dir\n"
                               "\n";
 
@@ -573,10 +575,14 @@ main(int argc, char **argv)
 
     progname = basename(argv[0]);
 
-    while ((c = getopt(argc, argv, ":chir:w:")) != -1) {
+    while ((c = getopt(argc, argv, ":chir:w:Z:")) != -1) {
         switch (c) {
             case 'c':
                 check = 1;
+                break;
+
+            case 'Z':
+                ti.config = optarg;
                 break;
 
             case 'h':
@@ -646,7 +652,7 @@ main(int argc, char **argv)
 
         ti.kvdb_home = argv[0];
 
-        err = hse_init(ti.kvdb_home, NELEM(paramv), paramv);
+        err = hse_init(ti.config, NELEM(paramv), paramv);
         if (err)
             fatal("hse_init", err);
 

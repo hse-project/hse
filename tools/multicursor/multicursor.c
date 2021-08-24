@@ -237,12 +237,13 @@ usage(void)
 {
 	printf(
 		"usage: %s [options] kvdb kvs [param=value ...]\n"
-		"-c keys  Number of keys\n"
-		"-h       Print this help menu\n"
-		"-j jobs  Number of threads\n"
-		"-l       Run the load phase\n"
-		"-r curs  Number of cursors\n"
-		"-v       Run the exec phase\n"
+		"-c keys    Number of keys\n"
+		"-h         Print this help menu\n"
+		"-j jobs    Number of threads\n"
+		"-l         Run the load phase\n"
+		"-r curs    Number of cursors\n"
+		"-v         Run the exec phase\n"
+		"-Z config  Path to global config file\n"
 		, progname);
 }
 
@@ -267,7 +268,7 @@ main(int argc, char **argv)
 	struct svec         kvdb_oparms = { 0 };
 	struct svec         kvs_cparms = { 0 };
 	struct svec         kvs_oparms = { 0 };
-	const char         *mpool, *kvs;
+	const char         *mpool, *kvs, *config = NULL;
 	size_t              sz;
 	uint                i, stride;
 	char                c;
@@ -280,7 +281,7 @@ main(int argc, char **argv)
 	if (rc)
 		fatal(rc, "pg_create");
 
-	while ((c = getopt(argc, argv, ":c:hj:lr:v")) != -1) {
+	while ((c = getopt(argc, argv, ":c:hj:lr:vZ:")) != -1) {
 		char *end, *errmsg;
 
 		end = errmsg = 0;
@@ -306,6 +307,9 @@ main(int argc, char **argv)
 			break;
 		case 'v':
 			opts.verify++;
+			break;
+		case 'Z':
+			config = optarg;
 			break;
 		case '?':
 			syntax("invalid option -%c", optopt);
@@ -369,7 +373,7 @@ main(int argc, char **argv)
 	}
 	memset(g_ti, 0, sz);
 
-	kh_init(mpool, &hse_gparms, &kvdb_oparms);
+	kh_init(config, mpool, &hse_gparms, &kvdb_oparms);
 
 	kh_register(KH_FLAG_DETACH, &print_stats, NULL);
 	sleep(1); /* wait for print_stats to detach itself */

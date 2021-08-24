@@ -13,7 +13,7 @@ def create_kvdb():
     kvdb_home = config.KVDB_HOME
     kvs_name = config.KVS_NAME
 
-    hse.init(kvdb_home)
+    hse.init()
 
     try:
         try:
