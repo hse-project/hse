@@ -92,7 +92,7 @@ exit
 ## Additional References
 
 Information on running test suites and contributing to HSE is located in the
-[`CONTRIBUTING.md`](https://github.com/hse-project/hse/blob/master/CONTRIBUTING.md) file.
+[`CONTRIBUTING.md`](./CONTRIBUTING.md) file.
 
 We integrated HSE with several common applications to demonstrate its
 capabilities.

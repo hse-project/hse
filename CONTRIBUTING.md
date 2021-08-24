@@ -185,10 +185,12 @@ set follow-fork-mode child
 The HSE [test-runner](./tests/test-runner) will `fork(2)` the actual test.
 Without the above command, you will not actually debug what you think you are.
 
-#### Replicating CI build checks
+#### Replicating CI Build Checks
+
 The CI runs the builds on ubuntu and fedora system with release and
-debugoptimized build types.
-To mimic the checks for build validation in CI run the following:
+debugoptimized build types. To mimic the checks for build validation in CI run
+the following:
+
 ```shell
 meson build -Dbuildtype=${build_type} -Dycsb=true -Dinstall-tools=true \
     -Dinstall-configs=true -Dwerror=true -Db_sanitize=address,undefined
