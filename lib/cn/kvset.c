@@ -2282,10 +2282,7 @@ kvset_iter_kblock_read(struct work_struct *rock)
 
     /* is kmd buffer big enough ? */
     if (iov.iov_len > buf->kmd_buf_sz) {
-        size_t sz = roundup(iov.iov_len, 128 * 1024);
-
-        if (sz < VLB_ALLOCSZ_MAX)
-            sz = VLB_ALLOCSZ_MAX;
+        size_t sz = roundup(iov.iov_len + 1, VLB_ALLOCSZ_MAX);
 
         iov.iov_base = vlb_alloc(sz);
         if (ev(!iov.iov_base)) {
