@@ -1128,8 +1128,7 @@ kbb_add_entry(
     assert(kmd_len);
     assert(stats->nvals);
 
-    hash = hse_hash64v_seed(
-        kobj->ko_pfx, kobj->ko_pfx_len, kobj->ko_sfx, kobj->ko_sfx_len, 271828182845ull);
+    hash = hse_hash64v(kobj->ko_pfx, kobj->ko_pfx_len, kobj->ko_sfx, kobj->ko_sfx_len);
 
     err = kblock_add_entry(&bld->curr, kobj, kmd, kmd_len, stats, &added);
     if (ev(err))

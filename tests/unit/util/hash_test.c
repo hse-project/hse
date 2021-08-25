@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
 #undef COMPNAME
@@ -19,40 +19,35 @@ MTF_DEFINE_UTEST(hash_test, DoesAnything)
 {
     const char *buf1 = "The cow jumped over the moon";
     const char *buf2 = "Now just wait a minute";
-    u32         val1, val2;
-    u64         val3, val4;
+    u64         val1, val2;
 
-    val1 = hse_hash32(buf1, strlen(buf1));
-    val2 = hse_hash32(buf2, strlen(buf2));
+    val1 = hse_hash64(buf1, strlen(buf1));
+    val2 = hse_hash64(buf2, strlen(buf2));
     ASSERT_NE(val1, val2);
-
-    val3 = hse_hash64(buf1, strlen(buf1));
-    val4 = hse_hash64(buf2, strlen(buf2));
-    ASSERT_NE(val3, val4);
 }
 
 MTF_DEFINE_UTEST(hash_test, RepeatableBasic)
 {
     const char *buf1 = "Wilbur! Wilbur!";
     const char *buf2 = "Now, that just ain't right.";
-    u32         val1, val2;
+    u64         val1, val2;
 
-    val1 = hse_hash32(buf1, strlen(buf1));
-    val2 = hse_hash32(buf1, strlen(buf1));
+    val1 = hse_hash64(buf1, strlen(buf1));
+    val2 = hse_hash64(buf1, strlen(buf1));
     ASSERT_EQ(val1, val2);
 
-    val1 = hse_hash32(buf2, strlen(buf2));
-    val2 = hse_hash32(buf2, strlen(buf2));
+    val1 = hse_hash64(buf2, strlen(buf2));
+    val2 = hse_hash64(buf2, strlen(buf2));
     ASSERT_EQ(val1, val2);
 }
 
 MTF_DEFINE_UTEST(hash_test, RepeatableEmpty)
 {
     const char *buf1 = "";
-    u32         val1, val2;
+    u64         val1, val2;
 
-    val1 = hse_hash32(buf1, strlen(buf1));
-    val2 = hse_hash32(buf1, strlen(buf1));
+    val1 = hse_hash64(buf1, strlen(buf1));
+    val2 = hse_hash64(buf1, strlen(buf1));
     ASSERT_EQ(val1, val2);
 }
 
@@ -93,11 +88,11 @@ MTF_DEFINE_UTEST(hash_test, hash_seed)
     s64        i;
 
     val1 = hse_hash64(str, sz);
-    val2 = hse_hash64_seed(str, sz, HSE_HASH_SEED64);
+    val2 = hse_hash64_seed(str, sz, 0);
     ASSERT_EQ(val1, val2);
 
     val1 = hse_hash64(str, sz);
-    val2 = hse_hash64_seed(str, sz, HSE_HASH_SEED64);
+    val2 = hse_hash64_seed(str, sz, 0);
     ASSERT_EQ(val1, val2);
 
     for (i = 0; i < 1048576; ++i) {
