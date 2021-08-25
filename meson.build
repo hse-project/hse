@@ -1,6 +1,6 @@
 project(
     'hse',
-    ['c', 'java'],
+    ['c'],
     version: '2.0.0',
     license: [
         'Apache-2.0',
@@ -21,7 +21,6 @@ cmake = import('cmake')
 pymod = import('python')
 
 cc = meson.get_compiler('c')
-javac = meson.get_compiler('java')
 python = pymod.find_installation(
     'python3',
     required: true,
