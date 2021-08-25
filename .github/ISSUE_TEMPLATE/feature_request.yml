@@ -5,8 +5,7 @@ body:
   - type: markdown
     attributes:
       value: |
-        Thank you for opening an issue. Please be sure to review contributing guidelines.
-        Review the [RFC process](https://github.com/hse-project/rfcs) to determine if your request requires an RFC.
+        Thank you for your feature request. Please describe the feature in detail, why it would benefit the HSE community, and what use-cases it supports.
   - type: textarea
     id: feature-description
     attributes:
