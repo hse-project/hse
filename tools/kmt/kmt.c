@@ -2588,7 +2588,6 @@ km_open_mongo(struct km_impl *impl)
         total = 0;
 
         for (i = 0; i < collectionc; ++i) {
-            bson_t query = BSON_INITIALIZER;
             int64_t n;
 
             snprintf(collname, sizeof(collname), "kmt%d", i);
@@ -2603,12 +2602,14 @@ km_open_mongo(struct km_impl *impl)
                 exit(EX_OSERR);
             }
 
-            /* TODO: Can we optimize this query to run faster?  All we need
-             * is the record count, but it takes forever (I think it's using
-             * a cursor to scan all the records).
+            /* Note that this function runs the command 'count' on mongod. This may not return the
+             * accurate document count if either,
+             *   1. there was an unclean shutdown, or
+             *   2. there are orphaned documents (docs that are part of a failed migration) in a
+             *      sharded cluster
+             * See https://docs.mongodb.com/v5.0/reference/method/db.collection.count/
              */
-            n = mongoc_collection_count_documents(collection, &query, NULL, NULL, NULL, &error);
-
+            n = mongoc_collection_estimated_document_count(collection, NULL, NULL, NULL, &error);
             if (n == -1) {
                 eprint("%s: unable to count collection %s: %s\n",
                        __func__, collname, error.message);
@@ -2641,10 +2642,6 @@ km_open_mongo(struct km_impl *impl)
             total += n;
         }
 
-        /* TODO: mongoc_collection_count_with_opts() is not guaranteed to return
-         * the correct count.  Use mongoc_collection_count_documents() when it
-         * becomes available...
-         */
         if (!initmode && total != impl->recmax) {
             if (retries-- > 0) {
                 eprint("%s: record count mismatch (expected %lu, got %ld), retrying...\n",
