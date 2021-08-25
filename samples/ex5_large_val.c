@@ -199,6 +199,10 @@ main(int argc, char **argv)
     char             c;
     bool             extract = false;
     hse_err_t        rc, rc2;
+    const char *     paramv[] = { "logging.destination=stdout",
+                             "logging.level=3",
+                             "socket.enabled=false" };
+    const size_t     paramc = sizeof(paramv) / sizeof(paramv[0]);
 
     progname = argv[0];
 
@@ -221,7 +225,7 @@ main(int argc, char **argv)
     kvdb_home = argv[optind++];
     kvs_name = argv[optind++];
 
-    rc = hse_init(kvdb_home, 0, NULL);
+    rc = hse_init(kvdb_home, paramc, paramv);
     if (rc) {
 		error(rc, "Failed to initialize HSE");
 		goto out;

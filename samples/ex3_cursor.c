@@ -36,6 +36,11 @@ main(int argc, char **argv)
     struct hse_kvs *       kvs;
     struct hse_kvs_cursor *cursor = NULL;
 
+    const char * paramv[] = { "logging.destination=stdout",
+                             "logging.level=3",
+                             "socket.enabled=false" };
+    const size_t paramc = sizeof(paramv) / sizeof(paramv[0]);
+
     char key[64], val[64];
 
     int       i, cnt = 15;
@@ -51,7 +56,7 @@ main(int argc, char **argv)
     kvdb_home = argv[1];
     kvs_name = argv[2];
 
-    rc = hse_init(kvdb_home, 0, NULL);
+    rc = hse_init(kvdb_home, paramc, paramv);
     if (rc) {
 		error(rc, "Failed to initialize HSE");
 		goto out;

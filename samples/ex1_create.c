@@ -25,6 +25,11 @@ main(int argc, char **argv)
     int         kvs_cnt;
     hse_err_t   rc, rc2;
 
+    const char * paramv[] = { "logging.destination=stdout",
+                             "logging.level=3",
+                             "socket.enabled=false" };
+    const size_t paramc = sizeof(paramv) / sizeof(paramv[0]);
+
     if (argc < 3) {
         printf("Usage: %s <kvdb_home> <kvs1> [<kvs2> ... <kvsN>]\n", argv[0]);
         exit(1);
@@ -34,7 +39,7 @@ main(int argc, char **argv)
     kvs_list = &argv[2];
     kvs_cnt = argc - 2;
 
-    rc = hse_init(kvdb_home, 0, NULL);
+    rc = hse_init(kvdb_home, paramc, paramv);
     if (rc) {
 		error(rc, "Failed to initialize HSE");
         goto out;
