@@ -933,12 +933,12 @@ HSE_EXPORT hse_err_t
 hse_kvdb_storage_info_get(struct hse_kvdb *kvdb, struct hse_kvdb_storage_info *info);
 
 /**
- * Add media class to an offline KVDB
+ * Add a new media class storage to an existing offline KVDB
  * This function is not thread safe.
  *
  * @param kvdb_home: KVDB home directory, NULL means current working directory.
  * @param paramc:    Number of configuration parameters in @p paramv.
- * @param paramv:    List of parameters in key=value format.
+ * @param paramv:    List of KVDB create-time parameters in key=value format.
  *
  * @returns The function's error status
  */

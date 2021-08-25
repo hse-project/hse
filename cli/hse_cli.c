@@ -162,8 +162,8 @@ struct cli_cmd        cli_hse_kvs_commands[] = {
 static cli_cmd_func_t cli_hse_storage_add;
 static cli_cmd_func_t cli_hse_storage_info;
 struct cli_cmd        cli_hse_storage_commands[] = {
-    { "add", "Add storage to a KVDB", cli_hse_storage_add, 0 },
-    { "info", "Print storage stats of a KVDB", cli_hse_storage_info, 0 },
+    { "add", "Add a new media class storage to an existing offline KVDB", cli_hse_storage_add, 0 },
+    { "info", "Display storage stats for a KVDB", cli_hse_storage_info, 0 },
     { 0 },
 };
 

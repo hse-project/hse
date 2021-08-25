@@ -1795,8 +1795,7 @@ ikvdb_kvs_close(struct hse_kvs *handle)
 merr_t
 ikvdb_storage_info_get(
     struct ikvdb *                handle,
-    struct hse_kvdb_storage_info *info,
-    size_t                        pathlen)
+    struct hse_kvdb_storage_info *info)
 {
     struct ikvdb_impl *self = ikvdb_h2r(handle);
     struct mpool *     mp;

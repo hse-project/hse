@@ -4,6 +4,7 @@
  */
 
 #include <errno.h>
+#include <sysexits.h>
 #include <stddef.h>
 #include <stdio.h>
 
@@ -39,6 +40,7 @@ main(int argc, const char **argv)
     /* NULL being passed to the handle is an error */
     err = hse_kvdb_open(NULL, 0, NULL, NULL);
     if (!err) {
+        err = EX_SOFTWARE;
         error(err, "Failed to receive error from bogus API call");
         goto out;
     }
@@ -54,6 +56,7 @@ main(int argc, const char **argv)
             goto out;
         }
 
+        err = 0;
         printf("Correctly received a EINVAL for non-null argument: %s\n", buf);
     } else {
         fprintf(stderr, "Unexpected errno value: %d", hse_err_to_errno(err));

@@ -487,7 +487,7 @@ hse_kvdb_storage_info_get(struct hse_kvdb *kvdb, struct hse_kvdb_storage_info *i
     if (HSE_UNLIKELY(!kvdb || !info))
         return merr_to_hse_err(merr(EINVAL));
 
-    return merr_to_hse_err(ikvdb_storage_info_get((struct ikvdb *)kvdb, info, 0));
+    return merr_to_hse_err(ikvdb_storage_info_get((struct ikvdb *)kvdb, info));
 }
 
 hse_err_t
@@ -507,12 +507,16 @@ hse_kvdb_storage_add(const char *kvdb_home, size_t paramc, const char *const *co
     if (err)
         return merr_to_hse_err(err);
 
-    /* Set the capacity path to NULL in the default cparams. This is to catch the usage
+    /* Make the default capacity path an empty string. This is to catch the usage
      * error of attempting to add a capacity media class dynamically.
      */
     cparams.storage.mclass[MP_MED_CAPACITY].path[0] = '\0';
 
     err = argv_deserialize_to_kvdb_cparams(paramc, paramv, &cparams);
+    if (err)
+        return merr_to_hse_err(err);
+
+    err = kvdb_cparams_resolve(&cparams, real_home);
     if (err)
         return merr_to_hse_err(err);
 
@@ -522,10 +526,6 @@ hse_kvdb_storage_add(const char *kvdb_home, size_t paramc, const char *const *co
 
         return merr_to_hse_err(merr(EINVAL));
     }
-
-    err = kvdb_cparams_resolve(&cparams, real_home);
-    if (err)
-        return merr_to_hse_err(err);
 
     err = kvdb_home_pidfile_path_get(real_home, pidfile_path, sizeof(pidfile_path));
     if (err)

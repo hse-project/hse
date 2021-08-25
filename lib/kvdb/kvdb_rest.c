@@ -197,7 +197,7 @@ rest_kvdb_storage_stats_get(
     size_t                       bufsz = info->buf_sz;
     merr_t                       err;
 
-    err = ikvdb_storage_info_get(ikvdb, &stinfo, PATH_MAX);
+    err = ikvdb_storage_info_get(ikvdb, &stinfo);
     if (err)
         return err;
 
