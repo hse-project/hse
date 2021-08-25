@@ -14,6 +14,14 @@ tests = {
             tool_targets['simple_client'],
         ],
     },
+    'kbdump': {
+        'suites': ['smoke'],
+        'depends': [
+            tool_targets['simple_client'],
+            tool_targets['cn_metrics'],
+            tool_targets['cn_kbdump'],
+        ],
+    },
     'putget1': {
         'suites': ['smoke'],
         'depends': [

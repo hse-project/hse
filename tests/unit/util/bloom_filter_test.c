@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
 #include <hse_ut/framework.h>
@@ -23,13 +23,13 @@ MTF_DEFINE_UTEST(bloom_filter_basic, DoesAnything)
 
     const char *buf1 = "The cow jumped over the moon";
     const char *buf2 = "Now just wait a damp minute";
-    u32         val1, val2;
+    u64         val1, val2;
 
     desc = bf_compute_bithash_est(20000);
     bf_filter_init(&f, desc, nkeys, bit_block, sizeof(bit_block));
 
-    val1 = hse_hash32(buf1, strlen(buf1));
-    val2 = hse_hash32(buf2, strlen(buf2));
+    val1 = hse_hash64(buf1, strlen(buf1));
+    val2 = hse_hash64(buf2, strlen(buf2));
     ASSERT_NE(val1, val2);
 }
 
@@ -142,23 +142,24 @@ MTF_DEFINE_UTEST(bloom_filter_basic, RepeatableBasic)
 {
     const char *buf1 = "The cow jumped over the moon";
     const char *buf2 = "Now just wait a damp minute";
-    u32         val1, val2;
+    u64         val1, val2;
 
-    val1 = hse_hash32(buf1, strlen(buf1));
-    val2 = hse_hash32(buf1, strlen(buf1));
+    val1 = hse_hash64(buf1, strlen(buf1));
+    val2 = hse_hash64(buf1, strlen(buf1));
     ASSERT_EQ(val1, val2);
-    val1 = hse_hash32(buf2, strlen(buf2));
-    val2 = hse_hash32(buf2, strlen(buf2));
+
+    val1 = hse_hash64(buf2, strlen(buf2));
+    val2 = hse_hash64(buf2, strlen(buf2));
     ASSERT_EQ(val1, val2);
 }
 
 MTF_DEFINE_UTEST(bloom_filter_basic, RepeatableEmpty)
 {
     const char *buf1 = "";
-    u32         val1, val2;
+    u64         val1, val2;
 
-    val1 = hse_hash32(buf1, strlen(buf1));
-    val2 = hse_hash32(buf1, strlen(buf1));
+    val1 = hse_hash64(buf1, strlen(buf1));
+    val2 = hse_hash64(buf1, strlen(buf1));
     ASSERT_EQ(val1, val2);
 }
 

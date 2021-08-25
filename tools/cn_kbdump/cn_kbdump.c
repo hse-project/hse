@@ -33,8 +33,6 @@
 #include <sysexits.h>
 #include <stdio.h>
 
-#define ERROR_BUF_SIZE 256
-
 char *progname;
 
 struct {
@@ -67,20 +65,26 @@ size_t        bh_bktsz;
  */
 
 void
-fatal(hse_err_t err, char *fmt, ...)
+fatal(hse_err_t err, const char *fmt, ...)
 {
-    char    msg[1024];
+    char msgbuf[1024];
     va_list ap;
 
     va_start(ap, fmt);
-    vsnprintf(msg, sizeof(msg), fmt, ap);
+    vsnprintf(msgbuf, sizeof(msgbuf) - 128, fmt, ap);
     va_end(ap);
 
-    char buf[ERROR_BUF_SIZE];
-    hse_strerror(err, buf, sizeof(buf));
-    fprintf(stderr, "%s: %s: %s\n", progname, msg, buf);
-    exit(1);
+    if (err) {
+        size_t len = strlen(strcat(msgbuf, ": "));
+
+        hse_strerror(err, msgbuf + len, sizeof(msgbuf) - len);
+    }
+
+    fprintf(stderr, "%s: %s\n", progname, msgbuf);
+
+    exit(EX_SOFTWARE);
 }
+
 
 void
 syntax(const char *fmt, ...)
@@ -185,6 +189,7 @@ print_kblk(struct blk *blk)
     struct kblock_hdr_omf *p = blk->buf;
     char *                 base = blk->buf;
     struct wbt_hdr_omf *   wbt_hdr = off2addr(p, omf_kbh_wbt_hoff(p));
+    struct bloom_hdr_omf  *blm_hdr = off2addr(p, omf_kbh_blm_hoff(p));
 
     printf(
         "%s: K magic 0x%08x  ver %d  nkey %d  ntomb %d\n",
@@ -200,23 +205,25 @@ print_kblk(struct blk *blk)
         omf_kbh_key_bytes(p),
         omf_kbh_val_bytes(p));
     printf(
-        "    wbt: hdr %d %d  data_pg %d %d\n",
+        "    wbt: hdr %d %d  data_pg %d %d  ver %u\n",
         omf_kbh_wbt_hoff(p),
         omf_kbh_wbt_hlen(p),
         omf_kbh_wbt_doff_pg(p),
-        omf_kbh_wbt_dlen_pg(p));
+        omf_kbh_wbt_dlen_pg(p),
+        omf_wbt_version(wbt_hdr));
     printf(
-        "    pt: hdr %d %d  data_pg %d %d\n",
+        "    blm: hdr %d %d  data_pg %d %d  ver %u\n",
+        omf_kbh_blm_hoff(p),
+        omf_kbh_blm_hlen(p),
+        omf_kbh_blm_doff_pg(p),
+        omf_kbh_blm_dlen_pg(p),
+        omf_bh_version(blm_hdr));
+    printf(
+        "    pt:  hdr %d %d  data_pg %d %d\n",
         omf_kbh_pt_hoff(p),
         omf_kbh_pt_hlen(p),
         omf_kbh_pt_doff_pg(p),
         omf_kbh_pt_dlen_pg(p));
-    printf(
-        "    blm: hdr %d %d  data_pg %d %d\n",
-        omf_kbh_blm_hoff(p),
-        omf_kbh_blm_hlen(p),
-        omf_kbh_blm_doff_pg(p),
-        omf_kbh_blm_dlen_pg(p));
     printf("    kmd: start_pg %u\n", omf_kbh_wbt_doff_pg(p) + omf_wbt_root(wbt_hdr) + 1);
     printf(
         "    keymin: off %u len %u key %s\n",
@@ -228,6 +235,10 @@ print_kblk(struct blk *blk)
         omf_kbh_max_koff(p),
         omf_kbh_max_klen(p),
         fmt_data(omf_kbh_max_koff(p) + base, omf_kbh_max_klen(p), 1024));
+    printf(
+        "    min_seqno: %lu\n", omf_kbh_min_seqno(p));
+    printf(
+        "    max_seqno: %lu\n", omf_kbh_max_seqno(p));
 }
 
 void
@@ -748,19 +759,15 @@ eread_ds(int argc, char **argv)
     int           i, nk, nv;
     hse_err_t     err;
 
-    if (!opt.storage_path) {
-        syntax("must set storage_path");
-        exit(EX_USAGE);
-    }
-
-    if (argc < 2) {
+    if (argc < 3) {
         syntax("missing kvdb and kblock/vblock ids");
         exit(EX_USAGE);
     }
 
-    mpname = argv[0];
-    argc -= 1;
-    argv += 1;
+    opt.storage_path = argv[0];
+    mpname = argv[1];
+    argc -= 2;
+    argv += 2;
 
     /*
      * The arguments here follow the presentation:
@@ -992,28 +999,27 @@ ewrite_files(char *dirname)
 void
 usage(void)
 {
-    static const char usage1[] = "usage: %s [options] -s path kbid ... [/ vbid ...]\n";
-    static const char usage2[] = "usage: %s [options] -r file ...\n";
-    static const char usage3[] = "usage: %s [options] -m file ...\n";
+    printf("usage: %s [options] mcpath kbid kbid ... [/ vbid ...]\n", progname);
+    printf("usage: %s -m [options] mmap ...\n", progname);
+    printf("usage: %s -r [options] file ...\n", progname);
+    printf("usage: %s -h\n", progname);
 
-    printf(usage1, progname);
-    printf(usage2, progname);
-    printf(usage3, progname);
-
-    printf("options:\n"
-        "  -b bktsz  bloom block/bucket size\n"
-        "  -h        print this help list\n"
-        "  -K N      show keys and values, limit to first (last) N bytes\n"
-        "  -o STYLE  outut format (0=default, 1=one value per line)\n"
-        "  -V N      limit values to first (last) N bytes, implies -K\n"
-        "  -v        show wbt node headers and all values\n"
-        "  -w dir    write raw mblocks into $dir\n"
-        "  -x        show binary data in hex form\n"
-        "  -p        show binary data in percent-encoded form\n");
-    printf("modes:\n"
-        "  -m        read mblocks from mmap path\n"
-        "  -r        read mblocks from named files\n"
-        "  -s path   read mblocks from mpool media class at path\n");
+    printf(
+        "-b bktsz  bloom block/bucket size\n"
+        "-h        print this help list\n"
+        "-K N      show keys and values, limit to first (last) N bytes\n"
+        "-m        read mblocks from mmap path (excludes -r)\n"
+        "-o STYLE  outut format (0=default, 1=one value per line)\n"
+        "-p        show binary data in percent-encoded form\n"
+        "-r        read mblocks from named files (excludes -m)\n"
+        "-V N      limit values to first (last) N bytes, implies -K\n"
+        "-v        show wbt node headers and all values\n"
+        "-w dir    write raw mblocks into $dir\n"
+        "-x        show binary data in hex form\n"
+        "file    path to file created via -w option (e.g., K000.0x102400000.gz)\n"
+        "mmap    path to mmap file containing mblocks\n"
+        "mcpath  mpool media class (e.g., /mnt/kvdb/kvdb1/capacity)\n"
+        "\n");
 }
 
 int
@@ -1023,12 +1029,11 @@ main(int argc, char **argv)
     struct blk *           blk;
     int                    i, c, nk, nv;
     hse_err_t              err;
-    int                    modes = 0;
 
     progname = strrchr(argv[0], '/');
     progname = progname ? progname + 1 : argv[0];
 
-    while (-1 != (c = getopt(argc, argv, ":b:hK:mo:prs:V:vw:x"))) {
+    while (-1 != (c = getopt(argc, argv, ":b:hK:mo:prV:vw:x"))) {
         char *endptr = NULL;
 
         errno = 0;
@@ -1048,6 +1053,11 @@ main(int argc, char **argv)
                 break;
 
             case 'm':
+                if (opt.read) {
+                    syntax("option -m is excluded by -r");
+                    exit(EX_USAGE);
+                }
+
                 opt.mmap = 1;
                 break;
 
@@ -1055,14 +1065,17 @@ main(int argc, char **argv)
                 opt.style = strtol(optarg, &endptr, 0);
                 break;
 
-            case 'r':
-                opt.read = 1;
-                modes++;
+            case 'p':
+                opt.pct_enc = 1;
                 break;
 
-            case 's':
-                opt.storage_path = optarg;
-                modes++;
+            case 'r':
+                if (opt.mmap) {
+                    syntax("option -r is excluded by -m");
+                    exit(EX_USAGE);
+                }
+
+                opt.read = 1;
                 break;
 
             case 'V':
@@ -1075,15 +1088,10 @@ main(int argc, char **argv)
 
             case 'w':
                 opt.write = optarg;
-                modes++;
                 break;
 
             case 'x':
                 opt.pct_enc = 0;
-                break;
-
-            case 'p':
-                opt.pct_enc = 1;
                 break;
 
             case '?':
@@ -1103,15 +1111,6 @@ main(int argc, char **argv)
             syntax("unable to convert option '-%c %s'", c, optarg);
             exit(EX_USAGE);
         }
-    }
-
-    if (modes == 0) {
-        syntax("must specify -r, -m or -s");
-        exit(EX_USAGE);
-    }
-    if (modes > 1) {
-        syntax("options -r, -m and -s are mutually exclusive");
-        exit(EX_USAGE);
     }
 
     /* showing values implies showing keys */

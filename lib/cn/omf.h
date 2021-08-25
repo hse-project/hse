@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
 #ifndef HSE_KVDB_CN_OMF_H
@@ -114,7 +114,7 @@ OMF_SETGET(struct kblock_hdr_omf, kbh_max_seqno, 64)
  ****************************************************************/
 
 #define BLOOM_OMF_MAGIC ((u32)('b' << 24 | 'l' << 16 | 'm' << 8 | 'h'))
-#define BLOOM_OMF_VERSION ((u32)4)
+#define BLOOM_OMF_VERSION ((u32)5)
 
 /**
  * struct bloom_hdr_omf -

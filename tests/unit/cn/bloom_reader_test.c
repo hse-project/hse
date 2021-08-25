@@ -18,7 +18,7 @@
 
 char data_path[PATH_MAX / 2];
 
-char *kblock_files[] = { "simple_1031c.kb3_w3_b4.xz", "simple_1c.kb3_w3_b4.xz" };
+char *kblock_files[] = { "simple_1031c.kb5_w6_b5.xz", "simple_1c.kb5_w6_b5.xz" };
 
 int
 test_collection_setup(struct mtf_test_info *info)
