@@ -2642,10 +2642,6 @@ km_open_mongo(struct km_impl *impl)
             total += n;
         }
 
-        /* TODO: mongoc_collection_count_with_opts() is not guaranteed to return
-         * the correct count.  Use mongoc_collection_count_documents() when it
-         * becomes available...
-         */
         if (!initmode && total != impl->recmax) {
             if (retries-- > 0) {
                 eprint("%s: record count mismatch (expected %lu, got %ld), retrying...\n",
