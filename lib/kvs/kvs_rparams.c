@@ -818,6 +818,7 @@ kvs_rparams_defaults()
 {
     struct kvs_rparams params;
     const union params p = { .as_kvs_rp = &params };
+
     param_default_populate(pspecs, NELEM(pspecs), p);
     return params;
 }

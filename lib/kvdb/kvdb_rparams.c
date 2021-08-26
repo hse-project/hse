@@ -1282,6 +1282,7 @@ kvdb_rparams_defaults()
 {
     struct kvdb_rparams params;
     const union params  p = { .as_kvdb_rp = &params };
+
     param_default_populate(pspecs, NELEM(pspecs), p);
     return params;
 }

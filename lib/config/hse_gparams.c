@@ -32,19 +32,22 @@ logging_destination_converter(const struct param_spec *const ps, const cJSON *co
     if (!cJSON_IsString(node))
         return false;
 
-    const char *setting = cJSON_GetStringValue(node);
+    const char *         setting = cJSON_GetStringValue(node);
+    enum log_destination log_dest;
 
     if (strcmp(setting, "stdout") == 0) {
-        *(enum log_destination *)data = LD_STDOUT;
+        log_dest = LD_STDOUT;
     } else if (strcmp(setting, "stderr") == 0) {
-        *(enum log_destination *)data = LD_STDERR;
+        log_dest = LD_STDERR;
     } else if (strcmp(setting, "file") == 0) {
-        *(enum log_destination *)data = LD_FILE;
+        log_dest = LD_FILE;
     } else if (strcmp(setting, "syslog") == 0) {
-        *(enum log_destination *)data = LD_SYSLOG;
+        log_dest = LD_SYSLOG;
     } else {
         return false;
     }
+
+    *(enum log_destination *)data = log_dest;
 
     return true;
 }

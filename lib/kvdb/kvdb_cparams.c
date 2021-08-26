@@ -181,6 +181,7 @@ kvdb_cparams_defaults()
 {
     struct kvdb_cparams params;
     const union params  p = { .as_kvdb_cp = &params };
+
     param_default_populate(pspecs, NELEM(pspecs), p);
     return params;
 }
@@ -193,6 +194,9 @@ kvdb_cparams_resolve(struct kvdb_cparams *params, const char *home)
 
     char   buf[PATH_MAX];
     merr_t err;
+
+    static_assert(
+        sizeof(buf) == sizeof(params->storage.mclass[MP_MED_BASE].path), "mismatched buffer sizes");
 
     err = kvdb_home_storage_capacity_path_get(
         home, params->storage.mclass[MP_MED_CAPACITY].path, buf, sizeof(buf));

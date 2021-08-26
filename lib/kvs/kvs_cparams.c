@@ -122,6 +122,7 @@ kvs_cparams_defaults()
 {
     struct kvs_cparams params;
     const union params p = { .as_kvs_cp = &params };
+
     param_default_populate(pspecs, NELEM(pspecs), p);
     return params;
 }

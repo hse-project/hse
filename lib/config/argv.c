@@ -51,7 +51,6 @@ argv_deserialize_to_params(
         }
 
         if (!ps) {
-            printf("%s\n", key);
             err = merr(EINVAL);
             goto out;
         }
