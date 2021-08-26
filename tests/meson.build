@@ -23,6 +23,7 @@ endif
 add_test_setup(
     'default',
     exe_wrapper: [
+        python,
         test_runner,
         '--',
     ],
@@ -35,6 +36,7 @@ add_test_setup(
 add_test_setup(
     'ci',
     exe_wrapper: [
+        python,
         test_runner,
         '--',
     ],
