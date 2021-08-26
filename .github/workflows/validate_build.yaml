@@ -17,6 +17,7 @@ jobs:
     steps:
     - name: Install dependencies
       run: |
+        echo "$HOME/.local/bin" >> $GITHUB_PATH
         sudo apt-get update
         sudo apt-get install build-essential libbsd-dev pkg-config openjdk-8-jdk libmicrohttpd-dev liburcu-dev libyaml-dev liblz4-dev libcurl4-openssl-dev
         sudo apt-get install libmongoc-1.0-0 libbson-1.0-0 libssl-dev libsasl2-dev
@@ -56,6 +57,7 @@ jobs:
     steps:
     - name: Install dependencies
       run: |
+        echo "$HOME/.local/bin" >> $GITHUB_PATH
         sudo dnf install -y which git pkg-config java-1.8.0-openjdk-devel libmicrohttpd-devel userspace-rcu-devel libyaml-devel lz4-devel libbsd-devel libcurl-devel
         sudo dnf install -y xz mongo-c-driver libbson openssl-devel cyrus-sasl-devel ncurses-devel cmake make automake gcc gcc-c++ kernel-devel
         sudo dnf install -y python-pip python-wheel python3-devel
