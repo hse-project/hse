@@ -22,7 +22,7 @@
 int
 usage(char *prog)
 {
-    printf("usage: %s <kvdb> <kvs>\n", prog);
+    printf("usage: %s <kvdb_home> <kvs>\n", prog);
 
     return 1;
 }
@@ -35,6 +35,11 @@ main(int argc, char **argv)
     struct hse_kvdb *      kvdb;
     struct hse_kvs *       kvs;
     struct hse_kvs_cursor *cursor = NULL;
+
+    const char * paramv[] = { "logging.destination=stdout",
+                             "logging.level=3",
+                             "socket.enabled=false" };
+    const size_t paramc = sizeof(paramv) / sizeof(paramv[0]);
 
     char key[64], val[64];
 
@@ -51,7 +56,7 @@ main(int argc, char **argv)
     kvdb_home = argv[1];
     kvs_name = argv[2];
 
-    rc = hse_init(kvdb_home, 0, NULL);
+    rc = hse_init(kvdb_home, paramc, paramv);
     if (rc) {
 		error(rc, "Failed to initialize HSE");
 		goto out;

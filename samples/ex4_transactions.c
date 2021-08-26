@@ -34,7 +34,7 @@
 int
 usage(char *prog)
 {
-    printf("usage: %s <mpool> <kvs1> <kvs2>\n", prog);
+    printf("usage: %s <kvdb_home> <kvs1> <kvs2>\n", prog);
     return 1;
 }
 
@@ -44,7 +44,13 @@ main(int argc, char **argv)
     char *kvdb_home;
     char *kvs_name1, *kvs_name2;
 
-	const char *paramv[] = { "transactions_enable=1" };
+	const char * hi_paramv[] = { "logging.destination=stdout",
+                             "logging.level=3",
+                             "socket.enabled=false" };
+    const size_t hi_paramc = sizeof(hi_paramv) / sizeof(hi_paramv[0]);
+
+	const char * kvs_paramv[] = { "transactions_enable=1" };
+	const size_t kvs_paramc = sizeof(kvs_paramv) / sizeof(kvs_paramv[0]);
 
     struct hse_kvdb *    kvdb;
     struct hse_kvs *     kvs1 = NULL, *kvs2 = NULL;
@@ -62,7 +68,7 @@ main(int argc, char **argv)
     kvs_name1 = argv[2];
     kvs_name2 = argv[3];
 
-    rc = hse_init(kvdb_home, 0, NULL);
+    rc = hse_init(kvdb_home, hi_paramc, hi_paramv);
     if (rc) {
 		error(rc, "Failed to initialize HSE");
 		goto out;
@@ -75,13 +81,13 @@ main(int argc, char **argv)
 		goto hse_cleanup;
     }
 
-    rc = hse_kvdb_kvs_open(kvdb, kvs_name1, sizeof(paramv) / sizeof(paramv[0]), paramv, &kvs1);
+    rc = hse_kvdb_kvs_open(kvdb, kvs_name1, kvs_paramc, kvs_paramv, &kvs1);
     if (rc) {
 		error(rc, "Failed to open KVS (%s)", kvs_name1);
 		goto kvdb_cleanup;
     }
 
-    rc = hse_kvdb_kvs_open(kvdb, kvs_name2, sizeof(paramv) / sizeof(paramv[0]), paramv, &kvs2);
+    rc = hse_kvdb_kvs_open(kvdb, kvs_name2, kvs_paramc, kvs_paramv, &kvs2);
     if (rc) {
 		error(rc, "Failed to open KVS (%s)", kvs_name2);
 		goto kvs_cleanup;

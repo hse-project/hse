@@ -4,6 +4,8 @@ samples = [
     'ex3_cursor',
     'ex4_transactions',
     'ex5_large_val',
+    'ex6_error_handling',
+    'ex7_configuration',
 ]
 
 sample_targets = {}
