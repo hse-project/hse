@@ -1076,6 +1076,7 @@ main(int argc, char **argv)
         return -1;
     }
 
+    mpool_cparams_defaults(&cparams);
     strlcpy(cparams.mclass[MP_MED_CAPACITY].path, path,
             sizeof(cparams.mclass[MP_MED_CAPACITY].path));
     err = mpool_create(path, &cparams);

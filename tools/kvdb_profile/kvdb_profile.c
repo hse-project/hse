@@ -108,6 +108,8 @@ sighandler_install(int signum, __sighandler_t func)
 static void
 mpool_cparams_init(const char *path, struct mpool_cparams *params)
 {
+    mpool_cparams_defaults(params);
+
     assert(path);
     strlcpy(params->mclass[MP_MED_CAPACITY].path, path,
             sizeof(params->mclass[MP_MED_CAPACITY].path));

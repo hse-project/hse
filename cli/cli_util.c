@@ -88,10 +88,7 @@ static int
 rest_storage_stats_list(
     struct yaml_context *         yc,
     const char *                  sock,
-    struct hse_kvdb_storage_info *info,
-    char *                        cappath,
-    char *                        stgpath,
-    size_t                        pathlen)
+    struct hse_kvdb_storage_info *info)
 {
     const char *url = "kvdb/storage_stats";
     char *      buf;
@@ -102,14 +99,11 @@ rest_storage_stats_list(
     struct {
         const char *key;
         u64 *       val;
-        char *      strval;
     } items[] = {
-        { "total:", &info->total_bytes, NULL },
-        { "available:", &info->available_bytes, NULL },
-        { "allocated:", &info->allocated_bytes, NULL },
-        { "used:", &info->used_bytes, NULL },
-        { "capacity_path:", NULL, cappath },
-        { "staging_path:", NULL, stgpath },
+        { "total:", &info->total_bytes },
+        { "available:", &info->available_bytes },
+        { "allocated:", &info->allocated_bytes },
+        { "used:", &info->used_bytes },
     };
 
     buf = calloc(1, bufsz);
@@ -148,21 +142,6 @@ rest_storage_stats_list(
             }
 
             *items[i].val = v;
-        } else if (items[i].strval) {
-            size_t len;
-
-            end = p;
-
-            while (*end != '\n' && *end != '\0')
-                end++;
-
-            if (end - buf + 1 > bufsz)
-                return EINVAL;
-
-            len = end - p;
-
-            strlcpy(items[i].strval, p, pathlen);
-            items[i].strval[len] = '\0';
         }
     }
 
@@ -190,9 +169,7 @@ space_to_string(u64 spc, char *buf, size_t bufsz)
 static void
 emit_storage_info(
     struct yaml_context *         yc,
-    struct hse_kvdb_storage_info *info,
-    const char *                  cappath,
-    const char *                  stgpath)
+    struct hse_kvdb_storage_info *info)
 {
     char value[32];
 
@@ -215,15 +192,15 @@ emit_storage_info(
     yaml_element_field(yc, "used_space", value);
     snprintf(value, sizeof(value), "%lu", info->used_bytes);
     yaml_element_field(yc, "used_space_bytes", value);
-
-    if (cappath && cappath[0] != '\0')
-        yaml_element_field(yc, "capacity_path", cappath);
-    if (stgpath && stgpath[0] != '\0')
-        yaml_element_field(yc, "staging_path", stgpath);
 }
 
 static hse_err_t
-kvdb_info_props(const char *kvdb_home, const size_t paramc, const char *const *paramv, struct yaml_context *yc)
+kvdb_info_props(
+    const char          *kvdb_home,
+    const size_t         paramc,
+    const char *const   *paramv,
+    struct yaml_context *yc,
+    bool                 verbose)
 {
     struct hse_kvdb *            hdl;
     struct hse_kvdb_storage_info info = {};
@@ -243,21 +220,21 @@ kvdb_info_props(const char *kvdb_home, const size_t paramc, const char *const *p
     yaml_start_element(yc, "home", kvdb_home);
 
     if (err) {
-        char cappath[PATH_MAX], stgpath[PATH_MAX];
-
         err = socket_path_get(kvdb_home, socket_path, sizeof(socket_path));
         if (err) {
             fprintf(stderr, "Failed to find the UNIX socket for the KVDB (%s). Ensure the KVDB is open in a process.\n", kvdb_home);
             goto exit;
         }
 
-        err = rest_storage_stats_list(yc, socket_path, &info, cappath, stgpath, PATH_MAX);
+        err = rest_storage_stats_list(yc, socket_path, &info);
         if (!err) {
-            emit_storage_info(yc, &info, cappath, stgpath);
+            emit_storage_info(yc, &info);
 
-            yaml_start_element_type(yc, "kvslist");
-            err = rest_kvs_list(socket_path, yc, kvdb_home);
-            yaml_end_element_type(yc);
+            if (verbose) {
+                yaml_start_element_type(yc, "kvslist");
+                err = rest_kvs_list(socket_path, yc, kvdb_home);
+                yaml_end_element_type(yc);
+            }
         }
         goto exit;
     }
@@ -267,23 +244,26 @@ kvdb_info_props(const char *kvdb_home, const size_t paramc, const char *const *p
         hse_kvdb_close(hdl);
         goto exit;
     }
-    emit_storage_info(yc, &info, NULL, NULL);
+    emit_storage_info(yc, &info);
 
-    err = hse_kvdb_kvs_names_get(hdl, &kvs_cnt, &kvs_list);
-    if (err) {
-        hse_kvdb_close(hdl);
-        goto exit;
+    if (verbose) {
+        err = hse_kvdb_kvs_names_get(hdl, &kvs_cnt, &kvs_list);
+        if (err) {
+            hse_kvdb_close(hdl);
+            goto exit;
+        }
+
+        yaml_start_element_type(yc, "kvslist");
+
+        for (i = 0; i < kvs_cnt; i++)
+            yaml_element_list(yc, kvs_list[i]);
+
+        yaml_end_element(yc);
+        yaml_end_element_type(yc); /* kvslist */
+
+        hse_kvdb_kvs_names_free(hdl, kvs_list);
     }
 
-    yaml_start_element_type(yc, "kvslist");
-
-    for (i = 0; i < kvs_cnt; i++)
-        yaml_element_list(yc, kvs_list[i]);
-
-    yaml_end_element(yc);
-    yaml_end_element_type(yc); /* kvslist */
-
-    hse_kvdb_kvs_names_free(hdl, kvs_list);
     hse_kvdb_close(hdl);
 
 exit:
@@ -293,7 +273,7 @@ exit:
     return err;
 }
 
-int
+bool
 kvdb_info_print(
     const char *         kvdb_home,
     const size_t         paramc,
@@ -302,23 +282,19 @@ kvdb_info_print(
     bool                 verbose)
 {
     hse_err_t err;
-    int       count = 0;
 
-    err = kvdb_info_props(kvdb_home, paramc, paramv, yc);
+    err = kvdb_info_props(kvdb_home, paramc, paramv, yc, verbose);
     if (err) {
         char buf[256];
 
         if (hse_err_to_errno(err) == ENOENT)
-            goto errout;
+            return false;
 
         hse_strerror(err, buf, sizeof(buf));
         yaml_field_fmt(yc, "error", "\"kvdb_info_props failed: %s\"", buf);
     }
 
-    count = 1;
-
-errout:
-    return count;
+    return true;
 }
 
 static hse_err_t

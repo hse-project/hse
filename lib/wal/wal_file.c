@@ -601,6 +601,8 @@ wal_fileset_replay(
              * then all the files belonging to this corrupted gen can be destroyed.
              * TODO: Address this when adding force replay support.
              */
+            hse_elog(HSE_NOTICE "WAL replay: Need force replay support to recover data, "
+                     "gen %lu fileid %u maxgen %lu: @@e", err, cur->gen, cur->fileid, maxgen);
             goto exit;
         }
 

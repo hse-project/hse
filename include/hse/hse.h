@@ -922,7 +922,7 @@ hse_kvdb_compact_status_get(struct hse_kvdb *kvdb, struct hse_kvdb_compact_statu
 /**
  * Get storage config and stats
  *
- * Obtain the storage paths, allocated and used space for a specified kvdb.
+ * Obtain the space usage statistics for a specified kvdb.
  * This function is thread safe.
  *
  * @param kvdb: KVDB handle from hse_kvdb_open()
@@ -932,6 +932,18 @@ hse_kvdb_compact_status_get(struct hse_kvdb *kvdb, struct hse_kvdb_compact_statu
 HSE_EXPORT hse_err_t
 hse_kvdb_storage_info_get(struct hse_kvdb *kvdb, struct hse_kvdb_storage_info *info);
 
+/**
+ * Add a new media class storage to an existing offline KVDB
+ * This function is not thread safe.
+ *
+ * @param kvdb_home: KVDB home directory, NULL means current working directory.
+ * @param paramc:    Number of configuration parameters in @p paramv.
+ * @param paramv:    List of KVDB create-time parameters in key=value format.
+ *
+ * @returns The function's error status
+ */
+HSE_EXPORT hse_err_t
+hse_kvdb_storage_add(const char *kvdb_home, size_t paramc, const char *const *paramv);
 
 #undef HSE_EXPORT_EXPERIMENTAL
 #undef HSE_EXPORT

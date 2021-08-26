@@ -89,6 +89,15 @@ merr_t
 ikvdb_drop(const char *kvdb_home);
 
 /**
+ * Add media class to a KVDB
+ *
+ * @param kvdb_home: KVDB home
+ * @param params:    configuration parameters
+ */
+merr_t
+ikvdb_storage_add(const char *kvdb_home, struct kvdb_cparams *params);
+
+/**
  * ikvdb_diag_cndb() - returns a pointer to kvdb's cndb
  * @handle:         handle to access the opened KVDB
  * @cndb:           (output) pointer to cndb
@@ -241,8 +250,7 @@ ikvdb_get_mclass_policy(struct ikvdb *handle, const char *name);
 merr_t
 ikvdb_storage_info_get(
     struct ikvdb *                handle,
-    struct hse_kvdb_storage_info *info,
-    size_t                        pathlen);
+    struct hse_kvdb_storage_info *info);
 
 /**
  * ikvdb_kvs_get_cn() - retrieve a pointer to the cn

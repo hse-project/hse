@@ -156,6 +156,18 @@ struct cli_cmd        cli_hse_kvs_commands[] = {
 };
 
 /*****************************************************************
+ * HSE Storage commands:
+ *    hse storage add
+ */
+static cli_cmd_func_t cli_hse_storage_add;
+static cli_cmd_func_t cli_hse_storage_info;
+struct cli_cmd        cli_hse_storage_commands[] = {
+    { "add", "Add a new media class storage to an existing offline KVDB", cli_hse_storage_add, 0 },
+    { "info", "Display storage stats for a KVDB", cli_hse_storage_info, 0 },
+    { 0 },
+};
+
+/*****************************************************************
  * HSE commands:
  *    hse version
  *    hse kvdb
@@ -163,9 +175,11 @@ struct cli_cmd        cli_hse_kvs_commands[] = {
  */
 static cli_cmd_func_t cli_hse_kvdb;
 static cli_cmd_func_t cli_hse_kvs;
+static cli_cmd_func_t cli_hse_storage;
 struct cli_cmd        cli_hse_commands[] = {
     { "kvdb", "KVDB commands", cli_hse_kvdb, cli_hse_kvdb_commands },
     { "kvs", "KVS commands", cli_hse_kvs, cli_hse_kvs_commands },
+    { "storage", "KVDB storage commands", cli_hse_storage, cli_hse_storage_commands },
     { 0 },
 };
 
@@ -619,7 +633,8 @@ cli_hse_kvdb_info_impl(struct cli *cli)
 {
     const char *paramv[] = { "read_only=1" };
     char        buf[YAML_BUF_SIZE];
-    int         count, rc = 0;
+    int         rc = 0;
+    bool        exists;
 
     struct yaml_context yc = {
         .yaml_buf = buf,
@@ -633,26 +648,17 @@ cli_hse_kvdb_info_impl(struct cli *cli)
         return -1;
 
     if (cli->optind != cli->argc) {
-        rc = EINVAL;
         fprintf(stderr, "Too many arguments passed on the command line\n");
-        goto done;
+        return EINVAL;
     }
 
-    count = kvdb_info_print(cli->home, NELEM(paramv), paramv, &yc, (bool)verbosity);
-    if (count < 0) {
-        fprintf(stderr, "Failed to retrieve KVDB (%s) storage information\n", cli->home);
-        rc = -1;
-        goto done;
-    }
-
-    if (count == 0) {
+    exists = kvdb_info_print(cli->home, NELEM(paramv), paramv, &yc, true);
+    if (!exists) {
         fprintf(stderr, "No such KVDB (%s)\n", cli->home);
         rc = -1;
     }
 
     printf("%s", buf);
-
-done:
 
     return rc;
 }
@@ -665,7 +671,6 @@ cli_hse_kvdb_compact_impl(
     bool        cancel,
     uint32_t    timeout_secs)
 {
-    int         rc = 0;
     const char *req;
 
     /* check status first so '-sx' results in status
@@ -682,16 +687,11 @@ cli_hse_kvdb_compact_impl(
         return -1;
 
     if (cli->optind != cli->argc) {
-        rc = EINVAL;
         fprintf(stderr, "Too many arguments passed on the command line\n");
-        goto done;
+        return EINVAL;
     }
 
-    rc = kvdb_compact_request(home, req, timeout_secs);
-    if (rc)
-        goto done;
-done:
-    return rc;
+    return kvdb_compact_request(home, req, timeout_secs);
 }
 
 static int
@@ -1065,6 +1065,256 @@ cli_hse_kvdb_compact(struct cli_cmd *self, struct cli *cli)
 
 //     return cli_hse_kvdb_params_impl(cli, cli->home);
 // }
+
+
+static int
+cli_hse_storage_info_impl(struct cli *cli)
+{
+    const char *paramv[] = { "read_only=1" };
+    char        buf[YAML_BUF_SIZE];
+    int         rc = 0;
+    bool        exists;
+
+    struct yaml_context yc = {
+        .yaml_buf = buf,
+        .yaml_buf_sz = sizeof(buf),
+        .yaml_indent = 0,
+        .yaml_offset = 0,
+        .yaml_emit = yaml_print_and_rewind,
+    };
+
+    if (cli_hse_init(cli))
+        return -1;
+
+    if (cli->optind != cli->argc) {
+        fprintf(stderr, "Too many arguments passed on the command line\n");
+        return EINVAL;
+    }
+
+    exists = kvdb_info_print(cli->home, NELEM(paramv), paramv, &yc, false);
+    if (!exists) {
+        fprintf(stderr, "No such KVDB (%s)\n", cli->home);
+        rc = -1;
+    }
+
+    printf("%s", buf);
+
+    return rc;
+}
+
+static int
+cli_hse_storage_info(struct cli_cmd *self, struct cli *cli)
+{
+    const struct cmd_spec spec = {
+        .usagev =
+            {
+                "[options]",
+                NULL,
+            },
+        .optionv =
+            {
+                OPTION_HELP,
+                { NULL },
+            },
+        .longoptv =
+            {
+                { "help", no_argument, 0, 'h' },
+                { NULL },
+            },
+        .configv =
+            {
+                { NULL },
+            },
+    };
+
+    bool help = false;
+    int  c;
+
+    if (cli_hook(cli, self, &spec))
+        return 0;
+
+    while (-1 != (c = cli_getopt(cli))) {
+        switch (c) {
+            case 'h':
+                help = true;
+                break;
+            default:
+                return EX_USAGE;
+        }
+    }
+
+    if (help) {
+        cmd_print_help(self, stdout);
+        return 0;
+    }
+
+    return cli_hse_storage_info_impl(cli);
+}
+static int
+cli_hse_storage_add_impl(struct cli *cli)
+{
+    const char **paramv = NULL;
+    size_t       paramc = 0;
+    hse_err_t    herr = 0;
+    int          rc = 0;
+
+    if (cli_hse_init(cli))
+        return -1;
+
+    rc = params_from_argv(cli->argc, cli->argv, &cli->optind, &paramc, &paramv, NULL);
+    if (rc)
+        goto done;
+
+    if (cli->optind != cli->argc) {
+        rc = EINVAL;
+        fprintf(stderr, "Too many arguments passed on the command line\n");
+        goto done;
+    }
+
+    herr = hse_kvdb_storage_add(cli->home, paramc, paramv);
+    if (herr) {
+        switch (hse_err_to_errno(herr)) {
+            case EINVAL:
+                fprintf(
+                    stderr,
+                    "Failed to add storage to KVDB (%s).\nPotentially received an invalid "
+                    "KVDB home directory or an invalid parameter.\n",
+                    cli->home);
+                break;
+            case EEXIST:
+                fprintf(
+                    stderr,
+                    "Failed to add storage to KVDB (%s).\nEither the media class already exists "
+                    "or the specified media class path is already part of a KVDB.\n", cli->home);
+                break;
+            case ENOENT:
+                fprintf(
+                    stderr,
+                    "Failed to add storage to the KVDB (%s).\nPlease ensure that the KVDB home and "
+                    "any specified media class paths exist.\n",
+                    cli->home);
+                break;
+            default:
+                print_hse_err(cli, "hse_kvdb_storage_add", herr);
+                break;
+        }
+        goto done;
+    }
+
+    printf("Successfully added storage to the KVDB (%s)\n", cli->home);
+
+done:
+    free(paramv);
+
+    return (herr || rc) ? -1 : 0;
+}
+
+static int
+cli_hse_storage_add(struct cli_cmd *self, struct cli *cli)
+{
+    const struct cmd_spec spec = {
+        .usagev =
+            {
+                "[options] [<param>=<value>]...",
+                NULL,
+            },
+        .optionv =
+            {
+                OPTION_HELP,
+                { NULL },
+            },
+        .longoptv =
+            {
+                { "help", no_argument, 0, 'h' },
+                { NULL },
+            },
+        .configv =
+            {
+                { NULL },
+            },
+    };
+
+    bool help = false;
+    int  c;
+
+    if (cli_hook(cli, self, &spec))
+        return 0;
+
+    while (-1 != (c = cli_getopt(cli))) {
+        switch (c) {
+            case 'h':
+                help = true;
+                break;
+            default:
+                return EX_USAGE;
+        }
+    }
+
+    if (help) {
+        cmd_print_help(self, help ? stdout : stderr);
+        return help ? 0 : EX_USAGE;
+    }
+
+    return cli_hse_storage_add_impl(cli);
+}
+
+static int
+cli_hse_storage(struct cli_cmd *self, struct cli *cli)
+{
+    const struct cmd_spec spec = {
+        .usagev =
+            {
+                "[options] <command> ...",
+                NULL,
+            },
+        .optionv =
+            {
+                OPTION_HELP,
+                { NULL },
+            },
+        .longoptv =
+            {
+                { "help", no_argument, 0, 'h' },
+                { NULL },
+            },
+        .configv =
+            {
+                { NULL },
+            },
+    };
+
+    const char *    sub_name;
+    struct cli_cmd *sub_cmd;
+    int             c;
+    bool            help = false;
+
+    if (cli_hook(cli, self, &spec))
+        return 0;
+
+    while (-1 != (c = cli_getopt(cli))) {
+        switch (c) {
+            case 'h':
+                help = true;
+                break;
+            default:
+                return EX_USAGE;
+        }
+    }
+
+    sub_name = cli_next_arg(cli);
+    if (!sub_name || help) {
+        cmd_print_help(self, help ? stdout : stderr);
+        return help ? 0 : EX_USAGE;
+    }
+
+    sub_cmd = cli_cmd_lookup(self->cmd_subcommandv, sub_name);
+    if (!sub_cmd) {
+        fprintf(stderr, "%s: invalid command '%s', use -h for help\n", self->cmd_path, sub_name);
+        return EX_USAGE;
+    }
+
+    return sub_cmd->cmd_main(sub_cmd, cli);
+}
 
 static int
 cli_hse_kvs_create_impl(struct cli *cli, const char *home, const char *kvs)

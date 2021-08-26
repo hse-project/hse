@@ -354,6 +354,59 @@ out:
 }
 
 merr_t
+ikvdb_storage_add(const char *kvdb_home, struct kvdb_cparams *params)
+{
+    struct kvdb_meta  meta;
+    merr_t            err;
+    enum mpool_mclass mc;
+    bool              mc_present[MP_MED_COUNT] = {0};
+
+    assert(kvdb_home);
+    assert(params);
+
+    err = kvdb_meta_deserialize(&meta, kvdb_home);
+    if (err)
+        return err;
+
+    for (mc = MP_MED_BASE; mc < MP_MED_COUNT; mc++) {
+        if (mc != MP_MED_CAPACITY && params->storage.mclass[mc].path[0] != '\0') {
+            if (meta.km_storage[mc].path[0] != '\0') {
+                err = merr(EEXIST);
+                goto errout;
+            }
+
+            mc_present[mc] = true;
+
+            err = mpool_mclass_add(mc, &params->storage);
+            if (err)
+                goto errout;
+        }
+    }
+
+    err = kvdb_meta_storage_add(&meta, kvdb_home, &params->storage);
+    if (err)
+        goto errout;
+
+    return 0;
+
+errout:
+    {
+        struct mpool_dparams dparams = {0};
+
+        for (mc = MP_MED_BASE; mc < MP_MED_COUNT; mc++) {
+            if (mc_present[mc]) {
+                strlcpy(dparams.mclass[mc].path, params->storage.mclass[mc].path,
+                        sizeof(dparams.mclass[mc].path));
+                mpool_mclass_destroy(mc, &dparams);
+            }
+        }
+    }
+
+    return err;
+}
+
+
+merr_t
 ikvdb_drop(const char *const kvdb_home)
 {
     struct kvdb_meta     meta;
@@ -1742,8 +1795,7 @@ ikvdb_kvs_close(struct hse_kvs *handle)
 merr_t
 ikvdb_storage_info_get(
     struct ikvdb *                handle,
-    struct hse_kvdb_storage_info *info,
-    size_t                        pathlen)
+    struct hse_kvdb_storage_info *info)
 {
     struct ikvdb_impl *self = ikvdb_h2r(handle);
     struct mpool *     mp;

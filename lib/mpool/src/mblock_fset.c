@@ -311,8 +311,8 @@ mblock_fset_open(
         return merr(ENOMEM);
 
     mbfsp->mc = mc;
-    mbfsp->fcnt = fcnt ?: MBLOCK_FSET_FILES_DEFAULT;
-    mbfsp->fszmax = fszmax ?: MBLOCK_FILE_SIZE_MAX;
+    mbfsp->fcnt = fcnt ?: MPOOL_MBLOCK_FILECNT_DEFAULT;
+    mbfsp->fszmax = fszmax ?: MPOOL_MBLOCK_FILESZ_DEFAULT;
 
     flags &= (O_RDWR | O_RDONLY | O_WRONLY | O_CREAT);
     if (flags & O_CREAT)

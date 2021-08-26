@@ -153,7 +153,7 @@ MTF_DEFINE_UTEST_PREPOST(mblock_test, mblock_abc, mpool_test_pre, mpool_test_pos
 
     setup_mclass(MP_MED_STAGING);
 
-    err = mpool_mclass_add(home, MP_MED_STAGING, &tcparams);
+    err = mpool_mclass_add(MP_MED_STAGING, &tcparams);
     ASSERT_EQ(0, merr_errno(err));
 
     err = mpool_open(home, &trparams, O_RDWR, &mp);
@@ -205,7 +205,7 @@ MTF_DEFINE_UTEST_PREPOST(mblock_test, mblock_abc, mpool_test_pre, mpool_test_pos
     err = mpool_mblock_abort(mp, mbid);
     ASSERT_EQ(0, err);
 
-    for (int i = 1; i < MBLOCK_FSET_FILES_DEFAULT; i++) {
+    for (int i = 1; i < MPOOL_MBLOCK_FILECNT_DEFAULT; i++) {
         mpool_mblock_alloc(mp, MP_MED_STAGING, &mbid1, NULL);
         mpool_mblock_abort(mp, mbid1);
     }
@@ -233,7 +233,7 @@ MTF_DEFINE_UTEST_PREPOST(mblock_test, mblock_abc, mpool_test_pre, mpool_test_pos
     err = mpool_mblock_abort(mp, mbid);
     ASSERT_EQ(0, err);
 
-    for (int i = 1; i < MBLOCK_FSET_FILES_DEFAULT; i++) {
+    for (int i = 1; i < MPOOL_MBLOCK_FILECNT_DEFAULT; i++) {
         mpool_mblock_alloc(mp, MP_MED_STAGING, &mbid1, NULL);
         mpool_mblock_abort(mp, mbid1);
     }

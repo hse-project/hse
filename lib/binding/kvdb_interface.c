@@ -197,7 +197,7 @@ hse_kvdb_create(const char *kvdb_home, size_t paramc, const char *const *const p
     if (ev(err))
         goto out;
 
-    perfc_lat_record(&kvdb_pkvdbl_pc, PERFC_LT_PKVDBL_KVDB_MAKE, tstart);
+    perfc_lat_record(&kvdb_pkvdbl_pc, PERFC_LT_PKVDBL_KVDB_CREATE, tstart);
 
 out:
     if (pidfile_remove(pfh) == -1 && !err)
@@ -487,7 +487,70 @@ hse_kvdb_storage_info_get(struct hse_kvdb *kvdb, struct hse_kvdb_storage_info *i
     if (HSE_UNLIKELY(!kvdb || !info))
         return merr_to_hse_err(merr(EINVAL));
 
-    return merr_to_hse_err(ikvdb_storage_info_get((struct ikvdb *)kvdb, info, 0));
+    return merr_to_hse_err(ikvdb_storage_info_get((struct ikvdb *)kvdb, info));
+}
+
+hse_err_t
+hse_kvdb_storage_add(const char *kvdb_home, size_t paramc, const char *const *const paramv)
+{
+    struct kvdb_cparams  cparams = kvdb_cparams_defaults();
+    merr_t               err;
+    char                 real_home[PATH_MAX];
+    char                 pidfile_path[PATH_MAX];
+    struct pidfh        *pfh;
+    struct pidfile       content;
+
+    if (HSE_UNLIKELY(!kvdb_home || !paramv))
+        return merr_to_hse_err(merr(EINVAL));
+
+    err = kvdb_home_resolve(kvdb_home, real_home, sizeof(real_home));
+    if (err)
+        return merr_to_hse_err(err);
+
+    /* Make the default capacity path an empty string. This is to catch the usage
+     * error of attempting to add a capacity media class dynamically.
+     */
+    cparams.storage.mclass[MP_MED_CAPACITY].path[0] = '\0';
+
+    err = argv_deserialize_to_kvdb_cparams(paramc, paramv, &cparams);
+    if (err)
+        return merr_to_hse_err(err);
+
+    err = kvdb_cparams_resolve(&cparams, real_home);
+    if (err)
+        return merr_to_hse_err(err);
+
+    if (cparams.storage.mclass[MP_MED_CAPACITY].path[0] != '\0') {
+        hse_log(HSE_ERR "Cannot add %s to %s: capacity media class path must be provided only "
+                "at KVDB create", cparams.storage.mclass[MP_MED_CAPACITY].path, kvdb_home);
+
+        return merr_to_hse_err(merr(EINVAL));
+    }
+
+    err = kvdb_home_pidfile_path_get(real_home, pidfile_path, sizeof(pidfile_path));
+    if (err)
+        return merr_to_hse_err(err);
+
+    pfh = pidfile_open(pidfile_path, S_IRUSR | S_IWUSR, NULL);
+    if (!pfh) {
+        err = merr(errno);
+        goto out;
+    }
+
+    content.pid = getpid();
+    memset(content.socket.path, '\0', sizeof(content.socket.path));
+
+    err = merr(pidfile_serialize(pfh, &content));
+    if (err)
+        goto out;
+
+    err = ikvdb_storage_add(real_home, &cparams);
+
+out:
+    if (pidfile_remove(pfh) == -1 && !err)
+        err = merr(errno);
+
+    return merr_to_hse_err(err);
 }
 
 hse_err_t
