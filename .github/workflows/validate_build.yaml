@@ -27,11 +27,11 @@ jobs:
 
     - name: Setup python environment to run branch
       run: |
-        python3 -m poetry install
+        poetry install
 
     - name: Build setup with YCSB, tools and configs
       run: |
-        python3 -m poetry run meson builddir -Dbuildtype=${{ matrix.build_type }} -Dycsb=true -Dinstall-tools=true -Dinstall-configs=true -Dwerror=true
+        poetry run meson builddir -Dbuildtype=${{ matrix.build_type }} -Dycsb=true -Dinstall-tools=true -Dinstall-configs=true -Dwerror=true
 
     - name: Run tests
       run: |
@@ -44,7 +44,7 @@ jobs:
         path: builddir/meson-logs/
 
   build_fedora:
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-latest
     container:
       image: fedora:latest
       options: --privileged  -v /usr/src:/usr/src -v /lib/modules:/lib/modules
@@ -66,15 +66,15 @@ jobs:
 
     - name: Setup python environment to run branch
       run: |
-        python3 -m poetry install
+        poetry install
 
     - name: Build setup with YCSB, tools and configs
       run: |
-        python3 -m poetry run meson builddir -Dbuildtype=${{ matrix.build_type }} -Dycsb=true -Dinstall-tools=true -Dinstall-configs=true -Dwerror=true
+        poetry run meson builddir -Dbuildtype=${{ matrix.build_type }} -Dycsb=true -Dinstall-tools=true -Dinstall-configs=true -Dwerror=true
 
     - name: Run tests
       run: |
-        python3 -m poetry run meson test -C builddir --setup=ci --print-errorlogs --no-stdsplit
+        poetry run meson test -C builddir --setup=ci --print-errorlogs --no-stdsplit
 
     - uses: actions/upload-artifact@v2
       if: failure()
@@ -83,7 +83,7 @@ jobs:
         path: builddir/meson-logs/
 
   checkoss:
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-latest
 
     steps:
     - uses: actions/checkout@v2
