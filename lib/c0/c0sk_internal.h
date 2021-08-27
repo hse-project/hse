@@ -104,7 +104,6 @@ struct c0sk_impl {
     u32        c0sk_ingest_width_max HSE_ALIGNED(SMP_CACHE_BYTES);
     u32        c0sk_ingest_width;
     int        c0sk_boost;
-    int        c0sk_nslpmin;
     char      *c0sk_kvdbhome;
     void      *c0sk_stash;
 

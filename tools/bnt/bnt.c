@@ -37,6 +37,7 @@
 #include <hse/hse.h>
 #include <hse/version.h>
 
+#include <hse_util/platform.h>
 #include <hse_util/compiler.h>
 #include <hse_util/page.h>
 #include <hse_util/timer.h>
@@ -1139,7 +1140,7 @@ bnt_test(void)
     if (!(mark && isatty(1)))
         goto join;
 
-    uspercycle = 1000000.0 / tsc_freq;
+    uspercycle = 1000000.0 / hse_tsc_freq;
     done = 0;
 
     while (done < tjobsmax && !(sigint || sigalrm)) {
@@ -1404,7 +1405,7 @@ bnt_check(void)
     if (!(mark && isatty(1)))
         goto join;
 
-    uspercycle = 1000000.0 / tsc_freq;
+    uspercycle = 1000000.0 / hse_tsc_freq;
     done = 0;
 
     while (done < cjobsmax && !sigint) {

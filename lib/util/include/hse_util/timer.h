@@ -1,18 +1,10 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
 #ifndef HSE_PLATFORM_TIMER_H
 #define HSE_PLATFORM_TIMER_H
-
-/**
- * This file and its source code peer reproduces the kernel's basic
- * timer functionality, i.e.:
- * - add_timer
- * - del_timer
- * - init_timer
- */
 
 #include <hse_util/arch.h>
 #include <hse_util/atomic.h>
@@ -44,51 +36,13 @@ struct timer_list {
  *
  * jclock_ns is updated HSE_HZ times per second and reflects
  * the time of CLOCK_MONOTONIC in nanoseconds.
- *
- * timer_slack is the timer thread's TIMERSLACK (see prctl(2)).
- *
- * timer_nslpmin is the timer thread's measured timer slack
- * of clock_nanosleep().
- *
- * tsc_freq is the measured frequency of the time stamp counter.
- *
- * tsc_mult and tsc_shift are employed by cycles_to_nsecs() to very
- * quickly convert from cycles to nanoseconds by avoiding division.
- *
- * tsc_shift determines the number of significant digits in the conversion
- * as performed by cycles_to_nsecs().
- *
- * tsc_mult represents nanoseconds-per-cycle multiplied by 2^tsc_shift to
- * scale it up to an integer with a reasonable number of significant digits.
- * Conversion from cycles to nanoseconds then requires only a multiplication
- * by tsc_mult and a division by 2^tsc_shift (i.e., the division reduces to
- * a simple shift by tsc_shift).  The multiplication by tsc_mult therefore
- * limits the magnitude of the value that can be converted to 2^(64 - tsc_shift))
- * in order to avoid overflow.  For example, given a TSC frequency of 2.6GHz,
- * the range of cycles_to_nsecs() is limited to 2^43, or about 3383 seconds,
- * which should be good enough for typical latency measurement purposes.
- * To convert values larger than 2^43 simply divide by tsc_freq, which is
- * slower but will not overflow.
  */
 extern struct timer_jclock timer_jclock;
 
 #define jclock_ns   atomic64_read(&timer_jclock.jc_jclock_ns)
 #define jiffies     atomic64_read(&timer_jclock.jc_jiffies)
 
-extern unsigned long timer_nslpmin;
 extern unsigned long timer_slack;
-extern unsigned long tsc_freq;
-extern unsigned long tsc_mult;
-extern unsigned int tsc_shift;
-
-static HSE_ALWAYS_INLINE u64
-cycles_to_nsecs(u64 cycles)
-{
-    /* To avoid overflow cycles is limited to 2^(64 - tsc_shift)
-     * (see note in timer.h regarding tsc_mult and tsc_shift).
-     */
-    return (cycles * tsc_mult) >> tsc_shift;
-}
 
 static HSE_ALWAYS_INLINE unsigned long
 msecs_to_jiffies(const unsigned int m)

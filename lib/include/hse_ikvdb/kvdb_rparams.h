@@ -83,7 +83,6 @@ struct kvdb_rparams {
     uint32_t throttle_debug;
     uint32_t throttle_debug_intvl_s;
     uint32_t throttle_c0_hi_th;
-    uint64_t throttle_sleep_min_ns;
     uint64_t throttle_burst;
     uint64_t throttle_rate;
     char     throttle_init_policy[THROTTLE_INIT_POLICY_NAME_LEN_MAX];
