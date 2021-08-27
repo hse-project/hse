@@ -479,11 +479,10 @@ run_target(
 
 if not meson.is_subproject()
     if fs.exists(meson.project_source_root() / '.git')
-        git_hooks = find_program('scripts' / 'dev' / 'git-hooks', required: true)
         run_target(
             'git-hooks',
             command: [
-                git_hooks,
+                find_program('scripts' / 'git-hooks' / 'link'),
             ],
         )
     endif
