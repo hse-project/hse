@@ -27,6 +27,10 @@
 struct hse_cputopo *hse_cputopov HSE_READ_MOSTLY;
 uint hse_cputopoc HSE_READ_MOSTLY;
 
+unsigned long hse_tsc_freq HSE_READ_MOSTLY;
+unsigned int hse_tsc_mult HSE_READ_MOSTLY;
+unsigned int hse_tsc_shift HSE_READ_MOSTLY;
+
 rest_get_t kmc_rest_get;
 
 static inline int
@@ -344,6 +348,38 @@ hse_cputopo_fini(void)
     free(hse_cputopov);
 }
 
+void
+hse_cpufreq_init(void)
+{
+    char linebuf[1024];
+    double bogomips;
+    int n = EOF;
+    FILE *fp;
+
+    fp = fopen("/proc/cpuinfo", "r");
+    if (fp) {
+        while (fgets(linebuf, sizeof(linebuf), fp)) {
+            n = sscanf(linebuf, "bogomips%*[^0-9]%lf", &bogomips);
+            if (n == 1)
+                break;
+        }
+
+        fclose(fp);
+    }
+
+    if (n != 1) {
+        hse_log(HSE_WARNING "%s: unable to determine cpu frequency", __func__);
+        bogomips = 1000;
+    }
+
+    hse_tsc_freq = (bogomips * 1000000) / 2;
+    hse_tsc_shift = 21;
+    hse_tsc_mult = (NSEC_PER_SEC << hse_tsc_shift) / hse_tsc_freq;
+
+    hse_log(HSE_NOTICE "%s: freq %lu, shift %u, mult %u",
+            __func__, hse_tsc_freq, hse_tsc_shift, hse_tsc_mult);
+}
+
 merr_t
 hse_platform_init(void)
 {
@@ -373,6 +409,8 @@ hse_platform_init(void)
     err = hse_cputopo_init();
     if (err)
         goto errout;
+
+    hse_cpufreq_init();
 
     err = vlb_init();
     if (err)

@@ -20,144 +20,10 @@ static struct work_struct timer_jclock_work;
 static struct work_struct timer_dispatch_work;
 static struct workqueue_struct *timer_wq HSE_ALIGNED(64);
 
-unsigned long timer_nslpmin HSE_READ_MOSTLY;
 unsigned long timer_slack HSE_READ_MOSTLY;
-unsigned long tsc_freq HSE_READ_MOSTLY;
-unsigned long tsc_mult HSE_READ_MOSTLY;
-unsigned int tsc_shift HSE_READ_MOSTLY;
 
 struct timer_jclock timer_jclock;
 
-__attribute__((__noinline__))
-u64
-timer_calibrate_nsleep(void)
-{
-    struct timespec req = {.tv_nsec = 1 };
-
-    clock_nanosleep(CLOCK_MONOTONIC, 0, &req, NULL);
-
-    return get_cycles();
-}
-
-__attribute__((__noinline__))
-u64
-timer_calibrate_gtns(void)
-{
-    get_time_ns();
-
-    return get_cycles();
-}
-
-__attribute__((__noinline__))
-u64
-timer_calibrate_gc(void)
-{
-    return get_cycles();
-}
-
-__attribute__((__noinline__))
-u64
-timer_calibrate_loop(int itermax, u64 (*func)(void), u64 *minresp)
-{
-    u64 mincycles, minres;
-    int i, j;
-
-    mincycles = U64_MAX;
-    minres = U64_MAX;
-
-    usleep(1000);
-
-    for (i = 0; i < 3; ++i) {
-        u64 cycles, last, res;
-
-        cycles = get_cycles();
-        last = 0;
-
-        for (j = 0; j < itermax; ++j) {
-            res = func();
-            if (res - last < minres)
-                minres = res - last;
-            last = res;
-        }
-
-        cycles = get_cycles() - cycles;
-        if (cycles < mincycles)
-            mincycles = cycles;
-    }
-
-    *minresp = minres;
-
-    return mincycles;
-}
-
-/**
- * timer_calibrate() - Determine TSC frequency and cost of various facilities
- */
-static void
-timer_calibrate(ulong delay)
-{
-    static ulong cps_start, nsecs_start;
-    ulong cyc_loop, cyc_gc, cyc_gtns, cyc_nsleep, gc, gtns;
-    ulong cps, nsecs, diff;
-    int imax = 32768, rc;
-
-    if (!cps_start) {
-        cps_start = get_cycles();
-        nsecs_start = get_time_ns();
-    }
-
-    cps = cps_start;
-    nsecs = nsecs_start;
-
-    /* First we measure a few functions that we call a lot in order
-     * to get an idea of how much they cost.  Results are likely to
-     * vary due to how busy the machine, turbo capabilities, ...
-     */
-    cyc_loop = timer_calibrate_loop(imax, timer_calibrate_gc, &gc);
-    cyc_gc = cyc_loop / imax;
-
-    cyc_gtns = timer_calibrate_loop(imax, timer_calibrate_gtns, &gtns);
-    cyc_gtns = (cyc_gtns - cyc_loop) / imax;
-
-    cyc_nsleep = timer_calibrate_loop(64, timer_calibrate_nsleep, &diff);
-    cyc_nsleep = (cyc_nsleep - ((cyc_loop * 64) / imax)) / 64;
-
-    usleep(delay);
-
-    /* Compute TSC frequency.  Scale down measurements if the sample
-     * period was too long and would cause an overflow.
-     */
-    nsecs = get_time_ns() - nsecs;
-    cps = get_cycles() - cps;
-
-    while (cps > ULONG_MAX / NSEC_PER_SEC) {
-        cps >>= 1;
-        nsecs >>= 1;
-    }
-    cps = (cps * NSEC_PER_SEC) / nsecs;
-
-    tsc_freq = cps;
-    tsc_shift = 21;
-    tsc_mult = (NSEC_PER_SEC << tsc_shift) / tsc_freq;
-
-    timer_nslpmin = cycles_to_nsecs(cyc_nsleep);
-
-    /* If our measured value of nslpmin is high, it's probably because
-     * high resolution timers are not enabled.  But it might be due to
-     * the machine being really busy, so cap it to a reasonable amount.
-     */
-    rc = prctl(PR_GET_TIMERSLACK, 0, 0, 0, 0);
-
-    timer_slack = (rc == -1) ? timer_nslpmin : rc;
-    if (timer_nslpmin > timer_slack * 2)
-        timer_nslpmin = timer_slack;
-
-    hse_log(HSE_NOTICE
-            "%s: get_cycles %lu/%lucy %lu/%luns, get_time_ns %lu/%lucy %lu/%luns, c/s %lu, timerslack %lu/%lu",
-            __func__, cyc_gc, gc, cycles_to_nsecs(cyc_gc), cycles_to_nsecs(gc),
-            cyc_gtns, gtns - gc, cycles_to_nsecs(cyc_gtns), cycles_to_nsecs(gtns - gc),
-            cps, timer_nslpmin, timer_slack);
-}
 
 static HSE_ALWAYS_INLINE void
 timer_lock(void)
@@ -180,33 +46,24 @@ timer_first(void)
 static void
 timer_jclock_cb(struct work_struct *work)
 {
-    struct timer_list recalibrate, *first;
     sigset_t set;
+    int prio;
 
-    /* Attempt to increase this thread's scheduling priority to ensure
-     * more accurate timekeeping and dispatch of expired timers.
+    /* Try to increase this thread's scheduling priority to
+     * improve timekeeping and dispatch of expired timers.
      */
-    if (__linux__) {
-        int prio;
-
-        errno = 0;
-        prio = getpriority(PRIO_PROCESS, 0);
-        if (!(prio == -1 && errno))
-            setpriority(PRIO_PROCESS, 0, prio - 1);
-    }
+    errno = 0;
+    prio = getpriority(PRIO_PROCESS, 0);
+    if (!(prio == -1 && errno))
+        setpriority(PRIO_PROCESS, 0, prio - 1);
 
     sigfillset(&set);
     pthread_sigmask(SIG_BLOCK, &set, 0);
 
-    /* Recalibrate the TSC after one second for a much more accurate measurement.
-     */
-    setup_timer(&recalibrate, timer_calibrate, 1);
-    recalibrate.expires = nsecs_to_jiffies(get_time_ns() + NSEC_PER_SEC);
-    add_timer(&recalibrate);
-
     while (timer_running) {
-        struct timespec ts;
+        struct timer_list *first;
         unsigned long now, jnow;
+        struct timespec ts;
 
         clock_gettime(CLOCK_MONOTONIC, &ts);
         now = ts.tv_sec * NSEC_PER_SEC + ts.tv_nsec;
@@ -229,8 +86,6 @@ timer_jclock_cb(struct work_struct *work)
 
         clock_nanosleep(CLOCK_MONOTONIC, 0, &ts, NULL);
     }
-
-    del_timer(&recalibrate);
 }
 
 static void
@@ -306,6 +161,8 @@ del_timer(struct timer_list *timer)
 merr_t
 hse_timer_init(void)
 {
+    int rc;
+
     if (timer_wq)
         return 0;
 
@@ -314,11 +171,8 @@ hse_timer_init(void)
     INIT_WORK(&timer_jclock_work, timer_jclock_cb);
     INIT_WORK(&timer_dispatch_work, timer_dispatch_cb);
 
-    /* Take an initial quick measurement of the TSC so as not to hold
-     * up short lived program invocations.  We'll take a more accurate
-     * measurement a few seconds after the timer starts.
-     */
-    timer_calibrate(10000);
+    rc = prctl(PR_GET_TIMERSLACK, 0, 0, 0, 0);
+    timer_slack = (rc == -1) ? 50000 : rc;
 
     /* We need three threads:
      *   1) one for the jclock
@@ -335,7 +189,7 @@ hse_timer_init(void)
     queue_work(timer_wq, &timer_jclock_work);
 
     while (!jiffies)
-        usleep(3000);
+        usleep(333);
 
     return 0;
 }

@@ -74,7 +74,7 @@ static const struct param_spec pspecs[] = {
         .ps_bounds = {
             .as_uscalar = {
                 .ps_min = 0,
-                .ps_max = 1,
+                .ps_max = 128,
             },
         },
     },

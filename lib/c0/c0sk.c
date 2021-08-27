@@ -454,26 +454,6 @@ c0sk_pfx_probe(
     return err;
 }
 
-/**
- * c0sk_calibrate() - record overhead of calling nanosleep()
- * @self:   ptr to c0sk
- */
-static void
-c0sk_calibrate(struct c0sk_impl *self)
-{
-    self->c0sk_nslpmin = timer_nslpmin;
-
-    /* If our measured value of nslpmin is high, it's probably because
-     * high resolution timers are not enabled.  But it might be due to
-     * the machine being really busy, so cap it to a reasonable amount.
-     */
-    if (self->c0sk_nslpmin > (NSEC_PER_SEC / HZ) / 10)
-        self->c0sk_nslpmin = (NSEC_PER_SEC / HZ) / 10;
-
-    if (self->c0sk_kvdb_rp->throttle_sleep_min_ns == 0)
-        self->c0sk_kvdb_rp->throttle_sleep_min_ns = self->c0sk_nslpmin;
-}
-
 merr_t
 c0sk_open(
     struct kvdb_rparams *kvdb_rp,
@@ -535,8 +515,6 @@ c0sk_open(
 
     for (int i = 0; i < NELEM(c0sk->c0sk_ingest_refv); ++i)
         atomic_set(&c0sk->c0sk_ingest_refv[i].refcnt, 0);
-
-    c0sk_calibrate(c0sk);
 
     tdmax = clamp_t(uint, kvdb_rp->c0_ingest_threads, 1, HSE_C0_INGEST_THREADS_MAX);
 

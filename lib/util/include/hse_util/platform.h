@@ -59,6 +59,40 @@ hse_getcpu(uint *cpu, uint *node, uint *core)
     *core = hse_cpu2core(cpuid);
 }
 
+/*
+ * hse_tsc_freq is the measured frequency of the time stamp counter.
+ *
+ * hse_tsc_mult and hse_tsc_shift are used to quickly convert from
+ * cycles to nanoseconds by avoiding division.
+ *
+ * hse_tsc_shift determines the number of significant digits in the
+ * conversion performed by cycles_to_nsecs().
+ *
+ * tsc_mult represents nanoseconds-per-cycle multiplied by 2^hse_tsc_shift to
+ * scale it up to an integer with a reasonable number of significant digits.
+ * Conversion from cycles to nanoseconds then requires only a multiplication
+ * by hse_tsc_mult and a division by 2^hse_tsc_shift (i.e., the division reduces
+ * to a simple shift by hse_tsc_shift).  The multiplication by hse_tsc_mult therefore
+ * limits the magnitude of the value that can be converted to 2^(64 - hse_tsc_shift))
+ * in order to avoid overflow.  For example, given a TSC frequency of 2.6GHz,
+ * the range of cycles_to_nsecs() is limited to 2^43, or about 3383 seconds,
+ * which should be good enough for typical latency measurement purposes.
+ * To convert values larger than 2^43 simply divide by hse_tsc_freq, which is
+ * slower but will not overflow.
+ */
+extern unsigned long hse_tsc_freq;
+extern unsigned int hse_tsc_mult;
+extern unsigned int hse_tsc_shift;
+
+static HSE_ALWAYS_INLINE u64
+cycles_to_nsecs(u64 cycles)
+{
+    /* To avoid overflow cycles is limited to 2^(64 - tsc_shift)
+     * (see note in timer.h regarding tsc_mult and tsc_shift).
+     */
+    return (cycles * hse_tsc_mult) >> hse_tsc_shift;
+}
+
 extern merr_t hse_platform_init(void);
 extern void hse_platform_fini(void);
 

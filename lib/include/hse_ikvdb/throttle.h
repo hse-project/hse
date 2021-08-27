@@ -128,7 +128,6 @@ struct throttle_mavg {
  * @thr_next:           time at which to recompute %thr_pct (nsecs)
  * @thr_pct:            percentage of requests not to throttle
  * @thr_delay_raw:      raw throttle delay amount
- * @thr_nslpmin:        fixed overhead of nanosleep() (nsecs)
  * @thr_lock:           lock for updating %thr_pct
  * @thr_mavg:           struct to compute mavg
  * @thr_reduce_sum:     sum to compute cumulative mavg while reducing sleep
@@ -160,7 +159,6 @@ struct throttle {
     atomic_t             thr_pct;
     atomic64_t           thr_next;
     uint                 thr_delay_raw;
-    int                  thr_nslpmin;
     spinlock_t           thr_lock;
 
     HSE_ALIGNED(SMP_CACHE_BYTES)
