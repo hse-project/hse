@@ -172,6 +172,19 @@ To ignore a suite, run the following:
 meson test -C build [--no-suite suite...]
 ```
 
+#### GDB
+
+Meson comes with built-in support for `gdb` using `--gdb` when running
+`meson test`. When using this option with HSE tests, you will want to run the
+following within `gdb`:
+
+```text
+set follow-fork-mode child
+```
+
+The HSE [test-runner](./tests/test-runner) will `fork(2)` the actual test.
+Without the above command, you will not actually debug what you think you are.
+
 #### Replicating CI build checks
 The CI runs the builds on ubuntu and fedora system with release and
 debugoptimized build types.
