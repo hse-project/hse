@@ -87,8 +87,7 @@ extern unsigned int hse_tsc_shift;
 static HSE_ALWAYS_INLINE u64
 cycles_to_nsecs(u64 cycles)
 {
-    /* To avoid overflow cycles is limited to 2^(64 - tsc_shift)
-     * (see note in timer.h regarding tsc_mult and tsc_shift).
+    /* To avoid overflow, cycles is limited to 2^(64 - hse_tsc_shift).
      */
     return (cycles * hse_tsc_mult) >> hse_tsc_shift;
 }
