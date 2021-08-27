@@ -131,7 +131,7 @@
  * with an internal implementation for the purpose of evaluating kmt.
  *
 #define XKMT
- */
+*/
 
 #include <hse_util/arch.h>
 #include <hse_util/atomic.h>
@@ -176,6 +176,8 @@
 #include <sys/ioctl.h>
 #include <sys/resource.h>
 
+#include <xxhash.h>
+
 extern void
 malloc_stats(void);
 
@@ -219,8 +221,6 @@ hse_err_to_errno(hse_err_t err);
 #define aligned_alloc(_align, _size) memalign((_align), (_size))
 extern void *memalign(size_t, size_t) __attribute_malloc__ __wur;
 #endif
-
-#include <3rdparty/murmur3.h>
 
 #define KM_REC_KEY_MAX  (1024)
 #define KM_REC_SZ_MAX   (1024 * 1024 * 4)
@@ -308,15 +308,15 @@ struct suftab suftab_iec = {
 /* kilo, mega, giga, ...
  */
 struct suftab suftab_si = {
-	"kmgtpezy",
-	{ 1e3, 1e6, 1e9, 1e12, 1e15, 1e18, 1e21, 1e24 }
+    "kmgtpezy",
+    { 1e3, 1e6, 1e9, 1e12, 1e15, 1e18, 1e21, 1e24 }
 };
 
 /* seconds, minutes, hours, days, weeks, years, centuries.
  */
 struct suftab suftab_time_t = {
-	"smhdwyc",
-	{ 1, 60, 3600, 86400, 86400 * 7, 86400 * 365, 86400 * 365 * 100ul }
+    "smhdwyc",
+    { 1, 60, 3600, 86400, 86400 * 7, 86400 * 365, 86400 * 365 * 100ul }
 };
 
 sig_atomic_t sigusr1, sigusr2, sigalrm, sigint;
@@ -369,7 +369,7 @@ struct km_stats {
      * thread modifies the fields below (both non-atomically).
      */
     HSE_ALIGNED(SMP_CACHE_BYTES * 2)
-    ulong oget, ogetbytes;
+        ulong oget, ogetbytes;
     ulong oput, oputbytes;
     ulong odel;
     ulong oswap;
@@ -548,10 +548,10 @@ struct km_inst {
 #define km_open(_impl)  ((_impl)->km_open((_impl)))
 #define km_close(_impl) ((_impl)->km_close((_impl)))
 
-#define km_rec_alloc(_inst, _rp1, _rp2) \
+#define km_rec_alloc(_inst, _rp1, _rp2)                                 \
     ((_inst)->ops.km_rec_alloc((_inst), (void **)(_rp1), (void **)(_rp2)))
 
-#define km_rec_init(_inst, _rec, _rid, _tv) \
+#define km_rec_init(_inst, _rec, _rid, _tv)                     \
     ((_inst)->ops.km_rec_init((_inst), (_rec), (_rid), (_tv)))
 
 #define km_rec_swap(_inst, _rec1, _rec2) ((_inst)->ops.km_rec_swap((_inst), (_rec1), (_rec2)))
@@ -1019,10 +1019,7 @@ kvs_get_xkmt(
     if (keybinary) {
         tmp.hash = *(uint64_t *)tmp.key;
     } else {
-        uint64_t hash[2];
-
-        murmur3_128(tmp.key, tmp.keylen, hash);
-        tmp.hash = hash[0];
+        tmp.hash = XXH3_64bits(tmp.key, tmp.keylen);
     }
 
     bkt = bkt_get(tmp.hash);
@@ -1105,10 +1102,7 @@ kvs_put_xkmt(
     if (keybinary)
         node->hash = *(uint64_t *)node->key;
     else {
-        uint64_t hash[2];
-
-        murmur3_128(node->key, node->keylen, hash);
-        node->hash = hash[0];
+        node->hash = XXH3_64bits(node->key, node->keylen);
     }
 
     memcpy(node->data, val, node->datalen);
@@ -1159,10 +1153,7 @@ kvs_delete_xkmt(
     if (keybinary)
         tmp.hash = *(uint64_t *)tmp.key;
     else {
-        uint64_t hash[2];
-
-        murmur3_128(tmp.key, tmp.keylen, hash);
-        tmp.hash = hash[0];
+        tmp.hash = XXH3_64bits(tmp.key, tmp.keylen);
     }
 
     bkt = bkt_get(tmp.hash);
@@ -1350,13 +1341,8 @@ chk_verify(struct km_inst *inst, struct km_rec *r)
 void
 hash_update(struct km_rec *r)
 {
-    uint64_t hash[2];
-
     r->hash = 0;
-
-    murmur3_128(r, sizeof(*r) + r->vlen, hash);
-
-    r->hash = hash[0];
+    r->hash = XXH3_64bits(r, sizeof(*r) + r->vlen);
 }
 
 void
@@ -1608,18 +1594,15 @@ km_rec_init_cmn(struct km_inst *inst, struct km_rec *r, uint64_t rid, const stru
 hse_err_t
 km_rec_verify_cmn(struct km_inst *inst, struct km_rec *r)
 {
-    uint64_t hash[2];
     uint64_t save;
 
     if (r->vlen > KM_REC_VLEN_MAX)
         abort();
 
     save = r->hash;
+
     r->hash = 0;
-
-    murmur3_128(r, sizeof(*r) + r->vlen, hash);
-
-    r->hash = hash[0];
+    r->hash = XXH3_64bits(r, sizeof(*r) + r->vlen);
 
     if (r->hash != save) {
         inst->fmt = "computed hash mismatch: %s";
@@ -1671,7 +1654,7 @@ km_rec_print_cmn(struct km_inst *inst, struct km_rec *r, const char *fmt, hse_er
     dst = vbuf;
     for (i = 0; i < 32 && i < r->vlen; ++i) {
         const char tab[] = { '0', '1', '2', '3', '4', '5', '6', '7',
-                             '8', '9', 'a', 'b', 'c', 'd', 'e', 'f' };
+            '8', '9', 'a', 'b', 'c', 'd', 'e', 'f' };
 
         *dst++ = tab[(r->data[i] >> 4) & 0x0f];
         *dst++ = tab[r->data[i] & 0x0f];
@@ -1736,7 +1719,7 @@ km_rec_get_kvs(struct km_inst *inst, struct km_rec *r, uint64_t rid)
     struct km_impl *impl = inst->impl;
     char *          key = (char *)r + secsz - KM_REC_KEY_MAX;
     size_t          klen, vlen;
-    hse_err_t          err;
+    hse_err_t       err;
     u64             rc;
     bool            found;
     u64             ns;
@@ -1874,7 +1857,7 @@ km_rec_get_ds(struct km_inst *inst, struct km_rec *r, uint64_t rid)
 {
     struct km_impl *impl = inst->impl;
     struct iovec    iov[2];
-    hse_err_t          err;
+    hse_err_t       err;
     uint64_t        mbid;
     u64             ns;
 
@@ -1946,7 +1929,7 @@ km_rec_put_ds(struct km_inst *inst, struct km_rec *r)
     struct iovec iov[2];
     uint64_t     nmbid;
     uint64_t     ombid;
-    hse_err_t       err;
+    hse_err_t    err;
     u64          ns;
 
     ns = km_op_latency_init(inst->impl, OP_KVS_PUT);
@@ -2012,7 +1995,7 @@ km_rec_del_ds(struct km_inst *inst, uint64_t rid)
 {
     struct km_impl *impl = inst->impl;
     uint64_t        mbid;
-    hse_err_t          err;
+    hse_err_t       err;
     u64             ns;
 
     ns = km_op_latency_init(inst->impl, OP_KVS_DEL);
@@ -2038,7 +2021,7 @@ hse_err_t
 km_rec_get_dev(struct km_inst *inst, struct km_rec *r, uint64_t rid)
 {
     struct km_impl *impl = inst->impl;
-    hse_err_t          err;
+    hse_err_t       err;
     off_t           offset;
     ssize_t         cc;
     int             fd;
@@ -2224,7 +2207,7 @@ km_rec_get_mongo(struct km_inst *inst, struct km_rec *r, uint64_t rid)
     uint             cid;
     const bson_t    *doc;
     mongoc_cursor_t *cursor;
-    hse_err_t           err;
+    hse_err_t        err;
     u64              ns;
 
     ns = km_op_latency_init(inst->impl, OP_KVS_GET);
@@ -3087,7 +3070,7 @@ td_test(struct km_inst *inst)
             chk_update(inst->impl, recy, false);
         }
 
-    unlock:
+      unlock:
         if (locked) {
             inst->stats.op = OP_UNLOCK;
             chk_pair_unlock(impl, ridx, ridy);
@@ -3159,7 +3142,7 @@ status(
 
     getrusage(RUSAGE_SELF, &rusage);
     timeradd(&rusage.ru_utime, &rusage.ru_stime, &tv_usrsys);
-    usrsys = (tv_usrsys.tv_sec * 1000000 + tv_usrsys.tv_usec) / 1000000,
+    usrsys = (tv_usrsys.tv_sec * 1000000 + tv_usrsys.tv_usec) / 1000000;
 
     get_total = iget_total = 0;
     getbytes_total = igetbytes_total = 0;
@@ -4882,7 +4865,7 @@ main(int argc, char **argv)
     if (destroy && !sigint)
         spawn(impl, td_destroy, 0, mark);
 
-sigint:
+  sigint:
     if (sigint) {
         if (destroy)
             chk_destroy(impl);

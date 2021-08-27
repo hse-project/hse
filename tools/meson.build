@@ -1,5 +1,4 @@
 if get_option('tools')
-    subdir('3rdparty')
     subdir('scripts')
 endif
 
@@ -93,7 +92,6 @@ tools = {
     'kmt': {
         'sources': files(
             'kmt' / 'kmt.c',
-            '3rdparty' / 'src' / 'murmur3.c',
             'parm_groups.c',
         ),
         'c_args': [
@@ -108,7 +106,6 @@ tools = {
     'xkmt': {
         'sources': files(
             'kmt' / 'kmt.c',
-            '3rdparty' / 'src' / 'murmur3.c',
             'parm_groups.c',
         ),
         'c_args': [
@@ -141,7 +138,6 @@ tools = {
     'bnt': {
         'sources': files(
             'bnt' / 'bnt.c',
-            '3rdparty' / 'src' / 'murmur3.c',
             'parm_groups.c',
         ),
         'dependencies': [
@@ -151,7 +147,6 @@ tools = {
     'kvt': {
         'sources': files(
             'kvt' / 'kvt.c',
-            '3rdparty' / 'src' / 'murmur3.c',
             'parm_groups.c',
         ),
         'dependencies': [
@@ -329,7 +324,6 @@ foreach t, params : tools
                 component_root_includes,
                 hse_include_directories,
                 tools_includes,
-                tools_third_party_includes,
                 params.get('include_directories', []),
             ],
             dependencies: [
