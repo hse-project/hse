@@ -95,7 +95,7 @@ json_walk(
 
         for (size_t i = 0; i < ignore_keys_sz; i++) {
             const char *ignore_key = ignore_keys[i];
-            if (!strcmp(ignore_key, node->string))
+            if (!strcmp(ignore_key, key))
                 goto out;
         }
 
