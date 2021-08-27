@@ -129,9 +129,8 @@
 
 /* Enable eXtreme KVS to override the default kvs_{get,put,del} operations
  * with an internal implementation for the purpose of evaluating kmt.
- *
-#define XKMT
-*/
+ */
+//#define XKMT
 
 #include <hse_util/arch.h>
 #include <hse_util/atomic.h>
@@ -368,8 +367,7 @@ struct km_stats {
      * worker thread modifies the fields above, while the status
      * thread modifies the fields below (both non-atomically).
      */
-    HSE_ALIGNED(SMP_CACHE_BYTES * 2)
-        ulong oget, ogetbytes;
+    ulong oget, ogetbytes HSE_ALIGNED(SMP_CACHE_BYTES * 2);
     ulong oput, oputbytes;
     ulong odel;
     ulong oswap;
@@ -1625,16 +1623,11 @@ km_rec_print_cmn(struct km_inst *inst, struct km_rec *r, const char *fmt, hse_er
     int             i;
 
     if (!once++) {
-        printf(
-            "%7s %7s %17s %17s %5s %9s %16s %-32s\n",
-            "RID",
-            "RID0",
-            "HASH",
-            "CHK_HASH",
-            "KLEN",
-            "VLEN",
-            "MBID",
-            "VALUE");
+        printf("%7s %7s %17s %17s %5s %9s %16s %-32s\n",
+               "RID", "RID0",
+               "HASH", "CHK_HASH",
+               "KLEN", "VLEN",
+               "MBID", "VALUE");
     }
 
     chk_hash = 0;
@@ -1653,25 +1646,21 @@ km_rec_print_cmn(struct km_inst *inst, struct km_rec *r, const char *fmt, hse_er
 
     dst = vbuf;
     for (i = 0; i < 32 && i < r->vlen; ++i) {
-        const char tab[] = { '0', '1', '2', '3', '4', '5', '6', '7',
-            '8', '9', 'a', 'b', 'c', 'd', 'e', 'f' };
+        const char tab[] = {
+            '0', '1', '2', '3', '4', '5', '6', '7',
+            '8', '9', 'a', 'b', 'c', 'd', 'e', 'f'
+        };
 
         *dst++ = tab[(r->data[i] >> 4) & 0x0f];
         *dst++ = tab[r->data[i] & 0x0f];
     }
     *dst = '\000';
 
-    printf(
-        "%7lu %7lu %17lx %17lx %5u %9u %16lx %-32s %s\n",
-        r->rid,
-        r->rid0,
-        r->hash,
-        chk_hash,
-        r->klen,
-        r->vlen,
-        r->mbid,
-        vbuf,
-        ebuf);
+    printf("%7lu %7lu %17lx %17lx %5u %9u %16lx %-32s %s\n",
+           r->rid, r->rid0,
+           r->hash, chk_hash,
+           r->klen, r->vlen,
+           r->mbid, vbuf, ebuf);
 }
 
 void
@@ -1891,15 +1880,8 @@ km_rec_get_ds(struct km_inst *inst, struct km_rec *r, uint64_t rid)
     }
 
     if (r->rid != rid || r->mbid != mbid) {
-        eprint(
-            "%s: corrupt mblock: "
-            "(r->rid %lu != rid %lu) || "
-            "(r->mbid %lx != mbid %lx)\n",
-            __func__,
-            r->rid,
-            rid,
-            r->mbid,
-            mbid);
+        eprint("%s: corrupt mblock: (r->rid %lu != rid %lu) || (r->mbid %lx != mbid %lx)\n",
+               __func__, r->rid, rid, r->mbid, mbid);
         abort();
     }
 
@@ -2050,15 +2032,8 @@ km_rec_get_dev(struct km_inst *inst, struct km_rec *r, uint64_t rid)
         return cc == -1 ? errno : EIO;
 
     if (r->rid != rid || r->offset != offset) {
-        eprint(
-            "%s: corrupt block: "
-            "(r->rid %lu != rid %lu) || "
-            "(r->offset %ld != offset %ld)\n",
-            __func__,
-            r->rid,
-            rid,
-            r->offset,
-            offset);
+        eprint("%s: corrupt block: (r->rid %lu != rid %lu) || (r->offset %ld != offset %ld)\n",
+               __func__, r->rid, rid, r->offset, offset);
         abort();
     }
 
@@ -3477,24 +3452,14 @@ print_latency(struct km_impl *impl, const char *mode)
     bool                  print_hdr = true;
     struct hdr_histogram *histogram;
 
-    snprintf(
-        hdr,
-        1024,
-        "%-9s %8s %8s %10s %10s %10s %10s %10s %10s %10s %10s "
-        "%10s %10s",
-        "LATMODE",
-        "PHASE",
-        "OP",
-        "SAMPLES",
-        "SAMPLES_ERR",
-        "MIN_us",
-        "MAX_us",
-        "AVG_us",
-        "L90_us",
-        "L95_us",
-        "L99_us",
-        "L99.9_us",
-        "L99.99_us");
+    snprintf(hdr, sizeof(hdr),
+             "%-9s %8s %8s %10s %10s %10s %10s %10s %10s %10s %10s %10s %10s",
+             "LATMODE", "PHASE", "OP",
+             "SAMPLES", "SAMPLES_ERR",
+             "MIN_us", "MAX_us", "AVG_us",
+             "L90_us", "L95_us",
+             "L99_us", "L99.9_us",
+             "L99.99_us");
 
     for (i = 0; i < KMT_LAT_REC_CNT; i++) {
         unsigned long min, max, avg, lt90, lt95, lt99, lt999, lt9999;
@@ -3517,22 +3482,12 @@ print_latency(struct km_impl *impl, const char *mode)
         lt999 = hdr_value_at_percentile(histogram, 99.9);
         lt9999 = hdr_value_at_percentile(histogram, 99.99);
 
-        printf(
-            "%-9s %8s %8s %10ld %10ld %10ld %10ld %10ld %10ld "
-            "%10ld %10ld %10ld %10ld\n",
-            "slatency",
-            mode,
-            op2txt[OP_KVS_GET + i],
-            atomic64_read(&impl->km_latency[i].km_samples),
-            atomic64_read(&impl->km_latency[i].km_samples_err),
-            min,
-            max,
-            avg,
-            lt90,
-            lt95,
-            lt99,
-            lt999,
-            lt9999);
+        printf("%-9s %8s %8s %10ld %10ld %10ld %10ld %10ld %10ld %10ld %10ld %10ld %10ld\n",
+               "slatency", mode, op2txt[OP_KVS_GET + i],
+               atomic64_read(&impl->km_latency[i].km_samples),
+               atomic64_read(&impl->km_latency[i].km_samples_err),
+               min, max, avg,
+               lt90, lt95, lt99, lt999, lt9999);
     }
 }
 
