@@ -990,6 +990,11 @@ kvs_cursor_update(struct hse_kvs_cursor *handle, struct kvdb_ctxn *ctxn, u64 seq
     /* Seek will re-prepare the binheap. */
     cursor->kci_need_seek = 1;
 
+    /* Reset the ptomb_set flag to discard an old ptomb (which may have been ingested/compacted
+     * since). The following seek will set it if needed.
+     */
+    cursor->kci_ptomb_set = 0;
+
     if (handle->kc_bind)
         c0_cursor_bind_txn(cursor->kci_c0cur, ctxn);
 
