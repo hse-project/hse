@@ -53,6 +53,9 @@ components = {
         'cn_tree_test': {},
         'csched_noop_test': {},
         'csched_sp3_test': {
+            # mapi_malloc_tester isn't reliable in multithreaded environments. Add to
+            # non-deterministic suite
+            'suites': ['non-deterministic'],
             'cases': {
                 'default': [],
                 'debug': ['debug'],
