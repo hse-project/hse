@@ -2379,16 +2379,7 @@ errout:
 merr_t
 cn_tree_cursor_update(struct cn_cursor *cur, struct cn_tree *tree)
 {
-    if (cur->pt_set) {
-        uint len;
-
-        /* Cached ptomb should survive even if the underlying kvset
-         * resources are released (deferred deletes).
-         */
-        key_obj_copy(cur->pt_buf, HSE_KVS_PFX_LEN_MAX, &len, &cur->pt_kobj);
-        assert(len == cur->ct_pfx_len);
-        key2kobj(&cur->pt_kobj, cur->pt_buf, cur->ct_pfx_len);
-    }
+    cur->pt_set = 0;
 
     if (ev(cn_is_capped(cur->cn) && !cur->reverse))
         return cn_tree_capped_cursor_update(cur, tree);

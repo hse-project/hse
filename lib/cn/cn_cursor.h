@@ -80,8 +80,6 @@ struct cn_cursor {
 
     struct key_obj pt_kobj;
     u64            pt_seq;
-
-    unsigned char  pt_buf[];
 };
 
 /* MTF_MOCK */
