@@ -11,6 +11,7 @@ project(
         'c_std=gnu11',
         'buildtype=debugoptimized',
         'warning_level=2',
+        'force_fallback_for=xxhash,lz4,cjson',
     ],
     meson_version: '>=0.58.0',
 )
@@ -230,62 +231,40 @@ libbsd_dep = dependency(
         'werror=false',
     ],
 )
-if get_option('use-system-lz4')
-    message('For best results, HSE should be built against a static lz4==1.9.2')
-    lz4_dep = dependency(
-        'liblz4',
-        version: '>=1.9.2',
-        required: true,
-    )
-else
-    lz4 = subproject(
-        'lz4',
-        default_options: [
-            'default_library=static',
-            'warning_level=0',
-            'werror=false',
-        ],
-    )
-    lz4_dep = lz4.get_variable('lz4_dep')
-endif
-if get_option('use-system-xxhash')
-    message('For best results, HSE should be built against a static xxhash==0.8.0')
-    xxhash_dep = dependency(
-        'libxxhash',
-        version: '>=0.8.0',
-        required: true,
-    )
-else
-    xxhash = subproject(
-        'xxhash',
-        default_options: [
-            'default_library=static',
-            'warning_level=0',
-            'werror=false',
-            'cli=false',
-            'inline-all=true',
-        ],
-    )
-    xxhash_dep = xxhash.get_variable('xxhash_dep')
-endif
-if get_option('use-system-cjson')
-    cjson_dep = dependency(
-        'libcjson',
-        version: '>=1.7.14',
-        required: true,
-    )
-else
-    cjson = subproject(
-        'cjson',
-        default_options: [
-            'default_library=static',
-            'warning_level=0',
-            'werror=false',
-            'tests=false'
-        ],
-    )
-    cjson_dep = cjson.get_variable('libcjson_dep')
-endif
+lz4_dep = dependency(
+    'liblz4',
+    version: '>=1.9.2',
+    fallback: ['lz4', 'lz4_dep'],
+    default_options: [
+        'default_library=static',
+        'warning_level=0',
+        'werror=false',
+    ],
+)
+xxhash_dep = dependency(
+    'libxxhash',
+    version: '>=0.8.0',
+    fallback: ['xxhash', 'xxhash_dep'],
+    default_options: [
+        'default_library=static',
+        'warning_level=0',
+        'werror=false',
+        'cli=false',
+        'inline-all=true',
+    ],
+)
+cjson_dep = dependency(
+    'libcjson',
+    version: '>=1.7.14',
+    required: true,
+    fallback: ['cjson', 'libcjson_dep'],
+    default_options: [
+        'default_library=static',
+        'warning_level=0',
+        'werror=false',
+        'tests=false',
+    ],
+)
 libmicrohttpd_dep = dependency(
     'libmicrohttpd',
     version: '>=0.9.59',

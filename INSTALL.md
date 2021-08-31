@@ -18,8 +18,7 @@ Meson subprojects for performance and embedding reasons. To use system pacakges
 for cJSON, lz4, and xxHash, setup your build with the following:
 
 ```shell
-meson setup build -Duse-system-cjson=true -Duse-system-lz4=true \
-    -Duse-system-xxhash=true
+meson setup build -Dforce_fallback_for=
 ```
 
 Depending on the build configuration, HSE has the following additional
