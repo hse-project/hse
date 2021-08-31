@@ -20,6 +20,8 @@
  * the situation.
  */
 #define VLB_CACHESZ_MAX     (4ul << 30) /* per NUMA node */
+#define VLB_CACHESZ_MIN     (512ul << 20) /* per NUMA node */
+
 #define VLB_ALLOCSZ_MAX     (4ul << 20)
 #define VLB_KEEPSZ_MAX      (2ul << 20)
 

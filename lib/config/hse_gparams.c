@@ -19,6 +19,7 @@
 #include <hse_ikvdb/limits.h>
 #include <hse_util/logging.h>
 #include <hse_util/compiler.h>
+#include <hse_util/vlb.h>
 
 struct hse_gparams hse_gparams;
 
@@ -65,7 +66,7 @@ socket_path_default(const struct param_spec *ps, void *value)
 }
 
 static const struct param_spec pspecs[] = {
-	{
+    {
 		.ps_name = "logging.enabled",
 		.ps_description = "Whether logging is enabled",
 		.ps_flags = 0,
@@ -77,8 +78,8 @@ static const struct param_spec pspecs[] = {
 		.ps_default_value = {
 			.as_bool = true,
 		},
-	},
-	{
+    },
+    {
 		.ps_name = "logging.structured",
 		.ps_description = "Whether logging is structured",
 		.ps_flags = 0,
@@ -90,8 +91,8 @@ static const struct param_spec pspecs[] = {
 		.ps_default_value = {
 			.as_bool = false,
 		},
-	},
-	{
+    },
+    {
 		.ps_name = "logging.destination",
 		.ps_description = "Where log messages should be written to",
 		.ps_flags = 0,
@@ -109,8 +110,8 @@ static const struct param_spec pspecs[] = {
                 .ps_max = LD_MAX,
             }
 		},
-	},
-	{
+    },
+    {
 		.ps_name = "logging.path",
 		.ps_description = "Name of log file when destination == file",
 		.ps_flags = 0,
@@ -126,8 +127,8 @@ static const struct param_spec pspecs[] = {
 				.ps_max_len = PARAM_SZ(struct hse_gparams, gp_logging.path),
 			},
 		},
-	},
-	{
+    },
+    {
 		.ps_name = "logging.level",
 		.ps_description = "Maximum log level which will be written",
 		.ps_flags = 0,
@@ -145,7 +146,7 @@ static const struct param_spec pspecs[] = {
 				.ps_max = HSE_DEBUG_VAL,
 			}
 		}
-	},
+    },
     {
         .ps_name = "logging.squelch_ns",
         .ps_description = "drop messages repeated within nsec window",
@@ -165,7 +166,39 @@ static const struct param_spec pspecs[] = {
             },
         },
     },
-	    {
+    {
+        .ps_name = "low_mem",
+        .ps_description = "configure for a constrained memory environment",
+        .ps_flags = 0,
+        .ps_type = PARAM_TYPE_BOOL,
+        .ps_offset = offsetof(struct hse_gparams, gp_low_mem),
+        .ps_size = sizeof(((struct hse_gparams *) 0)->gp_low_mem),
+        .ps_convert = param_default_converter,
+        .ps_validate = param_default_validator,
+        .ps_default_value = {
+            .as_bool = false,
+        },
+    },
+    {
+        .ps_name = "vlb_cache_sz_max",
+        .ps_description = "max size of vlb cache (bytes)",
+        .ps_flags = PARAM_FLAG_EXPERIMENTAL,
+        .ps_type = PARAM_TYPE_U64,
+        .ps_offset = offsetof(struct hse_gparams, gp_vlb_cache_sz_max),
+        .ps_size = sizeof(((struct hse_gparams *) 0)->gp_vlb_cache_sz_max),
+        .ps_convert = param_default_converter,
+        .ps_validate = param_default_validator,
+        .ps_default_value = {
+            .as_uscalar = VLB_CACHESZ_MAX,
+        },
+        .ps_bounds = {
+            .as_uscalar = {
+                .ps_min = VLB_CACHESZ_MIN,
+                .ps_max = VLB_CACHESZ_MAX,
+            },
+        },
+    },
+    {
         .ps_name = "c0kvs_ccache_sz_max",
         .ps_description = "max size of c0kvs cheap cache (bytes)",
         .ps_flags = PARAM_FLAG_EXPERIMENTAL,

@@ -47,6 +47,8 @@ struct hse_kvdb_txn {
 #define IKVDB_SUB_NAME_SEP ":"
 #define HSE_KVDB_DESC      "Heterogeneous-memory Storage Engine KVDB"
 
+#define HSE_LOWMEM_SCALE_DEFAULT   (4)
+
 /**
  * ikvdb_init() - prepare the ikvdb subsystem for use
  */
@@ -522,6 +524,12 @@ ikvdb_kvdb_handle(struct ikvdb_impl *self);
  */
 merr_t
 ikvdb_kvs_query_tree(struct hse_kvs *kvs, struct yaml_context *yc, int fd, bool list);
+
+uint32_t
+ikvdb_low_mem_scale(void);
+
+bool
+ikvdb_low_mem_enabled(void);
 
 /*
  * [HSE_REVISIT] - This whole callback setup up needs to be reworked.

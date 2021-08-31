@@ -31,6 +31,7 @@
 #include <hse_util/rest_api.h>
 #include <hse_util/logging.h>
 #include <hse_util/string.h>
+#include <hse_util/vlb.h>
 
 #include <bsd/libutil.h>
 #include <pidfile/pidfile.h>
@@ -60,6 +61,29 @@ kvdb_lat_record(const u32 cidx, const u64 start)
  * with all other HSE APIs.
  */
 static bool hse_initialized = false;
+
+void
+hse_low_mem_init(void)
+{
+    struct hse_gparams gpdef = hse_gparams_defaults();
+
+    hse_gparams.gp_low_mem = ikvdb_low_mem_enabled();
+
+    if (hse_gparams.gp_low_mem) {
+        uint32_t scale = ikvdb_low_mem_scale();
+
+        if (hse_gparams.gp_c0kvs_ccache_sz_max == gpdef.gp_c0kvs_ccache_sz_max)
+            hse_gparams.gp_c0kvs_ccache_sz_max =
+                min_t(u64, HSE_C0_CHEAP_SZ_DFLT * scale, HSE_C0_CCACHE_SZ_MAX);
+
+        if (hse_gparams.gp_c0kvs_cheap_sz == gpdef.gp_c0kvs_cheap_sz)
+            hse_gparams.gp_c0kvs_cheap_sz =
+                min_t(u64, HSE_C0_CHEAP_SZ_MIN * scale, HSE_C0_CHEAP_SZ_MAX);
+
+        if (hse_gparams.gp_vlb_cache_sz_max == gpdef.gp_vlb_cache_sz_max)
+            hse_gparams.gp_vlb_cache_sz_max = VLB_CACHESZ_MIN;
+    }
+}
 
 hse_err_t
 hse_init(const char *const runtime_home, const size_t paramc, const char *const *const paramv)
@@ -95,6 +119,8 @@ hse_init(const char *const runtime_home, const size_t paramc, const char *const 
     err = hse_gparams_resolve(&hse_gparams, runtime_home_get());
     if (err)
         return merr_to_hse_err(err);
+
+    hse_low_mem_init();
 
     err = hse_platform_init();
     if (err)

@@ -14,6 +14,7 @@
 
 #include <hse_ikvdb/param.h>
 #include <hse_util/storage.h>
+#include <hse_util/log2.h>
 
 #define IS_WHOLE(_val) (nearbyint(_val) == _val)
 
@@ -248,6 +249,31 @@ param_default_converter(const struct param_spec *ps, const cJSON *node, void *va
         default:
             assert(false);
             break;
+    }
+
+    return true;
+}
+
+bool
+param_u32_roundup_pow2(const struct param_spec *ps, const cJSON *node, void *value)
+{
+    assert(ps);
+    assert(node);
+    assert(value);
+
+    switch (ps->ps_type) {
+      case PARAM_TYPE_U32:
+        assert(ps->ps_size == sizeof(uint32_t));
+        if (!cJSON_IsNumber(node))
+            return false;
+        const double to_conv = cJSON_GetNumberValue(node);
+        if (to_conv < 0 || to_conv > UINT32_MAX)
+            return false;
+        *(uint32_t *)value = (uint32_t)roundup_pow_of_two((unsigned long)to_conv);
+        break;
+
+      default:
+        return false;
     }
 
     return true;

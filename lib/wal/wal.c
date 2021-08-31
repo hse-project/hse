@@ -128,7 +128,7 @@ wal_timer(void *rock)
                 const uint64_t lwm = (bufsz * wal->wal_thr_lwm) / 100;
                 uint32_t new;
 
-                assert(buflen < bufsz);
+                ev(buflen >= bufsz);
 
                 new = (buflen > lwm) ? (THROTTLE_SENSOR_SCALE * buflen) / hwm : 0;
 
@@ -593,11 +593,8 @@ wal_open(
     if (rp->dur_intvl_ms != HSE_WAL_DUR_MS_DFLT)
         wal->dur_ms = clamp_t(long, rp->dur_intvl_ms, HSE_WAL_DUR_MS_MIN, HSE_WAL_DUR_MS_MAX);
 
-    if (rp->dur_bufsz_mb != HSE_WAL_DUR_BUFSZ_MB_DFLT) {
-        wal->dur_bufsz = clamp_t(size_t, rp->dur_bufsz_mb << 20, HSE_WAL_DUR_BUFSZ_MB_MIN << 20,
-                                 HSE_WAL_DUR_BUFSZ_MB_MAX << 20);
-        wal->dur_bufsz = roundup_pow_of_two(wal->dur_bufsz);
-    }
+    if (rp->dur_bufsz_mb != HSE_WAL_DUR_BUFSZ_MB_DFLT)
+        wal->dur_bufsz = (size_t)rp->dur_bufsz_mb << 20;
 
     mclass = rp->dur_mclass;
     if (mclass != wal->dur_mclass) {
