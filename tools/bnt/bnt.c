@@ -45,7 +45,6 @@
 #include <hse_util/bonsai_tree.h>
 
 #include <xoroshiro/xoroshiro.h>
-#include <3rdparty/murmur3.h>
 
 /* clang-format off */
 
@@ -110,7 +109,6 @@ struct stats {
 
 struct tdargs {
     struct stats stats;
-    uint64_t     hashv[2];
     pthread_t    tid;
     uint64_t     seed;
     u_int        job;
@@ -152,7 +150,6 @@ u_int keybase               __read_mostly;
 u_long updateprob           __read_mostly;
 
 pthread_barrier_t bnt_barrier;
-uint64_t hash0, hash1;
 
 u_long testsecs = 60;
 
