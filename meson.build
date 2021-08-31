@@ -281,6 +281,7 @@ else
             'default_library=static',
             'warning_level=0',
             'werror=false',
+            'tests=false'
         ],
     )
     cjson_dep = cjson.get_variable('libcjson_dep')
