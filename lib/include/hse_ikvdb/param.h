@@ -24,6 +24,8 @@
 #define PARAM_FLAG_NULLABLE        (1 << 4)
 #define PARAM_FLAG_DEFAULT_BUILDER (1 << 5)
 
+#define PARAM_SZ(_type, _field) sizeof(((_type *)0)->_field)
+
 struct hse_gparams;
 struct kvdb_cparams;
 struct kvdb_rparams;
@@ -87,12 +89,12 @@ struct param_spec {
     } ps_default_value;
     union {
         struct {
-            uint64_t ps_min;
-            uint64_t ps_max;
-        } as_scalar;
-        struct {
             int64_t ps_min;
             int64_t ps_max;
+        } as_scalar;
+        struct {
+            uint64_t ps_min;
+            uint64_t ps_max;
         } as_uscalar;
         struct {
             uint64_t ps_min;

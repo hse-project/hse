@@ -623,11 +623,11 @@ mpool_file_sync(struct mpool_file *file);
  * mpool_file_mmap() - mmap the given file
  *
  * @file:     mpool file handle
- * @rdonly:   read-only
+ * @read_only:   read-only
  * @addr_out: mapped addr
  */
 merr_t
-mpool_file_mmap(struct mpool_file *file, bool rdonly, int advice, char **addr_out);
+mpool_file_mmap(struct mpool_file *file, bool read_only, int advice, char **addr_out);
 
 /**
  * mpool_file_size() - get mpool file size

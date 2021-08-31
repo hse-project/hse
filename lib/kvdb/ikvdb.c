@@ -114,7 +114,7 @@ static              atomic_t ikvdb_txn_idx;
 /**
  * struct ikvdb_impl - private representation of a kvdb
  * @ikdb_handle:        handle for users of struct ikvdb_impl's
- * @ikdb_rdonly:        bool indicating read-only mode
+ * @ikdb_read_only:        bool indicating read-only mode
  * @ikdb_work_stop:     used to control maint and throttle threads
  * @ikdb_tb_dbg:        token bucket debug flags
  * @ikdb_ctxn_set:      kvdb transaction set
@@ -145,7 +145,7 @@ static              atomic_t ikvdb_txn_idx;
  */
 struct ikvdb_impl {
     struct ikvdb            ikdb_handle;
-    bool                    ikdb_rdonly;
+    bool                    ikdb_read_only;
     bool                    ikdb_work_stop;
     u32                     ikdb_tb_dbg;
     struct kvdb_ctxn_set   *ikdb_ctxn_set;
@@ -597,7 +597,7 @@ ikvdb_maint_task(struct work_struct *work)
 static void
 ikvdb_init_throttle_params(struct ikvdb_impl *self)
 {
-    if (self->ikdb_rdonly)
+    if (self->ikdb_read_only)
         return;
 
     /* Hand out throttle sensors */
@@ -709,7 +709,7 @@ ikvdb_alloc(
 
     memset(self, 0, sz);
     self->ikdb_rp = *params;
-    self->ikdb_rdonly = params->read_only;
+    self->ikdb_read_only = params->read_only;
     strcpy((char *)self->ikdb_home, kvdb_home);
 
     *impl = self;
@@ -772,7 +772,7 @@ ikvdb_diag_open(
 
     err = cndb_open(
         self->ikdb_mp,
-        self->ikdb_rdonly,
+        self->ikdb_read_only,
         &self->ikdb_seqno,
         params->cndb_entries,
         self->ikdb_cndb_oid1,
@@ -931,7 +931,7 @@ ikvdb_cndb_open(struct ikvdb_impl *self, u64 *seqno, u64 *ingestid, u64 *txhoriz
 
     err = cndb_open(
         self->ikdb_mp,
-        self->ikdb_rdonly,
+        self->ikdb_read_only,
         &self->ikdb_seqno,
         self->ikdb_rp.cndb_entries,
         self->ikdb_cndb_oid1,
@@ -1144,7 +1144,7 @@ ikvdb_open(
 
     ikvdb_tb_configure(self, self->ikdb_tb_burst, self->ikdb_tb_rate, true);
 
-    if (!self->ikdb_rdonly) {
+    if (!self->ikdb_read_only) {
         err = csched_create(
             csched_rp_policy(&self->ikdb_rp),
             self->ikdb_mp,
@@ -1274,7 +1274,7 @@ ikvdb_open(
 
     *handle = &self->ikdb_handle;
 
-    if (!self->ikdb_rdonly) {
+    if (!self->ikdb_read_only) {
         err = ikvdb_maint_start(self);
         if (err) {
             hse_elog(HSE_ERR "cannot open %s: @@e", err, kvdb_home);
@@ -1375,11 +1375,11 @@ ikvdb_config_attach(struct ikvdb *kvdb, struct config *conf)
 }
 
 bool
-ikvdb_rdonly(struct ikvdb *handle)
+ikvdb_read_only(struct ikvdb *handle)
 {
     struct ikvdb_impl *self = ikvdb_h2r(handle);
 
-    return self->ikdb_rdonly;
+    return self->ikdb_read_only;
 }
 
 void
@@ -1490,7 +1490,7 @@ ikvdb_kvs_create(struct ikvdb *handle, const char *kvs_name, const struct kvs_cp
     struct kvdb_kvs *  kvs = NULL;
     int                idx;
 
-    if (self->ikdb_rdonly)
+    if (self->ikdb_read_only)
         goto out_immediate;
 
     err = validate_kvs_name(kvs_name);
@@ -1695,7 +1695,7 @@ ikvdb_kvs_open(
     if (ev(err))
         return err;
 
-    params->rdonly = self->ikdb_rp.read_only; /* inherit from kvdb */
+    params->read_only = self->ikdb_rp.read_only; /* inherit from kvdb */
 
     mutex_lock(&self->ikdb_lock);
 
@@ -1861,7 +1861,7 @@ ikvdb_close(struct ikvdb *handle)
 
     /* Shutdown workqueue
      */
-    if (!self->ikdb_rdonly) {
+    if (!self->ikdb_read_only) {
         self->ikdb_work_stop = true;
         destroy_workqueue(self->ikdb_workqueue);
     }
@@ -2006,7 +2006,7 @@ ikvdb_kvs_put(
         return merr(EINVAL);
 
     parent = kk->kk_parent;
-    if (ev(parent->ikdb_rdonly))
+    if (ev(parent->ikdb_read_only))
         return merr(EROFS);
 
     /* puts do not stop on block deletion failures. */
@@ -2153,7 +2153,7 @@ ikvdb_kvs_del(
         return merr(EINVAL);
 
     parent = kk->kk_parent;
-    if (ev(parent->ikdb_rdonly))
+    if (ev(parent->ikdb_read_only))
         return merr(EROFS);
 
     /* tombstone puts do not stop on block deletion failures. */
@@ -2187,7 +2187,7 @@ ikvdb_kvs_prefix_delete(
         return merr(EINVAL);
 
     parent = kk->kk_parent;
-    if (ev(parent->ikdb_rdonly))
+    if (ev(parent->ikdb_read_only))
         return merr(EROFS);
 
     ct_pfx_len = kk->kk_cparams->pfx_len;
@@ -2599,7 +2599,7 @@ ikvdb_compact(struct ikvdb *handle, int flags)
 {
     struct ikvdb_impl *self = ikvdb_h2r(handle);
 
-    if (ev(self->ikdb_rdonly))
+    if (ev(self->ikdb_read_only))
         return;
 
     csched_compact_request(self->ikdb_csched, flags);
@@ -2610,7 +2610,7 @@ ikvdb_compact_status_get(struct ikvdb *handle, struct hse_kvdb_compact_status *s
 {
     struct ikvdb_impl *self = ikvdb_h2r(handle);
 
-    if (ev(self->ikdb_rdonly))
+    if (ev(self->ikdb_read_only))
         return;
 
     csched_compact_status_get(self->ikdb_csched, status);
@@ -2621,7 +2621,7 @@ ikvdb_sync(struct ikvdb *handle, const unsigned int flags)
 {
     struct ikvdb_impl *self = ikvdb_h2r(handle);
 
-    if (ev(self->ikdb_rdonly))
+    if (ev(self->ikdb_read_only))
         return merr(EROFS);
 
     if (self->ikdb_wal)

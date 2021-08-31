@@ -52,7 +52,7 @@ struct kvs_rparams {
     uint64_t cn_capped_vra;
 
     uint64_t cn_cursor_vra;
-    uint64_t cn_cursor_kra;
+    bool     cn_cursor_kra;
     uint64_t cn_cursor_seq;
 
     uint64_t cn_mcache_wbt;
@@ -80,8 +80,7 @@ struct kvs_rparams {
     bool     cn_diag_mode;
     bool     cn_verify;
 
-    bool kv_print_config;
-    bool rdonly;
+    bool read_only;
 
     char mclass_policy[HSE_MPOLICY_NAME_LEN_MAX];
 

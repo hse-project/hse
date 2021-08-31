@@ -291,7 +291,7 @@ cndb_init(
     cndb->cndb_entries_high_water = (entries / 4) * 3;
     cndb->cndb_workc_margin = CNDB_WORKC_MARGIN_DEFAULT;
     cndb->cndb_ds = ds;
-    cndb->cndb_rdonly = rdonly;
+    cndb->cndb_read_only = rdonly;
     cndb->cndb_kvdb_health = health;
 
     /* First txid is 1 */
@@ -1129,7 +1129,7 @@ cndb_blkdel(struct cndb *cndb, union cndb_mtu *mtu, u64 txid)
 
     enum { KBLK, VBLK } pass;
 
-    if (cndb->cndb_rdonly)
+    if (cndb->cndb_read_only)
         return 0;
 
     assert(mtu->h.mth_type == CNDB_TYPE_TXD || mtu->h.mth_type == CNDB_TYPE_TXC);
@@ -1368,7 +1368,7 @@ done:
     free(dacks);
 
     if (err)
-        cndb->cndb_rdonly = true;
+        cndb->cndb_read_only = true;
 
     cndb_validate_vector(cndb->cndb_workv, cndb->cndb_workc);
     cndb_validate_vector(cndb->cndb_keepv, cndb->cndb_keepc);
@@ -1406,7 +1406,7 @@ md_rollback(struct cndb *cndb, int from, int to)
     }
 
     if (err)
-        cndb->cndb_rdonly = true;
+        cndb->cndb_read_only = true;
 
     return err;
 }
@@ -1613,7 +1613,7 @@ md_keep(struct cndb *cndb, int from, int to)
      * this can only happen if the log is corrupted or if the messages
      * were corrupted by a logic error on the way in.
      *
-     * cndb_replay() will mark cndb_rdonly if cndb_compact fails.
+     * cndb_replay() will mark cndb_read_only if cndb_compact fails.
      */
     if (memcmp(tc, tm, nc * sizeof(*tc))) {
         err = merr(EBADMSG);
@@ -2092,7 +2092,7 @@ cndb_replay(struct cndb *cndb, u64 *seqno, u64 *ingestid, u64 *txhorizon)
         return err;
     }
     if (cndb->cndb_version != CNDB_VERSION) {
-        if (cndb->cndb_rdonly)
+        if (cndb->cndb_read_only)
             CNDB_LOG(
                 0,
                 cndb,
@@ -2157,7 +2157,7 @@ cndb_replay(struct cndb *cndb, u64 *seqno, u64 *ingestid, u64 *txhorizon)
         return err;
     }
 
-    if (cndb->cndb_rdonly)
+    if (cndb->cndb_read_only)
         err = cndb_compact(cndb);
     else
         err = cndb_rollover(cndb);
@@ -2167,12 +2167,12 @@ cndb_replay(struct cndb *cndb, u64 *seqno, u64 *ingestid, u64 *txhorizon)
             /* [HSE_REVISIT] implement more sophisticated workqueue
              * recovery with retries instead
              */
-            cndb->cndb_rdonly = true;
+            cndb->cndb_read_only = true;
             err = merr(EUCLEAN);
             CNDB_LOG(err, cndb, HSE_ERR, "");
         }
     } else {
-        CNDB_LOG(err, cndb, HSE_ERR, " %s failed", cndb->cndb_rdonly ? "compact" : "rollover");
+        CNDB_LOG(err, cndb, HSE_ERR, " %s failed", cndb->cndb_read_only ? "compact" : "rollover");
     }
 
     for (i = 0, cndb->cndb_cnid = 0; i < cndb->cndb_cnc; i++)
@@ -2397,7 +2397,7 @@ cndb_cn_instantiate(struct cndb *cndb, u64 cnid, void *ctx, cn_init_callback *cb
     /* Processes which open, close, and re-open cN require a compact.
      */
     if (!cndb->cndb_compacted) {
-        if (cndb->cndb_rdonly)
+        if (cndb->cndb_read_only)
             err = cndb_compact(cndb);
         else
             err = cndb_rollover(cndb);
@@ -2750,7 +2750,7 @@ cndb_accept(struct cndb *cndb, void *data, size_t sz)
 
     assert(cndb->cndb_kvdb_health);
 
-    if (cndb->cndb_rdonly) {
+    if (cndb->cndb_read_only) {
         err = merr(EROFS);
         CNDB_LOG(err, cndb, HSE_ERR, "");
         goto errout;
@@ -2777,7 +2777,7 @@ cndb_accept(struct cndb *cndb, void *data, size_t sz)
     if (count >= cndb->cndb_entries_high_water || usage >= cndb->cndb_high_water) {
         err = cndb_rollover(cndb);
         if (err) {
-            cndb->cndb_rdonly = true;
+            cndb->cndb_read_only = true;
             CNDB_LOG(err, cndb, HSE_ERR, " rollover failed");
             goto errout;
         }
@@ -2804,7 +2804,7 @@ cndb_accept(struct cndb *cndb, void *data, size_t sz)
         }
 
         if ((usage + sz) >= cndb->cndb_captgt || count >= cndb->cndb_entries) {
-            cndb->cndb_rdonly = true;
+            cndb->cndb_read_only = true;
             err = merr(ENOSPC);
             CNDB_LOG(err, cndb, HSE_ERR, " MDC full");
             kvdb_health_event(cndb->cndb_kvdb_health, KVDB_HEALTH_FLAG_CNDBFAIL, err);
@@ -3029,7 +3029,7 @@ cndb_cn_drop(struct cndb *cndb, u64 cnid)
 
     mutex_lock(&cndb->cndb_cnv_lock);
     mutex_lock(&cndb->cndb_lock);
-    ro = cndb->cndb_rdonly;
+    ro = cndb->cndb_read_only;
     mutex_unlock(&cndb->cndb_lock);
 
     if (ev(ro)) {

@@ -491,9 +491,9 @@ MTF_DEFINE_UTEST_PREPOST(cndb_test, cndb_cnv_add_test, test_pre, test_post)
         ASSERT_EQ(sizeof(*meta), metasz);
         ASSERT_EQ(*meta, expect);
 
-        cndb.cndb_rdonly = true;
+        cndb.cndb_read_only = true;
         err = cndb_cn_blob_set(&cndb, i, sizeof(expect8), &expect8);
-        cndb.cndb_rdonly = false;
+        cndb.cndb_read_only = false;
 
         ASSERT_EQ(EROFS, merr_errno(err));
 

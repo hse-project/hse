@@ -95,6 +95,8 @@ components = {
                 meson.current_source_dir() / 'config',
             ],
         },
+        'hse_gparams_test': {},
+        'param_test': {},
         'runtime_home_test': {},
     },
     'framework': {
@@ -103,8 +105,10 @@ components = {
     'kvdb': {
         'ctxn_perfc_test': {},
         'ikvdb_test': {},
+        'kvdb_cparams_test': {},
         'kvdb_ctxn_test': {},
         'kvdb_keylock_test': {},
+        'kvdb_health_test': {},
         'kvdb_home_test': {},
         'kvdb_meta_test': {
             'args': [
@@ -112,7 +116,7 @@ components = {
 			],
 		},
         'kvdb_rest_test': {},
-        'kvdb_health_test': {},
+        'kvdb_rparams_test': {},
         'mclass_policy_test': {},
         'sched_sts_test': {
             'cases': {
@@ -160,7 +164,9 @@ components = {
         },
     },
     'kvs': {
+        'kvs_cparams_test': {},
         'kvs_cursor_test': {},
+        'kvs_rparams_test': {},
     },
     'util': {
         'allocation_test': {},

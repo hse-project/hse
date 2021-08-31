@@ -71,7 +71,7 @@ static const struct param_spec pspecs[] = {
 		.ps_flags = 0,
 		.ps_type = PARAM_TYPE_BOOL,
 		.ps_offset = offsetof(struct hse_gparams, gp_logging.enabled),
-		.ps_size = sizeof(bool),
+		.ps_size = PARAM_SZ(struct hse_gparams, gp_logging.enabled),
 		.ps_convert = param_default_converter,
 		.ps_validate = param_default_validator,
 		.ps_default_value = {
@@ -84,7 +84,7 @@ static const struct param_spec pspecs[] = {
 		.ps_flags = 0,
 		.ps_type = PARAM_TYPE_BOOL,
 		.ps_offset = offsetof(struct hse_gparams, gp_logging.structured),
-		.ps_size = sizeof(bool),
+		.ps_size = PARAM_SZ(struct hse_gparams, gp_logging.structured),
 		.ps_convert = param_default_converter,
 		.ps_validate = param_default_validator,
 		.ps_default_value = {
@@ -97,7 +97,7 @@ static const struct param_spec pspecs[] = {
 		.ps_flags = 0,
 		.ps_type = PARAM_TYPE_ENUM,
 		.ps_offset = offsetof(struct hse_gparams, gp_logging.destination),
-		.ps_size = sizeof(enum log_destination),
+		.ps_size = PARAM_SZ(struct hse_gparams, gp_logging.destination),
 		.ps_convert = logging_destination_converter,
 		.ps_validate = param_default_validator,
 		.ps_default_value = {
@@ -113,7 +113,7 @@ static const struct param_spec pspecs[] = {
 	{
 		.ps_name = "logging.path",
 		.ps_description = "Name of log file when destination == file",
-		.ps_flags = PARAM_FLAG_NULLABLE,
+		.ps_flags = 0,
 		.ps_type = PARAM_TYPE_STRING,
 		.ps_offset = offsetof(struct hse_gparams, gp_logging.path),
 		.ps_convert = param_default_converter,
@@ -123,7 +123,7 @@ static const struct param_spec pspecs[] = {
 		},
 		.ps_bounds = {
 			.as_string = {
-				.ps_max_len = sizeof(((struct hse_gparams *)0)->gp_logging.path),
+				.ps_max_len = PARAM_SZ(struct hse_gparams, gp_logging.path),
 			},
 		},
 	},
@@ -131,7 +131,7 @@ static const struct param_spec pspecs[] = {
 		.ps_name = "logging.level",
 		.ps_description = "Maximum log level which will be written",
 		.ps_flags = 0,
-		.ps_type = PARAM_TYPE_I32,
+		.ps_type = PARAM_TYPE_ENUM,
 		.ps_offset = offsetof(struct hse_gparams, gp_logging.level),
 		.ps_size = sizeof(log_priority_t),
 		.ps_convert = param_default_converter,
@@ -248,7 +248,7 @@ static const struct param_spec pspecs[] = {
         },
         .ps_bounds = {
             .as_string = {
-                .ps_max_len = sizeof(((struct hse_gparams *)0)->gp_socket.path),
+                .ps_max_len = PARAM_SZ(struct hse_gparams, gp_socket.path),
             },
         },
     },

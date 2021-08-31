@@ -366,7 +366,7 @@ c0_sync(struct c0 *handle)
 {
     struct c0_impl *self = c0_h2r(handle);
 
-    if (self->c0_rp->rdonly)
+    if (self->c0_rp->read_only)
         return 0;
 
     return c0sk_sync(self->c0_c0sk, HSE_KVDB_SYNC_REFWAIT);

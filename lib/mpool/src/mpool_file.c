@@ -212,7 +212,7 @@ mpool_file_size(struct mpool_file *file)
 }
 
 merr_t
-mpool_file_mmap(struct mpool_file *file, bool rdonly, int advice, char **addr_out)
+mpool_file_mmap(struct mpool_file *file, bool read_only, int advice, char **addr_out)
 {
     char *addr;
     int prot, rc;
@@ -222,7 +222,7 @@ mpool_file_mmap(struct mpool_file *file, bool rdonly, int advice, char **addr_ou
         return merr(EINVAL);
 
     sz = mpool_file_size(file);
-    prot = rdonly ? PROT_READ : PROT_READ | PROT_WRITE;
+    prot = read_only ? PROT_READ : PROT_READ | PROT_WRITE;
 
     addr = mmap(NULL, sz, prot, MAP_SHARED, file->fd, 0);
     if (addr == MAP_FAILED)

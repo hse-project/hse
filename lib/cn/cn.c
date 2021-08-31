@@ -932,7 +932,7 @@ cn_tstate_create(struct cn *cn)
         omf_set_ts_magic(omf, CN_TSTATE_MAGIC);
         omf_set_ts_version(omf, CN_TSTATE_VERSION);
 
-        if (!ikvdb_rdonly(cn->ikvdb)) {
+        if (!ikvdb_read_only(cn->ikvdb)) {
             err = cndb_cn_blob_set(cn->cn_cndb, cn->cn_cnid, sizeof(*omf), omf);
             if (ev(err)) {
                 errmsg = "unable to store initial cn_tstate";
@@ -1200,7 +1200,7 @@ cn_open(
         rp->kvs_cursor_ttl = rp->cn_capped_ttl;
 
     /* Enable tree maintenance if we have a scheduler,
-     * and if replay, diag and rdonly are all false.
+     * and if replay, diag and read_only are all false.
      */
     cn->csched = ikvdb_get_csched(cn->ikvdb);
 
@@ -1213,7 +1213,7 @@ cn_open(
     }
 
     cn->cn_replay = flags & IKVS_OFLAG_REPLAY;
-    maint = cn->csched && !cn->cn_replay && !rp->cn_diag_mode && !rp->rdonly;
+    maint = cn->csched && !cn->cn_replay && !rp->cn_diag_mode && !rp->read_only;
 
     /* no perf counters in replay mode */
     if (!cn->cn_replay)

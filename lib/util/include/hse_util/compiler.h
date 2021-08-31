@@ -15,6 +15,12 @@
 #include <threads.h>
 #endif
 
+#if HSE_MOCKING
+#define hse_static
+#else
+#define hse_static static
+#endif
+
 /* Optimization barrier */
 /* The "volatile" is due to gcc bugs */
 #define barrier() asm volatile("" : : : "memory")

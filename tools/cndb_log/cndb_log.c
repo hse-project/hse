@@ -468,7 +468,7 @@ replay_log(struct tool_info *ti)
     if (ti->wpath)
         fatal(ti->wpath, EUNATCH);
 
-    ti->cndb->cndb_rdonly = true;
+    ti->cndb->cndb_read_only = true;
 
     /* read the version record, then rewind. */
     err = merr_to_hse_err(mpool_mdc_read(ti->cndb->cndb_mdc, ti->cndb->cndb_cbuf, ti->cndb->cndb_cbufsz, &len));

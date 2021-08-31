@@ -68,7 +68,7 @@ void
 wal_clean_set(struct wal *wal);
 
 bool
-wal_is_rdonly(struct wal *wal);
+wal_is_read_only(struct wal *wal);
 
 bool
 wal_is_clean(struct wal *wal);

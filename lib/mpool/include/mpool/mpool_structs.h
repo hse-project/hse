@@ -47,10 +47,10 @@ enum mpool_mclass {
  */
 struct mpool_cparams {
     struct {
-        size_t  fmaxsz;
-        size_t  mblocksz;
-        uint8_t filecnt;
-        char    path[PATH_MAX];
+        uint64_t fmaxsz;
+        uint32_t mblocksz;
+        uint8_t  filecnt;
+        char     path[PATH_MAX];
     } mclass[MP_MED_COUNT];
 };
 

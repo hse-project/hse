@@ -18,7 +18,7 @@
 #include <hse_util/compiler.h>
 #include <hse_util/hse_err.h>
 
-static merr_t
+hse_static merr_t
 argv_deserialize_to_params(
     const size_t                   paramc,
     const char *const *const       paramv,

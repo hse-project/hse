@@ -3133,7 +3133,7 @@ next_kblock:
         /* Can use 'cn_cursor_kblk_madv' to control use of madvise
          * with mcache map since this code is only used with cursors.
          */
-        preload_wbt_nodes = ks->ks_rp->cn_cursor_kra ? 1 : 0;
+        preload_wbt_nodes = ks->ks_rp->cn_cursor_kra;
         err = wbti_create(
             &iter->wbti, &kb->kb_kblk_desc, &kb->kb_wbt_desc, 0, iter->reverse, preload_wbt_nodes);
         if (ev(err))
@@ -3281,7 +3281,7 @@ kvset_iter_next_pt_key_mcache(struct kvset_iterator *iter, const void **kdata, u
             return 0;
         }
 
-        preload_wbt_nodes = ks->ks_rp->cn_cursor_kra ? 1 : 0;
+        preload_wbt_nodes = ks->ks_rp->cn_cursor_kra;
         err = wbti_create(
             &iter->pti,
             &ks->ks_kblks[pt_start].kb_kblk_desc,

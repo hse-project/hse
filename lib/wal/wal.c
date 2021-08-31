@@ -35,8 +35,8 @@ struct wal {
     struct wal_fileset     *wfset;
     struct wal_mdc         *mdc;
     struct throttle_sensor *wal_thr_sensor;
-    uint32_t                wal_thr_hwm;
-    uint32_t                wal_thr_lwm;
+    uint8_t                 wal_thr_hwm;
+    uint8_t                 wal_thr_lwm;
 
     atomic64_t              wal_rid HSE_ALIGNED(SMP_CACHE_BYTES);
     atomic64_t              wal_ingestseq;
@@ -54,7 +54,7 @@ struct wal {
     atomic64_t error HSE_ALIGNED(SMP_CACHE_BYTES);
     atomic_t   closing;
     bool       clean;
-    bool       rdonly;
+    bool       read_only;
     bool       timer_tid_valid;
     bool       sync_notify_tid_valid;
     pthread_t  timer_tid;
@@ -553,7 +553,7 @@ wal_open(
     wal->version = WAL_VERSION;
     wal->mp = mp;
     wal->health = health;
-    wal->rdonly = rp->read_only;
+    wal->read_only = rp->read_only;
     wal->ikvdb = ikdb;
     wal->buf_managed = rp->dur_buf_managed;
     wal->buf_flags = wal->buf_managed ? HSE_BTF_MANAGED : 0;
@@ -585,7 +585,7 @@ wal_open(
         return 0;
     }
 
-    if (wal->rdonly) {
+    if (wal->read_only) {
         *wal_out = wal;
         return 0;
     }
@@ -763,9 +763,9 @@ wal_clean_set(struct wal *wal)
 }
 
 bool
-wal_is_rdonly(struct wal *wal)
+wal_is_read_only(struct wal *wal)
 {
-    return wal->rdonly;
+    return wal->read_only;
 }
 
 bool

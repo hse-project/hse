@@ -211,12 +211,12 @@ void
 ikvdb_config_attach(struct ikvdb *kvdb, struct config *conf);
 
 /**
- * ikvdb_rdonly() - is the KVDB read only?
+ * ikvdb_read_only() - is the KVDB read only?
  * @kvdb:       kvdb handle
  */
 /* MTF_MOCK */
 bool
-ikvdb_rdonly(struct ikvdb *kvdb);
+ikvdb_read_only(struct ikvdb *kvdb);
 
 /**
  * ikvdb_kvs_close() - close the KVS
