@@ -111,7 +111,7 @@ cursor_read(void *args, struct hse_kvs_cursor *CURSOR)
             }
 
             err = hse_kvs_cursor_seek(
-                CURSOR, HSE_FLAG_NONE, expected_key_buf, info->key_size, NULL, NULL);
+                CURSOR, 0, expected_key_buf, info->key_size, NULL, NULL);
 
             if (err) {
                 hse_strerror(err, msg, sizeof(msg));
@@ -128,7 +128,7 @@ cursor_read(void *args, struct hse_kvs_cursor *CURSOR)
         }
 
         err = hse_kvs_cursor_read(
-            CURSOR, HSE_FLAG_NONE, &cur_key, &cur_klen, &cur_val, &cur_vlen, &eof);
+            CURSOR, 0, &cur_key, &cur_klen, &cur_val, &cur_vlen, &eof);
 
         if (err) {
             hse_strerror(err, msg, sizeof(msg));
@@ -258,7 +258,7 @@ point_insertion(void *args)
         }
 
         err = hse_kvs_put(
-            info->kvs, HSE_FLAG_NONE, txn, key_buf, sizeof(key_buf), val_buf, sizeof(val_buf));
+            info->kvs, 0, txn, key_buf, sizeof(key_buf), val_buf, sizeof(val_buf));
 
         if (err) {
             hse_strerror(err, msg, sizeof(msg));

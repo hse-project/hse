@@ -137,7 +137,7 @@ do_inserts(void *args)
     kvs = params->kvs;
     txn = NULL;
     txn_table[0].kvs = kvs;
-    flags = HSE_FLAG_NONE;
+    flags = 0;
 
     for (txn_idx = 0; txn_idx < transactions_per_thread; txn_idx++) {
         if (params->transaction == KVS_PER_TXN) {
@@ -543,7 +543,7 @@ do_sync(struct test_params *params)
 
     log_info("begin sync kvdb \"%s\"", params->kvdb_home);
 
-    err = hse_kvdb_sync(params->kvdb, HSE_FLAG_NONE);
+    err = hse_kvdb_sync(params->kvdb, 0);
     if (err) {
         hse_strerror(err, msg, sizeof(msg));
         log_error("hse_kvdb_sync: errno=%d msg=\"%s\"", msg);

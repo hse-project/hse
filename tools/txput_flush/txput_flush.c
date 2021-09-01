@@ -31,7 +31,7 @@ flush_kvs(void *arg)
 	struct thread_arg *targ = arg;
 
 	while (!killthreads) {
-		hse_kvdb_sync(targ->kvdb, HSE_FLAG_SYNC_ASYNC);
+		hse_kvdb_sync(targ->kvdb, HSE_KVDB_SYNC_ASYNC);
 		usleep(100*1000);
 	}
 }

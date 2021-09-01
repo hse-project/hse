@@ -77,7 +77,7 @@ kvdb_sync_handler(size_t timer_id, void *user_data)
     char             msg[100];
 
     kvdb_sync_flag = 1;
-    err = hse_kvdb_sync(kvdb, HSE_FLAG_NONE);
+    err = hse_kvdb_sync(kvdb, 0);
     kvdb_sync_flag = 0;
 
     if (err) {
@@ -170,7 +170,7 @@ verify_cursor(struct cursor_test_data *info, struct cursor_list *cursor_list)
                 }
 
                 err = hse_kvs_cursor_seek(
-                    cursor, HSE_FLAG_NONE, expected_key_buf, info->key_size, NULL, NULL);
+                    cursor, 0, expected_key_buf, info->key_size, NULL, NULL);
 
                 if (err) {
                     hse_strerror(err, msg, sizeof(msg));
@@ -187,7 +187,7 @@ verify_cursor(struct cursor_test_data *info, struct cursor_list *cursor_list)
             }
 
             err = hse_kvs_cursor_read(
-                cursor, HSE_FLAG_NONE, &cur_key, &cur_klen, &cur_val, &cur_vlen, &eof);
+                cursor, 0, &cur_key, &cur_klen, &cur_val, &cur_vlen, &eof);
 
             if (err) {
                 hse_strerror(err, msg, sizeof(msg));
@@ -310,7 +310,7 @@ insert_key_fast(void *args)
                 log_debug("hse_kvs_cursor_create: rank=%d cursor=%d", info->rank, i);
             }
 
-            err = hse_kvs_cursor_create(info->kvs, HSE_FLAG_NONE, NULL, NULL, 0, &CURSOR);
+            err = hse_kvs_cursor_create(info->kvs, 0, NULL, NULL, 0, &CURSOR);
             tmp_errno = hse_err_to_errno(err);
 
             if (tmp_errno == EAGAIN)
@@ -371,7 +371,7 @@ insert_key_fast(void *args)
 
                 err = hse_kvs_put(
                     info->kvs,
-                    HSE_FLAG_NONE,
+                    0,
                     NULL,
                     key_buf,
                     info->key_size,
@@ -407,7 +407,7 @@ insert_key_fast(void *args)
                 log_debug("hse_kvs_cursor_update_view: rank=%d cursor=%d", info->rank, i);
             }
 
-            err = hse_kvs_cursor_update_view(cursor_table[i].cursor, HSE_FLAG_NONE);
+            err = hse_kvs_cursor_update_view(cursor_table[i].cursor, 0);
             tmp_errno = hse_err_to_errno(err);
 
             if (tmp_errno == EAGAIN)
@@ -573,7 +573,7 @@ cursor_with_transactions(void *args)
 
                     err = hse_kvs_put(
                         info->kvs,
-                        HSE_FLAG_NONE,
+                        0,
                         txn,
                         key_buf,
                         info->key_size,
@@ -614,7 +614,7 @@ cursor_with_transactions(void *args)
                         cursor_index);
                 }
 
-                err = hse_kvs_cursor_create(info->kvs, HSE_FLAG_NONE, txn, NULL, 0, &CURSOR);
+                err = hse_kvs_cursor_create(info->kvs, 0, txn, NULL, 0, &CURSOR);
                 tmp_errno = hse_err_to_errno(err);
                 if (tmp_errno == EAGAIN)
                     sleep(10);
@@ -884,7 +884,7 @@ execute_test(struct cursor_test_data *params)
         }
 
         timer_finalize();
-        err = hse_kvdb_sync(kvdb, HSE_FLAG_NONE);
+        err = hse_kvdb_sync(kvdb, 0);
 
         if (err) {
             hse_strerror(err, msg, sizeof(msg));

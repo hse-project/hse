@@ -609,7 +609,7 @@ hse_kvs_get(
     enum key_lookup_res res;
     merr_t              err;
 
-    if (HSE_UNLIKELY(!handle || !key || !found || !val_len || flags != HSE_FLAG_NONE))
+    if (HSE_UNLIKELY(!handle || !key || !found || !val_len || flags != 0))
         return merr_to_hse_err(merr(EINVAL));
 
     if (HSE_UNLIKELY(!valbuf && valbuf_sz > 0))
@@ -665,7 +665,7 @@ hse_kvs_delete(
     merr_t            err = 0;
     struct kvs_ktuple kt;
 
-    if (HSE_UNLIKELY(!handle || !key || flags != HSE_FLAG_NONE))
+    if (HSE_UNLIKELY(!handle || !key || flags != 0))
         return merr_to_hse_err(merr(EINVAL));
 
     if (HSE_UNLIKELY(key_len > HSE_KVS_KEY_LEN_MAX))
@@ -697,7 +697,7 @@ hse_kvs_prefix_delete(
     merr_t            err;
     struct kvs_ktuple kt;
 
-    if (HSE_UNLIKELY(!handle || flags != HSE_FLAG_NONE))
+    if (HSE_UNLIKELY(!handle || flags != 0))
         return merr_to_hse_err(merr(EINVAL));
 
     if (HSE_UNLIKELY(key_len > HSE_KVS_PFX_LEN_MAX))
@@ -874,7 +874,7 @@ hse_kvs_cursor_update_view(
 {
     merr_t err;
 
-    if (HSE_UNLIKELY(!cursor || flags != HSE_FLAG_NONE))
+    if (HSE_UNLIKELY(!cursor || flags != 0))
         return merr_to_hse_err(merr(EINVAL));
 
     PERFC_INC_RU(&kvdb_pc, PERFC_RA_KVDBOP_KVS_CURSOR_UPDATE);
@@ -897,7 +897,7 @@ hse_kvs_cursor_seek(
     struct kvs_ktuple kt;
     merr_t            err;
 
-    if (HSE_UNLIKELY(!cursor || flags != HSE_FLAG_NONE))
+    if (HSE_UNLIKELY(!cursor || flags != 0))
         return merr_to_hse_err(merr(EINVAL));
 
     PERFC_INC_RU(&kvdb_pc, PERFC_RA_KVDBOP_KVS_CURSOR_SEEK);
@@ -928,7 +928,7 @@ hse_kvs_cursor_seek_range(
     struct kvs_ktuple kt;
     merr_t            err;
 
-    if (HSE_UNLIKELY(!cursor || flags != HSE_FLAG_NONE))
+    if (HSE_UNLIKELY(!cursor || flags != 0))
         return merr_to_hse_err(merr(EINVAL));
 
     PERFC_INC_RU(&kvdb_pc, PERFC_RA_KVDBOP_KVS_CURSOR_SEEK);
@@ -957,7 +957,7 @@ hse_kvs_cursor_read(
 {
     merr_t err;
 
-    if (HSE_UNLIKELY(!cursor || !key || !klen || !val || !vlen || !eof || flags != HSE_FLAG_NONE))
+    if (HSE_UNLIKELY(!cursor || !key || !klen || !val || !vlen || !eof || flags != 0))
         return merr_to_hse_err(merr(EINVAL));
 
     err = ikvdb_kvs_cursor_read(cursor, flags, key, klen, val, vlen, eof);

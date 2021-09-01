@@ -856,7 +856,7 @@ hse_kvs_cursor_destroy(struct hse_kvs_cursor *cursor);
 /** @brief Sync data in all of the referenced KVDB's KVSs to stable media and return.
  *
  * <b>Flags:</b>
- * @arg HSE_FLAG_SYNC_ASYNC - Return immediately after initiating operation instead
+ * @arg HSE_KVDB_SYNC_ASYNC - Return immediately after initiating operation instead
  *                            of waiting for completion.
  *
  * @param kvdb:  KVDB handle from hse_kvdb_open().
@@ -889,7 +889,7 @@ hse_kvdb_sync(struct hse_kvdb *kvdb, unsigned int flags);
  * normal operation. To achieve this, the client calls this function in the following
  * fashion:
  *
- *     hse_kvdb_compact(<kvdb handle>, HSE_FLAG_KVDB_COMPACT_SAMP_LWM);
+ *     hse_kvdb_compact(<kvdb handle>, HSE_KVDB_COMPACT_SAMP_LWM);
  *
  * To cancel an ongoing compaction request for a KVDB:
  *

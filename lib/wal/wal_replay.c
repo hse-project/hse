@@ -591,7 +591,7 @@ wal_replay_core(struct wal_replay *rep)
     cur = list_first_entry_or_null(&rep->r_head, typeof(*cur), rg_link);
     if (cur && cur->rg_bytes != 0) {
         if (ikvdb_wal_replay_size_set(ikvdb, rep->r_ikvsh, cur->rg_bytes))
-            ikvdb_sync(ikvdb, HSE_FLAG_SYNC_ASYNC);
+            ikvdb_sync(ikvdb, HSE_KVDB_SYNC_ASYNC);
     }
 
     list_for_each_entry_safe(cur, next, &rep->r_head, rg_link) {
@@ -613,7 +613,7 @@ wal_replay_core(struct wal_replay *rep)
         last_entry = !next;
 
         if (flush || cur->rg_krcnt || last_entry) {
-            err = ikvdb_sync(ikvdb, last_entry ? 0 : HSE_FLAG_SYNC_ASYNC);
+            err = ikvdb_sync(ikvdb, last_entry ? 0 : HSE_KVDB_SYNC_ASYNC);
             if (err) {
                 ikvdb_wal_replay_disable(ikvdb);
                 return err;

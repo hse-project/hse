@@ -35,7 +35,7 @@ hse_kvs_prefix_probe(
     merr_t              err = 0;
     u64 sum             HSE_MAYBE_UNUSED;
 
-    if (!handle || !pfx || !pfx_len || !found || !val_len || flags != HSE_FLAG_NONE)
+    if (!handle || !pfx || !pfx_len || !found || !val_len || flags != 0)
         err = merr(EINVAL);
     else if (!valbuf && valbuf_sz > 0)
         err = merr(EINVAL);
