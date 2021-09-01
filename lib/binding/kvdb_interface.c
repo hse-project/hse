@@ -487,6 +487,8 @@ hse_kvdb_storage_info_get(struct hse_kvdb *kvdb, struct hse_kvdb_storage_info *i
     if (HSE_UNLIKELY(!kvdb || !info))
         return merr_to_hse_err(merr(EINVAL));
 
+    memset(info, 0, sizeof(*info));
+
     return merr_to_hse_err(ikvdb_storage_info_get((struct ikvdb *)kvdb, info));
 }
 
