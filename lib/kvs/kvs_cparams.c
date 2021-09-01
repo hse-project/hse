@@ -32,7 +32,7 @@ static const struct param_spec pspecs[] = {
         },
     },
     {
-        .ps_name = "pfx_len",
+        .ps_name = "prefix.length",
         .ps_description = "Key prefix length",
         .ps_flags = 0,
         .ps_type = PARAM_TYPE_U32,
@@ -51,7 +51,7 @@ static const struct param_spec pspecs[] = {
         },
     },
     {
-        .ps_name = "pfx_pivot",
+        .ps_name = "prefix.pivot",
         .ps_description = "First level to spill with full hash, only applies when pfx_len > 0 (0=root)",
         .ps_flags = PARAM_FLAG_EXPERIMENTAL,
         .ps_type = PARAM_TYPE_U32,
@@ -89,7 +89,7 @@ static const struct param_spec pspecs[] = {
         },
     },
     {
-        .ps_name = "sfx_len",
+        .ps_name = "suffix.length",
         .ps_description = "Key suffix length",
         .ps_flags = PARAM_FLAG_EXPERIMENTAL,
         .ps_type = PARAM_TYPE_U32,
@@ -122,6 +122,7 @@ kvs_cparams_defaults()
 {
     struct kvs_cparams params;
     const union params p = { .as_kvs_cp = &params };
+
     param_default_populate(pspecs, NELEM(pspecs), p);
     return params;
 }

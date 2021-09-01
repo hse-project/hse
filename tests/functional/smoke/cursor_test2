@@ -10,7 +10,7 @@ source $(dirname "${BASH_SOURCE[0]}")/smoke.subr
 trap kvdb_drop EXIT
 kvdb_create
 
-kvs=$(kvs_create smoke-0 pfx_len=8) || $?
+kvs=$(kvs_create smoke-0 prefix.length=8) || $?
 
 range_read_logs="$home/range_read_logs"
 

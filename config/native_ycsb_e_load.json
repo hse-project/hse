@@ -1,7 +1,9 @@
 {
   "kvs": {
     "default": {
-      "pfx_len": 7
+      "prefix": {
+        "length": 7
+      }
     }
   }
 }

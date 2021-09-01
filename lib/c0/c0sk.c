@@ -690,7 +690,7 @@ c0sk_throttle_sensor(struct c0sk *handle, struct throttle_sensor *sensor)
         uint senval = THROTTLE_SENSOR_SCALE / 3;
         uint finlat = 30000;
 
-        if (0 == strcmp(self->c0sk_kvdb_rp->throttle_init_policy, "light")) {
+        if (self->c0sk_kvdb_rp->throttle_init_policy == THROTTLE_DELAY_START_LIGHT) {
             finlat = 6000;
             senval = 0;
         }

@@ -166,20 +166,6 @@ mpool_mclass_destroy(enum mpool_mclass mclass, const struct mpool_dparams *dpara
         mclass_destroy(path, NULL);
 }
 
-const char *
-mpool_mclass_default_path_get(const enum mpool_mclass mc)
-{
-    switch (mc) {
-        case MP_MED_CAPACITY:
-            return MPOOL_CAPACITY_MCLASS_DEFAULT_PATH;
-        case MP_MED_STAGING:
-            return NULL;
-        default:
-            assert(false);
-            return NULL;
-    }
-}
-
 merr_t
 mpool_create(const char *home, const struct mpool_cparams *cparams)
 {

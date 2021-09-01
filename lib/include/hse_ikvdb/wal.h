@@ -21,6 +21,7 @@
 #define HSE_WAL_DUR_BUFSZ_MB_MAX   (8192ul)
 
 struct wal;
+struct throttle_sensor;
 
 /* MTF_MOCK_DECL(wal) */
 

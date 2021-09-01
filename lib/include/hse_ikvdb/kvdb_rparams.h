@@ -45,59 +45,59 @@
  * fields towards the end.
  */
 struct kvdb_rparams {
-    uint8_t  read_only;
-    uint8_t  throttle_disable;
-    uint8_t  perfc_enable;
-    uint8_t  c0_diag_mode;
-    uint8_t  c0_debug;
+    bool    read_only;
+    bool    throttle_disable;
+    uint8_t perfc_enable;
+    bool    c0_diag_mode;
+    uint8_t c0_debug;
 
     uint32_t c0_ingest_width;
 
     uint64_t txn_timeout;
 
-    uint32_t csched_policy;
     uint64_t csched_debug_mask;
     uint64_t csched_node_len_max;
     uint64_t csched_qthreads;
     uint64_t csched_samp_max;
-    uint64_t csched_lo_th_pct;
-    uint64_t csched_hi_th_pct;
-    uint64_t csched_leaf_pct;
-    uint64_t csched_vb_scatter_pct;
+    uint32_t csched_policy;
+    uint8_t  csched_lo_th_pct;
+    uint8_t  csched_hi_th_pct;
+    uint8_t  csched_leaf_pct;
+    uint8_t  csched_vb_scatter_pct;
     uint64_t csched_rspill_params;
     uint64_t csched_ispill_params;
     uint64_t csched_leaf_comp_params;
     uint64_t csched_leaf_len_params;
     uint64_t csched_node_min_ttl;
 
-    uint32_t dur_enable;
-    uint32_t dur_intvl_ms;
-    uint64_t dur_bufsz_mb;
-    uint32_t dur_throttle_lo_th;
-    uint32_t dur_throttle_hi_th;
-    bool     dur_buf_managed;
-    char     dur_mclass[MP_MED_NAME_LEN_MAX];
+    uint64_t          dur_bufsz_mb;
+    bool              dur_enable;
+    uint32_t          dur_intvl_ms;
+    uint8_t           dur_throttle_lo_th;
+    uint8_t           dur_throttle_hi_th;
+    bool              dur_buf_managed;
+    enum mpool_mclass dur_mclass;
 
     uint64_t throttle_update_ns;
-    uint32_t throttle_relax;
+    uint8_t  throttle_relax;
     uint32_t throttle_debug;
     uint32_t throttle_debug_intvl_s;
     uint32_t throttle_c0_hi_th;
     uint64_t throttle_burst;
     uint64_t throttle_rate;
-    char     throttle_init_policy[THROTTLE_INIT_POLICY_NAME_LEN_MAX];
+    uint     throttle_init_policy; /* [HSE_REVISIT]: Make this a fixed width type */
 
     /* The following fields are typically only accessed by kvdb open
      * and hence are extremely cold.
      */
     uint64_t txn_wkth_delay;
     uint32_t cndb_entries;
-    uint32_t cndb_debug;
+    bool     cndb_debug;
     uint32_t c0_maint_threads;
     uint32_t c0_ingest_threads;
 
     uint32_t keylock_tables;
-    uint32_t low_mem;
+    bool     low_mem;
 
     struct mclass_policy mclass_policies[HSE_MPOLICY_COUNT];
 };

@@ -8,6 +8,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include <hse_util/compiler.h>
 #include <hse_util/logging.h>
 #include <hse_ikvdb/mclass_policy.h>
 #include <hse_ikvdb/param.h>
@@ -58,6 +59,32 @@ validate_cn_node_size_hi(const struct param_spec *ps, const union params params)
     return true;
 }
 
+static bool HSE_NONNULL(1, 2, 3)
+compression_value_algorithm_converter(
+    const struct param_spec *const ps,
+    const cJSON *const             node,
+    void *const                    data)
+{
+    static const char *algos[VCOMP_ALGO_COUNT] = { VCOMP_PARAM_NONE, VCOMP_PARAM_LZ4 };
+
+    assert(ps);
+    assert(node);
+    assert(data);
+
+    if (!cJSON_IsString(node))
+        return false;
+
+    const char *value = cJSON_GetStringValue(node);
+    for (size_t i = VCOMP_ALGO_NONE; i < NELEM(algos); i++) {
+        if (!strcmp(algos[i], value)) {
+            *(enum vcomp_algorithm *)data = i;
+            return true;
+        }
+    }
+
+    return false;
+}
+
 static const struct param_spec pspecs[] = {
     {
         .ps_name = "kvs_debug",
@@ -65,7 +92,7 @@ static const struct param_spec pspecs[] = {
         .ps_flags = PARAM_FLAG_EXPERIMENTAL | PARAM_FLAG_WRITABLE,
         .ps_type = PARAM_TYPE_U64,
         .ps_offset = offsetof(struct kvs_rparams, kvs_debug),
-        .ps_size = sizeof(((struct kvs_rparams *) 0)->kvs_debug),
+        .ps_size = PARAM_SZ(struct kvs_rparams, kvs_debug),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
         .ps_default_value = {
@@ -84,7 +111,7 @@ static const struct param_spec pspecs[] = {
         .ps_flags = PARAM_FLAG_EXPERIMENTAL,
         .ps_type = PARAM_TYPE_U64,
         .ps_offset = offsetof(struct kvs_rparams, kvs_cursor_ttl),
-        .ps_size = sizeof(((struct kvs_rparams *) 0)->kvs_cursor_ttl),
+        .ps_size = PARAM_SZ(struct kvs_rparams, kvs_cursor_ttl),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
         .ps_default_value = {
@@ -98,22 +125,16 @@ static const struct param_spec pspecs[] = {
         },
     },
     {
-        .ps_name = "transactions_enable",
+        .ps_name = "transactions.enabled",
         .ps_description = "enable transactions for the kvs",
         .ps_flags = 0,
-        .ps_type = PARAM_TYPE_U64,
+        .ps_type = PARAM_TYPE_BOOL,
         .ps_offset = offsetof(struct kvs_rparams, transactions_enable),
-        .ps_size = sizeof(((struct kvs_rparams *) 0)->transactions_enable),
+        .ps_size = PARAM_SZ(struct kvs_rparams, transactions_enable),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
         .ps_default_value = {
-            .as_uscalar = 0,
-        },
-        .ps_bounds = {
-            .as_uscalar = {
-                .ps_min = 0,
-                .ps_max = 1,
-            },
+            .as_bool = false,
         },
     },
     {
@@ -122,7 +143,7 @@ static const struct param_spec pspecs[] = {
         .ps_flags = PARAM_FLAG_EXPERIMENTAL,
         .ps_type = PARAM_TYPE_U64,
         .ps_offset = offsetof(struct kvs_rparams, cn_node_size_lo),
-        .ps_size = sizeof(((struct kvs_rparams *) 0)->cn_node_size_lo),
+        .ps_size = PARAM_SZ(struct kvs_rparams, cn_node_size_lo),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
         .ps_validate_relations = validate_cn_node_size_lo,
@@ -142,7 +163,7 @@ static const struct param_spec pspecs[] = {
         .ps_flags = PARAM_FLAG_EXPERIMENTAL,
         .ps_type = PARAM_TYPE_U64,
         .ps_offset = offsetof(struct kvs_rparams, cn_node_size_hi),
-        .ps_size = sizeof(((struct kvs_rparams *) 0)->cn_node_size_hi),
+        .ps_size = PARAM_SZ(struct kvs_rparams, cn_node_size_hi),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
         .ps_validate_relations = validate_cn_node_size_hi,
@@ -162,7 +183,7 @@ static const struct param_spec pspecs[] = {
         .ps_flags = PARAM_FLAG_EXPERIMENTAL,
         .ps_type = PARAM_TYPE_U64,
         .ps_offset = offsetof(struct kvs_rparams, cn_compact_vblk_ra),
-        .ps_size = sizeof(((struct kvs_rparams *) 0)->cn_compact_vblk_ra),
+        .ps_size = PARAM_SZ(struct kvs_rparams, cn_compact_vblk_ra),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
         .ps_default_value = {
@@ -181,7 +202,7 @@ static const struct param_spec pspecs[] = {
         .ps_flags = PARAM_FLAG_EXPERIMENTAL,
         .ps_type = PARAM_TYPE_U64,
         .ps_offset = offsetof(struct kvs_rparams, cn_compact_vra),
-        .ps_size = sizeof(((struct kvs_rparams *) 0)->cn_compact_vra),
+        .ps_size = PARAM_SZ(struct kvs_rparams, cn_compact_vra),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
         .ps_default_value = {
@@ -200,7 +221,7 @@ static const struct param_spec pspecs[] = {
         .ps_flags = PARAM_FLAG_EXPERIMENTAL | PARAM_FLAG_WRITABLE,
         .ps_type = PARAM_TYPE_U64,
         .ps_offset = offsetof(struct kvs_rparams, cn_compact_kblk_ra),
-        .ps_size = sizeof(((struct kvs_rparams *) 0)->cn_compact_kblk_ra),
+        .ps_size = PARAM_SZ(struct kvs_rparams, cn_compact_kblk_ra),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
         .ps_default_value = {
@@ -219,7 +240,7 @@ static const struct param_spec pspecs[] = {
         .ps_flags = PARAM_FLAG_EXPERIMENTAL,
         .ps_type = PARAM_TYPE_U64,
         .ps_offset = offsetof(struct kvs_rparams, cn_capped_ttl),
-        .ps_size = sizeof(((struct kvs_rparams *) 0)->cn_capped_ttl),
+        .ps_size = PARAM_SZ(struct kvs_rparams, cn_capped_ttl),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
         .ps_default_value = {
@@ -238,7 +259,7 @@ static const struct param_spec pspecs[] = {
         .ps_flags = PARAM_FLAG_EXPERIMENTAL,
         .ps_type = PARAM_TYPE_U64,
         .ps_offset = offsetof(struct kvs_rparams, cn_capped_vra),
-        .ps_size = sizeof(((struct kvs_rparams *) 0)->cn_capped_vra),
+        .ps_size = PARAM_SZ(struct kvs_rparams, cn_capped_vra),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
         .ps_default_value = {
@@ -257,7 +278,7 @@ static const struct param_spec pspecs[] = {
         .ps_flags = PARAM_FLAG_EXPERIMENTAL,
         .ps_type = PARAM_TYPE_U64,
         .ps_offset = offsetof(struct kvs_rparams, cn_cursor_vra),
-        .ps_size = sizeof(((struct kvs_rparams *) 0)->cn_cursor_vra),
+        .ps_size = PARAM_SZ(struct kvs_rparams, cn_cursor_vra),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
         .ps_default_value = {
@@ -274,19 +295,13 @@ static const struct param_spec pspecs[] = {
         .ps_name = "cn_cursor_kra",
         .ps_description = "cursor kblk madvise-ahead (boolean)",
         .ps_flags = PARAM_FLAG_EXPERIMENTAL,
-        .ps_type = PARAM_TYPE_U64,
+        .ps_type = PARAM_TYPE_BOOL,
         .ps_offset = offsetof(struct kvs_rparams, cn_cursor_kra),
-        .ps_size = sizeof(((struct kvs_rparams *) 0)->cn_cursor_kra),
+        .ps_size = PARAM_SZ(struct kvs_rparams, cn_cursor_kra),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
         .ps_default_value = {
-            .as_uscalar = 0,
-        },
-        .ps_bounds = {
-            .as_uscalar = {
-                .ps_min = 0,
-                .ps_max = 1,
-            },
+            .as_bool = false,
         },
     },
     {
@@ -295,7 +310,7 @@ static const struct param_spec pspecs[] = {
         .ps_flags = PARAM_FLAG_EXPERIMENTAL,
         .ps_type = PARAM_TYPE_U64,
         .ps_offset = offsetof(struct kvs_rparams, cn_cursor_seq),
-        .ps_size = sizeof(((struct kvs_rparams *) 0)->cn_cursor_seq),
+        .ps_size = PARAM_SZ(struct kvs_rparams, cn_cursor_seq),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
         .ps_default_value = {
@@ -309,12 +324,13 @@ static const struct param_spec pspecs[] = {
         },
     },
     {
+        /* [HSE_REVISIT]: convert this to an enum */
         .ps_name = "cn_mcache_wbt",
         .ps_description = "eagerly cache wbt nodes (1:internal, 2:leaves, 3:both)",
         .ps_flags = PARAM_FLAG_EXPERIMENTAL,
         .ps_type = PARAM_TYPE_U64,
         .ps_offset = offsetof(struct kvs_rparams, cn_mcache_wbt),
-        .ps_size = sizeof(((struct kvs_rparams *) 0)->cn_mcache_wbt),
+        .ps_size = PARAM_SZ(struct kvs_rparams, cn_mcache_wbt),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
         .ps_default_value = {
@@ -322,7 +338,7 @@ static const struct param_spec pspecs[] = {
         },
         .ps_bounds = {
             .as_uscalar = {
-                .ps_min = 1,
+                .ps_min = 0,
                 .ps_max = 3,
             },
         },
@@ -333,11 +349,11 @@ static const struct param_spec pspecs[] = {
         .ps_flags = PARAM_FLAG_EXPERIMENTAL,
         .ps_type = PARAM_TYPE_U64,
         .ps_offset = offsetof(struct kvs_rparams, cn_mcache_vminlvl),
-        .ps_size = sizeof(((struct kvs_rparams *) 0)->cn_mcache_vminlvl),
+        .ps_size = PARAM_SZ(struct kvs_rparams, cn_mcache_vminlvl),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
         .ps_default_value = {
-            .as_uscalar = U16_MAX,
+            .as_uscalar = UINT16_MAX,
         },
         .ps_bounds = {
             .as_uscalar = {
@@ -352,7 +368,7 @@ static const struct param_spec pspecs[] = {
         .ps_flags = PARAM_FLAG_EXPERIMENTAL,
         .ps_type = PARAM_TYPE_U64,
         .ps_offset = offsetof(struct kvs_rparams, cn_mcache_vmin),
-        .ps_size = sizeof(((struct kvs_rparams *) 0)->cn_mcache_vmin),
+        .ps_size = PARAM_SZ(struct kvs_rparams, cn_mcache_vmin),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
         .ps_default_value = {
@@ -371,7 +387,7 @@ static const struct param_spec pspecs[] = {
         .ps_flags = PARAM_FLAG_EXPERIMENTAL | PARAM_FLAG_WRITABLE,
         .ps_type = PARAM_TYPE_U64,
         .ps_offset = offsetof(struct kvs_rparams, cn_mcache_vmax),
-        .ps_size = sizeof(((struct kvs_rparams *) 0)->cn_mcache_vmax),
+        .ps_size = PARAM_SZ(struct kvs_rparams, cn_mcache_vmax),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
         .ps_default_value = {
@@ -390,7 +406,7 @@ static const struct param_spec pspecs[] = {
         .ps_flags = PARAM_FLAG_EXPERIMENTAL,
         .ps_type = PARAM_TYPE_U64,
         .ps_offset = offsetof(struct kvs_rparams, cn_mcache_kra_params),
-        .ps_size = sizeof(((struct kvs_rparams *) 0)->cn_mcache_kra_params),
+        .ps_size = PARAM_SZ(struct kvs_rparams, cn_mcache_kra_params),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
         .ps_default_value = {
@@ -409,7 +425,7 @@ static const struct param_spec pspecs[] = {
         .ps_flags = PARAM_FLAG_EXPERIMENTAL,
         .ps_type = PARAM_TYPE_U64,
         .ps_offset = offsetof(struct kvs_rparams, cn_mcache_vra_params),
-        .ps_size = sizeof(((struct kvs_rparams *) 0)->cn_mcache_vra_params),
+        .ps_size = PARAM_SZ(struct kvs_rparams, cn_mcache_vra_params),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
         .ps_default_value = {
@@ -426,57 +442,39 @@ static const struct param_spec pspecs[] = {
         .ps_name = "cn_diag_mode",
         .ps_description = "enable/disable cn diag mode",
         .ps_flags = PARAM_FLAG_EXPERIMENTAL,
-        .ps_type = PARAM_TYPE_U64,
+        .ps_type = PARAM_TYPE_BOOL,
         .ps_offset = offsetof(struct kvs_rparams, cn_diag_mode),
-        .ps_size = sizeof(((struct kvs_rparams *) 0)->cn_diag_mode),
+        .ps_size = PARAM_SZ(struct kvs_rparams, cn_diag_mode),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
         .ps_default_value = {
-            .as_uscalar = 0,
-        },
-        .ps_bounds = {
-            .as_uscalar = {
-                .ps_min = 0,
-                .ps_max = 1,
-            },
+            .as_bool = false,
         },
     },
     {
         .ps_name = "cn_maint_disable",
         .ps_description = "disable cn maintenance",
         .ps_flags = PARAM_FLAG_EXPERIMENTAL | PARAM_FLAG_WRITABLE,
-        .ps_type = PARAM_TYPE_U64,
+        .ps_type = PARAM_TYPE_BOOL,
         .ps_offset = offsetof(struct kvs_rparams, cn_maint_disable),
-        .ps_size = sizeof(((struct kvs_rparams *) 0)->cn_maint_disable),
+        .ps_size = PARAM_SZ(struct kvs_rparams, cn_maint_disable),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
         .ps_default_value = {
-            .as_uscalar = 0,
-        },
-        .ps_bounds = {
-            .as_uscalar = {
-                .ps_min = 0,
-                .ps_max = 1,
-            },
+            .as_bool = true,
         },
     },
     {
         .ps_name = "cn_bloom_create",
         .ps_description = "enable bloom creation",
         .ps_flags = PARAM_FLAG_EXPERIMENTAL,
-        .ps_type = PARAM_TYPE_U64,
+        .ps_type = PARAM_TYPE_BOOL,
         .ps_offset = offsetof(struct kvs_rparams, cn_bloom_create),
-        .ps_size = sizeof(((struct kvs_rparams *) 0)->cn_bloom_create),
+        .ps_size = PARAM_SZ(struct kvs_rparams, cn_bloom_create),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
         .ps_default_value = {
-            .as_uscalar = 1,
-        },
-        .ps_bounds = {
-            .as_uscalar = {
-                .ps_min = 0,
-                .ps_max = 1,
-            },
+            .as_bool = true,
         },
     },
     {
@@ -485,7 +483,7 @@ static const struct param_spec pspecs[] = {
         .ps_flags = PARAM_FLAG_EXPERIMENTAL,
         .ps_type = PARAM_TYPE_U64,
         .ps_offset = offsetof(struct kvs_rparams, cn_bloom_lookup),
-        .ps_size = sizeof(((struct kvs_rparams *) 0)->cn_bloom_lookup),
+        .ps_size = PARAM_SZ(struct kvs_rparams, cn_bloom_lookup),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
         .ps_default_value = {
@@ -504,7 +502,7 @@ static const struct param_spec pspecs[] = {
         .ps_flags = PARAM_FLAG_EXPERIMENTAL,
         .ps_type = PARAM_TYPE_U64,
         .ps_offset = offsetof(struct kvs_rparams, cn_bloom_prob),
-        .ps_size = sizeof(((struct kvs_rparams *) 0)->cn_bloom_prob),
+        .ps_size = PARAM_SZ(struct kvs_rparams, cn_bloom_prob),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
         .ps_default_value = {
@@ -523,7 +521,7 @@ static const struct param_spec pspecs[] = {
         .ps_flags = PARAM_FLAG_EXPERIMENTAL,
         .ps_type = PARAM_TYPE_U64,
         .ps_offset = offsetof(struct kvs_rparams, cn_bloom_capped),
-        .ps_size = sizeof(((struct kvs_rparams *) 0)->cn_bloom_capped),
+        .ps_size = PARAM_SZ(struct kvs_rparams, cn_bloom_capped),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
         .ps_default_value = {
@@ -542,7 +540,7 @@ static const struct param_spec pspecs[] = {
         .ps_flags = PARAM_FLAG_EXPERIMENTAL,
         .ps_type = PARAM_TYPE_U64,
         .ps_offset = offsetof(struct kvs_rparams, cn_bloom_preload),
-        .ps_size = sizeof(((struct kvs_rparams *) 0)->cn_bloom_preload),
+        .ps_size = PARAM_SZ(struct kvs_rparams, cn_bloom_preload),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
         .ps_default_value = {
@@ -561,7 +559,7 @@ static const struct param_spec pspecs[] = {
         .ps_flags = PARAM_FLAG_EXPERIMENTAL | PARAM_FLAG_WRITABLE,
         .ps_type = PARAM_TYPE_U64,
         .ps_offset = offsetof(struct kvs_rparams, cn_compaction_debug),
-        .ps_size = sizeof(((struct kvs_rparams *) 0)->cn_compaction_debug),
+        .ps_size = PARAM_SZ(struct kvs_rparams, cn_compaction_debug),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
         .ps_default_value = {
@@ -580,7 +578,7 @@ static const struct param_spec pspecs[] = {
         .ps_flags = PARAM_FLAG_EXPERIMENTAL,
         .ps_type = PARAM_TYPE_U64,
         .ps_offset = offsetof(struct kvs_rparams, cn_maint_delay),
-        .ps_size = sizeof(((struct kvs_rparams *) 0)->cn_maint_delay),
+        .ps_size = PARAM_SZ(struct kvs_rparams, cn_maint_delay),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
         .ps_default_value = {
@@ -599,7 +597,7 @@ static const struct param_spec pspecs[] = {
         .ps_flags = PARAM_FLAG_EXPERIMENTAL,
         .ps_type = PARAM_TYPE_U64,
         .ps_offset = offsetof(struct kvs_rparams, cn_io_threads),
-        .ps_size = sizeof(((struct kvs_rparams *) 0)->cn_io_threads),
+        .ps_size = PARAM_SZ(struct kvs_rparams, cn_io_threads),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
         .ps_default_value = {
@@ -618,7 +616,7 @@ static const struct param_spec pspecs[] = {
         .ps_flags = PARAM_FLAG_EXPERIMENTAL,
         .ps_type = PARAM_TYPE_U64,
         .ps_offset = offsetof(struct kvs_rparams, cn_close_wait),
-        .ps_size = sizeof(((struct kvs_rparams *) 0)->cn_close_wait),
+        .ps_size = PARAM_SZ(struct kvs_rparams, cn_close_wait),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
         .ps_default_value = {
@@ -635,19 +633,13 @@ static const struct param_spec pspecs[] = {
         .ps_name = "cn_verify",
         .ps_description = "verify kvsets as they are created",
         .ps_flags = PARAM_FLAG_EXPERIMENTAL,
-        .ps_type = PARAM_TYPE_U64,
+        .ps_type = PARAM_TYPE_BOOL,
         .ps_offset = offsetof(struct kvs_rparams, cn_verify),
-        .ps_size = sizeof(((struct kvs_rparams *) 0)->cn_verify),
+        .ps_size = PARAM_SZ(struct kvs_rparams, cn_verify),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
         .ps_default_value = {
-            .as_uscalar = 0,
-        },
-        .ps_bounds = {
-            .as_uscalar = {
-                .ps_min = 0,
-                .ps_max = 1,
-            },
+            .as_uscalar = false,
         },
     },
     {
@@ -656,7 +648,7 @@ static const struct param_spec pspecs[] = {
         .ps_flags = PARAM_FLAG_EXPERIMENTAL,
         .ps_type = PARAM_TYPE_U64,
         .ps_offset = offsetof(struct kvs_rparams, cn_kcachesz),
-        .ps_size = sizeof(((struct kvs_rparams *) 0)->cn_kcachesz),
+        .ps_size = PARAM_SZ(struct kvs_rparams, cn_kcachesz),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
         .ps_default_value = {
@@ -675,7 +667,7 @@ static const struct param_spec pspecs[] = {
         .ps_flags = PARAM_FLAG_EXPERIMENTAL,
         .ps_type = PARAM_TYPE_U64,
         .ps_offset = offsetof(struct kvs_rparams, kblock_size),
-        .ps_size = sizeof(((struct kvs_rparams *) 0)->kblock_size),
+        .ps_size = PARAM_SZ(struct kvs_rparams, kblock_size),
         .ps_convert = param_convert_to_bytes_from_MB,
         .ps_validate = param_default_validator,
         .ps_default_value = {
@@ -694,7 +686,7 @@ static const struct param_spec pspecs[] = {
         .ps_flags = PARAM_FLAG_EXPERIMENTAL,
         .ps_type = PARAM_TYPE_U64,
         .ps_offset = offsetof(struct kvs_rparams, vblock_size),
-        .ps_size = sizeof(((struct kvs_rparams *) 0)->vblock_size),
+        .ps_size = PARAM_SZ(struct kvs_rparams, vblock_size),
         .ps_convert = param_convert_to_bytes_from_MB,
         .ps_validate = param_default_validator,
         .ps_default_value = {
@@ -713,7 +705,7 @@ static const struct param_spec pspecs[] = {
         .ps_flags = PARAM_FLAG_EXPERIMENTAL,
         .ps_type = PARAM_TYPE_U64,
         .ps_offset = offsetof(struct kvs_rparams, capped_evict_ttl),
-        .ps_size = sizeof(((struct kvs_rparams *) 0)->capped_evict_ttl),
+        .ps_size = PARAM_SZ(struct kvs_rparams, capped_evict_ttl),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
         .ps_default_value = {
@@ -727,74 +719,42 @@ static const struct param_spec pspecs[] = {
         },
     },
     {
-        .ps_name = "kv_print_config",
-        .ps_description = "print kvs runtime params",
-        .ps_flags = PARAM_FLAG_EXPERIMENTAL,
-        .ps_type = PARAM_TYPE_U64,
-        .ps_offset = offsetof(struct kvs_rparams, kv_print_config),
-        .ps_size = sizeof(((struct kvs_rparams *) 0)->kv_print_config),
-        .ps_convert = param_default_converter,
-        .ps_validate = param_default_validator,
-        .ps_default_value = {
-            .as_uscalar = 1,
-        },
-        .ps_bounds = {
-            .as_uscalar = {
-                .ps_min = 0,
-                .ps_max = 1,
-            },
-        },
-    },
-    {
-        .ps_name = "rdonly",
+        .ps_name = "read_only",
         .ps_description = "open kvs in read-only mode",
         .ps_flags = PARAM_FLAG_EXPERIMENTAL,
-        .ps_type = PARAM_TYPE_U64,
-        .ps_offset = offsetof(struct kvs_rparams, rdonly),
-        .ps_size = sizeof(((struct kvs_rparams *) 0)->rdonly),
+        .ps_type = PARAM_TYPE_BOOL,
+        .ps_offset = offsetof(struct kvs_rparams, read_only),
+        .ps_size = PARAM_SZ(struct kvs_rparams, read_only),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
         .ps_default_value = {
-            .as_uscalar = 0,
-        },
-        .ps_bounds = {
-            .as_uscalar = {
-                .ps_min = 0,
-                .ps_max = 1,
-            },
+            .as_bool = false,
         },
     },
     {
-        .ps_name = "mclass_policy",
+        .ps_name = "mclass.policy",
         .ps_description = "media class policy",
         .ps_flags = 0,
-        .ps_type = PARAM_TYPE_ENUM,
+        .ps_type = PARAM_TYPE_STRING,
         .ps_offset = offsetof(struct kvs_rparams, mclass_policy),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
         .ps_default_value = {
-            .as_enum = "capacity_only",
+            .as_string = "capacity_only",
         },
         .ps_bounds = {
-            .as_enum = {
-                .ps_num_values = 4,
-                .ps_values = {
-                    /* stolen from lib/kvdb/mclass_policy.c */
-                    "capacity_only",
-                    "staging_only",
-                    "staging_max_capacity",
-                    "staging_min_capacity",
-                },
+            .as_string = {
+                .ps_max_len = HSE_MPOLICY_NAME_LEN_MAX,
             },
         },
     },
     {
-        .ps_name = "vcompmin",
+        .ps_name = "compression.value.min_length",
         .ps_description = "value length above which compression is considered",
         .ps_flags = 0,
         .ps_type = PARAM_TYPE_U64,
         .ps_offset = offsetof(struct kvs_rparams, vcompmin),
-        .ps_size = sizeof(((struct kvs_rparams *) 0)->vcompmin),
+        .ps_size = PARAM_SZ(struct kvs_rparams, vcompmin),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
         .ps_default_value = {
@@ -808,23 +768,20 @@ static const struct param_spec pspecs[] = {
         },
     },
     {
-        .ps_name = "value_compression",
+        .ps_name = "compression.value.algorithm",
         .ps_description = "value compression algorithm (lz4 or none)",
         .ps_flags = 0,
         .ps_type = PARAM_TYPE_ENUM,
         .ps_offset = offsetof(struct kvs_rparams, value_compression),
-        .ps_convert = param_default_converter,
+        .ps_convert = compression_value_algorithm_converter,
         .ps_validate = param_default_validator,
         .ps_default_value = {
-            .as_enum = VCOMP_PARAM_NONE,
+            .as_enum = VCOMP_ALGO_NONE,
         },
         .ps_bounds = {
             .as_enum = {
-                .ps_values = {
-                    VCOMP_PARAM_NONE,
-                    VCOMP_PARAM_LZ4,
-                },
-                .ps_num_values = 2,
+                .ps_min = VCOMP_ALGO_MIN,
+                .ps_max = VCOMP_ALGO_MAX,
             },
         },
     },
@@ -843,6 +800,7 @@ kvs_rparams_defaults()
 {
     struct kvs_rparams params;
     const union params p = { .as_kvs_rp = &params };
+
     param_default_populate(pspecs, NELEM(pspecs), p);
     return params;
 }

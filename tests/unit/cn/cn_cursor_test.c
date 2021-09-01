@@ -79,7 +79,7 @@ pre(struct mtf_test_info *info)
     mapi_inject(mapi_idx_kvset_pt_start, -1);
     mapi_inject_ptr(mapi_idx_ikvdb_get_mclass_policy, (void *)5);
     mapi_inject_ptr(mapi_idx_ikvdb_get_csched, NULL);
-    mapi_inject(mapi_idx_ikvdb_rdonly, false);
+    mapi_inject(mapi_idx_ikvdb_read_only, false);
 
     return 0;
 }

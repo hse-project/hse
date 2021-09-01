@@ -18,7 +18,7 @@
 #include <hse_util/compiler.h>
 #include <hse_util/hse_err.h>
 
-static merr_t
+hse_static merr_t
 argv_deserialize_to_params(
     const size_t                   paramc,
     const char *const *const       paramv,
@@ -87,6 +87,11 @@ argv_deserialize_to_params(
                 err = merr(EINVAL);
                 goto out;
             }
+        }
+
+        if (cJSON_IsNull(node) && !(ps->ps_flags & PARAM_FLAG_NULLABLE)) {
+            err = merr(EINVAL);
+            goto out;
         }
 
         assert(ps->ps_convert);

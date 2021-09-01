@@ -38,7 +38,7 @@ main(int argc, const char **argv)
                                 "logging.level=3",
                                 "socket.enabled=false" };
     const size_t     hi_paramc = sizeof(hi_paramv) / sizeof(hi_paramv[0]);
-    const char *     kvdb_paramv[] = { "read_only=1" };
+    const char *     kvdb_paramv[] = { "read_only=true" };
     const size_t     kvdb_paramc = sizeof(kvdb_paramv) / sizeof(kvdb_paramv[0]);
     struct hse_kvdb *kvdb;
 
@@ -49,7 +49,7 @@ main(int argc, const char **argv)
 
     const char *home = argv[1];
 
-    err = hse_init(home, hi_paramc, hi_paramv);
+    err = hse_init(NULL, hi_paramc, hi_paramv);
     if (err) {
         error(err, "Failed to initialize HSE");
         goto out;

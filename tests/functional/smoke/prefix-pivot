@@ -32,9 +32,9 @@ for pivot in 0 1 2 3 4; do
 
     if (( pivot == 2 )); then
         # default
-        kvs=$(kvs_create fanout=$fanout pfx_len=4) || err
+        kvs=$(kvs_create fanout=$fanout prefix.length=4) || err
     else
-        kvs=$(kvs_create fanout=$fanout pfx_len=4 pfx_pivot=$pivot) || err
+        kvs=$(kvs_create fanout=$fanout prefix.length=4 prefix.pivot=$pivot) || err
     fi
 
     cmd kmt "$home" $kvs -s1 -j32 -f "${prefix}%023lx" -i$keys -l$vlen ${rparams[@]}

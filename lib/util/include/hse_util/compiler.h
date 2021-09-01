@@ -15,6 +15,12 @@
 #include <threads.h>
 #endif
 
+#if HSE_MOCKING
+#define hse_static
+#else
+#define hse_static static
+#endif
+
 /* Optimization barrier */
 /* The "volatile" is due to gcc bugs */
 #define barrier() asm volatile("" : : : "memory")
@@ -87,6 +93,7 @@
 #define HSE_SENTINEL
 #endif
 #ifdef SUPPORTS_ATTR_NONNULL
+/* HSE_NONNULL(...) cannot go at the end of the function declaration */
 #define HSE_NONNULL(...) __attribute__((nonnull(__VA_ARGS__)))
 #else
 #define HSE_NONNULL(...)

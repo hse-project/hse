@@ -116,7 +116,7 @@ main(int argc, char **argv)
 		exit(EX_USAGE);
 	}
 
-	rc = pg_set_parms(pg, PG_KVS_OPEN, "transactions_enable=1", NULL);
+	rc = pg_set_parms(pg, PG_KVS_OPEN, "transactions.enabled=true", NULL);
 	if (rc) {
 		fprintf(stderr, "pg_set_parms failed");
 		exit(EX_USAGE);

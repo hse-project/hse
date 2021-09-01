@@ -6,17 +6,19 @@
 #ifndef HSE_VCOMP_PARAMS_H
 #define HSE_VCOMP_PARAMS_H
 
-#include <hse_util/inttypes.h>
-
 #define VCOMP_PARAM_NONE    "none"
 #define VCOMP_PARAM_LZ4     "lz4"
 
-#define VCOMP_PARAM_STR_SZ 8
+enum vcomp_algorithm
+{
+	VCOMP_ALGO_NONE,
+	VCOMP_ALGO_LZ4,
+};
 
-struct kvs_rparams;
-struct compress_ops;
+#define VCOMP_ALGO_MIN   VCOMP_ALGO_NONE
+#define VCOMP_ALGO_MAX   VCOMP_ALGO_LZ4
+#define VCOMP_ALGO_COUNT (VCOMP_ALGO_MAX + 1)
 
-struct compress_ops *
-vcomp_compress_ops(const struct kvs_rparams *rp);
+extern const struct compress_ops *vcomp_compress_ops[VCOMP_ALGO_COUNT];
 
 #endif

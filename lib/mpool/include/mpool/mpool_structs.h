@@ -23,12 +23,12 @@ enum mpool_mclass {
 };
 
 #define MP_MED_BASE            MP_MED_CAPACITY
-#define MP_MED_COUNT           (MP_MED_STAGING + 1)
+#define MP_MED_MAX             MP_MED_STAGING
+#define MP_MED_COUNT           (MP_MED_MAX + 1)
 #define MP_MED_INVALID         U8_MAX
 
 #define MP_MED_NAME_CAPACITY   "capacity"
 #define MP_MED_NAME_STAGING    "staging"
-#define MP_MED_NAME_LEN_MAX    (16)
 
 #define MPOOL_CAPACITY_MCLASS_DEFAULT_PATH "capacity"
 
@@ -47,10 +47,10 @@ enum mpool_mclass {
  */
 struct mpool_cparams {
     struct {
-        size_t  fmaxsz;
-        size_t  mblocksz;
-        uint8_t filecnt;
-        char    path[PATH_MAX];
+        uint64_t fmaxsz;
+        uint32_t mblocksz;
+        uint8_t  filecnt;
+        char     path[PATH_MAX];
     } mclass[MP_MED_COUNT];
 };
 

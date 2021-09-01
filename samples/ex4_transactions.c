@@ -49,7 +49,7 @@ main(int argc, char **argv)
                              "socket.enabled=false" };
     const size_t hi_paramc = sizeof(hi_paramv) / sizeof(hi_paramv[0]);
 
-	const char * kvs_paramv[] = { "transactions_enable=1" };
+	const char * kvs_paramv[] = { "transactions.enabled=true" };
 	const size_t kvs_paramc = sizeof(kvs_paramv) / sizeof(kvs_paramv[0]);
 
     struct hse_kvdb *    kvdb;

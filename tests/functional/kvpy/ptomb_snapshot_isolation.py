@@ -161,10 +161,10 @@ hse.init(cli.HOME)
 
 try:
     with ExitStack() as stack:
-        kvdb_ctx = lifecycle.KvdbContext().rparams("dur_enable=0")
+        kvdb_ctx = lifecycle.KvdbContext().rparams("durability.enabled=false")
         kvdb = stack.enter_context(kvdb_ctx)
 
-        kvs_ctx = lifecycle.KvsContext(kvdb, "test_kvs").cparams("pfx_len=2").rparams("transactions_enable=1")
+        kvs_ctx = lifecycle.KvsContext(kvdb, "test_kvs").cparams("prefix.length=2").rparams("transactions.enabled=true")
 
         with kvs_ctx as kvs:
             pdel_before_put(kvdb, kvs)

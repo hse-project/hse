@@ -63,12 +63,6 @@ void
 mpool_mclass_destroy(enum mpool_mclass mclass, const struct mpool_dparams *dparams);
 
 /**
- * Retrieve the default media class path given a media class
- */
-const char *
-mpool_mclass_default_path_get(enum mpool_mclass) HSE_CONST;
-
-/**
  * mpool_open() - Open an mpool
  *
  * @home:    kvdb home
@@ -629,11 +623,11 @@ mpool_file_sync(struct mpool_file *file);
  * mpool_file_mmap() - mmap the given file
  *
  * @file:     mpool file handle
- * @rdonly:   read-only
+ * @read_only:   read-only
  * @addr_out: mapped addr
  */
 merr_t
-mpool_file_mmap(struct mpool_file *file, bool rdonly, int advice, char **addr_out);
+mpool_file_mmap(struct mpool_file *file, bool read_only, int advice, char **addr_out);
 
 /**
  * mpool_file_size() - get mpool file size

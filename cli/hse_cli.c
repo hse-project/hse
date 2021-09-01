@@ -33,7 +33,7 @@
 
 #define CONFIG_KVS_PFX_LEN                                                  \
     {                                                                       \
-        "pfx_len=<int>", "Set KVS prefix length, range [0..32], default: 0" \
+        "prefix.length=<int>", "Set KVS prefix length, range [0..32], default: 0" \
     }
 
 #define min(a, b)                  \
@@ -631,7 +631,7 @@ done:
 static int
 cli_hse_kvdb_info_impl(struct cli *cli)
 {
-    const char *paramv[] = { "read_only=1" };
+    const char *paramv[] = { "read_only=true" };
     char        buf[YAML_BUF_SIZE];
     int         rc = 0;
     bool        exists;

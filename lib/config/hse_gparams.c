@@ -22,53 +22,34 @@
 
 struct hse_gparams hse_gparams;
 
-bool
-logging_destination_converter(const struct param_spec *ps, const cJSON *node, void *value)
+bool HSE_NONNULL(1, 2, 3)
+logging_destination_converter(const struct param_spec *const ps, const cJSON *const node, void *const data)
 {
     assert(ps);
     assert(node);
-    assert(value);
+    assert(data);
 
     if (!cJSON_IsString(node))
         return false;
 
-    const char *setting = cJSON_GetStringValue(node);
+    const char *         setting = cJSON_GetStringValue(node);
+    enum log_destination log_dest;
 
     if (strcmp(setting, "stdout") == 0) {
-        *(enum log_destination *)value = LD_STDOUT;
+        log_dest = LD_STDOUT;
     } else if (strcmp(setting, "stderr") == 0) {
-        *(enum log_destination *)value = LD_STDERR;
+        log_dest = LD_STDERR;
     } else if (strcmp(setting, "file") == 0) {
-        *(enum log_destination *)value = LD_FILE;
+        log_dest = LD_FILE;
     } else if (strcmp(setting, "syslog") == 0) {
-        *(enum log_destination *)value = LD_SYSLOG;
+        log_dest = LD_SYSLOG;
     } else {
         return false;
     }
 
+    *(enum log_destination *)data = log_dest;
+
     return true;
-}
-
-bool
-logging_destination_validator(const struct param_spec *ps, const void *value)
-{
-    assert(ps);
-    assert(value);
-
-    const enum log_destination dest = *(enum log_destination *)value;
-
-    return dest == LD_STDOUT || dest == LD_STDERR || dest == LD_FILE || dest == LD_SYSLOG;
-}
-
-void
-logging_destination_default(const struct param_spec *ps, void *value)
-{
-    assert(ps);
-    assert(value);
-
-    enum log_destination *dest = (enum log_destination *)value;
-
-    *dest = LD_SYSLOG;
 }
 
 void
@@ -90,7 +71,7 @@ static const struct param_spec pspecs[] = {
 		.ps_flags = 0,
 		.ps_type = PARAM_TYPE_BOOL,
 		.ps_offset = offsetof(struct hse_gparams, gp_logging.enabled),
-		.ps_size = sizeof(bool),
+		.ps_size = PARAM_SZ(struct hse_gparams, gp_logging.enabled),
 		.ps_convert = param_default_converter,
 		.ps_validate = param_default_validator,
 		.ps_default_value = {
@@ -103,7 +84,7 @@ static const struct param_spec pspecs[] = {
 		.ps_flags = 0,
 		.ps_type = PARAM_TYPE_BOOL,
 		.ps_offset = offsetof(struct hse_gparams, gp_logging.structured),
-		.ps_size = sizeof(bool),
+		.ps_size = PARAM_SZ(struct hse_gparams, gp_logging.structured),
 		.ps_convert = param_default_converter,
 		.ps_validate = param_default_validator,
 		.ps_default_value = {
@@ -113,31 +94,26 @@ static const struct param_spec pspecs[] = {
 	{
 		.ps_name = "logging.destination",
 		.ps_description = "Where log messages should be written to",
-		.ps_flags = PARAM_FLAG_DEFAULT_BUILDER,
+		.ps_flags = 0,
 		.ps_type = PARAM_TYPE_ENUM,
 		.ps_offset = offsetof(struct hse_gparams, gp_logging.destination),
-		.ps_size = sizeof(enum log_destination),
+		.ps_size = PARAM_SZ(struct hse_gparams, gp_logging.destination),
 		.ps_convert = logging_destination_converter,
-		.ps_validate = logging_destination_validator,
+		.ps_validate = param_default_validator,
 		.ps_default_value = {
-			.as_builder = logging_destination_default,
+			.as_enum = LD_SYSLOG,
 		},
 		.ps_bounds = {
 			.as_enum = {
-				.ps_values = {
-					"stdout",
-					"stderr",
-					"file",
-					"syslog",
-				},
-				.ps_num_values = LD_SYSLOG + 1,
-			},
+                .ps_min = LD_MIN,
+                .ps_max = LD_MAX,
+            }
 		},
 	},
 	{
 		.ps_name = "logging.path",
 		.ps_description = "Name of log file when destination == file",
-		.ps_flags = PARAM_FLAG_NULLABLE,
+		.ps_flags = 0,
 		.ps_type = PARAM_TYPE_STRING,
 		.ps_offset = offsetof(struct hse_gparams, gp_logging.path),
 		.ps_convert = param_default_converter,
@@ -147,7 +123,7 @@ static const struct param_spec pspecs[] = {
 		},
 		.ps_bounds = {
 			.as_string = {
-				.ps_max_len = sizeof(((struct hse_gparams *)0)->gp_logging.path),
+				.ps_max_len = PARAM_SZ(struct hse_gparams, gp_logging.path),
 			},
 		},
 	},
@@ -155,7 +131,7 @@ static const struct param_spec pspecs[] = {
 		.ps_name = "logging.level",
 		.ps_description = "Maximum log level which will be written",
 		.ps_flags = 0,
-		.ps_type = PARAM_TYPE_I32,
+		.ps_type = PARAM_TYPE_ENUM,
 		.ps_offset = offsetof(struct hse_gparams, gp_logging.level),
 		.ps_size = sizeof(log_priority_t),
 		.ps_convert = param_default_converter,
@@ -272,7 +248,7 @@ static const struct param_spec pspecs[] = {
         },
         .ps_bounds = {
             .as_string = {
-                .ps_max_len = sizeof(((struct hse_gparams *)0)->gp_socket.path),
+                .ps_max_len = PARAM_SZ(struct hse_gparams, gp_socket.path),
             },
         },
     },

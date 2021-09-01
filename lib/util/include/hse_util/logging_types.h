@@ -13,6 +13,10 @@ enum log_destination {
     LD_SYSLOG,
 };
 
+#define LD_MIN   LD_STDOUT
+#define LD_MAX   LD_SYSLOG
+#define LD_COUNT (LD_MAX + 1)
+
 typedef enum {
     HSE_EMERG_VAL,
     HSE_ALERT_VAL,

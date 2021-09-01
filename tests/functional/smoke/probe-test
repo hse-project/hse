@@ -10,7 +10,7 @@ kvdb_create
 
 # add a KVS to the KVDB
 # fanout=16 for a smaller pivot level
-kvs=$(kvs_create smoke-0 fanout=16 pfx_len=8 sfx_len=8) || exit $?
+kvs=$(kvs_create smoke-0 fanout=16 prefix.length=8 suffix.length=8) || exit $?
 
 p=10000
 c=1000

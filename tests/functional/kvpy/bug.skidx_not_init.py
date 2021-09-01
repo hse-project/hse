@@ -17,7 +17,7 @@ try:
         kvdb_ctx = lifecycle.KvdbContext()
         kvdb = stack.enter_context(kvdb_ctx)
         kvs_ctx = lifecycle.KvsContext(kvdb, "bug_skidx_not_init").rparams(
-            "transactions_enable=1"
+            "transactions.enabled=true"
         )
         kvs = stack.enter_context(kvs_ctx)
 

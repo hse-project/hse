@@ -69,7 +69,7 @@ cndb_drop(struct mpool *ds, u64 oid1, u64 oid2);
 /**
  * cndb_open() - Open a cndb
  * @ds:   dataset
- * @rdonly: readonly flag
+ * @read_only: readonly flag
  * @cndb_entries: max number of entries in a CNDB's in memory representation.
  * @oid1: mlog id #1 of the cndb MDC
  * @oid2: mlog id #2 of the cndb MDC
@@ -87,7 +87,7 @@ cndb_drop(struct mpool *ds, u64 oid1, u64 oid2);
 merr_t
 cndb_open(
     struct mpool *      ds,
-    bool                rdonly,
+    bool                read_only,
     atomic64_t *        ikvdb_seqno,
     size_t              cndb_entries,
     u64                 oid1,

@@ -643,16 +643,16 @@ err_exit:
     printf("\n");
     printf(
         "The performance profile suggests a setting of \"%s\" for the\n", result);
-    printf("KVDB throttle_init_policy configuration parameter.\n");
+    printf("KVDB throttling.init_policy configuration parameter.\n");
     printf("\n");
     printf("If you are using the KVDB home config file ($kvdb_home/kvdb.conf),\n");
     printf("this would look like:\n");
     printf("\n");
-    printf("{\"throttle_init_policy\": \"%s\"}\n", result);
+    printf("{\"throttling.init_policy\": \"%s\"}\n", result);
     printf("\n");
     printf("along with whatever other configuration settings you already have.\n");
     printf("\n");
-    printf("Running HSE with an improper setting for throttle_init_policy\n");
+    printf("Running HSE with an improper setting for throttle.init_policy\n");
     printf("(e.g., \"medium\" for a slow KVDB storage device) will likely\n");
     printf("cause durability settings to not be honored and search data\n");
     printf("structures to become unbalanced until the throttling catches up.\n");

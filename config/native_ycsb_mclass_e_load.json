@@ -1,8 +1,12 @@
 {
   "kvs": {
     "default": {
-      "mclass_policy": "staging_max_capacity",
-      "pfx_len": 7
+      "mclass": {
+        "policy": "staging_max_capacity"
+      },
+      "prefix": {
+        "length": 7
+      }
     }
   }
 }

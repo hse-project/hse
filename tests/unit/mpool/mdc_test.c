@@ -166,7 +166,6 @@ MTF_DEFINE_UTEST_PREPOST(mdc_test, mdc_abc, mpool_test_pre, mpool_test_post)
     ASSERT_EQ(0, merr_errno(err));
 
     err = mpool_open(home, &trparams, O_RDWR, &mp);
-    printf("%s:%d\n", merr_file(err), merr_lineno(err));
     ASSERT_EQ(0, merr_errno(err));
 
     err = mpool_mdc_alloc(mp, MDC_TEST_MAGIC, MDC_TEST_CAP, MP_MED_CAPACITY, &logid1, &logid2);

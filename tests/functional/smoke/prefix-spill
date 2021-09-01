@@ -12,8 +12,8 @@ kvdb_create
 
 # add 3 KVSes to the KVDB
 kvs0=$(kvs_create smoke-0) || exit $?
-kvs1=$(kvs_create smoke-1 pfx_len=2) || exit $?
-kvs2=$(kvs_create smoke-2 pfx_len=3) || exit $?
+kvs1=$(kvs_create smoke-1 prefix.length=2) || exit $?
+kvs2=$(kvs_create smoke-2 prefix.length=3) || exit $?
 
 keys=70000
 

@@ -57,7 +57,7 @@ MTF_DEFINE_UTEST(argv_test, deserialize_to_params_invalid_relation_validation)
 MTF_DEFINE_UTEST(argv_test, deserialize_to_params)
 {
     merr_t             err;
-    const char * const paramv[] = { "fanout=8", "pfx_len=7" };
+    const char * const paramv[] = { "fanout=8", "prefix.length=7" };
     struct kvs_cparams params;
 
     err = argv_deserialize_to_kvs_cparams(2, paramv, &params);
@@ -69,7 +69,7 @@ MTF_DEFINE_UTEST(argv_test, deserialize_to_params)
 MTF_DEFINE_UTEST(argv_test, deserialize_overwrite)
 {
     merr_t             err;
-    const char * const paramv[] = { "pfx_len=8", "pfx_len=7" };
+    const char * const paramv[] = { "prefix.length=8", "prefix.length=7" };
     struct kvs_cparams params;
 
     err = argv_deserialize_to_kvs_cparams(2, paramv, &params);

@@ -141,6 +141,9 @@
 #include <hse_util/timing.h>
 #include <hse_util/hse_err.h>
 
+#include <hse_ikvdb/kvs_rparams.h>
+#include <hse_ikvdb/kvs_cparams.h>
+
 #include <mpool/mpool.h>
 
 #include <xoroshiro/xoroshiro.h>
@@ -4087,9 +4090,7 @@ usage_parms(size_t *npsp, const struct param_spec *psv, const char *hdr)
                 break;
 
             case PARAM_TYPE_ENUM:
-                if (ps->ps_default_value.as_enum) {
-                    strlcpy(buf, ps->ps_default_value.as_enum, sizeof(buf));
-                }
+                snprintf(buf, sizeof(buf), "%lu", ps->ps_default_value.as_uscalar);
                 break;
 
             case PARAM_TYPE_STRING:
@@ -4527,13 +4528,13 @@ main(int argc, char **argv)
                 exit(EX_OSERR);
             }
 
-            rc = svec_append_pg(&kv_oparms_txn, pg, PG_KVS_OPEN, "transactions_enable=1", NULL);
+            rc = svec_append_pg(&kv_oparms_txn, pg, PG_KVS_OPEN, "transactions.enabled=true", NULL);
             if (rc) {
                 eprint("unable to append kvs-oparms txn params: %s\n", strerror(rc));
                 exit(EX_OSERR);
             }
 
-            rc = svec_append_pg(&kv_oparms_notxn, pg, PG_KVS_OPEN, "transactions_enable=0", NULL);
+            rc = svec_append_pg(&kv_oparms_notxn, pg, PG_KVS_OPEN, "transactions.enabled=false", NULL);
             if (rc) {
                 eprint("unable to append kvs-oparms notxn params: %s\n", strerror(rc));
                 exit(EX_OSERR);

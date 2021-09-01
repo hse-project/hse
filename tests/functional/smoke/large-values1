@@ -20,13 +20,13 @@ VLEN=-l1048532:1048576
 KEYS=20k
 
 # ingest w spill disabled
-cmd kmt "$home" $kvs -s1 $VLEN -i$KEYS kvs-oparms cn_maint_disable=1
+cmd kmt "$home" $kvs -s1 $VLEN -i$KEYS kvs-oparms cn_maint_disable=true
 
 # verify no spill occurred
 cmd cn_metrics "$home" $kvs | cmd -e grep -q n.1,
 
 # verify keys and values
-cmd kmt "$home" $kvs -s1 $VLEN -c kvs-oparms cn_maint_disable=1
+cmd kmt "$home" $kvs -s1 $VLEN -c kvs-oparms cn_maint_disable=true
 
 # spill
 cmd putbin "$home" $kvs -n 1000 kvs-oparms cn_close_wait=1
@@ -35,4 +35,4 @@ cmd putbin "$home" $kvs -n 1000 kvs-oparms cn_close_wait=1
 cmd cn_metrics "$home" $kvs | cmd grep -q n.1,
 
 # verify keys and values
-cmd kmt "$home" $kvs -s1 $VLEN -c kvs-oparms cn_maint_disable=1
+cmd kmt "$home" $kvs -s1 $VLEN -c kvs-oparms cn_maint_disable=true

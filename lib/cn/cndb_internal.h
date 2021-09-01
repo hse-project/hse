@@ -11,6 +11,7 @@
 #include <hse_util/platform.h>
 #include <hse_util/mutex.h>
 
+#include <hse_ikvdb/kvdb_rparams.h>
 #include <hse_ikvdb/kvs_cparams.h>
 
 #include "cndb_omf.h"
@@ -108,7 +109,7 @@ struct cndb_ingest_replay {
  *      - rollover/compaction
  *      - creation/instantiation of a new CN for a new KVS
  *      - assignment of cndb_buf
- *      - update to cndb->cndb_rdonly
+ *      - update to cndb->cndb_read_only
  * @cndb_mdc:
  * @cndb_ds:
  * @cndb_kvdb_health:
@@ -118,7 +119,7 @@ struct cndb_ingest_replay {
  *  This is NOT the version at which this binary is writing in the cndb mdc.
  *  When writing in the cndb mdc, it is always at the lastest version
  *  (aka CNDB_VERSION).
- * @cndb_rdonly:
+ * @cndb_read_only:
  * @cndb_compacted:
  * @cndb_txid:
  * @cndb_captgt:
@@ -174,7 +175,7 @@ struct cndb {
     atomic64_t *              cndb_ikvdb_seqno;
     u64                       cndb_seqno;
     u16                       cndb_version;
-    bool                      cndb_rdonly;
+    bool                      cndb_read_only;
     bool                      cndb_compacted;
     atomic64_t                cndb_txid;
     u64                       cndb_captgt;

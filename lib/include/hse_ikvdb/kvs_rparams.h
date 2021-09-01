@@ -6,6 +6,7 @@
 #ifndef HSE_KVS_RPARAMS_H
 #define HSE_KVS_RPARAMS_H
 
+#include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 
@@ -33,10 +34,10 @@
 struct kvs_rparams {
     uint64_t kvs_debug;
     uint64_t kvs_cursor_ttl;
-    uint64_t transactions_enable;
+    bool     transactions_enable;
 
+    bool     cn_maint_disable;
     uint64_t cn_maint_delay;
-    uint64_t cn_maint_disable;
     uint64_t cn_maint_threads;
     uint64_t cn_compaction_debug; /* 1=compact, 2=ingest */
 
@@ -51,7 +52,7 @@ struct kvs_rparams {
     uint64_t cn_capped_vra;
 
     uint64_t cn_cursor_vra;
-    uint64_t cn_cursor_kra;
+    bool     cn_cursor_kra;
     uint64_t cn_cursor_seq;
 
     uint64_t cn_mcache_wbt;
@@ -62,13 +63,12 @@ struct kvs_rparams {
     uint64_t cn_mcache_kra_params;
     uint64_t cn_mcache_vra_params;
 
-    uint64_t cn_bloom_create;
+    bool     cn_bloom_create;
     uint64_t cn_bloom_lookup;
     uint64_t cn_bloom_prob;
     uint64_t cn_bloom_capped;
     uint64_t cn_bloom_preload;
 
-    uint64_t cn_verify;
     uint64_t cn_kcachesz;
     uint64_t kblock_size;
     uint64_t vblock_size;
@@ -77,15 +77,15 @@ struct kvs_rparams {
 
     uint64_t cn_io_threads;
     uint64_t cn_close_wait;
-    uint64_t cn_diag_mode;
+    bool     cn_diag_mode;
+    bool     cn_verify;
 
-    uint64_t kv_print_config;
-    uint64_t rdonly;
+    bool read_only;
 
     char mclass_policy[HSE_MPOLICY_NAME_LEN_MAX];
 
-    uint64_t vcompmin;
-    char value_compression[VCOMP_PARAM_STR_SZ];
+    uint64_t             vcompmin;
+    enum vcomp_algorithm value_compression;
 };
 
 const struct param_spec *

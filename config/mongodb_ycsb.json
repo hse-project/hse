@@ -1,15 +1,25 @@
 {
 	"kvs": {
 		"MainKvs": {
-			"value_compression": "lz4",
+			"compression": {
+				"value": {
+					"algorithm": "lz4"
+				}
+			},
 			"cn_cursor_vra": 0,
-			"pfx_pivot": 1
+			"prefix": {
+				"pivot": 1
+			}
 		},
 		"UniqIdxKvs": {
-			"pfx_pivot": 1
+			"prefix": {
+				"pivot": 1
+			}
 		},
 		"StdIdxKvs": {
-			"pfx_pivot": 1
+			"prefix": {
+				"pivot": 1
+			}
 		}
 	}
 }

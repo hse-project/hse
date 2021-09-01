@@ -25,8 +25,8 @@ struct hse_gparams {
         char path[sizeof(((struct sockaddr_un *) 0)->sun_path)];
     } gp_socket;
     struct {
-        bool enabled;
-        bool structured;
+        bool                 enabled;
+        bool                 structured;
         enum log_destination destination;
         log_priority_t       level;
         uint64_t             squelch_ns;
