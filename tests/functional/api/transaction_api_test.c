@@ -108,7 +108,7 @@ MTF_DEFINE_UTEST(transaction_api_test, transaction_ops_testcase)
     ASSERT_EQ(err, 0);
 
     /* TC: A transaction that has begun will return a state of HSE_KVDB_TXN_ACTIVE */
-    state = hse_kvdb_txn_get_state(kvdb_handle, txn);
+    state = hse_kvdb_txn_state_get(kvdb_handle, txn);
     ASSERT_EQ(state, HSE_KVDB_TXN_ACTIVE);
 
     /* TC: A transaction that has begun can be aborted */
@@ -116,7 +116,7 @@ MTF_DEFINE_UTEST(transaction_api_test, transaction_ops_testcase)
     ASSERT_EQ(err, 0);
 
     /* TC: An aborted transaction will return a state of HSE_KVDB_TXN_ABORTED */
-    state = hse_kvdb_txn_get_state(kvdb_handle, txn);
+    state = hse_kvdb_txn_state_get(kvdb_handle, txn);
     ASSERT_EQ(state, HSE_KVDB_TXN_ABORTED);
 
     hse_kvdb_txn_free(kvdb_handle, txn);
@@ -152,7 +152,7 @@ MTF_DEFINE_UTEST_PREPOST(transaction_api_test, transaction_commit_testcase, setu
     ASSERT_TRUE(found);
 
     /* TC: A committed transaction will return a state of HSE_KVDB_TXN_COMMITTED */
-    state = hse_kvdb_txn_get_state(kvdb_handle, txn);
+    state = hse_kvdb_txn_state_get(kvdb_handle, txn);
     ASSERT_EQ(state, HSE_KVDB_TXN_COMMITTED);
 
     err = hse_kvdb_txn_abort(kvdb_handle, txn);

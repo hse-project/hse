@@ -648,7 +648,7 @@ hse_kvdb_txn_abort(struct hse_kvdb *kvdb, struct hse_kvdb_txn *txn);
  */
 /* MTF_MOCK */
 HSE_EXPORT enum hse_kvdb_txn_state
-hse_kvdb_txn_get_state(struct hse_kvdb *kvdb, struct hse_kvdb_txn *txn);
+hse_kvdb_txn_state_get(struct hse_kvdb *kvdb, struct hse_kvdb_txn *txn);
 
 /**@} TXN */
 

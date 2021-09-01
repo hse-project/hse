@@ -818,7 +818,7 @@ hse_kvdb_txn_abort(struct hse_kvdb *handle, struct hse_kvdb_txn *txn)
 }
 
 enum hse_kvdb_txn_state
-hse_kvdb_txn_get_state(struct hse_kvdb *handle, struct hse_kvdb_txn *txn)
+hse_kvdb_txn_state_get(struct hse_kvdb *handle, struct hse_kvdb_txn *txn)
 {
     enum hse_kvdb_txn_state state = 0;
     enum kvdb_ctxn_state    istate;
