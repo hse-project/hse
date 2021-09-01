@@ -783,6 +783,9 @@ hse_kvdb_txn_commit(struct hse_kvdb *handle, struct hse_kvdb_txn *txn)
     merr_t err;
     u64    tstart;
 
+    if (HSE_UNLIKELY(!handle || !txn))
+        return merr_to_hse_err(merr(EINVAL));
+
     tstart = kvdb_lat_startu(PERFC_LT_PKVDBL_KVDB_TXN_COMMIT);
     PERFC_INC_RU(&kvdb_pc, PERFC_RA_KVDBOP_KVDB_TXN_COMMIT);
 
