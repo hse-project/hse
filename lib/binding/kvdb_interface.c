@@ -822,7 +822,12 @@ hse_kvdb_txn_get_state(struct hse_kvdb *handle, struct hse_kvdb_txn *txn)
 {
     enum hse_kvdb_txn_state state = 0;
     enum kvdb_ctxn_state    istate;
-    struct kvdb_ctxn *      ctxn = kvdb_ctxn_h2h(txn);
+    struct kvdb_ctxn *      ctxn;
+
+    if (HSE_UNLIKELY(!handle || !txn))
+        return HSE_KVDB_TXN_INVALID;
+
+    ctxn = kvdb_ctxn_h2h(txn);
 
     perfc_inc(&kvdb_pc, PERFC_RA_KVDBOP_KVDB_TXN_GET_STATE);
 
