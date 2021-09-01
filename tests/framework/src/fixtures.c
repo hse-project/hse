@@ -155,7 +155,7 @@ mtf_kvdb_setupv(
   fail:
     if (mtf_kvdb_handle) {
         hse_kvdb_close(mtf_kvdb_handle);
-        hse_kvdb_drop(home, 0, NULL);
+        hse_kvdb_drop(home);
         mtf_kvdb_handle = 0;
     }
 
@@ -191,7 +191,7 @@ mtf_kvdb_teardown(
         if (err) {
             mtf_print_errinfo(err, "%s: hse_kvdb_close failed\n", __func__);
         }
-        err = hse_kvdb_drop(home, 0, NULL);
+        err = hse_kvdb_drop(home);
         if (err) {
             mtf_print_errinfo(err, "%s: hse_kvdb_drop failed\n", __func__);
         }

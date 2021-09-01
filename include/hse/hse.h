@@ -164,14 +164,12 @@ hse_kvdb_create(const char *kvdb_home, size_t paramc, const char *const *paramv)
  * It is an error to call this function on a KVDB that is open. This function is not
  * thread safe.
  *
- * @param kvdb_home: KVDB home directoryy, NULL means current working directory.
- * @param paramc:    Number of configuration parameters in @p paramv.
- * @param paramv:    List of parameters in key=value format.
+ * @param kvdb_home: KVDB home directory, NULL means current working directory.
  *
  * @returns Error status
  */
 HSE_EXPORT hse_err_t
-hse_kvdb_drop(const char *kvdb_home, size_t paramc, const char *const *paramv);
+hse_kvdb_drop(const char *kvdb_home);
 
 /** @brief Open a KVDB.
  *

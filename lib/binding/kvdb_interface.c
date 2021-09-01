@@ -212,7 +212,7 @@ out:
 }
 
 hse_err_t
-hse_kvdb_drop(const char *kvdb_home, const size_t paramc, const char *const *const paramv)
+hse_kvdb_drop(const char *kvdb_home)
 {
     char                real_home[PATH_MAX];
     char                pidfile_path[PATH_MAX];
