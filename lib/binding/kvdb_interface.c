@@ -749,6 +749,9 @@ hse_kvdb_txn_alloc(struct hse_kvdb *handle)
 void
 hse_kvdb_txn_free(struct hse_kvdb *handle, struct hse_kvdb_txn *txn)
 {
+    if (HSE_UNLIKELY(!handle || !txn))
+        return;
+
     PERFC_INC_RU(&kvdb_pc, PERFC_RA_KVDBOP_KVDB_TXN_FREE);
 
     ikvdb_txn_free((struct ikvdb *)handle, txn);
