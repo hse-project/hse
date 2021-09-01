@@ -40,9 +40,10 @@
  * @include ex2_simple_ops.c
  */
 
+#include <hse/flags.h>
 #include <hse/limits.h>
 #include <hse/types.h>
-#include <hse/flags.h>
+#include <hse/version.h>
 
 #include <stdbool.h>
 #include <stddef.h>
@@ -141,7 +142,7 @@ hse_fini(void);
 
 /** @defgroup LIFECYCLE Primary Lifecycle Functions
  * @{
- * Functions that manage HSE objects. 
+ * Functions that manage HSE objects.
  */
 
 /** @brief Create a KVDB.
@@ -654,7 +655,7 @@ hse_kvdb_txn_get_state(struct hse_kvdb *kvdb, struct hse_kvdb_txn *txn);
 /**@} TXN */
 
 
-/** @defgroup CURSOR Cursor Functions 
+/** @defgroup CURSOR Cursor Functions
  * See the concept and best practices sections on the HSE project site at
  * https://hse-project.github.io/dev/concepts/
  */
