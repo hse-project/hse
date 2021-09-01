@@ -738,6 +738,9 @@ hse_kvdb_sync(struct hse_kvdb *handle, const unsigned int flags)
 struct hse_kvdb_txn *
 hse_kvdb_txn_alloc(struct hse_kvdb *handle)
 {
+    if (HSE_UNLIKELY(!handle))
+        return NULL;
+
     PERFC_INC_RU(&kvdb_pc, PERFC_RA_KVDBOP_KVDB_TXN_ALLOC);
 
     return ikvdb_txn_alloc((struct ikvdb *)handle);
