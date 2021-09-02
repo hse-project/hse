@@ -461,7 +461,7 @@ static const struct param_spec pspecs[] = {
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
         .ps_default_value = {
-            .as_bool = true,
+            .as_bool = false,
         },
     },
     {
