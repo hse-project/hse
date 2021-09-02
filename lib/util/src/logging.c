@@ -67,8 +67,6 @@ struct hse_log_code {
     hse_log_add_func_t *add; /* structured field */
 };
 
-bool hse_logging_disable_init = false;
-
 /**
  * _hse_consume_one_async() - log one entry of the circular buffer.
  * @entry: entry in the circular buffer that needs to be logged.
@@ -163,9 +161,6 @@ hse_logging_init(void)
 
     struct workqueue_struct *wq = NULL;
     struct hse_log_async *   async;
-
-    if (hse_logging_disable_init)
-        return 0;
 
     if (!hse_gparams.gp_logging.enabled)
         return 0;
