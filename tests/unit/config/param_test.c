@@ -35,11 +35,11 @@ struct test_params {
 
 merr_t
 argv_deserialize_to_params(
-    const size_t                   paramc,
-    const char *const *const       paramv,
-    const size_t                   pspecs_sz,
-    const struct param_spec *const pspecs,
-    const union params             params);
+    const size_t             paramc,
+    const char *const *      paramv,
+    const size_t             pspecs_sz,
+    const struct param_spec *pspecs,
+    const struct params *    params);
 
 bool
 array_converter(const struct param_spec *const ps, const cJSON *const node, void *const data)
@@ -79,9 +79,9 @@ array_default_builder(const struct param_spec *const ps, void *const data)
 }
 
 bool
-array_relation_validate(const struct param_spec *const ps, const union params p)
+array_relation_validate(const struct param_spec *const ps, const struct params *p)
 {
-    struct test_params *params = p.as_generic;
+    struct test_params *params = p->p_params.as_generic;
 
     return params->test11[0].field1 < params->test9 && params->test11[1].field1 < params->test8;
 }
@@ -382,9 +382,9 @@ const struct param_spec pspecs[] = {
 int
 test_pre(struct mtf_test_info *ti)
 {
-    const union params p = { .as_generic = &params };
+    const struct params p = { .p_type = PARAMS_GEN, .p_params = { .as_generic = &params } };
 
-    param_default_populate(pspecs, NELEM(pspecs), p);
+    param_default_populate(pspecs, NELEM(pspecs), &p);
 
     return 0;
 }
@@ -400,7 +400,7 @@ check(const char *const arg, ...)
     const char *a = arg;
     va_list     ap;
 
-    const union params p = { .as_generic = &params };
+    const struct params p = { .p_type = PARAMS_GEN, .p_params = { .as_generic = &params } };
 
     assert(arg);
 
@@ -412,7 +412,7 @@ check(const char *const arg, ...)
 
         success = !!va_arg(ap, int);
 
-        err = argv_deserialize_to_params(paramc, paramv, NELEM(pspecs), pspecs, p);
+        err = argv_deserialize_to_params(paramc, paramv, NELEM(pspecs), pspecs, &p);
 
         if (success != !err) {
             break;

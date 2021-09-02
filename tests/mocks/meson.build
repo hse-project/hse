@@ -75,6 +75,7 @@ mocked_components = {
     'c0': meson.project_source_root() / 'lib' / 'c0',
     'lc': meson.project_source_root() / 'lib' / 'lc',
     'cn': meson.project_source_root() / 'lib' / 'cn',
+    'config': meson.project_source_root() / 'lib' / 'config',
     'wal': meson.project_source_root() / 'lib' / 'wal',
     'hse': meson.project_source_root() / 'include' / 'hse',
     'ikvdb': meson.project_source_root() / 'lib' / 'include' / 'hse_ikvdb',

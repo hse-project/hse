@@ -3,7 +3,6 @@
  * Copyright (C) 2021 Micron Technology, Inc.  All rights reserved.
  */
 
-
 #include <assert.h>
 #include <stdbool.h>
 #include <stddef.h>
@@ -23,10 +22,15 @@
 
 #include <hse_ikvdb/limits.h>
 
+#include "logging.h"
+
 struct hse_gparams hse_gparams;
 
 bool HSE_NONNULL(1, 2, 3)
-logging_destination_converter(const struct param_spec *const ps, const cJSON *const node, void *const data)
+logging_destination_converter(
+    const struct param_spec *const ps,
+    const cJSON *const             node,
+    void *const                    data)
 {
     assert(ps);
     assert(node);
@@ -47,6 +51,9 @@ logging_destination_converter(const struct param_spec *const ps, const cJSON *co
     } else if (strcmp(setting, "syslog") == 0) {
         log_dest = LD_SYSLOG;
     } else {
+        CLOG(
+            "Invalid logging.destination value: %s, must be one of stdout, stderr, file, or syslog",
+            setting);
         return false;
     }
 
@@ -328,8 +335,9 @@ hse_gparams_resolve(struct hse_gparams *const params, const char *const runtime_
 struct hse_gparams
 hse_gparams_defaults()
 {
-    struct hse_gparams params;
-    const union params p = { .as_hse_gp = &params };
-    param_default_populate(pspecs, NELEM(pspecs), p);
+    struct hse_gparams  params;
+    const struct params p = { .p_type = PARAMS_HSE_GP, .p_params = { .as_hse_gp = &params } };
+
+    param_default_populate(pspecs, NELEM(pspecs), &p);
     return params;
 }

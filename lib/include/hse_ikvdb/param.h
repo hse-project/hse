@@ -32,21 +32,31 @@ struct kvdb_rparams;
 struct kvs_cparams;
 struct kvs_rparams;
 
-union params {
-    /* Do not assign to as_generic, for internal use only */
-    void *const                as_generic;
-    struct kvdb_cparams *const as_kvdb_cp;
-    struct kvdb_rparams *const as_kvdb_rp;
-    struct kvs_cparams *const as_kvs_cp;
-    struct kvs_rparams *const as_kvs_rp;
-    struct hse_gparams *const as_hse_gp;
+struct params {
+    enum {
+        PARAMS_GEN,
+        PARAMS_HSE_GP,
+        PARAMS_KVDB_CP,
+        PARAMS_KVDB_RP,
+        PARAMS_KVS_CP,
+        PARAMS_KVS_RP,
+    } p_type;
+    union {
+        /* Do not assign to as_generic, for internal use only */
+        void *const                as_generic;
+        struct kvdb_cparams *const as_kvdb_cp;
+        struct kvdb_rparams *const as_kvdb_rp;
+        struct kvs_cparams *const  as_kvs_cp;
+        struct kvs_rparams *const  as_kvs_rp;
+        struct hse_gparams *const  as_hse_gp;
+    } p_params;
 };
 
 struct param_spec;
 
 typedef bool (*param_converter_t)(const struct param_spec *, const cJSON *, void *);
 typedef bool (*param_validator_t)(const struct param_spec *, const void *);
-typedef bool (*param_relation_validator_t)(const struct param_spec *, const union params);
+typedef bool (*param_relation_validator_t)(const struct param_spec *, const struct params *);
 typedef void (*param_default_builder_t)(const struct param_spec *, void *);
 
 enum param_type {
@@ -113,7 +123,7 @@ void
 param_default_populate(
     const struct param_spec *pspecs,
     const size_t             pspecs_sz,
-    const union params       params);
+    const struct params *    params);
 
 bool
 param_default_converter(const struct param_spec *ps, const cJSON *node, void *value);

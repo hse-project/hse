@@ -262,6 +262,9 @@ mclass_policies_default_builder(const struct param_spec *ps, void *data)
 static bool
 mclass_policies_converter(const struct param_spec *ps, const cJSON *node, void *data)
 {
+    static const char *policy_allowed_keys[] = { "name", "config" };
+    const char *       ctx = NULL;
+
     assert(ps);
     assert(node);
     assert(data);
@@ -269,8 +272,6 @@ mclass_policies_converter(const struct param_spec *ps, const cJSON *node, void *
 
     if (!cJSON_IsArray(node))
         return false;
-
-    static const char *policy_allowed_keys[] = { "name", "config" };
 
     struct mclass_policy *          policies = data;
     const struct mclass_policy_map *agegroup_map = mclass_policy_get_map(0);
@@ -296,26 +297,49 @@ mclass_policies_converter(const struct param_spec *ps, const cJSON *node, void *
                     break;
                 }
             }
-            if (!found)
+            if (!found) {
+                hse_log(
+                    HSE_ERR "Unknown key in mclass policy object: %s",
+                    n->string);
                 return false;
+            }
         }
 
-        const cJSON *policy_name = cJSON_GetObjectItemCaseSensitive(policy_json, "name");
-        if (!policy_name || !cJSON_IsString(policy_name))
+        const cJSON *policy_name_json = cJSON_GetObjectItemCaseSensitive(policy_json, "name");
+        if (!policy_name_json || !cJSON_IsString(policy_name_json)) {
+            hse_log(
+                HSE_ERR
+                "Key 'name' in media class policy object must be a string");
             return false;
-        const cJSON *policy_config = cJSON_GetObjectItemCaseSensitive(policy_json, "config");
-        if (!policy_config || !cJSON_IsObject(policy_config))
+        }
+        const cJSON *policy_config_json = cJSON_GetObjectItemCaseSensitive(policy_json, "config");
+        if (!policy_config_json || !cJSON_IsObject(policy_config_json)) {
+            hse_log(
+                HSE_ERR "Key 'config' in media class policy object must be "
+                        "an object");
             return false;
+        }
 
-        if (strlen(cJSON_GetStringValue(policy_name)) >= HSE_MPOLICY_NAME_LEN_MAX)
+        const char *policy_name = cJSON_GetStringValue(policy_name_json);
+        if (strlen(policy_name) >= HSE_MPOLICY_NAME_LEN_MAX) {
+            hse_log(
+                HSE_ERR
+                "Length of media class policy name '%s' is greater than %d",
+                policy_name,
+                HSE_MPOLICY_NAME_LEN_MAX - 1);
             return false;
+        }
 
-        strlcpy(policies[i].mc_name, cJSON_GetStringValue(policy_name), HSE_MPOLICY_NAME_LEN_MAX);
+        strlcpy(policies[i].mc_name, policy_name, HSE_MPOLICY_NAME_LEN_MAX);
 
-        for (cJSON *agegroup_json = policy_config->child; agegroup_json;
+        for (cJSON *agegroup_json = policy_config_json->child; agegroup_json;
              agegroup_json = agegroup_json->next) {
-            if (!cJSON_IsObject(agegroup_json))
+            if (!cJSON_IsObject(agegroup_json)) {
+                hse_log(
+                    HSE_ERR
+                    "Media class policy age group must be an object");
                 return false;
+            }
 
             int agegroup = -1;
             for (int j = 0; j < agegroup_map_sz; j++) {
@@ -324,13 +348,21 @@ mclass_policies_converter(const struct param_spec *ps, const cJSON *node, void *
                     break;
                 }
             }
-            if (agegroup == -1)
+            if (agegroup == -1) {
+                hse_log(
+                    HSE_ERR "Invalid media class policy age group: %s, must be one of sync, root, internal, or leaf",
+                    agegroup_json->string);
                 return false;
+            }
 
             for (cJSON *dtype_json = agegroup_json->child; dtype_json;
                  dtype_json = dtype_json->next) {
-                if (!cJSON_IsArray(dtype_json))
+                if (!cJSON_IsArray(dtype_json)) {
+                    hse_log(
+                        HSE_ERR
+                        "Media class policy data type must be an array");
                     return false;
+                }
 
                 int dtype = -1;
                 for (int j = 0; j < dtype_map_sz; j++) {
@@ -339,27 +371,47 @@ mclass_policies_converter(const struct param_spec *ps, const cJSON *node, void *
                         break;
                     }
                 }
-                if (dtype == -1)
+                if (dtype == -1) {
+                    hse_log(
+                        HSE_ERR "Invalid media class policy data type: %s, must be one of key or value",
+                        dtype_json->string);
                     return false;
+                }
 
                 const int sz = cJSON_GetArraySize(dtype_json);
-                if (sz > HSE_MPOLICY_MEDIA_CNT)
+                if (sz > HSE_MPOLICY_MEDIA_CNT) {
+                    hse_log(
+                        HSE_ERR "Too many items in media class policy data "
+                                "type array (max = %d)",
+                        HSE_MPOLICY_MEDIA_CNT);
                     return false;
+                }
 
                 for (int j = 0; j < sz; j++) {
                     const cJSON *media_json = cJSON_GetArrayItem(dtype_json, j);
-                    if (!cJSON_IsString(media_json))
+                    if (!cJSON_IsString(media_json)) {
+                        hse_log(
+                            HSE_ERR "Item in media class policy data type "
+                                    "array is not a string");
                         return false;
+                    }
 
                     int media = -1;
                     for (int k = 0; k < mclasses_map_sz; k++) {
-                        if (!strcmp(cJSON_GetStringValue(media_json), mclasses_map[k].mc_kname)) {
+                        ctx = cJSON_GetStringValue(media_json);
+                        if (!strcmp(ctx, mclasses_map[k].mc_kname)) {
                             media = mclasses_map[k].mc_enum;
                             break;
                         }
                     }
-                    if (media == -1)
+                    if (media == -1) {
+                        hse_log(
+                            HSE_ERR
+                            "Unknown media class in media class policy "
+                            "data type array: %s, must be one of capacity or staging",
+                            ctx);
                         return false;
+                    }
 
                     policies[i].mc_table[agegroup][dtype][j] = media;
                 }
@@ -390,8 +442,12 @@ mclass_policies_validator(const struct param_spec *ps, const void *data)
             if (!strcmp(policies[j].mc_name, policies[i].mc_name))
                 times_matched[i]++;
 
-            if (times_matched[i] > 1)
+            if (times_matched[i] > 1) {
+                hse_log(
+                    HSE_ERR "Duplicate media class policy name found: %s",
+                    policies[i].mc_name);
                 return false;
+            }
         }
     }
 
@@ -421,6 +477,10 @@ dur_mclass_converter(
         }
     }
 
+    hse_log(
+        HSE_ERR "Invalid value: %s, must be one of capacity or staging",
+        value);
+
     return false;
 }
 
@@ -445,6 +505,10 @@ throttle_init_policy_converter(
     } else if (!strcmp(value, "medium")) {
         *(uint *)data = THROTTLE_DELAY_START_MEDIUM;
     } else {
+        hse_log(
+            HSE_ERR "Invalid value: %s, must be one of "
+                    "default, light, or medium",
+            value);
         return false;
     }
 
@@ -459,8 +523,8 @@ csched_policy_validator(const struct param_spec *const ps, const void *const dat
 
     const enum csched_policy policy = *(enum csched_policy *)data;
 
-    return policy == csched_policy_old || policy == csched_policy_sp3
-        || policy == csched_policy_noop;
+    return policy == csched_policy_old || policy == csched_policy_sp3 ||
+           policy == csched_policy_noop;
 }
 
 static const struct param_spec pspecs[] = {
@@ -1256,9 +1320,9 @@ struct kvdb_rparams
 kvdb_rparams_defaults()
 {
     struct kvdb_rparams params;
-    const union params  p = { .as_kvdb_rp = &params };
+    const struct params p = { .p_type = PARAMS_KVDB_RP, .p_params = { .as_kvdb_rp = &params } };
 
-    param_default_populate(pspecs, NELEM(pspecs), p);
+    param_default_populate(pspecs, NELEM(pspecs), &p);
     return params;
 }
 

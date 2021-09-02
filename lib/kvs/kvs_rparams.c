@@ -24,17 +24,18 @@
  */
 
 static bool
-validate_cn_node_size_lo(const struct param_spec *ps, const union params params)
+validate_cn_node_size_lo(const struct param_spec *const ps, const struct params *const p)
 {
     assert(ps);
-    assert(params.as_kvs_rp);
+    assert(p);
+    assert(p->p_params.as_kvs_rp);
 
-    if (params.as_kvs_rp->cn_node_size_lo > params.as_kvs_rp->cn_node_size_hi) {
+    if (p->p_params.as_kvs_rp->cn_node_size_lo > p->p_params.as_kvs_rp->cn_node_size_hi) {
         hse_log(
-            HSE_ERR "cn_node_size_lo(%lu) must be less"
-                    " than or equal to cn_node_size_hi(%lu)",
-            (ulong)params.as_kvs_rp->cn_node_size_lo,
-            (ulong)params.as_kvs_rp->cn_node_size_hi);
+            HSE_ERR "Invalid KVS rparam cn_node_size_lo value: %lu, must be less"
+                    " than or equal to cn_node_size_hi (%lu)",
+            p->p_params.as_kvs_rp->cn_node_size_lo,
+            p->p_params.as_kvs_rp->cn_node_size_hi);
         return false;
     }
 
@@ -42,17 +43,18 @@ validate_cn_node_size_lo(const struct param_spec *ps, const union params params)
 }
 
 static bool
-validate_cn_node_size_hi(const struct param_spec *ps, const union params params)
+validate_cn_node_size_hi(const struct param_spec *ps, const struct params *const p)
 {
     assert(ps);
-    assert(params.as_kvs_rp);
+    assert(p);
+    assert(p->p_params.as_kvs_rp);
 
-    if (params.as_kvs_rp->cn_node_size_hi < params.as_kvs_rp->cn_node_size_lo) {
+    if (p->p_params.as_kvs_rp->cn_node_size_hi < p->p_params.as_kvs_rp->cn_node_size_lo) {
         hse_log(
-            HSE_ERR "cn_node_size_hi(%lu) must be greater"
-                    " than or equal to cn_node_size_lo(%lu)",
-            (ulong)params.as_kvs_rp->cn_node_size_hi,
-            (ulong)params.as_kvs_rp->cn_node_size_lo);
+            HSE_ERR "Invalid KVS rparam cn_node_size_hi value: %lu, must be greater"
+                    " than or equal to cn_node_size_lo (%lu)",
+            p->p_params.as_kvs_rp->cn_node_size_hi,
+            p->p_params.as_kvs_rp->cn_node_size_lo);
         return false;
     }
 
@@ -81,6 +83,8 @@ compression_value_algorithm_converter(
             return true;
         }
     }
+
+    hse_log(HSE_ERR "Unknown compression algorithm: %s", value);
 
     return false;
 }
@@ -798,9 +802,9 @@ kvs_rparams_pspecs_get(size_t *pspecs_sz)
 struct kvs_rparams
 kvs_rparams_defaults()
 {
-    struct kvs_rparams params;
-    const union params p = { .as_kvs_rp = &params };
+    struct kvs_rparams  params;
+    const struct params p = { .p_type = PARAMS_KVS_RP, .p_params = { .as_kvs_rp = &params } };
 
-    param_default_populate(pspecs, NELEM(pspecs), p);
+    param_default_populate(pspecs, NELEM(pspecs), &p);
     return params;
 }
