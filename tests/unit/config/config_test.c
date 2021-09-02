@@ -194,4 +194,22 @@ MTF_DEFINE_UTEST(config_test, deserialize_kvs_named_incorrect_type)
     ASSERT_NE(0, err);
 }
 
+MTF_DEFINE_UTEST(config_test, deserialize_keys_with_dots)
+{
+    char               home[PATH_MAX];
+    struct kvs_rparams params = kvs_rparams_defaults();
+    struct config *    conf;
+    merr_t             err;
+
+    snprintf(home, sizeof(home), "%s/deserialize-keys-with-dots", config_root);
+
+    err = config_from_kvdb_conf(home, &conf);
+    ASSERT_EQ(0, err);
+    ASSERT_NE(NULL, conf);
+
+    err = config_deserialize_to_kvs_rparams(conf, "named", &params);
+    config_destroy(conf);
+    ASSERT_NE(0, err);
+}
+
 MTF_END_UTEST_COLLECTION(config_test)

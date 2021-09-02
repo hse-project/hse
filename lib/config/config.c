@@ -73,6 +73,12 @@ json_walk(
     assert(bypass ? cJSON_IsObject(node) : true);
 
     if (!bypass) {
+        /* Protect against configs like { "prefix.length": 5 } */
+        if (strchr(node->string, '.')) {
+            err = merr(EINVAL);
+            goto out;
+        }
+
         assert(key_sz > 0);
         key = malloc(key_sz);
         if (!key) {
