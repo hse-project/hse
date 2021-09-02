@@ -405,7 +405,7 @@ MTF_DEFINE_UTEST_PRE(kvs_rparams_test, cn_maint_disable, test_pre)
     ASSERT_EQ(PARAM_TYPE_BOOL, ps->ps_type);
     ASSERT_EQ((uintptr_t)ps->ps_convert, (uintptr_t)param_default_converter);
     ASSERT_EQ((uintptr_t)ps->ps_validate, (uintptr_t)param_default_validator);
-    ASSERT_EQ(true, params.cn_maint_disable);
+    ASSERT_EQ(false, params.cn_maint_disable);
 }
 
 MTF_DEFINE_UTEST_PRE(kvs_rparams_test, cn_bloom_create, test_pre)
