@@ -103,7 +103,7 @@ vlb_free(void *mem, size_t used)
 
         if (vlbc >= vlbcv && vlbc < vlbcv + NELEM(vlbcv)) {
             spin_lock(&vlbc->lock);
-            if (vlbc->cnt * keepsz < hse_gparams.gp_vlb_cache_sz_max / VLB_BPN_MAX) {
+            if (vlbc->cnt * keepsz < hse_gparams.gp_vlb_cache_sz / VLB_BPN_MAX) {
                 *(void **)mem = vlbc->head;
                 vlbc->head = mem;
                 vlbc->cnt++;

@@ -70,11 +70,11 @@ struct kvdb_rparams {
     uint64_t csched_leaf_len_params;
     uint64_t csched_node_min_ttl;
 
-    bool              dur_enable;
     uint32_t          dur_bufsz_mb;
     uint32_t          dur_intvl_ms;
     uint8_t           dur_throttle_lo_th;
     uint8_t           dur_throttle_hi_th;
+    bool              dur_enable;
     bool              dur_buf_managed;
     enum mpool_mclass dur_mclass;
 

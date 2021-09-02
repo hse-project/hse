@@ -21,6 +21,8 @@
 #include <hse_util/compiler.h>
 #include <hse_util/vlb.h>
 
+#include <hse_ikvdb/limits.h>
+
 struct hse_gparams hse_gparams;
 
 bool HSE_NONNULL(1, 2, 3)
@@ -153,7 +155,7 @@ static const struct param_spec pspecs[] = {
         .ps_flags = PARAM_FLAG_EXPERIMENTAL,
         .ps_type = PARAM_TYPE_U64,
         .ps_offset = offsetof(struct hse_gparams, gp_logging.squelch_ns),
-        .ps_size = sizeof(((struct hse_gparams *) 0)->gp_logging.squelch_ns),
+        .ps_size = PARAM_SZ(struct hse_gparams, gp_logging.squelch_ns),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
         .ps_default_value = {
@@ -167,34 +169,40 @@ static const struct param_spec pspecs[] = {
         },
     },
     {
-        .ps_name = "low_mem",
-        .ps_description = "configure for a constrained memory environment",
+        .ps_name = "low_memory.limit_gb",
+        .ps_description = "cgroup mem limit in GiB for a constrained memory env (32G or lower)",
         .ps_flags = 0,
-        .ps_type = PARAM_TYPE_BOOL,
-        .ps_offset = offsetof(struct hse_gparams, gp_low_mem),
-        .ps_size = sizeof(((struct hse_gparams *) 0)->gp_low_mem),
-        .ps_convert = param_default_converter,
+        .ps_type = PARAM_TYPE_U32,
+        .ps_offset = offsetof(struct hse_gparams, gp_lowmem_gb),
+        .ps_size = PARAM_SZ(struct hse_gparams, gp_lowmem_gb),
+        .ps_convert = param_roundup_pow2,
         .ps_validate = param_default_validator,
         .ps_default_value = {
-            .as_bool = false,
-        },
-    },
-    {
-        .ps_name = "vlb_cache_sz_max",
-        .ps_description = "max size of vlb cache (bytes)",
-        .ps_flags = PARAM_FLAG_EXPERIMENTAL,
-        .ps_type = PARAM_TYPE_U64,
-        .ps_offset = offsetof(struct hse_gparams, gp_vlb_cache_sz_max),
-        .ps_size = sizeof(((struct hse_gparams *) 0)->gp_vlb_cache_sz_max),
-        .ps_convert = param_default_converter,
-        .ps_validate = param_default_validator,
-        .ps_default_value = {
-            .as_uscalar = VLB_CACHESZ_MAX,
+            .as_uscalar = 0,
         },
         .ps_bounds = {
             .as_uscalar = {
-                .ps_min = VLB_CACHESZ_MIN,
-                .ps_max = VLB_CACHESZ_MAX,
+                .ps_min = HSE_LOWMEM_THRESHOLD_GB_DFLT,
+                .ps_max = HSE_LOWMEM_THRESHOLD_GB_DFLT,
+            },
+        },
+    },
+    {
+        .ps_name = "vlb_cache_sz",
+        .ps_description = "size of vlb cache (bytes)",
+        .ps_flags = PARAM_FLAG_EXPERIMENTAL,
+        .ps_type = PARAM_TYPE_U64,
+        .ps_offset = offsetof(struct hse_gparams, gp_vlb_cache_sz),
+        .ps_size = PARAM_SZ(struct hse_gparams, gp_vlb_cache_sz),
+        .ps_convert = param_default_converter,
+        .ps_validate = param_default_validator,
+        .ps_default_value = {
+            .as_uscalar = HSE_VLB_CACHESZ_DFLT,
+        },
+        .ps_bounds = {
+            .as_uscalar = {
+                .ps_min = HSE_VLB_CACHESZ_MIN,
+                .ps_max = HSE_VLB_CACHESZ_MAX,
             },
         },
     },
@@ -204,7 +212,7 @@ static const struct param_spec pspecs[] = {
         .ps_flags = PARAM_FLAG_EXPERIMENTAL,
         .ps_type = PARAM_TYPE_U64,
         .ps_offset = offsetof(struct hse_gparams, gp_c0kvs_ccache_sz_max),
-        .ps_size = sizeof(((struct hse_gparams *) 0)->gp_c0kvs_ccache_sz_max),
+        .ps_size = PARAM_SZ(struct hse_gparams, gp_c0kvs_ccache_sz_max),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
         .ps_default_value = {
@@ -223,7 +231,7 @@ static const struct param_spec pspecs[] = {
         .ps_flags = PARAM_FLAG_EXPERIMENTAL,
         .ps_type = PARAM_TYPE_U64,
         .ps_offset = offsetof(struct hse_gparams, gp_c0kvs_ccache_sz),
-        .ps_size = sizeof(((struct hse_gparams *) 0)->gp_c0kvs_ccache_sz),
+        .ps_size = PARAM_SZ(struct hse_gparams, gp_c0kvs_ccache_sz),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
         .ps_default_value = {
@@ -242,7 +250,7 @@ static const struct param_spec pspecs[] = {
         .ps_flags = PARAM_FLAG_EXPERIMENTAL,
         .ps_type = PARAM_TYPE_U64,
         .ps_offset = offsetof(struct hse_gparams, gp_c0kvs_cheap_sz),
-        .ps_size = sizeof(((struct hse_gparams *) 0)->gp_c0kvs_cheap_sz),
+        .ps_size = PARAM_SZ(struct hse_gparams, gp_c0kvs_cheap_sz),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
         .ps_default_value = {
@@ -261,7 +269,7 @@ static const struct param_spec pspecs[] = {
         .ps_flags = 0,
         .ps_type = PARAM_TYPE_BOOL,
         .ps_offset = offsetof(struct hse_gparams, gp_socket.enabled),
-        .ps_size = sizeof(((struct hse_gparams *) 0)->gp_socket.enabled),
+        .ps_size = PARAM_SZ(struct hse_gparams, gp_socket.enabled),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
         .ps_default_value = {

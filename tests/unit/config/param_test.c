@@ -29,6 +29,8 @@ struct test_params {
     uint64_t test13;
     uint64_t test14;
     uint64_t test15;
+
+    uint32_t test16;
 } params;
 
 merr_t
@@ -356,6 +358,25 @@ const struct param_spec pspecs[] = {
 			},
 		},
 	},
+    {
+        .ps_name = "test16",
+        .ps_description = "test16",
+        .ps_flags = 0,
+        .ps_type = PARAM_TYPE_U32,
+        .ps_offset = offsetof(struct test_params, test16),
+        .ps_size = PARAM_SZ(struct test_params, test16),
+        .ps_convert = param_roundup_pow2,
+        .ps_validate = param_default_validator,
+        .ps_default_value = {
+            .as_uscalar = 1000,
+        },
+        .ps_bounds = {
+            .as_uscalar = {
+                .ps_min = 0,
+                .ps_max = UINT32_MAX,
+            },
+        },
+    },
 };
 
 int
@@ -677,6 +698,24 @@ MTF_DEFINE_UTEST_PRE(param_test, to_bytes_from_TB, test_pre)
 
     ASSERT_EQ(0, merr_errno(err));
     ASSERT_EQ(5 * TB, params.test15);
+}
+
+MTF_DEFINE_UTEST_PRE(param_test, roundup_pow2, test_pre)
+{
+    merr_t err;
+
+    /* clang-format off */
+    err = check(
+        "test16=9223372036854775807", false,
+        "test16=hello", false,
+        "test16=-1", false,
+        "test16=2000", true,
+        NULL
+    );
+    /* clang-format on */
+
+    ASSERT_EQ(0, merr_errno(err));
+    ASSERT_EQ(2048, params.test16);
 }
 
 MTF_END_UTEST_COLLECTION(param_test)

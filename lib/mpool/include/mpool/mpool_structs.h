@@ -7,6 +7,7 @@
 #define MPOOL_STRUCTS_H
 
 #include <hse_util/inttypes.h>
+#include <hse_util/storage.h>
 
 #define WAL_FILE_PFX           "wal"
 #define WAL_FILE_PFX_LEN       (sizeof(WAL_FILE_PFX) - 1)
@@ -32,9 +33,9 @@ enum mpool_mclass {
 
 #define MPOOL_CAPACITY_MCLASS_DEFAULT_PATH "capacity"
 
-#define MPOOL_MBLOCK_SIZE_DEFAULT      (32L << 20)
+#define MPOOL_MBLOCK_SIZE_DEFAULT      (32ul << MB_SHIFT)
 #define MPOOL_MBLOCK_FILECNT_DEFAULT   (32)
-#define MPOOL_MBLOCK_FILESZ_DEFAULT    (2048ULL << 30)
+#define MPOOL_MBLOCK_FILESZ_DEFAULT    (2048ull << GB_SHIFT)
 
 
 /**

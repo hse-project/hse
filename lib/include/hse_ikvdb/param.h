@@ -122,7 +122,7 @@ bool
 param_default_validator(const struct param_spec *ps, const void *value);
 
 bool
-param_u32_roundup_pow2(const struct param_spec *ps, const cJSON *node, void *value);
+param_roundup_pow2(const struct param_spec *ps, const cJSON *node, void *value);
 
 bool
 param_convert_to_bytes_from_KB(const struct param_spec *ps, const cJSON *node, void *value);

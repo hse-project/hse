@@ -8,6 +8,7 @@
 
 /* clang-format off */
 
+#define HSE_C0_CCACHE_SZ_MIN        (128ul << 20)
 #define HSE_C0_CCACHE_SZ_DFLT       (4ul << 30)
 #define HSE_C0_CCACHE_SZ_MAX        (8ul << 30)
 
@@ -85,6 +86,13 @@
 #define CN_FANOUT_MAX               (1 << CN_FANOUT_BITS_MAX)
 
 #define CN_SMALL_VALUE_THRESHOLD    (8)
+
+/*
+ * Low memory limits.
+ */
+#define HSE_LOWMEM_THRESHOLD_GB_MIN    (8ul)  /* must not change */
+#define HSE_LOWMEM_THRESHOLD_GB_DFLT   (32ul)
+#define HSE_LOWMEM_THRESHOLD_GB_MAX    (64ul)
 
 /* clang-format on */
 

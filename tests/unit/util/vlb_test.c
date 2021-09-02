@@ -13,7 +13,7 @@ MTF_BEGIN_UTEST_COLLECTION(vlb_test);
 
 MTF_DEFINE_UTEST(vlb_test, alloc)
 {
-    const int imax = VLB_CACHESZ_MAX / VLB_ALLOCSZ_MAX + 3;
+    const int imax = HSE_VLB_CACHESZ_MAX / VLB_ALLOCSZ_MAX + 3;
     void *memv[imax];
     int i;
 

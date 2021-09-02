@@ -559,7 +559,7 @@ wal_open(
     wal->buf_flags = wal->buf_managed ? HSE_BTF_MANAGED : 0;
 
     wal->dur_ms = HSE_WAL_DUR_MS_DFLT;
-    wal->dur_bufsz = HSE_WAL_DUR_BUFSZ_MB_DFLT << 20;
+    wal->dur_bufsz = HSE_WAL_DUR_BUFSZ_MB_DFLT << MB_SHIFT;
     wal->dur_mclass = MP_MED_CAPACITY;
 
     err = wal_mdc_open(mp, rinfo->mdcid1, rinfo->mdcid2, &wal->mdc);
@@ -594,7 +594,7 @@ wal_open(
         wal->dur_ms = clamp_t(long, rp->dur_intvl_ms, HSE_WAL_DUR_MS_MIN, HSE_WAL_DUR_MS_MAX);
 
     if (rp->dur_bufsz_mb != HSE_WAL_DUR_BUFSZ_MB_DFLT)
-        wal->dur_bufsz = (size_t)rp->dur_bufsz_mb << 20;
+        wal->dur_bufsz = (size_t)rp->dur_bufsz_mb << MB_SHIFT;
 
     mclass = rp->dur_mclass;
     if (mclass != wal->dur_mclass) {

@@ -975,55 +975,39 @@ err_exit:
     return err;
 }
 
-
 uint32_t
-ikvdb_low_mem_scale(void)
+ikvdb_lowmem_scale(uint32_t memgb)
 {
-    unsigned long mavail;
-    uint scale = HSE_LOWMEM_SCALE_DEFAULT;
-
-    hse_meminfo(NULL, &mavail, 30);
-    mavail = roundup_pow_of_two(mavail);
-    if (mavail <= 32)
-        scale = max_t(uint, 1, mavail / (scale * 2));
-
-    return scale;
-}
-
-bool
-ikvdb_low_mem_enabled(void)
-{
-    unsigned long mavail;
-
-    hse_meminfo(NULL, &mavail, 30);
-    mavail = roundup_pow_of_two(mavail);
-
-    return (hse_gparams.gp_low_mem || (mavail <= 32));
+    return max_t(uint, 1, memgb / HSE_LOWMEM_THRESHOLD_GB_MIN);
 }
 
 /**
- * ikvdb_low_mem_adjust() - configure for constrained memory environment
+ * ikvdb_lowmem_adjust() - configure for constrained memory environment
  * @self:       self
  */
 static void
-ikvdb_low_mem_adjust(struct ikvdb_impl *self)
+ikvdb_lowmem_adjust(struct ikvdb_impl *self)
 {
     struct kvdb_rparams  rpdef = kvdb_rparams_defaults();
     struct kvdb_rparams *rp = &self->ikdb_rp;
     uint32_t scale;
 
-    hse_log(HSE_NOTICE "Configuring %s for low memory environment", self->ikdb_home);
+    hse_log(HSE_NOTICE "Configuring %s for %uGiB memory", self->ikdb_home,
+            hse_gparams.gp_lowmem_gb);
 
-    scale = ikvdb_low_mem_scale();
+    scale = ikvdb_lowmem_scale(hse_gparams.gp_lowmem_gb);
 
     if (rp->dur_bufsz_mb == rpdef.dur_bufsz_mb)
-        rp->dur_bufsz_mb = HSE_WAL_DUR_BUFSZ_MB_MIN * scale;
+        rp->dur_bufsz_mb =
+            min_t(uint32_t, HSE_WAL_DUR_BUFSZ_MB_MIN * scale, HSE_WAL_DUR_BUFSZ_MB_MAX);
 
     if (rp->c0_ingest_width == rpdef.c0_ingest_width)
         rp->c0_ingest_width = HSE_C0_INGEST_WIDTH_MIN;
 
-    hse_log(HSE_DEBUG "Low mem config for %s: dur_bufsz %u c0_width %u",
-            self->ikdb_home, rp->dur_bufsz_mb, rp->c0_ingest_width);
+    hse_log(HSE_DEBUG "Low mem config settings for %s: c0kvs_cache %lu c0kvs_cheap %lu "
+            "c0_width %u dur_bufsz_mb %u vlb cache %lu",
+            self->ikdb_home, hse_gparams.gp_c0kvs_ccache_sz_max, hse_gparams.gp_c0kvs_cheap_sz,
+            rp->c0_ingest_width, rp->dur_bufsz_mb, hse_gparams.gp_vlb_cache_sz);
 }
 
 static void
@@ -1123,7 +1107,7 @@ ikvdb_open(
     if (ev(err))
         goto out;
 
-    flags = params->read_only == 0 ? O_RDWR : O_RDONLY;
+    flags = params->read_only ? O_RDONLY : O_RDWR;
     err = mpool_open(kvdb_home, &mparams, flags, &self->ikdb_mp);
     if (ev(err))
         goto out;
@@ -1144,8 +1128,8 @@ ikvdb_open(
 
     memcpy(self->ikdb_mpolicies, params->mclass_policies, sizeof(params->mclass_policies));
 
-    if (hse_gparams.gp_low_mem)
-        ikvdb_low_mem_adjust(self);
+    if (hse_gparams.gp_lowmem_gb != 0)
+        ikvdb_lowmem_adjust(self);
 
     throttle_init(&self->ikdb_throttle, &self->ikdb_rp);
     throttle_init_params(&self->ikdb_throttle, &self->ikdb_rp);
@@ -1173,6 +1157,9 @@ ikvdb_open(
      * memory use is limited to about 10% of system memory.
      */
     hse_meminfo(NULL, &mavail, 0);
+    if (hse_gparams.gp_lowmem_gb != 0)
+        mavail = (ulong)hse_gparams.gp_lowmem_gb << 30;
+
     sz = (mavail * HSE_CURACTIVE_SZ_PCT) / 100;
     sz = clamp_t(size_t, sz, HSE_CURACTIVE_SZ_MIN, HSE_CURACTIVE_SZ_MAX);
     self->ikdb_curcnt_max = sz / HSE_CURSOR_SZ_MIN;

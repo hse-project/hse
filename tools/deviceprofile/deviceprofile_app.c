@@ -38,8 +38,6 @@ usage(const char *program)
     printf("%s -j 128 -b 128 -s 65536 mp1\n", program);
 }
 
-#define MB (1024UL * 1024UL)
-
 static void
 output_result_int(struct deviceprofile_stat *stat, bool write)
 {

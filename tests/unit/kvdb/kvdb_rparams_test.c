@@ -396,7 +396,7 @@ MTF_DEFINE_UTEST_PRE(kvdb_rparams_test, durability_buffer_size, test_pre)
 	ASSERT_NE(NULL, ps->ps_description);
 	ASSERT_EQ(PARAM_FLAG_EXPERIMENTAL, ps->ps_flags);
 	ASSERT_EQ(PARAM_TYPE_U32, ps->ps_type);
-	ASSERT_EQ((uintptr_t)ps->ps_convert, (uintptr_t)param_u32_roundup_pow2);
+	ASSERT_EQ((uintptr_t)ps->ps_convert, (uintptr_t)param_roundup_pow2);
 	ASSERT_EQ((uintptr_t)ps->ps_validate, (uintptr_t)param_default_validator);
 	ASSERT_EQ(HSE_WAL_DUR_BUFSZ_MB_DFLT, params.dur_bufsz_mb);
 	ASSERT_EQ(HSE_WAL_DUR_BUFSZ_MB_MIN, ps->ps_bounds.as_uscalar.ps_min);

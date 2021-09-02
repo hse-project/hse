@@ -4,15 +4,12 @@
  */
 
 #include <hse_util/parse_num.h>
+#include <hse_util/storage.h>
 
 #include <hse_ut/framework.h>
 
 #define HSE_SUCCESS 0
 
-#define KB ((u64)1024)
-#define MB ((u64)1024 * KB)
-#define GB ((u64)1024 * MB)
-#define TB ((u64)1024 * GB)
 #define PB ((u64)1024 * TB)
 
 struct test_u64 {

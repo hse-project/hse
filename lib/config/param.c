@@ -255,24 +255,28 @@ param_default_converter(const struct param_spec *ps, const cJSON *node, void *va
 }
 
 bool
-param_u32_roundup_pow2(const struct param_spec *ps, const cJSON *node, void *value)
+param_roundup_pow2(const struct param_spec *ps, const cJSON *node, void *value)
 {
+    double to_conv;
+
     assert(ps);
     assert(node);
     assert(value);
 
+    if (!cJSON_IsNumber(node))
+        return false;
+
+    to_conv = cJSON_GetNumberValue(node);
+
     switch (ps->ps_type) {
-      case PARAM_TYPE_U32:
+    case PARAM_TYPE_U32:
         assert(ps->ps_size == sizeof(uint32_t));
-        if (!cJSON_IsNumber(node))
-            return false;
-        const double to_conv = cJSON_GetNumberValue(node);
         if (to_conv < 0 || to_conv > UINT32_MAX)
             return false;
-        *(uint32_t *)value = (uint32_t)roundup_pow_of_two((unsigned long)to_conv);
+        *(uint32_t *)value = roundup_pow_of_two((unsigned long)to_conv);
         break;
 
-      default:
+    default:
         return false;
     }
 

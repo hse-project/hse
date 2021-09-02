@@ -32,6 +32,7 @@
 #include <hse_util/logging.h>
 #include <hse_util/string.h>
 #include <hse_util/vlb.h>
+#include <hse_util/log2.h>
 
 #include <bsd/libutil.h>
 #include <pidfile/pidfile.h>
@@ -62,26 +63,40 @@ kvdb_lat_record(const u32 cidx, const u64 start)
  */
 static bool hse_initialized = false;
 
+/*
+ * hse_meminfo() parses /proc/meminfo to determine the available memory and
+ * it doesn't support cgroups yet.
+ *
+ * The user must explicitly set the hse gparam "low_memory.limit_gb" for running on
+ * an cgroup configured with HSE_LOWMEM_THRESHOLD_GB or lower memory.
+ */
 void
-hse_low_mem_init(void)
+hse_lowmem_init(void)
 {
     struct hse_gparams gpdef = hse_gparams_defaults();
+    unsigned long mavail;
 
-    hse_gparams.gp_low_mem = ikvdb_low_mem_enabled();
+    hse_meminfo(NULL, &mavail, 30);
+    mavail = roundup_pow_of_two(mavail);
 
-    if (hse_gparams.gp_low_mem) {
-        uint32_t scale = ikvdb_low_mem_scale();
+    if (mavail <= HSE_LOWMEM_THRESHOLD_GB_DFLT)
+        hse_gparams.gp_lowmem_gb = mavail;
 
+    if (hse_gparams.gp_lowmem_gb != 0) {
+        uint32_t scale = ikvdb_lowmem_scale(hse_gparams.gp_lowmem_gb);
+
+        /* Scale various caches based on the available memory */
         if (hse_gparams.gp_c0kvs_ccache_sz_max == gpdef.gp_c0kvs_ccache_sz_max)
             hse_gparams.gp_c0kvs_ccache_sz_max =
-                min_t(u64, HSE_C0_CHEAP_SZ_DFLT * scale, HSE_C0_CCACHE_SZ_MAX);
+                min_t(uint64_t, HSE_C0_CCACHE_SZ_MIN * scale, HSE_C0_CCACHE_SZ_MAX);
 
         if (hse_gparams.gp_c0kvs_cheap_sz == gpdef.gp_c0kvs_cheap_sz)
             hse_gparams.gp_c0kvs_cheap_sz =
-                min_t(u64, HSE_C0_CHEAP_SZ_MIN * scale, HSE_C0_CHEAP_SZ_MAX);
+                min_t(uint64_t, HSE_C0_CHEAP_SZ_MIN * scale, HSE_C0_CHEAP_SZ_MAX);
 
-        if (hse_gparams.gp_vlb_cache_sz_max == gpdef.gp_vlb_cache_sz_max)
-            hse_gparams.gp_vlb_cache_sz_max = VLB_CACHESZ_MIN;
+        if (hse_gparams.gp_vlb_cache_sz == gpdef.gp_vlb_cache_sz)
+            hse_gparams.gp_vlb_cache_sz =
+                min_t(uint64_t, HSE_VLB_CACHESZ_MIN * scale, HSE_VLB_CACHESZ_MAX);
     }
 }
 
@@ -120,7 +135,7 @@ hse_init(const char *const runtime_home, const size_t paramc, const char *const 
     if (err)
         return merr_to_hse_err(err);
 
-    hse_low_mem_init();
+    hse_lowmem_init();
 
     err = hse_platform_init();
     if (err)
