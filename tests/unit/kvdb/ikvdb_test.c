@@ -1065,7 +1065,7 @@ MTF_DEFINE_UTEST_PREPOST(ikvdb_test, cursor_tx, test_pre_c0, test_post_c0)
     ASSERT_EQ(0, memcmp(key, kt.kt_data, klen));
 
     /* can unbind a bound cursor -- an lose view -- then regain it */
-    err = ikvdb_kvs_cursor_update_view(bound, HSE_FLAG_NONE);
+    err = ikvdb_kvs_cursor_update_view(bound, 0);
     ASSERT_EQ(err, 0);
 
     /* ... cannot find what we just did */

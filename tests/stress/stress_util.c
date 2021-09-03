@@ -208,7 +208,7 @@ create_or_open_kvdb_and_kvs(
         log_info("drop kvdb at \"%s\"", kvdb_home);
 
         t1 = clock();
-        err = hse_kvdb_drop(kvdb_home, 0, NULL);
+        err = hse_kvdb_drop(kvdb_home);
         t2 = clock();
 
         if (err && hse_err_to_errno(err) != ENOENT) {

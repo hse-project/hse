@@ -129,7 +129,7 @@ Status HseKvdb::Compact() {
 
   memset(&status, 0, sizeof(status));
 
-  err = hse_kvdb_compact(kvdb_handle_, HSE_FLAG_KVDB_COMPACT_SAMP_LWM);
+  err = hse_kvdb_compact(kvdb_handle_, HSE_KVDB_COMPACT_SAMP_LWM);
 
   if (err) {
     hse_strerror(err, msg, sizeof(msg));

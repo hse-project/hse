@@ -142,7 +142,7 @@ maker(void *h)
         }
 
         /* we want a kvms to be ingested */
-        err = hse_kvdb_sync(kvdb, HSE_FLAG_SYNC_ASYNC);
+        err = hse_kvdb_sync(kvdb, HSE_KVDB_SYNC_ASYNC);
         if (err)
             tdie(err, "cannot sync");
 

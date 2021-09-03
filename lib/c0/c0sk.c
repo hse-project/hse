@@ -237,7 +237,7 @@ c0sk_c0_deregister(struct c0sk *handle, u16 skidx)
         self->c0sk_cnv[skidx] = 0;
     }
 
-    return c0sk_sync(handle, HSE_FLAG_SYNC_ASYNC);
+    return c0sk_sync(handle, HSE_KVDB_SYNC_ASYNC);
 }
 
 static struct kmem_cache *c0_cursor_cache;
@@ -759,14 +759,14 @@ c0sk_sync(struct c0sk *handle, const unsigned int flags)
     /**
      * Don't mark syncing in asynchronous request.
      */
-    self->c0sk_syncing = !(flags & HSE_FLAG_SYNC_ASYNC);
+    self->c0sk_syncing = !(flags & HSE_KVDB_SYNC_ASYNC);
     err = c0sk_flush_current_multiset(self, &waiter.c0skw_gen, flags & HSE_KVDB_SYNC_REFWAIT);
     if (ev(err)) {
         self->c0sk_syncing = false;
         return merr_errno(err) == EAGAIN ? 0 : err;
     }
 
-    if (flags & HSE_FLAG_SYNC_ASYNC)
+    if (flags & HSE_KVDB_SYNC_ASYNC)
         return err;
 
     cv_init(&waiter.c0skw_cv, __func__);

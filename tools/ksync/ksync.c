@@ -124,7 +124,7 @@ stuff(void)
                 }
             }
 
-            herr = hse_kvdb_sync(kvdb, HSE_FLAG_SYNC_ASYNC);
+            herr = hse_kvdb_sync(kvdb, HSE_KVDB_SYNC_ASYNC);
             if (herr) {
                 herr_print(herr, "hse_kvdb_sync() failed: ");
                 break;

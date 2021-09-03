@@ -592,17 +592,11 @@ done:
 static int
 cli_hse_kvdb_drop_impl(struct cli *cli)
 {
-    const char **paramv = NULL;
-    size_t       paramc = 0;
     hse_err_t    herr = 0;
     int          rc = 0;
 
     if (cli_hse_init(cli))
         return -1;
-
-    rc = params_from_argv(cli->argc, cli->argv, &cli->optind, &paramc, &paramv, NULL);
-    if (rc)
-        goto done;
 
     if (cli->optind != cli->argc) {
         rc = EINVAL;
@@ -610,7 +604,7 @@ cli_hse_kvdb_drop_impl(struct cli *cli)
         goto done;
     }
 
-    herr = hse_kvdb_drop(cli->home, paramc, paramv);
+    herr = hse_kvdb_drop(cli->home);
     if (herr) {
         if (hse_err_to_errno(herr) != ENOENT)
             print_hse_err(cli, "hse_kvdb_drop", herr);
@@ -620,8 +614,6 @@ cli_hse_kvdb_drop_impl(struct cli *cli)
     printf("Successfully dropped the KVDB (%s)\n", cli->home);
 
 done:
-    free(paramv);
-
     if (herr && hse_err_to_errno(herr) == ENOENT)
         fprintf(stderr, "Failed to drop the KVDB (%s) because it does not exist\n", cli->home);
 

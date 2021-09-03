@@ -124,13 +124,13 @@ merr_strinfo(merr_t err, char *buf, size_t buf_sz, size_t *need_sz)
         if (file)
             sz = snprintf(buf, buf_sz, "%s:%d: ", file, merr_lineno(err));
         if (sz < 0) {
-            sz = strlcpy(buf, "<error formating error message>", buf_sz);
+            sz = strlcpy(buf, "<failed to format error message>", buf_sz);
             goto out;
         }
         if (sz >= buf_sz)
             goto out;
 
-        sz = merr_strerror(err, buf + sz, buf_sz - sz);
+        sz += merr_strerror(err, buf + sz, buf_sz - sz);
     } else {
         sz = strlcpy(buf, "success", buf_sz);
     }

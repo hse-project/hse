@@ -83,7 +83,7 @@ do_work(void *arg)
 		flags = HSE_CURSOR_CREATE_REV;
 	} else {
 		*k = htobe64(ti->start);
-		flags = HSE_FLAG_NONE;
+		flags = 0;
 	}
 
 	do {

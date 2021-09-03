@@ -40,9 +40,10 @@
  * @include ex2_simple_ops.c
  */
 
+#include <hse/flags.h>
 #include <hse/limits.h>
 #include <hse/types.h>
-#include <hse/flags.h>
+#include <hse/version.h>
 
 #include <stdbool.h>
 #include <stddef.h>
@@ -141,7 +142,7 @@ hse_fini(void);
 
 /** @defgroup LIFECYCLE Primary Lifecycle Functions
  * @{
- * Functions that manage HSE objects. 
+ * Functions that manage HSE objects.
  */
 
 /** @brief Create a KVDB.
@@ -163,14 +164,12 @@ hse_kvdb_create(const char *kvdb_home, size_t paramc, const char *const *paramv)
  * It is an error to call this function on a KVDB that is open. This function is not
  * thread safe.
  *
- * @param kvdb_home: KVDB home directoryy, NULL means current working directory.
- * @param paramc:    Number of configuration parameters in @p paramv.
- * @param paramv:    List of parameters in key=value format.
+ * @param kvdb_home: KVDB home directory, NULL means current working directory.
  *
  * @returns Error status
  */
 HSE_EXPORT hse_err_t
-hse_kvdb_drop(const char *kvdb_home, size_t paramc, const char *const *paramv);
+hse_kvdb_drop(const char *kvdb_home);
 
 /** @brief Open a KVDB.
  *
@@ -649,12 +648,12 @@ hse_kvdb_txn_abort(struct hse_kvdb *kvdb, struct hse_kvdb_txn *txn);
  */
 /* MTF_MOCK */
 HSE_EXPORT enum hse_kvdb_txn_state
-hse_kvdb_txn_get_state(struct hse_kvdb *kvdb, struct hse_kvdb_txn *txn);
+hse_kvdb_txn_state_get(struct hse_kvdb *kvdb, struct hse_kvdb_txn *txn);
 
 /**@} TXN */
 
 
-/** @defgroup CURSOR Cursor Functions 
+/** @defgroup CURSOR Cursor Functions
  * See the concept and best practices sections on the HSE project site at
  * https://hse-project.github.io/dev/concepts/
  */
@@ -857,7 +856,7 @@ hse_kvs_cursor_destroy(struct hse_kvs_cursor *cursor);
 /** @brief Sync data in all of the referenced KVDB's KVSs to stable media and return.
  *
  * <b>Flags:</b>
- * @arg HSE_FLAG_SYNC_ASYNC - Return immediately after initiating operation instead
+ * @arg HSE_KVDB_SYNC_ASYNC - Return immediately after initiating operation instead
  *                            of waiting for completion.
  *
  * @param kvdb:  KVDB handle from hse_kvdb_open().
@@ -890,7 +889,7 @@ hse_kvdb_sync(struct hse_kvdb *kvdb, unsigned int flags);
  * normal operation. To achieve this, the client calls this function in the following
  * fashion:
  *
- *     hse_kvdb_compact(<kvdb handle>, HSE_FLAG_KVDB_COMPACT_SAMP_LWM);
+ *     hse_kvdb_compact(<kvdb handle>, HSE_KVDB_COMPACT_SAMP_LWM);
  *
  * To cancel an ongoing compaction request for a KVDB:
  *
