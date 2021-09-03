@@ -951,30 +951,6 @@ kmem_cache_create(const char *name, size_t size, size_t align, ulong flags, void
     zone->zone_delay = 15000;
     zone->zone_magic = zone;
 
-#if 0
-    if (zone->zone_packed) {
-        uint cpumax, cpuid, j;
-        cpu_set_t omask;
-
-        pthread_getaffinity_np(pthread_self(), sizeof(omask), &omask);
-        CPU_CLR(0, &omask); /* stay clear of cpu 0 */
-
-        cpumax = get_nprocs_conf();
-        cpuid = get_cycles();
-
-        for (i = 0; i < NELEM(zone->zone_packedv); ++i) {
-            for (j = 0; j < cpumax; ++j) {
-                cpuid = (cpuid + 7) % cpumax;
-
-                if (CPU_ISSET(cpuid, &omask) && hse_cpu2node(cpuid) == i) {
-                    zone->zone_packedv[i] = cpuid;
-                    break;
-                }
-            }
-        }
-    }
-#endif
-
     kmc_zone_lock_init(zone);
     strlcpy(zone->zone_name, name, sizeof(zone->zone_name));
 
