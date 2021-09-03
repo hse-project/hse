@@ -741,6 +741,8 @@ kvset_create2(
         goto done;
 
     hse_meminfo(NULL, &mavail, 30);
+    if (hse_gparams.gp_lowmem_gb != 0)
+        mavail = hse_gparams.gp_lowmem_gb;
 
     /* Convert from bytes to GiB for comparison w/ mavail. */
     kvdb_kalen >>= 30;

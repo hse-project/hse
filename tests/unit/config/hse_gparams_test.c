@@ -5,6 +5,8 @@
 
 #include <hse_ut/framework.h>
 
+#include <hse_util/vlb.h>
+
 #include <hse_ikvdb/argv.h>
 #include <hse_ikvdb/limits.h>
 #include <hse_ikvdb/hse_gparams.h>
@@ -118,6 +120,36 @@ MTF_DEFINE_UTEST_PRE(hse_gparams_test, c0kvs_cheap_sz, test_pre)
 	ASSERT_EQ(HSE_C0_CHEAP_SZ_DFLT, params.gp_c0kvs_cheap_sz);
 	ASSERT_EQ(HSE_C0_CHEAP_SZ_MIN, ps->ps_bounds.as_uscalar.ps_min);
 	ASSERT_EQ(HSE_C0_CHEAP_SZ_MAX, ps->ps_bounds.as_uscalar.ps_max);
+}
+
+MTF_DEFINE_UTEST_PRE(hse_gparams_test, vlb_cache_sz, test_pre)
+{
+    const struct param_spec *ps = ps_get("vlb_cache_sz");
+
+    ASSERT_NE(NULL, ps);
+    ASSERT_NE(NULL, ps->ps_description);
+    ASSERT_EQ(PARAM_FLAG_EXPERIMENTAL, ps->ps_flags);
+    ASSERT_EQ(PARAM_TYPE_U64, ps->ps_type);
+    ASSERT_EQ((uintptr_t)ps->ps_convert, (uintptr_t)param_default_converter);
+    ASSERT_EQ((uintptr_t)ps->ps_validate, (uintptr_t)param_default_validator);
+    ASSERT_EQ(HSE_VLB_CACHESZ_DFLT, params.gp_vlb_cache_sz);
+    ASSERT_EQ(HSE_VLB_CACHESZ_MIN, ps->ps_bounds.as_uscalar.ps_min);
+    ASSERT_EQ(HSE_VLB_CACHESZ_MAX, ps->ps_bounds.as_uscalar.ps_max);
+}
+
+MTF_DEFINE_UTEST_PRE(hse_gparams_test, lowmem_limit_gb, test_pre)
+{
+    const struct param_spec *ps = ps_get("low_memory.limit_gb");
+
+    ASSERT_NE(NULL, ps);
+    ASSERT_NE(NULL, ps->ps_description);
+    ASSERT_EQ(0, ps->ps_flags);
+    ASSERT_EQ(PARAM_TYPE_U32, ps->ps_type);
+    ASSERT_EQ((uintptr_t)ps->ps_convert, (uintptr_t)param_roundup_pow2);
+    ASSERT_EQ((uintptr_t)ps->ps_validate, (uintptr_t)param_default_validator);
+    ASSERT_EQ(0, params.gp_lowmem_gb);
+    ASSERT_EQ(HSE_LOWMEM_THRESHOLD_GB_DFLT, ps->ps_bounds.as_uscalar.ps_min);
+    ASSERT_EQ(HSE_LOWMEM_THRESHOLD_GB_DFLT, ps->ps_bounds.as_uscalar.ps_max);
 }
 
 MTF_DEFINE_UTEST_PRE(hse_gparams_test, socket_enabled, test_pre)

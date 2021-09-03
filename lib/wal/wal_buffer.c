@@ -9,6 +9,7 @@
 #include <hse_util/logging.h>
 #include <hse_util/xrand.h>
 #include <hse_util/slab.h>
+#include <hse_util/storage.h>
 
 #include "wal.h"
 #include "wal_omf.h"
@@ -138,7 +139,7 @@ restart:
             break;
 
         /* Do not allow the IO payload to exceed 32 MiB */
-        if ((foff - start_foff) >= (32 << 20))
+        if ((foff - start_foff) >= (32u << MB_SHIFT))
             break;
 
         info.min_gen = min_t(uint64_t, info.min_gen, rgen);
@@ -239,7 +240,7 @@ wal_bufset_open(
 
     wbs->wbs_buf_sz = bufsz;
     wbs->wbs_buf_allocsz = ALIGN(bufsz + wal_reclen() + HSE_KVS_KEY_LEN_MAX +
-                                 HSE_KVS_VALUE_LEN_MAX, 2ul << 20);
+                                 HSE_KVS_VALUE_LEN_MAX, 2ul << MB_SHIFT);
 
     for (i = 0; i < get_nprocs_conf(); ++i) {
         struct wal_buffer *wb;
@@ -346,7 +347,7 @@ wal_bufset_alloc(
     uint32_t          *wbidx,
     int64_t           *cookie)
 {
-    const size_t hwm = wbs->wbs_buf_sz - (8u << 20);
+    const size_t hwm = wbs->wbs_buf_sz - (8u << MB_SHIFT);
     struct wal_buffer *wb;
     uint64_t offset, doff;
     int slot;

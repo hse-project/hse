@@ -975,43 +975,39 @@ err_exit:
     return err;
 }
 
+uint32_t
+ikvdb_lowmem_scale(uint32_t memgb)
+{
+    return max_t(uint, 1, memgb / HSE_LOWMEM_THRESHOLD_GB_MIN);
+}
+
 /**
- * ikvdb_low_mem_adjust() - configure for constrained memory environment
+ * ikvdb_lowmem_adjust() - configure for constrained memory environment
  * @self:       self
- *
- * [HSE_REVISIT]: This tuning should only be performed by hse_init(),
  */
 static void
-ikvdb_low_mem_adjust(struct ikvdb_impl *self)
+ikvdb_lowmem_adjust(struct ikvdb_impl *self)
 {
-    struct kvdb_rparams  dflt = kvdb_rparams_defaults();
-    struct kvdb_rparams *kp = &self->ikdb_rp;
+    struct kvdb_rparams  rpdef = kvdb_rparams_defaults();
+    struct kvdb_rparams *rp = &self->ikdb_rp;
+    uint32_t scale;
 
-    ulong mavail;
-    uint  scale;
+    hse_log(HSE_NOTICE "Configuring %s for %uGiB memory", self->ikdb_home,
+            hse_gparams.gp_lowmem_gb);
 
-    hse_log(HSE_WARNING "configuring %s for constrained memory environment", self->ikdb_home);
+    scale = ikvdb_lowmem_scale(hse_gparams.gp_lowmem_gb);
 
-    /* The default parameter values in this function enables us to run
-     * in a memory constrained cgroup. Scale the parameter values based
-     * on the available memory. This function is called only when the
-     * total RAM is <= 32G. Based on some experiments, the scale factor
-     * is set to 8G.
-     */
-    hse_meminfo(NULL, &mavail, 30);
-    scale = mavail / 8;
-    scale = max_t(uint, 1, scale);
+    if (rp->dur_bufsz_mb == rpdef.dur_bufsz_mb)
+        rp->dur_bufsz_mb =
+            min_t(uint32_t, HSE_WAL_DUR_BUFSZ_MB_MIN * scale, HSE_WAL_DUR_BUFSZ_MB_MAX);
 
-    if (hse_gparams.gp_c0kvs_ccache_sz_max == HSE_C0_CCACHE_SZ_DFLT)
-        hse_gparams.gp_c0kvs_ccache_sz_max = min_t(u64, 1024 * 1024 * 128UL * scale, HSE_C0_CCACHE_SZ_MAX);
+    if (rp->c0_ingest_width == rpdef.c0_ingest_width)
+        rp->c0_ingest_width = HSE_C0_INGEST_WIDTH_MIN;
 
-    if (hse_gparams.gp_c0kvs_cheap_sz == HSE_C0_CHEAP_SZ_DFLT)
-        hse_gparams.gp_c0kvs_cheap_sz = min_t(u64, HSE_C0_CHEAP_SZ_MIN * scale, HSE_C0_CHEAP_SZ_MAX);
-
-    if (kp->c0_ingest_width == dflt.c0_ingest_width)
-        kp->c0_ingest_width = HSE_C0_INGEST_WIDTH_MIN;
-
-    c0kvs_reinit(hse_gparams.gp_c0kvs_ccache_sz_max, hse_gparams.gp_c0kvs_cheap_sz);
+    hse_log(HSE_DEBUG "Low mem config settings for %s: c0kvs_cache %lu c0kvs_cheap %lu "
+            "c0_width %u dur_bufsz_mb %u vlb cache %lu",
+            self->ikdb_home, hse_gparams.gp_c0kvs_ccache_sz_max, hse_gparams.gp_c0kvs_cheap_sz,
+            rp->c0_ingest_width, rp->dur_bufsz_mb, hse_gparams.gp_vlb_cache_sz);
 }
 
 static void
@@ -1111,7 +1107,7 @@ ikvdb_open(
     if (ev(err))
         goto out;
 
-    flags = params->read_only == 0 ? O_RDWR : O_RDONLY;
+    flags = params->read_only ? O_RDONLY : O_RDWR;
     err = mpool_open(kvdb_home, &mparams, flags, &self->ikdb_mp);
     if (ev(err))
         goto out;
@@ -1132,9 +1128,8 @@ ikvdb_open(
 
     memcpy(self->ikdb_mpolicies, params->mclass_policies, sizeof(params->mclass_policies));
 
-    hse_meminfo(NULL, &mavail, 0);
-    if (params->low_mem || (mavail >> 30) < 32)
-        ikvdb_low_mem_adjust(self);
+    if (hse_gparams.gp_lowmem_gb != 0)
+        ikvdb_lowmem_adjust(self);
 
     throttle_init(&self->ikdb_throttle, &self->ikdb_rp);
     throttle_init_params(&self->ikdb_throttle, &self->ikdb_rp);
@@ -1161,6 +1156,10 @@ ikvdb_open(
     /* Set max number of active cursors per kvdb such that max
      * memory use is limited to about 10% of system memory.
      */
+    hse_meminfo(NULL, &mavail, 0);
+    if (hse_gparams.gp_lowmem_gb != 0)
+        mavail = (ulong)hse_gparams.gp_lowmem_gb << 30;
+
     sz = (mavail * HSE_CURACTIVE_SZ_PCT) / 100;
     sz = clamp_t(size_t, sz, HSE_CURACTIVE_SZ_MIN, HSE_CURACTIVE_SZ_MAX);
     self->ikdb_curcnt_max = sz / HSE_CURSOR_SZ_MIN;

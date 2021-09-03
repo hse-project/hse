@@ -10,7 +10,7 @@
 
 /* clang-format off */
 
-#define WAL_MDC_CAPACITY        (32 << 20)
+#define WAL_MDC_CAPACITY        (32u << MB_SHIFT)
 #define WAL_MAGIC               (0xabcdabcd)
 #define WAL_FILE_SIZE_BYTES     ((HSE_C0_CHEAP_SZ_DFLT * HSE_C0_INGEST_WIDTH_DFLT * 3) / 10)
 

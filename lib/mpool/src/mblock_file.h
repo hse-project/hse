@@ -18,7 +18,7 @@
 #define MBID_BLOCK_BITS        (16)
 
 #define MBLOCK_FILE_PFX        "mblock"
-#define MBLOCK_OPT_WRITE_SZ    (128 << 10)
+#define MBLOCK_OPT_WRITE_SZ    (128u << KB_SHIFT)
 
 /**
  * Mblock ID in-memory layout

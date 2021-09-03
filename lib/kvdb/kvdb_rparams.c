@@ -869,10 +869,10 @@ static const struct param_spec pspecs[] = {
         .ps_name = "durability.buffer.size",
         .ps_description = "durability buffer size in MiB",
         .ps_flags = PARAM_FLAG_EXPERIMENTAL,
-        .ps_type = PARAM_TYPE_U64,
+        .ps_type = PARAM_TYPE_U32,
         .ps_offset = offsetof(struct kvdb_rparams, dur_bufsz_mb),
         .ps_size = PARAM_SZ(struct kvdb_rparams, dur_bufsz_mb),
-        .ps_convert = param_default_converter,
+        .ps_convert = param_roundup_pow2,
         .ps_validate = param_default_validator,
         .ps_default_value = {
             .as_uscalar = HSE_WAL_DUR_BUFSZ_MB_DFLT,
@@ -1223,19 +1223,6 @@ static const struct param_spec pspecs[] = {
                 .ps_min = 16,
                 .ps_max = 8192,
             },
-        },
-    },
-    {
-        .ps_name = "low_mem",
-        .ps_description = "configure for a constrained memory environment",
-        .ps_flags = PARAM_FLAG_EXPERIMENTAL,
-        .ps_type = PARAM_TYPE_BOOL,
-        .ps_offset = offsetof(struct kvdb_rparams, low_mem),
-        .ps_size = PARAM_SZ(struct kvdb_rparams, low_mem),
-        .ps_convert = param_default_converter,
-        .ps_validate = param_default_validator,
-        .ps_default_value = {
-            .as_uscalar = false,
         },
     },
     {

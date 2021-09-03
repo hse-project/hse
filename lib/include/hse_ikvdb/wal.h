@@ -12,12 +12,13 @@
 #include <hse_ikvdb/kvs.h>
 #include <hse_ikvdb/tuple.h>
 
-#define HSE_WAL_DUR_MS_DFLT        (100)
 #define HSE_WAL_DUR_MS_MIN         (25)
+#define HSE_WAL_DUR_MS_DFLT        (100)
 #define HSE_WAL_DUR_MS_MAX         (1000)
 
+/* Per wal buffer size */
+#define HSE_WAL_DUR_BUFSZ_MB_MIN   (256ul)
 #define HSE_WAL_DUR_BUFSZ_MB_DFLT  (4096ul)
-#define HSE_WAL_DUR_BUFSZ_MB_MIN   (1024ul)
 #define HSE_WAL_DUR_BUFSZ_MB_MAX   (8192ul)
 
 struct wal;

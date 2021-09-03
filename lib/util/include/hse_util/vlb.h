@@ -19,7 +19,10 @@
  * callers of vlb_alloc(), but more work needs to be done to improve
  * the situation.
  */
-#define VLB_CACHESZ_MAX     (4ul << 30) /* per NUMA node */
+#define HSE_VLB_CACHESZ_MIN     (128ul << 20) /* per NUMA node */
+#define HSE_VLB_CACHESZ_DFLT    (4ul << 30)   /* per NUMA node */
+#define HSE_VLB_CACHESZ_MAX     HSE_VLB_CACHESZ_DFLT
+
 #define VLB_ALLOCSZ_MAX     (4ul << 20)
 #define VLB_KEEPSZ_MAX      (2ul << 20)
 

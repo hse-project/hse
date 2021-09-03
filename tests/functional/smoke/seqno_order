@@ -10,4 +10,4 @@ kvdb_create
 
 # one thread does transactional PUTs while another periodically calls flush
 kvs=$(kvs_create smoke-0) || exit $?
-cmd txput_flush "$home" $kvs kvdb-oparms low_mem=true
+cmd txput_flush "$home" $kvs

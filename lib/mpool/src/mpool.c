@@ -351,7 +351,7 @@ mpool_mclass_props_get(struct mpool *mp, enum mpool_mclass mclass, struct mpool_
         return merr(ENOENT);
 
     if (props)
-        props->mc_mblocksz = mclass_mblocksz_get(mc) >> 20;
+        props->mc_mblocksz = mclass_mblocksz_get(mc) >> MB_SHIFT;
 
     return 0;
 }

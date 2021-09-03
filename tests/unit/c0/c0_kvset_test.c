@@ -199,8 +199,8 @@ MTF_DEFINE_UTEST_PREPOST(c0_kvset_test, basic_put_get_fail, no_fail_pre, no_fail
 
     c0kvs_usage(kvs, &usage);
     avail = usage.u_alloc - usage.u_used + 1;
-    ASSERT_GT(avail, HSE_C0_CHEAP_SZ_DFLT / 2);
-    ASSERT_LT(avail, HSE_C0_CHEAP_SZ_DFLT);
+    ASSERT_GT(avail, hse_gparams.gp_c0kvs_cheap_sz / 2);
+    ASSERT_LT(avail, hse_gparams.gp_c0kvs_cheap_sz);
 
     bigly = malloc(avail);
     ASSERT_NE(NULL, bigly);

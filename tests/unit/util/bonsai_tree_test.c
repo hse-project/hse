@@ -13,6 +13,7 @@
 #include <hse_util/keycmp.h>
 #include <hse_util/seqno.h>
 #include <hse_util/bonsai_tree.h>
+#include <hse_util/storage.h>
 
 #include <util/src/bonsai_tree_pvt.h>
 
@@ -50,8 +51,6 @@ static enum bonsai_alloc_mode allocm = HSE_ALLOC_CURSOR;
 /* [HSE_REVISIT] Need to replace these constants, macros. */
 #define HSE_CORE_TOMB_REG ((void *)~0x1UL)
 #define HSE_CORE_TOMB_PFX ((void *)~0UL)
-#define GB (1024ul * 1024 * 1024)
-#define MB (1024ul * 1024)
 
 struct bonsai_root *   broot;
 static int             induce_alloc_failure;

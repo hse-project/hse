@@ -523,6 +523,9 @@ ikvdb_kvdb_handle(struct ikvdb_impl *self);
 merr_t
 ikvdb_kvs_query_tree(struct hse_kvs *kvs, struct yaml_context *yc, int fd, bool list);
 
+uint32_t
+ikvdb_lowmem_scale(uint32_t memgb);
+
 /*
  * [HSE_REVISIT] - This whole callback setup up needs to be reworked.
  *                Huge layering violations, etc.
