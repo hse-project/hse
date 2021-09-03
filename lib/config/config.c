@@ -421,12 +421,13 @@ config_from_hse_conf(const char *const config, struct config **conf)
         if (merr_errno(err) == ENOENT) {
             err = 0;
         } else {
-            hse_log(HSE_ERR "Failed to read %s", config);
+            fprintf(stderr, "Failed to read %s", config);
         }
         goto out;
     }
 
     if (!cJSON_IsObject(impl)) {
+        fprintf(stderr, "Content of %s must be a JSON object", config);
         err = merr(EINVAL);
         goto out;
     }
