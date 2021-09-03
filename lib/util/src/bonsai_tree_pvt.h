@@ -12,6 +12,7 @@
 #include <hse_util/barrier.h>
 #include <hse_util/bonsai_tree.h>
 #include <hse_util/assert.h>
+#include <hse_util/timing.h>
 
 enum bonsai_match_type {
     B_MATCH_EQ = 0,

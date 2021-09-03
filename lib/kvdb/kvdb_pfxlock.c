@@ -234,11 +234,12 @@ kvdb_pfxlock_hash2treeidx(uint64_t hash, bool shared)
     idx *= KVDB_PFXLOCK_RANGE_MAX;
 
     if (shared) {
-        uint cpu, node, core;
+        uint cpu, node;
 
-        hse_getcpu(&cpu, &node, &core);
+        cpu = hse_getcpu(&node);
+
         idx += (node % 2) * (KVDB_PFXLOCK_RANGE_MAX / 2);
-        idx += core % (KVDB_PFXLOCK_RANGE_MAX / 2);
+        idx += cpu % (KVDB_PFXLOCK_RANGE_MAX / 2);
     }
 
     return idx;

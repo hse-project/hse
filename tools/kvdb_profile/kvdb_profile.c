@@ -11,6 +11,7 @@
 #include <hse_util/page.h>
 #include <hse_util/workqueue.h>
 #include <hse_util/string.h>
+#include <hse_util/timing.h>
 
 #include <hse/hse.h>
 #include <mpool/mpool.h>

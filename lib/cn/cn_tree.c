@@ -988,7 +988,7 @@ vtc_alloc(void)
     struct table *  tab;
     uint            cnt;
 
-    bkt = vtc + (raw_smp_processor_id() % NELEM(vtc));
+    bkt = vtc + (hse_getcpu(NULL) % NELEM(vtc));
 
     spin_lock(&bkt->lock);
     tab = bkt->head;
@@ -1014,7 +1014,7 @@ vtc_free(struct table *tab)
 {
     struct vtc_bkt *bkt;
 
-    bkt = vtc + (raw_smp_processor_id() % NELEM(vtc));
+    bkt = vtc + (hse_getcpu(NULL) % NELEM(vtc));
 
     spin_lock(&bkt->lock);
     if (bkt->cnt < bkt->max) {

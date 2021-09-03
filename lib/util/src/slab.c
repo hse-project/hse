@@ -254,7 +254,6 @@ struct kmem_cache {
     void               *zone_magic;
     struct list_head    zone_entry;
     ulong               zone_flags;
-    int                 zone_packedv[KMC_NODES_MAX];
     struct delayed_work zone_dwork;
 
     spinlock_t          zone_lock  HSE_ALIGNED(SMP_CACHE_BYTES * 2);
@@ -442,7 +441,7 @@ kmc_chunk_destroy(struct kmc_chunk *chunk)
 }
 
 struct kmc_slab *
-kmc_slab_alloc(struct kmem_cache *zone, uint cpuid)
+kmc_slab_alloc(struct kmem_cache *zone, uint cpuid, uint nodeid)
 {
     struct kmc_chunk *chunk;
     struct kmc_slab  *slab;
@@ -451,7 +450,7 @@ kmc_slab_alloc(struct kmem_cache *zone, uint cpuid)
     size_t sz;
     uint i;
 
-    node = zone->zone_nodev + (hse_cpu2node(cpuid) % KMC_NODES_MAX);
+    node = zone->zone_nodev + (nodeid % KMC_NODES_MAX);
 
     kmc_node_lock(node);
     chunk = kmc_chunk_first(&node->node_partial);
@@ -603,29 +602,19 @@ kmc_slab_free(struct kmem_cache *zone, struct kmc_slab *slab)
 }
 
 void *
-kmem_cache_alloc_impl(struct kmem_cache *zone, uint cpuid)
+kmem_cache_alloc_impl(struct kmem_cache *zone, uint cpuid, uint nodeid)
 {
     struct kmc_pcpu *pcpu;
     struct kmc_slab *slab;
-    uint nodeid, coreid;
     void *mem;
 
     assert(zone && zone->zone_magic == zone);
 
-    nodeid = hse_cpu2node(cpuid);
-    coreid = hse_cpu2core(cpuid);
-
-    if (HSE_UNLIKELY(zone->zone_packed)) {
-        if (hse_cpu2core(zone->zone_packedv[nodeid]) != coreid) {
-            cpuid = zone->zone_packedv[nodeid];
-            nodeid = hse_cpu2node(cpuid);
-            coreid = hse_cpu2core(cpuid);
-        }
-    }
-
     pcpu = zone->zone_pcpuv;
     pcpu += (nodeid % KMC_NODES_MAX) * KMC_PCPU_MAX;
-    pcpu += (coreid % KMC_PCPU_MAX);
+
+    if (!zone->zone_packed)
+        pcpu += (cpuid % KMC_PCPU_MAX);
 
     kmc_pcpu_lock(pcpu);
     while (1) {
@@ -642,7 +631,7 @@ kmem_cache_alloc_impl(struct kmem_cache *zone, uint cpuid)
         }
         kmc_pcpu_unlock(pcpu);
 
-        slab = kmc_slab_alloc(zone, cpuid);
+        slab = kmc_slab_alloc(zone, cpuid, nodeid);
         if (!slab)
             return NULL;
 
@@ -689,7 +678,11 @@ kmem_cache_alloc_impl(struct kmem_cache *zone, uint cpuid)
 void *
 kmem_cache_alloc(struct kmem_cache *zone)
 {
-    return kmem_cache_alloc_impl(zone, raw_smp_processor_id());
+    uint cpu, node;
+
+    cpu = hse_getcpu(&node);
+
+    return kmem_cache_alloc_impl(zone, cpu, node);
 }
 
 void *
@@ -958,6 +951,7 @@ kmem_cache_create(const char *name, size_t size, size_t align, ulong flags, void
     zone->zone_delay = 15000;
     zone->zone_magic = zone;
 
+#if 0
     if (zone->zone_packed) {
         uint cpumax, cpuid, j;
         cpu_set_t omask;
@@ -979,6 +973,7 @@ kmem_cache_create(const char *name, size_t size, size_t align, ulong flags, void
             }
         }
     }
+#endif
 
     kmc_zone_lock_init(zone);
     strlcpy(zone->zone_name, name, sizeof(zone->zone_name));
@@ -1267,7 +1262,7 @@ kmc_rest_get_test(
 
         CPU_ZERO(&omask);
         CPU_ZERO(&nmask);
-        CPU_SET(raw_smp_processor_id(), &nmask);
+        CPU_SET(hse_getcpu(NULL), &nmask);
 
         rc = pthread_getaffinity_np(pthread_self(), sizeof(omask), &omask);
         if (rc)
@@ -1279,7 +1274,7 @@ kmc_rest_get_test(
 
         zone = kmem_cache_create(__func__, sz, align, 0, NULL);
 
-        n = snprintf(buf, bufsz, "%4u %4zu%c", raw_smp_processor_id(), hsz, *suffix);
+        n = snprintf(buf, bufsz, "%4u %4zu%c", hse_getcpu(NULL), hsz, *suffix);
         rest_write_safe(info->resp_fd, buf, n);
 
         nspa = kmc_test(1, sz, align, NULL, &naligned);
