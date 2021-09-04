@@ -998,9 +998,14 @@ c0sk_ingestref_get(struct c0sk_impl *self, bool is_txn, void **cookiep)
     atomic_t *ptr = NULL;
 
     if (!is_txn) {
-        uint node = hse_cpu2node(raw_smp_processor_id());
+        uint cpu, node, idx;
 
-        ptr = &self->c0sk_ingest_refv[node % NELEM(self->c0sk_ingest_refv)].refcnt;
+        cpu = hse_getcpu(&node);
+
+        idx = node % (NELEM(self->c0sk_ingest_refv) / 2);
+        idx += cpu % (NELEM(self->c0sk_ingest_refv) / 2);
+
+        ptr = &self->c0sk_ingest_refv[idx].refcnt;
 
         atomic_inc(ptr);
     }

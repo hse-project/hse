@@ -768,7 +768,7 @@ perfc_sl_record(struct perfc_set *pcs, const u32 cidx, const u64 start)
 
     val = cycles_to_nsecs(get_cycles() - start);
 
-    i = raw_smp_processor_id() % PERFC_VALPERCNT;
+    i = hse_getcpu(NULL) % PERFC_VALPERCNT;
     i *= PERFC_VALPERCPU;
 
     atomic64_add(val, &hdr->pch_val[i].pcv_vadd); /* sum */
@@ -825,7 +825,7 @@ perfc_inc(struct perfc_set *pcs, const u32 cidx)
     if (!pcsi)
         return;
 
-    i = raw_smp_processor_id() % PERFC_VALPERCNT;
+    i = hse_getcpu(NULL) % PERFC_VALPERCNT;
     i *= PERFC_VALPERCPU;
 
     atomic64_add(1, &pcsi->pcs_ctrv[cidx].hdr.pch_val[i].pcv_vadd);
@@ -843,7 +843,7 @@ perfc_dec(struct perfc_set *pcs, const u32 cidx)
     if (!pcsi)
         return;
 
-    i = raw_smp_processor_id() % PERFC_VALPERCNT;
+    i = hse_getcpu(NULL) % PERFC_VALPERCNT;
     i *= PERFC_VALPERCPU;
 
     atomic64_add(1, &pcsi->pcs_ctrv[cidx].hdr.pch_val[i].pcv_vsub);
@@ -861,7 +861,7 @@ perfc_add(struct perfc_set *pcs, const u32 cidx, const u64 val)
     if (!pcsi)
         return;
 
-    i = raw_smp_processor_id() % PERFC_VALPERCNT;
+    i = hse_getcpu(NULL) % PERFC_VALPERCNT;
     i *= PERFC_VALPERCPU;
 
     atomic64_add(val, &pcsi->pcs_ctrv[cidx].hdr.pch_val[i].pcv_vadd);
@@ -879,7 +879,7 @@ perfc_add2(struct perfc_set *pcs, const u32 cidx1, const u64 val1, const u32 cid
     if (!pcsi)
         return;
 
-    i = raw_smp_processor_id() % PERFC_VALPERCNT;
+    i = hse_getcpu(NULL) % PERFC_VALPERCNT;
     i *= PERFC_VALPERCPU;
 
     atomic64_add(val1, &pcsi->pcs_ctrv[cidx1].hdr.pch_val[i].pcv_vadd);
@@ -900,7 +900,7 @@ perfc_sub(struct perfc_set *pcs, const u32 cidx, const u64 val)
     if (!pcsi)
         return;
 
-    i = raw_smp_processor_id() % PERFC_VALPERCNT;
+    i = hse_getcpu(NULL) % PERFC_VALPERCNT;
     i *= PERFC_VALPERCPU;
 
     atomic64_add(val, &pcsi->pcs_ctrv[cidx].hdr.pch_val[i].pcv_vsub);

@@ -242,9 +242,9 @@ wal_bufset_open(
     wbs->wbs_buf_allocsz = ALIGN(bufsz + wal_reclen() + HSE_KVS_KEY_LEN_MAX +
                                  HSE_KVS_VALUE_LEN_MAX, 2ul << MB_SHIFT);
 
-    for (i = 0; i < get_nprocs_conf(); ++i) {
+    for (i = 0; i < WAL_NODE_MAX; ++i) {
         struct wal_buffer *wb;
-        uint32_t index = (hse_cpu2node(i) % WAL_NODE_MAX) * WAL_BPN_MAX;
+        uint32_t index = i * WAL_BPN_MAX;
 
         wb = wbs->wbs_bufv + index;
         if (wb->wb_buf)
@@ -354,10 +354,11 @@ wal_bufset_alloc(
 
     slot = *cookie;
     if (HSE_LIKELY(slot == -1)) {
-        uint32_t cpuid, nodeid, coreid;
+        uint cpu, node;
 
-        hse_getcpu(&cpuid, &nodeid, &coreid);
-        slot = (nodeid % WAL_NODE_MAX) * WAL_BPN_MAX + (coreid % WAL_BPN_MAX);
+        cpu = hse_getcpu(&node);
+
+        slot = (node % WAL_NODE_MAX) * WAL_BPN_MAX + (cpu % WAL_BPN_MAX);
         *cookie = slot;
     }
 

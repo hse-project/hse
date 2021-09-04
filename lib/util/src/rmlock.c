@@ -17,7 +17,7 @@
 static HSE_ALWAYS_INLINE uint
 rmlock_bktidx(struct rmlock *lock)
 {
-    return raw_smp_processor_id() % RMLOCK_MAX;
+    return hse_getcpu(NULL) % RMLOCK_MAX;
 }
 
 merr_t

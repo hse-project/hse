@@ -939,7 +939,7 @@ perfc_latdis_record(struct perfc_dis *dis, u64 sample)
         dis->pdi_min = sample;
 
     bkt = dis->pdi_hdr.pch_bktv;
-    bkt += (raw_smp_processor_id() % PERFC_GRP_MAX) * (PERFC_IVL_MAX + 1);
+    bkt += (hse_getcpu(NULL) % PERFC_GRP_MAX) * (PERFC_IVL_MAX + 1);
 
     /* Index into ivl_map[] with ilog2(sample) to skip buckets whose bounds
      * are smaller than sample.  Note that we constrain sample to produce an

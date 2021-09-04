@@ -346,18 +346,18 @@ viewset_insert(struct viewset *handle, u64 *viewp, u64 *tseqnop, void **cookiep)
     struct viewset_tree *    tree;
     struct viewset_bkt *     bkt;
     bool                     changed;
-    uint cpu, core, node;
+    uint cpu, node;
 
-    hse_getcpu(&cpu, &node, &core);
+    cpu = hse_getcpu(&node);
 
     /* Choose a bucket to the right of center if the current
      * NUMA node is odd, otherwise to the left of center.
      */
     bkt = self->vs_bktv + (VIEWSET_BKT_MAX / 2);
     if (node % 2)
-        bkt += (core / 2) % (VIEWSET_BKT_MAX / 2);
+        bkt += cpu % (VIEWSET_BKT_MAX / 2);
     else
-        bkt -= ((core / 2) % (VIEWSET_BKT_MAX / 2)) + 1;
+        bkt -= (cpu % (VIEWSET_BKT_MAX / 2)) + 1;
 
     atomic_inc(&bkt->vsb_active);
 

@@ -23,11 +23,11 @@ static struct vlb_cache vlbcv[VLB_NODES_MAX * VLB_BPN_MAX];
 static struct vlb_cache *
 vlb_cpu2cache(void)
 {
-    uint cpuid, coreid, nodeid;
+    uint cpu, node;
 
-    hse_getcpu(&cpuid, &nodeid, &coreid);
+    cpu = hse_getcpu(&node);
 
-    return vlbcv + (((nodeid % VLB_NODES_MAX) * VLB_BPN_MAX) + (coreid % VLB_BPN_MAX));
+    return vlbcv + (((node % VLB_NODES_MAX) * VLB_BPN_MAX) + (cpu % VLB_BPN_MAX));
 }
 
 void *

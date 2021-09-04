@@ -242,13 +242,13 @@ c0snr_set_get_c0snr(struct c0snr_set *handle, struct kvdb_ctxn *ctxn)
     struct c0snr_set_entry *entry;
     struct c0snr_set_list * cslist;
     struct c0snr_set_bkt *  bkt;
-    uint                    cpu, node, core;
+    uint                    cpu, node;
     uint                    tries;
 
-    hse_getcpu(&cpu, &node, &core);
+    cpu = hse_getcpu(&node);
 
     bkt = self->css_bktv + (node % 2) * (NELEM(self->css_bktv) / 2);
-    bkt += core % (NELEM(self->css_bktv) / 2);
+    bkt += cpu % (NELEM(self->css_bktv) / 2);
     tries = NELEM(self->css_bktv);
 
     while (tries-- > 0) {
