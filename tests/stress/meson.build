@@ -113,9 +113,6 @@ foreach p, p_params: programs
     e = executable(
         p,
         ['@0@.c'.format(p), 'stress_util.c'],
-        c_args: [
-            '-D_GNU_SOURCE=1',
-        ],
         dependencies: [hse_static_dep, hse_dependencies],
     )
 

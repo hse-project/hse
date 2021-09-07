@@ -346,7 +346,10 @@ Java_org_micron_hse_API_put(
         int  n;
 
         n = snprintf(msg, sizeof(msg), "hse_kvs_put: keyL=%u valueL=%u: ", keyL, valueL);
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-result"
         strerror_r(hse_err_to_errno(rc), msg + n, sizeof(msg) - n);
+#pragma GCC diagnostic pop
 
         throw_gen_exception(env, msg);
         rval = -1;
@@ -402,7 +405,10 @@ Java_org_micron_hse_API_get(JNIEnv *env, jobject jobj, jlong handle, jbyteArray 
         char msg[128];
 
         n = snprintf(msg, sizeof(msg), "hse_kvs_get: keyL=%u vlen=%zu: ", keyL, vlen);
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-result"
         strerror_r(hse_err_to_errno(rc), msg + n, sizeof(msg) - n);
+#pragma GCC diagnostic pop
 
         throw_gen_exception(env, msg);
         goto errout;
@@ -459,7 +465,10 @@ Java_org_micron_hse_API_del(JNIEnv *env, jobject jobj, jlong handle, jbyteArray 
         int  n;
 
         n = snprintf(msg, sizeof(msg), "hse_kvs_delete: keyL=%u: ", keyL);
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-result"
         strerror_r(hse_err_to_errno(rc), msg + n, sizeof(msg) - n);
+#pragma GCC diagnostic pop
 
         throw_gen_exception(env, msg);
         rval = -1;

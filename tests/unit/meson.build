@@ -296,7 +296,6 @@ foreach c, tests : components
             ],
             c_args: [
                 '-DCOMPNAME="kvdb"',
-                '-D_GNU_SOURCE=1',
                 params.get('c_args', []),
             ],
             include_directories: params.get('include_directories', []),
