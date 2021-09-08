@@ -176,25 +176,6 @@ static const struct param_spec pspecs[] = {
         },
     },
     {
-        .ps_name = "low_memory.limit_gb",
-        .ps_description = "cgroup mem limit in GiB for a constrained memory env (32G or lower)",
-        .ps_flags = 0,
-        .ps_type = PARAM_TYPE_U32,
-        .ps_offset = offsetof(struct hse_gparams, gp_lowmem_gb),
-        .ps_size = PARAM_SZ(struct hse_gparams, gp_lowmem_gb),
-        .ps_convert = param_roundup_pow2,
-        .ps_validate = param_default_validator,
-        .ps_default_value = {
-            .as_uscalar = 0,
-        },
-        .ps_bounds = {
-            .as_uscalar = {
-                .ps_min = HSE_LOWMEM_THRESHOLD_GB_DFLT,
-                .ps_max = HSE_LOWMEM_THRESHOLD_GB_DFLT,
-            },
-        },
-    },
-    {
         .ps_name = "vlb_cache_sz",
         .ps_description = "size of vlb cache (bytes)",
         .ps_flags = PARAM_FLAG_EXPERIMENTAL,
