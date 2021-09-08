@@ -72,7 +72,7 @@ json_walk(
     if (!bypass) {
         /* Protect against configs like { "prefix.length": 5 } */
         if (strchr(node->string, '.')) {
-            CLOG("Keys in config files cannot contain a '.'");
+            CLOG_ERR("Keys in config files cannot contain a '.'");
             err = merr(EINVAL);
             goto out;
         }
@@ -119,13 +119,15 @@ json_walk(
     } else {
         /* Key not found */
         if (!ps) {
-            CLOG("Unknown parameter %s", key);
+            CLOG_ERR("Unknown parameter %s", key);
             err = merr(EINVAL);
             goto out;
         }
 
+        CLOG_DEBUG("Applying %s %s from config file", params_logging_context(params), ps->ps_name);
+
         if (cJSON_IsNull(node) && !(ps->ps_flags & PARAM_FLAG_NULLABLE)) {
-            CLOG("%s %s cannot be null", params_logging_context(params), ps->ps_name);
+            CLOG_ERR("%s %s cannot be null", params_logging_context(params), ps->ps_name);
             err = merr(EINVAL);
             goto out;
         }
@@ -134,7 +136,7 @@ json_walk(
 
         assert(ps->ps_convert);
         if (!ps->ps_convert(ps, node, data)) {
-            CLOG("Failed to convert %s %s", params_logging_context(params), key);
+            CLOG_ERR("Failed to convert %s %s", params_logging_context(params), key);
             err = merr(EINVAL);
             goto out;
         }
@@ -144,7 +146,7 @@ json_walk(
          * deserializing an array.
          */
         if (ps->ps_validate && !ps->ps_validate(ps, data)) {
-            CLOG("Failed to validate %s %s", params_logging_context(params), key);
+            CLOG_ERR("Failed to validate %s %s", params_logging_context(params), key);
             err = merr(EINVAL);
             goto out;
         }
@@ -205,7 +207,7 @@ json_deserialize(
     for (size_t i = 0; i < pspecs_sz; i++) {
         const struct param_spec *ps = &pspecs[i];
         if (ps->ps_validate_relations && !ps->ps_validate_relations(ps, params)) {
-            CLOG(
+            CLOG_ERR(
                 "Failed to validate parameter relationships for %s %s",
                 params_logging_context(params),
                 ps->ps_name);
@@ -320,14 +322,18 @@ config_deserialize_to_kvs_rparams(
     err = default_kvs_node_get(kvs, &default_kvs);
     if (err)
         return err;
-    if (default_kvs)
+    if (default_kvs) {
+        hse_log(HSE_DEBUG "Found a default config node for KVS (%s)", kvs_name);
         num_providers++;
+    }
 
     err = named_kvs_node_get(kvs_name, kvs, &named_kvs);
     if (err)
         return err;
-    if (named_kvs)
+    if (named_kvs) {
+        hse_log(HSE_DEBUG "Found a named config node for KVS (%s)", kvs_name);
         num_providers++;
+    }
 
     err = json_deserialize(rpspecs, rpspecs_sz, &p, NULL, 0, num_providers, default_kvs, named_kvs);
 
@@ -380,7 +386,7 @@ config_create(const char *path, cJSON **conf)
 
     *conf = cJSON_ParseWithLength(config, st.st_size);
     if (!*conf) {
-        CLOG("Failed to parse file as valid JSON (%s)", path);
+        CLOG_ERR("Failed to parse file as valid JSON (%s)", path);
         err = merr(EINVAL);
         goto out;
     }

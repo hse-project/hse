@@ -13,14 +13,24 @@
 
 extern bool hse_initialized;
 
-#define CLOG(...)                         \
+#define CLOG_ERR(...)                     \
     do {                                  \
         if (hse_initialized) {            \
             hse_log(HSE_ERR __VA_ARGS__); \
         } else {                          \
             fprintf(stderr, __VA_ARGS__); \
-            fprintf(stderr, "\n");        \
+            fputc('\n', stderr);          \
         }                                 \
+    } while (0)
+
+#define CLOG_DEBUG(...)                     \
+    do {                                    \
+        if (hse_initialized) {              \
+            hse_log(HSE_DEBUG __VA_ARGS__); \
+        } else {                            \
+            fprintf(stderr, __VA_ARGS__);   \
+            fputc('\n', stderr);            \
+        }                                   \
     } while (0)
 
 const char *
