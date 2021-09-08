@@ -8,7 +8,7 @@ authors = ["Micron Technology, Inc."]
 python = "^3.6"
 
 [tool.poetry.dev-dependencies]
-PyYAML = "^5.4.1"
+PyYAML = { version = "^5.4.1", optional = true }
 pytest = "^6.2.4"
 black = "20.8b1"
 Cython = "^0.29.23"
@@ -17,5 +17,8 @@ meson = "^0.58.2"
 ninja = "^1.10.0"
 pytest-tap = "^3.2"
 toml = "^0.10.2"
-requests-unixsocket = "^0.2.0"
-bokeh = "^2.3.3"
+requests-unixsocket = { version = "^0.2.0", optional = true }
+bokeh = { version = "^2.3.3", optional = true }
+
+[tool.poetry.extras]
+tools = ["PyYAML", "bokeh", "requests-unixsocket"]
