@@ -11,16 +11,6 @@
 #include <hse_util/hse_err.h>
 
 /**
- * Translates a nullable home to a non-nullable absolute path
- * @param home: user-provided home directory
- * @param buf: buffer for translated directory
- * @param buf_sz: buffer size
- * @returns error status
- */
-merr_t
-kvdb_home_resolve(const char *home, char *buf, const size_t buf_sz);
-
-/**
  * Converts the storage capacity path to be an absolute path
  *
  * @param home: home directory

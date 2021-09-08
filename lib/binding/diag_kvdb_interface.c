@@ -39,7 +39,6 @@ diag_kvdb_open(
     struct kvdb_rparams params = kvdb_rparams_defaults();
     struct pidfh *      pfh = NULL;
     struct pidfile      content;
-    char                real_home[PATH_MAX];
     char                pidfile_path[PATH_MAX];
     size_t              n;
     struct config *     conf;
@@ -47,15 +46,11 @@ diag_kvdb_open(
     if (ev(!kvdb_home || !handle))
         return merr(EINVAL);
 
-    err = kvdb_home_resolve(kvdb_home, real_home, sizeof(real_home));
-    if (ev(err))
-        goto close_mp;
-
     err = argv_deserialize_to_kvdb_rparams(paramc, paramv, &params);
     if (err)
         goto close_mp;
 
-    err = config_from_kvdb_conf(real_home, &conf);
+    err = config_from_kvdb_conf(kvdb_home, &conf);
     if (err)
         goto close_mp;
 
@@ -63,7 +58,7 @@ diag_kvdb_open(
     if (err)
         goto close_mp;
 
-    err = kvdb_rparams_resolve(&params, real_home);
+    err = kvdb_rparams_resolve(&params, kvdb_home);
     if (ev(err))
         goto close_mp;
 
@@ -88,7 +83,7 @@ diag_kvdb_open(
 
     perfc_verbosity = params.perfc_enable;
 
-    err = ikvdb_diag_open(real_home, &params, &ikvdb);
+    err = ikvdb_diag_open(kvdb_home, &params, &ikvdb);
     if (ev(err))
         goto close_mp;
 
