@@ -141,8 +141,6 @@ struct slog {
 
 extern struct hse_logging_infrastructure hse_logging_inf;
 
-extern bool hse_logging_disable_init;
-
 merr_t
 hse_logging_init(void);
 

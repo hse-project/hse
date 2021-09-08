@@ -18,13 +18,15 @@
 #include <hse_util/compiler.h>
 #include <hse_util/hse_err.h>
 
+#include "logging.h"
+
 hse_static merr_t
 argv_deserialize_to_params(
     const size_t                   paramc,
     const char *const *const       paramv,
     const size_t                   pspecs_sz,
     const struct param_spec *const pspecs,
-    const union params             params)
+    const struct params     *const params)
 {
     merr_t err = 0;
 
@@ -38,6 +40,7 @@ argv_deserialize_to_params(
         const char *key = param;
         const char *value = strstr(param, "=");
         if (!value || value[1] == '\0') {
+            CLOG("Parameter key/value pairs must be of the form <key=value>");
             err = merr(EINVAL);
             goto out;
         }
@@ -51,6 +54,7 @@ argv_deserialize_to_params(
         }
 
         if (!ps) {
+            CLOG("Unknown parameter %s", key);
             err = merr(EINVAL);
             goto out;
         }
@@ -58,7 +62,7 @@ argv_deserialize_to_params(
         /* Point value at one character past the '=' */
         value++;
 
-        void *data = ((char *)params.as_generic) + ps->ps_offset;
+        void *data = ((char *)params->p_params.as_generic) + ps->ps_offset;
 
         cJSON *node = cJSON_Parse(value);
         if (!node) {
@@ -71,7 +75,7 @@ argv_deserialize_to_params(
              * the error if one exists after string conversion.
              */
 
-            /* Copy pair into work buffer.  Need 3 extra bytes: 1 for NULL
+            /* Copy pair into work buffer. Need 3 extra bytes: 1 for NULL
              * termination, and 2 for adding quotes when parsing value.
              */
             const size_t buf_sz = strlen(value) + 3;
@@ -84,18 +88,21 @@ argv_deserialize_to_params(
             free(buf);
 
             if (!node) {
+                CLOG("Failed to parse %s %s: %s", params_logging_context(params), ps->ps_name, param);
                 err = merr(EINVAL);
                 goto out;
             }
         }
 
         if (cJSON_IsNull(node) && !(ps->ps_flags & PARAM_FLAG_NULLABLE)) {
+            CLOG("%s %s cannot be null", params_logging_context(params), ps->ps_name);
             err = merr(EINVAL);
             goto out;
         }
 
         assert(ps->ps_convert);
         if (!ps->ps_convert(ps, node, data)) {
+            CLOG("Failed to convert %s %s", params_logging_context(params), key);
             /* Delete the node in the case of an error */
             cJSON_Delete(node);
             err = merr(EINVAL);
@@ -109,6 +116,7 @@ argv_deserialize_to_params(
          * deserializing an array.
          */
         if (ps->ps_validate && !ps->ps_validate(ps, data)) {
+            CLOG("Failed to validate %s %s", params_logging_context(params), key);
             err = merr(EINVAL);
             goto out;
         }
@@ -117,6 +125,7 @@ argv_deserialize_to_params(
     for (size_t i = 0; i < pspecs_sz; i++) {
         const struct param_spec *ps = &pspecs[i];
         if (ps->ps_validate_relations && !ps->ps_validate_relations(ps, params)) {
+            CLOG("Failed to validate parameter relationships for %s %s", params_logging_context(params), ps->ps_name);
             err = merr(EINVAL);
             goto out;
         }
@@ -134,13 +143,13 @@ argv_deserialize_to_kvdb_rparams(
 {
     size_t                   pspecs_sz;
     const struct param_spec *pspecs;
-    const union params       p = { .as_kvdb_rp = params };
+    const struct params      p = { .p_type = PARAMS_KVDB_RP, .p_params = { .as_kvdb_rp = params } };
 
     assert(params);
 
     pspecs = kvdb_rparams_pspecs_get(&pspecs_sz);
 
-    return argv_deserialize_to_params(paramc, paramv, pspecs_sz, pspecs, p);
+    return argv_deserialize_to_params(paramc, paramv, pspecs_sz, pspecs, &p);
 }
 
 merr_t
@@ -151,13 +160,13 @@ argv_deserialize_to_kvdb_cparams(
 {
     size_t                   pspecs_sz;
     const struct param_spec *pspecs;
-    const union params       p = { .as_kvdb_cp = params };
+    const struct params      p = { .p_type = PARAMS_KVDB_CP, .p_params = { .as_kvdb_cp = params } };
 
     assert(params);
 
     pspecs = kvdb_cparams_pspecs_get(&pspecs_sz);
 
-    return argv_deserialize_to_params(paramc, paramv, pspecs_sz, pspecs, p);
+    return argv_deserialize_to_params(paramc, paramv, pspecs_sz, pspecs, &p);
 }
 
 merr_t
@@ -168,13 +177,13 @@ argv_deserialize_to_kvs_rparams(
 {
     size_t                   pspecs_sz;
     const struct param_spec *pspecs;
-    const union params       p = { .as_kvs_rp = params };
+    const struct params      p = { .p_type = PARAMS_KVS_RP, .p_params = { .as_kvs_rp = params } };
 
     assert(params);
 
     pspecs = kvs_rparams_pspecs_get(&pspecs_sz);
 
-    return argv_deserialize_to_params(paramc, paramv, pspecs_sz, pspecs, p);
+    return argv_deserialize_to_params(paramc, paramv, pspecs_sz, pspecs, &p);
 }
 
 merr_t
@@ -185,13 +194,13 @@ argv_deserialize_to_kvs_cparams(
 {
     size_t                   pspecs_sz;
     const struct param_spec *pspecs;
-    const union params       p = { .as_kvs_cp = params };
+    const struct params      p = { .p_type = PARAMS_KVS_CP, .p_params = { .as_kvs_cp = params } };
 
     assert(params);
 
     pspecs = kvs_cparams_pspecs_get(&pspecs_sz);
 
-    return argv_deserialize_to_params(paramc, paramv, pspecs_sz, pspecs, p);
+    return argv_deserialize_to_params(paramc, paramv, pspecs_sz, pspecs, &p);
 }
 
 merr_t
@@ -202,9 +211,9 @@ argv_deserialize_to_hse_gparams(
 {
     size_t                   pspecs_sz;
     const struct param_spec *pspecs;
-    const union params       p = { .as_hse_gp = params };
+    const struct params      p = { .p_type = PARAMS_HSE_GP, .p_params = { .as_hse_gp = params } };
 
     pspecs = hse_gparams_pspecs_get(&pspecs_sz);
 
-    return argv_deserialize_to_params(paramc, paramv, pspecs_sz, pspecs, p);
+    return argv_deserialize_to_params(paramc, paramv, pspecs_sz, pspecs, &p);
 }

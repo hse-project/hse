@@ -180,9 +180,9 @@ struct kvdb_cparams
 kvdb_cparams_defaults()
 {
     struct kvdb_cparams params;
-    const union params  p = { .as_kvdb_cp = &params };
+    const struct params p = { .p_type = PARAMS_KVDB_CP, .p_params = { .as_kvdb_cp = &params } };
 
-    param_default_populate(pspecs, NELEM(pspecs), p);
+    param_default_populate(pspecs, NELEM(pspecs), &p);
     return params;
 }
 

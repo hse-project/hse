@@ -3,13 +3,6 @@ hsejni_sources = files(
     'hsejni.c',
 )
 
-java_home = run_command(
-    'sh',
-    '-c',
-    'dirname $(dirname $(readlink -f $(which javac)))',
-    check: true,
-).stdout().strip()
-
 hsejni_c_args = [
     '-DCOMPNAME="hsejni"',
 ]
@@ -23,14 +16,11 @@ hsejni = library(
         util_includes,
         hsejni_includes,
         component_root_includes,
-        include_directories(
-            '@0@'.format(java_home) / 'include',
-            '@0@'.format(java_home) / 'include' / 'linux'
-        ),
     ],
     dependencies: [
         hse_dep,
         thread_dep,
+        jdk_dep,
         libhse_cli_dep,
     ],
     version: meson.project_version(),

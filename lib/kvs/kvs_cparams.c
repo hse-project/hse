@@ -52,7 +52,7 @@ static const struct param_spec pspecs[] = {
     },
     {
         .ps_name = "prefix.pivot",
-        .ps_description = "First level to spill with full hash, only applies when pfx_len > 0 (0=root)",
+        .ps_description = "First level to spill with full hash, only applies when prefix.length > 0 (0=root)",
         .ps_flags = PARAM_FLAG_EXPERIMENTAL,
         .ps_type = PARAM_TYPE_U32,
         .ps_offset = offsetof(struct kvs_cparams, pfx_pivot),
@@ -120,9 +120,9 @@ kvs_cparams_pspecs_get(size_t *pspecs_sz)
 struct kvs_cparams
 kvs_cparams_defaults()
 {
-    struct kvs_cparams params;
-    const union params p = { .as_kvs_cp = &params };
+    struct kvs_cparams  params;
+    const struct params p = { .p_type = PARAMS_KVS_CP, .p_params = { .as_kvs_cp = &params } };
 
-    param_default_populate(pspecs, NELEM(pspecs), p);
+    param_default_populate(pspecs, NELEM(pspecs), &p);
     return params;
 }

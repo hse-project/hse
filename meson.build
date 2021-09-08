@@ -156,6 +156,7 @@ elif get_option('debug')
 endif
 
 add_project_arguments(
+    '-D_GNU_SOURCE',
     '-D_LGPL_SOURCE',
     '-Wlogical-op',
     '-Wno-missing-field-initializers',

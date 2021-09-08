@@ -316,7 +316,6 @@ foreach t, params : tools
             t,
             params['sources'],
             c_args: [
-                '-D_GNU_SOURCE=1',
                 '-DCOMPNAME="@0@"'.format(t),
                 params.get('c_args', []),
             ],
