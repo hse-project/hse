@@ -22,11 +22,11 @@
 /* clang-format off */
 
 static struct perfc_name throttle_sen_perfc[] = {
-    NE(PERFC_DI_THSR_CSCHED, 2, "csched leaf percent sensor", "thsr_csched"),
-    NE(PERFC_DI_THSR_C0SK,   2, "c0sk ingest queue sensor",   "thsr_c0sk"),
-    NE(PERFC_DI_THSR_WAL,    2, "wal buffer length sensor",   "thsr_wal"),
-    NE(PERFC_DI_THSR_MAX,    2, "max sensor",                 "thsr_max"),
-    NE(PERFC_DI_THSR_MAVG,   2, "mavg sensor",                "thsr_mavg"),
+    NE(PERFC_DI_THSR_CSCHED_ROOT,   2, "csched root sensor",         "thsr_csched_root"),
+    NE(PERFC_DI_THSR_C0SK,          2, "c0sk ingest queue sensor",   "thsr_c0sk"),
+    NE(PERFC_DI_THSR_WAL,           2, "wal buffer length sensor",   "thsr_wal"),
+    NE(PERFC_DI_THSR_MAX,           2, "max sensor",                 "thsr_max"),
+    NE(PERFC_DI_THSR_MAVG,          2, "mavg sensor",                "thsr_mavg"),
 };
 
 NE_CHECK(throttle_sen_perfc, PERFC_EN_THSR, "perfc table/enum mismatch");
@@ -68,7 +68,7 @@ throttle_perfc_init(void)
         return;
     }
 
-    throttle_sen_perfc[PERFC_DI_THSR_CSCHED].pcn_ivl = sensor_ivl;
+    throttle_sen_perfc[PERFC_DI_THSR_CSCHED_ROOT].pcn_ivl = sensor_ivl;
     throttle_sen_perfc[PERFC_DI_THSR_C0SK].pcn_ivl = sensor_ivl;
     throttle_sen_perfc[PERFC_DI_THSR_WAL].pcn_ivl = sensor_ivl;
     throttle_sen_perfc[PERFC_DI_THSR_MAX].pcn_ivl = sensor_ivl;
@@ -304,13 +304,6 @@ throttle_decrease(struct throttle *self, uint svalue)
 
     assert(delta > 0);
 
-    /* Don't attempt to go faster if the tree is out of shape */
-    if (self->thr_csched >= THROTTLE_SENSOR_SCALE) {
-        self->thr_delay = self->thr_delay_prev;
-        throttle_reset_state(self);
-        return;
-    }
-
     /* Inject a reduced delay for inject_cnt cycles */
     if (self->thr_inject_cnt > 0) {
         self->thr_inject_cnt--;
@@ -396,15 +389,12 @@ throttle_update(struct throttle *self)
     for (int i = 0; i < THROTTLE_SENSOR_CNT; i++) {
         u32  tmp = atomic_read(&self->thr_sensorv[i].ts_sensor);
         u32  cidx = UINT_MAX;
-        bool ignore = false;
 
         tmp = min_t(uint, tmp, 2 * THROTTLE_SENSOR_SCALE);
 
         switch (i) {
-            case THROTTLE_SENSOR_CSCHED:
-                ignore = true;
-                self->thr_csched = tmp;
-                cidx = PERFC_DI_THSR_CSCHED;
+            case THROTTLE_SENSOR_CSCHED_ROOT:
+                cidx = PERFC_DI_THSR_CSCHED_ROOT;
                 break;
             case THROTTLE_SENSOR_C0SK:
                 cidx = PERFC_DI_THSR_C0SK;
@@ -415,7 +405,7 @@ throttle_update(struct throttle *self)
         }
 
         /* Ignore csched sensor while calculating mavg. */
-        if (tmp > max_val && !ignore)
+        if (tmp > max_val)
             max_val = tmp;
 
         assert(cidx != UINT_MAX);
@@ -509,8 +499,7 @@ throttle_update(struct throttle *self)
              * 1/(1-p), so p=0.40 increases rate by factor of 1.66 and
              * p=0.01 increases rate by 1%.
              */
-            if (reduce && self->thr_csched < THROTTLE_SENSOR_SCALE) {
-
+            if (reduce) {
                 int delta = self->thr_delay - self->thr_delay_test;
                 const double pmax = 0.40; /* max percent reduce when cmavg==lo */
                 const double pmin = 0.01; /* min percent reduce when cmavg==hi */
