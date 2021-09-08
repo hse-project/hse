@@ -14,7 +14,7 @@ typeset -i i=256
 
 while (( i>0 )) ; do
     i=i-1
-    cmd hse -C "$home" kvs create "kvs$i"
+    kvs_create "kvs$i" || exit $?
 done
 
 cmd kmt -i1k -t5 -cx -s1 "$home" "kvs$i"

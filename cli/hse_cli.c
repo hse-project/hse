@@ -113,7 +113,6 @@ struct cli_cmd {
 struct cli {
     bool            hse_init;
     bool            help_show_all;
-    char            home[PATH_MAX];
     struct cli_cmd *cmd;
     int             argc;
     char **         argv;
@@ -362,8 +361,6 @@ cli_init(struct cli *self, int argc, char **argv)
     memset(self, 0, sizeof(*self));
     self->argc = argc;
     self->argv = argv;
-    if (!getcwd(self->home, sizeof(self->home)))
-        return errno;
 
     return 0;
 }
@@ -531,7 +528,7 @@ cli_hse_fini(struct cli *cli)
 }
 
 static int
-cli_hse_kvdb_create_impl(struct cli *cli)
+cli_hse_kvdb_create_impl(struct cli *cli, const char *const kvdb_home)
 {
     const char **paramv = NULL;
     size_t       paramc = 0;
@@ -551,7 +548,7 @@ cli_hse_kvdb_create_impl(struct cli *cli)
         goto done;
     }
 
-    herr = hse_kvdb_create(cli->home, paramc, paramv);
+    herr = hse_kvdb_create(kvdb_home, paramc, paramv);
     if (herr) {
         switch (hse_err_to_errno(herr)) {
             case EINVAL:
@@ -559,21 +556,21 @@ cli_hse_kvdb_create_impl(struct cli *cli)
                     stderr,
                     "Failed to create the KVDB (%s). Potentially received an invalid KVDB home directory "
                     "or an invalid parameter.\n",
-                    cli->home);
+                    kvdb_home);
                 break;
             case EEXIST:
                 fprintf(
                     stderr,
                     "KVDB (%s) already exists. You can drop and "
                     "recreate the KVDB.\n",
-                    cli->home);
+                    kvdb_home);
                 break;
             case ENOENT:
                 fprintf(
                     stderr,
                     "Failed to create the KVDB (%s). Please ensure that the KVDB home and "
                     "any specified media class paths exist.\n",
-                    cli->home);
+                    kvdb_home);
                 break;
             default:
                 print_hse_err(cli, "hse_kvdb_create", herr);
@@ -582,7 +579,7 @@ cli_hse_kvdb_create_impl(struct cli *cli)
         goto done;
     }
 
-    printf("Successfully created the KVDB (%s)\n", cli->home);
+    printf("Successfully created the KVDB (%s)\n", kvdb_home);
 
 done:
     free(paramv);
@@ -590,10 +587,12 @@ done:
 }
 
 static int
-cli_hse_kvdb_drop_impl(struct cli *cli)
+cli_hse_kvdb_drop_impl(struct cli *cli, const char *const kvdb_home)
 {
     hse_err_t    herr = 0;
     int          rc = 0;
+
+    assert(kvdb_home);
 
     if (cli_hse_init(cli))
         return -1;
@@ -604,24 +603,24 @@ cli_hse_kvdb_drop_impl(struct cli *cli)
         goto done;
     }
 
-    herr = hse_kvdb_drop(cli->home);
+    herr = hse_kvdb_drop(kvdb_home);
     if (herr) {
         if (hse_err_to_errno(herr) != ENOENT)
             print_hse_err(cli, "hse_kvdb_drop", herr);
         goto done;
     }
 
-    printf("Successfully dropped the KVDB (%s)\n", cli->home);
+    printf("Successfully dropped the KVDB (%s)\n", kvdb_home);
 
 done:
     if (herr && hse_err_to_errno(herr) == ENOENT)
-        fprintf(stderr, "Failed to drop the KVDB (%s) because it does not exist\n", cli->home);
+        fprintf(stderr, "Failed to drop the KVDB (%s) because it does not exist\n", kvdb_home);
 
     return (herr || rc) ? -1 : 0;
 }
 
 static int
-cli_hse_kvdb_info_impl(struct cli *cli)
+cli_hse_kvdb_info_impl(struct cli *cli, const char *const kvdb_home)
 {
     const char *paramv[] = { "read_only=true" };
     char        buf[YAML_BUF_SIZE];
@@ -636,6 +635,8 @@ cli_hse_kvdb_info_impl(struct cli *cli)
         .yaml_emit = yaml_print_and_rewind,
     };
 
+    assert(kvdb_home);
+
     if (cli_hse_init(cli))
         return -1;
 
@@ -644,9 +645,9 @@ cli_hse_kvdb_info_impl(struct cli *cli)
         return EINVAL;
     }
 
-    exists = kvdb_info_print(cli->home, NELEM(paramv), paramv, &yc, true);
+    exists = kvdb_info_print(kvdb_home, NELEM(paramv), paramv, &yc, true);
     if (!exists) {
-        fprintf(stderr, "No such KVDB (%s)\n", cli->home);
+        fprintf(stderr, "No such KVDB (%s)\n", kvdb_home);
         rc = -1;
     }
 
@@ -750,7 +751,7 @@ cli_hse_kvdb_create(struct cli_cmd *self, struct cli *cli)
     const struct cmd_spec spec = {
         .usagev =
             {
-                "[options] [<param>=<value>]...",
+                "[options] <kvdb_home> [<param>=<value>]...",
                 NULL,
             },
         .optionv =
@@ -769,8 +770,9 @@ cli_hse_kvdb_create(struct cli_cmd *self, struct cli *cli)
             },
     };
 
-    bool help = false;
-    int  c;
+    const char *kvdb_home = NULL;
+    bool        help = false;
+    int         c;
 
     if (cli_hook(cli, self, &spec))
         return 0;
@@ -785,12 +787,14 @@ cli_hse_kvdb_create(struct cli_cmd *self, struct cli *cli)
         }
     }
 
-    if (help) {
+    kvdb_home = cli_next_arg(cli);
+
+    if (!kvdb_home || help) {
         cmd_print_help(self, help ? stdout : stderr);
         return help ? 0 : EX_USAGE;
     }
 
-    return cli_hse_kvdb_create_impl(cli);
+    return cli_hse_kvdb_create_impl(cli, kvdb_home);
 }
 
 static int
@@ -799,7 +803,7 @@ cli_hse_kvdb_drop(struct cli_cmd *self, struct cli *cli)
     const struct cmd_spec spec = {
         .usagev =
             {
-                "[options] [<param>=<value>]...",
+                "[options] <kvdb_home>",
                 NULL,
             },
         .optionv =
@@ -818,8 +822,9 @@ cli_hse_kvdb_drop(struct cli_cmd *self, struct cli *cli)
             },
     };
 
-    bool help = false;
-    int  c;
+    const char *kvdb_home = NULL;
+    bool        help = false;
+    int         c;
 
     if (cli_hook(cli, self, &spec))
         return 0;
@@ -834,12 +839,14 @@ cli_hse_kvdb_drop(struct cli_cmd *self, struct cli *cli)
         }
     }
 
-    if (help) {
+    kvdb_home = cli_next_arg(cli);
+
+    if (!kvdb_home || help) {
         cmd_print_help(self, help ? stdout : stderr);
         return help ? 0 : EX_USAGE;
     }
 
-    return cli_hse_kvdb_drop_impl(cli);
+    return cli_hse_kvdb_drop_impl(cli, kvdb_home);
 }
 
 static int
@@ -848,7 +855,7 @@ cli_hse_kvdb_info(struct cli_cmd *self, struct cli *cli)
     const struct cmd_spec spec = {
         .usagev =
             {
-                "[options]",
+                "[options] <kvdb_home>",
                 NULL,
             },
         .optionv =
@@ -869,8 +876,9 @@ cli_hse_kvdb_info(struct cli_cmd *self, struct cli *cli)
             },
     };
 
-    bool help = false;
-    int  c;
+    const char *kvdb_home = NULL;
+    bool        help = false;
+    int         c;
 
     if (cli_hook(cli, self, &spec))
         return 0;
@@ -888,12 +896,14 @@ cli_hse_kvdb_info(struct cli_cmd *self, struct cli *cli)
         }
     }
 
-    if (help) {
-        cmd_print_help(self, stdout);
-        return 0;
+    kvdb_home = cli_next_arg(cli);
+
+    if (!kvdb_home || help) {
+        cmd_print_help(self, help ? stdout : stderr);
+        return help ? 0 : EX_USAGE;
     }
 
-    return cli_hse_kvdb_info_impl(cli);
+    return cli_hse_kvdb_info_impl(cli, kvdb_home);
 }
 
 static int
@@ -902,7 +912,7 @@ cli_hse_kvdb_compact(struct cli_cmd *self, struct cli *cli)
     const struct cmd_spec spec = {
         .usagev =
             {
-                "[options]",
+                "[options] <kvdb_home>",
                 NULL,
             },
         .optionv =
@@ -933,17 +943,17 @@ cli_hse_kvdb_compact(struct cli_cmd *self, struct cli *cli)
         },
     };
 
-    uint32_t timeout_secs = 300;
-    bool     status = false;
-    bool     cancel = false;
-    bool     help = false;
-    int      c;
+    const char *kvdb_home = NULL;
+    uint32_t    timeout_secs = 300;
+    bool        status = false;
+    bool        cancel = false;
+    bool        help = false;
+    int         c;
 
     if (cli_hook(cli, self, &spec))
         return 0;
 
     while (-1 != (c = cli_getopt(cli))) {
-
         switch (c) {
             case 'h':
                 help = true;
@@ -971,12 +981,14 @@ cli_hse_kvdb_compact(struct cli_cmd *self, struct cli *cli)
         }
     }
 
-    if (help) {
-        cmd_print_help(self, stdout);
-        return 0;
+    kvdb_home = cli_next_arg(cli);
+
+    if (!kvdb_home || help) {
+        cmd_print_help(self, help ? stdout : stderr);
+        return help ? 0 : EX_USAGE;
     }
 
-    return cli_hse_kvdb_compact_impl(cli, cli->home, status, cancel, timeout_secs);
+    return cli_hse_kvdb_compact_impl(cli, kvdb_home, status, cancel, timeout_secs);
 }
 
 // static int
@@ -1055,12 +1067,12 @@ cli_hse_kvdb_compact(struct cli_cmd *self, struct cli *cli)
 //         return 0;
 //     }
 
-//     return cli_hse_kvdb_params_impl(cli, cli->home);
+//     return cli_hse_kvdb_params_impl(cli, kvdb_home);
 // }
 
 
 static int
-cli_hse_storage_info_impl(struct cli *cli)
+cli_hse_storage_info_impl(struct cli *cli, const char *const kvdb_home)
 {
     const char *paramv[] = { "read_only=true" };
     char        buf[YAML_BUF_SIZE];
@@ -1083,9 +1095,9 @@ cli_hse_storage_info_impl(struct cli *cli)
         return EINVAL;
     }
 
-    exists = kvdb_info_print(cli->home, NELEM(paramv), paramv, &yc, false);
+    exists = kvdb_info_print(kvdb_home, NELEM(paramv), paramv, &yc, false);
     if (!exists) {
-        fprintf(stderr, "No such KVDB (%s)\n", cli->home);
+        fprintf(stderr, "No such KVDB (%s)\n", kvdb_home);
         rc = -1;
     }
 
@@ -1100,7 +1112,7 @@ cli_hse_storage_info(struct cli_cmd *self, struct cli *cli)
     const struct cmd_spec spec = {
         .usagev =
             {
-                "[options]",
+                "[options] <kvdb_home>",
                 NULL,
             },
         .optionv =
@@ -1119,8 +1131,9 @@ cli_hse_storage_info(struct cli_cmd *self, struct cli *cli)
             },
     };
 
-    bool help = false;
-    int  c;
+    const char *kvdb_home = NULL;
+    bool        help = false;
+    int         c;
 
     if (cli_hook(cli, self, &spec))
         return 0;
@@ -1135,20 +1148,24 @@ cli_hse_storage_info(struct cli_cmd *self, struct cli *cli)
         }
     }
 
-    if (help) {
-        cmd_print_help(self, stdout);
-        return 0;
+    kvdb_home = cli_next_arg(cli);
+
+    if (!kvdb_home || help) {
+        cmd_print_help(self, help ? stdout : stderr);
+        return help ? 0 : EX_USAGE;
     }
 
-    return cli_hse_storage_info_impl(cli);
+    return cli_hse_storage_info_impl(cli, kvdb_home);
 }
 static int
-cli_hse_storage_add_impl(struct cli *cli)
+cli_hse_storage_add_impl(struct cli *cli, const char *const kvdb_home)
 {
     const char **paramv = NULL;
     size_t       paramc = 0;
     hse_err_t    herr = 0;
     int          rc = 0;
+
+    assert(kvdb_home);
 
     if (cli_hse_init(cli))
         return -1;
@@ -1163,7 +1180,7 @@ cli_hse_storage_add_impl(struct cli *cli)
         goto done;
     }
 
-    herr = hse_kvdb_storage_add(cli->home, paramc, paramv);
+    herr = hse_kvdb_storage_add(kvdb_home, paramc, paramv);
     if (herr) {
         switch (hse_err_to_errno(herr)) {
             case EINVAL:
@@ -1171,20 +1188,20 @@ cli_hse_storage_add_impl(struct cli *cli)
                     stderr,
                     "Failed to add storage to KVDB (%s).\nPotentially received an invalid "
                     "KVDB home directory or an invalid parameter.\n",
-                    cli->home);
+                    kvdb_home);
                 break;
             case EEXIST:
                 fprintf(
                     stderr,
                     "Failed to add storage to KVDB (%s).\nEither the media class already exists "
-                    "or the specified media class path is already part of a KVDB.\n", cli->home);
+                    "or the specified media class path is already part of a KVDB.\n", kvdb_home);
                 break;
             case ENOENT:
                 fprintf(
                     stderr,
                     "Failed to add storage to the KVDB (%s).\nPlease ensure that the KVDB home and "
                     "any specified media class paths exist.\n",
-                    cli->home);
+                    kvdb_home);
                 break;
             default:
                 print_hse_err(cli, "hse_kvdb_storage_add", herr);
@@ -1193,7 +1210,7 @@ cli_hse_storage_add_impl(struct cli *cli)
         goto done;
     }
 
-    printf("Successfully added storage to the KVDB (%s)\n", cli->home);
+    printf("Successfully added storage to the KVDB (%s)\n", kvdb_home);
 
 done:
     free(paramv);
@@ -1207,7 +1224,7 @@ cli_hse_storage_add(struct cli_cmd *self, struct cli *cli)
     const struct cmd_spec spec = {
         .usagev =
             {
-                "[options] [<param>=<value>]...",
+                "[options] <kvdb_home> [<param>=<value>]...",
                 NULL,
             },
         .optionv =
@@ -1226,8 +1243,9 @@ cli_hse_storage_add(struct cli_cmd *self, struct cli *cli)
             },
     };
 
-    bool help = false;
-    int  c;
+    const char *kvdb_home = NULL;
+    bool        help = false;
+    int         c;
 
     if (cli_hook(cli, self, &spec))
         return 0;
@@ -1242,12 +1260,14 @@ cli_hse_storage_add(struct cli_cmd *self, struct cli *cli)
         }
     }
 
-    if (help) {
+    kvdb_home = cli_next_arg(cli);
+
+    if (!kvdb_home || help) {
         cmd_print_help(self, help ? stdout : stderr);
         return help ? 0 : EX_USAGE;
     }
 
-    return cli_hse_storage_add_impl(cli);
+    return cli_hse_storage_add_impl(cli, kvdb_home);
 }
 
 static int
@@ -1309,7 +1329,7 @@ cli_hse_storage(struct cli_cmd *self, struct cli *cli)
 }
 
 static int
-cli_hse_kvs_create_impl(struct cli *cli, const char *home, const char *kvs)
+cli_hse_kvs_create_impl(struct cli *cli, const char *const kvdb_home, const char *const kvs)
 {
     /* Reduce throttle update period to improve kvdb close time.
      */
@@ -1320,11 +1340,8 @@ cli_hse_kvs_create_impl(struct cli *cli, const char *home, const char *kvs)
     hse_err_t        herr = 0;
     int              rc = 0;
 
-    if (!home || !kvs) {
-        assert(0);
-        INTERNAL_ERROR();
-        return -1;
-    }
+    assert(kvdb_home);
+    assert(kvs);
 
     if (cli_hse_init(cli))
         return -1;
@@ -1339,7 +1356,7 @@ cli_hse_kvs_create_impl(struct cli *cli, const char *home, const char *kvs)
         goto done;
     }
 
-    herr = hse_kvdb_open(home, NELEM(kvdb_paramv), kvdb_paramv, &db);
+    herr = hse_kvdb_open(kvdb_home, NELEM(kvdb_paramv), kvdb_paramv, &db);
     if (herr) {
         switch (hse_err_to_errno(herr)) {
             case ENOENT:
@@ -1349,8 +1366,8 @@ cli_hse_kvs_create_impl(struct cli *cli, const char *home, const char *kvs)
                     "or was previously partially created. Please drop and "
                     "recreate the KVDB. It may be required to run 'rm -rf %s/*'.\n",
                     kvs,
-                    cli->home,
-                    cli->home);
+                    kvdb_home,
+                    kvdb_home);
                 break;
             default:
                 print_hse_err(cli, "hse_kvdb_open", herr);
@@ -1374,7 +1391,7 @@ done:
 }
 
 static int
-cli_hse_kvs_drop_impl(struct cli *cli, const char *home, const char *kvs)
+cli_hse_kvs_drop_impl(struct cli *cli, const char *const kvdb_home, const char *const kvs)
 {
     /* Reduce throttle update period to improve kvdb close time.
      */
@@ -1382,6 +1399,9 @@ cli_hse_kvs_drop_impl(struct cli *cli, const char *home, const char *kvs)
     struct hse_kvdb *db = 0;
     hse_err_t        herr = 0;
     int              rc = 0;
+
+    assert(kvdb_home);
+    assert(kvs);
 
     if (cli_hse_init(cli))
         return -1;
@@ -1392,7 +1412,7 @@ cli_hse_kvs_drop_impl(struct cli *cli, const char *home, const char *kvs)
         goto done;
     }
 
-    herr = hse_kvdb_open(home, NELEM(paramv), paramv, &db);
+    herr = hse_kvdb_open(kvdb_home, NELEM(paramv), paramv, &db);
     if (herr) {
         switch (hse_err_to_errno(herr)) {
             case ENOENT:
@@ -1400,8 +1420,8 @@ cli_hse_kvs_drop_impl(struct cli *cli, const char *home, const char *kvs)
                     stderr,
                     "KVDB (%s) does not exist or was partially created. Please drop and "
                     "recreate the KVDB. It may be required to run 'rm -rf %s/*'.\n",
-                    cli->home,
-                    cli->home);
+                    kvdb_home,
+                    kvdb_home);
                 break;
             default:
                 print_hse_err(cli, "hse_kvdb_open", herr);
@@ -1429,7 +1449,7 @@ cli_hse_kvs_create(struct cli_cmd *self, struct cli *cli)
     const struct cmd_spec spec = {
         .usagev =
             {
-                "[options] <kvs> [<param>=<value>]...",
+                "[options] <kvdb_home> <kvs> [<param>=<value>]...",
                 NULL,
             },
         .optionv =
@@ -1449,6 +1469,7 @@ cli_hse_kvs_create(struct cli_cmd *self, struct cli *cli)
             },
     };
 
+    const char *kvdb_home = NULL;
     const char *kvs = NULL;
     bool        help = false;
     int         c, rc;
@@ -1466,14 +1487,15 @@ cli_hse_kvs_create(struct cli_cmd *self, struct cli *cli)
         }
     }
 
+    kvdb_home = cli_next_arg(cli);
     kvs = cli_next_arg(cli);
 
-    if (!kvs || help) {
+    if (!kvdb_home || !kvs || help) {
         cmd_print_help(self, help ? stdout : stderr);
         return help ? 0 : EX_USAGE;
     }
 
-    rc = cli_hse_kvs_create_impl(cli, cli->home, kvs);
+    rc = cli_hse_kvs_create_impl(cli, kvdb_home, kvs);
 
     return rc;
 }
@@ -1484,7 +1506,7 @@ cli_hse_kvs_drop(struct cli_cmd *self, struct cli *cli)
     const struct cmd_spec spec = {
         .usagev =
             {
-                "[options] <kvs>",
+                "[options] <kvdb_home> <kvs>",
                 NULL,
             },
         .optionv =
@@ -1503,7 +1525,8 @@ cli_hse_kvs_drop(struct cli_cmd *self, struct cli *cli)
             },
     };
 
-    const char *kvs = 0;
+    const char *kvdb_home = NULL;
+    const char *kvs = NULL;
     bool        help = false;
     int         c, rc;
 
@@ -1520,13 +1543,15 @@ cli_hse_kvs_drop(struct cli_cmd *self, struct cli *cli)
         }
     }
 
+    kvdb_home = cli_next_arg(cli);
     kvs = cli_next_arg(cli);
-    if (!kvs || help) {
+
+    if (!kvdb_home || !kvs || help) {
         cmd_print_help(self, help ? stdout : stderr);
         return help ? 0 : EX_USAGE;
     }
 
-    rc = cli_hse_kvs_drop_impl(cli, cli->home, kvs);
+    rc = cli_hse_kvs_drop_impl(cli, kvdb_home, kvs);
 
     return rc;
 }
@@ -1601,7 +1626,6 @@ cli_hse(struct cli_cmd *self, struct cli *cli)
             },
         .optionv =
             {
-                { "[-C|--home]",    "Home directory" },
                 { "[-h|--help]",    "Print help (use -hv for more help)" },
                 { "[-V|--version]", "Print version" },
                 { "[-v|--verbose]", "Increase verbosity" },
@@ -1609,7 +1633,6 @@ cli_hse(struct cli_cmd *self, struct cli *cli)
             },
         .longoptv =
             {
-                { "home", required_argument, 0, 'C' },
                 { "help", no_argument, 0, 'h' },
                 { "verbose", no_argument, 0, 'v' },
                 { "version", no_argument, 0, 'V' },
@@ -1621,9 +1644,9 @@ cli_hse(struct cli_cmd *self, struct cli *cli)
             },
         .extra_help = {
             "Examples:",
-            "  hse kvdb -h              # get help on KVDB commands",
-            "  hse -C test kvdb create  # create a KVDB in the 'test' directory",
-            "  hse -C test kvs create   # create a KVS in the 'test' directory KVDB",
+            "  hse kvdb -h                        # get help on KVDB commands",
+            "  hse kvdb create path/to/kvdb       # create a KVDB in the 'test' directory",
+            "  hse kvs create path/to/kvdb mykvs  # create a KVS in the 'test' directory KVDB",
             NULL,
         },
     };
@@ -1639,15 +1662,6 @@ cli_hse(struct cli_cmd *self, struct cli *cli)
 
     while (-1 != (c = cli_getopt(cli))) {
         switch (c) {
-            case 'C': {
-                const size_t n = strlcpy(cli->home, optarg, sizeof(cli->home));
-
-                if (n >= sizeof(cli->home)) {
-                    fprintf(stderr, "Length of KVDB home directory path is >= PATH_MAX (%d)", PATH_MAX);
-                    return ENAMETOOLONG;
-                }
-                break;
-            }
             case 'h':
                 help = true;
                 break;
