@@ -101,7 +101,7 @@ fi
 set +u
 
 get_tree_shape () {
-    local metrics_cmd1=($(which cn_metrics.py) "$1" "$2")
+    local metrics_cmd1=($(which cn_metrics.py) -C "$1" "$2")
     local metrics_cmd2=($(which cn_metrics) "$1" "$2")
     local out="$TMP"/shape
 
