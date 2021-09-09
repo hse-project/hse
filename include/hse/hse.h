@@ -521,7 +521,6 @@ hse_kvs_prefix_probe(
  * performing an operation in the context of a particular transaction at any particular
  * time.
  *
- * @if DOXYGEN_DISABLED
 
  * The general lifecycle of a transaction is as follows:
  *
@@ -537,17 +536,6 @@ hse_kvs_prefix_probe(
  *     +--| COMMITTED |<---+      +---->| ABORTED  |--+
  *        +-----------+                 +----------+
  *
- * @endif
- *
- * @dot
- * digraph D {
- *  INVALID -> ACTIVE
- *  ACTIVE -> ABORTED
- *  ACTIVE -> COMMITTED
- *  ABORTED -> ACTIVE
- *  COMMITTED -> ACTIVE
- * }
- * @enddot
 
  * When a transaction is initially allocated, it starts in the INVALID state. When
  * hse_kvdb_txn_begin() is called with transaction in the INVALID, COMMITTED, or ABORTED
