@@ -1,12 +1,5 @@
 version_data = configuration_data({
-    'build_version': '@0@@1@-@2@@3@'.format(
-        meson.project_version(),
-        build_vqual,
-        build_rel,
-        build_rtype,
-    ),
-    'build_tag': build_tag,
-    'build_sha': build_sha,
+    'build_version': build_version,
     'major_version': hse_major_version,
     'minor_version': hse_minor_version,
     'patch_version': hse_patch_version,

@@ -1669,13 +1669,8 @@ cli_hse(struct cli_cmd *self, struct cli *cli)
     }
 
     if (version) {
-        if (verbosity > 0) {
-            printf("version: %s\n", HSE_VERSION_STRING);
-            printf("tag:     %s\n", HSE_VERSION_TAG);
-            printf("sha:     %s\n", HSE_VERSION_SHA);
-        } else {
-            printf("%s\n", HSE_VERSION_STRING);
-        }
+        printf("version: %s\n", HSE_VERSION_STRING);
+        printf("build-configuration: %s\n", BUILD_CONFIG);
         return 0;
     }
 

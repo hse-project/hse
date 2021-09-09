@@ -33,19 +33,13 @@ hse_major_version = version_components[0]
 hse_minor_version = version_components[1]
 hse_patch_version = version_components[2]
 
-if meson.version().version_compare('>=0.58.0')
-    global_build_root = meson.global_build_root()
-else
-    global_build_root = meson.build_root()
-endif
-
 # Compute the relative path used by compiler invocations.
 relative_dir = run_command(
     python,
     '-c',
     'import os; print("{}/".format(os.path.relpath("@0@", "@1@")))'.format(
         meson.project_source_root(),
-        global_build_root,
+        meson.global_build_root(),
     ),
     check: true,
 ).stdout().strip()
@@ -75,82 +69,42 @@ if get_option('b_sanitize').contains('undefined')
 endif
 
 git = find_program('git', required: false)
-if git.found() and fs.exists(meson.project_source_root() / '.git')
-    build_tag = run_command(
+if git.found() and run_command(git, 'rev-parse').returncode() == 0
+    build_version = run_command(
         git,
         'describe',
         '--always',
         '--long',
-        '--tags',
         '--dirty',
-        '--abbrev=10',
-        check: true
-    ).stdout().strip()
-
-    build_sha = run_command(
-        git,
-        'rev-parse',
-        'HEAD',
         check: true
     ).stdout().strip()
 elif fs.exists(meson.project_source_root() / 'VERSION')
-    version_file_components = fs.read(meson.project_source_root() / 'VERSION').stdout().strip().split('\n')
-
-    build_tag = version_file_components[0]
-    build_sha = version_file_components[1]
+    build_version = fs.read(meson.project_source_root() / 'VERSION').stdout().strip()
 else
-    build_tag = 'unknown'
-    build_sha = 'unknown'
+    build_version = meson.project_version()
 endif
 
-if build_tag != 'unknown'
-    build_rel = run_command(
-        'sh',
-        '-c',
-        'echo @0@ | sed --quiet --regexp-extended "s/.*-([0-9]+)-[a-z0-9]{7,}(-dirty){0,1}$/\\1/p"'
-            .format(build_tag),
-        check: true,
-    ).stdout().strip()
-    build_vqual = run_command(
-        'sh',
-        '-c',
-        'echo @0@ | sed --quiet --regexp-extended "s/.*-([^-]+)-[0-9]+-[a-z0-9]{7,}(-dirty){0,1}$/~\\1/p"'
-            .format(build_tag),
-        check: true,
-    ).stdout().strip()
-else
-    build_rel = 'unknown'
-    build_vqual = 'unknown'
-endif
-
-log_pri_default = 5
-if get_option('buildtype') == 'release'
-    if get_option('optimization') == 'g'
-        build_stype = 'i'
-    else
-        build_stype = 'r'
-    endif
-
-    add_project_arguments(
-        '-DHSE_BUILD_RELEASE',
-        language: 'c',
-    )
-elif get_option('debug')
+if get_option('debug')
     log_pri_default = 7
 
     if get_option('buildtype') == 'debug'
-        build_stype = 'd'
         add_project_arguments(
+            '-DWITH_INVARIANTS',
             '-DDEBUG_RCU',
             '-fstack-protector-all',
             language: 'c',
         )
-    elif get_option('buildtype') == 'debugoptimized'
-        build_stype = 'o'
     endif
 
     add_project_arguments(
         '-DHSE_BUILD_DEBUG',
+        language: 'c',
+    )
+else
+    log_pri_default = 5
+
+    add_project_arguments(
+        '-DHSE_BUILD_RELEASE',
         language: 'c',
     )
 endif
@@ -168,24 +122,12 @@ add_project_arguments(
     language: 'c',
 )
 
-if get_option('debug')
-    add_project_arguments(
-        '-DWITH_INVARIANTS',
-        language: 'c'
-    )
-endif
-
-build_rtype = build_stype
 build_number_result = run_command(
     'sh',
     '-c',
     '[ -n "$BUILD_NUMBER" ]'
 )
 in_ci = build_number_result.returncode() == 0
-if in_ci
-    build_number = build_number_result.stdout().strip()
-    build_rtype += build_number
-endif
 
 libcurl_dep = dependency(
     'libcurl',
@@ -488,7 +430,7 @@ if not meson.is_subproject()
         )
     endif
 
-    meson.add_dist_script('scripts' / 'release' / 'gen-version')
+    meson.add_dist_script('sh', '-c', 'echo "@0@" > "$MESON_DIST_ROOT/VERSION"'.format(build_version))
 endif
 
 checkoss = find_program('scripts' / 'dev' / 'checkoss')
