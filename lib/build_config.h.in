@@ -6,6 +6,8 @@
 #ifndef HSE_BUILD_CONFIG_H
 #define HSE_BUILD_CONFIG_H
 
+#define BUILD_CONFIG (@build_config@)
+
 #mesondefine SUPPORTS_ATTR_ALWAYS_INLINE
 #mesondefine SUPPORTS_ATTR_FORMAT
 #mesondefine SUPPORTS_ATTR_PACKED
