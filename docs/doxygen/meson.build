@@ -8,7 +8,7 @@ endforeach
 
 layout = meson.current_source_dir() / 'doxyfile_layout.xml'
 logo = meson.current_source_dir() / 'img/logo.png'
-headerfile = meson.current_source_dir() / 'html/headerFile.html' 
+headerfile = meson.current_source_dir() / 'html/headerFile.html'
 footerfile = meson.current_source_dir() / 'html/footerFile.html'
 cssfile = meson.current_source_dir() / 'html/styleSheetFile.css'
 examples = meson.project_source_root() / 'samples'
@@ -30,7 +30,7 @@ doxyfile = configure_file(
     configuration: conf_data
 )
 
-custom_target('doxygen',
+doxygen = custom_target('doxygen',
     build_by_default: true,
     input: doxyfile,
     command: [doxygen, '@INPUT@'],
@@ -44,4 +44,21 @@ custom_target('doxygen',
         version_h
     ],
     output: ['api']
+)
+
+run_target(
+    'doxygen-serve',
+    command: [
+        bash,
+        '-c',
+        ' '.join([
+            python.full_path(),
+            '-m',
+            'http.server',
+            '--directory',
+            '@0@/api/html'.format(meson.current_build_dir()),
+            '"${HSE_DOXYGEN_SERVE_PORT:-0}"',
+        ])
+    ],
+    depends: doxygen
 )
