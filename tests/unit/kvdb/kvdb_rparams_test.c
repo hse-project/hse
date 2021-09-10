@@ -375,7 +375,7 @@ MTF_DEFINE_UTEST_PRE(kvdb_rparams_test, durability_enabled, test_pre)
 
 MTF_DEFINE_UTEST_PRE(kvdb_rparams_test, durability_interval, test_pre)
 {
-	const struct param_spec *ps = ps_get("durability.interval");
+	const struct param_spec *ps = ps_get("durability.interval_ms");
 
 	ASSERT_NE(NULL, ps);
 	ASSERT_NE(NULL, ps->ps_description);
