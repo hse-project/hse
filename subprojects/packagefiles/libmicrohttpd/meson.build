@@ -64,3 +64,5 @@ proj = extern.add_project(
 )
 
 libmicrohttpd_dep = proj.dependency('microhttpd')
+
+meson.override_dependency('libmicrohttpd', libmicrohttpd_dep)
