@@ -319,7 +319,7 @@ char home[PATH_MAX];
     int main(int argc, char **argv)                                                                \
     {                                                                                              \
         const char *paramv[] = { "socket.enabled=false" };                                         \
-        char *      logging_level, *argv_home = NULL;                                              \
+        char *      logging_level, *config = NULL, *argv_home = NULL;                              \
         int         c, rc;                                                                         \
                                                                                                    \
         _mtf_##coll_name##_tci.tci_named = 0;                                                      \
@@ -329,6 +329,7 @@ char home[PATH_MAX];
             { "help", no_argument, NULL, 'h' },                                                    \
             { "one", required_argument, NULL, '1' },                                               \
             { "home", required_argument, NULL, 'C' },                                              \
+            { "config", required_argument, NULL, 'c'},                                             \
             { 0, 0, 0, 0 },                                                                        \
         };                                                                                         \
                                                                                                    \
@@ -346,6 +347,10 @@ char home[PATH_MAX];
                                                                                                    \
                 case '1':                                                                          \
                     _mtf_##coll_name##_tci.tci_named = optarg;                                     \
+                    break;                                                                         \
+                                                                                                   \
+                case 'c':                                                                          \
+                    config = optarg;                                                               \
                     break;                                                                         \
                                                                                                    \
                 case 'C':                                                                          \
@@ -374,7 +379,7 @@ char home[PATH_MAX];
             return rc;                                                                             \
         }                                                                                          \
                                                                                                    \
-        rc = hse_init(home, NELEM(paramv), paramv);                                                \
+        rc = hse_init(config, NELEM(paramv), paramv);                                              \
         if (rc)                                                                                    \
             return rc;                                                                             \
                                                                                                    \

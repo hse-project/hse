@@ -45,13 +45,13 @@ config_deserialize_to_kvs_rparams(
     struct kvs_rparams * params);
 
 /**
- * Create a config object from an hse.conf file located in the HSE home directory
+ * Create a config object from a configuration file
  *
- * @param runtime_home: HSE runtime home directory
+ * @param config: Path to a global configuration file
  * @param[out] config: Config object
  */
 merr_t
-config_from_hse_conf(const char *runtime_home, struct config **conf);
+config_from_hse_conf(const char *config, struct config **conf);
 
 /**
  * Create a config object from a kvdb.conf file located in a KVDB home directory

@@ -606,7 +606,8 @@ execute_test(struct test_params *params, int argc, char *argv[])
     if (pid == 0) {
         log_info("begin child process");
 
-        err = hse_init(params->kvdb_home, 0, NULL);
+        /* [HSE_REVISIT]: Re-evaluate options to make room for -c/--config */
+        err = hse_init(NULL, 0, NULL);
         if (err) {
             log_print(LOG_FATAL, "hse_init: errno=%d", hse_err_to_errno(err));
             exit(EXIT_FAILURE);
@@ -670,7 +671,8 @@ execute_test(struct test_params *params, int argc, char *argv[])
 
     log_info("");
 
-    err = hse_init(params->kvdb_home, 0, NULL);
+    /* [HSE_REVISIT]: Re-evaluate options to make room for -c/--config */
+    err = hse_init(NULL, 0, NULL);
     if (err) {
         log_print(LOG_FATAL, "hse_init: errno=%d", hse_err_to_errno(err));
         exit(EXIT_FAILURE);

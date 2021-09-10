@@ -9,6 +9,7 @@
  * common functions for kvs tools
  */
 
+#include <stdint.h>
 #include <sys/types.h>
 
 void warn(uint64_t err, char *fmt, ...);

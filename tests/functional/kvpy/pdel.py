@@ -29,7 +29,7 @@ def verify_keys(kvs: hse.Kvs, pfx: str, start: int, end: int):
             k_id = k_id + 1
 
 
-hse.init(cli.HOME)
+hse.init(cli.CONFIG)
 
 try:
     with ExitStack() as stack:

@@ -77,23 +77,24 @@ usage()
 {
     printf(
         "usage: %s [options] mp kvdb kvs [param=value ...]\n"
-        "-C       count keys (no checksum)\n"
-        "-c       count keys (compute running checksum)\n"
-        "-D       delete keys as you find them\n"
-        "-H       suppress column headers\n"
-        "-h       print this help list\n"
-        "-i iter  call cursor read at most $iter times\n"
-        "-k klen  limit keys to $klen bytes (-klen means first klen)\n"
-        "-l       show length of keys / values\n"
-        "-m mark  print status every $mark seconds\n"
-        "-p pfx   limit scans to prefix $pfx\n"
-        "-r       use reverse scan\n"
-        "-s skey  seek to $skey before first cursor read\n"
-        "-t       show timing stats at end of run\n"
-        "-u       count only unique keys\n"
-        "-V vmax  limit vals to $vmax bytes (-vmax means first vmax)\n"
-        "-v       increase verbosity\n"
-        "-x       output in hexadecimal\n",
+        "-C        count keys (no checksum)\n"
+        "-c        count keys (compute running checksum)\n"
+        "-D        delete keys as you find them\n"
+        "-H        suppress column headers\n"
+        "-h        print this help list\n"
+        "-i iter   call cursor read at most $iter times\n"
+        "-k klen   limit keys to $klen bytes (-klen means first klen)\n"
+        "-l        show length of keys / values\n"
+        "-m mark   print status every $mark seconds\n"
+        "-p pfx    limit scans to prefix $pfx\n"
+        "-r        use reverse scan\n"
+        "-s skey   seek to $skey before first cursor read\n"
+        "-t        show timing stats at end of run\n"
+        "-u        count only unique keys\n"
+        "-V vmax   limit vals to $vmax bytes (-vmax means first vmax)\n"
+        "-v        increase verbosity\n"
+        "-x        output in hexadecimal\n"
+        "-Z config path to global config file\n",
         progname);
 
     exit(0);
@@ -169,6 +170,7 @@ status(void *arg)
 int
 main(int argc, char **argv)
 {
+    const char *           config = NULL;
     char                   kbuf[1024], pbuf[128], sbuf[128];
     struct parm_groups *pg = NULL;
     const char *           mpname, *kvname;
@@ -214,7 +216,7 @@ main(int argc, char **argv)
     if (rc)
         fatal(rc, "pg_create");
 
-    while ((c = getopt(argc, argv, ":CcDHhi:k:lm:p:rs:t:uV:vx")) != -1) {
+    while ((c = getopt(argc, argv, ":CcDHhi:k:lm:p:rs:t:uV:vxZ:")) != -1) {
         char *end = NULL;
 
         errno = 0;
@@ -271,6 +273,9 @@ main(int argc, char **argv)
                 break;
             case 'x':
                 Opts.hexonly = 1;
+                break;
+            case 'Z':
+                config = optarg;
                 break;
 
             case '?':
@@ -341,7 +346,7 @@ main(int argc, char **argv)
     prefix = pbuf;
     seek = sbuf;
 
-    err = hse_init(mpname, hse_gparm.strc, hse_gparm.strv);
+    err = hse_init(config, hse_gparm.strc, hse_gparm.strv);
     if (err)
         fatal(err, "failed to initialize kvdb");
 

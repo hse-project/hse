@@ -24,6 +24,7 @@ struct thread_arg {
 
 struct hse_kvdb *
 kh_init(
+	const char  *config,
 	const char  *kvdb_home,
 	struct svec *hse_gparms,
 	struct svec *kvdb_oparms);

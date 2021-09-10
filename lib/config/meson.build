@@ -3,6 +3,5 @@ config_sources = files(
     'config.c',
     'hse_gparams.c',
     'logging.c',
-    'runtime_home.c',
     'param.c',
 )

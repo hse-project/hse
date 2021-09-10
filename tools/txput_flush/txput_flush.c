@@ -125,7 +125,7 @@ main(int argc, char **argv)
 	if (rc)
 		fatal(rc, "failed to parse params\n");
 
-	kh_init(mpool, &hse_gparms, &kvdb_oparms);
+	kh_init(NULL, mpool, &hse_gparms, &kvdb_oparms);
 
 	/* frequent flushes */
 	kh_register_kvs(kvs, 0, &kvs_cparms, &kvs_oparms, &flush_kvs, 0);

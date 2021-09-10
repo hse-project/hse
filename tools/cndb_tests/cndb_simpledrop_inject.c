@@ -48,6 +48,7 @@ void
 usage(char *prog)
 {
     static const char msg[] = "usage: %s <kvdb_home>\n"
+                              "-Z config  path to global config file\n"
                               "kvdb home dir\n";
 
     fprintf(stderr, msg, prog);
@@ -81,6 +82,7 @@ open_kvdb_and_cndb(struct kvs_info *ki)
 int
 main(int argc, char **argv)
 {
+    const char *    config = NULL;
     char *          prog;
     int             opt;
     struct kvs_info ki = { 0 };
@@ -88,8 +90,11 @@ main(int argc, char **argv)
 
     prog = basename(argv[0]);
 
-    while ((opt = getopt(argc, argv, "?h")) != -1) {
+    while ((opt = getopt(argc, argv, "Z:?h")) != -1) {
         switch (opt) {
+            case 'Z':
+                config = optarg;
+                break;
             case 'h': /* fallthru */
             case '?': /* fallthru */
             default:
@@ -104,7 +109,7 @@ main(int argc, char **argv)
 
     ki.kvdb_home = argv[0];
 
-    herr = hse_init(ki.kvdb_home, 0, NULL);
+    herr = hse_init(config, 0, NULL);
     if (herr)
         fatal("hse_init failure", herr);
 

@@ -37,6 +37,7 @@
 
 struct opts {
 	bool    help;
+	char   *config;
 	char   *mpool;
 	char   *kvs;
 	u64     keys;
@@ -192,6 +193,7 @@ announce(const char *msg)
  */
 
 enum opt_enum {
+	opt_config = 'Z',
 	opt_binary	= 'b',
 	opt_keys	= 'c',
 	opt_help	= 'h',
@@ -222,6 +224,7 @@ enum opt_enum {
 
 
 struct option longopts[] = {
+	{ "config",     required_argument,  NULL,  opt_config },
 	{ "binary",     no_argument,        NULL,  opt_binary },
 	{ "sync",       no_argument,        NULL,  opt_sync },
 	{ "ckvs",       no_argument,        NULL,  opt_ckvs },
@@ -334,6 +337,10 @@ options_parse(
 			break; /* got '--' or end of arg list */
 
 		switch (c) {
+		case opt_config:
+			opt->config = optarg;
+			break;
+
 		case opt_binary:
 			opt->binary = true;
 			break;
@@ -462,12 +469,13 @@ usage(void)
 	printf("usage: %s [options] <kvdb> <kvslist> [param=value ...]\n",
 	       progname);
 	printf("Key/value count and format:\n"
-	       "  -t, --threads     number of threads\n"
-	       "  -s, --kstart      starting index of keys, default=0\n"
-	       "  -c, --keys COUNT  put/get COUNT keys\n"
-	       "  -b, --binary      generate binary keys and values\n"
-	       "  -l, --klen LEN    keys are LEN bytes\n"
-	       "  -L, --vlen LEN    values are LEN bytes\n"
+	       "  -t, --threads       number of threads\n"
+	       "  -s, --kstart        starting index of keys, default=0\n"
+	       "  -c, --keys COUNT    put/get COUNT keys\n"
+	       "  -b, --binary        generate binary keys and values\n"
+	       "  -l, --klen LEN      keys are LEN bytes\n"
+	       "  -L, --vlen LEN      values are LEN bytes\n"
+		   "  -Z, --config CONFIG path to global config file\n"
 	       "Phases:\n"
 	       "  -p, --put       put keys\n"
 	       "  -u, --up        update keys\n"
@@ -1148,7 +1156,7 @@ main(int argc, char **argv)
 	announce_header();
 
 	/* Start HSE */
-	err = hse_init(opt.mpool, hse_gparm.strc, hse_gparm.strv);
+	err = hse_init(opt.config, hse_gparm.strc, hse_gparm.strv);
 	if (err)
 		quit("failed to initialize kvdb");
 

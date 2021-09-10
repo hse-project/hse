@@ -113,6 +113,7 @@ struct cli_cmd {
 struct cli {
     bool            hse_init;
     bool            help_show_all;
+    const char *    config;
     struct cli_cmd *cmd;
     int             argc;
     char **         argv;
@@ -506,7 +507,7 @@ cli_hse_init(struct cli *cli)
     if (cli->hse_init)
         return 0;
 
-    err = hse_init(NULL, NELEM(paramv), paramv);
+    err = hse_init(cli->config, NELEM(paramv), paramv);
     if (err) {
         print_hse_err(cli, "hse_init", err);
         return -1;
@@ -1629,6 +1630,7 @@ cli_hse(struct cli_cmd *self, struct cli *cli)
                 { "[-h|--help]",    "Print help (use -hv for more help)" },
                 { "[-V|--version]", "Print version" },
                 { "[-v|--verbose]", "Increase verbosity" },
+                { "[-Z|--config]",  "Path to global configuration file" },
                 { NULL },
             },
         .longoptv =
@@ -1636,6 +1638,7 @@ cli_hse(struct cli_cmd *self, struct cli *cli)
                 { "help", no_argument, 0, 'h' },
                 { "verbose", no_argument, 0, 'v' },
                 { "version", no_argument, 0, 'V' },
+                { "config", required_argument, 0, 'Z' },
                 { NULL },
             },
         .configv =
@@ -1670,6 +1673,9 @@ cli_hse(struct cli_cmd *self, struct cli *cli)
                 break;
             case 'v':
                 ++verbosity;
+                break;
+            case 'Z':
+                cli->config = optarg;
                 break;
             default:
                 return EX_USAGE;

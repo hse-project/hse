@@ -65,13 +65,14 @@ void
 usage(void)
 {
     printf("usage: %s [-{lcsaer} n] [-o opt] kvdb kvs\n", progname);
-    printf("-a n  attack key length is $n\n"
-           "-c n  put $n sequential binary keys\n"
-           "-e n  attack every $nth put\n"
-           "-l n  use $n len keys\n"
-           "-o s  override ikvs configuration variable\n"
-           "-r n  attack approximately $n%% of puts\n"
-           "-s n  start sequence at $n\n"
+    printf("-a n       attack key length is $n\n"
+           "-c n       put $n sequential binary keys\n"
+           "-e n       attack every $nth put\n"
+           "-l n       use $n len keys\n"
+           "-o s       override ikvs configuration variable\n"
+           "-r n       attack approximately $n%% of puts\n"
+           "-s n       start sequence at $n\n"
+           "-Z config  path to global config file\n"
            "\nattack generates worst-case binary key lengths puts "
            "sequentially from 1 for 1000 keys\n");
 }
@@ -80,6 +81,7 @@ int
 main(int argc, char **argv)
 {
     char *           mpname;
+    const char *     config = NULL;
     const char *     kvsname;
     char             data[4096];
     uint32_t *       seq;
@@ -97,7 +99,7 @@ main(int argc, char **argv)
     every = 153;
     rdm = 0;
 
-    while ((c = getopt(argc, argv, ":a:c:e:hl:o:r:s:")) != -1) {
+    while ((c = getopt(argc, argv, ":a:c:e:hl:o:r:s:Z:")) != -1) {
         switch (c) {
             case 'a':
                 alen = (int)strtoul(optarg, 0, 0);
@@ -107,6 +109,9 @@ main(int argc, char **argv)
                 break;
             case 'e':
                 every = (int)strtoul(optarg, 0, 0);
+                break;
+            case 'Z':
+                config = optarg;
                 break;
             case 'h':
                 usage();
@@ -148,7 +153,7 @@ main(int argc, char **argv)
     mpname = argv[0];
     kvsname = argv[1];
 
-    rc = hse_init(mpname, 0, NULL);
+    rc = hse_init(config, 0, NULL);
     if (rc)
         fatal(rc, "failed to initialize kvdb");
 

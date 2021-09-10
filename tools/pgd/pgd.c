@@ -78,11 +78,12 @@ usage(char *prog)
     fprintf(
         stderr,
         "usage: %s [options] kvdb kvs [param=value ...]\n"
-        "-P      put keys values\n"
-        "-G      get keys\n"
-        "-D      delete keys\n"
-        "-V      verify puts, fails on first miss\n"
-        "-C      show tunable parameters\n",
+        "-P         put keys values\n"
+        "-G         get keys\n"
+        "-D         delete keys\n"
+        "-V         verify puts, fails on first miss\n"
+        "-C         show tunable parameters\n"
+        "-Z config  path to global config file\n",
         prog);
 
     exit(1);
@@ -102,6 +103,7 @@ main(int argc, char **argv)
     bool             fnd;
     enum Actions     action;
     struct svec      hse_gparm = { 0 };
+    const char *     config = NULL;
 
     prog = basename(argv[0]);
     help = 0;
@@ -111,7 +113,7 @@ main(int argc, char **argv)
     if (rc)
         fatal(rc, "pg_create");
 
-    while ((c = getopt(argc, argv, "?PGDVCz")) != -1) {
+    while ((c = getopt(argc, argv, "?PGDVCzZ:")) != -1) {
         switch (c) {
             case 'P':
                 action = PUT;
@@ -125,11 +127,11 @@ main(int argc, char **argv)
             case 'V':
                 action = VFY;
                 break;
-            case 'C':
-                help = 2;
-                break;
             case 'z':
                 Opts.zero++;
+                break;
+            case 'Z':
+                config = optarg;
                 break;
             case '?': /* fallthru */
             default:
@@ -167,7 +169,7 @@ main(int argc, char **argv)
     if (rc)
         fatal(rc, "failed to parse hse-gparams\n");
 
-    err = hse_init(mpname, hse_gparm.strc, hse_gparm.strv);
+    err = hse_init(config, hse_gparm.strc, hse_gparm.strv);
     if (err)
         fatal(err, "failed to initialize kvdb");
 

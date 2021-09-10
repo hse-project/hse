@@ -412,6 +412,7 @@ usage(void)
         "-V         Verify data (default: %s)\n"
         "-v vlen    Value length (default: %u)\n"
         "-w wjobs   number of warmup threads (default: %u)\n"
+        "-Z config  path to global config file\n"
         "\n",
         progname, opts.vsep, opts.duration, opts.logdir,
         opts.threads, opts.npfx, opts.nsfx, opts.sfx_start,
@@ -438,7 +439,7 @@ main(
     struct svec         kvs_cparms = { 0 };
     struct svec         kvs_oparms = { 0 };
     int                 i, rc;
-    const char         *mpool, *kvs;
+    const char         *mpool, *kvs, *config = NULL;
     char                c;
     struct thread_info *ti = 0;
     bool                freet = false;
@@ -454,7 +455,7 @@ main(
 
     strncpy(opts.logdir, "/tmp/range_read_logs", sizeof(opts.logdir));
 
-    while ((c = getopt(argc, argv, ":b:c:d:ef:hj:lp:s:S:T:Vv:w:")) != -1) {
+    while ((c = getopt(argc, argv, ":b:c:d:ef:hj:lp:s:S:T:Vv:w:Z:")) != -1) {
         char *errmsg, *end;
 
         errmsg = end = NULL;
@@ -518,6 +519,9 @@ main(
             opts.warmup_threads = strtoul(optarg, &end, 0);
             errmsg = "invalid warmup threads count";
             break;
+        case 'Z':
+            config = optarg;
+            break;
         case '?':
             syntax("invalid option -%c", optopt);
             exit(EX_USAGE);
@@ -568,7 +572,7 @@ main(
 	if (rc)
 		fatal(rc, "failed to parse params\n");
 
-    kh_init(mpool, &hse_gparms, &kvdb_oparms);
+    kh_init(config, mpool, &hse_gparms, &kvdb_oparms);
 
     if (opts.phase == NONE) {
         fprintf(stderr, "Choose a phase to run\n");

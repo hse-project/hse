@@ -81,7 +81,7 @@ main(int argc, char **argv)
 	struct svec         kvdb_oparms = { 0 };
 	struct svec         kvs_cparms = { 0 };
 	struct svec         kvs_oparms = { 0 };
-	const char *mpool;
+	const char *        mpool;
 	int i;
 	int rc;
 	int optindex = 0;
@@ -123,7 +123,7 @@ main(int argc, char **argv)
 	if (rc)
 		fatal(rc, "failed to parse params\n");
 
-	kh_init(mpool, &hse_gparms, &kvdb_oparms);
+	kh_init(NULL, mpool, &hse_gparms, &kvdb_oparms);
 
 	/* frequent flushes */
 	kh_register_kvs("kvs1", 0, &kvs_cparms, &kvs_oparms, &flush_kvs, 0);

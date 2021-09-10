@@ -238,9 +238,10 @@ usage(char *prog)
     fprintf(
         stderr,
         "usage: %s [-t n][-i n] kvdb/kvs\n"
-        "-t n  number of threads; default 128\n"
-        "-i n  number of iterations; default 10000\n"
-        "-v    report progress\n"
+        "-t n       number of threads; default 128\n"
+        "-i n       number of iterations; default 10000\n"
+        "-v         report progress\n"
+        "-Z config  path to global config file\n"
         "stress test of kvs cursor caching:\n"
         "runs nthreads, each doing niter create/seek/read/destroy\n\n",
         prog);
@@ -250,12 +251,16 @@ usage(char *prog)
 int
 main(int argc, char **argv)
 {
-    char *prog = basename(argv[0]);
-    char *parts[3];
-    int   c, err;
+    const char *config = NULL;
+    char *      prog = basename(argv[0]);
+    char *      parts[3];
+    int         c, err;
 
-    while ((c = getopt(argc, argv, "?vt:i:")) != -1) {
+    while ((c = getopt(argc, argv, "?vt:i:Z:")) != -1) {
         switch (c) {
+            case 'Z':
+                config = optarg;
+                break;
             case 't':
                 nthreads = atoi(optarg);
                 break;
@@ -280,7 +285,7 @@ main(int argc, char **argv)
     if (!parts[0] || !parts[1])
         usage(prog);
 
-    err = hse_init(parts[0], 0, NULL);
+    err = hse_init(config, 0, NULL);
     if (err)
         die(err, "failed to initialize kvdb");
 

@@ -28,18 +28,15 @@ error(hse_err_t err, char *fmt, va_list ap)
     char user_msg[128];
     char err_msg[128];
     bool user_msg_empty, need_newline;
-    size_t off, n;
+    size_t off;
 
     off = 0;
 
-    n = vsnprintf(user_msg, sizeof(user_msg), fmt, ap);
+    vsnprintf(user_msg, sizeof(user_msg), fmt, ap);
 
     if (err) {
-        hse_strerror(err, err_msg + off, sizeof(err_msg) - off);
-        off = min(off + n, sizeof(err_msg) - 1);
-
-        n = snprintf(err_msg + off, sizeof(err_msg) - off, " (0x%lx)", err);
-        off = min(off + n, sizeof(err_msg) - 1);
+        off += hse_strerror(err, err_msg + off, sizeof(err_msg) - off);
+        off += snprintf(err_msg + off, sizeof(err_msg) - off, " (0x%lx)", err);
     }
 
     user_msg_empty = user_msg[0] == '\0';

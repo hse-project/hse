@@ -67,7 +67,7 @@ def run_test(kvdb: hse.Kvdb, kvs: hse.Kvs):
     pass
 
 
-hse.init(cli.HOME)
+hse.init(cli.CONFIG)
 
 try:
     with ExitStack() as stack:

@@ -17,7 +17,7 @@ This script tests the following (forward cursors only):
   3. A bound cursor passes case 1 and 2 without needing an update_view
 """
 
-hse.init(cli.HOME)
+hse.init(cli.CONFIG)
 
 try:
     with ExitStack() as stack:

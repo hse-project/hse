@@ -12,7 +12,7 @@ from utility import lifecycle, cli
 
 keycount = 10 * 1024 * 1024
 
-hse.init(cli.HOME)
+hse.init(cli.CONFIG)
 
 try:
     with lifecycle.KvdbContext() as kvdb:

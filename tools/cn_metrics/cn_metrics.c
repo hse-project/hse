@@ -33,12 +33,13 @@ usage(void)
 {
     printf("usage: %s [options] kvdb_home kvs\n", progname);
 
-    printf("-b      show all kblock/vblock IDs\n"
-           "-f FMT  set output format\n"
-           "-h      show this help list\n"
-           "-l      use alternate node loc format\n"
-           "-n      show node-level data only (skip kvsets)\n"
-           "-y      output tree shape in yaml\n"
+    printf("-b         show all kblock/vblock IDs\n"
+           "-f FMT     set output format\n"
+           "-h         show this help list\n"
+           "-l         use alternate node loc format\n"
+           "-n         show node-level data only (skip kvsets)\n"
+           "-y         output tree shape in yaml\n"
+           "-Z config  path to global config file\n"
            "FMT  h=human(default), s=scalar, x=hex, e=exp\n"
            "\n");
 
@@ -213,6 +214,7 @@ bn64(char *buf, size_t buf_sz, enum bn_fmt fmt, u64 value)
 }
 
 struct options {
+    const char *config;
     const char *kvdb_home;
     const char *kvs;
 
@@ -235,13 +237,16 @@ process_options(int argc, char *argv[])
 {
     int c;
 
-    while ((c = getopt(argc, argv, ":bf:hlny")) != -1) {
+    while ((c = getopt(argc, argv, ":bf:hlnyZ:")) != -1) {
         switch (c) {
             case 'h':
                 usage();
                 exit(0);
             case 'b':
                 opt.all_blocks = 1;
+                break;
+            case 'Z':
+                opt.config = optarg;
                 break;
             case 'l':
                 opt.alternate_loc = 1;
@@ -579,7 +584,7 @@ main(int argc, char **argv)
     if (rc)
         fatal(rc, "svec_apppend_pg failed");
 
-    rc = hse_init(opt.kvdb_home, hse_gparm.strc, hse_gparm.strv);
+    rc = hse_init(opt.config, hse_gparm.strc, hse_gparm.strv);
     if (rc) {
         errmsg = "kvdb_init";
         goto done;

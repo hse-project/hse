@@ -19,7 +19,6 @@
 
 #include <hse_util/hse_err.h>
 #include <hse_ikvdb/config.h>
-#include <hse_ikvdb/runtime_home.h>
 #include <hse_ikvdb/param.h>
 #include <hse_ikvdb/kvdb_rparams.h>
 #include <hse_ikvdb/kvs_rparams.h>
@@ -403,41 +402,32 @@ out:
 }
 
 merr_t
-config_from_hse_conf(const char *const runtime_home, struct config **conf)
+config_from_hse_conf(const char *const config, struct config **conf)
 {
-    cJSON *impl = NULL;
-    char   conf_file_path[PATH_MAX];
-    int    n;
-    merr_t err;
+    cJSON      *impl = NULL;
+    merr_t      err;
 
-    assert(conf);
+    if (HSE_UNLIKELY(!conf)) {
+        return merr(EINVAL);
+    }
 
     *conf = NULL;
 
-    n = snprintf(conf_file_path, sizeof(conf_file_path), "%s/hse.conf", runtime_home);
-    if (n >= sizeof(conf_file_path)) {
-        fprintf(
-            stderr,
-            "Failed to create the %s/hse.conf file path because the path was too large",
-            runtime_home);
-        err = merr(ENAMETOOLONG);
-        goto out;
-    } else if (n < 0) {
-        err = merr(EBADMSG);
-        goto out;
-    }
+    if (!config || config[0] == '\0')
+        return 0;
 
-    err = config_create(conf_file_path, &impl);
+    err = config_create(config, &impl);
     if (err) {
         if (merr_errno(err) == ENOENT) {
             err = 0;
         } else {
-            hse_log(HSE_ERR "Failed to read %s", conf_file_path);
+            fprintf(stderr, "Failed to read %s", config);
         }
         goto out;
     }
 
     if (!cJSON_IsObject(impl)) {
+        fprintf(stderr, "Content of %s must be a JSON object", config);
         err = merr(EINVAL);
         goto out;
     }
@@ -459,8 +449,8 @@ config_from_kvdb_conf(const char *kvdb_home, struct config **conf)
     int    n;
     merr_t err = 0;
 
-    assert(kvdb_home);
-    assert(conf);
+    if (HSE_UNLIKELY(!kvdb_home || !conf))
+        return merr(EINVAL);
 
     n = snprintf(conf_file_path, sizeof(conf_file_path), "%s/kvdb.conf", kvdb_home);
     if (n >= sizeof(conf_file_path)) {

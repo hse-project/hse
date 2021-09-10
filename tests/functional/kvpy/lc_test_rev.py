@@ -335,7 +335,7 @@ def ptombs_lc_cn(kvdb: hse.Kvdb, kvs: hse.Kvs, cursor_sync: bool=False):
         assert c.read() == (b"ab02", b"val-c0")
 
 
-hse.init(cli.HOME)
+hse.init(cli.CONFIG)
 
 try:
     with ExitStack() as stack:

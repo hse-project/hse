@@ -13,7 +13,7 @@ from utility import lifecycle, cli
 
 kvsname = "scan_empty_kvs"
 
-hse.init(cli.HOME)
+hse.init(cli.CONFIG)
 
 try:
     with ExitStack() as stack:

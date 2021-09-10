@@ -37,6 +37,7 @@
 
 struct opts {
     bool    help;
+    char   *config;
     char   *mpool;
     char   *kvs;
     char   *weight;
@@ -209,6 +210,7 @@ announce(const char *msg)
  */
 
 enum opt_enum {
+    opt_config = 'Z',
     opt_binary	= 'b',
     opt_keys	= 'c',
     opt_help	= 'h',
@@ -228,6 +230,7 @@ enum opt_enum {
 
 
 struct option longopts[] = {
+    { "config",      required_argument,  NULL,  opt_config},
     { "binary",      no_argument,        NULL,  opt_binary },
     { "dryrun",      no_argument,        NULL,  opt_dryrun },
     { "close",       no_argument,        NULL,  opt_close},
@@ -336,6 +339,10 @@ options_parse(
             break; /* got '--' or end of arg list */
 
         switch (c) {
+        case opt_config:
+            opt->config = optarg;
+            break;
+
         case opt_binary:
             opt->binary = true;
             break;
@@ -443,6 +450,7 @@ usage(void)
            "  -S, --sleepcycle  sleep time in seconds\n"
            "  -I, --iterations  how many ingest and sleep cycles to "
            "                    repeat in a single test cycle\n"
+           "  -Z, --config      path to global config file\n"
            "Other:\n"
            "  -v, --verbose=LVL  increase[or set] verbosity\n"
            "  -h, --help         print this help list\n"
@@ -1005,7 +1013,7 @@ main(int argc, char **argv)
 
     printf("\n");
 
-    err = hse_init(opt.mpool, hse_gparm.strc, hse_gparm.strv);
+    err = hse_init(opt.config, hse_gparm.strc, hse_gparm.strv);
     if (err)
         quit("failed to initialize kvdb");
 
