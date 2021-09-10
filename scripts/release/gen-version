@@ -1,9 +1,0 @@
-#!/usr/bin/env sh
-# SPDX-License-Identifier: Apache-2.0
-#
-# Copyright (C) 2021 Micron Technology, Inc. All rights reserved.
-
-# If you change this file, make sure to adjust the root meson.build accordingly.
-
-echo $(git describe --always --long --tags --dirty --abbrev=10 2>/dev/null) > $MESON_DIST_ROOT/VERSION
-echo $(git rev-parse HEAD 2>/dev/null) >> $MESON_DIST_ROOT/VERSION

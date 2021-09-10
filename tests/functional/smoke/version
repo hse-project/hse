@@ -7,18 +7,18 @@
 
 source $(dirname "${BASH_SOURCE[0]}")/smoke.subr
 
-output=$(hse -Vv) || exit $?
+output=$(hse --version) || exit $?
 
 # Check for three lines of output
 count=$(wc -l <<<"$output") || exit $?
-if [[ "$count" != 3 ]]; then
-    err "Expect three lines of output from command:" \
-        "hse -Vv" \
+if [[ "$count" != 2 ]]; then
+    err "Expect two lines of output from command:" \
+        "hse --version" \
         "\nFound $count lines"
 fi
 
 # Check output fields
 fields=$(sort <<<$(sed -ne 's/:.*//p' <<<"$output") | xargs)
-[[ "$fields" == "sha tag version" ]] ||
-    err "Expect fields: sha, tag and version" \
+[[ "$fields" == "build-configuration version" ]] ||
+    err "Expect fields: build-configuration and version" \
         "\nFound: $fields"
