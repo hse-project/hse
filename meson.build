@@ -397,7 +397,7 @@ endif
 
 subdir('tools')
 
-run_env.append('PATH', executable_paths)
+run_env.prepend('PATH', executable_paths)
 
 if get_option('tests')
     # now that we have libhse-mock, go into repository directory
