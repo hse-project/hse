@@ -32,7 +32,6 @@
 #include <hse_util/logging.h>
 #include <hse_util/string.h>
 #include <hse_util/vlb.h>
-#include <hse_util/log2.h>
 
 #include <bsd/libutil.h>
 #include <pidfile/pidfile.h>
@@ -63,27 +62,16 @@ kvdb_lat_record(const u32 cidx, const u64 start)
  */
 bool hse_initialized = false;
 
-/*
- * hse_meminfo() parses /proc/meminfo to determine the available memory and
- * it doesn't support cgroups yet.
- *
- * The user must explicitly set the hse gparam "low_memory.limit_gb" for running on
- * an cgroup configured with HSE_LOWMEM_THRESHOLD_GB or lower memory.
- */
-void
-hse_lowmem_init(void)
+static void
+hse_lowmem_adjust(unsigned long *memgb)
 {
     struct hse_gparams gpdef = hse_gparams_defaults();
     unsigned long mavail;
 
     hse_meminfo(NULL, &mavail, 30);
-    mavail = roundup_pow_of_two(mavail);
 
-    if (mavail <= HSE_LOWMEM_THRESHOLD_GB_DFLT)
-        hse_gparams.gp_lowmem_gb = mavail;
-
-    if (hse_gparams.gp_lowmem_gb != 0) {
-        uint32_t scale = ikvdb_lowmem_scale(hse_gparams.gp_lowmem_gb);
+    if (mavail <= HSE_LOWMEM_THRESHOLD_GB_DFLT) {
+        uint32_t scale = ikvdb_lowmem_scale(mavail);
 
         /* Scale various caches based on the available memory */
         if (hse_gparams.gp_c0kvs_ccache_sz_max == gpdef.gp_c0kvs_ccache_sz_max)
@@ -98,12 +86,16 @@ hse_lowmem_init(void)
             hse_gparams.gp_vlb_cache_sz =
                 min_t(uint64_t, HSE_VLB_CACHESZ_MIN * scale, HSE_VLB_CACHESZ_MAX);
     }
+
+    assert(memgb);
+    *memgb = mavail;
 }
 
 hse_err_t
 hse_init(const char *const runtime_home, const size_t paramc, const char *const *const paramv)
 {
     merr_t         err;
+    ulong          memgb;
     struct config *conf;
 
     if (hse_initialized) {
@@ -140,11 +132,13 @@ hse_init(const char *const runtime_home, const size_t paramc, const char *const 
     if (err)
         return merr_to_hse_err(err);
 
-    hse_lowmem_init();
+    hse_lowmem_adjust(&memgb);
 
     err = hse_platform_init();
     if (err)
         return merr_to_hse_err(err);
+
+    hse_log(HSE_NOTICE "%s: Memory available: %lu GiB", __func__, memgb);
 
     err = ikvdb_init();
     if (err) {

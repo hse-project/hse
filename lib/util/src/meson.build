@@ -7,6 +7,7 @@ util_sources = files(
     'bonsai_tree_balance.c',
     'bonsai_tree.c',
     'bonsai_tree_utils.c',
+    'cgroup.c',
     'compression_lz4.c',
     'condvar.c',
     'cursor_heap.c',

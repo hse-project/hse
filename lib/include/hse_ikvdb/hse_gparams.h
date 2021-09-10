@@ -21,7 +21,6 @@ struct hse_gparams {
     uint64_t gp_c0kvs_ccache_sz;
     uint64_t gp_c0kvs_cheap_sz;
     uint64_t gp_vlb_cache_sz;
-    uint32_t gp_lowmem_gb;
     struct {
         bool enabled;
         char path[sizeof(((struct sockaddr_un *) 0)->sun_path)];

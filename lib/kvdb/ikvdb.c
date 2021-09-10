@@ -978,7 +978,7 @@ err_exit:
 uint32_t
 ikvdb_lowmem_scale(uint32_t memgb)
 {
-    return max_t(uint, 1, memgb / HSE_LOWMEM_THRESHOLD_GB_MIN);
+    return max_t(uint, 1, roundup_pow_of_two(memgb) / HSE_LOWMEM_THRESHOLD_GB_MIN);
 }
 
 /**
@@ -986,16 +986,18 @@ ikvdb_lowmem_scale(uint32_t memgb)
  * @self:       self
  */
 static void
-ikvdb_lowmem_adjust(struct ikvdb_impl *self)
+ikvdb_lowmem_adjust(struct ikvdb_impl *self, ulong memgb)
 {
     struct kvdb_rparams  rpdef = kvdb_rparams_defaults();
     struct kvdb_rparams *rp = &self->ikdb_rp;
     uint32_t scale;
 
-    hse_log(HSE_NOTICE "Configuring %s for %uGiB memory", self->ikdb_home,
-            hse_gparams.gp_lowmem_gb);
+    if (memgb > HSE_LOWMEM_THRESHOLD_GB_DFLT)
+        return;
 
-    scale = ikvdb_lowmem_scale(hse_gparams.gp_lowmem_gb);
+    hse_log(HSE_NOTICE "Configuring %s for %lu GiB memory", self->ikdb_home, memgb);
+
+    scale = ikvdb_lowmem_scale(memgb);
 
     if (rp->dur_bufsz_mb == rpdef.dur_bufsz_mb)
         rp->dur_bufsz_mb =
@@ -1128,8 +1130,8 @@ ikvdb_open(
 
     memcpy(self->ikdb_mpolicies, params->mclass_policies, sizeof(params->mclass_policies));
 
-    if (hse_gparams.gp_lowmem_gb != 0)
-        ikvdb_lowmem_adjust(self);
+    hse_meminfo(NULL, &mavail, 0);
+    ikvdb_lowmem_adjust(self, mavail >> 30);
 
     throttle_init(&self->ikdb_throttle, &self->ikdb_rp);
     throttle_init_params(&self->ikdb_throttle, &self->ikdb_rp);
@@ -1156,10 +1158,6 @@ ikvdb_open(
     /* Set max number of active cursors per kvdb such that max
      * memory use is limited to about 10% of system memory.
      */
-    hse_meminfo(NULL, &mavail, 0);
-    if (hse_gparams.gp_lowmem_gb != 0)
-        mavail = (ulong)hse_gparams.gp_lowmem_gb << 30;
-
     sz = (mavail * HSE_CURACTIVE_SZ_PCT) / 100;
     sz = clamp_t(size_t, sz, HSE_CURACTIVE_SZ_MIN, HSE_CURACTIVE_SZ_MAX);
     self->ikdb_curcnt_max = sz / HSE_CURSOR_SZ_MIN;

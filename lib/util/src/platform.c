@@ -22,6 +22,7 @@
 #include "logging_impl.h"
 #include "logging_util.h"
 #include "rest_dt.h"
+#include "cgroup.h"
 
 #include <syscall.h>
 
@@ -63,6 +64,9 @@ hse_meminfo(ulong *freep, ulong *availp, uint shift)
 
     char  line[128];
     FILE *fp;
+
+    if (hse_meminfo_cgroup(freep, availp, shift))
+        return;
 
     fp = fopen(path, "r");
     if (fp) {
@@ -216,6 +220,7 @@ hse_platform_fini(void)
     vlb_fini();
     dt_fini();
     hse_logging_fini();
+    hse_cgroup_fini();
 }
 
 #if HSE_MOCKING

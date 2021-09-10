@@ -1364,8 +1364,6 @@ kvs_curcache_init(void)
      * but no less than 1GB and no more than 32GB.
      */
     hse_meminfo(NULL, &mavail, 0);
-    if (hse_gparams.gp_lowmem_gb != 0)
-        mavail = (ulong)hse_gparams.gp_lowmem_gb << 30;
 
     sz = (mavail * HSE_CURCACHE_SZ_PCT) / 100;
     sz = clamp_t(size_t, sz, HSE_CURCACHE_SZ_MIN, HSE_CURCACHE_SZ_MAX);
