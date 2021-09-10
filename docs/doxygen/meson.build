@@ -1,5 +1,4 @@
 doxygen = find_program('doxygen', required: true)
-dot = find_program('dot', required: true)
 
 input_files = [meson.project_build_root() / 'include/hse/version.h']
 foreach n : ['limits.h', 'types.h', 'flags.h', 'hse.h']
