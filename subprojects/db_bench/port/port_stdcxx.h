@@ -23,7 +23,7 @@
 #endif  // defined(LEVELDB_HAS_PORT_CONFIG_H)
 
 #if HAVE_CRC32C
-#include <crc32c/crc32c.h>
+#include <crc32c.h>
 #endif  // HAVE_CRC32C
 #if HAVE_SNAPPY
 #include <snappy.h>

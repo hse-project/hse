@@ -44,7 +44,7 @@
 #include <hse_util/mutex.h>
 #include <hse_util/bonsai_tree.h>
 
-#include <xoroshiro/xoroshiro.h>
+#include <xoroshiro.h>
 
 /* clang-format off */
 

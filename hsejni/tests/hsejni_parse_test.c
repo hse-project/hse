@@ -10,7 +10,6 @@
 #include <hse_util/string.h>
 
 #include <cli/param.h>
-#include <hse_ikvdb/config.h>
 
 #include <hsejni_internal.h>
 

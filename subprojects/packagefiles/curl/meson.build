@@ -100,3 +100,5 @@ proj = extern.add_project(
 )
 
 libcurl_dep = proj.dependency('curl')
+
+meson.override_dependency('libcurl', libcurl_dep)

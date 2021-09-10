@@ -8,7 +8,7 @@
 #include <hse_util/slab.h>
 #include <hse_util/event_counter.h>
 
-#include <rbtree/rbtree.h>
+#include <rbtree.h>
 
 #include "kvdb_ctxn_pfxlock.h"
 

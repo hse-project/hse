@@ -24,7 +24,7 @@
 #include <hse_ikvdb/limits.h>
 #include <hse_ikvdb/kvdb_ctxn.h>
 
-#include <rbtree/rbtree.h>
+#include <rbtree.h>
 
 #define MTF_MOCK_IMPL_kvdb_keylock
 

@@ -19,7 +19,7 @@
 #include <hse_util/atomic.h>
 #include <hse_util/compiler.h>
 
-#include <xoroshiro/xoroshiro.h>
+#include <xoroshiro.h>
 
 #include <cli/param.h>
 

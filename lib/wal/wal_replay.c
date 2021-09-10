@@ -10,7 +10,7 @@
 #include <hse_util/bonsai_tree.h>
 #include <hse_util/rmlock.h>
 
-#include <rbtree/rbtree.h>
+#include <rbtree.h>
 
 #include <hse_ikvdb/cndb.h>
 

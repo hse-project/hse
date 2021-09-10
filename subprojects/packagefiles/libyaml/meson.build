@@ -55,3 +55,5 @@ proj = extern.add_project(
 )
 
 libyaml_dep = proj.dependency('yaml')
+
+meson.override_dependency('yaml-0.1', libyaml_dep)

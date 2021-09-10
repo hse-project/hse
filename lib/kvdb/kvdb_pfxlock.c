@@ -24,7 +24,7 @@
 #include <hse_util/mutex.h>
 #include <hse_util/slab.h>
 
-#include <rbtree/rbtree.h>
+#include <rbtree.h>
 
 #define MTF_MOCK_IMPL_kvdb_pfxlock
 

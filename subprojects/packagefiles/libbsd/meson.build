@@ -55,3 +55,5 @@ proj = extern.add_project(
 )
 
 libbsd_dep = proj.dependency('bsd')
+
+meson.override_dependency('libbsd', libbsd_dep)

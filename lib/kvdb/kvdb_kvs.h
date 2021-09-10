@@ -1,11 +1,12 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
 #ifndef HSE_IKVDB_KVS_H
 #define HSE_IKVDB_KVS_H
 
+#include <hse_util/atomic.h>
 #include <hse_util/inttypes.h>
 #include <hse_util/list.h>
 #include <hse_util/mutex.h>

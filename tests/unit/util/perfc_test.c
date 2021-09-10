@@ -3,7 +3,7 @@
  * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
-#include <rbtree/rbtree.h>
+#include <rbtree.h>
 
 #include <hse_ut/framework.h>
 

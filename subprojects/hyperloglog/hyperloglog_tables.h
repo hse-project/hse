@@ -61,6 +61,14 @@
  *   negligible impact on the accuracy of estimates.
  */
 
+#ifndef HYPERLOGLOG_TABLES_H
+#define HYPERLOGLOG_TABLES_H
+
+#include <sys/types.h>
+
+#ifndef NELEM
+#define NELEM(_arr) (sizeof(_arr) / sizeof(_arr[0]))
+#endif
 
 struct hlog_table {
 	const double   *vec;
@@ -1369,3 +1377,7 @@ const struct hlog_table biasData[] = {
 	{ bias_P17, NELEM(bias_P17) },
 	{ bias_P18, NELEM(bias_P18) },
 };
+
+#undef NELEM
+
+#endif

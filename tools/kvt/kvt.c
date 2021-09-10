@@ -144,7 +144,7 @@
 
 #include <tools/parm_groups.h>
 
-#include <xoroshiro/xoroshiro.h>
+#include <xoroshiro.h>
 #include <xxhash.h>
 
 /* clang-format off */

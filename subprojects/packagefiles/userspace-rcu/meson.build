@@ -55,3 +55,5 @@ proj = extern.add_project(
 )
 
 liburcu_bp_dep = proj.dependency('urcu-bp')
+
+meson.override_dependency('liburcu-bp', liburcu_bp_dep)

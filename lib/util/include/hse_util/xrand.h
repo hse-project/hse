@@ -9,7 +9,7 @@
 #include <hse_util/inttypes.h>
 #include <hse_util/compiler.h>
 
-#include <xoroshiro/xoroshiro.h>
+#include <xoroshiro.h>
 
 struct xrand {
     u64 xr_state[2];

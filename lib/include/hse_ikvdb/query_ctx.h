@@ -8,7 +8,7 @@
 
 #include <hse_util/hse_err.h>
 
-#include <rbtree/rbtree.h>
+#include <rbtree.h>
 
 #include <pthread.h>
 

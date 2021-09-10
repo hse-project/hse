@@ -6,6 +6,7 @@
 #ifndef HSEJNI_INTERNAL_H
 #define HSEJNI_INTERNAL_H
 
+#include <stddef.h>
 #include <stdint.h>
 
 /**
