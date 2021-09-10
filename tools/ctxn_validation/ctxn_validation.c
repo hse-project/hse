@@ -16,7 +16,7 @@
 #include <signal.h>
 
 #include <hse/hse.h>
-#include <xoroshiro/xoroshiro.h>
+#include <xoroshiro.h>
 
 #include <hse_util/compiler.h>
 #include <hse_util/inttypes.h>

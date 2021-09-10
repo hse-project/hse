@@ -12,7 +12,7 @@
 #include <hse_util/compiler.h>
 #include <hse_util/inttypes.h>
 #include <hse_util/timing.h>
-#include <xoroshiro/xoroshiro.h>
+#include <xoroshiro.h>
 
 #include <endian.h>
 #include <getopt.h>

@@ -21,7 +21,11 @@ bull.cov
 subprojects/*
 !subprojects/*.wrap
 !subprojects/packagefiles
+!subprojects/crc32c
 !subprojects/db_bench
+!subprojects/hyperloglog
+!subprojects/rbtree
+!subprojects/xoroshiro
 *build*/
 !scripts/build/
 .pytest_cache/

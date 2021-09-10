@@ -15,12 +15,12 @@ check_bad_words=$(echo "${files}" | xargs egrep -Hinw $(echo ${bad_words} | tr '
 popd > /dev/null
 
 # Check for valid license and copyright
-src_files=$(git -C "${SRC_ROOT}" ls-files | grep -E '\.(c|h|py|sh|java)$' | grep -v '3rdparty\|subprojects\|simpledrop')
+src_files=$(git -C "${SRC_ROOT}" ls-files | grep -E '\.(c|h|py|sh|java)$' | grep -v 'subprojects\|simpledrop')
 shell_files=$(grep -Er '^#!/.*sh' "${SRC_ROOT}" | sed 's/:.*$//pi' | grep -vE '(subprojects|build.*|.git)')
 src_files=$(echo -e "${src_files}\n${shell_files}")
 pushd "${SRC_ROOT}" > /dev/null
-for file in ${src_files}; do 
-    if ! head -10 "${file}" | grep -qE "\s*[/#*]*\s*SPDX-License-Identifier:\s+Apache-2.0"; then 
+for file in ${src_files}; do
+    if ! head -10 "${file}" | grep -qE "\s*[/#*]*\s*SPDX-License-Identifier:\s+Apache-2.0"; then
         check_license="${check_license}\ninvalid or missing SPDX license identifier: ${file}"
     fi
     if ! head -10 "${file}" | grep -qE "^(.*)\bCopyright\s+\(C\)\s+([0-9]|,|-|\s)*\s+Micron\s+Technology,\s+Inc\.\s*(.*)"; then

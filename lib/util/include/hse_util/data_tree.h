@@ -10,7 +10,7 @@
 #include <hse_util/yaml.h>
 #include <hse_util/inttypes.h>
 
-#include <rbtree/rbtree.h>
+#include <rbtree.h>
 
 typedef enum {
     DT_TYPE_INVALID,

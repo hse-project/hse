@@ -146,7 +146,7 @@
 
 #include <mpool/mpool.h>
 
-#include <xoroshiro/xoroshiro.h>
+#include <xoroshiro.h>
 
 #if HDR_HISTOGRAM_C_FROM_SUBPROJECT == 1
 #include <hdr_histogram.h>

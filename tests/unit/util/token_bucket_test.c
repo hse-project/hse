@@ -7,6 +7,7 @@
 #include <hse_test_support/mock_api.h>
 #include <hse_test_support/mapi_alloc_tester.h>
 
+#include <hse_util/logging.h>
 #include <hse_util/timer.h>
 #include <hse_util/minmax.h>
 #include <hse_util/token_bucket.h>

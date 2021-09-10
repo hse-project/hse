@@ -21,7 +21,7 @@
 #include <hse_util/string.h>
 #include <hse_util/event_counter.h>
 
-#include <rbtree/rbtree.h>
+#include <rbtree.h>
 
 #define PERFC_PRIO_MIN 1
 #define PERFC_PRIO_MAX 4

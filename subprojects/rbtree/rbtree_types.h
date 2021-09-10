@@ -32,8 +32,8 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef	HSE_PLATFORM_RBTREE_TYPES_H
-#define	HSE_PLATFORM_RBTREE_TYPES_H
+#ifndef	RBTREE_TYPES_H
+#define	RBTREE_TYPES_H
 
 /*
  * Do not include this file directly.  Use rbtree.h instead.

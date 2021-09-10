@@ -3,7 +3,7 @@
  * Copyright (C) 2021 Micron Technology, Inc.  All rights reserved.
  */
 
-#include <crc32c/crc32c.h>
+#include <crc32c.h>
 #include <hse_util/hse_err.h>
 
 #include "omf.h"

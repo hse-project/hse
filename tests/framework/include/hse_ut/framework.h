@@ -1,13 +1,14 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2017,2019 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2017,2019,2021 Micron Technology, Inc.  All rights reserved.
  */
 #ifndef HSE_UTEST_FRAMEWORK_H
 #define HSE_UTEST_FRAMEWORK_H
 
 #include <hse/hse.h>
 
-#include <hse_util/logging.h>
+#include <hse_ikvdb/hse_gparams.h>
+
 #if HSE_MOCKING
 #include <hse_test_support/mock_api.h>
 #endif

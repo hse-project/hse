@@ -278,6 +278,28 @@ libmicrohttpd_dep = dependency(
     ],
 )
 m_dep = cc.find_library('m', required: true)
+crc32c_proj = subproject(
+    'crc32c',
+    default_options: [
+        'default_library=static',
+        'warning_level=0',
+        'werror=false',
+    ]
+)
+crc32c_dep = crc32c_proj.get_variable('crc32c_dep')
+hyperloglog_proj = subproject('hyperloglog')
+hyperloglog_dep = hyperloglog_proj.get_variable('hyperloglog_dep')
+rbtree_proj = subproject(
+    'rbtree',
+    default_options: [
+        'default_library=static',
+        'warning_level=0',
+        'werror=false',
+    ]
+)
+rbtree_dep = rbtree_proj.get_variable('rbtree_dep')
+xoroshiro_proj = subproject('xoroshiro')
+xoroshiro_dep = xoroshiro_proj.get_variable('xoroshiro_dep')
 if get_option('tools')
     ncurses_dep = dependency('ncurses', required: true)
     HdrHistogram_c_dep = cc.find_library('hdr_histogram', required: false, disabler: true)
@@ -375,7 +397,6 @@ endif
 
 exe_install_rpath = get_option('install-rpath') ? '$ORIGIN' / '..' / get_option('libdir') : ''
 
-subdir('3rdparty')
 subdir('include')
 if get_option('tests') or get_option('tools')
     # need access to tools_includes for unit tests and tools

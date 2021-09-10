@@ -3,7 +3,7 @@
  * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
  */
 
-#include <rbtree/rbtree.h>
+#include <rbtree.h>
 
 #include <hse_util/xrand.h>
 

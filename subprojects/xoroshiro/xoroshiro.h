@@ -1,10 +1,10 @@
 /* SPDX-License-Identifier: CC0-1.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
-#ifndef HSE_XOROSHIRO_H
-#define HSE_XOROSHIRO_H
+#ifndef XOROSHIRO_H
+#define XOROSHIRO_H
 
 /*
  * Written in 2016 by David Blackman and Sebastiano Vigna (vigna@acm.org)

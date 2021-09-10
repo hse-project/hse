@@ -2,8 +2,8 @@
 
 /* This file contains extensions to a 3rdparty implemention of a red-black tree
  * data structure.  The red-black tree source code is in the following files:
- *   - 3rdparty/rbtree/rbtree.h
- *   - 3rdparty/rbtree/rbtree_types.h
+ *   - subprojects/rbtree/rbtree.h
+ *   - subprojects/rbtree/rbtree_types.h
  */
 
 #include <assert.h>

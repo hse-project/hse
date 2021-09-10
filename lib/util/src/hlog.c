@@ -36,7 +36,7 @@
 
 #include <hse_util/hlog.h>
 
-#include <hyperloglog/hyperloglog_tables.h>
+#include <hyperloglog_tables.h>
 
 #include <math.h>
 

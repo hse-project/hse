@@ -83,7 +83,6 @@ hse_include_directories = [
     ikvdb_includes,
     component_root_includes,
     public_includes,
-    third_party_includes,
     util_includes,
     mpool_includes,
 ]
@@ -95,8 +94,10 @@ hse_dependencies = [
     xxhash_dep,
     lz4_dep,
     cjson_dep,
+    hyperloglog_dep,
     libbsd_dep,
     libcurl_dep,
+    libhse_pidfile_dep,
     libmicrohttpd_dep,
     liburcu_bp_dep,
     libyaml_dep,
@@ -104,7 +105,7 @@ hse_dependencies = [
     thread_dep,
     rbtree_dep,
     crc32c_dep,
-    libhse_pidfile_dep,
+    xoroshiro_dep,
 ]
 
 hse = both_libraries(

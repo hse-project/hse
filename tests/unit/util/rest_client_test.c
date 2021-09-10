@@ -12,6 +12,7 @@
 #include <hse_util/string.h>
 #include <hse_util/rest_api.h>
 #include <hse_util/rest_client.h>
+#include <hse_util/event_counter.h>
 
 #include <hse/version.h>
 

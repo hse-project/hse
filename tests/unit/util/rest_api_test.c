@@ -13,7 +13,7 @@
 #include <hse_util/rest_client.h>
 #include <hse_util/string.h>
 
-#include <rbtree/rbtree.h>
+#include <rbtree.h>
 #include <curl/curl.h>
 #include <pthread.h>
 
