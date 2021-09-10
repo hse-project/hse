@@ -40,7 +40,7 @@ argv_deserialize_to_params(
         const char *key = param;
         const char *value = strstr(param, "=");
         if (!value || value[1] == '\0') {
-            CLOG("Parameter key/value pairs must be of the form <key=value>");
+            CLOG_ERR("Parameter key/value pairs must be of the form <key=value>");
             err = merr(EINVAL);
             goto out;
         }
@@ -54,7 +54,7 @@ argv_deserialize_to_params(
         }
 
         if (!ps) {
-            CLOG("Unknown parameter %s", key);
+            CLOG_ERR("Unknown parameter %s", key);
             err = merr(EINVAL);
             goto out;
         }
@@ -88,21 +88,23 @@ argv_deserialize_to_params(
             free(buf);
 
             if (!node) {
-                CLOG("Failed to parse %s %s: %s", params_logging_context(params), ps->ps_name, param);
+                CLOG_ERR("Failed to parse %s %s: %s", params_logging_context(params), ps->ps_name, param);
                 err = merr(EINVAL);
                 goto out;
             }
         }
 
+        CLOG_DEBUG("Applying %s %s from paramv", params_logging_context(params), ps->ps_name);
+
         if (cJSON_IsNull(node) && !(ps->ps_flags & PARAM_FLAG_NULLABLE)) {
-            CLOG("%s %s cannot be null", params_logging_context(params), ps->ps_name);
+            CLOG_ERR("%s %s cannot be null", params_logging_context(params), ps->ps_name);
             err = merr(EINVAL);
             goto out;
         }
 
         assert(ps->ps_convert);
         if (!ps->ps_convert(ps, node, data)) {
-            CLOG("Failed to convert %s %s", params_logging_context(params), key);
+            CLOG_ERR("Failed to convert %s %s", params_logging_context(params), key);
             /* Delete the node in the case of an error */
             cJSON_Delete(node);
             err = merr(EINVAL);
@@ -116,7 +118,7 @@ argv_deserialize_to_params(
          * deserializing an array.
          */
         if (ps->ps_validate && !ps->ps_validate(ps, data)) {
-            CLOG("Failed to validate %s %s", params_logging_context(params), key);
+            CLOG_ERR("Failed to validate %s %s", params_logging_context(params), key);
             err = merr(EINVAL);
             goto out;
         }
@@ -125,7 +127,7 @@ argv_deserialize_to_params(
     for (size_t i = 0; i < pspecs_sz; i++) {
         const struct param_spec *ps = &pspecs[i];
         if (ps->ps_validate_relations && !ps->ps_validate_relations(ps, params)) {
-            CLOG("Failed to validate parameter relationships for %s %s", params_logging_context(params), ps->ps_name);
+            CLOG_ERR("Failed to validate parameter relationships for %s %s", params_logging_context(params), ps->ps_name);
             err = merr(EINVAL);
             goto out;
         }

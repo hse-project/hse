@@ -51,7 +51,7 @@ logging_destination_converter(
     } else if (strcmp(setting, "syslog") == 0) {
         log_dest = LD_SYSLOG;
     } else {
-        CLOG(
+        CLOG_ERR(
             "Invalid logging.destination value: %s, must be one of stdout, stderr, file, or syslog",
             setting);
         return false;

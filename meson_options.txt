@@ -18,7 +18,5 @@ option('samples', type: 'boolean', value: true,
     description: 'Build samples')
 option('bindings', type: 'array', choices: ['all', 'none', 'python'], value: ['all'],
     description: 'Build language bindings')
-option('kvdb-conf-extended', type: 'boolean', value: false,
-    description: '[TESTING PURPOSES ONLY] Allow cparams to exist in kvdb.conf')
 option('docs', type: 'boolean', value: false,
     description: 'Build documentation')
