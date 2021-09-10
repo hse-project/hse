@@ -15,25 +15,6 @@
 #include <hse_ikvdb/kvdb_home.h>
 #include <pidfile/pidfile.h>
 
-merr_t
-kvdb_home_resolve(const char *home, char *buf, const size_t buf_sz)
-{
-    assert(buf);
-    assert(buf_sz > 0);
-
-    if (!home) {
-        if (!getcwd(buf, buf_sz))
-            return merr(errno);
-    } else {
-        const size_t n = strlcpy(buf, home, buf_sz);
-
-        if (n >= buf_sz)
-            return merr(ENAMETOOLONG);
-    }
-
-    return 0;
-}
-
 static merr_t
 path_copy(const char *home, const char *path, char *buf, const size_t buf_sz)
 {

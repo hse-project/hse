@@ -42,8 +42,8 @@ accordingly.
 
 1. Create a new KVS and put 1031 keys
 
-    hse -C /mnt/kvdb/kvdb1 kvdb create
-    hse -C /mnt/kvdb/kvdb1 kvs create kvs1
+    hse kvdb create /mnt/kvdb/kvdb1
+    hse kvs create /mnt/kvdb/kvdb1 kvs1
 
     simple_client /mnt/kvdb/kvdb1 kvs1 -c 1031 -v -f"key.%09d"
 
@@ -115,4 +115,3 @@ The following files are created by cn_kbdump:
 
     ctxn_validation -i 1000 -k 10  -K1024 mp1 db1 $kvs -ppc
     ctxn_validation -i 2    -k 100 -K1024 mp1 db1 $kvs -ppc
-

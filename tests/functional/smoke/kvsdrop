@@ -22,7 +22,7 @@ cmd putbin -c$keys "$home" $kvs2
 cmd putbin -V -c$keys "$home" $kvs
 cmd putbin -V -c$keys "$home" $kvs2
 
-cmd hse -C "$home" kvs drop $kvs2
+kvs_drop $kvs2 || exit $?
 
 # validate cndb and that cnid 1 keys exist
 cmd putbin -V -c$keys "$home" $kvs

@@ -80,7 +80,6 @@ class BashTest(Test):
         return pathlib.Path(self._args[0]).stem
 
     def command_line(self, home: str) -> List[str]:
-        print(" ".join([str(self._program), "-C", str(home), *self._args]))
         return [str(self._program), self._args[0], "-C", str(home), *self._args[1:]]
 
 

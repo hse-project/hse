@@ -17,14 +17,14 @@ err () {
 	shift $((OPTIND-1))
 
 	echo -e "$@" >&2
-	exit $status
+	exit "$status"
 }
 
 usage() {
 	echo "Usage: $0 [-C home]"
 }
 
-program=$(basename $0)
+program=$(basename "$0")
 home=$(pwd)
 
 while getopts ":hC:" o; do
@@ -32,7 +32,7 @@ while getopts ":hC:" o; do
 		h) usage; exit 0;;
 		C) home="$OPTARG";;
 		\?) err "Invalid option $OPTARG\n\n$(usage)" >&2;;
-    	\:) err "Option $OPTARG requires an argument\n\n$(usage)" >&2;;
+    	:) err "Option $OPTARG requires an argument\n\n$(usage)" >&2;;
 	esac
 done
 shift $((OPTIND-1))
@@ -57,7 +57,7 @@ cmd () {
                 check_status=2
 				;;
         \?) err "Invalid option $OPTARG" >&2;;
-    	\:) err "Option $OPTARG requires an argument" >&2;;
+    	:) err "Option $OPTARG requires an argument" >&2;;
         esac
     done
 	shift $((OPTIND-1))
@@ -69,12 +69,12 @@ cmd () {
 		0) ;;
 		1)
 			if [ $status -ne 0 ]; then
-				err -s $status "ERROR: Expected success, got $status\n\t$@"
+				err -s $status "ERROR: Expected success, got $status\n\t$*"
 			fi
 			;;
 		2)
 			if [ $status -eq 0 ]; then
-				err -s "-1" "ERROR: Expected non-zero\n\t$@"
+				err -s "-1" "ERROR: Expected non-zero\n\t$*"
 			fi
 			;;
 	esac
@@ -88,17 +88,25 @@ cmd () {
 }
 
 kvdb_create () {
-	cmd hse -C "$home" kvdb create "$@" >&2
+	cmd hse kvdb create "$home" "$@" >&2
 }
 
 kvdb_drop () {
-	cmd hse -C "$home" kvdb drop "$@" >&2
+	cmd hse kvdb drop "$home" "$@" >&2
 }
 
 kvs_create () {
 	if [ "$#" -lt 1 ]; then
 		err kvs_create requires the name of the KVS at a minimum
 	fi
-	cmd hse -C "$home" kvs create "$@" >&2
+	cmd hse kvs create "$home" "$@" >&2
+	echo "$1"
+}
+
+kvs_drop () {
+	if [ "$#" -lt 1 ]; then
+		err kvs_drop requires the name of the KVS at a minimum
+	fi
+	cmd hse kvs drop "$home" "$@" >&2
 	echo "$1"
 }
