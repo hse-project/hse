@@ -32,7 +32,7 @@ jobs:
 
     - name: Build setup with YCSB, tools and configs
       run: |
-        poetry run meson builddir -Dbuildtype=${{ matrix.build_type }} -Dycsb=true -Dinstall-tools=true -Dinstall-configs=true -Dwerror=true
+        poetry run meson builddir -Dbuildtype=${{ matrix.build_type }} -Dycsb=true -Dinstall-tools=true -Dwerror=true
 
     - name: Run tests
       run: |
@@ -72,7 +72,7 @@ jobs:
 
     - name: Build setup with YCSB, tools and configs
       run: |
-        poetry run meson builddir -Dbuildtype=${{ matrix.build_type }} -Dycsb=true -Dinstall-tools=true -Dinstall-configs=true -Dwerror=true
+        poetry run meson builddir -Dbuildtype=${{ matrix.build_type }} -Dycsb=true -Dinstall-tools=true -Dwerror=true
 
     - name: Run tests
       run: |

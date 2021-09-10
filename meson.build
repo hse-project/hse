@@ -375,7 +375,6 @@ endif
 
 exe_install_rpath = get_option('install-rpath') ? '$ORIGIN' / '..' / get_option('libdir') : ''
 
-subdir('config')
 subdir('3rdparty')
 subdir('include')
 if get_option('tests') or get_option('tools')
