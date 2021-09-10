@@ -911,7 +911,7 @@ static const struct param_spec pspecs[] = {
         },
     },
     {
-        .ps_name = "durability.interval",
+        .ps_name = "durability.interval_ms",
         .ps_description = "durability lag in ms",
         .ps_flags = 0,
         .ps_type = PARAM_TYPE_U32,
