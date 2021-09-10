@@ -2,8 +2,6 @@ run_env.append('PYTHONPATH', meson.current_source_dir())
 
 test_runner = find_program('test-runner')
 pytest = find_program('pytest', required: true)
-bash = find_program('bash')
-sh = find_program('sh') # write POSIX-compliant when easily doable
 
 # Suites to exclude based on varying factors
 additional_suite_exclusions = []

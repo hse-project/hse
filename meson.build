@@ -21,6 +21,9 @@ fs = import('fs')
 cmake = import('cmake')
 pymod = import('python')
 
+bash = find_program('bash')
+sh = find_program('sh') # write POSIX-compliant when easily doable
+
 cc = meson.get_compiler('c')
 python = pymod.find_installation(
     'python3',
