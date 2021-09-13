@@ -16,7 +16,7 @@ enum cgroup_version {
     CGROUP_VERS_NONE    = 3,
 };
 
-static enum cgroup_version cgvers;
+static enum cgroup_version cgvers = CGROUP_VERS_UNKNOWN;
 static const char *cgmntpt;
 
 static int
@@ -190,4 +190,7 @@ void
 hse_cgroup_fini(void)
 {
     free((void *)cgmntpt);
+    /* Protect against reading uninitialized memory in hse_meminfo_cgroup() */
+    cgmntpt = NULL;
+    cgvers = CGROUP_VERS_UNKNOWN;
 }
