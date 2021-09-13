@@ -98,6 +98,8 @@ argv_deserialize_to_params(
 
         if (cJSON_IsNull(node) && !(ps->ps_flags & PARAM_FLAG_NULLABLE)) {
             CLOG_ERR("%s %s cannot be null", params_logging_context(params), ps->ps_name);
+            /* Delete the node in the case of an error */
+            cJSON_Delete(node);
             err = merr(EINVAL);
             goto out;
         }
