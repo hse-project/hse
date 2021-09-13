@@ -15,7 +15,7 @@
  *
  * The documentation here is geared towards describing the structure of the HSE API and
  * the specifics of each entry point's operation.  Refer to
- * https://hse-project.github.io/dev/concepts/ for a conceptual overview of HSE.
+ * https://hse-project.github.io/2.x/dev/concepts/ for a conceptual overview of HSE.
  *
  * <h3>Terminology</h3>
  *
@@ -643,7 +643,7 @@ hse_kvdb_txn_state_get(struct hse_kvdb *kvdb, struct hse_kvdb_txn *txn);
 
 /** @defgroup CURSOR Cursor Functions
  * See the concept and best practices sections on the HSE project site at
- * https://hse-project.github.io/dev/concepts/
+ * https://hse-project.github.io/2.x/dev/concepts/
  */
 /** @{ */
 
@@ -837,7 +837,7 @@ hse_kvs_cursor_destroy(struct hse_kvs_cursor *cursor);
 /**@} CURSOR */
 
 
-/** @defgroup DSTATE Data State Management Functions.
+/** @defgroup DSTATE Data State Management Functions
  * @{
  */
 
