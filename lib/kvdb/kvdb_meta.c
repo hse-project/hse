@@ -648,20 +648,20 @@ kvdb_meta_storage_add(
     const char *                kvdb_home,
     const struct mpool_cparams *cparams)
 {
-    enum mpool_mclass mc;
-    bool              added = false;
+    bool added = false;
+    int i;
 
     assert(meta);
     assert(kvdb_home);
     assert(cparams);
 
-    for (mc = MP_MED_BASE; mc < MP_MED_COUNT; mc++) {
-        const char *path = cparams->mclass[mc].path;
+    for (i = MP_MED_BASE; i < MP_MED_COUNT; i++) {
+        const char *path = cparams->mclass[i].path;
 
-        if (mc != MP_MED_CAPACITY && path[0] != '\0') {
-            assert(meta->km_storage[mc].path[0] == '\0');
+        if (i != MP_MED_CAPACITY && path[0] != '\0') {
+            assert(meta->km_storage[i].path[0] == '\0');
 
-            strlcpy(meta->km_storage[mc].path, path, sizeof(meta->km_storage[mc].path));
+            strlcpy(meta->km_storage[i].path, path, sizeof(meta->km_storage[i].path));
             added = true;
         }
     }

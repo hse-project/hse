@@ -46,33 +46,45 @@ path_copy(const char *home, const char *path, char *buf, const size_t buf_sz)
 }
 
 merr_t
-kvdb_home_storage_capacity_path_get(
+kvdb_home_storage_path_get(
     const char * home,
-    const char * capacity_path,
+    const char * path,
     char *       buf,
     const size_t buf_sz)
 {
     assert(home);
-    assert(capacity_path);
+    assert(path);
     assert(buf);
     assert(buf_sz > 0);
 
-    return path_copy(home, capacity_path, buf, buf_sz);
+    return path_copy(home, path, buf, buf_sz);
 }
 
 merr_t
-kvdb_home_storage_staging_path_get(
+kvdb_home_storage_realpath_get(
     const char * home,
-    const char * staging_path,
-    char *       buf,
-    const size_t buf_sz)
+    const char * path,
+    char         buf[PATH_MAX])
 {
-    assert(home);
-    assert(staging_path);
-    assert(buf);
-    assert(buf_sz > 0);
+    merr_t err;
 
-    return path_copy(home, staging_path, buf, buf_sz);
+    assert(home);
+    assert(path);
+
+    err = path_copy(home, path, buf, PATH_MAX);
+    if (!err) {
+        char *pathdup = strndup(buf, PATH_MAX);
+
+        if (!pathdup)
+            return merr(ENOMEM);
+
+        if (!realpath(pathdup, buf))
+            err = merr(errno);
+
+        free(pathdup);
+    }
+
+    return err;
 }
 
 merr_t

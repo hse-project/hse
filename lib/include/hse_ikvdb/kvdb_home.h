@@ -11,36 +11,34 @@
 #include <hse_util/hse_err.h>
 
 /**
- * Converts the storage capacity path to be an absolute path
+ * Converts the storage path to an absolute path
  *
  * @param home: home directory
- * @param capacity_path: parameter-supplied capacity path
+ * @param path: parameter-supplied path
  * @param buf: buffer
  * @param buf_sz: size of the buffer
  * @returns error status
  */
 merr_t
-kvdb_home_storage_capacity_path_get(
+kvdb_home_storage_path_get(
     const char * home,
-    const char * capacity_path,
+    const char * path,
     char *       buf,
     const size_t buf_sz);
 
 /**
- * Converts the storage staging path to be an absolute path
+ * Converts the storage path to an absolute real path
  *
  * @param home: home directory
- * @param staging_path: parameter-supplied staging path
+ * @param path: parameter-supplied path
  * @param buf: buffer
- * @param buf_sz: size of the buffer
  * @returns error status
  */
 merr_t
-kvdb_home_storage_staging_path_get(
+kvdb_home_storage_realpath_get(
     const char * home,
-    const char * staging_path,
-    char *       buf,
-    const size_t buf_sz);
+    const char * path,
+    char         buf[PATH_MAX]);
 
 /**
  * Puts the path to the hse.pid file in the buffer

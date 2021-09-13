@@ -502,16 +502,16 @@ mpool_mclass_ftw(
 void
 mpool_cparams_defaults(struct mpool_cparams *cparams)
 {
-    enum mpool_mclass mc;
+    int i;
 
     if (!cparams)
         return;
 
-    for (mc = MP_MED_BASE; mc < MP_MED_COUNT; mc++) {
-        cparams->mclass[mc].fmaxsz = MPOOL_MBLOCK_FILESZ_DEFAULT;
-        cparams->mclass[mc].filecnt = MPOOL_MBLOCK_FILECNT_DEFAULT;
-        cparams->mclass[mc].mblocksz = MPOOL_MBLOCK_SIZE_DEFAULT;
-        cparams->mclass[mc].path[0] = '\0';
+    for (i = MP_MED_BASE; i < MP_MED_COUNT; i++) {
+        cparams->mclass[i].fmaxsz = MPOOL_MBLOCK_FILESZ_DEFAULT;
+        cparams->mclass[i].filecnt = MPOOL_MBLOCK_FILECNT_DEFAULT;
+        cparams->mclass[i].mblocksz = MPOOL_MBLOCK_SIZE_DEFAULT;
+        cparams->mclass[i].path[0] = '\0';
     }
 
     strlcpy(cparams->mclass[MP_MED_CAPACITY].path, MPOOL_CAPACITY_MCLASS_DEFAULT_PATH,

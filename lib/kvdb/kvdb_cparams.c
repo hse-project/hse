@@ -198,8 +198,8 @@ kvdb_cparams_resolve(struct kvdb_cparams *params, const char *home)
     static_assert(
         sizeof(buf) == sizeof(params->storage.mclass[MP_MED_BASE].path), "mismatched buffer sizes");
 
-    err = kvdb_home_storage_capacity_path_get(
-        home, params->storage.mclass[MP_MED_CAPACITY].path, buf, sizeof(buf));
+    err = kvdb_home_storage_path_get(
+            home, params->storage.mclass[MP_MED_CAPACITY].path, buf, sizeof(buf));
     if (err)
         return err;
     strlcpy(
@@ -207,8 +207,8 @@ kvdb_cparams_resolve(struct kvdb_cparams *params, const char *home)
         buf,
         sizeof(params->storage.mclass[MP_MED_CAPACITY].path));
 
-    err = kvdb_home_storage_staging_path_get(
-        home, params->storage.mclass[MP_MED_STAGING].path, buf, sizeof(buf));
+    err = kvdb_home_storage_path_get(
+            home, params->storage.mclass[MP_MED_STAGING].path, buf, sizeof(buf));
     if (err)
         return err;
     strlcpy(
