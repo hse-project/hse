@@ -383,7 +383,7 @@ config_create(const char *path, cJSON **conf)
 
     config[st.st_size] = '\0';
 
-    *conf = cJSON_ParseWithLength(config, st.st_size);
+    *conf = cJSON_ParseWithLength(config, st.st_size + 1);
     if (!*conf) {
         CLOG_ERR("Failed to parse file as valid JSON (%s)", path);
         err = merr(EINVAL);
