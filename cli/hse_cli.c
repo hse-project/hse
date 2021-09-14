@@ -1096,7 +1096,7 @@ cli_hse_storage_info_impl(struct cli *cli, const char *const kvdb_home)
         return EINVAL;
     }
 
-    exists = kvdb_info_print(kvdb_home, NELEM(paramv), paramv, &yc, false);
+    exists = kvdb_storage_info_print(kvdb_home, NELEM(paramv), paramv, &yc, false);
     if (!exists) {
         fprintf(stderr, "No such KVDB (%s)\n", kvdb_home);
         rc = -1;
