@@ -31,7 +31,7 @@ def run_test(kvdb: hse.Kvdb, kvs: hse.Kvs):
     kvs.put(b"aa2", b"uncommitted-aa2", txn=t0)  # commit
     kvs.put(b"aa3", b"uncommitted-aa3", txn=t1)  # abort
 
-    val = kvs.get(b"aa1", txn=t0)
+    val = kvs.get(b"aa1", txn=t0)[0]
     assert val == b"uncommitted-aa1"
 
     with kvs.cursor(txn=t0) as c:
@@ -86,15 +86,15 @@ def run_test(kvdb: hse.Kvdb, kvs: hse.Kvs):
 
     # Get from C0
     with kvdb.transaction() as t5:
-        val = kvs.get(b"ab3", txn=t5)
+        val = kvs.get(b"ab3", txn=t5)[0]
         assert val == b"val3"
 
     # Get from LC
-    val = kvs.get(b"aa1", txn=t0)
+    val = kvs.get(b"aa1", txn=t0)[0]
     assert val == b"uncommitted-aa1"  # uncommitted data from current txn
-    val = kvs.get(b"aa3", txn=t0)
+    val = kvs.get(b"aa3", txn=t0)[0]
     assert val == None  # uncommitted data from some other txn
-    val = kvs.get(b"aa3", txn=t1)
+    val = kvs.get(b"aa3", txn=t1)[0]
     assert val == b"uncommitted-aa3"  # uncommitted data from current txn
 
     t0.commit()
@@ -105,11 +105,11 @@ def run_test(kvdb: hse.Kvdb, kvs: hse.Kvs):
     # Get from CN. Keys were previously in LC.
     with kvdb.transaction() as t5:
         # Committed. Should be visible
-        val = kvs.get(b"aa1", txn=t5)
+        val = kvs.get(b"aa1", txn=t5)[0]
         assert val == b"uncommitted-aa1"
 
         # Aborted. Should not see this key.
-        val = kvs.get(b"aa3", txn=t5)
+        val = kvs.get(b"aa3", txn=t5)[0]
         assert val == None
     pass
 

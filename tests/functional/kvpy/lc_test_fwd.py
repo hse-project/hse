@@ -22,14 +22,14 @@ def separate_keys(kvdb: hse.Kvdb, kvs: hse.Kvs):
         kvs.put(b"ab03", b"val-c0", txn=t)
 
     # Point Get
-    assert kvs.get(b"ab01") == b"val-cn"
-    assert kvs.get(b"ab02") == b"val-lc"
-    assert kvs.get(b"ab03") == b"val-c0"
+    assert kvs.get(b"ab01")[0] == b"val-cn"
+    assert kvs.get(b"ab02")[0] == b"val-lc"
+    assert kvs.get(b"ab03")[0] == b"val-c0"
 
     # Probe
-    cnt, *kv = kvs.prefix_probe(b"ab0")
+    cnt, k, _, v, _ = kvs.prefix_probe(b"ab0")
     assert cnt == hse.KvsPfxProbeCnt.MUL
-    assert kv == [b"ab03", b"val-c0"]
+    assert (k, v) == (b"ab03", b"val-c0")
 
     # Cursor
     with kvs.cursor(filt=b"ab") as c:
@@ -83,19 +83,19 @@ def duplicate_lc_cn(kvdb: hse.Kvdb, kvs: hse.Kvs, cursor_sync: bool = False):
 
     # Cursor
     with kvs.cursor(filt=b"ab") as c:
-        probe_kv = [b"ab02", b"val-c0"]
+        probe_kv = (b"ab02", b"val-c0")
         if cursor_sync:
-            probe_kv = [b"ab01", b"val-lc"]
+            probe_kv = (b"ab01", b"val-lc")
             kvdb.sync()
 
         # Point Get
-        assert kvs.get(b"ab01") == b"val-lc"
-        assert kvs.get(b"ab02") == b"val-c0"
+        assert kvs.get(b"ab01")[0] == b"val-lc"
+        assert kvs.get(b"ab02")[0] == b"val-c0"
 
         # Probe
-        cnt, *kv = kvs.prefix_probe(b"ab0")
+        cnt, k, _, v, _ = kvs.prefix_probe(b"ab0")
         assert cnt == hse.KvsPfxProbeCnt.MUL
-        assert kv == probe_kv
+        assert (k, v) == probe_kv
 
         # Read all keys
         assert c.read() == (b"ab01", b"val-lc")
@@ -149,13 +149,13 @@ def duplicate_c0_lc(kvdb: hse.Kvdb, kvs: hse.Kvs, cursor_sync: bool = False):
             kvdb.sync()
 
         # Point Get
-        assert kvs.get(b"ab01") == b"val-cn"
-        assert kvs.get(b"ab02") == b"val-c0"
+        assert kvs.get(b"ab01")[0] == b"val-cn"
+        assert kvs.get(b"ab02")[0] == b"val-c0"
 
         # Probe
-        cnt, *kv = kvs.prefix_probe(b"ab0")
+        cnt, k, _, v, _ = kvs.prefix_probe(b"ab0")
         assert cnt == hse.KvsPfxProbeCnt.MUL
-        assert kv == [b"ab02", b"val-c0"]
+        assert (k, v) == (b"ab02", b"val-c0")
 
         # Read all keys
         assert c.read() == (b"ab01", b"val-cn")
@@ -210,13 +210,13 @@ def tombs_c0_lc(kvdb: hse.Kvdb, kvs: hse.Kvs, cursor_sync: bool = False):
             kvdb.sync()
 
         # Point Get
-        assert kvs.get(b"ab01") == b"val-cn"
-        assert kvs.get(b"ab02") == None
+        assert kvs.get(b"ab01")[0] == b"val-cn"
+        assert kvs.get(b"ab02")[0] == None
 
         # Probe
-        cnt, *kv = kvs.prefix_probe(b"ab0")
+        cnt, k, _, v, _ = kvs.prefix_probe(b"ab0")
         assert cnt == hse.KvsPfxProbeCnt.ONE
-        assert kv == [b"ab01", b"val-cn"]
+        assert (k, v) == (b"ab01", b"val-cn")
 
         # Read all keys
         assert c.read() == (b"ab01", b"val-cn")
@@ -263,13 +263,13 @@ def tombs_lc_cn(kvdb: hse.Kvdb, kvs: hse.Kvs, cursor_sync: bool = False):
             kvdb.sync()
 
         # Point Get
-        assert kvs.get(b"ab01") == None
-        assert kvs.get(b"ab02") == b"val-c0"
+        assert kvs.get(b"ab01")[0] == None
+        assert kvs.get(b"ab02")[0] == b"val-c0"
 
         # Probe
-        cnt, *kv = kvs.prefix_probe(b"ab0")
+        cnt, k, _, v, _ = kvs.prefix_probe(b"ab0")
         assert cnt == hse.KvsPfxProbeCnt.ONE
-        assert kv == [b"ab02", b"val-c0"]
+        assert (k, v) == (b"ab02", b"val-c0")
 
         # Read all keys
         assert c.read() == (b"ab02", b"val-c0")
@@ -314,8 +314,8 @@ def ptombs_c0_lc(kvdb: hse.Kvdb, kvs: hse.Kvs, cursor_sync: bool = False):
             kvdb.sync()
 
         # Point Get
-        assert kvs.get(b"ab01") == None
-        assert kvs.get(b"ab02") == None
+        assert kvs.get(b"ab01")[0] == None
+        assert kvs.get(b"ab02")[0] == None
 
         # Probe
         cnt, *_ = kvs.prefix_probe(b"ab0")
@@ -365,13 +365,13 @@ def ptombs_lc_cn(kvdb: hse.Kvdb, kvs: hse.Kvs, cursor_sync: bool = False):
             kvdb.sync()
 
         # Point Get
-        assert kvs.get(b"ab01") == None
-        assert kvs.get(b"ab02") == b"val-c0"
+        assert kvs.get(b"ab01")[0] == None
+        assert kvs.get(b"ab02")[0] == b"val-c0"
 
         # Probe
-        cnt, *kv = kvs.prefix_probe(b"ab0")
+        cnt, k, _, v, _ = kvs.prefix_probe(b"ab0")
         assert cnt == hse.KvsPfxProbeCnt.ONE
-        assert kv == [b"ab02", b"val-c0"]
+        assert (k, v) == (b"ab02", b"val-c0")
 
         # Read all keys
         assert c.read() == (b"ab02", b"val-c0")

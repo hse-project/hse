@@ -36,24 +36,24 @@ try:
         with kvdb.transaction() as t:
             kvs.put(b"AbcXY", b"2", txn=t)
 
-        cnt, *kv = kvs.prefix_probe(b"Abc", txn=txn)
+        cnt, k, _, v, _ = kvs.prefix_probe(b"Abc", txn=txn)
         assert cnt == hse.KvsPfxProbeCnt.ONE
-        assert kv == [b"AbcXX", b"1"]
+        assert (k, v) == (b"AbcXX", b"1")
 
         kvdb.sync(flags=hse.KvdbSyncFlag.ASYNC)
         kvs.put(b"AbcXZ", b"3", txn=txn)
-        cnt, *kv = kvs.prefix_probe(b"Abc", txn=txn)  # inside txn
+        cnt, k, _, v, _ = kvs.prefix_probe(b"Abc", txn=txn)  # inside txn
         assert cnt == hse.KvsPfxProbeCnt.MUL
-        assert kv == [b"AbcXZ", b"3"]
+        assert (k, v) == (b"AbcXZ", b"3")
         with kvdb.transaction() as t:
-            cnt, *kv = kvs.prefix_probe(b"Abc", txn=t)  # outside txn
+            cnt, k, _, v, _ = kvs.prefix_probe(b"Abc", txn=t)  # outside txn
             assert cnt == hse.KvsPfxProbeCnt.MUL
-            assert kv == [b"AbcXY", b"2"]
+            assert (k, v) == (b"AbcXY", b"2")
 
         txn.commit()
 
-        cnt, *kv = kvs.prefix_probe(b"Abc")
+        cnt, k, _, v, _ = kvs.prefix_probe(b"Abc")
         assert cnt == hse.KvsPfxProbeCnt.MUL
-        assert kv == [b"AbcXZ", b"3"]
+        assert (k, v) == (b"AbcXZ", b"3")
 finally:
     hse.fini()

@@ -58,7 +58,7 @@ def run_test_2(kvdb: hse.Kvdb, kvs: hse.Kvs):
         kvdb.sync()  # Moves val2 to cn while val1 stays in LC until it's garbage collected
 
         for (k, v) in c.items():
-            getval = kvs.get(k)
+            getval = kvs.get(k)[0]
             assert v
             assert v.decode() == "val2"
             assert v == getval
@@ -81,12 +81,12 @@ def run_test_3(kvdb: hse.Kvdb, kvs: hse.Kvs):
         kvs.put(b"jkl03", b"val2", txn=t)
         kvdb.sync()
 
-        assert kvs.get(b"jkl01", txn=t) is None
-        assert kvs.get(b"jkl03", txn=t) == b"val2"
+        assert kvs.get(b"jkl01", txn=t)[0] is None
+        assert kvs.get(b"jkl03", txn=t)[0] == b"val2"
 
-        cnt, *kv = kvs.prefix_probe(b"jkl", txn=t)
+        cnt, k, _, v, _ = kvs.prefix_probe(b"jkl", txn=t)
         assert cnt == hse.KvsPfxProbeCnt.ONE
-        assert kv == [b"jkl03", b"val2"]
+        assert (k, v) == (b"jkl03", b"val2")
     pass
 
 

@@ -50,12 +50,12 @@ try:
             kvs.delete(b"ab6")
 
             # non-txn kvs and non-txn read: allowed
-            assert kvs.get(b"ab1") == b"1"
-            assert kvs.get(b"ab2") == b"1"
-            assert kvs.get(b"ab3") == b"1"
-            assert kvs.get(b"ab4") is None
-            assert kvs.get(b"ab5") is None
-            assert kvs.get(b"ab6") is None
+            assert kvs.get(b"ab1")[0] == b"1"
+            assert kvs.get(b"ab2")[0] == b"1"
+            assert kvs.get(b"ab3")[0] == b"1"
+            assert kvs.get(b"ab4")[0] is None
+            assert kvs.get(b"ab5")[0] is None
+            assert kvs.get(b"ab6")[0] is None
 
             cnt, *_ = kvs.prefix_probe(b"ab")
             assert cnt == hse.KvsPfxProbeCnt.MUL
@@ -74,7 +74,7 @@ try:
             # non-txn kvs and txn read: not allowed
             try:
                 with kvdb.transaction() as t:
-                    kvs.get(b"ab1", txn=t)
+                    kvs.get(b"ab1", txn=t)[0]
                 assert False
             except hse.HseException:
                 pass
@@ -122,9 +122,9 @@ try:
                 kvs_tx.delete(b"ab6", txn=t)
 
                 # txn kvs and txn read: allowed
-                assert kvs_tx.get(b"ab1", txn=t) == b"1"
-                assert kvs_tx.get(b"ab2", txn=t) == b"1"
-                assert kvs_tx.get(b"ab3", txn=t) == b"1"
+                assert kvs_tx.get(b"ab1", txn=t)[0] == b"1"
+                assert kvs_tx.get(b"ab2", txn=t)[0] == b"1"
+                assert kvs_tx.get(b"ab3", txn=t)[0] == b"1"
 
                 cnt, *_ = kvs_tx.prefix_probe(b"ab", txn=t)
                 assert cnt == hse.KvsPfxProbeCnt.MUL
@@ -133,9 +133,9 @@ try:
                     assert sum(1 for _ in cur.items()) == 3
 
             # txn kvs and non-txn read: allowed
-            assert kvs_tx.get(b"ab1") == b"1"
-            assert kvs_tx.get(b"ab2") == b"1"
-            assert kvs_tx.get(b"ab3") == b"1"
+            assert kvs_tx.get(b"ab1")[0] == b"1"
+            assert kvs_tx.get(b"ab2")[0] == b"1"
+            assert kvs_tx.get(b"ab3")[0] == b"1"
 
             cnt, *_ = kvs_tx.prefix_probe(b"ab")
             assert cnt == hse.KvsPfxProbeCnt.MUL
@@ -166,13 +166,13 @@ try:
             kvs.put(b"aa1", b"1")
             kvs.put(b"aa2", b"1")
 
-            assert kvs.get(b"aa1") == b"1"
-            assert kvs.get(b"aa2") == b"1"
+            assert kvs.get(b"aa1")[0] == b"1"
+            assert kvs.get(b"aa2")[0] == b"1"
 
             # non-txn kvs and non-txn prefix delete: allowed
             kvs.prefix_delete(b"aa")
-            assert kvs.get(b"aa1") is None
-            assert kvs.get(b"aa2") is None
+            assert kvs.get(b"aa1")[0] is None
+            assert kvs.get(b"aa2")[0] is None
 
             kvs.put(b"aa1", b"1")
             kvs.put(b"aa2", b"1")
@@ -187,8 +187,8 @@ try:
 
             # Cleanup
             kvs.prefix_delete(b"aa")
-            assert kvs.get(b"aa1") is None
-            assert kvs.get(b"aa2") is None
+            assert kvs.get(b"aa1")[0] is None
+            assert kvs.get(b"aa2")[0] is None
 
         with lifecycle.KvsContext(kvdb, "kvs37-txn-2").rparams(
             "transactions.enabled=true"
@@ -201,8 +201,8 @@ try:
             with kvdb.transaction() as t:
                 kvs_tx.prefix_delete(b"aa", txn=t)
 
-            assert kvs_tx.get(b"aa1") is None
-            assert kvs_tx.get(b"aa2") is None
+            assert kvs_tx.get(b"aa1")[0] is None
+            assert kvs_tx.get(b"aa2")[0] is None
 
             with kvdb.transaction() as t:
                 kvs_tx.put(b"aa1", b"1", txn=t)

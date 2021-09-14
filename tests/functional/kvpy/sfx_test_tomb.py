@@ -30,18 +30,18 @@ try:
         assert cnt == hse.KvsPfxProbeCnt.MUL
 
         kvs.delete(b"AbdXY")
-        cnt, *kv = kvs.prefix_probe(b"Abd")
+        cnt, k, _, v, _ = kvs.prefix_probe(b"Abd")
         assert cnt == hse.KvsPfxProbeCnt.ONE
-        assert kv == [b"AbdXX", b"1"]
+        assert (k, v) == (b"AbdXX", b"1")
         kvdb.sync()
-        cnt, *kv = kvs.prefix_probe(b"Abd")
+        cnt, k, _, v, _ = kvs.prefix_probe(b"Abd")
         assert cnt == hse.KvsPfxProbeCnt.ONE
-        assert kv == [b"AbdXX", b"1"]
+        assert (k, v) == (b"AbdXX", b"1")
 
         # Multiple tombs
-        cnt, *kv = kvs.prefix_probe(b"Abc")
+        cnt, k, _, v, _ = kvs.prefix_probe(b"Abc")
         assert cnt == hse.KvsPfxProbeCnt.ONE
-        assert kv == [b"AbcXX", b"1"]
+        assert (k, v) == (b"AbcXX", b"1")
 
         kvs.prefix_delete(b"A")
 
@@ -65,9 +65,9 @@ try:
         kvs.delete(b"AbcX7")
         kvs.delete(b"AbcX8")
 
-        cnt, *kv = kvs.prefix_probe(b"Abc")
+        cnt, k, _, v, _ = kvs.prefix_probe(b"Abc")
         assert cnt == hse.KvsPfxProbeCnt.MUL
-        assert kv == [b"AbcX9", b"1"]
+        assert (k, v) == (b"AbcX9", b"1")
 
         """
         [HSE_REVISIT] - why is this commented out? @gaurav
@@ -75,21 +75,21 @@ try:
         txn = kvdb.transaction()
         txn.begin()
         kvs.delete(b"AbcX9", txn=txn)
-        cnt, *kv = kvs.prefix_probe(b"Abc", txn=txn)
+        cnt, k, _, v, _ = kvs.prefix_probe(b"Abc", txn=txn)
         assert cnt == hse.KvsPfxProbeCnt.MUL
-        assert kv == [b"AbcX4", b"1"]
+        assert (k, v) == (b"AbcX4", b"1")
         txn.commit()
         """
 
         kvs.delete(b"AbcX9")
 
-        cnt, *kv = kvs.prefix_probe(b"Abc")
+        cnt, k, _, v, _ = kvs.prefix_probe(b"Abc")
         assert cnt == hse.KvsPfxProbeCnt.MUL
-        assert kv == [b"AbcX4", b"1"]
+        assert (k, v) == (b"AbcX4", b"1")
 
         kvdb.sync()
-        cnt, *kv = kvs.prefix_probe(b"Abc")
+        cnt, k, _, v, _ = kvs.prefix_probe(b"Abc")
         assert cnt == hse.KvsPfxProbeCnt.MUL
-        assert kv == [b"AbcX4", b"1"]
+        assert (k, v) == (b"AbcX4", b"1")
 finally:
     hse.fini()

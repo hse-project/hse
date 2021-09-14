@@ -152,7 +152,6 @@ MTF_DEFINE_UTEST_PREPOST(rest_client, example1, rest_start, rest_stop)
     memset(buf, 0, sizeof(buf));
     ex1.calls = 0;
     err = curl_put(putpath1, sock, 0, 0, buf, sizeof(buf));
-    printf("%s:%d\n", merr_file(err), merr_lineno(err));
     ASSERT_EQ(0, err);
     ASSERT_STREQ("text:new_name,number:10", buf);
     ASSERT_STREQ("new_name", ex1.text);

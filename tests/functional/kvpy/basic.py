@@ -19,8 +19,8 @@ try:
 
         kvs.put(b"a", b"1")
         kvs.put(b"b", b"2")
-        assert kvs.get(b"a") == b"1"
-        assert kvs.get(b"b") == b"2"
+        assert kvs.get(b"a")[0] == b"1"
+        assert kvs.get(b"b")[0] == b"2"
 
         with kvs.cursor() as cur:
             kv = cur.read()
