@@ -26,9 +26,9 @@ try:
         kvs.put(b"AbdXX", b"42")
         kvdb.sync()
 
-        cnt, *kv = kvs.prefix_probe(b"Abc")
+        cnt, k, _, v, _ = kvs.prefix_probe(b"Abc")
         assert cnt == hse.KvsPfxProbeCnt.ONE
-        assert kv == [b"AbcXX", b"42"]
+        assert (k, v) == (b"AbcXX", b"42")
 
         kvs.put(b"AbcXY", b"42")  # second (multiple) in c0
         cnt, *_ = kvs.prefix_probe(b"Abc")
@@ -42,22 +42,22 @@ try:
         assert cnt == hse.KvsPfxProbeCnt.ZERO
 
         kvs.put(b"AbcXX", b"44")
-        cnt, *kv = kvs.prefix_probe(b"Abc")
+        cnt, k, _, v, _ = kvs.prefix_probe(b"Abc")
         assert cnt == hse.KvsPfxProbeCnt.ONE
-        assert kv == [b"AbcXX", b"44"]
+        assert (k, v) == (b"AbcXX", b"44")
         kvdb.sync()
-        cnt, *kv = kvs.prefix_probe(b"Abc")
+        cnt, k, _, v, _ = kvs.prefix_probe(b"Abc")
         assert cnt == hse.KvsPfxProbeCnt.ONE
-        assert kv == [b"AbcXX", b"44"]
+        assert (k, v) == (b"AbcXX", b"44")
 
         # duplicate in c0 and cn
         kvs.put(b"AbcXX", b"45")
-        cnt, *kv = kvs.prefix_probe(b"Abc")
+        cnt, k, _, v, _ = kvs.prefix_probe(b"Abc")
         assert cnt == hse.KvsPfxProbeCnt.ONE
-        assert kv == [b"AbcXX", b"45"]
+        assert (k, v) == (b"AbcXX", b"45")
         kvdb.sync()
-        cnt, *kv = kvs.prefix_probe(b"Abc")
+        cnt, k, _, v, _ = kvs.prefix_probe(b"Abc")
         assert cnt == hse.KvsPfxProbeCnt.ONE
-        assert kv == [b"AbcXX", b"45"]
+        assert (k, v) == (b"AbcXX", b"45")
 finally:
     hse.fini()

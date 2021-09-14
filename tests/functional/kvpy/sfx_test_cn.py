@@ -37,29 +37,29 @@ try:
 
         cnt, *_ = kvs.prefix_probe(b"Abc")
         assert cnt == hse.KvsPfxProbeCnt.MUL
-        cnt, *kv = kvs.prefix_probe(b"Abd")
+        cnt, k, _, v, _ = kvs.prefix_probe(b"Abd")
         assert cnt == hse.KvsPfxProbeCnt.ONE
-        assert kv == [b"AbdXX", b"42"]
+        assert (k, v) == (b"AbdXX", b"42")
 
         kvs.put(b"AbdXX", b"43")
-        cnt, *kv = kvs.prefix_probe(b"Abd")
+        cnt, k, _, v, _ = kvs.prefix_probe(b"Abd")
         assert cnt == hse.KvsPfxProbeCnt.ONE
-        assert kv == [b"AbdXX", b"43"]
+        assert (k, v) == (b"AbdXX", b"43")
 
         kvs.prefix_delete(b"A")
         kvs.put(b"AbeGarbageXY", b"45")
         kvdb.sync()
 
-        cnt, *kv = kvs.prefix_probe(b"AbeGarbage")
+        cnt, k, _, v, _ = kvs.prefix_probe(b"AbeGarbage")
         assert cnt == hse.KvsPfxProbeCnt.ONE
-        assert kv == [b"AbeGarbageXY", b"45"]
+        assert (k, v) == (b"AbeGarbageXY", b"45")
 
         kvs.prefix_delete(b"A")
         kvs.put(b"AbeGarbageXZ", b"46")
         kvdb.sync()
 
-        cnt, *kv = kvs.prefix_probe(b"AbeGarbage")
+        cnt, k, _, v, _ = kvs.prefix_probe(b"AbeGarbage")
         assert cnt == hse.KvsPfxProbeCnt.ONE
-        assert kv == [b"AbeGarbageXZ", b"46"]
+        assert (k, v) == (b"AbeGarbageXZ", b"46")
 finally:
     hse.fini()

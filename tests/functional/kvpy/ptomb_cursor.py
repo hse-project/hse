@@ -18,7 +18,7 @@ def verify(kvs: hse.Kvs, pfx: str, cnt: int):
 
     for i in range(get_cnt):
         k = "{}-{:028}".format(pfx, i)
-        val = kvs.get(k.encode())
+        val = kvs.get(k.encode())[0]
         assert val is not None
         assert val.decode() == k
 
@@ -63,11 +63,11 @@ try:
         kvs.prefix_delete(b"AAAA")  # kvset with only ptomb
 
         verify(kvs=kvs, pfx="AAAA", cnt=0)
-        assert kvs.get(b"AAAA1") is None
+        assert kvs.get(b"AAAA1")[0] is None
 
         kvdb.sync()
         verify(kvs=kvs, pfx="AAAA", cnt=0)
-        assert kvs.get(b"AAAA1") is None
+        assert kvs.get(b"AAAA1")[0] is None
 
         c = kvs.cursor(b"AAAA")
         c.seek(b"AAAA1")
