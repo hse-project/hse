@@ -578,9 +578,6 @@ kvs_pfx_probe(
             return err;
     }
 
-    /* [HSE_REVISIT] There could be a ptomb in LC that has a higher seqno than a matching key in
-     * c0. This will not be an issue once ptombs honor snapshot isolation.
-     */
     err = c0_pfx_probe(c0, kt, seqno, seqnoref, res, &qctx, kbuf, vbuf);
     if (err || *res == FOUND_PTMB || qctx.seen > 1)
         goto exit;
