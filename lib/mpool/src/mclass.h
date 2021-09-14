@@ -160,4 +160,12 @@ mclass_stats_get(struct media_class *mc, struct mpool_mclass_stats *stats);
 merr_t
 mclass_ftw(struct media_class *mc, const char *prefix, struct mpool_file_cb *cb);
 
+/**
+ * mclass_files_exist() - check for existence of media class files
+ *
+ * @path: mclass path
+ */
+bool
+mclass_files_exist(const char *path);
+
 #endif /* MPOOL_MCLASS_H */
