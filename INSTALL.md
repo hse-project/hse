@@ -28,7 +28,6 @@ dependencies for various internal tools:
 * [ncurses](https://invisible-island.net/ncurses/announce.html)
 * [HdrHistogram_c](https://github.com/HdrHistogram/HdrHistogram_c)
 * [doxygen](https://www.doxygen.nl/index.html)
-* [graphviz](https://graphviz.org/)
 
 In addition to the above, we strongly recommend installing the build component
 or meta package for your system.
@@ -51,7 +50,7 @@ sudo dnf install libcurl-devel libyaml-devel userspace-rcu-devel \
     libmicrohttpd-devel libbsd-devel
 # Optionally, depending on the your build settings
 sudo dnf install cjson-devel lz4-devel xxhash-devel mongo-c-driver-devel \
-    ncurses-devel HdrHistogram_c-devel doxygen graphviz
+    ncurses-devel HdrHistogram_c-devel doxygen
 ```
 
 ### Ubuntu 18.04

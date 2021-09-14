@@ -54,7 +54,7 @@ typedef uint64_t hse_err_t;
 /**@} ERROR_HANDLING */
 
 
-/** @defgroup TYPES Type Declarations, Shared Structures and Macros.
+/** @defgroup TYPES Type Declarations, Shared Structures and Macros
  * @{
  * These types are generally opaque handles that a client obtains by using library
  * functions. A client uses these handles to exercise more fine-grained
