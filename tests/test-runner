@@ -91,7 +91,8 @@ class PytestTest(Test):
 
     @property
     def name(self) -> str:
-        return pathlib.Path(self._args[0]).stem
+        # Parsing the pytest command lines is brittle, so just skip it.
+        return "pytest"
 
     def command_line(self, home: str) -> List[str]:
         return [str(self._program), *self._args, "-C", str(home)]
