@@ -12,6 +12,7 @@ cli_name = meson.project_name() + hse_major_version
 hse_cli_sources = files(
     'cli_util.c',
     'hse_cli.c',
+    'storage_profile.c',
 )
 
 hse_cli_c_args = [

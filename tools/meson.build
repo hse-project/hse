@@ -130,11 +130,6 @@ tools = {
             'parm_groups.c',
         ),
     },
-    'kvdb_profile': {
-        'sources': files(
-            'kvdb_profile' / 'kvdb_profile.c',
-        ),
-    },
     'bnt': {
         'sources': files(
             'bnt' / 'bnt.c',

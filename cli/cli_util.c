@@ -199,8 +199,7 @@ kvdb_info_props(
     const char          *kvdb_home,
     const size_t         paramc,
     const char *const   *paramv,
-    struct yaml_context *yc,
-    bool                 verbose)
+    struct yaml_context *yc)
 {
     struct hse_kvdb *hdl;
     size_t    kvs_cnt;
@@ -260,8 +259,7 @@ kvdb_storage_info_props(
     const char          *kvdb_home,
     const size_t         paramc,
     const char *const   *paramv,
-    struct yaml_context *yc,
-    bool                 verbose)
+    struct yaml_context *yc)
 {
     struct hse_kvdb *            hdl;
     struct hse_kvdb_storage_info info = {};
@@ -312,12 +310,11 @@ kvdb_info_print(
     const char *         kvdb_home,
     const size_t         paramc,
     const char *const *  paramv,
-    struct yaml_context *yc,
-    bool                 verbose)
+    struct yaml_context *yc)
 {
     hse_err_t err;
 
-    err = kvdb_info_props(kvdb_home, paramc, paramv, yc, verbose);
+    err = kvdb_info_props(kvdb_home, paramc, paramv, yc);
     if (err) {
         char buf[256];
 
@@ -336,12 +333,11 @@ kvdb_storage_info_print(
     const char *         kvdb_home,
     const size_t         paramc,
     const char *const *  paramv,
-    struct yaml_context *yc,
-    bool                 verbose)
+    struct yaml_context *yc)
 {
     hse_err_t err;
 
-    err = kvdb_storage_info_props(kvdb_home, paramc, paramv, yc, verbose);
+    err = kvdb_storage_info_props(kvdb_home, paramc, paramv, yc);
     if (err) {
         char buf[256];
 
