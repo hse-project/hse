@@ -71,12 +71,17 @@ mblock_metahdr_init(struct mblock_fset *mbfsp, struct mblock_metahdr *mh)
     mh->mcbits = MBID_MCID_BITS;
 }
 
-static bool
+static merr_t
 mblock_metahdr_validate(struct mblock_fset *mbfsp, struct mblock_metahdr *mh)
 {
-    return (mh->vers == MBLOCK_METAHDR_VERSION) && (mh->magic == MBLOCK_METAHDR_MAGIC) &&
-           (mh->mcid == mclass_id(mbfsp->mc)) && (mh->blkbits == MBID_BLOCK_BITS) &&
-           (mh->mcbits == MBID_MCID_BITS);
+    if (mh->vers != MBLOCK_METAHDR_VERSION)
+        return merr(EPROTO);
+
+    if ((mh->magic != MBLOCK_METAHDR_MAGIC) || (mh->mcid != mclass_id(mbfsp->mc)) ||
+        (mh->blkbits != MBID_BLOCK_BITS) || (mh->mcbits != MBID_MCID_BITS))
+        return merr(EBADMSG);
+
+    return 0;
 }
 
 static void
@@ -177,7 +182,7 @@ static merr_t
 mblock_fset_meta_load(struct mblock_fset *mbfsp, int flags)
 {
     struct mblock_metahdr mh = {};
-    bool   valid, unmap = false;
+    bool   unmap = false;
     char  *addr;
     merr_t err = 0;
     int    len = MBLOCK_FSET_HDR_LEN;
@@ -192,12 +197,9 @@ mblock_fset_meta_load(struct mblock_fset *mbfsp, int flags)
         unmap = true;
     }
 
-    /* Validate meta header */
     omf_mblock_metahdr_unpack_letoh(addr, &mh);
-    valid = mblock_metahdr_validate(mbfsp, &mh);
-    if (!valid)
-        err = merr(EBADMSG);
 
+    err = mblock_metahdr_validate(mbfsp, &mh);
     if (!err) {
         mbfsp->fcnt = mh.fcnt;
         mbfsp->fszmax = (uint64_t)mh.fszmax_gb << GB_SHIFT;

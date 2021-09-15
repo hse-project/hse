@@ -11,7 +11,7 @@
 
 #include "mclass.h"
 
-#define MDC_LOGHDR_MAGIC   ((u32)0xdeadbeef)
+#define MDC_LOGHDR_MAGIC   (0xdeadbeefU)
 #define MDC_LOGHDR_LEN     (4096)
 #define MDC_RA_BYTES       (128u << KB_SHIFT)
 #define MDC_EXTEND_FACTOR  (8)

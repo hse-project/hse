@@ -7,6 +7,8 @@
 #include <hse_util/event_counter.h>
 #include <hse_util/page.h>
 
+#include <hse_ikvdb/omf_version.h>
+
 #include <mpool/mpool.h>
 
 #include "wal.h"
@@ -68,6 +70,9 @@ wal_mdc_version_unpack(const char *buf, struct wal *wal)
     vomf = (struct wal_version_omf *)buf;
 
     version = omf_ver_version(vomf);
+    if (WAL_VERSION != version)
+        return merr(EPROTO); /* wal version mismatch, no upgrade support yet */
+
     wal_version_set(wal, version);
 
     if (WAL_MAGIC != omf_ver_magic(vomf))

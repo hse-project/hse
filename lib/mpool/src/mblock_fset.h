@@ -12,8 +12,7 @@
 
 /* clang-format off */
 
-#define MBLOCK_METAHDR_MAGIC       0xffaaccee
-
+#define MBLOCK_METAHDR_MAGIC       (0xffaacceeU)
 #define MBLOCK_FSET_FILES_MAX      (1 << MBID_FILEID_BITS)
 
 /* clang-format on */
