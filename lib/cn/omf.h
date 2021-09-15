@@ -7,6 +7,7 @@
 #define HSE_KVDB_CN_OMF_H
 
 #include <hse_util/omf.h>
+#include <hse_ikvdb/omf_version.h>
 
 /*****************************************************************
  *
@@ -14,7 +15,6 @@
  *
  ****************************************************************/
 
-#define KBLOCK_HDR_VERSION ((u32)5)
 #define KBLOCK_HDR_MAGIC ((u32)0xfadedfad)
 
 /* This is currently set to 1350 which is the max key size supported. However,
@@ -22,11 +22,6 @@
  * bytes (to fit min/max keys in the kblock header with 8-byte alignment).
  */
 #define HSE_KBLOCK_OMF_KLEN_MAX ((u32)1350)
-
-/* older versions that are still supported */
-#define KBLOCK_HDR_VERSION4 ((u32)4)
-#define KBLOCK_HDR_VERSION3 ((u32)3)
-#define KBLOCK_HDR_VERSION2 ((u32)2)
 
 struct kblock_hdr_omf {
 
@@ -114,7 +109,6 @@ OMF_SETGET(struct kblock_hdr_omf, kbh_max_seqno, 64)
  ****************************************************************/
 
 #define BLOOM_OMF_MAGIC ((u32)('b' << 24 | 'l' << 16 | 'm' << 8 | 'h'))
-#define BLOOM_OMF_VERSION ((u32)5)
 
 /**
  * struct bloom_hdr_omf -
@@ -167,12 +161,6 @@ OMF_SETGET(struct bloom_hdr_omf, bh_n_hashes, 8)
 #define WBT_NODE_SIZE 4096 /* must equal system page size */
 
 #define WBT_TREE_MAGIC ((u32)0x4a3a2a1a)
-#define WBT_TREE_VERSION  WBT_TREE_VERSION6
-#define WBT_TREE_VERSION6 ((u32)6)
-#define WBT_TREE_VERSION5 ((u32)5)
-#define WBT_TREE_VERSION4 ((u32)4)
-#define WBT_TREE_VERSION3 ((u32)3)
-#define WBT_TREE_VERSION2 ((u32)2)
 
 /* WBT header (OMF v4-v6) */
 struct wbt_hdr_omf {
@@ -313,8 +301,6 @@ OMF_SETGET(struct wbt3_lfe_omf, lfe3_kmd, 16)
  ****************************************************************/
 
 #define VBLOCK_HDR_MAGIC ((u32)0xea73feed)
-#define VBLOCK_HDR_VERSION1 ((u32)1)
-#define VBLOCK_HDR_VERSION2 ((u32)2)
 
 /* Version 2 header */
 struct vblock_hdr_omf {
@@ -339,7 +325,6 @@ struct vblock_hdr1_omf {
 /* cn dynamic state
  */
 #define CN_TSTATE_MAGIC (u32)('c' << 24 | 't' << 16 | 's' << 8 | 'm')
-#define CN_TSTATE_VERSION (u32)1
 #define CN_TSTATE_KHM_SZ (1024)
 
 struct cn_tstate_omf {

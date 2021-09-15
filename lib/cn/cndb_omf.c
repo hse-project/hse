@@ -11,6 +11,7 @@
 
 #include "cndb_internal.h"
 #include <hse_ikvdb/cndb.h>
+#include <hse_ikvdb/omf_version.h>
 
 /********************************************************************
  *

@@ -17,7 +17,7 @@
 #include <hse_ikvdb/ikvdb.h>
 #include <hse_ikvdb/diag_kvdb.h>
 #include <hse_ikvdb/cndb.h>
-#include <hse_ikvdb/config.h>
+#include <hse_ikvdb/omf_version.h>
 
 #include <mpool/mpool.h>
 

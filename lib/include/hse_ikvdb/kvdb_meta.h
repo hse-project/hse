@@ -17,6 +17,8 @@
 #include <hse_util/hse_err.h>
 
 struct kvdb_meta {
+    /* global OMF version that must be incremented when other OMF versions change */
+    unsigned int km_omf_version;
     struct {
         uint64_t oid1;
         uint64_t oid2;

@@ -1,12 +1,13 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
 #ifndef HSE_KVS_CNDB_OMF_H
 #define HSE_KVS_CNDB_OMF_H
 
 #include <hse_util/omf.h>
+#include <hse/limits.h>
 
 /*****************************************************************
  *
@@ -33,16 +34,6 @@
  */
 enum {
     CNDB_MAGIC = 0x32313132,
-    CNDB_VERSION4 = 4,
-    CNDB_VERSION5 = 5,
-    CNDB_VERSION6 = 6,
-    CNDB_VERSION7 = 7,
-    CNDB_VERSION8 = 8,
-    CNDB_VERSION9 = 9,
-    CNDB_VERSION10 = 10,
-    CNDB_VERSION11 = 11,
-    CNDB_VERSION12 = 12,
-    CNDB_VERSION = CNDB_VERSION12,
 
     /* the algorithm in cndb_compact() is sensitive to CNDB_TYPE_ enums.
      * they are used by cndb_cmp() to order records during collation.

@@ -7,9 +7,15 @@
 #include <hse_ut/framework.h>
 
 #include <hse_ikvdb/kvdb_meta.h>
+#include <hse_ikvdb/omf_version.h>
 #include <mpool/mpool.h>
 
 #include <bsd/string.h>
+
+/* cJSON seems incapable of parsing a number value greater than UINT64_MAX for
+ * some reason even though DBL_MAX is much larger than UINT64_MAX. All overflow
+ * tests againt uint64_t values have been commented out.
+ */
 
 static char test_home[PATH_MAX];
 
@@ -390,10 +396,181 @@ MTF_DEFINE_UTEST_PRE(kvdb_meta_test, usage, test_pre)
     ASSERT_TRUE(bytes > 0);
 }
 
+MTF_DEFINE_UTEST_PRE(kvdb_meta_test, invalid_cndb_oid1_nonwhole, test_pre)
+{
+    struct kvdb_meta meta;
+    merr_t           err;
+
+    err = kvdb_meta_deserialize(&meta, test_home);
+    ASSERT_NE(0, err);
+}
+
+/*
+MTF_DEFINE_UTEST_PRE(kvdb_meta_test, invalid_cndb_oid1_overflow, test_pre)
+{
+    struct kvdb_meta meta;
+    merr_t           err;
+
+    err = kvdb_meta_deserialize(&meta, test_home);
+    ASSERT_NE(0, err);
+}
+*/
+
+MTF_DEFINE_UTEST_PRE(kvdb_meta_test, invalid_cndb_oid1_underflow, test_pre)
+{
+    struct kvdb_meta meta;
+    merr_t           err;
+
+    err = kvdb_meta_deserialize(&meta, test_home);
+    ASSERT_NE(0, err);
+}
+
+MTF_DEFINE_UTEST_PRE(kvdb_meta_test, invalid_cndb_oid2_nonwhole, test_pre)
+{
+    struct kvdb_meta meta;
+    merr_t           err;
+
+    err = kvdb_meta_deserialize(&meta, test_home);
+    ASSERT_NE(0, err);
+}
+
+/*
+MTF_DEFINE_UTEST_PRE(kvdb_meta_test, invalid_cndb_oid2_overflow, test_pre)
+{
+    struct kvdb_meta meta;
+    merr_t           err;
+
+    err = kvdb_meta_deserialize(&meta, test_home);
+    ASSERT_NE(0, err);
+}
+*/
+
+MTF_DEFINE_UTEST_PRE(kvdb_meta_test, invalid_cndb_oid2_underflow, test_pre)
+{
+    struct kvdb_meta meta;
+    merr_t           err;
+
+    err = kvdb_meta_deserialize(&meta, test_home);
+    ASSERT_NE(0, err);
+}
+
+MTF_DEFINE_UTEST_PRE(kvdb_meta_test, invalid_version_nonwhole, test_pre)
+{
+    struct kvdb_meta meta;
+    merr_t           err;
+
+    err = kvdb_meta_deserialize(&meta, test_home);
+    ASSERT_NE(0, err);
+}
+
+MTF_DEFINE_UTEST_PRE(kvdb_meta_test, invalid_version_underflow, test_pre)
+{
+    struct kvdb_meta meta;
+    merr_t           err;
+
+    err = kvdb_meta_deserialize(&meta, test_home);
+    ASSERT_NE(0, err);
+}
+
+MTF_DEFINE_UTEST_PRE(kvdb_meta_test, invalid_version_overflow, test_pre)
+{
+    struct kvdb_meta meta;
+    merr_t           err;
+
+    err = kvdb_meta_deserialize(&meta, test_home);
+    ASSERT_NE(0, err);
+}
+
+MTF_DEFINE_UTEST_PRE(kvdb_meta_test, invalid_omf_version_nonwhole, test_pre)
+{
+    struct kvdb_meta meta;
+    merr_t           err;
+
+    err = kvdb_meta_deserialize(&meta, test_home);
+    ASSERT_NE(0, err);
+}
+
+MTF_DEFINE_UTEST_PRE(kvdb_meta_test, invalid_omf_version_underflow, test_pre)
+{
+    struct kvdb_meta meta;
+    merr_t           err;
+
+    err = kvdb_meta_deserialize(&meta, test_home);
+    ASSERT_NE(0, err);
+}
+
+MTF_DEFINE_UTEST_PRE(kvdb_meta_test, invalid_omf_version_overflow, test_pre)
+{
+    struct kvdb_meta meta;
+    merr_t           err;
+
+    err = kvdb_meta_deserialize(&meta, test_home);
+    ASSERT_NE(0, err);
+}
+
+MTF_DEFINE_UTEST_PRE(kvdb_meta_test, invalid_wal_oid1_nonwhole, test_pre)
+{
+    struct kvdb_meta meta;
+    merr_t           err;
+
+    err = kvdb_meta_deserialize(&meta, test_home);
+    ASSERT_NE(0, err);
+}
+
+/*
+MTF_DEFINE_UTEST_PRE(kvdb_meta_test, invalid_wal_oid1_overflow, test_pre)
+{
+    struct kvdb_meta meta;
+    merr_t           err;
+
+    err = kvdb_meta_deserialize(&meta, test_home);
+    ASSERT_NE(0, err);
+}
+*/
+
+MTF_DEFINE_UTEST_PRE(kvdb_meta_test, invalid_wal_oid1_underflow, test_pre)
+{
+    struct kvdb_meta meta;
+    merr_t           err;
+
+    err = kvdb_meta_deserialize(&meta, test_home);
+    ASSERT_NE(0, err);
+}
+
+MTF_DEFINE_UTEST_PRE(kvdb_meta_test, invalid_wal_oid2_nonwhole, test_pre)
+{
+    struct kvdb_meta meta;
+    merr_t           err;
+
+    err = kvdb_meta_deserialize(&meta, test_home);
+    ASSERT_NE(0, err);
+}
+
+/*
+MTF_DEFINE_UTEST_PRE(kvdb_meta_test, invalid_wal_oid2_overflow, test_pre)
+{
+    struct kvdb_meta meta;
+    merr_t           err;
+
+    err = kvdb_meta_deserialize(&meta, test_home);
+    ASSERT_NE(0, err);
+}
+*/
+
+MTF_DEFINE_UTEST_PRE(kvdb_meta_test, invalid_wal_oid2_underflow, test_pre)
+{
+    struct kvdb_meta meta;
+    merr_t           err;
+
+    err = kvdb_meta_deserialize(&meta, test_home);
+    ASSERT_NE(0, err);
+}
+
 MTF_DEFINE_UTEST_PRE(kvdb_meta_test, from_mpool_cparams, test_pre)
 {
     struct mpool_cparams params;
     struct kvdb_meta     meta = {
+        .km_omf_version = GLOBAL_OMF_VERSION,
 		.km_cndb = {
 			.oid1 = 1,
 			.oid2 = 2,

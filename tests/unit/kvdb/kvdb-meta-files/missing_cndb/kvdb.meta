@@ -1,4 +1,6 @@
 {
+	"version": 1,
+	"omf_version": 1,
 	"wal": {
 		"oid1": 3,
 		"oid2": 4

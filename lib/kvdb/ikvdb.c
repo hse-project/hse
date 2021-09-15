@@ -58,6 +58,7 @@
 #include <hse_ikvdb/hse_gparams.h>
 #include <hse_ikvdb/wal.h>
 #include <hse_ikvdb/kvdb_meta.h>
+#include <hse_ikvdb/omf_version.h>
 
 #include "kvdb_kvs.h"
 #include "viewset.h"
@@ -199,6 +200,7 @@ struct ikvdb_impl {
     u32              ikdb_kvs_cnt;
     struct kvdb_kvs *ikdb_kvs_vec[HSE_KVS_COUNT_MAX];
 
+    unsigned int     ikdb_omf_version;
     struct pidfh    *ikdb_pidfh;
     struct config   *ikdb_config;
     const char       ikdb_home[]; /* flexible array */
@@ -300,6 +302,8 @@ ikvdb_create(const char *kvdb_home, struct kvdb_cparams *params)
             goto mpool_cleanup;
     }
 
+    meta.km_omf_version = GLOBAL_OMF_VERSION;
+
     cndb_captgt = 0;
     err = cndb_alloc(mp, &cndb_captgt, &meta.km_cndb.oid1, &meta.km_cndb.oid2);
     if (ev(err))
@@ -367,6 +371,12 @@ ikvdb_storage_add(const char *kvdb_home, struct kvdb_cparams *params)
     err = kvdb_meta_deserialize(&meta, kvdb_home);
     if (err)
         return err;
+
+    if (meta.km_omf_version != GLOBAL_OMF_VERSION) {
+        hse_log(HSE_ERR "Mismatched global OMF version: %u != %u", meta.km_omf_version, GLOBAL_OMF_VERSION);
+        err = merr(EPROTO);
+        return err;
+    }
 
     for (mc = MP_MED_BASE; mc < MP_MED_COUNT; mc++) {
         if (mc != MP_MED_CAPACITY && params->storage.mclass[mc].path[0] != '\0') {
@@ -741,6 +751,12 @@ ikvdb_diag_open(
     if (ev(err))
         goto self_cleanup;
 
+    if (meta.km_omf_version != GLOBAL_OMF_VERSION) {
+        hse_log(HSE_ERR "Mismatched global OMF version: %u != %u", meta.km_omf_version, GLOBAL_OMF_VERSION);
+        err = merr(EPROTO);
+        goto self_cleanup;
+    }
+
     err = kvdb_meta_to_mpool_rparams(&meta, kvdb_home, &mparams);
     if (ev(err))
         goto self_cleanup;
@@ -1102,8 +1118,16 @@ ikvdb_open(
     ikvdb_txn_init(self);
 
     err = kvdb_meta_deserialize(&meta, kvdb_home);
-    if (ev(err))
+    if (ev(err)) {
+        hse_elog(HSE_ERR "cannot open %s: @@e", err, kvdb_home);
         goto out;
+    }
+
+    if (meta.km_omf_version != GLOBAL_OMF_VERSION) {
+        hse_log(HSE_ERR "Mismatched global OMF version: %u != %u", meta.km_omf_version, GLOBAL_OMF_VERSION);
+        err = merr(EPROTO);
+        goto out;
+    }
 
     err = kvdb_meta_to_mpool_rparams(&meta, kvdb_home, &mparams);
     if (ev(err))
@@ -1195,12 +1219,6 @@ ikvdb_open(
     err = kvdb_pfxlock_create(self->ikdb_txn_viewset, &self->ikdb_pfxlock);
     if (ev(err))
         goto out;
-
-    err = kvdb_meta_deserialize(&meta, kvdb_home);
-    if (err) {
-        hse_elog(HSE_ERR "cannot open %s: @@e", err, kvdb_home);
-        goto out;
-    }
 
     self->ikdb_cndb_oid1 = meta.km_cndb.oid1;
     self->ikdb_cndb_oid2 = meta.km_cndb.oid2;

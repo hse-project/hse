@@ -21,9 +21,13 @@
 #include <hse_ikvdb/cndb.h>
 #include <hse_ikvdb/wal.h>
 #include <hse_ikvdb/kvdb_health.h>
+#include <hse_ikvdb/kvdb_meta.h>
+#include <hse_ikvdb/omf_version.h>
 
 #include <mocks/mock_kvset_builder.h>
 #include <mocks/mock_mpool.h>
+
+#include <bsd/string.h>
 
 /* ------------------------------------------------------------
  * Mocked c0/cn
@@ -798,22 +802,40 @@ static struct mapi_injection kvdb_meta_inject_list[] = {
     { mapi_idx_kvdb_meta_create,           MAPI_RC_SCALAR, 0 },
     { mapi_idx_kvdb_meta_destroy,          MAPI_RC_SCALAR, 0 },
     { mapi_idx_kvdb_meta_serialize,        MAPI_RC_SCALAR, 0 },
-    { mapi_idx_kvdb_meta_deserialize,      MAPI_RC_SCALAR, 0 },
     { mapi_idx_kvdb_meta_usage,            MAPI_RC_SCALAR, 0 },
     { mapi_idx_kvdb_meta_to_mpool_rparams, MAPI_RC_SCALAR, 0 },
     { mapi_idx_kvdb_meta_to_mpool_dparams, MAPI_RC_SCALAR, 0 },
     { -1 },
 };
 
+static merr_t
+_kvdb_meta_deserialize(struct kvdb_meta *meta, const char *kvdb_home)
+{
+    assert(meta);
+    assert(kvdb_home);
+
+    meta->km_omf_version = GLOBAL_OMF_VERSION;
+    meta->km_cndb.oid1 = 1;
+    meta->km_cndb.oid2 = 2;
+    meta->km_wal.oid1 = 3;
+    meta->km_wal.oid2 = 4;
+    strlcpy(meta->km_storage[MP_MED_CAPACITY].path, "capacity", sizeof(meta->km_storage[MP_MED_CAPACITY].path));
+    strlcpy(meta->km_storage[MP_MED_STAGING].path, "staging", sizeof(meta->km_storage[MP_MED_STAGING].path));
+
+    return 0;
+}
+
 void
 mock_kvdb_meta_set(void)
 {
+    MOCK_SET(kvdb_meta, _kvdb_meta_deserialize);
     mapi_inject_list_set(kvdb_meta_inject_list);
 }
 
 void
 mock_kvdb_meta_unset(void)
 {
+    MOCK_UNSET(kvdb_meta, _kvdb_meta_deserialize);
     mapi_inject_list_unset(kvdb_meta_inject_list);
 }
 
