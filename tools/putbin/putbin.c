@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2017 Micron Technology, Inc. All rights reserved.
+ * Copyright (C) 2015-2017,2021 Micron Technology, Inc. All rights reserved.
  */
 
 /*
@@ -92,7 +92,7 @@ run(void *p)
         now = (ts.tv_sec << 20) | (ts.tv_nsec >> 10);
 
     for (i = ti->start; i < ti->last; ++i) {
-        int rc = 0;
+        hse_err_t rc = 0;
 
         /* give system a chance to catch up */
         if (ti->paws && i != ti->start && i % ti->paws == 0) {
@@ -166,7 +166,7 @@ do_open(
     struct hse_kvdb ** kvdb,
     struct hse_kvs **  kvs)
 {
-    int rc;
+    hse_err_t rc;
 
     struct svec sv = { 0 };
 
@@ -196,7 +196,7 @@ do_open(
 void
 do_close(struct hse_kvdb *kvdb, bool sync)
 {
-    int rc;
+    hse_err_t rc;
 
     if (sync) {
         rc = hse_kvdb_sync(kvdb, 0);
