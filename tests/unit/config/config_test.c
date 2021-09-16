@@ -54,17 +54,12 @@ MTF_DEFINE_UTEST(config_test, deserialize_hierarchical_param)
 MTF_DEFINE_UTEST(config_test, deserialize_incorrect_type)
 {
     char                home[PATH_MAX];
-    struct kvdb_rparams params = kvdb_rparams_defaults();
-    struct config *     conf;
+    struct config *     conf = NULL;
     merr_t              err;
 
     snprintf(home, sizeof(home), "%s/deserialize-incorrect-type", config_root);
 
     err = config_from_kvdb_conf(home, &conf);
-    ASSERT_EQ(0, err);
-    ASSERT_NE(NULL, conf);
-
-    err = config_deserialize_to_kvdb_rparams(conf, &params);
     config_destroy(conf);
     ASSERT_NE(0, err);
 }
@@ -121,39 +116,26 @@ MTF_DEFINE_UTEST(config_test, deserialize_kvs_default_override)
 MTF_DEFINE_UTEST(config_test, deserialize_invalid_key)
 {
     char                home[PATH_MAX];
-    struct kvdb_rparams kvdb_rp = kvdb_rparams_defaults();
-    struct kvs_rparams  kvs_rp = kvs_rparams_defaults();
-    struct config *     conf;
+    struct config *     conf = NULL;
     merr_t              err;
 
     snprintf(home, sizeof(home), "%s/deserialize-invalid-key", config_root);
 
     err = config_from_kvdb_conf(home, &conf);
-    ASSERT_EQ(0, err);
-    ASSERT_NE(NULL, conf);
-
-    err = config_deserialize_to_kvdb_rparams(conf, &kvdb_rp);
-    ASSERT_NE(0, err);
-    err = config_deserialize_to_kvs_rparams(conf, "kvs", &kvs_rp);
-    ASSERT_NE(0, err);
-
     config_destroy(conf);
+    ASSERT_NE(0, err);
+
 }
 
 MTF_DEFINE_UTEST(config_test, deserialize_kvs_incorrect_type)
 {
     char               home[PATH_MAX];
-    struct kvs_rparams params = kvs_rparams_defaults();
-    struct config *    conf;
+    struct config *    conf = NULL;
     merr_t             err;
 
     snprintf(home, sizeof(home), "%s/deserialize-kvs-incorrect-type", config_root);
 
     err = config_from_kvdb_conf(home, &conf);
-    ASSERT_EQ(0, err);
-    ASSERT_NE(NULL, conf);
-
-    err = config_deserialize_to_kvs_rparams(conf, "kvs", &params);
     config_destroy(conf);
     ASSERT_NE(0, err);
 }
@@ -161,17 +143,12 @@ MTF_DEFINE_UTEST(config_test, deserialize_kvs_incorrect_type)
 MTF_DEFINE_UTEST(config_test, deserialize_kvs_default_incorrect_type)
 {
     char               home[PATH_MAX];
-    struct kvs_rparams params = kvs_rparams_defaults();
-    struct config *    conf;
+    struct config *    conf = NULL;
     merr_t             err;
 
     snprintf(home, sizeof(home), "%s/deserialize-kvs-default-incorrect-type", config_root);
 
     err = config_from_kvdb_conf(home, &conf);
-    ASSERT_EQ(0, err);
-    ASSERT_NE(NULL, conf);
-
-    err = config_deserialize_to_kvs_rparams(conf, "kvs", &params);
     config_destroy(conf);
     ASSERT_NE(0, err);
 }
@@ -179,17 +156,12 @@ MTF_DEFINE_UTEST(config_test, deserialize_kvs_default_incorrect_type)
 MTF_DEFINE_UTEST(config_test, deserialize_kvs_named_incorrect_type)
 {
     char               home[PATH_MAX];
-    struct kvs_rparams params = kvs_rparams_defaults();
     struct config *    conf;
     merr_t             err;
 
     snprintf(home, sizeof(home), "%s/deserialize-kvs-named-incorrect-type", config_root);
 
     err = config_from_kvdb_conf(home, &conf);
-    ASSERT_EQ(0, err);
-    ASSERT_NE(NULL, conf);
-
-    err = config_deserialize_to_kvs_rparams(conf, "named", &params);
     config_destroy(conf);
     ASSERT_NE(0, err);
 }
@@ -197,17 +169,12 @@ MTF_DEFINE_UTEST(config_test, deserialize_kvs_named_incorrect_type)
 MTF_DEFINE_UTEST(config_test, deserialize_keys_with_dots)
 {
     char               home[PATH_MAX];
-    struct kvs_rparams params = kvs_rparams_defaults();
     struct config *    conf;
     merr_t             err;
 
     snprintf(home, sizeof(home), "%s/deserialize-keys-with-dots", config_root);
 
     err = config_from_kvdb_conf(home, &conf);
-    ASSERT_EQ(0, err);
-    ASSERT_NE(NULL, conf);
-
-    err = config_deserialize_to_kvs_rparams(conf, "named", &params);
     config_destroy(conf);
     ASSERT_NE(0, err);
 }
