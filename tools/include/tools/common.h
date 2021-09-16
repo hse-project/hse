@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2017 Micron Technology, Inc. All rights reserved.
+ * Copyright (C) 2015-2017,2021 Micron Technology, Inc. All rights reserved.
  */
 #ifndef HSE_TOOLS_COMMON
 #define HSE_TOOLS_COMMON
@@ -12,8 +12,10 @@
 #include <stdint.h>
 #include <sys/types.h>
 
-void warn(uint64_t err, char *fmt, ...);
-void fatal(uint64_t err, char *fmt, ...);
+#include <hse/types.h>
+
+void warn(hse_err_t err, char *fmt, ...);
+void fatal(hse_err_t err, char *fmt, ...);
 
 /*
  * key/value formatting
