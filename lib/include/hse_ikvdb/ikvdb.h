@@ -376,8 +376,7 @@ ikvdb_kvs_prefix_delete(
     struct hse_kvs *     kvs,
     unsigned int         flags,
     struct hse_kvdb_txn *txn,
-    struct kvs_ktuple *  kt,
-    size_t *             kvs_pfx_len);
+    struct kvs_ktuple *  kt);
 
 /**
  * ikvdb_sync() - sync data in all of the KVSes to stable media.

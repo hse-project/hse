@@ -817,14 +817,9 @@ test_delete(struct thread_info *ti)
 	last_key = opt.kstart + opt.keys;
 
 	if (opt.do_pdel) {
-		size_t plen = 0;
-
-		rc = hse_kvs_prefix_delete(ti->kvs, 0, NULL, ti->pfx, ti->pfxlen, &plen);
+		rc = hse_kvs_prefix_delete(ti->kvs, 0, NULL, ti->pfx, ti->pfxlen);
 		if (!rc)
 			goto done;
-		if (plen)
-			fprintf(stderr, "pfxlen (%d) did not match kvs pfxlen "
-				"(%lu)\n", ti->pfxlen, plen);
 
 		merr_quit("hse_kvs_prefix_delete failed", rc);
 	}

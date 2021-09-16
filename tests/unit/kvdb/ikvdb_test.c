@@ -1775,7 +1775,6 @@ MTF_DEFINE_UTEST_PREPOST(ikvdb_test, prefix_delete_test, test_pre, test_post)
     struct kvs_ktuple   kt;
     struct ikvdb *      kvdb = NULL;
     struct hse_kvs *    kvs = NULL;
-    size_t              plen;
     struct kvdb_rparams kvdb_rp = kvdb_rparams_defaults();
     struct kvs_rparams  kvs_rp = kvs_rparams_defaults();
 
@@ -1797,12 +1796,10 @@ MTF_DEFINE_UTEST_PREPOST(ikvdb_test, prefix_delete_test, test_pre, test_post)
     ASSERT_NE(NULL, kvs);
 
     /* ikvdb_kvs_prefix_delete w/ incorrect prefix length */
-    plen = 0;
     kt.kt_len = 2;
     kt.kt_data = "ba";
-    err = ikvdb_kvs_prefix_delete(kvs, 0, NULL, &kt, &plen);
+    err = ikvdb_kvs_prefix_delete(kvs, 0, NULL, &kt);
     ASSERT_EQ(EINVAL, merr_errno(err));
-    ASSERT_EQ(g_kvs_cp.pfx_len, plen);
 
     err = ikvdb_kvs_close(kvs);
     ASSERT_EQ(err, 0);

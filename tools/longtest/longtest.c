@@ -912,7 +912,7 @@ xkvs_prefix_delete(
 	size_t        klen)
 {
 	return opt.dryrun ? 0UL : hse_kvs_prefix_delete(t->kvs_h, 0, NULL,
-							key, klen, 0);
+							key, klen);
 }
 
 u64

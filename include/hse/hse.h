@@ -444,9 +444,8 @@ hse_kvs_delete(
  * @param kvs:              KVS handle from hse_kvdb_kvs_open().
  * @param flags:            Flags for operation specialization.
  * @param txn:              Transaction context (optional).
- * @param filter:           Filter for keys to delete.
- * @param filter_len:       Filter length.
- * @param[out] kvs_pfx_len: If specified, this will be set to the KVS's prefix length.
+ * @param pfx:              Prefix of keys to delete.
+ * @param pfx_len:          Prefix length.
  *
  * @returns Error status
  */
@@ -456,9 +455,8 @@ hse_kvs_prefix_delete(
     struct hse_kvs *     kvs,
     unsigned int         flags,
     struct hse_kvdb_txn *txn,
-    const void *         filter,
-    size_t               filter_len,
-    size_t *             kvs_pfx_len);
+    const void *         pfx,
+    size_t               pfx_len);
 
 #ifdef HSE_EXPERIMENTAL
 /**
