@@ -39,52 +39,52 @@ const char *mtf_verify_file;
 
 /* ========================================================================= */
 
-#define ___MTF_INNER_BEGIN_UTEST_COLLECTION_SHARED(name, pre_hook, post_hook)        \
-                                                                                     \
-    int utest_collection_##name __attribute__((unused)) = 0;                         \
-                                                                                     \
-    struct mtf_test_coll_info _mtf_##name##_tci = {.tci_coll_name = #name,           \
-                                                   .tci_num_tests = 0,               \
-                                                   .tci_pre_run_hook = (pre_hook),   \
-                                                   .tci_post_run_hook = (post_hook), \
-                                                   .tci_state = ST_INITIALIZING,     \
-                                                   .tci_res_rd_state = RD_READY,     \
-                                                   .tci_res_rd_index = 0,            \
-                                                   .tci_out_rd_state = RD_READY,     \
-                                                   .tci_rock = 0 };                  \
+#define ___MTF_INNER_BEGIN_UTEST_COLLECTION_SHARED(name, pre_hook, post_hook)            \
+                                                                                         \
+    int utest_collection_##name __attribute__((unused)) = 0;                             \
+                                                                                         \
+    struct mtf_test_coll_info    _mtf_##name##_tci = { .tci_coll_name = #name,           \
+                                                    .tci_num_tests = 0,               \
+                                                    .tci_pre_run_hook = (pre_hook),   \
+                                                    .tci_post_run_hook = (post_hook), \
+                                                    .tci_state = ST_INITIALIZING,     \
+                                                    .tci_res_rd_state = RD_READY,     \
+                                                    .tci_res_rd_index = 0,            \
+                                                    .tci_out_rd_state = RD_READY,     \
+                                                    .tci_rock = 0 };                  \
     static u16 __mtf_tci_testidx HSE_MAYBE_UNUSED = 0;
 
-#define ___MTF_INNER_BEGIN_UTEST_COLLECTION(name, pre_hook, post_hook)                                                                                                                                                                                                                                                                  \
-    ___MTF_INNER_BEGIN_UTEST_COLLECTION_SHARED(name, pre_hook, post_hook)                                                                                                                                                                                                                                                               \
-                                                                                                                                                                                                                                                                                                                                        \
-    union ___mtf_floatint {                                                                                                                                                                                                                                                                                                             \
-        float fv;                                                                                                                                                                                                                                                                                                                       \
-        int   iv;                                                                                                                                                                                                                                                                                                                       \
-    };                                                                                                                                                                                                                                                                                                                                  \
-                                                                                                                                                                                                                                                                                                                                        \
-    __attribute__((unused)) static int ___mtf_almost_equal_ulps_and_abs(                                                                                                                                                                                                                                                                \
-        float x, float y, float max_diff, int max_ulps_diff)                                                                                                                                                                                                                                                                            \
-    {                                                                                                                                                                                                                                                                                                                                   \
-        union ___mtf_floatint x_fi = {.fv = x };                                                                                                                                                                                                                                                                                        \
-        union ___mtf_floatint y_fi = {.fv = y };                                                                                                                                                                                                                                                                                        \
-                                                                                                                                                                                                                                                                                                                                        \
-        int   x_i = x_fi.iv;                                                                                                                                                                                                                                                                                                            \
-        int   y_i = y_fi.iv;                                                                                                                                                                                                                                                                                                            \
-        float x_f = x_fi.fv;                                                                                                                                                                                                                                                                                                            \
-        float y_f = y_fi.fv;                                                                                                                                                                                                                                                                                                            \
-                                                                                                                                                                                                                                                                                                                                        \
-        float abs_diff = fabsf(x_f - y_f);                                                                                                                                                                                                                                                                                              \
-        if (abs_diff <= max_diff)                                                                                                                                                                                                                                                                                                       \
-            return 1;                                                                                                                                                                                                                                                                                                                   \
-                                                                                                                                                                                                                                                                                                                                        \
-        if (((x_i >> 31) != 0) != ((y_i >> 31) != 0))                                                                                                                                                                                                                                                                                   \
-            return 0;                                                                                                                                                                                                                                                                                                                   \
-                                                                                                                                                                                                                                                                                                                                        \
-        if (abs(x_i - y_i) <= max_ulps_diff)                                                                                                                                                                                                                                                                                            \
-            return 1;                                                                                                                                                                                                                                                                                                                   \
-                                                                                                                                                                                                                                                                                                                                        \
-        return 0;                                                                                                                                                                                                                                                                                                                       \
-    }                                                                                                                                                                                                                                                                                                                                   \
+#define ___MTF_INNER_BEGIN_UTEST_COLLECTION(name, pre_hook, post_hook)              \
+    ___MTF_INNER_BEGIN_UTEST_COLLECTION_SHARED(name, pre_hook, post_hook)           \
+                                                                                    \
+    union ___mtf_floatint {                                                         \
+        float fv;                                                                   \
+        int   iv;                                                                   \
+    };                                                                              \
+                                                                                    \
+    __attribute__((unused)) static int ___mtf_almost_equal_ulps_and_abs(            \
+        float x, float y, float max_diff, int max_ulps_diff)                        \
+    {                                                                               \
+        union ___mtf_floatint x_fi = { .fv = x };                                   \
+        union ___mtf_floatint y_fi = { .fv = y };                                   \
+                                                                                    \
+        int   x_i = x_fi.iv;                                                        \
+        int   y_i = y_fi.iv;                                                        \
+        float x_f = x_fi.fv;                                                        \
+        float y_f = y_fi.fv;                                                        \
+                                                                                    \
+        float abs_diff = fabsf(x_f - y_f);                                          \
+        if (abs_diff <= max_diff)                                                   \
+            return 1;                                                               \
+                                                                                    \
+        if (((x_i >> 31) != 0) != ((y_i >> 31) != 0))                               \
+            return 0;                                                               \
+                                                                                    \
+        if (abs(x_i - y_i) <= max_ulps_diff)                                        \
+            return 1;                                                               \
+                                                                                    \
+        return 0;                                                                   \
+    }                                                                               \
     /*                                                                            \
  * Constructor priority for user test init routines.                          \
  * This priority value must be higher than all the constructor priorities     \
@@ -107,29 +107,29 @@ const char *mtf_verify_file;
 
 /* ------------------------------------------------------------------------- */
 
-#define ___MTF_INNER_DEFINE_UTEST(coll_name, test_name, pre_hook, post_hook)                     \
-                                                                                                 \
-    static int ___mtf_##coll_name##_##test_name##_check __attribute__((unused)) =                \
-        sizeof(utest_collection_##coll_name);                                                    \
-                                                                                                 \
-    void test_name(struct mtf_test_info *);                                                      \
-                                                                                                 \
-    __attribute__(                                                                               \
-        (constructor(__COUNTER__ + __MTF_TEST_PRI))) static void ___mtf_##test_name##_init(void) \
-    {                                                                                            \
-        int index = __mtf_tci_testidx++;                                                         \
-                                                                                                 \
-        if (index >= ___MTF_MAX_UTEST_INSTANCES) {                                               \
-            fprintf(stderr, "max unit test count (%d) exceeded, aborting", index);               \
-            exit(1);                                                                             \
-        }                                                                                        \
-        _mtf_##coll_name##_tci.tci_test_pointers[index] = (test_name);                           \
-        _mtf_##coll_name##_tci.tci_test_names[index] = #test_name;                               \
-        _mtf_##coll_name##_tci.tci_test_prehooks[index] = (pre_hook);                            \
-        _mtf_##coll_name##_tci.tci_test_posthooks[index] = (post_hook);                          \
-        _mtf_##coll_name##_tci.tci_num_tests += 1;                                               \
-    }                                                                                            \
-                                                                                                 \
+#define ___MTF_INNER_DEFINE_UTEST(coll_name, test_name, pre_hook, post_hook)                    \
+                                                                                                \
+    static int ___mtf_##coll_name##_##test_name##_check __attribute__((unused)) =               \
+        sizeof(utest_collection_##coll_name);                                                   \
+                                                                                                \
+    void test_name(struct mtf_test_info *);                                                     \
+                                                                                                \
+    __attribute__((                                                                             \
+        constructor(__COUNTER__ + __MTF_TEST_PRI))) static void ___mtf_##test_name##_init(void) \
+    {                                                                                           \
+        int index = __mtf_tci_testidx++;                                                        \
+                                                                                                \
+        if (index >= ___MTF_MAX_UTEST_INSTANCES) {                                              \
+            fprintf(stderr, "max unit test count (%d) exceeded, aborting", index);              \
+            exit(1);                                                                            \
+        }                                                                                       \
+        _mtf_##coll_name##_tci.tci_test_pointers[index] = (test_name);                          \
+        _mtf_##coll_name##_tci.tci_test_names[index] = #test_name;                              \
+        _mtf_##coll_name##_tci.tci_test_prehooks[index] = (pre_hook);                           \
+        _mtf_##coll_name##_tci.tci_test_posthooks[index] = (post_hook);                         \
+        _mtf_##coll_name##_tci.tci_num_tests += 1;                                              \
+    }                                                                                           \
+                                                                                                \
     void test_name(struct mtf_test_info *lcl_ti)
 
 #define MTF_DEFINE_UTEST(coll_name, test_name) ___MTF_INNER_DEFINE_UTEST(coll_name, test_name, 0, 0)
@@ -314,84 +314,84 @@ inner_attr_show(struct mtf_test_coll_info *tci, const char *attr_name, char *buf
 
 char home[PATH_MAX];
 
-#define MTF_END_UTEST_COLLECTION(coll_name)                                                        \
-                                                                                                   \
-    int main(int argc, char **argv)                                                                \
-    {                                                                                              \
-        const char *paramv[] = { "socket.enabled=false" };                                         \
-        char *      logging_level, *config = NULL, *argv_home = NULL;                              \
-        int         c, rc;                                                                         \
-                                                                                                   \
-        _mtf_##coll_name##_tci.tci_named = 0;                                                      \
-                                                                                                   \
-        static const struct option long_options[] = {                                              \
-            { "logging-level", required_argument, NULL, 'l' },                                     \
-            { "help", no_argument, NULL, 'h' },                                                    \
-            { "one", required_argument, NULL, '1' },                                               \
-            { "home", required_argument, NULL, 'C' },                                              \
-            { "config", required_argument, NULL, 'c'},                                             \
-            { 0, 0, 0, 0 },                                                                        \
-        };                                                                                         \
-                                                                                                   \
-        while (-1 != (c = getopt_long(argc, argv, "+:l:h1:C:", long_options, NULL))) {             \
-            switch (c) {                                                                           \
-                case 'h':                                                                          \
-                    printf(                                                                        \
-                        "usage: %s [-l logging-level] [-1 testname] [-C home]\n", argv[0]);        \
-                    printf("usage: %s -h\n", argv[0]);                                             \
-                    exit(0);                                                                       \
-                                                                                                   \
-                case 'l':                                                                          \
-                    hse_gparams.gp_logging.level = atoi(optarg);                                   \
-                    break;                                                                         \
-                                                                                                   \
-                case '1':                                                                          \
-                    _mtf_##coll_name##_tci.tci_named = optarg;                                     \
-                    break;                                                                         \
-                                                                                                   \
-                case 'c':                                                                          \
-                    config = optarg;                                                               \
-                    break;                                                                         \
-                                                                                                   \
-                case 'C':                                                                          \
-                    argv_home = optarg;                                                            \
-                    break;                                                                         \
-                                                                                                   \
-                case ':':                                                                          \
-                    printf(                                                                        \
-                        "invalid argument for option '-%c',"                                       \
-                        " use -h for help\n",                                                      \
-                        optopt);                                                                   \
-                    exit(EX_USAGE);                                                                \
-                                                                                                   \
-                default: /* silently ignore all other errors */                                    \
-                    break;                                                                         \
-            }                                                                                      \
-        }                                                                                          \
-                                                                                                   \
-        _mtf_##coll_name##_tci.tci_argc = argc;                                                    \
-        _mtf_##coll_name##_tci.tci_argv = argv;                                                    \
-        _mtf_##coll_name##_tci.tci_optind = optind;                                                \
-                                                                                                   \
-        if (argv_home && !realpath(argv_home, home)) {                                             \
-            rc = errno;                                                                            \
-            fprintf(stderr, "Failed to resolve home directory\n");                                 \
-            return rc;                                                                             \
-        }                                                                                          \
-                                                                                                   \
-        rc = hse_init(config, NELEM(paramv), paramv);                                              \
-        if (rc)                                                                                    \
-            return rc;                                                                             \
-                                                                                                   \
-        logging_level = getenv("HSE_TEST_LOGGING_LEVEL");                                          \
-        if (logging_level)                                                                         \
-            hse_gparams.gp_logging.level = atoi(logging_level);                                    \
-                                                                                                   \
-        rc = run_tests(&_mtf_##coll_name##_tci);                                                   \
-                                                                                                   \
-        hse_fini();                                                                                \
-                                                                                                   \
-        return rc;                                                                                 \
+#define MTF_END_UTEST_COLLECTION(coll_name)                                                    \
+                                                                                               \
+    int main(int argc, char **argv)                                                            \
+    {                                                                                          \
+        const char *paramv[] = { "socket.enabled=false" };                                     \
+        char *      logging_level, *config = NULL, *argv_home = NULL;                          \
+        int         c, rc;                                                                     \
+        hse_err_t   hrc;                                                                       \
+                                                                                               \
+        _mtf_##coll_name##_tci.tci_named = 0;                                                  \
+                                                                                               \
+        static const struct option long_options[] = {                                          \
+            { "logging-level", required_argument, NULL, 'l' },                                 \
+            { "help", no_argument, NULL, 'h' },                                                \
+            { "one", required_argument, NULL, '1' },                                           \
+            { "home", required_argument, NULL, 'C' },                                          \
+            { "config", required_argument, NULL, 'c' },                                        \
+            { 0, 0, 0, 0 },                                                                    \
+        };                                                                                     \
+                                                                                               \
+        while (-1 != (c = getopt_long(argc, argv, "+:l:h1:C:", long_options, NULL))) {         \
+            switch (c) {                                                                       \
+                case 'h':                                                                      \
+                    printf("usage: %s [-l logging-level] [-1 testname] [-C home]\n", argv[0]); \
+                    printf("usage: %s -h\n", argv[0]);                                         \
+                    exit(0);                                                                   \
+                                                                                               \
+                case 'l':                                                                      \
+                    hse_gparams.gp_logging.level = atoi(optarg);                               \
+                    break;                                                                     \
+                                                                                               \
+                case '1':                                                                      \
+                    _mtf_##coll_name##_tci.tci_named = optarg;                                 \
+                    break;                                                                     \
+                                                                                               \
+                case 'c':                                                                      \
+                    config = optarg;                                                           \
+                    break;                                                                     \
+                                                                                               \
+                case 'C':                                                                      \
+                    argv_home = optarg;                                                        \
+                    break;                                                                     \
+                                                                                               \
+                case ':':                                                                      \
+                    printf(                                                                    \
+                        "invalid argument for option '-%c',"                                   \
+                        " use -h for help\n",                                                  \
+                        optopt);                                                               \
+                    exit(EX_USAGE);                                                            \
+                                                                                               \
+                default: /* silently ignore all other errors */                                \
+                    break;                                                                     \
+            }                                                                                  \
+        }                                                                                      \
+                                                                                               \
+        _mtf_##coll_name##_tci.tci_argc = argc;                                                \
+        _mtf_##coll_name##_tci.tci_argv = argv;                                                \
+        _mtf_##coll_name##_tci.tci_optind = optind;                                            \
+                                                                                               \
+        if (argv_home && !realpath(argv_home, home)) {                                         \
+            rc = errno;                                                                        \
+            fprintf(stderr, "Failed to resolve home directory\n");                             \
+            return rc;                                                                         \
+        }                                                                                      \
+                                                                                               \
+        hrc = hse_init(config, NELEM(paramv), paramv);                                         \
+        if (hrc)                                                                               \
+            return hse_err_to_errno(hrc);                                                      \
+                                                                                               \
+        logging_level = getenv("HSE_TEST_LOGGING_LEVEL");                                      \
+        if (logging_level)                                                                     \
+            hse_gparams.gp_logging.level = atoi(logging_level);                                \
+                                                                                               \
+        rc = run_tests(&_mtf_##coll_name##_tci);                                               \
+                                                                                               \
+        hse_fini();                                                                            \
+                                                                                               \
+        return rc;                                                                             \
     }
 
 /* ------------------------------------------------------------------------- */
