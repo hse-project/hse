@@ -112,6 +112,15 @@ MTF_DEFINE_UTEST_PREPOST(mpool_test, mpool_ocd_test, mpool_test_pre, mpool_test_
     err = mpool_create(home, &tcparams);
     ASSERT_EQ(0, err);
 
+    err = mpool_open(home, &trparams, O_CREAT | O_RDWR, &mp);
+    ASSERT_EQ(EINVAL, merr_errno(err));
+
+    err = mpool_open(home, &trparams, O_EXCL | O_RDWR, &mp);
+    ASSERT_EQ(EINVAL, merr_errno(err));
+
+    err = mpool_open(home, &trparams, O_CREAT | O_EXCL | O_RDWR, &mp);
+    ASSERT_EQ(EINVAL, merr_errno(err));
+
     err = mpool_open(home, &trparams, O_RDWR, &mp);
     ASSERT_EQ(0, err);
 

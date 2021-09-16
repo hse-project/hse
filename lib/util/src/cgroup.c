@@ -74,7 +74,7 @@ cgroup_version_probe(void)
             if (!cgmntpt)
                 break;
             cgvers = CGROUP_VERS_2;
-            /* continue for detecting an hybrid config */
+            /* continue for detecting a hybrid config */
         }
     }
 

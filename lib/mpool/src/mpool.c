@@ -115,6 +115,13 @@ mpool_mclass_open(
         }
     }
 
+    if ((flags & O_CREAT) && mclass_files_exist(path)) {
+        hse_log(HSE_ERR "%s: mclass %d path %s already initialized, should be emptied manually",
+                __func__, mclass, path);
+        free(path);
+        return merr(EEXIST);
+    }
+
     err = mclass_open(mclass, mcp, flags, mc);
     if (err) {
         free(path);
@@ -223,11 +230,6 @@ mpool_create(const char *home, const struct mpool_cparams *cparams)
         if (err)
             goto errout;
 
-        if (mclass_files_exist(mcp.path)) {
-            err = merr(EEXIST);
-            goto errout;
-        }
-
         err = mpool_mclass_open(mp, i, &mcp, flags, &mp->mc[i]);
         if (err)
             goto errout;
@@ -263,7 +265,7 @@ mpool_open(
     int           i;
     size_t        sz;
 
-    if (!home || !rparams || !handle)
+    if (!home || !rparams || !handle || (flags & (O_CREAT | O_EXCL)))
         return merr(EINVAL);
 
     *handle = NULL;

@@ -13,7 +13,7 @@
 
 MTF_BEGIN_UTEST_COLLECTION(kvdb_home_test)
 
-MTF_DEFINE_UTEST(kvdb_home_test, storage_capacity_path)
+MTF_DEFINE_UTEST(kvdb_home_test, storage_path)
 {
 	merr_t err;
 	char   buf[PATH_MAX];
@@ -25,20 +25,6 @@ MTF_DEFINE_UTEST(kvdb_home_test, storage_capacity_path)
 	err = kvdb_home_storage_path_get("/var/lib/hse", "/var/local/lib/hse/capacity", buf, sizeof(buf));
 	ASSERT_EQ(0, err);
 	ASSERT_EQ(0, strncmp(buf, "/var/local/lib/hse/capacity", sizeof(buf)));
-}
-
-MTF_DEFINE_UTEST(kvdb_home_test, storage_staging_path)
-{
-	merr_t err;
-	char   buf[PATH_MAX];
-
-	err = kvdb_home_storage_path_get("/var/lib/hse", "staging", buf, sizeof(buf));
-	ASSERT_EQ(0, err);
-	ASSERT_EQ(0, strncmp(buf, "/var/lib/hse/staging", sizeof(buf)));
-
-	err = kvdb_home_storage_path_get("/var/lib/hse", "/var/local/lib/hse/staging", buf, sizeof(buf));
-	ASSERT_EQ(0, err);
-	ASSERT_EQ(0, strncmp(buf, "/var/local/lib/hse/staging", sizeof(buf)));
 }
 
 MTF_DEFINE_UTEST(kvdb_home_test, pidfile_path)

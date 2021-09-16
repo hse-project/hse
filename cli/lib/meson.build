@@ -11,6 +11,8 @@ if get_option('cli') or get_option('tools')
         include_directories: [
             cli_includes,
             component_root_includes,
+            # Remove util_includes when compiler.h moves around
+            util_includes,
         ],
         gnu_symbol_visibility: 'hidden',
     )

@@ -99,7 +99,7 @@ sighandler_install(int signum, __sighandler_t func)
     act.sa_handler = func;
     sigemptyset(&act.sa_mask);
 
-    return sigaction(signum, &act, (struct sigaction *)0);
+    return sigaction(signum, &act, NULL);
 }
 
 static uint64_t
@@ -125,6 +125,7 @@ profile_worker(void *rock)
     int       block, num_blocks, dirfd, fd, flags;
     char      fname[32];
     off_t     woff;
+    char      errbuf[128];
 
     work = rock;
 
@@ -133,7 +134,7 @@ profile_worker(void *rock)
     buf = aligned_alloc(PAGE_SIZE, work->block_sz);
     if (!buf) {
         work->rc = ENOMEM;
-        fprintf(stderr, "alloc_aligned() failed for %lu bytes, page aligned\n", work->block_sz);
+        fprintf(stderr, "aligned_alloc() failed for %lu bytes, page aligned\n", work->block_sz);
         goto out;
     }
 
@@ -151,7 +152,8 @@ profile_worker(void *rock)
     fd = openat(dirfd, fname, flags, S_IRUSR | S_IWUSR);
     if (fd < 0) {
         work->rc = errno;
-        fprintf(stderr, "Failed to create file %s: %s\n", fname, strerror(errno));
+        fprintf(stderr, "Failed to create file %s: %s\n", fname,
+                strerror_r(errno, errbuf, sizeof(errbuf)));
         goto out;
     }
 
@@ -170,7 +172,8 @@ profile_worker(void *rock)
             cc = pwritev(fd, &iov, 1, woff);
             if (cc == -1) {
                 work->rc = errno;
-                fprintf(stderr, "Failed to write to profile file %s: %s\n", fname, strerror(errno));
+                fprintf(stderr, "Failed to write to profile file %s: %s\n", fname,
+                        strerror_r(errno, errbuf, sizeof(errbuf)));
                 break;
             }
 
@@ -405,7 +408,7 @@ hse_storage_profile(const char *path, bool quiet, bool verbose)
     struct storage_info info = {0};
     int                i, rc;
     int                thread_counts[] = { 16, 20, 24, 32, 40, 48 };
-    int                num_thread_counts = sizeof(thread_counts) / sizeof(thread_counts[0]);
+    const int          num_thread_counts = sizeof(thread_counts) / sizeof(thread_counts[0]);
     double             scores[num_thread_counts];
     double             avg_score;
     int                cnt_score;
@@ -495,7 +498,7 @@ hse_storage_profile(const char *path, bool quiet, bool verbose)
         result = "default";
 
     if (!quiet && !verbose)
-        printf("\nRecommended throttle init policy: \"%s\"\n", result);
+        printf("\nRecommended throttling.init_policy: \"%s\"\n", result);
     else if (quiet)
         printf("%s\n", result);
 
