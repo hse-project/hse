@@ -7,11 +7,11 @@
 #define MPOOL_MDC_FILE_H
 
 #include <hse_util/hse_err.h>
+#include <hse_ikvdb/omf_version.h>
 
 #include "mclass.h"
 
 #define MDC_LOGHDR_MAGIC   ((u32)0xdeadbeef)
-#define MDC_LOGHDR_VERSION ((u32)1)
 #define MDC_LOGHDR_LEN     (4096)
 #define MDC_RA_BYTES       (128u << KB_SHIFT)
 #define MDC_EXTEND_FACTOR  (8)

@@ -1,4 +1,6 @@
 {
+	"version": 1,
+	"omf_version": 1,
 	"cndb": {
 		"oid1": true,
 		"oid2": 2

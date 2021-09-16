@@ -16,9 +16,6 @@ struct wal_txmeta_rec;
 enum wal_rec_type {
     WAL_RT_INVALID = 0,
 
-    WAL_VERSION1 = 1,
-    WAL_VERSION = WAL_VERSION1,
-
     WAL_RT_VERSION = 100,
     WAL_RT_CONFIG = 101,
     WAL_RT_RECLAIM = 102,

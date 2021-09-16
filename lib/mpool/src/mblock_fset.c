@@ -10,6 +10,7 @@
 #include <hse_util/page.h>
 #include <hse_util/string.h>
 #include <hse_util/slab.h>
+#include <hse_ikvdb/omf_version.h>
 
 #include "omf.h"
 #include "mclass.h"

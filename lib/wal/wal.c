@@ -17,6 +17,7 @@
 #include <hse_ikvdb/kvdb_ctxn.h>
 #include <hse_ikvdb/kvdb_rparams.h>
 #include <hse_ikvdb/c0sk.h>
+#include <hse_ikvdb/omf_version.h>
 
 #include <mpool/mpool.h>
 

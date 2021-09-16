@@ -18,7 +18,7 @@
 
 #include "logging.h"
 
-#define IS_WHOLE(_val) (nearbyint(_val) == _val)
+#define IS_WHOLE(_val) (round(_val) == _val)
 
 void
 param_default_populate(

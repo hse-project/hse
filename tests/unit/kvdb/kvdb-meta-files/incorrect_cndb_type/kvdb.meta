@@ -1,4 +1,6 @@
 {
+	"version": 1,
+	"omf_version": 1,
 	"cndb": [],
 	"wal": {
 		"oid1": 3,

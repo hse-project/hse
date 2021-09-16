@@ -1,4 +1,6 @@
 {
+	"version": 1,
+	"omf_version": 1,
 	"cndb": {
 		"hello": "world",
 		"oid1": 1,
