@@ -6,7 +6,7 @@
 #ifndef HSE_IKVDB_API_H
 #define HSE_IKVDB_API_H
 
-#include <hse/hse.h>
+#include <hse/flags.h>
 
 #include <hse_ikvdb/tuple.h>
 #include <hse_ikvdb/diag_kvdb.h>

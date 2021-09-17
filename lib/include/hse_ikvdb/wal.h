@@ -5,7 +5,6 @@
 #ifndef HSE_WAL_H
 #define HSE_WAL_H
 
-#include <hse/hse.h>
 #include <mpool/mpool.h>
 
 #include <hse_ikvdb/ikvdb.h>

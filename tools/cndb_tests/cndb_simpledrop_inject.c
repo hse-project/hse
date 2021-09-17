@@ -7,6 +7,8 @@
  * Write to cndb log
  */
 
+#include <hse/hse.h>
+
 #include <hse_ikvdb/limits.h>
 #include <hse_ikvdb/ikvdb.h>
 #include <hse_ikvdb/diag_kvdb.h>

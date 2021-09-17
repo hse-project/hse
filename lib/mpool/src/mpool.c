@@ -12,7 +12,6 @@
 #include <hse_util/string.h>
 #include <hse_util/workqueue.h>
 
-#include <hse/hse.h>
 #include <mpool/mpool.h>
 #include <mpool/mpool_structs.h>
 

@@ -10,9 +10,6 @@
 #include <mpool/mpool.h>
 
 #include <hse/hse.h>
-#include <hse/flags.h>
-#include <hse/types.h>
-#include <hse/kvdb_perfc.h>
 
 #include <hse_ikvdb/ikvdb.h>
 #include <hse_ikvdb/kvdb_ctxn.h>

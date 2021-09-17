@@ -15,8 +15,6 @@
 #include <hse_util/log2.h>
 #include <hse_util/atomic.h>
 
-#include <hse/hse.h>
-
 #include <hse_ikvdb/blk_list.h>
 #include <hse_ikvdb/kvdb_health.h>
 #include <hse_ikvdb/kvs_rparams.h>
