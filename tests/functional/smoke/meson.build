@@ -41,6 +41,9 @@ tests = {
             tool_targets['cndb_log'],
         ],
     },
+    'paths': {
+        'suites': ['smoke'],
+    },
     'longtestc0': {
         'suites': ['smoke'],
         'depends': [

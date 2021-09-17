@@ -12,6 +12,7 @@
 #include <cjson/cJSON.h>
 
 #include <hse_ikvdb/kvdb_meta.h>
+#include <hse_ikvdb/kvdb_home.h>
 #include <hse_ikvdb/omf_version.h>
 #include <hse_util/logging.h>
 #include <hse_util/invariant.h>
@@ -573,10 +574,10 @@ kvdb_meta_from_mpool_cparams(
         const char *mc_path = params->mclass[i].path;
 
         /* strnlen() + 1 should move us past the final trailing / */
-        strlcpy(
-            meta->km_storage[i].path,
-            strstr(mc_path, kvdb_home) ? mc_path + strnlen(kvdb_home, PATH_MAX) + 1 : mc_path,
-            sizeof(meta->km_storage[i].path));
+        strlcpy(meta->km_storage[i].path,
+                (mc_path[0] != '/' && strstr(mc_path, kvdb_home)) ?
+                mc_path + strnlen(kvdb_home, PATH_MAX) + 1 : mc_path,
+                sizeof(meta->km_storage[i].path));
     }
 }
 
@@ -591,21 +592,12 @@ kvdb_meta_to_mpool_rparams(
     assert(params);
 
     for (int i = MP_MED_BASE; i < MP_MED_COUNT; i++) {
-        if (meta->km_storage[i].path[0] == '\0') {
-            memset(params->mclass[i].path, 0, sizeof(params->mclass[i].path));
-        } else if (meta->km_storage[i].path[0] == '/') {
-            strlcpy(
-                params->mclass[i].path, meta->km_storage[i].path, sizeof(params->mclass[i].path));
-        } else {
-            const int n = snprintf(
-                params->mclass[i].path,
-                sizeof(params->mclass[i].path),
-                "%s/%s",
-                kvdb_home,
-                meta->km_storage[i].path);
-            if (n < 0)
-                return merr(EBADMSG);
-        }
+        merr_t err;
+
+        err = kvdb_home_storage_path_get(kvdb_home, meta->km_storage[i].path,
+                                         params->mclass[i].path, sizeof(params->mclass[i].path));
+        if (err)
+            return err;
     }
 
     return 0;
@@ -622,21 +614,12 @@ kvdb_meta_to_mpool_dparams(
     assert(params);
 
     for (int i = MP_MED_BASE; i < MP_MED_COUNT; i++) {
-        if (meta->km_storage[i].path[0] == '\0') {
-            memset(params->mclass[i].path, 0, sizeof(params->mclass[i].path));
-        } else if (meta->km_storage[i].path[0] == '/') {
-            strlcpy(
-                params->mclass[i].path, meta->km_storage[i].path, sizeof(params->mclass[i].path));
-        } else {
-            const int n = snprintf(
-                params->mclass[i].path,
-                sizeof(params->mclass[i].path),
-                "%s/%s",
-                kvdb_home,
-                meta->km_storage[i].path);
-            if (n < 0)
-                return merr(EBADMSG);
-        }
+        merr_t err;
+
+        err = kvdb_home_storage_path_get(kvdb_home, meta->km_storage[i].path,
+                                         params->mclass[i].path, sizeof(params->mclass[i].path));
+        if (err)
+            return err;
     }
 
     return 0;
@@ -661,7 +644,10 @@ kvdb_meta_storage_add(
         if (i != MP_MED_CAPACITY && path[0] != '\0') {
             assert(meta->km_storage[i].path[0] == '\0');
 
-            strlcpy(meta->km_storage[i].path, path, sizeof(meta->km_storage[i].path));
+            strlcpy(meta->km_storage[i].path,
+                    (path[0] != '/' && strstr(path, kvdb_home)) ?
+                    path + strnlen(kvdb_home, PATH_MAX) + 1 : path,
+                    sizeof(meta->km_storage[i].path));
             added = true;
         }
     }

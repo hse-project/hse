@@ -32,13 +32,15 @@ kvdb_home_storage_path_get(
  * @param home: home directory
  * @param path: parameter-supplied path
  * @param buf: buffer
+ * @param resolved_path: is the path already resolved with home
  * @returns error status
  */
 merr_t
 kvdb_home_storage_realpath_get(
     const char * home,
     const char * path,
-    char         buf[PATH_MAX]);
+    char         buf[PATH_MAX],
+    bool         resolved_path);
 
 /**
  * Puts the path to the hse.pid file in the buffer

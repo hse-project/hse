@@ -503,23 +503,40 @@ print_hse_err(struct cli *cli, const char *api, hse_err_t err)
 /**
  * cli_hse_init() -- call hse_init() if it hasn't already been called
  */
+
 static int
-cli_hse_init(struct cli *cli)
+cli_hse_init_impl(struct cli *cli, const char *const *const paramv, size_t paramc)
 {
     hse_err_t   err;
-    const char *paramv[] = { "logging.destination=stderr", "logging.level=3" };
 
     if (cli->hse_init)
         return 0;
 
-    err = hse_init(cli->config, NELEM(paramv), paramv);
+    err = hse_init(cli->config, paramc, paramv);
     if (err) {
         print_hse_err(cli, "hse_init", err);
         return -1;
     }
 
     cli->hse_init = true;
+
     return 0;
+}
+
+static int
+cli_hse_init(struct cli *cli)
+{
+    const char *paramv[] = { "logging.destination=stderr", "logging.level=3" };
+
+    return cli_hse_init_impl(cli, paramv, NELEM(paramv));
+}
+
+static int
+cli_hse_init_rest(struct cli *cli)
+{
+    const char *paramv[] = { "logging.enabled=false" };
+
+    return cli_hse_init_impl(cli, paramv, NELEM(paramv));
 }
 
 /**
@@ -643,7 +660,7 @@ cli_hse_kvdb_info_impl(struct cli *cli, const char *const kvdb_home)
 
     assert(kvdb_home);
 
-    if (cli_hse_init(cli))
+    if (cli_hse_init_rest(cli))
         return -1;
 
     if (cli->optind != cli->argc) {
@@ -682,7 +699,7 @@ cli_hse_kvdb_compact_impl(
     else
         req = "request";
 
-    if (cli_hse_init(cli))
+    if (cli_hse_init_rest(cli))
         return -1;
 
     if (cli->optind != cli->argc) {
@@ -1093,7 +1110,7 @@ cli_hse_storage_info_impl(struct cli *cli, const char *const kvdb_home)
         .yaml_emit = yaml_print_and_rewind,
     };
 
-    if (cli_hse_init(cli))
+    if (cli_hse_init_rest(cli))
         return -1;
 
     if (cli->optind != cli->argc) {

@@ -64,14 +64,26 @@ merr_t
 kvdb_home_storage_realpath_get(
     const char * home,
     const char * path,
-    char         buf[PATH_MAX])
+    char         buf[PATH_MAX],
+    bool         resolved_path)
 {
-    merr_t err;
+    merr_t err = 0;
 
     assert(home);
     assert(path);
 
-    err = path_copy(home, path, buf, PATH_MAX);
+    if (path[0] == '\0') {
+        buf[0] = '\0';
+        return 0;
+    }
+
+    if (resolved_path) {
+        if (strlcpy(buf, path, PATH_MAX) >= PATH_MAX)
+            err = merr(ENAMETOOLONG);
+    } else {
+        err = path_copy(home, path, buf, PATH_MAX);
+    }
+
     if (!err) {
         char *pathdup = strndup(buf, PATH_MAX);
 

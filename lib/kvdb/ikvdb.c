@@ -392,12 +392,12 @@ ikvdb_storage_add(const char *kvdb_home, struct kvdb_cparams *params)
                     char rpath1[PATH_MAX], rpath2[PATH_MAX];
 
                     err = kvdb_home_storage_realpath_get(
-                            kvdb_home, meta.km_storage[j].path, rpath1);
+                            kvdb_home, meta.km_storage[j].path, rpath1, false);
                     if (err)
                         goto errout;
 
                     err = kvdb_home_storage_realpath_get(
-                            kvdb_home, params->storage.mclass[i].path, rpath2);
+                            kvdb_home, params->storage.mclass[i].path, rpath2, true);
                     if (err)
                         goto errout;
 
