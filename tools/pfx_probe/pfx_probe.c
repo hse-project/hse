@@ -88,16 +88,12 @@ loader(void *arg)
 	char key[sizeof(ti->pfx) + sizeof(ti->core) + sizeof(ti->sfx)];
 	char val[VLEN];
 	uint64_t *p, *c, *s;
-	int  i, j;
-	size_t plen;
-        u64 rc;
+	int i, j;
+    u64 rc;
 
-	rc = hse_kvs_prefix_delete(ta->kvs, 0, NULL, 0, 0, &plen);
+	rc = hse_kvs_prefix_delete(ta->kvs, 0, NULL, 0, 0);
         if (err)
             fatal(rc, "prefix delete failed");
-
-	if (plen != sizeof(ti->pfx))
-		fatal(EINVAL, "kvs must have a pfxlen = %lu", sizeof(ti->pfx));
 
 	memset(val, 0xa1, sizeof(val));
 

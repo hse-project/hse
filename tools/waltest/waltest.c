@@ -827,7 +827,6 @@ test_delete(
     hse_err_t err;
     u64 i, last_key;
     uint salt = -1; /* not important for delete */
-    size_t pfxlen;
 
     struct hse_kvdb_txn    *txn = NULL;
 
@@ -855,8 +854,7 @@ test_delete(
             if (err)
                 merr_quit("kvs_del failed", err);
         } else {
-            err = hse_kvs_prefix_delete(ti->kvs, 0, txn, (char *)ti->ref_key, ti->ref_klen,
-                                        &pfxlen);
+            err = hse_kvs_prefix_delete(ti->kvs, 0, txn, (char *)ti->ref_key, ti->ref_klen);
             if (err)
                 merr_quit("kvs_prefix_del failed", err);
         }

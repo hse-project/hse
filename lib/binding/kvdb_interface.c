@@ -737,9 +737,8 @@ hse_kvs_prefix_delete(
     struct hse_kvs *           handle,
     const unsigned int         flags,
     struct hse_kvdb_txn *const txn,
-    const void *               prefix_key,
-    size_t                     key_len,
-    size_t *                   kvs_pfx_len)
+    const void *               pfx,
+    size_t                     pfx_len)
 {
     merr_t            err;
     struct kvs_ktuple kt;
@@ -747,17 +746,17 @@ hse_kvs_prefix_delete(
     if (HSE_UNLIKELY(!handle || flags != 0))
         return merr_to_hse_err(merr(EINVAL));
 
-    if (HSE_UNLIKELY(key_len > HSE_KVS_PFX_LEN_MAX))
+    if (HSE_UNLIKELY(pfx_len > HSE_KVS_PFX_LEN_MAX))
         return merr_to_hse_err(merr(ENAMETOOLONG));
 
-    kvs_ktuple_init(&kt, prefix_key, key_len);
+    kvs_ktuple_init(&kt, pfx, pfx_len);
 
-    err = ikvdb_kvs_prefix_delete(handle, flags, txn, &kt, kvs_pfx_len);
+    err = ikvdb_kvs_prefix_delete(handle, flags, txn, &kt);
     ev(err);
 
     if (!err)
         PERFC_INCADD_RU(
-            &kvdb_pc, PERFC_RA_KVDBOP_KVS_PFX_DEL, PERFC_RA_KVDBOP_KVS_PFX_DELB, key_len);
+            &kvdb_pc, PERFC_RA_KVDBOP_KVS_PFX_DEL, PERFC_RA_KVDBOP_KVS_PFX_DELB, pfx_len);
 
     return merr_to_hse_err(err);
 }

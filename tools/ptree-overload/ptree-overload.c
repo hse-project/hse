@@ -55,11 +55,9 @@ dostuff(void *arg)
 	/* Insert ptombs */
 	for (i = 0; i < opts.nptombs; i++) {
 		int rc;
-		size_t kvs_plen;
 
 		snprintf(key, sizeof(key), "k%06lu", i);
-		rc = hse_kvs_prefix_delete(targ->kvs, 0, NULL, key, sizeof(key),
-				       &kvs_plen);
+		rc = hse_kvs_prefix_delete(targ->kvs, 0, NULL, key, sizeof(key));
 		if (rc) {
 			killthreads = 1;
 			fprintf(stderr, "Failed to pdel key: %d\n", rc);

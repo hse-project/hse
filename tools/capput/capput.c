@@ -118,7 +118,6 @@ pdel(void *arg)
 
     while (!killthreads) {
         char      key[sizeof(uint64_t)];
-        size_t    kvs_plen;
         uint64_t  curr_safe;
         uint64_t  curr;
         uint64_t *p;
@@ -140,7 +139,7 @@ pdel(void *arg)
         if (err)
             fatal(err, "Failed to begin txn");
 
-        err = hse_kvs_prefix_delete(targ->kvs, 0, txn, key, sizeof(*p), &kvs_plen);
+        err = hse_kvs_prefix_delete(targ->kvs, 0, txn, key, sizeof(*p));
         if (err) {
             if (hse_err_to_errno(err) == ECANCELED) {
                 err = hse_kvdb_txn_abort(targ->kvdb, txn);
@@ -152,8 +151,6 @@ pdel(void *arg)
             fatal(err, "Failed to insert prefix delete");
 
             killthreads = 1;
-            fprintf(stderr, "prefix delete failure, KVS pfxlen = %lu. Must be %lu\n",
-                    kvs_plen, sizeof(key));
             exrc = EX_DATAERR;
         }
 

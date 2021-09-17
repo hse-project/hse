@@ -2187,8 +2187,7 @@ ikvdb_kvs_prefix_delete(
     struct hse_kvs *           handle,
     const unsigned int         flags,
     struct hse_kvdb_txn *const txn,
-    struct kvs_ktuple *        kt,
-    size_t *                   kvs_pfx_len)
+    struct kvs_ktuple *        kt)
 {
     struct kvdb_kvs *  kk = (struct kvdb_kvs *)handle;
     struct ikvdb_impl *parent;
@@ -2206,8 +2205,6 @@ ikvdb_kvs_prefix_delete(
         return merr(EROFS);
 
     ct_pfx_len = kk->kk_cparams->pfx_len;
-    if (kvs_pfx_len)
-        *kvs_pfx_len = ct_pfx_len;
 
     if (ev(!kt->kt_data || kt->kt_len != ct_pfx_len))
         return merr(EINVAL);
