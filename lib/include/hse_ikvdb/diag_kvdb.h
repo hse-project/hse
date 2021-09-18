@@ -6,7 +6,8 @@
 #ifndef HSE_KVDB_DIAG_H
 #define HSE_KVDB_DIAG_H
 
-#include <hse/hse.h>
+#include <hse/limits.h>
+#include <hse/types.h>
 
 /* Opaque handles */
 struct kvdb;

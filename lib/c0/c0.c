@@ -14,8 +14,6 @@
 
 #define MTF_MOCK_IMPL_c0
 
-#include <hse/hse.h>
-
 #include <hse_ikvdb/ikvdb.h>
 #include <hse_ikvdb/kvdb_health.h>
 #include <hse_ikvdb/c0.h>

@@ -14,8 +14,6 @@
 #include <hse_util/bonsai_tree.h>
 #include <hse_util/bkv_collection.h>
 
-#include <hse/hse.h>
-
 #include <hse_ikvdb/ikvdb.h>
 #include <hse_ikvdb/c0sk.h>
 #include <hse_ikvdb/c0snr_set.h>

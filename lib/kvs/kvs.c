@@ -7,7 +7,6 @@
  * Exported API of the HSE struct ikvs
  */
 
-#include <hse/hse.h>
 #include <hse/kvdb_perfc.h>
 
 #include <hse_util/platform.h>

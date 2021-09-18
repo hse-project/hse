@@ -9,6 +9,8 @@
 
 #include <stdio.h>
 
+#include <hse/hse.h>
+
 #include <hse_util/slab.h>
 #include <hse_util/assert.h>
 #include <hse_util/log2.h>
