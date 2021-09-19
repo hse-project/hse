@@ -30,10 +30,6 @@
  *    {
  *        "name": "capacity_only",
  *        "config": {
- *            "sync": {
- *                "keys": [ "capacity" ],
- *                "values": [ "capacity" ]
- *            },
  *            "root": {
  *                "keys": [ "capacity" ],
  *                "values": [ "capacity" ]
@@ -51,10 +47,6 @@
  *    {
  *        "name": "staging_only",
  *        "config": {
- *            "sync": {
- *                "keys": [ "staging" ],
- *                "values": [ "staging" ]
- *            },
  *            "root": {
  *                "keys": [ "staging" ],
  *                "values": [ "staging" ]
@@ -72,17 +64,13 @@
  *    {
  *        "name": "staging_max_capacity",
  *        "config": {
- *            "sync": {
- *                "keys": [ "staging" ],
- *                "values": [ "staging" ]
- *            },
  *            "root": {
  *                "keys": [ "staging" ],
  *                "values": [ "staging" ]
  *            },
  *            "internal": {
  *                "keys": [ "staging" ],
- *                "values": [ "staging" ]
+ *                "values": [ "capacity" ]
  *            },
  *            "leaf": {
  *                "keys": [ "staging" ],
@@ -93,10 +81,6 @@
  *    {
  *        "name": "staging_min_capacity",
  *        "config": {
- *            "sync": {
- *                "keys": [ "staging" ],
- *                "values": [ "staging" ]
- *            },
  *            "root": {
  *                "keys": [ "staging" ],
  *                "values": [ "staging" ]
@@ -124,10 +108,6 @@ mclass_policies_default_builder(const struct param_spec *ps, void *data)
     /* Setup capacity_only */
     policy = &mclass_policies[0];
     strlcpy(policy->mc_name, "capacity_only", sizeof("capacity_only"));
-    policy->mc_table[HSE_MPOLICY_AGE_SYNC][HSE_MPOLICY_DTYPE_KEY][0] = HSE_MPOLICY_MEDIA_CAPACITY;
-    policy->mc_table[HSE_MPOLICY_AGE_SYNC][HSE_MPOLICY_DTYPE_KEY][1] = HSE_MPOLICY_MEDIA_INVALID;
-    policy->mc_table[HSE_MPOLICY_AGE_SYNC][HSE_MPOLICY_DTYPE_VALUE][0] = HSE_MPOLICY_MEDIA_CAPACITY;
-    policy->mc_table[HSE_MPOLICY_AGE_SYNC][HSE_MPOLICY_DTYPE_VALUE][1] = HSE_MPOLICY_MEDIA_INVALID;
     policy->mc_table[HSE_MPOLICY_AGE_ROOT][HSE_MPOLICY_DTYPE_KEY][0] = HSE_MPOLICY_MEDIA_CAPACITY;
     policy->mc_table[HSE_MPOLICY_AGE_ROOT][HSE_MPOLICY_DTYPE_KEY][1] = HSE_MPOLICY_MEDIA_INVALID;
     policy->mc_table[HSE_MPOLICY_AGE_ROOT][HSE_MPOLICY_DTYPE_VALUE][0] = HSE_MPOLICY_MEDIA_CAPACITY;
@@ -148,10 +128,6 @@ mclass_policies_default_builder(const struct param_spec *ps, void *data)
     /* Setup staging_only */
     policy = &mclass_policies[1];
     strlcpy(policy->mc_name, "staging_only", sizeof("staging_only"));
-    policy->mc_table[HSE_MPOLICY_AGE_SYNC][HSE_MPOLICY_DTYPE_KEY][0] = HSE_MPOLICY_MEDIA_STAGING;
-    policy->mc_table[HSE_MPOLICY_AGE_SYNC][HSE_MPOLICY_DTYPE_KEY][1] = HSE_MPOLICY_MEDIA_INVALID;
-    policy->mc_table[HSE_MPOLICY_AGE_SYNC][HSE_MPOLICY_DTYPE_VALUE][0] = HSE_MPOLICY_MEDIA_STAGING;
-    policy->mc_table[HSE_MPOLICY_AGE_SYNC][HSE_MPOLICY_DTYPE_VALUE][1] = HSE_MPOLICY_MEDIA_INVALID;
     policy->mc_table[HSE_MPOLICY_AGE_ROOT][HSE_MPOLICY_DTYPE_KEY][0] = HSE_MPOLICY_MEDIA_STAGING;
     policy->mc_table[HSE_MPOLICY_AGE_ROOT][HSE_MPOLICY_DTYPE_KEY][1] = HSE_MPOLICY_MEDIA_INVALID;
     policy->mc_table[HSE_MPOLICY_AGE_ROOT][HSE_MPOLICY_DTYPE_VALUE][0] = HSE_MPOLICY_MEDIA_STAGING;
@@ -172,10 +148,6 @@ mclass_policies_default_builder(const struct param_spec *ps, void *data)
     /* Setup staging_max_capacity */
     policy = &mclass_policies[2];
     strlcpy(policy->mc_name, "staging_max_capacity", sizeof("staging_max_capacity"));
-    policy->mc_table[HSE_MPOLICY_AGE_SYNC][HSE_MPOLICY_DTYPE_KEY][0] = HSE_MPOLICY_MEDIA_STAGING;
-    policy->mc_table[HSE_MPOLICY_AGE_SYNC][HSE_MPOLICY_DTYPE_KEY][1] = HSE_MPOLICY_MEDIA_INVALID;
-    policy->mc_table[HSE_MPOLICY_AGE_SYNC][HSE_MPOLICY_DTYPE_VALUE][0] = HSE_MPOLICY_MEDIA_STAGING;
-    policy->mc_table[HSE_MPOLICY_AGE_SYNC][HSE_MPOLICY_DTYPE_VALUE][1] = HSE_MPOLICY_MEDIA_INVALID;
     policy->mc_table[HSE_MPOLICY_AGE_ROOT][HSE_MPOLICY_DTYPE_KEY][0] = HSE_MPOLICY_MEDIA_STAGING;
     policy->mc_table[HSE_MPOLICY_AGE_ROOT][HSE_MPOLICY_DTYPE_KEY][1] = HSE_MPOLICY_MEDIA_INVALID;
     policy->mc_table[HSE_MPOLICY_AGE_ROOT][HSE_MPOLICY_DTYPE_VALUE][0] = HSE_MPOLICY_MEDIA_STAGING;
@@ -185,7 +157,7 @@ mclass_policies_default_builder(const struct param_spec *ps, void *data)
     policy->mc_table[HSE_MPOLICY_AGE_INTERNAL][HSE_MPOLICY_DTYPE_KEY][1] =
         HSE_MPOLICY_MEDIA_INVALID;
     policy->mc_table[HSE_MPOLICY_AGE_INTERNAL][HSE_MPOLICY_DTYPE_VALUE][0] =
-        HSE_MPOLICY_MEDIA_STAGING;
+        HSE_MPOLICY_MEDIA_CAPACITY;
     policy->mc_table[HSE_MPOLICY_AGE_INTERNAL][HSE_MPOLICY_DTYPE_VALUE][1] =
         HSE_MPOLICY_MEDIA_INVALID;
     policy->mc_table[HSE_MPOLICY_AGE_LEAF][HSE_MPOLICY_DTYPE_KEY][0] = HSE_MPOLICY_MEDIA_STAGING;
@@ -196,10 +168,6 @@ mclass_policies_default_builder(const struct param_spec *ps, void *data)
     /* Setup staging_min_capacity */
     policy = &mclass_policies[3];
     strlcpy(policy->mc_name, "staging_min_capacity", sizeof("staging_min_capacity"));
-    policy->mc_table[HSE_MPOLICY_AGE_SYNC][HSE_MPOLICY_DTYPE_KEY][0] = HSE_MPOLICY_MEDIA_STAGING;
-    policy->mc_table[HSE_MPOLICY_AGE_SYNC][HSE_MPOLICY_DTYPE_KEY][1] = HSE_MPOLICY_MEDIA_INVALID;
-    policy->mc_table[HSE_MPOLICY_AGE_SYNC][HSE_MPOLICY_DTYPE_VALUE][0] = HSE_MPOLICY_MEDIA_STAGING;
-    policy->mc_table[HSE_MPOLICY_AGE_SYNC][HSE_MPOLICY_DTYPE_VALUE][1] = HSE_MPOLICY_MEDIA_INVALID;
     policy->mc_table[HSE_MPOLICY_AGE_ROOT][HSE_MPOLICY_DTYPE_KEY][0] = HSE_MPOLICY_MEDIA_STAGING;
     policy->mc_table[HSE_MPOLICY_AGE_ROOT][HSE_MPOLICY_DTYPE_KEY][1] = HSE_MPOLICY_MEDIA_INVALID;
     policy->mc_table[HSE_MPOLICY_AGE_ROOT][HSE_MPOLICY_DTYPE_VALUE][0] = HSE_MPOLICY_MEDIA_STAGING;
@@ -221,17 +189,13 @@ mclass_policies_default_builder(const struct param_spec *ps, void *data)
      * {
      *     "name": "default_policy",
      *     "config": {
-     *         "sync": {
-     *             "keys": [ "staging" ],
-     *             "values": [ "staging" ]
-     *         },
      *         "root": {
      *             "keys": [ "staging" ],
      *             "values": [ "staging" ]
      *         },
      *         "internal": {
      *             "keys": [ "staging" ],
-     *             "values": [ "staging" ]
+     *             "values": [ "capacity" ]
      *         },
      *         "leaf": {
      *             "keys": [ "staging" ],
@@ -247,7 +211,7 @@ mclass_policies_default_builder(const struct param_spec *ps, void *data)
         assert(sz == strlen(HSE_MPOLICY_DEFAULT_NAME));
         for (int age = 0; age < (int)HSE_MPOLICY_AGE_CNT; age++) {
             for (int dtype = 0; dtype < (int)HSE_MPOLICY_DTYPE_CNT; dtype++) {
-                if (age == (int)HSE_MPOLICY_AGE_LEAF && dtype == (int)HSE_MPOLICY_DTYPE_VALUE) {
+                if (age != (int)HSE_MPOLICY_AGE_ROOT && dtype == (int)HSE_MPOLICY_DTYPE_VALUE) {
                     mclass_policies[i].mc_table[age][dtype][0] = HSE_MPOLICY_MEDIA_CAPACITY;
                     mclass_policies[i].mc_table[age][dtype][1] = HSE_MPOLICY_MEDIA_INVALID;
                 } else {

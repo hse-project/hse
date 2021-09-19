@@ -30,7 +30,6 @@ mclass_policy_get_num_default_policies()
 }
 
 static const struct mclass_policy_map agegroups[] = {
-    { HSE_MPOLICY_AGE_SYNC, "sync" },
     { HSE_MPOLICY_AGE_ROOT, "root" },
     { HSE_MPOLICY_AGE_INTERNAL, "internal" },
     { HSE_MPOLICY_AGE_LEAF, "leaf" },

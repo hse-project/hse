@@ -47,7 +47,7 @@ MTF_DEFINE_UTEST_PRE(mclass_policy_test, mclass_policy_default, general_pre)
         }
 
     /*
-     * staging_max_capacity - only leaf values use capacity.
+     * staging_max_capacity - only internal and leaf values use capacity.
      */
     strcpy(dpolicies[2].mc_name, "staging_max_capacity");
     for (i = 0; i < HSE_MPOLICY_AGE_CNT; i++)
@@ -55,6 +55,8 @@ MTF_DEFINE_UTEST_PRE(mclass_policy_test, mclass_policy_default, general_pre)
             dpolicies[2].mc_table[i][j][0] = HSE_MPOLICY_MEDIA_STAGING;
             dpolicies[2].mc_table[i][j][1] = HSE_MPOLICY_MEDIA_INVALID;
         }
+    dpolicies[2].mc_table[HSE_MPOLICY_AGE_INTERNAL][HSE_MPOLICY_DTYPE_VALUE][0] =
+        HSE_MPOLICY_MEDIA_CAPACITY;
     dpolicies[2].mc_table[HSE_MPOLICY_AGE_LEAF][HSE_MPOLICY_DTYPE_VALUE][0] =
         HSE_MPOLICY_MEDIA_CAPACITY;
 

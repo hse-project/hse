@@ -12,7 +12,6 @@
 #define HSE_MPOLICY_DEFAULT_NAME "default_policy"
 
 enum hse_mclass_policy_age {
-    HSE_MPOLICY_AGE_SYNC,
     HSE_MPOLICY_AGE_ROOT,
     HSE_MPOLICY_AGE_INTERNAL,
     HSE_MPOLICY_AGE_LEAF,
