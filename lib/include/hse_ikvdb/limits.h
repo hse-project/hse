@@ -16,7 +16,7 @@
 #define HSE_C0_CHEAP_SZ_DFLT        (128ul << 20)
 #define HSE_C0_CHEAP_SZ_MAX         (256ul << 20)
 
-#define HSE_C0_INGEST_WIDTH_MIN     (23)
+#define HSE_C0_INGEST_WIDTH_MIN     (8)
 #define HSE_C0_INGEST_WIDTH_DFLT    (37)
 #define HSE_C0_INGEST_WIDTH_MAX     (37)
 

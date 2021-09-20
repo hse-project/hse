@@ -940,7 +940,7 @@ c0sk_release_multiset(struct c0sk_impl *self, struct c0_kvmultiset *multiset)
  * @self:       ptr to c0sk_impl
  *
  * It is desirable to boost the ingest process if the caller is a mongod
- * replication worker thread.
+ * replication worker thread (i.e., the thred name starts with "repl wr").
  */
 static bool
 c0sk_ingest_boost(struct c0sk_impl *self)

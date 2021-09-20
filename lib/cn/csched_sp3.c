@@ -1850,7 +1850,7 @@ static void
 sp3_qos_check(struct sp3 *sp)
 {
     struct cn_tree *tree;
-    uint            rootlen = 0;
+    uint            rootlen;
     u64             sval;
 
     u64  cur_time_ns;
@@ -1865,16 +1865,18 @@ sp3_qos_check(struct sp3 *sp)
     if (!sp->throttle_sensor_root)
         return;
 
+    rootlen = 4;
+    sval = 0;
+
     list_for_each_entry (tree, &sp->mon_tlist, ct_sched.sp3t.spt_tlink) {
         uint nk = cn_ns_kvsets(&tree->ct_root->tn_ns);
 
         rootlen = nk > rootlen ? nk : rootlen;
     }
 
-    sval = 0;
-    if (rootlen) {
+    if (rootlen > 4) {
         u64 K;
-        u64 r = rootlen * 100;
+        u64 r = (rootlen - 4) * 100;
         u64 nsec = atomic64_read(&sp->rspill_dt) / NSEC_PER_SEC;
         u64 min_lat = 16, max_lat = 80;
 
