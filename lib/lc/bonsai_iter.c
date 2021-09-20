@@ -75,7 +75,7 @@ bonsai_iter_seek(struct bonsai_iter *iter, const void *key, size_t klen)
     }
 
     iter->bi_es.es_eof = !found;
-    iter->bi_kv = found ? kv : &root->br_kv;
+    iter->bi_kv = found ? kv : NULL;
 }
 
 void
@@ -90,12 +90,23 @@ bonsai_iter_position(struct bonsai_iter *iter, const void *key, size_t klen)
 
     bn_skey_init(key, klen, 0, iter->bi_index, &skey);
     root = rcu_dereference(*iter->bi_root);
-    found = bn_findGE(root, &skey, &kv);
-    if (kv)
-        kv = rcu_dereference(kv->bkv_prev); /* unget */
+
+    /* When the binheap is prepared, each iterator is moved forward by one position. To account for
+     * this, if the key is found, move the iterator back by one position so binheap prepare reads
+     * the correct key.
+     */
+    if (iter->bi_reverse) {
+        found = bn_findLE(root, &skey, &kv);
+        if (found)
+            kv = rcu_dereference(kv->bkv_next);
+    } else {
+        found = bn_findGE(root, &skey, &kv);
+        if (found)
+            kv = rcu_dereference(kv->bkv_prev);
+    }
 
     iter->bi_es.es_eof = !found;
-    iter->bi_kv = found ? kv : &root->br_kv;
+    iter->bi_kv = found ? kv : NULL;
 }
 
 static struct bonsai_kv *
@@ -141,12 +152,6 @@ bonsai_iter_next(struct element_source *es, void **element)
      * cursor read call.
      */
     rcu_read_lock();
-
-    if (!iter->bi_kv) {
-        struct bonsai_root *root = rcu_dereference(*iter->bi_root);
-
-        iter->bi_kv = &root->br_kv;
-    }
 
     do {
         enum hse_seqno_state state;
