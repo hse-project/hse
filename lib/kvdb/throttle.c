@@ -501,7 +501,7 @@ throttle_update(struct throttle *self)
              */
             if (reduce) {
                 int delta = self->thr_delay - self->thr_delay_test;
-                const double pmax = 0.40; /* max percent reduce when cmavg==lo */
+                const double pmax = 0.31; /* max percent reduce when cmavg==lo */
                 const double pmin = 0.01; /* min percent reduce when cmavg==hi */
                 double p;
 

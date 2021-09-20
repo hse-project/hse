@@ -31,7 +31,7 @@
 #define PERFC_GRP_MAX \
   ((PERFC_VALPERCNT * SMP_CACHE_BYTES * 2) / ((PERFC_IVL_MAX + 1) * sizeof(struct perfc_bkt)))
 
-#define PERFC_PCT_SCALE     (128)
+#define PERFC_PCT_SCALE     (1u << 20)
 #define PERFC_CTRS_MAX      (64)
 
 enum perfc_type {

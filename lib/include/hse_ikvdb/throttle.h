@@ -28,7 +28,7 @@ enum {
  * Comments show the corresponding rate.
  */
 #define THROTTLE_DELAY_MAX           268435456  /*        500,000  bytes/sec */
-#define THROTTLE_DELAY_START_DEFAULT   4194303  /*     32,000,007  bytes/sec */
+#define THROTTLE_DELAY_START_DEFAULT   2097151  /*     64,000,030  bytes/sec */
 #define THROTTLE_DELAY_START_MEDIUM     731241  /*    183,547,869  bytes/sec */
 #define THROTTLE_DELAY_START_LIGHT      251137  /*    534,440,277  bytes/sec */
 #define THROTTLE_DELAY_MIN                8192  /* 16,384,000,000  bytes/sec */

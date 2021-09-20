@@ -55,7 +55,7 @@ tbkt_test(struct mtf_test_info *lcl_ti, u64 burst, u64 rate)
 {
     struct tbkt tb;
     u64         grow, req, req_tot;
-    u64         delay;
+    u64         delay, now;
     int         debug = 1;
     int         i;
     uint        tolerance = 10;
@@ -75,7 +75,7 @@ tbkt_test(struct mtf_test_info *lcl_ti, u64 burst, u64 rate)
         req = min(grow, burst - req_tot);
         req_tot += req;
 
-        delay = tbkt_request(&tb, req);
+        delay = tbkt_request(&tb, req, &now);
         ASSERT_EQ_RET(delay, 0, -1);
 
         if (grow < S64_MAX / 2)
@@ -87,7 +87,7 @@ tbkt_test(struct mtf_test_info *lcl_ti, u64 burst, u64 rate)
      * tokens each time.
      */
     delay = 0;
-    while ((delay = tbkt_request(&tb, rate)) == 0)
+    while ((delay = tbkt_request(&tb, rate, &now)) == 0)
         ;
     ASSERT_LE_RET(delay, NSEC_PER_SEC, -1);
 
@@ -96,7 +96,7 @@ tbkt_test(struct mtf_test_info *lcl_ti, u64 burst, u64 rate)
      * delay of (i * 2 * rate).
      */
     for (i = 0; i < 5; i++) {
-        delay = tbkt_request(&tb, 2 * rate);
+        delay = tbkt_request(&tb, 2 * rate, &now);
         if (tbkt_check_delay(lcl_ti, i * 2 * NSEC_PER_SEC, tolerance, debug))
             return -1;
     }

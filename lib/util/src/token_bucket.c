@@ -7,7 +7,6 @@
 
 #include <hse_util/timing.h>
 #include <hse_util/timer.h>
-#include <hse_util/delay.h>
 #include <hse_util/token_bucket.h>
 
 /* MTF_MOCK_DECL(token_bucket) */
@@ -120,7 +119,15 @@ tbkti_balance(struct tbkt *self, u64 now)
     if (HSE_UNLIKELY(dt > self->tb_dt_max))
         return self->tb_burst;
 
-    refill = (u64) ((double) self->tb_rate * dt * 1e-9);
+    /* If (rate * dt) wont overflow 64 bits then we use fast compute refill
+     * using integer operations.  Note that the optimizer will turn division
+     * by a constant into a multiply-shift.
+     */
+    if (((self->tb_rate | dt) >> 32) == 0) {
+        refill = (self->tb_rate * dt) / NSEC_PER_SEC;
+    } else {
+        refill = (u64) ((double) self->tb_rate * dt * 1e-9);
+    }
 
     if (refill > self->tb_burst - self->tb_balance)
         return self->tb_burst;
@@ -129,10 +136,8 @@ tbkti_balance(struct tbkt *self, u64 now)
 }
 
 static void
-tbkti_refill(struct tbkt *self)
+tbkti_refill(struct tbkt *self, u64 now)
 {
-    u64 now = get_time_ns();
-
     self->tb_balance = tbkti_balance(self, now);
     self->tb_refill_time = now;
 }
@@ -141,8 +146,8 @@ void
 tbkt_adjust(struct tbkt *self, u64 burst, u64 rate)
 {
     spin_lock(&self->tb_lock);
-    tbkti_burst_set(self, (u64)burst);
-    tbkti_refill(self);
+    tbkti_burst_set(self, burst);
+    tbkti_refill(self, get_time_ns());
     tbkti_rate_set(self, rate);
     spin_unlock(&self->tb_lock);
 }
@@ -171,19 +176,18 @@ tbkt_rate_get(struct tbkt *self)
  * tbkt_request() - returns the number of nanoseconds the caller should
  *                  delay to respect the rate limit.
  *
- * Spinlock thrashing avoidance: The token bucket lock is acquired
- * with spin_trylock instead spin_lock.  When the trylock fails, a
- * small delay is returned without modifying the token bucket state.
- * The seems to eliminate spinlock thrashing which would otherwise
- * occur when many threads make small token requests (e.g., 200+
- * threads "putting" 0-byte values).  Returning a small fixed delay when
- * trylock fails seems not to affect overall rate because:
- *   - Measurements with worst case workloads show this trylock fails
- *     less than 0.5% of the time, so even if the fixed delay is
- *     inaccurate, it does not significantly impact overall rate.
- *   - Trylock failures typically occur when the average delay is
- *     small in the first place (the larger the delay, the more time
- *     between requests, less likely to have lock contention).
+ * The token bucket is protected by a spin lock which is acquired via
+ * spin_trylock().  If the trylock fails, a small delay is returned
+ * without modifying the token bucket state.
+ *
+ * On a typical dual processor Xeon with two NUMA nodes and a low call
+ * rate by many threads the lock is typically acquired about 93 to 98
+ * percent of the time, while under a high call rate by many threads the
+ * rate can easily drop to 85 percent or lower.  In the latter case, the
+ * delay that would have been returned is likely to be very small (if not
+ * zero), so we simply return a small, fixed delay.  This seems to fairly
+ * work well in practice, but likely favors CPUs closer to the NUMA node
+ * in which the lock resides.
  *
  * Preventing a balance inversion: Requests must not reduce balance so
  * much it flips form a negative balance to a positive balance.  In
@@ -194,8 +198,20 @@ tbkt_rate_get(struct tbkt *self)
  * avoided by reducing the request size if an update would cause an
  * inversion.
  */
+
+#if HSE_TBKT_DEBUG
+#include <hse_util/logging.h>
+
+struct tstats {
+    ulong calls;
+    ulong updates;
+};
+
+static __thread struct tstats tstats;
+#endif
+
 u64
-tbkt_request(struct tbkt *self, u64 request)
+tbkt_request(struct tbkt *self, u64 request, u64 *now)
 {
     u64 delay, rate, amount;
     u64 request_max;
@@ -204,11 +220,17 @@ tbkt_request(struct tbkt *self, u64 request)
     if (HSE_UNLIKELY(request == 0 || self->tb_rate == 0))
         return 0;
 
-    if (!spin_trylock(&self->tb_lock))
+#if HSE_TBKT_DEBUG
+    ++tstats.calls;
+#endif
+
+    *now = get_time_ns();
+
+    if (HSE_UNLIKELY(!spin_trylock(&self->tb_lock)))
         return 128;
 
     /* Refill the bucket based on elapsed time. */
-    tbkti_refill(self);
+    tbkti_refill(self, *now);
 
     /* Prevent balance inversion */
     request_max = self->tb_balance - self->tb_burst - 1u;
@@ -225,6 +247,17 @@ tbkt_request(struct tbkt *self, u64 request)
     spin_unlock(&self->tb_lock);
 
     delay = debt ? amount * NSEC_PER_SEC / rate : 0;
+
+#if HSE_TBKT_DEBUG
+    if (++tstats.updates % 1048576 == 0) {
+        hse_log(HSE_NOTICE "%s: %8lu %8lu %4lu, %8lu %lu",
+                __func__, tstats.calls, tstats.updates,
+                (tstats.updates * 1000) / tstats.calls,
+                rate, delay);
+        tstats.updates /= 2;
+        tstats.calls /= 2;
+    }
+#endif
 
     return delay;
 }

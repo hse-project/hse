@@ -14,6 +14,7 @@
 #include <hse_util/assert.h>
 #include <hse_util/logging.h>
 #include <hse_util/perfc.h>
+#include <hse_util/vlb.h>
 
 #include <hse_ikvdb/kvs_rparams.h>
 #include <hse_ikvdb/tuple.h>
@@ -190,27 +191,26 @@ vbb_create(
 {
     struct vblock_builder  *bld;
     struct kvs_rparams     *rp;
+    void                   *wbuf;
 
     assert(builder_out);
 
-    bld = calloc(1, sizeof(*bld));
-    if (ev(!bld))
-        return merr(ENOMEM);
-
     rp = cn_get_rp(cn);
 
+    wbuf = vlb_alloc(WBUF_LEN_MAX + sizeof(*bld));
+    if (ev(!wbuf))
+        return merr(ENOMEM);
+
+    bld = wbuf + WBUF_LEN_MAX;
+
+    memset(bld, 0, sizeof(*bld));
     bld->cn = cn;
     bld->pc = pc;
     bld->ds = cn_get_dataset(cn);
     bld->vgroup = vgroup;
     bld->max_size = rp->vblock_size;
     bld->agegroup = HSE_MPOLICY_AGE_LEAF;
-
-    bld->wbuf = alloc_page_aligned(WBUF_LEN_MAX);
-    if (ev(!bld->wbuf)) {
-        free(bld);
-        return merr(ENOMEM);
-    }
+    bld->wbuf = wbuf;
 
     *builder_out = bld;
 
@@ -227,8 +227,7 @@ vbb_destroy(struct vblock_builder *bld)
     abort_mblocks(bld->ds, &bld->vblk_list);
     blk_list_free(&bld->vblk_list);
 
-    free_aligned(bld->wbuf);
-    free(bld);
+    vlb_free(bld->wbuf, WBUF_LEN_MAX + sizeof(*bld));
 }
 
 /* Add a value to vblock.  Create new vblock if needed. */

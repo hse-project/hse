@@ -13,6 +13,8 @@
 
 /* MTF_MOCK_DECL(csched_sp3_work) */
 
+/* clang-format off */
+
 struct cn_tree_node;
 struct cn_compaction_work;
 
@@ -46,11 +48,11 @@ struct sp3_thresholds {
 /* rspill and ispill require at least 1 kvset,
  * lcomp and llen require at least 2 kvsets.
  */
-#define SP3_RSPILL_KVSETS_MIN ((u8)1)
-#define SP3_ISPILL_KVSETS_MIN ((u8)1)
-#define SP3_LCOMP_KVSETS_MIN ((u8)2)
-#define SP3_LLEN_RUNLEN_MIN ((u8)2)
-#define SP3_LSCAT_THRESH_MIN ((u8)2)
+#define SP3_RSPILL_KVSETS_MIN   ((u8)1)
+#define SP3_ISPILL_KVSETS_MIN   ((u8)1)
+#define SP3_LCOMP_KVSETS_MIN    ((u8)2)
+#define SP3_LLEN_RUNLEN_MIN     ((u8)2)
+#define SP3_LSCAT_THRESH_MIN    ((u8)2)
 
 /* MTF_MOCK */
 merr_t
@@ -63,26 +65,32 @@ sp3_work(
     struct cn_compaction_work **wp);
 
 /* work queues */
-#define SP3_QNUM_UNUSED 0
-#define SP3_QNUM_INTERN 1
-#define SP3_QNUM_LEAF 2
-#define SP3_QNUM_LEAFBIG 3
-#define SP3_QNUM_LSCAT 4
-#define SP3_NUM_QUEUES 5
+#define SP3_QNUM_ROOT           (0)
+#define SP3_QNUM_INTERN         (1)
+#define SP3_QNUM_LEAF           (2)
+#define SP3_QNUM_LEAFBIG        (3)
+#define SP3_QNUM_LSCAT          (4)
+#define SP3_NUM_QUEUES          (5)
 
 /* queue thread counts */
-#define SP3_QTHREADS_INTERN 4ul
-#define SP3_QTHREADS_LEAF 4ul    /* these jobs don't use shared queue */
-#define SP3_QTHREADS_LEAFBIG 4ul /* these jobs don't use shared queue */
-#define SP3_QTHREADS_LSCAT 2ul
-#define SP3_QTHREADS_SHARED 20ul
+#define SP3_QTHREADS_ROOT       (3ul)
+#define SP3_QTHREADS_INTERN     (4ul)
+#define SP3_QTHREADS_LEAF       (4ul) /* these jobs don't use shared queue */
+#define SP3_QTHREADS_LEAFBIG    (4ul) /* these jobs don't use shared queue */
+#define SP3_QTHREADS_LSCAT      (2ul)
+#define SP3_QTHREADS_SHARED     (4ul)
 
 /* Default value CSCHED_QTHREADS rparam.
  */
-#define CSCHED_QTHREADS_DEFAULT                                                                    \
-    ((SP3_QTHREADS_INTERN << (8 * SP3_QNUM_INTERN)) | (SP3_QTHREADS_LEAF << (8 * SP3_QNUM_LEAF)) | \
-     (SP3_QTHREADS_LEAFBIG << (8 * SP3_QNUM_LEAFBIG)) |                                            \
-     (SP3_QTHREADS_LSCAT << (8 * SP3_QNUM_LSCAT)) | (SP3_QTHREADS_SHARED << (8 * SP3_NUM_QUEUES)))
+#define CSCHED_QTHREADS_DEFAULT                                         \
+    ((SP3_QTHREADS_ROOT << (8 * SP3_QNUM_ROOT)) |                       \
+     (SP3_QTHREADS_INTERN << (8 * SP3_QNUM_INTERN)) |                   \
+     (SP3_QTHREADS_LEAF << (8 * SP3_QNUM_LEAF)) |                       \
+     (SP3_QTHREADS_LEAFBIG << (8 * SP3_QNUM_LEAFBIG)) |                 \
+     (SP3_QTHREADS_LSCAT << (8 * SP3_QNUM_LSCAT)) |                     \
+     (SP3_QTHREADS_SHARED << (8 * SP3_NUM_QUEUES)))
+
+/* clang-format off */
 
 #if HSE_MOCKING
 #include "csched_sp3_work_ut.h"

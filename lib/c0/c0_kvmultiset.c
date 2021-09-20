@@ -82,10 +82,6 @@ struct c0_kvmultiset_impl {
     size_t     c0ms_c0snr_max HSE_ALIGNED(SMP_CACHE_BYTES);
     uintptr_t *c0ms_c0snr_base;
 
-    /* The size of c0ms_sets[] must accomodate at least (2x + 1) of the
-     * maximum width so that we can leverage a power-of-two modulus to
-     * select a bucket from a given hash.
-     */
     u32              c0ms_num_sets;
     u32              c0ms_ptreset_sz;
     struct c0_kvset *c0ms_sets[HSE_C0_INGEST_WIDTH_MAX * 2 + 1];
@@ -110,7 +106,7 @@ c0kvms_get_hashed_c0kvset(struct c0_kvmultiset *handle, u64 hash)
     struct c0_kvmultiset_impl *self = c0_kvmultiset_h2r(handle);
     uint                       idx;
 
-    idx = hash % (HSE_C0_INGEST_WIDTH_MAX * 2);
+    idx = hash % HSE_C0_INGEST_WIDTH_MAX;
 
     return self->c0ms_sets[idx + 1]; /* skip ptomb c0kvset at index zero */
 }
@@ -237,20 +233,20 @@ bool
 c0kvms_should_ingest(struct c0_kvmultiset *handle)
 {
     struct c0_kvmultiset_impl *self = c0_kvmultiset_h2r(handle);
-    const uint                 scaler = 1u << 20;
+    const size_t               scaler = 1u << 30;
+    size_t                     sum_kvbytes, r;
     uint                       sum_keyvals, sum_height;
-    uint                       ndiv, n, r;
-    bool                       full = false;
+    uint                       ndiv, n;
+
+    r = xrand64_tls();
+
+    if (HSE_LIKELY((r % scaler) < (93 * scaler) / 100))
+        return false;
 
     if (atomic_read(&self->c0ms_ingesting) > 0)
         return true;
 
-    r = xrand64_tls();
-
-    if (HSE_LIKELY((r % scaler) < (97 * scaler) / 100))
-        return false;
-
-    /* Only 3% of callers reach this point to sample a random half
+    /* Only 7% of callers reach this point to sample a random third
      * of the available c0 kvsets and return true if any of the
      * following are true:
      *
@@ -258,32 +254,35 @@ c0kvms_should_ingest(struct c0_kvmultiset *handle)
      * 2) The height of any bonsai tree is greater than 24
      * 3) The average number of values for all keys exceeds 2048
      * 4) The average height of all trees exceeds 22.
+     * 5) The (interpolated) size of the keys+values exceeds 2048MB.
      */
-    sum_keyvals = sum_height = ndiv = 0;
+    sum_kvbytes = sum_keyvals = sum_height = ndiv = 0;
 
     /* r may safely range from 0 to (WIDTH_MAX * 2) (see c0kvms_create()).
      */
     r = (r % HSE_C0_INGEST_WIDTH_MAX) + 1; /* skip ptomb c0kvset at index zero */
-    n = self->c0ms_num_sets / 2;
+    n = self->c0ms_num_sets / 3;
 
     while (n-- > 0) {
         uint height, keyvals, cnt;
+        size_t kvbytes;
 
-        cnt = c0kvs_get_element_count2(self->c0ms_sets[r++], &height, &keyvals, &full);
-
-        if (full)
-            return true;
+        cnt = c0kvs_get_element_count2(self->c0ms_sets[r++], &height, &keyvals, &kvbytes);
 
         if (cnt > 0) {
             if (ev(keyvals > 4096 || height > 24))
                 return true;
 
+            sum_kvbytes += kvbytes;
             sum_keyvals += keyvals;
             sum_height += height;
 
             ndiv++;
         }
     }
+
+    if (ndiv > 3 && ev((sum_kvbytes >> 20) > (2048 / HSE_C0_INGEST_WIDTH_MAX) * ndiv))
+        return true; /* interpolated size is greater than 2048MB */
 
     if (ev((sum_keyvals / 2048) > ndiv))
         return true;
@@ -549,10 +548,7 @@ c0kvms_cursor_create(
     err = bin_heap2_create(
         HSE_C0_INGEST_WIDTH_MAX, reverse ? bn_kv_cmp_rev : bn_kv_cmp, &cur->c0mc_bh);
     if (ev(err)) {
-        hse_elog(
-            HSE_ERR "c0kvms_cursor_create: "
-                    "cannot create binheap: @@e",
-            err);
+        hse_elog(HSE_ERR "%s: bin_heap2_create failed: @@e", err, __func__);
         return err;
     }
 
@@ -810,12 +806,9 @@ c0kvms_create(u32 num_sets, atomic64_t *kvdb_seq, void **stashp, struct c0_kvmul
         ++kvms->c0ms_num_sets;
     }
 
-    /* Copy existing c0kvs pointers to the remainder of the slots so that
-     * we can use a power-of-two modulus in c0kvms_get_hashed_c0kvset and
-     * completely avoid use of a modulus in c0kvms_should_ingest().
+    /* Copy c0kvs pointers (not including the ptomb c0kvs) to the remaining slots
+     * such that we eliminate wrapping in c0kvms_should_ingest().
      */
-    assert(NELEM(kvms->c0ms_sets) > HSE_C0_INGEST_WIDTH_MAX);
-
     for (j = 1; i < NELEM(kvms->c0ms_sets); ++i, ++j) {
         kvms->c0ms_sets[i] = kvms->c0ms_sets[j];
     }

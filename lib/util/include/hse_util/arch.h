@@ -46,11 +46,7 @@ get_cycles(void)
  * hse_getcpu() - get calling thread's current vcpu and node IDs
  * @node:  returns calling thread's physical node ID
  *
- * Note that if you build with -DHSE_USE_RDPID then libhse will
- * run only on CPUs that support the rdpid instruction (similar
- * to compiling with -march=native).
- *
- * Note also that the optimizer should eliminate the node ptr
+ * Note that the optimizer should eliminate the node ptr
  * comparison and branch in most use cases (regardless of
  * whether node ptr is nil).
  */
@@ -59,7 +55,7 @@ hse_getcpu(uint *node)
 {
     uint aux;
 
-#if HSE_USE_RDPID && __RDPID__
+#if __RDPID__
     aux = _rdpid_u32();
 #else
     __rdtscp(&aux);

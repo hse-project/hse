@@ -109,7 +109,7 @@ struct c0sk_impl {
 
     struct {
         atomic_t refcnt HSE_ALIGNED(SMP_CACHE_BYTES * 2);
-    } c0sk_ingest_refv[8];
+    } c0sk_ingest_refv[16];
 
     /* HSE_REVISIT: must track ALL c0sk cursors, so can invalidate them */
 

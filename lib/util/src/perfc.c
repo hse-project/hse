@@ -5,14 +5,10 @@
 
 #define MTF_MOCK_IMPL_perfc
 
-#include <assert.h>
-#include <stdio.h>
-
 #include <hse_util/platform.h>
 #include <hse_util/alloc.h>
 #include <hse_util/slab.h>
 #include <hse_util/data_tree.h>
-#include <hse_util/perfc.h>
 #include <hse_util/list.h>
 #include <hse_util/minmax.h>
 #include <hse_util/parse_num.h>
@@ -20,13 +16,13 @@
 #include <hse_util/log2.h>
 #include <hse_util/string.h>
 #include <hse_util/event_counter.h>
-
-#include <rbtree.h>
+#include <hse_util/xrand.h>
+#include <hse_util/perfc.h>
 
 #define PERFC_PRIO_MIN 1
 #define PERFC_PRIO_MAX 4
 
-static char *pc_type_names[] = {
+static const char * const pc_type_names[] = {
     "Invalid", "Basic", "Rate", "Distribution", "Latency", "SimpleLatency",
 };
 
@@ -974,7 +970,7 @@ perfc_dis_record_impl(struct perfc_dis *dis, u64 sample)
 {
     assert(dis->pdi_hdr.pch_type == PERFC_TYPE_DI);
 
-    if (get_cycles() % PERFC_PCT_SCALE < dis->pdi_pct)
+    if (xrand64_tls() % PERFC_PCT_SCALE < dis->pdi_pct)
         perfc_latdis_record(dis, sample);
 }
 

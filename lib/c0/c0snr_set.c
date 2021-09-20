@@ -48,7 +48,7 @@ struct c0snr_set_bkt {
  */
 struct c0snr_set_impl {
     struct c0snr_set     css_handle;
-    struct c0snr_set_bkt css_bktv[10];
+    struct c0snr_set_bkt css_bktv[16];
 } HSE_ALIGNED(SMP_CACHE_BYTES * 2);
 
 struct c0snr_set_entry;
@@ -248,7 +248,7 @@ c0snr_set_get_c0snr(struct c0snr_set *handle, struct kvdb_ctxn *ctxn)
     cpu = hse_getcpu(&node);
 
     bkt = self->css_bktv + (node % 2) * (NELEM(self->css_bktv) / 2);
-    bkt += cpu % (NELEM(self->css_bktv) / 2);
+    bkt += (cpu / 2) % (NELEM(self->css_bktv) / 2);
     tries = NELEM(self->css_bktv);
 
     while (tries-- > 0) {

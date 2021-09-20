@@ -206,7 +206,7 @@ sp3_work_ispill(
     uint                 cnt;
 
     cnt = sp3_work_ispill_find_kvsets(spn, cnt_max * 4, mark);
-    if (cnt < 1 || cnt < cnt_min)
+    if (cnt < cnt_min)
         return 0;
 
     *action = CN_ACTION_SPILL;
@@ -706,7 +706,7 @@ sp3_work(
 
             case wtype_leaf_scatter:
                 n_kvsets = sp3_work_leaf_scatter(spn, thresh, &mark, &action, &rule, &bonus);
-                *qnum_out = SP3_QNUM_LEAFBIG;
+                *qnum_out = SP3_QNUM_LSCAT;
                 break;
 
             default:
@@ -714,18 +714,23 @@ sp3_work(
                 break;
         }
     } else {
-        uint cmin;
-        uint cmax;
+        uint cmin, cmax;
 
         switch (wtype) {
             case wtype_rspill:
+                cmin = thresh->rspill_kvsets_min;
+                cmax = thresh->rspill_kvsets_max;
+                *qnum_out = SP3_QNUM_ROOT;
+                break;
             case wtype_node_len:
                 cmin = thresh->rspill_kvsets_min;
                 cmax = thresh->rspill_kvsets_max;
+                *qnum_out = SP3_QNUM_INTERN;
                 break;
             case wtype_ispill:
                 cmin = thresh->ispill_kvsets_min;
                 cmax = thresh->ispill_kvsets_max;
+                *qnum_out = SP3_QNUM_INTERN;
                 break;
             default:
                 ev(1, HSE_WARNING);
@@ -733,8 +738,6 @@ sp3_work(
         }
 
         n_kvsets = sp3_work_ispill(spn, cmin, cmax, &mark, &action, &rule);
-
-        *qnum_out = SP3_QNUM_INTERN;
     }
 
     if (n_kvsets == 0)

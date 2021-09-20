@@ -945,18 +945,12 @@ c0sk_release_multiset(struct c0sk_impl *self, struct c0_kvmultiset *multiset)
 static bool
 c0sk_ingest_boost(struct c0sk_impl *self)
 {
-    struct kvdb_rparams *rp = self->c0sk_kvdb_rp;
-    char                 namebuf[16];
-    int                  rc;
+    char namebuf[16];
+    int rc;
 
-    if (rp->throttle_relax) {
-        rc = pthread_getname_np(pthread_self(), namebuf, sizeof(namebuf));
+    rc = pthread_getname_np(pthread_self(), namebuf, sizeof(namebuf));
 
-        if (!rc && 0 == strncmp(namebuf, "repl wr", 7))
-            return true;
-    }
-
-    return (rp->throttle_relax > 1);
+    return !rc && 0 == strncmp(namebuf, "repl wr", 7);
 }
 
 /**
@@ -1001,7 +995,7 @@ c0sk_ingestref_get(struct c0sk_impl *self, bool is_txn, void **cookiep)
         cpu = hse_getcpu(&node);
 
         idx = node % (NELEM(self->c0sk_ingest_refv) / 2);
-        idx += cpu % (NELEM(self->c0sk_ingest_refv) / 2);
+        idx += (cpu / 2) % (NELEM(self->c0sk_ingest_refv) / 2);
 
         ptr = &self->c0sk_ingest_refv[idx].refcnt;
 

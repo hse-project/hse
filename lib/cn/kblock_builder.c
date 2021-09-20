@@ -25,6 +25,7 @@
 #include <hse_util/perfc.h>
 #include <hse_util/hlog.h>
 #include <hse_util/log2.h>
+#include <hse_util/vlb.h>
 
 #include "omf.h"
 #include "blk_list.h"
@@ -149,6 +150,7 @@ struct curr_kblock {
     void *bloom;
     uint  bloom_len;
     uint  bloom_alloc_len;
+    uint  bloom_used_max;
 };
 
 static HSE_ALWAYS_INLINE uint
@@ -497,8 +499,8 @@ kblock_reset(struct curr_kblock *kblk)
 static void
 kblock_free(struct curr_kblock *kblk)
 {
+    vlb_free(kblk->bloom, kblk->bloom_used_max);
     free_aligned(kblk->kblk_hdr);
-    free_aligned(kblk->bloom);
 
     wbb_destroy(kblk->wbtree);
     hash_set_free(&kblk->hash_set);
@@ -598,16 +600,21 @@ _kblock_finish_bloom(struct curr_kblock *kblk, struct bloom_hdr_omf *blm_hdr)
         memset(&bloom, 0, sizeof(bloom));
     } else {
         kblk->bloom_len = kblk->blm_pgc * PAGE_SIZE;
-        if (kblk->bloom_alloc_len < kblk->bloom_len) {
-            free_aligned(kblk->bloom);
-            kblk->bloom = alloc_page_aligned(kblk->bloom_len);
+
+        if (kblk->bloom_len > kblk->bloom_alloc_len) {
+            kblk->bloom_alloc_len = roundup(kblk->bloom_len, 1u << 20);
+
+            vlb_free(kblk->bloom, kblk->bloom_used_max);
+
+            kblk->bloom = vlb_alloc(kblk->bloom_alloc_len);
             if (ev(!kblk->bloom)) {
                 kblk->bloom_len = 0;
                 kblk->bloom_alloc_len = 0;
                 return merr(ENOMEM);
             }
-            kblk->bloom_alloc_len = kblk->bloom_len;
         }
+
+        kblk->bloom_used_max = max_t(uint, kblk->bloom_used_max, kblk->bloom_len);
 
         memset(kblk->bloom, 0, kblk->bloom_len);
         bf_filter_init(&bloom, kblk->desc, kblk->num_keys, kblk->bloom, kblk->bloom_len);

@@ -775,7 +775,7 @@ sp3_refresh_thresholds(struct sp3 *sp)
             thresh.ispill_kvsets_max = (v >> 0) & 0xff;
             thresh.ispill_kvsets_min = (v >> 8) & 0xff;
         } else {
-            thresh.ispill_kvsets_max = 12;
+            thresh.ispill_kvsets_max = 8;
             thresh.ispill_kvsets_min = 1;
         }
         thresh.ispill_kvsets_min = max(thresh.ispill_kvsets_min, SP3_ISPILL_KVSETS_MIN);
@@ -1960,9 +1960,9 @@ sp3_schedule(struct sp3 *sp)
 
             case jtype_root:
                 /* Implements root node query-shape rule.
-                 * Uses "intern" queue.
+                 * Uses "root" queue.
                  */
-                qi = sp->qinfo + SP3_QNUM_INTERN;
+                qi = sp->qinfo + SP3_QNUM_ROOT;
                 if (qfull(qi) && shared_full)
                     break;
                 job = sp3_check_roots(sp);
@@ -2390,6 +2390,7 @@ sp3_create(
     hse_slog(
         HSE_NOTICE,
         HSE_SLOG_START("cn_threads"),
+        HSE_SLOG_FIELD("root", "%lu", (rp->csched_qthreads >> (8 * SP3_QNUM_ROOT)) & 0xff),
         HSE_SLOG_FIELD("intern", "%lu", (rp->csched_qthreads >> (8 * SP3_QNUM_INTERN)) & 0xff),
         HSE_SLOG_FIELD("leaf", "%lu", (rp->csched_qthreads >> (8 * SP3_QNUM_LEAF)) & 0xff),
         HSE_SLOG_FIELD("leafbig", "%lu", (rp->csched_qthreads >> (8 * SP3_QNUM_LEAFBIG)) & 0xff),

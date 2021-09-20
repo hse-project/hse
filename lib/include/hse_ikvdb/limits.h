@@ -16,17 +16,17 @@
 #define HSE_C0_CHEAP_SZ_DFLT        (128ul << 20)
 #define HSE_C0_CHEAP_SZ_MAX         (256ul << 20)
 
-#define HSE_C0_INGEST_WIDTH_MIN     (8)
-#define HSE_C0_INGEST_WIDTH_DFLT    (18)
-#define HSE_C0_INGEST_WIDTH_MAX     (32)
+#define HSE_C0_INGEST_WIDTH_MIN     (23)
+#define HSE_C0_INGEST_WIDTH_DFLT    (37)
+#define HSE_C0_INGEST_WIDTH_MAX     (37)
 
 #define HSE_C0_INGEST_THREADS_MIN   (1)
 #define HSE_C0_INGEST_THREADS_DFLT  (3)
 #define HSE_C0_INGEST_THREADS_MAX   (5)
 
 #define HSE_C0_MAINT_THREADS_MIN    (1)
-#define HSE_C0_MAINT_THREADS_DFLT   (5)
-#define HSE_C0_MAINT_THREADS_MAX    (32)
+#define HSE_C0_MAINT_THREADS_DFLT   (3)
+#define HSE_C0_MAINT_THREADS_MAX    (7)
 
 /* The defines for the max number of entries in the viewset and snr
  * caches are totals for the entire cache.  Any given thread will
