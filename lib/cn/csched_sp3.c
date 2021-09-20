@@ -1876,13 +1876,30 @@ sp3_qos_check(struct sp3 *sp)
         u64 K;
         u64 r = rootlen * 100;
         u64 nsec = atomic64_read(&sp->rspill_dt) / NSEC_PER_SEC;
-        u64 min = 16, max = 80;
+        u64 min_lat = 16, max_lat = 80;
 
-        nsec = clamp_t(u64, nsec, min, max);
-
-        /* Map a latency of [16s, 80s] to the range [500, 600].
+        /* Since, the throttling system's sensitivty to sensor values over 1000 is non-linear, the
+         * sensor value is not incremented at a high rate once it gets over 1000.
+         *
+         * The mathematical function used here is:
+         *
+         *   sval = 3KR / (K + R)
+         *
+         * where,
+         *   K is a parameter in the range [500, 600], and
+         *   R is the root node length times a hundred
+         *
+         * The parameter K is determined based on the latency of a root spill, i.e. it's an
+         * indicator of the available media bandwidth. K determines the root node length for which
+         * the sensor value surpasses 1000. Lower the value of K, higher is this root node length.
+         *
+         * This was tested for extremes of slow and fast drives and a latency range of 16s to 80s
+         * worked well. Map a latency of [16s, 80s] to the range [500, 600]:
+         *
          *   K = (100 * nsec / 64) + 475;
          */
+
+        nsec = clamp_t(u64, nsec, min_lat, max_lat);
         K = ((100 * nsec) + (475 * 64)) / 64;
         sval = (K * r * 3) / (K + r);
     }
@@ -1899,7 +1916,6 @@ sp3_qos_check(struct sp3 *sp)
             HSE_SLOG_FIELD("samp_targ", "%.3f", scale2dbl(sp->samp_targ)),
             HSE_SLOG_FIELD("lpct_curr", "%.3f", scale2dbl(sp->lpct_curr)),
             HSE_SLOG_FIELD("lpct_targ", "%.3f", scale2dbl(sp->lpct_targ)),
-            HSE_SLOG_FIELD("lpct_throttle", "%.3f", scale2dbl(sp->lpct_throttle)),
             HSE_SLOG_END);
     }
 }

@@ -636,7 +636,7 @@ ikvdb_init_throttle_params(struct ikvdb_impl *self)
     /* Hand out throttle sensors */
 
     csched_throttle_sensor(self->ikdb_csched,
-                           throttle_sensor(&self->ikdb_throttle, THROTTLE_SENSOR_CSCHED_ROOT));
+                           throttle_sensor(&self->ikdb_throttle, THROTTLE_SENSOR_CNROOT));
 
     c0sk_throttle_sensor(
         self->ikdb_c0sk, throttle_sensor(&self->ikdb_throttle, THROTTLE_SENSOR_C0SK));
