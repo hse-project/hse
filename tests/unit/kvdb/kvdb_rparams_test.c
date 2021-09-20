@@ -556,7 +556,7 @@ MTF_DEFINE_UTEST_PRE(kvdb_rparams_test, throttle_burst, test_pre)
 	ASSERT_EQ(PARAM_TYPE_U64, ps->ps_type);
 	ASSERT_EQ((uintptr_t)ps->ps_convert, (uintptr_t)param_default_converter);
 	ASSERT_EQ((uintptr_t)ps->ps_validate, (uintptr_t)param_default_validator);
-	ASSERT_EQ(10UL << 20, params.throttle_burst);
+	ASSERT_EQ(1ul << 20, params.throttle_burst);
 	ASSERT_EQ(0, ps->ps_bounds.as_uscalar.ps_min);
 	ASSERT_EQ(UINT64_MAX, ps->ps_bounds.as_uscalar.ps_max);
 }
