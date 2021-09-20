@@ -3222,7 +3222,6 @@ cn_comp_compact(struct cn_compaction_work *w)
     bool   skip_commit = false;
     merr_t err;
     u32    i;
-    u64    ns;
     u64    ingestsz;
 
     if (ev(w->cw_err))
@@ -3259,7 +3258,6 @@ cn_comp_compact(struct cn_compaction_work *w)
      * and kv-compaction. */
     w->cw_keep_vblks = kcompact;
 
-    ns = get_time_ns();
     if (kcompact)
         err = cn_kcompact(w);
     else
@@ -3270,10 +3268,8 @@ cn_comp_compact(struct cn_compaction_work *w)
      * Discarding the kcompation for bandwidth calculation for now.
      */
     if (kcompact) {
-        ns = 0;
         ingestsz = 0;
     } else {
-        ns = get_time_ns() - ns;
         ingestsz = w->cw_stats.ms_key_bytes_out;
         ingestsz += w->cw_stats.ms_val_bytes_out;
     }

@@ -200,7 +200,8 @@ struct sp3 {
     struct workqueue_struct *wqueue;
     struct list_head         mon_tlist;
     struct sp3_thresholds    thresh;
-    struct throttle_sensor * throttle_sensor;
+    struct throttle_sensor * throttle_sensor_root;
+
     struct kvdb_health *     health;
 
     struct rb_root rbt[RBT_MAX];
@@ -244,7 +245,9 @@ struct sp3 {
     uint lpct_throttle;
 
     /* Throttle sensors */
-    uint sensor_lpct;
+    u64        rspill_dt_prev;
+    atomic64_t rspill_dt;
+
 
     u64 qos_prv_log;
 
@@ -1161,6 +1164,15 @@ sp3_process_workitem(struct sp3 *sp, struct cn_compaction_work *w)
         sp3_log_progress(w, &w->cw_stats, true);
 
     sp3_dirty_node(sp, tn);
+    if (!tn->tn_parent) {
+        u64 dt;
+
+        /* Maintain an average of the root spill's build time - used for throttling.
+         */
+        dt = w->cw_t3_build - w->cw_t2_prep;
+        sp->rspill_dt_prev = (dt + sp->rspill_dt_prev) / 2;
+        atomic64_set(&sp->rspill_dt, sp->rspill_dt_prev);
+    }
 
     free(w);
 
@@ -1837,7 +1849,9 @@ sp3_check_rb_tree(struct sp3 *sp, uint tx, u64 threshold, enum sp3_work_type wty
 static void
 sp3_qos_check(struct sp3 *sp)
 {
-    struct cn_samp_stats targ;
+    struct cn_tree *tree;
+    uint            rootlen = 0;
+    u64             sval;
 
     u64  cur_time_ns;
     bool log;
@@ -1848,60 +1862,60 @@ sp3_qos_check(struct sp3 *sp)
     if (log)
         sp->qos_prv_log = cur_time_ns;
 
-    /* Leaf percent throttle sensor -- based on leaf percentage,
-     * but only after we have a non-trivial amount of data.
-     */
-    sp3_samp_target(sp, &targ);
-    if (targ.i_alen + targ.l_alen > (128ull << 30)) {
+    if (!sp->throttle_sensor_root)
+        return;
 
-        uint lpct = sp->lpct_throttle;
-        uint N = THROTTLE_SENSOR_SCALE;
-        uint sval, cutoff;
+    list_for_each_entry (tree, &sp->mon_tlist, ct_sched.sp3t.spt_tlink) {
+        uint nk = cn_ns_kvsets(&tree->ct_root->tn_ns);
 
-        /* Convert csched_leaf_pct rparam to internal scale.
-         * Example rparam value is 90, which represents a
-         * cutoff of 90% (in the following expressions, read
-         * 'SCALE' as 100% and cutoff as 90%).  Set the sensor
-         * based on leaf percent as follows:
-         *
-         *   Leaf Pct    Sensor Value
-         *   --------    ------------
-         *      100        2000  2*N
-         *       95        1500  Linear between N and 2*N
-         *       90        1000  1*N (N==1000), cutoff
-         *       45         500  Linear between 0 and 1000)
-         *        0           0
-         */
-
-        cutoff = sp->inputs.csched_leaf_pct * SCALE / EXT_SCALE;
-
-        if (lpct < cutoff)
-
-            sval = 2 * N - (N * lpct / cutoff);
-
-        else if (lpct < SCALE)
-
-            sval = N * (SCALE - lpct) / (SCALE - cutoff);
-        else
-            sval = 0;
-
-        sp->sensor_lpct = sval;
+        rootlen = nk > rootlen ? nk : rootlen;
     }
 
-    /* Use leaf percent... */
-    if (sp->throttle_sensor)
-        throttle_sensor_set(sp->throttle_sensor, sp->sensor_lpct);
+    sval = 0;
+    if (rootlen) {
+        u64 K;
+        u64 r = rootlen * 100;
+        u64 nsec = atomic64_read(&sp->rspill_dt) / NSEC_PER_SEC;
+        u64 min_lat = 16, max_lat = 80;
+
+        /* Since, the throttling system's sensitivty to sensor values over 1000 is non-linear, the
+         * sensor value is not incremented at a high rate once it gets over 1000.
+         *
+         * The mathematical function used here is:
+         *
+         *   sval = 3KR / (K + R)
+         *
+         * where,
+         *   K is a parameter in the range [500, 600], and
+         *   R is the root node length times a hundred
+         *
+         * The parameter K is determined based on the latency of a root spill, i.e. it's an
+         * indicator of the available media bandwidth. K determines the root node length for which
+         * the sensor value surpasses 1000. Lower the value of K, higher is this root node length.
+         *
+         * This was tested for extremes of slow and fast drives and a latency range of 16s to 80s
+         * worked well. Map a latency of [16s, 80s] to the range [500, 600]:
+         *
+         *   K = (100 * nsec / 64) + 475;
+         */
+
+        nsec = clamp_t(u64, nsec, min_lat, max_lat);
+        K = ((100 * nsec) + (475 * 64)) / 64;
+        sval = (K * r * 3) / (K + r);
+    }
+
+    throttle_sensor_set(sp->throttle_sensor_root, (uint)sval);
 
     if (log) {
         hse_slog(
             HSE_NOTICE,
             HSE_SLOG_START("cn_qos_sensors"),
-            HSE_SLOG_FIELD("lpct_sensor", "%u", sp->sensor_lpct),
+            HSE_SLOG_FIELD("root_sensor", "%lu", sval),
+            HSE_SLOG_FIELD("root_len", "%u", rootlen),
             HSE_SLOG_FIELD("samp_curr", "%.3f", scale2dbl(sp->samp_curr)),
             HSE_SLOG_FIELD("samp_targ", "%.3f", scale2dbl(sp->samp_targ)),
             HSE_SLOG_FIELD("lpct_curr", "%.3f", scale2dbl(sp->lpct_curr)),
             HSE_SLOG_FIELD("lpct_targ", "%.3f", scale2dbl(sp->lpct_targ)),
-            HSE_SLOG_FIELD("lpct_throttle", "%.3f", scale2dbl(sp->lpct_throttle)),
             HSE_SLOG_END);
     }
 }
@@ -2206,7 +2220,7 @@ sp3_op_throttle_sensor(struct csched_ops *handle, struct throttle_sensor *sensor
 {
     struct sp3 *sp = h2sp(handle);
 
-    sp->throttle_sensor = sensor;
+    sp->throttle_sensor_root = sensor;
 }
 
 static void

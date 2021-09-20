@@ -17,7 +17,7 @@
 /* clang-format off */
 
 enum {
-    THROTTLE_SENSOR_CSCHED,
+    THROTTLE_SENSOR_CNROOT,
     THROTTLE_SENSOR_C0SK,
     THROTTLE_SENSOR_WAL,
     THROTTLE_SENSOR_CNT
@@ -172,7 +172,6 @@ struct throttle {
     uint                 thr_cycles;
     ulong                thr_update;
     enum throttle_state  thr_state;
-    uint                 thr_csched;
     uint                 thr_delay_prev;
     uint                 thr_delay_idelta;
     uint                 thr_delay_test;
