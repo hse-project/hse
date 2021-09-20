@@ -65,16 +65,21 @@ cgroup_version_probe(void)
      */
     while ((entry = getmntent(fp))) {
         if ((0 == strcmp(entry->mnt_type, "cgroup")) && hasmntopt(entry, "memory")) {
-            cgvers = CGROUP_VERS_1;
             free((void *)cgmntpt); /* to handle hybrid config */
+            cgvers = CGROUP_VERS_1;
             cgmntpt = strdup(entry->mnt_dir);
             break;
         } else if (0 == strcmp(entry->mnt_type, "cgroup2")) {
-            cgvers = CGROUP_VERS_2;
             cgmntpt = strdup(entry->mnt_dir);
-            /* continue for detecting an hybrid config */
+            if (!cgmntpt)
+                break;
+            cgvers = CGROUP_VERS_2;
+            /* continue for detecting a hybrid config */
         }
     }
+
+    if (!cgmntpt)
+        cgvers = CGROUP_VERS_NONE;
 
     fclose(fp);
 }

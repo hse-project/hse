@@ -566,20 +566,10 @@ MTF_DEFINE_UTEST_PRE(kvdb_meta_test, invalid_wal_oid2_underflow, test_pre)
     ASSERT_NE(0, err);
 }
 
-MTF_DEFINE_UTEST_PRE(kvdb_meta_test, from_mpool_cparams, test_pre)
+MTF_DEFINE_UTEST_PRE(kvdb_meta_test, from_mpool_cparams_absolute, test_pre)
 {
     struct mpool_cparams params;
-    struct kvdb_meta     meta = {
-        .km_omf_version = GLOBAL_OMF_VERSION,
-		.km_cndb = {
-			.oid1 = 1,
-			.oid2 = 2,
-		},
-		.km_wal = {
-			.oid1 = 3,
-			.oid2 = 4,
-		},
-	};
+    struct kvdb_meta     meta;
 
     strlcpy(
         params.mclass[MP_MED_CAPACITY].path,
@@ -595,6 +585,145 @@ MTF_DEFINE_UTEST_PRE(kvdb_meta_test, from_mpool_cparams, test_pre)
     ASSERT_STREQ(
         meta.km_storage[MP_MED_CAPACITY].path, params.mclass[MP_MED_CAPACITY].path);
     ASSERT_STREQ(meta.km_storage[MP_MED_STAGING].path, params.mclass[MP_MED_STAGING].path);
+}
+
+MTF_DEFINE_UTEST_PRE(kvdb_meta_test, from_mpool_cparams_relative, test_pre)
+{
+    struct mpool_cparams params;
+    struct kvdb_meta     meta;
+    const char *cappath = "./my_capacity";
+    const char *stgpath = "1/2/my_staging";
+    char *homedup;
+
+    strlcpy(
+        params.mclass[MP_MED_CAPACITY].path, cappath, sizeof(params.mclass[MP_MED_CAPACITY].path));
+    strlcpy(
+        params.mclass[MP_MED_STAGING].path, stgpath, sizeof(params.mclass[MP_MED_CAPACITY].path));
+
+    kvdb_meta_from_mpool_cparams(&meta, test_home, &params);
+
+    ASSERT_STREQ(
+        meta.km_storage[MP_MED_CAPACITY].path, params.mclass[MP_MED_CAPACITY].path);
+    ASSERT_STREQ(meta.km_storage[MP_MED_STAGING].path, params.mclass[MP_MED_STAGING].path);
+
+    homedup = strdup(test_home);
+    ASSERT_NE(homedup, NULL);
+
+    snprintf(params.mclass[MP_MED_CAPACITY].path,
+             sizeof(params.mclass[MP_MED_CAPACITY].path), "%s/%s", homedup, cappath);
+
+    snprintf(params.mclass[MP_MED_STAGING].path,
+             sizeof(params.mclass[MP_MED_STAGING].path), "%s/%s", homedup, stgpath);
+
+    meta.km_storage[MP_MED_CAPACITY].path[0] = '\0';
+    meta.km_storage[MP_MED_STAGING].path[0] = '\0';
+    kvdb_meta_from_mpool_cparams(&meta, test_home, &params);
+
+    ASSERT_STREQ(meta.km_storage[MP_MED_CAPACITY].path, params.mclass[MP_MED_CAPACITY].path);
+    ASSERT_STREQ(meta.km_storage[MP_MED_STAGING].path, params.mclass[MP_MED_STAGING].path);
+
+    free(homedup);
+}
+
+MTF_DEFINE_UTEST_PRE(kvdb_meta_test, meta_storage_add_absolute, test_pre)
+{
+    struct mpool_cparams params;
+    struct kvdb_meta     meta = {
+        .km_omf_version = GLOBAL_OMF_VERSION,
+		.km_cndb = {
+			.oid1 = 1,
+			.oid2 = 2,
+		},
+		.km_wal = {
+			.oid1 = 3,
+			.oid2 = 4,
+		},
+		.km_storage = {
+			{ .path = "/home/my_capacity" },
+		},
+	};
+    merr_t err;
+    const char *stgpath = "/home/my_staging";
+
+    err = kvdb_meta_create(home);
+    ASSERT_EQ(0, err);
+
+    err = kvdb_meta_serialize(&meta, home);
+    ASSERT_EQ(0, err);
+
+    memset(&meta, 0, sizeof(meta));
+
+    err = kvdb_meta_deserialize(&meta, home);
+    ASSERT_EQ(0, err);
+
+    params.mclass[MP_MED_CAPACITY].path[0] = '\0';
+    strlcpy(params.mclass[MP_MED_STAGING].path, stgpath,
+            sizeof(params.mclass[MP_MED_CAPACITY].path));
+
+    err = kvdb_meta_storage_add(&meta, home, &params);
+    ASSERT_EQ(0, err);
+
+    memset(&meta, 0, sizeof(meta));
+
+    err = kvdb_meta_deserialize(&meta, home);
+    ASSERT_EQ(0, err);
+
+    ASSERT_STREQ(meta.km_storage[MP_MED_CAPACITY].path, "/home/my_capacity");
+    ASSERT_STREQ(meta.km_storage[MP_MED_STAGING].path, params.mclass[MP_MED_STAGING].path);
+}
+
+MTF_DEFINE_UTEST_PRE(kvdb_meta_test, meta_storage_add_relative, test_pre)
+{
+    struct mpool_cparams params;
+    struct kvdb_meta     meta = {
+        .km_omf_version = GLOBAL_OMF_VERSION,
+		.km_cndb = {
+			.oid1 = 1,
+			.oid2 = 2,
+		},
+		.km_wal = {
+			.oid1 = 3,
+			.oid2 = 4,
+		},
+		.km_storage = {
+			{ .path = "my_capacity" },
+		},
+	};
+    merr_t err;
+    const char *stgpath = "1/2/my_staging";
+    char *homedup;
+
+    err = kvdb_meta_create(home);
+    ASSERT_EQ(0, err);
+
+    err = kvdb_meta_serialize(&meta, home);
+    ASSERT_EQ(0, err);
+
+    memset(&meta, 0, sizeof(meta));
+
+    err = kvdb_meta_deserialize(&meta, home);
+    ASSERT_EQ(0, err);
+
+    homedup = strdup(home);
+    ASSERT_NE(homedup, NULL);
+
+    params.mclass[MP_MED_CAPACITY].path[0] = '\0';
+    snprintf(params.mclass[MP_MED_STAGING].path,
+             sizeof(params.mclass[MP_MED_STAGING].path) - strlen(stgpath) - 1,
+             "%s/%s", homedup, stgpath);
+
+    err = kvdb_meta_storage_add(&meta, home, &params);
+    ASSERT_EQ(0, err);
+
+    memset(&meta, 0, sizeof(meta));
+
+    err = kvdb_meta_deserialize(&meta, home);
+    ASSERT_EQ(0, err);
+
+    ASSERT_STREQ(meta.km_storage[MP_MED_CAPACITY].path, "my_capacity");
+    ASSERT_STREQ(meta.km_storage[MP_MED_STAGING].path, params.mclass[MP_MED_STAGING].path);
+
+    free(homedup);
 }
 
 MTF_DEFINE_UTEST_PRE(kvdb_meta_test, to_mpool_rparams_relative, test_pre)

@@ -58,6 +58,7 @@
 #include <hse_ikvdb/wal.h>
 #include <hse_ikvdb/kvdb_meta.h>
 #include <hse_ikvdb/omf_version.h>
+#include <hse_ikvdb/kvdb_home.h>
 
 #include "kvdb_kvs.h"
 #include "viewset.h"
@@ -361,8 +362,8 @@ ikvdb_storage_add(const char *kvdb_home, struct kvdb_cparams *params)
 {
     struct kvdb_meta  meta;
     merr_t            err;
-    enum mpool_mclass mc;
     bool              mc_present[MP_MED_COUNT] = {0};
+    int               i;
 
     assert(kvdb_home);
     assert(params);
@@ -377,16 +378,39 @@ ikvdb_storage_add(const char *kvdb_home, struct kvdb_cparams *params)
         return err;
     }
 
-    for (mc = MP_MED_BASE; mc < MP_MED_COUNT; mc++) {
-        if (mc != MP_MED_CAPACITY && params->storage.mclass[mc].path[0] != '\0') {
-            if (meta.km_storage[mc].path[0] != '\0') {
+    for (i = MP_MED_BASE; i < MP_MED_COUNT; i++) {
+        if (i != MP_MED_CAPACITY && params->storage.mclass[i].path[0] != '\0') {
+            int j;
+
+            if (meta.km_storage[i].path[0] != '\0') {
                 err = merr(EEXIST);
                 goto errout;
             }
 
-            mc_present[mc] = true;
+            for (j = i - 1; j >= MP_MED_BASE; j--) {
+                if (meta.km_storage[j].path[0] != '\0') {
+                    char rpath1[PATH_MAX], rpath2[PATH_MAX];
 
-            err = mpool_mclass_add(mc, &params->storage);
+                    err = kvdb_home_storage_realpath_get(
+                            kvdb_home, meta.km_storage[j].path, rpath1, false);
+                    if (err)
+                        goto errout;
+
+                    err = kvdb_home_storage_realpath_get(
+                            kvdb_home, params->storage.mclass[i].path, rpath2, true);
+                    if (err)
+                        goto errout;
+
+                    if (!strcmp(rpath1, rpath2)) {
+                        err = merr(EINVAL);
+                        goto errout; /* Duplicate storage path */
+                    }
+                }
+            }
+
+            mc_present[i] = true;
+
+            err = mpool_mclass_add(i, &params->storage);
             if (err)
                 goto errout;
         }
@@ -402,11 +426,11 @@ errout:
     {
         struct mpool_dparams dparams = {0};
 
-        for (mc = MP_MED_BASE; mc < MP_MED_COUNT; mc++) {
-            if (mc_present[mc]) {
-                strlcpy(dparams.mclass[mc].path, params->storage.mclass[mc].path,
-                        sizeof(dparams.mclass[mc].path));
-                mpool_mclass_destroy(mc, &dparams);
+        for (i = MP_MED_BASE; i < MP_MED_COUNT; i++) {
+            if (mc_present[i]) {
+                strlcpy(dparams.mclass[i].path, params->storage.mclass[i].path,
+                        sizeof(dparams.mclass[i].path));
+                mpool_mclass_destroy(i, &dparams);
             }
         }
     }

@@ -107,6 +107,15 @@ mclass_close(struct media_class *mc)
     return 0;
 }
 
+static bool
+mclass_files_prefix(const char *path)
+{
+    const char *base = basename(path);
+
+    return strstr(base, MBLOCK_FILE_PFX) || strstr(base, MDC_FILE_PFX) ||
+        strstr(base, WAL_FILE_PFX);
+}
+
 static struct workqueue_struct *mpdwq;
 static int pathc_per_thr, pathidx, filecnt;
 
@@ -134,8 +143,10 @@ mclass_removecb(const char *path, const struct stat *sb, int typeflag, struct FT
     if (typeflag == FTW_D && ftwbuf->level > 0)
         return FTW_SKIP_SUBTREE;
 
-    if (strstr(path, MBLOCK_FILE_PFX) || strstr(path, MDC_FILE_PFX) ||
-        strstr(path, WAL_FILE_PFX)) {
+    if (typeflag == FTW_D)
+        return FTW_CONTINUE;
+
+    if (mclass_files_prefix(path)) {
         struct mp_destroy_work *w;
 
         if (!mpdwq) {
@@ -170,8 +181,10 @@ mclass_filecnt_get(const char *path, const struct stat *sb, int typeflag, struct
     if (typeflag == FTW_D && ftwbuf->level > 0)
         return FTW_SKIP_SUBTREE;
 
-    if (strstr(path, MBLOCK_FILE_PFX) || strstr(path, MDC_FILE_PFX) ||
-        strstr(path, WAL_FILE_PFX))
+    if (typeflag == FTW_D)
+        return FTW_CONTINUE;
+
+    if (mclass_files_prefix(path))
         filecnt++;
 
     return FTW_CONTINUE;
@@ -230,16 +243,23 @@ mclass_destroy_teardown(void)
     mpdw = NULL;
 }
 
+bool
+mclass_files_exist(const char *path)
+{
+    filecnt = 0;
+
+    nftw(path, mclass_filecnt_get, MCLASS_FILES_MAX, FTW_PHYS | FTW_ACTIONRETVAL);
+
+    return filecnt > 0;
+}
+
 int
 mclass_destroy(const char *path, struct workqueue_struct *wq)
 {
     if (access(path, F_OK) == -1)
         return 0;
 
-    /* Determine file count */
-    filecnt = 0;
-    nftw(path, mclass_filecnt_get, MCLASS_FILES_MAX, FTW_PHYS | FTW_ACTIONRETVAL);
-    if (filecnt == 0)
+    if (!mclass_files_exist(path))
         return 0;
 
     if (wq)
@@ -354,7 +374,10 @@ mclass_ftw(struct media_class *mc, const char *prefix, struct mpool_file_cb *cb)
         if (typeflag == FTW_D && ftwbuf->level > 0)
             return FTW_SKIP_SUBTREE;
 
-        if (!prefix || strstr(path, prefix))
+        if (typeflag == FTW_D)
+            return FTW_CONTINUE;
+
+        if (!prefix || strstr(basename(path), prefix))
             cb->cbfunc(cb->cbarg, path);
 
         return FTW_CONTINUE;

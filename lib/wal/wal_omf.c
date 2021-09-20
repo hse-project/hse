@@ -402,8 +402,11 @@ wal_filehdr_unpack(
         return ((memcmp(fhomf, &ref, sizeof(*fhomf)) == 0) ? merr(ENODATA) : merr(EBADMSG));
     }
 
-    if ((magic != omf_fh_magic(fhomf)) || (version != omf_fh_version(fhomf)))
+    if (magic != omf_fh_magic(fhomf))
         return merr(EBADMSG);
+
+    if (version != omf_fh_version(fhomf))
+        return merr(EPROTO); /* version mismatch, no upgrade support yet */
 
     return 0;
 }

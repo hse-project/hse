@@ -11,7 +11,7 @@
 /* clang-format off */
 
 #define WAL_MDC_CAPACITY        (32u << MB_SHIFT)
-#define WAL_MAGIC               (0xabcdabcd)
+#define WAL_MAGIC               (0xabcdabcdU)
 #define WAL_FILE_SIZE_BYTES     ((HSE_C0_CHEAP_SZ_DFLT * HSE_C0_INGEST_WIDTH_DFLT * 3) / 10)
 
 #define MSEC_TO_NSEC(_ms)       (NSEC_PER_SEC / MSEC_PER_SEC * (_ms))

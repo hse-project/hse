@@ -115,6 +115,13 @@ mpool_mclass_open(
         }
     }
 
+    if ((flags & O_CREAT) && mclass_files_exist(path)) {
+        hse_log(HSE_ERR "%s: mclass %d path %s already initialized, should be emptied manually",
+                __func__, mclass, path);
+        free(path);
+        return merr(EEXIST);
+    }
+
     err = mclass_open(mclass, mcp, flags, mc);
     if (err) {
         free(path);
@@ -172,6 +179,7 @@ mpool_create(const char *home, const struct mpool_cparams *cparams)
     merr_t        err;
     int           i, flags = 0;
     size_t        sz;
+    bool          rmcapdir = false;
 
     if (!home || !cparams)
         return merr(EINVAL);
@@ -189,26 +197,28 @@ mpool_create(const char *home, const struct mpool_cparams *cparams)
 
         /* If capacity path is the default, automatically create it */
         if (i == MP_MED_CAPACITY) {
-            char   buf[sizeof(cparams->mclass[i].path)];
-            size_t n = snprintf(buf, sizeof(buf), "%s/" MPOOL_CAPACITY_MCLASS_DEFAULT_PATH, home);
+            char   path[PATH_MAX];
+            size_t n;
 
-            if (n >= sizeof(cparams->mclass[i].path)) {
+            n = snprintf(path, sizeof(path), "%s/%s", home, MPOOL_CAPACITY_MCLASS_DEFAULT_PATH);
+            if (n >= sizeof(path)) {
                 err = merr(ENAMETOOLONG);
                 goto errout;
             }
 
-            if (!strcmp(buf, cparams->mclass[i].path)) {
-                DIR *dirp = opendir(buf);
+            if (!strcmp(path, cparams->mclass[i].path)) {
+                DIR *dirp = opendir(path);
                 if (dirp) {
                     if (closedir(dirp)) {
                         err = merr(errno);
                         goto errout;
                     }
                 } else if (errno == ENOENT) {
-                    if (mkdir(buf, S_IRGRP | S_IXGRP | S_IRWXU)) {
+                    if (mkdir(path, S_IRGRP | S_IXGRP | S_IRWXU)) {
                         err = merr(errno);
                         goto errout;
                     }
+                    rmcapdir = true;
                 } else {
                     err = merr(errno);
                     goto errout;
@@ -230,8 +240,13 @@ mpool_create(const char *home, const struct mpool_cparams *cparams)
     return 0;
 
 errout:
-    while (i-- > MP_MED_BASE)
+    while (i-- > MP_MED_BASE) {
         mclass_close(mp->mc[i]);
+        mclass_destroy(cparams->mclass[i].path, NULL);
+
+        if (i == MP_MED_CAPACITY && rmcapdir)
+            remove(cparams->mclass[i].path);
+    }
 
     free(mp);
 
@@ -250,7 +265,7 @@ mpool_open(
     int           i;
     size_t        sz;
 
-    if (!home || !rparams || !handle)
+    if (!home || !rparams || !handle || (flags & (O_CREAT | O_EXCL)))
         return merr(EINVAL);
 
     *handle = NULL;
@@ -330,7 +345,7 @@ mpool_destroy(const char *home, const struct mpool_dparams *dparams)
 
     destroy_workqueue(mpdwq);
 
-    snprintf(path, sizeof(path), "%s/" MPOOL_CAPACITY_MCLASS_DEFAULT_PATH, home);
+    snprintf(path, sizeof(path), "%s/%s", home, MPOOL_CAPACITY_MCLASS_DEFAULT_PATH);
     if (!strcmp(path, dparams->mclass[MP_MED_CAPACITY].path) && !remove(path))
         filecnt++;
 
@@ -502,16 +517,16 @@ mpool_mclass_ftw(
 void
 mpool_cparams_defaults(struct mpool_cparams *cparams)
 {
-    enum mpool_mclass mc;
+    int i;
 
     if (!cparams)
         return;
 
-    for (mc = MP_MED_BASE; mc < MP_MED_COUNT; mc++) {
-        cparams->mclass[mc].fmaxsz = MPOOL_MBLOCK_FILESZ_DEFAULT;
-        cparams->mclass[mc].filecnt = MPOOL_MBLOCK_FILECNT_DEFAULT;
-        cparams->mclass[mc].mblocksz = MPOOL_MBLOCK_SIZE_DEFAULT;
-        cparams->mclass[mc].path[0] = '\0';
+    for (i = MP_MED_BASE; i < MP_MED_COUNT; i++) {
+        cparams->mclass[i].fmaxsz = MPOOL_MBLOCK_FILESZ_DEFAULT;
+        cparams->mclass[i].filecnt = MPOOL_MBLOCK_FILECNT_DEFAULT;
+        cparams->mclass[i].mblocksz = MPOOL_MBLOCK_SIZE_DEFAULT;
+        cparams->mclass[i].path[0] = '\0';
     }
 
     strlcpy(cparams->mclass[MP_MED_CAPACITY].path, MPOOL_CAPACITY_MCLASS_DEFAULT_PATH,

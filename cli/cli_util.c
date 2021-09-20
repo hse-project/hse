@@ -199,12 +199,9 @@ kvdb_info_props(
     const char          *kvdb_home,
     const size_t         paramc,
     const char *const   *paramv,
-    struct yaml_context *yc,
-    bool                 verbose)
+    struct yaml_context *yc)
 {
-    struct hse_kvdb *            hdl;
-    struct hse_kvdb_storage_info info = {};
-
+    struct hse_kvdb *hdl;
     size_t    kvs_cnt;
     char **   kvs_list;
     hse_err_t err;
@@ -226,16 +223,68 @@ kvdb_info_props(
             goto exit;
         }
 
+        yaml_start_element_type(yc, "kvslist");
+        err = rest_kvs_list(socket_path, yc, kvdb_home);
+        yaml_end_element_type(yc);
+        goto exit;
+    }
+
+    err = hse_kvdb_kvs_names_get(hdl, &kvs_cnt, &kvs_list);
+    if (err) {
+        hse_kvdb_close(hdl);
+        goto exit;
+    }
+
+    yaml_start_element_type(yc, "kvslist");
+
+    for (i = 0; i < kvs_cnt; i++)
+        yaml_element_list(yc, kvs_list[i]);
+
+    yaml_end_element(yc);
+    yaml_end_element_type(yc); /* kvslist */
+
+    hse_kvdb_kvs_names_free(hdl, kvs_list);
+
+    hse_kvdb_close(hdl);
+
+exit:
+    yaml_end_element(yc);
+    yaml_end_element_type(yc); /* kvdb */
+
+    return err;
+}
+
+static hse_err_t
+kvdb_storage_info_props(
+    const char          *kvdb_home,
+    const size_t         paramc,
+    const char *const   *paramv,
+    struct yaml_context *yc)
+{
+    struct hse_kvdb *            hdl;
+    struct hse_kvdb_storage_info info = {};
+    hse_err_t err;
+    char      socket_path[PATH_MAX];
+
+    err = hse_kvdb_open(kvdb_home, paramc, paramv, &hdl);
+    if (err && hse_err_to_errno(err) != EEXIST && hse_err_to_errno(err) != ENODATA &&
+        hse_err_to_errno(err) != EBUSY)
+        return err;
+
+    yaml_start_element_type(yc, "kvdb");
+    yaml_start_element(yc, "home", kvdb_home);
+
+    if (err) {
+        err = socket_path_get(kvdb_home, socket_path, sizeof(socket_path));
+        if (err) {
+            fprintf(stderr, "Failed to find the UNIX socket for the KVDB (%s). Ensure the KVDB is open in a process.\n", kvdb_home);
+            goto exit;
+        }
+
         err = rest_storage_stats_list(yc, socket_path, &info);
-        if (!err) {
+        if (!err)
             emit_storage_info(yc, &info);
 
-            if (verbose) {
-                yaml_start_element_type(yc, "kvslist");
-                err = rest_kvs_list(socket_path, yc, kvdb_home);
-                yaml_end_element_type(yc);
-            }
-        }
         goto exit;
     }
 
@@ -244,25 +293,8 @@ kvdb_info_props(
         hse_kvdb_close(hdl);
         goto exit;
     }
+
     emit_storage_info(yc, &info);
-
-    if (verbose) {
-        err = hse_kvdb_kvs_names_get(hdl, &kvs_cnt, &kvs_list);
-        if (err) {
-            hse_kvdb_close(hdl);
-            goto exit;
-        }
-
-        yaml_start_element_type(yc, "kvslist");
-
-        for (i = 0; i < kvs_cnt; i++)
-            yaml_element_list(yc, kvs_list[i]);
-
-        yaml_end_element(yc);
-        yaml_end_element_type(yc); /* kvslist */
-
-        hse_kvdb_kvs_names_free(hdl, kvs_list);
-    }
 
     hse_kvdb_close(hdl);
 
@@ -278,12 +310,11 @@ kvdb_info_print(
     const char *         kvdb_home,
     const size_t         paramc,
     const char *const *  paramv,
-    struct yaml_context *yc,
-    bool                 verbose)
+    struct yaml_context *yc)
 {
     hse_err_t err;
 
-    err = kvdb_info_props(kvdb_home, paramc, paramv, yc, verbose);
+    err = kvdb_info_props(kvdb_home, paramc, paramv, yc);
     if (err) {
         char buf[256];
 
@@ -292,6 +323,29 @@ kvdb_info_print(
 
         hse_strerror(err, buf, sizeof(buf));
         yaml_field_fmt(yc, "error", "\"kvdb_info_props failed: %s\"", buf);
+    }
+
+    return true;
+}
+
+bool
+kvdb_storage_info_print(
+    const char *         kvdb_home,
+    const size_t         paramc,
+    const char *const *  paramv,
+    struct yaml_context *yc)
+{
+    hse_err_t err;
+
+    err = kvdb_storage_info_props(kvdb_home, paramc, paramv, yc);
+    if (err) {
+        char buf[256];
+
+        if (hse_err_to_errno(err) == ENOENT)
+            return false;
+
+        hse_strerror(err, buf, sizeof(buf));
+        yaml_field_fmt(yc, "error", "\"kvdb_storage_info_props failed: %s\"", buf);
     }
 
     return true;

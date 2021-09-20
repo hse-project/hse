@@ -91,7 +91,7 @@ MTF_DEFINE_UTEST_PREPOST(mdc_test, mdc_abc, mpool_test_pre, mpool_test_post)
     ASSERT_EQ(EINVAL, merr_errno(err));
 
     err = mpool_mdc_open(mp, logid1, logid2, &mdc);
-    ASSERT_EQ(EINVAL, merr_errno(err));
+    ASSERT_EQ(EBADMSG, merr_errno(err));
 
     err = mpool_mdc_commit(mp, logid1, logid2);
     ASSERT_EQ(0, err);

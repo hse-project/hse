@@ -123,6 +123,9 @@ loghdr_validate(struct mdc_file *mfp, uint64_t *gen)
     if (lh->magic != MDC_LOGHDR_MAGIC)
         return merr(EBADMSG);
 
+    if (lh->vers != MDC_LOGHDR_VERSION)
+        return merr(EPROTO);
+
     if (gen)
         *gen = lh->gen;
 

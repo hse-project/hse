@@ -25,6 +25,7 @@
 #include <cli/param.h>
 
 #include "cli_util.h"
+#include "storage_profile.h"
 
 #define OPTION_HELP                 \
     {                               \
@@ -158,12 +159,16 @@ struct cli_cmd        cli_hse_kvs_commands[] = {
 /*****************************************************************
  * HSE Storage commands:
  *    hse storage add
+ *    hse storage info
+ *    hse storage profile
  */
 static cli_cmd_func_t cli_hse_storage_add;
 static cli_cmd_func_t cli_hse_storage_info;
+static cli_cmd_func_t cli_hse_storage_profile;
 struct cli_cmd        cli_hse_storage_commands[] = {
     { "add", "Add a new media class storage to an existing offline KVDB", cli_hse_storage_add, 0 },
     { "info", "Display storage stats for a KVDB", cli_hse_storage_info, 0 },
+    { "profile", "Profile storage path to determine throttle policy", cli_hse_storage_profile, 0 },
     { 0 },
 };
 
@@ -498,23 +503,40 @@ print_hse_err(struct cli *cli, const char *api, hse_err_t err)
 /**
  * cli_hse_init() -- call hse_init() if it hasn't already been called
  */
+
 static int
-cli_hse_init(struct cli *cli)
+cli_hse_init_impl(struct cli *cli, const char *const *const paramv, size_t paramc)
 {
     hse_err_t   err;
-    const char *paramv[] = { "logging.destination=stderr", "logging.level=3" };
 
     if (cli->hse_init)
         return 0;
 
-    err = hse_init(cli->config, NELEM(paramv), paramv);
+    err = hse_init(cli->config, paramc, paramv);
     if (err) {
         print_hse_err(cli, "hse_init", err);
         return -1;
     }
 
     cli->hse_init = true;
+
     return 0;
+}
+
+static int
+cli_hse_init(struct cli *cli)
+{
+    const char *paramv[] = { "logging.destination=stderr", "logging.level=3" };
+
+    return cli_hse_init_impl(cli, paramv, NELEM(paramv));
+}
+
+static int
+cli_hse_init_rest(struct cli *cli)
+{
+    const char *paramv[] = { "logging.enabled=false" };
+
+    return cli_hse_init_impl(cli, paramv, NELEM(paramv));
 }
 
 /**
@@ -638,7 +660,7 @@ cli_hse_kvdb_info_impl(struct cli *cli, const char *const kvdb_home)
 
     assert(kvdb_home);
 
-    if (cli_hse_init(cli))
+    if (cli_hse_init_rest(cli))
         return -1;
 
     if (cli->optind != cli->argc) {
@@ -646,7 +668,7 @@ cli_hse_kvdb_info_impl(struct cli *cli, const char *const kvdb_home)
         return EINVAL;
     }
 
-    exists = kvdb_info_print(kvdb_home, NELEM(paramv), paramv, &yc, true);
+    exists = kvdb_info_print(kvdb_home, NELEM(paramv), paramv, &yc);
     if (!exists) {
         fprintf(stderr, "No such KVDB (%s)\n", kvdb_home);
         rc = -1;
@@ -677,7 +699,7 @@ cli_hse_kvdb_compact_impl(
     else
         req = "request";
 
-    if (cli_hse_init(cli))
+    if (cli_hse_init_rest(cli))
         return -1;
 
     if (cli->optind != cli->argc) {
@@ -1088,7 +1110,7 @@ cli_hse_storage_info_impl(struct cli *cli, const char *const kvdb_home)
         .yaml_emit = yaml_print_and_rewind,
     };
 
-    if (cli_hse_init(cli))
+    if (cli_hse_init_rest(cli))
         return -1;
 
     if (cli->optind != cli->argc) {
@@ -1096,7 +1118,7 @@ cli_hse_storage_info_impl(struct cli *cli, const char *const kvdb_home)
         return EINVAL;
     }
 
-    exists = kvdb_info_print(kvdb_home, NELEM(paramv), paramv, &yc, false);
+    exists = kvdb_storage_info_print(kvdb_home, NELEM(paramv), paramv, &yc);
     if (!exists) {
         fprintf(stderr, "No such KVDB (%s)\n", kvdb_home);
         rc = -1;
@@ -1158,6 +1180,7 @@ cli_hse_storage_info(struct cli_cmd *self, struct cli *cli)
 
     return cli_hse_storage_info_impl(cli, kvdb_home);
 }
+
 static int
 cli_hse_storage_add_impl(struct cli *cli, const char *const kvdb_home)
 {
@@ -1269,6 +1292,98 @@ cli_hse_storage_add(struct cli_cmd *self, struct cli *cli)
     }
 
     return cli_hse_storage_add_impl(cli, kvdb_home);
+}
+
+static int
+cli_hse_storage_profile_impl(struct cli *cli, const char *path, bool quiet, bool verbose)
+{
+    if (cli_hse_init(cli))
+        return -1;
+
+    if (cli->optind != cli->argc) {
+        fprintf(stderr, "Too many arguments passed on the command line\n");
+        return EINVAL;
+    }
+
+    return hse_storage_profile(path, quiet, verbose);
+}
+
+static int
+cli_hse_storage_profile(struct cli_cmd *self, struct cli *cli)
+{
+    const struct cmd_spec spec = {
+        .usagev =
+            {
+                "[options] <storage_path>",
+                NULL,
+            },
+        .optionv =
+            {
+                OPTION_HELP,
+                { "[-q|--quiet]", "Outputs one of the following: [light, medium, default]" },
+                { "[-v|--verbose]", "Verbose profile output" },
+                { NULL },
+            },
+        .longoptv =
+            {
+                { "help", no_argument, 0, 'h' },
+                { "quiet", no_argument, 0, 'q' },
+                { "verbose", no_argument, 0, 'v' },
+                { NULL },
+            },
+        .configv =
+            {
+                { NULL },
+            },
+    };
+
+    const char *path = NULL;
+    bool        help = false, quiet = false, verbose = false;
+    int         c;
+
+    if (cli_hook(cli, self, &spec))
+        return 0;
+
+    while (-1 != (c = cli_getopt(cli))) {
+        switch (c) {
+            case 'h':
+                help = true;
+                break;
+            case 'q':
+                quiet = true;
+                break;
+            case 'v':
+                verbose = true;
+                break;
+            default:
+                return EX_USAGE;
+        }
+    }
+
+    path = cli_next_arg(cli);
+
+    if (!path || help) {
+        int rc = help ? 0 : EX_USAGE;
+
+        cmd_print_help(self, help ? stdout : stderr);
+
+        if (!verbose) {
+            printf("\nUse -hv for more detail\n\n");
+            return rc;
+        }
+
+        printf("\nThis tool creates a temp directory called \"storage_profile.tmp\" in the user\n");
+        printf("specified <storage_path>. On completion/exit, this temp directory and its\n");
+        printf("contents are deleted.\n\n");
+        printf("If the tool abruptly terminates, this temp directory is left behind.\n");
+        printf("A subsequent run will automatically clean up the temp directory,\n");
+        printf("otherwise this directory needs to be manually removed.\n\n");
+        printf("Running concurrent instances of profile sub-command is not supported.\n");
+
+        return rc;
+    }
+
+    return cli_hse_storage_profile_impl(cli, path, quiet, verbose);
 }
 
 static int

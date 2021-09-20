@@ -27,6 +27,7 @@ MTF_DEFINE_UTEST_PREPOST(mpool_test, mpool_ocd_test, mpool_test_pre, mpool_test_
     merr_t  err;
     int     rc, entry;
     DIR    *dirp;
+    bool    exists;
 
     err = mpool_open(home, &trparams, 0, &mp);
     ASSERT_EQ(ENOENT, merr_errno(err));
@@ -80,7 +81,13 @@ MTF_DEFINE_UTEST_PREPOST(mpool_test, mpool_ocd_test, mpool_test_pre, mpool_test_
     err = mpool_close(mp);
     ASSERT_EQ(0, err);
 
+    exists = mclass_files_exist(tcparams.mclass[MP_MED_CAPACITY].path);
+    ASSERT_EQ(true, exists);
+
     mpool_destroy(home, &tdparams);
+
+    exists = mclass_files_exist(tcparams.mclass[MP_MED_CAPACITY].path);
+    ASSERT_EQ(false, exists);
 
     unset_mclass(MP_MED_CAPACITY);
 
@@ -104,6 +111,15 @@ MTF_DEFINE_UTEST_PREPOST(mpool_test, mpool_ocd_test, mpool_test_pre, mpool_test_
 
     err = mpool_create(home, &tcparams);
     ASSERT_EQ(0, err);
+
+    err = mpool_open(home, &trparams, O_CREAT | O_RDWR, &mp);
+    ASSERT_EQ(EINVAL, merr_errno(err));
+
+    err = mpool_open(home, &trparams, O_EXCL | O_RDWR, &mp);
+    ASSERT_EQ(EINVAL, merr_errno(err));
+
+    err = mpool_open(home, &trparams, O_CREAT | O_EXCL | O_RDWR, &mp);
+    ASSERT_EQ(EINVAL, merr_errno(err));
 
     err = mpool_open(home, &trparams, O_RDWR, &mp);
     ASSERT_EQ(0, err);

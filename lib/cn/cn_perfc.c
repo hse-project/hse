@@ -72,10 +72,6 @@ struct perfc_name cn_perfc_capped[] = {
 NE_CHECK(cn_perfc_capped, PERFC_EN_CNCAPPED, "cn_perfc_capped table/enum mismatch");
 
 struct perfc_name cn_perfc_mclass[] = {
-    NE(PERFC_BA_CNMCLASS_SYNCK_STAGING, 3, "sync_key_staging_alloc", "sync_key_staging(b)"),
-    NE(PERFC_BA_CNMCLASS_SYNCK_CAPACITY, 3, "sync_key_capacity_alloc", "sync_key_capacity(b)"),
-    NE(PERFC_BA_CNMCLASS_SYNCV_STAGING, 3, "sync_value_staging_alloc", "sync_value_staging(b)"),
-    NE(PERFC_BA_CNMCLASS_SYNCV_CAPACITY, 3, "sync_value_capacity_alloc", "sync_value_capacity(b)"),
     NE(PERFC_BA_CNMCLASS_ROOTK_STAGING, 3, "root_key_staging_alloc", "root_key_staging(b)"),
     NE(PERFC_BA_CNMCLASS_ROOTK_CAPACITY, 3, "root_key_capacity_alloc", "root_key_capacity(b)"),
     NE(PERFC_BA_CNMCLASS_ROOTV_STAGING, 3, "root_value_staging_alloc", "root_value_staging(b)"),
@@ -99,7 +95,7 @@ _Static_assert(
 uint
 cn_perfc_mclass_get_idx(uint agegroup, uint dtype, uint mclass)
 {
-    return PERFC_BA_CNMCLASS_SYNCK_STAGING + agegroup * HSE_MPOLICY_AGE_CNT +
+    return PERFC_BA_CNMCLASS_ROOTK_STAGING + agegroup * HSE_MPOLICY_AGE_CNT +
            dtype * HSE_MPOLICY_DTYPE_CNT + ((mclass == MP_MED_CAPACITY) ? 1 : 0);
 }
 
