@@ -17,11 +17,19 @@
 #include <hse_util/parse_num.h>
 #include <hse_util/string.h>
 
+#ifndef HSE_EXPERIMENTAL
+#define HSE_EXPERIMENTAL
 #include <hse/hse.h>
+#undef HSE_EXPERIMENTAL
+#else
+#include <hse/hse.h>
+#endif
 
 #include <pidfile/pidfile.h>
 
 #include <bsd/string.h>
+
+#define SOCKET_PATH_MAX sizeof(((struct sockaddr_un *)0)->sun_path)
 
 static int
 socket_path_get(const char *home, char *buf, const size_t buf_sz)
@@ -84,6 +92,7 @@ rest_kvs_list(const char *socket_path, struct yaml_context *yc, const char *kvdb
     return 0;
 }
 
+#ifdef HSE_EXPERIMENTAL
 static int
 rest_storage_stats_list(
     struct yaml_context *         yc,
@@ -193,6 +202,7 @@ emit_storage_info(
     snprintf(value, sizeof(value), "%lu", info->used_bytes);
     yaml_element_field(yc, "used_space_bytes", value);
 }
+#endif
 
 static hse_err_t
 kvdb_info_props(
@@ -205,7 +215,7 @@ kvdb_info_props(
     size_t    kvs_cnt;
     char **   kvs_list;
     hse_err_t err;
-    char      socket_path[PATH_MAX];
+    char      socket_path[SOCKET_PATH_MAX];
     int       i;
 
     err = hse_kvdb_open(kvdb_home, paramc, paramv, &hdl);
@@ -254,6 +264,7 @@ exit:
     return err;
 }
 
+#ifdef HSE_EXPERIMENTAL
 static hse_err_t
 kvdb_storage_info_props(
     const char          *kvdb_home,
@@ -264,7 +275,7 @@ kvdb_storage_info_props(
     struct hse_kvdb *            hdl;
     struct hse_kvdb_storage_info info = {};
     hse_err_t err;
-    char      socket_path[PATH_MAX];
+    char      socket_path[SOCKET_PATH_MAX];
 
     err = hse_kvdb_open(kvdb_home, paramc, paramv, &hdl);
     if (err && hse_err_to_errno(err) != EEXIST && hse_err_to_errno(err) != ENODATA &&
@@ -304,6 +315,7 @@ exit:
 
     return err;
 }
+#endif
 
 bool
 kvdb_info_print(
@@ -328,6 +340,7 @@ kvdb_info_print(
     return true;
 }
 
+#ifdef HSE_EXPERIMENTAL
 bool
 kvdb_storage_info_print(
     const char *         kvdb_home,
@@ -350,6 +363,7 @@ kvdb_storage_info_print(
 
     return true;
 }
+#endif
 
 static hse_err_t
 rest_kvdb_comp(const char *socket_path, const char *policy)
@@ -704,7 +718,7 @@ err_out:
 int
 hse_kvdb_params(const char *kvdb_home, bool get)
 {
-    char      socket_path[PATH_MAX];
+    char      socket_path[SOCKET_PATH_MAX];
     hse_err_t err = 0;
     char *    buf;
     size_t    bufsz = (32 * 1024);
