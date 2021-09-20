@@ -11,6 +11,7 @@ import sys
 import time
 import json
 import pathlib
+import signal
 from typing import Any, Dict, Optional
 
 desc = (
@@ -29,6 +30,8 @@ PARSER.add_argument(
     help="refresh every N secs",
     required=False,
 )
+
+PARSER.add_argument("-k", "--nokvsets", help="do not show kvsets", action="store_true")
 PARSER.add_argument("-y", "--yaml", help="output in yaml", action="store_true")
 
 PARSER.add_argument(
@@ -41,7 +44,7 @@ PARSER.add_argument(
 PARSER.add_argument("kvs", help="kvs name")
 
 
-def full_tree(ybuf: Optional[Dict[str, Any]]):
+def full_tree(ybuf: Optional[Dict[str, Any]], opt):
     if not ybuf or "info" not in ybuf:
         return
 
@@ -58,20 +61,31 @@ def full_tree(ybuf: Optional[Dict[str, Any]]):
     for node in ybuf["nodes"]:
         # print one node's info
         loc = node["loc"]
-        print(f"\nn {loc['level']},{loc['offset']} ", end="")
+        print(f"n {loc['level']},{loc['offset']:<5} -     -   ", end="")
         for key, val in sorted(node["info"].items()):
-            print(f"{key} {val} ", end="")
+            if key == "vlen":
+                mib = int(int(val) / (1024 * 1024))
+                print(f"{key} {val} ({mib}m)  ", end="")
+            else:
+                print(f"{key} {val:<2}  ", end="")
         print()
 
+        if opt.nokvsets:
+            continue
+
         if node["info"]["nkvsets"] == 0:
+            print()
             continue
 
         # print info for all kvsets in current node
         for kvset in node["kvsets"]:
             index = kvset["index"]
-            print(f"k {loc['level']},{loc['offset']},{index} ", end="")
+            print(f"k {loc['level']},{loc['offset']},{index:<3} ", end="")
             for key, val in sorted(kvset.items()):
-                if key == "kblks":
+                if key == "vlen":
+                    mib = int(int(val) / (1024 * 1024))
+                    print(f"{key} {val} ({mib}m)  ", end="")
+                elif key == "kblks":
                     print("ids ", end=""),
                     for kblk in val:
                         print(f"{hex(int(kblk))} ", end="")
@@ -83,8 +97,9 @@ def full_tree(ybuf: Optional[Dict[str, Any]]):
                 elif key in oids:
                     print(f"{key} {hex(int(val))} ", end="")
                 elif key != "index":
-                    print(f"{key} {val} ", end="")
+                    print(f"{key} {val:<2}  ", end="")
             print()
+        print()
 
 
 def process_stdin() -> int:
@@ -137,7 +152,7 @@ def main() -> int:
             print(buf)
         else:
             ybuf = yaml.safe_load(buf)
-            full_tree(ybuf)
+            full_tree(ybuf, opt)
 
         if not opt.refresh:
             return 0
@@ -147,5 +162,8 @@ def main() -> int:
 
 
 if __name__ == "__main__":
-    rc = main()
-    sys.exit(rc)
+    try:
+        rc = main()
+        sys.exit(rc)
+    except KeyboardInterrupt:
+        sys.exit(128 + signal.SIGINT)

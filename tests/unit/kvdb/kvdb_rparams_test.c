@@ -501,21 +501,6 @@ MTF_DEFINE_UTEST_PRE(kvdb_rparams_test, throttle_update_ns, test_pre)
 	ASSERT_EQ(UINT64_MAX, ps->ps_bounds.as_uscalar.ps_max);
 }
 
-MTF_DEFINE_UTEST_PRE(kvdb_rparams_test, throttle_relax, test_pre)
-{
-	const struct param_spec *ps = ps_get("throttle_relax");
-
-	ASSERT_NE(NULL, ps);
-	ASSERT_NE(NULL, ps->ps_description);
-	ASSERT_EQ(PARAM_FLAG_EXPERIMENTAL, ps->ps_flags);
-	ASSERT_EQ(PARAM_TYPE_U8, ps->ps_type);
-	ASSERT_EQ((uintptr_t)ps->ps_convert, (uintptr_t)param_default_converter);
-	ASSERT_EQ((uintptr_t)ps->ps_validate, (uintptr_t)param_default_validator);
-	ASSERT_EQ(1, params.throttle_relax);
-	ASSERT_EQ(0, ps->ps_bounds.as_uscalar.ps_min);
-	ASSERT_EQ(2, ps->ps_bounds.as_uscalar.ps_max);
-}
-
 MTF_DEFINE_UTEST_PRE(kvdb_rparams_test, throttle_debug_intvl_s, test_pre)
 {
 	const struct param_spec *ps = ps_get("throttle_debug");
@@ -571,7 +556,7 @@ MTF_DEFINE_UTEST_PRE(kvdb_rparams_test, throttle_burst, test_pre)
 	ASSERT_EQ(PARAM_TYPE_U64, ps->ps_type);
 	ASSERT_EQ((uintptr_t)ps->ps_convert, (uintptr_t)param_default_converter);
 	ASSERT_EQ((uintptr_t)ps->ps_validate, (uintptr_t)param_default_validator);
-	ASSERT_EQ(10UL << 20, params.throttle_burst);
+	ASSERT_EQ(1ul << 20, params.throttle_burst);
 	ASSERT_EQ(0, ps->ps_bounds.as_uscalar.ps_min);
 	ASSERT_EQ(UINT64_MAX, ps->ps_bounds.as_uscalar.ps_max);
 }

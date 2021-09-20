@@ -9,7 +9,7 @@
 #include <hse_util/minmax.h>
 #include <hse_util/spinlock.h>
 #include <hse_util/mutex.h>
-#include <hse_util/assert.h>
+#include <hse_util/invariant.h>
 #include <hse_util/timing.h>
 #include <hse_util/log2.h>
 #include <hse_util/page.h>
@@ -25,6 +25,8 @@
 
 #include <semaphore.h>
 
+#define VIEWSET_BKT_MAX         (16)
+
 #define viewlock_t              spinlock_t
 #define viewlock_init(_view)    spin_lock_init(&(_view)->vs_lock)
 #define viewlock_lock(_view)    spin_lock(&(_view)->vs_lock)
@@ -39,13 +41,6 @@
 
 struct viewset {
 };
-
-/* BKT_MAX should be an even number such that divided by two yields
- * an odd number.  This is to allow an even distribution of cores to
- * buckets on a machine which enumerates all it's even numbered cores
- * to one NUMA node and vice versa for odd numbered cores.
- */
-#define VIEWSET_BKT_MAX     (14)
 
 /**
  * struct viewset_bkt -
@@ -130,7 +125,7 @@ viewset_tree_create(u32 max_elts, u32 index, struct viewset_tree **tree)
     struct viewset_tree *self;
     size_t sz;
 
-    assert(max_elts > 0);
+    INVARIANT(max_elts > 0);
 
     sz = sizeof(*self);
     sz += sizeof(self->vst_entryv[0]) * max_elts;
@@ -355,9 +350,9 @@ viewset_insert(struct viewset *handle, u64 *viewp, u64 *tseqnop, void **cookiep)
      */
     bkt = self->vs_bktv + (VIEWSET_BKT_MAX / 2);
     if (node % 2)
-        bkt += cpu % (VIEWSET_BKT_MAX / 2);
+        bkt += (cpu / 2) % (VIEWSET_BKT_MAX / 2);
     else
-        bkt -= (cpu % (VIEWSET_BKT_MAX / 2)) + 1;
+        bkt -= ((cpu / 2) % (VIEWSET_BKT_MAX / 2)) + 1;
 
     atomic_inc(&bkt->vsb_active);
 
@@ -453,18 +448,14 @@ viewset_remove(
     u64 entry_sn, min_sn;
     bool changed;
 
-    assert(handle);
-    assert(cookie);
-    assert(min_changed);
-    assert(min_view_sn);
+    INVARIANT(handle && cookie && min_changed && min_view_sn);
 
     entry = cookie;
     entry_sn = entry->vse_view_sn;
     bkt = entry->vse_bkt;
     tree = bkt->vsb_tree;
 
-    assert(&self->vs_bktv[0] <= entry->vse_bkt);
-    assert(entry->vse_bkt < &self->vs_bktv[VIEWSET_BKT_MAX]);
+    assert(bkt >= self->vs_bkt_first && bkt <= self->vs_bkt_last);
 
     treelock_lock(tree);
     changed = list_is_first(&entry->vse_link, &tree->vst_head);
@@ -497,7 +488,7 @@ viewset_remove(
             break;
         }
 
-        cpu_relax();
+        pthread_yield();
     }
 
     atomic_dec(&bkt->vsb_active);

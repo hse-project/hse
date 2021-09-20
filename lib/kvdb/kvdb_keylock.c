@@ -386,7 +386,7 @@ kvdb_keylock_expire(struct kvdb_keylock *handle, u64 min_view_sn, u64 spin)
         INIT_LIST_HEAD(&expired);
 
         if (min_view_sn > dlock->kd_mvs) {
-            int batchmax = 8;
+            int batchmax = 16;
 
             list_for_each_entry_safe(curr, tmp, &dlock->kd_list, ctxn_locks_link) {
                 if (curr->ctxn_locks_end_seqno >= min_view_sn) {

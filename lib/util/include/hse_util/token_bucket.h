@@ -1,27 +1,26 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
 #ifndef HSE_PLATFORM_TOKEN_BUCKET_H
 #define HSE_PLATFORM_TOKEN_BUCKET_H
 
 #include <hse_util/inttypes.h>
+#include <hse_util/compiler.h>
 #include <hse_util/spinlock.h>
 
 /* MTF_MOCK_DECL(token_bucket) */
 
 /* Struct tbkt members should be considered private.  */
 struct tbkt {
-
-    spinlock_t  tb_lock HSE_ALIGNED(2*SMP_CACHE_BYTES);
-
-    /* Read/Write inside of lock.  Rarely read outside of lock. */
-    u64         tb_balance HSE_ALIGNED(SMP_CACHE_BYTES);
-    u64         tb_rate;
-    u64         tb_burst;
-    u64         tb_refill_time;
+    u64         tb_rate HSE_ALIGNED(SMP_CACHE_BYTES * 2);
     u64         tb_dt_max;
+    u64         tb_burst;
+
+    spinlock_t  tb_lock HSE_ALIGNED(SMP_CACHE_BYTES);
+    u64         tb_refill_time;
+    u64         tb_balance;
 };
 
 static inline
@@ -30,11 +29,14 @@ tbkt_delay(u64 nsec)
 {
     struct timespec timespec;
 
-    if (!nsec)
-        return;
+    if (HSE_LIKELY(nsec < NSEC_PER_SEC)) {
+        timespec.tv_sec = 0;
+        timespec.tv_nsec = nsec;
+    } else {
+        timespec.tv_sec = nsec / NSEC_PER_SEC;
+        timespec.tv_nsec = nsec % NSEC_PER_SEC;
+    }
 
-    timespec.tv_sec = nsec / NSEC_PER_SEC;
-    timespec.tv_nsec = nsec % NSEC_PER_SEC;
     nanosleep(&timespec, 0);
 }
 
@@ -44,7 +46,7 @@ tbkt_init(struct tbkt *tb, u64 burst, u64 rate);
 
 /* MTF_MOCK */
 u64
-tbkt_request(struct tbkt *tb, u64 tokens);
+tbkt_request(struct tbkt *tb, u64 tokens, u64 *now);
 
 /* MTF_MOCK */
 u64

@@ -318,7 +318,7 @@ u64
 c0kvs_get_element_count(struct c0_kvset *set);
 
 u64
-c0kvs_get_element_count2(struct c0_kvset *set, uint *heightp, uint *keyvalsp, bool *full);
+c0kvs_get_element_count2(struct c0_kvset *set, uint *heightp, uint *keyvalsp, size_t *kvbytesp);
 
 /**
  * c0kvs_usage() - retrieve usage metrics for the struct c0_kvset

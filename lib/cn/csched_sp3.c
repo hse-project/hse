@@ -775,7 +775,7 @@ sp3_refresh_thresholds(struct sp3 *sp)
             thresh.ispill_kvsets_max = (v >> 0) & 0xff;
             thresh.ispill_kvsets_min = (v >> 8) & 0xff;
         } else {
-            thresh.ispill_kvsets_max = 12;
+            thresh.ispill_kvsets_max = 8;
             thresh.ispill_kvsets_min = 1;
         }
         thresh.ispill_kvsets_min = max(thresh.ispill_kvsets_min, SP3_ISPILL_KVSETS_MIN);
@@ -1850,7 +1850,7 @@ static void
 sp3_qos_check(struct sp3 *sp)
 {
     struct cn_tree *tree;
-    uint            rootlen = 0;
+    uint            rootlen;
     u64             sval;
 
     u64  cur_time_ns;
@@ -1865,16 +1865,18 @@ sp3_qos_check(struct sp3 *sp)
     if (!sp->throttle_sensor_root)
         return;
 
+    rootlen = 4;
+    sval = 0;
+
     list_for_each_entry (tree, &sp->mon_tlist, ct_sched.sp3t.spt_tlink) {
         uint nk = cn_ns_kvsets(&tree->ct_root->tn_ns);
 
         rootlen = nk > rootlen ? nk : rootlen;
     }
 
-    sval = 0;
-    if (rootlen) {
+    if (rootlen > 4) {
         u64 K;
-        u64 r = rootlen * 100;
+        u64 r = (rootlen - 4) * 100;
         u64 nsec = atomic64_read(&sp->rspill_dt) / NSEC_PER_SEC;
         u64 min_lat = 16, max_lat = 80;
 
@@ -1960,9 +1962,9 @@ sp3_schedule(struct sp3 *sp)
 
             case jtype_root:
                 /* Implements root node query-shape rule.
-                 * Uses "intern" queue.
+                 * Uses "root" queue.
                  */
-                qi = sp->qinfo + SP3_QNUM_INTERN;
+                qi = sp->qinfo + SP3_QNUM_ROOT;
                 if (qfull(qi) && shared_full)
                     break;
                 job = sp3_check_roots(sp);
@@ -2390,6 +2392,7 @@ sp3_create(
     hse_slog(
         HSE_NOTICE,
         HSE_SLOG_START("cn_threads"),
+        HSE_SLOG_FIELD("root", "%lu", (rp->csched_qthreads >> (8 * SP3_QNUM_ROOT)) & 0xff),
         HSE_SLOG_FIELD("intern", "%lu", (rp->csched_qthreads >> (8 * SP3_QNUM_INTERN)) & 0xff),
         HSE_SLOG_FIELD("leaf", "%lu", (rp->csched_qthreads >> (8 * SP3_QNUM_LEAF)) & 0xff),
         HSE_SLOG_FIELD("leafbig", "%lu", (rp->csched_qthreads >> (8 * SP3_QNUM_LEAFBIG)) & 0xff),

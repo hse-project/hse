@@ -74,8 +74,12 @@ static void
 c0kvs_ccache_free(struct c0_kvset_impl *set)
 {
     struct c0kvs_ccache *cc = &c0kvs_ccache;
+    size_t used;
 
-    set->c0s_ccache_sz = cheap_used(set->c0s_cheap);
+    used = cheap_used(set->c0s_cheap);
+    if (used > set->c0s_ccache_sz)
+        set->c0s_ccache_sz = used;
+
     c0kvs_reset(&set->c0s_handle, 0);
 
     spin_lock(&cc->cc_lock);
@@ -642,20 +646,15 @@ c0kvs_get_element_count(struct c0_kvset *handle)
 }
 
 u64
-c0kvs_get_element_count2(struct c0_kvset *handle, uint *heightp, uint *keyvalsp, bool *full)
+c0kvs_get_element_count2(struct c0_kvset *handle, uint *heightp, uint *keyvalsp, size_t *kvbytesp)
 {
     struct c0_kvset_impl *self = c0_kvset_h2r(handle);
-    u64                   cnt;
 
-    cnt = self->c0s_num_entries;
-
+    *kvbytesp = self->c0s_keyb + self->c0s_valb;
     *heightp = self->c0s_height;
     *keyvalsp = self->c0s_keyvals;
 
-    /* [HSE_REVISIT]: Revisit when working on c0/wal throttling. */
-    *full = (self->c0s_memsz > self->c0s_alloc_sz);
-
-    return cnt;
+    return self->c0s_num_entries;
 }
 
 void

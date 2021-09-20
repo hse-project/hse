@@ -9,6 +9,7 @@
 #include <hse/flags.h>
 
 #include <hse_util/hse_err.h>
+#include <hse_util/invariant.h>
 #include <hse_util/event_counter.h>
 #include <hse_util/string.h>
 #include <hse_util/page.h>
@@ -1990,17 +1991,27 @@ ikvdb_close(struct ikvdb *handle)
 }
 
 static void
-ikvdb_throttle(struct ikvdb_impl *self, u64 bytes)
+ikvdb_throttle(struct ikvdb_impl *self, u64 bytes, u64 tstart)
 {
-    u64 sleep_ns;
+    u64 sleep_ns, now;
 
-    sleep_ns = tbkt_request(&self->ikdb_tb, bytes);
-    tbkt_delay(sleep_ns);
+    sleep_ns = tbkt_request(&self->ikdb_tb, bytes, &now);
+    if (sleep_ns > 0) {
+        u64 dly = now - tstart;
 
-    if (self->ikdb_tb_dbg) {
-        atomic64_inc(&self->ikdb_tb_dbg_ops);
-        atomic64_add(bytes, &self->ikdb_tb_dbg_bytes);
-        atomic64_add(sleep_ns, &self->ikdb_tb_dbg_sleep_ns);
+        if (sleep_ns > dly) {
+            if (sleep_ns - dly > timer_slack / 2) {
+                tbkt_delay(sleep_ns - dly);
+            } else {
+                pthread_yield();
+            }
+        }
+
+        if (HSE_UNLIKELY(self->ikdb_tb_dbg)) {
+            atomic64_inc(&self->ikdb_tb_dbg_ops);
+            atomic64_add(bytes, &self->ikdb_tb_dbg_bytes);
+            atomic64_add(sleep_ns, &self->ikdb_tb_dbg_sleep_ns);
+        }
     }
 }
 
@@ -2036,25 +2047,24 @@ ikvdb_kvs_put(
     uint               vlen, clen;
     size_t             vbufsz;
     void *             vbuf;
+    uint64_t           tstart;
 
-    if (ev(!handle))
-        return merr(EINVAL);
+    INVARIANT(handle && kt && vt);
 
-    if (ev(!is_write_allowed(kk->kk_ikvs, txn)))
+    if (HSE_UNLIKELY(!is_write_allowed(kk->kk_ikvs, txn)))
         return merr(EINVAL);
 
     parent = kk->kk_parent;
-    if (ev(parent->ikdb_read_only))
+    if (HSE_UNLIKELY(parent->ikdb_read_only))
         return merr(EROFS);
 
     /* puts do not stop on block deletion failures. */
     err = kvdb_health_check(
         &parent->ikdb_health, KVDB_HEALTH_FLAG_ALL & ~KVDB_HEALTH_FLAG_DELBLKFAIL);
-    if (ev(err))
+    if (err)
         return err;
 
-    if (flags & HSE_KVS_PUT_PRIO || parent->ikdb_rp.throttle_disable)
-        parent = NULL;
+    tstart = (flags & HSE_KVS_PUT_PRIO || parent->ikdb_rp.throttle_disable) ? 0 : get_time_ns();
 
     ktbuf = *kt;
     vtbuf = *vt;
@@ -2093,8 +2103,8 @@ ikvdb_kvs_put(
     if (vbuf && vbuf != tls_vbuf)
         vlb_free(vbuf, (vbufsz > VLB_ALLOCSZ_MAX) ? vbufsz : clen);
 
-    if (parent)
-        ikvdb_throttle(parent, kt->kt_len + (clen ? clen : vlen));
+    if (tstart > 0)
+        ikvdb_throttle(parent, kt->kt_len + (clen ? clen : vlen), tstart);
 
     return err;
 }

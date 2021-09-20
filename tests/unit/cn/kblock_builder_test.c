@@ -554,7 +554,7 @@ MTF_DEFINE_UTEST_PRE(test, t_kbb_finish_fail, test_setup)
     }
 
     /* expose memory allocation failures */
-    num_allocs = 4;
+    num_allocs = 3;
     for (i = 0; i <= num_allocs; i++) {
         err = kbb_create(KBB_CREATE_ARGS);
         ASSERT_EQ(err, 0);
