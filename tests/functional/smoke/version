@@ -7,7 +7,7 @@
 
 source $(dirname "${BASH_SOURCE[0]}")/smoke.subr
 
-output=$(hse --version) || exit $?
+output=$(hse -v --version) || exit $?
 
 # Check for three lines of output
 count=$(wc -l <<<"$output") || exit $?

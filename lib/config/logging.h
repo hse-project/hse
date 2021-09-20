@@ -27,9 +27,6 @@ extern bool hse_initialized;
     do {                                    \
         if (hse_initialized) {              \
             hse_log(HSE_DEBUG __VA_ARGS__); \
-        } else {                            \
-            fprintf(stderr, __VA_ARGS__);   \
-            fputc('\n', stderr);            \
         }                                   \
     } while (0)
 

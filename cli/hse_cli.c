@@ -602,7 +602,8 @@ cli_hse_kvdb_create_impl(struct cli *cli, const char *const kvdb_home)
         goto done;
     }
 
-    printf("Successfully created the KVDB (%s)\n", kvdb_home);
+    if (verbosity)
+        printf("Successfully created the KVDB (%s)\n", kvdb_home);
 
 done:
     free(paramv);
@@ -633,7 +634,8 @@ cli_hse_kvdb_drop_impl(struct cli *cli, const char *const kvdb_home)
         goto done;
     }
 
-    printf("Successfully dropped the KVDB (%s)\n", kvdb_home);
+    if (verbosity)
+        printf("Successfully dropped the KVDB (%s)\n", kvdb_home);
 
 done:
     if (herr && hse_err_to_errno(herr) == ENOENT)
@@ -1234,7 +1236,8 @@ cli_hse_storage_add_impl(struct cli *cli, const char *const kvdb_home)
         goto done;
     }
 
-    printf("Successfully added storage to the KVDB (%s)\n", kvdb_home);
+    if (verbosity)
+        printf("Successfully added storage to the KVDB (%s)\n", kvdb_home);
 
 done:
     free(paramv);
@@ -1498,7 +1501,8 @@ cli_hse_kvs_create_impl(struct cli *cli, const char *const kvdb_home, const char
         goto done;
     }
 
-    printf("Successfully created the KVS (%s)\n", kvs);
+    if (verbosity)
+        printf("Successfully created the KVS (%s)\n", kvs);
 
 done:
     free(kvs_paramv);
@@ -1552,7 +1556,8 @@ cli_hse_kvs_drop_impl(struct cli *cli, const char *const kvdb_home, const char *
         goto done;
     }
 
-    printf("Successfully dropped the KVS (%s)\n", kvs);
+    if (verbosity)
+        printf("Successfully dropped the KVS (%s)\n", kvs);
 
 done:
     hse_kvdb_close(db);
@@ -1763,8 +1768,8 @@ cli_hse(struct cli_cmd *self, struct cli *cli)
         .extra_help = {
             "Examples:",
             "  hse kvdb -h                        # get help on KVDB commands",
-            "  hse kvdb create path/to/kvdb       # create a KVDB in the 'test' directory",
-            "  hse kvs create path/to/kvdb mykvs  # create a KVS in the 'test' directory KVDB",
+            "  hse kvdb create path/to/kvdb       # create a KVDB in the specified directory",
+            "  hse kvs create path/to/kvdb mykvs  # create a KVS in the specified KVDB home directory",
             NULL,
         },
     };
@@ -1804,8 +1809,12 @@ cli_hse(struct cli_cmd *self, struct cli *cli)
     }
 
     if (version) {
-        printf("version: %s\n", HSE_VERSION_STRING);
-        printf("build-configuration: %s\n", BUILD_CONFIG);
+        if (verbosity) {
+            printf("version: %s\n", HSE_VERSION_STRING);
+            printf("build-configuration: %s\n", BUILD_CONFIG);
+        } else {
+            printf("%s\n", HSE_VERSION_STRING);
+        }
         return 0;
     }
 
