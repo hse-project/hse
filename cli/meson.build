@@ -17,8 +17,10 @@ hse_cli_sources = files(
 
 hse_cli_c_args = [
     '-DCOMPANE="CLI"',
-    '-DHSE_EXPERIMENTAL',
 ]
+if get_option('experimental')
+    hse_cli_c_args += '-DHSE_EXPERIMENTAL'
+endif
 
 hse_cli_dependencies = [
     hse_dep,

@@ -113,7 +113,6 @@ struct hse_kvdb_compact_status {
     unsigned int kvcs_active;    /**< is an externally requested compaction underway */
     unsigned int kvcs_canceled;  /**< was an externally requested compaction canceled */
 };
-#endif
 
 /**
  * struct hse_kvdb_storage_info - storage info for a kvdb
@@ -125,7 +124,6 @@ struct hse_kvdb_storage_info {
     uint64_t used_bytes;      /**< used storage space for a kvdb */
 };
 
-#ifdef HSE_EXPERIMENTAL
 enum hse_kvs_pfx_probe_cnt {
     HSE_KVS_PFX_FOUND_ZERO = 0,
     HSE_KVS_PFX_FOUND_ONE,

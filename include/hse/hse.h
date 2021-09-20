@@ -902,7 +902,6 @@ hse_kvdb_compact(struct hse_kvdb *kvdb, unsigned int flags);
  */
 HSE_EXPORT_EXPERIMENTAL hse_err_t
 hse_kvdb_compact_status_get(struct hse_kvdb *kvdb, struct hse_kvdb_compact_status *status);
-#endif
 
 /**
  * Get storage config and stats
@@ -914,8 +913,9 @@ hse_kvdb_compact_status_get(struct hse_kvdb *kvdb, struct hse_kvdb_compact_statu
  * @param[out] info: KVDB storage config and stats
  * @returns The function's error status
  */
-HSE_EXPORT hse_err_t
+HSE_EXPORT_EXPERIMENTAL hse_err_t
 hse_kvdb_storage_info_get(struct hse_kvdb *kvdb, struct hse_kvdb_storage_info *info);
+#endif
 
 /**
  * Add a new media class storage to an existing offline KVDB

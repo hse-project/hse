@@ -40,6 +40,7 @@ struct cndb;
 struct kvdb_diag_kvs_list;
 struct kvs;
 struct ikvdb_kvs_hdl;
+struct hse_kvdb_storage_info;
 
 struct hse_kvdb_txn {
 };
