@@ -7,7 +7,7 @@
 #include "bonsai_tree_pvt.h"
 
 static struct bonsai_node *
-bn_single_left_rotate(
+bn_right_rotate(
     struct bonsai_root *tree,
     struct bonsai_node *node,
     struct bonsai_node *newleft)
@@ -35,7 +35,7 @@ bn_single_left_rotate(
 }
 
 static struct bonsai_node *
-bn_single_right_rotate(
+bn_left_rotate(
     struct bonsai_root *tree,
     struct bonsai_node *node,
     struct bonsai_node *newright)
@@ -63,50 +63,33 @@ bn_single_right_rotate(
 }
 
 static struct bonsai_node *
-bn_double_left_rotate(struct bonsai_root *tree, struct bonsai_node *node)
+bn_left_right_rotate(struct bonsai_root *tree, struct bonsai_node *node)
 {
     struct bonsai_node *left, *newleft;
 
     left = bn_node_dup(tree, node->bn_left);
 
-    newleft = bn_single_right_rotate(tree, left, NULL);
+    newleft = bn_left_rotate(tree, left, NULL);
 
     bn_node_rcufree(tree, node->bn_left);
     node->bn_left = newleft;
 
-    return bn_single_left_rotate(tree, node, newleft);
+    return bn_right_rotate(tree, node, newleft);
 }
 
 static struct bonsai_node *
-bn_double_right_rotate(struct bonsai_root *tree, struct bonsai_node *node)
+bn_right_left_rotate(struct bonsai_root *tree, struct bonsai_node *node)
 {
     struct bonsai_node *right, *newright;
 
     right = bn_node_dup(tree, node->bn_right);
 
-    newright = bn_single_left_rotate(tree, right, NULL);
+    newright = bn_right_rotate(tree, right, NULL);
 
     bn_node_rcufree(tree, node->bn_right);
     node->bn_right = newright;
 
-    return bn_single_right_rotate(tree, node, newright);
-}
-
-static struct bonsai_node *
-bn_balance_left(
-    struct bonsai_root *tree,
-    struct bonsai_node *parent,
-    struct bonsai_node *left,
-    struct bonsai_node *right)
-{
-    struct bonsai_node *newnode;
-
-    newnode = bn_node_dup_ext(tree, parent, left, right);
-
-    if (bn_height_get(left->bn_left) < bn_height_get(left->bn_right))
-        return bn_single_left_rotate(tree, newnode, NULL);
-
-    return bn_double_left_rotate(tree, newnode);
+    return bn_left_rotate(tree, node, newright);
 }
 
 static struct bonsai_node *
@@ -120,10 +103,27 @@ bn_balance_right(
 
     newnode = bn_node_dup_ext(tree, parent, left, right);
 
-    if (bn_height_get(right->bn_left) < bn_height_get(right->bn_right))
-        return bn_single_right_rotate(tree, newnode, NULL);
+    if (bn_height_get(left->bn_right) < bn_height_get(left->bn_left))
+        return bn_right_rotate(tree, newnode, NULL);
 
-    return bn_double_right_rotate(tree, newnode);
+    return bn_left_right_rotate(tree, newnode);
+}
+
+static struct bonsai_node *
+bn_balance_left(
+    struct bonsai_root *tree,
+    struct bonsai_node *parent,
+    struct bonsai_node *left,
+    struct bonsai_node *right)
+{
+    struct bonsai_node *newnode;
+
+    newnode = bn_node_dup_ext(tree, parent, left, right);
+
+    if (bn_height_get(right->bn_left) < bn_height_get(right->bn_right))
+        return bn_left_rotate(tree, newnode, NULL);
+
+    return bn_right_left_rotate(tree, newnode);
 }
 
 static HSE_ALWAYS_INLINE struct bonsai_node *
@@ -148,13 +148,13 @@ bn_update_path(
 }
 
 static HSE_ALWAYS_INLINE bool
-bn_need_left_balance(int lh, int rh)
+bn_need_right_balance(int lh, int rh)
 {
     return (lh - rh) >= HSE_BT_BALANCE_THRESHOLD;
 }
 
 static HSE_ALWAYS_INLINE bool
-bn_need_right_balance(int lh, int rh)
+bn_need_left_balance(int lh, int rh)
 {
     return (rh - lh) >= HSE_BT_BALANCE_THRESHOLD;
 }
