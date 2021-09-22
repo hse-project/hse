@@ -29,7 +29,7 @@
 
 #define OPTION_HELP                 \
     {                               \
-        "[-h|--help]", "Print help" \
+        "-h, --help", "Print help" \
     }
 
 #define CONFIG_KVS_PFX_LEN                                                  \
@@ -890,7 +890,7 @@ cli_hse_kvdb_info(struct cli_cmd *self, struct cli *cli)
         .optionv =
             {
                 OPTION_HELP,
-                { "[-v|--verbose]", "Print KVDB details" },
+                { "-v, --verbose", "Print KVDB details" },
                 { NULL },
             },
         .longoptv =
@@ -947,9 +947,9 @@ cli_hse_kvdb_compact(struct cli_cmd *self, struct cli *cli)
         .optionv =
             {
                 OPTION_HELP,
-                { "[-t|--timeout SECS]", "Set compaction timeout in seconds" },
-                { "[-s|--status]", "Get status of compaction request" },
-                { "[-x|--cancel]", "Cancel compaction request" },
+                { "-s, --status", "Get status of compaction request" },
+                { "-t, --timeout=SECS", "Set compaction timeout in seconds" },
+                { "-x, --cancel", "Cancel compaction request" },
                 { NULL },
             },
         .longoptv =
@@ -1328,8 +1328,8 @@ cli_hse_storage_profile(struct cli_cmd *self, struct cli *cli)
         .optionv =
             {
                 OPTION_HELP,
-                { "[-q|--quiet]", "Outputs one of the following: [light, medium, default]" },
-                { "[-v|--verbose]", "Verbose profile output" },
+                { "-q, --quiet", "Outputs one of the following: [light, medium, default]" },
+                { "-v, --verbose", "Verbose profile output" },
                 { NULL },
             },
         .longoptv =
@@ -1752,10 +1752,10 @@ cli_hse(struct cli_cmd *self, struct cli *cli)
             },
         .optionv =
             {
-                { "[-h|--help]",    "Print help (use -hv for more help)" },
-                { "[-V|--version]", "Print version" },
-                { "[-v|--verbose]", "Increase verbosity" },
-                { "[-Z|--config]",  "Path to global configuration file" },
+                { "-h, --help",    "Print help (use -hv for more help)" },
+                { "-v, --verbose", "Increase verbosity" },
+                { "-V, --version", "Print version" },
+                { "-Z, --config",  "Path to global configuration file" },
                 { NULL },
             },
         .longoptv =
