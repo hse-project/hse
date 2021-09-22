@@ -455,7 +455,7 @@ viewset_remove(
     bkt = entry->vse_bkt;
     tree = bkt->vsb_tree;
 
-    assert(bkt >= self->vs_bkt_first && bkt <= self->vs_bkt_last);
+    assert(bkt >= &self->vs_bktv[0] && bkt < &self->vs_bktv[VIEWSET_BKT_MAX]);
 
     treelock_lock(tree);
     changed = list_is_first(&entry->vse_link, &tree->vst_head);
