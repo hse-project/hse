@@ -81,8 +81,6 @@ if git.found() and run_command(git, 'rev-parse').returncode() == 0
         '--dirty',
         check: true
     ).stdout().strip()
-elif fs.exists(meson.project_source_root() / 'VERSION')
-    build_version = fs.read(meson.project_source_root() / 'VERSION').stdout().strip()
 else
     build_version = meson.project_version()
 endif
@@ -432,8 +430,6 @@ if not meson.is_subproject()
             ],
         )
     endif
-
-    meson.add_dist_script('sh', '-c', 'echo "@0@" > "$MESON_DIST_ROOT/VERSION"'.format(build_version))
 endif
 
 checkoss = find_program('scripts' / 'dev' / 'checkoss')
