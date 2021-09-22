@@ -44,6 +44,8 @@
  */
 #define HSE_C0KVMS_C0SNR_MAX        (1536ul * 1024)
 
+#define HSE_C0_SPILL_MB_MAX         (2048ul)
+
 /* Limit the footprint of the cursor cache to the lesser of 10%
  * of available memory or 32GB.  The cursor cache is shared by
  * all open kvdbs within a single process.

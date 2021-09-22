@@ -3063,6 +3063,7 @@ ikvdb_wal_replay_size_set(struct ikvdb *ikvdb, struct ikvdb_kvs_hdl *ikvsh, uint
     struct ikvdb_impl *self;
     size_t             cheap_sz;
     uint32_t           width;
+    uint               scale;
 
     assert(ikvdb && ikvsh);
 
@@ -3078,20 +3079,22 @@ ikvdb_wal_replay_size_set(struct ikvdb *ikvdb, struct ikvdb_kvs_hdl *ikvsh, uint
     width = c0sk_ingest_width_get(self->ikdb_c0sk);
     assert(width);
 
-    cheap_sz = ((mem_sz * 14) / 10) / (width - 1);
-    if (cheap_sz <= ikvsh->cheap_sz)
-        return false;
+    cheap_sz = roundup_pow_of_two(((mem_sz * 14) / 10) / (width - 1));
 
-    cheap_sz = roundup_pow_of_two(cheap_sz);
-    cheap_sz = max_t(size_t, cheap_sz, HSE_C0_CHEAP_SZ_MAX);
+    scale = 1 + max_t(uint, cheap_sz / ikvsh->cheap_sz, mem_sz / (HSE_C0_SPILL_MB_MAX << 20));
+    if (scale > 1) {
+        cheap_sz = scale * ikvsh->cheap_sz;
 
-    hse_log(HSE_NOTICE "WAL replay: Setting c0kvms cheap size from %lu to %lu",
-            ikvsh->cheap_sz, cheap_sz);
-    c0kvs_reinit_force(0, cheap_sz);
+        hse_log(HSE_NOTICE "WAL replay: Setting c0kvms cheap size from %lu to %lu",
+                ikvsh->cheap_sz, cheap_sz);
 
-    ikvsh->needs_reset = true;
+        c0kvs_reinit_force(0, cheap_sz);
+        ikvsh->needs_reset = true;
 
-    return true;
+        return true;
+    }
+
+    return false;
 }
 
 void
