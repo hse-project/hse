@@ -480,6 +480,20 @@ hse_kvs_get(
     size_t               buf_len,
     size_t *             val_len);
 
+/** @brief Get the name of a KVS.
+ *
+ * @note This function is thread safe.
+ *
+ * @param kvs: KVS handle from hse_kvdb_kvs_open()
+ *
+ * @remark @p kvs must not be NULL.
+ *
+ * @returns KVS name.
+ * @retval NULL if given an invalid KVS handle.
+ */
+const char *
+hse_kvs_name_get(struct hse_kvs *kvs);
+
 /** @brief Delete all key-value pairs matching the key prefix from a KVS storing
  * segmented keys.
  *

@@ -21,6 +21,7 @@
 #include <hse_ikvdb/kvdb_cparams.h>
 #include <hse_ikvdb/hse_gparams.h>
 #include <hse_ikvdb/kvdb_home.h>
+#include <hse_ikvdb/kvs.h>
 
 #include <hse/version.h>
 
@@ -571,6 +572,15 @@ hse_kvdb_home_get(struct hse_kvdb *const handle)
         return NULL;
 
     return ikvdb_home((struct ikvdb *)handle);
+}
+
+const char *
+hse_kvs_name_get(struct hse_kvs *const handle)
+{
+    if (HSE_UNLIKELY(!handle))
+        return NULL;
+
+    return kvdb_kvs_name((struct kvdb_kvs *)handle);
 }
 
 hse_err_t
