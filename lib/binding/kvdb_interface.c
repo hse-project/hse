@@ -564,6 +564,15 @@ hse_kvdb_kvs_close(struct hse_kvs *handle)
     return err;
 }
 
+const char *
+hse_kvdb_home_get(struct hse_kvdb *const handle)
+{
+    if (HSE_UNLIKELY(!handle))
+        return NULL;
+
+    return ikvdb_home((struct ikvdb *)handle);
+}
+
 hse_err_t
 hse_kvdb_storage_info_get(struct hse_kvdb *kvdb, struct hse_kvdb_storage_info *info)
 {

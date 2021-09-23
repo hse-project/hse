@@ -197,6 +197,20 @@ hse_kvdb_create(const char *kvdb_home, size_t paramc, const char *const *paramv)
 hse_err_t
 hse_kvdb_drop(const char *kvdb_home);
 
+/** @brief Get the KVDB home.
+ *
+ * @note This function is thread safe.
+ *
+ * @param kvdb: KVDB handle from hse_kvdb_open().
+ *
+ * @remark @p kvdb must not be NULL.
+ *
+ * @returns KVDB home.
+ * @retval NULL if given an invalid KVDB handle.
+ */
+const char *
+hse_kvdb_home_get(struct hse_kvdb *kvdb);
+
 /** @brief Get the names of the KVSs within the given KVDB.
  *
  * Key-value stores (KVSs) are opened by name. This function allocates a vector
