@@ -59,20 +59,12 @@ bonsai_iter_seek(struct bonsai_iter *iter, const void *key, size_t klen)
 
     assert(rcu_read_ongoing());
 
-    /* Position the iterator on the previous key so the following call to bin_heap2_prepare()
-     * will position it correctly at the desired key.
-     */
     bn_skey_init(key, klen, 0, iter->bi_index, &skey);
     root = rcu_dereference(*iter->bi_root);
-    if (iter->bi_reverse) {
+    if (iter->bi_reverse)
         found = bn_findLE(root, &skey, &kv);
-        if (kv)
-            kv = rcu_dereference(kv->bkv_next); /* unget */
-    } else {
+    else
         found = bn_findGE(root, &skey, &kv);
-        if (kv)
-            kv = rcu_dereference(kv->bkv_prev); /* unget */
-    }
 
     iter->bi_es.es_eof = !found;
     iter->bi_kv = found ? kv : &root->br_kv;
@@ -90,9 +82,11 @@ bonsai_iter_position(struct bonsai_iter *iter, const void *key, size_t klen)
 
     bn_skey_init(key, klen, 0, iter->bi_index, &skey);
     root = rcu_dereference(*iter->bi_root);
-    found = bn_findGE(root, &skey, &kv);
-    if (kv)
-        kv = rcu_dereference(kv->bkv_prev); /* unget */
+
+    if (iter->bi_reverse)
+        found = bn_findLE(root, &skey, &kv);
+    else
+        found = bn_findGE(root, &skey, &kv);
 
     iter->bi_es.es_eof = !found;
     iter->bi_kv = found ? kv : &root->br_kv;
@@ -107,19 +101,19 @@ get_next(struct bonsai_iter *iter)
     if (!iter->bi_kv)
         return NULL;
 
+    bkv = iter->bi_kv;
     root = rcu_dereference(*iter->bi_root);
+
     if (iter->bi_reverse) {
-        bkv = rcu_dereference(iter->bi_kv->bkv_prev);
-        if (bkv == &root->br_kv || key_immediate_index(&bkv->bkv_key_imm) < iter->bi_index) {
-
+        if (bkv == &root->br_kv || key_immediate_index(&bkv->bkv_key_imm) < iter->bi_index)
             return NULL;
-        }
+
+        iter->bi_kv = rcu_dereference(bkv->bkv_prev);
     } else {
-        bkv = rcu_dereference(iter->bi_kv->bkv_next);
-        if (bkv == &root->br_kv || key_immediate_index(&bkv->bkv_key_imm) > iter->bi_index) {
-
+        if (bkv == &root->br_kv || key_immediate_index(&bkv->bkv_key_imm) > iter->bi_index)
             return NULL;
-        }
+
+        iter->bi_kv = rcu_dereference(bkv->bkv_next);
     }
 
     return bkv;
@@ -142,17 +136,11 @@ bonsai_iter_next(struct element_source *es, void **element)
      */
     rcu_read_lock();
 
-    if (!iter->bi_kv) {
-        struct bonsai_root *root = rcu_dereference(*iter->bi_root);
-
-        iter->bi_kv = &root->br_kv;
-    }
-
     do {
         enum hse_seqno_state state;
         u64                  seqno;
 
-        iter->bi_kv = bkv = get_next(iter);
+        bkv = get_next(iter);
         if (!bkv) {
             es->es_eof = true;
             rcu_read_unlock();
