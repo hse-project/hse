@@ -14,11 +14,11 @@
  */
 #define HSE_RA_PAGES_MAX        ((128 * 1024) / PAGE_SIZE)
 
-/* [HSE_REVISIT] Determine the dcache line size during compilation:
- *
- * e.g., -DLEVEL1_DCACHE_LINESIZE=$(getconf LEVEL1_DCACHE_LINESIZE)
- */
+#if (LEVEL1_DCACHE_LINESIZE > 64)
+#define SMP_CACHE_BYTES         (LEVEL1_DCACHE_LINESIZE)
+#else
 #define SMP_CACHE_BYTES         (64u)
+#endif
 
 /* GCOV_EXCL_START */
 
@@ -93,9 +93,6 @@ hse_getcpu(uint *node)
 {
     uint cpu;
 
-    /* [HSE_REVISIT] Need to handle architectures that do not
-     * support getcpu (see man vdso).
-     */
     syscall(__NR_getcpu, &cpu, node, NULL);
 
     return cpu;
@@ -104,10 +101,7 @@ hse_getcpu(uint *node)
 static HSE_ALWAYS_INLINE void
 cpu_relax(void)
 {
-    /* [HSE_REVISIT] Burn a few cycles to avoid thrashing the memory bus...
-     */
-    while (hse_getcpu(NULL) >= UINT_MAX)
-        continue;
+    barrier();
 }
 
 #endif

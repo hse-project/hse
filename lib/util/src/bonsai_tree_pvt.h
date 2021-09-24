@@ -9,7 +9,6 @@
 #include <hse_util/string.h>
 #include <hse_util/alloc.h>
 #include <hse_util/slab.h>
-#include <hse_util/barrier.h>
 #include <hse_util/bonsai_tree.h>
 #include <hse_util/assert.h>
 #include <hse_util/timing.h>

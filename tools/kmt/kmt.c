@@ -727,7 +727,7 @@ kmt_spin_lock(void *lockp)
 {
     while (!atomic_cas_acq(lockp, 0, 1)) {
         do {
-            __builtin_ia32_pause();
+            cpu_relax();
         } while (*(int *)lockp);
     }
 
@@ -1553,7 +1553,7 @@ km_rec_keygen_cmn(void *key, uint64_t rid)
     len = right - (char *)key;
     if (len >= KM_REC_KEY_MAX) {
         eprint("%s: key buf overflow: len=%d keysz=%d keyfmt=%s rid=%lu\n",
-               __func__, len, KM_REC_KEY_MAX, keyfmt, rid);
+               __func__, len, KM_REC_KEY_MAX, keyfmt ?: "", rid);
         abort();
     }
 

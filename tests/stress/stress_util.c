@@ -253,6 +253,8 @@ create_or_open_kvdb_and_kvs(
 
     print_storage_info(kvdb);
 
+    kvs = NULL;
+
     t1 = clock();
     status = create_or_open_kvs(kvdb, kvs_name, &kvs, transactions_enable);
     t2 = clock();

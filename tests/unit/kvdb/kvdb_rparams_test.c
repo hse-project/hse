@@ -202,7 +202,7 @@ MTF_DEFINE_UTEST_PRE(kvdb_rparams_test, csched_lo_th_pct, test_pre)
 	ASSERT_NE(NULL, ps);
 	ASSERT_NE(NULL, ps->ps_description);
 	ASSERT_EQ(PARAM_FLAG_EXPERIMENTAL | PARAM_FLAG_WRITABLE, ps->ps_flags);
-	ASSERT_EQ(PARAM_TYPE_U64, ps->ps_type);
+	ASSERT_EQ(PARAM_TYPE_U8, ps->ps_type);
 	ASSERT_EQ((uintptr_t)ps->ps_convert, (uintptr_t)param_default_converter);
 	ASSERT_EQ((uintptr_t)ps->ps_validate, (uintptr_t)param_default_validator);
 	ASSERT_EQ(25, params.csched_lo_th_pct);

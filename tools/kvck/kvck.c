@@ -313,7 +313,7 @@ main(int argc, char **argv)
     bool                help = false;
     hse_err_t           err;
     char                errbuf[300];
-    char                c;
+    int                 c;
     uint64_t            rc = 0;
     int                 kvscnt = 0;
     u64                 seqno;

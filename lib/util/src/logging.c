@@ -7,7 +7,7 @@
 #include <hse_util/slab.h>
 #include <hse_util/config.h>
 #include <hse_util/string.h>
-#include <hse_util/delay.h>
+#include <hse_util/mutex.h>
 #include <hse_util/parse_num.h>
 #include <hse_ikvdb/hse_gparams.h>
 
@@ -45,7 +45,7 @@ struct priority_name {
     log_priority_t priority_val;
 };
 
-DEFINE_SPINLOCK(hse_logging_lock);
+DEFINE_MUTEX(hse_logging_lock);
 
 FILE *logging_file = NULL;
 
@@ -111,25 +111,25 @@ _hse_log_async_cons_th(struct work_struct *wstruct)
 
     /* Process all the log messages in the circular buffer.
      */
-    spin_lock(&async->al_lock);
+    mutex_lock(&async->al_lock);
 
     while (async->al_nb > 0) {
         entry = async->al_entries + async->al_cons % MAX_LOGGING_ASYNC_ENTRIES;
-        spin_unlock(&async->al_lock);
+        mutex_unlock(&async->al_lock);
 
         _hse_consume_one_async(entry);
 
         /* Don't hog the cpu. */
         if ((++loop % 128) == 0)
-            msleep(100);
+            usleep(100 * 1000);
 
-        spin_lock(&async->al_lock);
+        mutex_lock(&async->al_lock);
         async->al_cons++;
         async->al_nb--;
     }
 
     async->al_th_working = false;
-    spin_unlock(&async->al_lock);
+    mutex_unlock(&async->al_lock);
 }
 
 static merr_t
@@ -181,9 +181,9 @@ hse_logging_init(void)
             return merr(errno);
     }
 
-    spin_lock(&hse_logging_lock);
+    mutex_lock(&hse_logging_lock);
     err = hse_logging_inf.mli_active ? EBUSY : 0;
-    spin_unlock(&hse_logging_lock);
+    mutex_unlock(&hse_logging_lock);
 
     if (err)
         return merr(err);
@@ -252,10 +252,10 @@ hse_logging_init(void)
         goto out_err;
     }
 
-    spin_lock(&hse_logging_lock);
+    mutex_lock(&hse_logging_lock);
     if (hse_logging_inf.mli_active) {
         /* Lost race to initialize logging, free memory and return */
-        spin_unlock(&hse_logging_lock);
+        mutex_unlock(&hse_logging_lock);
         err = merr(EBUSY);
         goto out_err;
     }
@@ -269,10 +269,10 @@ hse_logging_init(void)
     async = &(hse_logging_inf.mli_async);
     async->al_entries = async_entries;
     async->al_wq = wq;
-    spin_lock_init(&async->al_lock);
+    mutex_init(&async->al_lock);
     hse_logging_inf.mli_active = 1;
 
-    spin_unlock(&hse_logging_lock);
+    mutex_unlock(&hse_logging_lock);
 
     return 0;
 
@@ -327,21 +327,21 @@ hse_logging_fini(void)
     if (!hse_gparams.gp_logging.enabled)
         return;
 
-    spin_lock(&hse_logging_lock);
+    mutex_lock(&hse_logging_lock);
     hse_gparams.gp_logging.level = -1;
-    spin_unlock(&hse_logging_lock);
+    mutex_unlock(&hse_logging_lock);
 
     async = &hse_logging_inf.mli_async;
 
-    spin_lock(&async->al_lock);
+    mutex_lock(&async->al_lock);
     wq = async->al_wq;
     async->al_wq = NULL;
-    spin_unlock(&async->al_lock);
+    mutex_unlock(&async->al_lock);
 
     /* Wait for the async logging consumer thread to exit. */
     destroy_workqueue(wq);
 
-    spin_lock(&hse_logging_lock);
+    mutex_lock(&hse_logging_lock);
 
     if (hse_gparams.gp_logging.destination == LD_FILE &&
         logging_file != stdout &&
@@ -378,7 +378,7 @@ hse_logging_fini(void)
     hse_logging_inf.mli_active = 0;
     hse_logging_inf.mli_opened = 0;
 
-    spin_unlock(&hse_logging_lock);
+    mutex_unlock(&hse_logging_lock);
 }
 
 /*
@@ -406,10 +406,10 @@ _hse_log_post_vasync(
 
     async = &(hse_logging_inf.mli_async);
 
-    spin_lock(&async->al_lock);
+    mutex_lock(&async->al_lock);
     if (async->al_nb == MAX_LOGGING_ASYNC_ENTRIES || !async->al_wq) {
         /* Circular buffer full. */
-        spin_unlock(&async->al_lock);
+        mutex_unlock(&async->al_lock);
         ev(ENOENT);
         return;
     }
@@ -443,7 +443,7 @@ _hse_log_post_vasync(
     start = !async->al_th_working;
     if (start)
         async->al_th_working = true;
-    spin_unlock(&async->al_lock);
+    mutex_unlock(&async->al_lock);
 
     if (start) {
         INIT_WORK(&async->al_wstruct, _hse_log_async_cons_th);
@@ -471,10 +471,10 @@ _hse_log_post_async(const char *source_file, s32 source_line, s32 priority, char
 
     async = &(hse_logging_inf.mli_async);
 
-    spin_lock(&async->al_lock);
+    mutex_lock(&async->al_lock);
     if (async->al_nb == MAX_LOGGING_ASYNC_ENTRIES || !async->al_wq) {
         /* Circular buffer full. */
-        spin_unlock(&async->al_lock);
+        mutex_unlock(&async->al_lock);
         ev(ENOENT);
         return;
     }
@@ -508,7 +508,7 @@ _hse_log_post_async(const char *source_file, s32 source_line, s32 priority, char
     start = !async->al_th_working;
     if (start)
         async->al_th_working = true;
-    spin_unlock(&async->al_lock);
+    mutex_unlock(&async->al_lock);
 
     if (start) {
         INIT_WORK(&async->al_wstruct, _hse_log_async_cons_th);
@@ -558,7 +558,7 @@ _hse_log(
     if (priority > hse_gparams.gp_logging.level)
         return;
 
-    spin_lock(&hse_logging_lock);
+    mutex_lock(&hse_logging_lock);
 
     if (priority > hse_gparams.gp_logging.level)
         goto out;
@@ -618,7 +618,7 @@ _hse_log(
     va_end(args);
 
 out:
-    spin_unlock(&hse_logging_lock);
+    mutex_unlock(&hse_logging_lock);
 }
 
 static struct hse_log_code codetab[52];
@@ -1266,7 +1266,7 @@ hse_slog_internal(int priority, const char *fmt, ...)
         return;
 
     va_start(payload, fmt);
-    spin_lock(&hse_logging_lock);
+    mutex_lock(&hse_logging_lock);
 
     if (fmt) {
         buf = fmt;
@@ -1283,7 +1283,7 @@ hse_slog_internal(int priority, const char *fmt, ...)
 
     _hse_log_post_vasync("_hse_slog", 1, priority, buf, payload);
 
-    spin_unlock(&hse_logging_lock);
+    mutex_unlock(&hse_logging_lock);
     va_end(payload);
 }
 

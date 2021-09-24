@@ -13,7 +13,6 @@
 #include <hse_util/timing.h>
 #include <hse_util/log2.h>
 #include <hse_util/page.h>
-#include <hse_util/barrier.h>
 #include <hse_util/hse_err.h>
 #include <hse_util/event_counter.h>
 
@@ -257,7 +256,7 @@ viewset_horizon(struct viewset *handle)
     int i;
 
     /* Read old horizon and KVDB seqno before checking active txn cnt */
-    smp_rmb();
+    __atomic_thread_fence(__ATOMIC_ACQ_REL);
 
     /* Any transaction that began but wasn't reflected in vsb_active
      * will have a view seqno that is larger than newh.
