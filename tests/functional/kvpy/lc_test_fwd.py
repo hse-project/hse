@@ -4,6 +4,13 @@
 #
 # Copyright (C) 2021 Micron Technology, Inc. All rights reserved.
 
+'''
+To add keys to LC and make sure that an unintended ingest doesn't move it all to cn set these
+two run time params:
+    1. durability.enabled = false // kvdb_sync() ingests to lc + cn
+    2. c0_debug = 16              // ingest only when sync is called. See C0_DEBUG_ACCUMULATE in hse.
+'''
+
 from contextlib import ExitStack
 
 from hse2 import hse
@@ -403,7 +410,7 @@ hse.init(cli.CONFIG)
 
 try:
     with ExitStack() as stack:
-        kvdb_ctx = lifecycle.KvdbContext().rparams("durability.enabled=false")
+        kvdb_ctx = lifecycle.KvdbContext().rparams("durability.enabled=false", "c0_debug=16")
         kvdb = stack.enter_context(kvdb_ctx)
 
         kvs_ctx = lifecycle.KvsContext(kvdb, "test_kvs").cparams("prefix.length=2", "suffix.length=1").rparams("transactions.enabled=true")
