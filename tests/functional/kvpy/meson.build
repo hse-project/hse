@@ -30,6 +30,7 @@ tests = {
         'experimental': true,
     },
     'lc_test_rev': {},
+    'lc_multikvs': {},
     'ptomb_snapshot_isolation': {},
     'rev_basic': {},
     'seek-del-put-next': {},

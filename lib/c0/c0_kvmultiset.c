@@ -254,7 +254,7 @@ c0kvms_should_ingest(struct c0_kvmultiset *handle)
      * 2) The height of any bonsai tree is greater than 24
      * 3) The average number of values for all keys exceeds 2048
      * 4) The average height of all trees exceeds 22.
-     * 5) The (interpolated) size of the keys+values exceeds 2048MB.
+     * 5) The (interpolated) size of the keys+values exceeds HSE_C0_SPILL_MB_MAX (2048MB).
      */
     sum_kvbytes = sum_keyvals = sum_height = ndiv = 0;
 
@@ -281,8 +281,10 @@ c0kvms_should_ingest(struct c0_kvmultiset *handle)
         }
     }
 
-    if (ndiv > 3 && ev((sum_kvbytes >> 20) > (2048 / HSE_C0_INGEST_WIDTH_MAX) * ndiv))
+    if (ndiv > 3 &&
+        ev((sum_kvbytes >> 20) > (HSE_C0_SPILL_MB_MAX / HSE_C0_INGEST_WIDTH_MAX) * ndiv)) {
         return true; /* interpolated size is greater than 2048MB */
+    }
 
     if (ev((sum_keyvals / 2048) > ndiv))
         return true;
