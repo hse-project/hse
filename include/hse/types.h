@@ -12,19 +12,19 @@ extern "C" {
 
 #include <inttypes.h>
 
-/** @defgroup ERROR_HANDLING HSE Return Codes
+/** @defgroup ERRORS Errors
  * @{
  * Describes the HSE API return code type and associated utilities.
  */
 
-
 /** @typedef hse_err_t
  * @brief Generic return type for the HSE library
  *
- * If this scalar quantity is 0 then the call succeeded. If it is non-zero then the
- * 64-bit quantity can be used by the client in two ways: (1) call hse_err_to_errno() to
- * get a mapping to a POSIX errno value, and (2) call hse_err_to_string() to get a
- * textual reference about what error occurred and where.
+ * If this scalar quantity is 0 then the call succeeded. If it is non-zero, then
+ * the 64-bit quantity can be used by the client in two ways: (1) call
+ * hse_err_to_errno() to get a mapping to a POSIX errno value, and (2) call
+ * hse_strerror() to get a textual reference about what error occurred and
+ * where.
  *
  * The following special errno error codes are worth mentioning here.
  *
@@ -51,61 +51,20 @@ extern "C" {
  */
 typedef uint64_t hse_err_t;
 
-/**@} ERROR_HANDLING */
+/**@} ERRORS */
 
-
-/** @defgroup TYPES Type Declarations, Shared Structures and Macros
+/** @addtogroup KVDB
  * @{
- * These types are generally opaque handles that a client obtains by using library
- * functions. A client uses these handles to exercise more fine-grained
- * functionality. For example a "struct hse_kvdb" is the handle for a key-value database
- * that one obtains by calling hse_kvdb_open().
  */
 
 /** @struct hse_kvdb
  * @brief Opaque structure, a pointer to which is a handle to an HSE key-value
- *        database (KVDB).
+ * database (KVDB).
  */
 struct hse_kvdb;
 
-/** @struct hse_kvs
- * @brief Opaque structure, a pointer to which is a handle to an HSE key-value
- *        store within a KVDB (KVS).
- */
-struct hse_kvs;
-
-/** @struct hse_kvs_cursor
- * @brief Opaque structure, a pointer to which is a handle to a cursor within
- *        a KVS.
- */
-struct hse_kvs_cursor;
-
-/** @struct hse_kvdb_txn
- * @brief Opaque structure, a pointer to which is a handle to a transaction
- *        within a KVDB.
- */
-struct hse_kvdb_txn;
-
-/** @} TYPES */
-
-/** @addtogroup TXN
- * @{
- */
-
-/** @brief Transaction state. */
-enum hse_kvdb_txn_state {
-    HSE_KVDB_TXN_INVALID = 0,
-    HSE_KVDB_TXN_ACTIVE = 1,
-    HSE_KVDB_TXN_COMMITTED = 2,
-    HSE_KVDB_TXN_ABORTED = 3,
-};
-
-/** @} TXN */
-
 #ifdef HSE_EXPERIMENTAL
-/**
- * struct hse_kvdb_compact_status - status of a compaction request
- */
+/** @brief Get the status of a compaction request. */
 struct hse_kvdb_compact_status {
     unsigned int kvcs_samp_lwm;  /**< space amp low water mark (%) */
     unsigned int kvcs_samp_hwm;  /**< space amp high water mark (%) */
@@ -114,9 +73,7 @@ struct hse_kvdb_compact_status {
     unsigned int kvcs_canceled;  /**< was an externally requested compaction canceled */
 };
 
-/**
- * struct hse_kvdb_storage_info - storage info for a kvdb
- */
+/** @brief Get the storage information for a KVDB. */
 struct hse_kvdb_storage_info {
     uint64_t total_bytes;     /**< total space in the file-system containing this kvdb */
     uint64_t available_bytes; /**< available space in the file-system containing this kvdb */
@@ -124,12 +81,63 @@ struct hse_kvdb_storage_info {
     uint64_t used_bytes;      /**< used storage space for a kvdb */
 };
 
+#endif
+
+/**@} KVDB */
+
+/** @addtogroup KVS
+ * @{
+ */
+
+/** @struct hse_kvs
+ * @brief Opaque structure, a pointer to which is a handle to an HSE KVS
+ * within a KVDB.
+ */
+struct hse_kvs;
+
+#ifdef HSE_EXPERIMENTAL
+
 enum hse_kvs_pfx_probe_cnt {
     HSE_KVS_PFX_FOUND_ZERO = 0,
     HSE_KVS_PFX_FOUND_ONE,
     HSE_KVS_PFX_FOUND_MUL,
 };
+
 #endif
+
+/**@} KVS */
+
+/** @addtogroup CURSORS
+ * @{
+ */
+
+/** @struct hse_kvs_cursor
+ * @brief Opaque structure, a pointer to which is a handle to a cursor within
+ * a KVS.
+ */
+struct hse_kvs_cursor;
+
+/**@} CURSORS */
+
+/** @addtogroup TRANSACTIONS
+ * @{
+ */
+
+/** @struct hse_kvdb_txn
+ * @brief Opaque structure, a pointer to which is a handle to a transaction
+ * within a KVDB.
+ */
+struct hse_kvdb_txn;
+
+/** @brief Transaction state. */
+enum hse_kvdb_txn_state {
+    HSE_KVDB_TXN_INVALID = 0,   /**< invalid state */
+    HSE_KVDB_TXN_ACTIVE = 1,    /**< active state */
+    HSE_KVDB_TXN_COMMITTED = 2, /**< committed state */
+    HSE_KVDB_TXN_ABORTED = 3,   /**< aborted state */
+};
+
+/** @} TRANSACTIONS */
 
 #ifdef __cplusplus
 }
