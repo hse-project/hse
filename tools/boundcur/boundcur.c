@@ -183,7 +183,7 @@ main(
 	struct svec         kv_oparms = { 0 };
 
 	const char         *mpool, *kvs, *config = NULL;
-	char                c;
+	int                 c;
 	int                 i;
 	int                 rc;
 

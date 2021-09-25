@@ -4,8 +4,9 @@
  */
 
 #define USE_EVENT_TIMER
-#include <hse_util/event_timer.h>
+#include <hse_util/arch.h>
 #include <hse_util/delay.h>
+#include <hse_util/event_timer.h>
 
 #include <math.h>
 #include <sched.h>
@@ -27,7 +28,7 @@ event_sample_ts(struct event_timer *t, unsigned long t1, unsigned long t2)
         /* prevent simultaneous updates */
         while (atomic64_cmpxchg(&t->busy, 0, 1))
     {
-        __asm("pause");
+        cpu_relax();
         ++t->t1;
         if (++loop > 1000)
             sched_yield();

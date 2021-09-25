@@ -140,8 +140,8 @@ hse_cpu_init(void)
     hse_tsc_shift = 21;
     hse_tsc_mult = (NSEC_PER_SEC << hse_tsc_shift) / hse_tsc_freq;
 
-    hse_log(HSE_NOTICE "%s: freq %lu, shift %u, mult %u",
-            __func__, hse_tsc_freq, hse_tsc_shift, hse_tsc_mult);
+    hse_log(HSE_NOTICE "%s: freq %lu, shift %u, mult %u, L1D_CLSZ %d",
+            __func__, hse_tsc_freq, hse_tsc_shift, hse_tsc_mult, LEVEL1_DCACHE_LINESIZE);
 
     return 0;
 }

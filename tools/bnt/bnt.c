@@ -178,7 +178,7 @@ xrand64_init(uint64_t seed)
 {
     if (seed == 0) {
         while (!(seed >> 56))
-            seed = (seed << 8) | (__builtin_ia32_rdtsc() & 0xfful);
+            seed = (seed << 8) | (get_cycles() & 0xfful);
     }
 
     xoroshiro128plus_init(xrand64_state, seed);
@@ -1254,7 +1254,7 @@ bnt_test_main(void *arg)
 
         bn_skey_init(kvr->kvr_keybuf, kvr->kvr_keylen, 0, rid2skidx(rid), &skey);
 
-        cycles = __builtin_ia32_rdtsc();
+        cycles = get_cycles();
         kvt = kvr->kvr_tree;
 
         if (dryrun || xrand64() >= updateprob) {
@@ -1322,7 +1322,7 @@ bnt_test_main(void *arg)
             ++args->stats.inserts;
         }
 
-        cycles = __builtin_ia32_rdtsc() - cycles;
+        cycles = get_cycles() - cycles;
 
         kvr->kvr_tree = kvt;
         kvrec_unlock(rid);
@@ -1511,7 +1511,7 @@ bnt_check_main(void *arg)
         if (!kvr)
             abort();
 
-        cycles = __builtin_ia32_rdtsc();
+        cycles = get_cycles();
 
         if (kvr->kvr_tree) {
             struct bonsai_kv *kv = NULL;
@@ -1536,7 +1536,7 @@ bnt_check_main(void *arg)
         }
         kvrec_unlock(rid);
 
-        cycles = __builtin_ia32_rdtsc() - cycles;
+        cycles = get_cycles() - cycles;
         ++args->stats.iters;
 
         if (cycles < args->stats.latmin)
