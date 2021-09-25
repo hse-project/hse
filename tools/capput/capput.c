@@ -518,7 +518,7 @@ main(int argc, char **argv)
     const char         *mpool, *kvs, *config = NULL;
     size_t              sz;
     uint                i;
-    char                c;
+    int                 c;
     int                 rc;
 
     progname = basename(argv[0]);

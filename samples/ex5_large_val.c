@@ -196,7 +196,7 @@ main(int argc, char **argv)
     char *           kvdb_home, *kvs_name;
     struct hse_kvdb *kvdb;
     struct hse_kvs * kvs;
-    char             c;
+    int              c;
     bool             extract = false;
     hse_err_t        rc, rc2;
     const char *     paramv[] = { "logging.destination=stdout",

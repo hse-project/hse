@@ -271,7 +271,7 @@ main(int argc, char **argv)
 	const char         *mpool, *kvs, *config = NULL;
 	size_t              sz;
 	uint                i, stride;
-	char                c;
+	int                 c;
 	uint                cur_per_thread;
 	int                 rc;
 

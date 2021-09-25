@@ -10,7 +10,6 @@
 #include <hse_util/inttypes.h>
 #include <hse_util/workqueue.h>
 #include <hse_util/mutex.h>
-#include <hse_util/spinlock.h>
 #include <hse_util/json.h>
 #include <hse_util/hse_err.h>
 
@@ -49,7 +48,7 @@ enum std_length_modifier {
 
 /******************************************************************************
  * The processing of constructing the message to be logged requires the use
- * of scratch memory. The logging is currently protected by a spin lock so
+ * of scratch memory. The logging is currently protected by a lock so
  * this is handled by having dynamically allocated scratch space that is
  * set up when the logging subsystem is initialized and freed upon subsystem
  * release.
@@ -100,8 +99,7 @@ struct hse_log_async_entry {
  *      The log messages are only stored in a circular buffer attached to
  *      structure. The thread _hse_log_async_cons_th() process them later.
  * @al_wstruct:
- * @al_lock: must be a spinlock because used from interrupt context.
- *      Protect the fields below.
+ * @al_lock: Protect the fields below.
  * @al_th_working: true if the async log consumer thread is working.
  * @al_cons: always increasing and rolling integer.
  *      al_cons%MAX_LOGGING_ASYNC_ENTRIES is the index in al_entries[]
@@ -114,7 +112,7 @@ struct hse_log_async_entry {
 struct hse_log_async {
     struct workqueue_struct *   al_wq;
     struct work_struct          al_wstruct;
-    spinlock_t                  al_lock;
+    struct mutex                al_lock;
     bool                        al_th_working;
     u32                         al_cons;
     u32                         al_nb;

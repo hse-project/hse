@@ -106,7 +106,7 @@ main(int argc, char **argv)
 	struct svec         kvs_cparms = { 0 };
 	struct svec         kvs_oparms = { 0 };
 	const char         *mpool, *kvs, *config = NULL;
-	char                c;
+	int                 c;
 	int                 rc;
 
 	progname = basename(argv[0]);

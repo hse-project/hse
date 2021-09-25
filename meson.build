@@ -110,6 +110,11 @@ else
     )
 endif
 
+level1_dcache_linesize = run_command(
+    'getconf',
+    'LEVEL1_DCACHE_LINESIZE'
+).stdout().strip()
+
 add_project_arguments(
     '-D_GNU_SOURCE',
     '-D_LGPL_SOURCE',
@@ -120,6 +125,7 @@ add_project_arguments(
     '-Wno-unused-parameter',
     '-Wno-clobbered', # TODO: figure out a way to get back to compiling with -Wclobbered (enabled by -Wextra)
     '-DHSE_LOG_PRI_DEFAULT=@0@'.format(log_pri_default),
+    '-DLEVEL1_DCACHE_LINESIZE=@0@'.format(level1_dcache_linesize),
     language: 'c',
 )
 

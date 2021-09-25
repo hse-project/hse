@@ -942,6 +942,7 @@ cn_tree_insert_kvset(struct cn_tree *tree, struct kvset *kvset, uint level, uint
     merr_t                   err;
 
     dgen = kvset_get_dgen(kvset);
+    node = NULL;
 
     err = cn_tree_create_node(tree, level, offset, &node);
     if (ev(err))

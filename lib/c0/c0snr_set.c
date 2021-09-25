@@ -12,7 +12,6 @@
 #include <hse_util/timing.h>
 #include <hse_util/log2.h>
 #include <hse_util/page.h>
-#include <hse_util/barrier.h>
 #include <hse_util/seqno.h>
 #include <hse_util/hse_err.h>
 #include <hse_util/vlb.h>
