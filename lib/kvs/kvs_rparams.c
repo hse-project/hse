@@ -65,8 +65,7 @@ validate_cn_node_size_hi(const struct param_spec *ps, const struct params *const
     return true;
 }
 
-static bool HSE_NONNULL(1, 2, 3)
-compression_value_algorithm_converter(
+static bool HSE_NONNULL(1, 2, 3) compression_value_algorithm_converter(
     const struct param_spec *const ps,
     const cJSON *const             node,
     void *const                    data)
