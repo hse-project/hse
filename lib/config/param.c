@@ -15,6 +15,7 @@
 #include <hse_ikvdb/param.h>
 #include <hse_util/storage.h>
 #include <hse_util/log2.h>
+#include <hse_util/invariant.h>
 
 #include "logging.h"
 
@@ -353,6 +354,68 @@ param_default_converter(const struct param_spec *ps, const cJSON *node, void *va
     return true;
 }
 
+merr_t
+param_default_stringify(
+    const struct param_spec *const ps,
+    const void *const              value,
+    char *const                    buf,
+    const size_t                   buf_sz,
+    size_t *                       needed_sz)
+{
+    int n = 0;
+
+    INVARIANT(ps);
+    INVARIANT(buf);
+    INVARIANT(value);
+
+    switch (ps->ps_type) {
+        case PARAM_TYPE_BOOL:
+            n = snprintf(buf, buf_sz, "%s", *(bool *)value ? "true" : "false");
+            break;
+        case PARAM_TYPE_I8:
+            n = snprintf(buf, buf_sz, "%d", *(int8_t *)value);
+            break;
+        case PARAM_TYPE_I16:
+            n = snprintf(buf, buf_sz, "%d", *(int16_t *)value);
+            break;
+        case PARAM_TYPE_I32:
+            n = snprintf(buf, buf_sz, "%d", *(int32_t *)value);
+            break;
+        case PARAM_TYPE_I64:
+            n = snprintf(buf, buf_sz, "%ld", *(int64_t *)value);
+            break;
+        case PARAM_TYPE_U8:
+            n = snprintf(buf, buf_sz, "%u", *(uint8_t *)value);
+            break;
+        case PARAM_TYPE_U16:
+            n = snprintf(buf, buf_sz, "%u", *(uint16_t *)value);
+            break;
+        case PARAM_TYPE_U32:
+            n = snprintf(buf, buf_sz, "%u", *(uint32_t *)value);
+            break;
+        case PARAM_TYPE_U64:
+            n = snprintf(buf, buf_sz, "%lu", *(uint64_t *)value);
+            break;
+        case PARAM_TYPE_ENUM:
+            n = snprintf(buf, buf_sz, "%d", *(int *)value);
+            break;
+        case PARAM_TYPE_STRING:
+            n = snprintf(buf, buf_sz, "\"%s\"", (char *)value);
+            break;
+        case PARAM_TYPE_ARRAY:
+        case PARAM_TYPE_OBJECT:
+        default:
+            abort();
+    }
+
+    if (n < 0)
+        return merr(EBADMSG);
+    if (needed_sz)
+        *needed_sz = n;
+
+    return 0;
+}
+
 bool
 param_roundup_pow2(const struct param_spec *ps, const cJSON *node, void *value)
 {
@@ -526,7 +589,7 @@ param_default_validator(const struct param_spec *ps, const void *value)
                                                                                                   \
         assert(!(ps->ps_flags & PARAM_FLAG_NULLABLE));                                            \
         if (!cJSON_IsNumber(node)) {                                                              \
-            CLOG_ERR("Value of %s must be a number", ps->ps_name);                                    \
+            CLOG_ERR("Value of %s must be a number", ps->ps_name);                                \
             return false;                                                                         \
         }                                                                                         \
                                                                                                   \
@@ -536,11 +599,11 @@ param_default_validator(const struct param_spec *ps, const void *value)
         double tmp = cJSON_GetNumberValue(node);                                                  \
         tmp = tmp * X;                                                                            \
         if (fetestexcept(FE_OVERFLOW)) {                                                          \
-            CLOG_ERR("Value of %s is too large", ps->ps_name);                                        \
+            CLOG_ERR("Value of %s is too large", ps->ps_name);                                    \
             feclearexcept(FE_OVERFLOW);                                                           \
             return false;                                                                         \
         } else if (fetestexcept(FE_UNDERFLOW)) {                                                  \
-            CLOG_ERR("Value of %s is too small", ps->ps_name);                                        \
+            CLOG_ERR("Value of %s is too small", ps->ps_name);                                    \
             feclearexcept(FE_UNDERFLOW);                                                          \
             return false;                                                                         \
         }                                                                                         \
@@ -549,7 +612,7 @@ param_default_validator(const struct param_spec *ps, const void *value)
             case PARAM_TYPE_I8:                                                                   \
                 assert(ps->ps_size == sizeof(int8_t));                                            \
                 if (tmp < (double)INT8_MIN || tmp > (double)INT8_MAX) {                           \
-                    CLOG_ERR(                                                                         \
+                    CLOG_ERR(                                                                     \
                         "Number of bytes of %s is not within the bounds of a signed 8-bit "       \
                         "integer",                                                                \
                         ps->ps_name);                                                             \
@@ -560,7 +623,7 @@ param_default_validator(const struct param_spec *ps, const void *value)
             case PARAM_TYPE_I16:                                                                  \
                 assert(ps->ps_size == sizeof(int16_t));                                           \
                 if (tmp < (double)INT16_MIN || tmp > (double)INT16_MAX) {                         \
-                    CLOG_ERR(                                                                         \
+                    CLOG_ERR(                                                                     \
                         "Number of bytes of %s is not within the bounds of a signed 16-bit "      \
                         "integer",                                                                \
                         ps->ps_name);                                                             \
@@ -571,7 +634,7 @@ param_default_validator(const struct param_spec *ps, const void *value)
             case PARAM_TYPE_I32:                                                                  \
                 assert(ps->ps_size == sizeof(int32_t));                                           \
                 if (tmp < (double)INT32_MIN || tmp > (double)INT32_MAX) {                         \
-                    CLOG_ERR(                                                                         \
+                    CLOG_ERR(                                                                     \
                         "Number of bytes of %s is not within the bounds of a signed 32-bit "      \
                         "integer",                                                                \
                         ps->ps_name);                                                             \
@@ -582,7 +645,7 @@ param_default_validator(const struct param_spec *ps, const void *value)
             case PARAM_TYPE_I64:                                                                  \
                 assert(ps->ps_size == sizeof(int64_t));                                           \
                 if (tmp < (double)INT64_MIN || tmp > (double)INT64_MAX) {                         \
-                    CLOG_ERR(                                                                         \
+                    CLOG_ERR(                                                                     \
                         "Number of bytes of %s is not within the bounds of a signed 64-bit "      \
                         "integer",                                                                \
                         ps->ps_name);                                                             \
@@ -593,7 +656,7 @@ param_default_validator(const struct param_spec *ps, const void *value)
             case PARAM_TYPE_U8:                                                                   \
                 assert(ps->ps_size == sizeof(uint8_t));                                           \
                 if (tmp < 0 || tmp > (double)UINT8_MAX) {                                         \
-                    CLOG_ERR(                                                                         \
+                    CLOG_ERR(                                                                     \
                         "Number of bytes of %s is not within the bounds of an unsigned 8-bit "    \
                         "integer",                                                                \
                         ps->ps_name);                                                             \
@@ -604,7 +667,7 @@ param_default_validator(const struct param_spec *ps, const void *value)
             case PARAM_TYPE_U16:                                                                  \
                 assert(ps->ps_size == sizeof(uint16_t));                                          \
                 if (tmp < 0 || tmp > (double)UINT16_MAX) {                                        \
-                    CLOG_ERR(                                                                         \
+                    CLOG_ERR(                                                                     \
                         "Number of bytes of %s is not within the bounds of an unsigned 16-bit "   \
                         "integer",                                                                \
                         ps->ps_name);                                                             \
@@ -615,7 +678,7 @@ param_default_validator(const struct param_spec *ps, const void *value)
             case PARAM_TYPE_U32:                                                                  \
                 assert(ps->ps_size == sizeof(uint32_t));                                          \
                 if (tmp < 0 || tmp > (double)UINT32_MAX) {                                        \
-                    CLOG_ERR(                                                                         \
+                    CLOG_ERR(                                                                     \
                         "Number of bytes of %s is not within the bounds of an unsigned 8=32-bit " \
                         "integer",                                                                \
                         ps->ps_name);                                                             \
@@ -626,7 +689,7 @@ param_default_validator(const struct param_spec *ps, const void *value)
             case PARAM_TYPE_U64:                                                                  \
                 assert(ps->ps_size == sizeof(uint64_t));                                          \
                 if (tmp < 0 || tmp > (double)UINT64_MAX) {                                        \
-                    CLOG_ERR(                                                                         \
+                    CLOG_ERR(                                                                     \
                         "Number of bytes of %s is not within the bounds of an unsigned 64-bit "   \
                         "integer",                                                                \
                         ps->ps_name);                                                             \
@@ -645,3 +708,59 @@ STORAGE_CONVERTER(KB)
 STORAGE_CONVERTER(MB)
 STORAGE_CONVERTER(GB)
 STORAGE_CONVERTER(TB)
+
+#undef STORAGE_CONVERTER
+
+#define STORAGE_STRINGIFY(X)                                                        \
+    merr_t param_stringify_bytes_to_##X(                                            \
+        const struct param_spec *const ps,                                          \
+        const void *const              value,                                       \
+        char *const                    buf,                                         \
+        const size_t                   buf_sz,                                      \
+        size_t *                       needed_sz)                                   \
+    {                                                                               \
+        int n = 0;                                                                  \
+                                                                                    \
+        switch (ps->ps_type) {                                                      \
+            case PARAM_TYPE_I8:                                                     \
+                n = snprintf(buf, buf_sz, "%ld", *(int8_t *)value / (int64_t)X);    \
+                break;                                                              \
+            case PARAM_TYPE_I16:                                                    \
+                n = snprintf(buf, buf_sz, "%ld", *(int16_t *)value / (int64_t)X);   \
+                break;                                                              \
+            case PARAM_TYPE_I32:                                                    \
+                n = snprintf(buf, buf_sz, "%ld", *(int32_t *)value / (int64_t)X);   \
+                break;                                                              \
+            case PARAM_TYPE_I64:                                                    \
+                n = snprintf(buf, buf_sz, "%ld", *(int64_t *)value / (int64_t)X);   \
+                break;                                                              \
+            case PARAM_TYPE_U8:                                                     \
+                n = snprintf(buf, buf_sz, "%lu", *(uint8_t *)value / (uint64_t)X);  \
+                break;                                                              \
+            case PARAM_TYPE_U16:                                                    \
+                n = snprintf(buf, buf_sz, "%lu", *(uint16_t *)value / (uint64_t)X); \
+                break;                                                              \
+            case PARAM_TYPE_U32:                                                    \
+                n = snprintf(buf, buf_sz, "%lu", *(uint32_t *)value / (uint64_t)X); \
+                break;                                                              \
+            case PARAM_TYPE_U64:                                                    \
+                n = snprintf(buf, buf_sz, "%lu", *(uint64_t *)value / (uint64_t)X); \
+                break;                                                              \
+            default:                                                                \
+                abort();                                                            \
+        }                                                                           \
+                                                                                    \
+        if (n < 0)                                                                  \
+            return merr(EBADMSG);                                                   \
+        if (needed_sz)                                                              \
+            *needed_sz = n;                                                         \
+                                                                                    \
+        return 0;                                                                   \
+    }
+
+STORAGE_STRINGIFY(KB)
+STORAGE_STRINGIFY(MB)
+STORAGE_STRINGIFY(GB)
+STORAGE_STRINGIFY(TB)
+
+#undef STORAGE_STRINGIFY

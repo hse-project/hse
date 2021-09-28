@@ -27,6 +27,7 @@ static const struct param_spec pspecs[] = {
         .ps_size = PARAM_SZ(struct kvdb_cparams, storage.mclass[MP_MED_CAPACITY].fmaxsz),
         .ps_convert = param_convert_to_bytes_from_GB,
         .ps_validate = param_default_validator,
+        .ps_stringify = param_stringify_bytes_to_GB,
         .ps_default_value = {
             .as_uscalar = MPOOL_MBLOCK_FILESZ_DEFAULT,
         },
@@ -46,6 +47,7 @@ static const struct param_spec pspecs[] = {
         .ps_size = PARAM_SZ(struct kvdb_cparams, storage.mclass[MP_MED_CAPACITY].mblocksz),
         .ps_convert = param_convert_to_bytes_from_MB,
         .ps_validate = param_default_validator,
+        .ps_stringify = param_stringify_bytes_to_MB,
         .ps_default_value = {
             .as_uscalar = MPOOL_MBLOCK_SIZE_DEFAULT,
         },
@@ -65,6 +67,7 @@ static const struct param_spec pspecs[] = {
         .ps_size = PARAM_SZ(struct kvdb_cparams, storage.mclass[MP_MED_CAPACITY].filecnt),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
+        .ps_stringify = param_default_stringify,
         .ps_default_value = {
             .as_uscalar = MPOOL_MBLOCK_FILECNT_DEFAULT,
         },
@@ -83,6 +86,7 @@ static const struct param_spec pspecs[] = {
         .ps_offset = offsetof(struct kvdb_cparams, storage.mclass[MP_MED_CAPACITY].path),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
+        .ps_stringify = param_default_stringify,
         .ps_default_value = {
             .as_string = MPOOL_CAPACITY_MCLASS_DEFAULT_PATH,
         },
@@ -101,6 +105,7 @@ static const struct param_spec pspecs[] = {
         .ps_size = PARAM_SZ(struct kvdb_cparams, storage.mclass[MP_MED_STAGING].fmaxsz),
         .ps_convert = param_convert_to_bytes_from_GB,
         .ps_validate = param_default_validator,
+        .ps_stringify = param_stringify_bytes_to_GB,
         .ps_default_value = {
             .as_uscalar = MPOOL_MBLOCK_FILESZ_DEFAULT,
         },
@@ -120,6 +125,7 @@ static const struct param_spec pspecs[] = {
         .ps_size = PARAM_SZ(struct kvdb_cparams, storage.mclass[MP_MED_STAGING].mblocksz),
         .ps_convert = param_convert_to_bytes_from_MB,
         .ps_validate = param_default_validator,
+        .ps_stringify = param_stringify_bytes_to_MB,
         .ps_default_value = {
             .as_uscalar = MPOOL_MBLOCK_SIZE_DEFAULT,
         },
@@ -139,6 +145,7 @@ static const struct param_spec pspecs[] = {
         .ps_size = PARAM_SZ(struct kvdb_cparams, storage.mclass[MP_MED_STAGING].filecnt),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
+        .ps_stringify = param_default_stringify,
         .ps_default_value = {
             .as_uscalar = MPOOL_MBLOCK_FILECNT_DEFAULT,
         },
@@ -157,6 +164,7 @@ static const struct param_spec pspecs[] = {
         .ps_offset = offsetof(struct kvdb_cparams, storage.mclass[MP_MED_STAGING].path),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
+        .ps_stringify = param_default_stringify,
         .ps_default_value = {
             .as_string = NULL,
         },
@@ -199,7 +207,7 @@ kvdb_cparams_resolve(struct kvdb_cparams *params, const char *home)
         sizeof(buf) == sizeof(params->storage.mclass[MP_MED_BASE].path), "mismatched buffer sizes");
 
     err = kvdb_home_storage_path_get(
-            home, params->storage.mclass[MP_MED_CAPACITY].path, buf, sizeof(buf));
+        home, params->storage.mclass[MP_MED_CAPACITY].path, buf, sizeof(buf));
     if (err)
         return err;
     strlcpy(
@@ -208,7 +216,7 @@ kvdb_cparams_resolve(struct kvdb_cparams *params, const char *home)
         sizeof(params->storage.mclass[MP_MED_CAPACITY].path));
 
     err = kvdb_home_storage_path_get(
-            home, params->storage.mclass[MP_MED_STAGING].path, buf, sizeof(buf));
+        home, params->storage.mclass[MP_MED_STAGING].path, buf, sizeof(buf));
     if (err)
         return err;
     strlcpy(

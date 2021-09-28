@@ -58,6 +58,8 @@ typedef bool (*param_converter_t)(const struct param_spec *, const cJSON *, void
 typedef bool (*param_validator_t)(const struct param_spec *, const void *);
 typedef bool (*param_relation_validator_t)(const struct param_spec *, const struct params *);
 typedef void (*param_default_builder_t)(const struct param_spec *, void *);
+typedef merr_t (
+    *param_stringify_t)(const struct param_spec *, const void *, char *, size_t, size_t *);
 
 enum param_type {
     PARAM_TYPE_BOOL,
@@ -88,6 +90,8 @@ struct param_spec {
     param_validator_t ps_validate;
     /* Validates relations after conversion, validation, and updating of all data */
     param_relation_validator_t ps_validate_relations;
+    /* Returns a JSON string representation of the value */
+    param_stringify_t ps_stringify;
     union {
         bool     as_bool;
         uint64_t as_uscalar;
@@ -131,6 +135,14 @@ param_default_converter(const struct param_spec *ps, const cJSON *node, void *va
 bool
 param_default_validator(const struct param_spec *ps, const void *value);
 
+merr_t
+param_default_stringify(
+    const struct param_spec *ps,
+    const void *             value,
+    char *                   buf,
+    size_t                   buf_sz,
+    size_t *                 needed_sz);
+
 bool
 param_roundup_pow2(const struct param_spec *ps, const cJSON *node, void *value);
 
@@ -145,5 +157,37 @@ param_convert_to_bytes_from_GB(const struct param_spec *ps, const cJSON *node, v
 
 bool
 param_convert_to_bytes_from_TB(const struct param_spec *ps, const cJSON *node, void *value);
+
+merr_t
+param_stringify_bytes_to_KB(
+    const struct param_spec *ps,
+    const void *             value,
+    char *                   buf,
+    size_t                   buf_sz,
+    size_t *                 needed_sz);
+
+merr_t
+param_stringify_bytes_to_MB(
+    const struct param_spec *ps,
+    const void *             value,
+    char *                   buf,
+    size_t                   buf_sz,
+    size_t *                 needed_sz);
+
+merr_t
+param_stringify_bytes_to_GB(
+    const struct param_spec *ps,
+    const void *             value,
+    char *                   buf,
+    size_t                   buf_sz,
+    size_t *                 needed_sz);
+
+merr_t
+param_stringify_bytes_to_TB(
+    const struct param_spec *ps,
+    const void *             value,
+    char *                   buf,
+    size_t                   buf_sz,
+    size_t *                 needed_sz);
 
 #endif /* HSE_PARAM_H */

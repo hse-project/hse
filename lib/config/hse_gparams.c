@@ -19,6 +19,7 @@
 #include <hse_util/compiler.h>
 #include <hse_util/perfc.h>
 #include <hse_util/vlb.h>
+#include <hse_util/invariant.h>
 
 #include <hse_ikvdb/limits.h>
 
@@ -27,10 +28,10 @@
 struct hse_gparams hse_gparams;
 
 bool HSE_NONNULL(1, 2, 3)
-    logging_destination_converter(
-        const struct param_spec *const ps,
-        const cJSON *const             node,
-        void *const                    data)
+logging_destination_converter(
+    const struct param_spec *const ps,
+    const cJSON *const             node,
+    void *const                    data)
 {
     assert(ps);
     assert(node);
@@ -62,6 +63,30 @@ bool HSE_NONNULL(1, 2, 3)
     return true;
 }
 
+static merr_t
+logging_destination_stringify(
+    const struct param_spec *const ps,
+    const void *const              value,
+    char *const                    buf,
+    const size_t                   buf_sz,
+    size_t *const                  needed_sz)
+{
+    static const char *values[] = { "stdout", "stderr", "file", "syslog" };
+
+    enum log_destination dest = *(enum log_destination *)value;
+
+    INVARIANT(dest >= LD_MIN && dest <= LD_MAX);
+
+    const int n = snprintf(buf, buf_sz, "\"%s\"", values[dest]);
+    if (n < 0)
+        return merr(EBADMSG);
+
+    if (needed_sz)
+        *needed_sz = n;
+
+    return 0;
+}
+
 void
 socket_path_default(const struct param_spec *ps, void *value)
 {
@@ -84,6 +109,7 @@ static const struct param_spec pspecs[] = {
         .ps_size = PARAM_SZ(struct hse_gparams, gp_logging.enabled),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
+        .ps_stringify = param_default_stringify,
         .ps_default_value = {
             .as_bool = true,
         },
@@ -97,6 +123,7 @@ static const struct param_spec pspecs[] = {
         .ps_size = PARAM_SZ(struct hse_gparams, gp_logging.structured),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
+        .ps_stringify = param_default_stringify,
         .ps_default_value = {
             .as_bool = false,
         },
@@ -110,6 +137,7 @@ static const struct param_spec pspecs[] = {
         .ps_size = PARAM_SZ(struct hse_gparams, gp_logging.destination),
         .ps_convert = logging_destination_converter,
         .ps_validate = param_default_validator,
+        .ps_stringify = logging_destination_stringify,
         .ps_default_value = {
             .as_enum = LD_SYSLOG,
         },
@@ -128,6 +156,7 @@ static const struct param_spec pspecs[] = {
         .ps_offset = offsetof(struct hse_gparams, gp_logging.path),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
+        .ps_stringify = param_default_stringify,
         .ps_default_value = {
             .as_string = "hse.log",
         },
@@ -146,6 +175,7 @@ static const struct param_spec pspecs[] = {
         .ps_size = sizeof(hse_logpri_t),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
+        .ps_stringify = param_default_stringify,
         .ps_default_value = {
             .as_scalar = HSE_LOGPRI_DEFAULT,
         },
@@ -165,6 +195,7 @@ static const struct param_spec pspecs[] = {
         .ps_size = PARAM_SZ(struct hse_gparams, gp_logging.squelch_ns),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
+        .ps_stringify = param_default_stringify,
         .ps_default_value = {
             .as_uscalar = HSE_LOG_SQUELCH_NS_DEFAULT,
         },
@@ -184,6 +215,7 @@ static const struct param_spec pspecs[] = {
         .ps_size = PARAM_SZ(struct hse_gparams, gp_vlb_cache_sz),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
+        .ps_stringify = param_default_stringify,
         .ps_default_value = {
             .as_uscalar = HSE_VLB_CACHESZ_DFLT,
         },
@@ -203,6 +235,7 @@ static const struct param_spec pspecs[] = {
         .ps_size = PARAM_SZ(struct hse_gparams, gp_c0kvs_ccache_sz_max),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
+        .ps_stringify = param_default_stringify,
         .ps_default_value = {
             .as_uscalar = HSE_C0_CCACHE_SZ_DFLT,
         },
@@ -222,6 +255,7 @@ static const struct param_spec pspecs[] = {
         .ps_size = PARAM_SZ(struct hse_gparams, gp_c0kvs_ccache_sz),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
+        .ps_stringify = param_default_stringify,
         .ps_default_value = {
             .as_uscalar = HSE_C0_CCACHE_SZ_DFLT,
         },
@@ -241,6 +275,7 @@ static const struct param_spec pspecs[] = {
         .ps_size = PARAM_SZ(struct hse_gparams, gp_c0kvs_cheap_sz),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
+        .ps_stringify = param_default_stringify,
         .ps_default_value = {
             .as_uscalar = HSE_C0_CHEAP_SZ_DFLT,
         },
@@ -260,6 +295,7 @@ static const struct param_spec pspecs[] = {
         .ps_size = PARAM_SZ(struct hse_gparams, gp_perfc_level),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
+        .ps_stringify = param_default_stringify,
         .ps_default_value = {
             .as_uscalar = PERFC_LEVEL_DEFAULT,
         },
@@ -279,6 +315,7 @@ static const struct param_spec pspecs[] = {
         .ps_size = PARAM_SZ(struct hse_gparams, gp_socket.enabled),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
+        .ps_stringify = param_default_stringify,
         .ps_default_value = {
             .as_bool = true,
         }
@@ -291,6 +328,7 @@ static const struct param_spec pspecs[] = {
         .ps_offset = offsetof(struct hse_gparams, gp_socket.path),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
+        .ps_stringify = param_default_stringify,
         .ps_default_value = {
             .as_builder = socket_path_default,
         },

@@ -21,6 +21,7 @@ static const struct param_spec pspecs[] = {
         .ps_size = sizeof(((struct kvs_cparams *) 0)->fanout),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
+        .ps_stringify = param_default_stringify,
         .ps_default_value = {
             .as_uscalar = CN_FANOUT_MAX,
         },
@@ -40,6 +41,7 @@ static const struct param_spec pspecs[] = {
         .ps_size = sizeof(((struct kvs_cparams *) 0)->pfx_len),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
+        .ps_stringify = param_default_stringify,
         .ps_default_value = {
             .as_uscalar = 0,
         },
@@ -59,6 +61,7 @@ static const struct param_spec pspecs[] = {
         .ps_size = sizeof(((struct kvs_cparams *) 0)->pfx_pivot),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
+        .ps_stringify = param_default_stringify,
         .ps_default_value = {
             .as_uscalar = 2,
         },
@@ -78,6 +81,7 @@ static const struct param_spec pspecs[] = {
         .ps_size = sizeof(((struct kvs_cparams *) 0)->kvs_ext01),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
+        .ps_stringify = param_default_stringify,
         .ps_default_value = {
             .as_uscalar = 0,
         },
@@ -97,6 +101,7 @@ static const struct param_spec pspecs[] = {
         .ps_size = sizeof(((struct kvs_cparams *) 0)->sfx_len),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
+        .ps_stringify = param_default_stringify,
         .ps_default_value = {
             .as_uscalar = 0,
         },
