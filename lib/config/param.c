@@ -15,6 +15,7 @@
 #include <hse_ikvdb/param.h>
 #include <hse_util/storage.h>
 #include <hse_util/log2.h>
+#include <hse_util/invariant.h>
 
 #include "logging.h"
 
@@ -345,6 +346,72 @@ param_default_converter(const struct param_spec *ps, const cJSON *node, void *va
     return true;
 }
 
+merr_t
+param_default_stringify(
+    const struct param_spec *const ps,
+    const void *const              value,
+    char *const                    buf,
+    const size_t                   buf_sz,
+    size_t *                       needed_sz)
+{
+    int n;
+
+    INVARIANT(ps);
+    INVARIANT(buf);
+    INVARIANT(value);
+
+    switch (ps->ps_type) {
+        case PARAM_TYPE_BOOL:
+            n = snprintf(buf, buf_sz, "%s", *(bool *)value ? "true" : "false");
+            break;
+        case PARAM_TYPE_I8:
+            n = snprintf(buf, buf_sz, "%d", *(int8_t *)value);
+            break;
+        case PARAM_TYPE_I16:
+            n = snprintf(buf, buf_sz, "%d", *(int16_t *)value);
+            break;
+        case PARAM_TYPE_I32:
+            n = snprintf(buf, buf_sz, "%d", *(int32_t *)value);
+            break;
+        case PARAM_TYPE_I64:
+            n = snprintf(buf, buf_sz, "%ld", *(int64_t *)value);
+            break;
+        case PARAM_TYPE_U8:
+            n = snprintf(buf, buf_sz, "%u", *(uint8_t *)value);
+            break;
+        case PARAM_TYPE_U16:
+            n = snprintf(buf, buf_sz, "%u", *(uint16_t *)value);
+            break;
+        case PARAM_TYPE_U32:
+            n = snprintf(buf, buf_sz, "%u", *(uint32_t *)value);
+            break;
+        case PARAM_TYPE_U64:
+            n = snprintf(buf, buf_sz, "%lu", *(uint64_t *)value);
+            break;
+        case PARAM_TYPE_ENUM:
+            n = snprintf(buf, buf_sz, "%d", *(int *)value);
+            break;
+        case PARAM_TYPE_STRING:
+            if (((char *)value)[0] == '\0') {
+                n = (int)strlcpy(buf, "null", buf_sz);
+            } else {
+                n = snprintf(buf, buf_sz, "\"%s\"", (char *)value);
+            }
+            break;
+        case PARAM_TYPE_ARRAY:
+        case PARAM_TYPE_OBJECT:
+        default:
+            assert(false);
+    }
+
+    if (n < 0)
+        return merr(EBADMSG);
+    if (needed_sz)
+        *needed_sz = n;
+
+    return 0;
+}
+
 bool
 param_roundup_pow2(const struct param_spec *ps, const cJSON *node, void *value)
 {
@@ -630,3 +697,57 @@ STORAGE_CONVERTER(GB)
 STORAGE_CONVERTER(TB)
 
 #undef STORAGE_CONVERTER
+
+#define STORAGE_STRINGIFY(X)                                                        \
+    merr_t param_stringify_bytes_to_##X(                                            \
+        const struct param_spec *const ps,                                          \
+        const void *const              value,                                       \
+        char *const                    buf,                                         \
+        const size_t                   buf_sz,                                      \
+        size_t *                       needed_sz)                                   \
+    {                                                                               \
+        int n;                                                                      \
+                                                                                    \
+        switch (ps->ps_type) {                                                      \
+            case PARAM_TYPE_I8:                                                     \
+                n = snprintf(buf, buf_sz, "%ld", *(int8_t *)value / (int64_t)X);    \
+                break;                                                              \
+            case PARAM_TYPE_I16:                                                    \
+                n = snprintf(buf, buf_sz, "%ld", *(int16_t *)value / (int64_t)X);   \
+                break;                                                              \
+            case PARAM_TYPE_I32:                                                    \
+                n = snprintf(buf, buf_sz, "%ld", *(int32_t *)value / (int64_t)X);   \
+                break;                                                              \
+            case PARAM_TYPE_I64:                                                    \
+                n = snprintf(buf, buf_sz, "%ld", *(int64_t *)value / (int64_t)X);   \
+                break;                                                              \
+            case PARAM_TYPE_U8:                                                     \
+                n = snprintf(buf, buf_sz, "%lu", *(uint8_t *)value / (uint64_t)X);  \
+                break;                                                              \
+            case PARAM_TYPE_U16:                                                    \
+                n = snprintf(buf, buf_sz, "%lu", *(uint16_t *)value / (uint64_t)X); \
+                break;                                                              \
+            case PARAM_TYPE_U32:                                                    \
+                n = snprintf(buf, buf_sz, "%lu", *(uint32_t *)value / (uint64_t)X); \
+                break;                                                              \
+            case PARAM_TYPE_U64:                                                    \
+                n = snprintf(buf, buf_sz, "%lu", *(uint64_t *)value / (uint64_t)X); \
+                break;                                                              \
+            default:                                                                \
+                assert(false);                                                      \
+        }                                                                           \
+                                                                                    \
+        if (n < 0)                                                                  \
+            return merr(EBADMSG);                                                   \
+        if (needed_sz)                                                              \
+            *needed_sz = n;                                                         \
+                                                                                    \
+        return 0;                                                                   \
+    }
+
+STORAGE_STRINGIFY(KB)
+STORAGE_STRINGIFY(MB)
+STORAGE_STRINGIFY(GB)
+STORAGE_STRINGIFY(TB)
+
+#undef STORAGE_STRINGIFY

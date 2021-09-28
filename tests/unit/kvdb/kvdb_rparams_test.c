@@ -15,7 +15,7 @@
 
 MTF_BEGIN_UTEST_COLLECTION(kvdb_rparams_test)
 
-    struct kvdb_rparams params;
+struct kvdb_rparams params;
 
 int
 test_pre(struct mtf_test_info *ti)
@@ -89,6 +89,7 @@ MTF_DEFINE_UTEST_PRE(kvdb_rparams_test, read_only, test_pre)
     ASSERT_EQ(sizeof(bool), ps->ps_size);
     ASSERT_EQ((uintptr_t)ps->ps_convert, (uintptr_t)param_default_converter);
     ASSERT_EQ((uintptr_t)ps->ps_validate, (uintptr_t)param_default_validator);
+    ASSERT_EQ((uintptr_t)ps->ps_stringify, (uintptr_t)param_default_stringify);
     ASSERT_EQ(false, params.read_only);
 }
 
@@ -104,6 +105,7 @@ MTF_DEFINE_UTEST_PRE(kvdb_rparams_test, perfc_level, test_pre)
     ASSERT_EQ(sizeof(uint8_t), ps->ps_size);
     ASSERT_EQ((uintptr_t)ps->ps_convert, (uintptr_t)param_default_converter);
     ASSERT_EQ((uintptr_t)ps->ps_validate, (uintptr_t)param_default_validator);
+    ASSERT_EQ((uintptr_t)ps->ps_stringify, (uintptr_t)param_default_stringify);
     ASSERT_EQ(PERFC_LEVEL_DEFAULT, params.perfc_level);
     ASSERT_EQ(PERFC_LEVEL_MIN, ps->ps_bounds.as_uscalar.ps_min);
     ASSERT_EQ(PERFC_LEVEL_MAX, ps->ps_bounds.as_uscalar.ps_max);
@@ -121,6 +123,7 @@ MTF_DEFINE_UTEST_PRE(kvdb_rparams_test, c0_debug, test_pre)
     ASSERT_EQ(sizeof(uint8_t), ps->ps_size);
     ASSERT_EQ((uintptr_t)ps->ps_convert, (uintptr_t)param_default_converter);
     ASSERT_EQ((uintptr_t)ps->ps_validate, (uintptr_t)param_default_validator);
+    ASSERT_EQ((uintptr_t)ps->ps_stringify, (uintptr_t)param_default_stringify);
     ASSERT_EQ(0, params.c0_debug);
     ASSERT_EQ(0, ps->ps_bounds.as_uscalar.ps_min);
     ASSERT_EQ(UINT8_MAX, ps->ps_bounds.as_uscalar.ps_max);
@@ -138,6 +141,7 @@ MTF_DEFINE_UTEST_PRE(kvdb_rparams_test, c0_ingest_width, test_pre)
     ASSERT_EQ(sizeof(uint32_t), ps->ps_size);
     ASSERT_EQ((uintptr_t)ps->ps_convert, (uintptr_t)param_default_converter);
     ASSERT_EQ((uintptr_t)ps->ps_validate, (uintptr_t)param_default_validator);
+    ASSERT_EQ((uintptr_t)ps->ps_stringify, (uintptr_t)param_default_stringify);
     ASSERT_EQ(HSE_C0_INGEST_WIDTH_DFLT, params.c0_ingest_width);
     ASSERT_EQ(HSE_C0_INGEST_WIDTH_MIN, ps->ps_bounds.as_uscalar.ps_min);
     ASSERT_EQ(HSE_C0_INGEST_WIDTH_MAX, ps->ps_bounds.as_uscalar.ps_max);
@@ -155,6 +159,7 @@ MTF_DEFINE_UTEST_PRE(kvdb_rparams_test, txn_timeout, test_pre)
     ASSERT_EQ(sizeof(uint64_t), ps->ps_size);
     ASSERT_EQ((uintptr_t)ps->ps_convert, (uintptr_t)param_default_converter);
     ASSERT_EQ((uintptr_t)ps->ps_validate, (uintptr_t)param_default_validator);
+    ASSERT_EQ((uintptr_t)ps->ps_stringify, (uintptr_t)param_default_stringify);
     ASSERT_EQ(1000 * 60 * 5, params.txn_timeout);
     ASSERT_EQ(0, ps->ps_bounds.as_uscalar.ps_min);
     ASSERT_EQ(UINT64_MAX, ps->ps_bounds.as_uscalar.ps_max);
@@ -172,6 +177,7 @@ MTF_DEFINE_UTEST_PRE(kvdb_rparams_test, csched_policy, test_pre)
     ASSERT_EQ(sizeof(uint32_t), ps->ps_size);
     ASSERT_EQ((uintptr_t)ps->ps_convert, (uintptr_t)param_default_converter);
     ASSERT_NE((uintptr_t)ps->ps_validate, (uintptr_t)param_default_validator);
+    ASSERT_EQ((uintptr_t)ps->ps_stringify, (uintptr_t)param_default_stringify);
     ASSERT_EQ(csched_policy_sp3, params.csched_policy);
     ASSERT_EQ(csched_policy_old, ps->ps_bounds.as_uscalar.ps_min);
     ASSERT_EQ(csched_policy_noop, ps->ps_bounds.as_uscalar.ps_max);
@@ -189,6 +195,7 @@ MTF_DEFINE_UTEST_PRE(kvdb_rparams_test, csched_debug_mask, test_pre)
     ASSERT_EQ(sizeof(uint64_t), ps->ps_size);
     ASSERT_EQ((uintptr_t)ps->ps_convert, (uintptr_t)param_default_converter);
     ASSERT_EQ((uintptr_t)ps->ps_validate, (uintptr_t)param_default_validator);
+    ASSERT_EQ((uintptr_t)ps->ps_stringify, (uintptr_t)param_default_stringify);
     ASSERT_EQ(0, params.csched_debug_mask);
     ASSERT_EQ(0, ps->ps_bounds.as_uscalar.ps_min);
     ASSERT_EQ(UINT64_MAX, ps->ps_bounds.as_uscalar.ps_max);
@@ -206,6 +213,7 @@ MTF_DEFINE_UTEST_PRE(kvdb_rparams_test, csched_samp_max, test_pre)
     ASSERT_EQ(sizeof(uint64_t), ps->ps_size);
     ASSERT_EQ((uintptr_t)ps->ps_convert, (uintptr_t)param_default_converter);
     ASSERT_EQ((uintptr_t)ps->ps_validate, (uintptr_t)param_default_validator);
+    ASSERT_EQ((uintptr_t)ps->ps_stringify, (uintptr_t)param_default_stringify);
     ASSERT_EQ(150, params.csched_samp_max);
     ASSERT_EQ(0, ps->ps_bounds.as_uscalar.ps_min);
     ASSERT_EQ(UINT64_MAX, ps->ps_bounds.as_uscalar.ps_max);
@@ -223,6 +231,7 @@ MTF_DEFINE_UTEST_PRE(kvdb_rparams_test, csched_lo_th_pct, test_pre)
     ASSERT_EQ(sizeof(uint8_t), ps->ps_size);
     ASSERT_EQ((uintptr_t)ps->ps_convert, (uintptr_t)param_default_converter);
     ASSERT_EQ((uintptr_t)ps->ps_validate, (uintptr_t)param_default_validator);
+    ASSERT_EQ((uintptr_t)ps->ps_stringify, (uintptr_t)param_default_stringify);
     ASSERT_EQ(25, params.csched_lo_th_pct);
     ASSERT_EQ(0, ps->ps_bounds.as_uscalar.ps_min);
     ASSERT_EQ(100, ps->ps_bounds.as_uscalar.ps_max);
@@ -240,6 +249,7 @@ MTF_DEFINE_UTEST_PRE(kvdb_rparams_test, csched_hi_th_pct, test_pre)
     ASSERT_EQ(sizeof(uint8_t), ps->ps_size);
     ASSERT_EQ((uintptr_t)ps->ps_convert, (uintptr_t)param_default_converter);
     ASSERT_EQ((uintptr_t)ps->ps_validate, (uintptr_t)param_default_validator);
+    ASSERT_EQ((uintptr_t)ps->ps_stringify, (uintptr_t)param_default_stringify);
     ASSERT_EQ(75, params.csched_hi_th_pct);
     ASSERT_EQ(0, ps->ps_bounds.as_uscalar.ps_min);
     ASSERT_EQ(100, ps->ps_bounds.as_uscalar.ps_max);
@@ -257,6 +267,7 @@ MTF_DEFINE_UTEST_PRE(kvdb_rparams_test, csched_leaf_pct, test_pre)
     ASSERT_EQ(sizeof(uint8_t), ps->ps_size);
     ASSERT_EQ((uintptr_t)ps->ps_convert, (uintptr_t)param_default_converter);
     ASSERT_EQ((uintptr_t)ps->ps_validate, (uintptr_t)param_default_validator);
+    ASSERT_EQ((uintptr_t)ps->ps_stringify, (uintptr_t)param_default_stringify);
     ASSERT_EQ(90, params.csched_leaf_pct);
     ASSERT_EQ(0, ps->ps_bounds.as_uscalar.ps_min);
     ASSERT_EQ(100, ps->ps_bounds.as_uscalar.ps_max);
@@ -274,6 +285,7 @@ MTF_DEFINE_UTEST_PRE(kvdb_rparams_test, csched_vb_scatter_pct, test_pre)
     ASSERT_EQ(sizeof(uint8_t), ps->ps_size);
     ASSERT_EQ((uintptr_t)ps->ps_convert, (uintptr_t)param_default_converter);
     ASSERT_EQ((uintptr_t)ps->ps_validate, (uintptr_t)param_default_validator);
+    ASSERT_EQ((uintptr_t)ps->ps_stringify, (uintptr_t)param_default_stringify);
     ASSERT_EQ(100, params.csched_vb_scatter_pct);
     ASSERT_EQ(0, ps->ps_bounds.as_uscalar.ps_min);
     ASSERT_EQ(100, ps->ps_bounds.as_uscalar.ps_max);
@@ -291,6 +303,7 @@ MTF_DEFINE_UTEST_PRE(kvdb_rparams_test, csched_qthreads, test_pre)
     ASSERT_EQ(sizeof(uint64_t), ps->ps_size);
     ASSERT_EQ((uintptr_t)ps->ps_convert, (uintptr_t)param_default_converter);
     ASSERT_EQ((uintptr_t)ps->ps_validate, (uintptr_t)param_default_validator);
+    ASSERT_EQ((uintptr_t)ps->ps_stringify, (uintptr_t)param_default_stringify);
     ASSERT_EQ(0, params.csched_qthreads);
     ASSERT_EQ(0, ps->ps_bounds.as_uscalar.ps_min);
     ASSERT_EQ(UINT64_MAX, ps->ps_bounds.as_uscalar.ps_max);
@@ -308,6 +321,7 @@ MTF_DEFINE_UTEST_PRE(kvdb_rparams_test, csched_node_len_max, test_pre)
     ASSERT_EQ(sizeof(uint64_t), ps->ps_size);
     ASSERT_EQ((uintptr_t)ps->ps_convert, (uintptr_t)param_default_converter);
     ASSERT_EQ((uintptr_t)ps->ps_validate, (uintptr_t)param_default_validator);
+    ASSERT_EQ((uintptr_t)ps->ps_stringify, (uintptr_t)param_default_stringify);
     ASSERT_EQ(0, params.csched_node_len_max);
     ASSERT_EQ(0, ps->ps_bounds.as_uscalar.ps_min);
     ASSERT_EQ(UINT64_MAX, ps->ps_bounds.as_uscalar.ps_max);
@@ -325,6 +339,7 @@ MTF_DEFINE_UTEST_PRE(kvdb_rparams_test, csched_rspill_params, test_pre)
     ASSERT_EQ(sizeof(uint64_t), ps->ps_size);
     ASSERT_EQ((uintptr_t)ps->ps_convert, (uintptr_t)param_default_converter);
     ASSERT_EQ((uintptr_t)ps->ps_validate, (uintptr_t)param_default_validator);
+    ASSERT_EQ((uintptr_t)ps->ps_stringify, (uintptr_t)param_default_stringify);
     ASSERT_EQ(0, params.csched_rspill_params);
     ASSERT_EQ(0, ps->ps_bounds.as_uscalar.ps_min);
     ASSERT_EQ(UINT64_MAX, ps->ps_bounds.as_uscalar.ps_max);
@@ -342,6 +357,7 @@ MTF_DEFINE_UTEST_PRE(kvdb_rparams_test, csched_ispill_params, test_pre)
     ASSERT_EQ(sizeof(uint64_t), ps->ps_size);
     ASSERT_EQ((uintptr_t)ps->ps_convert, (uintptr_t)param_default_converter);
     ASSERT_EQ((uintptr_t)ps->ps_validate, (uintptr_t)param_default_validator);
+    ASSERT_EQ((uintptr_t)ps->ps_stringify, (uintptr_t)param_default_stringify);
     ASSERT_EQ(0, params.csched_ispill_params);
     ASSERT_EQ(0, ps->ps_bounds.as_uscalar.ps_min);
     ASSERT_EQ(UINT64_MAX, ps->ps_bounds.as_uscalar.ps_max);
@@ -359,6 +375,7 @@ MTF_DEFINE_UTEST_PRE(kvdb_rparams_test, csched_leaf_comp_params, test_pre)
     ASSERT_EQ(sizeof(uint64_t), ps->ps_size);
     ASSERT_EQ((uintptr_t)ps->ps_convert, (uintptr_t)param_default_converter);
     ASSERT_EQ((uintptr_t)ps->ps_validate, (uintptr_t)param_default_validator);
+    ASSERT_EQ((uintptr_t)ps->ps_stringify, (uintptr_t)param_default_stringify);
     ASSERT_EQ(0, params.csched_leaf_comp_params);
     ASSERT_EQ(0, ps->ps_bounds.as_uscalar.ps_min);
     ASSERT_EQ(UINT64_MAX, ps->ps_bounds.as_uscalar.ps_max);
@@ -376,6 +393,7 @@ MTF_DEFINE_UTEST_PRE(kvdb_rparams_test, csched_leaf_len_params, test_pre)
     ASSERT_EQ(sizeof(uint64_t), ps->ps_size);
     ASSERT_EQ((uintptr_t)ps->ps_convert, (uintptr_t)param_default_converter);
     ASSERT_EQ((uintptr_t)ps->ps_validate, (uintptr_t)param_default_validator);
+    ASSERT_EQ((uintptr_t)ps->ps_stringify, (uintptr_t)param_default_stringify);
     ASSERT_EQ(0, params.csched_leaf_len_params);
     ASSERT_EQ(0, ps->ps_bounds.as_uscalar.ps_min);
     ASSERT_EQ(UINT64_MAX, ps->ps_bounds.as_uscalar.ps_max);
@@ -393,6 +411,7 @@ MTF_DEFINE_UTEST_PRE(kvdb_rparams_test, csched_node_min_ttl, test_pre)
     ASSERT_EQ(sizeof(uint64_t), ps->ps_size);
     ASSERT_EQ((uintptr_t)ps->ps_convert, (uintptr_t)param_default_converter);
     ASSERT_EQ((uintptr_t)ps->ps_validate, (uintptr_t)param_default_validator);
+    ASSERT_EQ((uintptr_t)ps->ps_stringify, (uintptr_t)param_default_stringify);
     ASSERT_EQ(17, params.csched_node_min_ttl);
     ASSERT_EQ(0, ps->ps_bounds.as_uscalar.ps_min);
     ASSERT_EQ(UINT64_MAX, ps->ps_bounds.as_uscalar.ps_max);
@@ -410,6 +429,7 @@ MTF_DEFINE_UTEST_PRE(kvdb_rparams_test, durability_enabled, test_pre)
     ASSERT_EQ(sizeof(bool), ps->ps_size);
     ASSERT_EQ((uintptr_t)ps->ps_convert, (uintptr_t)param_default_converter);
     ASSERT_EQ((uintptr_t)ps->ps_validate, (uintptr_t)param_default_validator);
+    ASSERT_EQ((uintptr_t)ps->ps_stringify, (uintptr_t)param_default_stringify);
     ASSERT_EQ(true, params.dur_enable);
 }
 
@@ -425,6 +445,7 @@ MTF_DEFINE_UTEST_PRE(kvdb_rparams_test, durability_interval, test_pre)
     ASSERT_EQ(sizeof(uint32_t), ps->ps_size);
     ASSERT_EQ((uintptr_t)ps->ps_convert, (uintptr_t)param_default_converter);
     ASSERT_EQ((uintptr_t)ps->ps_validate, (uintptr_t)param_default_validator);
+    ASSERT_EQ((uintptr_t)ps->ps_stringify, (uintptr_t)param_default_stringify);
     ASSERT_EQ(HSE_WAL_DUR_MS_DFLT, params.dur_intvl_ms);
     ASSERT_EQ(HSE_WAL_DUR_MS_MIN, ps->ps_bounds.as_uscalar.ps_min);
     ASSERT_EQ(HSE_WAL_DUR_MS_MAX, ps->ps_bounds.as_uscalar.ps_max);
@@ -442,6 +463,7 @@ MTF_DEFINE_UTEST_PRE(kvdb_rparams_test, durability_buffer_size, test_pre)
     ASSERT_EQ(sizeof(uint32_t), ps->ps_size);
     ASSERT_EQ((uintptr_t)ps->ps_convert, (uintptr_t)param_roundup_pow2);
     ASSERT_EQ((uintptr_t)ps->ps_validate, (uintptr_t)param_default_validator);
+    ASSERT_EQ((uintptr_t)ps->ps_stringify, (uintptr_t)param_default_stringify);
     ASSERT_EQ(HSE_WAL_DUR_BUFSZ_MB_DFLT, params.dur_bufsz_mb);
     ASSERT_EQ(HSE_WAL_DUR_BUFSZ_MB_MIN, ps->ps_bounds.as_uscalar.ps_min);
     ASSERT_EQ(HSE_WAL_DUR_BUFSZ_MB_MAX, ps->ps_bounds.as_uscalar.ps_max);
@@ -459,6 +481,7 @@ MTF_DEFINE_UTEST_PRE(kvdb_rparams_test, durability_throttling_threshold_low, tes
     ASSERT_EQ(sizeof(uint8_t), ps->ps_size);
     ASSERT_EQ((uintptr_t)ps->ps_convert, (uintptr_t)param_default_converter);
     ASSERT_EQ((uintptr_t)ps->ps_validate, (uintptr_t)param_default_validator);
+    ASSERT_EQ((uintptr_t)ps->ps_stringify, (uintptr_t)param_default_stringify);
     ASSERT_EQ(13, params.dur_throttle_lo_th);
     ASSERT_EQ(0, ps->ps_bounds.as_uscalar.ps_min);
     ASSERT_EQ(100, ps->ps_bounds.as_uscalar.ps_max);
@@ -476,6 +499,7 @@ MTF_DEFINE_UTEST_PRE(kvdb_rparams_test, durability_throttling_threshold_high, te
     ASSERT_EQ(sizeof(uint8_t), ps->ps_size);
     ASSERT_EQ((uintptr_t)ps->ps_convert, (uintptr_t)param_default_converter);
     ASSERT_EQ((uintptr_t)ps->ps_validate, (uintptr_t)param_default_validator);
+    ASSERT_EQ((uintptr_t)ps->ps_stringify, (uintptr_t)param_default_stringify);
     ASSERT_EQ(87, params.dur_throttle_hi_th);
     ASSERT_EQ(0, ps->ps_bounds.as_uscalar.ps_min);
     ASSERT_EQ(100, ps->ps_bounds.as_uscalar.ps_max);
@@ -493,12 +517,15 @@ MTF_DEFINE_UTEST_PRE(kvdb_rparams_test, durability_buffer_managed, test_pre)
     ASSERT_EQ(sizeof(bool), ps->ps_size);
     ASSERT_EQ((uintptr_t)ps->ps_convert, (uintptr_t)param_default_converter);
     ASSERT_EQ((uintptr_t)ps->ps_validate, (uintptr_t)param_default_validator);
+    ASSERT_EQ((uintptr_t)ps->ps_stringify, (uintptr_t)param_default_stringify);
     ASSERT_EQ(false, params.dur_buf_managed);
 }
 
 MTF_DEFINE_UTEST_PRE(kvdb_rparams_test, durability_mclass, test_pre)
 {
     merr_t                   err;
+    char                     buf[128];
+    size_t                   needed_sz;
     const struct param_spec *ps = ps_get("durability.mclass");
 
     ASSERT_NE(NULL, ps);
@@ -509,16 +536,21 @@ MTF_DEFINE_UTEST_PRE(kvdb_rparams_test, durability_mclass, test_pre)
     ASSERT_EQ(sizeof(enum mpool_mclass), ps->ps_size);
     ASSERT_NE((uintptr_t)ps->ps_convert, (uintptr_t)param_default_converter);
     ASSERT_EQ((uintptr_t)ps->ps_validate, (uintptr_t)param_default_validator);
+    ASSERT_NE((uintptr_t)ps->ps_stringify, (uintptr_t)param_default_stringify);
     ASSERT_EQ(MP_MED_CAPACITY, params.dur_mclass);
     ASSERT_EQ(MP_MED_BASE, ps->ps_bounds.as_enum.ps_min);
     ASSERT_EQ(MP_MED_MAX, ps->ps_bounds.as_enum.ps_max);
 
+    ps->ps_stringify(ps, &params.dur_mclass, buf, sizeof(buf), &needed_sz);
+    ASSERT_STREQ("\"" MP_MED_NAME_CAPACITY "\"", buf);
+    ASSERT_EQ(10, needed_sz);
+
     /* clang-format off */
-    err = check(
-        "durability.mclass=none", false,
-        "durability.mclass=capacity", true,
-        "durability.mclass=staging", true,
-        NULL
+	err = check(
+		"durability.mclass=none", false,
+		"durability.mclass=capacity", true,
+		"durability.mclass=staging", true,
+		NULL
 	);
     /* clang-format on */
 
@@ -537,6 +569,7 @@ MTF_DEFINE_UTEST_PRE(kvdb_rparams_test, throttle_disable, test_pre)
     ASSERT_EQ(sizeof(bool), ps->ps_size);
     ASSERT_EQ((uintptr_t)ps->ps_convert, (uintptr_t)param_default_converter);
     ASSERT_EQ((uintptr_t)ps->ps_validate, (uintptr_t)param_default_validator);
+    ASSERT_EQ((uintptr_t)ps->ps_stringify, (uintptr_t)param_default_stringify);
     ASSERT_EQ(false, params.throttle_disable);
 }
 
@@ -552,6 +585,7 @@ MTF_DEFINE_UTEST_PRE(kvdb_rparams_test, throttle_update_ns, test_pre)
     ASSERT_EQ(sizeof(uint64_t), ps->ps_size);
     ASSERT_EQ((uintptr_t)ps->ps_convert, (uintptr_t)param_default_converter);
     ASSERT_EQ((uintptr_t)ps->ps_validate, (uintptr_t)param_default_validator);
+    ASSERT_EQ((uintptr_t)ps->ps_stringify, (uintptr_t)param_default_stringify);
     ASSERT_EQ(25 * 1000 * 1000, params.throttle_update_ns);
     ASSERT_EQ(0, ps->ps_bounds.as_uscalar.ps_min);
     ASSERT_EQ(UINT64_MAX, ps->ps_bounds.as_uscalar.ps_max);
@@ -569,6 +603,7 @@ MTF_DEFINE_UTEST_PRE(kvdb_rparams_test, throttle_debug_intvl_s, test_pre)
     ASSERT_EQ(sizeof(uint32_t), ps->ps_size);
     ASSERT_EQ((uintptr_t)ps->ps_convert, (uintptr_t)param_default_converter);
     ASSERT_EQ((uintptr_t)ps->ps_validate, (uintptr_t)param_default_validator);
+    ASSERT_EQ((uintptr_t)ps->ps_stringify, (uintptr_t)param_default_stringify);
     ASSERT_EQ(300, params.throttle_debug_intvl_s);
     ASSERT_EQ(0, ps->ps_bounds.as_uscalar.ps_min);
     ASSERT_EQ(UINT32_MAX, ps->ps_bounds.as_uscalar.ps_max);
@@ -586,6 +621,7 @@ MTF_DEFINE_UTEST_PRE(kvdb_rparams_test, throttle_c0_hi_th, test_pre)
     ASSERT_EQ(sizeof(uint32_t), ps->ps_size);
     ASSERT_EQ((uintptr_t)ps->ps_convert, (uintptr_t)param_default_converter);
     ASSERT_EQ((uintptr_t)ps->ps_validate, (uintptr_t)param_default_validator);
+    ASSERT_EQ((uintptr_t)ps->ps_stringify, (uintptr_t)param_default_stringify);
     ASSERT_EQ(35, params.throttle_c0_hi_th);
     ASSERT_EQ(30, ps->ps_bounds.as_uscalar.ps_min);
     ASSERT_EQ(UINT32_MAX, ps->ps_bounds.as_uscalar.ps_max);
@@ -593,6 +629,8 @@ MTF_DEFINE_UTEST_PRE(kvdb_rparams_test, throttle_c0_hi_th, test_pre)
 
 MTF_DEFINE_UTEST_PRE(kvdb_rparams_test, thorttling_init_policy, test_pre)
 {
+    char                     buf[128];
+    size_t                   needed_sz;
     const struct param_spec *ps = ps_get("throttling.init_policy");
 
     ASSERT_NE(NULL, ps);
@@ -603,9 +641,14 @@ MTF_DEFINE_UTEST_PRE(kvdb_rparams_test, thorttling_init_policy, test_pre)
     ASSERT_EQ(sizeof(uint), ps->ps_size);
     ASSERT_NE((uintptr_t)ps->ps_convert, (uintptr_t)param_default_converter);
     ASSERT_EQ((uintptr_t)ps->ps_validate, (uintptr_t)param_default_validator);
+    ASSERT_NE((uintptr_t)ps->ps_stringify, (uintptr_t)param_default_stringify);
     ASSERT_EQ(THROTTLE_DELAY_START_DEFAULT, params.throttle_init_policy);
     ASSERT_EQ(THROTTLE_DELAY_START_LIGHT, ps->ps_bounds.as_uscalar.ps_min);
     ASSERT_EQ(THROTTLE_DELAY_START_DEFAULT, ps->ps_bounds.as_uscalar.ps_max);
+
+    ps->ps_stringify(ps, &params.throttle_init_policy, buf, sizeof(buf), &needed_sz);
+    ASSERT_STREQ("\"default\"", buf);
+    ASSERT_EQ(9, needed_sz);
 }
 
 MTF_DEFINE_UTEST_PRE(kvdb_rparams_test, throttle_burst, test_pre)
@@ -620,6 +663,7 @@ MTF_DEFINE_UTEST_PRE(kvdb_rparams_test, throttle_burst, test_pre)
     ASSERT_EQ(sizeof(uint64_t), ps->ps_size);
     ASSERT_EQ((uintptr_t)ps->ps_convert, (uintptr_t)param_default_converter);
     ASSERT_EQ((uintptr_t)ps->ps_validate, (uintptr_t)param_default_validator);
+    ASSERT_EQ((uintptr_t)ps->ps_stringify, (uintptr_t)param_default_stringify);
     ASSERT_EQ(1ul << 20, params.throttle_burst);
     ASSERT_EQ(0, ps->ps_bounds.as_uscalar.ps_min);
     ASSERT_EQ(UINT64_MAX, ps->ps_bounds.as_uscalar.ps_max);
@@ -637,6 +681,7 @@ MTF_DEFINE_UTEST_PRE(kvdb_rparams_test, throttle_rate, test_pre)
     ASSERT_EQ(sizeof(uint64_t), ps->ps_size);
     ASSERT_EQ((uintptr_t)ps->ps_convert, (uintptr_t)param_default_converter);
     ASSERT_EQ((uintptr_t)ps->ps_validate, (uintptr_t)param_default_validator);
+    ASSERT_EQ((uintptr_t)ps->ps_stringify, (uintptr_t)param_default_stringify);
     ASSERT_EQ(10UL << 20, params.throttle_rate);
     ASSERT_EQ(0, ps->ps_bounds.as_uscalar.ps_min);
     ASSERT_EQ(UINT64_MAX, ps->ps_bounds.as_uscalar.ps_max);
@@ -654,6 +699,7 @@ MTF_DEFINE_UTEST_PRE(kvdb_rparams_test, txn_wkth_delay, test_pre)
     ASSERT_EQ(sizeof(uint64_t), ps->ps_size);
     ASSERT_EQ((uintptr_t)ps->ps_convert, (uintptr_t)param_default_converter);
     ASSERT_EQ((uintptr_t)ps->ps_validate, (uintptr_t)param_default_validator);
+    ASSERT_EQ((uintptr_t)ps->ps_stringify, (uintptr_t)param_default_stringify);
     ASSERT_EQ(1000 * 60, params.txn_wkth_delay);
     ASSERT_EQ(0, ps->ps_bounds.as_uscalar.ps_min);
     ASSERT_EQ(UINT64_MAX, ps->ps_bounds.as_uscalar.ps_max);
@@ -671,6 +717,7 @@ MTF_DEFINE_UTEST_PRE(kvdb_rparams_test, cndb_entries, test_pre)
     ASSERT_EQ(sizeof(uint32_t), ps->ps_size);
     ASSERT_EQ((uintptr_t)ps->ps_convert, (uintptr_t)param_default_converter);
     ASSERT_EQ((uintptr_t)ps->ps_validate, (uintptr_t)param_default_validator);
+    ASSERT_EQ((uintptr_t)ps->ps_stringify, (uintptr_t)param_default_stringify);
     ASSERT_EQ(0, params.cndb_entries);
     ASSERT_EQ(0, ps->ps_bounds.as_uscalar.ps_min);
     ASSERT_EQ(UINT32_MAX, ps->ps_bounds.as_uscalar.ps_max);
@@ -688,6 +735,7 @@ MTF_DEFINE_UTEST_PRE(kvdb_rparams_test, cndb_debug, test_pre)
     ASSERT_EQ(sizeof(bool), ps->ps_size);
     ASSERT_EQ((uintptr_t)ps->ps_convert, (uintptr_t)param_default_converter);
     ASSERT_EQ((uintptr_t)ps->ps_validate, (uintptr_t)param_default_validator);
+    ASSERT_EQ((uintptr_t)ps->ps_stringify, (uintptr_t)param_default_stringify);
     ASSERT_EQ(false, params.cndb_debug);
 }
 
@@ -703,6 +751,7 @@ MTF_DEFINE_UTEST_PRE(kvdb_rparams_test, c0_maint_threads, test_pre)
     ASSERT_EQ(sizeof(uint32_t), ps->ps_size);
     ASSERT_EQ((uintptr_t)ps->ps_convert, (uintptr_t)param_default_converter);
     ASSERT_EQ((uintptr_t)ps->ps_validate, (uintptr_t)param_default_validator);
+    ASSERT_EQ((uintptr_t)ps->ps_stringify, (uintptr_t)param_default_stringify);
     ASSERT_EQ(HSE_C0_MAINT_THREADS_DFLT, params.c0_maint_threads);
     ASSERT_EQ(HSE_C0_MAINT_THREADS_MIN, ps->ps_bounds.as_uscalar.ps_min);
     ASSERT_EQ(HSE_C0_MAINT_THREADS_MAX, ps->ps_bounds.as_uscalar.ps_max);
@@ -720,6 +769,7 @@ MTF_DEFINE_UTEST_PRE(kvdb_rparams_test, c0_ingest_threads, test_pre)
     ASSERT_EQ(sizeof(uint32_t), ps->ps_size);
     ASSERT_EQ((uintptr_t)ps->ps_convert, (uintptr_t)param_default_converter);
     ASSERT_EQ((uintptr_t)ps->ps_validate, (uintptr_t)param_default_validator);
+    ASSERT_EQ((uintptr_t)ps->ps_stringify, (uintptr_t)param_default_stringify);
     ASSERT_EQ(HSE_C0_INGEST_THREADS_DFLT, params.c0_ingest_threads);
     ASSERT_EQ(HSE_C0_INGEST_THREADS_MIN, ps->ps_bounds.as_uscalar.ps_min);
     ASSERT_EQ(HSE_C0_INGEST_THREADS_MAX, ps->ps_bounds.as_uscalar.ps_max);
@@ -737,6 +787,7 @@ MTF_DEFINE_UTEST_PRE(kvdb_rparams_test, cn_maint_threads, test_pre)
     ASSERT_EQ(sizeof(uint16_t), ps->ps_size);
     ASSERT_EQ((uintptr_t)ps->ps_convert, (uintptr_t)param_default_converter);
     ASSERT_EQ((uintptr_t)ps->ps_validate, (uintptr_t)param_default_validator);
+    ASSERT_EQ((uintptr_t)ps->ps_stringify, (uintptr_t)param_default_stringify);
     ASSERT_EQ(17, params.cn_maint_threads);
     ASSERT_EQ(1, ps->ps_bounds.as_uscalar.ps_min);
     ASSERT_EQ(256, ps->ps_bounds.as_uscalar.ps_max);
@@ -754,6 +805,7 @@ MTF_DEFINE_UTEST_PRE(kvdb_rparams_test, cn_io_threads, test_pre)
     ASSERT_EQ(sizeof(uint16_t), ps->ps_size);
     ASSERT_EQ((uintptr_t)ps->ps_convert, (uintptr_t)param_default_converter);
     ASSERT_EQ((uintptr_t)ps->ps_validate, (uintptr_t)param_default_validator);
+    ASSERT_EQ((uintptr_t)ps->ps_stringify, (uintptr_t)param_default_stringify);
     ASSERT_EQ(13, params.cn_io_threads);
     ASSERT_EQ(1, ps->ps_bounds.as_uscalar.ps_min);
     ASSERT_EQ(256, ps->ps_bounds.as_uscalar.ps_max);
@@ -771,6 +823,7 @@ MTF_DEFINE_UTEST_PRE(kvdb_rparams_test, keylock_tables, test_pre)
     ASSERT_EQ(sizeof(uint32_t), ps->ps_size);
     ASSERT_EQ((uintptr_t)ps->ps_convert, (uintptr_t)param_default_converter);
     ASSERT_EQ((uintptr_t)ps->ps_validate, (uintptr_t)param_default_validator);
+    ASSERT_EQ((uintptr_t)ps->ps_stringify, (uintptr_t)param_default_stringify);
     ASSERT_EQ(761, params.keylock_tables);
     ASSERT_EQ(16, ps->ps_bounds.as_uscalar.ps_min);
     ASSERT_EQ(8192, ps->ps_bounds.as_uscalar.ps_max);
@@ -782,6 +835,9 @@ MTF_DEFINE_UTEST_PRE(kvdb_rparams_test, mclass_policies, test_pre)
      * into this test at some point for checking conversion and validation
      * specific tests.
      */
+    merr_t                   err;
+    char                     buf[512];
+    size_t                   needed_sz;
     const struct param_spec *ps = ps_get("mclass_policies");
 
     ASSERT_NE(NULL, ps);
@@ -792,7 +848,25 @@ MTF_DEFINE_UTEST_PRE(kvdb_rparams_test, mclass_policies, test_pre)
     ASSERT_EQ(sizeof(struct mclass_policy) * HSE_MPOLICY_COUNT, ps->ps_size);
     ASSERT_NE((uintptr_t)ps->ps_convert, (uintptr_t)param_default_converter);
     ASSERT_NE((uintptr_t)ps->ps_validate, (uintptr_t)param_default_validator);
+    ASSERT_NE((uintptr_t)ps->ps_stringify, (uintptr_t)param_default_stringify);
     ASSERT_EQ(HSE_MPOLICY_COUNT, ps->ps_bounds.as_array.ps_max_len);
+
+    err = check(
+        "mclass_policies=[{\"name\":\"yolo\",\"config\":{\"leaf\":{\"keys\":\"capacity\","
+        "\"values\":\"staging\"},\"internal\":{\"keys\":\"capacity\",\"values\":"
+        "\"staging\"},\"root\":{\"keys\":\"capacity\",\"values\":\"staging\"}}}]",
+        true,
+        NULL);
+    ASSERT_EQ(0, merr_errno(err));
+
+    err = ps->ps_stringify(ps, &params.mclass_policies, buf, sizeof(buf), &needed_sz);
+    ASSERT_EQ(0, merr_errno(err));
+    ASSERT_STREQ(
+        "[{\"name\":\"yolo\",\"config\":{\"internal\":{\"keys\":\"capacity\","
+        "\"values\":\"staging\"},\"leaf\":{\"keys\":\"capacity\",\"values\":"
+        "\"staging\"},\"root\":{\"keys\":\"capacity\",\"values\":\"staging\"}}}]",
+        buf);
+    ASSERT_EQ(170, needed_sz);
 }
 
 MTF_END_UTEST_COLLECTION(kvdb_rparams_test)

@@ -87,6 +87,26 @@ array_relation_validate(const struct param_spec *const ps, const struct params *
     return params->test11[0].field1 < params->test9 && params->test11[1].field1 < params->test8;
 }
 
+merr_t
+array_stringify(
+    const struct param_spec *const ps,
+    const void *const              value,
+    char *const                    buf,
+    const size_t                   buf_sz,
+    size_t *const                  needed_sz)
+{
+    const struct test_arr_type *arr = (struct test_arr_type *)value;
+	int                         n;
+
+    n = snprintf(buf, buf_sz, "[{\"field1\": %d}, {\"field1\": %d}]", arr[0].field1, arr[1].field1);
+	assert(n >= 0);
+
+	if (needed_sz)
+		*needed_sz = n;
+
+    return 0;
+}
+
 const struct param_spec pspecs[] = {
 	{
 		.ps_name = "test1",
@@ -97,6 +117,7 @@ const struct param_spec pspecs[] = {
 		.ps_size = PARAM_SZ(struct test_params, test1),
 		.ps_convert = param_default_converter,
 		.ps_validate = param_default_validator,
+		.ps_stringify = param_default_stringify,
 		.ps_default_value = {
 			.as_bool = true,
 		},
@@ -110,6 +131,7 @@ const struct param_spec pspecs[] = {
 		.ps_size = PARAM_SZ(struct test_params, test2),
 		.ps_convert = param_default_converter,
 		.ps_validate = param_default_validator,
+		.ps_stringify = param_default_stringify,
 		.ps_default_value = {
 			.as_uscalar = 2,
 		},
@@ -129,6 +151,7 @@ const struct param_spec pspecs[] = {
 		.ps_size = PARAM_SZ(struct test_params, test3),
 		.ps_convert = param_default_converter,
 		.ps_validate = param_default_validator,
+		.ps_stringify = param_default_stringify,
 		.ps_default_value = {
 			.as_uscalar = 3,
 		},
@@ -148,6 +171,7 @@ const struct param_spec pspecs[] = {
 		.ps_size = PARAM_SZ(struct test_params, test4),
 		.ps_convert = param_default_converter,
 		.ps_validate = param_default_validator,
+		.ps_stringify = param_default_stringify,
 		.ps_default_value = {
 			.as_uscalar = 4,
 		},
@@ -167,6 +191,7 @@ const struct param_spec pspecs[] = {
 		.ps_size = PARAM_SZ(struct test_params, test5),
 		.ps_convert = param_default_converter,
 		.ps_validate = param_default_validator,
+		.ps_stringify = param_default_stringify,
 		.ps_default_value = {
 			.as_uscalar = 5,
 		},
@@ -186,6 +211,7 @@ const struct param_spec pspecs[] = {
 		.ps_size = PARAM_SZ(struct test_params, test6),
 		.ps_convert = param_default_converter,
 		.ps_validate = param_default_validator,
+		.ps_stringify = param_default_stringify,
 		.ps_default_value = {
 			.as_scalar = 6,
 		},
@@ -205,6 +231,7 @@ const struct param_spec pspecs[] = {
 		.ps_size = PARAM_SZ(struct test_params, test7),
 		.ps_convert = param_default_converter,
 		.ps_validate = param_default_validator,
+		.ps_stringify = param_default_stringify,
 		.ps_default_value = {
 			.as_scalar = 7,
 		},
@@ -224,6 +251,7 @@ const struct param_spec pspecs[] = {
 		.ps_size = PARAM_SZ(struct test_params, test8),
 		.ps_convert = param_default_converter,
 		.ps_validate = param_default_validator,
+		.ps_stringify = param_default_stringify,
 		.ps_default_value = {
 			.as_scalar = 8,
 		},
@@ -243,6 +271,7 @@ const struct param_spec pspecs[] = {
 		.ps_size = PARAM_SZ(struct test_params, test9),
 		.ps_convert = param_default_converter,
 		.ps_validate = param_default_validator,
+		.ps_stringify = param_default_stringify,
 		.ps_default_value = {
 			.as_scalar = 9,
 		},
@@ -261,6 +290,7 @@ const struct param_spec pspecs[] = {
 		.ps_offset = offsetof(struct test_params, test10),
 		.ps_convert = param_default_converter,
 		.ps_validate = param_default_validator,
+		.ps_stringify = param_default_stringify,
 		.ps_default_value = {
 			.as_string = "default",
 		},
@@ -278,6 +308,7 @@ const struct param_spec pspecs[] = {
 		.ps_offset = offsetof(struct test_params, test11),
 		.ps_convert = array_converter,
 		.ps_validate = array_validator,
+		.ps_stringify = array_stringify,
 		.ps_validate_relations = array_relation_validate,
 		.ps_default_value = {
 			.as_builder = array_default_builder,
@@ -292,8 +323,9 @@ const struct param_spec pspecs[] = {
 		.ps_size = PARAM_SZ(struct test_params, test12),
 		.ps_convert = param_convert_to_bytes_from_KB,
 		.ps_validate = param_default_validator,
+		.ps_stringify = param_stringify_bytes_to_KB,
 		.ps_default_value = {
-			.as_uscalar = 4,
+			.as_uscalar = 4 * KB,
 		},
 		.ps_bounds = {
 			.as_uscalar = {
@@ -311,8 +343,9 @@ const struct param_spec pspecs[] = {
 		.ps_size = PARAM_SZ(struct test_params, test13),
 		.ps_convert = param_convert_to_bytes_from_MB,
 		.ps_validate = param_default_validator,
+		.ps_stringify = param_stringify_bytes_to_MB,
 		.ps_default_value = {
-			.as_uscalar = 1000,
+			.as_uscalar = 4 * MB,
 		},
 		.ps_bounds = {
 			.as_uscalar = {
@@ -330,8 +363,9 @@ const struct param_spec pspecs[] = {
 		.ps_size = PARAM_SZ(struct test_params, test14),
 		.ps_convert = param_convert_to_bytes_from_GB,
 		.ps_validate = param_default_validator,
+		.ps_stringify = param_stringify_bytes_to_GB,
 		.ps_default_value = {
-			.as_uscalar = 1000,
+			.as_uscalar = 4 * GB,
 		},
 		.ps_bounds = {
 			.as_uscalar = {
@@ -349,8 +383,9 @@ const struct param_spec pspecs[] = {
 		.ps_size = PARAM_SZ(struct test_params, test15),
 		.ps_convert = param_convert_to_bytes_from_TB,
 		.ps_validate = param_default_validator,
+		.ps_stringify = param_stringify_bytes_to_TB,
 		.ps_default_value = {
-			.as_uscalar = 1000,
+			.as_uscalar = 4 * TB,
 		},
 		.ps_bounds = {
 			.as_uscalar = {
@@ -368,6 +403,7 @@ const struct param_spec pspecs[] = {
         .ps_size = PARAM_SZ(struct test_params, test16),
         .ps_convert = param_roundup_pow2,
         .ps_validate = param_default_validator,
+		.ps_stringify = param_default_stringify,
         .ps_default_value = {
             .as_uscalar = 1000,
         },
@@ -388,6 +424,19 @@ test_pre(struct mtf_test_info *ti)
     param_default_populate(pspecs, NELEM(pspecs), &p);
 
     return 0;
+}
+
+const struct param_spec *
+ps_get(const char *const name)
+{
+    assert(name);
+
+    for (size_t i = 0; i < NELEM(pspecs); i++) {
+        if (!strcmp(pspecs[i].ps_name, name))
+            return &pspecs[i];
+    }
+
+    return NULL;
 }
 
 /**
@@ -447,6 +496,15 @@ MTF_DEFINE_UTEST_PRE(param_test, defaults, test_pre)
 MTF_DEFINE_UTEST_PRE(param_test, param_type_bool, test_pre)
 {
     merr_t err;
+    char   buf[128];
+    size_t needed_sz;
+
+    const struct param_spec *ps = ps_get("test1");
+
+    err = ps->ps_stringify(ps, &params.test1, buf, sizeof(buf), &needed_sz);
+    ASSERT_EQ(0, merr_errno(err));
+    ASSERT_EQ(4, needed_sz);
+    ASSERT_STREQ("true", buf);
 
     /* clang-format off */
 	err = check(
@@ -463,6 +521,15 @@ MTF_DEFINE_UTEST_PRE(param_test, param_type_bool, test_pre)
 MTF_DEFINE_UTEST_PRE(param_test, param_type_u8, test_pre)
 {
     merr_t err;
+    char   buf[128];
+    size_t needed_sz;
+
+    const struct param_spec *ps = ps_get("test2");
+
+    err = ps->ps_stringify(ps, &params.test2, buf, sizeof(buf), &needed_sz);
+    ASSERT_EQ(0, merr_errno(err));
+    ASSERT_EQ(1, needed_sz);
+    ASSERT_STREQ("2", buf);
 
     /* clang-format off */
 	err = check(
@@ -481,6 +548,15 @@ MTF_DEFINE_UTEST_PRE(param_test, param_type_u8, test_pre)
 MTF_DEFINE_UTEST_PRE(param_test, param_type_u16, test_pre)
 {
     merr_t err;
+    char   buf[128];
+    size_t needed_sz;
+
+    const struct param_spec *ps = ps_get("test3");
+
+    err = ps->ps_stringify(ps, &params.test3, buf, sizeof(buf), &needed_sz);
+    ASSERT_EQ(0, merr_errno(err));
+    ASSERT_EQ(1, needed_sz);
+    ASSERT_STREQ("3", buf);
 
     /* clang-format off */
 	err = check(
@@ -499,6 +575,15 @@ MTF_DEFINE_UTEST_PRE(param_test, param_type_u16, test_pre)
 MTF_DEFINE_UTEST_PRE(param_test, param_type_u32, test_pre)
 {
     merr_t err;
+    char   buf[128];
+    size_t needed_sz;
+
+    const struct param_spec *ps = ps_get("test4");
+
+    err = ps->ps_stringify(ps, &params.test4, buf, sizeof(buf), &needed_sz);
+    ASSERT_EQ(0, merr_errno(err));
+    ASSERT_EQ(1, needed_sz);
+    ASSERT_STREQ("4", buf);
 
     /* clang-format off */
 	err = check(
@@ -517,6 +602,15 @@ MTF_DEFINE_UTEST_PRE(param_test, param_type_u32, test_pre)
 MTF_DEFINE_UTEST_PRE(param_test, param_type_u64, test_pre)
 {
     merr_t err;
+    char   buf[128];
+    size_t needed_sz;
+
+    const struct param_spec *ps = ps_get("test5");
+
+    err = ps->ps_stringify(ps, &params.test5, buf, sizeof(buf), &needed_sz);
+    ASSERT_EQ(0, merr_errno(err));
+    ASSERT_EQ(1, needed_sz);
+    ASSERT_STREQ("5", buf);
 
     /* clang-format off */
 	err = check(
@@ -535,6 +629,15 @@ MTF_DEFINE_UTEST_PRE(param_test, param_type_u64, test_pre)
 MTF_DEFINE_UTEST_PRE(param_test, param_type_i8, test_pre)
 {
     merr_t err;
+    char   buf[128];
+    size_t needed_sz;
+
+    const struct param_spec *ps = ps_get("test6");
+
+    err = ps->ps_stringify(ps, &params.test6, buf, sizeof(buf), &needed_sz);
+    ASSERT_EQ(0, merr_errno(err));
+    ASSERT_EQ(1, needed_sz);
+    ASSERT_STREQ("6", buf);
 
     /* clang-format off */
 	err = check(
@@ -553,6 +656,15 @@ MTF_DEFINE_UTEST_PRE(param_test, param_type_i8, test_pre)
 MTF_DEFINE_UTEST_PRE(param_test, param_type_i16, test_pre)
 {
     merr_t err;
+    char   buf[128];
+    size_t needed_sz;
+
+    const struct param_spec *ps = ps_get("test7");
+
+    err = ps->ps_stringify(ps, &params.test7, buf, sizeof(buf), &needed_sz);
+    ASSERT_EQ(0, merr_errno(err));
+    ASSERT_EQ(1, needed_sz);
+    ASSERT_STREQ("7", buf);
 
     /* clang-format off */
 	err = check(
@@ -571,6 +683,15 @@ MTF_DEFINE_UTEST_PRE(param_test, param_type_i16, test_pre)
 MTF_DEFINE_UTEST_PRE(param_test, param_type_i32, test_pre)
 {
     merr_t err;
+    char   buf[128];
+    size_t needed_sz;
+
+    const struct param_spec *ps = ps_get("test8");
+
+    err = ps->ps_stringify(ps, &params.test8, buf, sizeof(buf), &needed_sz);
+    ASSERT_EQ(0, merr_errno(err));
+    ASSERT_EQ(1, needed_sz);
+    ASSERT_STREQ("8", buf);
 
     /* clang-format off */
 	err = check(
@@ -589,6 +710,15 @@ MTF_DEFINE_UTEST_PRE(param_test, param_type_i32, test_pre)
 MTF_DEFINE_UTEST_PRE(param_test, param_type_i64, test_pre)
 {
     merr_t err;
+    char   buf[128];
+    size_t needed_sz;
+
+    const struct param_spec *ps = ps_get("test9");
+
+    err = ps->ps_stringify(ps, &params.test9, buf, sizeof(buf), &needed_sz);
+    ASSERT_EQ(0, merr_errno(err));
+    ASSERT_EQ(1, needed_sz);
+    ASSERT_STREQ("9", buf);
 
     /* clang-format off */
 	err = check(
@@ -607,6 +737,15 @@ MTF_DEFINE_UTEST_PRE(param_test, param_type_i64, test_pre)
 MTF_DEFINE_UTEST_PRE(param_test, param_type_string, test_pre)
 {
     merr_t err;
+    char   buf[128];
+    size_t needed_sz;
+
+    const struct param_spec *ps = ps_get("test10");
+
+    err = ps->ps_stringify(ps, &params.test10, buf, sizeof(buf), &needed_sz);
+    ASSERT_EQ(0, merr_errno(err));
+    ASSERT_EQ(9, needed_sz);
+    ASSERT_STREQ("\"default\"", buf);
 
     /* clang-format off */
 	err = check(
@@ -624,6 +763,15 @@ MTF_DEFINE_UTEST_PRE(param_test, param_type_string, test_pre)
 MTF_DEFINE_UTEST_PRE(param_test, param_type_array, test_pre)
 {
     merr_t err;
+    char   buf[128];
+    size_t needed_sz;
+
+    const struct param_spec *ps = ps_get("test11");
+
+    err = ps->ps_stringify(ps, &params.test11, buf, sizeof(buf), &needed_sz);
+    ASSERT_EQ(0, merr_errno(err));
+    ASSERT_EQ(30, needed_sz);
+    ASSERT_STREQ("[{\"field1\": 5}, {\"field1\": 6}]", buf);
 
     /* clang-format off */
 	err = check(
@@ -640,6 +788,15 @@ MTF_DEFINE_UTEST_PRE(param_test, param_type_array, test_pre)
 MTF_DEFINE_UTEST_PRE(param_test, to_bytes_from_KB, test_pre)
 {
     merr_t err;
+    char   buf[128];
+    size_t needed_sz;
+
+    const struct param_spec *ps = ps_get("test12");
+
+    err = ps->ps_stringify(ps, &params.test12, buf, sizeof(buf), &needed_sz);
+    ASSERT_EQ(0, merr_errno(err));
+    ASSERT_EQ(1, needed_sz);
+    ASSERT_STREQ("4", buf);
 
     /* clang-format off */
     err = check(
@@ -647,7 +804,7 @@ MTF_DEFINE_UTEST_PRE(param_test, to_bytes_from_KB, test_pre)
 		"test12=hello", false,
 		NULL
 	);
-	/* clang-format on */
+    /* clang-format on */
 
     ASSERT_EQ(0, merr_errno(err));
     ASSERT_EQ(5 * KB, params.test12);
@@ -656,6 +813,15 @@ MTF_DEFINE_UTEST_PRE(param_test, to_bytes_from_KB, test_pre)
 MTF_DEFINE_UTEST_PRE(param_test, to_bytes_from_MB, test_pre)
 {
     merr_t err;
+    char   buf[128];
+    size_t needed_sz;
+
+    const struct param_spec *ps = ps_get("test13");
+
+    err = ps->ps_stringify(ps, &params.test13, buf, sizeof(buf), &needed_sz);
+    ASSERT_EQ(0, merr_errno(err));
+    ASSERT_EQ(1, needed_sz);
+    ASSERT_STREQ("4", buf);
 
     /* clang-format off */
     err = check(
@@ -663,7 +829,7 @@ MTF_DEFINE_UTEST_PRE(param_test, to_bytes_from_MB, test_pre)
 		"test13=hello", false,
 		NULL
 	);
-	/* clang-format on */
+    /* clang-format on */
 
     ASSERT_EQ(0, merr_errno(err));
     ASSERT_EQ(5 * MB, params.test13);
@@ -672,6 +838,15 @@ MTF_DEFINE_UTEST_PRE(param_test, to_bytes_from_MB, test_pre)
 MTF_DEFINE_UTEST_PRE(param_test, to_bytes_from_GB, test_pre)
 {
     merr_t err;
+    char   buf[128];
+    size_t needed_sz;
+
+    const struct param_spec *ps = ps_get("test14");
+
+    err = ps->ps_stringify(ps, &params.test14, buf, sizeof(buf), &needed_sz);
+    ASSERT_EQ(0, merr_errno(err));
+    ASSERT_EQ(1, needed_sz);
+    ASSERT_STREQ("4", buf);
 
     /* clang-format off */
     err = check(
@@ -679,23 +854,32 @@ MTF_DEFINE_UTEST_PRE(param_test, to_bytes_from_GB, test_pre)
 		"test14=hello", false,
 		NULL
 	);
-	/* clang-format on */
+    /* clang-format on */
 
-	ASSERT_EQ(0, merr_errno(err));
+    ASSERT_EQ(0, merr_errno(err));
     ASSERT_EQ(5 * GB, params.test14);
 }
 
 MTF_DEFINE_UTEST_PRE(param_test, to_bytes_from_TB, test_pre)
 {
     merr_t err;
+    char   buf[128];
+    size_t needed_sz;
 
-	/* clang-format off */
+    const struct param_spec *ps = ps_get("test15");
+
+    err = ps->ps_stringify(ps, &params.test15, buf, sizeof(buf), &needed_sz);
+    ASSERT_EQ(0, merr_errno(err));
+    ASSERT_EQ(1, needed_sz);
+    ASSERT_STREQ("4", buf);
+
+    /* clang-format off */
     err = check(
 		"test15=5", true,
 		"test15=hello", false,
 		NULL
 	);
-	/* clang-format on */
+    /* clang-format on */
 
     ASSERT_EQ(0, merr_errno(err));
     ASSERT_EQ(5 * TB, params.test15);

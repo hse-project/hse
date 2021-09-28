@@ -295,6 +295,129 @@ mclass_policies_validator(const struct param_spec *ps, const void *data)
     return true;
 }
 
+static merr_t
+mclass_array_build(cJSON *const arr, const uint8_t *const dtype)
+{
+    cJSON *mclass = NULL;
+
+    INVARIANT(arr);
+    INVARIANT(cJSON_IsArray(arr));
+    INVARIANT(dtype);
+
+    for (int i = MP_MED_BASE; i < MP_MED_COUNT; i++) {
+        if (dtype[i] == MP_MED_INVALID)
+            continue;
+
+        mclass = cJSON_CreateString(mpool_mclass_to_string[dtype[i]]);
+
+        if (!mclass)
+            return merr(ENOMEM);
+
+        cJSON_AddItemToArray(arr, mclass);
+    }
+
+    return 0;
+}
+
+static merr_t
+mclass_policies_stringify(
+    const struct param_spec *const ps,
+    const void *const              value,
+    char *const                    buf,
+    const size_t                   buf_sz,
+    size_t *const                  needed_sz)
+{
+    cJSON *arr;
+    char * data;
+    size_t n;
+    merr_t err = 0;
+
+    INVARIANT(ps);
+    INVARIANT(value);
+    INVARIANT(buf);
+
+    const struct mclass_policy *policies = (struct mclass_policy *)value;
+    arr = cJSON_CreateArray();
+    if (!arr)
+        return merr(ENOMEM);
+
+    for (size_t i = mclass_policy_get_num_default_policies(); i < ps->ps_bounds.as_array.ps_max_len; i++) {
+        if (!strcmp(policies[i].mc_name, HSE_MPOLICY_DEFAULT_NAME)) {
+            goto out;
+        }
+
+        cJSON *policy = cJSON_CreateObject();
+        cJSON *name = cJSON_AddStringToObject(policy, "name", policies[i].mc_name);
+        cJSON *config = cJSON_AddObjectToObject(policy, "config");
+        cJSON *internal = cJSON_AddObjectToObject(config, "internal");
+        cJSON *internal_k = cJSON_AddArrayToObject(internal, "keys");
+        cJSON *internal_v = cJSON_AddArrayToObject(internal, "values");
+        cJSON *leaf = cJSON_AddObjectToObject(config, "leaf");
+        cJSON *leaf_k = cJSON_AddArrayToObject(leaf, "keys");
+        cJSON *leaf_v = cJSON_AddArrayToObject(leaf, "values");
+        cJSON *root = cJSON_AddObjectToObject(config, "root");
+        cJSON *root_k = cJSON_AddArrayToObject(root, "keys");
+        cJSON *root_v = cJSON_AddArrayToObject(root, "values");
+
+        if (!policy || !name || !config || !internal || !internal_k || !internal_v || !leaf ||
+            !leaf_k || !leaf_v || !root || !root_k || !root_v) {
+            err = merr(ENOMEM);
+            cJSON_Delete(policy);
+            goto err_out;
+        }
+
+        err = mclass_array_build(internal_k, policies[i].mc_table[HSE_MPOLICY_AGE_INTERNAL][HSE_MPOLICY_DTYPE_KEY]);
+        if (err) {
+            cJSON_Delete(policy);
+            goto err_out;
+        }
+        err = mclass_array_build(internal_v, policies[i].mc_table[HSE_MPOLICY_AGE_INTERNAL][HSE_MPOLICY_DTYPE_VALUE]);
+        if (err) {
+            cJSON_Delete(policy);
+            goto err_out;
+        }
+        err = mclass_array_build(leaf_k, policies[i].mc_table[HSE_MPOLICY_AGE_LEAF][HSE_MPOLICY_DTYPE_KEY]);
+        if (err) {
+            cJSON_Delete(policy);
+            goto err_out;
+        }
+        err = mclass_array_build(leaf_v, policies[i].mc_table[HSE_MPOLICY_AGE_LEAF][HSE_MPOLICY_DTYPE_VALUE]);
+        if (err) {
+            cJSON_Delete(policy);
+            goto err_out;
+        }
+        err = mclass_array_build(root_k, policies[i].mc_table[HSE_MPOLICY_AGE_ROOT][HSE_MPOLICY_DTYPE_KEY]);
+        if (err) {
+            cJSON_Delete(policy);
+            goto err_out;
+        }
+        err = mclass_array_build(root_v, policies[i].mc_table[HSE_MPOLICY_AGE_ROOT][HSE_MPOLICY_DTYPE_VALUE]);
+        if (err) {
+            cJSON_Delete(policy);
+            goto err_out;
+        }
+
+        cJSON_AddItemToArray(arr, policy);
+    }
+
+out:
+    /* Ideally this would be cJSON_PrintPreallocated(), but cJSON doesn't tell
+     * you about truncation via a needed size like snprintf() or strlcpy().
+     * C-string based APIs rock...not :).
+     */
+    data = cJSON_PrintUnformatted(arr);
+    n = strlcpy(buf, data, buf_sz);
+    cJSON_free(data);
+
+    if (needed_sz)
+        *needed_sz = n;
+
+err_out:
+    cJSON_Delete(arr);
+
+    return err;
+}
+
 static bool HSE_NONNULL(1, 2, 3)
 dur_mclass_converter(
     const struct param_spec *const ps,
@@ -319,6 +442,33 @@ dur_mclass_converter(
     log_err("Invalid value: %s, must be one of capacity or staging", value);
 
     return false;
+}
+
+static merr_t
+dur_mclass_stringify(
+    const struct param_spec *const ps,
+    const void *const              value,
+    char *const                    buf,
+    const size_t                   buf_sz,
+    size_t *const                  needed_sz)
+{
+    int         n;
+    const char *param;
+
+    INVARIANT(ps);
+    INVARIANT(value);
+    INVARIANT(buf);
+
+    param = mpool_mclass_to_string[*(enum mpool_mclass *)value];
+
+    n = snprintf(buf, buf_sz, "\"%s\"", param);
+    if (n < 0)
+        return merr(EBADMSG);
+
+    if (needed_sz)
+        *needed_sz = n;
+
+    return 0;
 }
 
 static bool HSE_NONNULL(1, 2, 3)
@@ -349,6 +499,43 @@ throttle_init_policy_converter(
     return true;
 }
 
+static merr_t
+throttle_init_policy_stringify(
+    const struct param_spec *const ps,
+    const void *const              value,
+    char *const                    buf,
+    const size_t                   buf_sz,
+    size_t *const                  needed_sz)
+{
+    size_t      n;
+    const char *param;
+
+    INVARIANT(ps);
+    INVARIANT(value);
+    INVARIANT(buf);
+
+    switch (*(uint *)value) {
+        case THROTTLE_DELAY_START_DEFAULT:
+            param = "\"default\"";
+            break;
+        case THROTTLE_DELAY_START_LIGHT:
+            param = "\"light\"";
+            break;
+        case THROTTLE_DELAY_START_MEDIUM:
+            param = "\"medium\"";
+            break;
+        default:
+            assert(false);
+    }
+
+    n = strlcpy(buf, param, buf_sz);
+
+    if (needed_sz)
+        *needed_sz = n;
+
+    return 0;
+}
+
 static bool HSE_NONNULL(1, 2)
 csched_policy_validator(const struct param_spec *const ps, const void *const data)
 {
@@ -371,6 +558,7 @@ static const struct param_spec pspecs[] = {
         .ps_size = PARAM_SZ(struct kvdb_rparams, read_only),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
+        .ps_stringify = param_default_stringify,
         .ps_default_value = {
             .as_bool = false,
         },
@@ -384,6 +572,7 @@ static const struct param_spec pspecs[] = {
         .ps_size = PARAM_SZ(struct kvdb_rparams, perfc_level),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
+        .ps_stringify = param_default_stringify,
         .ps_default_value = {
             .as_uscalar = PERFC_LEVEL_DEFAULT,
         },
@@ -403,6 +592,7 @@ static const struct param_spec pspecs[] = {
         .ps_size = PARAM_SZ(struct kvdb_rparams, perfc_level),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
+        .ps_stringify = param_default_stringify,
         .ps_default_value = {
             .as_uscalar = 2,
         },
@@ -422,6 +612,7 @@ static const struct param_spec pspecs[] = {
         .ps_size = PARAM_SZ(struct kvdb_rparams, c0_debug),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
+        .ps_stringify = param_default_stringify,
         .ps_default_value = {
             .as_uscalar = 0,
         },
@@ -441,6 +632,7 @@ static const struct param_spec pspecs[] = {
         .ps_size = PARAM_SZ(struct kvdb_rparams, c0_diag_mode),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
+        .ps_stringify = param_default_stringify,
         .ps_default_value = {
             .as_uscalar = false,
         },
@@ -454,6 +646,7 @@ static const struct param_spec pspecs[] = {
         .ps_size = PARAM_SZ(struct kvdb_rparams, c0_ingest_width),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
+        .ps_stringify = param_default_stringify,
         .ps_default_value = {
             .as_uscalar = HSE_C0_INGEST_WIDTH_DFLT,
         },
@@ -473,6 +666,7 @@ static const struct param_spec pspecs[] = {
         .ps_size = PARAM_SZ(struct kvdb_rparams, txn_timeout),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
+        .ps_stringify = param_default_stringify,
         .ps_default_value = {
             .as_uscalar = 1000 * 60 * 5,
         },
@@ -493,6 +687,7 @@ static const struct param_spec pspecs[] = {
         .ps_size = PARAM_SZ(struct kvdb_rparams, csched_policy),
         .ps_convert = param_default_converter,
         .ps_validate = csched_policy_validator,
+        .ps_stringify = param_default_stringify,
         .ps_default_value = {
             .as_uscalar = csched_policy_sp3,
         },
@@ -512,6 +707,7 @@ static const struct param_spec pspecs[] = {
         .ps_size = PARAM_SZ(struct kvdb_rparams, csched_debug_mask),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
+        .ps_stringify = param_default_stringify,
         .ps_default_value = {
             .as_uscalar = 0,
         },
@@ -531,6 +727,7 @@ static const struct param_spec pspecs[] = {
         .ps_size = PARAM_SZ(struct kvdb_rparams, csched_samp_max),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
+        .ps_stringify = param_default_stringify,
         .ps_default_value = {
             .as_uscalar = 150,
         },
@@ -550,6 +747,7 @@ static const struct param_spec pspecs[] = {
         .ps_size = PARAM_SZ(struct kvdb_rparams, csched_lo_th_pct),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
+        .ps_stringify = param_default_stringify,
         .ps_default_value = {
             .as_uscalar = 25,
         },
@@ -569,6 +767,7 @@ static const struct param_spec pspecs[] = {
         .ps_size = PARAM_SZ(struct kvdb_rparams, csched_hi_th_pct),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
+        .ps_stringify = param_default_stringify,
         .ps_default_value = {
             .as_uscalar = 75,
         },
@@ -588,6 +787,7 @@ static const struct param_spec pspecs[] = {
         .ps_size = PARAM_SZ(struct kvdb_rparams, csched_leaf_pct),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
+        .ps_stringify = param_default_stringify,
         .ps_default_value = {
             .as_uscalar = 90,
         },
@@ -607,6 +807,7 @@ static const struct param_spec pspecs[] = {
         .ps_size = PARAM_SZ(struct kvdb_rparams, csched_vb_scatter_pct),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
+        .ps_stringify = param_default_stringify,
         .ps_default_value = {
             .as_uscalar = 100,
         },
@@ -626,6 +827,7 @@ static const struct param_spec pspecs[] = {
         .ps_size = PARAM_SZ(struct kvdb_rparams, csched_qthreads),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
+        .ps_stringify = param_default_stringify,
         .ps_default_value = {
             .as_uscalar = 0,
         },
@@ -645,6 +847,7 @@ static const struct param_spec pspecs[] = {
         .ps_size = PARAM_SZ(struct kvdb_rparams, csched_node_len_max),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
+        .ps_stringify = param_default_stringify,
         .ps_default_value = {
             .as_uscalar = 0,
         },
@@ -664,6 +867,7 @@ static const struct param_spec pspecs[] = {
         .ps_size = PARAM_SZ(struct kvdb_rparams, csched_rspill_params),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
+        .ps_stringify = param_default_stringify,
         .ps_default_value = {
             .as_uscalar = 0,
         },
@@ -683,6 +887,7 @@ static const struct param_spec pspecs[] = {
         .ps_size = PARAM_SZ(struct kvdb_rparams, csched_ispill_params),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
+        .ps_stringify = param_default_stringify,
         .ps_default_value = {
             .as_uscalar = 0,
         },
@@ -702,6 +907,7 @@ static const struct param_spec pspecs[] = {
         .ps_size = PARAM_SZ(struct kvdb_rparams, csched_leaf_comp_params),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
+        .ps_stringify = param_default_stringify,
         .ps_default_value = {
             .as_uscalar = 0,
         },
@@ -721,6 +927,7 @@ static const struct param_spec pspecs[] = {
         .ps_size = PARAM_SZ(struct kvdb_rparams, csched_leaf_len_params),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
+        .ps_stringify = param_default_stringify,
         .ps_default_value = {
             .as_uscalar = 0,
         },
@@ -740,6 +947,7 @@ static const struct param_spec pspecs[] = {
         .ps_size = PARAM_SZ(struct kvdb_rparams, csched_node_min_ttl),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
+        .ps_stringify = param_default_stringify,
         .ps_default_value = {
             .as_uscalar = 17,
         },
@@ -759,6 +967,7 @@ static const struct param_spec pspecs[] = {
         .ps_size = PARAM_SZ(struct kvdb_rparams, dur_enable),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
+        .ps_stringify = param_default_stringify,
         .ps_default_value = {
             .as_bool = true,
         },
@@ -772,6 +981,7 @@ static const struct param_spec pspecs[] = {
         .ps_size = PARAM_SZ(struct kvdb_rparams, dur_intvl_ms),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
+        .ps_stringify = param_default_stringify,
         .ps_default_value = {
             .as_uscalar = HSE_WAL_DUR_MS_DFLT,
         },
@@ -791,6 +1001,7 @@ static const struct param_spec pspecs[] = {
         .ps_size = PARAM_SZ(struct kvdb_rparams, dur_bufsz_mb),
         .ps_convert = param_roundup_pow2,
         .ps_validate = param_default_validator,
+        .ps_stringify = param_default_stringify,
         .ps_default_value = {
             .as_uscalar = HSE_WAL_DUR_BUFSZ_MB_DFLT,
         },
@@ -810,6 +1021,7 @@ static const struct param_spec pspecs[] = {
         .ps_size = PARAM_SZ(struct kvdb_rparams, dur_throttle_lo_th),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
+        .ps_stringify = param_default_stringify,
         .ps_default_value = {
             .as_uscalar = 13,
         },
@@ -829,6 +1041,7 @@ static const struct param_spec pspecs[] = {
         .ps_size = PARAM_SZ(struct kvdb_rparams, dur_throttle_hi_th),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
+        .ps_stringify = param_default_stringify,
         .ps_default_value = {
             .as_uscalar = 87,
         },
@@ -848,6 +1061,7 @@ static const struct param_spec pspecs[] = {
         .ps_size = PARAM_SZ(struct kvdb_rparams, dur_buf_managed),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
+        .ps_stringify = param_default_stringify,
         .ps_default_value = {
             .as_bool = false,
         },
@@ -861,6 +1075,7 @@ static const struct param_spec pspecs[] = {
         .ps_size = PARAM_SZ(struct kvdb_rparams, dur_mclass),
         .ps_convert = dur_mclass_converter,
         .ps_validate = param_default_validator,
+        .ps_stringify = dur_mclass_stringify,
         .ps_default_value = {
             .as_enum = MP_MED_CAPACITY,
         },
@@ -880,6 +1095,7 @@ static const struct param_spec pspecs[] = {
         .ps_size = PARAM_SZ(struct kvdb_rparams, throttle_disable),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
+        .ps_stringify = param_default_stringify,
         .ps_default_value = {
             .as_uscalar = false,
         },
@@ -893,6 +1109,7 @@ static const struct param_spec pspecs[] = {
         .ps_size = PARAM_SZ(struct kvdb_rparams, throttle_update_ns),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
+        .ps_stringify = param_default_stringify,
         .ps_default_value = {
             .as_uscalar = 25 * 1000 * 1000,
         },
@@ -912,6 +1129,7 @@ static const struct param_spec pspecs[] = {
         .ps_size = PARAM_SZ(struct kvdb_rparams, throttle_debug),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
+        .ps_stringify = param_default_stringify,
         .ps_default_value = {
             .as_uscalar = 0,
         },
@@ -931,6 +1149,7 @@ static const struct param_spec pspecs[] = {
         .ps_size = PARAM_SZ(struct kvdb_rparams, throttle_debug_intvl_s),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
+        .ps_stringify = param_default_stringify,
         .ps_default_value = {
             .as_uscalar = 300,
         },
@@ -950,6 +1169,7 @@ static const struct param_spec pspecs[] = {
         .ps_size = PARAM_SZ(struct kvdb_rparams, throttle_c0_hi_th),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
+        .ps_stringify = param_default_stringify,
         .ps_default_value = {
             .as_uscalar = 35,
         },
@@ -969,6 +1189,7 @@ static const struct param_spec pspecs[] = {
         .ps_size = PARAM_SZ(struct kvdb_rparams, throttle_init_policy),
         .ps_convert = throttle_init_policy_converter,
         .ps_validate = param_default_validator,
+        .ps_stringify = throttle_init_policy_stringify,
         .ps_default_value = {
             .as_enum = THROTTLE_DELAY_START_DEFAULT,
         },
@@ -988,6 +1209,7 @@ static const struct param_spec pspecs[] = {
         .ps_size = PARAM_SZ(struct kvdb_rparams, throttle_burst),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
+        .ps_stringify = param_default_stringify,
         .ps_default_value = {
             .as_uscalar = 1ul << 20,
         },
@@ -1007,6 +1229,7 @@ static const struct param_spec pspecs[] = {
         .ps_size = PARAM_SZ(struct kvdb_rparams, throttle_rate),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
+        .ps_stringify = param_default_stringify,
         .ps_default_value = {
             .as_uscalar = 10ul << 20,
         },
@@ -1026,6 +1249,7 @@ static const struct param_spec pspecs[] = {
         .ps_size = PARAM_SZ(struct kvdb_rparams, txn_wkth_delay),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
+        .ps_stringify = param_default_stringify,
         .ps_default_value = {
             .as_uscalar = 1000 * 60,
         },
@@ -1045,6 +1269,7 @@ static const struct param_spec pspecs[] = {
         .ps_size = PARAM_SZ(struct kvdb_rparams, cndb_entries),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
+        .ps_stringify = param_default_stringify,
         .ps_default_value = {
             .as_uscalar = 0,
         },
@@ -1064,6 +1289,7 @@ static const struct param_spec pspecs[] = {
         .ps_size = PARAM_SZ(struct kvdb_rparams, cndb_debug),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
+        .ps_stringify = param_default_stringify,
         .ps_default_value = {
             .as_bool = false,
         },
@@ -1077,6 +1303,7 @@ static const struct param_spec pspecs[] = {
         .ps_size = PARAM_SZ(struct kvdb_rparams, c0_maint_threads),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
+        .ps_stringify = param_default_stringify,
         .ps_default_value = {
             .as_uscalar = HSE_C0_MAINT_THREADS_DFLT,
         },
@@ -1096,6 +1323,7 @@ static const struct param_spec pspecs[] = {
         .ps_size = PARAM_SZ(struct kvdb_rparams, c0_ingest_threads),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
+        .ps_stringify = param_default_stringify,
         .ps_default_value = {
             .as_uscalar = HSE_C0_INGEST_THREADS_DFLT,
         },
@@ -1115,6 +1343,7 @@ static const struct param_spec pspecs[] = {
         .ps_size = PARAM_SZ(struct kvdb_rparams, cn_maint_threads),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
+        .ps_stringify = param_default_stringify,
         .ps_default_value = {
             .as_uscalar = 17,
         },
@@ -1134,6 +1363,7 @@ static const struct param_spec pspecs[] = {
         .ps_size = PARAM_SZ(struct kvdb_rparams, cn_io_threads),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
+        .ps_stringify = param_default_stringify,
         .ps_default_value = {
             .as_uscalar = 13,
         },
@@ -1153,6 +1383,7 @@ static const struct param_spec pspecs[] = {
         .ps_size = PARAM_SZ(struct kvdb_rparams, keylock_tables),
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
+        .ps_stringify = param_default_stringify,
         .ps_default_value = {
             .as_uscalar = 761,
         },
@@ -1172,6 +1403,7 @@ static const struct param_spec pspecs[] = {
         .ps_size = PARAM_SZ(struct kvdb_rparams, mclass_policies),
         .ps_convert = mclass_policies_converter,
         .ps_validate = mclass_policies_validator,
+        .ps_stringify = mclass_policies_stringify,
         .ps_default_value = {
             .as_builder = mclass_policies_default_builder,
         },
