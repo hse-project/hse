@@ -6,6 +6,8 @@
 #ifndef HSE_IKVDB_KVS_H
 #define HSE_IKVDB_KVS_H
 
+#include <hse/limits.h>
+
 #include <hse_util/atomic.h>
 #include <hse_util/inttypes.h>
 #include <hse_util/list.h>
