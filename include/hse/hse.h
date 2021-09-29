@@ -143,6 +143,26 @@ hse_init(const char *config, size_t paramc, const char *const *paramv);
 void
 hse_fini(void);
 
+/** @brief Get HSE global parameter.
+ *
+ * Puts the stringified version of the parameter value into @p buf. If @p buf_sz
+ * is NULL, then @p needed_sz will still be populated.
+ *
+ * @note This function is thread safe.
+ *
+ * @param param: Parameter name.
+ * @param[in,out] buf: Buffer for writing stringified value of parameter.
+ * @param buf_sz: Size of @p buf.
+ * @param[out] needed_sz: Needed size of @p buf.
+ *
+ * @remark @p param must not be NULL.
+ * @remark @p param must be a valid parameter.
+ *
+ * @returns Error status.
+ */
+hse_err_t
+hse_param_get(const char *param, char *buf, size_t buf_sz, size_t *needed_sz);
+
 /** @} SUBSYS */
 
 /** @defgroup KVDB Key-Value Database (KVDB)

@@ -353,3 +353,16 @@ hse_gparams_defaults()
     param_default_populate(pspecs, NELEM(pspecs), &p);
     return params;
 }
+
+merr_t
+hse_gparams_get(
+    const struct hse_gparams *const params,
+    const char *const               param,
+    char *const                     buf,
+    const size_t                    buf_sz,
+    size_t *const                   needed_sz)
+{
+    const struct params p = { .p_params = { .as_hse_gp = params }, .p_type = PARAMS_HSE_GP };
+
+    return param_get(&p, pspecs, NELEM(pspecs), param, buf, buf_sz, needed_sz);
+}

@@ -25,7 +25,7 @@ struct hse_gparams {
 
     struct {
         bool enabled;
-        char path[sizeof(((struct sockaddr_un *) 0)->sun_path)];
+        char path[sizeof(((struct sockaddr_un *)0)->sun_path)];
     } gp_socket;
 
     struct {
@@ -45,5 +45,13 @@ hse_gparams_pspecs_get(size_t *pspecs_sz) HSE_RETURNS_NONNULL;
 
 struct hse_gparams
 hse_gparams_defaults(void) HSE_CONST;
+
+merr_t
+hse_gparams_get(
+    const struct hse_gparams *params,
+    const char *              param,
+    char *                    buf,
+    size_t                    buf_sz,
+    size_t *                  needed_sz);
 
 #endif

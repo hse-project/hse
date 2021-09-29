@@ -331,4 +331,35 @@ MTF_DEFINE_UTEST_PRE(hse_gparams_test, logging_path, test_pre)
     ASSERT_EQ(0, err);
 }
 
+MTF_DEFINE_UTEST(hse_gparams_test, get)
+{
+	merr_t err;
+	char   buf[128];
+	size_t needed_sz;
+
+	const struct hse_gparams p = hse_gparams_defaults();
+
+	err = hse_gparams_get(&p, "socket.enabled", buf, sizeof(buf), &needed_sz);
+	ASSERT_EQ(0, merr_errno(err));
+	ASSERT_STREQ("true", buf);
+	ASSERT_EQ(4, needed_sz);
+
+	err = hse_gparams_get(&p, "socket.enabled", buf, sizeof(buf), NULL);
+	ASSERT_EQ(0, merr_errno(err));
+	ASSERT_STREQ("true", buf);
+
+	err = hse_gparams_get(&p, "does.not.exist", buf, sizeof(buf), &needed_sz);
+	ASSERT_EQ(EINVAL, merr_errno(err));
+
+	err = hse_gparams_get(NULL, "socket.enabled", buf, sizeof(buf), NULL);
+	ASSERT_EQ(EINVAL, merr_errno(err));
+
+	err = hse_gparams_get(&p, NULL, buf, sizeof(buf), NULL);
+	ASSERT_EQ(EINVAL, merr_errno(err));
+
+	err = hse_gparams_get(&p, "socket.enabled", NULL, 0, &needed_sz);
+    ASSERT_EQ(0, merr_errno(err));
+    ASSERT_EQ(4, needed_sz);
+}
+
 MTF_END_UTEST_COLLECTION(hse_gparams_test)

@@ -166,6 +166,19 @@ hse_fini(void)
 }
 
 hse_err_t
+hse_param_get(
+    const char *const param,
+    char *const       buf,
+    const size_t      buf_sz,
+    size_t *const     needed_sz)
+{
+    if (HSE_UNLIKELY(!param))
+        return merr(EINVAL);
+
+    return hse_gparams_get(&hse_gparams, param, buf, buf_sz, needed_sz);
+}
+
+hse_err_t
 hse_kvdb_create(const char *kvdb_home, size_t paramc, const char *const *const paramv)
 {
     struct kvdb_cparams dbparams = kvdb_cparams_defaults();
