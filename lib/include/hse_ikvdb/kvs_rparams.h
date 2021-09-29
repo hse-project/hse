@@ -88,4 +88,12 @@ kvs_rparams_pspecs_get(size_t *pspecs_sz) HSE_RETURNS_NONNULL;
 struct kvs_rparams
 kvs_rparams_defaults() HSE_CONST;
 
+merr_t
+kvs_rparams_get(
+    const struct kvs_rparams *params,
+    const char *              param,
+    char *                    buf,
+    size_t                    buf_sz,
+    size_t *                  needed_sz);
+
 #endif /* HSE_KVS_RPARAMS_H */

@@ -10,6 +10,7 @@
 #include <stdint.h>
 
 #include <hse_util/compiler.h>
+#include <hse_util/hse_err.h>
 
 struct kvs_cparams {
 	uint32_t  fanout;
@@ -24,5 +25,13 @@ kvs_cparams_pspecs_get(size_t *pspecs_sz) HSE_RETURNS_NONNULL;
 
 struct kvs_cparams
 kvs_cparams_defaults() HSE_CONST;
+
+merr_t
+kvs_cparams_get(
+    const struct kvs_cparams *params,
+    const char *              param,
+    char *                    buf,
+    size_t                    buf_sz,
+    size_t *                  needed_sz);
 
 #endif

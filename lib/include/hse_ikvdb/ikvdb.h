@@ -402,6 +402,14 @@ ikvdb_kvs_prefix_delete(
     struct hse_kvdb_txn *txn,
     struct kvs_ktuple *  kt);
 
+merr_t
+ikvdb_kvs_param_get(
+    struct hse_kvs *kvs,
+    const char *    param,
+    char *          buf,
+    size_t          buf_sz,
+    size_t *        needed_sz);
+
 /**
  * ikvdb_sync() - sync data in all of the KVSes to stable media.
  */

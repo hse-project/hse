@@ -794,4 +794,35 @@ MTF_DEFINE_UTEST_PRE(kvs_rparams_test, compression_value_algorithm, test_pre)
     ASSERT_EQ(0, merr_errno(err));
 }
 
+MTF_DEFINE_UTEST(kvs_rparams_test, get)
+{
+	merr_t err;
+	char   buf[128];
+	size_t needed_sz;
+
+	const struct kvs_rparams p = kvs_rparams_defaults();
+
+	err = kvs_rparams_get(&p, "transactions.enabled", buf, sizeof(buf), &needed_sz);
+	ASSERT_EQ(0, merr_errno(err));
+	ASSERT_STREQ("false", buf);
+	ASSERT_EQ(5, needed_sz);
+
+	err = kvs_rparams_get(&p, "transactions.enabled", buf, sizeof(buf), NULL);
+	ASSERT_EQ(0, merr_errno(err));
+	ASSERT_STREQ("false", buf);
+
+	err = kvs_rparams_get(&p, "does.not.exist", buf, sizeof(buf), NULL);
+	ASSERT_EQ(EINVAL, merr_errno(err));
+
+	err = kvs_rparams_get(NULL, "transactions.enabled", buf, sizeof(buf), NULL);
+	ASSERT_EQ(EINVAL, merr_errno(err));
+
+	err = kvs_rparams_get(&p, NULL, buf, sizeof(buf), NULL);
+	ASSERT_EQ(EINVAL, merr_errno(err));
+
+	err = kvs_rparams_get(&p, "transactions.enabled", NULL, 0, &needed_sz);
+    ASSERT_EQ(0, merr_errno(err));
+    ASSERT_EQ(5, needed_sz);
+}
+
 MTF_END_UTEST_COLLECTION(kvs_rparams_test)

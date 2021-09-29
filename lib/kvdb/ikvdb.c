@@ -1834,6 +1834,26 @@ ikvdb_param_get(
 }
 
 merr_t
+ikvdb_kvs_param_get(
+    struct hse_kvs *const handle,
+    const char *const     param,
+    char *const           buf,
+    const size_t          buf_sz,
+    size_t *const         needed_sz)
+{
+    merr_t           err;
+    struct kvdb_kvs *kk = (struct kvdb_kvs *)handle;
+
+    INVARIANT(handle);
+
+    err = kvs_cparams_get(kk->kk_cparams, param, buf, buf_sz, needed_sz);
+    if (!err)
+        return err; /* No error means param was a cparam */
+
+    return kvs_rparams_get(&kk->kk_ikvs->ikv_rp, param, buf, buf_sz, needed_sz);
+}
+
+merr_t
 ikvdb_kvs_names_get(struct ikvdb *handle, size_t *namec, char ***namev)
 {
     struct ikvdb_impl *self = ikvdb_h2r(handle);

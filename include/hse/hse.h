@@ -541,6 +541,33 @@ hse_kvs_get(
 const char *
 hse_kvs_name_get(struct hse_kvs *kvs);
 
+/** @brief Get KVS parameter.
+ *
+ * Puts the stringified version of the parameter value into @p buf. If @p buf_sz
+ * is NULL, then @p needed_sz will still be populated.
+ *
+ * @note This function is thread safe.
+ *
+ * @param kvs: KVS handle from hse_kvdb_kvs_open().
+ * @param param: Parameter name.
+ * @param[in,out] buf: Buffer for writing stringified value of parameter.
+ * @param buf_sz: Size of @p buf.
+ * @param[out] needed_sz: Needed size of @p buf.
+ *
+ * @remark @p kvs must not be NULL.
+ * @remark @p param must not be NULL.
+ * @remark @p param must be a valid parameter.
+ *
+ * @returns Error status.
+ */
+hse_err_t
+hse_kvs_param_get(
+    struct hse_kvs *kvs,
+    const char *    param,
+    char *          buf,
+    size_t          buf_sz,
+    size_t *        needed_sz);
+
 /** @brief Delete all key-value pairs matching the key prefix from a KVS storing
  * segmented keys.
  *

@@ -867,3 +867,16 @@ kvs_rparams_defaults()
     param_default_populate(pspecs, NELEM(pspecs), &p);
     return params;
 }
+
+merr_t
+kvs_rparams_get(
+    const struct kvs_rparams *const params,
+    const char *const               param,
+    char *const                     buf,
+    const size_t                    buf_sz,
+    size_t *const                   needed_sz)
+{
+    const struct params p = { .p_params = { .as_kvs_rp = params }, .p_type = PARAMS_KVS_RP };
+
+    return param_get(&p, pspecs, NELEM(pspecs), param, buf, buf_sz, needed_sz);
+}

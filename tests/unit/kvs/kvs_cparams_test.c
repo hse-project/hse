@@ -129,4 +129,35 @@ MTF_DEFINE_UTEST_PRE(kvs_cparams_test, suffix_length, test_pre)
 	ASSERT_EQ(UINT32_MAX, ps->ps_bounds.as_uscalar.ps_max);
 }
 
+MTF_DEFINE_UTEST(kvs_cparams_test, get)
+{
+	merr_t err;
+	char   buf[128];
+	size_t needed_sz;
+
+	const struct kvs_cparams p = kvs_cparams_defaults();
+
+	err = kvs_cparams_get(&p, "prefix.length", buf, sizeof(buf), &needed_sz);
+	ASSERT_EQ(0, merr_errno(err));
+	ASSERT_STREQ("0", buf);
+	ASSERT_EQ(1, needed_sz);
+
+	err = kvs_cparams_get(&p, "prefix.length", buf, sizeof(buf), NULL);
+	ASSERT_EQ(0, merr_errno(err));
+	ASSERT_STREQ("0", buf);
+
+	err = kvs_cparams_get(&p, "does.not.exist", buf, sizeof(buf), NULL);
+	ASSERT_EQ(EINVAL, merr_errno(err));
+
+	err = kvs_cparams_get(NULL, "prefix.length", buf, sizeof(buf), NULL);
+	ASSERT_EQ(EINVAL, merr_errno(err));
+
+	err = kvs_cparams_get(&p, NULL, buf, sizeof(buf), NULL);
+	ASSERT_EQ(EINVAL, merr_errno(err));
+
+	err = kvs_cparams_get(&p, "prefix.length", NULL, 0, &needed_sz);
+    ASSERT_EQ(0, merr_errno(err));
+    ASSERT_EQ(1, needed_sz);
+}
+
 MTF_END_UTEST_COLLECTION(kvs_cparams_test)
