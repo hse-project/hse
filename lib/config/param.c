@@ -751,3 +751,30 @@ STORAGE_STRINGIFY(GB)
 STORAGE_STRINGIFY(TB)
 
 #undef STORAGE_STRINGIFY
+
+merr_t
+param_get(
+    const struct params *const     params,
+    const struct param_spec *const pspecs,
+    const size_t                   pspecs_sz,
+    const char *const              param,
+    char *const                    buf,
+    const size_t                   buf_sz,
+    size_t *const                  needed_sz)
+{
+    const struct param_spec *ps = NULL;
+
+    if (!params || !params->p_params.as_generic || !pspecs || !param)
+        return merr(EINVAL);
+
+    for (size_t i = 0; i < pspecs_sz; i++)
+        if (!strcmp(pspecs[i].ps_name, param))
+            ps = &pspecs[i];
+
+    if (!ps)
+        return merr(EINVAL);
+
+    assert(ps->ps_stringify);
+    return ps->ps_stringify(
+        ps, (char *)params->p_params.as_generic + ps->ps_offset, buf, buf_sz, needed_sz);
+}

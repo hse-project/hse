@@ -82,7 +82,7 @@ array_default_builder(const struct param_spec *const ps, void *const data)
 bool
 array_relation_validate(const struct param_spec *const ps, const struct params *p)
 {
-    struct test_params *params = p->p_params.as_generic;
+    const struct test_params *params = p->p_params.as_generic;
 
     return params->test11[0].field1 < params->test9 && params->test11[1].field1 < params->test8;
 }
@@ -901,6 +901,40 @@ MTF_DEFINE_UTEST_PRE(param_test, roundup_pow2, test_pre)
 
     ASSERT_EQ(0, merr_errno(err));
     ASSERT_EQ(2048, params.test16);
+}
+
+MTF_DEFINE_UTEST_PRE(param_test, get, test_pre)
+{
+	merr_t err;
+	char   buf[128];
+	size_t needed_sz;
+
+	const struct params p = { .p_params = { .as_generic = &params }, .p_type = PARAMS_GEN };
+
+	err = param_get(&p, pspecs, NELEM(pspecs), "test1", buf, sizeof(buf), &needed_sz);
+	ASSERT_EQ(0, merr_errno(err));
+	ASSERT_STREQ("true", buf);
+	ASSERT_EQ(4, needed_sz);
+
+	err = param_get(&p, pspecs, NELEM(pspecs), "test1", buf, sizeof(buf), NULL);
+	ASSERT_EQ(0, merr_errno(err));
+	ASSERT_STREQ("true", buf);
+
+	err = param_get(&p, pspecs, NELEM(pspecs), "does.not.exist", buf, sizeof(buf), NULL);
+	ASSERT_EQ(EINVAL, merr_errno(err));
+
+	err = param_get(NULL, pspecs, NELEM(pspecs), "test1", buf, sizeof(buf), NULL);
+	ASSERT_EQ(EINVAL, merr_errno(err));
+
+	err = param_get(&p, NULL, NELEM(pspecs), "test1", buf, sizeof(buf), NULL);
+	ASSERT_EQ(EINVAL, merr_errno(err));
+
+	err = param_get(&p, pspecs, NELEM(pspecs), NULL, buf, sizeof(buf), NULL);
+	ASSERT_EQ(EINVAL, merr_errno(err));
+
+	err = param_get(&p, pspecs, NELEM(pspecs), "test1", NULL, 0, &needed_sz);
+    ASSERT_EQ(0, merr_errno(err));
+    ASSERT_EQ(4, needed_sz);
 }
 
 MTF_END_UTEST_COLLECTION(param_test)
