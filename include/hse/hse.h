@@ -300,6 +300,33 @@ hse_kvdb_open(
     const char *const *paramv,
     struct hse_kvdb ** kvdb);
 
+/** @brief Get KVDB parameter.
+ *
+ * Puts the stringified version of the parameter value into @p buf. If @p buf_sz
+ * is NULL, then @p needed_sz will still be populated.
+ *
+ * @note This function is thread safe.
+ *
+ * @param kvdb: KVDB handle from hse_kvdb_open().
+ * @param param: Parameter name.
+ * @param[in,out] buf: Buffer for writing stringified value of parameter.
+ * @param buf_sz: Size of @p buf.
+ * @param[out] needed_sz: Needed size of @p buf.
+ *
+ * @remark @p kvdb must not be NULL.
+ * @remark @p param must not be NULL.
+ * @remark @p param must be a valid parameter.
+ *
+ * @returns Error status.
+ */
+hse_err_t
+hse_kvdb_param_get(
+    struct hse_kvdb *kvdb,
+    const char *     param,
+    char *           buf,
+    size_t           buf_sz,
+    size_t *         needed_sz);
+
 /** @brief Add new media class storage to an existing offline KVDB.
  *
  * @note This function is not thread safe.

@@ -179,4 +179,22 @@ mblock_fset_unmap(struct mblock_fset *mbfsp, uint64_t mbid);
 merr_t
 mblock_fset_stats_get(struct mblock_fset *mbfsp, struct mpool_mclass_stats *stats);
 
+/** @brief Get file count.
+ *
+ * @param mbfsp: mblock fileset handle.
+ *
+ * @returns File count.
+ */
+uint8_t
+mblock_fset_filecnt_get(const struct mblock_fset *mbfsp);
+
+/** @brief Get file max size.
+ *
+ * @param mbfsp: mblock fileset handle.
+ *
+ * @returns File max size.
+ */
+size_t
+mblock_fset_fmaxsz_get(const struct mblock_fset *const mbfsp);
+
 #endif /* MPOOL_MBLOCK_FSET_H */

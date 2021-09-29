@@ -1905,4 +1905,45 @@ MTF_DEFINE_UTEST_PREPOST(ikvdb_test, ikvdb_mclass_policies_test, test_pre, test_
     ASSERT_EQ(0, err);
 }
 
+MTF_DEFINE_UTEST_PREPOST(ikvdb_test, get_param, test_pre, test_post)
+{
+    merr_t        err;
+    char          buf[128];
+    size_t        needed_sz;
+    struct ikvdb *kvdb;
+
+    struct kvdb_rparams kvdb_rp = kvdb_rparams_defaults();
+
+    err = ikvdb_open("mpool", &kvdb_rp, &kvdb);
+    ASSERT_EQ(0, err);
+    ASSERT_NE(NULL, kvdb);
+
+    err = ikvdb_param_get(kvdb, "read_only", buf, sizeof(buf), &needed_sz);
+    ASSERT_EQ(0, merr_errno(err));
+    ASSERT_STREQ("false", buf);
+    ASSERT_EQ(5, needed_sz);
+
+    err = ikvdb_param_get(kvdb, "storage.capacity.path", buf, sizeof(buf), &needed_sz);
+    ASSERT_EQ(0, merr_errno(err));
+    ASSERT_STREQ("\"capacity\"", buf);
+    ASSERT_EQ(10, needed_sz);
+
+    err = ikvdb_param_get(kvdb, "read_only", buf, sizeof(buf), NULL);
+    ASSERT_EQ(0, merr_errno(err));
+    ASSERT_STREQ("false", buf);
+
+    err = ikvdb_param_get(kvdb, "does.not.exist", buf, sizeof(buf), NULL);
+    ASSERT_EQ(EINVAL, merr_errno(err));
+
+    err = ikvdb_param_get(kvdb, NULL, buf, sizeof(buf), NULL);
+    ASSERT_EQ(EINVAL, merr_errno(err));
+
+    err = ikvdb_param_get(kvdb, "read_only", NULL, 0, &needed_sz);
+    ASSERT_EQ(0, merr_errno(err));
+    ASSERT_EQ(5, needed_sz);
+
+    err = ikvdb_close(kvdb);
+    ASSERT_EQ(0, err);
+}
+
 MTF_END_UTEST_COLLECTION(ikvdb_test);

@@ -458,6 +458,20 @@ hse_kvdb_close(struct hse_kvdb *handle)
 }
 
 hse_err_t
+hse_kvdb_param_get(
+    struct hse_kvdb *const handle,
+    const char *const      param,
+    char *const            buf,
+    const size_t           buf_sz,
+    size_t *const          needed_sz)
+{
+    if (HSE_UNLIKELY(!handle || !param))
+        return merr(EINVAL);
+
+    return ikvdb_param_get((struct ikvdb *)handle, param, buf, buf_sz, needed_sz);
+}
+
+hse_err_t
 hse_kvdb_kvs_names_get(struct hse_kvdb *handle, size_t *namec, char ***namev)
 {
     merr_t err;

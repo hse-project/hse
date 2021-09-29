@@ -28,6 +28,7 @@
  * @mcid:     mclass ID (persisted in mblock/mdc metadata)
  * @gclose:   was mclass closed gracefully in prior instance
  * @dpath:    mclass directory path
+ * @upath:    mclass user-provided path
  */
 struct media_class {
     DIR *               dirp;
@@ -36,6 +37,7 @@ struct media_class {
     enum mclass_id      mcid;
     bool                gclose;
     char *              dpath;
+    char *              upath;
 };
 
 merr_t
@@ -76,6 +78,12 @@ mclass_open(
         goto err_exit1;
     }
 
+    mc->upath = strdup(params->path);
+    if (!mc->upath) {
+        err = merr(ENOMEM);
+        goto err_exit1;
+    }
+
     err = mblock_fset_open(mc, params->filecnt, params->fmaxsz, flags, &mc->mbfsp);
     if (err) {
         log_errx("Opening data files failed, mclass %d: @@e", err, mclass);
@@ -88,6 +96,7 @@ mclass_open(
 
 err_exit1:
     free(mc->dpath);
+    free(mc->upath);
     free(mc);
 
 err_exit2:
@@ -105,6 +114,7 @@ mclass_close(struct media_class *mc)
     mblock_fset_close(mc->mbfsp);
     closedir(mc->dirp);
     free(mc->dpath);
+    free(mc->upath);
     free(mc);
 
     return 0;
@@ -292,6 +302,12 @@ const char *
 mclass_dpath(struct media_class *mc)
 {
     return mc ? mc->dpath : NULL;
+}
+
+const char *
+mclass_upath(const struct media_class *const mc)
+{
+    return mc ? mc->upath : NULL;
 }
 
 struct mblock_fset *

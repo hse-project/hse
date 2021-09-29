@@ -41,7 +41,6 @@ enum mpool_mclass {
 #define MPOOL_MBLOCK_FILECNT_DEFAULT   (32)
 #define MPOOL_MBLOCK_FILESZ_DEFAULT    (2048ull << GB_SHIFT)
 
-
 /**
  * struct mpool_cparams - mpool create params
  *
@@ -82,15 +81,6 @@ struct mpool_dparams {
 };
 
 /**
- * struct mpool_props -
- *
- * @mp_mblocksz:        mblock size by media class (MiB)
- */
-struct mpool_props {
-    uint32_t mp_mblocksz[MP_MED_COUNT];
-};
-
-/**
  * struct mpool_stats - aggregated mpool stats across all configured media classes
  *
  * @mps_total:     total space in the filesystem(s) containing mclass data directories
@@ -115,7 +105,19 @@ struct mpool_stats {
  * @mc_mblocksz: mblock size in MiB
  */
 struct mpool_mclass_props {
+    uint64_t mc_fmaxsz;
     uint32_t mc_mblocksz;
+    uint8_t  mc_filecnt;
+    char     mc_path[PATH_MAX];
+};
+
+/**
+ * struct mpool_props -
+ *
+ * @mclass: Array of media class properties.
+ */
+struct mpool_props {
+    struct mpool_mclass_props mclass[MP_MED_COUNT];
 };
 
 /**

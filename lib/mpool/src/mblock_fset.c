@@ -817,3 +817,15 @@ mblock_fset_stats_get(struct mblock_fset *mbfsp, struct mpool_mclass_stats *stat
 
     return 0;
 }
+
+size_t
+mblock_fset_fmaxsz_get(const struct mblock_fset *const mbfsp)
+{
+    return mbfsp ? mbfsp->mhdr.fszmax : 0;
+}
+
+uint8_t
+mblock_fset_filecnt_get(const struct mblock_fset *const mbfsp)
+{
+    return mbfsp ? mbfsp->mhdr.fcnt : 0;
+}

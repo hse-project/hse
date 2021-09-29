@@ -338,4 +338,36 @@ MTF_DEFINE_UTEST_PRE(kvdb_cparams_test, storage_pmem_path, test_pre)
 	ASSERT_EQ('\0', params.storage.mclass[MP_MED_PMEM].path[0]);
 	ASSERT_EQ(PATH_MAX, ps->ps_bounds.as_string.ps_max_len);
 }
+
+MTF_DEFINE_UTEST(kvdb_cparams_test, get)
+{
+	merr_t err;
+	char   buf[128];
+	size_t needed_sz;
+
+	const struct kvdb_cparams p = kvdb_cparams_defaults();
+
+    err = kvdb_cparams_get(&p, "storage.capacity.path", buf, sizeof(buf), &needed_sz);
+    ASSERT_EQ(0, merr_errno(err));
+    ASSERT_STREQ("", buf);
+    ASSERT_EQ(0, needed_sz);
+
+    err = kvdb_cparams_get(&p, "storage.capacity.path", buf, sizeof(buf), NULL);
+    ASSERT_EQ(0, merr_errno(err));
+    ASSERT_STREQ("", buf);
+
+	err = kvdb_cparams_get(&p, "does.not.exist", buf, sizeof(buf), NULL);
+	ASSERT_EQ(EINVAL, merr_errno(err));
+
+	err = kvdb_cparams_get(NULL, "storage.capacity.path", buf, sizeof(buf), NULL);
+	ASSERT_EQ(EINVAL, merr_errno(err));
+
+	err = kvdb_cparams_get(&p, NULL, buf, sizeof(buf), NULL);
+	ASSERT_EQ(EINVAL, merr_errno(err));
+
+	err = kvdb_cparams_get(&p, "storage.capacity.path", NULL, 0, &needed_sz);
+    ASSERT_EQ(0, merr_errno(err));
+    ASSERT_EQ(0, needed_sz);
+}
+
 MTF_END_UTEST_COLLECTION(kvdb_cparams_test)

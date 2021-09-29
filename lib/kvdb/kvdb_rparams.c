@@ -1441,3 +1441,16 @@ kvdb_rparams_resolve(struct kvdb_rparams *params, const char *home)
 
     return 0;
 }
+
+merr_t
+kvdb_rparams_get(
+    const struct kvdb_rparams *const params,
+    const char *const                param,
+    char *const                      buf,
+    const size_t                     buf_sz,
+    size_t *const                    needed_sz)
+{
+    const struct params p = { .p_params = { .as_kvdb_rp = params }, .p_type = PARAMS_KVDB_RP };
+
+    return param_get(&p, pspecs, NELEM(pspecs), param, buf, buf_sz, needed_sz);
+}

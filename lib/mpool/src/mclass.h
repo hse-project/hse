@@ -93,6 +93,15 @@ mclass_id(struct media_class *mc);
 const char *
 mclass_dpath(struct media_class *mc);
 
+/** @brief Get the user-given path.
+ *
+ * @param mc: Media class handle.
+ *
+ * @returns User-given path (pre-realpath(3)).
+ */
+const char *
+mclass_upath(const struct media_class *mc);
+
 /**
  * mclass_dirfd() - get mclass directory fd
  *

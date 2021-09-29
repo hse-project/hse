@@ -394,15 +394,21 @@ mpool_mclass_props_get(struct mpool *mp, enum mpool_mclass mclass, struct mpool_
 {
     struct media_class *mc;
 
-    if (!mp || mclass >= MP_MED_COUNT)
+    if (!mp || mclass >= MP_MED_COUNT || !props)
         return merr(EINVAL);
+
+    memset(props, 0, sizeof(*props));
 
     mc = mp->mc[mclass];
     if (!mc)
         return merr(ENOENT);
 
-    if (props)
-        props->mc_mblocksz = mclass_mblocksz_get(mc) >> MB_SHIFT;
+    const struct mblock_fset *mbfsp = mclass_fset(mc);
+
+    props->mc_fmaxsz = mblock_fset_fmaxsz_get(mbfsp);
+    props->mc_mblocksz = mclass_mblocksz_get(mc) >> MB_SHIFT;
+    props->mc_filecnt = mblock_fset_filecnt_get(mbfsp);
+    strlcpy(props->mc_path, mclass_upath(mc), sizeof(props->mc_path));
 
     return 0;
 }
@@ -442,17 +448,14 @@ mpool_props_get(struct mpool *mp, struct mpool_props *props)
     memset(props, 0, sizeof(*props));
 
     for (i = MP_MED_BASE; i < MP_MED_COUNT; i++) {
-        struct mpool_mclass_props mcp = {0};
         merr_t                    err;
 
-        err = mpool_mclass_props_get(mp, i, &mcp);
+        err = mpool_mclass_props_get(mp, i, &props->mclass[i]);
         if (err) {
             if (merr_errno(err) == ENOENT)
                 continue;
             return err;
         }
-
-        props->mp_mblocksz[i] = mcp.mc_mblocksz;
     }
 
     return 0;

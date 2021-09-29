@@ -14,6 +14,8 @@
 
 #include <hse_ikvdb/limits.h>
 
+#include <bsd/string.h>
+
 #include <mocks/mock_mpool.h>
 
 struct mocked_mblock {
@@ -177,7 +179,17 @@ _mpool_mblock_delete(struct mpool *mp, uint64_t id)
 merr_t
 _mpool_props_get(struct mpool *mp, struct mpool_props *props)
 {
-    props->mp_mblocksz[MP_MED_CAPACITY] = 32 << 20;
+    props->mclass[MP_MED_CAPACITY].mc_mblocksz = MPOOL_MBLOCK_SIZE_DEFAULT;
+    props->mclass[MP_MED_CAPACITY].mc_filecnt = MPOOL_MBLOCK_FILECNT_DEFAULT;
+    props->mclass[MP_MED_CAPACITY].mc_fmaxsz = MPOOL_MBLOCK_FILESZ_DEFAULT;
+    strlcpy(
+        props->mclass[MP_MED_CAPACITY].mc_path,
+        MPOOL_CAPACITY_MCLASS_DEFAULT_PATH,
+        sizeof(props->mclass[MP_MED_CAPACITY].mc_path));
+
+    props->mclass[MP_MED_STAGING].mc_mblocksz = MPOOL_MBLOCK_SIZE_DEFAULT;
+    props->mclass[MP_MED_STAGING].mc_filecnt = MPOOL_MBLOCK_FILECNT_DEFAULT;
+    props->mclass[MP_MED_STAGING].mc_fmaxsz = MPOOL_MBLOCK_FILESZ_DEFAULT;
 
     return 0;
 }

@@ -19,15 +19,15 @@ MTF_BEGIN_UTEST_COLLECTION_PRE(mpool_test, mpool_collection_pre)
 
 MTF_DEFINE_UTEST_PREPOST(mpool_test, mpool_ocd_test, mpool_test_pre, mpool_test_post)
 {
-    struct mpool *mp;
-    struct mpool_stats  stats = {};
-    struct mpool_props  mprops = {};
-    struct dirent      *d;
+    struct mpool *     mp;
+    struct mpool_stats stats = {};
+    struct mpool_props mprops = {};
+    struct dirent *    d;
 
-    merr_t  err;
-    int     rc, entry;
-    DIR    *dirp;
-    bool    exists;
+    merr_t err;
+    int    rc, entry;
+    DIR *  dirp;
+    bool   exists;
 
     err = mpool_open(home, &trparams, 0, &mp);
     ASSERT_EQ(ENOENT, merr_errno(err));
@@ -61,7 +61,7 @@ MTF_DEFINE_UTEST_PREPOST(mpool_test, mpool_ocd_test, mpool_test_pre, mpool_test_
 
     err = mpool_props_get(mp, &mprops);
     ASSERT_EQ(0, merr_errno(err));
-    ASSERT_EQ(32, mprops.mp_mblocksz[MP_MED_CAPACITY]);
+    ASSERT_EQ(32, mprops.mclass[MP_MED_CAPACITY].mc_mblocksz);
 
     err = mpool_stats_get(NULL, &stats);
     ASSERT_EQ(EINVAL, merr_errno(err));
@@ -170,15 +170,15 @@ MTF_DEFINE_UTEST_PREPOST(mpool_test, mpool_ocd_test, mpool_test_pre, mpool_test_
 
 MTF_DEFINE_UTEST_PREPOST(mpool_test, mclass_test, mpool_test_pre, mpool_test_post)
 {
-    struct mpool             *mp;
+    struct mpool *            mp;
     struct mpool_mclass_props props = {};
     struct mpool_mclass_stats stats = {};
-    struct media_class       *mc;
+    struct media_class *      mc;
     merr_t                    err;
     int                       mcid, fd, i, rc;
-    const char               *pathp;
+    const char *              pathp;
     size_t                    mbsz;
-    struct mblock_fset       *fsetp;
+    struct mblock_fset *      fsetp;
 
     err = mpool_create(home, &tcparams);
     ASSERT_EQ(0, err);
@@ -190,7 +190,7 @@ MTF_DEFINE_UTEST_PREPOST(mpool_test, mclass_test, mpool_test_pre, mpool_test_pos
     ASSERT_EQ(EINVAL, merr_errno(err));
 
     err = mpool_mclass_props_get(mp, MP_MED_CAPACITY, NULL);
-    ASSERT_EQ(0, err);
+    ASSERT_EQ(EINVAL, merr_errno(err));
 
     err = mpool_mclass_props_get(mp, MP_MED_COUNT, &props);
     ASSERT_EQ(EINVAL, merr_errno(err));

@@ -275,6 +275,14 @@ ikvdb_storage_info_get(
 struct cn *
 ikvdb_kvs_get_cn(struct hse_kvs *kvs);
 
+merr_t
+ikvdb_param_get(
+    struct ikvdb *kvdb,
+    const char *  param,
+    char *        buf,
+    size_t        buf_sz,
+    size_t *      needed_sz);
+
 /**
  * ikvdb_kvs_names_get() -
  * @param kvdb: handle to the KVDB

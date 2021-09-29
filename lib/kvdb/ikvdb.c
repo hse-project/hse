@@ -1789,6 +1789,51 @@ out_immediate:
 }
 
 merr_t
+ikvdb_param_get(
+    struct ikvdb *const handle,
+    const char *const   param,
+    char *const         buf,
+    const size_t        buf_sz,
+    size_t *const       needed_sz)
+{
+    merr_t             err;
+    struct ikvdb_impl *self = ikvdb_h2r(handle);
+
+    INVARIANT(handle);
+
+    err = kvdb_rparams_get(&self->ikdb_rp, param, buf, buf_sz, needed_sz);
+    if (!err)
+        return err;
+
+    struct mpool_props  props;
+
+    /* There is no current way to access a pre-existing kvdb_cparams struct. In
+     * order to overcome this, we just construct it on the fly. There is room
+     * for improvement here in the future should this ever become a bottleneck.
+     */
+    struct kvdb_cparams cparams = kvdb_cparams_defaults();
+
+    err = mpool_props_get(self->ikdb_mp, &props);
+    if (err)
+        return err;
+
+    for (int i = MP_MED_BASE; i < MP_MED_COUNT; i++) {
+        cparams.storage.mclass[i].fmaxsz = props.mclass[i].mc_fmaxsz;
+        cparams.storage.mclass[i].mblocksz = props.mclass[i].mc_mblocksz;
+        cparams.storage.mclass[i].filecnt = props.mclass[i].mc_filecnt;
+        static_assert(
+            sizeof(cparams.storage.mclass[i].path) == sizeof(props.mclass[i].mc_path),
+            "Mismatched buffer sizes");
+        strlcpy(
+            cparams.storage.mclass[i].path,
+            props.mclass[i].mc_path,
+            sizeof(cparams.storage.mclass[i].path));
+    }
+
+    return kvdb_cparams_get(&cparams, param, buf, buf_sz, needed_sz);
+}
+
+merr_t
 ikvdb_kvs_names_get(struct ikvdb *handle, size_t *namec, char ***namev)
 {
     struct ikvdb_impl *self = ikvdb_h2r(handle);

@@ -869,4 +869,35 @@ MTF_DEFINE_UTEST_PRE(kvdb_rparams_test, mclass_policies, test_pre)
     ASSERT_EQ(170, needed_sz);
 }
 
+MTF_DEFINE_UTEST(kvdb_rparams_test, get)
+{
+	merr_t err;
+	char   buf[128];
+	size_t needed_sz;
+
+	const struct kvdb_rparams p = kvdb_rparams_defaults();
+
+	err = kvdb_rparams_get(&p, "read_only", buf, sizeof(buf), &needed_sz);
+	ASSERT_EQ(0, merr_errno(err));
+	ASSERT_STREQ("false", buf);
+	ASSERT_EQ(5, needed_sz);
+
+	err = kvdb_rparams_get(&p, "read_only", buf, sizeof(buf), NULL);
+	ASSERT_EQ(0, merr_errno(err));
+	ASSERT_STREQ("false", buf);
+
+	err = kvdb_rparams_get(&p, "does.not.exist", buf, sizeof(buf), NULL);
+	ASSERT_EQ(EINVAL, merr_errno(err));
+
+	err = kvdb_rparams_get(NULL, "read_only", buf, sizeof(buf), NULL);
+	ASSERT_EQ(EINVAL, merr_errno(err));
+
+	err = kvdb_rparams_get(&p, NULL, buf, sizeof(buf), NULL);
+	ASSERT_EQ(EINVAL, merr_errno(err));
+
+	err = kvdb_rparams_get(&p, "read_only", NULL, 0, &needed_sz);
+    ASSERT_EQ(0, merr_errno(err));
+    ASSERT_EQ(5, needed_sz);
+}
+
 MTF_END_UTEST_COLLECTION(kvdb_rparams_test)
