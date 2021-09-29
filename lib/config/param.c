@@ -579,8 +579,8 @@ param_default_validator(const struct param_spec *ps, const void *value)
     return false;
 }
 
-#define STORAGE_CONVERTER(X)                                                                      \
-    bool param_convert_to_bytes_from_##X(                                                         \
+#define STORAGE_CONVERTER(_units)                                                                 \
+    bool param_convert_to_bytes_from_##_units(                                                    \
         const struct param_spec *ps, const cJSON *node, void *value)                              \
     {                                                                                             \
         assert(ps);                                                                               \
@@ -597,7 +597,7 @@ param_default_validator(const struct param_spec *ps, const void *value)
         assert(rc == 0);                                                                          \
                                                                                                   \
         double tmp = cJSON_GetNumberValue(node);                                                  \
-        tmp = tmp * X;                                                                            \
+        tmp = tmp * (_units);                                                                     \
         if (fetestexcept(FE_OVERFLOW)) {                                                          \
             CLOG_ERR("Value of %s is too large", ps->ps_name);                                    \
             feclearexcept(FE_OVERFLOW);                                                           \
@@ -711,51 +711,51 @@ STORAGE_CONVERTER(TB)
 
 #undef STORAGE_CONVERTER
 
-#define STORAGE_STRINGIFY(X)                                                        \
-    merr_t param_stringify_bytes_to_##X(                                            \
-        const struct param_spec *const ps,                                          \
-        const void *const              value,                                       \
-        char *const                    buf,                                         \
-        const size_t                   buf_sz,                                      \
-        size_t *                       needed_sz)                                   \
-    {                                                                               \
-        int n = 0;                                                                  \
-                                                                                    \
-        switch (ps->ps_type) {                                                      \
-            case PARAM_TYPE_I8:                                                     \
-                n = snprintf(buf, buf_sz, "%ld", *(int8_t *)value / (int64_t)X);    \
-                break;                                                              \
-            case PARAM_TYPE_I16:                                                    \
-                n = snprintf(buf, buf_sz, "%ld", *(int16_t *)value / (int64_t)X);   \
-                break;                                                              \
-            case PARAM_TYPE_I32:                                                    \
-                n = snprintf(buf, buf_sz, "%ld", *(int32_t *)value / (int64_t)X);   \
-                break;                                                              \
-            case PARAM_TYPE_I64:                                                    \
-                n = snprintf(buf, buf_sz, "%ld", *(int64_t *)value / (int64_t)X);   \
-                break;                                                              \
-            case PARAM_TYPE_U8:                                                     \
-                n = snprintf(buf, buf_sz, "%lu", *(uint8_t *)value / (uint64_t)X);  \
-                break;                                                              \
-            case PARAM_TYPE_U16:                                                    \
-                n = snprintf(buf, buf_sz, "%lu", *(uint16_t *)value / (uint64_t)X); \
-                break;                                                              \
-            case PARAM_TYPE_U32:                                                    \
-                n = snprintf(buf, buf_sz, "%lu", *(uint32_t *)value / (uint64_t)X); \
-                break;                                                              \
-            case PARAM_TYPE_U64:                                                    \
-                n = snprintf(buf, buf_sz, "%lu", *(uint64_t *)value / (uint64_t)X); \
-                break;                                                              \
-            default:                                                                \
-                abort();                                                            \
-        }                                                                           \
-                                                                                    \
-        if (n < 0)                                                                  \
-            return merr(EBADMSG);                                                   \
-        if (needed_sz)                                                              \
-            *needed_sz = n;                                                         \
-                                                                                    \
-        return 0;                                                                   \
+#define STORAGE_STRINGIFY(_units)                                                          \
+    merr_t param_stringify_bytes_to_##_units(                                              \
+        const struct param_spec *const ps,                                                 \
+        const void *const              value,                                              \
+        char *const                    buf,                                                \
+        const size_t                   buf_sz,                                             \
+        size_t *                       needed_sz)                                          \
+    {                                                                                      \
+        int n = 0;                                                                         \
+                                                                                           \
+        switch (ps->ps_type) {                                                             \
+            case PARAM_TYPE_I8:                                                            \
+                n = snprintf(buf, buf_sz, "%ld", *(int8_t *)value / (int64_t)(_units));    \
+                break;                                                                     \
+            case PARAM_TYPE_I16:                                                           \
+                n = snprintf(buf, buf_sz, "%ld", *(int16_t *)value / (int64_t)(_units));   \
+                break;                                                                     \
+            case PARAM_TYPE_I32:                                                           \
+                n = snprintf(buf, buf_sz, "%ld", *(int32_t *)value / (int64_t)(_units));   \
+                break;                                                                     \
+            case PARAM_TYPE_I64:                                                           \
+                n = snprintf(buf, buf_sz, "%ld", *(int64_t *)value / (int64_t)(_units));   \
+                break;                                                                     \
+            case PARAM_TYPE_U8:                                                            \
+                n = snprintf(buf, buf_sz, "%lu", *(uint8_t *)value / (uint64_t)(_units));  \
+                break;                                                                     \
+            case PARAM_TYPE_U16:                                                           \
+                n = snprintf(buf, buf_sz, "%lu", *(uint16_t *)value / (uint64_t)(_units)); \
+                break;                                                                     \
+            case PARAM_TYPE_U32:                                                           \
+                n = snprintf(buf, buf_sz, "%lu", *(uint32_t *)value / (uint64_t)(_units)); \
+                break;                                                                     \
+            case PARAM_TYPE_U64:                                                           \
+                n = snprintf(buf, buf_sz, "%lu", *(uint64_t *)value / (uint64_t)(_units)); \
+                break;                                                                     \
+            default:                                                                       \
+                abort();                                                                   \
+        }                                                                                  \
+                                                                                           \
+        if (n < 0)                                                                         \
+            return merr(EBADMSG);                                                          \
+        if (needed_sz)                                                                     \
+            *needed_sz = n;                                                                \
+                                                                                           \
+        return 0;                                                                          \
     }
 
 STORAGE_STRINGIFY(KB)
@@ -764,3 +764,34 @@ STORAGE_STRINGIFY(GB)
 STORAGE_STRINGIFY(TB)
 
 #undef STORAGE_STRINGIFY
+
+merr_t
+param_get(
+    const struct params *const     params,
+    const struct param_spec *const pspecs,
+    const size_t                   pspecs_sz,
+    const char *const              param,
+    char *const                    buf,
+    const size_t                   buf_sz,
+    size_t *const                  needed_sz)
+{
+    const struct param_spec *ps = NULL;
+
+    if (!params || !params->p_params.as_generic || !pspecs || !param || !buf)
+        return merr(EINVAL);
+
+    for (size_t i = 0; i < pspecs_sz; i++) {
+        if (!strcmp(pspecs[i].ps_name, param)) {
+            ps = &pspecs[i];
+            break;
+        }
+    }
+
+    if (!ps)
+        return merr(EINVAL);
+
+    assert(ps->ps_stringify);
+
+    return ps->ps_stringify(
+        ps, (char *)params->p_params.as_generic + ps->ps_offset, buf, buf_sz, needed_sz);
+}

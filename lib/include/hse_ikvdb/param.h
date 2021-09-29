@@ -43,12 +43,12 @@ struct params {
     } p_type;
     union {
         /* Do not assign to as_generic, for internal use only */
-        void *const                as_generic;
-        struct kvdb_cparams *const as_kvdb_cp;
-        struct kvdb_rparams *const as_kvdb_rp;
-        struct kvs_cparams *const  as_kvs_cp;
-        struct kvs_rparams *const  as_kvs_rp;
-        struct hse_gparams *const  as_hse_gp;
+        const void *               as_generic;
+        const struct kvdb_cparams *as_kvdb_cp;
+        const struct kvdb_rparams *as_kvdb_rp;
+        const struct kvs_cparams * as_kvs_cp;
+        const struct kvs_rparams * as_kvs_rp;
+        const struct hse_gparams * as_hse_gp;
     } p_params;
 };
 
@@ -186,6 +186,16 @@ merr_t
 param_stringify_bytes_to_TB(
     const struct param_spec *ps,
     const void *             value,
+    char *                   buf,
+    size_t                   buf_sz,
+    size_t *                 needed_sz);
+
+merr_t
+param_get(
+    const struct params *    params,
+    const struct param_spec *pspecs,
+    size_t                   pspecs_sz,
+    const char *             param,
     char *                   buf,
     size_t                   buf_sz,
     size_t *                 needed_sz);
