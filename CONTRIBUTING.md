@@ -110,6 +110,11 @@ meson compile -C build doxygen
 
 Static HTML Doxygen files will be generated in `build/docs/doxygen/api/html`.
 
+A run target has also been provided called `doxygen-serve`, which will start a
+Python webserver to serve the generated doxygen web pages. The assigned port
+is designated by the kernel by default unless the environment variable
+`HSE_DOXYGEN_SERVE_PORT` is set to a port number.
+
 ### Installing
 
 Refer to the [README.md](./README.md#building-hse) to get

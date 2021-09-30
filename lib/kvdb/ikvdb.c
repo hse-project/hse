@@ -1690,8 +1690,6 @@ ikvdb_kvs_names_get(struct ikvdb *handle, size_t *namec, char ***namev)
 void
 ikvdb_kvs_names_free(struct ikvdb *handle, char **namev)
 {
-    assert(namev);
-
     free(namev);
 }
 
