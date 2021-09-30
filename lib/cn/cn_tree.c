@@ -1049,7 +1049,6 @@ cn_tree_view_destroy(struct table *view)
 merr_t
 cn_tree_view_create(struct cn *cn, struct table **view_out)
 {
-    u64                      tdgenv[32];
     struct table *           view;
     struct tree_iter         iter;
     struct cn_tree_node *    node;
@@ -1059,26 +1058,16 @@ cn_tree_view_create(struct cn *cn, struct table **view_out)
     merr_t                   err = 0;
     struct kvset_view *      s;
 
-    if (ev(tree->ct_depth_max > NELEM(tdgenv) - 1)) {
-        assert(tree->ct_depth_max < NELEM(tdgenv));
-        return merr(EINVAL);
-    }
-
     view = vtc_alloc();
     if (ev(!view))
         return merr(ENOMEM);
 
     tree_iter_init(tree, &iter, TRAVERSE_TOPDOWN);
     node = tree_iter_next(tree, &iter);
-    tdgenv[0] = -1;
-
-#define dgen_at(_idx) (tdgenv[1 + _idx])
 
     rmlock_rlock(&tree->ct_lock, &lock);
     while (node) {
-        /* recover least dgen of parent when entering a node */
         u32 level = node->tn_loc.node_level;
-        u64 dgen = dgen_at(level - 1);
 
         /* create an entry for the node */
         s = table_append(view);
@@ -1092,14 +1081,6 @@ cn_tree_view_create(struct cn *cn, struct table **view_out)
 
         list_for_each_entry (le, &node->tn_kvset_list, le_link) {
             struct kvset *kvset = le->le_kvset;
-            u64           x;
-
-            x = kvset_get_dgen(kvset);
-            if (ev(x > dgen)) {
-                /* order was perturbed; probably a spill */
-                err = merr(EAGAIN);
-                break;
-            }
 
             s = table_append(view);
             if (ev(!s)) {
@@ -1110,8 +1091,6 @@ cn_tree_view_create(struct cn *cn, struct table **view_out)
             kvset_get_ref(kvset);
             s->kvset = kvset;
             s->node_loc = node->tn_loc;
-
-            dgen = x;
         }
 
         if (err)
@@ -1120,14 +1099,9 @@ cn_tree_view_create(struct cn *cn, struct table **view_out)
         if (level > 0)
             rmlock_yield(&tree->ct_lock, &lock);
 
-        /* Remember the smallest dgen in this node. */
-        dgen_at(level) = dgen;
-
         node = tree_iter_next(tree, &iter);
     }
     rmlock_runlock(lock);
-
-#undef dgen_at
 
     if (err) {
         cn_tree_view_destroy(view);
@@ -1903,7 +1877,6 @@ cn_tree_cursor_active_kvsets(struct cn_cursor *cur, u32 *active, u32 *total)
 merr_t
 cn_tree_cursor_create(struct cn_cursor *cur, struct cn_tree *tree)
 {
-    u64                      tdgenv[32];
     struct workqueue_struct *vra_wq;
     struct cn_tree_node *    node;
     struct cn_khashmap *     khashmap;
@@ -1923,26 +1896,6 @@ cn_tree_cursor_create(struct cn_cursor *cur, struct cn_tree *tree)
     assert(cur->iterc == 0);
     iterp = NULL;
     iterc = 0;
-
-    /* [HSE_REVISIT] Replace the following code to create table view with
-     * cn_tree_view_create().
-     */
-
-    /*
-     * Dgen must follow a strict ordering:
-     * 1. within node, strictly decrease L->R.
-     * 2. Within tree, strictly decrease top->bottom.
-     * 3. Children must be less than least kvset in parent.
-     * 4. Siblings may be relatively unordered, but must
-     *    obey the tree rules.
-     *
-     * If a violation is found, assume a spill finished during
-     * this create.  If so, the next attempt should succeed.
-     */
-    if (ev(tree->ct_depth_max > NELEM(tdgenv) - 1)) {
-        assert(tree->ct_depth_max < NELEM(tdgenv));
-        return merr(EINVAL);
-    }
 
     view = vtc_alloc();
     if (ev(!view))
@@ -1966,31 +1919,18 @@ cn_tree_cursor_create(struct cn_cursor *cur, struct cn_tree *tree)
     khashmap = cn_tree_get_khashmap(tree);
     shift = khashmap ? CN_KHASHMAP_SHIFT : cur->shift;
 
-#define dgen_at(_idx) (tdgenv[1 + _idx])
-
     rmlock_rlock(&tree->ct_lock, &lock);
-    cur->dgen = tdgenv[0] = cn_get_ingest_dgen(cur->cn);
+    cur->dgen = cn_get_ingest_dgen(cur->cn);
     while (node) {
 
         /* recover least dgen of parent when entering a node */
         u32 level = node->tn_loc.node_level;
-        u64 dgen = dgen_at(level - 1);
 
         list_for_each_entry (le, &node->tn_kvset_list, le_link) {
             struct kvset *   kvset = le->le_kvset;
             struct kvstarts *s;
-            u64              x;
             int              start;
             int              pt_start;
-
-            x = kvset_get_dgen(kvset);
-            if (ev(x > dgen)) {
-                /* order was perturbed; probably a spill */
-                err = merr(EAGAIN);
-                break;
-            }
-
-            assert(x <= cur->dgen);
 
             /* determine if this kvset participates.
              * If prefixed tree, check if kvset has ptombs.
@@ -2014,8 +1954,6 @@ cn_tree_cursor_create(struct cn_cursor *cur, struct cn_tree *tree)
             s->start = start;
             s->pt_start = pt_start;
 
-            dgen = x;
-
             ++iterc;
         }
 
@@ -2023,12 +1961,11 @@ cn_tree_cursor_create(struct cn_cursor *cur, struct cn_tree *tree)
             rmlock_runlock(lock);
 
             hse_elog(
-                HSE_NOTICE "%s: cnid %lx pfx_len %d dgen %lu loc %u,%u: @@e",
+                HSE_NOTICE "%s: cnid %lx pfx_len %d loc %u,%u: @@e",
                 err,
                 __func__,
                 (ulong)tree->cnid,
                 cur->pfx_len,
-                (ulong)dgen,
                 level,
                 node->tn_loc.node_offset);
             goto errout;
@@ -2036,9 +1973,6 @@ cn_tree_cursor_create(struct cn_cursor *cur, struct cn_tree *tree)
 
         if (level > 0)
             rmlock_yield(&tree->ct_lock, &lock);
-
-        /* Remember the smallest dgen in this node. */
-        dgen_at(level) = dgen;
 
         if (iterp) {
             /* in region of tree that spills on hash of full key */
@@ -2062,8 +1996,6 @@ cn_tree_cursor_create(struct cn_cursor *cur, struct cn_tree *tree)
         }
     }
     rmlock_runlock(lock);
-
-#undef dgen_at
 
     /* if nothing found, no further work needed; set eof and return */
     if (iterc == 0) {
@@ -3100,7 +3032,6 @@ cn_comp_commit(struct cn_compaction_work *w)
         w->cw_err = cn_comp_commit_spill(w, kvsets);
     else
         w->cw_err = cn_comp_commit_kvcompact(w, kvsets[0]);
-
 done:
     if (w->cw_err && kvsets) {
         for (i = 0; i < w->cw_outc; i++) {

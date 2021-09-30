@@ -1257,7 +1257,7 @@ ikvdb_open(
 
     kvdb_ctxn_set_tseqno_init(self->ikdb_ctxn_set, seqno);
 
-    err = c0snr_set_create(kvdb_ctxn_abort, &self->ikdb_c0snr_set);
+    err = c0snr_set_create(&self->ikdb_c0snr_set);
     if (err) {
         hse_elog(HSE_ERR "cannot open %s: @@e", err, kvdb_home);
         goto out;

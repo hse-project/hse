@@ -82,14 +82,11 @@ struct c0snr_set_entry {
  * @act_entryc:    number of entries allocated from act_entryv[]
  * @act_entrymax:  max number of entries in act_entryv[]
  * @act_entryv:    fixed-size cache of entry objects
- *
- * Abort handler css_abort_func can go away when LC is in place.
  */
 struct c0snr_set_list {
     spinlock_t            act_lock;
     size_t                act_vlbsz;
     void *                act_vlb;
-    c0snr_set_abort_func *css_abort_func;
 
     uint act_index          HSE_ALIGNED(SMP_CACHE_BYTES * 2);
     struct c0snr_set_entry *act_cache;
@@ -133,11 +130,6 @@ c0snr_set_entry_free(struct c0snr_set_list *csl, struct c0snr_set_entry *entry)
     csl->act_cache = entry;
 }
 
-static void
-c0snr_set_abort_fn(struct kvdb_ctxn *ctxn)
-{
-}
-
 merr_t
 c0snr_set_list_create(u32 max_elts, u32 index, struct c0snr_set_list **tree)
 {
@@ -178,7 +170,7 @@ c0snr_set_list_destroy(struct c0snr_set_list *self)
 }
 
 merr_t
-c0snr_set_create(c0snr_set_abort_func *afunc, struct c0snr_set **handle)
+c0snr_set_create(struct c0snr_set **handle)
 {
     struct c0snr_set_impl *self;
     u32                    max_elts, max_bkts;
@@ -200,8 +192,6 @@ c0snr_set_create(c0snr_set_abort_func *afunc, struct c0snr_set **handle)
         err = c0snr_set_list_create(max_elts, i, &bkt->csb_list);
         if (ev(err))
             break;
-
-        bkt->csb_list->css_abort_func = afunc ? afunc : c0snr_set_abort_fn;
     }
 
     *handle = &self->css_handle;
