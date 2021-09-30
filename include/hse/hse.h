@@ -273,23 +273,6 @@ hse_kvdb_kvs_create(
     size_t             paramc,
     const char *const *paramv);
 
-/** @brief Drop a KVS from the referenced KVDB.
- *
- * @warning It is an error to call this function on a KVS that is open.
- *
- * @note This function is not thread safe.
- *
- * @param kvdb: KVDB handle from hse_kvdb_open()
- * @param kvs_name: KVS name (NULL-terminated string)
- *
- * @remark @p kvdb must not be NULL.
- * @remark @p kvs_name must not be NULL.
- *
- * @returns Error status.
- */
-HSE_EXPORT hse_err_t
-hse_kvdb_kvs_drop(struct hse_kvdb *kvdb, const char *kvs_name);
-
 /** @brief Get the names of the KVSs within the given KVDB.
  *
  * Key-value stores (KVSs) are opened by name. This function allocates a vector
@@ -335,31 +318,6 @@ hse_kvdb_kvs_names_get(struct hse_kvdb *kvdb, size_t *namec, char ***namev);
  */
 HSE_EXPORT void
 hse_kvdb_kvs_names_free(struct hse_kvdb *kvdb, char **namev);
-
-/** @brief Open a KVS in a KVDB.
- *
- * This function is not thread safe.
- *
- * @param handle: KVDB handle from hse_kvdb_open().
- * @param kvs_name: KVS name.
- * @param paramc: Number of configuration parameters in @p paramv.
- * @param paramv: List of parameters in key=value format.
- * @param[out] kvs_out: Handle to access the opened KVS.
- *
- * @remark @p kvdb must not be NULL.
- * @remark @p kvs_name must not be NULL.
- * @remark @p kvs_name must be NULL-terminated.
- * @remark @p kvs_out must not be NULL.
- *
- * @returns Error status.
- */
-HSE_EXPORT hse_err_t
-hse_kvdb_kvs_open(
-    struct hse_kvdb *  handle,
-    const char *       kvs_name,
-    const size_t       paramc,
-    const char *const *paramv,
-    struct hse_kvs **  kvs_out);
 
 /** @brief Open a KVDB.
  *
@@ -460,6 +418,49 @@ hse_kvdb_sync(struct hse_kvdb *kvdb, unsigned int flags);
  */
 HSE_EXPORT hse_err_t
 hse_kvdb_kvs_close(struct hse_kvs *kvs);
+
+/** @brief Drop a KVS from the referenced KVDB.
+ *
+ * @warning It is an error to call this function on a KVS that is open.
+ *
+ * @note This function is not thread safe.
+ *
+ * @param kvdb: KVDB handle from hse_kvdb_open().
+ * @param kvs_name: KVS name.
+ *
+ * @remark @p kvdb must not be NULL.
+ * @remark @p kvs_name must not be NULL.
+ * @remark @p kvs_name must be NULL-terminated.
+ *
+ * @returns Error status.
+ */
+HSE_EXPORT hse_err_t
+hse_kvdb_kvs_drop(struct hse_kvdb *kvdb, const char *kvs_name);
+
+/** @brief Open a KVS in a KVDB.
+ *
+ * This function is not thread safe.
+ *
+ * @param handle: KVDB handle from hse_kvdb_open().
+ * @param kvs_name: KVS name.
+ * @param paramc: Number of configuration parameters in @p paramv.
+ * @param paramv: List of parameters in key=value format.
+ * @param[out] kvs_out: Handle to access the opened KVS.
+ *
+ * @remark @p kvdb must not be NULL.
+ * @remark @p kvs_name must not be NULL.
+ * @remark @p kvs_name must be NULL-terminated.
+ * @remark @p kvs_out must not be NULL.
+ *
+ * @returns Error status.
+ */
+HSE_EXPORT hse_err_t
+hse_kvdb_kvs_open(
+    struct hse_kvdb *  handle,
+    const char *       kvs_name,
+    const size_t       paramc,
+    const char *const *paramv,
+    struct hse_kvs **  kvs_out);
 
 /** @brief Delete the key and its associated value from KVS.
  *
