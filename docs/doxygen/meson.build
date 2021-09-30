@@ -40,7 +40,7 @@ doxygen = custom_target('doxygen',
         footerfile,
         input_files,
         layout,
-        version_h
+        version_h,
     ],
     output: ['api']
 )

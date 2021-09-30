@@ -3,9 +3,6 @@
  * Copyright (C) 2021 Micron Technology, Inc.  All rights reserved.
  */
 
-/** @file hse.h
- */
-
 #ifndef HSE_FLAGS_H
 #define HSE_FLAGS_H
 
