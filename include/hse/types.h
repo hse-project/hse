@@ -64,16 +64,17 @@ typedef uint64_t hse_err_t;
 struct hse_kvdb;
 
 #ifdef HSE_EXPERIMENTAL
-/** @brief Get the status of a compaction request. */
+
+/** @brief Status of a compaction request. */
 struct hse_kvdb_compact_status {
-    unsigned int kvcs_samp_lwm;  /**< space amp low water mark (%) */
-    unsigned int kvcs_samp_hwm;  /**< space amp high water mark (%) */
-    unsigned int kvcs_samp_curr; /**< current space amp (%) */
-    unsigned int kvcs_active;    /**< is an externally requested compaction underway */
-    unsigned int kvcs_canceled;  /**< was an externally requested compaction canceled */
+    unsigned int kvcs_samp_lwm;  /**< space amp low water mark (%). */
+    unsigned int kvcs_samp_hwm;  /**< space amp high water mark (%). */
+    unsigned int kvcs_samp_curr; /**< current space amp (%). */
+    unsigned int kvcs_active;    /**< is an externally requested compaction underway. */
+    unsigned int kvcs_canceled;  /**< was an externally requested compaction canceled. */
 };
 
-/** @brief Get the storage information for a KVDB. */
+/** @brief Storage information for a KVDB. */
 struct hse_kvdb_storage_info {
     uint64_t total_bytes;     /**< total space in the file-system containing this kvdb */
     uint64_t available_bytes; /**< available space in the file-system containing this kvdb */
@@ -97,10 +98,11 @@ struct hse_kvs;
 
 #ifdef HSE_EXPERIMENTAL
 
+/** @brief Number of keys found from a prefix probe operation. */
 enum hse_kvs_pfx_probe_cnt {
-    HSE_KVS_PFX_FOUND_ZERO = 0,
-    HSE_KVS_PFX_FOUND_ONE,
-    HSE_KVS_PFX_FOUND_MUL,
+    HSE_KVS_PFX_FOUND_ZERO = 0, /**< Zero keys found with prefix. */
+    HSE_KVS_PFX_FOUND_ONE,      /**< One key found with prefix. */
+    HSE_KVS_PFX_FOUND_MUL,      /**< Multiple keys found with prefix. */
 };
 
 #endif

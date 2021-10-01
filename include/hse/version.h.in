@@ -15,16 +15,16 @@ extern "C" {
  * Various version contants describing the HSE build.
  */
 
-/** @brief A string representing the HSE version */
+/** @brief A string representing the HSE version. */
 #define HSE_VERSION_STRING "@build_version@"
 
 /* clang-format off */
 
-/** @brief Major version of HSE */
+/** @brief Major version of HSE. */
 #define HSE_VERSION_MAJOR @major_version@
-/** @brief Minor version of HSE */
+/** @brief Minor version of HSE. */
 #define HSE_VERSION_MINOR @minor_version@
-/** @brief Patch version of HSE */
+/** @brief Patch version of HSE. */
 #define HSE_VERSION_PATCH @patch_version@
 
 /* clang-format on */
