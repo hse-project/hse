@@ -14,7 +14,7 @@ extern "C" {
  * @{
  */
 
-/** @brief  Maximum number of KVS's contained within one KVDB.
+/** @brief Maximum number of KVSs contained within one KVDB.
  */
 #define HSE_KVS_COUNT_MAX (256)
 
@@ -30,17 +30,17 @@ extern "C" {
  */
 #define HSE_KVS_KEY_LEN_MAX 1344
 
-/** @brief Maximum length of a KVS name
+/** @brief Maximum length of a KVS name.
  *
  * KVS names are NULL-terminated strings. The string plus the NULL-terminator
  * must fit into a @p HSE_KVS_NAME_LEN_MAX byte buffer.
  */
 #define HSE_KVS_NAME_LEN_MAX 32
 
-/** @brief Max key prefix length */
+/** @brief Max key prefix length. */
 #define HSE_KVS_PFX_LEN_MAX 32
 
-/** @brief Max value length is 1MiB
+/** @brief Max value length is 1MiB.
  *
  * Values need not be NULL-terminated.
  */
