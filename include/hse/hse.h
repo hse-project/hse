@@ -185,8 +185,8 @@ hse_kvdb_close(struct hse_kvdb *kvdb);
  *
  * @note This function is thread safe.
  *
- * @param kvdb: KVDB handle from hse_kvdb_open()
- * @param flags: Compaction flags
+ * @param kvdb: KVDB handle from hse_kvdb_open().
+ * @param flags: Compaction flags.
  *
  * @remark @p kvdb must not be NULL.
  * @remark @p flags must not be 0.
@@ -203,8 +203,8 @@ hse_kvdb_compact(struct hse_kvdb *kvdb, unsigned int flags);
  *
  * @note This function is thread safe.
  *
- * @param kvdb: KVDB handle from hse_kvdb_open()
- * @param[out] status: Status of compaction request
+ * @param kvdb: KVDB handle from hse_kvdb_open().
+ * @param[out] status: Status of compaction request.
  *
  * @remark @p kvdb must not be NULL.
  * @remark @p status must not be NULL.
@@ -246,32 +246,6 @@ hse_kvdb_create(const char *kvdb_home, size_t paramc, const char *const *paramv)
  */
 HSE_EXPORT hse_err_t
 hse_kvdb_drop(const char *kvdb_home);
-
-/** @brief Create a KVS within the referenced KVDB.
- *
- * @note This function is not thread safe.
- *
- * @param kvdb: KVDB handle from hse_kvdb_open().
- * @param kvs_name: KVS name.
- * @param paramc: Number of configuration parameters in @p paramv.
- * @param paramv: List of parameters in key=value format.
- *
- * @remark @p kvdb must not be NULL.
- * @remark @p kvs_name must be non-NULL.
- * @remark @p kvs_name must be NULL-terminated.
- * @remark strlen(@p kvs_name) must be less than HSE_KVS_NAME_LEN_MAX.
- * @remark @p kvs_name must match the following pattern: [-_A-Za-z0-9]+.
- * @remark @p kvs_name cannot already exist.
- *
- * @returns Error status.
- */
-/* MTF_MOCK */
-HSE_EXPORT hse_err_t
-hse_kvdb_kvs_create(
-    struct hse_kvdb *  kvdb,
-    const char *       kvs_name,
-    size_t             paramc,
-    const char *const *paramv);
 
 /** @brief Get the names of the KVSs within the given KVDB.
  *
@@ -342,11 +316,11 @@ hse_kvdb_open(
     const char *const *paramv,
     struct hse_kvdb ** kvdb);
 
-/** @brief Add new media class storage to an existing offline KVDB
+/** @brief Add new media class storage to an existing offline KVDB.
  *
  * @note This function is not thread safe.
  *
- * @param kvdb_home: KVDB home directory, NULL means current working directory.
+ * @param kvdb_home: KVDB home directory.
  * @param paramc: Number of configuration parameters in @p paramv.
  * @param paramv: List of KVDB create-time parameters in key=value format.
  *
@@ -361,7 +335,7 @@ hse_kvdb_storage_add(const char *kvdb_home, size_t paramc, const char *const *pa
 
 #ifdef HSE_EXPERIMENTAL
 
-/** @brief Get KVDB storage stats
+/** @brief Get KVDB storage stats.
  *
  * Obtain the space usage statistics for a specified kvdb.
  *
@@ -419,6 +393,32 @@ hse_kvdb_sync(struct hse_kvdb *kvdb, unsigned int flags);
 HSE_EXPORT hse_err_t
 hse_kvdb_kvs_close(struct hse_kvs *kvs);
 
+/** @brief Create a KVS within the referenced KVDB.
+ *
+ * @note This function is not thread safe.
+ *
+ * @param kvdb: KVDB handle from hse_kvdb_open().
+ * @param kvs_name: KVS name.
+ * @param paramc: Number of configuration parameters in @p paramv.
+ * @param paramv: List of parameters in key=value format.
+ *
+ * @remark @p kvdb must not be NULL.
+ * @remark @p kvs_name must be non-NULL.
+ * @remark @p kvs_name must be NULL-terminated.
+ * @remark strlen(@p kvs_name) must be less than HSE_KVS_NAME_LEN_MAX.
+ * @remark @p kvs_name must match the following pattern: [-_A-Za-z0-9]+.
+ * @remark @p kvs_name cannot already exist.
+ *
+ * @returns Error status.
+ */
+/* MTF_MOCK */
+HSE_EXPORT hse_err_t
+hse_kvdb_kvs_create(
+    struct hse_kvdb *  kvdb,
+    const char *       kvs_name,
+    size_t             paramc,
+    const char *const *paramv);
+
 /** @brief Drop a KVS from the referenced KVDB.
  *
  * @warning It is an error to call this function on a KVS that is open.
@@ -462,7 +462,7 @@ hse_kvdb_kvs_open(
     const char *const *paramv,
     struct hse_kvs **  kvs_out);
 
-/** @brief Delete the key and its associated value from KVS.
+/** @brief Delete the key and its associated value from the KVS.
  *
  * It is not an error if the key does not exist within the KVS. See @ref
  * TRANSACTIONS for information on how deletes within transactions are handled.
@@ -475,8 +475,8 @@ hse_kvdb_kvs_open(
  * @param kvs: KVS handle from hse_kvdb_kvs_open().
  * @param flags: Flags for operation specialization.
  * @param txn: Transaction context (optional).
- * @param key: Key to be deleted from kvs.
- * @param key_len: Length of key.
+ * @param key: Key to be deleted from @p kvs.
+ * @param key_len: Length of @p key.
  *
  * @remark @p kvs must not be NULL.
  * @remark @p key must not be NULL.
@@ -493,10 +493,10 @@ hse_kvs_delete(
     const void *         key,
     size_t               key_len);
 
-/** @brief Retrieve the value for a given key from KVS.
+/** @brief Retrieve the value for a given key from the KVS.
  *
- * If the key exists in the KVS then the referent of @p found is set to true. If
- * the caller's value buffer is large enough then the data will be returned.
+ * If the key exists in the KVS, then the referent of @p found is set to true.
+ * If the caller's value buffer is large enough then the data will be returned.
  * Regardless, the actual length of the value is placed in @p val_len. See @ref
  * TRANSACTIONS for information on how gets within transactions are handled.
  *
@@ -508,13 +508,13 @@ hse_kvs_delete(
  * @param kvs: KVS handle from hse_kvdb_kvs_open().
  * @param flags: Flags for operation specialization.
  * @param txn: Transaction context (optional).
- * @param key: Key to get from kvs.
- * @param key_len: Length of key.
- * @param[out] found: Whether or not key was found.
- * @param[in,out] buf: Buffer into which the value associated with key will be
- * copied (optional).
- * @param buf_len: Length of buffer.
- * @param[out] val_len: Actual length of value if key was found.
+ * @param key: Key to get from @p kvs.
+ * @param key_len: Length of @p key.
+ * @param[out] found: Whether or not @p key was found.
+ * @param[in,out] buf: Buffer into which the value associated with @p key will
+ * be copied (optional).
+ * @param buf_len: Length of @p buf.
+ * @param[out] val_len: Actual length of value if @p key was found.
  *
  * @remark @p kvs must not be NULL.
  * @remark @p key must not be NULL.
@@ -562,10 +562,10 @@ hse_kvs_get(
  * @param flags: Flags for operation specialization.
  * @param txn: Transaction context (optional).
  * @param pfx: Prefix of keys to delete.
- * @param pfx_len: Prefix length.
+ * @param pfx_len: Length of @pfx.
  *
  * @remark @p kvs must not be NULL.
- * @remark @p pfx_len must be less than or equal to HSE_KVS_PFX_LEN_MAX
+ * @remark @p pfx_len must be less than or equal to HSE_KVS_PFX_LEN_MAX.
  *
  * @returns Error status
  */
@@ -661,9 +661,9 @@ hse_kvs_prefix_probe(
  * @param flags: Flags for operation specialization.
  * @param txn: Transaction context (optional).
  * @param key: Key to put into kvs.
- * @param key_len: Length of key.
- * @param val: Value associated with key (optional).
- * @param val_len: Length of value.
+ * @param key_len: Length of @p key.
+ * @param val: Value associated with @p key (optional).
+ * @param val_len: Length of @p value.
  *
  * @remark @p kvs must not be NULL.
  * @remark @p key must not be NULL.
@@ -717,7 +717,6 @@ hse_kvs_put(
  *     +--| COMMITTED |<---+      +---->| ABORTED  |--+
  *        +-----------+                 +----------+
  *
-
  * When a transaction is initially allocated, it starts in the INVALID state.
  * When hse_kvdb_txn_begin() is called with transaction in the INVALID,
  * COMMITTED, or ABORTED states, it moves to the ACTIVE state. It is an error to
