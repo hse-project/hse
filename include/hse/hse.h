@@ -367,7 +367,7 @@ hse_kvdb_storage_info_get(struct hse_kvdb *kvdb, struct hse_kvdb_storage_info *i
  *
  * @remark @p kvdb must not be NULL.
  *
- * @returns Error status
+ * @returns Error status.
  */
 /* MTF_MOCK */
 HSE_EXPORT hse_err_t
@@ -470,7 +470,7 @@ hse_kvdb_kvs_open(
  * @note This function is thread safe.
  *
  * <b>Flags:</b>
- * @arg 0 - reserved for future use
+ * @arg 0 - Reserved for future use.
  *
  * @param kvs: KVS handle from hse_kvdb_kvs_open().
  * @param flags: Flags for operation specialization.
@@ -482,7 +482,7 @@ hse_kvdb_kvs_open(
  * @remark @p key must not be NULL.
  * @remark @p key_len must be within the range of [1, HSE_KVS_KEY_LEN_MAX].
  *
- * @returns Error status
+ * @returns Error status.
  */
 /* MTF_MOCK */
 HSE_EXPORT hse_err_t
@@ -503,7 +503,7 @@ hse_kvs_delete(
  * @note This function is thread safe.
  *
  * <b>Flags:</b>
- * @arg 0 - reserved for future use
+ * @arg 0 - Reserved for future use.
  *
  * @param kvs: KVS handle from hse_kvdb_kvs_open().
  * @param flags: Flags for operation specialization.
@@ -522,7 +522,7 @@ hse_kvs_delete(
  * @remark @p found must not be NULL.
  * @remark @p val_len must not be NULL.
  *
- * @returns Error status
+ * @returns Error status.
  */
 /* MTF_MOCK */
 HSE_EXPORT hse_err_t
@@ -541,7 +541,7 @@ hse_kvs_get(
  * segmented keys.
  *
  * This interface is used to delete an entire range of segmented keys. To do
- * this the caller passes a filter with a length equal to the KVS's key prefix
+ * this the caller passes a filter with a length equal to the KVSs key prefix
  * length. It is not an error if no keys exist matching the filter. If there is
  * a filtered iteration in progress, then that iteration can fail if
  * hse_kvs_prefix_delete() is called with a filter matching the iteration.
@@ -556,18 +556,18 @@ hse_kvs_get(
  * @note This function is thread safe.
  *
  * <b>Flags:</b>
- * @arg 0 - reserved for future use
+ * @arg 0 - Reserved for future use.
  *
  * @param kvs: KVS handle from hse_kvdb_kvs_open().
  * @param flags: Flags for operation specialization.
  * @param txn: Transaction context (optional).
  * @param pfx: Prefix of keys to delete.
- * @param pfx_len: Length of @pfx.
+ * @param pfx_len: Length of @p pfx.
  *
  * @remark @p kvs must not be NULL.
  * @remark @p pfx_len must be less than or equal to HSE_KVS_PFX_LEN_MAX.
  *
- * @returns Error status
+ * @returns Error status.
  */
 /* MTF_MOCK */
 HSE_EXPORT hse_err_t
@@ -588,7 +588,7 @@ hse_kvs_prefix_delete(
  * @note This function is thread safe.
  *
  * <b>Flags:</b>
- * @arg 0 - reserved for future use
+ * @arg 0 - Reserved for future use.
  *
  * @param kvs: KVS handle from hse_kvdb_kvs_open().
  * @param flags: Flags for operation specialization.
@@ -654,13 +654,13 @@ hse_kvs_prefix_probe(
  * @note This function is thread safe.
  *
  * <b>Flags:</b>
- * @arg HSE_KVS_PUT_PRIO - Operation will not be throttled
- * @arg HSE_KVS_PUT_VCOMP_OFF - Value will not be compressed
+ * @arg HSE_KVS_PUT_PRIO - Operation will not be throttled.
+ * @arg HSE_KVS_PUT_VCOMP_OFF - Value will not be compressed.
  *
  * @param kvs: KVS handle from hse_kvdb_kvs_open().
  * @param flags: Flags for operation specialization.
  * @param txn: Transaction context (optional).
- * @param key: Key to put into kvs.
+ * @param key: Key to put into @p kvs.
  * @param key_len: Length of @p key.
  * @param val: Value associated with @p key (optional).
  * @param val_len: Length of @p value.
@@ -737,7 +737,7 @@ hse_kvs_put(
  * Within a transaction whenever a write operation e.g., put, delete, etc.,
  * encounters a write conflict, that operation returns an error code of
  * ECANCELED. The caller is then expected to re-try the operation in a new
- * transaction, see @ref ERROR_HANDLING.
+ * transaction, see @ref ERRORS.
  */
 /** @{ */
 
@@ -754,7 +754,7 @@ hse_kvs_put(
  * @remark @p kvdb must not be NULL.
  * @remark @p txn must not be NULL.
  *
- * @returns Error status
+ * @returns Error status.
  */
 /* MTF_MOCK */
 HSE_EXPORT hse_err_t
@@ -845,7 +845,7 @@ hse_kvdb_txn_free(struct hse_kvdb *kvdb, struct hse_kvdb_txn *txn);
  * @remark @p kvdb must not be NULL.
  * @remark @p txn must not be NULL.
  *
- * @returns Transaction's state
+ * @returns Transaction's state.
  */
 /* MTF_MOCK */
 HSE_EXPORT enum hse_kvdb_txn_state
@@ -905,7 +905,7 @@ hse_kvdb_txn_state_get(struct hse_kvdb *kvdb, struct hse_kvdb_txn *txn);
  * @note This function is thread safe across disparate cursors.
  *
  * <b>Flags:</b>
- * @arg HSE_CURSOR_CREATE_REV - iterate in reverse lexicographical order
+ * @arg HSE_CURSOR_CREATE_REV - Iterate in reverse lexicographical order.
  *
  * @param kvs: KVS to iterate over, handle from hse_kvdb_kvs_open().
  * @param flags: Flags for operation specialization.
@@ -957,7 +957,7 @@ hse_kvs_cursor_destroy(struct hse_kvs_cursor *cursor);
  * @note This function is thread safe across disparate cursors.
  *
  * <b>Flags:</b>
- * @arg 0 - reserved for future use
+ * @arg 0 - Reserved for future use.
  *
  * @param cursor: Cursor handle from hse_kvs_cursor_create().
  * @param flags: Flags for operation specialization.
@@ -996,12 +996,12 @@ hse_kvs_cursor_read(
  * @note This function is thread safe across disparate cursors.
  *
  * <b>Flags:</b>
- * @arg 0 - reserved for future use
+ * @arg 0 - Reserved for future use.
  *
  * @param cursor: Cursor handle from hse_kvs_cursor_create().
  * @param flags: Flags for operation specialization.
  * @param key: Key to find.
- * @param key_len: Length of key.
+ * @param key_len: Length of @p key.
  * @param[out] found: If non-NULL, referent point to next key in sequence
  * (optional).
  * @param found_len: If @p found is non-NULL, referent is length of @p found
@@ -1009,7 +1009,7 @@ hse_kvs_cursor_read(
  *
  * @remark @p cursor must not be NULL.
  *
- * @returns Error status
+ * @returns Error status.
  */
 /* MTF_MOCK */
 HSE_EXPORT hse_err_t
@@ -1034,14 +1034,14 @@ hse_kvs_cursor_seek(
  * @note This function is thread safe across disparate cursors.
  *
  * <b>Flags:</b>
- * @arg 0 - reserved for future use
+ * @arg 0 - Reserved for future use.
  *
  * @param cursor: Cursor handle from hse_kvs_cursor_create().
  * @param flags: Flags for operation specialization.
  * @param filt_min: Filter minimum.
- * @param filt_min_len: Length of filter minimum.
+ * @param filt_min_len: Length of @p filt_min.
  * @param filt_max: Filter maximum.
- * @param filt_max_len: Length of filter maximum.
+ * @param filt_max_len: Length of @p filt_max.
  * @param[out] found: If non-NULL, referent points to next key in sequence
  * (optional).
  * @param[out] found_len: If non-NULL, referent is length of @p found key
@@ -1049,7 +1049,7 @@ hse_kvs_cursor_seek(
  *
  * @remark @p cursor must not be NULL.
  *
- * @returns Error status
+ * @returns Error status.
  */
 /* MTF_MOCK */
 HSE_EXPORT hse_err_t
@@ -1071,7 +1071,7 @@ hse_kvs_cursor_seek_range(
  * @note This function is thread safe across disparate cursors.
  *
  * <b>Flags:</b>
- * @arg 0 - reserved for future use
+ * @arg 0 - Reserved for future use.
  *
  * @param cursor: Cursor handle from hse_kvs_cursor_create().
  * @param flags: Flags for operation specialization.
