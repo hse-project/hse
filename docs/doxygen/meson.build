@@ -21,6 +21,7 @@ conf_data = configuration_data({
     'DOXYGEN_CSS': cssfile,
     'DOXYGEN_EXAMPLES': examples,
     'DOXYGEN_OUTPUT': join_paths(meson.current_build_dir(), 'api'),
+    'DOXYGEN_WARN_AS_ERROR': get_option('werror') ? 'YES' : 'NO',
 })
 
 doxyfile = configure_file(
