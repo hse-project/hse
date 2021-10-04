@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
 #ifndef HSE_KVDB_CN_CSCHED_NOOP_H
@@ -16,11 +16,7 @@ struct csched_ops;
 
 /* MTF_MOCK */
 merr_t
-sp_noop_create(
-    struct kvdb_rparams *rp,
-    const char *         mp,
-    struct kvdb_health * health,
-    struct csched_ops ** handle);
+sp_noop_create(struct csched_ops** handle);
 
 struct noop_node {
 };

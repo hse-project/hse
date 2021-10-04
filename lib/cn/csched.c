@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
 #define MTF_MOCK_IMPL_csched
@@ -23,7 +23,7 @@ csched_create(
     enum csched_policy   policy,
     struct mpool *       ds,
     struct kvdb_rparams *rp,
-    const char *         mp,
+    const char *         kvdb_alias,
     struct kvdb_health * health,
     struct csched **     handle)
 {
@@ -31,7 +31,7 @@ csched_create(
     struct csched_ops *cs;
 
     assert(rp);
-    assert(mp);
+    assert(kvdb_alias);
     assert(handle);
 
     err = merr(EINVAL);
@@ -42,10 +42,10 @@ csched_create(
             cs = 0;
             break;
         case csched_policy_noop:
-            err = sp_noop_create(rp, mp, health, &cs);
+            err = sp_noop_create(&cs);
             break;
         case csched_policy_sp3:
-            err = sp3_create(ds, rp, mp, health, &cs);
+            err = sp3_create(ds, rp, kvdb_alias, health, &cs);
             break;
     }
 

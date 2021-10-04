@@ -62,7 +62,7 @@ static void
 hse_lowmem_adjust(unsigned long *memgb)
 {
     struct hse_gparams gpdef = hse_gparams_defaults();
-    unsigned long mavail;
+    unsigned long      mavail;
 
     hse_meminfo(NULL, &mavail, 30);
 
@@ -166,12 +166,12 @@ hse_fini(void)
 hse_err_t
 hse_kvdb_create(const char *kvdb_home, size_t paramc, const char *const *const paramv)
 {
-    struct kvdb_cparams  dbparams = kvdb_cparams_defaults();
-    merr_t               err;
-    u64                  tstart;
-    char                 pidfile_path[PATH_MAX];
-    struct pidfh *       pfh = NULL;
-    struct pidfile       content = {};
+    struct kvdb_cparams dbparams = kvdb_cparams_defaults();
+    merr_t              err;
+    u64                 tstart;
+    char                pidfile_path[PATH_MAX];
+    struct pidfh *      pfh = NULL;
+    struct pidfile      content = {};
 
     if (HSE_UNLIKELY(!kvdb_home)) {
         log_err("A KVDB home must be provided");
@@ -231,9 +231,9 @@ out:
 hse_err_t
 hse_kvdb_drop(const char *kvdb_home)
 {
-    char                pidfile_path[PATH_MAX];
-    struct pidfh *      pfh = NULL;
-    merr_t              err;
+    char          pidfile_path[PATH_MAX];
+    struct pidfh *pfh = NULL;
+    merr_t        err;
 
     if (HSE_UNLIKELY(!kvdb_home)) {
         log_err("A KVDB home must be provided");
@@ -273,14 +273,15 @@ hse_kvdb_open(
     const char *const *const paramv,
     struct hse_kvdb **       handle)
 {
-    merr_t              err;
-    struct ikvdb *      ikvdb;
-    struct kvdb_rparams params = kvdb_rparams_defaults();
-    u64                 tstart;
-    char                pidfile_path[PATH_MAX];
-    struct config *     conf = NULL;
-    struct pidfh *      pfh = NULL;
-    struct pidfile      content = {};
+    merr_t                  err;
+    struct ikvdb *          ikvdb = NULL;
+    struct kvdb_rparams     params = kvdb_rparams_defaults();
+    u64                     tstart;
+    char                    pidfile_path[PATH_MAX];
+    struct config *         conf = NULL;
+    struct pidfh *          pfh = NULL;
+    struct pidfile          content = {};
+    size_t HSE_MAYBE_UNUSED n;
 
     if (HSE_UNLIKELY(!kvdb_home)) {
         log_err("A KVDB home must be provided");
@@ -330,10 +331,20 @@ hse_kvdb_open(
         goto out;
     }
 
-    content.pid = getpid();
-    static_assert(sizeof(content.socket.path) == sizeof(hse_gparams.gp_socket.path),
-                  "Unequal socket buffer sizes");
+    err = ikvdb_open(kvdb_home, &params, &ikvdb);
+    if (ev(err))
+        goto out;
 
+    content.pid = getpid();
+    static_assert(
+        sizeof(content.socket.path) == sizeof(hse_gparams.gp_socket.path),
+        "Unequal socket buffer sizes");
+
+    /* Infallible since the buffers are the same size. */
+    n = strlcpy(content.alias, ikvdb_alias(ikvdb), sizeof(content.alias));
+    assert(n < sizeof(content.alias));
+    static_assert(
+        sizeof(content.socket.path) == sizeof(hse_gparams.gp_socket.path), "Unequal buffer sizes");
     if (hse_gparams.gp_socket.enabled)
         strlcpy(content.socket.path, hse_gparams.gp_socket.path, sizeof(content.socket.path));
 
@@ -342,10 +353,6 @@ hse_kvdb_open(
         log_errx("Failed to serialize data to the KVDB pidfile (%s): @@e", err, pidfile_path);
         goto out;
     }
-
-    err = ikvdb_open(kvdb_home, &params, &ikvdb);
-    if (ev(err))
-        goto out;
 
     ikvdb_config_attach(ikvdb, conf);
     ikvdb_pidfh_attach(ikvdb, pfh);
@@ -359,6 +366,7 @@ out:
         if (pfh)
             pidfile_remove(pfh);
         config_destroy(conf);
+        ikvdb_close(ikvdb);
     }
 
     return merr_to_hse_err(err);
@@ -526,11 +534,11 @@ hse_kvdb_storage_info_get(struct hse_kvdb *kvdb, struct hse_kvdb_storage_info *i
 hse_err_t
 hse_kvdb_storage_add(const char *kvdb_home, size_t paramc, const char *const *const paramv)
 {
-    struct kvdb_cparams  cparams = kvdb_cparams_defaults();
-    merr_t               err;
-    char                 pidfile_path[PATH_MAX];
-    struct pidfh        *pfh;
-    struct pidfile       content = {};
+    struct kvdb_cparams cparams = kvdb_cparams_defaults();
+    merr_t              err;
+    char                pidfile_path[PATH_MAX];
+    struct pidfh *      pfh;
+    struct pidfile      content = {};
 
     if (HSE_UNLIKELY(!kvdb_home)) {
         log_err("A KVDB home must be provided");
@@ -562,7 +570,8 @@ hse_kvdb_storage_add(const char *kvdb_home, size_t paramc, const char *const *co
     if (cparams.storage.mclass[MP_MED_CAPACITY].path[0] != '\0') {
         log_err(
             "Cannot add %s to %s: capacity media class path must be provided only at KVDB create",
-            cparams.storage.mclass[MP_MED_CAPACITY].path, kvdb_home);
+            cparams.storage.mclass[MP_MED_CAPACITY].path,
+            kvdb_home);
         return merr_to_hse_err(merr(EINVAL));
     }
 
@@ -908,7 +917,7 @@ hse_kvs_cursor_create(
     struct hse_kvs_cursor **   cursor)
 {
     merr_t err;
-    u64 t_cur;
+    u64    t_cur;
 
     if (HSE_UNLIKELY(!handle || !cursor || (pfx_len && !prefix) || flags & ~HSE_CURSOR_CREATE_MASK))
         return merr_to_hse_err(merr(EINVAL));
@@ -927,9 +936,7 @@ hse_kvs_cursor_create(
 }
 
 hse_err_t
-hse_kvs_cursor_update_view(
-    struct hse_kvs_cursor *    cursor,
-    const unsigned int         flags)
+hse_kvs_cursor_update_view(struct hse_kvs_cursor *cursor, const unsigned int flags)
 {
     merr_t err;
 

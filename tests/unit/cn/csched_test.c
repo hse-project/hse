@@ -69,7 +69,7 @@ mocked_sp_compact_status_get(struct csched_ops *handle, struct hse_kvdb_compact_
 static merr_t
 mocked_sp_create2(
     struct kvdb_rparams *rp,
-    const char *         mp,
+    const char *         kvdb_alias,
     struct kvdb_health * health,
     struct csched_ops ** handle)
 {
@@ -95,13 +95,13 @@ mocked_sp_create2(
 static merr_t
 mocked_sp_create(
     struct kvdb_rparams *rp,
-    const char *         mp,
+    const char *         kvdb_alias,
     struct kvdb_health * health,
     struct csched_ops ** handle)
 {
     merr_t err;
 
-    err = mocked_sp_create2(rp, mp, health, handle);
+    err = mocked_sp_create2(rp, kvdb_alias, health, handle);
 
     if (!err) {
         (*handle)->cs_destroy = mocked_sp_destroy;
@@ -117,18 +117,20 @@ mocked_sp_create(
 }
 
 static merr_t
+mocked_sp_noop_create(struct csched_ops **handle)
+{
+    return mocked_sp_create(NULL, NULL, NULL, handle);
+}
+
+static merr_t
 mocked_sp3_create(
     struct mpool *       ds,
     struct kvdb_rparams *rp,
-    const char *         mp,
-    struct kvdb_health  *health,
+    const char *         kvdb_alias,
+    struct kvdb_health * health,
     struct csched_ops ** handle)
 {
-    merr_t err;
-
-    err = mocked_sp_create(rp, mp, health, handle);
-
-    return err;
+    return mocked_sp_create(rp, kvdb_alias, health, handle);
 }
 
 static int
@@ -164,7 +166,7 @@ pre_test(struct mtf_test_info *ti)
     mapi_inject(mapi_idx_sts_destroy, 0);
     mapi_inject(mapi_idx_sts_resume, 0);
 
-    MOCK_SET_FN(csched_noop, sp_noop_create, mocked_sp_create);
+    MOCK_SET_FN(csched_noop, sp_noop_create, mocked_sp_noop_create);
     MOCK_SET_FN(csched_sp3, sp3_create, mocked_sp3_create);
 
     mp = "fred_flintstone";
@@ -249,7 +251,7 @@ MTF_DEFINE_UTEST_PRE(test, t_csched_methods, pre_test)
     pol = csched_policy_noop;
     mapi_inject_unset(mapi_idx_sp_noop_create);
 
-    MOCK_SET_FN(csched_noop, sp_noop_create, mocked_sp_create);
+    MOCK_SET_FN(csched_noop, sp_noop_create, mocked_sp_noop_create);
 
     cs = (void *)0;
     err = csched_create(pol, NULL, rp, mp, &mock_health, &cs);
@@ -269,7 +271,7 @@ MTF_DEFINE_UTEST_PRE(test, t_csched_methods, pre_test)
     csched_destroy(cs);
 
     /* repeat with mock that has no ops */
-    MOCK_SET_FN(csched_noop, sp_noop_create, mocked_sp_create2);
+    MOCK_SET_FN(csched_noop, sp_noop_create, mocked_sp_noop_create);
 
     cs = (void *)0;
     err = csched_create(pol, NULL, rp, mp, &mock_health, &cs);

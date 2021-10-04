@@ -40,6 +40,10 @@ pidfile_serialize(struct pidfh *pfh, const struct pidfile *content)
         rc = ENOMEM;
         goto out;
     }
+    if (!cJSON_AddStringToObject(root, "alias", content->alias)) {
+        rc = ENOMEM;
+        goto out;
+    }
     socket = cJSON_AddObjectToObject(root, "socket");
     if (!socket) {
         rc = ENOMEM;
@@ -82,7 +86,7 @@ pidfile_deserialize(const char *home, struct pidfile *content)
     assert(content);
 
     FILE *      pidf = NULL;
-    cJSON *     root = NULL, *pid = NULL, *socket = NULL, *socket_path = NULL;
+    cJSON *     root = NULL, *pid = NULL, *alias = NULL, *socket = NULL, *socket_path = NULL;
     char *      str = NULL;
     int         rc = 0;
     int         fd;
@@ -137,6 +141,11 @@ pidfile_deserialize(const char *home, struct pidfile *content)
         rc = EINVAL;
         goto out;
     }
+    alias = cJSON_GetObjectItemCaseSensitive(root, "alias");
+    if (!alias || !cJSON_IsString(alias)) {
+        rc = EINVAL;
+        goto out;
+    }
     socket = cJSON_GetObjectItemCaseSensitive(root, "socket");
     if (!socket || !cJSON_IsObject(socket)) {
         rc = EINVAL;
@@ -149,6 +158,11 @@ pidfile_deserialize(const char *home, struct pidfile *content)
     }
 
     content->pid = (pid_t)cJSON_GetNumberValue(pid);
+    n = strlcpy(content->alias, cJSON_GetStringValue(alias), sizeof(content->alias));
+    if (n >= sizeof(content->alias)) {
+        rc = ENAMETOOLONG;
+        goto out;
+    }
     if (cJSON_IsNull(socket_path)) {
         memset(content->socket.path, 0, sizeof(content->socket.path));
     } else {

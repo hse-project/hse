@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
 #ifndef HSE_KVS_CN_INTERNAL_H
@@ -71,8 +71,8 @@ struct cn {
 
     u32 cn_cflags;
 
-    char cn_kvdbhome[PATH_MAX];
-    char cn_kvsname[HSE_KVS_NAME_LEN_MAX];
+    const char *cn_kvdb_alias;
+    char        cn_kvsname[HSE_KVS_NAME_LEN_MAX];
 
     struct mpool_props cn_mpool_props;
 };

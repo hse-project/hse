@@ -252,7 +252,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_rest, kvs_list_test, test_pre, test_post)
     };
     merr_t err;
 
-    snprintf(path, sizeof(path), "kvdb");
+    snprintf(path, sizeof(path), "kvdb/%s", mtfm_ikvdb_ikvdb_alias_getreal()(store));
 
     yaml_start_element_type(&yc, "kvs_list");
     yaml_element_list(&yc, KVS1);
@@ -289,33 +289,58 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_rest, cn_metrics, test_pre, test_post)
     yaml_end_element_type(&yc); /* info */
 
     /* kvs in open state */
-    snprintf(path, sizeof(path), "kvdb/kvs/%s/cn/tree", KVS1);
+    snprintf(
+        path,
+        sizeof(path),
+        "kvdb/%s/kvs/%s/cn/tree",
+        mtfm_ikvdb_ikvdb_alias_getreal()(store),
+        KVS1);
     memset(buf, 0, sizeof(buf));
     err = curl_get(path, sock, buf, sizeof(buf));
     ASSERT_EQ(0, err);
 
     /* unopened kvs */
-    snprintf(path, sizeof(path), "kvdb/kvs/%s/cn/tree", KVS3);
+    snprintf(
+        path,
+        sizeof(path),
+        "kvdb/%s/kvs/%s/cn/tree",
+        mtfm_ikvdb_ikvdb_alias_getreal()(store),
+        KVS3);
     memset(buf, 0, sizeof(buf));
     err = curl_get(path, sock, buf, sizeof(buf));
     ASSERT_EQ(0, err);
     ASSERT_STREQ(unopened, buf);
 
     /* invalid arg */
-    snprintf(path, sizeof(path), "kvdb/kvs/%s/cn/tree?arg", KVS1);
+    snprintf(
+        path,
+        sizeof(path),
+        "kvdb/%s/kvs/%s/cn/tree?arg",
+        mtfm_ikvdb_ikvdb_alias_getreal()(store),
+        KVS1);
     memset(buf, 0, sizeof(buf));
     err = curl_get(path, sock, buf, sizeof(buf));
     ASSERT_EQ(0, buf[0]);
     ASSERT_EQ(0, err);
 
-    snprintf(path, sizeof(path), "kvdb/kvs/%s/cn/tree?arg=val", KVS1);
+    snprintf(
+        path,
+        sizeof(path),
+        "kvdb/%s/kvs/%s/cn/tree?arg=val",
+        mtfm_ikvdb_ikvdb_alias_getreal()(store),
+        KVS1);
     memset(buf, 0, sizeof(buf));
     err = curl_get(path, sock, buf, sizeof(buf));
     ASSERT_EQ(0, buf[0]);
     ASSERT_EQ(0, err);
 
     /* too many args */
-    snprintf(path, sizeof(path), "kvdb/kvs/%s/cn/tree?kblist&arg1=val1&arg2=val2", KVS1);
+    snprintf(
+        path,
+        sizeof(path),
+        "kvdb/%s/kvs/%s/cn/tree?kblist&arg1=val1&arg2=val2",
+        mtfm_ikvdb_ikvdb_alias_getreal()(store),
+        KVS1);
     memset(buf, 0, sizeof(buf));
     err = curl_get(path, sock, buf, sizeof(buf));
     ASSERT_EQ(0, buf[0]);
@@ -329,7 +354,12 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_rest, cn_tree_view_create_failure, test_pre, test_
     merr_t err;
 
     mapi_inject(mapi_idx_cn_tree_view_create, merr(EBUG));
-    snprintf(path, sizeof(path), "kvdb/kvs/%s/cn/tree", KVS1);
+    snprintf(
+        path,
+        sizeof(path),
+        "kvdb/%s/kvs/%s/cn/tree",
+        mtfm_ikvdb_ikvdb_alias_getreal()(store),
+        KVS1);
 
     err = curl_get(path, sock, buf, sizeof(buf));
 
@@ -349,11 +379,11 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_rest, unexact_paths, test_pre, test_post)
     char   path[128];
     merr_t err;
 
-    snprintf(path, sizeof(path), "kvdb/kvs/%s", KVS1);
+    snprintf(path, sizeof(path), "kvdb/%s/kvs/%s", mtfm_ikvdb_ikvdb_alias_getreal()(store), KVS1);
     err = curl_get(path, sock, NULL, 0);
     ASSERT_NE(0, err);
 
-    snprintf(path, sizeof(path), "kvdb/zzz");
+    snprintf(path, sizeof(path), "kvdb/%s/zzz", mtfm_ikvdb_ikvdb_alias_getreal()(store));
     err = curl_get(path, sock, NULL, 0);
     ASSERT_NE(0, err);
 }
@@ -416,7 +446,12 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_rest, print_tree_test, test_pre, test_post)
 
     ct_view_do_nothing = false;
 
-    snprintf(path, sizeof(path), "kvdb/kvs/%s/cn/tree?list_blkid=true", KVS1);
+    snprintf(
+        path,
+        sizeof(path),
+        "kvdb/%s/kvs/%s/cn/tree?list_blkid=true",
+        mtfm_ikvdb_ikvdb_alias_getreal()(store),
+        KVS1);
 
     err = curl_get(path, sock, buf, sizeof(buf));
     ASSERT_EQ(0, err);
@@ -496,7 +531,12 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_rest, empty_root_test, test_pre, test_post)
     ct_view_two_level = true;
     ct_view_do_nothing = false;
 
-    snprintf(path, sizeof(path), "kvdb/kvs/%s/cn/tree?list_blkid=true", KVS2);
+    snprintf(
+        path,
+        sizeof(path),
+        "kvdb/%s/kvs/%s/cn/tree?list_blkid=true",
+        mtfm_ikvdb_ikvdb_alias_getreal()(store),
+        KVS2);
 
     err = curl_get(path, sock, buf, sizeof(buf));
     ASSERT_EQ(0, err);
@@ -593,14 +633,24 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_rest, list_without_blkids, test_pre, test_post)
 
     MOCK_SET(kvset_view, _kvset_get_dgen);
 
-    snprintf(path, sizeof(path), "kvdb/kvs/%s/cn/tree?list_blkid=false", KVS2);
+    snprintf(
+        path,
+        sizeof(path),
+        "kvdb/%s/kvs/%s/cn/tree?list_blkid=false",
+        mtfm_ikvdb_ikvdb_alias_getreal()(store),
+        KVS2);
 
     err = curl_get(path, sock, buf, sizeof(buf));
     ASSERT_EQ(0, err);
     ASSERT_STREQ(exp, buf);
 
     count = 0;
-    snprintf(path, sizeof(path), "kvdb/kvs/%s/cn/tree", KVS2);
+    snprintf(
+        path,
+        sizeof(path),
+        "kvdb/%s/kvs/%s/cn/tree",
+        mtfm_ikvdb_ikvdb_alias_getreal()(store),
+        KVS2);
 
     err = curl_get(path, sock, buf, sizeof(buf));
     ASSERT_EQ(0, err);
@@ -623,7 +673,8 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_rest, kvdb_compact_test, test_pre, test_post)
     merr_t err;
 
     /* Put request */
-    snprintf(path, sizeof(path), "kvdb/compact/request");
+    snprintf(
+        path, sizeof(path), "kvdb/%s/compact/request", mtfm_ikvdb_ikvdb_alias_getreal()(store));
 
     err = curl_put(path, sock, 0, 0, buf, sizeof(buf));
     ASSERT_EQ(0, err);
@@ -631,18 +682,18 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_rest, kvdb_compact_test, test_pre, test_post)
     err = curl_put(path, sock, 0, 0, buf, sizeof(buf));
     ASSERT_EQ(0, err);
 
-    snprintf(path, sizeof(path), "kvdb/compact/cancel");
+    snprintf(path, sizeof(path), "kvdb/%s/compact/cancel", mtfm_ikvdb_ikvdb_alias_getreal()(store));
 
     err = curl_put(path, sock, 0, 0, buf, sizeof(buf));
     ASSERT_EQ(0, err);
 
-    snprintf(path, sizeof(path), "kvdb/compact/bob");
+    snprintf(path, sizeof(path), "kvdb/%s/compact/bob", mtfm_ikvdb_ikvdb_alias_getreal()(store));
 
     err = curl_put(path, sock, 0, 0, buf, sizeof(buf));
     ASSERT_EQ(0, err);
 
     /* Get status */
-    snprintf(path, sizeof(path), "kvdb/compact/status");
+    snprintf(path, sizeof(path), "kvdb/%s/compact/status", mtfm_ikvdb_ikvdb_alias_getreal()(store));
     err = curl_get(path, sock, buf, sizeof(buf));
     ASSERT_EQ(0, err);
 }

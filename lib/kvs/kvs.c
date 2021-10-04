@@ -20,6 +20,7 @@
 #include <hse_util/byteorder.h>
 #include <hse_util/slab.h>
 #include <hse_util/table.h>
+#include <hse_util/invariant.h>
 
 #include <hse_ikvdb/c0.h>
 #include <hse_ikvdb/lc.h>
@@ -78,13 +79,16 @@ static void
 kvs_destroy(struct ikvs *kvs);
 
 static void
-kvs_perfc_alloc(const char *kvdb_home, const char *kvs_name, struct ikvs *kvs)
+kvs_perfc_alloc(const char *kvdb_alias, const char *kvs_name, struct ikvs *kvs)
 {
     char   dbname_buf[DT_PATH_MAX];
     merr_t err;
     size_t n;
 
-    n = strlcpy(dbname_buf, kvdb_home, sizeof(dbname_buf));
+    INVARIANT(kvdb_alias);
+    INVARIANT(kvs_name);
+
+    n = strlcpy(dbname_buf, kvdb_alias, sizeof(dbname_buf));
     if (ev(n >= sizeof(dbname_buf)))
         return;
     n = strlcat(dbname_buf, IKVDB_SUB_NAME_SEP, sizeof(dbname_buf));
@@ -203,7 +207,7 @@ kvs_open(
     if (ev(err))
         goto err_exit;
 
-    kvs_perfc_alloc(ikvdb_home(kvdb), kvs_name, ikvs);
+    kvs_perfc_alloc(ikvdb_alias(kvdb), kvs_name, ikvs);
 
     kvdb_kvs_set_ikvs(kvs, ikvs);
 
