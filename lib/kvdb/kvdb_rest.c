@@ -17,6 +17,10 @@
 #include <hse_ikvdb/kvset_view.h>
 #include <hse_ikvdb/cn.h>
 #include <hse_ikvdb/cn_tree_view.h>
+#include <hse_ikvdb/kvset_view.h>
+#include <hse_ikvdb/kvdb_rparams.h>
+
+#include <cjson/cJSON_Utils.h>
 
 #include "kvdb_rest.h"
 #include "kvdb_kvs.h"
@@ -118,6 +122,63 @@ rest_kvdb_home_get(
         return merr(errno);
 
     return 0;
+}
+
+static merr_t
+rest_kvdb_param_get(
+    const char *      path,
+    struct conn_info *info,
+    const char *      url,
+    struct kv_iter *  iter,
+    void *            context)
+{
+    merr_t        err = 0;
+    struct ikvdb *kvdb = context;
+
+    /* Check from single parameter or all parameters */
+    if (strcmp(path, url)) {
+        size_t      needed_sz;
+        char *      tmp;
+        size_t      buf_sz = 128;
+        const char *param = path + strlen(url) + 1; /* move past the final '/' */
+        char *      buf = malloc(buf_sz);
+
+        if (!buf)
+            return merr(ENOMEM);
+
+        err = ikvdb_param_get(kvdb, param, buf, buf_sz, &needed_sz);
+        if (needed_sz >= buf_sz && !err) {
+            buf_sz = needed_sz + 1;
+            tmp = realloc(buf, buf_sz);
+            if (!tmp)
+                return merr(ENOMEM);
+
+            buf = tmp;
+
+            err = ikvdb_param_get(kvdb, param, buf, buf_sz, NULL);
+        }
+
+        if (!err && write(info->resp_fd, buf, strnlen(buf, buf_sz)) == -1)
+            err = merr(errno);
+
+        free(buf);
+    } else {
+        char * str;
+        cJSON *root = kvdb_rparams_to_json(ikvdb_rparams(kvdb));
+        if (!root)
+            return merr(ENOMEM);
+
+        str = cJSON_PrintUnformatted(root);
+        if (!str)
+            return merr(ENOMEM);
+
+        if (!err && write(info->resp_fd, str, strlen(str)) == -1)
+            err = merr(errno);
+
+        cJSON_free(str);
+    }
+
+    return err;
 }
 
 static merr_t
@@ -249,12 +310,17 @@ kvdb_rest_register(struct ikvdb *kvdb)
     if (ev(status) && !err)
         err = status;
 
+    status =
+        rest_url_register(kvdb, 0, rest_kvdb_param_get, NULL, "kvdb/%s/params", ikvdb_alias(kvdb));
+    if (ev(status) && !err)
+        err = status;
+
     status = rest_url_register(
         kvdb,
         URL_FLAG_EXACT,
         rest_kvdb_storage_stats_get,
         NULL,
-        "kvdb/%s/storage_stats",
+        "kvdb/%d/storage_stats",
         ikvdb_alias(kvdb));
     if (ev(status) && !err)
         err = status;

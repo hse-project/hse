@@ -217,6 +217,15 @@ ikvdb_alias(struct ikvdb *kvdb);
 struct config *
 ikvdb_config(struct ikvdb *kvdb);
 
+/** @brief Get KVDB rparams.
+ *
+ * @param kvdb: KVDB handle.
+ *
+ * @returns KVDB rparams.
+ */
+const struct kvdb_rparams * HSE_RETURNS_NONNULL
+ikvdb_rparams(struct ikvdb *kvdb);
+
 /**
  * Attach a config object to the lifetime of the KVDB
  *

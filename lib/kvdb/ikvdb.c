@@ -1541,6 +1541,14 @@ ikvdb_config(struct ikvdb *kvdb)
     return self->ikdb_config;
 }
 
+const struct kvdb_rparams *
+ikvdb_rparams(struct ikvdb *const kvdb)
+{
+    struct ikvdb_impl *self = ikvdb_h2r(kvdb);
+
+    return &self->ikdb_rp;
+}
+
 void
 ikvdb_config_attach(struct ikvdb *kvdb, struct config *conf)
 {
