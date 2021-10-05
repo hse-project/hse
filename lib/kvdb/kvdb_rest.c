@@ -50,10 +50,10 @@
 static merr_t
 get_kvs_list(struct ikvdb *ikvdb, int fd, struct yaml_context *yc)
 {
-    char ** kvs_list;
-    size_t  kvs_cnt;
-    int     i;
-    merr_t  err;
+    char **kvs_list;
+    size_t kvs_cnt;
+    int    i;
+    merr_t err;
 
     err = ikvdb_kvs_names_get(ikvdb, &kvs_cnt, &kvs_list);
     if (ev(err))
@@ -94,6 +94,28 @@ rest_kvdb_get(
     err = get_kvs_list(ikvdb, info->resp_fd, &yc);
     if (ev(err))
         return err;
+
+    return 0;
+}
+
+static merr_t
+rest_kvdb_home_get(
+    const char *      path,
+    struct conn_info *info,
+    const char *      url,
+    struct kv_iter *  iter,
+    void *            context)
+{
+    char          buf[PATH_MAX + 2];
+    struct ikvdb *kvdb = context;
+    const char *  home = ikvdb_home(kvdb);
+    int           n;
+
+    n = snprintf(buf, sizeof(buf), "\"%s\"", home);
+    assert(n >= 0 && n < sizeof(buf));
+
+    if (write(info->resp_fd, buf, strlen(buf)) == -1)
+        return merr(errno);
 
     return 0;
 }
@@ -219,6 +241,11 @@ kvdb_rest_register(struct ikvdb *kvdb)
 
     status =
         rest_url_register(kvdb, URL_FLAG_EXACT, rest_kvdb_get, 0, "kvdb/%s", ikvdb_alias(kvdb));
+    if (ev(status) && !err)
+        err = status;
+
+    status = rest_url_register(
+        kvdb, URL_FLAG_EXACT, rest_kvdb_home_get, NULL, "kvdb/%d/home", ikvdb_alias(kvdb));
     if (ev(status) && !err)
         err = status;
 
