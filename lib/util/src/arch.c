@@ -17,8 +17,6 @@ memlcp(const void *s1, const void *s2, size_t len)
 {
     size_t rc;
 
-    /* TODO: Don't directly access rcx...
-     */
     __asm__("movq   %1, %0      \n\t" /* rc = len;              */
             "cld                \n\t"
             "movq   %1, %%rcx   \n\t" /* rcx = len;             */
@@ -29,9 +27,9 @@ memlcp(const void *s1, const void *s2, size_t len)
             "subq   %%rcx, %0   \n\t" /* rc -= rcx;             */
             "dec    %0          \n\t" /* rc -= 1;               */
             "1:                 \n\t"
-            : "=rax"(rc)
-            : "rdx"(len)
-            : "rdi", "rsi", "rcx", "memory");
+            : "=r"(rc)
+            : "r"(len), "D"(s1), "S"(s2)
+            : "rcx", "memory");
 
     return rc;
 }
@@ -41,8 +39,6 @@ memlcpq(const void *s1, const void *s2, size_t len)
 {
     size_t rc;
 
-    /* TODO: Don't directly access rcx...
-     */
     __asm__("movq   %1, %0      \n\t" /* rc = len;              */
             "shrq   $3, %0      \n\t" /* rc /= 8;               */
             "cld                \n\t"
@@ -55,9 +51,9 @@ memlcpq(const void *s1, const void *s2, size_t len)
             "dec    %0          \n\t" /* rc -= 1;               */
             "1:                 \n\t"
             "shlq   $3, %0      \n\t" /* rc *= 8;               */
-            : "=rax"(rc)
-            : "rdx"(len)
-            : "rdi", "rsi", "rdx", "rcx", "memory");
+            : "=r"(rc)
+            : "r"(len), "D"(s1), "S"(s2)
+            : "rcx", "memory");
 
     return rc;
 }
