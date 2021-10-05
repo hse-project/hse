@@ -182,6 +182,76 @@ rest_kvdb_param_get(
 }
 
 static merr_t
+rest_kvs_param_get(
+    const char *      path,
+    struct conn_info *info,
+    const char *      url,
+    struct kv_iter *  iter,
+    void *            context)
+{
+    merr_t          err = 0;
+    struct hse_kvs *kvs = context;
+
+    /* Check from single parameter or all parameters */
+    if (strcmp(path, url)) {
+        size_t      needed_sz;
+        char *      tmp;
+        size_t      buf_sz = 128;
+        const char *param = path + strlen(url) + 1; /* move past the final '/' */
+        char *      buf = malloc(buf_sz);
+
+        if (!buf)
+            return merr(ENOMEM);
+
+        err = ikvdb_kvs_param_get(kvs, param, buf, buf_sz, &needed_sz);
+        if (needed_sz >= buf_sz && !err) {
+            buf_sz = needed_sz + 1;
+            tmp = realloc(buf, buf_sz);
+            if (!tmp)
+                return merr(ENOMEM);
+
+            buf = tmp;
+
+            err = ikvdb_kvs_param_get(kvs, param, buf, buf_sz, NULL);
+        }
+
+        if (!err && write(info->resp_fd, buf, strnlen(buf, buf_sz)) == -1)
+            err = merr(errno);
+
+        free(buf);
+    } else {
+        char * str;
+        cJSON *merged, *cp_json, *rp_json;
+
+        cp_json = kvs_cparams_to_json(((struct kvdb_kvs *)kvs)->kk_cparams);
+        if (!cp_json)
+            return merr(ENOMEM);
+
+        rp_json = kvs_rparams_to_json(&((struct kvdb_kvs *)kvs)->kk_ikvs->ikv_rp);
+        if (!rp_json) {
+            cJSON_Delete(cp_json);
+            return merr(ENOMEM);
+        }
+
+        merged = cJSONUtils_MergePatchCaseSensitive(cp_json, rp_json);
+        assert(merged);
+
+        str = cJSON_PrintUnformatted(merged);
+        cJSON_Delete(merged);
+        if (!str) {
+            return merr(ENOMEM);
+        }
+
+        if (!err && write(info->resp_fd, str, strlen(str)) == -1)
+            err = merr(errno);
+
+        cJSON_free(str);
+    }
+
+    return err;
+}
+
+static merr_t
 rest_kvdb_compact_request(
     const char *      path,
     struct conn_info *info,
@@ -744,13 +814,18 @@ rest_kvs_tree(
 }
 
 merr_t
-kvs_rest_register(struct ikvdb *const kvdb, const char *kvs_name, void *kvs)
+kvs_rest_register(struct ikvdb *const kvdb, const char *kvs_name, struct kvdb_kvs *kvs)
 {
     merr_t err = 0;
     merr_t status;
 
     if (!kvs_name || !kvs)
         return merr(ev(EINVAL));
+
+    status = rest_url_register(
+        kvs, 0, rest_kvs_param_get, NULL, "kvdb/%s/kvs/%s/params", ikvdb_alias(kvdb), kvs_name);
+    if (ev(status) && !err)
+        err = status;
 
     status = rest_url_register(
         kvs,
@@ -760,7 +835,6 @@ kvs_rest_register(struct ikvdb *const kvdb, const char *kvs_name, void *kvs)
         "kvdb/%s/kvs/%s/cn/tree",
         ikvdb_alias(kvdb),
         kvs_name);
-
     if (ev(status) && !err)
         err = status;
 
