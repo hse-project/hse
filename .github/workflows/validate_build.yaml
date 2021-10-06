@@ -5,6 +5,9 @@ on:
   pull_request:
     types: [opened, synchronize, reopened, edited]
 
+env:
+  MESON_TESTTHREADS: 1
+
 jobs:
   build_ubuntu:
     runs-on: ${{ matrix.os }}
