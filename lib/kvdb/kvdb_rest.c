@@ -5,20 +5,15 @@
 
 #include <hse/flags.h>
 
-#include <hse_util/slab.h>
 #include <hse_util/logging.h>
 #include <hse_util/hse_err.h>
-#include <hse_util/parse_num.h>
 #include <hse_util/event_counter.h>
-#include <hse_util/fmt.h>
 
-#include <hse_util/data_tree.h>
 #include <hse_util/rest_api.h>
-#include <hse_util/spinlock.h>
-#include <hse_util/string.h>
 
 #include <hse_ikvdb/ikvdb.h>
 #include <hse_ikvdb/kvs.h>
+#include <hse_ikvdb/kvset_view.h>
 #include <hse_ikvdb/cn.h>
 #include <hse_ikvdb/cn_tree_view.h>
 
