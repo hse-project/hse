@@ -10,7 +10,8 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#include <hse_ikvdb/param.h>
+#include <cjson/cJSON.h>
+
 #include <hse_ikvdb/mclass_policy.h>
 #include <hse_ikvdb/vcomp_params.h>
 
@@ -95,5 +96,8 @@ kvs_rparams_get(
     char *                    buf,
     size_t                    buf_sz,
     size_t *                  needed_sz);
+
+cJSON *
+kvs_rparams_to_json(const struct kvs_rparams *params);
 
 #endif /* HSE_KVS_RPARAMS_H */

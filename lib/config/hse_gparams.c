@@ -81,6 +81,26 @@ logging_destination_stringify(
     return 0;
 }
 
+static cJSON *
+logging_destination_jsonify(const struct param_spec *const ps, const void *const value)
+{
+    assert(ps);
+    assert(value);
+
+    switch (*(enum log_destination *)value) {
+        case LD_STDOUT:
+            return cJSON_CreateString("stdout");
+        case LD_STDERR:
+            return cJSON_CreateString("stderr");
+        case LD_FILE:
+            return cJSON_CreateString("file");
+        case LD_SYSLOG:
+            return cJSON_CreateString("syslog");
+        default:
+            abort();
+    }
+}
+
 void
 socket_path_default(const struct param_spec *ps, void *value)
 {
@@ -104,6 +124,7 @@ static const struct param_spec pspecs[] = {
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
         .ps_stringify = param_default_stringify,
+        .ps_jsonify = param_default_jsonify,
         .ps_default_value = {
             .as_bool = true,
         },
@@ -118,6 +139,7 @@ static const struct param_spec pspecs[] = {
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
         .ps_stringify = param_default_stringify,
+        .ps_jsonify = param_default_jsonify,
         .ps_default_value = {
             .as_bool = false,
         },
@@ -132,6 +154,7 @@ static const struct param_spec pspecs[] = {
         .ps_convert = logging_destination_converter,
         .ps_validate = param_default_validator,
         .ps_stringify = logging_destination_stringify,
+        .ps_jsonify = logging_destination_jsonify,
         .ps_default_value = {
             .as_enum = LD_SYSLOG,
         },
@@ -152,6 +175,7 @@ static const struct param_spec pspecs[] = {
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
         .ps_stringify = param_default_stringify,
+        .ps_jsonify = param_default_jsonify,
         .ps_default_value = {
             .as_string = "hse.log",
         },
@@ -171,6 +195,7 @@ static const struct param_spec pspecs[] = {
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
         .ps_stringify = param_default_stringify,
+        .ps_jsonify = param_default_jsonify,
         .ps_default_value = {
             .as_scalar = HSE_LOGPRI_DEFAULT,
         },
@@ -191,6 +216,7 @@ static const struct param_spec pspecs[] = {
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
         .ps_stringify = param_default_stringify,
+        .ps_jsonify = param_default_jsonify,
         .ps_default_value = {
             .as_uscalar = HSE_LOG_SQUELCH_NS_DEFAULT,
         },
@@ -211,6 +237,7 @@ static const struct param_spec pspecs[] = {
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
         .ps_stringify = param_default_stringify,
+        .ps_jsonify = param_default_jsonify,
         .ps_default_value = {
             .as_uscalar = HSE_VLB_CACHESZ_DFLT,
         },
@@ -231,6 +258,7 @@ static const struct param_spec pspecs[] = {
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
         .ps_stringify = param_default_stringify,
+        .ps_jsonify = param_default_jsonify,
         .ps_default_value = {
             .as_uscalar = HSE_C0_CCACHE_SZ_DFLT,
         },
@@ -251,6 +279,7 @@ static const struct param_spec pspecs[] = {
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
         .ps_stringify = param_default_stringify,
+        .ps_jsonify = param_default_jsonify,
         .ps_default_value = {
             .as_uscalar = HSE_C0_CCACHE_SZ_DFLT,
         },
@@ -271,6 +300,7 @@ static const struct param_spec pspecs[] = {
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
         .ps_stringify = param_default_stringify,
+        .ps_jsonify = param_default_jsonify,
         .ps_default_value = {
             .as_uscalar = HSE_C0_CHEAP_SZ_DFLT,
         },
@@ -291,6 +321,7 @@ static const struct param_spec pspecs[] = {
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
         .ps_stringify = param_default_stringify,
+        .ps_jsonify = param_default_jsonify,
         .ps_default_value = {
             .as_uscalar = PERFC_LEVEL_DEFAULT,
         },
@@ -311,6 +342,7 @@ static const struct param_spec pspecs[] = {
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
         .ps_stringify = param_default_stringify,
+        .ps_jsonify = param_default_jsonify,
         .ps_default_value = {
             .as_bool = true,
         }
@@ -325,6 +357,7 @@ static const struct param_spec pspecs[] = {
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
         .ps_stringify = param_default_stringify,
+        .ps_jsonify = param_default_jsonify,
         .ps_default_value = {
             .as_builder = socket_path_default,
         },
@@ -365,4 +398,15 @@ hse_gparams_get(
     const struct params p = { .p_params = { .as_hse_gp = params }, .p_type = PARAMS_HSE_GP };
 
     return param_get(&p, pspecs, NELEM(pspecs), param, buf, buf_sz, needed_sz);
+}
+
+cJSON *
+hse_gparams_to_json(const struct hse_gparams *const params)
+{
+    if (!params)
+        return NULL;
+
+    const struct params p = { .p_params = { .as_hse_gp = params }, .p_type = PARAMS_HSE_GP };
+
+    return param_to_json(&p, pspecs, NELEM(pspecs));
 }

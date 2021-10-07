@@ -8,6 +8,8 @@
 
 #include <stddef.h>
 
+#include <cjson/cJSON.h>
+
 #include <hse_util/compiler.h>
 #include <hse_util/hse_err.h>
 #include <mpool/mpool_structs.h>
@@ -32,5 +34,8 @@ kvdb_cparams_get(
     char *                     buf,
     size_t                     buf_sz,
     size_t *                   needed_sz);
+
+cJSON *
+kvdb_cparams_to_json(const struct kvdb_cparams *params);
 
 #endif

@@ -21,6 +21,70 @@
 
 #define IS_WHOLE(_val) (round(_val) == _val)
 
+cJSON *
+param_to_json(
+    const struct params *const     params,
+    const struct param_spec *const pspecs,
+    const size_t                   pspecs_sz)
+{
+    cJSON *root;
+
+    INVARIANT(params);
+    INVARIANT(pspecs);
+    INVARIANT(pspecs_sz > 0);
+
+    root = cJSON_CreateObject();
+
+    for (size_t i = 0; i < pspecs_sz; i++) {
+        const struct param_spec *ps = &pspecs[i];
+        const void *             data = (char *)params->p_params.as_generic + ps->ps_offset;
+        cJSON *                  item, *node = root;
+        char *                   dup = strdup(ps->ps_name);
+        char *                   key = dup;
+        char *                   check = strchr(key, '.');
+        bool                     res;
+
+        if (!key)
+            goto out;
+
+        item = ps->ps_jsonify(ps, data);
+        if (!item)
+            goto out;
+
+        while (check) {
+            cJSON *   stash;
+            const int idx = (uintptr_t)(check - key);
+
+            key[idx] = '\0';
+            stash = node;
+            node = cJSON_GetObjectItemCaseSensitive(stash, key);
+            if (!node)
+                node = cJSON_AddObjectToObject(stash, key);
+            if (!node)
+                goto out;
+            key[idx] = '.';
+
+            /* Move past the dot */
+            key = check + 1;
+            assert(key[0] != '\0');
+
+            check = strchr(key, '.');
+        }
+
+        res = cJSON_AddItemToObject(node, key, item);
+        free(dup);
+        if (!res)
+            goto out;
+    }
+
+    return root;
+
+out:
+    cJSON_Delete(root);
+
+    return NULL;
+}
+
 void
 param_default_populate(
     const struct param_spec *pspecs,
@@ -412,6 +476,43 @@ param_default_stringify(
     return 0;
 }
 
+cJSON *
+param_default_jsonify(const struct param_spec *const ps, const void *const value)
+{
+    assert(ps);
+    assert(value);
+
+    switch (ps->ps_type) {
+        case PARAM_TYPE_BOOL:
+            return cJSON_CreateBool(*(bool *)value);
+        case PARAM_TYPE_I8:
+            return cJSON_CreateNumber(*(int8_t *)value);
+        case PARAM_TYPE_I16:
+            return cJSON_CreateNumber(*(int16_t *)value);
+        case PARAM_TYPE_I32:
+            return cJSON_CreateNumber(*(int32_t *)value);
+        case PARAM_TYPE_I64:
+            return cJSON_CreateNumber(*(int64_t *)value);
+        case PARAM_TYPE_U8:
+            return cJSON_CreateNumber(*(uint8_t *)value);
+        case PARAM_TYPE_U16:
+            return cJSON_CreateNumber(*(uint16_t *)value);
+        case PARAM_TYPE_U32:
+            return cJSON_CreateNumber(*(uint32_t *)value);
+        case PARAM_TYPE_U64:
+            return cJSON_CreateNumber(*(uint64_t *)value);
+        case PARAM_TYPE_ENUM:
+            return cJSON_CreateNumber(*(int *)value);
+        case PARAM_TYPE_STRING:
+            return cJSON_CreateString(value);
+        case PARAM_TYPE_ARRAY:
+        case PARAM_TYPE_OBJECT:
+        default:
+            assert(false);
+            return NULL;
+    }
+}
+
 bool
 param_roundup_pow2(const struct param_spec *ps, const cJSON *node, void *value)
 {
@@ -751,6 +852,37 @@ STORAGE_STRINGIFY(GB)
 STORAGE_STRINGIFY(TB)
 
 #undef STORAGE_STRINGIFY
+
+#define STORAGE_JSONIFY(X)                                                                        \
+    cJSON *param_jsonify_bytes_to_##X(const struct param_spec *const ps, const void *const value) \
+    {                                                                                             \
+        switch (ps->ps_type) {                                                                    \
+            case PARAM_TYPE_I8:                                                                   \
+                return cJSON_CreateNumber(*(int8_t *)value / (double)X);                          \
+            case PARAM_TYPE_I16:                                                                  \
+                return cJSON_CreateNumber(*(int16_t *)value / (double)X);                         \
+            case PARAM_TYPE_I32:                                                                  \
+                return cJSON_CreateNumber(*(int32_t *)value / (double)X);                         \
+            case PARAM_TYPE_I64:                                                                  \
+                return cJSON_CreateNumber(*(int64_t *)value / (double)X);                         \
+            case PARAM_TYPE_U8:                                                                   \
+                return cJSON_CreateNumber(*(uint8_t *)value / (double)X);                         \
+            case PARAM_TYPE_U16:                                                                  \
+                return cJSON_CreateNumber(*(uint16_t *)value / (double)X);                        \
+            case PARAM_TYPE_U32:                                                                  \
+                return cJSON_CreateNumber(*(uint32_t *)value / (double)X);                        \
+            case PARAM_TYPE_U64:                                                                  \
+                return cJSON_CreateNumber(*(uint64_t *)value / (double)X);                        \
+            default:                                                                              \
+                assert(false);                                                                    \
+                return NULL;                                                                      \
+        }                                                                                         \
+    }
+
+STORAGE_JSONIFY(KB)
+STORAGE_JSONIFY(MB)
+STORAGE_JSONIFY(GB)
+STORAGE_JSONIFY(TB)
 
 merr_t
 param_get(

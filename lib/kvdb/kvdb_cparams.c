@@ -29,6 +29,7 @@ static const struct param_spec pspecs[] = {
         .ps_convert = param_convert_to_bytes_from_GB,
         .ps_validate = param_default_validator,
         .ps_stringify = param_stringify_bytes_to_GB,
+        .ps_jsonify = param_jsonify_bytes_to_GB,
         .ps_default_value = {
             .as_uscalar = MPOOL_MBLOCK_FILESZ_DEFAULT,
         },
@@ -49,6 +50,7 @@ static const struct param_spec pspecs[] = {
         .ps_convert = param_convert_to_bytes_from_MB,
         .ps_validate = param_default_validator,
         .ps_stringify = param_stringify_bytes_to_MB,
+        .ps_jsonify = param_jsonify_bytes_to_MB,
         .ps_default_value = {
             .as_uscalar = MPOOL_MBLOCK_SIZE_DEFAULT,
         },
@@ -69,6 +71,7 @@ static const struct param_spec pspecs[] = {
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
         .ps_stringify = param_default_stringify,
+        .ps_jsonify = param_default_jsonify,
         .ps_default_value = {
             .as_uscalar = MPOOL_MBLOCK_FILECNT_DEFAULT,
         },
@@ -89,6 +92,7 @@ static const struct param_spec pspecs[] = {
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
         .ps_stringify = param_default_stringify,
+        .ps_jsonify = param_default_jsonify,
         .ps_default_value = {
             .as_string = NULL,
         },
@@ -108,6 +112,7 @@ static const struct param_spec pspecs[] = {
         .ps_convert = param_convert_to_bytes_from_GB,
         .ps_validate = param_default_validator,
         .ps_stringify = param_stringify_bytes_to_GB,
+        .ps_jsonify = param_jsonify_bytes_to_GB,
         .ps_default_value = {
             .as_uscalar = MPOOL_MBLOCK_FILESZ_DEFAULT,
         },
@@ -128,6 +133,7 @@ static const struct param_spec pspecs[] = {
         .ps_convert = param_convert_to_bytes_from_MB,
         .ps_validate = param_default_validator,
         .ps_stringify = param_stringify_bytes_to_MB,
+        .ps_jsonify = param_jsonify_bytes_to_MB,
         .ps_default_value = {
             .as_uscalar = MPOOL_MBLOCK_SIZE_DEFAULT,
         },
@@ -148,6 +154,7 @@ static const struct param_spec pspecs[] = {
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
         .ps_stringify = param_default_stringify,
+        .ps_jsonify = param_default_jsonify,
         .ps_default_value = {
             .as_uscalar = MPOOL_MBLOCK_FILECNT_DEFAULT,
         },
@@ -168,6 +175,7 @@ static const struct param_spec pspecs[] = {
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
         .ps_stringify = param_default_stringify,
+        .ps_jsonify = param_default_jsonify,
         .ps_default_value = {
             .as_string = NULL,
         },
@@ -187,6 +195,7 @@ static const struct param_spec pspecs[] = {
         .ps_convert = param_convert_to_bytes_from_GB,
         .ps_validate = param_default_validator,
         .ps_stringify = param_stringify_bytes_to_GB,
+        .ps_jsonify = param_jsonify_bytes_to_GB,
         .ps_default_value = {
             .as_uscalar = MPOOL_MBLOCK_FILESZ_DEFAULT,
         },
@@ -207,6 +216,7 @@ static const struct param_spec pspecs[] = {
         .ps_convert = param_convert_to_bytes_from_MB,
         .ps_validate = param_default_validator,
         .ps_stringify = param_stringify_bytes_to_MB,
+        .ps_jsonify = param_jsonify_bytes_to_MB,
         .ps_default_value = {
             .as_uscalar = MPOOL_MBLOCK_SIZE_DEFAULT,
         },
@@ -227,6 +237,7 @@ static const struct param_spec pspecs[] = {
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
         .ps_stringify = param_default_stringify,
+        .ps_jsonify = param_default_jsonify,
         .ps_default_value = {
             .as_uscalar = MPOOL_MBLOCK_FILECNT_DEFAULT,
         },
@@ -247,6 +258,7 @@ static const struct param_spec pspecs[] = {
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
         .ps_stringify = param_default_stringify,
+        .ps_jsonify = param_default_jsonify,
         .ps_default_value = {
             .as_string = NULL,
         },
@@ -328,4 +340,15 @@ kvdb_cparams_get(
     const struct params p = { .p_params = { .as_kvdb_cp = params }, .p_type = PARAMS_KVDB_CP };
 
     return param_get(&p, pspecs, NELEM(pspecs), param, buf, buf_sz, needed_sz);
+}
+
+cJSON *
+kvdb_cparams_to_json(const struct kvdb_cparams *const params)
+{
+    if (!params)
+        return NULL;
+
+    const struct params p = { .p_params = { .as_kvdb_cp = params }, .p_type = PARAMS_KVDB_CP };
+
+    return param_to_json(&p, pspecs, NELEM(pspecs));
 }

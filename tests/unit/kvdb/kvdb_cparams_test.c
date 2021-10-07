@@ -8,7 +8,7 @@
 #include <hse_ikvdb/argv.h>
 #include <hse_ikvdb/limits.h>
 #include <hse_ikvdb/kvdb_cparams.h>
-#include <hse_util/storage.h>
+#include <hse_ikvdb/param.h>
 
 #include <stdarg.h>
 
@@ -91,6 +91,7 @@ MTF_DEFINE_UTEST_PRE(kvdb_cparams_test, storage_capacity_file_max_size, test_pre
 	ASSERT_EQ((uintptr_t)ps->ps_convert, (uintptr_t)param_convert_to_bytes_from_GB);
 	ASSERT_EQ((uintptr_t)ps->ps_validate, (uintptr_t)param_default_validator);
 	ASSERT_EQ((uintptr_t)ps->ps_stringify, (uintptr_t)param_stringify_bytes_to_GB);
+	ASSERT_EQ((uintptr_t)ps->ps_jsonify, (uintptr_t)param_jsonify_bytes_to_GB);
 	ASSERT_EQ(MPOOL_MBLOCK_FILESZ_DEFAULT, params.storage.mclass[MP_MED_CAPACITY].fmaxsz);
 	ASSERT_EQ(0, ps->ps_bounds.as_uscalar.ps_min);
 	ASSERT_EQ(UINT64_MAX, ps->ps_bounds.as_uscalar.ps_max);
@@ -119,6 +120,7 @@ MTF_DEFINE_UTEST_PRE(kvdb_cparams_test, storage_capacity_mblock_size, test_pre)
 	ASSERT_EQ((uintptr_t)ps->ps_convert, (uintptr_t)param_convert_to_bytes_from_MB);
 	ASSERT_EQ((uintptr_t)ps->ps_validate, (uintptr_t)param_default_validator);
 	ASSERT_EQ((uintptr_t)ps->ps_stringify, (uintptr_t)param_stringify_bytes_to_MB);
+	ASSERT_EQ((uintptr_t)ps->ps_jsonify, (uintptr_t)param_jsonify_bytes_to_MB);
 	ASSERT_EQ(MPOOL_MBLOCK_SIZE_DEFAULT, params.storage.mclass[MP_MED_CAPACITY].mblocksz);
 	ASSERT_EQ(0, ps->ps_bounds.as_uscalar.ps_min);
 	ASSERT_EQ(UINT32_MAX, ps->ps_bounds.as_uscalar.ps_max);
@@ -145,6 +147,7 @@ MTF_DEFINE_UTEST_PRE(kvdb_cparams_test, storage_capacity_file_count, test_pre)
 	ASSERT_EQ((uintptr_t)ps->ps_convert, (uintptr_t)param_default_converter);
 	ASSERT_EQ((uintptr_t)ps->ps_validate, (uintptr_t)param_default_validator);
 	ASSERT_EQ((uintptr_t)ps->ps_stringify, (uintptr_t)param_default_stringify);
+	ASSERT_EQ((uintptr_t)ps->ps_jsonify, (uintptr_t)param_default_jsonify);
 	ASSERT_EQ(MPOOL_MBLOCK_FILECNT_DEFAULT, params.storage.mclass[MP_MED_CAPACITY].filecnt);
 	ASSERT_EQ(0, ps->ps_bounds.as_uscalar.ps_min);
 	ASSERT_EQ(UINT8_MAX, ps->ps_bounds.as_uscalar.ps_max);
@@ -163,6 +166,7 @@ MTF_DEFINE_UTEST_PRE(kvdb_cparams_test, storage_capacity_path, test_pre)
 	ASSERT_EQ((uintptr_t)ps->ps_convert, (uintptr_t)param_default_converter);
 	ASSERT_EQ((uintptr_t)ps->ps_validate, (uintptr_t)param_default_validator);
 	ASSERT_EQ((uintptr_t)ps->ps_stringify, (uintptr_t)param_default_stringify);
+	ASSERT_EQ((uintptr_t)ps->ps_jsonify, (uintptr_t)param_default_jsonify);
 	ASSERT_EQ('\0', params.storage.mclass[MP_MED_CAPACITY].path[0]);
 	ASSERT_EQ(PATH_MAX, ps->ps_bounds.as_string.ps_max_len);
 }
@@ -182,6 +186,7 @@ MTF_DEFINE_UTEST_PRE(kvdb_cparams_test, storage_staging_file_max_size, test_pre)
 	ASSERT_EQ((uintptr_t)ps->ps_convert, (uintptr_t)param_convert_to_bytes_from_GB);
 	ASSERT_EQ((uintptr_t)ps->ps_validate, (uintptr_t)param_default_validator);
 	ASSERT_EQ((uintptr_t)ps->ps_stringify, (uintptr_t)param_stringify_bytes_to_GB);
+	ASSERT_EQ((uintptr_t)ps->ps_jsonify, (uintptr_t)param_jsonify_bytes_to_GB);
 	ASSERT_EQ(MPOOL_MBLOCK_FILESZ_DEFAULT, params.storage.mclass[MP_MED_STAGING].fmaxsz);
 	ASSERT_EQ(0, ps->ps_bounds.as_uscalar.ps_min);
 	ASSERT_EQ(UINT64_MAX, ps->ps_bounds.as_uscalar.ps_max);
@@ -210,6 +215,7 @@ MTF_DEFINE_UTEST_PRE(kvdb_cparams_test, storage_staging_mblock_size, test_pre)
 	ASSERT_EQ((uintptr_t)ps->ps_convert, (uintptr_t)param_convert_to_bytes_from_MB);
 	ASSERT_EQ((uintptr_t)ps->ps_validate, (uintptr_t)param_default_validator);
 	ASSERT_EQ((uintptr_t)ps->ps_stringify, (uintptr_t)param_stringify_bytes_to_MB);
+	ASSERT_EQ((uintptr_t)ps->ps_jsonify, (uintptr_t)param_jsonify_bytes_to_MB);
 	ASSERT_EQ(MPOOL_MBLOCK_SIZE_DEFAULT, params.storage.mclass[MP_MED_STAGING].mblocksz);
 	ASSERT_EQ(0, ps->ps_bounds.as_uscalar.ps_min);
 	ASSERT_EQ(UINT32_MAX, ps->ps_bounds.as_uscalar.ps_max);
@@ -236,6 +242,7 @@ MTF_DEFINE_UTEST_PRE(kvdb_cparams_test, storage_staging_file_count, test_pre)
 	ASSERT_EQ((uintptr_t)ps->ps_convert, (uintptr_t)param_default_converter);
 	ASSERT_EQ((uintptr_t)ps->ps_validate, (uintptr_t)param_default_validator);
 	ASSERT_EQ((uintptr_t)ps->ps_stringify, (uintptr_t)param_default_stringify);
+	ASSERT_EQ((uintptr_t)ps->ps_jsonify, (uintptr_t)param_default_jsonify);
 	ASSERT_EQ(MPOOL_MBLOCK_FILECNT_DEFAULT, params.storage.mclass[MP_MED_STAGING].filecnt);
 	ASSERT_EQ(0, ps->ps_bounds.as_uscalar.ps_min);
 	ASSERT_EQ(UINT8_MAX, ps->ps_bounds.as_uscalar.ps_max);
@@ -254,6 +261,7 @@ MTF_DEFINE_UTEST_PRE(kvdb_cparams_test, storage_staging_path, test_pre)
 	ASSERT_EQ((uintptr_t)ps->ps_convert, (uintptr_t)param_default_converter);
 	ASSERT_EQ((uintptr_t)ps->ps_validate, (uintptr_t)param_default_validator);
 	ASSERT_EQ((uintptr_t)ps->ps_stringify, (uintptr_t)param_default_stringify);
+	ASSERT_EQ((uintptr_t)ps->ps_jsonify, (uintptr_t)param_default_jsonify);
 	ASSERT_EQ('\0', params.storage.mclass[MP_MED_STAGING].path[0]);
 	ASSERT_EQ(PATH_MAX, ps->ps_bounds.as_string.ps_max_len);
 }
@@ -272,13 +280,14 @@ MTF_DEFINE_UTEST_PRE(kvdb_cparams_test, storage_pmem_file_max_size, test_pre)
 	ASSERT_EQ((uintptr_t)ps->ps_convert, (uintptr_t)param_convert_to_bytes_from_GB);
 	ASSERT_EQ((uintptr_t)ps->ps_validate, (uintptr_t)param_default_validator);
     ASSERT_EQ((uintptr_t)ps->ps_stringify, (uintptr_t)param_stringify_bytes_to_GB);
-	ASSERT_EQ(MPOOL_MBLOCK_FILESZ_DEFAULT, params.storage.mclass[MP_MED_PMEM].fmaxsz);
-	ASSERT_EQ(0, ps->ps_bounds.as_uscalar.ps_min);
-	ASSERT_EQ(UINT64_MAX, ps->ps_bounds.as_uscalar.ps_max);
+    ASSERT_EQ((uintptr_t)ps->ps_jsonify, (uintptr_t)param_jsonify_bytes_to_GB);
+    ASSERT_EQ(MPOOL_MBLOCK_FILESZ_DEFAULT, params.storage.mclass[MP_MED_PMEM].fmaxsz);
+    ASSERT_EQ(0, ps->ps_bounds.as_uscalar.ps_min);
+    ASSERT_EQ(UINT64_MAX, ps->ps_bounds.as_uscalar.ps_max);
 
-	err = check("storage.pmem.file.max_size=5", true, NULL);
-	ASSERT_EQ(0, err);
-	ASSERT_EQ(5 * GB, params.storage.mclass[MP_MED_PMEM].fmaxsz);
+    err = check("storage.pmem.file.max_size=5", true, NULL);
+    ASSERT_EQ(0, err);
+    ASSERT_EQ(5 * GB, params.storage.mclass[MP_MED_PMEM].fmaxsz);
 }
 
 MTF_DEFINE_UTEST_PRE(kvdb_cparams_test, storage_pmem_mblock_size, test_pre)
@@ -295,13 +304,14 @@ MTF_DEFINE_UTEST_PRE(kvdb_cparams_test, storage_pmem_mblock_size, test_pre)
 	ASSERT_EQ((uintptr_t)ps->ps_convert, (uintptr_t)param_convert_to_bytes_from_MB);
 	ASSERT_EQ((uintptr_t)ps->ps_validate, (uintptr_t)param_default_validator);
     ASSERT_EQ((uintptr_t)ps->ps_stringify, (uintptr_t)param_stringify_bytes_to_MB);
-	ASSERT_EQ(MPOOL_MBLOCK_SIZE_DEFAULT, params.storage.mclass[MP_MED_PMEM].mblocksz);
-	ASSERT_EQ(0, ps->ps_bounds.as_uscalar.ps_min);
-	ASSERT_EQ(UINT32_MAX, ps->ps_bounds.as_uscalar.ps_max);
+    ASSERT_EQ((uintptr_t)ps->ps_jsonify, (uintptr_t)param_jsonify_bytes_to_MB);
+    ASSERT_EQ(MPOOL_MBLOCK_SIZE_DEFAULT, params.storage.mclass[MP_MED_PMEM].mblocksz);
+    ASSERT_EQ(0, ps->ps_bounds.as_uscalar.ps_min);
+    ASSERT_EQ(UINT32_MAX, ps->ps_bounds.as_uscalar.ps_max);
 
-	err = check("storage.pmem.mblock.size=5", true, NULL);
-	ASSERT_EQ(0, err);
-	ASSERT_EQ(5 * MB, params.storage.mclass[MP_MED_PMEM].mblocksz);
+    err = check("storage.pmem.mblock.size=5", true, NULL);
+    ASSERT_EQ(0, err);
+    ASSERT_EQ(5 * MB, params.storage.mclass[MP_MED_PMEM].mblocksz);
 }
 
 MTF_DEFINE_UTEST_PRE(kvdb_cparams_test, storage_pmem_file_count, test_pre)
@@ -317,6 +327,7 @@ MTF_DEFINE_UTEST_PRE(kvdb_cparams_test, storage_pmem_file_count, test_pre)
 	ASSERT_EQ((uintptr_t)ps->ps_convert, (uintptr_t)param_default_converter);
 	ASSERT_EQ((uintptr_t)ps->ps_validate, (uintptr_t)param_default_validator);
     ASSERT_EQ((uintptr_t)ps->ps_stringify, (uintptr_t)param_default_stringify);
+	ASSERT_EQ((uintptr_t)ps->ps_jsonify, (uintptr_t)param_default_jsonify);
 	ASSERT_EQ(MPOOL_MBLOCK_FILECNT_DEFAULT, params.storage.mclass[MP_MED_PMEM].filecnt);
 	ASSERT_EQ(0, ps->ps_bounds.as_uscalar.ps_min);
 	ASSERT_EQ(UINT8_MAX, ps->ps_bounds.as_uscalar.ps_max);
@@ -335,6 +346,7 @@ MTF_DEFINE_UTEST_PRE(kvdb_cparams_test, storage_pmem_path, test_pre)
 	ASSERT_EQ((uintptr_t)ps->ps_convert, (uintptr_t)param_default_converter);
 	ASSERT_EQ((uintptr_t)ps->ps_validate, (uintptr_t)param_default_validator);
     ASSERT_EQ((uintptr_t)ps->ps_stringify, (uintptr_t)param_default_stringify);
+	ASSERT_EQ((uintptr_t)ps->ps_jsonify, (uintptr_t)param_default_jsonify);
 	ASSERT_EQ('\0', params.storage.mclass[MP_MED_PMEM].path[0]);
 	ASSERT_EQ(PATH_MAX, ps->ps_bounds.as_string.ps_max_len);
 }
@@ -368,6 +380,21 @@ MTF_DEFINE_UTEST(kvdb_cparams_test, get)
 	err = kvdb_cparams_get(&p, "storage.capacity.path", NULL, 0, &needed_sz);
     ASSERT_EQ(0, merr_errno(err));
     ASSERT_EQ(0, needed_sz);
+}
+
+MTF_DEFINE_UTEST(kvdb_cparams_test, to_json)
+{
+	cJSON *root;
+
+	const struct kvdb_cparams p = kvdb_cparams_defaults();
+
+	root = kvdb_cparams_to_json(&p);
+	ASSERT_NE(NULL, root);
+
+	cJSON_Delete(root);
+
+	root = kvdb_cparams_to_json(NULL);
+	ASSERT_EQ(NULL, NULL);
 }
 
 MTF_END_UTEST_COLLECTION(kvdb_cparams_test)

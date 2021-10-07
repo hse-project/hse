@@ -107,6 +107,33 @@ array_stringify(
     return 0;
 }
 
+cJSON *
+array_jsonify(const struct param_spec *const ps, const void *const value)
+{
+	cJSON *node = cJSON_CreateArray();
+	if (!node)
+		return NULL;
+
+	const struct test_arr_type *arr = (struct test_arr_type *)value;
+
+	for (int i = 0; i < 2; i++) {
+		cJSON *n = cJSON_CreateObject();
+		if (!n)
+			goto out;
+
+		cJSON_AddNumberToObject(n, "field1", arr->field1);
+
+		cJSON_AddItemToArray(node, n);
+	}
+
+	return node;
+
+out:
+	cJSON_Delete(node);
+
+	return NULL;
+}
+
 const struct param_spec pspecs[] = {
 	{
 		.ps_name = "test1",
@@ -118,6 +145,7 @@ const struct param_spec pspecs[] = {
 		.ps_convert = param_default_converter,
 		.ps_validate = param_default_validator,
 		.ps_stringify = param_default_stringify,
+		.ps_jsonify = param_default_jsonify,
 		.ps_default_value = {
 			.as_bool = true,
 		},
@@ -132,6 +160,7 @@ const struct param_spec pspecs[] = {
 		.ps_convert = param_default_converter,
 		.ps_validate = param_default_validator,
 		.ps_stringify = param_default_stringify,
+		.ps_jsonify = param_default_jsonify,
 		.ps_default_value = {
 			.as_uscalar = 2,
 		},
@@ -152,6 +181,7 @@ const struct param_spec pspecs[] = {
 		.ps_convert = param_default_converter,
 		.ps_validate = param_default_validator,
 		.ps_stringify = param_default_stringify,
+		.ps_jsonify = param_default_jsonify,
 		.ps_default_value = {
 			.as_uscalar = 3,
 		},
@@ -172,6 +202,7 @@ const struct param_spec pspecs[] = {
 		.ps_convert = param_default_converter,
 		.ps_validate = param_default_validator,
 		.ps_stringify = param_default_stringify,
+		.ps_jsonify = param_default_jsonify,
 		.ps_default_value = {
 			.as_uscalar = 4,
 		},
@@ -192,6 +223,7 @@ const struct param_spec pspecs[] = {
 		.ps_convert = param_default_converter,
 		.ps_validate = param_default_validator,
 		.ps_stringify = param_default_stringify,
+		.ps_jsonify = param_default_jsonify,
 		.ps_default_value = {
 			.as_uscalar = 5,
 		},
@@ -212,6 +244,7 @@ const struct param_spec pspecs[] = {
 		.ps_convert = param_default_converter,
 		.ps_validate = param_default_validator,
 		.ps_stringify = param_default_stringify,
+		.ps_jsonify = param_default_jsonify,
 		.ps_default_value = {
 			.as_scalar = 6,
 		},
@@ -232,6 +265,7 @@ const struct param_spec pspecs[] = {
 		.ps_convert = param_default_converter,
 		.ps_validate = param_default_validator,
 		.ps_stringify = param_default_stringify,
+		.ps_jsonify = param_default_jsonify,
 		.ps_default_value = {
 			.as_scalar = 7,
 		},
@@ -252,6 +286,7 @@ const struct param_spec pspecs[] = {
 		.ps_convert = param_default_converter,
 		.ps_validate = param_default_validator,
 		.ps_stringify = param_default_stringify,
+		.ps_jsonify = param_default_jsonify,
 		.ps_default_value = {
 			.as_scalar = 8,
 		},
@@ -272,6 +307,7 @@ const struct param_spec pspecs[] = {
 		.ps_convert = param_default_converter,
 		.ps_validate = param_default_validator,
 		.ps_stringify = param_default_stringify,
+		.ps_jsonify = param_default_jsonify,
 		.ps_default_value = {
 			.as_scalar = 9,
 		},
@@ -291,6 +327,7 @@ const struct param_spec pspecs[] = {
 		.ps_convert = param_default_converter,
 		.ps_validate = param_default_validator,
 		.ps_stringify = param_default_stringify,
+		.ps_jsonify = param_default_jsonify,
 		.ps_default_value = {
 			.as_string = "default",
 		},
@@ -309,6 +346,7 @@ const struct param_spec pspecs[] = {
 		.ps_convert = array_converter,
 		.ps_validate = array_validator,
 		.ps_stringify = array_stringify,
+		.ps_jsonify = array_jsonify,
 		.ps_validate_relations = array_relation_validate,
 		.ps_default_value = {
 			.as_builder = array_default_builder,
@@ -324,6 +362,7 @@ const struct param_spec pspecs[] = {
 		.ps_convert = param_convert_to_bytes_from_KB,
 		.ps_validate = param_default_validator,
 		.ps_stringify = param_stringify_bytes_to_KB,
+		.ps_jsonify = param_jsonify_bytes_to_KB,
 		.ps_default_value = {
 			.as_uscalar = 4 * KB,
 		},
@@ -344,6 +383,7 @@ const struct param_spec pspecs[] = {
 		.ps_convert = param_convert_to_bytes_from_MB,
 		.ps_validate = param_default_validator,
 		.ps_stringify = param_stringify_bytes_to_MB,
+		.ps_jsonify = param_jsonify_bytes_to_MB,
 		.ps_default_value = {
 			.as_uscalar = 4 * MB,
 		},
@@ -364,6 +404,7 @@ const struct param_spec pspecs[] = {
 		.ps_convert = param_convert_to_bytes_from_GB,
 		.ps_validate = param_default_validator,
 		.ps_stringify = param_stringify_bytes_to_GB,
+		.ps_jsonify = param_jsonify_bytes_to_GB,
 		.ps_default_value = {
 			.as_uscalar = 4 * GB,
 		},
@@ -384,6 +425,7 @@ const struct param_spec pspecs[] = {
 		.ps_convert = param_convert_to_bytes_from_TB,
 		.ps_validate = param_default_validator,
 		.ps_stringify = param_stringify_bytes_to_TB,
+		.ps_jsonify = param_jsonify_bytes_to_TB,
 		.ps_default_value = {
 			.as_uscalar = 4 * TB,
 		},
@@ -404,6 +446,7 @@ const struct param_spec pspecs[] = {
         .ps_convert = param_roundup_pow2,
         .ps_validate = param_default_validator,
 		.ps_stringify = param_default_stringify,
+		.ps_jsonify = param_default_jsonify,
         .ps_default_value = {
             .as_uscalar = 1000,
         },
@@ -901,6 +944,23 @@ MTF_DEFINE_UTEST_PRE(param_test, roundup_pow2, test_pre)
 
     ASSERT_EQ(0, merr_errno(err));
     ASSERT_EQ(2048, params.test16);
+}
+
+MTF_DEFINE_UTEST_PRE(param_test, jsonify, test_pre)
+{
+	const struct params p = { .p_params = { .as_generic = &params }, .p_type = PARAMS_GEN };
+
+	cJSON *root = param_to_json(&p, pspecs, NELEM(pspecs));
+	ASSERT_NE(NULL, root);
+
+	char *str = cJSON_PrintUnformatted(root);
+	ASSERT_NE(NULL, str);
+
+	cJSON_Delete(root);
+
+	ASSERT_STREQ("{\"test1\":true,\"test2\":2,\"test3\":3,\"test4\":4,\"test5\":5,\"test6\":6,\"test7\":7,\"test8\":8,\"test9\":9,\"test10\":\"default\",\"test11\":[{\"field1\":5},{\"field1\":5}],\"test12\":4,\"test13\":4,\"test14\":4,\"test15\":4,\"test16\":1000}", str);
+
+	free(str);
 }
 
 MTF_DEFINE_UTEST_PRE(param_test, get, test_pre)

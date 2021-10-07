@@ -12,6 +12,8 @@
 #include <stddef.h>
 #include <sys/un.h>
 
+#include <cjson/cJSON.h>
+
 #include <hse_util/hse_err.h>
 #include <hse_util/logging_types.h>
 #include <hse_util/compiler.h>
@@ -53,5 +55,8 @@ hse_gparams_get(
     char *                    buf,
     size_t                    buf_sz,
     size_t *                  needed_sz);
+
+cJSON *
+hse_gparams_to_json(const struct hse_gparams *params);
 
 #endif

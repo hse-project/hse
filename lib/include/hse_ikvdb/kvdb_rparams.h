@@ -122,4 +122,7 @@ kvdb_rparams_get(
     size_t                     buf_sz,
     size_t *                   needed_sz);
 
+cJSON *
+kvdb_rparams_to_json(const struct kvdb_rparams *params);
+
 #endif /* HSE_KVDB_PARAMS_H */

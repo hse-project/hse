@@ -9,6 +9,8 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include <cjson/cJSON.h>
+
 #include <hse_util/compiler.h>
 #include <hse_util/hse_err.h>
 
@@ -33,5 +35,8 @@ kvs_cparams_get(
     char *                    buf,
     size_t                    buf_sz,
     size_t *                  needed_sz);
+
+cJSON *
+kvs_cparams_to_json(const struct kvs_cparams *params);
 
 #endif
