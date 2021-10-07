@@ -28,6 +28,7 @@ param_default_populate(
 {
     assert(pspecs);
     assert(pspecs_sz > 0);
+    assert(params);
 
     char *p = (char *)params->p_params.as_generic;
 
@@ -516,8 +517,8 @@ param_default_validator(const struct param_spec *ps, const void *value)
     return false;
 }
 
-#define STORAGE_CONVERTER(X)                                                                      \
-    bool param_convert_to_bytes_from_##X(                                                         \
+#define STORAGE_CONVERTER(_units)                                                                 \
+    bool param_convert_to_bytes_from_##_units(                                                    \
         const struct param_spec *ps, const cJSON *node, void *value)                              \
     {                                                                                             \
         assert(ps);                                                                               \
@@ -526,7 +527,7 @@ param_default_validator(const struct param_spec *ps, const void *value)
                                                                                                   \
         assert(!(ps->ps_flags & PARAM_FLAG_NULLABLE));                                            \
         if (!cJSON_IsNumber(node)) {                                                              \
-            CLOG_ERR("Value of %s must be a number", ps->ps_name);                                    \
+            CLOG_ERR("Value of %s must be a number", ps->ps_name);                                \
             return false;                                                                         \
         }                                                                                         \
                                                                                                   \
@@ -534,13 +535,13 @@ param_default_validator(const struct param_spec *ps, const void *value)
         assert(rc == 0);                                                                          \
                                                                                                   \
         double tmp = cJSON_GetNumberValue(node);                                                  \
-        tmp = tmp * X;                                                                            \
+        tmp = tmp * _units;                                                                       \
         if (fetestexcept(FE_OVERFLOW)) {                                                          \
-            CLOG_ERR("Value of %s is too large", ps->ps_name);                                        \
+            CLOG_ERR("Value of %s is too large", ps->ps_name);                                    \
             feclearexcept(FE_OVERFLOW);                                                           \
             return false;                                                                         \
         } else if (fetestexcept(FE_UNDERFLOW)) {                                                  \
-            CLOG_ERR("Value of %s is too small", ps->ps_name);                                        \
+            CLOG_ERR("Value of %s is too small", ps->ps_name);                                    \
             feclearexcept(FE_UNDERFLOW);                                                          \
             return false;                                                                         \
         }                                                                                         \
@@ -549,7 +550,7 @@ param_default_validator(const struct param_spec *ps, const void *value)
             case PARAM_TYPE_I8:                                                                   \
                 assert(ps->ps_size == sizeof(int8_t));                                            \
                 if (tmp < (double)INT8_MIN || tmp > (double)INT8_MAX) {                           \
-                    CLOG_ERR(                                                                         \
+                    CLOG_ERR(                                                                     \
                         "Number of bytes of %s is not within the bounds of a signed 8-bit "       \
                         "integer",                                                                \
                         ps->ps_name);                                                             \
@@ -560,7 +561,7 @@ param_default_validator(const struct param_spec *ps, const void *value)
             case PARAM_TYPE_I16:                                                                  \
                 assert(ps->ps_size == sizeof(int16_t));                                           \
                 if (tmp < (double)INT16_MIN || tmp > (double)INT16_MAX) {                         \
-                    CLOG_ERR(                                                                         \
+                    CLOG_ERR(                                                                     \
                         "Number of bytes of %s is not within the bounds of a signed 16-bit "      \
                         "integer",                                                                \
                         ps->ps_name);                                                             \
@@ -571,7 +572,7 @@ param_default_validator(const struct param_spec *ps, const void *value)
             case PARAM_TYPE_I32:                                                                  \
                 assert(ps->ps_size == sizeof(int32_t));                                           \
                 if (tmp < (double)INT32_MIN || tmp > (double)INT32_MAX) {                         \
-                    CLOG_ERR(                                                                         \
+                    CLOG_ERR(                                                                     \
                         "Number of bytes of %s is not within the bounds of a signed 32-bit "      \
                         "integer",                                                                \
                         ps->ps_name);                                                             \
@@ -582,7 +583,7 @@ param_default_validator(const struct param_spec *ps, const void *value)
             case PARAM_TYPE_I64:                                                                  \
                 assert(ps->ps_size == sizeof(int64_t));                                           \
                 if (tmp < (double)INT64_MIN || tmp > (double)INT64_MAX) {                         \
-                    CLOG_ERR(                                                                         \
+                    CLOG_ERR(                                                                     \
                         "Number of bytes of %s is not within the bounds of a signed 64-bit "      \
                         "integer",                                                                \
                         ps->ps_name);                                                             \
@@ -593,7 +594,7 @@ param_default_validator(const struct param_spec *ps, const void *value)
             case PARAM_TYPE_U8:                                                                   \
                 assert(ps->ps_size == sizeof(uint8_t));                                           \
                 if (tmp < 0 || tmp > (double)UINT8_MAX) {                                         \
-                    CLOG_ERR(                                                                         \
+                    CLOG_ERR(                                                                     \
                         "Number of bytes of %s is not within the bounds of an unsigned 8-bit "    \
                         "integer",                                                                \
                         ps->ps_name);                                                             \
@@ -604,7 +605,7 @@ param_default_validator(const struct param_spec *ps, const void *value)
             case PARAM_TYPE_U16:                                                                  \
                 assert(ps->ps_size == sizeof(uint16_t));                                          \
                 if (tmp < 0 || tmp > (double)UINT16_MAX) {                                        \
-                    CLOG_ERR(                                                                         \
+                    CLOG_ERR(                                                                     \
                         "Number of bytes of %s is not within the bounds of an unsigned 16-bit "   \
                         "integer",                                                                \
                         ps->ps_name);                                                             \
@@ -615,7 +616,7 @@ param_default_validator(const struct param_spec *ps, const void *value)
             case PARAM_TYPE_U32:                                                                  \
                 assert(ps->ps_size == sizeof(uint32_t));                                          \
                 if (tmp < 0 || tmp > (double)UINT32_MAX) {                                        \
-                    CLOG_ERR(                                                                         \
+                    CLOG_ERR(                                                                     \
                         "Number of bytes of %s is not within the bounds of an unsigned 8=32-bit " \
                         "integer",                                                                \
                         ps->ps_name);                                                             \
@@ -626,7 +627,7 @@ param_default_validator(const struct param_spec *ps, const void *value)
             case PARAM_TYPE_U64:                                                                  \
                 assert(ps->ps_size == sizeof(uint64_t));                                          \
                 if (tmp < 0 || tmp > (double)UINT64_MAX) {                                        \
-                    CLOG_ERR(                                                                         \
+                    CLOG_ERR(                                                                     \
                         "Number of bytes of %s is not within the bounds of an unsigned 64-bit "   \
                         "integer",                                                                \
                         ps->ps_name);                                                             \
@@ -645,3 +646,5 @@ STORAGE_CONVERTER(KB)
 STORAGE_CONVERTER(MB)
 STORAGE_CONVERTER(GB)
 STORAGE_CONVERTER(TB)
+
+#undef STORAGE_CONVERTER
