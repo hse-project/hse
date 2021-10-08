@@ -20,7 +20,6 @@ struct c0_kvset_iterator;
 
 struct c0_usage {
     size_t u_alloc;
-    size_t u_used;
     ulong  u_keys;
     ulong  u_tombs;
     size_t u_keyb;
@@ -89,6 +88,13 @@ c0kvs_create(
  */
 void
 c0kvs_destroy(struct c0_kvset *set);
+
+/**
+ * c0kvs_used() - return bytes availble in c0kvs cheap
+ * @set:        c0kvs handle
+ */
+size_t
+c0kvs_avail(struct c0_kvset *set);
 
 /**
  * c0kvs_used() - return bytes used in c0kvs cheap

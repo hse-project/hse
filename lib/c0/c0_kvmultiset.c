@@ -223,7 +223,6 @@ c0kvms_usage(struct c0_kvmultiset *handle, struct c0_usage *usage)
             continue;
 
         usage->u_alloc += u.u_alloc;
-        usage->u_used += u.u_used;
     }
 
     usage->u_count = n;
