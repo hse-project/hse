@@ -982,6 +982,11 @@ ikvdb_diag_close(struct ikvdb *handle)
 
 /**
  * ikvdb_rest_register() - install rest handlers for KVSes and the kvs list
+ *
+ * This function is undefined behavior galore. Why do we register KVS REST
+ * routes on KVDB open when KVS hasn't been opened? Do NOT query KVS
+ * parameters until after opening the KVS.
+ *
  * @self:       self
  * @handle:     ikvdb handle
  */
@@ -1728,7 +1733,8 @@ ikvdb_kvs_create(struct ikvdb *handle, const char *kvs_name, const struct kvs_cp
     mutex_unlock(&self->ikdb_lock);
 
     /* Register in kvs make instead of open so all KVSes can be queried for
-     * info
+     * info. WARNGING: Potential for undefined behavior if KVS is created and
+     * params are queried.
      */
     err = kvs_rest_register(handle, self->ikdb_kvs_vec[idx]->kk_name, self->ikdb_kvs_vec[idx]);
     if (ev(err))
