@@ -16,6 +16,8 @@
 #include <hse_util/mutex.h>
 #include <hse_util/table.h>
 
+#include <hse_ikvdb/param.h>
+
 #include <hse/version.h>
 
 #include <sys/socket.h>
@@ -25,6 +27,8 @@
 #include <poll.h>
 
 #include <bsd/string.h>
+#include <cjson/cJSON.h>
+#include <cjson/cJSON_Utils.h>
 
 #define SESSIONS_PER_THREAD 5
 #define NUM_THREADS 3
@@ -973,6 +977,62 @@ get_socket(const char *sock_name, int *sock_out)
     return 0;
 }
 
+static merr_t
+rest_param_get(
+    const char *      path,
+    struct conn_info *info,
+    const char *      url,
+    struct kv_iter *  iter,
+    void *            context)
+{
+    merr_t err = 0;
+
+    /* Check from single parameter or all parameters */
+    if (strcmp(path, url)) {
+        size_t      needed_sz;
+        char *      tmp;
+        size_t      buf_sz = 128;
+        const char *param = path + strlen(url) + 1; /* move past the final '/' */
+        char *      buf = malloc(buf_sz);
+
+        if (!buf)
+            return merr(ENOMEM);
+
+        err = hse_gparams_get(&hse_gparams, param, buf, buf_sz, &needed_sz);
+        if (needed_sz >= buf_sz && !err) {
+            buf_sz = needed_sz + 1;
+            tmp = realloc(buf, buf_sz);
+            if (!tmp)
+                return merr(ENOMEM);
+
+            buf = tmp;
+
+            err = hse_gparams_get(&hse_gparams, param, buf, buf_sz, NULL);
+        }
+
+        if (!err && write(info->resp_fd, buf, strnlen(buf, buf_sz)) == -1)
+            err = merr(errno);
+
+        free(buf);
+    } else {
+        char * str;
+        cJSON *root = hse_gparams_to_json(&hse_gparams);
+        if (!root)
+            return merr(ENOMEM);
+
+        str = cJSON_PrintUnformatted(root);
+        if (!str)
+            return merr(ENOMEM);
+
+        if (!err && write(info->resp_fd, str, strlen(str)) == -1)
+            err = merr(errno);
+
+        cJSON_free(str);
+    }
+
+    return err;
+}
+
 merr_t
 rest_server_start(const char *sock_path)
 {
@@ -1025,6 +1085,8 @@ rest_server_start(const char *sock_path)
         unlink(rest.sock_name);
         return merr(ev(ENOANO));
     }
+
+    rest_url_register(NULL, 0, rest_param_get, NULL, "params");
 
     return 0;
 }
