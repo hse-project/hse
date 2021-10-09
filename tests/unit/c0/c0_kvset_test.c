@@ -181,7 +181,6 @@ MTF_DEFINE_UTEST_PREPOST(c0_kvset_test, basic_put_get, no_fail_pre, no_fail_post
 
 MTF_DEFINE_UTEST_PREPOST(c0_kvset_test, basic_put_get_fail, no_fail_pre, no_fail_post)
 {
-    struct c0_usage   usage;
     struct c0_kvset * kvs;
     struct kvs_ktuple kt;
     struct kvs_vtuple vt;
@@ -197,8 +196,7 @@ MTF_DEFINE_UTEST_PREPOST(c0_kvset_test, basic_put_get_fail, no_fail_pre, no_fail
     err = c0kvs_create(NULL, NULL, &kvs);
     ASSERT_NE(NULL, kvs);
 
-    c0kvs_usage(kvs, &usage);
-    avail = usage.u_alloc - usage.u_used + 1;
+    avail = c0kvs_avail(kvs);
     ASSERT_GT(avail, hse_gparams.gp_c0kvs_cheap_sz / 2);
     ASSERT_LT(avail, hse_gparams.gp_c0kvs_cheap_sz);
 

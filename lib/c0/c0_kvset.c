@@ -507,6 +507,14 @@ c0kvs_destroy(struct c0_kvset *handle)
 }
 
 size_t
+c0kvs_avail(struct c0_kvset *handle)
+{
+    struct c0_kvset_impl *self = c0_kvset_h2r(handle);
+
+    return cheap_avail(self->c0s_cheap);
+}
+
+size_t
 c0kvs_used(struct c0_kvset *handle)
 {
     struct c0_kvset_impl *self = c0_kvset_h2r(handle);
@@ -663,7 +671,6 @@ c0kvs_usage(struct c0_kvset *handle, struct c0_usage *usage)
     struct c0_kvset_impl *self = c0_kvset_h2r(handle);
 
     usage->u_alloc = self->c0s_alloc_sz;
-    usage->u_used = c0kvs_used(handle);
     usage->u_keys = self->c0s_num_entries - self->c0s_num_tombstones;
     usage->u_tombs = self->c0s_num_tombstones;
     usage->u_keyb = self->c0s_keyb;
