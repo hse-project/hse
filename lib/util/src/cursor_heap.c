@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 #include <hse_util/arch.h>
 #include <hse_util/assert.h>
@@ -8,6 +8,7 @@
 #include <hse_util/slab.h>
 #include <hse_util/page.h>
 #include <hse_util/mman.h>
+#include <hse_util/xrand.h>
 #include <hse_util/minmax.h>
 #include <hse_util/event_counter.h>
 #include <hse_util/cursor_heap.h>
@@ -20,7 +21,7 @@ cheap_create(size_t alignment, size_t size)
 
     if (alignment < 2)
         alignment = 1;
-    else if (alignment > 64)
+    else if (alignment > size / 2)
         return NULL; /* This is item alignment, not heap alignment */
     else if (alignment & (alignment - 1))
         return NULL; /* Alignment must be a power of 2 */
@@ -36,11 +37,12 @@ cheap_create(size_t alignment, size_t size)
 
     if (mem != MAP_FAILED) {
         size_t halign = ALIGN(sizeof(*h), SMP_CACHE_BYTES);
-        size_t color = (get_cycles() >> 2) % 16;
+        size_t color = xrand64_tls() % (PAGE_SIZE / (SMP_CACHE_BYTES * 2) - 1);
         size_t offset = SMP_CACHE_BYTES * color;
 
-        /* Offset the base of the cheap by a pseudo-random number of
-         * cache lines in effort to ameliorate cache conflict misses.
+        /* Offset the base of the cheap by a random number of cache lines
+         * in effort to ameliorate cache conflict misses.  However, do not
+         * use more than half a page (including the header).
          */
         h = mem + offset;
         h->mem = mem;
@@ -142,7 +144,7 @@ cheap_memalign_impl(struct cheap *h, size_t alignment, size_t size)
 void *
 cheap_memalign(struct cheap *h, size_t alignment, size_t size)
 {
-    if (ev(alignment & (alignment - 1)))
+    if (alignment & (alignment - 1))
         return NULL;
 
     return cheap_memalign_impl(h, alignment, size);
@@ -154,19 +156,17 @@ cheap_malloc(struct cheap *h, size_t size)
     return cheap_memalign_impl(h, h->alignment, size);
 }
 
+/* Freeing within a cheap can only occur if the user of the cheap only
+ * ever frees a chunk that was just allocated. Once another chunk has
+ * been allocated we can't free the previously allocated chunk. The
+ * use case for cheap_free() is to handle the case where the owner of the
+ * cheap needs to allocate space to ensure that it can make progress
+ * after it does something that may fail. If the failure occurs, we want
+ * to free the just-allocated space.
+ */
 void
 cheap_free(struct cheap *h, void *addr)
 {
-    /* Freeing within a cheap can only occur if the user of the cheap only
-     * ever frees something that was just allocated. Once another thing has
-     * been allocated, we can't free the previously allocated thing. The
-     * use case for the free is to handle the case where the owner of the
-     * cheap needs to allocate space to ensure that it can make progress
-     * after it does something that may fail. If the failure occurs, we want
-     * to free the just-allocated space.
-     *
-     * [HSE_REVISIT] - this should be replaced by a reservation mechanism
-     */
     if (h->lastp && (u64)addr == h->lastp) {
         if (h->brk < h->cursorp)
             h->brk = PAGE_ALIGN(h->cursorp);

@@ -1553,14 +1553,16 @@ main(int argc, char **argv)
     rc = kvt_check(check, dump);
 
   errout:
-    tsi_start(&tstart);
-    status("closing kvdb %s...", mpname);
+	if (kvdb) {
+		tsi_start(&tstart);
+		status("closing kvdb %s...", mpname);
 
-    err = hse_kvdb_close(kvdb);
-    if (err)
-        eprint(err, "unable to close kvdb `%s'", mpname);
+		err = hse_kvdb_close(kvdb);
+		if (err)
+			eprint(err, "unable to close kvdb `%s'", mpname);
 
-    dprint(1, "closed kvdb %s in %.3lf seconds", mpname, tsi_delta(&tstart) / 1000000.0);
+		dprint(1, "closed kvdb %s in %.3lf seconds", mpname, tsi_delta(&tstart) / 1000000.0);
+	}
 
     free(kvs_inodesv);
     hse_fini();
