@@ -471,7 +471,11 @@ kvdb_meta_deserialize(struct kvdb_meta *const meta, const char *const kvdb_home)
 
     root = cJSON_ParseWithLength(meta_data, st.st_size + 1);
     if (!root) {
-        err = merr(EPROTO);
+        if (cJSON_GetErrorPtr()) {
+            err = merr(EPROTO);
+        } else {
+            err = merr(EINVAL);
+        }
         goto out;
     }
 

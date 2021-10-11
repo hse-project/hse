@@ -394,8 +394,12 @@ config_create(const char *path, cJSON **conf)
 
     *conf = cJSON_ParseWithLength(config, st.st_size + 1);
     if (!*conf) {
-        CLOG_ERR("Failed to parse file as valid JSON (%s)", path);
-        err = merr(EINVAL);
+        if (cJSON_GetErrorPtr()) {
+            CLOG_ERR("Failed to parse file as valid JSON (%s): %s", path, cJSON_GetErrorPtr());
+            err = merr(EINVAL);
+        } else {
+            err = merr(ENOMEM);
+        }
         goto out;
     }
 
