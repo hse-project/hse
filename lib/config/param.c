@@ -787,6 +787,7 @@ param_default_validator(const struct param_spec *ps, const void *value)
                 break;                                                                            \
             default:                                                                              \
                 assert(false);                                                                    \
+                return false;                                                                     \
         }                                                                                         \
                                                                                                   \
         return true;                                                                              \
