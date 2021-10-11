@@ -273,7 +273,7 @@ wbt_leaf_publish(struct wbb *wbb)
         if (key_extra) {
             /* kmdoff is too large for u16 */
             omf_set_lfe_kmd(entry, U16_MAX);
-            *(u32 *)(sfxp) = cpu_to_le32(kin->kmd_off);
+            *(u32 *)sfxp = cpu_to_omf32(kin->kmd_off);
         } else {
             omf_set_lfe_kmd(entry, (u16)(kin->kmd_off));
         }
