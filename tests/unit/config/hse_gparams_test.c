@@ -85,6 +85,8 @@ MTF_DEFINE_UTEST_PRE(hse_gparams_test, c0kvs_ccache_sz_max, test_pre)
     ASSERT_NE(NULL, ps->ps_description);
     ASSERT_EQ(PARAM_FLAG_EXPERIMENTAL, ps->ps_flags);
     ASSERT_EQ(PARAM_TYPE_U64, ps->ps_type);
+    ASSERT_EQ(offsetof(struct hse_gparams, gp_c0kvs_ccache_sz_max), ps->ps_offset);
+    ASSERT_EQ(sizeof(uint64_t), ps->ps_size);
     ASSERT_EQ((uintptr_t)ps->ps_convert, (uintptr_t)param_default_converter);
     ASSERT_EQ((uintptr_t)ps->ps_validate, (uintptr_t)param_default_validator);
     ASSERT_EQ(HSE_C0_CCACHE_SZ_DFLT, params.gp_c0kvs_ccache_sz);
@@ -100,6 +102,8 @@ MTF_DEFINE_UTEST_PRE(hse_gparams_test, c0kvs_ccache_sz, test_pre)
     ASSERT_NE(NULL, ps->ps_description);
     ASSERT_EQ(PARAM_FLAG_EXPERIMENTAL, ps->ps_flags);
     ASSERT_EQ(PARAM_TYPE_U64, ps->ps_type);
+    ASSERT_EQ(offsetof(struct hse_gparams, gp_c0kvs_ccache_sz), ps->ps_offset);
+    ASSERT_EQ(sizeof(uint64_t), ps->ps_size);
     ASSERT_EQ((uintptr_t)ps->ps_convert, (uintptr_t)param_default_converter);
     ASSERT_EQ((uintptr_t)ps->ps_validate, (uintptr_t)param_default_validator);
     ASSERT_EQ(HSE_C0_CCACHE_SZ_DFLT, params.gp_c0kvs_ccache_sz);
@@ -115,6 +119,8 @@ MTF_DEFINE_UTEST_PRE(hse_gparams_test, c0kvs_cheap_sz, test_pre)
     ASSERT_NE(NULL, ps->ps_description);
     ASSERT_EQ(PARAM_FLAG_EXPERIMENTAL, ps->ps_flags);
     ASSERT_EQ(PARAM_TYPE_U64, ps->ps_type);
+    ASSERT_EQ(offsetof(struct hse_gparams, gp_c0kvs_cheap_sz), ps->ps_offset);
+    ASSERT_EQ(sizeof(uint64_t), ps->ps_size);
     ASSERT_EQ((uintptr_t)ps->ps_convert, (uintptr_t)param_default_converter);
     ASSERT_EQ((uintptr_t)ps->ps_validate, (uintptr_t)param_default_validator);
     ASSERT_EQ(HSE_C0_CHEAP_SZ_DFLT, params.gp_c0kvs_cheap_sz);
@@ -130,6 +136,8 @@ MTF_DEFINE_UTEST_PRE(hse_gparams_test, vlb_cache_sz, test_pre)
     ASSERT_NE(NULL, ps->ps_description);
     ASSERT_EQ(PARAM_FLAG_EXPERIMENTAL, ps->ps_flags);
     ASSERT_EQ(PARAM_TYPE_U64, ps->ps_type);
+    ASSERT_EQ(offsetof(struct hse_gparams, gp_vlb_cache_sz), ps->ps_offset);
+    ASSERT_EQ(sizeof(uint64_t), ps->ps_size);
     ASSERT_EQ((uintptr_t)ps->ps_convert, (uintptr_t)param_default_converter);
     ASSERT_EQ((uintptr_t)ps->ps_validate, (uintptr_t)param_default_validator);
     ASSERT_EQ(HSE_VLB_CACHESZ_DFLT, params.gp_vlb_cache_sz);
@@ -160,6 +168,8 @@ MTF_DEFINE_UTEST_PRE(hse_gparams_test, socket_enabled, test_pre)
     ASSERT_NE(NULL, ps->ps_description);
     ASSERT_EQ(0, ps->ps_flags);
     ASSERT_EQ(PARAM_TYPE_BOOL, ps->ps_type);
+    ASSERT_EQ(offsetof(struct hse_gparams, gp_socket.enabled), ps->ps_offset);
+    ASSERT_EQ(sizeof(bool), ps->ps_size);
     ASSERT_EQ((uintptr_t)ps->ps_convert, (uintptr_t)param_default_converter);
     ASSERT_EQ((uintptr_t)ps->ps_validate, (uintptr_t)param_default_validator);
     ASSERT_EQ(true, params.gp_socket.enabled);
@@ -178,6 +188,8 @@ MTF_DEFINE_UTEST_PRE(hse_gparams_test, socket_path, test_pre)
     ASSERT_NE(NULL, ps->ps_description);
     ASSERT_EQ(PARAM_FLAG_DEFAULT_BUILDER, ps->ps_flags);
     ASSERT_EQ(PARAM_TYPE_STRING, ps->ps_type);
+    ASSERT_EQ(offsetof(struct hse_gparams, gp_socket.path), ps->ps_offset);
+    ASSERT_EQ(sizeof(((struct sockaddr_un *)0)->sun_path), ps->ps_size);
     ASSERT_EQ((uintptr_t)ps->ps_convert, (uintptr_t)param_default_converter);
     ASSERT_EQ((uintptr_t)ps->ps_validate, (uintptr_t)param_default_validator);
     ASSERT_STREQ(buf, params.gp_socket.path);
@@ -195,6 +207,8 @@ MTF_DEFINE_UTEST_PRE(hse_gparams_test, logging_enabled, test_pre)
     ASSERT_NE(NULL, ps->ps_description);
     ASSERT_EQ(0, ps->ps_flags);
     ASSERT_EQ(PARAM_TYPE_BOOL, ps->ps_type);
+    ASSERT_EQ(offsetof(struct hse_gparams, gp_logging.enabled), ps->ps_offset);
+    ASSERT_EQ(sizeof(bool), ps->ps_size);
     ASSERT_EQ((uintptr_t)ps->ps_convert, (uintptr_t)param_default_converter);
     ASSERT_EQ((uintptr_t)ps->ps_validate, (uintptr_t)param_default_validator);
     ASSERT_EQ(true, params.gp_socket.enabled);
@@ -208,6 +222,8 @@ MTF_DEFINE_UTEST_PRE(hse_gparams_test, logging_structured, test_pre)
     ASSERT_NE(NULL, ps->ps_description);
     ASSERT_EQ(0, ps->ps_flags);
     ASSERT_EQ(PARAM_TYPE_BOOL, ps->ps_type);
+    ASSERT_EQ(offsetof(struct hse_gparams, gp_logging.structured), ps->ps_offset);
+    ASSERT_EQ(sizeof(bool), ps->ps_size);
     ASSERT_EQ((uintptr_t)ps->ps_convert, (uintptr_t)param_default_converter);
     ASSERT_EQ((uintptr_t)ps->ps_validate, (uintptr_t)param_default_validator);
     ASSERT_EQ(false, params.gp_logging.structured);
@@ -222,6 +238,8 @@ MTF_DEFINE_UTEST_PRE(hse_gparams_test, logging_destination, test_pre)
     ASSERT_NE(NULL, ps->ps_description);
     ASSERT_EQ(0, ps->ps_flags);
     ASSERT_EQ(PARAM_TYPE_ENUM, ps->ps_type);
+    ASSERT_EQ(offsetof(struct hse_gparams, gp_logging.destination), ps->ps_offset);
+    ASSERT_EQ(sizeof(enum log_destination), ps->ps_size);
     ASSERT_NE((uintptr_t)ps->ps_convert, (uintptr_t)param_default_converter);
     ASSERT_EQ((uintptr_t)ps->ps_validate, (uintptr_t)param_default_validator);
     ASSERT_EQ(LD_SYSLOG, params.gp_logging.destination);
@@ -248,6 +266,8 @@ MTF_DEFINE_UTEST_PRE(hse_gparams_test, logging_level, test_pre)
     ASSERT_NE(NULL, ps->ps_description);
     ASSERT_EQ(0, ps->ps_flags);
     ASSERT_EQ(PARAM_TYPE_ENUM, ps->ps_type);
+    ASSERT_EQ(offsetof(struct hse_gparams, gp_logging.level), ps->ps_offset);
+    ASSERT_EQ(sizeof(hse_logpri_t), ps->ps_size);
     ASSERT_EQ((uintptr_t)ps->ps_convert, (uintptr_t)param_default_converter);
     ASSERT_EQ((uintptr_t)ps->ps_validate, (uintptr_t)param_default_validator);
     ASSERT_EQ(HSE_LOGPRI_DEFAULT, params.gp_logging.level);
@@ -263,6 +283,8 @@ MTF_DEFINE_UTEST_PRE(hse_gparams_test, logging_squelch_ns, test_pre)
     ASSERT_NE(NULL, ps->ps_description);
     ASSERT_EQ(PARAM_FLAG_EXPERIMENTAL, ps->ps_flags);
     ASSERT_EQ(PARAM_TYPE_U64, ps->ps_type);
+    ASSERT_EQ(offsetof(struct hse_gparams, gp_logging.squelch_ns), ps->ps_offset);
+    ASSERT_EQ(sizeof(uint64_t), ps->ps_size);
     ASSERT_EQ((uintptr_t)ps->ps_convert, (uintptr_t)param_default_converter);
     ASSERT_EQ((uintptr_t)ps->ps_validate, (uintptr_t)param_default_validator);
     ASSERT_EQ(HSE_LOG_SQUELCH_NS_DEFAULT, params.gp_logging.squelch_ns);
@@ -279,6 +301,8 @@ MTF_DEFINE_UTEST_PRE(hse_gparams_test, logging_path, test_pre)
     ASSERT_NE(NULL, ps->ps_description);
     ASSERT_EQ(0, ps->ps_flags);
     ASSERT_EQ(PARAM_TYPE_STRING, ps->ps_type);
+    ASSERT_EQ(offsetof(struct hse_gparams, gp_logging.path), ps->ps_offset);
+    ASSERT_EQ(PATH_MAX, ps->ps_size);
     ASSERT_EQ((uintptr_t)ps->ps_convert, (uintptr_t)param_default_converter);
     ASSERT_EQ((uintptr_t)ps->ps_validate, (uintptr_t)param_default_validator);
     ASSERT_STREQ("hse.log", params.gp_logging.path);
