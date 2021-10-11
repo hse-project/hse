@@ -55,13 +55,13 @@ wbt_lfe_key(void *node, struct wbt_lfe_omf *lfe, const void **kdata, uint *klen)
 static HSE_ALWAYS_INLINE uint
 wbt_lfe_kmd(void *node, struct wbt_lfe_omf *lfe)
 {
-    u32 *p;
     uint kmd_off = omf_lfe_kmd(lfe);
 
     /* Offset stored in front of key when its too large for 16-bits */
     if (kmd_off == U16_MAX) {
-        p = node + omf_lfe_koff(lfe);
-        kmd_off = le32_to_cpu(*p);
+        u32 *p = node + omf_lfe_koff(lfe);
+
+        kmd_off = omf32_to_cpu(*p);
     }
 
     return omf_wbn_kmd(node) + kmd_off;

@@ -29,6 +29,65 @@ MTF_BEGIN_UTEST_COLLECTION_PRE(perfc, platform_pre);
 #undef COMPNAME
 #define COMPNAME __func__
 
+/* Test that calls to get_cycles() always return a count greater
+ * than any previous call and are accurately measuring elapsed
+ * time w.r.t get_time_ns().  This might fail on amd64 if the TSC
+ * isn't p-state invariant.  This test primarily exists to test
+ * verify that successive reads of the s390x TOD clock go foward
+ * in time.
+ */
+MTF_DEFINE_UTEST(perfc, perfc_get_cycles)
+{
+    const uint cyclec = 16 * 1024 * 1024;
+    uint64_t tstart, tstop;
+    uint64_t cstart, cstop;
+    uint64_t *cyclev;
+
+    cyclev = malloc(sizeof(*cyclev) * cyclec);
+    ASSERT_NE(NULL, cyclev);
+
+  again:
+    usleep(100 * 1000);
+    tstart = get_time_ns();
+
+    for (uint i = 0; i < cyclec; i += 8) {
+        cyclev[i + 0] = get_cycles();
+        cyclev[i + 1] = get_cycles();
+        cyclev[i + 2] = get_cycles();
+        cyclev[i + 3] = get_cycles();
+        cyclev[i + 4] = get_cycles();
+        cyclev[i + 5] = get_cycles();
+        cyclev[i + 6] = get_cycles();
+        cyclev[i + 7] = get_cycles();
+
+        if (i % (1u << 20) == 0)
+            usleep(1);
+    }
+
+    tstop = get_time_ns();
+
+    for (uint i = 1; i < cyclec; ++i) {
+        ASSERT_GE(cyclev[i], cyclev[i - 1]);
+    }
+
+    cstart = cyclev[0];
+    cstop = cyclev[cyclec - 1];
+
+    ASSERT_GT(cstop, cstart);
+    ASSERT_GT(tstop, tstart);
+
+    ASSERT_GT((tstop - tstart), cycles_to_nsecs(cstop - cstart));
+
+    /* If we get preempted between the last calls to get_cycles()
+     * and get_time_ns() the delta could be huge, so try again.
+     * Otherwise we expect the delta to be less than 1us.
+     */
+    if ((tstop - tstart) - cycles_to_nsecs(cstop - cstart) > 1000)
+        goto again;
+
+    free(cyclev);
+}
+
 MTF_DEFINE_UTEST(perfc, perfc_basic_create_find_and_remove)
 {
     size_t              count;
