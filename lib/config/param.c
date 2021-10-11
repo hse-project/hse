@@ -4,6 +4,7 @@
  */
 
 #include <fenv.h>
+#include <pthread.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <string.h>
@@ -13,6 +14,12 @@
 #include <bsd/string.h>
 
 #include <hse_ikvdb/param.h>
+#include <hse_ikvdb/hse_gparams.h>
+#include <hse_ikvdb/kvdb_cparams.h>
+#include <hse_ikvdb/kvdb_rparams.h>
+#include <hse_ikvdb/kvs_cparams.h>
+#include <hse_ikvdb/kvs_rparams.h>
+
 #include <hse_util/storage.h>
 #include <hse_util/log2.h>
 #include <hse_util/invariant.h>
@@ -910,4 +917,124 @@ param_get(
     assert(ps->ps_stringify);
     return ps->ps_stringify(
         ps, (char *)params->p_params.as_generic + ps->ps_offset, buf, buf_sz, needed_sz);
+}
+
+hse_static size_t
+params_size(const struct params *const params)
+{
+    switch (params->p_type) {
+    case PARAMS_HSE_GP:
+        return sizeof(struct hse_gparams);
+    case PARAMS_KVDB_CP:
+        return sizeof(struct kvdb_cparams);
+    case PARAMS_KVDB_RP:
+        return sizeof(struct kvdb_rparams);
+    case PARAMS_KVS_CP:
+        return sizeof(struct kvs_cparams);
+    case PARAMS_KVS_RP:
+        return sizeof(struct kvs_rparams);
+    default:
+        abort();
+    }
+}
+
+merr_t
+param_set(
+    const struct params *const     params,
+    const struct param_spec *const pspecs,
+    const size_t                   pspecs_sz,
+    const char *const              param,
+    const char *const              value)
+{
+    merr_t                   err = 0;
+    cJSON *                  node;
+    const struct param_spec *ps = NULL;
+    size_t                   n;
+    void *                   new = NULL;
+    void *                   data;
+    int                      rc HSE_MAYBE_UNUSED;
+    static pthread_mutex_t   lock = PTHREAD_MUTEX_INITIALIZER;
+
+    INVARIANT(params);
+    INVARIANT(pspecs);
+    INVARIANT(pspecs_sz > 0);
+    INVARIANT(param);
+    INVARIANT(value);
+
+    node = cJSON_Parse(value);
+    if (!node) {
+        if (cJSON_GetErrorPtr()) {
+            log_err("Failed to parse %s %s: %s", params_logging_context(params), param, value);
+            return merr(EINVAL);
+        } else {
+            return merr(ENOMEM);
+        }
+    }
+
+    for (size_t i = 0; i < pspecs_sz; i++) {
+        if (!strcmp(pspecs[i].ps_name, param)) {
+            ps = &pspecs[i];
+        }
+    }
+
+    if (!ps) {
+        log_err("Unknown parameter %s", param);
+        err = merr(EINVAL);
+        goto out;
+    }
+
+    if (!(ps->ps_flags & PARAM_FLAG_WRITABLE)) {
+        log_err("%s is not writable", param);
+        err = merr(EINVAL);
+        goto out;
+    }
+
+    n = params_size(params);
+
+    new = malloc(n);
+    if (!new) {
+        err = merr(ENOMEM);
+        goto out;
+    }
+
+    memcpy(new, params->p_params.as_generic, n);
+
+    data = (char *)new + ps->ps_offset;
+
+    if (!ps->ps_convert(ps, node, data)) {
+        log_err("Failed to convert %s %s", params_logging_context(params), param);
+        err = merr(EINVAL);
+        goto out;
+    }
+
+    if (!ps->ps_validate(ps, data)) {
+        log_err("Failed to validate %s %s", params_logging_context(params), param);
+        err = merr(EINVAL);
+        goto out;
+    }
+
+    if (ps->ps_validate_relations &&!ps->ps_validate_relations(ps,
+            &(struct params){ .p_params = { .as_generic = new }, .p_type = PARAMS_GEN})) {
+        log_err(
+            "Failed to validate parameter relationships for %s %s",
+            params_logging_context(params),
+            ps->ps_name);
+        err = merr(EINVAL);
+        goto out;
+    }
+
+    rc = pthread_mutex_lock(&lock);
+    assert(!rc);
+
+    assert(ps->ps_size > 0);
+    memcpy((char *)params->p_params.as_generic + ps->ps_offset, data, ps->ps_size);
+
+    rc = pthread_mutex_unlock(&lock);
+    assert(!rc);
+
+out:
+    free(new);
+    cJSON_Delete(node);
+
+    return err;
 }

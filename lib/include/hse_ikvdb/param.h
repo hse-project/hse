@@ -221,4 +221,12 @@ param_get(
     size_t                   buf_sz,
     size_t *                 needed_sz);
 
+merr_t
+param_set(
+    const struct params *    params,
+    const struct param_spec *pspecs,
+    size_t                   pspecs_sz,
+    const char *             param,
+    const char *             value);
+
 #endif /* HSE_PARAM_H */

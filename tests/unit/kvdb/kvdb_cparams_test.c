@@ -361,12 +361,12 @@ MTF_DEFINE_UTEST(kvdb_cparams_test, get)
 
     err = kvdb_cparams_get(&p, "storage.capacity.path", buf, sizeof(buf), &needed_sz);
     ASSERT_EQ(0, merr_errno(err));
-    ASSERT_STREQ("", buf);
-    ASSERT_EQ(0, needed_sz);
+    ASSERT_STREQ("null", buf);
+    ASSERT_EQ(4, needed_sz);
 
     err = kvdb_cparams_get(&p, "storage.capacity.path", buf, sizeof(buf), NULL);
     ASSERT_EQ(0, merr_errno(err));
-    ASSERT_STREQ("", buf);
+    ASSERT_STREQ("null", buf);
 
 	err = kvdb_cparams_get(&p, "does.not.exist", buf, sizeof(buf), NULL);
 	ASSERT_EQ(EINVAL, merr_errno(err));
@@ -379,7 +379,7 @@ MTF_DEFINE_UTEST(kvdb_cparams_test, get)
 
 	err = kvdb_cparams_get(&p, "storage.capacity.path", NULL, 0, &needed_sz);
     ASSERT_EQ(0, merr_errno(err));
-    ASSERT_EQ(0, needed_sz);
+    ASSERT_EQ(4, needed_sz);
 }
 
 MTF_DEFINE_UTEST(kvdb_cparams_test, to_json)
