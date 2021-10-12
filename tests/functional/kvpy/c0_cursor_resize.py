@@ -4,10 +4,10 @@
 #
 # Copyright (C) 2021 Micron Technology, Inc. All rights reserved.
 
-'''
+"""
 Create multiple c0 KVMSes and use a cursor to verify the keys. Update this cursor (explicitly as
 well as through the cursor cache: destroy + create) and verify the keys again.
-'''
+"""
 
 from contextlib import ExitStack
 
@@ -15,63 +15,68 @@ from hse2 import hse
 
 from utility import lifecycle, cli
 
+
 def resize_c0_cursor(kvdb, kvs):
     cnt1 = 10
     cnt2 = 30
 
     for i in range(cnt1):
-        key = 'ab{:0>6}'.format(i)
-        kvs.put(key, 'val')
+        key = "ab{:0>6}".format(i)
+        kvs.put(key, "val")
         kvdb.sync(flags=hse.KvdbSyncFlag.ASYNC)
 
     with kvs.cursor(filt="ab") as c:
         assert sum(1 for _ in c.items()) == cnt1
-        kvdb.sync() # Push all keys to cn and start fresh
+        kvdb.sync()  # Push all keys to cn and start fresh
 
         for i in range(cnt1, cnt1 + cnt2):
-            key = 'ab{:0>6}'.format(i)
-            kvs.put(key, 'val')
+            key = "ab{:0>6}".format(i)
+            kvs.put(key, "val")
             kvdb.sync(flags=hse.KvdbSyncFlag.ASYNC)
 
         c.update_view()
-        c.seek('ab')
+        c.seek("ab")
         assert sum(1 for _ in c.items()) == cnt1 + cnt2
 
+
 def reuse_c0_cursor(kvdb, kvs):
-    kvs.put('ab01', 'val01')
-    kvs.put('ab02', 'val01')
+    kvs.put("ab01", "val01")
+    kvs.put("ab02", "val01")
     kvdb.sync(flags=hse.KvdbSyncFlag.ASYNC)
 
     with kvs.cursor(filt="ab") as c:
         assert sum(1 for _ in c.items()) == 2
 
-    kvs.put('ab03', 'val01')
-    kvs.put('ab04', 'val01')
+    kvs.put("ab03", "val01")
+    kvs.put("ab04", "val01")
     kvdb.sync(flags=hse.KvdbSyncFlag.ASYNC)
 
-    kvs.put('ab05', 'val01')
-    kvs.put('ab06', 'val01')
+    kvs.put("ab05", "val01")
+    kvs.put("ab06", "val01")
     kvdb.sync(flags=hse.KvdbSyncFlag.ASYNC)
 
-    kvs.put('ab07', 'val01')
-    kvs.put('ab08', 'val01')
+    kvs.put("ab07", "val01")
+    kvs.put("ab08", "val01")
     kvdb.sync(flags=hse.KvdbSyncFlag.ASYNC)
 
     with kvs.cursor(filt="ab") as c:
         assert sum(1 for _ in c.items()) == 8
 
-    kvs.put('ab09', 'val01')
-    kvs.put('ab10', 'val01')
+    kvs.put("ab09", "val01")
+    kvs.put("ab10", "val01")
     kvdb.sync(flags=hse.KvdbSyncFlag.ASYNC)
 
     with kvs.cursor(filt="ab") as c:
         assert sum(1 for _ in c.items()) == 10
 
+
 hse.init(cli.CONFIG)
 
 try:
     with ExitStack() as stack:
-        kvdb_ctx = lifecycle.KvdbContext().rparams("durability.enabled=false", "c0_debug=16")
+        kvdb_ctx = lifecycle.KvdbContext().rparams(
+            "durability.enabled=false", "c0_debug=16"
+        )
         kvdb = stack.enter_context(kvdb_ctx)
         kvs_ctx = lifecycle.KvsContext(kvdb, "test_kvs").cparams("prefix.length=2")
 
