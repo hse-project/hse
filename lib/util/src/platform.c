@@ -24,8 +24,6 @@
 #include "rest_dt.h"
 #include "cgroup.h"
 
-#include <syscall.h>
-
 unsigned long hse_tsc_freq HSE_READ_MOSTLY;
 unsigned int hse_tsc_mult HSE_READ_MOSTLY;
 unsigned int hse_tsc_shift HSE_READ_MOSTLY;
@@ -102,15 +100,18 @@ hse_meminfo(ulong *freep, ulong *availp, uint shift)
  * P-state invariant.  We derive the TSC frequency from bogomips
  * to use in conversions from cycles to nanosecs.  bogomips may
  * be inaccurate, however it's accurate enough for our purposes.
+ *
+ * For s390x based machines we can read the TOD clock cheaply
+ * with an apparent resolution of 1000/4096 nanoseconds, which
+ * makes for a cheap/fast "cycle counter".
+ *
  * If a cheap/fast cycle counter is not available then we default
  * to using clock_gettime() as a generic 1GHz "cycle counter".
  */
 static merr_t
 hse_cpu_init(void)
 {
-    int bogomips = 2000;
-
-#if __amd64__
+    int bogomips = 0;
     FILE *fp;
 
     fp = fopen("/proc/cpuinfo", "r");
@@ -128,20 +129,23 @@ hse_cpu_init(void)
 
         fclose(fp);
     }
+
+#if __amd64__
+    hse_tsc_freq = (bogomips * 1000000ul) / 2; /* get_cycles() uses rdtsc() */
+#elif __s390x__
+    hse_tsc_freq = 1000000ul * 4096; /* See get_cycles() for s390x in arch.h */
 #else
-    if (-1 == sched_getcpu()) {
-        hse_log(HSE_WARNING "%s: getcpu() not supported by this kernel", __func__);
-        return merr(ENOTSUP);
-    }
+    hse_tsc_freq = 1000000000ul; /* get_cycles() defaults to using get_time_ns() */
 #endif
 
-    hse_tsc_freq = (bogomips * 1000000ul) / 2;
+    if (!hse_tsc_freq)
+        return merr(ENOENT);
 
     hse_tsc_shift = 21;
     hse_tsc_mult = (NSEC_PER_SEC << hse_tsc_shift) / hse_tsc_freq;
 
-    hse_log(HSE_NOTICE "%s: freq %lu, shift %u, mult %u, L1D_CLSZ %d",
-            __func__, hse_tsc_freq, hse_tsc_shift, hse_tsc_mult, LEVEL1_DCACHE_LINESIZE);
+    hse_log(HSE_NOTICE "%s: bogomips %d, freq %lu, shift %u, mult %u, L1D_CLSZ %d",
+            __func__, bogomips, hse_tsc_freq, hse_tsc_shift, hse_tsc_mult, LEVEL1_DCACHE_LINESIZE);
 
     return 0;
 }

@@ -55,9 +55,9 @@ char *progname;
 int
 extract_kv_to_files(struct hse_kvs *kvs, int file_cnt, char **files)
 {
-    int                    err, fd, i;
+    int                    err = 0, fd, i;
     struct hse_kvs_cursor *cur;
-	hse_err_t              rc;
+    hse_err_t              rc;
 
     for (i = 0; i < file_cnt; i++) {
         char        pfx[HSE_KVS_KEY_LEN_MAX];
@@ -73,52 +73,53 @@ extract_kv_to_files(struct hse_kvs *kvs, int file_cnt, char **files)
 
         fd = open(outfile, O_RDWR | O_CREAT, 0644);
         if (fd == -1) {
-			err = errno;
-			fprintf(stderr, "Failed to open %s: %s", outfile, strerror(err));
-			return err;
+            err = errno;
+            fprintf(stderr, "Failed to open %s: %s", outfile, strerror(err));
+            return err;
         }
 
         rc = hse_kvs_cursor_create(kvs, 0, NULL, pfx, strlen(pfx), &cur);
-		if (rc) {
-			error(rc, "Failed to create cursor");
-			err = hse_err_to_errno(rc);
-			goto close_file;
-		}
+        if (rc) {
+            error(rc, "Failed to create cursor");
+            err = hse_err_to_errno(rc);
+            goto close_file;
+        }
 
         do {
             rc = hse_kvs_cursor_read(cur, 0, &key, &klen, &val, &vlen, &eof);
             if (rc) {
-				error(rc, "Failed to read from cursor");
-				err = hse_err_to_errno(rc);
-				goto cursor_cleanup;
-			}
-			if (!eof)
-              data_found = true;
+                error(rc, "Failed to read from cursor");
+                err = hse_err_to_errno(rc);
+                goto cursor_cleanup;
+            }
+            if (!eof)
+                data_found = true;
 
             if (eof)
                 break;
 
             if (write(fd, val, vlen) != vlen) {
-				err = errno;
-				goto cursor_cleanup;
-			}
+                err = errno;
+                goto cursor_cleanup;
+            }
         } while (!eof);
 
-cursor_cleanup:
+      cursor_cleanup:
         rc = hse_kvs_cursor_destroy(cur);
-		if (rc) {
-			error(rc, "Failed to destroy cursor");
-			err = hse_err_to_errno(rc);
-		}
-close_file:
-        if (close(fd) == -1 && !rc)
-			err = errno;
+        if (rc) {
+            error(rc, "Failed to destroy cursor");
+            err = hse_err_to_errno(rc);
+        }
 
-		if (err)
-			return err;
+      close_file:
+        if (close(fd) == -1 && !rc)
+            err = errno;
+
+        if (err)
+            return err;
 
         if (!data_found)
-			fprintf(stderr, "No chunk keys found for file '%s'\n", files[i]);
+            fprintf(stderr, "No chunk keys found for file '%s'\n", files[i]);
     }
 
     return err;
@@ -139,9 +140,9 @@ put_files_as_kv(struct hse_kvdb *kvdb, struct hse_kvs *kvs, int kv_cnt, char **k
         printf("Inserting chunks for %s\n", (char *)keys[i]);
         fd = open(keys[i], O_RDONLY);
         if (fd == -1) {
-			err = errno;
-			fprintf(stderr, "Error opening file %s: %s\n", keys[i], strerror(err));
-			return err;
+            err = errno;
+            fprintf(stderr, "Error opening file %s: %s\n", keys[i], strerror(err));
+            return err;
         }
 
         chunk_nr = 0;
@@ -150,26 +151,26 @@ put_files_as_kv(struct hse_kvdb *kvdb, struct hse_kvs *kvs, int kv_cnt, char **k
             if (len == -1) {
                 err = errno;
                 fprintf(stderr, "Failed to read %s: %s\n", keys[i], strerror(err));
-				break;
-			} else if (len == 0) {
-				break;
-			}
+                break;
+            } else if (len == 0) {
+                break;
+            }
 
             snprintf(key_chunk, sizeof(key_chunk), "%s|%08x", (char *)keys[i], chunk_nr);
 
             rc = hse_kvs_put(kvs, 0, NULL, key_chunk, strlen(key_chunk), val, len);
-			if (rc) {
-				error(rc, "Failed to put data into KVS");
-				err = hse_err_to_errno(rc);
-				break;
-			}
+            if (rc) {
+                error(rc, "Failed to put data into KVS");
+                err = hse_err_to_errno(rc);
+                break;
+            }
 
             chunk_nr++;
         } while (!rc && len > 0);
 
         if (close(fd) == -1) {
             err2 = errno;
-			err = err ?: err2;
+            err = err ?: err2;
             fprintf(stderr, "Failed to close %s: %s\n", keys[i], strerror(err2));
         }
 
@@ -200,22 +201,22 @@ main(int argc, char **argv)
     bool             extract = false;
     hse_err_t        rc, rc2;
     const char *     paramv[] = { "logging.destination=stdout",
-                             "logging.level=3",
-                             "socket.enabled=false" };
+                                  "logging.level=3",
+                                  "socket.enabled=false" };
     const size_t     paramc = sizeof(paramv) / sizeof(paramv[0]);
 
     progname = argv[0];
 
     while ((c = getopt(argc, argv, "xh")) != -1) {
         switch (c) {
-            case 'x':
-                extract = true;
-                break;
-            case 'h':
-                usage();
-                return 0;
-            default:
-                break;
+        case 'x':
+            extract = true;
+            break;
+        case 'h':
+            usage();
+            return 0;
+        default:
+            break;
         }
     }
 
@@ -227,39 +228,39 @@ main(int argc, char **argv)
 
     rc = hse_init(NULL, paramc, paramv);
     if (rc) {
-		error(rc, "Failed to initialize HSE");
-		goto out;
+        error(rc, "Failed to initialize HSE");
+        goto out;
     }
 
     rc = hse_kvdb_open(kvdb_home, 0, NULL, &kvdb);
     if (rc) {
-		error(rc, "Failed to open KVDB (%s)", kvdb_home);
-		goto hse_cleanup;
+        error(rc, "Failed to open KVDB (%s)", kvdb_home);
+        goto hse_cleanup;
     }
 
     rc = hse_kvdb_kvs_open(kvdb, kvs_name, 0, NULL, &kvs);
     if (rc) {
-		error(rc, "Failed to open KVS (%s)", kvs_name);
-		goto kvdb_cleanup;
-	}
+        error(rc, "Failed to open KVS (%s)", kvs_name);
+        goto kvdb_cleanup;
+    }
 
     if (extract) {
         rc = extract_kv_to_files(kvs, argc - optind, &argv[optind]);
-	} else {
+    } else {
         rc = put_files_as_kv(kvdb, kvs, argc - optind, &argv[optind]);
-	}
+    }
 
-	rc2 = hse_kvdb_kvs_close(kvs);
-	if (rc2)
-		error(rc2, "Failed to close KVS (%s)", kvs_name);
-	rc = rc ?: rc2;
-kvdb_cleanup:
-	rc2 = hse_kvdb_close(kvdb);
-	if (rc2)
-		error(rc2, "Failed to close KVDB (%s)", kvdb_home);
-	rc = rc ?: rc2;
-hse_cleanup:
+    rc2 = hse_kvdb_kvs_close(kvs);
+    if (rc2)
+        error(rc2, "Failed to close KVS (%s)", kvs_name);
+    rc = rc ?: rc2;
+  kvdb_cleanup:
+    rc2 = hse_kvdb_close(kvdb);
+    if (rc2)
+        error(rc2, "Failed to close KVDB (%s)", kvdb_home);
+    rc = rc ?: rc2;
+  hse_cleanup:
     hse_fini();
-out:
+  out:
     return hse_err_to_errno(rc);
 }

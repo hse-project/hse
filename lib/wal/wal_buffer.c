@@ -110,7 +110,7 @@ restart:
         buf = wb->wb_buf + (foff % bufsz);
         rhdr = (void *)buf;
 
-        while ((recoff = le64_to_cpu(atomic64_read((atomic64_t *)&rhdr->rh_off))) != foff) {
+        while ((recoff = omf64_to_cpu(atomic64_read((atomic64_t *)&rhdr->rh_off))) != foff) {
             if (recoff >= WAL_ROFF_RECOV_ERR) {
                 if (recoff == WAL_ROFF_RECOV_ERR) {
                     skiprec = true;
@@ -120,6 +120,7 @@ restart:
                 }
                 break;
             }
+
             cpu_relax();
         }
 

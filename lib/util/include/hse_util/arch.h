@@ -7,6 +7,7 @@
 #define HSE_PLATFORM_ARCH_H
 
 #include <hse_util/inttypes.h>
+#include <hse_util/compiler.h>
 
 /* clang-format off */
 
@@ -24,7 +25,6 @@
 
 #if __amd64__
 
-#include <hse_util/compiler.h>
 #include <immintrin.h>
 #include <x86intrin.h>
 
@@ -75,28 +75,37 @@ cpu_relax(void)
 
 #else
 
-#include <hse_util/timing.h>
-#include <syscall.h>
+#if __s390x__
+struct hse_s390x_todclk {
+    __uint128_t zbits :  8; /* zero bits or tod carry */
+    __uint128_t tod   : 64; /* high bits of 104-bit tod clock */
+    __uint128_t todlo : 40; /* low bits of 104-bit tod clock */
+    __uint128_t pbits : 16; /* programmable bits */
+} HSE_PACKED;
 
 static HSE_ALWAYS_INLINE uint64_t
 get_cycles(void)
 {
-    struct timespec ts;
+    struct hse_s390x_todclk todclk, *ptr = &todclk;
 
-    clock_gettime(CLOCK_MONOTONIC, &ts);
+    __asm__ __volatile__ ("stcke %0" : "=Q" (*ptr) : : "cc");
 
-    return (uint64_t)ts.tv_sec * 1000000000ULL + ts.tv_nsec;
+    /* Bit 51 of ptr->tod ticks every 1us, so presumably bit 63
+     * ticks every 1000/4096 nanoseconds (resolution higher than
+     * 1us appears to depend on machine model).
+     */
+    return ptr->tod;
 }
 
-static HSE_ALWAYS_INLINE uint
-hse_getcpu(uint *node)
-{
-    uint cpu;
+#else
 
-    syscall(__NR_getcpu, &cpu, node, NULL);
+#include <hse_util/timing.h>
 
-    return cpu;
-}
+#define get_cycles()    get_time_ns()
+#endif
+
+uint
+hse_getcpu(uint *node);
 
 static HSE_ALWAYS_INLINE void
 cpu_relax(void)
