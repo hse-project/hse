@@ -18,7 +18,15 @@
 
 char data_path[PATH_MAX / 2];
 
-char *kblock_files[] = { "simple_1031c.kb5_w6_b5.xz", "simple_1c.kb5_w6_b5.xz" };
+char *kblock_files[] = {
+#if HSE_OMF_BYTE_ORDER == __ORDER_BIG_ENDIAN__
+    "simple_1031c.kb5_w6_b5-be.xz",
+    "simple_1c.kb5_w6_b5-be.xz"
+#else
+    "simple_1031c.kb5_w6_b5.xz",
+    "simple_1c.kb5_w6_b5.xz"
+#endif
+};
 
 int
 test_collection_setup(struct mtf_test_info *info)

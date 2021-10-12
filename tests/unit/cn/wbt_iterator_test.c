@@ -30,16 +30,27 @@ struct test_kblock {
     char *file;
 };
 
+/* clang-format off */
+
 struct test_kblock kblocks[] = {
-    { 1031, false, 0, "k%u", "simple_1031c.kb3_w3_b4.xz" },
-    { 1031, false, 0, "k%u", "simple_1031c.kb5_w5_b4.xz" },
-    { 1, false, 0, "k%u", "simple_1c.kb3_w3_b4.xz" },
-    { 500, false, 0, "key.%09d", "simple_500b.kb3_w3_b3.xz" },
-    { 500, false, 0, "key.%09d", "simple_500c.kb5_w5_b4.xz" },
-    { 100, false, 1024, "k%x", "multival_100keys_4vals.kb3_w3_b3.xz" },
-    { 10, false, 1024, "k%x", "multival_10keys_2000vals.kb3_w3_b3.xz" },
-    { 10, false, 1024, "k%x", "multival_10keys_2000vals.kb5_w5_b4.xz" }
+#if HSE_OMF_BYTE_ORDER == __ORDER_BIG_ENDIAN__
+    { 1031, false,    0,      "k%u", "simple_1031c.kb5_w6_b5-be.xz" },
+    {  500, false,    0, "key.%09d", "simple_500c.kb5_w6_b5-be.xz" },
+    {    1, false,    0,      "k%u", "simple_1c.kb5_w6_b5-be.xz" },
+    {   10, false, 1024,      "k%x", "multival_10keys_2000vals.kb5_w6_b5-be.xz" },
+#else
+    { 1031, false,    0,      "k%u", "simple_1031c.kb3_w3_b4.xz" },
+    { 1031, false,    0,      "k%u", "simple_1031c.kb5_w5_b4.xz" },
+    {    1, false,    0,      "k%u", "simple_1c.kb3_w3_b4.xz" },
+    {  500, false,    0, "key.%09d", "simple_500b.kb3_w3_b3.xz" },
+    {  500, false,    0, "key.%09d", "simple_500c.kb5_w5_b4.xz" },
+    {  100, false, 1024,      "k%x", "multival_100keys_4vals.kb3_w3_b3.xz" },
+    {   10, false, 1024,      "k%x", "multival_10keys_2000vals.kb3_w3_b3.xz" },
+    {   10, false, 1024,      "k%x", "multival_10keys_2000vals.kb5_w5_b4.xz" }
+#endif
 };
+
+/* clang-format on */
 
 int
 keyv_cmp(const void *lhs, const void *rhs)

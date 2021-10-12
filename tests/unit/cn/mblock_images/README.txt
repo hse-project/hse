@@ -91,21 +91,24 @@ Sample output:
 
 3. Extract mblocks from cn and save in files:
 
-    $ cn_kbdump -w . -s /mnt/kvdb/kvdb1/capacity 0x102400000 0x102400000
+    $ cn_kbdump -w . -s /mnt/kvdb/kvdb1/capacity 0x102400000 0x102400000 / 0x102400000
 
 The following files are created by cn_kbdump:
 
-    K000.0x00100108.gz
-    V000.0x00100105.gz
+    K000.0x102400000.gz
+    V000.0x101400000.gz
 
 4. Rename and compress with xz:
 
     gunzip K0*.gz V0*.gz
 
-    mv K0.0x00100108 simple_1031c.kbX_wY_bZ
-    mv V0.0x00100105 simple_1031c.vb1
+    mv K000.0x102400000.gz simple_1031c.kbX_wY_bZ
+    mv V000.0x101400000.gz simple_1031c.vb1
 
-    xz simple_100c.kbX_wY_bZ simple_100c.vb1
+    xz simple_1031c.kbX_wY_bZ simple_1031c.vb1
+
+  where X, Y, and Z are the kblock, wbt, and bloom header version numbers
+  as output by the cn_kbdump command (see sample output in step 2).
 
 4. Inspect files just for fun:
 
@@ -113,5 +116,5 @@ The following files are created by cn_kbdump:
 
 5. Create multival kblocks:
 
-    ctxn_validation -i 1000 -k 10  -K1024 mp1 db1 $kvs -ppc
-    ctxn_validation -i 2    -k 100 -K1024 mp1 db1 $kvs -ppc
+    ctxn_validation -i 1000 -k 10  -K1024 -ppc /mnt/kvdb/kvdb1 kvs1
+    ctxn_validation -i 2    -k 100 -K1024 -ppc /mnt/kvdb/kvdb1 kvs1
