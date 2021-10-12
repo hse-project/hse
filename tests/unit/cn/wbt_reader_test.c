@@ -18,8 +18,12 @@
 char data_path[PATH_MAX];
 
 char *kblock_files[] = {
+#if HSE_OMF_BYTE_ORDER == __ORDER_BIG_ENDIAN__
+    "simple_500c.kb5_w6_b5-be.xz",
+#else
     "simple_500b.kb3_w3_b3.xz",
     "simple_500c.kb5_w5_b4.xz",
+#endif
 };
 
 int
