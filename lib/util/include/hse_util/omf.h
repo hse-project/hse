@@ -19,6 +19,12 @@
  * scalar OMF struct members.
  */
 #if HSE_OMF_BYTE_ORDER == __ORDER_BIG_ENDIAN__
+#define cpu_to_omf64(_x)    cpu_to_be64(_x)
+#define omf64_to_cpu(_x)    be64_to_cpu(_x)
+
+#define cpu_to_omf32(_x)    cpu_to_be32(_x)
+#define omf32_to_cpu(_x)    be32_to_cpu(_x)
+
 #define be8_to_cpu(_x)      (_x)
 #define cpu_to_be8(_x)      (_x)
 
@@ -41,11 +47,17 @@
     omf_ ## _member ## _ ## _ver(const _type *s)                        \
     {                                                                   \
         static_assert(sizeof(((_type *)0)->_member) * 8 == (_bits),     \
-                      "invalid size");									\
+                      "invalid size");                                  \
         return be ## _bits ## _to_cpu(s->_member);                      \
     }
 
 #else
+#define cpu_to_omf64(_x)    cpu_to_le64(_x)
+#define omf64_to_cpu(_x)    le64_to_cpu(_x)
+
+#define cpu_to_omf32(_x)    cpu_to_le32(_x)
+#define omf32_to_cpu(_x)    le32_to_cpu(_x)
+
 #define le8_to_cpu(_x)      (_x)
 #define cpu_to_le8(_x)      (_x)
 

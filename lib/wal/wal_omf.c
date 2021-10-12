@@ -80,7 +80,7 @@ wal_rec_finish(struct wal_record *rec, uint64_t seqno, uint64_t gen)
     omf_set_r_seqno(romf, seqno);
     wal_rechdr_crc_pack(recbuf, rec->len);
 
-    atomic64_set((atomic64_t *)&rhomf->rh_off, cpu_to_le64(rec->offset));
+    atomic64_set((atomic64_t *)&rhomf->rh_off, cpu_to_omf64(rec->offset));
 }
 
 /* Record unpack routines */
@@ -305,7 +305,7 @@ wal_txn_rechdr_finish(void *recbuf, size_t len, uint64_t offset)
     struct wal_rechdr_omf *rhomf = recbuf;
 
     wal_rechdr_crc_pack(recbuf, len);
-    atomic64_set((atomic64_t *)&rhomf->rh_off, cpu_to_le64(offset));
+    atomic64_set((atomic64_t *)&rhomf->rh_off, cpu_to_omf64(offset));
 }
 
 void

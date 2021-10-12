@@ -498,7 +498,7 @@ lc_builder_cb(void *rock, struct bonsai_kv *bkv, struct bonsai_val *vlist)
         val = val->bv_priv;
     }
 
-    return err;
+    return 0;
 }
 
 merr_t
