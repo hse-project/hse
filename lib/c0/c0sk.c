@@ -1429,7 +1429,10 @@ c0sk_cursor_update(struct c0_cursor *cur, u64 seqno, u32 *flags_out)
         for (i = 0; i < cur->c0cur_cnt; i++)
             cur->c0cur_esrcv[i] = c0kvms_cursor_get_source(cur->c0cur_curv[i]);
 
-        c0sk_cursor_prepare(cur);
+        /* In order to maintain positional stability of a cursor, the calling layer will seek this
+         * cursor to its last position before reading from it.
+         * Don't prepare the binheap. Leave that to c0sk_cursor_seek.
+         */
     }
 
 out:
