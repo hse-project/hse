@@ -97,6 +97,12 @@ kvs_rparams_get(
     size_t                    buf_sz,
     size_t *                  needed_sz);
 
+merr_t
+kvs_rparams_set(
+    const struct kvs_rparams *params,
+    const char *              param,
+    const char *              value);
+
 cJSON *
 kvs_rparams_to_json(const struct kvs_rparams *params);
 

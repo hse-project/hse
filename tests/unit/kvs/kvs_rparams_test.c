@@ -864,6 +864,43 @@ MTF_DEFINE_UTEST(kvs_rparams_test, get)
     ASSERT_EQ(5, needed_sz);
 }
 
+MTF_DEFINE_UTEST(kvs_rparams_test, set)
+{
+    merr_t err;
+
+    const struct kvs_rparams p = kvs_rparams_defaults();
+
+    err = kvs_rparams_set(&p, "cn_compact_kblk_ra", "64");
+    ASSERT_EQ(0, merr_errno(err));
+    ASSERT_EQ(64, p.cn_compact_kblk_ra);
+
+    err = kvs_rparams_set(&p, NULL, "64");
+    ASSERT_EQ(EINVAL, merr_errno(err));
+
+    err = kvs_rparams_set(&p, "cn_compact_kblk_ra", NULL);
+    ASSERT_EQ(EINVAL, merr_errno(err));
+    ASSERT_EQ(64, p.cn_compact_kblk_ra);
+
+    err = kvs_rparams_set(&p, "does.not.exist", "5");
+    ASSERT_EQ(EINVAL, merr_errno(err));
+
+    /* Fail to parse */
+    err = kvs_rparams_set(&p, "cn_compact_kblk_ra", "invalid");
+    ASSERT_EQ(EINVAL, merr_errno(err));
+    ASSERT_EQ(64, p.cn_compact_kblk_ra);
+
+    /* Fail to convert */
+    err = kvs_rparams_set(&p, "cn_compact_kblk_ra", "\"convert\"");
+    ASSERT_EQ(EINVAL, merr_errno(err));
+    ASSERT_EQ(64, p.cn_compact_kblk_ra);
+
+    /* Fail to validate. No candidates for this */
+
+    /* KVS rparams don't seem to have a parameter that is both writable and has
+     * a relation validation function, so leave it off for now.
+     */
+}
+
 MTF_DEFINE_UTEST(kvs_rparams_test, to_json)
 {
     cJSON *root;

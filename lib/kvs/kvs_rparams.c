@@ -938,6 +938,20 @@ kvs_rparams_get(
     return param_get(&p, pspecs, NELEM(pspecs), param, buf, buf_sz, needed_sz);
 }
 
+merr_t
+kvs_rparams_set(
+    const struct kvs_rparams *const params,
+    const char *const               param,
+    const char *const               value)
+{
+    if (!params || !param || !value)
+        return merr(EINVAL);
+
+    const struct params p = { .p_params = { .as_kvs_rp = params }, .p_type = PARAMS_KVS_RP };
+
+    return param_set(&p, pspecs, NELEM(pspecs), param, value);
+}
+
 cJSON *
 kvs_rparams_to_json(const struct kvs_rparams *const params)
 {
