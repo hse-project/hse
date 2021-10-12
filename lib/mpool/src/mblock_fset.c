@@ -80,12 +80,12 @@ mblock_metahdr_validate(struct mblock_fset *mbfsp, struct mblock_metahdr *mh)
 		if (mh->magic != bswap_32(MBLOCK_METAHDR_MAGIC))
 			return merr(EBADMSG);
 
-		hse_log(HSE_ERR "%s: MDC format is %s endian, but libhse compiled to use %s endian,"
-				"try recompiling with -DHSE_OMF_BYTE_ORDER=__ORDER_%s_ENDIAN__",
+		hse_log(HSE_ERR "%s: MDC format is %s endian, but libhse is configured to use %s endian,"
+				"try reconfiguring with -Domf-byte-order=%s",
 				__func__,
 				big ? "little" : "big",
 				big ? "big" : "little",
-				big ? "LITTLE" : "BIG");
+				big ? "little" : "big");
 
 		return merr(EPROTO);
 	}

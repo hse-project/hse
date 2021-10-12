@@ -20,3 +20,5 @@ option('bindings', type: 'array', choices: ['all', 'none', 'python'], value: ['a
     description: 'Build language bindings')
 option('docs', type: 'boolean', value: false,
     description: 'Build documentation')
+option('omf-byte-order', type: 'combo', choices: ['native', 'big', 'little'],
+    value: 'native', description: 'On-media-format byte order')

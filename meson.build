@@ -112,8 +112,17 @@ endif
 
 level1_dcache_linesize = run_command(
     'getconf',
-    'LEVEL1_DCACHE_LINESIZE'
+    'LEVEL1_DCACHE_LINESIZE',
+    check: true
 ).stdout().strip()
+
+if get_option('omf-byte-order') != 'native'
+    add_project_arguments(
+        '-DHSE_OMF_BYTE_ORDER=__ORDER_@0@_ENDIAN__'.format(
+            get_option('omf-byte-order').to_upper()),
+        language: 'c'
+    )
+endif
 
 add_project_arguments(
     '-D_GNU_SOURCE',
