@@ -477,7 +477,7 @@ lc_builder_cb(void *rock, struct bonsai_kv *bkv, struct bonsai_val *vlist)
     uint               klen = key_imm_klen(&bkv->bkv_key_imm);
     struct bonsai_skey skey;
     struct bonsai_val *val = vlist;
-    merr_t             err = 0;
+    merr_t             err;
 
     bn_skey_init(bkv->bkv_key, klen, 0, skidx, &skey);
 
@@ -498,7 +498,7 @@ lc_builder_cb(void *rock, struct bonsai_kv *bkv, struct bonsai_val *vlist)
         val = val->bv_priv;
     }
 
-    return err;
+    return 0;
 }
 
 merr_t
