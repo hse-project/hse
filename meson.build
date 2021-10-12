@@ -112,7 +112,8 @@ endif
 
 level1_dcache_linesize = run_command(
     'getconf',
-    'LEVEL1_DCACHE_LINESIZE'
+    'LEVEL1_DCACHE_LINESIZE',
+    check: true
 ).stdout().strip()
 
 if get_option('omf-byte-order') != 'native'
