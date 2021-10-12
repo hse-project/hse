@@ -47,7 +47,7 @@ MTF_DEFINE_UTEST(perfc, perfc_get_cycles)
     ASSERT_NE(NULL, cyclev);
 
   again:
-    usleep(100 * 1000);
+    usleep(133 * 1000);
     tstart = get_time_ns();
 
     for (uint i = 0; i < cyclec; i += 8) {
@@ -80,10 +80,17 @@ MTF_DEFINE_UTEST(perfc, perfc_get_cycles)
 
     /* If we get preempted between the last calls to get_cycles()
      * and get_time_ns() the delta could be huge, so try again.
-     * Otherwise we expect the delta to be less than 1us.
+     * Otherwise we expect the delta to be much less than 1us,
+     * but we set a higher threshold so that the test will pass
+     * when run in a VM with a non-optimized build on a very
+     * busy machine.
      */
-    if ((tstop - tstart) - cycles_to_nsecs(cstop - cstart) > 1000)
+    if ((tstop - tstart) - cycles_to_nsecs(cstop - cstart) > 5000) {
+        hse_log(HSE_NOTICE "%s: %lu %lu, %lu\n", __func__,
+                (tstop - tstart), cycles_to_nsecs(cstop - cstart),
+                (tstop - tstart) - cycles_to_nsecs(cstop - cstart));
         goto again;
+    }
 
     free(cyclev);
 }
