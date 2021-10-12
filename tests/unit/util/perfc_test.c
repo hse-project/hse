@@ -47,8 +47,10 @@ MTF_DEFINE_UTEST(perfc, perfc_get_cycles)
     ASSERT_NE(NULL, cyclev);
 
   again:
-    usleep(133 * 1000);
+    usleep(133 * 1000); /* attempt to get a fresh time slice */
+
     tstart = get_time_ns();
+    cstart = get_cycles();
 
     for (uint i = 0; i < cyclec; i += 8) {
         cyclev[i + 0] = get_cycles();
@@ -61,24 +63,22 @@ MTF_DEFINE_UTEST(perfc, perfc_get_cycles)
         cyclev[i + 7] = get_cycles();
 
         if (i % (1u << 20) == 0)
-            usleep(1);
+            usleep(1); /* attempt to elicit a cpu migration */
     }
 
+    cstop = get_cycles();
     tstop = get_time_ns();
 
     for (uint i = 1; i < cyclec; ++i) {
         ASSERT_GE(cyclev[i], cyclev[i - 1]);
     }
 
-    cstart = cyclev[0];
-    cstop = cyclev[cyclec - 1];
-
     ASSERT_GT(cstop, cstart);
     ASSERT_GT(tstop, tstart);
 
     ASSERT_GT((tstop - tstart), cycles_to_nsecs(cstop - cstart));
 
-    /* If we get preempted between the last calls to get_cycles()
+    /* If we get preempted between the paired calls to get_cycles()
      * and get_time_ns() the delta could be huge, so try again.
      * Otherwise we expect the delta to be much less than 1us,
      * but we set a higher threshold so that the test will pass

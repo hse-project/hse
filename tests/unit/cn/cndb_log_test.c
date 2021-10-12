@@ -73,12 +73,19 @@ test_collection_teardown(struct mtf_test_info *info)
     return 0;
 }
 
-int
+merr_t
 load_log(char *file)
 {
     char path[PATH_MAX];
 
-    snprintf(path, sizeof(path), "%s/%s", data_path, file);
+#if HSE_OMF_BYTE_ORDER == __ORDER_BIG_ENDIAN__
+    const char *suffix = "cndblog-be";
+#else
+    const char *suffix = "cndblog";
+#endif
+
+    snprintf(path, sizeof(path), "%s/%s.%s", data_path, file, suffix);
+
     return mpm_mdc_load_file(path, &mdc_data, &mdc_len);
 }
 
@@ -104,7 +111,8 @@ MTF_DEFINE_UTEST(cndb_log_test, rollforward)
     size_t expect_keepc = 66;
     u64    ingestid, txhorizon;
 
-    load_log("missing_ackds.cndblog");
+    err = load_log("missing_ackds");
+    ASSERT_EQ(0, err);
 
     err = cndb_open(mock_ds, CNDB_OPEN_RDWR, 0, 2, 0, 0, &mock_health, NULL, &mock_cndb);
     ASSERT_EQ(0, err);
@@ -156,7 +164,8 @@ MTF_DEFINE_UTEST(cndb_log_test, rollbackward)
     size_t expect_keepc = 58;
     u64    ingestid, txhorizon;
 
-    load_log("missing_ackc.cndblog");
+    err = load_log("missing_ackc");
+    ASSERT_EQ(0, err);
 
     err = cndb_open(mock_ds, CNDB_OPEN_RDWR, 0, 3, 0, 0, &mock_health, NULL, &mock_cndb);
     ASSERT_EQ(0, err);
@@ -205,7 +214,8 @@ MTF_DEFINE_UTEST(cndb_log_test, wrongingestid)
     merr_t err;
     u64    ingestid, txhorizon;
 
-    load_log("wrongingestid.cndblog");
+    err = load_log("wrongingestid");
+    ASSERT_EQ(0, err);
 
     err = cndb_open(mock_ds, CNDB_OPEN_RDWR, 0, 2, 0, 0, &mock_health, NULL, &mock_cndb);
     ASSERT_EQ(0, err);
@@ -246,7 +256,8 @@ MTF_DEFINE_UTEST(cndb_log_test, simpledrop)
     int    rc;
     char   expectblob[] = { 0x21, 0x12, 0x12, 0x21 };
 
-    load_log("simpledrop.cndblog");
+    err = load_log("simpledrop");
+    ASSERT_EQ(0, err);
 
     err = cndb_open(mock_ds, CNDB_OPEN_RDWR, 0, 2, 0, 0, &mock_health, NULL, &mock_cndb);
     ASSERT_EQ(0, err);
@@ -303,7 +314,8 @@ MTF_DEFINE_UTEST(cndb_log_test, simpledrop2)
     u64    drop_cnid = 3;
     u64    ingestid, txhorizon;
 
-    load_log("simpledrop.cndblog");
+    err = load_log("simpledrop");
+    ASSERT_EQ(0, err);
 
     err = cndb_open(mock_ds, CNDB_OPEN_RDWR, 0, 2, 0, 0, &mock_health, NULL, &mock_cndb);
     ASSERT_EQ(0, err);
@@ -351,7 +363,8 @@ MTF_DEFINE_UTEST(cndb_log_test, simpledrop_recovery)
     u64    drop_cnid = 3;
     u64    ingestid, txhorizon;
 
-    load_log("simpledrop_recovery.cndblog");
+    err = load_log("simpledrop_recovery");
+    ASSERT_EQ(0, err);
 
     err = cndb_open(mock_ds, CNDB_OPEN_RDWR, 0, 0, 0, 0, &mock_health, NULL, &mock_cndb);
     ASSERT_EQ(0, err);
@@ -383,6 +396,12 @@ MTF_DEFINE_UTEST(cndb_log_test, simpledrop_recovery)
     mapi_inject_unset(mapi_idx_mpool_mblock_delete);
 }
 
+#if HSE_OMF_BYTE_ORDER == __ORDER_LITTLE_ENDIAN__
+
+/* putbin_v9 and putbin_v11 can no longer be generated and hence
+ * do not exist in big endian format as it was not available at
+ * that time...
+ */
 MTF_DEFINE_UTEST(cndb_log_test, info_v9_test)
 {
     merr_t err;
@@ -390,7 +409,8 @@ MTF_DEFINE_UTEST(cndb_log_test, info_v9_test)
     size_t expect_keepc = 38;
     u64    ingestid, txhorizon;
 
-    load_log("putbin_v9.cndblog");
+    err = load_log("putbin_v9");
+    ASSERT_EQ(0, err);
 
     err = cndb_open(mock_ds, CNDB_OPEN_RDWR, 0, 0, 0, 0, &mock_health, NULL, &mock_cndb);
     ASSERT_EQ(0, err);
@@ -426,7 +446,8 @@ MTF_DEFINE_UTEST(cndb_log_test, info_v11_test)
     size_t expect_keepc = 4;
     u64    ingestid, txhorizon;
 
-    load_log("putbin_v11.cndblog");
+    err = load_log("putbin_v11");
+    ASSERT_EQ(0, err);
 
     err = cndb_open(mock_ds, CNDB_OPEN_RDWR, 0, 0, 0, 0, &mock_health, NULL, &mock_cndb);
     ASSERT_EQ(0, err);
@@ -454,5 +475,7 @@ MTF_DEFINE_UTEST(cndb_log_test, info_v11_test)
     mapi_inject_unset(mapi_idx_mpool_mblock_abort);
     mapi_inject_unset(mapi_idx_mpool_mblock_delete);
 }
+
+#endif /* little endian */
 
 MTF_END_UTEST_COLLECTION(cndb_log_test)
