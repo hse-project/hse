@@ -182,6 +182,27 @@ rest_kvdb_param_get(
 }
 
 static merr_t
+rest_kvdb_param_put(
+    const char *      path,
+    struct conn_info *info,
+    const char *      url,
+    struct kv_iter *  iter,
+    void *            context)
+{
+    const char *  param;
+    struct ikvdb *kvdb = context;
+    const bool    has_param = strcmp(path, url);
+
+    /* Check for case when no parameter is specified, /kvdb/0/params */
+    if (!has_param)
+        return merr(EINVAL);
+
+    param = path + strlen(url) + 1;
+
+    return kvdb_rparams_set(ikvdb_rparams(kvdb), param, info->data);
+}
+
+static merr_t
 rest_kvs_param_get(
     const char *      path,
     struct conn_info *info,
@@ -380,8 +401,8 @@ kvdb_rest_register(struct ikvdb *kvdb)
     if (ev(status) && !err)
         err = status;
 
-    status =
-        rest_url_register(kvdb, 0, rest_kvdb_param_get, NULL, "kvdb/%s/params", ikvdb_alias(kvdb));
+    status = rest_url_register(
+        kvdb, 0, rest_kvdb_param_get, rest_kvdb_param_put, "kvdb/%s/params", ikvdb_alias(kvdb));
     if (ev(status) && !err)
         err = status;
 

@@ -943,6 +943,50 @@ MTF_DEFINE_UTEST(kvdb_rparams_test, get)
     ASSERT_EQ(5, needed_sz);
 }
 
+MTF_DEFINE_UTEST(kvdb_rparams_test, set)
+{
+	merr_t err;
+
+	const struct kvdb_rparams p = kvdb_rparams_defaults();
+
+	err = kvdb_rparams_set(&p, "csched_hi_th_pct", "76");
+	ASSERT_EQ(0, merr_errno(err));
+	ASSERT_EQ(76, p.csched_hi_th_pct);
+
+	err = kvdb_rparams_set(&p, NULL, "76");
+	ASSERT_EQ(EINVAL, merr_errno(err));
+
+	err = kvdb_rparams_set(&p, "csched_hi_th_pct", NULL);
+	ASSERT_EQ(EINVAL, merr_errno(err));
+    ASSERT_EQ(76, p.csched_hi_th_pct);
+
+	err = kvdb_rparams_set(&p, "does.not.exist", "5");
+	ASSERT_EQ(EINVAL, merr_errno(err));
+
+    /* Fail to parse */
+	err = kvdb_rparams_set(&p, "csched_hi_th_pct", "invalid");
+	ASSERT_EQ(EINVAL, merr_errno(err));
+	ASSERT_EQ(76, p.csched_hi_th_pct);
+
+    /* Fail to convert */
+	err = kvdb_rparams_set(&p, "csched_hi_th_pct", "\"convert\"");
+	ASSERT_EQ(EINVAL, merr_errno(err));
+	ASSERT_EQ(76, p.csched_hi_th_pct);
+
+    /* Fail to validate */
+    err = kvdb_rparams_set(&p, "csched_hi_th_pct", "101");
+	ASSERT_EQ(EINVAL, merr_errno(err));
+	ASSERT_EQ(76, p.csched_hi_th_pct);
+
+    /* Fail to validate relationship */
+    /* [HSE_REVISIT]: High threshold should be lower than low threshold. Needs a
+     * relation validation function.
+	err = kvdb_rparams_set(&p, "csched_hi_th_pct", "0");
+	ASSERT_EQ(EINVAL, merr_errno(err));
+	ASSERT_EQ(76, p.csched_hi_th_pct);
+    */
+}
+
 MTF_DEFINE_UTEST(kvdb_rparams_test, to_json)
 {
     cJSON *root;
