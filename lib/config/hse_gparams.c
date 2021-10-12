@@ -400,6 +400,20 @@ hse_gparams_get(
     return param_get(&p, pspecs, NELEM(pspecs), param, buf, buf_sz, needed_sz);
 }
 
+merr_t
+hse_gparams_set(
+    const struct hse_gparams *const params,
+    const char *const               param,
+    const char *const               value)
+{
+    if (!params || !param || !value)
+        return merr(EINVAL);
+
+    const struct params p = { .p_params = { .as_hse_gp = params }, .p_type = PARAMS_HSE_GP };
+
+    return param_set(&p, pspecs, NELEM(pspecs), param, value);
+}
+
 cJSON *
 hse_gparams_to_json(const struct hse_gparams *const params)
 {

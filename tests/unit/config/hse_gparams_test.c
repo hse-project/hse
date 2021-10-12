@@ -377,6 +377,23 @@ MTF_DEFINE_UTEST(hse_gparams_test, get)
     ASSERT_EQ(4, needed_sz);
 }
 
+/* In the event a writable parameter is added, expand the test. */
+MTF_DEFINE_UTEST(hse_gparams_test, set)
+{
+	merr_t err;
+
+	const struct hse_gparams p = hse_gparams_defaults();
+
+	err = hse_gparams_set(&p, NULL, "false");
+	ASSERT_EQ(EINVAL, merr_errno(err));
+
+	err = hse_gparams_set(&p, "socket.enabled", NULL);
+	ASSERT_EQ(EINVAL, merr_errno(err));
+
+	err = hse_gparams_set(&p, "does.not.exist", "5");
+	ASSERT_EQ(EINVAL, merr_errno(err));
+}
+
 MTF_DEFINE_UTEST(hse_gparams_test, to_json)
 {
     cJSON *root;

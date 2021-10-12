@@ -56,6 +56,12 @@ hse_gparams_get(
     size_t                    buf_sz,
     size_t *                  needed_sz);
 
+merr_t
+hse_gparams_set(
+    const struct hse_gparams *params,
+    const char *              param,
+    const char *              value);
+
 cJSON *
 hse_gparams_to_json(const struct hse_gparams *params);
 

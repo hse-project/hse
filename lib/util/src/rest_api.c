@@ -1033,6 +1033,26 @@ rest_param_get(
     return err;
 }
 
+static merr_t
+rest_param_put(
+    const char *      path,
+    struct conn_info *info,
+    const char *      url,
+    struct kv_iter *  iter,
+    void *            context)
+{
+    const char *param;
+    const bool  has_param = strcmp(path, url);
+
+    /* Check for case when no parameter is specified, /params */
+    if (!has_param)
+        return merr(EINVAL);
+
+    param = path + strlen(url) + 1;
+
+    return hse_gparams_set(&hse_gparams, param, info->data);
+}
+
 merr_t
 rest_server_start(const char *sock_path)
 {
@@ -1086,7 +1106,7 @@ rest_server_start(const char *sock_path)
         return merr(ev(ENOANO));
     }
 
-    rest_url_register(NULL, 0, rest_param_get, NULL, "params");
+    rest_url_register(NULL, 0, rest_param_get, rest_param_put, "params");
 
     return 0;
 }
