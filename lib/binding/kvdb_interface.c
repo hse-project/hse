@@ -171,7 +171,7 @@ hse_kvdb_create(const char *kvdb_home, size_t paramc, const char *const *const p
     u64                  tstart;
     char                 pidfile_path[PATH_MAX];
     struct pidfh *       pfh = NULL;
-    struct pidfile       content;
+    struct pidfile       content = {};
 
     if (HSE_UNLIKELY(!kvdb_home)) {
         hse_log(HSE_ERR "A KVDB home must be provided");
@@ -207,7 +207,6 @@ hse_kvdb_create(const char *kvdb_home, size_t paramc, const char *const *const p
     }
 
     content.pid = getpid();
-    memset(content.socket.path, '\0', sizeof(content.socket.path));
 
     err = merr(pidfile_serialize(pfh, &content));
     if (err) {
@@ -284,7 +283,7 @@ hse_kvdb_open(
     char                pidfile_path[PATH_MAX];
     struct config *     conf = NULL;
     struct pidfh *      pfh = NULL;
-    struct pidfile      content;
+    struct pidfile      content = {};
 
     if (HSE_UNLIKELY(!kvdb_home)) {
         hse_log(HSE_ERR "A KVDB home must be provided");
@@ -336,7 +335,8 @@ hse_kvdb_open(
 
     content.pid = getpid();
     static_assert(sizeof(content.socket.path) == sizeof(hse_gparams.gp_socket.path), "Unequal buffer sizes");
-    strlcpy(content.socket.path, hse_gparams.gp_socket.path, sizeof(content.socket.path));
+    if (hse_gparams.gp_socket.enabled)
+        strlcpy(content.socket.path, hse_gparams.gp_socket.path, sizeof(content.socket.path));
 
     err = merr(pidfile_serialize(pfh, &content));
     if (err) {
@@ -531,7 +531,7 @@ hse_kvdb_storage_add(const char *kvdb_home, size_t paramc, const char *const *co
     merr_t               err;
     char                 pidfile_path[PATH_MAX];
     struct pidfh        *pfh;
-    struct pidfile       content;
+    struct pidfile       content = {};
 
     if (HSE_UNLIKELY(!kvdb_home)) {
         hse_log(HSE_ERR "A KVDB home must be provided");
@@ -580,7 +580,6 @@ hse_kvdb_storage_add(const char *kvdb_home, size_t paramc, const char *const *co
     }
 
     content.pid = getpid();
-    memset(content.socket.path, '\0', sizeof(content.socket.path));
 
     err = merr(pidfile_serialize(pfh, &content));
     if (err) {
