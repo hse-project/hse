@@ -190,10 +190,10 @@ libbsd_dep = dependency(
         'werror=false',
     ],
 )
-lz4_dep = dependency(
+liblz4_dep = dependency(
     'liblz4',
     version: '>=1.9.2',
-    fallback: ['lz4', 'lz4_dep'],
+    fallback: ['lz4', 'liblz4_dep'],
     default_options: [
         'default_library=static',
         'warning_level=0',

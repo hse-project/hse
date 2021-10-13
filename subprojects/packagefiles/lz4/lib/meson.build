@@ -5,7 +5,7 @@ if get_option('default_library') == 'static'
     c_args += '-DLZ4LIB_VISIBILITY=__attribute__((visibility("hidden")))'
 endif
 
-lz4 = library(
+liblz4 = library(
     'lz4',
     ['lz4.c'],
     c_args: c_args,
@@ -13,8 +13,8 @@ lz4 = library(
     gnu_symbol_visibility: 'hidden'
 )
 
-lz4_dep = declare_dependency(
-    link_with: lz4,
+liblz4_dep = declare_dependency(
+    link_with: liblz4,
     version: meson.project_version(),
     include_directories: [
         include_directories('.'),
