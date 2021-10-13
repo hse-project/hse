@@ -921,19 +921,6 @@ c0sk_test_finish_txn(int index, u64 commit_sn)
     }
 }
 
-static void
-c0snr_set_abort_test_handler(struct kvdb_ctxn *ctxn)
-{
-    long index = (long)ctxn;
-
-    if (index) {
-        index--;
-        assert(index < MAX_TXNS);
-
-        c0sk_test_finish_txn((int)index, 0);
-    }
-}
-
 MTF_DEFINE_UTEST_PREPOST(c0sk_test, ctxn_put, no_fail_ctxn_pre, no_fail_post)
 {
     struct kvdb_rparams     kvdb_rp;
@@ -977,7 +964,7 @@ MTF_DEFINE_UTEST_PREPOST(c0sk_test, ctxn_put, no_fail_ctxn_pre, no_fail_post)
     err = c0sk_c0_register(mkvdb.ikdb_c0sk, mock_cn, &skidx);
     ASSERT_EQ(0, err);
 
-    err = c0snr_set_create(c0snr_set_abort_test_handler, &css);
+    err = c0snr_set_create(&css);
     ASSERT_TRUE(err == 0);
 
     for (i = 0; i < num_txns; ++i) {
@@ -1442,7 +1429,7 @@ MTF_DEFINE_UTEST_PREPOST(c0sk_test, parallel_ctxn_put, no_fail_ctxn_pre, no_fail
     err = create_mock_cn(&mock_cn, false, false, &kvs_rp, 0);
     ASSERT_EQ(0, err);
 
-    err = c0snr_set_create(c0snr_set_abort_test_handler, &css);
+    err = c0snr_set_create(&css);
     ASSERT_TRUE(err == 0);
 
     for (i = 0; i < num_threads; ++i) {
@@ -1843,6 +1830,8 @@ MTF_DEFINE_UTEST_PREPOST(c0sk_test, c0sk_get_test, no_fail_pre, no_fail_post)
 
     destroy_mock_cn(mock_cn);
 }
+
+#define HSE_C0_KVSET_CURSOR_MAX 64
 
 static struct c0_kvmultiset *deferred_release[HSE_C0_KVSET_CURSOR_MAX + 2];
 
@@ -2607,6 +2596,12 @@ MTF_DEFINE_UTEST_PREPOST(c0sk_test, c0_cursor_ptombs, no_fail_pre, no_fail_post)
     err = c0sk_cursor_update(cur, atomic64_read(&seqno), &flags);
     ASSERT_EQ(0, err);
     ASSERT_TRUE(flags & CURSOR_FLAG_SEQNO_CHANGE);
+
+    /* The kvs_cursor layer would always seek a cursor to its last position after an update. Here
+     * we need to do that explicitly.
+     */
+    err = c0sk_cursor_seek(cur, "", 0, NULL);
+    ASSERT_EQ(0, err);
 
     cnt = 0;
     expcnt = tot_keys - 8765;

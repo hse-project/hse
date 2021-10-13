@@ -1507,7 +1507,6 @@ cn_cursor_create(
     struct cn_cursor **    cursorp)
 {
     int           ct_pfx_len = cn->cp->pfx_len;
-    int           attempts = 5;
     merr_t        err;
 
     struct cn_cursor *cur;
@@ -1544,23 +1543,11 @@ cn_cursor_create(
     cur->summary = summary;
     cur->reverse = reverse;
 
-    /*
-     * attempt to create the cursor several times:
-     * certain race conditions with spill and compact
-     * can cause the depth search to fail;
-     * repeating should succeed in these cases
-     */
-    do {
-        err = cn_tree_cursor_create(cur, cn->cn_tree);
-    } while (merr_errno(err) == EAGAIN && --attempts > 0);
-
+    err = cn_tree_cursor_create(cur, cn->cn_tree);
     if (ev(err)) {
-        hse_elog(HSE_ERR "%s: attempts %d: @@e", err, __func__, attempts);
         cn_cursor_free(cur);
-        return merr(EAGAIN);
+        return err;
     }
-
-    ev(attempts < 5); /* cursor was successfully corrected */
 
     *cursorp = cur;
     return 0;
@@ -1570,7 +1557,6 @@ merr_t
 cn_cursor_update(struct cn_cursor *cur, u64 seqno, bool *updated)
 {
     u64           dgen = atomic64_read(&cur->cn->cn_ingest_dgen);
-    int           attempts = 5;
     merr_t        err;
 
     if (updated)
@@ -1586,16 +1572,11 @@ cn_cursor_update(struct cn_cursor *cur, u64 seqno, bool *updated)
     if (cur->dgen == dgen)
         return 0;
 
-    do {
-        err = cn_tree_cursor_update(cur, cur->cn->cn_tree);
-    } while (merr_errno(err) == EAGAIN && --attempts > 0);
-
-    ev(attempts != 5);
-
+    err = cn_tree_cursor_update(cur, cur->cn->cn_tree);
     if (updated)
         *updated = true;
 
-    if (err && merr_errno(err) != EAGAIN) {
+    if (err) {
         hse_elog(HSE_ERR "%s: update failed (%p %lu): @@e",
                  err, __func__, cur, seqno);
         cur->merr = err;

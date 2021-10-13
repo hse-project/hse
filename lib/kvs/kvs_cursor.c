@@ -39,8 +39,6 @@ struct perfc_name kvs_cc_perfc_op[] = {
 
     /* The following counters require setting kvs_debug to 16 or 32.
      */
-    NE(PERFC_BA_CC_EAGAIN_C0,       3, "c0 EAGAIN count",               "c_cc_c0_eagain"),
-    NE(PERFC_BA_CC_EAGAIN_CN,       3, "cn EAGAIN count",               "c_cc_cn_eagain"),
     NE(PERFC_BA_CC_INIT_CREATE_C0,  3, "c0 cursor init/create count",   "c_cc_c0_initcr"),
     NE(PERFC_BA_CC_INIT_UPDATE_C0,  3, "c0 cursor init/update count",   "c_cc_c0_initupd"),
     NE(PERFC_BA_CC_INIT_CREATE_CN,  3, "cn cursor init/create count",   "c_cc_cn_initcr"),
@@ -776,11 +774,8 @@ kvs_cursor_init(struct hse_kvs_cursor *cursor, struct kvdb_ctxn *ctxn)
             perfc_inc(cur->kci_cc_pc, PERFC_BA_CC_INIT_UPDATE_C0);
     }
 
-    if (ev(err)) {
-        if (merr_errno(err) == EAGAIN)
-            perfc_inc(cur->kci_cc_pc, PERFC_BA_CC_EAGAIN_C0);
+    if (ev(err))
         goto error;
-    }
 
     assert(cur->kci_c0cur);
 
@@ -825,11 +820,8 @@ kvs_cursor_init(struct hse_kvs_cursor *cursor, struct kvdb_ctxn *ctxn)
             perfc_inc(cur->kci_cc_pc, PERFC_BA_CC_INIT_UPDATE_CN);
     }
 
-    if (ev(err)) {
-        if (ev(merr_errno(err) == EAGAIN))
-            perfc_inc(cur->kci_cc_pc, PERFC_BA_CC_EAGAIN_CN);
+    if (ev(err))
         goto error;
-    }
 
     assert(cur->kci_cncur);
 
@@ -950,11 +942,8 @@ kvs_cursor_update(struct hse_kvs_cursor *handle, struct kvdb_ctxn *ctxn, u64 seq
     tstart = perfc_lat_startu(cursor->kci_cd_pc, PERFC_LT_CD_UPDATE_C0);
 
     cursor->kci_err = c0_cursor_update(cursor->kci_c0cur, seqno, &flags);
-    if (ev(cursor->kci_err)) {
-        if (merr_errno(cursor->kci_err) == EAGAIN)
-            perfc_inc(cursor->kci_cc_pc, PERFC_BA_CC_EAGAIN_C0);
+    if (ev(cursor->kci_err))
         return cursor->kci_err;
-    }
     perfc_lat_record(cursor->kci_cd_pc, PERFC_LT_CD_UPDATE_C0, tstart);
 
     if (flags & CURSOR_FLAG_SEQNO_CHANGE)
@@ -970,12 +959,8 @@ kvs_cursor_update(struct hse_kvs_cursor *handle, struct kvdb_ctxn *ctxn, u64 seq
     tstart = perfc_lat_startu(cursor->kci_cd_pc, PERFC_LT_CD_UPDATE_CN);
 
     cursor->kci_err = cn_cursor_update(cursor->kci_cncur, seqno, &updated);
-    if (ev(cursor->kci_err)) {
-        if (merr_errno(cursor->kci_err) == EAGAIN)
-            perfc_inc(cursor->kci_cc_pc, PERFC_BA_CC_EAGAIN_CN);
-
+    if (ev(cursor->kci_err))
         return cursor->kci_err;
-    }
     perfc_lat_record(cursor->kci_cd_pc, PERFC_LT_CD_UPDATE_CN, tstart);
 
     if (updated) {
@@ -1156,12 +1141,8 @@ kvs_cursor_read(struct hse_kvs_cursor *handle, struct kvs_kvtuple *kvt, bool *eo
 {
     struct kvs_cursor_impl *cursor = (void *)handle;
 
-    if (ev(cursor->kci_err)) {
-        if (ev(merr_errno(cursor->kci_err) != EAGAIN))
-            return cursor->kci_err;
-
-        cursor->kci_err = 0;
-    }
+    if (ev(cursor->kci_err))
+        return cursor->kci_err;
 
     if (cursor->kci_need_seek) {
         struct kvs_ktuple key = { 0 };
@@ -1228,12 +1209,8 @@ kvs_cursor_seek(
 {
     struct kvs_cursor_impl *cursor = (void *)handle;
 
-    if (ev(cursor->kci_err)) {
-        if (ev(merr_errno(cursor->kci_err) != EAGAIN))
-            return cursor->kci_err;
-
-        cursor->kci_err = 0;
-    }
+    if (ev(cursor->kci_err))
+        return cursor->kci_err;
 
     /* Set up limits if provided */
     if (ev(limit_len > HSE_KVS_KEY_LEN_MAX))

@@ -15,16 +15,12 @@
 struct kvdb_ctxn;
 struct c0snr_set;
 
-typedef void
-c0snr_set_abort_func(struct kvdb_ctxn *handle);
-
 /**
  * c0snr_set_create() - create an allocator for C0SNRs
- * @func:    optional abort handler to call during ingest
  * @handle:  (out) c0snr set handle
  */
 merr_t
-c0snr_set_create(c0snr_set_abort_func *func, struct c0snr_set **handle);
+c0snr_set_create(struct c0snr_set **handle);
 
 /**
  * c0snr_set_destroy() - destroy the C0SNR set

@@ -11,6 +11,7 @@ tests = {
     'bug.update_add_key': {},
     'bug.update_new_kvms': {},
     'bug.wrong_view_value': {},
+    'c0_cursor_resize': {},
     'cache': {},
     'cache_delay': {},
     'cn_seqno': {},

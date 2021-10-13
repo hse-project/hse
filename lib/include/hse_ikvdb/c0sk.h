@@ -263,13 +263,6 @@ c0sk_cursor_create(
     struct c0_cursor **    cur);
 
 /**
- * c0sk_cursor_save() - prepare cursor to be cached
- * @cur:        The existing cursor
- */
-merr_t
-c0sk_cursor_save(struct c0_cursor *cur);
-
-/**
  * c0sk_cursor_bind_txn() - bind a txn kvms to iterable c0
  * @c0cur:      The existing cursor.
  * @ctxn:       The transaction to bind.

@@ -11,8 +11,6 @@
 #include <hse_ikvdb/c0_kvset_iterator.h>
 #include <hse_ikvdb/cursor.h>
 
-#define HSE_C0_KVSET_CURSOR_MAX 64
-
 /**
  * struct - c0_kvmultset_cursor - structure to iterate over one c0kvms
  *
@@ -34,13 +32,6 @@ struct c0_kvmultiset_cursor {
     struct c0_kvset_iterator c0mc_iterv[HSE_C0_INGEST_WIDTH_MAX];
 };
 
-enum c0cur_state {
-    C0CUR_STATE_READY = 0x00,
-    C0CUR_STATE_NEED_INIT = 0x01,
-    C0CUR_STATE_NEED_DISC = 0x02,
-    C0CUR_STATE_NEED_ALL = C0CUR_STATE_NEED_DISC | C0CUR_STATE_NEED_INIT,
-};
-
 #define es2mscur(p) container_of(p, struct c0_kvmultiset_cursor, c0mc_es)
 
 /**
@@ -55,7 +46,6 @@ enum c0cur_state {
  * @c0cur_c0sk:     the c0sk for this cursor
  * @c0cur_summary:  concise summary of cursor state (diagnostic)
  * @c0cur_seqno:    view seqno for this cursor
- * @c0cur_act_gen:  latest active kvms gen for the cursor
  * @c0cur_inv_gen:  last kvms gen that triggered an invalidate
  * @c0cur_inv_cnt:  number of invalidates at inv_gen (used to sync)
  * @c0cur_merr:     if this cursor is in error state
@@ -75,33 +65,32 @@ enum c0cur_state {
  * @c0cur_ptomb_es:     cached ptomb's element source
  */
 struct c0_cursor {
-    struct element_source        c0cur_es;
-    struct bin_heap2 *           c0cur_bh;
-    struct c0sk *                c0cur_c0sk;
-    struct cursor_summary *      c0cur_summary;
-    struct kvs_cursor_element    c0cur_elem;
-    u64                          c0cur_seqno;
-    u64                          c0cur_act_gen;
-    u64                          c0cur_inv_gen;
-    u32                          c0cur_inv_cnt;
-    merr_t                       c0cur_merr;
-    int                          c0cur_debug;
-    enum c0cur_state             c0cur_state;
-    int                          c0cur_reverse;
-    int                          c0cur_skidx;
-    u32                          c0cur_ct_pfx_len;
-    int                          c0cur_pfx_len;
-    int                          c0cur_cnt;
-    const void *                 c0cur_prefix;
-    struct kvdb_ctxn *           c0cur_ctxn;
-    struct c0_kvmultiset_cursor *c0cur_active;
-    struct c0_kvmultiset_cursor *c0cur_free;
-    struct c0_kvmultiset *       c0cur_kvmsv[HSE_C0_KVSET_CURSOR_MAX];
-    void *                       c0cur_ptomb_key;
-    size_t                       c0cur_ptomb_klen;
-    u64                          c0cur_ptomb_seq;
-    struct element_source *      c0cur_ptomb_es;
-    struct kc_filter *           c0cur_filter;
+    struct element_source         c0cur_es;
+    struct bin_heap2 *            c0cur_bh;
+    struct c0sk *                 c0cur_c0sk;
+    struct cursor_summary *       c0cur_summary;
+    struct kvs_cursor_element     c0cur_elem;
+    u64                           c0cur_seqno;
+    u64                           c0cur_inv_gen;
+    u32                           c0cur_inv_cnt;
+    merr_t                        c0cur_merr;
+    int                           c0cur_debug;
+    int                           c0cur_reverse;
+    int                           c0cur_skidx;
+    u32                           c0cur_ct_pfx_len;
+    int                           c0cur_pfx_len;
+    int                           c0cur_cnt;
+    int                           c0cur_alloc_cnt;
+    const void *                  c0cur_prefix;
+    struct kvdb_ctxn *            c0cur_ctxn;
+    struct c0_kvmultiset_cursor  *c0cur_free;
+    struct element_source       **c0cur_esrcv;
+    struct c0_kvmultiset_cursor **c0cur_curv;
+    void *                        c0cur_ptomb_key;
+    size_t                        c0cur_ptomb_klen;
+    u64                           c0cur_ptomb_seq;
+    struct element_source *       c0cur_ptomb_es;
+    struct kc_filter *            c0cur_filter;
 };
 
 /**

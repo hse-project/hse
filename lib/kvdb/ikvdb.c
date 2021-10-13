@@ -1257,7 +1257,7 @@ ikvdb_open(
 
     kvdb_ctxn_set_tseqno_init(self->ikdb_ctxn_set, seqno);
 
-    err = c0snr_set_create(kvdb_ctxn_abort, &self->ikdb_c0snr_set);
+    err = c0snr_set_create(&self->ikdb_c0snr_set);
     if (err) {
         hse_elog(HSE_ERR "cannot open %s: @@e", err, kvdb_home);
         goto out;
@@ -2294,9 +2294,6 @@ ikvdb_kvs_prefix_delete(
  * Transactions only interact with bound cursors (state 3); transaction
  * puts and dels after bind are invisible until a subsequent update,
  * just as puts and dels after create are invisible until an update.
- *
- * Both create and update may return EAGAIN.  This does not create an error
- * condition, as simply repeating the call may succeed.
  */
 
 static void
@@ -2484,13 +2481,6 @@ ikvdb_kvs_cursor_update_view(struct hse_kvs_cursor *cur, unsigned int flags)
     perfc_lat_record(cur->kc_pkvsl_pc, PERFC_LT_PKVSL_KVS_CURSOR_UPDATE, tstart);
 
 out:
-    /* Since the update code doesn't currently allow retrying, change the error code
-     * if it's an EAGAIN. Wherever possible, the code retries the cursor update call
-     * internally.
-     */
-    if (ev(merr_errno(cur->kc_err) == EAGAIN))
-        cur->kc_err = merr(ENOTRECOVERABLE);
-
     return ev(cur->kc_err);
 }
 
@@ -2537,14 +2527,8 @@ ikvdb_kvs_cursor_seek(
     if (ev(limit && (cur->kc_flags & HSE_CURSOR_CREATE_REV)))
         return merr(EINVAL);
 
-    if (ev(cur->kc_err)) {
-        if (ev(merr_errno(cur->kc_err) != EAGAIN))
-            return cur->kc_err;
-
-        cur->kc_err = kvs_cursor_update(cur, cur->kc_bind ? cur->kc_bind->b_ctxn : 0, cur->kc_seq);
-        if (ev(cur->kc_err))
-            return cur->kc_err;
-    }
+    if (ev(cur->kc_err))
+        return cur->kc_err;
 
     if (cur->kc_bind) {
         cur->kc_err = cursor_refresh(cur);
@@ -2576,14 +2560,8 @@ ikvdb_kvs_cursor_read(
 
     tstart = perfc_lat_start(cur->kc_pkvsl_pc);
 
-    if (ev(cur->kc_err)) {
-        if (ev(merr_errno(cur->kc_err) != EAGAIN))
-            return cur->kc_err;
-
-        cur->kc_err = kvs_cursor_update(cur, cur->kc_bind ? cur->kc_bind->b_ctxn : 0, cur->kc_seq);
-        if (ev(cur->kc_err))
-            return cur->kc_err;
-    }
+    if (ev(cur->kc_err))
+        return cur->kc_err;
 
     if (cur->kc_bind) {
         cur->kc_err = cursor_refresh(cur);

@@ -87,10 +87,10 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, alloc, mapi_pre, mapi_post)
     ASSERT_EQ(0, mapi_calls(mapi_idx_free));
 
     mapi_inject_once_ptr(mapi_idx_alloc_aligned, 1, NULL);
-    err = c0snr_set_create(kvdb_ctxn_abort, &css);
+    err = c0snr_set_create(&css);
     ASSERT_NE(0, err);
 
-    err = c0snr_set_create(kvdb_ctxn_abort, &css);
+    err = c0snr_set_create(&css);
     ASSERT_TRUE(err == 0);
 
     mapi_calls_clear(mapi_idx_malloc);
@@ -134,7 +134,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, alloc_fail, mapi_pre, mapi_post)
     err = kvdb_ctxn_set_create(&kvdb_ctxn_set, tn_timeout, tn_delay);
     ASSERT_EQ(err, 0);
 
-    err = c0snr_set_create(kvdb_ctxn_abort, &css);
+    err = c0snr_set_create(&css);
     ASSERT_TRUE(err == 0);
 
     mapi_inject_ptr(mapi_idx_malloc, 0);
@@ -174,7 +174,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, begin, mapi_pre, mapi_post)
     err = viewset_create(&vs, &kvdb_seq, &tseqno);
     ASSERT_TRUE(err == 0);
 
-    err = c0snr_set_create(kvdb_ctxn_abort, &css);
+    err = c0snr_set_create(&css);
     ASSERT_TRUE(err == 0);
 
     /* Note that c0 is mocked and these calls redirect to _c0_open().
@@ -261,7 +261,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, basic_commit, mapi_pre, mapi_post)
     ASSERT_EQ(err, 0);
     ASSERT_LE(viewset_horizon(vs), initial_seq);
 
-    err = c0snr_set_create(kvdb_ctxn_abort, &css);
+    err = c0snr_set_create(&css);
     ASSERT_TRUE(err == 0);
 
     /* Note that c0 is mocked and these calls redirect to _c0_open().
@@ -330,7 +330,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, basic_commit_twice, mapi_pre, mapi_post
     err = kvdb_ctxn_set_create(&kvdb_ctxn_set, tn_timeout, tn_delay);
     ASSERT_EQ(err, 0);
 
-    err = c0snr_set_create(kvdb_ctxn_abort, &css);
+    err = c0snr_set_create(&css);
     ASSERT_TRUE(err == 0);
 
     /* Note that c0 is mocked and these calls redirect to _c0_open().
@@ -386,7 +386,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, basic_commit_proto, mapi_pre, mapi_post
     err = kvdb_ctxn_set_create(&kvdb_ctxn_set, tn_timeout, tn_delay);
     ASSERT_EQ(err, 0);
 
-    err = c0snr_set_create(kvdb_ctxn_abort, &css);
+    err = c0snr_set_create(&css);
     ASSERT_TRUE(err == 0);
 
     /* Note that c0 is mocked and these calls redirect to _c0_open().
@@ -448,7 +448,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, basic_commit_seqno, mapi_pre, mapi_post
     err = kvdb_ctxn_set_create(&kvdb_ctxn_set, tn_timeout, tn_delay);
     ASSERT_EQ(err, 0);
 
-    err = c0snr_set_create(kvdb_ctxn_abort, &css);
+    err = c0snr_set_create(&css);
     ASSERT_TRUE(err == 0);
 
     /* Note that c0 is mocked and these calls redirect to _c0_open().
@@ -498,7 +498,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, basic_abort, mapi_pre, mapi_post)
     err = kvdb_ctxn_set_create(&kvdb_ctxn_set, tn_timeout, tn_delay);
     ASSERT_EQ(err, 0);
 
-    err = c0snr_set_create(kvdb_ctxn_abort, &css);
+    err = c0snr_set_create(&css);
     ASSERT_TRUE(err == 0);
 
     /* Note that c0 is mocked and these calls redirect to _c0_open().
@@ -550,7 +550,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, basic_abort_twice, mapi_pre, mapi_post)
     err = kvdb_ctxn_set_create(&kvdb_ctxn_set, tn_timeout, tn_delay);
     ASSERT_EQ(err, 0);
 
-    err = c0snr_set_create(kvdb_ctxn_abort, &css);
+    err = c0snr_set_create(&css);
     ASSERT_TRUE(err == 0);
 
     /* Note that c0 is mocked and these calls redirect to _c0_open().
@@ -606,7 +606,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, get_view_seqno, mapi_pre, mapi_post)
     err = kvdb_ctxn_set_create(&kvdb_ctxn_set, tn_timeout, tn_delay);
     ASSERT_EQ(err, 0);
 
-    err = c0snr_set_create(kvdb_ctxn_abort, &css);
+    err = c0snr_set_create(&css);
     ASSERT_TRUE(err == 0);
 
     /* Note that c0 is mocked and these calls redirect to _c0_open().
@@ -668,7 +668,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, get_state, mapi_pre, mapi_post)
     err = kvdb_ctxn_set_create(&kvdb_ctxn_set, tn_timeout, tn_delay);
     ASSERT_EQ(err, 0);
 
-    err = c0snr_set_create(kvdb_ctxn_abort, &css);
+    err = c0snr_set_create(&css);
     ASSERT_TRUE(err == 0);
 
     /* Note that c0 is mocked and these calls redirect to _c0_open().
@@ -748,7 +748,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, put_get_del, mapi_pre, mapi_post)
     err = kvdb_ctxn_set_create(&kvdb_ctxn_set, tn_timeout, tn_delay);
     ASSERT_EQ(err, 0);
 
-    err = c0snr_set_create(kvdb_ctxn_abort, &css);
+    err = c0snr_set_create(&css);
     ASSERT_TRUE(err == 0);
 
     /* Note that c0 is mocked and these calls redirect to _c0_open().
@@ -873,7 +873,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, put_get_pdel, mapi_pre, mapi_post)
     err = kvdb_ctxn_set_create(&kvdb_ctxn_set, tn_timeout, tn_delay);
     ASSERT_EQ(err, 0);
 
-    err = c0snr_set_create(kvdb_ctxn_abort, &css);
+    err = c0snr_set_create(&css);
     ASSERT_TRUE(err == 0);
 
     /* Note that c0 is mocked and these calls redirect to _c0_open().
@@ -966,7 +966,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, txn_timeout, mapi_pre, mapi_post)
     err = kvdb_ctxn_set_create(&kvdb_ctxn_set, delay_ms, delay_ms / 5);
     ASSERT_EQ(err, 0);
 
-    err = c0snr_set_create(kvdb_ctxn_abort, &css);
+    err = c0snr_set_create(&css);
     ASSERT_TRUE(err == 0);
 
     /* Note that c0 is mocked and these calls redirect to _c0_open().
@@ -1049,7 +1049,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, txn_cleanup, mapi_pre, mapi_post)
     err = kvdb_ctxn_set_create(&kvdb_ctxn_set, tn_timeout, tn_delay);
     ASSERT_EQ(err, 0);
 
-    err = c0snr_set_create(kvdb_ctxn_abort, &css);
+    err = c0snr_set_create(&css);
     ASSERT_TRUE(err == 0);
 
     /* Note that c0 is mocked and these calls redirect to _c0_open().
@@ -1110,7 +1110,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, txn_hash, mapi_pre, mapi_post)
     err = kvdb_ctxn_set_create(&kvdb_ctxn_set, tn_timeout, tn_delay);
     ASSERT_EQ(err, 0);
 
-    err = c0snr_set_create(kvdb_ctxn_abort, &css);
+    err = c0snr_set_create(&css);
     ASSERT_TRUE(err == 0);
 
     /* Note that c0 is mocked and these calls redirect to _c0_open().
@@ -1203,7 +1203,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, txn_independence, mapi_pre, mapi_post)
     err = kvdb_ctxn_set_create(&kvdb_ctxn_set, tn_timeout, tn_delay);
     ASSERT_EQ(err, 0);
 
-    err = c0snr_set_create(kvdb_ctxn_abort, &css);
+    err = c0snr_set_create(&css);
     ASSERT_TRUE(err == 0);
 
     ctxn1 = kvdb_ctxn_alloc(klock, NULL, &kvdb_seq, kvdb_ctxn_set, vs, css, NULL, NULL);
@@ -1307,7 +1307,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, txn_seq, mapi_pre, mapi_post)
     err = kvdb_ctxn_set_create(&kvdb_ctxn_set, tn_timeout, delay_us / 1000);
     ASSERT_EQ(err, 0);
 
-    err = c0snr_set_create(kvdb_ctxn_abort, &css);
+    err = c0snr_set_create(&css);
     ASSERT_TRUE(err == 0);
 
     err = c0_open(NULL, NULL, NULL, NULL, &c0);
@@ -1443,7 +1443,7 @@ MTF_DEFINE_UTEST_PREPOST(kvdb_ctxn_test, multiple_ctxn_commit, mapi_pre, mapi_po
     err = kvdb_ctxn_set_create(&kvdb_ctxn_set, tn_timeout, tn_delay);
     ASSERT_EQ(err, 0);
 
-    err = c0snr_set_create(kvdb_ctxn_abort, &css);
+    err = c0snr_set_create(&css);
     ASSERT_TRUE(err == 0);
 
     err = c0_open(NULL, NULL, NULL, NULL, &c0);

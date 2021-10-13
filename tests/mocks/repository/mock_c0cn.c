@@ -728,7 +728,6 @@ mock_cn_unset()
 static struct mapi_injection c0_inject_list[] = {
     { mapi_idx_c0_cursor_update,    MAPI_RC_SCALAR, 0 },
     { mapi_idx_c0_cursor_bind_txn,  MAPI_RC_SCALAR, 0 },
-    { mapi_idx_c0_cursor_save,      MAPI_RC_SCALAR, 0 },
     { -1 },
 };
 
