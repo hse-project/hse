@@ -82,10 +82,8 @@ kvs_destroy(struct ikvs *kvs);
 static void
 kvs_perfc_alloc(const char *kvdb_home, const char *kvs_name, struct ikvs *kvs)
 {
-    char   dbname_buf[DT_PATH_COMP_ELEMENT_LEN];
+    char   dbname_buf[DT_PATH_LEN];
     size_t n;
-
-    dbname_buf[0] = 0;
 
     n = strlcpy(dbname_buf, kvdb_home, sizeof(dbname_buf));
     if (ev(n >= sizeof(dbname_buf)))

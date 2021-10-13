@@ -63,6 +63,8 @@ cycles_to_nsecs(u64 cycles)
     return (cycles * hse_tsc_mult) >> hse_tsc_shift;
 }
 
+extern const char *hse_progname;
+
 extern merr_t hse_platform_init(void);
 extern void hse_platform_fini(void);
 

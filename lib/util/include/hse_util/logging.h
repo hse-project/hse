@@ -8,19 +8,29 @@
 
 #include <hse_util/inttypes.h>
 #include <hse_util/compiler.h>
+#include <hse_util/data_tree.h>
 #include <hse_util/event_counter.h>
-#include <hse_util/time.h>
 #include <hse_util/timing.h>
 #include <hse_util/logging_types.h>
 #include <hse_ikvdb/hse_gparams.h>
 
 #include <syslog.h>
 
-#define HSE_MARK "[HSE] "
+/* clang-format off */
 
 #ifndef HSE_LOG_PRI_DEFAULT
 #define HSE_LOG_PRI_DEFAULT (7)
 #endif
+
+#define HSE_MARK            "[HSE] "
+#define HSE_EMERG           HSE_EMERG_VAL, HSE_MARK
+#define HSE_ALERT           HSE_ALERT_VAL, HSE_MARK
+#define HSE_CRIT            HSE_CRIT_VAL, HSE_MARK
+#define HSE_ERR             HSE_ERR_VAL, HSE_MARK
+#define HSE_WARNING         HSE_WARNING_VAL, HSE_MARK
+#define HSE_NOTICE          HSE_NOTICE_VAL, HSE_MARK
+#define HSE_INFO            HSE_INFO_VAL, HSE_MARK
+#define HSE_DEBUG           HSE_DEBUG_VAL, HSE_MARK
 
 /*
  * A single log instance can have no more than MAX_HSE_SPECS hse-specific
@@ -30,24 +40,8 @@
  * As structured name value data is accumulated it must be retained
  * until right before the dynamic call to json payload formatter so that
  * those values can be tacked onto its argument list.
- *
  */
-
-#define HSE_EMERG HSE_EMERG_VAL, HSE_MARK
-#define HSE_ALERT HSE_ALERT_VAL, HSE_MARK
-#define HSE_CRIT HSE_CRIT_VAL, HSE_MARK
-#define HSE_ERR HSE_ERR_VAL, HSE_MARK
-#define HSE_WARNING HSE_WARNING_VAL, HSE_MARK
-#define HSE_NOTICE HSE_NOTICE_VAL, HSE_MARK
-#define HSE_INFO HSE_INFO_VAL, HSE_MARK
-#define HSE_DEBUG HSE_DEBUG_VAL, HSE_MARK
-
-/*
- * A single log instance can have no more than MAX_HSE_SPECS hse-specific
- * conversion specifiers.
- */
-
-#define MAX_HSE_SPECS 10
+#define MAX_HSE_SPECS       (10)
 
 /*
  * A single log instance can have no more than MAX_HSE_NV_PAIRS of structured
@@ -59,8 +53,8 @@
  * to syslog in user space or printk_emit in case of kernel.
  * As structured name value data is accumulated it must be retained until
  * those values can be tacked onto its argument list.
- *
  */
+#define MAX_HSE_NV_PAIRS    (40 * MAX_HSE_SPECS)
 
 /*
  * The HSE platform logging subsystem needs to accept client-registered
@@ -82,13 +76,6 @@
  * can register conversion specifiers and their associated routines.
  */
 
-#define MAX_HSE_NV_PAIRS (40 * MAX_HSE_SPECS)
-
-extern FILE *logging_file;
-
-#ifndef NO_ERROR_COUNTER
-
-/* [HSE_REVISIT] a circular-include issue prevents using timer.h constants */
 #ifdef HSE_RELEASE_BUILD
 #define HSE_LOG_SQUELCH_NS_DEFAULT (1000 * 1000)
 #else
@@ -100,47 +87,25 @@ extern FILE *logging_file;
  */
 #define hse_log_pri(pri, fmt, async, hse_args, ...)                     \
     do {                                                                \
-        if (!hse_gparams.gp_logging.enabled)                               \
-            break;                                                      \
-                                                                        \
-        static struct event_counter _ev = {                             \
+        static struct event_counter hse_ev_log _dt_section = {          \
             .ev_odometer = ATOMIC_INIT(0),                              \
-            .ev_trip_odometer = 0,                                      \
-            .ev_log_level = pri,                                        \
-            .ev_flags = EV_FLAGS_HSE_LOG                                \
+            .ev_pri = pri,                                              \
+            .ev_flags = EV_FLAGS_HSE_LOG,                               \
+            .ev_file = __FILE__,                                        \
+            .ev_line = __LINE__,                                        \
+            .ev_dte = {                                                 \
+                .dte_data = &hse_ev_log,                                \
+                .dte_ops = &event_counter_ops,                          \
+                .dte_type = DT_TYPE_ERROR_COUNTER,                      \
+                .dte_line = __LINE__,                                   \
+                .dte_file = __FILE__,                                   \
+                .dte_func = __func__,                                   \
+            },                                                          \
         };                                                              \
-        static struct dt_element _dte = {                               \
-            .dte_data = &_ev,                                           \
-            .dte_ops = &event_counter_ops,                              \
-            .dte_type = DT_TYPE_ERROR_COUNTER,                          \
-            .dte_flags = DT_FLAGS_NON_REMOVEABLE,                       \
-            .dte_line = __LINE__,                                       \
-            .dte_file = __FILE__,                                       \
-            .dte_func = __func__,                                       \
-            .dte_comp = COMPNAME,                                       \
-        };                                                              \
-        static volatile u64 mlp_next;                                   \
                                                                         \
-        event_counter(&_dte, &_ev);                                     \
-        if (HSE_UNLIKELY(_ev.ev_log_level <= hse_gparams.gp_logging.level)) { \
-            u64 mlp_now = get_time_ns();                                \
-                                                                        \
-            if (mlp_now > mlp_next) {                                   \
-                mlp_next = mlp_now + hse_gparams.gp_logging.squelch_ns;    \
-                _hse_log(__FILE__, __LINE__, (pri), (fmt), (async), (hse_args), ##__VA_ARGS__); \
-            }                                                           \
-        }                                                               \
+        _hse_log(&hse_ev_log, (fmt), (async), (hse_args), ##__VA_ARGS__); \
     } while (0)
 
-#else /* NO_ERROR_COUNTER */
-
-#define hse_log_pri(pri, fmt, async, hse_args, ...)                                         \
-    do {                                                                                    \
-        if (HSE_UNLIKELY((pri) <= hse_gparams.gp_logging.level))                               \
-            _hse_log(__FILE__, __LINE__, (pri), (fmt), (async), (hse_args), ##__VA_ARGS__); \
-    } while (0)
-
-#endif /* NO_ERROR_COUNTER */
 
 #define hse_log(log_fmt, ...) hse_log_pri(log_fmt, true, NULL, ##__VA_ARGS__)
 
@@ -158,14 +123,7 @@ extern FILE *logging_file;
 #define hse_log_sync(log_fmt, ...) hse_log_pri(log_fmt, false, NULL, ##__VA_ARGS__)
 
 void
-_hse_log(
-    const char *source_file,
-    s32         source_line,
-    int         priority,
-    const char *fmt_string,
-    bool        async,
-    void **     hse_args,
-    ...) HSE_PRINTF(4, 7);
+_hse_log(struct event_counter *ev, const char *fmt, bool async, void **args, ...) HSE_PRINTF(2, 5);
 
 const char *
 hse_logprio_val_to_name(int priority);
@@ -237,5 +195,7 @@ static inline HSE_PRINTF(1, 2) int hse_slog_validate_list(char *fmt, ...)
 {
     return _SLOG_LIST_TOKEN;
 }
+
+extern FILE *logging_file;
 
 #endif /* HSE_PLATFORM_LOGGING_H */

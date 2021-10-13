@@ -432,7 +432,7 @@ print_elem(
             break;
 
         default:
-            ev(1, HSE_WARNING);
+            ev_warn(1);
             break;
     }
 }

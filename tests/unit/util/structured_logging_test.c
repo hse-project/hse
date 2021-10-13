@@ -264,12 +264,12 @@ MTF_DEFINE_UTEST(structured_logging_test, test_ev)
         sizeof(path),
         "%s/%s/%s/%d",
         dte.dte_comp,
-        ev_pathname(dte.dte_file),
+        basename(dte.dte_file),
         dte.dte_func,
         dte.dte_line);
 
     ev.ev_dte = &dte;
-    snprintf(dte.dte_path, sizeof(dte.dte_path), "/data/event_counter/%s", path);
+    snprintf(dte.dte_path, sizeof(dte.dte_path), "%s/%s", DT_PATH_EVENT, path);
     event_counter(&dte, &ev);
     av[0] = &ev;
 

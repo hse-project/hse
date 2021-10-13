@@ -15,9 +15,6 @@
 #include <hse_util/data_tree.h>
 #include <hse_util/event_counter.h>
 
-#undef COMPNAME
-#define COMPNAME __func__
-
 int
 ev_test_pre(struct mtf_test_info *lcl_ti)
 {
@@ -36,7 +33,7 @@ MTF_BEGIN_UTEST_COLLECTION_PREPOST(event_counter, ev_test_pre, ev_test_post);
 
 MTF_DEFINE_UTEST(event_counter, ev_create_and_search)
 {
-    const char          path[] = "/data/event_counter";
+    const char          path[] = DT_PATH_EVENT;
     struct yaml_context yc = {
         .yaml_indent = 0, .yaml_offset = 0,
     };
@@ -55,25 +52,25 @@ MTF_DEFINE_UTEST(event_counter, ev_create_and_search)
     yc.yaml_buf_sz = 32768;
     yc.yaml_emit = NULL;
 
-    dbg_before = dt_iterate_cmd(dt_data_tree, DT_OP_EMIT, path, &dip, NULL, "ev_log_level", dbg_lvl);
+    dbg_before = dt_iterate_cmd(DT_OP_EMIT, path, &dip, NULL, "ev_pri", dbg_lvl);
     printf("%s: %s before, %zu items ---->\n%s\n<----\n", __func__, dbg_lvl, dbg_before, buf);
 
-    err_before = dt_iterate_cmd(dt_data_tree, DT_OP_EMIT, path, &dip, NULL, "ev_log_level", err_lvl);
+    err_before = dt_iterate_cmd(DT_OP_EMIT, path, &dip, NULL, "ev_pri", err_lvl);
     printf("%s: %s before, %zu items ---->\n%s\n<----\n", __func__, err_lvl, err_before, buf);
 
-    ERROR_COUNTER(HSE_DEBUG);              /* HSE_DEBUG */
-    ERROR_COUNTER();                       /* HSE_INFO */
-    ERROR_COUNTER(HSE_NOTICE, 0xdeadbeef); /* HSE_NOTICE */
-    ERROR_COUNTER(HSE_WARNING);            /* HSE_WARNING */
-    ERROR_COUNTER(HSE_ERR, 0xfeed);        /* HSE_ERR */
-    ERROR_COUNTER(HSE_CRIT);               /* HSE_CRIT */
-    ERROR_COUNTER(HSE_ALERT, 0xabcd);      /* HSE_ALERT */
-    ERROR_COUNTER(HSE_EMERG);              /* HSE_EMERG */
+    ev_debug(1);
+    ev_info(1);
+    ev_notice(1);
+    ev_warn(1);
+    ev_err(1);
+    ev_crit(1);
+    ev_alert(1);
+    ev_emerg(1);
 
-    dbg_after = dt_iterate_cmd(dt_data_tree, DT_OP_EMIT, path, &dip, NULL, "ev_log_level", dbg_lvl);
+    dbg_after = dt_iterate_cmd(DT_OP_EMIT, path, &dip, NULL, "ev_pri", dbg_lvl);
     printf("%s: %s before, %zu items ---->\n%s\n<----\n", __func__, dbg_lvl, dbg_after, buf);
 
-    err_after = dt_iterate_cmd(dt_data_tree, DT_OP_EMIT, path, &dip, NULL, "ev_log_level", err_lvl);
+    err_after = dt_iterate_cmd(DT_OP_EMIT, path, &dip, NULL, "ev_pri", err_lvl);
     printf("%s: %s before, %zu items ---->\n%s\n<----\n", __func__, err_lvl, err_after, buf);
 
     ASSERT_EQ(dbg_after - dbg_before, 8);
@@ -82,6 +79,7 @@ MTF_DEFINE_UTEST(event_counter, ev_create_and_search)
     free(buf);
 }
 
+#if 0
 /* 1. Test that the Event Counter macro creates an event counter that is
  * accessible via dt_find(), dt_iterate_next(), and dt_iterate_cmd().
  */
@@ -95,24 +93,24 @@ MTF_DEFINE_UTEST(event_counter, ev_create_and_find)
     /* Normally, COMPNAME is set for the whole file, but for testing
      * purposes, we'll be setting it with the individual functions.
      */
-    const char *phile = ev_pathname(__FILE__);
+    const char *phile = basename(__FILE__);
     char        fuzzy_path[DT_PATH_LEN];
     char        direct_path[DT_PATH_LEN];
 
-    snprintf(fuzzy_path, sizeof(fuzzy_path), "/data/event_counter/%s", COMPNAME);
+    snprintf(fuzzy_path, sizeof(fuzzy_path), "%s/%s", DT_PATH_EVENT, COMPNAME);
 
     /* Create an EC using the macro.
      *
-     * Note, keep the __LINE__ on the same line as the ERROR_COUNTER.
+     * Note, keep the __LINE__ on the same line as the ev.
      * We will be using it to compose the direct name.
      */
 
     /* clang-format off */
-    ERROR_COUNTER(); line = __LINE__;
+    ev(1); line = __LINE__;
     /* clang-format on */
 
     /* Try to find the EC with a fuzzy find */
-    fuzzy = dt_find(dt_data_tree, fuzzy_path, 0);
+    fuzzy = dt_find(fuzzy_path, 0);
 
     /* Better have found something. */
     ASSERT_NE(fuzzy, NULL);
@@ -121,64 +119,68 @@ MTF_DEFINE_UTEST(event_counter, ev_create_and_find)
     snprintf(
         direct_path,
         sizeof(direct_path),
-        "/data/event_counter/%s/%s/%s/%d",
+        "%s/%s/%s/%s/%d",
+        DT_PATH_EVENT,
         COMPNAME,
         phile,
         __func__,
         line);
-    direct = dt_find(dt_data_tree, direct_path, 1);
+    direct = dt_find(direct_path, 1);
 
     ASSERT_NE(direct, NULL);
     ASSERT_EQ(direct, fuzzy);
 
     /* Try to access the EC with dt_iterate_next */
-    iterate_next = dt_iterate_next(dt_data_tree, fuzzy_path, NULL);
+    iterate_next = dt_iterate_next(fuzzy_path, NULL);
     ASSERT_EQ(direct, iterate_next);
 
     /* Try to access the EC with dt_iterate_cmd */
-    count = dt_iterate_cmd(dt_data_tree, DT_OP_COUNT, fuzzy_path, NULL, NULL, NULL, NULL);
+    count = dt_iterate_cmd(DT_OP_COUNT, fuzzy_path, NULL, NULL, NULL, NULL);
     ASSERT_EQ(count, 1);
 
-    /* Now, do the same for an ERROR_COUNTER with a priority */
+    /* Now, do the same for an ev with a priority */
     /* clang-format off */
-    ERROR_COUNTER(HSE_DEBUG); line = __LINE__;
+    ev_debug(1); line = __LINE__;
     /* clang-format on */
 
     /* Try to find the EC with a direct find */
     snprintf(
         direct_path,
         sizeof(direct_path),
-        "/data/event_counter/%s/%s/%s/%d",
+        "%s/%s/%s/%s/%d",
+        DT_PATH_EVENT,
         COMPNAME,
         phile,
         __func__,
         line);
-    direct = dt_find(dt_data_tree, direct_path, 1);
+    direct = dt_find(direct_path, 1);
     ASSERT_NE(direct, NULL);
 
     ev = (struct event_counter *)direct->dte_data;
-    ASSERT_EQ(ev->ev_log_level, HSE_DEBUG_VAL);
+    ASSERT_EQ(ev->ev_pri, HSE_DEBUG_VAL);
 
     /* Now, with both a priority and a rock */
     /* clang-format off */
-    ERROR_COUNTER(HSE_CRIT); line = __LINE__;
+    ev_crit(1); line = __LINE__;
     /* clang-format on */
 
     /* Try to find the EC with a direct find */
     snprintf(
         direct_path,
         sizeof(direct_path),
-        "/data/event_counter/%s/%s/%s/%d",
+        "%s/%s/%s/%s/%d",
+        DT_PATH_EVENT,
         COMPNAME,
         phile,
         __func__,
         line);
-    direct = dt_find(dt_data_tree, direct_path, 1);
+    direct = dt_find(direct_path, 1);
     ASSERT_NE(direct, NULL);
 
     ev = (struct event_counter *)direct->dte_data;
-    ASSERT_EQ(ev->ev_log_level, HSE_CRIT_VAL);
+    ASSERT_EQ(ev->ev_pri, HSE_CRIT_VAL);
 }
+#endif
 
 /**
  * timestamp_compare returns -1 if one < two, 0 if one == two, 1 if one > two
@@ -204,7 +206,7 @@ MTF_DEFINE_UTEST(event_counter, ev_odometer_timestamp)
     struct event_counter *ec;
     struct dt_element *   direct;
     atomic64_t            before, after;
-    const char *          phile = ev_pathname(__FILE__);
+    const char *          phile = basename(__FILE__);
     int                   line;
     int                   ret;
 
@@ -213,7 +215,7 @@ MTF_DEFINE_UTEST(event_counter, ev_odometer_timestamp)
 
     /* Create an EC using the macro. */
     /* clang-format off */
-    ERROR_COUNTER(); line = __LINE__;
+    ev(1); line = __LINE__;
     /* clang-format on */
 
     /* Take an "after" time reading. */
@@ -223,12 +225,13 @@ MTF_DEFINE_UTEST(event_counter, ev_odometer_timestamp)
     snprintf(
         direct_path,
         sizeof(direct_path),
-        "/data/event_counter/%s/%s/%s/%d",
+        "%s/%s/%s/%s/%d",
+        DT_PATH_EVENT,
         COMPNAME,
         phile,
         __func__,
         line);
-    direct = dt_find(dt_data_tree, direct_path, 1);
+    direct = dt_find(direct_path, 1);
     ASSERT_NE(direct, NULL);
 
     ec = direct->dte_data;
@@ -256,25 +259,26 @@ MTF_DEFINE_UTEST(event_counter, ev_odometer_counter)
     char                  direct_path[DT_PATH_LEN];
     struct event_counter *ec;
     struct dt_element *   direct;
-    const char *          phile = ev_pathname(__FILE__);
+    const char *          phile = basename(__FILE__);
     int                   line;
     int                   i;
 
     /* Create an EC using the macro. */
     /* clang-format off */
-    ERROR_COUNTER(); line = __LINE__;
+    ev(1); line = __LINE__;
     /* clang-format on */
 
     /* Try to find the EC with a direct find */
     snprintf(
         direct_path,
         sizeof(direct_path),
-        "/data/event_counter/%s/%s/%s/%d",
+        "%s/%s/%s/%s/%d",
+        DT_PATH_EVENT,
         COMPNAME,
         phile,
         __func__,
         line);
-    direct = dt_find(dt_data_tree, direct_path, 1);
+    direct = dt_find(direct_path, 1);
     ASSERT_NE(direct, NULL);
 
     ec = direct->dte_data;
@@ -286,7 +290,7 @@ MTF_DEFINE_UTEST(event_counter, ev_odometer_counter)
     /* Now loop 10 times on a new event counter */
     for (i = 0; i < 10; i++) {
         /* clang-format off */
-        ERROR_COUNTER(); line = __LINE__;
+        ev(1); line = __LINE__;
         /* clang-format on */
     }
 
@@ -294,12 +298,13 @@ MTF_DEFINE_UTEST(event_counter, ev_odometer_counter)
     snprintf(
         direct_path,
         sizeof(direct_path),
-        "/data/event_counter/%s/%s/%s/%d",
+        "%s/%s/%s/%s/%d",
+        DT_PATH_EVENT,
         COMPNAME,
         phile,
         __func__,
         line);
-    direct = dt_find(dt_data_tree, direct_path, 1);
+    direct = dt_find(direct_path, 1);
     ASSERT_NE(direct, NULL);
 
     ec = direct->dte_data;
@@ -316,7 +321,7 @@ MTF_DEFINE_UTEST(event_counter, ev_timestamp_advance)
     char                  direct_path[DT_PATH_LEN];
     struct event_counter *ec;
     struct dt_element *   direct;
-    const char *          phile = ev_pathname(__FILE__);
+    const char *          phile = basename(__FILE__);
     atomic64_t            prev;
     int                   line;
     int                   ret;
@@ -333,20 +338,21 @@ MTF_DEFINE_UTEST(event_counter, ev_timestamp_advance)
     for (i = 0; i < 10; i++) {
 
         /* clang-format off */
-        ERROR_COUNTER(); line = __LINE__;
+        ev(1); line = __LINE__;
         /* clang-format on */
 
         /* Try to find the EC with a direct find */
         snprintf(
             direct_path,
             sizeof(direct_path),
-            "/data/event_counter/%s/%s/%s/%d",
+            "%s/%s/%s/%s/%d",
+            DT_PATH_EVENT,
             COMPNAME,
             phile,
             __func__,
             line);
 
-        direct = dt_find(dt_data_tree, direct_path, 1);
+        direct = dt_find(direct_path, 1);
         ASSERT_NE(direct, NULL);
 
         ec = direct->dte_data;
@@ -370,7 +376,7 @@ MTF_DEFINE_UTEST(event_counter, ev_trip_odometer_timestamp)
     struct event_counter *      ec;
     struct dt_element *         direct;
     atomic64_t                  before, after;
-    const char *                phile = ev_pathname(__FILE__);
+    const char *                phile = basename(__FILE__);
     size_t                      count;
     int                         line;
     int                         ret;
@@ -379,19 +385,20 @@ MTF_DEFINE_UTEST(event_counter, ev_trip_odometer_timestamp)
 
     /* Create an EC using the macro. */
     /* clang-format off */
-    ERROR_COUNTER(); line = __LINE__;
+    ev(1); line = __LINE__;
     /* clang-format on */
 
     /* Try to find the EC with a direct find */
     snprintf(
         direct_path,
         sizeof(direct_path),
-        "/data/event_counter/%s/%s/%s/%d",
+        "%s/%s/%s/%s/%d",
+        DT_PATH_EVENT,
         COMPNAME,
         phile,
         __func__,
         line);
-    direct = dt_find(dt_data_tree, direct_path, 1);
+    direct = dt_find(direct_path, 1);
     ASSERT_NE(direct, NULL);
 
     ec = direct->dte_data;
@@ -409,7 +416,7 @@ MTF_DEFINE_UTEST(event_counter, ev_trip_odometer_timestamp)
      * trip odometer's timestamp.
      */
     dsp.field = DT_FIELD_TRIP_ODOMETER;
-    count = dt_iterate_cmd(dt_data_tree, DT_OP_SET, direct_path, &dip, NULL, NULL, NULL);
+    count = dt_iterate_cmd(DT_OP_SET, direct_path, &dip, NULL, NULL, NULL);
     ASSERT_EQ(count, 1);
 
     /* Take an "after" time reading. */
@@ -442,7 +449,7 @@ MTF_DEFINE_UTEST(event_counter, ev_trip_odometer_counter)
     char                        direct_path[DT_PATH_LEN];
     struct event_counter *      ec;
     struct dt_element *         direct;
-    const char *                phile = ev_pathname(__FILE__);
+    const char *                phile = basename(__FILE__);
     int                         line;
     int                         count;
     int                         i;
@@ -455,20 +462,21 @@ MTF_DEFINE_UTEST(event_counter, ev_trip_odometer_counter)
     for (i = 0; i < 10; i++) {
 
         /* clang-format off */
-        ERROR_COUNTER(); line = __LINE__;
+        ev(1); line = __LINE__;
         /* clang-format on */
 
         /* Try to find the EC with a direct find */
         snprintf(
             direct_path,
             sizeof(direct_path),
-            "/data/event_counter/%s/%s/%s/%d",
+            "%s/%s/%s/%s/%d",
+            DT_PATH_EVENT,
             COMPNAME,
             phile,
             __func__,
             line);
 
-        direct = dt_find(dt_data_tree, direct_path, 1);
+        direct = dt_find(direct_path, 1);
         ASSERT_NE(direct, NULL);
 
         ec = direct->dte_data;
@@ -483,7 +491,7 @@ MTF_DEFINE_UTEST(event_counter, ev_trip_odometer_counter)
              * update the trip odometer's timestamp.
              */
             dsp.field = DT_FIELD_TRIP_ODOMETER;
-            count = dt_iterate_cmd(dt_data_tree, DT_OP_SET, direct_path, &dip, NULL, NULL, NULL);
+            count = dt_iterate_cmd(DT_OP_SET, direct_path, &dip, NULL, NULL, NULL);
             ASSERT_EQ(count, 1);
 
             ASSERT_EQ(ec->ev_trip_odometer, i + 1);
@@ -501,6 +509,7 @@ validate_buf(
     size_t                bytes_in_buf,
     const char *          component,
     const char *          phile,
+    const char *          func,
     int                   line,
     struct event_counter *ec)
 {
@@ -508,23 +517,18 @@ validate_buf(
     const char *b = buf;
     size_t      offset = 0;
     size_t      remaining;
-    char        path[DT_PATH_LEN];
     int         ret;
     int         i;
 
     memset(my_buf, 0, MY_BUF_SIZE);
-    /* component is used twice in this path because, for the tests,
-     * it also corresponds to the function.
-     */
-    snprintf(
-        path, DT_PATH_LEN, "/data/event_counter/%s/%s/%s/%d", component, phile, component, line);
 
     remaining = MY_BUF_SIZE - offset;
 
-    offset += snprintf(my_buf + offset, remaining, "event_counter:\n");
+    offset += snprintf(my_buf + offset, remaining, "%s:\n", DT_PATH_EVENT + strlen(DT_PATH_ROOT) + 1);
     remaining = MY_BUF_SIZE - offset;
 
-    offset += snprintf(my_buf + offset, remaining, "- path: %s\n", path);
+    offset += snprintf(my_buf + offset, remaining,
+                       "- path: %s/%s/%s/%s/%d\n", DT_PATH_EVENT, component, phile, func, line);
     remaining = MY_BUF_SIZE - offset;
 
     offset += snprintf(my_buf + offset, remaining, "  level: HSE_INFO\n");
@@ -589,7 +593,7 @@ validate_buf(
  */
 MTF_DEFINE_UTEST(event_counter, ev_emit)
 {
-    const char *        phile = ev_pathname(__FILE__);
+    const char *        phile = basename(__FILE__);
     char                direct_path[DT_PATH_LEN];
     struct yaml_context yc = {
         .yaml_indent = 0, .yaml_offset = 0,
@@ -605,24 +609,25 @@ MTF_DEFINE_UTEST(event_counter, ev_emit)
 
     /* Create an EC using the macro.
      *
-     * Note, keep the __LINE__ on the same line as the ERROR_COUNTER.
+     * Note, keep the __LINE__ on the same line as the ev.
      * We will be using it to compose the direct name.
      */
 
     /* clang-format off */
-    ERROR_COUNTER(); line = __LINE__;
+    ev_info(1); line = __LINE__;
     /* clang-format on */
 
     /* Try to find the EC with a direct find */
     snprintf(
         direct_path,
         sizeof(direct_path),
-        "/data/event_counter/%s/%s/%s/%d",
+        "%s/%s/%s/%s/%d",
+        DT_PATH_EVENT,
         COMPNAME,
         phile,
         __func__,
         line);
-    direct = dt_find(dt_data_tree, direct_path, 1);
+    direct = dt_find(direct_path, 1);
     ASSERT_NE(direct, NULL);
 
     ec = direct->dte_data;
@@ -635,10 +640,10 @@ MTF_DEFINE_UTEST(event_counter, ev_emit)
     yc.yaml_emit = NULL;
 
     /* Generate an emit command with dt_iterate_cmd */
-    count = dt_iterate_cmd(dt_data_tree, DT_OP_EMIT, direct_path, &dip, NULL, NULL, NULL);
-    ASSERT_EQ(count, 3);
+    count = dt_iterate_cmd(DT_OP_EMIT, direct_path, &dip, NULL, NULL, NULL);
+    ASSERT_EQ(count, 2);
 
-    ret = validate_buf(buf, yc.yaml_offset, COMPNAME, phile, line, ec);
+    ret = validate_buf(buf, yc.yaml_offset, COMPNAME, phile, __func__, line, ec);
     ASSERT_EQ(ret, 0);
 
     free(buf);
@@ -654,22 +659,23 @@ MTF_DEFINE_UTEST(event_counter, ev_counts)
     char   fuzzy_path[DT_PATH_LEN];
     size_t count;
 
-    snprintf(fuzzy_path, sizeof(fuzzy_path), "/data/event_counter/%s", COMPNAME);
+    snprintf(fuzzy_path, sizeof(fuzzy_path), "%s/%s/%s/%s",
+             DT_PATH_EVENT, COMPNAME, basename(__FILE__), __func__);
 
     /* Create an EC using the macro. */
-    ERROR_COUNTER();
+    ev(1);
 
     /* Use dt_iterate_cmd to count it */
-    count = dt_iterate_cmd(dt_data_tree, DT_OP_COUNT, fuzzy_path, NULL, NULL, NULL, NULL);
+    count = dt_iterate_cmd(DT_OP_COUNT, fuzzy_path, NULL, NULL, NULL, NULL);
     ASSERT_EQ(count, 1);
 
     /* Create several more ECs using the macro. */
-    ERROR_COUNTER();
-    ERROR_COUNTER();
-    ERROR_COUNTER();
+    ev(1);
+    ev(1);
+    ev(1);
 
     /* Use dt_iterate_cmd to count it */
-    count = dt_iterate_cmd(dt_data_tree, DT_OP_COUNT, fuzzy_path, NULL, NULL, NULL, NULL);
+    count = dt_iterate_cmd(DT_OP_COUNT, fuzzy_path, NULL, NULL, NULL, NULL);
     ASSERT_EQ(count, 4);
 }
 
@@ -677,7 +683,7 @@ MTF_DEFINE_UTEST(event_counter, ev_counts)
  */
 MTF_DEFINE_UTEST(event_counter, ev_delete_protect)
 {
-    const char *       phile = ev_pathname(__FILE__);
+    const char *       phile = basename(__FILE__);
     char               direct_path[DT_PATH_LEN];
     struct dt_element *direct_before, *direct_after;
     int                line;
@@ -685,27 +691,28 @@ MTF_DEFINE_UTEST(event_counter, ev_delete_protect)
 
     /* Create an EC using the macro. */
     /* clang-format off */
-    ERROR_COUNTER(); line = __LINE__;
+    ev(1); line = __LINE__;
     /* clang-format on */
 
     /* Try to find the EC with a direct find */
     snprintf(
         direct_path,
         sizeof(direct_path),
-        "/data/event_counter/%s/%s/%s/%d",
+        "%s/%s/%s/%s/%d",
+        DT_PATH_EVENT,
         COMPNAME,
         phile,
         __func__,
         line);
-    direct_before = dt_find(dt_data_tree, direct_path, 1);
+    direct_before = dt_find(direct_path, 1);
     ASSERT_NE(direct_before, NULL);
 
     /* Try to remove the EC */
-    ret = dt_remove(dt_data_tree, direct_before);
-    ASSERT_EQ(ret, -EACCES);
+    ret = dt_remove(direct_before);
+    ASSERT_EQ(ret, EACCES);
 
     /* Should still be able to find it */
-    direct_after = dt_find(dt_data_tree, direct_path, 1);
+    direct_after = dt_find(direct_path, 1);
     ASSERT_EQ(direct_before, direct_after);
 }
 
@@ -716,7 +723,7 @@ MTF_DEFINE_UTEST(event_counter, ev_delete_protect)
  */
 MTF_DEFINE_UTEST(event_counter, ev_emit_overflow)
 {
-    const char *        phile = ev_pathname(__FILE__);
+    const char *        phile = basename(__FILE__);
     char                direct_path[DT_PATH_LEN];
     struct yaml_context yc = {
         .yaml_indent = 0, .yaml_offset = 0,
@@ -731,24 +738,25 @@ MTF_DEFINE_UTEST(event_counter, ev_emit_overflow)
 
     /* Create an EC using the macro.
      *
-     * Note, keep the __LINE__ on the same line as the ERROR_COUNTER.
+     * Note, keep the __LINE__ on the same line as the ev.
      * We will be using it to compose the direct name.
      */
 
     /* clang-format off */
-    ERROR_COUNTER(); line = __LINE__;
+    ev(1); line = __LINE__;
     /* clang-format on */
 
     /* Try to find the EC with a direct find */
     snprintf(
         direct_path,
         sizeof(direct_path),
-        "/data/event_counter/%s/%s/%s/%d",
+        "%s/%s/%s/%s/%d",
+        DT_PATH_EVENT,
         COMPNAME,
         phile,
         __func__,
         line);
-    direct = dt_find(dt_data_tree, direct_path, 1);
+    direct = dt_find(direct_path, 1);
     ASSERT_NE(direct, NULL);
 
     ec = direct->dte_data;
@@ -766,11 +774,11 @@ MTF_DEFINE_UTEST(event_counter, ev_emit_overflow)
     false_buf = buf + FALSE_OFFSET;
     yc.yaml_buf = false_buf;
     yc.yaml_buf_sz = EV_EMIT_OVERFLOW_BUF_SIZE;
-    yc.yaml_emit = NULL,
+    yc.yaml_emit = NULL;
 
     /* Generate an emit command with dt_iterate_cmd */
-        count = dt_iterate_cmd(dt_data_tree, DT_OP_EMIT, direct_path, &dip, NULL, NULL, NULL);
-    ASSERT_EQ(count, 3);
+    count = dt_iterate_cmd(DT_OP_EMIT, direct_path, &dip, NULL, NULL, NULL);
+    ASSERT_EQ(count, 2);
 
     for (i = 0; i < FALSE_OFFSET; i++) {
         if (buf[i] != 42) {
@@ -795,7 +803,7 @@ MTF_DEFINE_UTEST(event_counter, ev_emit_overflow)
 MTF_DEFINE_UTEST(event_counter, ev_put_invalid_field)
 {
     char                        direct_path[DT_PATH_LEN];
-    const char *                phile = ev_pathname(__FILE__);
+    const char *                phile = basename(__FILE__);
     int                         line;
     int                         count;
     struct dt_element *         direct, *dte;
@@ -803,14 +811,15 @@ MTF_DEFINE_UTEST(event_counter, ev_put_invalid_field)
     union dt_iterate_parameters dip = {.dsp = &dsp };
 
     /* clang-format off */
-    ERROR_COUNTER(); line = __LINE__;
+    ev(1); line = __LINE__;
     /* clang-format on */
 
     /* Try to find the EC with a direct find */
     snprintf(
         direct_path,
         sizeof(direct_path),
-        "/data/event_counter/%s/%s/%s/%d",
+        "%s/%s/%s/%s/%d",
+        DT_PATH_EVENT,
         COMPNAME,
         phile,
         __func__,
@@ -819,7 +828,7 @@ MTF_DEFINE_UTEST(event_counter, ev_put_invalid_field)
     /* Get the current dt element struct
      * to use as reference for later comparisons
      */
-    direct = dt_find(dt_data_tree, direct_path, 1);
+    direct = dt_find(direct_path, 1);
     ASSERT_NE(direct, NULL);
 
     /* For each field val, test the following:
@@ -830,54 +839,54 @@ MTF_DEFINE_UTEST(event_counter, ev_put_invalid_field)
      */
     dsp.field = DT_FIELD_CLEAR;
     dsp.value = "somevalue";
-    count = dt_iterate_cmd(dt_data_tree, DT_OP_SET, direct_path, &dip, NULL, NULL, NULL);
+    count = dt_iterate_cmd(DT_OP_SET, direct_path, &dip, NULL, NULL, NULL);
     ASSERT_EQ(count, 0);
-    dte = dt_find(dt_data_tree, direct_path, 1);
+    dte = dt_find(direct_path, 1);
     ASSERT_NE(dte, NULL);
     if (dte)
         ASSERT_EQ(0, memcmp(dte, direct, sizeof(struct dt_element)));
 
     dsp.field = DT_FIELD_ODOMETER_TIMESTAMP;
     dsp.value = "somevalue";
-    count = dt_iterate_cmd(dt_data_tree, DT_OP_SET, direct_path, &dip, NULL, NULL, NULL);
+    count = dt_iterate_cmd(DT_OP_SET, direct_path, &dip, NULL, NULL, NULL);
     ASSERT_EQ(count, 0);
-    dte = dt_find(dt_data_tree, direct_path, 1);
+    dte = dt_find(direct_path, 1);
     ASSERT_NE(dte, NULL);
     if (dte)
         ASSERT_EQ(0, memcmp(dte, direct, sizeof(struct dt_element)));
 
     dsp.field = DT_FIELD_TRIP_ODOMETER_TIMESTAMP;
     dsp.value = "somevalue";
-    count = dt_iterate_cmd(dt_data_tree, DT_OP_SET, direct_path, &dip, NULL, NULL, NULL);
+    count = dt_iterate_cmd(DT_OP_SET, direct_path, &dip, NULL, NULL, NULL);
     ASSERT_EQ(count, 0);
-    dte = dt_find(dt_data_tree, direct_path, 1);
+    dte = dt_find(direct_path, 1);
     ASSERT_NE(dte, NULL);
     if (dte)
         ASSERT_EQ(0, memcmp(dte, direct, sizeof(struct dt_element)));
 
     dsp.field = DT_FIELD_ODOMETER;
     dsp.value = "somevalue";
-    count = dt_iterate_cmd(dt_data_tree, DT_OP_SET, direct_path, &dip, NULL, NULL, NULL);
+    count = dt_iterate_cmd(DT_OP_SET, direct_path, &dip, NULL, NULL, NULL);
     ASSERT_EQ(count, 0);
-    dte = dt_find(dt_data_tree, direct_path, 1);
+    dte = dt_find(direct_path, 1);
     ASSERT_NE(dte, NULL);
     if (dte)
         ASSERT_EQ(0, memcmp(dte, direct, sizeof(struct dt_element)));
 
     dsp.field = DT_FIELD_INVALID;
     dsp.value = "somevalue";
-    count = dt_iterate_cmd(dt_data_tree, DT_OP_SET, direct_path, &dip, NULL, NULL, NULL);
+    count = dt_iterate_cmd(DT_OP_SET, direct_path, &dip, NULL, NULL, NULL);
     ASSERT_EQ(count, 0);
-    dte = dt_find(dt_data_tree, direct_path, 1);
+    dte = dt_find(direct_path, 1);
     ASSERT_NE(dte, NULL);
     if (dte)
         ASSERT_EQ(0, memcmp(dte, direct, sizeof(struct dt_element)));
 
     dsp.field = -2;
     dsp.value = "somevalue";
-    count = dt_iterate_cmd(dt_data_tree, DT_OP_SET, direct_path, &dip, NULL, NULL, NULL);
+    count = dt_iterate_cmd(DT_OP_SET, direct_path, &dip, NULL, NULL, NULL);
     ASSERT_EQ(count, 0);
-    dte = dt_find(dt_data_tree, direct_path, 1);
+    dte = dt_find(direct_path, 1);
     ASSERT_NE(dte, NULL);
     if (dte)
         ASSERT_EQ(0, memcmp(dte, direct, sizeof(struct dt_element)));
@@ -941,6 +950,31 @@ MTF_DEFINE_UTEST(event_counter, ev_match_select_test)
     /* Should not match if field is not 'source' */
     boolean = ev_match_select_handler(&dte, "src", "hse_log");
     ASSERT_EQ(boolean, false);
+}
+
+/* 18. Test the EV_FLAGS_NOTIME flag
+ */
+MTF_DEFINE_UTEST(event_counter, ev_no_time)
+{
+    long imax = 1ul << 24, i;
+    u64 t1, t2;
+
+    usleep(100 * 1000);
+    t1 = get_time_ns();
+    for (i = 0; i < imax; ++i) {
+        ev(1);
+    }
+    t1 = get_time_ns() - t1;
+
+    usleep(100 * 1000);
+    t2 = get_time_ns();
+    for (i = 0; i < imax; ++i) {
+        evx(1);
+    }
+    t2 = get_time_ns() - t2;
+
+    printf("%s: %lu %lu, %.3lf\n", __func__, t1, t2, (double)t1 / t2);
+    ASSERT_LT(t2, t1 / 3);
 }
 
 MTF_END_UTEST_COLLECTION(event_counter)

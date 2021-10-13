@@ -710,7 +710,7 @@ sp3_work(
                 break;
 
             default:
-                ev(1, HSE_WARNING);
+                ev_warn(1);
                 break;
         }
     } else {
@@ -733,7 +733,7 @@ sp3_work(
                 *qnum_out = SP3_QNUM_INTERN;
                 break;
             default:
-                ev(1, HSE_WARNING);
+                ev_warn(1);
                 goto locked_nowork;
         }
 

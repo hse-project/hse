@@ -936,50 +936,32 @@ c0sk_release_multiset(struct c0sk_impl *self, struct c0_kvmultiset *multiset)
 #pragma pop_macro("c0sk_release_multiset")
 
 /**
- * c0sk_ingest_boost() - return %true if ingest boost is required
- * @self:       ptr to c0sk_impl
- *
- * It is desirable to boost the ingest process if the caller is a mongod
- * replication worker thread (i.e., the thred name starts with "repl wr").
- */
-static bool
-c0sk_ingest_boost(struct c0sk_impl *self)
-{
-    char namebuf[16];
-    int rc;
-
-    rc = pthread_getname_np(pthread_self(), namebuf, sizeof(namebuf));
-
-    return !rc && 0 == strncmp(namebuf, "repl wr", 7);
-}
-
-/**
  * c0sk_ingest_tune() - adjust tuning for next ingest buffer
  * @self: ptr to c0sk_impl
+ *
+ * It is desirable to disable throttling if we're a mongod replica, which
+ * for mongod 3.4.7 we deduce by looking at the calling thread's name.
+ * Note that this is a temporary hack until we figure out how to to
+ * do this from the connector.
  */
 static void
 c0sk_ingest_tune(struct c0sk_impl *self)
 {
     struct kvdb_rparams *rp = self->c0sk_kvdb_rp;
-    uint width;
+    char namebuf[16];
 
-    width = min_t(uint, self->c0sk_ingest_width_max * 2, HSE_C0_INGEST_WIDTH_MAX);
+    if (pthread_getname_np(pthread_self(), namebuf, sizeof(namebuf)))
+        return;
 
-    /* A mongod replica node requires a maximally provisioned
-     * kvms with throttling disabled in order to mitigate lag.
-     */
-    if (c0sk_ingest_boost(self)) {
+    if (0 == strncmp(namebuf, "repl wr", 7)) {
         rp->throttle_disable |= 0x80u;
         self->c0sk_boost = 4;
     } else if (self->c0sk_boost > 0) {
         rp->throttle_disable |= 0x80u;
         self->c0sk_boost--;
     } else {
-        width = self->c0sk_ingest_width_max;
         rp->throttle_disable &= ~0x80u;
     }
-
-    self->c0sk_ingest_width = width;
 }
 
 /* GCOV_EXCL_START */
@@ -1187,7 +1169,7 @@ c0sk_putdel(
 
         rcu_read_lock();
         dst = c0sk_get_first_c0kvms(&self->c0sk_handle);
-        if (ev(!dst, HSE_WARNING)) {
+        if (ev_warn(!dst)) {
             rcu_read_unlock();
             return merr(EINVAL);
         }

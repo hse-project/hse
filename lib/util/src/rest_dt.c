@@ -24,7 +24,6 @@ rest_dt_put(
     struct kv_iter *  iter,
     void *            context)
 {
-    struct dt_tree *            tree;
     struct dt_set_parameters    dsp;
     struct dt_element *         dte;
     union dt_iterate_parameters dip = {.dsp = &dsp };
@@ -42,16 +41,6 @@ rest_dt_put(
     yc.yaml_buf_sz = sizeof(buf);
     yc.yaml_emit = NULL;
 
-    tree = dt_get_tree("/data");
-    if (!tree) {
-        const char msg[] = "No data tree found\n";
-
-        if (write(info->resp_fd, msg, sizeof(msg) - 1) != sizeof(msg) - 1)
-            return merr(EIO);
-
-        return merr(ev(ENOENT));
-    }
-
     /* Separate out the path and arguments */
     dsp.path = calloc(1, strlen(path) + 2);
     if (!dsp.path)
@@ -60,7 +49,7 @@ rest_dt_put(
     sprintf(dsp.path, "/%s", path);
 
     /* Check if path is valid */
-    dte = dt_find(tree, dsp.path, 0);
+    dte = dt_find(dsp.path, 0);
     if (!dte) {
         size_t n = snprintf(buf, sizeof(buf), "Invalid path: %s\n", dsp.path);
 
@@ -81,7 +70,7 @@ rest_dt_put(
         dsp.value = kv->value;
         dsp.value_len = strlen(dsp.value);
 
-        dt_iterate_cmd(tree, DT_OP_SET, dsp.path, &dip, 0, 0, 0);
+        dt_iterate_cmd(DT_OP_SET, dsp.path, &dip, 0, 0, 0);
 
         yaml_start_element(&yc, "path", dsp.path);
         yaml_element_field(&yc, "field", kv->key);
@@ -106,7 +95,6 @@ rest_dt_get(
     struct kv_iter *  iter,
     void *            context)
 {
-    struct dt_tree *            tree;
     struct rest_kv *            kv = 0;
     char *                      fld, *val;
     size_t                      pathsz;
@@ -128,10 +116,6 @@ rest_dt_get(
             return merr(ev(E2BIG));
     }
 
-    tree = dt_get_tree("/data");
-    if (!tree)
-        return merr(ev(ENOENT));
-
     pathsz = strlen(path) + 2;
     bufsz = ALIGN(pathsz, 4ul << 20);
 
@@ -147,7 +131,7 @@ rest_dt_get(
     yc.yaml_buf_sz = bufsz;
     yc.yaml_buf = buf;
 
-    if (dt_iterate_cmd(tree, DT_OP_EMIT, buf, &dip, 0, fld, val) > 0)
+    if (dt_iterate_cmd(DT_OP_EMIT, buf, &dip, 0, fld, val) > 0)
         rest_write_safe(info->resp_fd, yc.yaml_buf + pathsz, yc.yaml_offset - pathsz);
 
     free(yc.yaml_buf);

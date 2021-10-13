@@ -140,13 +140,10 @@ struct slog {
 extern struct hse_logging_infrastructure hse_logging_inf;
 
 merr_t
-hse_logging_init(void);
-
-merr_t
-hse_logging_post_init(void);
+hse_logging_init(void) HSE_COLD;
 
 void
-hse_logging_fini(void);
+hse_logging_fini(void) HSE_COLD;
 
 struct hse_log_fmt_state {
     char * dict;

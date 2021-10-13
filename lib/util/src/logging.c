@@ -9,6 +9,8 @@
 #include <hse_util/string.h>
 #include <hse_util/mutex.h>
 #include <hse_util/parse_num.h>
+#include <hse_util/data_tree.h>
+#include <hse_util/event_counter.h>
 #include <hse_ikvdb/hse_gparams.h>
 
 #include <hse/version.h>
@@ -312,12 +314,6 @@ log_level_validator(
     return 0;
 }
 
-merr_t
-hse_logging_post_init(void)
-{
-    return 0;
-}
-
 void
 hse_logging_fini(void)
 {
@@ -541,27 +537,34 @@ _hse_log_post_async(const char *source_file, s32 source_line, s32 priority, char
  */
 void
 _hse_log(
-    const char *source_file, /* source file of the logging site     */
-    s32         source_line, /* line number of the logging site     */
-    s32         priority,    /* priority of the log message         */
-    const char *fmt_string,  /* the platform-specific format string */
-    bool        async,       /* true=>only queue in circular buffer */
-    void **     hse_args,    /* array of pointers (or NULL)         */
-    ...)                     /* variable-length argument list       */
+    struct event_counter *ev, /* contains call site info and pri     */
+    const char *fmt_string,   /* the platform-specific format string */
+    bool        async,        /* true=>only queue in circular buffer */
+    void **     hse_args,     /* array of pointers (or NULL)         */
+    ...)                      /* variable-length argument list       */
 {
     struct hse_log_fmt_state state;
     va_list                  args;
     int                      num_hse_args;
     char *                   int_fmt = hse_logging_inf.mli_fmt_buf;
     bool                     res = false;
+    u64 now;
 
-    if (priority > hse_gparams.gp_logging.level)
+    if (!hse_gparams.gp_logging.enabled)
         return;
 
-    mutex_lock(&hse_logging_lock);
+    if (ev->ev_pri > hse_gparams.gp_logging.level)
+        return;
 
-    if (priority > hse_gparams.gp_logging.level)
-        goto out;
+    event_counter(ev);
+
+    now = get_time_ns();
+    if (now < ev->ev_priv)
+        return;
+
+    ev->ev_priv = now + hse_gparams.gp_logging.squelch_ns;
+
+    mutex_lock(&hse_logging_lock);
 
     assert(hse_logging_inf.mli_nm_buf != 0);
     assert(hse_logging_inf.mli_fmt_buf != 0);
@@ -614,7 +617,7 @@ _hse_log(
         goto out;
 
     va_start(args, hse_args);
-    finalize_log_structure(priority, async, source_file, source_line, &state, int_fmt, args);
+    finalize_log_structure(ev->ev_pri, async, ev->ev_file, ev->ev_line, &state, int_fmt, args);
     va_end(args);
 
 out:

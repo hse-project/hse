@@ -124,7 +124,7 @@ perfc_ctrseti_clear(struct perfc_seti *seti)
 }
 
 static size_t
-set_handler_ctrset(struct dt_element *dte, struct dt_set_parameters *dsp)
+perfc_set_handler_ctrset(struct dt_element *dte, struct dt_set_parameters *dsp)
 {
     struct perfc_seti *seti = (struct perfc_seti *)dte->dte_data;
 
@@ -157,9 +157,9 @@ set_handler_ctrset(struct dt_element *dte, struct dt_set_parameters *dsp)
 }
 
 static size_t
-set_handler(struct dt_element *dte, struct dt_set_parameters *dsp)
+perfc_set_handler(struct dt_element *dte, struct dt_set_parameters *dsp)
 {
-    return set_handler_ctrset(dte, dsp);
+    return perfc_set_handler_ctrset(dte, dsp);
 }
 
 #ifndef NSEC_PER_SEC
@@ -339,7 +339,7 @@ perfc_read(struct perfc_set *pcs, const u32 cidx, u64 *vadd, u64 *vsub)
 }
 
 static size_t
-emit_handler_ctrset(struct dt_element *dte, struct yaml_context *yc)
+perfc_emit_handler_ctrset(struct dt_element *dte, struct yaml_context *yc)
 {
     struct perfc_seti *   seti = dte->dte_data;
     char                  value[DT_PATH_LEN];
@@ -425,7 +425,7 @@ emit_handler_ctrset(struct dt_element *dte, struct yaml_context *yc)
 }
 
 /**
- * emit_handler() - the output fits into a YAML document. spacing is driven by
+ * perfc_emit_handler() - the output fits into a YAML document. spacing is driven by
  * YAML context.
  * @dte:
  * @yc:
@@ -440,25 +440,19 @@ emit_handler_ctrset(struct dt_element *dte, struct yaml_context *yc)
  * Fields are indented 6 spaces.
  */
 static size_t
-emit_handler(struct dt_element *dte, struct yaml_context *yc)
+perfc_emit_handler(struct dt_element *dte, struct yaml_context *yc)
 {
-    return emit_handler_ctrset(dte, yc);
-}
-
-static size_t
-count_handler(struct dt_element *element)
-{
-    return 1;
+    return perfc_emit_handler_ctrset(dte, yc);
 }
 
 /**
- * remove_handler_ctrset()
+ * perfc_remove_handler_ctrset()
  * @dte:
  *
  * Handle called by the tree to free a counter set instance.
  */
 static size_t
-remove_handler_ctrset(struct dt_element *dte)
+perfc_remove_handler_ctrset(struct dt_element *dte)
 {
     free_aligned(dte->dte_data);
     free(dte);
@@ -467,53 +461,39 @@ remove_handler_ctrset(struct dt_element *dte)
 }
 
 static size_t
-remove_handler(struct dt_element *dte)
+perfc_remove_handler(struct dt_element *dte)
 {
-    return remove_handler_ctrset(dte);
+    return perfc_remove_handler_ctrset(dte);
 }
 
 struct dt_element_ops perfc_ops = {
-    .emit = emit_handler,
-    .set = set_handler,
-    .count = count_handler,
-    .remove = remove_handler,
+    .dto_emit = perfc_emit_handler,
+    .dto_set = perfc_set_handler,
+    .dto_remove = perfc_remove_handler,
 };
 
 static size_t
-root_set_handler(struct dt_element *dte, struct dt_set_parameters *dsp)
+perfc_root_emit_handler(struct dt_element *dte, struct yaml_context *yc)
 {
-    return 1;
-}
-
-static size_t
-root_emit_handler(struct dt_element *me, struct yaml_context *yc)
-{
-    yaml_start_element_type(yc, "perfc");
+    yaml_start_element_type(yc, basename(dte->dte_path));
 
     return 1;
-}
-
-static size_t
-root_remove_handler(struct dt_element *element)
-{
-    /* Whole of dt must have been removed...*/
-    return 0;
 }
 
 static struct dt_element_ops perfc_root_ops = {
-    .set = root_set_handler,
-    .emit = root_emit_handler,
-    .remove = root_remove_handler,
+    .dto_emit = perfc_root_emit_handler,
 };
 
 merr_t
 perfc_init(void)
 {
-    static struct dt_element dte = {
-        .dte_data = NULL,
+    static struct dt_element hse_dte_perfc = {
         .dte_ops = &perfc_root_ops,
         .dte_type = DT_TYPE_ROOT,
-        .dte_path = PERFC_ROOT_PATH,
+        .dte_file = __FILE__,
+        .dte_line = __LINE__,
+        .dte_func = __func__,
+        .dte_path = DT_PATH_PERFC,
     };
     u64    boundv[PERFC_IVL_MAX];
     u64    bound;
@@ -564,18 +544,15 @@ perfc_init(void)
     if (ev(err))
         return err;
 
-    dt_add(dt_data_tree, &dte);
+    dt_add(&hse_dte_perfc);
 
     return 0;
 }
 
 void
-perfc_shutdown(void)
+perfc_fini(void)
 {
-    if (!dt_data_tree)
-        return;
-
-    dt_remove_recursive(dt_data_tree, PERFC_ROOT_PATH);
+    dt_remove_recursive(PERFC_ROOT_PATH);
 
     perfc_ivl_destroy(perfc_di_ivl);
     perfc_di_ivl = NULL;
@@ -675,7 +652,7 @@ perfc_ctrseti_alloc(
     struct perfc_seti *seti;
     struct dt_element *dte;
     char               path[DT_PATH_LEN];
-    char               family[DT_PATH_LEN] = "";
+    char               family[DT_PATH_ELEMENT_LEN] = "";
     u32                err = 0;
     const char *       famptr;
     size_t             valdatasz, sz;
@@ -693,7 +670,7 @@ perfc_ctrseti_alloc(
     if (!name || ctrc == 0)
         return merr(EINVAL);
 
-    if (strlen(name) >= DT_PATH_COMP_ELEMENT_LEN)
+    if (strlen(name) >= sizeof(path))
         return merr(ENAMETOOLONG);
 
     /*
@@ -750,7 +727,7 @@ perfc_ctrseti_alloc(
     if (ev(sz >= sizeof(path)))
         return merr(EINVAL);
 
-    dte = dt_find(dt_data_tree, path, 1 /*exact*/);
+    dte = dt_find(path, 1 /*exact*/);
     if (dte) {
         seti = (struct perfc_seti *)dte->dte_data;
 
@@ -762,15 +739,14 @@ perfc_ctrseti_alloc(
         return 0;
     }
 
-    /* Cannot use the static allocation trick that Error Counters use
-     * because we want to support per-instance Performance Counters
-     * and the static trick would result in the same space being used
-     * for each instance.
-     */
-    dte = calloc(1, sizeof(*dte));
+    sz = sizeof(*dte) + sz - sizeof(dte->dte_path);
+    sz = max_t(size_t, sizeof(*dte), sz);
+
+    dte = aligned_alloc(alignof(*dte), roundup(sz, alignof(*dte)));
     if (ev(!dte))
         return merr(ENOMEM);
 
+    memset(dte, 0, sizeof(*dte));
     dte->dte_type = DT_TYPE_PERFC;
     dte->dte_ops = &perfc_ops;
     strlcpy(dte->dte_path, path, sizeof(dte->dte_path));
@@ -863,7 +839,7 @@ perfc_ctrseti_alloc(
     }
 
     dte->dte_data = seti;
-    dt_add(dt_data_tree, dte);
+    dt_add(dte);
 
     setp->ps_seti = seti;
 
@@ -875,9 +851,6 @@ perfc_ctrseti_free(struct perfc_set *set)
 {
     struct perfc_seti *seti;
 
-    if (!dt_data_tree)
-        return;
-
     assert(set);
 
     seti = set->ps_seti;
@@ -885,7 +858,7 @@ perfc_ctrseti_free(struct perfc_set *set)
         return;
 
     /* The remove handler will free anything hanging from the counter set */
-    dt_remove_by_name(dt_data_tree, seti->pcs_path);
+    dt_remove_by_name(seti->pcs_path);
     set->ps_seti = NULL;
 }
 
@@ -918,7 +891,7 @@ perfc_ctrseti_invalidate_handle(struct perfc_set *set)
     dsp.value_len = 0;
     dsp.field = DT_FIELD_INVALIDATE_HANDLE;
 
-    dt_iterate_cmd(dt_data_tree, DT_OP_SET, dsp.path, &dip, 0, 0, 0);
+    dt_iterate_cmd(DT_OP_SET, dsp.path, &dip, 0, 0, 0);
 }
 
 static_assert(sizeof(struct perfc_val) >= sizeof(struct perfc_bkt), "sizeof perfc_bkt too large");

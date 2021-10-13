@@ -30,28 +30,28 @@ Convert NF data tree from YAML to a more readable form.
         default=pathlib.Path.cwd(),
     )
     argparser.add_argument(
+        "-c", dest="config", help="show config (rparams) only", action="store_true", default=False
+    )
+    argparser.add_argument(
         "-d",
         dest="describe",
         help="show descriptions (for perf counters)",
         action="store_true",
     )
     argparser.add_argument(
-        "-p", dest="perfc", help="show perf counters only", action="store_true", default=False
-    )
-    argparser.add_argument(
         "-e", dest="event", help="show event counters only", action="store_true", default=False
     )
     argparser.add_argument(
-        "-c", dest="config", help="show config (rparams) only", action="store_true", default=False
+        "-p", dest="perfc", help="show perf counters only", action="store_true", default=False
+    )
+    argparser.add_argument(
+        "-r", dest="raw", help="show raw output (yaml)", action="store_true"
     )
     argparser.add_argument(
         "-z",
         dest="hidezero",
-        help="do not show counters with value of zero",
+        help="do not show perf counters with value of zero nor event counters with a value of 1",
         action="store_true",
-    )
-    argparser.add_argument(
-        "-r", dest="raw", help="show raw output (yaml)", action="store_true"
     )
     return argparser
 
@@ -79,7 +79,7 @@ def get_error_counters(yml):
             filename = ev["path"]
             func = ""
 
-        if op.hidezero == False or ev["odometer"] != 0:
+        if op.hidezero == False or ev["odometer"] > 1:
             row = [
                 module,
                 filename,
@@ -256,6 +256,13 @@ def main():
         sock: str = content["socket"]["path"]
 
     url = "http://localhost/data"
+
+    if op.perfc:
+        url = "http://localhost/data/perfc"
+    elif op.event:
+        url = "http://localhost/data/event_counter"
+    elif op.config:
+        url = "http://localhost/data/config"
 
     curl_cmd = ["curl", "-s", "--noproxy", "localhost", "--unix-socket", sock, url]
     try:
