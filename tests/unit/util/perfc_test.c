@@ -83,6 +83,7 @@ MTF_DEFINE_UTEST(perfc, perfc_get_cycles)
     if ((tstop - tstart) < cycles_to_nsecs(cstop - cstart)) {
         hse_log(HSE_WARNING "%s: get_time_ns %lu < get_cycles %lu\n",
                 __func__, (tstop - tstart), cycles_to_nsecs(cstop - cstart));
+        free(cyclev);
         return;
     }
 

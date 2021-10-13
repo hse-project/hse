@@ -188,8 +188,8 @@ reset_mtf_test_coll_info(struct mtf_test_coll_info *tci)
 
 /* ------------------------------------------------------------------------- */
 
-int
-run_tests(void *tci);
+merr_t
+mtf_run_tests(struct mtf_test_coll_info *tci);
 
 static inline char
 test_result_to_char(enum mtf_test_result result)
@@ -316,14 +316,15 @@ inner_attr_show(struct mtf_test_coll_info *tci, const char *attr_name, char *buf
 
 char home[PATH_MAX];
 
-static inline int
+int
 mtf_main(int argc, char **argv, struct mtf_test_coll_info *tci)
 {
+    const char *progname = program_invocation_short_name;
     const char *paramv[] = { "socket.enabled=false" };
     char *logging_level, *config = NULL, *argv_home = NULL;
-    const char *progname;
+    char errbuf[1024];
     hse_err_t err;
-    int c, rc;
+    int c;
 
     static const struct option long_options[] = {
         { "logging-level", required_argument, NULL, 'l' },
@@ -334,7 +335,6 @@ mtf_main(int argc, char **argv, struct mtf_test_coll_info *tci)
         { 0, 0, 0, 0 },
     };
 
-    progname = program_invocation_short_name;
     tci->tci_named = NULL;
 
     while (-1 != (c = getopt_long(argc, argv, "+:1:hC:l:", long_options, NULL))) {
@@ -385,8 +385,6 @@ mtf_main(int argc, char **argv, struct mtf_test_coll_info *tci)
 
     err = hse_init(config, NELEM(paramv), paramv);
     if (err) {
-        char errbuf[1024];
-
         fprintf(stderr, "%s: hse_init failed: %s\n",
                 progname, merr_strinfo(err, errbuf, sizeof(errbuf), NULL));
         return EX_SOFTWARE;
@@ -396,16 +394,20 @@ mtf_main(int argc, char **argv, struct mtf_test_coll_info *tci)
     if (logging_level)
         hse_gparams.gp_logging.level = atoi(logging_level);
 
-    rc = run_tests(tci);
+    err = mtf_run_tests(tci);
+    if (err) {
+        fprintf(stderr, "%s: mtf_run_tests failed: %s\n",
+                progname, merr_strinfo(err, errbuf, sizeof(errbuf), NULL));
+    }
 
     hse_fini();
 
-    return rc;
+    return err ? EX_SOFTWARE : 0;
 }
 
-#define MTF_END_UTEST_COLLECTION(coll_name)                             \
-    int main(int argc, char **argv) {                                   \
-        return mtf_main(argc, argv, &_mtf_##coll_name##_tci);           \
+#define MTF_END_UTEST_COLLECTION(coll_name)                     \
+    int main(int argc, char **argv) {                           \
+        return mtf_main(argc, argv, &_mtf_##coll_name##_tci);   \
     }
 
 /* ------------------------------------------------------------------------- */
@@ -414,8 +416,8 @@ mtf_main(int argc, char **argv, struct mtf_test_coll_info *tci)
  * Given a struct mtf_test_coll_info pointer, run all the tests therein.
  */
 
-int
-run_tests_preamble(struct mtf_test_coll_info *tci)
+merr_t
+mtf_run_tests_preamble(struct mtf_test_coll_info *tci)
 {
     struct mtf_test_info ti;
 
@@ -439,7 +441,7 @@ run_tests_preamble(struct mtf_test_coll_info *tci)
 
     if (tci->tci_pre_run_hook && tci->tci_pre_run_hook(&ti)) {
         mtf_print(tci, "pre-run hook for %s failed, aborting run.\n", tci->tci_coll_name);
-        return -1;
+        return merr(EBADE);
     }
     mtf_print(tci, "[----------] Global test environment set-up.\n\n");
     mtf_print(tci, "[----------]\n");
@@ -448,7 +450,7 @@ run_tests_preamble(struct mtf_test_coll_info *tci)
 }
 
 int
-run_test(
+mtf_run_test(
     struct mtf_test_coll_info *tci,
     int                        test_index,
     int *                      success_cnt,
@@ -519,8 +521,8 @@ run_test(
     return 0;
 }
 
-int
-run_tests_postamble(struct mtf_test_coll_info *tci)
+merr_t
+mtf_run_tests_postamble(struct mtf_test_coll_info *tci)
 {
     struct mtf_test_info ti;
 
@@ -531,7 +533,7 @@ run_tests_postamble(struct mtf_test_coll_info *tci)
 
     if (tci->tci_post_run_hook && tci->tci_post_run_hook(&ti)) {
         mtf_print(tci, "post-run hook for %s failed, aborting run.\n", tci->tci_coll_name);
-        return -1;
+        return merr(EBADE);
     }
     mtf_print(tci, "[----------]\n\n");
     mtf_print(tci, "[----------] Global test environment tear-down.\n");
@@ -539,8 +541,8 @@ run_tests_postamble(struct mtf_test_coll_info *tci)
     return 0;
 }
 
-int
-run_tests_wrapup(struct mtf_test_coll_info *tci, int success_cnt, int failed_cnt, int total_time)
+void
+mtf_run_tests_wrapup(struct mtf_test_coll_info *tci, int success_cnt, int failed_cnt, int total_time)
 {
     int i;
 
@@ -566,39 +568,36 @@ run_tests_wrapup(struct mtf_test_coll_info *tci, int success_cnt, int failed_cnt
         }
         mtf_print(tci, "\n %d FAILED TEST%s\n", failed_cnt, ((failed_cnt == 1) ? "" : "S"));
     }
-
-    return 0;
 }
 
-int
-run_tests(void *arg)
+merr_t
+mtf_run_tests(struct mtf_test_coll_info *tci)
 {
-    struct mtf_test_coll_info *tci = (struct mtf_test_coll_info *)arg;
-
     int success_cnt = 0, failed_cnt = 0;
     int elapsed = 0, total_time = 0;
+    hse_err_t err;
     int i;
 
     reset_mtf_test_coll_info(tci);
 
-    if (run_tests_preamble(tci)) {
-        return -1;
-    }
+    err = mtf_run_tests_preamble(tci);
+    if (err)
+        return err;
 
     for (i = 0; i < tci->tci_num_tests; ++i) {
-        if (run_test(tci, i, &success_cnt, &failed_cnt, &elapsed)) {
-            return -1;
+        if (mtf_run_test(tci, i, &success_cnt, &failed_cnt, &elapsed)) {
+            return merr(EBADE);
         }
         total_time += elapsed;
     }
 
-    if (run_tests_postamble(tci)) {
-        return -1;
-    }
+    err = mtf_run_tests_postamble(tci);
+    if (err)
+        return err;
 
-    run_tests_wrapup(tci, success_cnt, failed_cnt, total_time);
+    mtf_run_tests_wrapup(tci, success_cnt, failed_cnt, total_time);
 
-    return (failed_cnt == 0) ? 0 : -1;
+    return failed_cnt ? merr(EBADE) : 0;
 }
 
 /* ------------------------------------------------------------------------- */
