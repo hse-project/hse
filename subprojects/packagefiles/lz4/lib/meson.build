@@ -10,6 +10,7 @@ lz4 = library(
     ['lz4.c'],
     c_args: c_args,
     version: meson.project_version(),
+    gnu_symbol_visibility: 'hidden'
 )
 
 lz4_dep = declare_dependency(
