@@ -412,8 +412,6 @@ mpool_props_get(struct mpool *mp, struct mpool_props *props)
         props->mp_mblocksz[i] = mcp.mc_mblocksz;
     }
 
-    props->mp_vma_size_max = 30;
-
     return 0;
 }
 

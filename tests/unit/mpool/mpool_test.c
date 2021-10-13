@@ -62,7 +62,6 @@ MTF_DEFINE_UTEST_PREPOST(mpool_test, mpool_ocd_test, mpool_test_pre, mpool_test_
     err = mpool_props_get(mp, &mprops);
     ASSERT_EQ(0, merr_errno(err));
     ASSERT_EQ(32, mprops.mp_mblocksz[MP_MED_CAPACITY]);
-    ASSERT_EQ(30, mprops.mp_vma_size_max);
 
     err = mpool_stats_get(NULL, &stats);
     ASSERT_EQ(EINVAL, merr_errno(err));
