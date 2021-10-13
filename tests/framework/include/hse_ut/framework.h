@@ -35,64 +35,65 @@ int         mtf_verify_flag;
 int         mtf_verify_line;
 const char *mtf_verify_file;
 
-#define MTF_MODULE_UNDER_TEST(module) const char *___mtf_module_under_test = #module
+#define MTF_MODULE_UNDER_TEST(module) \
+    const char *___mtf_module_under_test = #module
 
 /* ========================================================================= */
 
-#define ___MTF_INNER_BEGIN_UTEST_COLLECTION_SHARED(name, pre_hook, post_hook)            \
-                                                                                         \
-    int utest_collection_##name __attribute__((unused)) = 0;                             \
-                                                                                         \
-    struct mtf_test_coll_info    _mtf_##name##_tci = { .tci_coll_name = #name,           \
-                                                    .tci_num_tests = 0,               \
-                                                    .tci_pre_run_hook = (pre_hook),   \
-                                                    .tci_post_run_hook = (post_hook), \
-                                                    .tci_state = ST_INITIALIZING,     \
-                                                    .tci_res_rd_state = RD_READY,     \
-                                                    .tci_res_rd_index = 0,            \
-                                                    .tci_out_rd_state = RD_READY,     \
-                                                    .tci_rock = 0 };                  \
+#define ___MTF_INNER_BEGIN_UTEST_COLLECTION_SHARED(name, pre_hook, post_hook)   \
+                                                                                \
+    int utest_collection_##name __attribute__((unused)) = 0;                    \
+                                                                                \
+    struct mtf_test_coll_info _mtf_##name##_tci = {                             \
+        .tci_coll_name = #name,                                                 \
+        .tci_num_tests = 0,                                                     \
+        .tci_pre_run_hook = (pre_hook),                                         \
+        .tci_post_run_hook = (post_hook),                                       \
+        .tci_state = ST_INITIALIZING,                                           \
+        .tci_res_rd_state = RD_READY,                                           \
+        .tci_res_rd_index = 0,                                                  \
+        .tci_out_rd_state = RD_READY,                                           \
+        .tci_rock = 0 };                                                        \
     static u16 __mtf_tci_testidx HSE_MAYBE_UNUSED = 0;
 
-#define ___MTF_INNER_BEGIN_UTEST_COLLECTION(name, pre_hook, post_hook)              \
-    ___MTF_INNER_BEGIN_UTEST_COLLECTION_SHARED(name, pre_hook, post_hook)           \
-                                                                                    \
-    union ___mtf_floatint {                                                         \
-        float fv;                                                                   \
-        int   iv;                                                                   \
-    };                                                                              \
-                                                                                    \
-    __attribute__((unused)) static int ___mtf_almost_equal_ulps_and_abs(            \
-        float x, float y, float max_diff, int max_ulps_diff)                        \
-    {                                                                               \
-        union ___mtf_floatint x_fi = { .fv = x };                                   \
-        union ___mtf_floatint y_fi = { .fv = y };                                   \
-                                                                                    \
-        int   x_i = x_fi.iv;                                                        \
-        int   y_i = y_fi.iv;                                                        \
-        float x_f = x_fi.fv;                                                        \
-        float y_f = y_fi.fv;                                                        \
-                                                                                    \
-        float abs_diff = fabsf(x_f - y_f);                                          \
-        if (abs_diff <= max_diff)                                                   \
-            return 1;                                                               \
-                                                                                    \
-        if (((x_i >> 31) != 0) != ((y_i >> 31) != 0))                               \
-            return 0;                                                               \
-                                                                                    \
-        if (abs(x_i - y_i) <= max_ulps_diff)                                        \
-            return 1;                                                               \
-                                                                                    \
-        return 0;                                                                   \
-    }                                                                               \
-    /*                                                                            \
- * Constructor priority for user test init routines.                          \
- * This priority value must be higher than all the constructor priorities     \
- * in our product code and that's why 500 was chosen.                         \
- */ \
+#define ___MTF_INNER_BEGIN_UTEST_COLLECTION(name, pre_hook, post_hook)          \
+    ___MTF_INNER_BEGIN_UTEST_COLLECTION_SHARED(name, pre_hook, post_hook)       \
+                                                                                \
+        union ___mtf_floatint {                                                 \
+        float fv;                                                               \
+        int   iv;                                                               \
+        };                                                                      \
+                                                                                \
+    __attribute__((unused)) static int ___mtf_almost_equal_ulps_and_abs(        \
+        float x, float y, float max_diff, int max_ulps_diff)                    \
+    {                                                                           \
+        union ___mtf_floatint x_fi = { .fv = x };                               \
+        union ___mtf_floatint y_fi = { .fv = y };                               \
+                                                                                \
+        int   x_i = x_fi.iv;                                                    \
+        int   y_i = y_fi.iv;                                                    \
+        float x_f = x_fi.fv;                                                    \
+        float y_f = y_fi.fv;                                                    \
+                                                                                \
+        float abs_diff = fabsf(x_f - y_f);                                      \
+        if (abs_diff <= max_diff)                                               \
+            return 1;                                                           \
+                                                                                \
+        if (((x_i >> 31) != 0) != ((y_i >> 31) != 0))                           \
+            return 0;                                                           \
+                                                                                \
+        if (abs(x_i - y_i) <= max_ulps_diff)                                    \
+            return 1;                                                           \
+                                                                                \
+        return 0;                                                               \
+    }                                                                           \
+    /*                                                                          \
+     * Constructor priority for user test init routines.                        \
+     */                                                                         \
     enum { __MTF_TEST_PRI = 500 };
 
-#define MTF_BEGIN_UTEST_COLLECTION(name) ___MTF_INNER_BEGIN_UTEST_COLLECTION(name, 0, 0)
+#define MTF_BEGIN_UTEST_COLLECTION(name) \
+    ___MTF_INNER_BEGIN_UTEST_COLLECTION(name, 0, 0)
 
 #define MTF_BEGIN_UTEST_COLLECTION_PRE(name, pre_hook) \
     ___MTF_INNER_BEGIN_UTEST_COLLECTION(name, pre_hook, 0)
@@ -107,32 +108,33 @@ const char *mtf_verify_file;
 
 /* ------------------------------------------------------------------------- */
 
-#define ___MTF_INNER_DEFINE_UTEST(coll_name, test_name, pre_hook, post_hook)                    \
-                                                                                                \
-    static int ___mtf_##coll_name##_##test_name##_check __attribute__((unused)) =               \
-        sizeof(utest_collection_##coll_name);                                                   \
-                                                                                                \
-    void test_name(struct mtf_test_info *);                                                     \
-                                                                                                \
-    __attribute__((                                                                             \
-        constructor(__COUNTER__ + __MTF_TEST_PRI))) static void ___mtf_##test_name##_init(void) \
-    {                                                                                           \
-        int index = __mtf_tci_testidx++;                                                        \
-                                                                                                \
-        if (index >= ___MTF_MAX_UTEST_INSTANCES) {                                              \
-            fprintf(stderr, "max unit test count (%d) exceeded, aborting", index);              \
-            exit(1);                                                                            \
-        }                                                                                       \
-        _mtf_##coll_name##_tci.tci_test_pointers[index] = (test_name);                          \
-        _mtf_##coll_name##_tci.tci_test_names[index] = #test_name;                              \
-        _mtf_##coll_name##_tci.tci_test_prehooks[index] = (pre_hook);                           \
-        _mtf_##coll_name##_tci.tci_test_posthooks[index] = (post_hook);                         \
-        _mtf_##coll_name##_tci.tci_num_tests += 1;                                              \
-    }                                                                                           \
-                                                                                                \
+#define ___MTF_INNER_DEFINE_UTEST(coll_name, test_name, pre_hook, post_hook)            \
+                                                                                        \
+    static int ___mtf_##coll_name##_##test_name##_check __attribute__((unused)) =       \
+        sizeof(utest_collection_##coll_name);                                           \
+                                                                                        \
+    void test_name(struct mtf_test_info *);                                             \
+                                                                                        \
+    __attribute__((constructor(__COUNTER__ + __MTF_TEST_PRI)))                          \
+    static void ___mtf_##test_name##_init(void)                                         \
+    {                                                                                   \
+        int index = __mtf_tci_testidx++;                                                \
+                                                                                        \
+        if (index >= ___MTF_MAX_UTEST_INSTANCES) {                                      \
+            fprintf(stderr, "max unit test count (%d) exceeded, aborting", index);      \
+            exit(1);                                                                    \
+        }                                                                               \
+        _mtf_##coll_name##_tci.tci_test_pointers[index] = (test_name);                  \
+        _mtf_##coll_name##_tci.tci_test_names[index] = #test_name;                      \
+        _mtf_##coll_name##_tci.tci_test_prehooks[index] = (pre_hook);                   \
+        _mtf_##coll_name##_tci.tci_test_posthooks[index] = (post_hook);                 \
+        _mtf_##coll_name##_tci.tci_num_tests += 1;                                      \
+    }                                                                                   \
+                                                                                        \
     void test_name(struct mtf_test_info *lcl_ti)
 
-#define MTF_DEFINE_UTEST(coll_name, test_name) ___MTF_INNER_DEFINE_UTEST(coll_name, test_name, 0, 0)
+#define MTF_DEFINE_UTEST(coll_name, test_name) \
+    ___MTF_INNER_DEFINE_UTEST(coll_name, test_name, 0, 0)
 
 #define MTF_DEFINE_UTEST_PRE(coll_name, test_name, pre_hook) \
     ___MTF_INNER_DEFINE_UTEST(coll_name, test_name, pre_hook, 0)
@@ -186,8 +188,8 @@ reset_mtf_test_coll_info(struct mtf_test_coll_info *tci)
 
 /* ------------------------------------------------------------------------- */
 
-int
-run_tests(void *tci);
+merr_t
+mtf_run_tests(struct mtf_test_coll_info *tci);
 
 static inline char
 test_result_to_char(enum mtf_test_result result)
@@ -209,21 +211,21 @@ inner_attr_show(struct mtf_test_coll_info *tci, const char *attr_name, char *buf
 
     if (strcmp(attr_name, "status") == 0) {
         switch (tci->tci_state) {
-            case ST_INITIALIZING:
-                cnt = sprintf(buf, "initializing\n");
-                break;
-            case ST_READY:
-                cnt = sprintf(buf, "ready\n");
-                break;
-            case ST_RUNNING:
-                cnt = sprintf(buf, "running\n");
-                break;
-            case ST_DONE:
-                cnt = sprintf(buf, "done\n");
-                break;
-            case ST_ERROR:
-                cnt = sprintf(buf, "error\n");
-                break;
+        case ST_INITIALIZING:
+            cnt = sprintf(buf, "initializing\n");
+            break;
+        case ST_READY:
+            cnt = sprintf(buf, "ready\n");
+            break;
+        case ST_RUNNING:
+            cnt = sprintf(buf, "running\n");
+            break;
+        case ST_DONE:
+            cnt = sprintf(buf, "done\n");
+            break;
+        case ST_ERROR:
+            cnt = sprintf(buf, "error\n");
+            break;
         }
     } else if (strcmp(attr_name, "result") == 0) {
         if (tci->tci_state == ST_DONE) {
@@ -314,84 +316,98 @@ inner_attr_show(struct mtf_test_coll_info *tci, const char *attr_name, char *buf
 
 char home[PATH_MAX];
 
-#define MTF_END_UTEST_COLLECTION(coll_name)                                                    \
-                                                                                               \
-    int main(int argc, char **argv)                                                            \
-    {                                                                                          \
-        const char *paramv[] = { "socket.enabled=false" };                                     \
-        char *      logging_level, *config = NULL, *argv_home = NULL;                          \
-        int         c, rc;                                                                     \
-        hse_err_t   hrc;                                                                       \
-                                                                                               \
-        _mtf_##coll_name##_tci.tci_named = 0;                                                  \
-                                                                                               \
-        static const struct option long_options[] = {                                          \
-            { "logging-level", required_argument, NULL, 'l' },                                 \
-            { "help", no_argument, NULL, 'h' },                                                \
-            { "one", required_argument, NULL, '1' },                                           \
-            { "home", required_argument, NULL, 'C' },                                          \
-            { "config", required_argument, NULL, 'c' },                                        \
-            { 0, 0, 0, 0 },                                                                    \
-        };                                                                                     \
-                                                                                               \
-        while (-1 != (c = getopt_long(argc, argv, "+:l:h1:C:", long_options, NULL))) {         \
-            switch (c) {                                                                       \
-                case 'h':                                                                      \
-                    printf("usage: %s [-l logging-level] [-1 testname] [-C home]\n", argv[0]); \
-                    printf("usage: %s -h\n", argv[0]);                                         \
-                    exit(0);                                                                   \
-                                                                                               \
-                case 'l':                                                                      \
-                    hse_gparams.gp_logging.level = atoi(optarg);                               \
-                    break;                                                                     \
-                                                                                               \
-                case '1':                                                                      \
-                    _mtf_##coll_name##_tci.tci_named = optarg;                                 \
-                    break;                                                                     \
-                                                                                               \
-                case 'c':                                                                      \
-                    config = optarg;                                                           \
-                    break;                                                                     \
-                                                                                               \
-                case 'C':                                                                      \
-                    argv_home = optarg;                                                        \
-                    break;                                                                     \
-                                                                                               \
-                case ':':                                                                      \
-                    printf(                                                                    \
-                        "invalid argument for option '-%c',"                                   \
-                        " use -h for help\n",                                                  \
-                        optopt);                                                               \
-                    exit(EX_USAGE);                                                            \
-                                                                                               \
-                default: /* silently ignore all other errors */                                \
-                    break;                                                                     \
-            }                                                                                  \
-        }                                                                                      \
-                                                                                               \
-        _mtf_##coll_name##_tci.tci_argc = argc;                                                \
-        _mtf_##coll_name##_tci.tci_argv = argv;                                                \
-        _mtf_##coll_name##_tci.tci_optind = optind;                                            \
-                                                                                               \
-        if (argv_home && !realpath(argv_home, home)) {                                         \
-            rc = errno;                                                                        \
-            fprintf(stderr, "Failed to resolve home directory\n");                             \
-            return rc;                                                                         \
-        }                                                                                      \
-                                                                                               \
-        hrc = hse_init(config, NELEM(paramv), paramv);                                         \
-        if (hrc)                                                                               \
-            return hse_err_to_errno(hrc);                                                      \
-                                                                                               \
-        logging_level = getenv("HSE_TEST_LOGGING_LEVEL");                                      \
-        if (logging_level)                                                                     \
-            hse_gparams.gp_logging.level = atoi(logging_level);                                \
-                                                                                               \
-        rc = run_tests(&_mtf_##coll_name##_tci);                                               \
-                                                                                               \
-        hse_fini();                                                                            \
-                                                                                               \
-        return rc;                                                                             \
+int
+mtf_main(int argc, char **argv, struct mtf_test_coll_info *tci)
+{
+    const char *progname = program_invocation_short_name;
+    const char *paramv[] = { "socket.enabled=false" };
+    char *logging_level, *config = NULL, *argv_home = NULL;
+    char errbuf[1024];
+    hse_err_t err;
+    int c;
+
+    static const struct option long_options[] = {
+        { "logging-level", required_argument, NULL, 'l' },
+        { "help", no_argument, NULL, 'h' },
+        { "one", required_argument, NULL, '1' },
+        { "home", required_argument, NULL, 'C' },
+        { "config", required_argument, NULL, 'c' },
+        { 0, 0, 0, 0 },
+    };
+
+    tci->tci_named = NULL;
+
+    while (-1 != (c = getopt_long(argc, argv, "+:1:hC:l:", long_options, NULL))) {
+        switch (c) {
+        case '1':
+            tci->tci_named = optarg;
+            break;
+
+        case 'C':
+            argv_home = optarg;
+            break;
+
+        case 'c':
+            /* [HSE_REVISIT] cheap_test uses -c, so this is a bit wonky
+             * (note that we can only get here via --config).
+             */
+            config = optarg;
+            break;
+
+        case 'h':
+            printf("usage: %s [-l logging-level] [-1 testname] [-C home]\n", progname);
+            printf("usage: %s -h\n", progname);
+            exit(0);
+
+        case 'l':
+            hse_gparams.gp_logging.level = atoi(optarg);
+            break;
+
+        case ':':
+            fprintf(stderr, "%s: invalid argument for option '-%c', use -h for help\n",
+                    progname, optopt);
+            exit(EX_USAGE);
+
+        default: /* pass on to test */
+            break;
+        }
+    }
+
+    tci->tci_argc = argc;
+    tci->tci_argv = argv;
+    tci->tci_optind = optind;
+
+    if (argv_home && !realpath(argv_home, home)) {
+        fprintf(stderr, "%s: failed to resolve home directory %s: %s\n",
+                progname, argv_home, strerror(errno));
+        return EX_OSERR;
+    }
+
+    err = hse_init(config, NELEM(paramv), paramv);
+    if (err) {
+        fprintf(stderr, "%s: hse_init failed: %s\n",
+                progname, merr_strinfo(err, errbuf, sizeof(errbuf), NULL));
+        return EX_SOFTWARE;
+    }
+
+    logging_level = getenv("HSE_TEST_LOGGING_LEVEL");
+    if (logging_level)
+        hse_gparams.gp_logging.level = atoi(logging_level);
+
+    err = mtf_run_tests(tci);
+    if (err) {
+        fprintf(stderr, "%s: mtf_run_tests failed: %s\n",
+                progname, merr_strinfo(err, errbuf, sizeof(errbuf), NULL));
+    }
+
+    hse_fini();
+
+    return err ? EX_SOFTWARE : 0;
+}
+
+#define MTF_END_UTEST_COLLECTION(coll_name)                     \
+    int main(int argc, char **argv) {                           \
+        return mtf_main(argc, argv, &_mtf_##coll_name##_tci);   \
     }
 
 /* ------------------------------------------------------------------------- */
@@ -400,8 +416,8 @@ char home[PATH_MAX];
  * Given a struct mtf_test_coll_info pointer, run all the tests therein.
  */
 
-int
-run_tests_preamble(struct mtf_test_coll_info *tci)
+merr_t
+mtf_run_tests_preamble(struct mtf_test_coll_info *tci)
 {
     struct mtf_test_info ti;
 
@@ -425,7 +441,7 @@ run_tests_preamble(struct mtf_test_coll_info *tci)
 
     if (tci->tci_pre_run_hook && tci->tci_pre_run_hook(&ti)) {
         mtf_print(tci, "pre-run hook for %s failed, aborting run.\n", tci->tci_coll_name);
-        return -1;
+        return merr(EBADE);
     }
     mtf_print(tci, "[----------] Global test environment set-up.\n\n");
     mtf_print(tci, "[----------]\n");
@@ -434,7 +450,7 @@ run_tests_preamble(struct mtf_test_coll_info *tci)
 }
 
 int
-run_test(
+mtf_run_test(
     struct mtf_test_coll_info *tci,
     int                        test_index,
     int *                      success_cnt,
@@ -505,8 +521,8 @@ run_test(
     return 0;
 }
 
-int
-run_tests_postamble(struct mtf_test_coll_info *tci)
+merr_t
+mtf_run_tests_postamble(struct mtf_test_coll_info *tci)
 {
     struct mtf_test_info ti;
 
@@ -517,7 +533,7 @@ run_tests_postamble(struct mtf_test_coll_info *tci)
 
     if (tci->tci_post_run_hook && tci->tci_post_run_hook(&ti)) {
         mtf_print(tci, "post-run hook for %s failed, aborting run.\n", tci->tci_coll_name);
-        return -1;
+        return merr(EBADE);
     }
     mtf_print(tci, "[----------]\n\n");
     mtf_print(tci, "[----------] Global test environment tear-down.\n");
@@ -525,8 +541,8 @@ run_tests_postamble(struct mtf_test_coll_info *tci)
     return 0;
 }
 
-int
-run_tests_wrapup(struct mtf_test_coll_info *tci, int success_cnt, int failed_cnt, int total_time)
+void
+mtf_run_tests_wrapup(struct mtf_test_coll_info *tci, int success_cnt, int failed_cnt, int total_time)
 {
     int i;
 
@@ -552,39 +568,36 @@ run_tests_wrapup(struct mtf_test_coll_info *tci, int success_cnt, int failed_cnt
         }
         mtf_print(tci, "\n %d FAILED TEST%s\n", failed_cnt, ((failed_cnt == 1) ? "" : "S"));
     }
-
-    return 0;
 }
 
-int
-run_tests(void *arg)
+merr_t
+mtf_run_tests(struct mtf_test_coll_info *tci)
 {
-    struct mtf_test_coll_info *tci = (struct mtf_test_coll_info *)arg;
-
     int success_cnt = 0, failed_cnt = 0;
     int elapsed = 0, total_time = 0;
+    hse_err_t err;
     int i;
 
     reset_mtf_test_coll_info(tci);
 
-    if (run_tests_preamble(tci)) {
-        return -1;
-    }
+    err = mtf_run_tests_preamble(tci);
+    if (err)
+        return err;
 
     for (i = 0; i < tci->tci_num_tests; ++i) {
-        if (run_test(tci, i, &success_cnt, &failed_cnt, &elapsed)) {
-            return -1;
+        if (mtf_run_test(tci, i, &success_cnt, &failed_cnt, &elapsed)) {
+            return merr(EBADE);
         }
         total_time += elapsed;
     }
 
-    if (run_tests_postamble(tci)) {
-        return -1;
-    }
+    err = mtf_run_tests_postamble(tci);
+    if (err)
+        return err;
 
-    run_tests_wrapup(tci, success_cnt, failed_cnt, total_time);
+    mtf_run_tests_wrapup(tci, success_cnt, failed_cnt, total_time);
 
-    return (failed_cnt == 0) ? 0 : -1;
+    return failed_cnt ? merr(EBADE) : 0;
 }
 
 /* ------------------------------------------------------------------------- */
@@ -593,93 +606,93 @@ run_tests(void *arg)
 
 enum MTF_SET_TYPE { MTF_ST_IRANGE = 1, MTF_ST_IVALUES, MTF_ST_EVALUES, MTF_ST_BOOLS };
 
-#define MTF_DEFINE_IVALUES(var, length, vector)        \
-    int ___mtf_##var##_values[___MTF_MAX_VALUE_COUNT]; \
-    int ___mtf_##var##_length;                         \
-                                                       \
-    int ___mtf_##var##_generator(void)                 \
-    {                                                  \
-        int i;                                         \
-                                                       \
-        for (i = 0; i < length; ++i) {                 \
-            ___mtf_##var##_values[i] = vector[i];      \
-        }                                              \
-        ___mtf_##var##_length = i;                     \
-                                                       \
-        return 1;                                      \
+#define MTF_DEFINE_IVALUES(var, length, vector)         \
+    int ___mtf_##var##_values[___MTF_MAX_VALUE_COUNT];  \
+    int ___mtf_##var##_length;                          \
+                                                        \
+    int ___mtf_##var##_generator(void)                  \
+    {                                                   \
+        int i;                                          \
+                                                        \
+        for (i = 0; i < length; ++i) {                  \
+            ___mtf_##var##_values[i] = vector[i];       \
+        }                                               \
+        ___mtf_##var##_length = i;                      \
+                                                        \
+        return 1;                                       \
     }
 
 /* ------------------------------------------------------------------------- */
 
-#define MTF_DEFINE_EVALUES(type, var, length, vector)  \
-    int ___mtf_##var##_values[___MTF_MAX_VALUE_COUNT]; \
-    int ___mtf_##var##_length;                         \
-                                                       \
-    int ___mtf_##var##_generator(void)                 \
-    {                                                  \
-        int i;                                         \
-                                                       \
-        for (i = 0; i < length; ++i) {                 \
-            ___mtf_##var##_values[i] = vector[i];      \
-        }                                              \
-        ___mtf_##var##_length = i;                     \
-                                                       \
-        return 1;                                      \
+#define MTF_DEFINE_EVALUES(type, var, length, vector)   \
+    int ___mtf_##var##_values[___MTF_MAX_VALUE_COUNT];  \
+    int ___mtf_##var##_length;                          \
+                                                        \
+    int ___mtf_##var##_generator(void)                  \
+    {                                                   \
+        int i;                                          \
+                                                        \
+        for (i = 0; i < length; ++i) {                  \
+            ___mtf_##var##_values[i] = vector[i];       \
+        }                                               \
+        ___mtf_##var##_length = i;                      \
+                                                        \
+        return 1;                                       \
     }
 
 /* ------------------------------------------------------------------------- */
-#define MTF_DEFINE_BOOLS(var)         \
-    int ___mtf_##var##_values[2];     \
-    int ___mtf_##var##_length;        \
-                                      \
-    int ___mtf_##var##_generator()    \
-    {                                 \
-        ___mtf_##var##_values[0] = 1; \
-        ___mtf_##var##_values[1] = 0; \
-        ___mtf_##var##_length = 2;    \
-                                      \
-        return 1;                     \
+#define MTF_DEFINE_BOOLS(var)                   \
+    int ___mtf_##var##_values[2];               \
+    int ___mtf_##var##_length;                  \
+                                                \
+    int ___mtf_##var##_generator()              \
+    {                                           \
+        ___mtf_##var##_values[0] = 1;           \
+        ___mtf_##var##_values[1] = 0;           \
+        ___mtf_##var##_length = 2;              \
+                                                \
+        return 1;                               \
     }
 
 /* ------------------------------------------------------------------------- */
 
-#define ___MTF_INNER_DEFINE_IRANGE(var, begin, end, step) \
-    int ___mtf_##var##_values[___MTF_MAX_VALUE_COUNT];    \
-    int ___mtf_##var##_length;                            \
-                                                          \
-    int ___mtf_##var##_generator(void)                    \
-    {                                                     \
-        int i = 0, value = begin;                         \
-                                                          \
-        while (value < end) {                             \
-            ___mtf_##var##_values[i++] = value;           \
-            value += step;                                \
-        }                                                 \
-        ___mtf_##var##_length = i;                        \
-                                                          \
-        return 1;                                         \
+#define ___MTF_INNER_DEFINE_IRANGE(var, begin, end, step)       \
+    int ___mtf_##var##_values[___MTF_MAX_VALUE_COUNT];          \
+    int ___mtf_##var##_length;                                  \
+                                                                \
+    int ___mtf_##var##_generator(void)                          \
+    {                                                           \
+        int i = 0, value = begin;                               \
+                                                                \
+        while (value < end) {                                   \
+            ___mtf_##var##_values[i++] = value;                 \
+            value += step;                                      \
+        }                                                       \
+        ___mtf_##var##_length = i;                              \
+                                                                \
+        return 1;                                               \
     }
 
 #define MTF_DEFINE_IRANGE(var, begin, end) ___MTF_INNER_DEFINE_IRANGE(var, begin, end, 1)
 
-#define MTF_DEFINE_IRANGE_STEP(var, begin, end, step) \
+#define MTF_DEFINE_IRANGE_STEP(var, begin, end, step)   \
     ___MTF_INNER_DEFINE_IRANGE(var, begin, end, step)
 
 /* ========================================================================= */
 
-#define ___MTF_VALUE_DECLARE(N, type, var) \
-    int  index##N;                         \
+#define ___MTF_VALUE_DECLARE(N, type, var)      \
+    int  index##N;                              \
     type var;
 
-#define ___MTF_CALL_GENERATOR(var)     \
-    if (!___mtf_##var##_generator()) { \
-        lcl_ti->ti_status = 0;         \
-        goto early_return_check;       \
+#define ___MTF_CALL_GENERATOR(var)              \
+    if (!___mtf_##var##_generator()) {          \
+        lcl_ti->ti_status = 0;                  \
+        goto early_return_check;                \
     }
 
-#define ___MTF_CP_FOR(N, var)                                          \
-    for (index##N = 0; index##N < ___mtf_##var##_length; ++index##N) { \
-        var = ___mtf_##var##_values[index##N];
+#define ___MTF_CP_FOR(N, var)                                           \
+    for (index##N = 0; index##N < ___mtf_##var##_length; ++index##N) {  \
+    var = ___mtf_##var##_values[index##N];
 
 /* ------------------------------------------------------------------------- */
 
