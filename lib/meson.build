@@ -99,7 +99,7 @@ hse_dependencies = [
     # dependencies shadowing ours. xxhash must come before lz4 so we avoid
     # including xxhash.h from the lz4 source tree.
     xxhash_dep,
-    lz4_dep,
+    liblz4_dep,
     cjson_dep,
     hyperloglog_dep,
     libbsd_dep,
