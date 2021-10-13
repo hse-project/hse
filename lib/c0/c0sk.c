@@ -848,6 +848,7 @@ static void
 c0sk_cursor_release(struct c0_cursor *cur)
 {
     int i;
+    struct c0_kvmultiset_cursor *p, *next;
 
     /* Destroy KVMS cursors */
     for (i = 0; i < cur->c0cur_cnt; i++) {
@@ -858,10 +859,22 @@ c0sk_cursor_release(struct c0_cursor *cur)
         c0kvms_putref(this->c0mc_kvms);
     }
 
+    for (p = cur->c0cur_free; p; p = next) {
+        next = MSCUR_NEXT(p);
+        free_aligned(p);
+    }
+
     free(cur->c0cur_curv);
     free(cur->c0cur_esrcv);
 
+    /* Make sure c0sk_cursor_release is idempotent.
+     */
+    cur->c0cur_curv = NULL;
+    cur->c0cur_esrcv = NULL;
+
     cur->c0cur_cnt = 0;
+    cur->c0cur_free = NULL;
+
     cur->c0cur_alloc_cnt = 0;
 }
 
@@ -1374,9 +1387,7 @@ c0sk_cursor_update(struct c0_cursor *cur, u64 seqno, u32 *flags_out)
         void *esrcv = realloc(cur->c0cur_esrcv, newsz * sizeof(*cur->c0cur_esrcv));
 
         if (!curv || !esrcv) {
-            free(curv);
-            free(esrcv);
-
+            c0sk_cursor_release(cur);
             cur->c0cur_merr = ev(merr(ENOMEM));
             goto out;
         }
