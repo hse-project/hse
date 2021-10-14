@@ -208,7 +208,8 @@ bn64(char *buf, size_t buf_sz, enum bn_fmt fmt, u64 value)
             break;
     }
 
-    assert(n > 0 && n < buf_sz);
+    if (n < 1 || n >= buf_sz)
+        abort();
 
     return buf;
 }
