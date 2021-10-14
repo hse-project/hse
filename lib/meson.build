@@ -1,12 +1,15 @@
-build_config = ' \\\n\t' + ' \\\n\t'.join([
-    '"-Dbuildtype=@0@ -Dforce_fallback_for=@1@ -Doptimization=@2@ "'.format(get_option('buildtype'), ','.join(get_option('force_fallback_for')), get_option('optimization')),
-    '"-Ddebug=@0@ -Db_ndebug=@1@ "'.format(get_option('debug'), get_option('b_ndebug')),
-    '"-Db_lto=@0@ -Db_pgo=@1@ -Dexperimental=@2@ "'.format(get_option('b_lto'), get_option('b_pgo'), get_option('experimental')),
-    '"-Dc_args=\\"@0@\\" -Dc_link_args=\\"@1@\\""'.format(' '.join(get_option('c_args')), ' '.join(get_option('c_link_args')))
-])
+# Options that are interesting to view in extended version output
+build_opts = [
+    '-Dc_args=\\"@0@\\"'.format(' '.join(get_option('c_args'))),
+    '-Dc_link_args=\\"@0@\\"'.format(' '.join(get_option('c_link_args'))),
+    '-Dforce_fallback_for=@0@'.format(','.join(get_option('force_fallback_for'))),
+]
+foreach opt : ['buildtype', 'debug', 'optimization', 'b_lto', 'b_ndebug', 'b_pgo', 'experimental']
+    build_opts += '-D@0@=@1@'.format(opt, get_option(opt))
+endforeach
 
 build_config_h_data = configuration_data({
-    'build_config': build_config,
+    'build_config': '"@0@"'.format(' '.join(build_opts)),
     'SUPPORTS_ATTR_ALWAYS_INLINE': cc.has_function_attribute('always_inline'),
     'SUPPORTS_ATTR_FORMAT': cc.has_function_attribute('format'),
     'SUPPORTS_ATTR_PACKED': cc.has_function_attribute('packed'),

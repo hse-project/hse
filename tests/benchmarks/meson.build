@@ -1,11 +1,3 @@
-if not get_option('tools')
-    warning('benchmarks have been disabled because tools are disabled')
-    subdir_done()
-elif not get_option('cli')
-    warning('benchmarks have been disabled because the CLI is disabled')
-    subdir_done()
-endif
-
 tests = {
     'test_kmt_ro': {
         'suite': 'kmt',
@@ -38,6 +30,9 @@ tests = {
     'test_dbbench': {
         'suite': 'dbbench',
         'timeout': 0,
+        'depends': [
+            db_bench,
+        ]
     },
 }
 

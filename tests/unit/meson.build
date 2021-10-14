@@ -6,16 +6,16 @@ components = {
         'c0_test': {
             'sources': [
                 files(
-                    'c0' / 'cn_mock.c',
-                    'c0' / 'c0sk_mock.c',
+                    'c0/cn_mock.c',
+                    'c0/c0sk_mock.c',
                 ),
             ],
         },
         'c0sk_test': {
             'sources': [
                 files(
-                    'c0' / 'cn_mock.c',
-                    meson.project_source_root() / 'tools' / 'key_generation.c',
+                    'c0/cn_mock.c',
+                    meson.project_source_root() / 'tools/key_generation.c',
                 ),
             ],
         },
@@ -27,14 +27,14 @@ components = {
         'blk_list_test': {},
         'bloom_reader_test': {
             'args': [
-                meson.current_source_dir() / 'cn' / 'mblock_images',
+                meson.current_source_dir() / 'cn/mblock_images',
             ],
         },
         'cn_api_test': {},
         'cn_cursor_test': {},
         'cndb_log_test': {
             'args': [
-                meson.current_source_dir() / 'cn' / 'mdc_images',
+                meson.current_source_dir() / 'cn/mdc_images',
             ]
         },
         'cndb_test': {},
@@ -71,19 +71,19 @@ components = {
         'mbset_test': {},
         'merge_test': {
             'args': [
-                meson.current_source_dir() / 'cn' / 'merge-test-cases',
+                meson.current_source_dir() / 'cn/merge-test-cases',
             ],
         },
         'vblock_builder_test': {},
         'vblock_reader_test': {},
         'wbt_iterator_test': {
             'args': [
-                meson.current_source_dir() / 'cn' / 'mblock_images',
+                meson.current_source_dir() / 'cn/mblock_images',
             ],
         },
         'wbt_reader_test': {
             'args': [
-                meson.current_source_dir() / 'cn' / 'mblock_images',
+                meson.current_source_dir() / 'cn/mblock_images',
             ],
         },
         'wbt_test': {},
@@ -131,7 +131,7 @@ components = {
     'mpool': {
         'mpool_test': {
             'sources': [
-                files('mpool' / 'common.c'),
+                files('mpool/common.c'),
             ],
             'include_directories': [
                 mpool_internal_includes,
@@ -139,7 +139,7 @@ components = {
         },
         'mblock_test': {
             'sources': [
-                files('mpool' / 'common.c'),
+                files('mpool/common.c'),
             ],
             'include_directories': [
                 mpool_internal_includes,
@@ -147,7 +147,7 @@ components = {
         },
         'mdc_test': {
             'sources': [
-                files('mpool' / 'common.c'),
+                files('mpool/common.c'),
             ],
             'include_directories': [
                 mpool_internal_includes,
@@ -155,7 +155,7 @@ components = {
         },
         'mcache_test': {
             'sources': [
-                files('mpool' / 'common.c'),
+                files('mpool/common.c'),
             ],
             'include_directories': [
                 mpool_internal_includes,
@@ -172,14 +172,14 @@ components = {
         'atomic_test': {
             'sources': [
                 files(
-                    'util' / 'multithreaded_tester.c',
+                    'util/multithreaded_tester.c',
                 ),
             ],
         },
         'bin_heap_test': {
             'sources': [
                 files(
-                    'util' / 'sample_element_source.c',
+                    'util/sample_element_source.c',
                 ),
             ],
         },
@@ -197,7 +197,7 @@ components = {
         'cheap_test': {
             'sources': [
                 files(
-                    'util' / 'cheap_testlib.c',
+                    'util/cheap_testlib.c',
                 ),
             ],
         },
@@ -206,7 +206,7 @@ components = {
         'data_tree_test': {
             'sources': [
                 files(
-                    'util' / 'multithreaded_tester.c',
+                    'util/multithreaded_tester.c',
                 ),
             ],
         },
@@ -214,7 +214,7 @@ components = {
         'element_source_test': {
             'sources': [
                 files(
-                    'util' / 'sample_element_source.c',
+                    'util/sample_element_source.c',
                 ),
             ],
         },
@@ -225,11 +225,7 @@ components = {
         'hlog_unit_test': {},
         # This test requires access to some private information, so we compile it
         # in with hse_err.c.
-        'hse_err_test': {
-            'sources': files(
-                meson.project_source_root() / 'lib' / 'util' / 'src' / 'hse_err.c',
-            ),
-        },
+        'hse_err_test': {},
         'json_test': {},
         'keycmp_test': {},
         'keylock_test': {},
@@ -254,7 +250,7 @@ components = {
         'rwsem_test': {
             'sources': [
                 files(
-                    'util' / 'multithreaded_tester.c',
+                    'util/multithreaded_tester.c',
                 ),
             ],
         },
@@ -262,7 +258,7 @@ components = {
         'spinlock_test': {
             'sources': [
                 files(
-                    'util' / 'thread_tester.c',
+                    'util/thread_tester.c',
                 ),
             ],
         },

@@ -2,18 +2,16 @@ option('cli', type: 'boolean', value: true,
     description: 'Build the CLI')
 option('experimental', type: 'boolean', value: true,
     description: 'Build the experimental parts of HSE')
-option('install-rpath', type: 'boolean', value: true,
-    description: 'Add rpath to ELF files to faciliate discovery of libhse')
 option('tests', type: 'boolean', value: true,
     description: 'Build and enable tests')
 option('ycsb', type: 'boolean', value: false,
     description: 'Build JNI bridge artifacts')
 option('db_bench', type: 'boolean', value: true,
     description: 'Build db_bench')
-option('tools', type: 'boolean', value: true,
+option('tools', type: 'feature', value: 'auto',
     description: 'Build tools')
 option('install-tools', type: 'boolean', value: false,
-    description: 'Install tools (mainly meant for developers/maintainers)')
+    description: 'Install tools')
 option('samples', type: 'boolean', value: true,
     description: 'Build samples')
 option('bindings', type: 'array', choices: ['all', 'none', 'python'], value: ['all'],

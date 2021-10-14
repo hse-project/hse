@@ -1,7 +1,7 @@
 run_env.append('PYTHONPATH', meson.current_source_dir())
 
 test_runner = find_program('test-runner')
-pytest = find_program('pytest', required: true)
+pytest = find_program('pytest')
 
 # Suites to exclude based on varying factors
 additional_suite_exclusions = []

@@ -25,10 +25,7 @@ bash = find_program('bash')
 sh = find_program('sh') # write POSIX-compliant when easily doable
 
 cc = meson.get_compiler('c')
-python = pymod.find_installation(
-    'python3',
-    required: true,
-)
+python = pymod.find_installation('python3')
 
 version_components = meson.project_version().split('.')
 
@@ -72,7 +69,8 @@ if get_option('b_sanitize').contains('undefined')
 endif
 
 git = find_program('git', required: false)
-if git.found() and run_command(git, 'rev-parse').returncode() == 0
+in_git = git.found() and run_command(git, 'rev-parse').returncode() == 0
+if not meson.is_subproject() and in_git
     build_version = run_command(
         git,
         'describe',
@@ -148,8 +146,7 @@ in_ci = build_number_result.returncode() == 0
 libcurl_dep = dependency(
     'libcurl',
     version: '>=7.58.0',
-    required: true,
-    fallback: ['curl', 'libcurl_dep'],
+    fallback: 'curl',
     default_options: [
         'default_library=static',
         'warning_level=0',
@@ -159,20 +156,18 @@ libcurl_dep = dependency(
 libyaml_dep = dependency(
     'yaml-0.1',
     version: '>=0.1.7',
-    required: true,
-    fallback: ['libyaml', 'libyaml_dep'],
+    fallback: 'libyaml',
     default_options: [
         'default_library=static',
         'warning_level=0',
         'werror=false',
     ],
 )
-thread_dep = dependency('threads', required: true)
+thread_dep = dependency('threads')
 liburcu_bp_dep = dependency(
     'liburcu-bp',
     version: '>=0.10.1',
-    required: true,
-    fallback: ['userspace-rcu', 'liburcu_bp_dep'],
+    fallback: 'userspace-rcu',
     default_options: [
         'default_library=shared',
         'warning_level=0',
@@ -182,8 +177,7 @@ liburcu_bp_dep = dependency(
 libbsd_dep = dependency(
     'libbsd',
     version: '>=0.9.0',
-    required: true,
-    fallback: ['libbsd', 'libbsd_dep'],
+    fallback: 'libbsd',
     default_options: [
         'default_library=static',
         'warning_level=0',
@@ -215,8 +209,7 @@ xxhash_dep = dependency(
 cjson_dep = dependency(
     'libcjson',
     version: '>=1.7.14',
-    required: true,
-    fallback: ['cjson', 'libcjson_dep'],
+    fallback: 'cjson',
     default_options: [
         'default_library=static',
         'warning_level=0',
@@ -227,15 +220,14 @@ cjson_dep = dependency(
 libmicrohttpd_dep = dependency(
     'libmicrohttpd',
     version: '>=0.9.59',
-    required: true,
-    fallback: ['libmicrohttpd', 'libmicrohttpd_dep'],
+    fallback: 'libmicrohttpd',
     default_options: [
         'default_library=shared',
         'warning_level=0',
         'werror=false',
     ],
 )
-m_dep = cc.find_library('m', required: true)
+m_dep = cc.find_library('m')
 crc32c_proj = subproject(
     'crc32c',
     default_options: [
@@ -258,63 +250,53 @@ rbtree_proj = subproject(
 rbtree_dep = rbtree_proj.get_variable('rbtree_dep')
 xoroshiro_proj = subproject('xoroshiro')
 xoroshiro_dep = xoroshiro_proj.get_variable('xoroshiro_dep')
-if get_option('tools')
-    ncurses_dep = dependency('ncurses', required: true)
-    HdrHistogram_c_dep = cc.find_library('hdr_histogram', required: false, disabler: true)
-    if (not HdrHistogram_c_dep.found()
-            or (HdrHistogram_c_dep.found() and not cc.has_header_symbol(
-                'hdr/hdr_histogram.h',
-                'hdr_record_value_atomic',
-                dependencies: [HdrHistogram_c_dep]))
-            or get_option('wrap_mode') == 'forcefallback'
-            or 'HdrHistogram_c' in get_option('force_fallback_for'))
-        HdrHistogram_c_options = cmake.subproject_options()
-        HdrHistogram_c_options.add_cmake_defines({
-            'HDR_HISTOGRAM_BUILD_SHARED': false,
-            'HDR_HISTOGRAM_BUILD_PROGRAMS': false,
-            'HDR_HISTOGRAM_BUILD_STATIC': true,
-        })
-        HdrHistogram_c_options.set_override_option('werror', 'false')
-        HdrHistogram_c_options.set_override_option('warning_level', '0')
-        HdrHistogram_c_proj = cmake.subproject('HdrHistogram_c', options: HdrHistogram_c_options)
-        HdrHistogram_c_dep = HdrHistogram_c_proj.dependency('hdr_histogram_static')
-        HdrHistogram_c_from_subproject = true
-    else
-        HdrHistogram_c_from_subproject = false
-    endif
-    libmongoc_dep = dependency('libmongoc-1.0', version: '>=1.7.3', required: false, disabler: true)
-    libbson_dep = dependency('libbson-1.0', version: '>=1.7.3', required: false, disabler: true)
-    mongo_c_driver_force_fallback = get_option('wrap_mode') == 'forcefallback' or 'mongo-c-driver' in get_option('force_fallback_for')
-    if not libmongoc_dep.found() or not libbson_dep.found() or mongo_c_driver_force_fallback
-        mongo_c_driver_options = cmake.subproject_options()
-        mongo_c_driver_options.add_cmake_defines({
-            'ENABLE_TESTS': false,
-            'ENABLE_EXAMPLES': false,
-            'ENABLE_MONGOC': not libmongoc_dep.found() or mongo_c_driver_force_fallback ? 'ON' : 'OFF',
-            'ENABLE_BSON': not libbson_dep.found() or mongo_c_driver_force_fallback ? 'ON' : 'OFF',
-            'ENABLE_STATIC': 'ON',
-            'ENABLE_AUTOMATIC_INIT_AND_CLEANUP': false,
-            'BUILD_VERSION': '1.17.3',
-        })
-        mongo_c_driver_options.set_override_option('werror', 'false')
-        mongo_c_driver_options.set_override_option('warning_level', '0')
-        mongo_c_driver_proj = cmake.subproject('mongo-c-driver', options: mongo_c_driver_options)
-        if not libmongoc_dep.found() or mongo_c_driver_force_fallback
-            libmongoc_dep = [
-                mongo_c_driver_proj.dependency('mongoc_static'),
-                # Have to link against libresolv for static libmongoc
-                cc.find_library('resolv', required: true),
-            ]
-        endif
-        if not libbson_dep.found() or mongo_c_driver_force_fallback
-            libbson_dep = mongo_c_driver_proj.dependency('bson_static')
-        endif
-    endif
+ncurses_dep = dependency('ncurses', required: get_option('tools'))
+HdrHistogram_c_dep = cc.find_library('hdr_histogram', required: get_option('tools'))
+if not get_option('tools').disabled() and (not HdrHistogram_c_dep.found()
+        or (HdrHistogram_c_dep.found() and not cc.has_header_symbol(
+            'hdr/hdr_histogram.h',
+            'hdr_record_value_atomic',
+            dependencies: [HdrHistogram_c_dep]))
+        or get_option('wrap_mode') == 'forcefallback'
+        or 'HdrHistogram_c' in get_option('force_fallback_for'))
+    HdrHistogram_c_options = cmake.subproject_options()
+    HdrHistogram_c_options.add_cmake_defines({
+        'HDR_HISTOGRAM_BUILD_SHARED': false,
+        'HDR_HISTOGRAM_BUILD_PROGRAMS': false,
+        'HDR_HISTOGRAM_BUILD_STATIC': true,
+    })
+    HdrHistogram_c_options.set_override_option('werror', 'false')
+    HdrHistogram_c_options.set_override_option('warning_level', '0')
+    HdrHistogram_c_proj = cmake.subproject('HdrHistogram_c', options: HdrHistogram_c_options)
+    HdrHistogram_c_dep = HdrHistogram_c_proj.dependency('hdr_histogram_static')
+    HdrHistogram_c_from_subproject = true
 else
-    ncurses_dep = disabler()
-    HdrHistogram_c_dep = disabler()
-    libmongoc_dep = disabler()
-    libbson_dep = disabler()
+    HdrHistogram_c_from_subproject = false
+endif
+libmongoc_dep = dependency('libmongoc-1.0', version: '>=1.17.3', required: get_option('tools'))
+libbson_dep = dependency('libbson-1.0', version: '>=1.17.3', required: get_option('tools'))
+mongo_c_driver_force_fallback = get_option('wrap_mode') == 'forcefallback' or 'mongo-c-driver' in get_option('force_fallback_for')
+if not get_option('tools').disabled() and (not libmongoc_dep.found()
+        or not libbson_dep.found() or mongo_c_driver_force_fallback)
+    mongo_c_driver_options = cmake.subproject_options()
+    mongo_c_driver_options.add_cmake_defines({
+        'ENABLE_TESTS': false,
+        'ENABLE_EXAMPLES': false,
+        'ENABLE_MONGOC': not libmongoc_dep.found() or mongo_c_driver_force_fallback ? 'ON' : 'OFF',
+        'ENABLE_BSON': not libbson_dep.found() or mongo_c_driver_force_fallback ? 'ON' : 'OFF',
+        'ENABLE_STATIC': 'ON',
+        'ENABLE_AUTOMATIC_INIT_AND_CLEANUP': false,
+        'BUILD_VERSION': '1.17.3',
+    })
+    mongo_c_driver_options.set_override_option('werror', 'false')
+    mongo_c_driver_options.set_override_option('warning_level', '0')
+    mongo_c_driver_proj = cmake.subproject('mongo-c-driver', options: mongo_c_driver_options)
+    if not libmongoc_dep.found() or mongo_c_driver_force_fallback
+        libmongoc_dep = mongo_c_driver_proj.dependency('mongoc_static')
+    endif
+    if not libbson_dep.found() or mongo_c_driver_force_fallback
+        libbson_dep = mongo_c_driver_proj.dependency('bson_static')
+    endif
 endif
 
 bindings = []
@@ -322,7 +304,7 @@ if 'all' in get_option('bindings')
     assert(get_option('bindings').length() == 1, 'The -Dbindings=all option cannot have additional values')
     bindings += 'python'
 elif 'none' in get_option('bindings')
-    assert(get_option('bindings').length() == 1, 'The -Dtests=bindings option cannot have additional values')
+    assert(get_option('bindings').length() == 1, 'The -bindings=none option cannot have additional values')
 else
     foreach b : get_option('bindings')
         bindings += b
@@ -335,36 +317,22 @@ executable_paths = []
 library_paths = []
 
 if get_option('tests')
-    find_program(
-        'gawk',
-        required: true,
-    )
-    mapi_idx_generate = find_program(
-        'scripts' / 'build' / 'mapi_idx_generate',
-        required: true,
-    )
-    ut_mock_decl_files = find_program(
-        'scripts' / 'build' / 'ut_mock_decl_files',
-        required: true,
-    )
-    utpp = find_program(
-        'scripts' / 'build' / 'utpp',
-        required: true,
-    )
+    find_program('gawk')
+    mapi_idx_generate = find_program('scripts/build/mapi_idx_generate')
+    ut_mock_decl_files = find_program('scripts/build/ut_mock_decl_files')
+    utpp = find_program('scripts/build/utpp')
 endif
-
-exe_install_rpath = get_option('install-rpath') ? '$ORIGIN' / '..' / get_option('libdir') : ''
 
 subdir('include')
 if get_option('tests') or get_option('tools')
     # need access to tools_includes for unit tests and tools
-    subdir('tools' / 'include')
+    subdir('tools/include')
 endif
 if get_option('tests')
     # need to know about mocks, framework, test support sources before entering lib directory
-    subdir('tests' / 'mocks')
-    subdir('tests' / 'support')
-    subdir('tests' / 'framework')
+    subdir('tests/mocks')
+    subdir('tests/support')
+    subdir('tests/framework')
 endif
 subdir('lib')
 subdir('cli')
@@ -382,7 +350,6 @@ run_env = environment()
 if 'python' in bindings
     hse_python = subproject(
         'hse-python',
-        required: true,
         default_options: [
             'experimental=@0@'.format(get_option('experimental')),
             'tests=@0@'.format(get_option('tests')),
@@ -407,7 +374,8 @@ else
 endif
 
 if get_option('db_bench')
-    subproject('db_bench')
+    db_bench_proj = subproject('db_bench')
+    db_bench = db_bench_proj.get_variable('db_bench')
     executable_paths += meson.project_build_root() / 'subprojects/db_bench'
 endif
 
@@ -417,11 +385,11 @@ run_env.prepend('PATH', executable_paths)
 
 if get_option('tests')
     # now that we have libhse-mock, go into repository directory
-    subdir('tests' / 'mocks' / 'repository')
+    subdir('tests/mocks/repository')
     subdir('tests')
 endif
 
-format = find_program('scripts' / 'dev' / 'format', required: true)
+format = find_program('scripts/dev/format')
 run_target(
     'format',
     command: [
@@ -437,17 +405,17 @@ run_target(
 )
 
 if not meson.is_subproject()
-    if fs.exists(meson.project_source_root() / '.git')
+    if in_git
         run_target(
             'git-hooks',
             command: [
-                find_program('scripts' / 'git-hooks' / 'link'),
+                find_program('scripts/git-hooks/link'),
             ],
         )
     endif
 endif
 
-checkoss = find_program('scripts' / 'dev' / 'checkoss')
+checkoss = find_program('scripts/dev/checkoss')
 run_target(
     'checkoss',
     command: [
@@ -473,11 +441,11 @@ if gcovr.found() and get_option('b_coverage') and get_option('tests')
                 'gcovr',
                 '-r',
                 '@SOURCE_ROOT@',
-                '@BUILD_ROOT@' / 'lib',
+                '@BUILD_ROOT@/lib',
                 args,
                 '@OUTPUT@',
                 '-f',
-                '@SOURCE_ROOT@' / 'lib'
+                '@SOURCE_ROOT@/lib'
             ],
             depends: unit_test_exes,
             output: 'coverage.@0@'.format(type)

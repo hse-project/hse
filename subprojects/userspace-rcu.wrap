@@ -6,3 +6,6 @@ source_filename = 0.10.3.tar.gz
 source_hash = 47710be69258e491ff7834f79eb339deb6904f907408557baae5f378eb2803b9
 
 patch_directory=userspace-rcu
+
+[provide]
+dependency_names = liburcu-bp

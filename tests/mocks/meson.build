@@ -72,19 +72,19 @@ mapi_idx_h = custom_target(
 )
 
 mocked_components = {
-    'c0': meson.project_source_root() / 'lib' / 'c0',
-    'lc': meson.project_source_root() / 'lib' / 'lc',
-    'cn': meson.project_source_root() / 'lib' / 'cn',
-    'config': meson.project_source_root() / 'lib' / 'config',
-    'wal': meson.project_source_root() / 'lib' / 'wal',
-    'hse': meson.project_source_root() / 'include' / 'hse',
-    'ikvdb': meson.project_source_root() / 'lib' / 'include' / 'hse_ikvdb',
-    'kvdb': meson.project_source_root() / 'lib' / 'kvdb',
-    'kvs': meson.project_source_root() / 'lib' / 'kvs',
-    'mpool': meson.project_source_root() / 'lib' / 'mpool' / 'include' / 'mpool',
-    'test-support': meson.project_source_root() / 'tests' / 'support' / 'include' / 'hse_test_support',
-    'util': meson.project_source_root() / 'lib' / 'util' / 'include' / 'hse_util',
-    'util-internal': meson.project_source_root() / 'lib' / 'util' / 'src',
+    'c0': meson.project_source_root() / 'lib/c0',
+    'lc': meson.project_source_root() / 'lib/lc',
+    'cn': meson.project_source_root() / 'lib/cn',
+    'config': meson.project_source_root() / 'lib/config',
+    'wal': meson.project_source_root() / 'lib/wal',
+    'hse': meson.project_source_root() / 'include/hse',
+    'ikvdb': meson.project_source_root() / 'lib/include/hse_ikvdb',
+    'kvdb': meson.project_source_root() / 'lib/kvdb',
+    'kvs': meson.project_source_root() / 'lib/kvs',
+    'mpool': meson.project_source_root() / 'lib/mpool/include/mpool',
+    'test-support': meson.project_source_root() / 'tests/support/include/hse_test_support',
+    'util': meson.project_source_root() / 'lib/util/include/hse_util',
+    'util-internal': meson.project_source_root() / 'lib/util/src',
 }
 
 mock_includes = include_directories('.')

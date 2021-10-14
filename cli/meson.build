@@ -40,7 +40,6 @@ hse_cli = executable(
     include_directories: hse_cli_include_directories,
     dependencies: hse_cli_dependencies,
     install: true,
-    install_rpath: exe_install_rpath,
     gnu_symbol_visibility: 'hidden',
 )
 

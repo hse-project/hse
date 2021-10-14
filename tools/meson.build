@@ -1,4 +1,4 @@
-if get_option('tools')
+if not get_option('tools').disabled()
     subdir('scripts')
 endif
 
@@ -7,12 +7,12 @@ tool_targets = {}
 tools = {
     'attack': {
         'sources': files(
-            'attack' / 'attack.c',
+            'attack/attack.c',
         ),
     },
     'boundcur': {
         'sources': files(
-            'boundcur' / 'boundcur.c',
+            'boundcur/boundcur.c',
             'common.c',
             'kvs_helper.c',
             'parm_groups.c',
@@ -20,7 +20,7 @@ tools = {
     },
     'capput': {
         'sources': files(
-            'capput' / 'capput.c',
+            'capput/capput.c',
             'common.c',
             'kvs_helper.c',
             'parm_groups.c',
@@ -28,54 +28,54 @@ tools = {
     },
     'cn_kbdump': {
         'sources': files(
-            'cn_kbdump' / 'cn_kbdump.c',
+            'cn_kbdump/cn_kbdump.c',
             'parm_groups.c',
         ),
     },
     'cn_metrics': {
         'sources': files(
-            'cn_metrics' / 'cn_metrics.c',
+            'cn_metrics/cn_metrics.c',
             'common.c',
             'parm_groups.c',
         ),
     },
     'cndb_log': {
         'sources': files(
-            'cndb_log' / 'cndb_log.c',
+            'cndb_log/cndb_log.c',
             'parm_groups.c',
         ),
     },
     'cndb_txn_inject': {
         'sources': files(
-            'cndb_tests' / 'cndb_txn_inject.c',
+            'cndb_tests/cndb_txn_inject.c',
         ),
     },
     'cndb_simpledrop_inject': {
         'sources': files(
-            'cndb_tests' / 'cndb_simpledrop_inject.c',
+            'cndb_tests/cndb_simpledrop_inject.c',
         ),
     },
     'cndb_simpledrop_recovery_inject': {
         'sources': files(
-            'cndb_tests' / 'cndb_simpledrop_recovery_inject.c',
+            'cndb_tests/cndb_simpledrop_recovery_inject.c',
         ),
     },
     'ctxn_validation': {
         'sources': files(
-            'ctxn_validation' / 'ctxn_validation.c',
+            'ctxn_validation/ctxn_validation.c',
             'parm_groups.c',
         ),
     },
     'curcache': {
         'sources': files(
-            'curcache' / 'curcache.c',
+            'curcache/curcache.c',
             'parm_groups.c',
         ),
     },
     'deviceprofile': {
         'sources': files(
-            'deviceprofile' / 'deviceprofile.c',
-            'deviceprofile' / 'deviceprofile_app.c',
+            'deviceprofile/deviceprofile.c',
+            'deviceprofile/deviceprofile_app.c',
         ),
         'c_args': [
             '-DHDR_HISTOGRAM_C_FROM_SUBPROJECT=@0@'.format(get_variable('HdrHistogram_c_from_subproject', 0)),
@@ -86,12 +86,12 @@ tools = {
     },
     'omf_encoder_perf': {
         'sources': files(
-            'omf_encoder_perf' / 'omf_encoder_perf.c',
+            'omf_encoder_perf/omf_encoder_perf.c',
         ),
     },
     'kmt': {
         'sources': files(
-            'kmt' / 'kmt.c',
+            'kmt/kmt.c',
             'parm_groups.c',
         ),
         'c_args': [
@@ -105,7 +105,7 @@ tools = {
     },
     'xkmt': {
         'sources': files(
-            'kmt' / 'kmt.c',
+            'kmt/kmt.c',
             'parm_groups.c',
         ),
         'c_args': [
@@ -120,19 +120,19 @@ tools = {
     },
     'ksync': {
         'sources': files(
-            'ksync' / 'ksync.c',
+            'ksync/ksync.c',
             'parm_groups.c',
         ),
     },
     'kvck': {
         'sources': files(
-            'kvck' / 'kvck.c',
+            'kvck/kvck.c',
             'parm_groups.c',
         ),
     },
     'bnt': {
         'sources': files(
-            'bnt' / 'bnt.c',
+            'bnt/bnt.c',
             'parm_groups.c',
         ),
         'dependencies': [
@@ -141,7 +141,7 @@ tools = {
     },
     'kvt': {
         'sources': files(
-            'kvt' / 'kvt.c',
+            'kvt/kvt.c',
             'parm_groups.c',
         ),
         'dependencies': [
@@ -150,34 +150,34 @@ tools = {
     },
     'longtest': {
         'sources': files(
-            'longtest' / 'longtest.c',
-            'longtest' / 'rsgen.c',
+            'longtest/longtest.c',
+            'longtest/rsgen.c',
             'parm_groups.c',
         ),
     },
     'mdcperf': {
         'sources': files(
-            'mpool' / 'mdc' / 'mdcperf.c',
+            'mpool/mdc/mdcperf.c',
         ),
     },
     'mdctest': {
         'sources': files(
-            'mpool' / 'mdc' / 'mdctest.c',
+            'mpool/mdc/mdctest.c',
         ),
     },
     'mdc_tool': {
         'sources': files(
-            'mpool' / 'mdc' / 'mdc_tool.c',
+            'mpool/mdc/mdc_tool.c',
         ),
     },
     'mpiotest': {
         'sources': files(
-            'mpool' / 'mblock' / 'mpiotest.c',
+            'mpool/mblock/mpiotest.c',
         ),
     },
     'multicursor': {
         'sources': files(
-            'multicursor' / 'multicursor.c',
+            'multicursor/multicursor.c',
             'common.c',
             'kvs_helper.c',
             'parm_groups.c',
@@ -185,7 +185,7 @@ tools = {
     },
     'pfx_probe': {
         'sources': files(
-            'pfx_probe' / 'pfx_probe.c',
+            'pfx_probe/pfx_probe.c',
             'common.c',
             'kvs_helper.c',
             'parm_groups.c',
@@ -196,21 +196,21 @@ tools = {
     },
     'pgd': {
         'sources': files(
-            'pgd' / 'pgd.c',
+            'pgd/pgd.c',
             'common.c',
             'parm_groups.c',
         ),
     },
     'pscan': {
         'sources': files(
-            'pscan' / 'pscan.c',
+            'pscan/pscan.c',
             'common.c',
             'parm_groups.c',
         ),
     },
     'ptree-overload': {
         'sources': files(
-            'ptree-overload' / 'ptree-overload.c',
+            'ptree-overload/ptree-overload.c',
             'common.c',
             'kvs_helper.c',
             'parm_groups.c',
@@ -218,7 +218,7 @@ tools = {
     },
     'put_flush': {
         'sources': files(
-            'put_flush' / 'put_flush.c',
+            'put_flush/put_flush.c',
             'common.c',
             'kvs_helper.c',
             'parm_groups.c',
@@ -226,7 +226,7 @@ tools = {
     },
     'put_txget': {
         'sources': files(
-            'put_txget' / 'put_txget.c',
+            'put_txget/put_txget.c',
             'common.c',
             'kvs_helper.c',
             'parm_groups.c',
@@ -234,21 +234,21 @@ tools = {
     },
     'putbin': {
         'sources': files(
-            'putbin' / 'putbin.c',
+            'putbin/putbin.c',
             'common.c',
             'parm_groups.c',
         ),
     },
     'putgetdel': {
         'sources': files(
-            'putgetdel' / 'putgetdel.c',
+            'putgetdel/putgetdel.c',
             'key_generation.c',
             'parm_groups.c',
         ),
     },
     'range_read': {
         'sources': files(
-            'range_read' / 'range_read.c',
+            'range_read/range_read.c',
             'common.c',
             'kvs_helper.c',
             'parm_groups.c',
@@ -256,20 +256,20 @@ tools = {
     },
     'simple_client': {
         'sources': files(
-            'simple_client' / 'simple_client.c',
+            'simple_client/simple_client.c',
             'parm_groups.c',
         ),
     },
     'throttle': {
         'sources': files(
-            'throttle' / 'throttle.c',
+            'throttle/throttle.c',
             'key_generation.c',
             'parm_groups.c',
         ),
     },
     'txn_thrash': {
         'sources': files(
-            'txn_thrash' / 'txn_thrash.c',
+            'txn_thrash/txn_thrash.c',
             'common.c',
             'kvs_helper.c',
             'parm_groups.c',
@@ -277,7 +277,7 @@ tools = {
     },
     'txput_flush': {
         'sources': files(
-            'txput_flush' / 'txput_flush.c',
+            'txput_flush/txput_flush.c',
             'common.c',
             'kvs_helper.c',
             'parm_groups.c',
@@ -285,20 +285,20 @@ tools = {
     },
     'waltest': {
         'sources': files(
-            'waltest' / 'waltest.c',
+            'waltest/waltest.c',
             'key_generation.c',
             'parm_groups.c',
         ),
     },
     'wbtsize': {
         'sources': files(
-            'wbtsize' / 'wbtsize.c',
+            'wbtsize/wbtsize.c',
             'parm_groups.c',
         ),
     },
     'wscan': {
         'sources': files(
-            'wscan' / 'wscan.c',
+            'wscan/wscan.c',
             'common.c',
             'parm_groups.c',
         ),
@@ -306,7 +306,7 @@ tools = {
 }
 
 foreach t, params : tools
-    if get_option('tools')
+    if not get_option('tools').disabled()
         target = executable(
             t,
             params['sources'],
@@ -327,7 +327,6 @@ foreach t, params : tools
                 params.get('dependencies', [])
             ],
             install: get_option('install-tools'),
-            install_rpath: exe_install_rpath,
             gnu_symbol_visibility: 'hidden',
         )
 
