@@ -77,10 +77,8 @@ meson configure build
 The following HSE-specific build options are recommended for distributing HSE:
 
 ```shell
-meson setup build -Dcli=true -Dexperimental=false -Dinstall-rpath=false \
-    -Dinstall-configs=false -Dinstall-tools=false -Dycsb=false \
-    -Ddb_bench=false -Dsamples=false -Dbindings=none \
-    -Dkvdb-conf-extended=false -Ddocs=false
+meson setup build -Dbuildtype=release -Dexperimental=false -Dtools=disabled \
+    -Ddb_bench=false -Dsamples=false -Dbindings=none
 ```
 
 #### Sanitized Builds
