@@ -503,7 +503,7 @@ ctxn_validation_stress(
             usleep(333 * 1000);
             return;
         }
-        fatal(rc, "hse_kvdb_txn_begin");
+        fatal(rc, "hse_kvdb_txn_begin 1");
     }
 
     tdargs->keybase = keybase;
@@ -525,7 +525,11 @@ ctxn_validation_stress(
 
         ++stats->puts_c0;
     }
-    hse_kvdb_txn_commit(kvdb, txn);
+
+    rc = hse_kvdb_txn_commit(kvdb, txn);
+    if (rc)
+        fatal(rc, "hse_kvdb_txn_commit");
+
     rc = hse_kvdb_txn_begin(kvdb, txn);
     if (rc) {
         ++stats->begin_fail;
@@ -533,7 +537,7 @@ ctxn_validation_stress(
             usleep(333 * 1000);
             return;
         }
-        fatal(rc, "hse_kvdb_txn_begin");
+        fatal(rc, "hse_kvdb_txn_begin 2");
     }
 
     /* Next, load txn with the same set of unique keys from above,
@@ -645,7 +649,7 @@ ctxn_validation_basic(void)
     char        key[64], key_lg[64];
     u64         val, vcur;
     bool        found;
-    u32         vtxn;
+    u64         vtxn;
     u64         rc;
 
     if (keybase_random)
@@ -661,8 +665,7 @@ ctxn_validation_basic(void)
 
     klen = snprintf(key, sizeof(key), "key.%09lu", keybase);
     if (mixed_sz)
-        klen_lg = snprintf(key_lg, sizeof(key_lg),
-                           "key_lg.%09lu", keybase);
+        klen_lg = snprintf(key_lg, sizeof(key_lg), "key_lg.%09lu", keybase);
 
     vcur = ++viter;
     rc = hse_kvs_put(kvs, 0, txn, key, klen, &vcur, sizeof(vcur));
@@ -689,8 +692,7 @@ ctxn_validation_basic(void)
     if (mixed_sz) {
         char    val_lg[237];
 
-        rc = hse_kvs_put(kvs, 0, txn, key_lg, klen_lg,
-                         &val_lg, sizeof(val_lg));
+        rc = hse_kvs_put(kvs, 0, txn, key_lg, klen_lg, &val_lg, sizeof(val_lg));
         if (rc)
             fatal(rc, "kvdb_put large");
     }
@@ -698,8 +700,7 @@ ctxn_validation_basic(void)
     vcurlen = vtxnlen = 0;
     vcur = vtxn = 0;
 
-    rc = hse_kvs_get(kvs, 0, NULL, key, klen, &found,
-                     &vcur, sizeof(vcur), &vcurlen);
+    rc = hse_kvs_get(kvs, 0, NULL, key, klen, &found, &vcur, sizeof(vcur), &vcurlen);
     if (rc)
         fatal(rc, "kvdb_getco 1");
 
@@ -708,8 +709,7 @@ ctxn_validation_basic(void)
     if (!found)
         fatal(ENOENT, "kvdb_getco 1 not found");
 
-    rc = hse_kvs_get(kvs, 0, txn, key, klen, &found,
-                     &vtxn, sizeof(vtxn), &vtxnlen);
+    rc = hse_kvs_get(kvs, 0, txn, key, klen, &found, &vtxn, sizeof(vtxn), &vtxnlen);
     if (rc)
         fatal(rc, "kvdb_getco 2");
     if (!found)
@@ -738,8 +738,7 @@ ctxn_validation_basic(void)
     vlen = 0;
     val = 0;
 
-    rc = hse_kvs_get(kvs, 0, NULL, key, klen, &found,
-                     &val, sizeof(val), &vlen);
+    rc = hse_kvs_get(kvs, 0, NULL, key, klen, &found, &val, sizeof(val), &vlen);
     if (rc)
         fatal(rc, "kvdb_getco 3");
 
@@ -751,8 +750,11 @@ ctxn_validation_basic(void)
     if (vlen != vtxnlen)
         fatal(EINVAL, "isolation error (vlen)");
 
+    /* val and vtxn must be the same integer type otherwise the following
+     * check will fail on a big-endian machine.
+     */
     if (val != vtxn)
-        fatal(EINVAL, "isolation error (val)");
+        fatal(EINVAL, "isolation error (val %0lx != vtxn %0lx)", val, vtxn);
 
     hse_kvdb_txn_free(kvdb, txn);
 }
