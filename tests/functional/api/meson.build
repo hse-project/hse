@@ -22,7 +22,7 @@ foreach t, params : tests
             params.get('include_directories', []),
         ],
         dependencies: [
-            hse_static_dep,
+            hse_internal_dep,
             hse_dependencies,
             params.get('dependencies', [])
         ],

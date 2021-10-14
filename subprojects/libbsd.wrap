@@ -6,3 +6,6 @@ source_filename = libbsd-0.9.0.tar.xz
 source_hash = 8a469afd1bab340992cf99e1e6b7ae4f4c54882d663d8a2c5ea52250617afb01
 
 patch_directory=libbsd
+
+[provide]
+dependency_names = libbsd

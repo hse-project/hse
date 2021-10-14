@@ -116,7 +116,7 @@ foreach p, p_params: programs
         c_args: [
             '-DHSE_EXPERIMENTAL',
         ],
-        dependencies: [hse_static_dep, hse_dependencies],
+        dependencies: [hse_internal_dep, hse_dependencies],
     )
 
     foreach t, t_params : p_params['small_tests']
