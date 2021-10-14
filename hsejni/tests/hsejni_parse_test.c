@@ -5,12 +5,6 @@
 
 #include <hse_ut/framework.h>
 
-#include <hse_util/hse_err.h>
-#include <hse_util/platform.h>
-#include <hse_util/string.h>
-
-#include <cli/param.h>
-
 #include <hsejni_internal.h>
 
 MTF_BEGIN_UTEST_COLLECTION(hsejni_parse_test)

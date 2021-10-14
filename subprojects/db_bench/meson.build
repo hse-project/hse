@@ -17,7 +17,7 @@ project(
 # compile flags specified via default option.
 add_project_arguments('-std=c++11', language: 'cpp' )
 
-hse_dep = dependency('hse-2-static')
+hse_dep = dependency('hse-2')
 threads_dep = dependency('threads')
 
 db_bench = executable(

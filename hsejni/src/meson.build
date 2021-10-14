@@ -18,8 +18,7 @@ hsejni = library(
         component_root_includes,
     ],
     dependencies: [
-        hse_dep,
-        thread_dep,
+        hse_internal_dep,
         jdk_dep,
         libhse_cli_dep,
     ],

@@ -321,7 +321,7 @@ foreach t, params : tools
                 params.get('include_directories', []),
             ],
             dependencies: [
-                hse_static_dep,
+                hse_internal_dep,
                 hse_dependencies,
                 libhse_cli_dep,
                 params.get('dependencies', [])

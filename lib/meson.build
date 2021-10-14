@@ -118,7 +118,7 @@ hse_dependencies = [
     xoroshiro_dep,
 ]
 
-hse = both_libraries(
+hse = library(
     lib_name,
     hse_sources,
     c_args: hse_c_args,
@@ -147,8 +147,14 @@ hse_dep = declare_dependency(
     variables: hse_variables,
 )
 
-hse_static_dep = declare_dependency(
-    link_with: hse.get_static_lib(),
+hse_internal = static_library(
+    '@0@-internal'.format(lib_name),
+    objects: hse.extract_all_objects(recursive: true),
+    gnu_symbol_visibility: 'hidden'
+)
+
+hse_internal_dep = declare_dependency(
+    link_with: hse_internal,
     version: meson.project_version(),
     sources: [
         version_h,
@@ -156,13 +162,12 @@ hse_static_dep = declare_dependency(
     include_directories: [
         public_includes,
     ],
-    variables: hse_variables,
+    dependencies: hse_dependencies,
+    variables: hse_variables
 )
 
 if get_option('tests')
-    hse_mock_c_args = [
-        '-DHSE_MOCKING=1',
-    ]
+    hse_mock_c_args = ['-DHSE_MOCKING=1']
 
     hse_mock_include_directories = [
         test_framework_includes,
@@ -171,19 +176,23 @@ if get_option('tests')
         tools_includes,
     ]
 
-    hse_mock_sources = [
-        test_support_sources,
-        mock_sources,
-    ]
-
-    hse_mock = library(
-        '@0@-mock-@1@'.format(meson.project_name(), hse_major_version),
-        hse_sources + hse_mock_sources,
-        c_args: hse_c_args + hse_mock_c_args,
-        include_directories: hse_include_directories + hse_mock_include_directories,
+    hse_mock = static_library(
+        '@0@-mock'.format(lib_name),
+        [
+            hse_sources,
+            test_support_sources,
+            mock_sources,
+        ],
+        c_args: [
+            hse_c_args,
+            hse_mock_c_args,
+        ],
+        include_directories: [
+            hse_include_directories,
+            hse_mock_include_directories,
+        ],
         dependencies: hse_dependencies,
-        soversion: soversion,
-        version: meson.project_version(),
+        gnu_symbol_visibility: 'hidden'
     )
 
     hse_mock_dep = declare_dependency(
@@ -216,6 +225,5 @@ pkg.generate(
 )
 
 meson.override_dependency(lib_name, hse_dep)
-meson.override_dependency('@0@-static'.format(lib_name), hse_static_dep)
 
 library_paths += meson.current_build_dir()

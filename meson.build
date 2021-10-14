@@ -292,7 +292,10 @@ if not get_option('tools').disabled() and (not libmongoc_dep.found()
     mongo_c_driver_options.set_override_option('warning_level', '0')
     mongo_c_driver_proj = cmake.subproject('mongo-c-driver', options: mongo_c_driver_options)
     if not libmongoc_dep.found() or mongo_c_driver_force_fallback
-        libmongoc_dep = mongo_c_driver_proj.dependency('mongoc_static')
+        libmongoc_dep = [
+            mongo_c_driver_proj.dependency('mongoc_static'),
+            cc.find_library('resolv', required: get_option('tools')),
+        ]
     endif
     if not libbson_dep.found() or mongo_c_driver_force_fallback
         libbson_dep = mongo_c_driver_proj.dependency('bson_static')
@@ -324,7 +327,7 @@ if get_option('tests')
 endif
 
 subdir('include')
-if get_option('tests') or get_option('tools')
+if get_option('tests') or not get_option('tools').disabled()
     # need access to tools_includes for unit tests and tools
     subdir('tools/include')
 endif
