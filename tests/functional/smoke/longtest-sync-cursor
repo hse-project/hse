@@ -25,6 +25,8 @@ args+=(--verify=100)
 args+=(--cursor)
 args+=(--kmin=8)
 args+=(--kmax=8)
+args+=(--vmin=13)
+args+=(--vmax=31)
 args+=(kvs-oparms cn_compaction_debug=3)
 
 cmd longtest "$home" $kvs "${args[@]}"
