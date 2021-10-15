@@ -94,7 +94,8 @@ decode_hg24_4m(const void *base, size_t *off)
 
     if (*p & 0x40) {
         *off += 3;
-        return ((p[0] & 0x3f) << 16) | (p[1] << 8) | p[2];
+        memcpy(&val16, p + 1, sizeof(val16));
+        return ((p[0] & 0x3f) << 16) | be16_to_cpu(val16);
     }
 
     *off += 2;
