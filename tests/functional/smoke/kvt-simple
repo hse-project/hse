@@ -12,4 +12,6 @@ kvdb_create
 
 # kvdb/kvs test
 
-cmd kvt -i1m -t15 -cv -m1 "$home"
+props="-oinodesc=3,datac=7"
+
+cmd kvt -i1m -t15 -cv -m1 ${props} "$home"
