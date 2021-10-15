@@ -10,8 +10,6 @@ option('db_bench', type: 'boolean', value: true,
     description: 'Build db_bench')
 option('tools', type: 'feature', value: 'auto',
     description: 'Build tools')
-option('install-tools', type: 'boolean', value: false,
-    description: 'Install tools')
 option('samples', type: 'boolean', value: true,
     description: 'Build samples')
 option('bindings', type: 'array', choices: ['all', 'none', 'python'], value: ['all'],
@@ -20,3 +18,5 @@ option('docs', type: 'boolean', value: false,
     description: 'Build documentation')
 option('omf-byte-order', type: 'combo', choices: ['native', 'big', 'little'],
     value: 'native', description: 'On-media-format byte order')
+option('rpath', type: 'boolean', value: false,
+    description: 'Add an RPATH to executables upon install')

@@ -326,7 +326,8 @@ foreach t, params : tools
                 libhse_cli_dep,
                 params.get('dependencies', [])
             ],
-            install: get_option('install-tools'),
+            install: true,
+            install_rpath: rpath,
             gnu_symbol_visibility: 'hidden',
         )
 

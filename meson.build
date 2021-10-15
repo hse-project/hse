@@ -319,6 +319,18 @@ endif
 executable_paths = []
 library_paths = []
 
+bindir_to_libdir = run_command(
+    python,
+    '-c',
+    'import os; print("{}/".format(os.path.relpath("@0@", "@1@")))'.format(
+        get_option('prefix') / get_option('libdir'),
+        get_option('prefix') / get_option('bindir'),
+    ),
+    check: true,
+).stdout().strip()
+
+rpath = get_option('rpath') ? '$ORIGIN' / bindir_to_libdir : ''
+
 if get_option('tests')
     find_program('gawk')
     mapi_idx_generate = find_program('scripts/build/mapi_idx_generate')
