@@ -327,6 +327,7 @@ foreach t, params : tools
                 params.get('dependencies', [])
             ],
             install: get_option('install-tools'),
+            install_rpath: rpath,
             gnu_symbol_visibility: 'hidden',
         )
 
