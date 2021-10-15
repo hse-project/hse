@@ -3,7 +3,6 @@
  * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
-#include "mapi_idx.h"
 #include <ftw.h>
 #include <dirent.h>
 
