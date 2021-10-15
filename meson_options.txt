@@ -10,8 +10,6 @@ option('db_bench', type: 'boolean', value: true,
     description: 'Build db_bench')
 option('tools', type: 'feature', value: 'auto',
     description: 'Build tools')
-option('install-tools', type: 'boolean', value: false,
-    description: 'Install tools')
 option('samples', type: 'boolean', value: true,
     description: 'Build samples')
 option('bindings', type: 'array', choices: ['all', 'none', 'python'], value: ['all'],

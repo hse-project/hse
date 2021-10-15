@@ -195,8 +195,8 @@ debugoptimized build types. To mimic the checks for build validation in CI run
 the following:
 
 ```shell
-meson build -Dbuildtype=${build_type} -Dycsb=true -Dinstall-tools=true \
-    -Dinstall-configs=true -Dwerror=true -Db_sanitize=address,undefined
+meson build -Dbuildtype=${build_type} -Dycsb=true -Dwerror=true \
+    -Db_sanitize=address,undefined
 meson test -C build --setup=ci
 ```
 
