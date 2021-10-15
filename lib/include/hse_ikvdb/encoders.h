@@ -62,7 +62,6 @@ encode_hg24_4m(void *base, size_t *off, u64 val)
     const unsigned m1 = 0x7f;
     const unsigned m2 = 0x3fff;
     u8 *           p = base + *off;
-    __be32         val32;
     __be16         val16;
 
     assert(val <= HG24_4M_MAX);
@@ -77,8 +76,8 @@ encode_hg24_4m(void *base, size_t *off, u64 val)
     } else {
         *off += 3;
         *p = (val >> 16) | 0xc0;
-        val32 = cpu_to_be16(val);
-        memcpy(p + 1, &val32, sizeof(val32));
+        val16 = cpu_to_be16(val);
+        memcpy(p + 1, &val16, sizeof(val16));
     }
 }
 
@@ -95,7 +94,8 @@ decode_hg24_4m(const void *base, size_t *off)
 
     if (*p & 0x40) {
         *off += 3;
-        return ((p[0] & 0x3f) << 16) | (p[1] << 8) | p[2];
+        memcpy(&val16, p + 1, sizeof(val16));
+        return ((p[0] & 0x3f) << 16) | be16_to_cpu(val16);
     }
 
     *off += 2;
