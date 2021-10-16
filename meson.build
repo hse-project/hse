@@ -251,7 +251,7 @@ rbtree_dep = rbtree_proj.get_variable('rbtree_dep')
 xoroshiro_proj = subproject('xoroshiro')
 xoroshiro_dep = xoroshiro_proj.get_variable('xoroshiro_dep')
 ncurses_dep = dependency('ncurses', required: get_option('tools'))
-HdrHistogram_c_dep = cc.find_library('hdr_histogram', required: get_option('tools'))
+HdrHistogram_c_dep = cc.find_library('hdr_histogram', required: false, disabler: true)
 if not get_option('tools').disabled() and (not HdrHistogram_c_dep.found()
         or (HdrHistogram_c_dep.found() and not cc.has_header_symbol(
             'hdr/hdr_histogram.h',
