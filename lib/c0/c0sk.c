@@ -247,8 +247,8 @@ c0sk_init(void)
 {
     struct kmem_cache *cache;
 
-    cache = kmem_cache_create(
-        "c0_cursor", sizeof(struct c0_cursor), alignof(struct c0_cursor), SLAB_PACKED, NULL);
+    cache = kmem_cache_create("c0_cursor", sizeof(struct c0_cursor),
+                              0, SLAB_PACKED | SLAB_HWCACHE_ALIGN, NULL);
     if (ev(!cache))
         return merr(ENOMEM);
 
