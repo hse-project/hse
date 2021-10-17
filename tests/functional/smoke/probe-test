@@ -21,7 +21,7 @@ typeset -i ramgb
 ramgb=$(awk '/^MemAvail/ {printf "%lu", $2 / 1048576}' /proc/meminfo)
 if ((ramgb > 16)) ; then
     p=$((p * 10))
-    c=$((p * 10))
+    c=$((c * 10))
 fi
 		 
 oparms=(
