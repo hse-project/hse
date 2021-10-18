@@ -6,7 +6,6 @@
 #include <assert.h>
 #include <errno.h>
 #include <limits.h>
-#include <sys/un.h>
 
 #include <hse_util/rest_client.h>
 #include <hse_util/hse_err.h>
@@ -28,29 +27,6 @@
 #include <pidfile/pidfile.h>
 
 #include <bsd/string.h>
-
-#define SOCKET_PATH_MAX sizeof(((struct sockaddr_un *)0)->sun_path)
-
-static int
-socket_path_get(const char *home, char *buf, const size_t buf_sz)
-{
-    int            rc;
-    size_t         n;
-    struct pidfile content;
-
-    rc = pidfile_deserialize(home, &content);
-    if (rc)
-        goto out;
-
-    n = strlcpy(buf, content.socket.path, buf_sz);
-    if (n >= buf_sz) {
-        rc = ENAMETOOLONG;
-        goto out;
-    }
-
-out:
-    return rc;
-}
 
 static int
 rest_kvs_list(const char *socket_path, struct yaml_context *yc, const char *kvdb)
@@ -212,11 +188,11 @@ kvdb_info_props(
     struct yaml_context *yc)
 {
     struct hse_kvdb *hdl;
-    size_t    kvs_cnt;
-    char **   kvs_list;
-    hse_err_t err;
-    char      socket_path[SOCKET_PATH_MAX];
-    int       i;
+    size_t           kvs_cnt;
+    char **          kvs_list;
+    hse_err_t        err;
+    int              i;
+    struct pidfile   content;
 
     err = hse_kvdb_open(kvdb_home, paramc, paramv, &hdl);
     if (err && hse_err_to_errno(err) != EEXIST && hse_err_to_errno(err) != ENODATA &&
@@ -227,14 +203,24 @@ kvdb_info_props(
     yaml_start_element(yc, "home", kvdb_home);
 
     if (err) {
-        err = socket_path_get(kvdb_home, socket_path, sizeof(socket_path));
+        err = pidfile_deserialize(kvdb_home, &content);
         if (err) {
-            fprintf(stderr, "Failed to find the UNIX socket for the KVDB (%s). Ensure the KVDB is open in a process.\n", kvdb_home);
+            fprintf(
+                stderr,
+                "Failed to find the UNIX socket for the KVDB (%s). Ensure the KVDB is open in a "
+                "process.\n",
+                kvdb_home);
+            goto exit;
+        }
+
+        if (content.socket.path[0] == '\0') {
+            err = ENOENT;
+            fprintf(stderr, "HSE socket is disabled in PID %d\n", content.pid);
             goto exit;
         }
 
         yaml_start_element_type(yc, "kvslist");
-        err = rest_kvs_list(socket_path, yc, kvdb_home);
+        err = rest_kvs_list(content.socket.path, yc, kvdb_home);
         yaml_end_element_type(yc);
         goto exit;
     }
@@ -274,8 +260,8 @@ kvdb_storage_info_props(
 {
     struct hse_kvdb *            hdl;
     struct hse_kvdb_storage_info info = {};
-    hse_err_t err;
-    char      socket_path[SOCKET_PATH_MAX];
+    hse_err_t                    err;
+    struct pidfile               content;
 
     err = hse_kvdb_open(kvdb_home, paramc, paramv, &hdl);
     if (err && hse_err_to_errno(err) != EEXIST && hse_err_to_errno(err) != ENODATA &&
@@ -286,13 +272,23 @@ kvdb_storage_info_props(
     yaml_start_element(yc, "home", kvdb_home);
 
     if (err) {
-        err = socket_path_get(kvdb_home, socket_path, sizeof(socket_path));
+        err = pidfile_deserialize(kvdb_home, &content);
         if (err) {
-            fprintf(stderr, "Failed to find the UNIX socket for the KVDB (%s). Ensure the KVDB is open in a process.\n", kvdb_home);
+            fprintf(
+                stderr,
+                "Failed to find the UNIX socket for the KVDB (%s). Ensure the KVDB is open in a "
+                "process.\n",
+                kvdb_home);
             goto exit;
         }
 
-        err = rest_storage_stats_list(yc, socket_path, &info);
+        if (content.socket.path[0] == '\0') {
+            err = ENOENT;
+            fprintf(stderr, "Socket is disabled in PID %d\n", content.pid);
+            goto exit;
+        }
+
+        err = rest_storage_stats_list(yc, content.socket.path, &info);
         if (!err)
             emit_storage_info(yc, &info);
 
@@ -572,6 +568,7 @@ kvdb_compact_request(const char *kvdb_home, const char *request_type, u32 timeou
     struct hse_kvdb *              handle = 0;
     struct hse_kvdb_compact_status status;
     char                           socket_path[sizeof(((struct sockaddr_un *)0)->sun_path)];
+    struct pidfile                 content;
 
     char   stat_buf[256];
     u64    stop_ts;
@@ -615,9 +612,19 @@ kvdb_compact_request(const char *kvdb_home, const char *request_type, u32 timeou
         }
     }
 
-    err = socket_path_get(kvdb_home, socket_path, sizeof(socket_path));
+    err = pidfile_deserialize(kvdb_home, &content);
     if (err) {
-        fprintf(stderr, "Failed to find the UNIX socket for the KVDB (%s). Ensure the KVDB is open in a process.\n", kvdb_home);
+        fprintf(
+            stderr,
+            "Failed to find the UNIX socket for the KVDB (%s). Ensure the KVDB is open in a "
+            "process.\n",
+            kvdb_home);
+        goto err_out;
+    }
+
+    if (content.socket.path[0] == '\0') {
+        err = ENOENT;
+        fprintf(stderr, "HSE socket is disabled in PID %d\n", content.pid);
         goto err_out;
     }
 
@@ -718,23 +725,33 @@ err_out:
 int
 hse_kvdb_params(const char *kvdb_home, bool get)
 {
-    char      socket_path[SOCKET_PATH_MAX];
-    hse_err_t err = 0;
-    char *    buf;
-    size_t    bufsz = (32 * 1024);
+    hse_err_t      err = 0;
+    char *         buf;
+    size_t         bufsz = (32 * 1024);
+    struct pidfile content;
 
     buf = calloc(1, bufsz);
     if (!buf)
         return -ENOMEM;
 
-    err = socket_path_get(kvdb_home, socket_path, sizeof(socket_path));
+    err = pidfile_deserialize(kvdb_home, &content);
     if (err) {
-        fprintf(stderr, "Failed to find the UNIX socket for the KVDB (%s). Ensure the KVDB is open in a process.\n", kvdb_home);
+        fprintf(
+            stderr,
+            "Failed to find the UNIX socket for the KVDB (%s). Ensure the KVDB is open in a "
+            "process.\n",
+            kvdb_home);
+        goto err_out;
+    }
+
+    if (content.socket.path[0] == '\0') {
+        err = ENOENT;
+        fprintf(stderr, "HSE socket is disabled in PID %d\n", content.pid);
         goto err_out;
     }
 
     if (get) {
-        err = rest_kvdb_params(kvdb_home, bufsz, buf);
+        err = rest_kvdb_params(content.socket.path, bufsz, buf);
         if (err) {
             char buf[256];
             hse_strerror(err, buf, sizeof(buf));

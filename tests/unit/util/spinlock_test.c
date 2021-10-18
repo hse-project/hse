@@ -20,7 +20,6 @@ struct thread_state {
 
 struct spinlock_test_data {
     /* config */
-    int sltest_ltype;
     int sltest_iters;
 
     /* global/shared state */
@@ -35,8 +34,6 @@ struct spinlock_test_data {
 };
 
 static struct spinlock_test_data slock_test_data;
-
-DEFINE_SPINLOCK(spinlock1);
 
 /*
  * An artifice to thwart compiler optimization.
@@ -67,8 +64,7 @@ spinlock_test_init(struct thread_test *stester, void *test_data, int num_threads
 
     spin_lock_init(&stest_data->sltest_spinlock2);
 
-    stest_data->sltest_lock =
-        stest_data->sltest_ltype == 1 ? &spinlock1 : &stest_data->sltest_spinlock2;
+    stest_data->sltest_lock = &stest_data->sltest_spinlock2;
 }
 
 void
@@ -186,57 +182,8 @@ MTF_BEGIN_UTEST_COLLECTION_PREPOST(spinlock_test, platform_pre, platform_post);
 /*
  * One thread, one iteration - to sanity check logic
  */
-MTF_DEFINE_UTEST(spinlock_test, l1_thrd1_iter1)
-{
-    slock_test_data.sltest_ltype = 1;
-    slock_test_data.sltest_iters = 1;
-
-    spinlock_tester->thtst_ops->thread_test_run(spinlock_tester, &slock_test_data, 1);
-}
-
-MTF_DEFINE_UTEST(spinlock_test, l1_thrd1_iter100000)
-{
-    slock_test_data.sltest_ltype = 1;
-    slock_test_data.sltest_iters = 100000;
-
-    spinlock_tester->thtst_ops->thread_test_run(spinlock_tester, &slock_test_data, 1);
-}
-
-MTF_DEFINE_UTEST(spinlock_test, l1_thrd2_iter100000)
-{
-    slock_test_data.sltest_ltype = 1;
-    slock_test_data.sltest_iters = 100000;
-
-    spinlock_tester->thtst_ops->thread_test_run(spinlock_tester, &slock_test_data, 2);
-}
-
-MTF_DEFINE_UTEST(spinlock_test, l1_thrd4_iter100000)
-{
-    slock_test_data.sltest_ltype = 1;
-    slock_test_data.sltest_iters = 100000;
-
-    spinlock_tester->thtst_ops->thread_test_run(spinlock_tester, &slock_test_data, 4);
-}
-
-MTF_DEFINE_UTEST(spinlock_test, l1_thrd8_iter100000)
-{
-    slock_test_data.sltest_ltype = 1;
-    slock_test_data.sltest_iters = 100000;
-
-    spinlock_tester->thtst_ops->thread_test_run(spinlock_tester, &slock_test_data, 8);
-}
-
-MTF_DEFINE_UTEST(spinlock_test, l1_thrd16_iter100000)
-{
-    slock_test_data.sltest_ltype = 1;
-    slock_test_data.sltest_iters = 100000;
-
-    spinlock_tester->thtst_ops->thread_test_run(spinlock_tester, &slock_test_data, 16);
-}
-
 MTF_DEFINE_UTEST(spinlock_test, l2_thrd1_iter1)
 {
-    slock_test_data.sltest_ltype = 2;
     slock_test_data.sltest_iters = 1;
 
     spinlock_tester->thtst_ops->thread_test_run(spinlock_tester, &slock_test_data, 1);
@@ -244,7 +191,6 @@ MTF_DEFINE_UTEST(spinlock_test, l2_thrd1_iter1)
 
 MTF_DEFINE_UTEST(spinlock_test, l2_thrd1_iter100000)
 {
-    slock_test_data.sltest_ltype = 2;
     slock_test_data.sltest_iters = 100000;
 
     spinlock_tester->thtst_ops->thread_test_run(spinlock_tester, &slock_test_data, 1);
@@ -252,7 +198,6 @@ MTF_DEFINE_UTEST(spinlock_test, l2_thrd1_iter100000)
 
 MTF_DEFINE_UTEST(spinlock_test, l2_thrd2_iter100000)
 {
-    slock_test_data.sltest_ltype = 2;
     slock_test_data.sltest_iters = 100000;
 
     spinlock_tester->thtst_ops->thread_test_run(spinlock_tester, &slock_test_data, 2);
@@ -260,7 +205,6 @@ MTF_DEFINE_UTEST(spinlock_test, l2_thrd2_iter100000)
 
 MTF_DEFINE_UTEST(spinlock_test, l2_thrd4_iter100000)
 {
-    slock_test_data.sltest_ltype = 2;
     slock_test_data.sltest_iters = 100000;
 
     spinlock_tester->thtst_ops->thread_test_run(spinlock_tester, &slock_test_data, 4);
@@ -268,7 +212,6 @@ MTF_DEFINE_UTEST(spinlock_test, l2_thrd4_iter100000)
 
 MTF_DEFINE_UTEST(spinlock_test, l2_thrd8_iter100000)
 {
-    slock_test_data.sltest_ltype = 2;
     slock_test_data.sltest_iters = 100000;
 
     spinlock_tester->thtst_ops->thread_test_run(spinlock_tester, &slock_test_data, 8);
@@ -276,7 +219,6 @@ MTF_DEFINE_UTEST(spinlock_test, l2_thrd8_iter100000)
 
 MTF_DEFINE_UTEST(spinlock_test, l2_thrd16_iter100000)
 {
-    slock_test_data.sltest_ltype = 2;
     slock_test_data.sltest_iters = 100000;
 
     spinlock_tester->thtst_ops->thread_test_run(spinlock_tester, &slock_test_data, 16);

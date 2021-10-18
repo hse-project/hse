@@ -112,7 +112,8 @@ main(int argc, char *argv[])
     }
 
     for (;;) {
-        char c, *end;
+        char *end;
+        int c;
 
         c = getopt(argc, argv, options);
         if (-1 == c)

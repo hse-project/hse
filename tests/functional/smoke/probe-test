@@ -12,11 +12,18 @@ kvdb_create
 # fanout=16 for a smaller pivot level
 kvs=$(kvs_create smoke-0 fanout=16 prefix.length=8 suffix.length=8) || exit $?
 
-p=10000
-c=1000
-s=10
-threads=96
+typeset -i p=1000
+typeset -i c=100
+typeset -i s=10
+typeset -i threads=$(($(nproc) + 1))
+typeset -i ramgb
 
+ramgb=$(awk '/^MemAvail/ {printf "%lu", $2 / 1048576}' /proc/meminfo)
+if ((ramgb > 16)) ; then
+    p=$((p * 10))
+    c=$((c * 10))
+fi
+		 
 oparms=(
     kvdb-oparms
     csched_samp_max=100

@@ -12,7 +12,9 @@ kvdb_create
 
 cpus=$(nproc)
 
-cmd kvt -i1m  -T30,$((cpus * 2)) -cv -l0,16k    -ovrunlen=5 -ovcomp=1 -m1 "$home"
-cmd kvt -Fi8k -T30,$((cpus * 2)) -cv -l1m -m1   -ovrunlen=3 -ovcomp=1 "$home"
-cmd kvt -Fi8m -T30,$((cpus * 2)) -cv -l0,16 -m1 -ovrunlen=1 -ovcomp=1 "$home"
-cmd kvt -T30,$((cpus * 2)) -cv -m1 "$home"
+props="-oinodesc=3,datac=7"
+
+cmd kvt -i1m  -T30,$((cpus * 2)) -cvvv -l0,16k -m1 -ovrunlen=32  -ovcomp=1 ${props} "$home"
+cmd kvt -Fi7k -T30,$((cpus * 2)) -cvvv -l1m    -m1 -ovrunlen=331 -ovcomp=1 ${props} "$home"
+cmd kvt -Fi5m -T17,$((cpus * 2)) -cvvv -l0,16  -m1 -ovrunlen=1   -ovcomp=1 ${props} "$home"
+cmd kvt -T17,$((cpus * 2)) -cvvv -m1 ${props} "$home"

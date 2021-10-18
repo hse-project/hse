@@ -333,7 +333,7 @@ main(
 	struct svec         kv_oparms = { 0 };
 	const char         *mpool, *kvs, *config = NULL;
 	struct thread_info *ti;
-	char                c;
+	int                 c;
 	int                 i;
 	int                 rc;
 

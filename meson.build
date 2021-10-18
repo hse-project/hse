@@ -81,8 +81,6 @@ if git.found() and run_command(git, 'rev-parse').returncode() == 0
         '--dirty',
         check: true
     ).stdout().strip()
-elif fs.exists(meson.project_source_root() / 'VERSION')
-    build_version = fs.read(meson.project_source_root() / 'VERSION').stdout().strip()
 else
     build_version = meson.project_version()
 endif
@@ -112,6 +110,20 @@ else
     )
 endif
 
+level1_dcache_linesize = run_command(
+    'getconf',
+    'LEVEL1_DCACHE_LINESIZE',
+    check: true
+).stdout().strip()
+
+if get_option('omf-byte-order') != 'native'
+    add_project_arguments(
+        '-DHSE_OMF_BYTE_ORDER=__ORDER_@0@_ENDIAN__'.format(
+            get_option('omf-byte-order').to_upper()),
+        language: 'c'
+    )
+endif
+
 add_project_arguments(
     '-D_GNU_SOURCE',
     '-D_LGPL_SOURCE',
@@ -122,6 +134,7 @@ add_project_arguments(
     '-Wno-unused-parameter',
     '-Wno-clobbered', # TODO: figure out a way to get back to compiling with -Wclobbered (enabled by -Wextra)
     '-DHSE_LOG_PRI_DEFAULT=@0@'.format(log_pri_default),
+    '-DLEVEL1_DCACHE_LINESIZE=@0@'.format(level1_dcache_linesize),
     language: 'c',
 )
 
@@ -177,10 +190,10 @@ libbsd_dep = dependency(
         'werror=false',
     ],
 )
-lz4_dep = dependency(
+liblz4_dep = dependency(
     'liblz4',
     version: '>=1.9.2',
-    fallback: ['lz4', 'lz4_dep'],
+    fallback: ['lz4', 'liblz4_dep'],
     default_options: [
         'default_library=static',
         'warning_level=0',
@@ -432,8 +445,6 @@ if not meson.is_subproject()
             ],
         )
     endif
-
-    meson.add_dist_script('sh', '-c', 'echo "@0@" > "$MESON_DIST_ROOT/VERSION"'.format(build_version))
 endif
 
 checkoss = find_program('scripts' / 'dev' / 'checkoss')

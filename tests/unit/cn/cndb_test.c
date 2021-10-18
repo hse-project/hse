@@ -1250,14 +1250,19 @@ MTF_DEFINE_UTEST(cndb_test, cndb_upgrade_test2)
     cndb_set_hdr(&tx_v4.hdr, CNDB_TYPE_TX, sizeof(tx_v4));
     err = omf_cndb_tx_unpack_v4(&tx_v4, 0, NULL, NULL);
     ASSERT_EQ(merr_errno(err), EINVAL);
+
     err = omf_cndb_tx_unpack_v4(&tx_v4, 0, NULL, NULL);
     ASSERT_EQ(merr_errno(err), EINVAL);
     err = omf_cndb_tx_unpack_v4(&tx_v4, 0, NULL, &len);
     ASSERT_EQ(err, 0);
     ASSERT_NE(len, 0);
+
     mtu = calloc(1, len);
+    ASSERT_NE(NULL, mtu);
+
     err = omf_cndb_tx_unpack_v4(&tx_v4, 0, mtu, &zero_len);
     ASSERT_EQ(merr_errno(err), EINVAL);
+
     err = omf_cndb_tx_unpack_v4(&tx_v4, 0, mtu, &len);
     ASSERT_EQ(err, 0);
     free(mtu);
@@ -1271,17 +1276,19 @@ MTF_DEFINE_UTEST(cndb_test, cndb_upgrade_test2)
     ASSERT_NE(NULL, txc_v4);
 
     cndb_set_hdr(&txc_v4->hdr, CNDB_TYPE_TXC, sizeof(*txc_v4));
-    txc_v4->txc_vcnt = cpu_to_le32(vcnt);
+    txc_v4->txc_vcnt = cpu_to_omf32(vcnt);
     err = omf_cndb_txc_unpack_v4(txc_v4, CNDB_VERSION4, NULL, &len);
     ASSERT_EQ(err, 0);
     ASSERT_NE(len, 0);
     ASSERT_EQ(len, sz);
+
     mtu = calloc(1, len);
+    ASSERT_NE(NULL, mtu);
     err = omf_cndb_txc_unpack_v4(txc_v4, CNDB_VERSION4, mtu, &len);
     ASSERT_EQ(err, 0);
     ASSERT_EQ(mtu->c.mtc_keepvbc, 0);
 
-    txc_v4->txc_flags = 1;
+    txc_v4->txc_flags = cpu_to_omf32(1);
     err = omf_cndb_txc_unpack_v4(txc_v4, CNDB_VERSION4, mtu, &len);
     ASSERT_EQ(err, 0);
     ASSERT_EQ(mtu->c.mtc_keepvbc, 9);

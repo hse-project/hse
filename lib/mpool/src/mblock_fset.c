@@ -74,10 +74,26 @@ mblock_metahdr_init(struct mblock_fset *mbfsp, struct mblock_metahdr *mh)
 static merr_t
 mblock_metahdr_validate(struct mblock_fset *mbfsp, struct mblock_metahdr *mh)
 {
+	if (mh->magic != MBLOCK_METAHDR_MAGIC) {
+		bool big = (HSE_OMF_BYTE_ORDER == __ORDER_BIG_ENDIAN__);
+
+		if (mh->magic != bswap_32(MBLOCK_METAHDR_MAGIC))
+			return merr(EBADMSG);
+
+		hse_log(HSE_ERR "%s: MDC format is %s endian, but libhse is configured to use %s endian,"
+				"try reconfiguring with -Domf-byte-order=%s",
+				__func__,
+				big ? "little" : "big",
+				big ? "big" : "little",
+				big ? "little" : "big");
+
+		return merr(EPROTO);
+	}
+
     if (mh->vers != MBLOCK_METAHDR_VERSION)
         return merr(EPROTO);
 
-    if ((mh->magic != MBLOCK_METAHDR_MAGIC) || (mh->mcid != mclass_id(mbfsp->mc)) ||
+    if ((mh->mcid != mclass_id(mbfsp->mc)) ||
         (mh->blkbits != MBID_BLOCK_BITS) || (mh->mcbits != MBID_MCID_BITS))
         return merr(EBADMSG);
 

@@ -124,8 +124,7 @@ main(
 	struct svec         kvs_oparms = { 0 };
 	const char         *mpool, *kvs, *config = NULL;
 	struct thread_info *ti;
-	int i, rc;
-	char  c;
+	int rc, c, i;
 
 	progname = basename(argv[0]);
 

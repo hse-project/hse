@@ -8,6 +8,7 @@
 
 #include <endian.h>
 #include <stdint.h>
+#include <byteswap.h>
 
 #include <hse_util/compiler.h>
 

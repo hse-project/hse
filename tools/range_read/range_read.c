@@ -440,7 +440,7 @@ main(
     struct svec         kvs_oparms = { 0 };
     int                 i, rc;
     const char         *mpool, *kvs, *config = NULL;
-    char                c;
+    int                 c;
     struct thread_info *ti = 0;
     bool                freet = false;
     void               *blens_base HSE_MAYBE_UNUSED = NULL;

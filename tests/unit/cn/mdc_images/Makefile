@@ -1,12 +1,24 @@
-HSE=`which hse`
-INJECT=`which cndb_txn_inject`
-KVSDROP=`which cndb_simpledrop_inject`
-KVSDROP_RECOVERY=`which cndb_simpledrop_recovery_inject`
-CNDB_LOG=`which cndb_log`
-MDC_TOOL=`which mdc_tool`
-KVDBDIR?=kvdbs
-IMGTARGETS=missing_ackds.cndblog missing_ackc.cndblog wrongingestid.cndblog simpledrop.cndblog simpledrop_recovery.cndblog
-CTARGETS=simpledrop.c simpledrop_recovery.c
+HSE := $(shell which hse)
+INJECT := $(shell which cndb_txn_inject)
+KVSDROP := $(shell which cndb_simpledrop_inject)
+KVSDROP_RECOVERY := $(shell which cndb_simpledrop_recovery_inject)
+CNDB_LOG := $(shell which cndb_log)
+MDC_TOOL := $(shell which mdc_tool)
+KVDBDIR ?= kvdbs
+CTARGETS := simpledrop.c simpledrop_recovery.c
+
+ifeq ($(shell hse -Vv | grep BIG_ENDIAN),)
+SUFFIX := cndblog
+else
+SUFFIX := cndblog-be
+endif
+
+IMGTARGETS := \
+	missing_ackds.${SUFFIX} \
+	missing_ackc.${SUFFIX} \
+	wrongingestid.${SUFFIX} \
+	simpledrop.${SUFFIX} \
+	simpledrop_recovery.${SUFFIX}
 
 all: clean $(IMGTARGETS) $(CTARGETS)
 
@@ -15,33 +27,33 @@ clean:
 	rm -rf $(KVDBDIR)
 	mkdir -p ${KVDBDIR}
 
-missing_ackds.cndblog:
+missing_ackds.${SUFFIX}:
 	mkdir $(KVDBDIR)/rollforward
-	$(HSE) -C $(KVDBDIR)/rollforward kvdb create
+	$(HSE) kvdb create $(KVDBDIR)/rollforward
 	$(INJECT) -f $(KVDBDIR)/rollforward
 	$(CNDB_LOG) -w $@ $(KVDBDIR)/rollforward
 
-missing_ackc.cndblog:
+missing_ackc.${SUFFIX}:
 	mkdir $(KVDBDIR)/rollbackward
-	$(HSE) -C $(KVDBDIR)/rollbackward kvdb create
+	$(HSE) kvdb create $(KVDBDIR)/rollbackward
 	$(INJECT) -b $(KVDBDIR)/rollbackward
 	$(CNDB_LOG) -w $@ $(KVDBDIR)/rollbackward
 
-wrongingestid.cndblog:
+wrongingestid.${SUFFIX}:
 	mkdir $(KVDBDIR)/wrongingestid
-	$(HSE) -C $(KVDBDIR)/wrongingestid kvdb create
+	$(HSE) kvdb create $(KVDBDIR)/wrongingestid
 	$(INJECT) -i $(KVDBDIR)/wrongingestid
 	$(CNDB_LOG) -w $@ $(KVDBDIR)/wrongingestid
 
-simpledrop_recovery.cndblog:
+simpledrop_recovery.${SUFFIX}:
 	mkdir $(KVDBDIR)/simpledrop_recovery
-	$(HSE) -C $(KVDBDIR)/simpledrop_recovery kvdb create
+	$(HSE) kvdb create $(KVDBDIR)/simpledrop_recovery
 	$(KVSDROP_RECOVERY) $(KVDBDIR)/simpledrop_recovery
 	$(CNDB_LOG) -w $@ $(KVDBDIR)/simpledrop_recovery
 
-simpledrop.cndblog:
+simpledrop.${SUFFIX}:
 	mkdir $(KVDBDIR)/simpledrop
-	$(HSE) -C $(KVDBDIR)/simpledrop kvdb create
+	$(HSE) kvdb create $(KVDBDIR)/simpledrop
 	$(KVSDROP) $(KVDBDIR)/simpledrop
 	$(CNDB_LOG) -w $@ $(KVDBDIR)/simpledrop
 

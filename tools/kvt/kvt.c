@@ -143,6 +143,7 @@
 #include <hse/hse.h>
 
 #include <tools/parm_groups.h>
+#include <hse_util/arch.h>
 
 #include <xoroshiro.h>
 #include <xxhash.h>
@@ -397,7 +398,7 @@ xrand64_init(uint64_t seed)
 {
     if (seed == 0) {
         while (!(seed >> 56))
-            seed = (seed << 8) | (__builtin_ia32_rdtsc() & 0xfful);
+            seed = (seed << 8) | (get_cycles() & 0xfful);
     }
 
     xoroshiro128plus_init(xrand64_state, seed);
@@ -1165,7 +1166,6 @@ main(int argc, char **argv)
     u_long      keymax;
     hse_err_t   err;
     tsi_t       tstart;
-    FILE *      fp;
 
     progname = strrchr(argv[0], '/');
     progname = progname ? progname + 1 : argv[0];
@@ -1200,6 +1200,8 @@ main(int argc, char **argv)
     tsc_freq_ = 1000000000;
 
 #if __amd64__
+    FILE *fp;
+
     fp = popen("lscpu | sed -En 's/^Model.*([0-9].[0-9]+.)Hz$/\\1/p'", "r");
     if (fp) {
         char   line[256], *end;
@@ -1551,14 +1553,16 @@ main(int argc, char **argv)
     rc = kvt_check(check, dump);
 
   errout:
-    tsi_start(&tstart);
-    status("closing kvdb %s...", mpname);
+	if (kvdb) {
+		tsi_start(&tstart);
+		status("closing kvdb %s...", mpname);
 
-    err = hse_kvdb_close(kvdb);
-    if (err)
-        eprint(err, "unable to close kvdb `%s'", mpname);
+		err = hse_kvdb_close(kvdb);
+		if (err)
+			eprint(err, "unable to close kvdb `%s'", mpname);
 
-    dprint(1, "closed kvdb %s in %.3lf seconds", mpname, tsi_delta(&tstart) / 1000000.0);
+		dprint(1, "closed kvdb %s in %.3lf seconds", mpname, tsi_delta(&tstart) / 1000000.0);
+	}
 
     free(kvs_inodesv);
     hse_fini();
@@ -3303,7 +3307,7 @@ kvt_test_main(void *arg)
         if (!ridlock_trylock(rid))
             continue;
 
-        cycles = __builtin_ia32_rdtsc();
+        cycles = get_cycles();
 
         ++args->stats.iters;
 
@@ -3378,7 +3382,7 @@ kvt_test_main(void *arg)
       unlock:
         ridlock_unlock(rid); /* no-op in txn mode */
 
-        cycles = __builtin_ia32_rdtsc() - cycles;
+        cycles = get_cycles() - cycles;
 
         if (cycles < args->stats.latmin)
             args->stats.latmin = cycles;
