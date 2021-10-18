@@ -801,17 +801,6 @@ c0sk_sync(struct c0sk *handle, const unsigned int flags)
     return 0;
 }
 
-// The comment below no longer applies, right?
-/* --------------------------------------------------
- * c0 cursor support
- *
- * Special note on ref-counting transaction kvms: don't.
- * The c0_kvmultiset for a kvdb_ctxn is private to that transaction
- * for the purposes of ref-counting.  In particular, the kvms may
- * exist, but be reset independently of a cursor, which can only
- * happen if the refcnt is 1 (not 2, as would happen here).
- */
-
 static void
 c0sk_cursor_debug_val(struct c0_cursor *cur, uintptr_t seqnoref, struct bonsai_kv *bkv);
 
