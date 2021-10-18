@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
 #ifndef HSE_KVS_C0_CURSOR_H
@@ -19,7 +19,10 @@
  */
 struct c0_kvmultiset_cursor {
     struct element_source c0mc_es; /* must be first */
-    struct c0_kvmultiset *c0mc_kvms;
+    union {
+        struct c0_kvmultiset *c0mc_kvms;
+        struct c0_kvmultiset_cursor *c0mc_next;
+    };
     struct bin_heap2 *    c0mc_bh;
     int                   c0mc_iterc;
     int                   c0mc_skidx;
@@ -31,8 +34,6 @@ struct c0_kvmultiset_cursor {
     struct element_source *  c0mc_esrcv[HSE_C0_INGEST_WIDTH_MAX];
     struct c0_kvset_iterator c0mc_iterv[HSE_C0_INGEST_WIDTH_MAX];
 };
-
-#define es2mscur(p) container_of(p, struct c0_kvmultiset_cursor, c0mc_es)
 
 /**
  * struct - c0_cursor - structure to allow iterating over a single kvs in c0

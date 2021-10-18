@@ -804,9 +804,6 @@ c0sk_sync(struct c0sk *handle, const unsigned int flags)
 static void
 c0sk_cursor_debug_val(struct c0_cursor *cur, uintptr_t seqnoref, struct bonsai_kv *bkv);
 
-#define MSCUR_NEXT(_p)         es2mscur(((_p)->c0mc_es.es_next_src))
-#define MSCUR_SET_NEXT(_p, _q) ((_p)->c0mc_es.es_next_src = (void *)(_q))
-
 /*
  * These are poorly named to prevent collision with the other
  * poorly named cursor allocator.
@@ -819,7 +816,7 @@ c0sk_cursor_get_free(struct c0_cursor *cur)
 
     p = cur->c0cur_free;
     if (p) {
-        cur->c0cur_free = MSCUR_NEXT(p);
+        cur->c0cur_free = p->c0mc_next;
         return p;
     }
 
@@ -829,7 +826,7 @@ c0sk_cursor_get_free(struct c0_cursor *cur)
 static void
 c0sk_cursor_put_free(struct c0_cursor *cur, struct c0_kvmultiset_cursor *p)
 {
-    MSCUR_SET_NEXT(p, cur->c0cur_free);
+    p->c0mc_next = cur->c0cur_free;
     cur->c0cur_free = p;
 }
 
@@ -849,7 +846,7 @@ c0sk_cursor_release(struct c0_cursor *cur)
     }
 
     for (p = cur->c0cur_free; p; p = next) {
-        next = MSCUR_NEXT(p);
+        next = p->c0mc_next;
         free_aligned(p);
     }
 
@@ -1439,35 +1436,12 @@ c0sk_cursor_update(struct c0_cursor *cur, u64 seqno, u32 *flags_out)
             cur->c0cur_bh = NULL;
             goto out;
         }
-    } else {
-
-        /* [HSE_REVISIT] If we don't reset the binheap then we'll segfault later here:
-         *
-         * #0 0x4a9e73 in bin_heap2_pop lib/util/src/bin_heap.c:546
-         * #1 0x4d1d01 in c0kvms_cursor_next lib/c0/c0_kvmultiset.c:309
-         * #2 0x4a9ee5 in bin_heap2_pop lib/util/src/bin_heap.c:555
-         * #3 0x4e2cc7 in c0sk_cursor_read lib/c0/c0sk.c:1162
-         * #4 0x4d032d in c0_cursor_read lib/c0/c0.c:301
-         * #5 0x4d03dc in c0cur_next lib/c0/c0.c:312
-         * #6 0x4a9202 in bin_heap2_prepare lib/util/src/bin_heap.c:350
-         * #7 0x474f67 in kvs_cursor_prepare lib/kvs/kvs_cursor.c:872
-         * #8 0x44967f in ikvdb_kvs_cursor_create lib/kvdb/ikvdb.c:2426
-         * #9 0x41bde3 in hse_kvs_cursor_create lib/binding/kvdb_interface.c:919
-         *
-         * Need to investigate.  I suspect it's using a cached c0 cursor that has
-         * been updated but not yet prepared, and so resetting the binheap here
-         * prevents accessing free objects.  But it also seems to mean it's not
-         * seeing the keys it should be seeing...
-         */
-        bin_heap2_init(cur->c0cur_alloc_cnt,
-                       cur->c0cur_reverse ? bn_kv_cmp_rev : bn_kv_cmp,
-                       cur->c0cur_bh);
     }
 
-    /* In order to maintain positional stability of a cursor, the calling layer will seek this
-     * cursor to its last position before reading from it.
-     * Don't prepare the binheap. Leave that to c0sk_cursor_seek.
+    /* We must (re)prepare the cursor (i.e., rebuild the binheap) if the binheap
+     * was re-created or the element sources have changed.
      */
+    c0sk_cursor_prepare(cur);
 
 out:
     if (kvmsv != kvmsv_mem)
