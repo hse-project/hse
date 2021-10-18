@@ -1004,29 +1004,38 @@ c0sk_cursor_discover(struct c0_cursor *cur)
     rcu_read_unlock();
 
     cur->c0cur_summary->n_kvms = cnt;
-    cur->c0cur_cnt = cnt;
+    cur->c0cur_cnt = 0;
 
     cur->c0cur_merr = bin_heap2_create(cur->c0cur_alloc_cnt,
                                        cur->c0cur_reverse ? bn_kv_cmp_rev : bn_kv_cmp,
                                        &cur->c0cur_bh);
     if (ev(cur->c0cur_merr)) {
         c0sk_cursor_release(cur);
+        cur->c0cur_bh = NULL;
+
+        for (i = 0; i < cnt; ++i)
+            c0kvms_putref(kvmsv[i]);
         free(kvmsv);
+
         return cur->c0cur_merr;
     }
 
-    for (i = 0; i < cur->c0cur_cnt; ++i) {
+    for (i = 0; i < cnt; ++i) {
         cur->c0cur_curv[i] = c0sk_cursor_new_c0mc(cur, kvmsv[i]);
+
         if (ev(!cur->c0cur_curv[i])) {
-            while (i--)
-                c0sk_cursor_put_free(cur, cur->c0cur_curv[i]);
-            bin_heap2_destroy(cur->c0cur_bh);
+            cur->c0cur_merr = merr(ENOMEM);
             c0sk_cursor_release(cur);
+
+            while (i < cnt)
+                c0kvms_putref(kvmsv[i++]);
             free(kvmsv);
+
             return cur->c0cur_merr;
         }
 
         cur->c0cur_esrcv[i] = c0kvms_cursor_get_source(cur->c0cur_curv[i]);
+        cur->c0cur_cnt++;
     }
 
     c0sk_cursor_prepare(cur);
@@ -1380,9 +1389,13 @@ c0sk_cursor_update(struct c0_cursor *cur, u64 seqno, u32 *flags_out)
         void *curv  = realloc(cur->c0cur_curv, newsz * sizeof(*cur->c0cur_curv));
         void *esrcv = realloc(cur->c0cur_esrcv, newsz * sizeof(*cur->c0cur_esrcv));
 
-        if (!curv || !esrcv) {
+        if (ev(!curv || !esrcv)) {
+            cur->c0cur_merr = merr(ENOMEM);
             c0sk_cursor_release(cur);
-            cur->c0cur_merr = ev(merr(ENOMEM));
+
+            for (i = 0; i < cnt; ++i)
+                c0kvms_putref(kvmsv[i]);
+
             goto out;
         }
 
@@ -1401,21 +1414,26 @@ c0sk_cursor_update(struct c0_cursor *cur, u64 seqno, u32 *flags_out)
         /* Make room for new KVMS cursors and create said cursors.
          */
         memmove(cur->c0cur_curv + cnt, cur->c0cur_curv, sizeof(*cur->c0cur_curv) * cur->c0cur_cnt);
+        memmove(cur->c0cur_esrcv + cnt, cur->c0cur_esrcv, sizeof(*cur->c0cur_esrcv) * cur->c0cur_cnt);
 
         for (i = 0; i < cnt; i++) {
             cur->c0cur_curv[i] = c0sk_cursor_new_c0mc(cur, kvmsv[i]);
+
             if (ev(!cur->c0cur_curv[i])) {
-                while (i--) {
-                    struct c0_kvmultiset_cursor *this = cur->c0cur_curv[i];
+                memmove(cur->c0cur_curv + i, cur->c0cur_curv + cur->c0cur_cnt,
+                        sizeof(*cur->c0cur_curv) * cur->c0cur_cnt);
 
-                    c0kvms_cursor_destroy(this);
-                    c0kvms_putref(this->c0mc_kvms);
-                    c0sk_cursor_put_free(cur, this);
-                }
-
+                cur->c0cur_cnt += i;
+                cur->c0cur_merr = merr(ENOMEM);
                 c0sk_cursor_release(cur);
+
+                while (i < cnt)
+                    c0kvms_putref(kvmsv[i++]);
+
                 goto out;
             }
+
+            cur->c0cur_esrcv[i] = c0kvms_cursor_get_source(cur->c0cur_curv[i]);
         }
 
         cur->c0cur_cnt += cnt;
@@ -1423,6 +1441,7 @@ c0sk_cursor_update(struct c0_cursor *cur, u64 seqno, u32 *flags_out)
 
     if (resize_bh) {
         bin_heap2_destroy(cur->c0cur_bh);
+
         cur->c0cur_merr = bin_heap2_create(cur->c0cur_alloc_cnt,
                                            cur->c0cur_reverse ? bn_kv_cmp_rev : bn_kv_cmp,
                                            &cur->c0cur_bh);
@@ -1432,13 +1451,29 @@ c0sk_cursor_update(struct c0_cursor *cur, u64 seqno, u32 *flags_out)
             goto out;
         }
     } else {
+
+        /* [HSE_REVISIT] If we don't reset the binheap then we'll segfault later here:
+         *
+         * #0 0x4a9e73 in bin_heap2_pop lib/util/src/bin_heap.c:546
+         * #1 0x4d1d01 in c0kvms_cursor_next lib/c0/c0_kvmultiset.c:309
+         * #2 0x4a9ee5 in bin_heap2_pop lib/util/src/bin_heap.c:555
+         * #3 0x4e2cc7 in c0sk_cursor_read lib/c0/c0sk.c:1162
+         * #4 0x4d032d in c0_cursor_read lib/c0/c0.c:301
+         * #5 0x4d03dc in c0cur_next lib/c0/c0.c:312
+         * #6 0x4a9202 in bin_heap2_prepare lib/util/src/bin_heap.c:350
+         * #7 0x474f67 in kvs_cursor_prepare lib/kvs/kvs_cursor.c:872
+         * #8 0x44967f in ikvdb_kvs_cursor_create lib/kvdb/ikvdb.c:2426
+         * #9 0x41bde3 in hse_kvs_cursor_create lib/binding/kvdb_interface.c:919
+         *
+         * Need to investigate.  I suspect it's using a cached c0 cursor that has
+         * been updated but not yet prepared, and so resetting the binheap here
+         * prevents accessing free objects.  But it also seems to mean it's not
+         * seeing the keys it should be seeing...
+         */
         bin_heap2_init(cur->c0cur_alloc_cnt,
                        cur->c0cur_reverse ? bn_kv_cmp_rev : bn_kv_cmp,
                        cur->c0cur_bh);
     }
-
-    for (i = 0; i < cur->c0cur_cnt; i++)
-        cur->c0cur_esrcv[i] = c0kvms_cursor_get_source(cur->c0cur_curv[i]);
 
     /* In order to maintain positional stability of a cursor, the calling layer will seek this
      * cursor to its last position before reading from it.
