@@ -59,10 +59,6 @@ diag_kvdb_open(
     if (err)
         goto close_mp;
 
-    err = kvdb_rparams_resolve(&params, kvdb_home);
-    if (ev(err))
-        goto close_mp;
-
     err = kvdb_home_pidfile_path_get(kvdb_home, pidfile_path, sizeof(pidfile_path));
     if (err)
         goto close_mp;

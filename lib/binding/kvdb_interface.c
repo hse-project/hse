@@ -370,12 +370,6 @@ hse_kvdb_open(
         goto out;
     }
 
-    err = kvdb_rparams_resolve(&params, kvdb_home);
-    if (ev(err)) {
-        log_errx("Failed to resolve KVDB (%s) rparams: @@e", err, kvdb_home);
-        goto out;
-    }
-
     err = kvdb_home_pidfile_path_get(kvdb_home, pidfile_path, sizeof(pidfile_path));
     if (err) {
         log_errx("Failed to create KVDB pidfile path (%s)/kvdb.pid: @@e", err, kvdb_home);

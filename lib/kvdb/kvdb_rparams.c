@@ -1473,15 +1473,6 @@ kvdb_rparams_defaults()
 }
 
 merr_t
-kvdb_rparams_resolve(struct kvdb_rparams *params, const char *home)
-{
-    assert(params);
-    assert(home);
-
-    return 0;
-}
-
-merr_t
 kvdb_rparams_get(
     const struct kvdb_rparams *const params,
     const char *const                param,

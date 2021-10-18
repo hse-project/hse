@@ -112,9 +112,6 @@ struct kvdb_rparams
 kvdb_rparams_defaults(void) HSE_CONST;
 
 merr_t
-kvdb_rparams_resolve(struct kvdb_rparams *params, const char *home);
-
-merr_t
 kvdb_rparams_get(
     const struct kvdb_rparams *params,
     const char *               param,
