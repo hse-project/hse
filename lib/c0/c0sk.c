@@ -247,8 +247,8 @@ c0sk_init(void)
 {
     struct kmem_cache *cache;
 
-    cache = kmem_cache_create(
-        "c0_cursor", sizeof(struct c0_cursor), alignof(struct c0_cursor), SLAB_PACKED, NULL);
+    cache = kmem_cache_create("c0_cursor", sizeof(struct c0_cursor),
+                              0, SLAB_PACKED | SLAB_HWCACHE_ALIGN, NULL);
     if (ev(!cache))
         return merr(ENOMEM);
 
@@ -801,21 +801,8 @@ c0sk_sync(struct c0sk *handle, const unsigned int flags)
     return 0;
 }
 
-/* --------------------------------------------------
- * c0 cursor support
- *
- * Special note on ref-counting transaction kvms: don't.
- * The c0_kvmultiset for a kvdb_ctxn is private to that transaction
- * for the purposes of ref-counting.  In particular, the kvms may
- * exist, but be reset independently of a cursor, which can only
- * happen if the refcnt is 1 (not 2, as would happen here).
- */
-
 static void
 c0sk_cursor_debug_val(struct c0_cursor *cur, uintptr_t seqnoref, struct bonsai_kv *bkv);
-
-#define MSCUR_NEXT(_p)         es2mscur(((_p)->c0mc_es.es_next_src))
-#define MSCUR_SET_NEXT(_p, _q) ((_p)->c0mc_es.es_next_src = (void *)(_q))
 
 /*
  * These are poorly named to prevent collision with the other
@@ -829,7 +816,7 @@ c0sk_cursor_get_free(struct c0_cursor *cur)
 
     p = cur->c0cur_free;
     if (p) {
-        cur->c0cur_free = MSCUR_NEXT(p);
+        cur->c0cur_free = p->c0mc_next;
         return p;
     }
 
@@ -839,8 +826,7 @@ c0sk_cursor_get_free(struct c0_cursor *cur)
 static void
 c0sk_cursor_put_free(struct c0_cursor *cur, struct c0_kvmultiset_cursor *p)
 {
-    /* HSE_REVISIT: keep a count of these to control growth */
-    MSCUR_SET_NEXT(p, cur->c0cur_free);
+    p->c0mc_next = cur->c0cur_free;
     cur->c0cur_free = p;
 }
 
@@ -855,12 +841,12 @@ c0sk_cursor_release(struct c0_cursor *cur)
         struct c0_kvmultiset_cursor *this = cur->c0cur_curv[i];
 
         c0kvms_cursor_destroy(this);
-        c0sk_cursor_put_free(cur, this);
         c0kvms_putref(this->c0mc_kvms);
+        c0sk_cursor_put_free(cur, this);
     }
 
     for (p = cur->c0cur_free; p; p = next) {
-        next = MSCUR_NEXT(p);
+        next = p->c0mc_next;
         free_aligned(p);
     }
 
@@ -888,10 +874,7 @@ c0sk_cursor_ptomb_reset(struct c0_cursor *cur)
 }
 
 /*
- * look for ingested kvms and release them:
- * instead of crawling the list matching each, find the last
- * and search for this in the cursor list;
- * the ingested kvms are now found in cN
+ * Look for ingested kvms and release them in order of oldest to youngest.
  *
  * It is possible all kvms for this cursor have been ingested;
  * in this case, everything should be released.  However,
@@ -901,34 +884,26 @@ c0sk_cursor_ptomb_reset(struct c0_cursor *cur)
 static void
 c0sk_cursor_trim(struct c0_cursor *cur)
 {
-    struct c0_kvmultiset *last;
-    struct c0sk_impl *    c0sk;
-    u64                   lastgen;
-    int                   i, j;
+    int i = cur->c0cur_cnt;
 
-    c0sk = c0sk_h2r(cur->c0cur_c0sk);
-    lastgen = U64_MAX;
-    j = 0;
+    while (i-- > 0) {
+        struct c0_kvmultiset_cursor *p = cur->c0cur_curv[i];
 
-    rcu_read_lock();
-    last = c0sk_get_last_c0kvms(&c0sk->c0sk_handle);
-    if (last)
-        lastgen = c0kvms_gen_read(last);
-    rcu_read_unlock();
+        if (!c0kvms_is_ingested(p->c0mc_kvms))
+            break;
 
-    while (c0kvms_gen_read(cur->c0cur_curv[j++]->c0mc_kvms) > lastgen)
-        ;
+        c0kvms_cursor_destroy(p);
+        c0kvms_putref(p->c0mc_kvms);
+        c0sk_cursor_put_free(cur, p);
 
-    for (i = j; i < cur->c0cur_cnt; i++) {
-        c0kvms_cursor_destroy(cur->c0cur_curv[i]);
-        c0kvms_putref(cur->c0cur_curv[i]->c0mc_kvms);
+        cur->c0cur_curv[i] = NULL;
 
-        ++cur->c0cur_summary->n_trim;
-        --cur->c0cur_summary->n_kvms;
+        cur->c0cur_summary->n_trim++;
+        cur->c0cur_summary->n_kvms--;
+        cur->c0cur_cnt--;
     }
 
     c0sk_cursor_ptomb_reset(cur);
-    cur->c0cur_cnt = j;
 }
 
 struct c0_kvmultiset_cursor *
@@ -1015,29 +990,38 @@ c0sk_cursor_discover(struct c0_cursor *cur)
     rcu_read_unlock();
 
     cur->c0cur_summary->n_kvms = cnt;
-    cur->c0cur_cnt = cnt;
+    cur->c0cur_cnt = 0;
 
     cur->c0cur_merr = bin_heap2_create(cur->c0cur_alloc_cnt,
                                        cur->c0cur_reverse ? bn_kv_cmp_rev : bn_kv_cmp,
                                        &cur->c0cur_bh);
     if (ev(cur->c0cur_merr)) {
         c0sk_cursor_release(cur);
+        cur->c0cur_bh = NULL;
+
+        for (i = 0; i < cnt; ++i)
+            c0kvms_putref(kvmsv[i]);
         free(kvmsv);
+
         return cur->c0cur_merr;
     }
 
-    for (i = 0; i < cur->c0cur_cnt; ++i) {
+    for (i = 0; i < cnt; ++i) {
         cur->c0cur_curv[i] = c0sk_cursor_new_c0mc(cur, kvmsv[i]);
+
         if (ev(!cur->c0cur_curv[i])) {
-            while (i--)
-                c0sk_cursor_put_free(cur, cur->c0cur_curv[i]);
-            bin_heap2_destroy(cur->c0cur_bh);
+            cur->c0cur_merr = merr(ENOMEM);
             c0sk_cursor_release(cur);
+
+            while (i < cnt)
+                c0kvms_putref(kvmsv[i++]);
             free(kvmsv);
+
             return cur->c0cur_merr;
         }
 
         cur->c0cur_esrcv[i] = c0kvms_cursor_get_source(cur->c0cur_curv[i]);
+        cur->c0cur_cnt++;
     }
 
     c0sk_cursor_prepare(cur);
@@ -1309,6 +1293,8 @@ c0sk_cursor_update_active(struct c0_cursor *cur)
     if (!active)
         return;
 
+    assert(cur->c0cur_cnt > 0);
+
     c0kvms_cursor_update(active, cur->c0cur_ct_pfx_len);
 }
 
@@ -1329,7 +1315,7 @@ c0sk_cursor_update(struct c0_cursor *cur, u64 seqno, u32 *flags_out)
     u64                          min_gen, max_gen;
     struct c0_kvmultiset        *kvms = NULL;
     struct c0sk_impl *           c0sk;
-    int                          cnt, width;
+    int                          cnt, width, i;
     bool                         resize_bh = false;
 
     if (flags_out)
@@ -1344,6 +1330,9 @@ c0sk_cursor_update(struct c0_cursor *cur, u64 seqno, u32 *flags_out)
 
     /* Lock in the generation number range of KVSMSes. Use this to size the array kvmsv.
      * This is the worst case size needed for kvmsv.
+     *
+     * c0kvms generation counts are global, so (max_gen - min_gen) may be larger than
+     * the number of c0kvms' on this kvdb's list.
      */
     rcu_read_lock();
     kvms = c0sk_get_last_c0kvms(&c0sk->c0sk_handle);
@@ -1386,9 +1375,13 @@ c0sk_cursor_update(struct c0_cursor *cur, u64 seqno, u32 *flags_out)
         void *curv  = realloc(cur->c0cur_curv, newsz * sizeof(*cur->c0cur_curv));
         void *esrcv = realloc(cur->c0cur_esrcv, newsz * sizeof(*cur->c0cur_esrcv));
 
-        if (!curv || !esrcv) {
+        if (ev(!curv || !esrcv)) {
+            cur->c0cur_merr = merr(ENOMEM);
             c0sk_cursor_release(cur);
-            cur->c0cur_merr = ev(merr(ENOMEM));
+
+            for (i = 0; i < cnt; ++i)
+                c0kvms_putref(kvmsv[i]);
+
             goto out;
         }
 
@@ -1403,48 +1396,52 @@ c0sk_cursor_update(struct c0_cursor *cur, u64 seqno, u32 *flags_out)
     c0sk_cursor_update_active(cur);
 
     if (cnt > 0) {
-        int i;
 
         /* Make room for new KVMS cursors and create said cursors.
          */
         memmove(cur->c0cur_curv + cnt, cur->c0cur_curv, sizeof(*cur->c0cur_curv) * cur->c0cur_cnt);
+        memmove(cur->c0cur_esrcv + cnt, cur->c0cur_esrcv, sizeof(*cur->c0cur_esrcv) * cur->c0cur_cnt);
+
         for (i = 0; i < cnt; i++) {
             cur->c0cur_curv[i] = c0sk_cursor_new_c0mc(cur, kvmsv[i]);
+
             if (ev(!cur->c0cur_curv[i])) {
-                while (i--) {
-                    struct c0_kvmultiset_cursor *this = cur->c0cur_curv[i];
+                memmove(cur->c0cur_curv + i, cur->c0cur_curv + cur->c0cur_cnt,
+                        sizeof(*cur->c0cur_curv) * cur->c0cur_cnt);
 
-                    c0kvms_cursor_destroy(this);
-                    c0sk_cursor_put_free(cur, this);
-                    c0kvms_putref(this->c0mc_kvms);
-                }
-
+                cur->c0cur_cnt += i;
+                cur->c0cur_merr = merr(ENOMEM);
                 c0sk_cursor_release(cur);
+
+                while (i < cnt)
+                    c0kvms_putref(kvmsv[i++]);
+
                 goto out;
             }
+
+            cur->c0cur_esrcv[i] = c0kvms_cursor_get_source(cur->c0cur_curv[i]);
         }
 
         cur->c0cur_cnt += cnt;
-
-        if (resize_bh) {
-            bin_heap2_destroy(cur->c0cur_bh);
-            cur->c0cur_merr = bin_heap2_create(cur->c0cur_alloc_cnt,
-                                               cur->c0cur_reverse ? bn_kv_cmp_rev : bn_kv_cmp,
-                                               &cur->c0cur_bh);
-            if (ev(cur->c0cur_merr)) {
-                c0sk_cursor_release(cur);
-                goto out;
-            }
-        }
-
-        for (i = 0; i < cur->c0cur_cnt; i++)
-            cur->c0cur_esrcv[i] = c0kvms_cursor_get_source(cur->c0cur_curv[i]);
-
-        /* In order to maintain positional stability of a cursor, the calling layer will seek this
-         * cursor to its last position before reading from it.
-         * Don't prepare the binheap. Leave that to c0sk_cursor_seek.
-         */
     }
+
+    if (resize_bh) {
+        bin_heap2_destroy(cur->c0cur_bh);
+
+        cur->c0cur_merr = bin_heap2_create(cur->c0cur_alloc_cnt,
+                                           cur->c0cur_reverse ? bn_kv_cmp_rev : bn_kv_cmp,
+                                           &cur->c0cur_bh);
+        if (ev(cur->c0cur_merr)) {
+            c0sk_cursor_release(cur);
+            cur->c0cur_bh = NULL;
+            goto out;
+        }
+    }
+
+    /* We must (re)prepare the cursor (i.e., rebuild the binheap) if the binheap
+     * was re-created or the element sources have changed.
+     */
+    c0sk_cursor_prepare(cur);
 
 out:
     if (kvmsv != kvmsv_mem)

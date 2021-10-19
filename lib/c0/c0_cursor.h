@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
 #ifndef HSE_KVS_C0_CURSOR_H
@@ -19,7 +19,10 @@
  */
 struct c0_kvmultiset_cursor {
     struct element_source c0mc_es; /* must be first */
-    struct c0_kvmultiset *c0mc_kvms;
+    union {
+        struct c0_kvmultiset *c0mc_kvms;
+        struct c0_kvmultiset_cursor *c0mc_next;
+    };
     struct bin_heap2 *    c0mc_bh;
     int                   c0mc_iterc;
     int                   c0mc_skidx;
@@ -31,8 +34,6 @@ struct c0_kvmultiset_cursor {
     struct element_source *  c0mc_esrcv[HSE_C0_INGEST_WIDTH_MAX];
     struct c0_kvset_iterator c0mc_iterv[HSE_C0_INGEST_WIDTH_MAX];
 };
-
-#define es2mscur(p) container_of(p, struct c0_kvmultiset_cursor, c0mc_es)
 
 /**
  * struct - c0_cursor - structure to allow iterating over a single kvs in c0
@@ -56,9 +57,7 @@ struct c0_kvmultiset_cursor {
  * @c0cur_cnt:      number of active elements in the arrays
  * @c0cur_prefix:   restrict this cursor to keys with this prefix
  * @c0cur_ctxn:     set if bound cursor
- * @c0cur_active:   list of active kvms cursors
  * @c0cur_free:     list of freed kvms cursors, ready for reuse
- * @c0cur_kvmsv:     vector of kvms handles
  * @c0cur_ptomb_key:    cached ptomb used to hide appropriate values
  * @c0cur_ptomb_klen:   cached ptomb's keylen
  * @c0cur_ptomb_seq:    cached ptomb's seqno
@@ -92,21 +91,5 @@ struct c0_cursor {
     struct element_source *       c0cur_ptomb_es;
     struct kc_filter *            c0cur_filter;
 };
-
-/**
- * _cursor_debug_fmt - formats len bytes at p into buffer
- * @buf:     output buffer
- * @bufsz:   size of output buffer
- * @p:       ptr to bytes to fmt
- * @len:     how many bytes to fmt
- *
- * Returns: number of formatted bytes in output buf.
- */
-
-int
-_cursor_debug_fmt(char *buf, int bufsz, const void *p, int len);
-
-int
-_cursor_debug_fmt_hex(char *buf, int bufsz, const void *p, int len);
 
 #endif

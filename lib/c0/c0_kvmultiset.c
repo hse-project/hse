@@ -637,6 +637,7 @@ void
 c0kvms_cursor_destroy(struct c0_kvmultiset_cursor *cur)
 {
     bin_heap2_destroy(cur->c0mc_bh);
+    cur->c0mc_bh = NULL;
 }
 
 struct c0_ingest_work *
