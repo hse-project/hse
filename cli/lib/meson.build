@@ -4,7 +4,7 @@ cli_sources = [
     ),
 ]
 
-if get_option('cli') or get_option('tools')
+if get_option('cli') or not get_option('tools').disabled()
     libhse_cli = static_library(
         'hse-cli',
         cli_sources,
