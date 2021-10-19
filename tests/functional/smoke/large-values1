@@ -28,10 +28,7 @@ if ((KEYS > 20000)) ; then
    KEYS=20000
 fi
 
-# We must disable throttling when disabling cn-maint to prevent
-# it from stalling new puts as the cn root node grows.
-#
-kvdb_oparams="kvdb-oparams throttle_disable=true"
+kvdb_oparams=""
 kvs_oparams="kvs-oparams cn_maint_disable=true"
 
 # ingest w spill disabled
