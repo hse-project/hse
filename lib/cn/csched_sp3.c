@@ -1872,10 +1872,10 @@ sp3_qos_check(struct sp3 *sp)
         struct kvs_rparams *rp = cn_tree_get_rp(tree);
         uint nk = cn_ns_kvsets(&tree->ct_root->tn_ns);
 
-        /* This tree's root node length count towards the throttle sensor value only if the tree's
-         * cn maintenance is enabled
+        /* This tree's root node length counts toward the throttle sensor value only if the tree's
+         * cn maintenance is enabled.
          */
-        if (HSE_LIKELY(!rp->cn_maint_disable))
+        if (!rp->cn_maint_disable)
             rootlen = nk > rootlen ? nk : rootlen;
     }
 
