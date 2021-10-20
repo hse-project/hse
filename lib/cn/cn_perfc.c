@@ -93,7 +93,7 @@ NE_CHECK(cn_perfc_capped, PERFC_EN_CNCAPPED, "cn_perfc_capped table/enum mismatc
 NE_CHECK(cn_perfc_mclass, PERFC_EN_CNMCLASS, "cn_perfc_mclass table/enum mismatch");
 
 static_assert(
-    NELEM(cn_perfc_mclass) == HSE_MPOLICY_AGE_CNT * HSE_MPOLICY_DTYPE_CNT * HSE_MPOLICY_MEDIA_CNT,
+    NELEM(cn_perfc_mclass) == HSE_MPOLICY_AGE_CNT * HSE_MPOLICY_DTYPE_CNT * MP_MED_COUNT,
     "cn_perfc_mclass entries mismatched");
 
 /* clang-format on */
