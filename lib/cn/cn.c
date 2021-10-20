@@ -1034,8 +1034,8 @@ cn_kvset_mk(struct cn_kvsetmk_ctx *ctx, struct kvset_meta *km, u64 tag)
 static void
 cn_perfc_alloc(struct cn *cn)
 {
+    char name_buf[DT_PATH_LEN];
     int  i, warn;
-    char name_buf[DT_PATH_COMP_ELEMENT_LEN];
 
     struct {
         struct perfc_name *schema;

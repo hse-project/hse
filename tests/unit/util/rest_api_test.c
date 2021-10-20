@@ -19,9 +19,6 @@
 
 #include "../src/rest_dt.h"
 
-#undef COMPNAME
-#define COMPNAME __func__
-
 #define SOCK "/tmp/r_api_mp.r_api_kv.rest"
 
 char sock[PATH_MAX];
@@ -71,7 +68,7 @@ MTF_DEFINE_UTEST_PREPOST(rest_api, get_handler_test, rest_start, rest_stop)
     merr_t      err;
     const char *path;
 
-    ERROR_COUNTER();
+    ev(1);
 
     /* Register the alias "test_dt" to send requests to DT */
     rest_init();
@@ -94,7 +91,7 @@ MTF_DEFINE_UTEST_PREPOST(rest_api, put_handler_test, rest_start, rest_stop)
 {
     char                  buf[64 * 1024];
     merr_t                err;
-    const char *          path = 0;
+    char                  path[DT_PATH_LEN];
     char                  full_path[DT_PATH_LEN];
     int                   line;
     struct event_counter *ec;
@@ -106,55 +103,60 @@ MTF_DEFINE_UTEST_PREPOST(rest_api, put_handler_test, rest_start, rest_stop)
     ASSERT_EQ(0, err);
 
     /* clang-format off */
-    ERROR_COUNTER(); line = __LINE__;
+    ev(1); line = __LINE__;
     /* clang-format on */
 
     snprintf(
         full_path,
         sizeof(full_path),
         "%s/%s/%s/%s/%d",
-        "/data/event_counter",
+        DT_PATH_EVENT,
         COMPNAME,
-        ev_pathname(__FILE__),
+        basename(__FILE__),
         __func__,
         line);
 
     /* Get the dt element that the upcoming tests will attempt to modify */
-    dte = dt_find(dt_data_tree, full_path, 1);
+    dte = dt_find(full_path, 1);
     ec = dte->dte_data;
 
     /* Normal Working */
     ASSERT_EQ(ec->ev_trip_odometer, 0);
-    path = "data/event_counter/put_handler_test?trip_od=1";
+    strcpy(path, full_path + 1);
+    strcat(path, "?trip_od=1");
     err = curl_put(path, sock, 0, 0, buf, sizeof(buf));
     ASSERT_EQ(0, err);
     /* check in dt_tree if trip odometer is non-zero */
     ASSERT_EQ(1, ec->ev_trip_odometer);
 
     /* Ends on some random arg */
-    path = "data/event_counter/put_handler_test?trip_od=1&just_a_word";
+    strcpy(path, full_path + 1);
+    strcat(path, "?trip_od=1&just_a_word");
     err = curl_put(path, sock, 0, 0, buf, sizeof(buf));
     ASSERT_EQ(0, err);
 
     /* Empty field */
-    path = "data/event_counter/put_handler_test?trip_od=1&=abcd";
+    strcpy(path, full_path + 1);
+    strcat(path, "?trip_od=1&=abcd");
     err = curl_put(path, sock, 0, 0, buf, sizeof(buf));
     ASSERT_EQ(0, err);
 
     /* Empty value */
-    path = "data/event_counter/put_handler_test?trip_od=1&abcd=";
+    strcpy(path, full_path + 1);
+    strcat(path, "?trip_od=1&abcd=");
     err = curl_put(path, sock, 0, 0, buf, sizeof(buf));
     ASSERT_EQ(0, err);
 
     /* Sets a priority */
-    path = "data/event_counter/put_handler_test?trip_od=1&pri=HSE_INFO";
+    strcpy(path, full_path + 1);
+    strcat(path, "?trip_od=1&pri=HSE_INFO");
     err = curl_put(path, sock, 0, 0, buf, sizeof(buf));
     ASSERT_EQ(0, err);
 
     /* nonexistent dt path */
     const char *invalid_path = "Invalid path";
 
-    path = "data/event_counter_not_really/put_handler_test?trip_od=1";
+    snprintf(path, sizeof(path), "%s/event_counter_no_really/%s?trip_od=1", DT_PATH_ROOT, COMPNAME);
     err = curl_put(path, sock, 0, 0, buf, sizeof(buf));
     ASSERT_EQ(0, strncmp(invalid_path, buf, strlen(invalid_path)));
     ASSERT_EQ(0, err);

@@ -12,7 +12,6 @@
 #include <hse_util/timer.h>
 #include <hse_util/vlb.h>
 #include <hse_util/hse_log_fmt.h>
-#include <hse_util/program_name.h>
 #include <hse_util/rest_api.h>
 #include <hse_util/slab.h>
 #include <hse_util/minmax.h>
@@ -28,7 +27,9 @@ unsigned long hse_tsc_freq HSE_READ_MOSTLY;
 unsigned int hse_tsc_mult HSE_READ_MOSTLY;
 unsigned int hse_tsc_shift HSE_READ_MOSTLY;
 
-rest_get_t kmc_rest_get;
+const char *hse_progname HSE_READ_MOSTLY;
+
+extern rest_get_t kmc_rest_get;
 
 static inline int
 hse_meminfo_cvt(const char *src, ulong *valp)
@@ -153,12 +154,9 @@ hse_cpu_init(void)
 merr_t
 hse_platform_init(void)
 {
-    char *basename = NULL, *name = NULL;
-    struct merr_info info;
     merr_t err;
 
-    /* We only need the name pointer, the error is superfluous */
-    hse_program_name(&name, &basename);
+    hse_progname = program_invocation_name ?: __func__;
 
     if (PAGE_SIZE != getpagesize()) {
         fprintf(stderr, "%s: Compile-time PAGE_SIZE (%lu) != Run-time getpagesize (%d)",
@@ -168,12 +166,13 @@ hse_platform_init(void)
         goto errout;
     }
 
+    dt_init();
+    event_counter_init();
+
     err = hse_logging_init();
     if (err)
         goto errout;
 
-    dt_init();
-    hse_logging_post_init();
     hse_log_reg_platform();
 
     err = hse_cpu_init();
@@ -201,15 +200,15 @@ hse_platform_init(void)
     rest_url_register(0, 0, kmc_rest_get, NULL, "kmc");
 
     hse_log_sync(HSE_NOTICE "%s: version %s, image %s",
-                 HSE_UTIL_DESC, HSE_VERSION_STRING, name ?: __func__);
+                 HSE_UTIL_DESC, HSE_VERSION_STRING, hse_progname);
 
 errout:
     if (err) {
-        fprintf(stderr, "%s: version %s, image %s: init failed: %s\n",
-                HSE_UTIL_DESC, HSE_VERSION_STRING, name ?: __func__, merr_info(err, &info));
-    }
+        struct merr_info info;
 
-    free(name);
+        fprintf(stderr, "%s: version %s, image %s: init failed: %s\n",
+                HSE_UTIL_DESC, HSE_VERSION_STRING, hse_progname, merr_info(err, &info));
+    }
 
     return err;
 }
@@ -219,12 +218,12 @@ hse_platform_fini(void)
 {
     rest_destroy();
     kmem_cache_fini();
-    perfc_shutdown();
+    perfc_fini();
     hse_timer_fini();
     vlb_fini();
-    dt_fini();
     hse_logging_fini();
     hse_cgroup_fini();
+    dt_fini();
 }
 
 #if HSE_MOCKING

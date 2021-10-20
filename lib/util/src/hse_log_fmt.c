@@ -35,7 +35,7 @@ fmt_event_counter_stats(char **tgt_pos, char *tgt_end, void *obj)
     char  value[100];
 
     snprintf(value, sizeof(value), "%d", atomic_read(&ev->ev_odometer));
-    written = snprintf(tgt, space, "[EV] %s: %s", ev->ev_dte->dte_path, value);
+    written = snprintf(tgt, space, "[EV] %s: %s", ev->ev_dte.dte_path, value);
 
     if (written >= 0) {
         tgt += (written > space) ? space : written;
@@ -65,7 +65,7 @@ add_event_counter_stats(struct hse_log_fmt_state *state, void *obj)
     static const char *n_timestamp = "hse_%d_timestamp";
 
     /* Values */
-    char *v_path = ev->ev_dte->dte_path + strlen("/data/event_counter/");
+    char *v_path = ev->ev_dte.dte_path + strlen(DT_PATH_EVENT);
     char  v_odometer[100];
     char  v_trip_odometer[100];
     char  v_flags[100];

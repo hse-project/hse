@@ -501,20 +501,20 @@ cndb_realloc(struct cndb *cndb, size_t entries)
     sz = entries * sizeof(void *);
 
     keepv_new = calloc(1, sz);
-    if (!keepv_new) {
-        err = merr(ev(ENOMEM));
+    if (ev(!keepv_new)) {
+        err = merr(ENOMEM);
         goto errout;
     }
 
     workv_new = calloc(1, sz);
-    if (!workv_new) {
-        err = merr(ev(ENOMEM));
+    if (ev(!workv_new)) {
+        err = merr(ENOMEM);
         goto errout;
     }
 
     tagv_new = calloc(1, sz);
-    if (!tagv_new) {
-        err = merr(ev(ENOMEM));
+    if (ev(!tagv_new)) {
+        err = merr(ENOMEM);
         goto errout;
     }
 
@@ -1144,7 +1144,7 @@ cndb_blkdel(struct cndb *cndb, union cndb_mtu *mtu, u64 txid)
 
     for (pass = KBLK; pass <= VBLK; pass++) {
         err = cndb_blklist_add(cndb, txid, &blks, c, p);
-        if (ev(err, HSE_ERR))
+        if (ev(err))
             goto done;
 
         if (mtu->h.mth_type != CNDB_TYPE_TXC)
@@ -1342,7 +1342,7 @@ md_rollforward(struct cndb *cndb, int from, int to, int unseen)
         if (!dacks[i]) {
             err = cndb_blkdel(cndb, mtud[i], txid);
             /* cndb_blkdel() logs verbosely, count only */
-            if (ev(err, HSE_ERR))
+            if (ev(err))
                 goto done;
         }
 
@@ -1395,7 +1395,7 @@ md_rollback(struct cndb *cndb, int from, int to)
         if (mtu->h.mth_type == CNDB_TYPE_TXC) {
             /* cndb_blkdel() logs verbosely, count only */
             err = cndb_blkdel(cndb, mtu, mtxid(mtu));
-            if (ev(err, HSE_ERR))
+            if (ev(err))
                 break;
         }
 
@@ -1798,10 +1798,9 @@ keep_or_reap(struct cndb *cndb, struct txstate *needed, struct txstate *seen, in
     if (memcmp(needed, seen, sizeof(*needed)))
         return ev(
             (cndb->cndb_refcnt) ? md_partial_keep(cndb, from, to, needed, seen)
-                                : md_reap(cndb, from, to, needed, seen),
-            HSE_ERR);
-    else
-        return ev(md_keep(cndb, from, to), HSE_ERR);
+            : md_reap(cndb, from, to, needed, seen));
+
+    return ev(md_keep(cndb, from, to));
 }
 
 static void
@@ -1890,7 +1889,7 @@ cndb_compact(struct cndb *cndb)
             if (txid) {
                 /* keep/reap/partial_keep log sufficiently */
                 err = keep_or_reap(cndb, &needed, &seen, j, i);
-                if (ev(err, HSE_ERR))
+                if (ev(err))
                     goto errout;
             }
 
@@ -1948,7 +1947,7 @@ cndb_compact(struct cndb *cndb)
     /* check the last record set */
     if (txid) {
         err = keep_or_reap(cndb, &needed, &seen, j, i);
-        if (ev(err, HSE_ERR))
+        if (ev(err))
             goto errout;
     }
 
@@ -2051,7 +2050,7 @@ cndb_replay(struct cndb *cndb, u64 *seqno, u64 *ingestid, u64 *txhorizon)
     /* First record must be a valid version record */
     err = cndb_read(cndb, &len);
     /* cndb_read() logs sufficiently, count only */
-    if (ev(err, HSE_ERR))
+    if (ev(err))
         return err;
 
     if (len == 0) {
@@ -2124,11 +2123,11 @@ cndb_replay(struct cndb *cndb, u64 *seqno, u64 *ingestid, u64 *txhorizon)
     otxid = 0, otag = 0;
     while (1) {
         err = cndb_read(cndb, &len);
-        if (len == 0 || ev(err, HSE_ERR))
+        if (len == 0 || ev(err))
             break;
 
         err = cndb_import_md(cndb, cndb->cndb_cbuf, &mtu);
-        if (ev(err, HSE_ERR))
+        if (ev(err))
             return err;
 
         /* discover the highest tag in use. */
@@ -2221,8 +2220,8 @@ cndb_cn_blob_get(struct cndb *cndb, u64 cnid, size_t *blobsz, void **blob)
     void *          p = NULL;
     size_t          sz = 0;
 
-    if (!cndb || !blobsz || !blob)
-        return merr(ev(EINVAL, HSE_ERR));
+    if (ev(!cndb || !blobsz || !blob))
+        return merr(EINVAL);
 
     mutex_lock(&cndb->cndb_cnv_lock);
     err = cndb_cnv_get(cndb, cnid, &cn);
@@ -2260,8 +2259,8 @@ cndb_cn_blob_set(struct cndb *cndb, u64 cnid, size_t blobsz, void *blob)
 
     struct cndb_info_omf *inf;
 
-    if (!cndb)
-        return merr(ev(EINVAL, HSE_ERR));
+    if (ev(!cndb))
+        return merr(EINVAL);
 
     mutex_lock(&cndb->cndb_cnv_lock);
     err = cndb_cnv_get(cndb, cnid, &cn);
@@ -2307,8 +2306,8 @@ cndb_cn_info_idx(
     struct cndb_cn *cn;
 
     mutex_lock(&cndb->cndb_cnv_lock);
-    if (idx >= cndb->cndb_cnc) {
-        err = ev(merr(ESTALE), HSE_ERR);
+    if (ev(idx >= cndb->cndb_cnc)) {
+        err = merr(ESTALE);
         goto errout;
     }
 
@@ -2341,11 +2340,11 @@ cndb_cn_close(struct cndb *cndb, u64 cnid)
     mutex_lock(&cndb->cndb_lock);
     err = cndb_cnv_get(cndb, cnid, &cn);
 
-    if (ev(err, HSE_ERR))
+    if (ev(err))
         goto done;
 
-    if (!cn->cn_refcnt) {
-        err = merr(ev(ESTALE, HSE_ERR));
+    if (ev(!cn->cn_refcnt)) {
+        err = merr(ESTALE);
         goto done;
     }
 
@@ -2382,11 +2381,11 @@ cndb_cn_instantiate(struct cndb *cndb, u64 cnid, void *ctx, cn_init_callback *cb
 
     err = cndb_cnv_get(cndb, cnid, &cn);
 
-    if (ev(err, HSE_ERR))
+    if (ev(err))
         goto done;
 
-    if (cn->cn_refcnt) {
-        err = merr(ev(EBUSY, HSE_ERR));
+    if (ev(cn->cn_refcnt)) {
+        err = merr(EBUSY);
         goto done;
     }
 
@@ -2401,7 +2400,7 @@ cndb_cn_instantiate(struct cndb *cndb, u64 cnid, void *ctx, cn_init_callback *cb
             err = cndb_rollover(cndb);
     }
 
-    if (ev(err, HSE_ERR))
+    if (ev(err))
         goto done;
 
     km.km_capped = cn->cn_flags & CN_CFLAG_CAPPED;
@@ -2444,17 +2443,17 @@ cndb_cn_instantiate(struct cndb *cndb, u64 cnid, void *ctx, cn_init_callback *cb
         for (b = 0; b < nk && !err; b++)
             err = blk_list_append(&km.km_kblk_list, kb[b]);
 
-        if (ev(err, HSE_ERR))
+        if (ev(err))
             goto done;
 
         for (b = 0; b < nv && !err; b++)
             err = blk_list_append(&km.km_vblk_list, vb[b]);
 
-        if (ev(err, HSE_ERR))
+        if (ev(err))
             goto done;
 
         err = cb(ctx, &km, txm->mtm_tag);
-        if (ev(err, HSE_ERR))
+        if (ev(err))
             goto done;
     }
 
@@ -2866,7 +2865,7 @@ cndb_journal(struct cndb *cndb, void *data, size_t sz)
     err = cndb_accept(cndb, data, sz);
     mutex_unlock(&cndb->cndb_lock);
 
-    return ev(err, HSE_ERR);
+    return ev(err);
 }
 
 /* PRIVATE */
@@ -2887,7 +2886,7 @@ cndb_journal_adopt(struct cndb *cndb, void **data, size_t sz)
     }
     mutex_unlock(&cndb->cndb_lock);
 
-    return ev(err, HSE_ERR);
+    return ev(err);
 }
 
 merr_t
@@ -3105,7 +3104,7 @@ cndb_txn_start(struct cndb *cndb, u64 *txid, int nc, int nd, u64 seqno, u64 inge
     omf_set_tx_ingestid(&tx, ingestid);
     omf_set_tx_txhorizon(&tx, txhorizon);
 
-    err = ev(cndb_journal(cndb, &tx, sizeof(tx)), HSE_ERR);
+    err = ev(cndb_journal(cndb, &tx, sizeof(tx)));
     return err;
 }
 
@@ -3140,8 +3139,8 @@ cndb_txn_txc(
 
     if (ev(sz > sizeof(txcbuf) || sz > cndb->cndb_cbufsz)) {
         txc = malloc(sz);
-        if (!txc) {
-            err = merr(ev(ENOMEM, HSE_ERR));
+        if (ev(!txc)) {
+            err = merr(ENOMEM);
             goto out;
         }
     }
@@ -3171,7 +3170,7 @@ cndb_txn_txc(
     }
 
     err = cndb_journal_adopt(cndb, (void **)&txc, sz);
-    ev(err, HSE_ERR);
+    ev(err);
 
 out:
     if (txc != txcbuf)
@@ -3190,7 +3189,7 @@ cndb_txn_txd(struct cndb *cndb, u64 txid, u64 cnid, u64 tag, int n_oids, u64 *oi
     struct cndb_oid_omf *pblks;
     int                  i;
 
-    if (ev(txid <= tag, HSE_ERR)) {
+    if (ev(txid <= tag)) {
         assert(txid > tag);
         return merr(EL2NSYNC);
     }
@@ -3199,8 +3198,8 @@ cndb_txn_txd(struct cndb *cndb, u64 txid, u64 cnid, u64 tag, int n_oids, u64 *oi
 
     if (ev(sz > sizeof(txdbuf) || sz > cndb->cndb_cbufsz)) {
         txd = malloc(sz);
-        if (!txd) {
-            err = merr(ev(ENOMEM, HSE_ERR));
+        if (ev(!txd)) {
+            err = merr(ENOMEM);
             goto out;
         }
     }
@@ -3219,7 +3218,7 @@ cndb_txn_txd(struct cndb *cndb, u64 txid, u64 cnid, u64 tag, int n_oids, u64 *oi
         omf_set_cndb_oid(pblks++, oidv[i]);
 
     err = cndb_journal_adopt(cndb, (void **)&txd, sz);
-    ev(err, HSE_ERR);
+    ev(err);
 
 out:
     if (txd != txdbuf)
@@ -3249,7 +3248,7 @@ cndb_txn_meta(struct cndb *cndb, u64 txid, u64 cnid, u64 tag, struct kvset_meta 
 
     err = cndb_journal(cndb, &txm, sizeof(txm));
 
-    return ev(err, HSE_ERR);
+    return ev(err);
 }
 
 /* PRIVATE */
@@ -3268,7 +3267,7 @@ cndb_txn_ack(struct cndb *cndb, u64 txid, u64 tag, u64 cnid)
 
     err = cndb_journal(cndb, &ack, sizeof(ack));
 
-    return ev(err, HSE_ERR);
+    return ev(err);
 }
 
 merr_t
@@ -3304,7 +3303,7 @@ cndb_txn_nak(struct cndb *cndb, u64 txid)
 
     err = cndb_journal(cndb, &nak, sizeof(nak));
 
-    return ev(err, HSE_ERR);
+    return ev(err);
 }
 
 /**

@@ -239,11 +239,9 @@ components = {
         # time this message is parsed by process_json_payload(), the
         # buffer could have been reused.
         # 'logging_test': {},
-        'mtx_pool_test': {},
         'parse_num_test': {},
         'perfc_test': {},
         'printbuf_test': {},
-        'program_name_test': {},
         'rbtree_test': {},
         'rest_api_test': {},
         'rest_client_test': {},

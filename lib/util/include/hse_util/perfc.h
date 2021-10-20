@@ -98,24 +98,15 @@ struct perfc_ivl;
  * Creates the /data/perfc node.
  */
 merr_t
-perfc_init(void);
+perfc_init(void) HSE_COLD;
 
 /**
- * perfc_shutdown() - Initialize the perfc subsystem
+ * perfc_fini() - Initialize the perfc subsystem
  *
  * Removes the /data/perfc node.
  */
 void
-perfc_shutdown(void);
-
-/*
- * perfc_cleanup()
- *
- * Remove all nodes with prefix "/data/perfc/<component>"
- * from dt_data_tree
- */
-int
-perfc_cleanup(const char *component);
+perfc_fini(void) HSE_COLD;
 
 /**
  * perfc_ivl_create() - create a dis/lat counter interval object

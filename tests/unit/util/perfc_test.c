@@ -119,7 +119,7 @@ MTF_DEFINE_UTEST(perfc, perfc_basic_create_find_and_remove)
     size_t                      before;
     merr_t                      err;
 
-    before = dt_iterate_cmd(dt_data_tree, DT_OP_COUNT, PERFC_ROOT_PATH, NULL, NULL, NULL, NULL);
+    before = dt_iterate_cmd(DT_OP_COUNT, DT_PATH_PERFC, NULL, NULL, NULL, NULL);
 
     ctrnames.pcn_name = "PERFC_BA_FAM_TEST";
     ctrnames.pcn_hdr = "whysoserious";
@@ -130,36 +130,36 @@ MTF_DEFINE_UTEST(perfc, perfc_basic_create_find_and_remove)
     err = perfc_ctrseti_alloc(COMPNAME, "batman_villains", &ctrnames, 1, "joker", &set);
     ASSERT_EQ(0, err);
 
-    count = dt_iterate_cmd(dt_data_tree, DT_OP_COUNT, PERFC_ROOT_PATH, NULL, NULL, NULL, NULL);
+    count = dt_iterate_cmd(DT_OP_COUNT, DT_PATH_PERFC, NULL, NULL, NULL, NULL);
     ASSERT_EQ(before + 1, count);
 
     yc.yaml_buf = yamlbuf;
     yc.yaml_buf_sz = sizeof(yamlbuf);
     yc.yaml_emit = NULL;
 
-    count = dt_iterate_cmd(dt_data_tree, DT_OP_EMIT, PERFC_ROOT_PATH, &dip, NULL, NULL, NULL);
+    count = dt_iterate_cmd(DT_OP_EMIT, DT_PATH_PERFC, &dip, NULL, NULL, NULL);
 
-    /* 3, for /data, /data/perfc, /data/perfc/joker */
-    ASSERT_EQ(before + 3, count);
+    /* 3, /data/perfc, /data/perfc/joker */
+    ASSERT_EQ(before + 1, count);
 
     n = snprintf(
         path,
         sizeof(path),
         "%s/%s/%s/%s/%s",
-        PERFC_ROOT_PATH,
+        DT_PATH_PERFC,
         COMPNAME,
         "batman_villains",
         "FAM",
         "joker");
     ASSERT_TRUE(n > 0 && n < sizeof(path));
 
-    dte = dt_find(dt_data_tree, path, 1);
+    dte = dt_find(path, 1);
     ASSERT_NE(dte, NULL);
 
-    rc = dt_remove(dt_data_tree, dte);
+    rc = dt_remove(dte);
     ASSERT_EQ(rc, 0);
 
-    dte = dt_find(dt_data_tree, path, 1);
+    dte = dt_find(path, 1);
     ASSERT_EQ(dte, NULL);
 }
 
@@ -180,7 +180,7 @@ MTF_DEFINE_UTEST(perfc, perfc_basic_set)
     size_t            before;
     merr_t            err;
 
-    before = dt_iterate_cmd(dt_data_tree, DT_OP_COUNT, PERFC_ROOT_PATH, NULL, NULL, NULL, NULL);
+    before = dt_iterate_cmd(DT_OP_COUNT, DT_PATH_PERFC, NULL, NULL, NULL, NULL);
 
     ctrnames.pcn_name = "PERFC_BA_FAM_TEST";
     ctrnames.pcn_hdr = "whysoserious";
@@ -197,7 +197,7 @@ MTF_DEFINE_UTEST(perfc, perfc_basic_set)
         path,
         sizeof(path),
         "%s/%s/%s/%s/%s",
-        PERFC_ROOT_PATH,
+        DT_PATH_PERFC,
         COMPNAME,
         "batman_villains",
         "FAM",
@@ -208,20 +208,20 @@ MTF_DEFINE_UTEST(perfc, perfc_basic_set)
     yc.yaml_buf = yamlbuf;
     yc.yaml_buf_sz = sizeof(yamlbuf);
     yc.yaml_emit = NULL;
-    count = dt_iterate_cmd(dt_data_tree, DT_OP_EMIT, PERFC_ROOT_PATH, &dip, NULL, NULL, NULL);
+    count = dt_iterate_cmd(DT_OP_EMIT, DT_PATH_PERFC, &dip, NULL, NULL, NULL);
 
-    /* 3, for /data, /data/perfc, /data/perfc/poison_ivy */
-    ASSERT_EQ(before + 3, count);
+    /* 3, for /data/perfc, /data/perfc/poison_ivy */
+    ASSERT_EQ(before + 1, count);
 
     ASSERT_NE(NULL, strstr(yamlbuf, "value: 42"));
 
-    dte = dt_find(dt_data_tree, path, 1);
+    dte = dt_find(path, 1);
     ASSERT_NE(dte, NULL);
 
-    rc = dt_remove(dt_data_tree, dte);
+    rc = dt_remove(dte);
     ASSERT_EQ(rc, 0);
 
-    dte = dt_find(dt_data_tree, path, 1);
+    dte = dt_find(path, 1);
     ASSERT_EQ(dte, NULL);
 }
 
@@ -274,13 +274,13 @@ MTF_DEFINE_UTEST(perfc, clear_counters)
 
     perfc_ctrseti_path(&set);
 
-    dsp.path = "/data/perfc/mycomp/myset/FAM/alltypes";
+    dsp.path = DT_PATH_PERFC "/mycomp/myset/FAM/alltypes";
     dsp.value = "1";
     dsp.value_len = strlen(dsp.value);
     dsp.field = DT_FIELD_CLEAR;
     dip.dsp = &dsp;
 
-    count = dt_iterate_cmd(dt_data_tree, DT_OP_SET, dsp.path, &dip, NULL, NULL, NULL);
+    count = dt_iterate_cmd(DT_OP_SET, dsp.path, &dip, NULL, NULL, NULL);
     ASSERT_EQ(1, count);
 
     perfc_ctrseti_free(&set);
@@ -310,7 +310,7 @@ MTF_DEFINE_UTEST(perfc, enable_counters)
     perfc_test_ctrs(&set);
 
     path = perfc_ctrseti_path(&set);
-    ASSERT_EQ(0, strcmp(path, "/data/perfc/mycomp/myset/FAM/basic"));
+    ASSERT_EQ(0, strcmp(path, DT_PATH_PERFC "/mycomp/myset/FAM/basic"));
 
     dsp.path = path;
     dsp.value = "1";
@@ -318,11 +318,11 @@ MTF_DEFINE_UTEST(perfc, enable_counters)
     dsp.field = DT_FIELD_ENABLED;
     dip.dsp = &dsp;
 
-    count = dt_iterate_cmd(dt_data_tree, DT_OP_SET, dsp.path, &dip, NULL, NULL, NULL);
+    count = dt_iterate_cmd(DT_OP_SET, dsp.path, &dip, NULL, NULL, NULL);
     ASSERT_EQ(1, count);
 
     dsp.value = "0";
-    count = dt_iterate_cmd(dt_data_tree, DT_OP_SET, dsp.path, &dip, NULL, NULL, NULL);
+    count = dt_iterate_cmd(DT_OP_SET, dsp.path, &dip, NULL, NULL, NULL);
     ASSERT_EQ(1, count);
 
     perfc_ctrseti_free(&set);
@@ -359,7 +359,7 @@ MTF_DEFINE_UTEST(perfc, perfc_verbosity_set_test)
     dsp.field = DT_FIELD_ENABLED;
     dip.dsp = &dsp;
 
-    count = dt_iterate_cmd(dt_data_tree, DT_OP_SET, dsp.path, &dip, NULL, NULL, NULL);
+    count = dt_iterate_cmd(DT_OP_SET, dsp.path, &dip, NULL, NULL, NULL);
     ASSERT_EQ(1, count);
 
     perfc_add(&set, 0, 7);
@@ -369,7 +369,7 @@ MTF_DEFINE_UTEST(perfc, perfc_verbosity_set_test)
     yc.yaml_buf = yamlbuf;
     yc.yaml_buf_sz = sizeof(yamlbuf);
     yc.yaml_emit = NULL;
-    count = dt_iterate_cmd(dt_data_tree, DT_OP_EMIT, dsp.path, &dip, NULL, NULL, NULL);
+    count = dt_iterate_cmd(DT_OP_EMIT, dsp.path, &dip, NULL, NULL, NULL);
     ASSERT_NE(NULL, strstr(yamlbuf, "current: 0x4"));
 
     perfc_ctrseti_free(&set);
@@ -390,7 +390,7 @@ MTF_DEFINE_UTEST(perfc, ctrset_path)
 
     err = perfc_ctrseti_alloc("c", "n", &ctrnames, 1, "s", &set);
     ASSERT_EQ(0, err);
-    ASSERT_EQ(0, strcmp(PERFC_ROOT_PATH "/c/n/FAM/s", perfc_ctrseti_path(&set)));
+    ASSERT_EQ(0, strcmp(DT_PATH_PERFC "/c/n/FAM/s", perfc_ctrseti_path(&set)));
 
     perfc_ctrseti_free(&set);
 }

@@ -890,8 +890,7 @@ cndb_unpack_get_fn(struct cndb_upg_histlen *upghl, u32 cndb_version)
             end = mid;
     }
 
-    if (ev(end == 0, HSE_ERR))
-        /* not found */
+    if (ev(end == 0)) /* not found */
         return NULL;
 
     return upghl->uhl_his[end - 1].uh_fn;
@@ -927,7 +926,7 @@ omf2mtx(union cndb_mtu *mtu, u32 *mtulen, void *omf, u32 cndb_version)
     }
     err = fn(omf, cndb_version, mtu, mtulen);
 
-    return ev(err, HSE_ERR);
+    return ev(err);
 }
 
 merr_t
@@ -962,7 +961,7 @@ omf2len(void *omf, u32 cndb_version, u32 *len)
     }
     err = fn(omf, cndb_version, NULL, len);
 
-    return ev(err, HSE_ERR);
+    return ev(err);
 }
 
 merr_t
@@ -973,15 +972,15 @@ cndb_record_unpack(u32 cndb_version, struct cndb_hdr_omf *buf, union cndb_mtu **
 
     *mtu = NULL;
     err = omf2len(buf, cndb_version, &mtlen);
-    if (ev(err, HSE_ERR) || !mtlen)
+    if (ev(err) || !mtlen)
         return err;
 
     *mtu = calloc(1, mtlen);
-    if (*mtu == NULL)
-        return merr(ev(ENOMEM, HSE_ERR));
+    if (ev(*mtu == NULL))
+        return merr(ENOMEM);
 
     err = omf2mtx(*mtu, &mtlen, buf, cndb_version);
-    if (ev(err, HSE_ERR)) {
+    if (ev(err)) {
         free(*mtu);
         *mtu = NULL;
         return err;
