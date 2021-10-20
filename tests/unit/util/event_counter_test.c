@@ -952,29 +952,4 @@ MTF_DEFINE_UTEST(event_counter, ev_match_select_test)
     ASSERT_EQ(boolean, false);
 }
 
-/* 18. Test the EV_FLAGS_NOTIME flag
- */
-MTF_DEFINE_UTEST(event_counter, ev_no_time)
-{
-    long imax = 1ul << 24, i;
-    u64 t1, t2;
-
-    usleep(100 * 1000);
-    t1 = get_time_ns();
-    for (i = 0; i < imax; ++i) {
-        ev(1);
-    }
-    t1 = get_time_ns() - t1;
-
-    usleep(100 * 1000);
-    t2 = get_time_ns();
-    for (i = 0; i < imax; ++i) {
-        evx(1);
-    }
-    t2 = get_time_ns() - t2;
-
-    printf("%s: %lu %lu, %.3lf\n", __func__, t1, t2, (double)t1 / t2);
-    ASSERT_LT(t2, t1 / 3);
-}
-
 MTF_END_UTEST_COLLECTION(event_counter)
