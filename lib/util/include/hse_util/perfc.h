@@ -587,8 +587,6 @@ struct perfc_seti {
     union perfc_ctru         pcs_ctrv[];
 };
 
-extern u32 perfc_verbosity;
-
 /**
  * perfc_lat_record_impl() - Record a latency sample to get its distribution
  *
@@ -944,7 +942,7 @@ extern struct perfc_ivl *perfc_di_ivl;
 /* MTF_MOCK */
 merr_t
 perfc_ctrseti_alloc(
-    const char *             component,
+    uint                     prio,
     const char *             name,
     const struct perfc_name *ctrv,
     u32                      ctrc,

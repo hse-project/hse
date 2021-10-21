@@ -1265,12 +1265,12 @@ kvs_cursor_seek(
 }
 
 void
-kvs_cursor_perfc_alloc(const char *dbname, struct perfc_set *pcs_cc, struct perfc_set *pcs_cd)
+kvs_cursor_perfc_alloc(uint prio, const char *dbname, struct perfc_set *pcs_cc, struct perfc_set *pcs_cd)
 {
-    if (perfc_ctrseti_alloc(COMPNAME, dbname, kvs_cc_perfc_op, PERFC_EN_CC, "set", pcs_cc))
+    if (perfc_ctrseti_alloc(prio, dbname, kvs_cc_perfc_op, PERFC_EN_CC, "set", pcs_cc))
         hse_log(HSE_ERR "cannot alloc kvs perf counters");
 
-    if (perfc_ctrseti_alloc(COMPNAME, dbname, kvs_cd_perfc_op, PERFC_EN_CD, "set", pcs_cd))
+    if (perfc_ctrseti_alloc(prio, dbname, kvs_cd_perfc_op, PERFC_EN_CD, "set", pcs_cd))
         hse_log(HSE_ERR "cannot alloc kvs perf counters");
 }
 

@@ -13,6 +13,9 @@
 
 #define REST_URL_LEN_MAX PATH_MAX
 
+#define URL_KLEN_MAX 32
+#define URL_VLEN_MAX 1024
+
 enum rest_url_flags {
     URL_FLAG_NONE = 0,
     URL_FLAG_BINVAL = 1 << 1,

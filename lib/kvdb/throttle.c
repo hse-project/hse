@@ -22,11 +22,11 @@
 /* clang-format off */
 
 static struct perfc_name throttle_sen_perfc[] = {
-    NE(PERFC_DI_THSR_CNROOT, 2, "csched root sensor",         "thsr_csched_root"),
-    NE(PERFC_DI_THSR_C0SK,   2, "c0sk ingest queue sensor",   "thsr_c0sk"),
-    NE(PERFC_DI_THSR_WAL,    2, "wal buffer length sensor",   "thsr_wal"),
-    NE(PERFC_DI_THSR_MAX,    2, "max sensor",                 "thsr_max"),
-    NE(PERFC_DI_THSR_MAVG,   2, "mavg sensor",                "thsr_mavg"),
+    NE(PERFC_DI_THSR_CNROOT, 1, "csched root sensor",         "thsr_csched_root"),
+    NE(PERFC_DI_THSR_C0SK,   1, "c0sk ingest queue sensor",   "thsr_c0sk"),
+    NE(PERFC_DI_THSR_WAL,    1, "wal buffer length sensor",   "thsr_wal"),
+    NE(PERFC_DI_THSR_MAX,    1, "max sensor",                 "thsr_max"),
+    NE(PERFC_DI_THSR_MAVG,   1, "mavg sensor",                "thsr_mavg"),
 };
 
 NE_CHECK(throttle_sen_perfc, PERFC_EN_THSR, "perfc table/enum mismatch");
@@ -125,7 +125,7 @@ throttle_init(struct throttle *self, struct kvdb_rparams *rp)
     if (throttle_sen_perfc[PERFC_DI_THSR_MAVG].pcn_ivl) {
 
         err = perfc_ctrseti_alloc(
-            COMPNAME,
+            rp->perfc_enable,
             "global",
             throttle_sen_perfc,
             NELEM(throttle_sen_perfc),
@@ -137,7 +137,7 @@ throttle_init(struct throttle *self, struct kvdb_rparams *rp)
     if (throttle_sleep_perfc[PERFC_DI_THR_SVAL].pcn_ivl) {
 
         err = perfc_ctrseti_alloc(
-            COMPNAME,
+            rp->perfc_enable,
             "global",
             throttle_sleep_perfc,
             NELEM(throttle_sleep_perfc),

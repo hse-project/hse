@@ -21,9 +21,9 @@ struct perfc_name c0sk_perfc_op[] = {
     NE(PERFC_LT_C0SKOP_GET, 3, "Latency of c0sk gets", "l_get(/s)", 7),
     NE(PERFC_RA_C0SKOP_GET, 3, "Count of c0sk gets",   "c_get(/s)"),
     NE(PERFC_RA_C0SKOP_PUT, 3, "Count of c0sk puts",   "c_put(/s)"),
-    NE(PERFC_LT_C0SKOP_PUT, 3, "Latency of c0sk puts", "l_put(/s)"),
+    NE(PERFC_LT_C0SKOP_PUT, 3, "Latency of c0sk puts", "l_put(/s)", 7),
     NE(PERFC_RA_C0SKOP_DEL, 3, "Count of c0sk dels",   "c_del(/s)"),
-    NE(PERFC_LT_C0SKOP_DEL, 3, "Latency of c0sk dels", "l_del(/s)"),
+    NE(PERFC_LT_C0SKOP_DEL, 3, "Latency of c0sk dels", "l_del(/s)", 7),
 };
 
 struct perfc_name c0sk_perfc_ingest[] = {
@@ -60,10 +60,6 @@ c0sk_perfc_init(void)
 
     c0sk_perfc_ingest[PERFC_DI_C0SKING_PREP].pcn_ivl = ivl;
     c0sk_perfc_ingest[PERFC_DI_C0SKING_FIN].pcn_ivl = ivl;
-
-    c0sk_perfc_op[PERFC_LT_C0SKOP_GET].pcn_samplepct = 3;
-    c0sk_perfc_op[PERFC_LT_C0SKOP_PUT].pcn_samplepct = 3;
-    c0sk_perfc_op[PERFC_LT_C0SKOP_DEL].pcn_samplepct = 3;
 }
 
 void

@@ -382,12 +382,13 @@ MTF_DEFINE_UTEST_PREPOST(rest_api, rest_url_deregister_test, rest_start, rest_st
 }
 
 #define IS_VALID_SYMS(c) (c == '.' || c == '/' || c == '-' || c == '_' || c == ':')
+
 MTF_DEFINE_UTEST_PREPOST(rest_api, unsupported_characters, rest_start, rest_stop)
 {
     merr_t        err;
-    char          str[32 + 2];
-    size_t        str_sz = sizeof(str);
-    char          url[64];
+    char          kbuf[URL_KLEN_MAX + 2];
+    char          vbuf[URL_VLEN_MAX + 2];
+    char          url[(sizeof(kbuf) + sizeof(vbuf)) * 2];
     char          buf[4096];
     unsigned char c;
 
@@ -403,23 +404,28 @@ MTF_DEFINE_UTEST_PREPOST(rest_api, unsupported_characters, rest_start, rest_stop
     }
 
     /* key/value too long */
-    memset(str, 'a', str_sz);
-    str[str_sz - 1] = 0;
-    snprintf(url, sizeof(url), "un/supp/urlx?%s", str);
+    memset(kbuf, 'k', sizeof(kbuf));
+    kbuf[sizeof(kbuf) - 1] = 0;
+
+    memset(vbuf, 'v', sizeof(vbuf));
+    vbuf[sizeof(vbuf) - 1] = 0;
+
+    snprintf(url, sizeof(url), "un/supp/urlx?%s", kbuf);
     err = curl_get(url, sock, buf, sizeof(buf));
     ASSERT_EQ(ENOANO, merr_errno(err));
 
-    snprintf(url, sizeof(url), "un/supp/urlx?arg=%s", str);
+    snprintf(url, sizeof(url), "un/supp/urlx?arg=%s", vbuf);
     err = curl_get(url, sock, buf, sizeof(buf));
     ASSERT_EQ(ENOANO, merr_errno(err));
 
     /* max length */
-    str[str_sz - 2] = 0;
-    snprintf(url, sizeof(url), "un/supp/urlx?%s", str);
+    kbuf[URL_KLEN_MAX] = '\000';
+    snprintf(url, sizeof(url), "un/supp/urlx?%s", kbuf);
     err = curl_get(url, sock, buf, sizeof(buf));
     ASSERT_EQ(0, err);
 
-    snprintf(url, sizeof(url), "un/supp/urlx?arg=%s", str);
+    vbuf[URL_VLEN_MAX] = '\000';
+    snprintf(url, sizeof(url), "un/supp/urlx?arg=%s", vbuf);
     err = curl_get(url, sock, buf, sizeof(buf));
     ASSERT_EQ(0, err);
 }

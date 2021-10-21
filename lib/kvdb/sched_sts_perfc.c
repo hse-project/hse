@@ -25,9 +25,9 @@ static struct perfc_name sts_perfc[] = {
 NE_CHECK(sts_perfc, PERFC_EN_STS, "sts perfc table/enum mismatch");
 
 void
-sts_perfc_alloc(const char *name, const char *ctrname, struct perfc_set *setp)
+sts_perfc_alloc(uint prio, const char *name, const char *ctrname, struct perfc_set *setp)
 {
-    (void)perfc_ctrseti_alloc(COMPNAME, name, sts_perfc, PERFC_EN_STS, ctrname, setp);
+    perfc_ctrseti_alloc(prio, name, sts_perfc, PERFC_EN_STS, ctrname, setp);
 }
 
 void

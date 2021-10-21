@@ -38,8 +38,6 @@
 #define MHD_HTTP_TOO_MANY_REQUESTS 429
 #endif
 
-#define URL_KLEN_MAX 32
-#define URL_VLEN_MAX 32
 #define KV_PAIR_MAX 16
 
 enum {

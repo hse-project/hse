@@ -35,6 +35,7 @@ struct kvs_rparams {
     uint64_t kvs_debug;
     uint64_t kvs_cursor_ttl;
     bool     transactions_enable;
+    uint8_t  perfc_enable;
 
     bool     cn_maint_disable;
     uint64_t cn_maint_delay;

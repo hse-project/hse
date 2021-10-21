@@ -26,15 +26,6 @@ static const char * const pc_type_names[] = {
     "Invalid", "Basic", "Rate", "Distribution", "Latency", "SimpleLatency",
 };
 
-/*
- * perfc_verbosity decides the highest priority level of the counters that will
- * be enabled. All counters with a priority less than or equal to
- * perfc_verbosity will be "on".
- * Later the user can change this global verbosity on the fly.
- */
-u32 perfc_verbosity_default HSE_READ_MOSTLY = 2;
-u32 perfc_verbosity HSE_READ_MOSTLY = 2;
-
 struct perfc_ivl *perfc_di_ivl HSE_READ_MOSTLY;
 
 /**
@@ -126,34 +117,60 @@ perfc_ctrseti_clear(struct perfc_seti *seti)
 static size_t
 perfc_set_handler_ctrset(struct dt_element *dte, struct dt_set_parameters *dsp)
 {
-    struct perfc_seti *seti = (struct perfc_seti *)dte->dte_data;
+    struct perfc_seti *seti = dte->dte_data;
+    size_t nchanged = 0;
 
-    if (dsp->field == DT_FIELD_CLEAR)
+    if (dsp->field == DT_FIELD_CLEAR) {
         perfc_ctrseti_clear(seti);
-    else if (dsp->field == DT_FIELD_ENABLED) {
-        bool enable = (dsp->value[0] == '0') ? false : true;
-
-        if (enable) {
-            seti->pcs_handle->ps_bitmap = U64_MAX;
-        } else {
-            struct perfc_set *setp = seti->pcs_handle;
-            int               i;
-
-            setp->ps_bitmap = 0;
-            for (i = 0; i < seti->pcs_ctrc; i++) {
-                struct perfc_ctr_hdr *pch;
-
-                pch = &seti->pcs_ctrv[i].hdr;
-                if (perfc_verbosity >= pch->pch_prio)
-                    setp->ps_bitmap |= (1ULL << i);
-            }
-        }
-
-    } else if (dsp->field == DT_FIELD_INVALIDATE_HANDLE) {
-        seti->pcs_handle = NULL;
+        return seti->pcs_ctrc;
     }
 
-    return 1;
+    /* [HSE_REVISIT] Can we remove this operation?
+     */
+    if (dsp->field == DT_FIELD_INVALIDATE_HANDLE) {
+        seti->pcs_handle = NULL;
+        return 1;
+    }
+
+    if (dsp->field == DT_FIELD_ENABLED) {
+        struct perfc_set *setp = seti->pcs_handle;
+        char *endptr = NULL;
+        ulong prio;
+
+        errno = 0;
+        prio = strtoul(dsp->value, &endptr, 0);
+
+        if (ev_err(prio == ULONG_MAX && errno))
+            return 0;
+
+        if (ev_err(endptr == dsp->value))
+            return 0;
+
+        if (endptr && !endptr[0])
+            endptr = NULL;
+
+        /* Caller can supply a list of counter names in addition to the priority.
+         * For example:
+         *   curl -X PUT ... data/perfc?enabled=3:PERFC_BA_C0SKING_QLEN:PERFC_RA_C0SKOP_GET
+         */
+        for (uint cidx = 0; cidx < seti->pcs_ctrc; ++cidx) {
+            const struct perfc_ctr_hdr *pch = &seti->pcs_ctrv[cidx].hdr;
+            uint64_t mask = 1ul << cidx;
+
+            if (endptr && !strstr(endptr, seti->pcs_ctrnamev[cidx].pcn_name))
+                continue;
+
+            if (prio >= pch->pch_prio) {
+                nchanged += !(setp->ps_bitmap & mask);
+                setp->ps_bitmap |= mask;
+            } else {
+                nchanged += !!(setp->ps_bitmap & mask);
+                setp->ps_bitmap &= ~mask;
+            }
+        }
+    }
+
+    return nchanged;
 }
 
 static size_t
@@ -161,10 +178,6 @@ perfc_set_handler(struct dt_element *dte, struct dt_set_parameters *dsp)
 {
     return perfc_set_handler_ctrset(dte, dsp);
 }
-
-#ifndef NSEC_PER_SEC
-#define NSEC_PER_SEC (1000000000ul)
-#endif
 
 static void
 perfc_ra_emit(struct perfc_rate *rate, struct yaml_context *yc)
@@ -642,7 +655,7 @@ perfc_ctr_name2type(const char *ctr_name)
 
 merr_t
 perfc_ctrseti_alloc(
-    const char *             component,
+    uint                     prio,
     const char *             name,
     const struct perfc_name *ctrv,
     u32                      ctrc,
@@ -722,8 +735,8 @@ perfc_ctrseti_alloc(
         }
     }
 
-    sz = snprintf(
-        path, sizeof(path), PERFC_ROOT_PATH "/%s/%s/%s/%s", component, name, family, ctrseti_name);
+    sz = snprintf(path, sizeof(path), "%s/%s/%s/%s/%s",
+                  PERFC_ROOT_PATH, COMPNAME, name, family, ctrseti_name);
     if (ev(sz >= sizeof(path)))
         return merr(EINVAL);
 
@@ -804,7 +817,7 @@ perfc_ctrseti_alloc(
         pch->pch_prio = entry->pcn_prio;
         clamp_t(typeof(pch->pch_prio), pch->pch_prio, PERFC_PRIO_MIN, PERFC_PRIO_MAX);
 
-        if (perfc_verbosity >= pch->pch_prio)
+        if (prio >= pch->pch_prio)
             setp->ps_bitmap |= (1ULL << i);
 
         if (type == PERFC_TYPE_DI || type == PERFC_TYPE_LT) {

@@ -142,6 +142,25 @@ static const struct param_spec pspecs[] = {
         },
     },
     {
+        .ps_name = "perfc_enable",
+        .ps_description = "0: disable, [123]: enable",
+        .ps_flags = PARAM_FLAG_EXPERIMENTAL,
+        .ps_type = PARAM_TYPE_U8,
+        .ps_offset = offsetof(struct kvs_rparams, perfc_enable),
+        .ps_size = PARAM_SZ(struct kvs_rparams, perfc_enable),
+        .ps_convert = param_default_converter,
+        .ps_validate = param_default_validator,
+        .ps_default_value = {
+            .as_uscalar = 2,
+        },
+        .ps_bounds = {
+            .as_uscalar = {
+                .ps_min = 0,
+                .ps_max = 3,
+            },
+        },
+    },
+    {
         .ps_name = "cn_node_size_lo",
         .ps_description = "low end of max node size range (MiB)",
         .ps_flags = PARAM_FLAG_EXPERIMENTAL,

@@ -220,8 +220,8 @@ ikvdb_perfc_alloc(struct ikvdb_impl *self)
 {
     merr_t err;
 
-    err = perfc_ctrseti_alloc(
-        COMPNAME, self->ikdb_home, ctxn_perfc_op, PERFC_EN_CTXNOP, "set", &self->ikdb_ctxn_op);
+    err = perfc_ctrseti_alloc(self->ikdb_rp.perfc_enable, self->ikdb_home,
+                              ctxn_perfc_op, PERFC_EN_CTXNOP, "set", &self->ikdb_ctxn_op);
     if (err)
         hse_elog(HSE_ERR "cannot alloc ctxn op perf counters for %s: @@e", err, self->ikdb_home);
 }
@@ -3086,65 +3086,16 @@ ikvdb_wal_replay_size_reset(struct ikvdb_kvs_hdl *ikvsh)
     ikvsh->needs_reset = false;
 }
 
-
-/*-  Perf Counter Support  --------------------------------------------------*/
-
 /*
- * Perf counters, once allocated, are only released upon module fini.
- * This preserves the user-space counters until they can be emitted,
+ * Global perf counters, once allocated, are only released by hse_fini().
+ * This preserves them until they can be emitted,
  * and allows counters to be accumulated in use cases where multiple
  * open/close per application lifetime are employed.
- *
- * Therefore, the pointers to the allocated counters (cf cn_perfc_alloc())
- * are remembered here, and released after emitting.  It is possible for
- * an application to open several different datasets, each with its own
- * set of perf counters.  All these are remembered, then emitted and
- * released here.
- *
- * The intervals used by the perf counters are customized once here,
- * then set in the static structures at init time.
- *
- * Finally, there are a couple of configurable items set here:
- *      1. Should hse messages be sent to stderr?
- *      2. Are perf counters enabled?
- *
- * The only public APIs is:
- *      void kvdb_perfc_register(void *);
  */
-
-static struct darray kvdb_perfc_reg;
-
-/*
- * kvdb_perfc_register - remember this perfc pointer until module fini
- *
- * NB: It is NOT fatal to have an error here.  It simply means the
- * memory will not be freed on module fini.
- */
-void
-kvdb_perfc_register(void *pc)
-{
-    if (darray_append_uniq(&kvdb_perfc_reg, pc) != 0)
-        hse_log(
-            HSE_ERR "kvdb_perfc_register: cannot register"
-                    " perf counter #%d for %s",
-            kvdb_perfc_reg.cur + 1,
-            perfc_ctrseti_path(pc));
-}
-
-/*
- * This function is called once at constructor time.
- * The variables that control log verbosity and perf counters
- * must be set at compile time -- there is no before-this
- * configuration to change at this point.
- *
- * However, setter methods are available from this point
- * forward, so these defaults can be overridden programatically.
- */
-
 static void
 kvdb_perfc_initialize(void)
 {
-    perfc_verbosity = 2;
+    uint prio = hse_gparams.gp_perfc_enable;
 
     kvdb_perfc_init();
     kvs_perfc_init();
@@ -3152,35 +3103,29 @@ kvdb_perfc_initialize(void)
     cn_perfc_init();
     throttle_perfc_init();
 
-    if (perfc_ctrseti_alloc(COMPNAME, "global", kvdb_perfc_op, PERFC_EN_KVDBOP, "set", &kvdb_pc))
+    if (perfc_ctrseti_alloc(prio, "global", kvdb_perfc_op, PERFC_EN_KVDBOP, "set", &kvdb_pc))
         hse_log(HSE_ERR "cannot alloc kvdb op perf counters");
-    else
-        kvdb_perfc_register(&kvdb_pc);
 
     if (perfc_ctrseti_alloc(
-            COMPNAME, "global", kvdb_perfc_pkvdbl_op, PERFC_EN_PKVDBL, "set", &kvdb_pkvdbl_pc))
+            prio, "global", kvdb_perfc_pkvdbl_op, PERFC_EN_PKVDBL, "set", &kvdb_pkvdbl_pc))
         hse_log(HSE_ERR "cannot alloc kvdb public op perf counters");
-    else
-        kvdb_perfc_register(&kvdb_pkvdbl_pc);
 
     if (perfc_ctrseti_alloc(
-            COMPNAME, "global", c0_metrics_perfc, PERFC_EN_C0METRICS, "set", &c0_metrics_pc))
+            prio, "global", c0_metrics_perfc, PERFC_EN_C0METRICS, "set", &c0_metrics_pc))
         hse_log(HSE_ERR "cannot alloc c0 metrics perf counters");
-    else
-        kvdb_perfc_register(&c0_metrics_pc);
 
     if (perfc_ctrseti_alloc(
-            COMPNAME, "global", kvdb_metrics_perfc, PERFC_EN_KVDBMETRICS, "set", &kvdb_metrics_pc))
+            prio, "global", kvdb_metrics_perfc, PERFC_EN_KVDBMETRICS, "set", &kvdb_metrics_pc))
         hse_log(HSE_ERR "cannot alloc kvdb metrics perf counters");
-    else
-        kvdb_perfc_register(&kvdb_metrics_pc);
 }
 
 static void
 kvdb_perfc_finish(void)
 {
-    darray_apply(&kvdb_perfc_reg, (darray_func)perfc_ctrseti_free);
-    darray_fini(&kvdb_perfc_reg);
+    perfc_ctrseti_free(&kvdb_metrics_pc);
+    perfc_ctrseti_free(&c0_metrics_pc);
+    perfc_ctrseti_free(&kvdb_pkvdbl_pc);
+    perfc_ctrseti_free(&kvdb_pc);
 
     throttle_perfc_fini();
     cn_perfc_fini();

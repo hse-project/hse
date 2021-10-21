@@ -14,7 +14,7 @@ struct sts;
 
 /* MTF_MOCK */
 void
-sts_perfc_alloc(const char *name, const char *ctrname, struct perfc_set *setp);
+sts_perfc_alloc(uint prio, const char *name, const char *ctrname, struct perfc_set *setp);
 
 /* MTF_MOCK */
 void

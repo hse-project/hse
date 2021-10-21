@@ -129,7 +129,7 @@ merr_t
 kvs_cursor_read(struct hse_kvs_cursor *cursor, struct kvs_kvtuple *kvt, bool *eof);
 
 void
-kvs_cursor_perfc_alloc(const char *dbname, struct perfc_set *pcs_cc, struct perfc_set *pcs_cd);
+kvs_cursor_perfc_alloc(uint prio, const char *dbname, struct perfc_set *pcs_cc, struct perfc_set *pcs_cd);
 
 void
 kvs_cursor_perfc_free(struct perfc_set *pcs_cc, struct perfc_set *pcs_cd);

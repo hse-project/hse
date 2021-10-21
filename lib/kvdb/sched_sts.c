@@ -384,7 +384,7 @@ sts_perfc_alloc_internal(struct sts *self)
     /* Iterate w/ <= to get shared worker stats */
     for (i = 0; i <= self->qc; i++) {
         snprintf(qnum_str, sizeof(qnum_str), "q%d", i);
-        sts_perfc_alloc(self->name, qnum_str, &self->qv[i].qpc);
+        sts_perfc_alloc(self->rp->perfc_enable, self->name, qnum_str, &self->qv[i].qpc);
     }
 }
 
