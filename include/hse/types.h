@@ -74,6 +74,10 @@ enum hse_err_ctx {
  */
 struct hse_kvdb;
 
+#define HSE_MCLASS_CAPACITY_NAME "capacity" /**< Capacity media class name. */
+#define HSE_MCLASS_STAGING_NAME  "staging"  /**< Staging media class name. */
+#define HSE_MCLASS_PMEM_NAME     "pmem"     /**< PMEM media class name. */
+
 /**@} KVDB */
 
 /** @addtogroup KVS

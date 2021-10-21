@@ -6,6 +6,8 @@
 #ifndef MPOOL_STRUCTS_H
 #define MPOOL_STRUCTS_H
 
+#include <hse/types.h>
+
 #include <hse_util/inttypes.h>
 #include <hse_util/storage.h>
 
@@ -29,10 +31,6 @@ enum mpool_mclass {
 #define MP_MED_MAX             MP_MED_PMEM
 #define MP_MED_COUNT           (MP_MED_MAX + 1)
 #define MP_MED_INVALID         U8_MAX
-
-#define MP_MED_NAME_CAPACITY   "capacity"
-#define MP_MED_NAME_STAGING    "staging"
-#define MP_MED_NAME_PMEM       "pmem"
 
 #define MPOOL_CAPACITY_MCLASS_DEFAULT_PATH "capacity"
 #define MPOOL_PMEM_MCLASS_DEFAULT_PATH     "pmem"

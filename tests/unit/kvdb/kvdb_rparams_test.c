@@ -569,7 +569,7 @@ MTF_DEFINE_UTEST_PRE(kvdb_rparams_test, durability_mclass, test_pre)
     ASSERT_EQ(MP_MED_MAX, ps->ps_bounds.as_enum.ps_max);
 
     ps->ps_stringify(ps, &params.dur_mclass, buf, sizeof(buf), &needed_sz);
-    ASSERT_STREQ("\"" MP_MED_NAME_CAPACITY "\"", buf);
+    ASSERT_STREQ("\"" HSE_MCLASS_CAPACITY_NAME "\"", buf);
     ASSERT_EQ(10, needed_sz);
 
     /* clang-format off */

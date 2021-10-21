@@ -36,9 +36,9 @@ struct mpool {
 };
 
 const char *const mpool_mclass_to_string[MP_MED_COUNT] = {
-    [MP_MED_CAPACITY] = MP_MED_NAME_CAPACITY,
-    [MP_MED_STAGING] = MP_MED_NAME_STAGING,
-    [MP_MED_PMEM] = MP_MED_NAME_PMEM,
+    [MP_MED_CAPACITY] = HSE_MCLASS_CAPACITY_NAME,
+    [MP_MED_STAGING] = HSE_MCLASS_STAGING_NAME,
+    [MP_MED_PMEM] = HSE_MCLASS_PMEM_NAME,
 };
 
 static merr_t
