@@ -53,7 +53,8 @@ cheap_create(size_t alignment, size_t size)
         h->cursorp = h->base;
         h->brk = PAGE_ALIGN(h->cursorp);
         h->lastp = 0;
-        ev(1);
+
+        ev_info(1);
     }
 
     return h;
@@ -69,7 +70,8 @@ cheap_destroy(struct cheap *h)
     h->magic = ~h->magic;
 
     munmap(h->mem, ALIGN(h->size, PAGE_SIZE));
-    ev(1);
+
+    ev_info(1);
 }
 
 void

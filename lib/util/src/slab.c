@@ -381,10 +381,10 @@ kmc_chunk_create(uint cpuid, bool tryhuge)
         return NULL;
     }
 
-    if (ev(mem > base))
+    if (ev_info(mem > base))
         madvise(base, mem - base, MADV_DONTNEED);
 
-    ev(1);
+    ev_info(1);
 
     /* Initialize the chunk header, which is placed at the end
      * of the chunk.
@@ -597,7 +597,7 @@ kmc_slab_free(struct kmem_cache *zone, struct kmc_slab *slab)
     }
     kmc_node_unlock(node);
 
-    if (ev(chunk))
+    if (ev_info(chunk))
         kmc_chunk_destroy(chunk);
 }
 

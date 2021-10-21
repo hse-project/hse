@@ -61,21 +61,14 @@ extern struct dt_element_ops event_counter_ops;
 
 #include <hse_util/logging.h>
 
-#define ev_emerg(_expr)     ev_impl((_expr), HSE_ERR_VAL, 0)
-#define ev_alert(_expr)     ev_impl((_expr), HSE_ALERT_VAL, 0)
-#define ev_crit(_expr)      ev_impl((_expr), HSE_CRIT_VAL, 0)
-#define ev_err(_expr)       ev_impl((_expr), HSE_ERR_VAL, 0)
-#define ev_warn(_expr)      ev_impl((_expr), HSE_WARNING_VAL, 0)
-#define ev_notice(_expr)    ev_impl((_expr), HSE_NOTICE_VAL, 0)
-#define ev_info(_expr)      ev_impl((_expr), HSE_INFO_VAL, 0)
-#define ev_debug(_expr)     ev_impl((_expr), HSE_DEBUG_VAL, 0)
-#define ev(_expr)           ev_impl((_expr), HSE_ERR_VAL, 0)
-
-/* Use evx() for low overhead event counting, typically for debugging
- * hot code paths.  It's about 10x faster than the other ev_*() forms
- * because it never udpates the time stamp.
+/* Use ev_info() for run-of-the-mill events and low overhead event
+ * counting of hot paths.  It's about 10x faster than the other
+ * forms because it never udpates the time stamp.
  */
-#define evx(_expr)          ev_impl((_expr), HSE_DEBUG_VAL, EV_FLAGS_NOTIME)
+#define ev_info(_expr)      ev_impl((_expr), HSE_INFO_VAL, EV_FLAGS_NOTIME)
+#define ev_warn(_expr)      ev_impl((_expr), HSE_WARNING_VAL, 0)
+#define ev_err(_expr)       ev_impl((_expr), HSE_ERR_VAL, 0)
+#define ev(_expr)           ev_impl((_expr), HSE_ERR_VAL, 0)
 
 /* clang-format on */
 

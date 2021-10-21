@@ -137,6 +137,21 @@ MTF_DEFINE_UTEST_PRE(hse_gparams_test, vlb_cache_sz, test_pre)
     ASSERT_EQ(HSE_VLB_CACHESZ_MAX, ps->ps_bounds.as_uscalar.ps_max);
 }
 
+MTF_DEFINE_UTEST_PRE(hse_gparams_test, perfc_enable, test_pre)
+{
+    const struct param_spec *ps = ps_get("perfc_enable");
+
+    ASSERT_NE(NULL, ps);
+    ASSERT_NE(NULL, ps->ps_description);
+    ASSERT_EQ(PARAM_FLAG_EXPERIMENTAL, ps->ps_flags);
+    ASSERT_EQ(PARAM_TYPE_U8, ps->ps_type);
+    ASSERT_EQ((uintptr_t)ps->ps_convert, (uintptr_t)param_default_converter);
+    ASSERT_EQ((uintptr_t)ps->ps_validate, (uintptr_t)param_default_validator);
+    ASSERT_EQ(2, params.gp_perfc_enable);
+    ASSERT_EQ(0, ps->ps_bounds.as_uscalar.ps_min);
+    ASSERT_EQ(3, ps->ps_bounds.as_uscalar.ps_max);
+}
+
 MTF_DEFINE_UTEST_PRE(hse_gparams_test, socket_enabled, test_pre)
 {
 	const struct param_spec *ps = ps_get("socket.enabled");

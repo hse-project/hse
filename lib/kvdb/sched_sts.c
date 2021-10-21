@@ -46,8 +46,8 @@
 struct sts_worker {
     struct sts *sts;
     atomic_t    initializing;
-    char        wname[16];
     uint        wqnum;
+    char        wname[16];
 } HSE_ALIGNED(SMP_CACHE_BYTES);
 
 static void *
