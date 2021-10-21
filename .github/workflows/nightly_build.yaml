@@ -1,0 +1,69 @@
+name: Nightly builds
+
+on:
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: 'Branch to use'
+        required: true
+        default: 'master'
+
+jobs:
+  stress_ub:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-18.04]
+        build_type: [release, debugoptimized]
+
+    steps:
+    - name: Free space
+      run: |
+        echo "=============================================================================="
+        echo "Freeing up disk space on CI system"
+        echo "=============================================================================="
+
+        echo "Listing 100 largest packages"
+        dpkg-query -Wf '${Installed-Size}\t${Package}\n' | sort -n | tail -n 100
+        df -h
+        echo "Removing large packages"
+        sudo apt-get remove -y azure-cli google-cloud-sdk hhvm google-chrome-stable firefox powershell mono-devel
+        sudo apt-get autoremove -y
+        sudo apt-get clean
+        df -h
+        echo "Removing large directories"
+        # deleting 15GB
+        rm -rf /usr/share/dotnet/
+        df -h
+
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install build-essential libbsd-dev pkg-config openjdk-8-jdk libmicrohttpd-dev liburcu-dev libyaml-dev liblz4-dev libcurl4-openssl-dev
+        sudo apt-get install libmongoc-1.0-0 libbson-1.0-0 libssl-dev libsasl2-dev
+        python3 -m pip install --user setuptools_rust wheel
+        python3 -m pip install --user poetry
+
+    - uses: actions/checkout@v2
+      with:
+        ref: ${{ github.event.inputs.branch }}
+
+    - name: Setup python environment to run branch
+      run: |
+        poetry install
+
+    - name: Build setup with YCSB, tools and configs
+      run: |
+        poetry run meson builddir -Dbuildtype=${{ matrix.build_type }} -Dycsb=true -Dwrap_mode=forcefallback
+
+    - name: Run tests
+      run: |
+        poetry run meson test -C builddir --suite=nightly_small --print-errorlogs --no-stdsplit
+
+    - uses: actions/upload-artifact@v2
+      if: failure()
+      with:
+        name: build-artifact-ubuntu
+        path: builddir/meson-logs/
+
