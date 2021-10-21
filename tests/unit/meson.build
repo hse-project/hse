@@ -117,6 +117,7 @@ components = {
         'kvdb_rest_test': {},
         'kvdb_rparams_test': {},
         'mclass_policy_test': {},
+        'omf_version_test': {},
         'sched_sts_test': {
             'cases': {
                 'default': [],
