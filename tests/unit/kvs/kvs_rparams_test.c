@@ -894,7 +894,10 @@ MTF_DEFINE_UTEST(kvs_rparams_test, set)
     ASSERT_EQ(EINVAL, merr_errno(err));
     ASSERT_EQ(64, p.cn_compact_kblk_ra);
 
-    /* Fail to validate. No candidates for this */
+    /* Fail to validate */
+    /* No writable parameter which would have a way to not be validated. cJSON
+     * only will give us UINT64_MAX. I hate cJSON.
+     */
 
     /* KVS rparams don't seem to have a parameter that is both writable and has
      * a relation validation function, so leave it off for now.

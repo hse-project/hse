@@ -51,9 +51,9 @@ params_size(const struct params *const params)
 bool
 relation_validate(const struct param_spec *const ps, const struct params *const params)
 {
-	const struct test_params *p = params->p_params.as_generic;
+    const struct test_params *p = params->p_params.as_generic;
 
-	return p->test16 > p->test2;
+    return p->test16 > p->test2;
 }
 
 bool
@@ -110,13 +110,13 @@ array_stringify(
     size_t *const                  needed_sz)
 {
     const struct test_arr_type *arr = (struct test_arr_type *)value;
-	int                         n;
+    int                         n;
 
     n = snprintf(buf, buf_sz, "[{\"field1\": %d}, {\"field1\": %d}]", arr[0].field1, arr[1].field1);
-	assert(n >= 0);
+    assert(n >= 0);
 
-	if (needed_sz)
-		*needed_sz = n;
+    if (needed_sz)
+        *needed_sz = n;
 
     return 0;
 }
@@ -124,28 +124,28 @@ array_stringify(
 cJSON *
 array_jsonify(const struct param_spec *const ps, const void *const value)
 {
-	cJSON *node = cJSON_CreateArray();
-	if (!node)
-		return NULL;
+    cJSON *node = cJSON_CreateArray();
+    if (!node)
+        return NULL;
 
-	const struct test_arr_type *arr = (struct test_arr_type *)value;
+    const struct test_arr_type *arr = (struct test_arr_type *)value;
 
-	for (int i = 0; i < 2; i++) {
-		cJSON *n = cJSON_CreateObject();
-		if (!n)
-			goto out;
+    for (int i = 0; i < 2; i++) {
+        cJSON *n = cJSON_CreateObject();
+        if (!n)
+            goto out;
 
-		cJSON_AddNumberToObject(n, "field1", arr->field1);
+        cJSON_AddNumberToObject(n, "field1", arr->field1);
 
-		cJSON_AddItemToArray(node, n);
-	}
+        cJSON_AddItemToArray(node, n);
+    }
 
-	return node;
+    return node;
 
 out:
-	cJSON_Delete(node);
+    cJSON_Delete(node);
 
-	return NULL;
+    return NULL;
 }
 
 const struct param_spec pspecs[] = {
@@ -617,14 +617,14 @@ MTF_DEFINE_UTEST_PRE(param_test, param_type_u16, test_pre)
     ASSERT_STREQ("3", buf);
 
     /* clang-format off */
-	err = check(
-		"test3=12", true,
-		"test3=-1", false,
-		"test3=65537", false,
-		"test3=1.5", false,
-		"test3=wrong", false,
-		NULL
-	);
+    err = check(
+        "test3=12", true,
+        "test3=-1", false,
+        "test3=65537", false,
+        "test3=1.5", false,
+        "test3=wrong", false,
+        NULL
+    );
     /* clang-format on */
 
     ASSERT_EQ(0, merr_errno(err));
@@ -644,14 +644,14 @@ MTF_DEFINE_UTEST_PRE(param_test, param_type_u32, test_pre)
     ASSERT_STREQ("4", buf);
 
     /* clang-format off */
-	err = check(
-		"test4=12", true,
-		"test4=-1", false,
-		"test4=4294967297", false,
-		"test4=1.5", false,
-		"test4=wrong", false,
-		NULL
-	);
+    err = check(
+        "test4=12", true,
+        "test4=-1", false,
+        "test4=4294967297", false,
+        "test4=1.5", false,
+        "test4=wrong", false,
+        NULL
+    );
     /* clang-format on */
 
     ASSERT_EQ(0, merr_errno(err));
@@ -671,14 +671,14 @@ MTF_DEFINE_UTEST_PRE(param_test, param_type_u64, test_pre)
     ASSERT_STREQ("5", buf);
 
     /* clang-format off */
-	err = check(
-		"test5=12", true,
-		"test5=-1", false,
-		"test5=18446744073709551616", false,
-		"test5=1.5", false,
-		"test5=wrong", false,
-		NULL
-	);
+    err = check(
+        "test5=12", true,
+        "test5=-1", false,
+        "test5=18446744073709551616", false,
+        "test5=1.5", false,
+        "test5=wrong", false,
+        NULL
+    );
     /* clang-format on */
 
     ASSERT_EQ(0, merr_errno(err));
@@ -698,14 +698,14 @@ MTF_DEFINE_UTEST_PRE(param_test, param_type_i8, test_pre)
     ASSERT_STREQ("6", buf);
 
     /* clang-format off */
-	err = check(
-		"test6=12", true,
-		"test6=-129", false,
-		"test6=128", false,
-		"test6=1.5", false,
-		"test6=wrong", false,
-		NULL
-	);
+    err = check(
+        "test6=12", true,
+        "test6=-129", false,
+        "test6=128", false,
+        "test6=1.5", false,
+        "test6=wrong", false,
+        NULL
+    );
     /* clang-format on */
 
     ASSERT_EQ(0, merr_errno(err));
@@ -725,14 +725,14 @@ MTF_DEFINE_UTEST_PRE(param_test, param_type_i16, test_pre)
     ASSERT_STREQ("7", buf);
 
     /* clang-format off */
-	err = check(
-		"test7=12", true,
-		"test7=-32769", false,
-		"test7=32768", false,
-		"test7=1.5", false,
-		"test7=wrong", false,
-		NULL
-	);
+    err = check(
+        "test7=12", true,
+        "test7=-32769", false,
+        "test7=32768", false,
+        "test7=1.5", false,
+        "test7=wrong", false,
+        NULL
+    );
     /* clang-format on */
 
     ASSERT_EQ(0, merr_errno(err));
@@ -752,14 +752,14 @@ MTF_DEFINE_UTEST_PRE(param_test, param_type_i32, test_pre)
     ASSERT_STREQ("8", buf);
 
     /* clang-format off */
-	err = check(
-		"test8=12", true,
-		"test8=-2147483648", false,
-		"test8=2147483648", false,
-		"test8=1.5", false,
-		"test8=wrong", false,
-		NULL
-	);
+    err = check(
+        "test8=12", true,
+        "test8=-2147483648", false,
+        "test8=2147483648", false,
+        "test8=1.5", false,
+        "test8=wrong", false,
+        NULL
+    );
     /* clang-format on */
 
     ASSERT_EQ(0, merr_errno(err));
@@ -779,14 +779,14 @@ MTF_DEFINE_UTEST_PRE(param_test, param_type_i64, test_pre)
     ASSERT_STREQ("9", buf);
 
     /* clang-format off */
-	err = check(
-		"test9=12", true,
-		"test9=-9223372036854775808", false,
-		"test9=9223372036854775808", false,
-		"test9=1.5", false,
-		"test9=wrong", false,
-		NULL
-	);
+    err = check(
+        "test9=12", true,
+        "test9=-9223372036854775808", false,
+        "test9=9223372036854775808", false,
+        "test9=1.5", false,
+        "test9=wrong", false,
+        NULL
+    );
     /* clang-format on */
 
     ASSERT_EQ(0, merr_errno(err));
@@ -806,13 +806,13 @@ MTF_DEFINE_UTEST_PRE(param_test, param_type_string, test_pre)
     ASSERT_STREQ("\"default\"", buf);
 
     /* clang-format off */
-	err = check(
-		"test10=yes", true,
-		"test10=\"yes\"", true,
-		"test10=this-is-a-long-string-please-fail", false,
-		"test10=false", false,
-		NULL
-	);
+    err = check(
+        "test10=yes", true,
+        "test10=\"yes\"", true,
+        "test10=this-is-a-long-string-please-fail", false,
+        "test10=false", false,
+        NULL
+    );
     /* clang-format on */
 
     ASSERT_EQ(0, merr_errno(err));
@@ -832,12 +832,12 @@ MTF_DEFINE_UTEST_PRE(param_test, param_type_array, test_pre)
     ASSERT_STREQ("[{\"field1\": 5}, {\"field1\": 6}]", buf);
 
     /* clang-format off */
-	err = check(
-		"test11=[{\"field1\": 0}, {\"field1\": 1}]", true,
-		"test11=[{\"field1\": 0}, {\"field1\": 11}]", false,
-		"test11=false", false,
-		NULL
-	);
+    err = check(
+        "test11=[{\"field1\": 0}, {\"field1\": 1}]", true,
+        "test11=[{\"field1\": 0}, {\"field1\": 11}]", false,
+        "test11=false", false,
+        NULL
+    );
     /* clang-format on */
 
     ASSERT_EQ(0, merr_errno(err));
@@ -858,10 +858,10 @@ MTF_DEFINE_UTEST_PRE(param_test, to_bytes_from_KB, test_pre)
 
     /* clang-format off */
     err = check(
-		"test12=5", true,
-		"test12=hello", false,
-		NULL
-	);
+        "test12=5", true,
+        "test12=hello", false,
+        NULL
+    );
     /* clang-format on */
 
     ASSERT_EQ(0, merr_errno(err));
@@ -883,10 +883,10 @@ MTF_DEFINE_UTEST_PRE(param_test, to_bytes_from_MB, test_pre)
 
     /* clang-format off */
     err = check(
-		"test13=5", true,
-		"test13=hello", false,
-		NULL
-	);
+        "test13=5", true,
+        "test13=hello", false,
+        NULL
+    );
     /* clang-format on */
 
     ASSERT_EQ(0, merr_errno(err));
@@ -908,10 +908,10 @@ MTF_DEFINE_UTEST_PRE(param_test, to_bytes_from_GB, test_pre)
 
     /* clang-format off */
     err = check(
-		"test14=5", true,
-		"test14=hello", false,
-		NULL
-	);
+        "test14=5", true,
+        "test14=hello", false,
+        NULL
+    );
     /* clang-format on */
 
     ASSERT_EQ(0, merr_errno(err));
@@ -933,10 +933,10 @@ MTF_DEFINE_UTEST_PRE(param_test, to_bytes_from_TB, test_pre)
 
     /* clang-format off */
     err = check(
-		"test15=5", true,
-		"test15=hello", false,
-		NULL
-	);
+        "test15=5", true,
+        "test15=hello", false,
+        NULL
+    );
     /* clang-format on */
 
     ASSERT_EQ(0, merr_errno(err));
@@ -963,51 +963,55 @@ MTF_DEFINE_UTEST_PRE(param_test, roundup_pow2, test_pre)
 
 MTF_DEFINE_UTEST_PRE(param_test, jsonify, test_pre)
 {
-	const struct params p = { .p_params = { .as_generic = &params }, .p_type = PARAMS_GEN };
+    const struct params p = { .p_params = { .as_generic = &params }, .p_type = PARAMS_GEN };
 
-	cJSON *root = param_to_json(&p, pspecs, NELEM(pspecs));
-	ASSERT_NE(NULL, root);
+    cJSON *root = param_to_json(&p, pspecs, NELEM(pspecs));
+    ASSERT_NE(NULL, root);
 
-	char *str = cJSON_PrintUnformatted(root);
-	ASSERT_NE(NULL, str);
+    char *str = cJSON_PrintUnformatted(root);
+    ASSERT_NE(NULL, str);
 
-	cJSON_Delete(root);
+    cJSON_Delete(root);
 
-	ASSERT_STREQ("{\"test1\":true,\"test2\":2,\"test3\":3,\"test4\":4,\"test5\":5,\"test6\":6,\"test7\":7,\"test8\":8,\"test9\":9,\"test10\":\"default\",\"test11\":[{\"field1\":5},{\"field1\":5}],\"test12\":4,\"test13\":4,\"test14\":4,\"test15\":4,\"test16\":1000}", str);
+    ASSERT_STREQ(
+        "{\"test1\":true,\"test2\":2,\"test3\":3,\"test4\":4,\"test5\":5,\"test6\":6,\"test7\":7,"
+        "\"test8\":8,\"test9\":9,\"test10\":\"default\",\"test11\":[{\"field1\":5},{\"field1\":5}],"
+        "\"test12\":4,\"test13\":4,\"test14\":4,\"test15\":4,\"test16\":1000}",
+        str);
 
-	free(str);
+    free(str);
 }
 
 MTF_DEFINE_UTEST_PRE(param_test, get, test_pre)
 {
-	merr_t err;
-	char   buf[128];
-	size_t needed_sz;
+    merr_t err;
+    char   buf[128];
+    size_t needed_sz;
 
-	const struct params p = { .p_params = { .as_generic = &params }, .p_type = PARAMS_GEN };
+    const struct params p = { .p_params = { .as_generic = &params }, .p_type = PARAMS_GEN };
 
-	err = param_get(&p, pspecs, NELEM(pspecs), "test1", buf, sizeof(buf), &needed_sz);
-	ASSERT_EQ(0, merr_errno(err));
-	ASSERT_STREQ("true", buf);
-	ASSERT_EQ(4, needed_sz);
+    err = param_get(&p, pspecs, NELEM(pspecs), "test1", buf, sizeof(buf), &needed_sz);
+    ASSERT_EQ(0, merr_errno(err));
+    ASSERT_STREQ("true", buf);
+    ASSERT_EQ(4, needed_sz);
 
-	err = param_get(&p, pspecs, NELEM(pspecs), "test1", buf, sizeof(buf), NULL);
-	ASSERT_EQ(0, merr_errno(err));
-	ASSERT_STREQ("true", buf);
+    err = param_get(&p, pspecs, NELEM(pspecs), "test1", buf, sizeof(buf), NULL);
+    ASSERT_EQ(0, merr_errno(err));
+    ASSERT_STREQ("true", buf);
 
-	err = param_get(&p, pspecs, NELEM(pspecs), "does.not.exist", buf, sizeof(buf), NULL);
-	ASSERT_EQ(EINVAL, merr_errno(err));
+    err = param_get(&p, pspecs, NELEM(pspecs), "does.not.exist", buf, sizeof(buf), NULL);
+    ASSERT_EQ(EINVAL, merr_errno(err));
 
-	err = param_get(NULL, pspecs, NELEM(pspecs), "test1", buf, sizeof(buf), NULL);
-	ASSERT_EQ(EINVAL, merr_errno(err));
+    err = param_get(NULL, pspecs, NELEM(pspecs), "test1", buf, sizeof(buf), NULL);
+    ASSERT_EQ(EINVAL, merr_errno(err));
 
-	err = param_get(&p, NULL, NELEM(pspecs), "test1", buf, sizeof(buf), NULL);
-	ASSERT_EQ(EINVAL, merr_errno(err));
+    err = param_get(&p, NULL, NELEM(pspecs), "test1", buf, sizeof(buf), NULL);
+    ASSERT_EQ(EINVAL, merr_errno(err));
 
-	err = param_get(&p, pspecs, NELEM(pspecs), NULL, buf, sizeof(buf), NULL);
-	ASSERT_EQ(EINVAL, merr_errno(err));
+    err = param_get(&p, pspecs, NELEM(pspecs), NULL, buf, sizeof(buf), NULL);
+    ASSERT_EQ(EINVAL, merr_errno(err));
 
-	err = param_get(&p, pspecs, NELEM(pspecs), "test1", NULL, 0, &needed_sz);
+    err = param_get(&p, pspecs, NELEM(pspecs), "test1", NULL, 0, &needed_sz);
     ASSERT_EQ(0, merr_errno(err));
     ASSERT_EQ(4, needed_sz);
 }
