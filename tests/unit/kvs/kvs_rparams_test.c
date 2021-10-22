@@ -14,7 +14,7 @@
 
 MTF_BEGIN_UTEST_COLLECTION(kvs_rparams_test)
 
-struct kvs_rparams params;
+    struct kvs_rparams params;
 
 int
 test_pre(struct mtf_test_info *ti)
@@ -77,21 +77,6 @@ check(const char *const arg, ...)
     return err;
 }
 
-MTF_DEFINE_UTEST_PRE(kvs_rparams_test, kvs_debug, test_pre)
-{
-    const struct param_spec *ps = ps_get("kvs_debug");
-
-    ASSERT_NE(NULL, ps);
-    ASSERT_NE(NULL, ps->ps_description);
-    ASSERT_EQ(PARAM_FLAG_EXPERIMENTAL | PARAM_FLAG_WRITABLE, ps->ps_flags);
-    ASSERT_EQ(PARAM_TYPE_U64, ps->ps_type);
-    ASSERT_EQ((uintptr_t)ps->ps_convert, (uintptr_t)param_default_converter);
-    ASSERT_EQ((uintptr_t)ps->ps_validate, (uintptr_t)param_default_validator);
-    ASSERT_EQ(0, params.kvs_debug);
-    ASSERT_EQ(0, ps->ps_bounds.as_uscalar.ps_min);
-    ASSERT_EQ(128, ps->ps_bounds.as_uscalar.ps_max);
-}
-
 MTF_DEFINE_UTEST_PRE(kvs_rparams_test, kvs_cursor_ttl, test_pre)
 {
     const struct param_spec *ps = ps_get("kvs_cursor_ttl");
@@ -120,6 +105,21 @@ MTF_DEFINE_UTEST_PRE(kvs_rparams_test, transactions_enabled, test_pre)
     ASSERT_EQ(false, params.transactions_enable);
 }
 
+MTF_DEFINE_UTEST_PRE(kvs_rparams_test, perfc_level, test_pre)
+{
+    const struct param_spec *ps = ps_get("perfc.level");
+
+    ASSERT_NE(NULL, ps);
+    ASSERT_NE(NULL, ps->ps_description);
+    ASSERT_EQ(PARAM_FLAG_EXPERIMENTAL, ps->ps_flags);
+    ASSERT_EQ(PARAM_TYPE_U8, ps->ps_type);
+    ASSERT_EQ((uintptr_t)ps->ps_convert, (uintptr_t)param_default_converter);
+    ASSERT_EQ((uintptr_t)ps->ps_validate, (uintptr_t)param_default_validator);
+    ASSERT_EQ(PERFC_LEVEL_DEFAULT, params.perfc_level);
+    ASSERT_EQ(PERFC_LEVEL_MIN, ps->ps_bounds.as_uscalar.ps_min);
+    ASSERT_EQ(PERFC_LEVEL_MAX, ps->ps_bounds.as_uscalar.ps_max);
+}
+
 MTF_DEFINE_UTEST_PRE(kvs_rparams_test, cn_node_sisze_lo, test_pre)
 {
     merr_t                   err;
@@ -141,7 +141,7 @@ MTF_DEFINE_UTEST_PRE(kvs_rparams_test, cn_node_sisze_lo, test_pre)
         "cn_node_size_lo=50000", true,
         "cn_node_size_hi=40000", true,
         NULL
-    );
+        );
     /* clang-format on */
 
     ASSERT_NE(0, merr_errno(err));
@@ -168,7 +168,7 @@ MTF_DEFINE_UTEST_PRE(kvs_rparams_test, cn_node_size_hi, test_pre)
         "cn_node_size_lo=50000", true,
         "cn_node_size_hi=40000", true,
         NULL
-    );
+        );
     /* clang-format on */
 
     ASSERT_NE(0, merr_errno(err));
@@ -681,15 +681,15 @@ MTF_DEFINE_UTEST_PRE(kvs_rparams_test, compression_value_algorithm, test_pre)
     ASSERT_EQ(VCOMP_ALGO_MIN, ps->ps_bounds.as_uscalar.ps_min);
     ASSERT_EQ(VCOMP_ALGO_MAX, ps->ps_bounds.as_uscalar.ps_max);
 
-	/* clang-format off */
+    /* clang-format off */
     err = check(
         "compression.value.algorithm=none", true,
         "compression.value.algorithm=lz4", true,
         "compression.value.algorithm=does-not-exist", false,
         NULL);
-	/* clang-format on */
+    /* clang-format on */
 
-	ASSERT_EQ(0, merr_errno(err));
+    ASSERT_EQ(0, merr_errno(err));
 }
 
 MTF_END_UTEST_COLLECTION(kvs_rparams_test)

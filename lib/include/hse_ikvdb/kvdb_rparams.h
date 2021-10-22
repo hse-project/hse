@@ -29,7 +29,7 @@
  * struct kvdb_rparams -
  * @read_only:        readonly flag
  * @throttle_disable: disable put/del throttling
- * @perfc_enable:     perf counter verbosity
+ * @perfc_level:      perf counter engagement level
  * @c0_diag_mode:     disable c0 spill
  * @c0_debug:         c0 debug flags (see param_debug_flags.h)
  * @keylock_tables:   number of keylock hash tables
@@ -47,6 +47,7 @@
 struct kvdb_rparams {
     bool    read_only;
     bool    throttle_disable;
+    uint8_t perfc_level;
     uint8_t perfc_enable;
     bool    c0_diag_mode;
     uint8_t c0_debug;

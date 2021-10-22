@@ -99,7 +99,7 @@ hse_init(const char *const config, const size_t paramc, const char *const *const
 
     hse_gparams = hse_gparams_defaults();
 
-	err = argv_deserialize_to_hse_gparams(paramc, paramv, &hse_gparams);
+    err = argv_deserialize_to_hse_gparams(paramc, paramv, &hse_gparams);
     if (err) {
         fprintf(stderr, "Failed to deserialize paramv for HSE gparams\n");
         return merr_to_hse_err(err);

@@ -17,6 +17,7 @@
 #include <hse_ikvdb/limits.h>
 #include <hse_util/logging.h>
 #include <hse_util/compiler.h>
+#include <hse_util/perfc.h>
 #include <hse_util/vlb.h>
 
 #include <hse_ikvdb/limits.h>
@@ -247,6 +248,25 @@ static const struct param_spec pspecs[] = {
             .as_uscalar = {
                 .ps_min = HSE_C0_CHEAP_SZ_MIN,
                 .ps_max = HSE_C0_CHEAP_SZ_MAX,
+            },
+        },
+    },
+    {
+        .ps_name = "perfc.level",
+        .ps_description = "set kvs perf counter enagagement level (min:0 default:2 max:9)",
+        .ps_flags = PARAM_FLAG_EXPERIMENTAL,
+        .ps_type = PARAM_TYPE_U8,
+        .ps_offset = offsetof(struct hse_gparams, gp_perfc_level),
+        .ps_size = PARAM_SZ(struct hse_gparams, gp_perfc_level),
+        .ps_convert = param_default_converter,
+        .ps_validate = param_default_validator,
+        .ps_default_value = {
+            .as_uscalar = PERFC_LEVEL_DEFAULT,
+        },
+        .ps_bounds = {
+            .as_uscalar = {
+                .ps_min = PERFC_LEVEL_MIN,
+                .ps_max = PERFC_LEVEL_MAX,
             },
         },
     },

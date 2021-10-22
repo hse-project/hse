@@ -161,7 +161,7 @@ enum kvdb_perfc_cnshape {
     PERFC_BA_CNSHAPE_AVGSIZE,
     PERFC_BA_CNSHAPE_MAXLEN,
     PERFC_BA_CNSHAPE_MAXSIZE,
-    PERFC_EN_CNSHAPE,
+    PERFC_EN_CNSHAPE
 };
 
 enum kvdb_perfc_cncapped {
@@ -170,7 +170,7 @@ enum kvdb_perfc_cncapped {
     PERFC_BA_CNCAPPED_ACTIVE,
     PERFC_BA_CNCAPPED_NEW,
     PERFC_BA_CNCAPPED_OLD,
-    PERFC_EN_CNCAPPED,
+    PERFC_EN_CNCAPPED
 };
 
 enum kvdb_perfc_cnmclass {
@@ -186,7 +186,7 @@ enum kvdb_perfc_cnmclass {
     PERFC_BA_CNMCLASS_LEAFK_CAPACITY,
     PERFC_BA_CNMCLASS_LEAFV_STAGING,
     PERFC_BA_CNMCLASS_LEAFV_CAPACITY,
-    PERFC_EN_CNMCLASS,
+    PERFC_EN_CNMCLASS
 };
 
 enum kvdb_perfc_sidx_cursorcache {
@@ -220,23 +220,22 @@ enum kvdb_perfc_sidx_cursordist {
 
 /* "PKVSL" stands for Public KVS interface Latencies" */
 enum kvdb_perfc_sidx_pkvsl {
-    PERFC_LT_PKVSL_KVS_PUT,
-    PERFC_LT_PKVSL_KVS_GET,
-    PERFC_LT_PKVSL_KVS_DEL,
-
-    PERFC_LT_PKVSL_KVS_PFX_PROBE,
-    PERFC_LT_PKVSL_KVS_PFX_DEL,
-
     PERFC_LT_PKVSL_KVS_CURSOR_CREATE,
     PERFC_LT_PKVSL_KVS_CURSOR_UPDATE,
-    PERFC_LT_PKVSL_KVS_CURSOR_SEEK,
-    PERFC_LT_PKVSL_KVS_CURSOR_READFWD,
-    PERFC_LT_PKVSL_KVS_CURSOR_READREV,
     PERFC_LT_PKVSL_KVS_CURSOR_DESTROY,
     PERFC_LT_PKVSL_KVS_CURSOR_FULL,
     PERFC_LT_PKVSL_KVS_CURSOR_INIT,
+    PERFC_LT_PKVSL_KVS_CURSOR_SEEK,
+    PERFC_LT_PKVSL_KVS_CURSOR_READFWD,
+    PERFC_LT_PKVSL_KVS_CURSOR_READREV,
 
-    PERFC_EN_PKVSL,
+    PERFC_LT_PKVSL_KVS_PUT,
+    PERFC_LT_PKVSL_KVS_GET,
+    PERFC_LT_PKVSL_KVS_DEL,
+    PERFC_LT_PKVSL_KVS_PFX_PROBE,
+    PERFC_LT_PKVSL_KVS_PFX_DEL,
+
+    PERFC_EN_PKVSL
 };
 
 /* "PKVDBL" stands for Public KVDB interface Latencies" */
@@ -252,7 +251,7 @@ enum kvdb_perfc_sidx_pkvdbl {
     PERFC_LT_PKVDBL_KVDB_OPEN,
     PERFC_LT_PKVDBL_KVS_OPEN,
 
-    PERFC_EN_PKVDBL,
+    PERFC_EN_PKVDBL
 };
 
 /* STS Queues */
@@ -266,7 +265,7 @@ enum kvdb_perfc_sidx_sts_queues {
     PERFC_BA_STS_WORKERS,
     PERFC_BA_STS_WORKERS_IDLE,
 
-    PERFC_EN_STS,
+    PERFC_EN_STS
 };
 
 extern struct perfc_set kvdb_metrics_pc;

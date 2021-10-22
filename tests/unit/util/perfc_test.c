@@ -26,8 +26,6 @@ MTF_MODULE_UNDER_TEST(hse_platform);
 
 MTF_BEGIN_UTEST_COLLECTION_PRE(perfc, platform_pre);
 
-#undef COMPNAME
-#define COMPNAME __func__
 
 /* Test that calls to get_cycles() always return a count greater
  * than any previous call and are accurately measuring elapsed
@@ -127,7 +125,7 @@ MTF_DEFINE_UTEST(perfc, perfc_basic_create_find_and_remove)
     ctrnames.pcn_flags = 0;
     ctrnames.pcn_prio = 1;
 
-    err = perfc_ctrseti_alloc(COMPNAME, "batman_villains", &ctrnames, 1, "joker", &set);
+    err = perfc_ctrseti_alloc(1, "batman_villains", &ctrnames, 1, "joker", &set);
     ASSERT_EQ(0, err);
 
     count = dt_iterate_cmd(DT_OP_COUNT, DT_PATH_PERFC, NULL, NULL, NULL, NULL);
@@ -188,7 +186,7 @@ MTF_DEFINE_UTEST(perfc, perfc_basic_set)
     ctrnames.pcn_flags = 0;
     ctrnames.pcn_prio = 1;
 
-    err = perfc_ctrseti_alloc(COMPNAME, "batman_villains", &ctrnames, 1, "poison_ivy", &set);
+    err = perfc_ctrseti_alloc(1, "batman_villains", &ctrnames, 1, "poison_ivy", &set);
     ASSERT_EQ(0, err);
 
     perfc_set(&set, 0, new_value);
@@ -267,21 +265,21 @@ MTF_DEFINE_UTEST(perfc, clear_counters)
     ctrnames[2].pcn_name = "PERFC_LT_FAM_TEST";
     ctrnames[3].pcn_name = "PERFC_SL_FAM_TEST";
 
-    err = perfc_ctrseti_alloc("mycomp", "myset", ctrnames, ctrc, "alltypes", &set);
+    err = perfc_ctrseti_alloc(1, "myset", ctrnames, ctrc, "alltypes", &set);
     ASSERT_EQ(0, err);
 
     perfc_test_ctrs(&set);
 
     perfc_ctrseti_path(&set);
 
-    dsp.path = DT_PATH_PERFC "/mycomp/myset/FAM/alltypes";
+    dsp.path = DT_PATH_PERFC "/" COMPNAME "/myset/FAM/alltypes";
     dsp.value = "1";
     dsp.value_len = strlen(dsp.value);
     dsp.field = DT_FIELD_CLEAR;
     dip.dsp = &dsp;
 
     count = dt_iterate_cmd(DT_OP_SET, dsp.path, &dip, NULL, NULL, NULL);
-    ASSERT_EQ(1, count);
+    ASSERT_EQ(ctrc, count);
 
     perfc_ctrseti_free(&set);
     free(ctrnames);
@@ -294,23 +292,22 @@ MTF_DEFINE_UTEST(perfc, enable_counters)
     merr_t                      err;
     struct dt_set_parameters    dsp;
     union dt_iterate_parameters dip;
-    int                         count;
+    size_t                      count;
     char *                      path;
 
-    perfc_verbosity = 1;
     ctrnames.pcn_desc = "mycounter";
     ctrnames.pcn_hdr = "mycounterhdr";
     ctrnames.pcn_flags = 0;
     ctrnames.pcn_prio = 3;
     ctrnames.pcn_name = "PERFC_BA_FAM_TEST";
 
-    err = perfc_ctrseti_alloc("mycomp", "myset", &ctrnames, 1, "basic", &set);
+    err = perfc_ctrseti_alloc(1, "myset", &ctrnames, 1, "basic", &set);
     ASSERT_EQ(0, err);
 
     perfc_test_ctrs(&set);
 
     path = perfc_ctrseti_path(&set);
-    ASSERT_EQ(0, strcmp(path, DT_PATH_PERFC "/mycomp/myset/FAM/basic"));
+    ASSERT_EQ(0, strcmp(path, DT_PATH_PERFC "/" COMPNAME "/myset/FAM/basic"));
 
     dsp.path = path;
     dsp.value = "1";
@@ -319,9 +316,23 @@ MTF_DEFINE_UTEST(perfc, enable_counters)
     dip.dsp = &dsp;
 
     count = dt_iterate_cmd(DT_OP_SET, dsp.path, &dip, NULL, NULL, NULL);
+    ASSERT_EQ(0, count);
+
+    dsp.value = "3";
+    count = dt_iterate_cmd(DT_OP_SET, dsp.path, &dip, NULL, NULL, NULL);
     ASSERT_EQ(1, count);
 
     dsp.value = "0";
+    count = dt_iterate_cmd(DT_OP_SET, dsp.path, &dip, NULL, NULL, NULL);
+    ASSERT_EQ(1, count);
+
+    dsp.value = "3:foo";
+    dsp.value_len = strlen(dsp.value);
+    count = dt_iterate_cmd(DT_OP_SET, dsp.path, &dip, NULL, NULL, NULL);
+    ASSERT_EQ(0, count);
+
+    dsp.value = "3:PERFC_BA_FAM_TEST";
+    dsp.value_len = strlen(dsp.value);
     count = dt_iterate_cmd(DT_OP_SET, dsp.path, &dip, NULL, NULL, NULL);
     ASSERT_EQ(1, count);
 
@@ -349,7 +360,7 @@ MTF_DEFINE_UTEST(perfc, perfc_verbosity_set_test)
     ctrnames.pcn_prio = 3;
     ctrnames.pcn_name = "PERFC_BA_FAM_TEST";
 
-    err = perfc_ctrseti_alloc("mycomp", "myset", &ctrnames, 1, "basic", &set);
+    err = perfc_ctrseti_alloc(1, "myset", &ctrnames, 1, "basic", &set);
     ASSERT_EQ(0, err);
     perfc_add(&set, 0, 3);
 
@@ -388,9 +399,9 @@ MTF_DEFINE_UTEST(perfc, ctrset_path)
     ctrnames.pcn_flags = 0;
     ctrnames.pcn_prio = 1;
 
-    err = perfc_ctrseti_alloc("c", "n", &ctrnames, 1, "s", &set);
+    err = perfc_ctrseti_alloc(1, "n", &ctrnames, 1, "s", &set);
     ASSERT_EQ(0, err);
-    ASSERT_EQ(0, strcmp(DT_PATH_PERFC "/c/n/FAM/s", perfc_ctrseti_path(&set)));
+    ASSERT_EQ(0, strcmp(DT_PATH_PERFC "/" COMPNAME "/n/FAM/s", perfc_ctrseti_path(&set)));
 
     perfc_ctrseti_free(&set);
 }
@@ -414,7 +425,7 @@ MTF_DEFINE_UTEST(perfc, perfc_rollup)
     merr_t err;
 
     err = perfc_ctrseti_alloc(
-        COMPNAME, "rollup", perfc_rollup_op, PERFC_EN_RUTEST, "set", &perfc_rollup_pc);
+        1, "rollup", perfc_rollup_op, PERFC_EN_RUTEST, "set", &perfc_rollup_pc);
     ASSERT_EQ(err, 0);
 
     for (i = 0, sum = 0; i < 1024 * 1024; ++i, sum += i) {

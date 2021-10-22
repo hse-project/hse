@@ -18,6 +18,12 @@
 
 /* MTF_MOCK_DECL(perfc) */
 
+/* Perf counter engagement levels
+ */
+#define PERFC_LEVEL_MIN     (0)
+#define PERFC_LEVEL_MAX     (9)
+#define PERFC_LEVEL_DEFAULT (2)
+
 /* PERFC_VALPERCNT          max per-cpu values per counter
  * PERFC_VALPERCPU          max per-cpu values per cacheline
  * PERFC_IVL_MAX            max bounds in a distribution counter
@@ -587,8 +593,6 @@ struct perfc_seti {
     union perfc_ctru         pcs_ctrv[];
 };
 
-extern u32 perfc_verbosity;
-
 /**
  * perfc_lat_record_impl() - Record a latency sample to get its distribution
  *
@@ -908,7 +912,7 @@ extern struct perfc_ivl *perfc_di_ivl;
  *      Typically:
  *      /data/perfc/mpool/<mpool uuid>/<FAMILYNAME>/
  *
- * @component: typically "mpool", placed below /data/perfc/
+ * @prio: the level at and above which the counter should be engaged
  * @name: typically the name of the mpool (its uuid).
  * @ctrnames: name and description of each the counter in the set.
  *      This table should no be freed by the caller till the counter set
@@ -944,7 +948,7 @@ extern struct perfc_ivl *perfc_di_ivl;
 /* MTF_MOCK */
 merr_t
 perfc_ctrseti_alloc(
-    const char *             component,
+    uint                     prio,
     const char *             name,
     const struct perfc_name *ctrv,
     u32                      ctrc,

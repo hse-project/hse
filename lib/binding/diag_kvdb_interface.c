@@ -81,8 +81,6 @@ diag_kvdb_open(
     if (err)
         goto close_mp;
 
-    perfc_verbosity = params.perfc_enable;
-
     err = ikvdb_diag_open(kvdb_home, &params, &ikvdb);
     if (ev(err))
         goto close_mp;

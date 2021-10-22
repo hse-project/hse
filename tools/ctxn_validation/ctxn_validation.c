@@ -931,6 +931,7 @@ usage(void)
 int
 main(int argc, char **argv)
 {
+    char        perfc_buf[] = "perfc.level=0";
     const char *config = NULL;
     hse_err_t   err;
     uint8_t     given[256] = { };
@@ -1097,9 +1098,10 @@ main(int argc, char **argv)
             break;
     }
 
-    rc = rc ?: svec_append_pg(&hse_gparm, pg, PG_HSE_GLOBAL, NULL);
-    rc = rc ?: svec_append_pg(&db_oparm, pg, "perfc_enable=0", PG_KVDB_OPEN, NULL);
-    rc = rc ?: svec_append_pg(&kv_oparm, pg, PG_KVS_OPEN, "transactions.enabled=true", NULL);
+    rc = rc ?: svec_append_pg(&hse_gparm, pg, PG_HSE_GLOBAL, perfc_buf, NULL);
+    rc = rc ?: svec_append_pg(&db_oparm, pg, PG_KVDB_OPEN, perfc_buf, NULL);
+    rc = rc ?: svec_append_pg(&kv_oparm, pg, PG_KVS_OPEN, perfc_buf,
+                              "transactions.enabled=true", NULL);
     if (rc)
         fatal(rc, "svec_apppend_pg failed");
 

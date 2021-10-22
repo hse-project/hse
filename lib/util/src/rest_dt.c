@@ -63,18 +63,21 @@ rest_dt_put(
     /* Parse the arguments and extract key=value pairs*/
     yaml_start_element_type(&yc, "Attempted PUTs");
     while ((kv = rest_kv_next(iter)) != 0) {
+        size_t n;
+
         dsp.field = dt_get_field(kv->key);
         if (dsp.field == DT_FIELD_INVALID)
             continue; /* move on */
 
         dsp.value = kv->value;
-        dsp.value_len = strlen(dsp.value);
+        dsp.value_len = dsp.value ? strlen(dsp.value) : 0;
 
-        dt_iterate_cmd(DT_OP_SET, dsp.path, &dip, 0, 0, 0);
+        n = dt_iterate_cmd(DT_OP_SET, dsp.path, &dip, 0, 0, 0);
 
         yaml_start_element(&yc, "path", dsp.path);
         yaml_element_field(&yc, "field", kv->key);
         yaml_element_field(&yc, "value", kv->value);
+        yaml_field_fmt(&yc, "updates", "%zu", n);
         yaml_end_element(&yc);
     }
     yaml_end_element_type(&yc);

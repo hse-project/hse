@@ -50,7 +50,7 @@ vlb_alloc(size_t sz)
         spin_unlock(&vlbc->lock);
     }
 
-    if (ev(!mem)) {
+    if (ev_info(!mem)) {
         int flags = MAP_ANON | MAP_PRIVATE;
         int prot = PROT_READ | PROT_WRITE;
 
@@ -113,7 +113,7 @@ vlb_free(void *mem, size_t used)
         }
     }
 
-    if (ev(mem))
+    if (ev_info(mem))
         munmap(mem, allocsz);
 }
 

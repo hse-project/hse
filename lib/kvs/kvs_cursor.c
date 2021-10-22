@@ -29,16 +29,18 @@
 
 /* clang-format off */
 
+/*
+ * Do not set any of these counters to a level less than three
+ * otherwise it will defeat the optimization in ikvs_cursor_reset().
+ */
 struct perfc_name kvs_cc_perfc_op[] = {
-    NE(PERFC_RA_CC_HIT,             2, "Cursor cache hit/restore rate", "r_cc_hit(/s)"),
-    NE(PERFC_RA_CC_MISS,            2, "Cursor cache miss/create rate", "r_cc_miss(/s)"),
-    NE(PERFC_RA_CC_SAVEFAIL,        2, "Cursor cache save/fail rate",   "r_cc_savefail(/s)"),
-    NE(PERFC_RA_CC_RESTFAIL,        2, "Cursor cache restore/fail",     "r_cc_restfail(/s)"),
-    NE(PERFC_RA_CC_UPDATE,          2, "Cursor cache update rate",      "r_cc_update(/s)"),
+    NE(PERFC_RA_CC_HIT,             3, "Cursor cache hit/restore rate", "r_cc_hit(/s)"),
+    NE(PERFC_RA_CC_MISS,            3, "Cursor cache miss/create rate", "r_cc_miss(/s)"),
+    NE(PERFC_RA_CC_SAVEFAIL,        3, "Cursor cache save/fail rate",   "r_cc_savefail(/s)"),
+    NE(PERFC_RA_CC_RESTFAIL,        3, "Cursor cache restore/fail",     "r_cc_restfail(/s)"),
+    NE(PERFC_RA_CC_UPDATE,          3, "Cursor cache update rate",      "r_cc_update(/s)"),
     NE(PERFC_RA_CC_SAVE,            3, "Cursor cache save rate",        "r_cc_save(/s)"),
 
-    /* The following counters require setting kvs_debug to 16 or 32.
-     */
     NE(PERFC_BA_CC_INIT_CREATE_C0,  3, "c0 cursor init/create count",   "c_cc_c0_initcr"),
     NE(PERFC_BA_CC_INIT_UPDATE_C0,  3, "c0 cursor init/update count",   "c_cc_c0_initupd"),
     NE(PERFC_BA_CC_INIT_CREATE_CN,  3, "cn cursor init/create count",   "c_cc_cn_initcr"),
@@ -50,18 +52,17 @@ struct perfc_name kvs_cc_perfc_op[] = {
 NE_CHECK(kvs_cc_perfc_op, PERFC_EN_CC, "cursor cache perfc ops table/enum mismatch");
 
 struct perfc_name kvs_cd_perfc_op[] = {
-    NE(PERFC_LT_CD_SAVE,            2, "cursor cache save latency",     "l_cc_save(ns)",    7),
-    NE(PERFC_LT_CD_RESTORE,         2, "cursor cache restore latency",  "l_cc_restore(ns)", 7),
+    NE(PERFC_LT_CD_SAVE,            4, "cursor cache save latency",     "l_cc_save(ns)",    7),
+    NE(PERFC_LT_CD_RESTORE,         4, "cursor cache restore latency",  "l_cc_restore(ns)", 7),
 
-    /* The following counters require setting kvs_debug to 16 or 32.
-     */
-    NE(PERFC_LT_CD_CREATE_CN,       2, "cn cursor create latency",      "l_cc_create_cn", 7),
-    NE(PERFC_LT_CD_UPDATE_CN,       2, "cn cursor update latency",      "l_cc_update_cn", 7),
-    NE(PERFC_LT_CD_CREATE_C0,       2, "c0 cursor create latency",      "l_cc_create_c0", 7),
-    NE(PERFC_LT_CD_UPDATE_C0,       2, "c0 cursor update latency",      "l_cc_update_c0", 7),
-    NE(PERFC_DI_CD_READPERSEEK,     2, "Cursor reads per seek",         "d_cc_readperseek", 7),
-    NE(PERFC_DI_CD_TOMBSPERPROBE,   2, "Tombs seen per pfx probe",      "d_cc_tombsperprobe", 7),
-    NE(PERFC_DI_CD_ACTIVEKVSETS_CN, 2, "kvsets in cursors view",        "d_cc_activekvsets"),
+    NE(PERFC_LT_CD_CREATE_CN,       4, "cn cursor create latency",      "l_cc_create_cn", 7),
+    NE(PERFC_LT_CD_UPDATE_CN,       4, "cn cursor update latency",      "l_cc_update_cn", 7),
+    NE(PERFC_LT_CD_CREATE_C0,       4, "c0 cursor create latency",      "l_cc_create_c0", 7),
+    NE(PERFC_LT_CD_UPDATE_C0,       4, "c0 cursor update latency",      "l_cc_update_c0", 7),
+
+    NE(PERFC_DI_CD_READPERSEEK,     5, "Cursor reads per seek",         "d_cc_readperseek", 7),
+    NE(PERFC_DI_CD_TOMBSPERPROBE,   5, "Tombs seen per pfx probe",      "d_cc_tombsperprobe", 7),
+    NE(PERFC_DI_CD_ACTIVEKVSETS_CN, 5, "kvsets in cursors view",        "d_cc_activekvsets"),
 };
 
 NE_CHECK(kvs_cd_perfc_op, PERFC_EN_CD, "cursor dist perfc ops table/enum mismatch");
@@ -562,16 +563,12 @@ ikvs_cursor_reset(struct kvs_cursor_impl *cursor)
     cursor->kci_need_toss = 1;
     cursor->kci_eof = 0;
     cursor->kci_ptomb_set = 0;
+    cursor->kci_summary.addr = NULL;
 
-    cursor->kci_cc_pc = NULL;
-    cursor->kci_cd_pc = NULL;
+    cursor->kci_cc_pc = PERFC_ISON(&kvs->ikv_cc_pc) ? &kvs->ikv_cc_pc : NULL;
+    cursor->kci_cd_pc = PERFC_ISON(&kvs->ikv_cd_pc) ? &kvs->ikv_cd_pc : NULL;
 
     cursor->kci_item.ci_ttl = jclock_ns + kvs->ikv_rp.kvs_cursor_ttl * USEC_PER_SEC;
-
-    if (kvs->ikv_rp.kvs_debug & 16)
-        cursor->kci_cc_pc = &kvs->ikv_cc_pc;
-    if (kvs->ikv_rp.kvs_debug & 32)
-        cursor->kci_cd_pc = &kvs->ikv_cd_pc;
 }
 
 static struct kvs_cursor_impl *
@@ -594,16 +591,6 @@ ikvs_cursor_restore(struct ikvs *kvs, const void *prefix, size_t pfx_len, u64 pf
     PERFC_INC_RU(&kvs->ikv_cc_pc, PERFC_RA_CC_HIT);
 
     return cur;
-}
-
-static void
-_perfc_readperseek_record(struct kvs_cursor_impl *cur)
-{
-    if (!cur->kci_summary.util)
-        return;
-
-    perfc_rec_sample(cur->kci_cd_pc, PERFC_DI_CD_READPERSEEK, cur->kci_summary.util);
-    cur->kci_summary.util = 0;
 }
 
 /**
@@ -629,8 +616,10 @@ ikvs_cursor_save(struct kvs_cursor_impl *cur)
     struct ikvs *kvs = cur->kci_kvs;
     u64          tstart;
 
-    if ((kvs->ikv_rp.kvs_debug & 64))
-        _perfc_readperseek_record(cur);
+#ifndef HSE_BUILD_RELEASE
+    perfc_rec_sample(cur->kci_cd_pc, PERFC_DI_CD_READPERSEEK, cur->kci_summary.util);
+    cur->kci_summary.util = 0;
+#endif
 
     tstart = perfc_lat_startl(&kvs->ikv_cd_pc, PERFC_LT_CD_SAVE);
 
@@ -674,10 +663,8 @@ kvs_cursor_alloc(struct ikvs *kvs, const void *prefix, size_t pfx_len, bool reve
     memset(cur, 0, sizeof(*cur));
 
     cur->kci_item.ci_key = ikvs_curcache_key(kvs->ikv_gen, prefix, pfxhash, reverse);
-    if (kvs->ikv_rp.kvs_debug & 16)
-        cur->kci_cc_pc = &kvs->ikv_cc_pc;
-    if (kvs->ikv_rp.kvs_debug & 32)
-        cur->kci_cd_pc = &kvs->ikv_cd_pc;
+    cur->kci_cc_pc = PERFC_ISON(&kvs->ikv_cc_pc) ? &kvs->ikv_cc_pc : NULL;
+    cur->kci_cd_pc = PERFC_ISON(&kvs->ikv_cd_pc) ? &kvs->ikv_cd_pc : NULL;
     cur->kci_kvs = kvs;
     cur->kci_pfxlen = pfx_len;
     cur->kci_pfxhash = pfxhash;
@@ -712,16 +699,6 @@ kvs_cursor_free(struct hse_kvs_cursor *cursor)
         ikvs_cursor_save(cursor_h2r(cursor));
 }
 
-static HSE_ALWAYS_INLINE u64
-now(void)
-{
-    struct timespec ts;
-
-    get_realtime(&ts);
-
-    return ts.tv_sec * 1000000000ULL + ts.tv_nsec;
-}
-
 merr_t
 kvs_cursor_init(struct hse_kvs_cursor *cursor, struct kvdb_ctxn *ctxn)
 {
@@ -743,13 +720,14 @@ kvs_cursor_init(struct hse_kvs_cursor *cursor, struct kvdb_ctxn *ctxn)
     /* no context: update must seek to beginning */
     cur->kci_last = 0;
 
-    /* summaries are only useful if debugging is enabled */
-    if (kvs->ikv_rp.kvs_debug & 64) {
-        memset(&cur->kci_summary, 0, sizeof(cur->kci_summary));
-        cur->kci_summary.addr = cur;
-        cur->kci_summary.seqno = seqno;
-        cur->kci_summary.created = now();
+#ifndef HSE_BUILD_RELEASE
+    if (perfc_ison(cur->kci_cd_pc, PERFC_DI_CD_READPERSEEK)) {
+        memset(summary, 0, sizeof(*summary));
+        summary->addr = cur;
+        summary->seqno = seqno;
+        summary->created = get_time_ns();
     }
+#endif
 
     /* Create/Update c0 cursor */
     if (!cur->kci_c0cur) {
@@ -916,14 +894,20 @@ kvs_cursor_update(struct hse_kvs_cursor *handle, struct kvdb_ctxn *ctxn, u64 seq
     bool                    updated;
     u64                     tstart;
 
-    perfc_inc(&cursor->kci_kvs->ikv_cc_pc, PERFC_RA_CC_UPDATE);
-
-    ++cursor->kci_summary.n_update;
-    cursor->kci_summary.seqno = seqno;
-    cursor->kci_summary.updated = now();
     assert(seqno == handle->kc_seq);
 
-    _perfc_readperseek_record(cursor);
+    perfc_inc(cursor->kci_cc_pc, PERFC_RA_CC_UPDATE);
+
+#ifndef HSE_BUILD_RELEASE
+    if (cursor->kci_summary.addr) {
+        ++cursor->kci_summary.n_update;
+        cursor->kci_summary.seqno = seqno;
+        cursor->kci_summary.updated = get_time_ns();
+
+        perfc_rec_sample(cursor->kci_cd_pc, PERFC_DI_CD_READPERSEEK, cursor->kci_summary.util);
+        cursor->kci_summary.util = 0;
+    }
+#endif
 
     if (bind)
         handle->kc_gen = atomic64_read(&bind->b_gen);
@@ -1265,12 +1249,12 @@ kvs_cursor_seek(
 }
 
 void
-kvs_cursor_perfc_alloc(const char *dbname, struct perfc_set *pcs_cc, struct perfc_set *pcs_cd)
+kvs_cursor_perfc_alloc(uint prio, const char *dbname, struct perfc_set *pcs_cc, struct perfc_set *pcs_cd)
 {
-    if (perfc_ctrseti_alloc(COMPNAME, dbname, kvs_cc_perfc_op, PERFC_EN_CC, "set", pcs_cc))
+    if (perfc_ctrseti_alloc(prio, dbname, kvs_cc_perfc_op, PERFC_EN_CC, "set", pcs_cc))
         hse_log(HSE_ERR "cannot alloc kvs perf counters");
 
-    if (perfc_ctrseti_alloc(COMPNAME, dbname, kvs_cd_perfc_op, PERFC_EN_CD, "set", pcs_cd))
+    if (perfc_ctrseti_alloc(prio, dbname, kvs_cd_perfc_op, PERFC_EN_CD, "set", pcs_cd))
         hse_log(HSE_ERR "cannot alloc kvs perf counters");
 }
 

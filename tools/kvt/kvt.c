@@ -350,13 +350,16 @@ ulong sync_timeout_ms = 0;
 
 struct parm_groups *pg;
 
-struct svec hse_gparm = { 0 };
+struct svec hse_gparms = { 0 };
 struct svec db_oparms = { 0 };
 struct svec rids_oparms = { 0 }, rids_cparms = { 0 };
 struct svec inodes_oparms = { 0 }, inodes_cparms = { 0 };
 struct svec tombs_oparms = { 0 }, tombs_cparms = { 0 };
 struct svec data_oparms = { 0 }, data_cparms = { 0 };
 struct svec empty_parms = { 0 };
+
+char perfc_buf[32];
+int perfc = -1;
 
 
 static int
@@ -733,7 +736,7 @@ parm_vec_init(void)
     if (ridpfxlen)
         snprintf(rids_pfx, sizeof(rids_pfx), "prefix.length=%zu", ridpfxlen);
 
-    svec_init(&hse_gparm);
+    svec_init(&hse_gparms);
     svec_init(&db_oparms);
 
     svec_init(&rids_oparms);
@@ -748,17 +751,17 @@ parm_vec_init(void)
 
     svec_init(&empty_parms);
 
-    rc = rc ?: svec_append_pg(&hse_gparm, pg, PG_HSE_GLOBAL, NULL);
+    rc = rc ?: svec_append_pg(&hse_gparms, pg, PG_HSE_GLOBAL, perfc_buf, NULL);
 
     /* kvdb open params */
-    rc = rc ?: svec_append_pg(&db_oparms, pg, "perfc_enable=0", PG_KVDB_OPEN, NULL);
+    rc = rc ?: svec_append_pg(&db_oparms, pg, PG_KVDB_OPEN, perfc_buf, NULL);
 
     /* kvs open params: txn setting applies to all, only data and tombs get compression
      */
-    rc = rc ?: svec_append_pg(&rids_oparms, pg, PG_KVS_OPEN, txn, NULL);
-    rc = rc ?: svec_append_pg(&data_oparms, pg, PG_KVS_OPEN, txn, cmp, NULL);
-    rc = rc ?: svec_append_pg(&tombs_oparms, pg, PG_KVS_OPEN, txn, cmp, NULL);
-    rc = rc ?: svec_append_pg(&inodes_oparms, pg, PG_KVS_OPEN, txn, NULL);
+    rc = rc ?: svec_append_pg(&rids_oparms, pg, PG_KVS_OPEN, txn, perfc_buf, NULL);
+    rc = rc ?: svec_append_pg(&data_oparms, pg, PG_KVS_OPEN, txn, cmp, perfc_buf, NULL);
+    rc = rc ?: svec_append_pg(&tombs_oparms, pg, PG_KVS_OPEN, txn, cmp, perfc_buf, NULL);
+    rc = rc ?: svec_append_pg(&inodes_oparms, pg, PG_KVS_OPEN, txn, perfc_buf, NULL);
 
     /* kvs create params
      */
@@ -773,7 +776,7 @@ parm_vec_init(void)
 void
 parm_vec_fini(void)
 {
-    svec_reset(&hse_gparm);
+    svec_reset(&hse_gparms);
     svec_reset(&db_oparms);
     svec_reset(&rids_oparms);
     svec_reset(&rids_cparms);
@@ -1014,6 +1017,8 @@ prop_decode(const char *list, const char *sep, const char *valid)
             kvs_datac = cvt_strtoul(value, &end, &suftab_iec);
         } else if (0 == strcmp(name, "inodesc")) {
             kvs_inodesc = cvt_strtoul(value, &end, &suftab_iec);
+        } else if (0 == strcmp(name, "perfc")) {
+            perfc = cvt_strtoul(value, &end, &suftab_iec);
         } else if (0 == strcmp(name, "txncdlyprob")) {
             txncdlyprob = prob_decode(value, &end);
         } else if (0 == strcmp(name, "txnfreeprob")) {
@@ -1126,21 +1131,18 @@ usage(void)
     printf("\nPROPERTIES:\n");
     printf("  datac        specify number of data tables (default: %lu)\n", kvs_datac);
     printf("  inodesc      specify number of inodes tables (default: %lu)\n", kvs_inodesc);
-    printf(
-        "  txncdlyprob  probabilty to delay a commit (default: %lf)\n",
-        (double)txncdlyprob / UINT64_MAX);
-    printf(
-        "  txnfreeprob  probability to free a txn buffer (default: %lf)\n",
-        (double)txnfreeprob / UINT64_MAX);
-    printf(
-        "  tombprob     probability to entomb an inode (default: %lf)\n",
-        (double)tombprob / UINT64_MAX);
-    printf(
-        "  updateprob   probability to update a key (default: %lf)\n",
-        (double)updateprob / UINT64_MAX);
-    printf("  vrunlen      generated ascii value run length (default: %zu)\n", vrunlen);
-    printf("  vcomp        enable value compression for data and tomb kvs (default: %d)\n", vcomp);
+    printf("  perfc        set perfc_level for all perf counters (default: %d)\n", perfc);
     printf("  ridpfxlen    set prefix len of rid kvs (default:  %zu)\n", ridpfxlen);
+    printf("  tombprob     probability to entomb an inode (default: %lf)\n",
+           (double)tombprob / UINT64_MAX);
+    printf("  txncdlyprob  probabilty to delay a commit (default: %lf)\n",
+           (double)txncdlyprob / UINT64_MAX);
+    printf("  txnfreeprob  probability to free a txn buffer (default: %lf)\n",
+           (double)txnfreeprob / UINT64_MAX);
+    printf("  updateprob   probability to update a key (default: %lf)\n",
+           (double)updateprob / UINT64_MAX);
+    printf("  vcomp        enable value compression for data and tomb kvs (default: %d)\n", vcomp);
+    printf("  vrunlen      generated ascii value run length (default: %zu)\n", vrunlen);
 
     printf("\nEXAMPLES:\n");
     printf("  load files:  find /usr | kvt -f- -cv mykvdb\n");
@@ -1479,6 +1481,9 @@ main(int argc, char **argv)
 
     mpname = argv[optind++];
 
+    if (perfc >= 0)
+        snprintf(perfc_buf, sizeof(perfc_buf), "perfc.level=%d", perfc);
+
     rc = pg_create(&pg, PG_HSE_GLOBAL, PG_KVDB_OPEN, PG_KVS_OPEN, PG_KVS_CREATE, NULL);
     if (rc) {
         eprint(rc, "pg_create");
@@ -1513,7 +1518,7 @@ main(int argc, char **argv)
     tsi_start(&tstart);
     status("initializing hse...");
 
-    err = hse_init(config, hse_gparm.strc, hse_gparm.strv);
+    err = hse_init(config, hse_gparms.strc, hse_gparms.strv);
     if (err) {
         eprint(err, "hse_kvb_init");
         exit(EX_OSERR);

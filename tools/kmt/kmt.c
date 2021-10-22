@@ -293,6 +293,9 @@ struct svec         kv_oparms_notxn = { 0 };
 struct svec         kv_oparms_txn = { 0 };
 bool                kvs_txn;
 
+char perfc_buf[32];
+int perfc = -1;
+
 struct suftab {
     const char *list;   /* list of suffix characters */
     double      mult[]; /* list of multipliers */
@@ -3983,6 +3986,8 @@ prop_decode(const char *list, const char *sep, const char *valid)
         } else if (0 == strcmp(name, "vrunlen") || 0 == strcmp(name, "rvalrunlen")) {
             vrunlen = cvt_strtoul(value, &end, &suftab_iec);
             vrunlen = clamp_t(uint, vrunlen, 1, 1024);
+        } else if (0 == strcmp(name, "perfc")) {
+            perfc = cvt_strtoul(value, &end, &suftab_iec);
         } else if (0 == strcmp(name, "swapexcl")) {
             swapexcl = cvt_strtoul(value, &end, &suftab_iec);
         } else if (0 == strcmp(name, "sysbench")) {
@@ -4192,15 +4197,16 @@ usage(struct km_impl *impl)
     printf("  keydist     %10zu  0: recmax/jobs, >0: in keydist chunks\n", keydist);
     printf("  lor           %lu:%lu:%u  set locality of reference [span:opsmax:constrain]\n",
            (ulong)km_lor.span, (ulong)km_lor.opsmax, (uint)km_lor.constrain);
-    printf("  vrunlen     %10u  derandomize values every runlen bytes\n", vrunlen);
+    printf("  mclass      %10d  media class in mpool mode - 0: cap, 1: stg \n", mclass);
+    printf("  perfc       %10d  set perfc_level for all perf counters\n", perfc);
     printf("  secsz       %10zu  set device/mpool mode r/w size\n", secsz);
     printf("  swapexcl    %10u  disable exclusive record swapping\n", swapexcl);
+    printf("  sync_ms     %10lu  kvdb sync interval (milliseconds)\n", sync_timeout_ms);
     printf("  sysbench    %10u  enable sysbench load semantics\n", sysbench);
     printf("  vebsz       %10zu  set device mode r/w offset between records\n", vebsz);
+    printf("  vrunlen     %10u  derandomize values every runlen bytes\n", vrunlen);
     printf("  wcmin       %10d  set minimum mongod write concern\n", wcmin);
     printf("  wcmajprob   %10.3f  probability to use majority write concern\n", wcmajprob);
-    printf("  sync_ms     %10lu  kvdb sync interval (milliseconds)\n", sync_timeout_ms);
-    printf("  mclass      %10d  media class in mpool mode - 0: cap, 1: stg \n", mclass);
     printf("\n");
 
     usage_parms(&nps, kvdb_cparams_pspecs_get(&nps), "KVDB-CPARMS");
@@ -4501,6 +4507,9 @@ main(int argc, char **argv)
             kvsname = argv[1];
             optind = 2;
 
+            if (perfc >= 0)
+                snprintf(perfc_buf, sizeof(perfc_buf), "perfc.level=%d", perfc);
+
             rc = pg_create(&pg, PG_HSE_GLOBAL, PG_KVDB_OPEN, PG_KVS_OPEN, NULL);
             if (rc) {
                 eprint("pg_create failed: %s\n", strerror(rc));
@@ -4524,25 +4533,27 @@ main(int argc, char **argv)
                 break;
             }
 
-            rc = svec_append_pg(&hse_gparms, pg, PG_HSE_GLOBAL, NULL);
+            rc = svec_append_pg(&hse_gparms, pg, PG_HSE_GLOBAL, perfc_buf, NULL);
             if (rc) {
                 eprint("unable to append hse-gparams params: %s\n", strerror(rc));
                 exit(EX_OSERR);
             }
 
-            rc = svec_append_pg(&db_oparms, pg, "perfc_enable=0", PG_KVDB_OPEN, NULL);
+            rc = svec_append_pg(&db_oparms, pg, PG_KVDB_OPEN, perfc_buf, NULL);
             if (rc) {
                 eprint("unable to append kvdb-oparms params: %s\n", strerror(rc));
                 exit(EX_OSERR);
             }
 
-            rc = svec_append_pg(&kv_oparms_txn, pg, PG_KVS_OPEN, "transactions.enabled=true", NULL);
+            rc = svec_append_pg(&kv_oparms_txn, pg, PG_KVS_OPEN, perfc_buf,
+                                "transactions.enabled=true", NULL);
             if (rc) {
                 eprint("unable to append kvs-oparms txn params: %s\n", strerror(rc));
                 exit(EX_OSERR);
             }
 
-            rc = svec_append_pg(&kv_oparms_notxn, pg, PG_KVS_OPEN, "transactions.enabled=false", NULL);
+            rc = svec_append_pg(&kv_oparms_notxn, pg, PG_KVS_OPEN, perfc_buf,
+                                "transactions.enabled=false", NULL);
             if (rc) {
                 eprint("unable to append kvs-oparms notxn params: %s\n", strerror(rc));
                 exit(EX_OSERR);

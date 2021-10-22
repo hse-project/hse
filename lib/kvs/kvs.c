@@ -34,33 +34,32 @@
 #include <hse_ikvdb/cursor.h>
 #include <hse_ikvdb/wal.h>
 
-/* "pkvsl" stands for Public KVS interface Latencies" */
+/* clang-format off */
+
+/* "pkvsl" stands for Public KVS interface Latencies"
+ *
+ * Do not set any of these counters to a level less than three
+ * otherwise it will defeat the optimization in kvs_perfc_pkvsl().
+ */
 struct perfc_name kvs_pkvsl_perfc_op[] = {
-    NE(PERFC_LT_PKVSL_KVS_PUT, 3, "kvs_put latency", "kvs_put_lat", 7),
-    NE(PERFC_LT_PKVSL_KVS_GET, 3, "kvs_get latency", "kvs_get_lat", 7),
-    NE(PERFC_LT_PKVSL_KVS_DEL, 3, "kvs_delete latency", "kvs_del_lat", 7),
+    NE(PERFC_LT_PKVSL_KVS_CURSOR_CREATE,  3, "cursor create latency",     "kvs_cursor_create_lat"),
+    NE(PERFC_LT_PKVSL_KVS_CURSOR_UPDATE,  3, "cursor update latency",     "kvs_cursor_update_lat"),
+    NE(PERFC_LT_PKVSL_KVS_CURSOR_DESTROY, 3, "cursor destroy latency",    "kvs_cursor_destroy_lat"),
+    NE(PERFC_LT_PKVSL_KVS_CURSOR_FULL,    3, "cursor full lifetime",      "cursor_lifetime_lat"),
+    NE(PERFC_LT_PKVSL_KVS_CURSOR_INIT,    3, "cursor init latency",       "kvs_cursor_init_lat"),
 
-    NE(PERFC_LT_PKVSL_KVS_PFX_PROBE, 3, "kvs_prefix_probe latency", "kvs_pfx_probe_lat"),
-    NE(PERFC_LT_PKVSL_KVS_PFX_DEL, 3, "kvs_prefix_delete latency", "kvs_pfx_del_lat"),
+    NE(PERFC_LT_PKVSL_KVS_CURSOR_SEEK,    4, "kvs_cursor_seek latency",   "kvs_cursor_seek_lat"),
+    NE(PERFC_LT_PKVSL_KVS_CURSOR_READFWD, 4, "cursor read fwd latency",   "kvs_cursor_readfwd_lat"),
+    NE(PERFC_LT_PKVSL_KVS_CURSOR_READREV, 4, "cursor read rev latency",   "kvs_cursor_readrev_lat"),
 
-    NE(PERFC_LT_PKVSL_KVS_CURSOR_CREATE, 2, "kvs_cursor_create latency", "kvs_cursor_create_lat"),
-    NE(PERFC_LT_PKVSL_KVS_CURSOR_UPDATE, 2, "kvs_cursor_update latency", "kvs_cursor_update_lat"),
-    NE(PERFC_LT_PKVSL_KVS_CURSOR_SEEK, 2, "kvs_cursor_seek latency", "kvs_cursor_seek_lat"),
-    NE(PERFC_LT_PKVSL_KVS_CURSOR_READFWD,
-       2,
-       "kvs_cursor_read forward latency",
-       "kvs_cursor_readfwd_lat"),
-    NE(PERFC_LT_PKVSL_KVS_CURSOR_READREV,
-       2,
-       "kvs_cursor_read reverse latency",
-       "kvs_cursor_readrev_lat"),
-    NE(PERFC_LT_PKVSL_KVS_CURSOR_DESTROY,
-       2,
-       "kvs_cursor_destroy latency",
-       "kvs_cursor_destroy_lat"),
-    NE(PERFC_LT_PKVSL_KVS_CURSOR_FULL, 2, "full cursor lifetime", "cursor_lifetime_lat"),
-    NE(PERFC_LT_PKVSL_KVS_CURSOR_INIT, 2, "kvs_cursor_init latency", "kvs_cursor_init_lat"),
+    NE(PERFC_LT_PKVSL_KVS_PUT,            5, "kvs_put latency",            "kvs_put_lat", 7),
+    NE(PERFC_LT_PKVSL_KVS_GET,            5, "kvs_get latency",            "kvs_get_lat", 7),
+    NE(PERFC_LT_PKVSL_KVS_DEL,            5, "kvs_delete latency",         "kvs_del_lat", 7),
+    NE(PERFC_LT_PKVSL_KVS_PFX_PROBE,      5, "kvs_prefix_probe latency",   "kvs_pfx_probe_lat", 7),
+    NE(PERFC_LT_PKVSL_KVS_PFX_DEL,        5, "kvs_prefix_delete latency",  "kvs_pfx_del_lat", 7),
 };
+
+/* clang-format on */
 
 NE_CHECK(
     kvs_pkvsl_perfc_op,
@@ -95,11 +94,11 @@ kvs_perfc_alloc(const char *kvdb_home, const char *kvs_name, struct ikvs *kvs)
     if (ev(n >= sizeof(dbname_buf)))
         return;
 
-    kvs_cursor_perfc_alloc(dbname_buf, &kvs->ikv_cc_pc, &kvs->ikv_cd_pc);
+    kvs_cursor_perfc_alloc(kvs->ikv_rp.perfc_level, dbname_buf, &kvs->ikv_cc_pc, &kvs->ikv_cd_pc);
 
     /* Measure Public KVS interface Latencies */
-    if (perfc_ctrseti_alloc(
-            COMPNAME, dbname_buf, kvs_pkvsl_perfc_op, PERFC_EN_PKVSL, "set", &kvs->ikv_pkvsl_pc))
+    if (perfc_ctrseti_alloc(kvs->ikv_rp.perfc_level, dbname_buf,
+                            kvs_pkvsl_perfc_op, PERFC_EN_PKVSL, "set", &kvs->ikv_pkvsl_pc))
         hse_log(HSE_ERR "cannot alloc kvs perf counters");
 }
 
@@ -269,7 +268,7 @@ kvs_close(struct ikvs *ikvs)
 struct perfc_set *
 kvs_perfc_pkvsl(struct ikvs *ikvs)
 {
-    if (ikvs->ikv_rp.kvs_debug & 2)
+    if (PERFC_ISON(&ikvs->ikv_pkvsl_pc))
         return &ikvs->ikv_pkvsl_pc;
 
     return NULL;
