@@ -120,7 +120,7 @@ compression_value_algorithm_stringify(
             param = VCOMP_PARAM_LZ4;
             break;
         default:
-            assert(false);
+            abort();
     }
 
     n = snprintf(buf, buf_sz, "\"%s\"", param);
@@ -147,8 +147,7 @@ compression_value_jsonify(const struct param_spec *const ps, const void *const v
         case VCOMP_ALGO_LZ4:
             return cJSON_CreateString(VCOMP_PARAM_LZ4);
         default:
-            assert(false);
-            return NULL;
+            abort();
     }
 }
 

@@ -500,7 +500,7 @@ throttle_init_policy_stringify(
             param = "\"medium\"";
             break;
         default:
-            assert(false);
+            abort();
     }
 
     n = strlcpy(buf, param, buf_sz);
@@ -525,8 +525,7 @@ throttle_init_policy_jsonify(const struct param_spec *const ps, const void *cons
         case THROTTLE_DELAY_START_MEDIUM:
             return cJSON_CreateString("medium");
         default:
-            assert(false);
-            return NULL;
+            abort();
     }
 }
 
