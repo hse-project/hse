@@ -567,7 +567,6 @@ kvdb_compact_request(const char *kvdb_home, const char *request_type, u32 timeou
     hse_err_t                      err;
     struct hse_kvdb *              handle = 0;
     struct hse_kvdb_compact_status status;
-    char                           socket_path[sizeof(((struct sockaddr_un *)0)->sun_path)];
     struct pidfile                 content;
 
     char   stat_buf[256];
@@ -631,7 +630,7 @@ kvdb_compact_request(const char *kvdb_home, const char *request_type, u32 timeou
     if (strcmp(request_type, "request") == 0) {
         const char *policy = "samp_lwm";
 
-        err = rest_kvdb_comp(socket_path, policy);
+        err = rest_kvdb_comp(content.socket.path, policy);
         if (err) {
             char buf[256];
             hse_strerror(err, buf, sizeof(buf));
@@ -639,7 +638,7 @@ kvdb_compact_request(const char *kvdb_home, const char *request_type, u32 timeou
             goto err_out;
         }
 
-        err = rest_kvdb_status(socket_path, sizeof(stat_buf), stat_buf);
+        err = rest_kvdb_status(content.socket.path, sizeof(stat_buf), stat_buf);
         if (err) {
             char buf[256];
             hse_strerror(err, buf, sizeof(buf));
@@ -658,7 +657,7 @@ kvdb_compact_request(const char *kvdb_home, const char *request_type, u32 timeou
         stop_ts = get_time_ns() + (timeout_sec * 1000ul * 1000ul * 1000ul);
         while (status.kvcs_active) {
 
-            err = rest_kvdb_status(socket_path, sizeof(stat_buf), stat_buf);
+            err = rest_kvdb_status(content.socket.path, sizeof(stat_buf), stat_buf);
             if (err) {
                 char buf[256];
                 hse_strerror(err, buf, sizeof(buf));
@@ -674,7 +673,7 @@ kvdb_compact_request(const char *kvdb_home, const char *request_type, u32 timeou
             if (get_time_ns() > stop_ts) {
                 fprintf(stderr, "Compaction request timed out for the KVDB (%s)\n", kvdb_home);
 
-                err = rest_kvdb_comp(socket_path, "cancel");
+                err = rest_kvdb_comp(content.socket.path, "cancel");
                 if (err) {
                     char buf[256];
                     hse_strerror(err, buf, sizeof(buf));
@@ -688,7 +687,7 @@ kvdb_compact_request(const char *kvdb_home, const char *request_type, u32 timeou
 
         printf("Compaction request was %s for KVDB (%s)\n", status.kvcs_canceled ? "canceled" : "successful", kvdb_home);
     } else if (strcmp(request_type, "cancel") == 0) {
-        err = rest_kvdb_comp(socket_path, "cancel");
+        err = rest_kvdb_comp(content.socket.path, "cancel");
         if (err) {
             char buf[256];
             hse_strerror(err, buf, sizeof(buf));
@@ -698,7 +697,7 @@ kvdb_compact_request(const char *kvdb_home, const char *request_type, u32 timeou
 
         printf("Successfully canceled the compaction request for the KVDB (%s)\n", kvdb_home);
     } else if (strcmp(request_type, "status") == 0) {
-        err = rest_kvdb_status(socket_path, sizeof(stat_buf), stat_buf);
+        err = rest_kvdb_status(content.socket.path, sizeof(stat_buf), stat_buf);
         if (err) {
             char buf[256];
             hse_strerror(err, buf, sizeof(buf));
