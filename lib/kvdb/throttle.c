@@ -125,7 +125,7 @@ throttle_init(struct throttle *self, struct kvdb_rparams *rp)
     if (throttle_sen_perfc[PERFC_DI_THSR_MAVG].pcn_ivl) {
 
         err = perfc_ctrseti_alloc(
-            rp->perfc_enable,
+            rp->perfc_level,
             "global",
             throttle_sen_perfc,
             NELEM(throttle_sen_perfc),
@@ -137,7 +137,7 @@ throttle_init(struct throttle *self, struct kvdb_rparams *rp)
     if (throttle_sleep_perfc[PERFC_DI_THR_SVAL].pcn_ivl) {
 
         err = perfc_ctrseti_alloc(
-            rp->perfc_enable,
+            rp->perfc_level,
             "global",
             throttle_sleep_perfc,
             NELEM(throttle_sleep_perfc),

@@ -367,8 +367,8 @@ main(int argc, char **argv)
             break;
     }
 
-    rc = rc ?: svec_append_pg(&hse_gparm, pg, PG_KVDB_OPEN, NULL);
-    rc = rc ?: svec_append_pg(&db_oparm, pg, "perfc_enable=0", PG_KVDB_OPEN, NULL);
+    rc = rc ?: svec_append_pg(&hse_gparm, pg, PG_HSE_GLOBAL, NULL);
+    rc = rc ?: svec_append_pg(&db_oparm, pg, PG_KVDB_OPEN, NULL);
     rc = rc ?: svec_append_pg(&kv_oparm, pg, PG_KVS_OPEN, "transactions.enabled=true", NULL);
     if (rc) {
         eprint("svec_append_pg failed: %d", rc);

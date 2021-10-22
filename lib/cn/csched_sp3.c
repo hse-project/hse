@@ -2459,7 +2459,7 @@ sp3_create(
     sp->ops.cs_tree_remove = sp3_op_tree_remove;
 
     if (perfc_ctrseti_alloc(
-            sp->rp->perfc_enable, sp->name, csched_sp3_perfc, PERFC_EN_SP3, "sp3", &sp->sched_pc))
+            sp->rp->perfc_level, sp->name, csched_sp3_perfc, PERFC_EN_SP3, "sp3", &sp->sched_pc))
         hse_log(HSE_ERR "cannot alloc sp3 perf counters");
 
     *handle = &sp->ops;

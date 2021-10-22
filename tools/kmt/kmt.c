@@ -4198,7 +4198,7 @@ usage(struct km_impl *impl)
     printf("  lor           %lu:%lu:%u  set locality of reference [span:opsmax:constrain]\n",
            (ulong)km_lor.span, (ulong)km_lor.opsmax, (uint)km_lor.constrain);
     printf("  mclass      %10d  media class in mpool mode - 0: cap, 1: stg \n", mclass);
-    printf("  perfc       %10d  set perfc_enable for all perf counters\n", perfc);
+    printf("  perfc       %10d  set perfc_level for all perf counters\n", perfc);
     printf("  secsz       %10zu  set device/mpool mode r/w size\n", secsz);
     printf("  swapexcl    %10u  disable exclusive record swapping\n", swapexcl);
     printf("  sync_ms     %10lu  kvdb sync interval (milliseconds)\n", sync_timeout_ms);
@@ -4508,7 +4508,7 @@ main(int argc, char **argv)
             optind = 2;
 
             if (perfc >= 0)
-                snprintf(perfc_buf, sizeof(perfc_buf), "perfc_enable=%d", perfc);
+                snprintf(perfc_buf, sizeof(perfc_buf), "perfc.level=%d", perfc);
 
             rc = pg_create(&pg, PG_HSE_GLOBAL, PG_KVDB_OPEN, PG_KVS_OPEN, NULL);
             if (rc) {
@@ -4545,15 +4545,15 @@ main(int argc, char **argv)
                 exit(EX_OSERR);
             }
 
-            rc = svec_append_pg(&kv_oparms_txn, pg, PG_KVS_OPEN, "transactions.enabled=true",
-                                perfc_buf, NULL);
+            rc = svec_append_pg(&kv_oparms_txn, pg, PG_KVS_OPEN, perfc_buf,
+                                "transactions.enabled=true", NULL);
             if (rc) {
                 eprint("unable to append kvs-oparms txn params: %s\n", strerror(rc));
                 exit(EX_OSERR);
             }
 
-            rc = svec_append_pg(&kv_oparms_notxn, pg, PG_KVS_OPEN, "transactions.enabled=false",
-                                perfc_buf, NULL);
+            rc = svec_append_pg(&kv_oparms_notxn, pg, PG_KVS_OPEN, perfc_buf,
+                                "transactions.enabled=false", NULL);
             if (rc) {
                 eprint("unable to append kvs-oparms notxn params: %s\n", strerror(rc));
                 exit(EX_OSERR);

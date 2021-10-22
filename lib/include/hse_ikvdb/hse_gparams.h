@@ -21,7 +21,7 @@ struct hse_gparams {
     uint64_t gp_c0kvs_ccache_sz;
     uint64_t gp_c0kvs_cheap_sz;
     uint64_t gp_vlb_cache_sz;
-    uint8_t  gp_perfc_enable;
+    uint8_t  gp_perfc_level;
 
     struct {
         bool enabled;

@@ -220,7 +220,7 @@ ikvdb_perfc_alloc(struct ikvdb_impl *self)
 {
     merr_t err;
 
-    err = perfc_ctrseti_alloc(self->ikdb_rp.perfc_enable, self->ikdb_home,
+    err = perfc_ctrseti_alloc(self->ikdb_rp.perfc_level, self->ikdb_home,
                               ctxn_perfc_op, PERFC_EN_CTXNOP, "set", &self->ikdb_ctxn_op);
     if (err)
         hse_elog(HSE_ERR "cannot alloc ctxn op perf counters for %s: @@e", err, self->ikdb_home);
@@ -3095,7 +3095,7 @@ ikvdb_wal_replay_size_reset(struct ikvdb_kvs_hdl *ikvsh)
 static void
 kvdb_perfc_initialize(void)
 {
-    uint prio = hse_gparams.gp_perfc_enable;
+    uint prio = hse_gparams.gp_perfc_level;
 
     kvdb_perfc_init();
     kvs_perfc_init();

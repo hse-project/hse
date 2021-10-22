@@ -41,7 +41,7 @@ void
 c0sk_perfc_alloc(struct c0sk_impl *self)
 {
     if (perfc_ctrseti_alloc(
-            self->c0sk_kvdb_rp->perfc_enable,
+            self->c0sk_kvdb_rp->perfc_level,
             self->c0sk_kvdbhome,
             c0sk_perfc_op,
             PERFC_EN_C0SKOP,
@@ -50,7 +50,7 @@ c0sk_perfc_alloc(struct c0sk_impl *self)
         hse_log(HSE_ERR "cannot alloc c0sk op perf counters");
 
     if (perfc_ctrseti_alloc(
-            self->c0sk_kvdb_rp->perfc_enable,
+            self->c0sk_kvdb_rp->perfc_level,
             self->c0sk_kvdbhome,
             c0sk_perfc_ingest,
             PERFC_EN_C0SKING,

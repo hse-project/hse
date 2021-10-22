@@ -580,8 +580,9 @@ main(int argc, char **argv)
     }
 
     rc = rc ?: svec_append_pg(&hse_gparm, pg, PG_HSE_GLOBAL, NULL);
-    rc = rc ?: svec_append_pg(&db_oparm, pg, "perfc_enable=0", PG_KVDB_OPEN, "read_only=true", NULL);
-    rc = rc ?: svec_append_pg(&kv_oparm, pg, PG_KVS_OPEN, "cn_diag_mode=true", "cn_maint_disable=true", NULL);
+    rc = rc ?: svec_append_pg(&db_oparm, pg, PG_KVDB_OPEN, "read_only=true", NULL);
+    rc = rc ?: svec_append_pg(&kv_oparm, pg, PG_KVS_OPEN,
+                              "cn_diag_mode=true", "cn_maint_disable=true", NULL);
     if (rc)
         fatal(rc, "svec_apppend_pg failed");
 

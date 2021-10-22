@@ -1131,7 +1131,7 @@ usage(void)
     printf("\nPROPERTIES:\n");
     printf("  datac        specify number of data tables (default: %lu)\n", kvs_datac);
     printf("  inodesc      specify number of inodes tables (default: %lu)\n", kvs_inodesc);
-    printf("  perfc        set perfc_enable for all perf counters (default: %d)\n", perfc);
+    printf("  perfc        set perfc_level for all perf counters (default: %d)\n", perfc);
     printf("  ridpfxlen    set prefix len of rid kvs (default:  %zu)\n", ridpfxlen);
     printf("  tombprob     probability to entomb an inode (default: %lf)\n",
            (double)tombprob / UINT64_MAX);
@@ -1482,7 +1482,7 @@ main(int argc, char **argv)
     mpname = argv[optind++];
 
     if (perfc >= 0)
-        snprintf(perfc_buf, sizeof(perfc_buf), "perfc_enable=%d", perfc);
+        snprintf(perfc_buf, sizeof(perfc_buf), "perfc.level=%d", perfc);
 
     rc = pg_create(&pg, PG_HSE_GLOBAL, PG_KVDB_OPEN, PG_KVS_OPEN, PG_KVS_CREATE, NULL);
     if (rc) {

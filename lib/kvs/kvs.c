@@ -95,10 +95,10 @@ kvs_perfc_alloc(const char *kvdb_home, const char *kvs_name, struct ikvs *kvs)
     if (ev(n >= sizeof(dbname_buf)))
         return;
 
-    kvs_cursor_perfc_alloc(kvs->ikv_rp.perfc_enable, dbname_buf, &kvs->ikv_cc_pc, &kvs->ikv_cd_pc);
+    kvs_cursor_perfc_alloc(kvs->ikv_rp.perfc_level, dbname_buf, &kvs->ikv_cc_pc, &kvs->ikv_cd_pc);
 
     /* Measure Public KVS interface Latencies */
-    if (perfc_ctrseti_alloc(kvs->ikv_rp.perfc_enable, dbname_buf,
+    if (perfc_ctrseti_alloc(kvs->ikv_rp.perfc_level, dbname_buf,
                             kvs_pkvsl_perfc_op, PERFC_EN_PKVSL, "set", &kvs->ikv_pkvsl_pc))
         hse_log(HSE_ERR "cannot alloc kvs perf counters");
 }

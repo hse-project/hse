@@ -170,7 +170,7 @@ do_open(
 
     struct svec sv = { 0 };
 
-    rc = svec_append_pg(&sv, pg, "perfc_enable=0", PG_KVDB_OPEN, NULL);
+    rc = svec_append_pg(&sv, pg, PG_KVDB_OPEN, NULL);
     if (rc)
         fatal(rc, "svec_append_pg");
 

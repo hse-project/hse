@@ -1077,7 +1077,7 @@ cn_perfc_alloc(struct cn *cn)
     for (i = 0; i < NELEM(pc_sets); i++) {
 
         if (perfc_ctrseti_alloc(
-                cn->rp->perfc_enable,
+                cn->rp->perfc_level,
                 name_buf,
                 pc_sets[i].schema,
                 pc_sets[i].schema_len,
