@@ -149,16 +149,21 @@ perfc_set_handler_ctrset(struct dt_element *dte, struct dt_set_parameters *dsp)
         if (endptr && !endptr[0])
             endptr = NULL;
 
-        /* Caller can supply a list of counter names in addition to the priority.
-         * For example:
-         *   curl -X PUT ... data/perfc?enabled=3:PERFC_BA_C0SKING_QLEN:PERFC_RA_C0SKOP_GET
+        /* Caller can supply a list of counter or family names in addition to the
+         * priority. For example:
+         *
+         *   curl -X PUT ... data/perfc?enabled=3:PERFC_BA_C0SKING_QLEN:KVDBOP
          */
         for (uint cidx = 0; cidx < seti->pcs_ctrc; ++cidx) {
             const struct perfc_ctr_hdr *pch = &seti->pcs_ctrv[cidx].hdr;
             uint64_t mask = 1ul << cidx;
 
-            if (endptr && !strstr(endptr, seti->pcs_ctrnamev[cidx].pcn_name))
-                continue;
+            if (endptr) {
+                if (!strstr(endptr, seti->pcs_ctrnamev[cidx].pcn_name) &&
+                    !strstr(endptr, seti->pcs_famname)) {
+                    continue;
+                }
+            }
 
             if (prio >= pch->pch_prio) {
                 nchanged += !(setp->ps_bitmap & mask);

@@ -10,12 +10,14 @@
 
 #include <hse_util/compiler.h>
 #include <hse_util/logging.h>
+#include <hse_util/perfc.h>
+#include <hse_util/storage.h>
+
 #include <hse_ikvdb/mclass_policy.h>
 #include <hse_ikvdb/param.h>
 #include <hse_ikvdb/kvs_rparams.h>
 #include <hse_ikvdb/limits.h>
 #include <hse_ikvdb/vcomp_params.h>
-#include <hse_util/storage.h>
 
 /*
  * Steps to add a new kvs run-time parameter(rparam):
@@ -91,25 +93,6 @@ compression_value_algorithm_converter(
 
 static const struct param_spec pspecs[] = {
     {
-        .ps_name = "kvs_debug",
-        .ps_description = "enable kvs debugging",
-        .ps_flags = PARAM_FLAG_EXPERIMENTAL | PARAM_FLAG_WRITABLE,
-        .ps_type = PARAM_TYPE_U64,
-        .ps_offset = offsetof(struct kvs_rparams, kvs_debug),
-        .ps_size = PARAM_SZ(struct kvs_rparams, kvs_debug),
-        .ps_convert = param_default_converter,
-        .ps_validate = param_default_validator,
-        .ps_default_value = {
-            .as_uscalar = 0,
-        },
-        .ps_bounds = {
-            .as_uscalar = {
-                .ps_min = 0,
-                .ps_max = 128,
-            },
-        },
-    },
-    {
         .ps_name = "kvs_cursor_ttl",
         .ps_description = "cached cursor time-to-live (ms)",
         .ps_flags = PARAM_FLAG_EXPERIMENTAL,
@@ -143,7 +126,7 @@ static const struct param_spec pspecs[] = {
     },
     {
         .ps_name = "perfc.level",
-        .ps_description = "set kvs perf counter enagagement level (0:min, 4:max)",
+        .ps_description = "set kvs perf counter enagagement level (min:0 default:2 max:9)",
         .ps_flags = PARAM_FLAG_EXPERIMENTAL,
         .ps_type = PARAM_TYPE_U8,
         .ps_offset = offsetof(struct kvs_rparams, perfc_level),
@@ -151,12 +134,12 @@ static const struct param_spec pspecs[] = {
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
         .ps_default_value = {
-            .as_uscalar = 2,
+            .as_uscalar = PERFC_LEVEL_DEFAULT,
         },
         .ps_bounds = {
             .as_uscalar = {
-                .ps_min = 0,
-                .ps_max = 4,
+                .ps_min = PERFC_LEVEL_MIN,
+                .ps_max = PERFC_LEVEL_MAX,
             },
         },
     },

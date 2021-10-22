@@ -1461,7 +1461,7 @@ MTF_DEFINE_UTEST_PREPOST(ikvdb_test, cursor_cache, test_pre_c0, test_post_c0)
         ASSERT_EQ(0, err);
     }
 
-    kvs_rp.kvs_debug = 0;
+    kvs_rp.perfc_level = PERFC_LEVEL_MIN;
 
 again:
     for (i = 0; i < NELEM(kvs_h); ++i) {
@@ -1517,10 +1517,12 @@ again:
         ASSERT_EQ(err, 0);
     }
 
-    if (kvs_rp.kvs_debug == 0) {
-        kvs_rp.kvs_debug = -1;
+    if (kvs_rp.perfc_level == PERFC_LEVEL_MIN) {
+        kvs_rp.perfc_level = PERFC_LEVEL_MAX;
         goto again;
     }
+
+    kvs_rp.perfc_level = PERFC_LEVEL_DEFAULT;
 
     err = ikvdb_close(h);
     ASSERT_EQ(err, 0);

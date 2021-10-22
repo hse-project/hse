@@ -147,9 +147,9 @@ MTF_DEFINE_UTEST_PRE(hse_gparams_test, perfc_level, test_pre)
     ASSERT_EQ(PARAM_TYPE_U8, ps->ps_type);
     ASSERT_EQ((uintptr_t)ps->ps_convert, (uintptr_t)param_default_converter);
     ASSERT_EQ((uintptr_t)ps->ps_validate, (uintptr_t)param_default_validator);
-    ASSERT_EQ(2, params.gp_perfc_level);
-    ASSERT_EQ(0, ps->ps_bounds.as_uscalar.ps_min);
-    ASSERT_EQ(4, ps->ps_bounds.as_uscalar.ps_max);
+    ASSERT_EQ(PERFC_LEVEL_DEFAULT, params.gp_perfc_level);
+    ASSERT_EQ(PERFC_LEVEL_MIN, ps->ps_bounds.as_uscalar.ps_min);
+    ASSERT_EQ(PERFC_LEVEL_MAX, ps->ps_bounds.as_uscalar.ps_max);
 }
 
 MTF_DEFINE_UTEST_PRE(hse_gparams_test, socket_enabled, test_pre)

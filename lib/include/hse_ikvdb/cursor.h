@@ -55,7 +55,7 @@ struct cursor_summary {
     u8    n_dgen;   /* cn */
     u8    skidx;    /* c0sk */
                     /* flags? created c0, cn, restored c0, cn? */
-} HSE_PACKED;
+};
 
 static inline void
 cursor_summary_add_dgen(struct cursor_summary *sum, u64 dgen)

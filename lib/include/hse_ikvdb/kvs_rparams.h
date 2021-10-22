@@ -22,7 +22,6 @@
 
 /**
  * struct kvs_rparams  - kvs runtime parameters
- * @cn_cursor_debug: 1=counters, 2=latencies, 4=summaries
  *
  * The following tunable parameters can have a major impact on the way KVDB
  * operates.  Test thoroughly after any modifications.
@@ -32,7 +31,6 @@
  * fields towards the end.
  */
 struct kvs_rparams {
-    uint64_t kvs_debug;
     uint64_t kvs_cursor_ttl;
     bool     transactions_enable;
     uint8_t  perfc_level;

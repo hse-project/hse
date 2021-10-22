@@ -507,7 +507,7 @@ static const struct param_spec pspecs[] = {
     },
     {
         .ps_name = "perfc.level",
-        .ps_description = "set kvdb perf counter enagagement level (0:min, 4:max)",
+        .ps_description = "set kvs perf counter enagagement level (min:0 default:2 max:9)",
         .ps_flags = PARAM_FLAG_EXPERIMENTAL,
         .ps_type = PARAM_TYPE_U8,
         .ps_offset = offsetof(struct kvdb_rparams, perfc_level),
@@ -515,12 +515,12 @@ static const struct param_spec pspecs[] = {
         .ps_convert = param_default_converter,
         .ps_validate = param_default_validator,
         .ps_default_value = {
-            .as_uscalar = 2,
+            .as_uscalar = PERFC_LEVEL_DEFAULT,
         },
         .ps_bounds = {
             .as_uscalar = {
-                .ps_min = 0,
-                .ps_max = 4,
+                .ps_min = PERFC_LEVEL_MIN,
+                .ps_max = PERFC_LEVEL_MAX,
             },
         },
     },

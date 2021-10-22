@@ -77,21 +77,6 @@ check(const char *const arg, ...)
     return err;
 }
 
-MTF_DEFINE_UTEST_PRE(kvs_rparams_test, kvs_debug, test_pre)
-{
-    const struct param_spec *ps = ps_get("kvs_debug");
-
-    ASSERT_NE(NULL, ps);
-    ASSERT_NE(NULL, ps->ps_description);
-    ASSERT_EQ(PARAM_FLAG_EXPERIMENTAL | PARAM_FLAG_WRITABLE, ps->ps_flags);
-    ASSERT_EQ(PARAM_TYPE_U64, ps->ps_type);
-    ASSERT_EQ((uintptr_t)ps->ps_convert, (uintptr_t)param_default_converter);
-    ASSERT_EQ((uintptr_t)ps->ps_validate, (uintptr_t)param_default_validator);
-    ASSERT_EQ(0, params.kvs_debug);
-    ASSERT_EQ(0, ps->ps_bounds.as_uscalar.ps_min);
-    ASSERT_EQ(128, ps->ps_bounds.as_uscalar.ps_max);
-}
-
 MTF_DEFINE_UTEST_PRE(kvs_rparams_test, kvs_cursor_ttl, test_pre)
 {
     const struct param_spec *ps = ps_get("kvs_cursor_ttl");
@@ -130,9 +115,9 @@ MTF_DEFINE_UTEST_PRE(kvs_rparams_test, perfc_level, test_pre)
     ASSERT_EQ(PARAM_TYPE_U8, ps->ps_type);
     ASSERT_EQ((uintptr_t)ps->ps_convert, (uintptr_t)param_default_converter);
     ASSERT_EQ((uintptr_t)ps->ps_validate, (uintptr_t)param_default_validator);
-    ASSERT_EQ(2, params.perfc_level);
-    ASSERT_EQ(0, ps->ps_bounds.as_uscalar.ps_min);
-    ASSERT_EQ(4, ps->ps_bounds.as_uscalar.ps_max);
+    ASSERT_EQ(PERFC_LEVEL_DEFAULT, params.perfc_level);
+    ASSERT_EQ(PERFC_LEVEL_MIN, ps->ps_bounds.as_uscalar.ps_min);
+    ASSERT_EQ(PERFC_LEVEL_MAX, ps->ps_bounds.as_uscalar.ps_max);
 }
 
 MTF_DEFINE_UTEST_PRE(kvs_rparams_test, cn_node_sisze_lo, test_pre)

@@ -148,6 +148,8 @@ def get_perfc(yml):
             value1 = "-"
             value2 = "-"
             value3 = "-"
+            total = 0
+
             if counter["type"] == "Basic":
                 value1 = counter["value"]
                 total = value1
@@ -155,12 +157,12 @@ def get_perfc(yml):
                 value1 = counter["rate"]
                 value2 = counter["curr"]
                 # value3 = counter['dt_ns']  # not very useful
-                total = value2
+                total = value1
             elif counter["type"] == "Latency":
                 value1 = counter["average"]
                 value2 = counter["min"]
                 value3 = counter["max"]
-                total = value3
+                total = value1
             elif counter["type"] == "Distribution":
                 value1 = counter["average"]
                 total = value1
