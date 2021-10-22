@@ -195,7 +195,7 @@ foreach p, p_params: programs
             e,
             args: t_params['args'],
             is_parallel: false,
-            suite: ['stress_large'],
+            suite: ['stress-large'],
             timeout: params.get('timeout', 3600),
         )
     endforeach
@@ -206,7 +206,7 @@ foreach p, p_params: programs
             e,
             args: t_params['args'],
             is_parallel: false,
-            suite: ['nightly_small'],
+            suite: ['nightly-small'],
             timeout: params.get('timeout', 1800),
         )
     endforeach

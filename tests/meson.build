@@ -28,7 +28,7 @@ add_test_setup(
     env: run_env,
     is_default: true,
     # TODO: Check with Meson 0.59 else PR to Meson...
-    exclude_suites: ['long', 'non-deterministic', 'stress', 'stress_large', 'nightly_small'] + additional_suite_exclusions,
+    exclude_suites: ['long', 'non-deterministic', 'stress', 'stress-large', 'nightly-small'] + additional_suite_exclusions,
 )
 
 add_test_setup(
@@ -41,7 +41,7 @@ add_test_setup(
     env: run_env,
     is_default: false,
     # TODO: Check with Meson 0.59 else PR to Meson...
-    exclude_suites: ['long', 'smoke', 'non-deterministic', 'stress', 'stress_large', 'nightly_small'] + additional_suite_exclusions,
+    exclude_suites: ['long', 'smoke', 'non-deterministic', 'stress', 'stress-large', 'nightly-small'] + additional_suite_exclusions,
 )
 
 subdir('framework')

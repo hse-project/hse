@@ -18,20 +18,13 @@ jobs:
         build_type: [release, debugoptimized]
 
     steps:
-    - name: Free space
+    - name: Freeing up disk space on CI system
       run: |
-        echo "=============================================================================="
-        echo "Freeing up disk space on CI system"
-        echo "=============================================================================="
-
-        echo "Listing 100 largest packages"
-        dpkg-query -Wf '${Installed-Size}\t${Package}\n' | sort -n | tail -n 100
         df -h
         echo "Removing large packages"
         sudo apt-get remove -y azure-cli google-cloud-sdk hhvm google-chrome-stable firefox powershell mono-devel
         sudo apt-get autoremove -y
         sudo apt-get clean
-        df -h
         echo "Removing large directories"
         # deleting 15GB
         rm -rf /usr/share/dotnet/
@@ -55,11 +48,11 @@ jobs:
 
     - name: Build setup with YCSB, tools and configs
       run: |
-        poetry run meson builddir -Dbuildtype=${{ matrix.build_type }} -Dycsb=true -Dwrap_mode=forcefallback
+        poetry run meson builddir -Dbuildtype=${{ matrix.build_type }} -Dycsb=true
 
     - name: Run tests
       run: |
-        poetry run meson test -C builddir --suite=nightly_small --print-errorlogs --no-stdsplit
+        poetry run meson test -C builddir --suite=nightly-small --print-errorlogs --no-stdsplit
 
     - uses: actions/upload-artifact@v2
       if: failure()
