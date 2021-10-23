@@ -12,7 +12,9 @@
 #include <hse_util/time.h>
 #include <hse_util/list.h>
 
+#ifndef HSE_HZ
 #define HSE_HZ  1000
+#endif
 
 #define MAX_JIFFY_OFFSET    ((LONG_MAX >> 1) - 1)
 #define USEC_PER_JIFFY      (USEC_PER_SEC / HSE_HZ)
