@@ -5,11 +5,11 @@
 
 #include <hse_ut/framework.h>
 
+#include <hse_util/arch.h>
 #include <hse_util/slab.h>
 #include <hse_util/inttypes.h>
 #include <hse_util/hse_err.h>
 #include <hse_util/timer.h>
-#include <hse_util/timing.h>
 #include <hse_util/logging.h>
 
 int

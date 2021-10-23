@@ -16,7 +16,6 @@
 #include <hse_util/event_counter.h>
 #include <hse_util/perfc.h>
 #include <hse_util/darray.h>
-#include <hse_util/timing.h>
 #include <hse_util/fmt.h>
 #include <hse_util/byteorder.h>
 #include <hse_util/slab.h>

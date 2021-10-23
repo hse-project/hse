@@ -10,11 +10,11 @@
 #include <hdr/hdr_histogram.h>
 #endif
 
+#include <hse_util/arch.h>
 #include <hse_util/alloc.h>
 #include <hse_util/page.h>
 #include <hse_util/inttypes.h>
 #include <hse_util/log2.h>
-#include <hse_util/timing.h>
 #include <hse_util/workqueue.h>
 
 #include "deviceprofile.h"

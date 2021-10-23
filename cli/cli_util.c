@@ -12,7 +12,7 @@
 #include <hse_util/inttypes.h>
 #include <hse_util/yaml.h>
 #include <hse_util/rest_api.h>
-#include <hse_util/timing.h>
+#include <hse_util/arch.h>
 #include <hse_util/parse_num.h>
 #include <hse_util/string.h>
 

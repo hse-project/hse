@@ -9,7 +9,6 @@
 #include <hse_util/minmax.h>
 #include <hse_util/spinlock.h>
 #include <hse_util/assert.h>
-#include <hse_util/timing.h>
 #include <hse_util/log2.h>
 #include <hse_util/page.h>
 #include <hse_util/seqno.h>

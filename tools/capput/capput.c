@@ -49,7 +49,6 @@
 #include <hse_util/compiler.h>
 #include <hse_util/inttypes.h>
 #include <hse_util/time.h>
-#include <hse_util/timing.h>
 
 #include <cli/param.h>
 

@@ -18,10 +18,10 @@
 #include <hse/hse.h>
 #include <xoroshiro.h>
 
+#include <hse_util/arch.h>
 #include <hse_util/compiler.h>
 #include <hse_util/inttypes.h>
 #include <hse_util/minmax.h>
-#include <hse_util/timing.h>
 
 #include <tools/parm_groups.h>
 

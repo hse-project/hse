@@ -3,8 +3,8 @@
  * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
+#include <hse_util/arch.h>
 #include <hse_util/condvar.h>
-#include <hse_util/timing.h>
 
 void
 cv_init(struct cv *cv, const char *desc)

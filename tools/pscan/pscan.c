@@ -27,10 +27,11 @@
 #include <hse/flags.h>
 
 #include <xxhash.h>
+
+#include <hse_util/arch.h>
 #include <hse_util/event_timer.h>
 #include <hse_util/fmt.h>
 #include <hse_util/inttypes.h>
-#include <hse_util/timing.h>
 
 #include <tools/common.h>
 #include <tools/parm_groups.h>

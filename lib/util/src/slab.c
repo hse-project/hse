@@ -36,7 +36,6 @@
 
 #include <hse_util/mutex.h>
 #include <hse_util/spinlock.h>
-#include <hse_util/timing.h>
 #include <hse_util/minmax.h>
 #include <hse_util/string.h>
 #include <hse_util/workqueue.h>

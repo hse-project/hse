@@ -6,12 +6,12 @@
 #ifndef HSE_BONSAI_TREE_PVT_H
 #define HSE_BONSAI_TREE_PVT_H
 
-#include <hse_util/string.h>
+#include <hse_util/arch.h>
 #include <hse_util/alloc.h>
 #include <hse_util/slab.h>
 #include <hse_util/bonsai_tree.h>
 #include <hse_util/assert.h>
-#include <hse_util/timing.h>
+#include <hse_util/string.h>
 
 enum bonsai_match_type {
     B_MATCH_EQ = 0,

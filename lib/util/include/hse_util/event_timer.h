@@ -6,8 +6,8 @@
 #ifndef HSE_PLATFORM_EVENT_TIMER_H
 #define HSE_PLATFORM_EVENT_TIMER_H
 
+#include <hse_util/arch.h>
 #include <hse_util/compiler.h>
-#include <hse_util/timing.h>
 #include <hse_util/atomic.h>
 
 /*
