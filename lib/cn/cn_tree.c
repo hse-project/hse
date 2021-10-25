@@ -3303,11 +3303,13 @@ void
 cn_comp(struct cn_compaction_work *w)
 {
     u64               tstart;
+    struct cn        *cn = w->cw_tree->cn;
     struct perfc_set *pc = w->cw_pc;
 
     tstart = perfc_lat_start(pc);
     cn_comp_compact(w);
 
+    cn_ref_get(cn);
     if (w->cw_rspill_conc) {
         struct cn_tree_node *node;
 
@@ -3323,7 +3325,9 @@ cn_comp(struct cn_compaction_work *w)
         /* Non-root spill (only one at a time per node). */
         cn_comp_finish(w);
     }
+
     perfc_lat_record(pc, PERFC_LT_CNCOMP_TOTAL, tstart);
+    cn_ref_put(cn);
 }
 
 /**
