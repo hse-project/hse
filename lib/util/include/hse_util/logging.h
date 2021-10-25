@@ -6,11 +6,11 @@
 #ifndef HSE_PLATFORM_LOGGING_H
 #define HSE_PLATFORM_LOGGING_H
 
+#include <hse_util/arch.h>
 #include <hse_util/inttypes.h>
 #include <hse_util/compiler.h>
 #include <hse_util/data_tree.h>
 #include <hse_util/event_counter.h>
-#include <hse_util/timing.h>
 #include <hse_util/logging_types.h>
 #include <hse_ikvdb/hse_gparams.h>
 

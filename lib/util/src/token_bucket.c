@@ -5,7 +5,7 @@
 
 #define MTF_MOCK_IMPL_token_bucket
 
-#include <hse_util/timing.h>
+#include <hse_util/arch.h>
 #include <hse_util/timer.h>
 #include <hse_util/token_bucket.h>
 

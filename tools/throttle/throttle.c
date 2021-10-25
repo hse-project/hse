@@ -17,12 +17,12 @@
 
 #include <hse/hse.h>
 
+#include <hse_util/arch.h>
 #include <hse_util/atomic.h>
 #include <hse_util/compiler.h>
 #include <hse_util/inttypes.h>
 #include <hse_util/parse_num.h>
 #include <hse_util/time.h>
-#include <hse_util/timing.h>
 
 #include <tools/parm_groups.h>
 

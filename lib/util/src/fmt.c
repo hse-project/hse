@@ -4,7 +4,6 @@
  */
 
 #include <hse_util/inttypes.h>
-#include <hse_util/timing.h>
 
 /* Append a single byte to buffer at given offset and update offset by 1.
  * If buffer is full, byte is not appended but offset is still updated.

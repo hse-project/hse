@@ -6,7 +6,6 @@
 #include <hse_util/platform.h>
 #include <hse_util/hse_err.h>
 #include <hse_util/event_counter.h>
-#include <hse_util/timing.h>
 #include <hse_util/alloc.h>
 #include <hse_util/slab.h>
 #include <hse_util/condvar.h>

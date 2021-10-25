@@ -138,7 +138,6 @@
 #include <hse_util/log2.h>
 #include <hse_util/minmax.h>
 #include <hse_util/page.h>
-#include <hse_util/timing.h>
 #include <hse_util/hse_err.h>
 
 #include <hse_ikvdb/kvs_rparams.h>

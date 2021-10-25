@@ -1,19 +1,26 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Copyright (C) 2015-2020 Micron Technology, Inc.  All rights reserved.
+ * Copyright (C) 2015-2021 Micron Technology, Inc.  All rights reserved.
  */
 
+#include <hse_util/arch.h>
 #include <hse_util/condvar.h>
-#include <hse_util/timing.h>
 
 void
 cv_init(struct cv *cv, const char *desc)
 {
-    pthread_cond_t cond = PTHREAD_COND_INITIALIZER;
+    pthread_condattr_t attrs;
+    int rc;
+
+    rc = pthread_condattr_init(&attrs);
+    rc |= pthread_condattr_setclock(&attrs, CLOCK_MONOTONIC);
+    rc |= pthread_cond_init(&cv->cv_waitq, &attrs);
+    rc |= pthread_condattr_destroy(&attrs);
+    if (rc)
+        abort();
 
     cv->cv_desc = desc;
     cv->cv_waiters = 0;
-    cv->cv_waitq = cond;
 }
 
 void
@@ -43,7 +50,7 @@ cv_timedwait(struct cv *cv, struct mutex *mtx, const int timeout)
         return 0;
     }
 
-    get_realtime(&ts);
+    clock_gettime(CLOCK_MONOTONIC, &ts);
 
     ts.tv_nsec += (timeout % 1000) * 1000000;
     ts.tv_sec += (timeout / 1000) + (ts.tv_nsec / 1000000000);

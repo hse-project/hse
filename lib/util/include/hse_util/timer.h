@@ -12,12 +12,6 @@
 #include <hse_util/time.h>
 #include <hse_util/list.h>
 
-#define HSE_HZ  1000
-
-#define MAX_JIFFY_OFFSET    ((LONG_MAX >> 1) - 1)
-#define USEC_PER_JIFFY      (USEC_PER_SEC / HSE_HZ)
-#define NSEC_PER_JIFFY      (NSEC_PER_SEC / HSE_HZ)
-
 struct timer_jclock {
     atomic64_t  jc_jclock_ns;
     atomic64_t  jc_jiffies;

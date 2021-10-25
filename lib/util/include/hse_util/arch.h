@@ -97,9 +97,17 @@ get_cycles(void)
     return ptr->tod;
 }
 
-#else
+static HSE_ALWAYS_INLINE uint64_t
+get_time_ns(void)
+{
+    __uint128_t cycles = get_cycles() >> 2;
 
-#include <hse_util/timing.h>
+    /* Convert from fractions of (usecs / 1024) to nsecs.
+     */
+    return (cycles * 1000) / 1024;
+}
+
+#else
 
 #define get_cycles()    get_time_ns()
 #endif
@@ -113,6 +121,19 @@ cpu_relax(void)
     barrier();
 }
 
+#endif
+
+
+#if !__s390x__
+static HSE_ALWAYS_INLINE uint64_t
+get_time_ns(void)
+{
+    struct timespec ts;
+
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+
+    return (uint64_t)ts.tv_sec * 1000000000ULL + ts.tv_nsec;
+}
 #endif
 
 
