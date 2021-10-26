@@ -31,6 +31,8 @@ test_macros(struct mtf_test_info *lcl_ti)
     res = ilog2(70);
     ASSERT_EQ(6, res);
 
+    res = roundup_pow_of_two(0);
+    ASSERT_EQ(1, res);
     res = roundup_pow_of_two(1);
     ASSERT_EQ(1, res);
     res = roundup_pow_of_two(31);
@@ -42,6 +44,8 @@ test_macros(struct mtf_test_info *lcl_ti)
     res = roundup_pow_of_two(70);
     ASSERT_EQ(128, res);
 
+    res = rounddown_pow_of_two(0);
+    ASSERT_EQ(1, res);
     res = rounddown_pow_of_two(1);
     ASSERT_EQ(1, res);
     res = rounddown_pow_of_two(31);
@@ -52,17 +56,6 @@ test_macros(struct mtf_test_info *lcl_ti)
     ASSERT_EQ(32, res);
     res = rounddown_pow_of_two(70);
     ASSERT_EQ(64, res);
-
-    res = order_base_2(1);
-    ASSERT_EQ(0, res);
-    res = order_base_2(31);
-    ASSERT_EQ(5, res);
-    res = order_base_2(32);
-    ASSERT_EQ(5, res);
-    res = order_base_2(33);
-    ASSERT_EQ(6, res);
-    res = order_base_2(70);
-    ASSERT_EQ(7, res);
 }
 
 void

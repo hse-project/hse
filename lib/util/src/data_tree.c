@@ -11,7 +11,6 @@
 #include <hse_util/string.h>
 #include <hse_util/invariant.h>
 #include <hse_util/event_counter.h>
-#include <hse_util/config.h>
 #include <hse_util/data_tree.h>
 
 #include <rbtree.h>
@@ -201,8 +200,12 @@ dt_add_pending(struct dt_tree *tree)
 
         rc = dt_add_pending_dte(tree, dte);
 
-        if (ev(rc) && dte->dte_ops->dto_remove)
-            dte->dte_ops->dto_remove(dte);
+        /* Failure to add likely means that the caller tried to
+         * install mulitple counters with identical paths.  This
+         * shouldn't happen outside development of new counters.
+         */
+        assert(rc == 0);
+        ev_warn(rc);
     }
 }
 
@@ -220,9 +223,10 @@ dt_add(struct dt_element *dte)
 
     /* Check the pending list to protect against broken or malicious
      * callers trying to add the same dte more than once.  There is
-     * still a case where the new dte is already in the rb tree, and
-     * attempts to insert it will fail, but caller will be notified
-     * only asynchronously via the remove() callback.
+     * still a case where the new dte is in the active rb tree so
+     * async attempts by dt_add_pending() to insert it will fail.
+     * In this case we assert if assert is enabled, otherwise we
+     * we simply record the event with an event counter.
      */
     mutex_lock(&tree->dt_pending_lock);
     list_for_each_entry(item, &tree->dt_pending_list, dte_list) {
@@ -288,8 +292,8 @@ dt_find_locked(struct dt_tree *tree, const char *path, int exact)
     root = &tree->dt_root;
     node = root->rb_node;
 
-    pathlen = strnlen(path, DT_PATH_LEN);
-    if (pathlen >= DT_PATH_LEN)
+    pathlen = strnlen(path, DT_PATH_MAX);
+    if (pathlen >= DT_PATH_MAX)
         return NULL;
 
     while (node) {
@@ -366,9 +370,10 @@ dt_remove_recursive(char *path)
     struct dt_element *dte;
     struct rb_node *   node;
     int                ret = 0;
-    int                pathlen = strnlen(path, DT_PATH_LEN);
+    int                pathlen;
 
-    if (pathlen >= DT_PATH_LEN)
+    pathlen = strnlen(path, DT_PATH_MAX);
+    if (pathlen >= DT_PATH_MAX)
         return ENAMETOOLONG;
 
     dt_lock(tree);
@@ -422,11 +427,11 @@ static size_t
 emit_roots_upto(struct dt_tree *tree, const char *path, struct yaml_context *yc)
 {
     size_t count = 0;
-    char my_path[DT_PATH_LEN];
+    char my_path[DT_PATH_MAX];
     char *saveptr = NULL;
     int pathlen;
 
-    pathlen = strlcpy(my_path, path, DT_PATH_LEN);
+    pathlen = strlcpy(my_path, path, DT_PATH_MAX);
     if (pathlen >= sizeof(my_path))
         return 0;
 
@@ -464,8 +469,8 @@ dt_iterate_cmd(
     size_t count = 0;
     int pathlen;
 
-    pathlen = strnlen(path, DT_PATH_LEN);
-    if (pathlen >= DT_PATH_LEN)
+    pathlen = strnlen(path, DT_PATH_MAX);
+    if (pathlen >= DT_PATH_MAX)
         return 0;
 
     if (DT_OP_EMIT == op && (!dip || !dip->yc))
@@ -545,8 +550,8 @@ dt_iterate_next(const char *path, struct dt_element *previous)
     struct rb_node *   node;
     int                pathlen;
 
-    pathlen = strnlen(path, DT_PATH_LEN);
-    if (pathlen >= DT_PATH_LEN)
+    pathlen = strnlen(path, DT_PATH_MAX);
+    if (pathlen >= DT_PATH_MAX)
         return NULL;
 
     dt_lock(tree);

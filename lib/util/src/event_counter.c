@@ -119,25 +119,25 @@ static size_t
 ev_emit_handler(struct dt_element *dte, struct yaml_context *yc)
 {
     struct event_counter *ec = dte->dte_data;
-    char                  value[DT_PATH_LEN];
+    char                  value[128];
     int                   odometer_val = atomic_read(&ec->ev_odometer);
 
     yaml_start_element(yc, "path", dte->dte_path);
 
-    snprintf(value, DT_PATH_LEN, "%s", hse_logprio_val_to_name(ec->ev_pri));
+    snprintf(value, sizeof(value), "%s", hse_logprio_val_to_name(ec->ev_pri));
     yaml_element_field(yc, "level", value);
 
-    snprintf(value, DT_PATH_LEN, "%d", odometer_val);
+    snprintf(value, sizeof(value), "%d", odometer_val);
     yaml_element_field(yc, "odometer", value);
 
-    snprintf_timestamp(value, DT_PATH_LEN, &ec->ev_odometer_timestamp);
+    snprintf_timestamp(value, sizeof(value), &ec->ev_odometer_timestamp);
     yaml_element_field(yc, "odometer timestamp", value);
 
     if (ec->ev_trip_odometer != 0) {
-        snprintf(value, DT_PATH_LEN, "%d", odometer_val - ec->ev_trip_odometer);
+        snprintf(value, sizeof(value), "%d", odometer_val - ec->ev_trip_odometer);
         yaml_element_field(yc, "trip odometer", value);
 
-        snprintf_timestamp(value, DT_PATH_LEN, &ec->ev_trip_odometer_timestamp);
+        snprintf_timestamp(value, sizeof(value), &ec->ev_trip_odometer_timestamp);
         yaml_element_field(yc, "trip odometer timestamp", value);
     }
 

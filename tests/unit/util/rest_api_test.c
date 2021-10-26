@@ -91,8 +91,8 @@ MTF_DEFINE_UTEST_PREPOST(rest_api, put_handler_test, rest_start, rest_stop)
 {
     char                  buf[64 * 1024];
     merr_t                err;
-    char                  path[DT_PATH_LEN];
-    char                  full_path[DT_PATH_LEN];
+    char                  path[DT_PATH_MAX];
+    char                  full_path[DT_PATH_MAX];
     int                   line;
     struct event_counter *ec;
     struct dt_element *   dte;

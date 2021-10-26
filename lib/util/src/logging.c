@@ -5,7 +5,6 @@
 
 #include <hse_util/platform.h>
 #include <hse_util/slab.h>
-#include <hse_util/config.h>
 #include <hse_util/string.h>
 #include <hse_util/mutex.h>
 #include <hse_util/parse_num.h>
