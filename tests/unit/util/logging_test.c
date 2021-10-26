@@ -6,7 +6,6 @@
 #include <hse_util/logging.h>
 #include <hse_util/hse_err.h>
 #include <hse_util/slab.h>
-#include <hse_util/config.h>
 
 #include <hse_ut/framework.h>
 

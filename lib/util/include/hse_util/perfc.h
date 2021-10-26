@@ -583,9 +583,9 @@ struct perfc_set {
  * Internal structure corresponding to a handle struct perfc_set.
  */
 struct perfc_seti {
-    char                     pcs_path[DT_PATH_LEN];
-    char                     pcs_famname[DT_PATH_ELEMENT_LEN];
-    char                     pcs_ctrseti_name[DT_PATH_ELEMENT_LEN];
+    char                     pcs_path[DT_PATH_MAX];
+    char                     pcs_famname[DT_PATH_ELEMENT_MAX];
+    char                     pcs_ctrseti_name[DT_PATH_ELEMENT_MAX];
     u32                      pcs_ctrc;
     struct perfc_set *       pcs_handle;
     const struct perfc_name *pcs_ctrnamev;

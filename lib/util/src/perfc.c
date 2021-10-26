@@ -12,7 +12,6 @@
 #include <hse_util/list.h>
 #include <hse_util/minmax.h>
 #include <hse_util/parse_num.h>
-#include <hse_util/config.h>
 #include <hse_util/log2.h>
 #include <hse_util/string.h>
 #include <hse_util/event_counter.h>
@@ -187,7 +186,7 @@ perfc_set_handler(struct dt_element *dte, struct dt_set_parameters *dsp)
 static void
 perfc_ra_emit(struct perfc_rate *rate, struct yaml_context *yc)
 {
-    char value[DT_PATH_LEN];
+    char value[DT_PATH_MAX];
     struct perfc_val *val;
     u64  dt, dx, ops;
     u64  vadd, vsub;
@@ -360,7 +359,7 @@ static size_t
 perfc_emit_handler_ctrset(struct dt_element *dte, struct yaml_context *yc)
 {
     struct perfc_seti *   seti = dte->dte_data;
-    char                  value[DT_PATH_LEN];
+    char                  value[DT_PATH_MAX];
     struct perfc_ctr_hdr *ctr_hdr;
     u32                   cidx;
 
@@ -516,7 +515,7 @@ perfc_init(void)
     u64    boundv[PERFC_IVL_MAX];
     u64    bound;
     merr_t err;
-    int    i;
+    int    rc, i;
 
     /* Create the bounds vector for the default latency distribution
      * histogram.  The first ten bounds run from 100ns to 1us with a
@@ -562,7 +561,12 @@ perfc_init(void)
     if (ev(err))
         return err;
 
-    dt_add(&hse_dte_perfc);
+    rc = dt_add(&hse_dte_perfc);
+    if (ev(rc)) {
+        perfc_ivl_destroy(perfc_di_ivl);
+        perfc_di_ivl = NULL;
+        return merr(rc);
+    }
 
     return 0;
 }
@@ -669,16 +673,13 @@ perfc_ctrseti_alloc(
 {
     struct perfc_seti *seti;
     struct dt_element *dte;
-    char               path[DT_PATH_LEN];
-    char               family[DT_PATH_ELEMENT_LEN] = "";
-    u32                err = 0;
-    const char *       famptr;
+    char               path[DT_PATH_MAX];
+    char               family[DT_PATH_ELEMENT_MAX] = "";
+    merr_t             err = 0;
     size_t             valdatasz, sz;
     void              *valdata, *valcur;
-    char *             meaning;
-    u32                famlen;
-    u32                type;
     u32                n, i;
+    int rc;
 
     assert(setp);
 
@@ -706,6 +707,9 @@ perfc_ctrseti_alloc(
      */
     for (i = 0; i < ctrc; i++) {
         const char *name = ctrv[i].pcn_name;
+        const char *famptr;
+        size_t famlen;
+        char *meaning;
 
         if (ev(perfc_ctr_name2type(name) == PERFC_TYPE_INVAL))
             return merr(EINVAL);
@@ -722,6 +726,8 @@ perfc_ctrseti_alloc(
             return merr(EINVAL);
 
         famlen = meaning - famptr;
+        if (famlen >= sizeof(family))
+            return merr(ENAMETOOLONG);
 
         /* It should be the counter meaning after <family name>_ */
         meaning++;
@@ -757,10 +763,7 @@ perfc_ctrseti_alloc(
         return 0;
     }
 
-    sz = sizeof(*dte) + sz - sizeof(dte->dte_path);
-    sz = max_t(size_t, sizeof(*dte), sz);
-
-    dte = aligned_alloc(alignof(*dte), roundup(sz, alignof(*dte)));
+    dte = aligned_alloc(alignof(*dte), sizeof(*dte));
     if (ev(!dte))
         return merr(ENOMEM);
 
@@ -776,6 +779,7 @@ perfc_ctrseti_alloc(
 
     for (n = i = 0; i < ctrc; ++i) {
         const struct perfc_name *entry = &ctrv[i];
+        enum perfc_type type;
 
         type = perfc_ctr_name2type(entry->pcn_name);
 
@@ -812,6 +816,7 @@ perfc_ctrseti_alloc(
         const struct perfc_name *entry = &ctrv[i];
         struct perfc_ctr_hdr *   pch;
         const struct perfc_ivl * ivl;
+        enum perfc_type type;
 
         ivl = entry->pcn_ivl ?: perfc_di_ivl;
         type = perfc_ctr_name2type(entry->pcn_name);
@@ -850,18 +855,23 @@ perfc_ctrseti_alloc(
         }
     }
 
-    if (ev(err)) {
-        free_aligned(seti);
-        free(dte);
-        return err;
+    if (!err) {
+        dte->dte_data = seti;
+        setp->ps_seti = seti;
+
+        rc = dt_add(dte);
+        if (ev(rc))
+            err = merr(rc);
     }
 
-    dte->dte_data = seti;
-    dt_add(dte);
+    if (err) {
+        setp->ps_bitmap = 0;
+        setp->ps_seti = NULL;
+        free_aligned(seti);
+        free(dte);
+    }
 
-    setp->ps_seti = seti;
-
-    return 0;
+    return err;
 }
 
 void
@@ -898,7 +908,7 @@ perfc_ctrseti_invalidate_handle(struct perfc_set *set)
     struct dt_set_parameters    dsp;
     union dt_iterate_parameters dip = {.dsp = &dsp };
     struct perfc_seti *         seti = set->ps_seti;
-    char                        path[DT_PATH_LEN];
+    char                        path[DT_PATH_MAX];
 
     if (seti == NULL)
         return;

@@ -481,7 +481,7 @@ worker(void *context, int id)
         }
         if (work->work_type & WORK_TYPE_FIND) {
             for (i = 0; i < work->count_per_loop; i++) {
-                char path[DT_PATH_LEN];
+                char path[DT_PATH_MAX];
 
                 sprintf(path, "%s/worker%d/node%d", DT_PATH_TEST, id, i);
                 dte = dt_find(path, 1);
@@ -493,7 +493,7 @@ worker(void *context, int id)
             }
         }
         if (work->work_type & WORK_TYPE_ITER) {
-            char   path[DT_PATH_LEN];
+            char   path[DT_PATH_MAX];
             char * buf;
             size_t buf_sz;
             size_t iter_count = 0;
@@ -515,7 +515,7 @@ worker(void *context, int id)
             free(buf);
         }
         if (work->work_type & WORK_TYPE_DEL) {
-            char path[DT_PATH_LEN];
+            char path[DT_PATH_MAX];
 
             sprintf(path, "%s/worker%d", DT_PATH_TEST, id);
             found = dt_iterate_next(path, NULL);

@@ -44,20 +44,15 @@ enum { DT_OP_INVALID, DT_OP_EMIT, DT_OP_SET, DT_OP_COUNT, DT_OP_LOG };
 
 /* clang-format on */
 
-/* DT_PATH_SZ restricts the path size of a statically allocated dt_element,
- * while DT_PATH_LEN restricts the size of a dynamically allocated dt_element.
+/* DT_PATH_SZ restricts the path size of a statically allocated dt_element
+ * to avoid wasting too much space.
  *
- * DT_PATH_SZ is sized such that when statically allocated along with an
- * event counter the total size of both is 256 bytes (to maximize page
- * density and reduce waste).
- *
- * [MU_REVISIT] We can eliminate dte_pathbuf and support for dynamic dte
- * allocation once we have replaced the kvdb name in the path with it's
- * inode number.
+ * [MU_REVISIT] Reduce the size of DT_PATH_MAX to (192 - DTE_PATH_OFFSET)
+ * once we have replaced the kvdb name in the path with it's inode number.
  */
-#define DT_PATH_SZ                ((64 * 3) - 80)
-#define DT_PATH_LEN               (256)
-#define DT_PATH_ELEMENT_LEN       (32)
+#define DT_PATH_ELEMENT_MAX       (32)
+#define DTE_PATH_OFFSET           (80)
+#define DT_PATH_MAX               (256 - DTE_PATH_OFFSET)
 
 #define DT_PATH_ROOT              "/data"
 #define DT_PATH_EVENT             "/data/event_counter"
@@ -78,9 +73,11 @@ struct dt_element {
     int                     dte_line;
     const char             *dte_file;
     const char             *dte_func;
-    char                    dte_path[DT_PATH_SZ]; /* whole path */
-    char                    dte_pathbuf[];
+    char                    dte_path[DT_PATH_MAX]; /* whole path */
 } HSE_ALIGNED(64);
+
+static_assert(offsetof(struct dt_element, dte_path) == DTE_PATH_OFFSET,
+              "invalid pre-computed dte_path offset");
 
 /* clang-format on */
 

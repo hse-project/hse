@@ -88,8 +88,8 @@ MTF_DEFINE_UTEST(event_counter, ev_create_and_find)
      * purposes, we'll be setting it with the individual functions.
      */
     const char *phile = basename(__FILE__);
-    char        fuzzy_path[DT_PATH_LEN];
-    char        direct_path[DT_PATH_LEN];
+    char        fuzzy_path[DT_PATH_MAX];
+    char        direct_path[DT_PATH_MAX];
 
     snprintf(fuzzy_path, sizeof(fuzzy_path), "%s/%s/%s", DT_PATH_EVENT, COMPNAME, phile);
 
@@ -197,7 +197,7 @@ timestamp_compare(atomic64_t *o, atomic64_t *t)
  */
 MTF_DEFINE_UTEST(event_counter, ev_odometer_timestamp)
 {
-    char                  direct_path[DT_PATH_LEN];
+    char                  direct_path[DT_PATH_MAX];
     struct event_counter *ec;
     struct dt_element *   direct;
     atomic64_t            before, after;
@@ -251,7 +251,7 @@ MTF_DEFINE_UTEST(event_counter, ev_odometer_timestamp)
  */
 MTF_DEFINE_UTEST(event_counter, ev_odometer_counter)
 {
-    char                  direct_path[DT_PATH_LEN];
+    char                  direct_path[DT_PATH_MAX];
     struct event_counter *ec;
     struct dt_element *   direct;
     const char *          phile = basename(__FILE__);
@@ -313,7 +313,7 @@ MTF_DEFINE_UTEST(event_counter, ev_odometer_counter)
  */
 MTF_DEFINE_UTEST(event_counter, ev_timestamp_advance)
 {
-    char                  direct_path[DT_PATH_LEN];
+    char                  direct_path[DT_PATH_MAX];
     struct event_counter *ec;
     struct dt_element *   direct;
     const char *          phile = basename(__FILE__);
@@ -367,7 +367,7 @@ MTF_DEFINE_UTEST(event_counter, ev_timestamp_advance)
  */
 MTF_DEFINE_UTEST(event_counter, ev_trip_odometer_timestamp)
 {
-    char                        direct_path[DT_PATH_LEN];
+    char                        direct_path[DT_PATH_MAX];
     struct event_counter *      ec;
     struct dt_element *         direct;
     atomic64_t                  before, after;
@@ -441,7 +441,7 @@ MTF_DEFINE_UTEST(event_counter, ev_trip_odometer_timestamp)
  */
 MTF_DEFINE_UTEST(event_counter, ev_trip_odometer_counter)
 {
-    char                        direct_path[DT_PATH_LEN];
+    char                        direct_path[DT_PATH_MAX];
     struct event_counter *      ec;
     struct dt_element *         direct;
     const char *                phile = basename(__FILE__);
@@ -589,7 +589,7 @@ validate_buf(
 MTF_DEFINE_UTEST(event_counter, ev_emit)
 {
     const char *        phile = basename(__FILE__);
-    char                direct_path[DT_PATH_LEN];
+    char                direct_path[DT_PATH_MAX];
     struct yaml_context yc = {
         .yaml_indent = 0, .yaml_offset = 0,
     };
@@ -651,7 +651,7 @@ MTF_DEFINE_UTEST(event_counter, ev_emit)
  */
 MTF_DEFINE_UTEST(event_counter, ev_counts)
 {
-    char   fuzzy_path[DT_PATH_LEN];
+    char   fuzzy_path[DT_PATH_MAX];
     size_t count;
 
     snprintf(fuzzy_path, sizeof(fuzzy_path), "%s/%s/%s/%s",
@@ -679,7 +679,7 @@ MTF_DEFINE_UTEST(event_counter, ev_counts)
 MTF_DEFINE_UTEST(event_counter, ev_delete_protect)
 {
     const char *       phile = basename(__FILE__);
-    char               direct_path[DT_PATH_LEN];
+    char               direct_path[DT_PATH_MAX];
     struct dt_element *direct_before, *direct_after;
     int                line;
     int                ret;
@@ -719,7 +719,7 @@ MTF_DEFINE_UTEST(event_counter, ev_delete_protect)
 MTF_DEFINE_UTEST(event_counter, ev_emit_overflow)
 {
     const char *        phile = basename(__FILE__);
-    char                direct_path[DT_PATH_LEN];
+    char                direct_path[DT_PATH_MAX];
     struct yaml_context yc = {
         .yaml_indent = 0, .yaml_offset = 0,
     };
@@ -797,7 +797,7 @@ MTF_DEFINE_UTEST(event_counter, ev_emit_overflow)
  */
 MTF_DEFINE_UTEST(event_counter, ev_put_invalid_field)
 {
-    char                        direct_path[DT_PATH_LEN];
+    char                        direct_path[DT_PATH_MAX];
     const char *                phile = basename(__FILE__);
     int                         line;
     int                         count;
