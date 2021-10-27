@@ -21,91 +21,11 @@ logging_result shared_result;
  * be changed if the tests had to run multi-threaded.
  */
 
-#if defined(__HSE_KERNEL_UT__)
-
-/*
- * Side-effect of slab.h
- */
-#ifdef printk
-#undef printk
-#endif
-
-int
-printk(const char *fmt, ...)
-{
-    int     rc;
-    va_list args;
-
-    va_start(args, fmt);
-    rc = vprintf(fmt, args);
-    va_end(args);
-
-    return rc;
-}
-
-int
-printk_emit(int facility, int level, const char *dict, size_t dictlen, const char *fmt, ...)
-{
-    int     rc;
-    va_list args;
-
-    va_start(args, fmt);
-    rc = vprintk_emit(facility, level, dict, dictlen, fmt, args);
-    va_end(args);
-
-    return rc;
-}
-
-int
-vprintk_emit(
-    int         facility,
-    int         level,
-    const char *dict,
-    size_t      dictlen,
-    const char *fmt,
-    va_list     args)
-{
-    int rc;
-
-    rc = vsnprintf(shared_result.msg_buffer, MAX_MSG_SIZE, fmt, args);
-
-    const char *p = dict;
-    int         index = 0;
-
-    while (p < (dict + dictlen) && index < MAX_NV_PAIRS) {
-        char *q = shared_result.names[index];
-
-        while (p < (dict + dictlen) && *p != '=')
-            *q++ = *p++;
-        *q = 0;
-
-        if (*p != '=')
-            break;
-
-        ++p;
-        q = shared_result.values[index];
-
-        while (p < (dict + dictlen) && *p != 0)
-            *q++ = *p++;
-        *q = 0;
-
-        ++p;
-        ++index;
-    }
-
-    shared_result.count = index;
-
-    return rc;
-}
-
-#else  /* defined(__HSE_KERNEL_UT__) */
-
 void
 vsyslog(int priority, const char *fmt, va_list args)
 {
     vsnprintf(shared_result.msg_buffer, MAX_MSG_SIZE, fmt, args);
 }
-#endif /* defined(__HSE_KERNEL_UT__) */
 
 void
 test_preprocess_fmt_string(

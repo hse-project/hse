@@ -276,8 +276,6 @@ MTF_DEFINE_UTEST(hse_logging_test, Test_register)
     ASSERT_TRUE(hse_log_deregister('T'));
 }
 
-#if !defined(__HSE_KERNEL_UT__)
-
 MTF_DEFINE_UTEST(hse_logging_test, Test_preprocess_fmt_string_std)
 {
     char                     reference[1000], scratch[1000], check[1000];
@@ -438,8 +436,6 @@ MTF_DEFINE_UTEST(hse_logging_test, Test_preprocess_fmt_string_std)
         ASSERT_STREQ(reference, check);
     }
 }
-
-#endif /* !defined(__HSE_KERNEL_UT__) */
 
 MTF_DEFINE_UTEST(hse_logging_test, Test_log_call)
 {
