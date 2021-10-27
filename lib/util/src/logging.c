@@ -122,24 +122,6 @@ _hse_log_async_cons_th(struct work_struct *wstruct)
     mutex_unlock(&async->al_lock);
 }
 
-static merr_t
-get_log_level(const char *str, void *dst, size_t dstsz)
-{
-    merr_t err;
-    u64    num;
-
-    if (PARAM_GET_INVALID(log_priority_t, dst, dstsz))
-        return merr(EINVAL);
-
-    err = parse_u64(str, &num);
-    if (err)
-        *(log_priority_t *)dst = hse_logpri_name_to_val(str);
-    else
-        *(log_priority_t *)dst = num;
-
-    return 0;
-}
-
 merr_t
 hse_logging_init(void)
 {
@@ -277,29 +259,6 @@ out_err:
     destroy_workqueue(wq);
 
     return err;
-}
-
-merr_t
-log_level_validator(
-    const char *              instance,
-    const char *              path,
-    struct dt_set_parameters *dsp,
-    void *                    dfault,
-    void *                    rock,
-    char *                    errbuf,
-    size_t                    errbuf_sz)
-{
-    int    level;
-    merr_t err;
-
-    err = get_log_level(dsp->value, &level, sizeof(level));
-    if (err)
-        return merr(EINVAL);
-
-    if ((level < HSE_LOGPRI_EMERG) || (level > HSE_LOGPRI_DEBUG))
-        return merr(EINVAL);
-
-    return 0;
 }
 
 void
